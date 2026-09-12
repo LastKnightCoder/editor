@@ -23,6 +23,8 @@ type SettingsScreenProps = SettingsPageProps & {
   onOpenModule: (module: SettingModuleKey) => void;
   /** 功能宫格：任务中心（模块启用时展示） */
   onOpenTodo?: () => void;
+  /** 功能宫格：番茄专注（模块启用时展示） */
+  onOpenPomodoro?: () => void;
   /** 页头：全局搜索 */
   onOpenSearch?: () => void;
   /** 功能宫格：文章 / 项目 / 知识库 */
@@ -34,6 +36,7 @@ type SettingsScreenProps = SettingsPageProps & {
 /** 功能宫格：已上线模块直达 + 桌面版待迁移模块预告（v2 我的 Hub） */
 function FeatureGrid(props: {
   onOpenTodo?: () => void;
+  onOpenPomodoro?: () => void;
   onOpenArticles?: () => void;
   onOpenProjects?: () => void;
   onOpenKnowledge?: () => void;
@@ -103,8 +106,7 @@ function FeatureGrid(props: {
       tone: "var(--rose)",
       label: "番茄",
       soft: "var(--rose-soft)",
-      soon: true,
-      onClick: () => toast({ type: "info", text: "番茄专注即将上线" }),
+      onClick: props.onOpenPomodoro ?? (() => toast({ type: "info", text: "番茄模块未启用" })),
     },
   ];
 
@@ -154,12 +156,13 @@ export function SettingsPage(props: SettingsScreenProps) {
 
       <div
         ref={scrollRef}
-        className="edge-fade-scroll mobile-kb-scroll flex-1 overflow-y-auto px-4"
+        className="edge-fade-scroll dock-pad mobile-kb-scroll flex-1 overflow-y-auto px-4"
         style={{ paddingBottom: "calc(var(--dock-visual-height) + 28px + var(--kb-height, 0px))" }}
       >
         <div className="mt-4">
           <FeatureGrid
             onOpenTodo={props.onOpenTodo}
+            onOpenPomodoro={props.onOpenPomodoro}
             onOpenArticles={props.onOpenArticles}
             onOpenProjects={props.onOpenProjects}
             onOpenKnowledge={props.onOpenKnowledge}

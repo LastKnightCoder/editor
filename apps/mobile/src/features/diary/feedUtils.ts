@@ -49,11 +49,16 @@ export function computeWeekDots(
   });
 }
 
+/** 片段被删光后残留的空壳 entry 不算一篇日记：展示与统计都应忽略 */
+export function hasDiaryContent(entry: DiaryEntry): boolean {
+  return (entry.segments?.length ?? 0) > 0;
+}
+
 /** 从日记集合提取「日记」类型的有记录日期 */
 export function collectDailyDates(entries: DiaryEntry[] | undefined): Set<string> {
   const keys = new Set<string>();
   (entries ?? []).forEach(entry => {
-    if (entry.type === "daily") keys.add(entry.date);
+    if (entry.type === "daily" && hasDiaryContent(entry)) keys.add(entry.date);
   });
   return keys;
 }

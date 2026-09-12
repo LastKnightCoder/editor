@@ -149,7 +149,12 @@ fn load_item_children(tx: &Connection, item_id: i64) -> Result<Vec<i64>, String>
     Ok(parse_id_array(raw.flatten()))
 }
 
-fn attach_item(tx: &Connection, document_id: i64, parent_id: Option<i64>, child_id: i64) -> Result<(), String> {
+fn attach_item(
+    tx: &Connection,
+    document_id: i64,
+    parent_id: Option<i64>,
+    child_id: i64,
+) -> Result<(), String> {
     let now = now_millis();
     if let Some(pid) = parent_id {
         let mut children = load_item_children(tx, pid)?;
@@ -206,13 +211,22 @@ fn attach_item(tx: &Connection, document_id: i64, parent_id: Option<i64>, child_
     }
     tx.execute(
         "UPDATE document_items SET parents = ?1, documents = ?2 WHERE id = ?3",
-        params![serialize_id_array(&parents), serialize_id_array(&documents), child_id],
+        params![
+            serialize_id_array(&parents),
+            serialize_id_array(&documents),
+            child_id
+        ],
     )
     .map_err(|e| db_err("DOCUMENT_UPDATE_FAILED", "update item parents", e))?;
     Ok(())
 }
 
-fn detach_item_from_parent(tx: &Connection, parent_id: Option<i64>, child_id: i64, document_id: i64) -> Result<(), String> {
+fn detach_item_from_parent(
+    tx: &Connection,
+    parent_id: Option<i64>,
+    child_id: i64,
+    document_id: i64,
+) -> Result<(), String> {
     let now = now_millis();
     if let Some(pid) = parent_id {
         let children = load_item_children(tx, pid)?;
@@ -293,7 +307,9 @@ fn detach_or_delete_subtree(
             continue;
         };
         // 子树外的父节点或其他知识库仍在引用：从该节点移除指向子树内的父子关系与本库引用，保留节点
-        let external_parent = parents.iter().any(|p| !in_subtree(*p) && Some(*p) != root_parent);
+        let external_parent = parents
+            .iter()
+            .any(|p| !in_subtree(*p) && Some(*p) != root_parent);
         let external_document = documents.iter().any(|d| *d != owner_document_id);
         if external_parent || external_document {
             let next_parents: Vec<i64> = parents
@@ -346,13 +362,20 @@ fn detach_or_delete_subtree(
 }
 
 #[tauri::command]
-pub fn document_library_list(app: AppHandle, payload: Option<DocumentLibraryListPayload>) -> Result<DocumentLibraryListResponse, String> {
+pub fn document_library_list(
+    app: AppHandle,
+    payload: Option<DocumentLibraryListPayload>,
+) -> Result<DocumentLibraryListResponse, String> {
     let conn = schema::open_active_database(&app)?;
     let total: i64 = conn
         .query_row("SELECT COUNT(1) FROM documents", [], |row| row.get(0))
         .map_err(|e| db_err("DOCUMENT_QUERY_FAILED", "count documents", e))?;
     let offset = payload.as_ref().and_then(|p| p.offset).unwrap_or(0).max(0);
-    let limit = payload.as_ref().and_then(|p| p.limit).unwrap_or(40).clamp(1, 200);
+    let limit = payload
+        .as_ref()
+        .and_then(|p| p.limit)
+        .unwrap_or(40)
+        .clamp(1, 200);
     let mut stmt = conn
         .prepare(
             "SELECT d.id, d.title, d.desc, d.children, d.is_top, d.create_time, d.update_time,
@@ -377,7 +400,10 @@ pub fn document_library_list(app: AppHandle, payload: Option<DocumentLibraryList
 }
 
 #[tauri::command]
-pub fn document_library_get(app: AppHandle, payload: DocumentIdPayload) -> Result<DocumentLibrary, String> {
+pub fn document_library_get(
+    app: AppHandle,
+    payload: DocumentIdPayload,
+) -> Result<DocumentLibrary, String> {
     let conn = schema::open_active_database(&app)?;
     conn.query_row(
         "SELECT d.id, d.title, d.desc, d.children, d.is_top, d.create_time, d.update_time,
@@ -391,7 +417,8 @@ pub fn document_library_get(app: AppHandle, payload: DocumentIdPayload) -> Resul
          FROM documents d WHERE d.id = ?1",
         params![payload.id],
         parse_library_row,
-    ).map_err(|e| db_err("DOCUMENT_QUERY_FAILED", "get document library", e))
+    )
+    .map_err(|e| db_err("DOCUMENT_QUERY_FAILED", "get document library", e))
 }
 
 #[tauri::command]
@@ -417,7 +444,10 @@ pub fn document_item_list(app: AppHandle) -> Result<Vec<DocumentItem>, String> {
 }
 
 #[tauri::command]
-pub fn document_library_create(app: AppHandle, payload: CreateDocumentPayload) -> Result<DocumentLibrary, String> {
+pub fn document_library_create(
+    app: AppHandle,
+    payload: CreateDocumentPayload,
+) -> Result<DocumentLibrary, String> {
     let title = payload.title.trim().to_string();
     if title.is_empty() {
         return Err("DOCUMENT_INVALID: title must not be empty".to_string());
@@ -445,7 +475,10 @@ pub fn document_library_create(app: AppHandle, payload: CreateDocumentPayload) -
 }
 
 #[tauri::command]
-pub fn document_library_update(app: AppHandle, payload: UpdateDocumentPayload) -> Result<DocumentLibrary, String> {
+pub fn document_library_update(
+    app: AppHandle,
+    payload: UpdateDocumentPayload,
+) -> Result<DocumentLibrary, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction()
@@ -471,7 +504,11 @@ pub fn document_library_update(app: AppHandle, payload: UpdateDocumentPayload) -
         params![
             payload.title.unwrap_or(current.title),
             desc,
-            if payload.is_top.unwrap_or(current.is_top) { 1 } else { 0 },
+            if payload.is_top.unwrap_or(current.is_top) {
+                1
+            } else {
+                0
+            },
             now,
             payload.id
         ],
@@ -516,7 +553,10 @@ pub fn document_library_delete(app: AppHandle, payload: DocumentIdPayload) -> Re
 }
 
 #[tauri::command]
-pub fn document_item_create(app: AppHandle, payload: CreateDocumentItemPayload) -> Result<DocumentItem, String> {
+pub fn document_item_create(
+    app: AppHandle,
+    payload: CreateDocumentItemPayload,
+) -> Result<DocumentItem, String> {
     let title = payload.title.trim().to_string();
     if title.is_empty() {
         return Err("DOCUMENT_ITEM_INVALID: title must not be empty".to_string());
@@ -588,7 +628,10 @@ pub fn document_item_create(app: AppHandle, payload: CreateDocumentItemPayload) 
 }
 
 #[tauri::command]
-pub fn document_item_update(app: AppHandle, payload: UpdateDocumentItemPayload) -> Result<i64, String> {
+pub fn document_item_update(
+    app: AppHandle,
+    payload: UpdateDocumentItemPayload,
+) -> Result<i64, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction()

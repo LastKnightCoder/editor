@@ -16,6 +16,8 @@ import { useHomeStatsQuery } from "./queries";
 import { useTodoGroupStats, useTodoItems, useTodoSystemGroups } from "../todo/queries";
 import { toggleTodoComplete } from "../todo/toggleComplete";
 import { TodoCheck } from "../todo/TodoCheck";
+import { usePomodoroTodaySummary } from "../pomodoro/queries";
+import { formatFocusDuration } from "../pomodoro/timer";
 import { dfs } from "../cards/editorContentUtils";
 
 /** 日记动态标题：取正文开头的纯文本（首页最近动态单行展示，仅前几条调用） */
@@ -48,9 +50,11 @@ type HomeDashboardProps = {
   isLoadingCards: boolean;
   todoEnabled: boolean;
   diaryEnabled: boolean;
+  pomodoroEnabled: boolean;
   onOpenSearch: () => void;
   onOpenCards: () => void;
   onOpenTodo: () => void;
+  onOpenPomodoro: () => void;
   onOpenDiary: () => void;
   onOpenArticles: () => void;
   onOpenProjects: () => void;
@@ -76,6 +80,8 @@ export function HomeDashboard(props: HomeDashboardProps) {
   const documentItemsQuery = useDocumentItemsQuery();
   const homeStatsQuery = useHomeStatsQuery();
   const homeStats = homeStatsQuery.data ?? null;
+  const pomodoroSummaryQuery = usePomodoroTodaySummary(props.pomodoroEnabled);
+  const pomodoroSummary = pomodoroSummaryQuery.data ?? null;
 
   const todoStats = useMemo(() => {
     if (!props.todoEnabled) return null;
@@ -325,6 +331,30 @@ export function HomeDashboard(props: HomeDashboardProps) {
                     backgroundImage: "linear-gradient(90deg, var(--brand-strong), var(--brand))",
                   }}
                 />
+              </span>
+            </span>
+          </button>
+        ) : null}
+
+        {props.pomodoroEnabled ? (
+          <button
+            type="button"
+            onClick={props.onOpenPomodoro}
+            className={`${BENTO_CARD_CLASS} col-span-2 flex items-center gap-[15px]`}
+            style={{
+              animationDelay: "0.04s",
+              background: "linear-gradient(135deg, var(--rose-soft), var(--bg-surface))",
+            }}
+          >
+            <span className="text-[28px] leading-none">🍅</span>
+            <span className="min-w-0 flex-1 text-left">
+              <span className="text-ink block text-[14.5px] font-bold">番茄专注</span>
+              <span className="text-ink-2 mt-0.5 block text-[12px]">
+                {pomodoroSummary
+                  ? pomodoroSummary.count > 0
+                    ? `今日 ${formatFocusDuration(pomodoroSummary.focusMs)} · ${pomodoroSummary.count} 个番茄`
+                    : "今天还没有专注，开始一次？"
+                  : "加载中"}
               </span>
             </span>
           </button>

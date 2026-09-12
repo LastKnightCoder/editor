@@ -11,9 +11,7 @@ use serde_json::{json, Value};
 use sha1::Sha1;
 use tauri::{AppHandle, Manager};
 
-use crate::database::{
-    resolve_embedding_fingerprint_for_setting, trigger_reconcile_for_database,
-};
+use crate::database::{resolve_embedding_fingerprint_for_setting, trigger_reconcile_for_database};
 use crate::models::{
     BootstrapResponse, DatabaseItem, GithubUserInfoResponse, SettingWriteResponse,
 };

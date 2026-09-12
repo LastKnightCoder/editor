@@ -659,16 +659,18 @@ pub(super) fn touch_content_diaries(
 pub fn diary_delete_segment(
     app: AppHandle,
     payload: DiaryDeleteSegmentPayload,
-) -> Result<DiaryEntry, String> {
+) -> Result<Option<DiaryEntry>, String> {
     let mut conn = schema::open_active_database(&app)?;
     delete_segment(&mut conn, payload.diary_id, payload.segment_id)
 }
 
+/// 删除片段；返回 `None` 表示该日记已无片段、entry 被一并删除。
+/// 片段删光后 entry 只是空壳，留着会让信息流出现「0 条 · 0 字」的空分组。
 fn delete_segment(
     conn: &mut rusqlite::Connection,
     diary_id: i64,
     segment_id: i64,
-) -> Result<DiaryEntry, String> {
+) -> Result<Option<DiaryEntry>, String> {
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     let content_id: i64 = tx
         .query_row(
@@ -683,6 +685,33 @@ fn delete_segment(
     )
     .map_err(|e| e.to_string())?;
     decrement_or_delete_content(&tx, Some(content_id))?;
+
+    let remaining: i64 = tx
+        .query_row(
+            "SELECT COUNT(*) FROM diary_segments WHERE diary_id=?1",
+            [diary_id],
+            |r| r.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    if remaining == 0 {
+        let legacy_content_id: Option<i64> = tx
+            .query_row(
+                "SELECT content_id FROM diary_entries WHERE id=?1",
+                [diary_id],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?
+            .flatten();
+        tx.execute("DELETE FROM diary_entries WHERE id=?1", [diary_id])
+            .map_err(|e| e.to_string())?;
+        if legacy_content_id != Some(content_id) {
+            decrement_or_delete_content(&tx, legacy_content_id)?;
+        }
+        tx.commit().map_err(|e| e.to_string())?;
+        return Ok(None);
+    }
+
     tx.execute(
         "UPDATE diary_entries SET update_time=?1 WHERE id=?2",
         params![now_millis(), diary_id],
@@ -690,7 +719,7 @@ fn delete_segment(
     .map_err(|e| e.to_string())?;
     sync_word_counts(&tx)?;
     tx.commit().map_err(|e| e.to_string())?;
-    query_entry_by_id(conn, diary_id)
+    query_entry_by_id(conn, diary_id).map(Some)
 }
 
 fn normalize_tag_name(name: &str) -> Result<String, String> {
@@ -993,7 +1022,9 @@ mod tests {
         .unwrap();
         let second = upsert_entry(&mut conn, payload("private", None, true)).unwrap();
         let private_id = second.segments[1].content_id;
-        let after = delete_segment(&mut conn, first.id, first_segment.id).unwrap();
+        let after = delete_segment(&mut conn, first.id, first_segment.id)
+            .unwrap()
+            .expect("entry still has a segment");
         assert_eq!(after.segments.len(), 1);
         assert_eq!(
             conn.query_row(
@@ -1018,6 +1049,36 @@ mod tests {
             conn.query_row("SELECT COUNT(*) FROM diary_segments", [], |r| r
                 .get::<_, i64>(0))
                 .unwrap(),
+            0
+        );
+    }
+
+    #[test]
+    fn deleting_last_segment_removes_empty_entry() {
+        let mut conn = database();
+        let entry = upsert_entry(&mut conn, payload("only", None, false)).unwrap();
+        assert_eq!(entry.segments.len(), 1);
+        let content_id = entry.segments[0].content_id;
+
+        let removed = delete_segment(&mut conn, entry.id, entry.segments[0].id).unwrap();
+
+        assert!(removed.is_none());
+        assert_eq!(
+            conn.query_row(
+                "SELECT COUNT(*) FROM diary_entries WHERE id=?1",
+                [entry.id],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
+            0
+        );
+        assert_eq!(
+            conn.query_row(
+                "SELECT COUNT(*) FROM contents WHERE id=?1",
+                [content_id],
+                |r| r.get::<_, i64>(0)
+            )
+            .unwrap(),
             0
         );
     }

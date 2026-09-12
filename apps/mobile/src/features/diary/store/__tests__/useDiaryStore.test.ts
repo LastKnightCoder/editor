@@ -334,4 +334,26 @@ describe("diary/useDiaryStore", () => {
     expect(tauri.diaryDeleteSegment).toHaveBeenCalledWith(1, 12);
     expect(useDiaryStore.getState().activeSegmentId).toBe(11);
   });
+
+  it("删除最后一个片段后清空当前日记并移出缓存", async () => {
+    const only = {
+      id: 11,
+      diaryId: 1,
+      contentId: 101,
+      content: [],
+      wordCount: 0,
+      createTime: 1,
+      updateTime: 1,
+    };
+    const entry = makeDiaryEntry({ segments: [only] });
+    getQueryClient().setQueryData(["diary", "entries"], [entry]);
+    useDiaryStore.setState({ currentEntry: entry, activeSegmentId: 11 });
+    vi.mocked(tauri.diaryDeleteSegment).mockResolvedValue(null);
+
+    await useDiaryStore.getState().deleteCurrentSegment();
+
+    expect(useDiaryStore.getState().currentEntry).toBeNull();
+    expect(useDiaryStore.getState().activeSegmentId).toBeNull();
+    expect(getQueryClient().getQueryData(["diary", "entries"])).toEqual([]);
+  });
 });

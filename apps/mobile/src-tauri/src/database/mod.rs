@@ -14,28 +14,30 @@ use crate::setting::{
 
 mod article;
 mod common;
+mod diary;
 mod document;
 mod home_stats;
 mod index_db;
-mod migrator;
 mod main_upgrade;
+mod migrator;
+mod pomodoro;
 mod project;
 mod query;
 mod reconcile;
 mod schema;
 mod search;
-mod diary;
 mod todo;
 mod todo_calendar_sync;
 
-pub use schema::ensure_database_file;
-pub use schema::validate_download;
-pub(crate) use schema::invalidate_cached_connection;
 pub use article::*;
 pub use diary::*;
 pub use document::*;
 pub use home_stats::*;
+pub use pomodoro::*;
 pub use project::*;
+pub use schema::ensure_database_file;
+pub(crate) use schema::invalidate_cached_connection;
+pub use schema::validate_download;
 pub use todo::*;
 
 #[derive(Debug, Deserialize)]
@@ -550,7 +552,9 @@ pub fn update_card_links(
         let placeholders = vec!["?"; new_links.len()].join(", ");
         let sql = format!("SELECT COUNT(*) FROM cards WHERE id IN ({placeholders})");
         let found: i64 = tx
-            .query_row(&sql, rusqlite::params_from_iter(new_links.iter()), |row| row.get(0))
+            .query_row(&sql, rusqlite::params_from_iter(new_links.iter()), |row| {
+                row.get(0)
+            })
             .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to validate linked cards: {e}"))?;
         if found != new_links.len() as i64 {
             return Err("CARD_LINK_INVALID: one or more linked cards do not exist".to_string());

@@ -964,7 +964,8 @@ pub async fn upload_resource(
     let provider = parse_resource_provider(&setting).map_err(format_error)?;
     let file_name = normalized_file_name(&payload.file_name);
     let enable_compression = as_bool(setting.pointer("/imageBed/enableCompression"));
-    let processed = compress_image_if_needed(&file_name, &payload.mime_type, &bytes, enable_compression);
+    let processed =
+        compress_image_if_needed(&file_name, &payload.mime_type, &bytes, enable_compression);
     let object_name = build_object_name(&processed.file_name);
 
     let result = match provider {
@@ -985,7 +986,10 @@ pub async fn upload_resource(
 
     match &result {
         Ok(url) => println!("[upload_resource] done: {}", url),
-        Err(error) => println!("[upload_resource] failed: {}", summarize_resource_error(error)),
+        Err(error) => println!(
+            "[upload_resource] failed: {}",
+            summarize_resource_error(error)
+        ),
     }
     result.map_err(format_error)
 }
@@ -994,12 +998,11 @@ pub async fn upload_resource(
 /// Android 的 asset protocol 存在无法加载图片的官方未决缺陷（tauri#12364），
 /// raw response 亦不可靠（tauri#10573），统一 base64 字符串 + 前端 blob URL
 #[tauri::command]
-pub fn read_resource_bytes(
-    app: AppHandle,
-    path: String,
-) -> Result<String, String> {
-    let app_dir = resolve_app_dir(&app)
-        .and_then(|dir| dir.canonicalize().map_err(|e| format!("RESOURCE_READ_FAILED: {e}")))?;
+pub fn read_resource_bytes(app: AppHandle, path: String) -> Result<String, String> {
+    let app_dir = resolve_app_dir(&app).and_then(|dir| {
+        dir.canonicalize()
+            .map_err(|e| format!("RESOURCE_READ_FAILED: {e}"))
+    })?;
     let canonical = std::path::Path::new(&path)
         .canonicalize()
         .map_err(|e| format!("RESOURCE_READ_FAILED: 路径无效: {e}"))?;

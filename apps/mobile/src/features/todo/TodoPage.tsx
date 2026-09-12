@@ -543,32 +543,35 @@ export function TodoPage({
         </span>
       </div>
 
+      {/* 二级页无吸底 Dock，底部只留常规呼吸空间（同项目/知识库列表）：
+          留白挂外层容器，滚动容器自身不带 padding，内容不会顶到安全区 */}
       <div
-        ref={listScrollRef}
-        className="edge-fade-scroll mobile-kb-scroll flex-1 overflow-y-auto"
-        style={{ paddingBottom: "calc(var(--dock-visual-height) + 28px + var(--kb-height, 0px))" }}
+        className="flex min-h-0 flex-1 flex-col overscroll-contain"
+        style={{ paddingBottom: "var(--page-bottom-inset)" }}
       >
-        {itemsQuery.isLoading ? (
-          <div className="text-ink-3 px-4 py-8 text-center text-sm">正在加载任务...</div>
-        ) : (
-          <TodoItemTree
-            items={filteredItems}
-            allItems={activeItems}
-            scrollContainerRef={listScrollRef}
-            isVisible={isVisible}
-            onOpenDetail={item => {
-              onOpenDetail(item.id, item.groupId);
-            }}
-            onToggleComplete={(item, isCompleted) => {
-              void handleToggleComplete(item, isCompleted);
-            }}
-            onOpenActions={item => {
-              handleOpenActions(item);
-            }}
-            onMoveAndReorder={handleMoveAndReorder}
-            enableDragSort={dragSortEnabled}
-          />
-        )}
+        <div ref={listScrollRef} className="edge-fade-scroll flex-1 overflow-y-auto">
+          {itemsQuery.isLoading ? (
+            <div className="text-ink-3 px-4 py-8 text-center text-sm">正在加载任务...</div>
+          ) : (
+            <TodoItemTree
+              items={filteredItems}
+              allItems={activeItems}
+              scrollContainerRef={listScrollRef}
+              isVisible={isVisible}
+              onOpenDetail={item => {
+                onOpenDetail(item.id, item.groupId);
+              }}
+              onToggleComplete={(item, isCompleted) => {
+                void handleToggleComplete(item, isCompleted);
+              }}
+              onOpenActions={item => {
+                handleOpenActions(item);
+              }}
+              onMoveAndReorder={handleMoveAndReorder}
+              enableDragSort={dragSortEnabled}
+            />
+          )}
+        </div>
       </div>
 
       {/* 新增分组 Sheet */}

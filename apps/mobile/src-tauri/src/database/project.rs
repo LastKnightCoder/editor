@@ -155,7 +155,12 @@ fn load_item_children(tx: &Connection, item_id: i64) -> Result<Vec<i64>, String>
 }
 
 /// 把 child 追加到 parent.children（parent 为 None 时挂到 project.children），并回写 parents/projects
-fn attach_item(tx: &Connection, project_id: i64, parent_id: Option<i64>, child_id: i64) -> Result<(), String> {
+fn attach_item(
+    tx: &Connection,
+    project_id: i64,
+    parent_id: Option<i64>,
+    child_id: i64,
+) -> Result<(), String> {
     let now = now_millis();
     if let Some(pid) = parent_id {
         let mut children = load_item_children(tx, pid)?;
@@ -212,13 +217,22 @@ fn attach_item(tx: &Connection, project_id: i64, parent_id: Option<i64>, child_i
     }
     tx.execute(
         "UPDATE project_item SET parents = ?1, projects = ?2 WHERE id = ?3",
-        params![serialize_id_array(&parents), serialize_id_array(&projects), child_id],
+        params![
+            serialize_id_array(&parents),
+            serialize_id_array(&projects),
+            child_id
+        ],
     )
     .map_err(|e| db_err("PROJECT_UPDATE_FAILED", "update item parents", e))?;
     Ok(())
 }
 
-fn detach_item_from_parent(tx: &Connection, parent_id: Option<i64>, child_id: i64, project_id: i64) -> Result<(), String> {
+fn detach_item_from_parent(
+    tx: &Connection,
+    parent_id: Option<i64>,
+    child_id: i64,
+    project_id: i64,
+) -> Result<(), String> {
     let now = now_millis();
     if let Some(pid) = parent_id {
         let children = load_item_children(tx, pid)?;
@@ -303,7 +317,9 @@ fn detach_or_delete_subtree(
             continue;
         };
         // 子树外的父节点或其他项目仍在引用：从该节点移除指向子树内的父子关系与本项目引用，保留节点
-        let external_parent = parents.iter().any(|p| !in_subtree(*p) && Some(*p) != root_parent);
+        let external_parent = parents
+            .iter()
+            .any(|p| !in_subtree(*p) && Some(*p) != root_parent);
         let external_project = projects.iter().any(|p| *p != owner_project_id);
         if external_parent || external_project {
             let next_parents: Vec<i64> = parents
@@ -321,11 +337,8 @@ fn detach_or_delete_subtree(
             .map_err(|e| db_err("PROJECT_DELETE_FAILED", "detach external refs", e))?;
             continue;
         }
-        tx.execute(
-            "DELETE FROM project_item WHERE id = ?1",
-            params![id],
-        )
-        .map_err(|e| db_err("PROJECT_DELETE_FAILED", "delete item", e))?;
+        tx.execute("DELETE FROM project_item WHERE id = ?1", params![id])
+            .map_err(|e| db_err("PROJECT_DELETE_FAILED", "delete item", e))?;
         write_operation(tx, "project-item", "delete", id, now)?;
         if let Some(content_id) = content_id {
             decrement_or_delete_content(tx, content_id)?;
@@ -359,13 +372,20 @@ fn detach_or_delete_subtree(
 }
 
 #[tauri::command]
-pub fn project_list(app: AppHandle, payload: Option<ProjectListPayload>) -> Result<ProjectListResponse, String> {
+pub fn project_list(
+    app: AppHandle,
+    payload: Option<ProjectListPayload>,
+) -> Result<ProjectListResponse, String> {
     let conn = schema::open_active_database(&app)?;
     let total: i64 = conn
         .query_row("SELECT COUNT(1) FROM project", [], |row| row.get(0))
         .map_err(|e| db_err("PROJECT_QUERY_FAILED", "count projects", e))?;
     let offset = payload.as_ref().and_then(|p| p.offset).unwrap_or(0).max(0);
-    let limit = payload.as_ref().and_then(|p| p.limit).unwrap_or(40).clamp(1, 200);
+    let limit = payload
+        .as_ref()
+        .and_then(|p| p.limit)
+        .unwrap_or(40)
+        .clamp(1, 200);
     let mut stmt = conn
         .prepare(
             "SELECT p.id, p.title, p.desc, p.children, p.archived, p.pinned, p.project_type,
@@ -399,7 +419,8 @@ pub fn project_get(app: AppHandle, payload: ProjectIdPayload) -> Result<Project,
          FROM project p WHERE p.id = ?1",
         params![payload.id],
         parse_project_row,
-    ).map_err(|e| db_err("PROJECT_QUERY_FAILED", "get project", e))
+    )
+    .map_err(|e| db_err("PROJECT_QUERY_FAILED", "get project", e))
 }
 
 #[tauri::command]
@@ -466,8 +487,8 @@ pub fn project_update(app: AppHandle, payload: UpdateProjectPayload) -> Result<P
     let now = now_millis();
     let desc = match payload.desc {
         Some(desc) => desc,
-        None => {
-            tx.query_row(
+        None => tx
+            .query_row(
                 "SELECT desc FROM project WHERE id = ?1 LIMIT 1",
                 params![payload.id],
                 |row| row.get::<_, Option<String>>(0),
@@ -475,8 +496,7 @@ pub fn project_update(app: AppHandle, payload: UpdateProjectPayload) -> Result<P
             .optional()
             .map_err(|e| db_err("PROJECT_UPDATE_FAILED", "query desc", e))?
             .flatten()
-            .unwrap_or_default()
-        }
+            .unwrap_or_default(),
     };
     tx.execute(
         "
@@ -486,8 +506,16 @@ pub fn project_update(app: AppHandle, payload: UpdateProjectPayload) -> Result<P
         params![
             payload.title.unwrap_or(current.title),
             desc,
-            if payload.pinned.unwrap_or(current.pinned) { 1 } else { 0 },
-            if payload.archived.unwrap_or(current.archived) { 1 } else { 0 },
+            if payload.pinned.unwrap_or(current.pinned) {
+                1
+            } else {
+                0
+            },
+            if payload.archived.unwrap_or(current.archived) {
+                1
+            } else {
+                0
+            },
             now,
             payload.id
         ],
@@ -522,11 +550,8 @@ pub fn project_delete(app: AppHandle, payload: ProjectIdPayload) -> Result<i64, 
     for root_id in root_ids {
         deleted += detach_or_delete_subtree(&tx, None, root_id, payload.id)?;
     }
-    tx.execute(
-        "DELETE FROM project WHERE id = ?1",
-        params![payload.id],
-    )
-    .map_err(|e| db_err("PROJECT_DELETE_FAILED", "delete project", e))?;
+    tx.execute("DELETE FROM project WHERE id = ?1", params![payload.id])
+        .map_err(|e| db_err("PROJECT_DELETE_FAILED", "delete project", e))?;
     write_operation(&tx, "project", "delete", payload.id, now)?;
     tx.commit()
         .map_err(|e| db_err("PROJECT_DELETE_FAILED", "commit transaction", e))?;
@@ -535,7 +560,10 @@ pub fn project_delete(app: AppHandle, payload: ProjectIdPayload) -> Result<i64, 
 }
 
 #[tauri::command]
-pub fn project_item_create(app: AppHandle, payload: CreateProjectItemPayload) -> Result<ProjectItem, String> {
+pub fn project_item_create(
+    app: AppHandle,
+    payload: CreateProjectItemPayload,
+) -> Result<ProjectItem, String> {
     let title = payload.title.trim().to_string();
     if title.is_empty() {
         return Err("PROJECT_ITEM_INVALID: title must not be empty".to_string());
@@ -610,7 +638,10 @@ pub fn project_item_create(app: AppHandle, payload: CreateProjectItemPayload) ->
 }
 
 #[tauri::command]
-pub fn project_item_update(app: AppHandle, payload: UpdateProjectItemPayload) -> Result<i64, String> {
+pub fn project_item_update(
+    app: AppHandle,
+    payload: UpdateProjectItemPayload,
+) -> Result<i64, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction()

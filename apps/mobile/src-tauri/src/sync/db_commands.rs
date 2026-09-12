@@ -130,7 +130,11 @@ pub async fn sync_upload_database(app: AppHandle) -> SyncActionResponse {
     let next_version_payload = version_payload(next_version);
     if let Err(err) = publish_snapshot(
         ctx.provider.upload(&ctx.data_object_name, &db_bytes),
-        upload_version(&ctx.provider, &ctx.version_object_name, &next_version_payload),
+        upload_version(
+            &ctx.provider,
+            &ctx.version_object_name,
+            &next_version_payload,
+        ),
     )
     .await
     {

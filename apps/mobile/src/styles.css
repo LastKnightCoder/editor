@@ -25,6 +25,10 @@
   --mobile-sheet-footer-height: 56px;
   --mobile-nav-row-height: 56px;
 
+  /* 二级页（无吸底 Dock）底部留白 = 内容呼吸间距 + 系统安全区。
+     键盘避让由 .mobile-kb-screen 的视口高度收缩负责，不要往这里加 --kb-height */
+  --page-bottom-inset: calc(32px + var(--mobile-safe-bottom));
+
   /* 边缘渐隐（fading edges）：滚动容器 mask 淡入/淡出带高度 */
   --edge-fade-top-size: 28px;
   --edge-fade-bottom-size: 24px;
@@ -786,6 +790,29 @@ code {
   animation: sheet-slide-down 0.25s ease-in forwards;
 }
 
+/* ── 沉浸专注页氛围光晕呼吸 ── */
+@keyframes pomodoro-breath {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.pomodoro-breath-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    46% 34% at 50% 44%,
+    color-mix(in srgb, var(--brand) 14%, transparent),
+    transparent 70%
+  );
+  animation: pomodoro-breath 3.6s ease-in-out infinite;
+}
+
 /* ── 选择面板选中勾选弹出 ── */
 @keyframes check-pop {
   from {
@@ -986,7 +1013,9 @@ code {
   flex-shrink: 0;
 }
 
-/* ── Tab 根页面的底部留白（吸底 Dock 覆盖高度 + 28px 内容呼吸空隙） ── */
+/* ── Tab 根页面的底部留白（吸底 Dock 覆盖高度 + 28px 内容呼吸空隙） ──
+   dock-pad 同时是"底部被 Dock 覆盖"的标记：带它的滚动容器才会把边缘渐隐的
+   底部锚点抬到 Dock 高度（见下方 .edge-fade-scroll.dock-pad）。 */
 .dock-pad {
   padding-bottom: calc(var(--dock-visual-height) + 28px);
 }
@@ -995,17 +1024,21 @@ code {
    mask 相对滚动容器 border-box 固定、不随内容滚动：内容进出边缘时像素级渐隐。
    渐隐带由 useEdgeFade hook 按滚动状态写入的 0/1 变量收放：
    贴顶 → 顶部无带（内容开头完整）、滚到底 → 底部无带（结尾完整）、不能滚 → 两带俱无。
-   变量缺省 1（未接 hook 的容器保持常显） */
+   变量缺省 1（未接 hook 的容器保持常显）
+   底部锚点 --edge-fade-bottom-anchor 默认 0：无吸底 Dock 的页面滚到底内容完整可见，
+   不会提前淡出；带 Dock 的 Tab 根页面由 .edge-fade-scroll.dock-pad 抬到 Dock 高度 */
 .edge-fade-scroll {
+  --edge-fade-bottom-anchor: 0px;
   -webkit-mask-image: linear-gradient(
     180deg,
     transparent 0,
     #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 1)),
     #000
       calc(
-        100% - (var(--dock-visual-height) + var(--edge-fade-bottom-size)) * var(--edge-bottom-on, 1)
+        100% - (var(--edge-fade-bottom-anchor) + var(--edge-fade-bottom-size)) *
+          var(--edge-bottom-on, 1)
       ),
-    transparent calc(100% - var(--dock-visual-height) * var(--edge-bottom-on, 1))
+    transparent calc(100% - var(--edge-fade-bottom-anchor) * var(--edge-bottom-on, 1))
   );
   mask-image: linear-gradient(
     180deg,
@@ -1013,10 +1046,21 @@ code {
     #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 1)),
     #000
       calc(
-        100% - (var(--dock-visual-height) + var(--edge-fade-bottom-size)) * var(--edge-bottom-on, 1)
+        100% - (var(--edge-fade-bottom-anchor) + var(--edge-fade-bottom-size)) *
+          var(--edge-bottom-on, 1)
       ),
-    transparent calc(100% - var(--dock-visual-height) * var(--edge-bottom-on, 1))
+    transparent calc(100% - var(--edge-fade-bottom-anchor) * var(--edge-bottom-on, 1))
   );
+}
+
+/* 吸底 Dock 的页面：底部渐隐锚到 Dock 覆盖高度，内容在被 Dock 遮住的区域淡出 */
+.edge-fade-scroll.dock-pad {
+  --edge-fade-bottom-anchor: var(--dock-visual-height);
+}
+
+/* 底部被浮动工具栏遮挡的容器：锚到实际工具栏遮挡高度（而非 Dock 高度） */
+.edge-fade-scroll.mobile-floating-toolbar-scroll {
+  --edge-fade-bottom-anchor: var(--mobile-editor-toolbar-occlusion, 0px);
 }
 
 /* 封面沉浸页专用：顶部渐隐带高度随 --header-p（滚动进度，由 ContentDetailPage 写入）

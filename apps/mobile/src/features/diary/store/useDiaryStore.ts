@@ -412,7 +412,14 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
       state.currentEntry?.segments?.find(item => item.id === state.activeSegmentId) ??
       latestSegment(state.currentEntry);
     if (!state.currentEntry || !segment) return;
-    const saved = await tauri.diaryDeleteSegment(state.currentEntry.id, segment.id);
+    const entryId = state.currentEntry.id;
+    const saved = await tauri.diaryDeleteSegment(entryId, segment.id);
+    // 删光片段时后端连空壳 entry 一起删除，缓存同步移除、当前日记置空
+    if (!saved) {
+      writeDiaryEntries(prev => prev.filter(item => item.id !== entryId));
+      set({ currentEntry: null, activeSegmentId: null });
+      return;
+    }
     writeDiaryEntries(prev => mergeEntries(prev, saved));
     const merged = getQueryClient().getQueryData<DiaryEntry[]>(["diary", "entries"]) ?? [];
     set({

@@ -29,12 +29,8 @@ fn request_background(app: tauri::AppHandle) {
         if let Some(main_webview) = app.get_webview_window("main") {
             let _ = main_webview.with_webview(|webview| {
                 webview.jni_handle().exec(|env, activity, _webview| {
-                    let _ = env.call_method(
-                        activity,
-                        "moveTaskToBack",
-                        "(Z)Z",
-                        &[JValue::from(true)],
-                    );
+                    let _ =
+                        env.call_method(activity, "moveTaskToBack", "(Z)Z", &[JValue::from(true)]);
                 });
             });
             return;
@@ -144,6 +140,24 @@ pub fn run() {
             database::document_item_create,
             database::document_item_update,
             database::document_item_delete,
+            database::pomodoro_list_presets,
+            database::pomodoro_create_preset,
+            database::pomodoro_update_preset,
+            database::pomodoro_archive_preset,
+            database::pomodoro_reorder_presets,
+            database::pomodoro_delete_preset,
+            database::pomodoro_get_active_session,
+            database::pomodoro_start_session,
+            database::pomodoro_pause_session,
+            database::pomodoro_resume_session,
+            database::pomodoro_stop_session,
+            database::pomodoro_list_sessions,
+            database::pomodoro_update_session,
+            database::pomodoro_delete_session,
+            database::pomodoro_delete_sessions,
+            database::pomodoro_summary_today,
+            database::pomodoro_summary_total,
+            database::pomodoro_summary_daily,
             resource_upload::upload_resource,
             resource_upload::read_resource_bytes,
             remote_resource_cache::remote_resource_to_local,
