@@ -31,6 +31,11 @@ demos
 stats.html
 _tmp_*
 
+# 本地设计稿/方案稿预览与截图脚本，不入库
+design-proposals/
+apps/mobile/docs/design/
+.shot-*.tmp.mjs
+
 **/*/src-tauri/target
 **/*/src-tauri/gen
 **/*/src-tauri/build
