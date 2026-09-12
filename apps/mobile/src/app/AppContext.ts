@@ -39,6 +39,7 @@ export type AppContextValue = {
   handleResourceSyncCancel: () => Promise<ResourceSyncActionResponse>;
   diaryModuleEnabled: boolean;
   todoModuleEnabled: boolean;
+  pomodoroModuleEnabled: boolean;
 };
 
 export const AppContext = createContext<AppContextValue | null>(null);

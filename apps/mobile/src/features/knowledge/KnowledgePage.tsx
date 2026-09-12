@@ -103,7 +103,7 @@ export function KnowledgePage(props: KnowledgePageProps) {
       {/* 二级页无吸底 Dock，底部只留常规呼吸空间（dock-pad 是给 Dock 页面的 110px 留白） */}
       <div
         className="flex min-h-0 flex-1 flex-col overscroll-contain px-4 pt-2"
-        style={{ paddingBottom: "calc(32px + var(--mobile-safe-bottom))" }}
+        style={{ paddingBottom: "var(--page-bottom-inset)" }}
       >
         {isLoading ? (
           <div className="card space-y-3 p-4">

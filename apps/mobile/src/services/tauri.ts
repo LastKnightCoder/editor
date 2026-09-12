@@ -19,6 +19,7 @@ import type {
   DiaryTagSetting,
   DiaryUpsertPayload,
   DiaryWeatherMood,
+  ListPomodoroSessionsPayload,
   ListTodoItemsPayload,
   ListTodoItemsByTypePayload,
   MoveAndReorderTodoItemPayload,
@@ -37,6 +38,11 @@ import type {
   SettingWriteResponse,
   SyncActionResponse,
   SyncVersionResponse,
+  PomodoroDailySummary,
+  PomodoroMode,
+  PomodoroPreset,
+  PomodoroSession,
+  PomodoroSummary,
   TodoGroup,
   TodoGroupStats,
   TodoItem,
@@ -343,10 +349,11 @@ export function diaryDeleteEntry(id: number) {
   return trackedInvoke<number>("diary_delete_entry", { payload: { id } });
 }
 
+/** 删除日记片段；返回 null 表示该日记已无片段、后端连空壳 entry 一起删掉了 */
 export function diaryDeleteSegment(diaryId: number, segmentId: number) {
-  return trackedInvoke<RawDiaryEntry>("diary_delete_segment", {
+  return trackedInvoke<RawDiaryEntry | null>("diary_delete_segment", {
     payload: { diaryId, segmentId },
-  }).then(normalizeDiaryEntry);
+  }).then(raw => (raw ? normalizeDiaryEntry(raw) : null));
 }
 
 export function diaryGetTagSettings() {
@@ -508,6 +515,99 @@ export function todoUncompleteRecurrence(recurrenceId: number, scheduledDate: nu
 export function todoSkipRecurrence(recurrenceId: number, scheduledDate: number) {
   return trackedInvoke<TodoRecurrenceCompletion>("todo_skip_recurrence", {
     payload: { recurrenceId, scheduledDate },
+  });
+}
+
+/* ── 番茄专注 ── */
+
+export function pomodoroListPresets() {
+  return trackedInvoke<PomodoroPreset[]>("pomodoro_list_presets");
+}
+
+export function pomodoroCreatePreset(payload: {
+  name: string;
+  mode: PomodoroMode;
+  durationMin?: number;
+}) {
+  return trackedInvoke<PomodoroPreset>("pomodoro_create_preset", { payload });
+}
+
+export function pomodoroUpdatePreset(payload: {
+  id: number;
+  name?: string;
+  mode?: PomodoroMode;
+  durationMin?: number;
+}) {
+  return trackedInvoke<PomodoroPreset>("pomodoro_update_preset", { payload });
+}
+
+export function pomodoroArchivePreset(id: number, archived: boolean) {
+  return trackedInvoke<number>("pomodoro_archive_preset", { payload: { id, archived } });
+}
+
+export function pomodoroReorderPresets(orderedIds: number[]) {
+  return trackedInvoke<number>("pomodoro_reorder_presets", { payload: { orderedIds } });
+}
+
+export function pomodoroDeletePreset(id: number) {
+  return trackedInvoke<number>("pomodoro_delete_preset", { payload: { id } });
+}
+
+export function pomodoroGetActiveSession() {
+  return trackedInvoke<PomodoroSession | null>("pomodoro_get_active_session");
+}
+
+export function pomodoroStartSession(presetId: number, expectedMs?: number) {
+  return trackedInvoke<PomodoroSession>("pomodoro_start_session", {
+    payload: { presetId, expectedMs: expectedMs ?? null },
+  });
+}
+
+export function pomodoroPauseSession() {
+  return trackedInvoke<PomodoroSession | null>("pomodoro_pause_session");
+}
+
+export function pomodoroResumeSession() {
+  return trackedInvoke<PomodoroSession | null>("pomodoro_resume_session");
+}
+
+export function pomodoroStopSession(asComplete = true) {
+  return trackedInvoke<PomodoroSession | null>("pomodoro_stop_session", {
+    payload: { asComplete },
+  });
+}
+
+export function pomodoroListSessions(payload: ListPomodoroSessionsPayload = {}) {
+  return trackedInvoke<PomodoroSession[]>("pomodoro_list_sessions", { payload });
+}
+
+export function pomodoroUpdateSession(sessionId: number, focusMs: number) {
+  return trackedInvoke<PomodoroSession>("pomodoro_update_session", {
+    payload: { sessionId, focusMs },
+  });
+}
+
+export function pomodoroDeleteSession(sessionId: number) {
+  return trackedInvoke<number>("pomodoro_delete_session", { payload: { sessionId } });
+}
+
+export function pomodoroDeleteSessions(sessionIds: number[]) {
+  return trackedInvoke<number>("pomodoro_delete_sessions", { payload: { sessionIds } });
+}
+
+/** 今日汇总；时间边界由前端算（本地时区当天零点~23:59:59.999），后端无时区依赖 */
+export function pomodoroSummaryToday(start: number, end: number) {
+  return trackedInvoke<PomodoroSummary>("pomodoro_summary_today", { payload: { start, end } });
+}
+
+export function pomodoroSummaryTotal() {
+  return trackedInvoke<PomodoroSummary>("pomodoro_summary_total");
+}
+
+/** 按日聚合（用于周条形图）；day_starts 为各天本地零点毫秒 */
+export function pomodoroSummaryDaily(dayStarts: number[]) {
+  return trackedInvoke<PomodoroDailySummary[]>("pomodoro_summary_daily", {
+    payload: { dayStarts },
   });
 }
 

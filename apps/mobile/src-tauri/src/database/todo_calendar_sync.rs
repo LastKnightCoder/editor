@@ -275,7 +275,9 @@ fn upsert_calendar_group(tx: &Transaction<'_>) -> Result<i64, String> {
             |row| row.get::<_, i64>(0),
         )
         .optional()
-        .map_err(|e| format!("TODO_CALENDAR_SYNC_FAILED: Failed to query system calendar group: {e}"))?
+        .map_err(|e| {
+            format!("TODO_CALENDAR_SYNC_FAILED: Failed to query system calendar group: {e}")
+        })?
         .unwrap_or_else(|| {
             tx.execute(
                 "
@@ -301,7 +303,9 @@ fn upsert_calendar_group(tx: &Transaction<'_>) -> Result<i64, String> {
             },
         )
         .optional()
-        .map_err(|e| format!("TODO_CALENDAR_SYNC_FAILED: Failed to query todo calendar group: {e}"))?;
+        .map_err(|e| {
+            format!("TODO_CALENDAR_SYNC_FAILED: Failed to query todo calendar group: {e}")
+        })?;
 
     if let Some((group_id, is_system, parent_group_id)) = existing {
         if is_system == 1 || parent_group_id != Some(system_group_id) {
@@ -313,7 +317,9 @@ fn upsert_calendar_group(tx: &Transaction<'_>) -> Result<i64, String> {
                 ",
                 params![system_group_id, now, group_id],
             )
-            .map_err(|e| format!("TODO_CALENDAR_SYNC_FAILED: Failed to update todo calendar group: {e}"))?;
+            .map_err(|e| {
+                format!("TODO_CALENDAR_SYNC_FAILED: Failed to update todo calendar group: {e}")
+            })?;
         }
         return Ok(group_id);
     }
@@ -344,7 +350,9 @@ fn upsert_calendar(
             |row| row.get::<_, i64>(0),
         )
         .optional()
-        .map_err(|e| format!("TODO_CALENDAR_SYNC_FAILED: Failed to query todo calendar {title}: {e}"))?;
+        .map_err(|e| {
+            format!("TODO_CALENDAR_SYNC_FAILED: Failed to query todo calendar {title}: {e}")
+        })?;
 
     if let Some(id) = existing {
         tx.execute(
@@ -355,7 +363,9 @@ fn upsert_calendar(
             ",
             params![color, order_index, now, id],
         )
-        .map_err(|e| format!("TODO_CALENDAR_SYNC_FAILED: Failed to update todo calendar {title}: {e}"))?;
+        .map_err(|e| {
+            format!("TODO_CALENDAR_SYNC_FAILED: Failed to update todo calendar {title}: {e}")
+        })?;
         return Ok(id);
     }
 
@@ -433,9 +443,7 @@ fn create_mapping(
 
 pub fn remove_all_by_todo(tx: &Transaction<'_>, todo_item_id: i64) -> Result<(), String> {
     let mut stmt = tx
-        .prepare(
-            "SELECT id, calendar_event_id FROM todo_calendar_mapping WHERE todo_item_id = ?1",
-        )
+        .prepare("SELECT id, calendar_event_id FROM todo_calendar_mapping WHERE todo_item_id = ?1")
         .map_err(|e| format!("TODO_CALENDAR_SYNC_FAILED: Failed to prepare mapping query: {e}"))?;
     let rows = stmt
         .query_map(params![todo_item_id], |row| {
@@ -460,13 +468,19 @@ pub fn remove_all_by_todo(tx: &Transaction<'_>, todo_item_id: i64) -> Result<(),
         .map_err(|e| format!("TODO_CALENDAR_SYNC_FAILED: Failed to delete mapping: {e}"))?;
     }
     for event_id in event_ids {
-        tx.execute("DELETE FROM calendar_event WHERE id = ?1", params![event_id])
-            .map_err(|e| format!("TODO_CALENDAR_SYNC_FAILED: Failed to delete calendar event: {e}"))?;
+        tx.execute(
+            "DELETE FROM calendar_event WHERE id = ?1",
+            params![event_id],
+        )
+        .map_err(|e| format!("TODO_CALENDAR_SYNC_FAILED: Failed to delete calendar event: {e}"))?;
     }
     Ok(())
 }
 
-fn build_event_for_deadline(todo: &TodoRow, calendars: &TodoCalendars) -> Option<CalendarEventData> {
+fn build_event_for_deadline(
+    todo: &TodoRow,
+    calendars: &TodoCalendars,
+) -> Option<CalendarEventData> {
     let due_at = todo.due_at?;
     let due_date = date_part(due_at);
     let due_minute = minute_of_day(due_at);

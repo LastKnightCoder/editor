@@ -463,6 +463,7 @@ function AppShellInner() {
       handleResourceSyncCancel,
       diaryModuleEnabled: syncSettings.safeSetting?.module?.dailyNote?.enable !== false,
       todoModuleEnabled: syncSettings.safeSetting?.module?.todo?.enable !== false,
+      pomodoroModuleEnabled: syncSettings.safeSetting?.module?.pomodoro?.enable !== false,
     }),
     // context 值随 hook 数据更新即可，页面订阅自己的字段
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -73,6 +73,7 @@ export function HomeScreen() {
     void useTodoStore.getState().initialize(databaseName);
     navigator.push("todo");
   });
+  const onOpenPomodoro = useMemoizedFn(() => navigator.push("pomodoro"));
   const onError = useMemoizedFn((error: unknown, fallback: string) => {
     app.presentError(error, fallback);
   });
@@ -106,9 +107,11 @@ export function HomeScreen() {
           isLoadingCards={app.cards.isLoadingCards}
           todoEnabled={app.todoModuleEnabled}
           diaryEnabled={app.diaryModuleEnabled}
+          pomodoroEnabled={app.pomodoroModuleEnabled}
           onOpenSearch={onOpenSearch}
           onOpenCards={onOpenCards}
           onOpenTodo={onOpenTodo}
+          onOpenPomodoro={onOpenPomodoro}
           onOpenDiary={onOpenDiary}
           onOpenArticles={onOpenArticles}
           onOpenProjects={onOpenProjects}

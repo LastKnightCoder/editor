@@ -172,14 +172,22 @@ fn sha256_hex(input: &str) -> String {
 }
 
 fn resolve_cache_dir(app: &AppHandle) -> Result<PathBuf, AppError> {
-    let app_dir = resolve_app_dir(app)
-        .map_err(|err| AppError::new("REMOTE_RESOURCE_CACHE_FAILED", format!("解析应用目录失败: {err}")))?;
+    let app_dir = resolve_app_dir(app).map_err(|err| {
+        AppError::new(
+            "REMOTE_RESOURCE_CACHE_FAILED",
+            format!("解析应用目录失败: {err}"),
+        )
+    })?;
     Ok(app_dir.join(REMOTE_RESOURCE_CACHE_DIR))
 }
 
 fn resolve_index_path(app: &AppHandle) -> Result<PathBuf, AppError> {
-    let app_dir = resolve_app_dir(app)
-        .map_err(|err| AppError::new("REMOTE_RESOURCE_CACHE_FAILED", format!("解析应用目录失败: {err}")))?;
+    let app_dir = resolve_app_dir(app).map_err(|err| {
+        AppError::new(
+            "REMOTE_RESOURCE_CACHE_FAILED",
+            format!("解析应用目录失败: {err}"),
+        )
+    })?;
     Ok(app_dir.join(REMOTE_RESOURCE_INDEX_FILE))
 }
 

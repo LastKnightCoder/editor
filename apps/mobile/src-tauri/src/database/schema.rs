@@ -59,9 +59,8 @@ pub fn ensure_database_file(app: &AppHandle, db_name: &str) -> Result<(), String
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to open database: {e}"))?;
     let has_data: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%')", [], |r| r.get(0)).map_err(|e| e.to_string())?;
     if has_data && migrator::needs_main_upgrade(&conn)? {
-        backup_before_migration(&conn, &database_path).map_err(|error| {
-            format!("{error}；原数据库未修改，备份文件路径位于数据库目录")
-        })?;
+        backup_before_migration(&conn, &database_path)
+            .map_err(|error| format!("{error}；原数据库未修改，备份文件路径位于数据库目录"))?;
     }
     migrator::ensure_main_schema(&conn)?;
     index_db::ensure_index_database(app, db_name, &conn)?;
@@ -144,7 +143,11 @@ impl Deref for ActiveConnection {
     type Target = Connection;
 
     fn deref(&self) -> &Connection {
-        &self._guard.as_ref().expect("缓存连接在守卫存续期间必在").conn
+        &self
+            ._guard
+            .as_ref()
+            .expect("缓存连接在守卫存续期间必在")
+            .conn
     }
 }
 

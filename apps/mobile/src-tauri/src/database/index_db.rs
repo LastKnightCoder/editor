@@ -150,8 +150,8 @@ fn resolve_embedding_snapshot_from_setting(setting: &Value) -> EmbeddingSnapshot
         None => return default_embedding_snapshot(),
     };
 
-    let vec_dimensions =
-        parse_positive_dimension(current_model.get("contextLength")).unwrap_or(DEFAULT_VEC_DIMENSION);
+    let vec_dimensions = parse_positive_dimension(current_model.get("contextLength"))
+        .unwrap_or(DEFAULT_VEC_DIMENSION);
     let provider_type = current_config
         .get("providerType")
         .and_then(|v| v.as_str())

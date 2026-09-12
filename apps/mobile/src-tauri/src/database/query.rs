@@ -225,10 +225,7 @@ fn to_card_items(rows: Vec<RawCardRow>) -> Vec<CardListItem> {
 }
 
 /// 按卡片 id 集合取列表项（关联面板展示用），保持传入顺序无关、按更新时间倒序
-pub fn query_cards_by_ids(
-    conn: &Connection,
-    ids: &[i64],
-) -> Result<Vec<CardListItem>, String> {
+pub fn query_cards_by_ids(conn: &Connection, ids: &[i64]) -> Result<Vec<CardListItem>, String> {
     if ids.is_empty() {
         return Ok(vec![]);
     }
@@ -254,24 +251,24 @@ pub fn query_cards_by_ids(
         .map_err(|e| format!("DB_OPEN_FAILED: cards by ids row read failed: {e}"))?
     {
         items.push(RawCardRow {
-            id: row.get(0).map_err(|e| {
-                format!("DB_OPEN_FAILED: cards by ids id parse failed: {e}")
-            })?,
+            id: row
+                .get(0)
+                .map_err(|e| format!("DB_OPEN_FAILED: cards by ids id parse failed: {e}"))?,
             content_id: row.get(1).map_err(|e| {
                 format!("DB_OPEN_FAILED: cards by ids content_id parse failed: {e}")
             })?,
             update_time: row.get(2).map_err(|e| {
                 format!("DB_OPEN_FAILED: cards by ids update_time parse failed: {e}")
             })?,
-            category: row.get(3).map_err(|e| {
-                format!("DB_OPEN_FAILED: cards by ids category parse failed: {e}")
-            })?,
-            tags_raw: row.get(4).map_err(|e| {
-                format!("DB_OPEN_FAILED: cards by ids tags parse failed: {e}")
-            })?,
-            content_raw: row.get(5).map_err(|e| {
-                format!("DB_OPEN_FAILED: cards by ids content parse failed: {e}")
-            })?,
+            category: row
+                .get(3)
+                .map_err(|e| format!("DB_OPEN_FAILED: cards by ids category parse failed: {e}"))?,
+            tags_raw: row
+                .get(4)
+                .map_err(|e| format!("DB_OPEN_FAILED: cards by ids tags parse failed: {e}"))?,
+            content_raw: row
+                .get(5)
+                .map_err(|e| format!("DB_OPEN_FAILED: cards by ids content parse failed: {e}"))?,
         });
     }
 

@@ -322,6 +322,62 @@ export interface DiaryTagSetting {
 
 export type TodoItemType = "normal" | "deadline" | "planned" | "recurring";
 
+/* ── 番茄专注（与桌面端 apps/desktop/src/types/pomodoro.ts 同构） ── */
+
+export type PomodoroMode = "countdown" | "countup";
+
+export type PomodoroStatus = "running" | "paused" | "completed" | "stopped" | "aborted";
+
+export interface PomodoroPreset {
+  id: number;
+  name: string;
+  mode: PomodoroMode;
+  durationMin: number;
+  sortOrder: number;
+  archived: boolean;
+  createTime: number;
+  updateTime: number;
+}
+
+export interface PomodoroPauseSpan {
+  start: number;
+  end?: number;
+}
+
+export interface PomodoroSession {
+  id: number;
+  presetId: number;
+  startTime: number;
+  endTime?: number | null;
+  expectedMs?: number | null;
+  focusMs: number;
+  pauseTotalMs: number;
+  pauseCount: number;
+  pauses: PomodoroPauseSpan[];
+  status: PomodoroStatus;
+  createTime: number;
+  updateTime: number;
+}
+
+export interface PomodoroSummary {
+  count: number;
+  focusMs: number;
+}
+
+export interface PomodoroDailySummary {
+  dayStart: number;
+  count: number;
+  focusMs: number;
+}
+
+export interface ListPomodoroSessionsPayload {
+  presetId?: number;
+  start?: number;
+  end?: number;
+  limit?: number;
+  offset?: number;
+}
+
 export type TodoSystemGroupType = "all" | "normal" | "deadline" | "planned" | "recurring" | null;
 
 export type RecurrenceType = "daily" | "weekdays" | "weekly" | "monthly" | "yearly" | "custom";
@@ -587,6 +643,9 @@ export interface SettingCompat {
       enable?: boolean;
     };
     dailyNote?: {
+      enable?: boolean;
+    };
+    pomodoro?: {
       enable?: boolean;
     };
     [key: string]: unknown;

@@ -1,10 +1,10 @@
 // 全局底部 Dock（v2 模板）：4 个 Tab 根（今天/卡片/日记/我的）+ 中央 FAB。
 // FAB 点击以自身为圆心向上弧形展开快捷创建（新卡片/新文章/写日记），
 // 图标沿用首页 Bento 的模块语义（Stack/Article/BookOpen，Phosphor Duotone）。
-// 由 AppShell 在 RouterProvider 内挂载：只在 Tab 根与任务中心显示，
-// 编辑器/详情等二级页自动隐藏；Tab 切换 = popTo 已有实例或 push 新页。
+// 由 AppShell 在 RouterProvider 内挂载：只在 4 个 Tab 根显示，
+// 编辑器/详情/任务中心/番茄专注等二级页自动隐藏；Tab 切换 = popTo 已有实例或 push 新页。
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { House, Layers, NotebookPen, Plus, User } from "lucide-react";
 import { Article, BookOpen, Stack } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
@@ -25,9 +25,6 @@ const TABS = [
 
 const TAB_KEYS = new Set<string>(TABS.map(tab => tab.key));
 
-/** 这些页面之上显示 Dock：4 个 Tab 根 + 任务中心（从首页进入的二级页） */
-const DOCK_SCREENS = new Set<string>([...TAB_KEYS, "todo"]);
-
 // FAB 环绕菜单：以 FAB 中心为原点，angle（度，-90 为正上方）/ radius 决定弧上落点
 type FabAction = {
   key: "card" | "article" | "diary";
@@ -42,6 +39,22 @@ type FabAction = {
 // 半径与角度约束：左右按钮（±45°）底缘须整体抬出 dock 行（行顶在 FAB 中心
 // 上方 31px），0.707R - 23 >= 34 → R=84；收窄角度而非加大半径，避免中央按钮过高
 const FAB_ARC_RADIUS = 84;
+
+/** 深色主题下单层 -soft 几乎与底色同色，叠此层数累积浓度，得到可感知的实色高亮 */
+const HIGHLIGHT_SOFT_LAYERS = 3;
+
+/**
+ * 高亮块实色背景：-soft 在深色主题下是低透明度色（单层观感透明），这里叠加多层累积
+ * 浓度并垫容器实底色，结果不透明且深浅主题都可感知。
+ * 刻意不用 color-mix：旧版 WebView 会整条丢弃该声明，导致背景彻底消失。
+ */
+function highlightBackground(soft: string, base: string): CSSProperties {
+  const layer = `linear-gradient(${soft}, ${soft})`;
+  return {
+    backgroundImage: Array.from({ length: HIGHLIGHT_SOFT_LAYERS }, () => layer).join(", "),
+    backgroundColor: base,
+  };
+}
 
 const FAB_ACTIONS: readonly FabAction[] = [
   {
@@ -81,7 +94,8 @@ function AppDock() {
 
   const entries = state.screens.entries;
   const topKey = entries[entries.length - 1]?.key ?? "home";
-  const visible = DOCK_SCREENS.has(topKey);
+  // Dock 只在 Tab 根显示：二级页（任务中心/番茄专注等）与沉浸 overlay 一律隐藏
+  const visible = TAB_KEYS.has(topKey);
 
   // 激活 Tab = 栈内最靠近顶部的 Tab 根（二级页归属其入口 Tab），兜底今天
   const activeTab = useMemo(() => {
@@ -166,11 +180,12 @@ function AppDock() {
         }}
       >
         <div className="pointer-events-auto relative mx-3 flex h-[62px] items-center rounded-[22px] px-2">
-          {/* FAB 环绕菜单：锚点在 FAB 中心（行高 62、FAB 54 居中 → 距行底 31px）。
+          {/* FAB 环绕菜单：锚点 = FAB 中心（行高 62、FAB 54 居中 → 距行底 31px）
+              再整体上移 6px，让展开的三个入口视觉抬升、与 dock 留出呼吸感。
               容器尺寸归零，按钮全部 absolute 定位到锚点后由 transform 推到弧上落点，
-              保证三个按钮的弧线圆心严格重合于 FAB 中心；收起时统一收回锚点 */}
+              保证三个按钮的弧线圆心严格重合于锚点；收起时统一收回锚点 */}
           <div
-            className="absolute bottom-[31px] left-1/2 h-0 w-0"
+            className="absolute bottom-[37px] left-1/2 h-0 w-0"
             style={{ zIndex: 1 }}
             aria-hidden={!menuOpen}
           >
@@ -188,7 +203,7 @@ function AppDock() {
                   aria-label={item.label}
                   className="shadow-card absolute left-0 top-0 grid h-[46px] w-[46px] place-items-center rounded-[16px]"
                   style={{
-                    background: item.soft,
+                    ...highlightBackground(item.soft, "var(--surface)"),
                     opacity: menuOpen ? 1 : 0,
                     transform: menuOpen
                       ? `translate(-50%, -50%) translate(${x}px, ${y}px)`
@@ -273,7 +288,7 @@ function DockTab({
         <span
           className="absolute inset-0 rounded-full"
           style={{
-            background: tab.blob,
+            ...highlightBackground(tab.blob, "var(--dock-bg)"),
             transform: active ? "scale(1)" : "scale(0)",
             transition: "transform 0.28s var(--ease-bounce)",
           }}

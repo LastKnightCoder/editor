@@ -247,7 +247,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
       <div
         ref={listRef}
         className="edge-fade-scroll scrollbar-hide flex-1 overflow-y-auto overscroll-contain px-4 pt-1"
-        style={{ paddingBottom: "calc(32px + var(--mobile-safe-bottom))" }}
+        style={{ paddingBottom: "var(--page-bottom-inset)" }}
       >
         {isLoading ? (
           <div className="card space-y-3 p-4">

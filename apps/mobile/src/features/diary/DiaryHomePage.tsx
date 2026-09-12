@@ -20,7 +20,12 @@ import { clampText } from "../../utils/richTextText";
 import { useDiaryStore } from "./store/useDiaryStore";
 import { useDiaryEntries, useDiaryTagSettings, writeDiaryEntries } from "./queries";
 import { groupDiaryEntriesByMonth } from "./dateKey";
-import { collectDailyDates, computeDailyStreak, getTodayDateKey } from "./feedUtils";
+import {
+  collectDailyDates,
+  computeDailyStreak,
+  getTodayDateKey,
+  hasDiaryContent,
+} from "./feedUtils";
 import DiaryCardItem, { describeEntry, entryTagsBrief } from "./DiaryCardItem";
 import {
   DiaryTagEditorSheet,
@@ -143,19 +148,20 @@ export function DiaryHomePage({ onOpenEditor, onOpenSegment, onError }: DiaryHom
   const feedRows = useMemo<DiaryFeedRow[]>(() => {
     const rows: DiaryFeedRow[] = [];
     monthGroups.forEach(group => {
-      const segmentCount = group.entries.reduce(
-        (sum, entry) => sum + (entry.segments?.length ?? 0),
-        0
-      );
+      // 空壳 entry（片段已删光）不参与展示，避免渲染出没有卡片的「0 条」空月份分组
+      const displayEntries = group.entries
+        .filter(hasDiaryContent)
+        .map(entry => ({ entry, segments: entry.segments }));
+      if (displayEntries.length === 0) return;
       rows.push({
         kind: "month",
         key: `month-${group.monthKey}`,
         label: group.monthLabel,
-        count: segmentCount,
-        wordTotal: group.entries.reduce((sum, entry) => sum + entry.wordCount, 0),
+        count: displayEntries.reduce((sum, item) => sum + item.segments.length, 0),
+        wordTotal: displayEntries.reduce((sum, item) => sum + item.entry.wordCount, 0),
       });
-      group.entries.forEach(entry => {
-        [...(entry.segments ?? [])].reverse().forEach(segment => {
+      displayEntries.forEach(({ entry, segments }) => {
+        [...segments].reverse().forEach(segment => {
           rows.push({ kind: "segment", key: `segment-${segment.id}`, entry, segment });
         });
       });
@@ -251,13 +257,13 @@ export function DiaryHomePage({ onOpenEditor, onOpenSegment, onError }: DiaryHom
   const commitDelete = useMemoizedFn(async (entry: DiaryEntry, segment: DiarySegment) => {
     try {
       const saved = await tauri.diaryDeleteSegment(entry.id, segment.id);
-      // 后端权威数据回填：片段删光的 entry 已被级联删除，不再放回列表
+      // 后端权威数据回填：片段删光时 entry 连空壳一起删除（saved 为 null），不再放回列表
       writeDiaryEntries(prev =>
-        saved.segments?.length
+        saved?.segments?.length
           ? prev.some(item => item.id === saved.id)
             ? prev.map(item => (item.id === saved.id ? saved : item))
             : [...prev, saved]
-          : prev.filter(item => item.id !== saved.id)
+          : prev.filter(item => item.id !== entry.id)
       );
     } catch (error) {
       onErrorRef.current(error, "删除日记失败");
@@ -474,7 +480,7 @@ export function DiaryHomePage({ onOpenEditor, onOpenSegment, onError }: DiaryHom
                       <div className="text-ink-3 mb-2.5 mt-5 flex items-center gap-2.5 text-[12px] font-bold">
                         <span>{row.label}</span>
                         <span className="font-mono text-[11px] font-medium">
-                          {row.count} 段 · {row.wordTotal} 字
+                          {row.count} 条 · {row.wordTotal} 字
                         </span>
                         <span className="bg-line h-[1.5px] flex-1" />
                       </div>

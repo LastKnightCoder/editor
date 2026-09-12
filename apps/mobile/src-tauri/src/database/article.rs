@@ -101,7 +101,10 @@ fn query_article_by_id(conn: &Connection, id: i64) -> Result<Option<ArticleListI
 }
 
 #[tauri::command]
-pub fn article_list(app: AppHandle, payload: ArticleListPayload) -> Result<ArticleListResponse, String> {
+pub fn article_list(
+    app: AppHandle,
+    payload: ArticleListPayload,
+) -> Result<ArticleListResponse, String> {
     let conn = schema::open_active_database(&app)?;
     let total = conn
         .query_row(
@@ -140,7 +143,10 @@ pub fn article_get(app: AppHandle, payload: ArticleIdPayload) -> Result<ArticleL
 }
 
 #[tauri::command]
-pub fn article_create(app: AppHandle, payload: CreateArticlePayload) -> Result<ArticleListItem, String> {
+pub fn article_create(
+    app: AppHandle,
+    payload: CreateArticlePayload,
+) -> Result<ArticleListItem, String> {
     let title = payload.title.trim().to_string();
     if title.is_empty() {
         return Err("ARTICLE_INVALID: title must not be empty".to_string());
@@ -178,7 +184,10 @@ pub fn article_create(app: AppHandle, payload: CreateArticlePayload) -> Result<A
 }
 
 #[tauri::command]
-pub fn article_update(app: AppHandle, payload: UpdateArticlePayload) -> Result<ArticleListItem, String> {
+pub fn article_update(
+    app: AppHandle,
+    payload: UpdateArticlePayload,
+) -> Result<ArticleListItem, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction()
@@ -189,7 +198,9 @@ pub fn article_update(app: AppHandle, payload: UpdateArticlePayload) -> Result<A
     let tags = payload
         .tags
         .map(|tags| serde_json::to_string(&tags).unwrap_or_else(|_| "[]".to_string()))
-        .unwrap_or_else(|| serde_json::to_string(&current.tags).unwrap_or_else(|_| "[]".to_string()));
+        .unwrap_or_else(|| {
+            serde_json::to_string(&current.tags).unwrap_or_else(|_| "[]".to_string())
+        });
     tx.execute(
         "
         UPDATE articles

@@ -27,6 +27,7 @@ function SettingsScreen() {
             }
           : undefined
       }
+      onOpenPomodoro={app.pomodoroModuleEnabled ? () => navigator.push("pomodoro") : undefined}
       onOpenSearch={() => navigator.push("search")}
       onOpenArticles={() => navigator.push("articles")}
       onOpenProjects={() => navigator.push("projects")}
