@@ -3,14 +3,25 @@
 
 import { useQuery } from "@tanstack/react-query";
 import * as tauri from "../../services/tauri";
+import type { DiaryTagSetting } from "../../types";
 
 const DIARY_STALE_MS = 30_000;
 
-export function useDiaryEntries() {
+export function useDiaryEntries(enabled = true) {
   return useQuery({
     queryKey: ["diary", "entries"],
     queryFn: () => tauri.diaryListEntries(),
     staleTime: DIARY_STALE_MS,
+    enabled,
+  });
+}
+
+export function useDiaryTagSettings(enabled = true) {
+  return useQuery({
+    queryKey: ["diary", "tagSettings"],
+    queryFn: () => tauri.diaryGetTagSettings(),
+    staleTime: DIARY_STALE_MS,
+    enabled,
   });
 }
 
@@ -31,4 +42,9 @@ export function writeDiaryEntries(updater: (prev: DiaryEntry[]) => DiaryEntry[])
   const queryClient = getQueryClient();
   const prev = queryClient.getQueryData<DiaryEntry[]>(["diary", "entries"]) ?? [];
   queryClient.setQueryData(["diary", "entries"], updater(prev));
+}
+
+/** 标签库变更后回填缓存（后端返回的是全量列表） */
+export function writeDiaryTagSettings(settings: DiaryTagSetting[]): void {
+  getQueryClient().setQueryData(["diary", "tagSettings"], settings);
 }

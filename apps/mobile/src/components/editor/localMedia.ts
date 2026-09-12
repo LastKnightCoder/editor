@@ -1,9 +1,9 @@
 import { convertFileSrc as tauriConvertFileSrc } from "@tauri-apps/api/core";
 import { appDataDir } from "@tauri-apps/api/path";
 import * as tauri from "../../services/tauri";
+import { base64ToUint8Array } from "../../utils/base64";
 
-const KNOWN_DIRECT_SOURCE_PATTERN =
-  /^(data:|blob:|asset:|tauri:|file:|http:\/\/asset\.localhost)/i;
+const KNOWN_DIRECT_SOURCE_PATTERN = /^(data:|blob:|asset:|tauri:|file:|http:\/\/asset\.localhost)/i;
 
 function isHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value);
@@ -28,6 +28,54 @@ let homeDirPromise: Promise<string> | null = null;
 
 function trimTrailingSlash(value: string): string {
   return value.endsWith("/") ? value.slice(0, -1) : value;
+}
+
+/* ── blob URL 渲染通道 ──
+   Android 的 asset protocol 无法在 WebView 加载图片（tauri#12364 官方未决），
+   媒体统一改走 Rust 读文件 + 二进制 IPC + blob URL；asset protocol 仅作回退 */
+const objectUrlCache = new Map<string, string>();
+
+const EXT_MIME_TYPES: Record<string, string> = {
+  webp: "image/webp",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  svg: "image/svg+xml",
+  bmp: "image/bmp",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mov: "video/quicktime",
+  mp3: "audio/mpeg",
+  m4a: "audio/mp4",
+  wav: "audio/wav",
+  ogg: "audio/ogg",
+  flac: "audio/flac",
+};
+
+function mimeFromPath(path: string): string | undefined {
+  const ext = path.split(".").pop()?.toLowerCase();
+  return ext ? EXT_MIME_TYPES[ext] : undefined;
+}
+
+async function readMediaObjectUrl(localPath: string): Promise<string | null> {
+  const cached = objectUrlCache.get(localPath);
+  if (cached) {
+    return cached;
+  }
+  try {
+    // 命令返回 base64 字符串（Android 二进制 IPC 不可靠，见 tauri#10573）
+    const base64 = await tauri.readResourceBytes(localPath);
+    const blob = new Blob([base64ToUint8Array(base64)], {
+      type: mimeFromPath(localPath),
+    });
+    const objectUrl = URL.createObjectURL(blob);
+    objectUrlCache.set(localPath, objectUrl);
+    return objectUrl;
+  } catch (error) {
+    console.error("[mobile-local-media] read resource bytes failed", { localPath, error });
+    return null;
+  }
 }
 
 export function isDirectMediaSource(source: string): boolean {
@@ -64,11 +112,22 @@ export async function resolveLocalMediaSource(source: string): Promise<string> {
     const startedAt = Date.now();
     try {
       const localPath = await tauri.remoteResourceToLocal(normalizedSource);
+      const objectUrl = await readMediaObjectUrl(localPath);
+      if (objectUrl) {
+        console.info("[mobile-local-media] localized remote resource", {
+          source: normalizedSource,
+          localPath,
+          via: "blob",
+          elapsedMs: Date.now() - startedAt,
+        });
+        return objectUrl;
+      }
       const localizedUrl = await tauriConvertFileSrc(localPath);
       console.info("[mobile-local-media] localized remote resource", {
         source: normalizedSource,
         localPath,
         localizedUrl,
+        via: "asset-protocol",
         elapsedMs: Date.now() - startedAt,
       });
       return localizedUrl;
@@ -96,5 +155,9 @@ export async function resolveLocalMediaSource(source: string): Promise<string> {
     localPath = `${trimTrailingSlash(homeDir)}${normalizedSource.slice(1)}`;
   }
 
+  const objectUrl = await readMediaObjectUrl(localPath);
+  if (objectUrl) {
+    return objectUrl;
+  }
   return tauriConvertFileSrc(localPath);
 }

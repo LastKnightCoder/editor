@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { Z_INDEX } from "../../../router/zIndex";
+import { useSheetBackDismiss } from "../../../router/useSheetBackDismiss";
 import { createPortal } from "react-dom";
-import { Check } from "lucide-react";
+import { Check, Inbox } from "lucide-react";
 
 type ActionSheetOption = {
   label: string;
@@ -17,10 +19,14 @@ export type ActionSheetProps = {
   cancelText?: string;
   onClose: () => void;
   onSelect: (value: string) => void;
+  /** 返回手势是否关闭本面板（默认 true）；overlay 路由页主体须传 false */
+  backDismiss?: boolean;
 };
 
 export function ActionSheet(props: ActionSheetProps) {
   const [shouldRender, setShouldRender] = useState(props.open);
+
+  useSheetBackDismiss(props.backDismiss !== false && props.open, props.onClose);
 
   useEffect(() => {
     if (props.open) {
@@ -39,92 +45,94 @@ export function ActionSheet(props: ActionSheetProps) {
   const content = useMemo(() => {
     if (props.loading) {
       return (
-        <div className="border-t border-gray-200 px-4 py-6 text-center text-sm text-gray-500 dark:border-neutral-700 dark:text-neutral-400">
-          加载中...
+        <div className="list-group flex flex-col items-center gap-2.5 px-5 py-8">
+          <span className="border-line-soft border-t-accent h-6 w-6 animate-spin rounded-full border-[3px]" />
+          <div className="text-ink-2 text-[13.5px] font-medium">加载中...</div>
         </div>
       );
     }
     if (!props.options.length) {
       return (
-        <div className="border-t border-gray-200 px-4 py-6 text-center text-sm text-gray-500 dark:border-neutral-700 dark:text-neutral-400">
-          {props.emptyText ?? "暂无可选项"}
+        <div className="list-group flex flex-col items-center gap-2.5 px-5 py-8">
+          <Inbox size={24} strokeWidth={1.8} className="text-ink-3" />
+          <div className="text-ink-2 text-[13.5px] font-medium">
+            {props.emptyText ?? "暂无可选项"}
+          </div>
         </div>
       );
     }
-    return props.options.map((option, index) => {
-      const selected = option.value === props.value;
-      return (
-        <button
-          key={option.value}
-          type="button"
-          className={`relative block w-full py-4 text-center text-xl font-medium transition-colors ${
-            index > 0 ? "border-t border-gray-200 dark:border-neutral-700" : ""
-          } ${
-            selected
-              ? "text-emerald-600 dark:text-emerald-400"
-              : "text-gray-900 active:bg-gray-100 dark:text-neutral-100 dark:active:bg-neutral-800"
-          }`}
-          onClick={() => {
-            props.onSelect(option.value);
-            props.onClose();
-          }}
-        >
-          {option.label}
-          {selected ? (
-            <Check
-              size={18}
-              className="absolute right-5 top-1/2 -translate-y-1/2"
-            />
-          ) : null}
-        </button>
-      );
-    });
-  }, [
-    props.emptyText,
-    props.loading,
-    props.onClose,
-    props.onSelect,
-    props.options,
-    props.value,
-  ]);
+    return (
+      <div className="list-group overflow-hidden">
+        {props.options.map(option => {
+          const selected = option.value === props.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              className={`list-item w-full justify-between text-[15px] transition-colors ${
+                selected ? "text-accent font-bold" : "text-ink active:bg-press font-medium"
+              }`}
+              onClick={() => {
+                props.onSelect(option.value);
+                props.onClose();
+              }}
+            >
+              {option.label}
+              {selected ? (
+                <Check
+                  size={18}
+                  strokeWidth={2.6}
+                  className="check-pop text-accent flex-shrink-0"
+                />
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }, [props.emptyText, props.loading, props.onClose, props.onSelect, props.options, props.value]);
 
   if (!shouldRender || typeof document === "undefined") {
     return null;
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[80]">
+    <div className="fixed inset-0" style={{ zIndex: Z_INDEX.CONFIRM }}>
       <button
         type="button"
-        className={`absolute inset-0 bg-black/50 dark:bg-black/70 ${props.open ? "mask-enter" : "mask-exit"}`}
+        className={`bg-mask absolute inset-0 ${props.open ? "mask-enter" : "mask-exit"}`}
         aria-label="关闭选择面板"
         onClick={props.onClose}
       />
 
       <section
         data-allow-touchmove="true"
-        className={`mobile-kb-scroll absolute bottom-0 left-0 right-0 overflow-y-auto overscroll-y-contain touch-pan-y rounded-t-2xl bg-white shadow-[0_-10px_30px_rgba(0,0,0,0.16)] dark:bg-neutral-900 dark:shadow-[0_-12px_34px_rgba(0,0,0,0.52)] ${props.open ? "sheet-enter" : "sheet-exit"}`}
+        className={`mobile-kb-scroll bg-page absolute bottom-0 left-0 right-0 touch-pan-y overflow-y-auto overscroll-y-contain rounded-t-[26px] ${props.open ? "sheet-enter" : "sheet-exit"}`}
         style={{
-          maxHeight:
-            "calc(var(--kb-viewport-height, 100dvh) - var(--mobile-safe-top) - 3rem)",
+          maxHeight: "calc(var(--kb-viewport-height, 100dvh) - var(--mobile-safe-top) - 3rem)",
         }}
       >
-        <div className="border-b border-gray-200 px-4 py-3 dark:border-neutral-700">
-          <div className="min-w-0 text-sm font-medium text-gray-800 dark:text-neutral-100">
+        <div className="sheet-grab" />
+        <div className="px-3.5 pb-[calc(env(safe-area-inset-bottom,0px)+14px)]">
+          <div className="text-ink-2 pb-2.5 pt-3 text-center text-[12.5px] font-semibold">
             {props.title}
           </div>
+          <div className="flex flex-col gap-2.5">
+            {content}
+            <div className="list-group overflow-hidden">
+              <button
+                type="button"
+                className="text-ink-2 active:bg-press list-item w-full justify-center py-3 text-[15px] font-bold transition-colors"
+                onClick={props.onClose}
+              >
+                {props.cancelText ?? "取消"}
+              </button>
+            </div>
+          </div>
         </div>
-        <div>{content}</div>
-        <button
-          type="button"
-          className="block w-full shrink-0 border-t border-gray-200 py-4 text-center text-xl font-medium text-gray-900 transition-colors active:bg-gray-100 dark:border-neutral-700 dark:text-neutral-100 dark:active:bg-neutral-800"
-          onClick={props.onClose}
-        >
-          {props.cancelText ?? "取消"}
-        </button>
       </section>
     </div>,
-    document.body,
+    document.body
   );
 }
 

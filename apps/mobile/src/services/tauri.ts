@@ -4,6 +4,7 @@ import type {
   ArchiveTodoGroupPayload,
   BootstrapResponse,
   CardDetailResponse,
+  CardListItem,
   CreateTodoGroupPayload,
   CreateTodoItemPayload,
   CreateTodoItemRelativePayload,
@@ -13,12 +14,22 @@ import type {
   DatabaseListResponse,
   DatabaseSchemaStatusResponse,
   DiaryEntry,
+  HomeStats,
   DiaryListPayload,
+  DiaryTagSetting,
   DiaryUpsertPayload,
   DiaryWeatherMood,
   ListTodoItemsPayload,
   ListTodoItemsByTypePayload,
   MoveAndReorderTodoItemPayload,
+  ArticleListItem,
+  ArticleListResponse,
+  DocumentItem,
+  DocumentLibrary,
+  DocumentLibraryListResponse,
+  Project,
+  ProjectItem,
+  ProjectListResponse,
   ReorderTodoGroupsPayload,
   ResourceSyncActionResponse,
   ResourceSyncProgress,
@@ -37,11 +48,35 @@ import type {
   UpdateTodoRecurrencePayload,
 } from "../types";
 import type { KnownCardCategory } from "../features/cards/cardCategory";
+import { logPerf } from "../utils/perf";
+
+// IPC 计时包装：诊断卡顿时看每条命令的真实耗时（连接复用前后对比也靠它）
+function trackedInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  const start = performance.now();
+  return invoke<T>(cmd, args).finally(() => {
+    logPerf("ipc", cmd, performance.now() - start);
+  });
+}
 
 const VERIFY_TIMEOUT_MS = 15_000;
 const SYNC_CHECK_TIMEOUT_MS = 35_000;
+// 卡片链路被 DB 写锁卡住时 invoke 可能永不返回（见冒烟报告 R2），
+// 关闭/保存流程会随之永久挂起——超时兜底让用户可重试而非卡死
+const CARD_INVOKE_TIMEOUT_MS = 8_000;
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string) {
+function withCardTimeout<T>(promise: Promise<T>, action: string): Promise<T> {
+  return withTimeout(
+    promise,
+    CARD_INVOKE_TIMEOUT_MS,
+    `CARD_INVOKE_TIMEOUT: ${action}超时（${CARD_INVOKE_TIMEOUT_MS / 1000} 秒），请重试`
+  );
+}
+
+export function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutMessage: string
+): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
@@ -105,30 +140,49 @@ function normalizeDiaryEntry(raw: RawDiaryEntry): DiaryEntry {
   };
 }
 
-export function bootstrapApp() {
-  return invoke<BootstrapResponse>("bootstrap_app");
+// Android WebView 首次加载期间，最早的 invoke 可能被 IPC 层直接丢弃（既不 resolve 也不 reject），
+// 首启引导若不重试会永久卡死在初始化；后续 IPC 就绪后重试即可正常返回。
+const BOOTSTRAP_TIMEOUT_MS = 8_000;
+let bootstrapInFlight: Promise<BootstrapResponse> | null = null;
+
+function runBootstrap(): Promise<BootstrapResponse> {
+  const request = trackedInvoke<BootstrapResponse>("bootstrap_app");
+  return withTimeout(
+    request,
+    BOOTSTRAP_TIMEOUT_MS,
+    `BOOTSTRAP_TIMEOUT: 引导超时（${BOOTSTRAP_TIMEOUT_MS / 1000} 秒），请重试`
+  );
+}
+
+export function bootstrapApp(): Promise<BootstrapResponse> {
+  if (!bootstrapInFlight) {
+    bootstrapInFlight = runBootstrap().finally(() => {
+      bootstrapInFlight = null;
+    });
+  }
+  return bootstrapInFlight;
 }
 
 export function readSettingJson() {
-  return invoke<string>("read_setting_json");
+  return trackedInvoke<string>("read_setting_json");
 }
 
 export function writeSettingJson(payload: string) {
-  return invoke<SettingWriteResponse>("write_setting_json", { payload });
+  return trackedInvoke<SettingWriteResponse>("write_setting_json", { payload });
 }
 
 export function verifyGithubToken(token: string) {
-  return invoke<{ name: string; email: string }>("verify_github_token", {
+  return trackedInvoke<{ name: string; email: string }>("verify_github_token", {
     token,
   });
 }
 
 export function listGithubRepos(token: string, owner: string) {
-  return invoke<string[]>("list_github_repos", { token, owner });
+  return trackedInvoke<string[]>("list_github_repos", { token, owner });
 }
 
 export function listGithubBranches(token: string, owner: string, repo: string) {
-  return invoke<string[]>("list_github_branches", { token, owner, repo });
+  return trackedInvoke<string[]>("list_github_branches", { token, owner, repo });
 }
 
 export function verifyS3Credentials(params: {
@@ -140,7 +194,7 @@ export function verifyS3Credentials(params: {
   region: string;
 }) {
   return withTimeout(
-    invoke<string>("verify_s3_credentials", { payload: params }),
+    trackedInvoke<string>("verify_s3_credentials", { payload: params }),
     VERIFY_TIMEOUT_MS,
     `S3_VERIFY_FAILED:S3 验证超时（${Math.floor(VERIFY_TIMEOUT_MS / 1000)} 秒），请检查网络后重试`
   );
@@ -151,7 +205,7 @@ export function verifyWebdavCredentials(params: {
   username: string;
   password: string;
 }) {
-  return invoke<string>("verify_webdav_credentials", { payload: params });
+  return trackedInvoke<string>("verify_webdav_credentials", { payload: params });
 }
 
 export function verifyAliOssCredentials(params: {
@@ -160,15 +214,20 @@ export function verifyAliOssCredentials(params: {
   bucket: string;
   region: string;
 }) {
-  return invoke<string>("verify_alioss_credentials", { payload: params });
+  return trackedInvoke<string>("verify_alioss_credentials", { payload: params });
 }
 
 export function listDatabases() {
-  return invoke<DatabaseListResponse>("list_databases");
+  return trackedInvoke<DatabaseListResponse>("list_databases");
+}
+
+/** 当前激活数据库文件大小（字节，含 WAL/SHM） */
+export function getActiveDatabaseSize() {
+  return trackedInvoke<number>("get_active_database_size");
 }
 
 export function setActiveDatabase(name: string) {
-  return invoke<ActiveDatabaseResponse>("set_active_database", { name });
+  return trackedInvoke<ActiveDatabaseResponse>("set_active_database", { name });
 }
 
 export function getCardsOverview(params: {
@@ -177,178 +236,243 @@ export function getCardsOverview(params: {
   query?: string;
   category?: string;
 }) {
-  return invoke<CardsOverviewResponse>("get_cards_overview", params);
+  return withCardTimeout(
+    trackedInvoke<CardsOverviewResponse>("get_cards_overview", params),
+    "读取卡片列表"
+  );
 }
 
 export function getCardDetail(id: number) {
-  return invoke<CardDetailResponse>("get_card_detail", { id });
+  return withCardTimeout(
+    trackedInvoke<CardDetailResponse>("get_card_detail", { id }),
+    "读取卡片详情"
+  );
 }
 
 export function getContentDetail(contentId: number) {
-  return invoke<ContentDetailResponse>("get_content_detail", { contentId });
+  return trackedInvoke<ContentDetailResponse>("get_content_detail", { contentId });
 }
 
 export function createTemporaryCard(params: { content: unknown[]; count: number }) {
-  return invoke<CardDetailResponse>("create_temporary_card", {
-    payload: params,
-  });
+  // 创建是非幂等操作：超时只代表放弃等待，后端事务可能仍会提交，
+  // 引导用户确认而非盲目重试，避免产生重复卡片
+  return withTimeout(
+    trackedInvoke<CardDetailResponse>("create_temporary_card", {
+      payload: params,
+    }),
+    CARD_INVOKE_TIMEOUT_MS,
+    `CARD_INVOKE_TIMEOUT: 创建卡片超时（${CARD_INVOKE_TIMEOUT_MS / 1000} 秒），请返回列表确认是否已创建，勿直接重试`
+  );
 }
 
 export function updateContent(params: { contentId: number; content: unknown[]; count: number }) {
-  return invoke<ContentDetailResponse>("update_content", {
-    payload: params,
-  });
+  return withCardTimeout(
+    trackedInvoke<ContentDetailResponse>("update_content", {
+      payload: params,
+    }),
+    "保存卡片内容"
+  );
 }
 
 export function updateCardCategory(params: { id: number; category: KnownCardCategory }) {
-  return invoke<CardDetailResponse>("update_card_category", {
-    payload: params,
-  });
+  return withCardTimeout(
+    trackedInvoke<CardDetailResponse>("update_card_category", {
+      payload: params,
+    }),
+    "更新卡片分类"
+  );
+}
+
+export function updateCardTags(params: { id: number; tags: string[] }) {
+  return withCardTimeout(
+    trackedInvoke<CardDetailResponse>("update_card_tags", {
+      payload: params,
+    }),
+    "更新卡片标签"
+  );
+}
+
+export function updateCardLinks(params: { id: number; links: number[] }) {
+  return withCardTimeout(
+    trackedInvoke<CardDetailResponse>("update_card_links", {
+      payload: params,
+    }),
+    "更新卡片关联"
+  );
+}
+
+export function getCardsByIds(ids: number[]) {
+  return withCardTimeout(
+    trackedInvoke<CardListItem[]>("get_cards_by_ids", { payload: { ids } }),
+    "读取关联卡片"
+  );
 }
 
 export function deleteCard(id: number) {
-  return invoke<number>("delete_card", { id });
+  return withCardTimeout(trackedInvoke<number>("delete_card", { id }), "删除卡片");
 }
 
 export function getDatabaseSchemaStatus(name?: string) {
-  return invoke<DatabaseSchemaStatusResponse>("get_database_schema_status", {
+  return trackedInvoke<DatabaseSchemaStatusResponse>("get_database_schema_status", {
     name,
   });
 }
 
 export function createContent(params: { content: unknown[]; count?: number }) {
-  return invoke<number>("create_content", { payload: params });
+  return trackedInvoke<number>("create_content", { payload: params });
 }
 
 export function diaryListEntries(payload?: DiaryListPayload) {
   const call = payload
-    ? invoke<RawDiaryEntry[]>("diary_list_entries", { payload })
-    : invoke<RawDiaryEntry[]>("diary_list_entries");
+    ? trackedInvoke<RawDiaryEntry[]>("diary_list_entries", { payload })
+    : trackedInvoke<RawDiaryEntry[]>("diary_list_entries");
   return call.then(rows => rows.map(normalizeDiaryEntry));
 }
 
 export function diaryGetEntry(payload: { type: DiaryEntry["type"]; date: string }) {
-  return invoke<RawDiaryEntry | null>("diary_get_entry", { payload }).then(row =>
+  return trackedInvoke<RawDiaryEntry | null>("diary_get_entry", { payload }).then(row =>
     row ? normalizeDiaryEntry(row) : null
   );
 }
 
 export function diaryUpsertEntry(payload: DiaryUpsertPayload) {
-  return invoke<RawDiaryEntry>("diary_upsert_entry", { payload }).then(normalizeDiaryEntry);
+  return trackedInvoke<RawDiaryEntry>("diary_upsert_entry", { payload }).then(normalizeDiaryEntry);
 }
 
 export function diaryDeleteEntry(id: number) {
-  return invoke<number>("diary_delete_entry", { payload: { id } });
+  return trackedInvoke<number>("diary_delete_entry", { payload: { id } });
 }
 
 export function diaryDeleteSegment(diaryId: number, segmentId: number) {
-  return invoke<RawDiaryEntry>("diary_delete_segment", {
+  return trackedInvoke<RawDiaryEntry>("diary_delete_segment", {
     payload: { diaryId, segmentId },
   }).then(normalizeDiaryEntry);
 }
 
+export function diaryGetTagSettings() {
+  return trackedInvoke<DiaryTagSetting[]>("diary_get_tag_settings");
+}
+
+export function diaryUpsertTagSetting(payload: { name: string; color: string }) {
+  return trackedInvoke<DiaryTagSetting[]>("diary_upsert_tag_setting", { payload });
+}
+
+export function diaryRenameTagSetting(payload: { name: string; newName: string }) {
+  return trackedInvoke<DiaryTagSetting[]>("diary_rename_tag_setting", { payload });
+}
+
+export function diaryDeleteTagSetting(name: string) {
+  return trackedInvoke<DiaryTagSetting[]>("diary_delete_tag_setting", {
+    payload: { name },
+  });
+}
+
+export function diaryUpdateTags(payload: { id: number; tags: string[] }) {
+  return trackedInvoke<RawDiaryEntry>("diary_update_tags", { payload }).then(normalizeDiaryEntry);
+}
+
 export function todoListGroups() {
-  return invoke<TodoGroup[]>("todo_list_groups");
+  return trackedInvoke<TodoGroup[]>("todo_list_groups");
 }
 
 export function todoGetSystemGroups() {
-  return invoke<TodoGroup[]>("todo_get_system_groups");
+  return trackedInvoke<TodoGroup[]>("todo_get_system_groups");
 }
 
 export function todoCreateGroup(payload: CreateTodoGroupPayload) {
-  return invoke<TodoGroup>("todo_create_group", { payload });
+  return trackedInvoke<TodoGroup>("todo_create_group", { payload });
 }
 
 export function todoUpdateGroup(payload: UpdateTodoGroupPayload) {
-  return invoke<TodoGroup>("todo_update_group", { payload });
+  return trackedInvoke<TodoGroup>("todo_update_group", { payload });
 }
 
 export function todoArchiveGroup(payload: ArchiveTodoGroupPayload) {
-  return invoke<number>("todo_archive_group", { payload });
+  return trackedInvoke<number>("todo_archive_group", { payload });
 }
 
 export function todoReorderGroups(payload: ReorderTodoGroupsPayload) {
-  return invoke<number>("todo_reorder_groups", { payload });
+  return trackedInvoke<number>("todo_reorder_groups", { payload });
 }
 
 export function todoGetGroupStats() {
-  return invoke<TodoGroupStats[]>("todo_get_group_stats");
+  return trackedInvoke<TodoGroupStats[]>("todo_get_group_stats");
 }
 
 export function todoGetSystemGroupStats() {
-  return invoke<TodoGroupStats[]>("todo_get_system_group_stats");
+  return trackedInvoke<TodoGroupStats[]>("todo_get_system_group_stats");
 }
 
 export function todoListItems(payload: ListTodoItemsPayload) {
-  return invoke<TodoItem[]>("todo_list_items", { payload });
+  return trackedInvoke<TodoItem[]>("todo_list_items", { payload });
 }
 
 export function todoListItemsByType(payload: ListTodoItemsByTypePayload) {
-  return invoke<TodoItem[]>("todo_list_items_by_type", { payload });
+  return trackedInvoke<TodoItem[]>("todo_list_items_by_type", { payload });
 }
 
 export function todoCreateItem(payload: CreateTodoItemPayload) {
-  return invoke<TodoItem>("todo_create_item", { payload });
+  return trackedInvoke<TodoItem>("todo_create_item", { payload });
 }
 
 export function todoCreateItemRelative(payload: CreateTodoItemRelativePayload) {
-  return invoke<TodoItem>("todo_create_item_relative", { payload });
+  return trackedInvoke<TodoItem>("todo_create_item_relative", { payload });
 }
 
 export function todoUpdateItem(payload: UpdateTodoItemPayload) {
-  return invoke<TodoItem>("todo_update_item", { payload });
+  return trackedInvoke<TodoItem>("todo_update_item", { payload });
 }
 
 export function todoToggleCompleteCascade(payload: ToggleTodoCompletePayload) {
-  return invoke<number>("todo_toggle_complete_cascade", { payload });
+  return trackedInvoke<number>("todo_toggle_complete_cascade", { payload });
 }
 
 export function todoMoveAndReorder(payload: MoveAndReorderTodoItemPayload) {
-  return invoke<TodoItem>("todo_move_and_reorder", { payload });
+  return trackedInvoke<TodoItem>("todo_move_and_reorder", { payload });
 }
 
 export function todoArchiveItem(id: number, isArchived: boolean) {
-  return invoke<number>("todo_archive_item", {
+  return trackedInvoke<number>("todo_archive_item", {
     payload: { id, isArchived },
   });
 }
 
 export function todoDeleteItem(id: number) {
-  return invoke<number>("todo_delete_item", { payload: { id } });
+  return trackedInvoke<number>("todo_delete_item", { payload: { id } });
 }
 
 export function todoDeleteItemCascade(id: number) {
-  return invoke<number>("todo_delete_item_cascade", { payload: { id } });
+  return trackedInvoke<number>("todo_delete_item_cascade", { payload: { id } });
 }
 
 export function todoGetRecurrence(id: number) {
-  return invoke<TodoRecurrence | null>("todo_get_recurrence", {
+  return trackedInvoke<TodoRecurrence | null>("todo_get_recurrence", {
     payload: { id },
   });
 }
 
 export function todoGetRecurrenceByItem(todoItemId: number) {
-  return invoke<TodoRecurrence | null>("todo_get_recurrence_by_item", {
+  return trackedInvoke<TodoRecurrence | null>("todo_get_recurrence_by_item", {
     payload: { todoItemId },
   });
 }
 
 export function todoCreateRecurrence(payload: CreateTodoRecurrencePayload) {
-  return invoke<TodoRecurrence>("todo_create_recurrence", { payload });
+  return trackedInvoke<TodoRecurrence>("todo_create_recurrence", { payload });
 }
 
 export function todoUpdateRecurrence(payload: UpdateTodoRecurrencePayload) {
-  return invoke<TodoRecurrence>("todo_update_recurrence", { payload });
+  return trackedInvoke<TodoRecurrence>("todo_update_recurrence", { payload });
 }
 
 export function todoDeleteRecurrence(id: number) {
-  return invoke<number>("todo_delete_recurrence", {
+  return trackedInvoke<number>("todo_delete_recurrence", {
     payload: { id },
   });
 }
 
 export function todoDeleteRecurrenceByItem(todoItemId: number) {
-  return invoke<number>("todo_delete_recurrence_by_item", {
+  return trackedInvoke<number>("todo_delete_recurrence_by_item", {
     payload: { todoItemId },
   });
 }
@@ -358,38 +482,38 @@ export function todoGetRecurrenceCompletions(
   startDate?: number,
   endDate?: number
 ) {
-  return invoke<TodoRecurrenceCompletion[]>("todo_get_recurrence_completions", {
+  return trackedInvoke<TodoRecurrenceCompletion[]>("todo_get_recurrence_completions", {
     payload: { recurrenceId, startDate, endDate },
   });
 }
 
 export function todoGetRecurrenceCompletion(recurrenceId: number, scheduledDate: number) {
-  return invoke<TodoRecurrenceCompletion | null>("todo_get_recurrence_completion", {
+  return trackedInvoke<TodoRecurrenceCompletion | null>("todo_get_recurrence_completion", {
     payload: { recurrenceId, scheduledDate },
   });
 }
 
 export function todoCompleteRecurrence(recurrenceId: number, scheduledDate: number) {
-  return invoke<TodoRecurrenceCompletion>("todo_complete_recurrence", {
+  return trackedInvoke<TodoRecurrenceCompletion>("todo_complete_recurrence", {
     payload: { recurrenceId, scheduledDate },
   });
 }
 
 export function todoUncompleteRecurrence(recurrenceId: number, scheduledDate: number) {
-  return invoke<number>("todo_uncomplete_recurrence", {
+  return trackedInvoke<number>("todo_uncomplete_recurrence", {
     payload: { recurrenceId, scheduledDate },
   });
 }
 
 export function todoSkipRecurrence(recurrenceId: number, scheduledDate: number) {
-  return invoke<TodoRecurrenceCompletion>("todo_skip_recurrence", {
+  return trackedInvoke<TodoRecurrenceCompletion>("todo_skip_recurrence", {
     payload: { recurrenceId, scheduledDate },
   });
 }
 
 export function syncCheckVersions() {
   return withTimeout(
-    invoke<SyncVersionResponse>("sync_check_versions"),
+    trackedInvoke<SyncVersionResponse>("sync_check_versions"),
     SYNC_CHECK_TIMEOUT_MS,
     `SYNC_CHECK_FAILED:同步状态刷新超时（${Math.floor(
       SYNC_CHECK_TIMEOUT_MS / 1000
@@ -398,44 +522,187 @@ export function syncCheckVersions() {
 }
 
 export function syncUploadDatabase() {
-  return invoke<SyncActionResponse>("sync_upload_database");
+  return trackedInvoke<SyncActionResponse>("sync_upload_database");
 }
 
 export function syncDownloadDatabase() {
-  return invoke<SyncActionResponse>("sync_download_database");
+  return trackedInvoke<SyncActionResponse>("sync_download_database");
 }
 
 export function resourceSyncRefresh() {
-  return invoke<ResourceSyncStatusFile | null>("resource_sync_refresh");
+  return trackedInvoke<ResourceSyncStatusFile | null>("resource_sync_refresh");
 }
 
 export function resourceSyncStart() {
-  return invoke<ResourceSyncActionResponse>("resource_sync_start");
+  return trackedInvoke<ResourceSyncActionResponse>("resource_sync_start");
 }
 
 export function resourceSyncRetryFailed() {
-  return invoke<ResourceSyncActionResponse>("resource_sync_retry_failed");
+  return trackedInvoke<ResourceSyncActionResponse>("resource_sync_retry_failed");
 }
 
 export function resourceSyncCancel() {
-  return invoke<ResourceSyncActionResponse>("resource_sync_cancel");
+  return trackedInvoke<ResourceSyncActionResponse>("resource_sync_cancel");
 }
 
 export function resourceSyncGetProgress() {
-  return invoke<ResourceSyncProgress>("resource_sync_get_progress");
+  return trackedInvoke<ResourceSyncProgress>("resource_sync_get_progress");
 }
 
 export function resourceSyncGetStatus() {
-  return invoke<ResourceSyncStatusFile | null>("resource_sync_get_status");
+  return trackedInvoke<ResourceSyncStatusFile | null>("resource_sync_get_status");
 }
 
-export function uploadResource(params: { fileName: string; mimeType: string; bytes: Uint8Array }) {
-  return invoke<string>("upload_resource", { payload: params });
+// Android 的 IPC 二进制通道不可靠（tauri#10573 会把二进制包装成逐字节 JSON），
+// 上传/读取统一走 base64 字符串；调用方负责先做前端预压缩以控制负载
+export function uploadResource(params: { fileName: string; mimeType: string; base64: string }) {
+  return trackedInvoke<string>("upload_resource", { payload: params });
+}
+
+// 读取 .editor 内资源文件，返回 base64 字符串（Android asset protocol 缺陷 tauri#12364 的替代通道）
+export function readResourceBytes(path: string) {
+  return trackedInvoke<string>("read_resource_bytes", { path });
 }
 
 export function remoteResourceToLocal(url: string, fileName?: string) {
-  return invoke<string>("remote_resource_to_local", {
+  return trackedInvoke<string>("remote_resource_to_local", {
     url,
     fileName,
   });
+}
+
+/* ── 文章 ── */
+
+export function articleList(params: { offset?: number; limit?: number } = {}) {
+  return trackedInvoke<ArticleListResponse>("article_list", { payload: params });
+}
+
+export function articleGet(id: number) {
+  return trackedInvoke<ArticleListItem>("article_get", { payload: { id } });
+}
+
+export function articleCreate(params: { title: string; author?: string }) {
+  return trackedInvoke<ArticleListItem>("article_create", { payload: params });
+}
+
+export function articleUpdate(params: {
+  id: number;
+  title?: string;
+  author?: string;
+  tags?: string[];
+  bannerBg?: string;
+  bannerPosition?: string;
+  isTop?: boolean;
+}) {
+  return trackedInvoke<ArticleListItem>("article_update", { payload: params });
+}
+
+export function articleDelete(id: number) {
+  return trackedInvoke<number>("article_delete", { payload: { id } });
+}
+
+/* ── 项目 ── */
+
+export function projectList(params: { offset?: number; limit?: number } = {}) {
+  return trackedInvoke<ProjectListResponse>("project_list", { payload: params });
+}
+
+export function projectGet(id: number) {
+  return trackedInvoke<Project>("project_get", { payload: { id } });
+}
+
+export function projectItemList() {
+  return trackedInvoke<ProjectItem[]>("project_item_list");
+}
+
+export function projectCreate(params: { title: string; desc?: string; projectType?: string }) {
+  return trackedInvoke<Project>("project_create", { payload: params });
+}
+
+export function projectUpdate(params: {
+  id: number;
+  title?: string;
+  desc?: string;
+  pinned?: boolean;
+  archived?: boolean;
+}) {
+  return trackedInvoke<Project>("project_update", { payload: params });
+}
+
+export function projectDelete(id: number) {
+  return trackedInvoke<number>("project_delete", { payload: { id } });
+}
+
+export function projectItemCreate(params: {
+  projectId: number;
+  parentId?: number;
+  title: string;
+  itemType?: string;
+  refType?: string;
+  refId?: number;
+}) {
+  return trackedInvoke<ProjectItem>("project_item_create", { payload: params });
+}
+
+export function projectItemUpdate(params: { id: number; title?: string }) {
+  return trackedInvoke<number>("project_item_update", { payload: params });
+}
+
+export function projectItemDelete(id: number) {
+  return trackedInvoke<number>("project_item_delete", { payload: { id } });
+}
+
+/* ── 知识库 ── */
+
+export function documentLibraryList(params: { offset?: number; limit?: number } = {}) {
+  return trackedInvoke<DocumentLibraryListResponse>("document_library_list", { payload: params });
+}
+
+export function documentLibraryGet(id: number) {
+  return trackedInvoke<DocumentLibrary>("document_library_get", { payload: { id } });
+}
+
+export function documentItemList() {
+  return trackedInvoke<DocumentItem[]>("document_item_list");
+}
+
+export function documentLibraryCreate(params: { title: string; desc?: string }) {
+  return trackedInvoke<DocumentLibrary>("document_library_create", { payload: params });
+}
+
+export function documentLibraryUpdate(params: {
+  id: number;
+  title?: string;
+  desc?: string;
+  isTop?: boolean;
+}) {
+  return trackedInvoke<DocumentLibrary>("document_library_update", { payload: params });
+}
+
+export function documentLibraryDelete(id: number) {
+  return trackedInvoke<number>("document_library_delete", { payload: { id } });
+}
+
+export function documentItemCreate(params: {
+  documentId: number;
+  parentId?: number;
+  title: string;
+  refType?: string;
+  refId?: number;
+}) {
+  return trackedInvoke<DocumentItem>("document_item_create", { payload: params });
+}
+
+export function documentItemUpdate(params: { id: number; title?: string; tags?: string[] }) {
+  return trackedInvoke<number>("document_item_update", { payload: params });
+}
+
+export function documentItemDelete(id: number) {
+  return trackedInvoke<number>("document_item_delete", { payload: { id } });
+}
+
+/* ── 首页汇总统计 ── */
+
+export function getHomeStats() {
+  return trackedInvoke<HomeStats>("get_home_stats");
 }

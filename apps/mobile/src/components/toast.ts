@@ -2,11 +2,18 @@ import { create } from "zustand";
 
 export type ToastType = "success" | "info" | "warning" | "error";
 
+/** toast 内的动作按钮（如「撤销」）：点击后执行回调并立即关闭该条 */
+export type ToastAction = {
+  label: string;
+  onClick: () => void;
+};
+
 export type ToastOptions = {
   id?: string;
   type: ToastType;
   text: string;
   duration?: number;
+  action?: ToastAction;
 };
 
 export type ToastMessage = {
@@ -14,6 +21,7 @@ export type ToastMessage = {
   type: ToastType;
   text: string;
   duration: number;
+  action?: ToastAction;
 };
 
 type ToastStore = {
@@ -27,31 +35,25 @@ const MAX_TOASTS = 3;
 const DEFAULT_DURATION = 3000;
 
 function createToastId(): string {
-  if (
-    typeof crypto !== "undefined" &&
-    typeof crypto.randomUUID === "function"
-  ) {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
   return `toast-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export const useToastStore = create<ToastStore>((set) => ({
+export const useToastStore = create<ToastStore>(set => ({
   toasts: [],
-  addToast: (toast) =>
-    set((state) => {
-      const merged = [
-        ...state.toasts.filter((item) => item.id !== toast.id),
-        toast,
-      ];
+  addToast: toast =>
+    set(state => {
+      const merged = [...state.toasts.filter(item => item.id !== toast.id), toast];
       const overflow = merged.length - MAX_TOASTS;
       return {
         toasts: overflow > 0 ? merged.slice(overflow) : merged,
       };
     }),
-  removeToast: (id) =>
-    set((state) => ({
-      toasts: state.toasts.filter((toast) => toast.id !== id),
+  removeToast: id =>
+    set(state => ({
+      toasts: state.toasts.filter(toast => toast.id !== id),
     })),
   clearAll: () => set({ toasts: [] }),
 }));
@@ -62,10 +64,7 @@ type TypedToastInput = {
   duration?: number;
 };
 
-type TypedToastFunction = (
-  content: string | TypedToastInput,
-  duration?: number,
-) => () => void;
+type TypedToastFunction = (content: string | TypedToastInput, duration?: number) => () => void;
 
 export type ToastAPI = {
   (options: ToastOptions): () => void;
@@ -82,6 +81,7 @@ function pushToast(options: ToastOptions): () => void {
     type: options.type,
     text: options.text,
     duration: options.duration ?? DEFAULT_DURATION,
+    action: options.action,
   };
   useToastStore.getState().addToast(message);
   return () => {

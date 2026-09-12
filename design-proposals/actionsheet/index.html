@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ActionSheet 重设计 · 三套方案对比</title>
+<style>
+  :root {
+    --bg: #101013;
+    --card: #1a1b1f;
+    --line: rgba(255,255,255,.09);
+    --text: #ededf0;
+    --text-2: #9b9ba3;
+    --text-3: #63636d;
+    --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg); color: var(--text);
+    min-height: 100dvh;
+    padding: calc(28px + env(safe-area-inset-top, 0px)) 22px calc(44px + env(safe-area-inset-bottom, 0px));
+    max-width: 520px; margin: 0 auto;
+  }
+  header h1 { font-size: 25px; font-weight: 800; letter-spacing: -.01em; }
+  header p { font-size: 13.5px; color: var(--text-2); margin-top: 8px; line-height: 1.75; }
+
+  section.status {
+    margin-top: 18px; border: 1px solid var(--line); border-radius: 14px;
+    padding: 12px 14px; font-size: 12.5px; color: var(--text-2); line-height: 1.8; background: var(--card);
+  }
+  section.status b { color: var(--text); }
+
+  .list { margin-top: 20px; display: flex; flex-direction: column; gap: 12px; }
+  a.prop {
+    display: flex; align-items: center; gap: 14px;
+    border: 1px solid var(--line); border-radius: 16px; padding: 15px 16px;
+    background: var(--card); text-decoration: none; color: var(--text);
+    transition: transform .15s ease, border-color .2s;
+  }
+  a.prop:active { transform: scale(.985); }
+  .badge {
+    width: 46px; height: 46px; border-radius: 14px; flex-shrink: 0;
+    display: grid; place-items: center; font-size: 19px; font-weight: 800;
+  }
+  .prop h2 { font-size: 15.5px; font-weight: 750; }
+  .prop p { font-size: 12.5px; color: var(--text-2); margin-top: 3px; line-height: 1.6; }
+  .prop .go { margin-left: auto; color: var(--text-3); font-size: 18px; flex-shrink: 0; }
+
+  .scenes-note {
+    margin-top: 22px; font-size: 12.5px; color: var(--text-3); line-height: 1.9;
+  }
+  .scenes-note b { color: var(--text-2); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>移动端 ActionSheet 重设计 · 三套方案</h1>
+  <p>现有面板是 iOS 原生居中样式，与应用的 Bento 卡片语言（左对齐、粉彩语义色、圆角卡片）脱节。以下三套方案均覆盖全部使用场景，并支持四主题切换预览。</p>
+</header>
+
+<section class="status">
+  <b>每个方案内含 10 个可切换场景</b>：文章菜单 / 项目菜单 / 节点菜单 / 任务操作 / 新建入口 / 卡片类型 / 任务类型 / 提醒时间 / 仓库空态 / 仓库加载。可切换杏子、玄夜、薄荷、海盐四主题验证融合度。
+</section>
+
+<div class="list">
+  <a class="prop" href="d-blend.html">
+    <span class="badge" style="background:rgba(217,119,87,.15);color:#e8896a">D</span>
+    <span>
+      <h2>融合版（第二轮 · 根据反馈调整）</h2>
+      <p>全宽贴底零空隙 + 操作回归 list-group 列表语言（卡内虚线行）+ 裸线性语义色图标，无底色块、无按钮感。</p>
+    </span>
+    <span class="go">›</span>
+  </a>
+  <a class="prop" href="a-bento-icon.html">
+    <span class="badge" style="background:rgba(217,119,87,.1);color:#c56a4e">A</span>
+    <span>
+      <h2>Bento 彩底图标（第一轮）</h2>
+      <p>悬浮卡片组不贴边 + 语义粉彩底图标 + 危险项独立玫瑰卡 + 选中主色胶囊。最贴近现有主题语言。</p>
+    </span>
+    <span class="go">›</span>
+  </a>
+  <a class="prop" href="b-glass-float.html">
+    <span class="badge" style="background:rgba(240,168,96,.14);color:#f0a860">B</span>
+    <span>
+      <h2>夜航玻璃</h2>
+      <p>全宽磨砂玻璃面板 + 顶部高光发丝线 + 同材质子卡。通透悬浮感，玄夜主题下最出彩。</p>
+    </span>
+    <span class="go">›</span>
+  </a>
+  <a class="prop" href="c-typographic.html">
+    <span class="badge" style="background:rgba(157,185,240,.13);color:#9db9f0">C</span>
+    <span>
+      <h2>纸感排版</h2>
+      <p>去底色块、靠字号字重与细线分层 + 左缘主色指示条。安静克制，信息密度最低。</p>
+    </span>
+    <span class="go">›</span>
+  </a>
+</div>
+
+<p class="scenes-note">
+  <b>对应代码位置</b>：通用面板 <code>apps/mobile/src/components/ActionSheet.tsx</code>（对象菜单 / 新建入口 / 任务操作 / 类型与提醒选择），设置选择面板 <code>apps/mobile/src/features/settings/components/ActionSheet.tsx</code>（Provider / 模型 / 仓库 / 分支，含加载与空态）。方案选定后两者将统一重构为同一套视觉语言。
+</p>
+
+</body>
+</html>

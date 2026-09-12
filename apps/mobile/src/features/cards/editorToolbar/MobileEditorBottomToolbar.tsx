@@ -9,35 +9,54 @@ import {
   type ReactNode,
 } from "react";
 import { Z_INDEX } from "../../../router/zIndex";
+import { useSheetBackDismiss } from "../../../router/useSheetBackDismiss";
 import { createPortal } from "react-dom";
 import {
+  AudioLines,
   Ban,
   Baseline,
   Bold,
+  Camera,
   Check,
+  ChevronDown,
   Code,
-  Ellipsis,
   FileText,
+  Heading,
   Highlighter,
+  Image as ImageIcon,
+  Images,
+  Info,
   Italic,
   Keyboard,
   Link2,
+  List,
+  ListOrdered,
   MessageSquarePlus,
+  Minus,
   Pencil,
+  PanelsTopLeft,
+  Plus,
+  Quote,
+  Redo2,
+  Sigma,
+  SquareCheck,
+  SquareCode,
+  StickyNote,
   Strikethrough,
-  Type,
+  Table as TableIcon,
   Underline,
+  Undo2,
+  Video,
+  Workflow,
 } from "lucide-react";
 
 import { calculateFloatingPosition } from "@tau/editor/src/components/HoveringToolbar/floatingPosition";
 
+import ActionSheet, { type ActionSheetItem } from "../../../components/ActionSheet";
 import ContentLinkPickerSheet from "../editorExtensions/ContentLinkPickerSheet";
 import {
   HIGHLIGHT_OPTIONS,
-  MORE_ACTIONS,
-  PRIMARY_ACTIONS,
   TEXT_GRADIENT_OPTIONS,
-  TEXT_STYLE_ACTIONS,
   TEXT_COLOR_OPTIONS,
   UNDERLINE_COLOR_OPTIONS,
   UNDERLINE_LINE_TYPE_OPTIONS,
@@ -47,11 +66,24 @@ import {
 } from "./toolbarActions";
 import type { MobileEditorToolbarController } from "./useMobileEditorToolbarController";
 
-type MenuGroupId = "text-style" | "more";
 type PaletteActionId = "underline" | "color" | "highlight";
+
+/** 主行按钮 id：格式 action + 三个 UI 触发钮（标题弹条 / 图片直达 / 插入面板） */
+type ToolbarButtonId = ToolbarActionId | "heading" | "image" | "insert";
 
 type MobileEditorBottomToolbarProps = {
   controller: MobileEditorToolbarController;
+  /**
+   * 吸底常显模式：编辑页常驻底部（键盘弹起时贴键盘上沿）。
+   * 默认 false 保持旧行为——仅编辑器聚焦时出现，供快速记录等浮层使用。
+   */
+  persistent?: boolean;
+  /**
+   * 浮层挂载点：默认挂到 document.body（浮层型宿主，如 QuickCaptureSheet）。
+   * 页面型宿主传入页面根容器，使工具栏随页面转场动画一起平移、退场，
+   * 避免返回时工具栏滞留在上一页之上。
+   */
+  portalContainer?: HTMLElement | null;
 };
 
 type MenuPosition = {
@@ -65,9 +97,6 @@ type UnderlinePaletteState = {
 };
 
 const GAP = 8;
-const GROUP_BUTTON_WIDTH = 40;
-const ACTION_BUTTON_WIDTH = 40;
-const WIDTH_BUFFER = 4;
 
 const DEFAULT_UNDERLINE_PALETTE: UnderlinePaletteState = {
   color: "red",
@@ -76,7 +105,7 @@ const DEFAULT_UNDERLINE_PALETTE: UnderlinePaletteState = {
 
 const PALETTE_ACTION_IDS = new Set<PaletteActionId>(["underline", "color", "highlight"]);
 
-const ACTION_ICONS: Record<ToolbarActionId, ReactNode> = {
+const ACTION_ICONS: Partial<Record<ToolbarButtonId, ReactNode>> = {
   bold: <Bold size={16} strokeWidth={2.5} />,
   italic: <Italic size={16} strokeWidth={2.5} />,
   strikethrough: <Strikethrough size={16} strokeWidth={2.5} />,
@@ -89,7 +118,65 @@ const ACTION_ICONS: Record<ToolbarActionId, ReactNode> = {
   highlight: <Highlighter size={16} strokeWidth={2.5} />,
   comment: <MessageSquarePlus size={16} strokeWidth={2.5} />,
   "content-link": <FileText size={16} strokeWidth={2.5} />,
+  "bulleted-list": <List size={16} strokeWidth={2.4} />,
+  "numbered-list": <ListOrdered size={16} strokeWidth={2.4} />,
+  quote: <Quote size={16} strokeWidth={2.4} />,
+  divider: <Minus size={16} strokeWidth={2.6} />,
+  heading: <Heading size={16} strokeWidth={2.6} />,
+  image: <ImageIcon size={16} strokeWidth={2.4} />,
+  insert: <Plus size={17} strokeWidth={2.6} />,
 };
+
+const ACTION_LABELS: Record<ToolbarButtonId, string> = {
+  bold: "加粗",
+  italic: "斜体",
+  strikethrough: "删除线",
+  code: "代码",
+  kbd: "快捷键",
+  underline: "下划线",
+  "styled-text": "样式文本",
+  link: "链接",
+  color: "颜色",
+  highlight: "高亮",
+  comment: "批注",
+  "content-link": "关联内容",
+  "heading-one": "标题一",
+  "heading-two": "标题二",
+  "heading-three": "标题三",
+  "bulleted-list": "无序列表",
+  "numbered-list": "有序列表",
+  quote: "引用",
+  divider: "分割线",
+  heading: "标题",
+  image: "插入图片",
+  insert: "插入",
+};
+
+/** 标题弹条选项：用字号递减做层级预览，正文为清除标题 */
+const HEADING_PANEL_OPTIONS: Array<{
+  value: 1 | 2 | 3 | "paragraph";
+  label: string;
+  ariaLabel: string;
+  textClassName: string;
+}> = [
+  {
+    value: "paragraph",
+    label: "正文",
+    ariaLabel: "正文",
+    textClassName: "text-[13px] font-normal",
+  },
+  { value: 1, label: "H1", ariaLabel: "标题一", textClassName: "text-[15px] font-bold" },
+  { value: 2, label: "H2", ariaLabel: "标题二", textClassName: "text-[14px] font-bold" },
+  { value: 3, label: "H3", ariaLabel: "标题三", textClassName: "text-[13px] font-bold" },
+];
+
+/** 主行分组：组间竖线分隔，整行横向滚动；插入类操作收口进「+」面板 */
+const ROW_GROUPS: ToolbarButtonId[][] = [
+  ["bold", "italic", "strikethrough"],
+  ["heading", "image", "insert"],
+  ["bulleted-list", "numbered-list", "quote"],
+  ["underline", "link", "color", "highlight"],
+];
 
 function cn(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(" ");
@@ -114,18 +201,6 @@ function readUnderlinePaletteState(): UnderlinePaletteState {
   return { color, lineType };
 }
 
-function calculateVisiblePrimaryCount(containerWidth: number, totalPrimaryActions: number): number {
-  const availableWidth = Math.max(0, containerWidth - WIDTH_BUFFER);
-  for (let count = totalPrimaryActions; count >= 0; count -= 1) {
-    const itemCount = count + 2;
-    const totalWidth = GROUP_BUTTON_WIDTH * 2 + ACTION_BUTTON_WIDTH * count + GAP * (itemCount - 1);
-    if (totalWidth <= availableWidth) {
-      return count;
-    }
-  }
-  return 0;
-}
-
 function getViewportSize() {
   const visualViewport = window.visualViewport;
   return {
@@ -134,67 +209,44 @@ function getViewportSize() {
   };
 }
 
-export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps) {
-  const { controller } = props;
+/** 悬浮工具条距屏幕底边的间距，与 nav 内联 bottom 的 12px 对应 */
+const TOOLBAR_BOTTOM_GAP = 12;
+/** 未测量到工具条高度时的兜底值（p-[5px] × 2 + h-9 按钮 = 46px） */
+const TOOLBAR_FALLBACK_HEIGHT = 46;
 
-  const triggerRefs = useRef<Record<MenuGroupId, HTMLButtonElement | null>>({
-    "text-style": null,
-    more: null,
-  });
+export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps) {
+  const { controller, persistent = false, portalContainer } = props;
+
+  const portalRoot = portalContainer ?? (typeof document === "undefined" ? null : document.body);
+
+  const triggerRefs = useRef<Record<"heading", HTMLButtonElement | null>>({ heading: null });
   const primaryActionRefs = useRef<Partial<Record<PaletteActionId, HTMLButtonElement | null>>>({});
-  const toolbarRowRef = useRef<HTMLDivElement | null>(null);
   const groupPanelRef = useRef<HTMLDivElement | null>(null);
   const palettePanelRef = useRef<HTMLDivElement | null>(null);
 
-  const [openGroupId, setOpenGroupId] = useState<MenuGroupId | null>(null);
-  const [openPaletteId, setOpenPaletteId] = useState<PaletteActionId | null>(null);
-  const [visiblePrimaryCount, setVisiblePrimaryCount] = useState(() => {
-    if (typeof window === "undefined") {
-      return PRIMARY_ACTIONS.length;
-    }
-    const fallbackWidth = Math.max(0, window.innerWidth - 48);
-    return calculateVisiblePrimaryCount(fallbackWidth, PRIMARY_ACTIONS.length);
-  });
-  const [menuPosition, setMenuPosition] = useState<MenuPosition>({
-    left: 0,
-    top: 0,
-  });
-  const [palettePosition, setPalettePosition] = useState<MenuPosition>({
-    left: 0,
-    top: 0,
-  });
+  const [openGroupId, setOpenGroupId] = useState<"heading" | null>(null);
+  const [menuPosition, setMenuPosition] = useState<MenuPosition>({ left: 0, top: 0 });
+  const [palettePosition, setPalettePosition] = useState<MenuPosition>({ left: 0, top: 0 });
   const [underlinePaletteState, setUnderlinePaletteState] = useState<UnderlinePaletteState>(() =>
     readUnderlinePaletteState()
   );
 
-  const visiblePrimaryActions = useMemo(
-    () => PRIMARY_ACTIONS.slice(0, visiblePrimaryCount),
-    [visiblePrimaryCount]
-  );
-  const overflowPrimaryActions = useMemo(
-    () => PRIMARY_ACTIONS.slice(visiblePrimaryCount),
-    [visiblePrimaryCount]
-  );
-  const moreGroupActions = useMemo(
-    () => [...overflowPrimaryActions, ...MORE_ACTIONS],
-    [overflowPrimaryActions]
-  );
+  const showToolbar = persistent || controller.isEditorFocused;
+  const toolbarRef = useRef<HTMLElement | null>(null);
 
-  const activeGroup = useMemo(() => {
-    if (!openGroupId) {
-      return null;
+  // 工具条可见时把自身占位高度写到根变量，所在页面的滚动容器据此留白；隐藏时不占位
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!showToolbar) {
+      root.style.removeProperty("--mobile-editor-toolbar-occlusion");
+      return;
     }
-    if (openGroupId === "text-style") {
-      return {
-        id: "text-style" as const,
-        actions: TEXT_STYLE_ACTIONS,
-      };
-    }
-    return {
-      id: "more" as const,
-      actions: moreGroupActions,
+    const height = toolbarRef.current?.offsetHeight || TOOLBAR_FALLBACK_HEIGHT;
+    root.style.setProperty("--mobile-editor-toolbar-occlusion", `${height + TOOLBAR_BOTTOM_GAP}px`);
+    return () => {
+      root.style.removeProperty("--mobile-editor-toolbar-occlusion");
     };
-  }, [moreGroupActions, openGroupId]);
+  }, [showToolbar]);
 
   const preventBlurAndKeepFocus = useCallback(
     (event: ReactPointerEvent<HTMLElement>) => {
@@ -205,14 +257,20 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     [controller]
   );
 
-  const handleGroupPointerDown = useCallback(
-    (event: ReactPointerEvent<HTMLButtonElement>, groupId: MenuGroupId) => {
+  const handleHeadingPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
       preventBlurAndKeepFocus(event);
       setOpenPaletteId(null);
-      setOpenGroupId(prev => (prev === groupId ? null : groupId));
+      setOpenGroupId(prev => (prev === "heading" ? null : "heading"));
     },
     [preventBlurAndKeepFocus]
   );
+
+  const [openPaletteId, setOpenPaletteId] = useState<PaletteActionId | null>(null);
+
+  // 顶部弹条（标题/调色板）的返回手势：先关弹条再弹页面栈；多弹层叠加时 LIFO
+  useSheetBackDismiss(openGroupId === "heading", () => setOpenGroupId(null));
+  useSheetBackDismiss(openPaletteId !== null, () => setOpenPaletteId(null));
 
   const handleActionPointerDown = useCallback(
     (event: ReactPointerEvent<HTMLButtonElement>, actionId: ToolbarActionId) => {
@@ -265,10 +323,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   const handlePaletteApplyUnderlineColor = useCallback(
     (event: ReactPointerEvent<HTMLButtonElement>, color: UnderlineColor) => {
       preventBlurAndKeepFocus(event);
-      const nextState = {
-        ...underlinePaletteState,
-        color,
-      };
+      const nextState = { ...underlinePaletteState, color };
       controller.applyUnderlineStyle({ color });
       setUnderlinePaletteState(nextState);
       setOpenPaletteId(null);
@@ -279,29 +334,13 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   const handlePaletteApplyUnderlineLineType = useCallback(
     (event: ReactPointerEvent<HTMLButtonElement>, lineType: UnderlineLineType) => {
       preventBlurAndKeepFocus(event);
-      const nextState = {
-        ...underlinePaletteState,
-        lineType,
-      };
+      const nextState = { ...underlinePaletteState, lineType };
       controller.applyUnderlineStyle({ lineType });
       setUnderlinePaletteState(nextState);
       setOpenPaletteId(null);
     },
     [controller, preventBlurAndKeepFocus, underlinePaletteState]
   );
-
-  const recalculateVisibleActions = useCallback(() => {
-    const row = toolbarRowRef.current;
-    if (!row) {
-      return;
-    }
-    const rowRect = row.getBoundingClientRect();
-    const width = Math.round(
-      rowRect.width > 0 ? rowRect.width : Math.max(0, window.innerWidth - 48)
-    );
-    const nextCount = calculateVisiblePrimaryCount(width, PRIMARY_ACTIONS.length);
-    setVisiblePrimaryCount(current => (current === nextCount ? current : nextCount));
-  }, []);
 
   const updateMenuPosition = useCallback(() => {
     if (!openGroupId) {
@@ -342,7 +381,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     if (!openPaletteId) {
       return;
     }
-    const triggerEl = primaryActionRefs.current[openPaletteId] ?? triggerRefs.current.more;
+    const triggerEl = primaryActionRefs.current[openPaletteId] ?? null;
     const panelEl = palettePanelRef.current;
     if (!triggerEl || !panelEl) {
       return;
@@ -371,57 +410,6 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       top: nextPosition.top,
     });
   }, [openPaletteId]);
-
-  useLayoutEffect(() => {
-    if (!controller.isEditorFocused) {
-      return;
-    }
-    const frame = window.requestAnimationFrame(recalculateVisibleActions);
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, [controller.isEditorFocused, recalculateVisibleActions]);
-
-  useEffect(() => {
-    if (!controller.isEditorFocused) {
-      return;
-    }
-    const row = toolbarRowRef.current;
-    if (!row) {
-      return;
-    }
-    const handleResize = () => {
-      window.requestAnimationFrame(recalculateVisibleActions);
-    };
-
-    window.addEventListener("resize", handleResize);
-    const visualViewport = window.visualViewport;
-    visualViewport?.addEventListener("resize", handleResize);
-
-    const observer =
-      typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => {
-            handleResize();
-          })
-        : null;
-    observer?.observe(row);
-
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener("resize", handleResize);
-      visualViewport?.removeEventListener("resize", handleResize);
-    };
-  }, [controller.isEditorFocused, recalculateVisibleActions]);
-
-  useEffect(() => {
-    if (!controller.isEditorFocused) {
-      return;
-    }
-    const frame = window.requestAnimationFrame(recalculateVisibleActions);
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, [controller.isEditorFocused, recalculateVisibleActions]);
 
   useLayoutEffect(() => {
     if (!openGroupId) return;
@@ -494,63 +482,66 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     setOpenPaletteId(null);
   }, [controller.isEditorFocused]);
 
-  const menuNode =
-    controller.isEditorFocused && activeGroup && typeof document !== "undefined"
+  const headingPanelNode =
+    controller.isEditorFocused && openGroupId === "heading" && portalRoot
       ? createPortal(
           <div
             ref={groupPanelRef}
-            data-testid="mobile-editor-submenu"
-            data-group={activeGroup.id}
-            className="z-75 bg-white/98 dark:bg-neutral-950/96 fixed flex items-center gap-1 rounded-xl border border-gray-200 p-1 shadow-[0_12px_28px_rgba(15,23,42,0.18)] dark:border-neutral-700"
+            data-testid="mobile-editor-heading-panel"
+            className="z-75 bg-elevated/98 border-line shadow-float fixed flex items-center gap-1 rounded-xl border p-1"
             style={{
               left: menuPosition.left,
               top: menuPosition.top,
             }}
           >
-            {activeGroup.actions.map(action => {
-              const active = controller.isActionActive(action.id);
-              const disabled = controller.isActionDisabled(action.id);
+            {HEADING_PANEL_OPTIONS.map(option => {
+              const active =
+                option.value === "paragraph"
+                  ? !(
+                      controller.isActionActive("heading-one") ||
+                      controller.isActionActive("heading-two") ||
+                      controller.isActionActive("heading-three")
+                    )
+                  : controller.isActionActive(
+                      option.value === 1
+                        ? "heading-one"
+                        : option.value === 2
+                          ? "heading-two"
+                          : "heading-three"
+                    );
               return (
                 <button
-                  key={action.id}
+                  key={option.label}
                   type="button"
-                  aria-label={action.label}
-                  disabled={disabled}
-                  aria-disabled={disabled}
+                  aria-label={option.ariaLabel}
                   className={cn(
-                    "flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-gray-600 transition-colors dark:text-neutral-300",
-                    disabled
-                      ? "cursor-not-allowed bg-gray-100 opacity-45 dark:bg-neutral-800"
-                      : null,
-                    active && !disabled
-                      ? "bg-zinc-900 text-white dark:bg-neutral-200 dark:text-neutral-900"
-                      : "active:bg-gray-100 dark:active:bg-neutral-800"
+                    "text-ink-2 flex h-9 min-w-9 items-center justify-center rounded-lg px-2.5 transition-colors",
+                    active ? "bg-accent text-white" : "active:bg-press"
                   )}
-                  onPointerDown={
-                    disabled
-                      ? undefined
-                      : event => {
-                          handleActionPointerDown(event, action.id);
-                        }
-                  }
+                  onPointerDown={event => {
+                    preventBlurAndKeepFocus(event);
+                    controller.applyHeadingLevel(option.value);
+                    setOpenGroupId(null);
+                    setOpenPaletteId(null);
+                  }}
                 >
-                  {ACTION_ICONS[action.id]}
+                  <span className={option.textClassName}>{option.label}</span>
                 </button>
               );
             })}
           </div>,
-          document.body
+          portalRoot
         )
       : null;
 
   const paletteNode =
-    controller.isEditorFocused && openPaletteId && typeof document !== "undefined"
+    controller.isEditorFocused && openPaletteId && portalRoot
       ? createPortal(
           <div
             ref={palettePanelRef}
             data-testid="mobile-editor-palette"
             data-action={openPaletteId}
-            className="z-76 bg-white/98 dark:bg-neutral-950/96 fixed min-w-[240px] max-w-[calc(100vw-16px)] rounded-xl border border-gray-200 p-2 shadow-[0_16px_32px_rgba(15,23,42,0.22)] dark:border-neutral-700"
+            className="z-76 bg-elevated/98 border-line shadow-float fixed min-w-[240px] max-w-[calc(100vw-16px)] rounded-xl border p-2"
             style={{
               left: palettePosition.left,
               top: palettePosition.top,
@@ -559,8 +550,8 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
             {openPaletteId === "color" ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-gray-500 dark:text-neutral-400">纯色</span>
-                  <div className="h-px flex-1 bg-gray-200 dark:bg-neutral-700" />
+                  <span className="text-ink-3 text-[11px]">纯色</span>
+                  <div className="bg-line h-px flex-1" />
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {TEXT_COLOR_OPTIONS.map(option => {
@@ -574,9 +565,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                         aria-label={`文本颜色 ${option.label}`}
                         className={cn(
                           "flex h-8 w-8 items-center justify-center rounded-full border border-transparent",
-                          isDefault
-                            ? "bg-gray-100 text-gray-500 dark:bg-neutral-800 dark:text-neutral-300"
-                            : "text-transparent"
+                          isDefault ? "bg-input text-ink-3" : "text-transparent"
                         )}
                         style={{
                           backgroundColor: isDefault ? undefined : previewColor,
@@ -591,8 +580,8 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                   })}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-gray-500 dark:text-neutral-400">渐变</span>
-                  <div className="h-px flex-1 bg-gray-200 dark:bg-neutral-700" />
+                  <span className="text-ink-3 text-[11px]">渐变</span>
+                  <div className="bg-line h-px flex-1" />
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {TEXT_GRADIENT_OPTIONS.map(option => (
@@ -600,7 +589,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                       key={`gradient-${option.preset}`}
                       type="button"
                       aria-label={`文本渐变 ${option.label}`}
-                      className="flex h-8 w-8 items-center justify-center rounded-full border border-white/70 text-transparent dark:border-neutral-700"
+                      className="border-line flex h-8 w-8 items-center justify-center rounded-full border text-transparent"
                       style={{
                         background: option.previewLight,
                       }}
@@ -623,9 +612,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                       aria-label={`高亮颜色 ${option.label}`}
                       className={cn(
                         "flex h-8 w-8 items-center justify-center rounded-lg border border-transparent",
-                        isDefault
-                          ? "bg-gray-100 text-gray-500 dark:bg-neutral-800 dark:text-neutral-300"
-                          : "text-transparent"
+                        isDefault ? "bg-input text-ink-3" : "text-transparent"
                       )}
                       style={{
                         backgroundColor: isDefault
@@ -654,9 +641,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                         aria-label={`下划线颜色 ${option.label}`}
                         className={cn(
                           "flex h-7 w-7 items-center justify-center rounded-full border",
-                          selected
-                            ? "border-gray-900 dark:border-neutral-100"
-                            : "border-transparent"
+                          selected ? "border-accent" : "border-transparent"
                         )}
                         style={{ backgroundColor: option.previewColor }}
                         onPointerDown={event => {
@@ -680,9 +665,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                         aria-label={`下划线样式 ${option.label}`}
                         className={cn(
                           "h-7 rounded-md px-2 text-xs font-medium",
-                          selected
-                            ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
-                            : "bg-gray-100 text-gray-600 dark:bg-neutral-800 dark:text-neutral-300"
+                          selected ? "bg-accent text-white" : "bg-input text-ink-2"
                         )}
                         onPointerDown={event => {
                           handlePaletteApplyUnderlineLineType(event, option.value);
@@ -696,112 +679,315 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
               </div>
             ) : null}
           </div>,
-          document.body
+          portalRoot
         )
       : null;
 
   const toolbarNode =
-    controller.isEditorFocused && typeof document !== "undefined"
+    showToolbar && portalRoot
       ? createPortal(
           <nav
+            ref={toolbarRef}
             data-mobile-editor-toolbar="true"
-            className="fixed inset-x-0"
+            className="fixed left-1/2 flex -translate-x-1/2"
             style={{
               zIndex: Z_INDEX.POPOVER,
-              bottom: "calc(var(--mobile-safe-bottom) + var(--kb-height, 0px))",
+              // 悬浮胶囊：浮于屏幕底边（或键盘上沿）上方 12px，安全区随底边偏移；
+              // 最大宽度走内联样式（Tailwind 任意值里 calc 减法易丢空格导致整条失效）
+              bottom: "calc(var(--kb-height, 0px) + 12px + env(safe-area-inset-bottom, 0px))",
+              maxWidth: "calc(100vw - 24px)",
             }}
           >
-            <div className="bg-white/96 dark:bg-neutral-950/92 border-t border-gray-200 px-4 py-2 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur dark:border-neutral-700">
-              <div
-                ref={toolbarRowRef}
-                className="mx-auto flex w-full max-w-[640px] items-center gap-2"
-              >
+            <div className="border-line bg-elevated/98 shadow-float relative flex max-w-full items-center overflow-hidden rounded-[15px] border">
+              <div className="scrollbar-hide flex items-center gap-0.5 overflow-x-auto rounded-[15px] p-[5px]">
                 <button
-                  ref={node => {
-                    triggerRefs.current["text-style"] = node;
-                  }}
                   type="button"
-                  aria-label="文本样式菜单"
-                  aria-expanded={openGroupId === "text-style"}
-                  className={cn(
-                    "flex h-10 min-w-10 flex-1 basis-0 items-center justify-center rounded-lg transition-colors",
-                    openGroupId === "text-style"
-                      ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
-                      : "bg-gray-100 text-gray-700 active:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-200 dark:active:bg-neutral-700"
-                  )}
+                  aria-label="撤销"
+                  className="text-ink-2 active:bg-press flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors"
                   onPointerDown={event => {
-                    handleGroupPointerDown(event, "text-style");
+                    preventBlurAndKeepFocus(event);
+                    controller.undo();
                   }}
                 >
-                  <Type size={16} strokeWidth={2.5} />
+                  <Undo2 size={16} strokeWidth={2.4} />
                 </button>
-                {visiblePrimaryActions.map(action => {
-                  const active = controller.isActionActive(action.id);
-                  const disabled = controller.isActionDisabled(action.id);
-                  return (
-                    <button
-                      key={action.id}
-                      ref={node => {
-                        if (isPaletteAction(action.id)) {
-                          primaryActionRefs.current[action.id] = node;
-                        }
-                      }}
-                      type="button"
-                      aria-label={action.label}
-                      disabled={disabled}
-                      aria-disabled={disabled}
-                      className={cn(
-                        "flex h-10 min-w-10 flex-1 basis-0 items-center justify-center rounded-lg text-gray-600 transition-colors dark:text-neutral-300",
-                        disabled
-                          ? "cursor-not-allowed bg-gray-100 opacity-45 dark:bg-neutral-800"
-                          : null,
-                        active && !disabled
-                          ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
-                          : "bg-gray-100 active:bg-gray-200 dark:bg-neutral-800 dark:active:bg-neutral-700"
-                      )}
-                      onPointerDown={
-                        disabled
-                          ? undefined
-                          : event => {
-                              handleActionPointerDown(event, action.id);
-                            }
-                      }
-                    >
-                      {ACTION_ICONS[action.id]}
-                    </button>
-                  );
-                })}
                 <button
-                  ref={node => {
-                    triggerRefs.current.more = node;
-                  }}
                   type="button"
-                  aria-label="更多菜单"
-                  aria-expanded={openGroupId === "more"}
-                  className={cn(
-                    "flex h-10 min-w-10 flex-1 basis-0 items-center justify-center rounded-lg transition-colors",
-                    openGroupId === "more"
-                      ? "bg-zinc-900 text-white dark:bg-neutral-100 dark:text-neutral-900"
-                      : "bg-gray-100 text-gray-700 active:bg-gray-200 dark:bg-neutral-800 dark:text-neutral-200 dark:active:bg-neutral-700"
-                  )}
+                  aria-label="重做"
+                  className="text-ink-2 active:bg-press flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors"
                   onPointerDown={event => {
-                    handleGroupPointerDown(event, "more");
+                    preventBlurAndKeepFocus(event);
+                    controller.redo();
                   }}
                 >
-                  <Ellipsis size={16} strokeWidth={2.5} />
+                  <Redo2 size={16} strokeWidth={2.4} />
                 </button>
+
+                {ROW_GROUPS.map(group => (
+                  <div key={group.join("-")} className="flex shrink-0 items-center gap-0.5">
+                    <span aria-hidden="true" className="bg-line mx-1 h-5 w-px shrink-0" />
+                    {group.map(buttonId => renderActionButton(buttonId))}
+                  </div>
+                ))}
               </div>
+              {/* 右侧渐隐：提示可横向滚动 */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-y-0 right-0 w-6 rounded-r-[15px]"
+                style={{
+                  background:
+                    "linear-gradient(90deg, transparent, color-mix(in srgb, var(--bg-elevated) 98%, transparent) 65%)",
+                }}
+              />
             </div>
           </nav>,
-          document.body
+          portalRoot
         )
       : null;
+
+  function renderActionButton(buttonId: ToolbarButtonId) {
+    if (buttonId === "heading") {
+      return (
+        <button
+          key={buttonId}
+          ref={node => {
+            triggerRefs.current.heading = node;
+          }}
+          type="button"
+          aria-label={ACTION_LABELS.heading}
+          aria-expanded={openGroupId === "heading"}
+          className={cn(
+            "text-ink-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors",
+            openGroupId === "heading" ? "bg-press" : "active:bg-press"
+          )}
+          onPointerDown={handleHeadingPointerDown}
+        >
+          {ACTION_ICONS.heading}
+        </button>
+      );
+    }
+    if (buttonId === "image" || buttonId === "insert") {
+      return (
+        <button
+          key={buttonId}
+          type="button"
+          aria-label={ACTION_LABELS[buttonId]}
+          className="text-ink-2 active:bg-press flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors"
+          onPointerDown={event => {
+            // 仅阻止点击转移焦点（键盘不因触按而收起）；不可调用
+            // keepEditorFocus——它的 rAF 兜底会在面板主动 blur 后把焦点抢回，
+            // 导致键盘无法让位给面板/系统选择器
+            event.preventDefault();
+            event.stopPropagation();
+            if (buttonId === "image") {
+              controller.handleInsertImage();
+            } else {
+              controller.handleOpenInsertSheet();
+            }
+          }}
+        >
+          {ACTION_ICONS[buttonId]}
+        </button>
+      );
+    }
+
+    const actionId: ToolbarActionId = buttonId;
+    const active = controller.isActionActive(actionId);
+    const disabled = controller.isActionDisabled(actionId);
+    return (
+      <button
+        key={actionId}
+        ref={node => {
+          if (isPaletteAction(actionId)) {
+            primaryActionRefs.current[actionId] = node;
+          }
+        }}
+        type="button"
+        aria-label={ACTION_LABELS[actionId]}
+        disabled={disabled}
+        aria-disabled={disabled}
+        className={cn(
+          "text-ink-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] transition-colors",
+          disabled ? "cursor-not-allowed opacity-45" : null,
+          active && !disabled ? "bg-accent text-white" : "active:bg-press"
+        )}
+        onPointerDown={
+          disabled
+            ? undefined
+            : event => {
+                handleActionPointerDown(event, actionId);
+              }
+        }
+      >
+        {ACTION_ICONS[actionId]}
+      </button>
+    );
+  }
+
+  /** 插入面板分组（对齐桌面 slash 菜单的移动端子集）：
+   *  媒体 / 块结构 / 高级块 / 行内标记；长列表由 ActionSheet 内容区滚动承接 */
+  const insertSheetGroups = useMemo<ActionSheetItem[][]>(
+    () => [
+      [
+        {
+          label: "照片（相册）",
+          icon: <ImageIcon size={19} strokeWidth={2.3} />,
+          tone: "apricot",
+          onClick: () => controller.handleSelectInsertItem("image"),
+        },
+        {
+          label: "拍照",
+          icon: <Camera size={19} strokeWidth={2.3} />,
+          tone: "sage",
+          onClick: () => controller.handleSelectInsertItem("camera"),
+        },
+        {
+          label: "视频",
+          icon: <Video size={19} strokeWidth={2.3} />,
+          tone: "sky",
+          onClick: () => controller.handleSelectInsertItem("video"),
+        },
+        {
+          label: "音频",
+          icon: <AudioLines size={19} strokeWidth={2.3} />,
+          tone: "lilac",
+          onClick: () => controller.handleSelectInsertItem("audio"),
+        },
+        {
+          label: "网络图片",
+          icon: <Link2 size={19} strokeWidth={2.3} />,
+          tone: "apricot",
+          onClick: () => controller.handleSelectInsertItem("image-url"),
+        },
+        {
+          label: "网络视频",
+          icon: <Link2 size={19} strokeWidth={2.3} />,
+          tone: "sky",
+          onClick: () => controller.handleSelectInsertItem("video-url"),
+        },
+        {
+          label: "网络音频",
+          icon: <Link2 size={19} strokeWidth={2.3} />,
+          tone: "lilac",
+          onClick: () => controller.handleSelectInsertItem("audio-url"),
+        },
+        {
+          label: "图册",
+          icon: <Images size={19} strokeWidth={2.3} />,
+          tone: "butter",
+          onClick: () => controller.handleSelectInsertItem("image-gallery"),
+        },
+      ],
+      [
+        {
+          label: "表格",
+          icon: <TableIcon size={19} strokeWidth={2.3} />,
+          tone: "butter",
+          onClick: () => controller.handleSelectInsertItem("table"),
+        },
+        {
+          label: "代码块",
+          icon: <SquareCode size={19} strokeWidth={2.3} />,
+          tone: "lilac",
+          onClick: () => controller.handleSelectInsertItem("code-block"),
+        },
+        {
+          label: "任务列表",
+          icon: <SquareCheck size={19} strokeWidth={2.3} />,
+          tone: "sage",
+          onClick: () => controller.handleSelectInsertItem("check-list"),
+        },
+        {
+          label: "标签页",
+          icon: <PanelsTopLeft size={19} strokeWidth={2.3} />,
+          tone: "sky",
+          onClick: () => controller.handleSelectInsertItem("tabs"),
+        },
+        {
+          label: "折叠块",
+          icon: <ChevronDown size={19} strokeWidth={2.3} />,
+          tone: "butter",
+          onClick: () => controller.handleSelectInsertItem("details"),
+        },
+        {
+          label: "高亮块",
+          icon: <Highlighter size={19} strokeWidth={2.3} />,
+          tone: "rose",
+          onClick: () => controller.handleSelectInsertItem("highlight-block"),
+        },
+        {
+          label: "提示块",
+          icon: <Info size={19} strokeWidth={2.3} />,
+          tone: "sage",
+          onClick: () => controller.handleSelectInsertItem("callout"),
+        },
+        {
+          label: "分割线",
+          icon: <Minus size={19} strokeWidth={2.3} />,
+          onClick: () => controller.handleSelectInsertItem("divider"),
+        },
+      ],
+      [
+        {
+          label: "公式",
+          icon: <Sigma size={19} strokeWidth={2.3} />,
+          tone: "lilac",
+          onClick: () => controller.handleSelectInsertItem("math"),
+        },
+        {
+          label: "流程图",
+          icon: <Workflow size={19} strokeWidth={2.3} />,
+          tone: "sky",
+          onClick: () => controller.handleSelectInsertItem("mermaid"),
+        },
+      ],
+      [
+        {
+          label: "批注",
+          icon: <MessageSquarePlus size={19} strokeWidth={2.3} />,
+          tone: "rose",
+          onClick: () => controller.handleSelectInsertItem("comment"),
+        },
+        {
+          label: "注解",
+          icon: <StickyNote size={19} strokeWidth={2.3} />,
+          tone: "butter",
+          onClick: () => controller.handleSelectInsertItem("annotation"),
+        },
+        {
+          label: "关联内容",
+          icon: <FileText size={19} strokeWidth={2.3} />,
+          tone: "sky",
+          onClick: () => controller.handleSelectInsertItem("content-link"),
+        },
+        {
+          label: "样式文本",
+          icon: <Pencil size={19} strokeWidth={2.3} />,
+          tone: "apricot",
+          onClick: () => controller.handleSelectInsertItem("styled-text"),
+        },
+        {
+          label: "快捷键",
+          icon: <Keyboard size={19} strokeWidth={2.3} />,
+          tone: "rose",
+          onClick: () => controller.handleSelectInsertItem("kbd"),
+        },
+      ],
+    ],
+    [controller]
+  );
 
   return (
     <>
       {toolbarNode}
-      {menuNode}
+      {headingPanelNode}
       {paletteNode}
+      <ActionSheet
+        open={controller.isInsertSheetOpen}
+        title="插入"
+        groups={insertSheetGroups}
+        onClose={controller.handleCloseInsertSheet}
+      />
       <ContentLinkPickerSheet
         open={controller.isContentLinkPickerOpen}
         onClose={controller.handleCloseContentLinkPicker}

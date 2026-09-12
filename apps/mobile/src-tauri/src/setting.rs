@@ -198,20 +198,6 @@ fn default_setting_value() -> Value {
         "downloadSource": "modelscope",
         "device": "cuda"
       },
-      "llmConfigs": [],
-      "llmUsageSettings": {
-        "chat": null,
-        "titleSummary": null,
-        "webClip": null,
-        "podcastGeneration": null,
-        "contentPolish": null,
-        "flashcardGeneration": null,
-        "aiJudgement": null,
-        "transcriptionOptimization": null,
-        "videoSummary": null,
-        "vibeLearningImageDescription": null,
-        "vibeLearningDocSummary": null
-      },
       "embeddingProvider": {
         "currentConfigId": "",
         "configs": []

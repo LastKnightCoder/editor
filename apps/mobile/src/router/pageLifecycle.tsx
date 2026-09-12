@@ -38,6 +38,11 @@ export function usePageInstanceContext(): PageInstanceContextValue {
   return value;
 }
 
+/** 宽容版：任意宿主可用，树外（rootContent/AppDock 等）返回 null。通用浮层组件接入返回仲裁用 */
+export function useOptionalPageInstanceContext(): PageInstanceContextValue | null {
+  return useContext(PageInstanceContext);
+}
+
 export type PageLifecycleHandlers = {
   /**
    * 实例创建时触发一次（组件首次挂载）。
@@ -103,7 +108,8 @@ export function usePageLifecycle(handlers: PageLifecycleHandlers): void {
 
 /**
  * 返回消费器：handler 返回 true 表示页面自行处理了本次返回
- * （如设置页先退二级模块），router 不再弹栈。
+ * （如页内浮层先关闭），router 不再弹栈。同一页面可叠加多个，
+ * 仲裁按注册逆序（后挂载的浮层先消费）。
  */
 export function useBackHandler(handler: () => boolean | Promise<boolean>): void {
   const ctx = usePageInstanceContext();
@@ -112,10 +118,7 @@ export function useBackHandler(handler: () => boolean | Promise<boolean>): void 
   const entryId = ctx.entry.id;
 
   useEffect(() => {
-    ctx.navigator.registerBackHandler(entryId, () => handlerRef.current());
-    return () => {
-      ctx.navigator.registerBackHandler(entryId, null);
-    };
+    return ctx.navigator.registerBackHandler(entryId, () => handlerRef.current());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entryId]);
 }

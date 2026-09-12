@@ -1,0 +1,1265 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="apricot">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>卡片详情元信息样式 · 方案稿 · 2026-09</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/misans@4.1.0/lib/Normal/MiSans-Regular.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/misans@4.1.0/lib/Normal/MiSans-Medium.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/misans@4.1.0/lib/Normal/MiSans-Semibold.min.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/misans@4.1.0/lib/Normal/MiSans-Bold.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+
+<style>
+/* ══════════════════════════════════════════════════
+   设计令牌：与 apps/mobile/src/styles.css 保持同源
+   ══════════════════════════════════════════════════ */
+:root,
+html[data-theme="apricot"] {
+  color-scheme: light;
+  --font: "MiSans", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+  --mono-font: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  --bg-page: #f6f1e7;
+  --bg-surface: #fffdf9;
+  --bg-input: #f6f1e7;
+  --bg-press: rgba(246, 241, 231, 0.65);
+
+  --ink-1: #43392c;
+  --ink-2: #8b7d6b;
+  --ink-3: #b9ac9a;
+  --meta-ink: #7a6c5a;
+
+  --line-1: #e9e1d2;
+  --line-2: rgba(233, 225, 210, 0.55);
+
+  --brand: #d97757;
+  --brand-strong: #e8896a;
+  --brand-soft: rgba(217, 119, 87, 0.12);
+
+  --sage: #61795f;      --sage-soft: #e5ede2;
+  --sky: #5c7d99;       --sky-soft: #e2ebf3;
+  --apricot: #b2794b;   --apricot-soft: #f8e9d7;
+  --lilac: #8a7aa6;     --lilac-soft: #ebe6f3;
+  --butter: #a38c4d;    --butter-soft: #f6efd6;
+  --rose: #b06a5e;      --rose-soft: #f6e3e0;
+
+  --ok: #61795f;
+  --mask: rgba(67, 57, 44, 0.4);
+
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.06), 0 8px 20px -12px rgba(120, 100, 70, 0.16);
+  --shadow-float: 0 12px 32px -8px rgba(120, 100, 70, 0.35);
+  --noise-opacity: 0.5;
+}
+html[data-theme="midnight"] {
+  color-scheme: dark;
+  --bg-page: #0e1016;
+  --bg-surface: #171a22;
+  --bg-input: rgba(255, 255, 255, 0.05);
+  --bg-press: rgba(255, 255, 255, 0.045);
+
+  --ink-1: #edeef1;
+  --ink-2: #8e96a5;
+  --ink-3: #5b6270;
+  --meta-ink: #a2aab8;
+
+  --line-1: rgba(255, 255, 255, 0.07);
+  --line-2: rgba(255, 255, 255, 0.05);
+
+  --brand: #f0a860;
+  --brand-strong: #f5b877;
+  --brand-soft: rgba(240, 168, 96, 0.13);
+
+  --sage: #7edbb2;      --sage-soft: rgba(110, 231, 183, 0.12);
+  --sky: #9db9f0;       --sky-soft: rgba(147, 180, 255, 0.12);
+  --apricot: #f0b680;   --apricot-soft: rgba(240, 168, 96, 0.13);
+  --lilac: #c8b3f5;     --lilac-soft: rgba(196, 167, 255, 0.12);
+  --butter: #e8d487;    --butter-soft: rgba(240, 220, 130, 0.1);
+  --rose: #f5988a;      --rose-soft: rgba(255, 138, 120, 0.12);
+
+  --ok: #7edbb2;
+  --mask: rgba(0, 0, 0, 0.55);
+
+  --shadow-card: 0 14px 30px -16px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-float: 0 18px 40px rgba(0, 0, 0, 0.55);
+  --noise-opacity: 1;
+}
+
+/* 分类驱动色：头部组件统一引用 --cat / --cat-soft */
+[data-cat="sage"]    { --cat: var(--sage);    --cat-soft: var(--sage-soft); }
+[data-cat="sky"]     { --cat: var(--sky);     --cat-soft: var(--sky-soft); }
+[data-cat="apricot"] { --cat: var(--apricot); --cat-soft: var(--apricot-soft); }
+[data-cat="lilac"]   { --cat: var(--lilac);   --cat-soft: var(--lilac-soft); }
+[data-cat="rose"]    { --cat: var(--rose);    --cat-soft: var(--rose-soft); }
+[data-cat="butter"]  { --cat: var(--butter);  --cat-soft: var(--butter-soft); }
+
+/* ══════════════════════════════════════════════════
+   审阅页基础
+   ══════════════════════════════════════════════════ */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+  margin: 0; min-height: 100dvh;
+  font-family: var(--font); font-size: 14px;
+  background-color: var(--bg-page); color: var(--ink-1);
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+.proposal-wrap { max-width: 1780px; margin: 0 auto; padding: 34px 36px 90px; }
+
+.proposal-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.proposal-header h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.01em; }
+.proposal-header .sub { margin-top: 6px; font-size: 13px; color: var(--meta-ink); }
+
+.theme-switch { display: inline-flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--bg-input); }
+.theme-switch button {
+  border: 0; cursor: pointer; font-family: inherit;
+  padding: 7px 16px; border-radius: 9px;
+  font-size: 13px; font-weight: 600; color: var(--meta-ink); background: transparent;
+}
+.theme-switch button.on { background: var(--bg-surface); color: var(--ink-1); box-shadow: var(--shadow-card); }
+
+.section { margin-top: 44px; }
+.section > h2 {
+  display: flex; align-items: baseline; gap: 10px;
+  margin: 0 0 6px; font-size: 19px; font-weight: 800; letter-spacing: -0.01em;
+}
+.section > h2 .no { font-family: var(--mono-font); font-size: 12px; font-weight: 700; color: var(--brand); }
+.section > p.desc { margin: 0 0 20px; font-size: 13.5px; line-height: 1.75; color: var(--meta-ink); max-width: 900px; }
+
+.note-card {
+  margin: 0 0 22px; padding: 16px 20px; border-radius: 16px;
+  background: var(--bg-surface); box-shadow: var(--shadow-card);
+  font-size: 13.5px; line-height: 1.8; color: var(--ink-1);
+}
+.note-card b { font-weight: 700; }
+.note-card .pain { color: var(--ink-1); }
+.note-card code { font-family: var(--mono-font); font-size: 12px; padding: 1px 6px; border-radius: 6px; background: var(--bg-input); color: var(--meta-ink); }
+
+/* 方案说明条（与样机并排的信息块） */
+.shot-block { display: flex; flex-wrap: wrap; gap: 34px; align-items: flex-start; }
+.shot-info { width: 330px; flex-shrink: 0; position: sticky; top: 24px; }
+.shot-info h3 { margin: 4px 0 8px; font-size: 16.5px; font-weight: 800; }
+.shot-info .tagline { display: inline-block; margin-bottom: 10px; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600; background: var(--cat-soft, var(--brand-soft)); color: var(--cat, var(--brand)); }
+.shot-info ul { margin: 0; padding: 0; list-style: none; font-size: 13px; line-height: 1.75; color: var(--meta-ink); }
+.shot-info ul li { position: relative; padding-left: 16px; }
+.shot-info ul li + li { margin-top: 6px; }
+.shot-info ul li::before { content: ""; position: absolute; left: 2px; top: 9px; width: 5px; height: 5px; border-radius: 999px; background: var(--cat, var(--brand)); opacity: 0.7; }
+.shot-info ul li b { color: var(--ink-1); font-weight: 700; }
+.shot-info .verdict { margin-top: 14px; padding: 10px 13px; border-radius: 12px; font-size: 12.5px; line-height: 1.7; background: var(--bg-input); color: var(--meta-ink); }
+.shot-info .verdict b { color: var(--ink-1); }
+
+/* 四色一览小条 */
+.cat-swatch-row {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px;
+  padding: 14px; border-radius: 16px; background: var(--bg-surface); box-shadow: var(--shadow-card);
+}
+.cat-swatch {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 700;
+  background: var(--cat-soft); color: var(--cat);
+}
+.cat-swatch svg.lucide { width: 13px; height: 13px; }
+
+/* ══════════════════════════════════════════════════
+   手机样机
+   ══════════════════════════════════════════════════ */
+.phone {
+  position: relative; width: 394px; height: 834px; flex-shrink: 0;
+  border-radius: 52px; padding: 11px;
+  background: linear-gradient(160deg, #3a342c, #17130e);
+  box-shadow: 0 30px 60px -22px rgba(67, 57, 44, 0.5), inset 0 0 0 1.5px rgba(255, 255, 255, 0.08);
+}
+.screen {
+  position: relative; width: 100%; height: 100%;
+  border-radius: 42px; overflow: hidden;
+  background: var(--bg-page); color: var(--ink-1);
+  display: flex; flex-direction: column;
+}
+.statusbar {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 15px 26px 6px; font-size: 13.5px; font-weight: 600; pointer-events: none;
+}
+.statusbar .sicons { display: flex; align-items: center; gap: 6px; }
+.appbar {
+  position: relative; z-index: 30; flex-shrink: 0;
+  display: flex; align-items: center; gap: 6px;
+  padding: 50px 14px 10px; min-height: 76px;
+}
+.appbar .grow { flex: 1; min-width: 0; }
+.icon-btn {
+  flex-shrink: 0; display: grid; place-items: center;
+  width: 40px; height: 40px; border: 0; cursor: pointer;
+  border-radius: 13px; background: var(--bg-surface); color: var(--ink-1);
+  box-shadow: var(--shadow-card);
+}
+.icon-btn.ghost { background: var(--bg-input); box-shadow: none; color: var(--meta-ink); }
+.screen-body { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; scrollbar-width: none; }
+.screen-body::-webkit-scrollbar { display: none; }
+.home-indicator { flex-shrink: 0; height: 24px; display: grid; place-items: center; }
+.home-indicator::before { content: ""; width: 134px; height: 5px; border-radius: 999px; background: var(--ink-1); opacity: 0.35; }
+
+/* 屏内正文排版（与现行详情页规范一致） */
+.doc { padding: 4px 24px 34px; }
+.doc-para { margin: 0 0 16px; font-size: 16.5px; line-height: 1.85; color: var(--ink-1); text-wrap: pretty; }
+.doc-quote {
+  margin: 0 0 16px; padding: 2px 0 2px 16px;
+  border-left: 3px solid var(--cat, var(--brand));
+  font-size: 15.5px; line-height: 1.8; color: var(--meta-ink);
+}
+.caret {
+  display: inline-block; width: 2px; height: 1.1em; margin-left: 2px;
+  background: var(--brand); vertical-align: -0.18em;
+  animation: caret-blink 1.1s steps(1) infinite;
+}
+@keyframes caret-blink { 50% { opacity: 0; } }
+
+/* 通用 meta 文本 */
+.meta-txt { font-size: 12px; font-weight: 500; color: var(--meta-ink); font-variant-numeric: tabular-nums; }
+.meta-txt .sep { opacity: 0.55; margin: 0 5px; }
+
+/* 通用标签 chip（现状 / 方案 A / D 沿用语言） */
+.tag-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 4px 11px; border-radius: 999px;
+  background: var(--bg-input); color: var(--meta-ink);
+  font-size: 12px; font-weight: 500;
+}
+.tag-chip .hash { font-size: 11.5px; font-weight: 800; color: var(--brand); }
+
+/* 虚线添加 chip */
+.add-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 11px; border-radius: 999px;
+  border: 1.5px dashed var(--line-1); background: transparent; color: var(--ink-3);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.add-chip svg.lucide { width: 12.5px; height: 12.5px; }
+html[data-theme="midnight"] .add-chip { border-color: rgba(255,255,255,0.14); }
+
+/* ══════════════════════════════════════════════════
+   现状还原（对照）
+   ══════════════════════════════════════════════════ */
+.cur-type { display: flex; align-items: center; gap: 8px; }
+.cur-type .dot { width: 7px; height: 7px; border-radius: 999px; background: var(--cat); }
+.cur-type .name { font-size: 13px; font-weight: 700; color: var(--cat); }
+.cur-links {
+  margin-top: 16px; display: flex; align-items: center; gap: 10px;
+  border-radius: 14px; background: var(--bg-input);
+  padding: 12px 14px; font-size: 13px; font-weight: 600; color: var(--meta-ink);
+}
+.cur-links svg.lucide { width: 15px; height: 15px; }
+.cur-links .chev { margin-left: auto; transition: transform 0.2s; }
+
+/* ══════════════════════════════════════════════════
+   方案 A · 徽章行
+   ══════════════════════════════════════════════════ */
+.hd-a { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; padding: 8px 0 4px; }
+.cat-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4.5px 12px; border-radius: 999px;
+  background: var(--cat-soft); color: var(--cat);
+  font-size: 12.5px; font-weight: 700; letter-spacing: 0.01em;
+}
+.cat-badge svg.lucide { width: 13.5px; height: 13.5px; }
+.hd-a .meta-txt { flex: 1; min-width: 0; }
+
+/* 方案 A / D：关联入口卡 */
+.links-entry {
+  margin-top: 14px; display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: 18px;
+  background: var(--bg-surface); box-shadow: var(--shadow-card); cursor: pointer;
+}
+.links-entry .l-ico {
+  flex-shrink: 0; display: grid; place-items: center;
+  width: 34px; height: 34px; border-radius: 11px;
+  background: var(--brand-soft); color: var(--brand);
+}
+.links-entry .l-ico svg.lucide { width: 16px; height: 16px; }
+.links-entry .l-title { font-size: 13.5px; font-weight: 700; color: var(--ink-1); }
+.links-entry .l-sub { margin-top: 1px; font-size: 11.5px; color: var(--ink-3); }
+.links-entry .count-pill {
+  margin-left: auto; padding: 2px 9px; border-radius: 999px;
+  background: var(--bg-input); color: var(--meta-ink);
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.links-entry .chev { color: var(--ink-3); }
+.links-entry svg.lucide.chev-i { width: 16px; height: 16px; }
+
+/* ══════════════════════════════════════════════════
+   方案 B · 索引卡头
+   ══════════════════════════════════════════════════ */
+.hd-b {
+  position: relative; margin: 6px 0 18px; padding: 15px 18px 13px 22px;
+  border-radius: 20px; background: var(--bg-surface); box-shadow: var(--shadow-card);
+  display: flex; align-items: center; gap: 14px; overflow: hidden;
+}
+.hd-b::before {
+  content: ""; position: absolute; left: 0; top: 14px; bottom: 13px; width: 4.5px;
+  border-radius: 999px; background: var(--cat);
+}
+.hd-b .b-ico {
+  flex-shrink: 0; display: grid; place-items: center;
+  width: 42px; height: 42px; border-radius: 13px;
+  background: var(--cat-soft); color: var(--cat);
+}
+.hd-b .b-ico svg.lucide { width: 19px; height: 19px; }
+.hd-b .b-main { flex: 1; min-width: 0; }
+.hd-b .b-name { font-size: 15.5px; font-weight: 800; color: var(--ink-1); letter-spacing: -0.01em; }
+.hd-b .b-meta { margin-top: 3px; }
+.hd-b .b-count {
+  flex-shrink: 0; text-align: right;
+  font-size: 12px; font-weight: 600; color: var(--meta-ink); font-variant-numeric: tabular-nums;
+}
+.hd-b .b-count .num { display: block; font-size: 16px; font-weight: 800; color: var(--ink-1); letter-spacing: -0.01em; }
+
+/* 方案 B：标签 + 关联合并整理卡 */
+.organize-card {
+  margin-top: 22px; border-radius: 20px; background: var(--bg-surface);
+  box-shadow: var(--shadow-card); padding: 16px 18px 6px;
+}
+.organize-card .oc-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: var(--ink-3);
+}
+.organize-card .oc-label svg.lucide { width: 12.5px; height: 12.5px; }
+.organize-card .oc-tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
+.organize-card .oc-divider { height: 1px; background: var(--line-1); }
+.oc-link-row { display: flex; align-items: center; gap: 11px; padding: 11px 0; }
+.oc-link-row + .oc-link-row { border-top: 1px solid var(--line-2); }
+.oc-link-row .oc-dot { flex-shrink: 0; width: 7px; height: 7px; border-radius: 999px; }
+.oc-link-row .oc-title { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; color: var(--ink-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.oc-link-row .oc-type { flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--ink-3); }
+.oc-more { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 12px 0; font-size: 12.5px; font-weight: 600; color: var(--meta-ink); }
+.oc-more svg.lucide { width: 14px; height: 14px; }
+
+/* ══════════════════════════════════════════════════
+   方案 C · 编辑部 overline
+   ══════════════════════════════════════════════════ */
+.hd-c { padding: 12px 0 6px; }
+.hd-c .overline { display: flex; align-items: center; gap: 10px; }
+.hd-c .overline::before { content: ""; width: 22px; height: 2.5px; border-radius: 999px; background: var(--cat); }
+.hd-c .overline .ov-name { font-size: 11.5px; font-weight: 800; letter-spacing: 0.22em; color: var(--cat); }
+.hd-c .c-meta { margin-top: 8px; }
+.sec-rule { display: flex; align-items: center; gap: 12px; margin: 24px 0 12px; }
+.sec-rule::before, .sec-rule::after { content: ""; flex: 1; height: 1px; background: var(--line-1); }
+.sec-rule .sec-name { font-size: 10.5px; font-weight: 700; letter-spacing: 0.2em; color: var(--ink-3); }
+
+/* 方案 C：纯文字标签 */
+.bare-tags { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: center; }
+.bare-tag { font-size: 13px; font-weight: 600; color: var(--meta-ink); }
+.bare-tag .hash { font-weight: 800; color: var(--cat, var(--brand)); margin-right: 1px; }
+.bare-add { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; font-weight: 600; color: var(--ink-3); cursor: pointer; }
+.bare-add svg.lucide { width: 13px; height: 13px; }
+
+/* 方案 C：目录式关联列表 */
+.index-links { margin-top: 4px; }
+.index-link { display: flex; align-items: center; gap: 12px; padding: 11px 2px; cursor: pointer; }
+.index-link + .index-link { border-top: 1px solid var(--line-2); }
+.index-link .il-ico {
+  flex-shrink: 0; display: grid; place-items: center;
+  width: 30px; height: 30px; border-radius: 10px; font-size: 11px;
+}
+.index-link .il-ico svg.lucide { width: 14.5px; height: 14.5px; }
+.index-link .il-title { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--ink-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.index-link .il-meta { flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--ink-3); }
+.index-link .chev { flex-shrink: 0; color: var(--ink-3); }
+.index-add {
+  margin-top: 8px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 11px 0; border: 1.5px dashed var(--line-1); border-radius: 14px;
+  background: transparent; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--meta-ink); cursor: pointer;
+}
+.index-add svg.lucide { width: 14px; height: 14px; }
+html[data-theme="midnight"] .index-add { border-color: rgba(255,255,255,0.14); }
+
+/* ══════════════════════════════════════════════════
+   方案 D · 沉浸色带头
+   ══════════════════════════════════════════════════ */
+.hd-d {
+  position: relative; margin: 0 -24px 4px; padding: 18px 24px 20px;
+  background: linear-gradient(180deg, var(--cat-soft) 0%, transparent 100%);
+}
+.hd-d::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 90% at 88% -20%, color-mix(in srgb, var(--cat) 16%, transparent), transparent 60%);
+}
+.hd-d .d-row { position: relative; display: flex; align-items: center; gap: 14px; }
+.hd-d .d-ico {
+  flex-shrink: 0; display: grid; place-items: center;
+  width: 46px; height: 46px; border-radius: 16px;
+  background: var(--cat); color: #fffdf9;
+  box-shadow: 0 8px 18px -6px color-mix(in srgb, var(--cat) 55%, transparent);
+}
+.hd-d .d-ico svg.lucide { width: 21px; height: 21px; }
+html[data-theme="midnight"] .hd-d .d-ico { color: #0e1016; }
+.hd-d .d-main { flex: 1; min-width: 0; }
+.hd-d .d-name { font-size: 17px; font-weight: 800; color: var(--ink-1); letter-spacing: -0.01em; }
+.hd-d .d-meta { margin-top: 3px; }
+
+/* 方案 D 标签 chips 用 surface 底 */
+.surface-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 4px 11px; border-radius: 999px;
+  background: var(--bg-surface); color: var(--meta-ink);
+  font-size: 12px; font-weight: 500; box-shadow: var(--shadow-card);
+}
+.surface-chip .hash { font-size: 11.5px; font-weight: 800; color: var(--cat, var(--brand)); }
+
+/* ══════════════════════════════════════════════════
+   定稿 demo：关联展开面板与样机内弹层
+   ══════════════════════════════════════════════════ */
+.links-panel {
+  margin-top: 10px; border-radius: 18px; background: var(--bg-surface);
+  box-shadow: var(--shadow-card); padding: 2px 16px 12px;
+}
+.links-panel .oc-link-row:first-child { padding-top: 12px; }
+.links-panel .index-add { margin-top: 6px; }
+.sheet-layer { position: absolute; inset: 0; z-index: 60; }
+.sheet-layer .sheet { position: absolute; left: 0; right: 0; bottom: 0; padding-bottom: 46px; }
+.sheet-layer .pick-list { max-height: 330px; overflow-y: auto; scrollbar-width: none; }
+.sheet-layer .pick-list::-webkit-scrollbar { display: none; }
+.sheet-in { animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0.22, 1); }
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.links-entry .chev-i { transition: transform 0.2s; }
+.links-entry .chev-i.rot { transform: rotate(90deg); }
+.tag-input .field::placeholder { color: var(--ink-3); }
+
+/* ══════════════════════════════════════════════════
+   06 通用详情页（文章 / 知识库 / 项目文档）
+   ══════════════════════════════════════════════════ */
+.art-cover {
+  position: relative; height: 212px; margin: 0 -24px;
+  background:
+    radial-gradient(90% 120% at 20% 0%, color-mix(in srgb, var(--rose) 34%, transparent), transparent 70%),
+    radial-gradient(80% 100% at 90% 20%, color-mix(in srgb, var(--apricot) 40%, transparent), transparent 75%),
+    linear-gradient(160deg, var(--apricot-soft), var(--rose-soft));
+}
+.art-cover-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 64px; background: linear-gradient(180deg, transparent, var(--bg-page)); }
+.doc-title-edit {
+  font-size: 26px; font-weight: 800; line-height: 1.32; letter-spacing: -0.02em;
+  color: var(--ink-1); text-wrap: pretty;
+}
+.src-row {
+  display: flex; align-items: center; gap: 6px; margin-top: 10px;
+  font-size: 12px; font-weight: 500; color: var(--meta-ink); cursor: pointer;
+}
+.src-row svg.lucide { width: 13px; height: 13px; color: var(--cat, var(--brand)); }
+.src-row .src-name { color: var(--cat, var(--brand)); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.src-row .src-type { flex-shrink: 0; font-size: 11px; color: var(--ink-3); }
+
+/* ══════════════════════════════════════════════════
+   附加：标签 / 关联 的添加交互
+   ══════════════════════════════════════════════════ */
+.duel { display: flex; flex-wrap: wrap; gap: 30px; align-items: flex-start; }
+.duel-card {
+  width: 394px; border-radius: 22px; background: var(--bg-surface);
+  box-shadow: var(--shadow-card); padding: 20px 22px;
+}
+.duel-card .dc-title { margin: 0 0 4px; font-size: 13px; font-weight: 800; color: var(--ink-1); }
+.duel-card .dc-sub { margin: 0 0 16px; font-size: 12px; color: var(--meta-ink); line-height: 1.7; }
+
+/* 标签输入态 */
+.tag-input {
+  display: flex; align-items: center; gap: 2px;
+  padding: 7px 14px; border-radius: 999px;
+  background: var(--bg-input); border: 1.5px solid var(--brand);
+  font-size: 13px; color: var(--ink-1);
+}
+.tag-input .hash { font-weight: 800; color: var(--brand); margin-right: 3px; }
+.tag-input .field { flex: 1; border: 0; outline: none; background: transparent; font-family: inherit; font-size: 13px; color: var(--ink-1); min-width: 0; }
+.tag-input .caret { height: 0.95em; }
+
+/* 添加关联弹层（SnapSheet 线框） */
+.sheet-stage {
+  position: relative; width: 394px; height: 560px; border-radius: 42px; overflow: hidden;
+  background: var(--bg-page); box-shadow: 0 30px 60px -22px rgba(67, 57, 44, 0.5);
+  display: flex; flex-direction: column;
+}
+.sheet-mask { position: absolute; inset: 0; background: var(--mask); }
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  background: var(--bg-surface); border-radius: 26px 26px 0 0;
+  padding: 8px 20px 26px; box-shadow: var(--shadow-float);
+}
+.sheet .grip { width: 40px; height: 4.5px; border-radius: 999px; background: var(--line-1); margin: 4px auto 12px; }
+.sheet .s-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.sheet .s-head .t { font-size: 16px; font-weight: 800; }
+.sheet .s-head .done { border: 0; cursor: pointer; font-family: inherit; font-size: 13.5px; font-weight: 700; color: var(--brand); background: var(--brand-soft); padding: 6px 14px; border-radius: 999px; }
+.sheet .search {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px; border-radius: 13px; background: var(--bg-input); color: var(--ink-3);
+  font-size: 13.5px;
+}
+.sheet .search svg.lucide { width: 15px; height: 15px; }
+.pick-list { margin-top: 12px; }
+.pick-row { display: flex; align-items: center; gap: 12px; padding: 10px 2px; }
+.pick-row + .pick-row { border-top: 1px solid var(--line-2); }
+.pick-row .p-ico { flex-shrink: 0; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; }
+.pick-row .p-ico svg.lucide { width: 16px; height: 16px; }
+.pick-row .p-title { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; color: var(--ink-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pick-row .p-sub { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
+.pick-row .p-add {
+  flex-shrink: 0; display: grid; place-items: center;
+  width: 30px; height: 30px; border-radius: 999px;
+  border: 1.5px solid var(--line-1); color: var(--meta-ink); background: transparent;
+}
+.pick-row .p-add svg.lucide { width: 14px; height: 14px; }
+.pick-row.sel .p-add { border: 0; background: var(--brand); color: #fffdf9; }
+html[data-theme="midnight"] .pick-row.sel .p-add { color: #0e1016; }
+
+/* 总览表 */
+.cmp-table { width: 100%; border-collapse: collapse; background: var(--bg-surface); border-radius: 18px; overflow: hidden; box-shadow: var(--shadow-card); }
+.cmp-table th, .cmp-table td { padding: 11px 16px; text-align: left; font-size: 13px; line-height: 1.6; }
+.cmp-table th { font-size: 12px; font-weight: 700; color: var(--meta-ink); background: var(--bg-input); }
+.cmp-table td { color: var(--ink-1); border-top: 1px solid var(--line-2); }
+.cmp-table td:first-child { font-weight: 800; white-space: nowrap; }
+.cmp-table .r { color: var(--meta-ink); }
+</style>
+</head>
+<body>
+<div class="proposal-wrap">
+
+  <header class="proposal-header">
+    <div>
+      <h1>卡片详情元信息样式 · 方案稿</h1>
+      <p class="sub">范围：卡片类型 · 时间 · 字数 · 标签 · 关联链接（含添加入口） · 2026-09 · 令牌与 styles.css 同源，可切换杏子 / 午夜主题</p>
+    </div>
+    <div class="theme-switch" id="themeSwitch">
+      <button type="button" data-theme-value="apricot" class="on">杏子 · 浅色</button>
+      <button type="button" data-theme-value="midnight">午夜 · 深色</button>
+    </div>
+  </header>
+
+  <!-- ══════════ 00 现状 ══════════ -->
+  <section class="section">
+    <h2><span class="no">00</span>现状还原（对照基准）</h2>
+    <p class="desc">
+      当前卡片详情头部为「7px 彩点 + 彩色分类名」一行，下接「时间 · 字数」meta 行；标签 chips 与关联折叠块沉在正文底部。
+      统一素材（一张「永久卡」笔记、3 个标签、3 条关联）贯穿全部方案，方便横向对比。
+    </p>
+    <div class="shot-block">
+      <div class="shot-info" data-cat="sage">
+        <span class="tagline">现状问题</span>
+        <h3>平铺直叙，缺少层级锚点</h3>
+        <ul>
+          <li><b>类型识别弱</b>：7px 彩点 + 13px 文字在整页里几乎隐形，四种卡片类型长得一样。</li>
+          <li><b>信息无分组</b>：类型 / 时间 / 字数 / 标签 / 关联五类信息各自散落，没有视觉上的「归属」。</li>
+          <li><b>底部太轻</b>：标签和关联都是 bg-input 灰底块，与正文拉不开关系，像被遗忘的脚注。</li>
+          <li><b>没有添加入口</b>：标签、关联都只能去编辑态处理，阅读态看不到「这里可以加东西」的暗示。</li>
+        </ul>
+      </div>
+      <div class="phone">
+        <div class="screen" data-cat="sage">
+          <div class="statusbar"><span>9:41</span><span class="sicons">●●● ᯤ 🔋</span></div>
+          <div class="appbar">
+            <button class="icon-btn"><i data-lucide="chevron-left"></i></button>
+            <div class="grow"></div>
+            <button class="icon-btn ghost"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="screen-body">
+            <div class="doc">
+              <div class="cur-type" style="padding-top:20px">
+                <span class="dot"></span><span class="name">永久卡</span>
+              </div>
+              <div class="meta-txt" style="margin-top:6px">9月10日 21:14 <span class="sep">·</span> 1,248 字</div>
+              <div style="height:22px"></div>
+              <p class="doc-para">卢曼的卡片盒从不按主题归档，而是让每张卡片在写作时「偶遇」其他卡片——连接是在使用中长出来的，不是预先设计好的。</p>
+              <blockquote class="doc-quote">一张卡片的价值不在于它记了什么，而在于它能被哪些卡片找到。</blockquote>
+              <p class="doc-para">所以永久卡的整理动作只有两个：写清楚一句话的结论，再挂上它此刻联想到的卡片。分类是临时的，链接才是结构。<span class="caret"></span></p>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:20px">
+                <span class="tag-chip"><span class="hash">#</span>卡片笔记</span>
+                <span class="tag-chip"><span class="hash">#</span>费曼学习法</span>
+                <span class="tag-chip"><span class="hash">#</span>知识管理</span>
+              </div>
+              <div class="cur-links">
+                <i data-lucide="link-2"></i><span>关联</span><span class="meta-txt" style="font-size:13px">3</span>
+                <i data-lucide="chevron-right" class="chev"></i>
+              </div>
+            </div>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ 方案 A ══════════ -->
+  <section class="section">
+    <h2><span class="no">A</span>徽章行 · 定稿（可交互）</h2>
+    <p class="desc">定稿方向：方案 A 徽章行头部 + 方案 D 的 surface 浮起胶囊标签 + 完整关联交互。下方样机为<b>可交互 demo</b>——点关联入口卡可展开列表；点「＋ 添加关联」呼出选择弹层，勾选内容后「完成」即写入；点「＋ 标签」可现场输入新标签。</p>
+    <div class="shot-block">
+      <div class="shot-info" data-cat="sage">
+        <span class="tagline">定稿 · A 头部 × D 标签</span>
+        <h3>方案 A · 徽章行</h3>
+        <ul>
+          <li><b>类型</b>：分类色 soft 胶囊徽章（zap / infinity / shapes / book-open 四色图标），一眼区分四类卡。</li>
+          <li><b>时间 / 字数</b>：与徽章同行右续，圆点分隔，tabular-nums 对齐。</li>
+          <li><b>标签</b>：方案 D 的 surface 浮起胶囊（shadow-card 微投影），与关联入口卡同层浮起；行尾虚线 chip 即添加入口，点按原位变输入框。</li>
+          <li><b>关联</b>：浮起入口卡（图标 + 标题 + 计数胶囊）→ 点击展开列表（类型彩点 + 标题 + 类型名）→「＋ 添加关联」呼出 SnapSheet 选择器，可搜索、可勾选，「完成」后计数与列表即时更新。</li>
+        </ul>
+        <div class="verdict"><b>试一试</b>：右侧样机内，点击「关联内容」入口卡、「＋ 添加关联」、「＋ 标签」均可交互。</div>
+        <div class="cat-swatch-row">
+          <span class="cat-swatch" data-cat="apricot"><i data-lucide="zap"></i>闪念</span>
+          <span class="cat-swatch" data-cat="sage"><i data-lucide="infinity"></i>永久</span>
+          <span class="cat-swatch" data-cat="sky"><i data-lucide="shapes"></i>主题</span>
+          <span class="cat-swatch" data-cat="lilac"><i data-lucide="book-open"></i>文献</span>
+        </div>
+      </div>
+      <div class="phone">
+        <div class="screen" data-cat="sage">
+          <div class="statusbar"><span>9:41</span><span class="sicons">●●● ᯤ 🔋</span></div>
+          <div class="appbar">
+            <button class="icon-btn"><i data-lucide="chevron-left"></i></button>
+            <div class="grow"></div>
+            <button class="icon-btn ghost"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="screen-body">
+            <div class="doc">
+              <div class="hd-a">
+                <span class="cat-badge"><i data-lucide="infinity"></i>永久卡</span>
+                <span class="meta-txt">9月10日 21:14<span class="sep">·</span>1,248 字</span>
+              </div>
+              <div style="height:20px"></div>
+              <p class="doc-para">卢曼的卡片盒从不按主题归档，而是让每张卡片在写作时「偶遇」其他卡片——连接是在使用中长出来的，不是预先设计好的。</p>
+              <blockquote class="doc-quote">一张卡片的价值不在于它记了什么，而在于它能被哪些卡片找到。</blockquote>
+              <p class="doc-para">所以永久卡的整理动作只有两个：写清楚一句话的结论，再挂上它此刻联想到的卡片。分类是临时的，链接才是结构。<span class="caret"></span></p>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:20px" id="demoATagRow">
+                <span class="surface-chip"><span class="hash">#</span>卡片笔记</span>
+                <span class="surface-chip"><span class="hash">#</span>费曼学习法</span>
+                <span class="surface-chip"><span class="hash">#</span>知识管理</span>
+                <span class="add-chip" id="demoATagAdd" role="button" tabindex="0"><i data-lucide="plus"></i>标签</span>
+                <span class="tag-input" id="demoATagInput" hidden><span class="hash">#</span><input class="field" id="demoATagField" placeholder="输入标签名" /><span class="caret"></span></span>
+                <span class="add-chip" id="demoATagDone" hidden style="border-style:solid;border-color:var(--brand);color:var(--brand)"><i data-lucide="check"></i>完成</span>
+              </div>
+              <div class="links-entry" id="demoALinksEntry" role="button" tabindex="0" aria-expanded="false">
+                <span class="l-ico"><i data-lucide="link-2"></i></span>
+                <div style="flex:1;min-width:0">
+                  <div class="l-title">关联内容</div>
+                  <div class="l-sub" id="demoALinksSub">《卡片笔记写作法》等 3 条</div>
+                </div>
+                <span class="count-pill" id="demoALinksCount">3</span>
+                <i data-lucide="chevron-right" class="chev chev-i" id="demoALinksChev"></i>
+              </div>
+              <div class="links-panel" id="demoALinksPanel" hidden>
+                <div id="demoALinksList"></div>
+                <button class="index-add" type="button" id="demoAOpenSheet"><i data-lucide="plus"></i>添加关联</button>
+              </div>
+            </div>
+          </div>
+          <div class="sheet-layer" id="demoASheet" hidden>
+            <div class="sheet-mask" id="demoASheetMask"></div>
+            <div class="sheet sheet-in">
+              <div class="grip"></div>
+              <div class="s-head">
+                <span class="t">添加关联</span>
+                <button class="done" type="button" id="demoASheetDone">完成 · 3</button>
+              </div>
+              <div class="search"><i data-lucide="search"></i>搜索卡片 / 文章 / 日记…</div>
+              <div class="pick-list" id="demoAPickList"></div>
+            </div>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ 方案 B ══════════ -->
+  <section class="section">
+    <h2><span class="no">B</span>索引卡头 · 元信息装进一张卡</h2>
+    <p class="desc">头部信息装进一张 surface 浮起「索引卡」：左侧分类色竖条 + 分类图标块 + 两行元信息，字数以大数字右对齐成视觉锚点；标签与关联合并成底部「整理卡」，一张卡管住所有附加信息。</p>
+    <div class="shot-block">
+      <div class="shot-info" data-cat="sage">
+        <span class="tagline">分区感 · 信息容器</span>
+        <h3>方案 B · 索引卡头</h3>
+        <ul>
+          <li><b>类型</b>：4.5px 色条 + 图标块 + 名称，与列表卡片的卡片语言一致，最「有归属感」。</li>
+          <li><b>时间 / 字数</b>：时间入主行；字数大数字右对齐（1,248 比 12px 小字醒目但不吵）。</li>
+          <li><b>标签 + 关联</b>：合并「整理卡」——上标签下关联，hairline 分隔，关联直接展示前 2 条 + 「管理关联」。</li>
+          <li><b>阅读动线</b>：头部一张卡 → 正文一张「纸」 → 底部一张卡，三段式结构。</li>
+        </ul>
+        <div class="verdict"><b>适合</b>：希望元信息「有容器、成体系」，且关联需要常显（不只是折叠入口）的场景。</div>
+        <div class="cat-swatch-row">
+          <span class="cat-swatch" data-cat="apricot"><i data-lucide="zap"></i>闪念</span>
+          <span class="cat-swatch" data-cat="sage"><i data-lucide="infinity"></i>永久</span>
+          <span class="cat-swatch" data-cat="sky"><i data-lucide="shapes"></i>主题</span>
+          <span class="cat-swatch" data-cat="lilac"><i data-lucide="book-open"></i>文献</span>
+        </div>
+      </div>
+      <div class="phone">
+        <div class="screen" data-cat="sage">
+          <div class="statusbar"><span>9:41</span><span class="sicons">●●● ᯤ 🔋</span></div>
+          <div class="appbar">
+            <button class="icon-btn"><i data-lucide="chevron-left"></i></button>
+            <div class="grow"></div>
+            <button class="icon-btn ghost"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="screen-body">
+            <div class="doc">
+              <div class="hd-b">
+                <span class="b-ico"><i data-lucide="infinity"></i></span>
+                <div class="b-main">
+                  <div class="b-name">永久卡</div>
+                  <div class="b-meta meta-txt">9月10日 21:14<span class="sep">·</span>约 4 分钟</div>
+                </div>
+                <div class="b-count"><span class="num">1,248</span>字</div>
+              </div>
+              <p class="doc-para">卢曼的卡片盒从不按主题归档，而是让每张卡片在写作时「偶遇」其他卡片——连接是在使用中长出来的，不是预先设计好的。</p>
+              <blockquote class="doc-quote">一张卡片的价值不在于它记了什么，而在于它能被哪些卡片找到。</blockquote>
+              <p class="doc-para">所以永久卡的整理动作只有两个：写清楚一句话的结论，再挂上它此刻联想到的卡片。分类是临时的，链接才是结构。<span class="caret"></span></p>
+              <div class="organize-card">
+                <div class="oc-label"><i data-lucide="tag"></i>标签</div>
+                <div class="oc-tags">
+                  <span class="tag-chip"><span class="hash">#</span>卡片笔记</span>
+                  <span class="tag-chip"><span class="hash">#</span>费曼学习法</span>
+                  <span class="tag-chip"><span class="hash">#</span>知识管理</span>
+                  <span class="add-chip"><i data-lucide="plus"></i></span>
+                </div>
+                <div class="oc-divider"></div>
+                <div class="oc-link-row">
+                  <span class="oc-dot" style="background:var(--lilac)"></span>
+                  <span class="oc-title">《卡片笔记写作法》p.87 摘录</span>
+                  <span class="oc-type">文献</span>
+                </div>
+                <div class="oc-link-row">
+                  <span class="oc-dot" style="background:var(--sky)"></span>
+                  <span class="oc-title">知识管理系统迁移计划</span>
+                  <span class="oc-type">主题</span>
+                </div>
+                <div class="oc-more"><span>管理关联 · 共 3 条</span><i data-lucide="chevron-right"></i></div>
+              </div>
+            </div>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ 方案 C ══════════ -->
+  <section class="section">
+    <h2><span class="no">C</span>编辑部风 · 纯排版，零容器</h2>
+    <p class="desc">完全走排版气质：类型做成 overline（分类色短线 + 拉宽字距小字），正文后以对称细线分节；标签退为无底色纯文字，关联做成目录式列表（每条一行、类型点标身、可点击），列表下方常驻虚线「添加关联」。最像一本装帧好的书。</p>
+    <div class="shot-block">
+      <div class="shot-info" data-cat="lilac">
+        <span class="tagline">纸感 · 排版气质</span>
+        <h3>方案 C · 编辑部 overline</h3>
+        <ul>
+          <li><b>类型</b>：短线 + 0.22em 字距 overline，杂志栏目标题的语言，安静但有身份。</li>
+          <li><b>时间 / 字数</b>：overline 下常规 meta 行，与正文拉开 8px 呼吸。</li>
+          <li><b>标签</b>：去掉 chip 底色，「#」用分类色，整行居中排在细线之间，轻到不像控件。</li>
+          <li><b>关联</b>：目录式两行（图标 + 标题 + 类型 + chevron），常显可点；底部虚线「＋ 添加关联」常驻。</li>
+        </ul>
+        <div class="verdict"><b>适合</b>：卡片内容以文字为主、追求「阅读器」气质；关联使用频率高、需要直达子卡的场景。</div>
+        <div class="cat-swatch-row">
+          <span class="cat-swatch" data-cat="apricot"><i data-lucide="zap"></i>闪念</span>
+          <span class="cat-swatch" data-cat="sage"><i data-lucide="infinity"></i>永久</span>
+          <span class="cat-swatch" data-cat="sky"><i data-lucide="shapes"></i>主题</span>
+          <span class="cat-swatch" data-cat="lilac"><i data-lucide="book-open"></i>文献</span>
+        </div>
+      </div>
+      <div class="phone">
+        <div class="screen" data-cat="lilac">
+          <div class="statusbar"><span>9:41</span><span class="sicons">●●● ᯤ 🔋</span></div>
+          <div class="appbar">
+            <button class="icon-btn"><i data-lucide="chevron-left"></i></button>
+            <div class="grow"></div>
+            <button class="icon-btn ghost"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="screen-body">
+            <div class="doc">
+              <div class="hd-c">
+                <div class="overline"><span class="ov-name">文献卡</span></div>
+                <div class="c-meta meta-txt">9月10日 21:14<span class="sep">·</span>1,248 字<span class="sep">·</span>约 4 分钟</div>
+              </div>
+              <div style="height:14px"></div>
+              <p class="doc-para">卢曼的卡片盒从不按主题归档，而是让每张卡片在写作时「偶遇」其他卡片——连接是在使用中长出来的，不是预先设计好的。</p>
+              <blockquote class="doc-quote">一张卡片的价值不在于它记了什么，而在于它能被哪些卡片找到。</blockquote>
+              <p class="doc-para">所以永久卡的整理动作只有两个：写清楚一句话的结论，再挂上它此刻联想到的卡片。分类是临时的，链接才是结构。<span class="caret"></span></p>
+              <div class="sec-rule"><span class="sec-name">标 签</span></div>
+              <div class="bare-tags">
+                <span class="bare-tag"><span class="hash">#</span>卡片笔记</span>
+                <span class="bare-tag"><span class="hash">#</span>费曼学习法</span>
+                <span class="bare-tag"><span class="hash">#</span>知识管理</span>
+                <span class="bare-add"><i data-lucide="plus"></i>标签</span>
+              </div>
+              <div class="sec-rule"><span class="sec-name">关 联</span></div>
+              <div class="index-links">
+                <div class="index-link">
+                  <span class="il-ico" data-cat="lilac" style="background:var(--lilac-soft);color:var(--lilac)"><i data-lucide="book-open"></i></span>
+                  <span class="il-title">《卡片笔记写作法》p.87 摘录</span>
+                  <span class="il-meta">文献</span>
+                  <i data-lucide="chevron-right" class="chev"></i>
+                </div>
+                <div class="index-link">
+                  <span class="il-ico" style="background:var(--sky-soft);color:var(--sky)"><i data-lucide="shapes"></i></span>
+                  <span class="il-title">知识管理系统迁移计划</span>
+                  <span class="il-meta">主题</span>
+                  <i data-lucide="chevron-right" class="chev"></i>
+                </div>
+                <div class="index-link">
+                  <span class="il-ico" style="background:var(--sage-soft);color:var(--sage)"><i data-lucide="infinity"></i></span>
+                  <span class="il-title">费曼技巧：输出倒逼输入</span>
+                  <span class="il-meta">永久</span>
+                  <i data-lucide="chevron-right" class="chev"></i>
+                </div>
+                <button class="index-add" type="button"><i data-lucide="plus"></i>添加关联</button>
+              </div>
+            </div>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ 方案 D ══════════ -->
+  <section class="section">
+    <h2><span class="no">D</span>沉浸色带头 · 颜色即身份</h2>
+    <p class="desc">顶部一段分类色 soft 渐变色带，配一枚实底圆形分类图标做视觉锚点；类型、时间、字数都在色带里。四种卡片类型一进来就有完全不同的第一屏，记忆点最强。标签 chips 换 surface 浮起底，关联为横向入口卡。</p>
+    <div class="shot-block">
+      <div class="shot-info" data-cat="sky">
+        <span class="tagline">氛围 · 类型即皮肤</span>
+        <h3>方案 D · 沉浸色带头</h3>
+        <ul>
+          <li><b>类型</b>：soft 渐变色带 + 实底圆角图标块（带同色投影），头像级锚点，类型识别度四案最强。</li>
+          <li><b>时间 / 字数</b>：随图标右侧两行排布，沉浸但克制。</li>
+          <li><b>标签</b>：surface 浮起 chip（替代 bg-input），在色带下方形成第二层。</li>
+          <li><b>关联</b>：浮起入口卡 + 计数胶囊，同方案 A 的语言，全页一致。</li>
+        </ul>
+        <div class="verdict"><b>适合</b>：把「卡片类型」当产品核心概念、希望第一眼就传达分类身份的取向。注意深色主题下 soft 色带透明度需要校准。</div>
+        <div class="cat-swatch-row">
+          <span class="cat-swatch" data-cat="apricot"><i data-lucide="zap"></i>闪念</span>
+          <span class="cat-swatch" data-cat="sage"><i data-lucide="infinity"></i>永久</span>
+          <span class="cat-swatch" data-cat="sky"><i data-lucide="shapes"></i>主题</span>
+          <span class="cat-swatch" data-cat="lilac"><i data-lucide="book-open"></i>文献</span>
+        </div>
+      </div>
+      <div class="phone">
+        <div class="screen" data-cat="sky">
+          <div class="statusbar"><span>9:41</span><span class="sicons">●●● ᯤ 🔋</span></div>
+          <div class="appbar">
+            <button class="icon-btn"><i data-lucide="chevron-left"></i></button>
+            <div class="grow"></div>
+            <button class="icon-btn ghost"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="screen-body">
+            <div class="doc" style="padding-top:0">
+              <div class="hd-d">
+                <div class="d-row">
+                  <span class="d-ico"><i data-lucide="shapes"></i></span>
+                  <div class="d-main">
+                    <div class="d-name">主题卡</div>
+                    <div class="d-meta meta-txt">9月10日 21:14<span class="sep">·</span>1,248 字</div>
+                  </div>
+                </div>
+              </div>
+              <div style="height:6px"></div>
+              <p class="doc-para">卢曼的卡片盒从不按主题归档，而是让每张卡片在写作时「偶遇」其他卡片——连接是在使用中长出来的，不是预先设计好的。</p>
+              <blockquote class="doc-quote">一张卡片的价值不在于它记了什么，而在于它能被哪些卡片找到。</blockquote>
+              <p class="doc-para">所以永久卡的整理动作只有两个：写清楚一句话的结论，再挂上它此刻联想到的卡片。分类是临时的，链接才是结构。<span class="caret"></span></p>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:20px">
+                <span class="surface-chip"><span class="hash">#</span>卡片笔记</span>
+                <span class="surface-chip"><span class="hash">#</span>费曼学习法</span>
+                <span class="surface-chip"><span class="hash">#</span>知识管理</span>
+                <span class="add-chip"><i data-lucide="plus"></i>标签</span>
+              </div>
+              <div class="links-entry">
+                <span class="l-ico"><i data-lucide="link-2"></i></span>
+                <div style="flex:1;min-width:0">
+                  <div class="l-title">关联内容</div>
+                  <div class="l-sub">《卡片笔记写作法》等 3 条</div>
+                </div>
+                <span class="count-pill">3</span>
+                <i data-lucide="chevron-right" class="chev chev-i"></i>
+              </div>
+            </div>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ 05 添加交互 ══════════ -->
+  <section class="section">
+    <h2><span class="no">05</span>添加交互 · 标签输入态与关联选择弹层</h2>
+    <p class="desc">
+      四个方案共用同一套添加交互（与方案无关，可独立选用）：标签走「行尾虚线 chip → 内联输入」；关联走「添加入口 → SnapSheet 选择器」。
+      左卡为标签的两个状态；右卡为添加关联的底部弹层线框（搜索 + 最近内容 + 已选对勾）。
+    </p>
+    <div class="duel">
+      <div class="duel-card">
+        <p class="dc-title">标签 · 添加态</p>
+        <p class="dc-sub">点按虚线「＋ 标签」后原位展开输入框，「#」为品牌色前缀，回车即成 chip；失焦或点「完成」收起。</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+          <span class="tag-chip"><span class="hash">#</span>卡片笔记</span>
+          <span class="tag-chip"><span class="hash">#</span>费曼学习法</span>
+          <span class="add-chip"><i data-lucide="plus"></i>标签</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:18px;color:var(--ink-3);font-size:15px">
+          <i data-lucide="arrow-down"></i>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px">
+          <span class="tag-chip"><span class="hash">#</span>卡片笔记</span>
+          <span class="tag-chip"><span class="hash">#</span>费曼学习法</span>
+          <span class="tag-input"><span class="hash">#</span><input class="field" value="输出" /><span class="caret"></span></span>
+          <span class="add-chip" style="border-style:solid;border-color:var(--brand);color:var(--brand)"><i data-lucide="check"></i>完成</span>
+        </div>
+      </div>
+
+      <div class="sheet-stage">
+        <div class="sheet-mask"></div>
+        <div class="sheet">
+          <div class="grip"></div>
+          <div class="s-head">
+            <span class="t">添加关联</span>
+            <button class="done" type="button">完成 · 3</button>
+          </div>
+          <div class="search"><i data-lucide="search"></i>搜索卡片 / 文章 / 日记…</div>
+          <div class="pick-list">
+            <div class="pick-row sel">
+              <span class="p-ico" style="background:var(--lilac-soft);color:var(--lilac)"><i data-lucide="book-open"></i></span>
+              <div style="flex:1;min-width:0">
+                <div class="p-title">《卡片笔记写作法》p.87 摘录</div>
+                <div class="p-sub">文献卡 · 9月2日</div>
+              </div>
+              <span class="p-add"><i data-lucide="check"></i></span>
+            </div>
+            <div class="pick-row sel">
+              <span class="p-ico" style="background:var(--sky-soft);color:var(--sky)"><i data-lucide="shapes"></i></span>
+              <div style="flex:1;min-width:0">
+                <div class="p-title">知识管理系统迁移计划</div>
+                <div class="p-sub">主题卡 · 8月28日</div>
+              </div>
+              <span class="p-add"><i data-lucide="check"></i></span>
+            </div>
+            <div class="pick-row">
+              <span class="p-ico" style="background:var(--sage-soft);color:var(--sage)"><i data-lucide="infinity"></i></span>
+              <div style="flex:1;min-width:0">
+                <div class="p-title">费曼技巧：输出倒逼输入</div>
+                <div class="p-sub">永久卡 · 8月19日</div>
+              </div>
+              <span class="p-add"><i data-lucide="plus"></i></span>
+            </div>
+            <div class="pick-row">
+              <span class="p-ico" style="background:var(--apricot-soft);color:var(--apricot)"><i data-lucide="zap"></i></span>
+              <div style="flex:1;min-width:0">
+                <div class="p-title">闪念：博客选题池</div>
+                <div class="p-sub">闪念卡 · 9月10日</div>
+              </div>
+              <span class="p-add"><i data-lucide="plus"></i></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ 06 通用详情页 ══════════ -->
+  <section class="section">
+    <h2><span class="no">06</span>通用详情页 · 文章 / 知识库 / 项目文档</h2>
+    <p class="desc">
+      把卡片详情定稿的语言（徽章行 · surface 胶囊标签 · 轻量「＋」行）推广到三个有标题的通用详情页，结构对齐知识库样机。
+      规则：<b>有标题的内容，标题在上、类型文案进胶囊、并入标题下的 meta 行</b>（卡片无标题所以徽章独占一行）；三个页面的 meta 统一为「时间 · 字数」，不再展示作者 / 阅读时长；
+      底部区块统一只设<b>标签区</b>（articles / document_items 均有 tags 列），知识库与项目文档另加「来源行」表达 ref 引用；均不设关联区。
+      项目文档的类型徽章直接复用项目内八种类型体系（itemTypeMeta）。
+    </p>
+
+    <!-- 文章 -->
+    <div class="shot-block" style="margin-bottom:44px">
+      <div class="shot-info" data-cat="rose">
+        <span class="tagline">沉浸封面 + 标题</span>
+        <h3>文章详情（对齐知识库结构）</h3>
+        <ul>
+          <li><b>头部</b>：沉浸封面不动；标题（就地编辑）之下，徽章行 =「文章」rose 胶囊（类型文案进胶囊，与卡片「永久卡」同一语言）+ 时间 · 字数——与知识库 meta 完全同构，单行放下。</li>
+          <li><b>不再展示作者</b>：文章 meta 去掉作者字段，信息与知识库严格一致。</li>
+          <li><b>标签</b>：articles.tags 有列——与卡片同一套 surface 胶囊 + 「＋ 标签」内联添加。</li>
+          <li><b>不设关联区</b>：正文之后到标签即收尾，与知识库同构。</li>
+        </ul>
+        <div class="verdict"><b>改动</b>：meta 行改为「胶囊 + 时间 · 字数」；正文后补标签区。</div>
+      </div>
+      <div class="phone">
+        <div class="screen" data-cat="rose">
+          <div class="statusbar"><span>9:41</span><span class="sicons">●●● ᯤ 🔋</span></div>
+          <div class="appbar over-cover">
+            <button class="icon-btn"><i data-lucide="chevron-left"></i></button>
+            <div class="grow"></div>
+            <button class="icon-btn"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="screen-body">
+            <div class="art-cover">
+              <div class="art-cover-fade"></div>
+            </div>
+            <div class="doc" style="padding-top:10px">
+              <div class="doc-title-edit">卢曼卡片盒：连接优于分类<span class="caret"></span></div>
+              <div class="hd-a" style="padding:8px 0 4px">
+                <span class="cat-badge"><i data-lucide="newspaper"></i>文章</span>
+                <span class="meta-txt">9月10日 21:14<span class="sep">·</span>1,248 字</span>
+              </div>
+              <div style="height:18px"></div>
+              <p class="doc-para">卢曼的卡片盒从不按主题归档，而是让每张卡片在写作时「偶遇」其他卡片——连接是在使用中长出来的，不是预先设计好的。</p>
+              <blockquote class="doc-quote">一张卡片的价值不在于它记了什么，而在于它能被哪些卡片找到。</blockquote>
+              <p class="doc-para">所以永久卡的整理动作只有两个：写清楚一句话的结论，再挂上它此刻联想到的卡片。分类是临时的，链接才是结构。</p>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:20px">
+                <span class="surface-chip"><span class="hash">#</span>卡片笔记</span>
+                <span class="surface-chip"><span class="hash">#</span>知识管理</span>
+                <span class="add-chip"><i data-lucide="plus"></i>标签</span>
+              </div>
+            </div>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 知识库 -->
+    <div class="shot-block" style="margin-bottom:44px">
+      <div class="shot-info" data-cat="sky">
+        <span class="tagline">标题 + 来源行</span>
+        <h3>知识库节点</h3>
+        <ul>
+          <li><b>头部</b>：标题（就地编辑）下徽章行——「知识库」sky 胶囊 + 时间 · 字数。</li>
+          <li><b>来源行</b>：节点多为卡片 / 文章的镜像（ref_type + ref_id），meta 下加一行「来自：xxx ↗」，点按直达源内容；自建节点无此行。</li>
+          <li><b>标签</b>：document_items.tags——surface 胶囊 + 内联添加。</li>
+          <li><b>不设关联区</b>：表结构无 links 列，关联语义由「来源 + 反向引用」承担，不硬造 UI。</li>
+        </ul>
+        <div class="verdict"><b>改动</b>：meta 行前置徽章；补来源行与标签区。</div>
+      </div>
+      <div class="phone">
+        <div class="screen" data-cat="sky">
+          <div class="statusbar"><span>9:41</span><span class="sicons">●●● ᯤ 🔋</span></div>
+          <div class="appbar">
+            <button class="icon-btn"><i data-lucide="chevron-left"></i></button>
+            <div class="grow"></div>
+            <button class="icon-btn ghost"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="screen-body">
+            <div class="doc">
+              <div class="doc-title-edit" style="padding-top:14px">Zettelkasten 实践笔记<span class="caret"></span></div>
+              <div class="hd-a" style="padding:8px 0 4px">
+                <span class="cat-badge"><i data-lucide="library"></i>知识库</span>
+                <span class="meta-txt">9月10日 21:14<span class="sep">·</span>964 字</span>
+              </div>
+              <div class="src-row">
+                <i data-lucide="corner-up-right"></i>
+                <span>来自</span>
+                <span class="src-name">费曼技巧：输出倒逼输入</span>
+                <span class="src-type">永久卡</span>
+              </div>
+              <div style="height:16px"></div>
+              <p class="doc-para">把卢曼的规则压缩成三条可执行的检查项：一句结论、一个链接、一个出处。不满足就不入库，宁可让它留在闪念里发酵。</p>
+              <p class="doc-para">每周回顾时只做一件事：检查断链。两个互相引用的概念如果一个月都没有再被第三张卡引用，说明它们可以合并，或者其中一个已经死了。</p>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:20px">
+                <span class="surface-chip"><span class="hash">#</span>卡片笔记</span>
+                <span class="surface-chip"><span class="hash">#</span>每周回顾</span>
+                <span class="add-chip"><i data-lucide="plus"></i>标签</span>
+              </div>
+            </div>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 项目文档 -->
+    <div class="shot-block">
+      <div class="shot-info" data-cat="butter">
+        <span class="tagline">专属 butter 域色</span>
+        <h3>项目文档</h3>
+        <ul>
+          <li><b>头部</b>：标题下徽章行——「项目文档」<b>butter 专属胶囊</b>（域级固定色，不再借用文档类型的 sky）+ 时间 · 字数。</li>
+          <li><b>来源行</b>：同知识库——项目节点可为卡片 / 文章的镜像，「来自：xxx ↗」直达源内容。</li>
+          <li><b>标签</b>：与全局同一套 surface 胶囊 + 内联添加。</li>
+          <li><b>项目内类型</b>：列表与新增入口继续用 itemTypeMeta 八种类型徽章；详情页统一以 butter 域色呈现，类型细节交给来源行的类型标注。</li>
+        </ul>
+        <div class="verdict"><b>改动</b>：meta 行前置 butter 徽章；补来源行与标签区。</div>
+        <div class="cat-swatch-row">
+          <span class="cat-swatch" data-cat="butter"><i data-lucide="folder-kanban"></i>项目文档</span>
+          <span class="cat-swatch" data-cat="sky"><i data-lucide="file-text"></i>文档</span>
+          <span class="cat-swatch" data-cat="rose"><i data-lucide="file-down"></i>PDF</span>
+          <span class="cat-swatch" data-cat="sage"><i data-lucide="book-open"></i>EPUB</span>
+          <span class="cat-swatch" data-cat="apricot"><i data-lucide="file-text"></i>卡片引用</span>
+        </div>
+      </div>
+      <div class="phone">
+        <div class="screen" data-cat="butter">
+          <div class="statusbar"><span>9:41</span><span class="sicons">●●● ᯤ 🔋</span></div>
+          <div class="appbar">
+            <button class="icon-btn"><i data-lucide="chevron-left"></i></button>
+            <div class="grow"></div>
+            <button class="icon-btn ghost"><i data-lucide="more-horizontal"></i></button>
+          </div>
+          <div class="screen-body">
+            <div class="doc">
+              <div class="doc-title-edit" style="padding-top:14px">个人知识库重构 · 第一阶段<span class="caret"></span></div>
+              <div class="hd-a" style="padding:8px 0 4px">
+                <span class="cat-badge"><i data-lucide="folder-kanban"></i>项目文档</span>
+                <span class="meta-txt">9月8日 14:02<span class="sep">·</span>1,102 字</span>
+              </div>
+              <div class="src-row">
+                <i data-lucide="corner-up-right"></i>
+                <span>来自</span>
+                <span class="src-name">《卡片笔记写作法》读书笔记</span>
+                <span class="src-type">文献卡</span>
+              </div>
+              <div style="height:16px"></div>
+              <p class="doc-para">目标只有一个：把散在三处的笔记收拢到统一的卡片盒。本阶段不迁移历史数据，先跑通「闪念 → 永久卡 → 周回顾」的最小闭环。</p>
+              <p class="doc-para">验收标准写成了一条卡：连续四周，每周五回顾时能在一个屏内看到所有断链。做不到就砍流程，不砍标准。</p>
+              <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:20px">
+                <span class="surface-chip"><span class="hash">#</span>重构</span>
+                <span class="surface-chip"><span class="hash">#</span>阶段目标</span>
+                <span class="add-chip"><i data-lucide="plus"></i>标签</span>
+              </div>
+            </div>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ 07 总览 ══════════ -->
+  <section class="section">
+    <h2><span class="no">07</span>选型总览</h2>
+    <p class="desc">四案都基于现行设计令牌，不引入新颜色 / 新圆角体系；差异只在「元信息的容器化程度」与「类型的呈现强度」。</p>
+    <table class="cmp-table">
+      <thead>
+        <tr><th>方案</th><th>类型识别</th><th>信息密度</th><th>改动成本</th><th>一句话定位</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>A · 徽章行</td><td class="r">中</td><td class="r">高（一行全装下）</td><td class="r">低 · 半天</td><td class="r">最稳的最小改版，先解决「看不见类型、没有入口」</td></tr>
+        <tr><td>B · 索引卡头</td><td class="r">中高</td><td class="r">高（头部卡 + 整理卡）</td><td class="r">中 · 1–2 天</td><td class="r">结构感最强，标签关联成体系，适合重度整理流</td></tr>
+        <tr><td>C · 编辑部风</td><td class="r">中（气质型）</td><td class="r">中</td><td class="r">中 · 1–2 天</td><td class="r">最像书，阅读体验最好，关联直达子卡</td></tr>
+        <tr><td>D · 沉浸色带</td><td class="r">最强</td><td class="r">中</td><td class="r">中高 · 2 天</td><td class="r">第一屏冲击力最大，类型即皮肤，需校准深色</td></tr>
+      </tbody>
+    </table>
+    <div class="note-card" style="margin-top:22px">
+      <b>组合建议</b>：四案的头部 / 标签 / 关联三个区块可自由拼装。例如「<span class="pain">B 的索引卡头 + C 的目录式关联</span>」——头部有容器、关联可直达；
+      或「<span class="pain">A 的徽章行 + B 的整理卡</span>」——头部轻、底部重。定下方向后我再把选中组合落到 <code>ContentDetailPage / TagChips / LinksDisclosure</code>。
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // 主题切换（与 App 内 data-theme 机制一致）
+  const switchEl = document.getElementById("themeSwitch");
+  switchEl.addEventListener("click", event => {
+    const btn = event.target.closest("button[data-theme-value]");
+    if (!btn) return;
+    document.documentElement.dataset.theme = btn.dataset.themeValue;
+    switchEl.querySelectorAll("button").forEach(item => {
+      item.classList.toggle("on", item === btn);
+    });
+  });
+  lucide.createIcons();
+
+  // ═══ 定稿 demo：方案 A 可交互（标签添加 / 关联展开 / 关联选择弹层） ═══
+  const $id = id => document.getElementById(id);
+  const demoLinks = [
+    { title: "《卡片笔记写作法》p.87 摘录", sub: "文献卡 · 9月2日", type: "文献", color: "lilac", icon: "book-open", sel: true },
+    { title: "知识管理系统迁移计划", sub: "主题卡 · 8月28日", type: "主题", color: "sky", icon: "shapes", sel: true },
+    { title: "费曼技巧：输出倒逼输入", sub: "永久卡 · 8月19日", type: "永久", color: "sage", icon: "infinity", sel: true },
+    { title: "闪念：博客选题池", sub: "闪念卡 · 9月10日", type: "闪念", color: "apricot", icon: "zap", sel: false },
+    { title: "如何做好技术写作", sub: "文章 · 9月8日", type: "文章", color: "brand", icon: "file-text", sel: false },
+  ];
+  const demoSelected = () => demoLinks.filter(item => item.sel);
+
+  function renderDemoLinks() {
+    const sel = demoSelected();
+    $id("demoALinksCount").textContent = sel.length;
+    $id("demoALinksSub").textContent = sel.length
+      ? `${sel[0].title} 等 ${sel.length} 条`
+      : "暂无关联";
+    const list = $id("demoALinksList");
+    list.replaceChildren();
+    sel.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "oc-link-row";
+      row.innerHTML = `<span class="oc-dot" style="background:var(--${item.color})"></span>` +
+        `<span class="oc-title">${item.title}</span><span class="oc-type">${item.type}</span>`;
+      list.appendChild(row);
+    });
+  }
+
+  function renderDemoPicks() {
+    const box = $id("demoAPickList");
+    box.replaceChildren();
+    demoLinks.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "pick-row" + (item.sel ? " sel" : "");
+      row.setAttribute("role", "button");
+      row.innerHTML = `<span class="p-ico" style="background:var(--${item.color}-soft);color:var(--${item.color})">` +
+        `<i data-lucide="${item.icon}"></i></span>` +
+        `<div style="flex:1;min-width:0"><div class="p-title">${item.title}</div><div class="p-sub">${item.sub}</div></div>` +
+        `<span class="p-add"><i data-lucide="${item.sel ? "check" : "plus"}"></i></span>`;
+      row.addEventListener("click", () => {
+        item.sel = !item.sel;
+        renderDemoPicks();
+      });
+      box.appendChild(row);
+    });
+    lucide.createIcons();
+    $id("demoASheetDone").textContent = `完成 · ${demoSelected().length}`;
+  }
+
+  // 关联入口卡：展开 / 收起列表
+  const linksEntry = $id("demoALinksEntry");
+  linksEntry.addEventListener("click", () => {
+    const panel = $id("demoALinksPanel");
+    const open = panel.hidden;
+    panel.hidden = !open;
+    linksEntry.setAttribute("aria-expanded", String(open));
+    $id("demoALinksChev").classList.toggle("rot", open);
+    if (open) renderDemoLinks();
+  });
+
+  // 添加关联：弹层（快照便于点遮罩撤销）
+  let demoSnapshot = null;
+  $id("demoAOpenSheet").addEventListener("click", () => {
+    demoSnapshot = demoLinks.map(item => item.sel);
+    renderDemoPicks();
+    $id("demoASheet").hidden = false;
+  });
+  $id("demoASheetMask").addEventListener("click", () => {
+    demoLinks.forEach((item, idx) => { item.sel = demoSnapshot[idx]; });
+    $id("demoASheet").hidden = true;
+    renderDemoLinks();
+  });
+  $id("demoASheetDone").addEventListener("click", () => {
+    $id("demoASheet").hidden = true;
+    renderDemoLinks();
+  });
+
+  // 标签：＋ chip → 原位输入 → 回车 / 完成落 chip
+  const tagAdd = $id("demoATagAdd");
+  const tagInput = $id("demoATagInput");
+  const tagDone = $id("demoATagDone");
+  const tagField = $id("demoATagField");
+  const openTagInput = () => {
+    tagAdd.hidden = true; tagInput.hidden = false; tagDone.hidden = false;
+    tagField.value = ""; tagField.focus();
+  };
+  const closeTagInput = () => {
+    const value = tagField.value.trim();
+    if (value) {
+      const exists = [...tagInput.parentNode.querySelectorAll(".surface-chip .hash")]
+        .some(node => node.nextSibling.textContent === value);
+      if (!exists) {
+        const chip = document.createElement("span");
+        chip.className = "surface-chip";
+        chip.innerHTML = `<span class="hash">#</span>${value}`;
+        tagAdd.parentNode.insertBefore(chip, tagAdd);
+      }
+    }
+    tagInput.hidden = true; tagDone.hidden = true; tagAdd.hidden = false;
+  };
+  tagAdd.addEventListener("click", openTagInput);
+  tagDone.addEventListener("click", closeTagInput);
+  tagField.addEventListener("keydown", event => {
+    if (event.key === "Enter") closeTagInput();
+  });
+</script>
+</body>
+</html>

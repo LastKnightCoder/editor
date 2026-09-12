@@ -1,8 +1,4 @@
-import {
-  Base,
-  createBlockElementPlugin,
-  createVoidElementPlugin,
-} from "@tau/editor/src";
+import { Base, createBlockElementPlugin, createVoidElementPlugin } from "@tau/editor/src";
 import type { IExtension } from "@tau/editor/src";
 import type { ReactElement } from "react";
 
@@ -65,11 +61,11 @@ export class MobileFileAttachmentExtension extends Base implements IExtension {
       <div
         {...attributes}
         contentEditable={false}
-        className="my-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600"
+        className="border-line bg-surface text-ink-2 my-2 rounded-xl border px-3 py-2 text-xs"
       >
-        <p className="font-medium text-slate-700">{name}</p>
-        <p className="mt-1 text-[11px] text-slate-400">{`类型: ${fileType} · 大小: ${sizeText}`}</p>
-        <p className="mt-1 break-all text-[11px] text-slate-400">{urlText}</p>
+        <p className="text-ink font-bold">{name}</p>
+        <p className="text-ink-3 mt-1 text-[11px]">{`类型: ${fileType} · 大小: ${sizeText}`}</p>
+        <p className="text-ink-3 mt-1 break-all text-[11px]">{urlText}</p>
         {children}
       </div>
     );
@@ -80,10 +76,7 @@ export class MobileQuestionExtension extends Base implements IExtension {
   type = "question";
 
   override getPlugins() {
-    return [
-      createBlockElementPlugin("question"),
-      createVoidElementPlugin("question"),
-    ];
+    return [createBlockElementPlugin("question"), createVoidElementPlugin("question")];
   }
 
   render(props: any): ReactElement {
@@ -96,9 +89,9 @@ export class MobileQuestionExtension extends Base implements IExtension {
       <div
         {...attributes}
         contentEditable={false}
-        className="my-2 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2 text-sm text-amber-800"
+        className="bg-butter-soft/70 text-butter my-2 rounded-xl px-3 py-2 text-sm"
       >
-        <p className="text-xs font-medium text-amber-700">{`问题 #${questionId}`}</p>
+        <p className="text-butter text-xs font-bold">{`问题 #${questionId}`}</p>
         <p className="mt-1">{title}</p>
         {children}
       </div>
@@ -110,10 +103,7 @@ export class MobileChatReferenceExtension extends Base implements IExtension {
   type = "chat-reference";
 
   override getPlugins() {
-    return [
-      createBlockElementPlugin("chat-reference"),
-      createVoidElementPlugin("chat-reference"),
-    ];
+    return [createBlockElementPlugin("chat-reference"), createVoidElementPlugin("chat-reference")];
   }
 
   render(props: any): ReactElement {
@@ -126,9 +116,9 @@ export class MobileChatReferenceExtension extends Base implements IExtension {
       <div
         {...attributes}
         contentEditable={false}
-        className="my-2 rounded-xl border border-cyan-200 bg-cyan-50/70 px-3 py-2 text-sm text-cyan-800"
+        className="bg-sky-soft/70 text-sky my-2 rounded-xl px-3 py-2 text-sm"
       >
-        <p className="text-xs font-medium text-cyan-700">{`Chat #${chatId}`}</p>
+        <p className="text-sky text-xs font-bold">{`Chat #${chatId}`}</p>
         <p className="mt-1">{title}</p>
         {children}
       </div>

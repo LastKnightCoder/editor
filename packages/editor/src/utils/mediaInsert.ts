@@ -109,22 +109,50 @@ export const insertMediaPayloads = (
   return true;
 };
 
+// 常驻 DOM 的隐藏 input：Android WebView 对未挂载 input 的文件选择回调
+// 可能立即回收底层句柄，导致 onchange 后 arrayBuffer 挂起（桌面无此问题）
+let sharedPickerInput: HTMLInputElement | null = null;
+function acquirePickerInput(): HTMLInputElement {
+  if (!sharedPickerInput) {
+    sharedPickerInput = document.createElement("input");
+    sharedPickerInput.type = "file";
+    sharedPickerInput.style.display = "none";
+    document.body.appendChild(sharedPickerInput);
+  }
+  return sharedPickerInput;
+}
+
 /** 打开本地文件选择框，选择后上传并插入（带 uploading 占位反馈）；
- * 传入 targetElement 时在既有空元素上就地填充，不依赖当前选区 */
+ * 传入 targetElement 时在既有空元素上就地填充，不依赖当前选区；
+ * capture 用于移动端直接拉起相机；onComplete 在上传结束（成功/失败）或
+ * 取消选择（WebView 支持 cancel 事件时）后回调，供宿主恢复键盘焦点 */
 export const openLocalMediaPicker = (
   editor: Editor,
   mediaType: MediaType,
-  targetElement?: AnyMediaElement
+  targetElement?: AnyMediaElement,
+  options?: { capture?: boolean; onComplete?: () => void }
 ) => {
-  const input = document.createElement("input");
-  input.type = "file";
+  const input = acquirePickerInput();
   input.accept = mediaType === "image" ? "image/*" : mediaType === "video" ? "video/*" : "audio/*";
+  if (options?.capture) {
+    input.setAttribute("capture", "environment");
+  } else {
+    input.removeAttribute("capture");
+  }
+  // 重置以允许连续选择同一文件
+  input.value = "";
+  input.oncancel = () => options?.onComplete?.();
   input.onchange = async () => {
     const file = input.files?.[0];
     if (!file) {
+      options?.onComplete?.();
       return;
     }
-    await uploadAndInsertMedia(editor, mediaType, file, targetElement);
+    try {
+      await uploadAndInsertMedia(editor, mediaType, file, targetElement);
+    } finally {
+      options?.onComplete?.();
+    }
   };
   input.click();
 };

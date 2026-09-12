@@ -14,15 +14,12 @@ function QuickCaptureScreen() {
     refreshCards: () => app.refreshCardsSafe({ page: 1 }),
   });
 
-  // 系统返回/手势返回也收进 flush 流程（防抖期内未落库内容先持久化再关闭），
-  // 冲洗失败时保留页面由用户处理
-  useBackHandler(() => {
-    void controller.requestClose().then(closed => {
-      if (closed) {
-        navigator.goBack("ui");
-      }
-    });
-    return true;
+  // 所有关闭路径（X/下拉/系统返回）统一走 goBack → backHandler：先冲洗落库，
+  // 成功返回 false 放行弹栈，失败返回 true 拦截保留页面。
+  // 切忌无条件 return true 再内嵌 goBack——router 视 true 为"已消费"不弹栈，互喂成死循环
+  useBackHandler(async () => {
+    const closed = await controller.requestClose();
+    return !closed;
   });
 
   return (
@@ -33,12 +30,8 @@ function QuickCaptureScreen() {
       onContentChange={controller.onContentChange}
       onCategoryChange={controller.onCategoryChange}
       onClear={controller.onClear}
-      onRequestClose={content => {
-        void controller.requestClose(content).then(closed => {
-          if (closed) {
-            navigator.goBack("ui");
-          }
-        });
+      onRequestClose={() => {
+        void navigator.goBack("ui");
       }}
     />
   );

@@ -1,4 +1,5 @@
 import type { Descendant } from "slate";
+import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor/src";
 
 export interface DatabaseItem {
   name: string;
@@ -77,6 +78,121 @@ export interface CardsQueryState {
   category: string;
   page: number;
   pageSize: number;
+}
+
+/* ── 文章 ── */
+
+export interface ArticleListItem {
+  id: number;
+  title: string;
+  author: string | null;
+  tags: string[];
+  bannerBg: string;
+  bannerPosition: string;
+  isTop: boolean;
+  contentId: number | null;
+  count: number;
+  createTime: number;
+  updateTime: number;
+  content: Descendant[] | null;
+}
+
+export interface ArticleListResponse {
+  items: ArticleListItem[];
+  total: number;
+}
+
+/* ── 项目 ── */
+
+export type ProjectType = "document-tree" | "data-table" | "vibe-learning";
+
+export interface ProjectListResponse {
+  items: Project[];
+  total: number;
+}
+
+export interface Project {
+  id: number;
+  title: string;
+  descText: string;
+  children: number[];
+  archived: boolean;
+  pinned: boolean;
+  projectType: ProjectType | string;
+  createTime: number;
+  updateTime: number;
+  itemCount: number;
+}
+
+export type ProjectItemType =
+  | "document"
+  | "white-board"
+  | "video-note"
+  | "audio-note"
+  | "web-view"
+  | "table-view"
+  | "pdf"
+  | "epub"
+  | string;
+
+export interface ProjectItem {
+  id: number;
+  title: string;
+  children: number[];
+  parents: number[];
+  projects: number[];
+  projectItemType: ProjectItemType;
+  refType: string;
+  refId: number;
+  contentId: number | null;
+  count: number;
+  createTime: number;
+  updateTime: number;
+}
+
+/* ── 知识库 ── */
+
+export interface DocumentLibraryListResponse {
+  items: DocumentLibrary[];
+  total: number;
+}
+
+export interface DocumentLibrary {
+  id: number;
+  title: string;
+  descText: string;
+  children: number[];
+  isTop: boolean;
+  createTime: number;
+  updateTime: number;
+  itemCount: number;
+  linkCount: number;
+}
+
+/** refType: '' = 自持正文文档；'card' | 'article' = 引用 */
+export interface DocumentItem {
+  id: number;
+  title: string;
+  children: number[];
+  parents: number[];
+  documents: number[];
+  refType: string;
+  refId: number;
+  contentId: number | null;
+  count: number;
+  createTime: number;
+  updateTime: number;
+  tags: string[];
+}
+
+/* ── 首页汇总统计 ── */
+
+export interface HomeStats {
+  articlesTotal: number;
+  projectsTotal: number;
+  projectDocumentsTotal: number;
+  documentLibrariesTotal: number;
+  knowledgeDocumentsTotal: number;
 }
 
 export interface SyncVersionResponse {
@@ -193,6 +309,15 @@ export interface DiaryUpsertPayload {
   segmentId?: number;
   newSegment?: boolean;
   tags?: string[];
+}
+
+/** 日记标签库（diary_tag_settings）：筛选条与标签管理的数据源 */
+export interface DiaryTagSetting {
+  name: string;
+  color: string;
+  sort: number;
+  createTime: number;
+  updateTime: number;
 }
 
 export type TodoItemType = "normal" | "deadline" | "planned" | "recurring";
@@ -448,6 +573,14 @@ export interface SettingCompat {
       accessKeyId: string;
       accessKeySecret: string;
     };
+  };
+  /** 外观类设置（与桌面端 setting.json 的 appearance 节同构）：image 为图片渲染默认外观 */
+  appearance?: {
+    image?: {
+      borderRadius?: ImageBorderRadiusPreset;
+      shadow?: ImageShadowPreset | boolean;
+    };
+    [key: string]: unknown;
   };
   module?: {
     todo?: {

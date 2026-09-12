@@ -1,5 +1,5 @@
-import { CalendarDays, Clock, MoreHorizontal, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CalendarDays, Check, Clock, MoreHorizontal, RefreshCw } from "lucide-react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import type {
   PointerEvent as ReactPointerEvent,
@@ -22,7 +22,6 @@ type TodoItemTreeProps = {
   allItems?: TodoItem[];
   scrollContainerRef?: RefObject<HTMLDivElement | null>;
   isVisible?: boolean;
-  activeTodoId: number | null;
   onOpenDetail: (item: TodoItem) => void;
   onToggleComplete: (item: TodoItem, isCompleted: boolean) => void;
   onOpenActions: (item: TodoItem) => void;
@@ -33,7 +32,6 @@ type TodoItemTreeProps = {
 type TodoItemRowProps = {
   item: TodoItem;
   depth: number;
-  isActive: boolean;
   isDragging: boolean;
   isDropBefore: boolean;
   isDropAfter: boolean;
@@ -71,13 +69,13 @@ function sortByOrder(a: TodoItem, b: TodoItem): number {
 
 function TypeIcon({ type }: { type: TodoItem["type"] }) {
   if (type === "deadline") {
-    return <Clock size={13} className="shrink-0 text-amber-500" />;
+    return <Clock size={13} className="text-butter shrink-0" />;
   }
   if (type === "planned") {
-    return <CalendarDays size={13} className="shrink-0 text-blue-500" />;
+    return <CalendarDays size={13} className="text-sky shrink-0" />;
   }
   if (type === "recurring") {
-    return <RefreshCw size={13} className="shrink-0 text-emerald-500" />;
+    return <RefreshCw size={13} className="text-sage shrink-0" />;
   }
   return null;
 }
@@ -266,10 +264,11 @@ function performAutoScroll(scrollElement: HTMLElement | null, clientY: number): 
   }
 }
 
-function TodoItemRow({
+// 杏子风格任务行：圆形勾选框 + 虚线分隔；memo 依赖的回调在 Tree 层已稳定化，
+// 拖拽期间只有被拖行与落点行的 memo 失效。
+const TodoItemRow = memo(function TodoItemRow({
   item,
   depth,
-  isActive,
   isDragging,
   isDropBefore,
   isDropAfter,
@@ -303,89 +302,96 @@ function TodoItemRow({
       onPointerMove={onRowPointerMove}
       onPointerUp={onRowPointerUp}
       onPointerCancel={onRowPointerUp}
-      className="relative select-none"
+      className={`border-line relative select-none border-b border-dashed ${
+        isDragging ? "opacity-80" : ""
+      }`}
     >
       {isDropBefore ? (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 rounded-full bg-blue-500/80" />
+        <div className="bg-accent/80 pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 rounded-full" />
       ) : null}
 
       <div
-        className={`rounded-xl px-3 py-2 transition ${
-          isDragging
-            ? "bg-blue-100/80 opacity-80 dark:bg-blue-900/30"
-            : isActive
-              ? "bg-blue-50 dark:bg-blue-900/20"
-              : "bg-white dark:bg-neutral-900"
-        } ${isDropChild ? "ring-2 ring-blue-400/70" : ""}`}
+        className={`flex items-start gap-3 px-4 py-3.5 transition-colors ${
+          isDragging ? "bg-apricot-soft" : "active:bg-press"
+        } ${isDropChild ? "ring-accent/60 ring-2 ring-inset" : ""}`}
       >
-        <div className="flex items-center gap-2">
-          <input
-            data-no-drag="true"
-            type="checkbox"
-            checked={item.isCompleted}
-            onChange={event => onToggleComplete(item, event.target.checked)}
-            className="h-4 w-4 shrink-0"
-          />
-          <button
-            type="button"
-            onClick={() => {
-              if (suppressTapRef.current) {
-                return;
-              }
-              onOpenDetail(item);
-            }}
-            className="flex-1 text-left"
-          >
-            <div className="flex items-center gap-1.5">
-              <TypeIcon type={item.type} />
-              <span
-                className={`line-clamp-1 text-sm ${
-                  item.isCompleted
-                    ? "text-gray-400 line-through dark:text-neutral-500"
-                    : isOverdue
-                      ? "text-rose-600 dark:text-rose-400"
-                      : "text-gray-900 dark:text-gray-100"
-                }`}
-              >
-                {item.title}
-              </span>
+        <button
+          data-no-drag="true"
+          type="button"
+          role="checkbox"
+          aria-checked={item.isCompleted}
+          aria-label={item.isCompleted ? "标记为未完成" : "标记为已完成"}
+          onClick={() => onToggleComplete(item, !item.isCompleted)}
+          className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full border-2 transition-all duration-200 ${
+            item.isCompleted
+              ? "border-accent bg-accent shadow-accent rotate-[360deg]"
+              : "border-ink-3/50 bg-surface"
+          }`}
+        >
+          {item.isCompleted ? (
+            <Check size={13} strokeWidth={3.4} className="text-white" aria-hidden="true" />
+          ) : null}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (suppressTapRef.current) {
+              return;
+            }
+            onOpenDetail(item);
+          }}
+          className="min-w-0 flex-1 text-left"
+        >
+          <div className="flex items-center gap-1.5">
+            <TypeIcon type={item.type} />
+            <span
+              className={`line-clamp-1 text-[14px] font-semibold ${
+                item.isCompleted
+                  ? "text-ink-3 decoration-rose line-through decoration-2"
+                  : isOverdue
+                    ? "text-rose"
+                    : "text-ink"
+              }`}
+            >
+              {item.title}
+            </span>
+          </div>
+          {item.dueAt ? (
+            <div className="text-ink-3 mt-0.5 pl-[19px] text-[10.5px] tabular-nums">
+              {new Date(item.dueAt).toLocaleString()}
             </div>
-            {item.dueAt ? (
-              <div className="mt-0.5 pl-[18px] text-[11px] text-gray-400 dark:text-neutral-500">
-                {new Date(item.dueAt).toLocaleString()}
-              </div>
-            ) : null}
-          </button>
-          <button
-            data-no-drag="true"
-            type="button"
-            onClick={() => {
-              if (suppressTapRef.current) {
-                return;
-              }
-              onOpenActions(item);
-            }}
-            className="rounded-full p-2 text-gray-400 active:bg-gray-100 dark:text-neutral-500 dark:active:bg-neutral-800"
-            aria-label="任务操作"
-          >
-            <MoreHorizontal size={16} aria-hidden="true" />
-          </button>
-        </div>
+          ) : null}
+        </button>
+
+        <button
+          data-no-drag="true"
+          type="button"
+          onClick={() => {
+            if (suppressTapRef.current) {
+              return;
+            }
+            onOpenActions(item);
+          }}
+          className="text-ink-3 active:bg-press -mr-1 rounded-full p-2"
+          aria-label="任务操作"
+        >
+          <MoreHorizontal size={16} aria-hidden="true" />
+        </button>
       </div>
 
       {isDropAfter ? (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-0.5 rounded-full bg-blue-500/80" />
+        <div className="bg-accent/80 pointer-events-none absolute inset-x-0 bottom-0 z-10 h-0.5 rounded-full" />
       ) : null}
     </div>
   );
-}
+});
 
 export function TodoItemTree({
   items,
   allItems,
   scrollContainerRef,
   isVisible = true,
-  activeTodoId,
   onOpenDetail,
   onToggleComplete,
   onOpenActions,
@@ -393,6 +399,24 @@ export function TodoItemTree({
   enableDragSort = true,
 }: TodoItemTreeProps) {
   const sourceItems = allItems ?? items;
+
+  // 上层常传内联回调：经 ref 转发为稳定引用，保证行级 memo 生效
+  const onOpenDetailRef = useRef(onOpenDetail);
+  onOpenDetailRef.current = onOpenDetail;
+  const onToggleCompleteRef = useRef(onToggleComplete);
+  onToggleCompleteRef.current = onToggleComplete;
+  const onOpenActionsRef = useRef(onOpenActions);
+  onOpenActionsRef.current = onOpenActions;
+
+  const handleOpenDetail = useCallback((item: TodoItem) => {
+    onOpenDetailRef.current(item);
+  }, []);
+  const handleToggleComplete = useCallback((item: TodoItem, isCompleted: boolean) => {
+    onToggleCompleteRef.current(item, isCompleted);
+  }, []);
+  const handleOpenActions = useCallback((item: TodoItem) => {
+    onOpenActionsRef.current(item);
+  }, []);
 
   const allRows = useMemo(() => buildTreeRows(sourceItems), [sourceItems]);
   const visibleIdSet = useMemo(() => {
@@ -422,6 +446,8 @@ export function TodoItemTree({
   const activePointerIdRef = useRef<number | null>(null);
   const dropHintRef = useRef<DropHint | null>(null);
   const draggedIdRef = useRef<number | null>(null);
+  const dragEnabledRef = useRef(enableDragSort);
+  dragEnabledRef.current = enableDragSort && !reordering;
   const suppressTapRef = useRef(false);
   const suppressTapTimerRef = useRef<number | null>(null);
 
@@ -462,16 +488,16 @@ export function TodoItemTree({
     };
   }, []);
 
-  const clearLongPressTimer = () => {
+  const clearLongPressTimer = useCallback(() => {
     if (longPressTimerRef.current != null) {
       window.clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
     pressStartRef.current = null;
     pressItemIdRef.current = null;
-  };
+  }, []);
 
-  const armTapGuard = () => {
+  const armTapGuard = useCallback(() => {
     suppressTapRef.current = true;
     if (suppressTapTimerRef.current != null) {
       window.clearTimeout(suppressTapTimerRef.current);
@@ -480,7 +506,7 @@ export function TodoItemTree({
       suppressTapRef.current = false;
       suppressTapTimerRef.current = null;
     }, TAP_GUARD_MS);
-  };
+  }, []);
 
   const updateDropHint = useCallback(
     (clientX: number, clientY: number) => {
@@ -494,10 +520,17 @@ export function TodoItemTree({
         clientY,
         draggedId: currentDraggedId,
       });
-      setDropHint(hint);
+      setDropHint(prev =>
+        prev?.hoverId === hint?.hoverId && prev?.placement === hint?.placement ? prev : hint
+      );
     },
     [scrollContainerRef]
   );
+
+  const onMoveAndReorderRef = useRef(onMoveAndReorder);
+  onMoveAndReorderRef.current = onMoveAndReorder;
+  const sourceItemsRef = useRef(sourceItems);
+  sourceItemsRef.current = sourceItems;
 
   const commitDrop = useCallback(() => {
     const dragged = draggedIdRef.current;
@@ -508,12 +541,12 @@ export function TodoItemTree({
     setDropHint(null);
     activePointerIdRef.current = null;
 
-    if (!dragged || !hint || !onMoveAndReorder) {
+    if (!dragged || !hint || !onMoveAndReorderRef.current) {
       armTapGuard();
       return;
     }
     const payload = buildMovePayload({
-      allItems: sourceItems,
+      allItems: sourceItemsRef.current,
       draggedId: dragged,
       dropHint: hint,
     });
@@ -523,7 +556,8 @@ export function TodoItemTree({
     }
 
     setReordering(true);
-    void onMoveAndReorder(payload)
+    void onMoveAndReorderRef
+      .current(payload)
       .catch(() => {
         // 交给上层统一错误提示
       })
@@ -531,7 +565,7 @@ export function TodoItemTree({
         setReordering(false);
         armTapGuard();
       });
-  }, [onMoveAndReorder, sourceItems]);
+  }, [armTapGuard]);
 
   useEffect(() => {
     if (draggedId == null) {
@@ -595,213 +629,228 @@ export function TodoItemTree({
     };
   }, [commitDrop, draggedId, supportsPointerEvents, updateDropHint]);
 
-  const handleRowTouchStart = (item: TodoItem, event: ReactTouchEvent<HTMLDivElement>) => {
-    if (!enableDragSort || reordering) {
-      return;
-    }
-    if (event.touches.length !== 1) {
-      return;
-    }
-    const target = event.target as HTMLElement;
-    if (target.closest("[data-no-drag='true']")) {
-      return;
-    }
-    if (longPressTimerRef.current != null) {
-      window.clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    const touch = event.touches[0];
-    pressStartRef.current = {
-      x: touch.clientX,
-      y: touch.clientY,
-    };
-    pressItemIdRef.current = item.id;
-    longPressTimerRef.current = window.setTimeout(() => {
-      const nextDraggedId = pressItemIdRef.current;
-      if (nextDraggedId != null) {
-        setDraggedId(nextDraggedId);
-        armTapGuard();
+  // 行级手势 handler 一律读 ref（draggedId/reordering/dragEnabled），
+  // 保证引用恒定——否则拖拽期间每次 setDropHint 都会重建全部可见行
+  const handleRowTouchStart = useCallback(
+    (item: TodoItem, event: ReactTouchEvent<HTMLDivElement>) => {
+      if (!dragEnabledRef.current) {
+        return;
       }
-      clearLongPressTimer();
-    }, LONG_PRESS_MS);
-  };
-
-  const handleRowTouchMove = (event: ReactTouchEvent<HTMLDivElement>) => {
-    if (draggedId != null) {
-      if (event.touches.length === 1) {
-        const touch = event.touches[0];
-        event.preventDefault();
-        updateDropHint(touch.clientX, touch.clientY);
+      if (event.touches.length !== 1) {
+        return;
       }
-      return;
-    }
-    if (longPressTimerRef.current == null || event.touches.length !== 1) {
-      return;
-    }
-    const start = pressStartRef.current;
-    if (!start) {
-      return;
-    }
-    const touch = event.touches[0];
-    const deltaX = touch.clientX - start.x;
-    const deltaY = touch.clientY - start.y;
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-    if (distance > DRAG_START_DISTANCE_PX) {
-      clearLongPressTimer();
-    }
-  };
-
-  const handleRowTouchEnd = () => {
-    if (draggedId != null) {
-      commitDrop();
-      return;
-    }
-    if (draggedId == null) {
-      clearLongPressTimer();
-    }
-  };
-
-  const handleRowPointerDown = (item: TodoItem, event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!supportsPointerEvents) {
-      return;
-    }
-    if (event.pointerType === "touch") {
-      return;
-    }
-    if (!enableDragSort || reordering) {
-      return;
-    }
-    if (event.pointerType === "mouse" && event.button !== 0) {
-      return;
-    }
-    const target = event.target as HTMLElement;
-    if (target.closest("[data-no-drag='true']")) {
-      return;
-    }
-    activePointerIdRef.current = event.pointerId;
-    if (longPressTimerRef.current != null) {
-      window.clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    pressStartRef.current = {
-      x: event.clientX,
-      y: event.clientY,
-    };
-    pressItemIdRef.current = item.id;
-    longPressTimerRef.current = window.setTimeout(() => {
-      const nextDraggedId = pressItemIdRef.current;
-      if (nextDraggedId != null) {
-        setDraggedId(nextDraggedId);
-        armTapGuard();
+      const target = event.target as HTMLElement;
+      if (target.closest("[data-no-drag='true']")) {
+        return;
       }
-      clearLongPressTimer();
-    }, LONG_PRESS_MS);
-  };
+      if (longPressTimerRef.current != null) {
+        window.clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+      const touch = event.touches[0];
+      pressStartRef.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+      };
+      pressItemIdRef.current = item.id;
+      longPressTimerRef.current = window.setTimeout(() => {
+        const nextDraggedId = pressItemIdRef.current;
+        if (nextDraggedId != null) {
+          setDraggedId(nextDraggedId);
+          armTapGuard();
+        }
+        clearLongPressTimer();
+      }, LONG_PRESS_MS);
+    },
+    [armTapGuard, clearLongPressTimer]
+  );
 
-  const handleRowPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!supportsPointerEvents) {
-      return;
-    }
-    if (activePointerIdRef.current == null || event.pointerId !== activePointerIdRef.current) {
-      return;
-    }
-    if (draggedId != null) {
-      event.preventDefault();
-      updateDropHint(event.clientX, event.clientY);
-      return;
-    }
-    if (longPressTimerRef.current == null) {
-      return;
-    }
-    const start = pressStartRef.current;
-    if (!start) {
-      return;
-    }
-    const deltaX = event.clientX - start.x;
-    const deltaY = event.clientY - start.y;
-    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-    if (distance > DRAG_START_DISTANCE_PX) {
-      clearLongPressTimer();
-    }
-  };
+  const handleRowTouchMove = useCallback(
+    (event: ReactTouchEvent<HTMLDivElement>) => {
+      if (draggedIdRef.current != null) {
+        if (event.touches.length === 1) {
+          const touch = event.touches[0];
+          event.preventDefault();
+          updateDropHint(touch.clientX, touch.clientY);
+        }
+        return;
+      }
+      if (longPressTimerRef.current == null || event.touches.length !== 1) {
+        return;
+      }
+      const start = pressStartRef.current;
+      if (!start) {
+        return;
+      }
+      const touch = event.touches[0];
+      const deltaX = touch.clientX - start.x;
+      const deltaY = touch.clientY - start.y;
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      if (distance > DRAG_START_DISTANCE_PX) {
+        clearLongPressTimer();
+      }
+    },
+    [clearLongPressTimer, updateDropHint]
+  );
 
-  const handleRowPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!supportsPointerEvents) {
-      return;
-    }
-    if (activePointerIdRef.current == null || event.pointerId !== activePointerIdRef.current) {
-      return;
-    }
-    activePointerIdRef.current = null;
-    if (draggedId != null) {
+  const handleRowTouchEnd = useCallback(() => {
+    if (draggedIdRef.current != null) {
       commitDrop();
       return;
     }
     clearLongPressTimer();
-  };
+  }, [clearLongPressTimer, commitDrop]);
+
+  const handleRowPointerDown = useCallback(
+    (item: TodoItem, event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!supportsPointerEvents) {
+        return;
+      }
+      if (event.pointerType === "touch") {
+        return;
+      }
+      if (!dragEnabledRef.current) {
+        return;
+      }
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
+      const target = event.target as HTMLElement;
+      if (target.closest("[data-no-drag='true']")) {
+        return;
+      }
+      activePointerIdRef.current = event.pointerId;
+      if (longPressTimerRef.current != null) {
+        window.clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+      pressStartRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+      };
+      pressItemIdRef.current = item.id;
+      longPressTimerRef.current = window.setTimeout(() => {
+        const nextDraggedId = pressItemIdRef.current;
+        if (nextDraggedId != null) {
+          setDraggedId(nextDraggedId);
+          armTapGuard();
+        }
+        clearLongPressTimer();
+      }, LONG_PRESS_MS);
+    },
+    [armTapGuard, clearLongPressTimer, supportsPointerEvents]
+  );
+
+  const handleRowPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!supportsPointerEvents) {
+        return;
+      }
+      if (activePointerIdRef.current == null || event.pointerId !== activePointerIdRef.current) {
+        return;
+      }
+      if (draggedIdRef.current != null) {
+        event.preventDefault();
+        updateDropHint(event.clientX, event.clientY);
+        return;
+      }
+      if (longPressTimerRef.current == null) {
+        return;
+      }
+      const start = pressStartRef.current;
+      if (!start) {
+        return;
+      }
+      const deltaX = event.clientX - start.x;
+      const deltaY = event.clientY - start.y;
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      if (distance > DRAG_START_DISTANCE_PX) {
+        clearLongPressTimer();
+      }
+    },
+    [clearLongPressTimer, supportsPointerEvents, updateDropHint]
+  );
+
+  const handleRowPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!supportsPointerEvents) {
+        return;
+      }
+      if (activePointerIdRef.current == null || event.pointerId !== activePointerIdRef.current) {
+        return;
+      }
+      activePointerIdRef.current = null;
+      if (draggedIdRef.current != null) {
+        commitDrop();
+        return;
+      }
+      clearLongPressTimer();
+    },
+    [clearLongPressTimer, commitDrop, supportsPointerEvents]
+  );
 
   if (visibleRows.length === 0) {
     return (
-      <div className="rounded-xl bg-white px-4 py-8 text-center text-sm text-gray-500 dark:bg-neutral-900 dark:text-neutral-400">
+      <div className="list-group text-ink-3 px-4 py-8 text-center text-sm">
         当前分组还没有任务，先添加一条吧
       </div>
     );
   }
 
   return (
-    <div className="px-4 pb-6">
+    <div className="pb-6">
       {!enableDragSort ? (
-        <div className="mb-2 rounded-lg bg-gray-100 px-3 py-2 text-xs text-gray-500 dark:bg-neutral-800 dark:text-neutral-400">
+        <div className="bg-input text-ink-3 mb-3 rounded-full px-4 py-2 text-center text-xs font-medium">
           当前筛选条件下已禁用拖拽排序，清空筛选后可长按拖拽
         </div>
       ) : null}
-      <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
-        {virtualRows.map(virtualRow => {
-          const row = visibleRows[virtualRow.index];
-          if (!row) {
-            return null;
-          }
-          const { item, depth } = row;
-          return (
-            <div
-              key={virtualRow.key}
-              data-index={virtualRow.index}
-              ref={rowVirtualizer.measureElement}
-              className="pb-2"
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "100%",
-                transform: `translateY(${virtualRow.start}px)`,
-                boxSizing: "border-box",
-              }}
-            >
-              <TodoItemRow
-                item={item}
-                depth={depth}
-                isActive={activeTodoId === item.id}
-                isDragging={draggedId === item.id}
-                isDropBefore={dropHint?.hoverId === item.id && dropHint.placement === "before"}
-                isDropAfter={dropHint?.hoverId === item.id && dropHint.placement === "after"}
-                isDropChild={
-                  dropHint?.hoverId === item.id &&
-                  (dropHint.placement === "child-before" || dropHint.placement === "child-after")
-                }
-                onOpenDetail={onOpenDetail}
-                onToggleComplete={onToggleComplete}
-                onOpenActions={onOpenActions}
-                onRowTouchStart={handleRowTouchStart}
-                onRowTouchMove={handleRowTouchMove}
-                onRowTouchEnd={handleRowTouchEnd}
-                onRowPointerDown={handleRowPointerDown}
-                onRowPointerMove={handleRowPointerMove}
-                onRowPointerUp={handleRowPointerUp}
-                suppressTapRef={suppressTapRef}
-              />
-            </div>
-          );
-        })}
+      <div className="list-group relative mx-4">
+        <div className="relative w-full" style={{ height: `${rowVirtualizer.getTotalSize()}px` }}>
+          {virtualRows.map(virtualRow => {
+            const row = visibleRows[virtualRow.index];
+            if (!row) {
+              return null;
+            }
+            const { item, depth } = row;
+            return (
+              <div
+                key={virtualRow.key}
+                data-index={virtualRow.index}
+                ref={rowVirtualizer.measureElement}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  transform: `translateY(${virtualRow.start}px)`,
+                  boxSizing: "border-box",
+                }}
+              >
+                <TodoItemRow
+                  item={item}
+                  depth={depth}
+                  isDragging={draggedId === item.id}
+                  isDropBefore={dropHint?.hoverId === item.id && dropHint.placement === "before"}
+                  isDropAfter={dropHint?.hoverId === item.id && dropHint.placement === "after"}
+                  isDropChild={
+                    dropHint?.hoverId === item.id &&
+                    (dropHint.placement === "child-before" || dropHint.placement === "child-after")
+                  }
+                  onOpenDetail={handleOpenDetail}
+                  onToggleComplete={handleToggleComplete}
+                  onOpenActions={handleOpenActions}
+                  onRowTouchStart={handleRowTouchStart}
+                  onRowTouchMove={handleRowTouchMove}
+                  onRowTouchEnd={handleRowTouchEnd}
+                  onRowPointerDown={handleRowPointerDown}
+                  onRowPointerMove={handleRowPointerMove}
+                  onRowPointerUp={handleRowPointerUp}
+                  suppressTapRef={suppressTapRef}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

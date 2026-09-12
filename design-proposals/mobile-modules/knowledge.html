@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>移动端 · 知识库 · 设计稿</title>
+<style>
+  /* ═══════════════ 主题系统（与 v2-apricot 保持一致） ═══════════════ */
+  .device {
+    --bg: #f6f1e7;
+    --bg-deep: #efe8da;
+    --card: #fffdf9;
+    --text: #43392c;
+    --text-2: #8b7d6b;
+    --text-3: #b9ac9a;
+    --line: #eae2d1;
+    --line-soft: #f0e9db;
+    --accent: #d97757;
+    --accent-2: #e8896a;
+    --on-accent: #fff;
+    --shadow-card: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.22);
+    --shadow-float: 0 12px 32px -8px rgba(217,119,87,.5), inset 0 1.5px 0 rgba(255,255,255,.4);
+    --grab: #e3d9c6;
+    --sage-bg: #e5ede2;   --sage-fg: #61795f;
+    --sky-bg: #e2ebf3;    --sky-fg: #5c7d99;
+    --apricot-bg: #f8e9d7; --apricot-fg: #b2794b;
+    --lilac-bg: #ebe6f3;  --lilac-fg: #8a7aa6;
+    --butter-bg: #f6efd6; --butter-fg: #a38c4d;
+    --rose-bg: #f6e3e0;   --rose-fg: #b06a5e;
+    --mask: rgba(40,32,22,.42);
+    --toast-bg: #43392c; --toast-fg: #fff8ef;
+  }
+  .device[data-theme="midnight"] {
+    --bg: #0e1016; --bg-deep: #0a0c10; --card: #171a22;
+    --text: #edeef1; --text-2: #8e96a5; --text-3: #5b6270;
+    --line: rgba(255,255,255,.07); --line-soft: rgba(255,255,255,.05);
+    --accent: #f0a860; --accent-2: #d98f43; --on-accent: #221503;
+    --shadow-card: 0 14px 30px -16px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.04);
+    --shadow-float: 0 8px 18px -5px rgba(240,168,96,.4), inset 0 1px 0 rgba(255,255,255,.18);
+    --sage-bg: rgba(110,231,183,.12);  --sage-fg: #7edbb2;
+    --sky-bg: rgba(147,180,255,.12);   --sky-fg: #9db9f0;
+    --apricot-bg: rgba(240,168,96,.13); --apricot-fg: #f0b680;
+    --lilac-bg: rgba(196,167,255,.12); --lilac-fg: #c8b3f5;
+    --butter-bg: rgba(240,220,130,.1); --butter-fg: #e8d487;
+    --rose-bg: rgba(255,138,120,.12);  --rose-fg: #f5988a;
+    --mask: rgba(0,0,0,.55);
+    --toast-bg: #1d222e; --toast-fg: #edeef1;
+    --grab: rgba(255,255,255,.16);
+  }
+  .device[data-theme="mint"] {
+    --bg: #eef4ee; --bg-deep: #e4ede4; --card: #fbfefb;
+    --text: #2e3d31; --text-2: #71806f; --text-3: #a5b3a3;
+    --line: #dfe9df; --line-soft: #eaf2ea;
+    --accent: #4a9d78; --accent-2: #5cae88; --on-accent: #fff;
+    --shadow-card: 0 1px 2px rgba(60,100,70,.05), 0 10px 24px -14px rgba(60,100,70,.25);
+    --shadow-float: 0 12px 32px -8px rgba(74,157,120,.5), inset 0 1.5px 0 rgba(255,255,255,.5);
+    --sage-bg: #e3efe6;   --sage-fg: #4a8a62;
+    --sky-bg: #e0ebf0;    --sky-fg: #567f96;
+    --apricot-bg: #f5ecdd; --apricot-fg: #a87f52;
+    --lilac-bg: #e9e6f2;  --lilac-fg: #8378a4;
+    --butter-bg: #f4efd8; --butter-fg: #9c8d54;
+    --rose-bg: #f4e4e2;   --rose-fg: #a86e64;
+    --mask: rgba(46,61,49,.4);
+    --toast-bg: #2e3d31; --toast-fg: #f0f8f0;
+    --grab: #d7e4d8;
+  }
+  .device[data-theme="ocean"] {
+    --bg: #edf2f8; --bg-deep: #e3eaf3; --card: #fcfdff;
+    --text: #2d3644; --text-2: #728096; --text-3: #a6b1c2;
+    --line: #dde5ef; --line-soft: #e9eff7;
+    --accent: #4d7fc4; --accent-2: #5d8fd4; --on-accent: #fff;
+    --shadow-card: 0 1px 2px rgba(60,80,120,.06), 0 10px 24px -14px rgba(60,80,120,.25);
+    --shadow-float: 0 12px 32px -8px rgba(77,127,196,.5), inset 0 1.5px 0 rgba(255,255,255,.5);
+    --sage-bg: #e2eee6;   --sage-fg: #527f63;
+    --sky-bg: #dfe9f5;    --sky-fg: #4d6f9e;
+    --apricot-bg: #f6ead9; --apricot-fg: #a3764a;
+    --lilac-bg: #e8e5f3;  --lilac-fg: #7f74a8;
+    --butter-bg: #f3eed6; --butter-fg: #97894e;
+    --rose-bg: #f5e3e6;   --rose-fg: #a56677;
+    --mask: rgba(45,54,68,.4);
+    --toast-bg: #2d3644; --toast-fg: #eef3fa;
+    --grab: #d8e1ee;
+  }
+
+  :root {
+    --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --ease-bounce: cubic-bezier(.34,1.56,.5,1);
+    --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.38 0 0 0 0 0.26 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'%3E%3C/svg%3E");
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: var(--sans);
+    background: #d9d0be;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .device {
+    position: relative;
+    width: 402px;
+    height: min(874px, 96vh);
+    background: var(--bg);
+    color: var(--text);
+    border-radius: 48px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(60,50,35,.25), 0 30px 80px rgba(50,40,25,.35);
+    transition: background .35s ease;
+  }
+  @media (max-width: 520px) {
+    body { background: var(--bg); }
+    .device { width: 100vw; height: 100dvh; border-radius: 0; box-shadow: none; }
+  }
+  .device::before {
+    content: ""; position: absolute; inset: 0;
+    background-image: var(--noise);
+    pointer-events: none; z-index: 1;
+  }
+  .device[data-theme="midnight"]::before { opacity: .4; }
+
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    opacity: 0; transform: translateY(12px) scale(.985);
+    pointer-events: none;
+    transition: opacity .3s ease, transform .3s var(--ease-bounce);
+    z-index: 0;
+  }
+  .screen.active { opacity: 1; transform: none; pointer-events: auto; z-index: 2; }
+  .screen.sub { transform: translateX(60px); }
+  .screen.sub.active { transform: none; }
+
+  .screen-scroll {
+    flex: 1; overflow-y: auto; overscroll-behavior-y: contain;
+    padding: 0 18px 120px;
+    scrollbar-width: none;
+  }
+  .screen-scroll::-webkit-scrollbar { display: none; }
+
+  .subhead {
+    padding: calc(14px + env(safe-area-inset-top, 0px)) 12px 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .back-btn {
+    width: 38px; height: 38px; flex-shrink: 0;
+    border-radius: 13px; border: none;
+    background: var(--card); box-shadow: var(--shadow-card);
+    color: var(--text); display: grid; place-items: center;
+    cursor: pointer; transition: transform .18s var(--ease-bounce);
+  }
+  .back-btn:active { transform: scale(.88); }
+  .subhead h1 {
+    font-size: 18px; font-weight: 800; flex: 1; text-align: center;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sub-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .sa-btn {
+    width: 38px; height: 38px;
+    border-radius: 13px; border: none;
+    background: var(--card); box-shadow: var(--shadow-card);
+    color: var(--text-2); display: grid; place-items: center;
+    cursor: pointer; transition: transform .18s var(--ease-bounce);
+  }
+  .sa-btn:active { transform: scale(.88); }
+  .sa-btn.brand {
+    background: linear-gradient(145deg, var(--accent-2), var(--accent));
+    color: var(--on-accent); box-shadow: var(--shadow-float);
+  }
+
+  @keyframes pop-in { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: none; } }
+
+  .tag-pill {
+    font-size: 11.5px; color: var(--text-3);
+    background: var(--bg-deep);
+    padding: 3px 10px; border-radius: 100px;
+  }
+  .device[data-theme="midnight"] .tag-pill { background: rgba(255,255,255,.05); }
+  .list-end { text-align: center; font-size: 12px; color: var(--text-3); padding: 14px 0 4px; }
+  .sec-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin: 22px 4px 11px;
+  }
+  .sec-head h2 { font-size: 16.5px; font-weight: 800; }
+  .sec-head .more { font-size: 12.5px; color: var(--text-3); cursor: pointer; }
+  /* ═══════════════ 知识库卡片 ═══════════════ */
+  .lib-card {
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: var(--shadow-card);
+    padding: 16px 16px 13px;
+    margin-bottom: 11px;
+    cursor: pointer;
+    transition: transform .2s var(--ease-bounce);
+    animation: pop-in .5s var(--ease-bounce) backwards;
+  }
+  .lib-card:active { transform: scale(.97); }
+  .pj-head { display: flex; align-items: center; gap: 11px; }
+  .lib-orb {
+    width: 44px; height: 44px; border-radius: 15px; flex-shrink: 0;
+    display: grid; place-items: center;
+    position: relative; overflow: hidden;
+  }
+  .lib-orb::before {
+    content: ""; position: absolute; inset: 0;
+    background-image: var(--noise); opacity: .5;
+  }
+  .lib-orb > svg { position: relative; z-index: 1; }
+  .lo-sage  { background: linear-gradient(135deg, #d3e2cf, #a3c2a0); }
+  .lo-sky   { background: linear-gradient(135deg, #cfdff0, #9db9d8); }
+  .lo-lilac { background: linear-gradient(135deg, #e2daf1, #b7a6d8); }
+  .lo-butter{ background: linear-gradient(135deg, #f1e5bf, #dcc684); }
+  .lib-title { font-size: 16px; font-weight: 750; line-height: 1.4; flex: 1; }
+  .pj-pin { color: var(--apricot-fg); flex-shrink: 0; display: inline-flex; }
+  .pj-more {
+    width: 28px; height: 28px; margin-right: -6px; flex-shrink: 0;
+    border: none; border-radius: 9px; background: none;
+    color: var(--text-3); display: grid; place-items: center;
+    cursor: pointer;
+  }
+  .pj-more:active { background: var(--bg-deep); }
+  .lib-desc {
+    margin-top: 10px;
+    font-size: 12.5px; line-height: 1.68; color: var(--text-2);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .lib-meta {
+    display: flex; align-items: center; gap: 7px;
+    margin-top: 11px;
+    font-size: 11px; color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .lib-meta .dot { opacity: .5; }
+  .link-flag {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10.5px; font-weight: 700;
+    background: var(--sky-bg); color: var(--sky-fg);
+    padding: 2.5px 9px; border-radius: 100px;
+  }
+
+  /* ═══════════════ 库详情 ═══════════════ */
+  .info-card {
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: var(--shadow-card);
+    padding: 16px 17px 14px;
+    margin-top: 6px;
+    animation: pop-in .5s var(--ease-bounce) backwards;
+  }
+  .info-top { display: flex; align-items: center; gap: 11px; }
+  .info-desc { margin-top: 11px; font-size: 13px; line-height: 1.7; color: var(--text-2); }
+  .info-stats {
+    display: flex; align-items: center; gap: 7px;
+    margin-top: 12px;
+    font-size: 11.5px; color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .info-stats .dot { opacity: .5; }
+
+  .tree-btn {
+    display: flex; align-items: center; gap: 11px;
+    width: 100%;
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: var(--shadow-card);
+    border: none;
+    padding: 13px 15px;
+    margin-top: 11px;
+    font-family: var(--sans);
+    cursor: pointer;
+    transition: transform .18s var(--ease-bounce);
+    animation: pop-in .5s var(--ease-bounce) backwards;
+  }
+  .tree-btn:active { transform: scale(.97); }
+  .tree-btn .lb { font-size: 13.5px; font-weight: 650; color: var(--text); }
+  .tree-btn .sub { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+
+  .crumb {
+    display: flex; align-items: center; gap: 5px;
+    margin: 18px 4px 10px;
+    font-size: 12px; color: var(--text-3);
+    overflow-x: auto; scrollbar-width: none;
+    white-space: nowrap;
+  }
+  .crumb::-webkit-scrollbar { display: none; }
+  .crumb .ck { cursor: pointer; flex-shrink: 0; }
+  .crumb .ck.cur { color: var(--text); font-weight: 700; }
+  .crumb .ck:active { opacity: .6; }
+  .crumb .cs { opacity: .45; flex-shrink: 0; }
+
+  .grp-card {
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    animation: pop-in .5s var(--ease-bounce) backwards;
+  }
+  .node-row {
+    display: flex; align-items: center; gap: 13px;
+    padding: 13px 15px;
+    border-bottom: 1.5px dashed var(--line);
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .node-row:last-child { border-bottom: none; }
+  .node-row:active { background: var(--line-soft); }
+  .device[data-theme="midnight"] .node-row:active { background: rgba(255,255,255,.05); }
+  .n-ico {
+    width: 38px; height: 38px; border-radius: 13px; flex-shrink: 0;
+    display: grid; place-items: center;
+  }
+  .n-main { flex: 1; min-width: 0; }
+  .n-title {
+    font-size: 14.5px; font-weight: 650; line-height: 1.4;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .n-meta {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 3px;
+    font-size: 11px; color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .n-meta .dot { opacity: .5; }
+  .n-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; color: var(--text-3); }
+  .ty-doc  { background: var(--sky-bg); color: var(--sky-fg); }
+  .ty-card { background: var(--apricot-bg); color: var(--apricot-fg); }
+  .ty-art  { background: var(--rose-bg); color: var(--rose-fg); }
+  .ty-kb   { background: var(--sage-bg); color: var(--sage-fg); }
+
+  .fab-sm {
+    position: absolute;
+    right: 18px;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    width: 54px; height: 54px;
+    border-radius: 19px; border: none;
+    background: linear-gradient(145deg, var(--accent-2), var(--accent));
+    color: var(--on-accent);
+    display: grid; place-items: center;
+    cursor: pointer; box-shadow: var(--shadow-float);
+    transition: transform .22s var(--ease-bounce);
+    z-index: 12;
+  }
+  .fab-sm:active { transform: scale(.86) rotate(90deg); }
+
+  /* ═══════════════ 节点编辑（默认编辑态） ═══════════════ */
+  .save-state {
+    display: flex; align-items: center; gap: 6px;
+    margin: 8px 2px 2px;
+    font-size: 11.5px; color: var(--sage-fg);
+    animation: pop-in .4s var(--ease-bounce);
+  }
+  .save-state .dotp { width: 6px; height: 6px; border-radius: 50%; background: var(--sage-fg); }
+  .node-path {
+    margin: 6px 2px 0;
+    font-size: 11px; color: var(--text-3);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .doc-title {
+    margin-top: 12px;
+    font-size: 22px; font-weight: 800; line-height: 1.45; letter-spacing: -.01em;
+    display: flex; align-items: center; gap: 9px;
+  }
+  .doc-meta {
+    display: flex; align-items: center; gap: 7px;
+    margin-top: 10px; font-size: 12px; color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .doc-meta .dot { opacity: .5; }
+  .prose { margin-top: 20px; }
+  .prose p { font-size: 15.5px; line-height: 1.95; color: var(--text); margin-bottom: 15px; }
+  .prose p.lead { font-size: 16.5px; }
+  .prose h2 {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 17.5px; font-weight: 800;
+    margin: 28px 0 13px;
+  }
+  .prose h2::before {
+    content: ""; width: 4px; height: 17px; border-radius: 100px;
+    background: linear-gradient(180deg, var(--accent-2), var(--accent));
+    flex-shrink: 0;
+  }
+  .prose ul { margin: 0 0 15px; padding-left: 4px; list-style: none; }
+  .prose li {
+    font-size: 15px; line-height: 1.85; color: var(--text);
+    display: flex; gap: 10px; margin-bottom: 7px;
+  }
+  .prose li::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); opacity: .6;
+    flex-shrink: 0; margin-top: 11px;
+  }
+  .prose mark {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--text); border-radius: 5px; padding: 1px 5px;
+  }
+  .prose .tpl {
+    background: var(--bg-deep);
+    border-radius: 14px;
+    padding: 13px 15px;
+    margin: 14px 0;
+    font-size: 13.5px; line-height: 1.9; color: var(--text-2);
+  }
+  .device[data-theme="midnight"] .prose .tpl { background: rgba(255,255,255,.045); }
+
+  /* 关联面板 */
+  .link-panel {
+    margin-top: 26px;
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: var(--shadow-card);
+    padding: 15px 16px 14px;
+    animation: pop-in .5s var(--ease-bounce) backwards;
+  }
+  .lp-head {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13.5px; font-weight: 750;
+    margin-bottom: 12px;
+  }
+  .lp-head .cnt { font-family: var(--mono); font-size: 11px; color: var(--text-3); font-weight: 500; }
+  .lp-head .add { margin-left: auto; font-size: 12px; color: var(--accent); font-weight: 650; cursor: pointer; }
+  .link-chips { display: flex; gap: 9px; overflow-x: auto; scrollbar-width: none; }
+  .link-chips::-webkit-scrollbar { display: none; }
+  .lk-chip {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 7px;
+    border: none;
+    font-family: var(--sans);
+    font-size: 12.5px; font-weight: 650;
+    padding: 9px 13px; border-radius: 14px;
+    cursor: pointer;
+    max-width: 220px;
+    transition: transform .18s var(--ease-bounce);
+  }
+  .lk-chip:active { transform: scale(.95); }
+  .lk-chip .lt {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .lk-chip.from-card { background: var(--apricot-bg); color: var(--apricot-fg); }
+  .lk-chip.from-art  { background: var(--rose-bg); color: var(--rose-fg); }
+  .lk-chip.from-doc  { background: var(--sky-bg); color: var(--sky-fg); }
+  .lk-add {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 5px;
+    border: 1.5px dashed var(--line);
+    background: none;
+    font-family: var(--sans);
+    font-size: 12px; font-weight: 650; color: var(--text-3);
+    padding: 9px 13px; border-radius: 14px;
+    cursor: pointer;
+  }
+
+  /* ═══════════════ 吸底编辑工具条 ═══════════════
+     贴满底边（无左右留白、无圆角），背景延伸覆盖底部安全区；
+     按钮分组 + 横向滚动，避免挤压换行 */
+  .toolbar {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: color-mix(in srgb, var(--card) 90%, transparent);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border-top: 1px solid var(--line-soft);
+    box-shadow: 0 -10px 30px -14px rgba(50,40,25,.35);
+    display: flex; align-items: center;
+    gap: 2px;
+    padding: 7px 10px calc(7px + env(safe-area-inset-bottom, 0px));
+    overflow-x: auto; scrollbar-width: none;
+    z-index: 12;
+  }
+  .toolbar::-webkit-scrollbar { display: none; }
+  /* 右侧渐隐：提示可横向滚动 */
+  .toolbar::after {
+    content: ""; position: sticky; right: 0; top: 0; flex-shrink: 0;
+    width: 26px; height: 40px; margin-left: -26px;
+    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--card) 90%, transparent) 55%);
+    pointer-events: none;
+  }
+  .device[data-theme="midnight"] .toolbar { box-shadow: 0 -12px 34px rgba(0,0,0,.55); }
+  .tb-btn {
+    min-width: 42px; height: 40px; flex-shrink: 0;
+    border: none; border-radius: 12px; background: none;
+    color: var(--text-2); font-size: 14.5px; font-weight: 750;
+    display: grid; place-items: center; cursor: pointer;
+    font-family: var(--sans);
+    transition: background .15s, color .15s;
+  }
+  .tb-btn:active { background: var(--bg-deep); color: var(--accent); }
+  .tb-btn.on {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    color: var(--accent);
+  }
+  .tb-sep { width: 1.5px; height: 20px; background: var(--line); margin: 0 5px; flex-shrink: 0; }
+
+  /* ═══════════════ Sheet / ActionSheet ═══════════════ */
+  .mask {
+    position: absolute; inset: 0;
+    background: var(--mask);
+    opacity: 0; pointer-events: none;
+    transition: opacity .3s;
+    z-index: 40;
+  }
+  .mask.show { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    max-height: 88%;
+    background: var(--card);
+    border-radius: 30px 30px 0 0;
+    padding: 12px 22px calc(24px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(105%);
+    transition: transform .42s var(--ease-bounce);
+    z-index: 41;
+    display: flex; flex-direction: column;
+    box-shadow: 0 -18px 50px rgba(30,24,14,.24);
+    overflow-y: auto; scrollbar-width: none;
+  }
+  .sheet::-webkit-scrollbar { display: none; }
+  .device[data-theme="midnight"] .sheet { box-shadow: 0 -18px 50px rgba(0,0,0,.6); }
+  .sheet.show { transform: none; }
+  .grab { width: 42px; height: 5px; border-radius: 3px; background: var(--grab); margin: 2px auto 15px; flex-shrink: 0; }
+  .sheet h2 { font-size: 20px; font-weight: 800; }
+  .sheet .hint { font-size: 12px; color: var(--text-3); margin: 3px 0 15px; }
+
+  .as-group {
+    background: var(--bg-deep);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .device[data-theme="midnight"] .as-group { background: rgba(255,255,255,.045); }
+  .as-row {
+    width: 100%;
+    display: flex; align-items: center; gap: 13px;
+    padding: 14px 16px;
+    border: none; background: none;
+    font-size: 14.5px; font-weight: 600; color: var(--text);
+    font-family: var(--sans); text-align: left;
+    cursor: pointer; transition: background .15s;
+  }
+  .as-row:active { background: var(--line-soft); }
+  .device[data-theme="midnight"] .as-row:active { background: rgba(255,255,255,.06); }
+  .as-row + .as-row { border-top: 1.5px dashed var(--line); }
+  .as-row .ai {
+    width: 30px; height: 30px; border-radius: 11px; flex-shrink: 0;
+    display: grid; place-items: center;
+  }
+  .as-row .val { margin-left: auto; font-size: 11px; color: var(--text-3); font-weight: 500; }
+  .as-row.danger { color: var(--rose-fg); }
+  .as-cancel {
+    width: 100%; border: none;
+    background: var(--bg-deep);
+    border-radius: 16px;
+    padding: 15px 0;
+    font-size: 15.5px; font-weight: 750; color: var(--accent);
+    font-family: var(--sans); cursor: pointer;
+  }
+  .device[data-theme="midnight"] .as-cancel { background: rgba(255,255,255,.045); }
+
+  .input-line {
+    width: 100%;
+    border: 1.5px solid transparent;
+    background: var(--bg-deep);
+    border-radius: 14px;
+    padding: 13px 15px;
+    font-size: 14.5px; color: var(--text);
+    font-family: var(--sans);
+    outline: none; caret-color: var(--accent);
+    margin-bottom: 10px;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .device[data-theme="midnight"] .input-line { background: rgba(255,255,255,.05); }
+  .input-line::placeholder { color: var(--text-3); }
+  .input-line:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+
+  .big-btn {
+    width: 100%;
+    border: none;
+    background: linear-gradient(145deg, var(--accent-2), var(--accent));
+    color: var(--on-accent);
+    font-size: 15px; font-weight: 750;
+    padding: 15px 0;
+    border-radius: 100px;
+    cursor: pointer; font-family: var(--sans);
+    box-shadow: var(--shadow-float);
+    transition: transform .18s;
+    margin-top: 6px;
+  }
+  .big-btn:active { transform: scale(.97); }
+
+  /* 关联 sheet：tabs + 选择列表 */
+  .tab-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tab {
+    flex: 1;
+    border: 1.5px solid var(--line);
+    border-radius: 13px;
+    background: none;
+    padding: 10px 0;
+    font-family: var(--sans);
+    font-size: 13px; font-weight: 650; color: var(--text-2);
+    cursor: pointer;
+    transition: all .2s var(--ease-bounce);
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .tab .cnt { font-family: var(--mono); font-size: 10.5px; color: var(--text-3); }
+  .tab.on {
+    border-color: var(--accent);
+    color: var(--text);
+    background: color-mix(in srgb, var(--accent) 7%, transparent);
+  }
+  .pick-list { background: var(--bg-deep); border-radius: 16px; overflow: hidden; margin-bottom: 12px; }
+  .device[data-theme="midnight"] .pick-list { background: rgba(255,255,255,.045); }
+  .pick-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .pick-row:active { background: var(--line-soft); }
+  .pick-row + .pick-row { border-top: 1.5px dashed var(--line); }
+  .pick-box {
+    width: 21px; height: 21px; border-radius: 50%;
+    border: 2px solid var(--text-3);
+    flex-shrink: 0;
+    display: grid; place-items: center;
+    transition: all .22s var(--ease-bounce);
+  }
+  .pick-row.on .pick-box { background: var(--accent); border-color: var(--accent); }
+  .pick-box svg { opacity: 0; transform: scale(.3); transition: all .2s var(--ease-bounce); }
+  .pick-row.on .pick-box svg { opacity: 1; transform: scale(1); }
+  .pick-main { flex: 1; min-width: 0; }
+  .pick-title {
+    font-size: 13.5px; font-weight: 650;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .pick-sub { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+  /* 结构树 */
+  .tree-body { overflow-y: auto; scrollbar-width: none; margin: 0 -6px; padding: 0 6px; }
+  .tree-body::-webkit-scrollbar { display: none; }
+  .tree-row {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 8px;
+    border-radius: 13px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .tree-row:active { background: var(--line-soft); }
+  .tree-row .tw {
+    width: 18px; height: 18px; flex-shrink: 0;
+    display: grid; place-items: center;
+    color: var(--text-3);
+    transition: transform .22s var(--ease-bounce);
+  }
+  .tree-row .tw.open { transform: rotate(90deg); }
+  .tree-row .ti {
+    width: 26px; height: 26px; border-radius: 9px; flex-shrink: 0;
+    display: grid; place-items: center;
+  }
+  .tree-row .tn {
+    flex: 1; font-size: 13.5px; font-weight: 620; color: var(--text-2);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tree-row .tc { font-size: 10.5px; color: var(--text-3); font-family: var(--mono); flex-shrink: 0; }
+  .tree-row.cur { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+  .tree-row.cur .tn { color: var(--accent); font-weight: 750; }
+  .tree-kids { display: none; }
+  .tree-kids.open { display: block; }
+  .tree-kids .tree-row { margin-left: 14px; position: relative; }
+  .tree-kids .tree-row::before {
+    content: ""; position: absolute; left: -8px; top: -50%;
+    bottom: 50%; width: 0;
+    border-left: 1.5px dashed var(--line);
+  }
+
+  /* ═══════════════ Toast / 原型导航 ═══════════════ */
+  .toast {
+    position: absolute;
+    top: calc(18px + env(safe-area-inset-top, 0px));
+    left: 50%; transform: translate(-50%, -14px);
+    background: var(--toast-bg); color: var(--toast-fg);
+    font-size: 13px; font-weight: 550;
+    padding: 11px 22px; border-radius: 100px;
+    opacity: 0; pointer-events: none;
+    transition: all .3s var(--ease-bounce);
+    z-index: 70;
+    display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 14px 30px rgba(30,24,14,.25);
+    max-width: 86%;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  .proto-fab {
+    position: absolute;
+    right: 14px; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    width: 40px; height: 40px;
+    border-radius: 14px;
+    border: 1.5px dashed color-mix(in srgb, var(--accent) 55%, var(--text-3));
+    background: color-mix(in srgb, var(--card) 82%, transparent);
+    backdrop-filter: blur(8px);
+    color: var(--accent);
+    display: grid; place-items: center;
+    cursor: pointer; z-index: 35;
+    transition: transform .18s var(--ease-bounce), bottom .3s var(--ease-bounce);
+  }
+  .proto-fab:active { transform: scale(.88); }
+  .proto-scr-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 8px;
+    border-bottom: 1.5px dashed var(--line);
+    cursor: pointer;
+  }
+  .proto-scr-row:last-child { border-bottom: none; }
+  .proto-scr-row:active { opacity: .6; }
+  .proto-scr-row .no { font-family: var(--mono); font-size: 11px; color: var(--text-3); width: 20px; }
+  .proto-scr-row .nm { flex: 1; font-size: 14px; font-weight: 650; color: var(--text-2); }
+  .proto-scr-row.on { color: var(--accent); }
+  .proto-scr-row.on .nm { color: var(--accent); }
+  .proto-scr-row.on .no { color: var(--accent); }
+  .theme-dots { display: flex; gap: 10px; margin-top: 6px; }
+  .theme-dot {
+    flex: 1; border: 1.5px solid var(--line); border-radius: 13px;
+    padding: 9px 0; background: none; cursor: pointer;
+    font-family: var(--sans); font-size: 11.5px; font-weight: 650; color: var(--text-2);
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .theme-dot .sw { width: 12px; height: 12px; border-radius: 50%; }
+  .theme-dot.on { border-color: var(--accent); color: var(--text); }
+  .back-link { display: block; text-align: center; margin-top: 14px; font-size: 12.5px; color: var(--text-3); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="device" id="device" data-theme="apricot">
+
+  <!-- ════════════ 屏幕 1：知识库列表 ════════════ -->
+  <section class="screen active" id="scr-lib">
+    <header class="subhead">
+      <button class="back-btn" onclick="showToast('返回 · 我的')" aria-label="返回">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <h1>知识库</h1>
+      <div class="sub-actions">
+        <button class="sa-btn" onclick="showToast('打开全局搜索 · 跨知识库 / 卡片 / 文章')" aria-label="全局搜索">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        </button>
+        <button class="sa-btn brand" onclick="openSheet('new')" aria-label="新建知识库">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="screen-scroll" style="padding-top: 8px;">
+      <!-- 库卡片 -->
+      <article class="lib-card" onclick="go('scr-libdetail')" style="animation-delay:.07s">
+        <div class="pj-head">
+          <span class="lib-orb lo-sage">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#3f5c3c" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2 2 0 016 3.5h13v15H6a2 2 0 00-2 2z"/><path d="M4 18.5a2 2 0 012-2h13"/><path d="M9 8h6"/></svg>
+          </span>
+          <p class="lib-title">写作系统</p>
+          <span class="pj-pin" aria-label="置顶">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.2 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+          </span>
+          <button class="pj-more" onclick="event.stopPropagation(); openSheet('menu')" aria-label="库操作">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+          </button>
+        </div>
+        <p class="lib-desc">从闪念到成文的全流程：卡片 → 主题 → 文章。写作不再从空白页开始。</p>
+        <div class="lib-meta">
+          <span>14 节点</span><span class="dot">·</span>
+          <span class="link-flag">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M9.5 14.5L14 10"/><path d="M13 6.5l1-1a3.5 3.5 0 015 5l-1 1M11 17.5l-1 1a3.5 3.5 0 01-5-5l1-1"/></svg>
+            3 个关联
+          </span><span class="dot">·</span>
+          <span>昨天</span>
+        </div>
+      </article>
+
+      <article class="lib-card" onclick="showToast('产品思考 · 知识库')" style="animation-delay:.12s">
+        <div class="pj-head">
+          <span class="lib-orb lo-sky">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#3f5c7e" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5L13.7 13.7 8.5 15.5 10.3 10.3z"/></svg>
+          </span>
+          <p class="lib-title">产品思考</p>
+          <button class="pj-more" onclick="event.stopPropagation(); openSheet('menu')" aria-label="库操作">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+          </button>
+        </div>
+        <p class="lib-desc">留存、切换成本与摩擦设计。每条都来自真实产品的观察，而非书上的教条。</p>
+        <div class="lib-meta">
+          <span>9 节点</span><span class="dot">·</span>
+          <span class="link-flag">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M9.5 14.5L14 10"/><path d="M13 6.5l1-1a3.5 3.5 0 015 5l-1 1M11 17.5l-1 1a3.5 3.5 0 01-5-5l1-1"/></svg>
+            5 个关联
+          </span><span class="dot">·</span>
+          <span>3 天前</span>
+        </div>
+      </article>
+
+      <article class="lib-card" onclick="showToast('Zettelkasten 参考 · 知识库')" style="animation-delay:.17s">
+        <div class="pj-head">
+          <span class="lib-orb lo-lilac">
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#5b4a7e" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 4.5c-2.2-1-4.5-.8-6 .7-1.5-1.5-3.8-1.7-6-.7v13.5c2.2-1 4.5-.8 6 .7 1.5-1.5 3.8-1.7 6-.7"/><path d="M13.5 5.2v13.5"/></svg>
+          </span>
+          <p class="lib-title">Zettelkasten 参考</p>
+          <button class="pj-more" onclick="event.stopPropagation(); openSheet('menu')" aria-label="库操作">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+          </button>
+        </div>
+        <p class="lib-desc">方法论原文与出处：卢曼的编号体系、Ahrens 的解释、以及我自己的中文化实践。</p>
+        <div class="lib-meta">
+          <span>7 节点</span><span class="dot">·</span>
+          <span class="link-flag">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M9.5 14.5L14 10"/><path d="M13 6.5l1-1a3.5 3.5 0 015 5l-1 1M11 17.5l-1 1a3.5 3.5 0 01-5-5l1-1"/></svg>
+            2 个关联
+          </span><span class="dot">·</span>
+          <span>8月30日</span>
+        </div>
+      </article>
+
+      <p class="list-end" style="padding-top: 2px;">3 个知识库</p>
+    </div>
+  </section>
+
+  <!-- ════════════ 屏幕 2：库详情（节点下钻） ════════════ -->
+  <section class="screen sub" id="scr-libdetail">
+    <header class="subhead">
+      <button class="back-btn" onclick="go('scr-lib')" aria-label="返回知识库列表">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <h1>写作系统</h1>
+      <div class="sub-actions">
+        <button class="sa-btn" onclick="openSheet('menu')" aria-label="库操作">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="screen-scroll" style="padding-top: 6px;">
+      <div class="info-card">
+        <div class="info-top">
+          <span class="lib-orb" style="width:40px;height:40px;border-radius:14px" aria-hidden="true">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#3f5c3c" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2 2 0 016 3.5h13v15H6a2 2 0 00-2 2z"/><path d="M4 18.5a2 2 0 012-2h13"/><path d="M9 8h6"/></svg>
+          </span>
+          <span class="link-flag">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M9.5 14.5L14 10"/><path d="M13 6.5l1-1a3.5 3.5 0 015 5l-1 1M11 17.5l-1 1a3.5 3.5 0 01-5-5l1-1"/></svg>
+            3 个跨库关联
+          </span>
+        </div>
+        <p class="info-desc">从闪念到成文的全流程：卡片 → 主题 → 文章。写作不再从空白页开始。</p>
+        <div class="info-stats">
+          <span>14 节点</span><span class="dot">·</span>
+          <span>4,216 字</span><span class="dot">·</span>
+          <span>昨天 21:07 更新</span>
+        </div>
+      </div>
+
+      <button class="tree-btn" onclick="openSheet('structure')">
+        <span class="n-ico ty-doc" style="width:34px;height:34px;border-radius:12px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h6l2 2.5h8V18a1.5 1.5 0 01-1.5 1.5h-13A1.5 1.5 0 014 18z"/><path d="M4 5V3.5h5.5"/></svg>
+        </span>
+        <span style="flex:1;text-align:left">
+          <span class="lb">查看完整结构</span>
+          <p class="sub">树形视图 · 整个知识库一目了然</p>
+        </span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="2.2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
+
+      <div class="crumb" id="crumb">
+        <span class="ck cur">写作系统</span>
+      </div>
+
+      <!-- 根层 -->
+      <div class="grp-card lvl" id="lvl-root" style="animation-delay:.06s">
+        <div class="node-row" onclick="drill('卡片盒方法论')">
+          <span class="n-ico ty-doc">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h6l2 2.5h8V18a1.5 1.5 0 01-1.5 1.5h-13A1.5 1.5 0 014 18z"/></svg>
+          </span>
+          <div class="n-main">
+            <p class="n-title">卡片盒方法论</p>
+            <div class="n-meta"><span>4 个子节点</span><span class="dot">·</span><span>9月8日</span></div>
+          </div>
+          <span class="n-right">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>
+          </span>
+        </div>
+        <div class="node-row" onclick="drill('写作工作流')">
+          <span class="n-ico ty-doc">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h6l2 2.5h8V18a1.5 1.5 0 01-1.5 1.5h-13A1.5 1.5 0 014 18z"/></svg>
+          </span>
+          <div class="n-main">
+            <p class="n-title">
+              写作工作流
+              <span class="link-flag" style="padding:1.5px 8px">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M9.5 14.5L14 10"/><path d="M13 6.5l1-1a3.5 3.5 0 015 5l-1 1M11 17.5l-1 1a3.5 3.5 0 01-5-5l1-1"/></svg>
+                2
+              </span>
+            </p>
+            <div class="n-meta"><span>2 个子节点</span><span class="dot">·</span><span>昨天</span></div>
+          </div>
+          <span class="n-right">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>
+          </span>
+        </div>
+        <div class="node-row" onclick="drill('灵感库')">
+          <span class="n-ico ty-doc">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/></svg>
+          </span>
+          <div class="n-main">
+            <p class="n-title">灵感库</p>
+            <div class="n-meta"><span>3 个子节点</span><span class="dot">·</span><span>9月6日</span></div>
+          </div>
+          <span class="n-right">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg>
+          </span>
+        </div>
+        <div class="node-row" onclick="go('scr-read')">
+          <span class="n-ico ty-card">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3.5" width="12.5" height="17" rx="2.5"/><path d="M9.5 8.5h5.5M9.5 12h5.5M9.5 15.5h3"/></svg>
+          </span>
+          <div class="n-main">
+            <p class="n-title">本周的三个选题</p>
+            <div class="n-meta"><span>520 字</span><span class="dot">·</span><span>9月9日</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 子层：写作工作流 -->
+      <div class="grp-card lvl" id="lvl-sub" style="display:none">
+        <div class="node-row" onclick="go('scr-read')">
+          <span class="n-ico ty-doc">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3.5H7a1.5 1.5 0 00-1.5 1.5v14A1.5 1.5 0 007 20.5h10a1.5 1.5 0 001.5-1.5V8z"/><path d="M14 3.5V8h4.5"/><path d="M9 12.5h6M9 16h4"/></svg>
+          </span>
+          <div class="n-main">
+            <p class="n-title">
+              周报模板
+              <span class="link-flag" style="padding:1.5px 8px;background:var(--rose-bg);color:var(--rose-fg)">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M9.5 14.5L14 10"/><path d="M13 6.5l1-1a3.5 3.5 0 015 5l-1 1M11 17.5l-1 1a3.5 3.5 0 01-5-5l1-1"/></svg>
+                文章
+              </span>
+            </p>
+            <div class="n-meta"><span>860 字</span><span class="dot">·</span><span>昨天</span></div>
+          </div>
+        </div>
+        <div class="node-row" onclick="showToast('选题清单')">
+          <span class="n-ico ty-doc">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3.5H7a1.5 1.5 0 00-1.5 1.5v14A1.5 1.5 0 007 20.5h10a1.5 1.5 0 001.5-1.5V8z"/><path d="M14 3.5V8h4.5"/><path d="M9 12.5h6M9 16h4"/></svg>
+          </span>
+          <div class="n-main">
+            <p class="n-title">选题清单</p>
+            <div class="n-meta"><span>640 字</span><span class="dot">·</span><span>9月8日</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="fab-sm" onclick="openSheet('add')" aria-label="添加节点">
+      <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </section>
+
+  <!-- ════════════ 屏幕 3：节点编辑（默认编辑态 + 关联面板） ════════════ -->
+  <section class="screen sub" id="scr-read">
+    <header class="subhead">
+      <button class="back-btn" onclick="go('scr-libdetail'); showToast('✓ 已保存')" aria-label="保存并返回">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <h1>文档节点</h1>
+      <div class="sub-actions">
+        <button class="sa-btn" onclick="openSheet('nodemenu')" aria-label="节点操作">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+        </button>
+        <button class="sa-btn brand" onclick="showToast('✓ 已保存')" aria-label="保存">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="screen-scroll" style="padding: 0 20px 150px;">
+      <p class="node-path">写作系统 › 写作工作流 ›</p>
+      <div class="save-state">
+        <span class="dotp"></span><span id="node-save">已自动保存 · 刚刚</span>
+        <span style="opacity:.45">·</span><span id="node-wc">860 字</span>
+      </div>
+      <h1 class="doc-title">
+        <span contenteditable="true" spellcheck="false">周报模板</span>
+        <span class="link-flag" style="flex-shrink:0">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M9.5 14.5L14 10"/><path d="M13 6.5l1-1a3.5 3.5 0 015 5l-1 1M11 17.5l-1 1a3.5 3.5 0 01-5-5l1-1"/></svg>
+          已成文
+        </span>
+      </h1>
+      <div class="doc-meta">
+        <span>文档</span><span class="dot">·</span>
+        <span>昨天 21:07 创建</span>
+      </div>
+
+      <div class="prose" contenteditable="true" id="node-body" oninput="nodeInput()">
+        <p class="lead">周报不是汇报，是<mark>给自己的一次周度复盘</mark>。固定模板的意义在于：不让「写什么」消耗「想什么」的精力。</p>
+        <h2>一、本周主线</h2>
+        <p>只写一条。如果本周有两条主线，说明至少有一条是假的。用一句话回答：这一周，我把最主要的精力花在了哪里，产出了什么。</p>
+        <div class="tpl">
+          本周主线：______________<br>
+          关键产出：______________<br>
+          一句话复盘：______________
+        </div>
+        <h2>二、数据与卡片</h2>
+        <ul>
+          <li>番茄数与专注时段分布（来自时间记录）</li>
+          <li>新增卡片 N 张：闪念 / 永久 / 主题各多少</li>
+          <li>最值得展开的一张卡片：标题 + 为什么</li>
+        </ul>
+        <h2>三、下周唯一要事</h2>
+        <p>从下周的待办里挑出唯一一件「完成它，这周就值了」的事。其余事项全部退位为背景。<mark>约束越紧，优先级越真实。</mark></p>
+      </div>
+
+      <!-- 关联面板：知识库的核心差异 -->
+      <div class="link-panel" style="animation-delay:.08s">
+        <div class="lp-head">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--sky-fg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5L14 10"/><path d="M13 6.5l1-1a3.5 3.5 0 015 5l-1 1M11 17.5l-1 1a3.5 3.5 0 01-5-5l1-1"/></svg>
+          关联
+          <span class="cnt">3</span>
+          <span class="add" onclick="openSheet('link')">+ 添加</span>
+        </div>
+        <div class="link-chips">
+          <button class="lk-chip from-card" onclick="showToast('打开关联卡片：留存设计的重心是沉淀')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3.5" width="12.5" height="17" rx="2.5"/><path d="M9.5 8.5h5.5M9.5 12h5.5"/></svg>
+            <span class="lt">留存设计的重心是沉淀</span>
+          </button>
+          <button class="lk-chip from-art" onclick="showToast('打开关联文章：把生活过成项目，是好是坏？')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3.5H7a1.5 1.5 0 00-1.5 1.5v14A1.5 1.5 0 007 20.5h10a1.5 1.5 0 001.5-1.5V8z"/><path d="M14 3.5V8h4.5"/></svg>
+            <span class="lt">把生活过成项目，是好是坏？</span>
+          </button>
+          <button class="lk-chip from-card" onclick="showToast('打开关联卡片：约束越紧，优先级越真实')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3.5" width="12.5" height="17" rx="2.5"/><path d="M9.5 8.5h5.5M9.5 12h5.5"/></svg>
+            <span class="lt">约束越紧，优先级越真实</span>
+          </button>
+          <button class="lk-add" onclick="openSheet('link')">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            关联
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 吸底工具条：贴满底边并覆盖安全区，横向滚动分组 -->
+    <div class="toolbar" id="toolbar">
+      <button class="tb-btn" onmousedown="event.preventDefault()" onclick="tb('undo')" aria-label="撤销">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5L3.5 9.5 8 14"/><path d="M3.5 9.5H15a5.5 5.5 0 015.5 5.5v0a5.5 5.5 0 01-5.5 5.5H9"/></svg>
+      </button>
+      <button class="tb-btn" onmousedown="event.preventDefault()" onclick="tb('redo')" aria-label="重做">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 5l4.5 4.5L16 14"/><path d="M20.5 9.5H9A5.5 5.5 0 003.5 15v0A5.5 5.5 0 009 20.5h6"/></svg>
+      </button>
+      <span class="tb-sep"></span>
+      <button class="tb-btn tb-toggle" data-cmd="bold" onmousedown="event.preventDefault()" onclick="tb('bold')"><b>B</b></button>
+      <button class="tb-btn tb-toggle" data-cmd="italic" onmousedown="event.preventDefault()" onclick="tb('italic')"><i>I</i></button>
+      <button class="tb-btn tb-toggle" data-cmd="strikeThrough" onmousedown="event.preventDefault()" onclick="tb('strikeThrough')"><s>S</s></button>
+      <span class="tb-sep"></span>
+      <button class="tb-btn" onmousedown="event.preventDefault()" onclick="tb('formatBlock','h1')" style="font-size:11px">H1</button>
+      <button class="tb-btn" onmousedown="event.preventDefault()" onclick="tb('formatBlock','h2')" style="font-size:12.5px">H2</button>
+      <span class="tb-sep"></span>
+      <button class="tb-btn tb-toggle" data-cmd="insertUnorderedList" onmousedown="event.preventDefault()" onclick="tb('insertUnorderedList')" aria-label="无序列表">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <button class="tb-btn tb-toggle" data-cmd="insertOrderedList" onmousedown="event.preventDefault()" onclick="tb('insertOrderedList')" aria-label="有序列表">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M3.2 5.2l1.6-.9V8M3 15.8c.2-.9.9-1.4 1.7-1.4.9 0 1.6.6 1.6 1.4 0 1.6-3.3 1.7-3.3 3.7h3.5"/></svg>
+      </button>
+      <button class="tb-btn" onmousedown="event.preventDefault()" onclick="tb('formatBlock','blockquote')" aria-label="引用">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 7c-3 1-4.5 3.2-4.5 6.5 0 2.2 1.3 3.5 3 3.5 1.6 0 2.8-1.2 2.8-2.8 0-1.5-1-2.6-2.5-2.7.3-1.6 1.4-2.8 3-3.4zM19.5 7c-3 1-4.5 3.2-4.5 6.5 0 2.2 1.3 3.5 3 3.5 1.6 0 2.8-1.2 2.8-2.8 0-1.5-1-2.6-2.5-2.7.3-1.6 1.4-2.8 3-3.4z"/></svg>
+      </button>
+      <button class="tb-btn" onmousedown="event.preventDefault()" onclick="tb('insertHorizontalRule')" aria-label="分割线">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 12h16"/></svg>
+      </button>
+      <span class="tb-sep"></span>
+      <button class="tb-btn" onmousedown="event.preventDefault()" onclick="showToast('插入图片（相册 / 链接）')" aria-label="图片">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><circle cx="9" cy="10" r="1.7"/><path d="M20 16l-4.5-4.5L8 19"/></svg>
+      </button>
+      <button class="tb-btn" onmousedown="event.preventDefault()" onclick="showToast('插入链接')" aria-label="链接">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5L14 10"/><path d="M13 6.5l1-1a3.5 3.5 0 015 5l-1 1M11 17.5l-1 1a3.5 3.5 0 01-5-5l1-1"/></svg>
+      </button>
+      <button class="tb-btn" onmousedown="event.preventDefault()" onclick="openSheet('link')" aria-label="添加关联">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <button class="tb-btn" onmousedown="event.preventDefault()" onclick="showToast('更多：代码块 / 公式 / 制卡（二期）')" aria-label="更多">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- ════════════ Sheets ════════════ -->
+  <div class="mask" id="mask" onclick="closeSheets()"></div>
+
+  <section class="sheet" id="sheet-new">
+    <div class="grab"></div>
+    <h2>新建知识库</h2>
+    <p class="hint">一个主题一棵树，节点之间可以互相引用</p>
+    <input class="input-line" placeholder="知识库名称，如：写作系统">
+    <input class="input-line" placeholder="一句话描述（可选）" style="margin-bottom: 14px;">
+    <button class="big-btn" onclick="closeSheets(); showToast('✓ 知识库已创建')">创建</button>
+    <button class="as-cancel" onclick="closeSheets()" style="margin-top: 10px;">取消</button>
+  </section>
+
+  <section class="sheet" id="sheet-add">
+    <div class="grab"></div>
+    <h2>添加到「写作工作流」</h2>
+    <p class="hint">新建文档，或引用库内外已有的内容</p>
+    <div class="as-group">
+      <button class="as-row" onclick="closeSheets(); showToast('新建文档节点')">
+        <span class="ai ty-doc">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3.5H7a1.5 1.5 0 00-1.5 1.5v14A1.5 1.5 0 007 20.5h10a1.5 1.5 0 001.5-1.5V8z"/><path d="M14 3.5V8h4.5"/><path d="M9 12.5h6M9 16h4"/></svg>
+        </span>
+        新建文档
+      </button>
+      <button class="as-row" onclick="closeSheets(); openSheet('link')">
+        <span class="ai ty-card">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3.5" width="12.5" height="17" rx="2.5"/><path d="M9.5 8.5h5.5M9.5 12h5.5"/></svg>
+        </span>
+        关联已有卡片
+        <span class="val">47 张可选</span>
+      </button>
+      <button class="as-row" onclick="closeSheets(); openSheet('link')">
+        <span class="ai ty-art">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3.5H7a1.5 1.5 0 00-1.5 1.5v14A1.5 1.5 0 007 20.5h10a1.5 1.5 0 001.5-1.5V8z"/><path d="M14 3.5V8h4.5"/></svg>
+        </span>
+        关联已有文章
+        <span class="val">12 篇可选</span>
+      </button>
+      <button class="as-row" onclick="closeSheets(); showToast('引用其他知识库的节点（不复制，自动排除环）')">
+        <span class="ai ty-kb">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2 2 0 016 3.5h13v15H6a2 2 0 00-2 2z"/><path d="M4 18.5a2 2 0 012-2h13"/></svg>
+        </span>
+        引用其他知识库节点
+        <span class="val">跨库引用</span>
+      </button>
+    </div>
+    <button class="as-cancel" onclick="closeSheets()">取消</button>
+  </section>
+
+  <section class="sheet" id="sheet-link">
+    <div class="grab"></div>
+    <h2>添加关联</h2>
+    <p class="hint">关联只是引用：原内容更新时，这里同步可见</p>
+    <div class="tab-row">
+      <button class="tab on">卡片<span class="cnt">47</span></button>
+      <button class="tab">文章<span class="cnt">12</span></button>
+      <button class="tab">文档<span class="cnt">21</span></button>
+    </div>
+    <div class="pick-list">
+      <div class="pick-row on" onclick="this.classList.toggle('on'); syncPickCnt()">
+        <span class="pick-box"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <div class="pick-main">
+          <p class="pick-title">留存设计的重心是沉淀</p>
+          <p class="pick-sub">永久 · 今天 09:41</p>
+        </div>
+      </div>
+      <div class="pick-row on" onclick="this.classList.toggle('on'); syncPickCnt()">
+        <span class="pick-box"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <div class="pick-main">
+          <p class="pick-title">约束越紧，优先级越真实</p>
+          <p class="pick-sub">永久 · 昨天</p>
+        </div>
+      </div>
+      <div class="pick-row" onclick="this.classList.toggle('on'); syncPickCnt()">
+        <span class="pick-box"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <div class="pick-main">
+          <p class="pick-title">写作是思考的显影液</p>
+          <p class="pick-sub">永久 · 昨天 21:07</p>
+        </div>
+      </div>
+      <div class="pick-row" onclick="this.classList.toggle('on'); syncPickCnt()">
+        <span class="pick-box"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <div class="pick-main">
+          <p class="pick-title">摩擦放在不可逆的一侧</p>
+          <p class="pick-sub">闪念 · 昨天 11:20</p>
+        </div>
+      </div>
+      <div class="pick-row" onclick="this.classList.toggle('on'); syncPickCnt()">
+        <span class="pick-box"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <div class="pick-main">
+          <p class="pick-title">把生活过成项目，是好是坏？</p>
+          <p class="pick-sub">文章 · 9月7日</p>
+        </div>
+      </div>
+    </div>
+    <button class="big-btn" id="pick-btn" onclick="closeSheets(); showToast('✓ 已添加 2 个关联')">添加 2 个关联</button>
+  </section>
+
+  <section class="sheet" id="sheet-menu">
+    <div class="grab"></div>
+    <h2>知识库操作</h2>
+    <p class="hint">写作系统 · 14 节点</p>
+    <div class="as-group">
+      <button class="as-row" onclick="closeSheets(); showToast('编辑知识库信息')">
+        <span class="ai" style="background: var(--sky-bg); color: var(--sky-fg);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l4 4L8 20H4v-4z"/><path d="M13 7l4 4"/></svg>
+        </span>
+        编辑信息
+      </button>
+      <button class="as-row" onclick="closeSheets(); showToast('已取消置顶')">
+        <span class="ai" style="background: var(--apricot-bg); color: var(--apricot-fg);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.2 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z"/></svg>
+        </span>
+        取消置顶
+      </button>
+      <button class="as-row" onclick="closeSheets(); showToast('正在导出整个知识库…')">
+        <span class="ai" style="background: var(--lilac-bg); color: var(--lilac-fg);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2.5a1.5 1.5 0 001.5 1.5h13a1.5 1.5 0 001.5-1.5V17"/></svg>
+        </span>
+        导出知识库
+        <span class="val">全部节点打包</span>
+      </button>
+    </div>
+    <div class="as-group">
+      <button class="as-row danger" onclick="closeSheets(); showToast('已删除（演示）')">
+        <span class="ai" style="background: var(--rose-bg); color: var(--rose-fg);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9.5 7V4.8A1.3 1.3 0 0110.8 3.5h2.4a1.3 1.3 0 011.3 1.3V7"/><path d="M6.5 7l.8 12.2a1.5 1.5 0 001.5 1.3h6.4a1.5 1.5 0 001.5-1.3L17.5 7"/><path d="M10 11v6M14 11v6"/></svg>
+        </span>
+        删除知识库
+        <span class="val">含 14 个节点</span>
+      </button>
+    </div>
+    <button class="as-cancel" onclick="closeSheets()">取消</button>
+  </section>
+
+  <section class="sheet" id="sheet-nodemenu">
+    <div class="grab"></div>
+    <h2>节点操作</h2>
+    <p class="hint">周报模板 · 文档</p>
+    <div class="as-group">
+      <button class="as-row" onclick="closeSheets(); openSheet('link')">
+        <span class="ai" style="background: var(--sky-bg); color: var(--sky-fg);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 14.5L14 10"/><path d="M13 6.5l1-1a3.5 3.5 0 015 5l-1 1M11 17.5l-1 1a3.5 3.5 0 01-5-5l1-1"/></svg>
+        </span>
+        添加关联
+        <span class="val">卡片 / 文章 / 其他节点</span>
+      </button>
+      <button class="as-row" onclick="closeSheets(); showToast('已复制 Markdown')">
+        <span class="ai" style="background: var(--sage-bg); color: var(--sage-fg);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5"/><path d="M5.5 14.5h-1a1.5 1.5 0 01-1.5-1.5V5A1.5 1.5 0 014.5 3.5H13A1.5 1.5 0 0114.5 5v1"/></svg>
+        </span>
+        复制 Markdown
+      </button>
+      <button class="as-row" onclick="closeSheets(); showToast('✨ AI 制卡：正在提炼要点…')">
+        <span class="ai" style="background: var(--lilac-bg); color: var(--lilac-fg);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3.5" width="12.5" height="17" rx="2.5"/><path d="M9.5 8.5h5.5M9.5 12h5.5"/></svg>
+        </span>
+        制作卡片
+      </button>
+      <button class="as-row" onclick="closeSheets(); showToast('导出：MD / 图片 / EPUB / PDF')">
+        <span class="ai" style="background: var(--butter-bg); color: var(--butter-fg);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2.5a1.5 1.5 0 001.5 1.5h13a1.5 1.5 0 001.5-1.5V17"/></svg>
+        </span>
+        导出
+      </button>
+    </div>
+    <div class="as-group">
+      <button class="as-row danger" onclick="closeSheets(); showToast('已删除节点（演示）')">
+        <span class="ai" style="background: var(--rose-bg); color: var(--rose-fg);">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9.5 7V4.8A1.3 1.3 0 0110.8 3.5h2.4a1.3 1.3 0 011.3 1.3V7"/><path d="M6.5 7l.8 12.2a1.5 1.5 0 001.5 1.3h6.4a1.5 1.5 0 001.5-1.3L17.5 7"/><path d="M10 11v6M14 11v6"/></svg>
+        </span>
+        删除节点
+      </button>
+    </div>
+    <button class="as-cancel" onclick="closeSheets()">取消</button>
+  </section>
+
+  <section class="sheet" id="sheet-structure">
+    <div class="grab"></div>
+    <h2>知识库结构</h2>
+    <p class="hint">写作系统 · 14 个节点 · 🔗 表示跨内容关联</p>
+    <div class="tree-body">
+      <div class="tree-row" onclick="toggleTree(this)">
+        <span class="tw open">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+        </span>
+        <span class="ti ty-doc">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h6l2 2.5h8V18a1.5 1.5 0 01-1.5 1.5h-13A1.5 1.5 0 014 18z"/></svg>
+        </span>
+        <span class="tn">卡片盒方法论</span>
+        <span class="tc">4</span>
+      </div>
+      <div class="tree-kids open">
+        <div class="tree-row" onclick="showToast('打开节点：闪念 / 永久 / 主题 / 文献')">
+          <span class="tw"></span>
+          <span class="ti ty-doc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="3.5" width="12.5" height="17" rx="2.5"/></svg></span>
+          <span class="tn">闪念 / 永久 / 主题 / 文献</span>
+        </div>
+      </div>
+
+      <div class="tree-row" onclick="toggleTree(this)">
+        <span class="tw open">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+        </span>
+        <span class="ti ty-doc">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h6l2 2.5h8V18a1.5 1.5 0 01-1.5 1.5h-13A1.5 1.5 0 014 18z"/></svg>
+        </span>
+        <span class="tn">写作工作流</span>
+        <span class="tc">2</span>
+      </div>
+      <div class="tree-kids open">
+        <div class="tree-row cur" onclick="closeSheets(); go('scr-read')">
+          <span class="tw"></span>
+          <span class="ti ty-doc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 3.5H7a1.5 1.5 0 00-1.5 1.5v14A1.5 1.5 0 007 20.5h10a1.5 1.5 0 001.5-1.5V8z"/><path d="M14 3.5V8h4.5"/></svg></span>
+          <span class="tn">周报模板 <span class="link-flag" style="padding:1px 7px;background:var(--rose-bg);color:var(--rose-fg)">🔗 文章</span></span>
+        </div>
+        <div class="tree-row" onclick="showToast('打开节点：选题清单')">
+          <span class="tw"></span>
+          <span class="ti ty-doc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 3.5H7a1.5 1.5 0 00-1.5 1.5v14A1.5 1.5 0 007 20.5h10a1.5 1.5 0 001.5-1.5V8z"/><path d="M14 3.5V8h4.5"/></svg></span>
+          <span class="tn">选题清单</span>
+        </div>
+      </div>
+
+      <div class="tree-row" onclick="toggleTree(this)">
+        <span class="tw open">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>
+        </span>
+        <span class="ti ty-doc">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/></svg>
+        </span>
+        <span class="tn">灵感库</span>
+        <span class="tc">3</span>
+      </div>
+      <div class="tree-kids open">
+        <div class="tree-row" onclick="showToast('打开节点：城市漫步')">
+          <span class="tw"></span>
+          <span class="ti ty-card"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="3.5" width="12.5" height="17" rx="2.5"/></svg></span>
+          <span class="tn">城市漫步 <span class="link-flag" style="padding:1px 7px">🔗 卡片</span></span>
+        </div>
+        <div class="tree-row" onclick="showToast('打开节点：无目的行走方法')">
+          <span class="tw"></span>
+          <span class="ti ty-doc"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 3.5H7a1.5 1.5 0 00-1.5 1.5v14A1.5 1.5 0 007 20.5h10a1.5 1.5 0 001.5-1.5V8z"/><path d="M14 3.5V8h4.5"/></svg></span>
+          <span class="tn">无目的行走方法</span>
+        </div>
+      </div>
+
+      <div class="tree-row" onclick="showToast('打开节点：本周的三个选题')">
+        <span class="tw"></span>
+        <span class="ti ty-card"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="6" y="3.5" width="12.5" height="17" rx="2.5"/></svg></span>
+        <span class="tn">本周的三个选题</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 原型导航（审阅工具，非产品 UI） -->
+  <section class="sheet" id="sheet-proto">
+    <div class="grab"></div>
+    <h2>原型导航</h2>
+    <p class="hint">审阅工具 · 跳转页面与切换主题</p>
+    <div class="as-group" style="padding: 4px 8px;">
+      <div class="proto-scr-row on" data-scr="scr-lib" onclick="go('scr-lib')">
+        <span class="no">1</span><span class="nm">知识库列表</span><span class="tag-pill">全局搜索入口</span>
+      </div>
+      <div class="proto-scr-row" data-scr="scr-libdetail" onclick="go('scr-libdetail')">
+        <span class="no">2</span><span class="nm">库详情</span><span class="tag-pill">节点下钻 · 关联徽标</span>
+      </div>
+      <div class="proto-scr-row" data-scr="scr-read" onclick="go('scr-read')">
+        <span class="no">3</span><span class="nm">节点编辑（默认编辑态）</span><span class="tag-pill">吸底工具条 · 关联面板</span>
+      </div>
+    </div>
+    <div class="theme-dots">
+      <button class="theme-dot on" data-t="apricot" onclick="setTheme('apricot', this)"><span class="sw" style="background:#d97757"></span>杏子</button>
+      <button class="theme-dot" data-t="midnight" onclick="setTheme('midnight', this)"><span class="sw" style="background:#f0a860"></span>玄夜</button>
+      <button class="theme-dot" data-t="mint" onclick="setTheme('mint', this)"><span class="sw" style="background:#4a9d78"></span>薄荷</button>
+      <button class="theme-dot" data-t="ocean" onclick="setTheme('ocean', this)"><span class="sw" style="background:#4d7fc4"></span>海盐</button>
+    </div>
+    <a class="back-link" href="index.html">← 返回功能总览</a>
+  </section>
+
+  <div class="toast" id="toast"><span id="toast-msg"></span></div>
+  <button class="proto-fab" id="proto-fab" onclick="openSheet('proto')" aria-label="原型导航">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>
+  </button>
+</div>
+
+<script>
+  /* ── 屏幕切换 ── */
+  function go(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id));
+    document.querySelectorAll('.proto-scr-row').forEach(r => r.classList.toggle('on', r.dataset.scr === id));
+    const scr = document.getElementById(id);
+    const fab = document.getElementById('proto-fab');
+    const fabSm = scr ? scr.querySelector('.fab-sm') : null;
+    fab.style.bottom = scr.querySelector('.bottom-bar, .toolbar')
+      ? 'calc(86px + env(safe-area-inset-bottom, 0px))'
+      : fabSm ? 'calc(84px + env(safe-area-inset-bottom, 0px))'
+      : 'calc(16px + env(safe-area-inset-bottom, 0px))';
+    history.replaceState(null, '', '#' + id);
+  }
+
+  /* ── Sheet ── */
+  function openSheet(id) {
+    document.getElementById('mask').classList.add('show');
+    document.getElementById('sheet-' + id).classList.add('show');
+  }
+  function closeSheets() {
+    document.getElementById('mask').classList.remove('show');
+    document.querySelectorAll('.sheet').forEach(s => s.classList.remove('show'));
+  }
+
+  /* ── Toast ── */
+  let toastTimer;
+  function showToast(msg) {
+    document.getElementById('toast-msg').textContent = msg;
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 1700);
+  }
+
+  /* ── 详情页下钻 ── */
+  function drill(name) {
+    document.getElementById('lvl-root').style.display = 'none';
+    document.getElementById('lvl-sub').style.display = 'block';
+    document.getElementById('crumb').innerHTML =
+      '<span class="ck" data-nav="root">写作系统</span><span class="cs">›</span><span class="ck cur">' + name + '</span>';
+    bindCrumb();
+  }
+  function bindCrumb() {
+    document.querySelectorAll('#crumb .ck').forEach(k => {
+      if (k.dataset.nav === 'root') {
+        k.onclick = () => {
+          document.getElementById('lvl-sub').style.display = 'none';
+          document.getElementById('lvl-root').style.display = 'block';
+          k.parentElement.innerHTML = '<span class="ck cur">写作系统</span>';
+        };
+      }
+    });
+  }
+  bindCrumb();
+
+  /* ── 结构树折叠 ── */
+  function toggleTree(row) {
+    const chev = row.querySelector('.tw');
+    const kids = row.nextElementSibling;
+    chev.classList.toggle('open');
+    kids.classList.toggle('open');
+  }
+
+  /* ── 关联 sheet：tab 与已选计数 ── */
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('on'));
+      t.classList.add('on');
+    });
+  });
+  function syncPickCnt() {
+    const n = document.querySelectorAll('.pick-row.on').length;
+    document.getElementById('pick-btn').textContent = n > 0 ? '添加 ' + n + ' 个关联' : '选择要关联的内容';
+  }
+
+  /* ── 节点编辑器：自动保存 + 字数 + 工具条命令 ── */
+  let nodeSaveTimer;
+  function nodeInput() {
+    document.getElementById('node-save').textContent = '正在输入…';
+    const n = document.getElementById('node-body').textContent.replace(/\s/g, '').length;
+    document.getElementById('node-wc').textContent = n.toLocaleString() + ' 字';
+    clearTimeout(nodeSaveTimer);
+    nodeSaveTimer = setTimeout(() => {
+      document.getElementById('node-save').textContent = '已自动保存 · 刚刚';
+    }, 900);
+  }
+  function tb(name, val) {
+    document.getElementById('node-body').focus();
+    document.execCommand(name, false, val || null);
+    syncTbStates();
+  }
+  function syncTbStates() {
+    document.querySelectorAll('.tb-toggle').forEach(b => {
+      let on = false;
+      try { on = document.queryCommandState(b.dataset.cmd); } catch (e) {}
+      b.classList.toggle('on', on);
+    });
+  }
+  document.addEventListener('selectionchange', () => {
+    if (document.getElementById('scr-read').classList.contains('active')) syncTbStates();
+  });
+
+  /* ── 主题（跨设计稿共享） ── */
+  function setTheme(name, btn) {
+    document.getElementById('device').setAttribute('data-theme', name);
+    document.querySelectorAll('.theme-dot').forEach(d => d.classList.toggle('on', d === btn || d.dataset.t === name));
+    try { localStorage.setItem('proto-theme', name); } catch (e) {}
+  }
+
+  /* ── hash 直达 + 主题恢复 ── */
+  function applyHash() {
+    const id = location.hash.replace('#', '');
+    if (id && document.getElementById(id)) go(id);
+  }
+  window.addEventListener('hashchange', applyHash);
+  applyHash();
+  try {
+    const saved = localStorage.getItem('proto-theme');
+    if (saved && saved !== 'apricot') {
+      const btn = document.querySelector('.theme-dot[data-t="' + saved + '"]');
+      if (btn) setTheme(saved, btn);
+    }
+  } catch (e) {}
+</script>
+</body>
+</html>

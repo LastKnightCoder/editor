@@ -1,4 +1,6 @@
 use std::fs;
+use std::ops::{Deref, DerefMut};
+use std::sync::{Mutex, MutexGuard, OnceLock};
 
 use rusqlite::Connection;
 use tauri::AppHandle;
@@ -107,10 +109,84 @@ pub fn validate_download(path: &std::path::Path) -> Result<(), String> {
     Ok(())
 }
 
-pub fn open_active_database(app: &AppHandle) -> Result<Connection, String> {
+pub fn open_active_database(app: &AppHandle) -> Result<ActiveConnection, String> {
     let setting = load_or_init_setting(app)?;
     let db_name = get_active_database_name(&setting);
-    open_database_by_name(app, &db_name)
+    let cache = ACTIVE_CONNECTION_CACHE.get_or_init(|| Mutex::new(None));
+    let mut guard = match cache.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    if let Some(cached) = guard.as_ref() {
+        if cached.db_name == db_name {
+            return Ok(ActiveConnection { _guard: guard });
+        }
+    }
+    let conn = open_database_by_name(app, &db_name)?;
+    *guard = Some(CachedConnection { db_name, conn });
+    Ok(ActiveConnection { _guard: guard })
+}
+
+struct CachedConnection {
+    db_name: String,
+    conn: Connection,
+}
+
+/// 每次查询重开连接会连带重跑迁移检查（ensure_database_file），是 IPC 延迟的大头；
+/// 按 active 库名缓存单连接，守卫持有期间序列化并发访问（SQLite 单写者本就串行）。
+static ACTIVE_CONNECTION_CACHE: OnceLock<Mutex<Option<CachedConnection>>> = OnceLock::new();
+
+pub struct ActiveConnection {
+    _guard: MutexGuard<'static, Option<CachedConnection>>,
+}
+
+impl Deref for ActiveConnection {
+    type Target = Connection;
+
+    fn deref(&self) -> &Connection {
+        &self._guard.as_ref().expect("缓存连接在守卫存续期间必在").conn
+    }
+}
+
+impl DerefMut for ActiveConnection {
+    fn deref_mut(&mut self) -> &mut Connection {
+        &mut self
+            ._guard
+            .as_mut()
+            .expect("缓存连接在守卫存续期间必在")
+            .conn
+    }
+}
+
+/// 丢弃缓存的连接。库切换由 open_active_database 的名字比对自动处理；
+/// 以下场景必须显式失效：checkpoint（要求无并发连接）、下载替换数据库文件
+///（Windows 上文件被占用时 rename 会直接失败）。
+pub fn invalidate_cached_connection() {
+    let Some(cache) = ACTIVE_CONNECTION_CACHE.get() else {
+        return;
+    };
+    let mut guard = match cache.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    *guard = None;
+}
+
+/// 当前激活数据库文件大小（字节）：主库 + WAL/SHM 附属文件一并计入
+pub fn active_database_size_bytes(app: &AppHandle) -> Result<u64, String> {
+    let setting = load_or_init_setting(app)?;
+    let db_name = get_active_database_name(&setting);
+    let path = resolve_database_path(app, &db_name)
+        .map_err(|e| format!("DB_SIZE_FAILED: Failed to resolve database path: {e}"))?;
+    let mut total = path.metadata().map(|m| m.len()).unwrap_or(0);
+    for ext in ["-wal", "-shm"] {
+        let mut side = path.clone().into_os_string();
+        side.push(ext);
+        if let Ok(meta) = std::path::PathBuf::from(side).metadata() {
+            total += meta.len();
+        }
+    }
+    Ok(total)
 }
 
 #[cfg(test)]

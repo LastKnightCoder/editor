@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Dispatch, RefObject, SetStateAction } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { NotebookPen } from "lucide-react";
 import type { CardsOverviewResponse, CardsQueryState } from "../../types";
 import CardItem from "./CardItem";
-import type { KnownCardCategory } from "./cardCategory";
 
 type CardsPageProps = {
   cards: CardsOverviewResponse | null;
@@ -13,10 +12,12 @@ type CardsPageProps = {
   isLoadingCards: boolean;
   isPreviewOpen: boolean;
   onPreviewCard: (cardId: number) => void;
-  onUpdateCardCategory: (cardId: number, category: KnownCardCategory) => Promise<void>;
-  onDeleteCard: (cardId: number) => Promise<void>;
   setQueryState: Dispatch<SetStateAction<CardsQueryState>>;
   refreshCards: (overrides?: Partial<CardsQueryState>) => Promise<CardsOverviewResponse | null>;
+  /** 列表所在的滚动容器（首页 screen-scroll） */
+  scrollContainerRef: RefObject<HTMLDivElement | null>;
+  /** 滚动容器的内容包裹层：其尺寸变化（仪表盘加载/模块开关）时重测列表偏移 */
+  scrollContentRef?: RefObject<HTMLDivElement | null>;
 };
 
 const CARD_ESTIMATE_SIZE = 220;
@@ -33,8 +34,27 @@ export function CardsPage(props: CardsPageProps) {
   const queryKeyRef = useRef(`${props.queryState.query}::${props.queryState.category}`);
   const [scrollMargin, setScrollMargin] = useState(0);
 
-  const virtualizer = useWindowVirtualizer({
+  // scrollMargin = 列表顶部相对滚动容器内容顶部的距离（虚拟化坐标系原点）
+  const measureScrollMargin = useCallback((): number | null => {
+    const element = listRef.current;
+    const scroller = props.scrollContainerRef.current;
+    if (!element || !scroller) return null;
+    return (
+      element.getBoundingClientRect().top -
+      scroller.getBoundingClientRect().top +
+      scroller.scrollTop
+    );
+  }, [props.scrollContainerRef]);
+
+  const applyScrollMargin = useCallback(() => {
+    const nextMargin = measureScrollMargin();
+    if (nextMargin == null) return;
+    setScrollMargin(prev => (Math.abs(prev - nextMargin) > 1 ? nextMargin : prev));
+  }, [measureScrollMargin]);
+
+  const virtualizer = useVirtualizer({
     count: listCount,
+    getScrollElement: () => props.scrollContainerRef.current,
     estimateSize: index =>
       hasMore && index === items.length ? LOAD_SENTINEL_SIZE : CARD_ESTIMATE_SIZE,
     overscan: 6,
@@ -47,38 +67,29 @@ export function CardsPage(props: CardsPageProps) {
     virtualItems.length > 0 ? virtualItems[virtualItems.length - 1].index : -1;
 
   useEffect(() => {
-    const updateScrollMargin = () => {
-      const element = listRef.current;
-      if (!element) return;
-      const bodyTop = document.body.getBoundingClientRect().top;
-      const nextMargin = element.getBoundingClientRect().top - bodyTop;
-      setScrollMargin(prev => (Math.abs(prev - nextMargin) > 1 ? nextMargin : prev));
-    };
+    applyScrollMargin();
 
-    updateScrollMargin();
-
-    window.addEventListener("resize", updateScrollMargin);
-    window.addEventListener("orientationchange", updateScrollMargin);
+    window.addEventListener("resize", applyScrollMargin);
+    window.addEventListener("orientationchange", applyScrollMargin);
+    // 内容层高度变化（Bento 统计异步加载、模块开关）会移动列表顶部的绝对位置，
+    // 观察 body 无效（首页内容在 fixed 层内不撑 body 盒），必须观察内容包裹层本身
     const observer =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateScrollMargin);
-    if (observer) {
-      observer.observe(document.body);
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(applyScrollMargin);
+    if (observer && props.scrollContentRef?.current) {
+      observer.observe(props.scrollContentRef.current);
     }
 
     return () => {
-      window.removeEventListener("resize", updateScrollMargin);
-      window.removeEventListener("orientationchange", updateScrollMargin);
+      window.removeEventListener("resize", applyScrollMargin);
+      window.removeEventListener("orientationchange", applyScrollMargin);
       observer?.disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    const element = listRef.current;
-    if (!element) return;
-    const bodyTop = document.body.getBoundingClientRect().top;
-    const nextMargin = element.getBoundingClientRect().top - bodyTop;
-    setScrollMargin(prev => (Math.abs(prev - nextMargin) > 1 ? nextMargin : prev));
-  }, [listCount, props.isLoadingCards]);
+    applyScrollMargin();
+  }, [applyScrollMargin, listCount, props.isLoadingCards]);
 
   useEffect(() => {
     const wasPreviewOpen = previewOpenRef.current;
@@ -90,11 +101,7 @@ export function CardsPage(props: CardsPageProps) {
 
     frameA = window.requestAnimationFrame(() => {
       frameB = window.requestAnimationFrame(() => {
-        const element = listRef.current;
-        if (!element) return;
-        const bodyTop = document.body.getBoundingClientRect().top;
-        const nextMargin = element.getBoundingClientRect().top - bodyTop;
-        setScrollMargin(prev => (Math.abs(prev - nextMargin) > 1 ? nextMargin : prev));
+        applyScrollMargin();
       });
     });
 
@@ -106,7 +113,7 @@ export function CardsPage(props: CardsPageProps) {
         window.cancelAnimationFrame(frameB);
       }
     };
-  }, [props.isPreviewOpen]);
+  }, [applyScrollMargin, props.isPreviewOpen]);
 
   useEffect(() => {
     const queryKey = `${props.queryState.query}::${props.queryState.category}`;
@@ -152,15 +159,15 @@ export function CardsPage(props: CardsPageProps) {
   ]);
 
   return (
-    <section className="pb-24">
+    <section>
       {props.isLoadingCards && !props.cards?.items.length ? (
         <div className="space-y-3">
           {[1, 2, 3].map(i => (
             <div key={i} className="card p-4">
-              <div className="h-5 w-3/4 animate-pulse rounded bg-gray-100 dark:bg-zinc-800" />
-              <div className="mt-3 h-4 w-full animate-pulse rounded bg-gray-100 dark:bg-zinc-800" />
-              <div className="mt-2 h-4 w-2/3 animate-pulse rounded bg-gray-100 dark:bg-zinc-800" />
-              <div className="mt-3 h-3 w-24 animate-pulse rounded bg-gray-100 dark:bg-zinc-800" />
+              <div className="bg-input h-4 w-16 animate-pulse rounded-full" />
+              <div className="bg-input mt-3 h-4 w-full animate-pulse rounded" />
+              <div className="bg-input mt-2 h-4 w-2/3 animate-pulse rounded" />
+              <div className="bg-input mt-3 h-3 w-24 animate-pulse rounded-full" />
             </div>
           ))}
         </div>
@@ -189,15 +196,11 @@ export function CardsPage(props: CardsPageProps) {
                     <div className="py-4 text-center">
                       {props.isLoadingCards ? (
                         <div className="flex items-center justify-center gap-2">
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-                          <span className="text-sm text-gray-400 dark:text-gray-500">
-                            加载中...
-                          </span>
+                          <div className="border-accent h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
+                          <span className="text-ink-3 text-sm">加载中...</span>
                         </div>
                       ) : (
-                        <span className="text-xs text-gray-300 dark:text-gray-600">
-                          继续下滑加载更多
-                        </span>
+                        <span className="text-ink-3 text-xs">继续下滑加载更多</span>
                       )}
                     </div>
                   </div>
@@ -220,34 +223,23 @@ export function CardsPage(props: CardsPageProps) {
                     boxSizing: "border-box",
                   }}
                 >
-                  <CardItem
-                    item={item}
-                    onPreviewCard={props.onPreviewCard}
-                    onUpdateCardCategory={props.onUpdateCardCategory}
-                    onDeleteCard={props.onDeleteCard}
-                  />
+                  <CardItem item={item} onPreviewCard={props.onPreviewCard} />
                 </div>
               );
             })}
           </div>
 
           {!hasMore && (
-            <p className="py-4 text-center text-xs text-gray-400 dark:text-gray-500">
+            <p className="text-ink-3 py-4 text-center text-xs">
               已加载全部 {props.cards?.total ?? 0} 条卡片
             </p>
           )}
         </>
       ) : (
         <div className="py-20 text-center">
-          <NotebookPen
-            size={44}
-            className="mx-auto text-gray-400 dark:text-gray-500"
-            aria-hidden="true"
-          />
-          <p className="mt-4 text-base text-gray-500 dark:text-gray-400">还没有卡片</p>
-          <p className="mt-1 text-sm text-gray-400 dark:text-gray-500">
-            点击下方 + 按钮创建第一张卡片
-          </p>
+          <NotebookPen size={44} className="text-ink-3 mx-auto" aria-hidden="true" />
+          <p className="text-ink-2 mt-4 text-[14px] font-medium">还没有卡片</p>
+          <p className="text-ink-3 mt-1 text-sm">点击下方 + 按钮创建第一张卡片</p>
         </div>
       )}
     </section>

@@ -26,12 +26,8 @@ function isRunningStatus(status: ResourceSyncProgress["status"]): boolean {
 }
 
 export function useResourceSync() {
-  const [progress, setProgress] = useState<ResourceSyncProgress>(
-    EMPTY_RESOURCE_PROGRESS,
-  );
-  const [statusFile, setStatusFile] = useState<ResourceSyncStatusFile | null>(
-    null,
-  );
+  const [progress, setProgress] = useState<ResourceSyncProgress>(EMPTY_RESOURCE_PROGRESS);
+  const [statusFile, setStatusFile] = useState<ResourceSyncStatusFile | null>(null);
   const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPolling = useMemoizedFn(() => {
@@ -85,35 +81,29 @@ export function useResourceSync() {
     }, POLL_INTERVAL_MS);
   });
 
-  const startResourceSync = useMemoizedFn(
-    async (): Promise<ResourceSyncActionResponse> => {
-      const result = await tauri.resourceSyncStart();
-      await refreshResourceProgress();
-      if (result.ok) {
-        startPolling();
-      }
-      return result;
-    },
-  );
+  const startResourceSync = useMemoizedFn(async (): Promise<ResourceSyncActionResponse> => {
+    const result = await tauri.resourceSyncStart();
+    await refreshResourceProgress();
+    if (result.ok) {
+      startPolling();
+    }
+    return result;
+  });
 
-  const retryFailedResourceSync = useMemoizedFn(
-    async (): Promise<ResourceSyncActionResponse> => {
-      const result = await tauri.resourceSyncRetryFailed();
-      await refreshResourceProgress();
-      if (result.ok) {
-        startPolling();
-      }
-      return result;
-    },
-  );
+  const retryFailedResourceSync = useMemoizedFn(async (): Promise<ResourceSyncActionResponse> => {
+    const result = await tauri.resourceSyncRetryFailed();
+    await refreshResourceProgress();
+    if (result.ok) {
+      startPolling();
+    }
+    return result;
+  });
 
-  const cancelResourceSync = useMemoizedFn(
-    async (): Promise<ResourceSyncActionResponse> => {
-      const result = await tauri.resourceSyncCancel();
-      await refreshResourceProgress();
-      return result;
-    },
-  );
+  const cancelResourceSync = useMemoizedFn(async (): Promise<ResourceSyncActionResponse> => {
+    const result = await tauri.resourceSyncCancel();
+    await refreshResourceProgress();
+    return result;
+  });
 
   useEffect(() => {
     return () => {
@@ -121,19 +111,29 @@ export function useResourceSync() {
     };
   }, [stopPolling]);
 
-  const isResourceSyncing = useMemo(
-    () => isRunningStatus(progress.status),
-    [progress.status],
-  );
+  const isResourceSyncing = useMemo(() => isRunningStatus(progress.status), [progress.status]);
 
-  return {
-    progress,
-    statusFile,
-    isResourceSyncing,
-    refreshResourceProgress,
-    refreshResourceStatus,
-    startResourceSync,
-    retryFailedResourceSync,
-    cancelResourceSync,
-  };
+  // 返回值 memo 化：字段不变时引用稳定（函数均经 useMemoizedFn 稳定）
+  return useMemo(
+    () => ({
+      progress,
+      statusFile,
+      isResourceSyncing,
+      refreshResourceProgress,
+      refreshResourceStatus,
+      startResourceSync,
+      retryFailedResourceSync,
+      cancelResourceSync,
+    }),
+    [
+      progress,
+      statusFile,
+      isResourceSyncing,
+      refreshResourceProgress,
+      refreshResourceStatus,
+      startResourceSync,
+      retryFailedResourceSync,
+      cancelResourceSync,
+    ]
+  );
 }

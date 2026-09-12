@@ -11,7 +11,13 @@ use super::index_db;
 use super::schema;
 
 static JIEBA: OnceLock<Jieba> = OnceLock::new();
-static RUNNING_REBUILD: OnceLock<Mutex<HashSet<String>>> = OnceLock::new();
+#[derive(Default)]
+struct ReconcileState {
+    running: HashSet<String>,
+    dirty: HashSet<String>,
+}
+
+static RECONCILE_STATE: OnceLock<Mutex<ReconcileState>> = OnceLock::new();
 
 struct ReconcileStats {
     scanned: usize,
@@ -27,24 +33,26 @@ impl ReconcileStats {
     }
 }
 
-fn rebuild_set() -> &'static Mutex<HashSet<String>> {
-    RUNNING_REBUILD.get_or_init(|| Mutex::new(HashSet::new()))
+fn reconcile_state() -> &'static Mutex<ReconcileState> {
+    RECONCILE_STATE.get_or_init(|| Mutex::new(ReconcileState::default()))
 }
 
 fn try_mark_running(db_name: &str) -> bool {
-    let lock = rebuild_set();
-    let mut guard = lock.lock().unwrap();
-    if guard.contains(db_name) {
+    let mut state = reconcile_state().lock().unwrap();
+    if state.running.contains(db_name) {
+        state.dirty.insert(db_name.to_string());
         return false;
     }
-    guard.insert(db_name.to_string());
+    state.running.insert(db_name.to_string());
+    state.dirty.remove(db_name);
     true
 }
 
-fn mark_finished(db_name: &str) {
-    let lock = rebuild_set();
-    let mut guard = lock.lock().unwrap();
-    guard.remove(db_name);
+fn mark_finished(db_name: &str) -> bool {
+    let mut state = reconcile_state().lock().unwrap();
+    let rerun = state.dirty.remove(db_name);
+    state.running.remove(db_name);
+    rerun
 }
 
 fn find_all_text(value: &Value, out: &mut Vec<String>) {
@@ -296,10 +304,13 @@ pub fn trigger_reconcile(app: &AppHandle, db_name: &str) {
         } else {
             eprintln!("[mobile-reconcile] rebuild completed: db={}", db_name_owned);
         }
-        mark_finished(&db_name_owned);
+        let rerun = mark_finished(&db_name_owned);
         eprintln!(
-            "[mobile-reconcile] trigger finished: db={}, running=false",
-            db_name_owned
+            "[mobile-reconcile] trigger finished: db={}, running=false, rerun={}",
+            db_name_owned, rerun
         );
+        if rerun {
+            trigger_reconcile(&app_clone, &db_name_owned);
+        }
     });
 }

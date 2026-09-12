@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getName, getVersion } from "@tauri-apps/api/app";
-import { ChevronLeft } from "lucide-react";
+import { PageHeader } from "../../components/PageHeader";
+import { useEdgeFade } from "../../hooks/useScrollState";
 
 type AboutPageProps = {
   onBack: () => void;
@@ -20,11 +21,9 @@ const DEFAULT_APP_INFO: AppInfo = {
 
 function InfoItem(props: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-gray-50 px-4 py-3 dark:bg-neutral-900">
-      <p className="text-xs text-gray-400 dark:text-gray-500">{props.label}</p>
-      <p className="mt-1 text-base font-semibold text-gray-800 dark:text-neutral-100">
-        {props.value}
-      </p>
+    <div className="bg-input rounded-2xl px-4 py-3">
+      <p className="text-ink-3 text-xs font-bold">{props.label}</p>
+      <p className="text-ink mt-1 text-[15px] font-bold">{props.value}</p>
     </div>
   );
 }
@@ -32,6 +31,8 @@ function InfoItem(props: { label: string; value: string }) {
 export function AboutPage({ onBack }: AboutPageProps) {
   const [appInfo, setAppInfo] = useState<AppInfo>(DEFAULT_APP_INFO);
   const [loading, setLoading] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEdgeFade(scrollRef, { bottom: false });
 
   useEffect(() => {
     let cancelled = false;
@@ -60,24 +61,12 @@ export function AboutPage({ onBack }: AboutPageProps) {
   }, []);
 
   return (
-    <div className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
-      <header className="mobile-topbar topbar-immersive flex items-center px-2">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-neutral-300 dark:active:bg-neutral-800"
-        >
-          <ChevronLeft size={20} aria-hidden="true" />
-        </button>
-        <h1 className="flex-1 text-center text-base font-semibold text-gray-900 dark:text-neutral-100">
-          关于
-        </h1>
-        <div className="w-10" />
-      </header>
+    <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
+      <PageHeader title="关于" onBack={onBack} />
 
-      <div className="mobile-kb-scroll flex-1 overflow-y-auto p-4">
+      <div ref={scrollRef} className="edge-fade-scroll mobile-kb-scroll flex-1 overflow-y-auto p-4">
         <div className="list-group p-4">
-          <h2 className="mb-3 text-sm font-medium text-gray-700 dark:text-neutral-200">应用信息</h2>
+          <h2 className="text-ink mb-3 text-[15px] font-bold">应用信息</h2>
           <div className="space-y-3">
             <InfoItem label="项目名称" value={appInfo.name} />
             <InfoItem label="版本号" value={loading ? "读取中..." : appInfo.version} />

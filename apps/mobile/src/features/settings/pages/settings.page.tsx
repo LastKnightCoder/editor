@@ -1,12 +1,11 @@
 import { SettingsPage } from "../SettingsPage";
 import { useAppContext } from "../../../app/AppContext";
 import { definePage, useNavigator } from "../../../router";
-import { useSettingsModule } from "./useSettingsModule";
+import { useTodoStore } from "../../todo/store/useTodoStore";
 
 function SettingsScreen() {
   const navigator = useNavigator();
   const app = useAppContext();
-  const { activeModule, onActiveModuleChange } = useSettingsModule();
 
   return (
     <SettingsPage
@@ -15,9 +14,23 @@ function SettingsScreen() {
       versions={app.bootstrap.versions}
       isSavingSetting={app.syncSettings.isSavingSetting}
       isSyncing={app.syncSettings.isSyncing}
-      onBack={() => navigator.goBack("ui")}
-      activeModule={activeModule}
-      onActiveModuleChange={onActiveModuleChange}
+      onOpenModule={module => navigator.push("settingsModule", { module })}
+      onOpenTodo={
+        app.todoModuleEnabled
+          ? () => {
+              const databaseName =
+                app.syncSettings.safeSetting?.database?.active ??
+                app.bootstrap.databases?.activeDatabase ??
+                null;
+              void useTodoStore.getState().initialize(databaseName);
+              navigator.push("todo");
+            }
+          : undefined
+      }
+      onOpenSearch={() => navigator.push("search")}
+      onOpenArticles={() => navigator.push("articles")}
+      onOpenProjects={() => navigator.push("projects")}
+      onOpenKnowledge={() => navigator.push("knowledge")}
       onSwitchDatabase={app.handleSwitchDatabase}
       onSaveSetting={app.handleSaveSetting}
       onCheckVersions={app.handleCheckVersions}

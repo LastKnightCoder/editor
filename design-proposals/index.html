@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>移动端 UI 重设计 · 三套方案</title>
+<style>
+  :root {
+    --bg: #101013;
+    --card: #1a1b1f;
+    --line: rgba(255,255,255,.09);
+    --text: #ededf0;
+    --text-2: #9b9ba3;
+    --text-3: #63636d;
+    --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    padding: calc(28px + env(safe-area-inset-top, 0px)) 22px calc(40px + env(safe-area-inset-bottom, 0px));
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  header h1 { font-size: 26px; font-weight: 800; letter-spacing: -.01em; }
+  header p { font-size: 13.5px; color: var(--text-2); margin-top: 8px; line-height: 1.7; }
+  header .tip {
+    margin-top: 14px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-size: 12.5px;
+    color: var(--text-2);
+    line-height: 1.7;
+    background: var(--card);
+  }
+  header .tip b { color: var(--text); }
+
+  .proposal {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 18px;
+    margin-top: 16px;
+    transition: transform .2s ease, border-color .2s;
+  }
+  .proposal:active { transform: scale(.98); border-color: rgba(255,255,255,.2); }
+  .p-head { display: flex; align-items: baseline; justify-content: space-between; }
+  .p-name { font-size: 18px; font-weight: 750; }
+  .p-id { font-family: var(--mono); font-size: 11px; color: var(--text-3); letter-spacing: .1em; }
+  .p-desc { font-size: 13px; color: var(--text-2); line-height: 1.65; margin-top: 7px; }
+  .swatches { display: flex; gap: 6px; margin-top: 13px; }
+  .sw { height: 30px; flex: 1; border-radius: 8px; border: 1px solid rgba(255,255,255,.08); }
+  .p-tags { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; }
+  .pt {
+    font-size: 11px; color: var(--text-2);
+    border: 1px solid var(--line);
+    border-radius: 100px;
+    padding: 3px 10px;
+  }
+  footer { margin-top: 26px; font-size: 12px; color: var(--text-3); line-height: 1.8; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>移动端 UI 重设计</h1>
+    <p>同一个应用，三种截然不同的性格。每份原型都可完整点按：切换底部导航、筛选卡片分类、勾选任务、翻动日历、打开快速记录与卡片预览。</p>
+    <div class="tip">
+      <b>预览方式</b>：手机浏览器直接打开（或电脑 Chrome 按 F12 切换设备模拟）。桌面打开会显示手机外框，手机上自动全屏。
+    </div>
+  </header>
+
+  <a class="proposal" href="v2-apricot.html" style="border-color: rgba(217,119,87,.5);">
+    <div class="p-head"><span class="p-name">★ v2 · 全面重设计</span><span class="p-id" style="color:#d97757;">REV 2</span></div>
+    <p class="p-desc">按你的反馈推翻重做：首页纯仪表盘（数据+最近动态）、卡片独立成页、日记改信息流、任务进度条化（不塞圆环）、卡片无 more 按钮无白边、设置页信息层级、四套主题（杏子/玄夜深色/薄荷/海盐）实时切换、FAB 弹出多类型创建、「我的」Hub 承载桌面版持续迁入的功能。</p>
+    <div class="swatches">
+      <div class="sw" style="background:#f6f1e7"></div>
+      <div class="sw" style="background:#0e1016"></div>
+      <div class="sw" style="background:#eef4ee"></div>
+      <div class="sw" style="background:#edf2f8"></div>
+    </div>
+    <div class="p-tags"><span class="pt">新导航架构</span><span class="pt">主题库</span><span class="pt">日记信息流</span><span class="pt">我的 Hub</span></div>
+  </a>
+
+  <a class="proposal" href="a-ink-paper.html">
+    <div class="p-head"><span class="p-name">A · 纸上</span><span class="p-id">INK &amp; PAPER</span></div>
+    <p class="p-desc">暖纸底色、衬线刊头、朱砂一点。把笔记应用做成一本讲究的杂志——安静、克制，越用越有味道。</p>
+    <div class="swatches">
+      <div class="sw" style="background:#f5f1e8"></div>
+      <div class="sw" style="background:#fffdf8"></div>
+      <div class="sw" style="background:#221e19"></div>
+      <div class="sw" style="background:#b5443c"></div>
+    </div>
+    <div class="p-tags"><span class="pt">亮色</span><span class="pt">衬线标题</span><span class="pt">编辑部风</span><span class="pt">适合写作型用户</span></div>
+  </a>
+
+  <a class="proposal" href="b-nocturne-glass.html">
+    <div class="p-head"><span class="p-name">B · 夜航</span><span class="p-id">NOCTURNE</span></div>
+    <p class="p-desc">深蓝夜色、真玻璃质感、琥珀色单一强调。常驻搜索条与进度环，信息一眼可读，重度夜间用户的舒适区。</p>
+    <div class="swatches">
+      <div class="sw" style="background:#0b0d12"></div>
+      <div class="sw" style="background:#12151d"></div>
+      <div class="sw" style="background:#ffb454"></div>
+      <div class="sw" style="background:#6ee7b7"></div>
+    </div>
+    <div class="p-tags"><span class="pt">暗色</span><span class="pt">玻璃拟态</span><span class="pt">科技感</span><span class="pt">常驻搜索</span></div>
+  </a>
+
+  <a class="proposal" href="c-bento-soft.html">
+    <div class="p-head"><span class="p-name">C · 杏子</span><span class="p-id">BENTO SOFT</span></div>
+    <p class="p-desc">奶油底色、便当盒仪表盘、多彩但低饱和。首页直接呈现今日任务、日记打卡与最近卡片，温暖而不幼稚。</p>
+    <div class="swatches">
+      <div class="sw" style="background:#f6f1e7"></div>
+      <div class="sw" style="background:#e5ede2"></div>
+      <div class="sw" style="background:#f8e9d7"></div>
+      <div class="sw" style="background:#d97757"></div>
+    </div>
+    <div class="p-tags"><span class="pt">亮色</span><span class="pt">Bento 仪表盘</span><span class="pt">日系柔和</span><span class="pt">信息聚合首页</span></div>
+  </a>
+
+  <footer>
+    选定方向后，我们按该方案的设计语言（配色、字体层级、圆角、阴影、动效曲线）全面重构 apps/mobile 的全部页面。三份原型信息架构一致，仅在视觉与首页组织上差异化。
+  </footer>
+</body>
+</html>

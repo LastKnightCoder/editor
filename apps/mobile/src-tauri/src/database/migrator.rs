@@ -44,30 +44,36 @@ fn build_vec_table_sql(vec_dimension: i64) -> String {
 
 fn parse_vec_dimension_from_sql(create_sql: &str) -> Option<i64> {
     let upper = create_sql.to_ascii_uppercase();
-    let float_pos = upper.find("FLOAT")?;
     let bytes = upper.as_bytes();
-
-    let mut cursor = float_pos + "FLOAT".len();
-    while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
-        cursor += 1;
+    // 模板里 update_time FLOAT 等无维度列排在 vec_embedding FLOAT[N] 之前，
+    // 必须遍历所有 FLOAT 出现位置，找到带 [维度] 的那一个；只匹配首个会永远解析失败，
+    // 导致 vec 表在每次打开连接时都被误判为维度变化而 DROP+CREATE（写锁雪崩的根源）
+    let mut search_from = 0;
+    while let Some(relative) = upper[search_from..].find("FLOAT") {
+        let float_pos = search_from + relative;
+        let mut cursor = float_pos + "FLOAT".len();
+        while cursor < bytes.len() && bytes[cursor].is_ascii_whitespace() {
+            cursor += 1;
+        }
+        if cursor < bytes.len() && bytes[cursor] == b'[' {
+            let digits_start = cursor + 1;
+            cursor = digits_start;
+            while cursor < bytes.len() && bytes[cursor].is_ascii_digit() {
+                cursor += 1;
+            }
+            if cursor > digits_start && cursor < bytes.len() && bytes[cursor] == b']' {
+                if let Some(dim) = upper[digits_start..cursor]
+                    .parse::<i64>()
+                    .ok()
+                    .filter(|v| *v > 0)
+                {
+                    return Some(dim);
+                }
+            }
+        }
+        search_from = float_pos + "FLOAT".len();
     }
-    if cursor >= bytes.len() || bytes[cursor] != b'[' {
-        return None;
-    }
-    cursor += 1;
-
-    let digits_start = cursor;
-    while cursor < bytes.len() && bytes[cursor].is_ascii_digit() {
-        cursor += 1;
-    }
-    if cursor == digits_start || cursor >= bytes.len() || bytes[cursor] != b']' {
-        return None;
-    }
-
-    upper[digits_start..cursor]
-        .parse::<i64>()
-        .ok()
-        .filter(|v| *v > 0)
+    None
 }
 
 fn get_current_vec_dimension(conn: &Connection) -> Result<Option<i64>, String> {

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import type { Descendant } from "slate";
 import * as tauri from "../../../services/tauri";
+import { useSingleFlight } from "../../../hooks/useSingleFlight";
 import {
   EMPTY_EDITOR_CONTENT,
   getContentLength,
@@ -31,7 +32,6 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
   const cardIdRef = useRef<number | null>(null);
   const contentIdRef = useRef<number | null>(null);
   const debounceTimerRef = useRef<number | null>(null);
-  const flushInFlightRef = useRef<Promise<boolean> | null>(null);
   const dirtyRef = useRef(false);
   const lastSavedSnapshotRef = useRef("");
 
@@ -151,25 +151,19 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
     }
   });
 
-  const flushQueue = useMemoizedFn(async () => {
-    if (flushInFlightRef.current) {
-      return flushInFlightRef.current;
-    }
-    const task = (async () => {
-      let allSucceeded = true;
-      do {
-        dirtyRef.current = false;
-        const success = await persist();
-        if (!success) {
-          allSucceeded = false;
-        }
-      } while (dirtyRef.current);
-      return allSucceeded;
-    })();
-    flushInFlightRef.current = task.finally(() => {
-      flushInFlightRef.current = null;
-    });
-    return flushInFlightRef.current;
+  const flushQueue = useSingleFlight(async (): Promise<boolean> => {
+    let allSucceeded = true;
+    // 有界重试：编辑器可能因选区/输入法合成连续触发内容事件（内容未必变化），
+    // 无界 do-while 会在 persist 空转（快照未变不落库）时自旋卡死主线程
+    let remainingRounds = 8;
+    do {
+      dirtyRef.current = false;
+      const success = await persist();
+      if (!success) {
+        allSucceeded = false;
+      }
+    } while (dirtyRef.current && --remainingRounds > 0);
+    return allSucceeded;
   });
 
   const schedulePersist = useMemoizedFn(() => {
@@ -181,7 +175,13 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
   });
 
   const handleContentChange = useMemoizedFn((content: Descendant[]) => {
-    contentRef.current = normalizeEditorContent(content);
+    const normalized = normalizeEditorContent(content);
+    // 选区变化/输入法合成会以相同内容重复触发 onChange，
+    // 内容未变时不标脏，否则防抖被无限重启、flush 也会空转
+    if (JSON.stringify(normalized) === JSON.stringify(contentRef.current)) {
+      return;
+    }
+    contentRef.current = normalized;
     dirtyRef.current = true;
     schedulePersist();
   });
@@ -224,8 +224,7 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
   });
 
   /** 关闭：flush 持久化队列 → 空内容且已建卡则删卡 → 复位并返回 true（调用方负责 goBack） */
-  const requestClose = useMemoizedFn(async (content?: Descendant[]): Promise<boolean> => {
-    if (saving) return false;
+  const runClose = useSingleFlight(async (content?: Descendant[]): Promise<boolean> => {
     clearDebounceTimer();
     const normalizedContent = normalizeEditorContent(content ?? contentRef.current);
     contentRef.current = normalizedContent;
@@ -257,6 +256,16 @@ export function useQuickCaptureController(deps: QuickCaptureControllerDeps) {
     resetSession();
     await refreshCards();
     return true;
+  });
+
+  const requestClose = useMemoizedFn(async (content?: Descendant[]): Promise<boolean> => {
+    // 关闭入口（X/下拉/系统返回）可能几乎同时触发：进行中的关闭直接复用结果，
+    // 避免并行链各自落库+刷新叠加成 IPC 风暴；saving 仅对新发起的关闭生效
+    if (runClose.isActive()) {
+      return runClose();
+    }
+    if (saving) return false;
+    return runClose(content);
   });
 
   return useMemo(

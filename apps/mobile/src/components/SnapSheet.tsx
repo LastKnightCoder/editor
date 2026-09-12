@@ -12,6 +12,7 @@ import {
 } from "react";
 import { useMemoizedFn } from "ahooks";
 import { PanContainer, type PanContainerProps } from "./PanContainer";
+import { useSheetBackDismiss } from "../router/useSheetBackDismiss";
 import type { PanState, PanTimeline } from "./panModel";
 
 export type SnapSheetState = PanState;
@@ -24,6 +25,12 @@ type SnapSheetProps = {
   normalHeight?: number;
   miniHeight?: number;
   onClose?: () => void;
+  /**
+   * 返回手势是否关闭本抽屉（默认 true，需提供 onClose）。
+   * overlay 路由页的主体抽屉须传 false——其关闭即弹栈，返回语义由页面
+   * backHandler/guard 或 router 弹栈定义，内置拦截会与其互喂死锁。
+   */
+  backDismiss?: boolean;
   onStateChange?: (next: SnapSheetState, prev: SnapSheetState) => void;
   onTimelineChange?: (timeline: PanTimeline) => void;
   className?: string;
@@ -73,10 +80,23 @@ function resolveStates(states?: SnapSheetState[]): SnapSheetState[] {
   return states;
 }
 
+// 调用方常内联传 states={["normal","full"]}（每次渲染新数组），这里按内容稳定引用，
+// 避免 PanContainer 的 enabledStates/layout/timeline 链路因引用变化而反复重建。
+function useStableStates(states?: SnapSheetState[]): SnapSheetState[] {
+  const resolved = resolveStates(states);
+  const ref = useRef(resolved);
+  const prev = ref.current;
+  const changed = prev.length !== resolved.length || prev.some((s, i) => s !== resolved[i]);
+  if (changed) {
+    ref.current = resolved;
+  }
+  return ref.current;
+}
+
 function resolveInitialState(
   state: SnapSheetState | undefined,
   defaultState: SnapSheetState | undefined,
-  states: SnapSheetState[],
+  states: SnapSheetState[]
 ): SnapSheetState {
   if (state && states.includes(state)) {
     return state;
@@ -101,12 +121,7 @@ function SnapSheetHandle(props: SnapSheetHandleProps) {
       className={cn("flex justify-center py-3", props.className)}
       style={{ opacity: "calc(1 - var(--pan-progress-normal-full))" }}
     >
-      <div
-        className={cn(
-          "h-1 w-10 rounded-full bg-gray-300 dark:bg-neutral-600",
-          props.indicatorClassName,
-        )}
-      />
+      <div className={cn("bg-line h-[5px] w-11 rounded-full", props.indicatorClassName)} />
     </div>
   );
 }
@@ -118,51 +133,50 @@ const SnapSheetScroll = forwardRef<HTMLDivElement, SnapSheetScrollProps>(
     return (
       <div
         {...restProps}
-        ref={(node) => {
+        ref={node => {
           context.scrollRef.current = node;
           setRefValue(forwardedRef, node);
         }}
-        className={cn(
-          "mobile-kb-scroll min-h-0 flex-1 overflow-y-auto",
-          className,
-        )}
+        className={cn("mobile-kb-scroll min-h-0 flex-1 overflow-y-auto", className)}
       />
     );
-  },
+  }
 );
 
-const SnapSheetFixedFooterScroll = forwardRef<
-  HTMLDivElement,
-  SnapSheetScrollProps
->(function SnapSheetFixedFooterScroll(props, forwardedRef) {
-  const context = useRequiredSnapSheetContext();
-  const { className, ...restProps } = props;
-  return (
-    <div
-      {...restProps}
-      ref={(node) => {
-        context.scrollRef.current = node;
-        setRefValue(forwardedRef, node);
-      }}
-      className={cn(
-        "mobile-fixed-footer-scroll min-h-0 flex-1 overflow-y-auto",
-        className,
-      )}
-    />
-  );
-});
+const SnapSheetFixedFooterScroll = forwardRef<HTMLDivElement, SnapSheetScrollProps>(
+  function SnapSheetFixedFooterScroll(props, forwardedRef) {
+    const context = useRequiredSnapSheetContext();
+    const { className, ...restProps } = props;
+    return (
+      <div
+        {...restProps}
+        ref={node => {
+          context.scrollRef.current = node;
+          setRefValue(forwardedRef, node);
+        }}
+        className={cn("mobile-fixed-footer-scroll min-h-0 flex-1 overflow-y-auto", className)}
+      />
+    );
+  }
+);
 
 SnapSheetScroll.displayName = "SnapSheet.Scroll";
 SnapSheetFixedFooterScroll.displayName = "SnapSheet.FixedFooterScroll";
 
 function SnapSheetRoot(props: SnapSheetProps) {
-  const states = useMemo(() => resolveStates(props.states), [props.states]);
+  const states = useStableStates(props.states);
   const controlled = typeof props.state === "string";
   const [internalState, setInternalState] = useState<SnapSheetState>(() =>
-    resolveInitialState(props.state, props.defaultState, states),
+    resolveInitialState(props.state, props.defaultState, states)
   );
   const [timeline, setTimeline] = useState<PanTimeline | null>(null);
   const internalScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // onClose 缺失时无可关闭语义，不参与返回仲裁
+  useSheetBackDismiss(
+    props.backDismiss !== false && props.open && props.onClose !== undefined,
+    () => props.onClose?.()
+  );
 
   const stateCandidate = controlled ? props.state : internalState;
   const currentState = states.includes(stateCandidate as SnapSheetState)
@@ -172,30 +186,21 @@ function SnapSheetRoot(props: SnapSheetProps) {
 
   const heights = useMemo<PanContainerProps["heights"]>(
     () => ({
-      normal:
-        typeof props.normalHeight === "number"
-          ? props.normalHeight
-          : DEFAULT_NORMAL_HEIGHT,
-      ...(typeof props.miniHeight === "number"
-        ? { mini: props.miniHeight }
-        : {}),
+      normal: typeof props.normalHeight === "number" ? props.normalHeight : DEFAULT_NORMAL_HEIGHT,
+      ...(typeof props.miniHeight === "number" ? { mini: props.miniHeight } : {}),
     }),
-    [props.miniHeight, props.normalHeight],
+    [props.miniHeight, props.normalHeight]
   );
 
-  const handleStateChange = useMemoizedFn(
-    (next: SnapSheetState, prev: SnapSheetState) => {
-      if (!controlled) {
-        setInternalState(next);
-      }
-      props.onStateChange?.(next, prev);
-    },
-  );
+  const handleStateChange = useMemoizedFn((next: SnapSheetState, prev: SnapSheetState) => {
+    if (!controlled) {
+      setInternalState(next);
+    }
+    props.onStateChange?.(next, prev);
+  });
 
   const handleTimelineChange = useMemoizedFn((nextTimeline: PanTimeline) => {
-    setTimeline((prev) =>
-      Object.is(prev, nextTimeline) ? prev : nextTimeline,
-    );
+    setTimeline(prev => (Object.is(prev, nextTimeline) ? prev : nextTimeline));
     props.onTimelineChange?.(nextTimeline);
   });
 
@@ -205,7 +210,7 @@ function SnapSheetRoot(props: SnapSheetProps) {
       timeline,
       scrollRef,
     }),
-    [currentState, scrollRef, timeline],
+    [currentState, scrollRef, timeline]
   );
 
   return (
@@ -222,9 +227,7 @@ function SnapSheetRoot(props: SnapSheetProps) {
       containerClassName={props.containerClassName}
       scrollRef={scrollRef as RefObject<HTMLElement | null>}
     >
-      <SnapSheetContext.Provider value={contextValue}>
-        {props.children}
-      </SnapSheetContext.Provider>
+      <SnapSheetContext.Provider value={contextValue}>{props.children}</SnapSheetContext.Provider>
     </PanContainer>
   );
 }

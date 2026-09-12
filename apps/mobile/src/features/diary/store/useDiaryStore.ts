@@ -3,7 +3,7 @@ import { getQueryClient } from "../../../router";
 import { readDiaryEntries, writeDiaryEntries } from "../queries";
 import type { Descendant } from "slate";
 import * as tauri from "../../../services/tauri";
-import type { DiaryEntry, DiaryType } from "../../../types";
+import type { DiaryEntry, DiarySegment, DiaryType } from "../../../types";
 import {
   getBaseDateFromDiaryKey,
   getDiaryDateKey,
@@ -34,9 +34,10 @@ type DiaryStoreActions = {
   initialize: () => Promise<void>;
   reloadAfterDatabaseChange: (databaseName?: string | null) => Promise<void>;
   openAt: (mode: DiaryType, baseDate: string) => Promise<number | null>;
+  startNewSegment: (mode: DiaryType, baseDate: string) => Promise<number | null>;
   setMode: (mode: DiaryType) => Promise<void>;
   shiftDate: (delta: number) => Promise<void>;
-  jumpToEntry: (entry: DiaryEntry) => Promise<void>;
+  jumpToEntry: (entry: DiaryEntry, segmentId?: number) => Promise<void>;
   syncEntryContentByContentId: (payload: {
     contentId: number;
     content: Descendant[];
@@ -80,6 +81,38 @@ function findCurrentEntry(
   return entries.find(item => item.type === mode && item.date === key) ?? null;
 }
 
+/**
+ * 后端 hydrate 后日记为「多片段」模型：entry.contentId 恒为 null，
+ * 可编辑内容挂在 segments 上（按创建时间升序，末尾为最新片段）。
+ * 移动端编辑器按 contentId 定位，打开日记时取最新片段继续写。
+ */
+function latestSegment(entry: DiaryEntry | null): DiarySegment | undefined {
+  const segments = entry?.segments ?? [];
+  return segments[segments.length - 1];
+}
+
+function latestSegmentContentId(entry: DiaryEntry | null): number | null {
+  return latestSegment(entry)?.contentId ?? null;
+}
+
+/** 追加一个空片段（weather/mood 继承自当天已有 entry）并写入缓存 */
+async function appendEmptySegment(
+  mode: DiaryType,
+  baseDate: string,
+  entry: DiaryEntry | null
+): Promise<DiaryEntry> {
+  const saved = await tauri.diaryUpsertEntry({
+    type: mode,
+    date: getDiaryDateKey(mode, baseDate),
+    content: EMPTY_DIARY_CONTENT,
+    weather: entry?.weather ?? null,
+    mood: entry?.mood ?? null,
+    newSegment: true,
+  });
+  writeDiaryEntries(prev => mergeEntries(prev, saved));
+  return saved;
+}
+
 const initialState: DiaryStoreState = {
   initialized: false,
   loading: false,
@@ -113,9 +146,6 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
       const sorted = sortDiaryEntriesDesc(await readDiaryEntries());
       const current = findCurrentEntry(sorted, get().mode, get().baseDate);
       set({ currentEntry: current, initialized: true });
-      if (!current) {
-        await get().saveCurrentContent(EMPTY_DIARY_CONTENT);
-      }
     } catch (error) {
       console.error("[diary-store] initialize failed", error);
       set({ error: "日记初始化失败，请稍后重试" });
@@ -153,14 +183,38 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
       mode,
       baseDate,
       currentEntry: current,
-      activeSegmentId: current?.segments?.[0]?.id ?? null,
+      activeSegmentId: latestSegment(current)?.id ?? null,
       error: "",
     });
     if (!current) {
       const saved = await get().saveCurrentContent(EMPTY_DIARY_CONTENT);
-      return saved.contentId;
+      return latestSegmentContentId(saved);
     }
-    return current.contentId;
+    return latestSegmentContentId(current);
+  },
+
+  /** 快捷创建入口：开始一个新片段——当天无日记建首段；最新片段为空则复用；否则追加 */
+  startNewSegment: async (mode, baseDate) => {
+    const sorted = sortDiaryEntriesDesc(await readDiaryEntries());
+    const current = findCurrentEntry(sorted, mode, baseDate);
+    if (!current) {
+      return get().openAt(mode, baseDate);
+    }
+    const latest = latestSegment(current);
+    if (latest && latest.wordCount === 0) {
+      set({ mode, baseDate, currentEntry: current, activeSegmentId: latest.id, error: "" });
+      return latest.contentId;
+    }
+    const saved = await appendEmptySegment(mode, baseDate, current);
+    const merged = getQueryClient().getQueryData<DiaryEntry[]>(["diary", "entries"]) ?? [];
+    set({
+      mode,
+      baseDate,
+      currentEntry: findCurrentEntry(merged, mode, baseDate),
+      activeSegmentId: latestSegment(saved)?.id ?? null,
+      error: "",
+    });
+    return latestSegmentContentId(saved);
   },
 
   setMode: async mode => {
@@ -176,12 +230,9 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
     set({
       mode,
       currentEntry: current,
-      activeSegmentId: current?.segments?.[0]?.id ?? null,
+      activeSegmentId: latestSegment(current)?.id ?? null,
       error: "",
     });
-    if (!current) {
-      await get().saveCurrentContent(EMPTY_DIARY_CONTENT);
-    }
   },
 
   shiftDate: async delta => {
@@ -194,21 +245,19 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
     set({
       baseDate: nextBaseDate,
       currentEntry: current,
-      activeSegmentId: current?.segments?.[0]?.id ?? null,
+      activeSegmentId: latestSegment(current)?.id ?? null,
       error: "",
     });
-    if (!current) {
-      await get().saveCurrentContent(EMPTY_DIARY_CONTENT);
-    }
   },
 
-  jumpToEntry: async entry => {
+  jumpToEntry: async (entry, segmentId) => {
     writeDiaryEntries(prev => mergeEntries(prev, entry));
     const nextBaseDate = getBaseDateFromDiaryKey(entry.type, entry.date);
     set({
       mode: entry.type,
       baseDate: nextBaseDate,
       currentEntry: entry,
+      activeSegmentId: segmentId ?? latestSegment(entry)?.id ?? null,
       error: "",
     });
   },
@@ -275,7 +324,7 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
     const dateKey = getDiaryDateKey(state.mode, state.baseDate);
     const segment =
       state.currentEntry?.segments?.find(item => item.id === state.activeSegmentId) ??
-      state.currentEntry?.segments?.[0];
+      latestSegment(state.currentEntry);
     const target = {
       type: state.mode,
       date: dateKey,
@@ -324,14 +373,14 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
       const state = get();
       const currentSegment =
         state.currentEntry?.segments?.find(segment => segment.id === state.activeSegmentId) ??
-        state.currentEntry?.segments?.[0];
+        latestSegment(state.currentEntry);
       if (
         target &&
         (target.type !== state.mode ||
           target.date !== getDiaryDateKey(state.mode, state.baseDate) ||
           target.segmentId !== currentSegment?.id)
       ) {
-        set({ error: "请返回保存失败的日记片段后重试" });
+        set({ error: "请返回保存失败的日记后重试" });
         return false;
       }
       await get().saveCurrentContent(failedContent);
@@ -349,19 +398,11 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
 
   appendSegment: async () => {
     const state = get();
-    const saved = await tauri.diaryUpsertEntry({
-      type: state.mode,
-      date: getDiaryDateKey(state.mode, state.baseDate),
-      content: EMPTY_DIARY_CONTENT,
-      weather: state.currentEntry?.weather ?? null,
-      mood: state.currentEntry?.mood ?? null,
-      newSegment: true,
-    });
-    writeDiaryEntries(prev => mergeEntries(prev, saved));
+    const saved = await appendEmptySegment(state.mode, state.baseDate, state.currentEntry);
     const merged = getQueryClient().getQueryData<DiaryEntry[]>(["diary", "entries"]) ?? [];
     set({
       currentEntry: findCurrentEntry(merged, get().mode, get().baseDate),
-      activeSegmentId: saved.segments[saved.segments.length - 1]?.id ?? null,
+      activeSegmentId: latestSegment(saved)?.id ?? null,
     });
   },
 
@@ -369,14 +410,14 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
     const state = get();
     const segment =
       state.currentEntry?.segments?.find(item => item.id === state.activeSegmentId) ??
-      state.currentEntry?.segments?.[0];
+      latestSegment(state.currentEntry);
     if (!state.currentEntry || !segment) return;
     const saved = await tauri.diaryDeleteSegment(state.currentEntry.id, segment.id);
     writeDiaryEntries(prev => mergeEntries(prev, saved));
     const merged = getQueryClient().getQueryData<DiaryEntry[]>(["diary", "entries"]) ?? [];
     set({
       currentEntry: findCurrentEntry(merged, get().mode, get().baseDate),
-      activeSegmentId: saved.segments[0]?.id ?? null,
+      activeSegmentId: latestSegment(saved)?.id ?? null,
     });
   },
 

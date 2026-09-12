@@ -4,17 +4,22 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use crate::models::{
-    ActiveDatabaseResponse, CardDetailResponse, CardsOverviewResponse, ContentDetailResponse,
-    DatabaseItem, DatabaseListResponse, DatabaseSchemaStatusResponse,
+    ActiveDatabaseResponse, CardDetailResponse, CardListItem, CardsOverviewResponse,
+    ContentDetailResponse, DatabaseItem, DatabaseListResponse, DatabaseSchemaStatusResponse,
 };
 use crate::setting::{
     ensure_database_entry, get_active_database_name, get_database_items, load_or_init_setting,
     normalize_database_name, save_setting_value, set_active_database_name,
 };
 
+mod article;
+mod common;
+mod document;
+mod home_stats;
 mod index_db;
 mod migrator;
 mod main_upgrade;
+mod project;
 mod query;
 mod reconcile;
 mod schema;
@@ -25,7 +30,12 @@ mod todo_calendar_sync;
 
 pub use schema::ensure_database_file;
 pub use schema::validate_download;
+pub(crate) use schema::invalidate_cached_connection;
+pub use article::*;
 pub use diary::*;
+pub use document::*;
+pub use home_stats::*;
+pub use project::*;
 pub use todo::*;
 
 #[derive(Debug, Deserialize)]
@@ -40,6 +50,26 @@ pub struct CreateTemporaryCardPayload {
 pub struct UpdateCardCategoryPayload {
     pub id: i64,
     pub category: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateCardTagsPayload {
+    pub id: i64,
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateCardLinksPayload {
+    pub id: i64,
+    pub links: Vec<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CardsByIdsPayload {
+    pub ids: Vec<i64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -65,6 +95,11 @@ pub fn list_databases(app: AppHandle) -> Result<DatabaseListResponse, String> {
         active_database: get_active_database_name(&setting),
         databases: get_database_items(&setting),
     })
+}
+
+#[tauri::command]
+pub fn get_active_database_size(app: AppHandle) -> Result<u64, String> {
+    schema::active_database_size_bytes(&app)
 }
 
 #[tauri::command]
@@ -112,6 +147,8 @@ pub fn resolve_embedding_fingerprint_for_setting(setting: &Value) -> String {
 }
 
 pub fn force_checkpoint_database(app: &AppHandle, db_name: &str) -> Result<(), String> {
+    // checkpoint 要求 WAL 无并发连接，缓存连接会让 busy 检查失败
+    schema::invalidate_cached_connection();
     schema::force_checkpoint(app, db_name)
 }
 
@@ -423,6 +460,204 @@ pub fn update_card_category(
     reconcile::trigger_reconcile(&app, &db_name);
 
     query::query_card_detail(&conn, payload.id)
+}
+
+fn normalize_card_tags(tags: Vec<String>) -> Result<String, String> {
+    let mut seen = std::collections::HashSet::new();
+    let normalized: Vec<String> = tags
+        .into_iter()
+        .map(|tag| tag.trim().to_string())
+        .filter(|tag| !tag.is_empty() && seen.insert(tag.clone()))
+        .collect();
+    serde_json::to_string(&normalized)
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to serialize tags: {e}"))
+}
+
+#[tauri::command]
+pub fn update_card_tags(
+    app: AppHandle,
+    payload: UpdateCardTagsPayload,
+) -> Result<CardDetailResponse, String> {
+    let serialized_tags = normalize_card_tags(payload.tags)?;
+    let mut conn = schema::open_active_database(&app)?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as i64)
+        .unwrap_or(0);
+
+    let tx = conn
+        .transaction()
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to begin transaction: {e}"))?;
+
+    let changed = tx
+        .execute(
+            "
+            UPDATE cards
+            SET tags = ?1, update_time = ?2
+            WHERE id = ?3
+            ",
+            params![serialized_tags, now, payload.id],
+        )
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to update card tags: {e}"))?;
+    if changed == 0 {
+        return Err("CARD_NOT_FOUND: card does not exist".to_string());
+    }
+
+    tx.execute(
+        "
+        INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
+        VALUES (?1, ?2, 'card', 'update')
+        ",
+        params![now, payload.id],
+    )
+    .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to write card operation: {e}"))?;
+
+    tx.commit()
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to commit transaction: {e}"))?;
+
+    let setting = load_or_init_setting(&app)?;
+    let db_name = get_active_database_name(&setting);
+    reconcile::trigger_reconcile(&app, &db_name);
+
+    query::query_card_detail(&conn, payload.id)
+}
+
+#[tauri::command]
+pub fn update_card_links(
+    app: AppHandle,
+    payload: UpdateCardLinksPayload,
+) -> Result<CardDetailResponse, String> {
+    let self_id = payload.id;
+    // 过滤自关联与重复项（保序）
+    let mut seen = std::collections::HashSet::new();
+    let new_links: Vec<i64> = payload
+        .links
+        .into_iter()
+        .filter(|id| *id != self_id && seen.insert(*id))
+        .collect();
+
+    let mut conn = schema::open_active_database(&app)?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis() as i64)
+        .unwrap_or(0);
+
+    let tx = conn
+        .transaction()
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to begin transaction: {e}"))?;
+
+    if !new_links.is_empty() {
+        let placeholders = vec!["?"; new_links.len()].join(", ");
+        let sql = format!("SELECT COUNT(*) FROM cards WHERE id IN ({placeholders})");
+        let found: i64 = tx
+            .query_row(&sql, rusqlite::params_from_iter(new_links.iter()), |row| row.get(0))
+            .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to validate linked cards: {e}"))?;
+        if found != new_links.len() as i64 {
+            return Err("CARD_LINK_INVALID: one or more linked cards do not exist".to_string());
+        }
+    }
+
+    let old_links_raw: Option<String> = tx
+        .query_row(
+            "SELECT links FROM cards WHERE id = ?1 LIMIT 1",
+            params![self_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to read card links: {e}"))?
+        .ok_or_else(|| "CARD_NOT_FOUND: card does not exist".to_string())?;
+    let old_links = query::parse_links_column(old_links_raw);
+
+    let serialized_new_links = serde_json::to_string(&new_links)
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to serialize links: {e}"))?;
+    tx.execute(
+        "
+        UPDATE cards
+        SET links = ?1, update_time = ?2
+        WHERE id = ?3
+        ",
+        params![serialized_new_links, now, self_id],
+    )
+    .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to update card links: {e}"))?;
+    tx.execute(
+        "
+        INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
+        VALUES (?1, ?2, 'card', 'update')
+        ",
+        params![now, self_id],
+    )
+    .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to write card operation: {e}"))?;
+
+    // 双向同步：新增的关联，对方卡片补上自己；移除的关联，对方卡片删掉自己
+    let added: Vec<i64> = new_links
+        .iter()
+        .filter(|id| !old_links.contains(id))
+        .cloned()
+        .collect();
+    let removed: Vec<i64> = old_links
+        .iter()
+        .filter(|id| !new_links.contains(id))
+        .cloned()
+        .collect();
+
+    for other_id in added.iter().chain(removed.iter()) {
+        let other_raw: Option<String> = tx
+            .query_row(
+                "SELECT links FROM cards WHERE id = ?1 LIMIT 1",
+                params![other_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to read linked card: {e}"))?;
+        let Some(other_raw) = other_raw else {
+            continue;
+        };
+        let mut other_links = query::parse_links_column(Some(other_raw));
+        if added.contains(other_id) {
+            if !other_links.contains(&self_id) {
+                other_links.push(self_id);
+            }
+        } else {
+            other_links.retain(|id| *id != self_id);
+        }
+        let serialized_other = serde_json::to_string(&other_links)
+            .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to serialize links: {e}"))?;
+        tx.execute(
+            "
+            UPDATE cards
+            SET links = ?1, update_time = ?2
+            WHERE id = ?3
+            ",
+            params![serialized_other, now, other_id],
+        )
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to sync linked card: {e}"))?;
+        tx.execute(
+            "
+            INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
+            VALUES (?1, ?2, 'card', 'update')
+            ",
+            params![now, other_id],
+        )
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to write card operation: {e}"))?;
+    }
+
+    tx.commit()
+        .map_err(|e| format!("CARD_UPDATE_FAILED: Failed to commit transaction: {e}"))?;
+
+    let setting = load_or_init_setting(&app)?;
+    let db_name = get_active_database_name(&setting);
+    reconcile::trigger_reconcile(&app, &db_name);
+
+    query::query_card_detail(&conn, self_id)
+}
+
+#[tauri::command]
+pub fn get_cards_by_ids(
+    app: AppHandle,
+    payload: CardsByIdsPayload,
+) -> Result<Vec<CardListItem>, String> {
+    let conn = schema::open_active_database(&app)?;
+    query::query_cards_by_ids(&conn, &payload.ids)
 }
 
 #[tauri::command]

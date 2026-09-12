@@ -13,7 +13,6 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useMemoizedFn } from "ahooks";
-import { Tooltip } from "antd";
 import { FileText } from "lucide-react";
 import { Editor, Element, Transforms, type BaseSelection } from "slate";
 import { ReactEditor, useSlate, useSlateSelection } from "slate-react";
@@ -130,16 +129,16 @@ function ContentLinkPreviewCard(props: {
   if (props.loading) {
     return (
       <div className="space-y-2 p-3">
-        <div className="h-4 w-28 animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
-        <div className="h-3 w-full animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
-        <div className="h-3 w-4/5 animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
+        <div className="bg-input h-4 w-28 animate-pulse rounded" />
+        <div className="bg-input h-3 w-full animate-pulse rounded" />
+        <div className="bg-input h-3 w-4/5 animate-pulse rounded" />
       </div>
     );
   }
   if (props.errorText) {
     return (
       <div className="p-3">
-        <p className="text-xs text-red-500 dark:text-red-400">{props.errorText}</p>
+        <p className="text-danger text-xs">{props.errorText}</p>
       </div>
     );
   }
@@ -147,7 +146,7 @@ function ContentLinkPreviewCard(props: {
   if (!props.detail) {
     return (
       <div className="p-3">
-        <p className="text-xs text-gray-400 dark:text-neutral-500">无可预览内容</p>
+        <p className="text-ink-3 text-xs">无可预览内容</p>
       </div>
     );
   }
@@ -155,9 +154,9 @@ function ContentLinkPreviewCard(props: {
   if (!props.renderer) {
     return (
       <div className="space-y-2 p-3">
-        <div className="h-4 w-28 animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
-        <div className="h-3 w-full animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
-        <div className="h-3 w-4/5 animate-pulse rounded bg-gray-100 dark:bg-neutral-800" />
+        <div className="bg-input h-4 w-28 animate-pulse rounded" />
+        <div className="bg-input h-3 w-full animate-pulse rounded" />
+        <div className="bg-input h-3 w-4/5 animate-pulse rounded" />
       </div>
     );
   }
@@ -169,7 +168,7 @@ function ContentLinkPreviewCard(props: {
       className="max-h-[min(70dvh,420px)] touch-pan-y space-y-2 overflow-y-auto overscroll-y-contain p-3"
       style={{ WebkitOverflowScrolling: "touch" }}
     >
-      <div className="flex items-center gap-2 text-[11px] text-gray-400 dark:text-neutral-500">
+      <div className="text-ink-3 flex items-center gap-2 text-[11px]">
         <span>{formatTimeLabel(props.detail.updateTime)}</span>
         <span>·</span>
         <span>{props.detail.count} 字</span>
@@ -179,14 +178,14 @@ function ContentLinkPreviewCard(props: {
           {props.detail.card.tags.slice(0, 3).map(tag => (
             <span
               key={tag}
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600 dark:bg-neutral-800 dark:text-neutral-400"
+              className="bg-input text-ink-2 rounded-full px-2 py-0.5 text-[10px] font-medium"
             >
               {tag}
             </span>
           ))}
         </div>
       ) : null}
-      <div className="rounded-lg bg-gray-50/70 px-2 py-2 dark:bg-neutral-900">
+      <div className="bg-input/70 rounded-xl px-2 py-2">
         <PreviewEditor
           key={`${props.detail.contentId}-${props.detail.updateTime}`}
           initValue={normalizeEditorContent(props.detail.content)}
@@ -329,7 +328,7 @@ function InteractiveContentLink(props: {
           left: panelPos.left,
         }}
         data-allow-touchmove="true"
-        className="fixed w-[min(92vw,360px)] rounded-xl border border-gray-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-950"
+        className="card fixed w-[min(92vw,360px)]"
         onClick={event => {
           event.stopPropagation();
         }}
@@ -359,7 +358,7 @@ function InteractiveContentLink(props: {
         {...props.attributes}
         ref={anchorRef}
         contentEditable={false}
-        className="mx-0.5 inline-flex cursor-pointer items-center rounded-[2px] border-b-[3px] border-double border-emerald-500/80 px-0.5 text-emerald-700 transition-colors active:opacity-80 dark:border-emerald-400/80 dark:text-emerald-400"
+        className="border-sage/80 text-sage mx-0.5 inline-flex cursor-pointer items-center rounded-[2px] border-b-[3px] border-double px-0.5 transition-colors active:opacity-80"
         onClick={event => {
           event.preventDefault();
           event.stopPropagation();
@@ -442,18 +441,17 @@ function MobileContentLinkHoveringItem() {
 
   return (
     <>
-      <Tooltip title={"关联内容"} trigger={"hover"}>
-        <div
-          className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200 ${
-            isActive
-              ? themeColors.activeClass
-              : `${themeColors.textClass} ${themeColors.hoverClass} ${themeColors.hoverTextClass}`
-          }`}
-          onClick={handleClick}
-        >
-          <FileText size={16} strokeWidth={2.5} />
-        </div>
-      </Tooltip>
+      <div
+        title="关联内容"
+        className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200 ${
+          isActive
+            ? themeColors.activeClass
+            : `${themeColors.textClass} ${themeColors.hoverClass} ${themeColors.hoverTextClass}`
+        }`}
+        onClick={handleClick}
+      >
+        <FileText size={16} strokeWidth={2.5} />
+      </div>
       <ContentLinkPickerSheet
         open={openPicker}
         onClose={handleClosePicker}

@@ -148,7 +148,11 @@ export function RouterProvider({
   const pendingsRef = useRef(new Map<string, PendingResult>());
   const settlesRef = useRef(new Map<string, PendingSettle>());
   const guardsRef = useRef(new Map<string, () => boolean | Promise<boolean>>());
-  const backHandlersRef = useRef(new Map<string, () => boolean | Promise<boolean>>());
+  const backHandlersRef = useRef(new Map<string, Array<() => boolean | Promise<boolean>>>());
+  const historyBackInFlightRef = useRef(false);
+  const pendingBackNavRef = useRef<{ depth: number; token: number } | null>(null);
+  const nativeBounceRef = useRef<{ state: unknown; token: number } | null>(null);
+  const navigationTokenRef = useRef(0);
 
   const sanitizePageParams = (
     key: string,
@@ -215,11 +219,14 @@ export function RouterProvider({
   const topEntryOf = (): RouteEntry | null =>
     getTopEntry(overlaysRef.current) ?? getTopEntry(screensRef.current);
 
-  /** 询问栈顶页是否消费本次返回（如设置页先退二级模块） */
+  /** 问栈顶页的返回消费器链（LIFO：后注册的更上层浮层先答），任一返回 true 即消费 */
   const askBackHandler = async (entry: RouteEntry): Promise<boolean> => {
-    const handler = backHandlersRef.current.get(entry.id);
-    if (!handler) return false;
-    return await handler();
+    const handlers = backHandlersRef.current.get(entry.id);
+    if (!handlers) return false;
+    for (let index = handlers.length - 1; index >= 0; index -= 1) {
+      if (await handlers[index]()) return true;
+    }
+    return false;
   };
 
   const askLeaveGuard = async (
@@ -239,28 +246,42 @@ export function RouterProvider({
    * 通过 history.back/go 驱动返回，popstate 恢复栈（浏览器历史为准）。
    * 返回 true 表示已驱动回退；false 表示被 backHandler/守卫拒绝或无目标。
    * settle 在守卫通过后才落账，避免拒绝路径上残留旧结果（下次弹栈被误结算）。
+   * 并发返回在两个窗口内一律丢弃（连击关闭/双击返回叠加两次 go 会多退一层、
+   * 恢复出错误栈）：本函数执行期间由 inFlight flag 挡；go 发出后、popstate
+   * 恢复栈之前由 pending 挡，popstate 到达即清除，watchdog 超时自愈兜底
+   * 极端丢失 popstate 的场景，避免返回被永久锁死。
    */
   const historyBack = async (
     source: Exclude<BackSource, "popstate">,
     depth = 1,
     settle?: { entryId: string; settle: PendingSettle }
   ): Promise<boolean> => {
-    const target = topEntryOf();
-    if (!target) return false;
-    const handled = await askBackHandler(target);
-    if (handled) return false;
-    const allowed = await askLeaveGuard(target, source);
-    if (!allowed) return false;
-    if (settle && settle.entryId === target.id) {
-      settlesRef.current.set(settle.entryId, settle.settle);
-    }
-    if (typeof window === "undefined" || window.history.length <= 1) {
-      // 无浏览器历史可驱退（如极端 WebView）：当前 history state 即当前栈快照，
-      // 无法取到上一条记录，此处仅保持守卫/settle 语义一致，不做栈变更
+    if (historyBackInFlightRef.current || pendingBackNavRef.current !== null) {
       return false;
     }
-    window.history.go(-depth);
-    return true;
+    const target = topEntryOf();
+    if (!target) return false;
+    historyBackInFlightRef.current = true;
+    try {
+      const handled = await askBackHandler(target);
+      if (handled) return false;
+      const allowed = await askLeaveGuard(target, source);
+      if (!allowed) return false;
+      if (settle && settle.entryId === target.id) {
+        settlesRef.current.set(settle.entryId, settle.settle);
+      }
+      if (typeof window === "undefined" || window.history.length <= 1) {
+        // 无浏览器历史可驱退（如极端 WebView）：当前 history state 即当前栈快照，
+        // 无法取到上一条记录，此处仅保持守卫/settle 语义一致，不做栈变更
+        return false;
+      }
+      const token = ++navigationTokenRef.current;
+      window.history.go(-depth);
+      pendingBackNavRef.current = { depth, token };
+      return true;
+    } finally {
+      historyBackInFlightRef.current = false;
+    }
   };
 
   const handleRootBack = (): void => {
@@ -421,11 +442,19 @@ export function RouterProvider({
         }
       },
       registerBackHandler: (entryId, handler) => {
-        if (handler === null) {
-          backHandlersRef.current.delete(entryId);
-        } else {
-          backHandlersRef.current.set(entryId, handler);
-        }
+        const handlers = backHandlersRef.current.get(entryId) ?? [];
+        handlers.push(handler);
+        backHandlersRef.current.set(entryId, handlers);
+        return () => {
+          const current = backHandlersRef.current.get(entryId);
+          if (!current) return;
+          const remaining = current.filter(item => item !== handler);
+          if (remaining.length > 0) {
+            backHandlersRef.current.set(entryId, remaining);
+          } else {
+            backHandlersRef.current.delete(entryId);
+          }
+        };
       },
       getScreenStack: () => screensRef.current,
       getOverlayStack: () => overlaysRef.current,
@@ -462,7 +491,33 @@ export function RouterProvider({
 
     const onPopState = (event: PopStateEvent) => {
       const state = readHistoryState(event.state);
+      const pending = pendingBackNavRef.current;
+      if (pending) {
+        pendingBackNavRef.current = null;
+        if (state) {
+          const now = Date.now();
+          suppressHistoryWriteRef.current = true;
+          setScreens(prev => restoreStack(state.snapshot.screens, prev, "screen", now));
+          setOverlays(prev => restoreStack(state.snapshot.overlays, prev, "overlay", now));
+        }
+        return;
+      }
+      const bounce = nativeBounceRef.current;
+      if (bounce) {
+        nativeBounceRef.current = null;
+        void historyBack("gesture");
+        return;
+      }
       if (!state) return;
+      if (totalDepth() > 1) {
+        nativeBounceRef.current = {
+          state: window.history.state,
+          token: ++navigationTokenRef.current,
+        };
+        window.history.go(1);
+        return;
+      }
+      handleRootBack();
       const now = Date.now();
       suppressHistoryWriteRef.current = true;
       setScreens(prev => restoreStack(state.snapshot.screens, prev, "screen", now));
@@ -471,6 +526,8 @@ export function RouterProvider({
     window.addEventListener("popstate", onPopState);
     return () => {
       window.removeEventListener("popstate", onPopState);
+      pendingBackNavRef.current = null;
+      nativeBounceRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

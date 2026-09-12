@@ -31,7 +31,6 @@ function resetTodoStore() {
   useTodoStore.setState(
     {
       activeGroupId: null,
-      activeTodoId: null,
       filters: { type: "all" },
       initializing: false,
     },
@@ -82,11 +81,9 @@ describe("todo/useTodoStore（订阅化后）", () => {
     expect(setSpy).toHaveBeenCalledWith({ queryKey: ["todo", "items"] }, expect.any(Function));
   });
 
-  it("setActiveGroup 清空 activeTodoId，filters 支持部分更新", () => {
-    useTodoStore.setState({ activeTodoId: 7 });
+  it("setActiveGroup 生效，filters 支持部分更新", () => {
     useTodoStore.getState().setActiveGroup(2);
     expect(useTodoStore.getState().activeGroupId).toBe(2);
-    expect(useTodoStore.getState().activeTodoId).toBeNull();
 
     useTodoStore.getState().setFilters({ completed: false });
     expect(useTodoStore.getState().filters).toEqual({

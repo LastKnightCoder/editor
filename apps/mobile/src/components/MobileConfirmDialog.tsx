@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import { Z_INDEX } from "../router/zIndex";
+import { useSheetBackDismiss } from "../router/useSheetBackDismiss";
 import { createPortal } from "react-dom";
 
 type MobileConfirmDialogProps = {
   open: boolean;
   title: string;
+  description?: string;
   cancelText?: string;
   confirmText?: string;
   danger?: boolean;
@@ -15,6 +18,7 @@ type MobileConfirmDialogProps = {
 export function MobileConfirmDialog({
   open,
   title,
+  description,
   cancelText = "取消",
   confirmText = "确认",
   danger = false,
@@ -23,6 +27,9 @@ export function MobileConfirmDialog({
   onConfirm,
 }: MobileConfirmDialogProps) {
   const [shouldRender, setShouldRender] = useState(open);
+
+  // 返回手势等同取消（对齐原生 Dialog 行为）；loading 中不拦截，避免中断进行中的操作
+  useSheetBackDismiss(open && !loading, onCancel);
 
   useEffect(() => {
     if (open) {
@@ -39,10 +46,7 @@ export function MobileConfirmDialog({
   }, [open, shouldRender]);
 
   const confirmClass = useMemo(() => {
-    if (!danger) {
-      return "text-gray-800 dark:text-neutral-100";
-    }
-    return "text-red-600 dark:text-red-400";
+    return danger ? "text-rose" : "text-accent";
   }, [danger]);
 
   if (!shouldRender || typeof document === "undefined") {
@@ -50,25 +54,32 @@ export function MobileConfirmDialog({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[80]">
+    <div className="fixed inset-0" style={{ zIndex: Z_INDEX.CONFIRM }}>
       <button
         type="button"
-        className={`absolute inset-0 bg-black/50 dark:bg-black/70 ${open ? "mask-enter" : "mask-exit"}`}
+        className={`bg-mask absolute inset-0 ${open ? "mask-enter" : "mask-exit"}`}
         aria-label="关闭确认框"
         onClick={onCancel}
         disabled={loading}
       />
 
       <div
-        className={`absolute left-1/2 top-1/2 w-[min(86vw,340px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl transition-all dark:border-neutral-700 dark:bg-neutral-900 ${open ? "opacity-100" : "opacity-0 scale-95"}`}
+        className={`card absolute left-1/2 top-1/2 w-[min(86vw,340px)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-3xl transition-all duration-200 ${open ? "opacity-100" : "scale-95 opacity-0"}`}
       >
-        <div className="px-6 py-7 text-center text-[18px] font-medium text-gray-900 dark:text-neutral-100">
+        <div
+          className={`text-ink px-6 text-center text-[16px] font-bold ${description ? "pt-6" : "py-6"}`}
+        >
           {title}
         </div>
-        <div className="grid grid-cols-2 border-t border-gray-200 dark:border-neutral-700">
+        {description ? (
+          <p className="text-ink-2 px-6 pb-5 pt-2 text-center text-[13px] leading-relaxed">
+            {description}
+          </p>
+        ) : null}
+        <div className="border-line grid grid-cols-2 border-t border-dashed">
           <button
             type="button"
-            className="py-4 text-[18px] font-medium text-gray-700 transition-colors active:bg-gray-100 disabled:opacity-60 dark:text-neutral-200 dark:active:bg-neutral-800"
+            className="text-ink-2 active:bg-press py-3.5 text-[15px] font-semibold transition-colors disabled:opacity-60"
             onClick={onCancel}
             disabled={loading}
           >
@@ -76,7 +87,7 @@ export function MobileConfirmDialog({
           </button>
           <button
             type="button"
-            className={`border-l border-gray-200 py-4 text-[18px] font-semibold transition-colors active:bg-gray-100 disabled:opacity-60 dark:border-neutral-700 dark:active:bg-neutral-800 ${confirmClass}`}
+            className={`border-line active:bg-press border-l border-dashed py-3.5 text-[15px] font-bold transition-colors disabled:opacity-60 ${confirmClass}`}
             onClick={onConfirm}
             disabled={loading}
           >
@@ -85,7 +96,7 @@ export function MobileConfirmDialog({
         </div>
       </div>
     </div>,
-    document.body,
+    document.body
   );
 }
 

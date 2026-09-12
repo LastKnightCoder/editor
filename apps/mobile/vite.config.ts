@@ -13,10 +13,7 @@ export default defineConfig(async () => ({
     alias: {
       react: path.resolve(__dirname, "node_modules/react"),
       "react-dom": path.resolve(__dirname, "node_modules/react-dom"),
-      "react/jsx-runtime": path.resolve(
-        __dirname,
-        "node_modules/react/jsx-runtime.js",
-      ),
+      "react/jsx-runtime": path.resolve(__dirname, "node_modules/react/jsx-runtime.js"),
     },
   },
 
@@ -26,14 +23,15 @@ export default defineConfig(async () => ({
   clearScreen: false,
   // 2. tauri expects a fixed port, fail if that port is not available
   server: {
-    port: 1420,
+    // Windows 上 Hyper-V 动态保留端口段覆盖了 1346-1547（含 1420），改用 2420 避开
+    port: 2420,
     strictPort: true,
     host: host || false,
     hmr: host
       ? {
           protocol: "ws",
           host,
-          port: 1421,
+          port: 2421,
         }
       : undefined,
     watch: {

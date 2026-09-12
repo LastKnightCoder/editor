@@ -248,3 +248,16 @@ pnpm add -D
 - 当修改 `packages/db-schema/schema/main*.sql` 或 `packages/db-schema/schema/main/*.sql` 中的库表、索引定义时，必须同步检查并更新 `scripts/db/check-schema-parity.mjs` 里的数量常量与相关断言。
 - 每次新增、删除、重命名数据库表或索引后，必须执行 `pnpm db:schema:build`、`pnpm db:schema:check`，必要时再执行 `pnpm db:schema:prepare`，确保 bundle 文件与校验脚本同步通过。
 - 禁止只改 schema SQL 而不更新校验脚本；如果表数量或索引数量发生变化，必须在同一提交中同时更新脚本常量。
+
+## 移动端浮层与返回手势规范
+
+背景：返回手势（Android 物理返回/手势、边缘侧滑）必须"先关浮层、再弹页面栈"，仲裁权统一收口在 `apps/mobile/src/router/`，详见 `apps/mobile/docs/移动端页面栈与返回策略.md` 的「浮层返回拦截」一节。为防止腐化，新增/修改移动端浮层时必须遵守：
+
+- 新增浮层一律优先使用通用容器组件（`BottomSheet` / `ActionSheet` / `SnapSheet` / `MobileConfirmDialog`），它们已内置返回拦截，业务代码无需接线。
+- `BottomSheet` / `ActionSheet` 已内置退场缓冲：所有关闭请求（遮罩点击、返回手势、下拉、选项点击）先播完退场动画，动画完成后才回调 `onClose`。因此 `onClose` 中直接 `goBack()` 是安全的，且返回手势关闭与遮罩关闭一样有完整动画。
+- 确需自建 `createPortal` 浮层时，必须在组件内接入 `useSheetBackDismiss(open, dismiss)`（需要关闭前确认时传 `confirm` 选项）；禁止只实现遮罩点击关闭而漏掉返回手势。
+- `layer: "overlay"` 路由页的主体面板（open 恒为 true、关闭即弹栈的那个容器）：常规场景用默认 `backDismiss`（返回手势经退场缓冲先播动画再 `onClose` → `goBack`，无死锁）；以下场景必须传 `backDismiss={false}`，返回/关闭语义由页面表达（`useBackHandler` 消费、`usePageGuard` 未保存守卫）——此路径的返回直接弹栈，无组件退场动画：
+  - 返回前需要自定义处理（如 quickCapture 冲洗落库）；
+  - 使用 `pushForResult`/`finish`/`cancel` 进行结果回传——内置返回拦截会消费 `finish` 的弹栈请求，导致 settle 未落账、调用方拿不到结果。
+- 禁止任何业务代码自行监听 `onBackButtonPress` / `popstate` / `history.back` 处理返回；返回一律经 `navigator.goBack(source)`。
+- 页面内本地 `useState` 控制浮层 open 时，返回手势对该浮层"失明"是缺陷特征（历史遗留存量），发现即按上述规则接入，不要新增此类用法。

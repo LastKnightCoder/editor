@@ -5,7 +5,7 @@ import type { VideoContentProvider } from "@tau/editor/src";
  */
 function createDegradedContent(message: string): VideoContentProvider["Content"] {
   const DegradedContent = () => (
-    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-500">
+    <div className="border-line bg-input/80 text-ink-2 rounded-xl border border-dashed p-3 text-xs">
       {message}
     </div>
   );

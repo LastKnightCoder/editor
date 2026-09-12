@@ -1,6 +1,6 @@
 import { DiaryHomePage } from "../DiaryHomePage";
 import { useDiaryStore } from "../store/useDiaryStore";
-import { formatDiaryPeriodLabel } from "../dateKey";
+import { describeDiaryPeriod, getBaseDateFromDiaryKey } from "../dateKey";
 import { useAppContext } from "../../../app/AppContext";
 import { definePage, useNavigator } from "../../../router";
 
@@ -10,7 +10,6 @@ function DiaryHomeScreen() {
 
   return (
     <DiaryHomePage
-      onBack={() => navigator.goBack("ui")}
       onOpenEditor={(mode, baseDate) => {
         void (async () => {
           try {
@@ -18,17 +17,29 @@ function DiaryHomeScreen() {
             if (typeof contentId !== "number" || !Number.isFinite(contentId) || contentId <= 0) {
               throw new Error("DIARY_CONTENT_NOT_FOUND");
             }
-            const contentType = mode === "daily" ? "日记" : mode === "weekly" ? "周记" : "月记";
             navigator.push("contentDetail", {
               contentId,
-              contentTitle: formatDiaryPeriodLabel(mode, baseDate),
-              contentType,
+              contentTitle: "",
               fromDiary: true,
+              diaryDate: describeDiaryPeriod(mode, baseDate),
             });
           } catch (error) {
             app.presentError(error, "打开日记失败");
           }
         })();
+      }}
+      onOpenSegment={(entry, segment) => {
+        // 片段独立编辑：store 定位到该片段，编辑器按 segment.contentId 直达
+        void useDiaryStore.getState().jumpToEntry(entry, segment.id);
+        navigator.push("contentDetail", {
+          contentId: segment.contentId,
+          contentTitle: "",
+          fromDiary: true,
+          diaryDate: describeDiaryPeriod(
+            entry.type,
+            getBaseDateFromDiaryKey(entry.type, entry.date)
+          ),
+        });
       }}
       onError={(error, fallback) => {
         app.presentError(error, fallback);

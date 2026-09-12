@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>v2 · 杏子 · 全面重设计</title>
+<style>
+  /* ═══════════════ 主题系统 ═══════════════ */
+  .device {
+    /* —— 杏子（默认）—— */
+    --bg: #f6f1e7;
+    --bg-deep: #efe8da;
+    --card: #fffdf9;
+    --text: #43392c;
+    --text-2: #8b7d6b;
+    --text-3: #b9ac9a;
+    --line: #eae2d1;
+    --line-soft: #f0e9db;
+    --accent: #d97757;
+    --accent-2: #e8896a;
+    --on-accent: #fff;
+    --shadow-card: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.22);
+    --shadow-float: 0 12px 32px -8px rgba(217,119,87,.5), inset 0 1.5px 0 rgba(255,255,255,.4);
+    --dock-bg: rgba(255,253,249,.93);
+    --dock-line: rgba(255,255,255,.9);
+    --dock-shadow: 0 12px 32px -8px rgba(120,100,70,.32), inset 0 1px 0 #fff;
+    /* 彩色 pastel 组 */
+    --sage-bg: #e5ede2;   --sage-fg: #61795f;
+    --sky-bg: #e2ebf3;    --sky-fg: #5c7d99;
+    --apricot-bg: #f8e9d7; --apricot-fg: #b2794b;
+    --lilac-bg: #ebe6f3;  --lilac-fg: #8a7aa6;
+    --butter-bg: #f6efd6; --butter-fg: #a38c4d;
+    --rose-bg: #f6e3e0;   --rose-fg: #b06a5e;
+    --grab: #e3d9c6;
+  }
+  .device[data-theme="midnight"] {
+    --bg: #0e1016;
+    --bg-deep: #0a0c10;
+    --card: #171a22;
+    --text: #edeef1;
+    --text-2: #8e96a5;
+    --text-3: #5b6270;
+    --line: rgba(255,255,255,.07);
+    --line-soft: rgba(255,255,255,.05);
+    --accent: #f0a860;
+    --accent-2: #d98f43;
+    --on-accent: #221503;
+    --shadow-card: 0 14px 30px -16px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.04);
+    --shadow-float: 0 8px 18px -5px rgba(240,168,96,.4), inset 0 1px 0 rgba(255,255,255,.18);
+    --dock-bg: rgba(23,26,34,.88);
+    --dock-line: rgba(255,255,255,.09);
+    --dock-shadow: 0 18px 40px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+    --sage-bg: rgba(110,231,183,.12);  --sage-fg: #7edbb2;
+    --sky-bg: rgba(147,180,255,.12);   --sky-fg: #9db9f0;
+    --apricot-bg: rgba(240,168,96,.13); --apricot-fg: #f0b680;
+    --lilac-bg: rgba(196,167,255,.12); --lilac-fg: #c8b3f5;
+    --butter-bg: rgba(240,220,130,.1); --butter-fg: #e8d487;
+    --rose-bg: rgba(255,138,120,.12);  --rose-fg: #f5988a;
+    --grab: rgba(255,255,255,.16);
+  }
+  .device[data-theme="mint"] {
+    --bg: #eef4ee;
+    --bg-deep: #e4ede4;
+    --card: #fbfefb;
+    --text: #2e3d31;
+    --text-2: #71806f;
+    --text-3: #a5b3a3;
+    --line: #dfe9df;
+    --line-soft: #eaf2ea;
+    --accent: #4a9d78;
+    --accent-2: #5cae88;
+    --on-accent: #fff;
+    --shadow-card: 0 1px 2px rgba(60,100,70,.05), 0 10px 24px -14px rgba(60,100,70,.25);
+    --shadow-float: 0 12px 32px -8px rgba(74,157,120,.5), inset 0 1.5px 0 rgba(255,255,255,.5);
+    --dock-bg: rgba(251,254,251,.93);
+    --dock-line: rgba(255,255,255,.95);
+    --dock-shadow: 0 12px 32px -8px rgba(60,100,70,.3), inset 0 1px 0 #fff;
+    --sage-bg: #e3efe6;   --sage-fg: #4a8a62;
+    --sky-bg: #e0ebf0;    --sky-fg: #567f96;
+    --apricot-bg: #f5ecdd; --apricot-fg: #a87f52;
+    --lilac-bg: #e9e6f2;  --lilac-fg: #8378a4;
+    --butter-bg: #f4efd8; --butter-fg: #9c8d54;
+    --rose-bg: #f4e4e2;   --rose-fg: #a86e64;
+    --grab: #d7e4d8;
+  }
+  .device[data-theme="ocean"] {
+    --bg: #edf2f8;
+    --bg-deep: #e3eaf3;
+    --card: #fcfdff;
+    --text: #2d3644;
+    --text-2: #728096;
+    --text-3: #a6b1c2;
+    --line: #dde5ef;
+    --line-soft: #e9eff7;
+    --accent: #4d7fc4;
+    --accent-2: #5d8fd4;
+    --on-accent: #fff;
+    --shadow-card: 0 1px 2px rgba(60,80,120,.06), 0 10px 24px -14px rgba(60,80,120,.25);
+    --shadow-float: 0 12px 32px -8px rgba(77,127,196,.5), inset 0 1.5px 0 rgba(255,255,255,.5);
+    --dock-bg: rgba(252,253,255,.93);
+    --dock-line: rgba(255,255,255,.95);
+    --dock-shadow: 0 12px 32px -8px rgba(60,80,120,.3), inset 0 1px 0 #fff;
+    --sage-bg: #e2eee6;   --sage-fg: #527f63;
+    --sky-bg: #dfe9f5;    --sky-fg: #4d6f9e;
+    --apricot-bg: #f6ead9; --apricot-fg: #a3764a;
+    --lilac-bg: #e8e5f3;  --lilac-fg: #7f74a8;
+    --butter-bg: #f3eed6; --butter-fg: #97894e;
+    --rose-bg: #f5e3e6;   --rose-fg: #a56677;
+    --grab: #d8e1ee;
+  }
+
+  :root {
+    --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --ease-bounce: cubic-bezier(.34,1.56,.5,1);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+
+  body {
+    font-family: var(--sans);
+    background: #d9d0be;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .device[data-theme="midnight"] ~ * { }
+
+  .device {
+    position: relative;
+    width: 402px;
+    height: min(874px, 96vh);
+    background: var(--bg);
+    color: var(--text);
+    border-radius: 48px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(60,50,35,.25), 0 30px 80px rgba(50,40,25,.35);
+    transition: background .35s ease;
+  }
+
+  @media (max-width: 520px) {
+    body { background: var(--bg); }
+    .device { width: 100vw; height: 100dvh; border-radius: 0; box-shadow: none; }
+  }
+
+  /* 纸感噪点（深色主题下减弱） */
+  .device::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.38 0 0 0 0 0.26 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 1; opacity: 1;
+  }
+  .device[data-theme="midnight"]::before { opacity: .4; }
+
+  /* ═══════════════ 屏幕 ═══════════════ */
+  .screen {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    opacity: 0; transform: translateY(12px) scale(.985);
+    pointer-events: none;
+    transition: opacity .3s ease, transform .3s var(--ease-bounce);
+    z-index: 0;
+  }
+  .screen.active { opacity: 1; transform: none; pointer-events: auto; z-index: 2; }
+  /* 二级页从右侧滑入；必须放在 .active 之后并补 .sub.active，
+     否则同特异性下 translateX(60px) 会覆盖 .active 的 none，整屏右移 60px */
+  .screen.sub { transform: translateX(60px); }
+  .screen.sub.active { transform: none; }
+
+  .screen-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding: 0 18px 150px;
+    scrollbar-width: none;
+  }
+  .screen-scroll::-webkit-scrollbar { display: none; }
+
+  /* ═══════════════ 页头 ═══════════════ */
+  .pagehead {
+    padding: calc(20px + env(safe-area-inset-top, 0px)) 18px 4px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .pagehead h1 { font-size: 24px; font-weight: 800; letter-spacing: -.01em; }
+  .pagehead .sub { font-size: 12.5px; color: var(--text-2); margin-top: 3px; }
+  .head-btn {
+    width: 42px; height: 42px;
+    border-radius: 15px;
+    background: var(--card);
+    box-shadow: var(--shadow-card);
+    display: grid; place-items: center;
+    cursor: pointer;
+    transition: transform .2s var(--ease-bounce);
+    border: none;
+    color: var(--text-2);
+  }
+  .head-btn:active { transform: scale(.88); }
+
+  /* 二级页返回头 */
+  .subhead {
+    padding: calc(14px + env(safe-area-inset-top, 0px)) 12px 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .back-btn {
+    width: 38px; height: 38px;
+    border-radius: 13px;
+    border: none;
+    background: var(--card);
+    box-shadow: var(--shadow-card);
+    color: var(--text);
+    display: grid; place-items: center;
+    cursor: pointer;
+    transition: transform .18s var(--ease-bounce);
+  }
+  .back-btn:active { transform: scale(.88); }
+  .subhead h1 { font-size: 18px; font-weight: 800; flex: 1; text-align: center; }
+  .subhead .spacer { width: 38px; }
+
+  /* ═══════════════ 首页：搜索条 ═══════════════ */
+  .searchbar {
+    display: flex; align-items: center; gap: 10px;
+    height: 44px;
+    padding: 0 16px;
+    border-radius: 15px;
+    background: var(--card);
+    box-shadow: var(--shadow-card);
+    color: var(--text-3);
+    font-size: 13.5px;
+    cursor: pointer;
+    margin-top: 12px;
+    transition: transform .15s;
+  }
+  .searchbar:active { transform: scale(.985); }
+  .searchbar .kbd {
+    margin-left: auto;
+    font-family: var(--mono); font-size: 10px;
+    border: 1px solid var(--line);
+    border-radius: 5px; padding: 2px 6px;
+    color: var(--text-3);
+  }
+
+  /* ═══════════════ 首页：Bento 仪表盘 ═══════════════ */
+  .bento {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 11px;
+    margin-top: 14px;
+  }
+  .b {
+    border-radius: 20px;
+    padding: 15px;
+    box-shadow: var(--shadow-card);
+    animation: pop-in .55s var(--ease-bounce) backwards;
+    cursor: pointer;
+    transition: transform .2s var(--ease-bounce);
+    background: var(--card);
+  }
+  .b:active { transform: scale(.97); }
+  @keyframes pop-in { from { opacity: 0; transform: translateY(16px) scale(.96); } to { opacity: 1; transform: none; } }
+
+  .b-task {
+    grid-column: span 2;
+    background: linear-gradient(135deg, var(--rose-bg), var(--apricot-bg));
+    display: flex; align-items: center; gap: 15px;
+  }
+  .b-task .nums { display: flex; align-items: baseline; gap: 3px; flex-shrink: 0; }
+  .b-task .big {
+    font-size: 34px; font-weight: 800; line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+  }
+  .b-task .den { font-size: 16px; font-weight: 700; color: var(--text-3); }
+  .b-task .cap { flex: 1; min-width: 0; }
+  .b-task .t { font-size: 14.5px; font-weight: 700; }
+  .b-task .s { font-size: 12px; color: var(--text-2); margin-top: 3px; }
+  .pbar {
+    margin-top: 8px;
+    height: 6px;
+    border-radius: 100px;
+    background: rgba(127,110,90,.14);
+    overflow: hidden;
+  }
+  .device[data-theme="midnight"] .pbar { background: rgba(255,255,255,.09); }
+  .pbar i {
+    display: block; height: 100%;
+    width: 43%;
+    border-radius: 100px;
+    background: linear-gradient(90deg, var(--accent-2), var(--accent));
+    transition: width .5s var(--ease-bounce);
+  }
+
+  .b-sm .n { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.15; }
+  .b-sm .n em { font-style: normal; font-size: 12.5px; font-weight: 600; margin-left: 2px; }
+  .b-sm .l { font-size: 11.5px; color: var(--text-2); margin-top: 3px; }
+  .bs-sage { background: var(--sage-bg); } .bs-sage .n { color: var(--sage-fg); }
+  .bs-lilac { background: var(--lilac-bg); } .bs-lilac .n { color: var(--lilac-fg); }
+
+  .week-dots { display: flex; gap: 6px; margin-top: 9px; }
+  .wd-dot {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: rgba(255,255,255,.7);
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--sage-fg) 30%, transparent);
+  }
+  .device[data-theme="midnight"] .wd-dot { background: rgba(255,255,255,.06); }
+  .wd-dot.hit { background: var(--sage-fg); box-shadow: none; }
+  .wd-dot.today-dot { box-shadow: inset 0 0 0 2px var(--sage-fg); }
+  .wd-dot.today-dot.hit { background: var(--sage-fg); }
+
+  /* ═══════════════ 区块标题 ═══════════════ */
+  .sec-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin: 24px 4px 11px;
+  }
+  .sec-head h2 { font-size: 16.5px; font-weight: 800; }
+  .sec-head .more { font-size: 12.5px; color: var(--text-3); cursor: pointer; }
+
+  /* ═══════════════ 首页：今日任务摘要 ═══════════════ */
+  .panel {
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    animation: pop-in .5s var(--ease-bounce) backwards;
+  }
+  .panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 6px;
+  }
+  .panel-head .pt { font-size: 14px; font-weight: 750; display: flex; align-items: center; gap: 7px; }
+  .panel-head .pt .ico-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--rose-fg); }
+  .panel-head .more { font-size: 12px; color: var(--text-3); cursor: pointer; }
+  .hrow {
+    display: flex; gap: 12px; align-items: center;
+    padding: 11px 16px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .hrow:active { background: var(--line-soft); }
+  .hrow .tt { flex: 1; font-size: 14px; font-weight: 550; line-height: 1.4; }
+  .hrow.done .tt { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--rose-fg); text-decoration-thickness: 1.5px; }
+
+  .cbox {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--text-3);
+    flex-shrink: 0;
+    display: grid; place-items: center;
+    background: transparent;
+    transition: all .25s var(--ease-bounce);
+  }
+  .done > .cbox { background: var(--accent); border-color: var(--accent); transform: rotate(360deg); }
+  .cbox svg { opacity: 0; transform: scale(.3); transition: all .22s var(--ease-bounce); }
+  .done > .cbox svg { opacity: 1; transform: scale(1); }
+
+  /* ═══════════════ 首页：最近动态（混合信息流） ═══════════════ */
+  .feed-item {
+    display: flex; gap: 12px;
+    padding: 12px 4px;
+    border-bottom: 1.5px dashed var(--line);
+    cursor: pointer;
+  }
+  .feed-item:last-child { border-bottom: none; }
+  .feed-item:active { opacity: .6; }
+  .f-ico {
+    width: 36px; height: 36px;
+    border-radius: 13px;
+    display: grid; place-items: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .f-body { flex: 1; min-width: 0; }
+  .f-title { font-size: 14px; font-weight: 600; line-height: 1.45; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .f-meta { font-size: 11.5px; color: var(--text-3); margin-top: 2px; display: flex; gap: 6px; align-items: center; }
+  .f-kind {
+    font-size: 10px; font-weight: 700;
+    padding: 1.5px 7px; border-radius: 100px;
+  }
+  .k-card { background: var(--sky-bg); color: var(--sky-fg); }
+  .k-diary { background: var(--sage-bg); color: var(--sage-fg); }
+  .k-todo { background: var(--butter-bg); color: var(--butter-fg); }
+
+  /* ═══════════════ 卡片页 ═══════════════ */
+  .chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 12px 0 4px; padding: 2px 0 0; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex-shrink: 0;
+    display: inline-flex; align-items: center; gap: 7px;
+    border: none;
+    border-radius: 100px;
+    padding: 9px 15px;
+    font-size: 13px; font-weight: 600;
+    color: var(--text-2);
+    background: var(--card);
+    box-shadow: var(--shadow-card);
+    cursor: pointer;
+    transition: all .2s var(--ease-bounce);
+    font-variant-numeric: tabular-nums;
+    font-family: var(--sans);
+  }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .chip .cnt { font-size: 11px; color: var(--text-3); font-family: var(--mono); }
+  .chip.on { color: var(--text); transform: translateY(-1px); }
+  .chip.on .cnt { color: inherit; opacity: .55; }
+  .d-temp { background: var(--apricot-fg); } .d-perm { background: var(--sage-fg); }
+  .d-theme { background: var(--sky-fg); } .d-lit { background: var(--lilac-fg); }
+  .d-all { background: var(--accent); }
+
+  .card {
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: var(--shadow-card);
+    padding: 16px 17px 14px;
+    margin-bottom: 11px;
+    cursor: pointer;
+    transition: transform .2s var(--ease-bounce);
+    animation: pop-in .5s var(--ease-bounce) backwards;
+  }
+  .card:active { transform: scale(.97); }
+  .card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+  .cat-tag {
+    display: inline-flex; align-items: center;
+    font-size: 11px; font-weight: 700;
+    padding: 4px 11px; border-radius: 100px;
+  }
+  .ct-temp { background: var(--apricot-bg); color: var(--apricot-fg); }
+  .ct-perm { background: var(--sage-bg); color: var(--sage-fg); }
+  .ct-theme { background: var(--sky-bg); color: var(--sky-fg); }
+  .ct-lit { background: var(--lilac-bg); color: var(--lilac-fg); }
+  .card-time { margin-left: auto; font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .card-title { font-size: 15.5px; font-weight: 700; line-height: 1.5; }
+  .card-body {
+    margin-top: 5px; font-size: 13.5px; line-height: 1.7; color: var(--text-2);
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card-tags { display: flex; gap: 8px; margin-top: 11px; }
+  .card-tags span {
+    font-size: 11.5px; color: var(--text-3);
+    background: var(--bg-deep);
+    padding: 3px 10px; border-radius: 100px;
+  }
+  .device[data-theme="midnight"] .card-tags span { background: rgba(255,255,255,.05); }
+  .list-end { text-align: center; font-size: 12px; color: var(--text-3); padding: 14px 0 4px; }
+
+  /* ═══════════════ 日记：信息流 ═══════════════ */
+  .diary-compose {
+    display: flex; align-items: center; gap: 10px;
+    height: 46px;
+    padding: 0 18px;
+    border-radius: 16px;
+    background: var(--card);
+    box-shadow: var(--shadow-card);
+    margin-top: 12px;
+    color: var(--text-3);
+    font-size: 14px;
+    cursor: pointer;
+    transition: transform .15s;
+  }
+  .diary-compose:active { transform: scale(.985); }
+  .diary-compose .pen {
+    margin-left: auto; width: 30px; height: 30px;
+    border-radius: 11px;
+    background: linear-gradient(145deg, var(--accent-2), var(--accent));
+    color: var(--on-accent);
+    display: grid; place-items: center;
+    box-shadow: var(--shadow-float);
+  }
+
+  .month-divider {
+    display: flex; align-items: center; gap: 10px;
+    margin: 20px 2px 10px;
+    font-size: 12px; font-weight: 700; color: var(--text-3);
+    letter-spacing: .06em;
+  }
+  .month-divider::after { content: ""; flex: 1; height: 1.5px; background: var(--line); }
+  .month-divider .cnt { font-family: var(--mono); font-weight: 500; font-size: 11px; }
+
+  .diary-card {
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: var(--shadow-card);
+    padding: 15px 17px 13px;
+    margin-bottom: 11px;
+    cursor: pointer;
+    transition: transform .2s var(--ease-bounce);
+    animation: pop-in .5s var(--ease-bounce) backwards;
+  }
+  .diary-card:active { transform: scale(.97); }
+  .diary-card.today-card { box-shadow: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px color-mix(in srgb, var(--accent) 45%, transparent); }
+  .d-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .d-date { font-size: 14px; font-weight: 750; font-variant-numeric: tabular-nums; }
+  .d-week { font-size: 11.5px; color: var(--text-3); }
+  .d-type {
+    margin-left: auto;
+    font-size: 10.5px; font-weight: 700;
+    padding: 3px 10px; border-radius: 100px;
+    background: var(--lilac-bg); color: var(--lilac-fg);
+  }
+  .d-type.daily { background: var(--sage-bg); color: var(--sage-fg); }
+  .d-type.monthly { background: var(--sky-bg); color: var(--sky-fg); }
+  .d-body {
+    font-size: 13.5px; line-height: 1.72; color: var(--text-2);
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .d-foot {
+    display: flex; gap: 12px; align-items: center;
+    margin-top: 10px;
+    font-size: 11.5px; color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+  }
+  .d-foot .seg-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--bg-deep);
+    padding: 2.5px 9px; border-radius: 100px;
+  }
+  .device[data-theme="midnight"] .d-foot .seg-pill { background: rgba(255,255,255,.05); }
+  .d-foot .mood { margin-left: auto; font-size: 13px; }
+
+  /* ═══════════════ 任务中心（二级页） ═══════════════ */
+  .stat-bar {
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: var(--shadow-card);
+    padding: 16px 17px 14px;
+    margin-top: 8px;
+    animation: pop-in .5s var(--ease-bounce) backwards;
+  }
+  .stat-row { display: flex; align-items: baseline; gap: 5px; }
+  .stat-row .big { font-size: 30px; font-weight: 800; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; }
+  .stat-row .den { font-size: 15px; font-weight: 700; color: var(--text-3); }
+  .stat-row .lbl { font-size: 12px; color: var(--text-2); margin-left: 6px; }
+  .stat-sub { display: flex; gap: 14px; margin-top: 10px; font-size: 11.5px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+  .stat-bar .pbar { margin-top: 10px; }
+
+  .grp-card {
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    animation: pop-in .5s var(--ease-bounce) backwards;
+  }
+  .task {
+    display: flex; gap: 13px; align-items: flex-start;
+    padding: 14px 16px;
+    border-bottom: 1.5px dashed var(--line);
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .task:active { background: var(--line-soft); }
+  .task:last-child { border-bottom: none; }
+  .task.done .t-name { color: var(--text-3); text-decoration: line-through; text-decoration-color: var(--rose-fg); text-decoration-thickness: 2px; }
+  .t-name { font-size: 15px; font-weight: 650; line-height: 1.45; }
+  .t-tags { display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
+  .mini { font-size: 11px; font-weight: 600; padding: 2.5px 9px; border-radius: 100px; }
+  .m-work { background: var(--sky-bg); color: var(--sky-fg); }
+  .m-life { background: var(--apricot-bg); color: var(--apricot-fg); }
+  .m-study { background: var(--lilac-bg); color: var(--lilac-fg); }
+  .m-read { background: var(--sage-bg); color: var(--sage-fg); }
+  .m-due { background: var(--rose-bg); color: var(--rose-fg); }
+  .m-loop { background: var(--butter-bg); color: var(--butter-fg); }
+  .m-done { background: var(--sage-bg); color: var(--sage-fg); }
+  .subs { margin: 2px 0 4px 35px; }
+  .sub-row {
+    display: flex; gap: 9px; align-items: center;
+    padding: 5px 0;
+    font-size: 13px; color: var(--text-2);
+    cursor: pointer;
+  }
+  .sub-row .cbox { width: 16px; height: 16px; margin: 0; border-width: 1.5px; border-radius: 50%; }
+  .sub-row.done { text-decoration: line-through; color: var(--text-3); }
+
+  /* ═══════════════ 我的 Hub ═══════════════ */
+  .me-top {
+    display: flex; align-items: center; gap: 15px;
+    background: var(--card);
+    border-radius: 22px;
+    box-shadow: var(--shadow-card);
+    padding: 17px;
+    margin-top: 12px;
+    animation: pop-in .5s var(--ease-bounce) backwards;
+  }
+  .me-ava {
+    width: 54px; height: 54px;
+    border-radius: 19px;
+    background: var(--apricot-bg);
+    display: grid; place-items: center;
+    font-size: 23px;
+  }
+  .me-name { font-size: 18px; font-weight: 800; }
+  .me-sub { font-size: 12px; color: var(--text-2); margin-top: 3px; }
+
+  .hub-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    background: var(--card);
+    border-radius: 22px;
+    box-shadow: var(--shadow-card);
+    padding: 16px 10px 8px;
+    margin: 18px 0 14px;
+    animation: pop-in .5s var(--ease-bounce) backwards;
+  }
+  .hub-item {
+    display: flex; flex-direction: column; align-items: center; gap: 7px;
+    padding: 8px 0 10px;
+    border: none; background: none;
+    cursor: pointer;
+    position: relative;
+    transition: transform .18s var(--ease-bounce);
+    font-family: var(--sans);
+  }
+  .hub-item:active { transform: scale(.9); }
+  .hub-ico {
+    width: 46px; height: 46px;
+    border-radius: 17px;
+    display: grid; place-items: center;
+    font-size: 21px;
+  }
+  .hub-item .hl { font-size: 11px; font-weight: 600; color: var(--text-2); }
+  .hub-item .soon {
+    position: absolute; top: 2px; right: 6px;
+    font-size: 8.5px; font-weight: 700;
+    background: var(--butter-bg); color: var(--butter-fg);
+    padding: 1.5px 5px; border-radius: 100px;
+    letter-spacing: .05em;
+  }
+
+  .set-card {
+    background: var(--card);
+    border-radius: 22px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+    margin-top: 11px;
+    animation: pop-in .5s var(--ease-bounce) backwards;
+  }
+  .set-row {
+    display: flex; align-items: center; gap: 13px;
+    padding: 14px 16px;
+    border-bottom: 1.5px dashed var(--line);
+    font-size: 14.5px; font-weight: 550;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .set-row:active { background: var(--line-soft); }
+  .set-row:last-child { border-bottom: none; }
+  .s-ico {
+    width: 33px; height: 33px;
+    border-radius: 12px;
+    display: grid; place-items: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+  .set-row .val { margin-left: auto; font-size: 12.5px; color: var(--text-3); display: flex; align-items: center; gap: 6px; }
+  .toggle {
+    width: 44px; height: 27px;
+    border-radius: 100px;
+    background: var(--sage-fg);
+    position: relative;
+    cursor: pointer;
+    transition: background .25s;
+    flex-shrink: 0;
+  }
+  .toggle::after {
+    content: "";
+    position: absolute; top: 3px; left: 20px;
+    width: 21px; height: 21px; border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 2px 5px rgba(0,0,0,.18);
+    transition: left .25s var(--ease-bounce);
+  }
+  .toggle.off { background: var(--line); }
+  .toggle.off::after { left: 3px; }
+
+  /* ═══════════════ Dock ═══════════════ */
+  .dock-wrap {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+    z-index: 10;
+    pointer-events: none;
+    background: var(--dock-bg);
+    border-top: 1px solid var(--dock-line);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+  }
+  .dock {
+    pointer-events: auto;
+    display: flex; align-items: center;
+    height: 62px;
+    border-radius: 22px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+    padding: 0 10px;
+  }
+  .dtab {
+    flex: 1; height: 100%;
+    background: none; border: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    color: var(--text-3);
+    font-size: 10px; font-weight: 650;
+    cursor: pointer;
+    position: relative;
+    transition: color .2s;
+    font-family: var(--sans);
+  }
+  .dtab .blob {
+    position: absolute; top: 7px; left: 50%;
+    transform: translate(-50%, 0) scale(0);
+    width: 44px; height: 31px;
+    border-radius: 100px;
+    transition: transform .28s var(--ease-bounce);
+  }
+  .dtab.on { color: var(--accent); }
+  .dtab.on .blob { transform: translate(-50%, 0) scale(1); }
+  .blob-1 { background: var(--rose-bg); } .blob-2 { background: var(--sky-bg); }
+  .blob-3 { background: var(--sage-bg); } .blob-4 { background: var(--apricot-bg); }
+  .device[data-theme="midnight"] .blob-1 { background: rgba(255,138,120,.14); }
+  .device[data-theme="midnight"] .blob-2 { background: rgba(147,180,255,.12); }
+  .device[data-theme="midnight"] .blob-3 { background: rgba(110,231,183,.1); }
+  .device[data-theme="midnight"] .blob-4 { background: rgba(240,168,96,.14); }
+  .dtab svg, .dtab span { position: relative; z-index: 1; }
+
+  /* FAB + 弹出菜单 */
+  .fab-zone { position: relative; flex: 0 0 74px; display: flex; justify-content: center; }
+  .fab {
+    width: 56px; height: 56px;
+    border-radius: 20px;
+    border: none;
+    background: linear-gradient(145deg, var(--accent-2), var(--accent));
+    color: var(--on-accent);
+    display: grid; place-items: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-float);
+    transition: transform .22s var(--ease-bounce);
+    z-index: 2;
+  }
+  .fab:active { transform: scale(.86) rotate(90deg); }
+  .fab.open { transform: rotate(45deg); }
+
+  .fab-menu {
+    position: absolute;
+    bottom: 46px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; flex-direction: column; gap: 10px;
+    z-index: 1;
+  }
+  .fab-item {
+    display: flex; align-items: center; gap: 10px;
+    opacity: 0; transform: translateY(14px) scale(.8);
+    pointer-events: none;
+    transition: all .3s var(--ease-bounce);
+    cursor: pointer;
+    border: none; background: none;
+    font-family: var(--sans);
+  }
+  .fab-zone.open .fab-item { opacity: 1; transform: none; pointer-events: auto; }
+  .fab-zone.open .fab-item:nth-child(1) { transition-delay: .08s; }
+  .fab-zone.open .fab-item:nth-child(2) { transition-delay: .04s; }
+  .fab-zone.open .fab-item:nth-child(3) { transition-delay: 0s; }
+  .fab-orb {
+    width: 46px; height: 46px;
+    border-radius: 16px;
+    display: grid; place-items: center;
+    font-size: 19px;
+    box-shadow: var(--shadow-card);
+  }
+  .fab-item .fl {
+    font-size: 12px; font-weight: 650;
+    background: var(--card);
+    color: var(--text);
+    padding: 5px 12px;
+    border-radius: 100px;
+    box-shadow: var(--shadow-card);
+  }
+  .fab-mask {
+    position: absolute; inset: 0;
+    background: rgba(30,24,16,.28);
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s;
+    z-index: 9;
+    border-radius: inherit;
+  }
+  .fab-mask.show { opacity: 1; pointer-events: auto; }
+  .device[data-theme="midnight"] .fab-mask { background: rgba(0,0,0,.45); }
+
+  /* ═══════════════ Sheet ═══════════════ */
+  .mask {
+    position: absolute; inset: 0;
+    background: rgba(40, 32, 22, .42);
+    opacity: 0; pointer-events: none;
+    transition: opacity .3s;
+    z-index: 40;
+  }
+  .device[data-theme="midnight"] .mask { background: rgba(0,0,0,.55); }
+  .mask.show { opacity: 1; pointer-events: auto; }
+
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    max-height: 88%;
+    background: var(--card);
+    border-radius: 30px 30px 0 0;
+    padding: 12px 22px calc(28px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(105%);
+    transition: transform .42s var(--ease-bounce);
+    z-index: 41;
+    display: flex; flex-direction: column;
+    box-shadow: 0 -18px 50px rgba(30,24,14,.24);
+  }
+  .device[data-theme="midnight"] .sheet { box-shadow: 0 -18px 50px rgba(0,0,0,.6); }
+  .sheet.show { transform: none; }
+  .grab { width: 42px; height: 5px; border-radius: 3px; background: var(--grab); margin: 2px auto 15px; flex-shrink: 0; }
+  .sheet h2 { font-size: 20px; font-weight: 800; }
+  .sheet .hint { font-size: 12px; color: var(--text-3); margin: 3px 0 15px; }
+
+  .cap-input {
+    width: 100%; border: none; outline: none; resize: none;
+    background: var(--bg-deep);
+    border-radius: 18px;
+    padding: 15px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15.5px; line-height: 1.8;
+    min-height: 165px;
+    caret-color: var(--accent);
+  }
+  .device[data-theme="midnight"] .cap-input { background: rgba(255,255,255,.05); }
+  .cap-input::placeholder { color: var(--text-3); }
+  .cap-foot { display: flex; gap: 8px; margin-top: 13px; align-items: center; }
+  .cap-chip {
+    flex-shrink: 0;
+    border: none;
+    border-radius: 100px;
+    padding: 10px 17px;
+    font-size: 13.5px; font-weight: 700;
+    cursor: pointer;
+    color: var(--text-2);
+    background: var(--bg-deep);
+    transition: all .2s var(--ease-bounce);
+    font-family: var(--sans);
+  }
+  .device[data-theme="midnight"] .cap-chip { background: rgba(255,255,255,.06); }
+  .cap-chip.k-temp.on { background: var(--apricot-bg); color: var(--apricot-fg); box-shadow: inset 0 0 0 1.5px var(--apricot-fg); }
+  .cap-chip.k-perm.on { background: var(--sage-bg); color: var(--sage-fg); box-shadow: inset 0 0 0 1.5px var(--sage-fg); }
+  .cap-chip.k-theme.on { background: var(--sky-bg); color: var(--sky-fg); box-shadow: inset 0 0 0 1.5px var(--sky-fg); }
+  .cap-chip.k-lit.on { background: var(--lilac-bg); color: var(--lilac-fg); box-shadow: inset 0 0 0 1.5px var(--lilac-fg); }
+  .btn-save {
+    margin-left: auto;
+    border: none;
+    background: linear-gradient(145deg, var(--accent-2), var(--accent));
+    color: var(--on-accent);
+    font-size: 14.5px; font-weight: 700;
+    padding: 12px 28px;
+    border-radius: 100px;
+    cursor: pointer;
+    box-shadow: var(--shadow-float);
+    transition: transform .18s;
+    font-family: var(--sans);
+  }
+  .btn-save:active { transform: scale(.93); }
+
+  .pv-body { overflow-y: auto; font-size: 15px; line-height: 1.85; scrollbar-width: none; }
+  .pv-body::-webkit-scrollbar { display: none; }
+  .pv-body p { margin-bottom: 13px; color: var(--text-2); }
+  .pv-actions { display: flex; gap: 10px; margin-top: 13px; padding-top: 13px; border-top: 1.5px dashed var(--line); }
+  .pv-btn {
+    flex: 1;
+    background: var(--bg-deep);
+    border: none;
+    border-radius: 100px;
+    padding: 12px 0;
+    color: var(--text-2);
+    font-size: 13.5px; font-weight: 650;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+  .device[data-theme="midnight"] .pv-btn { background: rgba(255,255,255,.06); }
+  .pv-btn.danger { color: var(--rose-fg); background: var(--rose-bg); }
+
+  /* 主题库 */
+  .theme-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 11px;
+    overflow-y: auto;
+    padding: 4px 0 6px;
+    scrollbar-width: none;
+  }
+  .theme-grid::-webkit-scrollbar { display: none; }
+  .theme-card {
+    border: none;
+    border-radius: 20px;
+    padding: 12px;
+    cursor: pointer;
+    position: relative;
+    transition: transform .2s var(--ease-bounce);
+    font-family: var(--sans);
+    text-align: left;
+  }
+  .theme-card:active { transform: scale(.95); }
+  .theme-card .pv {
+    height: 74px;
+    border-radius: 14px;
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 10px;
+  }
+  .theme-card .pv .bar { height: 10px; border-radius: 100px; }
+  .theme-card .pv .bar.b1 { width: 70%; }
+  .theme-card .pv .bar.b2 { width: 45%; }
+  .theme-card .pv .orb {
+    width: 22px; height: 22px; border-radius: 8px;
+    margin-top: auto; align-self: flex-end;
+  }
+  .theme-card .tn {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 9px;
+    font-size: 13.5px; font-weight: 700;
+    color: var(--text);
+  }
+  .theme-card .tn .td { font-size: 11px; color: var(--text-3); font-weight: 500; }
+  .theme-card.on { box-shadow: inset 0 0 0 2.5px var(--accent); }
+  .check-badge {
+    position: absolute; top: 10px; right: 10px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--on-accent);
+    display: none;
+    place-items: center;
+  }
+  .theme-card.on .check-badge { display: grid; }
+
+  /* 日历 sheet */
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 4px; }
+  .cw { text-align: center; font-size: 10.5px; color: var(--text-3); padding-bottom: 7px; font-weight: 600; }
+  .cd {
+    position: relative;
+    aspect-ratio: 1;
+    display: grid; place-items: center;
+    font-size: 14px; font-weight: 600;
+    color: var(--text-2);
+    border-radius: 13px;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+    transition: background .15s;
+    font-family: var(--sans);
+  }
+  .cd:active { background: var(--bg-deep); }
+  .cd.dim { color: color-mix(in srgb, var(--text-3) 40%, transparent); pointer-events: none; }
+  .cd.today { background: var(--accent); color: var(--on-accent); }
+  .cd .dot { position: absolute; bottom: 4.5px; width: 4.5px; height: 4.5px; border-radius: 50%; background: var(--sage-fg); }
+  .cd.today .dot { background: color-mix(in srgb, var(--on-accent) 80%, transparent); }
+
+  .toast {
+    position: absolute;
+    top: calc(18px + env(safe-area-inset-top, 0px));
+    left: 50%; transform: translate(-50%, -14px);
+    background: var(--text);
+    color: var(--bg);
+    font-size: 13px; font-weight: 550;
+    padding: 11px 22px;
+    border-radius: 100px;
+    opacity: 0; pointer-events: none;
+    transition: all .3s var(--ease-bounce);
+    z-index: 70;
+    display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 14px 30px rgba(30,24,14,.25);
+    max-width: 86%;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast .emoji { font-size: 14px; }
+
+  .ic { width: 20px; height: 20px; }
+</style>
+</head>
+<body>
+<div class="device" id="device" data-theme="apricot">
+  <div class="fab-mask" id="fab-mask" onclick="closeFabMenu()"></div>
+
+  <!-- ════════════ 屏幕 1：今天（纯仪表盘） ════════════ -->
+  <section class="screen active" id="scr-home">
+    <header class="pagehead">
+      <div>
+        <h1>晚上好</h1>
+        <p class="sub">九月十日 · 周三</p>
+      </div>
+      <button class="head-btn" onclick="showToast('打开全局搜索')" aria-label="搜索所有内容">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      </button>
+    </header>
+
+    <div class="screen-scroll">
+      <div class="bento">
+        <div class="b b-task" onclick="go('scr-tasks')" style="animation-delay:.02s">
+          <div class="nums"><span class="big" id="home-done">3</span><span class="den">/ 7</span></div>
+          <div class="cap">
+            <p class="t">今日任务</p>
+            <p class="s" id="home-task-sub">还剩 4 项 · 最早 18:00 截止</p>
+            <div class="pbar"><i id="home-pbar"></i></div>
+          </div>
+        </div>
+        <div class="b b-sm bs-sage" onclick="go('scr-diary', document.querySelector('[data-scr=scr-diary]'))" style="animation-delay:.07s">
+          <p class="n">12<em>天</em></p>
+          <p class="l">日记连续</p>
+          <div class="week-dots">
+            <span class="wd-dot hit"></span><span class="wd-dot hit"></span><span class="wd-dot hit"></span>
+            <span class="wd-dot hit"></span><span class="wd-dot today-dot hit"></span><span class="wd-dot"></span><span class="wd-dot"></span>
+          </div>
+        </div>
+        <div class="b b-sm bs-lilac" onclick="go('scr-cards', document.querySelector('[data-scr=scr-cards]'))" style="animation-delay:.12s">
+          <p class="n">+12<em>张</em></p>
+          <p class="l">本周新卡片</p>
+        </div>
+      </div>
+
+      <div class="sec-head">
+        <h2>今日任务</h2>
+        <span class="more" onclick="go('scr-tasks')">全部 ›</span>
+      </div>
+      <div class="panel" style="animation-delay:.06s" id="home-task-panel">
+        <div class="panel-head">
+          <span class="pt"><span class="ico-dot"></span>待完成</span>
+          <span class="more" onclick="openFabMenu()">+ 添加</span>
+        </div>
+        <!-- 前三条未完成任务，可就地勾选，与上方统计联动 -->
+        <div class="hrow" onclick="this.classList.toggle('done'); syncTaskState()">
+          <div class="cbox"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+          <span class="tt">修复移动端键盘遮挡输入框的问题</span>
+        </div>
+        <div class="hrow" onclick="this.classList.toggle('done'); syncTaskState()">
+          <div class="cbox"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+          <span class="tt">整理九月的读书笔记</span>
+        </div>
+        <div class="hrow" onclick="this.classList.toggle('done'); syncTaskState()">
+          <div class="cbox"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+          <span class="tt">写周报</span>
+        </div>
+      </div>
+
+      <div class="sec-head">
+        <h2>最近</h2>
+      </div>
+      <div class="panel" style="animation-delay:.1s; padding: 4px 16px;">
+        <div class="feed-item" onclick="openPreview(0)">
+          <div class="f-ico" style="background: var(--sky-bg);">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--sky-fg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3.5" width="12.5" height="17" rx="2.5"/><path d="M9.5 8.5h5.5M9.5 12h5.5M9.5 15.5h3"/></svg>
+          </div>
+          <div class="f-body">
+            <p class="f-title">产品的护城河来自切换成本，而不是功能数量</p>
+            <p class="f-meta"><span class="f-kind k-card">卡片</span> 今天 09:41</p>
+          </div>
+        </div>
+        <div class="feed-item" onclick="showToast('打开 9 月 9 日的日记')">
+          <div class="f-ico" style="background: var(--sage-bg);">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--sage-fg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 4.5c-2.2-1-4.5-.8-6 .7-1.5-1.5-3.8-1.7-6-.7v13.5c2.2-1 4.5-.8 6 .7 1.5-1.5 3.8-1.7 6-.7"/><path d="M13.5 5.2v13.5"/></svg>
+          </div>
+          <div class="f-body">
+            <p class="f-title">晚上跑了五公里，路上想通了一个卡了三天的问题…</p>
+            <p class="f-meta"><span class="f-kind k-diary">日记</span> 昨天 · 1,204 字</p>
+          </div>
+        </div>
+        <div class="feed-item" onclick="showToast('打开卡片：写作是思考的显影液')">
+          <div class="f-ico" style="background: var(--sky-bg);">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--sky-fg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3.5" width="12.5" height="17" rx="2.5"/><path d="M9.5 8.5h5.5M9.5 12h5.5M9.5 15.5h3"/></svg>
+          </div>
+          <div class="f-body">
+            <p class="f-title">写作是思考的显影液</p>
+            <p class="f-meta"><span class="f-kind k-card">卡片</span> 昨天 21:07</p>
+          </div>
+        </div>
+        <div class="feed-item" onclick="go('scr-tasks')">
+          <div class="f-ico" style="background: var(--butter-bg);">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--butter-fg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>
+          </div>
+          <div class="f-body">
+            <p class="f-title">完成了「给妈妈订生日蛋糕」</p>
+            <p class="f-meta"><span class="f-kind k-todo">任务</span> 昨天 14:00</p>
+          </div>
+        </div>
+        <div class="feed-item" onclick="showToast('打开第 37 周周记')">
+          <div class="f-ico" style="background: var(--sage-bg);">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--sage-fg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 9.5h16M8 3.5v3M16 3.5v3"/></svg>
+          </div>
+          <div class="f-body">
+            <p class="f-title">第 37 周：把生活过成项目是好是坏？</p>
+            <p class="f-meta"><span class="f-kind k-diary">周记</span> 9月7日 · 2,310 字</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════ 屏幕 2：卡片库（独立页） ════════════ -->
+  <section class="screen" id="scr-cards">
+    <header class="pagehead">
+      <div><h1>卡片库</h1><p class="sub">47 张 · 本周 +12</p></div>
+      <button class="head-btn" onclick="showToast('搜索卡片')" aria-label="搜索">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      </button>
+    </header>
+
+    <div class="screen-scroll">
+      <nav class="chips" id="chips">
+        <button class="chip on" data-cat="all"><span class="dot d-all"></span>全部<span class="cnt">47</span></button>
+        <button class="chip" data-cat="temporary"><span class="dot d-temp"></span>闪念<span class="cnt">21</span></button>
+        <button class="chip" data-cat="permanent"><span class="dot d-perm"></span>永久<span class="cnt">15</span></button>
+        <button class="chip" data-cat="theme"><span class="dot d-theme"></span>主题<span class="cnt">7</span></button>
+        <button class="chip" data-cat="literature"><span class="dot d-lit"></span>文献<span class="cnt">4</span></button>
+      </nav>
+
+      <article class="card" data-cat="temporary" onclick="openPreview(0)" style="animation-delay:.02s">
+        <div class="card-head"><span class="cat-tag ct-temp">闪念</span><span class="card-time">今天 09:41</span></div>
+        <p class="card-title">产品的护城河来自切换成本，而不是功能数量</p>
+        <p class="card-body">重读《软件业的艺术》时想到：用户留下的原因往往是「搬走太贵」，而非「这里最好」。所以留存设计的重心应该是沉淀——让用户的数据、习惯与关系在网络里扎根……</p>
+        <div class="card-tags"><span>#产品</span><span>#随想</span></div>
+      </article>
+
+      <article class="card" data-cat="literature" onclick="openPreview(1)" style="animation-delay:.07s">
+        <div class="card-head"><span class="cat-tag ct-lit">文献</span><span class="card-time">今天 08:15</span></div>
+        <p class="card-title">「卡片盒的意义不在于收藏，而在于强迫你用自己的话重写一遍。」</p>
+        <p class="card-body">卢曼的 Zettelkasten 之所以九十年后依然有效，是因为它把「读过」和「理解」拆成了两个动作……</p>
+        <div class="card-tags"><span>#读书</span><span>#卡片笔记法</span></div>
+      </article>
+
+      <article class="card" data-cat="permanent" onclick="openPreview(2)" style="animation-delay:.12s">
+        <div class="card-head"><span class="cat-tag ct-perm">永久</span><span class="card-time">昨天 21:07</span></div>
+        <p class="card-title">写作是思考的显影液</p>
+        <p class="card-body">脑子里以为想清楚的东西，落笔时才发现处处是窟窿。卡片写作把「想」和「写」压进同一个动作，想法一旦不能被写成句子，就说明它还没成形……</p>
+        <div class="card-tags"><span>#写作</span><span>#思考</span></div>
+      </article>
+
+      <article class="card" data-cat="theme" onclick="openPreview(3)" style="animation-delay:.17s">
+        <div class="card-head"><span class="cat-tag ct-theme">主题</span><span class="card-time">昨天 16:32</span></div>
+        <p class="card-title">城市漫步：收集一座城市的肌理</p>
+        <p class="card-body">计划十月做一次「无目的行走」。素材清单：老巷的门牌系统、菜市场的叫卖节奏、高架桥下的阴影地图……</p>
+        <div class="card-tags"><span>#城市</span><span>#计划</span></div>
+      </article>
+
+      <article class="card" data-cat="temporary" onclick="openPreview(4)" style="animation-delay:.22s">
+        <div class="card-head"><span class="cat-tag ct-temp">闪念</span><span class="card-time">昨天 11:20</span></div>
+        <p class="card-title">为什么删除要比保存多按一次确认？</p>
+        <p class="card-body">flomo 的删除有二次确认，保存没有。不对称的摩擦设计：把摩擦放在不可逆的一侧……</p>
+        <div class="card-tags"><span>#交互</span></div>
+      </article>
+
+      <p class="list-end">已加载全部 47 张</p>
+    </div>
+  </section>
+
+  <!-- ════════════ 屏幕 3：日记（信息流） ════════════ -->
+  <section class="screen" id="scr-diary">
+    <header class="pagehead">
+      <div><h1>日记</h1><p class="sub">连续记录 12 天</p></div>
+      <button class="head-btn" onclick="openSheet('calendar')" aria-label="按日期查找">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M4 9.5h16M8 3.5v3M16 3.5v3"/><path d="M8 13.5h3M8 16.5h5"/></svg>
+      </button>
+    </header>
+
+    <div class="screen-scroll">
+      <div class="diary-compose" onclick="showToast('展开今日日记编辑器')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 4.5c-2.2-1-4.5-.8-6 .7-1.5-1.5-3.8-1.7-6-.7v13.5c2.2-1 4.5-.8 6 .7 1.5-1.5 3.8-1.7 6-.7"/></svg>
+        记下今天的想法…
+        <span class="pen">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        </span>
+      </div>
+
+      <nav class="chips">
+        <button class="chip on">全部</button>
+        <button class="chip">日记</button>
+        <button class="chip">周记</button>
+        <button class="chip">月记</button>
+      </nav>
+
+      <div class="month-divider">九月 <span class="cnt">8 篇 · 6,342 字</span></div>
+
+      <article class="diary-card today-card" onclick="showToast('打开今天的日记')" style="animation-delay:.02s">
+        <div class="d-head"><span class="d-date">9月10日</span><span class="d-week">周三 · 今天</span><span class="d-type daily">日记</span></div>
+        <p class="d-body">今天主要在调移动端的界面。把卡片页从首页拆出来之后，信息层级一下就清楚了——原来之前的问题不是缺功能，是所有东西挤在一屏里互相打架……</p>
+        <div class="d-foot">
+          <span class="seg-pill">2 个片段</span><span>386 字</span>
+          <span class="mood">☁️</span>
+        </div>
+      </article>
+
+      <article class="diary-card" onclick="showToast('打开 9 月 9 日的日记')" style="animation-delay:.06s">
+        <div class="d-head"><span class="d-date">9月9日</span><span class="d-week">周二</span><span class="d-type daily">日记</span></div>
+        <p class="d-body">晚上跑了五公里。跑到第三公里的时候突然想通了一个卡了三天的问题：护城河不是功能数量，是切换成本。回来立刻记了一张卡片……</p>
+        <div class="d-foot">
+          <span class="seg-pill">3 个片段</span><span>1,204 字</span>
+          <span class="mood">🏃</span>
+        </div>
+      </article>
+
+      <article class="diary-card" onclick="showToast('打开第 37 周周记')" style="animation-delay:.1s">
+        <div class="d-head"><span class="d-date">第 37 周</span><span class="d-week">9月7日 – 9月13日</span><span class="d-type">周记</span></div>
+        <p class="d-body">这一周的主线是「把生活过成项目是好是坏」。用了五天时间观察自己的番茄记录，结论是中度项目化最舒服：完全放羊会焦虑，完全 KPI 化会失去兴趣……</p>
+        <div class="d-foot">
+          <span class="seg-pill">4 个片段</span><span>2,310 字</span>
+        </div>
+      </article>
+
+      <article class="diary-card" onclick="showToast('打开 9 月 6 日的日记')" style="animation-delay:.14s">
+        <div class="d-head"><span class="d-date">9月6日</span><span class="d-week">周日</span><span class="d-type daily">日记</span></div>
+        <p class="d-body">带爸妈去了城郊的老街。爸爸对着门牌号拍了很久的照片，说这套编号系统比现在的整齐。摘了一句他的原话……</p>
+        <div class="d-foot">
+          <span class="seg-pill">2 个片段</span><span>865 字</span>
+          <span class="mood">📷</span>
+        </div>
+      </article>
+
+      <article class="diary-card" onclick="showToast('打开 9 月 5 日的日记')" style="animation-delay:.18s">
+        <div class="d-head"><span class="d-date">9月5日</span><span class="d-week">周六</span><span class="d-type daily">日记</span></div>
+        <p class="d-body"></p>
+        <div class="d-foot">
+          <span class="seg-pill">1 个片段</span><span>空白</span>
+        </div>
+      </article>
+
+      <div class="month-divider">八月 <span class="cnt">14 篇</span></div>
+
+      <article class="diary-card" onclick="showToast('打开 8 月 31 日的日记')" style="animation-delay:.02s">
+        <div class="d-head"><span class="d-date">8月31日</span><span class="d-week">周一</span><span class="d-type monthly">月记</span></div>
+        <p class="d-body">八月总结：读完三本书，写了 41 张卡片，跑步 18 次。最好的决定是开始写周记，最坏的决定是同时开三个项目……</p>
+        <div class="d-foot">
+          <span class="seg-pill">5 个片段</span><span>3,102 字</span>
+        </div>
+      </article>
+
+      <p class="list-end">下拉加载更早的日记</p>
+    </div>
+  </section>
+
+  <!-- ════════════ 屏幕 4：我的（Hub + 设置） ════════════ -->
+  <section class="screen" id="scr-me">
+    <header class="pagehead">
+      <div><h1>我的</h1></div>
+    </header>
+
+    <div class="screen-scroll">
+      <div class="me-top">
+        <div class="me-ava">🐱</div>
+        <div>
+          <p class="me-name">LastKnight</p>
+          <p class="me-sub">47 张卡片 · 86 篇日记 · 连续 12 天</p>
+        </div>
+      </div>
+
+      <div class="sec-head" style="margin-top: 20px;"><h2>功能</h2></div>
+      <div class="hub-grid" style="animation-delay:.04s">
+        <button class="hub-item" onclick="go('scr-tasks')">
+          <span class="hub-ico" style="background: var(--butter-bg);">✅</span>
+          <span class="hl">任务</span>
+        </button>
+        <button class="hub-item" onclick="showToast('打开全局搜索')">
+          <span class="hub-ico" style="background: var(--sky-bg);">🔍</span>
+          <span class="hl">搜索</span>
+        </button>
+        <button class="hub-item" onclick="showToast('闪卡复习 · 即将上线')">
+          <span class="soon">即将</span>
+          <span class="hub-ico" style="background: var(--lilac-bg);">🃏</span>
+          <span class="hl">闪卡</span>
+        </button>
+        <button class="hub-item" onclick="showToast('文章 · 即将上线')">
+          <span class="soon">即将</span>
+          <span class="hub-ico" style="background: var(--apricot-bg);">📄</span>
+          <span class="hl">文章</span>
+        </button>
+        <button class="hub-item" onclick="showToast('知识库 · 即将上线')">
+          <span class="soon">即将</span>
+          <span class="hub-ico" style="background: var(--sage-bg);">📚</span>
+          <span class="hl">知识库</span>
+        </button>
+        <button class="hub-item" onclick="showToast('白板 · 即将上线')">
+          <span class="soon">即将</span>
+          <span class="hub-ico" style="background: var(--rose-bg);">🎨</span>
+          <span class="hl">白板</span>
+        </button>
+        <button class="hub-item" onclick="showToast('番茄专注 · 即将上线')">
+          <span class="soon">即将</span>
+          <span class="hub-ico" style="background: var(--rose-bg);">🍅</span>
+          <span class="hl">番茄</span>
+        </button>
+        <button class="hub-item" onclick="showToast('信息流 · 即将上线')">
+          <span class="soon">即将</span>
+          <span class="hub-ico" style="background: var(--sky-bg);">📡</span>
+          <span class="hl">信息流</span>
+        </button>
+      </div>
+
+      <div class="sec-head"><h2>数据与同步</h2></div>
+      <div class="set-card" style="animation-delay:.05s">
+        <div class="set-row" onclick="showToast('数据同步')">
+          <div class="s-ico" style="background: var(--sky-bg);">🔄</div>
+          数据同步
+          <span class="val">2 小时前 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></span>
+        </div>
+        <div class="set-row" onclick="showToast('数据库管理')">
+          <div class="s-ico" style="background: var(--lilac-bg);">🗄️</div>
+          数据库
+          <span class="val">本地 · 12.4 MB <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></span>
+        </div>
+        <div class="set-row" onclick="showToast('导出与备份')">
+          <div class="s-ico" style="background: var(--butter-bg);">📦</div>
+          导出与备份
+          <span class="val"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></span>
+        </div>
+      </div>
+
+      <div class="sec-head"><h2>外观</h2></div>
+      <div class="set-card" style="animation-delay:.1s">
+        <div class="set-row" onclick="openSheet('themes')">
+          <div class="s-ico" style="background: var(--rose-bg);">🎨</div>
+          主题
+          <span class="val" id="theme-name-val">杏子 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></span>
+        </div>
+        <div class="set-row" onclick="showToast('正文字号')">
+          <div class="s-ico" style="background: var(--apricot-bg);">🔤</div>
+          正文字号
+          <span class="val">标准 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></span>
+        </div>
+      </div>
+
+      <div class="sec-head"><h2>模块</h2></div>
+      <div class="set-card" style="animation-delay:.15s">
+        <div class="set-row">
+          <div class="s-ico" style="background: var(--butter-bg);">✅</div>
+          任务模块
+          <span class="val"><span class="toggle" onclick="event.stopPropagation(); this.classList.toggle('off')"></span></span>
+        </div>
+        <div class="set-row">
+          <div class="s-ico" style="background: var(--sage-bg);">📖</div>
+          日记模块
+          <span class="val"><span class="toggle" onclick="event.stopPropagation(); this.classList.toggle('off')"></span></span>
+        </div>
+        <div class="set-row" onclick="showToast('AI 助手')">
+          <div class="s-ico" style="background: var(--sky-bg);">✨</div>
+          AI 助手
+          <span class="val">未配置 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5l7 7-7 7"/></svg></span>
+        </div>
+      </div>
+
+      <div class="sec-head"><h2>关于</h2></div>
+      <div class="set-card" style="animation-delay:.2s">
+        <div class="set-row" onclick="showToast('关于')">
+          <div class="s-ico" style="background: var(--bg-deep);">💛</div>
+          版本
+          <span class="val">0.2.0 (48)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════ 屏幕 5：任务中心（二级页） ════════════ -->
+  <section class="screen sub" id="scr-tasks">
+    <header class="subhead">
+      <button class="back-btn" onclick="backFromTasks()" aria-label="返回">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <h1>任务中心</h1>
+      <span class="spacer"></span>
+    </header>
+
+    <div class="screen-scroll">
+      <div class="stat-bar">
+        <div class="stat-row">
+          <span class="big" id="task-done-num">3</span><span class="den">/ 7</span>
+          <span class="lbl">今日已完成</span>
+        </div>
+        <div class="pbar"><i id="task-pbar" style="width: 43%;"></i></div>
+        <div class="stat-sub">
+          <span>循环任务 2</span><span>已逾期 0</span><span>今日截止 3</span>
+        </div>
+      </div>
+
+      <nav class="chips">
+        <button class="chip on">全部<span class="cnt">7</span></button>
+        <button class="chip">工作<span class="cnt">3</span></button>
+        <button class="chip">生活<span class="cnt">3</span></button>
+        <button class="chip">阅读<span class="cnt">1</span></button>
+      </nav>
+
+      <div class="grp-card">
+        <div class="task" style="animation-delay:.02s">
+          <div class="cbox" onclick="event.stopPropagation(); toggleTask(this.closest('.task'))"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+          <div style="flex:1">
+            <p class="t-name">修复移动端键盘遮挡输入框的问题</p>
+            <div class="t-tags"><span class="mini m-work">工作</span><span class="mini m-due">今天 18:00</span></div>
+          </div>
+        </div>
+
+        <div class="task" style="animation-delay:.06s">
+          <div class="cbox" onclick="event.stopPropagation(); toggleTask(this.closest('.task'))"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+          <div style="flex:1">
+            <p class="t-name">整理九月的读书笔记</p>
+            <div class="t-tags"><span class="mini m-read">阅读</span><span class="mini m-due">今天</span></div>
+            <div class="subs">
+              <div class="sub-row done" onclick="event.stopPropagation(); this.classList.toggle('done')"><div class="cbox"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></div>读《卡片笔记写作法》第 4–6 章</div>
+              <div class="sub-row" onclick="event.stopPropagation(); this.classList.toggle('done')"><div class="cbox"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></div>摘录三条金句进永久卡</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="task done" style="animation-delay:.1s">
+          <div class="cbox" onclick="event.stopPropagation(); toggleTask(this.closest('.task'))"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+          <div style="flex:1">
+            <p class="t-name">给妈妈订生日蛋糕</p>
+            <div class="t-tags"><span class="mini m-life">生活</span><span class="mini m-done">已完成</span></div>
+          </div>
+        </div>
+
+        <div class="task done" style="animation-delay:.14s">
+          <div class="cbox" onclick="event.stopPropagation(); toggleTask(this.closest('.task'))"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+          <div style="flex:1">
+            <p class="t-name">晨跑 5 公里</p>
+            <div class="t-tags"><span class="mini m-life">生活</span><span class="mini m-done">今早 07:15</span></div>
+          </div>
+        </div>
+
+        <div class="task done" style="animation-delay:.18s">
+          <div class="cbox" onclick="event.stopPropagation(); toggleTask(this.closest('.task'))"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+          <div style="flex:1">
+            <p class="t-name">回复合作邮件</p>
+            <div class="t-tags"><span class="mini m-work">工作</span><span class="mini m-done">今早 09:30</span></div>
+          </div>
+        </div>
+
+        <div class="task" style="animation-delay:.22s">
+          <div class="cbox" onclick="event.stopPropagation(); toggleTask(this.closest('.task'))"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+          <div style="flex:1">
+            <p class="t-name">写周报</p>
+            <div class="t-tags"><span class="mini m-work">工作</span><span class="mini m-loop">循环 · 每周五</span></div>
+          </div>
+        </div>
+
+        <div class="task" style="animation-delay:.26s">
+          <div class="cbox" onclick="event.stopPropagation(); toggleTask(this.closest('.task'))"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></div>
+          <div style="flex:1">
+            <p class="t-name">预约牙医复诊</p>
+            <div class="t-tags"><span class="mini m-life">生活</span><span class="mini m-loop">计划 · 9月14日</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════ Dock ════════════ -->
+  <div class="dock-wrap">
+    <nav class="dock">
+      <button class="dtab on" data-scr="scr-home" onclick="go('scr-home', this)">
+        <span class="blob blob-1"></span>
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-6.5 8 6.5"/><path d="M6 10v9h12v-9"/><path d="M10 19v-5h4v5"/></svg>
+        <span>今天</span>
+      </button>
+      <button class="dtab" data-scr="scr-cards" onclick="go('scr-cards', this)">
+        <span class="blob blob-2"></span>
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3.5" width="12.5" height="17" rx="2.5"/><path d="M9.5 3.5v2.5M15 3.5v2.5M9.5 8.5h5.5M9.5 12h5.5M9.5 15.5h3"/></svg>
+        <span>卡片</span>
+      </button>
+      <div class="fab-zone" id="fab-zone">
+        <button class="fab" id="fab" onclick="toggleFabMenu()" aria-label="新建">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </button>
+        <div class="fab-menu">
+          <button class="fab-item" onclick="closeFabMenu(); openCapture('卡片')">
+            <span class="fl">新卡片</span>
+            <span class="fab-orb" style="background: var(--sky-bg);">🗂️</span>
+          </button>
+          <button class="fab-item" onclick="closeFabMenu(); openCapture('日记')">
+            <span class="fl">写日记</span>
+            <span class="fab-orb" style="background: var(--sage-bg);">📖</span>
+          </button>
+          <button class="fab-item" onclick="closeFabMenu(); openCapture('任务')">
+            <span class="fl">新任务</span>
+            <span class="fab-orb" style="background: var(--butter-bg);">✅</span>
+          </button>
+        </div>
+      </div>
+      <button class="dtab" data-scr="scr-diary" onclick="go('scr-diary', this)">
+        <span class="blob blob-3"></span>
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 4.5c-2.2-1-4.5-.8-6 .7-1.5-1.5-3.8-1.7-6-.7v13.5c2.2-1 4.5-.8 6 .7 1.5-1.5 3.8-1.7 6-.7"/><path d="M13.5 5.2v13.5"/></svg>
+        <span>日记</span>
+      </button>
+      <button class="dtab" data-scr="scr-me" onclick="go('scr-me', this)">
+        <span class="blob blob-4"></span>
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.2" r="3.7"/><path d="M5 19.5c1.2-3.3 3.9-5 7-5s5.8 1.7 7 5"/></svg>
+        <span>我的</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ════════════ Sheets ════════════ -->
+  <div class="mask" id="mask" onclick="closeSheets()"></div>
+
+  <section class="sheet" id="sheet-capture">
+    <div class="grab"></div>
+    <h2 id="cap-title">快速记录</h2>
+    <p class="hint" id="cap-hint">九月十日 · 21:36</p>
+    <textarea class="cap-input" id="cap-input" placeholder="想到什么写什么……&#10;&#10;支持 #标签，写完选一个类型。"></textarea>
+    <div class="cap-foot" id="cap-kind-row">
+      <button class="cap-chip k-temp on">闪念</button>
+      <button class="cap-chip k-perm">永久</button>
+      <button class="cap-chip k-theme">主题</button>
+      <button class="cap-chip k-lit">文献</button>
+      <button class="btn-save" onclick="saveCapture()">保存</button>
+    </div>
+  </section>
+
+  <section class="sheet" id="sheet-preview">
+    <div class="grab"></div>
+    <h2 id="pv-title">卡片</h2>
+    <p class="hint" id="pv-meta">今天 09:41 · 闪念</p>
+    <div class="pv-body" id="pv-body"></div>
+    <div class="pv-actions">
+      <button class="pv-btn">编辑</button>
+      <button class="pv-btn">类型</button>
+      <button class="pv-btn danger">删除</button>
+    </div>
+  </section>
+
+  <section class="sheet" id="sheet-themes">
+    <div class="grab"></div>
+    <h2>主题</h2>
+    <p class="hint">点击即时切换整套配色</p>
+    <div class="theme-grid">
+      <button class="theme-card on" data-t="apricot" onclick="setTheme('apricot', this)" style="background: var(--bg-deep);">
+        <span class="check-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <span class="pv" style="background: #fffdf9;">
+          <span class="bar b1" style="background: #e9e1d2;"></span>
+          <span class="bar b2" style="background: #f0c9b4;"></span>
+          <span class="orb" style="background: #d97757;"></span>
+        </span>
+        <span class="tn">杏子 <span class="td">默认</span></span>
+      </button>
+      <button class="theme-card" data-t="midnight" onclick="setTheme('midnight', this)" style="background: var(--bg-deep);">
+        <span class="check-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <span class="pv" style="background: #171a22;">
+          <span class="bar b1" style="background: #262b38;"></span>
+          <span class="bar b2" style="background: #3a3323;"></span>
+          <span class="orb" style="background: #f0a860;"></span>
+        </span>
+        <span class="tn">玄夜 <span class="td">深色</span></span>
+      </button>
+      <button class="theme-card" data-t="mint" onclick="setTheme('mint', this)" style="background: var(--bg-deep);">
+        <span class="check-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <span class="pv" style="background: #fbfefb;">
+          <span class="bar b1" style="background: #dfe9df;"></span>
+          <span class="bar b2" style="background: #bfe0cc;"></span>
+          <span class="orb" style="background: #4a9d78;"></span>
+        </span>
+        <span class="tn">薄荷 <span class="td">清新</span></span>
+      </button>
+      <button class="theme-card" data-t="ocean" onclick="setTheme('ocean', this)" style="background: var(--bg-deep);">
+        <span class="check-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <span class="pv" style="background: #fcfdff;">
+          <span class="bar b1" style="background: #dde5ef;"></span>
+          <span class="bar b2" style="background: #c3d5ec;"></span>
+          <span class="orb" style="background: #4d7fc4;"></span>
+        </span>
+        <span class="tn">海盐 <span class="td">沉静</span></span>
+      </button>
+    </div>
+  </section>
+
+  <section class="sheet" id="sheet-calendar">
+    <div class="grab"></div>
+    <h2>按日期查找</h2>
+    <p class="hint" id="cal-hint">绿色圆点表示当天有日记</p>
+    <div class="cal-grid" id="cal-grid"></div>
+  </section>
+
+  <div class="toast" id="toast"><span class="emoji">🌱</span><span id="toast-msg"></span></div>
+</div>
+
+<script>
+  /* ── 屏幕切换 ── */
+  function go(id, btn) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id));
+    if (btn) {
+      document.querySelectorAll('.dtab').forEach(t => t.classList.toggle('on', t === btn));
+    }
+    closeFabMenu();
+  }
+  function backFromTasks() {
+    go('scr-home', document.querySelector('[data-scr="scr-home"]'));
+  }
+
+  /* ── 任务状态联动（首页摘要 ↔ 任务中心） ── */
+  function countTasks() {
+    return {
+      done: document.querySelectorAll('#scr-tasks .task.done').length,
+      total: document.querySelectorAll('#scr-tasks .task').length
+    };
+  }
+  function syncTaskState() {
+    // 首页摘要勾选 → 同步到任务中心同名任务
+    const homeRows = document.querySelectorAll('#home-task-panel .hrow');
+    homeRows.forEach(row => {
+      const title = row.querySelector('.tt').textContent.trim();
+      const target = [...document.querySelectorAll('#scr-tasks .task')].find(t =>
+        t.querySelector('.t-name')?.textContent.trim() === title
+      );
+      if (target) target.classList.toggle('done', row.classList.contains('done'));
+    });
+    refreshTaskNumbers();
+  }
+  function toggleTask(el) {
+    el.classList.toggle('done');
+    // 反向同步首页摘要
+    const title = el.querySelector('.t-name').textContent.trim();
+    const homeRow = [...document.querySelectorAll('#home-task-panel .hrow')].find(r =>
+      r.querySelector('.tt').textContent.trim() === title
+    );
+    if (homeRow) homeRow.classList.toggle('done', el.classList.contains('done'));
+    refreshTaskNumbers();
+  }
+  function refreshTaskNumbers() {
+    const { done, total } = countTasks();
+    const pct = Math.round(done / total * 100);
+    document.getElementById('home-done').textContent = done;
+    document.getElementById('home-task-sub').textContent = `还剩 ${total - done} 项 · 最早 18:00 截止`;
+    document.getElementById('home-pbar').style.width = pct + '%';
+    document.getElementById('task-done-num').textContent = done;
+    document.getElementById('task-pbar').style.width = pct + '%';
+  }
+
+  /* ── 卡片分类过滤 ── */
+  document.querySelectorAll('#chips .chip').forEach(c => {
+    c.addEventListener('click', () => {
+      document.querySelectorAll('#chips .chip').forEach(x => x.classList.remove('on'));
+      c.classList.add('on');
+      const cat = c.dataset.cat;
+      document.querySelectorAll('#scr-cards .card').forEach(card => {
+        card.style.display = (cat === 'all' || card.dataset.cat === cat) ? '' : 'none';
+      });
+    });
+  });
+
+  /* ── FAB 弹出菜单 ── */
+  function toggleFabMenu() {
+    const zone = document.getElementById('fab-zone');
+    const open = zone.classList.toggle('open');
+    document.getElementById('fab').classList.toggle('open', open);
+    document.getElementById('fab-mask').classList.toggle('show', open);
+  }
+  function openFabMenu() {
+    const zone = document.getElementById('fab-zone');
+    if (!zone.classList.contains('open')) toggleFabMenu();
+  }
+  function closeFabMenu() {
+    document.getElementById('fab-zone').classList.remove('open');
+    document.getElementById('fab').classList.remove('open');
+    document.getElementById('fab-mask').classList.remove('show');
+  }
+
+  /* ── Sheet 通用 ── */
+  function openSheet(id) {
+    closeFabMenu();
+    document.getElementById('mask').classList.add('show');
+    document.getElementById('sheet-' + id).classList.add('show');
+  }
+  function closeSheets() {
+    document.getElementById('mask').classList.remove('show');
+    document.querySelectorAll('.sheet').forEach(s => s.classList.remove('show'));
+  }
+
+  /* ── 快速捕获（FAB 多类型） ── */
+  function openCapture(kind) {
+    document.getElementById('cap-title').textContent = kind === '日记' ? '写日记' : kind === '任务' ? '新任务' : '快速记录';
+    const kindRow = document.getElementById('cap-kind-row');
+    kindRow.style.display = kind === '卡片' ? 'flex' : 'none';
+    document.getElementById('cap-input').placeholder = kind === '日记'
+      ? '今天发生了什么……\n\n随手记，按片段保存。'
+      : kind === '任务'
+        ? '要做什么事？\n\n回车即保存。'
+        : '想到什么写什么……\n\n支持 #标签，写完选一个类型。';
+    openSheet('capture');
+  }
+  document.querySelectorAll('.cap-chip').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.cap-chip').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+    });
+  });
+  function saveCapture() {
+    closeSheets();
+    setTimeout(() => showToast('已保存'), 220);
+  }
+
+  /* ── 卡片预览 ── */
+  const CARDS = [
+    { t: '产品的护城河来自切换成本，而不是功能数量', m: '今天 09:41 · 闪念', b: [
+      '重读《软件业的艺术》时想到：用户留下的原因往往是「搬走太贵」，而非「这里最好」。',
+      '所以留存设计的重心应该是沉淀——让用户的数据、习惯与关系在网络里扎根。功能清单能赢下一个季度，赢不下三年。',
+      '反例是那些导出功能做得极好的产品：它们把「离开的成本」降到了零，只能靠持续变好来留住人。这其实是更健康的压力。'
+    ]},
+    { t: '「卡片盒的意义不在于收藏」', m: '今天 08:15 · 文献', b: [
+      '「卡片盒的意义不在于收藏，而在于强迫你用自己的话重写一遍。」',
+      '卢曼的 Zettelkasten 之所以九十年后依然有效，是因为它把「读过」和「理解」拆成了两个动作。抄录是前者的终点，重写才是后者的起点。',
+      '出处：《卡片笔记写作法》第 3 章，页 87。'
+    ]},
+    { t: '写作是思考的显影液', m: '昨天 21:07 · 永久', b: [
+      '脑子里以为想清楚的东西，落笔时才发现处处是窟窿。',
+      '卡片写作把「想」和「写」压进同一个动作：想法一旦不能被写成完整的句子，就说明它还没成形。',
+      '与其说我在记录想法，不如说我在用卡片冲洗想法。'
+    ]},
+    { t: '城市漫步：收集一座城市的肌理', m: '昨天 16:32 · 主题', b: [
+      '计划十月做一次「无目的行走」。',
+      '素材清单：老巷的门牌系统、菜市场的叫卖节奏、高架桥下的阴影地图。',
+      '方法上参考心理地理学的「漂移」（dérive）实践：由地形而非计划决定路线。'
+    ]},
+    { t: '为什么删除要比保存多按一次确认？', m: '昨天 11:20 · 闪念', b: [
+      'flomo 的删除有二次确认，保存没有。',
+      '这是不对称的摩擦设计：把摩擦放在不可逆的一侧，把顺畅留给希望用户多做的那件事。'
+    ]}
+  ];
+  function openPreview(i) {
+    const c = CARDS[i];
+    document.getElementById('pv-title').textContent = c.t;
+    document.getElementById('pv-meta').textContent = c.m;
+    document.getElementById('pv-body').innerHTML = c.b.map(p => `<p>${p}</p>`).join('');
+    openSheet('preview');
+  }
+
+  /* ── 主题系统 ── */
+  const THEME_NAMES = { apricot: '杏子', midnight: '玄夜', mint: '薄荷', ocean: '海盐' };
+  function setTheme(name, btn) {
+    document.getElementById('device').setAttribute('data-theme', name);
+    document.querySelectorAll('.theme-card').forEach(c => c.classList.toggle('on', c === btn));
+    document.getElementById('theme-name-val').firstChild.textContent = THEME_NAMES[name] + ' ';
+    showToast('已切换到「' + THEME_NAMES[name] + '」');
+  }
+
+  /* ── 日历 sheet ── */
+  const state = { year: 2026, month: 8 };
+  const hasEntry = new Set(['2026-09-01','2026-09-03','2026-09-05','2026-09-06','2026-09-07','2026-09-08','2026-09-09','2026-09-10']);
+  function renderCal() {
+    const grid = document.getElementById('cal-grid');
+    const first = new Date(state.year, state.month, 1);
+    const days = new Date(state.year, state.month + 1, 0).getDate();
+    const leading = (first.getDay() + 6) % 7;
+    const todayKey = '2026-09-10';
+    document.getElementById('cal-hint').textContent = `${state.year} 年 ${state.month + 1} 月 · 绿点表示有日记`;
+    let html = ['一','二','三','四','五','六','日'].map(w => `<div class="cw">${w}</div>`).join('');
+    for (let i = 0; i < leading; i++) html += '<div class="cd dim"></div>';
+    for (let d = 1; d <= days; d++) {
+      const key = `${state.year}-${String(state.month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const isToday = key === todayKey;
+      const dot = hasEntry.has(key) && !isToday ? '<span class="dot"></span>' : '';
+      html += `<div class="cd ${isToday ? 'today' : ''}" onclick="showToast('打开 ${state.month+1} 月 ${d} 日的日记')">${d}${dot}</div>`;
+    }
+    grid.innerHTML = html;
+  }
+  renderCal();
+
+  /* ── Toast ── */
+  let toastTimer;
+  function showToast(msg) {
+    document.getElementById('toast-msg').textContent = msg;
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
+  }
+
+  refreshTaskNumbers();
+</script>
+</body>
+</html>
