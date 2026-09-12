@@ -453,6 +453,8 @@ pub async fn sync_download_database(app: AppHandle) -> SyncActionResponse {
             AppError::new("SYNC_DOWNLOAD_FAILED", format!("替换数据库文件失败: {err}")),
         );
     }
+    // 替换后的文件与缓存连接指向不同内容，必须丢弃；同名库的名字比对无法感知
+    crate::database::invalidate_cached_connection();
     remove_wal_shm_files(&ctx.database_path);
 
     set_database_version(&mut ctx.setting, &ctx.database_name, remote_version);

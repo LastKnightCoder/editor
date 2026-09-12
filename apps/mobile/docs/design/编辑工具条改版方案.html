@@ -1,0 +1,799 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="apricot">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>移动端编辑工具条 · 改版方案对比</title>
+<style>
+  /* ════════════ 设计令牌（从 apps/mobile/src/styles.css 摘取，浅色杏子 / 深色玄夜） ════════════ */
+  :root, [data-theme="apricot"] {
+    --bg-page: #f6f1e7; --bg-surface: #fffdf9; --bg-elevated: #fffdf9; --bg-input: #f6f1e7;
+    --bg-press: rgba(246, 241, 231, 0.65);
+    --ink-1: #43392c; --ink-2: #8b7d6b; --ink-3: #b9ac9a;
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+    --brand: #d97757; --brand-strong: #e8896a; --brand-soft: rgba(217, 119, 87, 0.12);
+    --sage: #61795f; --sage-soft: #e5ede2; --sky: #5c7d99; --sky-soft: #e2ebf3;
+    --apricot: #b2794b; --apricot-soft: #f8e9d7; --lilac: #8a7aa6; --lilac-soft: #ebe6f3;
+    --butter: #a38c4d; --butter-soft: #f6efd6; --rose: #b06a5e; --rose-soft: #f6e3e0;
+    --mask: rgba(67, 57, 44, 0.4);
+    --shadow-float: 0 12px 32px -8px rgba(120, 100, 70, 0.35);
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.06), 0 8px 20px -12px rgba(120, 100, 70, 0.16);
+    --toast-bg: #43392c; --toast-fg: #fff8ef;
+    --kb-bg: #ece6da; --kb-key: #fdfbf6; --kb-key-text: #6b6156; --kb-key-special: #e0d8c8;
+    --ease-bounce: cubic-bezier(0.34, 1.56, 0.5, 1);
+  }
+  [data-theme="midnight"] {
+    --bg-page: #0e1016; --bg-surface: #171a22; --bg-elevated: #1d212b; --bg-input: rgba(255, 255, 255, 0.05);
+    --bg-press: rgba(255, 255, 255, 0.045);
+    --ink-1: #edeef1; --ink-2: #8e96a5; --ink-3: #5b6270;
+    --line-1: rgba(255, 255, 255, 0.07); --line-2: rgba(255, 255, 255, 0.05);
+    --brand: #f0a860; --brand-strong: #f5b877; --brand-soft: rgba(240, 168, 96, 0.13);
+    --sage: #7edbb2; --sage-soft: rgba(110, 231, 183, 0.12); --sky: #9db9f0; --sky-soft: rgba(147, 180, 255, 0.12);
+    --apricot: #f0b680; --apricot-soft: rgba(240, 168, 96, 0.13); --lilac: #c8b3f5; --lilac-soft: rgba(196, 167, 255, 0.12);
+    --butter: #e8d487; --butter-soft: rgba(240, 220, 130, 0.1); --rose: #f5988a; --rose-soft: rgba(255, 138, 120, 0.12);
+    --mask: rgba(0, 0, 0, 0.55);
+    --shadow-float: 0 18px 40px rgba(0, 0, 0, 0.55);
+    --shadow-card: 0 14px 30px -16px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --toast-bg: #1d222e; --toast-fg: #edeef1;
+    --kb-bg: #14161c; --kb-key: #262a34; --kb-key-text: #c8ccd6; --kb-key-special: #1b1e26;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    background: var(--bg-page); color: var(--ink-1); transition: background-color .25s, color .25s;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 28px 90px; }
+
+  /* ════════════ 页面骨架 ════════════ */
+  .page-head h1 { font-size: 27px; margin: 0 0 8px; letter-spacing: .5px; }
+  .page-head .sub { color: var(--ink-2); font-size: 14.5px; line-height: 1.9; margin: 0; max-width: 860px; }
+  .theme-toggle {
+    position: fixed; top: 18px; right: 22px; z-index: 99; border: 1px solid var(--line-1);
+    background: var(--bg-elevated); color: var(--ink-2); font-size: 13px; font-weight: 600;
+    padding: 8px 14px; border-radius: 100px; cursor: pointer; box-shadow: var(--shadow-card);
+  }
+  .block { margin-top: 64px; }
+  .block > h2 { font-size: 20px; margin: 0 0 6px; display: flex; align-items: baseline; gap: 10px; }
+  .block > h2 .tag { font-size: 11.5px; font-weight: 700; color: var(--brand); background: var(--brand-soft); padding: 3px 10px; border-radius: 100px; letter-spacing: .5px; }
+  .block .lead { color: var(--ink-2); font-size: 13.5px; line-height: 1.85; margin: 0 0 22px; max-width: 880px; }
+
+  .proposal { display: grid; grid-template-columns: 404px 1fr; gap: 40px; align-items: start; margin-top: 18px; }
+  @media (max-width: 960px) { .proposal { grid-template-columns: 1fr; } }
+
+  /* 方案说明卡 */
+  .notes { background: var(--bg-surface); border-radius: 20px; padding: 24px 26px; box-shadow: var(--shadow-card); }
+  .notes h3 { margin: 0 0 4px; font-size: 16.5px; }
+  .notes .verdict { font-size: 12px; font-weight: 700; letter-spacing: .3px; margin-bottom: 14px; }
+  .notes p { font-size: 13.5px; line-height: 1.9; color: var(--ink-1); margin: 10px 0; }
+  .notes ul { margin: 8px 0; padding-left: 0; list-style: none; font-size: 13px; line-height: 2; }
+  .notes ul li { padding-left: 20px; position: relative; }
+  .notes ul.pros li::before { content: "✓"; position: absolute; left: 0; color: var(--sage); font-weight: 800; }
+  .notes ul.cons li::before { content: "!"; position: absolute; left: 4px; color: var(--butter); font-weight: 800; }
+  .notes .meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+  .notes .meta span { font-size: 11.5px; font-weight: 600; color: var(--ink-2); background: var(--bg-input); border: 1px solid var(--line-1); padding: 4px 10px; border-radius: 8px; }
+  .notes .meta span.hi { color: var(--brand); background: var(--brand-soft); border-color: transparent; }
+  .stars { color: var(--brand); letter-spacing: 2px; font-size: 13px; }
+  .stars .off { color: var(--line-1); }
+  .try { font-size: 12px; color: var(--ink-3); border-top: 1px dashed var(--line-1); margin-top: 16px; padding-top: 12px; line-height: 1.9; }
+  .try b { color: var(--ink-2); }
+
+  /* 共同改动小卡 */
+  .common-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 860px) { .common-grid { grid-template-columns: 1fr; } }
+  .common-card { background: var(--bg-surface); border-radius: 18px; padding: 20px 22px; box-shadow: var(--shadow-card); }
+  .common-card h4 { margin: 0 0 8px; font-size: 14.5px; display: flex; gap: 8px; align-items: center; }
+  .common-card h4 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); flex-shrink: 0; }
+  .common-card p { margin: 0; font-size: 12.5px; line-height: 1.9; color: var(--ink-2); }
+  .common-card p code { background: var(--bg-input); border-radius: 5px; padding: 1px 6px; font-size: 11px; color: var(--ink-1); }
+
+  /* 对比表 */
+  table.compare { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--bg-surface); border-radius: 18px; overflow: hidden; box-shadow: var(--shadow-card); font-size: 13px; }
+  table.compare th, table.compare td { padding: 12px 14px; text-align: left; line-height: 1.6; border-bottom: 1px solid var(--line-1); }
+  table.compare th { font-size: 12px; color: var(--ink-2); background: var(--bg-input); }
+  table.compare tr:last-child td { border-bottom: none; }
+  table.compare td:first-child { font-weight: 700; white-space: nowrap; }
+  .recommend { margin-top: 22px; background: var(--brand-soft); border-radius: 18px; padding: 22px 26px; }
+  .recommend h3 { margin: 0 0 8px; font-size: 16px; color: var(--brand); }
+  .recommend p { margin: 0; font-size: 13.5px; line-height: 2; color: var(--ink-1); }
+
+  /* ════════════ 手机壳 ════════════ */
+  .phone {
+    position: relative; width: 404px; height: 800px; border-radius: 46px; background: var(--bg-page);
+    border: 10px solid #1c1a17; box-shadow: 0 30px 60px -18px rgba(0,0,0,.45), var(--shadow-float);
+    overflow: hidden; flex-shrink: 0; margin: 0 auto; user-select: none;
+  }
+  .statusbar { position: absolute; top: 0; left: 0; right: 0; height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 10px 24px 0; font-size: 12px; font-weight: 700; color: var(--ink-1); z-index: 3; }
+  .statusbar .right { display: flex; gap: 5px; align-items: center; font-size: 10.5px; }
+  .batt { width: 20px; height: 10px; border: 1.4px solid var(--ink-2); border-radius: 3px; position: relative; }
+  .batt::after { content: ""; position: absolute; inset: 1.5px; right: 5px; background: var(--ink-1); border-radius: 1px; }
+  .batt::before { content: ""; position: absolute; right: -4px; top: 2.6px; width: 2px; height: 4px; background: var(--ink-2); border-radius: 0 1px 1px 0; }
+
+  .appbar { position: absolute; top: 34px; left: 0; right: 0; height: 46px; display: flex; align-items: center; gap: 6px; padding: 0 14px; font-size: 13.5px; color: var(--ink-2); z-index: 3; }
+  .appbar b { color: var(--ink-1); font-size: 14.5px; flex: 1; text-align: center; font-weight: 650; }
+  .appbar .ic { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 10px; }
+  .appbar .ic:active { background: var(--bg-press); }
+
+  .editor { position: absolute; top: 80px; left: 0; right: 0; bottom: 322px; overflow-y: auto; padding: 6px 22px 30px; scrollbar-width: none; }
+  .editor::-webkit-scrollbar { display: none; }
+  .editor .doc-title { font-size: 23px; font-weight: 800; letter-spacing: .3px; margin: 8px 0 14px; transition: font-size .2s; line-height: 1.35; }
+  .editor p.body { font-size: 15.5px; line-height: 1.9; color: var(--ink-1); margin: 0 0 14px; }
+  .editor p.body.dim { color: var(--ink-2); }
+  .editor blockquote { margin: 0 0 14px; padding: 10px 14px; border-left: 3px solid var(--brand); background: var(--brand-soft); border-radius: 4px 12px 12px 4px; font-size: 14.5px; line-height: 1.8; color: var(--ink-1); }
+  .caret { display: inline-block; width: 2px; height: 19px; background: var(--brand); vertical-align: -4px; margin-left: 1px; animation: blink 1.1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .inserted-block { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; padding: 13px 14px; border: 1.5px dashed var(--brand); background: var(--brand-soft); border-radius: 14px; font-size: 13px; font-weight: 600; color: var(--ink-1); animation: pop-in .4s var(--ease-bounce); }
+  @keyframes pop-in { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
+  .inserted-block .badge { margin-left: auto; font-size: 10.5px; font-weight: 700; color: var(--brand); background: var(--bg-elevated); padding: 2px 8px; border-radius: 100px; }
+
+  /* ════════════ 模拟键盘 ════════════ */
+  .keyboard { position: absolute; left: 0; right: 0; bottom: 0; height: 302px; background: var(--kb-bg); padding: 10px 6px 20px; z-index: 1; transition: transform .35s var(--ease-bounce), opacity .3s; }
+  .keyboard.hidden { transform: translateY(105%); opacity: 0; }
+  .kb-row { display: flex; justify-content: center; gap: 5px; margin-bottom: 8px; }
+  .kb-key { width: 31px; height: 38px; border-radius: 5px; background: var(--kb-key); color: var(--kb-key-text); font-size: 12px; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 0 rgba(0,0,0,.08); }
+  .kb-key.w42 { width: 42px; } .kb-key.w46 { width: 46px; } .kb-key.w50 { width: 50px; } .kb-key.w168 { width: 168px; }
+  .kb-key.fn { background: var(--kb-key-special); }
+
+  /* ════════════ 工具条（还原 MobileEditorBottomToolbar 的胶囊样式） ════════════ */
+  .toolbar {
+    position: absolute; left: 50%; transform: translateX(-50%); bottom: 314px; /* 键盘302 + 12 */
+    z-index: 5; max-width: calc(100% - 24px);
+  }
+  .toolbar-pill { position: relative; display: flex; max-width: 100%; align-items: center; overflow: hidden; border-radius: 15px; border: 1px solid var(--line-1); background: color-mix(in srgb, var(--bg-elevated) 98%, transparent); box-shadow: var(--shadow-float); }
+  .toolbar-scroll { display: flex; align-items: center; gap: 2px; overflow-x: auto; padding: 5px; scrollbar-width: none; scroll-behavior: smooth; }
+  .toolbar-scroll::-webkit-scrollbar { display: none; }
+  .toolbar-scroll.paged { overflow-x: hidden; }
+  .page-strip { display: flex; width: 100%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+  .page-strip::-webkit-scrollbar { display: none; }
+  .page-strip .t-page { display: flex; align-items: center; gap: 2px; min-width: 100%; scroll-snap-align: start; padding: 5px; }
+  .tb-group { display: flex; flex-shrink: 0; align-items: center; gap: 2px; }
+  .tb-sep { margin: 0 4px; height: 20px; width: 1px; flex-shrink: 0; background: var(--line-1); }
+  .tb-btn {
+    display: flex; height: 36px; width: 36px; flex-shrink: 0; align-items: center; justify-content: center;
+    border: none; background: none; border-radius: 10px; color: var(--ink-2); cursor: pointer; transition: background-color .12s, color .12s;
+    font-family: inherit;
+  }
+  .tb-btn:active, .tb-btn.pressed { background: var(--bg-press); }
+  .tb-btn.on { background: var(--brand); color: #fff; }
+  .tb-btn.dock { position: relative; }
+  .tb-txt { font-weight: 800; }
+  .fade-right { position: absolute; inset: 0 0 0 auto; width: 24px; border-radius: 0 15px 15px 0; pointer-events: none; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--bg-elevated) 98%, transparent) 65%); }
+
+  /* 第二行（方案 C） */
+  .toolbar.expandable { transition: transform .3s var(--ease-bounce); }
+  .second-row { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .3s var(--ease-bounce); }
+  .second-row.open { grid-template-rows: 1fr; }
+  .second-row > div { overflow: hidden; }
+  .second-row .inner { display: flex; align-items: center; gap: 2px; padding: 0 5px 5px; }
+  .second-row.open .inner { padding-top: 2px; }
+  .second-sep { height: 1px; margin: 2px 8px; background: var(--line-1); }
+
+  /* 页点（方案 D） */
+  .page-dots { display: flex; justify-content: center; gap: 4px; padding: 2px 0 3px; }
+  .page-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--line-1); transition: width .2s, background-color .2s; }
+  .page-dots i.cur { width: 14px; border-radius: 3px; background: var(--brand); }
+
+  /* ════════════ 顶部弹条（H 标题选择 / 更多菜单，还原现有 portal 弹条） ════════════ */
+  .pop {
+    position: absolute; display: flex; align-items: center; gap: 4px; z-index: 8;
+    background: color-mix(in srgb, var(--bg-elevated) 98%, transparent); border: 1px solid var(--line-1);
+    border-radius: 14px; padding: 4px; box-shadow: var(--shadow-float);
+    animation: pop-drop .18s var(--ease-bounce);
+  }
+  @keyframes pop-drop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .pop .tb-btn { height: 36px; min-width: 36px; padding: 0 6px; width: auto; }
+  .heading-demo { font-weight: 800; }
+  .h-plain { font-size: 13px; font-weight: 500; }
+  .pop-label { font-size: 11px; color: var(--ink-3); padding: 0 6px 0 8px; }
+
+  /* ════════════ 底部 ActionSheet（方案 B，还原现有组件样式） ════════════ */
+  .sheet-layer { position: absolute; inset: 0; z-index: 20; display: none; }
+  .sheet-layer.show { display: block; }
+  .sheet-mask { position: absolute; inset: 0; background: var(--mask); animation: fade-in .3s ease-out; }
+  @keyframes fade-in { from { opacity: 0; } }
+  .sheet-panel {
+    position: absolute; left: 0; right: 0; bottom: 0; background: var(--bg-page);
+    border-radius: 26px 26px 0 0; padding: 0 14px 18px;
+    animation: sheet-up .38s var(--ease-bounce);
+  }
+  @keyframes sheet-up { from { transform: translateY(100%); } }
+  .sheet-panel.closing { animation: sheet-down .25s ease-in forwards; }
+  @keyframes sheet-down { to { transform: translateY(100%); } }
+  .sheet-grab { width: 42px; height: 5px; border-radius: 3px; background: var(--line-1); margin: 8px auto 4px; }
+  .sheet-title { padding: 8px 2px 12px; text-align: center; font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+  .list-group { background: var(--bg-surface); border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-card); margin-bottom: 10px; }
+  .list-item { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 16px; border: none; background: none; font-size: 15px; font-weight: 500; color: var(--ink-1); cursor: pointer; text-align: left; transition: background-color .15s; font-family: inherit; }
+  .list-item:active { background: var(--bg-press); }
+  .list-item + .list-item { border-top: 1px solid var(--line-1); }
+  .list-item.cancel { justify-content: center; font-weight: 700; color: var(--ink-2); padding: 12px; }
+  .tone-sage { color: var(--sage); } .tone-sky { color: var(--sky); } .tone-apricot { color: var(--apricot); }
+  .tone-lilac { color: var(--lilac); } .tone-butter { color: var(--butter); } .tone-rose { color: var(--rose); }
+
+  /* ════════════ Toast ════════════ */
+  .toast {
+    position: absolute; top: 96px; left: 50%; transform: translateX(-50%); z-index: 30;
+    background: var(--toast-bg); color: var(--toast-fg); font-size: 13px; font-weight: 550;
+    padding: 11px 22px; border-radius: 100px; box-shadow: 0 14px 30px rgba(0,0,0,.22);
+    opacity: 0; pointer-events: none; transition: opacity .25s var(--ease-bounce), transform .25s var(--ease-bounce);
+    white-space: nowrap; max-width: 92%;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle">切换玄夜主题 🌙</button>
+
+<div class="wrap">
+  <header class="page-head" style="padding-top: 26px;">
+    <h1>移动端编辑工具条 · 改版方案对比</h1>
+    <p class="sub">
+      背景：编辑器（Slate 富文本）的底部工具条目前是「撤销/重做 + 4 组格式按钮 + ⋯ 更多」的单行横向滚动胶囊，
+      <b>H1 / H2 各占一格</b>，且<b>没有图片入口</b>——选图在移动端被 <code style="background:var(--bg-input);padding:1px 6px;border-radius:5px;font-size:12px;">editorRegistry.tsx</code> 显式拒绝。
+      要加图片、还要容纳更多新操作，单行空间已经不够。下面先复刻现状作对照，再给出 4 个可交互的改版方案，
+      <b>每个手机里的按钮都能点</b>，敲定方向后再写代码。
+    </p>
+  </header>
+
+  <!-- ════════ 方案 0 · 现状复刻 ════════ -->
+  <section class="block">
+    <h2>方案 0 · 现状复刻<span class="tag">对照组</span></h2>
+    <p class="lead">以下 4 个方案都包含两项共同改动，先在这里说明，后文不再重复。</p>
+    <div class="proposal">
+      <div class="phone" id="demo-status"></div>
+      <div class="notes">
+        <h3>当前布局的问题</h3>
+        <ul class="cons">
+          <li>H1、H2 各占一个独立按钮，占了 2 格却没有 H3（编辑器本身支持 1–6 级）</li>
+          <li>没有图片 / 媒体入口，粘贴之外无法插图</li>
+          <li>14 个操作平铺一行，高频低频混排，靠横向滚动找按钮</li>
+          <li>「⋯ 更多」弹条已塞 5 项，继续加会越来越长</li>
+        </ul>
+        <p style="margin-top:14px;"><b>四个方案共同的基础改动</b>（无论选哪个都包含）：</p>
+        <div class="common-grid" style="grid-template-columns:1fr; margin-top:6px;">
+          <div class="common-card">
+            <h4><span class="dot"></span>标题收纳：H1/H2 → 单个「H」按钮</h4>
+            <p>点击弹出横条选择 <code>正文 / H1 / H2 / H3</code>，弹条内用真实字号做层级预览，当前级别高亮。腾出 1 格给图片。<code>toggleHeaderBlock</code> 扩展 level 3。</p>
+          </div>
+          <div class="common-card">
+            <h4><span class="dot"></span>图片入口</h4>
+            <p>上传链路 <code>IResourceService.upload</code>（tauri uploadResource）已可用；缺的是选图入口——需接 tauri 照片选择器或 WebView <code>&lt;input type="file"&gt;</code> 兜底，替换被拒绝的 <code>IFileService.select</code>。</p>
+          </div>
+          <div class="common-card">
+            <h4><span class="dot"></span>新操作的去处（各方案差异点）</h4>
+            <p>候选：拍照、视频、音频、表格、代码块、任务列表、日期、批注、关联内容……放哪里、怎么弹，就是下面 4 个方案要对比的核心。</p>
+          </div>
+        </div>
+        <p class="try"><b>试一试：</b>H1/H2 可点击切换激活态；「⋯」可弹出更多菜单（现状交互）。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ 方案 A ════════ -->
+  <section class="block" id="p-a">
+    <h2>方案 A · 收纳弹条<span class="tag">最小改动</span></h2>
+    <p class="lead">保持现有「单行滚动 + 顶部弹条」的全部模式不变：H1/H2 收成「H」弹出，图片一步直达，新操作继续进「⋯」弹条（弹条可横向滚动变长）。</p>
+    <div class="proposal">
+      <div class="phone" id="demo-a"></div>
+      <div class="notes">
+        <h3>A · 收纳弹条</h3>
+        <div class="verdict stars">改动成本 ★☆☆☆☆　·　扩展性 ★★☆☆☆</div>
+        <p><b>思路：</b>不引入任何新交互模式。主行净变化 = 「-H1 -H2 +H +图片」长度不变；所有长尾操作（现有的样式文本/代码/快捷键/批注/关联内容 + 未来的表格/日期…）都堆进「⋯」弹条，弹条横向滚动。</p>
+        <ul class="pros">
+          <li>实现最小：弹条完全复用「更多菜单」的 portal + calculateFloatingPosition 模式</li>
+          <li>图片高频操作一步直达，不弹任何面板</li>
+          <li>用户心智零变化，无学习成本</li>
+        </ul>
+        <ul class="cons">
+          <li>「⋯」弹条会越长越长，10+ 项后回到「挤一行」的老问题</li>
+          <li>低频操作两层深（⋯ → 目标），发现性一般</li>
+          <li>没有给「插入类」操作建立独立心智，将来还得再改</li>
+        </ul>
+        <div class="meta"><span class="hi">改动小</span><span>涉及 MobileEditorBottomToolbar.tsx / toolbarActions.ts</span><span>无新组件</span></div>
+        <p class="try"><b>试一试：</b>点「H」→ 弹出 正文/H1/H2/H3（会真实改变文章标题字号）；点「图片」→ 光标处插图 + toast；点「⋯」→ 弹出加长版更多菜单。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ 方案 B ════════ -->
+  <section class="block" id="p-b">
+    <h2>方案 B · 插入面板 +<span class="tag">推荐</span></h2>
+    <p class="lead">新增一个「+」按钮打开底部 ActionSheet（项目现成组件，六色语义图标），所有「插入类」操作收口进面板；图片因为高频，在主行保留直达按钮。</p>
+    <div class="proposal">
+      <div class="phone" id="demo-b"></div>
+      <div class="notes">
+        <h3>B · 插入面板 +（图片直达变体）</h3>
+        <div class="verdict stars">改动成本 ★★★☆☆　·　扩展性 ★★★★★</div>
+        <p><b>思路：</b>把「格式」和「插入」两类操作分开——格式留在主行，插入（图片/拍照/视频/音频/表格/代码块/任务/日期/批注/关联内容…）全部进「+」面板。面板直接复用 <code>ActionSheet</code>，只是传一组 items 配置，零新 UI 组件。打开面板时键盘收起让位（demo 已模拟），选择后键盘回弹。</p>
+        <ul class="pros">
+          <li>容量近乎无限：加多少操作都只是一行配置，主行永远不膨胀</li>
+          <li>「+」= 插入的心智非常清晰，和 Notion / Bear 等编辑器一致</li>
+          <li>ActionSheet 自带返回手势拦截、下拉关闭、退场缓冲，工程上零成本</li>
+          <li>图片保留主行直达，高频操作不被面板拖慢</li>
+          <li>「⋯ 更多」被「+」吸收合并，主行反而少一格</li>
+        </ul>
+        <ul class="cons">
+          <li>除图片外的插入操作需要两步（+ → 目标）</li>
+          <li>面板打开时键盘收起，节奏被打断一次（选择后自动回弹）</li>
+          <li>插入项多了要分组（demo 已按 媒体/结构 分两卡）</li>
+        </ul>
+        <div class="meta"><span class="hi">扩展性最强</span><span>复用 ActionSheet</span><span>涉及 editorRegistry 选图链路</span></div>
+        <p class="try"><b>试一试：</b>点「图片」→ 直达插图；点「+」→ 键盘收起、面板弹出 → 选任意项 → 光标处插入对应块、键盘回弹。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ 方案 C ════════ -->
+  <section class="block" id="p-c">
+    <h2>方案 C · 双行展开<span class="tag">全可见</span></h2>
+    <p class="lead">工具条尾部加「⌃」展开钮，向上展开第二行平铺所有插入操作；所有操作单次点击可见可达，代价是工具条高度翻倍。</p>
+    <div class="proposal">
+      <div class="phone" id="demo-c"></div>
+      <div class="notes">
+        <h3>C · 双行展开</h3>
+        <div class="verdict stars">改动成本 ★★★☆☆　·　扩展性 ★★★☆☆</div>
+        <p><b>思路：</b>主行保持格式操作，尾部「⌃」切换第二行（图片/拍照/视频/音频/表格/代码块/任务/日期 平铺一行）。展开是临时态，收起恢复单行。占位高度变量 <code>--mobile-editor-toolbar-occlusion</code> 读的是实测 offsetHeight，天然兼容变高。</p>
+        <ul class="pros">
+          <li>所有插入操作一眼可见、单次点击直达</li>
+          <li>不离开键盘上下文，不打断输入节奏（面板 B 会收键盘）</li>
+          <li>第二行数量适中时（≤10）体验很好</li>
+        </ul>
+        <ul class="cons">
+          <li>展开后工具条 ≈ 92px，键盘 + 工具条最多占到屏幕 55%，小屏设备遮挡明显</li>
+          <li>顶部弹条（H、调色板）要重新处理与第二行的层叠关系</li>
+          <li>第二行也塞不下太多，超过 10 个又回到滚动/分页问题</li>
+        </ul>
+        <div class="meta"><span>高度翻倍</span><span>展开为临时态</span><span>需处理弹条层叠</span></div>
+        <p class="try"><b>试一试：</b>点尾部「⌃」→ 第二行滑出、按钮翻转 → 点「图片」等任一按钮直接插图；再点「⌄」收起。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ 方案 D ════════ -->
+  <section class="block" id="p-d">
+    <h2>方案 D · 分页工具条<span class="tag">iOS 键盘风</span></h2>
+    <p class="lead">单行高度不变，内容横向分成两页（格式页 / 插入页），scroll-snap 滑动切换 + 页点指示——iOS 原生键盘切表情/输入法的模式。</p>
+    <div class="proposal">
+      <div class="phone" id="demo-d"></div>
+      <div class="notes">
+        <h3>D · 分页工具条</h3>
+        <div class="verdict stars">改动成本 ★★★★☆　·　扩展性 ★★★☆☆</div>
+        <p><b>思路：</b>第 1 页 = 高频格式（B/I/S/H/列表/引用/下划线/链接/颜色/高亮 + 撤销重做），第 2 页 = 插入与低频（图片/拍照/媒体/表格/代码块/任务/日期/批注/关联…）。页点在胶囊内底部，滑动或点页点切换。</p>
+        <ul class="pros">
+          <li>行高不变，视觉最克制，每页都不拥挤</li>
+          <li>格式 / 插入两页分区清晰</li>
+          <li>去掉「横向滚动无尽找按钮」的模糊感，改成分页的确定感</li>
+        </ul>
+        <ul class="cons">
+          <li>第二页操作「藏」起来了，不滑动根本不知道存在——发现性最差</li>
+          <li>跨页组合操作（先加粗再插图）要来回滑</li>
+          <li>与现有横向滚动心智冲突，交互回归测试量最大</li>
+          <li>页点占据约 10px 高度，按钮区实际变矮</li>
+        </ul>
+        <div class="meta"><span>发现性弱</span><span>交互改动最大</span><span>需两套页配置维护</span></div>
+        <p class="try"><b>试一试：</b>左右滑动工具条或点页点切页；第 2 页点「图片」→ 光标处插图。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ 对比与推荐 ════════ -->
+  <section class="block">
+    <h2>横向对比<span class="tag">决策</span></h2>
+    <table class="compare">
+      <thead><tr><th>方案</th><th>主行长度</th><th>新操作容量</th><th>图片直达</th><th>其他插入操作</th><th>工具条高度</th><th>实现成本</th></tr></thead>
+      <tbody>
+        <tr><td>A · 收纳弹条</td><td>不变（14）</td><td>低（弹条滚动会变长）</td><td>✓ 一步</td><td>两步（⋯ → 目标）</td><td>不变</td><td>小</td></tr>
+        <tr><td>B · 插入面板 +</td><td>减 1（13）</td><td>近乎无限</td><td>✓ 一步</td><td>两步（+ → 面板）</td><td>不变</td><td>中（含选图链路）</td></tr>
+        <tr><td>C · 双行展开</td><td>+1（15）</td><td>中（第二行 ≤10）</td><td>✓ 一步</td><td>展开后一步</td><td>展开时 ×2</td><td>中</td></tr>
+        <tr><td>D · 分页工具条</td><td>每页 ≤14</td><td>中（两页各 ≤14）</td><td>✓ 一步（第 2 页）</td><td>切页后一步</td><td>不变（页点 -10px）</td><td>大（交互回归）</td></tr>
+      </tbody>
+    </table>
+    <div class="recommend">
+      <h3>推荐：方案 B（插入面板 +，图片直达变体）</h3>
+      <p>
+        你的核心诉求是「还想加更多操作」——这是容量问题，A 治标、C/D 容量有上限，只有 B 把容量问题一次性解决：
+        插入项以后随便加（表格、日期、Callout、画板……），主行永远只有 13 个按钮。
+        图片作为最高频的操作保留直达按钮，不牺牲常用路径；面板复用现成 ActionSheet，唯一真正的工程量在选图链路（tauri 照片选择器）——这部分四个方案都躲不掉。
+        如果想更省，A 可以作为 B 的第一阶段先落地（先把 H 收纳 + 图片直达发出去，+ 面板二期再加），两者不冲突。
+      </p>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ══════════════════════════ lucide 图标（从项目 lucide-react v0.468 提取） ══════════════════════════ */
+const ICONS = {
+  "undo2": '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>',
+  "redo2": '<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13"/>',
+  "bold": '<path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"/>',
+  "italic": '<line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/><line x1="15" x2="9" y1="4" y2="20"/>',
+  "strike": '<path d="M16 4H9a3 3 0 0 0-2.83 4"/><path d="M14 12a4 4 0 0 1 0 8H6"/><line x1="4" x2="20" y1="12" y2="12"/>',
+  "list": '<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>',
+  "listOrdered": '<path d="M10 12h11"/><path d="M10 18h11"/><path d="M10 6h11"/><path d="M4 10h2"/><path d="M4 6h1v4"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>',
+  "quote": '<path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/>',
+  "minus": '<path d="M5 12h14"/>',
+  "underline": '<path d="M6 4v6a6 6 0 0 0 12 0V4"/><line x1="4" x2="20" y1="20" y2="20"/>',
+  "link2": '<path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 1 1 0 10h-2"/><line x1="8" x2="16" y1="12" y2="12"/>',
+  "baseline": '<path d="M4 20h16"/><path d="m6 16 6-12 6 12"/><path d="M8 12h8"/>',
+  "highlighter": '<path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/>',
+  "ellipsis": '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  "image": '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  "imagePlus": '<path d="M16 5h6"/><path d="M19 2v6"/><path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/><circle cx="9" cy="9" r="2"/>',
+  "heading": '<path d="M6 12h12"/><path d="M6 20V4"/><path d="M18 20V4"/>',
+  "chevronUp": '<path d="m18 15-6-6-6 6"/>',
+  "chevronDown": '<path d="m6 9 6 6 6-6"/>',
+  "plus": '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  "table": '<path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/>',
+  "squareCode": '<path d="M10 9.5 8 12l2 2.5"/><path d="m14 9.5 2 2.5-2 2.5"/><rect width="18" height="18" x="3" y="3" rx="2"/>',
+  "keyboard": '<path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/>',
+  "comment": '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/>',
+  "fileText": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  "calendar": '<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  "task": '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 12 2 2 4-4"/>',
+  "camera": '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
+  "video": '<path d="m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+  "music": '<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>',
+  "pencil": '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>',
+  "audioLines": '<path d="M2 10v3"/><path d="M6 6v11"/><path d="M10 3v18"/><path d="M14 8v7"/><path d="M18 5v13"/><path d="M22 10v3"/>',
+  "back": '<path d="m15 18-6-6 6-6"/>',
+};
+function icon(name, size = 16, sw = 2.5) {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]}</svg>`;
+}
+
+/* ══════════════════════════ 手机骨架 ══════════════════════════ */
+const EDITOR_HTML = `
+  <div class="doc-title">九月第二周 · 周报</div>
+  <p class="body">本周完成了编辑器工具条的调研与改版设计。核心矛盾是：单行工具条已经放了 14 个操作，还要加图片和更多新功能，空间不够。</p>
+  <blockquote>空间不够的不是工具条，是信息架构。</blockquote>
+  <p class="body dim">下面这段文字的末尾模拟了光标位置，点击工具条里的插入类按钮，会在这里真实插入一个块：<span class="caret"></span></p>`;
+
+const KB_ROWS = [
+  ["q","w","e","r","t","y","u","i","o","p"],
+  ["a","s","d","f","g","h","j","k","l"],
+  ["⇧","z","x","c","v","b","n","m","⌫"],
+  ["123","空格","return"],
+];
+
+function buildPhone(el) {
+  el.innerHTML = `
+    <div class="statusbar"><span>9:41</span><span class="right"><span>▮▮▯</span><span>ᯤ</span><span class="batt"></span></span></div>
+    <div class="appbar">
+      <span class="ic">${icon("back", 18, 2.4)}</span>
+      <b>周报 · 编辑</b>
+      <span class="ic">${icon("ellipsis", 16, 2.5)}</span>
+    </div>
+    <div class="editor">${EDITOR_HTML}</div>
+    <div class="keyboard">${KB_ROWS.map((row, i) => `
+      <div class="kb-row">${row.map(k => {
+        const cls = ["⇧","⌫","123","return"].includes(k) ? "fn " : "";
+        const w = k === "⇧" || k === "⌫" ? "w42" : k === "123" ? "w46" : k === "return" ? "w50" : k === "空格" ? "w168" : "";
+        return `<span class="kb-key ${cls}${w}">${k === "空格" ? "" : k}</span>`;
+      }).join("")}</div>`).join("")}
+    </div>
+    <div class="toolbar"></div>
+    <div class="sheet-layer"></div>
+    <div class="toast"></div>`;
+  return {
+    root: el,
+    editor: el.querySelector(".editor"),
+    toolbar: el.querySelector(".toolbar"),
+    sheetLayer: el.querySelector(".sheet-layer"),
+    toastEl: el.querySelector(".toast"),
+    keyboard: el.querySelector(".keyboard"),
+    caretHost: el.querySelector(".caret").parentElement,
+  };
+}
+
+/* ══════════════════════════ 通用行为 ══════════════════════════ */
+let toastTimer = null;
+function toast(phone, text) {
+  clearTimeout(toastTimer);
+  phone.toastEl.textContent = text;
+  phone.toastEl.classList.add("show");
+  toastTimer = setTimeout(() => phone.toastEl.classList.remove("show"), 2100);
+}
+
+const INSERT_KINDS = {
+  image: { icon: "image", label: "图片" }, camera: { icon: "camera", label: "照片(拍照)" },
+  video: { icon: "video", label: "视频" }, music: { icon: "audioLines", label: "音频" },
+  table: { icon: "table", label: "表格" }, code: { icon: "squareCode", label: "代码块" },
+  task: { icon: "task", label: "任务列表" }, date: { icon: "calendar", label: "日期" },
+  divider: { icon: "minus", label: "分割线" }, comment: { icon: "comment", label: "批注" },
+  contentLink: { icon: "fileText", label: "关联内容" }, styled: { icon: "pencil", label: "样式文本" },
+  kbd: { icon: "keyboard", label: "快捷键" },
+};
+function insertBlock(phone, kind, silent) {
+  const meta = INSERT_KINDS[kind];
+  const block = document.createElement("div");
+  block.className = "inserted-block";
+  block.innerHTML = `${icon(meta.icon, 17, 2.4)}<span>已插入${meta.label}（演示）</span><span class="badge">DEMO</span>`;
+  const caret = phone.editor.querySelector(".caret");
+  const para = caret.parentElement;
+  const after = document.createElement("p");
+  after.className = "body dim";
+  after.appendChild(caret);
+  para.after(block, after);
+  if (!silent) toast(phone, `已插入${meta.label}`);
+}
+
+/* 顶部弹条（H 选择 / 更多菜单），锚定触发按钮上方 */
+function openPop(phone, anchorBtn, html, width) {
+  closePop(phone);
+  const pill = phone.toolbar.querySelector(".toolbar-pill");
+  const pop = document.createElement("div");
+  pop.className = "pop";
+  if (width) pop.style.width = width;
+  pop.innerHTML = html;
+  phone.toolbar.appendChild(pop);
+  const aRect = anchorBtn.getBoundingClientRect();
+  const pRect = pill.getBoundingClientRect();
+  const phoneRect = phone.root.getBoundingClientRect();
+  let left = aRect.left + aRect.width / 2 - phoneRect.left - pop.offsetWidth / 2;
+  left = Math.max(8, Math.min(left, phoneRect.width - pop.offsetWidth - 8));
+  pop.style.left = left + "px";
+  const bottomGap = phoneRect.height - pRect.top + phone.root.getBoundingClientRect().height * 0; // pill 相对 phone
+  pop.style.bottom = (phoneRect.height - pRect.top + 8) + "px";
+  phone._pop = pop;
+  phone._popAnchor = anchorBtn;
+  anchorBtn.classList.add("on");
+  setTimeout(() => {
+    document.addEventListener("pointerdown", phone._popOutside = (e) => {
+      if (pop.contains(e.target) || anchorBtn.contains(e.target)) return;
+      closePop(phone);
+    });
+  }, 0);
+  return pop;
+}
+function closePop(phone) {
+  if (phone._pop) {
+    phone._pop.remove();
+    if (phone._popAnchor) phone._popAnchor.classList.remove("on");
+    phone._pop = null;
+    document.removeEventListener("pointerdown", phone._popOutside);
+  }
+}
+
+/* H 标题选择弹条 */
+function openHeadingPop(phone, anchorBtn) {
+  const levels = [
+    { id: "plain", label: "正文", cls: "h-plain", size: 15 },
+    { id: "h1", label: "H1", cls: "heading-demo", size: 15 },
+    { id: "h2", label: "H2", cls: "heading-demo", size: 14 },
+    { id: "h3", label: "H3", cls: "heading-demo", size: 13 },
+  ];
+  const cur = phone._headingLevel || "h2";
+  const html = `<span class="pop-label">标题</span>` + levels.map(l => `
+    <button class="tb-btn ${cur === l.id ? "on" : ""}" data-level="${l.id}" aria-label="${l.label}">
+      <span class="${l.cls}" style="font-size:${l.size}px">${l.label}</span>
+    </button>`).join("");
+  const pop = openPop(phone, anchorBtn, html);
+  pop.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-level]");
+    if (!btn) return;
+    phone._headingLevel = btn.dataset.level;
+    const title = phone.editor.querySelector(".doc-title");
+    const sizes = { plain: 16, h1: 25, h2: 21, h3: 18 };
+    title.style.fontSize = sizes[btn.dataset.level] + "px";
+    toast(phone, `已切换为${btn.dataset.level === "plain" ? "正文" : btn.dataset.level.toUpperCase()}`);
+    closePop(phone);
+  });
+}
+
+/* 插入 ActionSheet（方案 B） */
+const SHEET_GROUPS = [
+  [
+    { k: "image", label: "照片（相册）", tone: "tone-apricot" },
+    { k: "camera", label: "拍照", tone: "tone-sage" },
+    { k: "video", label: "视频", tone: "tone-sky" },
+    { k: "music", label: "音频", tone: "tone-lilac" },
+  ],
+  [
+    { k: "table", label: "表格", tone: "tone-butter" },
+    { k: "code", label: "代码块", tone: "tone-lilac" },
+    { k: "task", label: "任务列表", tone: "tone-sage" },
+    { k: "date", label: "日期", tone: "tone-butter" },
+    { k: "comment", label: "批注", tone: "tone-rose" },
+    { k: "contentLink", label: "关联内容", tone: "tone-sky" },
+    { k: "styled", label: "样式文本", tone: "tone-apricot" },
+    { k: "kbd", label: "快捷键", tone: "tone-rose" },
+  ],
+];
+function openInsertSheet(phone) {
+  closePop(phone);
+  phone.keyboard.classList.add("hidden");
+  const layer = phone.sheetLayer;
+  layer.innerHTML = `
+    <div class="sheet-mask"></div>
+    <div class="sheet-panel">
+      <div class="sheet-grab"></div>
+      <div class="sheet-title">插入</div>
+      ${SHEET_GROUPS.map(g => `<div class="list-group">${g.map(item => `
+        <button class="list-item" data-kind="${item.k}">
+          <span class="${item.tone}">${icon(INSERT_KINDS[item.k].icon, 19, 2.3)}</span>${item.label}
+        </button>`).join("")}</div>`).join("")}
+      <div class="list-group"><button class="list-item cancel">取消</button></div>
+    </div>`;
+  layer.classList.add("show");
+  const close = () => {
+    const panel = layer.querySelector(".sheet-panel");
+    panel.classList.add("closing");
+    setTimeout(() => {
+      layer.classList.remove("show");
+      layer.innerHTML = "";
+      phone.keyboard.classList.remove("hidden");
+    }, 250);
+  };
+  layer.querySelector(".sheet-mask").addEventListener("click", close);
+  layer.querySelector(".cancel").addEventListener("click", close);
+  layer.addEventListener("click", (e) => {
+    const item = e.target.closest("[data-kind]");
+    if (!item) return;
+    insertBlock(phone, item.dataset.kind);
+    close();
+  });
+}
+
+/* ══════════════════════════ 工具条渲染 ══════════════════════════ */
+const B = (i, l, t, extra = "") => ({ i, l, t, ...(() => extra)() });
+function btnHtml(b) {
+  const inner = b.txt !== undefined
+    ? `<span class="tb-txt" style="font-size:${b.fs || 13}px">${b.txt}</span>`
+    : icon(b.i, 16, b.sw || 2.5);
+  return `<button class="tb-btn ${b.t === "heading" || b.t === "more" || b.t === "insert" || b.t === "expand" ? "dock" : ""}" data-act="${b.t}" data-id="${b.i || b.txt}" aria-label="${b.l}">${inner}</button>`;
+}
+const GROUP = (btns) => `<span class="tb-sep"></span><span class="tb-group">${btns.map(btnHtml).join("")}</span>`;
+
+function bindToolbar(phone) {
+  phone.toolbar.addEventListener("click", (e) => {
+    const btn = e.target.closest(".tb-btn");
+    if (!btn) return;
+    const act = btn.dataset.act;
+    if (act === "toggle") {
+      btn.classList.toggle("on");
+      return;
+    }
+    if (act === "heading") { openHeadingPop(phone, btn); return; }
+    if (act === "more") {
+      if (phone._pop && phone._popAnchor === btn) { closePop(phone); return; }
+      const html = phone._moreBtns.map(btnHtml).join("");
+      const pop = openPop(phone, btn, html);
+      pop.style.maxWidth = (phone.root.offsetWidth - 16) + "px";
+      pop.style.overflowX = "auto";
+      return;
+    }
+    if (act === "insert") { openInsertSheet(phone); return; }
+    if (act === "expand") {
+      const second = phone.toolbar.querySelector(".second-row");
+      const open = second.classList.toggle("open");
+      btn.innerHTML = icon(open ? "chevronDown" : "chevronUp", 16, 2.5);
+      phone.toolbar.style.transform = `translateX(-50%) translateY(${open ? second.offsetHeight : 0}px)`;
+      return;
+    }
+    if (act === "insert-kind") { insertBlock(phone, btn.dataset.id); return; }
+    if (act === "noop") return;
+  });
+  // 弹条里的「插入类」按钮（more 弹条展开后点击）
+  phone.toolbar.addEventListener("click", (e) => {
+    const b = e.target.closest('.pop .tb-btn[data-act="insert-kind"]');
+    if (b) closePop(phone);
+  });
+}
+
+const undoRedo = [B("undo2", "撤销", "noop"), B("redo2", "重做", "noop")];
+const fmtGroup = [B("bold", "加粗", "toggle"), B("italic", "斜体", "toggle"), B("strike", "删除线", "toggle")];
+const listGroup = [B("list", "无序列表", "toggle"), B("listOrdered", "有序列表", "toggle"), B("quote", "引用", "toggle")];
+const listGroupWithDivider = [...listGroup, B("minus", "分割线", "insert-kind")];
+const tailGroup = [B("underline", "下划线", "toggle"), B("link2", "链接", "toggle"), B("baseline", "颜色", "toggle"), B("highlighter", "高亮", "toggle")];
+
+/* ── 方案 0 · 现状 ── */
+const STATUS_MORE = ["styled", "code", "kbd", "comment", "contentLink"].map(k => B(k, INSERT_KINDS[k]?.label || k, "insert-kind"));
+function mountStatus(phone) {
+  phone._moreBtns = STATUS_MORE;
+  const groups = [
+    fmtGroup,
+    [{ txt: "H1", l: "标题一", t: "toggle", fs: 13 }, { txt: "H2", l: "标题二", t: "toggle", fs: 15 }],
+    listGroupWithDivider,
+    tailGroup,
+  ];
+  phone.toolbar.innerHTML = `<div class="toolbar-pill"><div class="toolbar-scroll">
+    <span class="tb-group">${undoRedo.map(btnHtml).join("")}</span>
+    ${groups.map(GROUP).join("")}
+    ${GROUP([B("ellipsis", "更多菜单", "more")])}
+  </div><div class="fade-right"></div></div>`;
+  bindToolbar(phone);
+}
+
+/* ── 方案 A · 收纳弹条 ── */
+const A_MORE = [...STATUS_MORE, "table", "date", "task"].map(k => B(k, INSERT_KINDS[k]?.label || k, "insert-kind"));
+function mountA(phone) {
+  phone._moreBtns = A_MORE;
+  const groups = [
+    fmtGroup,
+    [B("heading", "标题", "heading"), B("image", "插入图片", "insert-kind")],
+    listGroupWithDivider,
+    tailGroup,
+  ];
+  phone.toolbar.innerHTML = `<div class="toolbar-pill"><div class="toolbar-scroll">
+    <span class="tb-group">${undoRedo.map(btnHtml).join("")}</span>
+    ${groups.map(GROUP).join("")}
+    ${GROUP([B("ellipsis", "更多菜单", "more")])}
+  </div><div class="fade-right"></div></div>`;
+  bindToolbar(phone);
+}
+
+/* ── 方案 B · 插入面板 + ── */
+function mountB(phone) {
+  const groups = [
+    fmtGroup,
+    [B("heading", "标题", "heading"), B("image", "插入图片", "insert-kind"), B("plus", "插入", "insert")],
+    listGroup,
+    tailGroup,
+  ];
+  phone.toolbar.innerHTML = `<div class="toolbar-pill"><div class="toolbar-scroll">
+    <span class="tb-group">${undoRedo.map(btnHtml).join("")}</span>
+    ${groups.map(GROUP).join("")}
+  </div><div class="fade-right"></div></div>`;
+  bindToolbar(phone);
+}
+
+/* ── 方案 C · 双行展开 ── */
+function mountC(phone) {
+  const second = ["image", "camera", "video", "music", "table", "code", "task", "date"].map(k => B(k, INSERT_KINDS[k].label, "insert-kind"));
+  const groups = [
+    fmtGroup,
+    [B("heading", "标题", "heading"), B("image", "插入图片", "insert-kind")],
+    listGroupWithDivider,
+    tailGroup,
+  ];
+  phone.toolbar.innerHTML = `<div class="toolbar-pill" style="flex-direction:column;align-items:stretch">
+    <div style="display:flex;overflow:hidden">
+      <div class="toolbar-scroll">
+        <span class="tb-group">${undoRedo.map(btnHtml).join("")}</span>
+        ${groups.map(GROUP).join("")}
+        ${GROUP([B("ellipsis", "更多菜单", "more"), B("chevronUp", "展开第二行", "expand")])}
+      </div><div class="fade-right"></div>
+    </div>
+    <div class="second-row"><div><div class="second-sep"></div><div class="inner">${second.map(btnHtml).join("")}</div></div></div>
+  </div>`;
+  phone._moreBtns = STATUS_MORE;
+  bindToolbar(phone);
+}
+
+/* ── 方案 D · 分页 ── */
+function mountD(phone) {
+  const page1 = [...undoRedo.map(btnHtml).join(""), GROUP([B("heading", "标题", "heading"), ...fmtGroup.slice(0, 3)]), GROUP(listGroup), GROUP(tailGroup)].join("");
+  const page2Btns = ["image", "camera", "video", "music", "table", "code", "task", "date", "divider", "comment", "contentLink", "styled", "kbd"].map(k => B(k, INSERT_KINDS[k].label, "insert-kind"));
+  const page2 = GROUP(page2Btns).join("");
+  phone.toolbar.innerHTML = `<div class="toolbar-pill" style="flex-direction:column">
+    <div class="page-strip">
+      <div class="t-page">${page1}</div>
+      <div class="t-page">${page2}</div>
+    </div>
+    <div class="page-dots"><i class="cur"></i><i></i></div>
+  </div>`;
+  bindToolbar(phone);
+  const strip = phone.toolbar.querySelector(".page-strip");
+  const dots = phone.toolbar.querySelectorAll(".page-dots i");
+  dots.forEach((d, idx) => d.addEventListener("click", () => strip.scrollTo({ left: idx * strip.offsetWidth, behavior: "smooth" })));
+  strip.addEventListener("scroll", () => {
+    const page = Math.round(strip.scrollLeft / strip.offsetWidth);
+    dots.forEach((d, idx) => d.classList.toggle("cur", idx === page));
+  });
+}
+
+/* ══════════════════════════ 启动 ══════════════════════════ */
+[["demo-status", mountStatus], ["demo-a", mountA], ["demo-b", mountB], ["demo-c", mountC], ["demo-d", mountD]]
+  .forEach(([id, mount]) => {
+    const phone = buildPhone(document.getElementById(id));
+    mount(phone);
+  });
+
+document.getElementById("themeToggle").addEventListener("click", (e) => {
+  const root = document.documentElement;
+  const dark = root.dataset.theme === "midnight";
+  root.dataset.theme = dark ? "apricot" : "midnight";
+  e.target.textContent = dark ? "切换玄夜主题 🌙" : "切换杏子主题 ☀️";
+});
+</script>
+</body>
+</html>

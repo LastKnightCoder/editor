@@ -58,23 +58,65 @@ describe("diary/useDiaryStore", () => {
     getQueryClient().clear();
   });
 
-  it("initialize 在无当前日记时应自动创建空白日记", async () => {
+  it("initialize 在无当前日记时不应创建（进页面只读）", async () => {
+    vi.mocked(tauri.diaryListEntries).mockResolvedValue([]);
+
+    await useDiaryStore.getState().initialize();
+
+    const state = useDiaryStore.getState();
+    expect(tauri.diaryListEntries).toHaveBeenCalledTimes(1);
+    expect(tauri.diaryUpsertEntry).not.toHaveBeenCalled();
+    expect(state.currentEntry).toBeNull();
+    expect(state.initialized).toBe(true);
+  });
+
+  it("openAt 在无当前日记时创建空白日记（用户手动入口）", async () => {
     vi.mocked(tauri.diaryListEntries).mockResolvedValue([]);
     vi.mocked(tauri.diaryUpsertEntry).mockResolvedValue(
       makeDiaryEntry({
         id: 11,
         type: "daily",
         date: "2026-02-22",
+        segments: [
+          {
+            id: 1,
+            diaryId: 11,
+            contentId: 2001,
+            content: [],
+            wordCount: 0,
+            createTime: 1,
+            updateTime: 1,
+          },
+        ],
       })
     );
 
-    await useDiaryStore.getState().initialize();
+    const contentId = await useDiaryStore.getState().openAt("daily", "2026-02-22");
+
+    expect(tauri.diaryUpsertEntry).toHaveBeenCalledTimes(1);
+    expect(contentId).toBe(2001);
+    expect(useDiaryStore.getState().currentEntry?.id).toBe(11);
+  });
+
+  it("setMode 切换类型无对应日记时不落库", async () => {
+    vi.mocked(tauri.diaryListEntries).mockResolvedValue([]);
+
+    await useDiaryStore.getState().setMode("weekly");
 
     const state = useDiaryStore.getState();
-    expect(tauri.diaryListEntries).toHaveBeenCalledTimes(1);
-    expect(tauri.diaryUpsertEntry).toHaveBeenCalledTimes(1);
-    expect(state.currentEntry?.id).toBe(11);
-    expect(state.initialized).toBe(true);
+    expect(tauri.diaryUpsertEntry).not.toHaveBeenCalled();
+    expect(state.mode).toBe("weekly");
+    expect(state.currentEntry).toBeNull();
+  });
+
+  it("shiftDate 翻日期无对应日记时不落库", async () => {
+    vi.mocked(tauri.diaryListEntries).mockResolvedValue([]);
+
+    await useDiaryStore.getState().shiftDate(1);
+
+    const state = useDiaryStore.getState();
+    expect(tauri.diaryUpsertEntry).not.toHaveBeenCalled();
+    expect(state.currentEntry).toBeNull();
   });
 
   it("reloadAfterDatabaseChange 应重建当前态且不触发自动写入", async () => {

@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日记删除交互 · 方案设计稿</title>
+<style>
+  :root {
+    --paper: #f6f1e7;
+    --surface: #fffdf9;
+    --line: #e9e1d2;
+    --ink-1: #43392c;
+    --ink-2: #8b7d6b;
+    --ink-3: #b9ac9a;
+    --accent: #d97757;
+    --accent-grad: linear-gradient(145deg, #e8896a, #d97757);
+    --rose: #b06a5e;
+    --rose-soft: #f6e3e0;
+    --rose-grad: linear-gradient(145deg, #c47a6c, #b06a5e);
+    --sage: #61795f;
+    --sage-soft: #e5ede2;
+    --sky: #5c7d99;
+    --radius-card: 20px;
+    --radius-bento: 22px;
+    --radius-sheet: 30px;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --bounce: cubic-bezier(0.34, 1.56, 0.5, 1);
+    --shadow-card: 0 1px 2px rgba(67, 57, 44, 0.06), 0 8px 20px -12px rgba(67, 57, 44, 0.16);
+    --shadow-float: 0 2px 6px rgba(67, 57, 44, 0.08), 0 16px 40px -16px rgba(67, 57, 44, 0.28);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    background: var(--paper);
+    color: var(--ink-1);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  body::after {
+    content: "";
+    position: fixed; inset: 0; z-index: 999; pointer-events: none;
+    opacity: .5; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 48px 28px 80px; }
+
+  /* ============ 文档头 ============ */
+  .doc-head { max-width: 720px; }
+  .doc-kicker {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 700; letter-spacing: .12em;
+    color: var(--accent); text-transform: uppercase;
+    background: rgba(217, 119, 87, 0.1); border: 1px solid rgba(217, 119, 87, 0.22);
+    padding: 4px 12px; border-radius: 999px; margin-bottom: 14px;
+  }
+  .doc-head h1 { font-size: 26px; font-weight: 800; letter-spacing: .01em; margin-bottom: 8px; }
+  .doc-head h1 em { font-style: normal; color: var(--accent); }
+  .doc-head p { color: var(--ink-2); font-size: 13.5px; max-width: 60ch; }
+
+  /* ============ 现状问题 ============ */
+  .issues { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-top: 30px; }
+  .issue {
+    background: var(--surface); border-radius: var(--radius-bento);
+    padding: 16px 18px 15px; box-shadow: var(--shadow-card);
+  }
+  .issue b { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  .issue p { font-size: 12px; color: var(--ink-2); line-height: 1.65; }
+  .issue .n {
+    width: 20px; height: 20px; border-radius: 7px; flex: none;
+    display: grid; place-items: center; font-size: 11px; font-weight: 800; color: #fff;
+    background: var(--rose-grad);
+  }
+  .issue.good .n { background: var(--sage); }
+  .issue code {
+    font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 10.5px; background: var(--paper); padding: 1px 5px; border-radius: 5px; color: var(--ink-2);
+  }
+
+  /* ============ 方案卡片 ============ */
+  .demos { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 44px; }
+  .demo {
+    background: var(--surface); border-radius: var(--radius-bento);
+    box-shadow: var(--shadow-card); padding: 22px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .demo.recommend { outline: 2px solid rgba(217, 119, 87, 0.5); outline-offset: 3px; }
+  .demo-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .demo-tag {
+    font-size: 10.5px; font-weight: 800; letter-spacing: .1em; color: var(--ink-2);
+    background: var(--paper); border-radius: 7px; padding: 3px 9px;
+  }
+  .demo.recommend .demo-tag { color: #fff; background: var(--accent-grad); }
+  .demo-head h3 { font-size: 16.5px; font-weight: 800; }
+  .demo-head .badge {
+    font-size: 10.5px; font-weight: 700; color: var(--sage);
+    background: var(--sage-soft); border-radius: 999px; padding: 3px 10px;
+  }
+  .demo-desc { font-size: 12.5px; color: var(--ink-2); line-height: 1.7; }
+  .demo-desc b { color: var(--ink-1); }
+
+  /* 手机框 */
+  .phone {
+    width: 100%; max-width: 350px; margin: 0 auto;
+    background: #241e17; border-radius: 46px; padding: 10px;
+    box-shadow: 0 24px 60px -24px rgba(67, 57, 44, 0.5), inset 0 0 0 2px #3a3126;
+  }
+  .screen {
+    position: relative; overflow: hidden;
+    background: var(--paper); border-radius: 37px;
+    height: 560px; display: flex; flex-direction: column;
+  }
+  .statusbar {
+    flex: none; display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 26px 4px; font-size: 12.5px; font-weight: 700; color: var(--ink-1);
+  }
+  .statusbar svg { display: block; }
+  .hint {
+    flex: none; margin: 10px 16px 0; text-align: center;
+    font-size: 11.5px; color: var(--ink-2); background: rgba(185, 172, 154, 0.16);
+    border: 1px dashed var(--ink-3); border-radius: 999px; padding: 5px 12px;
+    transition: opacity .6s;
+  }
+  .hint.seen { opacity: 0; }
+  .feed { flex: 1; overflow-y: auto; padding: 12px 16px 20px; scrollbar-width: none; }
+  .feed::-webkit-scrollbar { display: none; }
+
+  /* 日记卡片 */
+  .row-wrap { position: relative; margin-bottom: 11px; }
+  .row-wrap.collapsing { overflow: hidden; transition: height .34s var(--ease), margin .34s var(--ease), opacity .2s; margin-bottom: 0; opacity: 0; }
+  .dcard {
+    position: relative; z-index: 1;
+    background: var(--surface); border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: 15px 16px 13px;
+    transition: transform .22s var(--ease);
+    touch-action: pan-y;
+  }
+  .dcard.dragging { transition: none; }
+  .dcard.fly-out { transform: translateX(-70%) rotate(-2deg) !important; opacity: 0; transition: transform .3s var(--ease), opacity .3s; }
+  .dcard-head { display: flex; align-items: center; gap: 8px; }
+  .dcard-title { font-size: 15px; font-weight: 750; letter-spacing: .2px; }
+  .chip {
+    font-size: 10.5px; font-weight: 700; color: var(--sage);
+    background: var(--sage-soft); border-radius: 999px; padding: 2.5px 9px; flex: none;
+  }
+  .dcard-preview {
+    margin-top: 8px; font-size: 13px; line-height: 1.68; color: var(--ink-1); opacity: .92;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .dcard-meta { display: flex; align-items: center; gap: 7px; margin-top: 9px; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .dcard-meta .dot { width: 2.5px; height: 2.5px; border-radius: 50%; background: var(--ink-3); }
+  .dcard-meta .mood { font-size: 13px; line-height: 1; }
+
+  /* 方案 0：现状 78px 全高按钮 */
+  .act-legacy {
+    position: absolute; inset: 0; z-index: 0;
+    background: var(--rose-grad); border-radius: var(--radius-card);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+    color: #fff; width: 78px; font-size: 11.5px; font-weight: 700;
+  }
+  /* 方案 A：悬浮圆钮 */
+  .act-zone { position: absolute; inset: 6px 4px auto auto; z-index: 0; display: flex; align-items: center; }
+  .act-btn {
+    width: 56px; height: 56px; border: none; cursor: pointer;
+    border-radius: 50%; background: var(--rose-grad);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    color: #fff; font-size: 9.5px; font-weight: 700; font-family: inherit;
+    box-shadow: 0 6px 16px -6px rgba(176, 106, 94, 0.55);
+    opacity: 0; transform: scale(.5); transition: opacity .18s, transform .18s var(--bounce);
+  }
+  .act-btn:active { transform: scale(.9); }
+  .act-btn .lbl { opacity: .92; }
+
+  /* 方案 B：··· 按钮 + 气泡 */
+  .more-btn {
+    margin-left: auto; border: none; background: none; cursor: pointer;
+    width: 30px; height: 30px; border-radius: 50%; color: var(--ink-3);
+    display: grid; place-items: center; flex: none;
+    transition: background .15s, color .15s;
+  }
+  .more-btn:hover, .more-btn.open { background: var(--paper); color: var(--ink-1); }
+  .dcard-head { position: relative; }
+  .pop {
+    position: absolute; right: 0; top: calc(100% + 7px); z-index: 30;
+    background: var(--surface); border-radius: 15px; box-shadow: var(--shadow-float);
+    min-width: 148px; padding: 6px; transform-origin: 100% 0;
+    transform: scale(.88); opacity: 0; pointer-events: none;
+    transition: transform .2s var(--bounce), opacity .16s;
+  }
+  .pop.open { transform: scale(1); opacity: 1; pointer-events: auto; }
+  .pop-item {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    border: none; background: none; cursor: pointer; font-family: inherit;
+    font-size: 13.5px; font-weight: 600; color: var(--ink-1);
+    padding: 9px 12px; border-radius: 10px;
+  }
+  .pop-item:hover { background: var(--paper); }
+  .pop-item.danger { color: var(--rose); }
+  .pop-item svg { opacity: .75; }
+
+  /* 方案 C/D：底部 ActionSheet */
+  .mask {
+    position: absolute; inset: 0; z-index: 40;
+    background: rgba(30, 23, 16, 0.34);
+    opacity: 0; pointer-events: none; transition: opacity .28s;
+  }
+  .mask.open { opacity: 1; pointer-events: auto; }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 41;
+    background: var(--surface); border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+    padding: 8px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(105%); transition: transform .42s var(--bounce);
+    box-shadow: 0 -12px 40px -18px rgba(67, 57, 44, 0.4);
+  }
+  .sheet.open { transform: translateY(0); }
+  .grabber { width: 38px; height: 4.5px; border-radius: 999px; background: var(--line); margin: 4px auto 12px; }
+  .sheet-title { text-align: center; font-size: 13px; font-weight: 700; color: var(--ink-2); margin-bottom: 10px; }
+  .sheet-item {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    border: none; background: none; cursor: pointer; font-family: inherit;
+    font-size: 15px; font-weight: 600; color: var(--ink-1);
+    padding: 14px 6px; border-bottom: 1px solid rgba(233, 225, 210, 0.6);
+  }
+  .sheet-item:last-of-type { border-bottom: none; }
+  .sheet-item.danger { color: var(--rose); }
+  .sheet-item svg { opacity: .7; }
+
+  /* 方案 D：拖甩底板 */
+  .bed {
+    position: absolute; inset: 0; z-index: 0;
+    border-radius: var(--radius-card); background: var(--rose-soft);
+    display: grid; place-items: center; color: var(--rose);
+    transition: background .2s, color .2s;
+  }
+  .bed svg { transition: transform .22s var(--bounce); transform: scale(.82); opacity: .8; }
+  .bed.armed { background: var(--rose-grad); color: #fff; }
+  .bed.armed svg { transform: scale(1.18); opacity: 1; }
+
+  /* 方案 E：管理模式 */
+  .month-bar { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 10px; }
+  .month-bar b { font-size: 17px; font-weight: 800; }
+  .manage-toggle { border: none; background: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 700; color: var(--accent); padding: 6px 8px; border-radius: 999px; }
+  .feed.editing .dcard { cursor: pointer; }
+  .sel-ring {
+    position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+    width: 23px; height: 23px; border-radius: 50%;
+    border: 2px solid var(--ink-3); background: var(--surface);
+    display: grid; place-items: center; color: transparent;
+    transition: all .2s var(--bounce); z-index: 2;
+  }
+  .feed.editing .dcard { padding-left: 48px; }
+  .row-wrap.selected .sel-ring { border-color: var(--accent); background: var(--accent-grad); color: #fff; transform: translateY(-50%) scale(1.05); }
+  .row-wrap.selected .dcard { outline: 1.5px solid rgba(217, 119, 87, 0.45); outline-offset: -1.5px; }
+  .toolbar {
+    position: absolute; left: 16px; right: 16px; bottom: 16px; z-index: 45;
+    background: rgba(255, 253, 249, 0.92); backdrop-filter: blur(12px);
+    border-radius: 999px; box-shadow: var(--shadow-float);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 8px 8px 20px;
+    transform: translateY(140%); opacity: 0; transition: transform .4s var(--bounce), opacity .3s;
+  }
+  .toolbar.open { transform: translateY(0); opacity: 1; }
+  .toolbar .tb-count { font-size: 13px; font-weight: 700; color: var(--ink-2); }
+  .tb-del {
+    border: none; cursor: pointer; font-family: inherit;
+    font-size: 13px; font-weight: 700; color: #fff;
+    background: var(--rose-grad); border-radius: 999px; padding: 10px 20px;
+    transition: opacity .2s, transform .15s;
+  }
+  .tb-del:disabled { opacity: .38; cursor: not-allowed; }
+  .tb-del:not(:disabled):active { transform: scale(.96); }
+
+  /* 确认弹窗（还原 MobileConfirmDialog：双列虚线分隔） */
+  .cfm-mask {
+    position: absolute; inset: 0; z-index: 60;
+    background: rgba(30, 23, 16, 0.34);
+    display: grid; place-items: center; padding: 28px;
+    opacity: 0; pointer-events: none; transition: opacity .24s;
+  }
+  .cfm-mask.open { opacity: 1; pointer-events: auto; }
+  .cfm {
+    width: 100%; max-width: 292px; background: var(--surface);
+    border-radius: var(--radius-bento); box-shadow: var(--shadow-float);
+    overflow: hidden; transform: scale(.92) translateY(8px);
+    transition: transform .26s var(--bounce);
+  }
+  .cfm-mask.open .cfm { transform: scale(1) translateY(0); }
+  .cfm-body { padding: 22px 20px 16px; text-align: center; }
+  .cfm-title { font-size: 15.5px; font-weight: 750; }
+  .cfm-desc { margin-top: 7px; font-size: 12.5px; color: var(--ink-2); line-height: 1.6; word-break: break-all; }
+  .cfm-btns { display: flex; border-top: 1px solid var(--line); }
+  .cfm-btns button {
+    flex: 1; border: none; background: none; cursor: pointer; font-family: inherit;
+    font-size: 14.5px; font-weight: 600; padding: 13.5px 0; color: var(--ink-2);
+  }
+  .cfm-btns button + button { border-left: 1px dashed var(--line); color: var(--rose); font-weight: 750; }
+  .cfm-btns button:active { background: var(--paper); }
+
+  /* Toast */
+  .toast {
+    position: absolute; left: 50%; bottom: 24px; z-index: 70;
+    transform: translate(-50%, 140%);
+    background: #3a3128; color: #fdf9f2; border-radius: 999px;
+    padding: 10px 12px 10px 18px; font-size: 12.5px; font-weight: 600;
+    display: flex; align-items: center; gap: 12px; white-space: nowrap;
+    box-shadow: var(--shadow-float);
+    transition: transform .42s var(--bounce);
+  }
+  .toast.show { transform: translate(-50%, 0); }
+  .toast .undo {
+    border: none; background: none; cursor: pointer; font-family: inherit;
+    color: #f0a58c; font-size: 12.5px; font-weight: 750; padding: 3px 8px; border-radius: 999px;
+  }
+  .toast .undo:active { background: rgba(240, 165, 140, 0.16); }
+
+  /* 方案说明区 */
+  .demo-notes { display: flex; flex-direction: column; gap: 8px; }
+  .note-row { display: flex; gap: 8px; font-size: 12px; line-height: 1.65; }
+  .note-row .k { flex: none; width: 40px; font-weight: 750; color: var(--ink-3); }
+  .note-row .k.pro { color: var(--sage); }
+  .note-row .k.con { color: var(--rose); }
+  .demo-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 2px; }
+  .cost-pill { font-size: 11px; font-weight: 700; color: var(--ink-2); background: var(--paper); padding: 4px 11px; border-radius: 999px; }
+  .reset {
+    border: none; background: none; cursor: pointer; font-family: inherit;
+    font-size: 11.5px; font-weight: 700; color: var(--accent); padding: 4px 10px; border-radius: 999px;
+  }
+  .reset:hover { background: rgba(217, 119, 87, 0.1); }
+
+  /* ============ 对比与推荐 ============ */
+  .final { margin-top: 52px; display: grid; grid-template-columns: 1.35fr 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .final { grid-template-columns: 1fr; } }
+  .panel { background: var(--surface); border-radius: var(--radius-bento); box-shadow: var(--shadow-card); padding: 24px; }
+  .panel h2 { font-size: 16px; font-weight: 800; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .panel h2 .bar { width: 4px; height: 16px; border-radius: 999px; background: var(--accent-grad); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { padding: 9px 10px; text-align: left; border-bottom: 1px solid rgba(233, 225, 210, 0.7); }
+  th { font-size: 11px; font-weight: 750; color: var(--ink-3); letter-spacing: .04em; }
+  td:first-child { font-weight: 750; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  .lv { display: inline-block; font-size: 10.5px; font-weight: 700; border-radius: 6px; padding: 2px 7px; }
+  .lv.hi { background: var(--sage-soft); color: var(--sage); }
+  .lv.md { background: rgba(163, 140, 77, 0.15); color: #a38c4d; }
+  .lv.lo { background: var(--rose-soft); color: var(--rose); }
+  .rec { display: flex; flex-direction: column; gap: 14px; }
+  .rec-item { display: flex; gap: 12px; }
+  .rec-item .rank {
+    flex: none; width: 26px; height: 26px; border-radius: 9px; margin-top: 2px;
+    display: grid; place-items: center; font-size: 12px; font-weight: 800; color: #fff;
+    background: var(--accent-grad);
+  }
+  .rec-item:nth-child(2) .rank { background: var(--sage); }
+  .rec-item:nth-child(3) .rank { background: var(--ink-3); }
+  .rec-item b { font-size: 13.5px; }
+  .rec-item p { font-size: 12px; color: var(--ink-2); line-height: 1.65; margin-top: 2px; }
+  .doc-foot { margin-top: 40px; text-align: center; font-size: 11.5px; color: var(--ink-3); }
+  @media (max-width: 520px) {
+    .wrap { padding: 30px 16px 60px; }
+    .demos { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ================= 文档头 ================= -->
+  <header class="doc-head">
+    <div class="doc-kicker">Interaction Proposal · apps/mobile</div>
+    <h1>日记删除交互 <em>·</em> 六案对比设计稿</h1>
+    <p>针对日记卡片删除的重新设计。下方每个手机内都是<b>真实可操作的交互原型</b>（支持鼠标拖拽 / 长按 / 点按），视觉与动效完全按现有设计 token 还原（奶油纸、陶土橙、20px 卡片圆角、暖棕投影）。选定期方案后再落地到代码。</p>
+  </header>
+
+  <!-- ================= 现状问题 ================= -->
+  <section class="issues">
+    <div class="issue">
+      <b><span class="n">1</span>滑动方向反直觉</b>
+      <p>现在是<b>右滑</b>露出左侧删除块。iOS / Android 主流习惯是<b>左滑露出右侧操作</b>，反向手势学习成本高、易误操作。</p>
+    </div>
+    <div class="issue">
+      <b><span class="n">2</span>删除按钮视觉过重</b>
+      <p>操作区固定 <code>78px</code> 宽、<b>与卡片同高</b>的整块渐变底色。日记卡片含正文预览本来就高，色块面积随卡片高度放大，越高越笨重。</p>
+    </div>
+    <div class="issue">
+      <b><span class="n">3</span>「N 个片段」无意义</b>
+      <p>片段是内部数据概念，用户不关心数量。<code>DiaryCardItem.tsx:140</code> 的这个标签建议直接移除，meta 行只留「N 字 + 心情」。本稿所有卡片均已移除。</p>
+    </div>
+    <div class="issue good">
+      <b><span class="n">✓</span>二次确认已存在</b>
+      <p>代码里其实<b>有</b>确认弹窗（<code>DiaryHomePage.tsx:340</code> MobileConfirmDialog）。若真机上点删除未弹窗，请先检查构建版本。新方案统一保留「确认弹窗 / 撤销 Toast」兜底。</p>
+    </div>
+  </section>
+
+  <!-- ================= 方案 ================= -->
+  <main class="demos">
+
+    <!-- ========== 方案 0：现状复现 ========== -->
+    <section class="demo" data-demo="legacy">
+      <div>
+        <div class="demo-head"><span class="demo-tag">方案 0</span><h3>现状复现 · 右滑 + 全高色块</h3></div>
+        <p class="demo-desc">按线上实现 1:1 复现：<b>向右滑</b>卡片，露出左侧 78px 宽、与卡片等高的渐变删除块。注意卡片越高色块越显笨重——这是要修的问题基线。点击删除可体验现有二次确认。</p>
+      </div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar">
+          <span>9:41</span>
+          <span style="display:flex;align-items:center;gap:5px">
+            <svg width="15" height="10" viewBox="0 0 15 10" fill="currentColor"><rect x="0" y="6" width="2.5" height="4" rx="1"/><rect x="4" y="4" width="2.5" height="6" rx="1"/><rect x="8" y="2" width="2.5" height="8" rx="1"/><rect x="12" y="0" width="2.5" height="10" rx="1"/></svg>
+            <svg width="20" height="10" viewBox="0 0 20 10" fill="none"><rect x=".8" y=".8" width="15" height="8.4" rx="2.4" stroke="currentColor" stroke-opacity=".4" stroke-width="1"/><rect x="2.4" y="2.4" width="9" height="5.2" rx="1.3" fill="currentColor"/><path d="M17.6 3.4v3.2c1-.3 1.6-1 1.6-1.6s-.6-1.3-1.6-1.6z" fill="currentColor" fill-opacity=".4"/></svg>
+          </span>
+        </div>
+        <div class="hint">👉 按住卡片向右滑</div>
+        <div class="feed"></div>
+      </div></div>
+      <div class="demo-foot"><span class="cost-pill">实现成本：零（现状）</span><button class="reset">↺ 重置演示</button></div>
+    </section>
+
+    <!-- ========== 方案 A：左滑悬浮圆钮 ========== -->
+    <section class="demo" data-demo="A">
+      <div>
+        <div class="demo-head"><span class="demo-tag">方案 A</span><h3>左滑 · 悬浮圆钮</h3></div>
+        <p class="demo-desc">把滑动方向改为<b>左滑露右侧</b>（符合主流习惯），同时把「全高色块」换成一枚 <b>56px 圆形悬浮按钮</b>：直径固定，<b>视觉重量与卡片高度彻底解耦</b>——卡片再高，按钮也只是卡片背后一枚小圆点，随滑动进度弹性浮现。SwipeActionRow 的互斥、阈值回弹、防误触机制全部沿用，仅反向 + 换视觉。</p>
+      </div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>·</span></div>
+        <div class="hint">👈 按住卡片向左滑</div>
+        <div class="feed"></div>
+      </div></div>
+      <div class="demo-notes">
+        <div class="note-row"><span class="k pro">优点</span><span>保留滑动手势习惯，改动最小（方向取反 + 删除按钮视觉）；圆钮轻量不喧宾夺主。</span></div>
+        <div class="note-row"><span class="k con">代价</span><span>仍是手势入口，新用户可发现性弱；滑动与卡片内横向内容（未来若有）有冲突风险。</span></div>
+      </div>
+      <div class="demo-foot"><span class="cost-pill">实现成本：低 · 半天内</span><button class="reset">↺ 重置演示</button></div>
+    </section>
+
+    <!-- ========== 方案 B：··· 气泡菜单 ========== -->
+    <section class="demo" data-demo="B">
+      <div>
+        <div class="demo-head"><span class="demo-tag">方案 B</span><h3>卡片「···」· 显式气泡菜单</h3></div>
+        <p class="demo-desc">不再依赖任何手势：卡片标题行右端放一枚极轻的 <b>「···」按钮</b>（ink-3 色、28px 圆形热区），点按弹出<b>气泡菜单</b>：置顶 / 分享 / 删除。零学习成本、入口永远可见，且天然承载未来的卡片级操作。「N 个片段」移除后 meta 行更干净。</p>
+      </div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>·</span></div>
+        <div class="hint">👆 点卡片右上角「···」</div>
+        <div class="feed"></div>
+      </div></div>
+      <div class="demo-notes">
+        <div class="note-row"><span class="k pro">优点</span><span>入口显式、可发现性最好；菜单可扩展（置顶、分享、移动分类…）；完全避开手势冲突。</span></div>
+        <div class="note-row"><span class="k con">代价</span><span>卡片上常驻一个视觉元素（可做到极轻）；多一次点按才到删除。</span></div>
+      </div>
+      <div class="demo-foot"><span class="cost-pill">实现成本：低 · 新增一个 Popover 组件</span><button class="reset">↺ 重置演示</button></div>
+    </section>
+
+    <!-- ========== 方案 C：长按 ActionSheet（推荐） ========== -->
+    <section class="demo recommend" data-demo="C">
+      <div>
+        <div class="demo-head"><span class="demo-tag">方案 C</span><h3>长按卡片 · 底部操作面板</h3><span class="badge">推荐主案</span></div>
+        <p class="demo-desc">把整张卡片视为「对象」： <b>长按约 0.5s</b> 触发（卡片轻微下沉反馈），从底部弹出操作面板（复用现有 SnapSheet / ActionSheet 语言：30px 圆角、grabber、条目式菜单）。卡片本身<b>零视觉污染</b>——没有任何常驻按钮，也没有任何方向性手势。这是 iOS 对富内容卡片的主流做法，且面板条目可无限扩展。</p>
+      </div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>·</span></div>
+        <div class="hint">🖐 按住任意卡片约半秒</div>
+        <div class="feed"></div>
+      </div></div>
+      <div class="demo-notes">
+        <div class="note-row"><span class="k pro">优点</span><span>卡片视觉最干净；无手势方向歧义；面板由现有 ActionSheet 改造，动效语言统一；扩展性最好。</span></div>
+        <div class="note-row"><span class="k con">代价</span><span>长按有轻微学习门槛（但有系统级惯例背书）；需要长按与滚动的意图判定（8px 阈值即可，SwipeActionRow 已有同款逻辑）。</span></div>
+      </div>
+      <div class="demo-foot"><span class="cost-pill">实现成本：中 · 复用 ActionSheet + 长按 hook</span><button class="reset">↺ 重置演示</button></div>
+    </section>
+
+    <!-- ========== 方案 D：拖拽甩出 + 撤销 ========== -->
+    <section class="demo" data-demo="D">
+      <div>
+        <div class="demo-head"><span class="demo-tag">方案 D</span><h3>整卡拖甩 · 飞出 + 撤销兜底</h3></div>
+        <p class="demo-desc">最爽快的一档：按住卡片<b>直接向左拖</b>，卡片实时跟手（不限于固定宽度），底下露出玫瑰色底板；<b>拖过阈值</b>（96px）底板「武装」变色，松手后卡片旋转飞出、列表收拢，底部 Toast 提供 <b>5 秒撤销</b>——用「事后撤销」替代「事前弹窗」，删除一步到位。适合高频删除的爽快派。</p>
+      </div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>·</span></div>
+        <div class="hint">👈 按住卡片用力向左拖，松手</div>
+        <div class="feed"></div>
+      </div></div>
+      <div class="demo-notes">
+        <div class="note-row"><span class="k pro">优点</span><span>一步完成、跟手物理反馈强、有「甩掉」的情绪价值；撤销比弹窗更不打断。</span></div>
+        <div class="note-row"><span class="k con">代价</span><span>误删率最高，完全依赖撤销兜底（撤销 Toast 需要可靠的缓存恢复）；整卡拖拽与虚拟列表（react-virtual）配合要小心。</span></div>
+      </div>
+      <div class="demo-foot"><span class="cost-pill">实现成本：中高 · SwipeActionRow 大改 + 撤销系统</span><button class="reset">↺ 重置演示</button></div>
+    </section>
+
+    <!-- ========== 方案 E：管理模式批量删除 ========== -->
+    <section class="demo" data-demo="E">
+      <div>
+        <div class="demo-head"><span class="demo-tag">方案 E</span><h3>管理模式 · 多选批量删除</h3></div>
+        <p class="demo-desc">补充场景而非日常入口：顶栏「管理」进入编辑态，卡片左侧滑入<b>选择圈</b>，点卡片切换勾选；底部浮出<b>毛玻璃工具条</b>，「删除 (n)」随选择数激活，确认后所选卡片依次收拢。适合定期清理大批日记，日常单个删除仍走 A/B/C。</p>
+      </div>
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>9:41</span><span>·</span></div>
+        <div class="hint">👆 点右上角「管理」进入编辑态</div>
+        <div class="feed"></div>
+      </div></div>
+      <div class="demo-notes">
+        <div class="note-row"><span class="k pro">优点</span><span>批量删除效率碾压；确认一次删多篇；编辑态是成熟的列表模式。</span></div>
+        <div class="note-row"><span class="k con">代价</span><span>日常单个删除路径太长，不能独立承担删除职责；列表需引入编辑态状态机。</span></div>
+      </div>
+      <div class="demo-foot"><span class="cost-pill">实现成本：中 · 列表编辑态 + 工具条</span><button class="reset">↺ 重置演示</button></div>
+    </section>
+
+  </main>
+
+  <!-- ================= 对比与推荐 ================= -->
+  <section class="final">
+    <div class="panel">
+      <h2><span class="bar"></span>六案横向对比</h2>
+      <table>
+        <thead><tr><th>方案</th><th>可发现性</th><th>步数</th><th>误删防护</th><th>扩展性</th><th>卡片视觉</th></tr></thead>
+        <tbody>
+          <tr><td>0 现状</td><td><span class="lv lo">弱</span></td><td>滑+点+确认</td><td>弹窗</td><td><span class="lv lo">差</span></td><td><span class="lv lo">重</span></td></tr>
+          <tr><td>A 左滑圆钮</td><td><span class="lv md">中</span></td><td>滑+点+确认</td><td>弹窗</td><td><span class="lv md">中</span></td><td><span class="lv md">轻</span></td></tr>
+          <tr><td>B ··· 菜单</td><td><span class="lv hi">强</span></td><td>点+点+确认</td><td>弹窗</td><td><span class="lv hi">好</span></td><td><span class="lv md">极轻常驻</span></td></tr>
+          <tr><td>C 长按面板</td><td><span class="lv md">中</span></td><td>长按+点+确认</td><td>弹窗</td><td><span class="lv hi">最好</span></td><td><span class="lv hi">零污染</span></td></tr>
+          <tr><td>D 拖甩</td><td><span class="lv lo">弱</span></td><td>拖（一步）</td><td>撤销 Toast</td><td><span class="lv md">中</span></td><td><span class="lv hi">零常驻</span></td></tr>
+          <tr><td>E 管理模式</td><td><span class="lv hi">强</span></td><td>多步（批量摊薄）</td><td>弹窗</td><td><span class="lv md">中</span></td><td>编辑态临时</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="panel">
+      <h2><span class="bar"></span>我的推荐</h2>
+      <div class="rec">
+        <div class="rec-item"><span class="rank">1</span><div><b>C 长按面板 为主入口</b><p>富内容卡片的对象级交互惯例；卡片零视觉污染；直接复用现有 ActionSheet 与动效语言；未来加「置顶 / 分享 / 导出」零成本。</p></div></div>
+        <div class="rec-item"><span class="rank">2</span><div><b>+ A 左滑圆钮 作为快捷双入口</b><p>保留滑动用户的肌肉记忆（方向修正为主流左滑），与 C 并存是 iOS 常见组合；A 本身改动极小，可以先行落地。</p></div></div>
+        <div class="rec-item"><span class="rank">3</span><div><b>+ 全局「撤销」Toast 兜底</b><p>无论哪个入口删除，Toast 5 秒撤销作为弹窗之外的第二层保险，之后可逐步把高频场景的弹窗换成语境化撤销。</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="doc-foot">apps/mobile · 日记删除交互设计稿 · 2026-09-12 · 所有原型可直接用鼠标 / 触屏操作</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- 图标（lucide 风格） ---------- */
+  var I = {
+    trash: '<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
+    trashBig: '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
+    more: '<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>',
+    pin: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>',
+    share: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>',
+    check: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+  };
+
+  /* ---------- 演示数据 ---------- */
+  var DATA = [
+    { title: "9月10日", type: "日记", mood: "😌", words: "342 字", text: "傍晚去江边走了走，风把云吹得很开，江面碎金一样晃。回程买了两个桃子，坐在长椅上吃完，手心都是甜味。" },
+    { title: "第 37 周", type: "周记", mood: "💪", words: "1,208 字", text: "这周把移动端的删除交互重做了一遍，从右滑改成左滑，又试着加了长按菜单。夜里复盘时觉得，交互这东西没有标准答案，只有当下最顺手的那一个。" },
+    { title: "9月8日", type: "日记", mood: "☀️", words: "89 字", text: "晴。把阳台的绿萝换了盆，根已经缠满整个塑料罐。剪掉一半，它大概也不会疼吧。" }
+  ];
+
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  function cardHTML(entry, opts) {
+    opts = opts || {};
+    var extra = opts.underlay || "";
+    var headRight = opts.moreBtn
+      ? '<button class="more-btn" aria-label="更多操作">' + I.more + '</button>'
+      : "";
+    var selRing = opts.selRing ? '<span class="sel-ring">' + I.check + '</span>' : "";
+    return '' +
+      '<div class="row-wrap">' + extra +
+        '<article class="dcard">' + selRing +
+          '<div class="dcard-head"><span class="dcard-title">' + entry.title + '</span><span class="chip">' + entry.type + '</span>' + headRight + '</div>' +
+          '<p class="dcard-preview">' + entry.text + '</p>' +
+          '<div class="dcard-meta"><span>' + entry.words + '</span><i class="dot"></i><span class="mood">' + entry.mood + '</span></div>' +
+        '</article>' +
+      '</div>';
+  }
+
+  /* ---------- 确认弹窗（还原 MobileConfirmDialog） ---------- */
+  function makeConfirm(screen) {
+    var mask = document.createElement("div");
+    mask.className = "cfm-mask";
+    mask.innerHTML = '<div class="cfm"><div class="cfm-body"><div class="cfm-title"></div><div class="cfm-desc"></div></div><div class="cfm-btns"><button class="cfm-no">取消</button><button class="cfm-yes">删除</button></div></div>';
+    screen.appendChild(mask);
+    var titleEl = mask.querySelector(".cfm-title"), descEl = mask.querySelector(".cfm-desc");
+    var noBtn = mask.querySelector(".cfm-no"), yesBtn = mask.querySelector(".cfm-yes");
+    var onOk = null;
+    noBtn.addEventListener("click", function () { close(); });
+    mask.addEventListener("click", function (e) { if (e.target === mask) close(); });
+    yesBtn.addEventListener("click", function () { var fn = onOk; close(); if (fn) fn(); });
+    function close() { mask.classList.remove("open"); }
+    return function open(opts) {
+      titleEl.textContent = opts.title;
+      descEl.textContent = opts.desc;
+      onOk = opts.onOk;
+      mask.classList.add("open");
+    };
+  }
+
+  /* ---------- Toast（可带撤销） ---------- */
+  function showToast(screen, text, onUndo) {
+    var old = screen.querySelector(".toast"); if (old) old.remove();
+    var t = document.createElement("div");
+    t.className = "toast";
+    t.innerHTML = "<span>" + text + "</span>" + (onUndo ? '<button class="undo">撤销</button>' : "");
+    screen.appendChild(t);
+    requestAnimationFrame(function () { requestAnimationFrame(function () { t.classList.add("show"); }); });
+    var closed = false;
+    function hide() { if (closed) return; closed = true; t.classList.remove("show"); setTimeout(function () { t.remove(); }, 450); }
+    if (onUndo) t.querySelector(".undo").addEventListener("click", function () { hide(); onUndo(); });
+    setTimeout(hide, 5000);
+  }
+
+  /* ---------- 删除动画：飞出 + 高度收拢 ---------- */
+  function removeWithAnim(wrap, screen, toastText) {
+    var card = wrap.querySelector(".dcard");
+    card.classList.add("fly-out");
+    var undoData = { parent: wrap.parentNode, next: wrap.nextSibling, wrap: wrap };
+    setTimeout(function () {
+      wrap.style.height = wrap.offsetHeight + "px";
+      wrap.querySelector(".dcard").style.display = "none";
+      requestAnimationFrame(function () {
+        wrap.classList.add("collapsing");
+        wrap.style.height = "0px";
+      });
+      setTimeout(function () { wrap.remove(); }, 400);
+    }, 240);
+    if (toastText) showToast(screen, toastText, function () {
+      undoData.parent.insertBefore(undoData.wrap, undoData.next);
+      undoData.wrap.classList.remove("collapsing");
+      undoData.wrap.style.height = "";
+      var c = undoData.wrap.querySelector(".dcard");
+      c.style.display = "";
+      c.classList.remove("fly-out");
+    });
+  }
+
+  function confirmDesc(entry) {
+    var t = entry.text.length > 16 ? entry.text.slice(0, 16) + "…" : entry.text;
+    return "「" + t + "」及其全部内容将被删除。";
+  }
+
+  /* ---------- 手势基础：水平意图判定 ---------- */
+  function attachHorizontalGesture(card, handlers) {
+    var sx = 0, sy = 0, dragging = false, decided = null, pid = null;
+    card.addEventListener("pointerdown", function (e) {
+      if (e.button !== undefined && e.button !== 0) return;
+      if (card.closest(".feed").classList.contains("editing")) return;
+      sx = e.clientX; sy = e.clientY; decided = null; pid = e.pointerId;
+      card.setPointerCapture(pid);
+    });
+    card.addEventListener("pointermove", function (e) {
+      if (pid === null || e.pointerId !== pid) return;
+      var dx = e.clientX - sx, dy = e.clientY - sy;
+      if (decided === null) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        decided = Math.abs(dx) > Math.abs(dy);
+        if (decided) { dragging = true; card.classList.add("dragging"); handlers.start && handlers.start(); }
+        else { pid = null; return; }
+      }
+      if (!decided) return;
+      handlers.move && handlers.move(dx, dy);
+    });
+    function finish(e) {
+      if (pid === null || (e.pointerId !== undefined && e.pointerId !== pid)) return;
+      if (dragging) {
+        card.classList.remove("dragging");
+        handlers.end && handlers.end(e.clientX - sx);
+        card.addEventListener("click", function stop(ev) { ev.stopPropagation(); ev.preventDefault(); card.removeEventListener("click", stop, true); }, true);
+        setTimeout(function () { card.removeEventListener("click", function(){}, true); }, 50);
+      }
+      dragging = false; pid = null; decided = null;
+    }
+    card.addEventListener("pointerup", finish);
+    card.addEventListener("pointercancel", finish);
+  }
+
+  /* ================================================================
+     方案 0：现状复现 —— 右滑 + 78px 全高色块
+  ================================================================ */
+  function initLegacy(sec) {
+    var screen = sec.querySelector(".screen"), feed = sec.querySelector(".feed");
+    var confirm = makeConfirm(screen);
+    feed.innerHTML = DATA.map(function (e) {
+      return cardHTML(e, { underlay: '<div class="act-legacy">' + I.trash + '<span>删除</span></div>' });
+    }).join("");
+    var W = 78;
+    feed.querySelectorAll(".row-wrap").forEach(function (wrap) {
+      var card = wrap.querySelector(".dcard"), zone = wrap.querySelector(".act-legacy");
+      var base = 0;
+      attachHorizontalGesture(card, {
+        move: function (dx) {
+          var off = clamp(base + dx, 0, W);
+          card.style.transform = "translateX(" + off + "px)";
+        },
+        end: function (dx) {
+          var off = base + dx;
+          base = off > W / 2 ? W : 0;
+          card.style.transform = "translateX(" + base + "px)";
+          zone.style.pointerEvents = base === W ? "auto" : "none";
+        }
+      });
+      zone.style.pointerEvents = "none";
+      zone.addEventListener("click", function () {
+        var entry = entryOf(wrap);
+        confirm({ title: "删除日记", desc: confirmDesc(entry), onOk: function () {
+          removeWithAnim(wrap, screen, null);
+          setTimeout(function(){ showToast(screen, "已删除日记"); }, 500);
+        }});
+      });
+    });
+  }
+
+  function entryOf(wrap) {
+    var idx = Array.prototype.indexOf.call(wrap.parentNode.children, wrap);
+    var title = wrap.querySelector(".dcard-title").textContent;
+    var text = wrap.querySelector(".dcard-preview").textContent;
+    return { title: title, text: text };
+  }
+
+  /* ================================================================
+     方案 A：左滑 + 悬浮圆钮
+  ================================================================ */
+  function initA(sec) {
+    var screen = sec.querySelector(".screen"), feed = sec.querySelector(".feed");
+    var confirm = makeConfirm(screen);
+    feed.innerHTML = DATA.map(function (e) {
+      return cardHTML(e, { underlay: '<div class="act-zone"><button class="act-btn">' + I.trash + '<span class="lbl">删除</span></button></div>' });
+    }).join("");
+    var W = 78;
+    feed.querySelectorAll(".row-wrap").forEach(function (wrap) {
+      var card = wrap.querySelector(".dcard"), btn = wrap.querySelector(".act-btn");
+      var base = 0;
+      function paint(off) {
+        var p = clamp(-off / W, 0, 1);
+        btn.style.opacity = p;
+        btn.style.transform = "scale(" + (0.5 + 0.5 * p) + ")";
+      }
+      attachHorizontalGesture(card, {
+        move: function (dx) {
+          var off = clamp(base + dx, -W, 0);
+          card.style.transform = "translateX(" + off + "px)";
+          paint(off);
+        },
+        end: function (dx) {
+          var off = base + dx;
+          base = off < -W / 2 ? -W : 0;
+          card.style.transform = "translateX(" + base + "px)";
+          paint(base);
+          btn.style.pointerEvents = base === -W ? "auto" : "none";
+        }
+      });
+      btn.style.pointerEvents = "none";
+      card.addEventListener("click", function () { if (base === -W) { base = 0; card.style.transform = ""; paint(0); btn.style.pointerEvents = "none"; } });
+      btn.addEventListener("click", function (ev) {
+        ev.stopPropagation();
+        var entry = entryOf(wrap);
+        confirm({ title: "删除日记", desc: confirmDesc(entry), onOk: function () {
+          removeWithAnim(wrap, screen, null);
+          setTimeout(function(){ showToast(screen, "已删除日记"); }, 500);
+        }});
+      });
+    });
+  }
+
+  /* ================================================================
+     方案 B：··· 气泡菜单
+  ================================================================ */
+  function initB(sec) {
+    var screen = sec.querySelector(".screen"), feed = sec.querySelector(".feed");
+    var confirm = makeConfirm(screen);
+    feed.innerHTML = DATA.map(function (e) { return cardHTML(e, { moreBtn: true }); }).join("");
+
+    var openPop = null;
+    function closePop() { if (openPop) { openPop.classList.remove("open"); openPop.previousElementSibling.classList.remove("open"); openPop = null; } }
+
+    feed.querySelectorAll(".row-wrap").forEach(function (wrap) {
+      var more = wrap.querySelector(".more-btn");
+      var pop = document.createElement("div");
+      pop.className = "pop";
+      pop.innerHTML =
+        '<button class="pop-item" data-act="pin">' + I.pin + '置顶</button>' +
+        '<button class="pop-item" data-act="share">' + I.share + '分享</button>' +
+        '<button class="pop-item danger" data-act="del">' + I.trash + '删除</button>';
+      wrap.querySelector(".dcard-head").appendChild(pop);
+
+      more.addEventListener("click", function (e) {
+        e.stopPropagation();
+        if (openPop === pop) { closePop(); return; }
+        closePop();
+        pop.classList.add("open"); more.classList.add("open");
+        openPop = pop;
+      });
+      pop.addEventListener("click", function (e) {
+        var item = e.target.closest(".pop-item"); if (!item) return;
+        e.stopPropagation();
+        var act = item.dataset.act;
+        closePop();
+        if (act === "del") {
+          var entry = entryOf(wrap);
+          confirm({ title: "删除日记", desc: confirmDesc(entry), onOk: function () {
+            removeWithAnim(wrap, screen, null);
+            setTimeout(function(){ showToast(screen, "已删除日记"); }, 500);
+          }});
+        } else {
+          showToast(screen, act === "pin" ? "已置顶（演示）" : "分享面板（演示）");
+        }
+      });
+    });
+    screen.addEventListener("click", function (e) { if (openPop && !e.target.closest(".pop")) closePop(); });
+  }
+
+  /* ================================================================
+     方案 C：长按 → ActionSheet
+  ================================================================ */
+  function initC(sec) {
+    var screen = sec.querySelector(".screen"), feed = sec.querySelector(".feed");
+    var confirm = makeConfirm(screen);
+    feed.innerHTML = DATA.map(function (e) { return cardHTML(e); }).join("");
+
+    var mask = document.createElement("div"); mask.className = "mask";
+    var sheet = document.createElement("div"); sheet.className = "sheet";
+    sheet.innerHTML =
+      '<div class="grabber"></div><div class="sheet-title"></div>' +
+      '<button class="sheet-item" data-act="pin">' + I.pin + '置顶这篇日记</button>' +
+      '<button class="sheet-item" data-act="share">' + I.share + '分享</button>' +
+      '<button class="sheet-item danger" data-act="del">' + I.trash + '删除日记</button>';
+    screen.appendChild(mask); screen.appendChild(sheet);
+
+    var currentWrap = null;
+    function openSheet(wrap) {
+      currentWrap = wrap;
+      var entry = entryOf(wrap);
+      var type = wrap.querySelector(".chip").textContent;
+      sheet.querySelector(".sheet-title").textContent = entry.title + " · " + type;
+      mask.classList.add("open"); sheet.classList.add("open");
+    }
+    function closeSheet() { mask.classList.remove("open"); sheet.classList.remove("open"); }
+    mask.addEventListener("click", closeSheet);
+    sheet.addEventListener("click", function (e) {
+      var item = e.target.closest(".sheet-item"); if (!item) return;
+      var act = item.dataset.act;
+      var wrap = currentWrap;
+      closeSheet();
+      if (act === "del") {
+        confirm({ title: "删除日记", desc: confirmDesc(entryOf(wrap)), onOk: function () {
+          removeWithAnim(wrap, screen, null);
+          setTimeout(function(){ showToast(screen, "已删除日记"); }, 500);
+        }});
+      } else {
+        showToast(screen, act === "pin" ? "已置顶（演示）" : "分享面板（演示）");
+      }
+    });
+
+    feed.querySelectorAll(".row-wrap").forEach(function (wrap) {
+      var card = wrap.querySelector(".dcard");
+      var timer = null, sx = 0, sy = 0, held = false;
+      card.addEventListener("pointerdown", function (e) {
+        if (e.button !== undefined && e.button !== 0) return;
+        sx = e.clientX; sy = e.clientY; held = false;
+        timer = setTimeout(function () {
+          held = true;
+          card.style.transform = "scale(.965)";
+          setTimeout(function () { card.style.transform = ""; }, 180);
+          openSheet(wrap);
+        }, 480);
+      });
+      function cancel(e) {
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (held && e && e.type === "pointerup") { /* 长按已生效，吞掉后续 click */ }
+      }
+      card.addEventListener("pointermove", function (e) {
+        if (Math.abs(e.clientX - sx) > 10 || Math.abs(e.clientY - sy) > 10) cancel();
+      });
+      card.addEventListener("pointerup", cancel);
+      card.addEventListener("pointercancel", cancel);
+      card.addEventListener("pointerleave", cancel);
+    });
+  }
+
+  /* ================================================================
+     方案 D：整卡拖甩 + 撤销
+  ================================================================ */
+  function initD(sec) {
+    var screen = sec.querySelector(".screen"), feed = sec.querySelector(".feed");
+    feed.innerHTML = DATA.map(function (e) {
+      return cardHTML(e, { underlay: '<div class="bed">' + I.trashBig + '</div>' });
+    }).join("");
+    var TH = 96;
+
+    feed.querySelectorAll(".row-wrap").forEach(function (wrap) {
+      var card = wrap.querySelector(".dcard"), bed = wrap.querySelector(".bed");
+      attachHorizontalGesture(card, {
+        move: function (dx) {
+          var off = Math.min(0, dx);
+          card.style.transform = "translateX(" + off + "px)" + (off < -TH ? " rotate(-2deg)" : "");
+          bed.classList.toggle("armed", off < -TH);
+        },
+        end: function (dx) {
+          var off = Math.min(0, dx);
+          if (off < -TH) {
+            removeWithAnim(wrap, screen, "已删除日记");
+          } else {
+            card.style.transform = "";
+            bed.classList.remove("armed");
+            setTimeout(function () { bed.classList.remove("armed"); }, 50);
+          }
+        }
+      });
+    });
+  }
+
+  /* ================================================================
+     方案 E：管理模式批量删除
+  ================================================================ */
+  function initE(sec) {
+    var screen = sec.querySelector(".screen"), feed = sec.querySelector(".feed");
+    var confirm = makeConfirm(screen);
+    feed.innerHTML =
+      '<div class="month-bar"><b>九月</b><button class="manage-toggle">管理</button></div>' +
+      DATA.map(function (e) { return cardHTML(e, { selRing: true }); }).join("");
+
+    var toolbar = document.createElement("div"); toolbar.className = "toolbar";
+    toolbar.innerHTML = '<span class="tb-count">已选 0 篇</span><button class="tb-del" disabled>删除</button>';
+    screen.appendChild(toolbar);
+
+    var bar = feed.querySelector(".month-bar"), toggle = bar.querySelector(".manage-toggle");
+    var countEl = toolbar.querySelector(".tb-count"), delBtn = toolbar.querySelector(".tb-del");
+
+    function refresh() {
+      var n = feed.querySelectorAll(".row-wrap.selected").length;
+      countEl.textContent = "已选 " + n + " 篇";
+      delBtn.disabled = n === 0;
+      delBtn.textContent = n > 0 ? "删除 (" + n + ")" : "删除";
+    }
+    function setEditing(on) {
+      feed.classList.toggle("editing", on);
+      toolbar.classList.toggle("open", on);
+      toggle.textContent = on ? "完成" : "管理";
+      if (!on) feed.querySelectorAll(".row-wrap.selected").forEach(function (w) { w.classList.remove("selected"); });
+      refresh();
+    }
+    toggle.addEventListener("click", function () { setEditing(!feed.classList.contains("editing")); });
+
+    feed.querySelectorAll(".row-wrap").forEach(function (wrap) {
+      wrap.addEventListener("click", function () {
+        if (!feed.classList.contains("editing")) return;
+        wrap.classList.toggle("selected");
+        refresh();
+      });
+    });
+
+    delBtn.addEventListener("click", function () {
+      var sel = Array.prototype.slice.call(feed.querySelectorAll(".row-wrap.selected"));
+      if (!sel.length) return;
+      confirm({
+        title: "删除 " + sel.length + " 篇日记",
+        desc: "所选日记及其全部内容将被删除。",
+        onOk: function () {
+          sel.forEach(function (w, i) { setTimeout(function () { removeWithAnim(w, screen, null); }, i * 90); });
+          setEditing(false);
+          setTimeout(function () { showToast(screen, "已删除 " + sel.length + " 篇日记"); }, 600);
+        }
+      });
+    });
+  }
+
+  /* ---------- 装载 ---------- */
+  var INITS = { legacy: initLegacy, A: initA, B: initB, C: initC, D: initD, E: initE };
+  document.querySelectorAll(".demo").forEach(function (sec) {
+    var run = function () {
+      var screen = sec.querySelector(".screen");
+      screen.querySelectorAll(".mask,.sheet,.toolbar,.cfm-mask,.toast,.pop").forEach(function (n) { n.remove(); });
+      var feed = sec.querySelector(".feed");
+      var hint = sec.querySelector(".hint");
+      if (hint) hint.classList.remove("seen");
+      INITS[sec.dataset.demo](sec);
+      feed.addEventListener("pointerdown", function () { if (hint) hint.classList.add("seen"); }, { once: true });
+    };
+    sec.querySelector(".reset").addEventListener("click", run);
+    run();
+  });
+})();
+</script>
+</body>
+</html>

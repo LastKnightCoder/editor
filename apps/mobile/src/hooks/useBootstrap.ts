@@ -1,10 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import type {
-  BootstrapResponse,
-  DatabaseListResponse,
-  SyncVersionResponse,
-} from "../types";
+import type { BootstrapResponse, DatabaseListResponse, SyncVersionResponse } from "../types";
 import * as tauri from "../services/tauri";
 
 export function useBootstrap() {
@@ -42,14 +38,27 @@ export function useBootstrap() {
     }
   });
 
-  return {
-    isLoading,
-    bootstrap,
-    databases,
-    versions,
-    initialize,
-    refreshDatabases,
-    refreshVersions,
-    setVersions,
-  };
+  // 返回值 memo 化：字段不变时引用稳定，避免 AppContext 因新对象引用全量重渲染
+  return useMemo(
+    () => ({
+      isLoading,
+      bootstrap,
+      databases,
+      versions,
+      initialize,
+      refreshDatabases,
+      refreshVersions,
+      setVersions,
+    }),
+    [
+      isLoading,
+      bootstrap,
+      databases,
+      versions,
+      initialize,
+      refreshDatabases,
+      refreshVersions,
+      setVersions,
+    ]
+  );
 }

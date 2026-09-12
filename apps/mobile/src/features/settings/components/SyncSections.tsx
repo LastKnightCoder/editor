@@ -1,72 +1,68 @@
 import { useState } from "react";
 import type { SettingCompat } from "../../../types";
 import { ActionSheet } from "./ActionSheet";
-import type { SettingsPageProps } from "./types";
+import type { SettingModule, SettingsPageProps } from "./types";
 import { useGithubRepoSelector } from "./useGithubRepoSelector";
-import { FieldInput, FieldSheetTrigger, SaveButton, SwitchButton } from "./ui";
+import {
+  CredentialEntryRow,
+  FieldInput,
+  FieldSheetTrigger,
+  GroupCard,
+  GroupLabel,
+  SaveButton,
+} from "./ui";
 
 type UpdateSetting = SettingsPageProps["updateSetting"];
 
 type SyncSectionProps = {
   safeSetting: SettingCompat | null;
-  activeSync: string;
   isSavingSetting: boolean;
   onSaveSetting: () => Promise<void>;
   updateSetting: UpdateSetting;
+  onOpenModule: (module: Exclude<SettingModule, null>) => void;
 };
 
-function switchSyncProvider(
-  updateSetting: UpdateSetting,
-  activeSync: string,
-  target: "webdav" | "aliOSS" | "github" | "s3",
-) {
-  const fallback = target === "aliOSS" ? "webdav" : "aliOSS";
-  updateSetting(
-    (prev) => ({
-      ...prev,
-      sync: {
-        ...prev.sync,
-        active: activeSync === target ? fallback : target,
-      },
-    }),
-    { persist: true },
+/** 凭证组：各服务凭证在集成账号统一管理，配置页只放入口与连接态 */
+function CredentialGroup(props: { connected: boolean; account?: string; onOpen: () => void }) {
+  return (
+    <>
+      <GroupLabel>凭证</GroupLabel>
+      <GroupCard>
+        <CredentialEntryRow
+          connected={props.connected}
+          account={props.account}
+          onOpen={props.onOpen}
+        />
+      </GroupCard>
+    </>
   );
 }
 
-function IntegrationHint() {
+function ParamsGroup(props: { children: React.ReactNode }) {
   return (
-    <p className="text-xs text-gray-400 dark:text-gray-500">
-      凭证请在“集成账号”中配置，这里只填写同步业务参数。
-    </p>
+    <>
+      <GroupLabel>同步参数</GroupLabel>
+      <div className="list-group p-4">{props.children}</div>
+    </>
   );
 }
 
 export function SyncWebDavSection(props: SyncSectionProps) {
+  const cred = props.safeSetting?.integration.webdav;
+  const connected = Boolean(cred?.url && cred?.username);
   return (
-    <div className="space-y-4">
-      <div className="list-group p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <span className="text-[15px] text-gray-800 dark:text-gray-100">
-            启用 WebDAV
-          </span>
-          <SwitchButton
-            checked={props.activeSync === "webdav"}
-            onChange={() =>
-              switchSyncProvider(
-                props.updateSetting,
-                props.activeSync,
-                "webdav",
-              )
-            }
-          />
-        </div>
-
+    <div className="page-enter space-y-1">
+      <CredentialGroup
+        connected={connected}
+        onOpen={() => props.onOpenModule("integration-webdav")}
+      />
+      <ParamsGroup>
         <div className="space-y-3">
           <FieldInput
             label="路径前缀"
             value={props.safeSetting?.sync.webdav.pathPrefix ?? ""}
-            onChange={(v) =>
-              props.updateSetting((prev) => ({
+            onChange={v =>
+              props.updateSetting(prev => ({
                 ...prev,
                 sync: {
                   ...prev.sync,
@@ -76,43 +72,29 @@ export function SyncWebDavSection(props: SyncSectionProps) {
             }
             placeholder="/sync"
           />
-          <IntegrationHint />
         </div>
-        <SaveButton
-          isSaving={props.isSavingSetting}
-          onClick={props.onSaveSetting}
-        />
-      </div>
+        <SaveButton isSaving={props.isSavingSetting} onClick={props.onSaveSetting} />
+      </ParamsGroup>
     </div>
   );
 }
 
 export function SyncAliOssSection(props: SyncSectionProps) {
+  const cred = props.safeSetting?.integration.aliOSS;
+  const connected = Boolean(cred?.accessKeyId);
   return (
-    <div className="space-y-4">
-      <div className="list-group p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <span className="text-[15px] text-gray-800 dark:text-gray-100">
-            启用 AliOSS
-          </span>
-          <SwitchButton
-            checked={props.activeSync === "aliOSS"}
-            onChange={() =>
-              switchSyncProvider(
-                props.updateSetting,
-                props.activeSync,
-                "aliOSS",
-              )
-            }
-          />
-        </div>
-
+    <div className="page-enter space-y-1">
+      <CredentialGroup
+        connected={connected}
+        onOpen={() => props.onOpenModule("integration-alioss")}
+      />
+      <ParamsGroup>
         <div className="space-y-3">
           <FieldInput
             label="Bucket"
             value={props.safeSetting?.sync.aliOSS.bucket ?? ""}
-            onChange={(v) =>
-              props.updateSetting((prev) => ({
+            onChange={v =>
+              props.updateSetting(prev => ({
                 ...prev,
                 sync: {
                   ...prev.sync,
@@ -125,8 +107,8 @@ export function SyncAliOssSection(props: SyncSectionProps) {
           <FieldInput
             label="Region"
             value={props.safeSetting?.sync.aliOSS.region ?? ""}
-            onChange={(v) =>
-              props.updateSetting((prev) => ({
+            onChange={v =>
+              props.updateSetting(prev => ({
                 ...prev,
                 sync: {
                   ...prev.sync,
@@ -139,8 +121,8 @@ export function SyncAliOssSection(props: SyncSectionProps) {
           <FieldInput
             label="路径前缀"
             value={props.safeSetting?.sync.aliOSS.path ?? ""}
-            onChange={(v) =>
-              props.updateSetting((prev) => ({
+            onChange={v =>
+              props.updateSetting(prev => ({
                 ...prev,
                 sync: {
                   ...prev.sync,
@@ -150,13 +132,9 @@ export function SyncAliOssSection(props: SyncSectionProps) {
             }
             placeholder="/sync"
           />
-          <IntegrationHint />
         </div>
-        <SaveButton
-          isSaving={props.isSavingSetting}
-          onClick={props.onSaveSetting}
-        />
-      </div>
+        <SaveButton isSaving={props.isSavingSetting} onClick={props.onSaveSetting} />
+      </ParamsGroup>
     </div>
   );
 }
@@ -168,36 +146,25 @@ export function SyncGithubSection(props: SyncSectionProps) {
   const owner = props.safeSetting?.integration.github.user.name ?? "";
   const repo = props.safeSetting?.sync.github.repo ?? "";
   const branch = props.safeSetting?.sync.github.branch ?? "";
-  const {
-    repos,
-    branches,
-    error,
-    canLoad,
-    loadingRepos,
-    loadingBranches,
-    loadBranches,
-  } = useGithubRepoSelector({
-    token,
-    owner,
-    repo,
-    branch,
-  });
+  const { repos, branches, error, canLoad, loadingRepos, loadingBranches, loadBranches } =
+    useGithubRepoSelector({
+      token,
+      owner,
+      repo,
+      branch,
+    });
 
-  const repoOptions = Array.from(new Set([repo, ...repos].filter(Boolean))).map(
-    (item) => ({
-      label: item,
-      value: item,
-    }),
-  );
-  const branchOptions = Array.from(
-    new Set([branch, ...branches].filter(Boolean)),
-  ).map((item) => ({
+  const repoOptions = Array.from(new Set([repo, ...repos].filter(Boolean))).map(item => ({
+    label: item,
+    value: item,
+  }));
+  const branchOptions = Array.from(new Set([branch, ...branches].filter(Boolean))).map(item => ({
     label: item,
     value: item,
   }));
 
   const handleSelectRepo = async (nextRepo: string) => {
-    props.updateSetting((prev) => ({
+    props.updateSetting(prev => ({
       ...prev,
       sync: {
         ...prev.sync,
@@ -212,32 +179,21 @@ export function SyncGithubSection(props: SyncSectionProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="list-group p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <span className="text-[15px] text-gray-800 dark:text-gray-100">
-            启用 Github
-          </span>
-          <SwitchButton
-            checked={props.activeSync === "github"}
-            onChange={() =>
-              switchSyncProvider(
-                props.updateSetting,
-                props.activeSync,
-                "github",
-              )
-            }
-          />
-        </div>
-
+    <div className="page-enter space-y-1">
+      <CredentialGroup
+        connected={canLoad && Boolean(owner)}
+        account={owner || undefined}
+        onOpen={() => props.onOpenModule("integration-github")}
+      />
+      <ParamsGroup>
         <div className="space-y-3">
           {!canLoad && (
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-700 dark:border-yellow-500/30 dark:bg-yellow-500/10 dark:text-yellow-300">
-              请先在“集成账号 - Github”中验证并连接账号，再选择仓库与分支。
+            <div className="bg-butter-soft text-butter rounded-2xl p-3 text-sm font-medium">
+              请先在「集成账号 · Github」连接账号，再选择仓库与分支。
             </div>
           )}
           {!!error && (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+            <div className="bg-rose-soft text-danger rounded-2xl p-3 text-sm font-medium">
               {error}
             </div>
           )}
@@ -260,24 +216,23 @@ export function SyncGithubSection(props: SyncSectionProps) {
           <FieldInput
             label="路径前缀"
             value={props.safeSetting?.sync.github.pathPrefix ?? ""}
-            onChange={(v) =>
-              props.updateSetting((prev) => ({
+            onChange={v =>
+              props.updateSetting(prev => ({
                 ...prev,
                 sync: {
                   ...prev.sync,
-                  github: { ...prev.sync.github, pathPrefix: v },
+                  github: {
+                    ...prev.sync.github,
+                    pathPrefix: v,
+                  },
                 },
               }))
             }
             placeholder="sync"
           />
-          <IntegrationHint />
         </div>
-        <SaveButton
-          isSaving={props.isSavingSetting}
-          onClick={props.onSaveSetting}
-        />
-      </div>
+        <SaveButton isSaving={props.isSavingSetting} onClick={props.onSaveSetting} />
+      </ParamsGroup>
       <ActionSheet
         open={repoSheetOpen}
         title="选择仓库"
@@ -286,7 +241,7 @@ export function SyncGithubSection(props: SyncSectionProps) {
         loading={loadingRepos}
         emptyText={canLoad ? "暂无仓库" : "请先连接 Github"}
         onClose={() => setRepoSheetOpen(false)}
-        onSelect={(value) => {
+        onSelect={value => {
           void handleSelectRepo(value);
         }}
       />
@@ -298,12 +253,15 @@ export function SyncGithubSection(props: SyncSectionProps) {
         loading={loadingBranches}
         emptyText={repo ? "暂无分支" : "请先选择仓库"}
         onClose={() => setBranchSheetOpen(false)}
-        onSelect={(value) =>
-          props.updateSetting((prev) => ({
+        onSelect={value =>
+          props.updateSetting(prev => ({
             ...prev,
             sync: {
               ...prev.sync,
-              github: { ...prev.sync.github, branch: value },
+              github: {
+                ...prev.sync.github,
+                branch: value,
+              },
             },
           }))
         }
@@ -313,27 +271,18 @@ export function SyncGithubSection(props: SyncSectionProps) {
 }
 
 export function SyncS3Section(props: SyncSectionProps) {
+  const cred = props.safeSetting?.integration.s3;
+  const connected = Boolean(cred?.accessKeyId);
   return (
-    <div className="space-y-4">
-      <div className="list-group p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <span className="text-[15px] text-gray-800 dark:text-gray-100">
-            启用 S3
-          </span>
-          <SwitchButton
-            checked={props.activeSync === "s3"}
-            onChange={() =>
-              switchSyncProvider(props.updateSetting, props.activeSync, "s3")
-            }
-          />
-        </div>
-
+    <div className="page-enter space-y-1">
+      <CredentialGroup connected={connected} onOpen={() => props.onOpenModule("integration-s3")} />
+      <ParamsGroup>
         <div className="space-y-3">
           <FieldInput
             label="Bucket"
             value={props.safeSetting?.sync.s3.bucket ?? ""}
-            onChange={(v) =>
-              props.updateSetting((prev) => ({
+            onChange={v =>
+              props.updateSetting(prev => ({
                 ...prev,
                 sync: {
                   ...prev.sync,
@@ -346,8 +295,8 @@ export function SyncS3Section(props: SyncSectionProps) {
           <FieldInput
             label="Region"
             value={props.safeSetting?.sync.s3.region ?? ""}
-            onChange={(v) =>
-              props.updateSetting((prev) => ({
+            onChange={v =>
+              props.updateSetting(prev => ({
                 ...prev,
                 sync: {
                   ...prev.sync,
@@ -360,8 +309,8 @@ export function SyncS3Section(props: SyncSectionProps) {
           <FieldInput
             label="路径前缀"
             value={props.safeSetting?.sync.s3.pathPrefix ?? ""}
-            onChange={(v) =>
-              props.updateSetting((prev) => ({
+            onChange={v =>
+              props.updateSetting(prev => ({
                 ...prev,
                 sync: {
                   ...prev.sync,
@@ -371,13 +320,9 @@ export function SyncS3Section(props: SyncSectionProps) {
             }
             placeholder="sync"
           />
-          <IntegrationHint />
         </div>
-        <SaveButton
-          isSaving={props.isSavingSetting}
-          onClick={props.onSaveSetting}
-        />
-      </div>
+        <SaveButton isSaving={props.isSavingSetting} onClick={props.onSaveSetting} />
+      </ParamsGroup>
     </div>
   );
 }

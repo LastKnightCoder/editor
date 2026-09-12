@@ -7,6 +7,7 @@ import { useMobileTheme } from "../../hooks/useMobileTheme";
 import { ActionSheet } from "../settings/components/ActionSheet";
 import {
   CARD_CATEGORY_OPTIONS,
+  cardCategoryTagClass,
   isKnownCardCategory,
   type KnownCardCategory,
 } from "./cardCategory";
@@ -67,8 +68,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
     props.onRequestClose(latestContentRef.current);
   };
   const categoryLabel =
-    CARD_CATEGORY_OPTIONS.find((item) => item.value === props.category)
-      ?.label ?? "闪念";
+    CARD_CATEGORY_OPTIONS.find(item => item.value === props.category)?.label ?? "闪念";
   const categoryTitle = `${categoryLabel}卡片`;
 
   return (
@@ -77,13 +77,14 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
       defaultState="normal"
       states={["normal", "full"]}
       normalHeight={0.78}
+      // 主体抽屉 backDismiss={false}：本页关闭即弹栈，返回走页面 backHandler（冲洗落库）
+      backDismiss={false}
       onClose={handleCloseRequest}
-      containerClassName="bg-white dark:bg-neutral-950"
     >
       <>
         <SnapSheet.Handle />
 
-        <header className="quick-capture-sheet-header flex items-center justify-between gap-2 border-b border-gray-100 px-4 pb-3 dark:border-neutral-800">
+        <header className="quick-capture-sheet-header border-line flex items-center justify-between gap-2 border-b border-dashed px-4 pb-3">
           <div className="min-w-0">
             <button
               type="button"
@@ -91,7 +92,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
               onClick={() => {
                 setCategorySheetOpen(true);
               }}
-              className="rounded px-1 py-0.5 text-sm font-semibold text-gray-900 transition-colors active:bg-gray-100 disabled:opacity-50 dark:text-neutral-100 dark:active:bg-neutral-800"
+              className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-bold transition-transform active:scale-95 disabled:opacity-50 ${cardCategoryTagClass(props.category)}`}
             >
               {categoryTitle}
             </button>
@@ -109,7 +110,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
                 props.onClear?.();
               }}
               disabled={props.saving}
-              className="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600 transition-colors active:bg-gray-100 disabled:opacity-40 dark:border-neutral-700 dark:text-neutral-300 dark:active:bg-neutral-800"
+              className="border-line text-ink-2 active:bg-press rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-40"
             >
               清空
             </button>
@@ -117,7 +118,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
               type="button"
               onClick={handleCloseRequest}
               disabled={props.saving}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors active:bg-gray-100 disabled:opacity-40 dark:text-neutral-400 dark:active:bg-neutral-800"
+              className="text-ink-3 active:bg-press flex h-8 w-8 items-center justify-center rounded-full transition-colors disabled:opacity-40"
               aria-label="关闭闪念抽屉"
             >
               <X size={18} aria-hidden="true" />
@@ -126,12 +127,12 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
         </header>
 
         {showDraftPrompt && cachedDraft ? (
-          <div className="mx-4 mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-700/60 dark:bg-amber-900/30 dark:text-amber-300">
-            <p>检测到上次未保存草稿，是否恢复？</p>
+          <div className="bg-butter-soft text-butter mx-4 mt-3 rounded-2xl px-3.5 py-2.5 text-xs">
+            <p className="font-semibold">检测到上次未保存草稿，是否恢复？</p>
             <div className="mt-2 flex items-center gap-2">
               <button
                 type="button"
-                className="rounded-full bg-amber-600 px-3 py-1 text-[11px] text-white dark:bg-amber-500"
+                className="bg-butter rounded-full px-3.5 py-1 text-[11px] font-bold text-white"
                 onClick={() => {
                   editorRef.current?.setEditorValue(cachedDraft);
                   latestContentRef.current = cachedDraft;
@@ -144,7 +145,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
               </button>
               <button
                 type="button"
-                className="rounded-full border border-amber-300 px-3 py-1 text-[11px] dark:border-amber-600"
+                className="border-butter/50 rounded-full border px-3.5 py-1 text-[11px] font-semibold"
                 onClick={() => {
                   clearQuickCaptureDraft();
                   setCachedDraft(null);
@@ -168,7 +169,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
             className="mobile-card-editor-content min-h-[220px] outline-none ring-0 focus:outline-none focus:ring-0"
             onFocus={toolbarController.handleEditorFocus}
             onBlur={toolbarController.handleEditorBlur}
-            onChange={(value) => {
+            onChange={value => {
               latestContentRef.current = value;
               props.onContentChange?.(value);
               writeQuickCaptureDraft(value);
@@ -187,7 +188,7 @@ export function QuickCaptureSheet(props: QuickCaptureSheetProps) {
           value={props.category}
           options={CARD_CATEGORY_OPTIONS}
           onClose={() => setCategorySheetOpen(false)}
-          onSelect={(value) => {
+          onSelect={value => {
             if (!isKnownCardCategory(value)) {
               return;
             }

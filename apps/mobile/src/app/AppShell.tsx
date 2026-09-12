@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
-import { App as AntdApp } from "antd";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
 import { EditorProvider, createMarkdownPasteImportExtension } from "@tau/editor/src";
@@ -32,13 +31,15 @@ import { useResourceSync } from "../hooks/useResourceSync";
 import { useSyncSettings } from "../hooks/useSyncSettings";
 import { mapErrorToMessage, parseInvokeError } from "../services/errors";
 import * as tauri from "../services/tauri";
-import { getContentLength, normalizeEditorContent } from "../features/cards/editorContentUtils";
+import { initThemeRuntime } from "../theme/themeStore";
+import { normalizeEditorContent } from "../features/cards/editorContentUtils";
 import { subscribeContentUpdateAll } from "../features/cards/contentSyncBus";
 import type { CardsOverviewResponse } from "../types";
 import { useTodoStore } from "../features/todo/store/useTodoStore";
 import { useDiaryStore } from "../features/diary/store/useDiaryStore";
 import { ToastViewport } from "../components/ToastViewport";
 import { KeyboardViewportProvider } from "../components/KeyboardViewportProvider";
+import { AppDock } from "../components/AppDock";
 import { toast } from "../components/toast";
 import {
   OverlayHost,
@@ -46,8 +47,6 @@ import {
   PageQueryProvider,
   RouterDevTools,
   RouterProvider,
-  getNavigator,
-  getQueryClient,
 } from "../router";
 import { AppContext, type AppContextValue } from "./AppContext";
 import { HomeScreen } from "./HomeScreen";
@@ -301,19 +300,12 @@ function AppShellInner() {
     };
   }, []);
 
-  // 初始化主题
+  // 初始化主题运行时（index.html 已做首帧应用，这里兜底 + 注册系统偏好监听）
   useEffect(() => {
-    try {
-      const savedTheme = localStorage.getItem("tau-mobile-theme");
-      if (savedTheme === "dark") {
-        document.documentElement.classList.add("dark");
-      }
-    } catch {
-      // ignore
-    }
+    initThemeRuntime();
   }, []);
 
-  // 内容编辑广播：更新卡片列表与预览缓存
+  // 内容编辑广播：更新卡片列表缓存
   useEffect(() => {
     return subscribeContentUpdateAll(payload => {
       const normalizedContent = normalizeEditorContent(payload.content);
@@ -323,36 +315,11 @@ function AppShellInner() {
         payload.updateTime > 0
           ? payload.updateTime
           : Date.now();
-      const count =
-        typeof payload.count === "number" && Number.isFinite(payload.count)
-          ? payload.count
-          : getContentLength(normalizedContent);
-
       cards.patchCardsByContent({
         contentId: payload.contentId,
         content: normalizedContent,
         updateTime,
       });
-
-      // 按 contentId 修补预览详情缓存（key 前缀 ["card", cardId]）
-      getQueryClient()
-        .getQueryCache()
-        .getAll()
-        .forEach(query => {
-          const key = query.queryKey as readonly unknown[];
-          if (key[0] === "card" && key[1] === payload.contentId) {
-            getQueryClient().setQueryData(key, (prev: CardDetailResponseLike | undefined) =>
-              prev
-                ? {
-                    ...prev,
-                    content: normalizedContent as typeof prev.content,
-                    count,
-                    updateTime: Math.max(prev.updateTime, updateTime),
-                  }
-                : prev
-            );
-          }
-        });
     });
   }, [cards.patchCardsByContent]);
 
@@ -452,7 +419,6 @@ function AppShellInner() {
     ) => {
       try {
         await tauri.updateCardCategory({ id: cardId, category });
-        getQueryClient().invalidateQueries({ queryKey: ["card", cardId] });
         await refreshCardsSafe({ page: 1 });
         toast.success("卡片类型已更新");
       } catch (error) {
@@ -468,12 +434,6 @@ function AppShellInner() {
       if (changed <= 0) {
         throw new Error("CARD_NOT_FOUND: card does not exist");
       }
-      // 预览浮层正展示该卡片时一并关闭
-      const topOverlay = getNavigator().getTopOverlay();
-      if (topOverlay?.key === "cardPreview" && topOverlay.params.cardId === cardId) {
-        getNavigator().pop();
-      }
-      getQueryClient().invalidateQueries({ queryKey: ["card", cardId] });
       await refreshCardsSafe({ page: 1 });
       toast.success("卡片已删除");
     } catch (error) {
@@ -531,13 +491,13 @@ function AppShellInner() {
   if (bootstrap.isLoading) {
     return (
       <main
-        className="flex min-h-dvh items-center justify-center bg-gray-50 px-6 dark:bg-black"
+        className="bg-page flex min-h-dvh items-center justify-center px-6"
         style={{
           display: "flex",
           minHeight: "100dvh",
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor: "var(--color-bg-page)",
+          backgroundColor: "var(--bg-page)",
           padding: "0 24px",
         }}
       >
@@ -547,13 +507,13 @@ function AppShellInner() {
               width: 40,
               height: 40,
               margin: "0 auto 16px",
-              border: "2px solid var(--color-border)",
+              border: "2px solid var(--line-1)",
               borderTopColor: "transparent",
               borderRadius: "50%",
               animation: "spin 1s linear infinite",
             }}
           />
-          <p style={{ fontSize: 14, color: "var(--color-text-secondary)" }}>正在初始化...</p>
+          <p style={{ fontSize: 14, color: "var(--ink-2)" }}>正在初始化...</p>
         </div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </main>
@@ -561,50 +521,42 @@ function AppShellInner() {
   }
 
   return (
-    <AntdApp>
-      <KeyboardViewportProvider>
-        <EditorProvider
-          registry={editorRegistry}
-          config={mobileEditorConfig}
-          extensions={mobileEditorExtensions}
-        >
-          <BilibiliVideoDepsProvider deps={bilibiliDeps}>
-            <YoutubeVideoDepsProvider deps={youtubeDeps}>
-              <RemoteVideoDepsProvider deps={remoteVideoDeps}>
-                <EditDatabaseDepsProvider deps={editDatabaseDeps}>
-                  <DndProvider backend={HTML5Backend}>
-                    <PageQueryProvider>
-                      <AppContext.Provider value={appContextValue}>
-                        <RouterProvider
-                          rootKey="home"
-                          onRootBackHint={text => toast({ type: "info", text })}
-                        >
-                          <main className="min-h-dvh bg-gray-50 dark:bg-black">
-                            <PageHost rootContent={<HomeScreen />} />
-                            <OverlayHost />
-                            <ToastViewport />
-                            {import.meta.env.DEV && <RouterDevTools />}
-                          </main>
-                        </RouterProvider>
-                      </AppContext.Provider>
-                    </PageQueryProvider>
-                  </DndProvider>
-                </EditDatabaseDepsProvider>
-              </RemoteVideoDepsProvider>
-            </YoutubeVideoDepsProvider>
-          </BilibiliVideoDepsProvider>
-        </EditorProvider>
-      </KeyboardViewportProvider>
-    </AntdApp>
+    <KeyboardViewportProvider>
+      <EditorProvider
+        registry={editorRegistry}
+        config={mobileEditorConfig}
+        extensions={mobileEditorExtensions}
+      >
+        <BilibiliVideoDepsProvider deps={bilibiliDeps}>
+          <YoutubeVideoDepsProvider deps={youtubeDeps}>
+            <RemoteVideoDepsProvider deps={remoteVideoDeps}>
+              <EditDatabaseDepsProvider deps={editDatabaseDeps}>
+                <DndProvider backend={HTML5Backend}>
+                  <PageQueryProvider>
+                    <AppContext.Provider value={appContextValue}>
+                      <RouterProvider
+                        rootKey="home"
+                        onRootBackHint={text => toast({ type: "info", text })}
+                      >
+                        <main className="bg-page min-h-dvh">
+                          <PageHost rootContent={<HomeScreen />} />
+                          <AppDock />
+                          <OverlayHost />
+                          <ToastViewport />
+                          {import.meta.env.DEV && <RouterDevTools />}
+                        </main>
+                      </RouterProvider>
+                    </AppContext.Provider>
+                  </PageQueryProvider>
+                </DndProvider>
+              </EditDatabaseDepsProvider>
+            </RemoteVideoDepsProvider>
+          </YoutubeVideoDepsProvider>
+        </BilibiliVideoDepsProvider>
+      </EditorProvider>
+    </KeyboardViewportProvider>
   );
 }
-
-type CardDetailResponseLike = {
-  contentId: number;
-  content: unknown;
-  count: number;
-  updateTime: number;
-};
 
 const EMPTY_CARDS_FALLBACK: CardsOverviewResponse = {
   total: 0,

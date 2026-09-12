@@ -7,40 +7,80 @@ import {
   Cloud,
   Database,
   Folder,
+  Image as ImageIcon,
+  Info,
+  KeyRound,
   Moon,
 } from "lucide-react";
+
+// 图标统一为「彩色圆角块」形态（杏子设计稿 s-ico：34px 方块 + soft 底色）
+function IconTile({ className, children }: { className: string; children: ReactNode }) {
+  return (
+    <span className={`grid h-[34px] w-[34px] shrink-0 place-items-center rounded-xl ${className}`}>
+      {children}
+    </span>
+  );
+}
 
 export function IconChevronLeft() {
   return <ChevronLeft size={20} aria-hidden="true" />;
 }
 
-function IconChevronRight() {
+export function IconChevronRight() {
   return <ChevronRight size={16} aria-hidden="true" />;
 }
 
 export function IconMoon() {
-  return <Moon size={20} strokeWidth={1.8} aria-hidden="true" />;
+  return (
+    <IconTile className="bg-rose-soft text-rose">
+      <Moon size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
 }
 
 export function IconCircleHelp() {
-  return <CircleHelp size={20} strokeWidth={1.8} aria-hidden="true" />;
+  return (
+    <IconTile className="bg-input text-ink-2">
+      <CircleHelp size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
 }
 
 export function IconCloud() {
-  return <Cloud size={20} strokeWidth={1.8} aria-hidden="true" />;
+  return (
+    <IconTile className="bg-sky-soft text-sky">
+      <Cloud size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
 }
 
 export function IconDatabase() {
-  return <Database size={20} strokeWidth={1.8} aria-hidden="true" />;
+  return (
+    <IconTile className="bg-lilac-soft text-lilac">
+      <Database size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
 }
 
 export function IconFolder() {
-  return <Folder size={20} strokeWidth={1.8} aria-hidden="true" />;
+  return (
+    <IconTile className="bg-butter-soft text-butter">
+      <Folder size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconImage() {
+  return (
+    <IconTile className="bg-sage-soft text-sage">
+      <ImageIcon size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
 }
 
 export function CheckMark() {
   return (
-    <span className="text-gray-700 dark:text-neutral-200">
+    <span className="text-accent">
       <Check size={20} strokeWidth={2.5} aria-hidden="true" />
     </span>
   );
@@ -57,17 +97,15 @@ export function FieldInput(props: {
   return (
     <div>
       {props.label && (
-        <label className="mb-1.5 block text-sm text-gray-500 dark:text-gray-400">
-          {props.label}
-        </label>
+        <label className="text-ink-2 mb-1.5 block text-[13px] font-medium">{props.label}</label>
       )}
       <input
         value={props.value}
-        onChange={(e) => props.onChange(e.currentTarget.value)}
+        onChange={e => props.onChange(e.currentTarget.value)}
         onBlur={props.onBlur}
         type={props.type ?? "text"}
         placeholder={props.placeholder}
-        className="input-base w-full rounded-lg px-4 py-3 text-[15px] text-gray-900 placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
+        className="input-base text-ink w-full px-4 py-3 text-[14px]"
       />
     </div>
   );
@@ -84,18 +122,16 @@ export function FieldSelect(props: {
   return (
     <div>
       {props.label && (
-        <label className="mb-1.5 block text-sm text-gray-500 dark:text-gray-400">
-          {props.label}
-        </label>
+        <label className="text-ink-2 mb-1.5 block text-[13px] font-medium">{props.label}</label>
       )}
       <select
         value={props.value}
-        onChange={(e) => props.onChange(e.currentTarget.value)}
+        onChange={e => props.onChange(e.currentTarget.value)}
         disabled={props.disabled}
-        className="input-base w-full rounded-lg px-4 py-3 text-[15px] text-gray-900 disabled:opacity-60 dark:text-gray-100"
+        className="input-base text-ink w-full px-4 py-3 text-[14px] disabled:opacity-60"
       >
         <option value="">{props.placeholder ?? "请选择"}</option>
-        {props.options.map((option) => (
+        {props.options.map(option => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
@@ -113,34 +149,22 @@ export function FieldSheetTrigger(props: {
   loading?: boolean;
   onOpen: () => void;
 }) {
-  const displayText = props.loading
-    ? "加载中..."
-    : props.value || props.placeholder || "请选择";
+  const displayText = props.loading ? "加载中..." : props.value || props.placeholder || "请选择";
   const isPlaceholder = !props.loading && !props.value;
 
   return (
     <div>
       {props.label && (
-        <label className="mb-1.5 block text-sm text-gray-500 dark:text-gray-400">
-          {props.label}
-        </label>
+        <label className="text-ink-2 mb-1.5 block text-[13px] font-medium">{props.label}</label>
       )}
       <button
         type="button"
         onClick={props.onOpen}
         disabled={props.disabled}
-        className="input-base flex min-h-[48px] w-full items-center justify-between rounded-lg px-4 py-3 text-left text-[15px] text-gray-900 transition-colors active:bg-gray-50 disabled:opacity-60 dark:text-gray-100 dark:active:bg-neutral-800"
+        className="input-base active:bg-press flex min-h-[48px] w-full items-center justify-between px-4 py-3 text-left text-[14px] transition-colors disabled:opacity-60"
       >
-        <span
-          className={
-            isPlaceholder
-              ? "text-gray-400 dark:text-gray-500"
-              : "text-gray-900 dark:text-gray-100"
-          }
-        >
-          {displayText}
-        </span>
-        <span className="text-gray-300 dark:text-gray-600">
+        <span className={isPlaceholder ? "text-ink-3" : "text-ink"}>{displayText}</span>
+        <span className="text-ink-3">
           <IconChevronRight />
         </span>
       </button>
@@ -165,48 +189,37 @@ export function ListItem({
     <button
       type="button"
       onClick={onClick}
-      className="list-item w-full"
+      className="list-item w-full gap-3 text-left"
       disabled={!onClick}
     >
-      <div className="flex items-center gap-3">
-        <span className="text-gray-500 dark:text-gray-400">{icon}</span>
-        <span className="text-[15px] text-gray-800 dark:text-gray-100">
-          {label}
-        </span>
-      </div>
-      <div className="flex items-center gap-2">
-        {value && (
-          <span className="text-sm text-gray-400 dark:text-gray-500">
-            {value}
-          </span>
-        )}
+      {icon}
+      <span className="text-ink flex-1 text-[14px] font-medium">{label}</span>
+      <span className="flex items-center gap-1.5">
+        {value && <span className="text-ink-3 text-[12.5px]">{value}</span>}
         {showArrow && onClick && (
-          <span className="text-gray-300 dark:text-gray-600">
+          <span className="text-ink-3">
             <IconChevronRight />
           </span>
         )}
-      </div>
+      </span>
     </button>
   );
 }
 
-export function SwitchButton(props: {
-  checked: boolean;
-  onChange: () => void;
-}) {
+export function SwitchButton(props: { checked: boolean; onChange: () => void }) {
   return (
     <button
       type="button"
       onClick={props.onChange}
-      className={`relative h-7 w-12 rounded-full transition-colors ${
-        props.checked
-          ? "bg-zinc-900 dark:bg-neutral-200"
-          : "bg-gray-200 dark:bg-neutral-700"
+      role="switch"
+      aria-checked={props.checked}
+      className={`relative h-7 w-[46px] rounded-full transition-colors duration-200 ${
+        props.checked ? "bg-sage" : "bg-line"
       }`}
     >
       <span
-        className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
-          props.checked ? "left-[22px]" : "left-0.5"
+        className={`absolute top-[3px] h-[22px] w-[22px] rounded-full bg-white shadow-[0_2px_5px_rgba(0,0,0,0.18)] transition-[left] duration-200 ${
+          props.checked ? "left-[21px]" : "left-[3px]"
         }`}
       />
     </button>
@@ -223,9 +236,152 @@ export function SaveButton(props: {
       type="button"
       onClick={() => void props.onClick()}
       disabled={props.isSaving}
-      className="mt-4 w-full rounded-lg bg-zinc-900 py-3 text-sm font-semibold text-white transition-transform active:scale-[0.98] disabled:opacity-50 dark:bg-neutral-100 dark:text-neutral-900"
+      className="bg-accent shadow-accent mt-4 w-full rounded-full py-3 text-sm font-bold text-white transition-transform duration-150 active:scale-[0.97] disabled:opacity-50"
+      style={{ backgroundImage: "var(--brand-grad)" }}
     >
       {props.isSaving ? "保存中..." : (props.label ?? "保存配置")}
     </button>
+  );
+}
+
+/* ══ 方案 C 极简分组原语：组标签 / 组卡片 / 行 / 状态点 / 单选气泡 / ⓘ ── */
+
+export function GroupLabel(props: { children: ReactNode }) {
+  return (
+    <p className="text-ink-2 px-[30px] pb-[7px] pt-1 text-[12.5px] leading-relaxed">
+      {props.children}
+    </p>
+  );
+}
+
+export function GroupCard(props: { children: ReactNode }) {
+  return <div className="setting-group">{props.children}</div>;
+}
+
+export function GroupRow(props: {
+  children: ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const className = `setting-row ${props.className ?? ""}`;
+  if (!props.onClick) {
+    return <div className={className}>{props.children}</div>;
+  }
+  // 行内可能嵌 ⓘ 等真实 button，行本体用 div[role=button] 避免非法 button 嵌套
+  return (
+    <div
+      role="button"
+      tabIndex={props.disabled ? -1 : 0}
+      aria-disabled={props.disabled || undefined}
+      onClick={props.disabled ? undefined : props.onClick}
+      onKeyDown={event => {
+        if (props.disabled) {
+          return;
+        }
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          props.onClick?.();
+        }
+      }}
+      className={className}
+    >
+      {props.children}
+    </div>
+  );
+}
+
+export function StatusDot(props: { tone: "ok" | "run" | "warn" | "idle" }) {
+  const toneClass = {
+    ok: "bg-sage",
+    run: "bg-sky pulse-soft",
+    warn: "bg-butter",
+    idle: "bg-ink-3",
+  }[props.tone];
+  return (
+    <span className={`h-[9px] w-[9px] shrink-0 rounded-full ${toneClass}`} aria-hidden="true" />
+  );
+}
+
+export function CheckBubble() {
+  return (
+    <span className="bg-accent grid h-[21px] w-[21px] shrink-0 place-items-center rounded-full text-white">
+      <Check size={13} strokeWidth={3.4} aria-hidden="true" />
+    </span>
+  );
+}
+
+export function LetterTile(props: { letter: string; className: string }) {
+  return (
+    <IconTile className={props.className}>
+      <span className="text-[14px] font-extrabold">{props.letter}</span>
+    </IconTile>
+  );
+}
+
+export function InfoDotButton(props: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={event => {
+        event.stopPropagation();
+        props.onClick();
+      }}
+      aria-label={props.label}
+      className="bg-input text-ink-2 grid h-[26px] w-[26px] shrink-0 place-items-center rounded-full transition-transform duration-150 active:scale-90"
+    >
+      <Info size={14} strokeWidth={2.2} aria-hidden="true" />
+    </button>
+  );
+}
+
+/** 详情页操作组内的文字按钮行（主色 / 危险色） */
+export function GroupActionRow(props: {
+  children: ReactNode;
+  onClick?: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      disabled={props.disabled}
+      className={`setting-row justify-center gap-2 text-[14.5px] font-semibold disabled:opacity-50 ${
+        props.danger ? "text-danger" : "text-accent"
+      }`}
+    >
+      {props.children}
+    </button>
+  );
+}
+
+/** 配置子页顶部凭证入口行：显示连接状态并跳转集成账号 */
+export function CredentialEntryRow(props: {
+  connected: boolean;
+  account?: string;
+  onOpen: () => void;
+}) {
+  return (
+    <GroupRow onClick={props.onOpen}>
+      <IconTile className={props.connected ? "bg-sage-soft text-sage" : "bg-input text-ink-2"}>
+        {props.connected ? (
+          <Check size={16} strokeWidth={2.2} aria-hidden="true" />
+        ) : (
+          <KeyRound size={16} strokeWidth={1.9} aria-hidden="true" />
+        )}
+      </IconTile>
+      <span className="min-w-0 flex-1">
+        <span className="text-ink block truncate text-[14px] font-medium">
+          {props.connected ? `已连接${props.account ? ` · ${props.account}` : ""}` : "未连接凭证"}
+        </span>
+        <span className="text-ink-3 block text-[11.5px]">
+          {props.connected ? "凭证已验证，可正常同步" : "点击前往集成账号完成连接"}
+        </span>
+      </span>
+      <span className="text-ink-3">
+        <IconChevronRight />
+      </span>
+    </GroupRow>
   );
 }

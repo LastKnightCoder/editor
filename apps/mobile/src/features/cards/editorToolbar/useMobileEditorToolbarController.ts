@@ -1,5 +1,19 @@
 import { useCallback, useMemo, useRef, useState, type RefObject } from "react";
 import type { EditorRef } from "@tau/editor/src";
+import {
+  insertBlockMath,
+  insertCallout,
+  insertCheckList,
+  insertCodeBlock,
+  insertDetails,
+  insertHighlightBlock,
+  insertImageGallery,
+  insertMermaid,
+  insertTable,
+  insertTabs,
+  insertAnnotation,
+} from "@tau/editor/src/utils/insertElement";
+import { openLocalMediaPicker, openMediaUrlInput } from "@tau/editor/src/utils/mediaInsert";
 import type { Editor as SlateEditor } from "slate";
 import { Range, Transforms, type BaseSelection } from "slate";
 import { ReactEditor } from "slate-react";
@@ -9,9 +23,12 @@ import { wrapContentLink } from "../editorExtensions/contentLinkTransforms";
 import {
   applyColorMark as applyColorMarkToEditor,
   applyGradientMark as applyGradientMarkToEditor,
+  applyHeaderBlock,
   applyHighlightMark as applyHighlightMarkToEditor,
   applyUnderlineStyle as applyUnderlineStyleToEditor,
+  insertDividerBlock,
   isActionSelectionRequired,
+  isBlockAction,
   isCustomMarkAction,
   isInlineWrapAction,
   isMarkAction,
@@ -22,11 +39,39 @@ import {
   toggleContentLinkIfActive,
   toggleInlineWrap,
   toggleKbd,
+  toggleListBlock,
   toggleMark,
+  toggleQuoteBlock,
   type ToolbarActionId,
   type TextGradientOption,
   type UnderlineStylePayload,
 } from "./toolbarActions";
+
+/** 插入面板条目：媒体选择/块插入/行内标记三类入口（对齐桌面 slash 菜单的移动端子集） */
+export type InsertSheetItemKind =
+  | "image"
+  | "camera"
+  | "video"
+  | "audio"
+  | "image-url"
+  | "video-url"
+  | "audio-url"
+  | "image-gallery"
+  | "table"
+  | "code-block"
+  | "check-list"
+  | "divider"
+  | "tabs"
+  | "details"
+  | "highlight-block"
+  | "callout"
+  | "math"
+  | "mermaid"
+  | "annotation"
+  | "comment"
+  | "content-link"
+  | "styled-text"
+  | "kbd";
 
 type UseMobileEditorToolbarControllerOptions = {
   editorRef: RefObject<EditorRef | null>;
@@ -35,7 +80,13 @@ type UseMobileEditorToolbarControllerOptions = {
 export type MobileEditorToolbarController = {
   isEditorFocused: boolean;
   isContentLinkPickerOpen: boolean;
+  isInsertSheetOpen: boolean;
   executeAction: (actionId: ToolbarActionId) => void;
+  applyHeadingLevel: (level: 1 | 2 | 3 | "paragraph") => void;
+  handleOpenInsertSheet: () => void;
+  handleCloseInsertSheet: () => void;
+  handleSelectInsertItem: (kind: InsertSheetItemKind) => void;
+  handleInsertImage: () => void;
   applyColorMark: (lightColor?: string, darkColor?: string) => void;
   applyGradientMark: (preset?: TextGradientOption["preset"]) => void;
   applyHighlightMark: (label?: string) => void;
@@ -48,27 +99,28 @@ export type MobileEditorToolbarController = {
   syncSelection: () => void;
   handleCloseContentLinkPicker: () => void;
   handleSelectContentLink: (result: ContentLinkPickerResult) => void;
+  undo: () => void;
+  redo: () => void;
 };
 
-function getEditorFromRef(
-  editorRef: RefObject<EditorRef | null>,
-): SlateEditor | null {
+function getEditorFromRef(editorRef: RefObject<EditorRef | null>): SlateEditor | null {
   return (editorRef.current?.getEditor() as SlateEditor | undefined) ?? null;
 }
 
 export function useMobileEditorToolbarController(
-  options: UseMobileEditorToolbarControllerOptions,
+  options: UseMobileEditorToolbarControllerOptions
 ): MobileEditorToolbarController {
   const { editorRef } = options;
   const [isEditorFocused, setIsEditorFocused] = useState(false);
   const [isContentLinkPickerOpen, setIsContentLinkPickerOpen] = useState(false);
+  const [isInsertSheetOpen, setIsInsertSheetOpen] = useState(false);
   const [selectionVersion, setSelectionVersion] = useState(0);
 
   const lastSelectionRef = useRef<BaseSelection | null>(null);
   const pendingContentLinkSelectionRef = useRef<BaseSelection | null>(null);
 
   const markSelectionDirty = useCallback(() => {
-    setSelectionVersion((value) => value + 1);
+    setSelectionVersion(value => value + 1);
   }, []);
 
   const syncSelection = useCallback(() => {
@@ -83,15 +135,19 @@ export function useMobileEditorToolbarController(
     if (!editor) {
       return null;
     }
-    const nextSelection = restoreSelectionAndFocus(
-      editor,
-      lastSelectionRef.current,
-    );
+    const nextSelection = restoreSelectionAndFocus(editor, lastSelectionRef.current);
     if (nextSelection) {
       lastSelectionRef.current = nextSelection;
     }
     return editor;
   }, [editorRef]);
+
+  /** 工具条按钮经 pointerdown 触发，底部面板须延迟一拍挂载：
+   *  面板若在当前 tap 结束前 mount，全屏遮罩会接管手势结束时的 hit-test，
+   *  Android WebView 把残余 click 派发到遮罩 → 面板秒关甚至编辑器失焦 */
+  const openSheetNextTick = useCallback((open: () => void) => {
+    window.setTimeout(open, 0);
+  }, []);
 
   const executeAction = useCallback(
     (actionId: ToolbarActionId) => {
@@ -109,9 +165,8 @@ export function useMobileEditorToolbarController(
           return;
         }
 
-        pendingContentLinkSelectionRef.current =
-          editor.selection ?? lastSelectionRef.current;
-        setIsContentLinkPickerOpen(true);
+        pendingContentLinkSelectionRef.current = editor.selection ?? lastSelectionRef.current;
+        openSheetNextTick(() => setIsContentLinkPickerOpen(true));
         markSelectionDirty();
         return;
       }
@@ -126,6 +181,22 @@ export function useMobileEditorToolbarController(
         toggleKbd(editor);
       } else if (actionId === "comment") {
         toggleComment(editor);
+      } else if (isBlockAction(actionId)) {
+        if (actionId === "heading-one") {
+          applyHeaderBlock(editor, 1);
+        } else if (actionId === "heading-two") {
+          applyHeaderBlock(editor, 2);
+        } else if (actionId === "heading-three") {
+          applyHeaderBlock(editor, 3);
+        } else if (actionId === "bulleted-list") {
+          toggleListBlock(editor, "bulleted-list");
+        } else if (actionId === "numbered-list") {
+          toggleListBlock(editor, "numbered-list");
+        } else if (actionId === "quote") {
+          toggleQuoteBlock(editor);
+        } else if (actionId === "divider") {
+          insertDividerBlock(editor);
+        }
       }
 
       if (editor.selection) {
@@ -133,7 +204,7 @@ export function useMobileEditorToolbarController(
       }
       markSelectionDirty();
     },
-    [markSelectionDirty, restoreEditorSelection],
+    [markSelectionDirty, openSheetNextTick, restoreEditorSelection]
   );
 
   const handleCloseContentLinkPicker = useCallback(() => {
@@ -141,6 +212,162 @@ export function useMobileEditorToolbarController(
     pendingContentLinkSelectionRef.current = null;
     markSelectionDirty();
   }, [markSelectionDirty]);
+
+  const applyHeadingLevel = useCallback(
+    (level: 1 | 2 | 3 | "paragraph") => {
+      const editor = restoreEditorSelection();
+      if (!editor) {
+        return;
+      }
+      applyHeaderBlock(editor, level);
+      if (editor.selection) {
+        lastSelectionRef.current = editor.selection;
+      }
+      markSelectionDirty();
+    },
+    [markSelectionDirty, restoreEditorSelection]
+  );
+
+  const handleOpenInsertSheet = useCallback(() => {
+    // 面板让出屏幕：主动收起键盘（选区已记录，选择条目后由 restoreEditorSelection 恢复）
+    const editor = getEditorFromRef(editorRef);
+    if (editor) {
+      ReactEditor.blur(editor as ReactEditor);
+    }
+    openSheetNextTick(() => setIsInsertSheetOpen(true));
+  }, [editorRef, openSheetNextTick]);
+
+  const handleCloseInsertSheet = useCallback(() => {
+    setIsInsertSheetOpen(false);
+    markSelectionDirty();
+  }, [markSelectionDirty]);
+
+  /** 块插入/媒体类条目：共享包 setOrInsertNode 要求 collapsed 选区 */
+  const COLLAPSE_BEFORE_INSERT_KINDS = new Set<InsertSheetItemKind>([
+    "image",
+    "camera",
+    "video",
+    "audio",
+    "image-gallery",
+    "table",
+    "code-block",
+    "check-list",
+    "divider",
+    "tabs",
+    "details",
+    "highlight-block",
+    "callout",
+    "math",
+    "mermaid",
+  ]);
+
+  /** 插入面板条目分发；面板关闭时序由 ActionSheet 退场缓冲回调 handleCloseInsertSheet */
+  const handleSelectInsertItem = useCallback(
+    (kind: InsertSheetItemKind) => {
+      const editor = restoreEditorSelection();
+      if (!editor) {
+        return;
+      }
+      // 行内标记类（批注/关联内容/样式文本/快捷键）依赖展开选区，不可收拢
+      if (
+        COLLAPSE_BEFORE_INSERT_KINDS.has(kind) &&
+        editor.selection &&
+        !Range.isCollapsed(editor.selection)
+      ) {
+        Transforms.collapse(editor, { edge: "end" });
+      }
+      switch (kind) {
+        case "image":
+        case "camera":
+        case "video":
+        case "audio": {
+          // 上传结束/取消后恢复编辑器焦点（键盘回弹）；file picker 打开期间键盘让位给系统
+          openLocalMediaPicker(
+            editor,
+            kind === "image" || kind === "camera" ? "image" : kind,
+            undefined,
+            {
+              capture: kind === "camera",
+              onComplete: () => restoreEditorSelection(),
+            }
+          );
+          break;
+        }
+        case "table":
+          insertTable(editor, 3, 3);
+          break;
+        case "code-block":
+          insertCodeBlock(editor);
+          break;
+        case "check-list":
+          insertCheckList(editor);
+          break;
+        case "divider":
+          insertDividerBlock(editor);
+          break;
+        case "image-url":
+        case "video-url":
+        case "audio-url": {
+          // URL 输入弹窗由内核 Editor 自带（MediaUrlInputModal），提交时按当前选区插入
+          const mediaType =
+            kind === "image-url" ? "image" : kind === "video-url" ? "video" : "audio";
+          openMediaUrlInput(editor, mediaType);
+          break;
+        }
+        case "image-gallery":
+          insertImageGallery(editor);
+          break;
+        case "tabs":
+          insertTabs(editor);
+          break;
+        case "details":
+          insertDetails(editor);
+          break;
+        case "highlight-block":
+          insertHighlightBlock(editor, "red");
+          break;
+        case "callout":
+          insertCallout(editor, "info");
+          break;
+        case "math":
+          insertBlockMath(editor);
+          break;
+        case "mermaid":
+          insertMermaid(editor);
+          break;
+        case "annotation":
+          insertAnnotation(editor, "注解内容");
+          break;
+        case "comment":
+        case "content-link":
+        case "styled-text":
+        case "kbd":
+          executeAction(kind);
+          return;
+      }
+      if (editor.selection) {
+        lastSelectionRef.current = editor.selection;
+      }
+      markSelectionDirty();
+    },
+    // executeAction 为稳定引用（依赖均为 useCallback），此处引用安全
+    [executeAction, markSelectionDirty, restoreEditorSelection]
+  );
+
+  /** 工具条图片直达按钮：一步拉起系统选图（上传/占位/回填由共享包 mediaInsert 完成），
+   *  上传结束/取消后恢复编辑器焦点 */
+  const handleInsertImage = useCallback(() => {
+    const editor = restoreEditorSelection();
+    if (!editor) {
+      return;
+    }
+    if (editor.selection && !Range.isCollapsed(editor.selection)) {
+      Transforms.collapse(editor, { edge: "end" });
+    }
+    openLocalMediaPicker(editor, "image", undefined, {
+      onComplete: () => restoreEditorSelection(),
+    });
+  }, [restoreEditorSelection]);
 
   const applyColorMark = useCallback(
     (lightColor?: string, darkColor?: string) => {
@@ -154,7 +381,7 @@ export function useMobileEditorToolbarController(
       }
       markSelectionDirty();
     },
-    [markSelectionDirty, restoreEditorSelection],
+    [markSelectionDirty, restoreEditorSelection]
   );
 
   const applyGradientMark = useCallback(
@@ -169,7 +396,7 @@ export function useMobileEditorToolbarController(
       }
       markSelectionDirty();
     },
-    [markSelectionDirty, restoreEditorSelection],
+    [markSelectionDirty, restoreEditorSelection]
   );
 
   const applyHighlightMark = useCallback(
@@ -184,7 +411,7 @@ export function useMobileEditorToolbarController(
       }
       markSelectionDirty();
     },
-    [markSelectionDirty, restoreEditorSelection],
+    [markSelectionDirty, restoreEditorSelection]
   );
 
   const applyUnderlineStyle = useCallback(
@@ -199,7 +426,7 @@ export function useMobileEditorToolbarController(
       }
       markSelectionDirty();
     },
-    [markSelectionDirty, restoreEditorSelection],
+    [markSelectionDirty, restoreEditorSelection]
   );
 
   const keepEditorFocus = useCallback(() => {
@@ -221,8 +448,7 @@ export function useMobileEditorToolbarController(
         return;
       }
 
-      const selectionToRestore =
-        pendingContentLinkSelectionRef.current ?? lastSelectionRef.current;
+      const selectionToRestore = pendingContentLinkSelectionRef.current ?? lastSelectionRef.current;
       if (selectionToRestore) {
         Transforms.select(editor, selectionToRestore);
       }
@@ -243,7 +469,7 @@ export function useMobileEditorToolbarController(
       setIsContentLinkPickerOpen(false);
       markSelectionDirty();
     },
-    [markSelectionDirty, restoreEditorSelection],
+    [markSelectionDirty, restoreEditorSelection]
   );
 
   const handleEditorFocus = useCallback(() => {
@@ -267,7 +493,7 @@ export function useMobileEditorToolbarController(
       }
       return !editor.selection || Range.isCollapsed(editor.selection);
     },
-    [editorRef, selectionVersion],
+    [editorRef, selectionVersion]
   );
 
   const isActionActive = useCallback(
@@ -283,7 +509,7 @@ export function useMobileEditorToolbarController(
       }
       return isToolbarActionActive(editor, actionId);
     },
-    [editorRef, isActionDisabled, selectionVersion],
+    [editorRef, isActionDisabled, selectionVersion]
   );
 
   const handleEditorBlur = useCallback(() => {
@@ -294,11 +520,37 @@ export function useMobileEditorToolbarController(
     markSelectionDirty();
   }, [editorRef, markSelectionDirty]);
 
+  const undo = useCallback(() => {
+    const editor = getEditorFromRef(editorRef);
+    if (!editor) return;
+    const withHistory = editor as SlateEditor & { undo: () => void };
+    if (typeof withHistory.undo === "function") {
+      withHistory.undo();
+    }
+    markSelectionDirty();
+  }, [editorRef, markSelectionDirty]);
+
+  const redo = useCallback(() => {
+    const editor = getEditorFromRef(editorRef);
+    if (!editor) return;
+    const withHistory = editor as SlateEditor & { redo: () => void };
+    if (typeof withHistory.redo === "function") {
+      withHistory.redo();
+    }
+    markSelectionDirty();
+  }, [editorRef, markSelectionDirty]);
+
   return useMemo(
     () => ({
       isEditorFocused,
       isContentLinkPickerOpen,
+      isInsertSheetOpen,
       executeAction,
+      applyHeadingLevel,
+      handleOpenInsertSheet,
+      handleCloseInsertSheet,
+      handleSelectInsertItem,
+      handleInsertImage,
       applyColorMark,
       applyGradientMark,
       applyHighlightMark,
@@ -311,24 +563,34 @@ export function useMobileEditorToolbarController(
       syncSelection,
       handleCloseContentLinkPicker,
       handleSelectContentLink,
+      undo,
+      redo,
     }),
     [
       isEditorFocused,
       executeAction,
+      applyHeadingLevel,
       applyColorMark,
       applyGradientMark,
       applyHighlightMark,
       applyUnderlineStyle,
       handleCloseContentLinkPicker,
+      handleCloseInsertSheet,
       handleEditorBlur,
       handleEditorFocus,
+      handleInsertImage,
+      handleOpenInsertSheet,
       handleSelectContentLink,
+      handleSelectInsertItem,
       isActionDisabled,
       isActionActive,
       isContentLinkPickerOpen,
+      isInsertSheetOpen,
       keepEditorFocus,
+      redo,
       syncSelection,
-    ],
+      undo,
+    ]
   );
 }
 

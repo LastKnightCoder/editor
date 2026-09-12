@@ -55,6 +55,18 @@ function ToastItem({ toast, onDone }: ToastItemProps) {
     >
       {icon}
       <p className="toast-text">{toast.text}</p>
+      {toast.action ? (
+        <button
+          type="button"
+          className="toast-action"
+          onClick={() => {
+            toast.action?.onClick();
+            onDone(toast.id);
+          }}
+        >
+          {toast.action.label}
+        </button>
+      ) : null}
     </section>
   );
 }

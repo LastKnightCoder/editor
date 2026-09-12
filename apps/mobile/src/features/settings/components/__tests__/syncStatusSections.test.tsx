@@ -33,7 +33,7 @@ function createRenderController(): RenderController {
   const root: Root = createRoot(host);
 
   return {
-    render: async (node) => {
+    render: async node => {
       await act(async () => {
         root.render(node);
       });
@@ -51,8 +51,21 @@ function createRenderController(): RenderController {
 }
 
 async function clickButtonByText(text: string): Promise<void> {
-  const button = Array.from(document.querySelectorAll("button")).find((item) =>
-    item.textContent?.includes(text),
+  const button = Array.from(document.querySelectorAll("button")).find(item =>
+    item.textContent?.includes(text)
+  );
+  expect(button).toBeTruthy();
+  await act(async () => {
+    button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+/** 按精确文本查找按钮（避免「覆盖远端」误匹配「用本地覆盖远端…」） */
+async function clickButtonByExactText(text: string): Promise<void> {
+  const button = Array.from(document.querySelectorAll("button")).find(
+    item => item.textContent?.trim() === text
   );
   expect(button).toBeTruthy();
   await act(async () => {
@@ -78,21 +91,21 @@ describe("SyncStatusSections", () => {
         databaseName: "data.db",
         localVersion: 5,
         remoteVersion: 5,
-      }),
+      })
     ).toBe("已同步");
     expect(
       getDatabaseSyncSummary({
         databaseName: "data.db",
         localVersion: 9,
         remoteVersion: 7,
-      }),
+      })
     ).toBe("本地领先");
     expect(
       getDatabaseSyncSummary({
         databaseName: "data.db",
         localVersion: 7,
         remoteVersion: 9,
-      }),
+      })
     ).toBe("远端领先");
 
     expect(
@@ -106,7 +119,7 @@ describe("SyncStatusSections", () => {
         skippedCount: 0,
         errorCount: 0,
         startTime: null,
-      }),
+      })
     ).toBe("同步中 50%");
     expect(
       getResourceSyncSummary({
@@ -119,7 +132,7 @@ describe("SyncStatusSections", () => {
         skippedCount: 0,
         errorCount: 0,
         startTime: null,
-      }),
+      })
     ).toBe("已完成");
     expect(
       getResourceSyncSummary({
@@ -132,12 +145,16 @@ describe("SyncStatusSections", () => {
         skippedCount: 0,
         errorCount: 1,
         startTime: null,
-      }),
+      })
     ).toBe("异常");
   });
 
-  it("数据库同步详情使用 toast 反馈刷新与上传，且不渲染内联提示", async () => {
+  it("数据库同步详情：刷新用 toast，整库覆盖需确认弹窗后执行", async () => {
     const controller = createRenderController();
+    const onSyncUpload = vi.fn().mockResolvedValue({
+      ok: true,
+      message: "上传完成",
+    });
     await controller.render(
       <DatabaseSyncStatusSection
         versions={{
@@ -151,25 +168,60 @@ describe("SyncStatusSections", () => {
           localVersion: 4,
           remoteVersion: 4,
         })}
-        onSyncUpload={vi.fn().mockResolvedValue({
-          ok: true,
-          message: "上传完成",
-        })}
+        onSyncUpload={onSyncUpload}
         onSyncDownload={vi.fn().mockResolvedValue({
           ok: true,
           message: "下载完成",
         })}
-      />,
+      />
     );
 
-    await clickButtonByText("刷新");
-    expect(toastSpies.success).toHaveBeenCalledWith(
-      expect.stringContaining("刷新完成"),
-    );
+    await clickButtonByText("检查远端更新");
+    expect(toastSpies.success).toHaveBeenCalledWith(expect.stringContaining("刷新完成"));
     expect(document.body.textContent?.includes("刷新完成：")).toBe(false);
+    expect(onSyncUpload).not.toHaveBeenCalled();
 
-    await clickButtonByText("上传");
+    // 危险操作先弹确认框，说明覆盖方向
+    await clickButtonByText("用本地覆盖远端");
+    expect(onSyncUpload).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain("用本地覆盖远端？");
+    expect(document.body.textContent).toContain("远端更新的改动将丢失");
+
+    await clickButtonByExactText("覆盖远端");
+    expect(onSyncUpload).toHaveBeenCalledTimes(1);
     expect(toastSpies.success).toHaveBeenCalledWith("上传完成");
+    await controller.cleanup();
+  });
+
+  it("智能同步按版本差异自动选择方向", async () => {
+    const controller = createRenderController();
+    const onSyncUpload = vi.fn().mockResolvedValue({
+      ok: true,
+      message: "上传完成",
+    });
+    const onSyncDownload = vi.fn().mockResolvedValue({
+      ok: true,
+      message: "下载完成",
+    });
+    await controller.render(
+      <DatabaseSyncStatusSection
+        versions={null}
+        isSyncing={false}
+        onCheckVersions={vi.fn().mockResolvedValue({
+          databaseName: "data.db",
+          localVersion: 2,
+          remoteVersion: 9,
+        })}
+        onSyncUpload={onSyncUpload}
+        onSyncDownload={onSyncDownload}
+      />
+    );
+
+    // 远端领先 → 智能同步应走下载
+    await clickButtonByText("立即同步");
+    expect(onSyncDownload).toHaveBeenCalledTimes(1);
+    expect(onSyncUpload).not.toHaveBeenCalled();
+    expect(toastSpies.success).toHaveBeenCalledWith("下载完成");
     await controller.cleanup();
   });
 
@@ -179,9 +231,7 @@ describe("SyncStatusSections", () => {
       <DatabaseSyncStatusSection
         versions={null}
         isSyncing={false}
-        onCheckVersions={vi
-          .fn()
-          .mockRejectedValue(new Error("SYNC_CHECK_FAILED:detail"))}
+        onCheckVersions={vi.fn().mockRejectedValue(new Error("SYNC_CHECK_FAILED:detail"))}
         onSyncUpload={vi.fn().mockResolvedValue({
           ok: true,
           message: "上传完成",
@@ -190,13 +240,11 @@ describe("SyncStatusSections", () => {
           ok: true,
           message: "下载完成",
         })}
-      />,
+      />
     );
 
-    await clickButtonByText("刷新");
-    expect(toastSpies.error).toHaveBeenCalledWith(
-      expect.stringContaining("同步状态刷新失败"),
-    );
+    await clickButtonByText("检查远端更新");
+    expect(toastSpies.error).toHaveBeenCalledWith(expect.stringContaining("同步状态刷新失败"));
     await controller.cleanup();
   });
 
@@ -235,13 +283,15 @@ describe("SyncStatusSections", () => {
           ok: true,
           message: "已发送停止信号",
         })}
-      />,
+        updateSetting={vi.fn()}
+        compressionEnabled={false}
+      />
     );
 
-    await clickButtonByText("刷新资源");
+    await clickButtonByText("刷新状态");
     expect(toastSpies.success).toHaveBeenCalledWith("资源同步状态已刷新");
 
-    await clickButtonByText("开始同步");
+    await clickButtonByText("开始 / 继续同步");
     expect(toastSpies.success).toHaveBeenCalledWith("资源同步已启动");
     await controller.cleanup();
   });
@@ -264,9 +314,7 @@ describe("SyncStatusSections", () => {
         resourceSyncStatusFile={null}
         isResourceSyncing={false}
         onResourceSyncRefresh={vi.fn().mockResolvedValue(undefined)}
-        onResourceSyncStart={vi
-          .fn()
-          .mockRejectedValue(new Error("RESOURCE_SYNC_FAILED:bad"))}
+        onResourceSyncStart={vi.fn().mockRejectedValue(new Error("RESOURCE_SYNC_FAILED:bad"))}
         onResourceSyncRetryFailed={vi.fn().mockResolvedValue({
           ok: true,
           message: "失败文件重试已启动",
@@ -275,13 +323,13 @@ describe("SyncStatusSections", () => {
           ok: true,
           message: "已发送停止信号",
         })}
-      />,
+        updateSetting={vi.fn()}
+        compressionEnabled={false}
+      />
     );
 
-    await clickButtonByText("开始同步");
-    expect(toastSpies.error).toHaveBeenCalledWith(
-      expect.stringContaining("资源同步失败"),
-    );
+    await clickButtonByText("开始 / 继续同步");
+    expect(toastSpies.error).toHaveBeenCalledWith(expect.stringContaining("资源同步失败"));
     await controller.cleanup();
   });
 });

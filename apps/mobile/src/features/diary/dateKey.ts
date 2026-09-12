@@ -127,6 +127,33 @@ export function formatDiaryPeriodLabel(mode: DiaryType, baseDate: Date | string 
   return `${date.getFullYear()}年${pad2(date.getMonth() + 1)}月`;
 }
 
+/** 日记详情页日期头：主标题（日期即标题）+ 副标题（周几/周区间/年份） */
+export function describeDiaryPeriod(
+  mode: DiaryType,
+  baseDate: Date | string | number
+): { title: string; sub: string } {
+  const date = parseDateInput(baseDate);
+  if (mode === "daily") {
+    const weekday = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][date.getDay()];
+    const isToday = formatDailyDate(date) === formatDailyDate(new Date());
+    return {
+      title: `${date.getMonth() + 1}月${date.getDate()}日`,
+      sub: `${weekday}${isToday ? " · 今天" : ""}`,
+    };
+  }
+  if (mode === "weekly") {
+    const weekNo = getISOWeekNumber(date);
+    const weekStart = getWeekStart(date);
+    const weekEnd = new Date(weekStart.getTime());
+    weekEnd.setDate(weekStart.getDate() + 6);
+    return {
+      title: `第 ${weekNo} 周`,
+      sub: `${weekStart.getMonth() + 1}.${weekStart.getDate()} - ${weekEnd.getMonth() + 1}.${weekEnd.getDate()}`,
+    };
+  }
+  return { title: `${date.getMonth() + 1}月`, sub: `${date.getFullYear()}年` };
+}
+
 export function getBaseDateFromDiaryKey(type: DiaryType, key: string): string {
   if (type === "daily") {
     return key;

@@ -15,15 +15,16 @@ export function useTodoGroups() {
   });
 }
 
-export function useTodoSystemGroups() {
+export function useTodoSystemGroups(enabled = true) {
   return useQuery({
     queryKey: ["todo", "systemGroups"],
     queryFn: () => tauri.todoGetSystemGroups(),
     staleTime: TODO_STALE_MS,
+    enabled,
   });
 }
 
-function resolveStatsMap(
+export function resolveStatsMap(
   groupStats: TodoGroupStats[],
   systemStats: TodoGroupStats[]
 ): Record<number, TodoGroupStats> {
@@ -37,7 +38,7 @@ function resolveStatsMap(
   return next;
 }
 
-export function useTodoGroupStats() {
+export function useTodoGroupStats(enabled = true) {
   return useQuery({
     queryKey: ["todo", "stats"],
     queryFn: async () => {
@@ -48,6 +49,7 @@ export function useTodoGroupStats() {
       return resolveStatsMap(groupStats, systemStats);
     },
     staleTime: TODO_STALE_MS,
+    enabled,
   });
 }
 

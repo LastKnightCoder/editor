@@ -19,6 +19,11 @@ type UseEditContentOptions = {
   onSaved?: (detail: ContentDetailResponse) => void;
   onSaveError?: (error: unknown) => void;
   onContentSync?: (content: Descendant[]) => void;
+  /** 变化时强制重拉一次（页面 onResume 等）；拉回内容与当前一致则不重建编辑器 */
+  refreshKey?: number;
+  /** 首载/重拉成功：完整响应透出（含元数据），调用方不必再发一次 getContentDetail */
+  onLoaded?: (detail: ContentDetailResponse) => void;
+  onLoadError?: (error: unknown) => void;
 };
 
 type UseEditContentResult = {
@@ -35,7 +40,7 @@ type UseEditContentResult = {
 
 export function useEditContent(
   contentId: number | undefined,
-  options?: UseEditContentOptions,
+  options?: UseEditContentOptions
 ): UseEditContentResult {
   const [content, setContent] = useState<Descendant[]>(EMPTY_EDITOR_CONTENT);
   const [syncVersion, setSyncVersion] = useState(0);
@@ -48,6 +53,10 @@ export function useEditContent(
   const lastSavedSnapshotRef = useRef(JSON.stringify(EMPTY_EDITOR_CONTENT));
   const lastFailedContentRef = useRef<Descendant[] | null>(null);
   const loadRequestSeqRef = useRef(0);
+  const onLoadedRef = useRef(options?.onLoaded);
+  onLoadedRef.current = options?.onLoaded;
+  const onLoadErrorRef = useRef(options?.onLoadError);
+  onLoadErrorRef.current = options?.onLoadError;
   const notifyContentSync = useMemoizedFn((next: Descendant[]) => {
     options?.onContentSync?.(next);
   });
@@ -103,7 +112,7 @@ export function useEditContent(
       wait: options?.wait ?? 1000,
       leading: false,
       trailing: true,
-    },
+    }
   );
 
   const handleEditorContentChange = useMemoizedFn((next: Descendant[]) => {
@@ -125,6 +134,7 @@ export function useEditContent(
     return await saveContent(lastFailedContentRef.current);
   });
 
+  const refreshKey = options?.refreshKey;
   useEffect(() => {
     const nextId = contentId ?? -1;
     if (nextId <= 0) {
@@ -143,50 +153,53 @@ export function useEditContent(
     setError("");
     tauri
       .getContentDetail(nextId)
-      .then((result) => {
+      .then(result => {
         if (loadRequestSeqRef.current !== requestSeq) {
           return;
         }
         const loaded = normalizeEditorContent(result.content);
+        const snapshot = JSON.stringify(loaded);
         latestContentRef.current = loaded;
-        lastSavedSnapshotRef.current = JSON.stringify(loaded);
         lastFailedContentRef.current = null;
-        setContent(loaded);
-        setSyncVersion((value) => value + 1);
-        notifyContentSync(loaded);
+        // refreshKey 重拉时内容可能未变（本地刚保存过），快照一致就不 bump
+        // syncVersion，避免编辑器因 key 变化整树重建
+        if (snapshot !== lastSavedSnapshotRef.current) {
+          lastSavedSnapshotRef.current = snapshot;
+          setContent(loaded);
+          setSyncVersion(value => value + 1);
+          notifyContentSync(loaded);
+        }
+        onLoadedRef.current?.(result);
       })
-      .catch(() => {
+      .catch(loadError => {
         if (loadRequestSeqRef.current !== requestSeq) {
           return;
         }
         setError("内容加载失败");
+        onLoadErrorRef.current?.(loadError);
       })
       .finally(() => {
         if (loadRequestSeqRef.current === requestSeq) {
           setLoading(false);
         }
       });
-  }, [contentId, notifyContentSync]);
+  }, [contentId, refreshKey, notifyContentSync]);
 
   useEffect(() => {
     const nextId = contentId ?? -1;
     if (nextId <= 0) {
       return;
     }
-    return subscribeContentUpdate(
-      nextId,
-      sourceIdRef.current,
-      (nextContent) => {
-        const normalized = normalizeEditorContent(nextContent);
-        latestContentRef.current = normalized;
-        lastSavedSnapshotRef.current = JSON.stringify(normalized);
-        lastFailedContentRef.current = null;
-        setContent(normalized);
-        setSyncVersion((value) => value + 1);
-        setError("");
-        notifyContentSync(normalized);
-      },
-    );
+    return subscribeContentUpdate(nextId, sourceIdRef.current, nextContent => {
+      const normalized = normalizeEditorContent(nextContent);
+      latestContentRef.current = normalized;
+      lastSavedSnapshotRef.current = JSON.stringify(normalized);
+      lastFailedContentRef.current = null;
+      setContent(normalized);
+      setSyncVersion(value => value + 1);
+      setError("");
+      notifyContentSync(normalized);
+    });
   }, [contentId, notifyContentSync]);
 
   useEffect(() => {

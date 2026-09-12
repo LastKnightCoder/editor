@@ -31,8 +31,11 @@ export {
   usePageInstanceContext,
 } from "./pageLifecycle";
 export type { PageLifecycleHandlers, PagePhase, PageTransitionEventType } from "./pageLifecycle";
+export { useSheetBackDismiss } from "./useSheetBackDismiss";
+export type { SheetBackDismissOptions } from "./useSheetBackDismiss";
 export type { BackSource, Navigator, RouterState } from "./navigatorTypes";
 export type { RouteEntry, StackSnapshot } from "./core/stackMachine";
+export { switchTabScreen } from "./switchTab";
 export { getPageDefinition, registerPageDefinition } from "./registry";
 
 export { PageQueryProvider, getQueryClient, usePageQuery } from "./query/PageQueryProvider";

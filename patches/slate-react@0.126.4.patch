@@ -1,0 +1,599 @@
+diff --git a/dist/index.es.js b/dist/index.es.js
+index a8f0916..159601a 100644
+--- a/dist/index.es.js
++++ b/dist/index.es.js
+@@ -113,7 +113,20 @@ var COMPOSITION_IDLE_TIMEOUT = 5000;
+ // without firing `compositionend`; one that ends normally flushes immediately.
+ var COMPOSITION_RECHECK_DELAY = 50;
+ // Replace with `const debug = console.log` to debug
+-var debug = function debug() {};
++var debug = function debug() {
++  if (globalThis.__TAU_SLATE_DEBUG === true) {
++    try {
++      var parts = [];
++      for (var _i = 0; _i < arguments.length; _i++) {
++        var arg = arguments.length <= _i ? undefined : arguments[_i];
++        parts.push(typeof arg === "string" ? arg : JSON.stringify(arg));
++      }
++      console.info("[slate-react-debug] " + parts.join(" "));
++    } catch (_unusedDbgErr) {
++      console.info("[slate-react-debug] <unserializable>", ...arguments);
++    }
++  }
++};
+ // Type guard to check if a value is a DataTransfer
+ var isDataTransfer = value => (value === null || value === void 0 ? void 0 : value.constructor.name) === 'DataTransfer';
+ function createAndroidInputManager(_ref) {
+@@ -203,6 +216,7 @@ function createAndroidInputManager(_ref) {
+     }));
+   };
+   var flush = () => {
++    debug('android:flush:start', { selection: editor.selection, marks: editor.marks, pendingDiffs: EDITOR_TO_PENDING_DIFFS.get(editor)?.length ?? 0 });
+     if (flushTimeoutId) {
+       clearTimeout(flushTimeoutId);
+       flushTimeoutId = null;
+@@ -234,6 +248,9 @@ function createAndroidInputManager(_ref) {
+     var selectionRef = editor.selection && Editor.rangeRef(editor, editor.selection, {
+       affinity: 'forward'
+     });
++    // 插入后立刻捕获 Slate 原生选区：带 mark 的插入会分裂叶子，后续 rangeRef 恢复与
++    // pending action 的 offset+textLength 算术都会产出过期/越界坐标，唯有此值正确
++    var intendedFromInsert = null;
+     EDITOR_TO_USER_MARKS.set(editor, editor.marks);
+     debug('flush', EDITOR_TO_PENDING_ACTION.get(editor), EDITOR_TO_PENDING_DIFFS.get(editor));
+     var scheduleSelectionChange = hasPendingDiffs();
+@@ -253,7 +270,9 @@ function createAndroidInputManager(_ref) {
+         Transforms.select(editor, range);
+       }
+       if (diff.diff.text) {
++        debug('android:flush:insert', { path: diff.path, textLength: diff.diff.text.length, selection: editor.selection, marks: editor.marks });
+         Editor.insertText(editor, diff.diff.text);
++        intendedFromInsert = editor.selection;
+       } else {
+         Editor.deleteFragment(editor);
+       }
+@@ -282,8 +301,71 @@ function createAndroidInputManager(_ref) {
+     if (selection && !EDITOR_TO_PENDING_SELECTION.get(editor) && (!editor.selection || !Range.equals(selection, editor.selection))) {
+       Transforms.select(editor, selection);
+     }
++    // COMPAT: Android IMEs re-apply their own stale caret after Slate pushes the
++    // post-flush selection, and mark-splitting re-renders can drop the native
++    // caret entirely (React replaces the text node the caret was anchored in).
++    // The action path already re-asserts the caret twice (rAF + timeout) to win
++    // that fight; schedule the same re-assert for any flush that applied diffs,
++    // BEFORE the pending-action early return below (composed input often takes
++    // the combined diff+action path, which never reaches the flush tail).
++    if (!IS_COMPOSING.get(editor) && editor.selection) {
++      var intendedSelection = intendedFromInsert ?? editor.selection;
++      var flushWindow = ReactEditor.getWindow(editor);
++      var pendingReassertAfterAction = null;
++      var reassertCaret = function reassertCaret(attempt, resolveSelection) {
++        return function () {
++          // 用户已开始下一段输入时交还控制权，避免与进行中的 IME 抢光标
++          if (IS_COMPOSING.get(editor)) return;
++          try {
++            var selectionToAssert = resolveSelection();
++            if (!selectionToAssert) return;
++            var el = ReactEditor.toDOMNode(editor, editor);
++            if (flushWindow.document.activeElement !== el && !el.contains(flushWindow.document.activeElement)) {
++              el.focus({ preventScroll: true });
++            }
++            var domRange = ReactEditor.toDOMRange(editor, selectionToAssert);
++            var domSel = flushWindow.getSelection();
++            if (domRange && domSel && domSel.rangeCount <= 1) {
++              domSel.setBaseAndExtent(domRange.startContainer, domRange.startOffset, domRange.endContainer, domRange.endOffset);
++              debug('android:flush:reassert-caret', { attempt: attempt, anchorOffset: selectionToAssert.anchor.offset, focusOffset: selectionToAssert.focus.offset, previousRangeCount: domSel.rangeCount });
++            }
++          } catch (_unusedReassertErr) {
++            // DOM 尚未提交新内容时 toDOMRange 会失败，由下一个 pass 兜底
++          }
++        };
++      };
++      if (hasPendingAction()) {
++        // action（回车/删除等）要等 performAction 执行后才更新 selection：
++        // 重申推迟到 action 完成后调度，回调内实时读取最新 editor.selection，
++        // 过期快照仅作兜底——否则会把光标拉回操作前的位置（输入后闪回）
++        pendingReassertAfterAction = function () {
++          flushWindow.requestAnimationFrame(reassertCaret(1, function () {
++            return editor.selection ?? intendedSelection;
++          }));
++          flushWindow.setTimeout(reassertCaret(2, function () {
++            return editor.selection ?? intendedSelection;
++          }), 120);
++        };
++      } else {
++        // 纯 diff（输入）路径：重申 flush 时刻的快照。Android IME 会把 stale
++        // caret 回写进模型，实时值可能已被污染；快照才能守住 mark 切分
++        // 重渲染丢原生 caret 的场景（加粗后输入光标原地不动）
++        flushWindow.requestAnimationFrame(reassertCaret(1, function () {
++          return intendedSelection;
++        }));
++        flushWindow.setTimeout(reassertCaret(2, function () {
++          return intendedSelection;
++        }), 120);
++      }
++      debug('android:flush:schedule-reassert', { hasPendingAction: hasPendingAction(), anchorOffset: intendedSelection.anchor.offset, isComposing: false });
++    }
+     if (hasPendingAction()) {
+       performAction();
++      // action 已更新 selection，此刻调度重申（回调内实时读取）
++      if (pendingReassertAfterAction) {
++        pendingReassertAfterAction();
++        pendingReassertAfterAction = null;
++      }
+       return;
+     }
+     // COMPAT: The selectionChange event is fired after the action is performed,
+@@ -293,7 +375,25 @@ function createAndroidInputManager(_ref) {
+       scheduleOnDOMSelectionChange();
+     }
+     scheduleOnDOMSelectionChange.flush();
+-    onDOMSelectionChange.flush();
++    // COMPAT: On Android, a toolbar action (marks/blocks) can leave the native
++    // selection absent (rangeCount === 0) while Slate's selection is intact.
++    // Flushing the DOM->Slate sync then would read a null anchor and drop the
++    // caret. Only flush when a native range exists; otherwise re-sync the focus
++    // flag so the post-commit selection push (setDomSelection) is allowed to
++    // restore the caret from Slate's model.
++    var domSelectionAtFlush = ReactEditor.getWindow(editor).getSelection();
++    if (domSelectionAtFlush && domSelectionAtFlush.rangeCount > 0) {
++      onDOMSelectionChange.flush();
++    } else {
++      try {
++        var editableEl = ReactEditor.toDOMNode(editor, editor);
++        var activeEl = ReactEditor.getWindow(editor).document.activeElement;
++        if (activeEl === editableEl || editableEl.contains(activeEl)) {
++          IS_FOCUSED.set(editor, true);
++        }
++      } catch (_unusedSelErr) {}
++      debug('android:flush:skip-stale-dom-selection', { selection: editor.selection, domRangeCount: domSelectionAtFlush ? domSelectionAtFlush.rangeCount : 0 });
++    }
+     applyPendingSelection();
+     var userMarks = EDITOR_TO_USER_MARKS.get(editor);
+     EDITOR_TO_USER_MARKS.delete(editor);
+@@ -301,6 +401,7 @@ function createAndroidInputManager(_ref) {
+       editor.marks = userMarks;
+       editor.onChange();
+     }
++    debug('android:flush:end', { selection: editor.selection, rangeCount: ReactEditor.getWindow(editor).getSelection()?.rangeCount ?? 0 });
+   };
+   var handleCompositionEnd = _event => {
+     if (compositionEndTimeoutId) {
+@@ -2878,16 +2979,37 @@ var Editable = /*#__PURE__*/forwardRef((props, forwardedRef) => {
+           domSelection.setBaseAndExtent(newDomRange.startContainer, newDomRange.startOffset, newDomRange.endContainer, newDomRange.endOffset);
+         }
+         scrollSelectionIntoView(editor, newDomRange);
++        debug("selection-sync:push", {
++          anchorPath: selection?.anchor?.path,
++          anchorOffset: selection?.anchor?.offset,
++          focusOffset: selection?.focus?.offset,
++          domAnchorOffset: domSelection.anchorOffset,
++          domAnchorTextLength: domSelection.anchorNode?.length ?? domSelection.anchorNode?.childNodes?.length ?? null,
++          isComposing: IS_COMPOSING.get(editor) ?? false
++        });
+       } else {
+-        domSelection.removeAllRanges();
++        // Keep the native caret while React is between commits, but clear it when Slate has no selection.
++        if (!selection && domSelection.rangeCount > 0) {
++          domSelection.removeAllRanges();
++        }
++        debug("selection-sync:toDOMRange-failed", {
++          hasSelection: !!selection,
++          anchorPath: selection?.anchor?.path,
++          anchorOffset: selection?.anchor?.offset,
++          focusPath: selection?.focus?.path,
++          focusOffset: selection?.focus?.offset,
++          rangeCount: domSelection.rangeCount
++        });
+       }
+       return newDomRange;
+     };
+     // In firefox if there is more then 1 range and we call setDomSelection we remove the ability to select more cells in a table
+-    if (domSelection.rangeCount <= 1) {
+-      setDomSelection();
+-    }
+-    var ensureSelection = ((_androidInputManagerR2 = androidInputManagerRef.current) === null || _androidInputManagerR2 === void 0 ? void 0 : _androidInputManagerR2.isFlushing()) === 'action';
++    var domRangeApplied = domSelection.rangeCount <= 1 ? setDomSelection() : true;
++    // COMPAT: On Android, also re-assert the caret when the push could not
++    // compute a DOM range (React between commits), so the caret follows
++    // Slate's selection once the DOM catches up instead of staying where
++    // the IME left it.
++    var ensureSelection = ((_androidInputManagerR2 = androidInputManagerRef.current) === null || _androidInputManagerR2 === void 0 ? void 0 : _androidInputManagerR2.isFlushing()) === 'action' || domRangeApplied === null && !!selection;
+     if (!IS_ANDROID || !ensureSelection) {
+       setTimeout(() => {
+         state.isUpdatingSelection = false;
+diff --git a/dist/index.js b/dist/index.js
+index aa05da8..52ab659 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -240,7 +240,20 @@ var COMPOSITION_IDLE_TIMEOUT = 5000;
+ // without firing `compositionend`; one that ends normally flushes immediately.
+ var COMPOSITION_RECHECK_DELAY = 50;
+ // Replace with `const debug = console.log` to debug
+-var debug = function debug() {};
++var debug = function debug() {
++  if (globalThis.__TAU_SLATE_DEBUG === true) {
++    try {
++      var parts = [];
++      for (var _i = 0; _i < arguments.length; _i++) {
++        var arg = arguments.length <= _i ? undefined : arguments[_i];
++        parts.push(typeof arg === "string" ? arg : JSON.stringify(arg));
++      }
++      console.info("[slate-react-debug] " + parts.join(" "));
++    } catch (_unusedDbgErr) {
++      console.info("[slate-react-debug] <unserializable>", ...arguments);
++    }
++  }
++};
+ // Type guard to check if a value is a DataTransfer
+ var isDataTransfer = function isDataTransfer(value) {
+   return (value === null || value === void 0 ? void 0 : value.constructor.name) === 'DataTransfer';
+@@ -357,6 +370,9 @@ function createAndroidInputManager(_ref) {
+     var selectionRef = editor.selection && slate.Editor.rangeRef(editor, editor.selection, {
+       affinity: 'forward'
+     });
++    // 插入后立刻捕获 Slate 原生选区：带 mark 的插入会分裂叶子，后续 rangeRef 恢复与
++    // pending action 的 offset+textLength 算术都会产出过期/越界坐标，唯有此值正确
++    var intendedFromInsert = null;
+     slateDom.EDITOR_TO_USER_MARKS.set(editor, editor.marks);
+     debug('flush', slateDom.EDITOR_TO_PENDING_ACTION.get(editor), slateDom.EDITOR_TO_PENDING_DIFFS.get(editor));
+     var scheduleSelectionChange = hasPendingDiffs();
+@@ -377,6 +393,7 @@ function createAndroidInputManager(_ref) {
+       }
+       if (diff.diff.text) {
+         slate.Editor.insertText(editor, diff.diff.text);
++        intendedFromInsert = editor.selection;
+       } else {
+         slate.Editor.deleteFragment(editor);
+       }
+@@ -403,8 +420,71 @@ function createAndroidInputManager(_ref) {
+     if (selection && !slateDom.EDITOR_TO_PENDING_SELECTION.get(editor) && (!editor.selection || !slate.Range.equals(selection, editor.selection))) {
+       slate.Transforms.select(editor, selection);
+     }
++    // COMPAT: Android IMEs re-apply their own stale caret after Slate pushes the
++    // post-flush selection, and mark-splitting re-renders can drop the native
++    // caret entirely (React replaces the text node the caret was anchored in).
++    // The action path already re-asserts the caret twice (rAF + timeout) to win
++    // that fight; schedule the same re-assert for any flush that applied diffs,
++    // BEFORE the pending-action early return below (composed input often takes
++    // the combined diff+action path, which never reaches the flush tail).
++    if (!slateDom.IS_COMPOSING.get(editor) && editor.selection) {
++      var intendedSelection = intendedFromInsert ?? editor.selection;
++      var flushWindow = ReactEditor.getWindow(editor);
++      var pendingReassertAfterAction = null;
++      var reassertCaret = function reassertCaret(attempt, resolveSelection) {
++        return function () {
++          // 用户已开始下一段输入时交还控制权，避免与进行中的 IME 抢光标
++          if (slateDom.IS_COMPOSING.get(editor)) return;
++          try {
++            var selectionToAssert = resolveSelection();
++            if (!selectionToAssert) return;
++            var el = ReactEditor.toDOMNode(editor, editor);
++            if (flushWindow.document.activeElement !== el && !el.contains(flushWindow.document.activeElement)) {
++              el.focus({ preventScroll: true });
++            }
++            var domRange = ReactEditor.toDOMRange(editor, selectionToAssert);
++            var domSel = flushWindow.getSelection();
++            if (domRange && domSel && domSel.rangeCount <= 1) {
++              domSel.setBaseAndExtent(domRange.startContainer, domRange.startOffset, domRange.endContainer, domRange.endOffset);
++              debug('android:flush:reassert-caret', { attempt: attempt, anchorOffset: selectionToAssert.anchor.offset, focusOffset: selectionToAssert.focus.offset, previousRangeCount: domSel.rangeCount });
++            }
++          } catch (_unusedReassertErr) {
++            // DOM 尚未提交新内容时 toDOMRange 会失败，由下一个 pass 兜底
++          }
++        };
++      };
++      if (hasPendingAction()) {
++        // action（回车/删除等）要等 performAction 执行后才更新 selection：
++        // 重申推迟到 action 完成后调度，回调内实时读取最新 editor.selection，
++        // 过期快照仅作兜底——否则会把光标拉回操作前的位置（输入后闪回）
++        pendingReassertAfterAction = function () {
++          flushWindow.requestAnimationFrame(reassertCaret(1, function () {
++            return editor.selection ?? intendedSelection;
++          }));
++          flushWindow.setTimeout(reassertCaret(2, function () {
++            return editor.selection ?? intendedSelection;
++          }), 120);
++        };
++      } else {
++        // 纯 diff（输入）路径：重申 flush 时刻的快照。Android IME 会把 stale
++        // caret 回写进模型，实时值可能已被污染；快照才能守住 mark 切分
++        // 重渲染丢原生 caret 的场景（加粗后输入光标原地不动）
++        flushWindow.requestAnimationFrame(reassertCaret(1, function () {
++          return intendedSelection;
++        }));
++        flushWindow.setTimeout(reassertCaret(2, function () {
++          return intendedSelection;
++        }), 120);
++      }
++      debug('android:flush:schedule-reassert', { hasPendingAction: hasPendingAction(), anchorOffset: intendedSelection.anchor.offset, isComposing: false });
++    }
+     if (hasPendingAction()) {
+       performAction();
++      // action 已更新 selection，此刻调度重申（回调内实时读取）
++      if (pendingReassertAfterAction) {
++        pendingReassertAfterAction();
++        pendingReassertAfterAction = null;
++      }
+       return;
+     }
+     // COMPAT: The selectionChange event is fired after the action is performed,
+@@ -414,7 +494,25 @@ function createAndroidInputManager(_ref) {
+       scheduleOnDOMSelectionChange();
+     }
+     scheduleOnDOMSelectionChange.flush();
+-    onDOMSelectionChange.flush();
++    // COMPAT: On Android, a toolbar action (marks/blocks) can leave the native
++    // selection absent (rangeCount === 0) while Slate's selection is intact.
++    // Flushing the DOM->Slate sync then would read a null anchor and drop the
++    // caret. Only flush when a native range exists; otherwise re-sync the focus
++    // flag so the post-commit selection push (setDomSelection) is allowed to
++    // restore the caret from Slate's model.
++    var domSelectionAtFlush = ReactEditor.getWindow(editor).getSelection();
++    if (domSelectionAtFlush && domSelectionAtFlush.rangeCount > 0) {
++      onDOMSelectionChange.flush();
++    } else {
++      try {
++        var editableEl = ReactEditor.toDOMNode(editor, editor);
++        var activeEl = ReactEditor.getWindow(editor).document.activeElement;
++        if (activeEl === editableEl || editableEl.contains(activeEl)) {
++          slateDom.IS_FOCUSED.set(editor, true);
++        }
++      } catch (_unusedSelErr) {}
++      debug('android:flush:skip-stale-dom-selection', { selection: editor.selection, domRangeCount: domSelectionAtFlush ? domSelectionAtFlush.rangeCount : 0 });
++    }
+     applyPendingSelection();
+     var userMarks = slateDom.EDITOR_TO_USER_MARKS.get(editor);
+     slateDom.EDITOR_TO_USER_MARKS["delete"](editor);
+@@ -422,6 +520,7 @@ function createAndroidInputManager(_ref) {
+       editor.marks = userMarks;
+       editor.onChange();
+     }
++    debug('android:flush:end', { selection: editor.selection, rangeCount: ReactEditor.getWindow(editor).getSelection()?.rangeCount ?? 0 });
+   };
+   var handleCompositionEnd = function handleCompositionEnd(_event) {
+     if (compositionEndTimeoutId) {
+@@ -3332,16 +3431,37 @@ var Editable = /*#__PURE__*/React.forwardRef(function (props, forwardedRef) {
+           domSelection.setBaseAndExtent(newDomRange.startContainer, newDomRange.startOffset, newDomRange.endContainer, newDomRange.endOffset);
+         }
+         scrollSelectionIntoView(editor, newDomRange);
++        debug("selection-sync:push", {
++          anchorPath: selection?.anchor?.path,
++          anchorOffset: selection?.anchor?.offset,
++          focusOffset: selection?.focus?.offset,
++          domAnchorOffset: domSelection.anchorOffset,
++          domAnchorTextLength: domSelection.anchorNode?.length ?? domSelection.anchorNode?.childNodes?.length ?? null,
++          isComposing: slateDom.IS_COMPOSING.get(editor) ?? false
++        });
+       } else {
+-        domSelection.removeAllRanges();
++        // Keep the native caret while React is between commits, but clear it when Slate has no selection.
++        if (!selection && domSelection.rangeCount > 0) {
++          domSelection.removeAllRanges();
++        }
++        debug("selection-sync:toDOMRange-failed", {
++          hasSelection: !!selection,
++          anchorPath: selection?.anchor?.path,
++          anchorOffset: selection?.anchor?.offset,
++          focusPath: selection?.focus?.path,
++          focusOffset: selection?.focus?.offset,
++          rangeCount: domSelection.rangeCount
++        });
+       }
+       return newDomRange;
+     };
+     // In firefox if there is more then 1 range and we call setDomSelection we remove the ability to select more cells in a table
+-    if (domSelection.rangeCount <= 1) {
+-      setDomSelection();
+-    }
+-    var ensureSelection = ((_androidInputManagerR2 = androidInputManagerRef.current) === null || _androidInputManagerR2 === void 0 ? void 0 : _androidInputManagerR2.isFlushing()) === 'action';
++    var domRangeApplied = domSelection.rangeCount <= 1 ? setDomSelection() : true;
++    // COMPAT: On Android, also re-assert the caret when the push could not
++    // compute a DOM range (React between commits), so the caret follows
++    // Slate's selection once the DOM catches up instead of staying where
++    // the IME left it.
++    var ensureSelection = ((_androidInputManagerR2 = androidInputManagerRef.current) === null || _androidInputManagerR2 === void 0 ? void 0 : _androidInputManagerR2.isFlushing()) === 'action' || domRangeApplied === null && !!selection;
+     if (!slateDom.IS_ANDROID || !ensureSelection) {
+       setTimeout(function () {
+         state.isUpdatingSelection = false;
+diff --git a/dist/slate-react.js b/dist/slate-react.js
+index e40b5aa..57c92f1 100644
+--- a/dist/slate-react.js
++++ b/dist/slate-react.js
+@@ -33670,7 +33670,20 @@
+ 	// without firing `compositionend`; one that ends normally flushes immediately.
+ 	var COMPOSITION_RECHECK_DELAY = 50;
+ 	// Replace with `const debug = console.log` to debug
+-	var debug = function debug() {};
++	var debug = function debug() {
++  if (globalThis.__TAU_SLATE_DEBUG === true) {
++    try {
++      var parts = [];
++      for (var _i = 0; _i < arguments.length; _i++) {
++        var arg = arguments.length <= _i ? undefined : arguments[_i];
++        parts.push(typeof arg === "string" ? arg : JSON.stringify(arg));
++      }
++      console.info("[slate-react-debug] " + parts.join(" "));
++    } catch (_unusedDbgErr) {
++      console.info("[slate-react-debug] <unserializable>", ...arguments);
++    }
++  }
++};
+ 	// Type guard to check if a value is a DataTransfer
+ 	var isDataTransfer = function isDataTransfer(value) {
+ 	  return (value === null || value === void 0 ? void 0 : value.constructor.name) === 'DataTransfer';
+@@ -33787,6 +33800,9 @@
+ 	    var selectionRef = editor.selection && slate.Editor.rangeRef(editor, editor.selection, {
+ 	      affinity: 'forward'
+ 	    });
++	    // 插入后立刻捕获 Slate 原生选区：带 mark 的插入会分裂叶子，后续 rangeRef 恢复与
++	    // pending action 的 offset+textLength 算术都会产出过期/越界坐标，唯有此值正确
++	    var intendedFromInsert = null;
+ 	    EDITOR_TO_USER_MARKS.set(editor, editor.marks);
+ 	    debug('flush', EDITOR_TO_PENDING_ACTION.get(editor), EDITOR_TO_PENDING_DIFFS.get(editor));
+ 	    var scheduleSelectionChange = hasPendingDiffs();
+@@ -33807,6 +33823,7 @@
+ 	      }
+ 	      if (diff.diff.text) {
+ 	        slate.Editor.insertText(editor, diff.diff.text);
++	        intendedFromInsert = editor.selection;
+ 	      } else {
+ 	        slate.Editor.deleteFragment(editor);
+ 	      }
+@@ -33833,25 +33850,107 @@
+ 	    if (selection && !EDITOR_TO_PENDING_SELECTION.get(editor) && (!editor.selection || !slate.Range.equals(selection, editor.selection))) {
+ 	      slate.Transforms.select(editor, selection);
+ 	    }
+-	    if (hasPendingAction()) {
++	    // COMPAT: Android IMEs re-apply their own stale caret after Slate pushes the
++	    // post-flush selection, and mark-splitting re-renders can drop the native
++	    // caret entirely (React replaces the text node the caret was anchored in).
++	    // The action path already re-asserts the caret twice (rAF + timeout) to win
++	    // that fight; schedule the same re-assert for any flush that applied diffs,
++	    // BEFORE the pending-action early return below (composed input often takes
++	    // the combined diff+action path, which never reaches the flush tail).
++	    if (!IS_COMPOSING.get(editor) && editor.selection) {
++	      var intendedSelection = intendedFromInsert ?? editor.selection;
++	      var flushWindow = ReactEditor.getWindow(editor);
++	      var pendingReassertAfterAction = null;
++	      var reassertCaret = function reassertCaret(attempt, resolveSelection) {
++	        return function () {
++	          // 用户已开始下一段输入时交还控制权，避免与进行中的 IME 抢光标
++	          if (IS_COMPOSING.get(editor)) return;
++	          try {
++	            var selectionToAssert = resolveSelection();
++	            if (!selectionToAssert) return;
++	            var el = ReactEditor.toDOMNode(editor, editor);
++	            if (flushWindow.document.activeElement !== el && !el.contains(flushWindow.document.activeElement)) {
++	              el.focus({ preventScroll: true });
++	            }
++	            var domRange = ReactEditor.toDOMRange(editor, selectionToAssert);
++	            var domSel = flushWindow.getSelection();
++	            if (domRange && domSel && domSel.rangeCount <= 1) {
++	              domSel.setBaseAndExtent(domRange.startContainer, domRange.startOffset, domRange.endContainer, domRange.endOffset);
++	              debug('android:flush:reassert-caret', { attempt: attempt, anchorOffset: selectionToAssert.anchor.offset, focusOffset: selectionToAssert.focus.offset, previousRangeCount: domSel.rangeCount });
++	            }
++	          } catch (_unusedReassertErr) {
++	            // DOM 尚未提交新内容时 toDOMRange 会失败，由下一个 pass 兜底
++	          }
++	        };
++	      };
++	      if (hasPendingAction()) {
++	        // action（回车/删除等）要等 performAction 执行后才更新 selection：
++	        // 重申推迟到 action 完成后调度，回调内实时读取最新 editor.selection，
++	        // 过期快照仅作兜底——否则会把光标拉回操作前的位置（输入后闪回）
++	        pendingReassertAfterAction = function () {
++	          flushWindow.requestAnimationFrame(reassertCaret(1, function () {
++	            return editor.selection ?? intendedSelection;
++	          }));
++	          flushWindow.setTimeout(reassertCaret(2, function () {
++	            return editor.selection ?? intendedSelection;
++	          }), 120);
++	        };
++	      } else {
++	        // 纯 diff（输入）路径：重申 flush 时刻的快照。Android IME 会把 stale
++	        // caret 回写进模型，实时值可能已被污染；快照才能守住 mark 切分
++	        // 重渲染丢原生 caret 的场景（加粗后输入光标原地不动）
++	        flushWindow.requestAnimationFrame(reassertCaret(1, function () {
++	          return intendedSelection;
++	        }));
++	        flushWindow.setTimeout(reassertCaret(2, function () {
++	          return intendedSelection;
++	        }), 120);
++	      }
++	      debug('android:flush:schedule-reassert', { hasPendingAction: hasPendingAction(), anchorOffset: intendedSelection.anchor.offset, isComposing: false });
++    }
++    if (hasPendingAction()) {
+ 	      performAction();
++	      // action 已更新 selection，此刻调度重申（回调内实时读取）
++	      if (pendingReassertAfterAction) {
++	        pendingReassertAfterAction();
++	        pendingReassertAfterAction = null;
++	      }
+ 	      return;
+-	    }
++    }
+ 	    // COMPAT: The selectionChange event is fired after the action is performed,
+ 	    // so we have to manually schedule it to ensure we don't 'throw away' the selection
+ 	    // while rendering if we have pending changes.
+ 	    if (scheduleSelectionChange) {
+ 	      scheduleOnDOMSelectionChange();
+ 	    }
+-	    scheduleOnDOMSelectionChange.flush();
+-	    onDOMSelectionChange.flush();
+-	    applyPendingSelection();
++		    scheduleOnDOMSelectionChange.flush();
++		    // COMPAT: On Android, a toolbar action (marks/blocks) can leave the native
++		    // selection absent (rangeCount === 0) while Slate's selection is intact.
++		    // Flushing the DOM->Slate sync then would read a null anchor and drop the
++		    // caret. Only flush when a native range exists; otherwise re-sync the focus
++		    // flag so the post-commit selection push (setDomSelection) is allowed to
++		    // restore the caret from Slate's model.
++		    var domSelectionAtFlush = ReactEditor.getWindow(editor).getSelection();
++		    if (domSelectionAtFlush && domSelectionAtFlush.rangeCount > 0) {
++		      onDOMSelectionChange.flush();
++		    } else {
++		      try {
++		        var editableEl = ReactEditor.toDOMNode(editor, editor);
++		        var activeEl = ReactEditor.getWindow(editor).document.activeElement;
++		        if (activeEl === editableEl || editableEl.contains(activeEl)) {
++		          IS_FOCUSED.set(editor, true);
++		        }
++		      } catch (_unusedSelErr) {}
++		      debug('android:flush:skip-stale-dom-selection', { selection: editor.selection, domRangeCount: domSelectionAtFlush ? domSelectionAtFlush.rangeCount : 0 });
++		    }
++		    applyPendingSelection();
+ 	    var userMarks = EDITOR_TO_USER_MARKS.get(editor);
+ 	    EDITOR_TO_USER_MARKS["delete"](editor);
+ 	    if (userMarks !== undefined) {
+ 	      editor.marks = userMarks;
+ 	      editor.onChange();
+ 	    }
++	    debug('android:flush:end', { selection: editor.selection, rangeCount: ReactEditor.getWindow(editor).getSelection()?.rangeCount ?? 0 });
+ 	  };
+ 	  var handleCompositionEnd = function handleCompositionEnd(_event) {
+ 	    if (compositionEndTimeoutId) {
+@@ -37261,16 +37360,37 @@
+ 	          domSelection.setBaseAndExtent(newDomRange.startContainer, newDomRange.startOffset, newDomRange.endContainer, newDomRange.endOffset);
+ 	        }
+ 	        scrollSelectionIntoView(editor, newDomRange);
++	        debug("selection-sync:push", {
++	          anchorPath: selection?.anchor?.path,
++	          anchorOffset: selection?.anchor?.offset,
++	          focusOffset: selection?.focus?.offset,
++	          domAnchorOffset: domSelection.anchorOffset,
++	          domAnchorTextLength: domSelection.anchorNode?.length ?? domSelection.anchorNode?.childNodes?.length ?? null,
++	          isComposing: IS_COMPOSING.get(editor) ?? false
++	        });
+ 	      } else {
+-	        domSelection.removeAllRanges();
++	        // Keep the native caret while React is between commits, but clear it when Slate has no selection.
++	        if (!selection && domSelection.rangeCount > 0) {
++	          domSelection.removeAllRanges();
++	        }
++	        debug("selection-sync:toDOMRange-failed", {
++	          hasSelection: !!selection,
++	          anchorPath: selection?.anchor?.path,
++	          anchorOffset: selection?.anchor?.offset,
++	          focusPath: selection?.focus?.path,
++	          focusOffset: selection?.focus?.offset,
++	          rangeCount: domSelection.rangeCount
++	        });
+ 	      }
+ 	      return newDomRange;
+ 	    };
+-	    // In firefox if there is more then 1 range and we call setDomSelection we remove the ability to select more cells in a table
+-	    if (domSelection.rangeCount <= 1) {
+-	      setDomSelection();
+-	    }
+-	    var ensureSelection = ((_androidInputManagerR2 = androidInputManagerRef.current) === null || _androidInputManagerR2 === void 0 ? void 0 : _androidInputManagerR2.isFlushing()) === 'action';
++		    // In firefox if there is more then 1 range and we call setDomSelection we remove the ability to select more cells in a table
++		    var domRangeApplied = domSelection.rangeCount <= 1 ? setDomSelection() : true;
++		    // COMPAT: On Android, also re-assert the caret when the push could not
++		    // compute a DOM range (React between commits), so the caret follows
++		    // Slate's selection once the DOM catches up instead of staying where
++		    // the IME left it.
++		    var ensureSelection = ((_androidInputManagerR2 = androidInputManagerRef.current) === null || _androidInputManagerR2 === void 0 ? void 0 : _androidInputManagerR2.isFlushing()) === 'action' || domRangeApplied === null && !!selection;
+ 	    if (!IS_ANDROID || !ensureSelection) {
+ 	      setTimeout(function () {
+ 	        state.isUpdatingSelection = false;

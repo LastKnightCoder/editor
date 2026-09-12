@@ -1,398 +1,179 @@
-import { useEffect, useState } from "react";
-import { AboutSection } from "./components/AboutSection";
+// 设置根页（我的 Tab）：功能宫格 + 总览入口。
+// 二级模块由 settingsModule 路由页承载（独立栈级，返回/滚动由 router 管理）。
+
+import { useRef } from "react";
+import { Search } from "lucide-react";
+import { useEdgeFade } from "../../hooks/useScrollState";
 import {
-  AIEmbeddingApiSection,
-  AIHomeSection,
-  AILlmConfigsSection,
-  AILlmUsageSection,
-} from "./components/AISections";
-import { DatabaseSection } from "./components/DatabaseSection";
-import {
-  IntegrationAliOssSection,
-  IntegrationGithubSection,
-  IntegrationHomeSection,
-  IntegrationS3Section,
-  IntegrationWebDavSection,
-} from "./components/IntegrationSections";
+  Article,
+  Books,
+  Cards,
+  FolderOpen,
+  ListChecks,
+  Palette,
+  Timer,
+} from "@phosphor-icons/react";
+import type { Icon } from "@phosphor-icons/react";
 import { OverviewSection } from "./components/OverviewSection";
-import {
-  ResourceAliOssSection,
-  ResourceGithubSection,
-  ResourceHomeSection,
-  ResourceLocalSection,
-  ResourceS3Section,
-  ResourceWebDavSection,
-} from "./components/ResourceSections";
-import {
-  SyncAliOssSection,
-  SyncGithubSection,
-  SyncS3Section,
-  SyncWebDavSection,
-} from "./components/SyncSections";
-import {
-  DatabaseSyncStatusSection,
-  ResourceSyncStatusSection,
-} from "./components/SyncStatusSections";
-import { ThemeSection } from "./components/ThemeSection";
-import type { SettingModule, SettingsPageProps } from "./components/types";
-import { IconChevronLeft } from "./components/ui";
+import type { SettingModuleKey, SettingsPageProps } from "./components/types";
+import { toast } from "../../components/toast";
 
-type SettingsScreenProps = SettingsPageProps;
+type SettingsScreenProps = SettingsPageProps & {
+  /** 打开二级模块（压入 settingsModule 路由页） */
+  onOpenModule: (module: SettingModuleKey) => void;
+  /** 功能宫格：任务中心（模块启用时展示） */
+  onOpenTodo?: () => void;
+  /** 页头：全局搜索 */
+  onOpenSearch?: () => void;
+  /** 功能宫格：文章 / 项目 / 知识库 */
+  onOpenArticles?: () => void;
+  onOpenProjects?: () => void;
+  onOpenKnowledge?: () => void;
+};
 
-function getTitle(activeModule: SettingModule): string {
-  switch (activeModule) {
-    case "ai":
-      return "AI 模型";
-    case "ai-llm-configs":
-      return "LLM 配置";
-    case "ai-llm-usage":
-      return "功能模型分配";
-    case "ai-embedding-api":
-      return "Embedding API";
-    case "theme":
-      return "外观";
-    case "about":
-      return "关于";
-    case "database":
-      return "数据库管理";
-    case "sync-status-db":
-      return "数据库同步状态";
-    case "sync-status-resource":
-      return "资源同步状态";
-    case "integration":
-      return "集成账号";
-    case "integration-github":
-      return "Github 账号";
-    case "integration-s3":
-      return "S3 账号";
-    case "integration-webdav":
-      return "WebDAV 账号";
-    case "integration-alioss":
-      return "AliOSS 账号";
-    case "resource":
-      return "资源存储";
-    case "resource-local":
-      return "本地资源配置";
-    case "resource-github":
-      return "Github 资源配置";
-    case "resource-alioss":
-      return "AliOSS 资源配置";
-    case "resource-s3":
-      return "S3 资源配置";
-    case "resource-webdav":
-      return "WebDAV 资源配置";
-    case "sync-webdav":
-      return "WebDAV 同步配置";
-    case "sync-alioss":
-      return "AliOSS 同步配置";
-    case "sync-github":
-      return "Github 同步配置";
-    case "sync-s3":
-      return "S3 同步配置";
-    default:
-      return "设置";
-  }
-}
-
-function SettingsContent(
-  props: SettingsPageProps & {
-    activeModule: SettingModule;
-    setActiveModule: (module: SettingModule) => void;
-    isDark: boolean;
-    setIsDark: (dark: boolean) => void;
-  }
-) {
-  const activeSync = props.safeSetting?.sync.active ?? "aliOSS";
-  const activeResource = props.safeSetting?.imageBed.active ?? "github";
-  const compressionEnabled = props.safeSetting?.imageBed.enableCompression ?? false;
-
-  if (!props.activeModule) {
-    return (
-      <OverviewSection
-        isDark={props.isDark}
-        activeSync={activeSync}
-        activeResource={activeResource}
-        versions={props.versions}
-        activeDatabase={props.databases?.activeDatabase}
-        onOpenModule={module => props.setActiveModule(module)}
-        resourceSyncProgress={props.resourceSyncProgress}
-      />
-    );
-  }
-
-  if (props.activeModule === "theme") {
-    return <ThemeSection isDark={props.isDark} setIsDark={props.setIsDark} />;
-  }
-
-  if (props.activeModule === "ai") {
-    return <AIHomeSection onOpenModule={module => props.setActiveModule(module)} />;
-  }
-
-  if (props.activeModule === "ai-llm-configs") {
-    return (
-      <AILlmConfigsSection safeSetting={props.safeSetting} updateSetting={props.updateSetting} />
-    );
-  }
-
-  if (props.activeModule === "ai-llm-usage") {
-    return (
-      <AILlmUsageSection safeSetting={props.safeSetting} updateSetting={props.updateSetting} />
-    );
-  }
-
-  if (props.activeModule === "ai-embedding-api") {
-    return (
-      <AIEmbeddingApiSection safeSetting={props.safeSetting} updateSetting={props.updateSetting} />
-    );
-  }
-
-  if (props.activeModule === "about") {
-    return <AboutSection />;
-  }
-
-  if (props.activeModule === "database") {
-    return (
-      <DatabaseSection databases={props.databases} onSwitchDatabase={props.onSwitchDatabase} />
-    );
-  }
-
-  if (props.activeModule === "sync-status-db") {
-    return (
-      <DatabaseSyncStatusSection
-        versions={props.versions}
-        isSyncing={props.isSyncing}
-        onCheckVersions={props.onCheckVersions}
-        onSyncUpload={props.onSyncUpload}
-        onSyncDownload={props.onSyncDownload}
-      />
-    );
-  }
-
-  if (props.activeModule === "sync-status-resource") {
-    return (
-      <ResourceSyncStatusSection
-        resourceSyncProgress={props.resourceSyncProgress}
-        resourceSyncStatusFile={props.resourceSyncStatusFile}
-        isResourceSyncing={props.isResourceSyncing}
-        onResourceSyncRefresh={props.onResourceSyncRefresh}
-        onResourceSyncStart={props.onResourceSyncStart}
-        onResourceSyncRetryFailed={props.onResourceSyncRetryFailed}
-        onResourceSyncCancel={props.onResourceSyncCancel}
-      />
-    );
-  }
-
-  if (props.activeModule === "integration") {
-    return <IntegrationHomeSection onOpenModule={module => props.setActiveModule(module)} />;
-  }
-
-  if (props.activeModule === "integration-github") {
-    return (
-      <IntegrationGithubSection
-        safeSetting={props.safeSetting}
-        isSavingSetting={props.isSavingSetting}
-        onSaveSetting={props.onSaveSetting}
-        updateSetting={props.updateSetting}
-      />
-    );
-  }
-
-  if (props.activeModule === "integration-s3") {
-    return (
-      <IntegrationS3Section
-        safeSetting={props.safeSetting}
-        isSavingSetting={props.isSavingSetting}
-        onSaveSetting={props.onSaveSetting}
-        updateSetting={props.updateSetting}
-      />
-    );
-  }
-
-  if (props.activeModule === "integration-webdav") {
-    return (
-      <IntegrationWebDavSection
-        safeSetting={props.safeSetting}
-        isSavingSetting={props.isSavingSetting}
-        onSaveSetting={props.onSaveSetting}
-        updateSetting={props.updateSetting}
-      />
-    );
-  }
-
-  if (props.activeModule === "integration-alioss") {
-    return (
-      <IntegrationAliOssSection
-        safeSetting={props.safeSetting}
-        isSavingSetting={props.isSavingSetting}
-        onSaveSetting={props.onSaveSetting}
-        updateSetting={props.updateSetting}
-      />
-    );
-  }
-
-  if (props.activeModule === "resource") {
-    return (
-      <ResourceHomeSection
-        safeSetting={props.safeSetting}
-        activeResource={activeResource}
-        compressionEnabled={compressionEnabled}
-        isSavingSetting={props.isSavingSetting}
-        onSaveSetting={props.onSaveSetting}
-        onOpenModule={module => props.setActiveModule(module)}
-        updateSetting={props.updateSetting}
-      />
-    );
-  }
-
-  if (props.activeModule === "resource-local") {
-    return (
-      <ResourceLocalSection
-        safeSetting={props.safeSetting}
-        activeResource={activeResource}
-        isSavingSetting={props.isSavingSetting}
-        onSaveSetting={props.onSaveSetting}
-        updateSetting={props.updateSetting}
-      />
-    );
-  }
-
-  if (props.activeModule === "resource-github") {
-    return (
-      <ResourceGithubSection
-        safeSetting={props.safeSetting}
-        activeResource={activeResource}
-        isSavingSetting={props.isSavingSetting}
-        onSaveSetting={props.onSaveSetting}
-        updateSetting={props.updateSetting}
-      />
-    );
-  }
-
-  if (props.activeModule === "resource-alioss") {
-    return (
-      <ResourceAliOssSection
-        safeSetting={props.safeSetting}
-        activeResource={activeResource}
-        isSavingSetting={props.isSavingSetting}
-        onSaveSetting={props.onSaveSetting}
-        updateSetting={props.updateSetting}
-      />
-    );
-  }
-
-  if (props.activeModule === "resource-s3") {
-    return (
-      <ResourceS3Section
-        safeSetting={props.safeSetting}
-        activeResource={activeResource}
-        isSavingSetting={props.isSavingSetting}
-        onSaveSetting={props.onSaveSetting}
-        updateSetting={props.updateSetting}
-      />
-    );
-  }
-
-  if (props.activeModule === "resource-webdav") {
-    return (
-      <ResourceWebDavSection
-        safeSetting={props.safeSetting}
-        activeResource={activeResource}
-        isSavingSetting={props.isSavingSetting}
-        onSaveSetting={props.onSaveSetting}
-        updateSetting={props.updateSetting}
-      />
-    );
-  }
-
-  if (props.activeModule === "sync-webdav") {
-    return (
-      <SyncWebDavSection
-        safeSetting={props.safeSetting}
-        activeSync={activeSync}
-        isSavingSetting={props.isSavingSetting}
-        onSaveSetting={props.onSaveSetting}
-        updateSetting={props.updateSetting}
-      />
-    );
-  }
-
-  if (props.activeModule === "sync-github") {
-    return (
-      <SyncGithubSection
-        safeSetting={props.safeSetting}
-        activeSync={activeSync}
-        isSavingSetting={props.isSavingSetting}
-        onSaveSetting={props.onSaveSetting}
-        updateSetting={props.updateSetting}
-      />
-    );
-  }
-
-  if (props.activeModule === "sync-s3") {
-    return (
-      <SyncS3Section
-        safeSetting={props.safeSetting}
-        activeSync={activeSync}
-        isSavingSetting={props.isSavingSetting}
-        onSaveSetting={props.onSaveSetting}
-        updateSetting={props.updateSetting}
-      />
-    );
-  }
+/** 功能宫格：已上线模块直达 + 桌面版待迁移模块预告（v2 我的 Hub） */
+function FeatureGrid(props: {
+  onOpenTodo?: () => void;
+  onOpenArticles?: () => void;
+  onOpenProjects?: () => void;
+  onOpenKnowledge?: () => void;
+}) {
+  const items: Array<{
+    key: string;
+    icon: Icon;
+    tone: string;
+    label: string;
+    soft: string;
+    soon?: boolean;
+    onClick: () => void;
+  }> = [
+    {
+      key: "todo",
+      icon: ListChecks,
+      tone: "var(--butter)",
+      label: "任务",
+      soft: "var(--butter-soft)",
+      onClick: props.onOpenTodo ?? (() => toast({ type: "info", text: "任务模块未启用" })),
+    },
+    {
+      key: "article",
+      icon: Article,
+      tone: "var(--apricot)",
+      label: "文章",
+      soft: "var(--apricot-soft)",
+      onClick: props.onOpenArticles ?? (() => toast({ type: "info", text: "文章即将上线" })),
+    },
+    {
+      key: "project",
+      icon: FolderOpen,
+      tone: "var(--lilac)",
+      label: "项目",
+      soft: "var(--lilac-soft)",
+      onClick: props.onOpenProjects ?? (() => toast({ type: "info", text: "项目即将上线" })),
+    },
+    {
+      key: "document",
+      icon: Books,
+      tone: "var(--sage)",
+      label: "知识库",
+      soft: "var(--sage-soft)",
+      onClick: props.onOpenKnowledge ?? (() => toast({ type: "info", text: "知识库即将上线" })),
+    },
+    {
+      key: "flashcard",
+      icon: Cards,
+      tone: "var(--lilac)",
+      label: "闪卡",
+      soft: "var(--lilac-soft)",
+      soon: true,
+      onClick: () => toast({ type: "info", text: "闪卡复习即将上线" }),
+    },
+    {
+      key: "whiteboard",
+      icon: Palette,
+      tone: "var(--rose)",
+      label: "白板",
+      soft: "var(--rose-soft)",
+      soon: true,
+      onClick: () => toast({ type: "info", text: "白板即将上线" }),
+    },
+    {
+      key: "pomodoro",
+      icon: Timer,
+      tone: "var(--rose)",
+      label: "番茄",
+      soft: "var(--rose-soft)",
+      soon: true,
+      onClick: () => toast({ type: "info", text: "番茄专注即将上线" }),
+    },
+  ];
 
   return (
-    <SyncAliOssSection
-      safeSetting={props.safeSetting}
-      activeSync={activeSync}
-      isSavingSetting={props.isSavingSetting}
-      onSaveSetting={props.onSaveSetting}
-      updateSetting={props.updateSetting}
-    />
+    <div className="rounded-card bg-surface shadow-card grid grid-cols-4 gap-2.5 px-2.5 py-4">
+      {items.map(item => (
+        <button
+          key={item.key}
+          type="button"
+          onClick={item.onClick}
+          className="relative flex flex-col items-center gap-[7px] py-2 transition-transform duration-200 active:scale-90"
+        >
+          {item.soon ? (
+            <span className="bg-butter-soft text-butter absolute right-1 top-0 rounded-full px-[5px] py-[1.5px] text-[8.5px] font-bold tracking-wide">
+              即将
+            </span>
+          ) : null}
+          <span
+            className="grid h-[46px] w-[46px] place-items-center rounded-[17px]"
+            style={{ background: item.soft }}
+          >
+            <item.icon size={26} weight="regular" color={item.tone} aria-hidden="true" />
+          </span>
+          <span className="text-ink-2 text-[11px] font-semibold">{item.label}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 
 export function SettingsPage(props: SettingsScreenProps) {
-  const [isDark, setIsDark] = useState(() => {
-    return document.documentElement.classList.contains("dark");
-  });
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDark);
-    try {
-      localStorage.setItem("tau-mobile-theme", isDark ? "dark" : "light");
-    } catch {
-      // ignore
-    }
-  }, [isDark]);
-
-  const handleBack = () => {
-    props.onBack();
-  };
-
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEdgeFade(scrollRef);
   return (
-    <div className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
-      <header className="mobile-topbar topbar-immersive flex items-center px-2">
+    <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
+      <header className="flex items-center justify-between px-[18px] pt-[calc(20px+var(--mobile-safe-top))]">
+        <h1 className="text-ink text-2xl font-extrabold tracking-tight">我的</h1>
         <button
           type="button"
-          onClick={handleBack}
-          className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-neutral-300 dark:active:bg-neutral-800"
+          onClick={props.onOpenSearch ?? (() => {})}
+          aria-label="搜索所有内容"
+          className="bg-surface text-ink-2 shadow-card active:scale-88 grid h-[42px] w-[42px] place-items-center rounded-[15px] transition-transform duration-200"
         >
-          <IconChevronLeft />
+          <Search size={20} strokeWidth={1.9} aria-hidden="true" />
         </button>
-        <h1 className="flex-1 text-center text-base font-semibold text-gray-900 dark:text-neutral-100">
-          {getTitle(props.activeModule)}
-        </h1>
-        <div className="w-10" />
       </header>
 
-      <div className="mobile-kb-scroll flex-1 overflow-y-auto p-4">
-        <SettingsContent
-          {...props}
-          activeModule={props.activeModule}
-          setActiveModule={props.onActiveModuleChange}
-          isDark={isDark}
-          setIsDark={setIsDark}
-        />
+      <div
+        ref={scrollRef}
+        className="edge-fade-scroll mobile-kb-scroll flex-1 overflow-y-auto px-4"
+        style={{ paddingBottom: "calc(var(--dock-visual-height) + 28px + var(--kb-height, 0px))" }}
+      >
+        <div className="mt-4">
+          <FeatureGrid
+            onOpenTodo={props.onOpenTodo}
+            onOpenArticles={props.onOpenArticles}
+            onOpenProjects={props.onOpenProjects}
+            onOpenKnowledge={props.onOpenKnowledge}
+          />
+        </div>
+        <div className="mt-4">
+          <OverviewSection
+            activeResource={props.safeSetting?.imageBed.active ?? "github"}
+            activeDatabase={props.databases?.activeDatabase}
+            imageAppearance={props.safeSetting?.appearance?.image}
+            onOpenModule={props.onOpenModule}
+            resourceSyncProgress={props.resourceSyncProgress}
+          />
+        </div>
       </div>
     </div>
   );

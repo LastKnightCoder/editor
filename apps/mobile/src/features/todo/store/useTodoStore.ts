@@ -14,7 +14,6 @@ import type {
   MoveAndReorderTodoItemPayload,
   ReorderTodoGroupsPayload,
   TodoGroup,
-  TodoGroupStats,
   TodoItem,
   TodoItemType,
   TodoSystemGroupType,
@@ -22,6 +21,7 @@ import type {
   UpdateTodoGroupPayload,
   UpdateTodoItemPayload,
 } from "../../../types";
+import { resolveStatsMap } from "../queries";
 
 const TODO_SYSTEM_TYPES: Exclude<TodoSystemGroupType, null>[] = [
   "all",
@@ -42,14 +42,12 @@ type TodoFilterState = {
 
 type TodoState = {
   activeGroupId: number | null;
-  activeTodoId: number | null;
   filters: TodoFilterState;
   initializing: boolean;
 
   initialize: (databaseName?: string | null) => Promise<void>;
   reloadAfterDatabaseChange: (databaseName?: string | null) => Promise<void>;
   setActiveGroup: (groupId: number | null) => void;
-  setActiveTodo: (todoId: number | null) => void;
   setFilters: (patch: Partial<TodoFilterState>) => void;
   clearFilters: () => void;
 
@@ -75,20 +73,6 @@ type TodoState = {
 
 function invalidateTodoQueries() {
   getQueryClient().invalidateQueries({ queryKey: ["todo"] });
-}
-
-function resolveStatsMap(
-  groupStats: TodoGroupStats[],
-  systemStats: TodoGroupStats[]
-): Record<number, TodoGroupStats> {
-  const next: Record<number, TodoGroupStats> = {};
-  groupStats.forEach(stats => {
-    next[stats.groupId] = stats;
-  });
-  systemStats.forEach(stats => {
-    next[stats.groupId] = stats;
-  });
-  return next;
 }
 
 async function fetchAllGroupData() {
@@ -158,7 +142,6 @@ export function getTodoItemsCacheKey(
 
 export const useTodoStore = create<TodoState>()((set, get) => ({
   activeGroupId: null,
-  activeTodoId: null,
   filters: { type: "all" },
   initializing: false,
 
@@ -173,7 +156,7 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
           ? previousGroupId
           : resolveFallbackGroupId(groups, systemGroups);
       if (nextActiveGroupId !== previousGroupId) {
-        set({ activeGroupId: nextActiveGroupId, activeTodoId: null });
+        set({ activeGroupId: nextActiveGroupId });
       }
     } finally {
       set({ initializing: false });
@@ -182,7 +165,6 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
 
   reloadAfterDatabaseChange: async _databaseName => {
     invalidateTodoQueries();
-    set({ activeTodoId: null });
     const { groups, systemGroups } = await fetchAllGroupData();
     const previousGroupId = get().activeGroupId;
     const nextActiveGroupId =
@@ -194,10 +176,7 @@ export const useTodoStore = create<TodoState>()((set, get) => ({
 
   // items 数据由 useTodoItems 按 key 订阅，切换分组即自动拉取
   setActiveGroup: groupId => {
-    set({ activeGroupId: groupId, activeTodoId: null });
-  },
-  setActiveTodo: todoId => {
-    set({ activeTodoId: todoId });
+    set({ activeGroupId: groupId });
   },
   setFilters: patch => {
     set(state => ({ filters: { ...state.filters, ...patch } }));

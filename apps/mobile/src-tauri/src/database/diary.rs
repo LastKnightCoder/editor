@@ -80,6 +80,43 @@ pub struct DiaryDeletePayload {
     pub id: i64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiaryTagSetting {
+    pub name: String,
+    pub color: String,
+    pub sort: i64,
+    pub create_time: i64,
+    pub update_time: i64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiaryTagSettingPayload {
+    pub name: String,
+    pub color: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiaryRenameTagSettingPayload {
+    pub name: String,
+    pub new_name: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiaryDeleteTagSettingPayload {
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiaryUpdateTagsPayload {
+    pub id: i64,
+    pub tags: Vec<String>,
+}
+
 fn now_millis() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -656,6 +693,246 @@ fn delete_segment(
     query_entry_by_id(conn, diary_id)
 }
 
+fn normalize_tag_name(name: &str) -> Result<String, String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return Err("DIARY_TAG_INVALID: 标签名不能为空".to_string());
+    }
+    if trimmed.chars().count() > 20 {
+        return Err("DIARY_TAG_INVALID: 标签名最多 20 个字".to_string());
+    }
+    Ok(trimmed.to_string())
+}
+
+fn normalize_tag_color(color: &str) -> Result<String, String> {
+    let hex = color.trim();
+    let bytes = hex.as_bytes();
+    let valid =
+        bytes.len() == 7 && bytes[0] == b'#' && bytes[1..].iter().all(|b| b.is_ascii_hexdigit());
+    if valid {
+        Ok(hex.to_ascii_lowercase())
+    } else {
+        Err("DIARY_TAG_INVALID: 颜色必须是 #RRGGBB 格式".to_string())
+    }
+}
+
+fn normalize_diary_tags(tags: Vec<String>) -> Result<String, String> {
+    let mut seen = std::collections::HashSet::new();
+    let normalized: Vec<String> = tags
+        .into_iter()
+        .map(|tag| tag.trim().to_string())
+        .filter(|tag| !tag.is_empty() && seen.insert(tag.clone()))
+        .collect();
+    serde_json::to_string(&normalized).map_err(|e| e.to_string())
+}
+
+fn query_tag_settings(conn: &rusqlite::Connection) -> Result<Vec<DiaryTagSetting>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT name,color,sort,create_time,update_time FROM diary_tag_settings
+             ORDER BY sort ASC, create_time ASC",
+        )
+        .map_err(|e| format_db_error("DIARY_QUERY_FAILED", "query diary tag settings", e))?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(DiaryTagSetting {
+                name: row.get(0)?,
+                color: row.get(1)?,
+                sort: row.get(2)?,
+                create_time: row.get(3)?,
+                update_time: row.get(4)?,
+            })
+        })
+        .map_err(|e| format_db_error("DIARY_QUERY_FAILED", "query diary tag settings", e))?;
+    rows.collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(|e| format_db_error("DIARY_QUERY_FAILED", "parse diary tag settings", e))
+}
+
+/// 全表取出日记标签在 Rust 中变更后写回（仅写有变化的行）。
+/// 逐行解析 JSON 比模糊 SQL 匹配更精确：标签名可含引号、百分号等特殊字符。
+fn rewrite_entry_tags<F>(tx: &Transaction<'_>, mutate: F) -> Result<(), String>
+where
+    F: Fn(&mut Vec<String>),
+{
+    let rows = {
+        let mut stmt = tx
+            .prepare("SELECT id,tags FROM diary_entries")
+            .map_err(|e| e.to_string())?;
+        let collected = stmt
+            .query_map([], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, Option<String>>(1)?))
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(|e| e.to_string())?;
+        collected
+    };
+    for (id, raw) in rows {
+        let mut tags: Vec<String> = serde_json::from_str(raw.as_deref().unwrap_or("[]"))
+            .map_err(|e| format!("DIARY_INVALID_JSON: {e}"))?;
+        let before = tags.clone();
+        mutate(&mut tags);
+        // 改名可能产生重复项，去重保序
+        let mut seen = std::collections::HashSet::new();
+        tags.retain(|tag| seen.insert(tag.clone()));
+        if tags == before {
+            continue;
+        }
+        let serialized = serde_json::to_string(&tags).map_err(|e| e.to_string())?;
+        tx.execute(
+            "UPDATE diary_entries SET tags=?1 WHERE id=?2",
+            params![serialized, id],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn diary_get_tag_settings(app: AppHandle) -> Result<Vec<DiaryTagSetting>, String> {
+    let conn = schema::open_active_database(&app)?;
+    query_tag_settings(&conn)
+}
+
+fn upsert_tag_setting(
+    conn: &mut rusqlite::Connection,
+    name: &str,
+    color: &str,
+) -> Result<Vec<DiaryTagSetting>, String> {
+    let name = normalize_tag_name(name)?;
+    let color = normalize_tag_color(color)?;
+    let now = now_millis();
+    conn.execute(
+        "INSERT INTO diary_tag_settings(name,color,sort,create_time,update_time)
+         VALUES(?1,?2,COALESCE((SELECT MAX(sort) FROM diary_tag_settings),-1)+1,?3,?3)
+         ON CONFLICT(name) DO UPDATE SET color=excluded.color, update_time=excluded.update_time",
+        params![name, color, now],
+    )
+    .map_err(|e| format_db_error("DIARY_TAG_SAVE_FAILED", "upsert diary tag setting", e))?;
+    query_tag_settings(conn)
+}
+
+#[tauri::command]
+pub fn diary_upsert_tag_setting(
+    app: AppHandle,
+    payload: DiaryTagSettingPayload,
+) -> Result<Vec<DiaryTagSetting>, String> {
+    let mut conn = schema::open_active_database(&app)?;
+    upsert_tag_setting(&mut conn, &payload.name, &payload.color)
+}
+
+fn rename_tag_setting(
+    conn: &mut rusqlite::Connection,
+    name: &str,
+    new_name: &str,
+) -> Result<Vec<DiaryTagSetting>, String> {
+    let name = normalize_tag_name(name)?;
+    let new_name = normalize_tag_name(new_name)?;
+    let now = now_millis();
+    let tx = conn
+        .transaction()
+        .map_err(|e| format_db_error("DIARY_TAG_SAVE_FAILED", "begin transaction", e))?;
+    if new_name != name {
+        let exists = tx
+            .query_row(
+                "SELECT 1 FROM diary_tag_settings WHERE name=?1 LIMIT 1",
+                params![new_name],
+                |_| Ok(()),
+            )
+            .optional()
+            .map_err(|e| format_db_error("DIARY_TAG_SAVE_FAILED", "query tag conflict", e))?;
+        if exists.is_some() {
+            return Err("DIARY_TAG_EXISTS: 已存在同名标签".to_string());
+        }
+    }
+    let changed = tx
+        .execute(
+            "UPDATE diary_tag_settings SET name=?1, update_time=?2 WHERE name=?3",
+            params![new_name, now, name],
+        )
+        .map_err(|e| format_db_error("DIARY_TAG_SAVE_FAILED", "rename diary tag setting", e))?;
+    if changed == 0 {
+        return Err("DIARY_TAG_NOT_FOUND: 标签不存在".to_string());
+    }
+    let target = name.clone();
+    rewrite_entry_tags(&tx, |tags| {
+        for tag in tags.iter_mut() {
+            if *tag == target {
+                *tag = new_name.clone();
+            }
+        }
+    })?;
+    tx.commit()
+        .map_err(|e| format_db_error("DIARY_TAG_SAVE_FAILED", "commit transaction", e))?;
+    query_tag_settings(conn)
+}
+
+#[tauri::command]
+pub fn diary_rename_tag_setting(
+    app: AppHandle,
+    payload: DiaryRenameTagSettingPayload,
+) -> Result<Vec<DiaryTagSetting>, String> {
+    let mut conn = schema::open_active_database(&app)?;
+    rename_tag_setting(&mut conn, &payload.name, &payload.new_name)
+}
+
+fn delete_tag_setting(
+    conn: &mut rusqlite::Connection,
+    name: &str,
+) -> Result<Vec<DiaryTagSetting>, String> {
+    let name = name.trim().to_string();
+    let tx = conn
+        .transaction()
+        .map_err(|e| format_db_error("DIARY_TAG_DELETE_FAILED", "begin transaction", e))?;
+    tx.execute(
+        "DELETE FROM diary_tag_settings WHERE name=?1",
+        params![name],
+    )
+    .map_err(|e| format_db_error("DIARY_TAG_DELETE_FAILED", "delete diary tag setting", e))?;
+    let target = name.clone();
+    rewrite_entry_tags(&tx, |tags| tags.retain(|tag| *tag != target))?;
+    tx.commit()
+        .map_err(|e| format_db_error("DIARY_TAG_DELETE_FAILED", "commit transaction", e))?;
+    query_tag_settings(conn)
+}
+
+#[tauri::command]
+pub fn diary_delete_tag_setting(
+    app: AppHandle,
+    payload: DiaryDeleteTagSettingPayload,
+) -> Result<Vec<DiaryTagSetting>, String> {
+    let mut conn = schema::open_active_database(&app)?;
+    delete_tag_setting(&mut conn, &payload.name)
+}
+
+fn update_entry_tags(
+    conn: &mut rusqlite::Connection,
+    id: i64,
+    tags: Vec<String>,
+) -> Result<DiaryEntry, String> {
+    let serialized = normalize_diary_tags(tags)?;
+    let now = now_millis();
+    let changed = conn
+        .execute(
+            "UPDATE diary_entries SET tags=?1, update_time=?2 WHERE id=?3",
+            params![serialized, now, id],
+        )
+        .map_err(|e| format_db_error("DIARY_TAG_SAVE_FAILED", "update diary entry tags", e))?;
+    if changed == 0 {
+        return Err("DIARY_NOT_FOUND: diary entry does not exist".to_string());
+    }
+    query_entry_by_id(conn, id)
+}
+
+#[tauri::command]
+pub fn diary_update_tags(
+    app: AppHandle,
+    payload: DiaryUpdateTagsPayload,
+) -> Result<DiaryEntry, String> {
+    let mut conn = schema::open_active_database(&app)?;
+    update_entry_tags(&mut conn, payload.id, payload.tags)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -755,5 +1032,72 @@ mod tests {
         let after = query_entry_by_id(&conn, before.id).unwrap();
         assert_eq!(after.tags, before.tags);
         assert_eq!(after.content, before.content);
+    }
+
+    #[test]
+    fn tag_settings_crud_cascades_entries() {
+        let mut conn = database();
+        let mut tagged = payload("tagged", None, false);
+        tagged.tags = Some(vec!["日常".into(), "周记".into()]);
+        let entry = upsert_entry(&mut conn, tagged).unwrap();
+
+        // 全新库自带「周记」「月记」种子，新增标签排到末尾
+        let settings = upsert_tag_setting(&mut conn, "日常", "#1890FF").unwrap();
+        assert_eq!(settings.len(), 3);
+        let daily = settings.iter().find(|s| s.name == "日常").unwrap();
+        assert_eq!(daily.sort, 2);
+        assert_eq!(daily.color, "#1890ff");
+        // 重复 upsert 只改色，不新增行
+        let settings = upsert_tag_setting(&mut conn, "日常", "#52c41a").unwrap();
+        assert_eq!(settings.len(), 3);
+        assert_eq!(
+            settings.iter().find(|s| s.name == "日常").unwrap().color,
+            "#52c41a"
+        );
+        assert!(upsert_tag_setting(&mut conn, "  ", "#52c41a").is_err());
+        assert!(upsert_tag_setting(&mut conn, "色", "red").is_err());
+
+        // 改名级联到条目（保持位置），重名拒绝
+        let settings = rename_tag_setting(&mut conn, "日常", "随笔").unwrap();
+        assert!(settings.iter().any(|s| s.name == "随笔"));
+        assert_eq!(
+            query_entry_by_id(&conn, entry.id).unwrap().tags,
+            vec!["随笔", "周记"]
+        );
+        assert!(rename_tag_setting(&mut conn, "随笔", "周记").is_err());
+        assert!(rename_tag_setting(&mut conn, "不存在", "新名").is_err());
+
+        // 删除标签级联从条目移除
+        delete_tag_setting(&mut conn, "周记").unwrap();
+        assert_eq!(
+            query_entry_by_id(&conn, entry.id).unwrap().tags,
+            vec!["随笔"]
+        );
+
+        // 条目标签整体覆盖 + 归一化（trim / 去空 / 去重）
+        let updated = update_entry_tags(
+            &mut conn,
+            entry.id,
+            vec![" 读书 ".into(), "".into(), "读书".into()],
+        )
+        .unwrap();
+        assert_eq!(updated.tags, vec!["读书"]);
+        assert!(update_entry_tags(&mut conn, 999, vec![]).is_err());
+    }
+
+    #[test]
+    fn rename_tag_dedupes_colliding_entry_tags() {
+        let mut conn = database();
+        // 「反思」只在条目上、不在标签库中；把库里的「日常」改成「反思」应放行
+        let mut tagged = payload("dedupe", None, false);
+        tagged.tags = Some(vec!["日常".into(), "反思".into()]);
+        let entry = upsert_entry(&mut conn, tagged).unwrap();
+        upsert_tag_setting(&mut conn, "日常", "#1890ff").unwrap();
+
+        rename_tag_setting(&mut conn, "日常", "反思").unwrap();
+        assert_eq!(
+            query_entry_by_id(&conn, entry.id).unwrap().tags,
+            vec!["反思"]
+        );
     }
 }

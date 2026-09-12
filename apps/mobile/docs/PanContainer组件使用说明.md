@@ -9,8 +9,9 @@
 - 键盘视口变化后的高度重算；
 - 对外暴露进度与遮挡 CSS 变量（例如 `--pan-occluded-bottom`）。
 
-业务层默认请使用 `SnapSheet`，不要直接使用 `PanContainer`。  
-相关文档：`apps/mobile/docs/SnapSheet组件使用说明.md`。
+---
+
+业务层默认请使用 `SnapSheet`，不要直接使用 `PanContainer`。相关文档：`apps/mobile/docs/SnapSheet组件使用说明.md`。
 
 ## 何时直接使用 PanContainer
 
@@ -20,7 +21,7 @@
 
 ## 最小示例（仅底层场景）
 
-```tsx
+```TSX
 const scrollRef = useRef<HTMLDivElement | null>(null);
 
 <PanContainer

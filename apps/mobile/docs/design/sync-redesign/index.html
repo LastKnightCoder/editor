@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>数据与同步 · 重构方案对比</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh; padding: 48px 24px 64px;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  background: #17150f; color: #d8cfc2;
+}
+.wrap { max-width: 980px; margin: 0 auto; }
+h1 { font-size: 26px; color: #f3ece1; margin: 0 0 6px; letter-spacing: -0.5px; }
+.sub { color: #9a8f80; margin: 0 0 34px; font-size: 14px; }
+h2 { font-size: 13px; color: #b0a494; letter-spacing: 3px; margin: 34px 0 14px; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+a.card {
+  display: block; text-decoration: none; color: inherit;
+  background: linear-gradient(160deg, #241f19, #1c1913);
+  border: 1px solid rgba(255,255,255,0.09); border-radius: 20px; padding: 22px;
+  transition: transform 0.2s, border-color 0.2s;
+}
+a.card:hover { transform: translateY(-3px); border-color: rgba(217,119,87,0.55); }
+.card .tag { font-size: 11px; letter-spacing: 2px; color: #d97757; font-weight: 700; }
+.card h3 { margin: 8px 0 4px; font-size: 18px; color: #f3ece1; }
+.card .ref { font-size: 12px; color: #8a7f70; margin: 0 0 12px; }
+.card ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.8; color: #c4b9a9; }
+.card .open { margin-top: 14px; font-size: 13px; font-weight: 700; color: #d97757; }
+
+.diag { background: rgba(255,255,255,0.04); border-radius: 18px; padding: 20px 24px; font-size: 13.5px; line-height: 1.9; }
+.diag b { color: #f0b680; }
+.diag p { margin: 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+th { color: #b0a494; font-weight: 600; }
+td:first-child { color: #f3ece1; font-weight: 600; }
+td { color: #c4b9a9; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>数据与同步 · 三个重构方案</h1>
+  <p class="sub">同一套功能、同一套杏子设计令牌，三种信息架构与交互模式。每份原型均为可点击交互稿，支持浅色（杏子）/ 深色（玄夜）主题预览。</p>
+
+  <h2>现有设计的核心病灶</h2>
+  <div class="diag">
+    <p>1. <b>单选被伪装成开关</b>：4 个同步服务各挂一个 Switch，实际互斥——用户以为能多开，点第二个第一个会被关掉。</p>
+    <p>2. <b>平铺式长表单</b>：同步分段一次堆 5 张大卡 + 4 份几乎相同的表单，每个 provider 还各配一个「保存配置」按钮，实际保存的是全局配置。</p>
+    <p>3. <b>危险操作无收口</b>：整库上传/下载（会覆盖一端数据）与「刷新」平级混排在同一按钮网格，形状还不统一（圆角矩形 / 胶囊混用）。</p>
+    <p>4. <b>状态信息弱</b>：本地 vs 远端版本只是两个裸数字，没有方向感（谁领先、差几个版本），用户需要心算。</p>
+  </div>
+
+  <h2>方案对比</h2>
+  <div class="cards">
+    <a class="card" href="option-a-status-hub.html">
+      <div class="tag">方案 A</div>
+      <h3>状态中心 Status Hub</h3>
+      <p class="ref">参考 iCloud 设置 / Obsidian Sync / Working Copy</p>
+      <ul>
+        <li>状态英雄卡：本地 ↔ 远端版本可视化 + 智能建议 + 单一主操作</li>
+        <li>同步服务改 radio 单选卡，手风琴展开当前表单</li>
+        <li>手动上传/下载降级为次级行，sheet 确认方向</li>
+        <li>信息密度最高，适合「同步是高频操作」的定位</li>
+      </ul>
+      <div class="open">打开交互原型 →</div>
+    </a>
+
+    <a class="card" href="option-b-connections.html">
+      <div class="tag">方案 B</div>
+      <h3>连接卡片 Connections</h3>
+      <p class="ref">参考 Stripe / Linear 的 Integrations 页</p>
+      <ul>
+        <li>凭证 + 业务参数合并进同一张连接卡，消灭「集成」分段跳转</li>
+        <li>连接三态徽章：未连接 → 已连接 → 使用中</li>
+        <li>「设为同步服务」显式按钮表达单选</li>
+        <li>状态压缩为顶部一行，点击展开；分段从 4 减到 2</li>
+      </ul>
+      <div class="open">打开交互原型 →</div>
+    </a>
+
+    <a class="card" href="option-c-grouped.html">
+      <div class="tag">方案 C</div>
+      <h3>极简分组 Grouped</h3>
+      <p class="ref">参考 Apple 设置 / Wi-Fi 选择器的导航纪律</p>
+      <ul>
+        <li>主页只做选择：单选组 + checkmark，一屏放下全部入口</li>
+        <li>所有细节（状态详情 / 服务配置 / 资源进度）push 子页</li>
+        <li>整库覆盖独立成红色危险组，与日常操作物理隔离</li>
+        <li>最克制、学习成本最低，改动量也最小</li>
+      </ul>
+      <div class="open">打开交互原型 →</div>
+    </a>
+  </div>
+
+  <h2>功能覆盖对照（三案均不丢功能）</h2>
+  <table>
+    <tr><th>现有功能</th><th>方案 A</th><th>方案 B</th><th>方案 C</th></tr>
+    <tr><td>数据库切换</td><td>当前库 hero 卡 + 单选列表</td><td>并入子页（同现有）</td><td>单选组 + checkmark</td></tr>
+    <tr><td>同步状态 / 版本对比</td><td>英雄卡本地↔远端可视化</td><td>顶部状态条 + 展开卡</td><td>状态行 + 详情子页</td></tr>
+    <tr><td>刷新 / 上传 / 下载</td><td>智能主 CTA + 次级手动行</td><td>展开卡操作组</td><td>操作组 + 红色危险组</td></tr>
+    <tr><td>4 个同步服务配置</td><td>单选卡 + 手风琴表单</td><td>连接卡（凭证+参数一体）</td><td>单选组 + ⓘ 配置子页</td></tr>
+    <tr><td>集成账号凭证</td><td>独立「集成」分段</td><td>并入各连接卡</td><td>并入各服务配置子页</td></tr>
+    <tr><td>资源同步进度/控制</td><td>进度卡 + 紧凑统计条</td><td>进度卡（同语言）</td><td>状态行 + 详情子页</td></tr>
+    <tr><td>存储目标 / 压缩开关</td><td>列表 + 开关</td><td>连接卡 + 开关</td><td>单选组 + 开关</td></tr>
+  </table>
+
+  <h2>落地说明</h2>
+  <div class="diag">
+    <p>· 三案共用 app 现有设计令牌（--bg-surface / --brand / --sage / 圆角 / 阴影全部对应 styles.css），实现时按 Tailwind 工具类 1:1 映射，四套主题（杏子/玄夜/薄荷/海盐）自动生效。</p>
+    <p>· 数据流完全复用现有 SettingsPageProps 回调（onSwitchDatabase / onSyncUpload / onResourceSyncStart…），重构只动视图层，不碰业务逻辑。</p>
+    <p>· 可组合：例如「方案 A 的英雄状态卡 + 方案 B 的连接卡」可混合落地，确认方向后实现时按需取材。</p>
+  </div>
+</div>
+</body>
+</html>

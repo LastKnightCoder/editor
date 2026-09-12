@@ -208,7 +208,7 @@ pub struct ArchiveTodoItemPayload {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct IdPayload {
+pub struct TodoIdPayload {
     pub id: i64,
 }
 
@@ -1393,7 +1393,7 @@ pub fn todo_archive_item(app: AppHandle, payload: ArchiveTodoItemPayload) -> Res
 }
 
 #[tauri::command]
-pub fn todo_delete_item(app: AppHandle, payload: IdPayload) -> Result<i64, String> {
+pub fn todo_delete_item(app: AppHandle, payload: TodoIdPayload) -> Result<i64, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction()
@@ -1420,7 +1420,7 @@ pub fn todo_delete_item(app: AppHandle, payload: IdPayload) -> Result<i64, Strin
 }
 
 #[tauri::command]
-pub fn todo_delete_item_cascade(app: AppHandle, payload: IdPayload) -> Result<i64, String> {
+pub fn todo_delete_item_cascade(app: AppHandle, payload: TodoIdPayload) -> Result<i64, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction()
@@ -1489,7 +1489,7 @@ pub fn todo_delete_item_cascade(app: AppHandle, payload: IdPayload) -> Result<i6
 }
 
 #[tauri::command]
-pub fn todo_get_recurrence(app: AppHandle, payload: IdPayload) -> Result<Option<TodoRecurrence>, String> {
+pub fn todo_get_recurrence(app: AppHandle, payload: TodoIdPayload) -> Result<Option<TodoRecurrence>, String> {
     let conn = schema::open_active_database(&app)?;
     conn.query_row(
         "
@@ -1745,7 +1745,7 @@ pub fn todo_update_recurrence(
 }
 
 #[tauri::command]
-pub fn todo_delete_recurrence(app: AppHandle, payload: IdPayload) -> Result<i64, String> {
+pub fn todo_delete_recurrence(app: AppHandle, payload: TodoIdPayload) -> Result<i64, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction()

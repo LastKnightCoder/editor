@@ -16,7 +16,8 @@ function startOfWeekTimestamp(value: number | Date): number {
 }
 
 function diffDays(fromTs: number, toTs: number): number {
-  return Math.floor((toTs - fromTs) / DAY_MS);
+  // 按日历日计算：DST 切换日一天只有 23/25 小时，毫秒差除法会把相邻两天算成同一天
+  return Math.round((startOfDayTimestamp(toTs) - startOfDayTimestamp(fromTs)) / DAY_MS);
 }
 
 function diffMonths(fromTs: number, toTs: number): number {

@@ -40,8 +40,12 @@ export type Navigator = {
   canGoBack(): boolean;
   /** 页面实例注册动态离开守卫（usePageGuard 内部使用） */
   registerGuard(entryId: string, guard: (() => boolean | Promise<boolean>) | null): void;
-  /** 页面实例注册返回消费器（useBackHandler 内部使用）：返回 true 表示已消费本次返回 */
-  registerBackHandler(entryId: string, handler: (() => boolean | Promise<boolean>) | null): void;
+  /**
+   * 页面实例注册返回消费器（useBackHandler 内部使用）：返回 true 表示已消费本次返回。
+   * 同一页面可注册多个（页内多浮层叠加），仲裁按 LIFO——后注册（更上层浮层）先问；
+   * 返回注销函数，精确移除自身而不影响同页其它消费器。
+   */
+  registerBackHandler(entryId: string, handler: () => boolean | Promise<boolean>): () => void;
   getScreenStack(): StackSnapshot;
   getOverlayStack(): StackSnapshot;
   getActiveScreen(): RouteEntry | null;

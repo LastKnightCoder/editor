@@ -30,9 +30,7 @@ function resolveDisplayText(item: CardListItem): string {
   return `内容 #${item.id}`;
 }
 
-export function mapCardItemToContentLinkResult(
-  item: CardListItem,
-): ContentLinkPickerResult {
+export function mapCardItemToContentLinkResult(item: CardListItem): ContentLinkPickerResult {
   const displayText = resolveDisplayText(item);
   return {
     contentId: item.contentId,
@@ -87,15 +85,14 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
     }
   });
 
-  const { run: runDebouncedSearch, cancel: cancelDebouncedSearch } =
-    useDebounceFn(
-      (keyword: string) => {
-        void runSearch(keyword);
-      },
-      {
-        wait: 300,
-      },
-    );
+  const { run: runDebouncedSearch, cancel: cancelDebouncedSearch } = useDebounceFn(
+    (keyword: string) => {
+      void runSearch(keyword);
+    },
+    {
+      wait: 300,
+    }
+  );
 
   useEffect(() => {
     if (!open) {
@@ -142,42 +139,34 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
       states={["normal", "full"]}
       normalHeight={0.62}
       onClose={onClose}
-      onStateChange={(nextState) => {
+      onStateChange={nextState => {
         if (nextState === "normal" || nextState === "full") {
           setPanelState(nextState);
         }
       }}
       scrollRef={scrollRef}
       className="z-10060"
-      containerClassName="bg-white dark:bg-neutral-950"
+      containerClassName=""
     >
       <>
         <SnapSheet.Handle />
 
-        <header
-          className={`px-4 ${
-            panelState === "full" ? "mobile-safe-top-gap pb-3" : "pb-2"
-          }`}
-        >
+        <header className={`px-4 ${panelState === "full" ? "mobile-safe-top-gap pb-3" : "pb-2"}`}>
           <div className="flex items-center gap-3">
             <div className="relative flex-1">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+              <span className="text-ink-3 absolute left-3 top-1/2 -translate-y-1/2">
                 <Search size={16} aria-hidden="true" />
               </span>
               <input
                 ref={inputRef}
                 type="text"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={event => setQuery(event.target.value)}
                 placeholder="搜索关联内容"
-                className="input-base w-full rounded-lg py-2.5 pl-9 pr-3 text-[15px] text-gray-900 placeholder:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500"
+                className="input-base text-ink placeholder:text-ink-3 w-full rounded-lg py-2.5 pl-9 pr-3 text-[15px]"
               />
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="shrink-0 text-[15px] text-gray-600 dark:text-neutral-300"
-            >
+            <button type="button" onClick={onClose} className="text-ink-2 shrink-0 text-[15px]">
               取消
             </button>
           </div>
@@ -186,21 +175,19 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
         <SnapSheet.Scroll ref={scrollRef} className="px-4 pt-2">
           {hasResults ? (
             <div className="space-y-2">
-              {results.map((item) => {
+              {results.map(item => {
                 const displayText = resolveDisplayText(item);
                 return (
                   <button
                     key={item.id}
                     type="button"
-                    className="w-full rounded-xl bg-white px-4 py-3 text-left transition-colors active:bg-gray-50 dark:bg-neutral-900 dark:active:bg-neutral-800"
+                    className="bg-surface active:bg-press w-full rounded-2xl rounded-xl px-4 py-3 text-left transition-colors"
                     onClick={() => {
                       onSelect(mapCardItemToContentLinkResult(item));
                     }}
                   >
-                    <p className="line-clamp-1 text-[15px] font-medium text-gray-900 dark:text-gray-100">
-                      {displayText}
-                    </p>
-                    <div className="mt-2 flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+                    <p className="text-ink line-clamp-1 text-[15px] font-medium">{displayText}</p>
+                    <div className="text-ink-3 mt-2 flex items-center gap-2 text-xs">
                       <span>Card #{item.id}</span>
                       {item.category ? (
                         <>
@@ -216,23 +203,13 @@ export function ContentLinkPickerSheet(props: ContentLinkPickerSheetProps) {
           ) : (
             <div className="py-14 text-center">
               {isSearching ? (
-                <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-gray-400 border-t-transparent dark:border-neutral-500" />
+                <div className="border-accent mx-auto h-7 w-7 animate-spin rounded-full border-2 border-t-transparent" />
               ) : hasQuery ? (
-                <SearchX
-                  size={30}
-                  className="mx-auto text-gray-400 dark:text-gray-500"
-                  aria-hidden="true"
-                />
+                <SearchX size={30} className="text-ink-3 mx-auto" aria-hidden="true" />
               ) : (
-                <Link2
-                  size={30}
-                  className="mx-auto text-gray-400 dark:text-gray-500"
-                  aria-hidden="true"
-                />
+                <Link2 size={30} className="text-ink-3 mx-auto" aria-hidden="true" />
               )}
-              <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">
-                {emptyHint}
-              </p>
+              <p className="text-ink-3 mt-3 text-sm">{emptyHint}</p>
             </div>
           )}
         </SnapSheet.Scroll>

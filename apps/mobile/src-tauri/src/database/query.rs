@@ -69,6 +69,11 @@ fn parse_links(raw_links: Option<String>) -> Vec<i64> {
     parse_number_array(raw_links)
 }
 
+/// 供 mod.rs 中的 links 双向同步复用
+pub(super) fn parse_links_column(raw_links: Option<String>) -> Vec<i64> {
+    parse_links(raw_links)
+}
+
 fn parse_content(raw_content: Option<String>) -> Value {
     let Some(raw) = raw_content else {
         return Value::Array(vec![]);
@@ -217,6 +222,60 @@ fn to_card_items(rows: Vec<RawCardRow>) -> Vec<CardListItem> {
             content: parse_content(row.content_raw),
         })
         .collect()
+}
+
+/// 按卡片 id 集合取列表项（关联面板展示用），保持传入顺序无关、按更新时间倒序
+pub fn query_cards_by_ids(
+    conn: &Connection,
+    ids: &[i64],
+) -> Result<Vec<CardListItem>, String> {
+    if ids.is_empty() {
+        return Ok(vec![]);
+    }
+    let placeholders = vec!["?"; ids.len()].join(", ");
+    let sql = format!(
+        "SELECT c.id, c.content_id, c.update_time, c.category, c.tags, ct.content
+        FROM cards c
+        LEFT JOIN contents ct ON c.content_id = ct.id
+        WHERE c.id IN ({placeholders})
+        ORDER BY c.update_time DESC"
+    );
+    let mut stmt = conn
+        .prepare(&sql)
+        .map_err(|e| format!("DB_OPEN_FAILED: cards by ids prepare failed: {e}"))?;
+    let params: Vec<&dyn rusqlite::ToSql> =
+        ids.iter().map(|id| id as &dyn rusqlite::ToSql).collect();
+    let mut rows = stmt
+        .query(params.as_slice())
+        .map_err(|e| format!("DB_OPEN_FAILED: cards by ids query failed: {e}"))?;
+    let mut items = vec![];
+    while let Some(row) = rows
+        .next()
+        .map_err(|e| format!("DB_OPEN_FAILED: cards by ids row read failed: {e}"))?
+    {
+        items.push(RawCardRow {
+            id: row.get(0).map_err(|e| {
+                format!("DB_OPEN_FAILED: cards by ids id parse failed: {e}")
+            })?,
+            content_id: row.get(1).map_err(|e| {
+                format!("DB_OPEN_FAILED: cards by ids content_id parse failed: {e}")
+            })?,
+            update_time: row.get(2).map_err(|e| {
+                format!("DB_OPEN_FAILED: cards by ids update_time parse failed: {e}")
+            })?,
+            category: row.get(3).map_err(|e| {
+                format!("DB_OPEN_FAILED: cards by ids category parse failed: {e}")
+            })?,
+            tags_raw: row.get(4).map_err(|e| {
+                format!("DB_OPEN_FAILED: cards by ids tags parse failed: {e}")
+            })?,
+            content_raw: row.get(5).map_err(|e| {
+                format!("DB_OPEN_FAILED: cards by ids content parse failed: {e}")
+            })?,
+        });
+    }
+
+    Ok(to_card_items(items))
 }
 
 pub fn query_card_detail(conn: &Connection, card_id: i64) -> Result<CardDetailResponse, String> {

@@ -1,0 +1,1171 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>任务中心 × 任务详情重设计 · 方案对比</title>
+<style>
+  /* ══════════ 设计令牌：与 apps/mobile/src/styles.css（杏子 Bento·浅色）同源 ══════════ */
+  :root {
+    --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans",
+      "Microsoft YaHei", sans-serif;
+    --bg-page: #f6f1e7;
+    --bg-surface: #fffdf9;
+    --bg-input: #f6f1e7;
+    --bg-press: rgba(246, 241, 231, 0.65);
+    --ink-1: #43392c;
+    --ink-2: #8b7d6b;
+    --ink-3: #b9ac9a;
+    --meta-ink: #7a6c5a;
+    --line-1: #e9e1d2;
+    --brand: #d97757;
+    --brand-strong: #e8896a;
+    --brand-grad: linear-gradient(145deg, #e8896a, #d97757);
+    --brand-soft: rgba(217, 119, 87, 0.12);
+    --sage: #61795f;
+    --sage-soft: #e5ede2;
+    --sky: #5c7d99;
+    --sky-soft: #e2ebf3;
+    --apricot: #b2794b;
+    --apricot-soft: #f8e9d7;
+    --butter: #a38c4d;
+    --butter-soft: #f6efd6;
+    --rose: #b06a5e;
+    --rose-soft: #f6e3e0;
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.06), 0 8px 20px -12px rgba(120, 100, 70, 0.16);
+    --shadow-float: 0 12px 32px -8px rgba(120, 100, 70, 0.35);
+    --shadow-accent: 0 8px 18px -5px rgba(217, 119, 87, 0.55);
+    --ease-bounce: cubic-bezier(0.34, 1.56, 0.5, 1);
+    --statusbar-h: 44px;
+    --header-h: 56px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    background: #ece5d8;
+    color: var(--ink-1);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; }
+
+  /* ══════════ 演示页框架 ══════════ */
+  .page { max-width: 1860px; margin: 0 auto; padding: 36px 28px 72px; }
+  .page-head h1 { margin: 0 0 6px; font-size: 26px; font-weight: 900; letter-spacing: -0.02em; }
+  .page-head .sub { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.8; max-width: 940px; }
+  .problem {
+    margin: 18px 0 0; padding: 14px 18px;
+    background: var(--rose-soft); border-radius: 16px;
+    font-size: 13.5px; line-height: 2; color: #7c4a3f;
+  }
+  .problem b { color: #6b3f35; }
+  .fixbox {
+    margin: 14px 0 0; padding: 14px 18px;
+    background: var(--sage-soft); border-radius: 16px;
+    font-size: 13.5px; line-height: 2; color: #47603f;
+  }
+  .fixbox b { color: #3c5535; }
+  .fixbox code, .problem code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px; background: rgba(255, 255, 255, 0.6);
+    padding: 1px 6px; border-radius: 6px;
+  }
+  .section-title {
+    margin: 46px 0 4px; font-size: 19px; font-weight: 900;
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  .section-title .hint { font-size: 12.5px; font-weight: 600; color: var(--ink-3); }
+
+  .proposals { display: flex; gap: 26px; overflow-x: auto; padding: 14px 2px 26px; align-items: flex-start; }
+  .proposal { flex: 0 0 auto; width: 376px; }
+  .proposal-card {
+    background: var(--bg-surface); border-radius: 24px; padding: 16px;
+    box-shadow: var(--shadow-card);
+  }
+  .proposal.is-current .proposal-card { background: #fbf3ef; }
+  .p-name { font-size: 16.5px; font-weight: 900; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .p-tag {
+    font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em;
+    padding: 3px 8px; border-radius: 999px;
+    background: var(--brand-soft); color: var(--brand); white-space: nowrap;
+  }
+  .p-tag.badge-problem { background: var(--rose-soft); color: var(--rose); }
+  .p-tag.badge-cost-mid { background: var(--butter-soft); color: var(--butter); }
+  .p-tag.badge-cost-big { background: var(--rose-soft); color: var(--rose); }
+  .p-tag.badge-cost-small { background: var(--sage-soft); color: var(--sage); }
+  .p-desc { margin: 7px 0 0; font-size: 12.5px; line-height: 1.75; color: var(--ink-2); }
+  .p-metric {
+    margin: 10px 0 0; display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .p-metric span {
+    font-size: 11px; font-weight: 700; color: var(--meta-ink);
+    background: var(--bg-input); border-radius: 8px; padding: 4px 8px;
+    font-variant-numeric: tabular-nums;
+  }
+  .p-metric span.good { color: var(--sage); background: var(--sage-soft); }
+  .p-metric span.bad { color: var(--rose); background: var(--rose-soft); }
+  .p-list { margin: 10px 0 0; padding: 0; list-style: none; font-size: 12px; line-height: 1.6; color: var(--meta-ink); }
+  .p-list li { margin-top: 4px; padding-left: 16px; position: relative; }
+  .p-list li::before { content: ""; position: absolute; left: 2px; top: 7px; width: 5px; height: 5px; border-radius: 50%; background: var(--line-1); }
+  .p-list li.good::before { background: var(--sage); }
+  .p-list li.bad::before { background: var(--rose); }
+
+  /* ══════════ 手机壳 ══════════ */
+  .phone {
+    position: relative; width: 348px; height: 700px;
+    margin: 14px auto 0; background: #171310;
+    border-radius: 46px; padding: 10px;
+    box-shadow: 0 24px 48px -18px rgba(60, 45, 30, 0.45);
+  }
+  .screen { position: relative; width: 100%; height: 100%; border-radius: 37px; overflow: hidden; background: var(--bg-page); display: flex; flex-direction: column; }
+  .statusbar {
+    position: absolute; z-index: 50; top: 0; left: 0; right: 0; height: var(--statusbar-h);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 26px 0; font-size: 13.5px; font-weight: 700; color: var(--ink-1); pointer-events: none;
+  }
+  .sb-icons { display: flex; align-items: center; gap: 5px; }
+  .sb-bars { display: flex; align-items: flex-end; gap: 2px; height: 10px; }
+  .sb-bars i { width: 3px; border-radius: 1px; background: currentColor; }
+  .sb-bars i:nth-child(1) { height: 4px; }
+  .sb-bars i:nth-child(2) { height: 6px; }
+  .sb-bars i:nth-child(3) { height: 8px; }
+  .sb-bars i:nth-child(4) { height: 10px; opacity: 0.35; }
+  .sb-batt { width: 22px; height: 11px; border: 1.5px solid currentColor; border-radius: 3.5px; position: relative; opacity: 0.9; }
+  .sb-batt::after { content: ""; position: absolute; left: 1.5px; top: 1.5px; bottom: 1.5px; width: 11px; border-radius: 2px; background: currentColor; }
+  .homebar { position: absolute; z-index: 55; bottom: 6px; left: 50%; transform: translateX(-50%); width: 120px; height: 4.5px; border-radius: 99px; background: rgba(67, 57, 44, 0.3); pointer-events: none; }
+
+  /* 顶栏（当前实现：flex，标题在 flex-1 内居中 → 不对称时偏移） */
+  .topbar {
+    flex: 0 0 auto; height: calc(var(--statusbar-h) + var(--header-h));
+    padding: var(--statusbar-h) 10px 0;
+    display: flex; align-items: center; gap: 6px;
+    background: linear-gradient(180deg, rgba(246, 241, 231, 0.96), rgba(246, 241, 231, 0));
+    position: relative; z-index: 40;
+  }
+  .topbar .title-flex {
+    flex: 1; min-width: 0; text-align: center;
+    font-size: 18px; font-weight: 800; color: var(--ink-1);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .topbar .actions { flex: 0 0 auto; display: flex; gap: 8px; justify-content: flex-end; }
+  /* 顶栏（修复版：标题绝对定位居中，不受左右按钮影响） */
+  .topbar.fixed-center .title-flex { position: absolute; left: 50%; transform: translateX(-50%); max-width: 55%; flex: none; }
+  .ghostbtn {
+    width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center;
+    border: none; border-radius: 999px; background: transparent; color: var(--ink-1);
+    cursor: pointer; transition: transform 0.15s var(--ease-bounce); position: relative; z-index: 1;
+  }
+  .ghostbtn:active { transform: scale(0.9); background: rgba(67, 57, 44, 0.09); }
+  .ghostbtn svg { width: 22px; height: 22px; }
+  .brandbtn {
+    width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center;
+    border: none; border-radius: 13px; background: var(--brand-grad); color: #fff;
+    box-shadow: var(--shadow-accent); cursor: pointer; transition: transform 0.15s var(--ease-bounce);
+  }
+  .brandbtn:active { transform: scale(0.9); }
+  .brandbtn svg { width: 18px; height: 18px; }
+
+  /* 通用 chip 行 */
+  .chiprow {
+    display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+    padding: 0 14px; flex: 0 0 auto;
+  }
+  .chiprow::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px;
+    border-radius: 999px; padding: 7px 13px;
+    font-size: 12.5px; font-weight: 700; color: var(--ink-2);
+    background: var(--bg-surface); border: 1px solid var(--line-1);
+    cursor: pointer; transition: all 0.18s var(--ease-bounce); user-select: none;
+  }
+  .chip:active { transform: scale(0.94); }
+  .chip.on { background: var(--brand); border-color: var(--brand); color: #fff; box-shadow: var(--shadow-accent); }
+  .chip .cnt {
+    font-size: 10px; font-weight: 800; border-radius: 999px; padding: 1.5px 6px;
+    background: var(--bg-input); color: var(--ink-3); font-variant-numeric: tabular-nums;
+  }
+  .chip.on .cnt { background: rgba(255, 255, 255, 0.25); color: #fff; }
+  .chip .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--line-1); }
+  .chip.on .dot { background: rgba(255, 255, 255, 0.5); }
+
+  /* 任务行（还原 TodoItemTree 杏子风格） */
+  .tasklist { background: var(--bg-surface); border-radius: 20px; box-shadow: var(--shadow-card); overflow: hidden; }
+  .task-row { display: flex; align-items: flex-start; gap: 11px; padding: 13px 14px; border-bottom: 1px dashed var(--line-1); }
+  .task-row:last-child { border-bottom: none; }
+  .task-row .cb {
+    margin-top: 1px; width: 23px; height: 23px; flex: 0 0 auto; border-radius: 50%;
+    border: 2px solid rgba(185, 172, 154, 0.5); background: var(--bg-surface);
+    display: grid; place-items: center; cursor: pointer; transition: all 0.2s;
+  }
+  .task-row .cb svg { width: 12px; height: 12px; stroke-width: 3.4; color: #fff; opacity: 0; }
+  .task-row.done .cb { background: var(--brand); border-color: var(--brand); box-shadow: var(--shadow-accent); }
+  .task-row.done .cb svg { opacity: 1; }
+  .task-row .body { flex: 1; min-width: 0; cursor: pointer; }
+  .task-row .t {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13.5px; font-weight: 600; color: var(--ink-1); line-height: 1.35;
+  }
+  .task-row .t .tico { display: inline-flex; }
+  .task-row .t .tico svg { width: 13px; height: 13px; }
+  .task-row.done .t span.tt { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--rose); text-decoration-thickness: 2px; }
+  .task-row.overdue .t span.tt { color: var(--rose); }
+  .task-row .meta { margin-top: 2px; padding-left: 19px; font-size: 10.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .task-row .meta.ov { color: var(--rose); font-weight: 700; }
+  .task-row .more {
+    margin-right: -4px; border: none; background: transparent; color: var(--ink-3);
+    width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; flex: 0 0 auto;
+  }
+  .task-row .more svg { width: 16px; height: 16px; }
+  .task-row.child { margin-left: 30px; }
+  .task-row.child::before {
+    content: ""; position: absolute;
+  }
+
+  /* 底部 Dock */
+  .dock {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    bottom: 10px; z-index: 45;
+    width: 220px; height: 62px; border-radius: 999px;
+    background: var(--bg-surface); box-shadow: var(--shadow-float);
+    display: flex; align-items: center; justify-content: space-around; padding: 0 18px;
+  }
+  .dock .dbtn { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-3); cursor: pointer; }
+  .dock .dbtn svg { width: 21px; height: 21px; }
+  .dock .dbtn.on { color: var(--brand); }
+
+  /* 列表滚动区 */
+  .scroll-area {
+    flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    scrollbar-width: none; padding-bottom: 96px;
+  }
+  .scroll-area::-webkit-scrollbar { display: none; }
+
+  /* ══════════ 现状专用件 ══════════ */
+  .stat-card-v0 { margin: 8px 14px 0; background: var(--bg-surface); border-radius: 20px; box-shadow: var(--shadow-card); padding: 15px 16px 13px; }
+  .stat-card-v0 .big { display: flex; align-items: baseline; gap: 5px; }
+  .stat-card-v0 .big b { font-size: 29px; font-weight: 800; color: var(--brand); line-height: 1; font-variant-numeric: tabular-nums; }
+  .stat-card-v0 .big i { font-style: normal; font-size: 15px; font-weight: 800; color: var(--ink-3); }
+  .stat-card-v0 .big em { font-style: normal; margin-left: 5px; font-size: 12px; color: var(--ink-2); }
+  .stat-card-v0 .bar { margin-top: 10px; height: 6px; border-radius: 99px; background: rgba(255, 255, 255, 0.65); overflow: hidden; }
+  .stat-card-v0 .bar i { display: block; height: 100%; width: 67%; border-radius: 99px; background: linear-gradient(90deg, var(--brand-strong), var(--brand)); }
+  .stat-card-v0 .nums { margin-top: 10px; display: flex; gap: 14px; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .filter-card-v0 { margin: 10px 14px 12px; background: var(--bg-surface); border-radius: 20px; box-shadow: var(--shadow-card); padding: 14px 16px; }
+  .filter-row-v0 { display: flex; align-items: center; gap: 8px; }
+  .filter-row-v0 + .filter-row-v0 { margin-top: 8px; }
+  .filter-row-v0 .lbl { width: 30px; flex: 0 0 auto; font-size: 12px; font-weight: 800; color: var(--ink-3); }
+  .fpill {
+    flex: 0 0 auto; border: none; cursor: pointer; border-radius: 999px; padding: 6px 12px;
+    font-size: 12px; font-weight: 700; color: var(--ink-3); background: var(--bg-input);
+    transition: all 0.15s;
+  }
+  .fpill.on { background: var(--brand); color: #fff; box-shadow: var(--shadow-accent); }
+  .fpill.scroll { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+
+  /* ══════════ 方案 A1：紧凑统计条 ══════════ */
+  .stat-strip {
+    margin: 8px 14px 0; flex: 0 0 auto;
+    background: var(--bg-surface); border-radius: 16px; box-shadow: var(--shadow-card);
+    display: flex; align-items: center; gap: 10px; padding: 9px 14px;
+  }
+  .stat-strip .frac { font-size: 17px; font-weight: 900; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .stat-strip .frac b { color: var(--brand); font-size: 19px; }
+  .stat-strip .mbar { width: 74px; height: 5px; border-radius: 99px; background: var(--bg-input); overflow: hidden; }
+  .stat-strip .mbar i { display: block; height: 100%; width: 67%; background: linear-gradient(90deg, var(--brand-strong), var(--brand)); border-radius: 99px; }
+  .stat-strip .m { font-size: 11px; font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .stat-strip .m.ov { color: var(--rose); }
+  .stat-strip .go-detail { margin-left: auto; border: none; background: transparent; color: var(--ink-3); display: grid; place-items: center; cursor: pointer; }
+  .stat-strip .go-detail svg { width: 15px; height: 15px; }
+  .filter-line { flex: 0 0 auto; padding: 10px 0 10px; }
+
+  /* ══════════ 方案 A2：工具行 + Sheet ══════════ */
+  .toolbar {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 8px; padding: 8px 14px 10px;
+  }
+  .group-drop {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--line-1); background: var(--bg-surface); border-radius: 999px;
+    padding: 8px 12px 8px 14px; font-size: 13px; font-weight: 800; color: var(--ink-1);
+    cursor: pointer; box-shadow: var(--shadow-card);
+  }
+  .group-drop svg { width: 14px; height: 14px; color: var(--ink-3); }
+  .group-drop .gcnt { font-size: 10.5px; font-weight: 800; color: var(--ink-3); background: var(--bg-input); border-radius: 99px; padding: 2px 7px; font-variant-numeric: tabular-nums; }
+  .filter-drop {
+    position: relative; display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--line-1); background: var(--bg-surface); border-radius: 999px;
+    padding: 8px 14px; font-size: 12.5px; font-weight: 800; color: var(--ink-2);
+    cursor: pointer; box-shadow: var(--shadow-card);
+  }
+  .filter-drop svg { width: 14px; height: 14px; }
+  .filter-drop .badge {
+    position: absolute; top: -4px; right: -4px; width: 9px; height: 9px;
+    border-radius: 50%; background: var(--brand); border: 2px solid var(--bg-page);
+  }
+  .toolbar .spacer { flex: 1; }
+  .inline-count { font-size: 11.5px; font-weight: 700; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+  .sheet-mask {
+    position: absolute; inset: 0; z-index: 58; background: rgba(67, 57, 44, 0.4);
+    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 59;
+    background: var(--bg-surface); border-radius: 30px 30px 0 0;
+    padding: 10px 18px 24px; transform: translateY(105%);
+    transition: transform 0.32s var(--ease-bounce); box-shadow: var(--shadow-float);
+  }
+  .phone.show-sheet .sheet-mask { opacity: 1; pointer-events: auto; }
+  .phone.show-sheet .sheet { transform: translateY(0); }
+  .sheet .grab { width: 40px; height: 4.5px; border-radius: 99px; background: var(--line-1); margin: 4px auto 12px; }
+  .sheet h4 { margin: 0 0 10px; font-size: 15px; font-weight: 900; }
+  .sheet .sec { margin-bottom: 14px; }
+  .sheet .sec .slbl { font-size: 11.5px; font-weight: 800; color: var(--ink-3); margin-bottom: 8px; }
+  .sheet .grouprow {
+    display: flex; align-items: center; gap: 10px; padding: 11px 4px;
+    border-bottom: 1px dashed var(--line-1); cursor: pointer; font-size: 13.5px; font-weight: 700;
+  }
+  .sheet .grouprow:last-child { border-bottom: none; }
+  .sheet .grouprow .gnum { margin-left: auto; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .sheet .grouprow.on .gnum { color: var(--brand); }
+  .sheet .grouprow .gcheck { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line-1); flex: 0 0 auto; }
+  .sheet .grouprow.on .gcheck { border-color: var(--brand); background: var(--brand); position: relative; }
+  .sheet .grouprow.on .gcheck::after {
+    content: ""; position: absolute; inset: 0; margin: auto; width: 8px; height: 4.5px;
+    border-left: 2.5px solid #fff; border-bottom: 2.5px solid #fff; transform: rotate(-45deg) translateY(-1px);
+  }
+
+  /* ══════════ 方案 A3：分段控件 ══════════ */
+  .seg {
+    flex: 0 0 auto; margin: 8px 14px 0; display: flex; gap: 4px;
+    background: var(--bg-input); border-radius: 14px; padding: 4px;
+  }
+  .seg button {
+    flex: 1; border: none; background: transparent; border-radius: 10px;
+    padding: 7px 0; font-size: 12.5px; font-weight: 800; color: var(--ink-3);
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;
+    transition: all 0.18s var(--ease-bounce); font-variant-numeric: tabular-nums;
+  }
+  .seg button .sc { font-size: 10.5px; font-weight: 800; background: rgba(185, 172, 154, 0.2); border-radius: 99px; padding: 1px 6px; }
+  .seg button.on { background: var(--bg-surface); color: var(--ink-1); box-shadow: var(--shadow-card); }
+  .seg button.on .sc { background: var(--brand-soft); color: var(--brand); }
+  .seg button.on .sc.ov { background: var(--rose-soft); color: var(--rose); }
+  .ringstat {
+    position: absolute; right: 14px; top: calc(var(--statusbar-h) + 10px); z-index: 41;
+    width: 36px; height: 36px; cursor: pointer;
+  }
+  .ringstat svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ringstat .rtxt {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    font-size: 9px; font-weight: 900; color: var(--brand); font-variant-numeric: tabular-nums;
+  }
+
+  /* ══════════ 详情页通用件 ══════════ */
+  .card { background: var(--bg-surface); border-radius: 20px; box-shadow: var(--shadow-card); }
+  .listrow {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 13px 16px; background: transparent; border: none; cursor: pointer;
+    font-size: 13.5px; text-align: left;
+  }
+  .listrow + .listrow { border-top: 1px solid var(--line-1); }
+  .listrow .ic { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; flex: 0 0 auto; }
+  .listrow .ic svg { width: 14.5px; height: 14.5px; }
+  .listrow .k { font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+  .listrow .v { margin-left: auto; display: flex; align-items: center; gap: 4px; font-size: 13.5px; font-weight: 700; color: var(--ink-1); max-width: 62%; text-align: right; }
+  .listrow .v .vv { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .listrow .v.ghost { color: var(--ink-3); font-weight: 600; }
+  .listrow .v svg { width: 15px; height: 15px; color: var(--ink-3); flex: 0 0 auto; }
+  .v.ov { color: var(--rose) !important; }
+
+  /* B1 沉浸式 */
+  .hero-edit { padding: 14px 16px 4px; }
+  .hero-edit .row1 { display: flex; align-items: flex-start; gap: 12px; }
+  .bigcb {
+    margin-top: 3px; width: 27px; height: 27px; flex: 0 0 auto; border-radius: 50%;
+    border: 2.5px solid rgba(185, 172, 154, 0.6); background: var(--bg-surface);
+    display: grid; place-items: center; cursor: pointer; transition: all 0.2s;
+  }
+  .bigcb svg { width: 14px; height: 14px; stroke-width: 3.4; color: #fff; opacity: 0; }
+  .bigcb.done { background: var(--brand); border-color: var(--brand); box-shadow: var(--shadow-accent); }
+  .bigcb.done svg { opacity: 1; }
+  .title-input {
+    flex: 1; border: none; outline: none; background: transparent; width: 100%;
+    font-size: 18px; font-weight: 800; color: var(--ink-1); line-height: 1.4; padding: 0; resize: none;
+    font-family: inherit;
+  }
+  .title-input::placeholder { color: var(--ink-3); }
+  .meta-chips { display: flex; gap: 7px; flex-wrap: wrap; padding: 12px 16px 0 55px; }
+  .mchip {
+    display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+    border-radius: 999px; padding: 5.5px 11px; font-size: 11.5px; font-weight: 800;
+    background: var(--bg-input); color: var(--ink-2); border: none;
+    transition: transform 0.15s var(--ease-bounce);
+  }
+  .mchip:active { transform: scale(0.94); }
+  .mchip svg { width: 12px; height: 12px; }
+  .mchip.t-deadline { background: var(--butter-soft); color: var(--butter); }
+  .mchip.t-due { background: var(--rose-soft); color: var(--rose); }
+  .mchip.t-remind { background: var(--sky-soft); color: var(--sky); }
+  .hairline { height: 1px; background: var(--line-1); margin: 14px 16px 0; }
+  .desc-zone { padding: 12px 16px 110px; }
+  .desc-zone .dlbl { display: flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 800; color: var(--ink-3); margin-bottom: 7px; }
+  .desc-zone .dlbl .save-dot { margin-left: auto; font-size: 10.5px; font-weight: 700; color: var(--sage); display: inline-flex; align-items: center; gap: 4px; }
+  .desc-zone .save-dot i { width: 6px; height: 6px; border-radius: 50%; background: var(--sage); }
+  .desc-zone .dtext { font-size: 14px; line-height: 1.85; color: var(--ink-1); outline: none; min-height: 180px; cursor: text; }
+  .desc-zone .dtext.empty::before { content: attr(data-ph); color: var(--ink-3); }
+
+  .actionbar {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 46;
+    padding: 10px 16px 24px;
+    background: linear-gradient(180deg, rgba(246, 241, 231, 0), var(--bg-page) 38%);
+    display: flex; gap: 10px; align-items: center;
+  }
+  .primary-btn {
+    flex: 1; border: none; border-radius: 999px; height: 48px;
+    background: var(--brand-grad); color: #fff; font-size: 14.5px; font-weight: 800;
+    box-shadow: var(--shadow-accent); cursor: pointer; transition: transform 0.15s var(--ease-bounce);
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+  }
+  .primary-btn:active { transform: scale(0.97); }
+  .primary-btn svg { width: 17px; height: 17px; }
+  .primary-btn.done-state { background: var(--sage-soft); color: var(--sage); box-shadow: none; }
+
+  /* B2 分段类型 */
+  .typeseg { display: flex; gap: 4px; background: var(--bg-input); border-radius: 12px; padding: 3.5px; margin-top: 12px; }
+  .typeseg button {
+    flex: 1; border: none; background: transparent; border-radius: 9px; padding: 6.5px 0;
+    font-size: 12px; font-weight: 800; color: var(--ink-3); cursor: pointer; transition: all 0.18s;
+  }
+  .typeseg button.on { background: var(--bg-surface); color: var(--ink-1); box-shadow: var(--shadow-card); }
+  .note-preview { display: flex; align-items: center; gap: 10px; padding: 14px 16px; cursor: pointer; }
+  .note-preview .np-ic { width: 30px; height: 30px; border-radius: 9px; background: var(--sky-soft); display: grid; place-items: center; color: var(--sky); flex: 0 0 auto; }
+  .note-preview .np-ic svg { width: 15px; height: 15px; }
+  .note-preview .np-t { flex: 1; min-width: 0; }
+  .note-preview .np-t .np-k { font-size: 13px; font-weight: 800; color: var(--ink-1); }
+  .note-preview .np-t .np-s { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .note-preview svg.chev { width: 16px; height: 16px; color: var(--ink-3); flex: 0 0 auto; }
+  .checkfab {
+    width: 40px; height: 40px; flex: 0 0 auto; border-radius: 13px; border: none;
+    background: var(--brand-grad); color: #fff; box-shadow: var(--shadow-accent);
+    display: grid; place-items: center; cursor: pointer;
+  }
+  .checkfab svg { width: 19px; height: 19px; }
+
+  /* B3 可折叠更多信息 */
+  .collapse-head {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    padding: 13px 16px; border: none; background: transparent; cursor: pointer;
+    font-size: 13px; font-weight: 800; color: var(--ink-3);
+  }
+  .collapse-head svg { width: 15px; height: 15px; transition: transform 0.2s; }
+  .phone.expanded .collapse-head svg { transform: rotate(180deg); }
+  .collapse-body { display: none; }
+  .phone.expanded .collapse-body { display: block; }
+
+  /* 居中修复演示条 */
+  .centerfix-demo { display: flex; gap: 22px; align-items: flex-start; flex-wrap: wrap; margin: 14px 0 0; }
+  .cf-frame {
+    width: 348px; background: var(--bg-page); border-radius: 18px; padding: 10px;
+    box-shadow: var(--shadow-card); position: relative; border: 1px solid var(--line-1);
+  }
+  .cf-bar { position: relative; height: 48px; display: flex; align-items: center; padding: 0 6px; gap: 6px; }
+  .cf-bar .axis {
+    position: absolute; left: 50%; top: -46px; bottom: -8px; width: 0;
+    border-left: 1.5px dashed rgba(176, 106, 94, 0.55); z-index: 0;
+  }
+  .cf-bar .cf-title { flex: 1; min-width: 0; text-align: center; font-size: 17px; font-weight: 800; color: var(--ink-1); }
+  .cf-bar.fixed .cf-title { position: absolute; left: 50%; transform: translateX(-50%); max-width: 62%; flex: none; }
+  .cf-tag {
+    text-align: center; margin-top: 8px; font-size: 11.5px; font-weight: 800;
+  }
+  .cf-tag.bad { color: var(--rose); }
+  .cf-tag.good { color: var(--sage); }
+  .cf-caption { font-size: 11.5px; color: var(--meta-ink); text-align: center; margin-top: 3px; line-height: 1.6; }
+
+  .anno {
+    position: absolute; z-index: 48;
+    background: rgba(67, 57, 44, 0.85); color: #fff6ec;
+    font-size: 10px; font-weight: 700; line-height: 1.5;
+    padding: 5px 8px; border-radius: 9px; pointer-events: none;
+    max-width: 170px;
+  }
+  .anno::before { content: ""; position: absolute; top: -5px; left: 14px; border: 5px solid transparent; border-bottom-color: rgba(67, 57, 44, 0.85); border-top: none; }
+
+  .pick-note {
+    margin: 6px 0 0; padding: 14px 18px; border-radius: 16px;
+    background: var(--apricot-soft); color: #6d5433;
+    font-size: 13px; line-height: 2;
+  }
+  .pick-note b { color: #5c4527; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden>
+  <defs>
+    <symbol id="i-chev-l" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-chev-d" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+    <symbol id="i-reload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-funnel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></symbol>
+    <symbol id="i-calcheck" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="m9 16 2 2 4-4"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></symbol>
+  </defs>
+</svg>
+
+<div class="page">
+  <div class="page-head">
+    <h1>任务中心 × 任务详情 · 重设计方案对比</h1>
+    <p class="sub">
+      基于 <code>TodoPage.tsx</code> / <code>TodoDetailPage.tsx</code> / <code>PageHeader.tsx</code> 现状重设计。
+      视觉令牌与「杏子 Bento」浅色主题同源，以下所有方案均假设沿用现有令牌与组件（BottomSheet / ActionSheet / MobileConfirmDialog）。
+      方案内 chips / 分段控件可点击切换，用于感受交互态。
+    </p>
+    <div class="problem">
+      <b>现状问题（阅读代码后确认）：</b><br />
+      ① 任务中心固定头部约 <b>350px</b>（统计大卡 ~110px + 分组 Tabs ~62px + 双行筛选卡 ~122px + 顶栏 56px），700px 屏内列表只剩 ~3 行；<br />
+      ② 筛选卡的「类型」行（普通/截止/计划/周期）与<b>系统分组</b>（systemType: all/normal/deadline/planned/recurring）功能完全重复，同一维度暴露了两个入口；<br />
+      ③ <code>PageHeader</code> 标题在 flex-1 区间内居中：左侧返回按钮恒占 40px、右侧 actions 为空时宽 0，<b>标题视觉中心恒右偏 ~22px</b>；<br />
+      ④ 任务详情没有「完成」主操作，必须回列表页勾选；属性六行平铺，无重点；<br />
+      ⑤ 描述编辑器不可用：Editor 的 <code>key</code> 含 <code>syncVersion</code> + <code>descriptionContentId</code>，自动保存回流 → key 变化 → Slate 整树重建 → 焦点丢失；新建描述敲第一个字符还会触发 contentId 落库 → 再次 remount。
+    </div>
+    <div class="fixbox">
+      <b>三个方案共用的前置修复（无论选哪个方案都要做）：</b><br />
+      ① PageHeader 标题改为<b>绝对定位居中</b>（见下方演示），左右按钮正常流，长标题 max-width 收缩 + 省略；<br />
+      ② 描述编辑器 <code>key</code> 只保留 <code>todoId</code>，内容回流改走受控同步（不再用 key 强制重建）；新建描述首字符落库后不换 key；<br />
+      ③ 「类型」筛选与系统分组二选一保留（各方案内已注明取舍）。
+    </div>
+  </div>
+
+  <!-- ══════════════════ Section 0：PageHeader 居中修复 ══════════════════ -->
+  <h2 class="section-title">前置修复 · PageHeader 标题恒居中 <span class="hint">组件级改动，所有方案共用</span></h2>
+  <div class="centerfix-demo">
+    <div>
+      <div class="cf-frame">
+        <div class="axis-anchor" style="position:relative">
+          <div class="cf-bar">
+            <div class="axis"></div>
+            <button class="ghostbtn"><svg><use href="#i-chev-l"/></svg></button>
+            <div class="cf-title">任务详情</div>
+            <div class="actions" style="flex:0 0 auto"></div>
+          </div>
+        </div>
+        <div class="cf-tag bad">✕ 现状：标题偏右 ~22px</div>
+        <div class="cf-caption">flex 布局，标题在 flex-1 内居中；左 40px / 右 0px 不对称 → 中线偏移</div>
+      </div>
+    </div>
+    <div>
+      <div class="cf-frame">
+        <div class="cf-bar fixed">
+          <div class="axis"></div>
+          <button class="ghostbtn"><svg><use href="#i-chev-l"/></svg></button>
+          <div class="cf-title">任务详情</div>
+          <div class="actions" style="flex:0 0 auto"></div>
+        </div>
+        <div class="cf-tag good">✓ 修复：绝对定位居中</div>
+        <div class="cf-caption"><code>position:absolute; left:50%; transform:translateX(-50%)</code>，不受左右按钮数量影响</div>
+      </div>
+    </div>
+    <div>
+      <div class="cf-frame">
+        <div class="cf-bar fixed">
+          <button class="ghostbtn"><svg><use href="#i-chev-l"/></svg></button>
+          <div class="cf-title">一个特别特别长的页面标题会被截断</div>
+          <div class="actions" style="flex:0 0 auto; display:flex; gap:8px">
+            <button class="ghostbtn"><svg><use href="#i-more"/></svg></button>
+            <button class="checkfab" style="width:40px;height:40px"><svg><use href="#i-check"/></svg></button>
+          </div>
+        </div>
+        <div class="cf-tag good">✓ 多按钮 + 长标题</div>
+        <div class="cf-caption">标题 max-width 约 55%~62% + ellipsis，与左右按钮互不侵占</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ Section 1：任务中心 ══════════════════ -->
+  <h2 class="section-title">任务中心 · 列表区扩容 <span class="hint">现状 + 3 个方案，同一份数据</span></h2>
+  <div class="proposals">
+
+    <!-- ── P0 现状 ── -->
+    <div class="proposal is-current">
+      <div class="proposal-card">
+        <div class="p-name">P0 · 现状基准 <span class="p-tag badge-problem">问题演示</span></div>
+        <p class="p-desc">完整还原当前 TodoPage：统计大卡 → 分组胶囊 → 双行筛选卡 → 列表。红字标注处为高度侵占。</p>
+        <div class="p-metric"><span>固定头部 ≈ 350px</span><span class="bad">列表仅剩 ~3 行</span></div>
+        <ul class="p-list">
+          <li class="bad">统计卡独占 110px，信息密度低（三个数字用了整张卡）</li>
+          <li class="bad">「类型」筛选与系统分组重复</li>
+          <li class="bad">两行筛选 + 一行分组，三个横滚区记忆负担大</li>
+        </ul>
+      </div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar">
+            <span>9:41</span>
+            <span class="sb-icons"><span class="sb-bars"><i></i><i></i><i></i><i></i></span><span class="sb-batt"></span></span>
+          </div>
+          <div class="topbar">
+            <div class="title-flex">任务中心</div>
+            <div class="actions">
+              <button class="ghostbtn"><svg><use href="#i-search"/></svg></button>
+              <button class="brandbtn"><svg><use href="#i-plus"/></svg></button>
+            </div>
+          </div>
+          <div class="stat-card-v0">
+            <div class="big"><b>12</b><i>/ 18</i><em>今日已完成</em></div>
+            <div class="bar"><i></i></div>
+            <div class="nums"><span>未完成 6</span><span>已逾期 2</span></div>
+          </div>
+          <nav class="chiprow" style="padding: 12px 14px 0">
+            <button class="chip">工作 <span class="cnt">4</span></button>
+            <button class="chip on">生活 <span class="cnt">2</span></button>
+            <button class="chip">学习 <span class="cnt">3</span></button>
+          </nav>
+          <div class="filter-card-v0">
+            <div class="filter-row-v0">
+              <span class="lbl">状态</span>
+              <button class="fpill on">全部</button><button class="fpill">未完成</button><button class="fpill">逾期</button>
+            </div>
+            <div class="filter-row-v0">
+              <span class="lbl">类型</span>
+              <button class="fpill on">全部</button><button class="fpill">普通</button><button class="fpill">截止</button><button class="fpill">计划</button><button class="fpill">周期</button>
+            </div>
+          </div>
+          <div class="scroll-area">
+            <div class="tasklist" style="margin: 0 14px">
+              <div class="task-row overdue"><div class="cb"><svg><use href="#i-check"/></svg></div><div class="body"><div class="t"><span class="tico" style="color:var(--butter)"><svg><use href="#i-clock"/></svg></span><span class="tt">整理周报并同步给团队</span></div><div class="meta ov">9/10 18:00 · 已逾期</div></div><button class="more"><svg><use href="#i-more"/></svg></button></div>
+              <div class="task-row done"><div class="cb"><svg><use href="#i-check"/></svg></div><div class="body"><div class="t"><span class="tico" style="color:var(--sage)"><svg><use href="#i-reload"/></svg></span><span class="tt">每日复盘 · 记录三件小事</span></div></div><button class="more"><svg><use href="#i-more"/></svg></button></div>
+              <div class="task-row"><div class="cb"><svg><use href="#i-check"/></svg></div><div class="body"><div class="t"><span class="tt">预约牙医复诊</span></div><div class="meta">9/13 14:00</div></div><button class="more"><svg><use href="#i-more"/></svg></button></div>
+            </div>
+            <div class="anno" style="top: 130px; left: 26px">↑ 列表只剩 ~3 行，滚动两下就到底</div>
+          </div>
+          <div class="dock">
+            <span class="dbtn"><svg><use href="#i-home"/></svg></span>
+            <span class="dbtn on"><svg><use href="#i-calcheck"/></svg></span>
+            <span class="dbtn"><svg><use href="#i-book"/></svg></span>
+            <span class="dbtn"><svg><use href="#i-play"/></svg></span>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── A1 紧凑合一 ── -->
+    <div class="proposal">
+      <div class="proposal-card">
+        <div class="p-name">方案 A1 · 单行筛选条 <span class="p-tag">压缩</span><span class="p-tag badge-cost-small">实现成本低</span></div>
+        <p class="p-desc">统计卡压成一行「分数 + 迷你进度条」；分组与状态合并为一行 chips（前 3 个是状态，后段是分组）；「类型」行删除——按类型查看 = 切换到系统分组（chips 里保留系统组图标位）。</p>
+        <div class="p-metric"><span class="good">固定头部 ≈ 146px</span><span class="good">列表 ~6.5 行</span><span>改动集中 TodoPage</span></div>
+        <ul class="p-list">
+          <li class="good">列表空间扩大 2 倍以上，一行扫全部筛选</li>
+          <li class="good">类型/分组二选一，消除重复维度</li>
+          <li class="bad">分组多时单行更长（依赖横滚）</li>
+          <li class="bad">统计只剩一行数字，牺牲了仪式感</li>
+        </ul>
+      </div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="sb-icons"><span class="sb-bars"><i></i><i></i><i></i><i></i></span><span class="sb-batt"></span></span></div>
+          <div class="topbar">
+            <div class="title-flex">任务中心</div>
+            <div class="actions">
+              <button class="ghostbtn"><svg><use href="#i-search"/></svg></button>
+              <button class="brandbtn"><svg><use href="#i-plus"/></svg></button>
+            </div>
+          </div>
+          <div class="stat-strip">
+            <span class="frac"><b>12</b>/18</span>
+            <span class="mbar"><i></i></span>
+            <span class="m">未完成 6</span>
+            <span class="m ov">逾期 2</span>
+            <button class="go-detail"><svg><use href="#i-chev-r"/></svg></button>
+          </div>
+          <div class="filter-line">
+            <nav class="chiprow" data-chip-group="a1">
+              <button class="chip on">全部 <span class="cnt">18</span></button>
+              <button class="chip">未完成 <span class="cnt">6</span></button>
+              <button class="chip">逾期 <span class="cnt">2</span></button>
+              <span style="width:1px;background:var(--line-1);margin:8px 2px;flex:0 0 auto"></span>
+              <button class="chip">工作 <span class="cnt">4</span></button>
+              <button class="chip">生活 <span class="cnt">2</span></button>
+              <button class="chip">学习 <span class="cnt">3</span></button>
+            </nav>
+          </div>
+          <div class="scroll-area">
+            <div class="tasklist" style="margin: 4px 14px" data-tasks="full"></div>
+          </div>
+          <div class="dock">
+            <span class="dbtn"><svg><use href="#i-home"/></svg></span>
+            <span class="dbtn on"><svg><use href="#i-calcheck"/></svg></span>
+            <span class="dbtn"><svg><use href="#i-book"/></svg></span>
+            <span class="dbtn"><svg><use href="#i-play"/></svg></span>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── A2 筛选收纳 ── -->
+    <div class="proposal" id="a2-phone-wrap">
+      <div class="proposal-card">
+        <div class="p-name">方案 A2 · 工具行 + 筛选收纳 <span class="p-tag">收纳</span><span class="p-tag badge-cost-mid">实现成本中</span></div>
+        <p class="p-desc">顶部只剩一行工具行：左「分组 ▾」按钮（点开 BottomSheet 选组，每组带统计）、右「筛选」按钮（激活时亮徽标）。统计大卡删除，数字融入 sheet 行内。<b>点击手机帧里的两个按钮可展开 Sheet 预览。</b></p>
+        <div class="p-metric"><span class="good">固定头部 ≈ 104px</span><span class="good">列表 ~7.5 行（最大）</span><span>新增 1 个 Sheet</span></div>
+        <ul class="p-list">
+          <li class="good">列表空间最大，顶部极简</li>
+          <li class="good">分组 sheet 里能放每组未完成/逾期统计，信息没丢只是换位置</li>
+          <li class="bad">筛选/切组都要两步操作，可见性低</li>
+          <li class="bad">高频切组用户（组很多）效率下降</li>
+        </ul>
+      </div>
+      <div class="phone" id="a2-phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="sb-icons"><span class="sb-bars"><i></i><i></i><i></i><i></i></span><span class="sb-batt"></span></span></div>
+          <div class="topbar">
+            <div class="title-flex">任务中心</div>
+            <div class="actions">
+              <button class="ghostbtn"><svg><use href="#i-search"/></svg></button>
+              <button class="brandbtn"><svg><use href="#i-plus"/></svg></button>
+            </div>
+          </div>
+          <div class="toolbar">
+            <button class="group-drop" data-open-sheet="groups">
+              生活 <span class="gcnt">2</span>
+              <svg><use href="#i-chev-d"/></svg>
+            </button>
+            <button class="filter-drop" data-open-sheet="filters">
+              <svg><use href="#i-funnel"/></svg> 筛选
+              <span class="badge"></span>
+            </button>
+            <span class="spacer"></span>
+            <span class="inline-count">6 项待办</span>
+          </div>
+          <div class="scroll-area">
+            <div class="tasklist" style="margin: 0 14px" data-tasks="full"></div>
+          </div>
+          <div class="dock">
+            <span class="dbtn"><svg><use href="#i-home"/></svg></span>
+            <span class="dbtn on"><svg><use href="#i-calcheck"/></svg></span>
+            <span class="dbtn"><svg><use href="#i-book"/></svg></span>
+            <span class="dbtn"><svg><use href="#i-play"/></svg></span>
+          </div>
+
+          <div class="sheet-mask" data-close-sheet></div>
+          <div class="sheet">
+            <div class="grab"></div>
+            <h4>选择分组</h4>
+            <div class="sec">
+              <div class="slbl">系统分组</div>
+              <div class="grouprow on"><span class="gcheck"></span>全部任务<span class="gnum">18 项 · 未完成 6 · 逾期 2</span></div>
+              <div class="grouprow"><span class="gcheck"></span>普通任务<span class="gnum">9 项 · 未完成 3</span></div>
+              <div class="grouprow"><span class="gcheck"></span>截止任务<span class="gnum">5 项 · 逾期 2</span></div>
+              <div class="grouprow"><span class="gcheck"></span>计划任务<span class="gnum">2 项</span></div>
+              <div class="grouprow"><span class="gcheck"></span>周期任务<span class="gnum">2 项 · 今日 1/2</span></div>
+            </div>
+            <div class="sec">
+              <div class="slbl">自定义分组</div>
+              <div class="grouprow"><span class="gcheck"></span>工作<span class="gnum">4 项 · 未完成 2</span></div>
+              <div class="grouprow on"><span class="gcheck"></span>生活<span class="gnum">2 项 · 未完成 1</span></div>
+              <div class="grouprow"><span class="gcheck"></span>学习<span class="gnum">3 项 · 未完成 1</span></div>
+            </div>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── A3 分段控件 ── -->
+    <div class="proposal">
+      <div class="proposal-card">
+        <div class="p-name">方案 A3 · 分段状态 + 迷你进度环 <span class="p-tag">重组</span><span class="p-tag badge-cost-small">实现成本低</span></div>
+        <p class="p-desc">「状态」升级为分段控件（数字做角标，一步直达）；分组 tabs 保留独立一行（组多时从容）；统计卡退化为顶栏右侧 36px 进度环，点环弹出统计详情 sheet。类型维度同样并入系统分组。</p>
+        <div class="p-metric"><span class="good">固定头部 ≈ 148px</span><span class="good">列表 ~6.5 行</span><span>状态切换最快</span></div>
+        <ul class="p-list">
+          <li class="good">全部/未完成/逾期一步直达，角标数字常驻可见</li>
+          <li class="good">分组独立成行，组多时不挤状态筛选</li>
+          <li class="bad">两行结构仍在（分段行 + 分组行），比 A2 高 ~44px</li>
+        </ul>
+      </div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="sb-icons"><span class="sb-bars"><i></i><i></i><i></i><i></i></span><span class="sb-batt"></span></span></div>
+          <div class="topbar">
+            <div class="title-flex">任务中心</div>
+            <div class="actions">
+              <button class="ghostbtn"><svg><use href="#i-search"/></svg></button>
+              <button class="brandbtn"><svg><use href="#i-plus"/></svg></button>
+            </div>
+          </div>
+          <div class="ringstat" title="今日 12/18">
+            <svg viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="14.5" fill="none" stroke="#f6f1e7" stroke-width="4.5"/>
+              <circle cx="18" cy="18" r="14.5" fill="none" stroke="#d97757" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="91 91" stroke-dashoffset="30"/>
+            </svg>
+            <span class="rtxt">67%</span>
+          </div>
+          <div class="seg" data-chip-group="a3seg">
+            <button class="on">全部 <span class="sc">18</span></button>
+            <button>未完成 <span class="sc">6</span></button>
+            <button>逾期 <span class="sc ov">2</span></button>
+          </div>
+          <nav class="chiprow" style="padding: 10px 14px 0" data-chip-group="a3grp">
+            <button class="chip on">生活 <span class="cnt">2</span></button>
+            <button class="chip">工作 <span class="cnt">4</span></button>
+            <button class="chip">学习 <span class="cnt">3</span></button>
+            <button class="chip">全部任务 <span class="cnt">18</span></button>
+          </nav>
+          <div class="scroll-area">
+            <div class="tasklist" style="margin: 10px 14px 0" data-tasks="full"></div>
+          </div>
+          <div class="dock">
+            <span class="dbtn"><svg><use href="#i-home"/></svg></span>
+            <span class="dbtn on"><svg><use href="#i-calcheck"/></svg></span>
+            <span class="dbtn"><svg><use href="#i-book"/></svg></span>
+            <span class="dbtn"><svg><use href="#i-play"/></svg></span>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ Section 2：任务详情 ══════════════════ -->
+  <h2 class="section-title">任务详情 · 重设计 <span class="hint">同一任务「整理周报并同步给团队」（截止型 · 已逾期）</span></h2>
+  <div class="proposals">
+
+    <!-- ── D0 现状 ── -->
+    <div class="proposal is-current">
+      <div class="proposal-card">
+        <div class="p-name">D0 · 现状基准 <span class="p-tag badge-problem">问题演示</span></div>
+        <p class="p-desc">还原当前 TodoDetailPage：标题偏移的顶栏、六行属性平铺、虚线框描述（标注了不可编辑的根因）。</p>
+        <ul class="p-list">
+          <li class="bad">标题右偏 ~22px（前置修复解决）</li>
+          <li class="bad">没有「完成」主操作，需回列表勾选</li>
+          <li class="bad">描述：key 含 syncVersion → 保存回流即整树重建、焦点丢失</li>
+          <li class="bad">创建/完成时间占用两行黄金位置</li>
+        </ul>
+      </div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="sb-icons"><span class="sb-bars"><i></i><i></i><i></i><i></i></span><span class="sb-batt"></span></span></div>
+          <div class="topbar">
+            <button class="ghostbtn"><svg><use href="#i-chev-l"/></svg></button>
+            <div class="title-flex">任务详情</div>
+            <div class="actions"></div>
+            <div style="position:absolute;left:50%;top:calc(var(--statusbar-h) + 8px);bottom:8px;width:0;border-left:1.5px dashed rgba(176,106,94,.5)"></div>
+          </div>
+          <div class="scroll-area">
+            <section class="card" style="margin: 12px 14px 0; padding: 15px 16px">
+              <div style="font-size:12px;font-weight:800;color:var(--ink-3)">标题</div>
+              <div style="margin-top:4px;font-size:15px;font-weight:800;color:var(--ink-1)">整理周报并同步给团队</div>
+            </section>
+            <section class="card" style="margin: 12px 14px 0; overflow: hidden">
+              <div class="listrow"><span class="k">类型</span><span class="v"><span class="vv">截止任务</span><svg><use href="#i-chev-r"/></svg></span></div>
+              <div class="listrow"><span class="k">开始时间</span><span class="v"><span class="vv">2026/9/10 09:00</span><svg><use href="#i-chev-r"/></svg></span></div>
+              <div class="listrow"><span class="k">截止时间</span><span class="v ov"><span class="vv">2026/9/10 18:00</span><svg><use href="#i-chev-r"/></svg></span></div>
+              <div class="listrow"><span class="k">提醒</span><span class="v"><span class="vv">30 分钟前</span><svg><use href="#i-chev-r"/></svg></span></div>
+              <div class="listrow"><span class="k">创建时间</span><span class="v"><span class="vv">2026/9/8 09:12</span></span></div>
+              <div class="listrow"><span class="k">完成时间</span><span class="v ghost"><span class="vv">未完成</span></span></div>
+            </section>
+            <section class="card" style="margin: 12px 14px 0; padding: 15px 16px">
+              <div style="font-size:12px;color:var(--ink-2);margin-bottom:8px">描述</div>
+              <div style="min-height:170px;border:1.5px dashed var(--line-1);border-radius:16px;background:var(--bg-input);display:grid;place-items:center;color:var(--ink-3);font-size:12.5px">
+                ✕ 每次自动保存回流 key 变化 → 编辑器重建<br />焦点丢失，实际无法连续输入
+              </div>
+            </section>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── B1 沉浸编辑 ── -->
+    <div class="proposal">
+      <div class="proposal-card">
+        <div class="p-name">方案 B1 · 沉浸编辑，备注优先 <span class="p-tag">编辑型</span><span class="p-tag badge-cost-small">改动集中</span></div>
+        <p class="p-desc">去掉所有卡片包裹：大完成圈 + 无边框标题输入居顶，属性行压成彩色小胶囊（点击弹 BottomSheet 修改）；描述变成全宽内联编辑区（就是页面本体，顶部带保存状态点）；底部固定「标记完成」主操作条。</p>
+        <div class="p-metric"><span>描述编辑区 ≈ 屏幕下 2/3</span><span>新增底部操作条</span></div>
+        <ul class="p-list">
+          <li class="good">描述编辑体验最好——适合「任务详情主要是补写备注」的用法</li>
+          <li class="good">完成主操作一步可达（底部拇指区）</li>
+          <li class="good">属性胶囊化后视觉噪音最低</li>
+          <li class="bad">属性弱化为小字，字段价值感低</li>
+          <li class="bad">底部操作条要处理与软键盘的互斥（键盘弹起时收起）</li>
+        </ul>
+      </div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="sb-icons"><span class="sb-bars"><i></i><i></i><i></i><i></i></span><span class="sb-batt"></span></span></div>
+          <div class="topbar fixed-center">
+            <button class="ghostbtn"><svg><use href="#i-chev-l"/></svg></button>
+            <div class="title-flex">编辑任务</div>
+            <div class="actions">
+              <button class="ghostbtn"><svg><use href="#i-more"/></svg></button>
+            </div>
+          </div>
+          <div class="scroll-area" style="padding-bottom: 130px">
+            <div class="hero-edit">
+              <div class="row1">
+                <div class="bigcb" data-toggle-done><svg><use href="#i-check"/></svg></div>
+                <textarea class="title-input" rows="1" spellcheck="false">整理周报并同步给团队</textarea>
+              </div>
+            </div>
+            <div class="meta-chips">
+              <button class="mchip t-deadline"><svg><use href="#i-flag"/></svg>截止任务</button>
+              <button class="mchip t-due"><svg><use href="#i-clock"/></svg>9/10 18:00 · 逾期</button>
+              <button class="mchip t-remind"><svg><use href="#i-bell"/></svg>提前 30 分钟</button>
+            </div>
+            <div class="hairline"></div>
+            <div class="desc-zone">
+              <div class="dlbl">
+                描述
+                <span class="save-dot"><i></i>已自动保存</span>
+              </div>
+              <div class="dtext" contenteditable="true" spellcheck="false">本周要点：① 增长实验结论；② 下周排期对齐；③ 风险同步。发送前记得抄送总监。（此处可直接点击连续编辑——修复 key 重建问题后，移动端输入不再丢焦点）</div>
+            </div>
+          </div>
+          <div class="actionbar">
+            <button class="primary-btn" data-toggle-done><svg><use href="#i-check"/></svg>标记完成</button>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── B2 结构化卡片 ── -->
+    <div class="proposal">
+      <div class="proposal-card">
+        <div class="p-name">方案 B2 · 结构化卡片 + 备注预览 <span class="p-tag">面板型</span><span class="p-tag badge-cost-mid">实现成本中</span></div>
+        <p class="p-desc">保留卡片语言但重排信息优先级：概要卡（完成圈 + 标题 + 四类型分段）；时间卡只留「有行为」的三行，创建/完成时间收进卡片底部小字；备注卡改为摘要预览 + 整卡点击进入编辑态（展开成编辑器）。完成操作放顶栏右侧品牌色勾按钮。</p>
+        <div class="p-metric"><span>顶栏一步完成</span><span>备注两态（预览/编辑）</span></div>
+        <ul class="p-list">
+          <li class="good">字段结构最清晰，与现有 list-group/card 语言一致、迁移自然</li>
+          <li class="good">类型切换从 ActionSheet 变成分段控件，少一跳</li>
+          <li class="good">备注预览态避免编辑器常驻的性能/焦点问题</li>
+          <li class="bad">备注要一跳才能编辑，重笔记型用户略繁琐</li>
+          <li class="bad">「完成」在右上角，左手单机可达性一般</li>
+        </ul>
+      </div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="sb-icons"><span class="sb-bars"><i></i><i></i><i></i><i></i></span><span class="sb-batt"></span></span></div>
+          <div class="topbar fixed-center">
+            <button class="ghostbtn"><svg><use href="#i-chev-l"/></svg></button>
+            <div class="title-flex">任务详情</div>
+            <div class="actions">
+              <button class="ghostbtn"><svg><use href="#i-more"/></svg></button>
+              <button class="checkfab" data-toggle-done><svg><use href="#i-check"/></svg></button>
+            </div>
+          </div>
+          <div class="scroll-area">
+            <section class="card" style="margin: 12px 14px 0; padding: 16px">
+              <div style="display:flex; align-items:flex-start; gap: 12px">
+                <div class="bigcb" style="margin-top:2px" data-toggle-done><svg><use href="#i-check"/></svg></div>
+                <div class="title-input" contenteditable="true" spellcheck="false">整理周报并同步给团队</div>
+              </div>
+              <div class="typeseg" data-chip-group="b2type">
+                <button>普通</button>
+                <button class="on">截止</button>
+                <button>计划</button>
+                <button>周期</button>
+              </div>
+            </section>
+            <section class="card" style="margin: 12px 14px 0; overflow: hidden">
+              <div class="listrow">
+                <span class="ic" style="background:var(--sky-soft);color:var(--sky)"><svg><use href="#i-cal"/></svg></span>
+                <span class="k">开始时间</span>
+                <span class="v"><span class="vv">9/10 周四 09:00</span><svg><use href="#i-chev-r"/></svg></span>
+              </div>
+              <div class="listrow">
+                <span class="ic" style="background:var(--rose-soft);color:var(--rose)"><svg><use href="#i-flag"/></svg></span>
+                <span class="k">截止时间</span>
+                <span class="v ov"><span class="vv">9/10 周四 18:00 · 逾期</span><svg><use href="#i-chev-r"/></svg></span>
+              </div>
+              <div class="listrow">
+                <span class="ic" style="background:var(--apricot-soft);color:var(--apricot)"><svg><use href="#i-bell"/></svg></span>
+                <span class="k">提醒</span>
+                <span class="v"><span class="vv">提前 30 分钟</span><svg><use href="#i-chev-r"/></svg></span>
+              </div>
+            </section>
+            <section class="card" style="margin: 12px 14px 0">
+              <div class="note-preview">
+                <span class="np-ic"><svg><use href="#i-note"/></svg></span>
+                <span class="np-t">
+                  <span class="np-k">备注</span>
+                  <span class="np-s">本周要点：① 增长实验结论；② 下周排期对齐；③ 风险同步。发送前记得抄送总监…</span>
+                </span>
+                <svg class="chev"><use href="#i-chev-r"/></svg>
+              </div>
+            </section>
+            <div style="margin: 12px 20px 0; font-size: 11px; color: var(--ink-3); line-height: 1.8">
+              创建于 2026/9/8 09:12 · 未完成<br />
+              <span style="color: var(--ink-3); opacity: 0.75">周期任务时，此位置上方会插入「周期打卡 + 热力图」卡片</span>
+            </div>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── B3 清单式 ── -->
+    <div class="proposal" id="b3-phone-wrap">
+      <div class="proposal-card">
+        <div class="p-name">方案 B3 · 大清单 + 底部操作栏 <span class="p-tag">操作型</span><span class="p-tag badge-cost-mid">实现成本中</span></div>
+        <p class="p-desc">iOS 提醒事项式：大标题编辑区居顶，属性是带彩色图标的清单行（未设置的值显示「添加」，点击弹 Sheet）；创建/完成时间折叠进「更多信息」；备注折叠为一行入口，点击进入全屏专注编辑。底部操作栏 = 主按钮「完成」+ 次按钮「更多」。<b>帧内「更多信息」可点击展开。</b></p>
+        <div class="p-metric"><span>拇指区完成一步</span><span>备注全屏专注编辑</span></div>
+        <ul class="p-list">
+          <li class="good">主操作（完成）在拇指热区，操作路径最短</li>
+          <li class="good">属性行带图标与「添加」态，扫读性最好</li>
+          <li class="good">备注全屏编辑 = 最强的长文输入体验</li>
+          <li class="bad">备注查看要一跳；信息折叠多一层</li>
+          <li class="bad">新增全屏编辑路由/浮层，实现面最大</li>
+        </ul>
+      </div>
+      <div class="phone" id="b3-phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="sb-icons"><span class="sb-bars"><i></i><i></i><i></i><i></i></span><span class="sb-batt"></span></span></div>
+          <div class="topbar fixed-center">
+            <button class="ghostbtn"><svg><use href="#i-chev-l"/></svg></button>
+            <div class="title-flex">任务详情</div>
+            <div class="actions">
+              <button class="ghostbtn"><svg><use href="#i-trash"/></svg></button>
+            </div>
+          </div>
+          <div class="scroll-area" style="padding-bottom: 130px">
+            <div class="hero-edit">
+              <div class="row1">
+                <div class="bigcb" data-toggle-done><svg><use href="#i-check"/></svg></div>
+                <textarea class="title-input" rows="1" spellcheck="false">整理周报并同步给团队</textarea>
+              </div>
+            </div>
+            <section class="card" style="margin: 12px 14px 0; overflow: hidden">
+              <div class="listrow">
+                <span class="ic" style="background:var(--butter-soft);color:var(--butter)"><svg><use href="#i-flag"/></svg></span>
+                <span class="k">类型</span>
+                <span class="v"><span class="vv">截止任务</span><svg><use href="#i-chev-r"/></svg></span>
+              </div>
+              <div class="listrow">
+                <span class="ic" style="background:var(--sky-soft);color:var(--sky)"><svg><use href="#i-cal"/></svg></span>
+                <span class="k">开始</span>
+                <span class="v"><span class="vv">9/10 周四 09:00</span><svg><use href="#i-chev-r"/></svg></span>
+              </div>
+              <div class="listrow">
+                <span class="ic" style="background:var(--rose-soft);color:var(--rose)"><svg><use href="#i-flag"/></svg></span>
+                <span class="k">截止</span>
+                <span class="v ov"><span class="vv">9/10 18:00 · 逾期</span><svg><use href="#i-chev-r"/></svg></span>
+              </div>
+              <div class="listrow">
+                <span class="ic" style="background:var(--apricot-soft);color:var(--apricot)"><svg><use href="#i-bell"/></svg></span>
+                <span class="k">提醒</span>
+                <span class="v ghost"><span class="vv">添加</span><svg><use href="#i-plus"/></svg></span>
+              </div>
+              <div class="listrow">
+                <span class="ic" style="background:var(--sky-soft);color:var(--sky)"><svg><use href="#i-note"/></svg></span>
+                <span class="k">备注</span>
+                <span class="v ghost"><span class="vv">本周要点：① 增长实验结论…</span><svg><use href="#i-chev-r"/></svg></span>
+              </div>
+            </section>
+            <section class="card" style="margin: 12px 14px 0; overflow: hidden">
+              <button class="collapse-head" data-collapse>
+                更多信息
+                <svg><use href="#i-chev-d"/></svg>
+              </button>
+              <div class="collapse-body">
+                <div class="listrow"><span class="ic" style="background:var(--bg-input);color:var(--ink-3)"><svg><use href="#i-info"/></svg></span><span class="k">创建时间</span><span class="v"><span class="vv">2026/9/8 09:12</span></span></div>
+                <div class="listrow"><span class="ic" style="background:var(--bg-input);color:var(--ink-3)"><svg><use href="#i-check"/></svg></span><span class="k">完成时间</span><span class="v ghost"><span class="vv">未完成</span></span></div>
+              </div>
+            </section>
+          </div>
+          <div class="actionbar">
+            <button class="ghostbtn" style="background:var(--bg-surface);box-shadow:var(--shadow-card)"><svg><use href="#i-more"/></svg></button>
+            <button class="primary-btn" data-toggle-done><svg><use href="#i-check"/></svg>标记完成</button>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="pick-note">
+    <b>选择建议（供参考）：</b>列表页若你的分组通常 ≤ 5 个 → <b>A1</b>（改动最小、收益最大）；若你更看重状态切换效率 → <b>A3</b>；若希望顶部彻底极简 → <b>A2</b>。
+    详情页若任务备注写得少、看得多 → <b>B2</b>；若详情页主要用于补写备注 → <b>B1</b>；若重视单手操作与长文编辑 → <b>B3</b>。
+    个人推荐组合：<b>A1 + B2</b>（实现成本最低且都沿用现有组件语言），或 <b>A3 + B1</b>（交互效率优先）。
+    确定组合后，我会按方案落地：PageHeader 居中修复与描述编辑器 key 修复包含在任意组合中。
+  </div>
+</div>
+
+<script>
+  // ── 任务行数据（各方案帧共用渲染） ──
+  const TASKS = [
+    { title: "整理周报并同步给团队", type: "clock", tcolor: "var(--butter)", cls: "overdue", meta: "9/10 18:00 · 已逾期", metaCls: "ov" },
+    { title: "每日复盘 · 记录三件小事", type: "reload", tcolor: "var(--sage)", cls: "done", meta: "", metaCls: "" },
+    { title: "读《设计中的设计》第 3 章", type: "", tcolor: "", cls: "", meta: "", metaCls: "" },
+    { title: "摘抄金句到卡片盒", type: "", tcolor: "", cls: "child", meta: "", metaCls: "" },
+    { title: "预约牙医复诊", type: "clock", tcolor: "var(--butter)", cls: "", meta: "9/13 14:00", metaCls: "" },
+    { title: "健身 · 上肢拉力日", type: "cal", tcolor: "var(--sky)", cls: "", meta: "周五 19:00", metaCls: "" },
+    { title: "给妈妈挑生日礼物", type: "", tcolor: "", cls: "done", meta: "", metaCls: "" },
+  ];
+  document.querySelectorAll("[data-tasks='full']").forEach(box => {
+    box.innerHTML = TASKS.map(t => `
+      <div class="task-row ${t.cls}">
+        <div class="cb"><svg><use href="#i-check"/></svg></div>
+        <div class="body">
+          <div class="t">
+            ${t.type ? `<span class="tico" style="color:${t.tcolor}"><svg><use href="#i-${t.type}"/></svg></span>` : ""}
+            <span class="tt">${t.title}</span>
+          </div>
+          ${t.meta ? `<div class="meta ${t.metaCls}">${t.meta}</div>` : ""}
+        </div>
+        <button class="more"><svg><use href="#i-more"/></svg></button>
+      </div>`).join("");
+  });
+
+  // ── chips / 分段控件互斥切换（演示交互态） ──
+  document.querySelectorAll("[data-chip-group]").forEach(group => {
+    group.querySelectorAll(".chip, .seg button, button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        group.querySelectorAll(".chip.on, .seg button.on, button.on").forEach(b => b.classList.remove("on"));
+        btn.classList.add("on");
+      });
+    });
+  });
+
+  // ── A2：Sheet 展开/收起 ──
+  const a2phone = document.getElementById("a2-phone");
+  a2phone.querySelectorAll("[data-open-sheet]").forEach(btn => {
+    btn.addEventListener("click", e => { e.stopPropagation(); a2phone.classList.add("show-sheet"); });
+  });
+  a2phone.querySelector("[data-close-sheet]").addEventListener("click", () => a2phone.classList.remove("show-sheet"));
+
+  // ── B3：更多信息折叠 ──
+  const b3phone = document.getElementById("b3-phone");
+  b3phone.querySelector("[data-collapse]").addEventListener("click", () => b3phone.classList.toggle("expanded"));
+
+  // ── 完成态切换演示（完成圈 / 底部主按钮联动） ──
+  document.querySelectorAll("[data-toggle-done]").forEach(el => {
+    el.addEventListener("click", () => {
+      const screen = el.closest(".screen");
+      const willDone = !el.classList.contains("done");
+      screen.querySelectorAll("[data-toggle-done]").forEach(x => x.classList.toggle("done", willDone));
+      const btn = screen.querySelector(".primary-btn");
+      if (btn) {
+        btn.classList.toggle("done-state", willDone);
+        btn.innerHTML = willDone
+          ? '<svg><use href="#i-reload"/></svg>已今天完成 · 点击撤销'
+          : '<svg><use href="#i-check"/></svg>标记完成';
+      }
+    });
+  });
+</script>
+</body>
+</html>

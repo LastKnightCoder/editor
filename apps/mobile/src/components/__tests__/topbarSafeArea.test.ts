@@ -4,21 +4,32 @@ import { describe, expect, it } from "vitest";
 
 const projectRoot = process.cwd();
 
-const TOPBAR_FILES = [
-  "src/components/Header.tsx",
-  "src/features/search/SearchPage.tsx",
-  "src/features/settings/SettingsPage.tsx",
-  "src/features/cards/ContentDetailPage.tsx",
-  "src/features/diary/DiaryHomePage.tsx",
-  "src/features/diary/DiaryPage.tsx",
+// 仍自行内联 mobile-topbar 的页面（搜索页：搜索框特化顶栏）
+const TOPBAR_FILES = ["src/features/search/SearchPage.tsx"];
+
+// 二级页顶栏已收敛到共享 PageHeader 组件：安全区由组件保证，页面只需接入
+const PAGE_HEADER = "src/components/PageHeader.tsx";
+const PAGE_HEADER_FILES = [
+  "src/features/todo/TodoPage.tsx",
+  "src/features/todo/TodoDetailPage.tsx",
   "src/features/about/AboutPage.tsx",
+  "src/features/settings/SettingsModulePage.tsx",
+  "src/features/articles/ArticlesPage.tsx",
+  "src/features/projects/ProjectsPage.tsx",
+  "src/features/projects/ProjectDetailPage.tsx",
+  "src/features/knowledge/KnowledgePage.tsx",
+  "src/features/knowledge/KnowledgeDetailPage.tsx",
+  "src/features/cards/ContentDetailPage.tsx",
 ];
 
-const TOP_SAFE_AREA_FILES = [
-  ...TOPBAR_FILES,
-  "src/components/Sidebar.tsx",
-  "src/features/cards/CardPreviewSheet.tsx",
+// v2 Tab 根页改用 pagehead 模式：大标题 + pt-[calc(...var(--mobile-safe-top))]
+const TAB_ROOT_FILES = [
+  "src/features/diary/DiaryHomePage.tsx",
+  "src/features/cards/CardsLibraryPage.tsx",
+  "src/features/settings/SettingsPage.tsx",
 ];
+
+const TOP_SAFE_AREA_FILES = [...TOPBAR_FILES, PAGE_HEADER];
 
 function readSource(path: string): string {
   return readFileSync(resolve(projectRoot, path), "utf-8");
@@ -29,17 +40,27 @@ describe("topbar safe area contract", () => {
     for (const file of TOPBAR_FILES) {
       const source = readSource(file);
       expect(source, `${file} 缺少 mobile-topbar`).toContain("mobile-topbar");
-      expect(source, `${file} 缺少 topbar-immersive`).toContain(
-        "topbar-immersive",
+      expect(source, `${file} 缺少 topbar-immersive`).toContain("topbar-immersive");
+    }
+  });
+
+  it("二级页顶栏必须接入共享 PageHeader", () => {
+    const headerSource = readSource(PAGE_HEADER);
+    expect(headerSource, "PageHeader 缺少 mobile-topbar").toContain("mobile-topbar");
+    expect(headerSource, "PageHeader 缺少 topbar-immersive").toContain("topbar-immersive");
+    for (const file of PAGE_HEADER_FILES) {
+      const source = readSource(file);
+      expect(source, `${file} 未接入 PageHeader`).toMatch(
+        /import\s+\{[^}]*PageHeader[^}]*\}\s+from\s+"[^"]*PageHeader"/
       );
     }
   });
 
-  it("卡片首页标题栏必须启用 frosted 样式类", () => {
-    const source = readSource("src/components/Header.tsx");
-    expect(source, "Header.tsx 缺少 topbar-card-frosted").toContain(
-      "topbar-card-frosted",
-    );
+  it("Tab 根页 pagehead 必须预留顶部安全区", () => {
+    for (const file of TAB_ROOT_FILES) {
+      const source = readSource(file);
+      expect(source, `${file} 缺少 --mobile-safe-top`).toContain("--mobile-safe-top");
+    }
   });
 
   it("标题栏不应使用实底或实线分割", () => {
@@ -47,9 +68,7 @@ describe("topbar safe area contract", () => {
       /mobile-topbar[^"\n]*(bg-white|dark:bg-black|border-b\s+border-gray-100|dark:border-neutral-900)/;
     for (const file of TOPBAR_FILES) {
       const source = readSource(file);
-      expect(source, `${file} 的标题栏仍包含实底或实线`).not.toMatch(
-        solidTopbarPattern,
-      );
+      expect(source, `${file} 的标题栏仍包含实底或实线`).not.toMatch(solidTopbarPattern);
     }
   });
 

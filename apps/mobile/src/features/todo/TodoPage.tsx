@@ -1,8 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, Plus, Search, X } from "lucide-react";
-import * as tauri from "../../services/tauri";
-import type { MoveAndReorderTodoItemPayload, TodoItem, TodoItemType } from "../../types";
-import { isTodayScheduled, getTodayNormalized } from "./recurrence";
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  ChevronDown,
+  Eye,
+  FolderPlus,
+  GitBranch,
+  ListFilter,
+  ListTodo,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
+import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
+import type { MoveAndReorderTodoItemPayload, TodoGroup, TodoItem, TodoItemType } from "../../types";
+import { useEdgeFade } from "../../hooks/useScrollState";
+import { toggleTodoComplete } from "./toggleComplete";
 import { getTodoItemsCacheKey, useTodoStore } from "./store/useTodoStore";
 import {
   useTodoGroupStats,
@@ -10,9 +25,10 @@ import {
   useTodoItemsByCacheKey,
   useTodoSystemGroups,
 } from "./queries";
-import { TodoGroupTabs } from "./components/TodoGroupTabs";
 import { TodoItemTree } from "./components/TodoItemTree";
 import { BottomSheet } from "../../components/BottomSheet";
+import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
+import { clampText } from "../../utils/richTextText";
 import { ActionSheet } from "../../components/ActionSheet";
 import type { ActionSheetItem } from "../../components/ActionSheet";
 
@@ -22,6 +38,8 @@ type TodoPageProps = {
   onError: (error: unknown, fallback: string) => void;
   databaseName?: string | null;
   isVisible?: boolean;
+  /** 从 FAB「新任务」进入时自动弹出创建面板 */
+  autoOpenCreate?: boolean;
 };
 
 const TYPE_LABELS: Record<TodoItemType, string> = {
@@ -30,6 +48,23 @@ const TYPE_LABELS: Record<TodoItemType, string> = {
   planned: "计划",
   recurring: "周期",
 };
+
+// 系统分组展示名：systemType → 业务语义（后端 title 仅作兜底）
+const SYSTEM_GROUP_LABELS: Record<Exclude<TodoGroup["systemType"], null>, string> = {
+  all: "全部任务",
+  normal: "普通任务",
+  deadline: "截止任务",
+  planned: "计划任务",
+  recurring: "周期任务",
+};
+
+const SYSTEM_GROUP_ORDER: Exclude<TodoGroup["systemType"], null>[] = [
+  "all",
+  "normal",
+  "deadline",
+  "planned",
+  "recurring",
+];
 
 function applyFilters(
   items: TodoItem[],
@@ -65,6 +100,7 @@ export function TodoPage({
   onError,
   databaseName,
   isVisible = true,
+  autoOpenCreate = false,
 }: TodoPageProps) {
   const store = useTodoStore();
   const [newTitle, setNewTitle] = useState("");
@@ -84,6 +120,8 @@ export function TodoPage({
   // Item ActionSheet
   const [actionItem, setActionItem] = useState<TodoItem | null>(null);
   const [actionSheetOpen, setActionSheetOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<TodoItem | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Sub-task / insert BottomSheet
   const [subSheetOpen, setSubSheetOpen] = useState(false);
@@ -96,6 +134,11 @@ export function TodoPage({
   const [searchInput, setSearchInput] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const listScrollRef = useRef<HTMLDivElement>(null);
+  useEdgeFade(listScrollRef);
+
+  // A2 工具行：分组选择 / 筛选 Sheet
+  const [groupPickerOpen, setGroupPickerOpen] = useState(false);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
   const groupsQuery = useTodoGroups();
   const systemGroupsQuery = useTodoSystemGroups();
@@ -106,7 +149,9 @@ export function TodoPage({
   const customGroups = groups;
   const activeItemsKey = getTodoItemsCacheKey(store.activeGroupId, systemGroups);
   const itemsQuery = useTodoItemsByCacheKey(activeItemsKey, systemGroups);
-  const activeItems = itemsQuery.data ?? [];
+  // data 未就绪时保持稳定空数组引用，避免下游 memo（TodoItemTree 的树扁平化）反复重算
+  const emptyItems = useMemo<TodoItem[]>(() => [], []);
+  const activeItems = itemsQuery.data ?? emptyItems;
   const filteredItems = useMemo(
     () => applyFilters(activeItems, store.filters),
     [activeItems, store.filters]
@@ -118,8 +163,10 @@ export function TodoPage({
     (store.filters.type ?? "all") === "all";
 
   useEffect(() => {
+    // 依赖必须是稳定的 action 引用（store.initialize）而非整个 store 对象——
+    // zustand 每次 set() 都产生新的 store 引用，依赖整体会导致 initialize 无限重跑
     void store.initialize(databaseName);
-  }, [databaseName, store]);
+  }, [databaseName, store.initialize]);
 
   useEffect(() => {
     if (groupSheetOpen) {
@@ -178,7 +225,6 @@ export function TodoPage({
       });
       setNewTitle("");
       setCreateItemSheetOpen(false);
-      store.setActiveTodo(item.id);
       onOpenDetail(item.id, item.groupId);
     } catch (error) {
       onError(error, "创建任务失败");
@@ -186,25 +232,7 @@ export function TodoPage({
   };
 
   const handleToggleComplete = async (item: TodoItem, isCompleted: boolean) => {
-    try {
-      if (item.type === "recurring") {
-        const recurrence = item.recurrence ?? (await tauri.todoGetRecurrenceByItem(item.id));
-        if (!recurrence) throw new Error("TODO_RECURRENCE_NOT_FOUND: recurrence not found");
-        if (!isTodayScheduled(recurrence))
-          throw new Error("TODO_RECURRENCE_INVALID: today is not scheduled");
-        const today = getTodayNormalized();
-        if (isCompleted) {
-          await tauri.todoCompleteRecurrence(recurrence.id, today);
-        } else {
-          await tauri.todoUncompleteRecurrence(recurrence.id, today);
-        }
-        // mutation 后 invalidate 已驱动订阅刷新，此处无需手动 reload
-        return;
-      }
-      await store.toggleCompleteCascade({ id: item.id, isCompleted });
-    } catch (error) {
-      onError(error, "更新任务完成状态失败");
-    }
+    await toggleTodoComplete(item, isCompleted, onError);
   };
 
   const handleOpenActions = (item: TodoItem) => {
@@ -231,10 +259,16 @@ export function TodoPage({
   };
 
   const handleDeleteItem = async (item: TodoItem) => {
+    if (deleteLoading) return;
+    setDeleteLoading(true);
     try {
-      await store.deleteItem(item.id);
+      // 统一走级联删除：叶子节点等价普通删除，有子任务时避免产生孤儿节点
+      await store.deleteItemCascade(item.id);
+      setDeleteTarget(null);
     } catch (error) {
       onError(error, "删除任务失败");
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -251,12 +285,16 @@ export function TodoPage({
     ? [
         {
           label: "查看详情",
+          icon: <Eye size={18} />,
+          tone: "sky",
           onClick: () => {
             onOpenDetail(actionItem.id, actionItem.groupId);
           },
         },
         {
           label: "新增子任务",
+          icon: <GitBranch size={18} />,
+          tone: "sage",
           onClick: () => {
             setSubSheetMode("child");
             setSubSheetTitle("");
@@ -265,6 +303,8 @@ export function TodoPage({
         },
         {
           label: "在上方插入",
+          icon: <ArrowUp size={18} />,
+          tone: "apricot",
           onClick: () => {
             setSubSheetMode("above");
             setSubSheetTitle("");
@@ -273,6 +313,8 @@ export function TodoPage({
         },
         {
           label: "在下方插入",
+          icon: <ArrowDown size={18} />,
+          tone: "apricot",
           onClick: () => {
             setSubSheetMode("below");
             setSubSheetTitle("");
@@ -282,8 +324,9 @@ export function TodoPage({
         {
           label: "删除任务",
           danger: true,
+          icon: <Trash2 size={18} />,
           onClick: () => {
-            void handleDeleteItem(actionItem);
+            setDeleteTarget(actionItem);
           },
         },
       ]
@@ -292,9 +335,19 @@ export function TodoPage({
   // Plus ActionSheet
   const [plusSheetOpen, setPlusSheetOpen] = useState(false);
 
+  // FAB「新任务」入口：进入即弹出创建面板（仅首挂载消费一次）
+  useEffect(() => {
+    if (autoOpenCreate) {
+      setPlusSheetOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const plusSheetItems: ActionSheetItem[] = [
     {
       label: "新建任务",
+      icon: <ListTodo size={18} />,
+      tone: "sage",
       onClick: () => {
         setNewTitle("");
         setNewType("normal");
@@ -303,6 +356,8 @@ export function TodoPage({
     },
     {
       label: "新建分组",
+      icon: <FolderPlus size={18} />,
+      tone: "butter",
       onClick: () => {
         setNewGroupTitle("");
         setGroupSheetOpen(true);
@@ -310,9 +365,60 @@ export function TodoPage({
     },
   ];
 
-  const activeFilterType = store.filters.type ?? "all";
+  // ── A2 工具行派生数据 ──
+  const statsMap = statsQuery.data ?? {};
+  const orderedSystemGroups = useMemo(() => {
+    const order = new Map<string, number>(SYSTEM_GROUP_ORDER.map((type, index) => [type, index]));
+    return [...systemGroups].sort(
+      (a, b) => (order.get(a.systemType ?? "") ?? 999) - (order.get(b.systemType ?? "") ?? 999)
+    );
+  }, [systemGroups]);
+  const activeGroup = allGroups.find(group => group.id === store.activeGroupId) ?? null;
+  const activeGroupStats = activeGroup ? statsMap[activeGroup.id] : undefined;
+  const stateFilterActive = store.filters.completed !== undefined || store.filters.overdue === true;
+  const scopeCountLabel = store.filters.keyword
+    ? `${filteredItems.length} 项结果`
+    : `${activeGroupStats?.uncompleted ?? 0} 项待办`;
 
-  const statusOptions: Array<{
+  const renderGroupRow = (group: TodoGroup) => {
+    const isActive = store.activeGroupId === group.id;
+    const stats = statsMap[group.id];
+    const parts = [`${stats?.total ?? 0} 项`];
+    if (stats && stats.uncompleted > 0) parts.push(`未完成 ${stats.uncompleted}`);
+    if (stats && stats.overdue > 0) parts.push(`逾期 ${stats.overdue}`);
+    const label = group.systemType
+      ? (SYSTEM_GROUP_LABELS[group.systemType] ?? group.title)
+      : group.title;
+    return (
+      <button
+        key={group.id}
+        type="button"
+        onClick={() => {
+          store.setActiveGroup(group.id);
+          setGroupPickerOpen(false);
+        }}
+        className="border-line flex w-full items-center gap-2.5 border-b border-dashed py-3 text-left last:border-b-0"
+      >
+        <span
+          className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border-2 transition-colors ${
+            isActive ? "border-accent bg-accent" : "border-line"
+          }`}
+        >
+          {isActive ? <Check size={10} strokeWidth={3.5} className="text-white" /> : null}
+        </span>
+        <span
+          className={`truncate text-[13.5px] font-bold ${isActive ? "text-accent" : "text-ink"}`}
+        >
+          {label}
+        </span>
+        <span className="text-ink-3 ml-auto shrink-0 text-[11.5px] tabular-nums">
+          {parts.join(" · ")}
+        </span>
+      </button>
+    );
+  };
+
+  const filterOptions: Array<{
     label: string;
     active: boolean;
     onClick: () => void;
@@ -334,158 +440,123 @@ export function TodoPage({
     },
   ];
 
-  const typeOptions: Array<{ label: string; value: TodoItemType | "all" }> = [
-    { label: "全部", value: "all" },
-    { label: "普通", value: "normal" },
-    { label: "截止", value: "deadline" },
-    { label: "计划", value: "planned" },
-    { label: "周期", value: "recurring" },
-  ];
-
   return (
-    <div className="mobile-kb-screen fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-black">
-      <header className="mobile-topbar topbar-immersive flex items-center px-2">
-        {searchBarOpen ? (
-          <>
-            <div className="flex flex-1 items-center gap-2 rounded-full bg-gray-100 px-3 dark:bg-neutral-800">
-              <Search size={15} className="shrink-0 text-gray-400" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchInput}
-                onChange={e => {
-                  setSearchInput(e.target.value);
-                  store.setFilters({
-                    keyword: e.target.value.trim() || undefined,
-                  });
+    <div className="mobile-kb-screen bg-page fixed inset-0 z-50 flex flex-col">
+      {searchBarOpen ? (
+        <PageHeader>
+          <div className="bg-input flex flex-1 items-center gap-2 rounded-full px-3">
+            <Search size={15} className="text-ink-3 shrink-0" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchInput}
+              onChange={e => {
+                setSearchInput(e.target.value);
+                store.setFilters({
+                  keyword: e.target.value.trim() || undefined,
+                });
+              }}
+              placeholder="搜索任务"
+              className="text-ink placeholder:text-ink-3 h-9 flex-1 bg-transparent text-sm outline-none"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchInput("");
+                  store.setFilters({ keyword: undefined });
                 }}
-                placeholder="搜索任务"
-                className="h-9 flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-neutral-100"
+                className="text-ink-3 shrink-0"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchBarOpen(false);
+              setSearchInput("");
+              store.setFilters({ keyword: undefined });
+            }}
+            className="text-accent ml-2 shrink-0 text-sm font-semibold"
+          >
+            取消
+          </button>
+        </PageHeader>
+      ) : (
+        <PageHeader
+          title="任务中心"
+          onBack={onBack}
+          actions={
+            <>
+              <PageHeaderButton
+                icon={<Search size={17} strokeWidth={2} />}
+                aria-label="搜索"
+                onClick={() => {
+                  setSearchInput(store.filters.keyword ?? "");
+                  setSearchBarOpen(true);
+                }}
               />
-              {searchInput && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchInput("");
-                    store.setFilters({ keyword: undefined });
-                  }}
-                  className="shrink-0 text-gray-400"
-                >
-                  <X size={15} />
-                </button>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setSearchBarOpen(false);
-                setSearchInput("");
-                store.setFilters({ keyword: undefined });
-              }}
-              className="text-(--color-primary) ml-2 shrink-0 text-sm"
-            >
-              取消
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={onBack}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-neutral-300 dark:active:bg-neutral-800"
-            >
-              <ChevronLeft size={20} aria-hidden="true" />
-            </button>
-            <h1 className="flex-1 text-center text-base font-semibold text-gray-900 dark:text-neutral-100">
-              任务管理
-            </h1>
-            <button
-              type="button"
-              onClick={() => {
-                setSearchInput(store.filters.keyword ?? "");
-                setSearchBarOpen(true);
-              }}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-neutral-300 dark:active:bg-neutral-800"
-              aria-label="搜索"
-            >
-              <Search size={18} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setPlusSheetOpen(true)}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-600 transition-colors active:bg-gray-100 dark:text-neutral-300 dark:active:bg-neutral-800"
-              aria-label="新建"
-            >
-              <Plus size={18} aria-hidden="true" />
-            </button>
-          </>
-        )}
-      </header>
+              <PageHeaderButton
+                icon={<Plus size={18} strokeWidth={2.6} />}
+                variant="brand"
+                aria-label="新建"
+                onClick={() => setPlusSheetOpen(true)}
+              />
+            </>
+          }
+        />
+      )}
 
-      <TodoGroupTabs
-        groups={customGroups}
-        activeGroupId={store.activeGroupId}
-        groupStats={statsQuery.data ?? {}}
-        onSelect={groupId => {
-          store.setActiveGroup(groupId);
-        }}
-      />
-
-      <div className="mx-4 mb-2 rounded-xl bg-white px-3 py-2.5 dark:bg-neutral-900">
-        <div className="flex items-center gap-2">
-          <span className="w-8 shrink-0 text-xs text-gray-400 dark:text-neutral-500">状态</span>
-          <div className="flex gap-1.5">
-            {statusOptions.map(opt => (
-              <button
-                key={opt.label}
-                type="button"
-                onClick={opt.onClick}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                  opt.active
-                    ? "bg-(--color-primary) text-white"
-                    : "text-gray-500 dark:text-neutral-400"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="mt-2 flex items-center gap-2">
-          <span className="w-8 shrink-0 text-xs text-gray-400 dark:text-neutral-500">类型</span>
-          <div className="scrollbar-hide flex gap-1.5 overflow-x-auto">
-            {typeOptions.map(opt => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => store.setFilters({ type: opt.value })}
-                className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                  activeFilterType === opt.value
-                    ? "bg-(--color-primary) text-white"
-                    : "text-gray-500 dark:text-neutral-400"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* A2 工具行：分组入口 + 筛选入口 + 当前范围待办数。
+          统计大卡/分组 Tabs/双行筛选卡全部收纳进两个 Sheet，列表高度最大化 */}
+      <div className="flex items-center gap-2 px-4 pb-2.5 pt-1">
+        <button
+          type="button"
+          onClick={() => setGroupPickerOpen(true)}
+          className="border-line bg-surface shadow-card flex min-w-0 shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 transition-transform active:scale-[0.97]"
+        >
+          <span className="text-ink max-w-[7em] truncate text-[13px] font-extrabold">
+            {activeGroup?.title ?? "任务"}
+          </span>
+          {activeGroupStats && activeGroupStats.uncompleted > 0 ? (
+            <span className="bg-input text-ink-3 rounded-full px-1.5 py-0.5 text-[10px] font-bold tabular-nums leading-none">
+              {activeGroupStats.uncompleted}
+            </span>
+          ) : null}
+          <ChevronDown size={14} className="text-ink-3 shrink-0" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilterSheetOpen(true)}
+          className="border-line bg-surface text-ink-2 shadow-card relative flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-[12.5px] font-extrabold transition-transform active:scale-[0.97]"
+        >
+          <ListFilter size={14} />
+          筛选
+          {stateFilterActive ? (
+            <span className="border-page bg-accent absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2" />
+          ) : null}
+        </button>
+        <span className="text-ink-3 ml-auto min-w-0 shrink-0 text-[11.5px] font-bold tabular-nums">
+          {scopeCountLabel}
+        </span>
       </div>
 
-      <div ref={listScrollRef} className="mobile-kb-scroll flex-1 overflow-y-auto">
+      <div
+        ref={listScrollRef}
+        className="edge-fade-scroll mobile-kb-scroll flex-1 overflow-y-auto"
+        style={{ paddingBottom: "calc(var(--dock-visual-height) + 28px + var(--kb-height, 0px))" }}
+      >
         {itemsQuery.isLoading ? (
-          <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-neutral-400">
-            正在加载任务...
-          </div>
+          <div className="text-ink-3 px-4 py-8 text-center text-sm">正在加载任务...</div>
         ) : (
           <TodoItemTree
             items={filteredItems}
             allItems={activeItems}
             scrollContainerRef={listScrollRef}
             isVisible={isVisible}
-            activeTodoId={store.activeTodoId}
             onOpenDetail={item => {
-              store.setActiveTodo(item.id);
               onOpenDetail(item.id, item.groupId);
             }}
             onToggleComplete={(item, isCompleted) => {
@@ -511,16 +582,54 @@ export function TodoPage({
             if (e.key === "Enter") void handleCreateGroup();
           }}
           placeholder="请输入分组名称"
-          className="input-base h-11 w-full rounded-xl px-4 text-sm"
+          className="input-base h-11 w-full px-4 text-[14px]"
         />
         <button
           type="button"
           onClick={() => void handleCreateGroup()}
           disabled={creatingGroup || !newGroupTitle.trim()}
-          className="bg-(--color-primary) mt-3 h-11 w-full rounded-xl text-sm font-semibold text-white active:opacity-80 disabled:opacity-50"
+          className="shadow-accent mt-3 h-11 w-full rounded-full text-sm font-bold text-white active:scale-[0.98] disabled:opacity-50"
         >
           创建
         </button>
+      </BottomSheet>
+
+      {/* 分组选择 Sheet（A2）：系统分组（含类型维度）+ 自定义分组，行内带统计 */}
+      <BottomSheet
+        open={groupPickerOpen}
+        title="选择分组"
+        onClose={() => setGroupPickerOpen(false)}
+      >
+        <div className="text-ink-3 mb-1 text-[11.5px] font-extrabold">系统分组</div>
+        {orderedSystemGroups.map(renderGroupRow)}
+        <div className="text-ink-3 mb-1 mt-4 text-[11.5px] font-extrabold">自定义分组</div>
+        {customGroups.length > 0 ? (
+          customGroups.map(renderGroupRow)
+        ) : (
+          <div className="text-ink-3 py-3 text-[12.5px]">还没有自定义分组</div>
+        )}
+      </BottomSheet>
+
+      {/* 筛选 Sheet（A2）：状态筛选（类型维度并入系统分组，不再单独暴露） */}
+      <BottomSheet open={filterSheetOpen} title="筛选" onClose={() => setFilterSheetOpen(false)}>
+        <div className="text-ink-3 mb-2.5 text-[11.5px] font-extrabold">状态</div>
+        <div className="flex gap-2">
+          {filterOptions.map(opt => (
+            <button
+              key={opt.label}
+              type="button"
+              onClick={() => {
+                opt.onClick();
+                setFilterSheetOpen(false);
+              }}
+              className={`flex-1 rounded-full px-3 py-2.5 text-xs font-bold transition-all active:scale-95 ${
+                opt.active ? "bg-accent shadow-accent text-white" : "bg-input text-ink-3"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </BottomSheet>
 
       {/* 新增子任务 / 插入 Sheet */}
@@ -544,13 +653,13 @@ export function TodoPage({
             if (e.key === "Enter") void handleCreateRelative();
           }}
           placeholder="请输入任务标题"
-          className="input-base h-11 w-full rounded-xl px-4 text-sm"
+          className="input-base h-11 w-full px-4 text-[14px]"
         />
         <button
           type="button"
           onClick={() => void handleCreateRelative()}
           disabled={!subSheetTitle.trim()}
-          className="bg-(--color-primary) mt-3 h-11 w-full rounded-xl text-sm font-semibold text-white active:opacity-80 disabled:opacity-50"
+          className="shadow-accent mt-3 h-11 w-full rounded-full text-sm font-bold text-white active:scale-[0.98] disabled:opacity-50"
         >
           创建
         </button>
@@ -571,23 +680,21 @@ export function TodoPage({
             if (e.key === "Enter") void handleCreateItem();
           }}
           placeholder="请输入任务标题"
-          className="input-base h-11 w-full rounded-xl px-4 text-sm"
+          className="input-base h-11 w-full px-4 text-[14px]"
         />
         <button
           type="button"
           onClick={() => setTypeSheetOpen(true)}
-          className="mt-3 flex w-full items-center justify-between rounded-xl bg-gray-50 px-4 py-3 dark:bg-neutral-800"
+          className="input-base mt-3 flex w-full items-center justify-between px-4 py-3.5"
         >
-          <span className="text-sm text-gray-500 dark:text-neutral-400">类型</span>
-          <span className="text-sm font-medium text-gray-900 dark:text-neutral-100">
-            {TYPE_LABELS[newType]}
-          </span>
+          <span className="text-ink-2 text-sm">类型</span>
+          <span className="text-ink text-sm font-bold">{TYPE_LABELS[newType]}</span>
         </button>
         <button
           type="button"
           onClick={() => void handleCreateItem()}
           disabled={!newTitle.trim()}
-          className="bg-(--color-primary) mt-3 h-11 w-full rounded-xl text-sm font-semibold text-white active:opacity-80 disabled:opacity-50"
+          className="shadow-accent mt-3 h-11 w-full rounded-full text-sm font-bold text-white active:scale-[0.98] disabled:opacity-50"
         >
           创建
         </button>
@@ -614,8 +721,29 @@ export function TodoPage({
       {/* 任务操作 ActionSheet */}
       <ActionSheet
         open={actionSheetOpen}
+        title={actionItem?.title}
+        kind="任务"
         items={actionSheetItems}
         onClose={() => setActionSheetOpen(false)}
+      />
+
+      <MobileConfirmDialog
+        open={deleteTarget !== null}
+        title="删除任务"
+        description={
+          deleteTarget && activeItems.some(i => i.parentId === deleteTarget.id)
+            ? `「${clampText(deleteTarget.title, 18)}」及其全部子任务将被删除。`
+            : `「${clampText(deleteTarget?.title ?? "", 18)}」将被删除。`
+        }
+        danger
+        loading={deleteLoading}
+        onCancel={() => {
+          if (deleteLoading) return;
+          setDeleteTarget(null);
+        }}
+        onConfirm={() => {
+          if (deleteTarget) void handleDeleteItem(deleteTarget);
+        }}
       />
     </div>
   );

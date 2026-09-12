@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="apricot">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方案 B · 连接卡片 — 数据与同步重构</title>
+<style>
+/* ══════════ 设计令牌（与 apps/mobile/src/styles.css 一致） ══════════ */
+:root, [data-theme="apricot"] {
+  color-scheme: light;
+  --bg-page: #f6f1e7; --bg-surface: #fffdf9; --bg-input: #f6f1e7;
+  --bg-press: rgba(246,241,231,0.65);
+  --ink-1: #43392c; --ink-2: #8b7d6b; --ink-3: #b9ac9a;
+  --line-1: #e9e1d2;
+  --brand: #d97757; --brand-strong: #e8896a; --brand-soft: rgba(217,119,87,0.12);
+  --sage: #61795f; --sage-soft: #e5ede2;
+  --sky: #5c7d99; --sky-soft: #e2ebf3;
+  --lilac: #8a7aa6; --lilac-soft: #ebe6f3;
+  --butter: #a38c4d; --butter-soft: #f6efd6;
+  --rose: #b06a5e; --rose-soft: #f6e3e0;
+  --mask: rgba(67,57,44,0.4);
+  --shadow-card: 0 1px 2px rgba(120,100,70,0.06), 0 8px 20px -12px rgba(120,100,70,0.16);
+  --shadow-float: 0 12px 32px -8px rgba(120,100,70,0.35);
+  --shadow-accent: 0 8px 18px -5px rgba(217,119,87,0.55);
+  --toast-bg: #43392c; --toast-fg: #fff8ef;
+  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.38 0 0 0 0 0.26 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+[data-theme="midnight"] {
+  color-scheme: dark;
+  --bg-page: #0e1016; --bg-surface: #171a22; --bg-input: rgba(255,255,255,0.05);
+  --bg-press: rgba(255,255,255,0.045);
+  --ink-1: #edeef1; --ink-2: #8e96a5; --ink-3: #5b6270;
+  --line-1: rgba(255,255,255,0.07);
+  --brand: #f0a860; --brand-strong: #f5b877; --brand-soft: rgba(240,168,96,0.13);
+  --sage: #7edbb2; --sage-soft: rgba(110,231,183,0.12);
+  --sky: #9db9f0; --sky-soft: rgba(147,180,255,0.12);
+  --lilac: #c8b3f5; --lilac-soft: rgba(196,167,255,0.12);
+  --butter: #e8d487; --butter-soft: rgba(240,220,130,0.1);
+  --rose: #f5988a; --rose-soft: rgba(255,138,120,0.12);
+  --mask: rgba(0,0,0,0.55);
+  --shadow-card: 0 14px 30px -16px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04);
+  --shadow-float: 0 18px 40px rgba(0,0,0,0.55);
+  --shadow-accent: 0 8px 18px -5px rgba(240,168,96,0.4);
+  --toast-bg: #1d222e; --toast-fg: #edeef1;
+  --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.03 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  background: linear-gradient(160deg, #2a2622, #17150f);
+  min-height: 100vh; display: flex; align-items: flex-start; justify-content: center;
+  gap: 36px; padding: 36px 20px; color: var(--ink-1);
+}
+@media (max-width: 900px) { body { padding: 0; } .proto-panel { display: none; } }
+
+/* 原型说明面板 */
+.proto-panel { width: 300px; flex-shrink: 0; color: #d8cfc2; font-size: 13px; line-height: 1.7; position: sticky; top: 36px; }
+.proto-panel h1 { font-size: 19px; margin: 0 0 4px; color: #f3ece1; }
+.proto-panel .sub { color: #9a8f80; margin: 0 0 18px; }
+.proto-panel h2 { font-size: 12px; margin: 20px 0 8px; color: #b0a494; letter-spacing: 2px; }
+.proto-panel ul { margin: 0; padding-left: 18px; }
+.proto-panel li { margin: 4px 0; }
+.proto-panel .demo-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.proto-panel button {
+  font: inherit; font-size: 12px; cursor: pointer; color: #e8dfd2;
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14);
+  padding: 5px 11px; border-radius: 99px;
+}
+.proto-panel button:hover { background: rgba(255,255,255,0.14); }
+.proto-panel button.on { background: #d97757; border-color: #d97757; color: #fff; }
+.proto-panel .note { color: #8a7f70; font-size: 12px; }
+
+/* 手机壳 */
+.phone {
+  width: 390px; height: 844px; flex-shrink: 0; border-radius: 48px; overflow: hidden;
+  position: relative; background: var(--bg-page); color: var(--ink-1);
+  box-shadow: 0 40px 90px -20px rgba(0,0,0,0.65), 0 0 0 11px #1c1a17, 0 0 0 13px #33302b;
+  display: flex; flex-direction: column;
+}
+.phone::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 60; background-image: var(--noise); opacity: 0.9; }
+@media (max-width: 900px) { .phone { width: 100vw; height: 100dvh; border-radius: 0; box-shadow: none; } }
+
+.statusbar { height: 50px; flex-shrink: 0; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 30px 6px; font-size: 14px; font-weight: 600; }
+.topbar { height: 56px; flex-shrink: 0; display: flex; align-items: center; padding: 0 14px; gap: 8px; }
+.topbar .back {
+  width: 38px; height: 38px; border-radius: 13px; border: none; cursor: pointer;
+  background: var(--bg-surface); box-shadow: var(--shadow-card); display: grid; place-items: center;
+  transition: transform 0.15s;
+}
+.topbar .back:active { transform: scale(0.88); }
+.topbar h1 { flex: 1; text-align: center; font-size: 15px; font-weight: 700; margin: 0; }
+.topbar .spacer { width: 38px; }
+
+/* 分段器 */
+.segments-wrap { padding: 2px 16px 10px; flex-shrink: 0; }
+.segments { position: relative; display: flex; background: var(--bg-input); border-radius: 14px; padding: 3px; }
+.segments .glider {
+  position: absolute; top: 3px; bottom: 3px; border-radius: 11px; background: var(--bg-surface);
+  box-shadow: var(--shadow-card); transition: all 0.28s cubic-bezier(0.34,1.3,0.5,1);
+}
+.segments button {
+  position: relative; z-index: 1; flex: 1; border: none; background: none; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600; padding: 8px 0; color: var(--ink-2); border-radius: 11px;
+}
+.segments button.on { color: var(--ink-1); }
+
+.panes { flex: 1; overflow-y: auto; padding: 4px 16px 40px; scrollbar-width: none; }
+.panes::-webkit-scrollbar { display: none; }
+.pane { display: none; animation: pane-in 0.25s ease-out; }
+.pane.on { display: block; }
+@keyframes pane-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.group-title { font-size: 16.5px; font-weight: 800; margin: 6px 2px 10px; }
+.group-sub { font-size: 12px; color: var(--ink-3); font-weight: 400; margin-left: 6px; }
+
+/* ══════════ 数据库状态紧凑条 ══════════ */
+.db-strip {
+  display: flex; align-items: center; gap: 11px; background: var(--bg-surface);
+  border-radius: 18px; box-shadow: var(--shadow-card); padding: 13px 14px; margin-bottom: 14px;
+  cursor: pointer; transition: transform 0.15s;
+}
+.db-strip:active { transform: scale(0.985); }
+.strip-badge {
+  width: 40px; height: 40px; border-radius: 14px; flex-shrink: 0;
+  display: grid; place-items: center; background: var(--sage-soft); color: var(--sage);
+}
+.strip-badge.run { background: var(--sky-soft); color: var(--sky); animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.55; } }
+.strip-main { flex: 1; min-width: 0; }
+.strip-main p { margin: 0; font-size: 14px; font-weight: 700; }
+.strip-main span { font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.strip-act {
+  height: 36px; padding: 0 15px; border: none; border-radius: 12px; cursor: pointer; font: inherit;
+  font-size: 12.5px; font-weight: 700; color: #fff; flex-shrink: 0;
+  background: linear-gradient(145deg, var(--brand-strong), var(--brand)); box-shadow: var(--shadow-accent);
+  display: flex; align-items: center; gap: 6px; transition: transform 0.15s;
+}
+.strip-act:active { transform: scale(0.94); }
+
+/* 展开的完整状态卡 */
+.db-detail {
+  display: none; background: var(--bg-surface); border-radius: 20px; box-shadow: var(--shadow-card);
+  padding: 16px; margin-bottom: 14px; animation: pane-in 0.22s ease-out;
+}
+.db-detail.on { display: block; }
+.dd-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.ver-cols { display: flex; gap: 8px; margin-bottom: 12px; }
+.ver-cell { flex: 1; background: var(--bg-input); border-radius: 14px; padding: 10px 12px; }
+.ver-cell .k { font-size: 10.5px; color: var(--ink-3); letter-spacing: 1px; }
+.ver-cell .v { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.5px; margin-top: 2px; }
+.ver-cell.remote .v { color: var(--sky); }
+.ver-cell.local .v { color: var(--lilac); }
+.ver-mid { display: flex; align-items: center; justify-content: center; color: var(--ink-3); }
+.dd-advice { font-size: 12.5px; color: var(--ink-2); margin: 0 0 12px; line-height: 1.6; }
+.dd-actions { display: flex; gap: 8px; }
+.dd-actions button {
+  flex: 1; height: 42px; border: none; border-radius: 13px; cursor: pointer; font: inherit;
+  font-size: 13px; font-weight: 700; background: var(--bg-input); color: var(--ink-1);
+  display: flex; align-items: center; justify-content: center; gap: 6px; transition: transform 0.15s;
+}
+.dd-actions button:active { transform: scale(0.96); }
+.dd-actions .primary { background: linear-gradient(145deg, var(--brand-strong), var(--brand)); color: #fff; box-shadow: var(--shadow-accent); }
+.dd-actions .ghost { background: none; box-shadow: inset 0 0 0 1.5px var(--line-1); }
+
+.status-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; padding: 4px 11px; border-radius: 99px; }
+.status-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.st-ok { background: var(--sage-soft); color: var(--sage); }
+.st-run { background: var(--sky-soft); color: var(--sky); }
+
+/* ══════════ 连接卡 Connection Card ══════════ */
+.conn {
+  background: var(--bg-surface); border-radius: 20px; box-shadow: var(--shadow-card);
+  margin-bottom: 13px; overflow: hidden;
+}
+.conn-head { display: flex; align-items: center; gap: 12px; padding: 15px 15px 0; }
+.c-logo {
+  width: 44px; height: 44px; border-radius: 15px; display: grid; place-items: center;
+  font-size: 18px; font-weight: 800; flex-shrink: 0;
+}
+.b-alioss { background: var(--butter-soft); color: var(--butter); }
+.b-github { background: var(--lilac-soft); color: var(--lilac); }
+.b-s3 { background: var(--sky-soft); color: var(--sky); }
+.b-webdav { background: var(--sage-soft); color: var(--sage); }
+.b-local { background: var(--butter-soft); color: var(--butter); }
+.conn-title { flex: 1; min-width: 0; }
+.conn-title h3 { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.2px; }
+.conn-title .cred { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; display: flex; align-items: center; gap: 5px; }
+.dot-ok { width: 6px; height: 6px; border-radius: 50%; background: var(--sage); }
+.dot-no { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); }
+.role-chip { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 99px; letter-spacing: 0.5px; flex-shrink: 0; }
+.role-active { background: var(--brand-soft); color: var(--brand); }
+.role-ready { background: var(--bg-input); color: var(--ink-2); }
+.role-off { background: var(--bg-input); color: var(--ink-3); }
+
+.conn-summary {
+  display: flex; gap: 6px; flex-wrap: wrap; padding: 11px 15px 0;
+}
+.chiplet {
+  font-size: 11px; color: var(--ink-2); background: var(--bg-input);
+  padding: 3.5px 9px; border-radius: 8px; font-variant-numeric: tabular-nums;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.chiplet.mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 10.5px; }
+
+.conn-actions { display: flex; gap: 8px; padding: 13px 15px 15px; }
+.conn-actions button {
+  height: 40px; border-radius: 12px; border: none; cursor: pointer; font: inherit;
+  font-size: 13px; font-weight: 700; padding: 0 16px;
+  display: flex; align-items: center; gap: 6px; transition: transform 0.15s;
+}
+.conn-actions button:active { transform: scale(0.95); }
+.btn-use { flex: 1; background: linear-gradient(145deg, var(--brand-strong), var(--brand)); color: #fff; box-shadow: var(--shadow-accent); justify-content: center; }
+.btn-use.using { background: var(--bg-input); color: var(--sage); box-shadow: none; cursor: default; }
+.btn-cfg { background: none; color: var(--ink-2); box-shadow: inset 0 0 0 1.5px var(--line-1); }
+
+/* 展开的配置区：凭证 + 参数一站式 */
+.conn-body { display: none; border-top: 1.5px dashed var(--line-1); animation: pane-in 0.22s ease-out; }
+.conn.open .conn-body { display: block; }
+.sec-label { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: var(--ink-3); margin: 14px 15px 8px; }
+.token-row { display: flex; gap: 8px; padding: 0 15px; }
+.token-row .box {
+  flex: 1; background: var(--bg-input); border: 1.5px solid transparent; border-radius: 12px;
+  padding: 10px 12px; font-size: 12px; color: var(--ink-2); font-family: ui-monospace, Menlo, monospace;
+  display: flex; align-items: center; min-width: 0;
+}
+.token-row .box span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-verify {
+  border: none; cursor: pointer; font: inherit; font-size: 12.5px; font-weight: 700;
+  background: var(--bg-input); color: var(--ink-1); border-radius: 12px; padding: 0 14px; flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.btn-verify:active { transform: scale(0.95); }
+.account-chip {
+  margin: 10px 15px 0; display: flex; align-items: center; gap: 9px;
+  background: var(--sage-soft); border-radius: 12px; padding: 9px 12px;
+}
+.avatar {
+  width: 28px; height: 28px; border-radius: 9px; background: var(--sage); color: #fff;
+  display: grid; place-items: center; font-size: 12px; font-weight: 800; flex-shrink: 0;
+}
+.account-chip p { margin: 0; font-size: 12.5px; font-weight: 600; color: var(--sage); }
+.account-chip span { font-size: 10.5px; color: var(--sage); opacity: 0.75; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 0 15px; }
+.form-grid .full { grid-column: 1 / -1; }
+.field label { display: block; font-size: 11.5px; font-weight: 600; color: var(--ink-2); margin: 0 1px 5px; }
+.field .box {
+  background: var(--bg-input); border: 1.5px solid transparent; border-radius: 12px;
+  padding: 10px 12px; font-size: 13.5px; display: flex; align-items: center; justify-content: space-between; gap: 6px;
+}
+.field .box.ph { color: var(--ink-3); }
+.field input { border: none; background: none; outline: none; font: inherit; color: var(--ink-1); width: 100%; }
+.save-btn {
+  margin: 13px 15px 15px; width: calc(100% - 30px); height: 42px; border: none; border-radius: 13px;
+  cursor: pointer; font: inherit; font-size: 14px; font-weight: 700; color: #fff;
+  background: linear-gradient(145deg, var(--brand-strong), var(--brand)); box-shadow: var(--shadow-accent);
+  transition: transform 0.15s;
+}
+.save-btn:active { transform: scale(0.97); }
+
+/* ══════════ 资源同步卡（方案 B 复用状态设计语言） ══════════ */
+.res-card { background: var(--bg-surface); border-radius: 20px; box-shadow: var(--shadow-card); padding: 16px; margin-bottom: 14px; }
+.res-line { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; }
+.res-line .pct { font-size: 21px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.progress { height: 8px; border-radius: 99px; background: var(--line-1); overflow: hidden; }
+.progress .bar { height: 100%; width: 63%; border-radius: 99px; background: linear-gradient(90deg, var(--brand-strong), var(--brand)); transition: width 0.4s ease-out; }
+.cur-file { margin: 9px 1px 0; font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: ui-monospace, Menlo, monospace; }
+.res-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 13px; }
+.res-stats .cell { background: var(--bg-input); border-radius: 12px; padding: 9px 6px 8px; text-align: center; }
+.res-stats b { display: block; font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.res-stats span { font-size: 10.5px; color: var(--ink-3); }
+.res-stats .warn b { color: var(--rose); }
+.res-btns { display: flex; gap: 8px; margin-top: 13px; }
+.res-btns button {
+  flex: 1; height: 40px; border: none; border-radius: 12px; cursor: pointer; font: inherit;
+  font-size: 12.5px; font-weight: 700; background: var(--bg-input); color: var(--ink-1);
+  display: flex; align-items: center; justify-content: center; gap: 5px; transition: transform 0.15s;
+}
+.res-btns button:active { transform: scale(0.96); }
+.res-btns .primary { background: linear-gradient(145deg, var(--brand-strong), var(--brand)); color: #fff; box-shadow: var(--shadow-accent); }
+
+/* 开关行 */
+.row { display: flex; align-items: center; gap: 12px; padding: 13px 15px; cursor: pointer; }
+.row:active { background: var(--bg-press); }
+.row + .row { border-top: 1.5px dashed var(--line-1); }
+.row .r-main { flex: 1; min-width: 0; }
+.row .r-main p { margin: 0; font-size: 14px; font-weight: 600; }
+.row .r-main span { font-size: 11.5px; color: var(--ink-3); }
+.switch { width: 46px; height: 27px; border-radius: 99px; border: none; cursor: pointer; padding: 3px; background: var(--line-1); transition: background 0.2s; flex-shrink: 0; }
+.switch::after { content: ""; display: block; width: 21px; height: 21px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.18); transition: transform 0.2s; }
+.switch.on { background: var(--sage); }
+.switch.on::after { transform: translateX(19px); }
+.card-flat { background: var(--bg-surface); border-radius: 20px; box-shadow: var(--shadow-card); overflow: hidden; margin-bottom: 14px; }
+
+/* Sheet / Toast */
+.sheet-mask { position: absolute; inset: 0; z-index: 80; background: var(--mask); display: none; align-items: flex-end; }
+.sheet-mask.on { display: flex; animation: mask-in 0.22s ease-out; }
+@keyframes mask-in { from { opacity: 0; } }
+.sheet {
+  width: 100%; background: var(--bg-surface); border-radius: 26px 26px 0 0;
+  padding: 10px 18px calc(24px + env(safe-area-inset-bottom));
+  animation: sheet-up 0.32s cubic-bezier(0.34,1.3,0.5,1);
+}
+@keyframes sheet-up { from { transform: translateY(100%); } }
+.grab { width: 42px; height: 5px; border-radius: 3px; background: var(--line-1); margin: 4px auto 14px; }
+.sheet h3 { margin: 0 0 4px; font-size: 16.5px; font-weight: 800; }
+.sheet .desc { margin: 0 0 14px; font-size: 13px; line-height: 1.65; color: var(--ink-2); }
+.sheet .desc b { color: var(--ink-1); }
+.sheet-btn {
+  width: 100%; height: 47px; border: none; border-radius: 14px; cursor: pointer; font: inherit;
+  font-size: 14.5px; font-weight: 700; margin-top: 9px; background: var(--bg-input); color: var(--ink-1);
+}
+.sheet-btn.primary { background: linear-gradient(145deg, var(--brand-strong), var(--brand)); color: #fff; box-shadow: var(--shadow-accent); }
+
+.toast { position: absolute; top: 64px; left: 0; right: 0; z-index: 90; display: flex; justify-content: center; pointer-events: none; opacity: 0; transform: translateY(-12px); transition: all 0.25s; }
+.toast.on { opacity: 1; transform: none; }
+.toast .pill { background: var(--toast-bg); color: var(--toast-fg); font-size: 13px; font-weight: 550; padding: 10px 20px; border-radius: 99px; box-shadow: var(--shadow-float); max-width: 86%; }
+svg { display: block; }
+</style>
+</head>
+<body>
+
+<aside class="proto-panel">
+  <h1>方案 B · 连接卡片</h1>
+  <p class="sub">参考 Stripe / Linear 的 Integrations 页</p>
+
+  <h2>核心思路</h2>
+  <ul>
+    <li><b>消灭「集成」分段</b>：凭证 + 业务参数合并到同一张「连接卡」，一站式配置，不再跨页跳转</li>
+    <li><b>连接有生命周期</b>：未连接 → 已连接 → 使用中，三态徽章一眼看清</li>
+    <li><b>显式启用</b>：用「设为同步服务」主按钮表达单选，不用伪装成开关的 Switch</li>
+    <li><b>状态条常驻顶部</b>：数据库同步状态压缩成一行，点击展开完整操作</li>
+    <li>分段从 4 个减到 2 个：<b>同步 / 资源</b></li>
+  </ul>
+
+  <h2>演示 · 主题</h2>
+  <div class="demo-row" id="themeBtns">
+    <button data-th="apricot" class="on">杏子（浅）</button>
+    <button data-th="midnight">玄夜（深）</button>
+  </div>
+  <p class="note">点卡片上的「配置」展开凭证+参数；点「设为同步服务」切换当前服务。</p>
+</aside>
+
+<div class="phone">
+  <div class="statusbar"><span>9:41</span><span>●●●● 📶 🔋</span></div>
+
+  <header class="topbar">
+    <button class="back" aria-label="返回">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <h1>数据与同步</h1>
+    <div class="spacer"></div>
+  </header>
+
+  <nav class="segments-wrap">
+    <div class="segments" id="segments">
+      <div class="glider"></div>
+      <button data-pane="sync" class="on">同步</button>
+      <button data-pane="resource">资源</button>
+    </div>
+  </nav>
+
+  <main class="panes">
+
+    <!-- ══════ 同步 ══════ -->
+    <section class="pane on" data-pane="sync">
+
+      <!-- 状态紧凑条（点击展开） -->
+      <div class="db-strip" id="dbStrip">
+        <span class="strip-badge" id="stripBadge">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </span>
+        <span class="strip-main">
+          <p>数据库已同步</p>
+          <span>notes · 本地 v12 = 远端 v12 · 刚刚</span>
+        </span>
+        <button class="strip-act" id="stripSync">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg>
+          同步
+        </button>
+      </div>
+
+      <!-- 展开的完整状态卡 -->
+      <div class="db-detail" id="dbDetail">
+        <div class="dd-head">
+          <span class="status-chip st-ok"><span class="dot"></span>已同步</span>
+          <span style="font-size:11.5px;color:var(--ink-3)">上次同步 09:12 · AliOSS</span>
+        </div>
+        <div class="ver-cols">
+          <div class="ver-cell local"><div class="k">本地</div><div class="v">v12</div></div>
+          <div class="ver-mid">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>
+          </div>
+          <div class="ver-cell remote"><div class="k">远端</div><div class="v">v12</div></div>
+        </div>
+        <p class="dd-advice">本地与远端版本一致。切换数据库或手动操作请谨慎，整库覆盖会以确认弹窗说明方向。</p>
+        <div class="dd-actions">
+          <button class="ghost" id="ddRefresh">刷新</button>
+          <button data-dir="upload" class="dd-manual">上传</button>
+          <button data-dir="download" class="dd-manual">下载</button>
+        </div>
+      </div>
+
+      <h2 class="group-title">同步服务 <span class="group-sub">选择一个作为数据库同步目标</span></h2>
+
+      <!-- AliOSS：使用中 -->
+      <div class="conn open" data-p="alioss">
+        <div class="conn-head">
+          <span class="c-logo b-alioss">A</span>
+          <span class="conn-title">
+            <h3>AliOSS</h3>
+            <span class="cred"><span class="dot-ok"></span>已连接 · lastknight</span>
+          </span>
+          <span class="role-chip role-active">使用中</span>
+        </div>
+        <div class="conn-summary">
+          <span class="chiplet mono">editor-notes</span>
+          <span class="chiplet mono">oss-cn-hangzhou</span>
+          <span class="chiplet mono">/sync</span>
+        </div>
+        <div class="conn-actions">
+          <button class="btn-use using">✓ 当前同步服务</button>
+          <button class="btn-cfg">配置</button>
+        </div>
+        <div class="conn-body">
+          <p class="sec-label">凭证</p>
+          <div class="account-chip">
+            <span class="avatar">L</span>
+            <span><p>lastknight</p><span>AccessKey 已验证 · 2026-08-30</span></span>
+          </div>
+          <p class="sec-label">业务参数</p>
+          <div class="form-grid">
+            <div class="field"><label>Bucket</label><div class="box"><input value="editor-notes" /></div></div>
+            <div class="field"><label>Region</label><div class="box"><input value="oss-cn-hangzhou" /></div></div>
+            <div class="field full"><label>路径前缀</label><div class="box"><input value="/sync" /></div></div>
+          </div>
+          <button class="save-btn">保存配置</button>
+        </div>
+      </div>
+
+      <!-- Github：已连接未使用 -->
+      <div class="conn" data-p="github">
+        <div class="conn-head">
+          <span class="c-logo b-github">G</span>
+          <span class="conn-title">
+            <h3>Github</h3>
+            <span class="cred"><span class="dot-ok"></span>已连接 · LastKnightCoder</span>
+          </span>
+          <span class="role-chip role-ready">已就绪</span>
+        </div>
+        <div class="conn-summary">
+          <span class="chiplet mono">editor-notes</span>
+          <span class="chiplet mono">main</span>
+          <span class="chiplet mono">sync/</span>
+        </div>
+        <div class="conn-actions">
+          <button class="btn-use">设为同步服务</button>
+          <button class="btn-cfg">配置</button>
+        </div>
+        <div class="conn-body">
+          <p class="sec-label">凭证</p>
+          <div class="token-row">
+            <div class="box"><span>ghp_••••••••••••••••••3f9a</span></div>
+            <button class="btn-verify">重新验证</button>
+          </div>
+          <div class="account-chip">
+            <span class="avatar" style="background:var(--lilac)">L</span>
+            <span><p style="color:var(--lilac)">LastKnightCoder</p><span style="color:var(--lilac)">Token 有效 · 8 个仓库</span></span>
+          </div>
+          <p class="sec-label">业务参数</p>
+          <div class="form-grid">
+            <div class="field full"><label>仓库</label><div class="box"><span style="color:var(--ink-1)">editor-notes</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div></div>
+            <div class="field full"><label>分支</label><div class="box"><span style="color:var(--ink-1)">main</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div></div>
+            <div class="field full"><label>路径前缀</label><div class="box"><input value="sync" /></div></div>
+          </div>
+          <button class="save-btn">保存配置</button>
+        </div>
+      </div>
+
+      <!-- WebDAV：已连接未使用 -->
+      <div class="conn" data-p="webdav">
+        <div class="conn-head">
+          <span class="c-logo b-webdav">W</span>
+          <span class="conn-title">
+            <h3>WebDAV</h3>
+            <span class="cred"><span class="dot-ok"></span>已连接 · 坚果云</span>
+          </span>
+          <span class="role-chip role-ready">已就绪</span>
+        </div>
+        <div class="conn-actions" style="padding-top:13px">
+          <button class="btn-use">设为同步服务</button>
+          <button class="btn-cfg">配置</button>
+        </div>
+      </div>
+
+      <!-- S3：未连接 -->
+      <div class="conn" data-p="s3">
+        <div class="conn-head">
+          <span class="c-logo b-s3">S</span>
+          <span class="conn-title">
+            <h3>S3</h3>
+            <span class="cred"><span class="dot-no"></span>未连接</span>
+          </span>
+          <span class="role-chip role-off">未配置</span>
+        </div>
+        <div class="conn-actions" style="padding-top:13px">
+          <button class="btn-use" style="opacity:0.45">连接并启用</button>
+          <button class="btn-cfg">配置</button>
+        </div>
+        <div class="conn-body">
+          <p class="sec-label">凭证</p>
+          <div class="token-row">
+            <div class="box" style="color:var(--ink-3)">粘贴 Access Key ID</div>
+            <button class="btn-verify">验证</button>
+          </div>
+          <p class="sec-label">业务参数</p>
+          <div class="form-grid">
+            <div class="field"><label>Bucket</label><div class="box ph"><input placeholder="bucket" /></div></div>
+            <div class="field"><label>Region</label><div class="box ph"><input placeholder="ap-southeast-1" /></div></div>
+            <div class="field full"><label>路径前缀</label><div class="box ph"><input placeholder="sync" /></div></div>
+          </div>
+          <button class="save-btn" style="opacity:0.5">验证后可保存</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════ 资源 ══════ -->
+    <section class="pane" data-pane="resource">
+      <div class="res-card">
+        <div class="res-line">
+          <span class="status-chip st-run"><span class="dot"></span>同步中</span>
+          <span class="pct" id="resPct">63%</span>
+        </div>
+        <div class="progress"><div class="bar" id="resBar"></div></div>
+        <p class="cur-file">resources/2026/09/IMG_2041.webp</p>
+        <div class="res-stats">
+          <div class="cell"><b>128</b><span>待上传</span></div>
+          <div class="cell"><b>261</b><span>待下载</span></div>
+          <div class="cell warn"><b>3</b><span>失败</span></div>
+        </div>
+        <div class="res-btns">
+          <button id="resRefresh">刷新</button>
+          <button class="primary" id="resStart">开始同步</button>
+          <button id="resStop">停止</button>
+        </div>
+      </div>
+
+      <div class="card-flat">
+        <div class="row">
+          <span class="r-main"><p>上传前压缩图片</p><span>png / jpg 自动转 webp</span></span>
+          <button class="switch on" id="compressSwitch"></button>
+        </div>
+      </div>
+
+      <h2 class="group-title">存储目标 <span class="group-sub">图片与附件上传位置，单选</span></h2>
+
+      <div class="conn" data-p="local">
+        <div class="conn-head">
+          <span class="c-logo b-local">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a7 7 0 0 0 .9-13.92A9 9 0 1 0 4 20z"/></svg>
+          </span>
+          <span class="conn-title"><h3>本地</h3><span class="cred">appData/.editor/resources</span></span>
+          <span class="role-chip role-active">使用中</span>
+        </div>
+        <div class="conn-actions"><button class="btn-use using">✓ 当前存储</button><button class="btn-cfg">配置</button></div>
+      </div>
+      <div class="conn" data-p="gh">
+        <div class="conn-head">
+          <span class="c-logo b-github">G</span>
+          <span class="conn-title"><h3>Github</h3><span class="cred"><span class="dot-ok"></span>已连接 · LastKnightCoder</span></span>
+          <span class="role-chip role-ready">已就绪</span>
+        </div>
+        <div class="conn-summary"><span class="chiplet mono">editor-assets</span><span class="chiplet mono">main</span><span class="chiplet mono">uploads/</span></div>
+        <div class="conn-actions"><button class="btn-use">设为存储</button><button class="btn-cfg">配置</button></div>
+      </div>
+      <div class="conn" data-p="s3r">
+        <div class="conn-head">
+          <span class="c-logo b-s3">S</span>
+          <span class="conn-title"><h3>S3</h3><span class="cred"><span class="dot-no"></span>未连接</span></span>
+          <span class="role-chip role-off">未配置</span>
+        </div>
+        <div class="conn-actions"><button class="btn-use" style="opacity:0.45">连接并启用</button><button class="btn-cfg">配置</button></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 方向确认 Sheet -->
+  <div class="sheet-mask" id="confirmMask">
+    <div class="sheet">
+      <div class="grab"></div>
+      <h3 id="cfTitle">上传到远端？</h3>
+      <p class="desc" id="cfDesc">将把<b>本地 notes（v12）</b>整体上传并<b>覆盖远端</b>。远端更新的改动将丢失。</p>
+      <button class="sheet-btn primary" id="cfYes">确认上传</button>
+      <button class="sheet-btn" id="cfNo">取消</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"><span class="pill" id="toastText"></span></div>
+</div>
+
+<script>
+// ── 分段切换 ──
+const segs = document.querySelectorAll('#segments button');
+const glider = document.querySelector('.glider');
+function moveGlider(btn) { glider.style.left = btn.offsetLeft + 'px'; glider.style.width = btn.offsetWidth + 'px'; }
+segs.forEach(btn => btn.addEventListener('click', () => {
+  segs.forEach(b => b.classList.toggle('on', b === btn));
+  moveGlider(btn);
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.dataset.pane === btn.dataset.pane));
+}));
+requestAnimationFrame(() => moveGlider(segs[0]));
+const retrack = () => moveGlider(document.querySelector('#segments button.on'));
+window.addEventListener('load', retrack);
+window.addEventListener('resize', retrack);
+
+let toastTimer;
+function toast(text) {
+  const el = document.getElementById('toast');
+  document.getElementById('toastText').textContent = text;
+  el.classList.add('on'); clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), 2200);
+}
+
+// ── 状态条展开/收起 ──
+const dbDetail = document.getElementById('dbDetail');
+document.getElementById('dbStrip').addEventListener('click', e => {
+  if (e.target.closest('#stripSync')) return;
+  dbDetail.classList.toggle('on');
+});
+document.getElementById('stripSync').addEventListener('click', e => {
+  e.stopPropagation();
+  toast('已开始智能同步：按版本差异选择方向');
+});
+
+// ── 手动上传/下载 → 确认 sheet ──
+const confirmMask = document.getElementById('confirmMask');
+document.querySelectorAll('.dd-manual').forEach(btn => btn.addEventListener('click', () => {
+  const up = btn.dataset.dir === 'upload';
+  document.getElementById('cfTitle').textContent = up ? '上传到远端？' : '从远端下载？';
+  document.getElementById('cfDesc').innerHTML = up
+    ? '将把<b>本地 notes（v12）</b>整体上传并<b>覆盖远端</b>。远端更新的改动将丢失。'
+    : '将把<b>远端数据库</b>整体下载并<b>覆盖本地 notes</b>。本地未上传的改动将丢失。';
+  document.getElementById('cfYes').textContent = up ? '确认上传' : '确认下载';
+  confirmMask.classList.add('on');
+}));
+document.getElementById('cfNo').onclick = () => confirmMask.classList.remove('on');
+confirmMask.addEventListener('click', e => { if (e.target === confirmMask) confirmMask.classList.remove('on'); });
+document.getElementById('cfYes').onclick = () => { confirmMask.classList.remove('on'); toast('已开始执行，完成后通知'); };
+document.getElementById('ddRefresh').onclick = () => toast('刷新完成：本地 v12，远端 v12');
+
+// ── 连接卡：设为同步服务（互斥）/ 存储（互斥） ──
+function bindExclusive(container, useLabel, usingLabel) {
+  container.querySelectorAll('.conn').forEach(card => {
+    const useBtn = card.querySelector('.btn-use');
+    useBtn.addEventListener('click', () => {
+      if (useBtn.classList.contains('using')) return;
+      container.querySelectorAll('.conn').forEach(c => {
+        c.querySelector('.btn-use').classList.remove('using');
+        c.querySelector('.btn-use').textContent = useLabel;
+        const chip = c.querySelector('.role-chip');
+        if (chip.classList.contains('role-active')) { chip.classList.remove('role-active'); chip.classList.add('role-ready'); chip.textContent = '已就绪'; }
+      });
+      useBtn.classList.add('using');
+      useBtn.textContent = usingLabel;
+      const chip = card.querySelector('.role-chip');
+      chip.className = 'role-chip role-active';
+      chip.textContent = '使用中';
+      const name = card.querySelector('h3').textContent;
+      toast('已切换：' + name);
+    });
+    const cfgBtn = card.querySelector('.btn-cfg');
+    cfgBtn.addEventListener('click', () => {
+      const open = card.classList.contains('open');
+      container.querySelectorAll('.conn').forEach(c => c.classList.remove('open'));
+      if (!open) card.classList.add('open');
+      cfgBtn.textContent = open ? '配置' : '收起';
+      container.querySelectorAll('.btn-cfg').forEach(b => b.textContent = '配置');
+      if (!open) cfgBtn.textContent = '收起';
+    });
+  });
+}
+bindExclusive(document.querySelector('.pane[data-pane="sync"]'), '设为同步服务', '✓ 当前同步服务');
+bindExclusive(document.querySelector('.pane[data-pane="resource"]'), '设为存储', '✓ 当前存储');
+
+// ── 资源同步演示 ──
+let resTimer, resVal = 63;
+const renderRes = () => {
+  document.getElementById('resPct').textContent = resVal + '%';
+  document.getElementById('resBar').style.width = resVal + '%';
+};
+renderRes();
+document.getElementById('resStart').onclick = () => {
+  clearInterval(resTimer); resVal = 0; renderRes();
+  resTimer = setInterval(() => {
+    resVal = Math.min(100, resVal + Math.ceil(Math.random() * 7));
+    renderRes();
+    if (resVal >= 100) { clearInterval(resTimer); toast('资源同步完成'); }
+  }, 160);
+};
+document.getElementById('resStop').onclick = () => { clearInterval(resTimer); toast('已发送停止信号'); };
+document.getElementById('resRefresh').onclick = () => toast('资源状态已刷新');
+
+document.getElementById('compressSwitch').addEventListener('click', function () {
+  this.classList.toggle('on');
+  toast(this.classList.contains('on') ? '已开启上传压缩' : '已关闭上传压缩');
+});
+document.querySelectorAll('.save-btn, .btn-verify').forEach(b =>
+  b.addEventListener('click', e => { toast(b.classList.contains('btn-verify') ? '验证通过' : '配置已保存'); e.stopPropagation(); }));
+
+// ── 主题切换 ──
+document.querySelectorAll('#themeBtns button').forEach(btn =>
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#themeBtns button').forEach(b => b.classList.toggle('on', b === btn));
+    document.documentElement.setAttribute('data-theme', btn.dataset.th);
+  }));
+</script>
+</body>
+</html>

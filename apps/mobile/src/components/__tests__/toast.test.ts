@@ -1,10 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import {
-  TOAST_DEFAULT_DURATION,
-  TOAST_MAX_COUNT,
-  toast,
-  useToastStore,
-} from "../toast";
+import { TOAST_DEFAULT_DURATION, TOAST_MAX_COUNT, toast, useToastStore } from "../toast";
 
 describe("toast store", () => {
   beforeEach(() => {
@@ -17,11 +12,7 @@ describe("toast store", () => {
     toast.warning("warn");
 
     const toasts = useToastStore.getState().toasts;
-    expect(toasts.map((item) => item.type)).toEqual([
-      "success",
-      "info",
-      "warning",
-    ]);
+    expect(toasts.map(item => item.type)).toEqual(["success", "info", "warning"]);
 
     useToastStore.getState().clearAll();
     toast.error("failed");
@@ -36,7 +27,7 @@ describe("toast store", () => {
 
     const toasts = useToastStore.getState().toasts;
     expect(toasts).toHaveLength(TOAST_MAX_COUNT);
-    expect(toasts.map((item) => item.id)).toEqual(["t2", "t3", "t4"]);
+    expect(toasts.map(item => item.id)).toEqual(["t2", "t3", "t4"]);
   });
 
   it("返回的移除函数可手动删除 toast", () => {
@@ -50,9 +41,7 @@ describe("toast store", () => {
 
   it("支持默认与显式持续时间", () => {
     toast.info("默认时长");
-    expect(useToastStore.getState().toasts[0]?.duration).toBe(
-      TOAST_DEFAULT_DURATION,
-    );
+    expect(useToastStore.getState().toasts[0]?.duration).toBe(TOAST_DEFAULT_DURATION);
 
     useToastStore.getState().clearAll();
     toast.warning("自定义时长", 1200);
@@ -68,5 +57,24 @@ describe("toast store", () => {
     const last = useToastStore.getState().toasts[0];
     expect(last?.id).toBe("manual-id");
     expect(last?.duration).toBe(4500);
+  });
+
+  it("action 随消息入队并在缺省时为 undefined", () => {
+    const onClick = () => {};
+    toast({
+      id: "undo",
+      type: "success",
+      text: "已删除日记",
+      duration: 5000,
+      action: { label: "撤销", onClick },
+    });
+    expect(useToastStore.getState().toasts[0]?.action).toEqual({
+      label: "撤销",
+      onClick,
+    });
+
+    useToastStore.getState().clearAll();
+    toast.success("普通消息");
+    expect(useToastStore.getState().toasts[0]?.action).toBeUndefined();
   });
 });

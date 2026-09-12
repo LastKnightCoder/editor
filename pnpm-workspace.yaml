@@ -7,13 +7,14 @@ overrides:
   react-dom: 19.2.0
   "@types/react": 19.2.0
   "@types/react-dom": 19.2.0
-  slate: 0.123.0
-  slate-dom: 0.123.0
-  slate-react: 0.123.0
+  slate: 0.126.2
+  slate-dom: 0.126.0
+  slate-react: 0.126.4
   slate-history: 0.113.1
 
 patchedDependencies:
   better-sqlite3@12.10.0: patches/better-sqlite3@12.10.0.patch
+  slate-react@0.126.4: patches/slate-react@0.126.4.patch
 
 onlyBuiltDependencies:
   - "@swc/core"

@@ -49,7 +49,7 @@ function SearchScreen() {
     <SearchPage
       onClose={() => navigator.goBack("ui")}
       onSearch={handleSearch}
-      onPreviewCard={cardId => navigator.push("cardPreview", { cardId })}
+      onPreviewCard={cardId => navigator.push("contentDetail", { cardId })}
       isSearching={isSearching}
     />
   );

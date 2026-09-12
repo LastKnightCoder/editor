@@ -11,6 +11,8 @@ export const Z_INDEX = {
   OVERLAY_SHEET: 50,
   /** BottomSheet/编辑器工具栏/contentLink 弹层，对应原 tailwind z-70 */
   POPOVER: 70,
+  /** 确认对话框/选择面板，叠在弹层之上、Toast 之下 */
+  CONFIRM: 75,
   /** 全局 Toast，对应原 z-[80] */
   TOAST: 80,
   /** 开发面板 */

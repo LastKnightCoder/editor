@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>ActionSheet 重设计 · 方案 B · 夜航玻璃</title>
+<style>
+  /* ═══════════════ 页面外壳（提案说明区，深色底） ═══════════════ */
+  :root {
+    --pg-bg: #101013;
+    --pg-card: #1a1b1f;
+    --pg-line: rgba(255,255,255,.09);
+    --pg-text: #ededf0;
+    --pg-text-2: #9b9ba3;
+    --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: var(--sans);
+    background: var(--pg-bg); color: var(--pg-text);
+    min-height: 100dvh; padding: 28px 22px 60px;
+    display: flex; flex-direction: column; align-items: center; gap: 26px;
+  }
+  header { width: 100%; max-width: 460px; }
+  header h1 { font-size: 22px; font-weight: 800; letter-spacing: -.01em; }
+  header h1 em { font-style: normal; color: #f0a860; }
+  header p { font-size: 13px; color: var(--pg-text-2); margin-top: 8px; line-height: 1.75; }
+  header .tip {
+    margin-top: 12px; border: 1px solid var(--pg-line); border-radius: 14px;
+    padding: 11px 14px; font-size: 12px; color: var(--pg-text-2); line-height: 1.8; background: var(--pg-card);
+  }
+  header .tip b { color: var(--pg-text); font-weight: 650; }
+  .theme-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .theme-dot {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--pg-line); background: var(--pg-card); color: var(--pg-text-2);
+    border-radius: 100px; padding: 7px 13px 7px 8px; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: all .2s;
+  }
+  .theme-dot .sw { width: 16px; height: 16px; border-radius: 50%; display: block; }
+  .theme-dot.on { color: var(--pg-text); border-color: rgba(240,168,96,.6); box-shadow: 0 0 0 3px rgba(240,168,96,.14); }
+
+  /* ═══════════════ 设备壳 + 主题令牌 ═══════════════ */
+  .device {
+    --bg: #f6f1e7; --bg-deep: #efe8da; --card: #fffdf9;
+    --text: #43392c; --text-2: #8b7d6b; --text-3: #b9ac9a;
+    --line: #eae2d1; --line-soft: #f0e9db;
+    --accent: #d97757; --accent-2: #e8896a; --accent-soft: rgba(217,119,87,.12); --on-accent: #fff;
+    --shadow-card: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.22);
+    --grab: #e3d9c6;
+    --rose: #b06a5e; --sky: #5c7d99; --sage: #61795f; --lilac: #8a7aa6; --butter: #a38c4d; --apricot: #b2794b;
+    /* 玻璃面板 */
+    --glass: rgba(255, 253, 249, .72);
+    --glass-strong: rgba(255, 253, 249, .88);
+    --glass-line: rgba(255,255,255,.65);
+    --glass-blur: 26px;
+    --glass-press: rgba(246,241,231,.55);
+    --mask: rgba(40,32,22,.42);
+  }
+  .device[data-theme="midnight"] {
+    --bg: #0e1016; --bg-deep: #0a0c10; --card: #171a22;
+    --text: #edeef1; --text-2: #8e96a5; --text-3: #5b6270;
+    --line: rgba(255,255,255,.07); --line-soft: rgba(255,255,255,.05);
+    --accent: #f0a860; --accent-2: #f5b877; --accent-soft: rgba(240,168,96,.13); --on-accent: #221503;
+    --shadow-card: 0 14px 30px -16px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.04);
+    --grab: rgba(255,255,255,.16);
+    --rose: #f5988a; --sky: #9db9f0; --sage: #7edbb2; --lilac: #c8b3f5; --butter: #e8d487; --apricot: #f0b680;
+    --glass: rgba(23, 26, 34, .66);
+    --glass-strong: rgba(29, 33, 43, .82);
+    --glass-line: rgba(255,255,255,.14);
+    --glass-press: rgba(255,255,255,.07);
+    --mask: rgba(0,0,0,.55);
+  }
+  .device[data-theme="mint"] {
+    --bg: #eef4ee; --bg-deep: #e4ede4; --card: #fbfefb;
+    --text: #2e3d31; --text-2: #71806f; --text-3: #a5b3a3;
+    --line: #dfe9df; --line-soft: #eaf2ea;
+    --accent: #4a9d78; --accent-2: #5cae88; --accent-soft: rgba(74,157,120,.12); --on-accent: #fff;
+    --shadow-card: 0 1px 2px rgba(60,100,70,.05), 0 10px 24px -14px rgba(60,100,70,.25);
+    --grab: #d7e4d8;
+    --rose: #a86e64; --sky: #567f96; --sage: #4a8a62; --lilac: #8378a4; --butter: #9c8d54; --apricot: #a87f52;
+    --glass: rgba(251, 254, 251, .72);
+    --glass-strong: rgba(251, 254, 251, .88);
+    --glass-line: rgba(255,255,255,.7);
+    --glass-press: rgba(238,244,238,.55);
+    --mask: rgba(46,61,49,.4);
+  }
+  .device[data-theme="ocean"] {
+    --bg: #edf2f8; --bg-deep: #e3eaf3; --card: #fcfdff;
+    --text: #2d3644; --text-2: #728096; --text-3: #a6b1c2;
+    --line: #dde5ef; --line-soft: #e9eff7;
+    --accent: #4d7fc4; --accent-2: #5d8fd4; --accent-soft: rgba(77,127,196,.12); --on-accent: #fff;
+    --shadow-card: 0 1px 2px rgba(60,80,120,.06), 0 10px 24px -14px rgba(60,80,120,.25);
+    --grab: #d6e0ee;
+    --rose: #a56677; --sky: #4d6f9e; --sage: #527f63; --lilac: #7f74a8; --butter: #97894e; --apricot: #a3764a;
+    --glass: rgba(252, 253, 255, .72);
+    --glass-strong: rgba(252, 253, 255, .88);
+    --glass-line: rgba(255,255,255,.72);
+    --glass-press: rgba(237,242,248,.55);
+    --mask: rgba(45,54,68,.4);
+  }
+
+  .device {
+    position: relative;
+    width: 402px; height: min(874px, 96vh);
+    background: var(--bg); color: var(--text);
+    border-radius: 48px; overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(60,50,35,.25), 0 30px 80px rgba(0,0,0,.45);
+    transition: background .35s ease;
+    flex-shrink: 0;
+  }
+  @media (max-width: 520px) {
+    body { padding: 0; }
+    header { padding: 20px 18px 0; }
+    .device { width: 100vw; height: 100dvh; border-radius: 0; box-shadow: none; }
+  }
+
+  /* ═══════════════ 背景演示页 ═══════════════ */
+  .screen { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  .demo-topbar { padding: 54px 20px 10px; display: flex; align-items: center; justify-content: space-between; }
+  .demo-topbar h2 { font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+  .demo-list { flex: 1; overflow: hidden; padding: 6px 14px; display: flex; flex-direction: column; gap: 12px; }
+  .demo-card { background: var(--card); border-radius: 20px; padding: 16px; box-shadow: var(--shadow-card); }
+  .demo-card h3 { font-size: 15px; font-weight: 700; }
+  .demo-card p { font-size: 12.5px; color: var(--text-2); margin-top: 5px; line-height: 1.6;
+    overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .demo-card .meta { display: flex; gap: 6px; margin-top: 10px; }
+  .demo-card .tag { font-size: 11px; font-weight: 650; padding: 3px 9px; border-radius: 100px; }
+  .tag.t1 { background: var(--accent-soft); color: var(--accent); }
+  .tag.t2 { background: var(--line-soft); color: var(--text-2); }
+
+  .reopen {
+    position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); z-index: 5;
+    background: var(--accent); color: var(--on-accent); border: none; cursor: pointer;
+    font-size: 14px; font-weight: 700; border-radius: 100px; padding: 12px 26px;
+    box-shadow: 0 10px 24px -8px rgba(0,0,0,.35);
+  }
+
+  /* ═══════════════ 场景切换 chips（页面级，位于手机壳上方） ═══════════════ */
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; width: 100%; max-width: 460px; }
+  .chip {
+    border: 1px solid var(--pg-line); background: var(--pg-card); color: var(--pg-text-2);
+    font-size: 12.5px; font-weight: 650; border-radius: 100px; padding: 8px 14px;
+    cursor: pointer; transition: all .2s; font-family: var(--sans);
+  }
+  .chip.on { color: var(--pg-text); border-color: rgba(240,168,96,.55); background: rgba(240,168,96,.12); }
+
+  /* ═══════════════ ActionSheet 本体 · 方案 B 玻璃浮层 ═══════════════ */
+  .sheet-layer { position: absolute; inset: 0; z-index: 20; visibility: hidden; }
+  .sheet-layer.show { visibility: visible; }
+  .sheet-mask { position: absolute; inset: 0; background: var(--mask); opacity: 0; transition: opacity .28s ease; }
+  .sheet-layer.show .sheet-mask { opacity: 1; }
+
+  .sheet-panel {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
+    backdrop-filter: blur(var(--glass-blur)) saturate(1.6);
+    border-radius: 32px 32px 0 0;
+    box-shadow: 0 -1px 0 var(--glass-line), 0 -22px 50px rgba(0,0,0,.16);
+    transform: translateY(100%);
+    transition: transform .42s cubic-bezier(.32,1.1,.4,1);
+    padding-bottom: 14px;
+  }
+  .sheet-layer.show .sheet-panel { transform: translateY(0); }
+
+  .sheet-grab { width: 42px; height: 5px; border-radius: 3px; background: var(--grab); margin: 10px auto 0; }
+
+  /* 居中小标题帽 */
+  .sheet-cap {
+    text-align: center; padding: 13px 20px 5px;
+    font-size: 12px; font-weight: 700; letter-spacing: .06em; color: var(--text-3);
+  }
+  .sheet-cap b { display: block; font-size: 14.5px; font-weight: 750; letter-spacing: 0; color: var(--text);
+    margin-top: 3px; max-width: 300px; margin-inline: auto;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+  .sheet-body { padding: 8px 12px 0; }
+
+  /* 玻璃操作列表 */
+  .ops-card {
+    background: var(--glass-strong);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+    border-radius: 20px; overflow: hidden;
+    box-shadow: inset 0 1px 0 var(--glass-line), 0 6px 18px -8px rgba(0,0,0,.14);
+  }
+  .op-row {
+    display: flex; align-items: center; gap: 13px; width: 100%;
+    padding: 0 16px; min-height: 52px; border: none; background: none; cursor: pointer;
+    font-family: inherit; text-align: left; transition: background .15s;
+  }
+  .op-row:active { background: var(--glass-press); }
+  .ops-card .op-row + .op-row { border-top: 1px solid var(--line-soft); }
+  .op-ico {
+    width: 31px; height: 31px; border-radius: 50%; flex-shrink: 0;
+    display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .op-ico svg { width: 16px; height: 16px; }
+  .op-row .lbl { font-size: 15px; font-weight: 600; color: var(--text); }
+  .op-row.danger .lbl { color: var(--rose); font-weight: 680; }
+  .op-row.danger .op-ico { background: transparent; color: var(--rose); }
+  .op-row.dgr-tone-sky .op-ico { color: var(--sky); background: transparent; }
+  .op-row.dgr-tone-sage .op-ico { color: var(--sage); background: transparent; }
+  .op-row.dgr-tone-lilac .op-ico { color: var(--lilac); background: transparent; }
+  .op-row.dgr-tone-butter .op-ico { color: var(--butter); background: transparent; }
+  .op-row.dgr-tone-apricot .op-ico { color: var(--apricot); background: transparent; }
+
+  .gap8 { height: 8px; }
+
+  /* 取消：独立玻璃胶囊按钮 */
+  .cancel-card {
+    display: block; width: 100%; min-height: 52px; border: none; cursor: pointer;
+    background: var(--glass-strong);
+    -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+    border-radius: 20px;
+    box-shadow: inset 0 1px 0 var(--glass-line), 0 6px 18px -8px rgba(0,0,0,.14);
+    font-family: inherit; font-size: 15px; font-weight: 720; color: var(--accent);
+    transition: background .15s; margin-top: 10px;
+  }
+  .cancel-card:active { background: var(--glass-press); }
+
+  /* ╱╱ 选择器 ╱╱ */
+  .picker-scroll {
+    background: var(--glass-strong);
+    -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+    border-radius: 20px;
+    box-shadow: inset 0 1px 0 var(--glass-line), 0 6px 18px -8px rgba(0,0,0,.14);
+    max-height: 336px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  }
+  .picker-scroll::-webkit-scrollbar { display: none; }
+  .pick-row {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; min-height: 48px; padding: 0 17px; border: none; background: none; cursor: pointer;
+    font-family: inherit; text-align: left; transition: background .15s;
+  }
+  .pick-row + .pick-row { border-top: 1px solid var(--line-soft); }
+  .pick-row:not(.on):active { background: var(--glass-press); }
+  .pick-row .plbl { font-size: 15px; font-weight: 570; color: var(--text); }
+  .pick-row.on .plbl { color: var(--accent); font-weight: 720; }
+  .radio {
+    width: 21px; height: 21px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid var(--text-3); position: relative; transition: border-color .2s;
+  }
+  .pick-row.on .radio { border-color: var(--accent); }
+  .pick-row.on .radio::after {
+    content: ""; position: absolute; inset: 3.5px; border-radius: 50%; background: var(--accent);
+    animation: dot-pop .25s cubic-bezier(.34,1.56,.5,1);
+  }
+  @keyframes dot-pop { from { transform: scale(0); } to { transform: scale(1); } }
+
+  /* 空态 / 加载态 */
+  .picker-state {
+    background: var(--glass-strong);
+    -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+    border-radius: 20px;
+    box-shadow: inset 0 1px 0 var(--glass-line), 0 6px 18px -8px rgba(0,0,0,.14);
+    padding: 36px 20px; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .picker-state .st-ico {
+    width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .picker-state .st-ico svg { width: 22px; height: 22px; }
+  .picker-state .st-txt { font-size: 13.5px; font-weight: 600; color: var(--text); }
+  .picker-state .st-sub { font-size: 12px; color: var(--text-3); margin-top: -4px; }
+  .spinner {
+    width: 27px; height: 27px; border-radius: 50%;
+    border: 3px solid var(--line-soft); border-top-color: var(--accent);
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>方案 B · <em>夜航玻璃</em></h1>
+  <p>把玄夜主题的玻璃拟态语言推广到全部四主题：全宽磨砂面板 + 顶部高光发丝线 + 同材质独立取消钮。强调「悬浮于内容之上」的通透感，背后页面色彩透过面板隐约可见。</p>
+  <div class="tip">
+    <b>设计要点</b>：① 面板 backdrop-blur 磨砂 + 顶部 1px 高光，与玻璃 Dock 同材质；② 操作行内嵌玻璃子卡，图标用主色柔底圆（危险项玫瑰描边）；③ 取消按钮改为强调色独立胶囊，与 iOS 惯例的灰底区分；④ 选择器用 radio 圆点 + 弹出动画，选中项主色加粗。
+  </div>
+  <div class="theme-row">
+    <button class="theme-dot on" data-t="apricot" onclick="setTheme('apricot',this)"><span class="sw" style="background:#d97757"></span>杏子</button>
+    <button class="theme-dot" data-t="midnight" onclick="setTheme('midnight',this)"><span class="sw" style="background:#f0a860"></span>玄夜</button>
+    <button class="theme-dot" data-t="mint" onclick="setTheme('mint',this)"><span class="sw" style="background:#4a9d78"></span>薄荷</button>
+    <button class="theme-dot" data-t="ocean" onclick="setTheme('ocean',this)"><span class="sw" style="background:#4d7fc4"></span>海盐</button>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<div class="device" id="device" data-theme="apricot">
+  <div class="screen">
+    <div class="demo-topbar">
+      <h2>文章</h2>
+      <span style="font-size:12.5px;color:var(--text-3);font-weight:600">12 篇</span>
+    </div>
+    <div class="demo-list">
+      <div class="demo-card">
+        <h3>深度工作：如何有效使用每一块时间</h3>
+        <p>在无干扰的心流状态下产出高价值成果，需要刻意训练专注肌肉并建立仪式化的开工流程……</p>
+        <div class="meta"><span class="tag t1">置顶</span><span class="tag t2">产品</span></div>
+      </div>
+      <div class="demo-card">
+        <h3>卡片盒笔记法实践记录</h3>
+        <p>闪念卡片与永久卡片的双向转化，是知识库保持活性的关键。每周回顾时重新审视主题卡……</p>
+        <div class="meta"><span class="tag t2">方法</span></div>
+      </div>
+      <div class="demo-card">
+        <h3>移动端信息架构复盘</h3>
+        <p>从导航结构到信息密度，重新梳理五个 Tab 的职责边界，避免功能入口互相侵蚀……</p>
+        <div class="meta"><span class="tag t2">设计</span></div>
+      </div>
+    </div>
+    <button class="reopen" id="reopenBtn" onclick="openSheet()" style="display:none">重新打开面板</button>
+  </div>
+
+  <div class="sheet-layer" id="sheetLayer" onclick="handleMask(event)">
+    <div class="sheet-mask"></div>
+    <div class="sheet-panel">
+      <div class="sheet-grab"></div>
+      <div id="sheetContent"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const I = {
+    star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 3.3 8.9 8.6l-5.8.8 4.2 4.1-1 5.8 5.2-2.7 5.2 2.7-1-5.8 4.2-4.1-5.8-.8z"/></svg>',
+    archive: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1.5"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>',
+    trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9.5 7V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v2"/><path d="M6.5 7l1 12.2a1.5 1.5 0 0 0 1.5 1.3h6a1.5 1.5 0 0 0 1.5-1.3l1-12.2"/><path d="M10 11v6M14 11v6"/></svg>',
+    file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a1.5 1.5 0 0 0-1.5 1.5v15A1.5 1.5 0 0 0 7 21h10a1.5 1.5 0 0 0 1.5-1.5V7.5z"/><path d="M14 3v4.5h4.5M9 13h6M9 16.5h6"/></svg>',
+    eye: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+    branch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="6.5" cy="5" r="2.2"/><circle cx="6.5" cy="19" r="2.2"/><circle cx="17.5" cy="7.5" r="2.2"/><path d="M6.5 7.2v9.6M8.7 5.9c4 .6 6.6 2.4 6.7 5.3.1 2.7-2.2 4.9-5.9 5.7"/></svg>',
+    arrowUp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
+    arrowDown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg>',
+    checkSquare: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12.2l2.4 2.4 4.6-5.2"/></svg>',
+    folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7A1.5 1.5 0 0 1 5 5.5h4l2 2.5h8A1.5 1.5 0 0 1 20.5 9.5V17A1.5 1.5 0 0 1 19 18.5H5A1.5 1.5 0 0 1 3.5 17z"/></svg>',
+    inbox: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 13 6 5.5h12L20.5 13v5A1.5 1.5 0 0 1 19 19.5H5A1.5 1.5 0 0 1 3.5 18z"/><path d="M3.5 13h5l1 2.5h5l1-2.5h5"/></svg>',
+  };
+
+  const SCENES = {
+    article: { name: '文章菜单', cap: ['文章操作', '深度工作：如何有效使用每一块…'], ops: [
+      { ico: 'star', lbl: '置顶' },
+      { ico: 'trash', lbl: '删除文章', danger: true },
+    ]},
+    project: { name: '项目菜单', cap: ['项目操作', '产品设计与研发'], ops: [
+      { ico: 'star', lbl: '置顶' },
+      { ico: 'archive', lbl: '归档项目' },
+      { ico: 'trash', lbl: '删除项目', danger: true },
+    ]},
+    node: { name: '节点菜单', cap: ['节点操作', '需求分析'], ops: [
+      { ico: 'file', lbl: '打开编辑', tone: 'lilac' },
+      { ico: 'trash', lbl: '删除节点', danger: true },
+    ]},
+    todo: { name: '任务操作', cap: ['任务操作', '整理周报'], ops: [
+      { ico: 'eye', lbl: '查看详情', tone: 'sky' },
+      { ico: 'branch', lbl: '新增子任务', tone: 'sage' },
+      { ico: 'arrowUp', lbl: '在上方插入', tone: 'apricot' },
+      { ico: 'arrowDown', lbl: '在下方插入', tone: 'apricot' },
+      { ico: 'trash', lbl: '删除任务', danger: true },
+    ]},
+    create: { name: '新建入口', ops: [
+      { ico: 'checkSquare', lbl: '新建任务', tone: 'sage' },
+      { ico: 'folder', lbl: '新建分组', tone: 'butter' },
+    ]},
+    cardType: { name: '卡片类型', picker: { cap: ['修改卡片类型'], opts: ['闪念','永久','主题','文献'], sel: 1 } },
+    todoType: { name: '任务类型', picker: { cap: ['选择任务类型'], opts: ['普通','截止','计划','周期'], sel: 0 } },
+    reminder: { name: '提醒时间', picker: { cap: ['选择提醒时间'], opts: ['不提醒','准时','5 分钟前','15 分钟前','30 分钟前','1 小时前','1 天前'], sel: 3 } },
+    repoEmpty: { name: '仓库·空态', picker: { cap: ['选择仓库'], state: 'empty' } },
+    repoLoading: { name: '仓库·加载', picker: { cap: ['选择仓库'], state: 'loading' } },
+  };
+
+  const layer = document.getElementById('sheetLayer');
+  const content = document.getElementById('sheetContent');
+  const reopenBtn = document.getElementById('reopenBtn');
+  const chipsBox = document.getElementById('chips');
+  let cur = 'article';
+
+  function renderScene(key) {
+    const s = SCENES[key];
+    let html = '<div class="sheet-body">';
+
+    if (s.cap) {
+      html += `<div class="sheet-cap">${s.cap[0]}${s.cap[1] ? `<b>${s.cap[1]}</b>` : ''}</div>`;
+    }
+
+    if (s.ops) {
+      // 普通操作与危险操作之间隔 8px，分两张玻璃卡
+      const normal = s.ops.filter(o => !o.danger);
+      const danger = s.ops.filter(o => o.danger);
+      html += '<div class="ops-card">';
+      normal.forEach(o => {
+        const toneCls = o.tone ? ` dgr-tone-${o.tone}` : '';
+        html += `<button class="op-row${toneCls}"><span class="op-ico">${I[o.ico]}</span><span class="lbl">${o.lbl}</span></button>`;
+      });
+      html += '</div>';
+      if (danger.length) {
+        html += '<div class="gap8"></div><div class="ops-card">';
+        danger.forEach(o => {
+          html += `<button class="op-row danger"><span class="op-ico">${I[o.ico]}</span><span class="lbl">${o.lbl}</span></button>`;
+        });
+        html += '</div>';
+      }
+    }
+
+    if (s.picker) {
+      const p = s.picker;
+      if (p.cap && !s.cap) html += `<div class="sheet-cap">${p.cap[0]}</div>`;
+      if (p.state === 'loading') {
+        html += `<div class="picker-state"><div class="spinner"></div><div class="st-txt">正在加载仓库…</div><div class="st-sub">从 Github 获取你的仓库列表</div></div>`;
+      } else if (p.state === 'empty') {
+        html += `<div class="picker-state"><div class="st-ico">${I.inbox}</div><div class="st-txt">暂无仓库</div><div class="st-sub">请先在同步设置中连接 Github</div></div>`;
+      } else {
+        html += '<div class="picker-scroll">';
+        p.opts.forEach((o, i) => {
+          html += `<button class="pick-row ${i === p.sel ? 'on' : ''}" onclick="pick(this)"><span class="plbl">${o}</span><span class="radio"></span></button>`;
+        });
+        html += '</div>';
+      }
+    }
+
+    html += '<button class="cancel-card" onclick="closeSheet()">取消</button></div>';
+    content.innerHTML = html;
+  }
+
+  function pick(btn) {
+    const rows = btn.parentElement.querySelectorAll('.pick-row');
+    rows.forEach(r => r.classList.remove('on'));
+    btn.classList.add('on');
+    setTimeout(closeSheet, 260);
+  }
+
+  function openSheet() {
+    layer.classList.add('show');
+    reopenBtn.style.display = 'none';
+  }
+  function closeSheet() {
+    layer.classList.remove('show');
+    setTimeout(() => { reopenBtn.style.display = 'block'; }, 300);
+  }
+  function handleMask(e) {
+    if (e.target.classList.contains('sheet-mask')) closeSheet();
+  }
+  function switchScene(key, btn) {
+    cur = key;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+    btn.classList.add('on');
+    renderScene(key);
+    openSheet();
+  }
+  function setTheme(t, btn) {
+    document.getElementById('device').dataset.theme = t;
+    document.querySelectorAll('.theme-dot').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+  }
+
+  Object.entries(SCENES).forEach(([key, s]) => {
+    const b = document.createElement('button');
+    b.className = 'chip' + (key === cur ? ' on' : '');
+    b.textContent = s.name;
+    b.onclick = () => switchScene(key, b);
+    chipsBox.appendChild(b);
+  });
+
+  renderScene(cur);
+  openSheet();
+</script>
+</body>
+</html>

@@ -10,9 +10,33 @@ function normalizeSetting(setting: SettingCompat): SettingCompat {
   const imageBed = (raw.imageBed ?? {}) as Partial<SettingCompat["imageBed"]>;
   const sync = (raw.sync ?? {}) as Partial<SettingCompat["sync"]>;
   const integration = (raw.integration ?? {}) as Partial<SettingCompat["integration"]>;
+  const appearance = (raw.appearance ?? {}) as NonNullable<SettingCompat["appearance"]>;
+  const rawImage = (appearance.image ?? {}) as {
+    borderRadius?: unknown;
+    shadow?: unknown;
+  };
+  const RADIUS_PRESETS = ["none", "sm", "md", "lg"];
+  const SHADOW_PRESETS = ["none", "sm", "md", "lg"];
+  // 桌面端旧版 shadow 为布尔值，读取时一次性升级为 preset（true→md）
+  const normalizeShadowPreset = (shadow: unknown) => {
+    if (shadow === true) return "md";
+    if (typeof shadow === "string" && SHADOW_PRESETS.includes(shadow)) return shadow;
+    return "none";
+  };
+  const normalizeRadiusPreset = (radius: unknown) => {
+    if (typeof radius === "string" && RADIUS_PRESETS.includes(radius)) return radius;
+    return "none";
+  };
 
   return {
     ...raw,
+    appearance: {
+      ...appearance,
+      image: {
+        borderRadius: normalizeRadiusPreset(rawImage.borderRadius),
+        shadow: normalizeShadowPreset(rawImage.shadow),
+      },
+    },
     database: {
       active: typeof database.active === "string" ? database.active : "data.db",
       databases: Array.isArray(database.databases) ? database.databases : [],
@@ -199,17 +223,31 @@ export function useSyncSettings() {
     }
   );
 
-  return {
-    setting,
-    safeSetting,
-    isSavingSetting,
-    isSyncing,
-    setSetting,
-    updateSetting,
-    loadSetting,
-    persistSetting,
-    runSyncAction,
-  };
+  // 返回值 memo 化：字段不变时引用稳定（函数均经 useMemoizedFn 稳定）
+  return useMemo(
+    () => ({
+      setting,
+      safeSetting,
+      isSavingSetting,
+      isSyncing,
+      setSetting,
+      updateSetting,
+      loadSetting,
+      persistSetting,
+      runSyncAction,
+    }),
+    [
+      setting,
+      safeSetting,
+      isSavingSetting,
+      isSyncing,
+      setSetting,
+      updateSetting,
+      loadSetting,
+      persistSetting,
+      runSyncAction,
+    ]
+  );
 }
 
 export type { SettingWriteResponse };

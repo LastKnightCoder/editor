@@ -1,5 +1,6 @@
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Z_INDEX } from "../router/zIndex";
+import { acquireScrollLock, releaseScrollLock } from "../hooks/useScrollLock";
 import { useMemoizedFn } from "ahooks";
 import {
   buildPanTimeline,
@@ -60,7 +61,8 @@ function canAllowTouchMove(target: EventTarget | null, panel: HTMLElement | null
   return target instanceof Element && target.closest(TOUCHMOVE_ALLOW_SELECTOR) ? true : false;
 }
 
-function shouldIgnorePanDragStart(target: EventTarget | null): boolean {
+/** 供 useSheetDragDismiss 等底部弹层手势复用的拖拽忽略判定 */
+export function shouldIgnorePanDragStart(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) {
     return false;
   }
@@ -358,17 +360,7 @@ export function PanContainer(props: PanContainerProps) {
 
   useEffect(() => {
     if (!shouldRender) return;
-    const bodyStyle = document.body.style;
-    const htmlStyle = document.documentElement.style;
-    const prevBodyOverflow = bodyStyle.overflow;
-    const prevBodyOverscroll = bodyStyle.overscrollBehavior;
-    const prevHtmlOverflow = htmlStyle.overflow;
-    const prevHtmlOverscroll = htmlStyle.overscrollBehavior;
-
-    bodyStyle.overflow = "hidden";
-    bodyStyle.overscrollBehavior = "none";
-    htmlStyle.overflow = "hidden";
-    htmlStyle.overscrollBehavior = "none";
+    acquireScrollLock();
 
     const preventBackgroundTouchMove = (event: TouchEvent) => {
       if (canAllowTouchMove(event.target, panelRef.current)) return;
@@ -381,10 +373,7 @@ export function PanContainer(props: PanContainerProps) {
 
     return () => {
       document.removeEventListener("touchmove", preventBackgroundTouchMove);
-      bodyStyle.overflow = prevBodyOverflow;
-      bodyStyle.overscrollBehavior = prevBodyOverscroll;
-      htmlStyle.overflow = prevHtmlOverflow;
-      htmlStyle.overscrollBehavior = prevHtmlOverscroll;
+      releaseScrollLock();
     };
   }, [shouldRender]);
 
@@ -420,7 +409,7 @@ export function PanContainer(props: PanContainerProps) {
         type="button"
         aria-label="关闭面板"
         className={cn(
-          "absolute inset-0 bg-black/50 dark:bg-black/70",
+          "bg-mask absolute inset-0",
           props.open ? "mask-enter" : "mask-exit",
           props.maskClassName
         )}
@@ -429,8 +418,8 @@ export function PanContainer(props: PanContainerProps) {
       <section
         ref={panelRef}
         className={cn(
-          "absolute inset-x-0 bottom-0 top-0 flex flex-col bg-white dark:bg-neutral-950",
-          activeState === "full" && !isDragging ? "rounded-none" : "rounded-t-2xl",
+          "bg-surface shadow-float absolute inset-x-0 bottom-0 top-0 flex flex-col",
+          activeState === "full" && !isDragging ? "rounded-none" : "rounded-t-[30px]",
           isDragging && "select-none",
           props.containerClassName
         )}

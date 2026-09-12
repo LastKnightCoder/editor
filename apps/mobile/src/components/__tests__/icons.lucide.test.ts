@@ -5,17 +5,16 @@ import { describe, expect, it } from "vitest";
 const projectRoot = process.cwd();
 
 const ICON_FILES = [
-  "src/components/FloatingToolbar.tsx",
-  "src/components/Header.tsx",
-  "src/components/Sidebar.tsx",
+  "src/components/AppDock.tsx",
   "src/features/about/AboutPage.tsx",
   "src/features/cards/CardItem.tsx",
-  "src/features/cards/CardPreviewSheet.tsx",
   "src/features/cards/ContentDetailPage.tsx",
   "src/features/cards/QuickCaptureSheet.tsx",
-  "src/features/home/HomePage.tsx",
+  "src/features/diary/DiaryHomePage.tsx",
+  "src/features/home/HomeDashboard.tsx",
   "src/features/search/SearchPage.tsx",
   "src/features/settings/components/ui.tsx",
+  "src/features/todo/TodoCheck.tsx",
 ];
 
 function readSource(path: string): string {

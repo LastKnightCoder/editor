@@ -10,23 +10,23 @@ import {
   wrapKbd,
   unwrapKbd,
 } from "@tau/editor/src/utils/insertElement";
-import {
-  TEXT_GRADIENT_PRESETS,
-  type TextGradientPresetId,
-} from "@tau/editor/src/constants";
-import { Editor, Element, Range, Transforms, type BaseSelection } from "slate";
+import { TEXT_GRADIENT_PRESETS, type TextGradientPresetId } from "@tau/editor/src/constants";
+import { Editor, Element, Node, Path, Range, Transforms, type BaseSelection } from "slate";
 import { ReactEditor } from "slate-react";
 
 export type MarkActionId = "bold" | "italic" | "strikethrough" | "code";
 export type InlineWrapActionId = "underline" | "link" | "styled-text";
 export type CustomMarkActionId = "color" | "highlight";
-export type UnderlineColor =
-  | "default"
-  | "yellow"
-  | "green"
-  | "blue"
-  | "purple"
-  | "red";
+/** 块级操作：标题 / 列表 / 引用 / 分割线 */
+export type BlockActionId =
+  | "heading-one"
+  | "heading-two"
+  | "heading-three"
+  | "bulleted-list"
+  | "numbered-list"
+  | "quote"
+  | "divider";
+export type UnderlineColor = "default" | "yellow" | "green" | "blue" | "purple" | "red";
 export type UnderlineLineType = "solid" | "dashed" | "dotted" | "wavy";
 export type UnderlineStylePayload = Partial<{
   color: UnderlineColor;
@@ -36,6 +36,7 @@ export type ToolbarActionId =
   | MarkActionId
   | InlineWrapActionId
   | CustomMarkActionId
+  | BlockActionId
   | "kbd"
   | "comment"
   | "content-link";
@@ -96,6 +97,151 @@ export const PRIMARY_ACTIONS: ToolbarActionItem[] = [
   { id: "highlight", label: "高亮" },
 ];
 
+/** 判断块级 id */
+export function isBlockAction(actionId: ToolbarActionId): actionId is BlockActionId {
+  return (
+    actionId === "heading-one" ||
+    actionId === "heading-two" ||
+    actionId === "heading-three" ||
+    actionId === "bulleted-list" ||
+    actionId === "numbered-list" ||
+    actionId === "quote" ||
+    actionId === "divider"
+  );
+}
+
+type TypedElement = Element & { type?: string; level?: number };
+
+/** 可被块级切换直接改写的块：非 void、非列表容器/列表项（列表结构需先解包再改写） */
+function isConvertibleBlock(editor: Editor, node: Node): boolean {
+  if (Editor.isEditor(node) || !Element.isElement(node)) {
+    return false;
+  }
+  if (Editor.isVoid(editor, node)) {
+    return false;
+  }
+  const nodeType = (node as TypedElement).type;
+  return nodeType !== "bulleted-list" && nodeType !== "numbered-list" && nodeType !== "list-item";
+}
+
+function findBlockByType(editor: Editor, type: string): [TypedElement, Path] | null {
+  if (!editor.selection) {
+    return null;
+  }
+  const [entry] = Editor.nodes(editor, {
+    at: editor.selection,
+    match: node =>
+      !Editor.isEditor(node) && Element.isElement(node) && (node as TypedElement).type === type,
+  });
+  return (entry as [TypedElement, Path] | undefined) ?? null;
+}
+
+/** 显式设定标题级别（弹条语义，非 toggle）：level 为 "paragraph" 时把标题块退回段落 */
+export function applyHeaderBlock(editor: Editor, level: 1 | 2 | 3 | "paragraph"): void {
+  const entry = findBlockByType(editor, "header");
+  if (entry) {
+    const [, path] = entry;
+    if (level === "paragraph") {
+      Transforms.setNodes(editor, { type: "paragraph" }, { at: path });
+    } else {
+      Transforms.setNodes(editor, { type: "header", level }, { at: path });
+    }
+    return;
+  }
+  if (level === "paragraph" || !editor.selection) {
+    return;
+  }
+  Transforms.setNodes(
+    editor,
+    { type: "header", level },
+    {
+      at: editor.selection,
+      match: node => isConvertibleBlock(editor, node),
+    }
+  );
+}
+
+/** 切换无序/有序列表：同类型 → 解包回段落；另一类型 → 容器换类型；普通块 → 包成 list-item + 列表 */
+export function toggleListBlock(editor: Editor, listType: "bulleted-list" | "numbered-list"): void {
+  if (!editor.selection) {
+    return;
+  }
+  const isListContainer = (node: Node): node is TypedElement =>
+    !Editor.isEditor(node) &&
+    Element.isElement(node) &&
+    ((node as TypedElement).type === "bulleted-list" ||
+      (node as TypedElement).type === "numbered-list");
+  const [listEntry] = Editor.nodes(editor, {
+    at: editor.selection,
+    match: isListContainer,
+  });
+  if (listEntry) {
+    const [node, path] = listEntry as [TypedElement, Path];
+    if (node.type === listType) {
+      Transforms.unwrapNodes(editor, {
+        match: n =>
+          !Editor.isEditor(n) && Element.isElement(n) && (n as TypedElement).type === "list-item",
+      });
+      Transforms.unwrapNodes(editor, { match: isListContainer });
+    } else {
+      Transforms.setNodes(editor, { type: listType }, { at: path });
+    }
+    return;
+  }
+  Transforms.setNodes(
+    editor,
+    { type: "list-item" },
+    {
+      at: editor.selection,
+      match: node => isConvertibleBlock(editor, node),
+    }
+  );
+  Transforms.wrapNodes(
+    editor,
+    { type: listType, children: [] },
+    {
+      match: node =>
+        !Editor.isEditor(node) &&
+        Element.isElement(node) &&
+        (node as TypedElement).type === "list-item",
+    }
+  );
+}
+
+/** 切换引用块：blockquote 是容器块，关闭时把内部段落提升回父级 */
+export function toggleQuoteBlock(editor: Editor): void {
+  if (!editor.selection) {
+    return;
+  }
+  const entry = findBlockByType(editor, "blockquote");
+  if (entry) {
+    Transforms.unwrapNodes(editor, {
+      match: node =>
+        !Editor.isEditor(node) &&
+        Element.isElement(node) &&
+        (node as TypedElement).type === "blockquote",
+    });
+    return;
+  }
+  Transforms.wrapNodes(
+    editor,
+    { type: "blockquote", children: [] },
+    {
+      at: editor.selection,
+      match: node => isConvertibleBlock(editor, node),
+    }
+  );
+}
+
+/** 在当前块后插入分割线（void 块） */
+export function insertDividerBlock(editor: Editor): void {
+  Transforms.insertNodes(
+    editor,
+    { type: "divide-line", children: [{ type: "formatted", text: "" }] },
+    { select: true }
+  );
+}
+
 export const TEXT_COLOR_OPTIONS: TextColorOption[] = [
   { label: "默认", lightColor: undefined, darkColor: undefined },
   { label: "灰色", lightColor: "#8f959e", darkColor: "#757575" },
@@ -107,14 +253,14 @@ export const TEXT_COLOR_OPTIONS: TextColorOption[] = [
   { label: "紫色", lightColor: "#6425d0", darkColor: "#a472fc" },
 ];
 
-export const TEXT_GRADIENT_OPTIONS: TextGradientOption[] = Object.values(
-  TEXT_GRADIENT_PRESETS,
-).map((preset) => ({
-  label: preset.label,
-  preset: preset.id,
-  previewLight: preset.light,
-  previewDark: preset.dark,
-}));
+export const TEXT_GRADIENT_OPTIONS: TextGradientOption[] = Object.values(TEXT_GRADIENT_PRESETS).map(
+  preset => ({
+    label: preset.label,
+    preset: preset.id,
+    previewLight: preset.light,
+    previewDark: preset.dark,
+  })
+);
 
 export const HIGHLIGHT_OPTIONS: HighlightOption[] = [
   { label: "默认", value: undefined, previewColor: "transparent" },
@@ -141,9 +287,7 @@ export const UNDERLINE_LINE_TYPE_OPTIONS: UnderlineLineTypeOption[] = [
   { label: "波浪", value: "wavy" },
 ];
 
-export function isMarkAction(
-  actionId: ToolbarActionId,
-): actionId is MarkActionId {
+export function isMarkAction(actionId: ToolbarActionId): actionId is MarkActionId {
   return (
     actionId === "bold" ||
     actionId === "italic" ||
@@ -152,19 +296,11 @@ export function isMarkAction(
   );
 }
 
-export function isInlineWrapAction(
-  actionId: ToolbarActionId,
-): actionId is InlineWrapActionId {
-  return (
-    actionId === "underline" ||
-    actionId === "link" ||
-    actionId === "styled-text"
-  );
+export function isInlineWrapAction(actionId: ToolbarActionId): actionId is InlineWrapActionId {
+  return actionId === "underline" || actionId === "link" || actionId === "styled-text";
 }
 
-export function isCustomMarkAction(
-  actionId: ToolbarActionId,
-): actionId is CustomMarkActionId {
+export function isCustomMarkAction(actionId: ToolbarActionId): actionId is CustomMarkActionId {
   return actionId === "color" || actionId === "highlight";
 }
 
@@ -183,7 +319,7 @@ export function isActionSelectionRequired(actionId: ToolbarActionId): boolean {
 
 export function restoreSelectionAndFocus(
   editor: Editor,
-  lastSelection: BaseSelection | null,
+  lastSelection: BaseSelection | null
 ): BaseSelection | null {
   if (!editor.selection) {
     if (lastSelection) {
@@ -192,6 +328,25 @@ export function restoreSelectionAndFocus(
   }
 
   ReactEditor.focus(editor as ReactEditor);
+
+  // Android WebView 可能在 Slate 恢复选区后仍保留工具栏的原生焦点。
+  if (typeof document !== "undefined") {
+    try {
+      const editorElement = ReactEditor.toDOMNode(editor as ReactEditor, editor) as HTMLElement;
+      if (document.activeElement !== editorElement) {
+        editorElement.focus({ preventScroll: true });
+      }
+      if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+        window.requestAnimationFrame(() => {
+          if (editorElement.isConnected && document.activeElement !== editorElement) {
+            editorElement.focus({ preventScroll: true });
+          }
+        });
+      }
+    } catch {
+      // 编辑器尚未挂载到 DOM 时，Slate 焦点恢复仍然有效。
+    }
+  }
   return editor.selection ?? lastSelection;
 }
 
@@ -233,7 +388,7 @@ function hasNodeType(editor: Editor, type: string): boolean {
   }
   const [entry] = Editor.nodes(editor, {
     at: selection,
-    match: (node) =>
+    match: node =>
       !Editor.isEditor(node) &&
       Element.isElement(node) &&
       (node as { type?: string }).type === type,
@@ -263,10 +418,7 @@ export function toggleComment(editor: Editor): void {
   }
 }
 
-export function toggleInlineWrap(
-  editor: Editor,
-  actionId: InlineWrapActionId,
-): void {
+export function toggleInlineWrap(editor: Editor, actionId: InlineWrapActionId): void {
   if (actionId === "underline") {
     if (hasNodeType(editor, "underline")) {
       unwrapUnderline(editor);
@@ -294,16 +446,10 @@ const DEFAULT_LIGHT_COLOR = "#e33a32";
 const DEFAULT_DARK_COLOR = "#fa7873";
 const DEFAULT_HIGHLIGHT = "yellow";
 
-export function applyColorMark(
-  editor: Editor,
-  lightColor?: string,
-  darkColor?: string,
-): void {
+export function applyColorMark(editor: Editor, lightColor?: string, darkColor?: string): void {
   const selection = editor.selection;
   const shouldClearInputMark =
-    !!selection &&
-    !Range.isCollapsed(selection) &&
-    Boolean(lightColor || darkColor);
+    !!selection && !Range.isCollapsed(selection) && Boolean(lightColor || darkColor);
   if (lightColor || darkColor) {
     Editor.removeMark(editor, "textGradient");
     Editor.addMark(editor, "color", lightColor);
@@ -321,13 +467,9 @@ export function applyColorMark(
   }
 }
 
-export function applyGradientMark(
-  editor: Editor,
-  preset?: TextGradientPresetId,
-): void {
+export function applyGradientMark(editor: Editor, preset?: TextGradientPresetId): void {
   const selection = editor.selection;
-  const shouldClearInputMark =
-    !!selection && !Range.isCollapsed(selection) && Boolean(preset);
+  const shouldClearInputMark = !!selection && !Range.isCollapsed(selection) && Boolean(preset);
   if (preset) {
     Editor.removeMark(editor, "color");
     Editor.removeMark(editor, "darkColor");
@@ -343,8 +485,7 @@ export function applyGradientMark(
 
 export function applyHighlightMark(editor: Editor, label?: string): void {
   const selection = editor.selection;
-  const shouldClearInputMark =
-    !!selection && !Range.isCollapsed(selection) && Boolean(label);
+  const shouldClearInputMark = !!selection && !Range.isCollapsed(selection) && Boolean(label);
   if (label) {
     Editor.addMark(editor, "highlight", label);
   } else {
@@ -356,10 +497,7 @@ export function applyHighlightMark(editor: Editor, label?: string): void {
   }
 }
 
-export function applyUnderlineStyle(
-  editor: Editor,
-  payload: UnderlineStylePayload,
-): void {
+export function applyUnderlineStyle(editor: Editor, payload: UnderlineStylePayload): void {
   const selection = editor.selection;
   if (!selection) {
     updateUnderlineLocalStyle(payload);
@@ -369,11 +507,11 @@ export function applyUnderlineStyle(
   const underlineEntries = Array.from(
     Editor.nodes(editor, {
       at: selection,
-      match: (node) =>
+      match: node =>
         !Editor.isEditor(node) &&
         Element.isElement(node) &&
         (node as { type?: string }).type === "underline",
-    }),
+    })
   );
 
   if (underlineEntries.length > 0) {
@@ -390,20 +528,15 @@ export function applyUnderlineStyle(
   collapseSelectionIfExpanded(editor);
 }
 
-export function toggleCustomMark(
-  editor: Editor,
-  actionId: CustomMarkActionId,
-): void {
+export function toggleCustomMark(editor: Editor, actionId: CustomMarkActionId): void {
   const marks = Editor.marks(editor) as Record<string, unknown> | null;
 
   if (actionId === "color") {
-    const active = Boolean(
-      marks?.color || marks?.darkColor || marks?.textGradient,
-    );
+    const active = Boolean(marks?.color || marks?.darkColor || marks?.textGradient);
     applyColorMark(
       editor,
       active ? undefined : DEFAULT_LIGHT_COLOR,
-      active ? undefined : DEFAULT_DARK_COLOR,
+      active ? undefined : DEFAULT_DARK_COLOR
     );
     return;
   }
@@ -419,7 +552,7 @@ export function toggleContentLinkIfActive(editor: Editor): boolean {
   }
   const [activeContentLink] = Editor.nodes(editor, {
     at: selection,
-    match: (node) =>
+    match: node =>
       !Editor.isEditor(node) &&
       Element.isElement(node) &&
       (node as { type?: string }).type === "content-link",
@@ -430,7 +563,7 @@ export function toggleContentLinkIfActive(editor: Editor): boolean {
   Transforms.unwrapNodes(editor, {
     at: selection,
     split: true,
-    match: (node) =>
+    match: node =>
       !Editor.isEditor(node) &&
       Element.isElement(node) &&
       (node as { type?: string }).type === "content-link",
@@ -441,10 +574,7 @@ export function toggleContentLinkIfActive(editor: Editor): boolean {
   return true;
 }
 
-export function isToolbarActionActive(
-  editor: Editor,
-  actionId: ToolbarActionId,
-): boolean {
+export function isToolbarActionActive(editor: Editor, actionId: ToolbarActionId): boolean {
   if (!editor.selection) {
     return false;
   }
@@ -477,6 +607,19 @@ export function isToolbarActionActive(
   }
   if (actionId === "content-link") {
     return hasNodeType(editor, "content-link");
+  }
+  if (isBlockAction(actionId)) {
+    if (actionId === "heading-one" || actionId === "heading-two" || actionId === "heading-three") {
+      const entry = findBlockByType(editor, "header");
+      const level = actionId === "heading-one" ? 1 : actionId === "heading-two" ? 2 : 3;
+      return !!entry && entry[0].level === level;
+    }
+    if (actionId === "bulleted-list" || actionId === "numbered-list") {
+      return hasNodeType(editor, actionId);
+    }
+    if (actionId === "quote") {
+      return hasNodeType(editor, "blockquote");
+    }
   }
   return false;
 }

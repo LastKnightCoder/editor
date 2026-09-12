@@ -150,13 +150,25 @@ export function useCardsQuery() {
     }
   );
 
-  return {
-    cards,
-    totalPages,
-    queryState,
-    isLoadingCards: infiniteQuery.isLoading,
-    setQueryState,
-    refreshCards,
-    patchCardsByContent,
-  };
+  // 返回值 memo 化：字段不变时引用稳定（cards/totalPages 已 memo，回调经 useMemoizedFn）
+  return useMemo(
+    () => ({
+      cards,
+      totalPages,
+      queryState,
+      isLoadingCards: infiniteQuery.isLoading,
+      setQueryState,
+      refreshCards,
+      patchCardsByContent,
+    }),
+    [
+      cards,
+      totalPages,
+      queryState,
+      infiniteQuery.isLoading,
+      setQueryState,
+      refreshCards,
+      patchCardsByContent,
+    ]
+  );
 }

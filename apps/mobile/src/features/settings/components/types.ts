@@ -8,32 +8,32 @@ import type {
   SyncVersionResponse,
 } from "../../../types";
 
-export type SettingModule =
-  | "ai"
-  | "ai-llm-configs"
-  | "ai-llm-usage"
-  | "ai-embedding-api"
-  | "theme"
-  | "about"
-  | "database"
-  | "sync-status-db"
-  | "sync-status-resource"
-  | "integration"
-  | "integration-github"
-  | "integration-s3"
-  | "integration-webdav"
-  | "integration-alioss"
-  | "resource"
-  | "resource-local"
-  | "resource-github"
-  | "resource-alioss"
-  | "resource-s3"
-  | "resource-webdav"
-  | "sync-webdav"
-  | "sync-alioss"
-  | "sync-github"
-  | "sync-s3"
-  | null;
+/** 设置二级模块键：单一事实来源，同时驱动 SettingModule 类型与 settingsModule 页参数校验 */
+export const SETTINGS_MODULE_KEYS = [
+  "sync",
+  "about",
+  "database",
+  "sync-status-db",
+  "sync-status-resource",
+  "integration",
+  "integration-github",
+  "integration-s3",
+  "integration-webdav",
+  "integration-alioss",
+  "resource",
+  "resource-local",
+  "resource-github",
+  "resource-alioss",
+  "resource-s3",
+  "resource-webdav",
+  "sync-webdav",
+  "sync-alioss",
+  "sync-github",
+  "sync-s3",
+] as const;
+
+export type SettingModule = (typeof SETTINGS_MODULE_KEYS)[number] | null;
+export type SettingModuleKey = Exclude<SettingModule, null>;
 
 export type SettingsPageProps = {
   safeSetting: SettingCompat | null;
@@ -44,9 +44,6 @@ export type SettingsPageProps = {
   resourceSyncProgress: ResourceSyncProgress;
   resourceSyncStatusFile: ResourceSyncStatusFile | null;
   isResourceSyncing: boolean;
-  onBack: () => void;
-  activeModule: SettingModule;
-  onActiveModuleChange: (module: SettingModule) => void;
   onSwitchDatabase: (name: string) => Promise<void>;
   onSaveSetting: () => Promise<void>;
   onCheckVersions: () => Promise<SyncVersionResponse>;
@@ -58,6 +55,6 @@ export type SettingsPageProps = {
   onResourceSyncCancel: () => Promise<ResourceSyncActionResponse>;
   updateSetting: (
     updater: (prev: SettingCompat) => SettingCompat,
-    options?: { persist?: boolean },
+    options?: { persist?: boolean }
   ) => void;
 };

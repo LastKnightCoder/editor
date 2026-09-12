@@ -13,7 +13,7 @@
 
 ## 最小示例
 
-```tsx
+```TSX
 <SnapSheet
   open={open}
   state={panelState}

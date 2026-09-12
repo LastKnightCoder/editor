@@ -1,15 +1,29 @@
 import { TodoPage } from "../TodoPage";
 import { useAppContext } from "../../../app/AppContext";
-import { definePage, useNavigator, usePageInstanceContext } from "../../../router";
+import {
+  createPageSchema,
+  definePage,
+  paramBoolean,
+  useNavigator,
+  usePage,
+  usePageInstanceContext,
+} from "../../../router";
+
+const todoSchema = createPageSchema({
+  openCreate: paramBoolean(false),
+});
+type TodoParams = typeof todoSchema.type;
 
 function TodoScreen() {
   const navigator = useNavigator();
   const app = useAppContext();
   const ctx = usePageInstanceContext();
+  const { params } = usePage<TodoParams>();
 
   return (
     <TodoPage
       isVisible={ctx.phase === "active"}
+      autoOpenCreate={params.openCreate}
       onBack={() => navigator.goBack("ui")}
       onOpenDetail={(todoId, groupId) => navigator.push("todoDetail", { todoId, groupId })}
       onError={(error, fallback) => {
@@ -27,6 +41,6 @@ function TodoScreen() {
 export default definePage({
   key: "todo",
   match: "single",
-  params: {},
+  params: todoSchema.schema,
   component: TodoScreen,
 });

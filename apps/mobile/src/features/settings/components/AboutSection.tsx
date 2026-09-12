@@ -15,11 +15,9 @@ const DEFAULT_APP_INFO: AppInfo = {
 
 function InfoItem(props: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-gray-50 px-4 py-3 dark:bg-neutral-900">
-      <p className="text-xs text-gray-400 dark:text-gray-500">{props.label}</p>
-      <p className="mt-1 text-base font-semibold text-gray-800 dark:text-neutral-100">
-        {props.value}
-      </p>
+    <div className="bg-input rounded-2xl px-4 py-3">
+      <p className="text-ink-3 text-xs font-bold">{props.label}</p>
+      <p className="text-ink mt-1 text-base font-bold">{props.value}</p>
     </div>
   );
 }
@@ -35,7 +33,7 @@ export function AboutSection() {
       try {
         const [name, version] = await Promise.all([getName(), getVersion()]);
         if (cancelled) return;
-        setAppInfo((prev) => ({
+        setAppInfo(prev => ({
           ...prev,
           name: name || prev.name,
           version: version || prev.version,
@@ -56,15 +54,10 @@ export function AboutSection() {
 
   return (
     <div className="list-group p-4">
-      <h2 className="mb-3 text-sm font-medium text-gray-700 dark:text-neutral-200">
-        应用信息
-      </h2>
+      <h2 className="text-ink mb-3 text-[15px] font-bold">应用信息</h2>
       <div className="space-y-3">
         <InfoItem label="项目名称" value={appInfo.name} />
-        <InfoItem
-          label="版本号"
-          value={loading ? "读取中..." : appInfo.version}
-        />
+        <InfoItem label="版本号" value={loading ? "读取中..." : appInfo.version} />
         <InfoItem label="作者" value={appInfo.author} />
       </div>
     </div>
