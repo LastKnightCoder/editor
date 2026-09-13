@@ -156,7 +156,10 @@ const SyncSetting = () => {
 
   const getPreviewResource = useMemoizedFn((fileName: string): ResourcePreviewItem | null => {
     const matched = matchResourceByName(resources, fileName);
-    if (matched) {
+    // resources 表记录的是文章引用的图床 URL，而资源同步的对象是本地 resources
+    // 目录的文件；命中远程 URL 时视为未匹配、走本地路径构造，避免缩略图触发
+    // 大批远程图片下载（含 jsdelivr 回源 raw.githubusercontent.com 的不可达链路）
+    if (matched && !/^https?:\/\//i.test(matched.path)) {
       return {
         name: matched.name,
         path: matched.path,
@@ -216,6 +219,8 @@ const SyncSetting = () => {
 
   const onSync = useMemoizedFn(async () => {
     if (isSyncing) return;
+    console.log("[SyncDebug] 点击「同步数据至云端」，开始 upload");
+    const startedAt = Date.now();
     setIsSyncing(true);
     try {
       const res = await upload();
@@ -226,11 +231,13 @@ const SyncSetting = () => {
     } catch (error) {
       message.error("同步失败" + error);
     } finally {
+      console.log(`[SyncDebug] upload 结束，耗时 ${Date.now() - startedAt}ms`);
       setIsSyncing(false);
     }
   });
 
   const handleStartResourceSync = useMemoizedFn(async () => {
+    console.log("[SyncDebug] 点击「资源同步」开始按钮");
     const hasFailedFiles = resourceErrorFiles.length > 0;
     const res = hasFailedFiles ? await retryFailedResourceSync() : await startResourceSync();
     if (res?.ok) {
@@ -304,7 +311,8 @@ const SyncSetting = () => {
       }
       const latest = await loadResources();
       const matched = matchResourceByName(latest, fileName);
-      if (matched) {
+      // 与 getPreviewResource 同规：远程图床 URL 不作为预览源，落到本地路径解析
+      if (matched && !/^https?:\/\//i.test(matched.path)) {
         previewMeta = {
           name: matched.name,
           path: matched.path,

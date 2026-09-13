@@ -72,6 +72,16 @@ const ResourceSyncFileList = ({
     return aKey.localeCompare(bKey);
   });
 
+  // 排查同步 tab 下载风暴：统计列表条目与匹配到远程 URL 的缩略图数量
+  console.log(
+    `[SyncDebug] 资源文件列表渲染: 共 ${entries.length} 条，其中远程 URL 缩略图 ${
+      entries.filter(([name]) => {
+        const matched = getPreviewResource?.(name);
+        return matched?.path?.startsWith("http");
+      }).length
+    } 个`
+  );
+
   const filterMap: Record<FilterKey, (entry: (typeof entries)[number]) => boolean> = {
     all: () => true,
     upload: ([, status]) =>

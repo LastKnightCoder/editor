@@ -28,31 +28,27 @@ interface RemoteResourceConfigContext {
   config: Record<string, string>;
 }
 
-const ensureRemoteResourceConfig =
-  async (): Promise<RemoteResourceConfigContext> => {
-    const sep = await getSep();
-    const configDirPath = await getEditorDir();
-    const configPath = configDirPath + sep + REMOTE_RESOURCE_CONFIG_NAME;
-    if (!(await pathExists(configPath))) {
-      await writeTextFile(configPath, JSON.stringify({}));
-    }
+const ensureRemoteResourceConfig = async (): Promise<RemoteResourceConfigContext> => {
+  const sep = await getSep();
+  const configDirPath = await getEditorDir();
+  const configPath = configDirPath + sep + REMOTE_RESOURCE_CONFIG_NAME;
+  if (!(await pathExists(configPath))) {
+    await writeTextFile(configPath, JSON.stringify({}));
+  }
 
-    let config: Record<string, string> = {};
-    try {
-      const content = await readTextFile(configPath);
-      config = content ? (JSON.parse(content) as Record<string, string>) : {};
-    } catch (e) {
-      console.error("解析远程资源缓存配置失败:", e);
-      config = {};
-    }
+  let config: Record<string, string> = {};
+  try {
+    const content = await readTextFile(configPath);
+    config = content ? (JSON.parse(content) as Record<string, string>) : {};
+  } catch (e) {
+    console.error("解析远程资源缓存配置失败:", e);
+    config = {};
+  }
 
-    return { sep, configDirPath, configPath, config };
-  };
+  return { sep, configDirPath, configPath, config };
+};
 
-const saveRemoteResourceConfig = async (
-  configPath: string,
-  config: Record<string, string>,
-) => {
+const saveRemoteResourceConfig = async (configPath: string, config: Record<string, string>) => {
   await writeTextFile(configPath, JSON.stringify(config));
 };
 
@@ -91,12 +87,7 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
     }
   }
 
-  const {
-    sep,
-    configDirPath,
-    configPath,
-    config: configObj,
-  } = await ensureRemoteResourceConfig();
+  const { sep, configDirPath, configPath, config: configObj } = await ensureRemoteResourceConfig();
 
   if (configObj[url]) {
     if (!(await pathExists(configObj[url]))) {
@@ -116,8 +107,7 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
   // 检查是否是 WebDAV 资源
   const { setting } = useSettingStore.getState();
   const webdavConfig = setting.integration.webdav;
-  const isWebDav =
-    webdavConfig.url && url.startsWith(webdavConfig.url.replace(/\/$/, ""));
+  const isWebDav = webdavConfig.url && url.startsWith(webdavConfig.url.replace(/\/$/, ""));
 
   if (isWebDav) {
     // 使用 WebDAV 下载
@@ -136,6 +126,7 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
     }
   } else {
     console.log("使用普通 HTTP 下载:", url);
+    const downloadStartedAt = Date.now();
     // 使用普通 HTTP 下载
     remoteContent = (await nodeFetch(url, {
       method: "GET",
@@ -148,12 +139,14 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
           }
         : undefined,
     })) as unknown as ArrayBuffer;
+    console.log(
+      `[SyncDebug] 远程图片下载完成: ${remoteContent.byteLength}B，耗时 ${Date.now() - downloadStartedAt}ms，${url}`
+    );
   }
 
   const ext = await getFileExtension(url);
   const cacheKey = await generateCacheKey(url);
-  const resourcePath =
-    resourceDirPath + sep + cacheKey + (ext ? "." + ext : "");
+  const resourcePath = resourceDirPath + sep + cacheKey + (ext ? "." + ext : "");
   await writeBinaryFile(resourcePath, new Uint8Array(remoteContent));
   configObj[url] = resourcePath;
   await saveRemoteResourceConfig(configPath, configObj);
@@ -169,8 +162,7 @@ export const copyFileToLocal = async (file: File, fileName = file.name) => {
   }
   const cacheKey = await generateCacheKey(fileName);
   const ext = await getFileExtension(fileName);
-  const resourcePath =
-    resourceDirPath + sep + cacheKey + (ext ? "." + ext : "");
+  const resourcePath = resourceDirPath + sep + cacheKey + (ext ? "." + ext : "");
   await writeBinaryFile(resourcePath, new Uint8Array(await file.arrayBuffer()));
   const homeDir = await getHomeDir();
   return resourcePath.replace(homeDir, "~");
