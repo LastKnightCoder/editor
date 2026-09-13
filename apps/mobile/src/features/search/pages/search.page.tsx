@@ -7,14 +7,13 @@ import { SearchPage } from "../SearchPage";
 import { useAppContext } from "../../../app/AppContext";
 import * as tauri from "../../../services/tauri";
 import { definePage, useNavigator } from "../../../router";
-import type { CardsOverviewResponse } from "../../../types";
+import type { UnifiedSearchResponse, UnifiedSearchResult } from "../../../types";
 
-const EMPTY_SEARCH_RESULT: CardsOverviewResponse = {
+const EMPTY_SEARCH_RESULT: UnifiedSearchResponse = {
   total: 0,
   page: 1,
   pageSize: 20,
   query: "",
-  category: "",
   searchMode: "none",
   items: [],
 };
@@ -29,11 +28,10 @@ function SearchScreen() {
     const requestSeq = ++requestSeqRef.current;
     setIsSearching(true);
     try {
-      return await tauri.getCardsOverview({
+      return await tauri.searchAllContent({
         page: 1,
-        pageSize: app.cards.queryState.pageSize || 20,
+        pageSize: 20,
         query,
-        category: app.cards.queryState.category,
       });
     } catch (error) {
       app.presentError(error, "搜索失败");
@@ -45,11 +43,50 @@ function SearchScreen() {
     }
   });
 
+  const openResult = (result: UnifiedSearchResult) => {
+    switch (result.type) {
+      case "card":
+        navigator.push("contentDetail", { cardId: result.id });
+        break;
+      case "article":
+        navigator.push("articleEditor", { articleId: result.id });
+        break;
+      case "project-item":
+        navigator.push("projectDocEditor", {
+          itemId: result.id,
+          projectTitle: result.containerTitle ?? "",
+        });
+        break;
+      case "document-item":
+        navigator.push("knowledgeNodeEditor", {
+          itemId: result.id,
+          libraryTitle: result.containerTitle ?? "",
+        });
+        break;
+      case "diary-daily":
+        if (result.contentId) {
+          navigator.push("contentDetail", {
+            contentId: result.contentId,
+            fromDiary: true,
+            diaryDate: {
+              title: result.date ?? result.title,
+              sub: result.containerTitle ?? undefined,
+            },
+          });
+        } else {
+          navigator.push("diaryHome", {});
+        }
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <SearchPage
       onClose={() => navigator.goBack("ui")}
       onSearch={handleSearch}
-      onPreviewCard={cardId => navigator.push("contentDetail", { cardId })}
+      onOpenResult={openResult}
       isSearching={isSearching}
     />
   );

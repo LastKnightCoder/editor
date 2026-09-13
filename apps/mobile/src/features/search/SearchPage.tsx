@@ -2,13 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { Search, SearchX, Trash2 } from "lucide-react";
 import { useSearchHistory } from "../../hooks/useSearchHistory";
 import { useEdgeFade } from "../../hooks/useScrollState";
-import { cardCategoryLabel, cardCategoryTagClass } from "../cards/cardCategory";
-import type { CardsOverviewResponse, CardListItem } from "../../types";
+import type { UnifiedSearchResponse, UnifiedSearchResult } from "../../types";
 
 type SearchPageProps = {
   onClose: () => void;
-  onSearch: (query: string) => Promise<CardsOverviewResponse>;
-  onPreviewCard: (cardId: number) => void;
+  onSearch: (query: string) => Promise<UnifiedSearchResponse>;
+  onOpenResult: (result: UnifiedSearchResult) => void;
   isSearching: boolean;
 };
 
@@ -26,7 +25,15 @@ function relativeTime(ts: number): string {
   return new Date(normalized).toLocaleDateString();
 }
 
-function SearchResultItem({ item, onClick }: { item: CardListItem; onClick: () => void }) {
+const RESULT_TYPE_LABEL: Record<string, string> = {
+  card: "卡片",
+  article: "文章",
+  "project-item": "项目文档",
+  "document-item": "知识库",
+  "diary-daily": "日记",
+};
+
+function SearchResultItem({ item, onClick }: { item: UnifiedSearchResult; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -34,39 +41,31 @@ function SearchResultItem({ item, onClick }: { item: CardListItem; onClick: () =
       className="card w-full p-4 text-left transition-transform duration-200 active:scale-[0.97]"
     >
       <div className="flex items-center gap-2">
-        {item.category && (
-          <span
-            className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold ${cardCategoryTagClass(item.category)}`}
-          >
-            {cardCategoryLabel(item.category)}
+        <span className="bg-accent-soft text-accent inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold">
+          {RESULT_TYPE_LABEL[item.type] ?? item.type}
+        </span>
+        {item.containerTitle && item.type !== "diary-daily" ? (
+          <span className="text-ink-3 max-w-[45%] truncate text-[11.5px]">
+            {item.containerTitle}
           </span>
-        )}
+        ) : null}
         {item.updateTime && (
           <span className="text-ink-3 ml-auto text-[11.5px]">{relativeTime(item.updateTime)}</span>
         )}
       </div>
       <p className="text-ink mt-2 line-clamp-1 text-[14px] font-bold">
-        {item.excerpt?.split("\n")[0] || `卡片 #${item.id}`}
+        {item.title || item.excerpt || `${RESULT_TYPE_LABEL[item.type] ?? "内容"} #${item.id}`}
       </p>
       {item.excerpt && (
         <p className="text-ink-2 mt-1 line-clamp-2 text-[12.5px] leading-relaxed">{item.excerpt}</p>
-      )}
-      {item.tags.length > 0 && (
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
-          {item.tags.slice(0, 3).map(tag => (
-            <span key={tag} className="bg-page text-ink-3 rounded-full px-2.5 py-0.5 text-[11.5px]">
-              {tag}
-            </span>
-          ))}
-        </div>
       )}
     </button>
   );
 }
 
-export function SearchPage({ onClose, onSearch, onPreviewCard, isSearching }: SearchPageProps) {
+export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: SearchPageProps) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<CardsOverviewResponse | null>(null);
+  const [results, setResults] = useState<UnifiedSearchResponse | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   // 请求序号：快速连续搜索时只保留最后一次的结果，防止乱序覆盖
@@ -176,9 +175,9 @@ export function SearchPage({ onClose, onSearch, onPreviewCard, isSearching }: Se
                 </p>
                 {results.items.map(item => (
                   <SearchResultItem
-                    key={item.id}
+                    key={`${item.type}:${item.id}`}
                     item={item}
-                    onClick={() => onPreviewCard(item.id)}
+                    onClick={() => onOpenResult(item)}
                   />
                 ))}
               </div>
@@ -194,7 +193,7 @@ export function SearchPage({ onClose, onSearch, onPreviewCard, isSearching }: Se
         {!hasSearched && history.length === 0 && (
           <div className="py-20 text-center">
             <Search size={34} className="text-ink-3 mx-auto" aria-hidden="true" />
-            <p className="text-ink-3 mt-3 text-sm">输入关键词搜索卡片</p>
+            <p className="text-ink-3 mt-3 text-sm">输入关键词搜索内容</p>
           </div>
         )}
       </div>

@@ -94,6 +94,33 @@ pub struct CardsOverviewResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct UnifiedSearchResult {
+    pub id: i64,
+    #[serde(rename = "type")]
+    pub result_type: String,
+    pub title: String,
+    pub excerpt: String,
+    pub content_id: Option<i64>,
+    pub update_time: i64,
+    pub score: f64,
+    pub date: Option<String>,
+    pub container_id: Option<i64>,
+    pub container_title: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UnifiedSearchResponse {
+    pub total: u64,
+    pub page: u32,
+    pub page_size: u32,
+    pub query: String,
+    pub search_mode: String,
+    pub items: Vec<UnifiedSearchResult>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SyncVersionResponse {
     pub database_name: String,
     pub local_version: u64,

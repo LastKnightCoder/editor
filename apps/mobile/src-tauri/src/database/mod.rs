@@ -312,6 +312,29 @@ pub fn get_cards_overview(
 }
 
 #[tauri::command]
+pub fn search_all_content(
+    app: AppHandle,
+    query: String,
+    page: Option<u32>,
+    page_size: Option<u32>,
+    types: Option<Vec<String>>,
+) -> Result<crate::models::UnifiedSearchResponse, String> {
+    let conn = schema::open_active_database(&app)?;
+    let page = page.unwrap_or(1);
+    let page_size = page_size.unwrap_or(20);
+    let (search_mode, total, items) =
+        search::query_unified_search(&conn, &query, types.as_deref(), page, page_size)?;
+    Ok(crate::models::UnifiedSearchResponse {
+        total,
+        page: page.max(1),
+        page_size: page_size.clamp(1, 100),
+        query: query.trim().to_string(),
+        search_mode,
+        items,
+    })
+}
+
+#[tauri::command]
 pub fn get_card_detail(app: AppHandle, id: i64) -> Result<CardDetailResponse, String> {
     let conn = schema::open_active_database(&app)?;
     query::query_card_detail(&conn, id)
