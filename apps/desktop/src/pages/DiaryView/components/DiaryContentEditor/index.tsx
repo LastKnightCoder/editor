@@ -26,9 +26,9 @@ const DiaryContentEditor = memo(
   }: DiaryContentEditorProps) => {
     const editorRef = useRef<EditorRef | null>(null);
 
+    // 投影回显只回填编辑器；外传会被上层当作用户编辑触发 update-diary-segment 写库（对齐 CardItem 惯例）
     const { throttleHandleEditorContentChange } = useEditContent(contentId, content => {
       editorRef.current?.setEditorValue(content);
-      onContentChange?.(content);
     });
 
     const handleContentChange = useMemoizedFn((value: Descendant[]) => {
