@@ -16,6 +16,38 @@ export function logPerf(scope: string, label: string, ms: number): void {
   console.debug(`[perf] ${scope} ${label} ${ms.toFixed(1)}ms`);
 }
 
+export function logPerfSize(scope: string, label: string, bytes: number): void {
+  if (!isPerfEnabled()) return;
+  console.debug(`[perf] ${scope} ${label} ${(bytes / 1024).toFixed(1)}KB`);
+}
+
+/** 帧采样：durationMs 内统计 rAF 帧间隔，>32ms 视为掉帧；用于量化转场/入场动画期间的卡顿 */
+export function sampleFrames(scope: string, label: string, durationMs = 1500): void {
+  if (!isPerfEnabled()) return;
+  if (typeof requestAnimationFrame !== "function") return;
+  const start = performance.now();
+  let frames = 0;
+  let dropped = 0;
+  let worst = 0;
+  let last = start;
+  const tick = (now: number) => {
+    const delta = now - last;
+    last = now;
+    frames += 1;
+    if (delta > 32) dropped += 1;
+    if (delta > worst) worst = delta;
+    if (now - start < durationMs) {
+      requestAnimationFrame(tick);
+      return;
+    }
+    const avg = (now - start) / Math.max(frames, 1);
+    console.debug(
+      `[perf] ${scope} ${label} frames=${frames} dropped=${dropped} worst=${worst.toFixed(1)}ms avg=${avg.toFixed(1)}ms`
+    );
+  };
+  requestAnimationFrame(tick);
+}
+
 // 主线程长任务监听：转场动画期间的掉帧会以 >50ms 的 longtask 形式暴露
 export function initPerfObservers(): void {
   if (!isPerfEnabled()) return;

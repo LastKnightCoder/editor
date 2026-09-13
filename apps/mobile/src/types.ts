@@ -119,6 +119,12 @@ export interface ArticleListItem {
   count: number;
   createTime: number;
   updateTime: number;
+  /** 后端生成的纯文本摘要（截断）；列表不返回正文，正文走 articleGet */
+  excerpt: string;
+}
+
+/** 文章详情：列表字段 + 正文（articleGet / articleCreate / articleUpdate 的返回类型） */
+export interface ArticleDetail extends ArticleListItem {
   content: Descendant[] | null;
 }
 

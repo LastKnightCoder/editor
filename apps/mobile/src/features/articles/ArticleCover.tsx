@@ -61,6 +61,7 @@ export function ArticleCover({
         <LocalImage
           url={article.bannerBg}
           alt=""
+          thumbnail={variant === "thumb" || variant === "feature"}
           className="absolute inset-0 h-full w-full object-cover"
           style={{ objectPosition: coverObjectPosition(article.bannerPosition) }}
         />

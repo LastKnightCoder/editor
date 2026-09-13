@@ -2,15 +2,14 @@ import { forwardRef, useEffect, useState } from "react";
 import type { SyntheticEvent } from "react";
 import { resolveLocalMediaSource } from "./localMedia";
 
-type LocalImageProps = Omit<
-  React.ImgHTMLAttributes<HTMLImageElement>,
-  "src"
-> & {
+type LocalImageProps = Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> & {
   url: string;
+  /** 列表等小图场景：走后端缩略图通道，避免全尺寸图经 base64 IPC */
+  thumbnail?: boolean;
 };
 
 const LocalImage = forwardRef<HTMLImageElement, LocalImageProps>(
-  ({ url, onError, ...restProps }, ref) => {
+  ({ url, thumbnail = false, onError, ...restProps }, ref) => {
     const [resolvedUrl, setResolvedUrl] = useState(url);
 
     useEffect(() => {
@@ -19,7 +18,7 @@ const LocalImage = forwardRef<HTMLImageElement, LocalImageProps>(
 
       void (async () => {
         try {
-          const nextUrl = await resolveLocalMediaSource(url);
+          const nextUrl = await resolveLocalMediaSource(url, { thumbnail });
           if (!cancelled) {
             setResolvedUrl(nextUrl);
           }
@@ -34,7 +33,7 @@ const LocalImage = forwardRef<HTMLImageElement, LocalImageProps>(
       return () => {
         cancelled = true;
       };
-    }, [url]);
+    }, [url, thumbnail]);
 
     const handleError = (event: SyntheticEvent<HTMLImageElement, Event>) => {
       if (resolvedUrl !== url) {
@@ -44,15 +43,9 @@ const LocalImage = forwardRef<HTMLImageElement, LocalImageProps>(
     };
 
     return (
-      <img
-        ref={ref}
-        src={resolvedUrl || url}
-        loading="lazy"
-        onError={handleError}
-        {...restProps}
-      />
+      <img ref={ref} src={resolvedUrl || url} loading="lazy" onError={handleError} {...restProps} />
     );
-  },
+  }
 );
 
 LocalImage.displayName = "LocalImage";

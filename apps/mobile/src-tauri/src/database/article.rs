@@ -4,8 +4,8 @@ use serde_json::Value;
 use tauri::AppHandle;
 
 use super::common::{
-    db_err, decrement_or_delete_content, insert_content_record, now_millis, parse_json_content,
-    parse_string_array, write_operation,
+    db_err, decrement_or_delete_content, insert_content_record, json_content_plain_text,
+    now_millis, parse_json_content, parse_string_array, write_operation,
 };
 use super::schema;
 
@@ -23,6 +23,17 @@ pub struct ArticleListItem {
     pub count: i64,
     pub create_time: i64,
     pub update_time: i64,
+    /// 列表摘要（纯文本截断）；详情接口同样返回，字段保持一致
+    pub excerpt: String,
+}
+
+/// 文章详情：列表字段 + 正文。列表接口不返回正文（全文 JSON 随列表经 IPC
+/// 全量传输曾是打开列表卡顿的主因），正文由 article_get 按需下发
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArticleDetail {
+    #[serde(flatten)]
+    pub item: ArticleListItem,
     pub content: Option<Value>,
 }
 
@@ -76,7 +87,24 @@ const ARTICLE_SELECT: &str = "
     WHERE a.is_delete = 0
 ";
 
+/// 列表摘要上限：前端卡片只展示前 64/48 字符，120 已留足余量（截断风格与 search.rs 一致）
+const ARTICLE_EXCERPT_MAX_CHARS: usize = 120;
+
+fn article_excerpt(content_raw: Option<String>) -> String {
+    let text = json_content_plain_text(content_raw);
+    let mut excerpt = String::new();
+    for (index, ch) in text.replace('\n', " ").chars().enumerate() {
+        if index >= ARTICLE_EXCERPT_MAX_CHARS {
+            excerpt.push('…');
+            break;
+        }
+        excerpt.push(ch);
+    }
+    excerpt
+}
+
 fn parse_article_row(row: &Row<'_>) -> rusqlite::Result<ArticleListItem> {
+    let content_raw = row.get::<_, Option<String>>(11)?;
     Ok(ArticleListItem {
         id: row.get(0)?,
         title: row.get(1)?,
@@ -89,13 +117,20 @@ fn parse_article_row(row: &Row<'_>) -> rusqlite::Result<ArticleListItem> {
         count: row.get(8)?,
         create_time: row.get(9)?,
         update_time: row.get(10)?,
+        excerpt: article_excerpt(content_raw),
+    })
+}
+
+fn parse_article_detail_row(row: &Row<'_>) -> rusqlite::Result<ArticleDetail> {
+    Ok(ArticleDetail {
+        item: parse_article_row(row)?,
         content: parse_json_content(row.get(11)?),
     })
 }
 
-fn query_article_by_id(conn: &Connection, id: i64) -> Result<Option<ArticleListItem>, String> {
+fn query_article_by_id(conn: &Connection, id: i64) -> Result<Option<ArticleDetail>, String> {
     let sql = format!("{ARTICLE_SELECT} AND a.id = ?1 LIMIT 1");
-    conn.query_row(&sql, params![id], parse_article_row)
+    conn.query_row(&sql, params![id], parse_article_detail_row)
         .optional()
         .map_err(|e| db_err("ARTICLE_QUERY_FAILED", "query article", e))
 }
@@ -105,6 +140,8 @@ pub fn article_list(
     app: AppHandle,
     payload: ArticleListPayload,
 ) -> Result<ArticleListResponse, String> {
+    #[cfg(debug_assertions)]
+    let started = std::time::Instant::now();
     let conn = schema::open_active_database(&app)?;
     let total = conn
         .query_row(
@@ -132,11 +169,19 @@ pub fn article_list(
     for row in rows {
         items.push(row.map_err(|e| db_err("ARTICLE_QUERY_FAILED", "parse article row", e))?);
     }
+    #[cfg(debug_assertions)]
+    eprintln!(
+        "[perf] article_list offset={} items={}/{} {:?}",
+        offset,
+        items.len(),
+        total,
+        started.elapsed()
+    );
     Ok(ArticleListResponse { items, total })
 }
 
 #[tauri::command]
-pub fn article_get(app: AppHandle, payload: ArticleIdPayload) -> Result<ArticleListItem, String> {
+pub fn article_get(app: AppHandle, payload: ArticleIdPayload) -> Result<ArticleDetail, String> {
     let conn = schema::open_active_database(&app)?;
     query_article_by_id(&conn, payload.id)?
         .ok_or_else(|| "ARTICLE_NOT_FOUND: article does not exist".to_string())
@@ -146,7 +191,7 @@ pub fn article_get(app: AppHandle, payload: ArticleIdPayload) -> Result<ArticleL
 pub fn article_create(
     app: AppHandle,
     payload: CreateArticlePayload,
-) -> Result<ArticleListItem, String> {
+) -> Result<ArticleDetail, String> {
     let title = payload.title.trim().to_string();
     if title.is_empty() {
         return Err("ARTICLE_INVALID: title must not be empty".to_string());
@@ -187,13 +232,14 @@ pub fn article_create(
 pub fn article_update(
     app: AppHandle,
     payload: UpdateArticlePayload,
-) -> Result<ArticleListItem, String> {
+) -> Result<ArticleDetail, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction()
         .map_err(|e| db_err("ARTICLE_UPDATE_FAILED", "begin transaction", e))?;
     let current = query_article_by_id(&tx, payload.id)?
-        .ok_or_else(|| "ARTICLE_NOT_FOUND: article does not exist".to_string())?;
+        .ok_or_else(|| "ARTICLE_NOT_FOUND: article does not exist".to_string())?
+        .item;
     let now = now_millis();
     let tags = payload
         .tags

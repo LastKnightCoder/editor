@@ -994,26 +994,185 @@ pub async fn upload_resource(
     result.map_err(format_error)
 }
 
-/// 读取 .editor 内的资源文件并以 base64 返回。
-/// Android 的 asset protocol 存在无法加载图片的官方未决缺陷（tauri#12364），
-/// raw response 亦不可靠（tauri#10573），统一 base64 字符串 + 前端 blob URL
-#[tauri::command]
-pub fn read_resource_bytes(app: AppHandle, path: String) -> Result<String, String> {
-    let app_dir = resolve_app_dir(&app).and_then(|dir| {
+fn resolve_resource_path(app: &AppHandle, path: &str) -> Result<std::path::PathBuf, String> {
+    let app_dir = resolve_app_dir(app).and_then(|dir| {
         dir.canonicalize()
             .map_err(|e| format!("RESOURCE_READ_FAILED: {e}"))
     })?;
-    let canonical = std::path::Path::new(&path)
+    let canonical = std::path::Path::new(path)
         .canonicalize()
         .map_err(|e| format!("RESOURCE_READ_FAILED: 路径无效: {e}"))?;
     if !canonical.starts_with(&app_dir) {
         return Err("RESOURCE_READ_FAILED: 路径超出 .editor 范围".to_string());
     }
-    let bytes = fs::read(&canonical).map_err(|e| format!("RESOURCE_READ_FAILED: 读取失败: {e}"))?;
-    println!(
-        "[read_resource_bytes] {} -> {} bytes",
-        canonical.display(),
-        bytes.len()
-    );
-    Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
+    Ok(canonical)
+}
+
+/// 读取 .editor 内的资源文件并以 base64 返回。
+/// Android 的 asset protocol 存在无法加载图片的官方未决缺陷（tauri#12364），
+/// raw response 亦不可靠（tauri#10573），统一 base64 字符串 + 前端 blob URL。
+/// 大文件读写经 spawn_blocking 离开主线程，避免阻塞其它 IPC
+#[tauri::command]
+pub async fn read_resource_bytes(app: AppHandle, path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let canonical = resolve_resource_path(&app, &path)?;
+        let bytes =
+            fs::read(&canonical).map_err(|e| format!("RESOURCE_READ_FAILED: 读取失败: {e}"))?;
+        Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
+    })
+    .await
+    .map_err(|e| format!("RESOURCE_READ_FAILED: {e}"))?
+}
+
+/// 列表缩略图最长边：覆盖列表小图（76px）与置顶特写卡（全宽），72 质量 webp 约几十 KB，
+/// 相比全尺寸图（实测最大 3.7MB）base64 IPC 负载降两个数量级
+const THUMB_MAX_DIMENSION: u32 = 640;
+pub(crate) const THUMB_SUFFIX: &str = "_thumb.webp";
+const THUMB_SOURCE_EXTENSIONS: [&str; 4] = ["webp", "jpg", "jpeg", "png"];
+
+fn decode_image_rgba(bytes: &[u8]) -> Result<image::RgbaImage, String> {
+    if let Ok(decoded) = image::load_from_memory(bytes) {
+        return Ok(decoded.to_rgba8());
+    }
+    // image crate 只启用了 jpeg/png 特性，webp 走 libwebp 绑定解码
+    let decoded = webp::Decoder::new(bytes)
+        .decode()
+        .ok_or_else(|| "图片解码失败: 不支持的格式".to_string())?;
+    Ok(decoded.to_image().to_rgba8())
+}
+
+fn thumb_path_for(canonical: &Path) -> std::path::PathBuf {
+    let stem = canonical
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("resource");
+    canonical.with_file_name(format!("{stem}{THUMB_SUFFIX}"))
+}
+
+/// 缩略图新鲜度：原图被同名覆盖更新（云同步下发即原地写入）时必须重建
+fn is_thumb_fresh(original: &Path, thumb: &Path) -> bool {
+    let (Ok(original_meta), Ok(thumb_meta)) = (fs::metadata(original), fs::metadata(thumb))
+    else {
+        return false;
+    };
+    match (original_meta.modified(), thumb_meta.modified()) {
+        (Ok(original_mtime), Ok(thumb_mtime)) => thumb_mtime >= original_mtime,
+        _ => false,
+    }
+}
+
+/// 生成缩略图字节；原图已小于缩略图尺寸时返回 None（直接复用原图，不产生多余文件）
+fn build_thumb_bytes(original: &[u8]) -> Result<Option<Vec<u8>>, String> {
+    let rgba = decode_image_rgba(original)?;
+    let (width, height) = rgba.dimensions();
+    if width == 0 || height == 0 {
+        return Err("图片尺寸无效".to_string());
+    }
+    if width <= THUMB_MAX_DIMENSION && height <= THUMB_MAX_DIMENSION {
+        return Ok(None);
+    }
+    let resized = image::imageops::thumbnail(&rgba, THUMB_MAX_DIMENSION, THUMB_MAX_DIMENSION);
+    let encoded =
+        webp::Encoder::from_rgba(resized.as_raw(), resized.width(), resized.height()).encode(72.0);
+    let thumb_bytes = encoded.to_vec();
+    if thumb_bytes.is_empty() {
+        return Err("缩略图编码失败".to_string());
+    }
+    Ok(Some(thumb_bytes))
+}
+
+fn read_thumb_bytes(canonical: &Path) -> Result<Vec<u8>, String> {
+    let thumb_path = thumb_path_for(canonical);
+    if is_thumb_fresh(canonical, &thumb_path) {
+        if let Ok(cached) = fs::read(&thumb_path) {
+            return Ok(cached);
+        }
+    }
+    let original = fs::read(canonical).map_err(|e| format!("RESOURCE_READ_FAILED: 读取失败: {e}"))?;
+    let Some(thumb_bytes) =
+        build_thumb_bytes(&original).map_err(|e| format!("RESOURCE_READ_FAILED: {e}"))?
+    else {
+        return Ok(original);
+    };
+    // 缓存写入失败不阻塞本次返回，下次再生成
+    let _ = fs::write(&thumb_path, &thumb_bytes);
+    Ok(thumb_bytes)
+}
+
+/// 按需生成并读取缩略图：缓存为原文件旁的 <stem>_thumb.webp；
+/// 生成失败时回退原图字节，保证前端无需区分降级路径
+#[tauri::command]
+pub async fn read_resource_thumb(app: AppHandle, path: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let canonical = resolve_resource_path(&app, &path)?;
+        let bytes = read_thumb_bytes(&canonical)?;
+        Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
+    })
+    .await
+    .map_err(|e| format!("RESOURCE_READ_FAILED: {e}"))?
+}
+
+fn collect_thumb_candidates(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_thumb_candidates(&path, out);
+            continue;
+        }
+        let Some(extension) = path.extension().and_then(|e| e.to_str()) else {
+            continue;
+        };
+        if !THUMB_SOURCE_EXTENSIONS.contains(&extension.to_ascii_lowercase().as_str()) {
+            continue;
+        }
+        let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+            continue;
+        };
+        if stem.ends_with("_thumb") || is_thumb_fresh(&path, &thumb_path_for(&path)) {
+            continue;
+        }
+        out.push(path);
+    }
+}
+
+/// 启动后后台补齐缺失的缩略图：全尺寸图解码是重 CPU 操作（实测单张最长 >10s），
+/// 若在列表打开时现场生成会饱和 CPU 拖垮整机帧率；串行 + 延迟启动，让位给首屏
+pub async fn prewarm_resource_thumbs(app: AppHandle) {
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    let generated = tauri::async_runtime::spawn_blocking(move || {
+        let Ok(app_dir) = resolve_app_dir(&app) else {
+            return 0u32;
+        };
+        let mut candidates = Vec::new();
+        collect_thumb_candidates(&app_dir, &mut candidates);
+        let total = candidates.len();
+        let mut generated = 0u32;
+        for path in candidates {
+            let Ok(original) = fs::read(&path) else {
+                continue;
+            };
+            match build_thumb_bytes(&original) {
+                Ok(Some(bytes)) => {
+                    if fs::write(thumb_path_for(&path), &bytes).is_ok() {
+                        generated += 1;
+                    }
+                }
+                Ok(None) => {}
+                Err(error) => {
+                    eprintln!("[thumb-prewarm] 生成失败 {}: {error}", path.display());
+                }
+            }
+        }
+        if total > 0 {
+            eprintln!("[thumb-prewarm] 补齐缩略图 {generated}/{total}");
+        }
+        generated
+    })
+    .await;
+    if let Err(error) = generated {
+        eprintln!("[thumb-prewarm] 后台任务失败: {error}");
+    }
 }
