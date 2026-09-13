@@ -43,8 +43,19 @@ fn version_payload(version: u64) -> Vec<u8> {
         .unwrap_or_else(|_| b"{\"version\":0}".to_vec())
 }
 
+/// WebView IPC（JavaBridge）线程栈很小，同步命令的 async 状态机会捕获
+/// SyncContext、provider 配置等大量变量；胖 future 在该线程按值穿过 tauri
+/// 的 respond 链会栈溢出（SIGSEGV 闪退）。命令只留薄壳，完整流程
+/// 移入 spawn_blocking 的大栈线程执行。
 #[tauri::command]
 pub async fn sync_check_versions(app: AppHandle) -> Result<SyncVersionResponse, String> {
+    let handle = tauri::async_runtime::handle();
+    tauri::async_runtime::spawn_blocking(move || handle.block_on(sync_check_versions_impl(app)))
+        .await
+        .map_err(|err| format!("SYNC_INTERNAL:同步任务异常退出: {err}"))?
+}
+
+async fn sync_check_versions_impl(app: AppHandle) -> Result<SyncVersionResponse, String> {
     let ctx = build_sync_context(&app).map_err(|e| format!("{}:{}", e.code, e.message))?;
     let remote_version = tokio::time::timeout(
         Duration::from_secs(SYNC_CHECK_TIMEOUT_SECS),
@@ -67,6 +78,23 @@ pub async fn sync_check_versions(app: AppHandle) -> Result<SyncVersionResponse, 
 
 #[tauri::command]
 pub async fn sync_upload_database(app: AppHandle) -> SyncActionResponse {
+    let handle = tauri::async_runtime::handle();
+    match tauri::async_runtime::spawn_blocking(move || {
+        handle.block_on(sync_upload_database_impl(app))
+    })
+    .await
+    {
+        Ok(response) => response,
+        Err(err) => response_err(
+            DEFAULT_DB_NAME,
+            0,
+            0,
+            AppError::new("SYNC_INTERNAL", format!("同步任务异常退出: {err}")),
+        ),
+    }
+}
+
+async fn sync_upload_database_impl(app: AppHandle) -> SyncActionResponse {
     let mut ctx = match build_sync_context(&app) {
         Ok(ctx) => ctx,
         Err(error) => {
@@ -305,6 +333,23 @@ fn remove_wal_shm_files(db_path: &PathBuf) {
 
 #[tauri::command]
 pub async fn sync_download_database(app: AppHandle) -> SyncActionResponse {
+    let handle = tauri::async_runtime::handle();
+    match tauri::async_runtime::spawn_blocking(move || {
+        handle.block_on(sync_download_database_impl(app))
+    })
+    .await
+    {
+        Ok(response) => response,
+        Err(err) => response_err(
+            DEFAULT_DB_NAME,
+            0,
+            0,
+            AppError::new("SYNC_INTERNAL", format!("同步任务异常退出: {err}")),
+        ),
+    }
+}
+
+async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
     let mut ctx = match build_sync_context(&app) {
         Ok(ctx) => ctx,
         Err(error) => {

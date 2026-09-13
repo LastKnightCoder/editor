@@ -10,7 +10,8 @@ use crate::sync::common::{
     file_name_from_path, normalize_remote_path, preview_text, strip_base_prefix, RESOURCE_PREFIX,
 };
 use crate::sync::context::AliOssConfig;
-use crate::sync::error::{run_sync_policy, AppError};
+use crate::network_policy::NetworkPolicy;
+use crate::sync::error::{run_sync_policy, run_sync_policy_with, AppError};
 
 fn oss_object_path(path_prefix: &str, object_name: &str) -> String {
     let base = path_prefix.trim().trim_matches('/');
@@ -114,11 +115,12 @@ pub(crate) async fn alioss_download(
     let url = build_oss_url(config, &object_path);
 
     let client = reqwest::Client::new();
-    run_sync_policy(
+    run_sync_policy_with(
         "alioss",
         "download_object",
         "SYNC_DOWNLOAD_FAILED",
         "AliOSS 下载",
+        NetworkPolicy::for_payload(None),
         |_| async {
             let resp = client
                 .get(&url)
@@ -171,11 +173,12 @@ pub(crate) async fn alioss_upload(
     let url = build_oss_url(config, &object_path);
 
     let client = reqwest::Client::new();
-    run_sync_policy(
+    run_sync_policy_with(
         "alioss",
         "upload_object",
         "SYNC_UPLOAD_FAILED",
         "AliOSS 上传",
+        NetworkPolicy::for_payload(Some(content.len())),
         |_| async {
             let resp = client
                 .put(&url)
