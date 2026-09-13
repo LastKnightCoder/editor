@@ -96,7 +96,6 @@ function ArticleEditorScreen() {
           await tauri.articleUpdate({ id: params.articleId, tags: next });
           invalidate();
         }}
-        persistentToolbar
         coverSlot={<ArticleCover article={article} variant="hero" />}
         onTitleCommit={title => {
           tauri

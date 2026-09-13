@@ -78,8 +78,6 @@ type ContentDetailPageProps = {
   coverSlot?: ReactNode;
   /** 编辑器下方插槽（如知识库的关联面板） */
   belowEditor?: ReactNode;
-  /** 工具条吸底常显（默认编辑态的页面开启；卡片原行为保持聚焦才出现） */
-  persistentToolbar?: boolean;
   /** 外部刷新信号（页面 onResume 等），变化时强制重拉详情（双向关联由对侧写入时本页无感知） */
   refreshKey?: number;
   /** 该内容已绑定协作房间：原地切换为协作编辑（云端 Y.Doc 为唯一真相源），
@@ -538,7 +536,6 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
       )}
       <MobileEditorBottomToolbar
         controller={toolbarController}
-        persistent={props.persistentToolbar}
         portalContainer={pageRootEl}
         readonly={toolbarReadonly}
       />
