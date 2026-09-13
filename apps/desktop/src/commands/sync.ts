@@ -17,9 +17,7 @@ import {
 } from "@/commands";
 
 import useSettingStore from "@/stores/useSettingStore.ts";
-import useGlobalStateStore, {
-  DatabaseConnectionStatus,
-} from "@/stores/useGlobalStateStore";
+import useGlobalStateStore, { DatabaseConnectionStatus } from "@/stores/useGlobalStateStore";
 import { SyncProviderFactory } from "@/utils/sync";
 import type { IDatabaseInfo } from "@/types/sync";
 
@@ -28,19 +26,12 @@ interface SyncCommandOptions {
   skipReconnectAfterSuccess?: boolean;
 }
 
-const emitProgress = (
-  options: SyncCommandOptions | undefined,
-  value: number,
-  status: string,
-) => {
+const emitProgress = (options: SyncCommandOptions | undefined, value: number, status: string) => {
   options?.onProgress?.({ value, status });
 };
 
-const setDatabaseConnectionStatus = (
-  databaseName: string,
-  status: DatabaseConnectionStatus,
-) => {
-  useGlobalStateStore.setState((state) => ({
+const setDatabaseConnectionStatus = (databaseName: string, status: DatabaseConnectionStatus) => {
+  useGlobalStateStore.setState(state => ({
     databaseStatus: {
       ...state.databaseStatus,
       [databaseName]: status,
@@ -51,7 +42,7 @@ const setDatabaseConnectionStatus = (
 const reconnectAfterSync = async (
   databaseName: string,
   source: DatabaseConnectSource,
-  options?: { mode?: "fast" | "maintenance" },
+  options?: { mode?: "fast" | "maintenance" }
 ) => {
   if (options?.mode === "maintenance") {
     await connectDatabaseByName(databaseName, {
@@ -82,9 +73,7 @@ const reconnectAfterSync = async (
   }
 };
 
-export const getDatabasePath = async (
-  databaseName: string,
-): Promise<string> => {
+export const getDatabasePath = async (databaseName: string): Promise<string> => {
   try {
     return await invoke("get-database-path", databaseName);
   } catch (e) {
@@ -99,10 +88,9 @@ export const upload = async (options?: SyncCommandOptions) => {
     return false;
   }
 
-  const { active: databaseName, databases } =
-    useSettingStore.getState().setting.database;
+  const { active: databaseName, databases } = useSettingStore.getState().setting.database;
 
-  const database = databases.find((item) => item.name === databaseName);
+  const database = databases.find(item => item.name === databaseName);
   if (!database) return false;
   const { version: currentVersion } = database;
 
@@ -115,12 +103,18 @@ export const upload = async (options?: SyncCommandOptions) => {
 
   emitProgress(options, 5, "正在准备同步...");
 
+  // 排查同步卡死：各阶段打点，观察是否被并发的 node-fetch 请求排队阻塞
+  const debugStartedAt = Date.now();
+  const debugLog = (stage: string) =>
+    console.log(`[SyncDebug] upload 阶段 ${stage}，已耗时 ${Date.now() - debugStartedAt}ms`);
+
   setDatabaseConnectionStatus(databaseName, "reconnecting");
   await closeDatabase(databaseName);
+  debugLog("closeDatabase 完成");
   emitProgress(options, 15, "正在关闭数据库连接...");
 
-  const { databaseInfoObjectName, databaseInfo } =
-    await getOriginDatabaseInfo();
+  const { databaseInfoObjectName, databaseInfo } = await getOriginDatabaseInfo();
+  debugLog("getOriginDatabaseInfo 完成");
   emitProgress(options, 25, "正在校验远程数据库版本...");
 
   const originVersion = Number(databaseInfo.version || 0);
@@ -146,8 +140,10 @@ export const upload = async (options?: SyncCommandOptions) => {
     // 上传数据库文件
     emitProgress(options, 40, "正在上传数据库文件...");
     const contents = await readBinaryFile(databasePath);
+    debugLog("readBinaryFile 完成");
     const dataObjectName = databaseName;
     const dataSuccess = await syncProvider.uploadFile(dataObjectName, contents);
+    debugLog("上传数据库文件完成");
 
     if (!dataSuccess) {
       message.error("上传数据库文件失败");
@@ -158,7 +154,7 @@ export const upload = async (options?: SyncCommandOptions) => {
     emitProgress(options, 75, "正在上传版本信息...");
     const infoSuccess = await syncProvider.uploadFile(
       databaseInfoObjectName,
-      textEncoder.encode(JSON.stringify(newDatabaseInfo)),
+      textEncoder.encode(JSON.stringify(newDatabaseInfo))
     );
     if (!infoSuccess) {
       message.error("上传数据库信息失败");
@@ -167,11 +163,11 @@ export const upload = async (options?: SyncCommandOptions) => {
 
     emitProgress(options, 90, "正在更新本地版本记录...");
     useSettingStore.setState(
-      produce(useSettingStore.getState(), (draft) => {
+      produce(useSettingStore.getState(), draft => {
         const databases = draft.setting.database.databases;
-        const index = databases.findIndex((item) => item.name === databaseName);
+        const index = databases.findIndex(item => item.name === databaseName);
         databases[index].version = currentVersion + 1;
-      }),
+      })
     );
 
     emitProgress(options, 100, "同步完成");
@@ -191,10 +187,9 @@ export const download = async (options?: SyncCommandOptions) => {
     return false;
   }
 
-  const { active: databaseName, databases } =
-    useSettingStore.getState().setting.database;
+  const { active: databaseName, databases } = useSettingStore.getState().setting.database;
 
-  const database = databases.find((item) => item.name === databaseName);
+  const database = databases.find(item => item.name === databaseName);
   if (!database) return false;
   const { version: currentVersion } = database;
 
@@ -227,11 +222,7 @@ export const download = async (options?: SyncCommandOptions) => {
 
     const sep = await getSep();
     // 在覆盖本地文件之前，先备份一下，加上时间
-    const backupDir = databasePath
-      .split(sep)
-      .slice(0, -1)
-      .concat("backup")
-      .join(sep);
+    const backupDir = databasePath.split(sep).slice(0, -1).concat("backup").join(sep);
     if (!(await pathExists(backupDir))) {
       await createDir(backupDir);
     }
@@ -279,13 +270,11 @@ export const download = async (options?: SyncCommandOptions) => {
 
     if (isSuccessful) {
       useSettingStore.setState(
-        produce(useSettingStore.getState(), (draft) => {
+        produce(useSettingStore.getState(), draft => {
           const databases = draft.setting.database.databases;
-          const index = databases.findIndex(
-            (item) => item.name === databaseName,
-          );
+          const index = databases.findIndex(item => item.name === databaseName);
           databases[index].version = originVersion;
-        }),
+        })
       );
       emitProgress(options, 100, "下载完成");
     } else {
@@ -294,9 +283,7 @@ export const download = async (options?: SyncCommandOptions) => {
         const dataContent = await readBinaryFile(backupPath);
         await writeBinaryFile(databasePath, dataContent);
       } catch (e) {
-        message.error(
-          "恢复数据库文件失败，当前数据库文件可能存在损坏，可从备份文件夹手动备份",
-        );
+        message.error("恢复数据库文件失败，当前数据库文件可能存在损坏，可从备份文件夹手动备份");
       }
     }
 
@@ -335,9 +322,7 @@ export const getOriginDatabaseInfo = async () => {
 
   if (syncProvider) {
     try {
-      isDatabaseInfoExist = await syncProvider.fileExists(
-        databaseInfoObjectName,
-      );
+      isDatabaseInfoExist = await syncProvider.fileExists(databaseInfoObjectName);
       if (isDatabaseInfoExist) {
         const content = await syncProvider.downloadFile(databaseInfoObjectName);
         const textDecoder = new TextDecoder();
