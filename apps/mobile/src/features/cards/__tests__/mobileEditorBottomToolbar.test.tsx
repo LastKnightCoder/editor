@@ -121,7 +121,7 @@ describe("MobileEditorBottomToolbar", () => {
     vi.restoreAllMocks();
   });
 
-  it("默认仅聚焦时渲染；persistent 时常驻吸底", () => {
+  it("仅编辑器聚焦时渲染，失焦收起", () => {
     const blurController = createController({ isEditorFocused: false });
     act(() => {
       root.render(<MobileEditorBottomToolbar controller={blurController} />);
@@ -129,7 +129,7 @@ describe("MobileEditorBottomToolbar", () => {
     expect(document.querySelector("nav")).toBeNull();
 
     act(() => {
-      root.render(<MobileEditorBottomToolbar controller={blurController} persistent />);
+      root.render(<MobileEditorBottomToolbar controller={createController()} />);
     });
     const toolbar = document.querySelector("nav");
     expect(toolbar).toBeTruthy();
@@ -137,12 +137,12 @@ describe("MobileEditorBottomToolbar", () => {
     expect(toolbar?.getAttribute("style")?.includes("var(--kb-height")).toBe(true);
   });
 
-  it("协作只读态下 persistent（编辑页常驻）也不渲染工具栏", () => {
-    // 只读编辑器渲染为 contentEditable=false，点击无法聚焦，故真实路径是 persistent
-    // （文章/知识库/项目文档编辑页常驻工具栏），不是聚焦
-    const controller = createController({ isEditorFocused: false });
+  it("协作只读态下即使聚焦也收起工具栏", () => {
+    // 只读编辑器渲染为 contentEditable=false，点击无法聚焦；真实路径是只读会话
+    // 尚未解除但编辑器残留聚焦态（如冻结瞬间），须显式抑制
+    const controller = createController();
     act(() => {
-      root.render(<MobileEditorBottomToolbar controller={controller} persistent readonly />);
+      root.render(<MobileEditorBottomToolbar controller={controller} readonly />);
     });
     expect(document.querySelector("nav")).toBeNull();
     expect(
@@ -151,7 +151,7 @@ describe("MobileEditorBottomToolbar", () => {
 
     // 只读解除后恢复显示（会话重回 active）
     act(() => {
-      root.render(<MobileEditorBottomToolbar controller={controller} persistent />);
+      root.render(<MobileEditorBottomToolbar controller={controller} />);
     });
     expect(document.querySelector("nav")).toBeTruthy();
   });
@@ -171,21 +171,21 @@ describe("MobileEditorBottomToolbar", () => {
 
   it("可见时写入滚动遮挡高度，隐藏时清除", () => {
     const occlusionVar = "--mobile-editor-toolbar-occlusion";
-    const controller = createController({ isEditorFocused: false });
+    const blurController = createController({ isEditorFocused: false });
 
     act(() => {
-      root.render(<MobileEditorBottomToolbar controller={controller} />);
+      root.render(<MobileEditorBottomToolbar controller={blurController} />);
     });
     expect(document.documentElement.style.getPropertyValue(occlusionVar)).toBe("");
 
     act(() => {
-      root.render(<MobileEditorBottomToolbar controller={controller} persistent />);
+      root.render(<MobileEditorBottomToolbar controller={createController()} />);
     });
     // jsdom 无布局高度，走 46px 兜底 + 12px 间距
     expect(document.documentElement.style.getPropertyValue(occlusionVar)).toBe("58px");
 
     act(() => {
-      root.render(<MobileEditorBottomToolbar controller={controller} />);
+      root.render(<MobileEditorBottomToolbar controller={blurController} />);
     });
     expect(document.documentElement.style.getPropertyValue(occlusionVar)).toBe("");
   });

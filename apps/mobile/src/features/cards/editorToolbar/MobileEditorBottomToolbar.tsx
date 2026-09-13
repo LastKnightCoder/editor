@@ -74,11 +74,6 @@ type ToolbarButtonId = ToolbarActionId | "heading" | "image" | "insert";
 type MobileEditorBottomToolbarProps = {
   controller: MobileEditorToolbarController;
   /**
-   * 吸底常显模式：编辑页常驻底部（键盘弹起时贴键盘上沿）。
-   * 默认 false 保持旧行为——仅编辑器聚焦时出现，供快速记录等浮层使用。
-   */
-  persistent?: boolean;
-  /**
    * 浮层挂载点：默认挂到 document.body（浮层型宿主，如 QuickCaptureSheet）。
    * 页面型宿主传入页面根容器，使工具栏随页面转场动画一起平移、退场，
    * 避免返回时工具栏滞留在上一页之上。
@@ -86,7 +81,7 @@ type MobileEditorBottomToolbarProps = {
   portalContainer?: HTMLElement | null;
   /**
    * 编辑器当前只读（协作会话冻结/结束、跨端降级等）：只读时工具栏不可用且无意义，
-   * 强制收起（只读编辑器仍可获得焦点，须显式抑制，不能只依赖 persistent/isEditorFocused）。
+   * 强制收起（只读编辑器仍可获得焦点，须显式抑制，不能只依赖 isEditorFocused）。
    */
   readonly?: boolean;
 };
@@ -220,7 +215,7 @@ const TOOLBAR_BOTTOM_GAP = 12;
 const TOOLBAR_FALLBACK_HEIGHT = 46;
 
 export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps) {
-  const { controller, persistent = false, portalContainer, readonly = false } = props;
+  const { controller, portalContainer, readonly = false } = props;
 
   const portalRoot = portalContainer ?? (typeof document === "undefined" ? null : document.body);
 
@@ -236,7 +231,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     readUnderlinePaletteState()
   );
 
-  const showToolbar = !readonly && (persistent || controller.isEditorFocused);
+  const showToolbar = !readonly && controller.isEditorFocused;
   const toolbarRef = useRef<HTMLElement | null>(null);
 
   // 工具条可见时把自身占位高度写到根变量，所在页面的滚动容器据此留白；隐藏时不占位

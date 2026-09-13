@@ -142,7 +142,6 @@ function KnowledgeNodeEditorScreen() {
               }
             : undefined
         }
-        persistentToolbar
         onTitleCommit={title => {
           tauri
             .documentItemUpdate({ id: params.itemId, title })

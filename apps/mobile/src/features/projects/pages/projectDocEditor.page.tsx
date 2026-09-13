@@ -136,7 +136,6 @@ function ProjectDocEditorScreen() {
               }
             : undefined
         }
-        persistentToolbar
         onTitleCommit={title => {
           tauri
             .projectItemUpdate({ id: params.itemId, title })

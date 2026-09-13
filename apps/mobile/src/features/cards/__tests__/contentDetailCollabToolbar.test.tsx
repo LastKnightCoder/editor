@@ -123,13 +123,12 @@ describe("ContentDetailPage 协作态的底部工具条", () => {
     document.documentElement.style.removeProperty("--mobile-editor-toolbar-occlusion");
   });
 
-  async function renderCollabDetail(options?: { persistentToolbar?: boolean }) {
+  async function renderCollabDetail() {
     await act(async () => {
       root.render(
         <ContentDetailPage
           contentId={1}
           contentTitle="卡片"
-          persistentToolbar={options?.persistentToolbar}
           collaboration={{ documentId: "doc-1" }}
           onBack={vi.fn()}
         />
@@ -186,12 +185,5 @@ describe("ContentDetailPage 协作态的底部工具条", () => {
     await renderCollabDetail();
     await focusCollabEditor();
     expect(document.querySelector(TOOLBAR_SELECTOR)).toBeNull();
-  });
-
-  it("常显工具条的宿主（文章 / 知识库 / 项目文档）无需聚焦即可渲染工具条", async () => {
-    await renderCollabDetail({ persistentToolbar: true });
-    const toolbar = document.querySelector(TOOLBAR_SELECTOR);
-    expect(toolbar).not.toBeNull();
-    expect(toolbar?.querySelector('[aria-label="加粗"]')).not.toBeNull();
   });
 });
