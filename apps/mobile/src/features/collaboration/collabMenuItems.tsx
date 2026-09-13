@@ -3,6 +3,7 @@
 import { UserCheck, UserPlus } from "lucide-react";
 import type { ActionSheetItem } from "../../components/ActionSheet";
 import type { CollaborationBinding } from "../../types";
+import { CollabTrailingStatus } from "./CollabTrailingStatus";
 
 export function collabMenuItems(options: {
   contentId?: number | null;
@@ -17,6 +18,7 @@ export function collabMenuItems(options: {
         label: "查看协作",
         icon: <UserCheck size={18} />,
         tone: "apricot",
+        trailing: <CollabTrailingStatus documentId={binding.documentId} />,
         onClick: () => options.onOpenBinding(binding.documentId),
       },
     ];
