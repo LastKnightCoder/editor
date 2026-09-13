@@ -66,9 +66,10 @@ export function CardsLibraryPage(props: CardsLibraryPageProps) {
         ref={scrollRef}
         className="edge-fade-scroll dock-pad scrollbar-hide flex-1 overflow-y-auto overscroll-y-contain"
       >
-        <div ref={contentRef}>
+        {/* padding 放在滚动容器外的包裹层，筛选 chip 滚动时不会贴到屏幕边缘（对齐日记页） */}
+        <div ref={contentRef} className="px-[18px]">
           <nav
-            className="scrollbar-hide mt-3 flex gap-2 overflow-x-auto px-[18px] pb-3 pt-0.5"
+            className="scrollbar-hide mt-3 flex gap-2 overflow-x-auto pb-3 pt-0.5"
             aria-label="卡片分类筛选"
           >
             {CATEGORY_CHIPS.map(chip => {
@@ -90,20 +91,18 @@ export function CardsLibraryPage(props: CardsLibraryPageProps) {
             })}
           </nav>
 
-          <div className="px-[18px]">
-            <CardsPage
-              cards={props.cards}
-              queryState={props.queryState}
-              totalPages={props.totalPages}
-              isLoadingCards={props.isLoadingCards}
-              isPreviewOpen={props.isPreviewOpen}
-              onPreviewCard={props.onPreviewCard}
-              setQueryState={props.setQueryState}
-              refreshCards={props.refreshCards}
-              scrollContainerRef={scrollRef}
-              scrollContentRef={contentRef}
-            />
-          </div>
+          <CardsPage
+            cards={props.cards}
+            queryState={props.queryState}
+            totalPages={props.totalPages}
+            isLoadingCards={props.isLoadingCards}
+            isPreviewOpen={props.isPreviewOpen}
+            onPreviewCard={props.onPreviewCard}
+            setQueryState={props.setQueryState}
+            refreshCards={props.refreshCards}
+            scrollContainerRef={scrollRef}
+            scrollContentRef={contentRef}
+          />
         </div>
       </div>
     </div>
