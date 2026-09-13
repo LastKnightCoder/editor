@@ -1,11 +1,24 @@
 # 跨端架构方案：命令/能力分离与 Web 版适配
 
-> 状态：设计稿（本文档只描述目标架构与迁移路线，不伴随代码变更）
-> 背景：渲染进程 IPC 已全面 HTTP 化（`/rpc/invoke` + WS `/rpc-events`），为迁移 Web 版铺平了管道。本文回答两个问题：当前 IPC 归拢到了什么程度；Web 版应该如何适配。
+> 状态：设计稿（platform 层与契约层部分已落地；§1 现状梳理描述的 HTTP 化管道已于 2026-09-13 还原为原生 IPC，仅作存档）
+> 背景：渲染进程 IPC 曾全面 HTTP 化（`/rpc/invoke` + WS `/rpc-events`）为迁移 Web 版铺路；现已回退——Web 版改为「Web Server 逐接口承接」路线（见 §5.2 与文末实施状态 2026-09-13 记录），本文 §2 起的 platform/契约/能力矩阵设计仍然有效。
 
 ## 1. 现状梳理：调用已收口，channel 未收口
 
-### 1.1 当前调用链（已 100% 归拢）
+> **2026-09-13 更新**：渲染层已还原原生 Electron IPC——preload 直接暴露 `invoke/send/on/off`，主进程拆除 ipc-registry patch、`/rpc/invoke` 路由与 `/rpc-events` 事件广播（详见文末实施状态）。当前实际调用链：
+>
+> ```
+> 业务代码
+>   → src/commands/*（按领域封装）
+>   → src/electron.ts（渲染进程唯一网关：invoke / send / on / off，
+>       invoke 内置 No-handler 启动竞态重试）
+>   → preload bridge（contextBridge 暴露 ipcRenderer）
+>   → ipcMain.handle（原生通道，modules/ 下注册）
+> ```
+>
+> 以下 1.1 的 HTTP 链路描述为还原前存档。
+
+### 1.1 还原前的调用链（存档）
 
 ```
 业务代码
@@ -266,6 +279,13 @@ command-registry.ts（中立，零 electron 依赖）
 | **B. 契约集中化**      | 建 `@tau/contracts`；新 channel 全走契约，存量按模块渐进迁移；dev 启动对账报告                                                                                                                                                | A（可并行） | 编译期类型 + 对账清单归零                                                               |
 | **C. 中立注册表**      | `command-registry` 去 electron 化；handler ctx 化（sender 依赖收口）；windowId → sessionId 路由                                                                                                                               | A           | 双通道（ipcMain/HTTP）行为等价回归                                                      |
 | **D. Web Server 本体** | Express/Fastify 挂载 registry；登录态鉴权；资源 ID 化与历史 URL 清洗；nodeFetch/文件监听服务端化                                                                                                                              | B + C       | 浏览器直连 Web Server 全功能走查                                                        |
+
+### 实施状态（2026-09-13 更新：渲染层还原原生 IPC）
+
+- **HTTP 管道整体拆除**：渲染层 `invoke/send/on/off` 改回 preload bridge 直连 `ipcRenderer`（invoke 保留 No-handler 启动竞态重试，500ms×5s）；删除 `http-invoke.ts` / `event-hub.ts` / `config.ts` 与主进程 `ipc-registry.ts` / `event-broadcaster.ts` / `command-server.ts` / `contract-audit.ts`；vite dev 的 `/rpc` 代理一并移除。
+- **保留的资产**：24678 端口 HTTP server（静态资源 + `/backendServer` `/aiServer` `/extToolServer` WS，browser-extension/cli 硬编码契约）；`packages/rpc` 协议/契约/中立注册表与 `apps/web-server` 骨架——Web Server 走「逐接口承接」路线：同一契约（`command()`）在 Web Server 侧给出自己的实现，渲染层未来按接口迁移，而非全量透传 invoke。
+- **契约桥装配点**：渲染侧 `src/commands/contracts/install.ts`（call → IPC invoke），主进程侧 `src-electron/main/rpc/command-bridge-install.ts`（register → ipcMain.handle）。
+- **设计决策——不恢复启动期事件缓冲**：原 event-broadcaster 会缓冲「窗口创建后、渲染层 WS 就绪前」的 `webContents.send` 再 flush；原生 IPC 下该窗口期事件同样会丢（与 HTTP 化之前的原生时代一致，非回归）。重新引入缓冲需 patch `webContents.send` 或改造全部广播点，与去 patch 方向冲突，故不做；若实测出现启动期状态广播丢失，再评估「渲染层就绪握手」方案。
 
 ### 实施状态（2026-09-10 更新）
 

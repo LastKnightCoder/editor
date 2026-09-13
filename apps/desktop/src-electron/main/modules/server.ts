@@ -2,7 +2,6 @@ import { Module } from "../types/module";
 import Express, { NextFunction, Request, Response } from "express";
 import PathUtil from "../utils/PathUtil";
 import http from "http";
-import { app as electronApp } from "electron";
 import WebSocket, { WebSocketServer } from "ws";
 import { v4 as uuidv4 } from "uuid";
 import { RpcResponseMessage, RpcNotificationMessage, RpcMessageType } from "@/types";
@@ -13,8 +12,6 @@ import {
   isRpcResponseMessage,
   isRpcNotificationMessage,
 } from "@/utils/rpc";
-import { RPC_EVENTS_WS_PATH } from "@tau/rpc";
-import { getRpcToken, registerCommandRoutes, RPC_SERVER_PORT } from "../rpc/command-server";
 
 interface WsServer extends WebSocketServer {
   server: {
@@ -29,6 +26,10 @@ interface WsServer extends WebSocketServer {
     };
   };
 }
+
+// 固定端口为跨应用契约（browser-extension、cli 硬编码 24678 发现本应用，
+// convertFileSrc 产出的资产 URL 会持久化进用户文档），不可动态分配
+export const RPC_SERVER_PORT = 24678;
 
 const PORT = RPC_SERVER_PORT;
 
@@ -73,9 +74,6 @@ class ServerModule implements Module {
         }
         next();
       });
-      // HTTP RPC 端点（/rpc/invoke、/rpc/send，body 解析作用域化在路由内），
-      // 必须挂在静态服务与 404 兜底之前（Express 按注册顺序匹配）
-      registerCommandRoutes(this.app);
       this.app.use(
         Express.static(appDir, {
           setHeaders: res => applyCorsHeaders(res),
@@ -125,20 +123,6 @@ class ServerModule implements Module {
         }
 
         const url = new URL(request.url, `http://${request.headers.host}`);
-
-        // /rpc-events 承载全部主进程事件推送（含文档内容等敏感数据），
-        // 打包版要求与 HTTP RPC 同源的 token（WS 无法携带自定义头，经查询参数传递）。
-        // 历史通道 /backendServer、/aiServer 是扩展与 CLI 的固定发现入口，暂不设限
-        if (
-          url.pathname === RPC_EVENTS_WS_PATH &&
-          electronApp.isPackaged &&
-          url.searchParams.get("token") !== getRpcToken()
-        ) {
-          console.error("[ws upgrade] unauthorized rpc-events connection");
-          socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
-          socket.destroy();
-          return;
-        }
 
         const isServer = url.searchParams.get("isServer") === "true";
         let path = url.pathname.replace(/([^/])\/+$/, "$1");

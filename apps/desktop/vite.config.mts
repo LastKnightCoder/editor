@@ -181,14 +181,6 @@ export default defineConfig(() => {
     server: {
       port: 6174,
       strictPort: true,
-      // 浏览器直开 dev server 预演 Web 端时，RPC 走同源相对路径，
-      // 由 vite 代理到 Electron 主进程的本地 command server（RPC_SERVER_PORT）
-      proxy: {
-        "/rpc": {
-          target: "http://127.0.0.1:24678",
-          ws: true,
-        },
-      },
       watch: {
         followSymlinks: false,
         ignored: ["**/blog/**"],

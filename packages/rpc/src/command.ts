@@ -66,7 +66,7 @@ export interface CommandBridge {
 
 let bridge: CommandBridge | null = null;
 
-/** 装配命令桥（渲染侧经 commands/contracts/install，主进程经 ipc-registry-install） */
+/** 装配命令桥（渲染侧经 commands/contracts/install，主进程经 rpc/command-bridge-install） */
 export function setCommandBridge(next: CommandBridge | null): void {
   bridge = next;
 }
@@ -99,7 +99,7 @@ export function command<TArgs extends unknown[], TResult>(
     register: handler => {
       if (!bridge?.register) {
         throw new Error(
-          `command "${channel}" 注册失败：当前运行时未装配 CommandBridge.register（主进程侧应经 ipc-registry-install 装配）`
+          `command "${channel}" 注册失败：当前运行时未装配 CommandBridge.register（主进程侧应经 rpc/command-bridge-install 装配）`
         );
       }
       bridge.register(channel, handler);

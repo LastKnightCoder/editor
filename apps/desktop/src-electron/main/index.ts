@@ -1,9 +1,8 @@
-// 必须置于所有 import 之首：在模块单例（import 期注册 ipcMain handler）之前安装拦截
-import "./rpc/ipc-registry-install";
-import { reportContractCoverage } from "./rpc/contract-audit";
+// 必须置于所有 import 之首：在模块单例（import 期/初始化期注册契约）之前装配契约桥
+import "./rpc/command-bridge-install";
 // 紧随其后安装日志（session 文件 + console 代理），保证后续模块的所有输出都能落盘
 import "./modules/logger";
-import { app, BrowserWindow, ipcMain, protocol, globalShortcut } from "electron";
+import { app, BrowserWindow, protocol, globalShortcut } from "electron";
 import path, { extname, isAbsolute } from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
@@ -26,22 +25,8 @@ import userSettingModule from "./modules/user-setting";
 import { resolveEmbeddingConfig } from "./utils/embedding-config";
 import moduleInitManager from "./module-init/ModuleInitManager";
 import whiteboardRecordingModule from "./modules/whiteboard-recording";
-import { getRpcToken, RPC_SERVER_PORT, setDefaultSenderProvider } from "./rpc/command-server";
-import rpcEventBroadcaster from "./rpc/event-broadcaster";
+import { RPC_SERVER_PORT } from "./modules/server";
 import { setupQuitController } from "./app-quit-controller";
-
-// 渲染进程启动引导：一次性返回调用凭证与身份。
-// windowId 用 event.sender.id（webContents id），与事件广播路由的 id 空间一致
-ipcMain.handle("rpc-bootstrap", event => {
-  return {
-    token: getRpcToken(),
-    windowId: event.sender.id,
-    port: RPC_SERVER_PORT,
-  };
-});
-
-// 必须在第一个窗口创建之前拦截 webContents.send，启动期事件先入缓冲
-rpcEventBroadcaster.installWebContentsPatch();
 
 (async (): Promise<void> => {
   const contextMenu = await import("electron-context-menu");
@@ -200,8 +185,6 @@ if (!gotTheLock) {
         RENDERER_DIST,
         preload
       );
-      // HTTP RPC 的 sender 兜底解析：未携带 windowId 的请求视为主窗口发起
-      setDefaultSenderProvider(() => windowManager?.getMainWindow()?.webContents ?? null);
       whiteboardRecordingModule.configure({
         mainWindowProvider: () => windowManager.getMainWindow(),
         preloadPath: preload,
@@ -232,14 +215,6 @@ if (!gotTheLock) {
         try {
           // 初始化 BACKGROUND 层模块
           await moduleInitManager.initBackground();
-
-          // dev 模式输出契约覆盖率报告（迁移进度活清单，见 docs/platform-rpc-architecture.md）
-          if (!app.isPackaged) {
-            reportContractCoverage();
-          }
-
-          // 接入事件广播通道（server 模块已 listen），连接后 flush 启动期缓冲
-          rpcEventBroadcaster.start(RPC_SERVER_PORT);
 
           // 创建 WebSocket 服务器并初始化依赖模块
           const backendServer = new BackendWebSocketServer(RPC_SERVER_PORT);
