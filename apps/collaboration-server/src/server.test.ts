@@ -64,6 +64,20 @@ describe("协作权限和持久化", () => {
     doc.destroy();
   });
 
+  it("结束共享后可使用同一幂等键重新发起", async () => {
+    const { store } = await setup();
+    const owner = store.register("作者");
+    const first = store.create(owner.id, "recreate-after-close");
+
+    store.closeDocument(first.id, owner.id);
+
+    const second = store.create(owner.id, "recreate-after-close");
+    expect(second.id).not.toBe(first.id);
+    expect(second.status).toBe("draft");
+    expect(store.document(first.id).status).toBe("closed");
+    expect(store.document(first.id).creation_key).toContain(`:closed:${first.id}`);
+  });
+
   it("增量提交后可以从磁盘恢复，重复更新不会重复内容，撤权后拒绝写入", async () => {
     const { store } = await setup();
     const owner = store.register("作者");

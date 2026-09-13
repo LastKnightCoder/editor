@@ -8,7 +8,11 @@ import { GroupLabel } from "../../components/GroupLabel";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import { toast } from "../../components/toast";
 import { collaborationManager } from "./core/manager";
-import { readCachedInvitation, writeCachedInvitation, type CachedInvitation } from "./core/invitation-cache";
+import {
+  readCachedInvitation,
+  writeCachedInvitation,
+  type CachedInvitation,
+} from "./core/invitation-cache";
 import { leaveCollabText, runLeaveCollab } from "./leaveCollab";
 import { useCollaborationStore } from "./core/store";
 import { ApprovalRow } from "./components/ApprovalRow";
@@ -95,7 +99,7 @@ export function MemberManageSheet(props: {
 
   return (
     // backDismiss=false：本 Sheet 用 finish("ended") 回传结束结果，内置返回拦截会吞掉
-    // 弹栈请求导致调用方拿不到结果；返回语义由页面 useBackHandler 表达（见 memberSheet.page）
+    // 弹栈请求；普通返回由路由直接弹出 overlay（见 memberSheet.page）。
     <BottomSheet open title="共享与成员" onClose={props.onClose} backDismiss={false}>
       <div className="scrollbar-hide -mx-1 max-h-[68dvh] overflow-y-auto px-1 pb-2">
         {status ? (

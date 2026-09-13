@@ -254,7 +254,8 @@ export function RouterProvider({
   const historyBack = async (
     source: Exclude<BackSource, "popstate">,
     depth = 1,
-    settle?: { entryId: string; settle: PendingSettle }
+    settle?: { entryId: string; settle: PendingSettle },
+    options?: { bypassInterceptors?: boolean }
   ): Promise<boolean> => {
     if (historyBackInFlightRef.current || pendingBackNavRef.current !== null) {
       return false;
@@ -263,10 +264,12 @@ export function RouterProvider({
     if (!target) return false;
     historyBackInFlightRef.current = true;
     try {
-      const handled = await askBackHandler(target);
-      if (handled) return false;
-      const allowed = await askLeaveGuard(target, source);
-      if (!allowed) return false;
+      if (!options?.bypassInterceptors) {
+        const handled = await askBackHandler(target);
+        if (handled) return false;
+        const allowed = await askLeaveGuard(target, source);
+        if (!allowed) return false;
+      }
       if (settle && settle.entryId === target.id) {
         settlesRef.current.set(settle.entryId, settle.settle);
       }
@@ -412,18 +415,29 @@ export function RouterProvider({
       finish: result => {
         const target = topEntryOf();
         if (!target) return;
-        void historyBack("code", 1, {
-          entryId: target.id,
-          settle: { status: "fulfilled", value: result },
-        });
+        // finish/cancel 是页面显式提交结果，不应被“用户返回”拦截器吞掉。
+        void historyBack(
+          "code",
+          1,
+          {
+            entryId: target.id,
+            settle: { status: "fulfilled", value: result },
+          },
+          { bypassInterceptors: true }
+        );
       },
       cancel: () => {
         const target = topEntryOf();
         if (!target) return;
-        void historyBack("code", 1, {
-          entryId: target.id,
-          settle: { status: "rejected", reason: "dismissed" },
-        });
+        void historyBack(
+          "code",
+          1,
+          {
+            entryId: target.id,
+            settle: { status: "rejected", reason: "dismissed" },
+          },
+          { bypassInterceptors: true }
+        );
       },
       goBack: async source => {
         if (source === "popstate") return false;

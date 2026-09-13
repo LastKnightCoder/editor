@@ -32,7 +32,7 @@ export function registerContentRoutes(
 ) {
   app.post(
     "/v1/devices",
-    { config: { rateLimit: { max: 5, timeWindow: "1 hour" } } },
+    { config: { rateLimit: { max: config.deviceRateLimit, timeWindow: "1 hour" } } },
     async request => store.register(textField(objectBody(request), "nickname", 40))
   );
   app.patch("/v1/devices/me", async request => {
@@ -52,7 +52,7 @@ export function registerContentRoutes(
   });
   app.post(
     "/v1/documents",
-    { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } },
+    { config: { rateLimit: { max: config.documentRateLimit, timeWindow: "1 hour" } } },
     async request => {
       const row = store.create(
         device(request).id,
@@ -88,7 +88,7 @@ export function registerContentRoutes(
   });
   app.post(
     "/v1/join-requests",
-    { config: { rateLimit: { max: 15, timeWindow: "10 minutes" } } },
+    { config: { rateLimit: { max: config.joinRequestRateLimit, timeWindow: "10 minutes" } } },
     async request => {
       const result = store.requestJoin(
         textField(objectBody(request), "code", 32),

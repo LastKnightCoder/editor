@@ -13,6 +13,11 @@ export interface ServerConfig {
   maxAssetBytes: number;
   maxDocumentAssetBytes: number;
   maxStorageBytes: number;
+  /** HTTP 限流：按来源地址计数；自用部署可通过环境变量提高。 */
+  globalRateLimit: number;
+  deviceRateLimit: number;
+  documentRateLimit: number;
+  joinRequestRateLimit: number;
   logger: boolean;
   /**
    * 信任的反代地址（Fastify trustProxy）。Docker 部署时对端是网桥网关，
@@ -42,6 +47,10 @@ export function loadConfig(overrides: Partial<ServerConfig> = {}): ServerConfig 
     maxAssetBytes: positiveInteger("COLLAB_MAX_ASSET_BYTES", 25 * 1024 * 1024),
     maxDocumentAssetBytes: positiveInteger("COLLAB_MAX_DOCUMENT_ASSET_BYTES", 200 * 1024 * 1024),
     maxStorageBytes: positiveInteger("COLLAB_MAX_STORAGE_BYTES", 5 * 1024 ** 3),
+    globalRateLimit: positiveInteger("COLLAB_GLOBAL_RATE_LIMIT", 3000),
+    deviceRateLimit: positiveInteger("COLLAB_DEVICE_RATE_LIMIT", 20),
+    documentRateLimit: positiveInteger("COLLAB_DOCUMENT_RATE_LIMIT", 200),
+    joinRequestRateLimit: positiveInteger("COLLAB_JOIN_RATE_LIMIT", 100),
     logger: process.env.COLLAB_LOGGER !== "0",
     trustProxy: trustProxy === "true" ? true : trustProxy === "false" ? false : trustProxy,
     ...overrides,
