@@ -9,6 +9,7 @@ COPY apps/collaboration-server/package.json apps/collaboration-server/package.js
 RUN pnpm install --filter @tau/collaboration-server... --frozen-lockfile --ignore-scripts
 COPY packages/collaboration packages/collaboration
 COPY apps/collaboration-server apps/collaboration-server
+RUN pnpm rebuild better-sqlite3 --filter @tau/collaboration-server...
 RUN pnpm --filter @tau/collaboration-server build
 
 FROM ${NODE_IMAGE} AS runtime
