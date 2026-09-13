@@ -54,9 +54,29 @@ pnpm deploy:collaboration
 
 切换或远端健康检查失败时，脚本恢复上一版部署文件和镜像，返回非零退出码；数据库不会自动还原，以免覆盖更新期间的写入。涉及不兼容迁移时需单独制定恢复方案。手动回切可在服务器将发布目录中的 `previous-compose.override.yml` 恢复到部署目录的 `docker-compose.override.yml`，再执行 `docker compose up -d --no-build --wait --wait-timeout 90`。
 
-当前镜像发布方式不使用 `scripts/update.sh`，该脚本依赖 `git pull` 和服务器联网构建；`scripts/rollback.sh` 修改的 `local` 标签也不会覆盖此处固定的版本标签。
+当前镜像发布方式不使用 `scripts/update.sh`，该脚本依赖 `git pull` 和服务器联网构建，已被 git 模式的发布路径取代；`scripts/rollback.sh` 修改的 `local` 标签也不会覆盖此处固定的版本标签。
 
 旧镜像和发布目录不自动删除，需按磁盘情况定期清理；发布目录内含备份副本及可能包含 `.env` 的旧部署归档，目录权限为 `700`。
+
+## 服务器端构建（git 模式）
+
+除本地构建外，另有一条不改动本地 Docker 的发布路径，入口为 `pnpm deploy:collaboration:git`（`scripts/deploy-git.sh`）。本地只做提交检查、测试与上传脚本，镜像在服务器上从 git 提交构建。默认的本地构建入口为 `pnpm deploy:collaboration`（`scripts/deploy-local.sh`，即改名前的 `deploy.sh`，内容未变）。
+
+服务器仓库：
+
+- 位置 `/opt/tau-collab-repo`，bare 仓库，通过免密 SSH 从 `git@github.com:LastKnightCoder/editor.git` 拉取，可用 `COLLAB_GIT_REPO` 覆盖。
+- 必须位于 `/opt/tau/editor` 之外。`deploy-remote.sh` 会执行 `tar -czf previous-deployment.tar.gz -C "$ROOT" .` 全量留存部署目录用于回切，`.git` 一旦落在其中，每次发布都会多备份一份完整仓库历史，并随发布目录留存到清理为止。
+- 用 bare 仓库而非工作区检出：`deploy-remote.sh` 会把源码快照 `cp -a` 进 `/opt/tau/editor`，该目录本身就是可检出的工作树，服务器侧的 git 只需要对象库。这样也不存在 `checkout` 与 `.env`、`docker-compose.override.yml` 冲突的可能。
+
+服务器侧构建由 `scripts/deploy-remote-build.sh` 完成：
+
+- `git fetch --depth=1` 后断言服务器取到的提交与本地待发布的提交一致，保证被构建的就是本地测试通过的那个提交。
+- 从提交导出源码到该版本的私有目录，再产出与本地路径等价的 `source.tar.gz`；导出的路径清单与 `deploy-local.sh` 打包的逐项一致。
+- 显式 `docker build` 产出 `tau-collaboration:<版本>` 标签，刻意不用 `docker compose build`：compose 会合并 `docker-compose.override.yml`，其中固定的旧版本标签会把新镜像打成旧标签，覆盖正在用于回切的镜像。
+
+切换、备份数据、在备份副本上验证迁移、生成 override、失败回切与 HTTPS/WSS 检查都由未改动的 `deploy-remote.sh` 完成，两条路径行为一致。回切语义也相同：恢复 `previous-compose.override.yml` 后 `docker compose up -d --no-build`，不自动还原数据库。
+
+与本地模式的区别：git 模式只能发布已提交并推送到上游分支的内容，工作区有未提交修改或 `HEAD` 与上游不一致时会直接拒绝执行；Docker 构建缓存产生在服务器上，磁盘增长更快，`pnpm cleanup:collaboration --apply --build-cache` 应定期执行。
 
 ## 备份
 
@@ -87,7 +107,16 @@ pnpm deploy:collaboration
 
 - 已通过 `pnpm deploy:collaboration` 完成真实发布，当前版本为 `tau-collaboration:20260906-102208-bc0f3b5d`。
 - 更新前备份：`/srv/tau-collab/backups/20260906-182325`；发布记录和旧配置：`/root/tau-collab-releases/20260906-102208-bc0f3b5d`。
-- 完整服务端 26 项测试、共享协议 9 项测试及生产入口类型检查通过。默认 `check` 仍因跨端测试引入桌面端路径别名而失败，一键部署明确检查实际服务端入口。
+- 完整服务端 26 项测试、共享协议 9 项测试及生产入口类型检查通过。（2026-09-13 更正：桌面模块测试已迁回 `apps/desktop`，服务器 `check` 恢复绿灯，此前的跨端测试别名问题已消除。）
 - 正常发布、启动失败回切、公网检查失败回切均完成隔离模拟验证。真实运行验证了备份副本迁移、数据库完整性、HTTPS、WSS 握手，以及运行容器的镜像标签和镜像 ID。
 - 远端脚本先上传再执行，避免容器命令消耗 SSH 标准输入中的脚本文本。成功标记仅在版本与健康检查全部通过后写入 `deployed-image.txt`。
 - 本次上线检查未创建测试设备或共享内容；未重复双桌面交互与负载测试。
+
+## 2026-09-13 git 模式准备与构建实测
+
+- 已在服务器建立 `/opt/tau-collab-repo`（bare，40MB），`git fetch --depth=1 origin master` 得到 `a87699e1beb142bd64b69c4089d7bb6a3ff6a51e`，与本地 `HEAD`、`origin/master` 三者一致。
+- 构建上下文导出验证：`git archive` 导出的七个路径与 `deploy-local.sh` 打包内容逐项一致，含 `patches/better-sqlite3@12.10.0.patch`、`patches/slate-react@0.126.4.patch` 与 `.dockerignore`（首行为 `.git`），导出体积 1.2MB。
+- 资源实测：该实例为 2 vCPU / 1888MB 内存 / 无 swap，此前未评估过服务器端构建是否放得下。在 900MB 硬内存上限的一次性容器内执行 Dockerfile 的安装与构建步骤可完整通过，`dist/index.js` 与 `dist/admin.js` 均产出，全程 55 秒；期间主机仍有约 950MB 空闲内存。基础镜像 `public.ecr.aws/docker/library/node:24-bookworm-slim` 拉取正常（16 秒），npm 源可用（个别包有低于 50KiB/s 的告警，未影响完成）。
+- 用真实脚本演练 `deploy-remote-build.sh`：提交不一致时以退出码 1 拒绝并提示先 `git fetch`；提交一致时 67 秒构建出 `tau-collaboration:20260912-234212-a87699e1`（478MB），`better-sqlite3` 运行时自检通过，`source.tar.gz` 生成且布局正确。
+- 演练产物（镜像与发布目录）已删除，线上容器未受影响，仍为 `tau-collaboration:20260906-102208-bc0f3b5d` 且 healthy。Docker 构建缓存留在服务器上（约 1GB），后续构建可复用；这正是 git 模式的磁盘代价。
+- 尚未验证：git 模式的完整发布，以及启动失败与公网检查失败触发的回切演练。前置条件是提交并推送工作区改动，因为该模式只发布已提交内容。

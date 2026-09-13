@@ -2,17 +2,7 @@ import { BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from "electro
 import { readFileSync, writeFileSync, statSync } from "node:fs";
 import * as Y from "yjs";
 import { applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
-import {
-  replaceText,
-  normalizeServerUrl,
-  memberColor,
-  SOURCE_TYPES,
-  type SourceType,
-  type SharedContent,
-  type ContentSessionTarget,
-} from "@tau/collaboration";
-import { findCollaborationBinding } from "../collaboration-guard";
-import databaseModule from "../database";
+import { normalizeServerUrl, memberColor, SOURCE_TYPES, type SourceType, type ContentSessionTarget } from "@tau/collaboration";
 import type { CollaborationIpcContext } from "./types";
 import { getDevelopmentServerUrl } from "./dev-server";
 
@@ -29,16 +19,6 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     const view = context.views.get(viewId);
     if (view?.windowId === BrowserWindow.fromWebContents(event.sender)?.id)
       context.acknowledgeFreeze(viewId);
-  });
-  handle("content-title", (event, target: ContentSessionTarget, title: string) => {
-    const snapshot = context.openContent(event, target);
-    const session = context.requireSession(snapshot.documentId);
-    if (session.info.frozen || session.info.status !== "active")
-      throw new Error("内容暂时不能编辑");
-    if (typeof title !== "string" || title.length > 500)
-      throw new Error("标题长度不能超过 500 个字符");
-    replaceText(session.doc.getText("title"), title);
-    context.changed(session);
   });
   handle("set-tab-active", (_event, id: string, blockId: string, tabKey: string) => {
     context.noteActiveTab(context.requireSession(id), blockId, tabKey);
@@ -123,10 +103,6 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
       "DELETE"
     );
     await context.refresh();
-  });
-  handle("binding", (event, contentId: number) => {
-    const { db } = context.databaseForEvent(event);
-    return findCollaborationBinding(db, contentId) || null;
   });
   handle("subscribe", (event, id: string, viewId: string) => {
     const session = context.requireSession(id);
@@ -223,42 +199,12 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     if (!view.clientIds.includes(clientId)) view.clientIds.push(clientId);
     applyAwarenessUpdate(session.awareness, new Uint8Array(update), "renderer");
   });
-  handle(
-    "metadata",
-    (
-      _event,
-      id: string,
-      values: Partial<Pick<SharedContent, "title" | "bannerBg" | "bannerPosition">>
-    ) => {
-      const session = context.requireSession(id);
-      if (session.info.status !== "active" || session.info.frozen)
-        throw new Error("内容暂时不能编辑");
-      session.doc.transact(() => {
-        if (typeof values.title === "string")
-          replaceText(session.doc.getText("title"), values.title.slice(0, 500));
-        for (const key of ["bannerBg", "bannerPosition"] as const)
-          if (typeof values[key] === "string") session.doc.getMap("meta").set(key, values[key]);
-      }, "renderer");
-    }
-  );
-  handle("leave", async (_event, id: string, discard = false) => {
+  handle("leave", async (_event, id: string, discard: boolean = false) => {
     const session = context.requireSession(id);
     if (session.info.status === "closed") {
       if (session.info.pending && !discard)
         throw new Error("请先同步完成或选择丢弃未同步内容，再清理");
-      if (session.info.source) {
-        try {
-          await context.clearBinding(session);
-        } catch (error) {
-          if (!discard) throw error;
-          const db = databaseModule.getDatabase(session.info.source.databaseName);
-          if (!db?.open) throw new Error("请打开原内容数据库再清理关联");
-          db.prepare("DELETE FROM collaboration_bindings WHERE content_id=? AND document_id=?").run(
-            session.info.source.contentId,
-            id
-          );
-        }
-      }
+      if (session.info.source) await context.clearBinding(session, discard);
       context.removeSession(session);
       return;
     }

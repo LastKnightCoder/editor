@@ -12,6 +12,22 @@ export interface ContentSessionEntry extends ContentSessionSnapshot {
   value?: SharedContent;
 }
 
+/** 键序无关的稳定序列化：投影产物是 plain object，普通 JSON.stringify 的键序
+ *  在不同来源的副本间不保证一致，直接对比会漏更新 */
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (value && typeof value === "object") {
+    const entries = Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map(
+        key =>
+          `${JSON.stringify(key)}:${stableStringify((value as Record<string, unknown>)[key])}`
+      );
+    return `{${entries.join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
 export const contentSessionKey = (databaseName: string, contentId: number) =>
   `${databaseName}:${contentId}`;
 const useContentSessionStore = create<{
@@ -97,7 +113,10 @@ export function publishSessionValue(documentId: string, value: SharedContent) {
     let changed = false;
     const entries = { ...state.entries };
     for (const [key, entry] of Object.entries(entries)) {
-      if (entry.documentId !== documentId || JSON.stringify(entry.value) === JSON.stringify(value))
+      if (
+        entry.documentId !== documentId ||
+        stableStringify(entry.value) === stableStringify(value)
+      )
         continue;
       entries[key] = { ...entry, value, title: value.title };
       changed = true;

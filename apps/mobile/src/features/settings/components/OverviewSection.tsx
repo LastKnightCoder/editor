@@ -11,7 +11,7 @@ import {
   IMAGE_SHADOW_OPTIONS,
   normalizeImageShadowPreset,
 } from "@tau/editor/src/extensions/image/utils/appearance";
-import { IconCircleHelp, IconCloud, IconDatabase, IconImage, IconMoon } from "./ui";
+import { IconCircleHelp, IconCloud, IconDatabase, IconImage, IconMoon, LetterTile } from "./ui";
 import { getResourceSyncSummary } from "./SyncStatusSections";
 import { useThemeStore } from "../../../theme/themeStore";
 import { useNavigator } from "../../../router";
@@ -45,6 +45,8 @@ function formatBytes(bytes: number): string {
 type OverviewSectionProps = {
   activeResource: string;
   activeDatabase?: string;
+  /** 协作服务器地址（已配置时以域名展示），未配置则显示默认服务器 */
+  collaborationServerUrl?: string;
   imageAppearance?: {
     borderRadius?: ImageBorderRadiusPreset;
     shadow?: ImageShadowPreset | boolean;
@@ -114,6 +116,22 @@ export function OverviewSection(props: OverviewSectionProps) {
           label="资源与存储"
           value={resourceValue}
           onClick={() => props.onOpenModule("resource")}
+        />
+      </div>
+
+      <div className="space-y-3 px-1">
+        <h2 className="text-ink text-[16.5px] font-extrabold">协作</h2>
+      </div>
+      <div className="list-group">
+        <ListItem
+          icon={<LetterTile letter="协" className="bg-accent-soft text-accent" />}
+          label="实时协作"
+          value={
+            props.collaborationServerUrl
+              ? props.collaborationServerUrl.replace(/^https?:\/\//, "")
+              : "未配置"
+          }
+          onClick={() => props.onOpenModule("collaboration")}
         />
       </div>
 

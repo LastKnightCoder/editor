@@ -19,7 +19,7 @@ import {
   editingMemberCount,
   memberActivity,
 } from "@/components/CollaborationUI";
-import { useStableSessionStatus } from "./session-status";
+import { sessionStatus, useStableSessionStatus } from "./session-status";
 
 export default function SharedContentEditor({ session }: { session: CollaborationSession }) {
   const { binding, article, error, frozen } = useCollaborationDocument(session.id);
@@ -44,13 +44,15 @@ export default function SharedContentEditor({ session }: { session: Collaboratio
   };
   const readonly = session.status !== "active" || frozen;
   const displayError = leaving ? undefined : error;
+  // 共享版 hook 的返回可空（session 恒存在的调用方取当前推导值兜底）
+  const currentStatus = status ?? sessionStatus(session);
   return (
     <main className="bg-bg-container flex min-w-0 flex-1 flex-col">
       <div className="border-border-1 bg-bg-container flex min-h-11 items-center gap-2.5 border-b px-4 py-1.5">
         <div className="flex min-w-0 flex-1 items-center">
-          <StatusBadge tone={status.tone}>
-            {displayError || status.label}
-            {status.tone === "live" && session.status === "active"
+          <StatusBadge tone={currentStatus.tone}>
+            {displayError || currentStatus.label}
+            {currentStatus.tone === "live" && session.status === "active"
               ? ` · ${editingMemberCount(session)} 人正在编辑`
               : ""}
           </StatusBadge>
@@ -181,7 +183,7 @@ export default function SharedContentEditor({ session }: { session: Collaboratio
         onOk={async () => {
           await run(() =>
             stale
-              ? discardLocalCollaboration(session.id, session.pending)
+              ? discardLocalCollaboration(session.id)
               : leaveCollaboration(session.id, session.pending)
           );
           setLeaving(false);

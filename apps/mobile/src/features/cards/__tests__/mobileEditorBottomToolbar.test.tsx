@@ -137,6 +137,25 @@ describe("MobileEditorBottomToolbar", () => {
     expect(toolbar?.getAttribute("style")?.includes("var(--kb-height")).toBe(true);
   });
 
+  it("协作只读态下 persistent（编辑页常驻）也不渲染工具栏", () => {
+    // 只读编辑器渲染为 contentEditable=false，点击无法聚焦，故真实路径是 persistent
+    // （文章/知识库/项目文档编辑页常驻工具栏），不是聚焦
+    const controller = createController({ isEditorFocused: false });
+    act(() => {
+      root.render(<MobileEditorBottomToolbar controller={controller} persistent readonly />);
+    });
+    expect(document.querySelector("nav")).toBeNull();
+    expect(
+      document.documentElement.style.getPropertyValue("--mobile-editor-toolbar-occlusion")
+    ).toBe("");
+
+    // 只读解除后恢复显示（会话重回 active）
+    act(() => {
+      root.render(<MobileEditorBottomToolbar controller={controller} persistent />);
+    });
+    expect(document.querySelector("nav")).toBeTruthy();
+  });
+
   it("指定 portalContainer 时工具栏挂进该容器（跟随页面转场退场）", () => {
     const pageRoot = document.createElement("div");
     document.body.appendChild(pageRoot);

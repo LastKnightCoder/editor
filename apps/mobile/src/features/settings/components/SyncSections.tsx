@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { SettingCompat } from "../../../types";
+import { GroupLabel } from "../../../components/GroupLabel";
 import { ActionSheet } from "./ActionSheet";
 import type { SettingModule, SettingsPageProps } from "./types";
 import { useGithubRepoSelector } from "./useGithubRepoSelector";
@@ -8,7 +9,6 @@ import {
   FieldInput,
   FieldSheetTrigger,
   GroupCard,
-  GroupLabel,
   SaveButton,
 } from "./ui";
 
@@ -42,7 +42,8 @@ function ParamsGroup(props: { children: React.ReactNode }) {
   return (
     <>
       <GroupLabel>同步参数</GroupLabel>
-      <div className="list-group p-4">{props.children}</div>
+      {/* 面板内容左边缘 = 16px 容器 + 1px 边框 + 14px，与 .setting-row 行文字同一基准 */}
+      <div className="list-group px-3.5 py-4">{props.children}</div>
     </>
   );
 }

@@ -172,6 +172,7 @@ export function SettingsPage(props: SettingsScreenProps) {
           <OverviewSection
             activeResource={props.safeSetting?.imageBed.active ?? "github"}
             activeDatabase={props.databases?.activeDatabase}
+            collaborationServerUrl={props.safeSetting?.collaboration?.serverUrl}
             imageAppearance={props.safeSetting?.appearance?.image}
             onOpenModule={props.onOpenModule}
             resourceSyncProgress={props.resourceSyncProgress}

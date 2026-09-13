@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import type { Descendant } from "slate";
 import { CornerUpRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -16,6 +16,15 @@ import { mobileCardPreviewExtensions } from "./editorExtensions";
 import LinksDisclosure from "./LinksDisclosure";
 import TagChips from "./TagChips";
 import TagInlineEditor from "./TagInlineEditor";
+import type { CollaborativeEditorMode } from "../collaboration/CollaborativeEditor";
+import { markLocalFallbackEdit } from "../collaboration/local-fallback";
+
+// 原地协作编辑器按需加载：未使用协作的用户不加载协作组件与运行时
+const CollaborativeEditor = lazy(() =>
+  import("../collaboration/CollaborativeEditor").then(module => ({
+    default: module.CollaborativeEditor,
+  }))
+);
 
 type EditorDocument = ComponentProps<typeof Editor>["initValue"];
 
@@ -65,6 +74,11 @@ type ContentDetailPageProps = {
   persistentToolbar?: boolean;
   /** 外部刷新信号（页面 onResume 等），变化时强制重拉详情（双向关联由对侧写入时本页无感知） */
   refreshKey?: number;
+  /** 该内容已绑定协作房间：原地切换为协作编辑（云端 Y.Doc 为唯一真相源），
+   *  本地直写停用、owner 侧经投影通道落库；点状态条打开共享与成员 Sheet */
+  collaboration?: { documentId: string };
+  /** 在共享与成员 Sheet 里结束共享/退出协作：宿主据此重查绑定，让 collaboration prop 归位 */
+  onCollaborationEnded?: () => void;
 };
 
 function formatTimeLabel(value: number): string {
@@ -89,6 +103,22 @@ function MetaDot() {
   return <span className="opacity-55">·</span>;
 }
 
+/** 详情页编辑归属的唯一状态源：local=普通本地编辑（含共享已结束）；
+ *  collabConnecting=协作会话建立中（本地只读占位，避免双正文）；collabLive=协作编辑
+ *  （云端唯一写者）；collabFallback=协作不可用的本地兜底（改动经投影通道，重连后裁决） */
+type DetailEditMode = "local" | "collabConnecting" | "collabLive" | "collabFallback";
+
+function detailEditMode(
+  hasCollaboration: boolean,
+  mode: CollaborativeEditorMode
+): DetailEditMode {
+  if (!hasCollaboration) return "local";
+  if (mode === "live") return "collabLive";
+  if (mode === "connecting") return "collabConnecting";
+  if (mode === "unavailable") return "collabFallback";
+  return "local"; // ended：共享已结束，本地即真相源
+}
+
 export function ContentDetailPage(props: ContentDetailPageProps) {
   const { theme } = useMobileTheme();
   const editorRef = useRef<EditorRef | null>(null);
@@ -96,16 +126,41 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   // 回调入 ref：父层传内联函数时，避免其引用变化触发详情重复拉取
   const onErrorRef = useRef(props.onError);
   onErrorRef.current = props.onError;
+  // 协作编辑模式（由 CollaborativeEditor 上报）：connecting 过渡期本地只读，
+  // live 走协作编辑器，unavailable（会话建立失败/迟迟未就绪）改为本地兜底可编辑
+  const collaborationDocumentId = props.collaboration?.documentId;
+  const [collabMode, setCollabMode] = useState<CollaborativeEditorMode>("connecting");
+  const [collabReadonly, setCollabReadonly] = useState(true);
+  useEffect(() => {
+    setCollabMode("connecting");
+    setCollabReadonly(true);
+  }, [collaborationDocumentId]);
+  const editMode = detailEditMode(Boolean(collaborationDocumentId), collabMode);
+  const localFallback = editMode === "collabFallback";
   const {
     content,
     syncVersion,
     loading: contentLoading,
     saving,
     error: saveError,
-    throttleHandleEditorContentChange,
+    handleEditorContentChange,
     flushNow,
   } = useEditContent(props.contentId, {
     refreshKey: props.refreshKey,
+    // 协作 live 停用本地直写（云端投影为唯一写者）；connecting 只读过渡期与兜底走投影
+    // 通道——绑定出现前节流窗口内可能残留未落库输入，按本地兜底改动处理（标记待裁决），
+    // 会话建立后由作者选择保留本机或采用云端，绝不静默丢弃
+    saveMode:
+      editMode === "collabLive"
+        ? false
+        : localFallback || editMode === "collabConnecting"
+          ? "collabProjection"
+          : "direct",
+    // 经投影通道落库＝有本机改动未推云端，一律标记待裁决（含 direct 模式被守卫拒绝的
+    // 兜底——守卫拒绝本身就证明绑定仍在，本地并非唯一真相源）；重连后交作者选择
+    onProjectionPersisted: () => {
+      markLocalFallbackEdit(props.contentId);
+    },
     onLoaded: result => setDetail(result),
     onLoadError: error => onErrorRef.current?.(error, "内容详情加载失败"),
     onSaved: saved => {
@@ -124,6 +179,9 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   const toolbarController = useMobileEditorToolbarController({
     editorRef,
   });
+  // 工具栏：本地可编辑时（普通/兜底）正常显示；协作建立中与协作只读态一律收起
+  const toolbarReadonly =
+    editMode !== "local" && editMode !== "collabFallback" && collabReadonly;
   // 工具栏等页面级浮层挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 
@@ -142,6 +200,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     );
   }, [props.contentId, props.contentTitle]);
   const titleAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  // 标题由各业务表管理（协作投影只回写正文），始终走本地重命名路径
   const commitTitle = () => {
     const next = titleDraft.trim();
     if (!next || next === (props.contentTitle ?? "").trim()) {
@@ -339,24 +398,46 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           </div>
         ) : null}
 
-        <div className="min-h-[45vh] pt-1">
-          <Editor
-            ref={editorRef}
-            key={`editable-content-${props.contentId}-${syncVersion}`}
-            initValue={normalizeEditorContent(content)}
-            className="mobile-card-editor-content"
-            onFocus={toolbarController.handleEditorFocus}
-            onBlur={toolbarController.handleEditorBlur}
-            onChange={value => {
-              throttleHandleEditorContentChange(value);
-              toolbarController.syncSelection();
-            }}
-            onSelectionChange={toolbarController.syncSelection}
-            readonly={false}
-            theme={theme}
-            extensions={mobileCardPreviewExtensions}
-          />
-        </div>
+        {props.collaboration ? (
+          // 过渡期由下方本地编辑器以只读占位（避免两份正文同时挂载）
+          <Suspense fallback={null}>
+            <CollaborativeEditor
+              documentId={props.collaboration.documentId}
+              theme={theme}
+              extensions={mobileCardPreviewExtensions}
+              editorRef={editorRef}
+              onEditorFocus={toolbarController.handleEditorFocus}
+              onEditorBlur={toolbarController.handleEditorBlur}
+              onSelectionChange={toolbarController.syncSelection}
+              onReadonlyChange={setCollabReadonly}
+              onModeChange={setCollabMode}
+              onCollaborationEnded={props.onCollaborationEnded}
+            />
+          </Suspense>
+        ) : null}
+
+        {/* 本地编辑器：local 正常编辑；collabConnecting 只读占位；collabFallback 兜底可编辑 */}
+        {editMode !== "collabLive" ? (
+          <div className="min-h-[45vh] pt-1">
+            <Editor
+              ref={editorRef}
+              key={`editable-content-${props.contentId}-${syncVersion}`}
+              initValue={normalizeEditorContent(content)}
+              className="mobile-card-editor-content"
+              onFocus={toolbarController.handleEditorFocus}
+              onBlur={toolbarController.handleEditorBlur}
+              onChange={value => {
+                handleEditorContentChange(value);
+                toolbarController.syncSelection();
+              }}
+              onSelectionChange={toolbarController.syncSelection}
+              // 编辑器 readonly 默认为 true，非只读分支必须显式放开
+              readonly={editMode === "collabConnecting"}
+              theme={theme}
+              extensions={mobileCardPreviewExtensions}
+            />
+          </div>
+        ) : null}
 
         {detail?.card ? (
           <TagInlineEditor
@@ -451,6 +532,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         controller={toolbarController}
         persistent={props.persistentToolbar}
         portalContainer={pageRootEl}
+        readonly={toolbarReadonly}
       />
     </div>
   );

@@ -32,8 +32,6 @@ interface PendingConfirm {
   action: () => Promise<void>;
 }
 
-export { editingMemberCount };
-
 export default function ContentCollaborationControl({
   contentId,
   documentId,

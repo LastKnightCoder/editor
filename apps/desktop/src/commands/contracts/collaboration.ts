@@ -43,7 +43,7 @@ export const collaborationCommands = {
   join: command<[string], void>("collaboration:join"),
   decide: command<[string, boolean], void>("collaboration:decide"),
   leave: command<[string, (boolean | undefined)?], void>("collaboration:leave"),
-  discardLocal: command<[string, (boolean | undefined)?], void>("collaboration:discard-local"),
+  discardLocal: command<[string], void>("collaboration:discard-local"),
   removeMember: command<[string, string], void>("collaboration:remove-member"),
   configureServer: command<[CollaborationServerConfig], void>("collaboration:configure"),
   exportIdentity: command<[], void>("collaboration:export-identity"),

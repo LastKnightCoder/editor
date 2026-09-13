@@ -164,7 +164,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
     loading: descriptionLoading,
     saving: descriptionSaving,
     error: descriptionSaveError,
-    throttleHandleEditorContentChange,
+    handleEditorContentChange,
   } = useEditContent(descriptionContentId ?? undefined, {
     onContentSync: next => {
       if (current) {
@@ -270,7 +270,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
     const normalized = normalizeEditorContent(nextContent);
     store.patchItemDescriptionContent(current.id, current.groupId, normalized);
     if (descriptionContentId != null && descriptionContentId > 0) {
-      throttleHandleEditorContentChange(normalized);
+      handleEditorContentChange(normalized);
       return;
     }
     if (isEditorContentEmpty(normalized)) return;

@@ -4,11 +4,13 @@ import { mkdirSync, readFileSync, writeFileSync, statfsSync, unlinkSync } from "
 import { join } from "node:path";
 import * as Y from "yjs";
 import {
+  ASSET_PREFIX,
   CollaborationError,
   readSharedContent,
   validateDocument,
   type DeviceIdentity,
   type JoinRequest,
+  type JoinRequestResult,
   type Member,
   type SharedDocumentInfo,
 } from "@tau/collaboration";
@@ -21,6 +23,15 @@ const digest = (value: string | Uint8Array) => createHash("sha256").update(value
 const fail = (code: string, message: string, status = 400): never => {
   throw new CollaborationError(code, message, status);
 };
+
+/** 深度遍历任意结构，收集全部资源引用（tau-collab-asset:<id> 字符串）。 */
+function collectAssetReferences(value: unknown, into: Set<string>) {
+  if (typeof value === "string") {
+    if (value.startsWith(ASSET_PREFIX)) into.add(value.slice(ASSET_PREFIX.length));
+  } else if (Array.isArray(value)) value.forEach(entry => collectAssetReferences(entry, into));
+  else if (value && typeof value === "object")
+    Object.values(value).forEach(entry => collectAssetReferences(entry, into));
+}
 
 interface DocumentRow {
   id: string;
@@ -40,14 +51,10 @@ interface DeviceRow {
 export class CollaborationStore {
   readonly db: Database.Database;
   readonly secret: Buffer;
-  // 鉴权与容量检查的短 TTL 缓存：每条 WebSocket 消息最多触发两次 authorize，
-  // 撤权、封禁和关闭共享时调用 invalidate 权限立即生效。
-  private authorizeCache = new Map<string, { at: number; row: DocumentRow }>();
   private storageCheckedAt = 0;
   private diskCheckedAt = 0;
   private cachedStorageBytes = -1;
   private assetIds = new Map<string, Set<string>>();
-  private static AUTHORIZE_TTL = 5000;
 
   constructor(readonly config: ServerConfig) {
     mkdirSync(config.dataDir, { recursive: true, mode: 0o700 });
@@ -173,11 +180,6 @@ export class CollaborationStore {
   }
 
   authorize(id: string, deviceId: string, owner = false, allowDraft = false): DocumentRow {
-    const cacheKey = `${id}:${deviceId}:${owner ? 1 : 0}:${allowDraft ? 1 : 0}`;
-    const cached = this.authorizeCache.get(cacheKey);
-    if (cached && Date.now() - cached.at < CollaborationStore.AUTHORIZE_TTL) return cached.row;
-    // 缓存条目只在失效点删除，超出上限直接清空（TTL 只有数秒，重建成本低）。
-    if (this.authorizeCache.size > 4096) this.authorizeCache.clear();
     const row = this.document(id);
     const member = this.db
       .prepare(
@@ -194,18 +196,7 @@ export class CollaborationStore {
       (row.status === "draft" && !(allowDraft && row.owner_id === deviceId))
     )
       fail("DOCUMENT_CLOSED", "共享已结束或尚未发布", 410);
-    this.authorizeCache.set(cacheKey, { at: Date.now(), row });
     return row;
-  }
-
-  /** 撤权、结束共享或封禁后使缓存的鉴权结果立即失效。 */
-  invalidateAuthorization(documentId?: string) {
-    if (!documentId) {
-      this.authorizeCache.clear();
-      return;
-    }
-    for (const key of this.authorizeCache.keys())
-      if (key.startsWith(`${documentId}:`)) this.authorizeCache.delete(key);
   }
 
   create(deviceId: string, key: string) {
@@ -286,7 +277,7 @@ export class CollaborationStore {
     return { code, expiresAt };
   }
 
-  requestJoin(code: string, deviceId: string) {
+  requestJoin(code: string, deviceId: string): JoinRequestResult {
     const invitation = this.db
       .prepare("SELECT document_id FROM invitations WHERE code_hash = ? AND expires_at > ?")
       .get(digest(code.replace(/[\s-]/g, "").toUpperCase()), Date.now()) as
@@ -306,26 +297,23 @@ export class CollaborationStore {
         "SELECT id FROM join_requests WHERE document_id = ? AND device_id = ? AND status = 'pending' AND expires_at > ?"
       )
       .get(documentId, deviceId, Date.now()) as { id: string } | undefined;
-    if (pending) return { id: pending.id, status: "pending" };
+    if (pending) return { id: pending.id, status: "pending", documentId };
     const id = randomUUID();
     const now = Date.now();
     this.db
       .prepare("INSERT INTO join_requests VALUES (?, ?, ?, 'pending', ?, ?)")
       .run(id, documentId, deviceId, now + DAY, now);
-    return { id, status: "pending" };
+    return { id, status: "pending", documentId };
   }
 
+  /** 待处理申请列表（只返回未过期的 pending；过期与否由 expires_at 判定，读路径不写库，
+   *  decide 对过期申请显式报 EXPIRED）。 */
   requests(deviceId: string): JoinRequest[] {
-    this.db
-      .prepare(
-        "UPDATE join_requests SET status='expired' WHERE status='pending' AND expires_at < ?"
-      )
-      .run(Date.now());
     return this.db
       .prepare(
-        "SELECT r.id, r.document_id AS documentId, r.device_id AS deviceId, d.nickname, r.status, r.expires_at AS expiresAt FROM join_requests r JOIN devices d ON d.id=r.device_id JOIN documents a ON a.id=r.document_id WHERE a.owner_id = ? AND a.status='active' AND r.status='pending' ORDER BY r.created_at"
+        "SELECT r.id, r.document_id AS documentId, r.device_id AS deviceId, d.nickname, r.status, r.expires_at AS expiresAt FROM join_requests r JOIN devices d ON d.id=r.device_id JOIN documents a ON a.id=r.document_id WHERE a.owner_id = ? AND a.status='active' AND r.status='pending' AND r.expires_at > ? ORDER BY r.created_at"
       )
-      .all(deviceId) as JoinRequest[];
+      .all(deviceId, Date.now()) as JoinRequest[];
   }
 
   decide(requestId: string, deviceId: string, approve: boolean): string {
@@ -365,14 +353,29 @@ export class CollaborationStore {
     })();
   }
 
-  members(id: string): Member[] {
-    return (
-      this.db
-        .prepare(
-          "SELECT m.device_id AS deviceId, d.nickname, m.role FROM members m JOIN devices d ON d.id=m.device_id WHERE m.document_id=? AND m.status='active'"
-        )
-        .all(id) as Omit<Member, "online" | "activity">[]
-    ).map(member => ({ ...member, online: false, activity: "background" }));
+  /** 成员的持久化字段；在线态与活动状态由服务层按实时连接合并。 */
+  members(id: string): Omit<Member, "online" | "activity">[] {
+    return this.db
+      .prepare(
+        "SELECT m.device_id AS deviceId, d.nickname, m.role FROM members m JOIN devices d ON d.id=m.device_id WHERE m.document_id=? AND m.status='active'"
+      )
+      .all(id) as Omit<Member, "online" | "activity">[];
+  }
+
+  /** 一次取回该设备全部文档的成员（文档列表避免逐文档查询）；在线态由服务层合并。 */
+  membersOf(deviceId: string): Map<string, Omit<Member, "online" | "activity">[]> {
+    const grouped = new Map<string, Omit<Member, "online" | "activity">[]>();
+    const rows = this.db
+      .prepare(
+        "SELECT m.document_id AS documentId, m.device_id AS deviceId, d.nickname, m.role FROM members m JOIN devices d ON d.id=m.device_id WHERE m.status='active' AND m.document_id IN (SELECT document_id FROM members WHERE device_id=? AND status='active') ORDER BY m.document_id"
+      )
+      .all(deviceId) as (Omit<Member, "online" | "activity"> & { documentId: string })[];
+    for (const row of rows) {
+      const list = grouped.get(row.documentId);
+      if (list) list.push(row);
+      else grouped.set(row.documentId, [row]);
+    }
+    return grouped;
   }
 
   /** 仅返回文档元数据；带在线状态的成员列表由路由层组装，避免 O(文档×成员) 重复查询。 */
@@ -390,7 +393,6 @@ export class CollaborationStore {
     this.db
       .prepare("UPDATE members SET status='removed' WHERE document_id=? AND device_id=?")
       .run(id, targetId);
-    this.invalidateAuthorization(id);
     this.audit(actorId, id, "member_removed");
   }
 
@@ -405,7 +407,6 @@ export class CollaborationStore {
       this.db.prepare("DELETE FROM invitations WHERE document_id=?").run(id);
       this.db.prepare("DELETE FROM join_requests WHERE document_id=?").run(id);
     })();
-    this.invalidateAuthorization(id);
     this.discardDocumentData(id);
     this.audit(deviceId, id, "closed");
   }
@@ -420,15 +421,7 @@ export class CollaborationStore {
       this.db.prepare("DELETE FROM snapshots WHERE document_id=?").run(id);
       this.db.prepare("DELETE FROM assets WHERE document_id=?").run(id);
     })();
-    for (const { hash } of hashes) {
-      const shared = this.db.prepare("SELECT 1 FROM assets WHERE hash=? LIMIT 1").get(hash);
-      if (!shared)
-        try {
-          unlinkSync(join(this.config.dataDir, "assets", hash));
-        } catch {
-          // 文件缺失不影响关闭流程。
-        }
-    }
+    for (const { hash } of hashes) this.unlinkIfOrphan(hash);
     this.assetIds.delete(id);
     this.cachedStorageBytes = -1;
   }
@@ -495,16 +488,19 @@ export class CollaborationStore {
         doc.destroy();
       }
     })();
-    for (const hash of obsoleteHashes) {
-      const shared = this.db.prepare("SELECT 1 FROM assets WHERE hash=? LIMIT 1").get(hash);
-      if (!shared)
-        try {
-          unlinkSync(join(this.config.dataDir, "assets", hash));
-        } catch {
-          // 文件缺失不影响清理流程。
-        }
-    }
+    for (const hash of obsoleteHashes) this.unlinkIfOrphan(hash);
     this.cachedStorageBytes = -1;
+  }
+
+  /** 文件可能被其他文档共享：仍被引用时保留，否则删除；文件缺失不算错误。 */
+  private unlinkIfOrphan(hash: string) {
+    const shared = this.db.prepare("SELECT 1 FROM assets WHERE hash=? LIMIT 1").get(hash);
+    if (!shared)
+      try {
+        unlinkSync(join(this.config.dataDir, "assets", hash));
+      } catch {
+        // 文件缺失不影响关闭/清理流程。
+      }
   }
 
   /**
@@ -514,13 +510,7 @@ export class CollaborationStore {
    */
   private pruneUnreferencedAssets(id: string, doc: Y.Doc) {
     const referenced = new Set<string>();
-    const visit = (entry: unknown) => {
-      if (typeof entry === "string" && entry.startsWith("tau-collab-asset:"))
-        referenced.add(entry.slice("tau-collab-asset:".length));
-      else if (Array.isArray(entry)) entry.forEach(visit);
-      else if (entry && typeof entry === "object") Object.values(entry).forEach(visit);
-    };
-    visit(readSharedContent(doc));
+    collectAssetReferences(readSharedContent(doc), referenced);
     const now = Date.now();
     const refresh = this.db.prepare(
       "UPDATE assets SET last_referenced_at=? WHERE document_id=? AND id=?"
@@ -549,14 +539,10 @@ export class CollaborationStore {
       );
       this.assetIds.set(id, known);
     }
-    const visit = (entry: unknown) => {
-      if (typeof entry === "string" && entry.startsWith("tau-collab-asset:")) {
-        const assetId = entry.slice("tau-collab-asset:".length);
-        if (!known!.has(assetId)) fail("INVALID_ASSET", "资源不属于这篇共享内容");
-      } else if (Array.isArray(entry)) entry.forEach(visit);
-      else if (entry && typeof entry === "object") Object.values(entry).forEach(visit);
-    };
-    visit(value);
+    const referenced = new Set<string>();
+    collectAssetReferences(value, referenced);
+    for (const assetId of referenced)
+      if (!known!.has(assetId)) fail("INVALID_ASSET", "资源不属于这篇共享内容");
   }
 
   noteAsset(id: string, assetId: string) {

@@ -7,7 +7,15 @@ import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
 import { toast } from "../../../components/toast";
 import { useAppContext } from "../../../app/AppContext";
 import * as tauri from "../../../services/tauri";
-import { createPageSchema, definePage, paramNumber, useNavigator, usePage } from "../../../router";
+import { useContentCollabEntry } from "../../collaboration/useContentCollabEntry";
+import {
+  createPageSchema,
+  definePage,
+  paramNumber,
+  useNavigator,
+  usePage,
+  usePageLifecycle,
+} from "../../../router";
 import {
   useArticleQuery,
   useArticleDelete,
@@ -30,6 +38,18 @@ function ArticleEditorScreen() {
   const { data: article } = useArticleQuery(params.articleId);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  // onResume 重拉正文（协作结束后本地内容更新）；绑定刷新由 useContentCollabEntry 内部处理
+  const [refreshRev, setRefreshRev] = useState(0);
+  usePageLifecycle({ onResume: () => setRefreshRev(value => value + 1) });
+  const collab = useContentCollabEntry(article?.contentId ?? undefined, {
+    refreshKey: refreshRev,
+    share: {
+      title: article?.title ?? "",
+      content: article?.content ?? undefined,
+      sourceType: "article",
+      sourceId: params.articleId,
+    },
+  });
   const toggleTop = useArticleToggleTop(() => setMenuOpen(false));
   const deleteArticle = useArticleDelete(() => {
     toast({ type: "success", text: "已删除文章" });
@@ -66,6 +86,12 @@ function ArticleEditorScreen() {
           className: "bg-rose-soft text-rose",
         }}
         tags={article.tags}
+        refreshKey={refreshRev}
+        collaboration={collab.collaboration}
+        onCollaborationEnded={() => {
+          collab.onCollaborationEnded();
+          setRefreshRev(value => value + 1);
+        }}
         onTagsCommit={async next => {
           await tauri.articleUpdate({ id: params.articleId, tags: next });
           invalidate();
@@ -101,6 +127,7 @@ function ArticleEditorScreen() {
             tone: "butter",
             onClick: () => toggleTop.mutate(article),
           },
+          ...collab.menuItems,
           {
             label: "删除文章",
             danger: true,
@@ -112,6 +139,8 @@ function ArticleEditorScreen() {
           },
         ]}
       />
+
+      {collab.shareSheet}
 
       <MobileConfirmDialog
         open={deleteOpen}

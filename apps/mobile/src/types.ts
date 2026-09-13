@@ -650,5 +650,23 @@ export interface SettingCompat {
     };
     [key: string]: unknown;
   };
+  /** 协作设置（与桌面端 setting.json 的 collaboration 节同构）：服务器与展示昵称 */
+  collaboration?: {
+    enable?: boolean;
+    serverUrl?: string;
+    nickname?: string;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
+}
+
+/** 本地内容与协作房间的绑定记录（与桌面端 collaboration_bindings 同字段） */
+export interface CollaborationBinding {
+  contentId: number;
+  contentCreatedAt: number;
+  serverUrl: string;
+  documentId: string;
+  sourceType?: string | null;
+  sourceId?: number | null;
+  sourceTitle?: string | null;
 }

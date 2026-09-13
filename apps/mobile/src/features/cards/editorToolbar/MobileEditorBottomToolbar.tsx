@@ -84,6 +84,11 @@ type MobileEditorBottomToolbarProps = {
    * 避免返回时工具栏滞留在上一页之上。
    */
   portalContainer?: HTMLElement | null;
+  /**
+   * 编辑器当前只读（协作会话冻结/结束、跨端降级等）：只读时工具栏不可用且无意义，
+   * 强制收起（只读编辑器仍可获得焦点，须显式抑制，不能只依赖 persistent/isEditorFocused）。
+   */
+  readonly?: boolean;
 };
 
 type MenuPosition = {
@@ -215,7 +220,7 @@ const TOOLBAR_BOTTOM_GAP = 12;
 const TOOLBAR_FALLBACK_HEIGHT = 46;
 
 export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps) {
-  const { controller, persistent = false, portalContainer } = props;
+  const { controller, persistent = false, portalContainer, readonly = false } = props;
 
   const portalRoot = portalContainer ?? (typeof document === "undefined" ? null : document.body);
 
@@ -231,7 +236,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
     readUnderlinePaletteState()
   );
 
-  const showToolbar = persistent || controller.isEditorFocused;
+  const showToolbar = !readonly && (persistent || controller.isEditorFocused);
   const toolbarRef = useRef<HTMLElement | null>(null);
 
   // 工具条可见时把自身占位高度写到根变量，所在页面的滚动容器据此留白；隐藏时不占位
@@ -475,15 +480,15 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
   }, [openGroupId, openPaletteId]);
 
   useEffect(() => {
-    if (controller.isEditorFocused) {
+    if (controller.isEditorFocused && !readonly) {
       return;
     }
     setOpenGroupId(null);
     setOpenPaletteId(null);
-  }, [controller.isEditorFocused]);
+  }, [controller.isEditorFocused, readonly]);
 
   const headingPanelNode =
-    controller.isEditorFocused && openGroupId === "heading" && portalRoot
+    !readonly && controller.isEditorFocused && openGroupId === "heading" && portalRoot
       ? createPortal(
           <div
             ref={groupPanelRef}
@@ -535,7 +540,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
       : null;
 
   const paletteNode =
-    controller.isEditorFocused && openPaletteId && portalRoot
+    !readonly && controller.isEditorFocused && openPaletteId && portalRoot
       ? createPortal(
           <div
             ref={palettePanelRef}

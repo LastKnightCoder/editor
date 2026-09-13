@@ -5,11 +5,12 @@ import type {
   SyncVersionResponse,
 } from "../../../types";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
+import { GroupLabel } from "../../../components/GroupLabel";
 import { toast } from "../../../components/toast";
 import { mapErrorToMessage, parseInvokeError } from "../../../services/errors";
 import type { SettingsPageProps } from "./types";
 import { Check, Cloud, Download, RefreshCw, Upload } from "lucide-react";
-import { GroupActionRow, GroupCard, GroupLabel, GroupRow, StatusDot, SwitchButton } from "./ui";
+import { GroupActionRow, GroupCard, GroupNote, GroupRow, StatusDot, SwitchButton } from "./ui";
 
 type DatabaseSyncStatusSectionProps = Pick<
   SettingsPageProps,
@@ -228,7 +229,7 @@ export function DatabaseSyncStatusSection(props: DatabaseSyncStatusSectionProps)
 
   return (
     <div className="page-enter space-y-1">
-      <section className="list-group mb-4 p-4">
+      <section className="list-group p-4">
         <div className="flex items-center gap-3">
           <DatabaseStatusBubble summary={summary} syncing={props.isSyncing} />
           <div className="min-w-0 flex-1">
@@ -276,9 +277,9 @@ export function DatabaseSyncStatusSection(props: DatabaseSyncStatusSectionProps)
           用远端覆盖本地…
         </GroupActionRow>
       </GroupCard>
-      <p className="text-ink-3 px-[30px] text-[11.5px] leading-relaxed">
+      <GroupNote>
         整库覆盖会丢失被覆盖一侧未同步的改动，执行前会再次确认方向。日常使用「立即同步」即可，它按版本差异自动选择方向。
-      </p>
+      </GroupNote>
 
       <MobileConfirmDialog
         open={dangerDir !== null}
@@ -362,7 +363,7 @@ export function ResourceSyncStatusSection(props: ResourceSyncStatusSectionProps)
 
   return (
     <div className="page-enter space-y-1">
-      <section className="list-group mb-4 p-4">
+      <section className="list-group p-4">
         <div className="flex items-center gap-3">
           <StatusDot tone={tone} />
           <div className="min-w-0 flex-1">
@@ -464,9 +465,9 @@ export function ResourceSyncStatusSection(props: ResourceSyncStatusSectionProps)
         </GroupRow>
       </GroupCard>
 
-      <p className="text-ink-3 px-[30px] text-[11.5px] leading-relaxed">
+      <GroupNote>
         最近同步：{lastSyncText}。资源同步只做增量上传与下载，不会删除远端文件。
-      </p>
+      </GroupNote>
     </div>
   );
 }

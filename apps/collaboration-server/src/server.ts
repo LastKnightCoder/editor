@@ -4,7 +4,6 @@ import rateLimit from "@fastify/rate-limit";
 import websocket from "@fastify/websocket";
 import { Hocuspocus, type WebSocketLike } from "@hocuspocus/server";
 import { WebSocket } from "ws";
-import { createHash } from "node:crypto";
 import {
   CollaborationError,
   COLLABORATION_VERSION,
@@ -16,6 +15,27 @@ import { CollaborationStore } from "./store";
 import { registerAssetRoutes } from "./asset-routes";
 import { registerContentRoutes } from "./content-routes";
 import { PresenceScheduler } from "./presence-scheduler";
+
+// WebSocket 消息里 Yjs 二进制经 base64/协议帧包装后的额外开销上限
+const WS_OVERHEAD_BYTES = 65536;
+// 固定窗口限流：key 为连接 socketId，超窗重置
+const windowLimiter = (limit: number, windowMs: number, message: string) => {
+  const counts = new Map<string, { startedAt: number; count: number }>();
+  return {
+    check(key: string) {
+      const now = Date.now();
+      const current = counts.get(key);
+      const rate =
+        current && now - current.startedAt < windowMs ? current : { startedAt: now, count: 0 };
+      rate.count += 1;
+      counts.set(key, rate);
+      if (rate.count > limit) throw new Error(message);
+    },
+    release(key: string) {
+      counts.delete(key);
+    },
+  };
+};
 
 export async function createServer(overrides: Partial<ServerConfig> = {}) {
   const config = loadConfig(overrides);
@@ -35,12 +55,12 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
     limits: { fileSize: config.maxAssetBytes, files: 1, fields: 2, parts: 3 },
   });
   await app.register(websocket, {
-    options: { maxPayload: config.maxDocumentBytes + 65536 },
+    options: { maxPayload: config.maxDocumentBytes + WS_OVERHEAD_BYTES },
   });
   const eventClients = new Map<string, Set<WebSocket>>();
   const sockets = new Set<WebSocket>();
-  const messageRates = new Map<string, { startedAt: number; count: number }>();
-  const awarenessRates = new Map<string, { startedAt: number; count: number }>();
+  const messageRates = windowLimiter(3000, 60000, "编辑请求过于频繁");
+  const awarenessRates = windowLimiter(600, 60000, "在线状态更新过于频繁");
   let stopping = false;
 
   const send = (deviceId: string, event: CollaborationEvent) => {
@@ -57,7 +77,7 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
     return store.authenticate(header.slice(7));
   };
 
-  const members = (documentId: string): Member[] => {
+  const onlineActivities = (documentId: string): Map<string, Member["activity"]> => {
     const document = hocuspocus.documents.get(documentId);
     const online = new Map<string, Member["activity"]>();
     for (const connection of document?.getConnections() || [])
@@ -69,12 +89,21 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
       if (activity === "editing" || (activity === "viewing" && online.get(id) !== "editing"))
         online.set(id, activity);
     }
-    return store.members(documentId).map(member => ({
+    return online;
+  };
+  /** 把持久化成员行合并实时在线态；文档列表与 presence 共用。 */
+  const mergeOnline = (
+    documentId: string,
+    base: Omit<Member, "online" | "activity">[]
+  ): Member[] => {
+    const online = onlineActivities(documentId);
+    return base.map(member => ({
       ...member,
       online: online.has(member.deviceId),
       activity: online.get(member.deviceId) || "background",
     }));
   };
+  const members = (documentId: string): Member[] => mergeOnline(documentId, store.members(documentId));
   const publishPresence = (documentId: string) => {
     const values = members(documentId);
     for (const member of values)
@@ -108,44 +137,23 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
     },
     async beforeHandleMessage({ documentName, context, update, socketId }) {
       store.authorize(documentName, context.deviceId);
-      if (stopping || update.byteLength > config.maxDocumentBytes + 65536)
+      if (stopping || update.byteLength > config.maxDocumentBytes + WS_OVERHEAD_BYTES)
         throw new Error("服务暂停写入或消息超过限制");
-      const now = Date.now();
-      const current = messageRates.get(socketId);
-      const rate =
-        current && now - current.startedAt < 60000 ? current : { startedAt: now, count: 0 };
-      rate.count++;
-      messageRates.set(socketId, rate);
-      if (rate.count > 3000) throw new Error("编辑请求过于频繁");
+      messageRates.check(socketId);
     },
     async beforeSync({ type, payload, context, documentName, document }) {
-      store.authorize(documentName, context.deviceId);
       if (type === 1 || type === 2)
         store.appendUpdate(documentName, context.deviceId, payload, document);
     },
-    async beforeHandleAwareness({ context, documentName, states, connection }) {
-      if (!context) return;
+    async beforeHandleAwareness({ context, documentName, states, connection, socketId }) {
+      if (!context || !socketId) throw new Error("连接状态异常");
       store.authorize(documentName, context.deviceId);
-      const now = Date.now();
-      const current = awarenessRates.get(connection?.socketId || "") ?? {
-        startedAt: now,
-        count: 0,
-      };
-      if (now - current.startedAt >= 60000) {
-        current.startedAt = now;
-        current.count = 0;
-      }
-      current.count += 1;
-      awarenessRates.set(connection?.socketId || "", current);
-      if (current.count > 600) throw new Error("在线状态更新过于频繁");
+      awarenessRates.check(socketId);
       if (states.size > 16 || JSON.stringify([...states]).length > 16384)
         throw new Error("在线状态超过限制");
       for (const state of states.values()) {
-        state.user = {
-          id: context.deviceId,
-          name: context.nickname,
-          color: `#${createHash("sha256").update(context.deviceId).digest("hex").slice(0, 6)}`,
-        };
+        // 成员识别色由各端 memberColor(deviceId) 本地派生（palette.ts），服务端不注入 UI 概念
+        state.user = { id: context.deviceId, name: context.nickname };
         if (!["editing", "viewing", "background"].includes(state.activity))
           state.activity = "background";
         state.socketId = connection?.socketId;
@@ -161,8 +169,8 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
       presence.schedule(documentName);
     },
     async onDisconnect({ documentName, socketId }) {
-      messageRates.delete(socketId);
-      awarenessRates.delete(socketId);
+      messageRates.release(socketId);
+      awarenessRates.release(socketId);
       presence.schedule(documentName);
     },
     async onStateless() {
@@ -193,7 +201,7 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
       return reply.code(503).send({ ok: false });
     }
   });
-  registerContentRoutes(app, { store, config, device, refresh, send, disconnect, members });
+  registerContentRoutes(app, { store, config, device, refresh, send, disconnect, members, mergeOnline });
 
   registerAssetRoutes(app, store, config, device);
 

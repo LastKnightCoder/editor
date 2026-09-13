@@ -163,6 +163,8 @@ pub(crate) fn decrement_or_delete_content(tx: &Connection, content_id: i64) -> R
         .optional()
         .map_err(|e| db_err("CONTENT_DELETE_FAILED", "query ref_count", e))?;
     if matches!(ref_count, Some(v) if v <= 0) {
+        // 协作内容禁止级联删除（与桌面端数据库层守卫一致）
+        super::collaboration::assert_content_local(tx, content_id)?;
         tx.execute("DELETE FROM contents WHERE id = ?1", params![content_id])
             .map_err(|e| db_err("CONTENT_DELETE_FAILED", "delete content", e))?;
         write_operation(tx, "content", "delete", content_id, now)?;

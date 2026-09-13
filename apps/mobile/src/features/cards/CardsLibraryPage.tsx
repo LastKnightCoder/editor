@@ -6,14 +6,15 @@ import { useMemoizedFn } from "ahooks";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { Search } from "lucide-react";
 import { CardsPage } from "./CardsPage";
-import { CARD_CATEGORY_OPTIONS, cardCategoryTagClass } from "./cardCategory";
+import { CARD_CATEGORY_OPTIONS, cardCategoryDotClass, cardCategoryTagClass } from "./cardCategory";
 
 const CATEGORY_CHIPS = [
-  { value: "", label: "全部", dotClass: "bg-accent" },
+  { value: "", label: "全部", dotClass: "bg-accent", activeClass: "bg-accent-soft text-ink" },
   ...CARD_CATEGORY_OPTIONS.map(option => ({
     value: option.value,
     label: option.label,
-    dotClass: cardCategoryTagClass(option.value).split(" ")[0],
+    dotClass: cardCategoryDotClass(option.value),
+    activeClass: cardCategoryTagClass(option.value),
   })),
 ];
 
@@ -79,7 +80,7 @@ export function CardsLibraryPage(props: CardsLibraryPageProps) {
                   onClick={() => handleCategoryChange(chip.value)}
                   aria-pressed={active}
                   className={`shadow-card flex shrink-0 items-center gap-1.5 rounded-full px-[15px] py-[9px] text-[13px] font-semibold transition-all duration-200 active:scale-95 ${
-                    active ? "text-ink" : "bg-surface text-ink-2"
+                    active ? chip.activeClass : "bg-surface text-ink-2"
                   }`}
                 >
                   <span className={`h-2 w-2 rounded-full ${chip.dotClass}`} />
