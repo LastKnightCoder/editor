@@ -2,6 +2,7 @@
 // 页面组件自身的 z-50 位于 PageHost wrapper 的层叠上下文内（wrapper 有 transform），
 // 不参与全局层叠，无需对齐本表。
 // 不变式：MAX_LIVE_SCREENS(10) 时 screen 层最大 zIndex = SCREEN_TOP(40) < OVERLAY_SHEET(50)。
+// 例外：tab 滑动跟手层临时占用 SCREEN_TOP±1 / SCREEN_TOP-2（均 < 50），落定即恢复。
 
 export const SCREEN_BASE = 10;
 export const SCREEN_TOP = 40;

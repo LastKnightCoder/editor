@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { getQueryClient } from "../../../router";
-import { readDiaryEntries, writeDiaryEntries } from "../queries";
+import { readDiaryEntries, readDiaryTagSettings, writeDiaryEntries } from "../queries";
 import type { Descendant } from "slate";
 import * as tauri from "../../../services/tauri";
 import type { DiaryEntry, DiarySegment, DiaryType } from "../../../types";
@@ -440,5 +440,14 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
     set({ error: "" });
   },
 }));
+
+/** tab 滑切预热：把日记域首屏数据（列表/标签库/store）拉进缓存，失败静默 */
+export function warmupDiaryTabCache(): void {
+  void Promise.allSettled([
+    readDiaryEntries(),
+    readDiaryTagSettings(),
+    useDiaryStore.getState().initialize(),
+  ]);
+}
 
 export default useDiaryStore;

@@ -8,22 +8,34 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { House, Layers, NotebookPen, Plus, User } from "lucide-react";
 import { Article, BookOpen, Stack } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
-import { useRouterContext, switchTabScreen } from "../router";
+import {
+  useRouterContext,
+  switchTabScreen,
+  TAB_ORDER,
+  isTabRoot,
+  resolveTabNeighbor,
+  useTabSwipeOrigin,
+  type TabKey,
+} from "../router";
 import { useAppContext } from "../app/AppContext";
-import { useDiaryStore } from "../features/diary/store/useDiaryStore";
+import { useDiaryStore, warmupDiaryTabCache } from "../features/diary/store/useDiaryStore";
 import { getTodayDateKey } from "../features/diary/feedUtils";
 import { describeDiaryPeriod } from "../features/diary/dateKey";
 import { useInvalidateArticles } from "../features/articles/queries";
 import * as tauri from "../services/tauri";
 
-const TABS = [
-  { key: "home", label: "今天", icon: House, blob: "var(--rose-soft)" },
-  { key: "cardsLibrary", label: "卡片", icon: Layers, blob: "var(--sky-soft)" },
-  { key: "diaryHome", label: "日记", icon: NotebookPen, blob: "var(--sage-soft)" },
-  { key: "settings", label: "我的", icon: User, blob: "var(--apricot-soft)" },
-] as const;
+// 视觉映射与顺序解耦：顺序契约（TAB_ORDER）在 router/tabs.ts，供滑动手势共用
+const TAB_VISUALS: Record<TabKey, { label: string; icon: typeof House; blob: string }> = {
+  home: { label: "今天", icon: House, blob: "var(--rose-soft)" },
+  cardsLibrary: { label: "卡片", icon: Layers, blob: "var(--sky-soft)" },
+  diaryHome: { label: "日记", icon: NotebookPen, blob: "var(--sage-soft)" },
+  settings: { label: "我的", icon: User, blob: "var(--apricot-soft)" },
+};
 
-const TAB_KEYS = new Set<string>(TABS.map(tab => tab.key));
+const TABS = TAB_ORDER.map(key => ({ key, ...TAB_VISUALS[key] }));
+
+// 预热延迟：避开当前 tab 首屏渲染再拉邻居数据
+const WARMUP_DELAY_MS = 600;
 
 // FAB 环绕菜单：以 FAB 中心为原点，angle（度，-90 为正上方）/ radius 决定弧上落点
 type FabAction = {
@@ -95,20 +107,33 @@ function AppDock() {
   const entries = state.screens.entries;
   const topKey = entries[entries.length - 1]?.key ?? "home";
   // Dock 只在 Tab 根显示：二级页（任务中心/番茄专注等）与沉浸 overlay 一律隐藏
-  const visible = TAB_KEYS.has(topKey);
+  const visible = isTabRoot(topKey);
 
-  // 激活 Tab = 栈内最靠近顶部的 Tab 根（二级页归属其入口 Tab），兜底今天
-  const activeTab = useMemo(() => {
+  // 激活 Tab = 栈内最靠近顶部的 Tab 根（二级页归属其入口 Tab），兜底今天；
+  // 滑动手势期间以 origin 为准——push 预推入会提前改栈，但高亮只应在页面
+  // 滑完落定后跟随，避免"tab 先动页面后动"、取消时高亮来回跳
+  const stackActiveTab = useMemo(() => {
     for (let i = entries.length - 1; i >= 0; i -= 1) {
-      if (TAB_KEYS.has(entries[i].key)) return entries[i].key;
+      if (isTabRoot(entries[i].key)) return entries[i].key;
     }
     return "home";
   }, [entries]);
+  const activeTab = useTabSwipeOrigin() ?? stackActiveTab;
 
   // 离开 Dock 可见范围时收起 FAB 菜单
   useEffect(() => {
     if (!visible) setMenuOpen(false);
   }, [visible]);
+
+  // 邻居 tab 数据预热：延迟一拍避开当前 tab 首屏渲染，滑切拖出预览层时数据已在缓存。
+  // 预热什么由各域自查（日记域外：卡片 tab 与首页共享全局查询、我的 tab 无首屏请求）
+  useEffect(() => {
+    if (!visible) return;
+    const neighbors = [resolveTabNeighbor(activeTab, -1), resolveTabNeighbor(activeTab, 1)];
+    if (!neighbors.includes("diaryHome")) return;
+    const timer = window.setTimeout(() => warmupDiaryTabCache(), WARMUP_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [visible, activeTab]);
 
   const switchTab = (key: string) => {
     setMenuOpen(false);
@@ -164,11 +189,13 @@ function AppDock() {
           onClick={() => setMenuOpen(false)}
           className="fixed inset-0"
           style={{ zIndex: 44, background: "var(--mask)" }}
+          data-no-tab-swipe
         />
       ) : null}
 
       <nav
         aria-label="主导航"
+        data-no-tab-swipe
         className="fixed inset-x-0 bottom-0"
         style={{
           zIndex: 45,
