@@ -709,6 +709,7 @@ export function TodoPage({
         title="选择任务类型"
         items={(["normal", "deadline", "planned", "recurring"] as TodoItemType[]).map(t => ({
           label: TYPE_LABELS[t],
+          trailing: newType === t ? <Check strokeWidth={2.6} /> : undefined,
           onClick: () => setNewType(t),
         }))}
         onClose={() => setTypeSheetOpen(false)}
