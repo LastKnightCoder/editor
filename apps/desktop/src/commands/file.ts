@@ -133,7 +133,11 @@ export const convertFileSrc = async (filePath: string): Promise<string> => {
   if (normalizedFilePath.startsWith(normalizedAppDir)) {
     const relativePath = normalizedFilePath.replace(normalizedAppDir, "");
     const withLeadingSlash = relativePath.startsWith("/") ? relativePath : `/${relativePath}`;
-    return `http://localhost:24678${withLeadingSlash}`;
+    // 逐段编码后再拼 URL：静态服务收到请求会解码一层，编码保证解码结果与
+    // 磁盘字面文件名一致——含中文/空格的常规文件名以及历史上按 OSS 编码
+    // 对象名存盘的资源文件（文件名本身带 % 字符）都能正确命中
+    const encodedPath = withLeadingSlash.split("/").map(encodeURIComponent).join("/");
+    return `http://localhost:24678${encodedPath}`;
   }
 
   return `ltoh:///${normalizedFilePath}`;
