@@ -40,4 +40,6 @@ declare module "7zip-min" {
     archivePath: string,
     callback: (err: Error | null, result: Array<{ name: string; size: number }>) => void
   ): void;
+
+  export function config(cfg: { binaryPath?: string }): void;
 }
