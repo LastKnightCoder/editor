@@ -6,7 +6,11 @@
 import { HocuspocusProvider, HocuspocusProviderWebsocket } from "@hocuspocus/provider";
 import * as Y from "yjs";
 import { Awareness } from "y-protocols/awareness";
-import { createSharedDocument, readSharedContent, replaceSharedContent } from "@tau/collaboration/src/document";
+import {
+  createSharedDocument,
+  readSharedContent,
+  replaceSharedContent,
+} from "@tau/collaboration/src/document";
 import {
   DEFAULT_COLLABORATION_URL,
   type CollaborationEvent,
@@ -30,11 +34,7 @@ import {
   restoreOwnerPrivateNodes,
 } from "./private-blocks";
 import * as rest from "./rest";
-import {
-  pushCollaborationNotice,
-  setCollaborationState,
-  useCollaborationStore,
-} from "./store";
+import { pushCollaborationNotice, setCollaborationState, useCollaborationStore } from "./store";
 
 /** 列表新鲜度主要靠 /events 推送，轮询只作兜底（桌面为 15s，移动端放宽省电） */
 const REFRESH_INTERVAL_MS = 60_000;
@@ -65,9 +65,7 @@ function describeError(error: unknown, fallback: string) {
 /** 幂等键摘要：与桌面端同思路，重复发起共享不会创建重复房间 */
 async function sha256Hex(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)]
-    .map(byte => byte.toString(16).padStart(2, "0"))
-    .join("");
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
 class CollaborationManager {
@@ -371,7 +369,10 @@ class CollaborationManager {
       // 关闭/退出未送达服务器：保留会话（leaving 复位以便再次尝试），否则
       // owner 侧云端房间无人能关、成员侧 refresh 又把会话拉回来
       session.info.leaving = false;
-      session.info.error = describeError(failure, owned ? "结束共享失败，请稍后重试" : "退出协作失败，请稍后重试");
+      session.info.error = describeError(
+        failure,
+        owned ? "结束共享失败，请稍后重试" : "退出协作失败，请稍后重试"
+      );
       this.changed();
       throw failure;
     }
@@ -409,7 +410,24 @@ class CollaborationManager {
   }): Promise<{ documentId: string; code: string; expiresAt: number }> {
     await this.whenReady();
     const serverUrl = this.serverUrl;
-    const existingBinding = await tauri.collabGetBinding(source.contentId).catch(() => null);
+    let existingBinding = await tauri.collabGetBinding(source.contentId).catch(() => null);
+    if (existingBinding) {
+      // 结束共享后服务端会把房间标记为 closed；若本地解绑在退场阶段失败，
+      // 这里不能继续复用旧 documentId，否则重发会一直命中已关闭房间。
+      if (existingBinding.serverUrl !== serverUrl) {
+        await tauri.collabUnbindContent(source.contentId).catch(() => {});
+        clearCachedInvitation(existingBinding.documentId);
+        existingBinding = null;
+      } else {
+        const { documents } = await rest.listDocuments(serverUrl);
+        const active = documents.some(document => document.id === existingBinding?.documentId);
+        if (!active) {
+          await tauri.collabUnbindContent(source.contentId).catch(() => {});
+          clearCachedInvitation(existingBinding.documentId);
+          existingBinding = null;
+        }
+      }
+    }
     // 私有块（白板/数据库等）剥离后仅留本机；无论新建还是复用房间都要并入会话，
     // 复用路径依赖首次发起时的投影已把 collabId 标注写回本地内容（见首次投影）
     const privateNodes = new Map<string, ContentNode>();
@@ -494,11 +512,15 @@ class CollaborationManager {
     const cloudContent = cloudContentOf(session.doc);
     const merged = mergeSessionPrivateNodes(cloudContent, stripped, session.privateNodes);
     if (!merged) {
-      throw new Error("COLLAB_PRIVATE_BLOCK_CONFLICT: 本地内容与协作房间已不一致，请结束共享后重新发起");
+      throw new Error(
+        "COLLAB_PRIVATE_BLOCK_CONFLICT: 本地内容与协作房间已不一致，请结束共享后重新发起"
+      );
     }
     const materialized = readSharedContent(session.doc, session.privateNodes);
     if (collectPlaceholderIds(materialized.content).length > 0) {
-      throw new Error("COLLAB_PRIVATE_BLOCK_CONFLICT: 私有块真身未能并入会话，请结束共享后重新发起");
+      throw new Error(
+        "COLLAB_PRIVATE_BLOCK_CONFLICT: 私有块真身未能并入会话，请结束共享后重新发起"
+      );
     }
     await tauri
       .collabProjectContent({
