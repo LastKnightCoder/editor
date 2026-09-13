@@ -68,6 +68,7 @@ pub fn run() {
             database::set_active_database,
             database::get_home_stats,
             database::get_cards_overview,
+            database::search_all_content,
             database::get_card_detail,
             database::get_content_detail,
             database::create_temporary_card,

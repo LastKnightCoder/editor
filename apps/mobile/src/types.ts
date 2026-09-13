@@ -73,6 +73,31 @@ export interface CardsOverviewResponse {
   items: CardListItem[];
 }
 
+export type UnifiedSearchResultType =
+  "card" | "article" | "project-item" | "document-item" | "diary-daily";
+
+export interface UnifiedSearchResult {
+  id: number;
+  type: UnifiedSearchResultType | string;
+  title: string;
+  excerpt: string;
+  contentId: number | null;
+  updateTime: number;
+  score: number;
+  date: string | null;
+  containerId: number | null;
+  containerTitle: string | null;
+}
+
+export interface UnifiedSearchResponse {
+  total: number;
+  page: number;
+  pageSize: number;
+  query: string;
+  searchMode: "none" | "fts" | "like" | string;
+  items: UnifiedSearchResult[];
+}
+
 export interface CardsQueryState {
   query: string;
   category: string;

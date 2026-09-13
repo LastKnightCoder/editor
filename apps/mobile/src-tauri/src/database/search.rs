@@ -2,8 +2,11 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 use jieba_rs::Jieba;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 
+use crate::models::UnifiedSearchResult;
+
+use super::common::{json_content_plain_text, parse_id_array};
 use super::query::RawCardRow;
 
 pub struct SearchResult {
@@ -245,7 +248,7 @@ fn query_cards_by_fts(
                 SELECT prefixed_id, rank,
                        ROW_NUMBER() OVER (PARTITION BY prefixed_id ORDER BY rank) AS rn
                 FROM idx.content_fts
-                WHERE idx.content_fts MATCH ?1
+                WHERE content_fts MATCH ?1
                   AND type = 'card'
             ),
             best AS (
@@ -274,7 +277,7 @@ fn query_cards_by_fts(
                 SELECT prefixed_id, rank,
                        ROW_NUMBER() OVER (PARTITION BY prefixed_id ORDER BY rank) AS rn
                 FROM idx.content_fts
-                WHERE idx.content_fts MATCH ?1
+                WHERE content_fts MATCH ?1
                   AND type = 'card'
             ),
             best AS (
@@ -358,4 +361,462 @@ pub fn query_cards_by_search(
     }
 
     query_cards_by_like(conn, query, category, limit, offset)
+}
+
+const SEARCH_TYPES: &[&str] = &[
+    "card",
+    "article",
+    "project-item",
+    "document-item",
+    "diary-daily",
+];
+
+fn normalize_search_types(types: Option<&[String]>) -> Vec<String> {
+    let Some(types) = types else {
+        return SEARCH_TYPES
+            .iter()
+            .map(|value| (*value).to_string())
+            .collect();
+    };
+    let normalized = types
+        .iter()
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| SEARCH_TYPES.contains(&value.as_str()))
+        .collect::<Vec<_>>();
+    if normalized.is_empty() {
+        SEARCH_TYPES
+            .iter()
+            .map(|value| (*value).to_string())
+            .collect()
+    } else {
+        normalized
+    }
+}
+
+fn type_sql(types: &[String]) -> String {
+    types
+        .iter()
+        .map(|value| format!("'{value}'"))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn truncate_excerpt(text: String) -> String {
+    let mut excerpt = String::new();
+    for (index, ch) in text.replace('\n', " ").chars().enumerate() {
+        if index >= 120 {
+            excerpt.push('…');
+            break;
+        }
+        excerpt.push(ch);
+    }
+    excerpt
+}
+
+fn content_excerpt(raw: Option<String>) -> String {
+    truncate_excerpt(json_content_plain_text(raw))
+}
+
+fn parse_first_id(raw: Option<String>) -> Option<i64> {
+    parse_id_array(raw).into_iter().next()
+}
+
+fn query_container_title(conn: &Connection, table: &str, id: i64) -> Option<String> {
+    let sql = match table {
+        "project" => "SELECT title FROM project WHERE id = ?1",
+        "documents" => "SELECT title FROM documents WHERE id = ?1",
+        _ => return None,
+    };
+    conn.query_row(sql, params![id], |row| row.get::<_, String>(0))
+        .optional()
+        .ok()
+        .flatten()
+}
+
+fn hydrate_unified_result(
+    conn: &Connection,
+    result_type: &str,
+    id: i64,
+    score: f64,
+) -> Result<Option<UnifiedSearchResult>, String> {
+    let result: Result<Option<UnifiedSearchResult>, String> = match result_type {
+        "card" => conn
+            .query_row(
+                "SELECT c.content_id, c.update_time, c.tags, ct.content
+                 FROM cards c LEFT JOIN contents ct ON c.content_id = ct.id WHERE c.id = ?1",
+                params![id],
+                |row| {
+                    let content: Option<String> = row.get(3)?;
+                    let excerpt = content_excerpt(content.clone());
+                    Ok(UnifiedSearchResult {
+                        id,
+                        result_type: result_type.to_string(),
+                        title: excerpt.lines().next().unwrap_or_default().to_string(),
+                        excerpt,
+                        content_id: row.get(0)?,
+                        update_time: row.get(1)?,
+                        score,
+                        date: None,
+                        container_id: None,
+                        container_title: None,
+                    })
+                },
+            )
+            .optional()
+            .map_err(|e| format!("DB_OPEN_FAILED: hydrate card search result failed: {e}")),
+        "article" => conn
+            .query_row(
+                "SELECT a.title, a.content_id, MAX(a.update_time, COALESCE(c.update_time, 0)), c.content
+                 FROM articles a LEFT JOIN contents c ON a.content_id = c.id
+                 WHERE a.id = ?1 AND a.is_delete = 0",
+                params![id],
+                |row| {
+                    Ok(UnifiedSearchResult {
+                        id,
+                        result_type: result_type.to_string(),
+                        title: row.get(0)?,
+                        excerpt: content_excerpt(row.get(3)?),
+                        content_id: row.get(1)?,
+                        update_time: row.get(2)?,
+                        score,
+                        date: None,
+                        container_id: None,
+                        container_title: None,
+                    })
+                },
+            )
+            .optional()
+            .map_err(|e| format!("DB_OPEN_FAILED: hydrate article search result failed: {e}")),
+        "project-item" => conn
+            .query_row(
+                "SELECT pi.title, pi.content_id, pi.update_time, pi.projects, c.content
+                 FROM project_item pi LEFT JOIN contents c ON pi.content_id = c.id WHERE pi.id = ?1",
+                params![id],
+                |row| {
+                    let projects: Option<String> = row.get(3)?;
+                    let container_id = parse_first_id(projects);
+                    let container_title = container_id
+                        .and_then(|value| query_container_title(conn, "project", value));
+                    Ok(UnifiedSearchResult {
+                        id,
+                        result_type: result_type.to_string(),
+                        title: row.get(0)?,
+                        excerpt: content_excerpt(row.get(4)?),
+                        content_id: row.get(1)?,
+                        update_time: row.get(2)?,
+                        score,
+                        date: None,
+                        container_id,
+                        container_title,
+                    })
+                },
+            )
+            .optional()
+            .map_err(|e| format!("DB_OPEN_FAILED: hydrate project search result failed: {e}")),
+        "document-item" => conn
+            .query_row(
+                "SELECT di.title, di.content_id, di.update_time, di.documents, c.content
+                 FROM document_items di LEFT JOIN contents c ON di.content_id = c.id WHERE di.id = ?1",
+                params![id],
+                |row| {
+                    let documents: Option<String> = row.get(3)?;
+                    let container_id = parse_first_id(documents);
+                    let container_title = container_id
+                        .and_then(|value| query_container_title(conn, "documents", value));
+                    Ok(UnifiedSearchResult {
+                        id,
+                        result_type: result_type.to_string(),
+                        title: row.get(0)?,
+                        excerpt: content_excerpt(row.get(4)?),
+                        content_id: row.get(1)?,
+                        update_time: row.get(2)?,
+                        score,
+                        date: None,
+                        container_id,
+                        container_title,
+                    })
+                },
+            )
+            .optional()
+            .map_err(|e| format!("DB_OPEN_FAILED: hydrate document search result failed: {e}")),
+        "diary-daily" => {
+            let base = conn
+                .query_row(
+                    "SELECT d.type, d.date, d.update_time, d.tags FROM diary_entries d WHERE d.id = ?1",
+                    params![id],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, i64>(2)?,
+                            row.get::<_, Option<String>>(3)?,
+                        ))
+                    },
+                )
+                .optional()
+                .map_err(|e| format!("DB_OPEN_FAILED: hydrate diary search result failed: {e}"))?;
+            let Some((diary_type, date, update_time, _tags)) = base else {
+                return Ok(None);
+            };
+            let mut content_id = None;
+            let mut parts = Vec::new();
+            let mut segments_stmt = conn
+                .prepare(
+                    "SELECT s.content_id, c.content FROM diary_segments s
+                     JOIN contents c ON c.id = s.content_id WHERE s.diary_id = ?1 ORDER BY s.create_time, s.id",
+                )
+                .map_err(|e| format!("DB_OPEN_FAILED: prepare diary search details: {e}"))?;
+            let mut segments = segments_stmt
+                .query(params![id])
+                .map_err(|e| format!("DB_OPEN_FAILED: query diary search details: {e}"))?;
+            while let Some(row) = segments
+                .next()
+                .map_err(|e| format!("DB_OPEN_FAILED: read diary search details: {e}"))?
+            {
+                if content_id.is_none() {
+                    content_id = row.get(0).ok();
+                }
+                let raw: Option<String> = row.get(1).map_err(|e| e.to_string())?;
+                let text = json_content_plain_text(raw);
+                if !text.is_empty() {
+                    parts.push(text);
+                }
+            }
+            Ok(Some(UnifiedSearchResult {
+                id,
+                result_type: result_type.to_string(),
+                title: date.clone(),
+                excerpt: truncate_excerpt(parts.join(" ")),
+                content_id,
+                update_time,
+                score,
+                date: Some(date),
+                container_id: None,
+                container_title: Some(diary_type),
+            }))
+        }
+        _ => Ok(None),
+    };
+    result
+}
+
+fn unified_like_sql() -> &'static str {
+    "SELECT prefixed_id, type, update_time FROM (
+       SELECT 'card:' || c.id AS prefixed_id, 'card' AS type, c.update_time
+       FROM cards c LEFT JOIN contents ct ON c.content_id = ct.id
+       WHERE ct.content LIKE ?1 ESCAPE '\\' OR c.tags LIKE ?1 ESCAPE '\\'
+       UNION ALL
+       SELECT 'article:' || a.id, 'article', MAX(a.update_time, COALESCE(c.update_time, 0))
+       FROM articles a LEFT JOIN contents c ON a.content_id = c.id
+       WHERE a.is_delete = 0 AND (a.title LIKE ?1 ESCAPE '\\' OR a.author LIKE ?1 ESCAPE '\\' OR a.tags LIKE ?1 ESCAPE '\\' OR c.content LIKE ?1 ESCAPE '\\')
+       UNION ALL
+       SELECT 'project-item:' || pi.id, 'project-item', MAX(pi.update_time, COALESCE(c.update_time, 0))
+       FROM project_item pi LEFT JOIN contents c ON pi.content_id = c.id
+       WHERE COALESCE(pi.ref_type, '') = '' AND (pi.title LIKE ?1 ESCAPE '\\' OR c.content LIKE ?1 ESCAPE '\\')
+       UNION ALL
+       SELECT 'document-item:' || di.id, 'document-item', MAX(di.update_time, COALESCE(c.update_time, 0))
+       FROM document_items di LEFT JOIN contents c ON di.content_id = c.id
+       WHERE COALESCE(di.ref_type, '') = '' AND (di.title LIKE ?1 ESCAPE '\\' OR di.tags LIKE ?1 ESCAPE '\\' OR c.content LIKE ?1 ESCAPE '\\')
+       UNION ALL
+       SELECT 'diary-daily:' || d.id, 'diary-daily', d.update_time
+       FROM diary_entries d LEFT JOIN contents c ON d.content_id = c.id
+       WHERE d.date LIKE ?1 ESCAPE '\\' OR d.tags LIKE ?1 ESCAPE '\\' OR c.content LIKE ?1 ESCAPE '\\'
+         OR EXISTS (SELECT 1 FROM diary_segments s JOIN contents sc ON sc.id = s.content_id WHERE s.diary_id = d.id AND sc.content LIKE ?1 ESCAPE '\\')
+     )"
+}
+
+fn hit_id(prefixed_id: &str) -> Option<(&str, i64)> {
+    let (result_type, raw_id) = prefixed_id.split_once(':')?;
+    Some((result_type, raw_id.parse().ok()?))
+}
+
+pub fn query_unified_search(
+    conn: &Connection,
+    query: &str,
+    types: Option<&[String]>,
+    page: u32,
+    page_size: u32,
+) -> Result<(String, u64, Vec<UnifiedSearchResult>), String> {
+    let query = query.trim();
+    let page = page.max(1);
+    let page_size = page_size.clamp(1, 100);
+    let offset = ((page - 1) * page_size) as i64;
+    let limit = page_size as i64;
+    if query.is_empty() {
+        return Ok(("none".to_string(), 0, Vec::new()));
+    }
+    let types = normalize_search_types(types);
+    let type_clause = type_sql(&types);
+    let fts_ready = has_fts5_support(conn)
+        && ensure_index_attached(conn)
+        && has_content_fts_table(conn)
+        && is_index_ready(conn);
+
+    let (mode, total, hits): (&str, u64, Vec<(String, f64)>) = if fts_ready {
+        if let Some(match_query) = build_match_query(query) {
+            let count_sql = format!(
+                "SELECT COUNT(1) FROM (SELECT prefixed_id FROM idx.content_fts
+                 WHERE content_fts MATCH ?1 AND type IN ({type_clause}) GROUP BY prefixed_id)"
+            );
+            let total =
+                conn.query_row(&count_sql, params![match_query], |row| row.get::<_, u64>(0));
+            let result_sql = format!(
+                "SELECT prefixed_id, MIN(rank) FROM idx.content_fts
+                 WHERE content_fts MATCH ?1 AND type IN ({type_clause})
+                 GROUP BY prefixed_id ORDER BY MIN(rank) ASC LIMIT ?2 OFFSET ?3"
+            );
+            if let Ok(total) = total {
+                if let Ok(mut stmt) = conn.prepare(&result_sql) {
+                    if let Ok(rows) = stmt.query_map(params![match_query, limit, offset], |row| {
+                        Ok((row.get::<_, String>(0)?, row.get::<_, f64>(1)?))
+                    }) {
+                        let hits = rows.filter_map(Result::ok).collect::<Vec<_>>();
+                        ("fts", total, hits)
+                    } else {
+                        ("like", 0, Vec::new())
+                    }
+                } else {
+                    ("like", 0, Vec::new())
+                }
+            } else {
+                ("like", 0, Vec::new())
+            }
+        } else {
+            ("like", 0, Vec::new())
+        }
+    } else {
+        ("like", 0, Vec::new())
+    };
+
+    if mode == "fts" && !hits.is_empty() {
+        let mut items = Vec::new();
+        for (prefixed_id, score) in hits {
+            if let Some((result_type, id)) = hit_id(&prefixed_id) {
+                if let Some(item) = hydrate_unified_result(conn, result_type, id, score)? {
+                    items.push(item);
+                }
+            }
+        }
+        return Ok((mode.to_string(), total, items));
+    }
+
+    let like_pattern = format!("%{}%", escape_like_text(query));
+    let base_sql = unified_like_sql();
+    let type_filter = format!(" WHERE type IN ({type_clause})");
+    let count_sql = format!("SELECT COUNT(1) FROM ({base_sql}) AS hits{type_filter}");
+    let total = conn
+        .query_row(&count_sql, params![like_pattern], |row| {
+            row.get::<_, u64>(0)
+        })
+        .map_err(|e| format!("DB_OPEN_FAILED: unified LIKE count query failed: {e}"))?;
+    let result_sql = format!(
+        "SELECT prefixed_id, type, update_time FROM ({base_sql}) AS hits{type_filter}
+         ORDER BY update_time DESC LIMIT ?2 OFFSET ?3"
+    );
+    let mut stmt = conn
+        .prepare(&result_sql)
+        .map_err(|e| format!("DB_OPEN_FAILED: unified LIKE query prepare failed: {e}"))?;
+    let rows = stmt
+        .query_map(params![like_pattern, limit, offset], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
+        .map_err(|e| format!("DB_OPEN_FAILED: unified LIKE query failed: {e}"))?;
+    let mut items = Vec::new();
+    for row in rows.filter_map(Result::ok) {
+        if let Some((result_type, id)) = hit_id(&row.0) {
+            if let Some(item) = hydrate_unified_result(conn, result_type, id, 0.0)? {
+                items.push(item);
+            }
+        }
+    }
+    Ok(("like".to_string(), total, items))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unified_like_search_covers_all_content_types() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "
+            CREATE TABLE contents (id INTEGER PRIMARY KEY, content TEXT, update_time INTEGER);
+            CREATE TABLE cards (id INTEGER PRIMARY KEY, content_id INTEGER, update_time INTEGER, tags TEXT);
+            CREATE TABLE articles (id INTEGER PRIMARY KEY, title TEXT, author TEXT, tags TEXT, content_id INTEGER, update_time INTEGER, is_delete INTEGER);
+            CREATE TABLE project (id INTEGER PRIMARY KEY, title TEXT);
+            CREATE TABLE project_item (id INTEGER PRIMARY KEY, title TEXT, content_id INTEGER, update_time INTEGER, projects TEXT, ref_type TEXT);
+            CREATE TABLE documents (id INTEGER PRIMARY KEY, title TEXT);
+            CREATE TABLE document_items (id INTEGER PRIMARY KEY, title TEXT, tags TEXT, content_id INTEGER, update_time INTEGER, documents TEXT, ref_type TEXT);
+            CREATE TABLE diary_entries (id INTEGER PRIMARY KEY, type TEXT, date TEXT, tags TEXT, content_id INTEGER, update_time INTEGER);
+            CREATE TABLE diary_segments (id INTEGER PRIMARY KEY, diary_id INTEGER, content_id INTEGER, create_time INTEGER);
+            INSERT INTO contents VALUES
+              (1, '[{\"text\":\"卡片统一搜索\"}]', 10),
+              (2, '[{\"text\":\"文章统一搜索\"}]', 20),
+              (3, '[{\"text\":\"项目统一搜索\"}]', 30),
+              (4, '[{\"text\":\"知识库统一搜索\"}]', 40),
+              (5, '[{\"text\":\"日记统一搜索\"}]', 50);
+            INSERT INTO cards VALUES (1, 1, 10, '[]');
+            INSERT INTO articles VALUES (2, '文章标题', '作者', '[]', 2, 20, 0);
+            INSERT INTO project VALUES (3, '项目一');
+            INSERT INTO project_item VALUES (3, '项目文档', 3, 30, '[3]', '');
+            INSERT INTO documents VALUES (4, '知识库一');
+            INSERT INTO document_items VALUES (4, '知识库文档', '[]', 4, 40, '[4]', '');
+            INSERT INTO diary_entries VALUES (5, 'daily', '2026-09-13', '[]', NULL, 50);
+            INSERT INTO diary_segments VALUES (5, 5, 5, 1);
+            ",
+        )
+        .unwrap();
+
+        let (mode, total, items) = query_unified_search(&conn, "统一搜索", None, 1, 20).unwrap();
+        assert_eq!(mode, "like");
+        assert_eq!(total, 5);
+        assert_eq!(items.len(), 5);
+        assert!(items.iter().any(|item| item.result_type == "card"));
+        assert!(items.iter().any(|item| item.result_type == "article"));
+        assert!(items.iter().any(|item| item.result_type == "project-item"));
+        assert!(items.iter().any(|item| item.result_type == "document-item"));
+        assert!(items.iter().any(|item| item.result_type == "diary-daily"));
+    }
+
+    #[test]
+    fn unified_search_uses_fts_index_when_ready() {
+        let base = std::env::temp_dir().join(format!("tau-search-test-{}.db", std::process::id()));
+        let index_path = base.with_extension("index.db");
+        let _ = std::fs::remove_file(&base);
+        let _ = std::fs::remove_file(&index_path);
+        let conn = Connection::open(&base).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE contents (id INTEGER PRIMARY KEY, content TEXT, update_time INTEGER);
+             CREATE TABLE articles (id INTEGER PRIMARY KEY, title TEXT, author TEXT, tags TEXT, content_id INTEGER, update_time INTEGER, is_delete INTEGER);
+             CREATE TABLE cards (id INTEGER PRIMARY KEY, content_id INTEGER, update_time INTEGER, tags TEXT);
+             CREATE TABLE project_item (id INTEGER PRIMARY KEY, title TEXT, content_id INTEGER, update_time INTEGER, projects TEXT, ref_type TEXT);
+             CREATE TABLE document_items (id INTEGER PRIMARY KEY, title TEXT, tags TEXT, content_id INTEGER, update_time INTEGER, documents TEXT, ref_type TEXT);
+             CREATE TABLE diary_entries (id INTEGER PRIMARY KEY, type TEXT, date TEXT, tags TEXT, content_id INTEGER, update_time INTEGER);
+             CREATE TABLE diary_segments (id INTEGER PRIMARY KEY, diary_id INTEGER, content_id INTEGER, create_time INTEGER);
+             INSERT INTO contents VALUES (1, '[{\"text\":\"全文索引命中\"}]', 10);
+             INSERT INTO articles VALUES (1, '文章标题', '', '[]', 1, 10, 0);",
+        )
+        .unwrap();
+        let index = Connection::open(&index_path).unwrap();
+        index
+            .execute_batch(
+                "CREATE VIRTUAL TABLE content_fts USING fts5(prefixed_id, update_time, content, type, title, chunk_index, tokenize='porter unicode61');
+                 CREATE TABLE index_meta (key TEXT PRIMARY KEY, value TEXT, updated_at INTEGER);
+                 INSERT INTO index_meta VALUES ('migration_state', 'done', 0);
+                 INSERT INTO index_meta VALUES ('rebuild_state', 'ready', 0);
+                 INSERT INTO content_fts(prefixed_id, update_time, content, type, title, chunk_index)
+                 VALUES ('article:1', 10, '全文 索引 命中', 'article', '文章 标题', 0);",
+            )
+            .unwrap();
+
+        let (mode, total, items) = query_unified_search(&conn, "全文索引", None, 1, 20).unwrap();
+        assert_eq!(mode, "fts");
+        assert_eq!(total, 1);
+        assert_eq!(items[0].result_type, "article");
+        drop(index);
+        drop(conn);
+        let _ = std::fs::remove_file(&base);
+        let _ = std::fs::remove_file(&index_path);
+    }
 }

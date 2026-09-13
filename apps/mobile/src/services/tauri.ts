@@ -11,6 +11,7 @@ import type {
   CreateTodoRecurrencePayload,
   ContentDetailResponse,
   CardsOverviewResponse,
+  UnifiedSearchResponse,
   CollaborationBinding,
   DatabaseListResponse,
   DatabaseSchemaStatusResponse,
@@ -246,6 +247,18 @@ export function getCardsOverview(params: {
   return withCardTimeout(
     trackedInvoke<CardsOverviewResponse>("get_cards_overview", params),
     "读取卡片列表"
+  );
+}
+
+export function searchAllContent(params: {
+  query: string;
+  page?: number;
+  pageSize?: number;
+  types?: string[];
+}) {
+  return withCardTimeout(
+    trackedInvoke<UnifiedSearchResponse>("search_all_content", params),
+    "搜索内容"
   );
 }
 
