@@ -104,6 +104,22 @@ const checks = [
     `,
   },
   {
+    name: "@firecrawl/anydoc",
+    code: `
+      (async () => {
+        const { toMarkdownBytes } = require(${JSON.stringify(packagePaths?.appAsar ?? "")} + "/node_modules/@firecrawl/anydoc");
+        const markdown = await toMarkdownBytes(new Uint8Array(Buffer.from("name,age\\nAlice,30")), "csv");
+        if (typeof markdown !== "string" || !markdown.includes("Alice")) {
+          throw new Error("anydoc produced unexpected CSV markdown: " + markdown);
+        }
+        console.log("anydoc=ok");
+      })().catch((error) => {
+        console.error(error);
+        process.exit(1);
+      });
+    `,
+  },
+  {
     name: "node-llama-cpp",
     // ESM-only 包（含顶层 await），不能用 require，须动态 import unpacked 入口
     code: `

@@ -340,6 +340,8 @@ exports.default = async context => {
 
   if (platform === "win32") {
     removeEntries(nodeModulesDir, [
+      "@firecrawl/anydoc-darwin-arm64",
+      "@firecrawl/anydoc-darwin-x64",
       "@img/sharp-darwin-arm64",
       "@img/sharp-darwin-x64",
       "@img/sharp-libvips-darwin-arm64",
@@ -361,6 +363,7 @@ exports.default = async context => {
     ]);
   } else if (platform === "darwin") {
     removeEntries(nodeModulesDir, [
+      "@firecrawl/anydoc-win32-x64-msvc",
       "@img/sharp-win32-x64",
       "@myriaddreamin/typst-ts-node-compiler-win32-x64-msvc",
       "@node-rs/jieba-win32-x64-msvc",

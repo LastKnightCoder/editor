@@ -5,6 +5,8 @@ asar: true
 asarUnpack:
   - "node_modules/@node-rs/jieba/**/*"
   - "node_modules/@node-rs/jieba-*/**/*"
+  - "node_modules/@firecrawl/anydoc/**/*"
+  - "node_modules/@firecrawl/anydoc-*/**/*"
   - "node_modules/@img/sharp-*/**/*"
   - "node_modules/@img/sharp-libvips-*/**/*"
   - "node_modules/sharp/**/*"
