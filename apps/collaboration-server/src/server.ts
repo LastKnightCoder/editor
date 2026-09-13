@@ -50,7 +50,7 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
     bodyLimit: Math.ceil(config.maxDocumentBytes * 1.4) + 2048,
     trustProxy: config.trustProxy,
   });
-  await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
+  await app.register(rateLimit, { max: config.globalRateLimit, timeWindow: "1 minute" });
   await app.register(multipart, {
     limits: { fileSize: config.maxAssetBytes, files: 1, fields: 2, parts: 3 },
   });
@@ -103,7 +103,8 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
       activity: online.get(member.deviceId) || "background",
     }));
   };
-  const members = (documentId: string): Member[] => mergeOnline(documentId, store.members(documentId));
+  const members = (documentId: string): Member[] =>
+    mergeOnline(documentId, store.members(documentId));
   const publishPresence = (documentId: string) => {
     const values = members(documentId);
     for (const member of values)
@@ -201,7 +202,16 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
       return reply.code(503).send({ ok: false });
     }
   });
-  registerContentRoutes(app, { store, config, device, refresh, send, disconnect, members, mergeOnline });
+  registerContentRoutes(app, {
+    store,
+    config,
+    device,
+    refresh,
+    send,
+    disconnect,
+    members,
+    mergeOnline,
+  });
 
   registerAssetRoutes(app, store, config, device);
 

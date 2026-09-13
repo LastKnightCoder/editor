@@ -86,4 +86,6 @@ docker compose exec collaboration node dist/admin.js close <文章ID>
 
 日志不会记录正文、协作码或设备凭据。默认限制为每设备 5 份共享内容、每份 10 人、单附件 25 MB、单份资源 200 MB、全站 5 GB。
 
+HTTP 限流默认值已放宽为：全局每分钟 3000 次、注册设备每小时 20 次、创建共享房间每小时 200 次、申请加入每 10 分钟 100 次。自用部署可在服务器 `.env` 中通过 `COLLAB_GLOBAL_RATE_LIMIT`、`COLLAB_DEVICE_RATE_LIMIT`、`COLLAB_DOCUMENT_RATE_LIMIT`、`COLLAB_JOIN_RATE_LIMIT` 调整，修改后需重启协作服务。
+
 完整功能说明、模块职责和验证边界见仓库的 `docs/collaboration.md`。备份脚本可手动执行；当前仓库不自动安装定时任务。请按服务器现有运维方式安排每日备份并定期做恢复演练。
