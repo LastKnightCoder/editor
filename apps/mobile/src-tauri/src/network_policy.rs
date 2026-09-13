@@ -27,6 +27,16 @@ impl NetworkPolicy {
     pub const fn standard() -> Self {
         Self::new(12, 2, 1_000, 2)
     }
+
+    /// 大对象传输（数据库整库、资源文件）：固定 12 秒对大 payload 必然超时。
+    /// 上传已知大小按 2MB/s 保守上行估算放宽；下载大小未知给固定宽限；上限 10 分钟。
+    pub fn for_payload(payload_len: Option<usize>) -> Self {
+        let timeout_secs = match payload_len {
+            Some(len) => (len as u64 / (2 * 1024 * 1024) + 12).min(600),
+            None => 300,
+        };
+        Self::new(timeout_secs, 2, 1_000, 2)
+    }
 }
 
 fn backoff_delay_ms(policy: NetworkPolicy, attempt: u32) -> u64 {

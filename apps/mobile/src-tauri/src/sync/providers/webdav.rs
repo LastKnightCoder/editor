@@ -7,7 +7,8 @@ use crate::sync::common::{
     file_name_from_path, normalize_remote_path, preview_text, strip_base_prefix, RESOURCE_PREFIX,
 };
 use crate::sync::context::WebDavConfig;
-use crate::sync::error::{run_sync_policy, AppError};
+use crate::network_policy::NetworkPolicy;
+use crate::sync::error::{run_sync_policy, run_sync_policy_with, AppError};
 
 fn webdav_remote_path(path_prefix: &str, object_name: &str) -> String {
     let prefix = path_prefix.trim().trim_end_matches('/');
@@ -140,11 +141,12 @@ pub(crate) async fn webdav_download(
 ) -> Result<Vec<u8>, AppError> {
     let url = webdav_url(config, object_name);
     let client = reqwest::Client::new();
-    run_sync_policy(
+    run_sync_policy_with(
         "webdav",
         "download_object",
         "SYNC_DOWNLOAD_FAILED",
         "WebDAV 下载",
+        NetworkPolicy::for_payload(None),
         |_| async {
             let resp = client
                 .get(&url)
@@ -183,11 +185,12 @@ pub(crate) async fn webdav_upload(
     ensure_webdav_directories(config, object_name).await?;
     let url = webdav_url(config, object_name);
     let client = reqwest::Client::new();
-    run_sync_policy(
+    run_sync_policy_with(
         "webdav",
         "upload_object",
         "SYNC_UPLOAD_FAILED",
         "WebDAV 上传",
+        NetworkPolicy::for_payload(Some(content.len())),
         |_| async {
             let resp = client
                 .put(&url)

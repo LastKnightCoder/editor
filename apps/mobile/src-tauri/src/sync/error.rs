@@ -67,10 +67,33 @@ where
     F: FnMut(u32) -> Fut,
     Fut: Future<Output = Result<T, AppError>>,
 {
+    run_sync_policy_with(
+        provider,
+        op,
+        timeout_code,
+        timeout_message,
+        NetworkPolicy::standard(),
+        operation,
+    )
+    .await
+}
+
+pub(crate) async fn run_sync_policy_with<T, F, Fut>(
+    provider: &'static str,
+    op: &'static str,
+    timeout_code: &'static str,
+    timeout_message: &'static str,
+    policy: NetworkPolicy,
+    operation: F,
+) -> Result<T, AppError>
+where
+    F: FnMut(u32) -> Fut,
+    Fut: Future<Output = Result<T, AppError>>,
+{
     run_with_policy(
         provider,
         op,
-        NetworkPolicy::standard(),
+        policy,
         operation,
         |attempt, timeout_secs| {
             AppError::new(

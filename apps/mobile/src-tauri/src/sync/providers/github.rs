@@ -9,7 +9,8 @@ use crate::sync::common::{
     strip_base_prefix, RESOURCE_PREFIX,
 };
 use crate::sync::context::GithubConfig;
-use crate::sync::error::{run_sync_policy, AppError};
+use crate::network_policy::NetworkPolicy;
+use crate::sync::error::{run_sync_policy, run_sync_policy_with, AppError};
 
 fn github_api_url(config: &GithubConfig, object_name: &str) -> String {
     let content_path = join_path(&config.path_prefix, object_name);
@@ -79,11 +80,12 @@ pub(crate) async fn github_download(
 ) -> Result<Vec<u8>, AppError> {
     let url = github_api_url(config, object_name);
     let client = reqwest::Client::new();
-    run_sync_policy(
+    run_sync_policy_with(
         "github",
         "download_object",
         "SYNC_DOWNLOAD_FAILED",
         "Github 下载",
+        NetworkPolicy::for_payload(None),
         |_| async {
             let response = client
                 .get(&url)
@@ -212,11 +214,12 @@ pub(crate) async fn github_upload(
     }
 
     let client = reqwest::Client::new();
-    run_sync_policy(
+    run_sync_policy_with(
         "github",
         "upload_object",
         "SYNC_UPLOAD_FAILED",
         "Github 上传",
+        NetworkPolicy::for_payload(Some(content.len())),
         |_| async {
             let response = client
                 .put(&url)
