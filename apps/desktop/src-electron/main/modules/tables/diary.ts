@@ -3,6 +3,7 @@ import Database from "better-sqlite3";
 import type { Descendant } from "slate";
 import Operation from "./operation";
 import ContentTable from "./content";
+import { contentSession } from "../collaboration/content-sessions";
 import { getContentLength } from "@/utils/helper.ts";
 import { getMarkdown } from "@/utils/markdown.ts";
 import log from "electron-log";
@@ -957,15 +958,18 @@ export default class DiaryTable {
     const seg = this.getDiarySegmentById(db, segmentId);
     if (!seg) return null;
 
-    ContentTable.updateContent(
-      db,
-      seg.contentId,
-      {
-        content,
-        count: getContentLength(content),
-      },
-      ctx
-    );
+    // 内容挂协作会话时由会话负责写入（经投影落库），这里只维护 segment 元数据
+    if (!contentSession(db, seg.contentId)) {
+      ContentTable.updateContent(
+        db,
+        seg.contentId,
+        {
+          content,
+          count: getContentLength(content),
+        },
+        ctx
+      );
+    }
 
     const now = Date.now();
     db.prepare(`UPDATE diary_segments SET update_time = ? WHERE id = ?`).run(now, segmentId);
