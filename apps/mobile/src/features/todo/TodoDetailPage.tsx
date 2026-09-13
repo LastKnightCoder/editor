@@ -356,6 +356,7 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
     ["normal", "deadline", "planned", "recurring"] as TodoItem["type"][]
   ).map(t => ({
     label: TYPE_LABELS[t],
+    trailing: current?.type === t ? <Check strokeWidth={2.6} /> : undefined,
     onClick: () => void handleUpdateItemField({ type: t }),
   }));
 
@@ -388,10 +389,12 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
   const reminderSheetItems: ActionSheetItem[] = [
     {
       label: "不提醒",
+      trailing: current?.remindBefore == null ? <Check strokeWidth={2.6} /> : undefined,
       onClick: () => void handleUpdateItemField({ remindBefore: null }),
     },
     ...REMINDER_OPTIONS.map(opt => ({
       label: opt.label,
+      trailing: current?.remindBefore === opt.value ? <Check strokeWidth={2.6} /> : undefined,
       onClick: () => void handleUpdateItemField({ remindBefore: opt.value }),
     })),
   ];

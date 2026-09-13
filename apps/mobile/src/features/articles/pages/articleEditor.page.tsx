@@ -124,6 +124,7 @@ function ArticleEditorScreen() {
             label: article.isTop ? "取消置顶" : "置顶",
             icon: <Star size={18} />,
             tone: "butter",
+            trailing: article.isTop ? "已置顶" : undefined,
             onClick: () => toggleTop.mutate(article),
           },
           ...collab.menuItems,

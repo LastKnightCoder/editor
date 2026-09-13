@@ -2,7 +2,16 @@
 // 远端光标/选区由 @tau/editor 的 withCollaboration + Cursors 自动渲染，本页只负责外壳与状态。
 // 成员视角（本地无内容行）与协作中心入口仍走本页；owner 的原地编辑见详情页 CollaborativeEditor。
 import { useRef, useState } from "react";
-import { ChevronRight, Loader2, MoreHorizontal, RefreshCw, WifiOff } from "lucide-react";
+import {
+  ChevronRight,
+  Loader2,
+  LogOut,
+  MoreHorizontal,
+  RefreshCw,
+  Unlink,
+  Users,
+  WifiOff,
+} from "lucide-react";
 import { Editor, type EditorRef } from "@tau/editor/src";
 import { ActionSheet } from "../../components/ActionSheet";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
@@ -78,7 +87,10 @@ export function CollabEditorPage(props: {
 
       <div className="edge-fade-scroll mobile-floating-toolbar-scroll flex-1 overflow-y-auto px-5">
         {loading && !binding ? (
-          <div role="status" className="text-ink-3 flex min-h-[45vh] items-center justify-center gap-2">
+          <div
+            role="status"
+            className="text-ink-3 flex min-h-[45vh] items-center justify-center gap-2"
+          >
             <Loader2 size={18} className="animate-spin" />
             <span className="text-[13px]">正在加载协作内容…</span>
           </div>
@@ -138,17 +150,32 @@ export function CollabEditorPage(props: {
 
       <ActionSheet
         open={moreOpen}
-        title="协作操作"
+        title={session?.title ?? "协作文档"}
+        kind="协作"
+        subtitle={
+          session ? `${session.members.length} 位成员 · ${online.length} 人在线` : undefined
+        }
         items={[
           {
             label: "成员管理",
-            icon: <ChevronRight size={18} />,
+            icon: <Users size={18} />,
             tone: "sage",
+            trailing: (
+              <>
+                {session ? `${session.members.length} 人` : null}
+                <ChevronRight strokeWidth={2} />
+              </>
+            ),
             onClick: () => navigator.push("memberSheet", { documentId: props.documentId }),
           },
           {
             label: session?.role === "owner" ? "结束共享" : "退出协作",
+            desc:
+              session?.role === "owner"
+                ? "所有成员将失去访问权限，云端数据被清空"
+                : "退出后需重新申请才能加入",
             danger: true,
+            icon: session?.role === "owner" ? <Unlink size={18} /> : <LogOut size={18} />,
             onClick: props.onExit,
           },
         ]}

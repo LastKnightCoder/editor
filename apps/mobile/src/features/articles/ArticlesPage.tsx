@@ -350,6 +350,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
             label: menuArticle?.isTop ? "取消置顶" : "置顶",
             icon: <Star size={18} />,
             tone: "butter",
+            trailing: menuArticle?.isTop ? "已置顶" : undefined,
             onClick: () => {
               if (menuArticle) {
                 toggleTop.mutate(menuArticle);
