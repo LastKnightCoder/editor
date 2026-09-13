@@ -10,6 +10,7 @@ import { Z_INDEX } from "../../router/zIndex";
 import { toast } from "../../components/toast";
 import { usePomodoroPresets } from "./queries";
 import { usePomodoroController, needsStopConfirm } from "./usePomodoroController";
+import { useKeepScreenAwake } from "../../hooks/useKeepScreenAwake";
 import { formatClock, formatFocusDuration } from "./timer";
 
 const SIXTY_MIN_MS = 60 * 60 * 1000;
@@ -119,6 +120,9 @@ export function FocusImmersivePage({ onRequestClose, onError }: FocusImmersivePa
   const presets = presetsQuery.data ?? [];
   const controller = usePomodoroController(presets, onError);
   const [confirmStop, setConfirmStop] = useState(false);
+
+  // 计时运行中屏幕常亮（暂停/结束/退场卸载时自动释放）
+  useKeepScreenAwake(controller.isRunning);
 
   // 无会话且非完成庆祝态：自动退场（start 失败/会话被他端结束）。
   // 加载中不算——首次挂载缓存未预热时 data 尚未返回，不能断定无会话。
