@@ -4,19 +4,38 @@
 set -euo pipefail
 
 # 尊重外部已设置的环境变量，未设置时回退到本机默认路径，避免换机后脚本直接失效
-: "${JAVA_HOME:=C:\Program Files\Java\jdk-23}"
-: "${ANDROID_HOME:=C:\Users\pc\AppData\Local\Android\Sdk}"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  # macOS：未装独立 JDK 时回退 Android Studio 自带的 JBR；路径无需 cygpath 转换
+  if [[ -z "${JAVA_HOME:-}" ]]; then
+    JAVA_HOME="$(/usr/libexec/java_home 2>/dev/null || true)"
+    JBR_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+    if [[ -z "${JAVA_HOME}" && -d "${JBR_HOME}" ]]; then
+      JAVA_HOME="${JBR_HOME}"
+    fi
+  fi
+  : "${ANDROID_HOME:=$HOME/Library/Android/sdk}"
+  to_bash_path() { printf '%s' "$1"; }
+  to_tool_path() { printf '%s' "$1"; }
+  ADB_NAME="adb"
+else
+  : "${JAVA_HOME:=C:\Program Files\Java\jdk-23}"
+  : "${ANDROID_HOME:=C:\Users\pc\AppData\Local\Android\Sdk}"
+  to_bash_path() { cygpath -u "$1"; }
+  to_tool_path() { cygpath -w "$1"; }
+  ADB_NAME="adb.exe"
+fi
+[[ -n "${JAVA_HOME}" ]] || { echo "未找到 JDK，请设置 JAVA_HOME。"; exit 1; }
 export JAVA_HOME ANDROID_HOME
 if [[ -z "${NDK_HOME:-}" ]]; then
   # 自动选取 NDK 目录下版本号最高的已安装版本，避免硬编码版本号随 NDK 升级失效
-  NDK_HOME="$(ls -1d "$(cygpath -u "${ANDROID_HOME}")"/ndk/*/ 2>/dev/null | sort -V | tail -n1 || true)"
-  [[ -n "${NDK_HOME}" ]] || { echo "未在 ${ANDROID_HOME}\\ndk 下找到 NDK，请设置 NDK_HOME。"; exit 1; }
-  NDK_HOME="$(cygpath -w "${NDK_HOME%/}")"
+  NDK_HOME="$(ls -1d "$(to_bash_path "${ANDROID_HOME}")"/ndk/*/ 2>/dev/null | sort -V | tail -n1 || true)"
+  [[ -n "${NDK_HOME}" ]] || { echo "未在 ${ANDROID_HOME}/ndk 下找到 NDK，请设置 NDK_HOME。"; exit 1; }
+  NDK_HOME="$(to_tool_path "${NDK_HOME%/}")"
 fi
 export NDK_HOME
-export PATH="$(cygpath -u "${JAVA_HOME}")/bin:${ANDROID_HOME}/platform-tools:$PATH"
+export PATH="$(to_bash_path "${JAVA_HOME}")/bin:${ANDROID_HOME}/platform-tools:$PATH"
 
-ADB="${ANDROID_HOME}/platform-tools/adb.exe"
+ADB="${ANDROID_HOME}/platform-tools/${ADB_NAME}"
 APK="src-tauri/gen/android/app/build/outputs/apk/arm64/release/app-arm64-release.apk"
 BUILD_LOG="$(mktemp)"
 trap 'rm -f "${BUILD_LOG}"' EXIT
