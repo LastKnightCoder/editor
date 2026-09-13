@@ -80,7 +80,11 @@ export function ToastViewport() {
   }
 
   return (
-    <div className="pointer-events-none fixed inset-0" style={{ zIndex: Z_INDEX.TOAST }}>
+    <div
+      className="pointer-events-none fixed inset-0"
+      style={{ zIndex: Z_INDEX.TOAST }}
+      data-no-tab-swipe
+    >
       <section className="toast-viewport">
         <div className="toast-stack">
           {[...toasts].reverse().map(toast => (

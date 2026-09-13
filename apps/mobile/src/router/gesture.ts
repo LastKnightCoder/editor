@@ -5,7 +5,7 @@ import { SCREEN_PARALLAX_RATIO } from "./transition";
 // motion/react 未直接导出 AnimationControls 类型名，从 hook 推导
 export type GestureAnimationControls = ReturnType<typeof useAnimationControls>;
 
-const EDGE_START_WIDTH = 28;
+export const EDGE_START_WIDTH = 28;
 const LOCK_THRESHOLD_PX = 8;
 const COMMIT_PROGRESS = 0.4;
 const COMMIT_VELOCITY_PX_PER_MS = 0.5;
@@ -16,11 +16,13 @@ export type EdgeBackGestureConfig = {
   activeEntryId: string | null;
   underlayEntryId: string | null;
   controlsMap: Map<string, GestureAnimationControls>;
+  /** underlay 完全移出屏外（tab 根压 tab 根）时按全宽跟手，否则默认视差比例 */
+  underlayOffscreen?: boolean;
   /** 返回 true 表示已驱动回退；false（守卫拒绝等）时手势需回弹 */
   onBack: () => Promise<boolean> | boolean;
 };
 
-function getViewportWidth(): number {
+export function getViewportWidth(): number {
   if (typeof window === "undefined" || window.innerWidth <= 0) {
     return FALLBACK_VIEWPORT_WIDTH;
   }
@@ -47,6 +49,9 @@ export function useEdgeBackGesture(config: EdgeBackGestureConfig): void {
     let lastX = 0;
     let lastT = 0;
 
+    const underlayRatio = (): number =>
+      configRef.current.underlayOffscreen ? 1 : SCREEN_PARALLAX_RATIO;
+
     const applyDrag = (dx: number): number => {
       const { controlsMap, activeEntryId, underlayEntryId } = configRef.current;
       const width = getViewportWidth();
@@ -55,7 +60,7 @@ export function useEdgeBackGesture(config: EdgeBackGestureConfig): void {
       activeControls?.set({ x: `${progress * 100}%` });
       const underlayControls = underlayEntryId ? controlsMap.get(underlayEntryId) : undefined;
       underlayControls?.set({
-        x: `${-SCREEN_PARALLAX_RATIO * (1 - progress) * 100}%`,
+        x: `${-underlayRatio() * (1 - progress) * 100}%`,
       });
       return progress;
     };
@@ -107,11 +112,11 @@ export function useEdgeBackGesture(config: EdgeBackGestureConfig): void {
       const activeControls = activeEntryId ? controlsMap.get(activeEntryId) : undefined;
       const underlayControls = underlayEntryId ? controlsMap.get(underlayEntryId) : undefined;
       void activeControls?.start({
-        x: 0,
+        x: "0%",
         transition: { type: "spring", stiffness: 420, damping: 38 },
       });
       void underlayControls?.start({
-        x: `${-SCREEN_PARALLAX_RATIO * 100}%`,
+        x: `${-underlayRatio() * 100}%`,
         transition: { type: "spring", stiffness: 420, damping: 38 },
       });
     };
@@ -147,7 +152,7 @@ export function useEdgeBackGesture(config: EdgeBackGestureConfig): void {
           },
         });
         void underlayControls?.start({
-          x: 0,
+          x: "0%",
           transition: {
             duration: Math.max(remaining * 0.3, 0.1),
             ease: [0.22, 1, 0.36, 1],

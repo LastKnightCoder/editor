@@ -37,6 +37,15 @@ export async function readDiaryEntries(): Promise<DiaryEntry[]> {
   });
 }
 
+/** 命令式读取标签库（tab 预热用）：命中缓存或拉取 */
+export async function readDiaryTagSettings(): Promise<DiaryTagSetting[]> {
+  return getQueryClient().fetchQuery({
+    queryKey: ["diary", "tagSettings"],
+    queryFn: () => tauri.diaryGetTagSettings(),
+    staleTime: DIARY_STALE_MS,
+  });
+}
+
 /** 乐观写入 entries 缓存（mutation 编排用） */
 export function writeDiaryEntries(updater: (prev: DiaryEntry[]) => DiaryEntry[]): void {
   const queryClient = getQueryClient();

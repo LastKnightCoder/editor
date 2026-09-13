@@ -36,6 +36,9 @@ export type { SheetBackDismissOptions } from "./useSheetBackDismiss";
 export type { BackSource, Navigator, RouterState } from "./navigatorTypes";
 export type { RouteEntry, StackSnapshot } from "./core/stackMachine";
 export { switchTabScreen } from "./switchTab";
+export { TAB_ORDER, isTabRoot, resolveTabNeighbor } from "./tabs";
+export type { TabKey } from "./tabs";
+export { useTabSwipeOrigin } from "./tabSwipeOrigin";
 export { getPageDefinition, registerPageDefinition } from "./registry";
 
 export { PageQueryProvider, getQueryClient, usePageQuery } from "./query/PageQueryProvider";
