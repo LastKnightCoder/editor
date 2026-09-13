@@ -42,7 +42,8 @@ const EVENT_RECONNECT_MS = 5_000;
 /** 退出/结束共享前等待未同步更新落服务器的上限（对齐设计文档，超时后继续退出） */
 const FLUSH_TIMEOUT_MS = 10_000;
 const DOCUMENT_STATE_MAX_ATTEMPTS = 3;
-/** 最后一个协作页面关闭后，运行时再保留的空闲窗口：覆盖「跳出去看一眼设置」的往返 */
+const JOIN_REQUEST_TTL_MS = 24 * 60 * 60 * 1000;
+/** 最后一个协作页面关闭且没有活跃会话后，运行时再保留的空闲窗口 */
 const IDLE_STOP_DELAY_MS = 30_000;
 
 type RuntimeSession = {
@@ -74,6 +75,7 @@ class CollaborationManager {
   private opening = new Map<string, Promise<RuntimeSession>>();
   private transports = new Map<string, HocuspocusProviderWebsocket>();
   private eventSockets = new Map<string, WebSocket>();
+  private pendingJoins = new Map<string, number>();
   private requests: JoinRequest[] = [];
   private serverUrl = DEFAULT_COLLABORATION_URL;
   private nickname = "Tau 用户";
@@ -89,7 +91,7 @@ class CollaborationManager {
   private refCount = 0;
   private stopped = true;
 
-  /** 运行时持有计数（协作页面挂载 +1 / 卸载 -1）：归零后延迟空闲停止 */
+  /** 运行时持有计数（协作页面挂载 +1 / 卸载 -1）：归零且无活跃会话后延迟空闲停止 */
   retain() {
     this.refCount += 1;
     if (this.idleTimer) {
@@ -103,8 +105,13 @@ class CollaborationManager {
     if (this.refCount > 0 || this.idleTimer) return;
     this.idleTimer = setTimeout(() => {
       this.idleTimer = null;
-      // 有未同步改动时推迟停止（无本地缓存，停止即丢失），下一轮空闲检查再试
-      if (this.refCount > 0 || this.hasPendingUpdates()) {
+      // 有活跃会话或未同步改动时推迟停止，下一轮空闲检查再试
+      if (
+        this.refCount > 0 ||
+        this.hasPendingUpdates() ||
+        this.sessions.size > 0 ||
+        this.hasPendingJoins()
+      ) {
         this.release();
         return;
       }
@@ -115,6 +122,14 @@ class CollaborationManager {
   private hasPendingUpdates() {
     for (const session of this.sessions.values()) if (session.info.pending) return true;
     return false;
+  }
+
+  private hasPendingJoins() {
+    const now = Date.now();
+    for (const [documentId, expiresAt] of this.pendingJoins) {
+      if (expiresAt <= now) this.pendingJoins.delete(documentId);
+    }
+    return this.pendingJoins.size > 0;
   }
 
   get configuredServerUrl() {
@@ -323,7 +338,13 @@ class CollaborationManager {
   }
 
   async joinByCode(code: string) {
-    return this.act(serverUrl => rest.requestJoin(serverUrl, code));
+    const result = await this.act(serverUrl => rest.requestJoin(serverUrl, code));
+    if (result.status === "pending" && !this.sessions.has(result.documentId)) {
+      this.pendingJoins.set(result.documentId, Date.now() + JOIN_REQUEST_TTL_MS);
+    } else {
+      this.pendingJoins.delete(result.documentId);
+    }
+    return result;
   }
 
   async decideJoinRequest(requestId: string, approve: boolean) {
@@ -567,6 +588,7 @@ class CollaborationManager {
     for (const transport of this.transports.values()) transport.destroy();
     this.transports.clear();
     this.requests = [];
+    this.pendingJoins.clear();
     this.deviceId = undefined;
     this.error = undefined;
   }
@@ -574,6 +596,7 @@ class CollaborationManager {
   /** 建立或刷新会话（幂等）：已存在的会话只合并服务端权威字段，
    *  并发调用（列表刷新 + 编辑页补建）按 documentId 去重，避免覆盖出双份 Y.Doc。 */
   private openSession(info: SharedDocumentInfo): Promise<RuntimeSession> {
+    this.pendingJoins.delete(info.id);
     const existing = this.sessions.get(info.id);
     if (existing) {
       // 运行时字段（连接态/待同步/退出中）以本地为准，其余取服务端权威值

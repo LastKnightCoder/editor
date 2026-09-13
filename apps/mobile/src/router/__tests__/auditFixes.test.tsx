@@ -186,6 +186,22 @@ describe("审查修复回归：popTo / replace / 生命周期", () => {
     app.cleanup();
   });
 
+  it("replace：overlay 与 screen 跨层替换保持单一历史深度", async () => {
+    const app = mountApp();
+    act(() => getNavigator().push("a"));
+    act(() => getNavigator().push("ox"));
+    await waitFor(() => stackKeys() === "screens=[home,a] overlays=[ox]");
+
+    act(() => getNavigator().replace("b"));
+    await waitFor(() => stackKeys() === "screens=[home,a,b] overlays=[]");
+
+    await act(async () => {
+      await getNavigator().goBack("ui");
+    });
+    await waitFor(() => stackKeys() === "screens=[home,a] overlays=[]");
+    app.cleanup();
+  });
+
   it("D-3: onDestroy 仅在 entry 离开栈时触发，压入第三层（hidden）不触发", async () => {
     const app = mountApp();
     act(() => getNavigator().push("a"));

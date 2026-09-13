@@ -21,6 +21,7 @@ import {
   createStack,
   getTopEntry,
   pushEntry,
+  removeEntryById,
   replaceTop,
   type RouteEntry,
   type StackSnapshot,
@@ -153,6 +154,13 @@ export function RouterProvider({
   const pendingBackNavRef = useRef<{ depth: number; token: number } | null>(null);
   const nativeBounceRef = useRef<{ state: unknown; token: number } | null>(null);
   const navigationTokenRef = useRef(0);
+  const routeClockRef = useRef(Date.now());
+
+  const nextRouteTime = (): number => {
+    const now = Date.now();
+    routeClockRef.current = Math.max(now, routeClockRef.current + 1);
+    return routeClockRef.current;
+  };
 
   const sanitizePageParams = (
     key: string,
@@ -206,7 +214,7 @@ export function RouterProvider({
     if (sanitized === null) return null;
     const meta = getPageMeta(key)!;
     const entryId = createEntryId(key);
-    const now = Date.now();
+    const now = nextRouteTime();
     if (meta.layer === "overlay") {
       setOverlays(prev => pushEntry(prev, { key, params: sanitized, id: entryId, now }));
     } else {
@@ -216,8 +224,13 @@ export function RouterProvider({
     return entryId;
   };
 
-  const topEntryOf = (): RouteEntry | null =>
-    getTopEntry(overlaysRef.current) ?? getTopEntry(screensRef.current);
+  const topEntryOf = (): RouteEntry | null => {
+    const overlay = getTopEntry(overlaysRef.current);
+    const screen = getTopEntry(screensRef.current);
+    if (!overlay) return screen;
+    if (!screen) return overlay;
+    return overlay.createdAt >= screen.createdAt ? overlay : screen;
+  };
 
   /** 问栈顶页的返回消费器链（LIFO：后注册的更上层浮层先答），任一返回 true 即消费 */
   const askBackHandler = async (entry: RouteEntry): Promise<boolean> => {
@@ -334,12 +347,24 @@ export function RouterProvider({
         const sanitized = sanitizePageParams(key, params);
         if (sanitized === null) return;
         const meta = getPageMeta(key)!;
-        const now = Date.now();
+        const now = nextRouteTime();
         const spec = { key, params: sanitized, id: createEntryId(key), now };
+        const current = topEntryOf();
+        if (!current) return;
+        // replace 是总栈上的原子替换：跨层时移除当前 route，再把目标 route
+        // 放到目标层，保持总历史深度不变，避免业务方手写“先 goBack 再 push”。
         if (meta.layer === "overlay") {
-          setOverlays(prev => replaceTop(prev, spec));
-        } else {
+          if (current === getTopEntry(overlaysRef.current)) {
+            setOverlays(prev => replaceTop(prev, spec));
+          } else {
+            setScreens(prev => removeEntryById(prev, current.id, now));
+            setOverlays(prev => pushEntry(prev, spec));
+          }
+        } else if (current === getTopEntry(screensRef.current)) {
           setScreens(prev => replaceTop(prev, spec));
+        } else {
+          setOverlays(prev => removeEntryById(prev, current.id, now));
+          setScreens(prev => pushEntry(prev, spec));
         }
         historyModeRef.current = "replace";
       },

@@ -21,7 +21,7 @@ export type Navigator = {
    * 高概率跳转的页面（如首页→详情）提前调用，push 后数据秒显。
    */
   preload(key: string, params?: Record<string, unknown>): Promise<void>;
-  /** 替换栈顶 */
+  /** 原子替换当前顶部路由（支持 overlay 与 screen 跨层替换） */
   replace(key: string, params?: Record<string, unknown>): void;
   /** 返回上一层。result 供 pushForResult 的调用方接收 */
   pop(result?: unknown): void;

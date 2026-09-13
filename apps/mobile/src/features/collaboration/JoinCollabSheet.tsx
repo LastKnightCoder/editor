@@ -46,9 +46,7 @@ export function JoinCollabSheet(props: {
   );
   useEffect(() => {
     if (!approvedDocumentId) return;
-    void navigator.goBack("ui").then(() => {
-      navigator.push("collabEditor", { documentId: approvedDocumentId });
-    });
+    navigator.replace("collabEditor", { documentId: approvedDocumentId });
   }, [approvedDocumentId, navigator]);
 
   const submit = async () => {
@@ -101,7 +99,9 @@ export function JoinCollabSheet(props: {
 
   return (
     <BottomSheet open title="加入协作" onClose={props.onClose}>
-      <p className="text-ink-2 -mt-1 mb-4 text-center text-[12.5px]">输入作者分享给你的 12 位协作码</p>
+      <p className="text-ink-2 -mt-1 mb-4 text-center text-[12.5px]">
+        输入作者分享给你的 12 位协作码
+      </p>
       {clipboardCode && clipboardCode !== code ? (
         <div className="bg-sage-soft mb-3.5 flex items-center gap-2.5 rounded-[14px] px-3.5 py-2.5">
           <ClipboardPaste size={17} className="text-sage shrink-0" />
