@@ -3,7 +3,7 @@
  *
  * 功能:
  * - 接收文件内容并保存为临时文件
- * - 使用 officeparser / mammoth / 7zip 等纯 Node 库转换为 Markdown
+ * - 使用 @firecrawl/anydoc（Rust/NAPI）等库转换为 Markdown
  * - 支持音视频文件转录并转换为 Markdown（LLM 整理走 OpenAI 兼容 API）
  * - 返回结果并清理临时文件
  */

@@ -10,8 +10,7 @@ import * as path from "path";
 const runtimeDependencyExternals = [
   "7zip-min",
   "node-llama-cpp",
-  "officeparser",
-  "mammoth",
+  "@firecrawl/anydoc",
   "turndown",
   "@myriaddreamin/typst-ts-node-compiler",
   "@node-rs/jieba",

@@ -1,23 +1,17 @@
 /**
  * Node 原生文档转 Markdown 转换器
  *
- * 替代原 Python 侧 markitdown 库：
- * - DOCX：mammoth（保留标题/列表/表格结构）→ turndown 转 Markdown
- * - PDF/PPTX/XLSX/ODF/RTF：officeparser
+ * 基于 @firecrawl/anydoc（Rust 实现，NAPI 绑定，输出 GitHub Flavored Markdown）：
+ * - Word（doc/docx/docm）/PPT（ppt/pptx 等）/Excel（xls/xlsx 等）/ODF/RTF/EPUB/PDF/CSV
  * - HTML：turndown
- * - EPUB：7zip 解包 + spine 顺序提取 xhtml 文本
- * - 纯文本/CSV/JSON/XML 等：直接读取（CSV 转 Markdown 表格）
+ * - 纯文本/TSV/JSON/XML 等：直接读取（TSV 转 Markdown 表格）
  */
 
 import { promises as fs } from "fs";
 import path from "path";
-import os from "os";
-import { v4 as uuidv4 } from "uuid";
 import OpenAI from "openai";
-import { parseOffice } from "officeparser";
-import mammoth from "mammoth";
 import TurndownService from "turndown";
-import sevenZip from "../utils/seven-zip";
+import { toMarkdown } from "@firecrawl/anydoc";
 
 export interface ConvertFileResult {
   success: boolean;
@@ -38,12 +32,11 @@ const turndownService = new TurndownService({
   codeBlockStyle: "fenced",
 });
 
-/** 纯文本类扩展名（直接读取，不做转换） */
+/** 纯文本类扩展名（直接读取，不做转换；CSV 交给 anydoc） */
 const PLAIN_TEXT_EXTENSIONS = [
   ".txt",
   ".md",
   ".markdown",
-  ".csv",
   ".tsv",
   ".json",
   ".xml",
@@ -52,17 +45,50 @@ const PLAIN_TEXT_EXTENSIONS = [
   ".log",
 ];
 
-/** officeparser 支持的扩展名 */
-const OFFICE_PARSER_EXTENSIONS = [
+/** anydoc 支持的扩展名（含旧版二进制格式 .doc/.ppt/.xls） */
+const ANYDOC_EXTENSIONS = [
+  ".doc",
   ".docx",
+  ".docm",
+  ".ppt",
+  ".pps",
+  ".pot",
   ".pptx",
+  ".pptm",
+  ".ppsx",
+  ".ppsm",
+  ".xls",
   ".xlsx",
+  ".xlsm",
+  ".xlsb",
+  ".odt",
   ".ods",
   ".odp",
-  ".odt",
-  ".pdf",
   ".rtf",
+  ".epub",
+  ".pdf",
+  ".csv",
 ];
+
+/** anydoc 错误码（error.code）对应的用户可读提示，保留原始细节便于排查 */
+function describeAnydocError(error: unknown): string {
+  const detail = error instanceof Error ? error.message : String(error);
+  const code = (error as { code?: string } | null)?.code;
+  const summary =
+    {
+      unsupported: "不支持的文件类型",
+      needsOcr: "PDF 为扫描版或纯图片页面，无法提取文本",
+      malformed: "文档已损坏或格式无效",
+      encrypted: "文档已加密，无法解析",
+      resourceLimit: "文档过大或嵌套超限，转换中止",
+      missingPart: "文档缺少必要内容，无法完整转换",
+      io: "读取文档失败",
+    }[code ?? ""] ?? detail;
+  if (summary === detail || !detail) {
+    return summary;
+  }
+  return `${summary}（${detail}）`;
+}
 
 function stripHtmlToText(html: string): string {
   return html
@@ -95,75 +121,6 @@ function extractTitleFromMarkdown(markdown: string, fallback: string): string | 
   return fallback || null;
 }
 
-function unpack7z(archivePath: string, destDir: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    sevenZip.unpack(archivePath, destDir, (err: Error | null) => {
-      if (err) {
-        reject(new Error(`解压失败: ${err.message}`));
-      } else {
-        resolve();
-      }
-    });
-  });
-}
-
-/**
- * EPUB 提取：epub 是 zip 包，解压后按 spine 顺序拼接 xhtml 文本
- * （知识库索引用途，纯文本提取即可满足分块需要）
- */
-async function convertEpubToMarkdown(epubPath: string): Promise<string> {
-  const extractDir = path.join(os.tmpdir(), `tau-epub-${uuidv4()}`);
-  try {
-    await fs.mkdir(extractDir, { recursive: true });
-    await unpack7z(epubPath, extractDir);
-
-    // 解析 container.xml 定位 OPF
-    const containerPath = path.join(extractDir, "META-INF", "container.xml");
-    const containerXml = await fs.readFile(containerPath, "utf-8");
-    const opfMatch = containerXml.match(/full-path="([^"]+)"/);
-    if (!opfMatch) {
-      throw new Error("无效的 EPUB 文件：缺少 container.xml");
-    }
-    const opfPath = path.join(extractDir, opfMatch[1]);
-    const opfDir = path.dirname(opfPath);
-    const opfXml = await fs.readFile(opfPath, "utf-8");
-
-    // 按 spine 中 manifest 项的顺序提取 xhtml
-    const manifestMatches = [...opfXml.matchAll(/<item\b[^>]*>/g)];
-    const manifest = new Map<string, string>();
-    for (const item of manifestMatches) {
-      const idMatch = item[0].match(/id="([^"]+)"/);
-      const hrefMatch = item[0].match(/href="([^"]+)"/);
-      if (idMatch && hrefMatch) {
-        manifest.set(idMatch[1], hrefMatch[1]);
-      }
-    }
-
-    const itemrefMatches = [...opfXml.matchAll(/<itemref\b[^>]*idref="([^"]+)"/g)];
-    const parts: string[] = [];
-    for (const ref of itemrefMatches) {
-      const href = manifest.get(ref[1]);
-      if (!href) {
-        continue;
-      }
-      const xhtmlPath = path.join(opfDir, decodeURIComponent(href));
-      try {
-        const xhtml = await fs.readFile(xhtmlPath, "utf-8");
-        const text = stripHtmlToText(xhtml);
-        if (text) {
-          parts.push(text);
-        }
-      } catch {
-        // 跳过缺失或损坏的章节
-      }
-    }
-
-    return parts.join("\n\n");
-  } finally {
-    await fs.rm(extractDir, { recursive: true, force: true }).catch(() => undefined);
-  }
-}
-
 /**
  * 将普通文档转换为 Markdown
  */
@@ -181,14 +138,16 @@ export async function convertDocumentToMarkdown(filePath: string): Promise<Conve
   try {
     let markdown = "";
 
-    if (PLAIN_TEXT_EXTENSIONS.includes(ext)) {
+    if (ANYDOC_EXTENSIONS.includes(ext)) {
+      // anydoc 从文件内容探测格式（无签名的 CSV 以扩展名兜底）
+      markdown = await toMarkdown(filePath);
+    } else if (PLAIN_TEXT_EXTENSIONS.includes(ext)) {
       const content = await fs.readFile(filePath, "utf-8");
-      if (ext === ".csv" || ext === ".tsv") {
-        // CSV 转为 Markdown 表格（首行视为表头）
-        const separator = ext === ".tsv" ? "\t" : ",";
+      if (ext === ".tsv") {
+        // TSV 转为 Markdown 表格（首行视为表头）
         const lines = content.split(/\r?\n/).filter(line => line.trim());
         if (lines.length > 0) {
-          const rows = lines.map(line => line.split(separator));
+          const rows = lines.map(line => line.split("\t"));
           const [header, ...dataRows] = rows;
           const escapeCell = (cell: string) => cell.replace(/\|/g, "\\|");
           markdown = [
@@ -200,10 +159,6 @@ export async function convertDocumentToMarkdown(filePath: string): Promise<Conve
       } else {
         markdown = content;
       }
-    } else if (ext === ".docx") {
-      // mammoth 保留标题/列表/表格结构，再转 Markdown
-      const { value: html } = await mammoth.convertToHtml({ path: filePath });
-      markdown = turndownService.turndown(html);
     } else if (ext === ".html" || ext === ".htm") {
       const html = await fs.readFile(filePath, "utf-8");
       try {
@@ -211,11 +166,6 @@ export async function convertDocumentToMarkdown(filePath: string): Promise<Conve
       } catch {
         markdown = stripHtmlToText(html);
       }
-    } else if (ext === ".epub") {
-      markdown = await convertEpubToMarkdown(filePath);
-    } else if (OFFICE_PARSER_EXTENSIONS.includes(ext)) {
-      const ast = await parseOffice(filePath);
-      markdown = ast.toText();
     } else {
       // 其余类型（如 zip 等）不再支持，避免静默错误
       return fail(`不支持的文件类型: ${ext}`);
@@ -234,6 +184,9 @@ export async function convertDocumentToMarkdown(filePath: string): Promise<Conve
       error: null,
     };
   } catch (error) {
+    if (ANYDOC_EXTENSIONS.includes(ext)) {
+      return fail(describeAnydocError(error));
+    }
     return fail(error);
   }
 }
