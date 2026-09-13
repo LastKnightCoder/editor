@@ -3,9 +3,9 @@ import type { CommandEvent } from "./command";
 /**
  * 中立命令注册表：channel → handler 的收录与查询，零 Electron 依赖。
  *
- * Electron 侧由 ipc-registry 的 monkey-patch 写入，Web Server 侧由宿主
- * 自行调用 register* 写入；HTTP 端点（http-command-endpoint）与未来的
- * 其他传输层都从这里分发。
+ * 各宿主自行调用 register* 写入（Web Server 在服务装配期登记；
+ * desktop 渲染层已还原原生 IPC，不再经注册表分发）；HTTP 端点
+ * （http-command-endpoint）与未来的其他传输层都从这里分发。
  */
 
 export type InvokeHandler<TArgs extends unknown[] = unknown[], TResult = unknown> = (

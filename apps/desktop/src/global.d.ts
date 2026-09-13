@@ -3,7 +3,7 @@ declare module "reactjs-calendar-heatmap";
 declare module "plantuml-encoder";
 
 interface ElectronAPI {
-  // bootstrap 的类型声明见 src/rpc/electron-bridge.d.ts（复用 @tau/rpc 的 RpcBootstrapInfo）
+  // invoke/send/on/off/sendLog 的类型声明见 src/rpc/electron-bridge.d.ts
   platform: string;
 }
 
