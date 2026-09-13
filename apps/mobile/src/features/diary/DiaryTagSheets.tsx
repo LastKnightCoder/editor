@@ -1,11 +1,13 @@
-// 日记标签浮层：编辑单条日记的标签（勾选式，即时落库）+ 标签库管理
-// （新增 / 改名 / 改色 / 删除，删除与改名由后端事务级联到所有日记条目）。
+// 日记标签浮层：编辑单条日记（segment）的标签（勾选式，即时落库）+ 标签库管理
+// （新增 / 改名 / 改色 / 删除，删除与改名由后端事务级联到所有日记片段）。
 // 对齐桌面端设计：日记、周记、月记只是日记的标签，筛选与管理均以标签库为单一数据源。
+// 产品设计：标签与具体 segment 绑定，一天的多条日记各自独立打标签；
+// 落库走 diary_update_tags(segmentId)，不要改回按 entry 更新（旧模型会整天共享标签）。
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Check, Palette, Plus, TagIcon, Trash2 } from "lucide-react";
-import type { DiaryEntry, DiaryTagSetting } from "../../types";
+import type { DiaryEntry, DiarySegment, DiaryTagSetting } from "../../types";
 import { BottomSheet } from "../../components/BottomSheet";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
 import * as tauri from "../../services/tauri";
@@ -127,17 +129,20 @@ type SheetErrorReporter = (error: unknown, fallback: string) => void;
 
 type DiaryTagEditorSheetProps = {
   open: boolean;
+  /** segment 所属 entry，仅用于在缓存中定位并回写该片段 */
   entry: DiaryEntry | null;
+  segment: DiarySegment | null;
   tagSettings: DiaryTagSetting[];
   onClose: () => void;
   onOpenManage: () => void;
   onError: SheetErrorReporter;
 };
 
-/** 编辑单条日记的标签：全部标签以 chip 呈现，点击切换选中，即时落库（串行写队列） */
+/** 编辑单条日记（segment）的标签：全部标签以 chip 呈现，点击切换选中，即时落库（串行写队列） */
 export function DiaryTagEditorSheet({
   open,
   entry,
+  segment,
   tagSettings,
   onClose,
   onOpenManage,
@@ -151,6 +156,8 @@ export function DiaryTagEditorSheet({
   onErrorRef.current = onError;
   const entryRef = useRef(entry);
   entryRef.current = entry;
+  const segmentRef = useRef(segment);
+  segmentRef.current = segment;
 
   useEffect(() => {
     if (!open) {
@@ -169,21 +176,36 @@ export function DiaryTagEditorSheet({
     return next;
   };
 
-  const writeEntryTags = (nextTags: string[], rollbackTags?: string[]) => {
-    const current = entryRef.current;
-    if (!current) return;
+  /** 乐观更新缓存中该 segment 的标签（只动这一个片段，同天其他片段不受影响） */
+  const patchSegmentTags = (segmentId: number, nextTags: string[]) => {
     writeDiaryEntries(prev =>
-      prev.map(item => (item.id === current.id ? { ...item, tags: nextTags } : item))
+      prev.map(item =>
+        item.id === entryRef.current?.id
+          ? {
+              ...item,
+              segments: item.segments.map(seg =>
+                seg.id === segmentId ? { ...seg, tags: nextTags } : seg
+              ),
+            }
+          : item
+      )
     );
+  };
+
+  const writeSegmentTags = (nextTags: string[], rollbackTags?: string[]) => {
+    const currentSegment = segmentRef.current;
+    if (!currentSegment) return;
+    patchSegmentTags(currentSegment.id, nextTags);
     void enqueue(async () => {
       try {
-        const saved = await tauri.diaryUpdateTags({ id: current.id, tags: nextTags });
+        const saved = await tauri.diaryUpdateTags({
+          segmentId: currentSegment.id,
+          tags: nextTags,
+        });
         writeDiaryEntries(prev => prev.map(item => (item.id === saved.id ? saved : item)));
       } catch (error) {
         if (rollbackTags) {
-          writeDiaryEntries(prev =>
-            prev.map(item => (item.id === current.id ? { ...item, tags: rollbackTags } : item))
-          );
+          patchSegmentTags(currentSegment.id, rollbackTags);
         }
         throw error;
       }
@@ -191,19 +213,19 @@ export function DiaryTagEditorSheet({
   };
 
   const toggleTag = useMemoizedFn((tag: string) => {
-    const current = entryRef.current;
-    if (!current) return;
-    const has = current.tags.includes(tag);
-    writeEntryTags(
-      has ? current.tags.filter(item => item !== tag) : [...current.tags, tag],
-      current.tags
+    const currentSegment = segmentRef.current;
+    if (!currentSegment) return;
+    const has = currentSegment.tags.includes(tag);
+    writeSegmentTags(
+      has ? currentSegment.tags.filter(item => item !== tag) : [...currentSegment.tags, tag],
+      currentSegment.tags
     );
   });
 
   const submitDraft = () => {
     const name = draft.trim().replace(/^#/, "");
-    const current = entryRef.current;
-    if (!current || !name || saving) return;
+    const currentSegment = segmentRef.current;
+    if (!currentSegment || !name || saving) return;
     setSaving(true);
     const task = async () => {
       if (!tagSettings.some(setting => setting.name === name)) {
@@ -213,10 +235,11 @@ export function DiaryTagEditorSheet({
         });
         writeDiaryTagSettings(settings);
       }
-      if (!current.tags.includes(name)) {
+      if (!currentSegment.tags.includes(name)) {
+        patchSegmentTags(currentSegment.id, [...currentSegment.tags, name]);
         const saved = await tauri.diaryUpdateTags({
-          id: current.id,
-          tags: [...current.tags, name],
+          segmentId: currentSegment.id,
+          tags: [...currentSegment.tags, name],
         });
         writeDiaryEntries(prev => prev.map(item => (item.id === saved.id ? saved : item)));
       }
@@ -227,12 +250,12 @@ export function DiaryTagEditorSheet({
     });
   };
 
-  // 展示集 = 标签库 + 条目上不在库里的孤儿标签（历史数据），后者也可点击摘除
+  // 展示集 = 标签库 + 片段上不在库里的孤儿标签（历史数据），后者也可点击摘除
   const allTagNames = useMemo(() => {
     const known = new Set(tagSettings.map(setting => setting.name));
-    const orphans = (entry?.tags ?? []).filter(tag => !known.has(tag));
+    const orphans = (segment?.tags ?? []).filter(tag => !known.has(tag));
     return [...tagSettings.map(setting => setting.name), ...orphans];
-  }, [tagSettings, entry]);
+  }, [tagSettings, segment]);
   const colorOf = useMemoizedFn(
     (tag: string) =>
       tagSettings.find(setting => setting.name === tag)?.color ?? pickPresetColor(tag)
@@ -240,12 +263,12 @@ export function DiaryTagEditorSheet({
 
   return (
     <BottomSheet open={open} title="编辑标签" onClose={onClose}>
-      {entry ? (
+      {segment ? (
         <>
           <p className="text-ink-3 text-[12.5px]">点击标签为这篇日记添加或移除</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {allTagNames.map(name => {
-              const selected = entry.tags.includes(name);
+              const selected = segment.tags.includes(name);
               return (
                 <DiaryTagChip
                   key={name}
@@ -400,11 +423,21 @@ export function DiaryTagManageSheet({
       }
       const settings = await tauri.diaryRenameTagSetting({ name: current, newName: name });
       writeDiaryTagSettings(settings);
+      // 标签挂在片段上：级联改的是各 entry 内 segment.tags（去重保序）
       writeDiaryEntries(prev =>
         prev.map(entry => {
-          if (!entry.tags.includes(current)) return entry;
-          const nextTags = entry.tags.map(tag => (tag === current ? name : tag));
-          return { ...entry, tags: [...new Set(nextTags)] };
+          if (!entry.segments.some(seg => seg.tags.includes(current))) return entry;
+          return {
+            ...entry,
+            segments: entry.segments.map(seg =>
+              seg.tags.includes(current)
+                ? {
+                    ...seg,
+                    tags: [...new Set(seg.tags.map(tag => (tag === current ? name : tag)))],
+                  }
+                : seg
+            ),
+          };
         })
       );
       resetEdit();
@@ -427,11 +460,17 @@ export function DiaryTagManageSheet({
       const settings = await tauri.diaryDeleteTagSetting(target);
       writeDiaryTagSettings(settings);
       writeDiaryEntries(prev =>
-        prev.map(entry =>
-          entry.tags.includes(target)
-            ? { ...entry, tags: entry.tags.filter(tag => tag !== target) }
-            : entry
-        )
+        prev.map(entry => {
+          if (!entry.segments.some(seg => seg.tags.includes(target))) return entry;
+          return {
+            ...entry,
+            segments: entry.segments.map(seg =>
+              seg.tags.includes(target)
+                ? { ...seg, tags: seg.tags.filter(tag => tag !== target) }
+                : seg
+            ),
+          };
+        })
       );
       if (edit.editing === target) {
         resetEdit();

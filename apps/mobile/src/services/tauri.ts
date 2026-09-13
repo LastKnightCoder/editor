@@ -143,6 +143,7 @@ function normalizeDiaryEntry(raw: RawDiaryEntry): DiaryEntry {
     segments: (raw.segments ?? []).map(segment => ({
       ...segment,
       content: Array.isArray(segment.content) ? segment.content : [],
+      tags: Array.isArray(segment.tags) ? segment.tags : [],
     })),
     content: Array.isArray(raw.content) ? (raw.content as DiaryEntry["content"]) : [],
   };
@@ -388,7 +389,8 @@ export function diaryDeleteTagSetting(name: string) {
   });
 }
 
-export function diaryUpdateTags(payload: { id: number; tags: string[] }) {
+// 标签按片段更新（产品设计：标签与具体 segment 绑定，一天多条日记互不影响）
+export function diaryUpdateTags(payload: { segmentId: number; tags: string[] }) {
   return trackedInvoke<RawDiaryEntry>("diary_update_tags", { payload }).then(normalizeDiaryEntry);
 }
 

@@ -380,4 +380,80 @@ describe("DiaryTable", () => {
     expect(entry.tags).toBe("[]");
     expect(setting).toEqual({ color: "#000000", sort: 9 });
   });
+
+  // 产品设计：标签与具体 segment 绑定，同一天多条日记各自独立打标签
+  it("同一天的多个 segment 标签相互独立，更新互不影响", () => {
+    const entry = DiaryTable.createDiaryEntry(db, {
+      type: "daily",
+      date: "2026-09-13",
+      weather: null,
+      mood: null,
+      tags: "[]",
+      segments: [paragraph("第一条"), paragraph("第二条")],
+    });
+
+    const first = entry.segments[0];
+
+    const updatedFirst = DiaryTable.updateDiarySegment(db, {
+      segmentId: first.id,
+      tags: ["日常"],
+    });
+    expect(JSON.parse(updatedFirst!.tags)).toEqual(["日常"]);
+
+    const reloaded = DiaryTable.getDiarySegments(db, entry.id);
+    expect(reloaded.map(segment => JSON.parse(segment.tags))).toEqual([["日常"], []]);
+  });
+
+  it("旧库 entry 级标签在升级时回填到当天全部 segment", () => {
+    db.close();
+    db = createLegacyDatabase();
+
+    db.exec(`ALTER TABLE diary_segments DROP COLUMN tags`);
+    db.prepare(
+      `INSERT INTO contents (create_time, update_time, content, count, ref_count)
+       VALUES (1, 1, '[]', 0, 1)`
+    ).run();
+    db.prepare(
+      `INSERT INTO diary_entries (type, date, content_id, weather, mood, tags, word_count, create_time, update_time)
+       VALUES ('daily', '2026-09-13', NULL, NULL, NULL, '["日常","反思"]', 0, 1, 1)`
+    ).run();
+    db.prepare(
+      `INSERT INTO diary_segments (diary_id, content_id, create_time, update_time)
+       VALUES (1, 1, 1, 1), (1, 1, 2, 2)`
+    ).run();
+
+    DiaryTable.upgradeTable(db);
+
+    const rows = db.prepare(`SELECT tags FROM diary_segments ORDER BY id`).all() as Array<{
+      tags: string;
+    }>;
+    expect(rows).toHaveLength(2);
+    expect(JSON.parse(rows[0].tags)).toEqual(["日常", "反思"]);
+    expect(JSON.parse(rows[1].tags)).toEqual(["日常", "反思"]);
+  });
+
+  it("删除标签库中的标签会级联摘除所有 segment 上的该标签", () => {
+    db.prepare(
+      `INSERT INTO diary_tag_settings (name, color, sort, create_time, update_time)
+       VALUES ('日常', '#1890ff', 0, 1, 1)`
+    ).run();
+    const entry = DiaryTable.createDiaryEntry(db, {
+      type: "daily",
+      date: "2026-09-14",
+      weather: null,
+      mood: null,
+      tags: "[]",
+      segments: [paragraph("a"), paragraph("b")],
+    });
+    DiaryTable.updateDiarySegment(db, { segmentId: entry.segments[0].id, tags: ["日常", "读书"] });
+    DiaryTable.updateDiarySegment(db, { segmentId: entry.segments[1].id, tags: ["日常"] });
+
+    DiaryTable.deleteDiaryTagSetting(db, "日常");
+
+    const rows = db.prepare(`SELECT tags FROM diary_segments ORDER BY id`).all() as Array<{
+      tags: string;
+    }>;
+    expect(JSON.parse(rows[0].tags)).toEqual(["读书"]);
+    expect(JSON.parse(rows[1].tags)).toEqual([]);
+  });
 });

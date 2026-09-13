@@ -2,6 +2,8 @@
 // 只读 Editor 渲染前两段做预览（对齐卡片库，不做文本摘要提取）；
 // 卡片「···」菜单提供编辑标签与删除该片段（删除确认后延迟落库，可撤销）。
 // 类型不再是身份标识：日记 / 周记 / 月记只是标签，头部胶囊即标签 chips。
+// 产品设计：标签与具体 segment 绑定（一天可发多条日记，各自独立打标签），
+// 卡片读取/编辑的都是 segment.tags，不要改回 entry.tags（那是旧模型遗留）。
 
 import { memo, useCallback, useMemo, useRef, useState } from "react";
 import type { Descendant } from "slate";
@@ -48,9 +50,9 @@ export function describeEntry(entry: DiaryEntry): { title: string; sub: string }
   return { title: `${Number(month)}月`, sub: `${year}年` };
 }
 
-/** 删除确认等上下文用的标签摘要：无标签时回退为空串 */
-export function entryTagsBrief(entry: DiaryEntry): string {
-  return entry.tags.join(" / ");
+/** 删除确认等上下文用的标签摘要：无标签时回退为空串（取 segment 自身标签） */
+export function segmentTagsBrief(segment: DiarySegment): string {
+  return segment.tags.join(" / ");
 }
 
 type DiaryCardItemProps = {
@@ -58,7 +60,7 @@ type DiaryCardItemProps = {
   entry: DiaryEntry;
   tagColorOf: (tag: string) => string;
   onOpenSegment: (entry: DiaryEntry, segment: DiarySegment) => void;
-  onEditTags: (entry: DiaryEntry) => void;
+  onEditTags: (entry: DiaryEntry, segment: DiarySegment) => void;
   onDeleteSegment: (entry: DiaryEntry, segment: DiarySegment) => void;
 };
 
@@ -82,7 +84,7 @@ const DiaryCardItem = memo(
         {
           label: "编辑标签",
           icon: <Tags size={17} strokeWidth={2} aria-hidden="true" />,
-          onClick: () => onEditTags(entry),
+          onClick: () => onEditTags(entry, segment),
         },
         {
           label: "删除",
@@ -128,17 +130,17 @@ const DiaryCardItem = memo(
         <div className="mb-2 flex items-center gap-2">
           <span className="text-ink text-[14px] font-bold">{desc.title}</span>
           <span className="text-ink-3 text-[11.5px]">{desc.sub}</span>
-          {entry.tags.length > HEADER_TAG_LIMIT + 1 ? (
+          {segment.tags.length > HEADER_TAG_LIMIT + 1 ? (
             <span className="flex items-center gap-1">
-              {entry.tags.slice(0, HEADER_TAG_LIMIT).map(tag => (
+              {segment.tags.slice(0, HEADER_TAG_LIMIT).map(tag => (
                 <DiaryTagChip key={tag} tag={tag} color={tagColorOf(tag)} />
               ))}
               <span className="text-ink-3 text-[10.5px] font-bold">
-                +{entry.tags.length - HEADER_TAG_LIMIT}
+                +{segment.tags.length - HEADER_TAG_LIMIT}
               </span>
             </span>
           ) : (
-            entry.tags.map(tag => <DiaryTagChip key={tag} tag={tag} color={tagColorOf(tag)} />)
+            segment.tags.map(tag => <DiaryTagChip key={tag} tag={tag} color={tagColorOf(tag)} />)
           )}
           <button
             ref={setMenuAnchor}

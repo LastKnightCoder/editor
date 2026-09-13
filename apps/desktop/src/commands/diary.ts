@@ -36,6 +36,7 @@ interface RawDiarySegment {
   createTime: number;
   updateTime: number;
   content: Descendant[];
+  tags: string | null;
 }
 
 interface RawDiarySegmentItem {
@@ -182,7 +183,9 @@ export const createDiarySegment = async (params: {
 
 export const updateDiarySegment = async (params: {
   segmentId: number;
-  content: Descendant[];
+  content?: Descendant[];
+  // 标签与片段绑定：传入时整体覆盖该 segment 的标签
+  tags?: string[];
 }): Promise<DiarySegment | null> => {
   const result = await invoke<RawDiarySegment | null>("update-diary-segment", params);
   return result ? deserializeDiarySegment(result) : null;
@@ -203,6 +206,7 @@ function deserializeDiarySegment(segment: RawDiarySegment): DiarySegment {
     createTime: segment.createTime,
     updateTime: segment.updateTime,
     content: segment.content,
+    tags: segment.tags != null ? safeParseTags(segment.tags) : [],
   };
 }
 

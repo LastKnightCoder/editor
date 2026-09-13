@@ -308,6 +308,8 @@ export interface DiarySegment {
   updateTime: number;
   wordCount: number;
   content: Descendant[];
+  /** 标签与具体片段绑定：一天的多条日记各自独立打标签（类朋友圈） */
+  tags: string[];
 }
 
 export interface DiaryEntry {
@@ -339,7 +341,6 @@ export interface DiaryUpsertPayload {
   mood?: DiaryWeatherMood | null;
   segmentId?: number;
   newSegment?: boolean;
-  tags?: string[];
 }
 
 /** 日记标签库（diary_tag_settings）：筛选条与标签管理的数据源 */

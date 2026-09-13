@@ -30,12 +30,9 @@ interface DiaryTimelineSectionProps {
   onCreateSegmentNow: () => Promise<void>;
   onSegmentChange: (segmentId: number, content: Descendant[]) => Promise<void>;
   onSegmentDelete: (segmentId: number) => Promise<void>;
-  onTagsChange: (entryId: number, tags: string[]) => Promise<void>;
-  onTagSettingChange: (setting: {
-    name: string;
-    color: string;
-    sort?: number;
-  }) => Promise<void>;
+  /** 标签与片段绑定：回调传 segmentId（勿改成 entryId，会整天共享标签） */
+  onTagsChange: (segmentId: number, tags: string[]) => Promise<void>;
+  onTagSettingChange: (setting: { name: string; color: string; sort?: number }) => Promise<void>;
   onTagSettingDelete: (name: string) => Promise<void>;
 }
 
@@ -47,7 +44,7 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 function getTagColor(tag: string, tagSettings: DiaryTagSetting[]): string {
-  const setting = tagSettings.find((item) => item.name === tag);
+  const setting = tagSettings.find(item => item.name === tag);
   return setting?.color || "#8c8c8c";
 }
 
@@ -59,12 +56,9 @@ interface SegmentNodeProps {
   tagUsageCounts: Map<string, number>;
   onSegmentChange: (segmentId: number, content: Descendant[]) => Promise<void>;
   onSegmentDelete: (segmentId: number) => Promise<void>;
-  onTagsChange: (entryId: number, tags: string[]) => Promise<void>;
-  onTagSettingChange: (setting: {
-    name: string;
-    color: string;
-    sort?: number;
-  }) => Promise<void>;
+  /** 标签与片段绑定：回调传 segmentId */
+  onTagsChange: (segmentId: number, tags: string[]) => Promise<void>;
+  onTagSettingChange: (setting: { name: string; color: string; sort?: number }) => Promise<void>;
   onTagSettingDelete: (name: string) => Promise<void>;
 }
 
@@ -81,7 +75,7 @@ const SegmentNode = memo(
     onTagSettingDelete,
   }: SegmentNodeProps) => {
     const themeColors = useThemeColors();
-    const extensions = useDynamicExtensionsStore((state) => state.extensions);
+    const extensions = useDynamicExtensionsStore(state => state.extensions);
     const { modal, message } = App.useApp();
     const { segment, diary } = item;
 
@@ -89,7 +83,7 @@ const SegmentNode = memo(
       (content: Descendant[]) => {
         onSegmentChange(segment.id, content);
       },
-      [segment.id, onSegmentChange],
+      [segment.id, onSegmentChange]
     );
 
     const handleDelete = useCallback(() => {
@@ -108,9 +102,9 @@ const SegmentNode = memo(
 
     const handleTagsChange = useCallback(
       (newTags: string[]) => {
-        onTagsChange(diary.id, newTags);
+        onTagsChange(segment.id, newTags);
       },
-      [diary.id, onTagsChange],
+      [segment.id, onTagsChange]
     );
 
     const menuItems: MenuProps["items"] = [
@@ -129,8 +123,7 @@ const SegmentNode = memo(
     const weatherIconSrc = getIconPath(weatherStr, "weather");
     const moodIconSrc = getIconPath(moodStr, "mood");
     const weatherColor =
-      WEATHER_ICONS.find((icon) => icon.id === diary.weather?.value)?.color ||
-      "#000000";
+      WEATHER_ICONS.find(icon => icon.id === diary.weather?.value)?.color || "#000000";
 
     // 段创建时间：相对时间显示（朋友圈风格）
     const createdLabel = dayjs(segment.createTime).fromNow();
@@ -140,13 +133,13 @@ const SegmentNode = memo(
     const diaryDateLabel = diaryDate.format("M月D日");
 
     return (
-      <div className="grid grid-cols-[72px_20px_minmax(0,1fr)] gap-4 min-w-0">
+      <div className="grid min-w-0 grid-cols-[72px_20px_minmax(0,1fr)] gap-4">
         {/* 左列：段创建时间（相对时间）+ 所属日记日期 */}
         <div className="flex flex-col items-end pt-2 text-right">
           <span
             className={classNames(
               "text-xs font-medium leading-tight",
-              themeColors.secondaryTextClass,
+              themeColors.secondaryTextClass
             )}
           >
             {createdLabel}
@@ -155,7 +148,7 @@ const SegmentNode = memo(
             className={classNames(
               "mt-1 text-[11px] leading-tight",
               themeColors.secondaryTextClass,
-              "opacity-70",
+              "opacity-70"
             )}
           >
             {diaryDateLabel}
@@ -164,9 +157,7 @@ const SegmentNode = memo(
 
         {/* 中列：竖线 + 圆点 */}
         <div className="relative flex justify-center">
-          {!isLast && (
-            <span className="absolute top-3 bottom-[-1rem] w-px bg-[var(--th-border)]" />
-          )}
+          {!isLast && <span className="absolute bottom-[-1rem] top-3 w-px bg-[var(--th-border)]" />}
           <span
             className="relative z-[1] mt-3 h-2 w-2 shrink-0 rounded-full"
             style={{
@@ -182,7 +173,7 @@ const SegmentNode = memo(
             className={classNames(
               "min-w-0 rounded-xl border p-4",
               themeColors.cardBorderClass,
-              themeColors.inputBgClass,
+              themeColors.inputBgClass
             )}
           >
             {/* 头部：所属日记的天气/心情/字数（左）+ more 菜单（右） */}
@@ -191,7 +182,7 @@ const SegmentNode = memo(
                 <div
                   className={classNames(
                     "flex items-center gap-2 text-[11px]",
-                    themeColors.secondaryTextClass,
+                    themeColors.secondaryTextClass
                   )}
                 >
                   {weatherIconSrc && diary.weather && (
@@ -211,26 +202,20 @@ const SegmentNode = memo(
                     />
                   )}
                   {moodIconSrc && (
-                    <img
-                      src={moodIconSrc}
-                      alt="mood"
-                      className="h-4 w-4 object-contain"
-                    />
+                    <img src={moodIconSrc} alt="mood" className="h-4 w-4 object-contain" />
                   )}
                   <span className="tabular-nums">{segment.wordCount} 字</span>
                 </div>
 
-                {diary.tags.length > 0 && (
+                {/* 标签与片段绑定：展示 segment 自身标签 */}
+                {segment.tags.length > 0 && (
                   <div className="flex min-w-0 items-center gap-1 overflow-hidden">
-                    {diary.tags.map((tag) => (
+                    {segment.tags.map(tag => (
                       <span
                         key={tag}
                         className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
                         style={{
-                          backgroundColor: hexToRgba(
-                            getTagColor(tag, tagSettings),
-                            0.12,
-                          ),
+                          backgroundColor: hexToRgba(getTagColor(tag, tagSettings), 0.12),
                           color: getTagColor(tag, tagSettings),
                         }}
                       >
@@ -245,7 +230,7 @@ const SegmentNode = memo(
               <div className="flex flex-shrink-0 items-center gap-1">
                 <TagEditor
                   anchorName={`--home-diary-tag-editor-${segment.id}`}
-                  tags={diary.tags}
+                  tags={segment.tags}
                   tagSettings={tagSettings}
                   tagUsageCounts={tagUsageCounts}
                   onTagsChange={handleTagsChange}
@@ -257,7 +242,7 @@ const SegmentNode = memo(
                     className={classNames(
                       "flex h-5 w-5 items-center justify-center rounded transition-colors",
                       themeColors.secondaryTextClass,
-                      themeColors.hoverClass,
+                      themeColors.hoverClass
                     )}
                     title="编辑标签"
                   >
@@ -271,7 +256,7 @@ const SegmentNode = memo(
                     className={classNames(
                       "flex h-5 w-5 items-center justify-center rounded transition-colors",
                       themeColors.secondaryTextClass,
-                      themeColors.hoverClass,
+                      themeColors.hoverClass
                     )}
                     title="更多"
                   >
@@ -296,7 +281,7 @@ const SegmentNode = memo(
         </div>
       </div>
     );
-  },
+  }
 );
 SegmentNode.displayName = "SegmentNode";
 
@@ -326,17 +311,8 @@ const DiaryTimelineSection: React.FC<DiaryTimelineSectionProps> = ({
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-baseline gap-2">
-          <h2
-            className={classNames(
-              "text-sm font-semibold",
-              themeColors.textClass,
-            )}
-          >
-            日记
-          </h2>
-          <span
-            className={classNames("text-xs", themeColors.secondaryTextClass)}
-          >
+          <h2 className={classNames("text-sm font-semibold", themeColors.textClass)}>日记</h2>
+          <span className={classNames("text-xs", themeColors.secondaryTextClass)}>
             最近 {recentSegments.length} 条
           </span>
         </div>
@@ -348,7 +324,7 @@ const DiaryTimelineSection: React.FC<DiaryTimelineSectionProps> = ({
               "rounded-lg border px-3 py-1.5 text-xs transition-colors",
               themeColors.cardBorderClass,
               themeColors.secondaryTextClass,
-              themeColors.hoverClass,
+              themeColors.hoverClass
             )}
           >
             打开日记
@@ -360,7 +336,7 @@ const DiaryTimelineSection: React.FC<DiaryTimelineSectionProps> = ({
               "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
               themeColors.cardBorderClass,
               themeColors.secondaryTextClass,
-              themeColors.hoverClass,
+              themeColors.hoverClass
             )}
           >
             <Plus className="h-3.5 w-3.5" />
@@ -370,12 +346,7 @@ const DiaryTimelineSection: React.FC<DiaryTimelineSectionProps> = ({
       </div>
 
       {recentSegments.length === 0 ? (
-        <div
-          className={classNames(
-            "py-8 text-center text-sm",
-            themeColors.secondaryTextClass,
-          )}
-        >
+        <div className={classNames("py-8 text-center text-sm", themeColors.secondaryTextClass)}>
           暂无日记
         </div>
       ) : (

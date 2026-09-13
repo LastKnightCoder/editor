@@ -382,7 +382,8 @@ interface MomentCardProps {
   tagUsageCounts: Map<string, number>;
   onSegmentChange: (segmentId: number, content: Descendant[]) => Promise<void>;
   onSegmentDelete: (segmentId: number) => Promise<void>;
-  onTagsChange: (entryId: number, tags: string[]) => Promise<void>;
+  /** 标签与片段绑定：回调传 segmentId（勿改成 entryId，会整天共享标签） */
+  onTagsChange: (segmentId: number, tags: string[]) => Promise<void>;
   onTagSettingChange: (setting: { name: string; color: string; sort?: number }) => Promise<void>;
   onTagSettingDelete: (name: string) => Promise<void>;
 }
@@ -463,9 +464,9 @@ const MomentCard = memo(
 
     const handleTagsChange = useCallback(
       (newTags: string[]) => {
-        onTagsChange(item.diaryId, newTags);
+        onTagsChange(item.id, newTags);
       },
-      [item.diaryId, onTagsChange]
+      [item.id, onTagsChange]
     );
 
     return (

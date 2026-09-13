@@ -4,7 +4,15 @@
 // 对齐桌面端设计：日记 / 周记 / 月记只是日记的标签，类型不再是身份标识。
 // 数据来自 diary query 缓存；每个片段一张独立卡片，点击经 onOpenSegment
 // 直达该片段编辑，片段「···」菜单可编辑标签、删除单个片段（确认后乐观移除
-// 并延迟落库，Toast 提供撤销窗口）；顶部输入条/日历仍按天打开（最新片段）。
+// 并延迟落库，Toast 提供撤销窗口）。
+//
+// 产品设计（重要，勿回退）：
+// 1. 日记是「朋友圈式」的——一天可以发多条，每条就是一个 segment。
+//    顶部输入条是「发新日记」入口，必须新建 segment（当天最新片段为空时
+//    复用该空片段防垃圾），绝不能打开当天已有日记继续写；
+//    日历选日期才是「查看/续写那天」的入口，按天打开最新片段。
+// 2. 标签与具体 segment 绑定，同一天的多条日记各自独立打标签；
+//    数据库 entry 上遗留的 tags 列只是旧模型的历史数据，不再读写。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
@@ -26,7 +34,7 @@ import {
   getTodayDateKey,
   hasDiaryContent,
 } from "./feedUtils";
-import DiaryCardItem, { describeEntry, entryTagsBrief } from "./DiaryCardItem";
+import DiaryCardItem, { describeEntry, segmentTagsBrief } from "./DiaryCardItem";
 import {
   DiaryTagEditorSheet,
   DiaryTagManageSheet,
@@ -36,6 +44,9 @@ import {
 } from "./DiaryTagSheets";
 
 type DiaryHomePageProps = {
+  /** 发新日记：新建今天的 segment，而不是打开当天已有日记 */
+  onComposeToday: () => void;
+  /** 按日期打开那天的日记（日历查找入口，续写最新片段） */
   onOpenEditor: (mode: DiaryType, baseDate: string) => void;
   onOpenSegment: (entry: DiaryEntry, segment: DiarySegment) => void;
   onError: (error: unknown, fallback: string) => void;
@@ -59,7 +70,12 @@ type DiaryFeedRow =
   | { kind: "month"; key: string; label: string; count: number; wordTotal: number }
   | { kind: "segment"; key: string; entry: DiaryEntry; segment: DiarySegment };
 
-export function DiaryHomePage({ onOpenEditor, onOpenSegment, onError }: DiaryHomePageProps) {
+export function DiaryHomePage({
+  onComposeToday,
+  onOpenEditor,
+  onOpenSegment,
+  onError,
+}: DiaryHomePageProps) {
   const mode = useDiaryStore(state => state.mode);
   const baseDate = useDiaryStore(state => state.baseDate);
   const entriesQuery = useDiaryEntries();
@@ -70,7 +86,11 @@ export function DiaryHomePage({ onOpenEditor, onOpenSegment, onError }: DiaryHom
   const loading = entriesQuery.isLoading;
   const initialize = useDiaryStore(state => state.initialize);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [tagEditorTarget, setTagEditorTarget] = useState<DiaryEntry | null>(null);
+  // 编辑标签的目标是具体 segment（标签与片段绑定），entry 仅用于缓存定位
+  const [tagEditorTarget, setTagEditorTarget] = useState<{
+    entry: DiaryEntry;
+    segment: DiarySegment;
+  } | null>(null);
   const [manageTagsOpen, setManageTagsOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -109,11 +129,14 @@ export function DiaryHomePage({ onOpenEditor, onOpenSegment, onError }: DiaryHom
   );
   const tagColorOf = useMemoizedFn((tag: string) => tagColorMap.get(tag) ?? FALLBACK_TAG_COLOR);
 
+  // 标签使用计数按片段统计（标签绑 segment，一天多条日记各算各的）
   const tagUsageCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const entry of entries) {
-      for (const tag of entry.tags) {
-        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      for (const segment of entry.segments) {
+        for (const tag of segment.tags) {
+          counts.set(tag, (counts.get(tag) ?? 0) + 1);
+        }
       }
     }
     return counts;
@@ -126,39 +149,43 @@ export function DiaryHomePage({ onOpenEditor, onOpenSegment, onError }: DiaryHom
     );
   };
 
-  const filteredEntries = useMemo(
-    () =>
-      selectedTags.length === 0
-        ? entries
-        : entries.filter(entry => selectedTags.some(tag => entry.tags.includes(tag))),
-    [entries, selectedTags]
-  );
-  const monthGroups = useMemo(() => groupDiaryEntriesByMonth(filteredEntries), [filteredEntries]);
+  const monthGroups = useMemo(() => groupDiaryEntriesByMonth(entries), [entries]);
 
-  // 编辑标签的条目始终取缓存中的最新快照（toggle 落库后 props 随之更新）
-  const tagEditorEntry = useMemo(
-    () =>
-      tagEditorTarget
-        ? (entries.find(entry => entry.id === tagEditorTarget.id) ?? tagEditorTarget)
-        : null,
-    [tagEditorTarget, entries]
-  );
+  // 编辑标签的目标始终取缓存中的最新快照（toggle 落库后 props 随之更新）
+  const tagEditorTargetFresh = useMemo(() => {
+    if (!tagEditorTarget) return null;
+    const entry = entries.find(item => item.id === tagEditorTarget.entry.id);
+    const segment = entry?.segments.find(item => item.id === tagEditorTarget.segment.id);
+    if (!entry || !segment) return tagEditorTarget;
+    return { entry, segment };
+  }, [tagEditorTarget, entries]);
 
-  // 虚拟化行：月份分组头与片段卡片扁平混排；同一天内片段倒序（最新在上）
+  // 虚拟化行：月份分组头与片段卡片扁平混排；同一天内片段倒序（最新在上）。
+  // 标签筛选取 segment.tags（标签与片段绑定），只保留命中的片段
   const feedRows = useMemo<DiaryFeedRow[]>(() => {
     const rows: DiaryFeedRow[] = [];
     monthGroups.forEach(group => {
       // 空壳 entry（片段已删光）不参与展示，避免渲染出没有卡片的「0 条」空月份分组
       const displayEntries = group.entries
         .filter(hasDiaryContent)
-        .map(entry => ({ entry, segments: entry.segments }));
+        .map(entry => ({
+          entry,
+          segments: entry.segments.filter(
+            segment =>
+              selectedTags.length === 0 || selectedTags.some(tag => segment.tags.includes(tag))
+          ),
+        }))
+        .filter(item => item.segments.length > 0);
       if (displayEntries.length === 0) return;
       rows.push({
         kind: "month",
         key: `month-${group.monthKey}`,
         label: group.monthLabel,
         count: displayEntries.reduce((sum, item) => sum + item.segments.length, 0),
-        wordTotal: displayEntries.reduce((sum, item) => sum + item.entry.wordCount, 0),
+        wordTotal: displayEntries.reduce(
+          (sum, item) => sum + item.segments.reduce((acc, seg) => acc + seg.wordCount, 0),
+          0
+        ),
       });
       displayEntries.forEach(({ entry, segments }) => {
         [...segments].reverse().forEach(segment => {
@@ -167,7 +194,7 @@ export function DiaryHomePage({ onOpenEditor, onOpenSegment, onError }: DiaryHom
       });
     });
     return rows;
-  }, [monthGroups]);
+  }, [monthGroups, selectedTags]);
 
   // 列表所在的滚动容器与其内容包裹层（快捷输入/筛选条位于列表上方，随内容滚动）
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -216,7 +243,8 @@ export function DiaryHomePage({ onOpenEditor, onOpenSegment, onError }: DiaryHom
   }, [applyScrollMargin, feedRows.length, loading]);
 
   const openToday = useMemoizedFn(() => {
-    onOpenEditor("daily", formatTodayKey());
+    // 发新日记：走创建入口新建 segment，而非打开当天已有日记（见文件头产品设计注释）
+    onComposeToday();
   });
   const openByDate = useMemoizedFn((dateKey: string) => {
     setCalendarOpen(false);
@@ -490,7 +518,7 @@ export function DiaryHomePage({ onOpenEditor, onOpenSegment, onError }: DiaryHom
                         entry={row.entry}
                         tagColorOf={tagColorOf}
                         onOpenSegment={onOpenSegment}
-                        onEditTags={setTagEditorTarget}
+                        onEditTags={(entry, segment) => setTagEditorTarget({ entry, segment })}
                         onDeleteSegment={requestDeleteSegment}
                       />
                     ) : null}
@@ -507,7 +535,7 @@ export function DiaryHomePage({ onOpenEditor, onOpenSegment, onError }: DiaryHom
         title="删除日记"
         description={`「${clampText(
           deleteTarget
-            ? [describeEntry(deleteTarget.entry).title, entryTagsBrief(deleteTarget.entry)]
+            ? [describeEntry(deleteTarget.entry).title, segmentTagsBrief(deleteTarget.segment)]
                 .filter(Boolean)
                 .join(" · ")
             : "",
@@ -571,7 +599,8 @@ export function DiaryHomePage({ onOpenEditor, onOpenSegment, onError }: DiaryHom
 
       <DiaryTagEditorSheet
         open={tagEditorTarget !== null}
-        entry={tagEditorEntry}
+        entry={tagEditorTargetFresh?.entry ?? null}
+        segment={tagEditorTargetFresh?.segment ?? null}
         tagSettings={tagSettings}
         onClose={() => setTagEditorTarget(null)}
         onOpenManage={() => setManageTagsOpen(true)}

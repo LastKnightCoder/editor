@@ -66,7 +66,17 @@ fn legacy_data_keeps_ids_references_and_message_version() {
     assert_eq!(
         conn.query_row("SELECT tags FROM diary_entries WHERE id=2", [], |r| r
             .get::<_, String>(0))
-            .unwrap(),
+        .unwrap(),
+        "[\"周记\"]"
+    );
+    // 旧 entry 级标签迁移后应回填到片段上（标签绑 segment）
+    assert_eq!(
+        conn.query_row(
+            "SELECT s.tags FROM diary_segments s JOIN diary_entries e ON e.id=s.diary_id WHERE e.id=2",
+            [],
+            |r| r.get::<_, String>(0)
+        )
+        .unwrap(),
         "[\"周记\"]"
     );
     assert_eq!(
@@ -126,7 +136,7 @@ fn legacy_segment_position_is_removed_without_changing_identity() {
     conn.execute_batch("ALTER TABLE diary_segments ADD COLUMN position INTEGER NOT NULL DEFAULT 0;
         INSERT INTO contents VALUES(1,1,1,'[]',2,1);
         INSERT INTO diary_entries(id,type,date,content_id,word_count,create_time,update_time) VALUES(1,'daily','2026-09-09',NULL,2,1,1);
-        INSERT INTO diary_segments VALUES(44,1,1,5,6,3);").unwrap();
+        INSERT INTO diary_segments(id,diary_id,content_id,create_time,update_time) VALUES(44,1,1,5,6);").unwrap();
     ensure_main_schema(&conn).unwrap();
     assert!(
         !crate::database::main_upgrade::has_column(&conn, "diary_segments", "position").unwrap()

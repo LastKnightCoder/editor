@@ -45,6 +45,9 @@ pub(super) fn upgrade(conn: &Connection, baseline: &Connection, now: i64) -> Res
 
 fn upgrade_inner(conn: &Connection, baseline: &Connection, now: i64) -> rusqlite::Result<()> {
     let add_diary_tags = !has_column(conn, "diary_entries", "tags")?;
+    // 首次补 diary_segments.tags 列时，把旧 entry 级标签回填到该天全部片段，
+    // 保证「标签绑 segment」模型迁移后老数据不丢
+    let backfill_segment_tags = !has_column(conn, "diary_segments", "tags")?;
     let backfill_refs = !has_column(conn, "document_items", "ref_type")?
         || !has_column(conn, "document_items", "ref_id")?;
 
@@ -113,6 +116,10 @@ fn upgrade_inner(conn: &Connection, baseline: &Connection, now: i64) -> rusqlite
     if add_diary_tags {
         conn.execute_batch("UPDATE diary_entries SET tags='[\"周记\"]' WHERE type='weekly' AND COALESCE(tags,'[]') IN ('[]','');
             UPDATE diary_entries SET tags='[\"月记\"]' WHERE type='monthly' AND COALESCE(tags,'[]') IN ('[]','');")?;
+    }
+    // 放在 add_diary_tags 之后：极旧库同轮升级时，周记/月记的自动标签也能回填进片段
+    if backfill_segment_tags {
+        conn.execute_batch("UPDATE diary_segments SET tags=COALESCE((SELECT tags FROM diary_entries WHERE id=diary_segments.diary_id),'[]') WHERE COALESCE(tags,'[]') IN ('[]','');")?;
     }
     for (name, color, sort) in [("周记", "#52c41a", 0), ("月记", "#fa8c16", 1)] {
         conn.execute("INSERT INTO diary_tag_settings(name,color,sort,create_time,update_time) VALUES(?1,?2,?3,?4,?4) ON CONFLICT(name) DO NOTHING", params![name,color,sort,now])?;

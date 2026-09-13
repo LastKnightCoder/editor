@@ -8,36 +8,21 @@ import {
 import dayjs from "dayjs";
 import type { TodoItem } from "@/types/todo";
 import type { IQuestion } from "@/types/question";
-import type {
-  Flashcard,
-  FlashcardDeck,
-  PomodoroPreset,
-  PomodoroSession,
-} from "@/types";
+import type { Flashcard, FlashcardDeck, PomodoroPreset, PomodoroSession } from "@/types";
 import type {
   WorkbenchTodoGroupStat,
   WorkbenchQuestionGroupStat,
 } from "@/types/components-workbench";
 import { getLatestOperations } from "@/commands/operation";
-import {
-  listTodoPreview,
-  listQuestionPreview,
-} from "@/commands/components-workbench";
-import {
-  getFlashcardReviewQueue,
-  listFlashcardDecks,
-} from "@/commands/flashcard";
+import { listTodoPreview, listQuestionPreview } from "@/commands/components-workbench";
+import { getFlashcardReviewQueue, listFlashcardDecks } from "@/commands/flashcard";
 import {
   summaryPomodoroToday,
   getActivePomodoroSession,
   listPomodoroPresets,
   listPomodoroSessions,
 } from "@/commands/pomodoro";
-import {
-  countUnreadRssEntries,
-  listUnreadRssEntries,
-  listRssFeeds,
-} from "@/commands/rss";
+import { countUnreadRssEntries, listUnreadRssEntries, listRssFeeds } from "@/commands/rss";
 import { getCalendarHeatmap, getAllStatistic } from "@/commands/statistic";
 import {
   createDiaryEntry,
@@ -46,7 +31,6 @@ import {
   createDiarySegment,
   updateDiarySegment,
   deleteDiarySegment,
-  updateDiaryEntry,
   getAllDiarySegmentsFlat,
   getAllDiaryTagSettings,
   upsertDiaryTagSetting,
@@ -84,11 +68,7 @@ interface RecentDiaryResult {
   tagUsageCounts: Map<string, number>;
 }
 
-export type HomeTrendType =
-  | "card"
-  | "article"
-  | "project-item"
-  | "document-item";
+export type HomeTrendType = "card" | "article" | "project-item" | "document-item";
 
 export interface HomeTrendPoint {
   date: string;
@@ -217,12 +197,7 @@ const INITIAL_DATA: HomeData = {
   errors: {},
 };
 
-const TREND_TYPES: HomeTrendType[] = [
-  "card",
-  "article",
-  "project-item",
-  "document-item",
-];
+const TREND_TYPES: HomeTrendType[] = ["card", "article", "project-item", "document-item"];
 
 const formatDate = (date: Date) => dayjs(date).format("YYYY-MM-DD");
 
@@ -233,33 +208,26 @@ const toError = (error: unknown): Error | null => {
 
 const fetchRecentDiaryData = async (): Promise<RecentDiaryResult> => {
   const today = dayjs();
-  const startDate = today
-    .subtract(DIARY_FETCH_WINDOW_DAYS, "day")
-    .format("YYYY-MM-DD");
+  const startDate = today.subtract(DIARY_FETCH_WINDOW_DAYS, "day").format("YYYY-MM-DD");
   const endDate = today.format("YYYY-MM-DD");
   const [entries, allSegments] = await Promise.all([
     getDiaryEntriesByDateRange(startDate, endDate, DIARY_TIMELINE_TYPE),
     getAllDiarySegmentsFlat(),
   ]);
-  const entryById = new Map(entries.map((entry) => [entry.id, entry]));
-  const tagEntryIds = new Map<string, Set<number>>();
-  allSegments.forEach((item) => {
-    item.tags.forEach((tag) => {
-      const entryIds = tagEntryIds.get(tag) ?? new Set<number>();
-      entryIds.add(item.diaryId);
-      tagEntryIds.set(tag, entryIds);
-    });
-  });
+  const entryById = new Map(entries.map(entry => [entry.id, entry]));
+  // 标签使用计数按片段统计（标签绑 segment，一天多条日记各算各的）
   const tagUsageCounts = new Map<string, number>();
-  tagEntryIds.forEach((entryIds, tag) => {
-    tagUsageCounts.set(tag, entryIds.size);
+  allSegments.forEach(item => {
+    item.tags.forEach(tag => {
+      tagUsageCounts.set(tag, (tagUsageCounts.get(tag) ?? 0) + 1);
+    });
   });
 
   return {
     segments: allSegments
-      .filter((item) => entryById.has(item.diaryId))
+      .filter(item => entryById.has(item.diaryId))
       .slice(0, SEGMENT_LIMIT)
-      .map((item) => ({
+      .map(item => ({
         segment: {
           id: item.id,
           diaryId: item.diaryId,
@@ -268,6 +236,7 @@ const fetchRecentDiaryData = async (): Promise<RecentDiaryResult> => {
           createTime: item.createTime,
           updateTime: item.updateTime,
           content: item.content,
+          tags: item.tags,
         },
         diary: entryById.get(item.diaryId)!,
       })),
@@ -303,7 +272,7 @@ const fetchHomeFlashcardData = async (): Promise<HomeFlashcardData> => {
   ]);
   const totalDueFromDecks = flashcardDecks.reduce(
     (sum, deck) => sum + (deck.stats?.dueCount || 0),
-    0,
+    0
   );
 
   return {
@@ -358,10 +327,10 @@ const fetchHomePomodoroData = async (): Promise<HomePomodoroData> => {
 };
 
 const buildContentTrend = (
-  stats: Awaited<ReturnType<typeof getAllStatistic>>,
+  stats: Awaited<ReturnType<typeof getAllStatistic>>
 ): HomeTrendPoint[] => {
   const statsByKey = new Map<string, { count: number; wordsCount: number }>();
-  stats.forEach((item) => {
+  stats.forEach(item => {
     if (!TREND_TYPES.includes(item.statisticType as HomeTrendType)) return;
     const key = `${item.date}:${item.statisticType}`;
     const prev = statsByKey.get(key) ?? { count: 0, wordsCount: 0 };
@@ -380,7 +349,7 @@ const buildContentTrend = (
   const days = end.diff(start, "day") + 1;
   return Array.from({ length: days }, (_, index) => {
     const date = start.add(index, "day").format("YYYY-MM-DD");
-    return TREND_TYPES.map((type) => {
+    return TREND_TYPES.map(type => {
       const typeStats = statsByKey.get(`${date}:${type}`) ?? {
         count: 0,
         wordsCount: 0,
@@ -399,7 +368,7 @@ const fetchHomeActivityData = async (): Promise<HomeActivityData> => {
 
   return {
     recentActivity,
-    activityHeatmap: heatmap.map((item) => ({
+    activityHeatmap: heatmap.map(item => ({
       date: item.time,
       count: item.operation_list.length,
       operationList: item.operation_list,
@@ -449,11 +418,9 @@ const buildHomeData = ({
   summary: {
     pendingTodos: todo?.pendingTodos ?? INITIAL_DATA.summary.pendingTodos,
     overdueTodos: todo?.overdueTodos ?? INITIAL_DATA.summary.overdueTodos,
-    flashcardsDue:
-      flashcard?.flashcardsDue ?? INITIAL_DATA.summary.flashcardsDue,
+    flashcardsDue: flashcard?.flashcardsDue ?? INITIAL_DATA.summary.flashcardsDue,
     rssUnread: rss?.rssUnread ?? INITIAL_DATA.summary.rssUnread,
-    pomodoroToday:
-      pomodoro?.pomodoroToday ?? INITIAL_DATA.summary.pomodoroToday,
+    pomodoroToday: pomodoro?.pomodoroToday ?? INITIAL_DATA.summary.pomodoroToday,
   },
   todoItems: todo?.todoItems ?? INITIAL_DATA.todoItems,
   todoGroups: todo?.todoGroups ?? INITIAL_DATA.todoGroups,
@@ -465,10 +432,8 @@ const buildHomeData = ({
   rssFeeds: rss?.rssFeeds ?? INITIAL_DATA.rssFeeds,
   activeSession: pomodoro?.activeSession ?? INITIAL_DATA.activeSession,
   pomodoroPresets: pomodoro?.pomodoroPresets ?? INITIAL_DATA.pomodoroPresets,
-  pomodoroRecentSessions:
-    pomodoro?.pomodoroRecentSessions ?? INITIAL_DATA.pomodoroRecentSessions,
-  pomodoroTodaySessions:
-    pomodoro?.pomodoroTodaySessions ?? INITIAL_DATA.pomodoroTodaySessions,
+  pomodoroRecentSessions: pomodoro?.pomodoroRecentSessions ?? INITIAL_DATA.pomodoroRecentSessions,
+  pomodoroTodaySessions: pomodoro?.pomodoroTodaySessions ?? INITIAL_DATA.pomodoroTodaySessions,
   recentActivity: activity?.recentActivity ?? INITIAL_DATA.recentActivity,
   activityHeatmap: activity?.activityHeatmap ?? INITIAL_DATA.activityHeatmap,
   contentTrend: activity?.contentTrend ?? INITIAL_DATA.contentTrend,
@@ -501,9 +466,9 @@ const buildErrors = (results: {
 
 const updateDiaryCache = (
   queryClient: QueryClient,
-  updater: (prev: HomeDiaryData) => HomeDiaryData,
+  updater: (prev: HomeDiaryData) => HomeDiaryData
 ) => {
-  queryClient.setQueryData<HomeDiaryData>(DIARY_QUERY_KEY, (prev) => {
+  queryClient.setQueryData<HomeDiaryData>(DIARY_QUERY_KEY, prev => {
     if (!prev) {
       return prev;
     }
@@ -513,7 +478,7 @@ const updateDiaryCache = (
 
 const useHomeData = () => {
   const queryClient = useQueryClient();
-  const websocketClient = useBackendWebsocketStore((state) => state.client);
+  const websocketClient = useBackendWebsocketStore(state => state.client);
   const [
     todoQuery,
     questionQuery,
@@ -544,20 +509,11 @@ const useHomeData = () => {
       activity: activityQuery,
       diary: diaryQuery,
     }),
-    [
-      todoQuery,
-      questionQuery,
-      flashcardQuery,
-      rssQuery,
-      pomodoroQuery,
-      activityQuery,
-      diaryQuery,
-    ],
+    [todoQuery, questionQuery, flashcardQuery, rssQuery, pomodoroQuery, activityQuery, diaryQuery]
   );
 
-  const hasAnyData = Object.values(queries).some((query) => !!query.data);
-  const loading =
-    !hasAnyData && Object.values(queries).some((query) => query.isLoading);
+  const hasAnyData = Object.values(queries).some(query => !!query.data);
+  const loading = !hasAnyData && Object.values(queries).some(query => query.isLoading);
   const data = useMemo(
     () =>
       buildHomeData({
@@ -585,7 +541,7 @@ const useHomeData = () => {
       flashcardQuery.isFetching,
       rssQuery.isFetching,
       queries,
-    ],
+    ]
   );
 
   const refresh = useCallback(async () => {
@@ -607,10 +563,8 @@ const useHomeData = () => {
   useEffect(() => {
     if (!websocketClient) return;
 
-    const updatePomodoroCache = (
-      updater: (prev: HomePomodoroData) => HomePomodoroData,
-    ) => {
-      queryClient.setQueryData<HomePomodoroData>(POMODORO_QUERY_KEY, (prev) => {
+    const updatePomodoroCache = (updater: (prev: HomePomodoroData) => HomePomodoroData) => {
+      queryClient.setQueryData<HomePomodoroData>(POMODORO_QUERY_KEY, prev => {
         if (!prev) return prev;
         return updater(prev);
       });
@@ -618,7 +572,7 @@ const useHomeData = () => {
 
     const handleActiveSessionChanged = (payload: unknown) => {
       const activeSession = payload as PomodoroSession | null;
-      updatePomodoroCache((prev) => ({ ...prev, activeSession }));
+      updatePomodoroCache(prev => ({ ...prev, activeSession }));
 
       if (!activeSession) {
         void queryClient.invalidateQueries({ queryKey: POMODORO_QUERY_KEY });
@@ -628,7 +582,7 @@ const useHomeData = () => {
     const handleTick = (payload: unknown) => {
       const tick = payload as { session?: PomodoroSession | null };
       if (!tick.session) return;
-      updatePomodoroCache((prev) => ({
+      updatePomodoroCache(prev => ({
         ...prev,
         activeSession: tick.session ?? prev.activeSession,
       }));
@@ -636,31 +590,28 @@ const useHomeData = () => {
 
     websocketClient.registerNotificationHandler(
       "pomodoro:active-session-changed",
-      handleActiveSessionChanged,
+      handleActiveSessionChanged
     );
     websocketClient.registerNotificationHandler("pomodoro:tick", handleTick);
 
     return () => {
       websocketClient.unregisterNotificationHandler(
         "pomodoro:active-session-changed",
-        handleActiveSessionChanged,
+        handleActiveSessionChanged
       );
-      websocketClient.unregisterNotificationHandler(
-        "pomodoro:tick",
-        handleTick,
-      );
+      websocketClient.unregisterNotificationHandler("pomodoro:tick", handleTick);
     };
   }, [queryClient, websocketClient]);
 
   // 乐观更新当前活动会话，避免等待完整查询刷新导致的卡顿
   const setActiveSession = useCallback(
     (session: PomodoroSession | null) => {
-      queryClient.setQueryData<HomePomodoroData>(POMODORO_QUERY_KEY, (prev) => {
+      queryClient.setQueryData<HomePomodoroData>(POMODORO_QUERY_KEY, prev => {
         if (!prev) return prev;
         return { ...prev, activeSession: session };
       });
     },
-    [queryClient],
+    [queryClient]
   );
 
   const createSegmentNow = useCallback(async (): Promise<void> => {
@@ -676,12 +627,9 @@ const useHomeData = () => {
           segment: created,
           diary: existing,
         };
-        updateDiaryCache(queryClient, (prev) => ({
+        updateDiaryCache(queryClient, prev => ({
           ...prev,
-          recentSegments: [newItem, ...prev.recentSegments].slice(
-            0,
-            SEGMENT_LIMIT,
-          ),
+          recentSegments: [newItem, ...prev.recentSegments].slice(0, SEGMENT_LIMIT),
         }));
       } else {
         const createdEntry = await createDiaryEntry({
@@ -698,12 +646,9 @@ const useHomeData = () => {
             segment: newSegment,
             diary: createdEntry,
           };
-          updateDiaryCache(queryClient, (prev) => ({
+          updateDiaryCache(queryClient, prev => ({
             ...prev,
-            recentSegments: [newItem, ...prev.recentSegments].slice(
-              0,
-              SEGMENT_LIMIT,
-            ),
+            recentSegments: [newItem, ...prev.recentSegments].slice(0, SEGMENT_LIMIT),
           }));
         }
       }
@@ -713,26 +658,21 @@ const useHomeData = () => {
   }, [queryClient]);
 
   const updateSegment = useCallback(
-    async (
-      segmentId: number,
-      content: DiaryEntry["content"],
-    ): Promise<void> => {
+    async (segmentId: number, content: DiaryEntry["content"]): Promise<void> => {
       try {
         const updated = await updateDiarySegment({ segmentId, content });
         if (!updated) return;
-        updateDiaryCache(queryClient, (prev) => ({
+        updateDiaryCache(queryClient, prev => ({
           ...prev,
-          recentSegments: prev.recentSegments.map((item) =>
-            item.segment.id === segmentId
-              ? { ...item, segment: updated }
-              : item,
+          recentSegments: prev.recentSegments.map(item =>
+            item.segment.id === segmentId ? { ...item, segment: updated } : item
           ),
         }));
       } catch (error) {
         console.error("Failed to update diary segment:", error);
       }
     },
-    [queryClient],
+    [queryClient]
   );
 
   const deleteSegment = useCallback(
@@ -740,7 +680,7 @@ const useHomeData = () => {
       try {
         await deleteDiarySegment(segmentId);
         const recentDiaryData = await fetchRecentDiaryData();
-        updateDiaryCache(queryClient, (prev) => ({
+        updateDiaryCache(queryClient, prev => ({
           ...prev,
           recentSegments: recentDiaryData.segments,
           tagUsageCounts: recentDiaryData.tagUsageCounts,
@@ -749,20 +689,21 @@ const useHomeData = () => {
         console.error("Failed to delete diary segment:", error);
       }
     },
-    [queryClient],
+    [queryClient]
   );
 
+  // 标签与片段绑定：按 segmentId 落库并更新该片段的标签缓存
   const updateDiaryTags = useCallback(
-    async (entryId: number, tags: string[]): Promise<void> => {
+    async (segmentId: number, tags: string[]): Promise<void> => {
       try {
-        const updated = await updateDiaryEntry({ id: entryId, tags });
-        updateDiaryCache(queryClient, (prev) => {
+        const updated = await updateDiarySegment({ segmentId, tags });
+        if (!updated) return;
+        updateDiaryCache(queryClient, prev => {
           const previousTags =
-            prev.recentSegments.find((item) => item.diary.id === entryId)?.diary
-              .tags ?? [];
+            prev.recentSegments.find(item => item.segment.id === segmentId)?.segment.tags ?? [];
           const nextUsageCounts = new Map(prev.tagUsageCounts);
 
-          previousTags.forEach((tag) => {
+          previousTags.forEach(tag => {
             if (tags.includes(tag)) return;
             const nextCount = (nextUsageCounts.get(tag) ?? 0) - 1;
             if (nextCount > 0) {
@@ -772,15 +713,17 @@ const useHomeData = () => {
             }
           });
 
-          tags.forEach((tag) => {
+          tags.forEach(tag => {
             if (previousTags.includes(tag)) return;
             nextUsageCounts.set(tag, (nextUsageCounts.get(tag) ?? 0) + 1);
           });
 
           return {
             ...prev,
-            recentSegments: prev.recentSegments.map((item) =>
-              item.diary.id === entryId ? { ...item, diary: updated } : item,
+            recentSegments: prev.recentSegments.map(item =>
+              item.segment.id === segmentId
+                ? { ...item, segment: { ...item.segment, tags: updated.tags } }
+                : item
             ),
             tagUsageCounts: nextUsageCounts,
           };
@@ -789,26 +732,18 @@ const useHomeData = () => {
         console.error("Failed to update diary tags:", error);
       }
     },
-    [queryClient],
+    [queryClient]
   );
 
   const upsertTagSetting = useCallback(
-    async (setting: {
-      name: string;
-      color: string;
-      sort?: number;
-    }): Promise<void> => {
+    async (setting: { name: string; color: string; sort?: number }): Promise<void> => {
       try {
         const result = await upsertDiaryTagSetting(setting);
-        updateDiaryCache(queryClient, (prev) => {
-          const existing = prev.tagSettings.findIndex(
-            (item) => item.name === result.name,
-          );
+        updateDiaryCache(queryClient, prev => {
+          const existing = prev.tagSettings.findIndex(item => item.name === result.name);
           const tagSettings =
             existing >= 0
-              ? prev.tagSettings.map((item, index) =>
-                  index === existing ? result : item,
-                )
+              ? prev.tagSettings.map((item, index) => (index === existing ? result : item))
               : [...prev.tagSettings, result];
           return { ...prev, tagSettings };
         });
@@ -816,7 +751,7 @@ const useHomeData = () => {
         console.error("Failed to upsert diary tag setting:", error);
       }
     },
-    [queryClient],
+    [queryClient]
   );
 
   const deleteTagSetting = useCallback(
@@ -824,9 +759,9 @@ const useHomeData = () => {
       try {
         await deleteDiaryTagSetting(name);
         const recentDiaryData = await fetchRecentDiaryData();
-        updateDiaryCache(queryClient, (prev) => ({
+        updateDiaryCache(queryClient, prev => ({
           ...prev,
-          tagSettings: prev.tagSettings.filter((item) => item.name !== name),
+          tagSettings: prev.tagSettings.filter(item => item.name !== name),
           recentSegments: recentDiaryData.segments,
           tagUsageCounts: recentDiaryData.tagUsageCounts,
         }));
@@ -834,7 +769,7 @@ const useHomeData = () => {
         console.error("Failed to delete tag setting:", error);
       }
     },
-    [queryClient],
+    [queryClient]
   );
 
   return {

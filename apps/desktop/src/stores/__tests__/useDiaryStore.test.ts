@@ -24,9 +24,7 @@ const paragraph = (text: string): Descendant[] => [
   { type: "paragraph", children: [{ text }] } as Descendant,
 ];
 
-const createSegment = (
-  overrides: Partial<DiarySegment> = {},
-): DiarySegment => ({
+const createSegment = (overrides: Partial<DiarySegment> = {}): DiarySegment => ({
   id: 1,
   diaryId: 1,
   contentId: 10,
@@ -34,6 +32,7 @@ const createSegment = (
   createTime: 1,
   updateTime: 1,
   content: paragraph("旧"),
+  tags: [],
   ...overrides,
 });
 
@@ -51,7 +50,7 @@ const createEntry = (overrides: Partial<DiaryEntry> = {}): DiaryEntry => {
     createTime: 1,
     updateTime: 1,
     segments,
-    content: segments.flatMap((segment) => segment.content),
+    content: segments.flatMap(segment => segment.content),
     ...overrides,
   };
 };
@@ -72,7 +71,7 @@ const resetDiaryStore = () => {
       heatmapDataCache: new Map(),
       activeEntryId: undefined,
     },
-    false,
+    false
   );
 };
 
@@ -144,9 +143,7 @@ describe("useDiaryStore diary moments", () => {
 
   it("更新 segment 后同步 entry 汇总并清理热力图缓存", async () => {
     const existing = createEntry();
-    const cache = new Map([
-      ["2026-06", [{ date: "2026-06-21", wordCount: 2 }]],
-    ]);
+    const cache = new Map([["2026-06", [{ date: "2026-06-21", wordCount: 2 }]]]);
     const updated = createSegment({
       id: 1,
       wordCount: 5,
@@ -175,12 +172,10 @@ describe("useDiaryStore diary moments", () => {
         ],
         heatmapDataCache: cache,
       },
-      false,
+      false
     );
 
-    await useDiaryStore
-      .getState()
-      .onUpdateDiarySegment(updated.id, updated.content);
+    await useDiaryStore.getState().onUpdateDiarySegment(updated.id, updated.content);
 
     const entry = useDiaryStore.getState().diaryEntries[0];
     const flatItem = useDiaryStore.getState().segmentsFlat[0];
@@ -188,8 +183,6 @@ describe("useDiaryStore diary moments", () => {
     expect(entry.content).toEqual(paragraph("更新后"));
     expect(flatItem.content).toEqual(paragraph("更新后"));
     expect(flatItem.wordCount).toBe(5);
-    expect(useDiaryStore.getState().heatmapDataCache.has("2026-06")).toBe(
-      false,
-    );
+    expect(useDiaryStore.getState().heatmapDataCache.has("2026-06")).toBe(false);
   });
 });

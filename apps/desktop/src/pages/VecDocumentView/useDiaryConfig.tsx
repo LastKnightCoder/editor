@@ -34,9 +34,12 @@ const useDiaryConfig = () => {
     Promise.all([getAllDiaryEntries(), getAllDiaryTagSettings()])
       .then(([entries, settings]) => {
         setDiaryEntries(entries);
+        // 标签绑 segment：过滤选项按 entry 下各片段标签聚合（去重）
         const tagSet = new Set(settings.map(setting => setting.name));
         entries.forEach(entry => {
-          entry.tags.forEach(tag => tagSet.add(tag));
+          entry.segments.forEach(segment => {
+            segment.tags.forEach(tag => tagSet.add(tag));
+          });
         });
         setTagOptions(Array.from(tagSet));
       })
@@ -44,6 +47,15 @@ const useDiaryConfig = () => {
         console.error("获取日记索引数据失败", error);
       });
   }, []);
+
+  // entry 命中标签 = 其任一片段带该标签（标签与片段绑定）
+  const entryTagSet = useMemo(() => {
+    const map = new Map<number, Set<string>>();
+    diaryEntries.forEach(entry => {
+      map.set(entry.id, new Set(entry.segments.flatMap(segment => segment.tags)));
+    });
+    return map;
+  }, [diaryEntries]);
 
   const modelInfo = useEmbeddingConfig();
   const [filteredInfo, setFilteredInfo] = useState<Filters>({});
@@ -72,11 +84,12 @@ const useDiaryConfig = () => {
     const indexStatusFilterArray = filteredInfo.index_status || [];
 
     return diaryEntries.filter(entry => {
+      const tags = entryTagSet.get(entry.id) ?? new Set<string>();
       const isHitTags =
         tagFilterArray.length === 0 ||
         tagFilterArray.includes(ALL_TAG_FILTER) ||
         tagFilterArray.some(tag =>
-          tag === EMPTY_TAG_FILTER ? entry.tags.length === 0 : entry.tags.includes(String(tag))
+          tag === EMPTY_TAG_FILTER ? tags.size === 0 : tags.has(String(tag))
         );
       if (!isHitTags) return false;
 
@@ -101,7 +114,7 @@ const useDiaryConfig = () => {
 
       return isHitIndexStatus;
     });
-  }, [diaryEntries, filteredInfo, vecResults]);
+  }, [diaryEntries, entryTagSet, filteredInfo, vecResults]);
 
   const slicedEntries = filteredEntries.slice(
     (current - 1) * (pageSize || PAGE_SIZE),
