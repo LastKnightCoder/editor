@@ -1,4 +1,12 @@
-import { lazy, Suspense, useEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import type { Descendant } from "slate";
 import { CornerUpRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -108,10 +116,7 @@ function MetaDot() {
  *  （云端唯一写者）；collabFallback=协作不可用的本地兜底（改动经投影通道，重连后裁决） */
 type DetailEditMode = "local" | "collabConnecting" | "collabLive" | "collabFallback";
 
-function detailEditMode(
-  hasCollaboration: boolean,
-  mode: CollaborativeEditorMode
-): DetailEditMode {
+function detailEditMode(hasCollaboration: boolean, mode: CollaborativeEditorMode): DetailEditMode {
   if (!hasCollaboration) return "local";
   if (mode === "live") return "collabLive";
   if (mode === "connecting") return "collabConnecting";
@@ -121,7 +126,10 @@ function detailEditMode(
 
 export function ContentDetailPage(props: ContentDetailPageProps) {
   const { theme } = useMobileTheme();
-  const editorRef = useRef<EditorRef | null>(null);
+  // 本地编辑器与协作编辑器各自独占 ref：两者曾共用一个 ref 对象，切到协作 live 时
+  // 本地编辑器卸载会把 current 清成 null，而已挂好的协作句柄不会重新挂载，控制器从此读不到 editor
+  const localEditorRef = useRef<EditorRef | null>(null);
+  const collabEditorRef = useRef<EditorRef | null>(null);
   const [detail, setDetail] = useState<ContentDetailResponse | null>(null);
   // 回调入 ref：父层传内联函数时，避免其引用变化触发详情重复拉取
   const onErrorRef = useRef(props.onError);
@@ -177,11 +185,11 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
     },
   });
   const toolbarController = useMobileEditorToolbarController({
-    editorRef,
+    // 正文归属随 editMode 切换，控制器必须读当前承载正文的那个编辑器
+    editorRef: editMode === "collabLive" ? collabEditorRef : localEditorRef,
   });
   // 工具栏：本地可编辑时（普通/兜底）正常显示；协作建立中与协作只读态一律收起
-  const toolbarReadonly =
-    editMode !== "local" && editMode !== "collabFallback" && collabReadonly;
+  const toolbarReadonly = editMode !== "local" && editMode !== "collabFallback" && collabReadonly;
   // 工具栏等页面级浮层挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
 
@@ -405,7 +413,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               documentId={props.collaboration.documentId}
               theme={theme}
               extensions={mobileCardPreviewExtensions}
-              editorRef={editorRef}
+              editorRef={collabEditorRef}
               onEditorFocus={toolbarController.handleEditorFocus}
               onEditorBlur={toolbarController.handleEditorBlur}
               onSelectionChange={toolbarController.syncSelection}
@@ -420,7 +428,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
         {editMode !== "collabLive" ? (
           <div className="min-h-[45vh] pt-1">
             <Editor
-              ref={editorRef}
+              ref={localEditorRef}
               key={`editable-content-${props.contentId}-${syncVersion}`}
               initValue={normalizeEditorContent(content)}
               className="mobile-card-editor-content"

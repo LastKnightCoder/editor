@@ -760,6 +760,9 @@ class CollaborationManager {
   }
 
   private revokeSession(session: RuntimeSession, kind: "revoked" | "closed") {
+    // 服务端 close 广播不排除发起者，本机主动结束共享时自己也会收到 closed；
+    // 收尾与提示由 leave 流程负责，这里忽略以免和「已结束共享」重复提示
+    if (session.info.leaving) return;
     const { id, title } = session.info;
     pushCollaborationNotice({ id: `${id}:${Date.now()}`, kind, documentId: id, title });
     this.disposeSession(id);
