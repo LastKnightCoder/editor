@@ -45,32 +45,32 @@ export function ActionSheet(props: ActionSheetProps) {
   const content = useMemo(() => {
     if (props.loading) {
       return (
-        <div className="list-group flex flex-col items-center gap-2.5 px-5 py-8">
+        <div className="flex flex-col items-center gap-2.5 px-5 py-8">
           <span className="border-line-soft border-t-accent h-6 w-6 animate-spin rounded-full border-[3px]" />
-          <div className="text-ink-2 text-[13.5px] font-medium">加载中...</div>
+          <div className="text-ink-3 text-[13.5px] font-medium">加载中...</div>
         </div>
       );
     }
     if (!props.options.length) {
       return (
-        <div className="list-group flex flex-col items-center gap-2.5 px-5 py-8">
+        <div className="flex flex-col items-center gap-2.5 px-5 py-8">
           <Inbox size={24} strokeWidth={1.8} className="text-ink-3" />
-          <div className="text-ink-2 text-[13.5px] font-medium">
+          <div className="text-ink-3 text-[13.5px] font-medium">
             {props.emptyText ?? "暂无可选项"}
           </div>
         </div>
       );
     }
     return (
-      <div className="list-group overflow-hidden">
+      <div className="flex flex-col px-2.5 py-1.5">
         {props.options.map(option => {
           const selected = option.value === props.value;
           return (
             <button
               key={option.value}
               type="button"
-              className={`list-item w-full justify-between text-[15px] transition-colors ${
-                selected ? "text-accent font-bold" : "text-ink active:bg-press font-medium"
+              className={`active:bg-press flex w-full items-center justify-between rounded-[14px] px-3.5 py-[13px] text-left text-[15px] transition-colors ${
+                selected ? "text-accent font-bold" : "text-ink font-medium"
               }`}
               onClick={() => {
                 props.onSelect(option.value);
@@ -107,27 +107,25 @@ export function ActionSheet(props: ActionSheetProps) {
 
       <section
         data-allow-touchmove="true"
-        className={`mobile-kb-scroll bg-page absolute bottom-0 left-0 right-0 touch-pan-y overflow-y-auto overscroll-y-contain rounded-t-[26px] ${props.open ? "sheet-enter" : "sheet-exit"}`}
+        className={`mobile-kb-scroll bg-surface shadow-float rounded-t-sheet absolute bottom-0 left-0 right-0 touch-pan-y overflow-y-auto overscroll-y-contain ${props.open ? "sheet-enter" : "sheet-exit"}`}
         style={{
           maxHeight: "calc(var(--kb-viewport-height, 100dvh) - var(--mobile-safe-top) - 3rem)",
         }}
       >
         <div className="sheet-grab" />
-        <div className="px-3.5 pb-[calc(env(safe-area-inset-bottom,0px)+14px)]">
-          <div className="text-ink-2 pb-2.5 pt-3 text-center text-[12.5px] font-semibold">
-            {props.title}
+        <div className="pb-[calc(env(safe-area-inset-bottom,0px)+10px)]">
+          <div className="border-line-soft border-b px-6 pb-[14px] pt-1.5">
+            <div className="text-ink truncate text-[17px] font-bold">{props.title}</div>
           </div>
-          <div className="flex flex-col gap-2.5">
-            {content}
-            <div className="list-group overflow-hidden">
-              <button
-                type="button"
-                className="text-ink-2 active:bg-press list-item w-full justify-center py-3 text-[15px] font-bold transition-colors"
-                onClick={props.onClose}
-              >
-                {props.cancelText ?? "取消"}
-              </button>
-            </div>
+          {content}
+          <div className="px-2.5 pt-1.5">
+            <button
+              type="button"
+              className="text-ink-2 active:bg-press w-full rounded-[14px] py-[13px] text-[15px] font-bold transition-colors"
+              onClick={props.onClose}
+            >
+              {props.cancelText ?? "取消"}
+            </button>
           </div>
         </div>
       </section>
