@@ -12,6 +12,7 @@ import fetch from "node-fetch";
 import OpenAI from "openai";
 import { rgPath } from "@vscode/ripgrep";
 import { Module } from "../types/module";
+import { toUnpackedAsarPath } from "../utils/asarPath";
 import PathUtil from "../utils/PathUtil";
 import vibeLearningDBManager from "./vibe-learning-db";
 import markitdownModule from "./markitdown";
@@ -66,6 +67,10 @@ const MAX_HIT_CONTEXT_RADIUS = 3;
 const MAX_RESOURCE_READ_CHARS = 100 * 1024;
 const MAX_GREP_RESULTS = 100;
 const GREP_PREVIEW_RADIUS = 80;
+
+// 打包后 rgPath 指向 app.asar 内的 rg.exe，而 spawn 不做 asar 重定向，
+// 必须换成 app.asar.unpacked 中的实体文件，否则 grep 会报 spawn ENOENT
+const ripgrepBinaryPath = toUnpackedAsarPath(rgPath);
 
 interface EmbeddingSettingConfig {
   id: string;
@@ -3125,7 +3130,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
       }
       args.push(query, ...filePaths);
 
-      const child = spawn(rgPath, args, {
+      const child = spawn(ripgrepBinaryPath, args, {
         stdio: ["ignore", "pipe", "pipe"],
       });
       const stderrChunks: Buffer[] = [];

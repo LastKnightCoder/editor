@@ -149,11 +149,23 @@ const checks = [
     name: "@vscode/ripgrep",
     code: `
       const fs = require("node:fs");
+      const { spawnSync } = require("node:child_process");
       const ripgrep = require(${JSON.stringify(packagePaths?.appAsar ?? "")} + "/node_modules/@vscode/ripgrep");
-      if (!ripgrep.rgPath || !fs.existsSync(ripgrep.rgPath)) {
-        throw new Error("ripgrep binary not found: " + ripgrep.rgPath);
+      // spawn 不会像 execFile 那样重定向到 app.asar.unpacked，必须显式改写，
+      // 规则与 src-electron/main/utils/asarPath.ts 保持一致；这条断言必须真实执行
+      // 二进制——fs.existsSync 对 asar 路径会回退到 unpacked，只查存在会假通过
+      const binaryPath = ripgrep.rgPath.replace(/([\\\\/])app\\.asar([\\\\/])/, "$1app.asar.unpacked$2");
+      if (!fs.existsSync(binaryPath)) {
+        throw new Error("ripgrep binary not found: " + binaryPath);
       }
-      console.log("ripgrep=" + ripgrep.rgPath);
+      const result = spawnSync(binaryPath, ["--version"], { encoding: "utf8" });
+      if (result.error) {
+        throw new Error("ripgrep spawn failed: " + result.error.message);
+      }
+      if (!String(result.stdout).includes("ripgrep")) {
+        throw new Error("unexpected ripgrep output: " + result.stdout);
+      }
+      console.log("ripgrep=" + String(result.stdout).trim());
     `,
   },
   {
@@ -181,6 +193,8 @@ const checks = [
     code: `
       const fs = require("node:fs");
       const sevenZip = require(${JSON.stringify(packagePaths?.appAsar ?? "")} + "/node_modules/7zip-min");
+      // 规则与 src-electron/main/utils/seven-zip.ts 保持一致：7zip-min 自带的 asar
+      // 探测看 process.argv[1]，安装版恒为 false，必须显式改写才能让 spawn 命中实体文件
       const binaryPath = require(${JSON.stringify(packagePaths?.appAsar ?? "")} + "/node_modules/7zip-bin").path7za
         .replace(/([\\\\/])app\\.asar([\\\\/])/, "$1app.asar.unpacked$2");
       if (!fs.existsSync(binaryPath)) {

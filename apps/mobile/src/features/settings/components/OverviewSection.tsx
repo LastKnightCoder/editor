@@ -11,7 +11,7 @@ import {
   IMAGE_SHADOW_OPTIONS,
   normalizeImageShadowPreset,
 } from "@tau/editor/src/extensions/image/utils/appearance";
-import { IconCircleHelp, IconCloud, IconDatabase, IconImage, IconMoon, LetterTile } from "./ui";
+import { IconCircleHelp, IconCloud, IconDatabase, IconImage, IconMoon, IconUsers } from "./ui";
 import { getResourceSyncSummary } from "./SyncStatusSections";
 import { useThemeStore } from "../../../theme/themeStore";
 import { useNavigator } from "../../../router";
@@ -124,7 +124,7 @@ export function OverviewSection(props: OverviewSectionProps) {
       </div>
       <div className="list-group">
         <ListItem
-          icon={<LetterTile letter="协" className="bg-accent-soft text-accent" />}
+          icon={<IconUsers />}
           label="实时协作"
           value={
             props.collaborationServerUrl

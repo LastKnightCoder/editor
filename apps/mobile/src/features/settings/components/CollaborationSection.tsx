@@ -16,7 +16,10 @@ import {
   GroupNote,
   GroupRow,
   IconCloud,
-  LetterTile,
+  IconKeyRound,
+  IconPower,
+  IconUsers,
+  IconWifi,
   ListItem,
   StatusDot,
   SwitchButton,
@@ -65,7 +68,7 @@ export function CollaborationSection() {
         ? "连接中"
         : status === "error"
           ? "连接异常"
-          : '未启用';
+          : "未启用";
   const statusTone = status === "ready" ? "ok" : status === "error" ? "warn" : "idle";
 
   const saveNickname = async () => {
@@ -161,15 +164,15 @@ export function CollaborationSection() {
           }}
         />
         <GroupRow>
-          <LetterTile letter="连" className="bg-sage-soft text-sage" />
+          <IconWifi />
           <span className="text-ink flex-1 text-[14px] font-medium">连接状态</span>
-          <span className="flex items-center gap-1.5 text-[12.5px] text-ink-2">
+          <span className="text-ink-2 flex items-center gap-1.5 text-[12.5px]">
             <StatusDot tone={statusTone} />
             {statusText}
           </span>
         </GroupRow>
         <GroupRow>
-          <LetterTile letter="钥" className="bg-butter-soft text-butter" />
+          <IconKeyRound />
           <span className="min-w-0 flex-1">
             <span className="text-ink block text-[14px] font-medium">身份导入 / 导出</span>
             <span className="text-ink-3 block text-[11.5px]">跨设备迁移协作身份（含密钥）</span>
@@ -183,7 +186,7 @@ export function CollaborationSection() {
       <GroupLabel>协作</GroupLabel>
       <GroupCard>
         <ListItem
-          icon={<LetterTile letter="协" className="bg-accent-soft text-accent" />}
+          icon={<IconUsers />}
           label="我的协作"
           value={
             sessions.length === 0
@@ -193,7 +196,7 @@ export function CollaborationSection() {
           onClick={() => navigator.push("collaborationCenter")}
         />
         <GroupRow>
-          <LetterTile letter="启" className="bg-rose-soft text-rose" />
+          <IconPower />
           <span className="min-w-0 flex-1">
             <span className="text-ink block text-[14px] font-medium">启用协作模块</span>
             <span className="text-ink-3 block text-[11.5px]">关闭后停止连接协作服务器</span>

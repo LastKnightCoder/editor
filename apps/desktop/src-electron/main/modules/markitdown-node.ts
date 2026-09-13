@@ -17,7 +17,7 @@ import OpenAI from "openai";
 import { parseOffice } from "officeparser";
 import mammoth from "mammoth";
 import TurndownService from "turndown";
-import sevenZip from "7zip-min";
+import sevenZip from "../utils/seven-zip";
 
 export interface ConvertFileResult {
   success: boolean;

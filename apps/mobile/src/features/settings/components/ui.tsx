@@ -11,6 +11,9 @@ import {
   Info,
   KeyRound,
   Moon,
+  Power,
+  Users,
+  Wifi,
 } from "lucide-react";
 
 // 图标统一为「彩色圆角块」形态（杏子设计稿 s-ico：34px 方块 + soft 底色）
@@ -74,6 +77,38 @@ export function IconImage() {
   return (
     <IconTile className="bg-sage-soft text-sage">
       <ImageIcon size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconWifi() {
+  return (
+    <IconTile className="bg-sage-soft text-sage">
+      <Wifi size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconKeyRound() {
+  return (
+    <IconTile className="bg-butter-soft text-butter">
+      <KeyRound size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconUsers() {
+  return (
+    <IconTile className="bg-accent-soft text-accent">
+      <Users size={17} strokeWidth={1.9} aria-hidden="true" />
+    </IconTile>
+  );
+}
+
+export function IconPower() {
+  return (
+    <IconTile className="bg-rose-soft text-rose">
+      <Power size={17} strokeWidth={1.9} aria-hidden="true" />
     </IconTile>
   );
 }

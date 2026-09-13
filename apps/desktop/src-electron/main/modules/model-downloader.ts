@@ -14,8 +14,7 @@ import fs from "fs-extra";
 import https from "https";
 import http from "http";
 import { Module } from "../types/module";
-// 使用 7zip-min 进行解压（vite 会复制二进制文件到 dist-electron/main/）
-import sevenZip from "7zip-min";
+import sevenZip from "../utils/seven-zip";
 import { downloadRepoFiles } from "../utils/model-download";
 
 // ==================== 类型定义 ====================
