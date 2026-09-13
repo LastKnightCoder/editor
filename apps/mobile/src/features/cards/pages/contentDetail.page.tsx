@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Copy, Ellipsis, Tags, Trash2 } from "lucide-react";
+import { Check, ChevronRight, Copy, Ellipsis, Link2, Tags, Trash2 } from "lucide-react";
 import { ContentDetailPage } from "../ContentDetailPage";
 import { PageHeaderButton } from "../../../components/PageHeader";
 import { ActionSheet } from "../../../components/ActionSheet";
 import { MobileConfirmDialog } from "../../../components/MobileConfirmDialog";
 import { toast } from "../../../components/toast";
+import CardLinksSheet from "../CardLinksSheet";
 import { useDiaryStore } from "../../diary/store/useDiaryStore";
 import { useAppContext } from "../../../app/AppContext";
 import * as tauri from "../../../services/tauri";
@@ -47,7 +48,7 @@ const contentDetailSchema = createPageSchema({
 });
 type ContentDetailParams = typeof contentDetailSchema.type;
 
-/** 卡片入口：cardId → contentId / 分类解析 + ⋯ 操作（修改类型 / 复制正文 / 删除） */
+/** 卡片入口：cardId → contentId / 分类解析 + ⋯ 操作（修改类型 / 关联卡片 / 复制正文 / 删除） */
 function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
   const navigator = useNavigator();
   const app = useAppContext();
@@ -55,8 +56,11 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
   const [resolving, setResolving] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [categorySheetOpen, setCategorySheetOpen] = useState(false);
+  const [linksSheetOpen, setLinksSheetOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  // 关联写回后 bump：详情页内 LinksDisclosure 走自己的 detail 缓存，经 refreshKey 强制重拉同步
+  const [linksRev, setLinksRev] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,6 +117,22 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
     );
   }
 
+  const handleLinksConfirm = async (next: number[]) => {
+    setLinksSheetOpen(false);
+    const current = card.links;
+    const unchanged = next.length === current.length && next.every(id => current.includes(id));
+    if (unchanged) {
+      return;
+    }
+    try {
+      const saved = await tauri.updateCardLinks({ id: card.id, links: next });
+      setCard(prev => (prev ? { ...prev, links: saved.links } : prev));
+      setLinksRev(value => value + 1);
+    } catch (error) {
+      app.presentError(error, "关联保存失败");
+    }
+  };
+
   return (
     <>
       <ContentDetailPage
@@ -122,7 +142,7 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
           icon: cardCategoryIcon(card.category),
           className: cardCategoryTagClass(card.category),
         }}
-        refreshKey={props.refreshKey}
+        refreshKey={props.refreshKey + linksRev}
         collaboration={collab.collaboration}
         onCollaborationEnded={collab.onCollaborationEnded}
         headerRight={
@@ -146,7 +166,15 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
             label: "修改类型",
             icon: <Tags size={18} />,
             tone: "sky",
+            trailing: <ChevronRight strokeWidth={2} />,
             onClick: () => setCategorySheetOpen(true),
+          },
+          {
+            label: "关联卡片",
+            icon: <Link2 size={18} />,
+            tone: "lilac",
+            trailing: <ChevronRight strokeWidth={2} />,
+            onClick: () => setLinksSheetOpen(true),
           },
           {
             label: "复制正文",
@@ -174,12 +202,21 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
         title="修改卡片类型"
         items={CARD_CATEGORY_OPTIONS.map(option => ({
           label: option.label,
+          trailing: card.category === option.value ? <Check strokeWidth={2.6} /> : undefined,
           onClick: async () => {
             await app.handleUpdateCardCategory(props.cardId, option.value);
             setCard(prev => (prev ? { ...prev, category: option.value } : prev));
           },
         }))}
         onClose={() => setCategorySheetOpen(false)}
+      />
+
+      <CardLinksSheet
+        open={linksSheetOpen}
+        selfCardId={card.id}
+        selected={card.links}
+        onClose={() => setLinksSheetOpen(false)}
+        onConfirm={next => void handleLinksConfirm(next)}
       />
 
       <MobileConfirmDialog

@@ -1,22 +1,17 @@
-// 关联区块：surface 卡内平铺关联列表（彩点 + 标题 + 类型），
-// 底部「＋ 添加关联」行呼出 CardLinksSheet 多选弹层，确认后经 updateCardLinks 双向写回。
-// 传 cardId 即可编辑；不传保持只读。
+// 关联区块：surface 卡内平铺关联列表（彩点 + 标题 + 类型），只读展示，无关联时不渲染。
+// 管理入口在卡片详情 ⋯ ActionSheet（关联卡片 → CardLinksSheet，见 pages/contentDetail.page.tsx）。
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronRight, Plus } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 import * as tauri from "../../services/tauri";
 import type { CardListItem } from "../../types";
 import { getNavigator } from "../../router";
 import { cardCategoryDotClass, cardCategoryLabel } from "./cardCategory";
-import CardLinksSheet from "./CardLinksSheet";
 
 type LinksDisclosureProps = {
   /** 关联卡片 id 集合（cards.links，存 cardId） */
   links: number[];
-  /** 传入则可编辑（显示添加入口） */
-  cardId?: number;
-  onLinksChanged?: (links: number[]) => void;
   onError?: (error: unknown, fallback: string) => void;
 };
 
@@ -25,11 +20,9 @@ function resolveTitle(item: CardListItem): string {
   return firstLine || `卡片 #${item.id}`;
 }
 
-export function LinksDisclosure({ links, cardId, onLinksChanged, onError }: LinksDisclosureProps) {
-  const editable = typeof cardId === "number" && cardId > 0;
+export function LinksDisclosure({ links, onError }: LinksDisclosureProps) {
   const [items, setItems] = useState<CardListItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
   // 回调入 ref：父层传内联函数时，避免其引用变化触发关联列表重复拉取
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
@@ -57,21 +50,7 @@ export function LinksDisclosure({ links, cardId, onLinksChanged, onError }: Link
     };
   }, [links]);
 
-  const handleConfirm = async (next: number[]) => {
-    setSheetOpen(false);
-    const unchanged = next.length === links.length && next.every(id => links.includes(id));
-    if (unchanged) {
-      return;
-    }
-    try {
-      const saved = await tauri.updateCardLinks({ id: cardId!, links: next });
-      onLinksChanged?.(saved.links);
-    } catch (error) {
-      onError?.(error, "关联保存失败");
-    }
-  };
-
-  if (links.length === 0 && !editable) {
+  if (links.length === 0) {
     return null;
   }
 
@@ -79,7 +58,7 @@ export function LinksDisclosure({ links, cardId, onLinksChanged, onError }: Link
     <div className="bg-surface shadow-card mt-4 rounded-[18px] px-4">
       <div className="border-line flex items-center border-b py-3">
         <span className="text-ink-3 text-[11px] font-bold tracking-[0.14em]">
-          关联{links.length > 0 ? ` · ${links.length}` : ""}
+          关联 · {links.length}
         </span>
       </div>
 
@@ -112,28 +91,6 @@ export function LinksDisclosure({ links, cardId, onLinksChanged, onError }: Link
           </button>
         ))
       )}
-
-      {editable ? (
-        <button
-          type="button"
-          onClick={() => setSheetOpen(true)}
-          // 与列表行同构：左缘对齐列表标题（彩点 7px + gap 12px），无边框无底色
-          className="flex w-full items-center py-3 pl-[19px] text-left transition-opacity active:opacity-55"
-        >
-          <Plus size={13} strokeWidth={2.5} className="text-ink-3 shrink-0" />
-          <span className="text-ink-3 ml-1.5 text-[12.5px] font-medium">添加关联</span>
-        </button>
-      ) : null}
-
-      {editable ? (
-        <CardLinksSheet
-          open={sheetOpen}
-          selfCardId={cardId!}
-          selected={links}
-          onClose={() => setSheetOpen(false)}
-          onConfirm={next => void handleConfirm(next)}
-        />
-      ) : null}
     </div>
   );
 }

@@ -468,16 +468,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
           <TagChips tags={tags} className="mt-5" />
         ) : null}
 
-        <LinksDisclosure
-          links={links}
-          cardId={detail?.card?.id}
-          onLinksChanged={nextLinks =>
-            setDetail(prev =>
-              prev?.card ? { ...prev, card: { ...prev.card, links: nextLinks } } : prev
-            )
-          }
-          onError={props.onError}
-        />
+        <LinksDisclosure links={links} onError={props.onError} />
 
         {props.belowEditor}
       </div>
