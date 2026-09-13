@@ -15,11 +15,12 @@ import {
   Trash2,
 } from "lucide-react";
 import type { ArticleListItem } from "../../types";
-import { clampText, richTextPlainText } from "../../utils/richTextText";
+import { clampText } from "../../utils/richTextText";
 import { formatTimeDisplay, readingMinutes } from "../../utils/formatTime";
 import { arrayBufferToBase64 } from "../../utils/base64";
 import { compressImageForUpload } from "../../utils/imageCompress";
 import { useEdgeFade } from "../../hooks/useScrollState";
+import { logPerf, sampleFrames } from "../../utils/perf";
 import { toast } from "../../components/toast";
 import BottomSheet from "../../components/BottomSheet";
 import ActionSheet from "../../components/ActionSheet";
@@ -49,6 +50,8 @@ export function ArticlesPage(props: ArticlesPageProps) {
   const [coverTarget, setCoverTarget] = useState<ArticleListItem | null>(null);
   const [coverUploading, setCoverUploading] = useState(false);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
+  const mountTimeRef = useRef(performance.now());
+  const firstDataLoggedRef = useRef(false);
 
   const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useArticlesQuery();
   const invalidate = useInvalidateArticles();
@@ -62,11 +65,6 @@ export function ArticlesPage(props: ArticlesPageProps) {
   const articles = useMemo(() => data?.pages.flatMap(page => page.items) ?? [], [data]);
   const pinned = articles.filter(a => a.isTop);
   const totalWords = articles.reduce((sum, a) => sum + a.count, 0);
-  // 摘要需遍历整篇富文本，滚动重渲染时逐行重算会成为快速滑动的主线程瓶颈，按内容变化预解析一次
-  const articleTexts = useMemo(
-    () => new Map(articles.map(article => [article.id, richTextPlainText(article.content)])),
-    [articles]
-  );
   // 只让首屏这批行播入场动画：虚拟列表会随滚动反复挂载行，若每行都播，
   // 快速滑动时视口内会长时间停在 opacity:0 的动画起始帧，表现为大片空白。
   // 这里刻意不引入"是否已播放"的记忆：一旦标记翻转会让 style 变化，中断正在播的动画。
@@ -96,6 +94,21 @@ export function ArticlesPage(props: ArticlesPageProps) {
     if (lastVisibleIndex < articles.length - 3) return;
     void fetchNextPage();
   }, [articles.length, fetchNextPage, hasNextPage, isFetchingNextPage, lastVisibleIndex]);
+
+  // 诊断打开卡顿：记录首屏数据到达耗时（含 IPC + 缓存命中区分），
+  // 并在数据落地后采样 1.5s 帧间隔，覆盖入场动画 + 封面图解码这两个嫌疑窗口
+  useEffect(() => {
+    if (isLoading || firstDataLoggedRef.current) return;
+    firstDataLoggedRef.current = true;
+    const covers = articles.filter(a => a.bannerBg.trim()).length;
+    logPerf(
+      "articles",
+      `first-data count=${articles.length} covers=${covers}`,
+      performance.now() - mountTimeRef.current
+    );
+    sampleFrames("articles", "open-frames", 1500);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading]);
 
   const handleCreate = async () => {
     setCreating(true);
@@ -155,7 +168,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
           {article.title}
         </p>
         <p className="text-ink-2 mt-1.5 line-clamp-2 text-[13px] leading-relaxed">
-          {clampText(articleTexts.get(article.id) ?? "", 64)}
+          {clampText(article.excerpt, 64)}
         </p>
         <div className="text-ink-3 mt-2.5 flex items-center gap-2 text-[11.5px] tabular-nums">
           <span>{formatTimeDisplay(article.createTime)}</span>
@@ -198,7 +211,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
           {article.title}
         </p>
         <p className="text-ink-2 mt-1 line-clamp-2 text-[12.5px] leading-relaxed">
-          {clampText(articleTexts.get(article.id) ?? "", 48)}
+          {clampText(article.excerpt, 48)}
         </p>
         <div className="text-ink-3 mt-auto flex items-center gap-2 pt-2 text-[11px] tabular-nums">
           <span>{formatTimeDisplay(article.createTime)}</span>

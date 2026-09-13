@@ -142,6 +142,10 @@ fn scan_local_resource_files(
         if name.trim().is_empty() {
             continue;
         }
+        // 缩略图是本地派生缓存（由原图随时可重建），不参与云同步
+        if name.ends_with(crate::resource_upload::THUMB_SUFFIX) {
+            continue;
+        }
         let size = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
         files.push((name, path, size));
     }

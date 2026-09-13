@@ -2,6 +2,7 @@ import { convertFileSrc as tauriConvertFileSrc } from "@tauri-apps/api/core";
 import { appDataDir } from "@tauri-apps/api/path";
 import * as tauri from "../../services/tauri";
 import { base64ToUint8Array } from "../../utils/base64";
+import { logPerf } from "../../utils/perf";
 
 const KNOWN_DIRECT_SOURCE_PATTERN = /^(data:|blob:|asset:|tauri:|file:|http:\/\/asset\.localhost)/i;
 
@@ -35,6 +36,31 @@ function trimTrailingSlash(value: string): string {
    媒体统一改走 Rust 读文件 + 二进制 IPC + blob URL；asset protocol 仅作回退 */
 const objectUrlCache = new Map<string, string>();
 
+// 媒体读取并发上限：首屏多张封面同时打 base64 IPC 会把主线程压出密集 longtask，
+// 限流让帧率优先、图片渐次到位（实测无限流时打开文章列表 avg 帧间隔 >50ms）
+const MAX_CONCURRENT_MEDIA_READS = 3;
+let activeMediaReads = 0;
+const mediaReadQueue: Array<() => void> = [];
+
+function scheduleMediaRead<T>(task: () => Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const run = () => {
+      activeMediaReads += 1;
+      task()
+        .then(resolve, reject)
+        .finally(() => {
+          activeMediaReads -= 1;
+          mediaReadQueue.shift()?.();
+        });
+    };
+    if (activeMediaReads < MAX_CONCURRENT_MEDIA_READS) {
+      run();
+    } else {
+      mediaReadQueue.push(run);
+    }
+  });
+}
+
 const EXT_MIME_TYPES: Record<string, string> = {
   webp: "image/webp",
   png: "image/png",
@@ -58,19 +84,33 @@ function mimeFromPath(path: string): string | undefined {
   return ext ? EXT_MIME_TYPES[ext] : undefined;
 }
 
-async function readMediaObjectUrl(localPath: string): Promise<string | null> {
-  const cached = objectUrlCache.get(localPath);
+async function readMediaObjectUrl(
+  localPath: string,
+  options: { thumbnail?: boolean } = {}
+): Promise<string | null> {
+  const cacheKey = options.thumbnail ? `thumb:${localPath}` : localPath;
+  const cached = objectUrlCache.get(cacheKey);
   if (cached) {
     return cached;
   }
   try {
     // 命令返回 base64 字符串（Android 二进制 IPC 不可靠，见 tauri#10573）
-    const base64 = await tauri.readResourceBytes(localPath);
+    const startedAt = performance.now();
+    const base64 = await scheduleMediaRead(() =>
+      options.thumbnail ? tauri.readResourceThumb(localPath) : tauri.readResourceBytes(localPath)
+    );
     const blob = new Blob([base64ToUint8Array(base64)], {
-      type: mimeFromPath(localPath),
+      type: options.thumbnail ? "image/webp" : mimeFromPath(localPath),
     });
     const objectUrl = URL.createObjectURL(blob);
-    objectUrlCache.set(localPath, objectUrl);
+    objectUrlCache.set(cacheKey, objectUrl);
+    // 诊断卡顿：封面读取曾是打开列表的主瓶颈，保留耗时与体积打点
+    const fileName = localPath.split(/[\\/]/).pop() ?? localPath;
+    logPerf(
+      "media",
+      `read${options.thumbnail ? " thumb" : ""} ${fileName} ${(base64.length / 1024).toFixed(0)}KB`,
+      performance.now() - startedAt
+    );
     return objectUrl;
   } catch (error) {
     console.error("[mobile-local-media] read resource bytes failed", { localPath, error });
@@ -98,7 +138,10 @@ export async function getMobileHomeDir(): Promise<string> {
   return homeDirPromise;
 }
 
-export async function resolveLocalMediaSource(source: string): Promise<string> {
+export async function resolveLocalMediaSource(
+  source: string,
+  options: { thumbnail?: boolean } = {}
+): Promise<string> {
   const normalizedSource = source.trim();
   if (!normalizedSource) {
     return normalizedSource;
@@ -112,7 +155,7 @@ export async function resolveLocalMediaSource(source: string): Promise<string> {
     const startedAt = Date.now();
     try {
       const localPath = await tauri.remoteResourceToLocal(normalizedSource);
-      const objectUrl = await readMediaObjectUrl(localPath);
+      const objectUrl = await readMediaObjectUrl(localPath, options);
       if (objectUrl) {
         console.info("[mobile-local-media] localized remote resource", {
           source: normalizedSource,
@@ -155,7 +198,7 @@ export async function resolveLocalMediaSource(source: string): Promise<string> {
     localPath = `${trimTrailingSlash(homeDir)}${normalizedSource.slice(1)}`;
   }
 
-  const objectUrl = await readMediaObjectUrl(localPath);
+  const objectUrl = await readMediaObjectUrl(localPath, options);
   if (objectUrl) {
     return objectUrl;
   }

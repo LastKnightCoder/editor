@@ -162,6 +162,7 @@ pub fn run() {
             database::pomodoro_summary_daily,
             resource_upload::upload_resource,
             resource_upload::read_resource_bytes,
+            resource_upload::read_resource_thumb,
             remote_resource_cache::remote_resource_to_local,
             sync::sync_check_versions,
             sync::sync_upload_database,
@@ -182,6 +183,14 @@ pub fn run() {
             database::collab_project_content,
             request_background
         ])
+        .setup(|app| {
+            // 启动后后台补齐缺失的封面缩略图，避免列表打开时在关键路径现场解码全尺寸图
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                resource_upload::prewarm_resource_thumbs(handle).await;
+            });
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

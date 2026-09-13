@@ -4,6 +4,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import * as tauri from "../../services/tauri";
 import { useInvalidateHomeStats } from "../home/queries";
 import type { ArticleListItem } from "../../types";
+import { logPerfSize } from "../../utils/perf";
 
 const ARTICLES_STALE_MS = 10_000;
 
@@ -12,7 +13,16 @@ const ARTICLES_PAGE_SIZE = 40;
 export function useArticlesQuery() {
   return useInfiniteQuery({
     queryKey: ["articles", "list"],
-    queryFn: ({ pageParam }) => tauri.articleList({ offset: pageParam, limit: ARTICLES_PAGE_SIZE }),
+    queryFn: async ({ pageParam }) => {
+      const res = await tauri.articleList({ offset: pageParam, limit: ARTICLES_PAGE_SIZE });
+      // 诊断卡顿：确认列表瘦身后的真实 IPC 负载（应只剩元数据 + 摘要，几十 KB 量级）
+      logPerfSize(
+        "articles",
+        `list page@${pageParam} items=${res.items.length}/${res.total}`,
+        JSON.stringify(res).length
+      );
+      return res;
+    },
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
       const loaded = allPages.reduce((count, page) => count + page.items.length, 0);

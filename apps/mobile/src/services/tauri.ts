@@ -25,7 +25,7 @@ import type {
   ListTodoItemsPayload,
   ListTodoItemsByTypePayload,
   MoveAndReorderTodoItemPayload,
-  ArticleListItem,
+  ArticleDetail,
   ArticleListResponse,
   DocumentItem,
   DocumentLibrary,
@@ -678,6 +678,11 @@ export function readResourceBytes(path: string) {
   return trackedInvoke<string>("read_resource_bytes", { path });
 }
 
+// 读取资源缩略图（后端按需生成并缓存 <stem>_thumb.webp，最长边 640px），列表等小图场景使用
+export function readResourceThumb(path: string) {
+  return trackedInvoke<string>("read_resource_thumb", { path });
+}
+
 export function remoteResourceToLocal(url: string, fileName?: string) {
   return trackedInvoke<string>("remote_resource_to_local", {
     url,
@@ -692,11 +697,11 @@ export function articleList(params: { offset?: number; limit?: number } = {}) {
 }
 
 export function articleGet(id: number) {
-  return trackedInvoke<ArticleListItem>("article_get", { payload: { id } });
+  return trackedInvoke<ArticleDetail>("article_get", { payload: { id } });
 }
 
 export function articleCreate(params: { title: string; author?: string }) {
-  return trackedInvoke<ArticleListItem>("article_create", { payload: params });
+  return trackedInvoke<ArticleDetail>("article_create", { payload: params });
 }
 
 export function articleUpdate(params: {
@@ -708,7 +713,7 @@ export function articleUpdate(params: {
   bannerPosition?: string;
   isTop?: boolean;
 }) {
-  return trackedInvoke<ArticleListItem>("article_update", { payload: params });
+  return trackedInvoke<ArticleDetail>("article_update", { payload: params });
 }
 
 export function articleDelete(id: number) {
