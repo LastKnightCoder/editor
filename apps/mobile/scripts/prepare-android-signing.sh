@@ -8,8 +8,10 @@ ANDROID_APP_DIR="${MOBILE_DIR}/src-tauri/gen/android/app"
 ANDROID_APP_GRADLE="${ANDROID_APP_DIR}/build.gradle.kts"
 
 if [[ ! -d "${ANDROID_APP_DIR}" ]]; then
-  echo "Android 工程不存在，请先运行一次 tauri android init / build。"
-  exit 1
+  # Android 工程尚未生成（未跑过 tauri android init/build），安静跳过；
+  # dev:android / build:android:* 已串联本脚本，生成后会自动补上
+  echo "Android 工程不存在，跳过签名准备（首次运行 tauri android dev/build 时自动执行）。"
+  exit 0
 fi
 
 if [[ ! -f "${ANDROID_APP_GRADLE}" ]]; then
@@ -62,6 +64,13 @@ android {
         }
     }
     buildTypes {
+        getByName("debug") {
+            // debug 包也用 release 证书签名：与正式安装包签名一致，
+            // dev 构建可直接覆盖安装已装的正式包（避免 INSTALL_FAILED_UPDATE_INCOMPATIBLE）
+            if (codexHasSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
         getByName("release") {
             if (codexHasSigning) {
                 signingConfig = signingConfigs.getByName("release")
@@ -95,9 +104,15 @@ pick_working_keytool() {
   return 1
 }
 
-if ! KEYTOOL_BIN="$(pick_working_keytool)"; then
-  echo "未找到 keytool，请安装 JDK 或 Android Studio 并确保 keytool 可用。"
-  exit 1
+KEYTOOL_BIN="$(pick_working_keytool || true)"
+if [[ -z "${KEYTOOL_BIN}" ]]; then
+  if [[ -f "${ANDROID_APP_DIR}/keystore.properties" ]]; then
+    # 无 keytool（如未装 JDK 的环境）：保留现有签名配置，仅注入 gradle hook
+    echo "未找到 keytool，保留现有 keystore 配置并仅注入签名 hook。"
+  else
+    echo "未找到 keytool 且无现有签名配置，跳过签名准备。请安装 JDK 或 Android Studio。"
+    exit 0
+  fi
 fi
 
 generate_password() {
@@ -150,6 +165,10 @@ KEY_PASSWORD="${STORE_PASSWORD}"
 keystore_password_ok() {
   if [[ ! -f "${KEYSTORE_PATH}" ]]; then
     return 1
+  fi
+  if [[ -z "${KEYTOOL_BIN:-}" ]]; then
+    # 无 keytool 无法验证：信任现有配置，避免误判密码不符后重建证书造成签名分叉
+    return 0
   fi
   "${KEYTOOL_BIN}" -list -keystore "${KEYSTORE_PATH}" -storepass "${STORE_PASSWORD}" >/dev/null 2>&1
 }
