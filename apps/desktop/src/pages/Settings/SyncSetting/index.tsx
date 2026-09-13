@@ -219,8 +219,6 @@ const SyncSetting = () => {
 
   const onSync = useMemoizedFn(async () => {
     if (isSyncing) return;
-    console.log("[SyncDebug] 点击「同步数据至云端」，开始 upload");
-    const startedAt = Date.now();
     setIsSyncing(true);
     try {
       const res = await upload();
@@ -231,13 +229,11 @@ const SyncSetting = () => {
     } catch (error) {
       message.error("同步失败" + error);
     } finally {
-      console.log(`[SyncDebug] upload 结束，耗时 ${Date.now() - startedAt}ms`);
       setIsSyncing(false);
     }
   });
 
   const handleStartResourceSync = useMemoizedFn(async () => {
-    console.log("[SyncDebug] 点击「资源同步」开始按钮");
     const hasFailedFiles = resourceErrorFiles.length > 0;
     const res = hasFailedFiles ? await retryFailedResourceSync() : await startResourceSync();
     if (res?.ok) {
