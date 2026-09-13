@@ -126,7 +126,6 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
     }
   } else {
     console.log("使用普通 HTTP 下载:", url);
-    const downloadStartedAt = Date.now();
     // 使用普通 HTTP 下载
     remoteContent = (await nodeFetch(url, {
       method: "GET",
@@ -139,9 +138,6 @@ export const remoteResourceToLocal = async (url: string, fileName?: string) => {
           }
         : undefined,
     })) as unknown as ArrayBuffer;
-    console.log(
-      `[SyncDebug] 远程图片下载完成: ${remoteContent.byteLength}B，耗时 ${Date.now() - downloadStartedAt}ms，${url}`
-    );
   }
 
   const ext = await getFileExtension(url);

@@ -103,18 +103,11 @@ export const upload = async (options?: SyncCommandOptions) => {
 
   emitProgress(options, 5, "正在准备同步...");
 
-  // 排查同步卡死：各阶段打点，观察是否被并发的 node-fetch 请求排队阻塞
-  const debugStartedAt = Date.now();
-  const debugLog = (stage: string) =>
-    console.log(`[SyncDebug] upload 阶段 ${stage}，已耗时 ${Date.now() - debugStartedAt}ms`);
-
   setDatabaseConnectionStatus(databaseName, "reconnecting");
   await closeDatabase(databaseName);
-  debugLog("closeDatabase 完成");
   emitProgress(options, 15, "正在关闭数据库连接...");
 
   const { databaseInfoObjectName, databaseInfo } = await getOriginDatabaseInfo();
-  debugLog("getOriginDatabaseInfo 完成");
   emitProgress(options, 25, "正在校验远程数据库版本...");
 
   const originVersion = Number(databaseInfo.version || 0);
@@ -140,10 +133,8 @@ export const upload = async (options?: SyncCommandOptions) => {
     // 上传数据库文件
     emitProgress(options, 40, "正在上传数据库文件...");
     const contents = await readBinaryFile(databasePath);
-    debugLog("readBinaryFile 完成");
     const dataObjectName = databaseName;
     const dataSuccess = await syncProvider.uploadFile(dataObjectName, contents);
-    debugLog("上传数据库文件完成");
 
     if (!dataSuccess) {
       message.error("上传数据库文件失败");
