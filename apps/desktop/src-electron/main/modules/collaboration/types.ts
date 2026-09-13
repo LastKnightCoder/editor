@@ -46,7 +46,7 @@ export interface CollaborationIpcContext {
     sourceTitle?: string
   ): Promise<{ documentId: string; code: string }>;
   removeView(id: string): void;
-  clearBinding(session: RuntimeSession): Promise<void>;
+  clearBinding(session: RuntimeSession, discard?: boolean): Promise<void>;
   discardLocal(session: RuntimeSession): Promise<void>;
   removeSession(session: RuntimeSession): void;
   finishLeave(session: RuntimeSession): Promise<void>;

@@ -9,6 +9,7 @@ import { toast } from "../../../components/toast";
 import { useAppContext } from "../../../app/AppContext";
 import { useRefSourceLabel } from "../../../hooks/useRefSourceLabel";
 import * as tauri from "../../../services/tauri";
+import { useContentCollabEntry } from "../../collaboration/useContentCollabEntry";
 import {
   createPageSchema,
   definePage,
@@ -16,6 +17,7 @@ import {
   paramString,
   useNavigator,
   usePage,
+  usePageLifecycle,
 } from "../../../router";
 import {
   useInvalidateProjects,
@@ -49,6 +51,14 @@ function ProjectDocEditorScreen() {
     [items, params.itemId]
   );
   const sourceLabel = useRefSourceLabel(item?.refType ?? "", item?.refId ?? 0);
+
+  // onResume 重拉正文（协作结束后本地内容更新）；绑定刷新由 useContentCollabEntry 内部处理
+  const [refreshRev, setRefreshRev] = useState(0);
+  usePageLifecycle({ onResume: () => setRefreshRev(value => value + 1) });
+  const collab = useContentCollabEntry(item?.contentId ?? undefined, {
+    refreshKey: refreshRev,
+    share: { title: item?.title ?? "", sourceType: "project-item", sourceId: params.itemId },
+  });
 
   // 离开编辑器时刷新项目列表（字数 / 更新时间）
   useEffect(() => {
@@ -98,6 +108,12 @@ function ProjectDocEditorScreen() {
       <ContentDetailPage
         contentId={item.contentId ?? 0}
         contentTitle={item.title}
+        refreshKey={refreshRev}
+        collaboration={collab.collaboration}
+        onCollaborationEnded={() => {
+          collab.onCollaborationEnded();
+          setRefreshRev(value => value + 1);
+        }}
         titleEditable
         contentType="项目文档"
         contentTypeBadge={{
@@ -172,6 +188,7 @@ function ProjectDocEditorScreen() {
             tone: "sky",
             onClick: () => setAddChildOpen(true),
           },
+          ...collab.menuItems,
           {
             label: "删除节点",
             danger: true,
@@ -183,6 +200,8 @@ function ProjectDocEditorScreen() {
           },
         ]}
       />
+
+      {collab.shareSheet}
 
       <MobileConfirmDialog
         open={deleteOpen}

@@ -60,6 +60,11 @@ export interface JoinRequest {
   expiresAt: number;
 }
 
+/** POST /v1/join-requests 的响应；pending 也返回 documentId，客户端据此精确判定批准（文档出现在会话列表） */
+export type JoinRequestResult =
+  | { id: string; status: "pending"; documentId: string }
+  | { status: "approved"; documentId: string };
+
 export interface SourceBinding {
   databaseName: string;
   contentId: number;
@@ -68,6 +73,12 @@ export interface SourceBinding {
   sourceId?: number;
   sourceTitle?: string;
 }
+
+/** 创建共享文档的幂等键（POST /v1/documents idempotencyKey）为**端侧私有派生**：
+ *  桌面端绑定（库名/内容创建时间/代次），移动端绑定（服务器/内容/来源），两端互不互认——
+ *  防重复发布各自依赖本机的 collaboration_bindings 表，跨端对同一内容重复发布会得到
+ *  两个房间（已知边界，如需跨端去重须先统一此处的字段与派生规则）。服务端只做
+ *  同键幂等（见 store.create 的 UNIQUE(owner_id, creation_key)），不解释键的含义。 */
 
 export interface CollaborationSession extends SharedDocumentInfo {
   mode?: "local" | "shared";
@@ -108,13 +119,6 @@ export type CollaborationEvent =
   | { type: "refresh" }
   | { type: "revoked" | "closed"; documentId: string }
   | { type: "presence"; documentId: string; members: Member[] };
-
-export interface AssetInfo {
-  id: string;
-  name: string;
-  mime: string;
-  size: number;
-}
 
 export class CollaborationError extends Error {
   constructor(

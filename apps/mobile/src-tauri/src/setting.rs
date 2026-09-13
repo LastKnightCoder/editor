@@ -135,6 +135,11 @@ fn default_setting_value() -> Value {
         "active": "data.db",
         "databases": [{ "name": "data.db", "version": 1 }]
       },
+      "collaboration": {
+        "enable": true,
+        "serverUrl": "https://collab.xiongtao.life",
+        "nickname": "Tau 用户"
+      },
       "module": {
         "card": { "enable": true, "name": "卡片" },
         "flashcard": { "enable": true, "name": "闪卡中心" },

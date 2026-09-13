@@ -9,6 +9,7 @@ import { useDiaryStore } from "../../diary/store/useDiaryStore";
 import { useAppContext } from "../../../app/AppContext";
 import * as tauri from "../../../services/tauri";
 import type { CardDetailResponse } from "../../../types";
+import { useContentCollabEntry } from "../../collaboration/useContentCollabEntry";
 import { richTextPlainText } from "../../../utils/richTextText";
 import {
   CARD_CATEGORY_OPTIONS,
@@ -77,6 +78,20 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.cardId]);
 
+  // 协作绑定状态：有绑定时详情页原地切换为协作编辑（云端 Y.Doc 为真相源）；
+  // onResume（refreshKey）与发起面板关闭后重查由 useContentCollabEntry 内部处理
+  const collab = useContentCollabEntry(card?.contentId, {
+    refreshKey: props.refreshKey,
+    share: card
+      ? {
+          title: richTextPlainText(card.content).trim().slice(0, 40) || "未命名卡片",
+          content: card.content,
+          sourceType: "card",
+          sourceId: card.id,
+        }
+      : undefined,
+  });
+
   if (!card) {
     return (
       <div className="mobile-kb-screen bg-page fixed inset-0 z-50 grid place-items-center">
@@ -108,6 +123,8 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
           className: cardCategoryTagClass(card.category),
         }}
         refreshKey={props.refreshKey}
+        collaboration={collab.collaboration}
+        onCollaborationEnded={collab.onCollaborationEnded}
         headerRight={
           <PageHeaderButton
             icon={<Ellipsis size={17} />}
@@ -142,6 +159,7 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
                 .catch(() => toast({ type: "warning", text: "复制失败" }));
             },
           },
+          ...collab.menuItems,
           {
             label: "删除卡片",
             danger: true,
@@ -188,6 +206,8 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
           }
         }}
       />
+
+      {collab.shareSheet}
     </>
   );
 }
@@ -200,6 +220,10 @@ function ContentDetailScreen() {
   const [refreshRev, setRefreshRev] = useState(0);
   usePageLifecycle({
     onResume: () => setRefreshRev(value => value + 1),
+  });
+  // contentId 直入（日记 / 文章内链等）同样接协作绑定：绑定即原地协作编辑（无发起面板入口）
+  const collab = useContentCollabEntry(params.contentId ?? undefined, {
+    refreshKey: refreshRev,
   });
 
   if (params.cardId && params.contentId == null) {
@@ -214,6 +238,11 @@ function ContentDetailScreen() {
       refId={params.refId}
       diaryDate={params.diaryDate}
       refreshKey={refreshRev}
+      collaboration={collab.collaboration}
+      onCollaborationEnded={() => {
+        collab.onCollaborationEnded();
+        setRefreshRev(value => value + 1);
+      }}
       onSaved={saved => {
         if (!params.fromDiary) {
           return;

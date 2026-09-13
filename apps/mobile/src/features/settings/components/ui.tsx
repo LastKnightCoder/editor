@@ -246,9 +246,12 @@ export function SaveButton(props: {
 
 /* ══ 方案 C 极简分组原语：组标签 / 组卡片 / 行 / 状态点 / 单选气泡 / ⓘ ── */
 
-export function GroupLabel(props: { children: ReactNode }) {
+/* 分组标签见 components/GroupLabel：设置页滚动容器自带 px-4，用默认 inset="settings" 即可 */
+
+/** 分组下方的说明文字，缩进与 GroupLabel(settings) 一致：容器 16px + 卡片 1px 边框 + 行内 14px */
+export function GroupNote(props: { children: ReactNode; className?: string }) {
   return (
-    <p className="text-ink-2 px-[30px] pb-[7px] pt-1 text-[12.5px] leading-relaxed">
+    <p className={`text-ink-3 px-[15px] text-[11.5px] leading-relaxed ${props.className ?? ""}`}>
       {props.children}
     </p>
   );

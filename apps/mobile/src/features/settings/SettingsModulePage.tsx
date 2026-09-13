@@ -8,6 +8,7 @@
 import { useRef } from "react";
 import type { SettingCompat } from "../../types";
 import { AboutSection } from "./components/AboutSection";
+import { CollaborationSection } from "./components/CollaborationSection";
 import {
   IntegrationAliOssSection,
   IntegrationGithubSection,
@@ -37,7 +38,7 @@ import type { SettingModuleKey, SettingsPageProps } from "./components/types";
 import {
   CheckBubble,
   GroupCard,
-  GroupLabel,
+  GroupNote,
   GroupRow,
   IconChevronRight,
   IconDatabase,
@@ -46,6 +47,7 @@ import {
   LetterTile,
   StatusDot,
 } from "./components/ui";
+import { GroupLabel } from "../../components/GroupLabel";
 import { PageHeader } from "../../components/PageHeader";
 import { useEdgeFade } from "../../hooks/useScrollState";
 import { useAppContext } from "../../app/AppContext";
@@ -59,6 +61,8 @@ function getTitle(module: SettingModuleKey): string {
       return "关于";
     case "database":
       return "数据库与同步";
+    case "collaboration":
+      return "实时协作";
     case "sync-status-db":
       return "数据库同步";
     case "sync-status-resource":
@@ -281,9 +285,7 @@ function DatabaseSettingsView(props: ModuleSectionProps) {
           </GroupRow>
         ))}
       </GroupCard>
-      <p className="text-ink-3 px-[30px] text-[11.5px] leading-relaxed">
-        切换数据库后应用将重新加载数据。
-      </p>
+      <GroupNote>切换数据库后应用将重新加载数据。</GroupNote>
 
       <GroupLabel>数据库同步 · {dbSummary}</GroupLabel>
       <GroupCard>
@@ -318,9 +320,9 @@ function DatabaseSettingsView(props: ModuleSectionProps) {
           </GroupRow>
         ))}
       </GroupCard>
-      <p className="text-ink-3 px-[30px] pb-2 text-[11.5px] leading-relaxed">
+      <GroupNote className="pb-2">
         点选切换服务；点 ⓘ 配置凭证与参数。凭证集中管理，与同步参数互不影响。
-      </p>
+      </GroupNote>
     </div>
   );
 }
@@ -395,9 +397,7 @@ function ResourceSettingsView(props: ModuleSectionProps) {
           </GroupRow>
         ))}
       </GroupCard>
-      <p className="text-ink-3 px-[30px] pb-2 text-[11.5px] leading-relaxed">
-        点选切换存储；点 ⓘ 配置凭证与参数。
-      </p>
+      <GroupNote className="pb-2">点选切换存储；点 ⓘ 配置凭证与参数。</GroupNote>
     </div>
   );
 }
@@ -411,6 +411,8 @@ function ModuleSection(props: ModuleSectionProps) {
       return <ResourceSettingsView {...props} />;
     case "about":
       return <AboutSection />;
+    case "collaboration":
+      return <CollaborationSection />;
     case "sync-status-db":
       return (
         <DatabaseSyncStatusSection

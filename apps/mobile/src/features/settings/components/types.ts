@@ -13,6 +13,7 @@ export const SETTINGS_MODULE_KEYS = [
   "sync",
   "about",
   "database",
+  "collaboration",
   "sync-status-db",
   "sync-status-resource",
   "integration",

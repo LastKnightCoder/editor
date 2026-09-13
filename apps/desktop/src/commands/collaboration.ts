@@ -1,3 +1,7 @@
+import type {
+  ContentSessionTarget,
+  SharedContent,
+} from "@tau/collaboration";
 import {
   collaborationCommands,
   type CollaborationInvitation,
@@ -31,8 +35,8 @@ export const leaveCollaboration = async (sessionId: string, pending?: boolean) =
 };
 
 /** 丢弃本地未同步改动并退出共享 */
-export const discardLocalCollaboration = async (sessionId: string, pending?: boolean) => {
-  return collaborationCommands.discardLocal.call(sessionId, pending);
+export const discardLocalCollaboration = async (sessionId: string) => {
+  return collaborationCommands.discardLocal.call(sessionId);
 };
 
 /** owner 移除成员设备，该设备立即失去访问权限 */
@@ -85,9 +89,7 @@ export const getCollaborationState = async () => {
 };
 
 /** 打开共享内容会话，获得可编辑的快照 */
-export const openCollaborationContentSession = async (
-  target: import("@tau/collaboration").ContentSessionTarget
-) => {
+export const openCollaborationContentSession = async (target: ContentSessionTarget) => {
   return collaborationCommands.openContent.call(target);
 };
 
@@ -115,7 +117,7 @@ export const sendCollaborationPrivateNode = async (
   id: string,
   viewId: string,
   collabId: string,
-  node: import("@tau/collaboration").SharedContent["content"][number]
+  node: SharedContent["content"][number]
 ) => {
   return collaborationCommands.privateNode.call(id, viewId, collabId, node);
 };
@@ -133,7 +135,7 @@ export const setCollaborationTabActive = async (id: string, collabId: string, va
 /** 上传资源到共享文档，返回资源 URL */
 export const uploadCollaborationResource = async (
   id: string,
-  payload: import("./contracts/collaboration").CollaborationUploadResourcePayload
+  payload: CollaborationUploadResourcePayload
 ) => {
   return collaborationCommands.uploadResource.call(id, payload);
 };

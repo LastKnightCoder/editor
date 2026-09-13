@@ -34,6 +34,28 @@ pnpm deploy:collaboration
 
 服务器发布记录和备份副本保存在 `/root/tau-collab-releases/<版本>`，旧镜像和发布记录不自动删除，需要按磁盘情况定期清理。详情见 `docs/collaboration-deployment.md`。
 
+## 服务器端构建（git 模式）
+
+本地不想启动 Docker 时，可以改为在服务器上从 git 提交构建镜像：
+
+```bash
+pnpm deploy:collaboration:git
+```
+
+本地只运行测试、类型检查并上传脚本，镜像在服务器上从提交导出源码后构建，不需要本地上传镜像。切换、备份、在备份副本上验证迁移、失败回切和 HTTPS/WSS 检查与上面的命令完全一致（两条路径共用 `scripts/deploy-remote.sh`）。
+
+服务器需先准备一个 git 仓库，默认 `/opt/tau-collab-repo`，可用 `COLLAB_GIT_REPO` 覆盖：
+
+```bash
+git init --bare /opt/tau-collab-repo
+git -C /opt/tau-collab-repo remote add origin git@github.com:LastKnightCoder/editor.git
+git -C /opt/tau-collab-repo fetch --depth=1 origin master
+```
+
+仓库必须放在 `/opt/tau/editor` 之外：`deploy-remote.sh` 会把整个部署目录打包留存用于回切，`.git` 落在其中会让每次发布多备份一份完整历史。
+
+与本地模式不同，此模式只发布**已提交并推送到上游分支**的内容：工作区有未提交修改，或本地 `HEAD` 与上游不一致时会直接拒绝执行。构建缓存产生在服务器上，磁盘增长更快，建议定期执行 `pnpm cleanup:collaboration --apply --build-cache`。镜像构建需要服务器能访问基础镜像仓库与 npm 源；`ali-ecs` 已完成实测，在这台 2 vCPU / 1888MB 的实例上完整构建约 67 秒，记录见 `docs/collaboration-deployment.md`。
+
 服务器上的手动备份与恢复：
 
 ```bash
@@ -41,7 +63,7 @@ pnpm deploy:collaboration
 ./scripts/restore.sh /srv/tau-collab/backups/20260906-120000
 ```
 
-`scripts/update.sh` 仅用于服务器 Git 检出并联网构建的部署方式，不适用于当前固定镜像版本的部署。更新时客户端会自动重连。备份包含 SQLite、服务器签名密钥和全部附件，必须保密。
+早期「服务器 Git 检出 + 联网构建」的遗留脚本（`update.sh` / `rollback.sh`）已删除，更新一律走 `deploy-git.sh` 等部署脚本。更新时客户端会自动重连。备份包含 SQLite、服务器签名密钥和全部附件，必须保密。
 
 ## 管理命令
 

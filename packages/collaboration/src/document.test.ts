@@ -8,6 +8,7 @@ import {
   getSourceText,
   prepareNodes,
   readSharedContent,
+  replaceSharedContent,
   replaceText,
   validateDocument,
 } from "./document";
@@ -48,6 +49,43 @@ describe("共享文档", () => {
     const doc = createSharedDocument({ ...article, content }, undefined, mode);
     try {
       expect(readSharedContent(doc).content).toMatchObject(content);
+    } finally {
+      doc.destroy();
+    }
+  });
+
+  it("整树替换正文后读回为新内容，且标题不受影响", () => {
+    const doc = createSharedDocument(article);
+    try {
+      const next = [
+        { type: "paragraph", children: [{ type: "formatted", text: "本机离线改动" }] },
+        { type: "paragraph", children: [{ type: "formatted", text: "第二段", bold: true }] },
+      ];
+      replaceSharedContent(doc, next as never);
+
+      const shared = readSharedContent(doc);
+      expect(shared.content).toMatchObject(next);
+      expect(shared.title).toBe(article.title);
+      // 远端视角：同一份状态读出的也是替换后的内容
+      expect(readSharedContent(fork(doc)).content).toMatchObject(next);
+    } finally {
+      doc.destroy();
+    }
+  });
+
+  it("整树替换应保留私有块占位并回填真身", () => {
+    const privateNodes = new Map<string, never>();
+    const doc = createSharedDocument(article, privateNodes);
+    try {
+      const next = [
+        { type: "paragraph", children: [{ type: "formatted", text: "含私有块" }] },
+        { type: "whiteboard", children: [{ type: "formatted", text: "" }] },
+      ];
+      replaceSharedContent(doc, next as never, privateNodes);
+
+      // 云端（不传私有块）看到占位符，本机（传真身）还原为白板
+      expect(readSharedContent(doc).content[1]).toMatchObject({ type: "collaboration-placeholder" });
+      expect(readSharedContent(doc, privateNodes).content[1]).toMatchObject({ type: "whiteboard" });
     } finally {
       doc.destroy();
     }

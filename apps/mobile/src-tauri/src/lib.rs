@@ -1,3 +1,4 @@
+mod collaboration;
 mod database;
 mod models;
 mod network_policy;
@@ -170,6 +171,14 @@ pub fn run() {
             sync::resource_sync_cancel,
             sync::resource_sync_get_progress,
             sync::resource_sync_get_status,
+            collaboration::collab_get_identity,
+            collaboration::collab_update_nickname,
+            collaboration::collab_request,
+            database::collab_bind_content,
+            database::collab_get_binding,
+            database::collab_list_bindings,
+            database::collab_unbind_content,
+            database::collab_project_content,
             request_background
         ])
         .run(tauri::generate_context!())

@@ -350,6 +350,24 @@ export function createSharedDocument(
   return doc;
 }
 
+/** 用本地内容整树替换共享文档正文（CRDT 语义：整段删除后重新插入，远端看到一次替换
+ *  而非静默覆盖状态）。用于作者在协作不可用期间本地编辑、重连时选择「保留本机」的推回路径；
+ *  标题不在此列——房间标题由各业务表管理，投影通道只回写正文。 */
+export function replaceSharedContent(
+  doc: Y.Doc,
+  content: ContentNode[],
+  privateNodes?: Map<string, ContentNode>
+): void {
+  const migrated = migrateTabsToPanes(content.length ? content : emptyContent()).content;
+  doc.transact(() => {
+    const body = getBody(doc);
+    body.delete(0, body.length);
+    body.applyDelta(
+      slateNodesToInsertDelta(prepareNodes(doc, migrated, privateNodes) as Descendant[])
+    );
+  });
+}
+
 export function readSharedContent(
   doc: Y.Doc,
   privateNodes?: Map<string, ContentNode>,

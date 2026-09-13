@@ -48,8 +48,9 @@ describe("协作权限和持久化", () => {
     expect(denied.body).not.toContain("正文");
     const request = store.requestJoin(invitation.code, guest.id);
     expect(request.status).toBe("pending");
-    expect(request).not.toHaveProperty("documentId");
-    store.decide(request.id!, owner.id, true);
+    expect(request).toMatchObject({ documentId: created.id });
+    if (request.status !== "pending") throw new Error("未创建申请");
+    store.decide(request.id, owner.id, true);
     const approved = await app.inject({
       method: "GET",
       url: `/v1/documents/${created.id}/state`,

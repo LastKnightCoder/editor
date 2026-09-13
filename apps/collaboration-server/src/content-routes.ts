@@ -23,10 +23,12 @@ interface RouteContext {
   send: (id: string, event: CollaborationEvent) => void;
   disconnect: (id: string, memberId?: string) => void;
   members: (id: string) => Member[];
+  /** 持久化成员行合并实时在线态（文档列表批量组装用） */
+  mergeOnline: (id: string, base: Omit<Member, "online" | "activity">[]) => Member[];
 }
 export function registerContentRoutes(
   app: FastifyInstance,
-  { store, config, device, refresh, send, disconnect, members }: RouteContext
+  { store, config, device, refresh, send, disconnect, members, mergeOnline }: RouteContext
 ) {
   app.post(
     "/v1/devices",
@@ -38,11 +40,16 @@ export function registerContentRoutes(
     const nickname = textField(objectBody(request), "nickname", 40);
     store.db.prepare("UPDATE devices SET nickname=? WHERE id=?").run(nickname, identity.id);
     refresh();
-    return { nickname };
+    return { id: identity.id, nickname };
   });
-  app.get("/v1/documents", async request => ({
-    documents: store.list(device(request).id).map(item => ({ ...item, members: members(item.id) })),
-  }));
+  app.get("/v1/documents", async request => {
+    const grouped = store.membersOf(device(request).id);
+    return {
+      documents: store
+        .list(device(request).id)
+        .map(item => ({ ...item, members: mergeOnline(item.id, grouped.get(item.id) ?? []) })),
+    };
+  });
   app.post(
     "/v1/documents",
     { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } },
@@ -108,6 +115,8 @@ export function registerContentRoutes(
     try {
       store.removeMember(id, identity.id, identity.id);
     } catch (error) {
+      // 幂等退出：已非成员（被移除后重试）或文档已关闭时同样视为成功；
+      // 其余错误（owner 误用 leave 等）原样透传。
       if (!(error instanceof CollaborationError && [403, 410].includes(error.statusCode)))
         throw error;
     }

@@ -1,7 +1,7 @@
 {
   "name": "mobile",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "predev": "pnpm -w db:schema:prepare",
@@ -29,6 +29,7 @@
     "apk": "bash ./scripts/android-release-install.sh"
   },
   "dependencies": {
+    "@hocuspocus/provider": "4.6.0",
     "@phosphor-icons/react": "^2.1.10",
     "@tanstack/react-query": "^5.101.0",
     "@tanstack/react-virtual": "3.13.12",
@@ -52,7 +53,8 @@
     "slate-dom": "0.126.0",
     "slate-history": "0.113.1",
     "slate-react": "0.126.4",
-    "words-count": "^2.0.2",
+    "y-protocols": "1.0.7",
+    "yjs": "13.6.32",
     "zustand": "^4.5.7"
   },
   "devDependencies": {

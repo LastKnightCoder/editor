@@ -13,6 +13,7 @@ import { toast } from "../../../components/toast";
 import { useAppContext } from "../../../app/AppContext";
 import { useRefSourceLabel } from "../../../hooks/useRefSourceLabel";
 import * as tauri from "../../../services/tauri";
+import { useContentCollabEntry } from "../../collaboration/useContentCollabEntry";
 import {
   createPageSchema,
   definePage,
@@ -20,6 +21,7 @@ import {
   paramString,
   useNavigator,
   usePage,
+  usePageLifecycle,
 } from "../../../router";
 import {
   useDocumentItemCreate,
@@ -53,6 +55,14 @@ function KnowledgeNodeEditorScreen() {
     [items, params.itemId]
   );
   const sourceLabel = useRefSourceLabel(item?.refType ?? "", item?.refId ?? 0);
+
+  // onResume 重拉正文（协作结束后本地内容更新）；绑定刷新由 useContentCollabEntry 内部处理
+  const [refreshRev, setRefreshRev] = useState(0);
+  usePageLifecycle({ onResume: () => setRefreshRev(value => value + 1) });
+  const collab = useContentCollabEntry(item?.contentId ?? undefined, {
+    refreshKey: refreshRev,
+    share: { title: item?.title ?? "", sourceType: "document-item", sourceId: params.itemId },
+  });
 
   useEffect(() => {
     return () => {
@@ -106,6 +116,12 @@ function KnowledgeNodeEditorScreen() {
           className: "bg-sky-soft text-sky",
         }}
         tags={item.tags}
+        refreshKey={refreshRev}
+        collaboration={collab.collaboration}
+        onCollaborationEnded={() => {
+          collab.onCollaborationEnded();
+          setRefreshRev(value => value + 1);
+        }}
         onTagsCommit={async next => {
           await tauri.documentItemUpdate({ id: params.itemId, tags: next });
           invalidate();
@@ -178,6 +194,7 @@ function KnowledgeNodeEditorScreen() {
             tone: "sky",
             onClick: () => setAddChildOpen(true),
           },
+          ...collab.menuItems,
           {
             label: "删除节点",
             danger: true,
@@ -189,6 +206,8 @@ function KnowledgeNodeEditorScreen() {
           },
         ]}
       />
+
+      {collab.shareSheet}
 
       <MobileConfirmDialog
         open={deleteOpen}

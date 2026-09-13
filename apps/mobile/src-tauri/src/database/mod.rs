@@ -13,6 +13,7 @@ use crate::setting::{
 };
 
 mod article;
+mod collaboration;
 mod common;
 mod diary;
 mod document;
@@ -30,6 +31,7 @@ mod todo;
 mod todo_calendar_sync;
 
 pub use article::*;
+pub use collaboration::*;
 pub use diary::*;
 pub use document::*;
 pub use home_stats::*;
@@ -80,6 +82,97 @@ pub struct UpdateContentPayload {
     pub content_id: i64,
     pub content: Value,
     pub count: i64,
+}
+
+/// 内容快照落库的共享实现（update_content 与协作投影共用）：
+/// 更新 contents 行并联动卡片更新时间、操作记录与日记时间戳。返回受影响行数。
+fn write_content_snapshot(
+    tx: &rusqlite::Transaction,
+    content_id: i64,
+    content: &Value,
+    count: i64,
+    now: i64,
+    code: &str,
+) -> Result<i64, String> {
+    let normalized_content = if content.is_array() {
+        content.clone()
+    } else {
+        Value::Array(vec![])
+    };
+    let serialized_content =
+        serde_json::to_string(&normalized_content).map_err(|e| format!("{code}: Failed to serialize content: {e}"))?;
+
+    let content_changed = tx
+        .execute(
+            "
+            UPDATE contents
+            SET content = ?1, count = ?2, update_time = ?3
+            WHERE id = ?4
+            ",
+            params![serialized_content, count, now, content_id],
+        )
+        .map_err(|e| format!("{code}: Failed to update content: {e}"))?;
+    if content_changed == 0 {
+        return Err("CONTENT_NOT_FOUND: content does not exist".to_string());
+    }
+
+    let mut linked_card_ids: Vec<i64> = vec![];
+    {
+        let mut stmt = tx
+            .prepare(
+                "
+                SELECT id
+                FROM cards
+                WHERE content_id = ?1
+                ",
+            )
+            .map_err(|e| format!("{code}: Failed to prepare linked cards query: {e}"))?;
+        let mut rows = stmt
+            .query(params![content_id])
+            .map_err(|e| format!("{code}: Failed to query linked cards: {e}"))?;
+        while let Some(row) = rows
+            .next()
+            .map_err(|e| format!("{code}: Failed to read linked cards: {e}"))?
+        {
+            let card_id = row
+                .get::<_, i64>(0)
+                .map_err(|e| format!("{code}: Failed to parse linked card id: {e}"))?;
+            linked_card_ids.push(card_id);
+        }
+    }
+
+    tx.execute(
+        "
+        UPDATE cards
+        SET update_time = ?1
+        WHERE content_id = ?2
+        ",
+        params![now, content_id],
+    )
+    .map_err(|e| format!("{code}: Failed to update linked cards: {e}"))?;
+
+    tx.execute(
+        "
+        INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
+        VALUES (?1, ?2, 'content', 'update')
+        ",
+        params![now, content_id],
+    )
+    .map_err(|e| format!("{code}: Failed to write content operation: {e}"))?;
+
+    for card_id in linked_card_ids {
+        tx.execute(
+            "
+            INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
+            VALUES (?1, ?2, 'card', 'update')
+            ",
+            params![now, card_id],
+        )
+        .map_err(|e| format!("{code}: Failed to write card operation: {e}"))?;
+    }
+
+    diary::touch_content_diaries(tx, content_id, now)?;
+    Ok(content_changed as i64)
 }
 
 fn normalize_card_category(category: &str) -> Option<String> {
@@ -310,14 +403,8 @@ pub fn update_content(
     payload: UpdateContentPayload,
 ) -> Result<ContentDetailResponse, String> {
     let mut conn = schema::open_active_database(&app)?;
-    let normalized_content = if payload.content.is_array() {
-        payload.content
-    } else {
-        Value::Array(vec![])
-    };
-    let serialized_content = serde_json::to_string(&normalized_content)
-        .map_err(|e| format!("CONTENT_INVALID: Failed to serialize content: {e}"))?;
-    let normalized_count = payload.count.max(0);
+    // 绑定协作的内容只允许经协作投影管线写入，避免与云端投影互相覆盖
+    collaboration::assert_content_local(&conn, payload.content_id)?;
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_millis() as i64)
@@ -326,84 +413,14 @@ pub fn update_content(
     let tx = conn
         .transaction()
         .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to begin transaction: {e}"))?;
-
-    let content_changed = tx
-        .execute(
-            "
-            UPDATE contents
-            SET content = ?1, count = ?2, update_time = ?3
-            WHERE id = ?4
-            ",
-            params![
-                serialized_content,
-                normalized_count,
-                now,
-                payload.content_id
-            ],
-        )
-        .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to update content: {e}"))?;
-    if content_changed == 0 {
-        return Err("CONTENT_NOT_FOUND: content does not exist".to_string());
-    }
-
-    let mut linked_card_ids: Vec<i64> = vec![];
-    {
-        let mut stmt = tx
-            .prepare(
-                "
-                SELECT id
-                FROM cards
-                WHERE content_id = ?1
-                ",
-            )
-            .map_err(|e| {
-                format!("CONTENT_UPDATE_FAILED: Failed to prepare linked cards query: {e}")
-            })?;
-        let mut rows = stmt
-            .query(params![payload.content_id])
-            .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to query linked cards: {e}"))?;
-        while let Some(row) = rows
-            .next()
-            .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to read linked cards: {e}"))?
-        {
-            let card_id = row.get::<_, i64>(0).map_err(|e| {
-                format!("CONTENT_UPDATE_FAILED: Failed to parse linked card id: {e}")
-            })?;
-            linked_card_ids.push(card_id);
-        }
-    }
-
-    tx.execute(
-        "
-        UPDATE cards
-        SET update_time = ?1
-        WHERE content_id = ?2
-        ",
-        params![now, payload.content_id],
-    )
-    .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to update linked cards: {e}"))?;
-
-    tx.execute(
-        "
-        INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
-        VALUES (?1, ?2, 'content', 'update')
-        ",
-        params![now, payload.content_id],
-    )
-    .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to write content operation: {e}"))?;
-
-    for card_id in linked_card_ids {
-        tx.execute(
-            "
-            INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
-            VALUES (?1, ?2, 'card', 'update')
-            ",
-            params![now, card_id],
-        )
-        .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to write card operation: {e}"))?;
-    }
-
-    diary::touch_content_diaries(&tx, payload.content_id, now)?;
+    write_content_snapshot(
+        &tx,
+        payload.content_id,
+        &payload.content,
+        payload.count,
+        now,
+        "CONTENT_UPDATE_FAILED",
+    )?;
     tx.commit()
         .map_err(|e| format!("CONTENT_UPDATE_FAILED: Failed to commit transaction: {e}"))?;
 
@@ -690,6 +707,11 @@ pub fn delete_card(app: AppHandle, id: i64) -> Result<i64, String> {
         .optional()
         .map_err(|e| format!("CARD_DELETE_FAILED: Failed to query card content id: {e}"))?
         .ok_or_else(|| "CARD_NOT_FOUND: card does not exist".to_string())?;
+
+    // 协作中的内容不允许删除（与桌面端守卫一致）：先结束共享再删除
+    if content_id > 0 {
+        collaboration::assert_content_local(&tx, content_id)?;
+    }
 
     let changed = tx
         .execute(

@@ -70,7 +70,7 @@ describe("migrateTabsBlocksInDoc", () => {
       expect(panes.map(pane => pane.type)).toEqual(["tab-pane", "tab-pane"]);
       expect(JSON.stringify(panes[0])).toContain("内容 A");
       expect(JSON.stringify(panes[1])).toContain("内容 B");
-      expect(tabs.activeKey).toBe(panes[0].tabKey);
+      expect(tabs?.activeKey).toBe(panes[0].tabKey);
       // 块字段已清理
       const block = getBlockFields(doc, "tabs-1");
       expect(block.has("tabs")).toBe(false);

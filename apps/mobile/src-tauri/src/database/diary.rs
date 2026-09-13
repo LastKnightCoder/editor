@@ -289,6 +289,8 @@ fn decrement_or_delete_content(
         .optional()
         .map_err(|e| format_db_error("DIARY_CONTENT_DELETE_FAILED", "query ref_count", e))?;
     if matches!(ref_count, Some(v) if v <= 0) {
+        // 协作内容禁止级联删除（与桌面端数据库层守卫一致）
+        super::collaboration::assert_content_local(tx, id)?;
         tx.execute("DELETE FROM contents WHERE id = ?1", params![id])
             .map_err(|e| format_db_error("DIARY_CONTENT_DELETE_FAILED", "delete content", e))?;
     }
@@ -562,6 +564,8 @@ fn upsert_entry(
         segments.first().copied()
     };
     if let Some((segment_id, content_id)) = target {
+        // 协作内容禁止直写（云端投影是唯一写者）
+        super::collaboration::assert_content_local(&tx, content_id)?;
         let changed = tx
             .execute(
                 "UPDATE contents SET content=?1,count=?2,update_time=?3 WHERE id=?4",

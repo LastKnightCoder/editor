@@ -1,12 +1,13 @@
 {
   "name": "tau",
   "private": true,
-  "version": "0.53.2",
+  "version": "0.53.3",
   "scripts": {
     "start:win": "chcp 65001 && pnpm --filter desktop dev",
     "dev": "pnpm --filter desktop dev",
     "dev:collaboration": "node scripts/dev-collaboration.mjs",
-    "deploy:collaboration": "bash apps/collaboration-server/scripts/deploy.sh",
+    "deploy:collaboration": "bash apps/collaboration-server/scripts/deploy-local.sh",
+    "deploy:collaboration:git": "bash apps/collaboration-server/scripts/deploy-git.sh",
     "cleanup:collaboration": "bash apps/collaboration-server/scripts/cleanup.sh",
     "dev:blog": "pnpm --filter blog dev",
     "build": "cross-env NODE_OPTIONS='--max-old-space-size=8092' pnpm --filter desktop build",
@@ -26,7 +27,8 @@
     "format:check": "node scripts/quality.mjs format:check",
     "test": "pnpm -r test",
     "prepare": "husky",
-    "postinstall": "pnpm --filter desktop run rebuild"
+    "postinstall": "node scripts/postinstall.mjs",
+    "test:collaboration:desktop": "pnpm --filter desktop exec vitest run src-electron/main/modules/collaboration/__tests__"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.0",

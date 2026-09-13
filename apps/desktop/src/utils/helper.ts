@@ -1,17 +1,6 @@
-import { Descendant } from "slate";
-import { wordsCount } from "words-count";
-import {
-  BlockMathElement,
-  CodeBlockElement,
-  CustomBlockElement,
-  FormattedText,
-  HTMLBlockElement,
-  InlineMathElement,
-  ListItemElement,
-  MermaidElement,
-  TabsElement,
-  TikzElement,
-} from "@tau/editor/src";
+import type { Descendant } from "slate";
+import type { ContentNode } from "@tau/collaboration/src/protocol";
+import { getContentLength as sharedGetContentLength } from "@tau/collaboration/src/content-length";
 
 export const dfs = (editor: Descendant[], visit: (node: Descendant) => any) => {
   for (const node of editor) {
@@ -24,40 +13,6 @@ export const dfs = (editor: Descendant[], visit: (node: Descendant) => any) => {
   }
 };
 
-export const getContentLength = (value: Descendant[]) => {
-  let length = 0;
-
-  dfs(value, node => {
-    if (node.type === "formatted") {
-      length += wordsCount((node as FormattedText).text);
-    } else if (node.type === "code-block") {
-      length += wordsCount((node as CodeBlockElement).code);
-    } else if (node.type === "inline-math" || node.type === "block-math") {
-      length += wordsCount((node as InlineMathElement | BlockMathElement).tex);
-    } else if (node.type === "tabs") {
-      // 旧数据形态（tabsContent）非激活 Tab 的内容不在树内，需补算；
-      // 新形态（tab-pane）内容在 children 树内，dfs 已覆盖。
-      const tabs = (node as TabsElement).tabsContent;
-      if (Array.isArray(tabs)) {
-        const notCurrentTabs = tabs.filter(tab => tab.key !== (node as TabsElement).activeKey);
-        for (const tab of notCurrentTabs) {
-          length += getContentLength(tab.content as Descendant[]);
-        }
-      }
-    } else if (node.type === "mermaid") {
-      length += wordsCount((node as MermaidElement).chart);
-    } else if (node.type === "html-block") {
-      length += wordsCount((node as HTMLBlockElement).html);
-    } else if (node.type === "custom-block") {
-      length += wordsCount((node as CustomBlockElement).content);
-    } else if (node.type === "tikz") {
-      length += wordsCount((node as TikzElement).content);
-    } else if (node.type === "list-item") {
-      if ((node as ListItemElement).isFold) {
-        length += getContentLength((node as ListItemElement).allContent!.slice(1));
-      }
-    }
-  });
-
-  return length;
-};
+// 字数统计已下沉共享包（与移动端同一口径，此前两端手抄实现靠注释对齐）
+export const getContentLength = (value: Descendant[]): number =>
+  sharedGetContentLength(value as ContentNode[]);

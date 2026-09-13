@@ -48,7 +48,7 @@ describe("真实 WebSocket 协作", () => {
           member === 0 ? owner : server.store.register(`成员 ${groupIndex}:${member}`);
         if (member > 0) {
           const request = server.store.requestJoin(invitation.code, identity.id);
-          if (!request.id) throw new Error("申请不存在");
+          if (request.status !== "pending") throw new Error("申请不存在");
           server.store.decide(request.id, owner.id, true);
         }
         const document = new Y.Doc();
@@ -111,7 +111,7 @@ describe("真实 WebSocket 协作", () => {
       server.store.rotateCode(room.id, owner.id).code,
       guest.id
     );
-    if (!request.id) throw new Error("未创建申请");
+    if (request.status !== "pending") throw new Error("未创建申请");
     server.store.decide(request.id, owner.id, true);
     const connect = (deviceId: string, document: Y.Doc) => {
       const socket = new HocuspocusProviderWebsocket({

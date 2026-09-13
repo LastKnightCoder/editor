@@ -1,17 +1,50 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import Database from "better-sqlite3";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createSharedDocument, type CollaborationSession } from "@tau/collaboration";
+
+// content-repository → tables/resource 会传递加载桌面大部分表模块；其中
+// video-note-index-queue → database.ts 会在顶层实例化 DatabaseModule（依赖
+// Electron 运行时）。此处与 modules/__tests__ 既有测试的 mock 方式保持一致。
+vi.mock("electron", () => ({
+  app: { getPath: (name: string) => join(tmpdir(), `tau-desktop-test-${name}`), isReady: () => true },
+  safeStorage: {
+    isEncryptionAvailable: () => false,
+    encryptString: (value: string) => Buffer.from(value, "utf8"),
+    decryptString: (buffer: Buffer) => buffer.toString("utf8"),
+  },
+  Notification: class {
+    static isSupported() {
+      return false;
+    }
+    show() {}
+    close() {}
+  },
+  BrowserWindow: class {},
+  dialog: {},
+  ipcMain: { handle: () => {} },
+}));
+vi.mock("../../video-note-index-queue", () => ({
+  default: { push: () => {}, remove: () => {}, destroy: () => {} },
+}));
+vi.mock("../../tables/resource", () => ({
+  default: {
+    createOrUpdateResource: () => {},
+    getResourceType: () => "attachment",
+  },
+}));
+
 import {
   migrateContentBindings,
   restoreContentBinding,
   restorePrivateNodes,
   writeContentProjection,
-} from "../../desktop/src-electron/main/modules/collaboration/content-repository";
-import { CollaborationLocalStore } from "../../desktop/src-electron/main/modules/collaboration/local-store";
-import { CollaborationAssetService } from "../../desktop/src-electron/main/modules/collaboration/asset-service";
+} from "../content-repository";
+import { CollaborationLocalStore } from "../local-store";
+import { CollaborationAssetService } from "../asset-service";
+import MAIN_SCHEMA_SQL from "../../../../../../../packages/db-schema/schema/main.sql?raw";
 
 const cleanup: (() => void)[] = [];
 afterEach(() => {
@@ -25,11 +58,7 @@ const temporary = () => {
 function database() {
   const db = new Database(":memory:");
   cleanup.push(() => db.close());
-  const schema = readFileSync(
-    new URL("../../../packages/db-schema/schema/main.sql", import.meta.url),
-    "utf8"
-  );
-  db.exec(schema);
+  db.exec(MAIN_SCHEMA_SQL);
   return db;
 }
 
@@ -141,7 +170,7 @@ describe("通用内容和本地恢复", () => {
       content: [{ type: "image", url: `tau-collab-asset:${assetId}`, children: [{ text: "" }] }],
     });
     store.remove(documentId);
-    rmSync(folder, { recursive: true });
+    rmSync(folder, { recursive: true, force: true });
     const localPath = value.content[0].url as string;
     expect(existsSync(localPath)).toBe(true);
     expect(readFileSync(localPath, "utf8")).toBe("PNG-FIXTURE");

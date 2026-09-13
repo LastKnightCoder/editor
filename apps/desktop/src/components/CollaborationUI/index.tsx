@@ -4,8 +4,6 @@ import { useState } from "react";
 import { Tooltip } from "antd";
 import { memberColor, type CollaborationSession, type Member } from "@tau/collaboration";
 
-export { memberColor };
-
 export function memberActivity(member: Member): string {
   if (!member.online) return "离线";
   if (member.activity === "editing") return "正在编辑";

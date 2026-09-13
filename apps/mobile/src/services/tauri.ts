@@ -11,6 +11,7 @@ import type {
   CreateTodoRecurrencePayload,
   ContentDetailResponse,
   CardsOverviewResponse,
+  CollaborationBinding,
   DatabaseListResponse,
   DatabaseSchemaStatusResponse,
   DiaryEntry,
@@ -805,4 +806,41 @@ export function documentItemDelete(id: number) {
 
 export function getHomeStats() {
   return trackedInvoke<HomeStats>("get_home_stats");
+}
+
+/* ── 协作 ── */
+
+export function collabBindContent(params: {
+  contentId: number;
+  serverUrl: string;
+  documentId: string;
+  sourceType?: string;
+  sourceId?: number;
+  sourceTitle?: string;
+}) {
+  return trackedInvoke<CollaborationBinding>("collab_bind_content", { payload: params });
+}
+
+export function collabGetBinding(contentId: number) {
+  return trackedInvoke<CollaborationBinding | null>("collab_get_binding", { contentId });
+}
+
+export function collabListBindings() {
+  return trackedInvoke<CollaborationBinding[]>("collab_list_bindings");
+}
+
+export function collabUnbindContent(contentId: number) {
+  return trackedInvoke<void>("collab_unbind_content", { contentId });
+}
+
+/** 协作投影专用写通道：绑定漂移时服务端侧自动解绑并返回 reason=drift */
+export function collabProjectContent(params: {
+  contentId: number;
+  content: unknown[];
+  count: number;
+}) {
+  return trackedInvoke<{ projected: boolean; changed?: boolean; reason?: string }>(
+    "collab_project_content",
+    { payload: params }
+  );
 }

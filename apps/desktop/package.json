@@ -1,7 +1,7 @@
 {
   "name": "desktop",
   "private": true,
-  "version": "0.53.2",
+  "version": "0.53.3",
   "author": {
     "name": "LastKnightCoder"
   },
@@ -105,6 +105,7 @@
     "@mozilla/readability": "^0.5.0",
     "@openai/codex-sdk": "0.142.5",
     "@playwright/test": "^1.58.2",
+    "@slate-yjs/core": "1.0.2",
     "@tailwindcss/vite": "^4.1.17",
     "@tanstack/react-virtual": "3.13.12",
     "@tau/agent": "workspace:*",

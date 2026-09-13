@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
 import Database from "better-sqlite3";
-import { readFileSync } from "node:fs";
 import * as Y from "yjs";
 import {
   Awareness,
@@ -11,7 +10,7 @@ import {
 import { createEditor, Transforms } from "slate";
 import { YjsEditor } from "@slate-yjs/core";
 import { createSharedDocument, readSharedContent, validateDocument } from "@tau/collaboration";
-import { withCollaboration } from "../../../packages/editor/src/collaboration/withCollaboration";
+import { withCollaboration } from "@tau/editor/src/collaboration/withCollaboration";
 import {
   contentRevision,
   contentSession,
@@ -20,8 +19,9 @@ import {
   registerContentSession,
   replaceSessionContent,
   unregisterContentSession,
-} from "../../desktop/src-electron/main/modules/collaboration/content-sessions";
-import type { RuntimeSession } from "../../desktop/src-electron/main/modules/collaboration/types";
+} from "../content-sessions";
+import type { RuntimeSession } from "../types";
+import MAIN_SCHEMA_SQL from "../../../../../../../packages/db-schema/schema/main.sql?raw";
 
 const cleanup: (() => void)[] = [];
 afterEach(() => {
@@ -48,6 +48,7 @@ function runtime(): RuntimeSession {
     doc,
     awareness,
     privateNodes: new Map(),
+    viewActiveTabs: new Map(),
     dirty: false,
     info: {
       id: "local-test",
@@ -74,9 +75,7 @@ function runtime(): RuntimeSession {
 }
 function database() {
   const db = new Database(":memory:");
-  db.exec(
-    readFileSync(new URL("../../../packages/db-schema/schema/main.sql", import.meta.url), "utf8")
-  );
+  db.exec(MAIN_SCHEMA_SQL);
   db.prepare(
     "INSERT INTO contents(id,create_time,update_time,content) VALUES (7,100,100,'[]')"
   ).run();

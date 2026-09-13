@@ -602,12 +602,14 @@ class CollaborationManager {
           );
           this.removeSession(local);
           return result;
-        } finally {
+        } catch (failure) {
+          // 发布失败：绑定已建立则拆除会话（重试时重走发布），否则恢复本机可编辑
           if (this.sessions.has(local.info.id)) {
             const { db } = this.databaseForEvent(event);
             if (findCollaborationBinding(db, contentId)) this.removeSession(local);
             else this.unfreeze(local);
           }
+          throw failure;
         }
       })().finally(() => {
         this.pendingCreates.delete(key);
@@ -802,13 +804,16 @@ class CollaborationManager {
     }
   }
 
-  private async clearBinding(session: RuntimeSession) {
+  /** 解除本地绑定并递增发布代次。discard=true（丢弃本地改动退出）时跳过最后的
+   *  投影与进行中检查——丢弃语义下不应再写库，绑定清理必须尽力完成。 */
+  private async clearBinding(session: RuntimeSession, discard = false) {
     const source = session.info.source;
     if (!source) return;
     const db = databaseModule.getDatabase(source.databaseName);
     if (!db?.open) throw new Error("请打开原内容所在数据库以完成退出");
-    if (this.projecting.has(session.info.id)) throw new Error("内容正在保存，请稍后重试");
-    await this.project(session);
+    if (!discard && this.projecting.has(session.info.id))
+      throw new Error("内容正在保存，请稍后再重试");
+    if (!discard) await this.project(session);
     db.prepare("DELETE FROM collaboration_bindings WHERE content_id=? AND document_id=?").run(
       source.contentId,
       session.info.id
@@ -897,8 +902,16 @@ class CollaborationManager {
       this.client.identity(url)
     );
     for (const info of this.store.list()) {
-      const { doc, privateNodes } = this.store.load(info.id);
-      this.restore(info, doc, privateNodes);
+      // 单条本地缓存损坏（applyUpdate 抛错）不得拖垮整个模块——IPC 未注册即全部协作
+      // 功能瘫痪且重启无法自愈；丢弃该会话缓存与资源目录，云端房间下次 refresh 仍可恢复
+      try {
+        const { doc, privateNodes } = this.store.load(info.id);
+        this.restore(info, doc, privateNodes);
+      } catch (error) {
+        console.error(`[collaboration] 会话 ${info.id} 本地缓存损坏，已丢弃`, error);
+        this.store.remove(info.id);
+        rmSync(join(this.directory, "assets", info.id), { recursive: true, force: true });
+      }
     }
     registerCollaborationIpc({
       store: this.store,

@@ -26,7 +26,6 @@ try {
       .prepare("UPDATE devices SET banned=1 WHERE id=?")
       .run(argument).changes;
     if (!changes) throw new Error("设备不存在");
-    store.invalidateAuthorization();
     console.log("身份已停用");
   } else if (command === "close" && argument) {
     store.closeDocument(argument, store.document(argument).owner_id);

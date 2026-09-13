@@ -17,6 +17,7 @@ const REQUIRED_TEMPLATE_FILES = [
   "src/templates/card/index.html",
   "src/templates/article/index.html",
   "src/templates/doc/index.html",
+  "src/templates/quest/index.html",
   "src/templates/list/index.html",
 ];
 
