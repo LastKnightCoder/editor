@@ -34,7 +34,7 @@ const getHeatmapCacheKey = (date: string) => {
 };
 
 const concatSegmentContent = (segments: DiaryEntry["segments"]): Descendant[] =>
-  segments.flatMap((segment) => segment.content ?? []);
+  segments.flatMap(segment => segment.content ?? []);
 
 const sumSegmentWordCount = (segments: DiaryEntry["segments"]) =>
   segments.reduce((sum, segment) => sum + (segment.wordCount || 0), 0);
@@ -81,22 +81,16 @@ interface IActions {
   onCreateDiaryEntry: (entry: CreateDiaryEntry) => Promise<DiaryEntry>;
   onUpdateDiaryEntry: (entry: UpdateDiaryEntry) => Promise<DiaryEntry>;
   onDeleteDiaryEntry: (id: number) => Promise<number>;
-  onUpdateDiaryTags: (entryId: number, tags: string[]) => Promise<void>;
+  /** 标签与片段绑定：按 segmentId 更新标签（勿改成 entry 级，会整天共享） */
+  onUpdateDiaryTags: (segmentId: number, tags: string[]) => Promise<void>;
 
   onCreateDiarySegment: (diaryId: number) => Promise<void>;
-  onUpdateDiarySegment: (
-    segmentId: number,
-    content: Descendant[],
-  ) => Promise<void>;
+  onUpdateDiarySegment: (segmentId: number, content: Descendant[]) => Promise<void>;
   onDeleteDiarySegment: (segmentId: number) => Promise<void>;
   onCreateMoment: (content?: Descendant[]) => Promise<void>;
 
   loadTagSettings: () => Promise<void>;
-  upsertTagSetting: (setting: {
-    name: string;
-    color: string;
-    sort?: number;
-  }) => Promise<void>;
+  upsertTagSetting: (setting: { name: string; color: string; sort?: number }) => Promise<void>;
   deleteTagSetting: (name: string) => Promise<void>;
 
   loadHeatmapData: (year: number, month: number) => Promise<DiaryHeatmapData[]>;
@@ -158,7 +152,7 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
   },
 
   loadMore: (pageSize: number = PAGE_SIZE) => {
-    set((state) => ({ visibleCount: state.visibleCount + pageSize }));
+    set(state => ({ visibleCount: state.visibleCount + pageSize }));
   },
 
   resetVisibleCount: () => {
@@ -180,7 +174,7 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
   onCreateDiaryEntry: async (entry: CreateDiaryEntry) => {
     const result = await createDiaryEntry(entry);
     const { diaryEntries } = get();
-    const newEntries = produce(diaryEntries, (draft) => {
+    const newEntries = produce(diaryEntries, draft => {
       draft.push(result);
       draft.sort((a, b) => b.date.localeCompare(a.date));
     });
@@ -196,29 +190,25 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
     const result = await updateDiaryEntry(entry);
     const { diaryEntries } = get();
     set({
-      diaryEntries: produce(diaryEntries, (draft) => {
-        const index = draft.findIndex((item) => item.id === entry.id);
+      diaryEntries: produce(diaryEntries, draft => {
+        const index = draft.findIndex(item => item.id === entry.id);
         if (index !== -1) draft[index] = result;
       }),
     });
 
-    // 同步 segmentsFlat 中的 entry 摘要字段
-    if (
-      entry.tags !== undefined ||
-      entry.weather !== undefined ||
-      entry.mood !== undefined
-    ) {
+    // 同步 segmentsFlat 中的 entry 摘要字段（weather/mood 挂 entry）；
+    // tags 与片段绑定，不走这里，由 onUpdateDiaryTags 按 segment 同步
+    if (entry.weather !== undefined || entry.mood !== undefined) {
       const { segmentsFlat } = get();
       set({
-        segmentsFlat: segmentsFlat.map((item) =>
+        segmentsFlat: segmentsFlat.map(item =>
           item.diaryId === result.id
             ? {
                 ...item,
                 weather: result.weather,
                 mood: result.mood,
-                tags: result.tags,
               }
-            : item,
+            : item
         ),
       });
     }
@@ -234,14 +224,14 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
   onDeleteDiaryEntry: async (id: number) => {
     const result = await deleteDiaryEntry(id);
     const { diaryEntries, segmentsFlat } = get();
-    const entryToDelete = diaryEntries.find((item) => item.id === id);
+    const entryToDelete = diaryEntries.find(item => item.id === id);
 
     set({
-      diaryEntries: produce(diaryEntries, (draft) => {
-        const index = draft.findIndex((item) => item.id === id);
+      diaryEntries: produce(diaryEntries, draft => {
+        const index = draft.findIndex(item => item.id === id);
         if (index !== -1) draft.splice(index, 1);
       }),
-      segmentsFlat: segmentsFlat.filter((item) => item.diaryId !== id),
+      segmentsFlat: segmentsFlat.filter(item => item.diaryId !== id),
     });
 
     if (entryToDelete) {
@@ -254,23 +244,45 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
     return result;
   },
 
-  onUpdateDiaryTags: async (entryId: number, tags: string[]) => {
-    await get().onUpdateDiaryEntry({ id: entryId, tags });
+  // 产品设计：标签与具体 segment 绑定（一天多条日记各自独立打标签），
+  // 因此按 segmentId 落库并同步 entry.segments 与朋友圈流缓存
+  onUpdateDiaryTags: async (segmentId: number, tags: string[]) => {
+    const updated = await updateDiarySegment({ segmentId, tags });
+    if (!updated) return;
+    const { diaryEntries, segmentsFlat } = get();
+    set({
+      diaryEntries: produce(diaryEntries, draft => {
+        for (const entry of draft) {
+          const idx = entry.segments.findIndex(s => s.id === segmentId);
+          if (idx !== -1) {
+            entry.segments[idx] = updated;
+            entry.updateTime = updated.updateTime;
+            syncEntrySegmentSummary(entry);
+            break;
+          }
+        }
+      }),
+      segmentsFlat: segmentsFlat.map(item =>
+        item.id === segmentId
+          ? { ...item, tags: updated.tags, updateTime: updated.updateTime }
+          : item
+      ),
+    });
   },
 
   // ---- Segment-level actions ----
 
   onCreateDiarySegment: async (diaryId: number) => {
     const { diaryEntries } = get();
-    const entry = diaryEntries.find((e) => e.id === diaryId);
+    const entry = diaryEntries.find(e => e.id === diaryId);
     if (!entry) return;
     const created = await createDiarySegment({
       diaryId,
       content: createEmptyDiaryContent(),
     });
     set({
-      diaryEntries: produce(diaryEntries, (draft) => {
-        const e = draft.find((item) => item.id === diaryId);
+      diaryEntries: produce(diaryEntries, draft => {
+        const e = draft.find(item => item.id === diaryId);
         if (e) {
           e.segments.push(created);
           e.updateTime = created.updateTime;
@@ -289,7 +301,7 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
     const { diaryEntries } = get();
     let diaryId: number | null = null;
     for (const e of diaryEntries) {
-      if (e.segments.some((s) => s.id === segmentId)) {
+      if (e.segments.some(s => s.id === segmentId)) {
         diaryId = e.id;
         break;
       }
@@ -298,10 +310,10 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
     const updated = await updateDiarySegment({ segmentId, content });
     if (!updated) return;
     set({
-      diaryEntries: produce(diaryEntries, (draft) => {
-        const e = draft.find((item) => item.id === diaryId);
+      diaryEntries: produce(diaryEntries, draft => {
+        const e = draft.find(item => item.id === diaryId);
         if (e) {
-          const idx = e.segments.findIndex((s) => s.id === segmentId);
+          const idx = e.segments.findIndex(s => s.id === segmentId);
           if (idx !== -1) e.segments[idx] = updated;
           e.updateTime = updated.updateTime;
           syncEntrySegmentSummary(e);
@@ -310,18 +322,19 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
     });
     const { segmentsFlat } = get();
     set({
-      segmentsFlat: segmentsFlat.map((item) =>
+      segmentsFlat: segmentsFlat.map(item =>
         item.id === segmentId
           ? {
               ...item,
               wordCount: updated.wordCount,
               updateTime: updated.updateTime,
               content: updated.content,
+              tags: updated.tags,
             }
-          : item,
+          : item
       ),
     });
-    const entry = diaryEntries.find((item) => item.id === diaryId);
+    const entry = diaryEntries.find(item => item.id === diaryId);
     if (entry) {
       const cacheKey = getHeatmapCacheKey(entry.date);
       const { heatmapDataCache } = get();
@@ -335,7 +348,7 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
     let diaryId: number | null = null;
     let entryDate: string | null = null;
     for (const e of diaryEntries) {
-      if (e.segments.some((s) => s.id === segmentId)) {
+      if (e.segments.some(s => s.id === segmentId)) {
         diaryId = e.id;
         entryDate = e.date;
         break;
@@ -344,16 +357,16 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
     if (diaryId == null) return;
     await deleteDiarySegment(segmentId);
     set({
-      diaryEntries: produce(diaryEntries, (draft) => {
-        const e = draft.find((item) => item.id === diaryId);
+      diaryEntries: produce(diaryEntries, draft => {
+        const e = draft.find(item => item.id === diaryId);
         if (e) {
           e.segments = e.segments
-            .filter((s) => s.id !== segmentId)
+            .filter(s => s.id !== segmentId)
             .sort((a, b) => a.createTime - b.createTime || a.id - b.id);
           syncEntrySegmentSummary(e);
         }
       }),
-      segmentsFlat: get().segmentsFlat.filter((item) => item.id !== segmentId),
+      segmentsFlat: get().segmentsFlat.filter(item => item.id !== segmentId),
     });
     if (entryDate) {
       const cacheKey = getHeatmapCacheKey(entryDate);
@@ -366,9 +379,7 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
   // 朋友圈式"记录此刻"：找到或创建当日 diary entry，再追加一个 segment
   onCreateMoment: async (content?: Descendant[]) => {
     const { currentDate, diaryEntries } = get();
-    const todayEntry = diaryEntries.find(
-      (e) => e.type === "daily" && e.date === currentDate,
-    );
+    const todayEntry = diaryEntries.find(e => e.type === "daily" && e.date === currentDate);
     const segmentContent = content ?? createEmptyDiaryContent();
 
     if (!todayEntry) {
@@ -392,8 +403,8 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
 
     const { diaryEntries: currentEntries } = get();
     set({
-      diaryEntries: produce(currentEntries, (draft) => {
-        const e = draft.find((item) => item.id === diaryId);
+      diaryEntries: produce(currentEntries, draft => {
+        const e = draft.find(item => item.id === diaryId);
         if (e) {
           e.segments.push(created);
           e.updateTime = created.updateTime;
@@ -420,23 +431,19 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
     }
   },
 
-  upsertTagSetting: async (setting: {
-    name: string;
-    color: string;
-    sort?: number;
-  }) => {
+  upsertTagSetting: async (setting: { name: string; color: string; sort?: number }) => {
     const result = await upsertDiaryTagSetting(setting);
     const { tagSettings } = get();
-    const existing = tagSettings.findIndex((s) => s.name === result.name);
+    const existing = tagSettings.findIndex(s => s.name === result.name);
     if (existing !== -1) {
       set({
-        tagSettings: produce(tagSettings, (draft) => {
+        tagSettings: produce(tagSettings, draft => {
           draft[existing] = result;
         }),
       });
     } else {
       set({
-        tagSettings: produce(tagSettings, (draft) => {
+        tagSettings: produce(tagSettings, draft => {
           draft.push(result);
           draft.sort((a, b) => a.sort - b.sort || a.createTime - b.createTime);
         }),
@@ -444,34 +451,26 @@ const useDiaryStore = create<IState & IActions>((set, get) => ({
     }
   },
 
+  // 删除标签：后端事务级联摘除所有片段上的该标签，这里同步本地缓存
   deleteTagSetting: async (name: string) => {
     await deleteDiaryTagSetting(name);
     const { diaryEntries, segmentsFlat, tagSettings, activeTagFilter } = get();
-    const affectedEntries = diaryEntries.filter((entry) =>
-      entry.tags.includes(name),
-    );
-    const updatedEntries = await Promise.all(
-      affectedEntries.map((entry) =>
-        updateDiaryEntry({
-          id: entry.id,
-          tags: entry.tags.filter((tag) => tag !== name),
-        }),
-      ),
-    );
-    const updatedEntryMap = new Map(
-      updatedEntries.map((entry) => [entry.id, entry]),
-    );
 
     set({
-      tagSettings: tagSettings.filter((s) => s.name !== name),
-      activeTagFilter: activeTagFilter.filter((tag) => tag !== name),
-      diaryEntries: diaryEntries.map(
-        (entry) => updatedEntryMap.get(entry.id) ?? entry,
+      tagSettings: tagSettings.filter(s => s.name !== name),
+      activeTagFilter: activeTagFilter.filter(tag => tag !== name),
+      diaryEntries: diaryEntries.map(entry =>
+        entry.segments.some(s => s.tags.includes(name))
+          ? {
+              ...entry,
+              segments: entry.segments.map(s =>
+                s.tags.includes(name) ? { ...s, tags: s.tags.filter(tag => tag !== name) } : s
+              ),
+            }
+          : entry
       ),
-      segmentsFlat: segmentsFlat.map((item) =>
-        item.tags.includes(name)
-          ? { ...item, tags: item.tags.filter((tag) => tag !== name) }
-          : item,
+      segmentsFlat: segmentsFlat.map(item =>
+        item.tags.includes(name) ? { ...item, tags: item.tags.filter(tag => tag !== name) } : item
       ),
     });
   },

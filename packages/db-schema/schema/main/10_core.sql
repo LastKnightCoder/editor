@@ -147,6 +147,7 @@ CREATE TABLE IF NOT EXISTS diary_segments (
         id INTEGER PRIMARY KEY NOT NULL,
         diary_id INTEGER NOT NULL,
         content_id INTEGER NOT NULL,
+        tags TEXT DEFAULT '[]',
         create_time INTEGER NOT NULL,
         update_time INTEGER NOT NULL,
         FOREIGN KEY(diary_id) REFERENCES diary_entries(id) ON DELETE CASCADE,

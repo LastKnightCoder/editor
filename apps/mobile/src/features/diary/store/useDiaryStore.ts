@@ -193,7 +193,12 @@ export const useDiaryStore = create<DiaryStoreState & DiaryStoreActions>((set, g
     return latestSegmentContentId(current);
   },
 
-  /** 快捷创建入口：开始一个新片段——当天无日记建首段；最新片段为空则复用；否则追加 */
+  /**
+   * 快捷创建入口（产品设计：日记是朋友圈式的，一天可发多条，一条 = 一个 segment）。
+   * 当天无日记建首段；最新片段为空则复用（防连发空日记）；否则追加新 segment。
+   * 「发新日记」入口（日记页输入条、Dock 快捷键）必须走这里，
+   * 不要改成 openAt——那会打开当天已有日记继续写，违背一天多条的设计。
+   */
   startNewSegment: async (mode, baseDate) => {
     const sorted = sortDiaryEntriesDesc(await readDiaryEntries());
     const current = findCurrentEntry(sorted, mode, baseDate);

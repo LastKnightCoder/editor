@@ -86,6 +86,7 @@ describe("diary/useDiaryStore", () => {
             wordCount: 0,
             createTime: 1,
             updateTime: 1,
+            tags: [],
           },
         ],
       })
@@ -248,6 +249,7 @@ describe("diary/useDiaryStore", () => {
           wordCount: 0,
           createTime: 1,
           updateTime: 1,
+          tags: [],
         },
         {
           id: 12,
@@ -257,6 +259,7 @@ describe("diary/useDiaryStore", () => {
           wordCount: 0,
           createTime: 2,
           updateTime: 2,
+          tags: [],
         },
       ],
     });
@@ -282,6 +285,7 @@ describe("diary/useDiaryStore", () => {
           wordCount: 0,
           createTime: 1,
           updateTime: 1,
+          tags: [],
         },
         {
           id: 12,
@@ -291,6 +295,7 @@ describe("diary/useDiaryStore", () => {
           wordCount: 0,
           createTime: 2,
           updateTime: 2,
+          tags: [],
         },
       ],
     });
@@ -315,6 +320,7 @@ describe("diary/useDiaryStore", () => {
       wordCount: 0,
       createTime: 1,
       updateTime: 1,
+      tags: [],
     };
     const second = { ...first, id: 12, contentId: 102 };
     const entry = makeDiaryEntry({ segments: [first] });
@@ -344,6 +350,7 @@ describe("diary/useDiaryStore", () => {
       wordCount: 0,
       createTime: 1,
       updateTime: 1,
+      tags: [],
     };
     const entry = makeDiaryEntry({ segments: [only] });
     getQueryClient().setQueryData(["diary", "entries"], [entry]);

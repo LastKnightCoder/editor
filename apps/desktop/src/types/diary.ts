@@ -7,6 +7,9 @@ export interface WeatherMood {
   value: string;
 }
 
+// 产品设计：标签与具体 segment 绑定——一天可发多条日记（类朋友圈），
+// 每条独立打标签。DiaryEntry.tags 是旧模型遗留的历史字段，仅作兼容保留，
+// 展示与编辑标签一律用 segment.tags，不要改回 entry 级（会整天共享标签）。
 export interface DiarySegment {
   id: number;
   diaryId: number;
@@ -15,6 +18,7 @@ export interface DiarySegment {
   createTime: number;
   updateTime: number;
   content: Descendant[];
+  tags: string[];
 }
 
 export interface DiaryEntry {
@@ -24,7 +28,8 @@ export interface DiaryEntry {
   contentId: number | null; // Legacy, deprecated
   weather: WeatherMood | null;
   mood: WeatherMood | null;
-  tags: string[]; // 自定义标签，如 ["日常","反思","周记"]
+  /** @deprecated 旧模型遗留：标签已迁到 segment 级，展示/编辑请用 segment.tags */
+  tags: string[];
   wordCount: number;
   createTime: number;
   updateTime: number;
@@ -34,13 +39,7 @@ export interface DiaryEntry {
 
 export type CreateDiaryEntry = Omit<
   DiaryEntry,
-  | "id"
-  | "createTime"
-  | "updateTime"
-  | "wordCount"
-  | "contentId"
-  | "segments"
-  | "content"
+  "id" | "createTime" | "updateTime" | "wordCount" | "contentId" | "segments" | "content"
 > & {
   content?: Descendant[];
   segments?: Descendant[][];

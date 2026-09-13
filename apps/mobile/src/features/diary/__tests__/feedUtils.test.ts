@@ -27,6 +27,7 @@ const segment: DiarySegment = {
   updateTime: 1,
   wordCount: 3,
   content: [],
+  tags: [],
 };
 
 describe("diary/feedUtils", () => {

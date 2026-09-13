@@ -23,7 +23,7 @@ pub struct DiaryEntry {
     pub tags: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiarySegment {
     pub id: i64,
@@ -33,6 +33,9 @@ pub struct DiarySegment {
     pub update_time: i64,
     pub word_count: i64,
     pub content: Value,
+    /// 产品设计：标签绑定在片段（segment）上，一天的多条日记各自独立打标签。
+    /// 旧模型曾把标签挂在 entry 上导致同一天共享，已迁移为片段级，勿再回退。
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -64,7 +67,6 @@ pub struct DiaryUpsertPayload {
     pub segment_id: Option<i64>,
     #[serde(default)]
     pub new_segment: bool,
-    pub tags: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -113,7 +115,7 @@ pub struct DiaryDeleteTagSettingPayload {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiaryUpdateTagsPayload {
-    pub id: i64,
+    pub segment_id: i64,
     pub tags: Vec<String>,
 }
 
@@ -135,6 +137,19 @@ fn parse_diary_content(raw: Option<String>) -> Value {
     match serde_json::from_str::<Value>(&text) {
         Ok(Value::Array(items)) => Value::Array(items),
         _ => Value::Array(vec![]),
+    }
+}
+
+fn parse_segment_tags(raw: Option<String>) -> Vec<String> {
+    let Some(text) = raw else {
+        return Vec::new();
+    };
+    match serde_json::from_str::<Value>(&text) {
+        Ok(Value::Array(items)) => items
+            .into_iter()
+            .filter_map(|item| item.as_str().map(str::to_string))
+            .collect(),
+        _ => Vec::new(),
     }
 }
 
@@ -307,10 +322,10 @@ fn hydrate_entry(conn: &rusqlite::Connection, mut entry: DiaryEntry) -> Result<D
         .map_err(|e| e.to_string())?;
     entry.tags = serde_json::from_str(tags.as_deref().unwrap_or("[]"))
         .map_err(|e| format!("DIARY_INVALID_JSON: {e}"))?;
-    entry.segments = conn.prepare("SELECT s.id,s.diary_id,s.content_id,s.create_time,s.update_time,COALESCE(c.count,0),c.content
+    entry.segments = conn.prepare("SELECT s.id,s.diary_id,s.content_id,s.tags,s.create_time,s.update_time,COALESCE(c.count,0),c.content
         FROM diary_segments s JOIN contents c ON c.id=s.content_id WHERE s.diary_id=?1 ORDER BY s.create_time,s.id")
         .map_err(|e| e.to_string())?.query_map([entry.id], |r| Ok(DiarySegment {
-            id:r.get(0)?,diary_id:r.get(1)?,content_id:r.get(2)?,create_time:r.get(3)?,update_time:r.get(4)?,word_count:r.get(5)?,content:parse_diary_content(r.get(6)?),
+            id:r.get(0)?,diary_id:r.get(1)?,content_id:r.get(2)?,create_time:r.get(4)?,update_time:r.get(5)?,word_count:r.get(6)?,content:parse_diary_content(r.get(7)?),tags:parse_segment_tags(r.get(3)?),
         })).map_err(|e| e.to_string())?.collect::<rusqlite::Result<Vec<_>>>().map_err(|e| e.to_string())?;
     entry.content = Value::Array(
         entry
@@ -528,16 +543,6 @@ fn upsert_entry(
         tx.last_insert_rowid()
     };
 
-    if let Some(tags) = payload.tags {
-        tx.execute(
-            "UPDATE diary_entries SET tags=?1 WHERE id=?2",
-            params![
-                serde_json::to_string(&tags).map_err(|e| e.to_string())?,
-                entry_id
-            ],
-        )
-        .map_err(|e| e.to_string())?;
-    }
     let segments = tx
         .prepare(
             "SELECT id,content_id FROM diary_segments WHERE diary_id=?1 ORDER BY create_time,id",
@@ -781,15 +786,16 @@ fn query_tag_settings(conn: &rusqlite::Connection) -> Result<Vec<DiaryTagSetting
         .map_err(|e| format_db_error("DIARY_QUERY_FAILED", "parse diary tag settings", e))
 }
 
-/// 全表取出日记标签在 Rust 中变更后写回（仅写有变化的行）。
+/// 全表取出片段标签在 Rust 中变更后写回（仅写有变化的行）。
 /// 逐行解析 JSON 比模糊 SQL 匹配更精确：标签名可含引号、百分号等特殊字符。
-fn rewrite_entry_tags<F>(tx: &Transaction<'_>, mutate: F) -> Result<(), String>
+/// 标签挂在 diary_segments 上（产品设计：一天多条日记各自独立打标签）。
+fn rewrite_segment_tags<F>(tx: &Transaction<'_>, mutate: F) -> Result<(), String>
 where
     F: Fn(&mut Vec<String>),
 {
     let rows = {
         let mut stmt = tx
-            .prepare("SELECT id,tags FROM diary_entries")
+            .prepare("SELECT id,tags FROM diary_segments")
             .map_err(|e| e.to_string())?;
         let collected = stmt
             .query_map([], |row| {
@@ -813,7 +819,7 @@ where
         }
         let serialized = serde_json::to_string(&tags).map_err(|e| e.to_string())?;
         tx.execute(
-            "UPDATE diary_entries SET tags=?1 WHERE id=?2",
+            "UPDATE diary_segments SET tags=?1 WHERE id=?2",
             params![serialized, id],
         )
         .map_err(|e| e.to_string())?;
@@ -888,7 +894,7 @@ fn rename_tag_setting(
         return Err("DIARY_TAG_NOT_FOUND: 标签不存在".to_string());
     }
     let target = name.clone();
-    rewrite_entry_tags(&tx, |tags| {
+    rewrite_segment_tags(&tx, |tags| {
         for tag in tags.iter_mut() {
             if *tag == target {
                 *tag = new_name.clone();
@@ -923,7 +929,7 @@ fn delete_tag_setting(
     )
     .map_err(|e| format_db_error("DIARY_TAG_DELETE_FAILED", "delete diary tag setting", e))?;
     let target = name.clone();
-    rewrite_entry_tags(&tx, |tags| tags.retain(|tag| *tag != target))?;
+    rewrite_segment_tags(&tx, |tags| tags.retain(|tag| *tag != target))?;
     tx.commit()
         .map_err(|e| format_db_error("DIARY_TAG_DELETE_FAILED", "commit transaction", e))?;
     query_tag_settings(conn)
@@ -938,23 +944,46 @@ pub fn diary_delete_tag_setting(
     delete_tag_setting(&mut conn, &payload.name)
 }
 
-fn update_entry_tags(
+/// 标签按片段更新：返回片段所属 entry（hydrate 后含最新片段标签）。
+/// 产品设计：一天可发多条日记（类朋友圈），标签与具体 segment 绑定、互不影响。
+fn update_segment_tags(
     conn: &mut rusqlite::Connection,
-    id: i64,
+    segment_id: i64,
     tags: Vec<String>,
 ) -> Result<DiaryEntry, String> {
     let serialized = normalize_diary_tags(tags)?;
     let now = now_millis();
-    let changed = conn
-        .execute(
-            "UPDATE diary_entries SET tags=?1, update_time=?2 WHERE id=?3",
-            params![serialized, now, id],
+    let tx = conn
+        .transaction()
+        .map_err(|e| format_db_error("DIARY_TAG_SAVE_FAILED", "begin transaction", e))?;
+    let diary_id: Option<i64> = tx
+        .query_row(
+            "SELECT diary_id FROM diary_segments WHERE id=?1 LIMIT 1",
+            params![segment_id],
+            |r| r.get(0),
         )
-        .map_err(|e| format_db_error("DIARY_TAG_SAVE_FAILED", "update diary entry tags", e))?;
+        .optional()
+        .map_err(|e| format_db_error("DIARY_TAG_SAVE_FAILED", "query segment diary", e))?;
+    let Some(diary_id) = diary_id else {
+        return Err("DIARY_SEGMENT_NOT_FOUND: 日记片段不存在，请刷新后重试".to_string());
+    };
+    let changed = tx
+        .execute(
+            "UPDATE diary_segments SET tags=?1, update_time=?2 WHERE id=?3",
+            params![serialized, now, segment_id],
+        )
+        .map_err(|e| format_db_error("DIARY_TAG_SAVE_FAILED", "update segment tags", e))?;
     if changed == 0 {
-        return Err("DIARY_NOT_FOUND: diary entry does not exist".to_string());
+        return Err("DIARY_SEGMENT_NOT_FOUND: 日记片段不存在，请刷新后重试".to_string());
     }
-    query_entry_by_id(conn, id)
+    tx.execute(
+        "UPDATE diary_entries SET update_time=?1 WHERE id=?2",
+        params![now, diary_id],
+    )
+    .map_err(|e| format_db_error("DIARY_TAG_SAVE_FAILED", "touch diary entry", e))?;
+    tx.commit()
+        .map_err(|e| format_db_error("DIARY_TAG_SAVE_FAILED", "commit transaction", e))?;
+    query_entry_by_id(conn, diary_id)
 }
 
 #[tauri::command]
@@ -963,7 +992,7 @@ pub fn diary_update_tags(
     payload: DiaryUpdateTagsPayload,
 ) -> Result<DiaryEntry, String> {
     let mut conn = schema::open_active_database(&app)?;
-    update_entry_tags(&mut conn, payload.id, payload.tags)
+    update_segment_tags(&mut conn, payload.segment_id, payload.tags)
 }
 
 #[cfg(test)]
@@ -986,16 +1015,14 @@ mod tests {
             mood: None,
             segment_id,
             new_segment,
-            tags: None,
         }
     }
 
     #[test]
     fn edits_one_segment_and_preserves_other_ids_content_and_tags() {
         let mut conn = database();
-        let mut first_payload = payload("first", None, false);
-        first_payload.tags = Some(vec!["日常".into()]);
-        let first = upsert_entry(&mut conn, first_payload).unwrap();
+        let first = upsert_entry(&mut conn, payload("first", None, false)).unwrap();
+        update_segment_tags(&mut conn, first.segments[0].id, vec!["日常".into()]).unwrap();
         let second = upsert_entry(&mut conn, payload("second", None, true)).unwrap();
         let untouched = second.segments[1].clone();
         let edited = upsert_entry(
@@ -1007,7 +1034,9 @@ mod tests {
         assert_eq!(edited.segments[0].content_id, first.segments[0].content_id);
         assert_eq!(edited.segments[1].id, untouched.id);
         assert_eq!(edited.segments[1].content, untouched.content);
-        assert_eq!(edited.tags, vec!["日常"]);
+        // 标签与具体 segment 绑定：首段有标签、次段为空，互不影响
+        assert_eq!(edited.segments[0].tags, vec!["日常"]);
+        assert!(edited.segments[1].tags.is_empty());
         assert_eq!(edited.content_id, None);
         assert_eq!(edited.word_count, 13);
         assert!(upsert_entry(&mut conn, payload("overwrite", None, false)).is_err());
@@ -1091,20 +1120,24 @@ mod tests {
     fn wrong_segment_id_rolls_back_metadata_updates() {
         let mut conn = database();
         let before = upsert_entry(&mut conn, payload("original", None, false)).unwrap();
-        let mut invalid = payload("bad", Some(999), false);
-        invalid.tags = Some(vec!["不应保存".into()]);
-        assert!(upsert_entry(&mut conn, invalid).is_err());
+        assert!(upsert_entry(&mut conn, payload("bad", Some(999), false)).is_err());
         let after = query_entry_by_id(&conn, before.id).unwrap();
-        assert_eq!(after.tags, before.tags);
+        assert_eq!(after.segments, before.segments);
         assert_eq!(after.content, before.content);
     }
 
     #[test]
-    fn tag_settings_crud_cascades_entries() {
+    fn tag_settings_crud_cascades_segments() {
         let mut conn = database();
-        let mut tagged = payload("tagged", None, false);
-        tagged.tags = Some(vec!["日常".into(), "周记".into()]);
-        let entry = upsert_entry(&mut conn, tagged).unwrap();
+        let entry = upsert_entry(&mut conn, payload("tagged", None, false)).unwrap();
+        upsert_entry(&mut conn, payload("more", None, true)).unwrap();
+        let segment_id = entry.segments[0].id;
+        update_segment_tags(
+            &mut conn,
+            segment_id,
+            vec!["日常".into(), "周记".into()],
+        )
+        .unwrap();
 
         // 全新库自带「周记」「月记」种子，新增标签排到末尾
         let settings = upsert_tag_setting(&mut conn, "日常", "#1890FF").unwrap();
@@ -1122,47 +1155,46 @@ mod tests {
         assert!(upsert_tag_setting(&mut conn, "  ", "#52c41a").is_err());
         assert!(upsert_tag_setting(&mut conn, "色", "red").is_err());
 
-        // 改名级联到条目（保持位置），重名拒绝
+        // 改名级联到片段（保持位置），重名拒绝
         let settings = rename_tag_setting(&mut conn, "日常", "随笔").unwrap();
         assert!(settings.iter().any(|s| s.name == "随笔"));
-        assert_eq!(
-            query_entry_by_id(&conn, entry.id).unwrap().tags,
-            vec!["随笔", "周记"]
-        );
+        let renamed = query_entry_by_id(&conn, entry.id).unwrap();
+        assert_eq!(renamed.segments[0].tags, vec!["随笔", "周记"]);
+        assert!(renamed.segments[1].tags.is_empty());
         assert!(rename_tag_setting(&mut conn, "随笔", "周记").is_err());
         assert!(rename_tag_setting(&mut conn, "不存在", "新名").is_err());
 
-        // 删除标签级联从条目移除
+        // 删除标签级联从片段移除
         delete_tag_setting(&mut conn, "周记").unwrap();
-        assert_eq!(
-            query_entry_by_id(&conn, entry.id).unwrap().tags,
-            vec!["随笔"]
-        );
+        let cleaned = query_entry_by_id(&conn, entry.id).unwrap();
+        assert_eq!(cleaned.segments[0].tags, vec!["随笔"]);
 
-        // 条目标签整体覆盖 + 归一化（trim / 去空 / 去重）
-        let updated = update_entry_tags(
+        // 片段标签整体覆盖 + 归一化（trim / 去空 / 去重）
+        let updated = update_segment_tags(
             &mut conn,
-            entry.id,
+            segment_id,
             vec![" 读书 ".into(), "".into(), "读书".into()],
         )
         .unwrap();
-        assert_eq!(updated.tags, vec!["读书"]);
-        assert!(update_entry_tags(&mut conn, 999, vec![]).is_err());
+        assert_eq!(updated.segments[0].tags, vec!["读书"]);
+        assert!(update_segment_tags(&mut conn, 999, vec![]).is_err());
     }
 
     #[test]
-    fn rename_tag_dedupes_colliding_entry_tags() {
+    fn rename_tag_dedupes_colliding_segment_tags() {
         let mut conn = database();
-        // 「反思」只在条目上、不在标签库中；把库里的「日常」改成「反思」应放行
-        let mut tagged = payload("dedupe", None, false);
-        tagged.tags = Some(vec!["日常".into(), "反思".into()]);
-        let entry = upsert_entry(&mut conn, tagged).unwrap();
+        // 「反思」只在片段上、不在标签库中；把库里的「日常」改成「反思」应放行
+        let entry = upsert_entry(&mut conn, payload("dedupe", None, false)).unwrap();
+        update_segment_tags(
+            &mut conn,
+            entry.segments[0].id,
+            vec!["日常".into(), "反思".into()],
+        )
+        .unwrap();
         upsert_tag_setting(&mut conn, "日常", "#1890ff").unwrap();
 
         rename_tag_setting(&mut conn, "日常", "反思").unwrap();
-        assert_eq!(
-            query_entry_by_id(&conn, entry.id).unwrap().tags,
-            vec!["反思"]
-        );
+        let renamed = query_entry_by_id(&conn, entry.id).unwrap();
+        assert_eq!(renamed.segments[0].tags, vec!["反思"]);
     }
 }

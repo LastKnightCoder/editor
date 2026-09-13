@@ -40,8 +40,7 @@ const MomentStreamView = memo(() => {
     setActiveEntryId,
   } = useDiaryStore();
 
-  const [searchedEntryRankMap, setSearchedEntryRankMap] =
-    useState<DiarySearchRankMap | null>(null);
+  const [searchedEntryRankMap, setSearchedEntryRankMap] = useState<DiarySearchRankMap | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
@@ -72,9 +71,7 @@ const MomentStreamView = memo(() => {
           ...(modelInfo ? { modelInfo } : {}),
         });
         if (searchRequestIdRef.current !== requestId) return;
-        setSearchedEntryRankMap(
-          buildDiarySearchRankMap(results.map((result) => result.id)),
-        );
+        setSearchedEntryRankMap(buildDiarySearchRankMap(results.map(result => result.id)));
       } catch (error) {
         if (searchRequestIdRef.current !== requestId) return;
         console.error("Diary search failed:", error);
@@ -85,7 +82,7 @@ const MomentStreamView = memo(() => {
         }
       }
     },
-    { wait: 300 },
+    { wait: 300 }
   );
 
   useEffect(() => {
@@ -97,16 +94,12 @@ const MomentStreamView = memo(() => {
     let result = segmentsFlat;
 
     if (activeTagFilter.length > 0) {
-      result = result.filter((item) =>
-        activeTagFilter.some((tag) => item.tags.includes(tag)),
-      );
+      result = result.filter(item => activeTagFilter.some(tag => item.tags.includes(tag)));
     }
 
     if (activeDateRange) {
       const [start, end] = activeDateRange;
-      result = result.filter(
-        (item) => item.entryDateMs >= start && item.entryDateMs <= end,
-      );
+      result = result.filter(item => item.entryDateMs >= start && item.entryDateMs <= end);
     }
 
     if (activeEntryId == null && searchedEntryRankMap) {
@@ -114,41 +107,29 @@ const MomentStreamView = memo(() => {
     }
 
     return result;
-  }, [
-    segmentsFlat,
-    activeTagFilter,
-    activeDateRange,
-    activeEntryId,
-    searchedEntryRankMap,
-  ]);
+  }, [segmentsFlat, activeTagFilter, activeDateRange, activeEntryId, searchedEntryRankMap]);
 
   const visibleSegments = useMemo(
     () => filteredSegments.slice(0, visibleCount),
-    [filteredSegments, visibleCount],
+    [filteredSegments, visibleCount]
   );
 
   const hasMore = visibleCount < filteredSegments.length;
 
   const activeEntryIndex = useMemo(() => {
     if (activeEntryId == null) return -1;
-    return filteredSegments.findIndex((item) => item.diaryId === activeEntryId);
+    return filteredSegments.findIndex(item => item.diaryId === activeEntryId);
   }, [activeEntryId, filteredSegments]);
 
+  // 标签使用计数按片段统计（标签绑 segment，一天多条日记各算各的）
   const tagUsageCounts = useMemo(() => {
-    const tagEntryIds = new Map<string, Set<number>>();
-    segmentsFlat.forEach((item) => {
-      item.tags.forEach((tag) => {
-        const entryIds = tagEntryIds.get(tag) ?? new Set<number>();
-        entryIds.add(item.diaryId);
-        tagEntryIds.set(tag, entryIds);
+    const counts = new Map<string, number>();
+    segmentsFlat.forEach(item => {
+      item.tags.forEach(tag => {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
       });
     });
-    return new Map(
-      Array.from(tagEntryIds.entries()).map(([tag, entryIds]) => [
-        tag,
-        entryIds.size,
-      ]),
-    );
+    return counts;
   }, [segmentsFlat]);
 
   // 虚拟列表
@@ -157,13 +138,13 @@ const MomentStreamView = memo(() => {
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 180,
     overscan: 5,
-    getItemKey: (index) => visibleSegments[index].id,
-    measureElement: (el) => el.getBoundingClientRect().height,
+    getItemKey: index => visibleSegments[index].id,
+    measureElement: el => el.getBoundingClientRect().height,
   });
 
   useEffect(() => {
     return () => {
-      resizeObserversRef.current.forEach((observer) => observer.disconnect());
+      resizeObserversRef.current.forEach(observer => observer.disconnect());
       resizeObserversRef.current.clear();
     };
   }, []);
@@ -184,15 +165,14 @@ const MomentStreamView = memo(() => {
       observer.observe(node);
       resizeObserversRef.current.set(key, observer);
     },
-    [virtualizer],
+    [virtualizer]
   );
 
   // 无限滚动
   const handleScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
       const target = e.currentTarget;
-      const distanceToBottom =
-        target.scrollHeight - target.scrollTop - target.clientHeight;
+      const distanceToBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
       if (distanceToBottom > 200 || loadingMoreRef.current || !hasMore) return;
       loadingMoreRef.current = true;
       loadMore(20);
@@ -200,25 +180,22 @@ const MomentStreamView = memo(() => {
         loadingMoreRef.current = false;
       });
     },
-    [hasMore, loadMore],
+    [hasMore, loadMore]
   );
 
-  const handleSegmentChange = useMemoizedFn(
-    (segmentId: number, content: Descendant[]) =>
-      onUpdateDiarySegment(segmentId, content),
+  const handleSegmentChange = useMemoizedFn((segmentId: number, content: Descendant[]) =>
+    onUpdateDiarySegment(segmentId, content)
   );
 
-  const handleSegmentDelete = useMemoizedFn((segmentId: number) =>
-    onDeleteDiarySegment(segmentId),
-  );
+  const handleSegmentDelete = useMemoizedFn((segmentId: number) => onDeleteDiarySegment(segmentId));
 
-  const handleTagsChange = useMemoizedFn((entryId: number, tags: string[]) =>
-    onUpdateDiaryTags(entryId, tags),
+  // 标签与片段绑定：按 segmentId 落库
+  const handleTagsChange = useMemoizedFn((segmentId: number, tags: string[]) =>
+    onUpdateDiaryTags(segmentId, tags)
   );
 
   const handleTagSettingChange = useMemoizedFn(
-    (setting: { name: string; color: string; sort?: number }) =>
-      upsertTagSetting(setting),
+    (setting: { name: string; color: string; sort?: number }) => upsertTagSetting(setting)
   );
 
   const handleTagSettingDelete = useMemoizedFn(async (name: string) => {
@@ -265,17 +242,17 @@ const MomentStreamView = memo(() => {
         activeTagFilter={activeTagFilter}
         activeDateRange={activeDateRange}
         searchQuery={searchQuery}
-        onTagFilterChange={(tags) => {
+        onTagFilterChange={tags => {
           lastScrolledEntryRef.current = null;
           setActiveEntryId(undefined);
           setActiveTagFilter(tags);
         }}
-        onDateRangeChange={(range) => {
+        onDateRangeChange={range => {
           lastScrolledEntryRef.current = null;
           setActiveEntryId(undefined);
           setActiveDateRange(range);
         }}
-        onSearchQueryChange={(query) => {
+        onSearchQueryChange={query => {
           lastScrolledEntryRef.current = null;
           setActiveEntryId(undefined);
           setSearchQuery(query);
@@ -322,7 +299,7 @@ const MomentStreamView = memo(() => {
                 position: "relative",
               }}
             >
-              {virtualItems.map((virtualItem) => {
+              {virtualItems.map(virtualItem => {
                 const item = visibleSegments[virtualItem.index];
                 const isLast = virtualItem.index === visibleSegments.length - 1;
                 return (

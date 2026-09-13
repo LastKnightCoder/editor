@@ -35,6 +35,7 @@ interface RawDiarySegmentRow {
   content_id: number;
   content: string | null;
   word_count: number | null;
+  tags: string | null; // JSON 数组字符串，如 ["日常","反思"]
   create_time: number;
   update_time: number;
 }
@@ -48,6 +49,9 @@ interface LegacyDailyNoteRow {
   word_count: number | null;
 }
 
+// 产品设计：标签与具体 segment 绑定——一天可发多条日记（类朋友圈），
+// 每条独立打标签。entry 上遗留的 diary_entries.tags 只是旧模型的历史数据，
+// 读写标签一律走 diary_segments.tags，不要改回 entry 级（会整天共享标签）。
 export interface DiarySegment {
   id: number;
   diaryId: number;
@@ -56,6 +60,7 @@ export interface DiarySegment {
   createTime: number;
   updateTime: number;
   content?: Descendant[];
+  tags: string; // JSON string: ["日常","反思"]
 }
 
 export interface DiaryEntry {
@@ -115,6 +120,7 @@ export default class DiaryTable {
     this.migrateDailyNotes(db);
     this.migrateLegacyEntryContentToSegments(db);
     this.migrateDiaryTags(db);
+    this.migrateDiarySegmentTags(db);
   }
 
   private static parseEntryDateMs(date: string, fallback: number) {
@@ -234,6 +240,23 @@ export default class DiaryTable {
     upsertTag.run("月记", "#fa8c16", 1, now, now);
 
     log.info("[diary-tags] Migration complete");
+  }
+
+  // 给 diary_segments 加 tags 列（标签从 entry 级迁到片段级）。
+  // 首次加列时把旧 diary_entries.tags 回填到该天全部片段，老标签数据不丢。
+  private static migrateDiarySegmentTags(db: Database.Database) {
+    const columns = this.getTableColumns(db, "diary_segments");
+    const hasTags = columns.some(col => col.name === "tags");
+    if (!hasTags) {
+      db.prepare(`ALTER TABLE diary_segments ADD COLUMN tags TEXT DEFAULT '[]'`).run();
+      const backfilled = db
+        .prepare(
+          `UPDATE diary_segments SET tags = COALESCE((SELECT tags FROM diary_entries WHERE id = diary_segments.diary_id), '[]')
+           WHERE COALESCE(tags, '[]') IN ('[]', '')`
+        )
+        .run();
+      log.info(`[diary-segment-tags] Added tags column, backfilled=${backfilled.changes}`);
+    }
   }
 
   // 一次性从旧 daily_notes 迁移为 daily diary_entries。
@@ -461,6 +484,7 @@ export default class DiaryTable {
       createTime: row.create_time,
       updateTime: row.update_time,
       content,
+      tags: row.tags ?? "[]",
     };
   }
 
@@ -951,15 +975,15 @@ export default class DiaryTable {
 
   static updateDiarySegment(
     db: Database.Database,
-    params: { segmentId: number; content: Descendant[] },
+    params: { segmentId: number; content?: Descendant[]; tags?: string[] },
     ctx: CommandContext = fallbackCommandContext
   ): DiarySegment | null {
-    const { segmentId, content } = params;
+    const { segmentId, content, tags } = params;
     const seg = this.getDiarySegmentById(db, segmentId);
     if (!seg) return null;
 
     // 内容挂协作会话时由会话负责写入（经投影落库），这里只维护 segment 元数据
-    if (!contentSession(db, seg.contentId)) {
+    if (content !== undefined && !contentSession(db, seg.contentId)) {
       ContentTable.updateContent(
         db,
         seg.contentId,
@@ -972,10 +996,20 @@ export default class DiaryTable {
     }
 
     const now = Date.now();
+    // 标签与片段绑定：tags 传入时整体覆盖该 segment 的标签（normalize：去空/去重）
+    if (tags !== undefined) {
+      const normalized = [...new Set(tags.map(tag => tag.trim()).filter(Boolean))];
+      db.prepare(`UPDATE diary_segments SET tags = ? WHERE id = ?`).run(
+        JSON.stringify(normalized),
+        segmentId
+      );
+    }
     db.prepare(`UPDATE diary_segments SET update_time = ? WHERE id = ?`).run(now, segmentId);
     db.prepare(`UPDATE diary_entries SET update_time = ? WHERE id = ?`).run(now, seg.diaryId);
 
-    this.syncDiaryWordCount(db, seg.diaryId);
+    if (content !== undefined) {
+      this.syncDiaryWordCount(db, seg.diaryId);
+    }
     Operation.insertOperation(db, "diary-entry", "update", seg.diaryId, now);
 
     return this.getDiarySegmentById(db, segmentId);
@@ -1040,11 +1074,12 @@ export default class DiaryTable {
   // ---- 朋友圈流：扁平 segment + 标签设置 ----
 
   // 扁平化返回所有 segment（带父 entry 摘要），按日记归属日期降序
+  // 标签取 s.tags（与片段绑定），不再从父 entry 借
   static getAllDiarySegmentsFlat(db: Database.Database): DiarySegmentItem[] {
     const stmt = db.prepare(`
       SELECT s.id, s.diary_id, s.content_id, s.create_time, s.update_time,
-             c.content, c.count as word_count,
-             d.type as entry_type, d.date as entry_date, d.weather, d.mood, d.tags
+             c.content, c.count as word_count, s.tags,
+             d.type as entry_type, d.date as entry_date, d.weather, d.mood
       FROM diary_segments s
       LEFT JOIN contents c ON s.content_id = c.id
       LEFT JOIN diary_entries d ON s.diary_id = d.id
@@ -1151,6 +1186,30 @@ export default class DiaryTable {
   }
 
   static deleteDiaryTagSetting(db: Database.Database, name: string): number {
-    return db.prepare(`DELETE FROM diary_tag_settings WHERE name = ?`).run(name).changes;
+    // 标签库是唯一数据源：删除时事务级联摘除所有片段上的该标签。
+    // 逐行解析 JSON 而非模糊 SQL 匹配：标签名可含引号、百分号等特殊字符。
+    const removeTag = db.transaction(() => {
+      const deleted = db.prepare(`DELETE FROM diary_tag_settings WHERE name = ?`).run(name).changes;
+      const rows = db.prepare(`SELECT id, tags FROM diary_segments`).all() as Array<{
+        id: number;
+        tags: string | null;
+      }>;
+      for (const row of rows) {
+        let tags: string[];
+        try {
+          tags = JSON.parse(row.tags ?? "[]");
+        } catch {
+          continue;
+        }
+        if (!tags.includes(name)) continue;
+        const next = tags.filter(tag => tag !== name);
+        db.prepare(`UPDATE diary_segments SET tags = ? WHERE id = ?`).run(
+          JSON.stringify(next),
+          row.id
+        );
+      }
+      return deleted;
+    });
+    return removeTag();
   }
 }
