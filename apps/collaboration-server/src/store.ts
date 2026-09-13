@@ -36,6 +36,7 @@ function collectAssetReferences(value: unknown, into: Set<string>) {
 interface DocumentRow {
   id: string;
   owner_id: string;
+  creation_key: string;
   title: string;
   status: "draft" | "active" | "closed";
   updated_at: number;
@@ -118,8 +119,7 @@ export class CollaborationStore {
     const id = token.slice(0, separator);
     const secret = token.slice(separator + 1);
     const device = this.db.prepare("SELECT * FROM devices WHERE id = ?").get(id) as
-      | DeviceRow
-      | undefined;
+      DeviceRow | undefined;
     const digestBuffer = Buffer.from(digest(secret));
     const expected = device ? Buffer.from(device.secret_hash) : digestBuffer;
     // 等长比较避免 timingSafeEqual 抛异常；设备不存在时也执行一次比较，不泄露 ID 是否存在。
@@ -173,8 +173,7 @@ export class CollaborationStore {
 
   document(id: string): DocumentRow {
     const row = this.db.prepare("SELECT * FROM documents WHERE id = ?").get(id) as
-      | DocumentRow
-      | undefined;
+      DocumentRow | undefined;
     if (!row) fail("NOT_FOUND", "共享内容不存在", 404);
     return row!;
   }
@@ -187,8 +186,7 @@ export class CollaborationStore {
       )
       .get(id, deviceId) as { role: string } | undefined;
     const device = this.db.prepare("SELECT banned FROM devices WHERE id = ?").get(deviceId) as
-      | { banned: number }
-      | undefined;
+      { banned: number } | undefined;
     if (!device || device.banned || !member || (owner && member.role !== "owner"))
       fail("FORBIDDEN", "没有这段内容的访问权限", 403);
     if (
@@ -202,11 +200,15 @@ export class CollaborationStore {
   create(deviceId: string, key: string) {
     return this.db.transaction(() => {
       const existing = this.db
-        .prepare(
-          "SELECT * FROM documents WHERE owner_id = ? AND creation_key = ? AND status != 'closed'"
-        )
+        .prepare("SELECT * FROM documents WHERE owner_id = ? AND creation_key = ?")
         .get(deviceId, key) as DocumentRow | undefined;
-      if (existing) return existing;
+      if (existing) {
+        if (existing.status !== "closed") return existing;
+        // 历史关闭房间仍受唯一索引约束，先归档幂等键再创建新房间。
+        this.db
+          .prepare("UPDATE documents SET creation_key=? WHERE id=?")
+          .run(`${existing.creation_key}:closed:${existing.id}`, existing.id);
+      }
       const count = (
         this.db
           .prepare(
@@ -281,8 +283,7 @@ export class CollaborationStore {
     const invitation = this.db
       .prepare("SELECT document_id FROM invitations WHERE code_hash = ? AND expires_at > ?")
       .get(digest(code.replace(/[\s-]/g, "").toUpperCase()), Date.now()) as
-      | { document_id: string }
-      | undefined;
+      { document_id: string } | undefined;
     if (!invitation || this.document(invitation.document_id).status !== "active")
       fail("INVALID_CODE", "协作码无效或已过期", 404);
     const documentId = invitation!.document_id;
@@ -402,8 +403,8 @@ export class CollaborationStore {
     if (row.status === "closed") return;
     this.db.transaction(() => {
       this.db
-        .prepare("UPDATE documents SET status='closed', updated_at=? WHERE id=?")
-        .run(Date.now(), id);
+        .prepare("UPDATE documents SET status='closed', creation_key=?, updated_at=? WHERE id=?")
+        .run(`${row.creation_key}:closed:${row.id}`, Date.now(), id);
       this.db.prepare("DELETE FROM invitations WHERE document_id=?").run(id);
       this.db.prepare("DELETE FROM join_requests WHERE document_id=?").run(id);
     })();
@@ -429,8 +430,7 @@ export class CollaborationStore {
   loadDocument(id: string): Y.Doc {
     const doc = new Y.Doc();
     const snapshot = this.db.prepare("SELECT state FROM snapshots WHERE document_id=?").get(id) as
-      | { state: Buffer }
-      | undefined;
+      { state: Buffer } | undefined;
     if (!snapshot) {
       doc.destroy();
       return fail("NOT_FOUND", "共享内容尚未发布", 404);

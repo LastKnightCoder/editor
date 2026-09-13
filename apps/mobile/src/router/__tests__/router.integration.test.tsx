@@ -55,6 +55,16 @@ function PickerPage() {
   );
 }
 
+function HandledPickerPage() {
+  const { navigator } = usePage();
+  useBackHandler(() => true);
+  return (
+    <button type="button" onClick={() => navigator.finish({ picked: 42 })}>
+      pick
+    </button>
+  );
+}
+
 // 页内双本地 Sheet（模拟 useSheetBackDismiss 的目标场景）：
 // sheetA 先声明、sheetB 后声明（后声明的消费优先级更高，LIFO）
 function SheetHostPage() {
@@ -95,6 +105,12 @@ function registerPages() {
     layer: "overlay",
     params: {},
     component: PickerPage,
+  });
+  definePage({
+    key: "handledPicker",
+    layer: "overlay",
+    params: {},
+    component: HandledPickerPage,
   });
   definePage({
     key: "sheetHost",
@@ -353,6 +369,29 @@ describe("router 集成", () => {
     await promise;
     expect(settled).toEqual({ picked: 42 });
     expect(rejected).toBeNull();
+    app.cleanup();
+  });
+
+  it("finish 不被页面返回拦截器吞掉", async () => {
+    const app = mountApp();
+    let settled: { picked: number } | null = null;
+    const promise = getNavigator()
+      .pushForResult<{ picked: number }>("handledPicker", {})
+      .then(value => {
+        settled = value;
+      });
+
+    await waitFor(() => document.querySelector("[data-overlay-entry-id] button") !== null);
+    act(() => {
+      const pickButton = document.querySelector(
+        "[data-overlay-entry-id] button"
+      ) as HTMLButtonElement;
+      pickButton.click();
+    });
+    await waitFor(() => settled !== null);
+    await promise;
+    expect(settled).toEqual({ picked: 42 });
+    await waitFor(() => document.querySelector("[data-overlay-entry-id]") === null);
     app.cleanup();
   });
 
