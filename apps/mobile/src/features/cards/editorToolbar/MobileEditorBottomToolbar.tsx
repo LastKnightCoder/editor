@@ -69,7 +69,7 @@ import type { MobileEditorToolbarController } from "./useMobileEditorToolbarCont
 type PaletteActionId = "underline" | "color" | "highlight";
 
 /** 主行按钮 id：格式 action + 三个 UI 触发钮（标题弹条 / 图片直达 / 插入面板） */
-type ToolbarButtonId = ToolbarActionId | "heading" | "image" | "insert";
+export type ToolbarButtonId = ToolbarActionId | "heading" | "image" | "insert";
 
 type MobileEditorBottomToolbarProps = {
   controller: MobileEditorToolbarController;
@@ -84,6 +84,12 @@ type MobileEditorBottomToolbarProps = {
    * 强制收起（只读编辑器仍可获得焦点，须显式抑制，不能只依赖 isEditorFocused）。
    */
   readonly?: boolean;
+  /**
+   * 主行按钮白名单：不传展示全量。传入后仅保留其中的按钮（撤销/重做恒显），
+   * 被过滤为空的组连分隔线一起收掉。用于闪卡等轻量编辑场景，
+   * 白名单应与宿主场景的渲染能力对齐（能编辑的就能渲染）。
+   */
+  visibleButtons?: ReadonlySet<ToolbarButtonId> | null;
 };
 
 type MenuPosition = {
@@ -215,9 +221,16 @@ const TOOLBAR_BOTTOM_GAP = 12;
 const TOOLBAR_FALLBACK_HEIGHT = 46;
 
 export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps) {
-  const { controller, portalContainer, readonly = false } = props;
+  const { controller, portalContainer, readonly = false, visibleButtons } = props;
 
   const portalRoot = portalContainer ?? (typeof document === "undefined" ? null : document.body);
+
+  const rowGroups = useMemo(() => {
+    if (!visibleButtons) return ROW_GROUPS;
+    return ROW_GROUPS.map(group => group.filter(id => visibleButtons.has(id))).filter(
+      group => group.length > 0
+    );
+  }, [visibleButtons]);
 
   const triggerRefs = useRef<Record<"heading", HTMLButtonElement | null>>({ heading: null });
   const primaryActionRefs = useRef<Partial<Record<PaletteActionId, HTMLButtonElement | null>>>({});
@@ -723,7 +736,7 @@ export function MobileEditorBottomToolbar(props: MobileEditorBottomToolbarProps)
                   <Redo2 size={16} strokeWidth={2.4} />
                 </button>
 
-                {ROW_GROUPS.map(group => (
+                {rowGroups.map(group => (
                   <div key={group.join("-")} className="flex shrink-0 items-center gap-0.5">
                     <span aria-hidden="true" className="bg-line mx-1 h-5 w-px shrink-0" />
                     {group.map(buttonId => renderActionButton(buttonId))}

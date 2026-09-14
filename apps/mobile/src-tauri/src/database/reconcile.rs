@@ -355,6 +355,43 @@ fn load_indexable_rows(main_conn: &Connection) -> Result<Vec<IndexableRow>, Stri
         ));
     }
 
+    // 闪卡：题干（Slate JSON）为主文本，详情提纯与 tags 进 extra；
+    // 卡组名仅作展示（hydrate 时现查 flashcard_decks），不进索引文本
+    let mut stmt = main_conn
+        .prepare("SELECT id, update_time, prompt, detail, tags FROM flashcards")
+        .map_err(|e| format!("DB_OPEN_FAILED: Failed to prepare flashcards index query: {e}"))?;
+    let flashcard_rows = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, i64>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, Option<String>>(4)?,
+            ))
+        })
+        .map_err(|e| format!("DB_OPEN_FAILED: Failed to query flashcards index rows: {e}"))?;
+    for row in flashcard_rows {
+        let (id, update_time, prompt, detail, tags) = row
+            .map_err(|e| format!("DB_OPEN_FAILED: Failed to read flashcard index row: {e}"))?;
+        let extra = [
+            detail.as_deref().map(extract_plain_text).unwrap_or_default(),
+            parse_tags_text(tags),
+        ]
+        .into_iter()
+        .filter(|part| !part.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+        rows.push(make_indexable_row(
+            format!("flashcard:{id}"),
+            update_time,
+            "flashcard",
+            "",
+            prompt,
+            extra,
+        ));
+    }
+
     Ok(rows)
 }
 

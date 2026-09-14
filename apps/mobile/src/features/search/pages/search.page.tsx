@@ -63,6 +63,9 @@ function SearchScreen() {
           libraryTitle: result.containerTitle ?? "",
         });
         break;
+      case "flashcard":
+        navigator.push("flashcardCardEdit", { deckId: -1, cardId: result.id });
+        break;
       case "diary-daily":
         if (result.contentId) {
           navigator.push("contentDetail", {
