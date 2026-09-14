@@ -14,7 +14,7 @@
 
 ## 最小示例
 
-```tsx
+```TSX
 <ActionSheet
   open={open}
   title="选择仓库"
