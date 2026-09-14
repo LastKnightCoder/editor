@@ -72,7 +72,7 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
   const searchSeqRef = useRef(0);
   const { history, addHistory, clearHistory } = useSearchHistory();
   const scrollRef = useRef<HTMLDivElement>(null);
-  useEdgeFade(scrollRef, { bottom: false });
+  useEdgeFade(scrollRef);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -128,74 +128,81 @@ export function SearchPage({ onClose, onSearch, onOpenResult, isSearching }: Sea
         </button>
       </div>
 
-      {/* 内容区域 */}
-      <div ref={scrollRef} className="edge-fade-scroll mobile-kb-scroll flex-1 overflow-y-auto">
-        {!hasSearched && history.length > 0 ? (
-          <div className="p-4">
-            <div className="mb-3 flex items-center justify-between px-1">
-              <h3 className="text-ink text-[14px] font-extrabold">搜索历史</h3>
-              <button
-                type="button"
-                onClick={clearHistory}
-                className="text-ink-3 active:text-ink p-1 transition-colors"
-                aria-label="清空历史"
-              >
-                <Trash2 size={18} aria-hidden="true" />
-              </button>
-            </div>
-            <div className="list-group">
-              {history.map(item => (
+      {/* 内容区域：二级页无吸底 Dock，底部只留常规呼吸空间（同番茄钟/详情页）。
+          留白挂外层容器，滚动容器自身不带 padding（mobile-kb-scroll 的滚动容器 padding
+          在 WebView 下不可靠），内容不会顶到安全区；键盘避让由 .mobile-kb-screen 收缩负责 */}
+      <div
+        className="flex min-h-0 flex-1 flex-col"
+        style={{ paddingBottom: "var(--page-bottom-inset)" }}
+      >
+        <div ref={scrollRef} className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain">
+          {!hasSearched && history.length > 0 ? (
+            <div className="p-4">
+              <div className="mb-3 flex items-center justify-between px-1">
+                <h3 className="text-ink text-[14px] font-extrabold">搜索历史</h3>
                 <button
-                  key={item}
                   type="button"
-                  onClick={() => handleHistoryClick(item)}
-                  className="list-item gap-3 px-4 text-left"
+                  onClick={clearHistory}
+                  className="text-ink-3 active:text-ink p-1 transition-colors"
+                  aria-label="清空历史"
                 >
-                  <span className="text-ink-3">
-                    <Search size={17} aria-hidden="true" />
-                  </span>
-                  <span className="text-ink flex-1 truncate text-[14px] font-medium">{item}</span>
+                  <Trash2 size={18} aria-hidden="true" />
                 </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {hasSearched && (
-          <div className="p-4">
-            {isSearching ? (
-              <div className="py-12 text-center">
-                <div className="border-accent mx-auto h-7 w-7 animate-spin rounded-full border-2 border-t-transparent" />
-                <p className="text-ink-3 mt-3 text-sm">搜索中...</p>
               </div>
-            ) : results?.items.length ? (
-              <div className="space-y-3">
-                <p className="text-ink-3 px-1 text-[12.5px] font-semibold">
-                  共 {results.total} 条结果
-                </p>
-                {results.items.map(item => (
-                  <SearchResultItem
-                    key={`${item.type}:${item.id}`}
-                    item={item}
-                    onClick={() => onOpenResult(item)}
-                  />
+              <div className="list-group">
+                {history.map(item => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => handleHistoryClick(item)}
+                    className="list-item gap-3 px-4 text-left"
+                  >
+                    <span className="text-ink-3">
+                      <Search size={17} aria-hidden="true" />
+                    </span>
+                    <span className="text-ink flex-1 truncate text-[14px] font-medium">{item}</span>
+                  </button>
                 ))}
               </div>
-            ) : (
-              <div className="py-12 text-center">
-                <SearchX size={34} className="text-ink-3 mx-auto" aria-hidden="true" />
-                <p className="text-ink-3 mt-3 text-sm">未找到相关内容</p>
-              </div>
-            )}
-          </div>
-        )}
+            </div>
+          ) : null}
 
-        {!hasSearched && history.length === 0 && (
-          <div className="py-20 text-center">
-            <Search size={34} className="text-ink-3 mx-auto" aria-hidden="true" />
-            <p className="text-ink-3 mt-3 text-sm">输入关键词搜索内容</p>
-          </div>
-        )}
+          {hasSearched && (
+            <div className="p-4">
+              {isSearching ? (
+                <div className="py-12 text-center">
+                  <div className="border-accent mx-auto h-7 w-7 animate-spin rounded-full border-2 border-t-transparent" />
+                  <p className="text-ink-3 mt-3 text-sm">搜索中...</p>
+                </div>
+              ) : results?.items.length ? (
+                <div className="space-y-3">
+                  <p className="text-ink-3 px-1 text-[12.5px] font-semibold">
+                    共 {results.total} 条结果
+                  </p>
+                  {results.items.map(item => (
+                    <SearchResultItem
+                      key={`${item.type}:${item.id}`}
+                      item={item}
+                      onClick={() => onOpenResult(item)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="py-12 text-center">
+                  <SearchX size={34} className="text-ink-3 mx-auto" aria-hidden="true" />
+                  <p className="text-ink-3 mt-3 text-sm">未找到相关内容</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {!hasSearched && history.length === 0 && (
+            <div className="py-20 text-center">
+              <Search size={34} className="text-ink-3 mx-auto" aria-hidden="true" />
+              <p className="text-ink-3 mt-3 text-sm">输入关键词搜索内容</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -123,7 +123,7 @@ function recurrenceTypeLabel(type: RecurrenceType): string {
 export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailPageProps) {
   const store = useTodoStore();
   const scrollRef = useRef<HTMLDivElement>(null);
-  useEdgeFade(scrollRef, { bottom: false });
+  useEdgeFade(scrollRef);
   const activeGroupId = useTodoStore(state => state.activeGroupId);
   const resolvedGroupId = groupId ?? activeGroupId ?? undefined;
   const itemsQuery = useTodoItems({ groupId: resolvedGroupId });
@@ -454,215 +454,221 @@ export function TodoDetailPage({ todoId, groupId, onBack, onError }: TodoDetailP
         }
       />
 
+      {/* 底部安全区由常显操作条承载（自带 pb-safe），滚动区只留呼吸空间：
+          留白挂外层容器，滚动容器自身不带 padding，内容不会贴着操作条；渐隐带在操作条上缘 */}
       <div
-        ref={scrollRef}
-        className="edge-fade-scroll mobile-kb-scroll flex-1 overflow-y-auto pb-8"
+        className="flex min-h-0 flex-1 flex-col"
+        style={{ paddingBottom: "var(--page-bottom-breath)" }}
       >
-        {/* 标题编辑区：大完成圈 + 无边框标题输入 */}
-        <div className="flex items-start gap-3 px-4 pt-3.5">
-          <button
-            type="button"
-            role="checkbox"
-            aria-checked={mainDone}
-            aria-label={mainDone ? "标记为未完成" : "标记为已完成"}
-            onClick={handleToggleMain}
-            className={`mt-0.5 grid h-[27px] w-[27px] shrink-0 place-items-center rounded-full border-[2.5px] transition-all duration-200 ${
-              mainDone ? "border-accent bg-accent shadow-accent" : "border-ink-3/50 bg-surface"
-            }`}
-          >
-            {mainDone ? <Check size={14} strokeWidth={3.4} className="text-white" /> : null}
-          </button>
-          <textarea
-            ref={titleTextareaRef}
-            value={title}
-            rows={1}
-            onChange={event => setTitle(event.target.value)}
-            onBlur={() => {
-              void handleSaveTitle();
-            }}
-            onKeyDown={event => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                event.currentTarget.blur();
-              }
-            }}
-            placeholder="任务标题"
-            className="text-ink placeholder:text-ink-3 min-h-[27px] flex-1 resize-none border-none bg-transparent py-0 text-[18px] font-extrabold leading-[1.5] outline-none"
-          />
-        </div>
+        <div ref={scrollRef} className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain">
+          {/* 标题编辑区：大完成圈 + 无边框标题输入 */}
+          <div className="flex items-start gap-3 px-4 pt-3.5">
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={mainDone}
+              aria-label={mainDone ? "标记为未完成" : "标记为已完成"}
+              onClick={handleToggleMain}
+              className={`mt-0.5 grid h-[27px] w-[27px] shrink-0 place-items-center rounded-full border-[2.5px] transition-all duration-200 ${
+                mainDone ? "border-accent bg-accent shadow-accent" : "border-ink-3/50 bg-surface"
+              }`}
+            >
+              {mainDone ? <Check size={14} strokeWidth={3.4} className="text-white" /> : null}
+            </button>
+            <textarea
+              ref={titleTextareaRef}
+              value={title}
+              rows={1}
+              onChange={event => setTitle(event.target.value)}
+              onBlur={() => {
+                void handleSaveTitle();
+              }}
+              onKeyDown={event => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  event.currentTarget.blur();
+                }
+              }}
+              placeholder="任务标题"
+              className="text-ink placeholder:text-ink-3 min-h-[27px] flex-1 resize-none border-none bg-transparent py-0 text-[18px] font-extrabold leading-[1.5] outline-none"
+            />
+          </div>
 
-        {/* 属性胶囊行：点击弹 Sheet 修改，按类型展示相关字段 */}
-        <div className="flex flex-wrap gap-1.5 pb-1 pl-[55px] pr-4 pt-3">
-          <button
-            type="button"
-            onClick={() => setTypeSheetOpen(true)}
-            className={`${chipBaseClass} bg-butter-soft text-butter`}
-          >
-            <Flag size={12} />
-            {TYPE_LABELS[current.type]}
-          </button>
-          {/* 时间/提醒胶囊常驻（recurring 除外——其日程由周期规则决定）：
+          {/* 属性胶囊行：点击弹 Sheet 修改，按类型展示相关字段 */}
+          <div className="flex flex-wrap gap-1.5 pb-1 pl-[55px] pr-4 pt-3">
+            <button
+              type="button"
+              onClick={() => setTypeSheetOpen(true)}
+              className={`${chipBaseClass} bg-butter-soft text-butter`}
+            >
+              <Flag size={12} />
+              {TYPE_LABELS[current.type]}
+            </button>
+            {/* 时间/提醒胶囊常驻（recurring 除外——其日程由周期规则决定）：
               未设置的字段以中性「设置 xx」胶囊占位，保证随时可补填 */}
-          {current.type !== "recurring" && (
-            <>
-              <button
-                type="button"
-                onClick={() => setStartTimeSheetOpen(true)}
-                className={`${chipBaseClass} ${
-                  current.startAt ? "bg-sky-soft text-sky" : "bg-input text-ink-3"
-                }`}
-              >
-                <CalendarDays size={12} />
-                {current.startAt ? formatShortDateTime(current.startAt) : "设置开始"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setDueTimeSheetOpen(true)}
-                className={`${chipBaseClass} ${
-                  current.dueAt
-                    ? isOverdue
-                      ? "bg-rose-soft text-rose"
-                      : "bg-sage-soft text-sage"
-                    : "bg-input text-ink-3"
-                }`}
-              >
-                <Clock size={12} />
-                {current.dueAt
-                  ? `${formatShortDateTime(current.dueAt)}${isOverdue ? " · 逾期" : ""}`
-                  : "设置截止"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setReminderSheetOpen(true)}
-                className={`${chipBaseClass} ${
-                  current.remindBefore != null
-                    ? "bg-apricot-soft text-apricot"
-                    : "bg-input text-ink-3"
-                }`}
-              >
-                <Bell size={12} />
-                {reminderLabel}
-              </button>
-            </>
-          )}
-          {current.type === "recurring" && recurringStatus.recurrence && (
-            <span className={`${chipBaseClass} bg-sage-soft text-sage`}>
-              <RefreshCw size={12} />
-              {recurrenceTypeLabel(recurringStatus.recurrence.type)} · 间隔{" "}
-              {Math.max(1, recurringStatus.recurrence.interval)}
-            </span>
-          )}
-        </div>
-
-        {/* 元信息小字：创建/完成时间，与胶囊行左对齐（非交互，弱化为辅助信息） */}
-        <div className="text-ink-3 pl-[55px] pr-4 pt-1.5 text-[10.5px] leading-4">
-          创建于 {formatShortDateTime(current.createTime, true) || "-"}
-          {current.completedAt ? ` · 完成于 ${formatShortDateTime(current.completedAt, true)}` : ""}
-        </div>
-
-        {current.type === "recurring" && (
-          <section className="card mx-4 mt-3 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-ink text-sm font-bold">周期打卡</div>
-                <div className="text-ink-2 text-xs">
-                  {recurringStatus.recurrence
-                    ? `近 60 天记录：${recurrenceCompletions.length} 条`
-                    : "尚未配置周期规则"}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  void handleToggleTodayRecurring();
-                }}
-                className={`rounded-full px-5 py-2.5 text-sm font-bold transition-transform active:scale-95 ${
-                  recurringStatus.isTodayCompleted
-                    ? "bg-sage-soft text-sage"
-                    : "bg-accent shadow-accent text-white"
-                }`}
-              >
-                {recurringStatus.isTodayCompleted ? "取消今日打卡" : "今日打卡"}
-              </button>
-            </div>
-            {recurringStatus.isLoading ? (
-              <div className="text-ink-2 mt-3 text-xs">正在加载周期状态...</div>
-            ) : (
-              <div className="text-ink-2 mt-2 text-xs">
-                今日{recurringStatus.isTodayScheduled ? "" : "不"}
-                在周期范围内，状态：
-                {recurringStatus.isTodayCompleted ? "已完成" : "未完成"}
-              </div>
-            )}
-            {heatmap.length > 0 && (
-              <div className="mt-3">
-                <div className="mb-1 flex gap-1">
-                  {heatmap.map((cell, index) => (
-                    <div key={cell.date} className="text-ink-3 flex-1 text-center text-[9px]">
-                      {index % 5 === 0 ? new Date(cell.date).getDate() : ""}
-                    </div>
-                  ))}
-                </div>
-                <div
-                  className="grid gap-1"
-                  style={{
-                    gridTemplateColumns: `repeat(${heatmap.length}, 1fr)`,
-                  }}
+            {current.type !== "recurring" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setStartTimeSheetOpen(true)}
+                  className={`${chipBaseClass} ${
+                    current.startAt ? "bg-sky-soft text-sky" : "bg-input text-ink-3"
+                  }`}
                 >
-                  {heatmap.map(cell => (
-                    <button
-                      key={cell.date}
-                      type="button"
-                      onClick={() => {
-                        void handleHeatmapClick(cell);
-                      }}
-                      className={`h-6 rounded-lg transition-transform active:scale-90 ${
-                        cell.status === "completed"
-                          ? "bg-sage"
-                          : cell.status === "skipped"
-                            ? "bg-butter"
-                            : cell.status === "missed"
-                              ? "bg-rose"
-                              : "bg-line"
-                      }`}
-                      title={new Date(cell.date).toLocaleDateString()}
-                    />
-                  ))}
-                </div>
-              </div>
+                  <CalendarDays size={12} />
+                  {current.startAt ? formatShortDateTime(current.startAt) : "设置开始"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDueTimeSheetOpen(true)}
+                  className={`${chipBaseClass} ${
+                    current.dueAt
+                      ? isOverdue
+                        ? "bg-rose-soft text-rose"
+                        : "bg-sage-soft text-sage"
+                      : "bg-input text-ink-3"
+                  }`}
+                >
+                  <Clock size={12} />
+                  {current.dueAt
+                    ? `${formatShortDateTime(current.dueAt)}${isOverdue ? " · 逾期" : ""}`
+                    : "设置截止"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReminderSheetOpen(true)}
+                  className={`${chipBaseClass} ${
+                    current.remindBefore != null
+                      ? "bg-apricot-soft text-apricot"
+                      : "bg-input text-ink-3"
+                  }`}
+                >
+                  <Bell size={12} />
+                  {reminderLabel}
+                </button>
+              </>
             )}
-          </section>
-        )}
-
-        <div className="bg-line mx-4 my-3.5 h-px" />
-
-        {/* 描述：全宽内联编辑区，无小标题——语义由 placeholder 表达；
-            Editor 默认 readonly=true，必须显式传 false，key 恒为 todoId 靠挂载闸门保证 initValue 拿到首载内容；
-            仅在有状态要表达（保存中/失败）时出现一行轻提示 */}
-        <section className="px-4">
-          {descriptionSaveError ? (
-            <div className="text-rose pb-1 text-xs font-bold">保存失败，稍后自动重试</div>
-          ) : descriptionSaving ? (
-            <div className="text-ink-3 pb-1 text-xs font-bold">保存中…</div>
-          ) : null}
-          <div className="min-h-[200px]">
-            {descriptionEditorReady ? (
-              <Editor
-                key={`todo-description-${todoId}`}
-                initValue={normalizeEditorContent(content ?? EMPTY_EDITOR_CONTENT)}
-                readonly={false}
-                placeHolder="添加备注…"
-                onChange={next => {
-                  void handleDescriptionChange(next);
-                }}
-              />
-            ) : (
-              <div className="text-ink-3 grid h-[200px] place-items-center text-[13px]">
-                正在加载描述...
-              </div>
+            {current.type === "recurring" && recurringStatus.recurrence && (
+              <span className={`${chipBaseClass} bg-sage-soft text-sage`}>
+                <RefreshCw size={12} />
+                {recurrenceTypeLabel(recurringStatus.recurrence.type)} · 间隔{" "}
+                {Math.max(1, recurringStatus.recurrence.interval)}
+              </span>
             )}
           </div>
-        </section>
+
+          {/* 元信息小字：创建/完成时间，与胶囊行左对齐（非交互，弱化为辅助信息） */}
+          <div className="text-ink-3 pl-[55px] pr-4 pt-1.5 text-[10.5px] leading-4">
+            创建于 {formatShortDateTime(current.createTime, true) || "-"}
+            {current.completedAt
+              ? ` · 完成于 ${formatShortDateTime(current.completedAt, true)}`
+              : ""}
+          </div>
+
+          {current.type === "recurring" && (
+            <section className="card mx-4 mt-3 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-ink text-sm font-bold">周期打卡</div>
+                  <div className="text-ink-2 text-xs">
+                    {recurringStatus.recurrence
+                      ? `近 60 天记录：${recurrenceCompletions.length} 条`
+                      : "尚未配置周期规则"}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleToggleTodayRecurring();
+                  }}
+                  className={`rounded-full px-5 py-2.5 text-sm font-bold transition-transform active:scale-95 ${
+                    recurringStatus.isTodayCompleted
+                      ? "bg-sage-soft text-sage"
+                      : "bg-accent shadow-accent text-white"
+                  }`}
+                >
+                  {recurringStatus.isTodayCompleted ? "取消今日打卡" : "今日打卡"}
+                </button>
+              </div>
+              {recurringStatus.isLoading ? (
+                <div className="text-ink-2 mt-3 text-xs">正在加载周期状态...</div>
+              ) : (
+                <div className="text-ink-2 mt-2 text-xs">
+                  今日{recurringStatus.isTodayScheduled ? "" : "不"}
+                  在周期范围内，状态：
+                  {recurringStatus.isTodayCompleted ? "已完成" : "未完成"}
+                </div>
+              )}
+              {heatmap.length > 0 && (
+                <div className="mt-3">
+                  <div className="mb-1 flex gap-1">
+                    {heatmap.map((cell, index) => (
+                      <div key={cell.date} className="text-ink-3 flex-1 text-center text-[9px]">
+                        {index % 5 === 0 ? new Date(cell.date).getDate() : ""}
+                      </div>
+                    ))}
+                  </div>
+                  <div
+                    className="grid gap-1"
+                    style={{
+                      gridTemplateColumns: `repeat(${heatmap.length}, 1fr)`,
+                    }}
+                  >
+                    {heatmap.map(cell => (
+                      <button
+                        key={cell.date}
+                        type="button"
+                        onClick={() => {
+                          void handleHeatmapClick(cell);
+                        }}
+                        className={`h-6 rounded-lg transition-transform active:scale-90 ${
+                          cell.status === "completed"
+                            ? "bg-sage"
+                            : cell.status === "skipped"
+                              ? "bg-butter"
+                              : cell.status === "missed"
+                                ? "bg-rose"
+                                : "bg-line"
+                        }`}
+                        title={new Date(cell.date).toLocaleDateString()}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          <div className="bg-line mx-4 my-3.5 h-px" />
+
+          {/* 描述：全宽内联编辑区，无小标题——语义由 placeholder 表达；
+            Editor 默认 readonly=true，必须显式传 false，key 恒为 todoId 靠挂载闸门保证 initValue 拿到首载内容；
+            仅在有状态要表达（保存中/失败）时出现一行轻提示 */}
+          <section className="px-4">
+            {descriptionSaveError ? (
+              <div className="text-rose pb-1 text-xs font-bold">保存失败，稍后自动重试</div>
+            ) : descriptionSaving ? (
+              <div className="text-ink-3 pb-1 text-xs font-bold">保存中…</div>
+            ) : null}
+            <div className="min-h-[200px]">
+              {descriptionEditorReady ? (
+                <Editor
+                  key={`todo-description-${todoId}`}
+                  initValue={normalizeEditorContent(content ?? EMPTY_EDITOR_CONTENT)}
+                  readonly={false}
+                  placeHolder="添加备注…"
+                  onChange={next => {
+                    void handleDescriptionChange(next);
+                  }}
+                />
+              ) : (
+                <div className="text-ink-3 grid h-[200px] place-items-center text-[13px]">
+                  正在加载描述...
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
       </div>
 
       {/* 底部操作条：完成/打卡主操作（mobile-kb-screen 随键盘收缩视口自动上移） */}
