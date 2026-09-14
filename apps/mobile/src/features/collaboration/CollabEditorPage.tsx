@@ -85,61 +85,68 @@ export function CollabEditorPage(props: {
         </div>
       ) : null}
 
-      <div className="edge-fade-scroll mobile-floating-toolbar-scroll flex-1 overflow-y-auto px-5">
-        {loading && !binding ? (
-          <div
-            role="status"
-            className="text-ink-3 flex min-h-[45vh] items-center justify-center gap-2"
-          >
-            <Loader2 size={18} className="animate-spin" />
-            <span className="text-[13px]">正在加载协作内容…</span>
-          </div>
-        ) : null}
-
-        {!loading && !binding ? (
-          <div className="flex min-h-[45vh] flex-col items-center justify-center px-8 text-center">
-            <p className="text-ink text-[15px] font-bold">无法打开协作文档</p>
-            <p className="text-ink-2 mt-2 text-[12.5px] leading-relaxed">
-              {error || session?.error || "文档不存在或你已失去访问权限"}
-            </p>
-            <button
-              type="button"
-              onClick={retry}
-              className="bg-surface shadow-card mt-5 flex items-center gap-1.5 rounded-full px-4 py-2 text-[12.5px] font-bold active:opacity-70"
+      {/* 二级页无吸底 Dock，底部只留常规呼吸空间（同番茄钟/项目列表）：
+          留白挂外层容器，滚动容器自身不带 padding，内容不会顶到安全区 */}
+      <div
+        className="flex min-h-0 flex-1 flex-col"
+        style={{ paddingBottom: "var(--page-bottom-inset)" }}
+      >
+        <div className="edge-fade-scroll mobile-floating-toolbar-scroll flex-1 overflow-y-auto px-5">
+          {loading && !binding ? (
+            <div
+              role="status"
+              className="text-ink-3 flex min-h-[45vh] items-center justify-center gap-2"
             >
-              <RefreshCw size={13} strokeWidth={2.6} />
-              重试
-            </button>
-          </div>
-        ) : null}
+              <Loader2 size={18} className="animate-spin" />
+              <span className="text-[13px]">正在加载协作内容…</span>
+            </div>
+          ) : null}
 
-        {binding ? (
-          <div className="min-h-[45vh] pt-2">
-            <Editor
-              ref={editorRef}
-              key={`collab-${props.documentId}`}
-              collaboration={binding}
-              className="mobile-card-editor-content"
-              readonly={readonly}
-              theme={theme}
-              extensions={mobileCardPreviewExtensions}
-              onFocus={() => {
-                presence.onFocus();
-                toolbarController.handleEditorFocus();
-              }}
-              onBlur={() => {
-                presence.onBlur();
-                toolbarController.handleEditorBlur();
-              }}
-              onChange={toolbarController.syncSelection}
-              onSelectionChange={toolbarController.syncSelection}
-            />
-          </div>
-        ) : null}
+          {!loading && !binding ? (
+            <div className="flex min-h-[45vh] flex-col items-center justify-center px-8 text-center">
+              <p className="text-ink text-[15px] font-bold">无法打开协作文档</p>
+              <p className="text-ink-2 mt-2 text-[12.5px] leading-relaxed">
+                {error || session?.error || "文档不存在或你已失去访问权限"}
+              </p>
+              <button
+                type="button"
+                onClick={retry}
+                className="bg-surface shadow-card mt-5 flex items-center gap-1.5 rounded-full px-4 py-2 text-[12.5px] font-bold active:opacity-70"
+              >
+                <RefreshCw size={13} strokeWidth={2.6} />
+                重试
+              </button>
+            </div>
+          ) : null}
 
-        {error && binding ? (
-          <p className="text-rose mt-4 text-[12px] leading-relaxed">{error}</p>
-        ) : null}
+          {binding ? (
+            <div className="min-h-[45vh] pt-2">
+              <Editor
+                ref={editorRef}
+                key={`collab-${props.documentId}`}
+                collaboration={binding}
+                className="mobile-card-editor-content"
+                readonly={readonly}
+                theme={theme}
+                extensions={mobileCardPreviewExtensions}
+                onFocus={() => {
+                  presence.onFocus();
+                  toolbarController.handleEditorFocus();
+                }}
+                onBlur={() => {
+                  presence.onBlur();
+                  toolbarController.handleEditorBlur();
+                }}
+                onChange={toolbarController.syncSelection}
+                onSelectionChange={toolbarController.syncSelection}
+              />
+            </div>
+          ) : null}
+
+          {error && binding ? (
+            <p className="text-rose mt-4 text-[12px] leading-relaxed">{error}</p>
+          ) : null}
+        </div>
       </div>
 
       <MobileEditorBottomToolbar
