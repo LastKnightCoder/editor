@@ -1,6 +1,7 @@
 # slate-react Android 光标修复与补丁维护指南
 
 > 2026-09 排查记录沉淀。问题：Android 真机上，点击工具栏加粗后输入文字，光标不随输入前进（停在原地）。
+>
 > 最终修复位于 `patches/slate-react@0.126.4.patch`，本文同时记录失败的排查路径、根因证据链、以及补丁的标准迭代流程。
 
 ## 一、问题现象
@@ -12,7 +13,7 @@
 
 ## 二、根因（附日志证据）
 
-带 mark 的文字插入会把 Slate 文本叶子**分裂成三段**：`[0,0]` 前段纯文本 / `[0,0+1]` 粗体"的" / 后段纯文本。此后 slate-react 上游 flush 流程里有两处用**旧叶子坐标 + 字长**做算术，全部失效：
+带 mark 的文字插入会把 Slate 文本叶子**`分裂成三段`**：`[0,0]` 前段纯文本 / `[0,0+1]` 粗体"的" / 后段纯文本。此后 slate-react 上游 flush 流程里有两处用**旧叶子坐标 + 字长**做算术，全部失效：
 
 1. pending action 的 `newPoint = { path: 旧path, offset: 旧offset + text.length }` → `[0,0]@128`，而该叶子分裂后只有 127 字符，**越界坐标**，`toDOMRange` 持续抛错，布局副作用永远无法把光标推到 DOM；
 2. `rangeRef`（affinity: forward）恢复停在分裂边界**之前**（`[0,0]@127`，即"的"的前面）；
@@ -20,7 +21,7 @@
 
 真机日志（`__TAU_SLATE_DEBUG` 开启后）完整呈现了这条链：
 
-```text
+```Plain Text
 flush:start        selection=[0,0]@127, marks={bold:true}          ← 按下 B
 flush              at=[0,0]@128  diff={start:127,text:"的"}        ← 上游算出越界 newPoint
 flush:insert       selection=[0,0]@127                            ← insertText 前
@@ -37,7 +38,7 @@ flush:start        selection=[0,1]@1                               ← 模型收
 
 1. **正确位置捕获**：diff 循环内 `Editor.insertText` 执行后立即记录 `intendedFromInsert = editor.selection`——这是叶子分裂后唯一可信的坐标；
 2. **延迟双重重推**：flush 内应用过 diff 且不在 composition 中时，记录 `intendedFromInsert`，在 rAF（attempt 1）与 120ms 后（attempt 2）各把该位置 `setBaseAndExtent` 写回 DOM 一次——对抗 Android IME 事后重放自己的过期光标（上游 action 路径本来就有同款双推，diff 路径缺失）；重推位置**必须用步骤 1 捕获的值**；
-3. **条件化 `onDOMSelectionChange.flush()`**：DOM 有选区（`rangeCount > 0`）时保持上游行为；为 0 时（工具栏交互后丢光标的场景）跳过并同步 `IS_FOCUSED`，避免把空选区读进模型。
+3. **条件化 ****`onDOMSelectionChange.flush()`**：DOM 有选区（`rangeCount > 0`）时保持上游行为；为 0 时（工具栏交互后丢光标的场景）跳过并同步 `IS_FOCUSED`，避免把空选区读进模型。
 
 另有：`setDomSelection` 在 `toDOMRange` 失败时不再无条件 `removeAllRanges()`（保留原生光标，Slate 无选区时才清除），以及全套 JSON 序列化的 `debug()` 日志（`__TAU_SLATE_DEBUG === true` 时输出）。
 
@@ -66,7 +67,7 @@ flush:start        selection=[0,1]@1                               ← 模型收
 
 ### 迭代补丁的标准流程（官方，推荐）
 
-```bash
+```Bash
 pnpm patch slate-react@0.126.4
 # pnpm 会打印一个可编辑目录（已含当前补丁效果），直接改其中的 dist/index.es.js 等
 
@@ -78,7 +79,7 @@ pnpm patch-commit <上一步打印的目录>
 
 ### 本次实际用的手工流程（在旧补丁基础上迭代时）
 
-```bash
+```Bash
 # 纯净原版与已打补丁版在 .pnpm 下各有一份（无 patch 后缀的目录是纯净版）
 P=node_modules/.pnpm/slate-react@0.126.4_react-d_*/node_modules/slate-react
 L=node_modules/.pnpm/slate-react@0.126.4_patch_h_*/node_modules/slate-react
@@ -106,7 +107,7 @@ cp new.patch patches/slate-react@0.126.4.patch && rm -rf .tmp new.patch && pnpm 
 
 补丁内置日志门控：`globalThis.__TAU_SLATE_DEBUG === true` 时输出 `[slate-react-debug]` 前缀的 JSON 日志。开启方式：在 `apps/mobile/src/main.tsx` 里临时加
 
-```ts
+```TypeScript
 (globalThis as typeof globalThis & { __TAU_SLATE_DEBUG?: boolean }).__TAU_SLATE_DEBUG = true;
 ```
 
@@ -114,7 +115,7 @@ cp new.patch patches/slate-react@0.126.4.patch && rm -rf .tmp new.patch && pnpm 
 
 抓日志：
 
-```bash
+```Bash
 adb logcat -c && adb logcat -v time | grep --line-buffered "slate-react-debug"
 ```
 
