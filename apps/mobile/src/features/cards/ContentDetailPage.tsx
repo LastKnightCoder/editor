@@ -244,10 +244,12 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
   const hasCover = Boolean(props.coverSlot);
   // 非封面模式：顶部渐隐随滚动状态显隐（封面模式由 --header-p 驱动，见 edge-fade-cover-top）
   const noCoverScrollRef = useRef<HTMLDivElement>(null);
-  useEdgeFade(noCoverScrollRef, { bottom: false });
+  useEdgeFade(noCoverScrollRef);
   // 封面沉浸页：滚动进度写入 --header-p（挂在 scrim/顶栏/滚动容器的共同父级），纯 DOM 写零 re-render
   const coverShellRef = useRef<HTMLDivElement>(null);
   const coverScrollRef = useRef<HTMLDivElement>(null);
+  // 底部渐隐随滚动收放（滚到底内容完整），与无封面模式同构
+  useEdgeFade(coverScrollRef);
   const syncCoverHeaderFade = () => {
     const scrolled = coverScrollRef.current?.scrollTop ?? 0;
     coverShellRef.current?.style.setProperty(
@@ -500,7 +502,7 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
               coverScrollRef.current = node;
               syncCoverHeaderFade();
             }}
-            className="edge-fade-cover-top mobile-floating-toolbar-scroll absolute inset-0 overflow-y-auto"
+            className="edge-fade-cover-top mobile-floating-toolbar-scroll absolute inset-x-0 bottom-[var(--page-bottom-inset)] top-0 overflow-y-auto"
             onScroll={syncCoverHeaderFade}
           >
             {props.coverSlot}
@@ -517,11 +519,18 @@ export function ContentDetailPage(props: ContentDetailPageProps) {
             }}
             actions={props.headerRight}
           />
+          {/* 二级页无吸底 Dock，底部只留常规呼吸空间（同番茄钟/项目列表）：
+              留白挂外层容器，滚动容器自身不带 padding，内容不会顶到安全区 */}
           <div
-            ref={noCoverScrollRef}
-            className="edge-fade-scroll mobile-floating-toolbar-scroll flex-1 overflow-y-auto px-6"
+            className="flex min-h-0 flex-1 flex-col"
+            style={{ paddingBottom: "var(--page-bottom-inset)" }}
           >
-            {body}
+            <div
+              ref={noCoverScrollRef}
+              className="edge-fade-scroll mobile-floating-toolbar-scroll flex-1 overflow-y-auto px-6"
+            >
+              {body}
+            </div>
           </div>
         </>
       )}

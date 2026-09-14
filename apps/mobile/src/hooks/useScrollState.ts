@@ -10,7 +10,8 @@ export type ScrollState = {
 export type EdgeFadeOptions = {
   /** 启用顶部渐隐（默认 true） */
   top?: boolean;
-  /** 启用底部渐隐（默认 true，无 Dock 的二级页应传 false） */
+  /** 启用底部渐隐（默认 true）。滚动区止于安全区上方的页面应保持默认；
+   *  仅当内容会贴到滚动容器底缘（无外挂留白）时才传 false 关掉，避免末尾内容被渐隐吞掉 */
   bottom?: boolean;
 };
 

@@ -27,7 +27,8 @@
 
   /* 二级页（无吸底 Dock）底部留白 = 内容呼吸间距 + 系统安全区。
      键盘避让由 .mobile-kb-screen 的视口高度收缩负责，不要往这里加 --kb-height */
-  --page-bottom-inset: calc(32px + var(--mobile-safe-bottom));
+  --page-bottom-breath: 32px;
+  --page-bottom-inset: calc(var(--page-bottom-breath) + var(--mobile-safe-bottom));
 
   /* 边缘渐隐（fading edges）：滚动容器 mask 淡入/淡出带高度 */
   --edge-fade-top-size: 28px;
@@ -506,13 +507,15 @@ code {
   );
 }
 
-/* 悬浮编辑工具条所在页面：底部留白跟随工具条实际显示状态（由工具条写入根变量），
-   工具条隐藏时不留白，避免为不存在的底栏空出一截 */
+/* 悬浮编辑工具条所在页面：滚动容器只补动态遮挡（工具条/键盘/Sheet，由对应组件写入根变量），
+   工具条隐藏时不留白，避免为不存在的底栏空出一截。
+   基础安全区留白不带在滚动容器上（WebView 下滚动容器 padding 不可靠，内容会贴屏幕底缘），
+   由页面外层容器挂 --page-bottom-inset 承载（同番茄钟等二级页） */
 .mobile-floating-toolbar-scroll {
   overscroll-behavior-y: contain;
   padding-bottom: calc(
-    1rem + var(--mobile-safe-bottom) + var(--kb-height, 0px) +
-      var(--mobile-editor-toolbar-occlusion, 0px) + var(--pan-occluded-bottom, 0px)
+    var(--kb-height, 0px) + var(--mobile-editor-toolbar-occlusion, 0px) +
+      var(--pan-occluded-bottom, 0px)
   );
 }
 
@@ -842,7 +845,7 @@ code {
 
 /* ── 封面沉浸顶栏 · 渐变实底化 ──
    --header-p 由 ContentDetailPage 在封面页滚动时写入 0~1（纯 DOM 写、零 re-render）：
-   黑色 scrim 渐隐 → 奶油毛玻璃实底渐显，白/棕标题交叉过渡，hairline 收尾 */
+   黑色 scrim 渐隐 → 奶油毛玻璃实底渐显，白/棕标题交叉过渡 */
 .topbar-cover-fade::before {
   content: "";
   position: absolute;
@@ -852,16 +855,6 @@ code {
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   opacity: var(--header-p, 0);
-}
-
-.topbar-cover-fade::after {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  height: 1px;
-  background: var(--line-1);
-  opacity: min(1, max(0, calc((var(--header-p, 0) - 0.65) * 2.857)));
 }
 
 .cover-scrim-fade {
@@ -1063,21 +1056,42 @@ code {
   --edge-fade-bottom-anchor: var(--mobile-editor-toolbar-occlusion, 0px);
 }
 
-/* 封面沉浸页专用：顶部渐隐带高度随 --header-p（滚动进度，由 ContentDetailPage 写入）
-   从 0 张开到 顶栏高+渐隐带高——封面在顶时零裁切（不破坏封面），
-   顶栏实底化的同时正文在顶栏下缘渐入 */
+/* 封面沉浸页专用：顶部渐隐带随 --header-p（滚动进度，由 ContentDetailPage 写入）从 0 张开，
+   封面在顶时零裁切（不破坏封面）。
+   关键：封面页的内容从屏幕最顶端开始滚动、从顶栏底下穿过（其它页面内容在顶栏之下），
+   渐隐带必须锚定在顶栏下缘之下的 --edge-fade-top-size 区间内渐显——
+   若渐变区间从容器顶展开，大半藏在顶栏底下，露出下缘的只是渐变尾巴，看不到过渡；
+   展开进度快于顶栏实底化（p=0.65 即 hairline 出现时完全张开） */
 .edge-fade-cover-top {
   --edge-fade-cover-h: calc(
     var(--mobile-nav-row-height) + var(--mobile-safe-top) + var(--edge-fade-top-size)
   );
+  --edge-fade-cover-p: min(1, calc(var(--header-p, 0) / 0.65));
+  --edge-fade-bottom-anchor: var(--mobile-editor-toolbar-occlusion, 0px);
   -webkit-mask-image: linear-gradient(
     180deg,
     transparent 0,
-    #000 calc(var(--edge-fade-cover-h) * var(--header-p, 0))
+    transparent
+      calc((var(--edge-fade-cover-h) - var(--edge-fade-top-size)) * var(--edge-fade-cover-p, 0)),
+    #000 calc(var(--edge-fade-cover-h) * var(--edge-fade-cover-p, 0)),
+    #000
+      calc(
+        100% - (var(--edge-fade-bottom-anchor) + var(--edge-fade-bottom-size)) *
+          var(--edge-bottom-on, 1)
+      ),
+    transparent calc(100% - var(--edge-fade-bottom-anchor) * var(--edge-bottom-on, 1))
   );
   mask-image: linear-gradient(
     180deg,
     transparent 0,
-    #000 calc(var(--edge-fade-cover-h) * var(--header-p, 0))
+    transparent
+      calc((var(--edge-fade-cover-h) - var(--edge-fade-top-size)) * var(--edge-fade-cover-p, 0)),
+    #000 calc(var(--edge-fade-cover-h) * var(--edge-fade-cover-p, 0)),
+    #000
+      calc(
+        100% - (var(--edge-fade-bottom-anchor) + var(--edge-fade-bottom-size)) *
+          var(--edge-bottom-on, 1)
+      ),
+    transparent calc(100% - var(--edge-fade-bottom-anchor) * var(--edge-bottom-on, 1))
   );
 }
