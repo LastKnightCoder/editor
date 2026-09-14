@@ -30,6 +30,7 @@ const RESULT_TYPE_LABEL: Record<string, string> = {
   article: "文章",
   "project-item": "项目文档",
   "diary-daily": "日记",
+  flashcard: "闪卡",
 };
 
 function SearchResultItem({ item, onClick }: { item: UnifiedSearchResult; onClick: () => void }) {

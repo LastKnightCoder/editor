@@ -73,7 +73,8 @@ export interface CardsOverviewResponse {
   items: CardListItem[];
 }
 
-export type UnifiedSearchResultType = "card" | "article" | "project-item" | "diary-daily";
+export type UnifiedSearchResultType =
+  "card" | "article" | "project-item" | "document-item" | "diary-daily" | "flashcard";
 
 export interface UnifiedSearchResult {
   id: number;

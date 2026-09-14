@@ -13,6 +13,12 @@ export const EMPTY_EDITOR_CONTENT: EditorDocument = [
   } as Descendant,
 ];
 
+/** 每次返回独立副本：slate-react 的节点→路径映射是模块级 WeakMap，
+    同屏两个编辑器共享同一份初始节点对象会互相覆盖映射，渲染时 findPath 崩溃 */
+export function createEmptyEditorContent(): EditorDocument {
+  return JSON.parse(JSON.stringify(EMPTY_EDITOR_CONTENT)) as EditorDocument;
+}
+
 export function normalizeEditorContent(content: unknown): EditorDocument {
   if (!Array.isArray(content) || content.length === 0) {
     return EMPTY_EDITOR_CONTENT;

@@ -3,7 +3,15 @@
 // 数据全部走 query 缓存，模块关闭时对应请求与区块一并隐藏。
 
 import { useMemo } from "react";
-import { Article, BookOpen, CheckCircle, FolderOpen, Stack } from "@phosphor-icons/react";
+import {
+  Article,
+  BookOpen,
+  Books,
+  Brain,
+  CheckCircle,
+  FolderOpen,
+  Stack,
+} from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import type { Descendant } from "slate";
 import { Text as SlateText } from "slate";
@@ -12,6 +20,12 @@ import { useDiaryEntries } from "../diary/queries";
 import { useArticlesQuery } from "../articles/queries";
 import { useProjectItemsQuery } from "../projects/queries";
 import { useHomeStatsQuery } from "./queries";
+import {
+  todayReviewedCount,
+  totalDueOf,
+  useFlashcardDecks,
+  useFlashcardReviewStats,
+} from "../flashcard/queries";
 import { useTodoGroupStats, useTodoItems, useTodoSystemGroups } from "../todo/queries";
 import { toggleTodoComplete } from "../todo/toggleComplete";
 import { TodoCheck } from "../todo/TodoCheck";
@@ -54,6 +68,8 @@ type HomeDashboardProps = {
   onOpenCards: () => void;
   onOpenTodo: () => void;
   onOpenPomodoro: () => void;
+  /** dueCount>0 直达全库复习，否则进闪卡首页（由 HomeScreen 决定跳转目标） */
+  onOpenFlashcards: (dueCount: number) => void;
   onOpenDiary: () => void;
   onOpenArticles: () => void;
   onOpenProjects: () => void;
@@ -72,6 +88,10 @@ export function HomeDashboard(props: HomeDashboardProps) {
     props.todoEnabled ? { systemType: "all" as const } : { groupId: -1 }
   );
   const diaryEntriesQuery = useDiaryEntries(props.diaryEnabled);
+  const flashcardDecksQuery = useFlashcardDecks();
+  const flashcardStatsQuery = useFlashcardReviewStats(1);
+  const flashcardDue = totalDueOf(flashcardDecksQuery.data ?? []);
+  const flashcardReviewedToday = todayReviewedCount(flashcardStatsQuery.data);
   const articlesQuery = useArticlesQuery();
   const projectItemsQuery = useProjectItemsQuery();
   const homeStatsQuery = useHomeStatsQuery();
@@ -327,6 +347,36 @@ export function HomeDashboard(props: HomeDashboardProps) {
             </span>
           </button>
         ) : null}
+
+        <button
+          type="button"
+          onClick={() => props.onOpenFlashcards(flashcardDue)}
+          className={`${BENTO_CARD_CLASS} col-span-2 flex items-center gap-[15px]`}
+          style={{
+            animationDelay: "0.06s",
+            background: "linear-gradient(135deg, var(--butter-soft), var(--bg-surface))",
+          }}
+        >
+          <Brain size={28} weight="duotone" className="text-butter flex-none" aria-hidden="true" />
+          <span className="min-w-0 flex-1 text-left">
+            <span className="text-ink block text-[14.5px] font-bold">闪卡复习</span>
+            <span className="text-ink-2 mt-0.5 block text-[12px]">
+              {flashcardDecksQuery.isLoading
+                ? "加载中"
+                : flashcardDue > 0
+                  ? `今日待复习 · 已复习 ${flashcardReviewedToday} 张`
+                  : flashcardReviewedToday > 0
+                    ? `今日已清空 · 共复习 ${flashcardReviewedToday} 张`
+                    : "今日没有待复习的卡片"}
+            </span>
+          </span>
+          <span className="flex shrink-0 items-baseline gap-[3px]">
+            <span className="text-butter text-[34px] font-extrabold tabular-nums leading-none">
+              {flashcardDecksQuery.isLoading ? "…" : flashcardDue}
+            </span>
+            <span className="text-ink-3 text-base font-bold">张</span>
+          </span>
+        </button>
 
         {props.diaryEnabled && diaryBlock ? (
           <button

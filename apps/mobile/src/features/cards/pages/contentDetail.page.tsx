@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, ChevronRight, Copy, Ellipsis, Link2, Tags, Trash2 } from "lucide-react";
+import { Layers, Check, ChevronRight, Copy, Ellipsis, Link2, Tags, Trash2 } from "lucide-react";
 import { ContentDetailPage } from "../ContentDetailPage";
 import { PageHeaderButton } from "../../../components/PageHeader";
 import { ActionSheet } from "../../../components/ActionSheet";
@@ -185,6 +185,19 @@ function CardEntryScreen(props: { cardId: number; refreshKey: number }) {
                 .writeText(richTextPlainText(card.content))
                 .then(() => toast({ type: "success", text: "已复制正文" }))
                 .catch(() => toast({ type: "warning", text: "复制失败" }));
+            },
+          },
+          {
+            label: "加入闪卡",
+            icon: <Layers size={18} />,
+            tone: "lilac",
+            onClick: () => {
+              setMenuOpen(false);
+              navigator.push("flashcardCreate", {
+                deckId: -1,
+                refContentId: card.contentId,
+                refTitle: richTextPlainText(card.content).trim().slice(0, 40) || "未命名卡片",
+              });
             },
           },
           ...collab.menuItems,

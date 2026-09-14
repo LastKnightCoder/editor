@@ -53,6 +53,14 @@ import type {
   UpdateTodoRecurrencePayload,
 } from "../types";
 import type { KnownCardCategory } from "../features/cards/cardCategory";
+import type {
+  Flashcard,
+  FlashcardDeck,
+  FlashcardDifficulty,
+  FlashcardReviewDayStats,
+  FlashcardReviewRating,
+  FlashcardType,
+} from "../features/flashcard/types";
 import { logPerf } from "../utils/perf";
 
 // IPC 计时包装：诊断卡顿时看每条命令的真实耗时（连接复用前后对比也靠它）
@@ -818,4 +826,105 @@ export function collabProjectContent(params: {
     "collab_project_content",
     { payload: params }
   );
+}
+
+/* ── 闪卡 ── */
+
+export function flashcardListDecks() {
+  return trackedInvoke<FlashcardDeck[]>("flashcard_list_decks");
+}
+
+export function flashcardCreateDeck(payload: {
+  name: string;
+  description?: string;
+  coverColor?: string;
+  emoji?: string;
+}) {
+  return trackedInvoke<FlashcardDeck>("flashcard_create_deck", { payload });
+}
+
+export function flashcardUpdateDeck(
+  id: number,
+  payload: {
+    name?: string;
+    description?: string;
+    coverColor?: string;
+    emoji?: string;
+  }
+) {
+  return trackedInvoke<FlashcardDeck>("flashcard_update_deck", {
+    payload: { id, ...payload },
+  });
+}
+
+export function flashcardDeleteDeck(id: number) {
+  return trackedInvoke<number>("flashcard_delete_deck", { payload: { id } });
+}
+
+export function flashcardListCards(params: { deckId: number }) {
+  return trackedInvoke<Flashcard[]>("flashcard_list_cards", { payload: params });
+}
+
+export function flashcardGetCard(id: number) {
+  return trackedInvoke<Flashcard | null>("flashcard_get_card", { payload: { id } });
+}
+
+export function flashcardCreateCard(payload: {
+  deckId: number;
+  type: FlashcardType;
+  prompt: unknown[];
+  detail?: unknown[];
+  data: Record<string, unknown>;
+  tags?: string[];
+  difficulty?: FlashcardDifficulty;
+  /** 从内容创建时携带的参考资料（content 类型指向已有 contents 行） */
+  references?: Array<{ refType: "content"; contentId: number; title: string }>;
+}) {
+  return trackedInvoke<Flashcard>("flashcard_create_card", { payload });
+}
+
+export function flashcardUpdateCard(
+  id: number,
+  payload: {
+    deckId?: number;
+    type?: FlashcardType;
+    prompt?: unknown[];
+    detail?: unknown[];
+    data?: Record<string, unknown>;
+    tags?: string[];
+    difficulty?: FlashcardDifficulty;
+  }
+) {
+  return trackedInvoke<Flashcard>("flashcard_update_card", {
+    payload: { id, ...payload },
+  });
+}
+
+export function flashcardDeleteCard(id: number) {
+  return trackedInvoke<number>("flashcard_delete_card", { payload: { id } });
+}
+
+export function flashcardGetReviewQueue(payload: { deckId?: number | null; limit?: number }) {
+  return trackedInvoke<Flashcard[]>("flashcard_get_review_queue", {
+    payload: {
+      deckId: payload.deckId ?? null,
+      limit: payload.limit ?? null,
+    },
+  });
+}
+
+export function flashcardReviewStats(dayStarts: number[]) {
+  return trackedInvoke<Array<FlashcardReviewDayStats>>("flashcard_review_stats", {
+    payload: { dayStarts },
+  });
+}
+
+export function flashcardSubmitReview(
+  cardId: number,
+  deckId: number,
+  rating: FlashcardReviewRating
+) {
+  return trackedInvoke<Flashcard>("flashcard_submit_review", {
+    payload: { cardId, deckId, rating, notes: null },
+  });
 }
