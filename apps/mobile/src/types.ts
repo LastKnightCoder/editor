@@ -74,7 +74,7 @@ export interface CardsOverviewResponse {
 }
 
 export type UnifiedSearchResultType =
-  "card" | "article" | "project-item" | "document-item" | "diary-daily";
+  "card" | "article" | "project-item" | "document-item" | "diary-daily" | "flashcard";
 
 export interface UnifiedSearchResult {
   id: number;

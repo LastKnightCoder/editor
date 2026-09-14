@@ -110,6 +110,14 @@
   /* 进度环轨道 */
   --ring-track: rgba(255, 255, 255, 0.65);
 
+  /* 复习热力图五档色阶（0=无记录 + 四级活跃度）：
+     派生自 --brand/--bg-input，四主题的品牌色（杏子/琥珀/薄荷绿/海盐蓝）自动跟随 */
+  --heat-0: color-mix(in srgb, var(--ink-1) 6%, var(--bg-input));
+  --heat-1: color-mix(in srgb, var(--brand) 26%, var(--bg-input));
+  --heat-2: color-mix(in srgb, var(--brand) 52%, var(--bg-input));
+  --heat-3: color-mix(in srgb, var(--brand) 78%, var(--bg-input));
+  --heat-4: var(--brand);
+
   /* Toast（浅色下用深色胶囊反衬） */
   --toast-bg: #43392c;
   --toast-fg: #fff8ef;

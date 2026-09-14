@@ -74,6 +74,11 @@ export function HomeScreen() {
     navigator.push("todo");
   });
   const onOpenPomodoro = useMemoizedFn(() => navigator.push("pomodoro"));
+  // 闪卡：有待复习直达全库复习队列，否则进闪卡首页
+  const onOpenFlashcards = useMemoizedFn((dueCount: number) => {
+    if (dueCount > 0) navigator.push("flashcardReview", { deckId: -1 });
+    else navigator.push("flashcardHome");
+  });
   const onError = useMemoizedFn((error: unknown, fallback: string) => {
     app.presentError(error, fallback);
   });
@@ -112,6 +117,7 @@ export function HomeScreen() {
           onOpenCards={onOpenCards}
           onOpenTodo={onOpenTodo}
           onOpenPomodoro={onOpenPomodoro}
+          onOpenFlashcards={onOpenFlashcards}
           onOpenDiary={onOpenDiary}
           onOpenArticles={onOpenArticles}
           onOpenProjects={onOpenProjects}
