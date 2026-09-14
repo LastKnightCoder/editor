@@ -19,9 +19,11 @@ type SettingsScreenProps = SettingsPageProps & {
   onOpenPomodoro?: () => void;
   /** 页头：全局搜索 */
   onOpenSearch?: () => void;
-  /** 功能宫格：文章 / 项目 */
+  /** 功能宫格：文章 / 项目 / 知识库 / 闪卡 */
   onOpenArticles?: () => void;
   onOpenProjects?: () => void;
+  onOpenKnowledge?: () => void;
+  onOpenFlashcard?: () => void;
 };
 
 /** 功能宫格：已上线模块直达 + 桌面版待迁移模块预告（v2 我的 Hub） */
@@ -30,6 +32,8 @@ function FeatureGrid(props: {
   onOpenPomodoro?: () => void;
   onOpenArticles?: () => void;
   onOpenProjects?: () => void;
+  onOpenKnowledge?: () => void;
+  onOpenFlashcard?: () => void;
 }) {
   const items: Array<{
     key: string;
@@ -70,8 +74,7 @@ function FeatureGrid(props: {
       tone: "var(--lilac)",
       label: "闪卡",
       soft: "var(--lilac-soft)",
-      soon: true,
-      onClick: () => toast({ type: "info", text: "闪卡复习即将上线" }),
+      onClick: props.onOpenFlashcard ?? (() => toast({ type: "info", text: "闪卡模块未启用" })),
     },
     {
       key: "whiteboard",
@@ -147,6 +150,8 @@ export function SettingsPage(props: SettingsScreenProps) {
             onOpenPomodoro={props.onOpenPomodoro}
             onOpenArticles={props.onOpenArticles}
             onOpenProjects={props.onOpenProjects}
+            onOpenKnowledge={props.onOpenKnowledge}
+            onOpenFlashcard={props.onOpenFlashcard}
           />
         </div>
         <div className="mt-4">

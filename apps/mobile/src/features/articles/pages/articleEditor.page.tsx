@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Ellipsis, Newspaper, Star, Trash2 } from "lucide-react";
+import { Layers, Ellipsis, Newspaper, Star, Trash2 } from "lucide-react";
 import { PageHeaderButton } from "../../../components/PageHeader";
 import { ContentDetailPage } from "../../cards/ContentDetailPage";
 import { ActionSheet } from "../../../components/ActionSheet";
@@ -126,6 +126,19 @@ function ArticleEditorScreen() {
             tone: "butter",
             trailing: article.isTop ? "已置顶" : undefined,
             onClick: () => toggleTop.mutate(article),
+          },
+          {
+            label: "加入闪卡",
+            icon: <Layers size={18} />,
+            tone: "lilac",
+            onClick: () => {
+              setMenuOpen(false);
+              navigator.push("flashcardCreate", {
+                deckId: -1,
+                refContentId: article.contentId ?? 0,
+                refTitle: article.title || "未命名文章",
+              });
+            },
           },
           ...collab.menuItems,
           {

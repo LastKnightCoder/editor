@@ -363,7 +363,14 @@ pub fn query_cards_by_search(
     query_cards_by_like(conn, query, category, limit, offset)
 }
 
-const SEARCH_TYPES: &[&str] = &["card", "article", "project-item", "diary-daily"];
+const SEARCH_TYPES: &[&str] = &[
+    "card",
+    "article",
+    "project-item",
+    "document-item",
+    "diary-daily",
+    "flashcard",
+];
 
 fn normalize_search_types(types: Option<&[String]>) -> Vec<String> {
     let Some(types) = types else {
@@ -433,6 +440,31 @@ fn hydrate_unified_result(
     score: f64,
 ) -> Result<Option<UnifiedSearchResult>, String> {
     let result: Result<Option<UnifiedSearchResult>, String> = match result_type {
+        "flashcard" => conn
+            .query_row(
+                "SELECT f.deck_id, f.update_time, f.prompt, d.name
+                 FROM flashcards f LEFT JOIN flashcard_decks d ON f.deck_id = d.id
+                 WHERE f.id = ?1",
+                params![id],
+                |row| {
+                    let prompt: Option<String> = row.get(2)?;
+                    let excerpt = content_excerpt(prompt);
+                    Ok(UnifiedSearchResult {
+                        id,
+                        result_type: result_type.to_string(),
+                        title: excerpt.lines().next().unwrap_or_default().to_string(),
+                        excerpt,
+                        content_id: None,
+                        update_time: row.get(1)?,
+                        score,
+                        date: None,
+                        container_id: row.get(0)?,
+                        container_title: row.get(3)?,
+                    })
+                },
+            )
+            .optional()
+            .map_err(|e| format!("DB_OPEN_FAILED: flashcard hydrate failed: {e}")),
         "card" => conn
             .query_row(
                 "SELECT c.content_id, c.update_time, c.tags, ct.content
@@ -585,6 +617,10 @@ fn unified_like_sql() -> &'static str {
        FROM diary_entries d LEFT JOIN contents c ON d.content_id = c.id
        WHERE d.date LIKE ?1 ESCAPE '\\' OR d.tags LIKE ?1 ESCAPE '\\' OR c.content LIKE ?1 ESCAPE '\\'
          OR EXISTS (SELECT 1 FROM diary_segments s JOIN contents sc ON sc.id = s.content_id WHERE s.diary_id = d.id AND sc.content LIKE ?1 ESCAPE '\\')
+       UNION ALL
+       SELECT 'flashcard:' || f.id, 'flashcard', f.update_time
+       FROM flashcards f
+       WHERE f.prompt LIKE ?1 ESCAPE '\\' OR f.detail LIKE ?1 ESCAPE '\\' OR f.tags LIKE ?1 ESCAPE '\\'
      )"
 }
 
@@ -711,6 +747,8 @@ mod tests {
             CREATE TABLE project_item (id INTEGER PRIMARY KEY, title TEXT, content_id INTEGER, update_time INTEGER, projects TEXT, ref_type TEXT, tags TEXT);
             CREATE TABLE diary_entries (id INTEGER PRIMARY KEY, type TEXT, date TEXT, tags TEXT, content_id INTEGER, update_time INTEGER);
             CREATE TABLE diary_segments (id INTEGER PRIMARY KEY, diary_id INTEGER, content_id INTEGER, create_time INTEGER);
+            CREATE TABLE flashcards (id INTEGER PRIMARY KEY, deck_id INTEGER, update_time INTEGER, prompt TEXT, detail TEXT, tags TEXT);
+            CREATE TABLE flashcard_decks (id INTEGER PRIMARY KEY, name TEXT);
             INSERT INTO contents VALUES
               (1, '[{\"text\":\"卡片统一搜索\"}]', 10),
               (2, '[{\"text\":\"文章统一搜索\"}]', 20),
@@ -723,18 +761,24 @@ mod tests {
             INSERT INTO project_item VALUES (3, '项目文档', 3, 30, '[3]', '', '[]');
             INSERT INTO diary_entries VALUES (5, 'daily', '2026-09-13', '[]', NULL, 50);
             INSERT INTO diary_segments VALUES (5, 5, 5, 1);
+            INSERT INTO flashcard_decks VALUES (9, '算法面试');
+            INSERT INTO flashcards VALUES (6, 9, 60, '[{\"type\":\"paragraph\",\"children\":[{\"type\":\"formatted\",\"text\":\"闪卡统一搜索\"}]}]', '[]', '[]');
             ",
         )
         .unwrap();
 
         let (mode, total, items) = query_unified_search(&conn, "统一搜索", None, 1, 20).unwrap();
         assert_eq!(mode, "like");
-        assert_eq!(total, 4);
-        assert_eq!(items.len(), 4);
+        assert_eq!(total, 6);
+        assert_eq!(items.len(), 6);
         assert!(items.iter().any(|item| item.result_type == "card"));
         assert!(items.iter().any(|item| item.result_type == "article"));
         assert!(items.iter().any(|item| item.result_type == "project-item"));
         assert!(items.iter().any(|item| item.result_type == "diary-daily"));
+        let flashcard = items.iter().find(|item| item.result_type == "flashcard").unwrap();
+        assert_eq!(flashcard.title, "闪卡统一搜索");
+        assert_eq!(flashcard.container_id, Some(9));
+        assert_eq!(flashcard.container_title.as_deref(), Some("算法面试"));
     }
 
     #[test]
@@ -751,8 +795,12 @@ mod tests {
              CREATE TABLE project_item (id INTEGER PRIMARY KEY, title TEXT, content_id INTEGER, update_time INTEGER, projects TEXT, ref_type TEXT, tags TEXT);
              CREATE TABLE diary_entries (id INTEGER PRIMARY KEY, type TEXT, date TEXT, tags TEXT, content_id INTEGER, update_time INTEGER);
              CREATE TABLE diary_segments (id INTEGER PRIMARY KEY, diary_id INTEGER, content_id INTEGER, create_time INTEGER);
+             CREATE TABLE flashcards (id INTEGER PRIMARY KEY, deck_id INTEGER, update_time INTEGER, prompt TEXT, detail TEXT, tags TEXT);
+             CREATE TABLE flashcard_decks (id INTEGER PRIMARY KEY, name TEXT);
              INSERT INTO contents VALUES (1, '[{\"text\":\"全文索引命中\"}]', 10);
-             INSERT INTO articles VALUES (1, '文章标题', '', '[]', 1, 10, 0);",
+             INSERT INTO articles VALUES (1, '文章标题', '', '[]', 1, 10, 0);
+             INSERT INTO flashcard_decks VALUES (7, '英语高频词');
+             INSERT INTO flashcards VALUES (2, 7, 20, '[{\"type\":\"paragraph\",\"children\":[{\"type\":\"formatted\",\"text\":\"全文索引闪卡题干\"}]}]', '[]', '[]');",
         )
         .unwrap();
         let index = Connection::open(&index_path).unwrap();
@@ -763,14 +811,19 @@ mod tests {
                  INSERT INTO index_meta VALUES ('migration_state', 'done', 0);
                  INSERT INTO index_meta VALUES ('rebuild_state', 'ready', 0);
                  INSERT INTO content_fts(prefixed_id, update_time, content, type, title, chunk_index)
-                 VALUES ('article:1', 10, '全文 索引 命中', 'article', '文章 标题', 0);",
+                 VALUES ('article:1', 10, '全文 索引 命中', 'article', '文章 标题', 0);
+                 INSERT INTO content_fts(prefixed_id, update_time, content, type, title, chunk_index)
+                 VALUES ('flashcard:2', 20, '全文 索引 闪卡 题干', 'flashcard', '', 0);",
             )
             .unwrap();
 
         let (mode, total, items) = query_unified_search(&conn, "全文索引", None, 1, 20).unwrap();
         assert_eq!(mode, "fts");
-        assert_eq!(total, 1);
-        assert_eq!(items[0].result_type, "article");
+        assert_eq!(total, 2);
+        assert!(items.iter().any(|item| item.result_type == "article"));
+        let flashcard = items.iter().find(|item| item.result_type == "flashcard").unwrap();
+        assert_eq!(flashcard.title, "全文索引闪卡题干");
+        assert_eq!(flashcard.container_title.as_deref(), Some("英语高频词"));
         drop(index);
         drop(conn);
         let _ = std::fs::remove_file(&base);

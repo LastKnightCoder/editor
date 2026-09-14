@@ -37,6 +37,12 @@ export type Navigator = {
   cancel(): void;
   /** 系统返回/UI 返回统一入口（overlay 优先 → 守卫 → 根页策略）；返回是否驱动了回退 */
   goBack(source: BackSource): Promise<boolean>;
+  /**
+   * 绕过拦截的返回：跳过 backHandler/守卫直接弹栈。仅限"页面已确认要离开"的
+   * 场景（如未保存确认框的 onConfirm）——此时拦截器会把 goBack 再吞一次，
+   * 造成"点了放弃却退不出"的死锁；用户手势路径严禁使用。
+   */
+  goBackBypassed(source: BackSource): Promise<boolean>;
   canGoBack(): boolean;
   /** 页面实例注册动态离开守卫（usePageGuard 内部使用） */
   registerGuard(entryId: string, guard: (() => boolean | Promise<boolean>) | null): void;

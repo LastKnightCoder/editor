@@ -472,6 +472,14 @@ export function RouterProvider({
         handleRootBack();
         return false;
       },
+      goBackBypassed: async source => {
+        if (source === "popstate") return false;
+        if (totalDepth() > 1) {
+          return await historyBack(source, 1, undefined, { bypassInterceptors: true });
+        }
+        handleRootBack();
+        return false;
+      },
       canGoBack: () => totalDepth() > 1,
       registerGuard: (entryId, guard) => {
         if (guard === null) {
