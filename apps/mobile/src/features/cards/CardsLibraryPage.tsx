@@ -3,7 +3,7 @@
 
 import { useRef } from "react";
 import { useMemoizedFn } from "ahooks";
-import { useEdgeFade } from "../../hooks/useScrollState";
+import { useEdgeFade, useEdgeFadeX } from "../../hooks/useScrollState";
 import { Search } from "lucide-react";
 import { CardsPage } from "./CardsPage";
 import { CARD_CATEGORY_OPTIONS, cardCategoryDotClass, cardCategoryTagClass } from "./cardCategory";
@@ -34,6 +34,8 @@ export function CardsLibraryPage(props: CardsLibraryPageProps) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   useEdgeFade(scrollRef);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const categoryRef = useRef<HTMLElement | null>(null);
+  useEdgeFadeX(categoryRef);
 
   const handleCategoryChange = useMemoizedFn((category: string) => {
     void props.refreshCards({ category, page: 1 });
@@ -69,7 +71,8 @@ export function CardsLibraryPage(props: CardsLibraryPageProps) {
         {/* padding 放在滚动容器外的包裹层，筛选 chip 滚动时不会贴到屏幕边缘（对齐日记页） */}
         <div ref={contentRef} className="px-[18px]">
           <nav
-            className="scrollbar-hide mt-3 flex gap-2 overflow-x-auto pb-3 pt-0.5"
+            ref={categoryRef}
+            className="edge-fade-x-scroll scrollbar-hide mt-3 flex gap-2 overflow-x-auto pb-3 pt-0.5"
             aria-label="卡片分类筛选"
           >
             {CATEGORY_CHIPS.map(chip => {

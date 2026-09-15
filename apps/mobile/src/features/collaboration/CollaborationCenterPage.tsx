@@ -1,11 +1,12 @@
 // 协作中心（设计稿 01 方案 A）：身份卡 + 待审批 + 我发起的 / 我加入的 分组会话列表。
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FileText, Loader2, Settings, UserPlus } from "lucide-react";
 import { ChevronRight } from "lucide-react";
 import type { CollaborationSession } from "@tau/collaboration";
 import { GroupLabel } from "../../components/GroupLabel";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
 import { toast } from "../../components/toast";
+import { useEdgeFade } from "../../hooks/useScrollState";
 import { useNavigator } from "../../router";
 import { collaborationManager } from "./core/manager";
 import { useCollaborationStore } from "./core/store";
@@ -26,7 +27,9 @@ function SessionRow(props: { session: CollaborationSession; onOpen: () => void }
         <FileText size={17} strokeWidth={1.9} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="text-ink block truncate text-[14px] font-semibold">{props.session.title}</span>
+        <span className="text-ink block truncate text-[14px] font-semibold">
+          {props.session.title}
+        </span>
         <span className="text-ink-3 mt-0.5 flex items-center gap-1.5 text-[11.5px]">
           <StatusDot tone={status.tone} />
           <span className={status.tone === "live" ? "text-sage" : undefined}>
@@ -41,20 +44,20 @@ function SessionRow(props: { session: CollaborationSession; onOpen: () => void }
 }
 
 /** 一个分组（标题 + 会话卡片列表）；「我发起的 / 我加入的」共用 */
-function SessionGroup(props: { title: string; sessions: CollaborationSession[]; onOpen: (documentId: string) => void }) {
+function SessionGroup(props: {
+  title: string;
+  sessions: CollaborationSession[];
+  onOpen: (documentId: string) => void;
+}) {
   if (props.sessions.length === 0) return null;
   return (
     <>
       <GroupLabel inset="page" className="font-medium">
         {props.title} · {props.sessions.length}
       </GroupLabel>
-      <div className="bg-surface shadow-card mx-4 mb-4 overflow-hidden rounded-[22px] divide-y divide-line-soft">
+      <div className="bg-surface shadow-card divide-line-soft mx-4 mb-4 divide-y overflow-hidden rounded-[22px]">
         {props.sessions.map(session => (
-          <SessionRow
-            key={session.id}
-            session={session}
-            onOpen={() => props.onOpen(session.id)}
-          />
+          <SessionRow key={session.id} session={session} onOpen={() => props.onOpen(session.id)} />
         ))}
       </div>
     </>
@@ -66,6 +69,8 @@ export function CollaborationCenterPage(props: {
   onError: (error: unknown, fallback: string) => void;
 }) {
   const navigator = useNavigator();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEdgeFade(scrollRef);
   const sessions = useCollaborationStore(state => state.sessions);
   const requests = useCollaborationStore(state => state.requests);
   const serverUrl = useCollaborationStore(state => state.serverUrl);
@@ -112,12 +117,12 @@ export function CollaborationCenterPage(props: {
           </>
         }
       />
-      <div className="edge-fade-scroll scrollbar-hide flex-1 overflow-y-auto pb-8">
+      <div ref={scrollRef} className="edge-fade-scroll scrollbar-hide flex-1 overflow-y-auto pb-8">
         {/* 身份摘要：设备即身份，颜色与协作中的头像/光标一致 */}
         <button
           type="button"
           onClick={() => navigator.push("settingsModule", { module: "collaboration" })}
-          className="bg-surface shadow-card active:bg-press mx-4 mt-1.5 mb-4 flex w-[calc(100%-2rem)] items-center gap-3 rounded-[20px] p-4 text-left transition-colors"
+          className="bg-surface shadow-card active:bg-press mx-4 mb-4 mt-1.5 flex w-[calc(100%-2rem)] items-center gap-3 rounded-[20px] p-4 text-left transition-colors"
         >
           <Avatar id={deviceId ?? "local"} name={nickname} size="lg" online={status === "ready"} />
           <span className="min-w-0 flex-1">
@@ -151,7 +156,7 @@ export function CollaborationCenterPage(props: {
             <GroupLabel inset="page" tone="warn" className="font-medium">
               待审批 · {requests.length}
             </GroupLabel>
-            <div className="bg-surface shadow-card mx-4 mb-4 overflow-hidden rounded-[22px] divide-y divide-line-soft">
+            <div className="bg-surface shadow-card divide-line-soft mx-4 mb-4 divide-y overflow-hidden rounded-[22px]">
               {requests.map(request => (
                 <ApprovalRow
                   key={request.id}
