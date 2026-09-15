@@ -33,6 +33,8 @@
   /* 边缘渐隐（fading edges）：滚动容器 mask 淡入/淡出带高度 */
   --edge-fade-top-size: 28px;
   --edge-fade-bottom-size: 24px;
+  /* 横向渐隐带宽度（筛选条/路径栏等横向滚动容器） */
+  --edge-fade-x-size: 24px;
   /* Dock 覆盖视口的高度 = --dock-gap × 2 + 舰体 62px（AppDock 内层 h-[62px]）+ 安全区；
      AppDock 尺寸若调整必须同步（dock-pad 留白与 .edge-fade-bottom 的 mask 锚点均由它派生） */
   --dock-gap: 10px;
@@ -1025,7 +1027,9 @@ code {
    mask 相对滚动容器 border-box 固定、不随内容滚动：内容进出边缘时像素级渐隐。
    渐隐带由 useEdgeFade hook 按滚动状态写入的 0/1 变量收放：
    贴顶 → 顶部无带（内容开头完整）、滚到底 → 底部无带（结尾完整）、不能滚 → 两带俱无。
-   变量缺省 1（未接 hook 的容器保持常显）
+   变量缺省 0（安全侧）：容器还没被 hook 接管时保持无带。
+   若缺省 1，元素晚于首次渲染出现（加载态早退分支）或漏接线就会常显渐隐——
+   表现为"不能滚的页面顶部却在渐变"，而这恰恰是最难被察觉的错误形态
    底部锚点 --edge-fade-bottom-anchor 默认 0：无吸底 Dock 的页面滚到底内容完整可见，
    不会提前淡出；带 Dock 的 Tab 根页面由 .edge-fade-scroll.dock-pad 抬到 Dock 高度 */
 .edge-fade-scroll {
@@ -1033,24 +1037,45 @@ code {
   -webkit-mask-image: linear-gradient(
     180deg,
     transparent 0,
-    #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 1)),
+    #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 0)),
     #000
       calc(
         100% - (var(--edge-fade-bottom-anchor) + var(--edge-fade-bottom-size)) *
-          var(--edge-bottom-on, 1)
+          var(--edge-bottom-on, 0)
       ),
-    transparent calc(100% - var(--edge-fade-bottom-anchor) * var(--edge-bottom-on, 1))
+    transparent calc(100% - var(--edge-fade-bottom-anchor) * var(--edge-bottom-on, 0))
   );
   mask-image: linear-gradient(
     180deg,
     transparent 0,
-    #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 1)),
+    #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 0)),
     #000
       calc(
         100% - (var(--edge-fade-bottom-anchor) + var(--edge-fade-bottom-size)) *
-          var(--edge-bottom-on, 1)
+          var(--edge-bottom-on, 0)
       ),
-    transparent calc(100% - var(--edge-fade-bottom-anchor) * var(--edge-bottom-on, 1))
+    transparent calc(100% - var(--edge-fade-bottom-anchor) * var(--edge-bottom-on, 0))
+  );
+}
+
+/* ── 横向边缘渐隐：筛选条/路径栏等横向滚动容器 ──
+   与 .edge-fade-scroll 同构（mask 相对 border-box 固定，内容进出边缘时像素级渐隐），
+   由 useEdgeFadeX 按 scrollLeft/可右滚状态写入 --edge-x-start-on / --edge-x-end-on。
+   变量缺省 0（与纵向相反）：横向容器大多内容不溢出，未接线时不应把两端内容凭空淡掉 */
+.edge-fade-x-scroll {
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 calc(var(--edge-fade-x-size) * var(--edge-x-start-on, 0)),
+    #000 calc(100% - var(--edge-fade-x-size) * var(--edge-x-end-on, 0)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0,
+    #000 calc(var(--edge-fade-x-size) * var(--edge-x-start-on, 0)),
+    #000 calc(100% - var(--edge-fade-x-size) * var(--edge-x-end-on, 0)),
+    transparent 100%
   );
 }
 
@@ -1085,9 +1110,9 @@ code {
     #000
       calc(
         100% - (var(--edge-fade-bottom-anchor) + var(--edge-fade-bottom-size)) *
-          var(--edge-bottom-on, 1)
+          var(--edge-bottom-on, 0)
       ),
-    transparent calc(100% - var(--edge-fade-bottom-anchor) * var(--edge-bottom-on, 1))
+    transparent calc(100% - var(--edge-fade-bottom-anchor) * var(--edge-bottom-on, 0))
   );
   mask-image: linear-gradient(
     180deg,
@@ -1098,8 +1123,8 @@ code {
     #000
       calc(
         100% - (var(--edge-fade-bottom-anchor) + var(--edge-fade-bottom-size)) *
-          var(--edge-bottom-on, 1)
+          var(--edge-bottom-on, 0)
       ),
-    transparent calc(100% - var(--edge-fade-bottom-anchor) * var(--edge-bottom-on, 1))
+    transparent calc(100% - var(--edge-fade-bottom-anchor) * var(--edge-bottom-on, 0))
   );
 }
