@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>闪卡编辑页重设计 · 方案 C「题干主角」</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   闪卡编辑页重设计 · 方案 C「题干主角」（Hero Prompt）
+   ─────────────────────────────────────────────────────
+   思路：制卡的核心路径是"写题干 → 给答案"，其余都是
+   低频配置。方案 C 让题干成为整页主角（大字号、无框、
+   置顶沉浸区，题型徽标浮在角上），选项紧随其后；解析/
+   背面补充/难度/标签全部折叠进"更多设置"，默认收起。
+   打开页面第一屏就是"出题"，表单路径最短。
+
+   同样修复四痛点：选项自适应多行、输入无双层底色、
+   标签 chip（回车/逗号/⌫/×）、真实设计令牌。
+   ═══════════════════════════════════════════════════════ */
+:root {
+  --bg-page: #f6f1e7;
+  --bg-surface: #fffdf9;
+  --bg-input: #f6f1e7;
+  --ink-1: #43392c;
+  --ink-2: #8b7d6b;
+  --ink-3: #b9ac9a;
+  --meta-ink: #7a6c5a;
+  --line-1: #e9e1d2;
+  --brand: #d97757;
+  --brand-grad: linear-gradient(145deg, #e8896a, #d97757);
+  --brand-soft: rgba(217, 119, 87, 0.12);
+  --sage: #61795f; --sage-soft: #e5ede2;
+  --sky: #5c7d99;  --sky-soft: #e2ebf3;
+  --danger: #b06a5e;
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.06), 0 8px 20px -12px rgba(120, 100, 70, 0.16);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+body { font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif; background: #ece6da; display: flex; justify-content: center; min-height: 100vh; }
+.phone { width: 390px; background: var(--bg-page); min-height: 100vh; overflow-y: auto; padding-bottom: 130px; }
+@media (max-width: 420px) { body { background: var(--bg-page); } .phone { width: 100%; } }
+
+/* 顶栏：悬浮在题干区上 */
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) 18px 10px;
+}
+.back { width: 34px; height: 34px; border: none; background: var(--bg-surface); box-shadow: var(--shadow-card); border-radius: 99px; color: var(--ink-1); font-size: 19px; cursor: pointer; }
+.deck-chip { font-size: 11px; font-weight: 700; color: var(--meta-ink); background: var(--bg-surface); border-radius: 99px; padding: 6px 12px; box-shadow: var(--shadow-card); }
+
+/* ── 题干主角区：大字号、无框，页面即题干 ── */
+.hero { padding: 8px 22px 14px; }
+.hero textarea {
+  width: 100%; border: none; outline: none; background: transparent; resize: none;
+  font-size: 20px; font-weight: 800; line-height: 1.6; color: var(--ink-1);
+  font-family: inherit; min-height: 88px;
+}
+.hero textarea::placeholder { color: var(--ink-3); font-weight: 600; }
+.hero-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.type-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 800; color: var(--sky);
+  background: var(--sky-soft); border-radius: 9px; padding: 5px 10px;
+}
+.hero-meta .tip { font-size: 10.5px; color: var(--ink-3); font-weight: 600; }
+
+/* ── 选项：紧凑答案行 ── */
+.block-label {
+  display: flex; align-items: center; gap: 7px; padding: 4px 22px 8px;
+  font-size: 12px; font-weight: 800; color: var(--meta-ink);
+}
+.block-label::before { content: ""; width: 4px; height: 13px; border-radius: 2px; background: var(--sage); }
+.block-label .aux { margin-left: auto; font-size: 10.5px; color: var(--ink-3); font-weight: 700; }
+.option {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin: 0 16px 8px; background: var(--bg-surface); border-radius: 15px;
+  box-shadow: var(--shadow-card); padding: 11px 12px; cursor: pointer;
+  border: 1.5px solid transparent; transition: border-color .15s, background .15s;
+}
+.option.correct { border-color: var(--sage); background: var(--sage-soft); }
+.badge {
+  flex: none; width: 25px; height: 25px; margin-top: 1px; border-radius: 8px;
+  display: grid; place-items: center; font-size: 11.5px; font-weight: 800;
+  background: var(--bg-page); color: var(--ink-2);
+}
+.option.correct .badge { background: var(--sage); color: #fff; }
+.opt-text {
+  flex: 1; border: none; outline: none; background: transparent; resize: none;
+  font-size: 14px; font-weight: 600; line-height: 1.6; color: var(--ink-1);
+  min-height: 25px; font-family: inherit; padding: 0; overflow: hidden; margin-top: 1px;
+}
+.opt-text::placeholder { color: var(--ink-3); font-weight: 500; }
+.opt-del { flex: none; border: none; background: transparent; color: var(--ink-3); font-size: 13px; cursor: pointer; padding: 3px; align-self: flex-start; margin-top: 2px; }
+.opt-del:hover { color: var(--danger); }
+.add-option {
+  display: block; margin: 0 16px; width: calc(100% - 32px);
+  border: 2px dashed var(--line-1); background: transparent; color: var(--ink-2);
+  border-radius: 15px; padding: 11px; font-size: 13px; font-weight: 800; cursor: pointer;
+}
+
+/* ── 更多设置：折叠区（默认收起） ── */
+details.more { margin: 14px 16px 0; background: var(--bg-surface); border-radius: 18px; box-shadow: var(--shadow-card); overflow: hidden; }
+details.more summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 9px;
+  padding: 14px 16px; font-size: 13.5px; font-weight: 800; color: var(--ink-1);
+}
+details.more summary::-webkit-details-marker { display: none; }
+details.more summary .chev { margin-left: auto; color: var(--ink-3); transition: transform .2s; }
+details.more[open] summary .chev { transform: rotate(90deg); }
+details.more summary .dot { width: 8px; height: 8px; border-radius: 99px; background: var(--brand); }
+.more-body { padding: 2px 16px 14px; border-top: 1px solid var(--line-1); }
+.field-label { font-size: 11.5px; font-weight: 800; color: var(--meta-ink); margin: 12px 0 6px; }
+.field-input {
+  width: 100%; border: 1.5px solid transparent; outline: none; background: transparent;
+  border-radius: 12px; padding: 9px 11px; font-size: 14px; font-weight: 600;
+  color: var(--ink-1); font-family: inherit; transition: border-color .15s;
+}
+.field-input::placeholder { color: var(--ink-3); font-weight: 500; }
+.field-input:focus { border-color: rgba(217,119,87,.45); }
+.multiline { resize: none; line-height: 1.7; min-height: 30px; overflow: hidden; }
+
+.diff-row { display: flex; gap: 8px; }
+.diff { border: 1.5px solid var(--line-1); background: transparent; color: var(--ink-2); border-radius: 99px; padding: 8px 15px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.diff.on { background: var(--ink-1); border-color: var(--ink-1); color: var(--bg-surface); }
+
+.chip-box { display: flex; flex-wrap: wrap; gap: 7px; padding: 2px 0 4px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; background: var(--brand-soft); border-radius: 99px; padding: 7px 8px 7px 12px; font-size: 12.5px; font-weight: 700; color: var(--ink-1); }
+.chip::before { content: "#"; color: var(--brand); font-weight: 800; }
+.chip .x { border: none; background: transparent; color: var(--ink-2); font-size: 12px; cursor: pointer; padding: 0 2px; }
+.chip-input { flex: 1; min-width: 110px; border: none; outline: none; background: transparent; font-size: 13px; font-weight: 600; color: var(--ink-1); padding: 8px 4px; font-family: inherit; }
+.chip-input::placeholder { color: var(--ink-3); font-weight: 500; }
+
+/* ── 吸底保存条：带正确答案计数 ── */
+.savebar {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 390px; max-width: 100%;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(246,241,231,0), var(--bg-page) 40%);
+  display: flex; align-items: center; gap: 12px;
+}
+.savebar .count { font-size: 11.5px; font-weight: 700; color: var(--sage); flex: none; }
+.savebar button {
+  flex: 1; border: none; background: var(--brand-grad); color: #fff;
+  font-size: 15px; font-weight: 800; border-radius: 17px; padding: 15px; cursor: pointer;
+  box-shadow: 0 10px 22px -7px rgba(217,119,87,.55);
+}
+.note { padding: 22px 22px 6px; font-size: 11px; line-height: 1.9; color: var(--ink-3); font-weight: 600; }
+.note b { color: var(--meta-ink); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="topbar">
+    <button class="back" aria-label="返回">‹</button>
+    <span class="deck-chip">🗂 金融基础知识</span>
+    <span style="width:34px"></span>
+  </div>
+
+  <!-- 题干主角：大字号无框，一屏内直奔主题 -->
+  <div class="hero">
+    <textarea placeholder="输入题目…" rows="3">以下哪个例子最能体现期货的套期保值功能？某粮油企业担心三季度大豆价格上涨，应该怎么做？</textarea>
+    <div class="hero-meta">
+      <span class="type-tag">◉ 单选题</span>
+      <span class="tip">题干支持富文本 · 自动扩展</span>
+    </div>
+  </div>
+
+  <!-- 选项 -->
+  <div class="block-label">答案选项 <span class="aux" id="countAux">已标 1 个正确</span></div>
+  <div id="optionList"></div>
+  <button class="add-option" id="addOption">＋ 添加选项</button>
+
+  <!-- 低频配置：折叠 -->
+  <details class="more">
+    <summary><span class="dot"></span>更多设置（提示 · 解析 · 背面 · 难度 · 标签）<span class="chev">›</span></summary>
+    <div class="more-body">
+      <div class="field-label">提示（选填）</div>
+      <input class="field-input" placeholder="答题前可见的提示">
+      <div class="field-label">解析（选填）</div>
+      <textarea class="field-input multiline" placeholder="揭示答案时展示，帮助建立记忆锚点"></textarea>
+      <div class="field-label">背面补充（选填）</div>
+      <textarea class="field-input multiline" placeholder="翻面后与答案、解析一起展示（富文本）"></textarea>
+      <div class="field-label">难度</div>
+      <div class="diff-row">
+        <button class="diff" type="button">基础</button>
+        <button class="diff on" type="button">标准</button>
+        <button class="diff" type="button">进阶</button>
+      </div>
+      <div class="field-label">标签</div>
+      <div class="chip-box" id="chipBox">
+        <input class="chip-input" id="chipInput" placeholder="输入后按回车，如：期货">
+      </div>
+    </div>
+  </details>
+
+  <div class="note">
+    <b>方案 C「题干主角」要点：</b><br>
+    · 打开即出题：题干大字号无框置顶，第一屏只有题干 + 选项<br>
+    · 低频字段（提示/解析/背面/难度/标签）折叠默认收起，表单路径最短<br>
+    · 选项行内 textarea 自适应，长选项完整可见；点行切换正确<br>
+    · 吸底保存条实时显示"已标 N 个正确"，防漏标<br>
+    · 标签 chip：回车/逗号确认、⌫ 删末尾、点 × 移除
+  </div>
+
+  <div class="savebar">
+    <span class="count" id="countBtn">✓ 1</span>
+    <button>保存卡片</button>
+  </div>
+</div>
+
+<script>
+const options = [
+  { label: "买入大豆期货合约锁定采购成本", correct: true },
+  { label: "卖出大豆期货合约，赌价格下跌赚差价（这是投机，不是套保——套保的目标是锁定成本或利润，消除不确定性，而不是从价格波动中获利）", correct: false },
+  { label: "什么也不做，等三季度再说", correct: false },
+];
+const list = document.getElementById("optionList");
+function autoGrow(el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
+function render() {
+  list.innerHTML = "";
+  options.forEach((opt, i) => {
+    const row = document.createElement("div");
+    row.className = "option" + (opt.correct ? " correct" : "");
+    row.innerHTML = `
+      <span class="badge">${String.fromCharCode(65 + i)}</span>
+      <textarea class="opt-text" placeholder="选项 ${String.fromCharCode(65 + i)}"></textarea>
+      ${options.length > 2 ? '<button class="opt-del" aria-label="删除">✕</button>' : ""}`;
+    const ta = row.querySelector(".opt-text");
+    ta.value = opt.label; autoGrow(ta);
+    ta.addEventListener("input", () => { opt.label = ta.value; autoGrow(ta); });
+    row.querySelector(".badge").addEventListener("click", e => { e.stopPropagation(); opt.correct = !opt.correct; render(); });
+    row.addEventListener("click", e => { if (!e.target.closest("textarea,button")) { opt.correct = !opt.correct; render(); } });
+    row.querySelector(".opt-del")?.addEventListener("click", e => { e.stopPropagation(); options.splice(i, 1); render(); });
+    list.appendChild(row);
+  });
+  const n = options.filter(o => o.correct).length;
+  document.getElementById("countAux").textContent = `已标 ${n} 个正确`;
+  document.getElementById("countBtn").textContent = `✓ ${n}`;
+}
+document.getElementById("addOption").addEventListener("click", () => {
+  options.push({ label: "", correct: false }); render();
+  list.querySelector(".option:last-child .opt-text")?.focus();
+});
+render();
+
+const chipBox = document.getElementById("chipBox");
+const chipInput = document.getElementById("chipInput");
+const tags = ["期货", "套期保值"];
+function renderChips() {
+  chipBox.querySelectorAll(".chip").forEach(c => c.remove());
+  tags.forEach((tag, i) => {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.innerHTML = `${tag}<button class="x" aria-label="删除标签">✕</button>`;
+    chip.querySelector(".x").addEventListener("click", () => { tags.splice(i, 1); renderChips(); });
+    chipBox.insertBefore(chip, chipInput);
+  });
+}
+function commitChip() {
+  const v = chipInput.value.trim().replace(/[，,]$/, "").trim();
+  if (v && !tags.includes(v)) tags.push(v);
+  chipInput.value = ""; renderChips();
+}
+chipInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" || e.key === "," || e.key === "，") { e.preventDefault(); commitChip(); }
+  else if (e.key === "Backspace" && chipInput.value === "" && tags.length) { tags.pop(); renderChips(); }
+});
+renderChips();
+
+document.querySelectorAll(".hero textarea, .multiline").forEach(el => {
+  autoGrow(el); el.addEventListener("input", () => autoGrow(el));
+});
+document.querySelectorAll(".diff").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".diff").forEach(x => x.classList.remove("on")); b.classList.add("on");
+}));
+</script>
+</body>
+</html>

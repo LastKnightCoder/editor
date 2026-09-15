@@ -102,7 +102,7 @@ export function DeckFormSheet({ open, deck, onClose, onError }: DeckFormSheetPro
                 type="button"
                 onClick={() => setEmoji(item)}
                 className={`grid h-11 place-items-center rounded-[14px] text-[20px] transition-colors ${
-                  emoji === item ? "bg-brand-soft ring-accent ring-2" : "bg-input active:bg-press"
+                  emoji === item ? "bg-accent-soft ring-accent ring-2" : "bg-input active:bg-press"
                 }`}
               >
                 {item}
