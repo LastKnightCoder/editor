@@ -23,9 +23,10 @@ import { ensureDatabaseReady } from "./databaseReady";
 import "./base.css";
 import "../surfaces";
 
-// 壳层根：三列骨架（侧栏 / 拖宽热区 / 右列）；排版基准 text-tau-body = 13px/1.65
+// 壳层根：三列骨架（侧栏 / 拖宽热区 / 右列）；排版基准 text-tau-body = 13px/1.65。
+// 行必须显式 100vh：grid 隐式 auto 行会让右列随内容撑高，滚动链整条失效
 const shellRootClass =
-  "relative grid h-screen min-w-[1080px] grid-cols-[auto_4px_minmax(0,1fr)] " +
+  "relative grid h-screen min-w-[1080px] grid-cols-[auto_4px_minmax(0,1fr)] grid-rows-[100vh] " +
   "overflow-hidden bg-page font-tau text-tau-body text-ink-1 antialiased";
 
 // legacy 模块占位注册（真实 surface 注册后自动让位）
