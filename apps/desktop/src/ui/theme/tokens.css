@@ -4,8 +4,9 @@
  * 颜色：值来自运行时注入的 --tau-*（defineTheme 协议），这里只做类名映射；
  * 尺度：字号/间距/圆角/动效/时长是全局常量，不随主题变（见 02 规范 §3/§4）。
  *
- * 注意：刻意不映射 --radius-* / --spacing-*（避免覆盖 legacy 页面在用的
- * Tailwind 默认刻度）——新组件用 var(--tau-radius-md) 等显式取值。
+ * Tailwind 词一律用 tau 命名空间（rounded-tau-* / text-tau-*），不覆盖
+ * legacy 页面在用的 Tailwind 默认刻度（D-013）；一次性展示字号允许
+ * text-[24px] 类任意值。
  */
 
 :root {
@@ -66,6 +67,32 @@
   --color-info-soft: var(--tau-info-soft);
 
   --font-tau: var(--tau-font);
+
+  /* ── 尺度词（D-013，tau 命名空间，见 02 规范 §3/§4）── */
+
+  /* 字号：A2 定稿取值回填 */
+  --text-tau-hero: 25px;
+  --text-tau-title-lg: 20px;
+  --text-tau-title: 14.5px;
+  --text-tau-body-lg: 13.5px;
+  --text-tau-body: 13px;
+  --text-tau-body--line-height: 1.65;
+  --text-tau-meta: 12.5px;
+  --text-tau-sm: 12px;
+  --text-tau-micro: 11.5px;
+  --text-tau-tiny: 11px;
+
+  /* 圆角三档 */
+  --radius-tau-sm: var(--tau-radius-sm);
+  --radius-tau-md: var(--tau-radius-md);
+  --radius-tau-lg: var(--tau-radius-lg);
+
+  /* 阴影两档（tokenContract float 组词） */
+  --shadow-card: var(--tau-shadow-card);
+  --shadow-float: var(--tau-shadow-float);
+
+  /* 缓动 */
+  --ease-tau-out: var(--tau-ease-out);
 }
 
 /*
