@@ -58,3 +58,6 @@ __pycache__
 .wxt/
 apps/mobile-rn/**
 .zcode/
+
+# 本地生成物（playwright 截图/报告等）
+output/
