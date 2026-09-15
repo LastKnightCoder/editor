@@ -6,34 +6,28 @@ export interface ICalendarHeatmapDataItem {
   operation_list: Operation[];
 }
 
-export const getCalendarHeatmap = async (
-  year: number,
-): Promise<ICalendarHeatmapDataItem[]> => {
+export const getCalendarHeatmap = async (year: number): Promise<ICalendarHeatmapDataItem[]> => {
   return await invoke("get-operation-records-by-year", year);
 };
 
-export const getStatisticByDate = async (
-  date: string,
-): Promise<StatisticData[]> => {
+export const getStatisticByDate = async (date: string): Promise<StatisticData | undefined> => {
   return await invoke("get-statistic-by-date", date);
 };
 
-export const getStatisticByType = async (
-  type: string,
-): Promise<StatisticData[]> => {
+export const getStatisticByType = async (type: string): Promise<StatisticData | undefined> => {
   return await invoke("get-statistic-by-type", type);
 };
 
 export const getStatisticByDateAndType = async (
   date: string,
-  type: string,
-): Promise<StatisticData[]> => {
+  type: string
+): Promise<StatisticData | undefined> => {
   return await invoke("get-statistic-by-date-and-type", date, type);
 };
 
 export const getStatisticByDateRange = async (
   startDate: string,
-  endDate: string,
+  endDate: string
 ): Promise<StatisticData[]> => {
   return await invoke("get-statistic-by-date-range", startDate, endDate);
 };
@@ -41,14 +35,9 @@ export const getStatisticByDateRange = async (
 export const getStatisticByDateRangeAndType = async (
   startDate: string,
   endDate: string,
-  type: string,
+  type: string
 ): Promise<StatisticData[]> => {
-  return await invoke(
-    "get-statistic-by-date-range-and-type",
-    startDate,
-    endDate,
-    type,
-  );
+  return await invoke("get-statistic-by-date-range-and-type", startDate, endDate, type);
 };
 
 export const getAllStatistic = async (): Promise<StatisticData[]> => {
