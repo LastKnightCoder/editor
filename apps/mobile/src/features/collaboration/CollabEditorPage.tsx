@@ -16,6 +16,7 @@ import { Editor, type EditorRef } from "@tau/editor/src";
 import { ActionSheet } from "../../components/ActionSheet";
 import { PageHeader, PageHeaderButton } from "../../components/PageHeader";
 import { useMobileTheme } from "../../hooks/useMobileTheme";
+import { useEdgeFade } from "../../hooks/useScrollState";
 import { useNavigator } from "../../router";
 import { mobileCardPreviewExtensions } from "../cards/editorExtensions";
 import { MobileEditorBottomToolbar } from "../cards/editorToolbar/MobileEditorBottomToolbar";
@@ -34,6 +35,8 @@ export function CollabEditorPage(props: {
   const { binding, session, loading, error, readonly, presence, status, online, offline, retry } =
     useCollabSession(props.documentId);
   const editorRef = useRef<EditorRef | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEdgeFade(scrollRef);
   const toolbarController = useMobileEditorToolbarController({ editorRef });
   // 工具条经 portal 挂进本页根容器，才能随页面转场动画一起平移、退场
   const [pageRootEl, setPageRootEl] = useState<HTMLDivElement | null>(null);
@@ -91,7 +94,10 @@ export function CollabEditorPage(props: {
         className="flex min-h-0 flex-1 flex-col"
         style={{ paddingBottom: "var(--page-bottom-inset)" }}
       >
-        <div className="edge-fade-scroll mobile-floating-toolbar-scroll flex-1 overflow-y-auto px-5">
+        <div
+          ref={scrollRef}
+          className="edge-fade-scroll mobile-floating-toolbar-scroll flex-1 overflow-y-auto px-5"
+        >
           {loading && !binding ? (
             <div
               role="status"

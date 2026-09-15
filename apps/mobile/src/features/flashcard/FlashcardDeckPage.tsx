@@ -8,7 +8,7 @@ import { PageHeader } from "../../components/PageHeader";
 import { ActionSheet } from "../../components/ActionSheet";
 import type { ActionSheetItem } from "../../components/ActionSheet";
 import { MobileConfirmDialog } from "../../components/MobileConfirmDialog";
-import { useEdgeFade } from "../../hooks/useScrollState";
+import { useEdgeFade, useEdgeFadeX } from "../../hooks/useScrollState";
 import { useBackHandler } from "../../router";
 import { toast } from "../../components/toast";
 import { richTextPlainText, clampText } from "../../utils/richTextText";
@@ -50,6 +50,8 @@ export function FlashcardDeckPage({
 }: FlashcardDeckPageProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef);
+  const statusFilterRef = useRef<HTMLDivElement>(null);
+  useEdgeFadeX(statusFilterRef);
   const decksQuery = useFlashcardDecks();
   const deck = decksQuery.data?.find(item => item.id === deckId);
   const [filter, setFilter] = useState<StatusFilter>("all");
@@ -347,25 +349,28 @@ export function FlashcardDeckPage({
               ) : null}
             </div>
           </div>
-          {/* 状态筛选 */}
-          <div
-            className="flex flex-none gap-2 overflow-x-auto px-5 pb-1 pt-3"
-            style={{ scrollbarWidth: "none" }}
-          >
-            {STATUS_FILTERS.map(item => (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => setFilter(item.key)}
-                className={`flex-none rounded-full px-3.5 py-2 text-[13px] font-bold ${
-                  filter === item.key
-                    ? "bg-ink text-[var(--toast-fg)]"
-                    : "bg-surface text-ink-2 shadow-card"
-                }`}
-              >
-                {item.label} {counts[item.key]}
-              </button>
-            ))}
+          {/* 状态筛选：左右间距挂外层（同上方搜索框），滚动层只负责滚动与渐隐 */}
+          <div className="flex-none px-5 pb-1 pt-3">
+            <div
+              ref={statusFilterRef}
+              className="edge-fade-x-scroll flex gap-2 overflow-x-auto"
+              style={{ scrollbarWidth: "none" }}
+            >
+              {STATUS_FILTERS.map(item => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setFilter(item.key)}
+                  className={`flex-none rounded-full px-3.5 py-2 text-[13px] font-bold ${
+                    filter === item.key
+                      ? "bg-ink text-[var(--toast-fg)]"
+                      : "bg-surface text-ink-2 shadow-card"
+                  }`}
+                >
+                  {item.label} {counts[item.key]}
+                </button>
+              ))}
+            </div>
           </div>
         </>
       ) : null}
