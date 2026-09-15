@@ -1,0 +1,192 @@
+/*
+ * 统计页域内样式（st- 前缀隔离；颜色全部走 --tau-* 语义 token）。
+ * 图表全手写 CSS（零 antd/echarts 运行时），与 CalendarHeatmap 旧组件同思路、
+ * 配色改为主题 accent 派生。
+ */
+
+/* 总览卡行 */
+.st-totals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.st-total {
+  background: var(--tau-bg-surface);
+  border-radius: var(--tau-radius-lg);
+  box-shadow: var(--tau-shadow-card);
+  padding: 16px 18px 13px;
+}
+.st-total b {
+  display: block;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+.st-total span {
+  font-size: 11.5px;
+  color: var(--tau-ink-3);
+}
+.st-total.accent b {
+  color: var(--tau-accent-text);
+}
+
+/* ── 全年热力图（大） ── */
+.st-heat-wrap {
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+.st-heat-months {
+  display: flex;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+.st-heat-month {
+  font-size: 10.5px;
+  color: var(--tau-ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.st-heat {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 14px);
+  grid-auto-columns: 14px;
+  gap: 3px;
+}
+.st-heat-cell {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--tau-bg-sunken);
+}
+.st-heat-cell[data-level="1"] {
+  background: rgba(217, 119, 87, 0.28);
+}
+.st-heat-cell[data-level="2"] {
+  background: rgba(217, 119, 87, 0.48);
+}
+.st-heat-cell[data-level="3"] {
+  background: rgba(217, 119, 87, 0.7);
+}
+.st-heat-cell[data-level="4"] {
+  background: rgba(217, 119, 87, 0.95);
+}
+.st-heat-cell[data-future] {
+  opacity: 0;
+  pointer-events: none;
+}
+.st-heat-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-end;
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: var(--tau-ink-3);
+}
+.st-heat-legend .st-heat-cell {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+}
+
+/* ── 柱状趋势 ── */
+.st-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 120px;
+  padding-top: 4px;
+}
+.st-bar {
+  flex: 1;
+  min-width: 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1px;
+  height: 100%;
+}
+.st-bar > i {
+  display: block;
+  border-radius: 3px 3px 0 0;
+  background: var(--tau-accent);
+  min-height: 0;
+}
+.st-bar.articles > i {
+  background: var(--tau-tag-2);
+  opacity: 0.75;
+}
+.st-bar.words > i {
+  background: var(--tau-accent);
+}
+.st-axis {
+  display: flex;
+  gap: 3px;
+  margin-top: 4px;
+}
+.st-axis span {
+  flex: 1;
+  min-width: 6px;
+  text-align: center;
+  font-size: 9.5px;
+  color: var(--tau-ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── 闪卡牌组行 ── */
+.st-deck {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 8px;
+  border-radius: var(--tau-radius-sm);
+  transition: background var(--tau-dur-fast) var(--tau-ease-out);
+}
+.st-deck:hover {
+  background: var(--tau-bg-hover);
+}
+.st-deck .name {
+  font-size: 13px;
+  font-weight: 500;
+  width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.st-deck .track {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--tau-bg-sunken);
+  overflow: hidden;
+  display: flex;
+}
+.st-deck .track > i {
+  height: 100%;
+}
+.st-deck .track .due {
+  background: var(--tau-warn);
+}
+.st-deck .track .learning {
+  background: var(--tau-accent);
+  opacity: 0.8;
+}
+.st-deck .track .done {
+  background: var(--tau-ok);
+  opacity: 0.55;
+}
+.st-deck .nums {
+  font-size: 11.5px;
+  color: var(--tau-ink-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.st-deck .nums b {
+  color: var(--tau-ink-1);
+}
