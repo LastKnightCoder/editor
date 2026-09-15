@@ -20,7 +20,6 @@ import { Titlebar } from "./Titlebar";
 import { useShellStore, SIDEBAR_MIN_W, SIDEBAR_MAX_W } from "./shellStore";
 import { ensureLegacySurfaces } from "@/surface/legacy";
 import { ensureDatabaseReady } from "./databaseReady";
-import "./shell.css";
 import "./base.css";
 import "../surfaces";
 
