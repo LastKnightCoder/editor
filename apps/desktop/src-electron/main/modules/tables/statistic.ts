@@ -9,12 +9,7 @@ import DocumentTable from "./document";
 import log from "electron-log";
 
 // 统计覆盖的内容类型，与首页趋势图 TREND_TYPES 对应
-const STATISTIC_TYPES = [
-  "card",
-  "article",
-  "project-item",
-  "document-item",
-] as const;
+const STATISTIC_TYPES = ["card", "article", "project-item", "document-item"] as const;
 
 export default class StatisticTable {
   static upgradeTable(db: Database.Database) {
@@ -35,18 +30,16 @@ export default class StatisticTable {
     return {
       "get-statistic-by-date": this.getStatisticByDate.bind(this),
       "get-statistic-by-type": this.getStatisticByType.bind(this),
-      "get-statistic-by-date-and-type":
-        this.getStatisticByDateAndType.bind(this),
+      "get-statistic-by-date-and-type": this.getStatisticByDateAndType.bind(this),
       "get-statistic-by-date-range": this.getStatisticByDateRange.bind(this),
-      "get-statistic-by-date-range-and-type":
-        this.getStatisticByDateRangeAndType.bind(this),
+      "get-statistic-by-date-range-and-type": this.getStatisticByDateRangeAndType.bind(this),
       "get-all-statistic": this.getAllStatistic.bind(this),
     };
   }
 
   static doStatistic(db: Database.Database) {
     try {
-      STATISTIC_TYPES.forEach((type) => this.doStatisticByType(db, type));
+      STATISTIC_TYPES.forEach(type => this.doStatisticByType(db, type));
     } catch (error) {
       log.error("统计失败", error);
     }
@@ -63,7 +56,7 @@ export default class StatisticTable {
   // 归档写入与查询时补算今日均复用此逻辑，保证口径一致
   static computeSnapshot(
     db: Database.Database,
-    type: string,
+    type: string
   ): { count: number; wordsCount: number } {
     if (type === "card") {
       const cards = CardTable.getAllCards(db);
@@ -107,40 +100,33 @@ export default class StatisticTable {
       return;
     }
     const content = this.computeSnapshot(db, type);
-    db.prepare(
-      `INSERT INTO statistic (date, statistic_type, content) VALUES (?, ?, ?)`,
-    ).run(yesterday, type, JSON.stringify(content));
+    db.prepare(`INSERT INTO statistic (date, statistic_type, content) VALUES (?, ?, ?)`).run(
+      yesterday,
+      type,
+      JSON.stringify(content)
+    );
   }
 
   static getStatisticByDate(db: Database.Database, date: string) {
     const stmt = db.prepare(`SELECT * FROM statistic WHERE date = ?`);
-    return this.parseStatistic(stmt.get(date));
+    const row = stmt.get(date) as { id: number } | undefined;
+    return row ? this.parseStatistic(row) : undefined;
   }
 
   static getStatisticByType(db: Database.Database, type: string) {
     const stmt = db.prepare(`SELECT * FROM statistic WHERE statistic_type = ?`);
-    return this.parseStatistic(stmt.get(type));
+    const row = stmt.get(type) as { id: number } | undefined;
+    return row ? this.parseStatistic(row) : undefined;
   }
 
-  static getStatisticByDateAndType(
-    db: Database.Database,
-    date: string,
-    type: string,
-  ) {
-    const stmt = db.prepare(
-      `SELECT * FROM statistic WHERE date = ? AND statistic_type = ?`,
-    );
-    return this.parseStatistic(stmt.get(date, type));
+  static getStatisticByDateAndType(db: Database.Database, date: string, type: string) {
+    const stmt = db.prepare(`SELECT * FROM statistic WHERE date = ? AND statistic_type = ?`);
+    const row = stmt.get(date, type) as { id: number } | undefined;
+    return row ? this.parseStatistic(row) : undefined;
   }
 
-  static getStatisticByDateRange(
-    db: Database.Database,
-    startDate: string,
-    endDate: string,
-  ) {
-    const stmt = db.prepare(
-      `SELECT * FROM statistic WHERE date >= ? AND date <= ?`,
-    );
+  static getStatisticByDateRange(db: Database.Database, startDate: string, endDate: string) {
+    const stmt = db.prepare(`SELECT * FROM statistic WHERE date >= ? AND date <= ?`);
     return stmt.all(startDate, endDate).map(this.parseStatistic);
   }
 
@@ -148,25 +134,22 @@ export default class StatisticTable {
     db: Database.Database,
     startDate: string,
     endDate: string,
-    type: string,
+    type: string
   ) {
     const stmt = db.prepare(
-      `SELECT * FROM statistic WHERE date >= ? AND date <= ? AND statistic_type = ?`,
+      `SELECT * FROM statistic WHERE date >= ? AND date <= ? AND statistic_type = ?`
     );
     return stmt.all(startDate, endDate, type).map(this.parseStatistic);
   }
 
   static getAllStatistic(db: Database.Database): StatisticData[] {
-    const archived = db
-      .prepare(`SELECT * FROM statistic`)
-      .all()
-      .map(this.parseStatistic);
+    const archived = db.prepare(`SELECT * FROM statistic`).all().map(this.parseStatistic);
     // 归档快照仅在凌晨/App 启动时写入，白天 CRUD 不会刷新今天的记录。
     // 这里对今天实时补算 4 类快照并覆盖归档值，使首页趋势图当天可见。
     const today = dayjs().format("YYYY-MM-DD");
     const merged = new Map<string, StatisticData>();
-    archived.forEach((s) => merged.set(`${s.date}:${s.statisticType}`, s));
-    STATISTIC_TYPES.forEach((type) => {
+    archived.forEach(s => merged.set(`${s.date}:${s.statisticType}`, s));
+    STATISTIC_TYPES.forEach(type => {
       merged.set(`${today}:${type}`, {
         id: 0,
         date: today,
@@ -177,9 +160,7 @@ export default class StatisticTable {
     return Array.from(merged.values());
   }
 
-  static groupByStatisticType(
-    statistics: StatisticData[],
-  ): Record<string, StatisticData[]> {
+  static groupByStatisticType(statistics: StatisticData[]): Record<string, StatisticData[]> {
     return statistics.reduce(
       (acc, statistic) => {
         if (!acc[statistic.statisticType]) {
@@ -188,7 +169,7 @@ export default class StatisticTable {
         acc[statistic.statisticType].push(statistic);
         return acc;
       },
-      {} as Record<string, StatisticData[]>,
+      {} as Record<string, StatisticData[]>
     );
   }
 }
