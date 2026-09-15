@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日历移动端 · 新建/编辑日程 · 三方案</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   新建 / 编辑日程 · 三方案 + 选择器 Sheet
+   色值取自 apps/mobile/src/styles.css 真实令牌。
+   A 画框全天开关真实切换；D 区三个选择器均为弹出态画框。
+   字段对齐桌面 EventDialog：标题/日历/全天/起止日期时间/
+   颜色覆盖/数值 value/详情富文本（P0 只读，P1 编辑）。
+   ═══════════════════════════════════════════════════════ */
+:root {
+  --bg-page: #f6f1e7;
+  --bg-surface: #fffdf9;
+  --bg-input: #f6f1e7;
+  --ink-1: #43392c;
+  --ink-2: #8b7d6b;
+  --ink-3: #b9ac9a;
+  --line-1: #e9e1d2;
+  --line-2: rgba(233, 225, 210, 0.55);
+  --brand: #d97757;
+  --brand-strong: #e8896a;
+  --brand-soft: rgba(217, 119, 87, 0.12);
+  --brand-grad: linear-gradient(145deg, #e8896a, #d97757);
+  --mask: rgba(67, 57, 44, 0.4);
+  --ring-track: rgba(255, 255, 255, 0.65);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.06), 0 8px 20px -12px rgba(120, 100, 70, 0.16);
+  --shadow-float: 0 12px 32px -8px rgba(120, 100, 70, 0.35);
+  --shadow-accent: 0 8px 18px -5px rgba(217, 119, 87, 0.55);
+}
+.c-blue { --ev: #2A67E2; --ev-soft: rgba(42, 103, 226, 0.13); }
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  background: #2a251f; color: #ede7db; padding: 36px 28px 64px;
+}
+.page-head { max-width: 1780px; margin: 0 auto 26px; }
+.page-head h1 { font-size: 26px; font-weight: 800; }
+.page-head .sub { color: #b8ad9c; font-size: 13.5px; margin-top: 8px; line-height: 1.7; max-width: 980px; }
+.page-head .tags { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.page-head .tag {
+  font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+  background: rgba(217, 119, 87, 0.16); color: #e8a288; border: 1px solid rgba(217, 119, 87, 0.3);
+}
+.plan { max-width: 1780px; margin: 0 auto 44px; }
+.plan-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+.plan-head .letter {
+  font-size: 15px; font-weight: 800; padding: 6px 14px; border-radius: 12px; color: #fff8ef;
+  background: linear-gradient(145deg, #e8896a, #d97757);
+}
+.plan-head h2 { font-size: 21px; font-weight: 800; }
+.plan-head .cost { font-size: 12.5px; color: #96897a; font-weight: 700; }
+.plan-desc { color: #b8ad9c; font-size: 13px; line-height: 1.75; max-width: 980px; margin-bottom: 4px; }
+.plan-pros { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 18px; font-size: 12.5px; }
+.plan-pros span { color: #b8ad9c; }
+.plan-pros b.good { color: #7edbb2; }
+.plan-pros b.bad { color: #f5988a; }
+.board { display: flex; gap: 34px; flex-wrap: wrap; }
+.frame-wrap { display: flex; flex-direction: column; gap: 14px; }
+.frame-label { font-size: 14px; font-weight: 700; color: #d9cfbe; display: flex; align-items: baseline; gap: 8px; }
+.frame-label small { font-weight: 500; color: #96897a; font-size: 12px; }
+.phone {
+  width: 390px; height: 844px; border-radius: 52px; overflow: hidden; position: relative;
+  background: var(--bg-page); color: var(--ink-1);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.65), 0 0 0 11px #17140f, 0 0 0 13px #3a332a;
+  font-size: 14px;
+}
+.screen { height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.scroll { flex: 1; overflow-y: auto; scrollbar-width: none; }
+.scroll::-webkit-scrollbar { display: none; }
+.statusbar {
+  height: 54px; flex: none; display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 30px 6px; font-size: 15px; font-weight: 700; color: var(--ink-1); position: relative; z-index: 30;
+}
+.statusbar .icons { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+.homebar {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  width: 130px; height: 5px; border-radius: 99px; background: var(--ink-1); opacity: 0.85; z-index: 50;
+}
+.topbar { flex: none; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; position: relative; }
+.topbar .title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 16.5px; font-weight: 800; }
+.topbar .txt-btn { border: none; background: none; font-size: 14.5px; font-weight: 800; color: var(--ink-3); cursor: pointer; padding: 8px 4px; }
+.topbar .txt-btn.pri { color: var(--brand); }
+.icon-btn {
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--bg-surface); box-shadow: var(--shadow-card); color: var(--ink-1);
+  font-size: 15px; border: none; cursor: pointer; font-weight: 700;
+}
+
+/* ── A 分区卡片表单 ── */
+.fcard {
+  background: var(--bg-surface); border-radius: 20px; box-shadow: var(--shadow-card);
+  margin: 12px 18px 0; padding: 18px;
+}
+.fcard .sec-k { font-size: 11.5px; font-weight: 800; color: var(--ink-3); letter-spacing: 1px; margin-bottom: 10px; }
+.title-input {
+  width: 100%; border: none; background: none; outline: none; font-size: 18px; font-weight: 800;
+  color: var(--ink-1); font-family: inherit;
+}
+.title-input::placeholder { color: var(--ink-3); font-weight: 700; }
+.frow {
+  display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--line-2);
+  cursor: pointer;
+}
+.frow:last-child { border-bottom: none; }
+.frow .k { font-size: 14px; font-weight: 700; color: var(--ink-2); width: 62px; flex: none; }
+.frow .v { font-size: 14px; font-weight: 700; color: var(--ink-1); flex: 1; min-width: 0; }
+.frow .v.ph { color: var(--ink-3); font-weight: 600; }
+.frow .arr { color: var(--ink-3); font-size: 13px; }
+.frow .cdot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--ev); margin-right: 8px; vertical-align: -1px; }
+/* 开关 */
+.switch { width: 50px; height: 30px; border-radius: 99px; background: var(--ring-track); position: relative; cursor: pointer; transition: background 0.25s; border: none; flex: none; }
+.switch::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--bg-surface); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18); transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.5, 1);
+}
+.switch.on { background: var(--brand); }
+.switch.on::after { transform: translateX(20px); }
+.num-input {
+  width: 100%; border: none; background: var(--bg-input); border-radius: 13px; padding: 12px 14px;
+  font-size: 14.5px; font-weight: 700; color: var(--ink-1); outline: none; font-family: inherit;
+}
+.num-input::placeholder { color: var(--ink-3); font-weight: 600; }
+.readonly-note {
+  display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-3); line-height: 1.6;
+}
+.save-bar {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 18px 26px;
+  background: linear-gradient(to top, var(--bg-page) 62%, transparent);
+}
+.save-btn {
+  width: 100%; height: 50px; border-radius: 17px; border: none; cursor: pointer;
+  background: var(--brand-grad); color: #fff8ef; font-size: 15.5px; font-weight: 800;
+  box-shadow: var(--shadow-accent); font-family: inherit;
+}
+
+/* ── B 一体纸面 ── */
+.sheet-paper { flex: 1; background: var(--bg-surface); margin: 12px 14px 0; border-radius: 26px; box-shadow: var(--shadow-card); padding: 20px 20px 100px; overflow-y: auto; scrollbar-width: none; }
+.sheet-paper::-webkit-scrollbar { display: none; }
+.paper-title {
+  width: 100%; border: none; background: none; outline: none; font-size: 24px; font-weight: 800;
+  color: var(--ink-1); font-family: inherit; line-height: 1.4;
+}
+.paper-title::placeholder { color: var(--ink-3); }
+.paper-sec { border-top: 1px solid var(--line-2); margin-top: 18px; padding-top: 4px; }
+.prow { display: flex; align-items: center; gap: 12px; padding: 13px 0; cursor: pointer; }
+.prow .k { font-size: 13.5px; font-weight: 700; color: var(--ink-3); width: 58px; flex: none; }
+.prow .v { font-size: 14.5px; font-weight: 700; flex: 1; }
+.prow .v.ph { color: var(--ink-3); font-weight: 600; }
+
+/* ── C 分步向导 ── */
+.steps { flex: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 0 4px; }
+.step-dot { width: 8px; height: 8px; border-radius: 99px; background: var(--line-1); }
+.step-dot.on { width: 22px; background: var(--brand); }
+.step-q { font-size: 21px; font-weight: 800; padding: 14px 24px 4px; }
+.step-sub { font-size: 12.5px; color: var(--ink-2); padding: 4px 24px 0; font-weight: 600; }
+.quick-times { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; padding: 14px 20px 0; }
+.qt {
+  border: 1.5px solid var(--line-1); background: var(--bg-surface); border-radius: 14px; padding: 12px 0;
+  text-align: center; cursor: pointer;
+}
+.qt b { display: block; font-size: 15px; font-weight: 800; color: var(--ink-1); }
+.qt span { display: block; font-size: 10.5px; color: var(--ink-3); font-weight: 700; margin-top: 2px; }
+.qt.on { border-color: var(--brand); background: var(--brand-soft); }
+.qt.on b { color: var(--brand); }
+.dur-row { display: flex; gap: 8px; padding: 14px 20px 0; flex-wrap: wrap; }
+.dur {
+  border: 1.5px solid var(--line-1); border-radius: 999px; padding: 8px 15px; font-size: 12.5px;
+  font-weight: 800; color: var(--ink-2); cursor: pointer; background: var(--bg-surface);
+}
+.dur.on { border-color: var(--brand); color: var(--brand); background: var(--brand-soft); }
+.wiz-nav { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 18px 26px; display: flex; gap: 10px; background: linear-gradient(to top, var(--bg-page) 62%, transparent); }
+.wiz-nav .back-l { height: 50px; padding: 0 20px; border-radius: 17px; border: none; background: var(--bg-surface); box-shadow: var(--shadow-card); font-size: 14.5px; font-weight: 800; color: var(--ink-2); cursor: pointer; }
+.wiz-nav .next-l { flex: 1; height: 50px; border-radius: 17px; border: none; background: var(--brand-grad); color: #fff8ef; font-size: 15px; font-weight: 800; box-shadow: var(--shadow-accent); cursor: pointer; font-family: inherit; }
+
+/* ── D 选择器 Sheet ── */
+.sheet-mask { position: absolute; inset: 0; background: var(--mask); }
+.pick-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; background: var(--bg-surface);
+  border-radius: 30px 30px 0 0; box-shadow: var(--shadow-float); padding: 10px 22px 30px;
+}
+.pick-sheet .handle { width: 42px; height: 5px; border-radius: 99px; background: var(--line-1); margin: 4px auto 12px; }
+.pick-title { text-align: center; font-size: 15px; font-weight: 800; margin-bottom: 12px; }
+.pick-list { max-height: 380px; overflow-y: auto; scrollbar-width: none; }
+.pick-list::-webkit-scrollbar { display: none; }
+.pick-item {
+  display: flex; align-items: center; gap: 12px; padding: 13px 6px; border-radius: 14px; cursor: pointer;
+}
+.pick-item:active { background: var(--bg-input); }
+.pick-item .cdot { width: 13px; height: 13px; border-radius: 50%; flex: none; }
+.pick-item .nm { font-size: 14.5px; font-weight: 700; flex: 1; }
+.pick-item .cnt { font-size: 11.5px; color: var(--ink-3); font-weight: 700; }
+.pick-item .ck { color: var(--brand); font-weight: 800; font-size: 16px; }
+.pick-item.sys .nm { color: var(--ink-2); }
+.pick-item.sys .tag-s {
+  font-size: 10px; padding: 2px 8px; border-radius: 99px; background: var(--bg-input); color: var(--ink-3); font-weight: 800;
+}
+.color-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; padding: 6px 4px 4px; }
+.color-cell {
+  aspect-ratio: 1; border-radius: 50%; cursor: pointer; position: relative;
+  display: grid; place-items: center; color: #fff8ef; font-size: 13px; font-weight: 800;
+}
+.color-cell.on::after {
+  content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid var(--ink-1);
+}
+.color-foot { display: flex; align-items: center; justify-content: space-between; padding-top: 16px; }
+.color-foot .note { font-size: 11.5px; color: var(--ink-3); font-weight: 600; }
+.link-btn { border: none; background: none; color: var(--brand); font-size: 13.5px; font-weight: 800; cursor: pointer; }
+/* 日期时间选择（DateTimePickerSheet 形态） */
+.dtp-quick { display: flex; gap: 8px; padding-bottom: 10px; }
+.dtp-quick .q {
+  padding: 7px 14px; border-radius: 999px; background: var(--bg-input); font-size: 12px; font-weight: 800;
+  color: var(--ink-2); cursor: pointer;
+}
+.dtp-quick .q.on { background: var(--brand-soft); color: var(--brand); }
+.mini-cal .wd-row { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 10.5px; font-weight: 700; color: var(--ink-3); padding: 4px 0 6px; }
+.mini-cal .d-row { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 3px; }
+.mini-cal .dc {
+  height: 34px; display: grid; place-items: center; font-size: 13px; font-weight: 700; border-radius: 50%;
+  width: 34px; margin: 0 auto; cursor: pointer;
+}
+.mini-cal .dc.dim { color: var(--ink-3); opacity: 0.5; }
+.mini-cal .dc.today { color: var(--brand); box-shadow: inset 0 0 0 1.5px var(--brand); }
+.mini-cal .dc.sel { background: var(--brand-grad); color: #fff8ef; }
+.time-row { display: flex; align-items: center; gap: 10px; padding-top: 12px; }
+.time-caps { flex: 1; display: flex; gap: 7px; overflow-x: auto; scrollbar-width: none; }
+.time-caps::-webkit-scrollbar { display: none; }
+.tcap {
+  flex: none; padding: 8px 13px; border-radius: 999px; background: var(--bg-input); font-size: 12px;
+  font-weight: 800; color: var(--ink-2); cursor: pointer;
+}
+.tcap.on { background: var(--brand-soft); color: var(--brand); }
+.dtp-foot { display: flex; gap: 10px; padding-top: 14px; }
+.dtp-foot .a {
+  flex: 1; height: 46px; border-radius: 15px; display: grid; place-items: center; font-size: 14px;
+  font-weight: 800; cursor: pointer; background: var(--bg-input); color: var(--ink-2);
+}
+.dtp-foot .a.pri { background: var(--brand-grad); color: #fff8ef; box-shadow: var(--shadow-accent); }
+.foot-note { max-width: 1780px; margin: 0 auto; font-size: 12.5px; color: #8f8574; line-height: 1.9; }
+.foot-note b { color: #b8ad9c; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>新建 / 编辑日程 · 已选 A（B/C 保留参考）</h1>
+  <p class="sub">
+    编辑页 = 路由 screen（multi 实例）+ usePageGuard 未保存守卫：顶栏「取消」与系统返回手势走同一 requestExit，有修改时先弹 MobileConfirmDialog（「放弃修改？」）。字段严格对齐桌面 EventDialog。A 画框的「全天」开关可真实切换；D 区为三个选择器的弹出态（日历 / 颜色 17 色 / 日期时间，均为 BottomSheet + 内置返回拦截）。
+  </p>
+  <div class="tags">
+    <span class="tag">新建：FAB / 主页 ＋ / 长按日期格（P1）</span>
+    <span class="tag">P0 真实 Editor 只读 · P1 开放编辑</span>
+    <span class="tag">颜色 = 事件级覆盖，默认跟随日历色</span>
+  </div>
+</div>
+
+<!-- ════════════════ 方案 A ════════════════ -->
+<section class="plan">
+  <div class="plan-head">
+    <span class="letter">A</span>
+    <h2>分区卡片表单</h2>
+    <span class="cost">已选定 A · 分区卡片表单</span>
+  </div>
+  <p class="plan-desc">
+    一区一卡：标题卡 / 时间卡（全天开关 + 起止行）/ 日历与颜色卡 / 数值卡 / 详情卡。与 App 现有表单习惯（卡组表单、待办编辑）完全同构，学习成本最低；卡片间距让长表单不显拥挤。
+  </p>
+  <div class="plan-pros">
+    <span><b class="good">＋</b> 与现有表单范式一致，分区清晰</span>
+    <span><b class="good">＋</b> 卡片阴影天然分区，无需分割线技巧</span>
+    <span><b class="bad">－</b> 纵向占用略多，一屏放不下全部字段</span>
+  </div>
+  <div class="board">
+    <div class="frame-wrap">
+      <div class="frame-label">A-① 新建态 <small>全天开关可真实切换（时间行收起/恢复）</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icons">▸▸▸ ᯤ 🔒</span></div>
+          <div class="topbar">
+            <button class="txt-btn">取消</button>
+            <span class="title">新建日程</span>
+            <span style="width:36px"></span>
+          </div>
+          <div class="scroll">
+            <div class="fcard">
+              <input class="title-input" placeholder="日程标题…">
+            </div>
+            <div class="fcard">
+              <div class="sec-k">时间</div>
+              <div class="frow" id="alldayRow">
+                <span class="k">全天</span>
+                <span style="flex:1"></span>
+                <button class="switch" id="alldaySw" onclick="toggleAllDay()" aria-label="全天" aria-pressed="false"></button>
+              </div>
+              <div id="timeRows">
+                <div class="frow">
+                  <span class="k">开始</span>
+                  <span class="v">9月15日 周二 · 14:00</span>
+                  <span class="arr">›</span>
+                </div>
+                <div class="frow">
+                  <span class="k">结束</span>
+                  <span class="v">9月15日 周二 · 15:30</span>
+                  <span class="arr">›</span>
+                </div>
+              </div>
+              <div id="alldayRows" style="display:none">
+                <div class="frow">
+                  <span class="k">开始</span>
+                  <span class="v">9月15日 周二 · 全天</span>
+                  <span class="arr">›</span>
+                </div>
+                <div class="frow">
+                  <span class="k">结束</span>
+                  <span class="v">9月17日 周四 · 全天</span>
+                  <span class="arr">›</span>
+                </div>
+              </div>
+            </div>
+            <div class="fcard c-blue">
+              <div class="sec-k">归属与外观</div>
+              <div class="frow">
+                <span class="k">日历</span>
+                <span class="v"><i class="cdot"></i>工作</span>
+                <span class="arr">›</span>
+              </div>
+              <div class="frow">
+                <span class="k">颜色</span>
+                <span class="v ph">跟随日历</span>
+                <span class="arr">›</span>
+              </div>
+            </div>
+            <div class="fcard">
+              <div class="sec-k">数值（可选）</div>
+              <input class="num-input" placeholder="时间成本 / 金额等数值，如 2.5" inputmode="decimal">
+            </div>
+            <div class="fcard">
+              <div class="sec-k">详情</div>
+              <div class="readonly-note">
+                <span>📄</span>
+                <span>富文本详情在 P0 仅支持查看；新建后可到详情页阅读，编辑能力 P1 开放。</span>
+              </div>
+            </div>
+            <div style="height:96px"></div>
+          </div>
+          <div class="save-bar">
+            <button class="save-btn">保存日程</button>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame-wrap">
+      <div class="frame-label">A-② 编辑态 <small>预填数据 · 顶栏增加删除入口</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icons">▸▸▸ ᯤ 🔒</span></div>
+          <div class="topbar">
+            <button class="txt-btn">取消</button>
+            <span class="title">编辑日程</span>
+            <button class="icon-btn" title="删除">🗑</button>
+          </div>
+          <div class="scroll">
+            <div class="fcard">
+              <input class="title-input" value="技术评审：日历模块迁移方案">
+            </div>
+            <div class="fcard">
+              <div class="sec-k">时间</div>
+              <div class="frow">
+                <span class="k">全天</span>
+                <span style="flex:1"></span>
+                <button class="switch" onclick="this.classList.toggle('on')"></button>
+              </div>
+              <div class="frow">
+                <span class="k">开始</span>
+                <span class="v">9月15日 周二 · 14:00</span>
+                <span class="arr">›</span>
+              </div>
+              <div class="frow">
+                <span class="k">结束</span>
+                <span class="v">9月15日 周二 · 15:30</span>
+                <span class="arr">›</span>
+              </div>
+            </div>
+            <div class="fcard c-blue">
+              <div class="sec-k">归属与外观</div>
+              <div class="frow">
+                <span class="k">日历</span>
+                <span class="v"><i class="cdot"></i>工作</span>
+                <span class="arr">›</span>
+              </div>
+              <div class="frow">
+                <span class="k">颜色</span>
+                <span class="v"><i class="cdot" style="background:#2A67E2"></i>蓝色（自定义）</span>
+                <span class="arr">›</span>
+              </div>
+            </div>
+            <div class="fcard">
+              <div class="sec-k">数值</div>
+              <input class="num-input" value="2.5" inputmode="decimal">
+            </div>
+            <div class="fcard">
+              <div class="sec-k">详情 · 已有内容</div>
+              <div class="frow">
+                <span class="v" style="font-weight:600;color:var(--ink-2);font-size:13px">评审目标：确认移动端日历 P0 范围…（3 段 · 148 字）</span>
+                <span class="arr">›</span>
+              </div>
+            </div>
+            <div style="height:96px"></div>
+          </div>
+          <div class="save-bar">
+            <button class="save-btn">保存修改</button>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ 方案 B ════════════════ -->
+<section class="plan">
+  <div class="plan-head">
+    <span class="letter">B</span>
+    <h2>一体纸面</h2>
+    <span class="cost">实现成本 1.0×</span>
+  </div>
+  <p class="plan-desc">
+    整页是一张「纸」：大标题无框输入置顶，下方以细分隔线分区（全天 / 开始 / 结束 / 日历 / 颜色 / 数值），输入与纸面融为一体。视觉最轻、纵向最省（同屏多 1-2 个字段）；分区靠分割线，扫视分组感弱于卡片。
+  </p>
+  <div class="plan-pros">
+    <span><b class="good">＋</b> 视觉最轻，纵向空间利用率最高</span>
+    <span><b class="good">＋</b> 标题输入体验聚焦（大字无框）</span>
+    <span><b class="bad">－</b> 分组感弱，字段多时略平</span>
+  </div>
+  <div class="board">
+    <div class="frame-wrap">
+      <div class="frame-label">B-① 编辑态 <small>纸面形态 · 预填数据</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icons">▸▸▸ ᯤ 🔒</span></div>
+          <div class="topbar">
+            <button class="txt-btn">取消</button>
+            <span class="title">编辑日程</span>
+            <button class="icon-btn">🗑</button>
+          </div>
+          <div class="sheet-paper">
+            <input class="paper-title" value="技术评审：日历模块迁移方案">
+            <div class="paper-sec">
+              <div class="prow">
+                <span class="k">全天</span>
+                <span style="flex:1"></span>
+                <button class="switch" onclick="this.classList.toggle('on')"></button>
+              </div>
+              <div class="prow">
+                <span class="k">开始</span>
+                <span class="v">9月15日 周二 14:00</span>
+                <span style="color:var(--ink-3)">›</span>
+              </div>
+              <div class="prow">
+                <span class="k">结束</span>
+                <span class="v">9月15日 周二 15:30</span>
+                <span style="color:var(--ink-3)">›</span>
+              </div>
+            </div>
+            <div class="paper-sec">
+              <div class="prow">
+                <span class="k">日历</span>
+                <span class="v"><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#2A67E2;margin-right:8px;vertical-align:-1px"></i>工作</span>
+                <span style="color:var(--ink-3)">›</span>
+              </div>
+              <div class="prow">
+                <span class="k">颜色</span>
+                <span class="v ph">跟随日历</span>
+                <span style="color:var(--ink-3)">›</span>
+              </div>
+            </div>
+            <div class="paper-sec">
+              <div class="prow" style="cursor:text">
+                <span class="k">数值</span>
+                <input class="v" style="border:none;background:none;outline:none;font-family:inherit;font-weight:700;font-size:14.5px" value="2.5" inputmode="decimal">
+                <span style="font-size:11.5px;color:var(--ink-3);font-weight:700">小时</span>
+              </div>
+            </div>
+            <div class="paper-sec">
+              <div class="prow">
+                <span class="k">详情</span>
+                <span class="v ph">P0 只读 · 3 段 148 字</span>
+                <span style="color:var(--ink-3)">›</span>
+              </div>
+            </div>
+          </div>
+          <div class="save-bar">
+            <button class="save-btn">保存修改</button>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ 方案 C ════════════════ -->
+<section class="plan">
+  <div class="plan-head">
+    <span class="letter">C</span>
+    <h2>分步向导</h2>
+    <span class="cost">实现成本 1.25×</span>
+  </div>
+  <p class="plan-desc">
+    三步走：① 标题 + 日历 → ② 时间（快捷时间胶囊 + 常用时长）→ ③ 数值与详情。每步一问、大按钮大选项，最适合单手快速建日程；但字段总数少（7 个）时向导反而增加步数，「编辑既有日程」时向导结构也不自然（需要直接定位字段）。
+  </p>
+  <div class="plan-pros">
+    <span><b class="good">＋</b> 单手新建动线最快，零思考</span>
+    <span><b class="good">＋</b> 快捷时间胶囊降低输入成本</span>
+    <span><b class="bad">－</b> 字段本不多，向导化收益有限</span>
+    <span><b class="bad">－</b> 编辑场景需退化为平铺，两套结构</span>
+  </div>
+  <div class="board">
+    <div class="frame-wrap">
+      <div class="frame-label">C-① 第②步 · 时间 <small>快捷胶囊 + 常用时长（可点选）</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icons">▸▸▸ ᯤ 🔒</span></div>
+          <div class="topbar">
+            <button class="txt-btn">取消</button>
+            <span class="title">新建日程</span>
+            <span style="width:36px"></span>
+          </div>
+          <div class="steps">
+            <span class="step-dot on"></span><span class="step-dot on"></span><span class="step-dot"></span>
+          </div>
+          <div class="step-q">什么时候？</div>
+          <div class="step-sub">「技术评审：日历模块迁移方案」 · 工作</div>
+          <div class="quick-times">
+            <div class="qt"><b>今天</b><span>9月15日</span></div>
+            <div class="qt on"><b>明天</b><span>9月16日</span></div>
+            <div class="qt"><b>后天</b><span>9月17日</span></div>
+            <div class="qt"><b>下周一</b><span>9月21日</span></div>
+            <div class="qt"><b>自定义</b><span>选日期</span></div>
+            <div class="qt"><b>全天</b><span>不限时</span></div>
+          </div>
+          <div class="step-q" style="font-size:16px;padding-top:22px">几点开始？</div>
+          <div class="durs" style="padding:10px 20px 0;display:flex;gap:8px;flex-wrap:wrap">
+            <span class="dur on">14:00</span><span class="dur">15:00</span><span class="dur">16:00</span><span class="dur">19:00</span><span class="dur">20:00</span><span class="dur">自定义</span>
+          </div>
+          <div class="step-q" style="font-size:16px;padding-top:22px">持续多久？</div>
+          <div class="dur-row">
+            <span class="dur">30 分钟</span><span class="dur on">1.5 小时</span><span class="dur">2 小时</span><span class="dur">自定义</span>
+          </div>
+          <div style="height:100px"></div>
+          <div class="wiz-nav">
+            <button class="back-l">‹ 上一步</button>
+            <button class="next-l">下一步</button>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ 选择器 Sheet ════════════════ -->
+<section class="plan">
+  <div class="plan-head">
+    <span class="letter">D</span>
+    <h2>配套选择器（三方案通用）</h2>
+    <span class="cost">BottomSheet + 内置返回拦截</span>
+  </div>
+  <p class="plan-desc">
+    无论表单选 A/B/C，选择器统一为 BottomSheet 形态（复用 / 对齐 DateTimePickerSheet 组件范式）：日历选择（含系统日历展示但禁选）、颜色 17 色板（含「跟随日历」）、日期时间（今天/明天快捷 + 月历 + 时间胶囊）。返回手势 = 关闭抽屉不丢表单草稿。
+  </p>
+  <div class="board">
+
+    <div class="frame-wrap">
+      <div class="frame-label">D-① 日历选择 <small>系统日历可见但不可选</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="sheet-mask"></div>
+          <div class="pick-sheet">
+            <div class="handle"></div>
+            <div class="pick-title">选择日历</div>
+            <div class="pick-list">
+              <div class="pick-item sys">
+                <span class="cdot" style="background:#CF473A"></span>
+                <span class="nm">番茄钟</span>
+                <span class="tag-s">系统</span>
+              </div>
+              <div class="pick-item sys">
+                <span class="cdot" style="background:#C77100"></span>
+                <span class="nm">截止任务</span>
+                <span class="tag-s">系统 · 待办</span>
+              </div>
+              <div class="pick-item sys">
+                <span class="cdot" style="background:#369307"></span>
+                <span class="nm">周期任务</span>
+                <span class="tag-s">系统 · 待办</span>
+              </div>
+              <div class="pick-item">
+                <span class="cdot" style="background:#2A67E2"></span>
+                <span class="nm">工作</span>
+                <span class="cnt">126 件</span>
+                <span class="ck">✓</span>
+              </div>
+              <div class="pick-item">
+                <span class="cdot" style="background:#42A393"></span>
+                <span class="nm">生活</span>
+                <span class="cnt">58 件</span>
+              </div>
+              <div class="pick-item">
+                <span class="cdot" style="background:#692EC2"></span>
+                <span class="nm">个人成长</span>
+                <span class="cnt">33 件</span>
+              </div>
+            </div>
+          </div>
+          <div class="homebar" style="z-index:60"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame-wrap">
+      <div class="frame-label">D-② 颜色选择 <small>17 色板 · CalendarColorName</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="sheet-mask"></div>
+          <div class="pick-sheet">
+            <div class="handle"></div>
+            <div class="pick-title">日程颜色</div>
+            <div class="color-grid">
+              <span class="color-cell" style="background:#B8255F"></span>
+              <span class="color-cell" style="background:#CF473A"></span>
+              <span class="color-cell" style="background:#C77100"></span>
+              <span class="color-cell" style="background:#B29104"></span>
+              <span class="color-cell" style="background:#949C31"></span>
+              <span class="color-cell" style="background:#369307"></span>
+              <span class="color-cell" style="background:#42A393"></span>
+              <span class="color-cell" style="background:#148FAD"></span>
+              <span class="color-cell" style="background:#319DC0"></span>
+              <span class="color-cell" style="background:#6988A4"></span>
+              <span class="color-cell on" style="background:#2A67E2">✓</span>
+              <span class="color-cell" style="background:#692EC2"></span>
+              <span class="color-cell" style="background:#AC30CC"></span>
+              <span class="color-cell" style="background:#B2635C"></span>
+              <span class="color-cell" style="background:#808080"></span>
+              <span class="color-cell" style="background:#999999"></span>
+              <span class="color-cell" style="background:#8F7A69"></span>
+              <span style="grid-column:span 5"></span>
+            </div>
+            <div class="color-foot">
+              <span class="note">与桌面端同一套 17 色 · 玄夜主题自动切换 dark 色值</span>
+              <button class="link-btn">跟随日历 ›</button>
+            </div>
+          </div>
+          <div class="homebar" style="z-index:60"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="frame-wrap">
+      <div class="frame-label">D-③ 日期时间选择 <small>DateTimePickerSheet 既有范式复用</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="sheet-mask"></div>
+          <div class="pick-sheet">
+            <div class="handle"></div>
+            <div class="pick-title">开始时间</div>
+            <div class="dtp-quick">
+              <span class="q on">今天 9/15</span>
+              <span class="q">明天 9/16</span>
+              <span class="q">后天 9/17</span>
+            </div>
+            <div class="mini-cal">
+              <div class="wd-row"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+              <div class="d-row">
+                <span class="dc dim">31</span><span class="dc">1</span><span class="dc">2</span><span class="dc">3</span><span class="dc">4</span><span class="dc">5</span><span class="dc">6</span>
+                <span class="dc">7</span><span class="dc">8</span><span class="dc">9</span><span class="dc">10</span><span class="dc">11</span><span class="dc">12</span><span class="dc">13</span>
+                <span class="dc">14</span><span class="dc today sel">15</span><span class="dc">16</span><span class="dc">17</span><span class="dc">18</span><span class="dc">19</span><span class="dc">20</span>
+                <span class="dc">21</span><span class="dc">22</span><span class="dc">23</span><span class="dc">24</span><span class="dc">25</span><span class="dc">26</span><span class="dc">27</span>
+                <span class="dc">28</span><span class="dc">29</span><span class="dc">30</span><span class="dc dim">1</span><span class="dc dim">2</span><span class="dc dim">3</span><span class="dc dim">4</span>
+              </div>
+            </div>
+            <div class="time-row">
+              <div class="time-caps">
+                <span class="tcap">13:30</span><span class="tcap on">14:00</span><span class="tcap">14:30</span><span class="tcap">15:00</span><span class="tcap">15:30</span><span class="tcap">16:00</span><span class="tcap">16:30</span>
+              </div>
+            </div>
+            <div class="dtp-foot">
+              <span class="a">清除</span>
+              <span class="a pri">确定</span>
+            </div>
+          </div>
+          <div class="homebar" style="z-index:60"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<p class="foot-note">
+  <b>已定稿：</b>A 分区卡片表单，B/C 保留参考；配套选择器不变。17 色采用 CalendarColorName / CALENDAR_COLORS。已有详情使用真实 Editor 只读，P1 开放编辑。
+</p>
+
+<script>
+function toggleAllDay() {
+  const sw = document.getElementById("alldaySw");
+  const timed = document.getElementById("timeRows");
+  const allday = document.getElementById("alldayRows");
+  sw.classList.toggle("on");
+  const on = sw.classList.contains("on");
+  sw.setAttribute("aria-pressed", String(on));
+  timed.style.display = on ? "none" : "";
+  allday.style.display = on ? "" : "none";
+}
+</script>
+</body>
+</html>

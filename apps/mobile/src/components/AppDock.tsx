@@ -1,12 +1,11 @@
 // 全局底部 Dock（v2 模板）：4 个 Tab 根（今天/卡片/日记/我的）+ 中央 FAB。
-// FAB 点击以自身为圆心向上弧形展开快捷创建（新卡片/新文章/写日记），
-// 图标沿用首页 Bento 的模块语义（Stack/Article/BookOpen，Phosphor Duotone）。
+// FAB 向上展开快捷创建（新卡片/新文章/新日程/写日记），图标沿用首页模块语义。
 // 由 AppShell 在 RouterProvider 内挂载：只在 4 个 Tab 根显示，
 // 编辑器/详情/任务中心/番茄专注等二级页自动隐藏；Tab 切换 = popTo 已有实例或 push 新页。
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { House, Layers, NotebookPen, Plus, User } from "lucide-react";
-import { Article, BookOpen, Stack } from "@phosphor-icons/react";
+import { Article, BookOpen, CalendarPlus, Stack } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import {
   useRouterContext,
@@ -39,7 +38,7 @@ const WARMUP_DELAY_MS = 600;
 
 // FAB 环绕菜单：以 FAB 中心为原点，angle（度，-90 为正上方）/ radius 决定弧上落点
 type FabAction = {
-  key: "card" | "article" | "diary";
+  key: "card" | "article" | "calendar" | "diary";
   label: string;
   icon: Icon;
   tone: string;
@@ -48,8 +47,7 @@ type FabAction = {
   delay: string;
 };
 
-// 半径与角度约束：左右按钮（±45°）底缘须整体抬出 dock 行（行顶在 FAB 中心
-// 上方 31px），0.707R - 23 >= 34 → R=84；收窄角度而非加大半径，避免中央按钮过高
+// 四项菜单在导航上方另抬高 32px，保证外侧按钮也完全离开导航点击区域。
 const FAB_ARC_RADIUS = 84;
 
 /** 深色主题下单层 -soft 几乎与底色同色，叠此层数累积浓度，得到可感知的实色高亮 */
@@ -75,7 +73,7 @@ const FAB_ACTIONS: readonly FabAction[] = [
     icon: Stack,
     tone: "var(--sky)",
     soft: "var(--sky-soft)",
-    angle: -135,
+    angle: -157.5,
     delay: "0.06s",
   },
   {
@@ -84,8 +82,17 @@ const FAB_ACTIONS: readonly FabAction[] = [
     icon: Article,
     tone: "var(--apricot)",
     soft: "var(--apricot-soft)",
-    angle: -90,
-    delay: "0s",
+    angle: -112.5,
+    delay: "0.02s",
+  },
+  {
+    key: "calendar",
+    label: "新日程",
+    icon: CalendarPlus,
+    tone: "var(--lilac)",
+    soft: "var(--lilac-soft)",
+    angle: -67.5,
+    delay: "0.02s",
   },
   {
     key: "diary",
@@ -93,7 +100,7 @@ const FAB_ACTIONS: readonly FabAction[] = [
     icon: BookOpen,
     tone: "var(--sage)",
     soft: "var(--sage-soft)",
-    angle: -45,
+    angle: -22.5,
     delay: "0.06s",
   },
 ];
@@ -106,6 +113,7 @@ function AppDock() {
 
   const entries = state.screens.entries;
   const topKey = entries[entries.length - 1]?.key ?? "home";
+  const topEntryId = entries[entries.length - 1]?.id;
   // Dock 只在 Tab 根显示：二级页（任务中心/番茄专注等）与沉浸 overlay 一律隐藏
   const visible = isTabRoot(topKey);
 
@@ -124,6 +132,15 @@ function AppDock() {
   useEffect(() => {
     if (!visible) setMenuOpen(false);
   }, [visible]);
+
+  // Dock 位于页面上下文外，直接向路由仲裁器登记当前页的浮层返回消费器。
+  useEffect(() => {
+    if (!menuOpen || !topEntryId) return;
+    return navigator.registerBackHandler(topEntryId, () => {
+      setMenuOpen(false);
+      return true;
+    });
+  }, [menuOpen, topEntryId, navigator]);
 
   // 邻居 tab 数据预热：延迟一拍避开当前 tab 首屏渲染，滑切拖出预览层时数据已在缓存。
   // 预热什么由各域自查（日记域外：卡片 tab 与首页共享全局查询、我的 tab 无首屏请求）
@@ -144,6 +161,11 @@ function AppDock() {
     setMenuOpen(false);
     if (key === "card") {
       navigator.push("quickCapture");
+      return;
+    }
+    if (key === "calendar") {
+      // 预填今天：新建页自行取本地 0 点
+      navigator.push("calendarEventEdit", { eventId: 0, prefillDate: Date.now() });
       return;
     }
     if (key === "article") {
@@ -207,10 +229,7 @@ function AppDock() {
         }}
       >
         <div className="pointer-events-auto relative mx-3 flex h-[62px] items-center rounded-[22px] px-2">
-          {/* FAB 环绕菜单：锚点 = FAB 中心（行高 62、FAB 54 居中 → 距行底 31px）
-              再整体上移 6px，让展开的三个入口视觉抬升、与 dock 留出呼吸感。
-              容器尺寸归零，按钮全部 absolute 定位到锚点后由 transform 推到弧上落点，
-              保证三个按钮的弧线圆心严格重合于锚点；收起时统一收回锚点 */}
+          {/* 菜单锚点抬离导航；收起时按钮回到 FAB 中心附近。 */}
           <div
             className="absolute bottom-[37px] left-1/2 h-0 w-0"
             style={{ zIndex: 1 }}
@@ -233,7 +252,7 @@ function AppDock() {
                     ...highlightBackground(item.soft, "var(--surface)"),
                     opacity: menuOpen ? 1 : 0,
                     transform: menuOpen
-                      ? `translate(-50%, -50%) translate(${x}px, ${y}px)`
+                      ? `translate(-50%, -50%) translate(${x}px, ${y - 32}px)`
                       : "translate(-50%, -50%) scale(0.35)",
                     pointerEvents: menuOpen ? "auto" : "none",
                     transition: [
