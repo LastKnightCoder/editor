@@ -5,6 +5,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tau</title>
+  <script>
+    // 首帧主题：React 包加载前按已保存主题设置 data-theme（取值由 tokens.css 的
+    // [data-theme] 块承载），避免启动闪无主题色。key 与 ui/theme/theme.ts 的
+    // DEFAULT_THEME_KEY / THEME_STORAGE_KEY 对应（codegen 落地后可由构建注入）
+    try {
+      var themeKey = localStorage.getItem("tau-theme");
+      document.documentElement.dataset.theme = themeKey || "cream";
+    } catch (e) {
+      document.documentElement.dataset.theme = "cream";
+    }
+  </script>
 </head>
 
 <body>
