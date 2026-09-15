@@ -3,6 +3,53 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ActionSheet, type ActionSheetItem } from "../ActionSheet";
 
+/**
+ * 退场动画完成时机在 jsdom 里不可复现：面板位移的 exit 目标是百分比，
+ * 而拖拽后 y 是像素数字，jsdom 无布局换算不出，motion 会直接跳到目标——
+ * 于是"退场动画瞬时完成"与"动画要播 300ms"两种结果随用例时序漂移，
+ * 导致"退场期间面板仍在、onClose 未回调"的断言单跑必失败、全量偶尔失败。
+ * 这里只把 AnimatePresence 换成受控替身（保留真实 motion 值与 animate 回弹），
+ * 让退场完成时机由测试掌握，组件自身的时序契约照常被验证。
+ */
+const EXIT_MS = 100;
+vi.mock("motion/react", async () => {
+  const actual = await vi.importActual<typeof import("motion/react")>("motion/react");
+  const { useEffect, useRef, useState } = await import("react");
+
+  function ControlledAnimatePresence({
+    children,
+    onExitComplete,
+  }: {
+    children?: React.ReactNode;
+    onExitComplete?: () => void;
+  }) {
+    const hasChildren = Boolean(children);
+    // 退场期间继续渲染最后一次的子树（真实 AnimatePresence 也这么留住面板）
+    const latestRef = useRef(children);
+    if (hasChildren) latestRef.current = children;
+    const [unmounted, setUnmounted] = useState(!hasChildren);
+    const exitCompleteRef = useRef(onExitComplete);
+    exitCompleteRef.current = onExitComplete;
+
+    useEffect(() => {
+      if (hasChildren) {
+        setUnmounted(false);
+        return;
+      }
+      if (unmounted) return;
+      const timer = setTimeout(() => {
+        setUnmounted(true);
+        exitCompleteRef.current?.();
+      }, EXIT_MS);
+      return () => clearTimeout(timer);
+    }, [hasChildren, unmounted]);
+
+    return unmounted ? null : latestRef.current;
+  }
+
+  return { ...actual, AnimatePresence: ControlledAnimatePresence };
+});
+
 function setup() {
   const host = document.createElement("div");
   document.body.appendChild(host);
