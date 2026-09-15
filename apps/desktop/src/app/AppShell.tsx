@@ -1,5 +1,5 @@
 /**
- * AppShell —— 融合骨架，类名与结构 1:1 对齐 A2 模板（direction-a-soft.html）。
+ * AppShell —— 融合骨架，样式 Tailwind 优先（D-013，视觉基准 mockups/direction-a-soft.html）。
  *
  *   ┌──────────┬──────────────────────────┐
  *   │ sidebar-head │ titlebar（右列专属）    │ ← 46px 对齐
@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import clsx from "clsx";
 import { SurfaceProvider, useSurface } from "@/surface/SurfaceProvider";
 import { PageHost } from "@/surface/PageHost";
 import { initTheme } from "@/ui/theme/theme";
@@ -20,7 +21,13 @@ import { useShellStore, SIDEBAR_MIN_W, SIDEBAR_MAX_W } from "./shellStore";
 import { ensureLegacySurfaces } from "@/surface/legacy";
 import { ensureDatabaseReady } from "./databaseReady";
 import "./shell.css";
+import "./base.css";
 import "../surfaces";
+
+// 壳层根：三列骨架（侧栏 / 拖宽热区 / 右列）；排版基准 text-tau-body = 13px/1.65
+const shellRootClass =
+  "relative grid h-screen min-w-[1080px] grid-cols-[auto_4px_minmax(0,1fr)] " +
+  "overflow-hidden bg-page font-tau text-tau-body text-ink-1 antialiased";
 
 // legacy 模块占位注册（真实 surface 注册后自动让位）
 ensureLegacySurfaces();
@@ -42,40 +49,24 @@ export default function AppShell() {
 
   if (boot !== "ready") {
     return (
-      <div className="app" style={{ fontFamily: "var(--tau-font)" }}>
+      <div className={shellRootClass}>
         {boot === "connecting" ? (
-          <p style={{ padding: 24, color: "var(--tau-ink-2)" }}>正在连接数据库…</p>
+          <p className="text-ink-2 p-6">正在连接数据库…</p>
         ) : (
-          <div style={{ padding: 24, color: "var(--tau-ink-1)" }}>
-            <p style={{ color: "var(--tau-danger)", marginBottom: 12 }}>
-              数据库连接失败，数据区块将不可用。
-            </p>
-            <div style={{ display: "flex", gap: 8 }}>
+          <div className="text-ink-1 p-6">
+            <p className="text-danger mb-3">数据库连接失败，数据区块将不可用。</p>
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={connect}
-                style={{
-                  padding: "6px 16px",
-                  borderRadius: "var(--tau-radius-md)",
-                  background: "var(--tau-accent)",
-                  color: "var(--tau-ink-inverse)",
-                  border: "none",
-                  cursor: "pointer",
-                }}
+                className="rounded-tau-md bg-accent text-ink-inverse px-4 py-1.5"
               >
                 重试
               </button>
               <button
                 type="button"
                 onClick={() => setBoot("ready")}
-                style={{
-                  padding: "6px 16px",
-                  borderRadius: "var(--tau-radius-md)",
-                  background: "var(--tau-bg-group)",
-                  color: "var(--tau-ink-2)",
-                  border: "none",
-                  cursor: "pointer",
-                }}
+                className="rounded-tau-md bg-group text-ink-2 px-4 py-1.5"
               >
                 仍要进入
               </button>
@@ -95,30 +86,27 @@ export default function AppShell() {
 
 function ShellLayout() {
   const { state } = useSurface();
-  const collapsed = useShellStore(s => s.sidebarCollapsed);
   const width = useShellStore(s => s.sidebarWidth);
   const setWidth = useShellStore(s => s.setSidebarWidth);
   const toggle = useShellStore(s => s.toggleSidebar);
 
   return (
-    <div
-      className={collapsed ? "app collapsed" : "app"}
-      style={{ ["--tau-sidebar-w" as string]: `${width}px` }}
-    >
+    <div className={shellRootClass} style={{ ["--tau-sidebar-w" as string]: `${width}px` }}>
       <Sidebar />
       <SidebarResizer onResize={setWidth} onDoubleClick={toggle} />
-      <div className="main">
+      {/* 右列整体：标题栏/内容/状态栏只属于主区，侧栏整高贯通窗口（融合骨架） */}
+      <div className="grid min-w-0 grid-rows-[var(--tau-titlebar-h)_minmax(0,1fr)_var(--tau-statusbar-h)]">
         <Titlebar />
-        <main className="content">
+        <main className="min-h-0 overflow-y-auto">
           <PageHost state={state} />
         </main>
-        <footer className="statusbar" />
+        <footer className="text-tau-micro text-ink-3 flex select-none items-center gap-4 px-3.5" />
       </div>
     </div>
   );
 }
 
-/** 侧栏拖宽热区（模板：透明，hover/拖动显形；双击折叠）。 */
+/** 侧栏拖宽热区（透明，hover/拖动显形；双击折叠）。 */
 function SidebarResizer({
   onResize,
   onDoubleClick,
@@ -127,6 +115,7 @@ function SidebarResizer({
   onDoubleClick: () => void;
 }) {
   const dragging = useRef<{ x: number; startW: number } | null>(null);
+  const [active, setActive] = useState(false);
 
   const onMouseMove = useCallback(
     (e: MouseEvent) => {
@@ -139,10 +128,11 @@ function SidebarResizer({
     },
     [onResize]
   );
+
   const onMouseUp = useCallback(() => {
     dragging.current = null;
     document.body.style.userSelect = "";
-    document.querySelector(".resizer")?.classList.remove("active");
+    setActive(false);
   }, []);
 
   useEffect(() => {
@@ -156,13 +146,13 @@ function SidebarResizer({
 
   return (
     <div
-      className="resizer"
+      className={clsx("hover:bg-hover cursor-col-resize rounded-[2px]", active && "bg-hover")}
       title="拖动调整侧边栏宽度，双击折叠"
       onMouseDown={e => {
-        // 起始宽度读 store（CSS 变量设在 .app 上且 :root 只有静态默认值，读ComputedStyle会拿错）
+        // 起始宽度读 store（CSS 变量设在壳层根上且 :root 只有静态默认值，读 ComputedStyle 会拿错）
         dragging.current = { x: e.clientX, startW: useShellStore.getState().sidebarWidth };
         document.body.style.userSelect = "none";
-        e.currentTarget.classList.add("active");
+        setActive(true);
         e.preventDefault();
       }}
       onDoubleClick={onDoubleClick}
