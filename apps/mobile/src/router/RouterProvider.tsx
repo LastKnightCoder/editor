@@ -469,8 +469,17 @@ export function RouterProvider({
         if (totalDepth() > 1) {
           return await historyBack(source);
         }
-        handleRootBack();
-        return false;
+        // 根页仍可能存在 Dock 菜单等本地浮层，先消费返回再执行双击退出策略。
+        if (historyBackInFlightRef.current || pendingBackNavRef.current !== null) return false;
+        historyBackInFlightRef.current = true;
+        try {
+          const root = topEntryOf();
+          if (root && (await askBackHandler(root))) return false;
+          handleRootBack();
+          return false;
+        } finally {
+          historyBackInFlightRef.current = false;
+        }
       },
       goBackBypassed: async source => {
         if (source === "popstate") return false;

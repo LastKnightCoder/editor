@@ -201,13 +201,13 @@ type Controller = {
 
 const mountedApps: Controller[] = [];
 
-function mountApp(): Controller {
+function mountApp(onRootBackHint?: (text: string) => void): Controller {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const root: Root = createRoot(host);
   act(() => {
     root.render(
-      <RouterProvider rootKey="home">
+      <RouterProvider rootKey="home" onRootBackHint={onRootBackHint}>
         <PageHost rootContent={<div data-testid="root">ROOT</div>} />
         <OverlayHost />
       </RouterProvider>
@@ -218,7 +218,7 @@ function mountApp(): Controller {
     render: () => {
       act(() => {
         root.render(
-          <RouterProvider rootKey="home">
+          <RouterProvider rootKey="home" onRootBackHint={onRootBackHint}>
             <PageHost rootContent={<div data-testid="root">ROOT</div>} />
             <OverlayHost />
           </RouterProvider>
@@ -443,6 +443,40 @@ describe("返回仲裁（浮层优先）", () => {
   function readFlag(testId: string): string {
     return document.querySelector(`[data-testid="${testId}"]`)?.textContent ?? "";
   }
+
+  it("根页本地浮层按 LIFO 消费 Android 返回，关闭后才提示退出", async () => {
+    const hints: string[] = [];
+    const app = mountApp(text => hints.push(text));
+    const navigator = getNavigator();
+    const rootId = navigator.getActiveScreen()!.id;
+    const open = [true, true];
+    const closed: number[] = [];
+    const unregister = open.map((_, index) =>
+      navigator.registerBackHandler(rootId, () => {
+        if (!open[index]) return false;
+        open[index] = false;
+        closed.push(index);
+        return true;
+      })
+    );
+    await act(async () => {
+      await navigator.goBack("android");
+    });
+    expect(closed).toEqual([1]);
+    expect(hints).toHaveLength(0);
+    await act(async () => {
+      await navigator.goBack("android");
+    });
+    expect(closed).toEqual([1, 0]);
+    expect(hints).toHaveLength(0);
+    await act(async () => {
+      await navigator.goBack("android");
+    });
+    expect(hints).toHaveLength(1);
+    expect(navigator.getScreenStack().entries).toHaveLength(1);
+    unregister.forEach(remove => remove());
+    app.cleanup();
+  });
 
   it("overlay 打开时返回仅关闭 overlay，screen 栈不动；再返回才弹页面", async () => {
     const app = mountApp();
