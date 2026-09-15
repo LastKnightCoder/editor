@@ -74,6 +74,7 @@ pub fn todo_get_recurrence_by_item(
 pub fn todo_create_recurrence(
     app: AppHandle,
     payload: CreateTodoRecurrencePayload,
+    time_zone: crate::database::calendar_time::CalendarTimeZone,
 ) -> Result<TodoRecurrence, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
@@ -128,7 +129,7 @@ pub fn todo_create_recurrence(
     )
     .map_err(|e| format_db_error("TODO_RECURRENCE_CREATE_FAILED", "insert recurrence", e))?;
     let id = tx.last_insert_rowid();
-    todo_calendar_sync::rematerialize_recurring_item(&tx, payload.todo_item_id)?;
+    todo_calendar_sync::rematerialize_recurring_item(&tx, payload.todo_item_id, time_zone)?;
     let recurrence = tx
         .query_row(
             "
@@ -165,6 +166,7 @@ pub fn todo_create_recurrence(
 pub fn todo_update_recurrence(
     app: AppHandle,
     payload: UpdateTodoRecurrencePayload,
+    time_zone: crate::database::calendar_time::CalendarTimeZone,
 ) -> Result<TodoRecurrence, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
@@ -237,7 +239,7 @@ pub fn todo_update_recurrence(
         ],
     )
     .map_err(|e| format_db_error("TODO_RECURRENCE_UPDATE_FAILED", "update recurrence", e))?;
-    todo_calendar_sync::rematerialize_recurring_item(&tx, current.todo_item_id)?;
+    todo_calendar_sync::rematerialize_recurring_item(&tx, current.todo_item_id, time_zone)?;
     let recurrence = tx
         .query_row(
             "
