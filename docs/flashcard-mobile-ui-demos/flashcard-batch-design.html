@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>闪卡 · 卡片批量操作交互设计稿（三风格）</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   卡片批量操作交互设计稿 · 三种风格供选择
+   场景：卡组详情页对多张卡片 批量移动 / 改难度 / 删除
+   风格① 长按多选 + 底部操作条（系统惯例）
+   风格② ⋯ 菜单显式进入（可发现性优先，可与①叠加）
+   风格③ 常显勾选圈（零学习成本，零发现性问题）
+   所有画框可真实交互：长按/点按/全选/弹层。
+   ═══════════════════════════════════════════════════════ */
+:root {
+  --bg-page: #f6f1e7;
+  --bg-surface: #fffdf9;
+  --bg-input: #f6f1e7;
+  --ink-1: #43392c;
+  --ink-2: #8b7d6b;
+  --ink-3: #b9ac9a;
+  --meta-ink: #7a6c5a;
+  --line-1: #e9e1d2;
+  --brand: #d97757;
+  --brand-strong: #e8896a;
+  --brand-soft: rgba(217, 119, 87, 0.12);
+  --brand-grad: linear-gradient(145deg, #e8896a, #d97757);
+  --sage: #61795f; --sage-soft: #e5ede2;
+  --sky: #5c7d99;  --sky-soft: #e2ebf3;
+  --lilac: #8a7aa6; --lilac-soft: #ebe6f3;
+  --butter: #a38c4d; --butter-soft: #f6efd6;
+  --rose: #b06a5e;  --rose-soft: #f6e3e0;
+  --danger: #b06a5e;
+  --mask: rgba(67, 57, 44, 0.4);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.06), 0 8px 20px -12px rgba(120, 100, 70, 0.16);
+  --shadow-accent: 0 8px 18px -5px rgba(217, 119, 87, 0.55);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.5, 1);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  background: #2a251f; color: #ede7db; padding: 36px 28px 64px;
+}
+.page-head { max-width: 1780px; margin: 0 auto 30px; }
+.page-head h1 { font-size: 26px; font-weight: 800; }
+.page-head .sub { color: #b8ad9c; font-size: 13.5px; margin-top: 8px; line-height: 1.7; max-width: 960px; }
+.page-head .tags { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.page-head .tag {
+  font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+  background: rgba(217, 119, 87, 0.16); color: #e8a288; border: 1px solid rgba(217, 119, 87, 0.3);
+}
+.board { display: flex; gap: 34px; flex-wrap: wrap; max-width: 1780px; margin: 0 auto; align-items: flex-start; }
+.frame-wrap { display: flex; flex-direction: column; gap: 14px; }
+.frame-label { font-size: 14px; font-weight: 700; color: #d9cfbe; }
+.frame-label small { font-weight: 500; color: #96897a; font-size: 12px; margin-left: 8px; }
+.style-group { width: 100%; font-size: 15px; font-weight: 800; color: #e8ddc9; letter-spacing: 1px; padding: 18px 0 2px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+
+.phone {
+  width: 390px; height: 844px; border-radius: 52px; overflow: hidden; position: relative;
+  background: var(--bg-page); color: var(--ink-1);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.65), 0 0 0 11px #17140f, 0 0 0 13px #3a332a;
+  font-size: 14px;
+}
+.screen { height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.scroll { flex: 1; overflow-y: auto; scrollbar-width: none; }
+.scroll::-webkit-scrollbar { display: none; }
+.statusbar { height: 54px; flex: none; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 30px 6px; font-size: 15px; font-weight: 700; }
+.statusbar .icons { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+.homebar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 130px; height: 5px; border-radius: 99px; background: var(--ink-1); opacity: 0.85; z-index: 50; }
+.topbar { flex: none; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; position: relative; }
+.topbar .title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 16.5px; font-weight: 800; }
+.icon-btn { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--bg-surface); box-shadow: var(--shadow-card); color: var(--ink-1); font-size: 16px; border: none; cursor: pointer; font-family: inherit; }
+.chips { display: flex; gap: 8px; padding: 10px 20px 4px; flex: none; }
+.chip { padding: 8px 15px; border-radius: 999px; font-size: 13px; font-weight: 700; background: var(--bg-surface); color: var(--ink-2); box-shadow: var(--shadow-card); }
+.chip.on { background: var(--ink-1); color: #fff8ef; }
+.type-pill { display: inline-flex; font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 999px; }
+
+/* ── 卡片行 ── */
+.card-list { display: flex; flex-direction: column; gap: 10px; padding: 10px 20px 120px; }
+.fcard { background: var(--bg-surface); border-radius: 20px; box-shadow: var(--shadow-card); padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: transform 0.15s var(--ease-bounce); user-select: none; -webkit-user-select: none; }
+.fcard:active { transform: scale(0.985); }
+.fcard .body { flex: 1; min-width: 0; }
+.fcard .q { font-size: 14px; font-weight: 600; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.fcard .foot { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.fcard .due { font-size: 11px; font-weight: 700; color: var(--meta-ink); }
+/* 选中态 */
+.fcard.selected { background: var(--brand-soft); box-shadow: inset 0 0 0 2px var(--brand), var(--shadow-card); }
+.fcard.selected .q { color: var(--brand); }
+/* 选择圈（隐藏/常显由风格控制） */
+.pick { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--ink-3); display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 800; transition: all 0.15s var(--ease-bounce); }
+.fcard.selected .pick { border-color: var(--brand); background: var(--brand); }
+.pick.hidden { display: none; }
+/* 长按提示气泡 */
+.lp-hint { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); background: rgba(67, 57, 44, 0.92); color: #fff8ef; border-radius: 999px; padding: 9px 16px; font-size: 12.5px; font-weight: 700; z-index: 30; pointer-events: none; animation: float 2.4s ease-in-out infinite; }
+@keyframes float { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-6px); } }
+
+/* ── 多选顶栏 ── */
+.sel-top { flex: none; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 18px; background: var(--bg-page); }
+.sel-top .cnt { font-size: 15px; font-extrabold; font-weight: 800; }
+.sel-top .cnt b { color: var(--brand); }
+.sel-top .btn { border: none; background: none; font-family: inherit; font-size: 13.5px; font-weight: 800; color: var(--brand); cursor: pointer; padding: 8px 10px; }
+
+/* ── 底部批量操作条 ── */
+.batch-bar {
+  position: absolute; left: 12px; right: 12px; bottom: calc(14px + 10px);
+  background: var(--ink-1); border-radius: 22px; padding: 10px 12px;
+  display: flex; align-items: center; gap: 6px; z-index: 40;
+  box-shadow: 0 18px 40px -10px rgba(67, 57, 44, 0.55);
+  transform: translateY(140%); transition: transform 0.35s var(--ease-bounce);
+}
+.batch-bar.show { transform: translateY(0); }
+.batch-bar .act { flex: 1; border: none; background: none; font-family: inherit; color: #fff8ef; font-size: 12.5px; font-weight: 800; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 2px; border-radius: 14px; cursor: pointer; }
+.batch-bar .act .ic { font-size: 17px; }
+.batch-bar .act:active { background: rgba(255, 255, 255, 0.1); }
+.batch-bar .act.danger { color: #ffb4a6; }
+.batch-bar .divider { width: 1px; height: 26px; background: rgba(255, 255, 255, 0.14); }
+
+/* ── 操作条 v2-A 纸面浮条：对齐 App 浮层语言（surface 底 + 柔影 + 线性图标横排）── */
+.batch-bar2 {
+  position: absolute; left: 14px; right: 14px; bottom: 22px;
+  background: var(--bg-surface); border-radius: 20px; padding: 6px;
+  display: flex; gap: 4px; z-index: 40;
+  box-shadow: 0 12px 32px -8px rgba(120, 100, 70, 0.4), 0 2px 6px rgba(120, 100, 70, 0.1);
+  transform: translateY(140%); transition: transform 0.35s var(--ease-bounce);
+}
+.batch-bar2.show { transform: translateY(0); }
+.batch-bar2 .act {
+  flex: 1; border: none; background: none; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 12px 4px; border-radius: 15px; font-size: 13.5px; font-weight: 800; color: var(--ink-1);
+  cursor: pointer;
+}
+.batch-bar2 .act:active { background: var(--bg-input); }
+.batch-bar2 .act.danger { color: var(--danger); }
+.batch-bar2 .act svg { width: 16px; height: 16px; flex: none; }
+
+/* ── 操作条 v2-B 计数 + 圆钮：选中数进条内，图标圆钮承载操作 ── */
+.batch-bar3 {
+  position: absolute; left: 14px; right: 14px; bottom: 22px;
+  background: var(--bg-surface); border-radius: 20px; padding: 8px 12px;
+  display: flex; align-items: center; gap: 8px; z-index: 40;
+  box-shadow: 0 12px 32px -8px rgba(120, 100, 70, 0.4), 0 2px 6px rgba(120, 100, 70, 0.1);
+}
+.batch-bar3 .count { display: flex; align-items: baseline; gap: 4px; padding-right: 10px; border-right: 1px solid var(--line-1); }
+.batch-bar3 .count b { font-size: 19px; font-weight: 800; color: var(--brand); }
+.batch-bar3 .count span { font-size: 11px; font-weight: 700; color: var(--meta-ink); }
+.batch-bar3 .rb {
+  width: 40px; height: 40px; border-radius: 14px; border: none; background: var(--bg-input);
+  display: grid; place-items: center; cursor: pointer; color: var(--ink-1); font-family: inherit;
+}
+.batch-bar3 .rb:active { background: var(--brand-soft); color: var(--brand); }
+.batch-bar3 .rb.danger { color: var(--danger); }
+.batch-bar3 .rb svg { width: 17px; height: 17px; }
+.batch-bar3 .spacer { flex: 1; }
+
+/* ── 操作条 v2-C 收纳胶囊：不占横条，右下角胶囊点开 ActionSheet ── */
+.fab-pill {
+  position: absolute; right: 16px; bottom: 26px; z-index: 40;
+  display: flex; align-items: center; gap: 8px; border: none; cursor: pointer; font-family: inherit;
+  background: var(--brand-grad); color: #fff; border-radius: 999px; padding: 12px 18px;
+  font-size: 13.5px; font-weight: 800; box-shadow: 0 10px 24px -6px rgba(217, 119, 87, 0.55);
+}
+.fab-pill b { font-size: 15px; }
+.variant-note { font-size: 11.5px; font-weight: 700; color: var(--meta-ink); margin-bottom: 9px; line-height: 1.6; }
+
+/* ── 弹层：BottomSheet（移动卡组）── */
+.sheet-mask { position: absolute; inset: 0; background: var(--mask); z-index: 45; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+.sheet-mask.show { opacity: 1; pointer-events: auto; }
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; background: var(--bg-surface);
+  border-radius: 30px 30px 0 0; padding: 10px 20px 34px; z-index: 46;
+  transform: translateY(105%); transition: transform 0.38s var(--ease-bounce);
+}
+.sheet.show { transform: translateY(0); }
+.sheet .grab { width: 40px; height: 4.5px; border-radius: 99px; background: var(--line-1); margin: 0 auto 14px; }
+.sheet .h { font-size: 15.5px; font-weight: 800; margin-bottom: 12px; }
+.sheet .opt { display: flex; align-items: center; gap: 12px; background: var(--bg-input); border-radius: 16px; padding: 12px 14px; margin-bottom: 8px; cursor: pointer; }
+.sheet .opt:active { background: var(--brand-soft); }
+.sheet .opt .em { font-size: 19px; }
+.sheet .opt .nm { flex: 1; font-size: 14px; font-weight: 800; }
+.sheet .opt .ct { font-size: 11px; font-weight: 700; color: var(--meta-ink); }
+
+/* ── 弹层：确认对话框（批量删除）── */
+.dialog-mask { position: absolute; inset: 0; background: var(--mask); z-index: 47; display: none; align-items: center; justify-content: center; padding: 36px; }
+.dialog-mask.show { display: flex; }
+.dialog { background: var(--bg-surface); border-radius: 22px; padding: 22px 20px 16px; width: 100%; box-shadow: 0 24px 50px -12px rgba(67, 57, 44, 0.5); }
+.dialog .t { font-size: 16px; font-weight: 800; text-align: center; }
+.dialog .d { font-size: 13px; color: var(--meta-ink); line-height: 1.7; text-align: center; margin-top: 9px; font-weight: 600; }
+.dialog .row { display: flex; gap: 10px; margin-top: 18px; }
+.dialog .row button { flex: 1; border: none; border-radius: 15px; padding: 12px; font-size: 14px; font-weight: 800; font-family: inherit; cursor: pointer; }
+.dialog .cancel { background: var(--bg-input); color: var(--ink-2); }
+.dialog .confirm { background: var(--danger); color: #fff; }
+
+/* ── toast ── */
+.toast {
+  position: absolute; top: calc(54px + 10px); left: 50%; transform: translateX(-50%) translateY(-12px);
+  background: #43392c; color: #fff8ef; border-radius: 999px; padding: 9px 18px;
+  font-size: 12.5px; font-weight: 700; z-index: 60; opacity: 0; transition: all 0.3s; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ⋯ ActionSheet（风格②入口）*/
+.as-mask { position: absolute; inset: 0; background: var(--mask); z-index: 45; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+.as-mask.show { opacity: 1; pointer-events: auto; }
+.asheet {
+  position: absolute; left: 10px; right: 10px; bottom: calc(10px + 8px); background: var(--bg-surface);
+  border-radius: 26px; padding: 12px; z-index: 46; transform: translateY(110%); transition: transform 0.35s var(--ease-bounce);
+}
+.asheet.show { transform: translateY(0); }
+.asheet .grab { width: 40px; height: 4.5px; border-radius: 99px; background: var(--line-1); margin: 0 auto 12px; }
+.as-item { display: flex; align-items: center; gap: 13px; padding: 13px 12px; border-radius: 16px; cursor: pointer; }
+.as-item:active { background: var(--bg-input); }
+.as-item .tile { width: 34px; height: 34px; border-radius: 12px; display: grid; place-items: center; font-size: 15px; flex: none; }
+.as-item .tx { flex: 1; }
+.as-item .tx b { display: block; font-size: 14px; font-weight: 800; }
+.as-item .tx span { display: block; font-size: 11px; font-weight: 600; color: var(--meta-ink); margin-top: 1px; }
+.as-cancel { border: none; width: 100%; background: var(--bg-input); border-radius: 16px; padding: 13px; font-family: inherit; font-size: 14px; font-weight: 800; color: var(--ink-2); margin-top: 8px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<header class="page-head">
+  <h1>卡片批量操作 · 交互设计稿（三风格可选，作用于卡组详情页）</h1>
+  <p class="sub">已选定 <b>风格 ① 长按 + ② 菜单叠加</b>（菜单为主入口、长按为快捷路径）。批量能力为 <b>移动卡组 / 改难度 / 删除</b>（删除二次确认）。①b 与 ③ 屏的操作条已换为新的<b>纸面浮条</b>样式预览；底部新增<b>操作条样式对比屏</b>（旧样式 + A/B/C 三个新方案），确认样式后即可进入实现。①屏支持真实长按（约 0.6 秒）。</p>
+  <div class="tags">
+    <span class="tag">风格① 长按多选·系统惯例</span><span class="tag">风格② 菜单进入·可发现性</span><span class="tag">风格③ 常显勾选圈</span><span class="tag">底部操作条拇指友好</span><span class="tag">删除二次确认</span>
+  </div>
+</header>
+
+<main class="board">
+
+  <div class="style-group">风格 ① · 长按多选 + 底部操作条（推荐：系统惯例，可与②叠加）</div>
+
+  <!-- ════════ ①a 常规态（长按进入） ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">① a · 常规态 <small>无任何提示，长按任意卡片 0.6s 进入多选（试试）</small></div>
+    <div class="phone" id="p1">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="topbar" id="p1-top-normal">
+          <button class="icon-btn">‹</button>
+          <div class="title">算法面试</div>
+          <button class="icon-btn">＋</button>
+        </div>
+        <div class="chips"><span class="chip on">全部 48</span><span class="chip">新卡 6</span><span class="chip">学习中 9</span><span class="chip">巩固 33</span></div>
+        <div class="scroll"><div class="card-list" id="p1-list"></div></div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ ①b 多选态（底部操作条） ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">① b · 多选态 <small>点卡片增减选择 · 操作条随选显隐</small></div>
+    <div class="phone" id="p2">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="sel-top">
+          <button class="btn" data-x="cancel">✕ 取消</button>
+          <div class="cnt">已选 <b data-cnt>0</b> 张</div>
+          <button class="btn" data-x="all">全选</button>
+        </div>
+        <div class="scroll"><div class="card-list" id="p2-list"></div></div>
+        <div class="batch-bar2" id="p2-bar">
+          <button class="act" data-op="move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>移动卡组</button>
+          <button class="act" data-op="level"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg>改难度</button>
+          <button class="act danger" data-op="delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>删除</button>
+        </div>
+        <div class="sheet-mask" data-sheet="move"></div>
+        <div class="sheet" data-sheet="move">
+          <div class="grab"></div>
+          <div class="h">移动 <span data-cnt2>0</span> 张到…</div>
+          <div class="opt" data-move="📚 英语高频词 · 120 张"><span class="em">📚</span><span class="nm">英语高频词</span><span class="ct">120 张</span></div>
+          <div class="opt" data-move="📖 《认知觉醒》笔记 · 26 张"><span class="em">📖</span><span class="nm">《认知觉醒》笔记</span><span class="ct">26 张</span></div>
+          <div class="opt" data-move="⚡ HTTP 网络基础 · 31 张"><span class="em">⚡</span><span class="nm">HTTP 网络基础</span><span class="ct">31 张</span></div>
+        </div>
+        <div class="sheet-mask" data-sheet="level"></div>
+        <div class="sheet" data-sheet="level">
+          <div class="grab"></div>
+          <div class="h">把 <span data-cnt2>0</span> 张的难度改为…</div>
+          <div class="opt" data-level="基础"><span class="em">🌱</span><span class="nm">基础</span></div>
+          <div class="opt" data-level="标准"><span class="em">⚖️</span><span class="nm">标准</span></div>
+          <div class="opt" data-level="进阶"><span class="em">🏔</span><span class="nm">进阶</span></div>
+        </div>
+        <div class="dialog-mask" data-dialog="delete">
+          <div class="dialog">
+            <div class="t">删除 <span data-cnt3>0</span> 张卡片？</div>
+            <div class="d">将删除所选卡片及其复习历史，不可恢复。</div>
+            <div class="row">
+              <button class="cancel" data-x="noDelete">取消</button>
+              <button class="confirm" data-x="yesDelete">删除</button>
+            </div>
+          </div>
+        </div>
+        <div class="toast" id="p2-toast"></div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="style-group">风格 ② · ⋯ 菜单显式进入（可与风格①叠加：菜单为主入口、长按为快捷路径）</div>
+
+  <!-- ════════ ② 菜单入口 ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">② · 菜单进入 <small>卡组页 ⋯ → 批量管理（点击交互）</small></div>
+    <div class="phone" id="p3">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="topbar">
+          <button class="icon-btn">‹</button>
+          <div class="title">算法面试</div>
+          <button class="icon-btn" data-x="openMenu">⋯</button>
+        </div>
+        <div class="chips"><span class="chip on">全部 48</span><span class="chip">新卡 6</span><span class="chip">学习中 9</span><span class="chip">巩固 33</span></div>
+        <div class="scroll"><div class="card-list" id="p3-list"></div></div>
+        <div class="as-mask" data-as="menu"></div>
+        <div class="asheet" data-as="menu">
+          <div class="grab"></div>
+          <div class="as-item" data-x="enterBatch">
+            <span class="tile" style="background:var(--lilac-soft);color:var(--lilac)">☑</span>
+            <span class="tx"><b>批量管理卡片</b><span>多选后可移动、改难度或删除</span></span>
+          </div>
+          <div class="as-item">
+            <span class="tile" style="background:var(--apricot-soft);color:var(--apricot)">▶</span>
+            <span class="tx"><b>开始复习</b><span>12 张到期</span></span>
+          </div>
+          <div class="as-item">
+            <span class="tile" style="background:var(--rose-soft);color:var(--rose)">🗑</span>
+            <span class="tx"><b>删除卡组</b></span>
+          </div>
+          <button class="as-cancel">取消</button>
+        </div>
+        <div class="toast" id="p3-toast"></div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="style-group">风格 ③ · 常显勾选圈（零学习成本；代价是列表常驻选择圈噪音）</div>
+
+  <!-- ════════ ③ 常显勾选圈 ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">③ · 常显勾选圈 <small>圈常驻 · 点圈选择 / 点行进编辑</small></div>
+    <div class="phone" id="p4">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="sel-top">
+          <button class="btn" data-x="cancel">✕ 完成</button>
+          <div class="cnt">已选 <b data-cnt>2</b> 张</div>
+          <button class="btn" data-x="all">全选</button>
+        </div>
+        <div class="scroll"><div class="card-list" id="p4-list"></div></div>
+        <div class="batch-bar2 show" id="p4-bar">
+          <button class="act" data-op="move"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>移动卡组</button>
+          <button class="act" data-op="level"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg>改难度</button>
+          <button class="act danger" data-op="delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>删除</button>
+        </div>
+        <div class="sheet-mask" data-sheet="move"></div>
+        <div class="sheet" data-sheet="move">
+          <div class="grab"></div>
+          <div class="h">移动 <span data-cnt2>2</span> 张到…</div>
+          <div class="opt" data-move="📚 英语高频词"><span class="em">📚</span><span class="nm">英语高频词</span><span class="ct">120 张</span></div>
+          <div class="opt" data-move="⚡ HTTP 网络基础"><span class="em">⚡</span><span class="nm">HTTP 网络基础</span><span class="ct">31 张</span></div>
+        </div>
+        <div class="dialog-mask" data-dialog="delete">
+          <div class="dialog">
+            <div class="t">删除 <span data-cnt3>2</span> 张卡片？</div>
+            <div class="d">将删除所选卡片及其复习历史，不可恢复。</div>
+            <div class="row">
+              <button class="cancel" data-x="noDelete">取消</button>
+              <button class="confirm" data-x="yesDelete">删除</button>
+            </div>
+          </div>
+        </div>
+        <div class="toast" id="p4-toast"></div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+
+  <div class="style-group">操作条样式对比（旧样式已否，A/B/C 三选一）</div>
+
+  <!-- ════════ ⑥ 操作条样式变体 ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">⑥ · 操作条样式 <small>A 纸面浮条（当前预览）/ B 计数圆钮 / C 收纳胶囊</small></div>
+    <div class="phone" id="p6">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="topbar">
+          <button class="icon-btn">‹</button>
+          <div class="title">操作条样式</div>
+          <span style="width:36px"></span>
+        </div>
+        <div class="scroll" style="padding: 6px 20px 40px; display:flex; flex-direction:column; gap: 22px;">
+
+          <!-- 旧样式（已否） -->
+          <div>
+            <div class="variant-note">v1 · 深棕工具栏（已否：与纸面语言不搭）</div>
+            <div class="batch-bar show" style="position:static;transform:none">
+              <button class="act"><span class="ic">📁</span>移动卡组</button>
+              <span class="divider"></span>
+              <button class="act"><span class="ic">🎚</span>改难度</button>
+              <span class="divider"></span>
+              <button class="act danger"><span class="ic">🗑</span>删除</button>
+            </div>
+          </div>
+
+          <!-- A 纸面浮条 -->
+          <div>
+            <div class="variant-note">A · 纸面浮条（①b/③ 屏当前预览）— surface 白底 + 柔影 + 线性图标，融入 App 浮层语言</div>
+            <div class="batch-bar2 show" style="position:static;transform:none">
+              <button class="act"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>移动卡组</button>
+              <button class="act"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg>改难度</button>
+              <button class="act danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>删除</button>
+            </div>
+          </div>
+
+          <!-- B 计数 + 圆钮 -->
+          <div>
+            <div class="variant-note">B · 计数进条 + 图标圆钮 — 计数就地可见（顶栏可简化），圆钮操作</div>
+            <div class="batch-bar3" style="position:static">
+              <div class="count"><b>3</b><span>张已选</span></div>
+              <span class="spacer"></span>
+              <button class="rb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg></button>
+              <button class="rb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg></button>
+              <button class="rb danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>
+            </div>
+          </div>
+
+          <!-- C 收纳胶囊 -->
+          <div>
+            <div class="variant-note">C · 收纳胶囊 — 不占横条；点胶囊弹 ActionSheet 选操作（点击试试）</div>
+            <div style="position:relative;height:64px;border:1.5px dashed var(--line-1);border-radius:16px">
+              <button class="fab-pill" id="p6-fab">已选 <b>3</b> 张 · 批量操作 ▸</button>
+            </div>
+          </div>
+
+          <div class="variant-note" style="text-align:center;padding-bottom:6px">
+            A 与 B 的差别只在「计数放顶栏还是条内」；C 最克制但每次操作多一跳
+          </div>
+        </div>
+
+        <div class="as-mask" data-as="p6"></div>
+        <div class="asheet" data-as="p6">
+          <div class="grab"></div>
+          <div class="as-item">
+            <span class="tile" style="background:var(--sky-soft);color:var(--sky)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg></span>
+            <span class="tx"><b>移动到卡组…</b><span>把这 3 张挪到其他卡组</span></span>
+          </div>
+          <div class="as-item">
+            <span class="tile" style="background:var(--butter-soft);color:var(--butter)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg></span>
+            <span class="tx"><b>修改难度…</b><span>基础 / 标准 / 进阶</span></span>
+          </div>
+          <div class="as-item">
+            <span class="tile" style="background:var(--rose-soft);color:var(--rose)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></span>
+            <span class="tx"><b>删除这 3 张</b><span>含复习历史，不可恢复</span></span>
+          </div>
+          <button class="as-cancel" id="p6-cancel">取消</button>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="style-group">共用 · 批量操作反馈（无论选哪种风格，执行反馈一致）</div>
+
+  <!-- ════════ ④ 操作结果反馈 ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">④ · 执行反馈 <small>移动/删除完成后的 toast + 列表即时收敛</small></div>
+    <div class="phone" id="p5">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="topbar">
+          <button class="icon-btn">‹</button>
+          <div class="title">算法面试</div>
+          <button class="icon-btn">＋</button>
+        </div>
+        <div class="chips"><span class="chip on">全部 44</span><span class="chip">新卡 6</span><span class="chip">学习中 8</span><span class="chip">巩固 30</span></div>
+        <div class="scroll">
+          <div class="card-list" id="p5-list"></div>
+        </div>
+        <div class="toast show" id="p5-toast">✓ 已移动 4 张到「英语高频词」</div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+/* ── 演示卡片数据 ── */
+const DEMO_CARDS = [
+  { type: "单选题", tone: "var(--apricot-soft)", color: "var(--apricot)", q: "TCP 三次握手的第二步，服务端发送的报文是？", due: "● 立即复习" },
+  { type: "填空题", tone: "var(--lilac-soft)", color: "var(--lilac)", q: "快速排序的最坏时间复杂度为 ＿＿，出现在数组已经有序的情况下。", due: "○ 30 分钟后" },
+  { type: "问答题", tone: "var(--sky-soft)", color: "var(--sky)", q: "请描述浏览器从输入 URL 到页面展示的完整过程。", due: "● 立即复习" },
+  { type: "多选题", tone: "var(--sage-soft)", color: "var(--sage)", q: "下列哪些排序算法属于比较排序？", due: "○ 新卡" },
+  { type: "判断题", tone: "var(--butter-soft)", color: "var(--butter)", q: "AVL 树能保证查找操作的时间复杂度为 O(log n)。", due: "○ 新卡" },
+  { type: "单选题", tone: "var(--apricot-soft)", color: "var(--apricot)", q: "以下哪个不是 HTTP 幂等方法？GET / POST / PUT / DELETE", due: "○ 2 天后" },
+  { type: "问答题", tone: "var(--sky-soft)", color: "var(--sky)", q: "解释数据库索引为什么会加速查询，以及什么时候会失效。", due: "● 立即复习" },
+];
+
+function cardNode(data, index) {
+  const el = document.createElement("div");
+  el.className = "fcard";
+  el.dataset.index = index;
+  el.innerHTML = `
+    <span class="pick hidden">✓</span>
+    <div class="body">
+      <div class="foot" style="margin-top:0;justify-content:space-between">
+        <span class="type-pill" style="background:${data.tone};color:${data.color}">${data.type}</span>
+        <span class="due">${data.due}</span>
+      </div>
+      <div class="q" style="margin-top:8px">${data.q}</div>
+    </div>`;
+  return el;
+}
+
+function fillList(container, count, showPick) {
+  for (let i = 0; i < count; i++) {
+    const node = cardNode(DEMO_CARDS[i % DEMO_CARDS.length], i);
+    if (showPick) node.querySelector(".pick").classList.remove("hidden");
+    container.appendChild(node);
+  }
+}
+
+/* ════════ 风格①a：长按进入多选（真实长按 0.6s，滑动取消）══════ */
+(function () {
+  const phone = document.getElementById("p1");
+  const list = document.getElementById("p1-list");
+  fillList(list, 7, false);
+  let timer = null, startXY = null, longFired = false;
+  list.addEventListener("pointerdown", event => {
+    const card = event.target.closest(".fcard");
+    if (!card) return;
+    longFired = false;
+    startXY = [event.clientX, event.clientY];
+    timer = setTimeout(() => {
+      longFired = true;
+      enterBatchMode(phone, card);
+    }, 600);
+  });
+  ["pointermove", "pointercancel"].forEach(evt =>
+    list.addEventListener(evt, event => {
+      if (!startXY) return;
+      const dx = event.clientX - startXY[0], dy = event.clientY - startXY[1];
+      if (Math.hypot(dx, dy) > 10) { clearTimeout(timer); timer = null; }
+    })
+  );
+  list.addEventListener("pointerup", () => { clearTimeout(timer); timer = null; });
+  list.addEventListener("click", event => {
+    if (longFired) { longFired = false; return; } // 长按后的松手 click 不再进入编辑
+  });
+  function enterBatchMode(phone, card) {
+    // 顶栏切多选、该卡选中、其余显示选择圈、弹出操作条
+    const top = phone.querySelector("#p1-top-normal");
+    top.outerHTML = `
+      <div class="sel-top">
+        <button class="btn" data-x1="cancel">✕ 取消</button>
+        <div class="cnt">已选 <b>1</b> 张</div>
+        <button class="btn" data-x1="all">全选</button>
+      </div>`;
+    phone.querySelectorAll(".fcard .pick").forEach(p => p.classList.remove("hidden"));
+    card.classList.add("selected");
+    const bar = document.createElement("div");
+    bar.className = "batch-bar2 show";
+    bar.innerHTML = phone.querySelector("#p2-bar").innerHTML;
+    phone.querySelector(".screen").appendChild(bar);
+    wireBatch(phone, bar, 1);
+    phone.querySelector('[data-x1="cancel"]').onclick = () => location.reload();
+    phone.querySelector('[data-x1="all"]').onclick = () => {
+      phone.querySelectorAll(".fcard").forEach(c => c.classList.add("selected"));
+      updateCnt(phone.querySelectorAll(".fcard.selected").length);
+    };
+    const cntEl = phone.querySelector(".sel-top .cnt b");
+    function updateCnt(n) { cntEl.textContent = n; }
+    wireSelection(phone, updateCnt);
+  }
+  function wireSelection(phone, onChange) {
+    phone.querySelectorAll(".fcard").forEach(card => {
+      card.onclick = () => {
+        if (!phone.querySelector(".batch-bar")) return;
+        card.classList.toggle("selected");
+        onChange(phone.querySelectorAll(".fcard.selected").length);
+      };
+    });
+  }
+  function wireBatch(phone, bar) {
+    bar.querySelectorAll(".act").forEach(btn => {
+      btn.onclick = () => showToast(phone.querySelector("#p1-toast") || makeToast(phone), `批量操作演示：${btn.textContent.trim()}`);
+    });
+  }
+  function makeToast(phone) {
+    const t = document.createElement("div");
+    t.className = "toast"; t.id = "p1-toast";
+    phone.querySelector(".screen").appendChild(t);
+    return t;
+  }
+})();
+
+/* ════════ 风格①b：多选态完整交互（选择/全选/三个操作/确认/toast）══════ */
+(function () {
+  const phone = document.getElementById("p2");
+  const list = document.getElementById("p2-list");
+  fillList(list, 7, true);
+  list.children[0].classList.add("selected");
+  list.children[1].classList.add("selected");
+  list.children[2].classList.add("selected");
+
+  const bar = document.getElementById("p2-bar");
+  const cntEls = phone.querySelectorAll("[data-cnt]");
+  const sync = () => {
+    const n = phone.querySelectorAll(".fcard.selected").length;
+    cntEls.forEach(el => (el.textContent = n));
+    phone.querySelectorAll("[data-cnt2]").forEach(el => (el.textContent = n));
+    phone.querySelectorAll("[data-cnt3]").forEach(el => (el.textContent = n));
+    bar.classList.toggle("show", n > 0);
+  };
+  list.addEventListener("click", event => {
+    const card = event.target.closest(".fcard");
+    if (!card) return;
+    card.classList.toggle("selected");
+    sync();
+  });
+  phone.querySelector('[data-x="all"]').onclick = () => {
+    const all = phone.querySelectorAll(".fcard");
+    const selected = phone.querySelectorAll(".fcard.selected");
+    all.forEach(c => c.classList.toggle("selected", selected.length !== all.length));
+    sync();
+  };
+  phone.querySelector('[data-x="cancel"]').onclick = () => location.reload();
+
+  const toast = document.getElementById("p2-toast");
+  const showToast = text => {
+    toast.textContent = text;
+    toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 2200);
+  };
+  const closeSheets = () => phone.querySelectorAll(".sheet, .sheet-mask, .dialog-mask").forEach(el => el.classList.remove("show"));
+
+  bar.addEventListener("click", event => {
+    const act = event.target.closest(".act");
+    if (!act) return;
+    const op = act.dataset.op;
+    if (op === "delete") {
+      phone.querySelector('[data-dialog="delete"]').classList.add("show");
+    } else {
+      closeSheets();
+      phone.querySelector(`[data-sheet="${op}"]`).classList.add("show");
+      phone.querySelector(`.sheet[data-sheet="${op}"]`).classList.add("show");
+    }
+  });
+  phone.querySelectorAll("[data-sheet]").forEach(el => el.addEventListener("click", () => closeSheets()));
+  phone.querySelectorAll(".sheet .opt").forEach(opt =>
+    opt.addEventListener("click", event => {
+      event.stopPropagation();
+      const n = phone.querySelectorAll(".fcard.selected").length;
+      const isMove = !!opt.dataset.move;
+      showToast(isMove ? `✓ 已移动 ${n} 张到「${opt.dataset.move.split(" ·")[0].replace(/^\S+\s/, "")}」` : `✓ 已把 ${n} 张改为「${opt.dataset.level}」`);
+      closeSheets();
+    })
+  );
+  phone.querySelector('[data-x="noDelete"]').onclick = closeSheets;
+  phone.querySelector('[data-x="yesDelete"]').onclick = () => {
+    const n = phone.querySelectorAll(".fcard.selected").length;
+    phone.querySelectorAll(".fcard.selected").forEach(c => c.remove());
+    closeSheets();
+    showToast(`✓ 已删除 ${n} 张卡片`);
+    sync();
+  };
+  sync();
+})();
+
+/* ════════ 风格②：⋯ 菜单 → 批量管理 ═══════ */
+(function () {
+  const phone = document.getElementById("p3");
+  fillList(document.getElementById("p3-list"), 6, false);
+  const toast = document.getElementById("p3-toast");
+  const showToast = (text, ms = 2400) => {
+    toast.textContent = text; toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), ms);
+  };
+  phone.querySelector('[data-x="openMenu"]').onclick = () => {
+    phone.querySelector('[data-as="menu"]').classList.add("show");
+    phone.querySelector('.asheet[data-as="menu"]').classList.add("show");
+  };
+  phone.querySelector('[data-as="menu"]').addEventListener("click", e => {
+    if (e.target.dataset.as === "menu") {
+      phone.querySelectorAll(".asheet, .as-mask").forEach(el => el.classList.remove("show"));
+    }
+  });
+  phone.querySelector(".as-cancel").onclick = () =>
+    phone.querySelectorAll(".asheet, .as-mask").forEach(el => el.classList.remove("show"));
+  phone.querySelector('[data-x="enterBatch"]').onclick = () => {
+    phone.querySelectorAll(".asheet, .as-mask").forEach(el => el.classList.remove("show"));
+    showToast("进入批量管理 → 形态与风格① b 完全一致（此处演示入口路径）");
+  };
+  phone.querySelectorAll(".as-item:not([data-x])").forEach(item => {
+    item.addEventListener("click", e => e.stopPropagation());
+  });
+})();
+
+/* ════════ 风格③：常显勾选圈 ═══════ */
+(function () {
+  const phone = document.getElementById("p4");
+  const list = document.getElementById("p4-list");
+  fillList(list, 6, true);
+  list.children[0].classList.add("selected");
+  list.children[3].classList.add("selected");
+  const bar = document.getElementById("p4-bar");
+  const sync = () => {
+    const n = phone.querySelectorAll(".fcard.selected").length;
+    phone.querySelector("[data-cnt]").textContent = n;
+    phone.querySelectorAll("[data-cnt2]").forEach(el => (el.textContent = n));
+    phone.querySelectorAll("[data-cnt3]").forEach(el => (el.textContent = n));
+    bar.classList.toggle("show", n > 0);
+  };
+  // 点圈选择；点行（圈外）进编辑——演示中行点击弹 toast 提示
+  list.addEventListener("click", event => {
+    const card = event.target.closest(".fcard");
+    if (!card) return;
+    const onPick = event.target.closest(".pick") !== null;
+    if (onPick) {
+      card.classList.toggle("selected");
+      sync();
+    } else {
+      showToast("进入单卡编辑（与现状一致）");
+    }
+  });
+  const toast = document.getElementById("p4-toast");
+  function showToast(text) {
+    toast.textContent = text; toast.classList.add("show");
+    setTimeout(() => toast.classList.remove("show"), 2000);
+  }
+  phone.querySelector('[data-x="cancel"]').onclick = () => showToast("退出选择（圈隐藏，恢复普通列表）");
+  phone.querySelector('[data-x="all"]').onclick = () => {
+    const all = phone.querySelectorAll(".fcard");
+    const selected = phone.querySelectorAll(".fcard.selected");
+    all.forEach(c => c.classList.toggle("selected", selected.length !== all.length));
+    sync();
+  };
+  const closeSheets = () => phone.querySelectorAll(".sheet, .sheet-mask, .dialog-mask").forEach(el => el.classList.remove("show"));
+  bar.addEventListener("click", event => {
+    const act = event.target.closest(".act");
+    if (!act) return;
+    if (act.dataset.op === "delete") phone.querySelector('[data-dialog="delete"]').classList.add("show");
+    else {
+      closeSheets();
+      phone.querySelector(`.sheet-mask[data-sheet="${act.dataset.op}"]`).classList.add("show");
+      phone.querySelector(`.sheet[data-sheet="${act.dataset.op}"]`).classList.add("show");
+    }
+  });
+  phone.querySelectorAll(".sheet-mask").forEach(el => el.addEventListener("click", closeSheets));
+  phone.querySelectorAll(".sheet .opt").forEach(opt =>
+    opt.addEventListener("click", event => {
+      event.stopPropagation();
+      showToast(`✓ 演示：${opt.dataset.move || opt.dataset.level}`);
+      closeSheets();
+    })
+  );
+  phone.querySelector('[data-x="noDelete"]').onclick = closeSheets;
+  phone.querySelector('[data-x="yesDelete"]').onclick = () => {
+    const n = phone.querySelectorAll(".fcard.selected").length;
+    phone.querySelectorAll(".fcard.selected").forEach(c => c.remove());
+    closeSheets();
+    showToast(`✓ 已删除 ${n} 张卡片`);
+    sync();
+  };
+  sync();
+})();
+
+/* ════════ ⑥ 对比屏：C 胶囊弹 ActionSheet ═══════ */
+(function () {
+  const phone = document.getElementById("p6");
+  const fab = document.getElementById("p6-fab");
+  fab.addEventListener("click", () => {
+    phone.querySelector('[data-as="p6"]').classList.add("show");
+    phone.querySelector('.asheet[data-as="p6"]').classList.add("show");
+  });
+  const close = () => phone.querySelectorAll(".asheet, .as-mask").forEach(el => el.classList.remove("show"));
+  phone.querySelector('[data-as="p6"]').addEventListener("click", e => { if (e.target.dataset.as === "p6") close(); });
+  document.getElementById("p6-cancel").addEventListener("click", close);
+  phone.querySelectorAll('.asheet[data-as="p6"] .as-item').forEach(item => item.addEventListener("click", close));
+})();
+
+/* ════════ ④ 结果反馈：列表收敛 + toast ═══════ */
+(function () {
+  fillList(document.getElementById("p5-list"), 5, false);
+})();
+</script>
+
+</body>
+</html>

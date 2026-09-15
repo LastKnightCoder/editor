@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>闪卡移动端 · 风格 B · 沉浸墨韵</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   风格 B · 沉浸墨韵（夜读复习）
+   列表页：延续杏子令牌（随 App 四主题）。
+   复习页：独立玄夜色板（固定深色，不随主题反转），
+           灵感取自 midnight 令牌 + glow-ambient 氛围光。
+   ═══════════════════════════════════════════════════════ */
+:root {
+  --bg-page: #f6f1e7;
+  --bg-surface: #fffdf9;
+  --bg-input: #f6f1e7;
+  --ink-1: #43392c;
+  --ink-2: #8b7d6b;
+  --ink-3: #b9ac9a;
+  --meta-ink: #7a6c5a;
+  --line-1: #e9e1d2;
+  --brand: #d97757;
+  --brand-soft: rgba(217, 119, 87, 0.12);
+  --brand-grad: linear-gradient(145deg, #e8896a, #d97757);
+  --sage: #61795f; --sage-soft: #e5ede2;
+  --sky: #5c7d99;  --sky-soft: #e2ebf3;
+  --apricot: #b2794b; --apricot-soft: #f8e9d7;
+  --lilac: #8a7aa6; --lilac-soft: #ebe6f3;
+  --butter: #a38c4d; --butter-soft: #f6efd6;
+  --rose: #b06a5e;  --rose-soft: #f6e3e0;
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.06), 0 8px 20px -12px rgba(120, 100, 70, 0.16);
+  --shadow-accent: 0 8px 18px -5px rgba(217, 119, 87, 0.55);
+
+  /* ── 复习页独立玄夜色板（固定，不随主题） ── */
+  --nb-bg: #0e1016;
+  --nb-surface: #171a22;
+  --nb-elevated: #1d212b;
+  --nb-ink: #edeef1;
+  --nb-ink-2: #8e96a5;
+  --nb-ink-3: #5b6270;
+  --nb-line: rgba(255, 255, 255, 0.07);
+  --nb-brand: #f0a860;          /* 琥珀 */
+  --nb-brand-strong: #f5b877;
+  --nb-brand-soft: rgba(240, 168, 96, 0.13);
+  --nb-sage: #7edbb2;  --nb-sage-soft: rgba(110, 231, 183, 0.12);
+  --nb-sky: #9db9f0;   --nb-sky-soft: rgba(147, 180, 255, 0.12);
+  --nb-butter: #e8d487; --nb-butter-soft: rgba(240, 220, 130, 0.10);
+  --nb-rose: #f5988a;  --nb-rose-soft: rgba(255, 138, 120, 0.12);
+  --nb-glow:
+    radial-gradient(420px 300px at 85% -5%, rgba(240, 168, 96, 0.10), transparent 65%),
+    radial-gradient(380px 320px at -10% 108%, rgba(90, 120, 255, 0.06), transparent 60%);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  background: #232529; color: #e8eaee; padding: 36px 28px 64px;
+}
+.page-head { max-width: 1480px; margin: 0 auto 30px; }
+.page-head h1 { font-size: 26px; font-weight: 800; }
+.page-head .sub { color: #a8afba; font-size: 13.5px; margin-top: 8px; line-height: 1.7; max-width: 920px; }
+.page-head .tags { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.page-head .tag {
+  font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+  background: rgba(240, 168, 96, 0.14); color: #f0b680; border: 1px solid rgba(240, 168, 96, 0.3);
+}
+.board { display: flex; gap: 34px; flex-wrap: wrap; max-width: 1780px; margin: 0 auto; }
+.frame-wrap { display: flex; flex-direction: column; gap: 14px; }
+.frame-label { font-size: 14px; font-weight: 700; color: #cfd4dc; }
+.frame-label small { font-weight: 500; color: #8b91a0; font-size: 12px; margin-left: 8px; }
+
+.phone {
+  width: 390px; height: 844px; border-radius: 52px; overflow: hidden; position: relative;
+  background: var(--bg-page); color: var(--ink-1);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.7), 0 0 0 11px #121316, 0 0 0 13px #33363c;
+  font-size: 14px;
+}
+.phone.night { background: var(--nb-bg); color: var(--nb-ink); }
+.screen { height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.scroll { flex: 1; overflow-y: auto; scrollbar-width: none; }
+.scroll::-webkit-scrollbar { display: none; }
+.statusbar { height: 54px; flex: none; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 30px 6px; font-size: 15px; font-weight: 700; }
+.statusbar .icons { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+.homebar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 130px; height: 5px; border-radius: 99px; background: var(--ink-1); opacity: 0.85; z-index: 50; }
+.phone.night .homebar { background: var(--nb-ink); }
+
+.topbar { flex: none; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; position: relative; }
+.topbar .title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 16.5px; font-weight: 800; }
+.icon-btn { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--bg-surface); box-shadow: var(--shadow-card); color: var(--ink-1); font-size: 16px; border: none; }
+
+/* ── 列表页元素（令牌版，与风格 A 同源但布局变体：进度环概览） ── */
+.overview-card {
+  background: var(--bg-surface); border-radius: 24px; box-shadow: var(--shadow-card);
+  padding: 20px; display: flex; align-items: center; gap: 18px;
+}
+.ring { position: relative; width: 96px; height: 96px; flex: none; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring .num { position: absolute; inset: 0; display: grid; place-items: center; flex-direction: column; text-align: center; font-weight: 800; }
+.deck-row { display: flex; align-items: center; gap: 14px; background: var(--bg-surface); border-radius: 20px; padding: 14px 16px; box-shadow: var(--shadow-card); }
+.deck-emoji { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; font-size: 22px; flex: none; }
+.deck-info { flex: 1; min-width: 0; }
+.deck-name { font-weight: 800; font-size: 15px; }
+.deck-meta { color: var(--meta-ink); font-size: 12px; font-weight: 600; margin-top: 3px; }
+.deck-progress { height: 5px; border-radius: 99px; background: var(--bg-input); margin-top: 8px; overflow: hidden; }
+.deck-progress i { display: block; height: 100%; border-radius: 99px; }
+.due-badge { flex: none; min-width: 44px; text-align: center; border-radius: 13px; padding: 7px 8px; font-weight: 800; font-size: 16px; line-height: 1.1; }
+.due-badge small { display: block; font-size: 9.5px; font-weight: 700; opacity: 0.75; margin-top: 1px; }
+.stack { display: flex; flex-direction: column; gap: 11px; padding: 0 20px; }
+.section-title { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; margin-bottom: 10px; }
+.section-title .t { font-size: 13px; font-weight: 800; color: var(--meta-ink); letter-spacing: 0.5px; }
+.cta { border: none; border-radius: 17px; padding: 15px; font-size: 15px; font-weight: 800; color: #fff; background: var(--brand-grad); box-shadow: var(--shadow-accent); width: 100%; }
+
+/* ════════ 沉浸复习页（玄夜色板） ════════ */
+.night .review-top { flex: none; padding: 8px 22px 2px; }
+.night .nb-meta { display: flex; justify-content: space-between; align-items: center; padding: 8px 0 14px; font-size: 12px; font-weight: 700; color: var(--nb-ink-2); }
+.night .nb-close {
+  width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--nb-line);
+  display: grid; place-items: center; color: var(--nb-ink-2); font-size: 13px; background: transparent;
+}
+.night .nb-track { height: 3px; border-radius: 99px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.night .nb-track i { display: block; height: 100%; background: var(--nb-brand); border-radius: 99px; box-shadow: 0 0 10px rgba(240, 168, 96, 0.55); }
+
+.night .nb-body {
+  flex: 1; display: flex; flex-direction: column; justify-content: center;
+  padding: 20px 28px 8px; position: relative; background-image: var(--nb-glow);
+}
+.nb-type { font-size: 11.5px; font-weight: 800; letter-spacing: 2px; color: var(--nb-brand); text-transform: uppercase; }
+.nb-q { font-size: 22px; font-weight: 700; line-height: 1.6; margin-top: 12px; }
+.nb-sub { font-size: 12.5px; color: var(--nb-ink-2); font-weight: 600; margin-top: 10px; }
+
+.nb-opt {
+  border: 1px solid var(--nb-line); background: rgba(255, 255, 255, 0.025);
+  border-radius: 16px; padding: 15px 16px; display: flex; align-items: center; gap: 12px;
+  font-size: 15px; font-weight: 600; color: var(--nb-ink);
+}
+.nb-opt .key {
+  width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; flex: none;
+  border: 1px solid var(--nb-line); color: var(--nb-ink-2); font-size: 12.5px; font-weight: 800;
+}
+.nb-opt.sel { border-color: var(--nb-brand); background: var(--nb-brand-soft); }
+.nb-opt.sel .key { background: var(--nb-brand); color: var(--nb-bg); border-color: transparent; }
+.nb-opt.right { border-color: var(--nb-sage); background: var(--nb-sage-soft); }
+.nb-opt.right .key { background: var(--nb-sage); color: var(--nb-bg); border-color: transparent; }
+.nb-opt.wrong { border-color: var(--nb-rose); background: var(--nb-rose-soft); }
+.nb-opt.wrong .key { background: var(--nb-rose); color: var(--nb-bg); border-color: transparent; }
+.nb-opt.dim { opacity: 0.38; }
+
+.nb-verdict { display: flex; align-items: center; gap: 9px; font-size: 13.5px; font-weight: 800; padding: 12px 16px; border-radius: 14px; }
+.nb-exp {
+  border-left: 2px solid var(--nb-brand); padding: 2px 0 2px 14px; margin-top: 14px;
+  font-size: 13.5px; line-height: 1.8; color: var(--nb-ink-2);
+}
+.nb-exp b { color: var(--nb-ink); }
+.nb-ref { display: flex; align-items: center; gap: 8px; margin-top: 16px; font-size: 12px; font-weight: 700; color: var(--nb-ink-3); }
+
+.night .nb-rate { flex: none; padding: 14px 22px 40px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+.nb-rate-btn {
+  border: none; border-radius: 16px; padding: 12px 4px 11px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 3px; color: #10131a;
+}
+.nb-rate-btn b { font-size: 14px; font-weight: 800; }
+.nb-rate-btn small { font-size: 9.5px; font-weight: 700; opacity: 0.72; }
+.nb-rate-btn.dark-text { color: #10131a; }
+
+.night .nb-submit {
+  flex: none; margin: 0 22px 40px; border: none; border-radius: 18px; padding: 16px;
+  font-size: 15.5px; font-weight: 800; color: var(--nb-bg); background: var(--nb-brand);
+  box-shadow: 0 10px 26px -8px rgba(240, 168, 96, 0.5); cursor: pointer; width: calc(100% - 44px);
+}
+.nb-gesture-hint {
+  text-align: center; font-size: 11px; font-weight: 600; color: var(--nb-ink-3); margin-top: 12px; letter-spacing: 0.5px;
+}
+
+/* 沉浸完成页 */
+.nb-done-ring { position: relative; width: 148px; height: 148px; margin: 0 auto; }
+.nb-done-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.nb-stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 30px; }
+.nb-stat { background: var(--nb-surface); border: 1px solid var(--nb-line); border-radius: 18px; padding: 15px 8px; text-align: center; }
+.nb-stat b { display: block; font-size: 20px; font-weight: 800; }
+.nb-stat span { display: block; font-size: 11px; font-weight: 700; color: var(--nb-ink-2); margin-top: 3px; }
+
+.hint-note { max-width: 1780px; margin: 34px auto 0; font-size: 12.5px; color: #8b91a0; line-height: 1.8; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 18px; }
+</style>
+</head>
+<body>
+
+<header class="page-head">
+  <h1>风格 B · 沉浸墨韵（夜读复习）</h1>
+  <p class="sub">双体系策略：列表/管理页完全延续现有令牌（随 App 四主题），复习页则是一块「不随主题反转的固定玄夜屏」——深蓝夜底、琥珀主色、氛围光，把复习做成一天中一段安静专注的仪式。夜间复习不刺眼，白天进入也有明确的心理切换信号。复习期间屏幕常亮（useKeepScreenAwake）。</p>
+  <div class="tags">
+    <span class="tag">复习仪式感最强</span><span class="tag">夜间舒适</span><span class="tag">间隔预览透出</span><span class="tag">实现约 1.15×</span><span class="tag">复习页脱离主题系统</span>
+  </div>
+</header>
+
+<main class="board">
+
+  <!-- ════════ ① 闪卡主页（令牌延续 · 进度环变体） ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">① 闪卡主页 <small>令牌延续 · 进度环概览变体</small></div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="topbar">
+          <button class="icon-btn">‹</button>
+          <div class="title">闪卡</div>
+          <button class="icon-btn">＋</button>
+        </div>
+        <div class="scroll" style="padding-bottom:40px">
+          <div class="stack" style="padding-top:10px">
+            <div class="overview-card">
+              <div class="ring">
+                <svg viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="43" fill="none" stroke="#f6f1e7" stroke-width="8"/>
+                  <circle cx="50" cy="50" r="43" fill="none" stroke="#d97757" stroke-width="8" stroke-linecap="round" stroke-dasharray="270" stroke-dashoffset="75"/>
+                </svg>
+                <div class="num"><div style="text-align:center"><div style="font-size:22px;color:#43392c">12</div><div style="font-size:9.5px;color:#8b7d6b;font-weight:700">待复习</div></div></div>
+              </div>
+              <div style="flex:1">
+                <div style="font-size:16.5px;font-weight:800">今日复习</div>
+                <div style="font-size:12px;color:#7a6c5a;font-weight:600;margin-top:5px;line-height:1.6">3 个卡组有到期卡片<br>已复习 47 / 59 张 · 连续 14 天 🔥</div>
+                <button class="cta" style="margin-top:12px;padding:12px;font-size:14px">进入沉浸复习</button>
+              </div>
+            </div>
+          </div>
+          <div class="stack" style="margin-top:22px">
+            <div class="section-title"><span class="t">卡组 · 5</span></div>
+            <div class="deck-row">
+              <div class="deck-emoji" style="background:var(--apricot-soft)">🧠</div>
+              <div class="deck-info">
+                <div class="deck-name">算法面试</div>
+                <div class="deck-meta">48 张 · 今日 12 张到期</div>
+                <div class="deck-progress"><i style="width:68%;background:var(--apricot)"></i></div>
+              </div>
+              <div class="due-badge" style="background:var(--brand-soft);color:var(--brand)">12<small>待复习</small></div>
+            </div>
+            <div class="deck-row">
+              <div class="deck-emoji" style="background:var(--sky-soft)">📚</div>
+              <div class="deck-info">
+                <div class="deck-name">英语高频词</div>
+                <div class="deck-meta">120 张 · 今日 35 张到期</div>
+                <div class="deck-progress"><i style="width:82%;background:var(--sky)"></i></div>
+              </div>
+              <div class="due-badge" style="background:var(--brand-soft);color:var(--brand)">35<small>待复习</small></div>
+            </div>
+            <div class="deck-row">
+              <div class="deck-emoji" style="background:var(--lilac-soft)">📖</div>
+              <div class="deck-info">
+                <div class="deck-name">《认知觉醒》笔记</div>
+                <div class="deck-meta">26 张 · 今日 5 张到期</div>
+                <div class="deck-progress"><i style="width:54%;background:var(--lilac)"></i></div>
+              </div>
+              <div class="due-badge" style="background:var(--brand-soft);color:var(--brand)">5<small>待复习</small></div>
+            </div>
+            <div class="deck-row" style="opacity:.72">
+              <div class="deck-emoji" style="background:var(--butter-soft)">⚡</div>
+              <div class="deck-info">
+                <div class="deck-name">HTTP 网络基础</div>
+                <div class="deck-meta">31 张 · 全部巩固中</div>
+                <div class="deck-progress"><i style="width:100%;background:var(--butter)"></i></div>
+              </div>
+              <div class="due-badge" style="background:var(--bg-input);color:var(--ink-3)">0<small>已完成</small></div>
+            </div>
+          </div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ ② 卡组详情（令牌延续） ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">② 卡组详情 <small>令牌延续 · 与风格 A 同构</small></div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="topbar">
+          <button class="icon-btn">‹</button>
+          <div class="title">算法面试</div>
+          <button class="icon-btn">⋯</button>
+        </div>
+        <div class="stack" style="padding-top:8px">
+          <div class="deck-row" style="padding:13px 15px">
+            <div class="deck-emoji" style="background:var(--apricot-soft)">🧠</div>
+            <div class="deck-info">
+              <div class="deck-meta" style="margin-top:0">48 张卡片 · 今日到期 12 张</div>
+              <div class="deck-progress"><i style="width:68%;background:var(--apricot)"></i></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:9px;padding:12px 20px 4px;flex:none">
+          <span style="padding:8px 15px;border-radius:999px;font-size:13px;font-weight:700;background:var(--ink-1);color:#fff8ef">全部 48</span>
+          <span style="padding:8px 15px;border-radius:999px;font-size:13px;font-weight:700;background:var(--bg-surface);color:var(--ink-2);box-shadow:var(--shadow-card)">新卡 6</span>
+          <span style="padding:8px 15px;border-radius:999px;font-size:13px;font-weight:700;background:var(--bg-surface);color:var(--ink-2);box-shadow:var(--shadow-card)">学习中 9</span>
+          <span style="padding:8px 15px;border-radius:999px;font-size:13px;font-weight:700;background:var(--bg-surface);color:var(--ink-2);box-shadow:var(--shadow-card)">巩固 33</span>
+        </div>
+        <div class="scroll" style="padding-bottom:40px">
+          <div class="stack" style="padding-top:10px">
+            <div style="background:var(--bg-surface);border-radius:20px;box-shadow:var(--shadow-card);padding:14px 16px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:999px;background:var(--apricot-soft);color:var(--apricot)">◉ 单选题</span>
+                <span style="font-size:11.5px;font-weight:700;color:var(--brand)">● 立即复习</span>
+              </div>
+              <div style="font-size:14px;font-weight:600;line-height:1.55;margin-top:9px">TCP 三次握手的第二步，服务端发送的报文是？</div>
+            </div>
+            <div style="background:var(--bg-surface);border-radius:20px;box-shadow:var(--shadow-card);padding:14px 16px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:999px;background:var(--lilac-soft);color:var(--lilac)">▭ 填空题</span>
+                <span style="font-size:11.5px;font-weight:700;color:var(--meta-ink)">○ 30 分钟后</span>
+              </div>
+              <div style="font-size:14px;font-weight:600;line-height:1.55;margin-top:9px">快速排序的最坏时间复杂度为 ＿＿，出现在数组已经有序的情况下。</div>
+            </div>
+            <div style="background:var(--bg-surface);border-radius:20px;box-shadow:var(--shadow-card);padding:14px 16px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:999px;background:var(--sky-soft);color:var(--sky)">✎ 问答题</span>
+                <span style="font-size:11.5px;font-weight:700;color:var(--brand)">● 立即复习</span>
+              </div>
+              <div style="font-size:14px;font-weight:600;line-height:1.55;margin-top:9px">请描述浏览器从输入 URL 到页面展示的完整过程。</div>
+            </div>
+            <div style="background:var(--bg-surface);border-radius:20px;box-shadow:var(--shadow-card);padding:14px 16px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:999px;background:var(--sage-soft);color:var(--sage)">⊕ 多选题</span>
+                <span style="font-size:11.5px;font-weight:700;color:var(--meta-ink)">○ 新卡</span>
+              </div>
+              <div style="font-size:14px;font-weight:600;line-height:1.55;margin-top:9px">下列哪些排序算法属于比较排序？</div>
+            </div>
+          </div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ ③ 复习 · 答题态（玄夜沉浸） ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">③ 复习 · 答题态 <small>玄夜沉浸 · 居中大字 · 已选 B</small></div>
+    <div class="phone night">
+      <div class="screen">
+        <div class="statusbar" style="color:#edeef1"><span>21:37</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="review-top">
+          <div class="nb-meta">
+            <button class="nb-close">✕</button>
+            <span>第 3 / 12 张 · 算法面试</span>
+            <button class="nb-close" style="font-size:11px;font-weight:800">⏸</button>
+          </div>
+          <div class="nb-track"><i style="width:25%"></i></div>
+        </div>
+        <div class="nb-body">
+          <div class="nb-type">单选题 · 进阶</div>
+          <div class="nb-q">TCP 三次握手的第二步，服务端发送的报文是？</div>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:26px">
+            <div class="nb-opt"><span class="key">A</span>SYN</div>
+            <div class="nb-opt sel"><span class="key">B</span>SYN + ACK</div>
+            <div class="nb-opt"><span class="key">C</span>ACK</div>
+            <div class="nb-opt"><span class="key">D</span>FIN</div>
+          </div>
+        </div>
+        <div style="flex:none;padding:0 22px 34px">
+          <button class="nb-submit" style="width:100%;margin:0">确认回答</button>
+          <div class="nb-gesture-hint">▾ 长按选项可直接提交</div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ ④ 复习 · 揭示态（玄夜沉浸） ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">④ 复习 · 揭示态 <small>琥珀高亮 + 间隔预览评分</small></div>
+    <div class="phone night">
+      <div class="screen">
+        <div class="statusbar" style="color:#edeef1"><span>21:37</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="review-top">
+          <div class="nb-meta">
+            <button class="nb-close">✕</button>
+            <span>第 3 / 12 张 · 算法面试</span>
+            <button class="nb-close" style="font-size:11px;font-weight:800">⏸</button>
+          </div>
+          <div class="nb-track"><i style="width:25%"></i></div>
+        </div>
+        <div class="nb-body" style="justify-content:flex-start;padding-top:18px">
+          <div class="nb-type">单选题 · 进阶</div>
+          <div class="nb-q" style="font-size:17.5px">TCP 三次握手的第二步，服务端发送的报文是？</div>
+          <div style="display:flex;flex-direction:column;gap:9px;margin-top:18px">
+            <div class="nb-opt dim"><span class="key">A</span>SYN</div>
+            <div class="nb-opt right"><span class="key">✓</span>SYN + ACK<span style="margin-left:auto;font-size:10.5px;font-weight:800;color:var(--nb-sage)">正确答案</span></div>
+            <div class="nb-opt wrong"><span class="key">✕</span>ACK<span style="margin-left:auto;font-size:10.5px;font-weight:800;color:var(--nb-rose)">你的选择</span></div>
+            <div class="nb-opt dim"><span class="key">D</span>FIN</div>
+          </div>
+          <div class="nb-verdict" style="background:var(--nb-rose-soft);color:var(--nb-rose);margin-top:14px">✕ 回答错误</div>
+          <div class="nb-exp">第二步服务端返回 <b>SYN+ACK</b>（syn=1, ack=1）：确认客户端序号，同时协商自己的初始序号；第三步客户端再回 ACK，连接建立。记忆锚点：<b>「收 SYN → 回 SYN+ACK」</b>。</div>
+          <div class="nb-ref">📎 《计算机网络：自顶向下方法》§5.2</div>
+        </div>
+        <div class="nb-rate">
+          <button class="nb-rate-btn" style="background:var(--nb-rose)"><b>吃力</b><small>5 分钟后</small></button>
+          <button class="nb-rate-btn" style="background:var(--nb-butter)"><b>一般</b><small>30 分钟后</small></button>
+          <button class="nb-rate-btn" style="background:var(--nb-sky)"><b>还行</b><small>2 天后</small></button>
+          <button class="nb-rate-btn" style="background:var(--nb-sage)"><b>轻松</b><small>7 天后</small></button>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ ⑤ 复习完成（玄夜琥珀庆祝） ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">⑤ 复习完成 <small>玄夜琥珀 · 收束仪式</small></div>
+    <div class="phone night">
+      <div class="screen">
+        <div class="statusbar" style="color:#edeef1"><span>21:46</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="scroll" style="display:flex;flex-direction:column;justify-content:center;padding:0 26px;background-image:var(--nb-glow)">
+          <div style="text-align:center">
+            <div class="nb-done-ring">
+              <svg viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="43" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="7"/>
+                <circle cx="50" cy="50" r="43" fill="none" stroke="#7edbb2" stroke-width="7" stroke-linecap="round" stroke-dasharray="270" stroke-dashoffset="0"/>
+              </svg>
+              <div style="position:absolute;inset:0;display:grid;place-items:center;font-size:44px">🌙</div>
+            </div>
+            <div style="font-size:21px;font-weight:800;margin-top:22px">今晚的复习完成了</div>
+            <div style="font-size:12.5px;font-weight:600;color:var(--nb-ink-2);margin-top:8px">算法面试 · 12 张 · 用时 8 分钟</div>
+          </div>
+          <div class="nb-stat-grid">
+            <div class="nb-stat"><b style="color:var(--nb-sage)">10</b><span>轻松</span></div>
+            <div class="nb-stat"><b style="color:var(--nb-sky)">1</b><span>还行</span></div>
+            <div class="nb-stat"><b style="color:var(--nb-rose)">1</b><span>吃力</span></div>
+          </div>
+          <div style="margin-top:14px;border:1px solid var(--nb-line);border-radius:16px;padding:13px;text-align:center;font-size:12.5px;color:var(--nb-ink-2);font-weight:600">
+            正确率 92% · 下一次到期：明天早上 8 点
+          </div>
+          <div style="margin-top:22px;display:flex;flex-direction:column;gap:10px">
+            <button class="nb-submit" style="width:100%;margin:0">完成</button>
+            <button style="border:1px solid var(--nb-line);background:transparent;color:var(--nb-ink-2);border-radius:18px;padding:15px;font-size:14.5px;font-weight:800">看看复习统计</button>
+          </div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<p class="hint-note">
+  说明：风格 B 的核心取舍是「复习页脱离主题系统」——使用固定的玄夜色板（色值取自 midnight 令牌，含 glow-ambient 氛围光），无论 App 处于杏子/薄荷/海盐还是玄夜主题，进入复习页即切换到专注夜读模式。这带来最强的心理仪式感与夜间护眼，但意味着 App 内存在两套视觉体系。列表页与卡组管理页仍完全走令牌、随主题适配。
+</p>
+
+</body>
+</html>

@@ -179,7 +179,7 @@ function BlankConfigSheet({
           type="button"
           disabled={!answer.trim()}
           onClick={save}
-          className="bg-brand rounded-[16px] py-3 text-[14.5px] font-extrabold text-white active:opacity-80 disabled:opacity-45"
+          className="bg-accent rounded-[16px] py-3 text-[14.5px] font-extrabold text-white active:opacity-80 disabled:opacity-45"
         >
           保存
         </button>

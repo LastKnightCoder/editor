@@ -1013,3 +1013,5 @@ CREATE INDEX IF NOT EXISTS idx_rss_entry_starred ON rss_entry(is_starred);
 CREATE INDEX IF NOT EXISTS idx_rss_entry_read ON rss_entry(is_read);
 CREATE INDEX IF NOT EXISTS idx_read_later_source ON read_later(source_type, source_id);
 CREATE INDEX IF NOT EXISTS idx_read_later_create_time ON read_later(create_time);
+
+CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_time ON flashcard_reviews(review_time);
