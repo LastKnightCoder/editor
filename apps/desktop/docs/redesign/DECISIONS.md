@@ -83,6 +83,15 @@
 - 理由：兑现 D-009 的零 JS 切换；首帧零闪变；手工同步期由 theme-parity 测试守护 CSS 块与 defineTheme 产物一致，codegen（03 §9 任务 7）落地后测试退位给生成产物。
 - 影响：新增主题必须同时补数据块（已固化进 AGENTS.md 与 03 指南 §3）。
 
+## D-013 样式载体：Tailwind 优先 + 语义化类名，废弃模板导出工作流 `已定（2026-09-15，用户裁决）`
+
+- 背景：壳层/首页初版样式经 mockups HTML 模板"脚本导出"为 shell.css（119 类）+ 域内 CSS（home.css/stats.css），存在三个问题：①导出脚本未入库，"先改模板再导出、禁手改"流程不可复现，规范与现实脱节；②类名非语义化且强依赖模板 DOM 结构（board/nav-item/todo-row…）；③与 D-003"新代码只写 Tailwind 语义类"单轨制自相矛盾（03 §4 却规定不自创 Tailwind 视觉类）。
+- 选择：样式载体改为 **Tailwind v4 工具类优先**——颜色走既有 `@theme inline` 语义类（bg-page/text-ink-1…），尺度（字号/圆角/阴影/缓动）补进 `@theme` 用 `tau` 命名空间词（text-tau-\*/rounded-tau-\*/shadow-card/ease-tau-out，不覆盖 legacy 在用的默认刻度）；一次性展示字号（热力图轴标/统计大数字）允许 `text-[24px]` 类任意值；跨域复用视觉模式收口为 `ui/` 组件（Panel/IconButton…），组件内写 Tailwind。
+- CSS 保留白名单（仅四类，逐例裁决、默认不许）：`.app` 作用域全局 reset（base.css）、@keyframes（经 `--animate-*` 消费）、主题数据块（tokens.css，D-012 机制不动）、Tailwind 表达不了的个别复杂伪元素/全局状态。
+- mockups HTML 降级为视觉参考（浏览器对照截图），不再是导出源；调视觉直接改组件。D-010 视觉基准（A2 柔和版）地位不变，仅维护方式变更。
+- 推翻：03 指南 §4"组件 className 与模板类名 1:1 / 禁手改 shell.css / 先改模板再导出"；shell.css 约 90 个无消费者的预置模板类（palette-\*/card-\*/detail-\*/btn-\* 等）直接删除，将来做对应页面时用 Tailwind 语义类重写。
+- 影响：AGENTS.md「UI 与主题」、03 指南 §2/§3/§4、02 规范 §3/§5.4、redesign/README 同步更新；tokenContract 语义词（bg-surface/bg-hover 等）全局唯一归属 `--tau-*`（tailwind.css 旧手写同名类删除，经核实零有效消费者）。
+
 ---
 
 ## Surface 迁移清单（M2 起滚动勾选）
