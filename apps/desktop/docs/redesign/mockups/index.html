@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tau 桌面端重构 · 样板间导览</title>
+<!--
+  样板间导览：导航方案线框对比 + 三套设计方向入口 + 决策检查清单。
+  本页刻意采用中性样式，不偏向任何方向。
+-->
+<style>
+:root {
+  --ink: #1d1f24; --ink-2: #5b606b; --ink-3: #8b919c;
+  --bg: #fcfcfd; --surface: #fff; --line: #e6e8ec; --accent: #4650c8;
+  --accent-soft: rgba(70, 80, 200, 0.09);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--ink); background: var(--bg); font-size: 14px; line-height: 1.75; }
+.page { max-width: 1000px; margin: 0 auto; padding: 48px 32px 80px; }
+h1 { font-size: 26px; letter-spacing: -0.01em; margin-bottom: 8px; }
+.lede { color: var(--ink-2); max-width: 72ch; margin-bottom: 8px; }
+.lede b { color: var(--ink); }
+h2 { font-size: 19px; margin: 48px 0 6px; }
+h2 + p { color: var(--ink-2); margin-bottom: 20px; max-width: 72ch; }
+a { color: var(--accent); }
+kbd { padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--surface); font-size: 12px; font-family: ui-monospace, Consolas, monospace; }
+
+/* 导航方案对比 */
+.nav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.nav-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.nav-card.rec { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.rec-tag { display: inline-block; font-size: 11px; font-weight: 600; color: var(--accent);
+  background: var(--accent-soft); border-radius: 999px; padding: 1px 10px; margin-left: 8px; vertical-align: 2px; }
+.nav-card h3 { font-size: 14.5px; margin-bottom: 10px; }
+.wf { width: 100%; height: 130px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 12px;
+  background: #f4f5f7; display: flex; overflow: hidden; }
+.wf-block { background: #d7dae0; border-radius: 3px; }
+.wf-block.dark { background: #b6bac2; }
+.wf-block.accent { background: var(--accent); opacity: 0.75; }
+.wf-col { display: flex; flex-direction: column; gap: 5px; padding: 8px; }
+.nav-card ul { list-style: none; font-size: 12.5px; color: var(--ink-2); }
+.nav-card li { padding-left: 16px; position: relative; }
+.nav-card li::before { content: "·"; position: absolute; left: 4px; color: var(--ink-3); }
+.nav-card li.good { color: #3e6b4f; }
+.nav-card li.bad { color: #9c5148; }
+
+/* 方向入口 */
+.dir-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.dir-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.dir-card h3 { font-size: 16px; margin-bottom: 2px; }
+.dir-card .en { font-size: 12px; color: var(--ink-3); margin-bottom: 12px; }
+.swatches { display: flex; height: 34px; border-radius: 8px; overflow: hidden; margin-bottom: 12px; border: 1px solid var(--line); }
+.sw { flex: 1; }
+.swatches + .swatches { margin-top: -8px; }
+.dir-card p { font-size: 12.5px; color: var(--ink-2); margin-bottom: 10px; }
+.dir-card .traits { font-size: 12px; color: var(--ink-2); margin-bottom: 14px; }
+.dir-card .traits b { color: var(--ink); }
+.open-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px; border-radius: 8px;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 500; text-decoration: none; }
+.open-btn:hover { filter: brightness(1.1); }
+.open-btn small { font-weight: 400; opacity: 0.85; }
+
+/* 检查清单 */
+.checklist { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 24px; }
+.checklist ol { padding-left: 22px; }
+.checklist li { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.checklist li:last-child { border-bottom: none; }
+.checklist li b { display: block; }
+.checklist li span { color: var(--ink-2); font-size: 12.5px; }
+.note { margin-top: 40px; padding: 16px 20px; border-radius: 10px; background: var(--accent-soft);
+  font-size: 13px; color: var(--ink-2); }
+.note b { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Tau 桌面端重构 · 样板间</h1>
+  <p class="lede">这一步只做决策，不写代码。先定<b>导航大方向</b>（第 1 节），再体验<b>三套设计方向</b>（第 2 节，每套都带浅色/深色切换、详情抽屉、分屏与 <kbd>Ctrl K</kbd> 命令面板），最后过一遍<b>决策清单</b>（第 3 节）把结论告诉我。配套文档在 <b>docs/redesign/</b>（蓝图 / UI 规范 / DECISIONS / PREFERENCES）。</p>
+
+  <h2>1 · 导航方案对比</h2>
+  <p>浏览器式 Tab 只是选项之一。五个方案的完整分析见《01-重构蓝图.md》§4，这里是直观线框：</p>
+  <div class="nav-grid">
+    <div class="nav-card">
+      <h3>方案 0 · 维持 Tab 条（现状）</h3>
+      <div class="wf" style="flex-direction: column;">
+        <div style="display:flex; gap:4px; padding:8px 8px 4px;">
+          <div class="wf-block accent" style="width:56px; height:18px;"></div>
+          <div class="wf-block" style="width:56px; height:18px;"></div>
+          <div class="wf-block" style="width:56px; height:18px;"></div>
+          <div class="wf-block" style="width:56px; height:18px;"></div>
+        </div>
+        <div class="wf-block dark" style="flex:1; margin:4px 8px 8px;"></div>
+      </div>
+      <ul>
+        <li class="good">多任务并行、浏览器心智、用户已习惯</li>
+        <li class="bad">33 种 TabType 已失控；标题栏拥挤；管理成本高</li>
+        <li class="bad">保活可修"丢状态"，但 Tab 条噪音仍在</li>
+      </ul>
+    </div>
+    <div class="nav-card">
+      <h3>方案 1 · 侧边栏 + 单主视图</h3>
+      <div class="wf">
+        <div class="wf-col" style="width:56px; border-right:1px solid var(--line);">
+          <div class="wf-block dark" style="height:12px;"></div>
+          <div class="wf-block" style="height:12px;"></div>
+          <div class="wf-block" style="height:12px;"></div>
+          <div class="wf-block" style="height:12px;"></div>
+        </div>
+        <div class="wf-block dark" style="flex:1; margin:8px;"></div>
+      </div>
+      <ul>
+        <li class="good">导航零管理；切换零丢失；信息架构一目了然</li>
+        <li class="good">Notion / Linear 验证过的桌面惯例</li>
+        <li class="bad">不能同时看两个页面（靠分屏补）</li>
+      </ul>
+    </div>
+    <div class="nav-card">
+      <h3>方案 2 · 侧边栏 + 列表详情同屏</h3>
+      <div class="wf">
+        <div class="wf-col" style="width:40px; border-right:1px solid var(--line);">
+          <div class="wf-block dark" style="height:11px;"></div>
+          <div class="wf-block" style="height:11px;"></div>
+          <div class="wf-block" style="height:11px;"></div>
+        </div>
+        <div style="flex:1.1; padding:8px; display:flex; flex-direction:column; gap:5px;">
+          <div class="wf-block" style="height:14px;"></div>
+          <div class="wf-block accent" style="height:14px;"></div>
+          <div class="wf-block" style="height:14px;"></div>
+          <div class="wf-block" style="height:14px;"></div>
+        </div>
+        <div class="wf-block dark" style="flex:1; margin:8px 0 8px 0;"></div>
+      </div>
+      <ul>
+        <li class="good">浏览-阅读工作流最高效（邮件客户端式）</li>
+        <li class="bad">只适合"列表+详情"型内容，不适合编辑器/白板</li>
+        <li class="bad">作为全局方案过窄——更适合做页面内布局模式</li>
+      </ul>
+    </div>
+    <div class="nav-card">
+      <h3>方案 3 · 自由多面板工作台</h3>
+      <div class="wf">
+        <div class="wf-col" style="width:40px; border-right:1px solid var(--line);">
+          <div class="wf-block dark" style="height:11px;"></div>
+          <div class="wf-block" style="height:11px;"></div>
+          <div class="wf-block" style="height:11px;"></div>
+        </div>
+        <div style="flex:1; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:6px; padding:8px;">
+          <div class="wf-block"></div><div class="wf-block"></div>
+          <div class="wf-block accent"></div><div class="wf-block"></div>
+        </div>
+      </div>
+      <ul>
+        <li class="good">天花板最高：任意页面并排（IDE / Obsidian 式）</li>
+        <li class="bad">实现与维护成本最高</li>
+        <li class="bad">pane 布局管理会重演 Tab 管理的复杂度</li>
+      </ul>
+    </div>
+    <div class="nav-card rec">
+      <h3>方案 4 · 侧边栏 + 页内详情 + 分屏逃生舱<span class="rec-tag">推荐</span></h3>
+      <div class="wf">
+        <div class="wf-col" style="width:40px; border-right:1px solid var(--line);">
+          <div class="wf-block accent" style="height:11px;"></div>
+          <div class="wf-block dark" style="height:11px;"></div>
+          <div class="wf-block" style="height:11px;"></div>
+        </div>
+        <div style="flex:1.2; padding:8px; display:flex; flex-direction:column; gap:5px; position:relative;">
+          <div class="wf-block" style="height:14px;"></div>
+          <div class="wf-block dark" style="height:14px;"></div>
+          <div class="wf-block" style="height:14px;"></div>
+          <div class="wf-block" style="height:14px;"></div>
+          <div class="wf-block accent" style="position:absolute; right:12px; top:24px; width:34%; height:64%; box-shadow:0 4px 10px rgba(0,0,0,.15);"></div>
+        </div>
+        <div class="wf-block" style="flex:0.7; margin:8px 0 8px 4px; border-left:1px solid var(--line);"></div>
+      </div>
+      <ul>
+        <li class="good">方案 1 骨架 + 详情走抽屉/浮层（蓝块）+ openInSplit 分屏（右窄栏）</li>
+        <li class="good">10% 成本拿到方案 3 的 80% 价值；架构上可平滑进化到方案 3</li>
+        <li class="good">命令面板补齐键盘多任务（三套方向 demo 里都有实装）</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>2 · 三套设计方向</h2>
+  <p>每套都是完整的「卡片列表页」demo，交互一致（可对比）：主题切换、点卡片开详情抽屉、卡片悬停分屏、<kbd>Ctrl K</kbd> 命令面板、<kbd>Esc</kbd> 逐层退场、标题栏后退/前进（<kbd>Alt</kbd>+<kbd>←</kbd>/<kbd>→</kbd>）；状态栏可切换 <b>Win / Mac 标题栏预览</b>（Mac 模式红绿灯让位左侧、隐藏 Windows 三键）。上排色板为浅色主题，下排为深色主题。另见：<a href="./direction-a-soft.html"><b>A2 · 暖纸柔和版</b></a>（A 的重写：去横线切割、宽容器、丰满首页、详情双栏）与 <a href="./home-proposals.html"><b>今日页三方案</b></a>（清单流 / 双栏工作台 / 轻量指标）。</p>
+  <div class="dir-grid">
+    <div class="dir-card">
+      <h3>A · 暖纸工作台</h3>
+      <div class="en">Cream Studio — 移动端「杏子 Bento」的桌面化</div>
+      <div class="swatches">
+        <div class="sw" style="background:#f6f1e7;"></div><div class="sw" style="background:#fffdf9;"></div>
+        <div class="sw" style="background:#d97757;"></div><div class="sw" style="background:#e5ede2;"></div>
+        <div class="sw" style="background:#e2ebf3;"></div><div class="sw" style="background:#43392c;"></div>
+      </div>
+      <div class="swatches">
+        <div class="sw" style="background:#0e1016;"></div><div class="sw" style="background:#171a22;"></div>
+        <div class="sw" style="background:#f0a860;"></div><div class="sw" style="background:#7edbb2;"></div>
+        <div class="sw" style="background:#9db9f0;"></div><div class="sw" style="background:#edeef1;"></div>
+      </div>
+      <p>奶油纸底 + 可可墨 + 陶土橙，六组粉彩语义色，卡片不描边靠阴影分层，圆角 14，极淡噪点。深色为玄夜（琥珀 accent）。</p>
+      <div class="traits"><b>气质</b>：温暖、亲切、纸感<br><b>优势</b>：与移动端同一设计语言，双端一体的品牌感<br><b>代价</b>：与常见工具软件差异最大，需要接受暖色工作台</div>
+      <a class="open-btn" href="./direction-a-cream.html">打开方向 A <small>· 建议全屏窗口</small></a>
+    </div>
+    <div class="dir-card">
+      <h3>B · 石墨工作台</h3>
+      <div class="en">Graphite Atelier — 冷灰中性 + 靛蓝的专业工具风</div>
+      <div class="swatches">
+        <div class="sw" style="background:#f7f7f8;"></div><div class="sw" style="background:#ffffff;"></div>
+        <div class="sw" style="background:#5459d6;"></div><div class="sw" style="background:#e8f0f7;"></div>
+        <div class="sw" style="background:#eceef9;"></div><div class="sw" style="background:#191b1f;"></div>
+      </div>
+      <div class="swatches">
+        <div class="sw" style="background:#131417;"></div><div class="sw" style="background:#1a1c20;"></div>
+        <div class="sw" style="background:#8589f2;"></div><div class="sw" style="background:#7ba8d4;"></div>
+        <div class="sw" style="background:#9a9fe8;"></div><div class="sw" style="background:#e6e7ea;"></div>
+      </div>
+      <p>发丝线描边分层（不用阴影），圆角 8，紧凑密度，tabular-nums 数字对齐。Linear / Raycast 谱系，现有 --th-* token 血统的完整体。</p>
+      <div class="traits"><b>气质</b>：冷静、精密、工具感<br><b>优势</b>：信息密度最高，最贴合"冷静克制"的工具气质，实现迁移成本最低<br><b>代价</b>：「个人特色」相对最弱，与优秀工具软件同质</div>
+      <a class="open-btn" href="./direction-b-graphite.html">打开方向 B <small>· 建议全屏窗口</small></a>
+    </div>
+    <div class="dir-card">
+      <h3>C · 墨韵编辑部</h3>
+      <div class="en">Ink &amp; Vermilion — 纸墨与朱砂的编辑风</div>
+      <div class="swatches">
+        <div class="sw" style="background:#fbfaf8;"></div><div class="sw" style="background:#ffffff;"></div>
+        <div class="sw" style="background:#c03d2d;"></div><div class="sw" style="background:#f4f2ee;"></div>
+        <div class="sw" style="background:#ddd9d1;"></div><div class="sw" style="background:#1c1b19;"></div>
+      </div>
+      <div class="swatches">
+        <div class="sw" style="background:#141311;"></div><div class="sw" style="background:#1c1a17;"></div>
+        <div class="sw" style="background:#e0604a;"></div><div class="sw" style="background:#8fc07f;"></div>
+        <div class="sw" style="background:#d4b96a;"></div><div class="sw" style="background:#ece8e0;"></div>
+      </div>
+      <p>素白纸面 + 近黑墨色 + 单一朱砂色。卡片题名与页题用衬线（宋体/Georgia），meta 用等宽（档案感），索引卡片式粗墨线顶边，圆角 4，双细线分隔。</p>
+      <div class="traits"><b>气质</b>：书卷、克制而有人味，个人特色最强<br><b>优势</b>：卡片笔记 = 索引卡的隐喻天然成立；写作类产品气质契合<br><b>代价</b>：衬线标题的阅读效率略低；暖白纸面需接受</div>
+      <a class="open-btn" href="./direction-c-ink.html">打开方向 C <small>· 建议全屏窗口</small></a>
+    </div>
+  </div>
+
+  <h2>3 · 决策检查清单</h2>
+  <p>逐项过一遍，把结论（包括混搭，如「A 的配色 + B 的密度」）告诉我，我会落进 DECISIONS.md 与 PREFERENCES.md：</p>
+  <div class="checklist">
+    <ol>
+      <li><b>导航方案</b><span>是否采纳推荐的方案 4？侧边栏一级导航的分组与命名（demo 中的「工作台 / 知识 / 学习」三分组）是否符合你的心智？</span></li>
+      <li><b>设计方向</b><span>A / B / C 三选一，或指出混搭要素（配色、圆角、字体、密度可各自取材）。</span></li>
+      <li><b>密度基调</b><span>默认紧凑（B 的行高）还是舒适（A 的行高）？影响 token 默认值与卡片信息量。</span></li>
+      <li><b>卡片信息取舍</b><span>demo 卡片带了：标题、两行摘要、标签、来源、时间、复习状态。哪些该留、哪些该按需展开？</span></li>
+      <li><b>详情形态</b><span>点卡片开右侧抽屉（现状 demo）还是整页跳转（保留返回栈）？抽屉宽度 480 是否合适？</span></li>
+      <li><b>标签色彩</b><span>A 的六组粉彩 / B 的冷调低饱和 / C 的无色描边——标签要不要有颜色？</span></li>
+      <li><b>命令面板</b><span>Ctrl K 面板的分组（页面/动作/卡片）与键盘优先的定位是否认可？</span></li>
+      <li><b>深色主题</b><span>三套深色（玄夜琥珀 / 石墨靛蓝 / 墨夜朱砂）哪套与对应浅色的关系最舒服？</span></li>
+    </ol>
+  </div>
+
+  <div class="note"><b>定稿之后：</b>选中方向的取值回填《02-UI设计系统规范》，落选方案移入 <b>mockups/archive/</b>（不删除，作为偏好的负样本证据），决策与你的口味要点分别落 <b>DECISIONS.md</b> 与 <b>PREFERENCES.md</b>，随后进入蓝图 M0 基建（surface 框架层 + ui 基础件，不动业务页面）。</div>
+</div>
+</body>
+</html>
