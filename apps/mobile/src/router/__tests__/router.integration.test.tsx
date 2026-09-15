@@ -199,6 +199,8 @@ type Controller = {
   cleanup: () => void;
 };
 
+const mountedApps: Controller[] = [];
+
 function mountApp(): Controller {
   const host = document.createElement("div");
   document.body.appendChild(host);
@@ -211,7 +213,8 @@ function mountApp(): Controller {
       </RouterProvider>
     );
   });
-  return {
+  let cleaned = false;
+  const controller: Controller = {
     render: () => {
       act(() => {
         root.render(
@@ -223,12 +226,23 @@ function mountApp(): Controller {
       });
     },
     cleanup: () => {
+      if (cleaned) return;
+      cleaned = true;
       act(() => {
         root.unmount();
       });
       host.remove();
     },
   };
+  mountedApps.push(controller);
+  return controller;
+}
+
+function cleanupMountedApps(): void {
+  const apps = mountedApps.splice(0);
+  for (const app of apps) {
+    app.cleanup();
+  }
 }
 
 // jsdom 中 motion 退出动画按真实时间播放，用条件轮询等待最终状态
@@ -254,6 +268,7 @@ describe("router 集成", () => {
   });
 
   afterEach(() => {
+    cleanupMountedApps();
     document.body.innerHTML = "";
   });
 
@@ -345,19 +360,21 @@ describe("router 集成", () => {
     const app = mountApp();
     let settled: { picked: number } | null = null;
     let rejected: unknown = null;
-    const promise = getNavigator()
-      .pushForResult<{ picked: number }>("cardPicker", {})
-      .then(value => {
-        settled = value;
-      })
-      .catch(error => {
-        rejected = error;
-      });
-
+    let promise!: Promise<void>;
     act(() => {
-      getNavigator().push("todoDetail", { todoId: 3 });
+      promise = getNavigator()
+        .pushForResult<{ picked: number }>("cardPicker", {})
+        .then(value => {
+          settled = value;
+        })
+        .catch(error => {
+          rejected = error;
+        });
     });
-    expect(document.querySelector("[data-overlay-entry-id]")).toBeTruthy();
+
+    // overlay 必须仍是栈顶：finish 按 createdAt 选择真正顶部 entry。
+    // 再压一层更新的 screen 会盖住 overlay，finish 会弹错层，结果通道永不结算。
+    await waitFor(() => document.querySelector("[data-overlay-entry-id] button") !== null);
 
     act(() => {
       const pickButton = document.querySelector(
@@ -375,11 +392,14 @@ describe("router 集成", () => {
   it("finish 不被页面返回拦截器吞掉", async () => {
     const app = mountApp();
     let settled: { picked: number } | null = null;
-    const promise = getNavigator()
-      .pushForResult<{ picked: number }>("handledPicker", {})
-      .then(value => {
-        settled = value;
-      });
+    let promise!: Promise<void>;
+    act(() => {
+      promise = getNavigator()
+        .pushForResult<{ picked: number }>("handledPicker", {})
+        .then(value => {
+          settled = value;
+        });
+    });
 
     await waitFor(() => document.querySelector("[data-overlay-entry-id] button") !== null);
     act(() => {
@@ -416,6 +436,7 @@ describe("返回仲裁（浮层优先）", () => {
   });
 
   afterEach(() => {
+    cleanupMountedApps();
     document.body.innerHTML = "";
   });
 
@@ -559,6 +580,7 @@ describe("容器组件内置返回拦截", () => {
   });
 
   afterEach(() => {
+    cleanupMountedApps();
     document.body.innerHTML = "";
   });
 
