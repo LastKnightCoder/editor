@@ -1,17 +1,21 @@
 /**
- * 今日（首页）视图 v3 —— 行式单列流（mockups/home-final.html 定稿）：
+ * 今日（首页）视图 v3 —— 行式单列流（视觉基准 mockups/home-final.html，样式 Tailwind 优先）：
  * hero 条 → 行动三卡（复习/待办/日程，内容等量）→ 继续编辑（全宽三栏）→
  * 热力图（直接复用旧 CalendarHeatmap）→ 统计四卡（sparkline）。
  *
  * 模块分工：专注 = 番茄钟（openPomodoroWindow 独立窗口 / pomodoro 命令）；
  * 日程 = calendar 命令 + schedule surface。两者独立，勿混用。
+ *
+ * 容器查询响应式（@container 在根、@max-[…] 断点在行容器）：1400/1180/860 三档。
  */
 
 import { useState } from "react";
+import clsx from "clsx";
 import { ChevronRight } from "lucide-react";
 import { openPomodoroWindow } from "@/commands";
 import { useSurface } from "@/surface/SurfaceProvider";
 import { useEdgeFade } from "@/hooks/useEdgeFade";
+import { EmptyNote, Panel, PanelNote, PanelTitle } from "@/ui/primitives/Panel";
 import { useHomeSnapshot, minutesToHM } from "../queries";
 import { HomeHeatmap } from "./HomeHeatmap";
 import type { RecentEdit } from "../types";
@@ -32,6 +36,22 @@ const KIND_TARGET = {
   project: "projects",
 } as const;
 
+/** 标题行右侧的“前往”链接（无背景，贴卡片右缘，与标题同行对齐） */
+function ActLink({ className, ...props }: React.ComponentProps<"button">) {
+  return (
+    <button
+      type="button"
+      className={clsx(
+        "-mr-1 ml-auto inline-flex items-center gap-0.5 rounded-[7px] px-1 py-0.5",
+        "text-tau-micro text-ink-3 font-normal",
+        "ease-tau-out hover:bg-hover hover:text-ink-1 transition-[background,color] duration-[160ms]",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
 export function HomeView() {
   const { data, loading } = useHomeSnapshot();
   const { navigator } = useSurface();
@@ -42,61 +62,72 @@ export function HomeView() {
 
   if (loading) {
     return (
-      <div className="wide">
-        <p className="hero-date">加载中…</p>
+      <div className="pt-6.5 mx-auto max-w-[1680px] px-[34px]">
+        <p className="text-tau-meta text-ink-2">加载中…</p>
       </div>
     );
   }
   if (!data) return null;
 
   return (
-    <div className="wide home-view" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    // @container：容器查询锚点（原 .wide.home-view：宽容器 + 视图内滚动，末尾留白由滚动容器自持）
+    <div className="@container pt-6.5 mx-auto flex h-full max-w-[1680px] flex-col gap-3 px-[34px]">
       {/* ① hero 紧凑条（专注摘要可点击打开番茄钟） */}
-      <header className="home-hero-line">
-        <h1>{greeting()}</h1>
-        <span className="date">{formatToday()}</span>
-        <span className="digest">
+      <header className="flex items-baseline gap-4">
+        <h1 className="text-[19px] font-semibold tracking-[-0.01em]">{greeting()}</h1>
+        <span className="text-tau-sm text-ink-2">{formatToday()}</span>
+        <span className="text-tau-sm text-ink-2 ml-auto flex items-baseline gap-2">
           <button
             type="button"
             title="打开番茄钟"
             onClick={() => openPomodoroWindow()}
-            style={{ font: "inherit", color: "inherit" }}
+            className="text-inherit"
           >
-            已专注 <b>{minutesToHM(data.focus.focusMinutes)}</b>
+            已专注{" "}
+            <b className="text-ink-1 font-semibold">{minutesToHM(data.focus.focusMinutes)}</b>
           </button>
-          <span className="sep">·</span>写下 <b>{data.todayStats.wordsWritten}</b> 字
-          <span className="sep">·</span>新建{" "}
-          <b>{data.todayStats.cardsCreated + data.todayStats.articlesCreated}</b> 条
+          <span className="text-ink-3 mx-2">·</span>写下{" "}
+          <b className="text-ink-1 font-semibold">{data.todayStats.wordsWritten}</b> 字
+          <span className="text-ink-3 mx-2">·</span>新建{" "}
+          <b className="text-ink-1 font-semibold">
+            {data.todayStats.cardsCreated + data.todayStats.articlesCreated}
+          </b>{" "}
+          条
         </span>
       </header>
 
       {/* 滚动区：hero 固定于滚动区外（渐隐带直接作用于内容，不被容器 padding 稀释），
-          边缘渐隐由 useEdgeFade 驱动（.home-scroll 的 mask 渐变，见 home.css） */}
-      <div ref={setScrollEl} className="home-scroll">
+          边缘渐隐由 useEdgeFade 驱动（.home-scroll 的 mask 渐变，见 home.css）；
+          -mr/pr 借 .wide 右内边距把滚动条移进留白（内容盒右缘不动） */}
+      <div
+        ref={setScrollEl}
+        className="home-scroll -mr-[18px] flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-[18px] pt-1"
+      >
         {/* ②③④ 行动三卡（“前往”箭头在标题行右缘） */}
-        <div className="home-row trio">
-          <section className="board">
-            <h2 className="board-title">
+        <div className="@max-[1180px]:grid-cols-2 @max-[860px]:grid-cols-1 grid grid-cols-3 gap-3">
+          <Panel pad="compact">
+            <PanelTitle className="mb-2.5">
               复习
-              <small>{data.reviewDecks.filter(d => d.dueCount > 0).length} 个牌组有到期</small>
-              <button
-                type="button"
-                className="act-link"
-                onClick={() => navigator.push("review")}
-                title="前往闪卡复习"
-              >
+              <PanelNote>
+                {data.reviewDecks.filter(d => d.dueCount > 0).length} 个牌组有到期
+              </PanelNote>
+              <ActLink onClick={() => navigator.push("review")} title="前往闪卡复习">
                 前往复习
-                <ChevronRight />
-              </button>
-            </h2>
+                <ChevronRight size={13} strokeWidth={1.75} />
+              </ActLink>
+            </PanelTitle>
             {data.reviewDecks.length > 0 ? (
               data.reviewDecks.map(deck => (
-                <div key={deck.id} className="deck-row">
-                  <span className="name" title={deck.name}>
+                <div
+                  key={deck.id}
+                  className="rounded-tau-sm ease-tau-out hover:bg-hover flex items-center gap-2.5 px-2 py-[5px] transition-[background] duration-[160ms]"
+                >
+                  <span className="text-tau-meta w-[108px] truncate font-medium" title={deck.name}>
                     {deck.name}
                   </span>
-                  <span className="track">
+                  <span className="bg-sunken h-[7px] flex-1 overflow-hidden rounded">
                     <i
+                      className="bg-accent block h-full rounded"
                       style={{
                         width:
                           deck.totalCards > 0
@@ -105,91 +136,90 @@ export function HomeView() {
                       }}
                     />
                   </span>
-                  <span className="n">
-                    <b>{deck.dueCount}</b>/{deck.totalCards}
+                  <span className="text-tau-tiny text-ink-2 whitespace-nowrap">
+                    <b className="text-ink-1">{deck.dueCount}</b>/{deck.totalCards}
                   </span>
                 </div>
               ))
             ) : (
-              <Empty text="还没有闪卡牌组" />
+              <EmptyNote>还没有闪卡牌组</EmptyNote>
             )}
-          </section>
+          </Panel>
 
-          <section className="board">
-            <h2 className="board-title">
+          <Panel pad="compact">
+            <PanelTitle className="mb-2.5">
               待办
-              <small>{data.todoRemainingCount} 项未完成</small>
-              <button
-                type="button"
-                className="act-link"
-                onClick={() => navigator.push("schedule")}
-                title="前往待办"
-              >
+              <PanelNote>{data.todoRemainingCount} 项未完成</PanelNote>
+              <ActLink onClick={() => navigator.push("schedule")} title="前往待办">
                 前往待办
-                <ChevronRight />
-              </button>
-            </h2>
+                <ChevronRight size={13} strokeWidth={1.75} />
+              </ActLink>
+            </PanelTitle>
             {data.todos.length > 0 ? (
               data.todos.map(todo => (
                 <button
                   key={todo.id}
                   type="button"
-                  className="todo-item"
+                  className="rounded-tau-sm ease-tau-out hover:bg-hover group flex w-full items-center gap-2.5 px-2 py-[5px] text-left transition-[background] duration-[160ms]"
                   onClick={() => navigator.push("schedule")}
                 >
                   <span
-                    className="check"
-                    style={todo.overdue ? { borderColor: "var(--tau-danger)" } : undefined}
+                    className={clsx(
+                      "border-ink-3 ease-tau-out group-hover:border-accent size-4 shrink-0 rounded-full border-[1.5px] transition-[border-color] duration-[160ms]",
+                      todo.overdue && "border-danger"
+                    )}
                   />
                   <span>
-                    <b>{todo.title}</b>
-                    <small style={todo.overdue ? { color: "var(--tau-danger)" } : undefined}>
+                    <b className="text-tau-meta block font-medium">{todo.title}</b>
+                    <small
+                      className={clsx("text-ink-2 text-[10.5px]", todo.overdue && "text-danger")}
+                    >
                       {todo.overdue ? `逾期 · ${todo.dueText ?? ""}` : (todo.dueText ?? "待办")}
                     </small>
                   </span>
                 </button>
               ))
             ) : (
-              <Empty text="没有待办事项" />
+              <EmptyNote>没有待办事项</EmptyNote>
             )}
-          </section>
+          </Panel>
 
-          <section className="board">
-            <h2 className="board-title">
+          <Panel pad="compact" className="@max-[1180px]:col-span-full">
+            <PanelTitle className="mb-2.5">
               日程
-              <small>今天 {data.events.length} 项</small>
-              <button
-                type="button"
-                className="act-link"
-                onClick={() => navigator.push("schedule")}
-                title="前往日程"
-              >
+              <PanelNote>今天 {data.events.length} 项</PanelNote>
+              <ActLink onClick={() => navigator.push("schedule")} title="前往日程">
                 前往日程
-                <ChevronRight />
-              </button>
-            </h2>
+                <ChevronRight size={13} strokeWidth={1.75} />
+              </ActLink>
+            </PanelTitle>
             {data.events.length > 0 ? (
-              <div className="timeline">
+              <div className="before:bg-sunken relative pl-3.5 before:absolute before:bottom-2.5 before:left-[3.5px] before:top-2.5 before:w-[1.5px] before:rounded-[1px] before:content-['']">
                 {data.events.map(event => (
-                  <div key={event.id} className="tl-item">
-                    <span className="time">{event.timeText}</span>
-                    <span className="label">{event.title}</span>
+                  <div
+                    key={event.id}
+                    className="rounded-tau-sm ease-tau-out hover:bg-hover relative flex items-baseline gap-2.5 px-1.5 py-[4.5px] transition-[background] duration-[160ms]"
+                  >
+                    <span className="font-tau-mono text-tau-micro text-ink-3 min-w-10 shrink-0">
+                      {event.timeText}
+                    </span>
+                    <span className="text-tau-meta">{event.title}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <Empty text="今天没有日程安排" />
+              <EmptyNote>今天没有日程安排</EmptyNote>
             )}
-          </section>
+          </Panel>
         </div>
 
         {/* ⑤ 最近编辑：全宽三栏（卡片/文章/日记/知识库/项目） */}
-        <section className="board">
-          <h2 className="board-title">
+        <Panel pad="compact">
+          <PanelTitle className="mb-2.5">
             最近编辑
-            <small>卡片 · 文章 · 日记 · 知识库 · 项目</small>
-          </h2>
-          <div className="home-recent-grid">
+            <PanelNote>卡片 · 文章 · 日记 · 知识库 · 项目</PanelNote>
+          </PanelTitle>
+          <div className="@max-[1180px]:grid-cols-2 @max-[860px]:grid-cols-1 grid grid-cols-3 gap-x-6 gap-y-0">
             {data.recentEdits.length > 0 ? (
               data.recentEdits.map(item => (
                 <RecentRow
@@ -199,74 +229,63 @@ export function HomeView() {
                 />
               ))
             ) : (
-              <Empty text="还没有编辑记录——从新建一张卡片开始" />
+              <EmptyNote>还没有编辑记录——从新建一张卡片开始</EmptyNote>
             )}
           </div>
-        </section>
+        </Panel>
 
         {/* ⑥ 活动热力图（模板 1:1 自绘；无图例与角标） */}
-        <section className="board">
-          <h2 className="board-title">
+        <Panel pad="compact">
+          <PanelTitle className="mb-2.5">
             活动
-            <small>{new Date().getFullYear()} 年 · 每日操作</small>
-            <button
-              type="button"
-              className="act-link"
-              onClick={() => navigator.push("stats")}
-              title="查看完整统计"
-            >
+            <PanelNote>{new Date().getFullYear()} 年 · 每日操作</PanelNote>
+            <ActLink onClick={() => navigator.push("stats")} title="查看完整统计">
               完整统计
-              <ChevronRight />
-            </button>
-          </h2>
+              <ChevronRight size={13} strokeWidth={1.75} />
+            </ActLink>
+          </PanelTitle>
           <HomeHeatmap items={data.heatmapItems} />
-        </section>
+        </Panel>
 
         {/* ⑦-⑩ 统计四卡（sparkline；与其他卡同构，不放按钮） */}
-        <div className="stat-row">
-          <section className="board stat-card">
-            <div className="head">
-              <span className="label">今日专注</span>
-              <span className="val">{data.focus.sessionCount} 番茄</span>
-            </div>
-            <b>{minutesToHM(data.focus.focusMinutes)}</b>
-            <Sparkline dates={data.trend.dates} values={data.trend.focusMinutes} unit="分钟" />
-          </section>
-          <section className="board stat-card">
-            <div className="head">
-              <span className="label">今日写下</span>
-              <span className="val">本周 {data.weekly.wordsWritten}</span>
-            </div>
-            <b>
-              {data.todayStats.wordsWritten}
-              <small>字</small>
-            </b>
-            <Sparkline dates={data.trend.dates} values={data.trend.words} unit="字" />
-          </section>
-          <section className="board stat-card">
-            <div className="head">
-              <span className="label">本周新建</span>
-              <span className="val">
-                卡片 {data.weekly.cardsCreated} · 文章 {data.weekly.articlesCreated}
-              </span>
-            </div>
-            <b>
-              {data.weekly.cardsCreated + data.weekly.articlesCreated}
-              <small>条</small>
-            </b>
-            <Sparkline dates={data.trend.dates} values={data.trend.created} unit="条" tint />
-          </section>
-          <section className="board stat-card">
-            <div className="head">
-              <span className="label">累计</span>
-              <span className="val">日记 {data.totals.diaries}</span>
-            </div>
-            <b>
-              {data.totals.cards + data.totals.articles}
-              <small>条</small>
-            </b>
-            <Sparkline dates={data.trend.dates} values={data.trend.words} unit="字" tint />
-          </section>
+        <div className="@max-[1180px]:grid-cols-2 @max-[1400px]:grid-cols-3 grid grid-cols-4 gap-3">
+          <StatCard
+            label="今日专注"
+            note={`${data.focus.sessionCount} 番茄`}
+            value={minutesToHM(data.focus.focusMinutes)}
+            dates={data.trend.dates}
+            values={data.trend.focusMinutes}
+            unit="分钟"
+          />
+          <StatCard
+            label="今日写下"
+            note={`本周 ${data.weekly.wordsWritten}`}
+            value={String(data.todayStats.wordsWritten)}
+            unit="字"
+            suffix="字"
+            dates={data.trend.dates}
+            values={data.trend.words}
+          />
+          <StatCard
+            label="本周新建"
+            note={`卡片 ${data.weekly.cardsCreated} · 文章 ${data.weekly.articlesCreated}`}
+            value={String(data.weekly.cardsCreated + data.weekly.articlesCreated)}
+            unit="条"
+            suffix="条"
+            dates={data.trend.dates}
+            values={data.trend.created}
+            tint
+          />
+          <StatCard
+            label="累计"
+            note={`日记 ${data.totals.diaries}`}
+            value={String(data.totals.cards + data.totals.articles)}
+            unit="字"
+            suffix="条"
+            dates={data.trend.dates}
+            values={data.trend.words}
+            tint
+          />
         </div>
       </div>
     </div>
@@ -277,14 +296,56 @@ export function HomeView() {
 
 function RecentRow({ item, onClick }: { item: RecentEdit; onClick: () => void }) {
   return (
-    <button type="button" className="home-doc-row" onClick={onClick}>
-      <span className="k">{KIND_LABEL[item.kind]}</span>
-      <span className="t">{item.title}</span>
-      <span className="m">
+    <button
+      type="button"
+      className="rounded-tau-sm ease-tau-out hover:bg-hover grid w-full grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 px-2.5 py-[11px] text-left transition-[background] duration-[160ms]"
+      onClick={onClick}
+    >
+      <span className="bg-group text-ink-3 justify-self-start rounded-[5px] px-[7px] py-px text-[10.5px]">
+        {KIND_LABEL[item.kind]}
+      </span>
+      <span className="text-tau-meta truncate font-medium">{item.title}</span>
+      <span className="text-ink-3 justify-self-end truncate text-[10.5px]">
         {item.updatedText}
         {item.wordsCount > 0 ? ` · ${item.wordsCount} 字` : ""}
       </span>
     </button>
+  );
+}
+
+function StatCard({
+  label,
+  note,
+  value,
+  suffix,
+  unit,
+  tint,
+  dates,
+  values,
+}: {
+  label: string;
+  note: string;
+  value: string;
+  suffix?: string;
+  unit: string;
+  tint?: boolean;
+  dates: string[];
+  values: number[];
+}) {
+  return (
+    <Panel pad="none" className="flex flex-col px-4 pb-2.5 pt-[13px]">
+      <div className="flex items-baseline gap-2">
+        <span className="text-tau-micro text-ink-3">{label}</span>
+        <span className="text-tau-tiny text-ink-3 ml-auto">{note}</span>
+      </div>
+      <b className="text-[21px] font-[650] leading-[1.2] tracking-[-0.01em]">
+        {value}
+        {suffix && (
+          <small className="text-tau-tiny text-ink-3 ml-[3px] font-normal">{suffix}</small>
+        )}
+      </b>
+      <Sparkline dates={dates} values={values} unit={unit} tint={tint} />
+    </Panel>
   );
 }
 
@@ -302,27 +363,20 @@ function Sparkline({
   if (values.length === 0) return null;
   const max = Math.max(...values, 1);
   return (
-    <div className={`spark${tint ? "tint" : ""}`}>
+    <div className="mt-2 flex h-[26px] items-end gap-0.5">
       {values.map((v, i) => (
         <i
           key={i}
           style={{ height: `${Math.max(6, (v / max) * 100)}%` }}
-          className={i === values.length - 1 ? "today" : undefined}
+          className={clsx(
+            "ease-tau-out min-h-0.5 flex-1 rounded-t-[2px] transition-opacity duration-[160ms] hover:opacity-100",
+            tint ? "bg-info" : "bg-accent",
+            i === values.length - 1 ? "opacity-100" : "opacity-55"
+          )}
           title={`${dates[i]} · ${v} ${unit}`}
         />
       ))}
     </div>
-  );
-}
-
-function Empty({ text }: { text: string }) {
-  return (
-    <p
-      className="board-note"
-      style={{ background: "var(--tau-bg-group)", color: "var(--tau-ink-3)" }}
-    >
-      {text}
-    </p>
   );
 }
 

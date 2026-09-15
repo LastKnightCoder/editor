@@ -1,9 +1,12 @@
 /**
- * 活动热力图 —— 与 mockups/home-final.html 定稿 1:1 的自绘实现
+ * 活动热力图 —— 与 mockups/home-final.html 定稿一致的自绘实现
  * （旧 CalendarHeatmap 的视觉复刻：圆点、色阶随 scale 递增、周列贴底对齐、
- * hover 呼吸、全宽自适应；色板为暖纸主题陶土橙阶；无图例/连续天数角标）。
+ * hover 呼吸、全宽自适应；无图例/连续天数角标）。
+ * 样式 Tailwind 优先（D-013）；色板为暖纸主题陶土橙阶（accent 定稿值的
+ * alpha 派生，随主题换肤时需同步调整）。
  */
 
+import clsx from "clsx";
 import { useMemo } from "react";
 import { dateStr } from "@/utils/statistic";
 import type { HeatmapItem } from "../types";
@@ -16,12 +19,26 @@ function prevDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1);
 }
 
-function levelClass(count: number): string {
-  if (count === 0) return "";
-  if (count < 5) return "s1";
-  if (count < 10) return "s2";
-  if (count < 20) return "s3";
-  return "s4";
+/** 热力点色阶：0 → 淡底，s1-s4 → 陶土橙 alpha 递增 + 尺寸递增（模板 1:1） */
+const DOT_LEVELS = [
+  "bg-[rgba(217,119,87,0.1)] scale-[0.72]",
+  "bg-[rgba(217,119,87,0.32)] scale-[0.78]",
+  "bg-[rgba(217,119,87,0.52)] scale-[0.85]",
+  "bg-[rgba(217,119,87,0.74)] scale-[0.92]",
+  "bg-[rgb(217,119,87)] scale-100",
+] as const;
+
+function levelIndex(count: number): number {
+  if (count === 0) return 0;
+  if (count < 5) return 1;
+  if (count < 10) return 2;
+  if (count < 20) return 3;
+  return 4;
+}
+
+/** 图例/热力格共用的点样式（legend 传 size="sm" 10px，格内 full） */
+function dotClass(level: number, size: "full" | "sm" = "full"): string {
+  return clsx("rounded-full", size === "full" ? "size-full" : "size-2.5", DOT_LEVELS[level]);
 }
 
 export function HomeHeatmap({ items }: { items: HeatmapItem[] }) {
@@ -75,36 +92,45 @@ export function HomeHeatmap({ items }: { items: HeatmapItem[] }) {
 
   return (
     <div>
-      <div className="hm-months">
+      <div className="text-ink-3 mb-[5px] flex text-[10.5px]">
         {monthSpans.map(span => (
-          <span key={span.label} style={{ flex: `${span.weeks} 1 0` }}>
+          <span key={span.label} className="truncate" style={{ flex: `${span.weeks} 1 0` }}>
             {span.label}
           </span>
         ))}
       </div>
-      <div className="hm-heat">
+      <div className="flex gap-1">
         {weeks.map((w, wi) => (
-          <div key={wi} className={`hm-week${wi === weeks.length - 1 ? "last" : ""}`}>
+          <div
+            key={wi}
+            className={clsx(
+              "flex min-w-0 flex-1 flex-col items-center gap-1",
+              wi === weeks.length - 1 ? "justify-start" : "justify-end"
+            )}
+          >
             {w.map(day => {
               const future = day > today;
               const count = future ? 0 : (countByDate.get(day) ?? 0);
               return (
-                <div key={day} className="hm-day" title={future ? day : `${day} · ${count} 次操作`}>
-                  <div className={`hm-dot ${future ? "" : levelClass(count)}`} />
+                <div
+                  key={day}
+                  className="hover:animate-hm-pulse aspect-square w-full shrink-0"
+                  title={future ? day : `${day} · ${count} 次操作`}
+                >
+                  <div className={dotClass(future ? 0 : levelIndex(count))} />
                 </div>
               );
             })}
           </div>
         ))}
       </div>
-      <div className="hm-meta">
+      <div className="text-ink-3 mt-2 flex items-center justify-end gap-1 text-[10.5px]">
         少
-        <span className="hm-dot" style={{ width: 10, height: 10, transform: "scale(0.72)" }} />
-        <span className="hm-dot s1" style={{ width: 10, height: 10 }} />
-        <span className="hm-dot s2" style={{ width: 10, height: 10 }} />
-        <span className="hm-dot s3" style={{ width: 10, height: 10 }} />
-        <span className="hm-dot s4" style={{ width: 10, height: 10 }} />多
-        <span style={{ marginLeft: 10 }}>连续活跃 {streak} 天</span>
+        <span className={dotClass(0, "sm")} />
+        <span className={dotClass(1, "sm")} />
+        <span className={dotClass(2, "sm")} />
+        <span className={dotClass(3, "sm")} />
+        <span className={dotClass(4, "sm")} />多<span className="ml-2.5">连续活跃 {streak} 天</span>
       </div>
     </div>
   );

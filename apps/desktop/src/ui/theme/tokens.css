@@ -66,7 +66,19 @@
   --color-info: var(--tau-info);
   --color-info-soft: var(--tau-info-soft);
 
+  --color-tag-1: var(--tau-tag-1);
+  --color-tag-1-soft: var(--tau-tag-1-soft);
+  --color-tag-2: var(--tau-tag-2);
+  --color-tag-2-soft: var(--tau-tag-2-soft);
+  --color-tag-3: var(--tau-tag-3);
+  --color-tag-3-soft: var(--tau-tag-3-soft);
+  --color-tag-4: var(--tau-tag-4);
+  --color-tag-4-soft: var(--tau-tag-4-soft);
+  --color-tag-5: var(--tau-tag-5);
+  --color-tag-5-soft: var(--tau-tag-5-soft);
+
   --font-tau: var(--tau-font);
+  --font-tau-mono: var(--tau-font-mono);
 
   /* ── 尺度词（D-013，tau 命名空间，见 02 规范 §3/§4）── */
 
@@ -93,6 +105,21 @@
 
   /* 缓动 */
   --ease-tau-out: var(--tau-ease-out);
+
+  /* 域内动效（keyframes 与词表同处声明，hover:animate-hm-pulse 消费） */
+  --animate-hm-pulse: hmPulse 0.5s linear alternate infinite;
+
+  @keyframes hmPulse {
+    0% {
+      transform: scale(1.18);
+    }
+    50% {
+      transform: scale(1);
+    }
+    100% {
+      transform: scale(0.85);
+    }
+  }
 }
 
 /*
