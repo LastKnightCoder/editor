@@ -35,7 +35,7 @@ import {
 } from "./queries";
 import { ADDABLE_ITEM_TYPES, projectItemTypeMeta } from "./itemTypeMeta";
 import { projectTypeMeta } from "./ProjectsPage";
-import { useEdgeFade } from "../../hooks/useScrollState";
+import { useEdgeFade, useEdgeFadeX } from "../../hooks/useScrollState";
 
 type PathSegment = { id: number | null; title: string };
 
@@ -51,6 +51,8 @@ type ProjectDetailPageProps = {
 export function ProjectDetailPage(props: ProjectDetailPageProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(scrollRef, { bottom: false });
+  const pathRef = useRef<HTMLDivElement>(null);
+  useEdgeFadeX(pathRef);
   const [path, setPath] = useState<PathSegment[]>([{ id: null, title: "" }]);
   const [treeOpen, setTreeOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
@@ -267,7 +269,10 @@ export function ProjectDetailPage(props: ProjectDetailPageProps) {
 
         {/* 路径栏：面包屑 + 完整结构入口合而为一 */}
         <div className="card mb-2.5 mt-4 flex items-center gap-2 px-4 py-[9px]">
-          <div className="scrollbar-hide text-meta-ink flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto whitespace-nowrap text-[13px]">
+          <div
+            ref={pathRef}
+            className="edge-fade-x-scroll scrollbar-hide text-meta-ink flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto whitespace-nowrap text-[13px]"
+          >
             {path.map((segment, index) => (
               <span key={segment.id ?? "root"} className="flex shrink-0 items-center gap-1.5">
                 {index > 0 ? <ChevronRight size={13} className="shrink-0 opacity-50" /> : null}
