@@ -1,5 +1,9 @@
 import Database from "better-sqlite3";
 import {
+  calendarOccurrencesInRange,
+  nextCalendarOccurrence,
+} from "@tau/shared/src/utils/calendarRecurrence";
+import {
   TodoRecurrence,
   CreateTodoRecurrence,
   UpdateTodoRecurrence,
@@ -12,14 +16,10 @@ export default class TodoRecurrenceTable {
     const tableInfo = db.pragma("table_info(todo_recurrence)") as Array<{
       name: string;
     }>;
-    const hasMaxOccurrences = tableInfo.some(
-      (col) => col.name === "max_occurrences",
-    );
+    const hasMaxOccurrences = tableInfo.some(col => col.name === "max_occurrences");
 
     if (!hasMaxOccurrences) {
-      db.exec(
-        `ALTER TABLE todo_recurrence ADD COLUMN max_occurrences INTEGER;`,
-      );
+      db.exec(`ALTER TABLE todo_recurrence ADD COLUMN max_occurrences INTEGER;`);
     }
   }
 
@@ -27,13 +27,11 @@ export default class TodoRecurrenceTable {
     return {
       "todo:get-recurrence": this.getRecurrence.bind(this),
       "todo:get-recurrence-by-item": this.getRecurrenceByItemId.bind(this),
-      "todo:get-recurrences-by-item-ids":
-        this.getRecurrencesByItemIds.bind(this),
+      "todo:get-recurrences-by-item-ids": this.getRecurrencesByItemIds.bind(this),
       "todo:create-recurrence": this.createRecurrence.bind(this),
       "todo:update-recurrence": this.updateRecurrence.bind(this),
       "todo:delete-recurrence": this.deleteRecurrence.bind(this),
-      "todo:delete-recurrence-by-item":
-        this.deleteRecurrenceByItemId.bind(this),
+      "todo:delete-recurrence-by-item": this.deleteRecurrenceByItemId.bind(this),
     } as const;
   }
 
@@ -56,19 +54,14 @@ export default class TodoRecurrenceTable {
     };
   }
 
-  static getRecurrence(
-    db: Database.Database,
-    params: { id: number },
-  ): TodoRecurrence | null {
-    const row = db
-      .prepare(`SELECT * FROM todo_recurrence WHERE id = ?`)
-      .get(params.id);
+  static getRecurrence(db: Database.Database, params: { id: number }): TodoRecurrence | null {
+    const row = db.prepare(`SELECT * FROM todo_recurrence WHERE id = ?`).get(params.id);
     return row ? this.parse(row) : null;
   }
 
   static getRecurrenceByItemId(
     db: Database.Database,
-    params: { todoItemId: number },
+    params: { todoItemId: number }
   ): TodoRecurrence | null {
     const row = db
       .prepare(`SELECT * FROM todo_recurrence WHERE todo_item_id = ?`)
@@ -78,7 +71,7 @@ export default class TodoRecurrenceTable {
 
   static getRecurrencesByItemIds(
     db: Database.Database,
-    params: { todoItemIds: number[] },
+    params: { todoItemIds: number[] }
   ): Record<number, TodoRecurrence> {
     if (!params.todoItemIds.length) {
       return {};
@@ -86,9 +79,7 @@ export default class TodoRecurrenceTable {
 
     const placeholders = params.todoItemIds.map(() => "?").join(",");
     const rows = db
-      .prepare(
-        `SELECT * FROM todo_recurrence WHERE todo_item_id IN (${placeholders})`,
-      )
+      .prepare(`SELECT * FROM todo_recurrence WHERE todo_item_id IN (${placeholders})`)
       .all(...params.todoItemIds) as any[];
 
     return rows.reduce<Record<number, TodoRecurrence>>((acc, row) => {
@@ -98,14 +89,11 @@ export default class TodoRecurrenceTable {
     }, {});
   }
 
-  static createRecurrence(
-    db: Database.Database,
-    payload: CreateTodoRecurrence,
-  ): TodoRecurrence {
+  static createRecurrence(db: Database.Database, payload: CreateTodoRecurrence): TodoRecurrence {
     const now = Date.now();
     const stmt = db.prepare(
       `INSERT INTO todo_recurrence (todo_item_id, type, interval, weekdays, month_day, year_month, year_day, exclude_holidays, start_date, end_date, max_occurrences, create_time, update_time)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
 
     const res = stmt.run(
@@ -121,21 +109,16 @@ export default class TodoRecurrenceTable {
       payload.endDate ?? null,
       payload.maxOccurrences ?? null,
       now,
-      now,
+      now
     );
 
     const id = Number(res.lastInsertRowid);
     return this.getRecurrence(db, { id })!;
   }
 
-  static updateRecurrence(
-    db: Database.Database,
-    payload: UpdateTodoRecurrence,
-  ): TodoRecurrence {
+  static updateRecurrence(db: Database.Database, payload: UpdateTodoRecurrence): TodoRecurrence {
     const now = Date.now();
-    const cur = db
-      .prepare(`SELECT * FROM todo_recurrence WHERE id = ?`)
-      .get(payload.id) as any;
+    const cur = db.prepare(`SELECT * FROM todo_recurrence WHERE id = ?`).get(payload.id) as any;
 
     if (!cur) throw new Error("todo_recurrence not found");
 
@@ -147,12 +130,9 @@ export default class TodoRecurrenceTable {
         : payload.weekdays
           ? JSON.stringify(payload.weekdays)
           : null;
-    const monthDay =
-      payload.monthDay === undefined ? cur.month_day : payload.monthDay;
-    const yearMonth =
-      payload.yearMonth === undefined ? cur.year_month : payload.yearMonth;
-    const yearDay =
-      payload.yearDay === undefined ? cur.year_day : payload.yearDay;
+    const monthDay = payload.monthDay === undefined ? cur.month_day : payload.monthDay;
+    const yearMonth = payload.yearMonth === undefined ? cur.year_month : payload.yearMonth;
+    const yearDay = payload.yearDay === undefined ? cur.year_day : payload.yearDay;
     const excludeHolidays =
       payload.excludeHolidays === undefined
         ? cur.exclude_holidays
@@ -160,15 +140,12 @@ export default class TodoRecurrenceTable {
           ? 1
           : 0;
     const startDate = payload.startDate ?? cur.start_date;
-    const endDate =
-      payload.endDate === undefined ? cur.end_date : payload.endDate;
+    const endDate = payload.endDate === undefined ? cur.end_date : payload.endDate;
     const maxOccurrences =
-      payload.maxOccurrences === undefined
-        ? cur.max_occurrences
-        : payload.maxOccurrences;
+      payload.maxOccurrences === undefined ? cur.max_occurrences : payload.maxOccurrences;
 
     db.prepare(
-      `UPDATE todo_recurrence SET type = ?, interval = ?, weekdays = ?, month_day = ?, year_month = ?, year_day = ?, exclude_holidays = ?, start_date = ?, end_date = ?, max_occurrences = ?, update_time = ? WHERE id = ?`,
+      `UPDATE todo_recurrence SET type = ?, interval = ?, weekdays = ?, month_day = ?, year_month = ?, year_day = ?, exclude_holidays = ?, start_date = ?, end_date = ?, max_occurrences = ?, update_time = ? WHERE id = ?`
     ).run(
       type,
       interval,
@@ -181,26 +158,18 @@ export default class TodoRecurrenceTable {
       endDate,
       maxOccurrences,
       now,
-      payload.id,
+      payload.id
     );
 
     return this.getRecurrence(db, { id: payload.id })!;
   }
 
-  static deleteRecurrence(
-    db: Database.Database,
-    params: { id: number },
-  ): number {
-    const res = db
-      .prepare(`DELETE FROM todo_recurrence WHERE id = ?`)
-      .run(params.id);
+  static deleteRecurrence(db: Database.Database, params: { id: number }): number {
+    const res = db.prepare(`DELETE FROM todo_recurrence WHERE id = ?`).run(params.id);
     return res.changes;
   }
 
-  static deleteRecurrenceByItemId(
-    db: Database.Database,
-    params: { todoItemId: number },
-  ): number {
+  static deleteRecurrenceByItemId(db: Database.Database, params: { todoItemId: number }): number {
     const res = db
       .prepare(`DELETE FROM todo_recurrence WHERE todo_item_id = ?`)
       .run(params.todoItemId);
@@ -211,121 +180,9 @@ export default class TodoRecurrenceTable {
   static getNextOccurrence(
     recurrence: TodoRecurrence,
     fromDate: number,
-    holidays?: Set<number>,
+    holidays?: Set<number>
   ): number | null {
-    const from = new Date(fromDate);
-    from.setHours(0, 0, 0, 0);
-
-    // 如果已经超过结束日期，返回 null
-    if (recurrence.endDate && fromDate > recurrence.endDate) {
-      return null;
-    }
-
-    let nextDate: Date | null = null;
-
-    switch (recurrence.type) {
-      case "daily":
-        nextDate = new Date(from);
-        nextDate.setDate(nextDate.getDate() + recurrence.interval);
-        break;
-
-      case "weekdays":
-        nextDate = new Date(from);
-        do {
-          nextDate.setDate(nextDate.getDate() + 1);
-        } while (nextDate.getDay() === 0 || nextDate.getDay() === 6);
-        break;
-
-      case "weekly":
-        if (recurrence.weekdays && recurrence.weekdays.length > 0) {
-          const sortedWeekdays = [...recurrence.weekdays].sort((a, b) => a - b);
-          const currentDay = from.getDay();
-          let foundNext = false;
-
-          // 查找本周剩余的日期
-          for (const wd of sortedWeekdays) {
-            if (wd > currentDay) {
-              nextDate = new Date(from);
-              nextDate.setDate(nextDate.getDate() + (wd - currentDay));
-              foundNext = true;
-              break;
-            }
-          }
-
-          // 如果本周没有，跳到下周的第一个指定日期
-          if (!foundNext) {
-            nextDate = new Date(from);
-            const daysUntilNextWeek = 7 - currentDay + sortedWeekdays[0];
-            nextDate.setDate(
-              nextDate.getDate() +
-                daysUntilNextWeek +
-                (recurrence.interval - 1) * 7,
-            );
-          }
-        } else {
-          // 如果没有指定周几，默认每周同一天
-          nextDate = new Date(from);
-          nextDate.setDate(nextDate.getDate() + 7 * recurrence.interval);
-        }
-        break;
-
-      case "monthly":
-        nextDate = new Date(from);
-        nextDate.setMonth(nextDate.getMonth() + recurrence.interval);
-        if (recurrence.monthDay) {
-          // 处理月末日期
-          const lastDay = new Date(
-            nextDate.getFullYear(),
-            nextDate.getMonth() + 1,
-            0,
-          ).getDate();
-          nextDate.setDate(Math.min(recurrence.monthDay, lastDay));
-        }
-        break;
-
-      case "yearly":
-        nextDate = new Date(from);
-        nextDate.setFullYear(nextDate.getFullYear() + recurrence.interval);
-        if (
-          recurrence.yearMonth !== null &&
-          recurrence.yearMonth !== undefined
-        ) {
-          nextDate.setMonth(recurrence.yearMonth - 1);
-        }
-        if (recurrence.yearDay !== null && recurrence.yearDay !== undefined) {
-          nextDate.setDate(recurrence.yearDay);
-        }
-        break;
-
-      case "custom":
-        nextDate = new Date(from);
-        nextDate.setDate(nextDate.getDate() + recurrence.interval);
-        break;
-    }
-
-    if (!nextDate) return null;
-
-    // 排除节假日
-    if (recurrence.excludeHolidays && holidays) {
-      const maxIterations = 365; // 防止无限循环
-      let iterations = 0;
-      while (
-        iterations < maxIterations &&
-        (holidays.has(nextDate.getTime()) ||
-          nextDate.getDay() === 0 ||
-          nextDate.getDay() === 6)
-      ) {
-        nextDate.setDate(nextDate.getDate() + 1);
-        iterations++;
-      }
-    }
-
-    // 检查是否超过结束日期
-    if (recurrence.endDate && nextDate.getTime() > recurrence.endDate) {
-      return null;
-    }
-
-    return nextDate.getTime();
+    return nextCalendarOccurrence(recurrence, fromDate, holidays);
   }
 
   // 获取指定日期范围内的所有周期日期
@@ -333,34 +190,8 @@ export default class TodoRecurrenceTable {
     recurrence: TodoRecurrence,
     startDate: number,
     endDate: number,
-    holidays?: Set<number>,
+    holidays?: Set<number>
   ): number[] {
-    const occurrences: number[] = [];
-
-    // 找到第一个有效日期
-    const firstDate = new Date(recurrence.startDate);
-    firstDate.setHours(0, 0, 0, 0);
-
-    if (firstDate.getTime() >= startDate && firstDate.getTime() <= endDate) {
-      occurrences.push(firstDate.getTime());
-    }
-
-    // 迭代计算后续日期
-    let current = firstDate.getTime();
-    const maxIterations = 1000; // 防止无限循环
-    let iterations = 0;
-
-    while (iterations < maxIterations) {
-      const next = this.getNextOccurrence(recurrence, current, holidays);
-      if (next === null || next > endDate) break;
-
-      if (next >= startDate) {
-        occurrences.push(next);
-      }
-      current = next;
-      iterations++;
-    }
-
-    return occurrences;
+    return calendarOccurrencesInRange(recurrence, startDate, endDate, holidays);
   }
 }
