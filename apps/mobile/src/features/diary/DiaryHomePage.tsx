@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { useEdgeFade } from "../../hooks/useScrollState";
+import { useEdgeFade, useEdgeFadeX } from "../../hooks/useScrollState";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { CalendarDays, ChevronLeft, ChevronRight, PenLine, Settings2 } from "lucide-react";
 import type { DiaryEntry, DiarySegment, DiaryType } from "../../types";
@@ -199,6 +199,8 @@ export function DiaryHomePage({
   // 列表所在的滚动容器与其内容包裹层（快捷输入/筛选条位于列表上方，随内容滚动）
   const scrollRef = useRef<HTMLDivElement | null>(null);
   useEdgeFade(scrollRef);
+  const tagFilterRef = useRef<HTMLDivElement | null>(null);
+  useEdgeFadeX(tagFilterRef);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
@@ -416,7 +418,10 @@ export function DiaryHomePage({
           </button>
 
           <nav className="mt-3 flex items-center gap-2 py-0.5" aria-label="日记标签筛选">
-            <div className="scrollbar-hide flex flex-1 gap-2 overflow-x-auto">
+            <div
+              ref={tagFilterRef}
+              className="edge-fade-x-scroll scrollbar-hide flex flex-1 gap-2 overflow-x-auto"
+            >
               <button
                 type="button"
                 onClick={() => setSelectedTags([])}

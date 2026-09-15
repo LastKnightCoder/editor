@@ -178,4 +178,12 @@ describe("CollabEditorPage", () => {
     await renderPage();
     expect(capturedEditorProps.value?.extensions).toBe(extensionSentinel);
   });
+
+  it("正文滚动容器接入边缘渐隐（内容不足一屏时两带俱无）", async () => {
+    await renderPage();
+    const scroller = document.querySelector<HTMLElement>(".edge-fade-scroll");
+    expect(scroller).not.toBeNull();
+    expect(scroller!.style.getPropertyValue("--edge-top-on")).toBe("0");
+    expect(scroller!.style.getPropertyValue("--edge-bottom-on")).toBe("0");
+  });
 });
