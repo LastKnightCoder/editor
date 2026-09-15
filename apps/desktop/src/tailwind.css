@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./styles/theme-colors.css";
+@import "./ui/theme/tokens.css";
 @source "../../../packages/editor/src";
 @source "../../../packages/shared/src";
 
