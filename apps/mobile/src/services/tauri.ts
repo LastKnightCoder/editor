@@ -64,14 +64,31 @@ import type {
   FlashcardReviewRating,
   FlashcardType,
 } from "../features/flashcard/types";
+import type {
+  Calendar,
+  CalendarEvent,
+  CreateCalendarEventInput,
+  UpdateCalendarEventInput,
+} from "../features/calendar/types";
 import { logPerf } from "../utils/perf";
+import { invalidateCalendarAfterMutation } from "../features/calendar/cache";
 
 // IPC 计时包装：诊断卡顿时看每条命令的真实耗时（连接复用前后对比也靠它）
 function trackedInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   const start = performance.now();
-  return invoke<T>(cmd, args).finally(() => {
-    logPerf("ipc", cmd, performance.now() - start);
-  });
+  return invoke<T>(cmd, args)
+    .then(result => {
+      invalidateCalendarAfterMutation(cmd);
+      return result;
+    })
+    .finally(() => {
+      logPerf("ipc", cmd, performance.now() - start);
+    });
+}
+
+// 传递时区身份，Rust 按目标日期解析偏移，覆盖历史和未来的夏令时。
+export function localTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
 const VERIFY_TIMEOUT_MS = 15_000;
@@ -443,15 +460,24 @@ export function todoListItemsByType(payload: ListTodoItemsByTypePayload) {
 }
 
 export function todoCreateItem(payload: CreateTodoItemPayload) {
-  return trackedInvoke<TodoItem>("todo_create_item", { payload });
+  return trackedInvoke<TodoItem>("todo_create_item", {
+    payload,
+    timeZone: localTimeZone(),
+  });
 }
 
 export function todoCreateItemRelative(payload: CreateTodoItemRelativePayload) {
-  return trackedInvoke<TodoItem>("todo_create_item_relative", { payload });
+  return trackedInvoke<TodoItem>("todo_create_item_relative", {
+    payload,
+    timeZone: localTimeZone(),
+  });
 }
 
 export function todoUpdateItem(payload: UpdateTodoItemPayload) {
-  return trackedInvoke<TodoItem>("todo_update_item", { payload });
+  return trackedInvoke<TodoItem>("todo_update_item", {
+    payload,
+    timeZone: localTimeZone(),
+  });
 }
 
 export function todoToggleCompleteCascade(payload: ToggleTodoCompletePayload) {
@@ -465,6 +491,7 @@ export function todoMoveAndReorder(payload: MoveAndReorderTodoItemPayload) {
 export function todoArchiveItem(id: number, isArchived: boolean) {
   return trackedInvoke<number>("todo_archive_item", {
     payload: { id, isArchived },
+    timeZone: localTimeZone(),
   });
 }
 
@@ -489,11 +516,17 @@ export function todoGetRecurrenceByItem(todoItemId: number) {
 }
 
 export function todoCreateRecurrence(payload: CreateTodoRecurrencePayload) {
-  return trackedInvoke<TodoRecurrence>("todo_create_recurrence", { payload });
+  return trackedInvoke<TodoRecurrence>("todo_create_recurrence", {
+    payload,
+    timeZone: localTimeZone(),
+  });
 }
 
 export function todoUpdateRecurrence(payload: UpdateTodoRecurrencePayload) {
-  return trackedInvoke<TodoRecurrence>("todo_update_recurrence", { payload });
+  return trackedInvoke<TodoRecurrence>("todo_update_recurrence", {
+    payload,
+    timeZone: localTimeZone(),
+  });
 }
 
 export function todoDeleteRecurrence(id: number) {
@@ -598,6 +631,7 @@ export function pomodoroResumeSession() {
 export function pomodoroStopSession(asComplete = true) {
   return trackedInvoke<PomodoroSession | null>("pomodoro_stop_session", {
     payload: { asComplete },
+    timeZone: localTimeZone(),
   });
 }
 
@@ -972,4 +1006,64 @@ export function flashcardSubmitReview(
   return trackedInvoke<Flashcard>("flashcard_submit_review", {
     payload: { cardId, deckId, rating, notes: null },
   });
+}
+
+/* ── 日历日程 ── */
+
+export function calendarGetAll() {
+  return trackedInvoke<Calendar[]>("calendar_get_all");
+}
+
+export function calendarCreate(payload: {
+  title: string;
+  color?: string;
+  visible?: boolean;
+  orderIndex?: number;
+  groupId?: number | null;
+  archived?: boolean;
+  pinned?: boolean;
+}) {
+  return trackedInvoke<Calendar>("calendar_create", { payload });
+}
+
+export function calendarUpdate(payload: {
+  id: number;
+  title?: string;
+  color?: string;
+  archived?: boolean;
+  pinned?: boolean;
+  visible?: boolean;
+  orderIndex?: number;
+  groupId?: number | null;
+}) {
+  return trackedInvoke<Calendar>("calendar_update", { payload });
+}
+
+export function calendarDelete(id: number) {
+  return trackedInvoke<number>("calendar_delete", { payload: { id } });
+}
+
+export function calendarEventGetById(id: number) {
+  return trackedInvoke<CalendarEvent>("calendar_event_get_by_id", { payload: { id } });
+}
+
+export function calendarEventGetByDateRange(payload: {
+  startDate: number;
+  endDate: number;
+  calendarIds: number[];
+  timeZone: string;
+}) {
+  return trackedInvoke<CalendarEvent[]>("calendar_event_get_by_date_range", { payload });
+}
+
+export function calendarEventCreate(payload: CreateCalendarEventInput) {
+  return trackedInvoke<CalendarEvent>("calendar_event_create", { payload });
+}
+
+export function calendarEventUpdate(payload: UpdateCalendarEventInput) {
+  return trackedInvoke<CalendarEvent>("calendar_event_update", { payload });
+}
+
+export function calendarEventDelete(id: number) {
+  return trackedInvoke<number>("calendar_event_delete", { payload: { id } });
 }

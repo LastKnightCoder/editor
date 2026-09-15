@@ -37,6 +37,7 @@ import { subscribeContentUpdateAll } from "../features/cards/contentSyncBus";
 import type { CardsOverviewResponse } from "../types";
 import { useTodoStore } from "../features/todo/store/useTodoStore";
 import { useDiaryStore } from "../features/diary/store/useDiaryStore";
+import { invalidateCalendarQueries } from "../features/calendar/queries";
 import { ToastViewport } from "../components/ToastViewport";
 import { KeyboardViewportProvider } from "../components/KeyboardViewportProvider";
 import { AppDock } from "../components/AppDock";
@@ -243,6 +244,7 @@ function AppShellInner() {
       refreshVersionsSafe(),
       useTodoStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
       useDiaryStore.getState().reloadAfterDatabaseChange(targetDatabaseName),
+      invalidateCalendarQueries(),
     ]);
     const fallbackMessages = [
       "刷新设置快照失败",
@@ -251,6 +253,7 @@ function AppShellInner() {
       "刷新同步状态失败",
       "刷新任务数据失败",
       "刷新日记数据失败",
+      "刷新日历数据失败",
     ] as const;
     taskResults.forEach((result, index) => {
       if (result.status === "rejected") {
@@ -464,6 +467,7 @@ function AppShellInner() {
       diaryModuleEnabled: syncSettings.safeSetting?.module?.dailyNote?.enable !== false,
       todoModuleEnabled: syncSettings.safeSetting?.module?.todo?.enable !== false,
       pomodoroModuleEnabled: syncSettings.safeSetting?.module?.pomodoro?.enable !== false,
+      calendarModuleEnabled: syncSettings.safeSetting?.module?.calendar?.enable !== false,
     }),
     // context 值随 hook 数据更新即可，页面订阅自己的字段
     // eslint-disable-next-line react-hooks/exhaustive-deps

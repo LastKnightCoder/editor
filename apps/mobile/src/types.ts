@@ -680,6 +680,9 @@ export interface SettingCompat {
     pomodoro?: {
       enable?: boolean;
     };
+    calendar?: {
+      enable?: boolean;
+    };
     [key: string]: unknown;
   };
   /** 协作设置（与桌面端 setting.json 的 collaboration 节同构）：服务器与展示昵称 */

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日历移动端 · 日历管理 · 两方案</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   日历管理 · 两方案 + 新建日历 Sheet + 行操作菜单
+   色值取自 apps/mobile/src/styles.css 真实令牌。
+   A 画框可见性开关真实切换；⋯ 菜单弹出 ActionSheet 真实交互。
+   桌面对齐：分组三分区（系统/我的/归档）、可见性、置顶、
+   归档；合并与排序 P1。
+   ═══════════════════════════════════════════════════════ */
+:root {
+  --bg-page: #f6f1e7;
+  --bg-surface: #fffdf9;
+  --bg-input: #f6f1e7;
+  --ink-1: #43392c;
+  --ink-2: #8b7d6b;
+  --ink-3: #b9ac9a;
+  --line-1: #e9e1d2;
+  --line-2: rgba(233, 225, 210, 0.55);
+  --brand: #d97757;
+  --brand-strong: #e8896a;
+  --brand-soft: rgba(217, 119, 87, 0.12);
+  --brand-grad: linear-gradient(145deg, #e8896a, #d97757);
+  --rose: #b06a5e;
+  --rose-soft: #f6e3e0;
+  --mask: rgba(67, 57, 44, 0.4);
+  --ring-track: rgba(255, 255, 255, 0.65);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.06), 0 8px 20px -12px rgba(120, 100, 70, 0.16);
+  --shadow-float: 0 12px 32px -8px rgba(120, 100, 70, 0.35);
+  --shadow-accent: 0 8px 18px -5px rgba(217, 119, 87, 0.55);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  background: #2a251f; color: #ede7db; padding: 36px 28px 64px;
+}
+.page-head { max-width: 1780px; margin: 0 auto 26px; }
+.page-head h1 { font-size: 26px; font-weight: 800; }
+.page-head .sub { color: #b8ad9c; font-size: 13.5px; margin-top: 8px; line-height: 1.7; max-width: 980px; }
+.page-head .tags { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.page-head .tag {
+  font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+  background: rgba(217, 119, 87, 0.16); color: #e8a288; border: 1px solid rgba(217, 119, 87, 0.3);
+}
+.plan { max-width: 1780px; margin: 0 auto 44px; }
+.plan-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+.plan-head .letter {
+  font-size: 15px; font-weight: 800; padding: 6px 14px; border-radius: 12px; color: #fff8ef;
+  background: linear-gradient(145deg, #e8896a, #d97757);
+}
+.plan-head h2 { font-size: 21px; font-weight: 800; }
+.plan-head .cost { font-size: 12.5px; color: #96897a; font-weight: 700; }
+.plan-desc { color: #b8ad9c; font-size: 13px; line-height: 1.75; max-width: 980px; margin-bottom: 4px; }
+.plan-pros { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 18px; font-size: 12.5px; }
+.plan-pros span { color: #b8ad9c; }
+.plan-pros b.good { color: #7edbb2; }
+.plan-pros b.bad { color: #f5988a; }
+.board { display: flex; gap: 34px; flex-wrap: wrap; }
+.frame-wrap { display: flex; flex-direction: column; gap: 14px; }
+.frame-label { font-size: 14px; font-weight: 700; color: #d9cfbe; display: flex; align-items: baseline; gap: 8px; }
+.frame-label small { font-weight: 500; color: #96897a; font-size: 12px; }
+.phone {
+  width: 390px; height: 844px; border-radius: 52px; overflow: hidden; position: relative;
+  background: var(--bg-page); color: var(--ink-1);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.65), 0 0 0 11px #17140f, 0 0 0 13px #3a332a;
+  font-size: 14px;
+}
+.screen { height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.scroll { flex: 1; overflow-y: auto; scrollbar-width: none; }
+.scroll::-webkit-scrollbar { display: none; }
+.statusbar {
+  height: 54px; flex: none; display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 30px 6px; font-size: 15px; font-weight: 700; color: var(--ink-1); position: relative; z-index: 30;
+}
+.statusbar .icons { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+.homebar {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  width: 130px; height: 5px; border-radius: 99px; background: var(--ink-1); opacity: 0.85; z-index: 50;
+}
+.topbar { flex: none; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; position: relative; }
+.topbar .title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 16.5px; font-weight: 800; }
+.icon-btn {
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--bg-surface); box-shadow: var(--shadow-card); color: var(--ink-1);
+  font-size: 15px; border: none; cursor: pointer; font-weight: 700;
+}
+.icon-btn.brand { background: var(--brand-grad); color: #fff8ef; box-shadow: var(--shadow-accent); }
+
+/* 分组小标题 */
+.grp-label { font-size: 12px; font-weight: 800; color: var(--ink-3); letter-spacing: 1px; padding: 20px 22px 8px; }
+.grp-label small { font-weight: 600; letter-spacing: 0; margin-left: 6px; }
+
+/* ── A 分区列表 ── */
+.cal-row {
+  display: flex; align-items: center; gap: 12px; margin: 0 18px 9px; background: var(--bg-surface);
+  border-radius: 17px; box-shadow: var(--shadow-card); padding: 13px 15px;
+}
+.cal-row .cdot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.cal-row .nm { font-size: 14.5px; font-weight: 700; flex: 1; min-width: 0; }
+.cal-row .nm .sys-tag {
+  font-size: 10px; padding: 2px 8px; border-radius: 99px; background: var(--bg-input);
+  color: var(--ink-3); font-weight: 800; margin-left: 7px; vertical-align: 1px;
+}
+.cal-row .cnt { font-size: 11.5px; color: var(--ink-3); font-weight: 700; }
+.cal-row .more-btn {
+  width: 30px; height: 30px; border-radius: 50%; border: none; background: var(--bg-input);
+  color: var(--ink-2); font-weight: 800; cursor: pointer; font-size: 13px;
+}
+.cal-row.pinned .nm::before { content: "📌 "; font-size: 12px; }
+.switch { width: 46px; height: 28px; border-radius: 99px; background: var(--ring-track); position: relative; cursor: pointer; transition: background 0.25s; border: none; flex: none; }
+.switch::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--bg-surface); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18); transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.5, 1);
+}
+.switch.on { background: var(--brand); }
+.switch.on::after { transform: translateX(18px); }
+.cal-row.archived { opacity: 0.6; }
+.archived-note { font-size: 11px; color: var(--ink-3); padding: 2px 22px 10px; line-height: 1.7; }
+
+/* ── B 色块卡片 ── */
+.bento-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; padding: 4px 18px; }
+.bcard {
+  border-radius: 20px; background: var(--bg-surface); box-shadow: var(--shadow-card); overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.bcard .swatch { height: 52px; position: relative; display: flex; align-items: flex-end; padding: 0 12px 8px; }
+.bcard .swatch .sys-tag-b {
+  font-size: 9.5px; padding: 2px 7px; border-radius: 99px; background: rgba(255, 255, 255, 0.25);
+  color: #fff8ef; font-weight: 800; backdrop-filter: blur(4px);
+}
+.bcard .swatch .eye {
+  position: absolute; top: 9px; right: 10px; width: 26px; height: 26px; border-radius: 50%;
+  border: none; cursor: pointer; display: grid; place-items: center; font-size: 13px;
+  background: rgba(255, 255, 255, 0.24); color: #fff8ef;
+}
+.bcard .swatch .eye.off { background: rgba(0, 0, 0, 0.18); opacity: 0.75; }
+.bcard .bd { padding: 11px 13px 12px; }
+.bcard .bd .nm { font-size: 14px; font-weight: 800; }
+.bcard .bd .ct { font-size: 11px; color: var(--ink-3); font-weight: 700; margin-top: 3px; }
+.bcard .bd .act-row { display: flex; gap: 7px; margin-top: 10px; }
+.bcard .bd .mini {
+  flex: 1; height: 29px; border-radius: 10px; border: none; background: var(--bg-input);
+  font-size: 11px; font-weight: 800; color: var(--ink-2); cursor: pointer;
+}
+.bcard .bd .mini.warn { color: var(--rose); }
+
+/* ── 新建日历 Sheet ── */
+.sheet-mask { position: absolute; inset: 0; background: var(--mask); }
+.pick-sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; background: var(--bg-surface);
+  border-radius: 30px 30px 0 0; box-shadow: var(--shadow-float); padding: 10px 22px 30px;
+}
+.pick-sheet .handle { width: 42px; height: 5px; border-radius: 99px; background: var(--line-1); margin: 4px auto 14px; }
+.pick-title { text-align: center; font-size: 15px; font-weight: 800; margin-bottom: 16px; }
+.cal-name-input {
+  width: 100%; border: none; background: var(--bg-input); border-radius: 14px; padding: 14px 16px;
+  font-size: 15.5px; font-weight: 700; color: var(--ink-1); outline: none; font-family: inherit;
+}
+.cal-name-input::placeholder { color: var(--ink-3); font-weight: 600; }
+.pri-color-label { font-size: 11.5px; font-weight: 800; color: var(--ink-3); letter-spacing: 1px; margin: 16px 0 10px; }
+.color-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; padding: 2px 2px 6px; }
+.color-cell { aspect-ratio: 1; border-radius: 50%; cursor: pointer; position: relative; display: grid; place-items: center; color: #fff8ef; font-size: 13px; font-weight: 800; }
+.color-cell.on::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 2px solid var(--ink-1); }
+.sheet-foot { display: flex; gap: 10px; padding-top: 14px; }
+.sheet-foot .a {
+  flex: 1; height: 46px; border-radius: 15px; display: grid; place-items: center; font-size: 14px;
+  font-weight: 800; cursor: pointer; background: var(--bg-input); color: var(--ink-2);
+}
+.sheet-foot .a.pri { background: var(--brand-grad); color: #fff8ef; box-shadow: var(--shadow-accent); }
+
+/* ActionSheet（行操作菜单，可交互） */
+.as-mask { position: absolute; inset: 0; background: var(--mask); z-index: 40; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+.as-mask.on { opacity: 1; pointer-events: auto; }
+.asheet {
+  position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 41;
+  background: var(--bg-surface); border-radius: 26px; box-shadow: var(--shadow-float);
+  padding: 8px; transform: translateY(110%); transition: transform 0.38s cubic-bezier(0.34, 1.2, 0.5, 1);
+}
+.asheet.on { transform: translateY(0); }
+.asheet .hd { text-align: center; padding: 10px 0 6px; font-size: 12px; font-weight: 700; color: var(--ink-3); }
+.as-item {
+  display: flex; align-items: center; gap: 12px; padding: 15px 16px; border-radius: 16px; cursor: pointer;
+  font-size: 14.5px; font-weight: 700; color: var(--ink-1);
+}
+.as-item:active { background: var(--bg-input); }
+.as-item.danger { color: var(--rose); }
+.as-item .ic { font-size: 16px; width: 22px; text-align: center; }
+.as-item .sub-s { font-size: 11px; color: var(--ink-3); font-weight: 600; margin-left: auto; }
+.as-cancel {
+  margin-top: 8px; text-align: center; padding: 15px; border-top: 1px solid var(--line-2);
+  font-size: 14.5px; font-weight: 800; color: var(--ink-2); cursor: pointer;
+}
+.foot-note { max-width: 1780px; margin: 0 auto; font-size: 12.5px; color: #8f8574; line-height: 1.9; }
+.foot-note b { color: #b8ad9c; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>日历管理 · 已选 A 分区列表（B 保留参考）</h1>
+  <p class="sub">
+    管理日历本体：可见性过滤、新建、颜色、置顶、归档。对齐桌面侧栏三分区（系统 / 我的 / 归档）；系统分区只读（仅可见性开关），合并与拖动排序 P1。A 画框每行 ⋯ 与可见性开关可真实交互（弹出行操作 ActionSheet）。
+  </p>
+  <div class="tags">
+    <span class="tag">入口：主页顶栏 ⚙ 或 日历 chips 尾部「管理」</span>
+    <span class="tag">可见性 = localStorage 持久化（同桌面语义）</span>
+    <span class="tag">删除日历 = 级联删事件（MobileConfirmDialog 二次确认）</span>
+  </div>
+</div>
+
+<!-- ════════════════ 方案 A ════════════════ -->
+<section class="plan">
+  <div class="plan-head">
+    <span class="letter">A</span>
+    <h2>分区列表管理式</h2>
+    <span class="cost">已选定 A · 分区列表</span>
+  </div>
+  <p class="plan-desc">
+    与桌面侧栏同构的移动化：三分区（系统 / 我的 / 归档）+ 行式列表（色点 · 名称 · 事件数 · 可见性开关 · ⋯ 菜单）。信息密度高、扩展性好（P1 的分组管理 / 合并直接在此结构上生长），与 App 设置类页面形态一致。
+  </p>
+  <div class="plan-pros">
+    <span><b class="good">＋</b> 与桌面心智一致，密度高，长列表不虚</span>
+    <span><b class="good">＋</b> P1 分组/合并/排序直接生长于此</span>
+    <span><b class="bad">－</b> 色彩存在感弱（仅小色点）</span>
+  </div>
+  <div class="board">
+    <div class="frame-wrap">
+      <div class="frame-label">A-① 管理页 <small>点 ⋯ 弹出行操作菜单 · 开关可切换（真实交互）</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icons">▸▸▸ ᯤ 🔒</span></div>
+          <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="title">日历管理</span>
+            <button class="icon-btn brand" title="新建日历">＋</button>
+          </div>
+          <div class="scroll">
+            <div class="grp-label">系统<small>只读 · 由功能模块自动维护</small></div>
+            <div class="cal-row">
+              <span class="cdot" style="background:#CF473A"></span>
+              <span class="nm">番茄钟<span class="sys-tag">系统</span></span>
+              <span class="cnt">342 件</span>
+              <button class="switch on" onclick="this.classList.toggle('on')"></button>
+            </div>
+            <div class="cal-row">
+              <span class="cdot" style="background:#C77100"></span>
+              <span class="nm">截止任务<span class="sys-tag">待办</span></span>
+              <span class="cnt">27 件</span>
+              <button class="switch on" onclick="this.classList.toggle('on')"></button>
+            </div>
+            <div class="cal-row">
+              <span class="cdot" style="background:#369307"></span>
+              <span class="nm">周期任务<span class="sys-tag">待办</span></span>
+              <span class="cnt">—</span>
+              <button class="switch" onclick="this.classList.toggle('on')"></button>
+            </div>
+
+            <div class="grp-label">我的日历<small>4 个</small></div>
+            <div class="cal-row pinned">
+              <span class="cdot" style="background:#2A67E2"></span>
+              <span class="nm">工作</span>
+              <span class="cnt">126 件</span>
+              <button class="switch on" onclick="this.classList.toggle('on')"></button>
+              <button class="more-btn" onclick="toggleMAS(event)">⋯</button>
+            </div>
+            <div class="cal-row">
+              <span class="cdot" style="background:#42A393"></span>
+              <span class="nm">生活</span>
+              <span class="cnt">58 件</span>
+              <button class="switch on" onclick="this.classList.toggle('on')"></button>
+              <button class="more-btn" onclick="toggleMAS(event)">⋯</button>
+            </div>
+            <div class="cal-row">
+              <span class="cdot" style="background:#692EC2"></span>
+              <span class="nm">个人成长</span>
+              <span class="cnt">33 件</span>
+              <button class="switch on" onclick="this.classList.toggle('on')"></button>
+              <button class="more-btn" onclick="toggleMAS(event)">⋯</button>
+            </div>
+            <div class="cal-row">
+              <span class="cdot" style="background:#B29104"></span>
+              <span class="nm">家庭</span>
+              <span class="cnt">12 件</span>
+              <button class="switch" onclick="this.classList.toggle('on')"></button>
+              <button class="more-btn" onclick="toggleMAS(event)">⋯</button>
+            </div>
+
+            <div class="grp-label">已归档<small>1 个</small></div>
+            <div class="cal-row archived">
+              <span class="cdot" style="background:#808080"></span>
+              <span class="nm">2025 旅行计划</span>
+              <span class="cnt">46 件</span>
+              <button class="switch" onclick="this.classList.toggle('on')"></button>
+              <button class="more-btn" onclick="toggleMAS(event)">⋯</button>
+            </div>
+            <div class="archived-note">归档日历不参与主页展示与查询，事件保留；取消归档即可恢复。</div>
+            <div style="height:30px"></div>
+          </div>
+
+          <div class="as-mask" id="masMask" onclick="toggleMAS()"></div>
+          <div class="asheet" id="masSheet">
+            <div class="hd">日历「工作」· 126 件日程</div>
+            <div class="as-item" onclick="toggleMAS()"><span class="ic">✏️</span>编辑名称 / 颜色</div>
+            <div class="as-item" onclick="toggleMAS()"><span class="ic">📌</span>取消置顶<span class="sub-s">当前已置顶</span></div>
+            <div class="as-item" onclick="toggleMAS()"><span class="ic">📦</span>归档此日历</div>
+            <div class="as-item danger" onclick="toggleMAS()"><span class="ic">🗑</span>删除日历<span class="sub-s">将同时删除 126 件日程</span></div>
+            <div class="as-cancel" onclick="toggleMAS()">取消</div>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ 方案 B ════════════════ -->
+<section class="plan">
+  <div class="plan-head">
+    <span class="letter">B</span>
+    <h2>色块卡片式</h2>
+    <span class="cost">实现成本 1.05×</span>
+  </div>
+  <p class="plan-desc">
+    每个日历一张 Bento 色块卡：顶部色带（即日历色，含可见性眼睛按钮）+ 名称 + 事件数 + 快捷操作（编辑 / 归档）。色彩存在感强、「日历 = 颜色」的映射直白；但系统分区的「只读」语义需靠角标表达，归档分区视觉冗余，P1 分组树生长性弱于列表。
+  </p>
+  <div class="plan-pros">
+    <span><b class="good">＋</b> 色彩直观，与主页事件色呼应最强</span>
+    <span><b class="good">＋</b> 卡片操作直达，无需二级菜单</span>
+    <span><b class="bad">－</b> 17 色浅色值作卡片头部时白字对比需校验</span>
+    <span><b class="bad">－</b> 分组/归档多后列表变长，密度低</span>
+  </div>
+  <div class="board">
+    <div class="frame-wrap">
+      <div class="frame-label">B-① 管理页 <small>色块 Bento 双列 · 眼睛按钮切可见性</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icons">▸▸▸ ᯤ 🔒</span></div>
+          <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="title">日历管理</span>
+            <button class="icon-btn brand">＋</button>
+          </div>
+          <div class="scroll">
+            <div class="grp-label">系统<small>只读</small></div>
+            <div class="bento-grid">
+              <div class="bcard">
+                <div class="swatch" style="background:linear-gradient(150deg,#CF473A,#a93a2f)">
+                  <span class="sys-tag-b">🍅 番茄钟</span>
+                  <button class="eye" title="切换可见性">👁</button>
+                </div>
+                <div class="bd">
+                  <div class="nm">番茄钟</div>
+                  <div class="ct">342 件 · 自动记录</div>
+                  <div class="act-row"><button class="mini">仅可切换显示</button></div>
+                </div>
+              </div>
+              <div class="bcard">
+                <div class="swatch" style="background:linear-gradient(150deg,#C77100,#9d5a00)">
+                  <span class="sys-tag-b">☑ 截止任务</span>
+                  <button class="eye off" title="已隐藏">👁</button>
+                </div>
+                <div class="bd">
+                  <div class="nm">截止任务</div>
+                  <div class="ct">27 件 · 来自待办</div>
+                  <div class="act-row"><button class="mini">仅可切换显示</button></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grp-label">我的日历<small>4 个 · 点卡片编辑</small></div>
+            <div class="bento-grid">
+              <div class="bcard">
+                <div class="swatch" style="background:linear-gradient(150deg,#2A67E2,#1f4fb4)">
+                  <span class="sys-tag-b">📌 置顶</span>
+                  <button class="eye">👁</button>
+                </div>
+                <div class="bd">
+                  <div class="nm">工作</div>
+                  <div class="ct">126 件</div>
+                  <div class="act-row"><button class="mini">编辑</button><button class="mini">归档</button></div>
+                </div>
+              </div>
+              <div class="bcard">
+                <div class="swatch" style="background:linear-gradient(150deg,#42A393,#2f7d6f)">
+                  <button class="eye">👁</button>
+                </div>
+                <div class="bd">
+                  <div class="nm">生活</div>
+                  <div class="ct">58 件</div>
+                  <div class="act-row"><button class="mini">编辑</button><button class="mini">归档</button></div>
+                </div>
+              </div>
+              <div class="bcard">
+                <div class="swatch" style="background:linear-gradient(150deg,#692EC2,#4f21a0)">
+                  <button class="eye">👁</button>
+                </div>
+                <div class="bd">
+                  <div class="nm">个人成长</div>
+                  <div class="ct">33 件</div>
+                  <div class="act-row"><button class="mini">编辑</button><button class="mini">归档</button></div>
+                </div>
+              </div>
+              <div class="bcard">
+                <div class="swatch" style="background:linear-gradient(150deg,#B29104,#8a7003)">
+                  <button class="eye off">👁</button>
+                </div>
+                <div class="bd">
+                  <div class="nm">家庭</div>
+                  <div class="ct">12 件 · 已隐藏</div>
+                  <div class="act-row"><button class="mini">编辑</button><button class="mini warn">删除</button></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grp-label">已归档</div>
+            <div class="bento-grid">
+              <div class="bcard" style="opacity:0.66">
+                <div class="swatch" style="background:linear-gradient(150deg,#808080,#616161)">
+                  <button class="eye off">👁</button>
+                </div>
+                <div class="bd">
+                  <div class="nm">2025 旅行计划</div>
+                  <div class="ct">46 件</div>
+                  <div class="act-row"><button class="mini">恢复</button><button class="mini warn">删除</button></div>
+                </div>
+              </div>
+            </div>
+            <div style="height:30px"></div>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════ 新建/编辑日历 Sheet ════════════════ -->
+<section class="plan">
+  <div class="plan-head">
+    <span class="letter">C</span>
+    <h2>新建 / 编辑日历 Sheet</h2>
+    <span class="cost">BottomSheet · 两方案通用</span>
+  </div>
+  <p class="plan-desc">
+    名称 + 17 色板一步完成（P0 不含分组选择，新日历落在「我的日历」分区；分组管理 P1）。编辑态同一 Sheet 预填。返回手势关闭不保存。
+  </p>
+  <div class="board">
+    <div class="frame-wrap">
+      <div class="frame-label">C-① 新建日历 <small>名称 + 颜色 · 一步创建</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="sheet-mask"></div>
+          <div class="pick-sheet">
+            <div class="handle"></div>
+            <div class="pick-title">新建日历</div>
+            <input class="cal-name-input" placeholder="日历名称，如：工作、生活…">
+            <div class="pri-color-label">颜色 · 与桌面端同一套 17 色</div>
+            <div class="color-grid">
+              <span class="color-cell" style="background:#B8255F"></span>
+              <span class="color-cell" style="background:#CF473A"></span>
+              <span class="color-cell on" style="background:#C77100">✓</span>
+              <span class="color-cell" style="background:#B29104"></span>
+              <span class="color-cell" style="background:#949C31"></span>
+              <span class="color-cell" style="background:#369307"></span>
+              <span class="color-cell" style="background:#42A393"></span>
+              <span class="color-cell" style="background:#148FAD"></span>
+              <span class="color-cell" style="background:#319DC0"></span>
+              <span class="color-cell" style="background:#6988A4"></span>
+              <span class="color-cell" style="background:#2A67E2"></span>
+              <span class="color-cell" style="background:#692EC2"></span>
+              <span class="color-cell" style="background:#AC30CC"></span>
+              <span class="color-cell" style="background:#B2635C"></span>
+              <span class="color-cell" style="background:#808080"></span>
+              <span class="color-cell" style="background:#999999"></span>
+              <span class="color-cell" style="background:#8F7A69"></span>
+            </div>
+            <div class="sheet-foot">
+              <span class="a">取消</span>
+              <span class="a pri">创建</span>
+            </div>
+          </div>
+          <div class="homebar" style="z-index:60"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<p class="foot-note">
+  <b>已定稿：</b>A 分区列表 + 新建日历 Sheet；B 仅参考。17 色采用 CalendarColorName / CALENDAR_COLORS。删除需二次确认；置顶、分组、合并、排序仍为 P1。
+</p>
+
+<script>
+function toggleMAS(e) {
+  if (e) e.stopPropagation();
+  document.getElementById("masMask").classList.toggle("on");
+  document.getElementById("masSheet").classList.toggle("on");
+}
+</script>
+</body>
+</html>

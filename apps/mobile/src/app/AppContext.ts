@@ -40,6 +40,7 @@ export type AppContextValue = {
   diaryModuleEnabled: boolean;
   todoModuleEnabled: boolean;
   pomodoroModuleEnabled: boolean;
+  calendarModuleEnabled: boolean;
 };
 
 export const AppContext = createContext<AppContextValue | null>(null);
