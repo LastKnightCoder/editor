@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>闪卡编辑页重设计 · 方案 A「轻纸面」</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   闪卡编辑页重设计 · 方案 A「轻纸面」（Flat Paper）
+   ─────────────────────────────────────────────────────
+   思路：整个表单就是一张纸。不用分区卡片，区块之间用
+   「小节标题 + 发丝线」组织；所有输入控件无底色边框，
+   focus 才亮品牌描边。信息密度最高、页面最短、最素雅。
+
+   共同修复的四个痛点（三方案一致）：
+   ① 选项长内容自适应：单行 input → 自动长高的多行块
+   ② 输入框去双层嵌套底色（卡片里再嵌一块底色的浑浊感）
+   ③ 标签 chip 化：回车/逗号确认，⌫ 删末尾，点 × 删除
+      ——不再用空格分隔（中文输入无空格习惯，也无法
+      输入含空格的标签）
+   ④ 所有色值取自 styles.css 真实令牌
+
+   本方案适配五题型：题干区/背面区随题型不变，中段
+   按题型切换（选项纸 / 判断二选一 / 问答答案 / 填空提示）。
+   ═══════════════════════════════════════════════════════ */
+:root {
+  --bg-page: #f6f1e7;
+  --bg-surface: #fffdf9;
+  --bg-input: #f6f1e7;
+  --ink-1: #43392c;
+  --ink-2: #8b7d6b;
+  --ink-3: #b9ac9a;
+  --meta-ink: #7a6c5a;
+  --line-1: #e9e1d2;
+  --brand: #d97757;
+  --brand-strong: #e8896a;
+  --brand-soft: rgba(217, 119, 87, 0.12);
+  --brand-grad: linear-gradient(145deg, #e8896a, #d97757);
+  --sage: #61795f; --sage-soft: #e5ede2;
+  --sky: #5c7d99;  --sky-soft: #e2ebf3;
+  --danger: #b06a5e;
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.06), 0 8px 20px -12px rgba(120, 100, 70, 0.16);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif;
+  background: #ece6da; /* 桌面预览底 */
+  display: flex; justify-content: center; min-height: 100vh;
+}
+.phone {
+  width: 390px; background: var(--bg-page); min-height: 100vh;
+  position: relative; overflow-y: auto; padding-bottom: 120px;
+}
+@media (max-width: 420px) { body { background: var(--bg-page); } .phone { width: 100%; } }
+
+/* ── 顶栏 ── */
+.topbar {
+  position: sticky; top: 0; z-index: 10; background: var(--bg-page);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) 18px 10px;
+  border-bottom: 1px solid var(--line-1);
+}
+.back { width: 34px; height: 34px; border: none; background: transparent; color: var(--ink-1); font-size: 20px; cursor: pointer; }
+.deck-chip {
+  font-size: 11px; font-weight: 700; color: var(--meta-ink);
+  background: var(--bg-surface); border-radius: 99px; padding: 5px 11px;
+  box-shadow: var(--shadow-card);
+}
+.save {
+  border: none; background: var(--brand-grad); color: #fff; font-size: 13.5px; font-weight: 800;
+  border-radius: 13px; padding: 8px 17px; cursor: pointer; box-shadow: 0 6px 14px -5px rgba(217,119,87,.5);
+}
+
+/* ── 小节（轻纸面核心：标题 + 左侧品牌短杠，无卡片） ── */
+.section { padding: 18px 22px 6px; }
+.section-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 800; color: var(--meta-ink);
+  letter-spacing: .05em; margin-bottom: 10px;
+}
+.section-label::before { content: ""; width: 4px; height: 14px; border-radius: 2px; background: var(--brand); }
+.section-label .aux { margin-left: auto; font-size: 10.5px; color: var(--ink-3); font-weight: 700; }
+
+/* ── 题干（主角：无框大输入，字号提级） ── */
+.prompt-box {
+  margin: 6px 18px 0; padding: 14px 16px 16px;
+  background: var(--bg-surface); border-radius: 22px; box-shadow: var(--shadow-card);
+}
+.prompt-box .type-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10.5px; font-weight: 800; color: var(--sky);
+  background: var(--sky-soft); border-radius: 8px; padding: 4px 9px; margin-bottom: 8px;
+}
+.prompt-input {
+  width: 100%; display: block; border: none; outline: none; background: transparent; resize: none;
+  font-size: 17px; font-weight: 700; line-height: 1.65; color: var(--ink-1);
+  min-height: 66px; font-family: inherit; overflow: hidden;
+}
+.prompt-input::placeholder { color: var(--ink-3); font-weight: 500; }
+.cloze-hint { margin-top: 8px; font-size: 10.5px; color: var(--ink-3); font-weight: 600; }
+
+/* ── 选项（纸面列表：发丝线分隔，整块 textarea 自适应长高） ── */
+.options-paper { margin: 0 18px; background: var(--bg-surface); border-radius: 22px; box-shadow: var(--shadow-card); overflow: hidden; }
+.option-row {
+  display: flex; align-items: flex-start; gap: 11px; padding: 13px 14px 13px 16px;
+  border-bottom: 1px solid var(--line-1); cursor: pointer; transition: background .15s;
+}
+.option-row:last-of-type { border-bottom: none; }
+.option-row:active { background: rgba(233,225,210,.45); }
+.option-row.correct { background: var(--sage-soft); }
+.badge {
+  flex: none; width: 26px; height: 26px; margin-top: 1px; border-radius: 9px;
+  display: grid; place-items: center; font-size: 12px; font-weight: 800;
+  background: var(--bg-page); color: var(--ink-2); transition: all .15s;
+}
+.option-row.correct .badge { background: var(--sage); color: #fff; }
+.option-text {
+  flex: 1; width: 100%; display: block; border: none; outline: none; background: transparent; resize: none;
+  font-size: 14.5px; font-weight: 600; line-height: 1.6; color: var(--ink-1);
+  min-height: 26px; font-family: inherit; padding: 0; overflow: hidden;
+}
+.option-text::placeholder { color: var(--ink-3); font-weight: 500; }
+.option-del { flex: none; border: none; background: transparent; color: var(--ink-3); font-size: 14px; padding: 4px; cursor: pointer; align-self: flex-start; margin-top: 2px; }
+.option-del:hover { color: var(--danger); }
+
+/* 超长选项：折叠为 3 行渐隐，展开按钮/聚焦输入时展开 */
+.opt-wrap { flex: 1; min-width: 0; }
+.opt-wrap.collapsed .option-text {
+  max-height: calc(3 * 1.6em);
+  -webkit-mask-image: linear-gradient(180deg, #000 62%, transparent 98%);
+  mask-image: linear-gradient(180deg, #000 62%, transparent 98%);
+}
+.expand-btn {
+  border: none; background: transparent; color: var(--brand); cursor: pointer;
+  font-size: 11.5px; font-weight: 800; padding: 5px 0 0; font-family: inherit;
+}
+.add-option {
+  display: block; width: 100%; border: none; background: transparent; cursor: pointer;
+  color: var(--brand); font-size: 13px; font-weight: 800; padding: 13px;
+}
+.correct-count { font-size: 11px; font-weight: 700; color: var(--sage); }
+
+/* ── 通用轻输入（无底色无边框，光标即焦点反馈） ── */
+.bare-input {
+  width: 100%; border: none; outline: none; background: transparent;
+  font-size: 14px; font-weight: 600; color: var(--ink-1); font-family: inherit;
+  padding: 10px 12px;
+}
+.bare-input::placeholder { color: var(--ink-3); font-weight: 500; }
+.bare-text { resize: none; line-height: 1.7; min-height: 30px; overflow: hidden; }
+
+/* ── 标签 chip：chips 自成行，输入框独立一行全宽（多标签不挤压输入空间） ── */
+.chip-box { display: flex; flex-wrap: wrap; gap: 7px; padding: 2px 0 8px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg-surface); border-radius: 99px; padding: 7px 8px 7px 12px;
+  font-size: 12.5px; font-weight: 700; color: var(--ink-1); box-shadow: var(--shadow-card);
+}
+.chip::before { content: "#"; color: var(--brand); font-weight: 800; }
+.chip .x { border: none; background: var(--bg-page); color: var(--ink-2); width: 18px; height: 18px; border-radius: 99px; font-size: 11px; cursor: pointer; line-height: 1; }
+.chip-input {
+  display: block; width: 100%; border: none; outline: none; background: transparent;
+  font-size: 13px; font-weight: 600; color: var(--ink-1); padding: 8px 4px 2px; font-family: inherit;
+}
+.chip-input::placeholder { color: var(--ink-3); font-weight: 500; }
+
+/* ── 难度胶囊 ── */
+.diff-row { display: flex; gap: 8px; }
+.diff {
+  border: 1.5px solid var(--line-1); background: transparent; color: var(--ink-2);
+  border-radius: 99px; padding: 8px 15px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  transition: all .15s;
+}
+.diff.on { background: var(--ink-1); border-color: var(--ink-1); color: var(--bg-surface); }
+
+/* ── 吸底保存 ── */
+.savebar {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 390px; max-width: 100%; padding: 12px 18px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(246,241,231,0), var(--bg-page) 34%);
+}
+.savebar button {
+  width: 100%; border: none; background: var(--brand-grad); color: #fff;
+  font-size: 15px; font-weight: 800; border-radius: 17px; padding: 15px; cursor: pointer;
+  box-shadow: 0 10px 22px -7px rgba(217,119,87,.55);
+}
+
+.note { padding: 26px 22px 8px; font-size: 11px; line-height: 1.9; color: var(--ink-3); font-weight: 600; }
+.note b { color: var(--meta-ink); }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="topbar">
+    <button class="back" aria-label="返回">‹</button>
+    <span class="deck-chip">🗂 金融基础知识</span>
+    <button class="save">保存</button>
+  </div>
+
+  <!-- 题干：唯一的主角卡片 -->
+  <div class="prompt-box">
+    <span class="type-tag">◉ 单选题</span>
+    <textarea class="prompt-input" placeholder="输入题目…" rows="2">以下哪个例子最能体现期货的套期保值功能？某粮油企业担心三季度大豆价格上涨，应该怎么做？</textarea>
+    <div class="cloze-hint">支持加粗 / 划线 / 代码，长题干自动扩展</div>
+  </div>
+
+  <!-- 选项：一张"答案纸"，行间发丝线，整行点击切换正确 -->
+  <div class="section" style="padding-bottom:0">
+    <div class="section-label">选项 <span class="aux correct-count">已标 1 个正确答案 · 点行切换</span></div>
+  </div>
+  <div class="options-paper" id="optionsPaper">
+    <!-- JS 渲染 -->
+  </div>
+
+  <!-- 参考答案 / 提示 / 解析：轻纸面裸输入 -->
+  <div class="section">
+    <div class="section-label">解析 <span class="aux">选填 · 揭示答案时展示</span></div>
+    <textarea class="bare-input bare-text" placeholder="帮助建立记忆锚点，比如对比套保与投机的本质差异…"></textarea>
+  </div>
+
+  <div class="section">
+    <div class="section-label">难度</div>
+    <div class="diff-row">
+      <button class="diff" type="button">基础</button>
+      <button class="diff on" type="button">标准</button>
+      <button class="diff" type="button">进阶</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">标签 <span class="aux">回车添加 · 点 × 删除</span></div>
+    <div class="chip-box" id="chipBox"></div>
+    <input class="chip-input" id="chipInput" placeholder="输入后按回车，如：期货">
+  </div>
+
+  <div class="note">
+    <b>方案 A「轻纸面」要点：</b><br>
+    · 只有题干与选项是"实体"，其余输入融在纸面上，滚动路径最短<br>
+    · 选项长内容两级处理：普通长选项自动换行、高度自适应（选项 B）；<br>
+    &nbsp;&nbsp;超长选项（约 4 行以上，见选项 D）自动折叠为 3 行渐隐，<br>
+    &nbsp;&nbsp;点「⋯ 展开全文」或点进输入框编辑时展开完整内容，<br>
+    &nbsp;&nbsp;避免一个超长选项把其余选项顶出屏幕<br>
+    · 输入控件零底色嵌套：focus 才亮品牌左描边<br>
+    · 标签 chip：回车/逗号确认，⌫ 删末尾，点 × 移除<br>
+    · 交互演示：点选项行切换正确答案；点 × 删选项；点 + 添加
+  </div>
+
+  <div class="savebar"><button>保存卡片</button></div>
+</div>
+
+<script>
+// 选项渲染：textarea 自适应（去掉滚动高度撑开）；超 4 行折叠为 3 行渐隐
+const FOLD_LINES = 4;
+const options = [
+  { label: "买入大豆期货合约锁定采购成本", correct: true },
+  { label: "卖出大豆期货合约，赌价格下跌赚差价（这是投机，不是套保——套保的目标是锁定成本或利润，消除不确定性，而不是从价格波动中获利）", correct: false },
+  { label: "什么也不做，等三季度再说", correct: false },
+  { label: "跨市套利：同时在大连商品交易所买入大豆期货、在芝加哥期货交易所卖出大豆期货，赚取两地价差。跨市套利虽然同时持有多空头寸、形式上『对冲』了单边价格风险，但其盈利依赖两地价差的收敛与扩大，本质上仍是承担基差风险的套利交易，而非以锁定经营成本为目的的套期保值。此外还涉及汇率、运输、交割规则差异等额外风险。", correct: false },
+];
+const paper = document.getElementById("optionsPaper");
+
+// 归零再测：scrollHeight 会被当前高度抬高（textarea 默认 2 行会虚高），先压到 0 拿纯内容高
+function autoGrow(el) { el.style.height = "0px"; el.style.height = el.scrollHeight + "px"; }
+// line-height 无单位时 computed 返回 "1.6" 而非像素，按 font-size×行距兜底
+function lineCount(el) {
+  const cs = getComputedStyle(el);
+  const lh = parseFloat(cs.lineHeight);
+  const safeLh = Number.isFinite(lh) && lh >= 5 ? lh : parseFloat(cs.fontSize) * 1.6;
+  return el.scrollHeight / safeLh;
+}
+
+function render() {
+  paper.innerHTML = "";
+  options.forEach((opt, i) => {
+    const row = document.createElement("div");
+    row.className = "option-row" + (opt.correct ? " correct" : "");
+    row.innerHTML = `
+      <span class="badge">${String.fromCharCode(65 + i)}</span>
+      <div class="opt-wrap${opt.folded === false ? "" : " collapsed"}">
+        <textarea class="option-text" rows="1" placeholder="选项 ${String.fromCharCode(65 + i)}"></textarea>
+        <button class="expand-btn" hidden>⋯ 展开全文</button>
+      </div>
+      ${options.length > 2 ? '<button class="option-del" aria-label="删除">✕</button>' : ""}`;
+    const wrap = row.querySelector(".opt-wrap");
+    const ta = row.querySelector(".option-text");
+    const expandBtn = row.querySelector(".expand-btn");
+    ta.value = opt.label;
+    // 先入文档再测量：脱离文档的节点 scrollHeight/computed 均不可靠
+    paper.appendChild(row);
+    autoGrow(ta);
+    // 超 FOLD_LINES 行且未手动展开 → 折叠态 + 展开按钮（手动展开过 opt.folded=false 保持记忆）
+    const over = opt.folded !== false && lineCount(ta) > FOLD_LINES;
+    wrap.classList.toggle("collapsed", over);
+    expandBtn.hidden = !over;
+    if (over) expandBtn.textContent = `⋯ 展开全文`;
+    const refold = () => {
+      autoGrow(ta);
+      const stillOver = opt.folded !== false && lineCount(ta) > FOLD_LINES;
+      wrap.classList.toggle("collapsed", stillOver);
+      expandBtn.hidden = !stillOver;
+    };
+    ta.addEventListener("input", () => { opt.label = ta.value; refold(); });
+    ta.addEventListener("focus", () => { // 编辑时永远展开完整内容（记入状态，输入过程中不被折回）
+      opt.folded = false;
+      wrap.classList.remove("collapsed"); expandBtn.hidden = true;
+    });
+    expandBtn.addEventListener("click", e => {
+      e.stopPropagation();
+      opt.folded = false;
+      wrap.classList.remove("collapsed"); expandBtn.hidden = true;
+    });
+    // 点击徽标/空白处切换正确；点击输入框正常编辑
+    row.querySelector(".badge").addEventListener("click", e => { e.stopPropagation(); opt.correct = !opt.correct; render(); });
+    row.addEventListener("click", e => { if (e.target === row || e.target.classList.contains("option-row")) { opt.correct = !opt.correct; render(); } });
+    row.querySelector(".option-del")?.addEventListener("click", e => { e.stopPropagation(); options.splice(i, 1); render(); });
+  });
+  if (options.length < 6) {
+    const add = document.createElement("button");
+    add.className = "add-option"; add.textContent = "＋ 添加选项";
+    add.addEventListener("click", () => { options.push({ label: "", correct: false }); render(); });
+    paper.appendChild(add);
+  }
+}
+render();
+
+// 标签 chip：回车/逗号提交，⌫ 删末尾，点 × 移除
+const chipBox = document.getElementById("chipBox");
+const chipInput = document.getElementById("chipInput");
+const tags = ["期货", "套期保值"];
+function renderChips() {
+  chipBox.querySelectorAll(".chip").forEach(c => c.remove());
+  tags.forEach((tag, i) => {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.innerHTML = `${tag}<button class="x" aria-label="删除标签">✕</button>`;
+    chip.querySelector(".x").addEventListener("click", () => { tags.splice(i, 1); renderChips(); });
+    chipBox.appendChild(chip);
+  });
+}
+function commitChip() {
+  const v = chipInput.value.trim().replace(/[，,]$/, "").trim();
+  if (v && !tags.includes(v)) tags.push(v);
+  chipInput.value = ""; renderChips();
+}
+chipInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" || e.key === "," || e.key === "，") { e.preventDefault(); commitChip(); }
+  else if (e.key === "Backspace" && chipInput.value === "" && tags.length) { tags.pop(); renderChips(); }
+});
+renderChips();
+
+// 题干/裸输入自适应
+document.querySelectorAll(".prompt-input, .bare-text").forEach(el => {
+  autoGrow(el);
+  el.addEventListener("input", () => autoGrow(el));
+});
+// 难度切换
+document.querySelectorAll(".diff").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".diff").forEach(x => x.classList.remove("on"));
+  b.classList.add("on");
+}));
+</script>
+</body>
+</html>

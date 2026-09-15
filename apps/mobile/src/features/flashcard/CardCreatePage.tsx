@@ -125,7 +125,7 @@ export function CardCreatePage({
                 setPickerOpen(false);
               }}
               className={`active:bg-press flex items-center gap-3 rounded-[16px] p-3 text-left ${
-                item.id === deckId ? "bg-brand-soft" : "bg-input"
+                item.id === deckId ? "bg-accent-soft" : "bg-input"
               }`}
             >
               <span className="text-[20px]">{item.emoji}</span>

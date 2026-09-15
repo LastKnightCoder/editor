@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>闪卡编辑页重设计 · 方案 B「卡片流改良」</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   闪卡编辑页重设计 · 方案 B「卡片流改良」（Refined Cards）
+   ─────────────────────────────────────────────────────
+   思路：保留现状的分区卡片骨架（改动最平滑、观感熟悉），
+   但修复四个痛点：
+   ① 选项：单行 input → 自适应多行 textarea，长选项完整
+      可见；正确项 sage 高亮 + 右侧 ✓ 开关（单选圆/多选方）
+   ② 输入框去内衬底色：白卡上直接书写，focus 才亮柔和描边
+      ——不再出现"卡片里嵌一块奶油底"的双层嵌套
+   ③ 标签 chip：回车/逗号确认，⌫ 删末尾，点 × 移除
+   ④ 色值全部取自 styles.css 真实令牌
+
+   与 A 的区别：A 把非核心输入摊在纸面上；B 保持一区一卡，
+   卡内输入无框化。适合喜欢现有结构、只要更精致的选法。
+   ═══════════════════════════════════════════════════════ */
+:root {
+  --bg-page: #f6f1e7;
+  --bg-surface: #fffdf9;
+  --bg-input: #f6f1e7;
+  --ink-1: #43392c;
+  --ink-2: #8b7d6b;
+  --ink-3: #b9ac9a;
+  --meta-ink: #7a6c5a;
+  --line-1: #e9e1d2;
+  --brand: #d97757;
+  --brand-soft: rgba(217, 119, 87, 0.12);
+  --brand-grad: linear-gradient(145deg, #e8896a, #d97757);
+  --sage: #61795f; --sage-soft: #e5ede2;
+  --sky: #5c7d99;  --sky-soft: #e2ebf3;
+  --danger: #b06a5e;
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.06), 0 8px 20px -12px rgba(120, 100, 70, 0.16);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+body { font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif; background: #ece6da; display: flex; justify-content: center; min-height: 100vh; }
+.phone { width: 390px; background: var(--bg-page); min-height: 100vh; overflow-y: auto; padding-bottom: 120px; }
+@media (max-width: 420px) { body { background: var(--bg-page); } .phone { width: 100%; } }
+
+.topbar {
+  position: sticky; top: 0; z-index: 10; background: var(--bg-page);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: calc(14px + env(safe-area-inset-top, 0px)) 18px 10px;
+}
+.back { width: 34px; height: 34px; border: none; background: transparent; color: var(--ink-1); font-size: 20px; cursor: pointer; }
+.title { font-size: 16.5px; font-weight: 800; color: var(--ink-1); }
+.save {
+  border: none; background: var(--brand-grad); color: #fff; font-size: 13.5px; font-weight: 800;
+  border-radius: 13px; padding: 8px 17px; cursor: pointer; box-shadow: 0 6px 14px -5px rgba(217,119,87,.5);
+}
+
+.card {
+  margin: 12px 16px 0; background: var(--bg-surface); border-radius: 20px;
+  box-shadow: var(--shadow-card); padding: 15px 16px;
+}
+.card-label { display: flex; align-items: center; font-size: 12.5px; font-weight: 800; color: var(--meta-ink); margin-bottom: 9px; }
+.card-label .aux { margin-left: auto; font-size: 10.5px; font-weight: 700; color: var(--ink-3); }
+.type-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10.5px; font-weight: 800; color: var(--sky);
+  background: var(--sky-soft); border-radius: 8px; padding: 4px 9px; margin-bottom: 8px;
+}
+
+/* 卡内裸输入：无底色，focus 亮边（核心去嵌套手法） */
+.in-card {
+  width: 100%; border: 1.5px solid transparent; outline: none; background: transparent;
+  font-size: 14.5px; font-weight: 600; color: var(--ink-1); font-family: inherit;
+  border-radius: 12px; padding: 9px 11px; transition: border-color .15s;
+}
+.in-card::placeholder { color: var(--ink-3); font-weight: 500; }
+.in-card:focus { border-color: rgba(217,119,87,.45); }
+.prompt-input { font-size: 16.5px; font-weight: 700; line-height: 1.65; min-height: 60px; resize: none; }
+.multiline { resize: none; line-height: 1.7; min-height: 30px; overflow: hidden; }
+
+/* 选项行：textarea 自适应 + 徽标 + 开关 */
+.option {
+  display: flex; align-items: flex-start; gap: 10px;
+  border: 1.5px solid transparent; border-radius: 14px; padding: 9px 10px;
+  margin-bottom: 7px; transition: all .15s;
+}
+.option.correct { border-color: var(--sage); background: var(--sage-soft); }
+.badge {
+  flex: none; width: 27px; height: 27px; margin-top: 1px; border-radius: 9px;
+  display: grid; place-items: center; font-size: 12px; font-weight: 800;
+  background: var(--bg-page); color: var(--ink-2);
+}
+.option.correct .badge { background: var(--sage); color: #fff; }
+.opt-text {
+  flex: 1; border: none; outline: none; background: transparent; resize: none;
+  font-size: 14px; font-weight: 600; line-height: 1.6; color: var(--ink-1);
+  min-height: 27px; font-family: inherit; padding: 0; overflow: hidden; margin-top: 1px;
+}
+.opt-text::placeholder { color: var(--ink-3); font-weight: 500; }
+.opt-del { flex: none; border: none; background: transparent; color: var(--ink-3); font-size: 14px; padding: 4px; cursor: pointer; align-self: flex-start; margin-top: 3px; }
+.opt-del:hover { color: var(--danger); }
+.toggle {
+  flex: none; width: 23px; height: 23px; margin-top: 2px; cursor: pointer;
+  border: 2px solid var(--ink-3); background: transparent; color: transparent;
+  display: grid; place-items: center; font-size: 12px; font-weight: 800;
+}
+.option.correct .toggle { background: var(--sage); border-color: var(--sage); color: #fff; }
+.add-option {
+  width: 100%; border: 2px dashed var(--line-1); background: transparent; color: var(--ink-2);
+  border-radius: 14px; padding: 11px; font-size: 13px; font-weight: 800; cursor: pointer;
+}
+
+/* 标签 chip */
+.chip-box { display: flex; flex-wrap: wrap; gap: 7px; padding: 2px 0 4px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--brand-soft); border-radius: 99px; padding: 7px 8px 7px 12px;
+  font-size: 12.5px; font-weight: 700; color: var(--ink-1);
+}
+.chip::before { content: "#"; color: var(--brand); font-weight: 800; }
+.chip .x { border: none; background: transparent; color: var(--ink-2); font-size: 12px; cursor: pointer; padding: 0 2px; }
+.chip .x:hover { color: var(--danger); }
+.chip-input { flex: 1; min-width: 110px; border: none; outline: none; background: transparent; font-size: 13px; font-weight: 600; color: var(--ink-1); padding: 8px 4px; font-family: inherit; }
+.chip-input::placeholder { color: var(--ink-3); font-weight: 500; }
+
+.diff-row { display: flex; gap: 8px; }
+.diff { border: 1.5px solid var(--line-1); background: transparent; color: var(--ink-2); border-radius: 99px; padding: 8px 15px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.diff.on { background: var(--ink-1); border-color: var(--ink-1); color: var(--bg-surface); }
+
+.savebar {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 390px; max-width: 100%; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(246,241,231,0), var(--bg-page) 34%);
+}
+.savebar button {
+  width: 100%; border: none; background: var(--brand-grad); color: #fff;
+  font-size: 15px; font-weight: 800; border-radius: 17px; padding: 15px; cursor: pointer;
+  box-shadow: 0 10px 22px -7px rgba(217,119,87,.55);
+}
+.note { padding: 22px 22px 6px; font-size: 11px; line-height: 1.9; color: var(--ink-3); font-weight: 600; }
+.note b { color: var(--meta-ink); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="topbar">
+    <button class="back" aria-label="返回">‹</button>
+    <span class="title">新建 · 单选题</span>
+    <button class="save">保存</button>
+  </div>
+
+  <!-- 题干 -->
+  <div class="card">
+    <span class="type-tag">◉ 单选题</span>
+    <textarea class="in-card prompt-input" placeholder="输入题目…" rows="2">以下哪个例子最能体现期货的套期保值功能？某粮油企业担心三季度大豆价格上涨，应该怎么做？</textarea>
+  </div>
+
+  <!-- 选项 -->
+  <div class="card">
+    <div class="card-label">选项 <span class="aux correct-count">已标 1 个正确 · 长选项自动换行</span></div>
+    <div id="optionList"></div>
+    <button class="add-option" id="addOption">＋ 添加选项</button>
+  </div>
+
+  <!-- 解析 -->
+  <div class="card">
+    <div class="card-label">解析 <span class="aux">选填 · 揭示答案时展示</span></div>
+    <textarea class="in-card multiline" placeholder="帮助建立记忆锚点…"></textarea>
+  </div>
+
+  <!-- 背面补充 -->
+  <div class="card">
+    <div class="card-label">背面补充 <span class="aux">选填 · 翻面后展示</span></div>
+    <textarea class="in-card multiline" placeholder="富文本区：与答案、解析一起展示"></textarea>
+  </div>
+
+  <!-- 难度 + 标签 -->
+  <div class="card">
+    <div class="card-label">难度</div>
+    <div class="diff-row">
+      <button class="diff" type="button">基础</button>
+      <button class="diff on" type="button">标准</button>
+      <button class="diff" type="button">进阶</button>
+    </div>
+    <div class="card-label" style="margin-top:14px">标签 <span class="aux">回车添加 · 点 × 删除</span></div>
+    <div class="chip-box" id="chipBox">
+      <input class="chip-input" id="chipInput" placeholder="输入后按回车，如：期货">
+    </div>
+  </div>
+
+  <div class="note">
+    <b>方案 B「卡片流改良」要点：</b><br>
+    · 骨架=现状（一区一卡），实现成本最低，用户无重学成本<br>
+    · 卡内输入全部去底色：白卡上直接写，focus 才亮 1.5px 柔边，消除双层嵌套感<br>
+    · 选项 textarea 自适应长高（试试第二个长选项），点 ✓ 开关或徽标切换正确<br>
+    · 标签 chip 化：回车/逗号确认、⌫ 删末尾、点 × 移除
+  </div>
+
+  <div class="savebar"><button>保存卡片</button></div>
+</div>
+
+<script>
+const options = [
+  { label: "买入大豆期货合约锁定采购成本", correct: true },
+  { label: "卖出大豆期货合约，赌价格下跌赚差价（这是投机，不是套保——套保的目标是锁定成本或利润，消除不确定性，而不是从价格波动中获利）", correct: false },
+  { label: "什么也不做，等三季度再说", correct: false },
+];
+const list = document.getElementById("optionList");
+function autoGrow(el) { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; }
+function render() {
+  list.innerHTML = "";
+  options.forEach((opt, i) => {
+    const row = document.createElement("div");
+    row.className = "option" + (opt.correct ? " correct" : "");
+    row.innerHTML = `
+      <span class="badge">${String.fromCharCode(65 + i)}</span>
+      <textarea class="opt-text" placeholder="选项 ${String.fromCharCode(65 + i)}"></textarea>
+      <button class="toggle" aria-label="标记正确">✓</button>
+      ${options.length > 2 ? '<button class="opt-del" aria-label="删除">✕</button>' : ""}`;
+    const ta = row.querySelector(".opt-text");
+    ta.value = opt.label; autoGrow(ta);
+    ta.addEventListener("input", () => { opt.label = ta.value; autoGrow(ta); });
+    row.querySelector(".toggle").addEventListener("click", e => { e.stopPropagation(); opt.correct = !opt.correct; render(); });
+    row.querySelector(".badge").addEventListener("click", e => { e.stopPropagation(); opt.correct = !opt.correct; render(); });
+    row.querySelector(".opt-del")?.addEventListener("click", e => { e.stopPropagation(); options.splice(i, 1); render(); });
+    list.appendChild(row);
+  });
+  document.querySelector(".correct-count").textContent =
+    `已标 ${options.filter(o => o.correct).length} 个正确 · 长${""}选项自动换行`;
+}
+document.getElementById("addOption").addEventListener("click", () => {
+  options.push({ label: "", correct: false }); render();
+  list.querySelector(".option:last-child .opt-text")?.focus();
+});
+render();
+
+const chipBox = document.getElementById("chipBox");
+const chipInput = document.getElementById("chipInput");
+const tags = ["期货", "套期保值"];
+function renderChips() {
+  chipBox.querySelectorAll(".chip").forEach(c => c.remove());
+  tags.forEach((tag, i) => {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.innerHTML = `${tag}<button class="x" aria-label="删除标签">✕</button>`;
+    chip.querySelector(".x").addEventListener("click", () => { tags.splice(i, 1); renderChips(); });
+    chipBox.insertBefore(chip, chipInput);
+  });
+}
+function commitChip() {
+  const v = chipInput.value.trim().replace(/[，,]$/, "").trim();
+  if (v && !tags.includes(v)) tags.push(v);
+  chipInput.value = ""; renderChips();
+}
+chipInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" || e.key === "," || e.key === "，") { e.preventDefault(); commitChip(); }
+  else if (e.key === "Backspace" && chipInput.value === "" && tags.length) { tags.pop(); renderChips(); }
+});
+renderChips();
+
+document.querySelectorAll(".prompt-input, .multiline").forEach(el => {
+  autoGrow(el); el.addEventListener("input", () => autoGrow(el));
+});
+document.querySelectorAll(".diff").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".diff").forEach(x => x.classList.remove("on")); b.classList.add("on");
+}));
+</script>
+</body>
+</html>

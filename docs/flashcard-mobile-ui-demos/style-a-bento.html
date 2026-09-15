@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>闪卡移动端 · 风格 A · 杏子 Bento</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   风格 A · 杏子 Bento（延续现有 App）
+   全部色值取自 apps/mobile/src/styles.css 的 apricot 令牌，
+   四主题切换实现成本最低：所有颜色走 CSS 变量。
+   ═══════════════════════════════════════════════════════ */
+:root {
+  --bg-page: #f6f1e7;
+  --bg-surface: #fffdf9;
+  --bg-input: #f6f1e7;
+  --bg-press: rgba(246, 241, 231, 0.65);
+  --ink-1: #43392c;
+  --ink-2: #8b7d6b;
+  --ink-3: #b9ac9a;
+  --meta-ink: #7a6c5a;
+  --line-1: #e9e1d2;
+  --line-2: rgba(233, 225, 210, 0.55);
+  --brand: #d97757;
+  --brand-strong: #e8896a;
+  --brand-soft: rgba(217, 119, 87, 0.12);
+  --brand-grad: linear-gradient(145deg, #e8896a, #d97757);
+  --sage: #61795f; --sage-soft: #e5ede2;
+  --sky: #5c7d99;  --sky-soft: #e2ebf3;
+  --apricot: #b2794b; --apricot-soft: #f8e9d7;
+  --lilac: #8a7aa6; --lilac-soft: #ebe6f3;
+  --butter: #a38c4d; --butter-soft: #f6efd6;
+  --rose: #b06a5e;  --rose-soft: #f6e3e0;
+  --ok: #61795f; --warn: #a38c4d; --danger: #b06a5e;
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.06), 0 8px 20px -12px rgba(120, 100, 70, 0.16);
+  --shadow-float: 0 12px 32px -8px rgba(120, 100, 70, 0.35);
+  --shadow-accent: 0 8px 18px -5px rgba(217, 119, 87, 0.55);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.5, 1);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  background: #2a251f;
+  color: #ede7db;
+  padding: 36px 28px 64px;
+}
+.page-head { max-width: 1480px; margin: 0 auto 30px; }
+.page-head h1 { font-size: 26px; font-weight: 800; letter-spacing: 0.5px; }
+.page-head .sub { color: #b8ad9c; font-size: 13.5px; margin-top: 8px; line-height: 1.7; max-width: 900px; }
+.page-head .tags { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.page-head .tag {
+  font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+  background: rgba(217, 119, 87, 0.16); color: #e8a288; border: 1px solid rgba(217, 119, 87, 0.3);
+}
+.board { display: flex; gap: 34px; flex-wrap: wrap; max-width: 1780px; margin: 0 auto; }
+.frame-wrap { display: flex; flex-direction: column; gap: 14px; }
+.frame-label { font-size: 14px; font-weight: 700; color: #d9cfbe; display: flex; align-items: baseline; gap: 8px; }
+.frame-label small { font-weight: 500; color: #96897a; font-size: 12px; }
+
+/* ── 手机画框 ── */
+.phone {
+  width: 390px; height: 844px; border-radius: 52px; overflow: hidden; position: relative;
+  background: var(--bg-page); color: var(--ink-1);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.65), 0 0 0 11px #17140f, 0 0 0 13px #3a332a;
+  font-size: 14px;
+}
+.screen { height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.scroll { flex: 1; overflow-y: auto; scrollbar-width: none; }
+.scroll::-webkit-scrollbar { display: none; }
+
+/* ── 状态栏 ── */
+.statusbar {
+  height: 54px; flex: none; display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 30px 6px; font-size: 15px; font-weight: 700; color: var(--ink-1);
+}
+.statusbar .icons { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+.homebar {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  width: 130px; height: 5px; border-radius: 99px; background: var(--ink-1); opacity: 0.85; z-index: 50;
+}
+.phone.dark-ui .homebar { background: #edeef1; }
+
+/* ── 通用顶栏（PageHeader 形态：ghost 圆钮 + 居中大标题） ── */
+.topbar {
+  flex: none; height: 56px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 18px; position: relative;
+}
+.topbar .title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 16.5px; font-weight: 800; }
+.icon-btn {
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--bg-surface); box-shadow: var(--shadow-card); color: var(--ink-1);
+  font-size: 16px; border: none; cursor: pointer;
+}
+.icon-btn.brand { background: var(--brand-grad); color: #fff; box-shadow: var(--shadow-accent); }
+
+/* ── 卡组行 ── */
+.deck-row {
+  display: flex; align-items: center; gap: 14px; background: var(--bg-surface);
+  border-radius: 20px; padding: 14px 16px; box-shadow: var(--shadow-card);
+}
+.deck-emoji {
+  width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center;
+  font-size: 22px; flex: none;
+}
+.deck-info { flex: 1; min-width: 0; }
+.deck-name { font-weight: 800; font-size: 15px; }
+.deck-meta { color: var(--meta-ink); font-size: 12px; font-weight: 600; margin-top: 3px; }
+.deck-progress { height: 5px; border-radius: 99px; background: var(--bg-input); margin-top: 8px; overflow: hidden; }
+.deck-progress i { display: block; height: 100%; border-radius: 99px; }
+.due-badge {
+  flex: none; min-width: 44px; text-align: center; border-radius: 13px; padding: 7px 8px;
+  font-weight: 800; font-size: 16px; line-height: 1.1;
+}
+.due-badge small { display: block; font-size: 9.5px; font-weight: 700; opacity: 0.75; margin-top: 1px; }
+
+/* ── chips ── */
+.chips { display: flex; gap: 9px; padding: 4px 20px 12px; flex: none; overflow-x: auto; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; padding: 8px 15px; border-radius: 999px; font-size: 13px; font-weight: 700;
+  background: var(--bg-surface); color: var(--ink-2); box-shadow: var(--shadow-card);
+}
+.chip.on { background: var(--ink-1); color: #fff8ef; }
+
+/* ── 类型徽标 ── */
+.type-pill {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 800;
+  padding: 3px 9px; border-radius: 999px; letter-spacing: 0.3px;
+}
+
+/* ── 卡片行 ── */
+.card-row {
+  background: var(--bg-surface); border-radius: 20px; box-shadow: var(--shadow-card);
+  padding: 14px 16px; display: flex; flex-direction: column; gap: 9px;
+}
+.card-q { font-size: 14px; font-weight: 600; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.card-foot { display: flex; align-items: center; justify-content: space-between; }
+.due-text { font-size: 11.5px; font-weight: 700; }
+.dot { width: 7px; height: 7px; border-radius: 99px; display: inline-block; }
+
+/* ── 复习页 ── */
+.review-top { flex: none; padding: 10px 18px 0; }
+.progress-track { height: 6px; border-radius: 99px; background: var(--bg-input); overflow: hidden; }
+.progress-track i { display: block; height: 100%; background: var(--brand-grad); border-radius: 99px; transition: width 0.4s var(--ease-bounce); }
+.review-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 12px; font-weight: 700; color: var(--ink-2); }
+
+.qcard {
+  background: var(--bg-surface); border-radius: 24px; box-shadow: var(--shadow-card);
+  padding: 22px 20px; margin-top: 16px;
+}
+.qcard .q-type { display: flex; justify-content: space-between; align-items: center; }
+.qcard .q-text { font-size: 17px; font-weight: 700; line-height: 1.65; margin-top: 12px; }
+
+.opt {
+  display: flex; align-items: center; gap: 12px; background: var(--bg-surface);
+  border-radius: 18px; padding: 14px 16px; box-shadow: var(--shadow-card);
+  border: 2px solid transparent; font-weight: 600; font-size: 14.5px;
+}
+.opt .key {
+  width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center;
+  background: var(--bg-input); color: var(--ink-2); font-weight: 800; font-size: 13px; flex: none;
+}
+.opt.sel { border-color: var(--brand); background: var(--brand-soft); }
+.opt.sel .key { background: var(--brand); color: #fff; }
+.opt.right { border-color: var(--sage); background: var(--sage-soft); }
+.opt.right .key { background: var(--sage); color: #fff; }
+.opt.wrong { border-color: var(--danger); background: var(--rose-soft); }
+.opt.wrong .key { background: var(--danger); color: #fff; }
+.opt.dim { opacity: 0.5; }
+
+.verdict {
+  display: flex; align-items: center; gap: 10px; border-radius: 18px; padding: 13px 16px;
+  font-weight: 800; font-size: 14.5px;
+}
+.exp-box { background: var(--bg-surface); border-radius: 20px; box-shadow: var(--shadow-card); padding: 16px 18px; }
+.exp-box .h { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 800; color: var(--meta-ink); }
+.exp-box .b { font-size: 13.5px; line-height: 1.75; color: var(--ink-1); margin-top: 8px; }
+.ref-row {
+  display: flex; align-items: center; gap: 10px; background: var(--bg-surface); border-radius: 16px;
+  padding: 12px 14px; box-shadow: var(--shadow-card); font-size: 12.5px; font-weight: 700; color: var(--meta-ink);
+}
+
+/* ── 评分条 ── */
+.rate-bar { flex: none; padding: 12px 18px calc(26px + env(safe-area-inset-bottom, 0)); display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+.rate-btn {
+  border: none; border-radius: 17px; padding: 11px 4px 10px; color: #fff; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.rate-btn b { font-size: 14px; font-weight: 800; }
+.rate-btn small { font-size: 9.5px; font-weight: 700; opacity: 0.85; }
+
+/* ── 主 CTA ── */
+.cta {
+  border: none; border-radius: 17px; padding: 15px; font-size: 15px; font-weight: 800; color: #fff;
+  background: var(--brand-grad); box-shadow: var(--shadow-accent); width: 100%; cursor: pointer;
+}
+.cta.ghost { background: var(--bg-surface); color: var(--ink-2); box-shadow: var(--shadow-card); }
+
+/* ── 完成页 ── */
+.done-ring { width: 132px; height: 132px; border-radius: 50%; display: grid; place-items: center; margin: 0 auto; background: var(--sage-soft); }
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.stat-cell { background: var(--bg-surface); border-radius: 18px; box-shadow: var(--shadow-card); padding: 14px 8px; text-align: center; }
+.stat-cell b { display: block; font-size: 19px; font-weight: 800; }
+.stat-cell span { display: block; font-size: 11px; font-weight: 700; color: var(--meta-ink); margin-top: 3px; }
+
+.section-title { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; margin-bottom: 10px; }
+.section-title .t { font-size: 13px; font-weight: 800; color: var(--meta-ink); letter-spacing: 0.5px; }
+.section-title .more { font-size: 12px; font-weight: 700; color: var(--brand); }
+.stack { display: flex; flex-direction: column; gap: 11px; padding: 0 20px; }
+.hint-note {
+  max-width: 1780px; margin: 34px auto 0; font-size: 12.5px; color: #96897a; line-height: 1.8;
+  border-top: 1px solid rgba(255,255,255,0.08); padding-top: 18px;
+}
+</style>
+</head>
+<body>
+
+<header class="page-head">
+  <h1>风格 A · 杏子 Bento（延续现有 App）</h1>
+  <p class="sub">全面沿用移动端现有设计令牌：奶油纸底、可可棕文字、陶土橙主色、六组粉彩语义色、20px 圆角卡片与柔和阴影。与卡片库 / 番茄钟 / 设置页零学习成本，四主题（杏子 / 玄夜 / 薄荷 / 海盐）自动适配，实现工作量最低。四档评分固定映射：轻松 = 鼠尾草绿、还行 = 天际蓝、一般 = 奶油黄、吃力 = 玫瑰红。</p>
+  <div class="tags">
+    <span class="tag">令牌 100% 复用</span><span class="tag">四主题零成本</span><span class="tag">与 App 一体感最强</span><span class="tag">实现 1.0×（基准）</span>
+  </div>
+</header>
+
+<main class="board">
+
+  <!-- ════════ ① 闪卡主页 ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">① 闪卡主页 <small>今日概览 + 卡组列表</small></div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="topbar">
+          <button class="icon-btn">‹</button>
+          <div class="title">闪卡</div>
+          <button class="icon-btn">＋</button>
+        </div>
+        <div class="scroll" style="padding-bottom:40px">
+          <!-- 今日待复习概览：品牌渐变主角卡 -->
+          <div class="stack" style="padding-top:10px">
+            <div style="background:var(--brand-grad);border-radius:24px;padding:22px 20px;box-shadow:var(--shadow-accent);color:#fff">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                <div>
+                  <div style="font-size:12.5px;font-weight:700;opacity:.85">今日待复习</div>
+                  <div style="font-size:44px;font-weight:800;line-height:1.15;margin-top:6px">12 <span style="font-size:16px;font-weight:700;opacity:.85">张</span></div>
+                  <div style="font-size:11.5px;font-weight:600;opacity:.8;margin-top:4px">3 个卡组有到期卡片 · 今日已复习 47 张</div>
+                </div>
+                <div style="width:52px;height:52px;border-radius:18px;background:rgba(255,255,255,.18);display:grid;place-items:center;font-size:24px">🧠</div>
+              </div>
+              <button class="cta" style="background:#fff;color:var(--brand);box-shadow:0 8px 18px -6px rgba(0,0,0,.25);margin-top:16px;padding:13px">开始复习</button>
+            </div>
+          </div>
+          <!-- 卡组列表 -->
+          <div class="stack" style="margin-top:22px">
+            <div class="section-title"><span class="t">卡组 · 5</span><span class="more">管理</span></div>
+            <div class="deck-row">
+              <div class="deck-emoji" style="background:var(--apricot-soft)">🧠</div>
+              <div class="deck-info">
+                <div class="deck-name">算法面试</div>
+                <div class="deck-meta">48 张 · 巩固 33 · 学习中 9</div>
+                <div class="deck-progress"><i style="width:68%;background:var(--apricot)"></i></div>
+              </div>
+              <div class="due-badge" style="background:var(--brand-soft);color:var(--brand)">12<small>待复习</small></div>
+            </div>
+            <div class="deck-row">
+              <div class="deck-emoji" style="background:var(--sky-soft)">📚</div>
+              <div class="deck-info">
+                <div class="deck-name">英语高频词</div>
+                <div class="deck-meta">120 张 · 巩固 96 · 学习中 15</div>
+                <div class="deck-progress"><i style="width:82%;background:var(--sky)"></i></div>
+              </div>
+              <div class="due-badge" style="background:var(--brand-soft);color:var(--brand)">35<small>待复习</small></div>
+            </div>
+            <div class="deck-row">
+              <div class="deck-emoji" style="background:var(--lilac-soft)">📖</div>
+              <div class="deck-info">
+                <div class="deck-name">《认知觉醒》笔记</div>
+                <div class="deck-meta">26 张 · 巩固 14 · 学习中 7</div>
+                <div class="deck-progress"><i style="width:54%;background:var(--lilac)"></i></div>
+              </div>
+              <div class="due-badge" style="background:var(--brand-soft);color:var(--brand)">5<small>待复习</small></div>
+            </div>
+            <div class="deck-row" style="opacity:.72">
+              <div class="deck-emoji" style="background:var(--butter-soft)">⚡</div>
+              <div class="deck-info">
+                <div class="deck-name">HTTP 网络基础</div>
+                <div class="deck-meta">31 张 · 巩固 31</div>
+                <div class="deck-progress"><i style="width:100%;background:var(--butter)"></i></div>
+              </div>
+              <div class="due-badge" style="background:var(--bg-input);color:var(--ink-3)">0<small>已完成</small></div>
+            </div>
+            <div class="deck-row" style="opacity:.85">
+              <div class="deck-emoji" style="background:var(--sage-soft)">🔬</div>
+              <div class="deck-info">
+                <div class="deck-name">数据库索引专题</div>
+                <div class="deck-meta">17 张 · 全部为新卡</div>
+                <div class="deck-progress"><i style="width:0%;background:var(--sage)"></i></div>
+              </div>
+              <div class="due-badge" style="background:var(--sage-soft);color:var(--sage)">17<small>新卡</small></div>
+            </div>
+          </div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ ② 卡组详情 ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">② 卡组详情 <small>状态筛选 + 卡片浏览</small></div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="topbar">
+          <button class="icon-btn">‹</button>
+          <div class="title">算法面试</div>
+          <button class="icon-btn">⋯</button>
+        </div>
+        <!-- 卡组概要条 -->
+        <div class="stack" style="padding-top:8px">
+          <div class="deck-row" style="padding:13px 15px">
+            <div class="deck-emoji" style="background:var(--apricot-soft)">🧠</div>
+            <div class="deck-info">
+              <div class="deck-meta" style="margin-top:0">48 张卡片 · 今日到期 12 张</div>
+              <div class="deck-progress"><i style="width:68%;background:var(--apricot)"></i></div>
+            </div>
+            <button class="rate-btn" style="background:var(--brand-grad);box-shadow:var(--shadow-accent);padding:9px 14px"><b style="font-size:12.5px">开始复习</b></button>
+          </div>
+        </div>
+        <div class="chips" style="margin-top:12px">
+          <span class="chip on">全部 48</span>
+          <span class="chip">新卡 6</span>
+          <span class="chip">学习中 9</span>
+          <span class="chip">巩固 33</span>
+        </div>
+        <div class="scroll" style="padding-bottom:40px">
+          <div class="stack" style="padding-top:2px">
+            <div class="card-row">
+              <div class="card-foot">
+                <span class="type-pill" style="background:var(--apricot-soft);color:var(--apricot)">◉ 单选题</span>
+                <span class="due-text" style="color:var(--brand)"><span class="dot" style="background:var(--brand);margin-right:5px"></span>立即复习</span>
+              </div>
+              <div class="card-q">TCP 三次握手的第二步，服务端发送的报文是？</div>
+            </div>
+            <div class="card-row">
+              <div class="card-foot">
+                <span class="type-pill" style="background:var(--lilac-soft);color:var(--lilac)">▭ 填空题</span>
+                <span class="due-text" style="color:var(--meta-ink)"><span class="dot" style="background:var(--lilac);margin-right:5px"></span>30 分钟后</span>
+              </div>
+              <div class="card-q">快速排序的最坏时间复杂度为 ＿＿，出现在数组已经有序的情况下。</div>
+            </div>
+            <div class="card-row">
+              <div class="card-foot">
+                <span class="type-pill" style="background:var(--sky-soft);color:var(--sky)">✎ 问答题</span>
+                <span class="due-text" style="color:var(--brand)"><span class="dot" style="background:var(--brand);margin-right:5px"></span>立即复习</span>
+              </div>
+              <div class="card-q">请描述浏览器从输入 URL 到页面展示的完整过程。</div>
+            </div>
+            <div class="card-row">
+              <div class="card-foot">
+                <span class="type-pill" style="background:var(--sage-soft);color:var(--sage)">⊕ 多选题</span>
+                <span class="due-text" style="color:var(--meta-ink)"><span class="dot" style="background:var(--sage);margin-right:5px"></span>新卡</span>
+              </div>
+              <div class="card-q">下列哪些排序算法属于比较排序？</div>
+            </div>
+            <div class="card-row">
+              <div class="card-foot">
+                <span class="type-pill" style="background:var(--butter-soft);color:var(--butter)">✓ 判断题</span>
+                <span class="due-text" style="color:var(--meta-ink)"><span class="dot" style="background:var(--butter);margin-right:5px"></span>新卡</span>
+              </div>
+              <div class="card-q">AVL 树能保证查找操作的时间复杂度为 O(log n)。</div>
+            </div>
+          </div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ ③ 复习 · 答题态 ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">③ 复习 · 答题态 <small>单选交互 · 已选中 B</small></div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="review-top">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 2px 10px">
+            <button class="icon-btn" style="width:32px;height:32px;font-size:14px">✕</button>
+            <span style="font-size:12.5px;font-weight:800;color:var(--ink-2)">算法面试 · 第 3 / 12 张</span>
+            <button class="icon-btn" style="width:32px;height:32px;font-size:14px">⏸</button>
+          </div>
+          <div class="progress-track"><i style="width:25%"></i></div>
+        </div>
+        <div class="scroll" style="padding:0 20px 16px">
+          <div class="qcard">
+            <div class="q-type">
+              <span class="type-pill" style="background:var(--apricot-soft);color:var(--apricot)">◉ 单选题</span>
+              <span style="font-size:11.5px;font-weight:700;color:var(--ink-3)">难度 · 进阶</span>
+            </div>
+            <div class="q-text">TCP 三次握手的第二步，服务端发送的报文是？</div>
+          </div>
+          <div class="stack" style="padding:0;margin-top:16px">
+            <div class="opt"><span class="key">A</span>SYN</div>
+            <div class="opt sel"><span class="key">B</span>SYN + ACK</div>
+            <div class="opt"><span class="key">C</span>ACK</div>
+            <div class="opt"><span class="key">D</span>FIN</div>
+          </div>
+        </div>
+        <div style="flex:none;padding:12px 20px 30px">
+          <button class="cta">确认回答</button>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ ④ 复习 · 揭示态 ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">④ 复习 · 揭示态 <small>判分 + 解析 + 四档评分</small></div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="review-top">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 2px 10px">
+            <button class="icon-btn" style="width:32px;height:32px;font-size:14px">✕</button>
+            <span style="font-size:12.5px;font-weight:800;color:var(--ink-2)">算法面试 · 第 3 / 12 张</span>
+            <button class="icon-btn" style="width:32px;height:32px;font-size:14px">⏸</button>
+          </div>
+          <div class="progress-track"><i style="width:25%"></i></div>
+        </div>
+        <div class="scroll" style="padding:0 20px 16px">
+          <div class="qcard" style="padding:18px 18px">
+            <div class="q-text" style="margin-top:0;font-size:15.5px">TCP 三次握手的第二步，服务端发送的报文是？</div>
+          </div>
+          <div class="stack" style="padding:0;margin-top:12px">
+            <div class="opt dim"><span class="key">A</span>SYN</div>
+            <div class="opt right"><span class="key">✓</span>SYN + ACK</div>
+            <div class="opt wrong"><span class="key">✕</span>ACK<span style="margin-left:auto;font-size:11px;font-weight:700;color:var(--danger)">你的选择</span></div>
+            <div class="opt dim"><span class="key">D</span>FIN</div>
+          </div>
+          <div class="verdict" style="background:var(--rose-soft);color:var(--danger);margin-top:12px">✕ 回答错误 · 正确答案是 B</div>
+          <div style="margin-top:12px" class="exp-box">
+            <div class="h">💡 解析</div>
+            <div class="b">三次握手第二步：服务端收到客户端的 SYN 后，返回 <b>SYN+ACK</b> 报文（syn=1, ack=1），同时确认客户端的序号并协商自己的初始序号；第三步客户端再回 ACK 完成连接建立。</div>
+          </div>
+          <div class="ref-row" style="margin-top:11px">📎 参考资料 ·《计算机网络：自顶向下方法》§5.2 ›</div>
+        </div>
+        <div class="rate-bar">
+          <button class="rate-btn" style="background:var(--rose)"><b>吃力</b><small>5 分钟后</small></button>
+          <button class="rate-btn" style="background:var(--butter)"><b>一般</b><small>30 分钟后</small></button>
+          <button class="rate-btn" style="background:var(--sky)"><b>还行</b><small>2 天后</small></button>
+          <button class="rate-btn" style="background:var(--sage)"><b>轻松</b><small>7 天后</small></button>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ ⑤ 复习完成 ════════ -->
+  <section class="frame-wrap">
+    <div class="frame-label">⑤ 复习完成 <small>本次小结 + 出口</small></div>
+    <div class="phone">
+      <div class="screen">
+        <div class="statusbar"><span>9:41</span><span class="icons">●●● ᯤ 🔋</span></div>
+        <div class="scroll" style="display:flex;flex-direction:column;justify-content:center;padding:0 24px">
+          <div style="text-align:center">
+            <div class="done-ring"><span style="font-size:46px">🎉</span></div>
+            <div style="font-size:21px;font-weight:800;margin-top:20px">本轮复习完成</div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink-2);margin-top:7px">算法面试 · 12 张 · 用时 8 分钟</div>
+          </div>
+          <div class="stat-grid" style="margin-top:26px">
+            <div class="stat-cell"><b style="color:var(--sage)">10</b><span>轻松</span></div>
+            <div class="stat-cell"><b style="color:var(--sky)">1</b><span>还行</span></div>
+            <div class="stat-cell"><b style="color:var(--rose)">1</b><span>吃力</span></div>
+          </div>
+          <div class="exp-box" style="margin-top:12px;text-align:center">
+            <div class="b" style="margin-top:0;color:var(--meta-ink);font-size:12.5px">正确率 92% · 「吃力」的卡片已安排 5 分钟后再次出现</div>
+          </div>
+          <div style="margin-top:24px;display:flex;flex-direction:column;gap:10px">
+            <button class="cta">完成</button>
+            <button class="cta ghost">查看复习统计</button>
+          </div>
+        </div>
+        <div class="homebar"></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<p class="hint-note">
+  说明：demo 中评分按钮下方标注了调度算法给出的「下次间隔预览」（吃力 5 分钟 / 一般 30 分钟 / 还行 2 天 / 轻松 7 天，随卡片当前等级动态变化），这是自研调度算法（间隔阶梯 REVIEW_INTERVALS × ease 因子）可以直接透出的产品细节。所有颜色均为 apps/mobile 令牌真实值，非示意。
+</p>
+
+</body>
+</html>

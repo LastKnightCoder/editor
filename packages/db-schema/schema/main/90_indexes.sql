@@ -129,3 +129,4 @@ CREATE INDEX IF NOT EXISTS idx_vl_quiz_set_project ON vl_quiz_set(project_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_item_set ON vl_quiz_item(quiz_set_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_record_set ON vl_quiz_record(quiz_set_id);
 CREATE INDEX IF NOT EXISTS idx_vl_quiz_record_project ON vl_quiz_record(project_id);
+CREATE INDEX IF NOT EXISTS idx_flashcard_reviews_time ON flashcard_reviews(review_time);
