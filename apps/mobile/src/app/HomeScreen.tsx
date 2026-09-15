@@ -74,6 +74,7 @@ export function HomeScreen() {
     navigator.push("todo");
   });
   const onOpenPomodoro = useMemoizedFn(() => navigator.push("pomodoro"));
+  const onOpenCalendar = useMemoizedFn(() => navigator.push("calendarHome"));
   // 闪卡：有待复习直达全库复习队列，否则进闪卡首页
   const onOpenFlashcards = useMemoizedFn((dueCount: number) => {
     if (dueCount > 0) navigator.push("flashcardReview", { deckId: -1 });
@@ -113,10 +114,12 @@ export function HomeScreen() {
           todoEnabled={app.todoModuleEnabled}
           diaryEnabled={app.diaryModuleEnabled}
           pomodoroEnabled={app.pomodoroModuleEnabled}
+          calendarEnabled={app.calendarModuleEnabled}
           onOpenSearch={onOpenSearch}
           onOpenCards={onOpenCards}
           onOpenTodo={onOpenTodo}
           onOpenPomodoro={onOpenPomodoro}
+          onOpenCalendar={onOpenCalendar}
           onOpenFlashcards={onOpenFlashcards}
           onOpenDiary={onOpenDiary}
           onOpenArticles={onOpenArticles}

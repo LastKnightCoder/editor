@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日历移动端 · 主页选型 · 四方案</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   日历主页 · 四方案选型稿
+   全部色值取自 apps/mobile/src/styles.css 真实令牌（apricot / midnight）。
+   可交互：A 方案月历点选真实过滤列表；D 方案头部折叠/展开真实切换；
+   B 方案时间轴可横竖滚动。
+   ═══════════════════════════════════════════════════════ */
+:root {
+  --bg-page: #f6f1e7;
+  --bg-surface: #fffdf9;
+  --bg-input: #f6f1e7;
+  --ink-1: #43392c;
+  --ink-2: #8b7d6b;
+  --ink-3: #b9ac9a;
+  --meta-ink: #7a6c5a;
+  --line-1: #e9e1d2;
+  --line-2: rgba(233, 225, 210, 0.55);
+  --brand: #d97757;
+  --brand-strong: #e8896a;
+  --brand-soft: rgba(217, 119, 87, 0.12);
+  --brand-grad: linear-gradient(145deg, #e8896a, #d97757);
+  --sage: #61795f; --sage-soft: #e5ede2;
+  --sky: #5c7d99;  --sky-soft: #e2ebf3;
+  --butter: #a38c4d; --butter-soft: #f6efd6;
+  --rose: #b06a5e;  --rose-soft: #f6e3e0;
+  --ok: #61795f; --warn: #a38c4d; --danger: #b06a5e;
+  --mask: rgba(67, 57, 44, 0.4);
+  --ring-track: rgba(255, 255, 255, 0.65);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.06), 0 8px 20px -12px rgba(120, 100, 70, 0.16);
+  --shadow-float: 0 12px 32px -8px rgba(120, 100, 70, 0.35);
+  --shadow-accent: 0 8px 18px -5px rgba(217, 119, 87, 0.55);
+}
+.dark-ui {
+  --bg-page: #0e1016;
+  --bg-surface: #171a22;
+  --bg-input: rgba(255, 255, 255, 0.05);
+  --ink-1: #edeef1;
+  --ink-2: #8e96a5;
+  --ink-3: #5b6270;
+  --meta-ink: #a2aab8;
+  --line-1: rgba(255, 255, 255, 0.07);
+  --line-2: rgba(255, 255, 255, 0.05);
+  --brand: #f0a860;
+  --brand-strong: #f5b877;
+  --brand-soft: rgba(240, 168, 96, 0.13);
+  --brand-grad: linear-gradient(145deg, #f5b877, #d98f43);
+  --sage: #7edbb2; --sage-soft: rgba(110, 231, 183, 0.12);
+  --sky: #9db9f0;  --sky-soft: rgba(147, 180, 255, 0.12);
+  --butter: #e8d487; --butter-soft: rgba(240, 220, 130, 0.1);
+  --rose: #f5988a;  --rose-soft: rgba(255, 138, 120, 0.12);
+  --mask: rgba(0, 0, 0, 0.55);
+  --ring-track: rgba(255, 255, 255, 0.09);
+  --shadow-card: 0 14px 30px -16px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-float: 0 18px 40px rgba(0, 0, 0, 0.55);
+  --shadow-accent: 0 8px 18px -5px rgba(240, 168, 96, 0.4);
+}
+/* 日历领域 17 色数据色板（CalendarColorName，保留两端数据值） */
+.c-blue { --ev: #2A67E2; --ev-soft: rgba(42, 103, 226, 0.13); }
+.c-teal { --ev: #148FAD; --ev-soft: rgba(20, 143, 173, 0.13); }
+.c-mint { --ev: #42A393; --ev-soft: rgba(66, 163, 147, 0.13); }
+.c-green { --ev: #369307; --ev-soft: rgba(54, 147, 7, 0.13); }
+.c-grape { --ev: #692EC2; --ev-soft: rgba(105, 46, 194, 0.12); }
+.c-red { --ev: #CF473A; --ev-soft: rgba(207, 71, 58, 0.12); }
+.c-orange { --ev: #C77100; --ev-soft: rgba(199, 113, 0, 0.13); }
+.c-lo { --ev: #B2635C; --ev-soft: rgba(178, 99, 92, 0.13); }
+.dark-ui .c-blue { --ev: #2563EB; --ev-soft: rgba(37, 99, 235, 0.22); }
+.dark-ui .c-teal { --ev: #0891B2; --ev-soft: rgba(8, 145, 178, 0.22); }
+.dark-ui .c-mint { --ev: #14B8A6; --ev-soft: rgba(20, 184, 166, 0.2); }
+.dark-ui .c-green { --ev: #22C55E; --ev-soft: rgba(34, 197, 94, 0.2); }
+.dark-ui .c-grape { --ev: #7C3AED; --ev-soft: rgba(124, 58, 237, 0.22); }
+.dark-ui .c-red { --ev: #EF4444; --ev-soft: rgba(239, 68, 68, 0.2); }
+.dark-ui .c-orange { --ev: #F97316; --ev-soft: rgba(249, 115, 22, 0.2); }
+.dark-ui .c-lo { --ev: #FB7185; --ev-soft: rgba(251, 113, 133, 0.18); }
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  background: #2a251f; color: #ede7db; padding: 36px 28px 64px;
+}
+.page-head { max-width: 1780px; margin: 0 auto 26px; }
+.page-head h1 { font-size: 26px; font-weight: 800; letter-spacing: 0.5px; }
+.page-head .sub { color: #b8ad9c; font-size: 13.5px; margin-top: 8px; line-height: 1.7; max-width: 980px; }
+.page-head .tags { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.page-head .tag {
+  font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 999px;
+  background: rgba(217, 119, 87, 0.16); color: #e8a288; border: 1px solid rgba(217, 119, 87, 0.3);
+}
+
+/* 方案区 */
+.plan { max-width: 1780px; margin: 0 auto 44px; }
+.plan-head {
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px;
+}
+.plan-head .letter {
+  font-size: 15px; font-weight: 800; padding: 6px 14px; border-radius: 12px; color: #fff8ef;
+  background: linear-gradient(145deg, #e8896a, #d97757);
+}
+.plan-head h2 { font-size: 21px; font-weight: 800; }
+.plan-head .cost { font-size: 12.5px; color: #96897a; font-weight: 700; }
+.plan-desc { color: #b8ad9c; font-size: 13px; line-height: 1.75; max-width: 980px; margin-bottom: 4px; }
+.plan-pros { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 18px; font-size: 12.5px; }
+.plan-pros span { color: #b8ad9c; }
+.plan-pros b.good { color: #7edbb2; }
+.plan-pros b.bad { color: #f5988a; }
+.board { display: flex; gap: 34px; flex-wrap: wrap; }
+.frame-wrap { display: flex; flex-direction: column; gap: 14px; }
+.frame-label { font-size: 14px; font-weight: 700; color: #d9cfbe; display: flex; align-items: baseline; gap: 8px; }
+.frame-label small { font-weight: 500; color: #96897a; font-size: 12px; }
+
+/* 手机画框 */
+.phone {
+  width: 390px; height: 844px; border-radius: 52px; overflow: hidden; position: relative;
+  background: var(--bg-page); color: var(--ink-1);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.65), 0 0 0 11px #17140f, 0 0 0 13px #3a332a;
+  font-size: 14px;
+}
+.screen { height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.scroll { flex: 1; overflow-y: auto; scrollbar-width: none; }
+.scroll::-webkit-scrollbar { display: none; }
+.statusbar {
+  height: 54px; flex: none; display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 30px 6px; font-size: 15px; font-weight: 700; color: var(--ink-1); position: relative; z-index: 30;
+}
+.statusbar .icons { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+.homebar {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  width: 130px; height: 5px; border-radius: 99px; background: var(--ink-1); opacity: 0.85; z-index: 50;
+}
+.dark-ui .homebar { background: #edeef1; }
+
+/* 顶栏（PageHeader 形态：ghost 圆钮 + 居中大标题） */
+.topbar { flex: none; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; position: relative; }
+.topbar .title { position: absolute; left: 50%; transform: translateX(-50%); font-size: 16.5px; font-weight: 800; }
+.icon-btn {
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--bg-surface); box-shadow: var(--shadow-card); color: var(--ink-1);
+  font-size: 15px; border: none; cursor: pointer; font-weight: 700;
+}
+.icon-btn.brand { background: var(--brand-grad); color: #fff8ef; box-shadow: var(--shadow-accent); }
+
+/* 月份导航 */
+.month-nav { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 4px 18px 2px; }
+.month-nav .my { font-size: 20px; font-weight: 800; letter-spacing: 0.3px; }
+.month-nav .my small { font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin-left: 8px; }
+.month-nav .grp { display: flex; gap: 8px; }
+.nav-btn {
+  width: 32px; height: 32px; border-radius: 50%; border: none; display: grid; place-items: center; cursor: pointer;
+  background: var(--bg-surface); box-shadow: var(--shadow-card); color: var(--ink-1); font-size: 13px;
+}
+.today-btn {
+  height: 32px; padding: 0 14px; border-radius: 999px; border: none; cursor: pointer;
+  background: var(--brand-soft); color: var(--brand); font-size: 12.5px; font-weight: 800;
+}
+
+/* 视图切换 segmented */
+.seg-row { flex: none; display: flex; padding: 10px 18px 8px; }
+.segs {
+  display: flex; width: 100%; background: var(--bg-input); border-radius: 14px; padding: 3px;
+}
+.seg {
+  flex: 1; text-align: center; padding: 8px 0; border-radius: 11px; font-size: 13px; font-weight: 700;
+  color: var(--ink-2); cursor: pointer; border: none; background: transparent; transition: all 0.25s;
+}
+.seg.on { background: var(--bg-surface); color: var(--ink-1); box-shadow: var(--shadow-card); }
+
+/* 月历 */
+.month-grid { flex: none; padding: 0 12px; user-select: none; }
+.weekrow { display: grid; grid-template-columns: repeat(7, 1fr); }
+.weekrow .wd {
+  text-align: center; font-size: 11.5px; font-weight: 700; color: var(--ink-3); padding: 6px 0 8px;
+}
+.weekrow .wd.wknd { color: var(--ink-3); opacity: 0.75; }
+.mrow { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 2px; }
+.mcell {
+  height: 58px; border-radius: 13px; display: flex; flex-direction: column; align-items: center;
+  justify-content: flex-start; padding-top: 6px; cursor: pointer; position: relative; transition: background 0.2s;
+  border: 1.5px solid transparent;
+}
+.mcell .d { font-size: 14.5px; font-weight: 700; line-height: 1.2; }
+.mcell.dim .d { color: var(--ink-3); font-weight: 600; }
+.mcell.today .d {
+  color: #fff8ef; background: var(--brand-grad); width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center; box-shadow: var(--shadow-accent);
+}
+.mcell.sel { background: var(--brand-soft); border-color: rgba(217, 119, 87, 0.35); }
+.mcell .dots { display: flex; gap: 3px; margin-top: 5px; }
+.mcell .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--ev, var(--ink-3)); }
+.mcell .more { font-size: 9.5px; color: var(--ink-3); font-weight: 700; margin-top: 3px; }
+
+/* 日历过滤 chips */
+.chips { flex: none; display: flex; gap: 8px; padding: 10px 18px 2px; overflow-x: auto; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chip {
+  flex: none; display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+  border-radius: 999px; background: var(--bg-surface); box-shadow: var(--shadow-card);
+  font-size: 12px; font-weight: 700; color: var(--ink-2); cursor: pointer;
+}
+.chip .cdot { width: 8px; height: 8px; border-radius: 50%; background: var(--ev, var(--ink-3)); }
+.chip.off { opacity: 0.42; }
+.chip.off .cdot { background: var(--ink-3) !important; }
+
+/* 选中日标题 */
+.day-head { flex: none; display: flex; align-items: baseline; gap: 8px; padding: 14px 20px 6px; }
+.day-head .dt { font-size: 16px; font-weight: 800; }
+.day-head .dw { font-size: 12px; font-weight: 700; color: var(--brand); }
+.day-head .cnt { margin-left: auto; font-size: 11.5px; color: var(--ink-3); font-weight: 700; }
+
+/* 全天 chip 行 */
+.allday-strip { flex: none; display: flex; gap: 8px; padding: 4px 18px 2px; overflow-x: auto; scrollbar-width: none; }
+.allday-strip::-webkit-scrollbar { display: none; }
+.allday-chip {
+  flex: none; display: flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px;
+  border-radius: 12px; background: var(--ev-soft); border: 1px solid var(--ev); cursor: pointer;
+  font-size: 12.5px; font-weight: 700; color: var(--ink-1);
+}
+.allday-chip .cal-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ev); }
+.allday-chip small { color: var(--ink-3); font-weight: 600; }
+
+/* 事件列表 */
+.evt-list { padding: 8px 18px 40px; display: flex; flex-direction: column; gap: 9px; }
+.evt-row {
+  display: flex; gap: 12px; background: var(--bg-surface); border-radius: 16px; padding: 12px 14px;
+  box-shadow: var(--shadow-card); cursor: pointer; align-items: center;
+}
+.evt-row .time {
+  width: 52px; flex: none; text-align: right; display: flex; flex-direction: column; gap: 1px;
+}
+.evt-row .time b { font-size: 13.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.evt-row .time span { font-size: 11px; color: var(--ink-3); font-weight: 600; font-variant-numeric: tabular-nums; }
+.evt-row .bar { width: 4px; height: 36px; border-radius: 99px; background: var(--ev); flex: none; }
+.evt-row .info { min-width: 0; flex: 1; }
+.evt-row .info .t { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.evt-row .info .m { font-size: 11.5px; color: var(--ink-2); margin-top: 2px; display: flex; gap: 6px; align-items: center; }
+.evt-row .info .m .sys { font-size: 10px; padding: 1px 7px; border-radius: 99px; background: var(--bg-input); color: var(--ink-3); font-weight: 700; }
+.evt-row.past { opacity: 0.55; }
+.now-divider { display: flex; align-items: center; gap: 8px; padding: 6px 2px; }
+.now-divider .nl { flex: 1; height: 2px; border-radius: 99px; background: var(--brand); }
+.now-divider .nd { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 4px var(--brand-soft); }
+.now-divider .nt { font-size: 11px; font-weight: 800; color: var(--brand); font-variant-numeric: tabular-nums; }
+.empty-tip {
+  margin: 14px 18px 40px; padding: 26px 20px; border-radius: 18px; background: var(--bg-surface);
+  box-shadow: var(--shadow-card); text-align: center;
+}
+.empty-tip .big { font-size: 30px; }
+.empty-tip .t1 { font-size: 14px; font-weight: 800; margin-top: 8px; }
+.empty-tip .t2 { font-size: 12px; color: var(--ink-2); margin-top: 4px; }
+
+/* ── 方案 B：周日时间轴 ── */
+.weekstrip { flex: none; display: flex; padding: 6px 10px 4px; gap: 4px; }
+.wscell {
+  flex: 1; border-radius: 14px; padding: 7px 0 6px; text-align: center; cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px; align-items: center; transition: background 0.2s;
+}
+.wscell .w { font-size: 10.5px; font-weight: 700; color: var(--ink-3); }
+.wscell .n { font-size: 15px; font-weight: 700; }
+.wscell .dots { display: flex; gap: 2.5px; height: 5px; }
+.wscell .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--ev, var(--ink-3)); }
+.wscell.sel { background: var(--brand-soft); }
+.wscell.sel .n { color: var(--brand); }
+.wscell.today .n { background: var(--brand-grad); color: #fff8ef; width: 26px; height: 26px; line-height: 26px; border-radius: 50%; }
+.tl-wrap { flex: 1; overflow: auto; scrollbar-width: none; position: relative; }
+.tl-wrap::-webkit-scrollbar { display: none; }
+.tl-days { display: flex; min-width: 540px; position: relative; }
+.tl-day { flex: 1; min-width: 180px; border-right: 1px solid var(--line-2); position: relative; }
+.tl-day:first-child { border-left: 1px solid var(--line-2); }
+.tl-hour { height: 56px; border-bottom: 1px solid var(--line-2); position: relative; }
+.tl-hour .hl {
+  position: absolute; top: -7px; left: 2px; font-size: 9.5px; color: var(--ink-3); font-weight: 600;
+  font-variant-numeric: tabular-nums; transform: translateY(7px);
+}
+.tl-day:first-child .tl-hour .hl { transform: none; top: 0; left: 4px; }
+.tevt {
+  position: absolute; left: 5px; right: 5px; border-radius: 10px; padding: 6px 8px; overflow: hidden;
+  background: var(--ev-soft); border-left: 3px solid var(--ev); cursor: pointer;
+}
+.tevt .t { font-size: 11px; font-weight: 800; color: var(--ink-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tevt .m { font-size: 9.5px; color: var(--ink-2); font-weight: 600; font-variant-numeric: tabular-nums; }
+.tevt.solid { background: var(--ev); border-left: 3px solid rgba(255, 255, 255, 0.35); }
+.tevt.solid .t { color: #fff8ef; }
+.tevt.solid .m { color: rgba(255, 248, 239, 0.8); }
+.nowline { position: absolute; left: 0; right: 0; height: 2px; background: var(--brand); z-index: 5; }
+.nowline::before {
+  content: ""; position: absolute; left: -3px; top: -3px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--brand);
+}
+.tl-ghost {
+  position: absolute; left: 5px; right: 5px; border-radius: 10px; border: 1.5px dashed var(--brand);
+  background: var(--brand-soft); display: flex; align-items: center; justify-content: center; gap: 5px;
+  color: var(--brand); font-size: 11.5px; font-weight: 800; z-index: 4;
+}
+
+/* ── 方案 C：议程流 ── */
+.agenda-feed { padding: 4px 18px 40px; }
+.ag-dayhead { display: flex; align-items: baseline; gap: 9px; padding: 18px 4px 10px; }
+.ag-dayhead .dnum { font-size: 22px; font-weight: 800; }
+.ag-dayhead .dw { font-size: 12.5px; font-weight: 700; color: var(--ink-2); }
+.ag-dayhead .dl { font-size: 12px; color: var(--ink-3); margin-left: auto; font-weight: 600; }
+.ag-dayhead.iso .dnum { color: var(--brand); }
+.ag-dayhead.iso .dw { color: var(--brand); }
+.ag-row {
+  display: flex; gap: 12px; background: var(--bg-surface); border-radius: 16px; padding: 13px 14px;
+  box-shadow: var(--shadow-card); cursor: pointer; align-items: center; margin-bottom: 9px;
+}
+.ag-row .time { width: 54px; flex: none; text-align: right; }
+.ag-row .time b { font-size: 13.5px; font-weight: 800; display: block; font-variant-numeric: tabular-nums; }
+.ag-row .time span { font-size: 11px; color: var(--ink-3); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ag-row .bar { width: 4px; height: 36px; border-radius: 99px; background: var(--ev); flex: none; }
+.ag-row .info { min-width: 0; flex: 1; }
+.ag-row .info .t { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ag-row .info .m { font-size: 11.5px; color: var(--ink-2); margin-top: 2px; }
+.ag-allday {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 9px; padding: 10px 14px; border-radius: 14px;
+  background: var(--ev-soft); border: 1px solid var(--ev); font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.ag-allday .cal-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ev); }
+
+/* ── 方案 D：弹性头部 ── */
+.elastic-month { transition: max-height 0.45s cubic-bezier(0.34, 1.3, 0.5, 1), opacity 0.3s; overflow: hidden; max-height: 420px; }
+.elastic-month.folded { max-height: 0; opacity: 0; }
+.weekstrip-d { transition: max-height 0.45s cubic-bezier(0.34, 1.3, 0.5, 1), opacity 0.3s; overflow: hidden; max-height: 90px; }
+.weekstrip-d.folded { max-height: 0; opacity: 0; }
+.pull-hint {
+  flex: none; display: flex; justify-content: center; padding: 2px 0 0; cursor: pointer;
+}
+.pull-hint .pill { width: 40px; height: 4.5px; border-radius: 99px; background: var(--line-1); }
+.pull-hint .pill.dark { background: var(--ink-3); }
+.calendar-toggle { border: 0; background: transparent; color: inherit; font-family: inherit; cursor: pointer; min-height: 44px; }
+button.pull-hint { width: 100%; min-height: 44px; align-items: center; border: 0; background: transparent; }
+.calendar-toggle:focus-visible, button.pull-hint:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.month-grid.week-only .mcell:not(.selected-week) { display: none; }
+
+.foot-note { max-width: 1780px; margin: 0 auto; font-size: 12.5px; color: #8f8574; line-height: 1.9; }
+.foot-note b { color: #b8ad9c; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>日历主页 · 已选 D 交互 + A 视觉（其他方案保留参考）</h1>
+  <p class="sub">
+    本页是「日历日程迁移」的核心选型：桌面端四视图（月/周/日/议程）在移动端如何取舍。四方案共享同一套数据与令牌（杏子默认主题，玄夜走查画框见各方案末尾）。方案 A 的月历可真实点选切换日期并过滤列表；方案 B 时间轴可滚动；方案 D 弹性头部可点击真实折叠/展开。
+  </p>
+  <div class="tags">
+    <span class="tag">色值 = apps/mobile/src/styles.css 令牌</span>
+    <span class="tag">画框 390 × 844</span>
+    <span class="tag">桌面数据色 17 色板（两端共享）</span>
+    <span class="tag">示例日期 2026-09-15 周二</span>
+  </div>
+</div>
+
+<!-- ════════════════ 方案 A ════════════════ -->
+<section class="plan">
+  <div class="plan-head">
+    <span class="letter">A</span>
+    <h2>月历 + 日程列表</h2>
+    <span class="cost">已选视觉基准 · 独立 A 交互仅参考</span>
+  </div>
+  <p class="plan-desc">
+    iOS 日历经典式：上半为完整月历（周一起始、事件彩点、今天 brand 高亮），下半为选中日的日程列表（全天 chip 置顶 + 定时事件行 + 当前时间线）。点日期格即切换下方列表，「今天」一键回位。信息密度与浏览效率最均衡，与 App 现有列表/Bento 形态最连续。
+  </p>
+  <div class="plan-pros">
+    <span><b class="good">＋</b> 月全局 + 日细节一屏兼顾</span>
+    <span><b class="good">＋</b> 彩点密度一眼看出忙日</span>
+    <span><b class="bad">－</b> 列表区被月历压缩，单日事件多时需滚动</span>
+  </div>
+  <div class="board">
+
+    <!-- A1 默认态（可交互） -->
+    <div class="frame-wrap">
+      <div class="frame-label">A-① 默认态 <small>今天 9/15 · 可点月历切换选中日（真实交互）</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icons">▸▸▸ ᯤ 🔒</span></div>
+          <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="title">日历</span>
+            <button class="icon-btn brand" title="新建日程">＋</button>
+          </div>
+          <div class="month-nav">
+            <span class="my">2026年9月<small>九月</small></span>
+            <span class="grp">
+              <button class="nav-btn">‹</button>
+              <button class="today-btn">今天</button>
+              <button class="nav-btn">›</button>
+            </span>
+          </div>
+          <div class="month-grid" id="gridA">
+            <div class="weekrow">
+              <span class="wd">一</span><span class="wd">二</span><span class="wd">三</span><span class="wd">四</span><span class="wd">五</span><span class="wd wknd">六</span><span class="wd wknd">日</span>
+            </div>
+            <div class="mrow" id="cellsA"></div>
+          </div>
+          <div class="chips">
+            <span class="chip c-blue on"><i class="cdot"></i>工作</span>
+            <span class="chip c-mint on"><i class="cdot"></i>生活</span>
+            <span class="chip c-grape on"><i class="cdot"></i>个人成长</span>
+            <span class="chip c-red on"><i class="cdot"></i>番茄钟</span>
+            <span class="chip c-orange on"><i class="cdot"></i>待办清单</span>
+          </div>
+          <div class="day-head" id="dayheadA">
+            <span class="dt">15日</span><span class="dw">周二</span><span class="cnt">5 件日程 · 1 件全天</span>
+          </div>
+          <div class="allday-strip">
+            <span class="allday-chip c-teal"><i class="cal-dot"></i>项目上线窗口<small>· 至 17日</small></span>
+          </div>
+          <div class="scroll">
+            <div class="evt-list" id="listA"></div>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A2 空态 + 长按新建示意 -->
+    <div class="frame-wrap">
+      <div class="frame-label">A-② 空态 + 新建路径 <small>休息日无日程 · 右上＋ / 长按格新建</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icons">▸▸▸ ᯤ 🔒</span></div>
+          <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="title">日历</span>
+            <button class="icon-btn brand">＋</button>
+          </div>
+          <div class="month-nav">
+            <span class="my">2026年9月<small>九月</small></span>
+            <span class="grp">
+              <button class="nav-btn">‹</button>
+              <button class="today-btn">今天</button>
+              <button class="nav-btn">›</button>
+            </span>
+          </div>
+          <div class="month-grid">
+            <div class="weekrow">
+              <span class="wd">一</span><span class="wd">二</span><span class="wd">三</span><span class="wd">四</span><span class="wd">五</span><span class="wd wknd">六</span><span class="wd wknd">日</span>
+            </div>
+            <div class="mrow">
+              <div class="mcell dim"><span class="d">31</span></div>
+              <div class="mcell"><span class="d">1</span><span class="dots"><i style="background:#2A67E2"></i></span></div>
+              <div class="mcell"><span class="d">2</span></div>
+              <div class="mcell"><span class="dots"><i style="background:#2A67E2"></i><i style="background:#42A393"></i></span><span class="d">3</span></div>
+              <div class="mcell"><span class="d">4</span><span class="dots"><i style="background:#692EC2"></i></span></div>
+              <div class="mcell"><span class="d">5</span></div>
+              <div class="mcell"><span class="d">6</span></div>
+
+              <div class="mcell"><span class="d">7</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#2A67E2"></i></span></div>
+              <div class="mcell"><span class="d">8</span></div>
+              <div class="mcell"><span class="d">9</span><span class="dots"><i style="background:#42A393"></i></span></div>
+              <div class="mcell"><span class="d">10</span></div>
+              <div class="mcell"><span class="d">11</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#C77100"></i></span></div>
+              <div class="mcell"><span class="d">12</span></div>
+              <div class="mcell"><span class="d">13</span></div>
+
+              <div class="mcell"><span class="d">14</span></div>
+              <div class="mcell today"><span class="d">15</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#2A67E2"></i><i style="background:#CF473A"></i></span></div>
+              <div class="mcell"><span class="d">16</span><span class="dots"><i style="background:#148FAD"></i><i style="background:#148FAD"></i></span></div>
+              <div class="mcell"><span class="d">17</span></div>
+              <div class="mcell"><span class="d">18</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#692EC2"></i></span></div>
+              <div class="mcell"><span class="d">19</span></div>
+              <div class="mcell sel" style="background:var(--brand-soft);border-color:rgba(217,119,87,0.35)">
+                <span class="d" style="color:var(--brand)">20</span><span class="dots"><i style="background:#B2635C"></i></span>
+              </div>
+
+              <div class="mcell"><span class="d">21</span></div>
+              <div class="mcell"><span class="d">22</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#2A67E2"></i><i style="background:#42A393"></i></span><span class="more">·2</span></div>
+              <div class="mcell"><span class="d">23</span></div>
+              <div class="mcell"><span class="d">24</span><span class="dots"><i style="background:#692EC2"></i></span></div>
+              <div class="mcell"><span class="d">25</span></div>
+              <div class="mcell"><span class="d">26</span></div>
+              <div class="mcell"><span class="d">27</span></div>
+
+              <div class="mcell"><span class="d">28</span></div>
+              <div class="mcell"><span class="d">29</span><span class="dots"><i style="background:#CF473A"></i></span></div>
+              <div class="mcell"><span class="d">30</span></div>
+              <div class="mcell dim"><span class="d">1</span></div>
+              <div class="mcell dim"><span class="d">2</span></div>
+              <div class="mcell dim"><span class="d">3</span></div>
+              <div class="mcell dim"><span class="d">4</span></div>
+
+              <div class="mcell dim"><span class="d">5</span></div>
+              <div class="mcell dim"><span class="d">6</span></div>
+              <div class="mcell dim"><span class="d">7</span></div>
+              <div class="mcell dim"><span class="d">8</span></div>
+              <div class="mcell dim"><span class="d">9</span></div>
+              <div class="mcell dim"><span class="d">10</span></div>
+              <div class="mcell dim"><span class="d">11</span></div>
+            </div>
+          </div>
+          <div class="chips">
+            <span class="chip c-blue on"><i class="cdot"></i>工作</span>
+            <span class="chip c-mint on"><i class="cdot"></i>生活</span>
+            <span class="chip c-grape on"><i class="cdot"></i>个人成长</span>
+            <span class="chip c-red on"><i class="cdot"></i>番茄钟</span>
+            <span class="chip c-orange on"><i class="cdot"></i>待办清单</span>
+          </div>
+          <div class="day-head">
+            <span class="dt">20日</span><span class="dw" style="color:var(--ink-2)">周日</span><span class="cnt">1 件日程</span>
+          </div>
+          <div class="allday-strip">
+            <span class="allday-chip c-lo"><i class="cal-dot"></i>妈妈生日 🎂</span>
+          </div>
+          <div class="scroll">
+            <div class="empty-tip">
+              <div class="big">🍃</div>
+              <div class="t1">这天没有定时日程</div>
+              <div class="t2">点右上 ＋ 新建 · 长按月历格快速建全天日程</div>
+            </div>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A3 玄夜 -->
+    <div class="frame-wrap">
+      <div class="frame-label">A-③ 玄夜主题走查 <small>midnight 令牌 · 数据色切 dark 值</small></div>
+      <div class="phone dark-ui">
+        <div class="screen">
+          <div class="statusbar"><span>21:08</span><span class="icons">▸▸▸ ᯤ 🔒</span></div>
+          <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="title">日历</span>
+            <button class="icon-btn brand">＋</button>
+          </div>
+          <div class="month-nav">
+            <span class="my">2026年9月<small>九月</small></span>
+            <span class="grp">
+              <button class="nav-btn">‹</button>
+              <button class="today-btn">今天</button>
+              <button class="nav-btn">›</button>
+            </span>
+          </div>
+          <div class="month-grid">
+            <div class="weekrow">
+              <span class="wd">一</span><span class="wd">二</span><span class="wd">三</span><span class="wd">四</span><span class="wd">五</span><span class="wd wknd">六</span><span class="wd wknd">日</span>
+            </div>
+            <div class="mrow">
+              <div class="mcell dim"><span class="d">31</span></div>
+              <div class="mcell"><span class="d">1</span><span class="dots"><i style="background:#2563EB"></i></span></div>
+              <div class="mcell"><span class="d">2</span></div>
+              <div class="mcell"><span class="d">3</span><span class="dots"><i style="background:#2563EB"></i><i style="background:#14B8A6"></i></span></div>
+              <div class="mcell"><span class="d">4</span><span class="dots"><i style="background:#7C3AED"></i></span></div>
+              <div class="mcell"><span class="d">5</span></div>
+              <div class="mcell"><span class="d">6</span></div>
+
+              <div class="mcell"><span class="d">7</span><span class="dots"><i style="background:#2563EB"></i><i style="background:#2563EB"></i></span></div>
+              <div class="mcell"><span class="d">8</span></div>
+              <div class="mcell"><span class="d">9</span><span class="dots"><i style="background:#14B8A6"></i></span></div>
+              <div class="mcell"><span class="d">10</span></div>
+              <div class="mcell"><span class="d">11</span><span class="dots"><i style="background:#2563EB"></i><i style="background:#F97316"></i></span></div>
+              <div class="mcell"><span class="d">12</span></div>
+              <div class="mcell"><span class="d">13</span></div>
+
+              <div class="mcell"><span class="d">14</span></div>
+              <div class="mcell today"><span class="d">15</span><span class="dots"><i style="background:#2563EB"></i><i style="background:#2563EB"></i><i style="background:#EF4444"></i></span></div>
+              <div class="mcell"><span class="d">16</span><span class="dots"><i style="background:#0891B2"></i><i style="background:#0891B2"></i></span></div>
+              <div class="mcell"><span class="d">17</span></div>
+              <div class="mcell"><span class="d">18</span><span class="dots"><i style="background:#2563EB"></i><i style="background:#7C3AED"></i></span></div>
+              <div class="mcell"><span class="d">19</span></div>
+              <div class="mcell sel"><span class="d" style="color:var(--brand)">15</span><span class="dots"><i style="background:#2563EB"></i><i style="background:#2563EB"></i><i style="background:#EF4444"></i></span></div>
+
+              <div class="mcell"><span class="d">21</span></div>
+              <div class="mcell"><span class="d">22</span><span class="dots"><i style="background:#2563EB"></i><i style="background:#2563EB"></i><i style="background:#14B8A6"></i></span><span class="more">·2</span></div>
+              <div class="mcell"><span class="d">23</span></div>
+              <div class="mcell"><span class="d">24</span></div>
+              <div class="mcell"><span class="d">25</span></div>
+              <div class="mcell"><span class="d">26</span></div>
+              <div class="mcell"><span class="d">27</span></div>
+
+              <div class="mcell"><span class="d">28</span></div>
+              <div class="mcell"><span class="d">29</span><span class="dots"><i style="background:#EF4444"></i></span></div>
+              <div class="mcell"><span class="d">30</span></div>
+              <div class="mcell dim"><span class="d">1</span></div>
+              <div class="mcell dim"><span class="d">2</span></div>
+              <div class="mcell dim"><span class="d">3</span></div>
+              <div class="mcell dim"><span class="d">4</span></div>
+            </div>
+          </div>
+          <div class="chips">
+            <span class="chip c-blue on"><i class="cdot"></i>工作</span>
+            <span class="chip c-mint on"><i class="cdot"></i>生活</span>
+            <span class="chip c-red on"><i class="cdot"></i>番茄钟</span>
+          </div>
+          <div class="day-head">
+            <span class="dt">15日</span><span class="dw">周二</span><span class="cnt">5 件日程</span>
+          </div>
+          <div class="allday-strip">
+            <span class="allday-chip c-teal"><i class="cal-dot"></i>项目上线窗口<small>· 至 17日</small></span>
+          </div>
+          <div class="scroll">
+            <div class="evt-list">
+              <div class="evt-row past c-red">
+                <span class="time"><b>09:00</b><span>09:25</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">🍅 深度工作 · 编辑器重构</span><span class="m"><span class="sys">番茄钟</span>专注 25 分钟</span></span>
+              </div>
+              <div class="evt-row past c-blue">
+                <span class="time"><b>10:00</b><span>10:30</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">团队晨会</span><span class="m">工作 · 会议室 A</span></span>
+              </div>
+              <div class="now-divider"><span class="nt">21:08</span><span class="nd"></span><span class="nl"></span></div>
+              <div class="evt-row c-blue">
+                <span class="time"><b>21:30</b><span>22:00</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">周报整理与同步</span><span class="m">工作 · 30 分钟</span></span>
+              </div>
+              <div class="evt-row c-orange">
+                <span class="time"><b>23:00</b><span>截止</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">提交版本发布清单</span><span class="m"><span class="sys">待办 · 截止任务</span></span></span>
+              </div>
+            </div>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ════════════════ 方案 B ════════════════ -->
+<section class="plan">
+  <div class="plan-head">
+    <span class="letter">B</span>
+    <h2>周日时间轴</h2>
+    <span class="cost">实现成本约 1.15× · 建议列为 P1</span>
+  </div>
+  <p class="plan-desc">
+    Google 日历式：顶部周条（7 日小格 + 彩点）+ 下方 3 日并排时间轴（可横滚，中间列锁定选中日），事件为时间格上的色块，当前时间线每分钟刷新。最接近桌面周视图的时间感知，适合日程密集用户；小屏上事件块较窄，长标题截断多。
+  </p>
+  <div class="plan-pros">
+    <span><b class="good">＋</b> 时间感知最强，空档一眼可见</span>
+    <span><b class="good">＋</b> 点空白格即新建（时间即位置）</span>
+    <span><b class="bad">－</b> 3 列并排每列仅 120px，长标题截断</span>
+    <span><b class="bad">－</b> 月全局感弱，切月需回周条</span>
+  </div>
+  <div class="board">
+
+    <!-- B1 默认 -->
+    <div class="frame-wrap">
+      <div class="frame-label">B-① 默认态 <small>3 日并排 · 当前时间线 · 可滚动</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icons">▸▸▸ ᯤ 🔒</span></div>
+          <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="title">日历</span>
+            <button class="icon-btn brand">＋</button>
+          </div>
+          <div class="month-nav">
+            <span class="my">9月15日<small>周二 · 本周</small></span>
+            <span class="grp">
+              <button class="nav-btn">‹</button>
+              <button class="today-btn">今天</button>
+              <button class="nav-btn">›</button>
+            </span>
+          </div>
+          <div class="weekstrip">
+            <div class="wscell"><span class="w">一</span><span class="n">14</span><span class="dots"></span></div>
+            <div class="wscell today"><span class="w">二</span><span class="n">15</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#CF473A"></i></span></div>
+            <div class="wscell"><span class="w">三</span><span class="n">16</span><span class="dots"><i style="background:#148FAD"></i></span></div>
+            <div class="wscell sel"><span class="w">四</span><span class="n">17</span><span class="dots"></span></div>
+            <div class="wscell"><span class="w">五</span><span class="n">18</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#692EC2"></i></span></div>
+            <div class="wscell"><span class="w">六</span><span class="n">19</span><span class="dots"></span></div>
+            <div class="wscell"><span class="w">日</span><span class="n">20</span><span class="dots"><i style="background:#B2635C"></i></span></div>
+          </div>
+          <div class="tl-wrap">
+            <div class="tl-days">
+              <div class="tl-day">
+                <div class="tl-hour"><span class="hl">8时</span></div>
+                <div class="tl-hour"><span class="hl">9时</span></div>
+                <div class="tl-hour"><span class="hl">10时</span></div>
+                <div class="tl-hour"><span class="hl">11时</span></div>
+                <div class="tl-hour"><span class="hl">12时</span></div>
+                <div class="tl-hour"><span class="hl">13时</span></div>
+                <div class="tl-hour"><span class="hl">14时</span></div>
+                <div class="tl-hour"><span class="hl">15时</span></div>
+                <div class="tl-hour"><span class="hl">16时</span></div>
+                <div class="tl-hour"><span class="hl">17时</span></div>
+                <div class="tl-hour"><span class="hl">18时</span></div>
+                <div class="tl-hour"><span class="hl">19时</span></div>
+                <div class="tl-hour"><span class="hl">20时</span></div>
+                <div class="tevt c-red" style="top: 105px; height: 29px;"><span class="t">🍅 深度工作</span><span class="m">09:00</span></div>
+                <div class="tevt c-blue" style="top: 161px; height: 29px;"><span class="t">团队晨会</span><span class="m">10:00</span></div>
+                <div class="tevt solid c-teal" style="top: 330px; height: 48px;"><span class="t">上线窗口 · 联调</span><span class="m">13:00 – 13:45</span></div>
+                <div class="tevt c-blue" style="top: 442px; height: 92px;"><span class="t">技术评审：日历模块迁移方案</span><span class="m">14:00 – 15:30</span></div>
+                <div class="tevt c-green" style="top: 665px; height: 58px;"><span class="t">健身 · 上肢</span><span class="m">19:00</span></div>
+              </div>
+              <div class="tl-day">
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="nowline" style="top: 118px;"></div>
+                <div class="tevt c-blue" style="top: 442px; height: 58px;"><span class="t">1:1 与小张</span><span class="m">14:00</span></div>
+                <div class="tevt c-grape" style="top: 610px; height: 58px;"><span class="t">读书 · 《卡片笔记》</span><span class="m">18:00</span></div>
+              </div>
+              <div class="tl-day">
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-ghost" style="top: 217px; height: 58px;">＋ 11:00 新日程</div>
+                <div class="tevt c-blue" style="top: 330px; height: 92px;"><span class="t">迭代评审会</span><span class="m">13:00 – 14:30</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B2 玄夜 -->
+    <div class="frame-wrap">
+      <div class="frame-label">B-② 玄夜主题走查 <small>时间轴 + 夜间数据色</small></div>
+      <div class="phone dark-ui">
+        <div class="screen">
+          <div class="statusbar"><span>21:08</span><span class="icons">▸▸▸ ᯤ 🔒</span></div>
+          <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="title">日历</span>
+            <button class="icon-btn brand">＋</button>
+          </div>
+          <div class="month-nav">
+            <span class="my">9月15日<small>周二 · 本周</small></span>
+            <span class="grp">
+              <button class="nav-btn">‹</button>
+              <button class="today-btn">今天</button>
+              <button class="nav-btn">›</button>
+            </span>
+          </div>
+          <div class="weekstrip">
+            <div class="wscell"><span class="w">一</span><span class="n">14</span><span class="dots"></span></div>
+            <div class="wscell today"><span class="w">二</span><span class="n">15</span><span class="dots"><i style="background:#2563EB"></i><i style="background:#EF4444"></i></span></div>
+            <div class="wscell"><span class="w">三</span><span class="n">16</span><span class="dots"><i style="background:#0891B2"></i></span></div>
+            <div class="wscell sel"><span class="w">四</span><span class="n">17</span><span class="dots"></span></div>
+            <div class="wscell"><span class="w">五</span><span class="n">18</span><span class="dots"><i style="background:#2563EB"></i><i style="background:#7C3AED"></i></span></div>
+            <div class="wscell"><span class="w">六</span><span class="n">19</span><span class="dots"></span></div>
+            <div class="wscell"><span class="w">日</span><span class="n">20</span><span class="dots"><i style="background:#FB7185"></i></span></div>
+          </div>
+          <div class="tl-wrap">
+            <div class="tl-days">
+              <div class="tl-day">
+                <div class="tl-hour"><span class="hl">19时</span></div>
+                <div class="tl-hour"><span class="hl">20时</span></div>
+                <div class="tl-hour"><span class="hl">21时</span></div>
+                <div class="tl-hour"><span class="hl">22时</span></div>
+                <div class="tl-hour"><span class="hl">23时</span></div>
+                <div class="nowline" style="top: 9px;"></div>
+                <div class="tevt c-green" style="top: -123px; height: 58px;"><span class="t">健身 · 上肢</span><span class="m">19:00</span></div>
+                <div class="tevt c-blue" style="top: 12px; height: 29px;"><span class="t">周报整理与同步</span><span class="m">21:30</span></div>
+                <div class="tevt c-orange" style="top: 101px; height: 29px;"><span class="t">提交发布清单</span><span class="m">23:00 截止</span></div>
+              </div>
+              <div class="tl-day">
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+              </div>
+              <div class="tl-day">
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+                <div class="tl-hour"><span class="hl"></span></div>
+              </div>
+            </div>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ════════════════ 方案 C ════════════════ -->
+<section class="plan">
+  <div class="plan-head">
+    <span class="letter">C</span>
+    <h2>议程流</h2>
+    <span class="cost">实现成本 1.0×</span>
+  </div>
+  <p class="plan-desc">
+    最轻形态：无月历网格，按日期分组的时间线流（今天/明天/后续日期 sticky 分组头），事件行 = 时间列 + 色条 + 标题卡。顶部横滑日期条可快速跳日。阅读性最强、实现与 A 等价，但月全局感最弱（忙不忙看不出），适合日程稀疏用户。
+  </p>
+  <div class="plan-pros">
+    <span><b class="good">＋</b> 信息密度最高，长标题完整</span>
+    <span><b class="good">＋</b> 无网格学习成本，滚动即全部</span>
+    <span><b class="bad">－</b> 月全局感弱，找空日不便</span>
+    <span><b class="bad">－</b> 日期跨度大时定位靠跳条</span>
+  </div>
+  <div class="board">
+
+    <!-- C1 默认 -->
+    <div class="frame-wrap">
+      <div class="frame-label">C-① 默认态 <small>今天大字置顶 · 按日分组流</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icons">▸▸▸ ᯤ 🔒</span></div>
+          <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="title">日历</span>
+            <button class="icon-btn brand">＋</button>
+          </div>
+          <div class="weekstrip">
+            <div class="wscell"><span class="w">一</span><span class="n">14</span><span class="dots"></span></div>
+            <div class="wscell today"><span class="w">二</span><span class="n">15</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#CF473A"></i></span></div>
+            <div class="wscell sel"><span class="w">三</span><span class="n">16</span><span class="dots"><i style="background:#148FAD"></i></span></div>
+            <div class="wscell"><span class="w">四</span><span class="n">17</span><span class="dots"></span></div>
+            <div class="wscell"><span class="w">五</span><span class="n">18</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#692EC2"></i></span></div>
+            <div class="wscell"><span class="w">六</span><span class="n">19</span><span class="dots"></span></div>
+            <div class="wscell"><span class="w">日</span><span class="n">20</span><span class="dots"><i style="background:#B2635C"></i></span></div>
+          </div>
+          <div class="scroll">
+            <div class="agenda-feed">
+              <div class="ag-dayhead iso"><span class="dnum">今天</span><span class="dw">9月15日 · 周二</span><span class="dl">5 件 + 1 全天</span></div>
+              <div class="ag-allday c-teal"><i class="cal-dot"></i>项目上线窗口 · 全天，至 17日</div>
+              <div class="ag-row past c-red">
+                <span class="time"><b>09:00</b><span>25分钟</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">🍅 深度工作 · 编辑器重构</span><span class="m">番茄钟 · 系统日程</span></span>
+              </div>
+              <div class="ag-row past c-blue">
+                <span class="time"><b>10:00</b><span>30分钟</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">团队晨会</span><span class="m">工作 · 会议室 A</span></span>
+              </div>
+              <div class="now-divider"><span class="nt">11:41</span><span class="nd"></span><span class="nl"></span></div>
+              <div class="ag-row c-mint">
+                <span class="time"><b>12:00</b><span>1小时</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">午餐 · 和阿莱约饭</span><span class="m">生活 · 楼下新开的云吞店</span></span>
+              </div>
+              <div class="ag-row c-blue">
+                <span class="time"><b>14:00</b><span>1.5小时</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">技术评审：日历模块迁移方案</span><span class="m">工作 · 需带评审纪要模板</span></span>
+              </div>
+              <div class="ag-row c-grape">
+                <span class="time"><b>16:00</b><span>30分钟</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">复盘写作 · 本周闪卡数据</span><span class="m">个人成长</span></span>
+              </div>
+              <div class="ag-row c-orange">
+                <span class="time"><b>23:00</b><span>截止</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">提交版本发布清单</span><span class="m">待办 · 截止任务</span></span>
+              </div>
+
+              <div class="ag-dayhead"><span class="dnum">明天</span><span class="dw">9月16日 · 周三</span><span class="dl">2 件</span></div>
+              <div class="ag-row c-teal">
+                <span class="time"><b>11:00</b><span>1小时</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">上线窗口 · 回归验证</span><span class="m">工作</span></span>
+              </div>
+              <div class="ag-row c-green">
+                <span class="time"><b>19:00</b><span>1小时</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">健身 · 上肢</span><span class="m">生活</span></span>
+              </div>
+
+              <div class="ag-dayhead"><span class="dnum">18日</span><span class="dw">周五</span><span class="dl">2 件</span></div>
+              <div class="ag-row c-blue">
+                <span class="time"><b>10:00</b><span>2小时</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">季度规划 Workshop</span><span class="m">工作 · 全天第一项</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- C2 玄夜 -->
+    <div class="frame-wrap">
+      <div class="frame-label">C-② 玄夜主题走查 <small>议程流夜间形态</small></div>
+      <div class="phone dark-ui">
+        <div class="screen">
+          <div class="statusbar"><span>21:08</span><span class="icons">▸▸▸ ᯤ 🔒</span></div>
+          <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="title">日历</span>
+            <button class="icon-btn brand">＋</button>
+          </div>
+          <div class="weekstrip">
+            <div class="wscell"><span class="w">一</span><span class="n">14</span><span class="dots"></span></div>
+            <div class="wscell today"><span class="w">二</span><span class="n">15</span><span class="dots"><i style="background:#2563EB"></i><i style="background:#EF4444"></i></span></div>
+            <div class="wscell sel"><span class="w">三</span><span class="n">16</span><span class="dots"><i style="background:#0891B2"></i></span></div>
+            <div class="wscell"><span class="w">四</span><span class="n">17</span><span class="dots"></span></div>
+            <div class="wscell"><span class="w">五</span><span class="n">18</span><span class="dots"><i style="background:#2563EB"></i><i style="background:#7C3AED"></i></span></div>
+            <div class="wscell"><span class="w">六</span><span class="n">19</span><span class="dots"></span></div>
+            <div class="wscell"><span class="w">日</span><span class="n">20</span><span class="dots"><i style="background:#FB7185"></i></span></div>
+          </div>
+          <div class="scroll">
+            <div class="agenda-feed">
+              <div class="ag-dayhead iso"><span class="dnum">今天</span><span class="dw">9月15日 · 周二</span><span class="dl">2 件剩余</span></div>
+              <div class="ag-allday c-teal"><i class="cal-dot"></i>项目上线窗口 · 至 17日</div>
+              <div class="now-divider"><span class="nt">21:08</span><span class="nd"></span><span class="nl"></span></div>
+              <div class="ag-row c-blue">
+                <span class="time"><b>21:30</b><span>30分钟</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">周报整理与同步</span><span class="m">工作</span></span>
+              </div>
+              <div class="ag-row c-orange">
+                <span class="time"><b>23:00</b><span>截止</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">提交版本发布清单</span><span class="m">待办 · 截止任务</span></span>
+              </div>
+              <div class="ag-dayhead"><span class="dnum">明天</span><span class="dw">9月16日 · 周三</span><span class="dl">2 件</span></div>
+              <div class="ag-row c-teal">
+                <span class="time"><b>11:00</b><span>1小时</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">上线窗口 · 回归验证</span><span class="m">工作</span></span>
+              </div>
+              <div class="ag-row c-green">
+                <span class="time"><b>19:00</b><span>1小时</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">健身 · 上肢</span><span class="m">生活</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ════════════════ 方案 D ════════════════ -->
+<section class="plan">
+  <div class="plan-head">
+    <span class="letter">D</span>
+    <h2>D 交互 + A 视觉</h2>
+    <span class="cost">已选定 · 月历与选中周条两态</span>
+  </div>
+  <p class="plan-desc">
+    已定稿：D 的月历/周条可逆切换，保留 A 的月份导航、彩点、筛选与日程行视觉。两个画框分别以展开、收起开始，均可独立往返；月份按钮与把手支持键盘操作，切换保留选中日及列表位置。
+  </p>
+  <div class="plan-pros">
+    <span><b class="good">＋</b> 兼得月全局与列表沉浸，按需切换</span>
+    <span><b class="good">＋</b> 折叠态一屏可见 8+ 件日程</span>
+    <span><b class="bad">－</b> 折叠动画/跟手需真机调参，低端机风险</span>
+    <span><b class="bad">－</b> 头部两态增加状态机复杂度</span>
+  </div>
+  <div class="board">
+
+    <!-- D1 展开态 -->
+    <div class="frame-wrap">
+      <div class="frame-label">D-① 展开态 <small>完整月历 + 选中日列表（点把手/月份标题可折叠，真实交互）</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icons">▸▸▸ ᯤ 🔒</span></div>
+          <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="title" id="dTitle">日历</span>
+            <button class="icon-btn brand">＋</button>
+          </div>
+          <div class="month-nav" id="dNav">
+            <button type="button" class="my calendar-toggle" onclick="toggleD()" aria-expanded="true" aria-controls="dGrid" title="收起月历">2026年9月<small>九月</small></button>
+            <span class="grp">
+              <button class="nav-btn">‹</button>
+              <button class="today-btn">今天</button>
+              <button class="nav-btn">›</button>
+            </span>
+          </div>
+          <div class="month-grid">
+            <div class="weekrow">
+              <span class="wd">一</span><span class="wd">二</span><span class="wd">三</span><span class="wd">四</span><span class="wd">五</span><span class="wd wknd">六</span><span class="wd wknd">日</span>
+            </div>
+            <div class="mrow">
+              <div class="mcell dim"><span class="d">31</span></div>
+              <div class="mcell"><span class="d">1</span><span class="dots"><i style="background:#2A67E2"></i></span></div>
+              <div class="mcell"><span class="d">2</span></div>
+              <div class="mcell"><span class="d">3</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#42A393"></i></span></div>
+              <div class="mcell"><span class="d">4</span><span class="dots"><i style="background:#692EC2"></i></span></div>
+              <div class="mcell"><span class="d">5</span></div>
+              <div class="mcell"><span class="d">6</span></div>
+
+              <div class="mcell"><span class="d">7</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#2A67E2"></i></span></div>
+              <div class="mcell"><span class="d">8</span></div>
+              <div class="mcell"><span class="d">9</span><span class="dots"><i style="background:#42A393"></i></span></div>
+              <div class="mcell"><span class="d">10</span></div>
+              <div class="mcell"><span class="d">11</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#C77100"></i></span></div>
+              <div class="mcell"><span class="d">12</span></div>
+              <div class="mcell"><span class="d">13</span></div>
+
+              <div class="mcell"><span class="d">14</span></div>
+              <div class="mcell today sel"><span class="d">15</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#2A67E2"></i><i style="background:#CF473A"></i></span></div>
+              <div class="mcell"><span class="d">16</span><span class="dots"><i style="background:#148FAD"></i><i style="background:#148FAD"></i></span></div>
+              <div class="mcell"><span class="d">17</span></div>
+              <div class="mcell"><span class="d">18</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#692EC2"></i></span></div>
+              <div class="mcell"><span class="d">19</span></div>
+              <div class="mcell"><span class="d">20</span><span class="dots"><i style="background:#B2635C"></i></span></div>
+
+              <div class="mcell"><span class="d">21</span></div>
+              <div class="mcell"><span class="d">22</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#2A67E2"></i><i style="background:#42A393"></i></span><span class="more">·2</span></div>
+              <div class="mcell"><span class="d">23</span></div>
+              <div class="mcell"><span class="d">24</span><span class="dots"><i style="background:#692EC2"></i></span></div>
+              <div class="mcell"><span class="d">25</span></div>
+              <div class="mcell"><span class="d">26</span></div>
+              <div class="mcell"><span class="d">27</span></div>
+
+              <div class="mcell"><span class="d">28</span></div>
+              <div class="mcell"><span class="d">29</span><span class="dots"><i style="background:#CF473A"></i></span></div>
+              <div class="mcell"><span class="d">30</span></div>
+              <div class="mcell dim"><span class="d">1</span></div>
+              <div class="mcell dim"><span class="d">2</span></div>
+              <div class="mcell dim"><span class="d">3</span></div>
+              <div class="mcell dim"><span class="d">4</span></div>
+            </div>
+          </div>
+          <button type="button" class="pull-hint" onclick="toggleD()" aria-expanded="true" aria-controls="dGrid" aria-label="收起月历" title="收起月历"><span class="pill" aria-hidden="true"></span></button>
+          <div class="day-head">
+            <span class="dt">15日</span><span class="dw">周二</span><span class="cnt">5 件 · 1 全天</span>
+          </div>
+          <div class="scroll">
+            <div class="allday-strip" style="padding-top:2px">
+              <span class="allday-chip c-teal"><i class="cal-dot"></i>项目上线窗口<small>· 至 17日</small></span>
+            </div>
+            <div class="evt-list">
+              <div class="evt-row past c-red">
+                <span class="time"><b>09:00</b><span>09:25</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">🍅 深度工作 · 编辑器重构</span><span class="m"><span class="sys">番茄钟</span>专注 25 分钟</span></span>
+              </div>
+              <div class="evt-row past c-blue">
+                <span class="time"><b>10:00</b><span>10:30</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">团队晨会</span><span class="m">工作 · 会议室 A</span></span>
+              </div>
+              <div class="now-divider"><span class="nt">11:41</span><span class="nd"></span><span class="nl"></span></div>
+              <div class="evt-row c-mint">
+                <span class="time"><b>12:00</b><span>13:00</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">午餐 · 和阿莱约饭</span><span class="m">生活 · 云吞店</span></span>
+              </div>
+              <div class="evt-row c-blue">
+                <span class="time"><b>14:00</b><span>15:30</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">技术评审：日历模块迁移方案</span><span class="m">工作 · 1.5 小时</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- D2 折叠态 -->
+    <div class="frame-wrap">
+      <div class="frame-label">D-② 折叠态 <small>选中周条 + A 日程列表，可独立恢复完整月历</small></div>
+      <div class="phone">
+        <div class="screen">
+          <div class="statusbar"><span>9:41</span><span class="icons">▸▸▸ ᯤ 🔒</span></div>
+          <div class="topbar">
+            <button class="icon-btn">‹</button>
+            <span class="title">日历</span>
+            <button class="icon-btn brand">＋</button>
+          </div>
+          <div class="weekstrip" id="d2Week" style="padding-top:10px">
+            <div class="wscell"><span class="w">一</span><span class="n">14</span><span class="dots"></span></div>
+            <div class="wscell today sel"><span class="w">二</span><span class="n">15</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#CF473A"></i></span></div>
+            <div class="wscell"><span class="w">三</span><span class="n">16</span><span class="dots"><i style="background:#148FAD"></i></span></div>
+            <div class="wscell"><span class="w">四</span><span class="n">17</span><span class="dots"></span></div>
+            <div class="wscell"><span class="w">五</span><span class="n">18</span><span class="dots"><i style="background:#2A67E2"></i><i style="background:#692EC2"></i></span></div>
+            <div class="wscell"><span class="w">六</span><span class="n">19</span><span class="dots"></span></div>
+            <div class="wscell"><span class="w">日</span><span class="n">20</span><span class="dots"><i style="background:#B2635C"></i></span></div>
+          </div>
+          <button type="button" class="pull-hint" onclick="toggleD2()" aria-expanded="false" aria-controls="d2Grid" aria-label="展开月历" title="展开月历"><span class="pill" aria-hidden="true"></span></button>
+          <div class="scroll">
+            <div class="agenda-feed">
+              <div class="ag-allday c-teal" style="margin-top:10px"><i class="cal-dot"></i>项目上线窗口 · 全天，至 17日</div>
+              <div class="ag-row past c-red">
+                <span class="time"><b>09:00</b><span>25分钟</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">🍅 深度工作 · 编辑器重构</span><span class="m">番茄钟 · 系统日程</span></span>
+              </div>
+              <div class="ag-row past c-blue">
+                <span class="time"><b>10:00</b><span>30分钟</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">团队晨会</span><span class="m">工作 · 会议室 A</span></span>
+              </div>
+              <div class="now-divider"><span class="nt">11:41</span><span class="nd"></span><span class="nl"></span></div>
+              <div class="ag-row c-mint">
+                <span class="time"><b>12:00</b><span>1小时</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">午餐 · 和阿莱约饭</span><span class="m">生活 · 云吞店</span></span>
+              </div>
+              <div class="ag-row c-blue">
+                <span class="time"><b>14:00</b><span>1.5小时</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">技术评审：日历模块迁移方案</span><span class="m">工作 · 需带评审纪要模板</span></span>
+              </div>
+              <div class="ag-row c-grape">
+                <span class="time"><b>16:00</b><span>30分钟</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">复盘写作 · 本周闪卡数据</span><span class="m">个人成长</span></span>
+              </div>
+              <div class="ag-row c-green">
+                <span class="time"><b>19:00</b><span>1小时</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">健身 · 上肢</span><span class="m">生活</span></span>
+              </div>
+              <div class="ag-row c-orange">
+                <span class="time"><b>23:00</b><span>截止</span></span>
+                <span class="bar"></span>
+                <span class="info"><span class="t">提交版本发布清单</span><span class="m">待办 · 截止任务</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="homebar"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<p class="foot-note">
+  <b>已定稿：</b>主页 D 交互 + A 视觉；详情 A、编辑 A、管理 A。其他方案仅参考，周时间轴 P1。本页只演示 HTML 交互，未实施生产日历；本轮仅检查脚本语法和静态引用，不做视觉验证。
+</p>
+
+<script>
+/* ── 方案 A：月历点选 + 列表过滤（真实交互） ── */
+const EVENTS_15 = [
+  { s: "09:00", e: "09:25", cls: "c-red", t: "🍅 深度工作 · 编辑器重构", m: "番茄钟 · 系统", past: true },
+  { s: "10:00", e: "10:30", cls: "c-blue", t: "团队晨会", m: "工作 · 会议室 A", past: true },
+  { now: true },
+  { s: "12:00", e: "13:00", cls: "c-mint", t: "午餐 · 和阿莱约饭", m: "生活 · 云吞店" },
+  { s: "14:00", e: "15:30", cls: "c-blue", t: "技术评审：日历模块迁移方案", m: "工作 · 1.5 小时" },
+  { s: "16:00", e: "16:30", cls: "c-grape", t: "复盘写作 · 本周闪卡数据", m: "个人成长" },
+  { s: "23:00", e: "截止", cls: "c-orange", t: "提交版本发布清单", m: "待办 · 截止任务" },
+];
+const EVENTS_16 = [
+  { s: "11:00", e: "12:00", cls: "c-teal", t: "上线窗口 · 回归验证", m: "工作" },
+  { s: "19:00", e: "20:00", cls: "c-green", t: "健身 · 上肢", m: "生活" },
+];
+const EVENTS_18 = [
+  { s: "10:00", e: "12:00", cls: "c-blue", t: "季度规划 Workshop", m: "工作" },
+  { s: "15:00", e: "16:00", cls: "c-grape", t: "读书会 · 第三章领读", m: "个人成长" },
+];
+const ALLEDAY = { 15: ["项目上线窗口", "c-teal", "· 至 17日"], 20: ["妈妈生日 🎂", "c-lo", ""] };
+const DATA = { 15: EVENTS_15, 16: EVENTS_16, 18: EVENTS_18 };
+const WEEK = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+
+function buildMonthA() {
+  const wrap = document.getElementById("cellsA");
+  if (!wrap) return;
+  const frag = document.createDocumentFragment();
+  const leading = [31]; // 2026-09 周一起始，首行仅 8/31 一个补位
+  for (let i = 0; i < 6; i++) {
+    for (let d = 1; d <= 7; d++) {
+      const cell = document.createElement("div");
+      cell.className = "mcell";
+      const num = i * 7 + d - leading.length;
+      if (num < 1) { cell.classList.add("dim"); cell.innerHTML = '<span class="d">31</span>'; }
+      else if (num <= 30) {
+        if (num === 15) cell.classList.add("today", "sel");
+        let dots = "";
+        const ev = DATA[num];
+        if (ev) {
+          const colors = { "c-red": "#2A67E2", "c-blue": "#2A67E2", "c-mint": "#42A393", "c-teal": "#148FAD", "c-grape": "#692EC2", "c-green": "#369307", "c-orange": "#C77100" };
+          const uniq = [...new Set(ev.filter(x => !x.now).map(x => x.cls))].slice(0, 3);
+          dots = '<span class="dots">' + uniq.map(c => '<i style="background:' + (colors[c] || "#8b7d6b") + '"></i>').join("") + "</span>";
+        }
+        cell.innerHTML = '<span class="d">' + num + "</span>" + dots;
+        cell.onclick = () => selectDayA(num);
+      } else {
+        cell.classList.add("dim");
+        cell.innerHTML = '<span class="d">' + (num - 30) + "</span>";
+      }
+      frag.appendChild(cell);
+    }
+  }
+  wrap.appendChild(frag);
+  selectDayA(15);
+}
+function selectDayA(num) {
+  document.querySelectorAll("#gridA .mcell").forEach(c => c.classList.remove("sel"));
+  document.querySelectorAll("#gridA .mcell").forEach(c => {
+    const d = c.querySelector(".d");
+    if (d && parseInt(d.textContent) === num && !c.classList.contains("dim")) {
+      c.classList.add("sel");
+      if (num !== 15) c.querySelector(".d").style.color = "var(--brand)";
+    }
+    if (d && !c.classList.contains("today") && !c.classList.contains("dim")) d.style.color = "";
+  });
+  const wd = WEEK[(new Date(2026, 8, num)).getDay()];
+  const evts = DATA[num] || [];
+  const timed = evts.filter(x => !x.now).length;
+  const allday = ALLEDAY[num] ? 1 : 0;
+  document.getElementById("dayheadA").innerHTML =
+    '<span class="dt">' + num + '日</span><span class="dw">' + wd + "</span>" +
+    '<span class="cnt">' + (timed + allday === 0 ? "无日程" : timed + " 件日程" + (allday ? " · 1 件全天" : "")) + "</span>";
+  const list = document.getElementById("listA");
+  let html = "";
+  if (allday) html += '<div style="display:flex;gap:8px;margin:2px 0 4px"><span class="allday-chip ' + ALLEDAY[num][1] + '" style="height:32px"><i class="cal-dot"></i>' + ALLEDAY[num][0] + "<small>" + ALLEDAY[num][2] + "</small></span></div>";
+  evts.forEach(x => {
+    if (x.now) { html += '<div class="now-divider"><span class="nt">11:41</span><span class="nd"></span><span class="nl"></span></div>'; return; }
+    html += '<div class="evt-row ' + (x.past ? "past " : "") + x.cls + '"><span class="time"><b>' + x.s + "</b><span>" + x.e + '</span></span><span class="bar"></span><span class="info"><span class="t">' + x.t + "</span><span class=\"m\">" + x.m + "</span></span></div>";
+  });
+  if (!html) html = '<div class="empty-tip" style="margin:8px 0 40px"><div class="big">🍃</div><div class="t1">这天没有日程</div><div class="t2">点右上 ＋ 新建</div></div>';
+  list.innerHTML = html;
+}
+buildMonthA();
+
+/* 两个画框共用 A 视觉和月历节点，收起仅保留选中周，不清空列表。 */
+function setCalendarExpanded(grid, expanded) {
+  const cells = [...grid.querySelectorAll(".mcell")];
+  const selectedIndex = cells.findIndex(cell => cell.classList.contains("sel"));
+  const selectedWeek = Math.floor(Math.max(0, selectedIndex) / 7);
+  cells.forEach((cell, index) => cell.classList.toggle("selected-week", Math.floor(index / 7) === selectedWeek));
+  grid.classList.toggle("week-only", !expanded);
+  grid.parentElement.querySelectorAll('[aria-controls="' + grid.id + '"]').forEach(button => {
+    const label = expanded ? "收起月历" : "展开月历";
+    button.setAttribute("aria-expanded", String(expanded));
+    button.setAttribute("aria-label", label);
+    button.title = label;
+  });
+}
+function toggleD() {
+  const grid = document.getElementById("dGrid");
+  setCalendarExpanded(grid, grid.classList.contains("week-only"));
+}
+function toggleD2() {
+  const grid = document.getElementById("d2Grid");
+  setCalendarExpanded(grid, grid.classList.contains("week-only"));
+}
+function setupCalendarsD() {
+  const firstScreen = document.getElementById("dNav").parentElement;
+  const grid = firstScreen.querySelector(".month-grid");
+  grid.id = "dGrid";
+  // 补齐第六周，让展开态与 A 的固定六行月历一致。
+  for (let day = 5; day <= 11; day++) {
+    const cell = document.createElement("div");
+    cell.className = "mcell dim";
+    cell.innerHTML = '<span class="d">' + day + '</span>';
+    grid.querySelector(".mrow").appendChild(cell);
+  }
+  const chips = document.querySelector("#gridA + .chips").cloneNode(true);
+  firstScreen.querySelector(".day-head").before(chips);
+  const oldWeek = document.getElementById("d2Week");
+  const secondScreen = oldWeek.parentElement;
+  const secondNav = document.getElementById("dNav").cloneNode(true);
+  secondNav.id = "d2Nav";
+  const monthButton = secondNav.querySelector(".calendar-toggle");
+  monthButton.setAttribute("onclick", "toggleD2()");
+  monthButton.setAttribute("aria-controls", "d2Grid");
+  oldWeek.before(secondNav);
+  const secondGrid = grid.cloneNode(true);
+  secondGrid.id = "d2Grid";
+  oldWeek.replaceWith(secondGrid);
+  const handle = secondScreen.querySelector(".pull-hint");
+  const dayHead = firstScreen.querySelector(".day-head").cloneNode(true);
+  handle.after(chips.cloneNode(true), dayHead);
+  // 使用同一份日程示例，避免两种初始档位显示不同内容。
+  secondScreen.querySelector(".scroll").replaceChildren(...[...firstScreen.querySelector(".scroll").children].map(node => node.cloneNode(true)));
+  setCalendarExpanded(grid, true);
+  setCalendarExpanded(secondGrid, false);
+}
+setupCalendarsD();
+</script>
+</body>
+</html>

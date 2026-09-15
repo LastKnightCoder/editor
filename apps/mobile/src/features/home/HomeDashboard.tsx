@@ -8,6 +8,7 @@ import {
   BookOpen,
   Books,
   Brain,
+  CalendarCheck,
   CheckCircle,
   FolderOpen,
   Stack,
@@ -32,6 +33,8 @@ import { toggleTodoComplete } from "../todo/toggleComplete";
 import { TodoCheck } from "../todo/TodoCheck";
 import { usePomodoroTodaySummary } from "../pomodoro/queries";
 import { formatFocusDuration } from "../pomodoro/timer";
+import { useCalendarEventsByRange, useCalendars } from "../calendar/queries";
+import { addDays, summarizeToday, todayStart } from "../calendar/utils";
 import { dfs } from "../cards/editorContentUtils";
 
 /** 日记动态标题：取正文开头的纯文本（首页最近动态单行展示，仅前几条调用） */
@@ -65,10 +68,12 @@ type HomeDashboardProps = {
   todoEnabled: boolean;
   diaryEnabled: boolean;
   pomodoroEnabled: boolean;
+  calendarEnabled: boolean;
   onOpenSearch: () => void;
   onOpenCards: () => void;
   onOpenTodo: () => void;
   onOpenPomodoro: () => void;
+  onOpenCalendar: () => void;
   /** dueCount>0 直达全库复习，否则进闪卡首页（由 HomeScreen 决定跳转目标） */
   onOpenFlashcards: (dueCount: number) => void;
   onOpenDiary: () => void;
@@ -102,6 +107,21 @@ export function HomeDashboard(props: HomeDashboardProps) {
   const homeStats = homeStatsQuery.data ?? null;
   const pomodoroSummaryQuery = usePomodoroTodaySummary(props.pomodoroEnabled);
   const pomodoroSummary = pomodoroSummaryQuery.data ?? null;
+  // 今日日程：Bento 卡展示事件数 + 下一件日程摘要。「今天」每次渲染重算，
+  // 跨午夜后 queryKey 变化自动重新查询（不缓存首挂载当天的边界）
+  const todayStartMs = todayStart();
+  // 与主页可见性语义一致：按库内 visible 过滤（chips 的会话级过滤不联动首页卡）
+  const { data: todaysCalendars = null } = useCalendars();
+  const visibleCalendarIds =
+    todaysCalendars?.filter(calendar => calendar.visible).map(calendar => calendar.id) ?? null;
+  const calendarTodayQuery = useCalendarEventsByRange({
+    startDate: todayStartMs,
+    endDate: addDays(todayStartMs, 1) - 1,
+    calendarIds: visibleCalendarIds ?? [],
+    // 日历列表未加载完成前不发查询；空 ids 表示不显示任何日历。
+    enabled: props.calendarEnabled && visibleCalendarIds !== null,
+  });
+  const calendarToday = calendarTodayQuery.data;
 
   const todoStats = useMemo(() => {
     if (!props.todoEnabled) return null;
@@ -376,6 +396,39 @@ export function HomeDashboard(props: HomeDashboardProps) {
                     : "今天还没有专注，开始一次？"
                   : "加载中"}
               </span>
+            </span>
+          </button>
+        ) : null}
+
+        {props.calendarEnabled ? (
+          <button
+            type="button"
+            onClick={props.onOpenCalendar}
+            className={`${BENTO_CARD_CLASS} col-span-2 flex items-center gap-[15px]`}
+            style={{
+              animationDelay: "0.08s",
+              background: "linear-gradient(135deg, var(--sky-soft), var(--bg-surface))",
+            }}
+          >
+            <CalendarCheck
+              size={28}
+              weight="duotone"
+              className="text-sky flex-none"
+              aria-hidden="true"
+            />
+            <span className="min-w-0 flex-1 text-left">
+              <span className="text-ink block text-[14.5px] font-bold">今日日程</span>
+              <span className="text-ink-2 mt-0.5 block text-[12px]">
+                {calendarTodayQuery.isLoading
+                  ? "加载中"
+                  : summarizeToday(calendarToday ?? []).headline}
+              </span>
+            </span>
+            <span className="flex shrink-0 items-baseline gap-[3px]">
+              <span className="text-sky text-[34px] font-extrabold tabular-nums leading-none">
+                {calendarTodayQuery.isLoading ? "…" : (calendarToday?.length ?? 0)}
+              </span>
+              <span className="text-ink-3 text-base font-bold">件</span>
             </span>
           </button>
         ) : null}

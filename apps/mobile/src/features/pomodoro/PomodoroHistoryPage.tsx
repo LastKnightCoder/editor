@@ -47,19 +47,39 @@ function formatTimeOfDay(ts: number): string {
   return `${two(date.getHours())}:${two(date.getMinutes())}`;
 }
 
+/** 目标日相对「本周」的周偏移：历史日期为负数，供聚焦模式下定位周视图 */
+function weekOffsetOf(dayStart: number, now = new Date()): number {
+  return Math.round((dayStart - startOfWeek(0, now)) / (7 * DAY_MS));
+}
+
 type PomodoroHistoryPageProps = {
   onBack: () => void;
   onError: (error: unknown, fallback: string) => void;
+  /** 聚焦日（本地 00:00）：从某天日程详情进入时只看该日记录，null 为整周浏览 */
+  focusDay?: number | null;
 };
 
-export function PomodoroHistoryPage({ onBack, onError }: PomodoroHistoryPageProps) {
+export function PomodoroHistoryPage({
+  onBack,
+  onError,
+  focusDay = null,
+}: PomodoroHistoryPageProps) {
   const listScrollRef = useRef<HTMLDivElement>(null);
   useEdgeFade(listScrollRef);
 
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [focusedDay, setFocusedDay] = useState<number | null>(focusDay);
+  const [weekOffset, setWeekOffset] = useState(() =>
+    focusDay === null ? 0 : weekOffsetOf(focusDay)
+  );
   const today = useMemo(() => startOfDay(new Date()), []);
   const weekStart = useMemo(() => startOfWeek(weekOffset), [weekOffset]);
   const weekEnd = weekStart + 7 * DAY_MS - 1;
+
+  // 手动翻周即回到整周浏览：聚焦日只属于它自己那一周
+  const changeWeek = (delta: number) => {
+    setFocusedDay(null);
+    setWeekOffset(value => Math.min(0, value + delta));
+  };
 
   const presetsQuery = usePomodoroPresets();
   const presets = presetsQuery.data ?? [];
@@ -89,6 +109,10 @@ export function PomodoroHistoryPage({ onBack, onError }: PomodoroHistoryPageProp
     }
     return groups.sort((a, b) => b.dayStart - a.dayStart);
   }, [sessions]);
+  const visibleGroups = useMemo(
+    () => (focusedDay === null ? grouped : grouped.filter(group => group.dayStart === focusedDay)),
+    [grouped, focusedDay]
+  );
 
   const moreItems = (session: PomodoroSession): ActionSheetItem[] => [
     {
@@ -140,13 +164,28 @@ export function PomodoroHistoryPage({ onBack, onError }: PomodoroHistoryPageProp
           ref={listScrollRef}
           className="edge-fade-scroll flex-1 overflow-y-auto overscroll-contain"
         >
+          {focusedDay !== null ? (
+            <div className="bg-accent-soft mx-[18px] mt-3 flex items-center gap-2 rounded-[16px] px-4 py-3">
+              <span className="text-accent min-w-0 flex-1 text-[12.5px] font-extrabold">
+                只看「{formatDayLabel(focusedDay, today)}」的专注记录
+              </span>
+              <button
+                type="button"
+                onClick={() => setFocusedDay(null)}
+                className="text-accent flex-none text-[12px] font-extrabold underline"
+              >
+                查看整周
+              </button>
+            </div>
+          ) : null}
+
           {/* 周条形图 */}
           <section className="rounded-card bg-surface shadow-card mx-[18px] mt-3 p-4">
             <div className="mb-3 flex items-center">
               <button
                 type="button"
                 aria-label="上一周"
-                onClick={() => setWeekOffset(value => value - 1)}
+                onClick={() => changeWeek(-1)}
                 className="text-ink-3 active:bg-ghost-press grid h-8 w-8 place-items-center rounded-full"
               >
                 <ChevronLeft size={17} />
@@ -163,7 +202,7 @@ export function PomodoroHistoryPage({ onBack, onError }: PomodoroHistoryPageProp
                 type="button"
                 aria-label="下一周"
                 disabled={weekOffset >= 0}
-                onClick={() => setWeekOffset(value => Math.min(0, value + 1))}
+                onClick={() => changeWeek(1)}
                 className={`text-ink-3 active:bg-ghost-press grid h-8 w-8 place-items-center rounded-full ${
                   weekOffset >= 0 ? "opacity-30" : ""
                 }`}
@@ -176,7 +215,10 @@ export function PomodoroHistoryPage({ onBack, onError }: PomodoroHistoryPageProp
               {WEEKDAYS.map((label, index) => {
                 const day = daily[index];
                 const focusMs = day?.focusMs ?? 0;
+                // 聚焦日优先强调：进入时焦点落在被查看的那天，而非一律今天
                 const isToday = weekOffset === 0 && index === weekdayIndex(new Date());
+                const emphasized =
+                  focusedDay === null ? isToday : weekStart + index * DAY_MS === focusedDay;
                 const height = focusMs > 0 ? Math.max(10, (focusMs / maxDayFocus) * 100) : 4;
                 return (
                   <div
@@ -191,12 +233,12 @@ export function PomodoroHistoryPage({ onBack, onError }: PomodoroHistoryPageProp
                       style={{
                         height: `${height}%`,
                         background: focusMs > 0 ? "var(--brand-grad)" : "var(--bg-input)",
-                        boxShadow: isToday && focusMs > 0 ? "var(--shadow-accent)" : undefined,
+                        boxShadow: emphasized && focusMs > 0 ? "var(--shadow-accent)" : undefined,
                       }}
                     />
                     <span
-                      className={`text-[9.5px] font-extrabold ${isToday ? "" : "text-ink-3"}`}
-                      style={isToday ? { color: "var(--brand)" } : undefined}
+                      className={`text-[9.5px] font-extrabold ${emphasized ? "" : "text-ink-3"}`}
+                      style={emphasized ? { color: "var(--brand)" } : undefined}
                     >
                       {label}
                     </span>
@@ -209,13 +251,15 @@ export function PomodoroHistoryPage({ onBack, onError }: PomodoroHistoryPageProp
           {/* 该周会话按日分组 */}
           {sessionsQuery.isLoading ? (
             <p className="text-ink-3 px-4 py-8 text-center text-sm">正在加载记录...</p>
-          ) : grouped.length === 0 ? (
+          ) : visibleGroups.length === 0 ? (
             <div className="px-4 py-10 text-center">
-              <p className="text-ink-2 text-[13px] font-semibold">这一周还没有专注记录</p>
+              <p className="text-ink-2 text-[13px] font-semibold">
+                {focusedDay !== null ? "这天还没有专注记录" : "这一周还没有专注记录"}
+              </p>
               <p className="text-ink-3 mt-1 text-[11.5px]">回番茄主页开始一次专注吧</p>
             </div>
           ) : (
-            grouped.map(group => {
+            visibleGroups.map(group => {
               const groupFocusMs = group.items.reduce((sum, s) => sum + s.focusMs, 0);
               return (
                 <section key={group.dayStart}>
