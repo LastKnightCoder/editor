@@ -66,6 +66,7 @@ fn query_max_sort_index(
 fn create_item_with_payload(
     tx: &Transaction<'_>,
     payload: &CreateTodoItemPayload,
+    time_zone: crate::database::calendar_time::CalendarTimeZone,
 ) -> Result<TodoItem, String> {
     let item_type = normalize_item_type(payload.item_type.clone());
     let sort_index = query_max_sort_index(tx, payload.group_id, payload.parent_id)? + 1024;
@@ -109,7 +110,7 @@ fn create_item_with_payload(
     )
     .map_err(|e| format_db_error("TODO_CREATE_FAILED", "insert todo item", e))?;
     let item_id = tx.last_insert_rowid();
-    todo_calendar_sync::sync_single_item(tx, item_id)?;
+    todo_calendar_sync::sync_single_item(tx, item_id, time_zone)?;
     get_item_by_id(tx, item_id)?.ok_or_else(|| "TODO_NOT_FOUND: todo item not found".to_string())
 }
 
@@ -373,12 +374,13 @@ pub fn todo_list_items_by_type(
 pub fn todo_create_item(
     app: AppHandle,
     payload: CreateTodoItemPayload,
+    time_zone: crate::database::calendar_time::CalendarTimeZone,
 ) -> Result<TodoItem, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction()
         .map_err(|e| format_db_error("TODO_CREATE_FAILED", "begin transaction", e))?;
-    let item = create_item_with_payload(&tx, &payload)?;
+    let item = create_item_with_payload(&tx, &payload, time_zone)?;
     tx.commit()
         .map_err(|e| format_db_error("TODO_CREATE_FAILED", "commit transaction", e))?;
     Ok(item)
@@ -388,6 +390,7 @@ pub fn todo_create_item(
 pub fn todo_create_item_relative(
     app: AppHandle,
     payload: CreateTodoItemRelativePayload,
+    time_zone: crate::database::calendar_time::CalendarTimeZone,
 ) -> Result<TodoItem, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
@@ -410,7 +413,7 @@ pub fn todo_create_item_relative(
         due_at: payload.due_at,
         remind_before: payload.remind_before,
     };
-    let created = create_item_with_payload(&tx, &create_payload)?;
+    let created = create_item_with_payload(&tx, &create_payload, time_zone)?;
 
     if payload.position == "above" || payload.position == "below" {
         let siblings = query_items_with_sql(
@@ -470,6 +473,7 @@ pub fn todo_create_item_relative(
 pub fn todo_update_item(
     app: AppHandle,
     payload: UpdateTodoItemPayload,
+    time_zone: crate::database::calendar_time::CalendarTimeZone,
 ) -> Result<TodoItem, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
@@ -503,7 +507,7 @@ pub fn todo_update_item(
     )
     .map_err(|e| format_db_error("TODO_UPDATE_FAILED", "update todo item", e))?;
 
-    todo_calendar_sync::sync_single_item(&tx, payload.id)?;
+    todo_calendar_sync::sync_single_item(&tx, payload.id, time_zone)?;
     let item = get_item_by_id(&tx, payload.id)?
         .ok_or_else(|| "TODO_NOT_FOUND: todo item does not exist".to_string())?;
     tx.commit()
@@ -567,7 +571,11 @@ pub fn todo_move_and_reorder(
 }
 
 #[tauri::command]
-pub fn todo_archive_item(app: AppHandle, payload: ArchiveTodoItemPayload) -> Result<i64, String> {
+pub fn todo_archive_item(
+    app: AppHandle,
+    payload: ArchiveTodoItemPayload,
+    time_zone: crate::database::calendar_time::CalendarTimeZone,
+) -> Result<i64, String> {
     let mut conn = schema::open_active_database(&app)?;
     let tx = conn
         .transaction()
@@ -585,7 +593,7 @@ pub fn todo_archive_item(app: AppHandle, payload: ArchiveTodoItemPayload) -> Res
     if payload.is_archived {
         todo_calendar_sync::remove_all_by_todo(&tx, payload.id)?;
     } else {
-        todo_calendar_sync::sync_single_item(&tx, payload.id)?;
+        todo_calendar_sync::sync_single_item(&tx, payload.id, time_zone)?;
     }
     tx.commit()
         .map_err(|e| format_db_error("TODO_ARCHIVE_FAILED", "commit transaction", e))?;

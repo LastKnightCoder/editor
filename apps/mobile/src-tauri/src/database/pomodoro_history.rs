@@ -40,6 +40,8 @@ pub fn pomodoro_list_sessions(
     Ok(sessions)
 }
 
+// 仅调整 focus_ms：会话起止时间不变，日历事件无需重建（桌面 updateSession 重建事件
+// 是因为其会同时改写 end_time，移动端无此语义）
 #[tauri::command]
 pub fn pomodoro_update_session(
     app: AppHandle,
@@ -69,12 +71,19 @@ pub fn pomodoro_delete_session(
     app: AppHandle,
     payload: DeletePomodoroSessionPayload,
 ) -> Result<i64, String> {
-    let conn = schema::open_active_database(&app)?;
-    conn.execute(
+    let mut conn = schema::open_active_database(&app)?;
+    let tx = conn
+        .transaction()
+        .map_err(|e| format_db_error("POMODORO_DELETE_FAILED", "begin transaction", e))?;
+    // 删会话同步清日历事件与映射（对齐桌面 deleteSession）
+    crate::database::calendar::delete_calendar_events_for_session(&tx, payload.session_id)?;
+    tx.execute(
         "DELETE FROM pomodoro_sessions WHERE id = ?1",
         params![payload.session_id],
     )
     .map_err(|e| format_db_error("POMODORO_DELETE_FAILED", "delete session", e))?;
+    tx.commit()
+        .map_err(|e| format_db_error("POMODORO_DELETE_FAILED", "commit delete session", e))?;
     Ok(payload.session_id)
 }
 
@@ -90,6 +99,7 @@ pub fn pomodoro_delete_sessions(
         .map_err(|e| format_db_error("POMODORO_DELETE_FAILED", "begin transaction", e))?;
     let mut total = 0i64;
     for id in &payload.session_ids {
+        crate::database::calendar::delete_calendar_events_for_session(&tx, *id)?;
         total += tx
             .execute("DELETE FROM pomodoro_sessions WHERE id = ?1", params![id])
             .map_err(|e| format_db_error("POMODORO_DELETE_FAILED", "delete sessions", e))?
