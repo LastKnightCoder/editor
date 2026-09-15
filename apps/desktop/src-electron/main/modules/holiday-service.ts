@@ -1,6 +1,8 @@
 import { Module } from "../types/module";
 import log from "electron-log";
-import http from "http";
+import https from "https";
+import type { ClientRequest } from "http";
+import { parseHolidayYearResponse } from "@tau/shared/src/utils/holidayData";
 import fs from "fs";
 import path from "path";
 import { app } from "electron";
@@ -66,15 +68,14 @@ class HolidayServiceModule implements Module {
         const content = fs.readFileSync(filePath, "utf-8");
         const cached: YearHolidayCache = JSON.parse(content);
 
-        // 检查缓存是否过期
-        const now = Date.now();
-        if (now - cached.fetchedAt < this.CACHE_DURATION) {
+        // 旧格式含 MM-DD 键或布尔值，不能作为标准化缓存继续使用。
+        if (
+          Object.entries(cached.data).every(
+            ([date, type]) => /^\d{4}-\d{2}-\d{2}$/.test(date) && [0, 1, 2, 3].includes(type)
+          )
+        ) {
           this.cache.set(cached.year, cached);
           log.info(`Loaded holiday cache for year ${cached.year}`);
-        } else {
-          // 删除过期缓存
-          fs.unlinkSync(filePath);
-          log.info(`Deleted expired holiday cache for year ${cached.year}`);
         }
       }
     } catch (error) {
@@ -100,13 +101,13 @@ class HolidayServiceModule implements Module {
    */
   private async fetchHolidayDataFromAPI(year: number): Promise<HolidayData> {
     return new Promise((resolve, reject) => {
-      const url = `http://timor.tech/api/holiday/year/${year}`;
+      const url = `https://timor.tech/api/holiday/year/${year}`;
 
-      http
-        .get(url, (res) => {
+      https
+        .get(url, res => {
           let data = "";
 
-          res.on("data", (chunk) => {
+          res.on("data", chunk => {
             data += chunk;
           });
 
@@ -115,30 +116,20 @@ class HolidayServiceModule implements Module {
               const response = JSON.parse(data);
 
               if (response.code !== 0) {
-                reject(
-                  new Error(`API error: ${response.msg || "Unknown error"}`),
-                );
+                reject(new Error(`API error: ${response.msg || "Unknown error"}`));
                 return;
               }
 
-              // 转换数据格式
-              const holidayData: HolidayData = {};
-              const holiday = response.holiday || {};
-
-              for (const [dateKey, info] of Object.entries(holiday)) {
-                const holidayInfo = info as any;
-                // API 返回的类型:
-                // 0: 工作日, 1: 周末, 2: 节假日, 3: 调休
-                holidayData[dateKey] = holidayInfo.holiday as HolidayType;
-              }
-
-              resolve(holidayData);
+              resolve(parseHolidayYearResponse(response));
             } catch (error) {
               reject(error);
             }
           });
         })
-        .on("error", (error) => {
+        .setTimeout(4000, function (this: ClientRequest) {
+          this.destroy(new Error("节假日请求超时"));
+        })
+        .on("error", error => {
           reject(error);
         });
     });
@@ -244,8 +235,8 @@ class HolidayServiceModule implements Module {
     });
 
     // 预加载所有需要的年份数据
-    const yearDataPromises = Array.from(datesByYear.keys()).map((year) =>
-      this.getYearHolidayData(year).catch(() => null),
+    const yearDataPromises = Array.from(datesByYear.keys()).map(year =>
+      this.getYearHolidayData(year).catch(() => null)
     );
 
     await Promise.all(yearDataPromises);
