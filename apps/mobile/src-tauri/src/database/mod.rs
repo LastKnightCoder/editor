@@ -13,6 +13,9 @@ use crate::setting::{
 };
 
 mod article;
+mod calendar;
+mod calendar_time;
+mod calendar_holidays;
 mod collaboration;
 mod common;
 mod diary;
@@ -33,6 +36,7 @@ mod todo;
 mod todo_calendar_sync;
 
 pub use article::*;
+pub use calendar::*;
 pub use collaboration::*;
 pub use diary::*;
 pub use document::*;

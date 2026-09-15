@@ -109,6 +109,7 @@ pub fn pomodoro_resume_session(app: AppHandle) -> Result<Option<PomodoroSession>
 pub fn pomodoro_stop_session(
     app: AppHandle,
     payload: StopPomodoroSessionPayload,
+    time_zone: crate::database::calendar_time::CalendarTimeZone,
 ) -> Result<Option<PomodoroSession>, String> {
     // 锁内取出会话，锁外落库；落库失败且槽位未被新会话占用时放回，避免误丢
     let taken = with_active(&app, |slot, _| Ok(slot.take().map(|active| active.session)))?;
@@ -145,7 +146,7 @@ pub fn pomodoro_stop_session(
     .to_string();
     session.update_time = now;
 
-    if let Err(error) = insert_finished_session(&app, &mut session) {
+    if let Err(error) = insert_finished_session(&app, &mut session, time_zone) {
         let _ = with_active(&app, |slot, db_name| {
             if slot.is_none() {
                 *slot = Some(ActivePomodoro {
@@ -160,7 +161,11 @@ pub fn pomodoro_stop_session(
     Ok(Some(session))
 }
 
-fn insert_finished_session(app: &AppHandle, session: &mut PomodoroSession) -> Result<(), String> {
+fn insert_finished_session(
+    app: &AppHandle,
+    session: &mut PomodoroSession,
+    time_zone: crate::database::calendar_time::CalendarTimeZone,
+) -> Result<(), String> {
     let mut conn = schema::open_active_database(app)?;
     let tx = conn
         .transaction()
@@ -186,6 +191,21 @@ fn insert_finished_session(app: &AppHandle, session: &mut PomodoroSession) -> Re
     )
     .map_err(|e| format_db_error("POMODORO_STOP_FAILED", "insert session", e))?;
     session.id = tx.last_insert_rowid();
+    // 会话与日历联动共同提交；失败时外层恢复活动会话，用户可以重试。
+    let preset_name = query_preset_by_id(&tx, session.preset_id)
+        .ok()
+        .flatten()
+        .map(|preset| preset.name)
+        .unwrap_or_else(|| "未知".to_string());
+    let session_end = session.end_time.unwrap_or(session.start_time);
+    crate::database::calendar::create_calendar_events_for_session(
+        &tx,
+        session.id,
+        &preset_name,
+        session.start_time,
+        session_end,
+        time_zone,
+    )?;
     tx.commit()
         .map_err(|e| format_db_error("POMODORO_STOP_FAILED", "commit session", e))?;
     Ok(())
