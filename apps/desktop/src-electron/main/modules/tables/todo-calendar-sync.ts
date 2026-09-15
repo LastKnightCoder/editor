@@ -44,9 +44,7 @@ export default class TodoCalendarSyncTable {
     try {
       const cleanedCount = this.cleanupOrphanedEvents(db);
       if (cleanedCount > 0) {
-        console.log(
-          `[TodoCalendarSync] 清理了 ${cleanedCount} 个孤立的日历事件`,
-        );
+        console.log(`[TodoCalendarSync] 清理了 ${cleanedCount} 个孤立的日历事件`);
       }
     } catch (e) {
       console.error("[TodoCalendarSync] 清理孤立事件失败:", e);
@@ -67,7 +65,7 @@ export default class TodoCalendarSyncTable {
     const systemGroup = CalendarGroupTable.getSystemGroup(db);
 
     // 首先查找名为"待办清单"的分组
-    group = existingGroups.find((g) => g.name === TODO_CALENDAR_GROUP_NAME);
+    group = existingGroups.find(g => g.name === TODO_CALENDAR_GROUP_NAME);
 
     if (!group) {
       // 不存在，创建新的子分组（parent为系统分组）
@@ -110,14 +108,12 @@ export default class TodoCalendarSyncTable {
 
         if (setClauses.length > 0) {
           params.push(group.id);
-          db.prepare(
-            `UPDATE calendar_group SET ${setClauses.join(", ")} WHERE id = ?`,
-          ).run(...params);
+          db.prepare(`UPDATE calendar_group SET ${setClauses.join(", ")} WHERE id = ?`).run(
+            ...params
+          );
           // 重新获取更新后的分组
           group = CalendarGroupTable.getGroupById(db, group.id);
-          console.log(
-            "Updated todo calendar group to be a child of system group",
-          );
+          console.log("Updated todo calendar group to be a child of system group");
         }
       }
     }
@@ -127,9 +123,7 @@ export default class TodoCalendarSyncTable {
     const allCalendars = CalendarTable.getAllCalendars(db);
 
     for (const config of TODO_CALENDARS) {
-      let calendar = allCalendars.find(
-        (c) => c.groupId === group!.id && c.title === config.title,
-      );
+      let calendar = allCalendars.find(c => c.groupId === group!.id && c.title === config.title);
 
       if (!calendar) {
         calendar = CalendarTable.createCalendar(db, {
@@ -157,10 +151,7 @@ export default class TodoCalendarSyncTable {
   }
 
   // 根据任务类型获取对应的日历 ID
-  static getCalendarIdForType(
-    db: Database.Database,
-    type: TodoItemType,
-  ): number | null {
+  static getCalendarIdForType(db: Database.Database, type: TodoItemType): number | null {
     if (type === "normal") return null; // 普通任务不同步到日历
 
     const calendars = this.ensureTodoCalendars(db);
@@ -179,7 +170,7 @@ export default class TodoCalendarSyncTable {
   // 同步待办项到日历
   static syncTodoItem(
     db: Database.Database,
-    params: { todoItem: TodoItem; recurrenceDate?: number },
+    params: { todoItem: TodoItem; recurrenceDate?: number }
   ): number | null {
     const { todoItem, recurrenceDate } = params;
 
@@ -192,13 +183,10 @@ export default class TodoCalendarSyncTable {
     if (!calendarId) return null;
 
     // 查找现有映射
-    const existingMapping = TodoCalendarMappingTable.getMappingByTodoAndDate(
-      db,
-      {
-        todoItemId: todoItem.id,
-        recurrenceDate,
-      },
-    );
+    const existingMapping = TodoCalendarMappingTable.getMappingByTodoAndDate(db, {
+      todoItemId: todoItem.id,
+      recurrenceDate,
+    });
 
     // 准备事件数据
     const eventData = this.buildEventData(todoItem, calendarId, recurrenceDate);
@@ -248,7 +236,7 @@ export default class TodoCalendarSyncTable {
   private static buildEventData(
     todoItem: TodoItem,
     calendarId: number,
-    recurrenceDate?: number,
+    recurrenceDate?: number
   ): CreateCalendarEvent | null {
     let startDate: number;
     let endDate: number | null = null;
@@ -329,10 +317,7 @@ export default class TodoCalendarSyncTable {
   }
 
   // 从时间戳构建完整日期时间
-  private static buildTimestamp(
-    datePart: number,
-    timePart: number | null,
-  ): number {
+  private static buildTimestamp(datePart: number, timePart: number | null): number {
     const date = new Date(datePart);
     if (timePart !== null) {
       date.setHours(Math.floor(timePart / 60), timePart % 60, 0, 0);
@@ -343,7 +328,7 @@ export default class TodoCalendarSyncTable {
   // 删除待办项的日历事件
   static removeTodoItem(
     db: Database.Database,
-    params: { todoItemId: number; recurrenceDate?: number },
+    params: { todoItemId: number; recurrenceDate?: number }
   ): number {
     const { todoItemId, recurrenceDate } = params;
 
@@ -384,7 +369,7 @@ export default class TodoCalendarSyncTable {
   // 从日历事件反向同步到待办（当用户在日历上修改事件时调用）
   static syncFromCalendarEvent(
     db: Database.Database,
-    params: { calendarEventId: number },
+    params: { calendarEventId: number }
   ): boolean {
     const { calendarEventId } = params;
 
@@ -425,17 +410,9 @@ export default class TodoCalendarSyncTable {
 
       case "planned": {
         const startAt = this.buildTimestamp(event.startDate, event.startTime);
-        const endAt = event.endDate
-          ? this.buildTimestamp(event.endDate, event.endTime)
-          : null;
+        const endAt = event.endDate ? this.buildTimestamp(event.endDate, event.endTime) : null;
         updateSql = `UPDATE todo_item SET title = ?, start_at = ?, due_at = ?, update_time = ? WHERE id = ?`;
-        updateParams.push(
-          event.title,
-          startAt,
-          endAt || startAt,
-          now,
-          mapping.todoItemId,
-        );
+        updateParams.push(event.title, startAt, endAt || startAt, now, mapping.todoItemId);
         break;
       }
 
@@ -457,7 +434,7 @@ export default class TodoCalendarSyncTable {
   // 批量同步周期任务到日历（用于显示日历视图时）
   static async syncRecurringTasksForRange(
     db: Database.Database,
-    params: { todoItemId: number; startDate: number; endDate: number },
+    params: { todoItemId: number; startDate: number; endDate: number }
   ): Promise<number[]> {
     const { todoItemId, startDate, endDate } = params;
 
@@ -475,7 +452,7 @@ export default class TodoCalendarSyncTable {
           c.content as content_content
         FROM todo_item ti
         LEFT JOIN contents c ON ti.description_content_id = c.id
-        WHERE ti.id = ?`,
+        WHERE ti.id = ?`
       )
       .get(todoItemId) as any;
 
@@ -507,6 +484,7 @@ export default class TodoCalendarSyncTable {
         const dates: number[] = [];
         const current = new Date(startDate);
         current.setHours(0, 0, 0, 0);
+        current.setDate(current.getDate() - 365);
         const end = new Date(endDate);
         end.setHours(0, 0, 0, 0);
 
@@ -537,7 +515,7 @@ export default class TodoCalendarSyncTable {
       recurrence,
       startDate,
       endDate,
-      holidays,
+      holidays
     );
 
     const eventIds: number[] = [];
@@ -559,11 +537,7 @@ export default class TodoCalendarSyncTable {
   // 清理孤立的日历事件（待办任务已删除但日历事件仍存在）
   static cleanupOrphanedEvents(db: Database.Database): number {
     const calendars = this.getTodoCalendars(db);
-    const todoCalendarIds = [
-      calendars.deadline,
-      calendars.planned,
-      calendars.recurring,
-    ];
+    const todoCalendarIds = [calendars.deadline, calendars.planned, calendars.recurring];
 
     let cleanedCount = 0;
 
@@ -575,7 +549,7 @@ export default class TodoCalendarSyncTable {
         FROM todo_calendar_mapping tcm
         LEFT JOIN todo_item ti ON tcm.todo_item_id = ti.id
         WHERE ti.id IS NULL
-      `,
+      `
       )
       .all() as Array<{ mapping_id: number; calendar_event_id: number }>;
 
@@ -600,7 +574,7 @@ export default class TodoCalendarSyncTable {
           LEFT JOIN todo_calendar_mapping tcm ON e.id = tcm.calendar_event_id
           WHERE e.calendar_id IN (${placeholders})
             AND tcm.id IS NULL
-        `,
+        `
         )
         .all(...todoCalendarIds) as Array<{
         id: number;
