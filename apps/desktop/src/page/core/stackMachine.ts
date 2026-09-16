@@ -8,10 +8,10 @@
  * 桌面不做的：window.history 同步（无系统返回键约束，栈机即唯一真相源）。
  */
 
-export interface SurfaceEntry {
+export interface PageEntry {
   /** 实例 id（key-时间戳-随机） */
   id: string;
-  /** surface key（对应 defineSurface 的 key） */
+  /** page key（对应 definePage 的 key） */
   key: string;
   params: Record<string, unknown>;
   createdAt: number;
@@ -20,14 +20,14 @@ export interface SurfaceEntry {
 
 export interface StackMachineState {
   /** 后退栈（末位为当前） */
-  back: SurfaceEntry[];
+  back: PageEntry[];
   /** 前进缓冲（末位为最近弹出；forward 时弹出压回 back） */
-  forward: SurfaceEntry[];
+  forward: PageEntry[];
 }
 
-export const MAX_LIVE_SURFACES = 12;
+export const MAX_LIVE_PAGES = 12;
 
-export function createEntry(key: string, params: Record<string, unknown>): SurfaceEntry {
+export function createEntry(key: string, params: Record<string, unknown>): PageEntry {
   const now = Date.now();
   return {
     id: `${key}-${now}-${Math.random().toString(36).slice(2, 8)}`,
@@ -75,7 +75,7 @@ export function replace(
  */
 export function activateExisting(
   state: StackMachineState,
-  predicate: (entry: SurfaceEntry) => boolean,
+  predicate: (entry: PageEntry) => boolean,
   params: Record<string, unknown>
 ): StackMachineState | null {
   const index = state.back.findIndex(predicate);
@@ -127,7 +127,7 @@ export function popToTop(state: StackMachineState): StackMachineState {
   return { back: touchAll([state.back[0]]), forward: [] };
 }
 
-export function current(state: StackMachineState): SurfaceEntry | undefined {
+export function current(state: StackMachineState): PageEntry | undefined {
   return state.back[state.back.length - 1];
 }
 
@@ -140,7 +140,7 @@ export function canForward(state: StackMachineState): boolean {
 }
 
 /** LRU 候选：保活实例超出上限时应卸载的（非当前）条目，按最久未访问优先。 */
-export function lruEvict(state: StackMachineState, limit = MAX_LIVE_SURFACES): SurfaceEntry[] {
+export function lruEvict(state: StackMachineState, limit = MAX_LIVE_PAGES): PageEntry[] {
   if (state.back.length <= limit) return [];
   const rest = state.back
     .slice(0, -1)
@@ -149,7 +149,7 @@ export function lruEvict(state: StackMachineState, limit = MAX_LIVE_SURFACES): S
   return rest.slice(0, state.back.length - limit);
 }
 
-function touchAll(back: SurfaceEntry[]): SurfaceEntry[] {
+function touchAll(back: PageEntry[]): PageEntry[] {
   const now = Date.now();
   const top = back[back.length - 1];
   return back.map(e => (e === top ? { ...e, lastActiveAt: now } : e));

@@ -4,7 +4,7 @@
  * 热力图（直接复用旧 CalendarHeatmap）→ 统计四卡（sparkline）。
  *
  * 模块分工：专注 = 番茄钟（openPomodoroWindow 独立窗口 / pomodoro 命令）；
- * 日程 = calendar 命令 + schedule surface。两者独立，勿混用。
+ * 日程 = calendar 命令 + schedule page。两者独立，勿混用。
  *
  * 容器查询响应式（@container 在根、@max-[…] 断点在行容器）：1400/1180/860 三档。
  */
@@ -13,7 +13,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import { ChevronRight } from "lucide-react";
 import { openPomodoroWindow } from "@/commands";
-import { useSurface } from "@/surface/SurfaceProvider";
+import { usePage } from "@/page/PageProvider";
 import { useEdgeFade } from "@/hooks/useEdgeFade";
 import { EmptyNote, Panel, PanelNote, PanelTitle } from "@/ui/primitives/Panel";
 import { useHomeSnapshot, minutesToHM } from "../queries";
@@ -54,7 +54,7 @@ function ActLink({ className, ...props }: React.ComponentProps<"button">) {
 
 export function HomeView() {
   const { data, loading } = useHomeSnapshot();
-  const { navigator } = useSurface();
+  const { navigator } = usePage();
   // callback ref（非 useRef）：loading 早退分支下滚动容器晚于首帧挂载，
   // 经 state 触发 useEdgeFade 在挂载后重新接线
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);

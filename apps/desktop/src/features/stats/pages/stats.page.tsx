@@ -1,13 +1,12 @@
 /**
- * 统计页 surface 定义。
+ * 统计页 page 定义。
  */
 
-import { defineSurface } from "@/surface/defineSurface";
+import { definePage } from "@/page/definePage";
 import { StatsView } from "../views/StatsView";
 
-export default defineSurface({
+export default definePage({
   key: "stats",
-  kind: "page",
   match: "single",
   label: "统计",
   status: "new",

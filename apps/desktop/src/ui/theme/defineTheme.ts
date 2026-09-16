@@ -1,7 +1,7 @@
 /**
  * defineTheme 协议 —— 一个文件声明一个主题的全部。
  *
- * 与 defineSurface 同构的声明式协议（设计见 docs/redesign/02-UI设计系统规范.md §2.2）：
+ * 与 definePage 同构的声明式协议（设计见 docs/redesign/02-UI设计系统规范.md §2.2）：
  *  - 一个主题 = key/mode/palette/tokens 映射函数/名字；
  *  - tokens() 返回值被约束为全键 SemanticTokens，漏键 = 编译错误（杜绝补丁式主题）；
  *  - 派生逻辑（accent hover/soft 等）写在映射函数里，显式可读，不藏在 CSS calc 中；
