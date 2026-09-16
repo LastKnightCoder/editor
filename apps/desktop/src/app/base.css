@@ -5,6 +5,12 @@
  * 不在此重复。.app 前缀保证不波及 /legacy 页面。
  */
 
+/* 文档根背景：随 data-theme 级联，深色用户启动/刷新不闪白；fallback 为默认主题底色
+ * （/legacy 覆写 data-theme 为 light/dark 时块失配，回退暖纸底） */
+html {
+  background: var(--tau-bg-page, #f3eee2);
+}
+
 .app button {
   cursor: pointer;
 }

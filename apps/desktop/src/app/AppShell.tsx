@@ -14,7 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { SurfaceProvider, useSurface } from "@/surface/SurfaceProvider";
 import { PageHost } from "@/surface/PageHost";
-import { initTheme } from "@/ui/theme/theme";
+import { initThemeRuntime } from "@/ui/theme/themeStore";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
 import { useShellStore, SIDEBAR_MIN_W, SIDEBAR_MAX_W } from "./shellStore";
@@ -43,7 +43,7 @@ export default function AppShell() {
   }, []);
 
   useEffect(() => {
-    initTheme();
+    initThemeRuntime();
     connect();
   }, [connect]);
 

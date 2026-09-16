@@ -3,12 +3,14 @@
  */
 
 import { useEffect } from "react";
-import { ArrowLeft, ArrowRight, Search } from "lucide-react";
+import { ArrowLeft, ArrowRight, Monitor, Moon, Search, Sun } from "lucide-react";
 import { isWinOrLinux } from "@/platform";
 import { useSurface } from "@/surface/SurfaceProvider";
 import { getSurfaceMeta } from "@/surface/core/surfaceMeta";
 import { isEditableTarget } from "@/surface/dom";
 import { IconButton } from "@/ui/primitives/IconButton";
+import { getTheme } from "@/ui/theme/defineTheme";
+import { nextMode, useThemeStore } from "@/ui/theme/themeStore";
 import { WindowControls } from "./WindowControls";
 
 export function Titlebar() {
@@ -71,8 +73,32 @@ export function Titlebar() {
           Ctrl K
         </kbd>
       </button>
+      {/* 主题切换：浅色 → 深色 → 跟随系统 循环（完整外观设置在 M5 设置中心） */}
+      <ThemeToggle />
       {/* Windows/Linux 三键（Mac：系统红绿灯，占位见 Sidebar）；拖拽区行为见 header 类 */}
       <div className="app-region-no-drag">{isWinOrLinux && <WindowControls />}</div>
     </header>
+  );
+}
+
+/** 快捷主题切换：icon 反映当前模式，点击按 浅色 → 深色 → 跟随系统 循环。 */
+function ThemeToggle() {
+  const mode = useThemeStore(s => s.mode);
+  const resolved = useThemeStore(s => s.resolved);
+  const setMode = useThemeStore(s => s.setMode);
+
+  const label = mode === "system" ? "跟随系统" : (getTheme(mode)?.name ?? mode);
+  const Icon = mode === "system" ? Monitor : getTheme(resolved)?.mode === "dark" ? Moon : Sun;
+
+  return (
+    <div className="app-region-no-drag">
+      <IconButton
+        onClick={() => setMode(nextMode(mode))}
+        title={`主题：${label}（点击切换）`}
+        aria-label={`切换主题，当前：${label}`}
+      >
+        <Icon size={17} strokeWidth={1.75} />
+      </IconButton>
+    </div>
   );
 }
