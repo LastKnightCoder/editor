@@ -10,6 +10,7 @@ import { isMac } from "@/platform";
 import { usePage } from "@/page/PageProvider";
 import { useEdgeFade } from "@/hooks/useEdgeFade";
 import { IconButton } from "@/ui/primitives/IconButton";
+import logo from "@/assets/logo.png";
 import { useShellStore } from "./shellStore";
 import { NAV_FOOTER, NAV_SECTIONS, type NavItem } from "./navigation";
 
@@ -53,9 +54,14 @@ export function Sidebar() {
         )}
         {!collapsed && (
           <span className="flex items-center gap-2">
-            <span className="rounded-tau-sm text-ink-inverse grid size-6 place-items-center bg-[linear-gradient(145deg,var(--tau-accent-hover),var(--tau-accent))] text-[13px] font-semibold">
-              τ
-            </span>
+            {/* 应用图标（build/icon.png 同源，自带圆角与米白底，勿再加底色）。
+                主题融合：浅色 multiply 让白底与纸色相乘消隐；深色压暗为柔和浅灰牌 */}
+            <img
+              src={logo}
+              alt="Tau"
+              className="size-6 shrink-0 select-none mix-blend-multiply dark:mix-blend-normal dark:brightness-[0.85]"
+              draggable={false}
+            />
             <span className="text-tau-body-lg font-semibold">Tau</span>
           </span>
         )}
