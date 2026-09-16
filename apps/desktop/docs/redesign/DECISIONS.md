@@ -92,6 +92,14 @@
 - 推翻：03 指南 §4"组件 className 与模板类名 1:1 / 禁手改 shell.css / 先改模板再导出"；shell.css 约 90 个无消费者的预置模板类（palette-\*/card-\*/detail-\*/btn-\* 等）直接删除，将来做对应页面时用 Tailwind 语义类重写。
 - 影响：AGENTS.md「UI 与主题」、03 指南 §2/§3/§4、02 规范 §3/§5.4、redesign/README 同步更新；tokenContract 语义词（bg-surface/bg-hover 等）全局唯一归属 `--tau-*`（tailwind.css 旧手写同名类删除，经核实零有效消费者）。
 
+## D-015 深色主题 cocoa + 模式运行时照搬移动端 themeStore `已定（2026-09-16）`
+
+- 背景：主题体系仅有 cream（浅色），无深色主题、无切换入口；`theme.ts` 的 `initTheme()` 硬编码 cream，会覆盖 index.html 预置的 localStorage 值（现存 bug）；parity 测试硬编码 cream 无法守护新主题。
+- 选择：① 深色主题 `cocoa`「暖纸·夜」——延续 cream 暖调基因（深可可纸底/奶油墨/陶土橙提亮），层级与浅色对称翻转（surface 最亮、sunken 最暗），不采纳中性冷灰方向（PREFERENCES.md 暖纸偏好）；② 模式模型照搬移动端：`mode: 主题 key | "system"` + resolved 派生 + prefers-color-scheme 仅 system 跟随 + localStorage 持久化；③ 入口 = Titlebar 循环按钮（浅→深→跟随系统，icon 反映当前态），完整外观设置留 M5 设置中心；④ 持久化走 localStorage（首帧防闪内联脚本必须同步读；跨端同步后续需要再桥 setting.json，不启用闲置的 settingCommands）。
+- 连带修复：`initTheme()` 硬编码移除（AppShell 挂载改调 `initThemeRuntime()`，幂等应用 resolved，可恢复 /legacy 往返时 useSyncTheme 对 data-theme 的覆写）；`theme-parity.test.ts` 泛化为遍历注册表全主题 + 新增 02 §2.5 对比度指标的 WCAG 断言；cream 三处取值微调达 AA（accentLight 55→42、accent-text→#a05236、ink-2→#736552；原值 accent 实底对 ink-inverse 仅 ~3:1、ink-2 对 bg-page ~4.4:1）——**对比度硬指标优先于 mockups 原取值**；深色首帧防闪白补 `base.css` 的 `html { background: var(--tau-bg-page, …) }`。
+- 手工同步点（codegen 统一前）：新增主题需同步 `themeStore.ts` 的 ThemeMode 联合、`index.html` 首帧脚本白名单、`theme.ts` 默认 key 常量。
+- 影响：03 指南 §1/§2/§3、02 规范 §2.4 已同步；AGENTS.md「UI 与主题」补模式切换约定。
+
 ---
 
 ## Surface 迁移清单（M2 起滚动勾选）

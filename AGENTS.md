@@ -290,7 +290,8 @@ pnpm add -D
 - 样式载体 Tailwind 优先（D-013）：颜色只允许消费 `--tau-*` 变量或 Tailwind 语义类（`bg-page` / `text-ink-1` / `bg-accent-soft`…）；尺度用 tau 命名空间词（`text-tau-*` / `rounded-tau-*` / `shadow-card` / `ease-tau-out`，词表见 02 规范 §3/§4）。禁止裸色值、内联十六进制、antd token。新增 token 词汇必须先进 `ui/theme/tokenContract.ts`。
 - 新代码禁止新增 `antd`、`@ant-design/icons` import（存量白名单只减不增，M5 移除依赖）；禁止新增 CSS Modules / less；手写 CSS 仅限四类白名单（`app/base.css` 的 .app 作用域 reset、keyframes、主题数据块、复杂伪元素，见 03 指南 §4）。
 - 跨域复用的视觉模式收口 `ui/primitives/` 组件（Panel/IconButton…，组件内写 Tailwind），不要在多个域重复同一段类串。
-- 新主题用 `defineTheme` 声明（tokens 全键强制），且必须同步在 `tokens.css` 补 `[data-theme="<key>"]` 数据块——`theme-parity.test.ts` 守护二者一致，codegen 落地后改为生成。
+- 新主题用 `defineTheme` 声明（tokens 全键强制），且必须同步在 `tokens.css` 补 `[data-theme="<key>"]` 数据块——`theme-parity.test.ts` 守护二者一致（含 AA 对比度断言），codegen 落地后改为生成。
+- 主题模式（浅色/深色/跟随系统）统一走 `ui/theme/themeStore.ts`（mode 持久化 + system 跟随，入口在 Titlebar），业务代码禁止自行操作 `data-theme`；新增主题需同步 themeStore 的 ThemeMode 联合与 `index.html` 首帧脚本白名单（D-015）。
 - mockups HTML（direction-a-soft / home-final）是视觉参考（对照截图用），不是导出源；调视觉直接改组件 Tailwind 类。
 - 侧边栏条目只改 `app/navigation.ts`，禁止在 Sidebar/Titlebar 硬编码。
 
