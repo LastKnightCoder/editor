@@ -1,6 +1,6 @@
 /**
  * 侧边栏 —— 模块条目来自 navigation.ts（数据驱动），样式 Tailwind 优先（D-013）。
- * 收起态由 shellStore 驱动条件类；Mac 红绿灯占位由 isMac 条件渲染。
+ * 收起态由 shellStore 驱动条件类；拖宽时由 AppShell 传 resizing 关宽度过渡；Mac 红绿灯占位由 isMac 条件渲染。
  */
 
 import { useState } from "react";
@@ -14,7 +14,7 @@ import logo from "@/assets/logo.png";
 import { useShellStore } from "./shellStore";
 import { NAV_FOOTER, NAV_SECTIONS, type NavItem } from "./navigation";
 
-export function Sidebar() {
+export function Sidebar({ resizing }: { resizing: boolean }) {
   const { navigator, state } = usePage();
   const collapsed = useShellStore(s => s.sidebarCollapsed);
   const toggle = useShellStore(s => s.toggleSidebar);
@@ -32,6 +32,8 @@ export function Sidebar() {
       aria-label="主导航"
       className={clsx(
         "ease-tau-out flex flex-col px-2.5 pb-3 transition-[width] duration-[220ms]",
+        // 拖宽时宽度需逐帧跟随鼠标，关过渡避免 220ms 缓动滞后
+        resizing && "transition-none",
         collapsed ? "w-[var(--tau-sidebar-w-collapsed)]" : "w-[var(--tau-sidebar-w)]"
       )}
     >
@@ -182,8 +184,9 @@ function NavItemButton({
       onClick={onClick}
       title={item.label}
     >
-      <ItemIcon size={17} strokeWidth={1.75} />
-      {!collapsed && <span>{item.label}</span>}
+      <ItemIcon className="shrink-0" size={17} strokeWidth={1.75} />
+      {/* 窄态（最小 120px）下长标签溢出省略，悬停 title 可见全名 */}
+      {!collapsed && <span className="min-w-0 truncate">{item.label}</span>}
     </button>
   );
 }
