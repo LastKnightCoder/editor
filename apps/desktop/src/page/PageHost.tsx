@@ -32,8 +32,10 @@ export function PageHost({ state }: { state: sm.StackMachineState }) {
             data-page-key={entry.key}
             data-page-id={entry.id}
             aria-hidden={isActive ? undefined : true}
+            // 高度链：h-full 让视图根的 h-full 生效（Loading 居中/视图内滚动/edge fade 都依赖）。
             // 非激活空壳不占布局：视图自带内部滚动时包装 div 会有显式高度，
             // 保活实例若留在流中会把 .content 撑出多余的滚动空间
+            className={isActive ? "h-full" : undefined}
             style={isActive ? undefined : { display: "none" }}
           >
             <Activity mode={isActive ? "visible" : "hidden"}>
