@@ -5,6 +5,10 @@
  * status 标注迁移进度（蓝图 §5.1），legacy 模块点击后由 LegacyPendingPage 过渡展示。
  * 修改本文件即修改侧边栏——不要在 Sidebar 组件里硬编码条目。
  *
+ * 分组对齐老版侧边栏全部一级入口（旧 SidebarNavItems 共 20 项，PDF/索引库并入知识库；
+ * VibeLearning 学习项目无独立入口，由「项目」详情承载，不设侧边栏条目）。
+ * 域归属走向见蓝图 §5.3（PDF/索引库并入 library，番茄钟/时间记录归 schedule 域）。
+ *
  * 图标：lucide-react（线性单色）；多色图标用 react-icons（桌面已有依赖）。
  */
 
@@ -16,13 +20,18 @@ import {
   BookOpen,
   Presentation,
   PenLine,
-  GraduationCap,
   Repeat,
   Calendar,
+  ListTodo,
+  Timer,
+  CircleHelp,
   Inbox,
   Folder,
+  FolderKanban,
   BarChart3,
   MessageCircle,
+  Sparkles,
+  Users,
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
@@ -42,32 +51,47 @@ export interface NavSection {
 
 export const NAV_SECTIONS: NavSection[] = [
   {
+    // 今日的 hero 与行动三卡（专注/待办/日程）即此组的工作流闭环；协作是多人实时会话，属日常工作流
     label: "工作台",
-    items: [{ key: "home", label: "今日", icon: Flame }],
+    items: [
+      { key: "home", label: "今日", icon: Flame },
+      { key: "schedule", label: "日程", icon: Calendar }, // legacy: Calendar + TimeRecordView
+      { key: "todos", label: "待办", icon: ListTodo }, // legacy: Todo（蓝图 §5.3 未裁决归属，M1 映射时定是否并入 schedule）
+      { key: "pomodoro", label: "番茄专注", icon: Timer }, // legacy: Pomodoro（域归 schedule，独立小窗口保留，蓝图 §5.3）
+      { key: "collaboration", label: "协作", icon: Users }, // legacy: CollaborationView（实时协作会话）
+    ],
   },
   {
     label: "知识",
     items: [
       { key: "cards", label: "卡片库", icon: Layers }, // legacy: card-list-view
       { key: "articles", label: "文章", icon: FileText }, // legacy: ArticleListView
-      { key: "library", label: "知识库", icon: Book }, // legacy: DocumentsView + PdfView + VecDocumentView（合并目标）
-      { key: "whiteboard", label: "白板", icon: Presentation }, // legacy: WhiteBoardView
       { key: "diary", label: "日记", icon: PenLine }, // legacy: DiaryView（TabType.DailyNote）
+      { key: "library", label: "知识库", icon: Book }, // legacy: DocumentsView + PdfView + VecDocumentView（合并目标，蓝图 §5.3）
+      { key: "whiteboard", label: "白板", icon: Presentation }, // legacy: WhiteBoardView
     ],
   },
   {
     label: "学习",
     items: [
-      { key: "learning", label: "学习资料", icon: GraduationCap }, // legacy: VibeLearningView
-      { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // legacy: FlashcardCenter
+      // 项目即学习容器（文档树/数据表格/Vibe Learning 三型皆学习导向），归学习组
+      { key: "projects", label: "项目", icon: FolderKanban }, // legacy: ProjectListView（VibeLearning 详情即学习工作台）
+      { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // legacy: FlashcardCenter（与 VibeLearning 同归 learning 域，蓝图 §5.3）
+      { key: "questions", label: "问题管理", icon: CircleHelp }, // legacy: QuestionWindowPage
+      { key: "weread", label: "微信读书", icon: BookOpen }, // legacy: WeRead
+      { key: "feed", label: "订阅", icon: Inbox }, // legacy: FeedView（RSS / 稍后读）
+    ],
+  },
+  {
+    label: "AI",
+    items: [
+      { key: "chat", label: "AI 对话", icon: MessageCircle }, // legacy: ChatSidebar（将迁出布局层归位 feature）
+      { key: "skills", label: "Skill 管理", icon: Sparkles }, // legacy: SkillManagement
     ],
   },
   {
     label: "工具",
     items: [
-      { key: "schedule", label: "日程", icon: Calendar }, // legacy: Calendar + TimeRecordView
-      { key: "feed", label: "订阅", icon: Inbox }, // legacy: FeedView（RSS / 稍后读）
-      { key: "weread", label: "微信读书", icon: BookOpen }, // legacy: WeRead
       { key: "resources", label: "资源管理", icon: Folder }, // legacy: ResourceManagement
       { key: "stats", label: "统计", icon: BarChart3 }, // 新架构：数据回顾页
     ],
@@ -75,6 +99,5 @@ export const NAV_SECTIONS: NavSection[] = [
 ];
 
 export const NAV_FOOTER: NavItem[] = [
-  { key: "chat", label: "AI 对话", icon: MessageCircle }, // legacy: ChatSidebar（将迁出布局层归位 feature）
   { key: "settings", label: "设置", icon: SlidersHorizontal }, // legacy: Settings（15 子页拆解）
 ];
