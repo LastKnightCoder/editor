@@ -141,17 +141,17 @@
   --tau-bg-selected: rgba(217, 119, 87, 0.12);
 
   --tau-ink-1: #43392c;
-  --tau-ink-2: #7a6c5a;
+  --tau-ink-2: #736552;
   --tau-ink-3: #a89a85;
   --tau-ink-inverse: #fff8ef;
 
   --tau-line-1: #e9e1d2;
   --tau-line-2: rgba(233, 225, 210, 0.55);
 
-  --tau-accent: hsl(22 58% 55%);
-  --tau-accent-hover: hsl(22 58% 48%);
-  --tau-accent-soft: hsla(22, 58%, 55%, 0.12);
-  --tau-accent-text: #b85f42;
+  --tau-accent: hsl(22 58% 42%);
+  --tau-accent-hover: hsl(22 58% 35%);
+  --tau-accent-soft: hsla(22, 58%, 42%, 0.12);
+  --tau-accent-text: #a05236;
   --tau-focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
 
   --tau-ok: #61795f;
@@ -177,4 +177,56 @@
   --tau-overlay: rgba(67, 57, 44, 0.35);
   --tau-shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
   --tau-shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+}
+
+/* 深色主题「暖纸 · 夜」：与 cream 同基因的烛光版，取值与 themes/cocoa.theme.ts 对应 */
+[data-theme="cocoa"] {
+  color-scheme: dark;
+
+  --tau-bg-page: #221d16;
+  --tau-bg-surface: #2e2820;
+  --tau-bg-group: #2a241b;
+  --tau-bg-sunken: #1a1611;
+
+  --tau-bg-hover: rgba(236, 226, 208, 0.06);
+  --tau-bg-press: rgba(236, 226, 208, 0.11);
+  --tau-bg-selected: hsla(22, 62%, 65%, 0.2);
+
+  --tau-ink-1: #ece2d0;
+  --tau-ink-2: #a89a85;
+  --tau-ink-3: #857768;
+  --tau-ink-inverse: #241a10;
+
+  --tau-line-1: #3a3227;
+  --tau-line-2: rgba(58, 50, 39, 0.55);
+
+  --tau-accent: hsl(22 62% 65%);
+  --tau-accent-hover: hsl(22 62% 72%);
+  --tau-accent-soft: hsla(22, 62%, 65%, 0.16);
+  --tau-accent-text: hsl(22 66% 70%);
+  --tau-focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+
+  --tau-ok: #8cab87;
+  --tau-ok-soft: #243023;
+  --tau-warn: #c4a458;
+  --tau-warn-soft: #302917;
+  --tau-danger: #d97e66;
+  --tau-danger-soft: #34201a;
+  --tau-info: #83aecf;
+  --tau-info-soft: #1e2a35;
+
+  --tau-tag-1: #8cab87;
+  --tau-tag-1-soft: #243023;
+  --tau-tag-2: #83aecf;
+  --tau-tag-2-soft: #1e2a35;
+  --tau-tag-3: #a596c8;
+  --tau-tag-3-soft: #292335;
+  --tau-tag-4: #c4a458;
+  --tau-tag-4-soft: #302917;
+  --tau-tag-5: #d0806a;
+  --tau-tag-5-soft: #30211b;
+
+  --tau-overlay: rgba(10, 8, 5, 0.55);
+  --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
 }
