@@ -38,9 +38,8 @@ export function Sidebar() {
       <div
         className={clsx(
           "app-region-drag flex shrink-0 items-center gap-2",
-          collapsed
-            ? "mb-1.5 flex-col gap-3 px-0 py-2.5 pb-3"
-            : "mb-1.5 h-[var(--tau-titlebar-h)] px-1.5"
+          // 收起态无 mb，头部 pb(10px) 直接承担与首个图标的间距（第一组亦无 mt）
+          collapsed ? "flex-col gap-3 px-0 py-2.5" : "mb-1.5 h-[var(--tau-titlebar-h)] px-1.5"
         )}
       >
         {/* Mac 红绿灯占位（真实窗口为系统控件让位）；Windows/Linux 不渲染 */}
@@ -88,12 +87,16 @@ export function Sidebar() {
         ref={setScrollEl}
         className="edge-fade-scroll -mr-[5px] min-h-0 flex-1 overflow-y-auto pr-[5px]"
       >
-        {NAV_SECTIONS.map(section => {
+        {NAV_SECTIONS.map((section, sectionIndex) => {
           // 组折叠收纳（mockups/sidebar-responsive 方案二）：收起条目留组头 + 条目数，
           // grid-rows 0fr↔1fr 过渡；侧栏收起态（图标列）无组头，强制展开不受影响
           const folded = !collapsed && (navSectionCollapsed[section.label] ?? false);
           return (
-            <div key={section.label} className="mt-3">
+            <div
+              key={section.label}
+              // 首组收起态无 mt：与头部的间距由头部 pb 承担，避免 mt 堆叠出大空隙
+              className={clsx(collapsed && sectionIndex === 0 ? "mt-0" : "mt-3")}
+            >
               {!collapsed && (
                 <button
                   type="button"
