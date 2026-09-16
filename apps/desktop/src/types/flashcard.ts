@@ -1,11 +1,6 @@
 import type { Descendant } from "slate";
 
-export type FlashcardType =
-  | "single-choice"
-  | "multiple-choice"
-  | "cloze"
-  | "qa"
-  | "boolean";
+export type FlashcardType = "single-choice" | "multiple-choice" | "cloze" | "qa" | "boolean";
 
 export type FlashcardDifficulty = "foundation" | "standard" | "advanced";
 
@@ -140,9 +135,7 @@ export interface CreateFlashcardInput {
   references?: FlashcardReferenceInput[];
 }
 
-export interface UpdateFlashcardInput extends Partial<
-  Omit<CreateFlashcardInput, "deckId">
-> {
+export interface UpdateFlashcardInput extends Partial<Omit<CreateFlashcardInput, "deckId">> {
   id: number;
   deckId?: number;
   status?: FlashcardStatus;
@@ -172,6 +165,13 @@ export interface FlashcardQueueRequest {
   limit?: number;
   includeUpcoming?: boolean;
   statuses?: FlashcardStatus[];
+}
+
+/** 统计页聚合结果：窗口内评分分布 + 未来 7 天（含今日）逐日到期数 */
+export interface FlashcardReviewStats {
+  ratings: Record<FlashcardReviewRating, number>;
+  total: number;
+  dueBuckets: number[];
 }
 
 /**

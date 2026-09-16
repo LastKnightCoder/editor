@@ -13,6 +13,7 @@ import {
   FlashcardReviewPayload,
   FlashcardQueueRequest,
   FlashcardReviewRating,
+  FlashcardReviewStats,
 } from "@/types";
 import ContentTable from "./content";
 
@@ -104,6 +105,7 @@ class FlashcardTable {
       "flashcard:delete-card": this.deleteFlashcard.bind(this),
       "flashcard:get-review-queue": this.getReviewQueue.bind(this),
       "flashcard:submit-review": this.submitReview.bind(this),
+      "flashcard:review-stats": this.getReviewStats.bind(this),
     };
   }
 
@@ -112,7 +114,7 @@ class FlashcardTable {
     const deckInfo = db.prepare(`PRAGMA table_info(flashcard_decks)`).all() as {
       name: string;
     }[];
-    const hasMeta = deckInfo.some((column) => column.name === "meta");
+    const hasMeta = deckInfo.some(column => column.name === "meta");
     if (!hasMeta) {
       db.exec(`ALTER TABLE flashcard_decks ADD COLUMN meta TEXT;`);
     }
@@ -120,27 +122,18 @@ class FlashcardTable {
     const cardInfo = db.prepare(`PRAGMA table_info(flashcards)`).all() as {
       name: string;
     }[];
-    const referenceSummaryExists = cardInfo.some(
-      (column) => column.name === "reference_summary",
-    );
+    const referenceSummaryExists = cardInfo.some(column => column.name === "reference_summary");
     if (!referenceSummaryExists) {
-      db.exec(
-        `ALTER TABLE flashcards ADD COLUMN reference_summary TEXT DEFAULT NULL;`,
-      );
+      db.exec(`ALTER TABLE flashcards ADD COLUMN reference_summary TEXT DEFAULT NULL;`);
     }
 
     // Rich text migration: Convert prompt and detail from plain text to Descendant[]
     try {
       // Check if migration needed by sampling first card
-      const sampleCard = db
-        .prepare("SELECT prompt FROM flashcards LIMIT 1")
-        .get() as { prompt: string } | undefined;
+      const sampleCard = db.prepare("SELECT prompt FROM flashcards LIMIT 1").get() as
+        { prompt: string } | undefined;
 
-      if (
-        sampleCard &&
-        sampleCard.prompt &&
-        !sampleCard.prompt.startsWith("[")
-      ) {
+      if (sampleCard && sampleCard.prompt && !sampleCard.prompt.startsWith("[")) {
         log.info("[FlashcardTable] Starting rich text migration...");
 
         const cards = db
@@ -154,7 +147,7 @@ class FlashcardTable {
         }>;
 
         const updateStmt = db.prepare(
-          "UPDATE flashcards SET prompt = ?, detail = ?, data = ? WHERE id = ?",
+          "UPDATE flashcards SET prompt = ?, detail = ?, data = ? WHERE id = ?"
         );
 
         for (const card of cards) {
@@ -185,19 +178,14 @@ class FlashcardTable {
                 updatedData = JSON.stringify(data);
               }
             } catch (error) {
-              log.error(
-                `[FlashcardTable] Failed to parse cloze data for card ${card.id}`,
-                error,
-              );
+              log.error(`[FlashcardTable] Failed to parse cloze data for card ${card.id}`, error);
             }
           }
 
           updateStmt.run(richPrompt, richDetail, updatedData, card.id);
         }
 
-        log.info(
-          `[FlashcardTable] Rich text migration completed for ${cards.length} cards`,
-        );
+        log.info(`[FlashcardTable] Rich text migration completed for ${cards.length} cards`);
       }
     } catch (error) {
       log.error("[FlashcardTable] Rich text migration failed", error);
@@ -205,14 +193,10 @@ class FlashcardTable {
 
     // Migrate flashcard_references table to new structure
     try {
-      const refInfo = db
-        .prepare(`PRAGMA table_info(flashcard_references)`)
-        .all() as {
+      const refInfo = db.prepare(`PRAGMA table_info(flashcard_references)`).all() as {
         name: string;
       }[];
-      const hasOldStructure = refInfo.some(
-        (column) => column.name === "ref_label",
-      );
+      const hasOldStructure = refInfo.some(column => column.name === "ref_label");
 
       if (hasOldStructure) {
         log.info("[FlashcardTable] Starting flashcard_references migration...");
@@ -231,9 +215,7 @@ class FlashcardTable {
         `);
 
         // 迁移数据
-        const oldRefs = db
-          .prepare("SELECT * FROM flashcard_references")
-          .all() as Array<{
+        const oldRefs = db.prepare("SELECT * FROM flashcard_references").all() as Array<{
           id: number;
           card_id: number;
           ref_type: string;
@@ -297,38 +279,30 @@ class FlashcardTable {
             refType,
             title,
             oldRef.create_time,
-            oldRef.update_time,
+            oldRef.update_time
           );
         }
 
         // 删除旧表，重命名新表
         db.exec("DROP TABLE flashcard_references");
+        db.exec("ALTER TABLE flashcard_references_new RENAME TO flashcard_references");
         db.exec(
-          "ALTER TABLE flashcard_references_new RENAME TO flashcard_references",
+          "CREATE INDEX IF NOT EXISTS idx_flashcard_references_card ON flashcard_references(card_id);"
         );
         db.exec(
-          "CREATE INDEX IF NOT EXISTS idx_flashcard_references_card ON flashcard_references(card_id);",
-        );
-        db.exec(
-          "CREATE INDEX IF NOT EXISTS idx_flashcard_references_content ON flashcard_references(content_id);",
+          "CREATE INDEX IF NOT EXISTS idx_flashcard_references_content ON flashcard_references(content_id);"
         );
 
         log.info(
-          `[FlashcardTable] flashcard_references migration completed for ${oldRefs.length} references`,
+          `[FlashcardTable] flashcard_references migration completed for ${oldRefs.length} references`
         );
       }
     } catch (error) {
-      log.error(
-        "[FlashcardTable] flashcard_references migration failed",
-        error,
-      );
+      log.error("[FlashcardTable] flashcard_references migration failed", error);
     }
   }
 
-  private static parseJSON<T>(
-    value: string | null | undefined,
-    fallback: T,
-  ): T {
+  private static parseJSON<T>(value: string | null | undefined, fallback: T): T {
     if (!value) return fallback;
     try {
       return JSON.parse(value) as T;
@@ -338,10 +312,7 @@ class FlashcardTable {
     }
   }
 
-  private static mapDeckRow(
-    row: DeckRow,
-    stats?: FlashcardDeckStats,
-  ): FlashcardDeck {
+  private static mapDeckRow(row: DeckRow, stats?: FlashcardDeckStats): FlashcardDeck {
     return {
       id: row.id,
       name: row.name,
@@ -365,7 +336,7 @@ class FlashcardTable {
       updateTime: number;
       count: number;
       refCount: number;
-    } | null,
+    } | null
   ): FlashcardReference {
     return {
       id: row.id,
@@ -379,10 +350,7 @@ class FlashcardTable {
     };
   }
 
-  private static mapCardRow(
-    row: CardRow,
-    references: FlashcardReference[],
-  ): Flashcard {
+  private static mapCardRow(row: CardRow, references: FlashcardReference[]): Flashcard {
     // Parse prompt as Descendant[] with fallback
     let prompt: any;
     try {
@@ -453,9 +421,7 @@ class FlashcardTable {
     };
   }
 
-  private static getDeckStatsMap(
-    db: Database.Database,
-  ): Map<number, FlashcardDeckStats> {
+  private static getDeckStatsMap(db: Database.Database): Map<number, FlashcardDeckStats> {
     const now = Date.now();
     const rows = db
       .prepare(
@@ -469,7 +435,7 @@ class FlashcardTable {
         MAX(last_review_time) AS last_review_time
       FROM flashcards
       GROUP BY deck_id
-    `,
+    `
       )
       .all(now) as {
       deck_id: number;
@@ -481,7 +447,7 @@ class FlashcardTable {
     }[];
 
     const statsMap = new Map<number, FlashcardDeckStats>();
-    rows.forEach((row) => {
+    rows.forEach(row => {
       statsMap.set(row.deck_id, {
         totalCards: row.total_cards ?? 0,
         newCount: row.new_cards ?? 0,
@@ -495,7 +461,7 @@ class FlashcardTable {
 
   private static getReferencesByCardIds(
     db: Database.Database,
-    cardIds: number[],
+    cardIds: number[]
   ): Record<number, FlashcardReference[]> {
     if (!cardIds.length) return {};
     const placeholders = cardIds.map(() => "?").join(",");
@@ -513,7 +479,7 @@ class FlashcardTable {
           c.ref_count as content_ref_count
         FROM flashcard_references fr
         LEFT JOIN contents c ON fr.content_id = c.id
-        WHERE fr.card_id IN (${placeholders})`,
+        WHERE fr.card_id IN (${placeholders})`
       )
       .all(...cardIds) as Array<
       ReferenceRow & {
@@ -556,11 +522,9 @@ class FlashcardTable {
   private static replaceReferences(
     db: Database.Database,
     cardId: number,
-    references?: FlashcardReferenceInput[],
+    references?: FlashcardReferenceInput[]
   ): FlashcardReference[] {
-    db.prepare(`DELETE FROM flashcard_references WHERE card_id = ?`).run(
-      cardId,
-    );
+    db.prepare(`DELETE FROM flashcard_references WHERE card_id = ?`).run(cardId);
     if (!references || references.length === 0) {
       return [];
     }
@@ -571,15 +535,13 @@ class FlashcardTable {
     `);
     const now = Date.now();
 
-    return references.map((ref) => {
+    return references.map(ref => {
       let contentId: number;
 
       // 对于 custom 类型：创建新的 content 记录
       if (ref.refType === "custom") {
         if (!ref.customContent) {
-          throw new Error(
-            "customContent is required for custom reference type",
-          );
+          throw new Error("customContent is required for custom reference type");
         }
         const result = ContentTable.createContent(db, {
           content: ref.customContent,
@@ -613,28 +575,24 @@ class FlashcardTable {
 
   private static updateReferenceSummary(db: Database.Database, cardId: number) {
     const titles = db
-      .prepare(
-        `SELECT title FROM flashcard_references WHERE card_id = ? ORDER BY update_time DESC`,
-      )
+      .prepare(`SELECT title FROM flashcard_references WHERE card_id = ? ORDER BY update_time DESC`)
       .all(cardId) as { title: string }[];
     const summary = titles
       .slice(0, 3)
-      .map((item) => item.title)
+      .map(item => item.title)
       .join(" · ");
     db.prepare(`UPDATE flashcards SET reference_summary = ? WHERE id = ?`).run(
       summary || null,
-      cardId,
+      cardId
     );
   }
 
   static listDecks(db: Database.Database): FlashcardDeck[] {
     const decks = db
-      .prepare(
-        `SELECT * FROM flashcard_decks ORDER BY sort_order ASC, update_time DESC`,
-      )
+      .prepare(`SELECT * FROM flashcard_decks ORDER BY sort_order ASC, update_time DESC`)
       .all() as DeckRow[];
     const statsMap = this.getDeckStatsMap(db);
-    return decks.map((deck) =>
+    return decks.map(deck =>
       this.mapDeckRow(
         deck,
         statsMap.get(deck.id) ?? {
@@ -643,24 +601,63 @@ class FlashcardTable {
           learningCount: 0,
           newCount: 0,
           lastReviewedTime: null,
-        },
-      ),
+        }
+      )
     );
   }
 
+  /** 统计页聚合：窗口内评分分布（flashcard_reviews GROUP BY rating）+ 未来 7 天（含今日）到期分桶 */
+  static getReviewStats(
+    db: Database.Database,
+    params: { since?: number } = {}
+  ): FlashcardReviewStats {
+    const since = params.since ?? 0;
+    const ratingRows = db
+      .prepare(
+        `SELECT rating, COUNT(*) AS count FROM flashcard_reviews WHERE review_time >= ? GROUP BY rating`
+      )
+      .all(since) as { rating: string; count: number }[];
+    const ratings: FlashcardReviewStats["ratings"] = {
+      easy: 0,
+      normal: 0,
+      struggle: 0,
+      hard: 0,
+    };
+    let total = 0;
+    for (const row of ratingRows) {
+      if (row.rating in ratings) {
+        ratings[row.rating as keyof typeof ratings] = row.count;
+        total += row.count;
+      }
+    }
+
+    // 到期分桶按本地日历日归属（DST 切换日不用 86400000 整除）
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    const start = dayStart.getTime();
+    const dueRows = db
+      .prepare(`SELECT due_time FROM flashcards WHERE due_time >= ? AND due_time < ?`)
+      .all(start, start + 7 * 86_400_000) as { due_time: number }[];
+    const dueBuckets = new Array<number>(7).fill(0);
+    for (const row of dueRows) {
+      const d = new Date(row.due_time);
+      const idx = Math.round(
+        (new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - start) / 86_400_000
+      );
+      if (idx >= 0 && idx < 7) dueBuckets[idx] += 1;
+    }
+    return { ratings, total, dueBuckets };
+  }
+
   static getDeck(db: Database.Database, deckId: number): FlashcardDeck | null {
-    const row = db
-      .prepare(`SELECT * FROM flashcard_decks WHERE id = ?`)
-      .get(deckId) as DeckRow | undefined;
+    const row = db.prepare(`SELECT * FROM flashcard_decks WHERE id = ?`).get(deckId) as
+      DeckRow | undefined;
     if (!row) return null;
     const stats = this.getDeckStatsMap(db).get(deckId);
     return this.mapDeckRow(row, stats);
   }
 
-  static createDeck(
-    db: Database.Database,
-    payload: CreateFlashcardDeckInput,
-  ): FlashcardDeck {
+  static createDeck(db: Database.Database, payload: CreateFlashcardDeckInput): FlashcardDeck {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO flashcard_decks (name, description, cover_color, emoji, sort_order, meta, create_time, update_time)
@@ -674,7 +671,7 @@ class FlashcardTable {
       payload.sortOrder ?? 0,
       payload.meta ? JSON.stringify(payload.meta) : null,
       now,
-      now,
+      now
     );
     const createdId = Number(res.lastInsertRowid);
     return this.getDeck(db, createdId) as FlashcardDeck;
@@ -682,7 +679,7 @@ class FlashcardTable {
 
   static updateDeck(
     db: Database.Database,
-    payload: UpdateFlashcardDeckInput,
+    payload: UpdateFlashcardDeckInput
   ): FlashcardDeck | null {
     const existing = this.getDeck(db, payload.id);
     if (!existing) return null;
@@ -690,7 +687,7 @@ class FlashcardTable {
     db.prepare(
       `UPDATE flashcard_decks 
        SET name = ?, description = ?, cover_color = ?, emoji = ?, sort_order = ?, meta = ?, update_time = ?
-       WHERE id = ?`,
+       WHERE id = ?`
     ).run(
       payload.name ?? existing.name,
       payload.description ?? existing.description,
@@ -703,29 +700,27 @@ class FlashcardTable {
           ? JSON.stringify(existing.meta)
           : null,
       now,
-      payload.id,
+      payload.id
     );
     return this.getDeck(db, payload.id);
   }
 
   static deleteDeck(db: Database.Database, deckId: number): boolean {
-    const cardRows = db
-      .prepare(`SELECT id FROM flashcards WHERE deck_id = ?`)
-      .all(deckId) as { id: number }[];
-    const cardIds = cardRows.map((row) => row.id);
+    const cardRows = db.prepare(`SELECT id FROM flashcards WHERE deck_id = ?`).all(deckId) as {
+      id: number;
+    }[];
+    const cardIds = cardRows.map(row => row.id);
     if (cardIds.length) {
       const placeholders = cardIds.map(() => "?").join(",");
-      db.prepare(
-        `DELETE FROM flashcard_references WHERE card_id IN (${placeholders})`,
-      ).run(...cardIds);
-      db.prepare(
-        `DELETE FROM flashcard_reviews WHERE card_id IN (${placeholders})`,
-      ).run(...cardIds);
+      db.prepare(`DELETE FROM flashcard_references WHERE card_id IN (${placeholders})`).run(
+        ...cardIds
+      );
+      db.prepare(`DELETE FROM flashcard_reviews WHERE card_id IN (${placeholders})`).run(
+        ...cardIds
+      );
     }
     db.prepare(`DELETE FROM flashcards WHERE deck_id = ?`).run(deckId);
-    const result = db
-      .prepare(`DELETE FROM flashcard_decks WHERE id = ?`)
-      .run(deckId);
+    const result = db.prepare(`DELETE FROM flashcard_decks WHERE id = ?`).run(deckId);
     return result.changes > 0;
   }
 
@@ -737,7 +732,7 @@ class FlashcardTable {
       tag?: string;
       limit?: number;
       statuses?: Flashcard["status"][];
-    } = {},
+    } = {}
   ): Flashcard[] {
     const conditions: string[] = ["1=1"];
     const values: any[] = [];
@@ -772,24 +767,20 @@ class FlashcardTable {
     const rows = db.prepare(sql).all(...values) as CardRow[];
     const referenceMap = this.getReferencesByCardIds(
       db,
-      rows.map((row) => row.id),
+      rows.map(row => row.id)
     );
-    return rows.map((row) => this.mapCardRow(row, referenceMap[row.id] ?? []));
+    return rows.map(row => this.mapCardRow(row, referenceMap[row.id] ?? []));
   }
 
   static getFlashcard(db: Database.Database, cardId: number): Flashcard | null {
-    const row = db
-      .prepare(`SELECT * FROM flashcards WHERE id = ?`)
-      .get(cardId) as CardRow | undefined;
+    const row = db.prepare(`SELECT * FROM flashcards WHERE id = ?`).get(cardId) as
+      CardRow | undefined;
     if (!row) return null;
     const references = this.getReferencesByCardIds(db, [cardId])[cardId] ?? [];
     return this.mapCardRow(row, references);
   }
 
-  static createFlashcard(
-    db: Database.Database,
-    payload: CreateFlashcardInput,
-  ): Flashcard {
+  static createFlashcard(db: Database.Database, payload: CreateFlashcardInput): Flashcard {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO flashcards (
@@ -806,9 +797,7 @@ class FlashcardTable {
     // Serialize Descendant[] to JSON strings
     const promptJson = JSON.stringify(payload.prompt);
     const detailJson = JSON.stringify(
-      payload.detail ?? [
-        { type: "paragraph", children: [{ type: "formatted", text: "" }] },
-      ],
+      payload.detail ?? [{ type: "paragraph", children: [{ type: "formatted", text: "" }] }]
     );
 
     const res = stmt.run({
@@ -835,23 +824,15 @@ class FlashcardTable {
     return this.getFlashcard(db, cardId) as Flashcard;
   }
 
-  static updateFlashcard(
-    db: Database.Database,
-    payload: UpdateFlashcardInput,
-  ): Flashcard | null {
-    const existingRow = db
-      .prepare(`SELECT * FROM flashcards WHERE id = ?`)
-      .get(payload.id) as CardRow | undefined;
+  static updateFlashcard(db: Database.Database, payload: UpdateFlashcardInput): Flashcard | null {
+    const existingRow = db.prepare(`SELECT * FROM flashcards WHERE id = ?`).get(payload.id) as
+      CardRow | undefined;
     if (!existingRow) return null;
     const now = Date.now();
 
     // Serialize prompt and detail if provided
-    const promptJson = payload.prompt
-      ? JSON.stringify(payload.prompt)
-      : existingRow.prompt;
-    const detailJson = payload.detail
-      ? JSON.stringify(payload.detail)
-      : existingRow.detail;
+    const promptJson = payload.prompt ? JSON.stringify(payload.prompt) : existingRow.prompt;
+    const detailJson = payload.detail ? JSON.stringify(payload.detail) : existingRow.detail;
 
     db.prepare(
       `UPDATE flashcards SET
@@ -864,7 +845,7 @@ class FlashcardTable {
         difficulty = ?,
         status = ?,
         update_time = ?
-       WHERE id = ?`,
+       WHERE id = ?`
     ).run(
       payload.deckId ?? existingRow.deck_id,
       payload.type ?? existingRow.type,
@@ -875,7 +856,7 @@ class FlashcardTable {
       payload.difficulty ?? existingRow.difficulty,
       payload.status ?? existingRow.status,
       now,
-      payload.id,
+      payload.id
     );
 
     if (payload.references) {
@@ -887,20 +868,13 @@ class FlashcardTable {
   }
 
   static deleteFlashcard(db: Database.Database, cardId: number): boolean {
-    db.prepare(`DELETE FROM flashcard_references WHERE card_id = ?`).run(
-      cardId,
-    );
+    db.prepare(`DELETE FROM flashcard_references WHERE card_id = ?`).run(cardId);
     db.prepare(`DELETE FROM flashcard_reviews WHERE card_id = ?`).run(cardId);
-    const result = db
-      .prepare(`DELETE FROM flashcards WHERE id = ?`)
-      .run(cardId);
+    const result = db.prepare(`DELETE FROM flashcards WHERE id = ?`).run(cardId);
     return result.changes > 0;
   }
 
-  static getReviewQueue(
-    db: Database.Database,
-    params: FlashcardQueueRequest = {},
-  ): Flashcard[] {
+  static getReviewQueue(db: Database.Database, params: FlashcardQueueRequest = {}): Flashcard[] {
     const now = Date.now();
     const conditions = [];
     const values: any[] = [];
@@ -921,8 +895,7 @@ class FlashcardTable {
       values.push(now);
     }
 
-    const whereClause =
-      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
     let sql = `
       SELECT * FROM flashcards
       ${whereClause}
@@ -939,15 +912,12 @@ class FlashcardTable {
     const rows = db.prepare(sql).all(...values) as CardRow[];
     const referenceMap = this.getReferencesByCardIds(
       db,
-      rows.map((row) => row.id),
+      rows.map(row => row.id)
     );
-    return rows.map((row) => this.mapCardRow(row, referenceMap[row.id] ?? []));
+    return rows.map(row => this.mapCardRow(row, referenceMap[row.id] ?? []));
   }
 
-  private static calculateSchedule(
-    row: CardRow,
-    rating: FlashcardReviewRating,
-  ) {
+  private static calculateSchedule(row: CardRow, rating: FlashcardReviewRating) {
     const now = Date.now();
     const delta = RATING_DELTA[rating] ?? 0;
     let nextLevel = row.review_level + delta;
@@ -958,28 +928,25 @@ class FlashcardTable {
 
     const nextEase = Math.min(
       EASE_RANGE.max,
-      Math.max(EASE_RANGE.min, row.ease_factor + (EASE_DELTA[rating] ?? 0)),
+      Math.max(EASE_RANGE.min, row.ease_factor + (EASE_DELTA[rating] ?? 0))
     );
     const baseInterval = REVIEW_INTERVALS[nextLevel];
     const dueTime = now + Math.round(baseInterval * (0.8 + nextEase * 0.2));
     const interval = dueTime - now;
     const reviewCount = (row.review_count ?? 0) + 1;
-    const status =
-      reviewCount >= 3 && rating !== "hard" ? "review" : "learning";
+    const status = reviewCount >= 3 && rating !== "hard" ? "review" : "learning";
     return { nextLevel, nextEase, dueTime, interval, status };
   }
 
-  static submitReview(
-    db: Database.Database,
-    payload: FlashcardReviewPayload,
-  ): Flashcard | null {
-    const row = db
-      .prepare(`SELECT * FROM flashcards WHERE id = ?`)
-      .get(payload.cardId) as CardRow | undefined;
+  static submitReview(db: Database.Database, payload: FlashcardReviewPayload): Flashcard | null {
+    const row = db.prepare(`SELECT * FROM flashcards WHERE id = ?`).get(payload.cardId) as
+      CardRow | undefined;
     if (!row) return null;
 
-    const { nextLevel, nextEase, dueTime, interval, status } =
-      this.calculateSchedule(row, payload.rating);
+    const { nextLevel, nextEase, dueTime, interval, status } = this.calculateSchedule(
+      row,
+      payload.rating
+    );
     const now = Date.now();
 
     db.prepare(
@@ -991,12 +958,12 @@ class FlashcardTable {
         ease_factor = ?,
         status = ?,
         update_time = ?
-       WHERE id = ?`,
+       WHERE id = ?`
     ).run(nextLevel, dueTime, now, nextEase, status, now, payload.cardId);
 
     db.prepare(
       `INSERT INTO flashcard_reviews (card_id, deck_id, rating, review_time, interval, review_level, ease_factor, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       payload.cardId,
       payload.deckId,
@@ -1005,7 +972,7 @@ class FlashcardTable {
       interval,
       nextLevel,
       nextEase,
-      payload.notes ?? null,
+      payload.notes ?? null
     );
 
     return this.getFlashcard(db, payload.cardId);
