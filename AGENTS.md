@@ -262,28 +262,28 @@ pnpm add -D
 - 禁止任何业务代码自行监听 `onBackButtonPress` / `popstate` / `history.back` 处理返回；返回一律经 `navigator.goBack(source)`。
 - 页面内本地 `useState` 控制浮层 open 时，返回手势对该浮层"失明"是缺陷特征（历史遗留存量），发现即按上述规则接入，不要新增此类用法。
 
-## 桌面端重构规范（Surface 架构）
+## 桌面端重构规范（Page 架构）
 
-背景：桌面端正从旧 Tab 系统（useTabStore + TabContent 33 分支）渐进迁移到 Surface 协议（声明式页面 + 纯函数栈机 + Activity 保活 + 自有设计系统）。
+背景：桌面端正从旧 Tab 系统（useTabStore + TabContent 33 分支）渐进迁移到 Page 协议（声明式页面 definePage + 纯函数栈机 + Activity 保活 + 自有设计系统，命名对齐移动端，见 DECISIONS.md D-016）。
 
 **上手顺序（写桌面端代码前必做）**：
 
 1. 读 `apps/desktop/docs/redesign/03-架构实现指南.md` 全文（≈10 分钟，权威交接文档：协议用法 + 铁律 + 迁移流程）；
-2. 参考实现照抄结构，不要自创：页面域样板 = `apps/desktop/src/features/home/`（surface 声明 / views / queries / types 四件套 + react-query 数据协议），次样板 = `features/stats/`；壳层改 `src/app/`；导航框架勿动 `src/surface/`；
+2. 参考实现照抄结构，不要自创：页面域样板 = `apps/desktop/src/features/home/`（page 声明 / views / queries / types 四件套 + react-query 数据协议），次样板 = `features/stats/`；壳层改 `src/app/`；导航框架勿动 `src/page/`；
 3. 背景与取舍看 `01-重构蓝图.md`，历史裁决查 `DECISIONS.md`（推翻已有做法必须先记录），删旧代码查 `04-删除清单.md`。
 
-**文档保鲜义务**：03 指南是代码的持久投影——每次改 surface 框架、主题机制、数据协议或壳层行为，必须在同一提交里同步 03 指南对应小节（必要时 DECISIONS.md 追加条目）；发现文档与代码不一致时，先修一致再继续开发，禁止让文档腐化。
+**文档保鲜义务**：03 指南是代码的持久投影——每次改 page 框架、主题机制、数据协议或壳层行为，必须在同一提交里同步 03 指南对应小节（必要时 DECISIONS.md 追加条目）；发现文档与代码不一致时，先修一致再继续开发，禁止让文档腐化。
 
 为防止腐化，新增/修改桌面端代码必须遵守：
 
 ### 分层与导航
 
-- `surface/`（导航框架）与 `ui/`（设计系统）零业务依赖，禁止 import `features/`、`app/`、`pages/`、`layouts/` 的任何代码。
-- 新页面一律在 `features/<域>/surfaces/<key>.surface.tsx` 用 `defineSurface` 声明（文件即注册，Vite glob 自动收集），禁止中心登记表；`key` 与 `app/navigation.ts` 一致即接管侧边栏入口。
+- `page/`（导航框架）与 `ui/`（设计系统）零业务依赖，禁止 import `features/`、`app/`、`pages/`、`layouts/` 的任何代码。
+- 新页面一律在 `features/<域>/pages/<key>.page.tsx` 用 `definePage` 声明（文件即注册，Vite glob 自动收集），禁止中心登记表；`key` 与 `app/navigation.ts` 一致即接管侧边栏入口。definePage 只承载页面——dialog/drawer 等浮层不经本协议（D-016），如需浮层导航先在 DECISIONS.md 裁决承载方式。
 - `features/` 域之间不得 import 彼此的 store；共享的口径工具放 `src/utils/`（如 statistic 快照差分）。
-- 导航只经 `navigator.push/replace/back/forward/popToTop`；Esc=后退、Alt+←/→=后退/前进由 SurfaceProvider/Titlebar 统一仲裁，业务代码禁止自行监听这些键；Esc 与 Alt+方向键必须让位编辑上下文（`isEditableTarget`）与输入法组合（`e.isComposing`）。
-- `match: "single"/"params"` 的 surface 重复 push 由栈机去重（栈顶同参 no-op、异参原位更新），不要在调用侧再做"是否已激活"判断。
-- surface 的 `status` 只进不退（migrating→new）；回退必须在 `DECISIONS.md` 记录原因。
+- 导航只经 `navigator.push/replace/back/forward/popToTop`；Esc=后退、Alt+←/→=后退/前进由 PageProvider/Titlebar 统一仲裁，业务代码禁止自行监听这些键；Esc 与 Alt+方向键必须让位编辑上下文（`isEditableTarget`）与输入法组合（`e.isComposing`）。
+- `match: "single"/"params"` 的 page 重复 push 由栈机去重（栈顶同参 no-op、异参原位更新），不要在调用侧再做"是否已激活"判断。
+- page 的 `status` 只进不退（migrating→new）；回退必须在 `DECISIONS.md` 记录原因。
 
 ### UI 与主题
 

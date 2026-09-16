@@ -1,5 +1,5 @@
 /**
- * SurfaceProvider —— 导航运行时枢纽（从移动端 RouterProvider 移植的最小核心）。
+ * PageProvider —— 导航运行时枢纽（从移动端 RouterProvider 移植的最小核心）。
  *
  * 职责：持有栈机状态、暴露 navigator 命令对象（push/replace/back/forward/popToTop）、
  * Esc=后退（LIFO 退场，根页无操作；编辑上下文中让位）、match 去重（single/params 命中即激活不新建）。
@@ -8,7 +8,8 @@
  * （去重判定也在 reducer 内基于 prev 做，不依赖渲染期的 stateRef 桥）。
  *
  * 刻意未做（接线点见 03 指南）：window.history 同步（桌面不需要，栈机即唯一真相源）、
- * dialog/drawer OverlayHost、canLeave 守卫拦截、结果通道 pushForResult、实例级 store。
+ * 浮层导航（dialog/drawer 不经 definePage，见 DECISIONS D-016）、canLeave 守卫拦截、
+ * 结果通道 pushForResult、实例级 store。
  */
 
 import {
@@ -21,7 +22,7 @@ import {
   type ReactNode,
 } from "react";
 import * as sm from "./core/stackMachine";
-import { getSurfaceMeta } from "./core/surfaceMeta";
+import { getPageMeta } from "./core/pageMeta";
 import { sanitizeParams } from "./core/paramsSchema";
 import { isEditableTarget } from "./dom";
 
@@ -33,15 +34,15 @@ export interface Navigator {
   popToTop(): void;
   canBack(): boolean;
   canForward(): boolean;
-  current(): sm.SurfaceEntry | undefined;
+  current(): sm.PageEntry | undefined;
 }
 
-interface SurfaceContextValue {
+interface PageContextValue {
   navigator: Navigator;
   state: sm.StackMachineState;
 }
 
-const SurfaceContext = createContext<SurfaceContextValue | null>(null);
+const PageContext = createContext<PageContextValue | null>(null);
 
 type StackAction =
   | { type: "push" | "replace"; key: string; params?: Record<string, unknown> }
@@ -53,9 +54,9 @@ function sanitizeFor(
   key: string,
   params?: Record<string, unknown>
 ): Record<string, unknown> | null {
-  const meta = getSurfaceMeta(key);
+  const meta = getPageMeta(key);
   if (!meta) {
-    if (import.meta.env.DEV) console.warn(`[surface] 未注册的 surface：${key}`);
+    if (import.meta.env.DEV) console.warn(`[page] 未注册的 page：${key}`);
     return null;
   }
   return sanitizeParams(meta.fields, params ?? {});
@@ -67,7 +68,7 @@ function reducer(prev: sm.StackMachineState, action: StackAction): sm.StackMachi
     case "replace": {
       const clean = sanitizeFor(action.key, action.params);
       if (clean === null) return prev;
-      const meta = getSurfaceMeta(action.key)!;
+      const meta = getPageMeta(action.key)!;
       // match 去重：single 命中同 key；params 命中同 getId —— 激活已有实例而非新建
       if (action.type === "push" && meta.match !== "multi") {
         const hit = sm.activateExisting(
@@ -94,7 +95,7 @@ function reducer(prev: sm.StackMachineState, action: StackAction): sm.StackMachi
   }
 }
 
-export function SurfaceProvider({
+export function PageProvider({
   initialKey,
   initialParams,
   children,
@@ -126,7 +127,7 @@ export function SurfaceProvider({
     []
   );
 
-  // Esc = 后退（LIFO 退场；根页无操作）。浮层（dialog/drawer/palette）接入后改为先关浮层。
+  // Esc = 后退（LIFO 退场；根页无操作）。浮层（命令面板等）接入后改为先关浮层。
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.isComposing) return;
@@ -137,12 +138,12 @@ export function SurfaceProvider({
     return () => window.removeEventListener("keydown", onKeydown);
   }, [navigator]);
 
-  const value = useMemo<SurfaceContextValue>(() => ({ navigator, state }), [navigator, state]);
-  return <SurfaceContext.Provider value={value}>{children}</SurfaceContext.Provider>;
+  const value = useMemo<PageContextValue>(() => ({ navigator, state }), [navigator, state]);
+  return <PageContext.Provider value={value}>{children}</PageContext.Provider>;
 }
 
-export function useSurface(): SurfaceContextValue {
-  const ctx = useContext(SurfaceContext);
-  if (!ctx) throw new Error("useSurface 必须在 <SurfaceProvider> 内使用");
+export function usePage(): PageContextValue {
+  const ctx = useContext(PageContext);
+  if (!ctx) throw new Error("usePage 必须在 <PageProvider> 内使用");
   return ctx;
 }

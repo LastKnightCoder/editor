@@ -1,13 +1,12 @@
 /**
- * 今日（首页）surface 定义。
+ * 今日（首页）page 定义。
  */
 
-import { defineSurface } from "@/surface/defineSurface";
+import { definePage } from "@/page/definePage";
 import { HomeView } from "../views/HomeView";
 
-export default defineSurface({
+export default definePage({
   key: "home",
-  kind: "page",
   match: "single", // 全局一份：从任何地方回到「今日」都是激活同一实例
   label: "今日",
   status: "new",

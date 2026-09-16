@@ -5,13 +5,14 @@
 
 ---
 
-## D-001 新架构基于 Surface 协议（defineSurface）`待确认（蓝图已详述）`
+## D-001 新架构基于声明式页面协议（原命名 Surface，已改 definePage）`待确认（蓝图已详述）`
 
 - 背景：Tab 系统导航/状态/渲染纠缠（useTabStore 1183 行 + TabContent 33 分支），切页丢状态是机制性的。
 - 选项：A. 修补 Tab 系统（加 keep-alive 容器）；B. 移植移动端 definePage 五层架构为桌面 Surface 协议。
 - 选择：B。
 - 理由：移动端已验证同构方案（栈机纯函数可单测、Activity 保活、结果通道、声明式页面数据）；A 只是给烂根施肥。
 - 影响：新增 `src/surface/` 框架层与 `src/features/` 域结构；旧 Tab 系统降级为 legacy 兼容层（蓝图 §3.5）。
+- 注：命名与目录已于 D-016 全面改为 Page/`src/page/`；本条架构裁决本体不变。
 
 ## D-002 `--th-*` 语义 token 体系保留并升级 `已推翻（2026-09-14，用户裁决）`
 
@@ -100,9 +101,17 @@
 - 手工同步点（codegen 统一前）：新增主题需同步 `themeStore.ts` 的 ThemeMode 联合、`index.html` 首帧脚本白名单、`theme.ts` 默认 key 常量。
 - 影响：03 指南 §1/§2/§3、02 规范 §2.4 已同步；AGENTS.md「UI 与主题」补模式切换约定。
 
+## D-016 Surface 协议全面更名 Page 协议；kind（dialog/drawer）移出 definePage `已定（2026-09-16，用户裁决）`
+
+- 背景：D-001 落地后作者侧 API 为 `defineSurface`，与移动端 `definePage` 同构不同名（蓝图刻意区分）；用户明确不喜欢该命名，且认为 dialog/drawer 不应放进页面声明协议。
+- 选择：① 词汇全面切换 Surface→Page——`defineSurface`→`definePage`、`*.surface.tsx`→`*.page.tsx`、`surfaces/`→`pages/`、`src/surface/`→`src/page/`、`SurfaceProvider`→`PageProvider`、`useSurface`→`usePage`、`SurfaceMeta`→`PageMeta` 等类型与注册函数同步更名、CSS 钩子 `data-surface-key/-id`→`data-page-key/-id`（git mv 保留历史）；② 删除 `kind: "page" | "dialog" | "drawer"` 字段与 `SurfaceKind` 类型——协议只承载页面，浮层（dialog/drawer）不经 definePage，承载方式待裁决（如启动 OverlayHost/浮层导航须先新增 DECISIONS 条目）。
+- 理由：与移动端 definePage 同名同构，双端零翻译成本（对齐 D-008「两端同词汇」取向）；单一取值的 kind 字段无信息量（YAGNI），`definePage({ kind: "dialog" })` 语义自相矛盾；业务侧当时仅 home/stats 两处调用点，改名成本集中在框架内部与文档。
+- 排除（撞名不同义，不随改）：主题 token `bg-surface`/`--tau-bg-surface`（D-013 语义词）、白板 `wb-node-surface-*`、报表模板 `--surface-alt`、移动端自己的 surface 词汇。
+- 影响：01 蓝图 §3/§4/§5、02 规范、03 指南、04 清单、README、PREFERENCES、AGENTS.md 同步更名；D-001 追加命名注记。
+
 ---
 
-## Surface 迁移清单（M2 起滚动勾选）
+## Page 迁移清单（M2 起滚动勾选）
 
 > 33 个 TabType 的完整映射与合并方案见蓝图 §5.3，此处只跟踪迁移状态。
 

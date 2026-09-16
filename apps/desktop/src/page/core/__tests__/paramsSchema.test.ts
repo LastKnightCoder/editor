@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  createSurfaceSchema,
+  createPageSchema,
   paramNumber,
   paramOptional,
   paramString,
   sanitizeParams,
 } from "../paramsSchema";
 
-const schema = createSurfaceSchema({
+const schema = createPageSchema({
   cardId: paramNumber(),
   keyword: paramOptional(paramString()),
   page: paramOptional(paramNumber(), 1),

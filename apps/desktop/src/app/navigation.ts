@@ -1,8 +1,8 @@
 /**
  * 侧边栏模块清单 —— 真实信息架构（数据驱动，Sidebar 只负责渲染）。
  *
- * key 与 features/<域>/surfaces/*.surface.tsx 的 defineSurface key 一一对应；
- * status 标注迁移进度（蓝图 §5.1），legacy 模块点击后由 LegacyPendingSurface 过渡展示。
+ * key 与 features/<域>/pages/*.page.tsx 的 definePage key 一一对应；
+ * status 标注迁移进度（蓝图 §5.1），legacy 模块点击后由 LegacyPendingPage 过渡展示。
  * 修改本文件即修改侧边栏——不要在 Sidebar 组件里硬编码条目。
  *
  * 图标：lucide-react（线性单色）；多色图标用 react-icons（桌面已有依赖）。

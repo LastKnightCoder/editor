@@ -6,13 +6,13 @@
 import { ChevronsLeft } from "lucide-react";
 import clsx from "clsx";
 import { isMac } from "@/platform";
-import { useSurface } from "@/surface/SurfaceProvider";
+import { usePage } from "@/page/PageProvider";
 import { IconButton } from "@/ui/primitives/IconButton";
 import { useShellStore } from "./shellStore";
 import { NAV_FOOTER, NAV_SECTIONS, type NavItem } from "./navigation";
 
 export function Sidebar() {
-  const { navigator, state } = useSurface();
+  const { navigator, state } = usePage();
   const collapsed = useShellStore(s => s.sidebarCollapsed);
   const toggle = useShellStore(s => s.toggleSidebar);
 

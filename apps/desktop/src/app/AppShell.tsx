@@ -3,7 +3,7 @@
  *
  *   ┌──────────┬──────────────────────────┐
  *   │ sidebar-head │ titlebar（右列专属）    │ ← 46px 对齐
- *   │ 导航图标      │ content（surface 栈）  │
+ *   │ 导航图标      │ content（page 栈）     │
  *   │ （整高贯通）  │ statusbar（右列专属）   │
  *   └──────────┴──────────────────────────┘
  *
@@ -12,16 +12,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { SurfaceProvider, useSurface } from "@/surface/SurfaceProvider";
-import { PageHost } from "@/surface/PageHost";
+import { PageProvider, usePage } from "@/page/PageProvider";
+import { PageHost } from "@/page/PageHost";
 import { initThemeRuntime } from "@/ui/theme/themeStore";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
 import { useShellStore, SIDEBAR_MIN_W, SIDEBAR_MAX_W } from "./shellStore";
-import { ensureLegacySurfaces } from "@/surface/legacy";
+import { ensureLegacyPages } from "@/page/legacy";
 import { ensureDatabaseReady } from "./databaseReady";
 import "./base.css";
-import "../surfaces";
+import "../pages";
 
 // 壳层根：三列骨架（侧栏 / 拖宽热区 / 右列）；排版基准 text-tau-body = 13px/1.65。
 // 行必须显式 100vh：grid 隐式 auto 行会让右列随内容撑高，滚动链整条失效
@@ -29,8 +29,8 @@ const shellRootClass =
   "relative grid h-screen min-w-[1080px] grid-cols-[auto_4px_minmax(0,1fr)] grid-rows-[100vh] " +
   "overflow-hidden bg-page font-tau text-tau-body text-ink-1 antialiased";
 
-// legacy 模块占位注册（真实 surface 注册后自动让位）
-ensureLegacySurfaces();
+// legacy 模块占位注册（真实 page 注册后自动让位）
+ensureLegacyPages();
 
 export default function AppShell() {
   const [boot, setBoot] = useState<"connecting" | "failed" | "ready">("connecting");
@@ -78,14 +78,14 @@ export default function AppShell() {
   }
 
   return (
-    <SurfaceProvider initialKey="home">
+    <PageProvider initialKey="home">
       <ShellLayout />
-    </SurfaceProvider>
+    </PageProvider>
   );
 }
 
 function ShellLayout() {
-  const { state } = useSurface();
+  const { state } = usePage();
   const width = useShellStore(s => s.sidebarWidth);
   const setWidth = useShellStore(s => s.setSidebarWidth);
   const toggle = useShellStore(s => s.toggleSidebar);

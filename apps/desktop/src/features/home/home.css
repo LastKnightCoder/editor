@@ -4,7 +4,7 @@
  */
 
 /* 打通 .content → 视图根的高度链：滚动收进视图内部后根需确定高度（PageHost 已隐藏非激活实例） */
-[data-surface-key="home"] {
+[data-page-key="home"] {
   height: 100%;
 }
 

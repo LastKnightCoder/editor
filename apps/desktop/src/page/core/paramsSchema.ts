@@ -2,7 +2,7 @@
  * 参数 schema DSL —— 编译期类型推导 + 运行时净化（从移动端 router/core/paramsSchema.ts 移植的最小核心）。
  *
  * 用法：
- *   const schema = createSurfaceSchema({ cardId: paramNumber(), keyword: paramOptional(paramString()) });
+ *   const schema = createPageSchema({ cardId: paramNumber(), keyword: paramOptional(paramString()) });
  *   type Params = typeof schema.type;        // { cardId: number; keyword?: string }
  *   sanitizeParams(schema.schema, raw);      // 会话恢复/外部输入净化：丢弃未知键、类型回退、必填缺失拒绝
  */
@@ -36,17 +36,17 @@ export function paramOptional<T>(desc: ParamDesc<T>, defaultValue?: T): ParamDes
   return { ...desc, optional: true, defaultValue };
 }
 
-export interface SurfaceSchema<F extends ParamFields> {
+export interface PageSchema<F extends ParamFields> {
   readonly schema: F;
   /** 仅用于类型推导，禁止运行时访问 */
   readonly type: InferFields<F>;
 }
 
-export function createSurfaceSchema<F extends ParamFields>(schema: F): SurfaceSchema<F> {
+export function createPageSchema<F extends ParamFields>(schema: F): PageSchema<F> {
   return {
     schema,
     get type(): InferFields<F> {
-      throw new Error("createSurfaceSchema().type 仅用于类型推导，不可运行时访问");
+      throw new Error("createPageSchema().type 仅用于类型推导，不可运行时访问");
     },
   };
 }

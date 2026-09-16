@@ -1,6 +1,6 @@
 /**
  * 壳层状态 —— 侧边栏折叠与宽度（zustand + persist，记忆用户偏好）。
- * 唯一可变壳层状态收口在此；导航状态在 surface/ 栈机，不混放。
+ * 唯一可变壳层状态收口在此；导航状态在 page/ 栈机，不混放。
  */
 
 import { create } from "zustand";

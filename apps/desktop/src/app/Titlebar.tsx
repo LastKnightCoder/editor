@@ -5,18 +5,18 @@
 import { useEffect } from "react";
 import { ArrowLeft, ArrowRight, Monitor, Moon, Search, Sun } from "lucide-react";
 import { isWinOrLinux } from "@/platform";
-import { useSurface } from "@/surface/SurfaceProvider";
-import { getSurfaceMeta } from "@/surface/core/surfaceMeta";
-import { isEditableTarget } from "@/surface/dom";
+import { usePage } from "@/page/PageProvider";
+import { getPageMeta } from "@/page/core/pageMeta";
+import { isEditableTarget } from "@/page/dom";
 import { IconButton } from "@/ui/primitives/IconButton";
 import { getTheme } from "@/ui/theme/defineTheme";
 import { nextMode, useThemeStore } from "@/ui/theme/themeStore";
 import { WindowControls } from "./WindowControls";
 
 export function Titlebar() {
-  const { navigator, state } = useSurface();
+  const { navigator, state } = usePage();
 
-  // Alt+←/→ 全局键盘导航（Esc 在 SurfaceProvider 内处理）；
+  // Alt+←/→ 全局键盘导航（Esc 在 PageProvider 内处理）；
   // 编辑上下文让位（macOS Option+←/→ 是按词移动光标）、输入法组合期间不抢键
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
@@ -34,7 +34,7 @@ export function Titlebar() {
   }, [navigator]);
 
   const currentKey = state.back[state.back.length - 1]?.key;
-  const crumb = currentKey ? (getSurfaceMeta(currentKey)?.label ?? currentKey) : "";
+  const crumb = currentKey ? (getPageMeta(currentKey)?.label ?? currentKey) : "";
   const canBack = state.back.length > 1;
   const canForward = state.forward.length > 0;
 
