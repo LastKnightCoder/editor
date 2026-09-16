@@ -52,7 +52,8 @@ export function Sidebar() {
           </span>
         )}
         <IconButton
-          className={clsx("size-[27px]", collapsed ? "ml-0" : "ml-auto")}
+          // 头部容器是窗口拖拽区，按钮必须 no-drag 让位，否则点击被拖拽劫持
+          className={clsx("app-region-no-drag size-[27px]", collapsed ? "ml-0" : "ml-auto")}
           onClick={toggle}
           title={collapsed ? "展开侧边栏" : "收起侧边栏"}
           aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
