@@ -25,6 +25,28 @@ html {
   background: var(--tau-accent-soft);
 }
 
+/* 滚动边缘渐隐（home-scroll 同款协议的通用类）：--edge-top-on/--edge-bottom-on
+ * 由 useEdgeFade hook 按滚动状态写入（0/1），渐隐带尺寸可被容器覆写；
+ * mask 固定于 border-box 不随内容滚——渐变 mask Tailwind 无法表达，归本文件 */
+.app .edge-fade-scroll {
+  --edge-fade-top-size: 12px;
+  --edge-fade-bottom-size: 12px;
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent 0,
+    #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 1)),
+    #000 calc(100% - var(--edge-fade-bottom-size) * var(--edge-bottom-on, 1)),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    transparent 0,
+    #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 1)),
+    #000 calc(100% - var(--edge-fade-bottom-size) * var(--edge-bottom-on, 1)),
+    transparent 100%
+  );
+}
+
 /* 滚动条：系统滚动条改为 4px 细墨条，仅活跃时显形——「活跃」（scrollbar-live 类）
  * 由壳层 scrollbarAutoHide.ts 事件委托驱动（hover/滚动中），不用 :hover 伪类：
  * Chromium 滚动条伪元素不随 :hover 重算，显形后会冻结不消失。
