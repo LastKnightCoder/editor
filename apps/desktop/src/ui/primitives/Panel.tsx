@@ -52,3 +52,19 @@ export function EmptyNote({ className, ...props }: ComponentProps<"p">) {
     />
   );
 }
+
+/** 标题行右侧的“前往”链接（无背景，贴卡片右缘，与标题同行对齐）—— home/stats 共用 */
+export function PanelAction({ className, ...props }: ComponentProps<"button">) {
+  return (
+    <button
+      type="button"
+      className={clsx(
+        "-mr-1 ml-auto inline-flex items-center gap-0.5 rounded-[7px] px-1 py-0.5",
+        "text-tau-micro text-ink-3 font-normal",
+        "ease-tau-out hover:bg-hover hover:text-ink-1 transition-[background,color] duration-[160ms]",
+        className
+      )}
+      {...props}
+    />
+  );
+}
