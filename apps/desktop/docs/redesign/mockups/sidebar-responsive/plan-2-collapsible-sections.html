@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方案二 · 分组折叠 —— 侧边栏响应式设计探索</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #faf6ec;
+    --bg-hover: rgba(67, 57, 44, 0.05);
+    --ink-1: #43392c; --ink-2: #736552; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --line: #e9e1d2;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg-page); color: var(--ink-1);
+    font: 13px/1.65 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .brief { padding: 14px 34px 12px; border-bottom: 1px solid var(--line); }
+  .brief h1 { font-size: 16px; font-weight: 650; }
+  .brief h1 .no { color: var(--accent); margin-right: 6px; }
+  .brief p { color: var(--ink-2); font-size: 12.5px; margin-top: 2px; }
+  .brief .refs { margin-top: 6px; display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--ink-3); }
+  .brief .refs b { color: var(--ink-2); font-weight: 500; }
+  .nav-back { position: absolute; top: 14px; right: 34px; font-size: 12.5px; color: var(--ink-3); text-decoration: none; }
+  .nav-back:hover { color: var(--ink-1); }
+
+  .app { display: flex; height: calc(100vh - 92px); min-height: 320px; }
+  .side {
+    width: 218px; flex-shrink: 0; display: flex; flex-direction: column;
+    padding: 0 10px 8px; --fade-t: 0; --fade-b: 0;
+  }
+  .side-head { height: 46px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 6px; }
+  .logo {
+    width: 24px; height: 24px; border-radius: 8px; display: grid; place-items: center;
+    background: linear-gradient(145deg, hsl(22 58% 35%), var(--accent));
+    color: #fff8ef; font-size: 13px; font-weight: 600;
+  }
+  .side-head .name { font-size: 14px; font-weight: 600; }
+  /* 头部右侧：全部折叠/展开 */
+  .fold-tools { margin-left: auto; display: flex; gap: 2px; }
+  .fold-btn {
+    border: 0; background: transparent; color: var(--ink-3); width: 24px; height: 24px;
+    border-radius: 7px; cursor: pointer; display: grid; place-items: center;
+    transition: background 160ms, color 160ms;
+  }
+  .fold-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .fold-btn svg { width: 14px; height: 14px; }
+
+  .side-scroll {
+    flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding-top: 4px;
+    -webkit-mask-image: linear-gradient(180deg,
+      transparent 0, #000 calc(12px * var(--fade-t)),
+      #000 calc(100% - 12px * var(--fade-b)), transparent 100%);
+    mask-image: linear-gradient(180deg,
+      transparent 0, #000 calc(12px * var(--fade-t)),
+      #000 calc(100% - 12px * var(--fade-b)), transparent 100%);
+  }
+  .side-scroll::-webkit-scrollbar { width: 4px; }
+  .side-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 2px; }
+  .side-scroll:hover::-webkit-scrollbar-thumb { background: rgba(67, 57, 44, 0.18); }
+
+  .group { margin-top: 10px; }
+  /* 组头 = 可点击折叠按钮 */
+  .group-head {
+    display: flex; align-items: center; gap: 5px; width: 100%;
+    border: 0; background: transparent; cursor: pointer; text-align: left;
+    font: inherit; font-size: 11px; color: var(--ink-3); padding: 3px 10px 5px;
+    border-radius: 7px;
+  }
+  .group-head:hover { color: var(--ink-2); }
+  .group-head .chev { width: 13px; height: 13px; transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1); flex-shrink: 0; }
+  .group.collapsed .chev { transform: rotate(-90deg); }
+  .group-head .count { margin-left: auto; font-size: 10.5px; opacity: 0; transition: opacity 160ms; }
+  .group.collapsed .group-head .count { opacity: 1; } /* 折叠时显示条目数，保留信息 scent */
+
+  /* 折叠动画：grid rows 0fr↔1fr */
+  .group-items { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 220ms cubic-bezier(0.22, 1, 0.36, 1); }
+  .group.collapsed .group-items { grid-template-rows: 0fr; }
+  .group-items > .inner { overflow: hidden; min-height: 0; }
+
+  .item {
+    display: flex; align-items: center; gap: 10px;
+    height: 34px; padding: 0 10px; border-radius: 10px;
+    color: var(--ink-2); cursor: pointer; position: relative;
+    transition: background 160ms cubic-bezier(0.22, 1, 0.36, 1), color 160ms;
+    font-size: 13px;
+  }
+  .item:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .item.active { background: var(--bg-hover); color: var(--ink-1); font-weight: 500; }
+  .item.active::before {
+    content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px;
+    border-radius: 0 3px 3px 0; background: var(--accent);
+  }
+  .item svg { width: 17px; height: 17px; flex-shrink: 0; }
+  .item .badge {
+    margin-left: auto; font-size: 11px; color: #fff8ef;
+    background: var(--accent); border-radius: 99px; padding: 0 7px; line-height: 17px;
+  }
+  .side-foot { flex-shrink: 0; margin-top: 6px; padding-top: 6px; }
+
+  .content { flex: 1; min-width: 0; padding: 24px 34px; }
+  .hint-card {
+    background: var(--bg-surface); border-radius: 16px; padding: 22px 26px;
+    box-shadow: 0 1px 2px rgba(67, 57, 44, 0.04), 0 6px 24px rgba(67, 57, 44, 0.05);
+    max-width: 640px;
+  }
+  .hint-card h2 { font-size: 15px; margin-bottom: 8px; }
+  .hint-card ol { padding-left: 18px; color: var(--ink-2); }
+  .hint-card li { margin: 5px 0; }
+
+  .meter {
+    position: fixed; right: 18px; bottom: 14px; z-index: 9;
+    background: var(--bg-surface); border-radius: 10px; padding: 6px 12px;
+    box-shadow: 0 2px 12px rgba(67, 57, 44, 0.12);
+    font: 11.5px/1.5 ui-monospace, Consolas, monospace; color: var(--ink-2);
+  }
+  .meter b { color: var(--ink-1); }
+  .meter .warn { color: #b0564d; }
+  .meter .ok { color: #61795f; }
+</style>
+</head>
+<body>
+
+<div class="brief">
+  <h1><span class="no">方案二</span>分组折叠 —— 用户自主收纳（业界最主流）</h1>
+  <p>每个组头可点击折叠；折叠后显示条目数保留「信息气味」；折叠状态记忆到下次启动。全展开溢出时仍可滚动兜底（继承方案一的渐隐滚动）。</p>
+  <div class="refs">
+    <span><b>机制</b>：组头 button + grid-rows 折叠动画 + localStorage 记忆</span>
+    <span><b>业界</b>：VS Code 资源管理器、Obsidian、Discord 频道分类、Slack</span>
+    <span><b>优点</b>：用户可控、高频组展开低频组收起、业界验证最充分</span>
+    <span><b>缺点</b>：找折叠项多一跳；首次使用（无记忆）时仍溢出</span>
+  </div>
+  <a class="nav-back" href="index.html">← 返回方案总览</a>
+</div>
+
+<div class="app">
+  <nav class="side" aria-label="主导航">
+    <div class="side-head">
+      <span class="logo">τ</span><span class="name">Tau</span>
+      <span class="fold-tools">
+        <button class="fold-btn" id="foldAll" title="全部折叠"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="m7 20 5-5 5 5M7 9l5-5 5 5"/></svg></button>
+        <button class="fold-btn" id="unfoldAll" title="全部展开"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="m7 4 5 5 5-5M7 15l5 5 5-5"/></svg></button>
+      </span>
+    </div>
+    <div class="side-scroll" id="scroll"></div>
+    <div class="side-foot">
+      <div class="item" data-icon="sliders"><span class="lbl">设置</span></div>
+    </div>
+  </nav>
+  <main class="content">
+    <div class="hint-card">
+      <h2>如何感受这个方案</h2>
+      <ol>
+        <li>点击组头（如「知识」「学习」）折叠——21 项可压到 10 行以内，普通窗口高度即可完整容纳。</li>
+        <li>折叠后组头右侧出现条目数（如「5」），hover 组头即可预览规模；刷新页面折叠状态被记住。</li>
+        <li>侧栏头部右上角有「全部折叠 / 全部展开」快捷键。</li>
+        <li>全部展开 + 矮窗口时，退化为方案一的渐隐滚动——两个方案叠加使用，不是二选一。</li>
+      </ol>
+    </div>
+  </main>
+</div>
+
+<div class="meter" id="meter"></div>
+
+<script>
+  const I = {
+    flame: '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.15.43-2.29 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+    calendar: '<path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+    todo: '<path d="m3 7 2 2 4-4M3 17l2 2 4-4M13 6h8M13 12h8M13 18h8"/>',
+    timer: '<path d="M10 2h4M12 14l3-3"/><circle cx="12" cy="14" r="8"/>',
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+    layers: '<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+    file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8"/>',
+    pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+    book: '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
+    board: '<path d="M2 3h20M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/>',
+    kanban: '<path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M8 10v6M12 10v4M16 10v2"/>',
+    cap: '<path d="M21.42 10.92a1 1 0 0 0-.02-1.84L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.83l8.57 3.91a2 2 0 0 0 1.66 0z"/><path d="M22 10v6M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',
+    repeat: '<path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/>',
+    help: '<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/>',
+    bookopen: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+    inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+    chat: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+    sparkles: '<path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>',
+    folder: '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    chart: '<path d="M3 3v16a2 2 0 0 0 2 2h16M18 17V9M13 17V5M8 17v-3"/>',
+    sliders: '<path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3"/><circle cx="12" cy="4" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="14" cy="20" r="2"/>',
+  };
+  const svg = name => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">' + (I[name] || "") + "</svg>";
+
+  const SECTIONS = [
+    { label: "工作台", items: [
+      ["home","今日","flame"], ["schedule","日程","calendar"], ["todos","待办","todo"],
+      ["pomodoro","番茄专注","timer"], ["collaboration","协作","users"] ]},
+    { label: "知识", items: [
+      ["cards","卡片库","layers"], ["articles","文章","file"], ["diary","日记","pen"],
+      ["library","知识库","book"], ["whiteboard","白板","board"], ["projects","项目","kanban"] ]},
+    { label: "学习", items: [
+      ["learning","学习资料","cap"], ["review","闪卡复习","repeat", 12], ["questions","问题管理","help"],
+      ["weread","微信读书","bookopen"], ["feed","订阅","inbox"] ]},
+    { label: "AI", items: [
+      ["chat","AI 对话","chat"], ["skills","Skill 管理","sparkles"] ]},
+    { label: "工具", items: [
+      ["resources","资源管理","folder"], ["stats","统计","chart"] ]},
+  ];
+
+  const scroll = document.getElementById("scroll");
+  scroll.innerHTML = SECTIONS.map((s, i) => {
+    const rows = s.items.map(([key, label, icon, badge]) =>
+      '<div class="item' + (key === "home" ? " active" : "") + '">' + svg(icon) +
+      '<span class="lbl">' + label + "</span>" +
+      (badge ? '<span class="badge">' + badge + "</span>" : "") + "</div>"
+    ).join("");
+    return '<div class="group" data-group="' + i + '">' +
+      '<button class="group-head" aria-expanded="true">' +
+      '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>' +
+      s.label + '<span class="count">' + s.items.length + "</span></button>" +
+      '<div class="group-items"><div class="inner">' + rows + "</div></div></div>";
+  }).join("");
+  document.querySelector(".side-foot .item").insertAdjacentHTML("afterbegin", svg("sliders"));
+
+  /* 折叠交互 + localStorage 记忆 */
+  const KEY = "tau-mockup-fold";
+  const saved = JSON.parse(localStorage.getItem(KEY) || "[]");
+  const groups = [...document.querySelectorAll(".group")];
+  function apply() {
+    groups.forEach((g, i) => g.classList.toggle("collapsed", !!saved[i]));
+    localStorage.setItem(KEY, JSON.stringify(saved));
+    updateFade(); updateMeter();
+  }
+  groups.forEach((g, i) => g.querySelector(".group-head").addEventListener("click", () => {
+    saved[i] = !saved[i]; apply();
+  }));
+  document.getElementById("foldAll").onclick = () => { groups.forEach((_, i) => saved[i] = true); apply(); };
+  document.getElementById("unfoldAll").onclick = () => { groups.forEach((_, i) => saved[i] = false); apply(); };
+  apply();
+
+  const side = document.querySelector(".side");
+  function updateFade() {
+    const max = scroll.scrollHeight - scroll.clientHeight;
+    const on = max > 2;
+    side.style.setProperty("--fade-t", on && scroll.scrollTop > 2 ? 1 : 0);
+    side.style.setProperty("--fade-b", on && scroll.scrollTop < max - 2 ? 1 : 0);
+  }
+  scroll.addEventListener("scroll", updateFade);
+  new ResizeObserver(updateFade).observe(scroll);
+
+  const meter = document.getElementById("meter");
+  function updateMeter() {
+    const overflow = scroll.scrollHeight > scroll.clientHeight + 2;
+    const collapsedN = groups.filter(g => g.classList.contains("collapsed")).length;
+    meter.innerHTML = "窗口 <b>" + innerWidth + " × " + innerHeight + "</b> · 已折叠 <b>" + collapsedN + "/" + groups.length + "</b> 组 · 侧栏 " +
+      (overflow ? '<span class="warn">仍溢出 → 滚动兜底</span>' : '<span class="ok">完整显示</span>');
+  }
+  addEventListener("resize", updateMeter);
+  updateMeter();
+</script>
+</body>
+</html>

@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>侧边栏响应式设计探索 · 总览</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #faf6ec;
+    --bg-hover: rgba(67, 57, 44, 0.05);
+    --ink-1: #43392c; --ink-2: #736552; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --line: #e9e1d2;
+    --ok: #61795f; --warn: #a38c4d; --danger: #b0564d;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg-page); color: var(--ink-1);
+    font: 14px/1.75 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 40px 8vw 80px;
+  }
+  header h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+  header .sub { color: var(--ink-2); margin-top: 4px; max-width: 72ch; }
+  header .meta { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+
+  h2 { font-size: 16px; margin: 42px 0 14px; font-weight: 650; }
+  h2 .tag { font-size: 11.5px; font-weight: 500; color: var(--accent-text); background: var(--accent-soft); border-radius: 99px; padding: 1px 10px; margin-left: 8px; vertical-align: 2px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--bg-surface); border-radius: 16px; padding: 20px 22px;
+    box-shadow: 0 1px 2px rgba(67, 57, 44, 0.04), 0 6px 24px rgba(67, 57, 44, 0.05);
+    text-decoration: none; color: inherit; display: block;
+    transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 200ms;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(67, 57, 44, 0.05), 0 12px 32px rgba(67, 57, 44, 0.09); }
+  .card .no { font: 600 12px/1 ui-monospace, Consolas, monospace; color: var(--accent-text); }
+  .card h3 { font-size: 15.5px; margin: 6px 0 2px; }
+  .card .who { font-size: 12px; color: var(--ink-3); }
+  .card p { font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  .card .verdict { margin-top: 10px; font-size: 12.5px; display: flex; gap: 12px; }
+  .verdict .good { color: var(--ok); }
+  .verdict .bad { color: var(--danger); }
+  .card.recommend { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .card.recommend .pick {
+    float: right; font-size: 11.5px; color: #fff8ef; background: var(--accent);
+    border-radius: 99px; padding: 2px 10px;
+  }
+
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(67, 57, 44, 0.04), 0 6px 24px rgba(67, 57, 44, 0.05); font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--bg-group); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line); }
+  td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  .sc { display: inline-block; width: 8px; height: 8px; border-radius: 99px; margin-right: 6px; vertical-align: 0; }
+  .sc.full { background: var(--ok); } .sc.part { background: var(--warn); } .sc.no { background: var(--danger); }
+
+  .callout {
+    background: var(--bg-surface); border-radius: 14px; padding: 18px 22px; margin-top: 14px;
+    box-shadow: 0 1px 2px rgba(67, 57, 44, 0.04), 0 6px 24px rgba(67, 57, 44, 0.05);
+    border-left: 3px solid var(--accent);
+  }
+  .callout b { color: var(--ink-1); }
+  .callout p { color: var(--ink-2); font-size: 13.5px; }
+  .callout p + p { margin-top: 8px; }
+  ol.steps { padding-left: 20px; color: var(--ink-2); }
+  ol.steps li { margin: 6px 0; }
+  ol.steps b { color: var(--ink-1); }
+  code { font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--bg-group); padding: 1px 6px; border-radius: 5px; color: var(--accent-text); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>侧边栏响应式设计探索</h1>
+  <p class="sub">背景：侧边栏现有 21 个条目 / 5 组，窗口较小（尤其矮窗口）时纵向溢出出现滚动条。下面四个方案都能在这个目录里打开对应 HTML 实际拖动浏览器边缘感受——每个页面右下角有实时尺寸读数。</p>
+  <p class="meta">2026-09-16 · 视觉与数据均对齐当前 navigation.ts（cream 主题实测色值）· 纯静态可离线打开</p>
+</header>
+
+<h2>四个方案</h2>
+<div class="cards">
+  <a class="card" href="plan-1-smooth-scroll.html">
+    <span class="no">PLAN 1</span>
+    <span class="pick" style="float:right;font-size:11.5px;color:var(--ink-3)">基础层</span>
+    <h3>优雅滚动</h3>
+    <div class="who">Notion · Figma · Apple 系统设置</div>
+    <p>不减少入口：sticky 组头 + 上下边缘渐隐 + hover 细滚动条 + 底部设置钉住。把滚动做到无感。</p>
+    <div class="verdict"><span class="good">零信息损失、成本最低</span><span class="bad">矮窗口仍要滚动</span></div>
+  </a>
+  <a class="card recommend" href="plan-2-collapsible-sections.html">
+    <span class="no">PLAN 2</span>
+    <span class="pick">推荐主方案</span>
+    <h3>分组折叠</h3>
+    <div class="who">VS Code · Obsidian · Discord · Slack</div>
+    <p>组头点击折叠收纳，折叠处显示条目数，状态记忆。21 项日常可压到 10 行以内，溢出时退化为方案一滚动。</p>
+    <div class="verdict"><span class="good">用户自主可控、业界最主流</span><span class="bad">找折叠项多一跳</span></div>
+  </a>
+  <a class="card" href="plan-3-auto-icon-rail.html">
+    <span class="no">PLAN 3</span>
+    <span class="pick" style="float:right;font-size:11.5px;color:var(--ink-3)">窄窗兜底</span>
+    <h3>响应式图标栏</h3>
+    <div class="who">VS Code activity bar · Arc · Slack 窄窗</div>
+    <p>窗口宽度低于阈值自动收成 58px 图标栏（与现有手动折叠同形态），组头变小点、徽标变角标、hover 出 tooltip。</p>
+    <div class="verdict"><span class="good">横向省 160px、复用现有折叠态</span><span class="bad">牺牲文字可读性</span></div>
+  </a>
+  <a class="card" href="plan-4-two-tier.html">
+    <span class="no">PLAN 4</span>
+    <span class="pick" style="float:right;font-size:11.5px;color:var(--ink-3)">不推荐</span>
+    <h3>组级双层导航</h3>
+    <div class="who">Apple 系统设置 · iOS 设置</div>
+    <p>一级只放今日 + 5 组 + 设置（7 项），结构性不溢出；点组推入二级面板。直达性损失大，适合设置类 app 而非高频工具。</p>
+    <div class="verdict"><span class="good">一级永不溢出</span><span class="bad">所有功能多一跳</span></div>
+  </a>
+</div>
+
+<h2>对比</h2>
+<table>
+  <thead><tr>
+    <th style="width:130px">维度</th><th>① 优雅滚动</th><th>② 分组折叠</th><th>③ 图标栏</th><th>④ 双层导航</th>
+  </tr></thead>
+  <tbody>
+    <tr><td>解决「矮窗口溢出」</td>
+      <td><span class="sc part"></span>接受滚动，优化体验</td>
+      <td><span class="sc full"></span>收纳后大概率放下</td>
+      <td><span class="sc part"></span>图标也多，仍可能滚</td>
+      <td><span class="sc full"></span>一级恒定 7 项</td></tr>
+    <tr><td>解决「窄窗口拥挤」</td>
+      <td><span class="sc no"></span>不处理横向</td>
+      <td><span class="sc no"></span>不处理横向</td>
+      <td><span class="sc full"></span>218px → 58px</td>
+      <td><span class="sc part"></span>侧栏可做窄，未本质解决</td></tr>
+    <tr><td>高频功能直达</td>
+      <td><span class="sc full"></span>全部一跳</td>
+      <td><span class="sc full"></span>展开组内一跳</td>
+      <td><span class="sc part"></span>一跳但需认图标</td>
+      <td><span class="sc no"></span>组内功能两跳</td></tr>
+    <tr><td>实现成本（对现有代码）</td>
+      <td><span class="sc full"></span>低：sticky + 复用 useEdgeFade</td>
+      <td><span class="sc full"></span>低：组头改 button + shellStore 存状态</td>
+      <td><span class="sc full"></span>低：现有折叠态 + 自动触发断点</td>
+      <td><span class="sc no"></span>高：侧栏改双层栈 + 导航语义变化</td></tr>
+    <tr><td>信息可发现性</td>
+      <td><span class="sc full"></span>全量可见</td>
+      <td><span class="sc part"></span>折叠项靠组名 + 数量提示</td>
+      <td><span class="sc no"></span>纯图标，新用户不友好</td>
+      <td><span class="sc part"></span>组内条目进二级才可见</td></tr>
+  </tbody>
+</table>
+
+<h2>业界结论<span class="tag">TL;DR</span></h2>
+<div class="callout">
+  <p><b>桌面端侧边栏条目超过一屏时，业界几乎无一例外选择「滚动 + 可折叠分组」，而不是减少或隐藏入口。</b>Notion/Figma/Apple 设置走纯滚动优化；VS Code/Obsidian/Discord/Slack 在滚动之上加分组折叠；横向空间不足时收成图标栏（VS Code activity bar、Arc）。把一级功能藏进「更多…」菜单的做法只存在于移动端 bottom-nav 场景，桌面端没有主流产品这样做。</p>
+  <p><b>对本项目的推荐：① + ② 叠加为基底，③ 作为窄窗自动兜底（三者不互斥，成本都不高）。</b></p>
+  <ol class="steps">
+    <li><b>先做方案一</b>（一次性打底）：组头 sticky、边缘渐隐直接复用 <code>useEdgeFade</code>、hover 细滚动条、设置钉底——无论后面选什么，这层都有价值；</li>
+    <li><b>主方案二</b>：组头可折叠 + 条目数 + <code>shellStore</code> 持久化（与侧栏宽度/折叠态同店）；默认全展开，让用户自己养出收纳习惯；</li>
+    <li><b>窄窗兜底方案三</b>：现有 58px 折叠态已存在，只差一个宽度断点自动触发 + 手动优先（用户手动选过就不自动切）；</li>
+    <li><b>不做方案四</b>：本产品是高频直达型 PKM 工具，「卡片库 → 待办」这类跨组切换是常态，两跳成本不可接受；双层导航适合设置类低频浏览场景。</li>
+  </ol>
+  <p style="margin-top:10px;color:var(--ink-3);font-size:12.5px">另一个值得考虑的补充：Ctrl+K 命令面板（03 指南 §9 任务 3）落地后，侧边栏的「全量可达性」压力会显著下降——键盘用户根本不依赖侧边栏找功能，届时侧边栏只需服务高频入口 + 视觉定位。</p>
+</div>
+
+</body>
+</html>
