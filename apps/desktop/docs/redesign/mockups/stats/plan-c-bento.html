@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<title>统计 · 方案 C Bento 面板 — Tau 桌面端</title>
+<!--
+  【统计页方案 C · Bento 数据面板】（已选定，2026-09-16）
+  核心隐喻：便当盒网格——tile 大小混排传达信息优先级，一屏全貌无滚动（理想状态）。
+  大 tile（12 列热力图 / 8 列趋势）承载主叙事，小 tile（3 列大数字）做速览锚点。
+  与方案 B 的差异：B 是行式工作流（每行一个分析主题），C 是一屏拼盘（视觉节奏强、更"现代 dashboard"）。
+  数据口径与 mockups/home-final.html 一致；图表全手写 SVG/CSS，零依赖可离线打开。
+
+  响应式为容器驱动（非窗口媒体查询）：侧栏可拖宽/折叠，窗口宽 ≠ 内容容器宽，
+  故折行用 CSS @container 容器查询（锚点 .bento-wrap，container-type: inline-size），
+  断点对齐 HomeView 的 1180/860 惯例；右下角读数用 ResizeObserver 报容器宽。
+  本页侧栏拖宽条可实际拖动（130–340px），拖动时窗口宽度不变、容器宽度变化，
+  可直接验证折行响应的是容器而非窗口。三档折行规则：
+    容器 ≥1180（宽）   速览 4×c3 ─ 趋势 c8 + 构成 c4 ─ 热力 c12 ─ 记忆 c4 + 节律 c4 + 牌组 c4
+    容器 860–1179（中） 速览 4×c3 ─ 趋势 c12 ─ 热力 c12 ─ 构成 c4 + 记忆 c4 + 节律 c4 ─ 牌组 c12
+    容器 <860（窄）     速览 2×c6 ─ 趋势 c12 ─ 构成 c12 ─ 记忆 c6 + 节律 c6 ─ 热力 c12（横向滚动兜底）─ 牌组 c12
+  热力图 tile 内部 overflow-x 兜底，列不压缩。
+  时间 tabs 已接联动（速览数字 + 趋势窗口 + 副标题），模拟数据接线后的真实行为。
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+}
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #faf6ec; --bg-sunken: #ece5d4;
+  --bg-hover: rgba(67,57,44,0.05); --bg-selected: rgba(217,119,87,0.12);
+  --ink-1: #43392c; --ink-2: #7a6c5a; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --accent: #d97757; --accent-hover: #c96a4c; --accent-soft: rgba(217,119,87,0.12); --accent-text: #b85f42;
+  --ok: #61795f; --ok-soft: #e5ede2; --warn: #a38c4d; --warn-soft: #f6efd6;
+  --danger: #b0564d; --danger-soft: #f6e3e0;
+  --info: #5c7d99; --info-soft: #e2ebf3;
+  --tag-1: #61795f; --tag-2: #5c7d99; --tag-3: #8a7aa6; --tag-4: #a38c4d; --tag-5: #b06a5e;
+  --shadow-card: 0 1px 2px rgba(120,100,70,0.05), 0 10px 24px -14px rgba(120,100,70,0.18);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: var(--font); font-size: 13px; line-height: 1.6; color: var(--ink-1);
+  background: var(--bg-page); overflow: hidden; min-width: 720px; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+.num { font-variant-numeric: tabular-nums; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* ══ 融合骨架（与 home-final 同构；侧栏宽可拖 130–340，容器驱动响应式见 .bento-wrap） ══ */
+.app { display: grid; grid-template-columns: var(--sidebar-w, 218px) 4px minmax(0,1fr);
+  grid-template-rows: 100vh; grid-template-areas: "sidebar resizer main"; }
+.resizer { grid-area: resizer; cursor: col-resize; }
+.resizer:active { cursor: col-resize; }
+.sidebar { grid-area: sidebar; padding: 0 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.sidebar-head { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 6px; margin-bottom: 6px; flex: none; }
+.brand-mark { width: 24px; height: 24px; border-radius: 8px; background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.brand-name { font-weight: 600; font-size: 13.5px; }
+.nav-section { margin-top: 12px; }
+.nav-label { font-size: 11px; color: var(--ink-3); padding: 0 10px 6px; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px;
+  border-radius: 10px; color: var(--ink-2); font-size: 13px; text-align: left; }
+.nav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-item.active { background: var(--bg-hover); color: var(--ink-1); font-weight: 500; position: relative; }
+.nav-item.active::before { content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--accent); }
+.main { grid-area: main; display: grid; grid-template-rows: 46px minmax(0,1fr) 30px; min-width: 0; }
+.titlebar { display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.titlebar-crumb { color: var(--ink-2); font-size: 12.5px; }
+.titlebar-spacer { flex: 1; }
+.kbd-pill { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 4px 0 12px;
+  background: var(--bg-surface); border-radius: 999px; box-shadow: var(--shadow-card); color: var(--ink-2); font-size: 12px; }
+kbd { height: 20px; padding: 0 6px; border-radius: 6px; background: var(--bg-group); color: var(--ink-2);
+  font-size: 11px; font-family: ui-monospace, Consolas, monospace; display: inline-flex; align-items: center; }
+.win-controls { display: flex; gap: 2px; margin-left: 4px; }
+.win-btn { width: 36px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); }
+.win-btn:hover { background: var(--bg-hover); }
+.content { overflow-y: auto; }
+.statusbar { display: flex; align-items: center; gap: 16px; padding: 0 14px; color: var(--ink-3); font-size: 11.5px; }
+
+/* ══ 方案 C：Bento 面板 ══ */
+/* 容器查询锚点：响应式看内容容器宽（侧栏拖宽/折叠都会改变它），与窗口宽度解耦 */
+.bento-wrap { padding: 18px 26px 24px; max-width: 1720px; margin: 0 auto; container-type: inline-size; }
+.hero { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.hero h1 { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+.hero .digest { margin-left: auto; font-size: 12px; color: var(--ink-2); }
+.hero .digest b { color: var(--ink-1); font-weight: 600; }
+.hero .digest .sep { margin: 0 8px; color: var(--ink-3); }
+.tabs { display: flex; align-items: center; gap: 2px; background: var(--bg-surface); border-radius: 10px;
+  padding: 2.5px; box-shadow: var(--shadow-card); }
+.tab { height: 24px; padding: 0 12px; border-radius: 8px; font-size: 11.5px; color: var(--ink-2); transition: all 160ms var(--ease-out); }
+.tab:hover { color: var(--ink-1); }
+.tab.on { background: var(--accent); color: var(--ink-inverse); font-weight: 500; }
+
+.bento { display: grid; grid-template-columns: repeat(12, 1fr); gap: 12px; grid-auto-flow: dense; }
+.tile { background: var(--bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); padding: 14px 16px; min-width: 0; }
+.tile-title { font-size: 12.5px; font-weight: 600; color: var(--ink-1); display: flex; align-items: center; }
+.tile-title small { font-weight: 400; color: var(--ink-3); font-size: 11px; margin-left: 8px; }
+.tile-title .act { margin-left: auto; font-size: 11.5px; color: var(--ink-3); font-weight: 400; border-radius: 7px; padding: 2px 8px; }
+.tile-title .act:hover { background: var(--bg-hover); color: var(--ink-1); }
+.c3 { grid-column: span 3; } .c4 { grid-column: span 4; } .c8 { grid-column: span 8; } .c12 { grid-column: span 12; }
+
+/* 小 tile：大数字速览 */
+.mini { display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 16px 18px; }
+.mini .label { font-size: 11.5px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+.mini .label .ico { width: 15px; height: 15px; border-radius: 5px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); }
+.mini .label .ico svg { width: 10px; height: 10px; }
+.mini b { font-size: 27px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; }
+.mini b small { font-size: 11.5px; font-weight: 400; color: var(--ink-3); margin-left: 4px; letter-spacing: 0; }
+.mini .foot { font-size: 11px; color: var(--ink-3); }
+.mini .foot .up { color: var(--ok); } .mini .foot .down { color: var(--danger); }
+.mini .foot .fire { color: var(--accent-text); font-weight: 600; }
+
+/* 趋势 tile */
+.chart-wrap { position: relative; }
+.chart-wrap svg { display: block; width: 100%; height: auto; }
+.chart-tip { position: absolute; pointer-events: none; background: var(--ink-1); color: var(--ink-inverse);
+  border-radius: 8px; padding: 5px 10px; font-size: 11px; line-height: 1.45; opacity: 0; transform: translate(-50%, -110%);
+  transition: opacity 120ms; white-space: nowrap; z-index: 3; }
+.chart-tip b { font-size: 12.5px; }
+.axis { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink-3); margin-top: 6px; padding: 0 1px; }
+
+/* 构成 tile：横条堆叠 */
+.stack-bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; margin: 12px 0 4px; }
+.stack-bar i { height: 100%; }
+.comp-rows { display: flex; flex-direction: column; gap: 2px; }
+.comp-row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: var(--radius-sm); transition: background 160ms var(--ease-out); }
+.comp-row:hover { background: var(--bg-hover); }
+.comp-row .dot { width: 8px; height: 8px; border-radius: 3px; flex: none; }
+.comp-row .name { font-size: 12px; font-weight: 500; width: 40px; }
+.comp-row .val { font-size: 11px; color: var(--ink-2); margin-left: auto; white-space: nowrap; }
+.comp-row .val b { color: var(--ink-1); }
+.comp-row .pct { font-size: 11px; color: var(--ink-3); width: 36px; text-align: right; }
+
+/* 节律 tile */
+.clock-chart { display: flex; align-items: flex-end; gap: 3px; height: 96px; }
+.clock-chart .cbar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; min-width: 0; }
+.clock-chart .cbar i { display: block; border-radius: 3px 3px 0 0; background: var(--accent); opacity: 0.5; }
+.clock-chart .cbar.peak i { opacity: 1; }
+.clock-chart .cbar.morning i { background: var(--tag-4); }
+.clock-axis { display: flex; gap: 3px; margin-top: 5px; }
+.clock-axis span { flex: 1; text-align: center; font-size: 9.5px; color: var(--ink-3); }
+.focus-nums { display: flex; gap: 20px; margin-top: 10px; }
+.focus-nums .s .v { font-size: 14px; font-weight: 650; }
+.focus-nums .s .v small { font-size: 10.5px; font-weight: 400; color: var(--ink-3); margin-left: 2px; }
+.focus-nums .s .l { font-size: 10.5px; color: var(--ink-3); }
+
+/* 记忆 tile */
+.rating-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; margin: 10px 0 8px; }
+.rating-bar i { height: 100%; }
+.rating-legend { display: flex; gap: 12px; font-size: 11px; color: var(--ink-2); flex-wrap: wrap; }
+.rating-legend .r { display: flex; align-items: center; gap: 5px; }
+.rating-legend .r b { color: var(--ink-1); }
+.rating-legend .r .dot { width: 7px; height: 7px; border-radius: 2.5px; }
+.mem-foot { display: flex; align-items: center; gap: 16px; margin-top: 12px; }
+.mem-foot .ring-num { font-size: 14px; font-weight: 650; color: var(--ok); }
+.mem-foot .l { font-size: 10.5px; color: var(--ink-3); }
+.mem-foot .due-line { font-size: 11.5px; color: var(--ink-2); margin-left: auto; }
+.mem-foot .due-line b { color: var(--accent-text); }
+
+/* 热力图 tile */
+.heat { display: flex; gap: 4px; }
+.heat-week { display: flex; gap: 4px; flex-direction: column; justify-content: flex-end; align-items: center; flex: 1; min-width: 0; }
+.heat-week.last { justify-content: flex-start; }
+.heat-day { flex: none; aspect-ratio: 1; width: 100%; }
+.heat-day:hover { animation: heatPulse 0.5s linear alternate infinite; }
+.heat-dot { width: 100%; height: 100%; border-radius: 50%; background: rgba(217, 119, 87, 0.1); transform: scale(0.72); }
+.heat-dot.s1 { background: rgba(217, 119, 87, 0.32); transform: scale(0.78); }
+.heat-dot.s2 { background: rgba(217, 119, 87, 0.52); transform: scale(0.85); }
+.heat-dot.s3 { background: rgba(217, 119, 87, 0.74); transform: scale(0.92); }
+.heat-dot.s4 { background: rgb(217, 119, 87); transform: scale(1); }
+@keyframes heatPulse { 0% { transform: scale(1.18); } 50% { transform: scale(1); } 100% { transform: scale(0.85); } }
+.heat-meta { display: flex; align-items: center; gap: 5px; justify-content: flex-end; margin-top: 8px; font-size: 10.5px; color: var(--ink-3); }
+.heat-meta .d { width: 10px; height: 10px; border-radius: 50%; }
+.heat-months { display: flex; font-size: 10.5px; color: var(--ink-3); margin-bottom: 5px; }
+.heat-months span { white-space: nowrap; overflow: hidden; }
+
+/* 牌组 tile */
+.deck { display: flex; align-items: center; gap: 12px; padding: 7px 10px; border-radius: var(--radius-sm); transition: background 160ms var(--ease-out); }
+.deck:hover { background: var(--bg-hover); }
+.deck .name { font-size: 12.5px; font-weight: 500; width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deck .track { flex: 1; height: 8px; border-radius: 4px; background: var(--bg-sunken); overflow: hidden; display: flex; }
+.deck .track i { display: block; height: 100%; }
+.deck .track .due { background: var(--warn); }
+.deck .track .learn { background: var(--accent); opacity: 0.8; }
+.deck .track .done { background: var(--ok); opacity: 0.55; }
+.deck .n { font-size: 11px; color: var(--ink-2); white-space: nowrap; }
+.deck .n b { color: var(--ink-1); }
+.deck .n .hot { color: var(--accent-text); font-weight: 600; }
+
+/* 热力图 tile：窄窗口列不压缩，横向滚动兜底 */
+.tile.c12 .heat-wrap { overflow-x: auto; padding-bottom: 2px; }
+.tile.c12 .heat { min-width: 620px; }
+
+/* ── 响应式折行（容器查询：断点对齐 HomeView 的 1180/860 惯例，锚点 .bento-wrap） ── */
+@container (max-width: 1179px) {
+  /* 中档：趋势/牌组升满 12 列；构成+记忆+节律三个 c4 汇成一行（dense 自动回流） */
+  .tile.trend, .tile.decks { grid-column: span 12; }
+}
+@container (max-width: 859px) {
+  /* 窄档：速览 2×2；构成升满；记忆+节律并排 */
+  .tile.mini { grid-column: span 6; }
+  .tile.comp { grid-column: span 12; }
+  .tile.mem, .tile.rhythm { grid-column: span 6; }
+}
+
+/* 右下角容器宽度读数（ResizeObserver 驱动，落地时换 HomeView 的容器查询体系，不迁移此组件） */
+.readout { position: fixed; right: 14px; bottom: 40px; z-index: 9;
+  background: var(--ink-1); color: var(--ink-inverse); border-radius: 999px;
+  padding: 4px 12px; font-size: 11px; font-family: ui-monospace, Consolas, monospace;
+  font-variant-numeric: tabular-nums; box-shadow: var(--shadow-card, 0 4px 16px rgba(0,0,0,0.2)); }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-head">
+      <span style="display:flex;align-items:center;gap:8px"><span class="brand-mark">τ</span><span class="brand-name">Tau</span></span>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">工作台</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-flame"/></svg><span>今日</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-calendar"/></svg><span>日程</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-todo"/></svg><span>待办</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-timer"/></svg><span>番茄专注</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-users"/></svg><span>协作</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">知识</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-layers"/></svg><span>卡片库</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-article"/></svg><span>文章</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-pen"/></svg><span>日记</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-book"/></svg><span>知识库</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-board"/></svg><span>白板</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">学习</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-kanban"/></svg><span>项目</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-repeat"/></svg><span>闪卡复习</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-help"/></svg><span>问题管理</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-bookopen"/></svg><span>微信读书</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-inbox"/></svg><span>订阅</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">AI</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-chat"/></svg><span>AI 对话</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-sparkles"/></svg><span>Skill 管理</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">工具</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-folder"/></svg><span>资源管理</span></button>
+      <button class="nav-item active"><svg class="icon"><use href="#i-chart"/></svg><span>统计</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">&nbsp;</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-sliders"/></svg><span>设置</span></button>
+    </div>
+  </nav>
+  <div class="resizer"></div>
+  <div class="main">
+    <header class="titlebar">
+      <span class="titlebar-crumb">· 统计</span>
+      <div class="titlebar-spacer"></div>
+      <button class="kbd-pill"><svg class="icon" style="width:13px;height:13px"><use href="#i-search"/></svg>搜索或跳转…<kbd>Ctrl K</kbd></button>
+      <div class="win-controls"><span class="win-btn"></span><span class="win-btn close"></span></div>
+    </header>
+    <main class="content">
+      <div class="bento-wrap">
+
+        <header class="hero">
+          <h1>统计</h1>
+          <div class="tabs">
+            <button class="tab on" data-range="d30">近 30 天</button>
+            <button class="tab" data-range="d90">近 90 天</button>
+            <button class="tab" data-range="year">今年</button>
+            <button class="tab" data-range="all">全部</button>
+          </div>
+          <span class="digest num">
+            累计 <b>38.6 万</b> 字<span class="sep">·</span><b>4,254</b> 条<span class="sep">·</span>快照 14:00
+          </span>
+        </header>
+
+        <div class="bento">
+
+          <!-- 速览小 tile 群 -->
+          <section class="tile mini c3">
+            <span class="label"><span class="ico"><svg class="icon" style="width:10px;height:10px"><use href="#i-flame"/></svg></span>连续活跃</span>
+            <b class="num">46<small>天</small></b>
+            <span class="foot num">最长纪录 <span class="fire">58</span> 天 · 还差 12 天追平</span>
+          </section>
+          <section class="tile mini c3">
+            <span class="label"><span class="ico"><svg class="icon" style="width:10px;height:10px"><use href="#i-pen"/></svg></span><span id="kpi-words-label">近 30 天写下</span></span>
+            <b class="num" id="kpi-words">34,218<small>字</small></b>
+            <span class="foot num" id="kpi-words-foot"><span class="up">▲ 12%</span> 环比 · 日均 1,141</span>
+          </section>
+          <section class="tile mini c3">
+            <span class="label"><span class="ico"><svg class="icon" style="width:10px;height:10px"><use href="#i-repeat"/></svg></span>今日待复习</span>
+            <b class="num">23<small>张</small></b>
+            <span class="foot num">5 个牌组 · 未来 7 天 118 张</span>
+          </section>
+          <section class="tile mini c3">
+            <span class="label"><span class="ico"><svg class="icon" style="width:10px;height:10px"><use href="#i-timer"/></svg></span>累计专注</span>
+            <b class="num">217<small>小时</small></b>
+            <span class="foot num">522 个番茄 · <span class="down">▼ 5%</span> 本月</span>
+          </section>
+
+          <!-- 趋势 tile（8 列） -->
+          <section class="tile trend c8">
+            <h2 class="tile-title">写作趋势<small id="trend-note">近 30 天 · 日字数与 7 日均线</small>
+              <button class="act">导出 CSV</button>
+            </h2>
+            <div class="chart-wrap">
+              <svg id="trend-chart" viewBox="0 0 1000 190" preserveAspectRatio="none"></svg>
+              <div class="chart-tip" id="trend-tip"></div>
+            </div>
+            <div class="axis" id="trend-axis"></div>
+          </section>
+
+          <!-- 构成 tile（4 列） -->
+          <section class="tile comp c4">
+            <h2 class="tile-title">知识构成<small>累计 38.6 万字</small></h2>
+            <div class="stack-bar">
+              <i style="width:49%;background:var(--accent)" title="文章 49%"></i>
+              <i style="width:31.5%;background:var(--tag-4)" title="卡片 31%"></i>
+              <i style="width:19.5%;background:var(--tag-2)" title="日记 20%"></i>
+            </div>
+            <div class="comp-rows">
+              <div class="comp-row"><span class="dot" style="background:var(--accent)"></span><span class="name">文章</span>
+                <span class="val num"><b>189,208</b> 字</span><span class="pct num">49%</span></div>
+              <div class="comp-row"><span class="dot" style="background:var(--tag-4)"></span><span class="name">卡片</span>
+                <span class="val num"><b>121,436</b> 字</span><span class="pct num">31%</span></div>
+              <div class="comp-row"><span class="dot" style="background:var(--tag-2)"></span><span class="name">日记</span>
+                <span class="val num"><b>75,570</b> 字</span><span class="pct num">20%</span></div>
+            </div>
+          </section>
+
+          <!-- 热力图 tile（12 列） -->
+          <section class="tile c12">
+            <h2 class="tile-title">活动<small>2026 · 每日操作 · 今年 214 个活跃日</small>
+              <span style="margin-left:auto;font-size:11px;color:var(--ink-3)" class="num">连续 <b style="color:var(--accent-text);font-size:13px">46</b> 天</span>
+            </h2>
+            <div class="heat-wrap">
+              <div class="heat-months" id="heat-months"></div>
+              <div class="heat" id="heat"></div>
+            </div>
+            <div class="heat-meta">
+              少
+              <span class="d heat-dot" style="transform:scale(0.72)"></span>
+              <span class="d heat-dot s1"></span><span class="d heat-dot s2"></span><span class="d heat-dot s3"></span><span class="d heat-dot s4"></span>
+              多
+            </div>
+          </section>
+
+          <!-- 记忆 tile（4 列） -->
+          <section class="tile mem c4">
+            <h2 class="tile-title">记忆保持<small>近 30 天 · 412 次评分</small>
+              <button class="act">前往复习</button>
+            </h2>
+            <div class="rating-bar">
+              <i style="width:58%;background:var(--ok)"></i>
+              <i style="width:19%;background:var(--tag-2)"></i>
+              <i style="width:17%;background:var(--tag-4)"></i>
+              <i style="width:6%;background:var(--danger)"></i>
+            </div>
+            <div class="rating-legend">
+              <span class="r"><span class="dot" style="background:var(--ok)"></span>记得 <b class="num">239</b></span>
+              <span class="r"><span class="dot" style="background:var(--tag-2)"></span>轻松 <b class="num">78</b></span>
+              <span class="r"><span class="dot" style="background:var(--tag-4)"></span>模糊 <b class="num">70</b></span>
+              <span class="r"><span class="dot" style="background:var(--danger)"></span>忘记 <b class="num">25</b></span>
+            </div>
+            <div class="mem-foot">
+              <span class="ring-num num">79%</span><span class="l">记得+轻松<br>保持率</span>
+              <span class="due-line num">今天 <b>23</b> 张到期</span>
+            </div>
+          </section>
+
+          <!-- 节律 tile（4 列） -->
+          <section class="tile rhythm c4">
+            <h2 class="tile-title">专注节律<small>24h 分布 · 晚间型</small>
+              <button class="act">打开番茄钟</button>
+            </h2>
+            <div class="clock-chart" id="clock"></div>
+            <div class="clock-axis" id="clock-axis"></div>
+            <div class="focus-nums">
+              <div class="s"><div class="v num">20–23<small>点</small></div><div class="l">38% 番茄启动</div></div>
+              <div class="s"><div class="v num">41<small>min</small></div><div class="l">平均单次</div></div>
+              <div class="s"><div class="v num">6.2<small>%</small></div><div class="l">中断率</div></div>
+            </div>
+          </section>
+
+          <!-- 牌组 tile（4 列） -->
+          <section class="tile decks c4">
+            <h2 class="tile-title">闪卡牌组<small>5 组 · 162 张</small>
+              <button class="act">前往复习</button>
+            </h2>
+            <div class="deck"><span class="name">认知科学</span>
+              <span class="track"><i class="due" style="width:34%"></i><i class="learn" style="width:12%"></i><i class="done" style="width:54%"></i></span>
+              <span class="n num"><b class="hot">14</b>/41</span></div>
+            <div class="deck"><span class="name">方法论</span>
+              <span class="track"><i class="due" style="width:20%"></i><i class="learn" style="width:9%"></i><i class="done" style="width:71%"></i></span>
+              <span class="n num"><b class="hot">7</b>/35</span></div>
+            <div class="deck"><span class="name">编程</span>
+              <span class="track"><i class="due" style="width:0%"></i><i class="learn" style="width:18%"></i><i class="done" style="width:82%"></i></span>
+              <span class="n num"><b>0</b>/33</span></div>
+            <div class="deck"><span class="name">语言</span>
+              <span class="track"><i class="due" style="width:0%"></i><i class="learn" style="width:7%"></i><i class="done" style="width:93%"></i></span>
+              <span class="n num"><b>0</b>/28</span></div>
+            <div class="deck"><span class="name">写作</span>
+              <span class="track"><i class="due" style="width:8%"></i><i class="learn" style="width:8%"></i><i class="done" style="width:84%"></i></span>
+              <span class="n num"><b class="hot">2</b>/25</span></div>
+          </section>
+
+        </div>
+      </div>
+    </main>
+    <footer class="statusbar"></footer>
+  </div>
+</div>
+<div class="readout" id="readout">…</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
+  <symbol id="i-todo" viewBox="0 0 24 24"><path d="M3 5h.01"/><path d="M8 5h13"/><path d="M3 12h.01"/><path d="M8 12h13"/><path d="M3 19h.01"/><path d="M8 19h13"/></symbol>
+  <symbol id="i-timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M9 2h6"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1"/><circle cx="18" cy="9" r="3"/><path d="M19 15a5 5 0 0 1 4 4"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 10 5-10 5L2 7l10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></symbol>
+  <symbol id="i-article" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h6"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+  <symbol id="i-board" viewBox="0 0 24 24"><path d="M2 3h20v14H2z"/><path d="M12 17v4"/><path d="M8 21h8"/></symbol>
+  <symbol id="i-kanban" viewBox="0 0 24 24"><path d="M5 3v14"/><path d="M12 3v10"/><path d="M19 3v7"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-bookopen" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3l1.9 5.8 5.8 1.9-5.8 1.9L12 18.4l-1.9-5.8-5.8-1.9 5.8-1.9z"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><circle cx="4" cy="12" r="2"/><circle cx="12" cy="10" r="2"/><circle cx="20" cy="14" r="2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></symbol>
+</svg>
+
+<script>
+/* ── 时间范围联动（模拟数据接线：速览数字 + 趋势窗口 + 副标题） ── */
+const KPI = {
+  d30:  { label: "近 30 天写下", words: "34,218",  foot: '<span class="up">▲ 12%</span> 环比 · 日均 1,141', n: 30 },
+  d90:  { label: "近 90 天写下", words: "94,073",  foot: '<span class="up">▲ 9%</span> 环比 · 日均 1,046',  n: 90 },
+  year: { label: "今年写下",     words: "186,402", foot: '日均 875 · 活跃 214 天',                        n: 260 },
+  all:  { label: "累计写下",     words: "386,214", foot: '始于 2024-03 · 活跃 512 天',                    n: 380 },
+};
+document.querySelectorAll(".tab").forEach(btn => btn.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b === btn));
+  const k = KPI[btn.dataset.range] ?? KPI.d30;
+  document.getElementById("kpi-words-label").textContent = k.label;
+  document.getElementById("kpi-words").innerHTML = k.words + '<small>字</small>';
+  document.getElementById("kpi-words-foot").innerHTML = k.foot;
+  document.getElementById("trend-note").textContent = `近 ${k.n} 天 · 日字数与 7 日均线`;
+  drawTrend(k.n);
+}));
+
+/* ── 右下角读数：ResizeObserver 监听内容容器（非 window resize——侧栏拖宽/折叠
+      改变的是容器宽，窗口宽不变；落地 React 时折行交给容器查询，此组件仅演示用） ── */
+(function () {
+  const el = document.getElementById("readout");
+  const wrap = document.querySelector(".bento-wrap");
+  const render = cw => {
+    const tier = cw >= 1180 ? "宽档" : cw >= 860 ? "中档" : "窄档";
+    el.textContent = `容器 ${cw}px · ${tier} · 侧栏 ${document.documentElement.style.getPropertyValue("--sidebar-w") || "218px"}`;
+  };
+  new ResizeObserver(entries => render(Math.round(entries[0].contentRect.width))).observe(wrap);
+  render(Math.round(wrap.getBoundingClientRect().width - 52)); // 减左右 padding 得初始内容宽
+})();
+
+/* ── 侧栏拖宽演示（130–340px，pointer capture）：窗口宽度不变、容器宽度变化，
+      用于验证 @container 折行真实响应容器（真实壳层的折叠/搜索面板同理影响容器宽） ── */
+(function () {
+  const resizer = document.querySelector(".resizer");
+  let startW = 0, startX = 0;
+  resizer.addEventListener("pointerdown", e => {
+    startW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--sidebar-w")) || 218;
+    startX = e.clientX;
+    resizer.setPointerCapture(e.pointerId);
+  });
+  resizer.addEventListener("pointermove", e => {
+    if (!resizer.hasPointerCapture(e.pointerId)) return;
+    const w = Math.min(340, Math.max(130, startW + e.clientX - startX));
+    document.documentElement.style.setProperty("--sidebar-w", `${w}px`);
+  });
+})();
+
+/* ── 写作趋势（面积 + 7 日均线，与方案 B 同源；n 为窗口天数） ── */
+function drawTrend(n) {
+  const data = [];
+  const end = new Date(2026, 8, 16);
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(end.getTime() - i * 86400000);
+    const dow = d.getDay(), key = `${d.getMonth() + 1}-${d.getDate()}`;
+    const weekend = dow === 0 || dow === 6;
+    let v = weekend ? 350 + ((d.getDate() * 37) % 550) : 780 + ((d.getDate() * 91) % 1450);
+    if (key === "8-28") v = 3214;
+    if (key === "9-8") v = 2860;
+    if (key === "9-16") v = 1284;
+    data.push({ d, v, key });
+  }
+  const W = 1000, H = 190, PAD = 6, TOP = 14;
+  const max = Math.max(...data.map(p => p.v));
+  const x = i => PAD + (i / (data.length - 1)) * (W - PAD * 2);
+  const y = v => H - 16 - (v / max) * (H - 16 - TOP);
+  const pts = data.map((p, i) => [x(i), y(p.v)]);
+  const line = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const area = line + ` L ${x(data.length - 1)} ${H - 4} L ${x(0)} ${H - 4} Z`;
+  const ma = pts.map((_, i) => {
+    const seg = data.slice(Math.max(0, i - 6), i + 1);
+    return [pts[i][0], y(seg.reduce((s, p) => s + p.v, 0) / seg.length)];
+  });
+  const maLine = ma.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  document.getElementById("trend-chart").innerHTML = `
+    <defs><linearGradient id="tg2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="rgba(217,119,87,0.25)"/><stop offset="1" stop-color="rgba(217,119,87,0.02)"/>
+    </linearGradient></defs>
+    <path d="${area}" fill="url(#tg2)"/>
+    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="${maLine}" fill="none" stroke="var(--tag-2)" stroke-width="2" stroke-linejoin="round" opacity="0.9"/>
+    ${data.map((p, i) => `<rect class="thit" data-i="${i}" x="${x(i) - (W / data.length) / 2}" y="0" width="${W / data.length}" height="${H}" fill="transparent"/>`).join("")}
+    <line id="tline" x1="0" x2="0" y1="${TOP - 8}" y2="${H - 4}" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3" opacity="0"/>`;
+  const step = Math.max(1, Math.round(n / 6));
+  document.getElementById("trend-axis").innerHTML =
+    data.filter((_, i) => i % step === 0).map(p => `<span>${p.key}</span>`).join("");
+  const svg = document.getElementById("trend-chart"), tip = document.getElementById("trend-tip");
+  svg.querySelectorAll(".thit").forEach(rect => {
+    rect.addEventListener("mousemove", () => {
+      const i = +rect.dataset.i, r = svg.getBoundingClientRect();
+      tip.style.left = ((pts[i][0]) / W) * r.width + "px";
+      tip.style.top = ((pts[i][1]) / H) * r.height + "px";
+      tip.innerHTML = `<b class="num">${data[i].v.toLocaleString("zh-CN")}</b> 字<br><span style="opacity:.7">2026-${String(data[i].d.getMonth() + 1).padStart(2, "0")}-${String(data[i].d.getDate()).padStart(2, "0")}</span>`;
+      tip.style.opacity = 1;
+      const hl = document.getElementById("tline");
+      hl.setAttribute("x1", pts[i][0]); hl.setAttribute("x2", pts[i][0]); hl.style.opacity = 0.6;
+    });
+    rect.addEventListener("mouseleave", () => { tip.style.opacity = 0; document.getElementById("tline").style.opacity = 0; });
+  });
+}
+drawTrend(30);
+
+/* ── 24h 专注节律 ── */
+(function () {
+  const weights = [0,0,0,0,0,0,1,3,6,9,11,8,5,3,4,6,8,6,3,4,7,10,6,2];
+  const max = Math.max(...weights);
+  const peaks = new Set([10, 21]);
+  document.getElementById("clock").innerHTML = weights.map((w, h) =>
+    `<div class="cbar${peaks.has(h) ? " peak" : ""}${h >= 6 && h < 12 ? " morning" : ""}" title="${String(h).padStart(2,"0")}:00 · ${w} 个番茄">
+       <i style="height:${Math.max(4, (w / max) * 100)}%"></i></div>`).join("");
+  const marks = [0, 3, 6, 9, 12, 15, 18, 21, 23];
+  document.getElementById("clock-axis").innerHTML = weights.map((_, h) =>
+    `<span>${marks.includes(h) ? String(h).padStart(2, "0") : ""}</span>`).join("");
+})();
+
+/* ── 热力图（A2 圆点基因 + 连续 46 天强化） ── */
+function seeded(dateStr) {
+  const dow = new Date(dateStr + "T12:00").getDay();
+  const d = Number(dateStr.slice(8)), m = Number(dateStr.slice(5, 7));
+  const seed = (m * 31 + d * 17) % 100;
+  const weekend = dow === 0 || dow === 6;
+  const base = weekend ? 28 : 68;
+  if (seed > base) return 0;
+  if ((m * 31 + d) % 46 === 0) return 22 + (seed % 12);
+  return 1 + Math.floor((seed / base) * (weekend ? 5 : 15));
+}
+(function () {
+  const year = 2026;
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const start = new Date(year, 0, 1), end = new Date(year, 11, 31), today = new Date(year, 8, 16);
+  const streakStart = new Date(year, 7, 2);
+  const weeks = []; let week = [];
+  for (let d = new Date(start); d <= end; d = new Date(d.getTime() + 86400000)) {
+    week.push(fmt(d));
+    if (d.getDay() === 0) { weeks.push(week); week = []; }
+  }
+  if (week.length) weeks.push(week);
+  const level = c => c === 0 ? "" : c < 5 ? "s1" : c < 10 ? "s2" : c < 20 ? "s3" : "s4";
+  document.getElementById("heat").innerHTML = weeks.map((w, wi) =>
+    `<div class="heat-week${wi === weeks.length - 1 ? " last" : ""}">` +
+    w.map(day => {
+      const dt = new Date(day + "T12:00");
+      const future = dt > today;
+      const inStreak = dt >= streakStart && dt <= today;
+      const raw = seeded(day);
+      const count = inStreak && raw === 0 ? 3 + (Number(day.slice(8)) % 4) : raw;
+      return `<div class="heat-day" title="${day}${future ? "" : " · " + count + " 次操作"}"><div class="heat-dot ${future ? "" : level(count)}"></div></div>`;
+    }).join("") + `</div>`).join("");
+  let labels = "", curM = -1, count = 0;
+  for (const w of weeks) {
+    const m = Number(w[0].slice(5, 7));
+    if (m !== curM) { if (curM !== -1) labels += `<span style="flex:${count} 1 0">${curM}月</span>`; curM = m; count = 0; }
+    count++;
+  }
+  labels += `<span style="flex:${count} 1 0">${curM}月</span>`;
+  document.getElementById("heat-months").innerHTML = labels;
+})();
+</script>
+</body>
+</html>

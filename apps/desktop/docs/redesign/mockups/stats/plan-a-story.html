@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<title>统计 · 方案 A 叙事回顾 — Tau 桌面端</title>
+<!--
+  【统计页方案 A · 叙事回顾（年报/季报体）】
+  核心隐喻：个人知识年轮——像 Spotify Wrapped / GitHub 年报一样讲故事，
+  编辑排版（大标题 + 衬线感数字 + 段落式说明），纵向单列叙事流。
+  时间范围 pills（本月/本季/今年/全部）切换时全页数字与图表联动（模拟数据接线）。
+  数据口径与 mockups/home-final.html 一致（真实感 mock，非随机噪声）。
+  壳层/色板/圆点热力图对齐 A2 定稿基因；图表全手写 SVG/CSS，零依赖可离线打开。
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+}
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #faf6ec; --bg-sunken: #ece5d4;
+  --bg-hover: rgba(67,57,44,0.05); --bg-selected: rgba(217,119,87,0.12);
+  --ink-1: #43392c; --ink-2: #7a6c5a; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --accent: #d97757; --accent-hover: #c96a4c; --accent-soft: rgba(217,119,87,0.12); --accent-text: #b85f42;
+  --ok: #61795f; --ok-soft: #e5ede2; --warn: #a38c4d; --warn-soft: #f6efd6;
+  --danger: #b0564d; --danger-soft: #f6e3e0;
+  --info: #5c7d99; --info-soft: #e2ebf3;
+  --tag-1: #61795f; --tag-2: #5c7d99; --tag-3: #8a7aa6; --tag-4: #a38c4d; --tag-5: #b06a5e;
+  --shadow-card: 0 1px 2px rgba(120,100,70,0.05), 0 10px 24px -14px rgba(120,100,70,0.18);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: var(--font); font-size: 13px; line-height: 1.6; color: var(--ink-1);
+  background: var(--bg-page); overflow: hidden; min-width: 1200px; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+.num { font-variant-numeric: tabular-nums; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* ══ 融合骨架（与 home-final 同构） ══ */
+.app { display: grid; grid-template-columns: 218px 4px minmax(0,1fr); grid-template-rows: 100vh;
+  grid-template-areas: "sidebar resizer main"; }
+.sidebar { grid-area: sidebar; padding: 0 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.sidebar-head { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 6px; margin-bottom: 6px; flex: none; }
+.brand-mark { width: 24px; height: 24px; border-radius: 8px; background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.brand-name { font-weight: 600; font-size: 13.5px; }
+.nav-section { margin-top: 12px; }
+.nav-label { font-size: 11px; color: var(--ink-3); padding: 0 10px 6px; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px;
+  border-radius: 10px; color: var(--ink-2); font-size: 13px; text-align: left; }
+.nav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-item.active { background: var(--bg-hover); color: var(--ink-1); font-weight: 500; position: relative; }
+.nav-item.active::before { content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--accent); }
+.main { grid-area: main; display: grid; grid-template-rows: 46px minmax(0,1fr) 30px; min-width: 0; }
+.titlebar { display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.titlebar-crumb { color: var(--ink-2); font-size: 12.5px; }
+.titlebar-spacer { flex: 1; }
+.kbd-pill { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 4px 0 12px;
+  background: var(--bg-surface); border-radius: 999px; box-shadow: var(--shadow-card); color: var(--ink-2); font-size: 12px; }
+kbd { height: 20px; padding: 0 6px; border-radius: 6px; background: var(--bg-group); color: var(--ink-2);
+  font-size: 11px; font-family: ui-monospace, Consolas, monospace; display: inline-flex; align-items: center; }
+.win-controls { display: flex; gap: 2px; margin-left: 4px; }
+.win-btn { width: 36px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); }
+.win-btn:hover { background: var(--bg-hover); }
+.content { overflow-y: auto; }
+.statusbar { display: flex; align-items: center; gap: 16px; padding: 0 14px; color: var(--ink-3); font-size: 11.5px; }
+
+/* ══ 方案 A：叙事回顾 ══ */
+.story { max-width: 1120px; margin: 0 auto; padding: 34px 40px 72px; }
+
+/* 时间范围 pills */
+.range-row { display: flex; align-items: center; gap: 2px; background: var(--bg-surface); border-radius: 999px;
+  padding: 3px; box-shadow: var(--shadow-card); width: max-content; }
+.range { height: 26px; padding: 0 14px; border-radius: 999px; font-size: 12px; color: var(--ink-2);
+  transition: all 160ms var(--ease-out); }
+.range:hover { color: var(--ink-1); }
+.range.on { background: var(--accent); color: var(--ink-inverse); font-weight: 500; }
+.range-row .hint { margin-left: 14px; font-size: 11.5px; color: var(--ink-3); }
+
+/* hero：编辑排版大标题 */
+.hero { margin-top: 30px; }
+.hero .kicker { font-size: 12px; letter-spacing: 0.18em; color: var(--accent-text); font-weight: 600; }
+.hero h1 { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.3; margin-top: 6px; }
+.hero h1 em { font-style: normal; color: var(--accent-text); }
+.hero .sub { margin-top: 8px; color: var(--ink-2); font-size: 13px; max-width: 60ch; }
+.hero .sub b { color: var(--ink-1); }
+
+/* 亮点故事卡 */
+.highlights { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 26px; }
+.hl { background: var(--bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-card);
+  padding: 18px 20px 16px; position: relative; overflow: hidden; }
+.hl .no { font-size: 11px; color: var(--ink-3); font-family: ui-monospace, Consolas, monospace; }
+.hl .big { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; margin-top: 6px; }
+.hl .big small { font-size: 12px; font-weight: 400; color: var(--ink-3); margin-left: 4px; letter-spacing: 0; }
+.hl p { font-size: 12px; color: var(--ink-2); margin-top: 6px; line-height: 1.55; }
+.hl::after { content: ""; position: absolute; top: 0; left: 20px; width: 26px; height: 3px; border-radius: 0 0 3px 3px; background: var(--accent); }
+.hl.t2::after { background: var(--tag-2); }
+.hl.t3::after { background: var(--tag-1); }
+
+/* 章节段 */
+.chapter { margin-top: 46px; }
+.chapter-head { display: flex; align-items: baseline; gap: 12px; }
+.chapter-head .idx { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--accent-text); }
+.chapter-head h2 { font-size: 19px; font-weight: 650; letter-spacing: -0.01em; }
+.chapter-head .note { font-size: 12px; color: var(--ink-3); }
+.card { background: var(--bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); padding: 18px 20px; margin-top: 14px; }
+
+/* 面积图（SVG 手写） */
+.chart-wrap { position: relative; }
+.chart-wrap svg { display: block; width: 100%; height: auto; }
+.chart-tip { position: absolute; pointer-events: none; background: var(--ink-1); color: var(--ink-inverse);
+  border-radius: 8px; padding: 5px 10px; font-size: 11px; line-height: 1.45; opacity: 0; transform: translate(-50%, -110%);
+  transition: opacity 120ms; white-space: nowrap; z-index: 3; }
+.chart-tip b { font-size: 12.5px; }
+.axis { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink-3); margin-top: 6px; padding: 0 1px; }
+.stat-inline { display: flex; gap: 28px; margin-top: 14px; }
+.stat-inline .s .v { font-size: 17px; font-weight: 650; }
+.stat-inline .s .v small { font-size: 11px; font-weight: 400; color: var(--ink-3); margin-left: 3px; }
+.stat-inline .s .l { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
+
+/* 构成：环形 + 图例（两栏） */
+.split { display: grid; grid-template-columns: 220px 1fr; gap: 26px; align-items: center; }
+.donut { position: relative; }
+.donut .center { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+.donut .center b { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; display: block; }
+.donut .center span { font-size: 10.5px; color: var(--ink-3); }
+.legend-rows { display: flex; flex-direction: column; gap: 4px; }
+.lrow { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--radius-sm);
+  transition: background 160ms var(--ease-out); }
+.lrow:hover { background: var(--bg-hover); }
+.lrow .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.lrow .name { font-size: 12.5px; font-weight: 500; width: 64px; }
+.lrow .bar { flex: 1; height: 7px; border-radius: 4px; background: var(--bg-sunken); overflow: hidden; }
+.lrow .bar i { display: block; height: 100%; border-radius: 4px; }
+.lrow .val { font-size: 11.5px; color: var(--ink-2); white-space: nowrap; }
+.lrow .val b { color: var(--ink-1); }
+
+/* 24h 节律 */
+.clock-chart { display: flex; align-items: flex-end; gap: 3px; height: 120px; }
+.clock-chart .cbar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; min-width: 0; }
+.clock-chart .cbar i { display: block; border-radius: 3px 3px 0 0; background: var(--accent); opacity: 0.5; }
+.clock-chart .cbar.peak i { opacity: 1; }
+.clock-chart .cbar.morning i { background: var(--tag-4); }
+.clock-axis { display: flex; gap: 3px; margin-top: 6px; }
+.clock-axis span { flex: 1; text-align: center; font-size: 9.5px; color: var(--ink-3); }
+.rhythm-note { display: flex; gap: 26px; margin-top: 14px; }
+.rhythm-note .s .v { font-size: 15px; font-weight: 650; }
+.rhythm-note .s .l { font-size: 11px; color: var(--ink-3); }
+
+/* 记忆：评分四段 + 保持环 */
+.memory-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: center; }
+.rating-bar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; margin-top: 12px; }
+.rating-bar i { height: 100%; }
+.rating-legend { display: flex; gap: 18px; margin-top: 10px; flex-wrap: wrap; }
+.rating-legend .r { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--ink-2); }
+.rating-legend .r b { color: var(--ink-1); }
+.rating-legend .r .dot { width: 8px; height: 8px; border-radius: 3px; }
+
+/* 热力图（A2 圆点基因） */
+.heat { display: flex; gap: 4px; }
+.heat-week { display: flex; gap: 4px; flex-direction: column; justify-content: flex-end; align-items: center; flex: 1; min-width: 0; }
+.heat-week.last { justify-content: flex-start; }
+.heat-day { flex: none; aspect-ratio: 1; width: 100%; }
+.heat-day:hover { animation: heatPulse 0.5s linear alternate infinite; }
+.heat-dot { width: 100%; height: 100%; border-radius: 50%; background: rgba(217, 119, 87, 0.1); transform: scale(0.72); }
+.heat-dot.s1 { background: rgba(217, 119, 87, 0.32); transform: scale(0.78); }
+.heat-dot.s2 { background: rgba(217, 119, 87, 0.52); transform: scale(0.85); }
+.heat-dot.s3 { background: rgba(217, 119, 87, 0.74); transform: scale(0.92); }
+.heat-dot.s4 { background: rgb(217, 119, 87); transform: scale(1); }
+@keyframes heatPulse { 0% { transform: scale(1.18); } 50% { transform: scale(1); } 100% { transform: scale(0.85); } }
+.heat-meta { display: flex; align-items: center; gap: 5px; justify-content: flex-end; margin-top: 8px; font-size: 10.5px; color: var(--ink-3); }
+.heat-meta .d { width: 10px; height: 10px; border-radius: 50%; }
+.heat-months { display: flex; font-size: 10.5px; color: var(--ink-3); margin-bottom: 5px; }
+.heat-months span { white-space: nowrap; overflow: hidden; }
+
+/* 里程碑时间线 */
+.milestones { margin-top: 6px; }
+.ms { display: flex; gap: 16px; padding: 10px 4px; border-radius: var(--radius-sm); transition: background 160ms var(--ease-out); position: relative; }
+.ms:hover { background: var(--bg-hover); }
+.ms .when { font-family: ui-monospace, Consolas, monospace; font-size: 11.5px; color: var(--ink-3); width: 58px; flex: none; padding-top: 2px; }
+.ms .what { font-size: 13px; }
+.ms .what small { display: block; font-size: 11px; color: var(--ink-3); margin-top: 1px; }
+.ms .medal { margin-left: auto; flex: none; align-self: flex-start; font-size: 11px; border-radius: 999px; padding: 2px 10px; background: var(--accent-soft); color: var(--accent-text); }
+.ms.done .medal { background: var(--ok-soft); color: var(--ok); }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-head">
+      <span style="display:flex;align-items:center;gap:8px"><span class="brand-mark">τ</span><span class="brand-name">Tau</span></span>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">工作台</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-flame"/></svg><span>今日</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-calendar"/></svg><span>日程</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-todo"/></svg><span>待办</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-timer"/></svg><span>番茄专注</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-users"/></svg><span>协作</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">知识</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-layers"/></svg><span>卡片库</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-article"/></svg><span>文章</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-pen"/></svg><span>日记</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-book"/></svg><span>知识库</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-board"/></svg><span>白板</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">学习</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-kanban"/></svg><span>项目</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-repeat"/></svg><span>闪卡复习</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-help"/></svg><span>问题管理</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-bookopen"/></svg><span>微信读书</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-inbox"/></svg><span>订阅</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">AI</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-chat"/></svg><span>AI 对话</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-sparkles"/></svg><span>Skill 管理</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">工具</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-folder"/></svg><span>资源管理</span></button>
+      <button class="nav-item active"><svg class="icon"><use href="#i-chart"/></svg><span>统计</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">&nbsp;</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-sliders"/></svg><span>设置</span></button>
+    </div>
+  </nav>
+  <div class="resizer"></div>
+  <div class="main">
+    <header class="titlebar">
+      <span class="titlebar-crumb">· 统计</span>
+      <div class="titlebar-spacer"></div>
+      <button class="kbd-pill"><svg class="icon" style="width:13px;height:13px"><use href="#i-search"/></svg>搜索或跳转…<kbd>Ctrl K</kbd></button>
+      <div class="win-controls"><span class="win-btn"></span><span class="win-btn close"></span></div>
+    </header>
+    <main class="content">
+      <div class="story">
+
+        <!-- 时间范围 + hero -->
+        <div class="range-row">
+          <button class="range" data-range="month">本月</button>
+          <button class="range" data-range="quarter">本季</button>
+          <button class="range on" data-range="year">今年</button>
+          <button class="range" data-range="all">全部</button>
+          <span class="hint">快照于 2026-09-16 14:00</span>
+        </div>
+
+        <header class="hero">
+          <div class="kicker">2026 · 知识年轮</div>
+          <h1>你在 Tau 里写下了 <em class="num" id="hero-words">18.6</em> 万字，<br>知识正在产生复利。</h1>
+          <p class="sub" id="hero-sub">截至 9 月 16 日，今年新建 <b class="num">1,684</b> 条卡片与文章、完成 <b class="num">4,267</b> 次闪卡复习、
+            累计专注 <b class="num">168</b> 小时。9 月是你最高产的月份。</p>
+        </header>
+
+        <!-- 亮点故事卡 -->
+        <div class="highlights">
+          <section class="hl">
+            <div class="no">连续活跃</div>
+            <div class="big num">46<small>天 · 进行中</small></div>
+            <p>历史最长 58 天（2025 年 11–12 月）。距离追平纪录还有 12 天。</p>
+          </section>
+          <section class="hl t2">
+            <div class="no">最高产月份</div>
+            <div class="big num">9 月<small>12,847 字</small></div>
+            <p>环比 8 月 +21%。节奏来自每天清晨的两张卡片和一篇日记。</p>
+          </section>
+          <section class="hl t3">
+            <div class="no">记忆保持率</div>
+            <div class="big num">87<small>%</small></div>
+            <p>4,267 次复习里 77% 评为「记得」。遗忘曲线被你按住了。</p>
+          </section>
+        </div>
+
+        <!-- ① 写作轨迹 -->
+        <section class="chapter">
+          <div class="chapter-head">
+            <span class="idx">01</span><h2>写作轨迹</h2><span class="note">月度字数 · 卡片 + 文章 + 日记</span>
+          </div>
+          <div class="card">
+            <div class="chart-wrap">
+              <svg id="area-chart" viewBox="0 0 1000 220" preserveAspectRatio="none"></svg>
+              <div class="chart-tip" id="area-tip"></div>
+            </div>
+            <div class="axis" id="area-axis"></div>
+            <div class="stat-inline">
+              <div class="s"><div class="v num" id="t-words">186,402<small>字</small></div><div class="l">写下</div></div>
+              <div class="s"><div class="v num" id="t-created">1,684<small>条</small></div><div class="l">新建</div></div>
+              <div class="s"><div class="v num">2,108<small>字 / 活跃日</small></div><div class="l">日均（活跃日）</div></div>
+              <div class="s"><div class="v num">7 月 · 21,368<small>字</small></div><div class="l">单月纪录</div></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ② 知识构成 -->
+        <section class="chapter">
+          <div class="chapter-head">
+            <span class="idx">02</span><h2>知识构成</h2><span class="note">累计字数按内容类型</span>
+          </div>
+          <div class="card">
+            <div class="split">
+              <div class="donut">
+                <svg width="200" height="200" viewBox="0 0 42 42" id="donut"></svg>
+                <div class="center"><div><b class="num">38.6<small style="font-size:12px;font-weight:400;color:var(--ink-3)">万</small></b><span>累计字数</span></div></div>
+              </div>
+              <div class="legend-rows">
+                <div class="lrow"><span class="dot" style="background:var(--accent)"></span><span class="name">文章</span>
+                  <span class="bar"><i style="width:49%;background:var(--accent)"></i></span>
+                  <span class="val num"><b>189,208</b> · 49%</span></div>
+                <div class="lrow"><span class="dot" style="background:var(--tag-4)"></span><span class="name">卡片</span>
+                  <span class="bar"><i style="width:31.5%;background:var(--tag-4)"></i></span>
+                  <span class="val num"><b>121,436</b> · 31%</span></div>
+                <div class="lrow"><span class="dot" style="background:var(--tag-2)"></span><span class="name">日记</span>
+                  <span class="bar"><i style="width:19.5%;background:var(--tag-2)"></i></span>
+                  <span class="val num"><b>75,570</b> · 20%</span></div>
+                <p style="font-size:11.5px;color:var(--ink-3);padding:6px 10px 0">385 篇文章 · 3,869 张卡片 · 206 篇日记，最早记录始于 2024 年 3 月。</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ③ 专注节律 -->
+        <section class="chapter">
+          <div class="chapter-head">
+            <span class="idx">03</span><h2>专注节律</h2><span class="note">番茄开始时刻的 24 小时分布</span>
+          </div>
+          <div class="card">
+            <div class="clock-chart" id="clock"></div>
+            <div class="clock-axis" id="clock-axis"></div>
+            <div class="rhythm-note">
+              <div class="s"><div class="v">晚间 20–23 点</div><div class="l">38% 的番茄在此时启动 · 你是晚间型</div></div>
+              <div class="s"><div class="v num">217<small style="font-size:11px;font-weight:400;color:var(--ink-3)">小时</small></div><div class="l">累计专注</div></div>
+              <div class="s"><div class="v num">41<small style="font-size:11px;font-weight:400;color:var(--ink-3)">分钟</small></div><div class="l">平均单次番茄（含中断恢复）</div></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ④ 记忆保持 -->
+        <section class="chapter">
+          <div class="chapter-head">
+            <span class="idx">04</span><h2>记忆保持</h2><span class="note">闪卡复习评分分布 · 全部时段</span>
+          </div>
+          <div class="card">
+            <div class="memory-grid">
+              <div>
+                <div style="font-size:12px;color:var(--ink-2)">6,834 次复习的评分构成</div>
+                <div class="rating-bar">
+                  <i style="width:58%;background:var(--ok)" title="记得 58%"></i>
+                  <i style="width:19%;background:var(--tag-2)" title="轻松 19%"></i>
+                  <i style="width:17%;background:var(--tag-4)" title="模糊 17%"></i>
+                  <i style="width:6%;background:var(--danger)" title="忘记 6%"></i>
+                </div>
+                <div class="rating-legend">
+                  <span class="r"><span class="dot" style="background:var(--ok)"></span>记得 <b class="num">3,964</b></span>
+                  <span class="r"><span class="dot" style="background:var(--tag-2)"></span>轻松 <b class="num">1,299</b></span>
+                  <span class="r"><span class="dot" style="background:var(--tag-4)"></span>模糊 <b class="num">1,162</b></span>
+                  <span class="r"><span class="dot" style="background:var(--danger)"></span>忘记 <b class="num">409</b></span>
+                </div>
+                <p style="font-size:11.5px;color:var(--ink-3);margin-top:12px">未来 7 天将有 <b class="num" style="color:var(--ink-1)">118</b> 张卡片到期，其中今天 <b class="num" style="color:var(--accent-text)">23</b> 张。</p>
+              </div>
+              <div class="donut" style="justify-self:center">
+                <svg width="180" height="180" viewBox="0 0 42 42">
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--bg-sunken)" stroke-width="5"></circle>
+                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--ok)" stroke-width="5"
+                    stroke-linecap="round" stroke-dasharray="87 100" stroke-dashoffset="25" transform="rotate(-90 21 21)"></circle>
+                </svg>
+                <div class="center"><div><b class="num" style="font-size:26px">87<small style="font-size:12px;font-weight:400;color:var(--ink-3)">%</small></b><span>记忆保持率</span></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ⑤ 活动年鉴 -->
+        <section class="chapter">
+          <div class="chapter-head">
+            <span class="idx">05</span><h2>活动年鉴</h2><span class="note">2026 · 每日操作</span>
+          </div>
+          <div class="card">
+            <div class="heat-months" id="heat-months"></div>
+            <div class="heat" id="heat"></div>
+            <div class="heat-meta">
+              少
+              <span class="d heat-dot" style="transform:scale(0.72)"></span>
+              <span class="d heat-dot s1"></span><span class="d heat-dot s2"></span><span class="d heat-dot s3"></span><span class="d heat-dot s4"></span>
+              多<span style="margin-left:10px" class="num">连续活跃 46 天</span>
+            </div>
+          </div>
+          <div class="card milestones">
+            <div class="ms done"><span class="when">01-12</span><span class="what">第 3,000 张卡片<small>来自「记忆的错觉」第 2 章摘录</small></span><span class="medal">已达成</span></div>
+            <div class="ms done"><span class="when">03-08</span><span class="what">连续活跃 30 天<small>此后再未中断超过 2 天</small></span><span class="medal">已达成</span></div>
+            <div class="ms done"><span class="when">05-21</span><span class="what">第 100 篇文章<small>《把笔记写成给未来自己的信》</small></span><span class="medal">已达成</span></div>
+            <div class="ms done"><span class="when">07-15</span><span class="what">单月字数纪录 21,368 字<small>保持至今</small></span><span class="medal">已达成</span></div>
+            <div class="ms done"><span class="when">08-30</span><span class="what">累计写下 35 万字<small>距 40 万字还差 3.6 万</small></span><span class="medal">已达成</span></div>
+            <div class="ms"><span class="when">09-12</span><span class="what">连续活跃 46 天<small>进行中 · 追平纪录还需 12 天</small></span><span class="medal">进行中</span></div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+    <footer class="statusbar"></footer>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
+  <symbol id="i-todo" viewBox="0 0 24 24"><path d="M3 5h.01"/><path d="M8 5h13"/><path d="M3 12h.01"/><path d="M8 12h13"/><path d="M3 19h.01"/><path d="M8 19h13"/></symbol>
+  <symbol id="i-timer" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M9 2h6"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1"/><circle cx="18" cy="9" r="3"/><path d="M19 15a5 5 0 0 1 4 4"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 10 5-10 5L2 7l10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></symbol>
+  <symbol id="i-article" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h6"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+  <symbol id="i-board" viewBox="0 0 24 24"><path d="M2 3h20v14H2z"/><path d="M12 17v4"/><path d="M8 21h8"/></symbol>
+  <symbol id="i-kanban" viewBox="0 0 24 24"><path d="M5 3v14"/><path d="M12 3v10"/><path d="M19 3v7"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-bookopen" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3l1.9 5.8 5.8 1.9-5.8 1.9L12 18.4l-1.9-5.8-5.8-1.9 5.8-1.9z"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 21v-7"/><path d="M4 10V3"/><path d="M12 21v-9"/><path d="M12 8V3"/><path d="M20 21v-5"/><path d="M20 12V3"/><circle cx="4" cy="12" r="2"/><circle cx="12" cy="10" r="2"/><circle cx="20" cy="14" r="2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></symbol>
+</svg>
+
+<script>
+/* ── 时间范围切换：数字与副题联动（模拟接线后的真实行为） ── */
+const RANGES = {
+  month: { words: "1.28", sub: '截至 9 月 16 日，本月新建 <b class="num">96</b> 条卡片与文章、完成 <b class="num">312</b> 次闪卡复习、累计专注 <b class="num">18</b> 小时 40 分。', tw: "12,847", tc: "96" },
+  quarter: { words: "4.9", sub: '截至 9 月 16 日，本季新建 <b class="num">472</b> 条卡片与文章、完成 <b class="num">1,208</b> 次闪卡复习、累计专注 <b class="num">54</b> 小时。', tw: "49,067", tc: "472" },
+  year: { words: "18.6", sub: '截至 9 月 16 日，今年新建 <b class="num">1,684</b> 条卡片与文章、完成 <b class="num">4,267</b> 次闪卡复习、累计专注 <b class="num">168</b> 小时。9 月是你最高产的月份。', tw: "186,402", tc: "1,684" },
+  all: { words: "38.6", sub: '自 2024 年 3 月以来，你累计新建 <b class="num">4,254</b> 条卡片与文章、写下 <b class="num">206</b> 篇日记、完成 <b class="num">6,834</b> 次闪卡复习、累计专注 <b class="num">217</b> 小时。', tw: "386,214", tc: "4,254" },
+};
+document.querySelectorAll(".range").forEach(btn => btn.addEventListener("click", () => {
+  document.querySelectorAll(".range").forEach(b => b.classList.toggle("on", b === btn));
+  const r = RANGES[btn.dataset.range];
+  document.getElementById("hero-words").textContent = r.words;
+  document.getElementById("hero-sub").innerHTML = r.sub;
+  document.getElementById("t-words").innerHTML = r.tw + '<small>字</small>';
+  document.getElementById("t-created").innerHTML = r.tc + '<small>条</small>';
+}));
+
+/* ── 面积图：今年月度字数（9 月为半月量，10–12 未来） ── */
+(function () {
+  const months = ["1月","2月","3月","4月","5月","6月","7月","8月","9月"];
+  const vals = [14320, 8940, 16208, 15116, 13842, 17604, 21368, 19852, 12847];
+  const W = 1000, H = 220, PAD = 8, TOP = 26;
+  const max = Math.max(...vals);
+  const x = i => PAD + (i / (vals.length - 1)) * (W - PAD * 2);
+  const y = v => H - 18 - (v / max) * (H - 18 - TOP);
+  const pts = vals.map((v, i) => [x(i), y(v)]);
+
+  const line = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const area = line + ` L ${x(vals.length - 1)} ${H - 4} L ${x(0)} ${H - 4} Z`;
+  // 7 月峰值点
+  const peak = pts[6];
+  document.getElementById("area-chart").innerHTML = `
+    <defs>
+      <linearGradient id="ag" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="rgba(217,119,87,0.28)"/><stop offset="1" stop-color="rgba(217,119,87,0.02)"/>
+      </linearGradient>
+    </defs>
+    <path d="${area}" fill="url(#ag)"/>
+    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${pts.map((p, i) => `<circle cx="${p[0]}" cy="${p[1]}" r="${i === 6 ? 4.5 : 3}" fill="var(--bg-surface)" stroke="var(--accent)" stroke-width="2"/>`).join("")}
+    <text x="${peak[0] - 8}" y="${peak[1] - 12}" text-anchor="end" font-size="12" fill="var(--accent-text)" font-weight="600">21,368 · 单月纪录</text>
+    ${vals.map((v, i) => `<rect class="hit" data-i="${i}" x="${x(i) - (W - PAD * 2) / (vals.length - 1) / 2}" y="0" width="${(W - PAD * 2) / (vals.length - 1)}" height="${H}" fill="transparent"/>`).join("")}
+    <line id="hover-line" x1="0" x2="0" y1="${TOP - 10}" y2="${H - 4}" stroke="var(--ink-3)" stroke-width="1" stroke-dasharray="3 3" opacity="0"/>`;
+  document.getElementById("area-axis").innerHTML = months.map(m => `<span>${m}</span>`).join("");
+
+  const svg = document.getElementById("area-chart"), tip = document.getElementById("area-tip");
+  svg.querySelectorAll(".hit").forEach(rect => {
+    rect.addEventListener("mousemove", e => {
+      const i = +rect.dataset.i, r = svg.getBoundingClientRect();
+      const px = ((pts[i][0]) / W) * r.width;
+      tip.style.left = px + "px"; tip.style.top = ((pts[i][1]) / H) * r.height + "px";
+      tip.innerHTML = `<b class="num">${vals[i].toLocaleString("zh-CN")}</b> 字<br><span style="opacity:.7">${months[i]} · 2026</span>`;
+      tip.style.opacity = 1;
+      const hl = document.getElementById("hover-line");
+      hl.setAttribute("x1", pts[i][0]); hl.setAttribute("x2", pts[i][0]); hl.style.opacity = 0.6;
+    });
+    rect.addEventListener("mouseleave", () => { tip.style.opacity = 0; document.getElementById("hover-line").style.opacity = 0; });
+  });
+})();
+
+/* ── 环形图：内容构成 ── */
+(function () {
+  const segs = [
+    { pct: 49.0, color: "var(--accent)" },
+    { pct: 31.5, color: "var(--tag-4)" },
+    { pct: 19.5, color: "var(--tag-2)" },
+  ];
+  const C = 2 * Math.PI * 15.9;
+  let off = 25; // 从 12 点方向起（dashoffset 25 = 90°）
+  document.getElementById("donut").innerHTML =
+    `<circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--bg-sunken)" stroke-width="5.5"/>` +
+    segs.map(s => {
+      const el = `<circle cx="21" cy="21" r="15.9" fill="none" stroke="${s.color}" stroke-width="5.5"
+        stroke-dasharray="${(s.pct / 100 * C).toFixed(2)} ${C.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" transform="rotate(-90 21 21)"/>`;
+      off -= s.pct / 100 * C;
+      return el;
+    }).join("");
+})();
+
+/* ── 24h 专注节律 ── */
+(function () {
+  const weights = [0,0,0,0,0,0,1,3,6,9,11,8,5,3,4,6,8,6,3,4,7,10,6,2];
+  const max = Math.max(...weights);
+  const peaks = new Set([10, 21]);
+  document.getElementById("clock").innerHTML = weights.map((w, h) =>
+    `<div class="cbar${peaks.has(h) ? " peak" : ""}${h >= 6 && h < 12 ? " morning" : ""}" title="${String(h).padStart(2,"0")}:00 · ${w} 个番茄">
+       <i style="height:${Math.max(4, (w / max) * 100)}%"></i></div>`).join("");
+  const marks = [0, 3, 6, 9, 12, 15, 18, 21, 23];
+  document.getElementById("clock-axis").innerHTML = weights.map((_, h) =>
+    `<span>${marks.includes(h) ? String(h).padStart(2, "0") : ""}</span>`).join("");
+})();
+
+/* ── 热力图：A2 圆点基因（连续 46 天强化活跃） ── */
+function seeded(dateStr) {
+  const dow = new Date(dateStr + "T12:00").getDay();
+  const d = Number(dateStr.slice(8)), m = Number(dateStr.slice(5, 7));
+  const seed = (m * 31 + d * 17) % 100;
+  const weekend = dow === 0 || dow === 6;
+  const base = weekend ? 28 : 68;
+  if (seed > base) return 0;
+  if ((m * 31 + d) % 46 === 0) return 22 + (seed % 12);
+  return 1 + Math.floor((seed / base) * (weekend ? 5 : 15));
+}
+(function () {
+  const year = 2026;
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const start = new Date(year, 0, 1), end = new Date(year, 11, 31), today = new Date(year, 8, 16);
+  const streakStart = new Date(year, 7, 2); // 8/2 起连续 46 天
+  const weeks = []; let week = [];
+  for (let d = new Date(start); d <= end; d = new Date(d.getTime() + 86400000)) {
+    week.push(fmt(d));
+    if (d.getDay() === 0) { weeks.push(week); week = []; }
+  }
+  if (week.length) weeks.push(week);
+
+  const level = c => c === 0 ? "" : c < 5 ? "s1" : c < 10 ? "s2" : c < 20 ? "s3" : "s4";
+  document.getElementById("heat").innerHTML = weeks.map((w, wi) =>
+    `<div class="heat-week${wi === weeks.length - 1 ? " last" : ""}">` +
+    w.map(day => {
+      const dt = new Date(day + "T12:00");
+      const future = dt > today;
+      const inStreak = dt >= streakStart && dt <= today;
+      const raw = seeded(day);
+      const count = inStreak && raw === 0 ? 3 + ((Number(day.slice(8)) % 4)) : raw;
+      return `<div class="heat-day" title="${day}${future ? "" : " · " + count + " 次操作"}"><div class="heat-dot ${future ? "" : level(count)}"></div></div>`;
+    }).join("") + `</div>`).join("");
+
+  let labels = "", curM = -1, count = 0;
+  for (const w of weeks) {
+    const m = Number(w[0].slice(5, 7));
+    if (m !== curM) { if (curM !== -1) labels += `<span style="flex:${count} 1 0">${curM}月</span>`; curM = m; count = 0; }
+    count++;
+  }
+  labels += `<span style="flex:${count} 1 0">${curM}月</span>`;
+  document.getElementById("heat-months").innerHTML = labels;
+})();
+</script>
+</body>
+</html>
