@@ -16,6 +16,7 @@ import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
 import { initThemeRuntime } from "@/ui/theme/themeStore";
 import { Loading } from "@/ui/primitives/Loading";
+import { initScrollbarAutoHide } from "./scrollbarAutoHide";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
 import { useShellStore, SIDEBAR_MIN_W, SIDEBAR_MAX_W } from "./shellStore";
@@ -25,9 +26,10 @@ import "./base.css";
 import "../pages";
 
 // 壳层根：三列骨架（侧栏 / 拖宽热区 / 右列）；排版基准 text-tau-body = 13px/1.65。
-// 行必须显式 100vh：grid 隐式 auto 行会让右列随内容撑高，滚动链整条失效
+// 行必须显式 100vh：grid 隐式 auto 行会让右列随内容撑高，滚动链整条失效。
+// app 类 = base.css 的 .app 作用域锚点（button cursor / focus-ring / 滚动条等 reset）
 const shellRootClass =
-  "relative grid h-screen min-w-[1080px] grid-cols-[auto_4px_minmax(0,1fr)] grid-rows-[100vh] " +
+  "app relative grid h-screen min-w-[1080px] grid-cols-[auto_4px_minmax(0,1fr)] grid-rows-[100vh] " +
   "overflow-hidden bg-page font-tau text-tau-body text-ink-1 antialiased";
 
 // legacy 模块占位注册（真实 page 注册后自动让位）
@@ -45,6 +47,7 @@ export default function AppShell() {
 
   useEffect(() => {
     initThemeRuntime();
+    initScrollbarAutoHide();
     connect();
   }, [connect]);
 

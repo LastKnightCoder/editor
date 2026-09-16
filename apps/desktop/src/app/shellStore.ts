@@ -12,8 +12,11 @@ export const SIDEBAR_MAX_W = 340;
 interface ShellState {
   sidebarCollapsed: boolean;
   sidebarWidth: number;
+  /** 导航组折叠态（key = 组 label；空对象 = 全展开） */
+  navSectionCollapsed: Record<string, boolean>;
   toggleSidebar(): void;
   setSidebarWidth(w: number): void;
+  toggleNavSection(label: string): void;
 }
 
 export const useShellStore = create<ShellState>()(
@@ -21,9 +24,17 @@ export const useShellStore = create<ShellState>()(
     set => ({
       sidebarCollapsed: false,
       sidebarWidth: 218,
+      navSectionCollapsed: {},
       toggleSidebar: () => set(s => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setSidebarWidth: w =>
         set({ sidebarWidth: Math.min(SIDEBAR_MAX_W, Math.max(SIDEBAR_MIN_W, Math.round(w))) }),
+      toggleNavSection: label =>
+        set(s => ({
+          navSectionCollapsed: {
+            ...s.navSectionCollapsed,
+            [label]: !(s.navSectionCollapsed[label] ?? false),
+          },
+        })),
     }),
     { name: "tau-shell" }
   )

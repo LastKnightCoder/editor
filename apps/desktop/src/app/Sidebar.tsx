@@ -3,7 +3,7 @@
  * 收起态由 shellStore 驱动条件类；Mac 红绿灯占位由 isMac 条件渲染。
  */
 
-import { ChevronsLeft } from "lucide-react";
+import { ChevronDown, ChevronsLeft } from "lucide-react";
 import clsx from "clsx";
 import { isMac } from "@/platform";
 import { usePage } from "@/page/PageProvider";
@@ -15,6 +15,8 @@ export function Sidebar() {
   const { navigator, state } = usePage();
   const collapsed = useShellStore(s => s.sidebarCollapsed);
   const toggle = useShellStore(s => s.toggleSidebar);
+  const navSectionCollapsed = useShellStore(s => s.navSectionCollapsed);
+  const toggleNavSection = useShellStore(s => s.toggleNavSection);
 
   const currentKey = state.back[state.back.length - 1]?.key;
 
@@ -22,7 +24,7 @@ export function Sidebar() {
     <nav
       aria-label="主导航"
       className={clsx(
-        "ease-tau-out flex flex-col gap-0.5 overflow-y-auto px-2.5 pb-3 transition-[width] duration-[220ms]",
+        "ease-tau-out flex flex-col px-2.5 pb-3 transition-[width] duration-[220ms]",
         collapsed ? "w-[var(--tau-sidebar-w-collapsed)]" : "w-[var(--tau-sidebar-w)]"
       )}
     >
@@ -66,33 +68,70 @@ export function Sidebar() {
         </IconButton>
       </div>
 
-      {NAV_SECTIONS.map(section => (
-        <div key={section.label} className="mt-3">
-          {!collapsed && (
-            <div className="text-tau-tiny text-ink-3 px-2.5 pb-1.5">{section.label}</div>
-          )}
-          {section.items.map(item => (
-            <NavItemButton
-              key={item.key}
-              item={item}
-              collapsed={collapsed}
-              active={item.key === currentKey}
-              onClick={() => navigator.push(item.key)}
-            />
-          ))}
-        </div>
-      ))}
+      {/* 滚动收口在导航列表：头部 logo 区与底部设置不随滚动。
+          -mr/pr 借位（同 home-scroll 手法）：滚动条右移进侧栏右留白，
+          落在列表右缘与拖拽热区中间，条目宽度不受影响 */}
+      <div className="-mr-[5px] min-h-0 flex-1 overflow-y-auto pr-[5px]">
+        {NAV_SECTIONS.map(section => {
+          // 组折叠收纳（mockups/sidebar-responsive 方案二）：收起条目留组头 + 条目数，
+          // grid-rows 0fr↔1fr 过渡；侧栏收起态（图标列）无组头，强制展开不受影响
+          const folded = !collapsed && (navSectionCollapsed[section.label] ?? false);
+          return (
+            <div key={section.label} className="mt-3">
+              {!collapsed && (
+                <button
+                  type="button"
+                  className="ease-tau-out rounded-tau-sm text-tau-tiny text-ink-3 hover:text-ink-2 flex w-full items-center gap-1 px-2.5 pb-1.5 transition-colors duration-[160ms]"
+                  onClick={() => toggleNavSection(section.label)}
+                  aria-expanded={!folded}
+                  title={folded ? `展开「${section.label}」` : `收起「${section.label}」`}
+                >
+                  <ChevronDown
+                    size={13}
+                    strokeWidth={1.75}
+                    className={clsx(
+                      "ease-tau-out shrink-0 transition-transform duration-[200ms]",
+                      folded && "-rotate-90"
+                    )}
+                  />
+                  {section.label}
+                  {folded && <span className="ml-auto tabular-nums">{section.items.length}</span>}
+                </button>
+              )}
+              <div
+                className={clsx(
+                  "ease-tau-out grid transition-[grid-template-rows] duration-[220ms]",
+                  folded ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
+                )}
+              >
+                <div className="min-h-0 overflow-hidden">
+                  {section.items.map(item => (
+                    <NavItemButton
+                      key={item.key}
+                      item={item}
+                      collapsed={collapsed}
+                      active={item.key === currentKey}
+                      onClick={() => navigator.push(item.key)}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
-      <div className="flex-1" />
-      {NAV_FOOTER.map(item => (
-        <NavItemButton
-          key={item.key}
-          item={item}
-          collapsed={collapsed}
-          active={item.key === currentKey}
-          onClick={() => navigator.push(item.key)}
-        />
-      ))}
+      <div className="shrink-0 pt-2">
+        {NAV_FOOTER.map(item => (
+          <NavItemButton
+            key={item.key}
+            item={item}
+            collapsed={collapsed}
+            active={item.key === currentKey}
+            onClick={() => navigator.push(item.key)}
+          />
+        ))}
+      </div>
     </nav>
   );
 }

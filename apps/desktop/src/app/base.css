@@ -25,6 +25,33 @@ html {
   background: var(--tau-accent-soft);
 }
 
+/* 滚动条：系统滚动条改为 4px 细墨条，仅活跃时显形——「活跃」（scrollbar-live 类）
+ * 由壳层 scrollbarAutoHide.ts 事件委托驱动（hover/滚动中），不用 :hover 伪类：
+ * Chromium 滚动条伪元素不随 :hover 重算，显形后会冻结不消失。
+ * box-shadow 必须显式清零：main.less 的全局滚动条带 -webkit-box-shadow 内阴影，
+ * 只覆盖 background 盖不住它（不同属性名），残影会让滚动条看似常显 */
+.app ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.app ::-webkit-scrollbar-track {
+  background: transparent;
+  box-shadow: none;
+  -webkit-box-shadow: none;
+}
+
+.app ::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 2px;
+  box-shadow: none;
+  -webkit-box-shadow: none;
+}
+
+.app .scrollbar-live::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--tau-ink-1, #43392c) 22%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .app *,
   .app *::before,
