@@ -1,15 +1,14 @@
 /**
- * 活动热力图 —— 与 mockups/home-final.html 定稿一致的自绘实现
- * （旧 CalendarHeatmap 的视觉复刻：圆点、色阶随 scale 递增、周列贴底对齐、
- * hover 呼吸、全宽自适应；无图例/连续天数角标）。
- * 样式 Tailwind 优先（D-013）；色板为暖纸主题陶土橙阶（accent 定稿值的
- * alpha 派生，随主题换肤时需同步调整）。
+ * 全年活动热力图（圆点）—— home/stats 两域共用的自绘图表
+ * （视觉基准 mockups/home-final.html：圆点、色阶随 scale 递增、周列贴底对齐、
+ * hover 呼吸、全宽自适应；图例含连续活跃天数角标）。
+ * 零业务依赖：输入为 {date, count}[] 纯数据；色板为暖纸主题陶土橙阶
+ * （accent 定稿值的 alpha 派生，随主题换肤时需同步调整）。
  */
 
 import clsx from "clsx";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { dateStr } from "@/utils/statistic";
-import type { HeatmapItem } from "../types";
 
 /** 日期部件步进（跨 DST 切换日不会像 +86400000ms 那样重复/跳过一天） */
 function nextDay(d: Date): Date {
@@ -41,9 +40,14 @@ function dotClass(level: number, size: "full" | "sm" = "full"): string {
   return clsx("rounded-full", size === "full" ? "size-full" : "size-2.5", DOT_LEVELS[level]);
 }
 
-export function HomeHeatmap({ items }: { items: HeatmapItem[] }) {
+export interface YearHeatmapDay {
+  date: string; // YYYY-MM-DD
+  count: number;
+}
+
+export function YearHeatmap({ days, caption }: { days: YearHeatmapDay[]; caption?: ReactNode }) {
   const { weeks, monthSpans, countByDate } = useMemo(() => {
-    const countByDate = new Map(items.map(i => [i.date, i.count]));
+    const countByDate = new Map(days.map(i => [i.date, i.count]));
     const year = new Date().getFullYear();
     const start = new Date(year, 0, 1);
     const end = new Date(year, 11, 31);
@@ -70,7 +74,7 @@ export function HomeHeatmap({ items }: { items: HeatmapItem[] }) {
       monthSpans[monthSpans.length - 1].weeks += 1;
     }
     return { weeks, monthSpans, countByDate };
-  }, [items]);
+  }, [days]);
 
   const today = dateStr(Date.now());
 
@@ -130,7 +134,8 @@ export function HomeHeatmap({ items }: { items: HeatmapItem[] }) {
         <span className={dotClass(1, "sm")} />
         <span className={dotClass(2, "sm")} />
         <span className={dotClass(3, "sm")} />
-        <span className={dotClass(4, "sm")} />多<span className="ml-2.5">连续活跃 {streak} 天</span>
+        <span className={dotClass(4, "sm")} />多
+        <span className="ml-2.5">{caption ?? `连续活跃 ${streak} 天`}</span>
       </div>
     </div>
   );

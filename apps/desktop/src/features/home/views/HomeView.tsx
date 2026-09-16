@@ -15,10 +15,10 @@ import { ChevronRight } from "lucide-react";
 import { openPomodoroWindow } from "@/commands";
 import { usePage } from "@/page/PageProvider";
 import { useEdgeFade } from "@/hooks/useEdgeFade";
-import { EmptyNote, Panel, PanelNote, PanelTitle } from "@/ui/primitives/Panel";
+import { EmptyNote, Panel, PanelNote, PanelTitle, PanelAction } from "@/ui/primitives/Panel";
 import { Loading } from "@/ui/primitives/Loading";
+import { YearHeatmap } from "@/ui/primitives/YearHeatmap";
 import { useHomeSnapshot, minutesToHM } from "../queries";
-import { HomeHeatmap } from "./HomeHeatmap";
 import type { RecentEdit } from "../types";
 import "../home.css";
 
@@ -36,22 +36,6 @@ const KIND_TARGET = {
   document: "library",
   project: "projects",
 } as const;
-
-/** 标题行右侧的“前往”链接（无背景，贴卡片右缘，与标题同行对齐） */
-function ActLink({ className, ...props }: React.ComponentProps<"button">) {
-  return (
-    <button
-      type="button"
-      className={clsx(
-        "-mr-1 ml-auto inline-flex items-center gap-0.5 rounded-[7px] px-1 py-0.5",
-        "text-tau-micro text-ink-3 font-normal",
-        "ease-tau-out hover:bg-hover hover:text-ink-1 transition-[background,color] duration-[160ms]",
-        className
-      )}
-      {...props}
-    />
-  );
-}
 
 export function HomeView() {
   const { data, loading } = useHomeSnapshot();
@@ -98,7 +82,7 @@ export function HomeView() {
           -mr/pr 借 .wide 右内边距把滚动条移进留白（内容盒右缘不动） */}
       <div
         ref={setScrollEl}
-        className="home-scroll -mr-[18px] flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-[18px] pt-1"
+        className="home-scroll -mr-[18px] flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-1 pr-[18px] pt-2"
       >
         {/* ②③④ 行动三卡（“前往”箭头在标题行右缘） */}
         <div className="@max-[1180px]:grid-cols-2 @max-[860px]:grid-cols-1 grid grid-cols-3 gap-3">
@@ -108,10 +92,10 @@ export function HomeView() {
               <PanelNote>
                 {data.reviewDecks.filter(d => d.dueCount > 0).length} 个牌组有到期
               </PanelNote>
-              <ActLink onClick={() => navigator.push("review")} title="前往闪卡复习">
+              <PanelAction onClick={() => navigator.push("review")} title="前往闪卡复习">
                 前往复习
                 <ChevronRight size={13} strokeWidth={1.75} />
-              </ActLink>
+              </PanelAction>
             </PanelTitle>
             {data.reviewDecks.length > 0 ? (
               data.reviewDecks.map(deck => (
@@ -147,10 +131,10 @@ export function HomeView() {
             <PanelTitle className="mb-2.5">
               待办
               <PanelNote>{data.todoRemainingCount} 项未完成</PanelNote>
-              <ActLink onClick={() => navigator.push("schedule")} title="前往待办">
+              <PanelAction onClick={() => navigator.push("schedule")} title="前往待办">
                 前往待办
                 <ChevronRight size={13} strokeWidth={1.75} />
-              </ActLink>
+              </PanelAction>
             </PanelTitle>
             {data.todos.length > 0 ? (
               data.todos.map(todo => (
@@ -185,10 +169,10 @@ export function HomeView() {
             <PanelTitle className="mb-2.5">
               日程
               <PanelNote>今天 {data.events.length} 项</PanelNote>
-              <ActLink onClick={() => navigator.push("schedule")} title="前往日程">
+              <PanelAction onClick={() => navigator.push("schedule")} title="前往日程">
                 前往日程
                 <ChevronRight size={13} strokeWidth={1.75} />
-              </ActLink>
+              </PanelAction>
             </PanelTitle>
             {data.events.length > 0 ? (
               <div className="before:bg-sunken relative pl-3.5 before:absolute before:bottom-2.5 before:left-[3.5px] before:top-2.5 before:w-[1.5px] before:rounded-[1px] before:content-['']">
@@ -236,12 +220,12 @@ export function HomeView() {
           <PanelTitle className="mb-2.5">
             活动
             <PanelNote>{new Date().getFullYear()} 年 · 每日操作</PanelNote>
-            <ActLink onClick={() => navigator.push("stats")} title="查看完整统计">
+            <PanelAction onClick={() => navigator.push("stats")} title="查看完整统计">
               完整统计
               <ChevronRight size={13} strokeWidth={1.75} />
-            </ActLink>
+            </PanelAction>
           </PanelTitle>
-          <HomeHeatmap items={data.heatmapItems} />
+          <YearHeatmap days={data.heatmapItems} />
         </Panel>
 
         {/* ⑦-⑩ 统计四卡（sparkline；与其他卡同构，不放按钮） */}
