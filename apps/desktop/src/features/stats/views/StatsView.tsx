@@ -1,292 +1,529 @@
 /**
- * 统计（数据回顾）页 —— 总览卡 / 全年活动热力图 / 近 30 天产出趋势 / 闪卡牌组概览。
- * 图表全手写 CSS（零 antd/echarts 依赖），样式 Tailwind 优先（D-013），
- * 配色走 --tau-* 语义类（热力色阶为 accent 定稿值的 alpha 派生）。
+ * 统计（Bento 数据面板）视图 —— 方案 C 定稿（mockups/stats/plan-c-bento.html）：
+ * 速览小 tile 群 → 趋势面积图 + 知识构成 → 全年热力图 → 记忆保持 + 专注节律 + 牌组。
+ * 响应式为容器驱动（@container 锚点在根，断点 1179/859 对齐 HomeView 的 1180/860 惯例，
+ * 侧栏拖宽/折叠改变容器宽而非窗口宽）；grid dense 回流让 tile 折行不重排 DOM。
+ * 图表全手写（零 antd/echarts），配色走 --tau-* 语义类（趋势渐变为 accent 定稿值派生）。
  */
 
 import clsx from "clsx";
-import { EmptyNote, Panel, PanelNote, PanelTitle } from "@/ui/primitives/Panel";
+import { useState, type ReactNode } from "react";
+import { Flame, PenLine, Repeat, Timer, type LucideIcon } from "lucide-react";
+import { usePage } from "@/page/PageProvider";
+import { openPomodoroWindow } from "@/commands";
+import { useEdgeFade } from "@/hooks/useEdgeFade";
+import { EmptyNote, Panel, PanelAction, PanelNote, PanelTitle } from "@/ui/primitives/Panel";
+import { Loading } from "@/ui/primitives/Loading";
+import { YearHeatmap } from "@/ui/primitives/YearHeatmap";
 import { useStatsSnapshot } from "../queries";
-import type { TrendDay } from "../types";
+import { STATS_RANGES, type StatsRange, type StatsTotals } from "../types";
+import { StatsTrend } from "./StatsTrend";
+
+const RANGE_LABEL: Record<StatsRange, string> = {
+  d30: "近 30 天",
+  d90: "近 90 天",
+  year: "今年",
+  all: "累计",
+};
 
 export function StatsView() {
-  const { data, loading } = useStatsSnapshot();
+  const [range, setRange] = useState<StatsRange>("d30");
+  const { data, loading } = useStatsSnapshot(range);
+  const { navigator } = usePage();
+  // callback ref（非 useRef）：loading 早退分支下滚动容器晚于首帧挂载，
+  // 经 state 触发 useEdgeFade 在挂载后重新接线
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  useEdgeFade(scrollEl);
 
-  if (loading) {
-    return (
-      <div className="pt-6.5 mx-auto max-w-[1680px] px-[34px]">
-        <p className="text-tau-meta text-ink-2">加载中…</p>
-      </div>
-    );
-  }
+  if (loading) return <Loading />;
   if (!data) return null;
-  const { totals, heatmap, trend, decks } = data;
+  const { totals, heatmap, decks, trend, previous, review, rhythm } = data;
+
+  const words = trend.reduce((s, d) => s + d.words, 0);
+  const wordsDelta =
+    previous && previous.words > 0 ? (words - previous.words) / previous.words : null;
+  const dailyAvg = trend.length > 0 ? Math.round(words / trend.length) : 0;
+  const dueToday = decks.reduce((s, d) => s + d.dueCount, 0);
+  const due7 = review ? review.dueBuckets.reduce((s, n) => s + n, 0) : 0;
+  // 累计条数 = 五类内容条目全口径（卡片/文章/项目文档/知识库文档/日记）
+  const totalEntries =
+    totals.cards + totals.articles + totals.projects + totals.documents + totals.diaries;
 
   return (
-    <div className="pt-6.5 mx-auto max-w-[1680px] px-[34px] pb-14">
-      {/* ── 总览卡 ── */}
-      <div className="mb-3.5 grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-3.5">
-        <Total label="累计卡片" value={totals.cards} accent />
-        <Total label="累计文章" value={totals.articles} accent />
-        <Total label="日记" value={totals.diaries} />
-        <Total label="待办未完成" value={totals.todoPending} />
-        <Total label="累计专注" value={formatHours(totals.focusMinutesTotal)} />
-        <Total label="累计写下" value={`${totals.wordsTotal} 字`} />
-      </div>
+    <div className="@container pt-6.5 mx-auto flex h-full max-w-[1680px] flex-col gap-3 px-[34px]">
+      {/* hero：标题 + 时间范围 tabs + 累计摘要 */}
+      <header className="flex flex-none items-center gap-4">
+        <h1 className="text-[19px] font-semibold tracking-[-0.01em]">统计</h1>
+        <div className="bg-surface shadow-card flex items-center gap-0.5 rounded-[10px] p-[2.5px]">
+          {STATS_RANGES.map(r => (
+            <button
+              key={r.key}
+              type="button"
+              onClick={() => setRange(r.key)}
+              className={clsx(
+                "ease-tau-out h-6 rounded-[8px] px-3 text-[11.5px] transition-[background,color] duration-[160ms]",
+                range === r.key
+                  ? "bg-accent text-ink-inverse font-medium"
+                  : "text-ink-2 hover:text-ink-1"
+              )}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+        <span className="text-tau-sm text-ink-2 ml-auto tabular-nums">
+          累计 <b className="text-ink-1 font-semibold">{fmtWan(totals.wordsTotal)}</b> 字
+          <span className="text-ink-3 mx-2">·</span>
+          <b className="text-ink-1 font-semibold">{totalEntries.toLocaleString("zh-CN")}</b> 条
+          <span className="text-ink-3 mx-2">·</span>连续活跃{" "}
+          <b className="text-ink-1 font-semibold">{heatmap.streak}</b> 天
+        </span>
+      </header>
 
-      {/* ── 全年活动热力图 ── */}
-      <Panel>
-        <PanelTitle className="mb-1.5">
-          活动<PanelNote>{new Date().getFullYear()} 年 · 每日操作</PanelNote>
-        </PanelTitle>
-        <YearHeatmap days={heatmap} />
-      </Panel>
+      {/* 滚动区：边缘渐隐（edge-fade-scroll 通用类 + useEdgeFade 驱动 mask 变量）；
+          -mr/pr 借壳层右内边距把滚动条移进留白（内容盒右缘不动） */}
+      <div
+        ref={setScrollEl}
+        className="edge-fade-scroll -mr-[18px] flex min-h-0 flex-1 flex-col overflow-y-auto pb-1 pr-[18px] pt-2"
+      >
+        <div className="grid grid-flow-row-dense grid-cols-12 gap-3">
+          {/* ── 速览小 tile 群 ── */}
+          <MiniTile
+            className="@max-[859px]:col-span-6 col-span-3"
+            icon={Flame}
+            label="连续活跃"
+            value={heatmap.streak}
+            suffix="天"
+            foot={`今年 ${heatmap.activeDays} 个活跃日`}
+          />
+          <MiniTile
+            className="@max-[859px]:col-span-6 col-span-3"
+            icon={PenLine}
+            label={`${RANGE_LABEL[range]}写下`}
+            value={words.toLocaleString("zh-CN")}
+            suffix="字"
+            foot={
+              <>
+                {wordsDelta !== null && (
+                  <span className={wordsDelta >= 0 ? "text-ok" : "text-danger"}>
+                    {wordsDelta >= 0 ? "▲" : "▼"} {Math.round(Math.abs(wordsDelta) * 100)}% 环比
+                    ·{" "}
+                  </span>
+                )}
+                日均 {dailyAvg.toLocaleString("zh-CN")}
+              </>
+            }
+          />
+          <MiniTile
+            className="@max-[859px]:col-span-6 col-span-3"
+            icon={Repeat}
+            label="今日待复习"
+            value={dueToday}
+            suffix="张"
+            foot={`${decks.length} 个牌组 · 未来 7 天 ${due7} 张`}
+          />
+          <MiniTile
+            className="@max-[859px]:col-span-6 col-span-3"
+            icon={Timer}
+            label="累计专注"
+            value={formatHours(totals.focusMinutesTotal)}
+            foot={`${totals.focusSessions} 个番茄`}
+          />
 
-      {/* ── 近 30 天产出趋势 ── */}
-      <div className="mt-3.5 grid grid-cols-[minmax(0,1.75fr)_minmax(280px,1fr)] gap-3.5">
-        <Panel>
-          <PanelTitle className="mb-1.5">
-            近 30 天字数<PanelNote>共 {trend.reduce((s, d) => s + d.words, 0)} 字</PanelNote>
-          </PanelTitle>
-          <BarTrend trend={trend} pick={d => d.words} />
-        </Panel>
-        <Panel>
-          <PanelTitle className="mb-1.5">
-            近 30 天新建
-            <PanelNote>
-              卡片 {trend.reduce((s, d) => s + d.cardsCreated, 0)} · 文章{" "}
-              {trend.reduce((s, d) => s + d.articlesCreated, 0)}
-            </PanelNote>
-          </PanelTitle>
-          <BarTrend trend={trend} pick={d => d.cardsCreated} secondPick={d => d.articlesCreated} />
-        </Panel>
-      </div>
+          {/* ── 写作趋势（面积 + 7 日均线）── */}
+          <Panel pad="compact" className="@max-[1179px]:col-span-12 col-span-8">
+            <PanelTitle className="mb-2.5">
+              写作趋势
+              <PanelNote>{RANGE_LABEL[range]} · 日字数与 7 日均线</PanelNote>
+            </PanelTitle>
+            {trend.length > 1 ? (
+              <StatsTrend trend={trend} />
+            ) : (
+              <EmptyNote>暂无趋势数据——写下第一篇内容后这里会开始生长</EmptyNote>
+            )}
+          </Panel>
 
-      {/* ── 闪卡牌组概览 ── */}
-      <Panel className="mt-3.5">
-        <PanelTitle className="mb-1.5">
-          闪卡牌组<PanelNote>复习进度与到期分布</PanelNote>
-        </PanelTitle>
-        {decks.length > 0 ? (
-          decks.map(deck => {
-            const done = Math.max(
-              0,
-              deck.totalCards - deck.dueCount - deck.learningCount - deck.newCount
-            );
-            return (
-              <div
-                key={deck.id}
-                className="rounded-tau-sm ease-tau-out hover:bg-hover flex items-center gap-3.5 px-2 py-2.5 transition-[background] duration-[160ms]"
-              >
-                <span className="text-tau-body w-[140px] truncate font-medium" title={deck.name}>
-                  {deck.name}
-                </span>
-                <span className="bg-sunken flex h-2 flex-1 overflow-hidden rounded">
-                  <i
-                    className="bg-warn h-full"
-                    style={{ width: pct(deck.dueCount, deck.totalCards) }}
-                  />
-                  <i
-                    className="bg-accent h-full opacity-80"
-                    style={{ width: pct(deck.learningCount, deck.totalCards) }}
-                  />
-                  <i
-                    className="bg-ok h-full opacity-55"
-                    style={{ width: pct(done, deck.totalCards) }}
-                  />
-                </span>
-                <span className="text-tau-micro text-ink-2 truncate whitespace-nowrap tabular-nums">
-                  <b className="text-ink-1">{deck.dueCount}</b> 到期 · {deck.learningCount} 学习中 ·
-                  共 {deck.totalCards}
-                </span>
+          {/* ── 知识构成 ── */}
+          <Panel pad="compact" className="@max-[859px]:col-span-12 col-span-4 flex flex-col">
+            <PanelTitle className="mb-2.5">
+              知识构成<PanelNote>累计 {fmtWan(totals.wordsTotal)} 字</PanelNote>
+            </PanelTitle>
+            {totals.wordsTotal > 0 ? (
+              <>
+                <div className="mt-3 flex h-4 overflow-hidden rounded-lg">
+                  {COMP_ROWS.map(row => (
+                    <i
+                      key={row.name}
+                      className={row.barClass}
+                      title={`${row.name} ${pctStr(row.pick(totals), totals.wordsTotal)}`}
+                      style={{ width: pct(row.pick(totals), totals.wordsTotal) }}
+                    />
+                  ))}
+                </div>
+                <div className="mt-2 flex flex-col gap-0.5">
+                  {COMP_ROWS.map(row => (
+                    <CompRow
+                      key={row.name}
+                      dot={row.dotClass}
+                      name={row.name}
+                      words={row.pick(totals)}
+                    />
+                  ))}
+                </div>
+                {/* mt-auto：与左侧趋势 tile 等高时注脚贴底，两卡底部对称 */}
+                <p className="text-tau-micro text-ink-3 mt-auto px-2 pt-2">
+                  {totals.cards.toLocaleString("zh-CN")} 张卡片 ·{" "}
+                  {totals.articles.toLocaleString("zh-CN")} 篇文章 ·{" "}
+                  {totals.projects.toLocaleString("zh-CN")} 篇项目文档 ·{" "}
+                  {totals.documents.toLocaleString("zh-CN")} 篇知识库文档 · {totals.diaries} 篇日记
+                </p>
+              </>
+            ) : (
+              <EmptyNote>还没有内容——构成会随写作积累出现</EmptyNote>
+            )}
+          </Panel>
+
+          {/* ── 活动：全年热力图 ── */}
+          <Panel pad="compact" className="col-span-12">
+            <PanelTitle className="mb-2.5">
+              活动
+              <PanelNote>{new Date().getFullYear()} 年 · 每日操作</PanelNote>
+              <span className="text-tau-micro text-ink-3 ml-auto tabular-nums">
+                连续活跃{" "}
+                <b className="text-accent-text text-[13px] font-semibold">{heatmap.streak}</b> 天 ·
+                今年 {heatmap.activeDays} 个活跃日
+              </span>
+            </PanelTitle>
+            {heatmap.days.length > 0 ? (
+              <div className="overflow-x-auto pb-1.5">
+                <div className="min-w-[560px]">
+                  <YearHeatmap days={heatmap.days} caption="" />
+                </div>
               </div>
-            );
-          })
-        ) : (
-          <EmptyNote>还没有闪卡牌组</EmptyNote>
-        )}
-      </Panel>
+            ) : (
+              <EmptyNote>暂无活动数据</EmptyNote>
+            )}
+          </Panel>
+
+          {/* ── 记忆保持 ── */}
+          <Panel pad="compact" className="@max-[859px]:col-span-6 col-span-4">
+            <PanelTitle className="mb-2.5">
+              记忆保持
+              <PanelNote>
+                {RANGE_LABEL[range]} · {review ? review.total.toLocaleString("zh-CN") : 0} 次评分
+              </PanelNote>
+              <PanelAction onClick={() => navigator.push("review")} title="前往闪卡复习">
+                前往复习
+              </PanelAction>
+            </PanelTitle>
+            {review && review.total > 0 ? (
+              <>
+                <div className="mt-1 flex h-3 overflow-hidden rounded-md">
+                  {RATING_ROWS.map(row => (
+                    <i
+                      key={row.key}
+                      className={row.barClass}
+                      title={`${row.label} ${pctStr(review.ratings[row.key], review.total)}`}
+                      style={{ width: pct(review.ratings[row.key], review.total) }}
+                    />
+                  ))}
+                </div>
+                <div className="text-ink-2 mt-2 flex flex-wrap gap-x-3.5 gap-y-1 text-[11px]">
+                  {RATING_ROWS.map(row => (
+                    <span key={row.key} className="inline-flex items-center gap-1.5">
+                      <i className={clsx("size-[7px] rounded-[2.5px]", row.dotClass)} />
+                      {row.label}{" "}
+                      <b className="text-ink-1 tabular-nums">
+                        {review.ratings[row.key].toLocaleString("zh-CN")}
+                      </b>
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-3 flex items-center gap-4">
+                  <span className="text-ok text-[14px] font-semibold tabular-nums">
+                    {pctStr(review.ratings.normal + review.ratings.easy, review.total)}
+                  </span>
+                  <span className="text-tau-micro text-ink-3">记得 + 轻松保持率</span>
+                  <span className="text-tau-sm text-ink-2 ml-auto tabular-nums">
+                    今天 <b className="text-accent-text">{dueToday}</b> 张到期
+                  </span>
+                </div>
+                <DueStrip buckets={review.dueBuckets} />
+              </>
+            ) : (
+              <EmptyNote>还没有复习记录</EmptyNote>
+            )}
+          </Panel>
+
+          {/* ── 专注节律 ── */}
+          <Panel pad="compact" className="@max-[859px]:col-span-6 col-span-4">
+            <PanelTitle className="mb-2.5">
+              专注节律
+              <PanelNote>
+                {RANGE_LABEL[range]} · {rhythm ? rhythm.sessionCount : 0} 个番茄
+              </PanelNote>
+              <PanelAction onClick={() => openPomodoroWindow()} title="打开番茄钟">
+                打开番茄钟
+              </PanelAction>
+            </PanelTitle>
+            {rhythm && rhythm.sessionCount > 0 ? (
+              <>
+                <div className="flex h-[96px] items-end gap-[3px]">
+                  {rhythm.hourBuckets.map((n, h) => (
+                    <div
+                      key={h}
+                      className="flex h-full min-w-0 flex-1 flex-col justify-end"
+                      title={`${String(h).padStart(2, "0")}:00 · ${n} 个番茄`}
+                    >
+                      <i
+                        className={clsx(
+                          "rounded-t-[3px]",
+                          h === rhythm.peakHour ? "bg-accent" : "bg-accent opacity-50"
+                        )}
+                        style={{ height: `${Math.max(4, (n / maxOf(rhythm.hourBuckets)) * 100)}%` }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="text-ink-3 mt-1 flex gap-[3px] text-[9.5px]">
+                  {rhythm.hourBuckets.map((_, h) => (
+                    <span key={h} className="min-w-0 flex-1 text-center">
+                      {[0, 6, 12, 18, 23].includes(h) ? String(h).padStart(2, "0") : ""}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-2.5 flex gap-5">
+                  <RhythmNum
+                    value={
+                      rhythm.peakHour !== null
+                        ? `${String(rhythm.peakHour).padStart(2, "0")}:00`
+                        : "—"
+                    }
+                    label="最活跃时段"
+                  />
+                  <RhythmNum value={`${rhythm.avgSessionMinutes} 分钟`} label="平均单次" />
+                  {rhythm.interruptRate !== null && (
+                    <RhythmNum
+                      value={`${(rhythm.interruptRate * 100).toFixed(1)}%`}
+                      label="中断率"
+                    />
+                  )}
+                </div>
+              </>
+            ) : (
+              <EmptyNote>还没有番茄记录</EmptyNote>
+            )}
+          </Panel>
+
+          {/* ── 闪卡牌组 ── */}
+          <Panel pad="compact" className="@max-[1179px]:col-span-12 col-span-4">
+            <PanelTitle className="mb-2.5">
+              闪卡牌组
+              <PanelNote>
+                {decks.length} 组 · {decks.reduce((s, d) => s + d.totalCards, 0)} 张
+              </PanelNote>
+              <PanelAction onClick={() => navigator.push("review")} title="前往闪卡复习">
+                前往复习
+              </PanelAction>
+            </PanelTitle>
+            {decks.length > 0 ? (
+              decks.map(deck => {
+                const done = Math.max(
+                  0,
+                  deck.totalCards - deck.dueCount - deck.learningCount - deck.newCount
+                );
+                return (
+                  <div
+                    key={deck.id}
+                    className="rounded-tau-sm ease-tau-out hover:bg-hover flex items-center gap-3 px-2 py-2 transition-[background] duration-[160ms]"
+                  >
+                    <span className="text-tau-body w-24 truncate font-medium" title={deck.name}>
+                      {deck.name}
+                    </span>
+                    <span className="bg-sunken flex h-2 flex-1 overflow-hidden rounded">
+                      <i
+                        className="bg-warn"
+                        style={{ width: pct(deck.dueCount, deck.totalCards) }}
+                      />
+                      <i
+                        className="bg-accent opacity-80"
+                        style={{ width: pct(deck.learningCount, deck.totalCards) }}
+                      />
+                      <i
+                        className="bg-ok opacity-55"
+                        style={{ width: pct(done, deck.totalCards) }}
+                      />
+                    </span>
+                    <span className="text-tau-micro text-ink-2 truncate whitespace-nowrap tabular-nums">
+                      <b className={deck.dueCount > 0 ? "text-accent-text" : "text-ink-1"}>
+                        {deck.dueCount}
+                      </b>{" "}
+                      / {deck.totalCards}
+                    </span>
+                  </div>
+                );
+              })
+            ) : (
+              <EmptyNote>还没有闪卡牌组</EmptyNote>
+            )}
+          </Panel>
+        </div>
+      </div>
     </div>
   );
 }
 
-/* ---------- 域内组件 ---------- */
+/* ---------- 域内私有组件 ---------- */
 
-function Total({
+/** 速览小 tile：图标徽标 + 大数字 + 注脚 */
+function MiniTile({
+  className,
+  icon: Icon,
   label,
   value,
-  accent,
+  suffix,
+  foot,
 }: {
+  className?: string;
+  icon: LucideIcon;
   label: string;
-  value: number | string;
-  accent?: boolean;
+  value: ReactNode;
+  suffix?: string;
+  foot: ReactNode;
 }) {
   return (
-    <Panel pad="none" className="px-[18px] pb-[13px] pt-4">
-      <b
-        className={clsx(
-          "block text-[24px] font-semibold tabular-nums leading-[1.25] tracking-[-0.01em]",
-          accent && "text-accent-text"
-        )}
-      >
-        {typeof value === "number" ? value.toLocaleString("zh-CN") : value}
+    <Panel
+      pad="none"
+      className={clsx("flex flex-col justify-center gap-0.5 px-[18px] py-4", className)}
+    >
+      <span className="text-tau-micro text-ink-3 flex items-center gap-1.5">
+        <span className="bg-accent-soft text-accent-text grid size-[17px] place-items-center rounded-[5px]">
+          <Icon size={11} strokeWidth={1.75} />
+        </span>
+        {label}
+      </span>
+      <b className="text-[25px] font-bold tabular-nums leading-[1.25] tracking-[-0.02em]">
+        {value}
+        {suffix && <small className="text-tau-micro text-ink-3 ml-1 font-normal">{suffix}</small>}
       </b>
-      <span className="text-tau-micro text-ink-3">{label}</span>
+      <span className="text-tau-micro text-ink-3">{foot}</span>
     </Panel>
   );
 }
+
+function CompRow({ dot, name, words }: { dot: string; name: string; words: number }) {
+  return (
+    <div className="rounded-tau-sm ease-tau-out hover:bg-hover flex items-center gap-2 px-2 py-[5px] transition-[background] duration-[160ms]">
+      <i className={clsx("size-2 rounded-[3px]", dot)} />
+      <span className="text-tau-body w-10 font-medium">{name}</span>
+      <span className="text-tau-micro text-ink-2 ml-auto tabular-nums">
+        <b className="text-ink-1">{words.toLocaleString("zh-CN")}</b> 字
+      </span>
+    </div>
+  );
+}
+
+/** 到期预告：未来 7 天（含今日）逐日柱 */
+function DueStrip({ buckets }: { buckets: number[] }) {
+  const max = maxOf(buckets);
+  const labels = ["今天", "+1", "+2", "+3", "+4", "+5", "+6"];
+  return (
+    <div className="mt-2.5">
+      <div className="text-tau-micro text-ink-3">未来 7 天到期</div>
+      <div className="mt-1 flex h-[52px] items-end gap-[3px]">
+        {buckets.map((n, i) => (
+          <div
+            key={i}
+            className="flex h-full min-w-0 flex-1 flex-col justify-end"
+            title={`${labels[i]} · ${n} 张到期`}
+          >
+            <i
+              className={clsx("rounded-t-[3px]", i === 0 ? "bg-accent" : "bg-accent opacity-40")}
+              style={{ height: `${max > 0 ? Math.max(6, (n / max) * 100) : 6}%` }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="text-ink-3 mt-0.5 flex gap-[3px] text-[9.5px]">
+        {labels.map(l => (
+          <span key={l} className="min-w-0 flex-1 text-center">
+            {l}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RhythmNum({ value, label }: { value: string; label: string }) {
+  return (
+    <div>
+      <div className="text-[14px] font-semibold tabular-nums">{value}</div>
+      <div className="text-tau-micro text-ink-3">{label}</div>
+    </div>
+  );
+}
+
+/* ---------- 小工具 ---------- */
+
+/** 构成五分类（顺序即展示顺序）：卡片 → 文章 → 项目 → 知识库 → 日记 */
+const COMP_ROWS = [
+  {
+    name: "卡片",
+    barClass: "bg-accent",
+    dotClass: "bg-accent",
+    pick: (t: StatsTotals) => t.cardWords,
+  },
+  {
+    name: "文章",
+    barClass: "bg-tag-1",
+    dotClass: "bg-tag-1",
+    pick: (t: StatsTotals) => t.articleWords,
+  },
+  {
+    name: "项目",
+    barClass: "bg-tag-2",
+    dotClass: "bg-tag-2",
+    pick: (t: StatsTotals) => t.projectWords,
+  },
+  {
+    name: "知识库",
+    barClass: "bg-tag-3",
+    dotClass: "bg-tag-3",
+    pick: (t: StatsTotals) => t.documentWords,
+  },
+  {
+    name: "日记",
+    barClass: "bg-tag-4",
+    dotClass: "bg-tag-4",
+    pick: (t: StatsTotals) => t.diaryWords,
+  },
+] as const;
+
+const RATING_ROWS = [
+  { key: "normal", label: "记得", barClass: "bg-ok", dotClass: "bg-ok" },
+  { key: "easy", label: "轻松", barClass: "bg-tag-2", dotClass: "bg-tag-2" },
+  { key: "struggle", label: "模糊", barClass: "bg-tag-4", dotClass: "bg-tag-4" },
+  { key: "hard", label: "忘记", barClass: "bg-danger", dotClass: "bg-danger" },
+] as const;
 
 function pct(part: number, total: number): string {
   return total <= 0 ? "0%" : `${(part / total) * 100}%`;
 }
 
+function pctStr(part: number, total: number): string {
+  return total <= 0 ? "0%" : `${Math.round((part / total) * 100)}%`;
+}
+
+function maxOf(nums: number[]): number {
+  return Math.max(...nums, 1);
+}
+
 function formatHours(min: number): string {
-  if (min < 60) return `${min} 分钟`;
+  if (min < 60) return `${min}m`;
   return `${Math.floor(min / 60)}h ${min % 60}m`;
 }
 
-/** 热力格色阶：0 → sunken 底，1-4 → 陶土橙 alpha 递增（accent 定稿值派生） */
-const HEAT_LEVELS = [
-  "bg-sunken",
-  "bg-[rgba(217,119,87,0.28)]",
-  "bg-[rgba(217,119,87,0.48)]",
-  "bg-[rgba(217,119,87,0.7)]",
-  "bg-[rgba(217,119,87,0.95)]",
-] as const;
-
-function heatCellClass(level: number, size = "size-3.5 rounded-[4px]"): string {
-  return clsx(size, HEAT_LEVELS[level]);
-}
-
-/** 全年热力图：按周分列（周一开头），月份标签按各月占据的周数分布。 */
-function YearHeatmap({ days }: { days: { date: string; count: number }[] }) {
-  if (days.length === 0) return <EmptyNote>暂无活动数据</EmptyNote>;
-  const countByDate = new Map(days.map(d => [d.date, d.count]));
-  const max = Math.max(...days.map(d => d.count), 1);
-  const year = new Date().getFullYear();
-  const start = new Date(year, 0, 1);
-  const end = new Date(year, 11, 31);
-  const todayStr = `${year}-${String(new Date().getMonth() + 1).padStart(2, "0")}-${String(new Date().getDate()).padStart(2, "0")}`;
-
-  // 首列对齐周一
-  const offset = (start.getDay() + 6) % 7;
-  const cells: { date?: string; count: number }[] = [];
-  for (let i = 0; i < offset; i++) cells.push({ count: -1 });
-  for (let d = new Date(start); d <= end; d = new Date(d.getTime() + 86_400_000)) {
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    cells.push({ date: key, count: countByDate.get(key) ?? 0 });
-  }
-
-  // 月份标签：每月第一格所在列位置
-  const monthMarks: { col: number; label: string }[] = [];
-  let lastMonth = -1;
-  cells.forEach((cell, i) => {
-    if (!cell.date) return;
-    const m = Number(cell.date.slice(5, 7)) - 1;
-    if (m !== lastMonth) {
-      monthMarks.push({ col: Math.floor(i / 7), label: `${m + 1}月` });
-      lastMonth = m;
-    }
-  });
-  const totalCols = Math.ceil(cells.length / 7);
-
-  return (
-    <div className="overflow-x-auto pb-1.5">
-      <div className="mb-1 flex gap-[3px]">
-        {monthMarks.map(mark => (
-          <span
-            key={mark.label}
-            className="text-ink-3 truncate text-[10.5px] tabular-nums"
-            style={{ marginLeft: `${mark.col * 17}px`, width: `${17 * 4}px`, flex: "none" }}
-          >
-            {mark.label}
-          </span>
-        ))}
-      </div>
-      <div
-        className="grid-auto-cols-[14px] grid grid-flow-col grid-rows-[repeat(7,14px)] gap-[3px]"
-        role="img"
-        aria-label="全年活动热力图"
-      >
-        {cells.map((cell, i) =>
-          cell.date ? (
-            <span
-              key={cell.date}
-              className={clsx(
-                heatCellClass(
-                  cell.count === 0 ? 0 : Math.min(4, Math.ceil((cell.count / max) * 4))
-                ),
-                "data-[future]:pointer-events-none data-[future]:opacity-0"
-              )}
-              data-future={cell.date > todayStr || undefined}
-              title={`${cell.date} · ${cell.count} 次活动`}
-            />
-          ) : (
-            <span key={`pad-${i}`} style={{ opacity: 0 }} />
-          )
-        )}
-      </div>
-      <div className="text-ink-3 mt-1.5 flex items-center justify-end gap-1 text-[10.5px]">
-        少
-        <span className={heatCellClass(0, "size-[11px] rounded-[3px]")} />
-        <span className={heatCellClass(1, "size-[11px] rounded-[3px]")} />
-        <span className={heatCellClass(2, "size-[11px] rounded-[3px]")} />
-        <span className={heatCellClass(3, "size-[11px] rounded-[3px]")} />
-        <span className={heatCellClass(4, "size-[11px] rounded-[3px]")} />多
-        <span className="text-ink-3 ml-2">{totalCols} 周</span>
-      </div>
-    </div>
-  );
-}
-
-/** 柱状趋势：pick 为主系列；secondPick 存在时画双段（卡片+文章）。 */
-function BarTrend({
-  trend,
-  pick,
-  secondPick,
-}: {
-  trend: TrendDay[];
-  pick: (d: TrendDay) => number;
-  secondPick?: (d: TrendDay) => number;
-}) {
-  if (trend.length === 0) return <EmptyNote>暂无数据</EmptyNote>;
-  const max = Math.max(...trend.map(d => pick(d) + (secondPick?.(d) ?? 0)), 1);
-  return (
-    <>
-      <div className="flex h-[120px] items-end gap-[3px] pt-1">
-        {trend.map(day => {
-          const primary = pick(day);
-          const second = secondPick?.(day) ?? 0;
-          return (
-            <div
-              key={day.date}
-              className="flex h-full min-w-1.5 flex-1 flex-col justify-end gap-px"
-              title={`${day.date}：${primary}${secondPick ? ` + ${second}` : ""}`}
-            >
-              {secondPick && (
-                <i
-                  className="bg-tag-2 block min-h-0 rounded-t-[3px] opacity-75"
-                  style={{ height: `${(second / max) * 100}%` }}
-                />
-              )}
-              <i
-                className="bg-accent block min-h-0 rounded-t-[3px]"
-                style={{ height: `${(primary / max) * 100}%` }}
-              />
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-1 flex gap-[3px]">
-        {trend.map((day, i) => (
-          <span
-            key={day.date}
-            className="text-ink-3 min-w-1.5 flex-1 truncate text-center text-[9.5px] tabular-nums"
-          >
-            {i % 5 === 0 ? day.date.slice(5) : ""}
-          </span>
-        ))}
-      </div>
-    </>
-  );
+function fmtWan(n: number): string {
+  return n >= 10_000 ? `${(n / 10_000).toFixed(1)} 万` : n.toLocaleString("zh-CN");
 }
