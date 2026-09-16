@@ -3,10 +3,12 @@
  * 收起态由 shellStore 驱动条件类；Mac 红绿灯占位由 isMac 条件渲染。
  */
 
+import { useState } from "react";
 import { ChevronDown, ChevronsLeft } from "lucide-react";
 import clsx from "clsx";
 import { isMac } from "@/platform";
 import { usePage } from "@/page/PageProvider";
+import { useEdgeFade } from "@/hooks/useEdgeFade";
 import { IconButton } from "@/ui/primitives/IconButton";
 import { useShellStore } from "./shellStore";
 import { NAV_FOOTER, NAV_SECTIONS, type NavItem } from "./navigation";
@@ -17,6 +19,10 @@ export function Sidebar() {
   const toggle = useShellStore(s => s.toggleSidebar);
   const navSectionCollapsed = useShellStore(s => s.navSectionCollapsed);
   const toggleNavSection = useShellStore(s => s.toggleNavSection);
+
+  // 边缘渐隐：callback ref（组折叠动画经 transitionend 重测，见 useEdgeFade）
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  useEdgeFade(scrollEl);
 
   const currentKey = state.back[state.back.length - 1]?.key;
 
@@ -68,10 +74,14 @@ export function Sidebar() {
         </IconButton>
       </div>
 
-      {/* 滚动收口在导航列表：头部 logo 区与底部设置不随滚动。
-          -mr/pr 借位（同 home-scroll 手法）：滚动条右移进侧栏右留白，
-          落在列表右缘与拖拽热区中间，条目宽度不受影响 */}
-      <div className="-mr-[5px] min-h-0 flex-1 overflow-y-auto pr-[5px]">
+      {/* 滚动收口在导航列表：头部 logo 区与底部设置不随滚动；边缘渐隐（base.css
+          的 edge-fade-scroll + useEdgeFade）提示可滚方向。 -mr/pr 借位（同
+          home-scroll 手法）：滚动条右移进侧栏右留白，落在列表右缘与拖拽热区
+          中间，条目宽度不受影响 */}
+      <div
+        ref={setScrollEl}
+        className="edge-fade-scroll -mr-[5px] min-h-0 flex-1 overflow-y-auto pr-[5px]"
+      >
         {NAV_SECTIONS.map(section => {
           // 组折叠收纳（mockups/sidebar-responsive 方案二）：收起条目留组头 + 条目数，
           // grid-rows 0fr↔1fr 过渡；侧栏收起态（图标列）无组头，强制展开不受影响

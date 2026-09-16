@@ -46,6 +46,8 @@ export function useScrollState(el: HTMLElement | null): ScrollState {
 
     measure();
     el.addEventListener("scroll", measureSync, { passive: true });
+    // 组折叠（grid-rows）等内部高度过渡不触发 scroll/childList，transitionend 冒泡补一路
+    el.addEventListener("transitionend", measureOnRaf);
     // 环境守卫：jsdom 缺 Observer 时不致崩，仅失去尺寸/结构变化的自动重测
     const resizeObserver =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measureOnRaf);
@@ -57,6 +59,7 @@ export function useScrollState(el: HTMLElement | null): ScrollState {
     return () => {
       cancelAnimationFrame(rafId);
       el.removeEventListener("scroll", measureSync);
+      el.removeEventListener("transitionend", measureOnRaf);
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
     };
