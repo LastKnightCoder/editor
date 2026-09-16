@@ -10,7 +10,7 @@
  * 挂载：主窗口 / 默认重定向 /shell（router.tsx）；旧主界面在 /legacy。
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
 import clsx from "clsx";
 import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
@@ -19,7 +19,12 @@ import { Loading } from "@/ui/primitives/Loading";
 import { initScrollbarAutoHide } from "./scrollbarAutoHide";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
-import { useShellStore, SIDEBAR_MIN_W, SIDEBAR_MAX_W } from "./shellStore";
+import {
+  useShellStore,
+  SIDEBAR_COLLAPSED_W,
+  SIDEBAR_COLLAPSE_W,
+  SIDEBAR_EXPAND_W,
+} from "./shellStore";
 import { ensureLegacyPages } from "@/page/legacy";
 import { ensureDatabaseReady } from "./databaseReady";
 import "./base.css";
@@ -93,11 +98,17 @@ function ShellLayout() {
   const width = useShellStore(s => s.sidebarWidth);
   const setWidth = useShellStore(s => s.setSidebarWidth);
   const toggle = useShellStore(s => s.toggleSidebar);
+  // 拖拽中需即时跟随鼠标：Sidebar 据此关掉宽度过渡动画（否则 220ms 缓动成橡皮筋）
+  const [sidebarResizing, setSidebarResizing] = useState(false);
 
   return (
     <div className={shellRootClass} style={{ ["--tau-sidebar-w" as string]: `${width}px` }}>
-      <Sidebar />
-      <SidebarResizer onResize={setWidth} onDoubleClick={toggle} />
+      <Sidebar resizing={sidebarResizing} />
+      <SidebarResizer
+        onResize={setWidth}
+        onDoubleClick={toggle}
+        onDragChange={setSidebarResizing}
+      />
       {/* 右列整体：标题栏/内容/状态栏只属于主区，侧栏整高贯通窗口（融合骨架） */}
       <div className="grid min-w-0 grid-rows-[var(--tau-titlebar-h)_minmax(0,1fr)_var(--tau-statusbar-h)]">
         <Titlebar />
@@ -110,55 +121,72 @@ function ShellLayout() {
   );
 }
 
-/** 侧栏拖宽热区（透明，hover/拖动显形；双击折叠）。 */
+/** 侧栏拖宽热区（透明，hover/拖动显形；双击折叠）。
+ *  拖拽跨阈值切换展开/收起（业界通行语义）：收起态拉宽 ≥ 展开阈值即展开且宽度即时
+ *  跟随鼠标；展开态拖窄 ≤ 收起阈值即收起（迟滞 20px 防边界抖动）。收起态未过阈值
+ *  的拖拽不落宽度，保留用户上次的展开记忆宽。 */
 function SidebarResizer({
   onResize,
   onDoubleClick,
+  onDragChange,
 }: {
   onResize: (w: number) => void;
   onDoubleClick: () => void;
+  onDragChange: (dragging: boolean) => void;
 }) {
   const dragging = useRef<{ x: number; startW: number } | null>(null);
   const [active, setActive] = useState(false);
 
-  const onMouseMove = useCallback(
-    (e: MouseEvent) => {
-      if (!dragging.current) return;
-      const w = Math.min(
-        SIDEBAR_MAX_W,
-        Math.max(SIDEBAR_MIN_W, dragging.current.startW + e.clientX - dragging.current.x)
-      );
-      onResize(w);
+  const endDrag = useCallback(() => {
+    dragging.current = null;
+    document.body.style.userSelect = "";
+    document.body.style.cursor = "";
+    setActive(false);
+    onDragChange(false);
+  }, [onDragChange]);
+
+  // pointer capture：拖出窗口边界事件不丢，无需 window 级监听
+  const onPointerMove = useCallback(
+    (e: PointerEvent<HTMLDivElement>) => {
+      const drag = dragging.current;
+      if (!drag) return;
+      const raw = drag.startW + e.clientX - drag.x;
+      const s = useShellStore.getState();
+      if (s.sidebarCollapsed) {
+        if (raw >= SIDEBAR_EXPAND_W) {
+          s.setSidebarCollapsed(false);
+          onResize(raw);
+        }
+      } else if (raw <= SIDEBAR_COLLAPSE_W) {
+        s.setSidebarCollapsed(true);
+      } else {
+        onResize(raw);
+      }
     },
     [onResize]
   );
-
-  const onMouseUp = useCallback(() => {
-    dragging.current = null;
-    document.body.style.userSelect = "";
-    setActive(false);
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-  }, [onMouseMove, onMouseUp]);
 
   return (
     <div
       className={clsx("hover:bg-hover cursor-col-resize rounded-[2px]", active && "bg-hover")}
       title="拖动调整侧边栏宽度，双击折叠"
-      onMouseDown={e => {
-        // 起始宽度读 store（CSS 变量设在壳层根上且 :root 只有静态默认值，读 ComputedStyle 会拿错）
-        dragging.current = { x: e.clientX, startW: useShellStore.getState().sidebarWidth };
+      onPointerDown={e => {
+        // 起始宽度读 store 实况：收起态从图标列宽起算（读 ComputedStyle 会拿到 :root 静态默认值）
+        const s = useShellStore.getState();
+        dragging.current = {
+          x: e.clientX,
+          startW: s.sidebarCollapsed ? SIDEBAR_COLLAPSED_W : s.sidebarWidth,
+        };
+        e.currentTarget.setPointerCapture(e.pointerId);
         document.body.style.userSelect = "none";
+        document.body.style.cursor = "col-resize";
         setActive(true);
+        onDragChange(true);
         e.preventDefault();
       }}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onLostPointerCapture={endDrag}
       onDoubleClick={onDoubleClick}
     />
   );
