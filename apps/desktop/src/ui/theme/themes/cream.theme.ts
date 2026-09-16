@@ -17,12 +17,12 @@ export default defineTheme({
     group: "#faf6ec", // 分组容器（比 surface 沉半档，代替横线）
     sunken: "#ece5d4", // 输入底/代码块等凹陷区
     ink1: "#43392c",
-    ink2: "#7a6c5a",
+    ink2: "#736552",
     ink3: "#a89a85",
     inkInverse: "#fff8ef",
     accentHue: 22,
     accentSat: 58, // 百分比，派生用
-    accentLight: 55,
+    accentLight: 42, // AA：实底上 ink-inverse 需 ≥4.5:1，55% 只到 ~3:1
   },
   tokens: p => ({
     "bg-page": String(p.paper),
@@ -42,11 +42,11 @@ export default defineTheme({
     "line-1": "#e9e1d2",
     "line-2": "rgba(233, 225, 210, 0.55)",
 
-    // accent 派生：基色 hsl(22 58% 55%)，hover 加深、soft 半透明底
+    // accent 派生：基色 hsl(22 58% 42%)，hover 加深、soft 半透明底
     accent: `hsl(${p.accentHue} ${p.accentSat}% ${p.accentLight}%)`,
     "accent-hover": `hsl(${p.accentHue} ${p.accentSat}% ${Number(p.accentLight) - 7}%)`,
     "accent-soft": `hsla(${p.accentHue}, ${p.accentSat}%, ${p.accentLight}%, 0.12)`,
-    "accent-text": "#b85f42",
+    "accent-text": "#a05236", // AA：对 bg-page ≥4.5:1
     "focus-ring": "0 0 0 3px rgba(217, 119, 87, 0.28)",
 
     ok: "#61795f",
