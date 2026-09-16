@@ -1,17 +1,8 @@
 import { ipcMain, BrowserWindow } from "electron";
 import log from "electron-log";
-import {
-  ModuleConfig,
-  ModuleState,
-  ModuleStatus,
-  InitLayer,
-  InitResult,
-} from "./types";
+import { ModuleConfig, ModuleState, ModuleStatus, InitLayer, InitResult } from "./types";
 import { MODULE_CONFIGS, WEBSOCKET_DEPENDENT_MODULES } from "./module-config";
-import {
-  WindowType,
-  getRequiredModulesForWindow,
-} from "./window-module-mapping";
+import { WindowType, getRequiredModulesForWindow } from "./window-module-mapping";
 import BackendWebSocketServer from "../utils/BackendWebSocketServer";
 
 // 需要动态导入的 WebSocket 依赖模块
@@ -50,13 +41,13 @@ class ModuleInitManager {
 
   private constructor() {
     // 初始化模块配置映射和状态
-    MODULE_CONFIGS.forEach((config) => {
+    MODULE_CONFIGS.forEach(config => {
       this.moduleConfigs.set(config.name, config);
       this.moduleStates.set(config.name, { status: ModuleStatus.PENDING });
     });
 
     // WebSocket 依赖模块也需要添加状态
-    WEBSOCKET_DEPENDENT_MODULES.forEach((name) => {
+    WEBSOCKET_DEPENDENT_MODULES.forEach(name => {
       this.moduleStates.set(name, { status: ModuleStatus.PENDING });
     });
 
@@ -85,12 +76,9 @@ class ModuleInitManager {
     });
 
     // 为窗口类型初始化模块
-    ipcMain.handle(
-      "module-init:init-for-window",
-      async (_, windowType: WindowType) => {
-        return this.initModulesForWindow(windowType);
-      },
-    );
+    ipcMain.handle("module-init:init-for-window", async (_, windowType: WindowType) => {
+      return this.initModulesForWindow(windowType);
+    });
 
     // 初始化指定模块
     ipcMain.handle("module-init:init-module", async (_, moduleName: string) => {
@@ -98,12 +86,9 @@ class ModuleInitManager {
     });
 
     // 初始化多个模块
-    ipcMain.handle(
-      "module-init:init-modules",
-      async (_, moduleNames: string[]) => {
-        return this.initModules(moduleNames);
-      },
-    );
+    ipcMain.handle("module-init:init-modules", async (_, moduleNames: string[]) => {
+      return this.initModules(moduleNames);
+    });
 
     // 检查 Layer1 是否完成
     ipcMain.handle("module-init:is-layer1-ready", () => {
@@ -148,12 +133,8 @@ class ModuleInitManager {
    * 初始化 IMMEDIATE 层模块（同步，窗口创建前）
    */
   async initImmediate(): Promise<void> {
-    const immediateModules = MODULE_CONFIGS.filter(
-      (c) => c.layer === InitLayer.IMMEDIATE,
-    );
-    log.info(
-      `[ModuleInitManager] 开始初始化 IMMEDIATE 层模块，共 ${immediateModules.length} 个`,
-    );
+    const immediateModules = MODULE_CONFIGS.filter(c => c.layer === InitLayer.IMMEDIATE);
+    log.info(`[ModuleInitManager] 开始初始化 IMMEDIATE 层模块，共 ${immediateModules.length} 个`);
 
     const startTime = Date.now();
 
@@ -162,38 +143,28 @@ class ModuleInitManager {
       await this.initModuleInternal(config);
     }
 
-    log.info(
-      `[ModuleInitManager] IMMEDIATE 层模块初始化完成，耗时: ${Date.now() - startTime}ms`,
-    );
+    log.info(`[ModuleInitManager] IMMEDIATE 层模块初始化完成，耗时: ${Date.now() - startTime}ms`);
   }
 
   /**
    * 初始化 BACKGROUND 层模块（后台，窗口创建后）
    */
   async initBackground(): Promise<void> {
-    const backgroundModules = MODULE_CONFIGS.filter(
-      (c) => c.layer === InitLayer.BACKGROUND,
-    );
-    log.info(
-      `[ModuleInitManager] 开始初始化 BACKGROUND 层模块，共 ${backgroundModules.length} 个`,
-    );
+    const backgroundModules = MODULE_CONFIGS.filter(c => c.layer === InitLayer.BACKGROUND);
+    log.info(`[ModuleInitManager] 开始初始化 BACKGROUND 层模块，共 ${backgroundModules.length} 个`);
 
     const startTime = Date.now();
 
     // 按依赖顺序初始化
     const sorted = this.sortByDependencies(backgroundModules);
-    await Promise.allSettled(
-      sorted.map((config) => this.initModuleInternal(config)),
-    );
+    await Promise.allSettled(sorted.map(config => this.initModuleInternal(config)));
 
     this.layer1Completed = true;
 
     // 通知所有窗口 BACKGROUND 层已完成
     this.notifyAllWindows("module-init:background-ready", null);
 
-    log.info(
-      `[ModuleInitManager] BACKGROUND 层模块初始化完成，耗时: ${Date.now() - startTime}ms`,
-    );
+    log.info(`[ModuleInitManager] BACKGROUND 层模块初始化完成，耗时: ${Date.now() - startTime}ms`);
   }
 
   /**
@@ -201,9 +172,7 @@ class ModuleInitManager {
    */
   async initWebSocketDependentModules(): Promise<void> {
     if (!this.backendServer) {
-      log.warn(
-        "[ModuleInitManager] BackendWebSocketServer 未设置，跳过 WebSocket 依赖模块",
-      );
+      log.warn("[ModuleInitManager] BackendWebSocketServer 未设置，跳过 WebSocket 依赖模块");
       return;
     }
 
@@ -211,13 +180,10 @@ class ModuleInitManager {
     const startTime = Date.now();
 
     try {
-      // 初始化 publish 模块
-      await publishModule.init();
+      // publish 已随 BACKGROUND 层初始化，这里只补 WebSocket 依赖注入：走 initModule
+      // 复用「已就绪即跳过」判断，直接 init 会二次注册 handler（防重入只在管理器层）
+      await this.initModule("publish");
       publishModule.setBackendServer(this.backendServer);
-      this.updateModuleState("publish", {
-        status: ModuleStatus.READY,
-        endTime: Date.now(),
-      });
 
       // 初始化其他 WebSocket 依赖模块
       await userSettingModule.init(this.backendServer);
@@ -245,7 +211,7 @@ class ModuleInitManager {
       });
 
       log.info(
-        `[ModuleInitManager] WebSocket 依赖模块初始化完成，耗时: ${Date.now() - startTime}ms`,
+        `[ModuleInitManager] WebSocket 依赖模块初始化完成，耗时: ${Date.now() - startTime}ms`
       );
     } catch (error) {
       log.error("[ModuleInitManager] WebSocket 依赖模块初始化失败:", error);
@@ -258,7 +224,7 @@ class ModuleInitManager {
   async initModulesForWindow(windowType: WindowType): Promise<InitResult> {
     const requiredModules = getRequiredModulesForWindow(windowType);
     log.info(
-      `[ModuleInitManager] 为窗口类型 ${windowType} 初始化模块，需要: ${requiredModules.join(", ")}`,
+      `[ModuleInitManager] 为窗口类型 ${windowType} 初始化模块，需要: ${requiredModules.join(", ")}`
     );
 
     return this.initModules(requiredModules);
@@ -272,9 +238,7 @@ class ModuleInitManager {
     const failedModules: { name: string; error: string }[] = [];
 
     // 过滤掉已就绪的模块
-    const modulesToInit = moduleNames.filter(
-      (name) => !this.isModuleReady(name),
-    );
+    const modulesToInit = moduleNames.filter(name => !this.isModuleReady(name));
 
     // 如果所有模块都已就绪
     if (modulesToInit.length === 0) {
@@ -287,7 +251,7 @@ class ModuleInitManager {
 
     // 获取配置并按依赖排序
     const configs = modulesToInit
-      .map((name) => this.moduleConfigs.get(name))
+      .map(name => this.moduleConfigs.get(name))
       .filter((c): c is ModuleConfig => c !== undefined);
 
     const sorted = this.sortByDependencies(configs);
@@ -306,7 +270,7 @@ class ModuleInitManager {
     }
 
     // 添加已经就绪的模块
-    moduleNames.forEach((name) => {
+    moduleNames.forEach(name => {
       if (this.isModuleReady(name) && !readyModules.includes(name)) {
         readyModules.push(name);
       }
@@ -322,9 +286,7 @@ class ModuleInitManager {
   /**
    * 初始化单个模块
    */
-  async initModule(
-    moduleName: string,
-  ): Promise<{ success: boolean; error?: string }> {
+  async initModule(moduleName: string): Promise<{ success: boolean; error?: string }> {
     const config = this.moduleConfigs.get(moduleName);
     if (!config) {
       return { success: false, error: `模块 ${moduleName} 不存在` };
@@ -337,7 +299,7 @@ class ModuleInitManager {
    * 内部初始化方法
    */
   private async initModuleInternal(
-    config: ModuleConfig,
+    config: ModuleConfig
   ): Promise<{ success: boolean; error?: string }> {
     const { name } = config;
 
@@ -349,7 +311,7 @@ class ModuleInitManager {
     // 检查是否正在初始化（防止重复）
     if (this.initializingModules.has(name)) {
       // 等待初始化完成
-      return new Promise((resolve) => {
+      return new Promise(resolve => {
         const callbacks = this.initCallbacks.get(name) || [];
         callbacks.push((success, error) => resolve({ success, error }));
         this.initCallbacks.set(name, callbacks);
@@ -372,9 +334,7 @@ class ModuleInitManager {
             if (depConfig) {
               const depResult = await this.initModuleInternal(depConfig);
               if (!depResult.success) {
-                throw new Error(
-                  `依赖模块 ${dep} 初始化失败: ${depResult.error}`,
-                );
+                throw new Error(`依赖模块 ${dep} 初始化失败: ${depResult.error}`);
               }
             }
           }
@@ -398,8 +358,7 @@ class ModuleInitManager {
 
       return { success: true };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       log.error(`[ModuleInitManager] 模块 ${name} 初始化失败:`, error);
 
       this.updateModuleState(name, {
@@ -432,7 +391,7 @@ class ModuleInitManager {
    */
   private notifyCallbacks(name: string, success: boolean, error?: string) {
     const callbacks = this.initCallbacks.get(name) || [];
-    callbacks.forEach((cb) => cb(success, error));
+    callbacks.forEach(cb => cb(success, error));
     this.initCallbacks.delete(name);
   }
 
@@ -440,7 +399,7 @@ class ModuleInitManager {
    * 通知所有窗口
    */
   private notifyAllWindows(channel: string, data: unknown) {
-    BrowserWindow.getAllWindows().forEach((win) => {
+    BrowserWindow.getAllWindows().forEach(win => {
       if (!win.isDestroyed()) {
         win.webContents.send(channel, data);
       }
@@ -453,7 +412,7 @@ class ModuleInitManager {
   private sortByDependencies(configs: ModuleConfig[]): ModuleConfig[] {
     const sorted: ModuleConfig[] = [];
     const visited = new Set<string>();
-    const configMap = new Map(configs.map((c) => [c.name, c]));
+    const configMap = new Map(configs.map(c => [c.name, c]));
 
     const visit = (config: ModuleConfig) => {
       if (visited.has(config.name)) return;

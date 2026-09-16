@@ -1,49 +1,16 @@
 import { invoke } from "@/electron";
+import { withModule } from "./module-init";
 import type { Notebook } from "@/types/weread";
 import type { DataTableView } from "@/types";
 
-interface ModuleInitResult {
-  success: boolean;
-  error?: string;
-}
-
-let weReadModuleReadyPromise: Promise<void> | null = null;
-
-const ensureWeReadModuleReady = async (): Promise<void> => {
-  if (!weReadModuleReadyPromise) {
-    weReadModuleReadyPromise = (async () => {
-      const result = await invoke<ModuleInitResult>(
-        "module-init:init-module",
-        "weread",
-      );
-
-      if (!result?.success) {
-        throw new Error(result?.error || "初始化 WeRead 模块失败");
-      }
-    })().catch((error) => {
-      weReadModuleReadyPromise = null;
-      throw error;
-    });
-  }
-
-  return weReadModuleReadyPromise;
-};
-
-const invokeWeRead = async <T = any>(
-  channel: string,
-  ...args: any[]
-): Promise<T> => {
-  await ensureWeReadModuleReady();
-  return invoke<T>(channel, ...args);
-};
+const invokeWeRead = <T = any>(channel: string, ...args: any[]): Promise<T> =>
+  withModule("weread", () => invoke<T>(channel, ...args));
 
 export async function saveWeReadNotebook(notebook: Notebook): Promise<void> {
   return invokeWeRead("weread:save-notebook", notebook);
 }
 
-export async function saveWeReadNotebooks(
-  notebooks: Notebook[],
-): Promise<void> {
+export async function saveWeReadNotebooks(notebooks: Notebook[]): Promise<void> {
   return invokeWeRead("weread:save-notebooks", notebooks);
 }
 
@@ -51,9 +18,7 @@ export async function getAllWeReadNotebooks(): Promise<Notebook[]> {
   return invokeWeRead("weread:get-all-notebooks");
 }
 
-export async function getWeReadNotebookById(
-  bookId: string,
-): Promise<Notebook | null> {
+export async function getWeReadNotebookById(bookId: string): Promise<Notebook | null> {
   return invokeWeRead("weread:get-notebook-by-id", bookId);
 }
 
@@ -73,9 +38,7 @@ export async function updateWeReadSyncTime(timestamp: number): Promise<void> {
   return invokeWeRead("weread:update-sync-time", timestamp);
 }
 
-export async function saveWeReadView(
-  view: DataTableView,
-): Promise<DataTableView> {
+export async function saveWeReadView(view: DataTableView): Promise<DataTableView> {
   return invokeWeRead("weread:save-view", view);
 }
 
@@ -99,15 +62,11 @@ export async function getWeReadActiveViewId(): Promise<number | null> {
   return invokeWeRead("weread:get-active-view-id");
 }
 
-export async function updateWeReadViewsOrder(
-  orderedIds: number[],
-): Promise<void> {
+export async function updateWeReadViewsOrder(orderedIds: number[]): Promise<void> {
   return invokeWeRead("weread:update-views-order", orderedIds);
 }
 
-export async function saveWeReadColumnWidths(
-  widths: Record<string, number>,
-): Promise<void> {
+export async function saveWeReadColumnWidths(widths: Record<string, number>): Promise<void> {
   return invokeWeRead("weread:save-column-widths", widths);
 }
 

@@ -3,7 +3,7 @@ import {
   callMcpTool,
   connectMcpServer,
   disconnectMcpServer,
-  initModule as initModuleCommand,
+  ensureModule,
   isMcpServerConnected,
   listMcpServerTools,
   reconnectMcpServer,
@@ -134,14 +134,11 @@ const parseToolResult = (result: MCPToolCallResult): ToolExecutionResult => {
 /**
  * 确保 MCP 模块已初始化
  */
-const ensureMCPModuleInitialized = async (): Promise<void> => {
-  try {
-    await initModuleCommand("mcp");
-  } catch (error) {
+const ensureMCPModuleInitialized = (): Promise<void> =>
+  ensureModule("mcp").catch((error: unknown) => {
     console.error("[MCP] 初始化 MCP 模块失败:", error);
     throw error;
-  }
-};
+  });
 
 /**
  * 从服务器获取工具定义并包装为 ToolDefinition

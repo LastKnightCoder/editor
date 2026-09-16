@@ -131,27 +131,31 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     init: () => extraModule.init(),
   },
 
-  // === ON_DEMAND 层：按需加载 ===
+  // === 应用级能力：与窗口无关，随应用后台并行初始化 ===
+  // 原先标为 ON_DEMAND，靠「窗口类型 → 模块组」隐式拉起；新壳层接管主窗口后不再经过
+  // 该入口，handler 从未注册（updater:check 即因此报 No handler registered）。
+  // 这些模块 init 只注册 handler/建目录，重活均有延后机制，归入 BACKGROUND 后
+  // 初始化不再依赖任何调用方。
 
   // 渲染模块
   {
     name: "typst",
     group: ModuleGroup.RENDER,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => typstModule.init(),
   },
   {
     name: "tailwind-runtime",
     group: ModuleGroup.RENDER,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => tailwindRuntimeModule.init(),
   },
   {
     name: "skill",
     group: ModuleGroup.FEATURE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database"],
     init: () => skillModule.init(),
   },
@@ -160,56 +164,56 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "bilibili-cache",
     group: ModuleGroup.CACHE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "resource"],
     init: () => bilibiliCacheModule.init(),
   },
   {
     name: "youtube-cache",
     group: ModuleGroup.CACHE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "resource"],
     init: () => youtubeCacheModule.init(),
   },
   {
     name: "bilibili-audio-cache",
     group: ModuleGroup.CACHE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "resource"],
     init: () => bilibiliAudioCacheModule.init(),
   },
   {
     name: "youtube-audio-cache",
     group: ModuleGroup.CACHE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "resource"],
     init: () => youtubeAudioCacheModule.init(),
   },
   {
     name: "remote-video-cache",
     group: ModuleGroup.CACHE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "resource"],
     init: () => remoteVideoCacheModule.init(),
   },
   {
     name: "remote-audio-cache",
     group: ModuleGroup.CACHE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "resource"],
     init: () => remoteAudioCacheModule.init(),
   },
   {
     name: "remote-image-cache",
     group: ModuleGroup.CACHE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "resource"],
     init: () => remoteImageCacheModule.init(),
   },
   {
     name: "podcast-audio",
     group: ModuleGroup.CACHE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "resource"],
     init: () => podcastAudioModule.init(),
   },
@@ -218,21 +222,21 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "ali-oss",
     group: ModuleGroup.CLOUD,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "setting"],
     init: () => aliOssModule.init(),
   },
   {
     name: "s3",
     group: ModuleGroup.CLOUD,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "setting"],
     init: () => s3Module.init(),
   },
   {
     name: "webdav",
     group: ModuleGroup.CLOUD,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "setting"],
     init: () => webdavModule.init(),
   },
@@ -241,21 +245,21 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "llm",
     group: ModuleGroup.AI,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "setting"],
     init: () => llmModule.init(),
   },
   {
     name: "mcp",
     group: ModuleGroup.AI,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => mcpModule.init(),
   },
   {
     name: "stream-fetch",
     group: ModuleGroup.AI,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: async () => {
       streamFetchModule.init();
@@ -264,7 +268,7 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "codex-agent",
     group: ModuleGroup.AI,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: async () => {
       codexAgentModule.init();
@@ -273,28 +277,28 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "transcription",
     group: ModuleGroup.AI,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => transcriptionModule.init(),
   },
   {
     name: "model-downloader",
     group: ModuleGroup.AI,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => modelDownloaderModule.init(),
   },
   {
     name: "markitdown",
     group: ModuleGroup.AI,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => markitdownModule.init(),
   },
   {
     name: "embedding-model-manager",
     group: ModuleGroup.AI,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => embeddingModelManager.init(),
   },
@@ -303,14 +307,14 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "weread",
     group: ModuleGroup.INTEGRATION,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "setting"],
     init: () => wereadModule.init(),
   },
   {
     name: "publish",
     group: ModuleGroup.INTEGRATION,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "setting"],
     init: async () => {
       publishModule.init();
@@ -321,28 +325,28 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "todo-reminder",
     group: ModuleGroup.FEATURE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database"],
     init: () => todoReminderModule.init(),
   },
   {
     name: "holiday-service",
     group: ModuleGroup.FEATURE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => holidayServiceModule.init(),
   },
   {
     name: "terminal",
     group: ModuleGroup.FEATURE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => terminalModule.init(),
   },
   {
     name: "updater",
     group: ModuleGroup.FEATURE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => updaterModule.init(),
   },
@@ -351,49 +355,49 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "vibe-learning-db",
     group: ModuleGroup.DATABASE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database"],
     init: () => vibeLearningDBManager.init(),
   },
   {
     name: "vibe-learning-index-queue",
     group: ModuleGroup.FEATURE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database", "vibe-learning-db", "markitdown"],
     init: () => vibeLearningIndexQueue.init(),
   },
   {
     name: "video-note-index-db",
     group: ModuleGroup.DATABASE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database"],
     init: () => videoNoteIndexDBManager.init(),
   },
   {
     name: "video-note-index-queue",
     group: ModuleGroup.FEATURE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database", "video-note-index-db"],
     init: () => videoNoteIndexQueue.init(),
   },
   {
     name: "main-content-vec-index-queue",
     group: ModuleGroup.FEATURE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database"],
     init: () => mainContentVecIndexQueue.init(),
   },
   {
     name: "pdf-index-queue",
     group: ModuleGroup.FEATURE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database"],
     init: () => pdfIndexQueue.init(),
   },
   {
     name: "embedding-index-orchestrator",
     group: ModuleGroup.FEATURE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: [
       "logger",
       "database",
@@ -406,7 +410,7 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "pdf-index-orchestrator",
     group: ModuleGroup.FEATURE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database", "pdf-index-queue"],
     init: () => pdfIndexOrchestrator.init(),
   },
@@ -422,21 +426,21 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
   {
     name: "rss-discovery",
     group: ModuleGroup.FEATURE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => rssDiscoveryModule.init(),
   },
   {
     name: "rss-readability",
     group: ModuleGroup.FEATURE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => rssReadabilityModule.init(),
   },
   {
     name: "rss-opml",
     group: ModuleGroup.FEATURE,
-    layer: InitLayer.ON_DEMAND,
+    layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database"],
     init: () => rssOpmlModule.init(),
   },

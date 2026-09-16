@@ -301,6 +301,12 @@ pnpm add -D
 - 未接线的数据返回 null + 空态，禁止造假演示数据。
 - 列表展示 N 条时禁止为此全量拉取大表：用 LIMIT/窗口渐进（参考最近编辑 14→30→90→365 天凑满即停），必要时在主进程加聚合命令。
 
+### 主进程能力
+
+- 新增主进程模块一律 `layer: BACKGROUND`（`src-electron/main/module-init/module-config.ts`），随应用启动初始化，不依赖调用方；禁止新增 `ON_DEMAND` 模块——它的初始化靠「窗口类型 → 模块组」隐式拉起，入口一变就静默失效（主窗口换新壳层即导致 39 个模块 handler 未注册，见 DECISIONS.md D-014）。
+- 确需按需加载时，必须在渲染端用 `ensureModule`/`withModule`（`src/commands/module-init.ts`）兜底；`module-init/__tests__/module-layering.test.ts` 守护该约定。
+- 模块 `init()` 无防重入（重复注册 handler 会抛 `Attempted to register a second handler`），防重入只在 `ModuleInitManager`，故渲染端并发去重必须走 `ensureModule`，不要自行 `invoke("module-init:init-module")`。
+
 ### 迁移流程
 
 - 迁移一个 legacy 模块的标准流程见 03 指南 §6；迁移前先按 04 删除清单模板做消费者调查并追加章节，删除动作跟锚点事件走（P-<page>/G1/G2），删前 `rg` 复核消费者清零。

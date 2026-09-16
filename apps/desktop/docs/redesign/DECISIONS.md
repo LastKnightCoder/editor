@@ -93,6 +93,15 @@
 - 推翻：03 指南 §4"组件 className 与模板类名 1:1 / 禁手改 shell.css / 先改模板再导出"；shell.css 约 90 个无消费者的预置模板类（palette-\*/card-\*/detail-\*/btn-\* 等）直接删除，将来做对应页面时用 Tailwind 语义类重写。
 - 影响：AGENTS.md「UI 与主题」、03 指南 §2/§3/§4、02 规范 §3/§5.4、redesign/README 同步更新；tokenContract 语义词（bg-surface/bg-hover 等）全局唯一归属 `--tau-*`（tailwind.css 旧手写同名类删除，经核实零有效消费者）。
 
+## D-014 主进程模块去窗口耦合：应用级模块统一 BACKGROUND `已定（2026-09-15）`
+
+- 背景：主窗口从 ContentLayout 切到 AppShell（`ba3ac036`）后不再调用 `module-init:init-for-window`，而 39 个 ON_DEMAND 模块的初始化**只**由该入口（「窗口类型 → 模块组」）拉起，handler 全部未注册。表现为启动 5s 后 `updater:check` 报 "No handler registered"；其余模块要等用户点到对应功能才暴露，并存在静默失效（`useWeReadSessionBootstrap` 以 `useModuleStore` 的模块状态为门槛，而该镜像只由旧主界面的初始化流程刷新）。
+- 选择：39 个模块统一改 `layer: BACKGROUND`，随应用启动后台并行初始化；`InitLayer.ON_DEMAND` 机制保留，当前无成员。
+- 理由：实测这 39 个模块的 `init()` 只做注册 handler 与建目录（22 个纯注册、12 个轻量、5 个带延后机制），无一在 init 发起网络；把初始化绑在「窗口类型」上是错误抽象——模块本身与窗口无关，主窗口一换入口就全线失守且无告警。归入 BACKGROUND 后，初始化不再依赖任何调用方。
+- 连带修复：`initWebSocketDependentModules` 原先绕过管理器直接 `publishModule.init()`（BACKGROUND 化后会二次注册 handler 抛错），改走 `initModule("publish")` 复用「已就绪即跳过」；`useWeReadSessionBootstrap` 改为自行 `ensureModule("weread")`，不再依赖状态镜像。
+- 防线：渲染端 `ensureModule`/`withModule`（`commands/module-init.ts`）统一了原先 4 处各自为政的懒初始化实现；`module-init/__tests__/module-layering.test.ts` 守护「ON_DEMAND 模块必须有渲染端兜底」。
+- 影响：AGENTS.md 新增「主进程能力」小节；03 指南新增 §2.5。
+
 ## D-015 深色主题 cocoa + 模式运行时照搬移动端 themeStore `已定（2026-09-16）`
 
 - 背景：主题体系仅有 cream（浅色），无深色主题、无切换入口；`theme.ts` 的 `initTheme()` 硬编码 cream，会覆盖 index.html 预置的 localStorage 值（现存 bug）；parity 测试硬编码 cream 无法守护新主题。
