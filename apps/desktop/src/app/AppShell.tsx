@@ -15,6 +15,7 @@ import clsx from "clsx";
 import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
 import { initThemeRuntime } from "@/ui/theme/themeStore";
+import { Loading } from "@/ui/primitives/Loading";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
 import { useShellStore, SIDEBAR_MIN_W, SIDEBAR_MAX_W } from "./shellStore";
@@ -51,7 +52,7 @@ export default function AppShell() {
     return (
       <div className={shellRootClass}>
         {boot === "connecting" ? (
-          <p className="text-ink-2 p-6">正在连接数据库…</p>
+          <Loading label="正在连接数据库…" />
         ) : (
           <div className="text-ink-1 p-6">
             <p className="text-danger mb-3">数据库连接失败，数据区块将不可用。</p>

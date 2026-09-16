@@ -16,6 +16,7 @@ import { openPomodoroWindow } from "@/commands";
 import { usePage } from "@/page/PageProvider";
 import { useEdgeFade } from "@/hooks/useEdgeFade";
 import { EmptyNote, Panel, PanelNote, PanelTitle } from "@/ui/primitives/Panel";
+import { Loading } from "@/ui/primitives/Loading";
 import { useHomeSnapshot, minutesToHM } from "../queries";
 import { HomeHeatmap } from "./HomeHeatmap";
 import type { RecentEdit } from "../types";
@@ -61,11 +62,7 @@ export function HomeView() {
   useEdgeFade(scrollEl);
 
   if (loading) {
-    return (
-      <div className="pt-6.5 mx-auto max-w-[1680px] px-[34px]">
-        <p className="text-tau-meta text-ink-2">加载中…</p>
-      </div>
-    );
+    return <Loading />;
   }
   if (!data) return null;
 
