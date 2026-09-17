@@ -1,11 +1,11 @@
 /**
- * SearchPalette —— 全局命令面板（mockups/search/ 方案 A 演化，D-017）。
+ * SearchPalette —— 全局命令面板（D-003）。
  *
  * 一个入口承载两种搜索：内容（FTS+向量混合，防抖 250ms）与命令/页面（navigation.ts
  * 同源）。结果区为相关性平铺：命令组置顶，内容不分组、不收起，按检索管线返回的
- * 相关性顺序全部展开（2026-09-17 用户裁决，替代方案 A 的按类型分组 + 组尾深入）。
+ * 相关性顺序全部展开（不做按类型分组与组尾深入条目）。
  * 类型筛选（chips 单选/Ctrl+点击多选/Shift+←→、前缀「卡片:」追加、全角冒号、
- * 空输入退格删筛选、Esc 分层退场）与 IME 让位行为见 D-017。
+ * 空输入退格删筛选、Esc 分层退场）与 IME 让位行为见 D-003。
  */
 
 import {
@@ -185,7 +185,7 @@ export function SearchPalette() {
       sub: snippet,
       tag: { label: meta.label, cls: meta.tag },
       meta: relativeTime(r.updateTime),
-      // 详情页迁移前（D-017 注记）跳对应模块列表页
+      // 详情页迁移前（D-003 注记）跳对应模块列表页
       run: () => closeAnd(() => navigator.push(meta.navKey)),
     };
   };

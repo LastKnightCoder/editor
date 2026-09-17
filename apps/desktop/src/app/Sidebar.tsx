@@ -1,5 +1,5 @@
 /**
- * 侧边栏 —— 模块条目来自 navigation.ts（数据驱动），样式 Tailwind 优先（D-013）。
+ * 侧边栏 —— 模块条目来自 navigation.ts（数据驱动），样式 Tailwind 优先（D-001）。
  * 收起态由 shellStore 驱动条件类；拖宽时由 AppShell 传 resizing 关宽度过渡；Mac 红绿灯占位由 isMac 条件渲染。
  */
 
@@ -90,7 +90,7 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
         className="edge-fade-scroll -mr-[5px] min-h-0 flex-1 overflow-y-auto pr-[5px]"
       >
         {NAV_SECTIONS.map((section, sectionIndex) => {
-          // 组折叠收纳（mockups/sidebar-responsive 方案二）：收起条目留组头 + 条目数，
+          // 组折叠收纳：收起条目留组头 + 条目数，
           // grid-rows 0fr↔1fr 过渡；侧栏收起态（图标列）无组头，强制展开不受影响
           const folded = !collapsed && (navSectionCollapsed[section.label] ?? false);
           return (
@@ -180,7 +180,7 @@ function NavItemButton({
           ? // 选中态：accent 淡底 + 左缘 accent 小竖点（竖点贴列左缘，超出按钮盒 10px）。
             // 用 bg-selected 而非 bg-hover——后者是 5% 墨的悬停反馈（对 page 1.086），
             // 承担选中语义太弱；bg-selected 带 accent 色相（对 page 1.174），且
-            // 02 §1 视觉宪法本就允许 accent 用于"选中"（D-021）。
+            // 02 §1 视觉宪法本就允许 accent 用于"选中"（D-006）。
             "bg-selected text-ink-1 before:bg-accent relative font-medium before:absolute before:-left-2.5 before:bottom-2 before:top-2 before:w-[3px] before:rounded-r-[3px] before:content-['']"
           : "text-ink-2 hover:bg-hover hover:text-ink-1"
       )}

@@ -1,7 +1,6 @@
 /**
  * 写作趋势面积图 —— SVG 手绘（零图表库）：日字数面积 + 7 日均线 + hover 竖线 tooltip。
  * 曲线用 Catmull-Rom 样条转三次贝塞尔（过每个数据点、无折角）。
- * 视觉基准 mockups/stats/plan-c-bento.html（方案 C 定稿）。
  */
 
 import { useMemo, useState } from "react";

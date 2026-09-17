@@ -1,6 +1,6 @@
 /**
  * 把 Slate 富文本 JSON 压成一段纯文本，用于列表摘要。
- * 与移动端 apps/mobile/src/utils/richTextText.ts 同构（D-008 两端同词汇）：
+ * 与移动端 apps/mobile/src/utils/richTextText.ts 同构（两端同词汇）：
  * 不做 Markdown 语法剥离——正文里的 ###/** 等若为字面存储则如实展示，
  * 清理应发生在写入/索引层而非展示层。
  */

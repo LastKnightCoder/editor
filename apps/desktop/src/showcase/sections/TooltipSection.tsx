@@ -1,5 +1,5 @@
 /**
- * Tooltip 档案 —— 本体即 ui/primitives/Tooltip（自研 mini 定位引擎，D-018）。
+ * Tooltip 档案 —— 本体即 ui/primitives/Tooltip（自研 mini 定位引擎，D-004）。
  * 常显标本走组件的受控模式（open 常开），位置/flip/箭头全部由真引擎实时计算
  * ——滚动本页即可看到 12 个 tip 同步跟随。
  * 锚点一律用**真实控件**（IconButton / DemoButton），不用示意圆点：tooltip 的真实
@@ -36,7 +36,7 @@ export default function TooltipSection() {
       <DocHead
         title="Tooltip"
         en="primitives/Tooltip.tsx"
-        duty="Portal + 自研 mini 定位引擎（offset→flip→shift→arrow，D-018）。反相墨底配色（bg-ink-1 / text-ink-inverse，深浅主题各自反相）；hover intent 450ms，400ms 内重开免延迟。"
+        duty="Portal + 自研 mini 定位引擎（offset→flip→shift→arrow，D-004）。反相墨底配色（bg-ink-1 / text-ink-inverse，深浅主题各自反相）；hover intent 450ms，400ms 内重开免延迟。"
         src="src/ui/primitives/Tooltip.tsx · tooltipPosition.ts"
       />
 

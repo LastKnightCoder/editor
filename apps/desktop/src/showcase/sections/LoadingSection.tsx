@@ -59,7 +59,7 @@ export default function LoadingSection() {
         }
       >
         {/* 容器取 surface（Loading 的真实语境是卡片/页面区域）：label 是 ink-3，
-            落在更深的 group 上文字会发糊（D-021 后 group 已沉到 page 之下）。
+            落在更深的 group 上文字会发糊（D-006 后 group 已沉到 page 之下）。
             高度收在 168px——演示「铺满父容器」不需要 250px，只会把整段拉出大空档 */}
         <div className="bg-surface border-line-2 rounded-tau-md h-[168px] w-full overflow-hidden border">
           <Loading label="加载中…（label 可换文案）" minHeight={0} />

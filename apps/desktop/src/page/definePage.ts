@@ -2,7 +2,7 @@
  * definePage 协议 —— 一个文件声明一个 Page 的全部（身份/匹配/保活/参数/组件）。
  * 从移动端 definePage 移植（蓝图 §3.2），泛型只在边界：args 携带泛型 F 推导 params 类型，
  * 注册前擦除为宽松形状，避免消费方类型实例化过深。
- * 本协议只承载页面；dialog/drawer 等浮层不经 definePage（如需浮层导航另行裁决，D-016）。
+ * 本协议只承载页面；dialog/drawer 等浮层不经 definePage（如需浮层导航另行裁决，D-002）。
  *
  * 用法（features/<域>/pages/xxx.page.tsx）：
  *   const schema = createPageSchema({ cardId: paramNumber() });

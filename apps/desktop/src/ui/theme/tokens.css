@@ -5,7 +5,7 @@
  * 尺度：字号/间距/圆角/动效/时长是全局常量，不随主题变（见 02 规范 §3/§4）。
  *
  * Tailwind 词一律用 tau 命名空间（rounded-tau-* / text-tau-*），不覆盖
- * legacy 页面在用的 Tailwind 默认刻度（D-013）；一次性展示字号允许
+ * legacy 页面在用的 Tailwind 默认刻度（D-001）；一次性展示字号允许
  * text-[24px] 类任意值。
  */
 
@@ -82,7 +82,7 @@
   --font-tau: var(--tau-font);
   --font-tau-mono: var(--tau-font-mono);
 
-  /* ── 尺度词（D-013，tau 命名空间，见 02 规范 §3/§4）── */
+  /* ── 尺度词（D-001，tau 命名空间，见 02 规范 §3/§4）── */
 
   /* 字号：A2 定稿取值回填 */
   --text-tau-hero: 25px;
@@ -125,7 +125,7 @@
 }
 
 /*
- * 主题取值块 —— 运行时切换只改 <html data-theme>，变量由这里级联（D-009 零 JS 切换）。
+ * 主题取值块 —— 运行时切换只改 <html data-theme>，变量由这里级联（零 JS 切换）。
  * 取值与 themes/cream.theme.ts 一一对应；当前手工同步，由
  * ui/theme/__tests__/theme-parity.test.ts 守护漂移，`pnpm ui:themes` codegen
  * 落地后改为生成产物（03 指南 §9 任务 7）。新增主题必须同时补这里的数据块。

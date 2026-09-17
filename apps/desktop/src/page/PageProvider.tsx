@@ -8,7 +8,7 @@
  * （去重判定也在 reducer 内基于 prev 做，不依赖渲染期的 stateRef 桥）。
  *
  * 刻意未做（接线点见 03 指南）：window.history 同步（桌面不需要，栈机即唯一真相源）、
- * 浮层导航（dialog/drawer 不经 definePage，见 DECISIONS D-016）、canLeave 守卫拦截、
+ * 浮层导航（dialog/drawer 不经 definePage，见 DECISIONS D-002）、canLeave 守卫拦截、
  * 结果通道 pushForResult、实例级 store。
  */
 
@@ -37,7 +37,7 @@ export interface Navigator {
   current(): sm.PageEntry | undefined;
 }
 
-/** 注册浮层退场回调，返回注销函数（LIFO：Esc 先关最上层浮层，见 D-017）。 */
+/** 注册浮层退场回调，返回注销函数（LIFO：Esc 先关最上层浮层，见 D-003）。 */
 export type RegisterOverlayDismiss = (dismiss: () => void) => () => void;
 
 interface PageContextValue {
@@ -117,7 +117,7 @@ export function PageProvider({
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  // 浮层退场注册表（D-017）：Map 保插入序，Esc 取最后注册者（LIFO 最上层）
+  // 浮层退场注册表（D-003）：Map 保插入序，Esc 取最后注册者（LIFO 最上层）
   const overlayDismissers = useRef(new Map<number, () => void>());
   const nextOverlayId = useRef(1);
   const registerOverlayDismiss = useMemo<RegisterOverlayDismiss>(() => {

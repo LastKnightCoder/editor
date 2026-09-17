@@ -192,7 +192,7 @@ th { font-size: 12px; color: var(--ink-3); font-weight: 600; white-space: nowrap
   <h3>已定稿：方案 A v4（全主题色）；B 留档为「全景纵览」备用视图，C 留档为主题验收参考</h3>
   <ol>
     <li><b>迭代记录</b>（2026-09-17，三轮反馈）：v1 全主题色但说明文字大量 ink-3（~2.4:1）、舞台与展品同底、矩阵拥挤；v2 改中性工作台（<code>--wb-*</code>）→ 白卡套色块双层嵌套被否；v3 单层舞台 + 工作台明暗联动 → 仍属「主题外第二套配色」被否；<b>v4 定稿：回归全 tau 主题色</b>，层级用体系自身语义（page→surface→sunken→展品），对比度用 ink-2/ink-1 分档，排版用 tau 字号词表（20/13.5/12/11.5 五档层级）——样板间自身即体系用法定范。</li>
-    <li><b>落地第 2 步</b>：<b style="color:#3e6b4f;">已完成（2026-09-17，D-019）</b>——独立 Vite MPA 落地：根目录执行 <code>pnpm showcase</code> 即在端口 6199 打开浏览器（纯浏览器、不依赖客户端），展品全部为 <code>ui/primitives</code> 真实现（零复刻漂移），代码在 <code>apps/desktop/showcase.html</code> + <code>src/showcase/</code>。本目录三份 HTML 降级为视觉定稿稿留档。</li>
+    <li><b>落地第 2 步</b>：<b style="color:#3e6b4f;">已完成（2026-09-17，D-005）</b>——独立 Vite MPA 落地：根目录执行 <code>pnpm showcase</code> 即在端口 6199 打开浏览器（纯浏览器、不依赖客户端），展品全部为 <code>ui/primitives</code> 真实现（零复刻漂移），代码在 <code>apps/desktop/showcase.html</code> + <code>src/showcase/</code>。本目录三份 HTML 降级为视觉定稿稿留档。</li>
     <li><b>维护义务（防腐化）</b>：与 03 指南文档保鲜同口径——新增/修改 primitives 或 token 时同一提交同步样板间对应档案；样板间与源码不一致视同文档腐化。</li>
   </ol>
   <p class="tip">注意：HTML 内的组件为「复刻」（手写 CSS 对齐源码取值），存在漂移风险——静态稿用于定形态，第 2 步落地后即被真组件取代。</p>

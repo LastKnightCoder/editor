@@ -14,7 +14,7 @@ export default defineTheme({
   palette: {
     paper: "#f3eee2", // 窗口底
     surface: "#fffdf9", // 卡片/面板
-    // 分组底 / 次级填充：**下沉到 page 之下**（D-021）。原值 #faf6ec 夹在
+    // 分组底 / 次级填充：**下沉到 page 之下**（D-006）。原值 #faf6ec 夹在
     // page(1.073) 与 surface(1.062) 之间，两头都读不出来；下沉后对 page 1.092、
     // 对 surface 1.244。方向定为"凹陷填充"是因为它的消费点（EmptyNote、kind
     // 徽章、kbd 提示、命令面板标签、次级按钮）全都要在周围底色上显形。

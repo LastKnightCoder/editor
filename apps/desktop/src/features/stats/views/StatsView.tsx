@@ -1,9 +1,9 @@
 /**
- * 统计（Bento 数据面板）视图 —— 方案 C 定稿（mockups/stats/plan-c-bento.html）：
+ * 统计（Bento 数据面板）视图：
  * 速览小 tile 群 → 趋势面积图 + 知识构成 → 全年热力图 → 记忆保持 + 专注节律 + 牌组。
  * 响应式为容器驱动（@container 锚点在根，断点 1179/859 对齐 HomeView 的 1180/860 惯例，
  * 侧栏拖宽/折叠改变容器宽而非窗口宽）；grid dense 回流让 tile 折行不重排 DOM。
- * 图表全手写（零 antd/echarts），配色走 --tau-* 语义类（趋势渐变为 accent 定稿值派生）。
+ * 图表全手写（零 antd/echarts），配色走 --tau-* 语义类（趋势渐变为 accent 的 alpha 派生）。
  */
 
 import clsx from "clsx";

@@ -1,5 +1,5 @@
 /**
- * AppShell —— 融合骨架，样式 Tailwind 优先（D-013，视觉基准 mockups/direction-a-soft.html）。
+ * AppShell —— 融合骨架，样式 Tailwind 优先（D-001）。
  *
  *   ┌──────────┬──────────────────────────┐
  *   │ sidebar-head │ titlebar（右列专属）    │ ← 46px 对齐
@@ -104,7 +104,7 @@ function ShellLayout() {
   // 拖拽中需即时跟随鼠标：Sidebar 据此关掉宽度过渡动画（否则 220ms 缓动成橡皮筋）
   const [sidebarResizing, setSidebarResizing] = useState(false);
 
-  // 页面访问记录 → 搜索面板空态的「最近访问 + 常用」（D-017；连续停留同页只记一次）
+  // 页面访问记录 → 搜索面板空态的「最近访问 + 常用」（D-003；连续停留同页只记一次）
   const recordVisit = useSearchStore(s => s.recordVisit);
   const currentKey = state.back[state.back.length - 1]?.key;
   const lastRecorded = useRef<string | null>(null);
@@ -130,7 +130,7 @@ function ShellLayout() {
         </main>
         <footer className="text-tau-micro text-ink-3 flex select-none items-center gap-4 px-3.5" />
       </div>
-      {/* 全局命令面板浮层（Ctrl+K，D-017）：fixed 定位，须在 PageProvider 内使用导航 */}
+      {/* 全局命令面板浮层（Ctrl+K，D-003）：fixed 定位，须在 PageProvider 内使用导航 */}
       <SearchPalette />
       {/* 全局 toast（z 高于命令面板，面板打开时反馈仍可见） */}
       <ToastHost />

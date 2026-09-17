@@ -1,17 +1,16 @@
 /**
- * Tooltip 基础件 —— 方案 B 定稿（JS 定位引擎，mockups/tooltip/plan-b-engine.html，2026-09-17 用户裁决）。
+ * Tooltip 基础件 —— Portal + 自研 JS mini 定位引擎（选型与排除记录见 D-004）。
  *
  * Portal（body 追加 fixed 元素）+ 自研 mini 定位引擎，中间件链：
  * offset（间距 8）→ flip（主轴放不下翻对侧）→ shift（交叉轴夹回视口，边距 8）→
  * arrow（锚点中心在边缘上的投影，两端各留 10px）。
- * 原生锚定路线（方案 A：popover + CSS Anchor Positioning）实测后留档于 mockups/tooltip/。
  *
  * 行为内建（不做成 props）：hover intent（450ms 进入 / 移出即隐 / 400ms 内重开免延迟——
  * 相邻触发器快速扫过不重复等待）；focus-visible 显示；aria-describedby 自动接线；
  * disabled 子元素自动包 wrapper（pointer 事件被吞）；锚点位置变化时 rAF 跟随（动态锚，
  * 如趋势图 hover 热区随鼠标移动）；scroll(capture)/resize 重算。
  * 反相配色复用 bg-ink-1 / text-ink-inverse（深浅主题各自反相，对比度由 token 保障）。
- * 不接 Esc、不进浮层退场注册表（瞬态非阻断，同 Toast 的 D-017 口径）；
+ * 不接 Esc、不进浮层退场注册表（瞬态非阻断，同 Toast 的 D-003 口径）；
  * 不承载可交互内容——可点的说明浮层是 Popover/Menu 的职责。
  */
 

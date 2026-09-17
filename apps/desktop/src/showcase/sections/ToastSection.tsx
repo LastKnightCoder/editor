@@ -58,7 +58,7 @@ export default function ToastSection() {
       <DocHead
         title="Toast"
         en="primitives/Toast.tsx"
-        duty="轻量内联胶囊（定稿方案 A）。单行 36px：类型语义色只落图标 + 一句话 + 可选动作；无关闭钮——整条点击关闭，悬停冻结倒计时；同位置上限 4 条挤掉最老。"
+        duty="轻量内联胶囊。单行 36px：类型语义色只落图标 + 一句话 + 可选动作；无关闭钮——整条点击关闭，悬停冻结倒计时；同位置上限 4 条挤掉最老。"
         src="src/ui/primitives/Toast.tsx"
       />
 
@@ -248,7 +248,7 @@ export default function ToastSection() {
 
       <Note>
         图标家族统一为圆形外框；层级 <em>z-[200]</em>{" "}
-        高于命令面板（z-[101]），面板打开时反馈仍可见； 不接 Esc（D-017 瞬态非阻断口径）。
+        高于命令面板（z-[101]），面板打开时反馈仍可见； 不接 Esc（D-003 瞬态非阻断口径）。
       </Note>
     </>
   );

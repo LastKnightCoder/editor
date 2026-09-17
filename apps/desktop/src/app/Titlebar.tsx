@@ -1,5 +1,5 @@
 /**
- * 标题栏 —— 右列专属，不横贯全宽；样式 Tailwind 优先（D-013）。
+ * 标题栏 —— 右列专属，不横贯全宽；样式 Tailwind 优先（D-001）。
  */
 
 import { useEffect } from "react";
@@ -63,7 +63,7 @@ export function Titlebar() {
       <span className="text-tau-meta text-ink-2">· {crumb}</span>
 
       <div className="flex-1" />
-      {/* 全局搜索/命令面板（Ctrl+K，D-017） */}
+      {/* 全局搜索/命令面板（Ctrl+K，D-003） */}
       <button
         type="button"
         onClick={togglePalette}
