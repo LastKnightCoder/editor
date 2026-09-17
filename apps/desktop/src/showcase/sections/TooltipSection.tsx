@@ -36,7 +36,7 @@ export default function TooltipSection() {
       <DocHead
         title="Tooltip"
         en="primitives/Tooltip.tsx"
-        duty="Portal + 自研 mini 定位引擎（offset→flip→shift→arrow，D-004）。反相墨底配色（bg-ink-1 / text-ink-inverse，深浅主题各自反相）；hover intent 450ms，400ms 内重开免延迟。"
+        duty="Portal + 自研 mini 定位引擎（offset→flip→shift→arrow）。反相墨底配色（bg-ink-1 / text-ink-inverse，深浅主题各自反相）；hover intent 450ms，400ms 内重开免延迟。"
         src="src/ui/primitives/Tooltip.tsx · tooltipPosition.ts"
       />
 
@@ -101,11 +101,9 @@ export default function TooltipSection() {
       </MatrixRow>
 
       <Note>
-        不承载可交互内容——可点的说明浮层是未来 Popover/Menu 的职责；<em>open / onOpenChange</em>{" "}
-        受控模式对齐 §5.3 浮层契约（统计页趋势图动态锚即此用法）。滚动本页，12 个常显 tip 由
-        scroll(capture) 监听同步重算——引擎行为可见。位移中间件的闸门是「锚点与视口相交」：
-        锚点滚出视口后 tip <em>不再夹回视口</em>，随锚点一起离屏，否则整页常显 tip 会全被
-        钉在视口边缘堆成一片。
+        不承载可交互内容——可点的说明浮层是 Popover / Menu 的职责；受控 <em>open</em> 是动态锚的
+        用法入口（统计页趋势图即此用法）。本页 12 个常显 tip 挂在真实按钮锚点上，滚动时同步重算：
+        锚点滚出视口后 tip <em>不再夹回视口</em>，随锚点一起离屏。
       </Note>
     </>
   );

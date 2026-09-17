@@ -158,11 +158,7 @@ export default function TokenSection() {
         </section>
       ))}
 
-      <Note>
-        守护链：<em>tokenContract.ts</em> 全键强制 → tokens.css 数据块 →{" "}
-        <em>theme-parity.test.ts</em>
-        （含 AA 对比度断言）；focus-ring / overlay / shadow 属效果 token，见「尺度与动效」档案。
-      </Note>
+      <Note>focus-ring / overlay / shadow 属效果 token，见「尺度与动效」档案。</Note>
     </>
   );
 }

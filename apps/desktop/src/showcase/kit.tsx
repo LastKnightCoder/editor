@@ -9,6 +9,10 @@
  *    去掉 uppercase + 0.09em 字距（uppercase 对中文无效，只剩「工程 README」
  *    感），改 ink-1 semibold 常规字距，英文副标退为 mono ink-3；状态行去掉
  *    96px 强制高度，改由内容撑开——原版每行 150px+ 把页面拉得又长又空。
+ *  - 字号阶梯：**25 / 20 / 14.5 / 12.5**（档案名 hero ／ 小节题 title-lg ／
+ *    状态名 title+mono ／ 说明 meta），相邻档差 ≥2px。原先 20/14.5/13/12.5 后三级
+ *    挤在 1.5px 内，标题层级塌成一片；跨级另靠留白拉开——小节之间 mt-12、
+ *    字头 mb-9，行距只 28px（同级近、跨级远）。
  *  - 舞台：CanvasCard 增 stage 双模。card（默认）是白卡画布；page 无底色，
  *    是「展品本身即白卡」时唯一能自证的环境（Panel 档案）。
  *  - 版心：**全页唯一内容宽度** `PAGE_COL`，由壳层（ShowcaseApp）居中承载——展品区、
@@ -40,9 +44,9 @@ export function DocHead({
   src: string;
 }) {
   return (
-    <header className="mb-7">
+    <header className="mb-9">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h1 className="text-tau-title-lg text-ink-1 font-[650] tracking-[-0.012em]">{title}</h1>
+        <h1 className="text-tau-hero text-ink-1 font-[650] tracking-[-0.012em]">{title}</h1>
         <span className="font-tau-mono text-tau-meta text-ink-3">{en}</span>
       </div>
       <p className="text-tau-body-lg text-ink-2 mt-2.5 leading-[1.75]">{duty}</p>
@@ -94,21 +98,19 @@ export function CanvasCard({
 
 export function BlockTitle({ children, en }: { children: ReactNode; en?: string }) {
   return (
-    <h2 className="text-tau-sm text-ink-1 mb-2 mt-9 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 font-semibold">
+    <h2 className="text-tau-title-lg text-ink-1 mb-3 mt-12 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 font-semibold">
       {children}
-      {en && <span className="font-tau-mono text-tau-tiny text-ink-3 font-normal">{en}</span>}
+      {en && <span className="font-tau-mono text-tau-meta text-ink-3 font-normal">{en}</span>}
     </h2>
   );
 }
 
 /* ── 矩阵行 ──
-   标签列（状态名 mono 主 + 说明次墨）｜标本区左对齐、纵向成列。
-   对齐口径（2026-09-17 用户反馈「排版太丑」后改）：
-    - 两列**共用一条顶线**：状态名与标本齐平，说明作为次行挂在名字下面。原先整行
-      items-center，遇到高标本（Loading 的演示框）标签会被甩到盒子腰上、像浮在空中；
-      而矮标本又会跟「说明」那一行对齐而非与状态名对齐——行的身份是名字，不是说明。
-    - 标本区不设 min-h：节奏交给行距（py-4），矮标本不再孤立地悬在空槽中央。
-    - 标签列 230→280px：说明文案少折一截，避免「底 + accent 顶弧」这类孤字行。 */
+   上下堆叠：状态名 mono 主 + 说明次墨在上，标本区在下。
+   排布口径（2026-09-17 用户裁决，推翻此前左右两列）：左右两列的对齐参差（说明折行
+   行数不一、标本高低不一）读起来杂乱——说明与示例改为纵向从属关系，一行一块。
+   块间分隔只用留白（PREFERENCES「讨厌横线切割」，不给行加分隔线）；标本区不设
+   min-h，节奏交给行距。 */
 
 export function MatrixRow({
   name,
@@ -122,17 +124,16 @@ export function MatrixRow({
   children: ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[280px_minmax(0,1fr)] items-start gap-8 py-4">
-      <div className="min-w-0">
-        <div className="font-tau-mono text-tau-meta text-ink-1 break-all font-[550]">{name}</div>
+    <div className="space-y-2.5 py-3.5">
+      <div>
+        <div className="font-tau-mono text-tau-title text-ink-1 font-[600]">{name}</div>
         {desc && (
-          <div className="text-tau-meta text-ink-2 [&_code]:border-line-1 [&_code]:bg-surface [&_code]:text-ink-1 [&_code]:font-tau-mono mt-1 leading-[1.7] [&_code]:whitespace-nowrap [&_code]:rounded-[5px] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[11.5px]">
+          <div className="text-tau-meta text-ink-2 [&_code]:border-line-1 [&_code]:bg-surface [&_code]:text-ink-1 [&_code]:font-tau-mono mt-1.5 leading-[1.7] [&_code]:whitespace-nowrap [&_code]:rounded-[5px] [&_code]:border [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[11.5px]">
             {desc}
           </div>
         )}
       </div>
-      {/* pt-0.5：让 30px 档标本的光学中线贴近状态名那一行 */}
-      <div className={cn("text-ink-1 flex flex-wrap items-start gap-4 pt-0.5", trayClassName)}>
+      <div className={cn("text-ink-1 flex flex-wrap items-start gap-4", trayClassName)}>
         {children}
       </div>
     </div>
@@ -146,9 +147,9 @@ export function ApiCard({ title, children }: { title: string; children: ReactNod
     <section className="bg-surface shadow-card rounded-tau-lg mt-9 overflow-hidden pb-1.5">
       <div className="flex items-center gap-2 px-6 pt-4">
         <span className="bg-accent size-1.5 shrink-0 rounded-full" />
-        <span className="text-tau-sm text-ink-1 font-semibold">{title}</span>
+        <span className="text-tau-title text-ink-1 font-semibold">{title}</span>
       </div>
-      <div className="text-tau-meta text-ink-2 [&_th]:text-tau-tiny [&_th]:text-ink-3 [&_td]:border-line-2 [&_code]:border-line-1 [&_code]:bg-surface [&_code]:text-ink-1 [&_code]:font-tau-mono px-6 pt-3 [&_code]:rounded-[5px] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[11.5px] [&_table]:w-full [&_table]:border-collapse [&_td]:border-t [&_td]:py-2.5 [&_td]:pl-0 [&_td]:pr-6 [&_td]:text-left [&_td]:align-top [&_td]:leading-[1.7] [&_th]:whitespace-nowrap [&_th]:py-2.5 [&_th]:pl-0 [&_th]:pr-6 [&_th]:text-left [&_th]:font-semibold">
+      <div className="text-tau-meta text-ink-2 [&_th]:text-tau-tiny [&_th]:text-ink-3 [&_td]:border-line-2 [&_code]:border-line-1 [&_code]:bg-surface [&_code]:text-ink-1 [&_code]:font-tau-mono px-6 pt-3 [&_code]:rounded-[5px] [&_code]:border [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[11.5px] [&_table]:w-full [&_table]:border-collapse [&_td]:border-t [&_td]:py-2.5 [&_td]:pl-0 [&_td]:pr-6 [&_td]:text-left [&_td]:align-top [&_td]:leading-[1.7] [&_th]:whitespace-nowrap [&_th]:py-2.5 [&_th]:pl-0 [&_th]:pr-6 [&_th]:text-left [&_th]:font-semibold">
         {children}
       </div>
     </section>

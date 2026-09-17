@@ -23,7 +23,7 @@ export default function ScaleSection() {
       <DocHead
         title="尺度与动效"
         en="与主题正交的全局常量"
-        duty="字号 / 圆角 / 阴影 / 动效 / 布局常量不随主题变（02 规范 §3/§4）。Tailwind 词一律 tau 命名空间。注意阴影两档取值随主题变（唯一的例外）。本样板间的排版即按此词表执行。"
+        duty="字号 / 圆角 / 阴影 / 动效 / 布局常量不随主题变，Tailwind 词一律 tau 命名空间。阴影两档取值随主题变（唯一的例外）。"
         src="src/ui/theme/tokens.css · @theme inline"
       />
 
@@ -52,7 +52,7 @@ export default function ScaleSection() {
         ).map(([word, px, cls]) => (
           <div
             key={word}
-            className={`border-line-1 bg-surface text-ink-2 font-tau-mono grid h-[78px] w-[108px] place-items-center border text-[11px] ${cls}`}
+            className={`border-line-1 bg-surface text-ink-2 font-tau-mono grid h-[78px] w-[152px] place-items-center whitespace-nowrap border text-[11px] ${cls}`}
           >
             {word} {px}
           </div>

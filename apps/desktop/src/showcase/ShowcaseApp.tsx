@@ -1,12 +1,19 @@
 /**
  * 样板间壳层 —— 侧栏（透明融于 page，条目/激活态复刻真实 Sidebar 语言）+ 右列
- * titlebar + 档案内容 + 状态栏。
+ * titlebar + 档案内容。
  * 层级：page 环境 → surface 卡 → 展品（展品背后不加底色块）。
  *
- * **版心统一**（2026-09-17 用户要求「统一设置版心，然后水平居中」）：全页只有
- * 一条宽度 `PAGE_COL`，由本文件在 titlebar / 内容区 / 状态栏三处同一居中承载——
- * 原先"展品满宽 + 文本列 740"两套宽度让页面像被切成两截，且宽屏下内容会一直摊到窗口边。
- * 宽度值收在 kit.tsx 的 `PAGE_COL` 单一常量里，改一处全页生效。
+ * **滚动协议**（三层各自独立，整体不产出文档级滚动条）：根 grid 显式 100vh 行 +
+ * `overflow-hidden` 锁死窗口滚动；侧栏头部 shrink-0 固定，滚动收口在条目列（同真实
+ * Sidebar，logo 不随滚动）；内容滚动条经 `-mr/pr` 借位移进右侧 `px-10` 留白，离窗口
+ * 右缘 16px（同首页 home-scroll 手法，内容盒右缘不动、与 titlebar 版心对齐）。
+ * 两个滚动区都接 `.edge-fade-scroll` + useEdgeFade（首页同款边缘渐隐，只在真能滚的方向显形）；
+ * 右列底部保留壳层 statusbar 高度的空条，内容不贴窗口底边。
+ * 显隐沿用全局协议（base.css + scrollbarAutoHide.ts）：4px 细墨条仅 hover/滚动中显形。
+ *
+ * **版心统一**：全页只有一条宽度 `PAGE_COL`，由本文件在 titlebar 与内容区两处
+ * 同一居中承载——展品区与文本列各写各的宽度会让页面像被切成两截，且宽屏下内容会
+ * 一直摊到窗口边。宽度值收在 kit.tsx 的 `PAGE_COL` 单一常量里，改一处全页生效。
  *
  * 主题入口用三分段而非 Titlebar 的循环按钮：样板间的主要用途是**配色对照**，
  * 循环按钮看完不知道当前在哪一档，三态可直接点选。
@@ -16,6 +23,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import { Monitor, Moon, Sun } from "lucide-react";
 import logo from "@/assets/logo.png";
+import { useEdgeFade } from "@/hooks/useEdgeFade";
 import { useThemeStore, type ThemeMode } from "@/ui/theme/themeStore";
 import { ToastHost } from "@/ui/primitives/Toast";
 import { PAGE_COL, Segmented } from "./kit";
@@ -35,12 +43,17 @@ export function ShowcaseApp() {
 
   const active = SECTIONS.find(s => s.key === activeKey)!;
   const ActiveView = active.component;
+  const [navScrollEl, setNavScrollEl] = useState<HTMLDivElement | null>(null);
+  const [contentScrollEl, setContentScrollEl] = useState<HTMLDivElement | null>(null);
+  useEdgeFade(navScrollEl);
+  useEdgeFade(contentScrollEl);
 
   return (
-    <div className="app font-tau bg-page text-ink-1 grid h-screen grid-cols-[var(--tau-sidebar-w)_minmax(0,1fr)] text-[13px]">
+    <div className="app font-tau bg-page text-ink-1 grid h-screen grid-cols-[var(--tau-sidebar-w)_minmax(0,1fr)] grid-rows-[100vh] overflow-hidden text-[13px]">
       {/* 侧栏：透明融于 page，激活态 = 淡墨底 + 左缘 accent 竖点（同真实 Sidebar，
-          图标不指定颜色、随按钮色继承，避免与真实侧栏漂移） */}
-      <nav aria-label="样板间导航" className="flex flex-col overflow-y-auto px-2.5 pb-3">
+          图标不指定颜色、随按钮色继承，避免与真实侧栏漂移）。
+          整高贯通、自身不滚动：头部固定，滚动只收在条目列 */}
+      <nav aria-label="样板间导航" className="flex flex-col px-2.5 pb-3">
         <div className="mb-1.5 flex h-[var(--tau-titlebar-h)] shrink-0 items-center gap-2 px-1.5">
           <img
             src={logo}
@@ -53,7 +66,11 @@ export function ShowcaseApp() {
           </span>
         </div>
 
-        <div className="min-h-0 flex-1">
+        {/* -mr/pr 借位（同真实 Sidebar）：滚动条移进侧栏右留白，条目宽度不受影响 */}
+        <div
+          ref={setNavScrollEl}
+          className="edge-fade-scroll -mr-[5px] min-h-0 flex-1 overflow-y-auto pr-[5px]"
+        >
           {SECTION_GROUPS.map(section => (
             <div key={section.label} className="mt-3 first:mt-0">
               <div className="text-tau-tiny text-ink-3 px-2.5 pb-1.5 font-[550] tracking-[0.02em]">
@@ -85,9 +102,9 @@ export function ShowcaseApp() {
         </div>
       </nav>
 
-      {/* 右列：titlebar + 档案内容 + 状态栏 */}
+      {/* 右列：titlebar + 档案内容 */}
       <div className="bg-page flex min-w-0 flex-col">
-        {/* titlebar / 内容 / 状态栏共用同一条版心（PAGE_COL）并居中，三处一条竖线贯通 */}
+        {/* titlebar / 内容共用同一条版心（PAGE_COL）并居中，两处一条竖线贯通 */}
         <header className="shrink-0 px-10">
           <div
             className={clsx("mx-auto flex h-[var(--tau-titlebar-h)] items-center gap-3", PAGE_COL)}
@@ -116,23 +133,24 @@ export function ShowcaseApp() {
           </div>
         </header>
 
-        <main className="pb-25 min-h-0 flex-1 overflow-y-auto px-10 pt-8">
-          <div className={clsx("mx-auto", PAGE_COL)}>
-            <ActiveView key={activeKey} />
+        {/* 内容滚动区：外框只承担版心留白（px-10），滚动条经 -mr/pr 借位移进右留白
+            离窗口右缘 16px——内容盒宽度不变，因此与 titlebar 的 PAGE_COL 始终同一条竖线。
+            边缘渐隐沿用首页协议（base.css 的 .edge-fade-scroll + useEdgeFade）；
+            尾留白 pb-8 与顶部 pt-8 对称（底部不贴边由下方状态条承担，不叠加大留白） */}
+        <main className="min-h-0 flex-1 px-10">
+          <div
+            ref={setContentScrollEl}
+            className="edge-fade-scroll -mr-6 h-full overflow-y-auto pb-8 pr-6 pt-8"
+          >
+            <div className={clsx("mx-auto", PAGE_COL)}>
+              <ActiveView key={activeKey} />
+            </div>
           </div>
         </main>
 
-        <footer className="text-tau-micro text-ink-3 shrink-0 px-10">
-          <div
-            className={clsx(
-              "mx-auto flex h-[var(--tau-statusbar-h)] items-center justify-between gap-4",
-              PAGE_COL
-            )}
-          >
-            <span>Tau 样板间 · 组件检查器 · 端口 6199（纯浏览器，不依赖客户端）</span>
-            <span>层级 page → surface → 展品 · 展品为本体实现（ui/primitives）</span>
-          </div>
-        </footer>
+        {/* 底部状态条：与壳层 statusbar 同高（本页无状态文案，只余留白），
+            内容不贴窗口底边 */}
+        <footer className="h-[var(--tau-statusbar-h)] shrink-0" />
       </div>
 
       <ToastHost />
