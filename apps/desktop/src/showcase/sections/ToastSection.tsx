@@ -178,7 +178,7 @@ export default function ToastSection() {
         name="loading"
         desc={
           <>
-            LoaderCircle 旋转 · 不自动关，<code>resolve / reject</code> 收尾
+            LoaderCircle 旋转 · 载入中常驻，<code>resolve / reject</code> 收尾
           </>
         }
         trayClassName=""
@@ -222,7 +222,7 @@ export default function ToastSection() {
               <td>
                 <code>toast.loading → resolve / reject</code>
               </td>
-              <td>loading 不自动关（duration 0）</td>
+              <td>载入中常驻（与 duration 无关）；落定起按 duration 收尾</td>
             </tr>
             <tr>
               <td>

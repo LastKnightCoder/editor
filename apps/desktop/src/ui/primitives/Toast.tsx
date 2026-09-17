@@ -25,7 +25,7 @@ export interface ToastOptions {
   /** 内联动作（如「撤销」），点击后 toast 关闭 */
   action?: { label: string; onClick: () => void };
   position?: ToastPosition;
-  /** 自动关闭毫秒数；0 表示不自动关（loading 默认 0） */
+  /** 落定后的停留毫秒数；0 = 落定后也常驻（只靠点击关闭）。载入中恒常驻，与本值无关 */
   duration?: number;
 }
 
@@ -85,7 +85,9 @@ export const toast = {
       message,
       action: opts.action,
       position: opts.position ?? defaults.position,
-      duration: opts.duration ?? (type === "loading" ? 0 : defaults.duration),
+      // loading 的常驻由 ToastPill 按 type 判断，不走 duration——落定（resolve / reject）
+      // 后要靠 duration 排自动关闭，这里再兜 0 会让 success/error 永久赖着不走
+      duration: opts.duration ?? defaults.duration,
     });
     return id;
   },
@@ -102,7 +104,7 @@ export const toast = {
   info(message: string, opts?: ToastOptions) {
     return this.show("info", message, opts);
   },
-  /** 加载中不自动关；结束后 resolve（转成功）或 reject（转失败） */
+  /** 载入中常驻；结束后 resolve（转成功）或 reject（转失败），落定起按 duration 收尾 */
   loading(message: string, opts?: ToastOptions) {
     return this.show("loading", message, opts);
   },
@@ -234,12 +236,17 @@ export function ToastPill({ item }: { item: ToastItem }) {
     };
   }, []);
 
-  // 自动关闭 + 悬停冻结（记录剩余时间；loading / duration=0 不排程）
+  // 自动关闭 + 悬停冻结（记录剩余时间；载入中与 duration=0 不排程）
   const remainRef = useRef(item.duration);
   const timerRef = useRef<number | null>(null);
   const startedAtRef = useRef(0);
+  const hoveredRef = useRef(false);
   useEffect(() => {
+    // type / duration 变化 = 刚落定（loading → success/error），停留时长按新值从头计
+    remainRef.current = item.duration;
     if (item.type === "loading" || item.duration <= 0) return;
+    // 落定瞬间指针就在胶囊上：交给 mouseLeave 的 resume 排程，避免在悬停中自行消失
+    if (hoveredRef.current) return;
     startedAtRef.current = Date.now();
     timerRef.current = window.setTimeout(close, item.duration);
     return () => {
@@ -252,12 +259,14 @@ export function ToastPill({ item }: { item: ToastItem }) {
   }, [item.type, item.duration]);
 
   const pause = () => {
+    hoveredRef.current = true;
     if (timerRef.current === null) return;
     clearTimeout(timerRef.current);
     remainRef.current -= Date.now() - startedAtRef.current;
     timerRef.current = null;
   };
   const resume = () => {
+    hoveredRef.current = false;
     if (timerRef.current !== null || leaving) return;
     if (item.type === "loading" || item.duration <= 0) return;
     startedAtRef.current = Date.now();
