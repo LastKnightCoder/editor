@@ -8,7 +8,7 @@
  */
 
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { searchContent } from "@/utils/search";
+import { searchHybridContent } from "@/commands";
 import { richTextPlainText, clampText } from "@/utils/richTextText";
 import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
 import useSettingStore from "@/stores/useSettingStore";
@@ -23,9 +23,11 @@ export function useSearchContent(query: string, types?: IndexType[]) {
     queryKey: ["search", "content", query, types ?? "all"],
     queryFn: async (): Promise<SearchResult[]> => {
       const setting = useSettingStore.getState().setting;
-      // 未配置 embedding 时返回 undefined，管线自动只走 FTS 路
+      // 未配置 embedding 时返回 undefined，管线自动只走 FTS 路。
+      // 直调命令而非 utils/search 的 searchContent 包装——后者吞错返回 []，
+      // 这里需要错误冒泡到 react-query（isError）以触发 toast 反馈
       const modelInfo = resolveEmbeddingModelInfoFromSetting(setting);
-      return searchContent({ query, types, limit: RESULT_LIMIT, modelInfo });
+      return searchHybridContent({ query, types, limit: RESULT_LIMIT, modelInfo });
     },
     enabled: query.trim().length > 0,
     staleTime: 30_000,

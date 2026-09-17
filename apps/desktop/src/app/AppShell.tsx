@@ -16,6 +16,7 @@ import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
 import { initThemeRuntime } from "@/ui/theme/themeStore";
 import { Loading } from "@/ui/primitives/Loading";
+import { ToastHost } from "@/ui/primitives/Toast";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { useSearchStore } from "@/features/search/searchStore";
 import { initScrollbarAutoHide } from "./scrollbarAutoHide";
@@ -131,6 +132,8 @@ function ShellLayout() {
       </div>
       {/* 全局命令面板浮层（Ctrl+K，D-017）：fixed 定位，须在 PageProvider 内使用导航 */}
       <SearchPalette />
+      {/* 全局 toast（z 高于命令面板，面板打开时反馈仍可见） */}
+      <ToastHost />
     </div>
   );
 }
