@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tau 桌面端 · Toast 方案导览（三方案对比）</title>
+<!--
+  Toast 基础件设计导览：三方案对比（A 轻量胶囊 / B 通知卡片 / C 居中结果）+
+  位置与类型的可配置矩阵 + 决策建议 + ui/primitives/Toast 的 API 草案。
+  本页刻意采用中性样式，不偏向任何方案；各方案视觉统一在各自演示页（tau 双主题）。
+-->
+<style>
+:root {
+  --ink: #1d1f24; --ink-2: #5b606b; --ink-3: #8b919c;
+  --bg: #fcfcfd; --surface: #fff; --line: #e6e8ec; --accent: #4650c8;
+  --accent-soft: rgba(70, 80, 200, 0.09);
+  --good: #3e6b4f; --bad: #9c5148;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--ink); background: var(--bg); font-size: 14px; line-height: 1.75; }
+.page { max-width: 1020px; margin: 0 auto; padding: 48px 32px 96px; }
+h1 { font-size: 26px; letter-spacing: -0.01em; margin-bottom: 8px; }
+.lede { color: var(--ink-2); max-width: 76ch; margin-bottom: 8px; }
+.lede b { color: var(--ink); }
+h2 { font-size: 19px; margin: 46px 0 6px; }
+h2 + p { color: var(--ink-2); margin-bottom: 16px; max-width: 76ch; }
+a { color: var(--accent); }
+kbd { padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--surface); font-size: 12px; font-family: ui-monospace, Consolas, monospace; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--accent-soft);
+  color: var(--accent); border-radius: 5px; padding: 1px 6px; }
+pre { background: #f6f7f9; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+  font-size: 12.5px; line-height: 1.8; overflow-x: auto; color: var(--ink-2); margin-top: 10px; }
+pre code { background: none; color: inherit; padding: 0; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+
+.plan-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 14px; }
+@media (max-width: 900px) { .plan-grid { grid-template-columns: 1fr; } }
+.plan-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+.plan-card h3 { font-size: 15.5px; margin-bottom: 2px; }
+.plan-card .en { font-size: 11.5px; color: var(--ink-3); margin-bottom: 10px; }
+.plan-card .stance { font-size: 12.5px; color: var(--ink-2); margin-bottom: 12px; min-height: 66px; }
+.plan-card .stance b { color: var(--ink); }
+.wf { height: 96px; border: 1px solid var(--line); border-radius: 10px; background: #f6f7f9;
+  position: relative; margin-bottom: 12px; overflow: hidden; }
+.wf-row { position: absolute; border-radius: 99px; background: #d7dae0; }
+.wf-row.accent { background: var(--accent); opacity: 0.75; }
+.wf-row.dark { background: #b6bac2; }
+.wf-dot { position: absolute; width: 26px; height: 26px; border-radius: 99px; background: var(--accent-soft); border: 1.5px solid var(--accent); }
+.plan-card ul { list-style: none; font-size: 12.5px; color: var(--ink-2); }
+.plan-card li { padding-left: 15px; position: relative; margin: 3px 0; }
+.plan-card li::before { content: "·"; position: absolute; left: 4px; color: var(--ink-3); }
+.plan-card li.good { color: var(--good); }
+.plan-card li.bad { color: var(--bad); }
+.open-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px; border-radius: 9px;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 550; text-decoration: none; margin-top: 10px; }
+.open-btn:hover { filter: brightness(1.08); }
+.plan-card .fit { font-size: 12px; background: #f6f7f9; border: 1px dashed var(--line); border-radius: 8px;
+  padding: 8px 12px; margin-top: 10px; color: var(--ink-2); }
+.plan-card .fit b { color: var(--ink); }
+
+.decision { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-top: 14px; }
+.decision h3 { font-size: 15px; margin-bottom: 8px; }
+.decision ol { padding-left: 20px; font-size: 13px; color: var(--ink-2); }
+.decision ol li { margin: 7px 0; }
+.decision ol li b { color: var(--ink); }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Toast 基础件 · 方案导览</h1>
+<p class="lede">三个设计维度：<b>位置</b>（顶部居中 / 右上 / 右下 / 底部居中，可配置）、<b>类型</b>（成功 / 错误 / 警告 / 信息 / 加载中）、<b>样式流派</b>。三份演示页共用 tau 双主题（cream / cocoa）与同一套语义色 token（ok / danger / warn / info），每份都是完整可操作的 playground——触发各类型、切换位置、堆叠、悬停暂停、加载中转成功（promise 形态）全部可玩。</p>
+
+<!-- ═══════════ 业界参照 ═══════════ -->
+<h2>业界参照</h2>
+<table>
+  <thead><tr><th>产品</th><th>形态</th><th>默认位置</th><th>值得借鉴</th></tr></thead>
+  <tbody>
+    <tr><td><b>Sonner</b>（shadcn 生态默认）</td><td>轻量胶囊</td><td>右下（四角可配）</td><td>悬停冻结倒计时；promise 形态（loading→成功/失败）；堆叠展开</td></tr>
+    <tr><td><b>Linear</b></td><td>轻量胶囊</td><td>底部居中</td><td>类型只落图标色，克制不打扰；动作链接内联</td></tr>
+    <tr><td><b>macOS 通知</b></td><td>通知卡片</td><td>右上</td><td>标题+描述+动作按钮的信息密度；成组堆叠</td></tr>
+    <tr><td><b>antd Notification</b></td><td>通知卡片</td><td>右上（四角可配）</td><td>position / duration / btn 全参数化——API 设计蓝本</td></tr>
+    <tr><td><b>Raycast</b></td><td>居中 HUD</td><td>窗口居中偏上</td><td>单例替换、快速退场——与键盘操作绑定的「结果回声」</td></tr>
+  </tbody>
+</table>
+<p class="note">共识：① 位置必须可配置（不同场景的注意力位置不同）；② 类型语义色收敛在图标/色块，不做整块彩色底；③ 悬停暂停自动关闭是桌面端刚需（用户可能正想点动作按钮）。</p>
+
+<!-- ═══════════ 三方案 ═══════════ -->
+<h2>三个方案</h2>
+<div class="plan-grid">
+
+  <div class="plan-card">
+    <h3>方案 A · 轻量内联胶囊</h3>
+    <div class="en">Compact Pill — Sonner / Linear 流派</div>
+    <div class="wf">
+      <!-- 底部居中一排胶囊 -->
+      <div class="wf-row dark" style="left:12px; right:12px; top:8px; height:10px;"></div>
+      <div class="wf-row accent" style="left:26%; width:48%; top:30px; height:20px;"></div>
+      <div class="wf-row" style="left:34%; width:32%; top:58px; height:20px;"></div>
+    </div>
+    <div class="stance"><b>轻确认不打断。</b>36px 单行胶囊：图标（语义色）+ 一句话 + 可选动作 + 关闭。无标题无描述，一闪而过。</div>
+    <ul>
+      <li class="good">注意力成本最低，四个位置都成立（居中/四角）</li>
+      <li class="good">promise 形态天然支持（loading→成功）</li>
+      <li class="bad">放不下解释和多个动作，复杂反馈表达不了</li>
+    </ul>
+    <div class="fit"><b>适用</b>：已保存 / 已复制 / 网络异常一句话 / 命令执行确认。默认位置建议 <b>底部居中或右下</b>。</div>
+    <a class="open-btn" href="plan-a-compact.html">打开演示 →</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>方案 B · 通知卡片</h3>
+    <div class="en">Notification Card — macOS / antd 流派</div>
+    <div class="wf">
+      <div class="wf-row dark" style="left:12px; right:12px; top:8px; height:10px;"></div>
+      <div class="wf-dot" style="right:14px; top:24px;"></div>
+      <div class="wf-row" style="left:52px; right:52px; top:26px; height:10px;"></div>
+      <div class="wf-row" style="left:52px; right:70px; top:42px; height:8px;"></div>
+      <div class="wf-row accent" style="left:52px; width:56px; top:58px; height:13px; border-radius:7px;"></div>
+      <div class="wf-row accent" style="left:0; right:0; bottom:0; height:3px; border-radius:0; opacity:.6;"></div>
+    </div>
+    <div class="stance"><b>带上下文的小通知。</b>344px 卡片：图标色块 + 标题 + 两行描述 + 动作按钮（次要/主要）+ 底部同色倒计时条。</div>
+    <ul>
+      <li class="good">信息密度最高，可解释、可操作（重试/查看）</li>
+      <li class="good">倒计时进度条让「何时消失」可预期</li>
+      <li class="bad">体量重，居中会遮挡内容，只适合右上/右下</li>
+    </ul>
+    <div class="fit"><b>适用</b>：同步结果 / 剪藏失败可重试 / 协作冲突提示。默认位置建议 <b>右上</b>。</div>
+    <a class="open-btn" href="plan-b-card.html">打开演示 →</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>方案 C · 居中结果浮层</h3>
+    <div class="en">Center HUD — Raycast 流派</div>
+    <div class="wf">
+      <div class="wf-row dark" style="left:12px; right:12px; top:8px; height:10px;"></div>
+      <div class="wf-dot" style="left:50%; top:26px; transform: translateX(-50%);"></div>
+      <div class="wf-row" style="left:32%; width:36%; top:60px; height:9px;"></div>
+    </div>
+    <div class="stance"><b>操作的结果回声。</b>窗口居中偏上：大圆图标 + 居中短语，2.2s 快速退场，<b>单例替换不堆叠</b>，点击任意处关闭。</div>
+    <ul>
+      <li class="good">阅读成本最低、退场最快，与键盘流/命令面板天然搭配</li>
+      <li class="good">单例语义免去堆叠管理，视觉永远干净</li>
+      <li class="bad">不可堆叠、不适合决策类信息；频繁触发会闪烁替换</li>
+    </ul>
+    <div class="fit"><b>适用</b>：已复制 / 已切换主题 / 已开始专注——命令面板与快捷操作的执行确认。</div>
+    <a class="open-btn" href="plan-c-center.html">打开演示 →</a>
+  </div>
+</div>
+
+<!-- ═══════════ 位置×形态矩阵 ═══════════ -->
+<h2>位置 × 形态 矩阵</h2>
+<table>
+  <thead><tr><th>位置</th><th>A 胶囊</th><th>B 卡片</th><th>C HUD</th><th>业界惯例</th></tr></thead>
+  <tbody>
+    <tr><td><b>顶部居中</b>（titlebar 下 16px）</td><td>✓ 演示可切</td><td>✓ 演示可切</td><td>—（C 固定 top 18vh 居中）</td><td>antd top；错误类醒目</td></tr>
+    <tr><td><b>右上</b>（macOS 通知位）</td><td>✓</td><td>✓ <b>推荐默认</b></td><td>—</td><td>macOS / antd 默认；通知语义</td></tr>
+    <tr><td><b>右下</b>（Sonner 位）</td><td>✓ <b>推荐默认</b></td><td>✓</td><td>—</td><td>Sonner / VS Code；不挡视线</td></tr>
+    <tr><td><b>底部居中</b>（Linear 位）</td><td>✓</td><td>✗ 挡内容</td><td>—</td><td>Linear / Slack；轻反馈</td></tr>
+  </tbody>
+</table>
+
+<!-- ═══════════ 决策建议与 API ═══════════ -->
+<h2>决策建议与 API 草案</h2>
+<div class="decision">
+  <h3>怎么选</h3>
+  <ol>
+    <li><b>只做一个通用形态</b>：选 <b>A（轻量胶囊）</b>，默认底部居中或右下——覆盖 90% 场景，位置参数化后错误/通知也能用；后续需要重通知时再补 B。</li>
+    <li><b>双形态组合（推荐长期形态）</b>：<b>A 做全局默认</b>（可配位置）+ <b>C 补命令面板/快捷键回声</b>（单例替换）——命令面板动作目前没有反馈通道，C 正好补位；B 留给「需要解释和操作」的通知场景（同步/冲突），可等具体功能出现时再引入。</li>
+    <li><b>信息密集场景先行</b>（如即将做同步/冲突提示）：则 <b>B 先行</b>，默认右上。</li>
+  </ol>
+  <h3 style="margin-top:14px">ui/primitives/Toast API 草案（落选方案不入库）</h3>
+  <pre><code>toast.success("已保存", { description?, action?, position?, duration? })
+toast.error / toast.warning / toast.info / toast.loading   // loading 返回 id，可 toast.resolve(id, "完成")
+toast.promise(promise, { loading: "同步中…", success: "完成", error: "失败" })
+
+position: "top-center" | "top-right" | "bottom-right" | "bottom-center"   // 全局默认可配，单条可覆写
+// 语义色映射 token：ok / danger / warn / info（类型只落图标，与主题 AA 对比度由 token 保障）
+// 通用行为：悬停冻结倒计时 · 上限 4 条 · Ctrl+K 面板打开时让位（面板 z 更高）
+// 接入点：app 壳层挂载 ToastHost（同 SearchPalette 模式），Esc 不关 toast（浮层注册表只登记阻断后退的浮层）</code></pre>
+  <div class="note">实现映射：A/C 已验证的交互细节（悬停冻结的剩余时间计算、promise 转换、堆叠上限、纯 CSS 倒计时条）可直接从演示页 JS 移植；toast 属于 ui/primitives 基础件（03 指南 §9 任务 2 清单内），不涉及 DECISIONS 裁决。</div>
+</div>
+
+<p class="note" style="margin-top:28px">← 返回 <a href="../index.html">样板间导览</a></p>
+
+</div>
+</body>
+</html>
