@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tooltip 方案 A · 原生锚定（popover + CSS Anchor Positioning） — Tau 桌面端</title>
+<!--
+  【Tooltip 方案 A：原生锚定路线 —— HTML popover 承载 + CSS Anchor Positioning 定位 + 极薄 JS 驱动层】
+
+  分工（这是本方案的核心主张）：
+  - 承载 = popover="manual"：元素进 top layer（顶层渲染），免 z-index、免 Portal、
+    不受任何祖先 overflow:hidden / transform 裁剪；不抢焦点、不参与 light-dismiss
+    （tooltip 的生命周期由 hover/focus 驱动，不该被「点别处」关闭）。
+  - 定位 = CSS Anchor Positioning：position-area 摆 12 个 placement、
+    position-try-fallbacks 声明式换位（flip 链）、滚动与 resize 跟随由浏览器内建，
+    零监听器零每帧 JS。箭头对齐触发器中心用 justify-self: anchor-center。
+  - JS 只做三件事：hover intent（进入延迟 + 快速划过不闪）、focus-visible 可达性、
+    show 时同步读一次实际边向写 data-side-real（箭头随 fallback 换边）。
+
+  Electron 43 ≈ Chromium 150：popover（114+）与 Anchor Positioning（125+）均已稳定，
+  桌面端单 Chromium 环境，不存在 web 兼容性兜底问题。
+
+  交互清单（全部可操作）：
+  - 位置矩阵：12 个 placement 实时切换（4 边 × start/center/end）
+  - 箭头：开关；窄触发器 + 长文本时箭头仍对准触发器中心（anchor-center 的价值）
+  - 边缘 fallback：可拖动触发器（按住拖到窗口四角），观察 flip 换边（flip-block /
+    flip-inline / 双翻）——候选位「整块放得下」才启用，全放不下
+    回首选位（与 floating-ui 式任意 shift 的本质差异）；拖动期间 tooltip 实时跟随
+    （浏览器内建，零 JS 参与）
+  - 裁剪对比：overflow:hidden 容器内 popover 版 vs 伪元素版并排（后者被裁剪）
+  - 滚动跟随：滚动列表内 hover 触发器后滚动，tooltip 跟随锚点
+  - 触发语义：450ms 进入延迟、快速划过不显示、Tab 聚焦显示（focus-visible）、
+    disabled 元素包 wrapper、kbd 内容、长文本 max-width 换行
+  - cream / cocoa 双主题即时切换（tokens.css 取值原样内嵌）
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  --titlebar-h: 46px; --sidebar-w: 218px; --statusbar-h: 30px;
+}
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #faf6ec; --bg-sunken: #ece5d4;
+  --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09);
+  --bg-selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c; --ink-2: #736552; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+  --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+  --ok: #61795f; --warn: #a38c4d; --danger: #b0564d; --info: #5c7d99;
+  --overlay: rgba(67, 57, 44, 0.35);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+  /* tooltip 反相配色：与页面底色反相保证对比（cream → 深咖底浅字） */
+  --tip-bg: #43392c; --tip-ink: #fff8ef; --tip-line: rgba(255, 248, 239, 0.14);
+}
+[data-theme="cocoa"] {
+  color-scheme: dark;
+  --bg-page: #221d16; --bg-surface: #2e2820; --bg-group: #2a241b; --bg-sunken: #1a1611;
+  --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11);
+  --bg-selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+  --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+  --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+  --ok: #8cab87; --warn: #c4a458; --danger: #d97e66; --info: #83aecf;
+  --overlay: rgba(10, 8, 5, 0.55);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+  /* cocoa → 浅纸底深字（同为反相） */
+  --tip-bg: #f0e9dc; --tip-ink: #33291d; --tip-line: rgba(51, 41, 29, 0.14);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font); font-size: 13px; line-height: 1.65; color: var(--ink-1);
+  background: var(--bg-page); overflow: hidden; min-width: 1080px; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+::-webkit-scrollbar { width: 9px; }
+::-webkit-scrollbar-thumb { background: var(--line-1); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ───────── 骨架（与 toast 方案稿同款） ───────── */
+.app { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); grid-template-rows: 100vh;
+  grid-template-areas: "sidebar main"; }
+.main { grid-area: main; display: flex; flex-direction: column; min-width: 0; background: var(--bg-page); }
+.sidebar { grid-area: sidebar; padding: 0 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.sidebar-head { display: flex; align-items: center; gap: 8px; height: var(--titlebar-h); padding: 0 6px; margin-bottom: 6px; }
+.brand-mark { width: 24px; height: 24px; border-radius: var(--radius-sm); background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.brand-name { font-weight: 600; font-size: 13.5px; }
+.nav-label { font-size: 11px; color: var(--ink-3); padding: 8px 10px 6px; letter-spacing: 0.02em; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px;
+  border-radius: 10px; color: var(--ink-2); text-align: left; }
+.nav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-item.active { background: var(--bg-selected); color: var(--accent-text); font-weight: 550; }
+.titlebar { height: var(--titlebar-h); flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.icon-btn { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-2); }
+.icon-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.crumb { color: var(--ink-3); font-size: 12.5px; }
+.titlebar .spacer { flex: 1; }
+.kbd-hint { font-size: 11.5px; color: var(--ink-3); }
+.kbd-hint kbd { font-family: var(--mono); font-size: 10.5px; background: var(--bg-group); border: 1px solid var(--line-1); border-radius: 6px; padding: 1px 6px; }
+.win-controls { display: flex; gap: 6px; }
+.win-controls .dot { width: 12px; height: 12px; border-radius: 99px; background: var(--bg-sunken); border: 1px solid var(--line-1); }
+.home { flex: 1; overflow-y: auto; padding: 26px 40px 48px; }
+.home h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+.home .date { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; margin-bottom: 22px; }
+.panel { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card); padding: 18px 20px; margin-bottom: 16px; }
+.panel h3 { font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 12px; letter-spacing: 0.03em; }
+.statusbar { height: var(--statusbar-h); flex: none; display: flex; align-items: center; gap: 14px;
+  padding: 0 16px; font-size: 11.5px; color: var(--ink-3); border-top: 1px solid var(--line-1); }
+
+/* ───────── playground 控件 ───────── */
+.btn { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 15px;
+  border-radius: 10px; background: var(--bg-group); color: var(--ink-2); font-size: 12.5px; }
+.btn .icon { width: 14px; height: 14px; }
+.btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.btn:active { background: var(--bg-press); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.primary { background: var(--accent); color: var(--ink-inverse); font-weight: 550; }
+.btn.primary:hover { background: var(--accent-hover); }
+.btn-row { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 27px; padding: 0 12px; border-radius: 99px;
+  border: 1px solid var(--line-1); background: var(--bg-group); color: var(--ink-2); font-size: 11.5px;
+  font-family: var(--mono); }
+.chip .icon { width: 12px; height: 12px; }
+.chip:hover { border-color: var(--ink-3); color: var(--ink-1); }
+.chip.on { background: var(--accent-soft); border-color: transparent; color: var(--accent-text); font-weight: 550; }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; line-height: 1.8; }
+.note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+.note code { font-family: var(--mono); font-size: 11px; background: var(--bg-group); border-radius: 5px; padding: 1px 5px; }
+
+/* 舞台：位置矩阵实验区 */
+.stage { position: relative; height: 230px; border: 1px dashed var(--line-1); border-radius: var(--radius-md);
+  background: var(--bg-group); display: grid; place-items: center; margin-bottom: 12px; }
+.stage .cross { position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(var(--line-2) 1px, transparent 1px), linear-gradient(90deg, var(--line-2) 1px, transparent 1px);
+  background-size: 100% 33.4%, 33.4% 100%; }
+.stage-hint { position: absolute; left: 12px; top: 10px; font-size: 11px; color: var(--ink-3); }
+
+/* 拖动实验区（大自由区） */
+.drag-zone { position: relative; height: 190px; border: 1px dashed var(--line-1); border-radius: var(--radius-md);
+  background: var(--bg-group); margin-bottom: 12px; touch-action: none; }
+.drag-zone .corner-mark { position: absolute; font-size: 10.5px; color: var(--ink-3); opacity: 0.7; }
+.drag-handle { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 5;
+  display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 14px; border-radius: 10px;
+  background: var(--bg-surface); border: 1px solid var(--line-1); box-shadow: var(--shadow-card);
+  color: var(--ink-2); font-size: 12.5px; cursor: grab; user-select: none; }
+.drag-handle:active { cursor: grabbing; border-color: var(--accent); color: var(--accent-text); }
+.drag-handle .icon { width: 14px; height: 14px; }
+
+/* 裁剪与滚动实验区 */
+.clip-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.clip-box { position: relative; height: 130px; overflow: hidden; border: 1px solid var(--line-1);
+  border-radius: var(--radius-md); background: var(--bg-group); padding: 12px 14px; }
+.clip-box .tag { font-size: 11px; color: var(--ink-3); }
+.clip-box .inner { margin-top: 14px; display: flex; gap: 10px; }
+.scroll-list { height: 150px; overflow-y: auto; border: 1px solid var(--line-1); border-radius: var(--radius-md);
+  background: var(--bg-group); padding: 8px; }
+.scroll-list .row { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  height: 38px; padding: 0 12px; border-radius: 9px; font-size: 12.5px; color: var(--ink-2); }
+.scroll-list .row:hover { background: var(--bg-hover); color: var(--ink-1); }
+.scroll-list .row .dot-i { width: 15px; height: 15px; border-radius: 5px; background: var(--bg-sunken);
+  border: 1px solid var(--line-1); flex: none; }
+
+/* 语义实验的槽位 */
+.slot-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.slot { border: 1px solid var(--line-1); border-radius: var(--radius-md); background: var(--bg-group);
+  padding: 14px 16px; min-height: 96px; }
+.slot .tag { font-size: 11px; color: var(--ink-3); margin-bottom: 10px; display: block; }
+.slot .tag b { color: var(--ink-2); font-weight: 600; }
+.swipe-lane { height: 40px; border-radius: 10px; background: var(--bg-press); display: flex;
+  align-items: center; justify-content: center; font-size: 11.5px; color: var(--ink-3); }
+
+/* ═══════════ Tooltip 本体（popover + CSS Anchor Positioning） ═══════════ */
+/* 锚点（触发器）：anchor-name 必须全文档唯一（工程上用 useId 生成，demo 手工递增） */
+[data-anchor] { anchor-name: --a-matrix; }
+[data-anchor="b1"] { anchor-name: --a-b1; }
+[data-anchor="b2"] { anchor-name: --a-b2; }
+[data-anchor="drag"] { anchor-name: --a-drag; }
+[data-anchor="clipA"] { anchor-name: --a-clipa; }
+[data-anchor="scroll1"] { anchor-name: --a-s1; }
+[data-anchor="scroll2"] { anchor-name: --a-s2; }
+[data-anchor="scroll3"] { anchor-name: --a-s3; }
+[data-anchor="sem1"] { anchor-name: --a-sem1; }
+[data-anchor="sem3"] { anchor-name: --a-sem3; }
+[data-anchor="sem4"] { anchor-name: --a-sem4; }
+[data-anchor="sem5"] { anchor-name: --a-sem5; }
+[data-anchor="sem6"] { anchor-name: --a-sem6; }
+
+.tip {                                              /* 每个实例 position-anchor 指向自己的锚 */
+  position: fixed;                                  /* anchor positioning 要求 fixed/absolute */
+  inset: auto;                                      /* 重置 UA 给 [popover] 的 inset:0（否则破坏 position-area 合成，元素跑视口角落） */
+  overflow: visible;                                /* 重置 UA 的 overflow:auto（否则内容临界时出滚动条、且裁掉外伸的箭头） */
+  height: auto;                                     /* 重置 UA 的 height:fit-content */
+  margin: 8px;                                      /* 与锚点的间距（offset） */
+  max-width: 280px;
+  padding: 5px 10px; border-radius: var(--radius-sm);
+  background: var(--tip-bg); color: var(--tip-ink);
+  border: 1px solid var(--tip-line);
+  box-shadow: var(--shadow-card);
+  font-size: 12px; line-height: 1.55;
+  width: max-content;
+  /* 进出场：popover 的 display 切换用 allow-discrete + @starting-style 过渡（Chromium 117+） */
+  opacity: 0; transform: translateY(2px) scale(0.98);
+  transition: opacity 130ms var(--ease-out), transform 130ms var(--ease-out),
+    display 130ms allow-discrete, overlay 130ms allow-discrete;
+}
+.tip:popover-open { opacity: 1; transform: none; }
+@starting-style { .tip:popover-open { opacity: 0; transform: translateY(2px) scale(0.98); } }
+.tip kbd { font-family: var(--mono); font-size: 10.5px; padding: 0 5px; border-radius: 5px;
+  background: rgba(127, 127, 127, 0.22); border: 1px solid var(--tip-line); }
+
+/* ── 12 placement：position-area 放主方向，justify/align-self 决定对齐 ──
+   fallback 链：flip-block（翻主轴）→ flip-inline（翻交叉轴）→ flip-block flip-inline（双翻）。
+   实测备注（Chromium 146）：safe anchor-center 语法可解析但布局异常（被误判溢出降级为 start），
+   交叉轴滑回暂不启用、留待实现期验证；CSS 亦无 floating-ui 式任意 shift——这两点是 B 的差异化价值。 */
+.tip { position-anchor: --a-matrix; position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline; }
+.tip[data-side="top"]    { position-area: top center; }
+.tip[data-side="bottom"] { position-area: bottom center; }
+.tip[data-side="left"]   { position-area: left center; }
+.tip[data-side="right"]  { position-area: center right; }
+.tip[data-side="top"][data-align="start"],  .tip[data-side="bottom"][data-align="start"]  { justify-self: anchor-start; }
+.tip[data-side="top"][data-align="center"], .tip[data-side="bottom"][data-align="center"] { justify-self: anchor-center; }
+.tip[data-side="top"][data-align="end"],    .tip[data-side="bottom"][data-align="end"]    { justify-self: anchor-end; }
+.tip[data-side="left"][data-align="start"],  .tip[data-side="right"][data-align="start"]  { align-self: anchor-start; }
+.tip[data-side="left"][data-align="center"], .tip[data-side="right"][data-align="center"] { align-self: anchor-center; }
+.tip[data-side="left"][data-align="end"],    .tip[data-side="right"][data-align="end"]    { align-self: anchor-end; }
+
+/* 箭头：8px 方块旋出菱形，单角圆角 2.5px（top/bottom 尖端=原右下角，left/right 尖端=原左上角）；
+   定位 -5px 使菱形中心恰落在 tooltip 边框外缘（absolute 包含块是 padding box，需补 1px 边框）；
+   data-side-real 由 JS 在 show 后同步读一次 rect 写入（定位本身仍是纯 CSS） */
+.tip[data-arrow="on"]::after { content: ""; position: absolute; width: 8px; height: 8px;
+  background: inherit; border-right: 1px solid var(--tip-line); border-bottom: 1px solid var(--tip-line);
+  border-radius: 0 0 2.5px 0; }
+.tip[data-arrow="on"][data-side-real="top"]::after    { bottom: -5px; transform: rotate(45deg); }
+.tip[data-arrow="on"][data-side-real="bottom"]::after { top: -5px; transform: rotate(225deg); }
+.tip[data-arrow="on"][data-side-real="left"]::after   { right: -5px; transform: rotate(135deg); }
+.tip[data-arrow="on"][data-side-real="right"]::after  { left: -5px; transform: rotate(315deg); }
+/* left/right 旋转后尖端变为原方块左上角：描边与圆角换到 left/top 两条边（top/bottom 才用 right/bottom） */
+.tip[data-arrow="on"][data-side-real="left"]::after,
+.tip[data-arrow="on"][data-side-real="right"]::after {
+  border-right: none; border-bottom: none;
+  border-left: 1px solid var(--tip-line); border-top: 1px solid var(--tip-line);
+  border-radius: 2.5px 0 0 0; }
+.tip[data-arrow="on"][data-align="center"][data-side-real="top"]::after,
+.tip[data-arrow="on"][data-align="center"][data-side-real="bottom"]::after { left: calc(50% - 4px); }
+.tip[data-arrow="on"][data-align="center"][data-side-real="left"]::after,
+.tip[data-arrow="on"][data-align="center"][data-side-real="right"]::after { top: calc(50% - 4px); }
+.tip[data-arrow="on"][data-align="start"]::after,
+.tip[data-arrow="on"][data-align="end"]::after   { left: auto; right: auto; }
+.tip[data-arrow="on"][data-side-real="top"][data-align="start"]::after,
+.tip[data-arrow="on"][data-side-real="bottom"][data-align="start"]::after { left: 12px; }
+.tip[data-arrow="on"][data-side-real="top"][data-align="end"]::after,
+.tip[data-arrow="on"][data-side-real="bottom"][data-align="end"]::after   { right: 12px; }
+.tip[data-arrow="on"][data-side-real="left"][data-align="start"]::after,
+.tip[data-arrow="on"][data-side-real="right"][data-align="start"]::after  { top: 12px; }
+.tip[data-arrow="on"][data-side-real="left"][data-align="end"]::after,
+.tip[data-arrow="on"][data-side-real="right"][data-align="end"]::after    { bottom: 12px; }
+
+/* 各实例锚定（demo 为可读性手写；工程上 anchorName 随 style 注入） */
+#tipMatrix { position-anchor: --a-matrix; }
+#tipB1 { position-anchor: --a-b1; position-area: top center; justify-self: anchor-center; }
+#tipB2 { position-anchor: --a-b2; position-area: top center; justify-self: anchor-center; }
+#tipDrag { position-anchor: --a-drag; position-area: top center; justify-self: anchor-center; }
+#tipClipA { position-anchor: --a-clipa; position-area: top center; justify-self: anchor-center; }
+#tipS1 { position-anchor: --a-s1; position-area: top center; justify-self: anchor-center; }
+#tipS2 { position-anchor: --a-s2; position-area: top center; justify-self: anchor-center; }
+#tipS3 { position-anchor: --a-s3; position-area: right center; align-self: anchor-center; }
+#tipSem1 { position-anchor: --a-sem1; position-area: top center; justify-self: anchor-center; }
+#tipSem3 { position-anchor: --a-sem3; position-area: bottom center; justify-self: anchor-center; }
+#tipSem4 { position-anchor: --a-sem4; position-area: top center; justify-self: anchor-center; }
+#tipSem5 { position-anchor: --a-sem5; position-area: top center; justify-self: anchor-center; }
+#tipSem6 { position-anchor: --a-sem6; position-area: top center; justify-self: anchor-center; }
+
+/* 伪元素对照组（会输给 overflow:hidden 的那一个） */
+.pseudo-anchor { position: relative; }
+.pseudo-anchor::after { content: attr(data-tip); position: absolute; left: 0; bottom: calc(100% + 8px);
+  width: max-content; max-width: 260px; padding: 5px 10px; border-radius: var(--radius-sm);
+  background: var(--tip-bg); color: var(--tip-ink); font-size: 12px; line-height: 1.55;
+  border: 1px solid var(--tip-line); box-shadow: var(--shadow-card);
+  opacity: 0; transition: opacity 130ms var(--ease-out); pointer-events: none; z-index: 1; }
+.pseudo-anchor:hover::after { opacity: 1; }
+
+/* 方案说明角标（与 toast 方案稿同款） */
+.plan-badge { position: fixed; left: 16px; bottom: 42px; z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.plan-badge .tag { display: inline-flex; align-items: center; gap: 7px; background: var(--bg-surface);
+  border: 1px solid var(--line-1); box-shadow: var(--shadow-card); border-radius: 99px; padding: 6px 13px;
+  font-size: 11.5px; color: var(--ink-2); }
+.plan-badge .tag b { color: var(--accent-text); font-weight: 600; }
+.plan-note { width: 330px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card); padding: 14px 16px; font-size: 12px; color: var(--ink-2); line-height: 1.75; display: none; }
+.plan-note.open { display: block; }
+.plan-note h4 { font-size: 12.5px; color: var(--ink-1); margin-bottom: 6px; }
+.plan-note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+.plan-note .try { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); color: var(--ink-3); font-size: 11.5px; }
+.plan-note .links { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); font-size: 11px; color: var(--ink-3); }
+.plan-note .links a { color: var(--accent-text); text-decoration: none; }
+.plan-note .links a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head"><div class="brand-mark">τ</div><div class="brand-name">Tau</div></div>
+    <div class="nav-label">工作台</div>
+    <button class="nav-item active">今日</button>
+    <button class="nav-item">日程</button>
+    <button class="nav-item">待办</button>
+    <div class="nav-label">知识</div>
+    <button class="nav-item">卡片库</button>
+    <button class="nav-item">文章</button>
+  </aside>
+
+  <div class="main">
+    <header class="titlebar">
+      <span class="crumb">· 今日</span>
+      <div class="spacer"></div>
+      <span class="kbd-hint">定位与换位全部由浏览器完成 · <kbd>Tab</kbd> 可验证键盘聚焦语义</span>
+      <button class="icon-btn" id="themeBtn" title="切换主题"><span id="themeIcon"></span></button>
+      <div class="win-controls"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    </header>
+
+    <div class="home">
+      <h1>Tooltip 设计稿 · 方案 A</h1>
+      <div class="date">9 月 17 日 周四 · 原生锚定：popover=manual 承载 + CSS Anchor Positioning 定位 + 极薄 JS 驱动层</div>
+
+      <!-- ── 位置矩阵 ── -->
+      <div class="panel">
+        <h3>位置矩阵 · 12 PLACEMENT（4 边 × start / center / end）</h3>
+        <div class="stage">
+          <div class="cross"></div>
+          <span class="stage-hint">舞台（悬停中央按钮，下方 chips 切换 placement）</span>
+          <button class="btn primary" id="matrixAnchor" data-anchor>悬停我</button>
+        </div>
+        <div class="chips" id="placeChips"></div>
+        <div class="note">
+          <em>position-area</em> 决定主方向（top/bottom/left/right 网格），<em>justify/align-self: anchor-*</em> 决定交叉对齐。
+          placement 放不下视口时由 <em>position-try-fallbacks</em> 自动换位（见下方拖动实验）。
+        </div>
+      </div>
+
+      <!-- ── 箭头 ── -->
+      <div class="panel">
+        <h3>箭头 · 对齐触发器中心（anchor-center 的价值）</h3>
+        <div class="btn-row" style="margin-bottom:12px">
+          <button class="chip on" id="arrowToggle">arrow: on</button>
+          <span class="note" style="margin:0">箭头与 fallback 换边的接线：show 后 JS 同步读一次实际边向 → data-side-real</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn" data-anchor="b1">窄按钮 + 长 tooltip</button>
+          <button class="btn" data-anchor="b2" style="padding:0 60px">宽按钮 + 短 tooltip</button>
+        </div>
+        <div class="note">
+          窄触发器配长文本时，tooltip 以 <em>anchor-center</em> 居中于触发器，箭头落在 tooltip 边缘中点 ——
+          恰好就是触发器中心，<em>无需任何 JS 计算</em>；JS 引擎方案里这一步是手算坐标。
+        </div>
+      </div>
+
+      <!-- ── 边缘 fallback ── -->
+      <div class="panel">
+        <h3>边缘 FALLBACK · 按住拖我到窗口四角</h3>
+        <div class="drag-zone" id="dragZone">
+          <span class="corner-mark" style="left:10px;top:8px">↖ 拖到角落看 flip 换边</span>
+          <span class="corner-mark" style="right:10px;top:8px">贴边看 flip 链换位 ↗</span>
+          <span class="corner-mark" style="left:10px;bottom:8px">换位链自动选边 · 全候选放不下回首选位 ↙</span>
+          <span class="corner-mark" style="right:10px;bottom:8px">拖动期间实时跟随（浏览器内建）↘</span>
+          <button class="drag-handle" id="dragHandle" data-anchor="drag">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20"/></svg>
+            按住拖动 · hover 我
+          </button>
+        </div>
+        <div class="btn-row">
+          <button class="chip" id="demoMode">常显模式（拖动时保持显示）</button>
+          <span class="note" style="margin:0">fallbacks 链：<code>flip-block → flip-inline → flip-block flip-inline</code>（候选位整块放得下才启用）</span>
+        </div>
+      </div>
+
+      <!-- ── 裁剪与滚动跟随 ── -->
+      <div class="panel">
+        <h3>TOP LAYER 与滚动跟随 · popover vs 伪元素</h3>
+        <div class="clip-wrap">
+          <div class="clip-box">
+            <span class="tag">overflow: hidden 容器 · <b style="color:var(--ok)">popover 版（正常显示）</b></span>
+            <div class="inner">
+              <button class="btn" data-anchor="clipA">悬停我（贴顶）</button>
+            </div>
+          </div>
+          <div class="clip-box">
+            <span class="tag">overflow: hidden 容器 · <b style="color:var(--danger)">伪元素版（被裁剪）</b></span>
+            <div class="inner">
+              <button class="btn pseudo-anchor" data-tip="我会被 overflow: hidden 裁掉 —— 这就是伪元素凑合方案的死穴">悬停我（贴顶）</button>
+            </div>
+          </div>
+        </div>
+        <div class="scroll-list" id="scrollList"></div>
+        <div class="note">
+          悬停列表任意行，然后滚动列表 —— tooltip 由浏览器跟随锚点（<em>零监听器</em>）；
+          第三行故意用 <em>right</em> placement，对照左右位与上下位的箭头形态。JS 引擎方案此步需要 scroll/resize 监听 + 逐帧 update。
+        </div>
+      </div>
+
+      <!-- ── 触发语义与内容形态 ── -->
+      <div class="panel">
+        <h3>触发语义与内容形态（驱动层 JS 的全部职责）</h3>
+        <div class="slot-grid">
+          <div class="slot">
+            <span class="tag"><b>hover intent</b> · 450ms 延迟进入，移出立即关闭</span>
+            <button class="btn" data-anchor="sem1">悬停 0.45s 才出现</button>
+          </div>
+          <div class="slot">
+            <span class="tag"><b>快速划过</b> · 不闪（延迟内离开即取消）</span>
+            <div class="swipe-lane" id="swipeLane">⇠ 快速来回划过 ⇢</div>
+          </div>
+          <div class="slot">
+            <span class="tag"><b>键盘可达</b> · focus-visible 时显示（Tab 试试）</span>
+            <button class="btn" data-anchor="sem3">Tab 聚焦我</button>
+          </div>
+          <div class="slot">
+            <span class="tag"><b>disabled 元素</b> · 包 wrapper span 接事件</span>
+            <span data-anchor="sem4" style="display:inline-flex"><button class="btn" disabled>禁用按钮也有提示</button></span>
+          </div>
+          <div class="slot">
+            <span class="tag"><b>kbd 内容</b> · content 为 ReactNode 而非 string</span>
+            <button class="btn" data-anchor="sem5">复制</button>
+          </div>
+          <div class="slot">
+            <span class="tag"><b>长文本</b> · max-width 280px 自动换行</span>
+            <button class="btn" data-anchor="sem6">渐进式总结</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="statusbar"><span>Tau v2 · 重构中</span><span>tooltip = popover top layer · anchor positioning · JS 仅驱动显示时机</span></div>
+  </div>
+</div>
+
+<!-- ═══ tooltip 实例（popover=manual，进 top layer，不参与 light-dismiss） ═══ -->
+<div class="tip" id="tipMatrix" popover="manual" data-side="top" data-align="center" data-arrow="on">top-center · 默认位</div>
+<div class="tip" id="tipB1" popover="manual" data-arrow="on">窄按钮上方一句很长的说明文字，箭头仍对准按钮中心</div>
+<div class="tip" id="tipB2" popover="manual" data-arrow="on">短句</div>
+<div class="tip" id="tipDrag" popover="manual" data-arrow="on">拖动我 —— flip 换边全自动</div>
+<div class="tip" id="tipClipA" popover="manual" data-arrow="on">popover 在 top layer，不理会祖先 overflow: hidden</div>
+<div class="tip" id="tipS1" popover="manual" data-arrow="on">第一行 · 9 月 17 日创建</div>
+<div class="tip" id="tipS2" popover="manual" data-arrow="on">第二行 · 悬停后滚动列表看跟随</div>
+<div class="tip" id="tipS3" popover="manual" data-arrow="on">右侧位 · 箭头换到左边</div>
+<div class="tip" id="tipSem1" popover="manual" data-arrow="on">450ms 后才出现（防误触）</div>
+<div class="tip" id="tipSem3" popover="manual" data-arrow="on">键盘聚焦同样显示（aria-describedby 自动接线）</div>
+<div class="tip" id="tipSem4" popover="manual" data-arrow="on">按钮 disabled 后不冒泡 pointer 事件，包一层 wrapper 接管 hover</div>
+<div class="tip" id="tipSem5" popover="manual" data-arrow="on">复制 <kbd>Ctrl</kbd> + <kbd>C</kbd></div>
+<div class="tip" id="tipSem6" popover="manual" data-arrow="on">对卡片内容做三层加工：逐层压缩摘要，保留可回溯的原文链接；本条演示长文本在 280px 处自动换行的排版效果。</div>
+
+<div class="plan-badge">
+  <button class="tag" id="noteToggle"><b>方案 A</b> 原生锚定 · popover + CSS Anchor Positioning · 交互说明</button>
+  <div class="plan-note" id="planNote">
+    <h4>让浏览器当定位引擎</h4>
+    承载用 <em>popover="manual"</em>（top layer 免 z-index / 免 Portal / 不受裁剪，不抢焦点）；
+    定位用 <em>CSS Anchor Positioning</em>（12 placement + 声明式 fallback + 滚动跟随内建）。
+    JS 只剩驱动层：hover 延迟、focus-visible、aria-describedby、show 后读一次实际边向供箭头换边。
+    Electron 43（Chromium ~150）下 popover / anchor positioning 均已稳定。
+    <div class="try">试试：chips 切 12 个位置；箭头开关；拖动按钮到窗口四角看 flip 换边；
+      滚动列表看跟随；Tab 键聚焦按钮看键盘语义。</div>
+    <div class="links">对比：<b>A 原生锚定</b> · <a href="plan-b-engine.html">B JS 定位引擎</a> · <a href="plan-c-pseudo.html">C 伪元素凑合</a> · <a href="index.html">导览</a></div>
+  </div>
+</div>
+
+<script>
+/* ───────── 图标 ───────── */
+const P = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+};
+const ic = (n, w = 15) => `<svg class="icon" style="width:${w}px;height:${w}px" viewBox="0 0 24 24">${P[n]}</svg>`;
+
+/* ───────── 主题 ───────── */
+let theme = "cream";
+function toggleTheme() {
+  theme = theme === "cream" ? "cocoa" : "cream";
+  document.documentElement.dataset.theme = theme;
+  paintTheme();
+}
+function paintTheme() { document.getElementById("themeIcon").innerHTML = ic(theme === "cream" ? "moon" : "sun"); }
+document.getElementById("themeBtn").addEventListener("click", toggleTheme);
+
+/* ═══════════ 驱动层：本方案里 JS 的全部职责 ═══════════
+   show/hide + hover intent（延迟进入 / 移出即走 / 快速划过取消）+
+   focus-visible + show 后同步读一次「实际生效边」写 data-side-real（箭头换边用）。 */
+const SHOW_DELAY = 450;
+
+function readRealSide(pop, anchor) {
+  const p = pop.getBoundingClientRect(), a = anchor.getBoundingClientRect();
+  const dx = (p.left + p.right) / 2 - (a.left + a.right) / 2;
+  const dy = (p.top + p.bottom) / 2 - (a.top + a.bottom) / 2;
+  return Math.abs(dy) >= Math.abs(dx) ? (dy < 0 ? "top" : "bottom") : (dx < 0 ? "left" : "right");
+}
+
+function bindTip(anchor, pop, opts = {}) {
+  let timer = null;
+  const show = () => {
+    pop.showPopover();
+    pop.dataset.sideReal = readRealSide(pop, anchor);   // 同步一次，无监听器
+    anchor.setAttribute("aria-describedby", pop.id);     // 无障碍接线由驱动层负责
+  };
+  const hide = () => { if (pop.matches(":popover-open")) pop.hidePopover(); };
+  const enter = () => { if (timer) clearTimeout(timer); timer = setTimeout(show, opts.delay ?? SHOW_DELAY); };
+  const leave = () => { if (timer) clearTimeout(timer); timer = null; hide(); };
+
+  anchor.addEventListener("pointerenter", enter);
+  anchor.addEventListener("pointerleave", leave);
+  // 键盘可达：focus-visible 显示（Tab 导航），鼠标点聚焦不显示
+  anchor.addEventListener("focus", e => { if (e.target.matches(":focus-visible")) { if (timer) clearTimeout(timer); show(); } });
+  anchor.addEventListener("blur", hide);
+  return { show, hide };
+}
+
+/* ── 位置矩阵 ── */
+const SIDES = ["top", "right", "bottom", "left"];
+const ALIGNS = ["start", "center", "end"];
+const matrixAnchor = document.getElementById("matrixAnchor");
+const tipMatrix = document.getElementById("tipMatrix");
+const chipsBox = document.getElementById("placeChips");
+const LABEL = { top: "上", right: "右", bottom: "下", left: "左", start: "起", center: "中", end: "末" };
+
+chipsBox.innerHTML = SIDES.flatMap(s => ALIGNS.map(a =>
+  `<button class="chip ${s === "top" && a === "center" ? "on" : ""}" data-side="${s}" data-align="${a}">${s}-${a} · ${LABEL[s]}${LABEL[a]}</button>`
+)).join("");
+chipsBox.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => {
+  tipMatrix.dataset.side = c.dataset.side;
+  tipMatrix.dataset.align = c.dataset.align;
+  tipMatrix.textContent = `${c.dataset.side}-${c.dataset.align}`;
+  chipsBox.querySelectorAll(".chip").forEach(x => x.classList.toggle("on", x === c));
+}));
+bindTip(matrixAnchor, tipMatrix, { delay: 80 });
+
+/* ── 箭头 ── */
+const arrowToggle = document.getElementById("arrowToggle");
+arrowToggle.addEventListener("click", () => {
+  const on = document.querySelectorAll('.tip[data-arrow="on"]').length > 0;
+  document.querySelectorAll(".tip").forEach(t => t.dataset.arrow = on ? "off" : "on");
+  arrowToggle.textContent = `arrow: ${on ? "off" : "on"}`;
+  arrowToggle.classList.toggle("on", !on);
+});
+bindTip(document.querySelector('[data-anchor="b1"]'), document.getElementById("tipB1"), { delay: 80 });
+bindTip(document.querySelector('[data-anchor="b2"]'), document.getElementById("tipB2"), { delay: 80 });
+
+/* ── 拖动实验：drag 期间 tooltip 的跟随是浏览器内建的（本文件没有任何坐标计算） ── */
+const dragHandle = document.getElementById("dragHandle");
+const dragZone = document.getElementById("dragZone");
+const tipDrag = document.getElementById("tipDrag");
+const dragBind = bindTip(dragHandle, tipDrag, { delay: 150 });
+let demoAlways = false;
+document.getElementById("demoMode").addEventListener("click", e => {
+  demoAlways = !demoAlways;
+  e.currentTarget.classList.toggle("on", demoAlways);
+  if (demoAlways) dragBind.show(); else dragBind.hide();
+});
+dragHandle.addEventListener("pointerdown", e => {
+  dragHandle.setPointerCapture(e.pointerId);
+  const zoneRect = dragZone.getBoundingClientRect();
+  const handleRect = dragHandle.getBoundingClientRect();
+  const offX = e.clientX - handleRect.left, offY = e.clientY - handleRect.top;
+  if (demoAlways) dragBind.show();
+  const move = ev => {
+    let x = ev.clientX - zoneRect.left - offX, y = ev.clientY - zoneRect.top - offY;
+    x = Math.max(-40, Math.min(zoneRect.width - handleRect.width + 40, x));   // 允许探出边缘，方便贴到窗口角
+    y = Math.max(-20, Math.min(zoneRect.height - handleRect.height + 20, y));
+    dragHandle.style.left = `${x}px`; dragHandle.style.top = `${y}px`;
+    dragHandle.style.transform = "none";
+  };
+  const up = () => {
+    dragHandle.removeEventListener("pointermove", move);
+    dragHandle.removeEventListener("pointerup", up);
+  };
+  dragHandle.addEventListener("pointermove", move);
+  dragHandle.addEventListener("pointerup", up);
+});
+
+/* ── 裁剪实验 ── */
+bindTip(document.querySelector('[data-anchor="clipA"]'), document.getElementById("tipClipA"), { delay: 80 });
+
+/* ── 滚动跟随：列表行各自一个锚点 ── */
+const rows = [
+  { anchor: "scroll1", tip: "tipS1", name: "卡片 · 渐进式总结的三层加工" },
+  { anchor: "scroll2", tip: "tipS2", name: "文档 · 双链笔记实践" },
+  { anchor: "scroll3", tip: "tipS3", name: "文章 · Anchor Positioning 实测（右侧位）" },
+  { anchor: "scroll1", tip: null, name: "卡片 · 阅读队列" },
+  { anchor: "scroll2", tip: null, name: "文档 · 周报模板" },
+  { anchor: "scroll3", tip: null, name: "文章 · Electron 43 升级纪要" },
+  { anchor: "scroll1", tip: null, name: "卡片 · 术语表" },
+  { anchor: "scroll2", tip: null, name: "文档 · 部署检查单" },
+  { anchor: "scroll3", tip: null, name: "文章 · 本地优先软件" },
+];
+const list = document.getElementById("scrollList");
+list.innerHTML = rows.map((r, i) => {
+  const tipId = r.tip ?? (i < 3 ? `tipS${i + 1}` : r.tip);
+  return `<div class="row" ${tipId ? `data-anchor="${r.anchor}" data-tip="${r.tip}"` : ""}>
+    <span style="display:flex;align-items:center;gap:9px"><span class="dot-i"></span>${r.name}</span>
+    <span style="color:var(--ink-3);font-size:11px">${r.tip ? "← 悬停" : ""}</span></div>`;
+}).join("");
+[["scroll1", "tipS1"], ["scroll2", "tipS2"], ["scroll3", "tipS3"]].forEach(([a, t]) => {
+  const anchorEl = list.querySelector(`[data-anchor="${a}"]`);
+  bindTip(anchorEl, document.getElementById(t), { delay: 120 });
+});
+
+/* ── 触发语义 ── */
+bindTip(document.querySelector('[data-anchor="sem1"]'), document.getElementById("tipSem1"));
+bindTip(document.querySelector('[data-anchor="sem3"]'), document.getElementById("tipSem3"), { delay: 0 });
+bindTip(document.querySelector('[data-anchor="sem4"]'), document.getElementById("tipSem4"), { delay: 0 });
+bindTip(document.querySelector('[data-anchor="sem5"]'), document.getElementById("tipSem5"), { delay: 80 });
+bindTip(document.querySelector('[data-anchor="sem6"]'), document.getElementById("tipSem6"), { delay: 80 });
+
+/* 快速划过演示：swipe 舌头上模拟一个无延迟 tooltip 的对照（划过即闪） vs 延迟版不闪 */
+const lane = document.getElementById("swipeLane");
+const ghost = document.createElement("div");
+ghost.className = "tip"; ghost.id = "tipGhost";
+ghost.textContent = "无延迟版会这样闪 ✗（450ms 版不会）";
+ghost.popover = "manual";
+ghost.style.cssText = "position-anchor:--a-lane;position-area:top center;justify-self:anchor-center";
+document.body.appendChild(ghost);
+lane.style.anchorName = "--a-lane";
+lane.addEventListener("pointerenter", () => setTimeout(() => { try { ghost.showPopover(); } catch {} }, 0));
+lane.addEventListener("pointerleave", () => { try { ghost.hidePopover(); } catch {} });
+
+document.getElementById("noteToggle").addEventListener("click", () =>
+  document.getElementById("planNote").classList.toggle("open"));
+
+paintTheme();
+</script>
+</body>
+</html>
