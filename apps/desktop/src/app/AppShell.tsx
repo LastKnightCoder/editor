@@ -16,6 +16,8 @@ import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
 import { initThemeRuntime } from "@/ui/theme/themeStore";
 import { Loading } from "@/ui/primitives/Loading";
+import { SearchPalette } from "@/features/search/SearchPalette";
+import { useSearchStore } from "@/features/search/searchStore";
 import { initScrollbarAutoHide } from "./scrollbarAutoHide";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
@@ -101,6 +103,16 @@ function ShellLayout() {
   // 拖拽中需即时跟随鼠标：Sidebar 据此关掉宽度过渡动画（否则 220ms 缓动成橡皮筋）
   const [sidebarResizing, setSidebarResizing] = useState(false);
 
+  // 页面访问记录 → 搜索面板空态的「最近访问 + 常用」（D-017；连续停留同页只记一次）
+  const recordVisit = useSearchStore(s => s.recordVisit);
+  const currentKey = state.back[state.back.length - 1]?.key;
+  const lastRecorded = useRef<string | null>(null);
+  useEffect(() => {
+    if (!currentKey || lastRecorded.current === currentKey) return;
+    lastRecorded.current = currentKey;
+    recordVisit(currentKey);
+  }, [currentKey, recordVisit]);
+
   return (
     <div className={shellRootClass} style={{ ["--tau-sidebar-w" as string]: `${width}px` }}>
       <Sidebar resizing={sidebarResizing} />
@@ -117,6 +129,8 @@ function ShellLayout() {
         </main>
         <footer className="text-tau-micro text-ink-3 flex select-none items-center gap-4 px-3.5" />
       </div>
+      {/* 全局命令面板浮层（Ctrl+K，D-017）：fixed 定位，须在 PageProvider 内使用导航 */}
+      <SearchPalette />
     </div>
   );
 }

@@ -118,6 +118,15 @@
 - 排除（撞名不同义，不随改）：主题 token `bg-surface`/`--tau-bg-surface`（D-013 语义词）、白板 `wb-node-surface-*`、报表模板 `--surface-alt`、移动端自己的 surface 词汇。
 - 影响：01 蓝图 §3/§4/§5、02 规范、03 指南、04 清单、README、PREFERENCES、AGENTS.md 同步更名；D-001 追加命名注记。
 
+## D-017 命令面板（全局搜索浮层）承载方式与 Esc 浮层仲裁 `已定（2026-09-17）`
+
+- 背景：03 指南 §9 任务 3/4——Ctrl+K 命令面板落地；D-016 裁决 dialog/drawer 不经 definePage，承载方式待新增条目。交互定稿 = mockups/search/ 方案 A「统一混合面板」（用户裁决，多选筛选/前缀追加/全角冒号/退格删筛选均为用户追加需求）。
+- 选择：① 承载 = app 壳层挂载的 feature 级浮层组件（`features/search/SearchPalette`，AppShell 内 fixed 定位渲染，不经路由与页面栈；`features/search` 允许 import `app/navigation.ts`——纯数据清单单一事实源，与侧栏同源不漂移）；② Esc 仲裁扩展收口在 PageProvider——新增浮层退场注册表（`useOverlayDismiss`，Map 保序 LIFO），Esc 先关最上层浮层、**优先于编辑上下文与后退**（面板输入框里的 Esc 同义关面板），落实 03 指南 §5「浮层接入后改为先关浮层」；Ctrl+K / Ctrl+P 由面板自身全局监听 toggle，Titlebar 按钮同源 `searchStore`；③ 命令源 = navigation.ts 全量 + 真实动作组（切换深浅主题）；**未接线动作不进面板**（不造假，新建卡片等随模块迁移补）；④ 内容检索复用 legacy `searchHybridContent` 管线（FTS+向量，react-query 防抖 250ms、limit 24、keepPreviousData），未配 embedding 自动只走 FTS；⑤ 空态「最近访问/常用」来自 searchStore 的页面访问记录（AppShell 随页面栈记录，localStorage `tau-search-history` 持久化），不复用 legacy `useNavigationHistoryStore`（其绑定旧 TabType，新架构记 page key）；⑥ 输入前缀「卡片:」追加语义、连续输入叠加、逗号多类、全角冒号、IME 组合中不改写（compositionend 后解析）——与 mockup 行为一致，该坑对后续所有含输入的浮层通用；⑦ 内容详情页迁移前，命中项与「查看全部」跳对应模块列表页（卡片详情页迁移后改跳详情）。
+- 排除：Notion 式两层（方案 D 搜索中心）暂不做，留档 mockups/search/；toast 反馈待 ui/primitives 补 Toast 基础件后再加（当前跳转/执行直接生效）；「某类型最近内容」空查询态（模板展示该类型最近 8 条）v1 以输入引导提示代替——避免为空态全量拉表。
+- 追记（2026-09-17，用户裁决）：结果区由方案 A 的「按类型分组 + 组尾『查看全部 N 条』深入条目」改为**相关性平铺**——命令组置顶，内容不分组、不收起，按检索管线返回的相关性顺序全部展开；深入条目与点击携带查询词的设计随列表页迁移时再议。摘要提取对齐移动端 unified_search/文章列表管道（`utils/richTextText.ts` 双端同构：Slate text 节点拼接 + 中文友好截断，无 Markdown 剥离；空内容兜底「类型 #id」）；卡片无标题以正文开头派生。主题动作「切换深浅主题」为深浅直切（不经 system 循环，避免空拍）。
+- 已知限制（2026-09-17 评审）：legacy `searchContent` 管线 catch 后返回空数组，检索故障时面板展示「无结果」空态而非错误提示——错误态与空态混淆，待检索管线迁移（或 ui/primitives 补 Toast）时区分；`useOverlayDismiss` 注册表的 LIFO/优先级/注销语义由 `src/page/__tests__/overlayDismiss.test.tsx` 守护。Esc 仲裁与 Tab 焦点圈闭、关闭后焦点恢复到触发元素的完整收口，留待通用浮层基建（§9 任务 4）统一处理（面板已做最小版：关闭时焦点还回触发元素）。
+- 影响：03 指南 §2（目录树 +features/search、PageProvider 职责）、§5（Esc 仲裁落定）、§9 任务 3 完成；tokens.css 补 `--color-overlay` 的 @theme 映射（token 协议四处同步完成：contract/两主题数据块/映射）。
+
 ---
 
 ## Page 迁移清单（M2 起滚动勾选）

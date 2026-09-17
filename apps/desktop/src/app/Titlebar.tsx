@@ -11,10 +11,12 @@ import { isEditableTarget } from "@/page/dom";
 import { IconButton } from "@/ui/primitives/IconButton";
 import { getTheme } from "@/ui/theme/defineTheme";
 import { nextMode, useThemeStore } from "@/ui/theme/themeStore";
+import { useSearchStore } from "@/features/search/searchStore";
 import { WindowControls } from "./WindowControls";
 
 export function Titlebar() {
   const { navigator, state } = usePage();
+  const togglePalette = useSearchStore(s => s.togglePalette);
 
   // Alt+←/→ 全局键盘导航（Esc 在 PageProvider 内处理）；
   // 编辑上下文让位（macOS Option+←/→ 是按词移动光标）、输入法组合期间不抢键
@@ -61,11 +63,12 @@ export function Titlebar() {
       <span className="text-tau-meta text-ink-2">· {crumb}</span>
 
       <div className="flex-1" />
-      {/* 全局搜索（Ctrl+K 命令面板待接入——03 指南剩余任务） */}
+      {/* 全局搜索/命令面板（Ctrl+K，D-017） */}
       <button
         type="button"
-        title="搜索或跳转（命令面板待接入）"
-        className="app-region-no-drag bg-surface text-tau-sm text-ink-2 shadow-card hover:text-ink-1 flex h-[30px] items-center gap-2 rounded-full pl-3 pr-1"
+        onClick={togglePalette}
+        title="搜索或跳转 (Ctrl+K)"
+        className="app-region-no-drag bg-surface text-tau-sm text-ink-2 shadow-card hover:border-accent hover:text-ink-1 flex h-[30px] items-center gap-2 rounded-full border border-transparent pl-3 pr-1"
       >
         <Search size={13} strokeWidth={1.75} />
         搜索或跳转…

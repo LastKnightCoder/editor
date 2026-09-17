@@ -15,7 +15,9 @@ html {
   cursor: pointer;
 }
 
-.app :focus-visible {
+/* 控件聚焦环：文本输入类（input/textarea/contentEditable）除外——其聚焦态由
+ * 光标/占位符自表达，外环反而是噪音（命令面板输入框即此场景，对齐模板无环） */
+.app :focus-visible:not(:is(input, textarea, [contenteditable])) {
   outline: none;
   box-shadow: var(--tau-focus-ring);
   border-radius: var(--tau-radius-sm);
