@@ -15,7 +15,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { create } from "zustand";
-import { Check, Info, LoaderCircle, TriangleAlert, X } from "lucide-react";
+import { CircleAlert, CircleCheck, CircleX, Info, LoaderCircle } from "lucide-react";
 import clsx from "clsx";
 
 export type ToastType = "success" | "error" | "warning" | "info" | "loading";
@@ -160,10 +160,10 @@ const POSITION_LEAVE: Record<ToastPosition, string> = {
   "bottom-right": "translate-x-3.5 scale-[0.97]",
   "bottom-center": "translate-y-2.5 scale-[0.97]",
 };
-const TYPE_ICON: Record<ToastType, typeof Check> = {
-  success: Check,
-  error: X,
-  warning: TriangleAlert,
+const TYPE_ICON: Record<ToastType, typeof CircleCheck> = {
+  success: CircleCheck,
+  error: CircleX,
+  warning: CircleAlert,
   info: Info,
   loading: LoaderCircle,
 };
