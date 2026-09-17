@@ -2,7 +2,8 @@
  * Toast 基础件 —— 轻量内联胶囊（定稿方案 A，mockups/toast/plan-a-compact.html）。
  *
  * 单行胶囊：类型语义色只落图标（ok/danger/warn/info，深浅主题同构），一句话 +
- * 可选动作 + 关闭；悬停冻结自动关闭，同一位置上限 4 条（挤掉最老）。
+ * 可选动作；无关闭钮——整条点击关闭（Sonner 惯例），悬停冻结自动关闭，
+ * 同一位置上限 4 条（挤掉最老）。
  * 位置四选一：top-center（默认）/ top-right / bottom-right / bottom-center，
  * 全局默认可经 toast.config 调整、单条可覆写；层级 z-[200]，高于命令面板
  * （z-[101]），搜索报错等反馈在面板打开时仍可见。不接 Esc（浮层退场注册表
@@ -264,8 +265,10 @@ function ToastPill({ item }: { item: ToastItem }) {
       role="status"
       onMouseEnter={pause}
       onMouseLeave={resume}
+      onClick={close}
+      title="点击关闭"
       className={clsx(
-        "border-line-1 bg-surface text-ink-1 shadow-float text-tau-sm ease-tau-out pointer-events-auto flex min-h-[36px] max-w-[420px] items-center gap-2.5 rounded-full border py-[7px] pl-[15px] pr-2 transition-[opacity,transform] duration-200",
+        "border-line-1 bg-surface text-ink-1 shadow-float text-tau-sm ease-tau-out pointer-events-auto flex min-h-[36px] max-w-[420px] cursor-pointer items-center gap-2.5 rounded-full border px-[15px] transition-[opacity,transform] duration-200",
         leaving
           ? clsx("opacity-0", POSITION_LEAVE[item.position])
           : entered
@@ -282,12 +285,14 @@ function ToastPill({ item }: { item: ToastItem }) {
           item.type === "loading" && "animate-spin"
         )}
       />
-      <span className="truncate py-[3px]">{item.message}</span>
+      {/* 竖直 padding 只在这一层（模板同款 7px），胶囊本身不叠 py——否则高度胀到 ~40px */}
+      <span className="truncate py-[7px]">{item.message}</span>
       {item.action && (
         <button
           type="button"
-          className="text-accent-text hover:bg-accent-soft flex-none rounded-[7px] px-[7px] py-1 text-[12px] font-semibold"
-          onClick={() => {
+          className="text-accent-text hover:bg-accent-soft flex-none cursor-pointer rounded-[7px] px-[7px] py-1 text-[12px] font-semibold"
+          onClick={e => {
+            e.stopPropagation();
             item.action!.onClick();
             close();
           }}
@@ -295,15 +300,6 @@ function ToastPill({ item }: { item: ToastItem }) {
           {item.action.label}
         </button>
       )}
-      <button
-        type="button"
-        title="关闭"
-        aria-label="关闭"
-        className="text-ink-3 hover:bg-hover hover:text-ink-1 grid h-6 w-6 flex-none place-items-center rounded-lg"
-        onClick={close}
-      >
-        <X size={12} strokeWidth={2.2} />
-      </button>
     </div>
   );
 }
