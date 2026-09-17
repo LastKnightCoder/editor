@@ -11,6 +11,7 @@ import {
   ListChecks,
   LoaderCircle,
   MessageSquare,
+  MousePointerClick,
   Palette,
   PanelTop,
   Ruler,
@@ -18,6 +19,7 @@ import {
 
 import IconButtonSection from "./IconButtonSection";
 import SelectSection from "./SelectSection";
+import MenuSection from "./MenuSection";
 import PanelSection from "./PanelSection";
 import ToastSection from "./ToastSection";
 import TooltipSection from "./TooltipSection";
@@ -44,6 +46,13 @@ export const SECTIONS: SectionMeta[] = [
   },
   { key: "panel", label: "Panel 族", group: "基础件", icon: PanelTop, component: PanelSection },
   { key: "select", label: "Select", group: "基础件", icon: ListChecks, component: SelectSection },
+  {
+    key: "menu",
+    label: "Menu · ContextMenu",
+    group: "基础件",
+    icon: MousePointerClick,
+    component: MenuSection,
+  },
   { key: "toast", label: "Toast", group: "反馈", icon: Bell, component: ToastSection },
   {
     key: "tooltip",
