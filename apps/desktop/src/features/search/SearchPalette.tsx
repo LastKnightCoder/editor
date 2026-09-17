@@ -630,7 +630,7 @@ export function SearchPalette() {
           </div>
 
           {/* 底栏快捷键提示 */}
-          <div className="bg-group/60 text-ink-3 text-tau-tiny flex flex-none select-none flex-wrap items-center gap-3.5 px-3.5 py-2">
+          <div className="bg-group/60 text-ink-2 text-tau-tiny flex flex-none select-none flex-wrap items-center gap-3.5 px-3.5 py-2">
             <span>
               <Kbd>↑↓</Kbd> 选择
             </span>

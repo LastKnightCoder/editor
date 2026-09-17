@@ -45,7 +45,7 @@ export function EmptyNote({ className, ...props }: ComponentProps<"p">) {
   return (
     <p
       className={clsx(
-        "rounded-tau-sm bg-group text-tau-sm text-ink-3 mt-2.5 px-3 py-2.5 leading-[1.6]",
+        "rounded-tau-sm bg-group text-tau-sm text-ink-2 mt-2.5 px-3 py-2.5 leading-[1.6]",
         className
       )}
       {...props}

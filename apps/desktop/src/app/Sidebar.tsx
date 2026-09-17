@@ -177,8 +177,11 @@ function NavItemButton({
         "ease-tau-out transition-[background,color] duration-[160ms]",
         collapsed ? "justify-center px-0" : "gap-2.5 px-2.5",
         active
-          ? // 融合态：极淡墨底 + 左缘 accent 小竖点（竖点贴列左缘，超出按钮盒 10px）
-            "bg-hover text-ink-1 before:bg-accent relative font-medium before:absolute before:-left-2.5 before:bottom-2 before:top-2 before:w-[3px] before:rounded-r-[3px] before:content-['']"
+          ? // 选中态：accent 淡底 + 左缘 accent 小竖点（竖点贴列左缘，超出按钮盒 10px）。
+            // 用 bg-selected 而非 bg-hover——后者是 5% 墨的悬停反馈（对 page 1.086），
+            // 承担选中语义太弱；bg-selected 带 accent 色相（对 page 1.174），且
+            // 02 §1 视觉宪法本就允许 accent 用于"选中"（D-021）。
+            "bg-selected text-ink-1 before:bg-accent relative font-medium before:absolute before:-left-2.5 before:bottom-2 before:top-2 before:w-[3px] before:rounded-r-[3px] before:content-['']"
           : "text-ink-2 hover:bg-hover hover:text-ink-1"
       )}
       onClick={onClick}

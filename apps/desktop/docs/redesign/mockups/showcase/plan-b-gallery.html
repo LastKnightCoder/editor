@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>样板间 方案 B · 全景画廊（单页平铺） — Tau 桌面端</title>
+<!--
+  【样板间 · 方案 B：全景画廊 —— 长滚动单页，全状态平铺】
+
+  信息架构：广度优先。所有组件 × 所有状态在一页内平铺成「标本卡」网格，
+  一屏纵览全局、Ctrl+F 可搜、方便滚动对照截图审阅。
+  顶部 sticky 锚点导航跳转；标本底色全局可切（验证组件在不同背景上的表现）。
+
+  标本卡 = 状态名（mono）+ 锁定态标本：hover / disabled 等瞬态用 .is-hover 等类
+  「锁死」展示，不依赖鼠标；每节另配真实可交互演示位。
+
+  组件清单与视觉对齐 ui/primitives 源码现状（2026-09-17）。
+
+  交互清单：锚点跳转 · 标本底色 4 档全局切换 · cream/cocoa 双主题 ·
+  Toast 真实触发（堆叠/悬停冻结/promise）· Tooltip hover intent · 热力图 hover 呼吸。
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+}
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #faf6ec; --bg-sunken: #ece5d4;
+  --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09);
+  --bg-selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c; --ink-2: #736552; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+  --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+  --focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+  --ok: #61795f; --ok-soft: #e5ede2; --warn: #a38c4d; --warn-soft: #f6efd6;
+  --danger: #b0564d; --danger-soft: #f6e3e0; --info: #5c7d99; --info-soft: #e2ebf3;
+  --tag-1: #61795f; --tag-2: #5c7d99; --tag-3: #8a7aa6; --tag-4: #a38c4d; --tag-5: #b06a5e;
+  --overlay: rgba(67, 57, 44, 0.35);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+}
+[data-theme="cocoa"] {
+  color-scheme: dark;
+  --bg-page: #221d16; --bg-surface: #2e2820; --bg-group: #2a241b; --bg-sunken: #1a1611;
+  --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11);
+  --bg-selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+  --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+  --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+  --focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+  --ok: #8cab87; --ok-soft: #243023; --warn: #c4a458; --warn-soft: #302917;
+  --danger: #d97e66; --danger-soft: #34201a; --info: #83aecf; --info-soft: #1e2a35;
+  --tag-1: #8cab87; --tag-2: #83aecf; --tag-3: #a596c8; --tag-4: #c4a458; --tag-5: #d0806a;
+  --overlay: rgba(10, 8, 5, 0.55);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font); font-size: 13px; line-height: 1.65; color: var(--ink-1);
+  background: var(--bg-page); -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+::-webkit-scrollbar { width: 9px; }
+::-webkit-scrollbar-thumb { background: var(--line-1); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+
+/* ── sticky 顶栏 ── */
+.topbar { position: sticky; top: 0; z-index: 100; background: color-mix(in srgb, var(--bg-page) 88%, transparent);
+  backdrop-filter: blur(10px); border-bottom: 1px solid var(--line-1);
+  display: flex; align-items: center; gap: 14px; padding: 10px 28px; flex-wrap: wrap; }
+.topbar .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13.5px; }
+.brand-mark { width: 22px; height: 22px; border-radius: 7px; background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+.anchor-chips { display: flex; gap: 5px; flex-wrap: wrap; flex: 1; }
+.anchor-chips a { display: inline-flex; align-items: center; height: 26px; padding: 0 11px; border-radius: 99px;
+  border: 1px solid var(--line-1); background: var(--bg-group); color: var(--ink-2); font-size: 11.5px;
+  font-family: var(--mono); text-decoration: none; transition: all 160ms var(--ease-out); }
+.anchor-chips a:hover { border-color: var(--ink-3); color: var(--ink-1); }
+.bg-seg { display: inline-flex; gap: 3px; background: var(--bg-group); border: 1px solid var(--line-1); border-radius: 9px; padding: 3px; }
+.bg-seg button { height: 22px; padding: 0 10px; border-radius: 6px; font-size: 11px; color: var(--ink-2); font-family: var(--mono); }
+.bg-seg button.on { background: var(--bg-surface); color: var(--accent-text); font-weight: 550; box-shadow: var(--shadow-card); }
+
+.page { max-width: 1240px; margin: 0 auto; padding: 34px 28px 120px; }
+.lede { color: var(--ink-2); max-width: 80ch; margin-bottom: 6px; }
+.lede b { color: var(--ink-1); }
+.howto { font-size: 12px; color: var(--ink-3); margin-bottom: 10px; }
+.howto em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+
+/* ── section ── */
+.section { margin-top: 46px; scroll-margin-top: 76px; }
+.section-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--line-1); padding-bottom: 10px; margin-bottom: 16px; }
+.section-head h2 { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
+.section-head .en { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.section-head .duty { font-size: 12.5px; color: var(--ink-3); }
+.section-head .src { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+
+/* ── 标本卡 ── */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); gap: 14px; }
+.spec { border: 1px solid var(--line-1); border-radius: var(--radius-md); background: var(--bg-surface); overflow: hidden;
+  display: flex; flex-direction: column; }
+.spec .head { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 7px 12px; border-bottom: 1px dashed var(--line-2); }
+.spec .head .name { font-family: var(--mono); font-size: 10.5px; color: var(--ink-2); }
+.spec .head .tw { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); }
+.spec .body { flex: 1; display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap;
+  padding: 26px 18px; min-height: 104px; background: var(--spec-bg, var(--bg-page)); transition: background 240ms var(--ease-out); }
+.spec .foot { padding: 6px 12px 8px; font-size: 10.5px; color: var(--ink-3); line-height: 1.55; }
+.spec.wide { grid-column: 1 / -1; }
+
+/* ══ 组件复刻（与 ui/primitives 源码对应）══ */
+.c-iconbtn { width: 30px; height: 30px; border-radius: var(--radius-sm); display: grid; place-items: center;
+  color: var(--ink-2); transition: background 160ms var(--ease-out), color 160ms var(--ease-out); }
+.c-iconbtn:hover, .c-iconbtn.is-hover { background: var(--bg-hover); color: var(--ink-1); }
+.c-iconbtn:disabled, .c-iconbtn.is-disabled { opacity: 0.35; cursor: default; background: none; color: var(--ink-2); }
+.c-iconbtn.sm27 { width: 27px; height: 27px; }
+
+.c-panel { background: var(--bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.c-panel.pad-base { padding: 18px 20px; }
+.c-panel.pad-compact { padding: 12px 16px; }
+.c-panel.pad-none { padding: 0; }
+.c-panel-title { font-size: 14.5px; font-weight: 600; color: var(--ink-1); display: flex; align-items: center; gap: 8px; }
+.c-panel-note { font-size: 11.5px; color: var(--ink-3); font-weight: 400; }
+.c-empty-note { border-radius: var(--radius-sm); background: var(--bg-group); font-size: 12px; color: var(--ink-3);
+  margin-top: 10px; padding: 10px 12px; line-height: 1.6; }
+.c-panel-action { margin-left: auto; margin-right: -4px; display: inline-flex; align-items: center; gap: 2px;
+  border-radius: 7px; padding: 2px 4px; font-size: 11.5px; font-weight: 400; color: var(--ink-3);
+  transition: background 160ms var(--ease-out), color 160ms var(--ease-out); }
+.c-panel-action:hover, .c-panel-action.is-hover { background: var(--bg-hover); color: var(--ink-1); }
+
+.c-toast { display: inline-flex; align-items: center; gap: 10px; min-height: 36px; max-width: 420px;
+  border-radius: 99px; background: var(--bg-surface); border: 1px solid var(--line-1); box-shadow: var(--shadow-float);
+  padding: 0 15px; font-size: 12px; color: var(--ink-1); cursor: pointer; }
+.c-toast .t-icon { width: 15px; height: 15px; stroke-width: 2; flex: none; }
+.c-toast .t-text { padding: 7px 0; }
+.t-success { color: var(--ok); } .t-error { color: var(--danger); } .t-warning { color: var(--warn); }
+.t-info { color: var(--info); } .t-loading { color: var(--ink-2); }
+.t-loading .t-icon { animation: spin 0.75s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.c-toast .t-action { flex: none; border-radius: 7px; padding: 4px 7px; font-size: 12px; font-weight: 600; color: var(--accent-text); }
+.c-toast .t-action:hover { background: var(--accent-soft); }
+
+.toast-zone { position: fixed; z-index: 200; display: flex; flex-direction: column; gap: 9px; pointer-events: none; align-items: center; }
+.toast-zone.pos-top-center { top: 62px; left: 50%; transform: translateX(-50%); }
+.toast-zone.pos-top-right { top: 62px; right: 18px; align-items: flex-end; }
+.toast-zone.pos-bottom-right { bottom: 44px; right: 18px; flex-direction: column-reverse; align-items: flex-end; }
+.toast-zone.pos-bottom-center { bottom: 44px; left: 50%; transform: translateX(-50%); flex-direction: column-reverse; align-items: center; }
+.toast-live { pointer-events: auto; opacity: 0; transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out); }
+.toast-live.enter { opacity: 1; transform: none; }
+
+.tip { position: absolute; max-width: 280px; padding: 5px 10px; border-radius: var(--radius-sm);
+  background: var(--ink-1); color: var(--ink-inverse); border: 1px solid color-mix(in srgb, var(--ink-inverse) 15%, transparent);
+  box-shadow: var(--shadow-card); font-size: 12px; line-height: 1.55; width: max-content; }
+.tip kbd { font-family: var(--mono); font-size: 10.5px; padding: 0 5px; border-radius: 5px; background: rgba(127, 127, 127, 0.22); }
+.tip .arrow { position: absolute; width: 8px; height: 8px; background: inherit;
+  border-right: 1px solid color-mix(in srgb, var(--ink-inverse) 15%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--ink-inverse) 15%, transparent);
+  border-radius: 0 0 2.5px 0; }
+.tip[data-side="top"] .arrow { transform: rotate(45deg); }
+.tip[data-side="bottom"] .arrow { transform: rotate(225deg); }
+.tip[data-side="left"] .arrow { transform: rotate(135deg); }
+.tip[data-side="right"] .arrow { transform: rotate(315deg); }
+.tip[data-side="left"] .arrow, .tip[data-side="right"] .arrow {
+  border-right: none; border-bottom: none;
+  border-left: 1px solid color-mix(in srgb, var(--ink-inverse) 15%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--ink-inverse) 15%, transparent);
+  border-radius: 2.5px 0 0 0; }
+.stage-cell { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100px; }
+.stage-cell .anchor-dot { width: 8px; height: 8px; border-radius: 99px; background: var(--accent); opacity: 0.55; }
+.stage-cell .tip { font-size: 10.5px; padding: 4px 8px; }
+
+.c-spinner { width: 16px; height: 16px; border-radius: 99px; display: inline-block;
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent); border-top-color: var(--accent);
+  animation: spin 0.75s linear infinite; }
+.c-spinner.lg { width: 20px; height: 20px; }
+.loading-box { height: 190px; border-radius: var(--radius-md); background: var(--bg-group); width: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.loading-box p { font-size: 12px; color: var(--ink-3); }
+
+.hm-wrap { width: 100%; }
+.hm-months { display: flex; color: var(--ink-3); font-size: 10.5px; margin-bottom: 5px; }
+.hm-months span { flex: 1 1 0; overflow: hidden; white-space: nowrap; }
+.hm-grid { display: flex; gap: 4px; }
+.hm-week { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; justify-content: flex-end; }
+.hm-week:last-child { justify-content: flex-start; }
+.hm-day { aspect-ratio: 1; width: 100%; flex-shrink: 0; }
+.hm-day .dot { width: 100%; height: 100%; border-radius: 99px; }
+.hm-day:hover .dot { animation: hmPulse 0.5s linear alternate infinite; }
+@keyframes hmPulse { 0% { transform: scale(1.18); } 50% { transform: scale(1); } 100% { transform: scale(0.85); } }
+.hm-legend { display: flex; align-items: center; justify-content: flex-end; gap: 4px; color: var(--ink-3); font-size: 10.5px; margin-top: 8px; }
+.hm-legend .dot { width: 10px; height: 10px; border-radius: 99px; }
+
+.swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(122px, 1fr)); gap: 10px; }
+.swatch { border-radius: 10px; border: 1px solid var(--line-1); overflow: hidden; background: var(--bg-surface); }
+.swatch .chip { height: 36px; }
+.swatch .meta { padding: 5px 8px 6px; }
+.swatch .name { font-family: var(--mono); font-size: 10px; color: var(--ink-1); }
+.swatch .val { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); }
+
+.type-row { display: flex; align-items: baseline; gap: 18px; padding: 8px 0; border-bottom: 1px dashed var(--line-1); }
+.type-row .spec { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); width: 188px; flex: none; }
+.radius-cards { display: flex; gap: 14px; flex-wrap: wrap; }
+.radius-card { width: 104px; height: 74px; background: var(--bg-surface); border: 1px solid var(--line-1);
+  display: grid; place-items: center; font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+.shadow-cards { display: flex; gap: 18px; flex-wrap: wrap; }
+.shadow-card-demo { width: 190px; height: 92px; background: var(--bg-surface); border-radius: var(--radius-lg);
+  display: grid; place-items: center; font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+
+.demo-btn { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 15px;
+  border-radius: 10px; background: var(--bg-group); border: 1px solid var(--line-1); color: var(--ink-2); font-size: 12.5px; }
+.demo-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.demo-btn.primary { background: var(--accent); border-color: transparent; color: var(--ink-inverse); font-weight: 550; }
+.demo-btn.primary:hover { background: var(--accent-hover); }
+.playground { border: 1px dashed var(--line-1); border-radius: var(--radius-md); padding: 16px 18px;
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; background: var(--bg-group); }
+.playground .lbl { font-size: 11px; color: var(--ink-3); letter-spacing: 0.04em; margin-right: 2px; }
+.note { font-size: 12px; color: var(--ink-3); line-height: 1.8; }
+.note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+.note code { font-family: var(--mono); font-size: 11px; background: var(--bg-group); padding: 1px 5px; border-radius: 5px; color: var(--ink-2); }
+
+.plan-badge { position: fixed; left: 16px; bottom: 16px; z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.plan-badge .tag { display: inline-flex; align-items: center; gap: 7px; background: var(--bg-surface);
+  border: 1px solid var(--line-1); box-shadow: var(--shadow-card); border-radius: 99px; padding: 6px 13px;
+  font-size: 11.5px; color: var(--ink-2); }
+.plan-badge .tag b { color: var(--accent-text); font-weight: 600; }
+.plan-note { width: 340px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px;
+  box-shadow: var(--shadow-card); padding: 14px 16px; font-size: 12px; color: var(--ink-2); line-height: 1.75; display: none; }
+.plan-note.open { display: block; }
+.plan-note h4 { font-size: 12.5px; color: var(--ink-1); margin-bottom: 6px; }
+.plan-note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+.plan-note .links { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); font-size: 11px; color: var(--ink-3); }
+.plan-note .links a { color: var(--accent-text); text-decoration: none; }
+.plan-note .links a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><div class="brand-mark">τ</div>Tau 样板间 · 画廊</div>
+  <nav class="anchor-chips">
+    <a href="#iconbutton">IconButton</a><a href="#panel">Panel 族</a><a href="#toast">Toast</a>
+    <a href="#tooltip">Tooltip</a><a href="#loading">Loading</a><a href="#heatmap">YearHeatmap</a>
+    <a href="#token">Token</a><a href="#scale">尺度</a>
+  </nav>
+  <div class="bg-seg" id="bgSeg">
+    <button class="on" data-bg="var(--bg-page)">page</button><button data-bg="var(--bg-surface)">surface</button>
+    <button data-bg="var(--bg-group)">group</button><button data-bg="var(--bg-sunken)">sunken</button>
+  </div>
+  <button class="c-iconbtn" id="themeBtn" title="切换主题"><span id="themeIcon"></span></button>
+</div>
+
+<div class="page">
+  <p class="lede"><b>Tau 设计体系全景标本馆</b> —— 当前 ui/primitives 全部组件 × 全状态平铺。瞬态（hover / disabled）以锁定标本呈现，不依赖鼠标；顶栏可全局切换标本底色与 cream / cocoa 主题。</p>
+  <p class="howto">审阅姿势：整页滚动纵览 → <em>Ctrl/⌘+F</em> 搜状态名 → 顶栏锚点直达 → 切 cocoa 检查深色同构。每节首卡为<em>真实交互演示位</em>。</p>
+
+  <!-- ═══════════ IconButton ═══════════ -->
+  <section class="section" id="iconbutton">
+    <div class="section-head"><h2>IconButton</h2><span class="en">30px ghost square</span>
+      <span class="duty">方形无底幽灵按钮，hover 淡墨</span><span class="src">ui/primitives/IconButton.tsx</span></div>
+    <div class="cards">
+      <div class="spec"><div class="head"><span class="name">default</span><span class="tw">text-ink-2</span></div>
+        <div class="body"><button class="c-iconbtn"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button></div>
+        <div class="foot">无底态；图标 17px / stroke 1.75 随 color 继承</div></div>
+      <div class="spec"><div class="head"><span class="name">:hover 锁定</span><span class="tw">bg-hover + ink-1</span></div>
+        <div class="body"><button class="c-iconbtn is-hover"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button></div>
+        <div class="foot">160ms ease-tau-out 过渡背景与文字色</div></div>
+      <div class="spec"><div class="head"><span class="name">disabled</span><span class="tw">opacity-35</span></div>
+        <div class="body"><button class="c-iconbtn" disabled><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button></div>
+        <div class="foot">cursor-default，不吃 hover（enabled: 前缀守护）</div></div>
+      <div class="spec"><div class="head"><span class="name">27px 覆盖</span><span class="tw">size-[27px]</span></div>
+        <div class="body"><button class="c-iconbtn sm27"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+          <button class="c-iconbtn"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button></div>
+        <div class="foot">左 27px（侧栏头）/ 右 30px（默认）——className 覆盖</div></div>
+      <div class="spec wide"><div class="head"><span class="name">真实交互 · 四图标排</span><span class="tw">live</span></div>
+        <div class="body" style="min-height:84px">
+          <button class="c-iconbtn" title="搜索"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+          <button class="c-iconbtn" title="新建"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button class="c-iconbtn" title="日历"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M8 3v4M16 3v4M3 10h18"/></svg></button>
+          <button class="c-iconbtn" title="更多"><svg class="icon" viewBox="0 0 24 24"><path d="M12 12h.01M19 12h.01M5 12h.01" stroke-width="3"/></svg></button>
+          <button class="c-iconbtn" title="不可用" disabled><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+        </div><div class="foot">鼠标悬停体验真实 hover / 按下体验 press（bg-press token 预留）</div></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ Panel 族 ═══════════ -->
+  <section class="section" id="panel">
+    <div class="section-head"><h2>Panel 族</h2><span class="en">surface card + 5 件套</span>
+      <span class="duty">白卡容器（无描边靠阴影）+ 标题行配套</span><span class="src">ui/primitives/Panel.tsx</span></div>
+    <div class="cards">
+      <div class="spec"><div class="head"><span class="name">pad = base</span><span class="tw">px-5 py-[18px]</span></div>
+        <div class="body" style="padding:20px"><div class="c-panel pad-base" style="width:100%">
+          <div class="c-panel-title" style="font-size:13px">统计概览 <span class="c-panel-note">本周</span></div>
+          <div style="margin-top:8px;font-size:12.5px;color:var(--ink-2)">统计页等宽松版式 · 标题下间距 mb-2.5</div></div></div>
+        <div class="foot">rounded-tau-lg · bg-surface · shadow-card，无边框</div></div>
+      <div class="spec"><div class="head"><span class="name">pad = compact</span><span class="tw">px-4 py-3</span></div>
+        <div class="body" style="padding:20px"><div class="c-panel pad-compact" style="width:100%">
+          <div class="c-panel-title" style="font-size:13px">最近编辑 <span class="c-panel-note">14 天内</span></div>
+          <div style="margin-top:6px;font-size:12px;color:var(--ink-2)">首页紧凑版式 · mb-1.5</div></div></div>
+        <div class="foot">首页卡片密度</div></div>
+      <div class="spec"><div class="head"><span class="name">pad = none</span><span class="tw">自管内距</span></div>
+        <div class="body" style="padding:20px"><div class="c-panel pad-none" style="width:100%;height:64px;display:grid;place-items:center">
+          <span style="font-size:11px;color:var(--ink-3)">满贴图表 / 调用方自管 padding</span></div></div>
+        <div class="foot">内容自带内距或满宽图表场景</div></div>
+      <div class="spec"><div class="head"><span class="name">PanelTitle + Note + Action</span><span class="tw">标题行三件</span></div>
+        <div class="body" style="padding:20px"><div class="c-panel pad-compact" style="width:100%">
+          <div class="c-panel-title" style="font-size:13px">最近编辑 <span class="c-panel-note">14 天内</span>
+            <button class="c-panel-action">全部 <svg class="icon" style="width:12px;height:12px" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div></div></div>
+        <div class="foot">Title 14.5 semibold · Note 11.5 ink-3 · Action 贴右缘</div></div>
+      <div class="spec"><div class="head"><span class="name">EmptyNote</span><span class="tw">bg-group 行</span></div>
+        <div class="body" style="padding:20px"><p class="c-empty-note" style="flex:1">该板块暂无数据 —— 未接线的数据返回 null + 空态，不造假演示数据</p></div>
+        <div class="foot">mt-2.5 · px-3 py-2.5 · 12px ink-3</div></div>
+      <div class="spec"><div class="head"><span class="name">PanelAction :hover 锁定</span><span class="tw">bg-hover</span></div>
+        <div class="body"><span style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2)">标题
+          <button class="c-panel-action is-hover">全部 <svg class="icon" style="width:12px;height:12px" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></span></div>
+        <div class="foot">7px 圆角热区，hover 变墨</div></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ Toast ═══════════ -->
+  <section class="section" id="toast">
+    <div class="section-head"><h2>Toast</h2><span class="en">inline pill · 36px</span>
+      <span class="duty">轻量胶囊，语义色只落图标，整条点击关闭</span><span class="src">ui/primitives/Toast.tsx</span></div>
+    <div class="playground">
+      <span class="lbl">真实触发</span>
+      <button class="demo-btn" data-toast="success">success</button>
+      <button class="demo-btn" data-toast="error">error</button>
+      <button class="demo-btn" data-toast="warning">warning</button>
+      <button class="demo-btn" data-toast="info">info</button>
+      <button class="demo-btn primary" id="btnPromise">promise</button>
+      <button class="demo-btn" data-toast="action">带动作</button>
+      <button class="demo-btn" id="btnStack">堆叠 ×6</button>
+      <span class="lbl" style="margin-left:10px">位置</span>
+      <select id="posSel" style="height:30px;border-radius:8px;border:1px solid var(--line-1);background:var(--bg-group);color:var(--ink-2);font-size:12px;padding:0 8px;font-family:var(--mono)">
+        <option value="top-center">top-center</option><option value="top-right">top-right</option>
+        <option value="bottom-right">bottom-right</option><option value="bottom-center">bottom-center</option>
+      </select>
+    </div>
+    <div class="cards">
+      <div class="spec"><div class="head"><span class="name">success</span><span class="tw">text-ok</span></div>
+        <div class="body"><div class="c-toast"><svg class="t-icon t-success" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg><span class="t-text">已保存</span></div></div>
+        <div class="foot">CircleCheck · 3200ms 自动关 · 悬停冻结</div></div>
+      <div class="spec"><div class="head"><span class="name">error</span><span class="tw">text-danger</span></div>
+        <div class="body"><div class="c-toast"><svg class="t-icon t-error" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg><span class="t-text">同步失败，已保留本地副本</span></div></div>
+        <div class="foot">CircleX</div></div>
+      <div class="spec"><div class="head"><span class="name">warning</span><span class="tw">text-warn</span></div>
+        <div class="body"><div class="c-toast"><svg class="t-icon t-warning" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span class="t-text">存储空间不足 15%</span></div></div>
+        <div class="foot">CircleAlert</div></div>
+      <div class="spec"><div class="head"><span class="name">info</span><span class="tw">text-info</span></div>
+        <div class="body"><div class="c-toast"><svg class="t-icon t-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span class="t-text">已切换到年度视图</span></div></div>
+        <div class="foot">Info（唯一非圆框例外，同为线性家族）</div></div>
+      <div class="spec"><div class="head"><span class="name">loading</span><span class="tw">spin · 不自动关</span></div>
+        <div class="body"><div class="c-toast"><svg class="t-icon t-loading" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg><span class="t-text">正在导入数据…</span></div></div>
+        <div class="foot">LoaderCircle 旋转 · resolve / reject 收尾</div></div>
+      <div class="spec"><div class="head"><span class="name">action 内联动作</span><span class="tw">撤销</span></div>
+        <div class="body"><div class="c-toast"><svg class="t-icon t-success" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg><span class="t-text">已删除 3 张卡片</span><button class="t-action">撤销</button></div></div>
+        <div class="foot">点击动作后 toast 关闭；整条点击也关闭</div></div>
+      <div class="spec wide"><div class="head"><span class="name">位置 · 4 选 1 + 堆叠规则</span><span class="tw">top-center 默认</span></div>
+        <div class="body" style="justify-content:flex-start;gap:22px;padding:20px">
+          <div style="position:relative;width:190px;height:118px;border:1px solid var(--line-1);border-radius:10px;background:var(--bg-group)">
+            <span style="position:absolute;left:50%;top:12px;transform:translateX(-50%);width:74px;height:13px;border-radius:99px;background:var(--accent);opacity:.8"></span>
+            <span style="position:absolute;left:50%;top:30px;transform:translateX(-50%);width:58px;height:13px;border-radius:99px;background:var(--bg-surface);border:1px solid var(--line-1)"></span>
+            <span style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);font-size:10px;color:var(--ink-3);font-family:var(--mono);padding:2px 0">top-center（默认）</span></div>
+          <div style="position:relative;width:190px;height:118px;border:1px solid var(--line-1);border-radius:10px;background:var(--bg-group)">
+            <span style="position:absolute;right:12px;top:12px;width:74px;height:13px;border-radius:99px;background:var(--accent);opacity:.8"></span>
+            <span style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);font-size:10px;color:var(--ink-3);font-family:var(--mono);padding:2px 0">top-right</span></div>
+          <div style="position:relative;width:190px;height:118px;border:1px solid var(--line-1);border-radius:10px;background:var(--bg-group)">
+            <span style="position:absolute;right:12px;bottom:12px;width:74px;height:13px;border-radius:99px;background:var(--accent);opacity:.8"></span>
+            <span style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);font-size:10px;color:var(--ink-3);font-family:var(--mono);padding:2px 0">bottom-right</span></div>
+          <div style="position:relative;width:190px;height:118px;border:1px solid var(--line-1);border-radius:10px;background:var(--bg-group)">
+            <span style="position:absolute;left:50%;bottom:12px;transform:translateX(-50%);width:74px;height:13px;border-radius:99px;background:var(--accent);opacity:.8"></span>
+            <span style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);font-size:10px;color:var(--ink-3);font-family:var(--mono);padding:2px 0">bottom-center</span></div>
+          <p class="note" style="flex:1;min-width:220px;margin:0">同位置上限 <em>4 条</em>（挤掉最老）；入场自位置侧滑入；层级 <em>z-[200]</em> 高于命令面板；不接 Esc（D-017 瞬态非阻断）。用上方 playground 逐位置实发验证。</p>
+        </div></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ Tooltip ═══════════ -->
+  <section class="section" id="tooltip">
+    <div class="section-head"><h2>Tooltip</h2><span class="en">12 placement · 反相墨底</span>
+      <span class="duty">Portal + mini 定位引擎（方案 B 定稿）</span><span class="src">ui/primitives/Tooltip.tsx</span></div>
+    <div class="playground"><span class="lbl">真实交互</span>
+      <button class="demo-btn" id="tipLive">悬停我（450ms intent）</button>
+      <button class="demo-btn" id="tipKbd">复制（kbd 形态）</button>
+      <span class="note" style="margin:0">移出即隐 · 400ms 内重开免延迟 · focus-visible 也显示</span></div>
+    <div class="cards">
+      <div class="spec"><div class="head"><span class="name">top-start / top / top-end</span><span class="tw">side=top</span></div>
+        <div class="body" style="flex-direction:column;gap:26px">
+          <div class="stage-cell"><span class="anchor-dot"></span><div class="tip" style="left:14%;bottom:64px" data-side="top"><span class="arrow" style="left:12px;bottom:-5px"></span>start</div></div>
+          <div class="stage-cell"><span class="anchor-dot"></span><div class="tip" style="left:50%;transform:translateX(-50%);bottom:64px" data-side="top"><span class="arrow" style="left:calc(50% - 4px);bottom:-5px"></span>center</div></div>
+          <div class="stage-cell"><span class="anchor-dot"></span><div class="tip" style="right:14%;bottom:64px" data-side="top"><span class="arrow" style="right:12px;bottom:-5px"></span>end</div></div>
+        </div><div class="foot">箭头 = 锚点中心投影，两端 clamp 10px；flip 后自动换边</div></div>
+      <div class="spec"><div class="head"><span class="name">bottom ×3</span><span class="tw">side=bottom</span></div>
+        <div class="body" style="flex-direction:column;gap:26px"><div class="stage-cell"><span class="anchor-dot"></span><div class="tip" style="left:14%;top:64px" data-side="bottom"><span class="arrow" style="left:12px;top:-5px"></span>bottom-start</div></div>
+          <div class="stage-cell"><span class="anchor-dot"></span><div class="tip" style="left:50%;transform:translateX(-50%);top:64px" data-side="bottom"><span class="arrow" style="left:calc(50% - 4px);top:-5px"></span>bottom</div></div>
+          <div class="stage-cell"><span class="anchor-dot"></span><div class="tip" style="right:14%;top:64px" data-side="bottom"><span class="arrow" style="right:12px;top:-5px"></span>bottom-end</div></div></div>
+        <div class="foot">视口放不下时 flip 翻对侧（对侧也放不下保原位靠 shift）</div></div>
+      <div class="spec"><div class="head"><span class="name">left ×3</span><span class="tw">side=left</span></div>
+        <div class="body" style="flex-direction:column;gap:26px"><div class="stage-cell"><span class="anchor-dot"></span><div class="tip" style="right:calc(50% + 18px);top:6px" data-side="left"><span class="arrow" style="top:12px;right:-5px"></span>left-start</div></div>
+          <div class="stage-cell"><span class="anchor-dot"></span><div class="tip" style="right:calc(50% + 18px);top:50%;transform:translateY(-50%)" data-side="left"><span class="arrow" style="top:calc(50% - 4px);right:-5px"></span>left</div></div>
+          <div class="stage-cell"><span class="anchor-dot"></span><div class="tip" style="right:calc(50% + 18px);bottom:6px" data-side="left"><span class="arrow" style="bottom:12px;right:-5px"></span>left-end</div></div></div>
+        <div class="foot">left/right 尖端在左上角：描边与圆角换到 left/top</div></div>
+      <div class="spec"><div class="head"><span class="name">right ×3</span><span class="tw">side=right</span></div>
+        <div class="body" style="flex-direction:column;gap:26px"><div class="stage-cell"><span class="anchor-dot"></span><div class="tip" style="left:calc(50% + 18px);top:6px" data-side="right"><span class="arrow" style="top:12px;left:-5px"></span>right-start</div></div>
+          <div class="stage-cell"><span class="anchor-dot"></span><div class="tip" style="left:calc(50% + 18px);top:50%;transform:translateY(-50%)" data-side="right"><span class="arrow" style="top:calc(50% - 4px);left:-5px"></span>right</div></div>
+          <div class="stage-cell"><span class="anchor-dot"></span><div class="tip" style="left:calc(50% + 18px);bottom:6px" data-side="right"><span class="arrow" style="bottom:12px;left:-5px"></span>right-end</div></div></div>
+        <div class="foot">间距 offset 8 · 交叉轴 shift 边距 8</div></div>
+      <div class="spec"><div class="head"><span class="name">内容形态</span><span class="tw">kbd / 长文</span></div>
+        <div class="body" style="flex-direction:column;gap:14px;align-items:flex-start">
+          <div class="tip" style="position:relative" data-side="top">复制 <kbd>Ctrl</kbd> + <kbd>C</kbd></div>
+          <div class="tip" style="position:relative;max-width:280px" data-side="top">渐进式总结：逐层压缩摘要，保留可回溯的原文链接；280px 自动换行。</div>
+        </div><div class="foot">反相配色 bg-ink-1 / text-ink-inverse，深浅主题各自反相</div></div>
+      <div class="spec"><div class="head"><span class="name">disabled 触发器</span><span class="tw">auto wrapper</span></div>
+        <div class="body"><span style="position:relative;display:inline-flex">
+          <button class="demo-btn" disabled style="opacity:.5">禁用按钮</button>
+          <div class="tip" style="left:0;top:-42px" data-side="top"><span class="arrow" style="left:16px;bottom:-5px"></span>禁用原因说明</div></span></div>
+        <div class="foot">Chromium 吞 disabled 元素 pointer 事件 → 自动包 wrapper 接管</div></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ Spinner · Loading ═══════════ -->
+  <section class="section" id="loading">
+    <div class="section-head"><h2>Spinner · Loading</h2><span class="en">accent ring</span>
+      <span class="duty">圆环行内件 + 页面级居中版式</span><span class="src">ui/primitives/Loading.tsx</span></div>
+    <div class="cards">
+      <div class="spec"><div class="head"><span class="name">Spinner 16px</span><span class="tw">size-4</span></div>
+        <div class="body"><span class="c-spinner"></span></div><div class="foot">border-2 · accent/30 底 + accent 顶弧</div></div>
+      <div class="spec"><div class="head"><span class="name">Spinner 20px</span><span class="tw">size-5</span></div>
+        <div class="body"><span class="c-spinner lg"></span></div><div class="foot">Loading 内置尺寸</div></div>
+      <div class="spec"><div class="head"><span class="name">行内组合</span><span class="tw">与文字对齐</span></div>
+        <div class="body"><span style="display:inline-flex;align-items:center;gap:8px;color:var(--ink-2);font-size:12.5px">
+          <span class="c-spinner" style="width:13px;height:13px;border-width:1.5px"></span>正在统计…</span></div>
+        <div class="foot">13px 细环变体（className 覆盖）</div></div>
+      <div class="spec wide"><div class="head"><span class="name">Loading 页面级</span><span class="tw">min-h-[45vh]</span></div>
+        <div class="body" style="padding:0"><div class="loading-box"><span class="c-spinner lg"></span><p>加载中…（label 可换）</p></div></div>
+        <div class="foot">role=status + aria-live=polite；铺满父容器，无高度链时 45vh 兜底</div></div>
+    </div>
+  </section>
+
+  <!-- ═══════════ YearHeatmap ═══════════ -->
+  <section class="section" id="heatmap">
+    <div class="section-head"><h2>YearHeatmap</h2><span class="en">dot calendar</span>
+      <span class="duty">全年活动热力图 · home/stats 共用</span><span class="src">ui/primitives/YearHeatmap.tsx</span></div>
+    <div class="spec wide" style="margin-bottom:0"><div class="head"><span class="name">默认形态（演示数据）</span><span class="tw">w-full 自适应</span></div>
+      <div class="body" style="display:block;padding:22px 24px"><div class="hm-wrap" id="heatmap"></div></div>
+      <div class="foot">圆点色阶 α 0.1/0.32/0.52/0.74/1 + 尺寸 0.72→1 递增；周列贴底对齐（末列贴顶）；hover 呼吸动画；
+        色板为陶土橙硬编码派生，源码注记「随主题换肤需同步调整」——cocoa 下当前仍同值，如实呈现待裁决</div></div>
+  </section>
+
+  <!-- ═══════════ Token ═══════════ -->
+  <section class="section" id="token">
+    <div class="section-head"><h2>Token 色板</h2><span class="en">semantic colors</span>
+      <span class="duty">全部语义色 · 值随 data-theme 级联实时重读</span><span class="src">ui/theme/tokens.css</span></div>
+    <p class="note" style="margin-bottom:14px">守护链：tokenContract.ts 全键强制 → tokens.css 数据块 → <em>theme-parity.test.ts</em>（含 AA 对比度断言）。新增颜色词必须先进 tokenContract。</p>
+    <div class="spec wide" style="margin-bottom:14px"><div class="head"><span class="name">背景 · 墨色 · 线 · 品牌</span></div>
+      <div class="body" style="display:block;padding:14px 16px"><div class="swatch-grid" data-group="base"></div></div></div>
+    <div class="spec wide" style="margin-bottom:14px"><div class="head"><span class="name">语义色 · 标签五色</span></div>
+      <div class="body" style="display:block;padding:14px 16px"><div class="swatch-grid" data-group="semantic"></div></div></div>
+  </section>
+
+  <!-- ═══════════ 尺度 ═══════════ -->
+  <section class="section" id="scale">
+    <div class="section-head"><h2>尺度与动效</h2><span class="en">theme-orthogonal</span>
+      <span class="duty">字号 9 档 / 圆角 3 档 / 阴影 2 档 / 布局常量</span><span class="src">@theme inline</span></div>
+    <div class="spec wide"><div class="head"><span class="name">字号阶梯 · 9 档</span></div>
+      <div class="body" style="display:block;padding:10px 20px">
+        <div class="type-row"><span class="spec">tau-hero · 25px</span><span style="font-size:25px;font-weight:650;letter-spacing:-.01em">页面主标题 Aa</span></div>
+        <div class="type-row"><span class="spec">tau-title-lg · 20px</span><span style="font-size:20px;font-weight:600">区块大标题 Aa</span></div>
+        <div class="type-row"><span class="spec">tau-title · 14.5px</span><span style="font-size:14.5px;font-weight:600">面板标题 Aa</span></div>
+        <div class="type-row"><span class="spec">tau-body-lg · 13.5px</span><span style="font-size:13.5px">正文大号 Aa</span></div>
+        <div class="type-row"><span class="spec">tau-body · 13px / 1.65</span><span style="font-size:13px">正文 Aa</span></div>
+        <div class="type-row"><span class="spec">tau-meta · 12.5px</span><span style="font-size:12.5px">元信息 Aa</span></div>
+        <div class="type-row"><span class="spec">tau-sm · 12px</span><span style="font-size:12px">小字 Aa</span></div>
+        <div class="type-row"><span class="spec">tau-micro · 11.5px</span><span style="font-size:11.5px">微字 Aa</span></div>
+        <div class="type-row" style="border:none"><span class="spec">tau-tiny · 11px</span><span style="font-size:11px">极小字 Aa</span></div>
+      </div></div>
+    <div class="cards" style="margin-top:14px">
+      <div class="spec"><div class="head"><span class="name">圆角三档</span><span class="tw">radius-tau-*</span></div>
+        <div class="body"><div class="radius-cards">
+          <div class="radius-card" style="border-radius:8px;width:76px;height:56px;font-size:10px">sm 8</div>
+          <div class="radius-card" style="border-radius:12px;width:76px;height:56px;font-size:10px">md 12</div>
+          <div class="radius-card" style="border-radius:16px;width:76px;height:56px;font-size:10px">lg 16</div></div></div></div>
+      <div class="spec"><div class="head"><span class="name">阴影两档 + 焦点环</span><span class="tw">shadow-*</span></div>
+        <div class="body"><div class="shadow-cards">
+          <div class="shadow-card-demo" style="width:104px;height:64px;font-size:9.5px;box-shadow:var(--shadow-card)">card</div>
+          <div class="shadow-card-demo" style="width:104px;height:64px;font-size:9.5px;box-shadow:var(--shadow-float)">float</div>
+          <div class="shadow-card-demo" style="width:104px;height:64px;font-size:9.5px;box-shadow:var(--focus-ring)">focus</div></div></div></div>
+      <div class="spec"><div class="head"><span class="name">动效</span><span class="tw">ease-tau-out</span></div>
+        <div class="body" style="flex-direction:column;align-items:flex-start;gap:8px">
+          <span style="font-size:12px;color:var(--ink-2)">缓动 <code style="font-family:var(--mono);font-size:11px">cubic-bezier(0.22,1,0.36,1)</code></span>
+          <span style="font-size:12px;color:var(--ink-2)">fast 160ms（hover）· normal 240ms（布局）</span>
+          <span style="font-size:12px;color:var(--ink-2)">hm-pulse 0.5s（热力图呼吸）</span></div>
+        <div class="foot">布局常量：sidebar 218/58 · titlebar 46 · statusbar 30 · content-pad 34</div></div>
+    </div>
+  </section>
+</div>
+
+<div class="plan-badge">
+  <button class="tag" id="noteToggle"><b>方案 B</b> 全景画廊 · 交互说明</button>
+  <div class="plan-note" id="planNote">
+    <h4>一页看全</h4>
+    所有组件 × 状态平铺为<em>标本卡</em>（锁定态，审阅不依赖鼠标），
+    Ctrl+F 可直接搜状态名；顶栏锚点直达、标本底色全局四档、双主题切换。
+    审视觉察即得：<em>跨组件对照</em>（比如 Toast 与 Tooltip 的阴影层级、Panel 与 spec 卡的圆角一致性）。
+    代价：页面长，单组件沉浸感弱于方案 A。
+    <div class="links">对比：<a href="plan-a-inspector.html">A 检查器</a> · <b>B 画廊</b> · <a href="plan-c-parallel.html">C 主题对照台</a> · <a href="index.html">导览</a></div>
+  </div>
+</div>
+
+<script>
+/* ───────── 主题 ───────── */
+const P = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+};
+let theme = "cream";
+function toggleTheme() {
+  theme = theme === "cream" ? "cocoa" : "cream";
+  document.documentElement.dataset.theme = theme;
+  document.getElementById("themeIcon").innerHTML =
+    `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P[theme === "cream" ? "moon" : "sun"]}</svg>`;
+  paintSwatches();
+}
+document.getElementById("themeBtn").addEventListener("click", toggleTheme);
+document.getElementById("themeIcon").innerHTML = `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P.moon}</svg>`;
+
+/* ───────── 标本底色全局切换 ───────── */
+document.querySelectorAll("#bgSeg button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("#bgSeg button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".spec .body").forEach(el => el.style.setProperty("--spec-bg", b.dataset.bg));
+}));
+
+/* ───────── Toast 演示 ───────── */
+const ICONS = {
+  success: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  error: '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>',
+  warning: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>',
+  info: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+  loading: '<path d="M21 12a9 9 0 1 1-6.2-8.6"/>',
+};
+const zones = {};
+["top-center", "top-right", "bottom-right", "bottom-center"].forEach(p => {
+  const z = document.createElement("div");
+  z.className = `toast-zone pos-${p}`;
+  document.body.appendChild(z);
+  zones[p] = z;
+});
+let toastPos = "top-center";
+document.getElementById("posSel").addEventListener("change", e => { toastPos = e.target.value; });
+function liveToast(type, message, actionLabel) {
+  const zone = zones[toastPos];
+  const el = document.createElement("div");
+  el.className = "c-toast toast-live";
+  el.innerHTML = `<svg class="t-icon t-${type}" viewBox="0 0 24 24">${ICONS[type]}</svg><span class="t-text">${message}</span>${actionLabel ? `<button class="t-action">${actionLabel}</button>` : ""}`;
+  zone.appendChild(el);
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("enter")));
+  const close = () => { el.style.opacity = "0"; setTimeout(() => el.remove(), 220); };
+  el.addEventListener("click", close);
+  let remain = type === "loading" ? Infinity : 3200, timer = null, startedAt = 0;
+  if (remain !== Infinity) { startedAt = Date.now(); timer = setTimeout(close, remain); }
+  el.addEventListener("mouseenter", () => { if (timer) { clearTimeout(timer); remain -= Date.now() - startedAt; timer = null; } });
+  el.addEventListener("mouseleave", () => { if (!timer && remain !== Infinity) { startedAt = Date.now(); timer = setTimeout(close, Math.max(remain, 400)); } });
+  const live = [...zone.querySelectorAll(".toast-live")].filter(x => x.style.opacity !== "0");
+  if (live.length > 4) { const old = live[0]; old.style.opacity = "0"; setTimeout(() => old.remove(), 220); }
+  return { setType: (t, msg) => { el.querySelector(".t-icon").outerHTML = `<svg class="t-icon t-${t}" viewBox="0 0 24 24">${ICONS[t]}</svg>`; el.querySelector(".t-text").textContent = msg; remain = 3200; startedAt = Date.now(); timer = setTimeout(close, remain); } };
+}
+document.querySelectorAll("[data-toast]").forEach(b => b.addEventListener("click", () => {
+  const t = b.dataset.toast;
+  if (t === "action") liveToast("success", "已删除 3 张卡片", "撤销");
+  else liveToast(t, { success: "已保存", error: "同步失败，已保留本地副本", warning: "存储空间不足 15%", info: "已切换到年度视图" }[t]);
+}));
+document.getElementById("btnPromise").addEventListener("click", () => {
+  const t = liveToast("loading", "正在导入数据…");
+  setTimeout(() => t.setType("success", "导入完成 · 共 128 条"), 1400);
+});
+document.getElementById("btnStack").addEventListener("click", () => {
+  for (let i = 1; i <= 6; i++) setTimeout(() => liveToast("info", `第 ${i} / 6 条（上限 4）`), i * 140);
+});
+
+/* ───────── Tooltip 交互 ───────── */
+function attachTip(anchor, html, placement = "top") {
+  const pop = document.createElement("div");
+  pop.className = "tip";
+  pop.innerHTML = `<span class="arrow"></span>${html}`;
+  document.body.appendChild(pop);
+  let timer = null;
+  const apply = () => {
+    const a = anchor.getBoundingClientRect(), p = pop;
+    p.style.visibility = "hidden"; p.style.display = "block"; p.style.position = "fixed";
+    const [side, align = "center"] = placement.split("-"), gap = 8;
+    let x = 0, y = 0;
+    if (side === "top") y = a.top - gap - p.offsetHeight;
+    if (side === "bottom") y = a.bottom + gap;
+    if (side === "left") x = a.left - gap - p.offsetWidth;
+    if (side === "right") x = a.right + gap;
+    if (side === "top" || side === "bottom")
+      x = align === "start" ? a.left : align === "end" ? a.right - p.offsetWidth : a.left + a.width / 2 - p.offsetWidth / 2;
+    else
+      y = align === "start" ? a.top : align === "end" ? a.bottom - p.offsetHeight : a.top + a.height / 2 - p.offsetHeight / 2;
+    p.style.left = `${Math.max(8, Math.min(x, innerWidth - 8 - p.offsetWidth))}px`;
+    p.style.top = `${Math.max(8, Math.min(y, innerHeight - 8 - p.offsetHeight))}px`;
+    p.style.visibility = ""; p.dataset.side = side;
+    const ar = p.querySelector(".arrow");
+    if (side === "top" || side === "bottom") { ar.style.left = `${a.left + a.width / 2 - x - 4}px`; ar.style.bottom = side === "top" ? "-5px" : "auto"; ar.style.top = side === "bottom" ? "-5px" : "auto"; }
+    else { ar.style.top = `${a.top + a.height / 2 - y - 4}px`; ar.style.left = side === "right" ? "-5px" : "auto"; ar.style.right = side === "left" ? "-5px" : "auto"; }
+  };
+  anchor.addEventListener("pointerenter", () => { timer = setTimeout(() => { pop.style.opacity = "1"; apply(); }, 450); });
+  anchor.addEventListener("pointerleave", () => { clearTimeout(timer); pop.style.opacity = "0"; pop.style.display = "none"; });
+  pop.style.opacity = "0"; pop.style.display = "none";
+}
+attachTip(document.getElementById("tipLive"), "top · 450ms 意图延迟 · 12 位默认 top");
+attachTip(document.getElementById("tipKbd"), "复制 <kbd>Ctrl</kbd> + <kbd>C</kbd>", "bottom");
+
+/* ───────── YearHeatmap ───────── */
+const DOT = [["rgba(217,119,87,0.1)", 0.72], ["rgba(217,119,87,0.32)", 0.78], ["rgba(217,119,87,0.52)", 0.85], ["rgba(217,119,87,0.74)", 0.92], ["rgb(217,119,87)", 1]];
+function level(c) { return c === 0 ? 0 : c < 5 ? 1 : c < 10 ? 2 : c < 20 ? 3 : 4; }
+(function renderHeatmap() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  const weeks = []; let week = [];
+  let seed = 7;
+  const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  for (let d = new Date(start); d <= now; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+    week.push({ date: d, count: Math.floor(rnd() * 26) });
+    if (d.getDay() === 0) { weeks.push(week); week = []; }
+  }
+  if (week.length) weeks.push(week);
+  const spans = []; let curM = -1;
+  for (const w of weeks) { const m = w[0].date.getMonth() + 1; if (m !== curM) { spans.push({ label: `${m}月`, n: 0 }); curM = m; } spans[spans.length - 1].n += 1; }
+  document.getElementById("heatmap").innerHTML = `
+    <div class="hm-months">${spans.map(s => `<span style="flex:${s.n} 1 0">${s.label}</span>`).join("")}</div>
+    <div class="hm-grid">${weeks.map(w => `
+      <div class="hm-week">${w.map(d => `<div class="hm-day" title="${d.date.toISOString().slice(0, 10)} · ${d.count} 次操作"><div class="dot" style="background:${DOT[level(d.count)][0]};transform:scale(${DOT[level(d.count)][1]})"></div></div>`).join("")}</div>`).join("")}</div>
+    <div class="hm-legend">少${DOT.map(([c, s]) => `<span class="dot" style="background:${c};transform:scale(${s})"></span>`).join("")}多<span style="margin-left:10px">连续活跃 12 天</span></div>`;
+})();
+
+/* ───────── Token 色板 ───────── */
+const GROUPS = {
+  base: [["bg-page", "页面底"], ["bg-surface", "表面"], ["bg-group", "分组"], ["bg-sunken", "沉底"], ["bg-hover", "悬停"], ["bg-press", "按下"], ["bg-selected", "选中"], ["ink-1", "主墨"], ["ink-2", "次墨"], ["ink-3", "弱墨"], ["ink-inverse", "反相墨"], ["line-1", "线 1"], ["line-2", "线 2"], ["accent", "品牌"], ["accent-hover", "品牌悬停"], ["accent-soft", "品牌弱底"], ["accent-text", "品牌文字"]],
+  semantic: [["ok", "成功"], ["ok-soft", "成功底"], ["danger", "错误"], ["danger-soft", "错误底"], ["warn", "警告"], ["warn-soft", "警告底"], ["info", "信息"], ["info-soft", "信息底"], ["tag-1", "标签1"], ["tag-1-soft", "标签1底"], ["tag-2", "标签2"], ["tag-2-soft", "标签2底"], ["tag-3", "标签3"], ["tag-3-soft", "标签3底"], ["tag-4", "标签4"], ["tag-4-soft", "标签4底"], ["tag-5", "标签5"], ["tag-5-soft", "标签5底"]],
+};
+function paintSwatches() {
+  const cs = getComputedStyle(document.documentElement);
+  document.querySelectorAll(".swatch-grid").forEach(grid => {
+    grid.innerHTML = GROUPS[grid.dataset.group].map(([name, cn]) => {
+      const val = cs.getPropertyValue(`--${name}`).trim();
+      return `<div class="swatch"><div class="chip" style="background:var(--${name})"></div>
+        <div class="meta"><div class="name">${name}</div><div class="val">${val} · ${cn}</div></div></div>`;
+    }).join("");
+  });
+}
+paintSwatches();
+
+document.getElementById("noteToggle").addEventListener("click", () =>
+  document.getElementById("planNote").classList.toggle("open"));
+</script>
+</body>
+</html>

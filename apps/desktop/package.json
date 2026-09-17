@@ -11,6 +11,7 @@
     "test:collaboration:e2e": "playwright test e2e/collaboration.spec.ts",
     "predev": "pnpm -w db:schema:prepare",
     "dev": "vite",
+    "showcase": "vite --config vite.config.showcase.mts",
     "prebuild": "pnpm -w db:schema:prepare && pnpm --filter @tau/cli build",
     "build": "cross-env-shell NODE_OPTIONS='--max-old-space-size=8092' \"tsc && vite build && node scripts/run-electron-builder.mjs && node scripts/verify-native-runtime.mjs\"",
     "verify:native-runtime": "node scripts/verify-native-runtime.mjs",
