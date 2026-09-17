@@ -9,14 +9,14 @@
  * 才暴露出这个潜在缺陷）。改成 prop 后 inline style 可靠压过任意类。
  */
 
-import clsx from "clsx";
 import type { ComponentProps } from "react";
+import { cn } from "@/ui/cn";
 
 export function Spinner({ className, ...props }: ComponentProps<"span">) {
   return (
     <span
       aria-hidden
-      className={clsx(
+      className={cn(
         "border-accent/30 border-t-accent inline-block size-4 animate-spin rounded-full border-2",
         className
       )}
@@ -40,7 +40,7 @@ export function Loading({
       role="status"
       aria-live="polite"
       style={{ minHeight }}
-      className={clsx("flex h-full flex-col items-center justify-center gap-3", className)}
+      className={cn("flex h-full flex-col items-center justify-center gap-3", className)}
     >
       <Spinner className="size-5" />
       <p className="text-tau-sm text-ink-3">{label}</p>

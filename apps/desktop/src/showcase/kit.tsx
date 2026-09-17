@@ -18,7 +18,7 @@
  */
 
 import type { ComponentProps, ReactNode } from "react";
-import clsx from "clsx";
+import { cn } from "@/ui/cn";
 
 /**
  * 档案页版心 —— 全页唯一内容宽度，单一事实源：
@@ -75,14 +75,14 @@ export function CanvasCard({
 }) {
   const isCard = stage === "card";
   return (
-    <section className={clsx(isCard && "bg-surface shadow-card rounded-tau-lg")}>
-      <div className={clsx("flex items-center gap-2", isCard && "px-6 pt-4")}>
+    <section className={cn(isCard && "bg-surface shadow-card rounded-tau-lg")}>
+      <div className={cn("flex items-center gap-2", isCard && "px-6 pt-4")}>
         <span className="bg-accent size-1.5 shrink-0 rounded-full" />
         <span className="text-tau-tiny text-accent-text font-[650] tracking-[0.1em]">{cap}</span>
         {note && <span className="text-tau-micro text-ink-3 min-w-0 truncate">{note}</span>}
       </div>
       <div
-        className={clsx("text-ink-1 relative", isCard ? "px-6 pb-7 pt-5" : "pt-4", stageClassName)}
+        className={cn("text-ink-1 relative", isCard ? "px-6 pb-7 pt-5" : "pt-4", stageClassName)}
       >
         {children}
       </div>
@@ -132,7 +132,7 @@ export function MatrixRow({
         )}
       </div>
       {/* pt-0.5：让 30px 档标本的光学中线贴近状态名那一行 */}
-      <div className={clsx("text-ink-1 flex flex-wrap items-start gap-4 pt-0.5", trayClassName)}>
+      <div className={cn("text-ink-1 flex flex-wrap items-start gap-4 pt-0.5", trayClassName)}>
         {children}
       </div>
     </div>
@@ -186,7 +186,7 @@ export function Segmented<T extends string>({
           type="button"
           title={option.title}
           aria-pressed={value === option.value}
-          className={clsx(
+          className={cn(
             "ease-tau-out flex h-7 items-center gap-1.5 rounded-[8px] px-2.5",
             "transition-[background,color] duration-[160ms]",
             value === option.value
@@ -212,7 +212,7 @@ export function DemoButton({
   return (
     <button
       type="button"
-      className={clsx(
+      className={cn(
         "text-tau-meta ease-tau-out inline-flex h-8 items-center gap-2 rounded-[10px] px-3.5",
         "transition-[background,color,border-color] duration-[160ms]",
         // hover 背景类必须分流：公共串的 hover:bg-hover（近透明墨）会替换掉

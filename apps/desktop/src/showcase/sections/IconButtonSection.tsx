@@ -71,6 +71,7 @@ export default function IconButtonSection() {
           <Search size={17} strokeWidth={1.75} />
         </IconButton>
       </MatrixRow>
+      {/* 两个标本高低不同（27 / 30），托盘默认 items-start 会让图标中心错开 1.5px */}
       <MatrixRow
         name="27px 覆盖变体"
         desc={
@@ -78,6 +79,7 @@ export default function IconButtonSection() {
             侧栏头等紧凑位，<code>className="size-[27px]"</code> 覆盖
           </>
         }
+        trayClassName="items-center"
       >
         <IconButton className="size-[27px]">
           <Search size={17} strokeWidth={1.75} />

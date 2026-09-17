@@ -40,6 +40,7 @@ import {
 import { createPortal } from "react-dom";
 import clsx from "clsx";
 import { Check, ChevronDown, Search } from "lucide-react";
+import { cn } from "@/ui/cn";
 import { computeTooltipPosition } from "./tooltipPosition";
 
 export interface SelectOption<V = string> {
@@ -406,7 +407,7 @@ export function Select<V = string>({
   );
 
   return (
-    <div ref={rootRef} className={clsx("inline-flex", className)} data-disabled={disabled}>
+    <div ref={rootRef} className={cn("inline-flex", className)} data-disabled={disabled}>
       <button
         ref={el => {
           triggerRef.current = el;
