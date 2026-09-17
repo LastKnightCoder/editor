@@ -139,7 +139,8 @@ describe("theme 对比度达 AA（02 规范 §2.5）", () => {
     // 必须重新守住这里——否则有人把 ink-2 放到更深的底上就会静默跌破 AA。
     { fg: "ink-2", bg: "bg-group", min: 4.5, why: "次要文字 / 分组底" },
     { fg: "ink-2", bg: "bg-sunken", min: 4.5, why: "次要文字 / 凹陷底" },
-    { fg: "ink-1", bg: "bg-sunken", min: 4.5, why: "正文 / 凹陷底（代码 chip）" },
+    { fg: "ink-1", bg: "bg-group", min: 4.5, why: "正文 / 分组底（次级按钮、标签）" },
+    { fg: "ink-1", bg: "bg-sunken", min: 4.5, why: "正文 / 凹陷底" },
   ];
 
   for (const theme of getThemeRegistry().values()) {

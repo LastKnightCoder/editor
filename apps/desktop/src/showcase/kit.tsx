@@ -46,7 +46,7 @@ export function DocHead({
         <span className="font-tau-mono text-tau-meta text-ink-3">{en}</span>
       </div>
       <p className="text-tau-body-lg text-ink-2 mt-2.5 leading-[1.75]">{duty}</p>
-      <span className="bg-sunken font-tau-mono text-tau-micro text-ink-2 mt-4 inline-block rounded-[7px] px-2.5 py-1">
+      <span className="border-line-1 bg-surface font-tau-mono text-tau-micro text-ink-2 mt-4 inline-block rounded-[7px] border px-2.5 py-1">
         {src}
       </span>
     </header>
@@ -126,7 +126,7 @@ export function MatrixRow({
       <div className="min-w-0">
         <div className="font-tau-mono text-tau-meta text-ink-1 break-all font-[550]">{name}</div>
         {desc && (
-          <div className="text-tau-meta text-ink-2 [&_code]:bg-sunken [&_code]:text-ink-1 [&_code]:font-tau-mono mt-1 leading-[1.7] [&_code]:whitespace-nowrap [&_code]:rounded-[5px] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[11.5px]">
+          <div className="text-tau-meta text-ink-2 [&_code]:border-line-1 [&_code]:bg-surface [&_code]:text-ink-1 [&_code]:font-tau-mono mt-1 leading-[1.7] [&_code]:whitespace-nowrap [&_code]:rounded-[5px] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[11.5px]">
             {desc}
           </div>
         )}
@@ -148,7 +148,7 @@ export function ApiCard({ title, children }: { title: string; children: ReactNod
         <span className="bg-accent size-1.5 shrink-0 rounded-full" />
         <span className="text-tau-sm text-ink-1 font-semibold">{title}</span>
       </div>
-      <div className="text-tau-meta text-ink-2 [&_th]:text-tau-tiny [&_th]:text-ink-3 [&_td]:border-line-2 [&_code]:bg-sunken [&_code]:text-ink-1 [&_code]:font-tau-mono px-6 pt-3 [&_code]:rounded-[5px] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[11.5px] [&_table]:w-full [&_table]:border-collapse [&_td]:border-t [&_td]:py-2.5 [&_td]:pl-0 [&_td]:pr-6 [&_td]:text-left [&_td]:align-top [&_td]:leading-[1.7] [&_th]:whitespace-nowrap [&_th]:py-2.5 [&_th]:pl-0 [&_th]:pr-6 [&_th]:text-left [&_th]:font-semibold">
+      <div className="text-tau-meta text-ink-2 [&_th]:text-tau-tiny [&_th]:text-ink-3 [&_td]:border-line-2 [&_code]:border-line-1 [&_code]:bg-surface [&_code]:text-ink-1 [&_code]:font-tau-mono px-6 pt-3 [&_code]:rounded-[5px] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-[11.5px] [&_table]:w-full [&_table]:border-collapse [&_td]:border-t [&_td]:py-2.5 [&_td]:pl-0 [&_td]:pr-6 [&_td]:text-left [&_td]:align-top [&_td]:leading-[1.7] [&_th]:whitespace-nowrap [&_th]:py-2.5 [&_th]:pl-0 [&_th]:pr-6 [&_th]:text-left [&_th]:font-semibold">
         {children}
       </div>
     </section>
