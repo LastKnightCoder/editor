@@ -37,9 +37,13 @@ export interface Navigator {
   current(): sm.PageEntry | undefined;
 }
 
+/** 注册浮层退场回调，返回注销函数（LIFO：Esc 先关最上层浮层，见 D-017）。 */
+export type RegisterOverlayDismiss = (dismiss: () => void) => () => void;
+
 interface PageContextValue {
   navigator: Navigator;
   state: sm.StackMachineState;
+  registerOverlayDismiss: RegisterOverlayDismiss;
 }
 
 const PageContext = createContext<PageContextValue | null>(null);
@@ -113,6 +117,19 @@ export function PageProvider({
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // 浮层退场注册表（D-017）：Map 保插入序，Esc 取最后注册者（LIFO 最上层）
+  const overlayDismissers = useRef(new Map<number, () => void>());
+  const nextOverlayId = useRef(1);
+  const registerOverlayDismiss = useMemo<RegisterOverlayDismiss>(() => {
+    return dismiss => {
+      const id = nextOverlayId.current++;
+      overlayDismissers.current.set(id, dismiss);
+      return () => {
+        overlayDismissers.current.delete(id);
+      };
+    };
+  }, []);
+
   const navigator = useMemo<Navigator>(
     () => ({
       push: (key, params) => dispatch({ type: "push", key, params }),
@@ -127,10 +144,17 @@ export function PageProvider({
     []
   );
 
-  // Esc = 后退（LIFO 退场；根页无操作）。浮层（命令面板等）接入后改为先关浮层。
+  // Esc 仲裁（03 指南 §5）：先关最上层浮层（浮层输入框里的 Esc 同义，优先于
+  // 「取消编辑」），无浮层再让位编辑上下文，最后后退。根页无操作。
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.isComposing) return;
+      const dismissers = [...overlayDismissers.current.values()];
+      if (dismissers.length > 0) {
+        e.preventDefault();
+        dismissers[dismissers.length - 1]();
+        return;
+      }
       if (isEditableTarget(e.target)) return; // 输入上下文里 Esc 的语义是取消编辑
       navigator.back();
     };
@@ -138,8 +162,25 @@ export function PageProvider({
     return () => window.removeEventListener("keydown", onKeydown);
   }, [navigator]);
 
-  const value = useMemo<PageContextValue>(() => ({ navigator, state }), [navigator, state]);
+  const value = useMemo<PageContextValue>(
+    () => ({ navigator, state, registerOverlayDismiss }),
+    [navigator, state, registerOverlayDismiss]
+  );
   return <PageContext.Provider value={value}>{children}</PageContext.Provider>;
+}
+
+/**
+ * 浮层接入 Esc 仲裁：active 期间把 dismiss 注册为当前最上层退场回调
+ * （Esc 关浮层而非页面后退；多层浮层 LIFO）。dismiss 闭包经 ref 保鲜。
+ */
+export function useOverlayDismiss(dismiss: () => void, active = true) {
+  const { registerOverlayDismiss } = usePage();
+  const dismissRef = useRef(dismiss);
+  dismissRef.current = dismiss;
+  useEffect(() => {
+    if (!active) return;
+    return registerOverlayDismiss(() => dismissRef.current());
+  }, [active, registerOverlayDismiss]);
 }
 
 export function usePage(): PageContextValue {

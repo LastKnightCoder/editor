@@ -52,6 +52,8 @@
   --color-line-1: var(--tau-line-1);
   --color-line-2: var(--tau-line-2);
 
+  --color-overlay: var(--tau-overlay);
+
   --color-accent: var(--tau-accent);
   --color-accent-hover: var(--tau-accent-hover);
   --color-accent-soft: var(--tau-accent-soft);
