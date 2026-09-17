@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tau 桌面端 · Tooltip 方案导览（三路线对比 + 定位引擎裁决）</title>
+<!--
+  Tooltip 基础件设计导览：与 Toast 不同，Tooltip 的「方案」差异不在视觉（业界共识：
+  反相小标签），而在技术路线——承载（HTML popover vs Portal）与定位（CSS Anchor
+  Positioning vs JS 引擎 vs 伪元素）。本页给出证据链、能力矩阵、决策建议与
+  ui/primitives/Tooltip 的 API 草案；三份演示页共用 tau 双主题，视觉完全一致
+  （方案 B 刻意与 A 同皮，证明「视觉与引擎解耦」）。
+-->
+<style>
+:root {
+  --ink: #1d1f24; --ink-2: #5b606b; --ink-3: #8b919c;
+  --bg: #fcfcfd; --surface: #fff; --line: #e6e8ec; --accent: #4650c8;
+  --accent-soft: rgba(70, 80, 200, 0.09);
+  --good: #3e6b4f; --bad: #9c5148;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--ink); background: var(--bg); font-size: 14px; line-height: 1.75; }
+.page { max-width: 1020px; margin: 0 auto; padding: 48px 32px 96px; }
+h1 { font-size: 26px; letter-spacing: -0.01em; margin-bottom: 8px; }
+.lede { color: var(--ink-2); max-width: 78ch; margin-bottom: 8px; }
+.lede b { color: var(--ink); }
+h2 { font-size: 19px; margin: 46px 0 6px; }
+h2 + p { color: var(--ink-2); margin-bottom: 16px; max-width: 78ch; }
+a { color: var(--accent); }
+kbd { padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--surface); font-size: 12px; font-family: ui-monospace, Consolas, monospace; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--accent-soft);
+  color: var(--accent); border-radius: 5px; padding: 1px 6px; }
+pre { background: #f6f7f9; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+  font-size: 12.5px; line-height: 1.8; overflow-x: auto; color: var(--ink-2); margin-top: 10px; }
+pre code { background: none; color: inherit; padding: 0; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+td b.ok { color: var(--good); } td b.bad { color: var(--bad); } td b.mid { color: #8a6d3b; }
+
+.plan-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 14px; }
+@media (max-width: 900px) { .plan-grid { grid-template-columns: 1fr; } }
+.plan-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+.plan-card h3 { font-size: 15.5px; margin-bottom: 2px; }
+.plan-card .en { font-size: 11.5px; color: var(--ink-3); margin-bottom: 10px; }
+.plan-card .stance { font-size: 12.5px; color: var(--ink-2); margin-bottom: 12px; min-height: 66px; }
+.plan-card .stance b { color: var(--ink); }
+.wf { height: 96px; border: 1px solid var(--line); border-radius: 10px; background: #f6f7f9;
+  position: relative; margin-bottom: 12px; overflow: hidden; }
+.wf-row { position: absolute; border-radius: 99px; background: #d7dae0; }
+.wf-row.accent { background: var(--accent); opacity: 0.75; }
+.wf-row.dark { background: #b6bac2; }
+.wf-dot { position: absolute; width: 26px; height: 26px; border-radius: 99px; background: var(--accent-soft); border: 1.5px solid var(--accent); }
+.plan-card ul { list-style: none; font-size: 12.5px; color: var(--ink-2); }
+.plan-card li { padding-left: 15px; position: relative; margin: 3px 0; }
+.plan-card li::before { content: "·"; position: absolute; left: 4px; color: var(--ink-3); }
+.plan-card li.good { color: var(--good); }
+.plan-card li.bad { color: var(--bad); }
+.open-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px; border-radius: 9px;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 550; text-decoration: none; margin-top: 10px; }
+.open-btn:hover { filter: brightness(1.08); }
+.plan-card .fit { font-size: 12px; background: #f6f7f9; border: 1px dashed var(--line); border-radius: 8px;
+  padding: 8px 12px; margin-top: 10px; color: var(--ink-2); }
+.plan-card .fit b { color: var(--ink); }
+
+.decision { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-top: 14px; }
+.decision h3 { font-size: 15px; margin-bottom: 8px; }
+.decision ol { padding-left: 20px; font-size: 13px; color: var(--ink-2); }
+.decision ol li { margin: 7px 0; }
+.decision ol li b { color: var(--ink); }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; }
+.verdict { display: inline-flex; align-items: center; gap: 6px; background: #eef4ee; color: var(--good);
+  border: 1px solid #d5e3d5; border-radius: 99px; padding: 2px 12px; font-size: 12px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Tooltip 基础件 · 方案导览</h1>
+<p class="lede">已定稿：<b style="color:#3e6b4f;">方案 B · JS 定位引擎（Portal + 自研 mini floating-ui，2026-09-17，用户裁决，D-018）</b>——实测中方案 A 的 position-try 候选语义保守、safe anchor-center 布局异常、UA popover 样式需重置三连，使用户倾向策略可编程的 B；A 留档备用。与 Toast 的三方案不同，Tooltip 的分歧不在视觉（业界共识：反相小标签 + 12 位 + 箭头可关），而在<b>技术路线</b>——承载用不用 HTML popover、定位用不用 CSS Anchor Positioning、还是传统 JS 引擎。三份演示页共用 tau 双主题与同一套视觉，其中方案 B 刻意与 A <b>同皮</b>（只换引擎），证明视觉与引擎解耦。02 规范 §5.2 已裁定 Tooltip / Popover / Menu / Select 共享同一浮层定位引擎——本页的裁决即是引擎选型。</p>
+
+<!-- ═══════════ 业界参照 ═══════════ -->
+<h2>业界参照</h2>
+<table>
+  <thead><tr><th>产品 / 库</th><th>技术路线</th><th>值得借鉴</th></tr></thead>
+  <tbody>
+    <tr><td><b>Radix Tooltip</b>（shadcn 默认）</td><td>floating-ui 定位 + Portal</td><td>hover intent 语义最完整：进入延迟 / 略过跳过（skip）/ 相邻触发器即时切换；focus-visible 范本</td></tr>
+    <tr><td><b>antd Tooltip</b></td><td>JS 定位（@rc-component/trigger）</td><td>12 位 placement + 箭头随位翻转的完整矩阵；API 面蓝本（title/placement/arrow）</td></tr>
+    <tr><td><b>Base UI</b>（MUI 新一代）</td><td>floating-ui</td><td><code>open / onOpenChange</code> 受控范式与 02 规范 §5.3 一致</td></tr>
+    <tr><td><b>VS Code hover</b></td><td>自研 DOM 定位</td><td>无箭头、300ms 延迟 / 0ms 移出、富内容（markdown）——桌面 IDE 语感</td></tr>
+    <tr><td><b>Linear</b></td><td>—</td><td>无箭头、快进快出——现代桌面产品「去箭头」趋势（箭头是 2015 审美遗产）</td></tr>
+    <tr><td><b>原生 title</b></td><td>浏览器</td><td>唯一保留场景：纯文本兜底（见方案 C 页的暗账）</td></tr>
+  </tbody>
+</table>
+<p class="note">共识：① 视觉 = 反相小标签（深浅主题各自反相，对比度由 token 保证）；② 位置 12 位但默认 top 一位就够（90% 场景）；③ 箭头默认带、可关（趋势是关）；④ 进入延迟 + 移出即隐 + 快速划过不闪是桌面刚需；⑤ 可交互的内容不叫 tooltip，叫 Popover / Menu。</p>
+
+<!-- ═══════════ 三方案 ═══════════ -->
+<h2>三条技术路线</h2>
+<div class="plan-grid">
+
+  <div class="plan-card" style="border-color:#3e6b4f66; box-shadow:0 0 0 1px #3e6b4f22;">
+    <h3>方案 A · 原生锚定（留档）</h3>
+    <div class="en">popover + CSS Anchor Positioning — 零定位 JS</div>
+    <div class="wf">
+      <!-- 触发器 + 上方小标签，浏览器网格示意 -->
+      <div class="wf-dot" style="left:50%; top:52px; transform:translateX(-50%);"></div>
+      <div class="wf-row accent" style="left:32%; width:36%; top:24px; height:20px;"></div>
+      <div class="wf-row dark" style="left:12%; right:12%; bottom:10px; height:10px;"></div>
+    </div>
+    <div class="stance"><b>让浏览器当定位引擎。</b>承载 = <b>popover=manual</b>（top layer：免 z-index、免 Portal、不受祖先裁剪、不抢焦点）；定位 = <b>锚定 + position-try</b>（12 位、flip 换位链、滚动 resize 跟随全内建）。JS 只剩驱动层：hover 延迟、focus-visible、aria、show 后读一次边向供箭头。</div>
+    <ul>
+      <li class="good">定位代码 ~0 行：滚动/resize 跟随、边缘换位零监听器零每帧计算</li>
+      <li class="good">箭头对齐触发器中心 = <code>anchor-center</code> 一行（JS 方案要手算投影）</li>
+      <li class="good">Electron 43（Chromium ~150）单环境，无 web 兼容包袱（popover 114+ / 锚定 125+）</li>
+      <li class="bad">anchor-name 须全文档唯一（useId 生成 + 内联 style，Tailwind 词表外）</li>
+      <li class="bad">position-try 策略是声明式，表达不了的需求要退 JS（Menu/Select 复杂场景的保底 = 方案 B）</li>
+    </ul>
+    <div class="fit"><b>适用</b>：Tooltip 全部需求 + Menu/Select 的常规对齐（<code>anchor-size()</code> 还能让下拉与触发器同宽）。02 §5.2 引擎投入最小化。</div>
+    <a class="open-btn" href="plan-a-native.html">打开演示 →</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>方案 B · JS 定位引擎 <span class="verdict">已定稿</span></h3>
+    <div class="en">Portal + 自研 mini floating-ui — 策略可编程</div>
+    <div class="wf">
+      <div class="wf-dot" style="left:50%; top:52px; transform:translateX(-50%);"></div>
+      <div class="wf-row accent" style="left:32%; width:36%; top:24px; height:20px;"></div>
+      <div class="wf-row dark" style="left:12%; right:12%; bottom:10px; height:10px;"></div>
+      <div class="wf-row" style="left:16%; top:12px; width:52%; height:6px; opacity:.6;"></div>
+    </div>
+    <div class="stance"><b>中间件链换策略。</b>Portal + fixed + <b>自研 ~100 行引擎</b>（offset → flip → shift → arrow），行为与 A 完全同形；演示页的引擎可直接移植为 primitives 参考。策略是代码：Menu/Select 需要多花的行为时改链路，不动 CSS。</div>
+    <ul>
+      <li class="good">箭头坐标引擎顺手算出（A 需 show 后读一次 rect）；当前边向 JS 天然知道</li>
+      <li class="good">策略可编程、可单测（注入 rect）；或直接引 floating-ui（~5KB gzip）省自研</li>
+      <li class="bad">scroll(capture)/resize 监听 + 每次布局变化都跑 JS（演示页「引擎监视器」可视化了这个代价）</li>
+      <li class="bad">z-index / Portal 生命周期自管；自研则有维护面（引 floating-ui 则多一个依赖）</li>
+    </ul>
+    <div class="fit"><b>适用</b>：作为 A 的保底与增量——position-try 表达不了的组件（虚拟锚点、动态 size 中间件）<b>仅对该组件</b>换 JS 定位，承载仍 popover，A→B 是渐进不是推翻。</div>
+    <a class="open-btn" href="plan-b-engine.html">打开演示 →</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>方案 C · 伪元素 / title</h3>
+    <div class="en">::after 与原生 title — 零 JS 凑合（反面教材）</div>
+    <div class="wf">
+      <div class="wf-dot" style="left:18%; top:56px;"></div>
+      <div class="wf-row accent" style="left:8%; width:40%; top:28px; height:18px; opacity:.55; border-top-left-radius:0;"></div>
+      <div class="wf-row dark" style="left:12%; right:12%; bottom:10px; height:10px;"></div>
+      <div class="wf-row" style="left:56%; width:36%; top:32px; height:5px; background:var(--bad); opacity:.4;"></div>
+    </div>
+    <div class="stance"><b>省 20 行 JS，赔四张底牌。</b>被 <code>overflow:hidden</code> 裁剪、无 fallback、transform 祖先下漂移、title 延迟 ~1s 不可控、读屏盲区。单独成页是为了把「为什么不凑合」变成可体验的证据。</div>
+    <ul>
+      <li class="good">零 JS、零依赖，一次性 debug 脚本可用</li>
+      <li class="bad">滚动容器里基本必死（桌面应用到处是滚动容器）</li>
+      <li class="bad">无 aria 语义、无主题、无延迟控制、无富内容</li>
+    </ul>
+    <div class="fit"><b>裁定</b>：产品代码<b>禁用</b>；仅作决策对照留档。</div>
+    <a class="open-btn" href="plan-c-pseudo.html">打开演示 →</a>
+  </div>
+</div>
+
+<!-- ═══════════ 能力矩阵 ═══════════ -->
+<h2>承载 × 定位 能力矩阵</h2>
+<p>两个正交决策：<b>承载</b>（popover top layer vs Portal fixed vs 留在原地）与<b>定位</b>(CSS 锚定 vs JS 计算 vs 纯 CSS 伪元素)。方案 A = popover + CSS 锚定；B = Portal + JS；C = 原地伪元素。</p>
+<table>
+  <thead><tr><th>能力</th><th>A · popover + CSS 锚定</th><th>B · Portal + JS 引擎</th><th>C · 伪元素 / title</th></tr></thead>
+  <tbody>
+    <tr><td>逃逸祖先 <code>overflow:hidden</code> 裁剪</td><td><b class="ok">✓ top layer</b></td><td><b class="ok">✓ body Portal</b></td><td><b class="bad">✗ 被裁</b> / ✓ 系统层</td></tr>
+    <tr><td>z-index 层级管理</td><td><b class="ok">免（top layer）</b></td><td><b class="mid">自管约定</b></td><td><b class="mid">层叠上下文坑</b></td></tr>
+    <tr><td>滚动 / resize / 拖动跟随</td><td><b class="ok">浏览器内建</b>（0 监听器）</td><td>scroll(capture) + resize 监听 → rAF</td><td>CSS 内建，但 transform 祖先劫持包含块</td></tr>
+    <tr><td>边缘 fallback（换边 / 滑回）</td><td><code>position-try-fallbacks</code> flip 链（无可编程 shift，交叉轴滑回待验证）</td><td><b class="ok">flip + shift 中间件可编程</b>（表达力最强）</td><td><b class="bad">无</b></td></tr>
+    <tr><td>箭头对齐触发器中心</td><td><code>anchor-center</code> 一行；换边需 show 后读 1 次边向</td><td>引擎投影计算，换边天然</td><td>固定偏移，不精确</td></tr>
+    <tr><td>与触发器同宽（Select 下拉）</td><td><code>anchor-size()</code></td><td>size 中间件</td><td>—</td></tr>
+    <tr><td>进出场动画</td><td><code>@starting-style</code> + <code>allow-discrete</code> 纯 CSS</td><td>class 切换 + transition</td><td>opacity 过渡</td></tr>
+    <tr><td>运行时 JS 面积</td><td><b class="ok">~60 行驱动层</b></td><td>~150–300 行自研 或 floating-ui ~5KB</td><td><b class="ok">0</b></td></tr>
+    <tr><td>可测试性</td><td>定位行为浏览器保证；驱动层纯逻辑可测</td><td><b class="ok">全链路可单测</b>（注入 rect）</td><td>—</td></tr>
+    <tr><td>风险 / 维护</td><td>anchor-name 唯一性；新 CSS 心智；12 位 position-area 样板</td><td>监听器生命周期 / 性能调优；自研维护或新增依赖</td><td>不可用</td></tr>
+  </tbody>
+</table>
+<p class="note">关键事实：<b>Electron 43.1.1 ≈ Chromium 150</b>——popover（114+，2023）与 CSS Anchor Positioning（125+，2024-05）均已稳定两个大版本周期。Web 兼容性这个 anchor positioning 最大的减分项，在桌面端单 Chromium 环境里<b>不存在</b>。</p>
+
+<!-- ═══════════ 位置 × 箭头 ═══════════ -->
+<h2>位置 × 箭头 矩阵（视觉稿，三方案一致）</h2>
+<table>
+  <thead><tr><th>placement（12）</th><th>A 的 CSS</th><th>箭头位置</th><th>fallback 后行为</th></tr></thead>
+  <tbody>
+    <tr><td><code>top</code>（默认）/ <code>top-start</code> / <code>top-end</code></td><td><code>position-area: top center</code> + <code>justify-self: anchor-*</code></td><td>tooltip 底边（= 触发器中心投影）× start/end 时距角 12px</td><td rowspan="4">链 <code>flip-block → flip-inline → flip-block flip-inline</code>；箭头随实际边向换边（data-side-real）。实测备注：CSS 无 floating-ui 式任意 shift，且 <code>safe anchor-center</code> 在 Chromium 146 上布局异常（误判溢出降级 start，暂不采用）——均是 B 的差异化优势</td></tr>
+    <tr><td><code>bottom</code> / <code>-start</code> / <code>-end</code></td><td><code>position-area: bottom center</code> + 同上</td><td>tooltip 顶边</td></tr>
+    <tr><td><code>left</code> / <code>-start</code> / <code>-end</code></td><td><code>position-area: left center</code> + <code>align-self: anchor-*</code></td><td>tooltip 右边</td></tr>
+    <tr><td><code>right</code> / <code>-start</code> / <code>-end</code></td><td><code>position-area: center right</code> + 同上</td><td>tooltip 左边</td></tr>
+  </tbody>
+</table>
+<p class="note">视觉规范：反相小标签（cream → 深咖底 <code>#43392c</code> 浅字；cocoa → 浅纸底 <code>#f0e9dc</code> 深字），radius-sm 8px、12px 字号、max-width 280 自动换行、间距 8px、进出场 130ms fade+2px 上浮。箭头 8px 旋转方块（单角 2.5px 圆角、中心落在边框外缘上），<code>arrow=false</code> 可关（VS Code / Linear 风格）。</p>
+
+<!-- ═══════════ 决策建议与 API ═══════════ -->
+<h2>决策建议与 API 草案</h2>
+<div class="decision">
+  <h3>怎么选</h3>
+  <ol>
+    <li><b>推荐定稿方案 A</b>：桌面端是单 Chromium 环境，anchor positioning 的唯一短板（兼容性）不存在；定位 JS 归零意味着 02 §5.2「浮层定位引擎是 M0 最重投入」直接降到最轻；top layer 免掉 z-index 与 Portal 两套心智。JS 驱动层（hover intent / focus-visible / aria / 读边向）预计 ~60 行，纯逻辑可测。</li>
+    <li><b>方案 B 不是落选，是保底与增量</b>：Menu / Select / Popover 迁移中若遇到 position-try 表达不了的策略（虚拟锚点、动态尺寸中间件、跨容器吸附），<b>仅对该组件</b>引入 JS 定位（演示页 mini 引擎即参考实现），承载仍走 popover——A 与 B 组合而非互斥。是否引入 floating-ui 届时再裁（当前零依赖）。</li>
+    <li><b>方案 C 禁入产品代码</b>：省 20 行驱动层的代价是裁剪、fallback、可达性、主题四张底牌全赔。title 仅保留给纯文本兜底场景。</li>
+    <li><b>实现提交的两处同步义务</b>：① anchor-name / position-area / position-try 不在 Tailwind 词表且 anchor-name 为动态值——需在 03 指南 §4 CSS 白名单扩一类「浮层锚定 CSS（含内联 anchor-name）」，DECISIONS.md 记一条；② Tooltip 不接 Esc、不进浮层退场注册表（瞬态非阻断，同 Toast 的 D-017 口径）。</li>
+  </ol>
+  <h3 style="margin-top:14px">ui/primitives/Tooltip API 草案</h3>
+  <pre><code>&lt;Tooltip content="复制" placement="top"&gt;        // children 克隆注入事件 + aria-describedby
+  &lt;IconButton icon={&lt;Copy /&gt;} /&gt;                    // disabled 子元素自动包 wrapper span（pointer 事件被吞）
+&lt;/Tooltip&gt;
+
+interface TooltipProps {
+  content: React.ReactNode;                 // string 或含 &lt;Kbd /&gt; 的富内容
+  placement?: Side | `${Side}-${Align}`;    // 12 位，默认 "top"
+  arrow?: boolean;                          // 默认 true（视觉定稿可全局关）
+  delay?: number | { show?: number; hide?: number };   // 默认 { show: 450, hide: 0 }；快速划过不闪
+  open?: boolean;                           // 受控（对齐 §5.3 浮层 open/onOpenChange 契约）
+  onOpenChange?: (open: boolean) =&gt; void;
+  children: ReactElement;
+}
+// 内建行为（不做成 props）：
+// - focus-visible 显示（键盘可达）· 移出即隐 · 相邻 Tooltip 切换零延迟（组联动）
+// - fallback 链与视口 padding(8px) 固定；箭头随 flip 换边（show 后读一次边向）
+// - anchor-name 用 useId 生成全文档唯一；承载 popover="manual"（不抢焦点、不 light-dismiss）
+// - 不接 Esc、不进浮层退场注册表（瞬态非阻断）；不含交互元素（可点的说明浮层是 Popover/Menu）
+// - 不导出命令式 API（tooltip.show() 之类不做——无障碍语义要求声明式）</code></pre>
+  <div class="note">实现映射：plan-a 的驱动层 JS（hover intent / focus-visible / aria-describedby / readRealSide）与进出场 CSS（@starting-style + allow-discrete）可直接移植；plan-b 的 mini 引擎留作 Menu/Select 保底参考。实测备注（Chromium 146 / Electron 41 内核）：popover、锚定、flip 链、<code>safe anchor-center</code> 均验证生效；CSS 无 floating-ui 式任意 shift，且 position-try 候选「整块放得下才启用、全失败回首选位」——极端小空间行为需在实现期用真实用例回归（这也是 B 保底价值的一部分）。Tooltip 属 ui/primitives 基础件（03 指南 §9 任务 2 清单内），选型落定后在实现提交中同步 03 §4 白名单与 DECISIONS.md。</div>
+</div>
+
+<p class="note" style="margin-top:28px">← 返回 <a href="../toast/index.html">Toast 导览</a>（上一个基础件） · 演示页：<a href="plan-a-native.html">A 原生锚定</a> · <a href="plan-b-engine.html">B JS 引擎</a> · <a href="plan-c-pseudo.html">C 凑合对照</a></p>
+
+</div>
+</body>
+</html>
