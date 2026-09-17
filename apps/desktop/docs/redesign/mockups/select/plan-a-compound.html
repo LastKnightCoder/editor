@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Select 方案 A · 复合组件（Select.Option 声明式） — Tau 桌面端</title>
+<!--
+  【Select 方案 A：复合组件 —— 结构写在 JSX 里】
+
+  心智：选项即标签。Select.Option 里直接写 JSX，富内容所见即所得；
+  分组用 Select.OptGroup。antd / Radix 同族心智，antd JSX 老用法迁移几乎零改动。
+
+  本页演示的是「React 编译产物」的 DOM 形态：每个 .sel 块对应一组
+  <Select><Select.Option>…</Select> 的渲染结果（右侧代码卡标注 JSX 原文）。
+  交互（键盘 / flip / 外点 / type-ahead / aria）与方案 B、C 完全一致——
+  三页共皮，差异只在「选项从哪来」。
+
+  Select 本体视觉（与 B/C 共用的皮）：
+  - 触发器：surface 亮底（表单控件家族做「浮起物」，2026-09-17 用户裁决：sunken→group→surface）+ line-1 描边
+    + radius-sm(8)；md=34px / sm=28px；chevron 16px 开合旋转 180°
+  - 弹层：surface 最亮层 + line-1 + radius-lg(16) + shadow-float + z-250，
+    min-width=触发器宽；上下 flip（D-004 引擎，GAP=4）；160ms ease-out
+  - 行：32px；高亮（键盘/hover）= bg-hover；选中 = bg-selected + 右侧 Check(accent)
+    ——选中与高亮两态并存（aria-activedescendant）
+  - 分组标签：tiny(11px) 600 + ink-3
+
+  暗账（本方案的代价，页内有体验块）：
+  - 搜索过滤：children 是 ReactNode 树，「label 包含输入串」要遍历解析
+  - 异步/大列表：先把 JSX 数量化再渲染——绕一圈回到方案 B 的形态
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  --titlebar-h: 46px; --sidebar-w: 218px; --statusbar-h: 30px;
+}
+/* D-006 表面阶梯重排后的最新 token（与 src/ui/theme/tokens.css 同步） */
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #ece4d4; --bg-sunken: #e2d8c0;
+  --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09);
+  --bg-selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+  --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+  --danger: #b0564d;
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+}
+[data-theme="cocoa"] {
+  color-scheme: dark;
+  --bg-page: #221d16; --bg-surface: #2e2820; --bg-group: #19150e; --bg-sunken: #100d08;
+  --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11);
+  --bg-selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+  --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+  --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+  --danger: #d97e66;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font); font-size: 13px; line-height: 1.65; color: var(--ink-1);
+  background: var(--bg-page); overflow: hidden; min-width: 1080px; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+::-webkit-scrollbar { width: 9px; }
+::-webkit-scrollbar-thumb { background: var(--line-1); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+
+.app { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); grid-template-rows: 100vh;
+  grid-template-areas: "sidebar main"; }
+.main { grid-area: main; display: flex; flex-direction: column; min-width: 0; background: var(--bg-page); }
+.sidebar { grid-area: sidebar; padding: 0 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.sidebar-head { display: flex; align-items: center; gap: 8px; height: var(--titlebar-h); padding: 0 6px; margin-bottom: 6px; }
+.brand-mark { width: 24px; height: 24px; border-radius: 8px; background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.brand-name { font-weight: 600; font-size: 13.5px; }
+.nav-label { font-size: 11px; color: var(--ink-3); padding: 8px 10px 6px; letter-spacing: 0.02em; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px;
+  border-radius: 10px; color: var(--ink-2); text-align: left; }
+.nav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-item.active { background: var(--bg-selected); color: var(--accent-text); font-weight: 550; }
+.titlebar { height: var(--titlebar-h); flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.icon-btn { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-2); }
+.icon-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.crumb { color: var(--ink-3); font-size: 12.5px; }
+.titlebar .spacer { flex: 1; }
+.win-controls { display: flex; gap: 6px; }
+.win-controls .dot { width: 12px; height: 12px; border-radius: 99px; background: var(--bg-sunken); border: 1px solid var(--line-1); }
+.home { flex: 1; overflow-y: auto; padding: 26px 40px 48px; }
+.home h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+.home .date { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; margin-bottom: 22px; }
+.panel { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card); padding: 18px 20px; margin-bottom: 16px; }
+.panel h3 { font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 12px; letter-spacing: 0.03em; }
+.statusbar { height: var(--statusbar-h); flex: none; display: flex; align-items: center; gap: 14px;
+  padding: 0 16px; font-size: 11.5px; color: var(--ink-3); border-top: 1px solid var(--line-1); }
+.row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; line-height: 1.8; }
+.note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+code.inline { font-family: var(--mono); font-size: 11px; background: var(--bg-group); padding: 1px 5px; border-radius: 5px; }
+
+/* 代码卡：展示对应 JSX 写法 */
+.code-card { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 10px;
+  padding: 12px 14px; font-family: var(--mono); font-size: 11.5px; line-height: 1.75; color: var(--ink-2);
+  overflow-x: auto; white-space: pre; margin-top: 12px; }
+.code-card .tag { color: var(--accent-text); }
+.code-card .attr { color: var(--ink-1); }
+.code-card .cmt { color: var(--ink-3); }
+
+/* ═══════════ Select 本体（三方案共皮） ═══════════ */
+.sel { position: relative; display: inline-flex; vertical-align: top; }
+.sel-trigger { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 5px 0 12px;
+  border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--line-1);
+  color: var(--ink-1); font-size: 13px; text-align: left; transition: border-color 160ms var(--ease-out), background 160ms var(--ease-out); }
+.sel-trigger:hover { border-color: var(--ink-3); }
+.sel-trigger:focus-visible { outline: none; box-shadow: var(--accent-soft), 0 0 0 3px var(--accent-soft); border-color: var(--accent); }
+.sel-trigger[data-open="true"] { border-color: var(--accent); }
+.sel-trigger .value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 8px; }
+.sel-trigger .value.placeholder { color: var(--ink-3); }
+.sel-trigger .caret { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center;
+  color: var(--ink-3); transition: transform 160ms var(--ease-out), color 160ms; }
+.sel-trigger .caret svg { width: 15px; height: 15px; }
+.sel-trigger[data-open="true"] .caret { transform: rotate(180deg); color: var(--accent-text); }
+.sel.sm .sel-trigger { height: 28px; font-size: 12px; padding: 0 3px 0 10px; }
+.sel.sm .sel-trigger .caret { width: 20px; height: 20px; }
+.sel.disabled { opacity: 0.55; pointer-events: none; }
+
+.sel-menu { position: fixed; z-index: 250; min-width: 100%; max-width: 340px;
+  background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-float); padding: 5px; max-height: 292px; overflow-y: auto; visibility: hidden;
+  opacity: 0; transform: translateY(4px); pointer-events: none;
+  transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out), visibility 160ms; }
+.sel-menu[data-open="true"] { visibility: visible; opacity: 1; transform: none; pointer-events: auto; }
+.sel-menu[data-dir="up"] { transform: translateY(-4px); }
+.sel-menu[data-open="true"][data-dir="up"] { transform: none; }
+
+.sel-opt { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px;
+  border-radius: var(--radius-sm); font-size: 13px; color: var(--ink-1); cursor: pointer;
+  position: relative; }
+.sel-opt:hover, .sel-opt[data-hl="true"] { background: var(--bg-hover); }
+.sel-opt[data-selected="true"] { background: var(--bg-selected); font-weight: 550; }
+.sel-opt .opt-check { margin-left: auto; width: 15px; height: 15px; color: var(--accent-text);
+  opacity: 0; transform: scale(0.8); transition: opacity 130ms, transform 130ms; }
+.sel-opt[data-selected="true"] .opt-check { opacity: 1; transform: scale(1); }
+.sel-opt.disabled { color: var(--ink-3); pointer-events: none; }
+.sel-opt .opt-sub { font-size: 11px; color: var(--ink-3); }
+.sel-opt .opt-icon { width: 15px; height: 15px; display: grid; place-items: center; color: var(--ink-2); }
+.sel-opt .opt-icon svg { width: 15px; height: 15px; }
+.sel-group-label { font-size: 11px; font-weight: 600; color: var(--ink-3); padding: 9px 10px 4px; }
+.sel-group-label:first-child { padding-top: 4px; }
+.sel-empty { padding: 18px 12px; text-align: center; font-size: 12.5px; color: var(--ink-3); }
+
+/* 富行（双行）变体 */
+.sel-opt.rich { height: auto; min-height: 44px; padding: 7px 10px; align-items: flex-start; flex-direction: column; gap: 1px; }
+.sel-opt.rich .rich-main { display: flex; align-items: center; gap: 8px; align-self: stretch; }
+.dot-lang { width: 8px; height: 8px; border-radius: 99px; flex: none; }
+
+.plan-badge { position: fixed; left: 16px; bottom: 42px; z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.plan-badge .tag { display: inline-flex; align-items: center; gap: 7px; background: var(--bg-surface);
+  border: 1px solid var(--line-1); box-shadow: var(--shadow-card); border-radius: 99px; padding: 6px 13px;
+  font-size: 11.5px; color: var(--ink-2); }
+.plan-badge .tag b { color: var(--accent-text); font-weight: 600; }
+.plan-note { width: 342px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px;
+  box-shadow: var(--shadow-card); padding: 14px 16px; font-size: 12px; color: var(--ink-2); line-height: 1.75; display: none; }
+.plan-note.open { display: block; }
+.plan-note h4 { font-size: 12.5px; color: var(--ink-1); margin-bottom: 6px; }
+.plan-note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+.plan-note .try { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); color: var(--ink-3); font-size: 11.5px; }
+.plan-note .links { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); font-size: 11px; color: var(--ink-3); }
+.plan-note .links a { color: var(--accent-text); text-decoration: none; }
+.plan-note .links a:hover { text-decoration: underline; }
+
+/* 暗账对照块 */
+.cost-block { border: 1px dashed var(--line-1); border-radius: 10px; padding: 12px 14px; margin-top: 12px;
+  font-size: 12px; color: var(--ink-2); line-height: 1.8; background: var(--bg-surface); }
+.cost-block b { color: var(--danger); }
+
+.kbd-row { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-3); margin-top: 10px; }
+.kbd-row kbd { padding: 1px 6px; border: 1px solid var(--line-1); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--bg-surface); font-size: 11px; font-family: var(--mono); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head"><div class="brand-mark">τ</div><div class="brand-name">Tau</div></div>
+    <div class="nav-label">工作台</div>
+    <button class="nav-item active">今日</button>
+    <button class="nav-item">日程</button>
+    <button class="nav-item">待办</button>
+    <div class="nav-label">知识</div>
+    <button class="nav-item">卡片库</button>
+    <button class="nav-item">文章</button>
+  </aside>
+
+  <div class="main">
+    <header class="titlebar">
+      <span class="crumb">· 设置 · 基础件设计稿</span>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="themeBtn" title="切换主题"><span id="themeIcon"></span></button>
+      <div class="win-controls"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    </header>
+
+    <div class="home">
+      <h1>Select 设计稿 · 方案 A</h1>
+      <div class="date">复合组件 · Select.Option 声明式 —— 结构写在 JSX 里，富内容所见即所得</div>
+
+      <div class="panel">
+        <h3>基础形态 · 与状态</h3>
+        <div class="row" id="basicRow">
+          <div class="sel" data-sel>
+            <button class="sel-trigger" type="button">
+              <span class="value placeholder">选择视图</span>
+              <span class="caret"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+            </button>
+            <div class="sel-menu">
+              <div class="sel-opt" data-value="today" data-label="今日">今日<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+              <div class="sel-opt" data-value="week" data-label="本周">本周<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+              <div class="sel-opt" data-value="month" data-label="本月">本月<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+              <div class="sel-opt" data-value="year" data-label="本年">本年<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+            </div>
+          </div>
+          <div class="sel sm" data-sel>
+            <button class="sel-trigger" type="button">
+              <span class="value">本周</span>
+              <span class="caret"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+            </button>
+            <div class="sel-menu">
+              <div class="sel-opt" data-value="today" data-label="今日">今日<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+              <div class="sel-opt" data-value="week" data-label="本周" data-selected="true">本周<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+              <div class="sel-opt" data-value="month" data-label="本月">本月<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+            </div>
+          </div>
+          <div class="sel disabled" data-sel>
+            <button class="sel-trigger" type="button" aria-disabled="true">
+              <span class="value">本年（只读）</span>
+              <span class="caret"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+            </button>
+          </div>
+        </div>
+        <div class="code-card"><span class="cmt">// 使用方：选项即标签，三五行搞定</span>
+<span class="tag">&lt;Select</span> <span class="attr">value={view} onValueChange={setView} placeholder="选择视图"</span><span class="tag">&gt;</span>
+  <span class="tag">&lt;Select.Option</span> <span class="attr">value="today"</span><span class="tag">&gt;</span>今日<span class="tag">&lt;/Select.Option&gt;</span>
+  <span class="tag">&lt;Select.Option</span> <span class="attr">value="week"</span><span class="tag">&gt;</span>本周<span class="tag">&lt;/Select.Option&gt;</span>
+  <span class="tag">&lt;Select.Option</span> <span class="attr">value="month"</span><span class="tag">&gt;</span>本月<span class="tag">&lt;/Select.Option&gt;</span>
+<span class="tag">&lt;/Select&gt;</span>   <span class="cmt">// sm 尺寸加 size="sm"；disabled 整组禁用</span></div>
+        <div class="kbd-row"><kbd>↑</kbd><kbd>↓</kbd> 高亮 · <kbd>Enter</kbd> 选中 · <kbd>Esc</kbd> 关闭 · <kbd>Home/End</kbd> 首末 · 直接敲字跳匹配</div>
+      </div>
+
+      <div class="panel">
+        <h3>富选项内容 · 本方案最大卖点</h3>
+        <div class="row">
+          <div class="sel" data-sel>
+            <button class="sel-trigger" type="button">
+              <span class="value" id="viewValue"><span class="opt-icon"><svg viewBox="0 0 24 24"><path d="M6 5v11M12 5v6M18 5v14"/></svg></span>看板</span>
+              <span class="caret"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+            </button>
+            <div class="sel-menu" style="min-width: 208px">
+              <div class="sel-opt rich" data-value="list" data-label="清单">
+                <div class="rich-main"><span class="opt-icon"><svg viewBox="0 0 24 24"><path d="m3 17 2 2 4-4M3 7l2 2 4-4M13 6h8M13 12h8M13 18h8"/></svg></span>清单<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+                <span class="opt-sub">按完成度勾选的经典待办</span>
+              </div>
+              <div class="sel-opt rich" data-value="kanban" data-label="看板" data-selected="true">
+                <div class="rich-main"><span class="opt-icon"><svg viewBox="0 0 24 24"><path d="M6 5v11M12 5v6M18 5v14"/></svg></span>看板<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+                <span class="opt-sub">拖拽流转的进度卡片</span>
+              </div>
+              <div class="sel-opt rich" data-value="gallery" data-label="画廊">
+                <div class="rich-main"><span class="opt-icon"><svg viewBox="0 0 24 24"><path d="M3 3h18v18H3zM3 15l4.5-4.5a2 2 0 0 1 2.8 0L21 21"/></svg></span>画廊<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+                <span class="opt-sub">以视觉为主的瀑布流</span>
+              </div>
+              <div class="sel-opt rich disabled" data-value="timeline" data-label="时间线">
+                <div class="rich-main"><span class="opt-icon"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></span>时间线<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+                <span class="opt-sub">规划中 · 不可选（disabled）</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="sel" data-sel>
+            <button class="sel-trigger" type="button">
+              <span class="value"><span class="dot-lang" style="background:#c8553d"></span>中文（简体）</span>
+              <span class="caret"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+            </button>
+            <div class="sel-menu">
+              <div class="sel-opt rich" data-value="zh" data-label="中文（简体） Chinese Simplified" data-selected="true">
+                <div class="rich-main"><span class="dot-lang" style="background:#c8553d"></span>中文（简体）<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+                <span class="opt-sub">Chinese Simplified</span>
+              </div>
+              <div class="sel-opt rich" data-value="en" data-label="English 英文">
+                <div class="rich-main"><span class="dot-lang" style="background:#4a6fa5"></span>English<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+                <span class="opt-sub">英文</span>
+              </div>
+              <div class="sel-opt rich" data-value="ja" data-label="日本語 日文">
+                <div class="rich-main"><span class="dot-lang" style="background:#8a7aa6"></span>日本語<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+                <span class="opt-sub">日文</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="code-card"><span class="cmt">// Option 里就是 JSX：图标、双行、色点、徽章随便写，类型零负担</span>
+<span class="tag">&lt;Select.Option</span> <span class="attr">value="kanban"</span><span class="tag">&gt;</span>
+  <span class="tag">&lt;div</span> <span class="attr">className="flex items-center gap-2"</span><span class="tag">&gt;</span>&lt;Kanban /&gt;看板<span class="tag">&lt;/div&gt;</span>
+  <span class="tag">&lt;span</span> <span class="attr">className="text-tau-tiny text-ink-3"</span><span class="tag">&gt;</span>拖拽流转的进度卡片<span class="tag">&lt;/span&gt;</span>
+<span class="tag">&lt;/Select.Option&gt;</span></div>
+        <div class="note">触发器回填选中项的 <em>label 投影</em>（双行变体回填主行）；富内容直接写在 children 里，
+          不需要 <code class="inline">renderOption</code> 之类的逃生舱——这是复合组件相对数据驱动的真实优势。</div>
+      </div>
+
+      <div class="panel">
+        <h3>分组 · Select.OptGroup</h3>
+        <div class="row">
+          <div class="sel" data-sel>
+            <button class="sel-trigger" type="button">
+              <span class="value placeholder">选择笔记本…</span>
+              <span class="caret"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+            </button>
+            <div class="sel-menu" style="min-width: 232px">
+              <div class="sel-group-label">置顶</div>
+              <div class="sel-opt" data-value="inbox" data-label="收件箱">收件箱<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+              <div class="sel-opt" data-value="ideas" data-label="灵感速记">灵感速记<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+              <div class="sel-group-label">全部笔记本</div>
+              <div class="sel-opt" data-value="work" data-label="工作 · 重构">工作 · 重构<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+              <div class="sel-opt" data-value="read" data-label="阅读摘录">阅读摘录<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+              <div class="sel-opt" data-value="life" data-label="生活琐记">生活琐记<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="code-card"><span class="tag">&lt;Select.OptGroup</span> <span class="attr">label="置顶"</span><span class="tag">&gt;</span> … <span class="tag">&lt;/Select.OptGroup&gt;</span>
+<span class="tag">&lt;Select.OptGroup</span> <span class="attr">label="全部笔记本"</span><span class="tag">&gt;</span> … <span class="tag">&lt;/Select.OptGroup&gt;</span></div>
+      </div>
+
+      <div class="panel">
+        <h3>语境显形 · 卡片 / 工具栏 / 表单行</h3>
+        <div class="row" style="align-items: flex-start">
+          <div style="flex: 1; min-width: 300px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow-card)">
+            <div style="font-size: 12.5px; font-weight: 600; margin-bottom: 10px">导出范围</div>
+            <div class="sel" data-sel style="width: 100%">
+              <button class="sel-trigger" type="button" style="width: 100%">
+                <span class="value placeholder">选择导出范围</span>
+                <span class="caret"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+              </button>
+              <div class="sel-menu">
+                <div class="sel-opt" data-value="all" data-label="全部卡片">全部卡片<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+                <div class="sel-opt" data-value="filtered" data-label="当前筛选结果">当前筛选结果<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+                <div class="sel-opt" data-value="selected" data-label="已勾选的 12 张">已勾选的 12 张<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+              </div>
+            </div>
+            <div class="note" style="margin-top: 8px">surface 卡片上：同底控件靠 line-1 描边显形（antd 白卡白输入框同款做法）</div>
+          </div>
+          <div style="flex: 1; min-width: 300px; background: var(--bg-group); border: 1px solid var(--line-1); border-radius: 12px; padding: 14px 16px">
+            <div style="font-size: 12.5px; font-weight: 600; margin-bottom: 10px">工具栏（group 底上）</div>
+            <div class="row">
+              <div class="sel sm" data-sel>
+                <button class="sel-trigger" type="button">
+                  <span class="value">按修改时间</span>
+                  <span class="caret"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+                </button>
+                <div class="sel-menu">
+                  <div class="sel-opt" data-value="mtime" data-label="按修改时间" data-selected="true">按修改时间<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+                  <div class="sel-opt" data-value="ctime" data-label="按创建时间">按创建时间<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+                  <div class="sel-opt" data-value="title" data-label="按标题">按标题<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+                </div>
+              </div>
+            </div>
+            <div class="note" style="margin-top: 8px">group 底工具栏上 surface 控件浮起一档，显形最利落</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>边缘实验 · 视口底部 flip / 同宽</h3>
+        <div style="height: 120px; border: 1px dashed var(--line-1); border-radius: 12px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 14px; background: var(--bg-surface)">
+          <div class="sel" data-sel>
+            <button class="sel-trigger" type="button">
+              <span class="value">贴着底边 → 向上翻</span>
+              <span class="caret"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+            </button>
+            <div class="sel-menu">
+              <div class="sel-opt" data-value="1" data-label="较长的一项：看 min-width 是否与触发器对齐">较长的一项：看 min-width 是否与触发器对齐<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+              <div class="sel-opt" data-value="2" data-label="第二项">第二项<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+              <div class="sel-opt" data-value="3" data-label="第三项">第三项<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+              <div class="sel-opt" data-value="4" data-label="第四项">第四项<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+              <div class="sel-opt" data-value="5" data-label="第五项">第五项<span class="opt-check"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="note">下方放不下 → 翻到触发器上方，动画方向跟随（translateY(-4px) 起步）；
+          弹层 <em>min-width = 触发器宽</em>、长内容可撑开至 340px 封顶。定位数学复用 D-004 引擎（GAP=4）。</div>
+      </div>
+
+      <div class="panel">
+        <h3>暗账 · 本方案绕不开的三件事</h3>
+        <div class="cost-block">
+          <b>① 搜索过滤要解析树：</b><code class="inline">searchable</code> 时组件得遍历 children、
+          抽取每个 Option 的文本做 includes——「可编程的数据」在 A 里是「要解析的 JSX 树」。
+          <div class="code-card" style="margin-top:8px"><span class="cmt">// 方案 B 是一行：options.filter(o =&gt; labelOf(o).includes(q))</span>
+<span class="cmt">// 方案 A：React.Children.forEach + isValidElement + 读 props.children…</span>
+<span class="tag">const</span> text = extractText(children)  <span class="cmt">// 每个 Option 都要走一遍</span></div>
+        </div>
+        <div class="cost-block" style="margin-top: 8px">
+          <b>② 异步 / 大列表先数组化：</b>远程选项拿到的是数组，还得 <code class="inline">map</code> 回 Option JSX 再喂给组件——
+          绕一圈回到 B 的形态；选项上千时 children 语法无法切片（M1 虚拟化受阻）。
+        </div>
+        <div class="cost-block" style="margin-top: 8px">
+          <b>③ value 类型推断弱：</b>selected 值从 children 收集是运行时行为，TS 只能宽泛为 string；
+          M1 多选（value: V[]）时 Option 协议要跟着动，属破坏性改动。
+        </div>
+      </div>
+    </div>
+
+    <div class="statusbar"><span>Tau v2 · 重构中</span><span>方案 A · 复合组件 · 与 B/C 共皮</span></div>
+  </div>
+</div>
+
+<div class="plan-badge">
+  <button class="tag" id="noteToggle"><b>方案 A</b> 复合组件 · Select.Option · 交互说明</button>
+  <div class="plan-note" id="planNote">
+    <h4>选项即标签</h4>
+    结构写在 JSX：<em>&lt;Select.Option&gt;</em> 里直接写富内容（图标 / 双行 / 徽章），
+    antd JSX 老用法几乎零成本迁移，分组用 OptGroup。
+    代价：搜索要解析树、异步/大列表要先数组化、value 类型推断弱——见页底「暗账」。
+    <div class="try">试试：全部下拉均可键盘操作（↑↓ Enter Esc Home/End 敲字跳匹配）；
+      贴底边那个看 flip 向上展开；右上角切 cream / cocoa 双主题验对比度。</div>
+    <div class="links">对比：<b>A 复合组件</b> · <a href="plan-b-options.html">B 数据驱动（推荐）</a> · <a href="plan-c-headless.html">C 无头 hook</a> · <a href="index.html">导览</a></div>
+  </div>
+</div>
+
+<script>
+/* ───────── 图标 / 主题 ───────── */
+const P = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+};
+let theme = "cream";
+function toggleTheme() {
+  theme = theme === "cream" ? "cocoa" : "cream";
+  document.documentElement.dataset.theme = theme;
+  document.getElementById("themeIcon").innerHTML =
+    `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P[theme === "cream" ? "moon" : "sun"]}</svg>`;
+}
+document.getElementById("themeBtn").addEventListener("click", toggleTheme);
+document.getElementById("themeIcon").innerHTML = `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P.moon}</svg>`;
+
+/* ═══════════════════════════════════════════════════════════════
+   mini select 核心（三页共用，A/B/C 同行为）：
+   open/close · flip 定位 · 键盘 · type-ahead · aria · 外点关闭 · 焦点归还
+   ═══════════════════════════════════════════════════════════════ */
+const GAP = 4;               // 与触发器间距（D-004 引擎 offset，下拉比 tooltip 贴）
+let typeTimer = 0, typeBuf = "";
+
+function optionsOf(menu) {
+  return [...menu.querySelectorAll(".sel-opt")].filter(o => !o.classList.contains("filtered-out"));
+}
+function groupsSync(menu) {
+  menu.querySelectorAll(".sel-group-label").forEach(g => {
+    let el = g.nextElementSibling, any = false;
+    while (el && !el.classList.contains("sel-group-label")) {
+      if (el.classList.contains("sel-opt") && !el.classList.contains("filtered-out")) any = true;
+      el = el.nextElementSibling;
+    }
+    g.style.display = any ? "" : "none";
+  });
+}
+function setHl(menu, opt) {
+  menu.querySelectorAll(".sel-opt").forEach(o => { o.dataset.hl = "false"; o.removeAttribute("aria-selected"); });
+  if (opt) { opt.dataset.hl = "true"; opt.setAttribute("aria-selected", opt.dataset.selected === "true"); }
+  menu.setAttribute("aria-activedescendant", opt ? opt.id : "");
+  opt?.scrollIntoView({ block: "nearest" });
+}
+function move(sel, dir) {
+  const opts = optionsOf(sel.menu).filter(o => !o.classList.contains("disabled"));
+  if (!opts.length) return;
+  const cur = opts.findIndex(o => o.dataset.hl === "true");
+  const next = dir === 0 ? (cur < 0 ? opts.findIndex(o => o.dataset.selected === "true") : cur)
+    : (cur + dir + opts.length) % opts.length;
+  setHl(sel.menu, opts[next < 0 ? 0 : next]);
+}
+function place(sel) {
+  const r = sel.trigger.getBoundingClientRect();
+  const cur = parseFloat(getComputedStyle(sel.menu).minWidth) || 0;
+  sel.menu.style.minWidth = `${Math.max(r.width, cur)}px`;
+  sel.menu.style.visibility = "hidden"; sel.menu.style.display = "";
+  const mh = sel.menu.offsetHeight, vw = innerWidth, vh = innerHeight;
+  const below = vh - r.bottom - GAP, up = r.top - GAP;
+  const dir = below >= mh || below >= up ? "down" : "up";
+  let left = Math.min(Math.max(8, r.left), vw - 8 - sel.menu.offsetWidth);
+  sel.menu.style.left = `${left}px`;
+  sel.menu.style.top = dir === "down" ? `${r.bottom + GAP}px` : `${Math.max(8, r.top - GAP - mh)}px`;
+  sel.menu.dataset.dir = dir;
+  sel.menu.style.visibility = "";
+}
+function open(sel) {
+  if (sel.open) return;
+  sel.open = true;
+  sel.trigger.dataset.open = "true";
+  sel.trigger.setAttribute("aria-expanded", "true");
+  sel.menu.dataset.open = "true";
+  place(sel);
+  const cur = optionsOf(sel.menu).find(o => o.dataset.selected === "true");
+  setHl(sel.menu, cur || optionsOf(sel.menu)[0]);
+  sel.onOpen?.();
+}
+function close(sel, refocus = true) {
+  if (!sel.open) return;
+  sel.open = false;
+  sel.trigger.dataset.open = "false";
+  sel.trigger.setAttribute("aria-expanded", "false");
+  sel.menu.dataset.open = "false";
+  sel.menu.setAttribute("aria-activedescendant", "");
+  if (refocus) sel.trigger.focus();
+  sel.onClose?.();
+}
+function pick(sel, opt) {
+  if (opt.classList.contains("disabled")) return;
+  sel.menu.querySelectorAll(".sel-opt").forEach(o => o.dataset.selected = "false");
+  opt.dataset.selected = "true";
+  // 回填：克隆选项的主行（rich 取 .rich-main，普通取文本节点）
+  const main = opt.querySelector(".rich-main");
+  const proj = main ? main.cloneNode(true) : document.createRange().createContextualFragment(opt.dataset.label);
+  const valueEl = sel.trigger.querySelector(".value");
+  valueEl.innerHTML = ""; valueEl.classList.remove("placeholder");
+  // 去掉克隆里的 check 图标，只留图标与文本
+  proj.querySelectorAll?.(".opt-check").forEach(c => c.remove());
+  valueEl.appendChild(proj);
+  sel.onChange?.(opt.dataset.value, opt.dataset.label);
+  close(sel);
+}
+
+function mountSelect(root) {
+  const trigger = root.querySelector(".sel-trigger");
+  const menu = root.querySelector(".sel-menu");
+  if (!trigger || !menu) return;
+  const sel = { root, trigger, menu, open: false, onChange: null };
+  [...menu.querySelectorAll(".sel-opt")].forEach((o, i) => { o.id ||= `opt-${Math.random().toString(36).slice(2, 8)}-${i}`; });
+  menu.setAttribute("role", "listbox");
+  trigger.setAttribute("role", "combobox");
+  trigger.setAttribute("aria-haspopup", "listbox");
+  trigger.setAttribute("aria-expanded", "false");
+
+  trigger.addEventListener("click", () => sel.open ? close(sel) : open(sel));
+  trigger.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); open(sel); move(sel, e.key === "ArrowDown" ? 1 : -1); }
+    else if ((e.key === "Enter" || e.key === " ") && !sel.open) { e.preventDefault(); open(sel); }
+    else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && !sel.open) {
+      typeBuf += e.key.toLowerCase();
+      clearTimeout(typeTimer);
+      typeTimer = setTimeout(() => typeBuf = "", 400);
+      const hit = optionsOf(menu).find(o => o.dataset.label.toLowerCase().startsWith(typeBuf));
+      if (hit) { open(sel); setHl(menu, hit); }
+    }
+  });
+  menu.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); move(sel, e.key === "ArrowDown" ? 1 : -1); }
+    else if (e.key === "Home" || e.key === "End") {
+      e.preventDefault();
+      const opts = optionsOf(menu).filter(o => !o.classList.contains("disabled"));
+      setHl(menu, opts[e.key === "Home" ? 0 : opts.length - 1]);
+    } else if (e.key === "Enter") { e.preventDefault(); pick(sel, menu.querySelector('[data-hl="true"]')); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(sel); }
+    else if (e.key === "Tab") close(sel, false);
+  });
+  menu.addEventListener("click", e => {
+    const opt = e.target.closest(".sel-opt");
+    if (opt) pick(sel, opt);
+  });
+  const reposition = () => sel.open && place(sel);
+  window.addEventListener("resize", reposition);
+  window.addEventListener("scroll", reposition, true);
+  return sel;
+}
+
+/* 全量挂载（A 页：静态 DOM 即「编译产物」） */
+const mounted = [...document.querySelectorAll(".sel")].map(mountSelect).filter(Boolean);
+mounted.forEach(s => s.onChange = (v, label) => console.log("[方案A] 选中:", v));
+
+/* plan-note 开合 */
+const noteToggle = document.getElementById("noteToggle");
+noteToggle.addEventListener("click", () => document.getElementById("planNote").classList.toggle("open"));
+
+/* 外点关闭（全局唯一打开实例——桌面语感） */
+document.addEventListener("pointerdown", e => {
+  mounted.forEach(s => {
+    if (s.open && !s.root.contains(e.target)) close(s, false);
+  });
+}, true);
+</script>
+</body>
+</html>
