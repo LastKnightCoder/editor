@@ -5,7 +5,7 @@
  * 6199、入口 showcase.html。`pnpm showcase` 启动并自动打开浏览器。
  * 样式走同一套 tailwind + tokens.css（语义类/tau 词表），组件直接 import
  * src/ui/primitives 真实现——mockup 版（docs/redesign/mockups/showcase/）
- * 只是视觉定稿稿，本入口才是长期维护的样板间（D-019）。
+ * 只是视觉定稿稿，本入口才是长期维护的样板间（D-005）。
  */
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";

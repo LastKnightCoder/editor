@@ -42,6 +42,7 @@ import clsx from "clsx";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { cn } from "@/ui/cn";
 import { computeTooltipPosition } from "./tooltipPosition";
+import { useListNavigation } from "./useListNavigation";
 
 export interface SelectOption<V = string> {
   value: V;
@@ -79,8 +80,6 @@ export interface SelectProps<V = string> {
   ref?: Ref<HTMLButtonElement>;
 }
 
-const TYPE_AHEAD_MS = 400;
-
 /** 默认过滤：label 文本 + searchText 的 includes（query 已小写化） */
 function defaultFilter<V>(option: SelectOption<V>, query: string): boolean {
   const text = typeof option.label === "string" ? option.label : "";
@@ -112,10 +111,7 @@ export function Select<V = string>({
   const [internalValue, setInternalValue] = useState<V | null>(defaultValue);
   const [internalOpen, setInternalOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [hl, setHl] = useState(-1);
   const menuId = useId();
-  const typeTimer = useRef<number>(0);
-  const typeBuf = useRef("");
 
   const value = valueProp !== undefined ? valueProp : internalValue;
   const open = openProp ?? internalOpen;
@@ -126,6 +122,20 @@ export function Select<V = string>({
     if (!searchable || !q) return options;
     return options.filter(o => (filter ?? defaultFilter<V>)(o, q));
   }, [options, query, searchable, filter]);
+
+  /** 高亮在可见序列上环游 / 边缘直达 / type-ahead（与 Menu 共用的交集，D-007） */
+  const nav = useListNavigation<number>({
+    items: () => visible.map((_, i) => i),
+    isDisabled: i => visible[i]?.disabled === true,
+    initial: () => {
+      const i = visible.findIndex(o => o.value === value);
+      if (i >= 0) return i;
+      const first = visible.findIndex(o => !o.disabled);
+      return first >= 0 ? first : null;
+    },
+  });
+  const hl = nav.current ?? -1;
+  const setHl = nav.set;
 
   /** 可见行（分组标签 + 选项混排），option 携带它在 visible 里的索引供高亮锚定 */
   const rows = useMemo(() => {
@@ -150,21 +160,9 @@ export function Select<V = string>({
   };
 
   /** 高亮归位：优先当前值，否则首个可选项（过滤后高亮重算也走这里） */
-  const resetHl = () => {
-    const i = visible.findIndex(o => o.value === value);
-    if (i >= 0) setHl(i);
-    else setHl(visible.findIndex(o => !o.disabled));
-  };
+  const resetHl = () => nav.reset();
 
-  const moveHl = (dir: 1 | -1) => {
-    const n = visible.length;
-    if (!n) return;
-    let i = hl;
-    do {
-      i = (i + dir + n) % n;
-    } while (visible[i].disabled && i !== hl);
-    setHl(i);
-  };
+  const moveHl = (dir: 1 | -1) => nav.move(dir);
 
   const pick = (opt: SelectOption<V>) => {
     if (opt.disabled) return;
@@ -238,9 +236,6 @@ export function Select<V = string>({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  // 卸载清挂起的 type-ahead
-  useEffect(() => () => window.clearTimeout(typeTimer.current), []);
-
   // 外点关闭（弹层内滚动不是外点；焦点不抢——pointerdown 不 preventDefault）
   useEffect(() => {
     if (!open) return;
@@ -266,11 +261,7 @@ export function Select<V = string>({
       moveHl(e.key === "ArrowDown" ? 1 : -1);
     } else if (e.key === "Home" || e.key === "End") {
       e.preventDefault();
-      const n = visible.length;
-      if (!n) return;
-      const edge = e.key === "Home" ? 0 : n - 1;
-      if (visible[edge].disabled) return;
-      setHl(edge);
+      nav.edge(e.key === "Home" ? "home" : "end");
     } else if (e.key === "Enter") {
       e.preventDefault();
       pickHighlighted();
@@ -293,18 +284,15 @@ export function Select<V = string>({
       e.preventDefault();
       setOpen(true);
     } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && !searchable) {
-      // type-ahead：400ms 窗口内累积前缀匹配
-      typeBuf.current += e.key.toLowerCase();
-      window.clearTimeout(typeTimer.current);
-      typeTimer.current = window.setTimeout(() => (typeBuf.current = ""), TYPE_AHEAD_MS);
-      const hit = visible.find(o => {
-        const text = typeof o.label === "string" ? o.label : (o.searchText ?? "");
-        return text.toLowerCase().startsWith(typeBuf.current);
+      // type-ahead：400ms 窗口内累积前缀匹配（命中即打开并落高亮）
+      const hit = nav.typeAhead(e.key, buf => {
+        const i = visible.findIndex(o => {
+          const text = typeof o.label === "string" ? o.label : (o.searchText ?? "");
+          return text.toLowerCase().startsWith(buf);
+        });
+        return i >= 0 ? i : undefined;
       });
-      if (hit) {
-        setOpen(true);
-        setHl(visible.indexOf(hit));
-      }
+      if (hit !== undefined) setOpen(true);
     }
   };
 

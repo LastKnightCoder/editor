@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tau 桌面端 · Menu 方案导览（三路线对比 + 视觉语言裁决）</title>
+<!--
+  Menu 基础件设计导览：与 Select 同族（浮层列表类），但「方案」分歧不在技术——
+  定位引擎已由 D-004 定稿（自研 JS mini 引擎），导航行为已由 D-007 预告
+  （Select/Menu 两例交集抽 listbox hook），Esc 口径同 Select（焦点链 LIFO，
+  不进 D-003 注册表）。真正的开放决策是「视觉形态语言」：同一套元素清单
+  （命令/开关/单选/分隔/子菜单/danger），三种密度与形制。
+
+  三份演示页共用 tau 双主题、同一份元素清单与交互行为，差异只在皮：
+  A 经典桌面（macOS 语感）· B 现代产品（Linear 语感）· C 密集工作台（IDE 语感）。
+  本页给出业界参照、视觉差异对照、行为契约与 API 草案，供综合选择。
+-->
+<style>
+:root {
+  --ink: #1d1f24; --ink-2: #5b606b; --ink-3: #8b919c;
+  --bg: #fcfcfd; --surface: #fff; --line: #e6e8ec; --accent: #4650c8;
+  --accent-soft: rgba(70, 80, 200, 0.09);
+  --good: #3e6b4f; --bad: #9c5148;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--ink); background: var(--bg); font-size: 14px; line-height: 1.75; }
+.page { max-width: 1020px; margin: 0 auto; padding: 48px 32px 96px; }
+h1 { font-size: 26px; letter-spacing: -0.01em; margin-bottom: 8px; }
+.lede { color: var(--ink-2); max-width: 78ch; margin-bottom: 8px; }
+.lede b { color: var(--ink); }
+h2 { font-size: 19px; margin: 46px 0 6px; }
+h2 + p { color: var(--ink-2); margin-bottom: 16px; max-width: 78ch; }
+a { color: var(--accent); }
+kbd { padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--surface); font-size: 12px; font-family: ui-monospace, Consolas, monospace; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--accent-soft);
+  color: var(--accent); border-radius: 5px; padding: 1px 6px; }
+pre { background: #f6f7f9; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+  font-size: 12.5px; line-height: 1.8; overflow-x: auto; color: var(--ink-2); margin-top: 10px; }
+pre code { background: none; color: inherit; padding: 0; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+td b.ok { color: var(--good); } td b.bad { color: var(--bad); } td b.mid { color: #8a6d3b; }
+
+.plan-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 14px; }
+@media (max-width: 900px) { .plan-grid { grid-template-columns: 1fr; } }
+.plan-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+.plan-card h3 { font-size: 15.5px; margin-bottom: 2px; }
+.plan-card .en { font-size: 11.5px; color: var(--ink-3); margin-bottom: 10px; }
+.plan-card .stance { font-size: 12.5px; color: var(--ink-2); margin-bottom: 12px; min-height: 66px; }
+.plan-card .stance b { color: var(--ink); }
+/* 线框示意：三种行形态的抽象 */
+.wf { height: 108px; border: 1px solid var(--line); border-radius: 10px; background: #f6f7f9;
+  position: relative; margin-bottom: 12px; overflow: hidden; padding: 8px 10px; }
+.wf-row { display: flex; align-items: center; gap: 6px; background: var(--surface);
+  border: 1px solid var(--line); margin-bottom: 4px; }
+.wf-row .ic { border-radius: 99px; background: #c9cdd4; flex: none; }
+.wf-row .tx { border-radius: 99px; background: #d7dae0; height: 6px; flex: 1; }
+.wf-row .kb { border-radius: 99px; background: #e3e5ea; height: 8px; width: 26px; flex: none; }
+.wf-row.hl { background: #eceefc; border-color: #b9bdf0; }
+.plan-card ul { list-style: none; font-size: 12.5px; color: var(--ink-2); }
+.plan-card li { padding-left: 15px; position: relative; margin: 3px 0; }
+.plan-card li::before { content: "·"; position: absolute; left: 4px; color: var(--ink-3); }
+.plan-card li.good { color: var(--good); }
+.plan-card li.bad { color: var(--bad); }
+.open-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px; border-radius: 9px;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 550; text-decoration: none; margin-top: 10px; }
+.open-btn:hover { filter: brightness(1.08); }
+.plan-card .fit { font-size: 12px; background: #f6f7f9; border: 1px dashed var(--line); border-radius: 8px;
+  padding: 8px 12px; margin-top: 10px; color: var(--ink-2); }
+.plan-card .fit b { color: var(--ink); }
+
+.decision { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-top: 14px; }
+.decision h3 { font-size: 15px; margin-bottom: 8px; }
+.decision ol { padding-left: 20px; font-size: 13px; color: var(--ink-2); }
+.decision ol li { margin: 7px 0; }
+.decision ol li b { color: var(--ink); }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; }
+.verdict { display: inline-flex; align-items: center; gap: 6px; background: #eef4ee; color: var(--good);
+  border: 1px solid #d5e3d5; border-radius: 99px; padding: 2px 12px; font-size: 12px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Menu 基础件 · 方案导览</h1>
+<p class="lede">已定稿：<b style="color:#3e6b4f;">方案 B · 现代产品（药丸行 + 控件式勾选 + kbd chip，2026-09-17 用户裁决，D-010）</b>——A/C 留档对照。Menu 是<b>动作触发的浮层命令面板</b>——与 Select 的分界在语义：Select 选值即关，
+Menu 承载命令、开关（checkbox）、单选组（radio）、分隔、子菜单的<b>异构序列</b>，开关项触发不关闭。
+技术底盘已定：定位复用 <b>D-004 自研 mini 引擎</b>（GAP=4 与 Select 同族），键盘导航按
+<b>D-007 预告</b>从 Select/Menu 两例交集抽 listbox hook，Esc 同 Select 口径（焦点链 LIFO，
+不进 D-003 注册表）。因此本页的开放决策只有一件事：<b>视觉形态语言</b>——三份演示页同内容、
+同行为、共皮引擎，差异全在密度与形制，供综合选择。</p>
+
+<!-- ═══════════ 业界参照 ═══════════ -->
+<h2>业界参照</h2>
+<table>
+  <thead><tr><th>产品 / 库</th><th>形态语言</th><th>值得借鉴</th></tr></thead>
+  <tbody>
+    <tr><td><b>macOS 原生菜单</b></td><td>图标列对齐 + glyph 勾选 + 快捷键纯文本右对齐</td><td>三十年桌面肌肉记忆；勾选态画在图标列位；分隔与分组标签的克制用法</td></tr>
+    <tr><td><b>Windows 11 WinUI</b></td><td>圆角浮层 + 矮行 + Acrylic 材质</td><td>系统级圆角化后的原生菜单新基准；快捷键与图标列同 macOS 心智</td></tr>
+    <tr><td><b>VS Code</b></td><td>26px 矮行 + mono 快捷键 + checkbox 菜单</td><td>密集工作台语感；长菜单滚动 + 键盘跟随的工程处理</td></tr>
+    <tr><td><b>JetBrains 系</b></td><td>矮行 + 底部状态描述条</td><td>高亮项说明念在 footer——长命令清单不用 hover 猜语义</td></tr>
+    <tr><td><b>Linear</b></td><td>药丸行 + 控件式勾选 + kbd chip + destructive 实心 hover</td><td>现代 SaaS 菜单范本；danger hover 实心红「有后果感」表达最强</td></tr>
+    <tr><td><b>Radix DropdownMenu</b></td><td>无皮 headless</td><td>API 面蓝本：CheckboxItem / RadioGroup / Sub 的复合组件协议（antd 同构）</td></tr>
+    <tr><td><b>Notion</b></td><td>图标随需出现 + 分组标签</td><td>无图标菜单不留空位的松紧处理；hover 展开子菜单的时机</td></tr>
+  </tbody>
+</table>
+<p class="note">共识：① 行高 26–34px 是光谱两端，没有对错只有语境；② 勾选形态二选一——glyph（✓ 占图标位）或显式控件（方框/圆圈）；
+③ 快捷键永远右对齐，穿不穿 chip 是品牌决策；④ danger 项必须有视觉分离（色字 / 实心 hover 二选一）；
+⑤ 子菜单级联右展、hover 有延迟、键盘 → 展开，三端一致。</p>
+
+<!-- ═══════════ 三方案 ═══════════ -->
+<h2>三条形态路线</h2>
+<div class="plan-grid">
+
+  <div class="plan-card">
+    <h3>方案 A · 经典桌面</h3>
+    <div class="en">macOS 语感 — 图标列对齐 · glyph 勾选 · 纯文本快捷键</div>
+    <div class="wf">
+      <div class="wf-row" style="height:18px; border-radius:5px;"><span class="ic" style="width:9px;height:9px"></span><span class="tx"></span><span class="kb"></span></div>
+      <div class="wf-row hl" style="height:18px; border-radius:5px;"><span class="ic" style="width:9px;height:9px;background:#4650c8"></span><span class="tx"></span><span class="kb"></span></div>
+      <div class="wf-row" style="height:18px; border-radius:5px;"><span class="ic" style="width:9px;height:9px"></span><span class="tx"></span><span class="kb"></span></div>
+      <div style="height:1px;background:var(--line);margin:3px 10px"></div>
+      <div class="wf-row" style="height:18px; border-radius:5px;"><span class="ic" style="width:9px;height:9px;background:#9c5148"></span><span class="tx" style="background:#e5c4bf"></span></div>
+    </div>
+    <div class="stance"><b>信任操作系统的三十年肌肉记忆。</b>图标列 17px 强制占位（无图标留空位换文字列对齐），
+      勾选 glyph（✓ / ●）画在图标列，快捷键右对齐纯文本。菜单是「命令清单」，不是「卡片」。</div>
+    <ul>
+      <li class="good">零学习成本——从任何桌面应用过来的用户不需要适应</li>
+      <li class="good">无 chip、无控件装饰，视觉最安静；与系统菜单并排不违和</li>
+      <li class="bad">图标列强制占位：全无图标菜单左松右挤，宽度下限 216px 最高</li>
+      <li class="bad">纯文本快捷键在中英混排里基线/字宽要手调</li>
+    </ul>
+    <div class="fit"><b>适用</b>：Titlebar 应用菜单、全局性命令面板语境——「这是个桌面应用」的身份感。</div>
+    <a class="open-btn" href="plan-a-classic.html">打开演示 →</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>方案 B · 现代产品 <span class="verdict">已定稿</span></h3>
+    <div class="en">Linear 语感 — 药丸行 · 控件式勾选 · kbd chip</div>
+    <div class="wf">
+      <div class="wf-row" style="height:20px; border-radius:8px;"><span class="ic" style="width:10px;height:10px"></span><span class="tx"></span><span class="kb" style="border:1px solid var(--line)"></span></div>
+      <div class="wf-row hl" style="height:20px; border-radius:8px; margin-bottom:6px;"><span class="ic" style="width:10px;height:10px;background:#4650c8"></span><span class="tx"></span><span class="kb" style="border:1px solid #b9bdf0"></span></div>
+      <div class="wf-row" style="height:20px; border-radius:8px; margin-bottom:6px;"><span class="ic" style="width:10px;height:10px;border:1.5px solid #c9cdd4;border-radius:4px;background:#4650c8"></span><span class="tx"></span></div>
+      <div style="height:1px;background:var(--line);margin:3px 4px"></div>
+      <div class="wf-row" style="height:20px; border-radius:8px;background:#9c5148;border-color:#9c5148;"><span class="ic" style="width:10px;height:10px;background:#fff"></span><span class="tx" style="background:rgba(255,255,255,.5)"></span></div>
+    </div>
+    <div class="stance"><b>菜单是一件产品，不是一段系统 UI。</b>行是浮起的药丸（34px + 行内 8px 圆角 + 2px 间隙），
+      勾选用显式控件（方框/圆圈），快捷键穿 chip（D-009 亮底小药丸），danger hover 实心红。</div>
+    <ul>
+      <li class="good">品牌感最强——与 Toast 卡片、命令面板同一浮层语言</li>
+      <li class="good">「开关是控件」语义最直白；danger 实心 hover 的后果感表达最强</li>
+      <li class="bad">纵向开销：10 项比 A 高约 44px，长菜单更易进滚动态</li>
+      <li class="bad">kbd chip 三种背景下的显形 + danger×高亮第三态，测试矩阵涨一档</li>
+    </ul>
+    <div class="fit"><b>适用</b>：卡片右键、分享/导出等产品语境——「这是个有设计的产品」的身份感。</div>
+    <a class="open-btn" href="plan-b-modern.html">打开演示 →</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>方案 C · 密集工作台</h3>
+    <div class="en">IDE 语感 — 矮行 · 左缘指示条 · footer 描述条</div>
+    <div class="wf">
+      <div class="wf-row" style="height:14px; border-radius:4px;"><span class="ic" style="width:8px;height:8px"></span><span class="tx"></span><span class="kb"></span></div>
+      <div class="wf-row hl" style="height:14px; border-radius:4px; border-left:2px solid #4650c8;"><span class="ic" style="width:8px;height:8px;background:#4650c8"></span><span class="tx"></span><span class="kb"></span></div>
+      <div class="wf-row" style="height:14px; border-radius:4px;"><span class="ic" style="width:8px;height:8px"></span><span class="tx"></span><span class="kb"></span></div>
+      <div class="wf-row" style="height:14px; border-radius:4px;"><span class="ic" style="width:8px;height:8px"></span><span class="tx"></span><span class="kb"></span></div>
+      <div style="margin:4px -10px -8px; background:#eceef2; border-top:1px solid var(--line); border-radius:0 0 9px 9px; padding:3px 10px; font-size:9px; color:#8b919c;">footer 描述条随高亮联动</div>
+    </div>
+    <div class="stance"><b>菜单是工具，为高频操作与长列表而生。</b>26px 矮行 + 12.5px 字号换同屏密度；
+      键盘高亮带左缘 2px 指示条（IDE 活动行语感）；底部 footer 描述条随高亮念出每项说明。</div>
+    <ul>
+      <li class="good">同屏多看 2–3 项；长菜单（移动到笔记本…）滚动压力最小</li>
+      <li class="good">footer 条让长命令清单不用 hover 猜语义——desc 是信息密度的一部分</li>
+      <li class="bad">菲茨定律账单：26px 行高点击容差小，触控板/偶尔用户门槛高</li>
+      <li class="bad">desc 内容税 + 指示条/✓ 双 accent 信号竞争，约束比 A/B 多一条</li>
+    </ul>
+    <div class="fit"><b>适用</b>：批量操作、笔记本/标签选择器、排序视图——「这是专业工具」的身份感。</div>
+    <a class="open-btn" href="plan-c-dense.html">打开演示 →</a>
+  </div>
+</div>
+
+<!-- ═══════════ 视觉差异对照 ═══════════ -->
+<h2>视觉差异对照表</h2>
+<p>同一套元素清单（命令 / checkbox / radio / 分隔 / 分组标签 / 子菜单 / danger / 禁用），三种形制参数。</p>
+<table>
+  <thead><tr><th>维度</th><th>A · 经典桌面</th><th>B · 现代产品</th><th>C · 密集工作台</th></tr></thead>
+  <tbody>
+    <tr><td>行高 / 字号</td><td>30px / 13px</td><td>34px / 13px</td><td>26px / 12.5px</td></tr>
+    <tr><td>行内圆角</td><td>5px（贴骨）</td><td>8px + 行距 2px（药丸浮起）</td><td>4px（收敛）</td></tr>
+    <tr><td>弹层圆角 / min-width</td><td>radius-md 12 / 216px</td><td>radius-lg 16 / 224px</td><td>radius-sm 8 / 208px</td></tr>
+    <tr><td>图标列</td><td>17px 强制占位</td><td>16px 随需出现（按组对齐）</td><td>15px 占位（13px 图标）</td></tr>
+    <tr><td>快捷键形态</td><td>纯文本右对齐 ink-3</td><td><b class="ok">kbd chip</b>（mono + surface 底 + 描边，D-009）</td><td>mono 纯文本右对齐</td></tr>
+    <tr><td>勾选形态</td><td>glyph ✓ / ●（画在图标列）</td><td><b class="ok">显式控件</b>（方框填 accent / 圆圈内点）</td><td>glyph ✓（12px，同 A 更小）</td></tr>
+    <tr><td>高亮形态</td><td>bg-hover 整行</td><td>bg-hover 药丸</td><td>bg-hover + <b class="ok">左缘 2px 指示条</b></td></tr>
+    <tr><td>danger hover</td><td>浅红底（danger-soft）+ 红字</td><td><b class="ok">实心红底 + 反色字</b>（Linear）</td><td>浅红底 + 红字 + 红指示条</td></tr>
+    <tr><td>分组标签</td><td>tiny 600 ink-3</td><td>tiny 600 ink-3 + letter-spacing</td><td>10.5px 600 <b class="ok">全大写</b> + 0.05em</td></tr>
+    <tr><td>独有元素</td><td>—</td><td>—</td><td><b class="ok">footer 描述条</b>（随高亮联动，滚动 sticky）</td></tr>
+    <tr><td>10 项菜单总高（约）</td><td>316px</td><td>360px</td><td>276px + footer 26px</td></tr>
+  </tbody>
+</table>
+<p class="note">注：三者不可「各取一半拼盘」——设计系统要单一语言（行高、勾选、快捷键、danger 四个维度必须同源），
+混搭会出现「同一应用两套菜单」的割裂感。选择 = 为产品的主要语境定身份。</p>
+
+<!-- ═══════════ 行为契约 ═══════════ -->
+<h2>行为契约（三方案共用，随 D-004 / D-007 落地）</h2>
+<table>
+  <thead><tr><th>能力</th><th>行为</th><th>出处 / 备注</th></tr></thead>
+  <tbody>
+    <tr><td>定位</td><td>D-004 引擎：offset GAP=4、上下 flip、视口 padding 8px；右键菜单锚 = 鼠标点（虚拟 rect）</td><td>与 Select 同族；子菜单锚 = 父项右缘</td></tr>
+    <tr><td>键盘</td><td><kbd>↑↓</kbd> 高亮 · <kbd>Enter</kbd> 触发 · <kbd>→</kbd> 展开子菜单 · <kbd>←</kbd> 收起 · <kbd>Home/End</kbd> 首末 · 敲字 type-ahead（400ms）· <kbd>Esc</kbd> 关栈顶</td><td>导航 hook = Select/Menu 两例交集抽取（D-007 预告）</td></tr>
+    <tr><td>Esc 口径</td><td>焦点链 LIFO：子菜单 → 主菜单 → 关闭还焦点给触发器；<b>不进 D-003 注册表</b>（同 Select D-007）</td><td>仅 open 态在组件 DOM 消费（stopPropagation）</td></tr>
+    <tr><td>开关语义</td><td>checkbox / radio 项触发<b>不关闭</b>菜单（连续操作）；命令项触发即关</td><td>Menu 与 Select 的本质分界</td></tr>
+    <tr><td>aria</td><td>role=menu / menuitem / menuitemcheckbox / menuitemradio；aria-checked 双态；aria-haspopup + aria-expanded 在触发器</td><td>右键菜单的触发器为虚拟锚，aria 挂内容区</td></tr>
+    <tr><td>关闭时机</td><td>外点（pointerdown capture）/ Tab 失焦 / 命令触发 / resize（演示稿处理为全关）</td><td>桌面语感：全局同时只开一棵菜单树</td></tr>
+    <tr><td>焦点归还</td><td>关闭后焦点回触发器（右键菜单回内容区）</td><td>键盘用户不断链</td></tr>
+    <tr><td>danger 二次确认</td><td>Menu <b>不做</b>确认——确认归 ConfirmDialog / 撤销归 Toast（D-003 家族分工）</td><td>Menu 只负责触发，不承载决策</td></tr>
+  </tbody>
+</table>
+
+<!-- ═══════════ 决策建议与 API ═══════════ -->
+<h2>决策建议与 API 草案</h2>
+<div class="decision">
+  <h3>怎么选</h3>
+  <ol>
+    <li><b>看产品主语境定身份</b>：Tau 是知识管理工具（卡片 + 编辑为主战场），菜单的高频场景是
+      <b>卡片右键与视图控制</b>——若认同「菜单跟产品走」，B 的现代语言与 Toast/命令面板一脉；若认同
+      「桌面应用跟操作系统走」，A 最稳；若「效率工具优先」，C 的密度与 footer 信息量最贴重度用户。</li>
+    <li><b>两个可混、一个不可混</b>：footer 描述条（C）与 kbd chip（B）可以嫁接到任何基底上（增量元素不破坏行制）；
+      但<b>行高 / 勾选形态 / danger hover / 图标列策略四个维度必须整体三选一</b>——它们共同定义「行的形制」，拼盘必割裂。</li>
+    <li><b>落地即收口</b>：定稿后 Menu 进 <code>ui/primitives/</code>（03 指南 §9 任务 2 清单内），导航 hook 按 D-007
+      从 Select 抽交集（<code>useListNavigation</code>），定位直接传 <code>gap: 4</code> 复用 <code>computeTooltipPosition</code>；
+      实现提交同步 03 指南组件小节与 DECISIONS.md（编号顺延）。</li>
+    <li><b>内容契约同Select 口径</b>：未接线的数据返回 null + 空态，菜单项不造假；长列表（笔记本选择器）
+      用 LIMIT/聚合命令，前端只渲染拉到的部分。</li>
+  </ol>
+  <h3 style="margin-top:14px">ui/primitives/Menu API 草案</h3>
+  <pre><code>&lt;Menu trigger={&lt;Button&gt;文件&lt;/Button&gt;} align="start"&gt;      // 下拉菜单
+&lt;ContextMenu menu={cardMenu}&gt;…&lt;/ContextMenu&gt;              // 右键（menu 为同一个描述对象）
+
+const cardMenu = (                                    // 命令描述：数据驱动，项是异构序列
+  &lt;&gt;
+    &lt;Menu.Item icon={&lt;Open /&gt;} kbd="↩" onSelect={open}&gt;打开&lt;/Menu.Item&gt;
+    &lt;Menu.Submenu label="导出为" icon={&lt;Export /&gt;}&gt;      // 子菜单级联，→ / hover(260ms) 展开
+      &lt;Menu.Item onSelect={exportPdf}&gt;PDF 文档&lt;/Menu.Item&gt;
+    &lt;/Menu.Submenu&gt;
+    &lt;Menu.Group label="排序"&gt;
+      &lt;Menu.RadioGroup value={sort} onValueChange={setSort}&gt;
+        &lt;Menu.RadioItem value="mtime"&gt;修改时间&lt;/Menu.RadioItem&gt;
+      &lt;/Menu.RadioGroup&gt;
+    &lt;/Menu.Group&gt;
+    &lt;Menu.CheckboxItem checked={pin} onCheckedChange={setPin}&gt;置顶&lt;/Menu.CheckboxItem&gt;
+    &lt;Menu.Separator /&gt;
+    &lt;Menu.Item danger kbd="⌫" onSelect={trash}&gt;删除卡片&lt;/Menu.Item&gt;
+  &lt;/&gt;
+)
+
+interface MenuItemProps {
+  icon?: ReactNode;        // A/C 占位对齐，B 随需
+  kbd?: string;            // 快捷键提示（展示用，监听归全局注册表）
+  desc?: string;           // footer 描述条（C 定稿则保留，A/B 定稿则砍）
+  danger?: boolean;        // danger 色 + 专属 hover
+  disabled?: boolean;
+  onSelect?: () =&gt; void;   // 命令项：触发即关
+}
+// 内建行为（不做成 props）：键盘全表 · type-ahead · aria 双态 · 外点关闭
+// · 焦点归还 · checkbox/radio 触发不关闭 · 子菜单 hover 延迟 260ms
+// · Esc 焦点链 LIFO（同 D-007，不进 D-003 注册表）
+// 注意：Menu 用复合组件而非 Select 的数据驱动——项是异构序列（命令/开关/单选/
+// 分隔/子菜单），数据驱动要发明 DSL；D-007 的「数据驱动」裁决不外推到 Menu。</code></pre>
+  <div class="note">实现映射：三份演示页的 mini menu 引擎（open/close 栈、flip 定位、键盘表、type-ahead、
+    footer 联动、右键虚拟锚）可直接移植为 primitives 参考；定稿方案的 CSS 皮即组件 Tailwind 类的蓝本。
+    嫁接提示：若选 A/B 基底又想要 footer 条，注意长菜单滚动时 sticky 钉底的处理（C 页已实现）。</div>
+</div>
+
+<p class="note" style="margin-top:28px">← 返回 <a href="../tooltip/index.html">Tooltip 导览</a>（上一个基础件） · 演示页：<a href="plan-a-classic.html">A 经典桌面</a> · <a href="plan-b-modern.html">B 现代产品</a> · <a href="plan-c-dense.html">C 密集工作台</a></p>
+
+</div>
+</body>
+</html>
