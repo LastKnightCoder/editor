@@ -1,5 +1,5 @@
 /**
- * Tooltip 定位引擎（方案 B 定稿，mockups/tooltip/plan-b-engine.html）——纯函数，不依赖 React。
+ * 浮层定位引擎（Tooltip / Select 共用，D-004）——纯函数，不依赖 React。
  * 中间件链：offset（间距 8）→ flip（主轴放不下翻对侧）→ shift（夹回视口，边距 8）→
  * arrow（锚点中心在边缘上的投影，两端各留 10px）。
  * 独立成文件：Tooltip.tsx 只导出组件（react-refresh 约束），引擎可单独单测。
@@ -14,9 +14,13 @@ export type TooltipSide = "top" | "right" | "bottom" | "left";
 export type TooltipAlign = "start" | "center" | "end";
 export type TooltipPlacement = TooltipSide | `${TooltipSide}-${TooltipAlign}`;
 
-const GAP = 8; // 与锚点的间距（offset 中间件）
 const VIEWPORT_PAD = 8; // shift 夹回视口时留的边距
 const ARROW_MARGIN = 10; // 箭头距 tooltip 角的最小距离
+
+/** 引擎可选参数：gap 覆写与锚点的间距（Select/Menu 下拉用 4）。 */
+export interface TooltipPositionOptions {
+  gap?: number;
+}
 
 export interface TooltipPosition {
   x: number;
@@ -39,8 +43,10 @@ export function computeTooltipPosition(
     height: number;
   },
   pop: { offsetWidth: number; offsetHeight: number },
-  placement: TooltipPlacement
+  placement: TooltipPlacement,
+  opts?: TooltipPositionOptions
 ): TooltipPosition {
+  const GAP = opts?.gap ?? 8;
   const [side0, align = "center"] = placement.split("-") as [TooltipSide, TooltipAlign?];
   const vw = window.innerWidth;
   const vh = window.innerHeight;

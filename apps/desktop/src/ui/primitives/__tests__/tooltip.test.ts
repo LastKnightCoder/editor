@@ -99,4 +99,9 @@ describe("computeTooltipPosition", () => {
     expect(r.side).toBe("right");
     expect(r.x).toBe(130 + 8);
   });
+
+  it("gap 可调：下拉族传 4 时与锚点更贴（Select/Menu 复用引擎的口径）", () => {
+    const r = computeTooltipPosition(rect(462, 300, 100, 40), size(150, 200), "bottom", { gap: 4 });
+    expect(r.y).toBe(340 + 4);
+  });
 });
