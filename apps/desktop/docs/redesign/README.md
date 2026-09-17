@@ -26,5 +26,5 @@
 
 - 桌面端禁止新增 `antd` / `@ant-design/icons` import（存量白名单只减不增，CI 棘轮约束）；
 - 新页面一律走 `features/**/pages/*.page.tsx` 声明式注册（协议见蓝图 §3.2），禁止再扩 `TabType`；
-- 样式新代码一律 Tailwind 语义类 + tau 命名空间尺度词（token 映射，D-013），禁止新增 CSS Modules 与白名单外的手写 CSS；mockups 为视觉参考，不是导出源；
+- 样式新代码一律 Tailwind 语义类 + tau 命名空间尺度词（token 映射，D-001），禁止新增 CSS Modules 与白名单外的手写 CSS；mockups 为视觉参考，不是导出源；
 - 每迁完一个页面：更新 DECISIONS.md 的 page 清单勾选行，新发现的偏好追加进 PREFERENCES.md，待删资产（前端 + Node 侧）按模板追加进 04-删除清单.md。

@@ -264,7 +264,7 @@ td b { font-weight: 600; }
   <div class="note">
     实现映射（无论选哪个）：<b>数据</b>＝内容源复用 <code>searchContent</code>（FTS 可即时、向量重排建议防抖 300ms）＋ 命令源 <code>app/navigation.ts</code> ＋ 最近/常用 <code>useNavigationHistoryStore</code>；
     <b>快捷键</b>＝Ctrl+K 主入口、Ctrl+P 作为别名保留老习惯；
-    <b>架构</b>＝搜索面板是 dialog 浮层，不经 definePage 协议（D-016），承载方式（建议 ui 层通用 Dialog 容器 + 全局 SearchProvider）需先在 DECISIONS.md 裁决后再动工。
+    <b>架构</b>＝搜索面板是 dialog 浮层，不经 definePage 协议（D-002），承载方式（建议 ui 层通用 Dialog 容器 + 全局 SearchProvider）需先在 DECISIONS.md 裁决后再动工。
   </div>
 </div>
 

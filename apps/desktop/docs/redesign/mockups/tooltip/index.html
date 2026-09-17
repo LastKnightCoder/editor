@@ -80,7 +80,7 @@ td b.ok { color: var(--good); } td b.bad { color: var(--bad); } td b.mid { color
 <div class="page">
 
 <h1>Tooltip 基础件 · 方案导览</h1>
-<p class="lede">已定稿：<b style="color:#3e6b4f;">方案 B · JS 定位引擎（Portal + 自研 mini floating-ui，2026-09-17，用户裁决，D-018）</b>——实测中方案 A 的 position-try 候选语义保守、safe anchor-center 布局异常、UA popover 样式需重置三连，使用户倾向策略可编程的 B；A 留档备用。与 Toast 的三方案不同，Tooltip 的分歧不在视觉（业界共识：反相小标签 + 12 位 + 箭头可关），而在<b>技术路线</b>——承载用不用 HTML popover、定位用不用 CSS Anchor Positioning、还是传统 JS 引擎。三份演示页共用 tau 双主题与同一套视觉，其中方案 B 刻意与 A <b>同皮</b>（只换引擎），证明视觉与引擎解耦。02 规范 §5.2 已裁定 Tooltip / Popover / Menu / Select 共享同一浮层定位引擎——本页的裁决即是引擎选型。</p>
+<p class="lede">已定稿：<b style="color:#3e6b4f;">方案 B · JS 定位引擎（Portal + 自研 mini floating-ui，2026-09-17，用户裁决，D-004）</b>——实测中方案 A 的 position-try 候选语义保守、safe anchor-center 布局异常、UA popover 样式需重置三连，使用户倾向策略可编程的 B；A 留档备用。与 Toast 的三方案不同，Tooltip 的分歧不在视觉（业界共识：反相小标签 + 12 位 + 箭头可关），而在<b>技术路线</b>——承载用不用 HTML popover、定位用不用 CSS Anchor Positioning、还是传统 JS 引擎。三份演示页共用 tau 双主题与同一套视觉，其中方案 B 刻意与 A <b>同皮</b>（只换引擎），证明视觉与引擎解耦。02 规范 §5.2 已裁定 Tooltip / Popover / Menu / Select 共享同一浮层定位引擎——本页的裁决即是引擎选型。</p>
 
 <!-- ═══════════ 业界参照 ═══════════ -->
 <h2>业界参照</h2>
@@ -203,7 +203,7 @@ td b.ok { color: var(--good); } td b.bad { color: var(--bad); } td b.mid { color
     <li><b>推荐定稿方案 A</b>：桌面端是单 Chromium 环境，anchor positioning 的唯一短板（兼容性）不存在；定位 JS 归零意味着 02 §5.2「浮层定位引擎是 M0 最重投入」直接降到最轻；top layer 免掉 z-index 与 Portal 两套心智。JS 驱动层（hover intent / focus-visible / aria / 读边向）预计 ~60 行，纯逻辑可测。</li>
     <li><b>方案 B 不是落选，是保底与增量</b>：Menu / Select / Popover 迁移中若遇到 position-try 表达不了的策略（虚拟锚点、动态尺寸中间件、跨容器吸附），<b>仅对该组件</b>引入 JS 定位（演示页 mini 引擎即参考实现），承载仍走 popover——A 与 B 组合而非互斥。是否引入 floating-ui 届时再裁（当前零依赖）。</li>
     <li><b>方案 C 禁入产品代码</b>：省 20 行驱动层的代价是裁剪、fallback、可达性、主题四张底牌全赔。title 仅保留给纯文本兜底场景。</li>
-    <li><b>实现提交的两处同步义务</b>：① anchor-name / position-area / position-try 不在 Tailwind 词表且 anchor-name 为动态值——需在 03 指南 §4 CSS 白名单扩一类「浮层锚定 CSS（含内联 anchor-name）」，DECISIONS.md 记一条；② Tooltip 不接 Esc、不进浮层退场注册表（瞬态非阻断，同 Toast 的 D-017 口径）。</li>
+    <li><b>实现提交的两处同步义务</b>：① anchor-name / position-area / position-try 不在 Tailwind 词表且 anchor-name 为动态值——需在 03 指南 §4 CSS 白名单扩一类「浮层锚定 CSS（含内联 anchor-name）」，DECISIONS.md 记一条；② Tooltip 不接 Esc、不进浮层退场注册表（瞬态非阻断，同 Toast 的 D-003 口径）。</li>
   </ol>
   <h3 style="margin-top:14px">ui/primitives/Tooltip API 草案</h3>
   <pre><code>&lt;Tooltip content="复制" placement="top"&gt;        // children 克隆注入事件 + aria-describedby

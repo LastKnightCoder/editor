@@ -1,5 +1,5 @@
 /**
- * 统计页数据源（Bento 面板 · 方案 C）—— 真实命令接线（并行 + 单项降级）：
+ * 统计页数据源（Bento 面板）—— 真实命令接线（并行 + 单项降级）：
  *  totals    快照存量（卡片/文章/日记三分量字数）+ 待办 + summaryPomodoroTotal
  *  trend     getAllStatistic 快照差分（utils/statistic.diffSeries，窗口随 range 参数化）
  *  previous  等长前置窗口同法聚合（环比）；all 无上一窗口为 null

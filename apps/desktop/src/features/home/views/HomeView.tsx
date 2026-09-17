@@ -1,5 +1,5 @@
 /**
- * 今日（首页）视图 v3 —— 行式单列流（视觉基准 mockups/home-final.html，样式 Tailwind 优先）：
+ * 今日（首页）视图 —— 行式单列流（样式 Tailwind 优先）：
  * hero 条 → 行动三卡（复习/待办/日程，内容等量）→ 继续编辑（全宽三栏）→
  * 热力图（直接复用旧 CalendarHeatmap）→ 统计四卡（sparkline）。
  *

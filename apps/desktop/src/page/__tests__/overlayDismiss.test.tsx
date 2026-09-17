@@ -1,5 +1,5 @@
 /**
- * Esc 浮层仲裁单测（useOverlayDismiss，D-017）：
+ * Esc 浮层仲裁单测（useOverlayDismiss，D-003）：
  * 浮层激活时 Esc 先关最上层（LIFO）、优先于编辑上下文与页面后退；
  * 浮层注销后恢复「无浮层 → 后退」语义。
  * 契约注记：注册表只仲裁优先级，dismiss 后的注销由浮层自身状态驱动
@@ -80,7 +80,7 @@ const pressEsc = (target: EventTarget | HTMLElement = window): boolean => {
   return evt.defaultPrevented;
 };
 
-describe("Esc 浮层仲裁（useOverlayDismiss，D-017）", () => {
+describe("Esc 浮层仲裁（useOverlayDismiss，D-003）", () => {
   let container: HTMLDivElement;
   let root: Root;
   let dismissed: string[];

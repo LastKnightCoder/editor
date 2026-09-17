@@ -1,7 +1,7 @@
 /**
  * 主题运行时（薄层）：
  *  - applyThemeToDom：把主题应用到 <html data-theme>（+ color-scheme + 深色 .dark 类），
- *    token 取值由 tokens.css 的 [data-theme] 数据块级联（D-009：data-theme + CSS variables
+ *    token 取值由 tokens.css 的 [data-theme] 数据块级联（data-theme + CSS variables
  *    零 JS 切换）；
  *  - mode 持久化、system 跟随、多主题枚举在 themeStore.ts（照搬移动端模式，02 规范 §2.4）；
  *  - index.html 的内联脚本会在 React 加载前按 localStorage 预置 data-theme（首帧无闪变）。

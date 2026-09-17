@@ -176,7 +176,7 @@ export function Segmented<T extends string>({
   options: readonly { value: T; label: ReactNode; title?: string }[];
   onChange: (value: T) => void;
 }) {
-  // 轨道用 sunken（最深的凹陷档），选中胶囊用 surface 浮起——D-021 把 group/sunken
+  // 轨道用 sunken（最深的凹陷档），选中胶囊用 surface 浮起——D-006 把 group/sunken
   // 沉到 page 之下后两档都可用，这里取最深的一档让"轨道 - 胶囊"关系最强
   return (
     <div className="bg-sunken inline-flex items-center gap-0.5 rounded-[10px] p-0.5">

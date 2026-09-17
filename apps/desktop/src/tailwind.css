@@ -149,7 +149,7 @@
   .bg-primary-bg {
     background-color: var(--th-bg-page);
   }
-  /* .bg-surface / .bg-hover 已删（D-013）：与 tokens.css @theme 语义类同名双定义，
+  /* .bg-surface / .bg-hover 已删（D-001）：与 tokens.css @theme 语义类同名双定义，
      且无裸类消费者（hover:bg-hover 走 @theme 生成版），语义词唯一归属 --tau-* */
   .border-line {
     border-color: var(--th-border);
