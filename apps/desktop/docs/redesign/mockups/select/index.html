@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tau 桌面端 · Select 方案导览（三 API 路线对比 + 定位复用裁决）</title>
+<!--
+  Select 基础件设计导览。与 Tooltip 一轮不同（那轮分歧在技术路线），Select 的
+  定位引擎已由 D-004 裁定（自研 mini 引擎，Select/Menu/Popover 共享），本轮分歧
+  在「API 形态 × 结构写在哪里」：复合组件（JSX 声明）/ 数据驱动（options prop）/
+  无头 hook（props 分发）。视觉三页刻意共皮（同一套触发器 + listbox），证明
+  「视觉与 API 解耦」。02 §5.2 已定口径：Select = listbox + 键盘导航（非 antd
+  弹层行为），M0 受限版 = 单选 + 搜索。
+-->
+<style>
+:root {
+  --ink: #1d1f24; --ink-2: #5b606b; --ink-3: #8b919c;
+  --bg: #fcfcfd; --surface: #fff; --line: #e6e8ec; --accent: #4650c8;
+  --accent-soft: rgba(70, 80, 200, 0.09);
+  --good: #3e6b4f; --bad: #9c5148;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--ink); background: var(--bg); font-size: 14px; line-height: 1.75; }
+.page { max-width: 1020px; margin: 0 auto; padding: 48px 32px 96px; }
+h1 { font-size: 26px; letter-spacing: -0.01em; margin-bottom: 8px; }
+.lede { color: var(--ink-2); max-width: 78ch; margin-bottom: 8px; }
+.lede b { color: var(--ink); }
+h2 { font-size: 19px; margin: 46px 0 6px; }
+h2 + p { color: var(--ink-2); margin-bottom: 16px; max-width: 78ch; }
+a { color: var(--accent); }
+kbd { padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--surface); font-size: 12px; font-family: ui-monospace, Consolas, monospace; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--accent-soft);
+  color: var(--accent); border-radius: 5px; padding: 1px 6px; }
+pre { background: #f6f7f9; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+  font-size: 12.5px; line-height: 1.8; overflow-x: auto; color: var(--ink-2); margin-top: 10px; }
+pre code { background: none; color: inherit; padding: 0; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+td b.ok { color: var(--good); } td b.bad { color: var(--bad); } td b.mid { color: #8a6d3b; }
+
+.plan-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 14px; }
+@media (max-width: 900px) { .plan-grid { grid-template-columns: 1fr; } }
+.plan-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+.plan-card h3 { font-size: 15.5px; margin-bottom: 2px; }
+.plan-card .en { font-size: 11.5px; color: var(--ink-3); margin-bottom: 10px; }
+.plan-card .stance { font-size: 12.5px; color: var(--ink-2); margin-bottom: 12px; }
+.plan-card .stance b { color: var(--ink); }
+.wf { height: 104px; border: 1px solid var(--line); border-radius: 10px; background: #f6f7f9;
+  position: relative; margin-bottom: 12px; overflow: hidden; font-family: ui-monospace, Consolas, monospace; }
+.wf .node { position: absolute; border-radius: 6px; background: #fff; border: 1px solid var(--line);
+  font-size: 10.5px; color: var(--ink-2); padding: 2px 8px; white-space: nowrap; }
+.wf .node.acc { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.wf .node.dim { background: #f0f1f4; color: var(--ink-3); }
+.wf .arrow { position: absolute; color: #b6bac2; font-size: 11px; }
+.plan-card ul { list-style: none; font-size: 12.5px; color: var(--ink-2); }
+.plan-card li { padding-left: 15px; position: relative; margin: 3px 0; }
+.plan-card li::before { content: "·"; position: absolute; left: 4px; color: var(--ink-3); }
+.plan-card li.good { color: var(--good); }
+.plan-card li.bad { color: var(--bad); }
+.open-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px; border-radius: 9px;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 550; text-decoration: none; margin-top: 10px; }
+.open-btn:hover { filter: brightness(1.08); }
+.plan-card .fit { font-size: 12px; background: #f6f7f9; border: 1px dashed var(--line); border-radius: 8px;
+  padding: 8px 12px; margin-top: 10px; color: var(--ink-2); }
+.plan-card .fit b { color: var(--ink); }
+.plan-card.rec { border-color: #3e6b4f66; box-shadow: 0 0 0 1px #3e6b4f22; }
+
+.decision { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-top: 14px; }
+.decision h3 { font-size: 15px; margin-bottom: 8px; }
+.decision ol { padding-left: 20px; font-size: 13px; color: var(--ink-2); }
+.decision ol li { margin: 7px 0; }
+.decision ol li b { color: var(--ink); }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; }
+.verdict { display: inline-flex; align-items: center; gap: 6px; background: #eef4ee; color: var(--good);
+  border: 1px solid #d5e3d5; border-radius: 99px; padding: 2px 12px; font-size: 12px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Select 基础件 · 方案导览</h1>
+<p class="lede">待裁决：三份演示页视觉<b>完全共皮</b>（同一触发器 + listbox 弹层 + 键盘行为），分歧全在 <b>API 形态——「结构写在哪里」</b>：写在 JSX（复合组件 <code>Select.Option</code>）、写在数据（<code>options</code> prop）、还是写在调用方（无头 hook 自己分发 props）。定位引擎不在本轮议程：02 §5.2 已裁定 Select 与 Tooltip / Menu / Popover <b>共享 D-004 自研 mini 引擎</b>（offset → flip → shift），弹层承载 = Portal + z-[250]。已定口径：listbox + 键盘导航（非 antd 弹层行为）、M0 受限版 = <b>单选 + 搜索</b>、受控契约对齐 §5.3（<code>value/onValueChange</code> + 浮层 <code>open/onOpenChange</code>）。</p>
+
+<!-- ═══════════ 业界参照 ═══════════ -->
+<h2>业界参照</h2>
+<table>
+  <thead><tr><th>产品 / 库</th><th>API 形态</th><th>值得借鉴 / 教训</th></tr></thead>
+  <tbody>
+    <tr><td><b>antd Select</b></td><td>双轨：<code>options</code> prop + <code>Select.Option</code></td><td>选项数据可编程的源头（filter/异步/分组全在 options 层）；反面教材是 API 面失控（labelInValue / mode / showSearch / optionFilterProp……40+ props）——自研要守住受限版边界</td></tr>
+    <tr><td><b>Radix Select</b>（shadcn 封装）</td><td>复合组件完全体（Root/Trigger/Content/Item）</td><td>无头 + 复合的组合范本：行为语义完整（aria/键盘全内建），结构由调用方 JSX 拼装</td></tr>
+    <tr><td><b>React Aria useSelect</b></td><td>无头 hook（props 分发）</td><td>行为内核与 UI 完全分离的天花板；代价是每个使用点手写结构样板</td></tr>
+    <tr><td><b>Base UI</b>（MUI 新一代）</td><td>复合组件</td><td><code>value/onValueChange</code> 受控范式与 02 §5.3 一致</td></tr>
+    <tr><td><b>Linear / VS Code</b></td><td>数据驱动自绘</td><td>桌面产品主流：触发器像次级按钮、弹层极简列表、键盘第一——本轮视觉的语感来源</td></tr>
+    <tr><td><b>原生 <code>&lt;select&gt;</code></td><td>HTML</td><td>无障碍白送，但弹层由系统渲染：<b>不可主题化</b>，cocoa 深色窗口里弹出系统白色列表、行高字体全失控——一票否决，仅作认知锚点（Electron 场景无 macOS 原生下拉加成）</td></tr>
+  </tbody>
+</table>
+<p class="note">共识：① 触发器与 Input 同族（表单控件家族，surface 亮底——控件做「浮起物」，显形靠 line-1 描边；2026-09-17 用户两轮裁决 sunken → group → surface）；② 弹层 = 浮层三件套（surface 最亮 + shadow-float + radius-lg）；③ 键盘是第一公民（↑↓ 高亮 / Enter 选中 / Esc 关闭 / type-ahead）；④ 选中 ≠ 高亮，两态并存（aria-activedescendant）；⑤ 选中即关闭、焦点归还触发器。</p>
+
+<!-- ═══════════ 三方案 ═══════════ -->
+<h2>三条 API 路线</h2>
+<div class="plan-grid">
+
+  <div class="plan-card">
+    <h3>方案 A · 复合组件</h3>
+    <div class="en">Select.Option 声明式 — 结构写在 JSX</div>
+    <div class="wf">
+      <div class="node acc" style="left:34px; top:14px;">&lt;Select&gt;</div>
+      <div class="node" style="left:56px; top:42px;">&lt;Option 今日 /&gt;</div>
+      <div class="node" style="left:56px; top:68px;">&lt;Option 本周 /&gt;</div>
+      <div class="node dim" style="left:200px; top:42px;">OptGroup</div>
+      <div class="arrow" style="left:44px; top:30px;">↘</div>
+    </div>
+    <div class="stance"><b>选项即标签。</b>antd / Radix 心智：<code>&lt;Select.Option&gt;</code> 里直接写 JSX，富内容（图标 + 双行 + 徽章）所见即所得；分组用 <code>OptGroup</code>。老代码从 antd JSX 写法迁移几乎零改动。</div>
+    <ul>
+      <li class="good">富选项内容零成本——children 里随便写</li>
+      <li class="good">antd <code>Select.Option</code> 老用法直接映射，迁移顺</li>
+      <li class="bad">搜索过滤要遍历 children 提取文本——「可编程的数据」变「要解析的树」</li>
+      <li class="bad">异步 / 虚拟化 / 大列表都要先把 JSX 数量化，绕一圈回到数组</li>
+      <li class="bad">value 类型推断弱（children 收集靠运行时），多选扩展动 API</li>
+    </ul>
+    <div class="fit"><b>适用</b>：选项少而富（视图切换、语言选择）；调用方愿意写结构。</div>
+    <a class="open-btn" href="plan-a-compound.html">打开演示 →</a>
+  </div>
+
+  <div class="plan-card rec">
+    <h3>方案 B · 数据驱动 <span class="verdict">推荐</span></h3>
+    <div class="en">options prop 单组件 — 结构写在数据</div>
+    <div class="wf">
+      <div class="node dim" style="left:22px; top:34px;">[{value,label}…]</div>
+      <div class="arrow" style="left:132px; top:38px;">→</div>
+      <div class="node acc" style="left:152px; top:34px;">&lt;Select options /&gt;</div>
+      <div class="node dim" style="left:22px; top:64px;">filter / 异步 / 分组</div>
+      <div class="arrow" style="left:126px; top:66px;">→</div>
+      <div class="node" style="left:158px; top:64px;">数据层解决</div>
+    </div>
+    <div class="stance"><b>选项即数据。</b>Linear / VS Code 心智：一个 <code>options</code> prop 吃下全部——搜索是一行 filter、分组是 group 字段、异步是换数组、M1 多选是 <code>value: V[]</code>、虚拟化是把列表区换成 VirtualList。API 面最小，扩展全在数据形状里平滑生长。</div>
+    <ul>
+      <li class="good">实现最薄（单组件，无子组件收集）；M0 受限版 → M1 多选/搜索/虚拟化不破坏 API</li>
+      <li class="good">TS 直接约束 <code>options: SelectOption&lt;V&gt;[]</code>，value 泛型推断完整</li>
+      <li class="good">antd <code>options</code> 用法（绝大多数存量）字段直接映射</li>
+      <li class="bad">富选项内容经 <code>label: ReactNode</code> + <code>searchText</code> 代理搜索，比 JSX 直写绕半步</li>
+      <li class="bad">「表单里选项写死三五个」的场景，构造数组的仪式感略重（可后加语法糖）</li>
+    </ul>
+    <div class="fit"><b>适用</b>：FilterBar / 设置页 / 命令面板内嵌筛选——桌面端 Select 的绝大多数真实场景。</div>
+    <a class="open-btn" href="plan-b-options.html">打开演示 →</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>方案 C · 无头 hook</h3>
+    <div class="en">useSelect + props 分发 — 结构写在调用方</div>
+    <div class="wf">
+      <div class="node acc" style="left:22px; top:14px;">useSelect(options)</div>
+      <div class="arrow" style="left:132px; top:30px;">↘</div>
+      <div class="node" style="left:152px; top:34px;">triggerProps → 自绘</div>
+      <div class="node" style="left:152px; top:64px;">menuProps → 自绘</div>
+      <div class="node dim" style="left:22px; top:76px;">state / getOptionProps</div>
+    </div>
+    <div class="stance"><b>内核外露。</b>React Aria 心智：hook 返回状态 + props 包，触发器和弹层的 DOM/样式全由调用方拼。自由度天花板（同一 hook 撑起标准下拉、行内迷你、图标触发三种形态），代价是每个使用点 20+ 行结构样板。</div>
+    <ul>
+      <li class="good">形态自由度最大：变体（行内编辑 / ghost / 图标触发）不用组件开口子</li>
+      <li class="good">行为内核（键盘/aria/定位）与 UI 零耦合，单测最干净</li>
+      <li class="bad">每个使用点重写一遍结构——与「视觉收口 primitives」铁律相悖，跨域必然漂移</li>
+      <li class="bad">样板成本转嫁给全部调用方；文档负担最高（props 包契约要解释）</li>
+    </ul>
+    <div class="fit"><b>定位</b>：不作为公共 API 竞选——它是 B 的<b>实现策略</b>（内部 = 无头内核 + 默认壳）与极端变体的逃生舱留档。</div>
+    <a class="open-btn" href="plan-c-headless.html">打开演示 →</a>
+  </div>
+</div>
+
+<!-- ═══════════ 能力矩阵 ═══════════ -->
+<h2>能力矩阵（API 维度）</h2>
+<p>三页视觉与键盘行为完全一致（共皮），下表只比「用起来」与「长出来」的成本。</p>
+<table>
+  <thead><tr><th>能力 / 成本</th><th>A · 复合组件</th><th>B · 数据驱动</th><th>C · 无头 hook</th></tr></thead>
+  <tbody>
+    <tr><td>上手心智</td><td><b class="ok">JSX 所见即所得</b></td><td><b class="ok">一个 prop</b></td><td><b class="bad">要先懂 props 分发范式</b></td></tr>
+    <tr><td>富选项内容（图标/双行/徽章）</td><td><b class="ok">children 直写</b></td><td><b class="mid">label: ReactNode + searchText</b></td><td><b class="ok">完全自由</b></td></tr>
+    <tr><td>搜索过滤（M0 内置）</td><td><b class="bad">遍历 children 提取文本</b></td><td><b class="ok">数据层一行 filter</b></td><td><b class="ok">数据层</b></td></tr>
+    <tr><td>分组</td><td><code>OptGroup</code> 组件</td><td><code>group</code> 字段自动分组</td><td>调用方自己循环</td></tr>
+    <tr><td>异步 / 远程选项</td><td><b class="bad">JSX 换数组再映射回去</b></td><td><b class="ok">换 options 数组即异步</b></td><td><b class="ok">同 B</b></td></tr>
+    <tr><td>大列表虚拟化（M1 VirtualList）</td><td><b class="bad">children 语法不可切片</b></td><td><b class="ok">items 天然可切</b></td><td><b class="ok">同 B</b></td></tr>
+    <tr><td>TS 类型安全（value 推断）</td><td><b class="mid">children 收集靠运行时</b></td><td><b class="ok">泛型直约束</b></td><td><b class="ok">泛型直约束</b></td></tr>
+    <tr><td>多选扩展（M1）</td><td><b class="bad">API 破坏性改动</b></td><td><b class="ok">value: V[] 向后兼容</b></td><td><b class="ok">同 B</b></td></tr>
+    <tr><td>antd 存量迁移</td><td><b class="mid">Option 用法直映 / options 用法重写</b></td><td><b class="ok">options 用法字段直映</b></td><td><b class="bad">全部重写结构</b></td></tr>
+    <tr><td>组件实现复杂度</td><td><b class="mid">子组件收集 + context</b></td><td><b class="ok">最薄（单组件）</b></td><td><b class="mid">内核薄、但样板在文档里</b></td></tr>
+    <tr><td>使用点样板量</td><td>中（Option 逐行）</td><td><b class="ok">最少</b></td><td><b class="bad">最多（20+ 行分发）</b></td></tr>
+    <tr><td>视觉收口（跨域一致性）</td><td><b class="ok">结构固定</b></td><td><b class="ok">结构固定</b></td><td><b class="bad">每点自绘，漂移风险</b></td></tr>
+  </tbody>
+</table>
+
+<!-- ═══════════ 交互规范 ═══════════ -->
+<h2>键盘与交互规范（三方案共通，进实现不动摇）</h2>
+<table>
+  <thead><tr><th>输入</th><th>关闭时</th><th>打开时</th></tr></thead>
+  <tbody>
+    <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>打开并高亮当前值相邻项</td><td>移动高亮（跳过 disabled），<code>scrollIntoView(nearest)</code></td></tr>
+    <tr><td><kbd>Enter</kbd> / <kbd>Space</kbd></td><td>打开</td><td>选中高亮项 → 关闭 → 焦点归还触发器</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>—</td><td>关闭（焦点回触发器；接浮层退场 LIFO 链）</td></tr>
+    <tr><td><kbd>Home</kbd> / <kbd>End</kbd></td><td>—</td><td>高亮首 / 末项</td></tr>
+    <tr><td>可打印字符</td><td>打开并跳匹配项</td><td>type-ahead 跳匹配；searchable 时输入进搜索框并过滤</td></tr>
+    <tr><td><kbd>Tab</kbd></td><td>—</td><td>关闭并自然移出焦点</td></tr>
+    <tr><td>外点 / 滚出</td><td>—</td><td>关闭（外点 = pointerdown capture；弹层内滚动不关）</td></tr>
+  </tbody>
+</table>
+<p class="note">无障碍：触发器 <code>role=combobox aria-haspopup=listbox aria-expanded</code>；弹层 <code>role=listbox</code> + <code>aria-activedescendant</code> 指向高亮项；选项 <code>role=option aria-selected</code>。选中（当前值，bg-selected + Check）与高亮（键盘停留行，bg-hover）两态并存。aria-activedescendant 走 DOM id，实现时用 useId。视觉口径：触发器 surface 亮底（与未来 Input/Textarea 同族的「表单控件家族」；surface 卡片上同底靠描边显形、group 工具栏上浮起一档）、弹层 surface + shadow-float + radius-lg(16)、层级 z-[250]（命令面板 101 &lt; Toast 200 &lt; <b>Select/Menu 250</b> &lt; Tooltip 300）、动效 160ms ease-tau-out、md=34px / sm=28px、chevron 开合旋转 180°。</p>
+
+<!-- ═══════════ 决策建议与 API ═══════════ -->
+<h2>决策建议与 API 草案</h2>
+<div class="decision">
+  <h3>怎么选</h3>
+  <ol>
+    <li><b>推荐方案 B（数据驱动）</b>：M0 受限版（单选+搜索）到 M1（多选 / 虚拟化 / 异步）全部在数据形状里平滑生长，API 面不膨胀——这正是 antd Select 失控的反面；实现最薄（单组件、无子组件收集）；FilterBar / 设置页 / 命令面板内嵌筛选这些真实消费点全是 options 形态；antd 存量 <code>options</code> 用法字段直映（value/label/disabled 不改名）。</li>
+    <li><b>A 的核心诉求（富选项）B 已覆盖</b>：<code>label: ReactNode</code> 承载富行，<code>searchText</code> 代理富 label 的搜索匹配。若届时 JSX 心智诉求确实强，可在 B 之上加 <code>&lt;Select.Option&gt;</code> 语法糖（编译为 options）——先不做（YAGNI），加了语法糖就是 antd 双轨，两条路都要养。</li>
+    <li><b>C 不是竞争者，是 B 的实现策略</b>：无论选哪个，组件内部都写成「无头内核（键盘/aria/定位状态机）+ 默认壳」，演示页 plan-c 的 <code>createSelectCore</code> 即内核参考。useSelectCore <b>不作为公共 API 导出</b>——视觉收口铁律（02 §5.1：primitives 不知道业务，patterns 不知道域）优先于极端自由度；真出现标准壳表达不了的形态，那是 primitives 该加变体，不是调用方该拿内核。</li>
+    <li><b>定位与承载直接复用 D-004</b>：引擎中间件链 offset → flip → shift 照搬（GAP 收窄到 4，下拉贴触发器）；arrow 关闭。弹层 Portal 到 body、z-[250]，同宽策略 = min-width 取触发器宽、内容可撑开（matchTriggerWidth 默认 true）。Select 的 Esc 属于组件级浮层关闭（非全局浮层退场注册表），但同一时刻只应有一个下拉开着——实现时弹层打开即注册、关闭即注销，与命令面板的 LIFO 链相接。</li>
+    <li><b>定稿后的同步义务</b>：DECISIONS.md 记条目（API 形态 + 表单控件家族视觉口径）；03 指南 §9 任务清单勾选；样板间加 SelectSection（含常显标本）；Input / Textarea 落地时沿用「surface 亮底 + line-1 描边 + radius-sm」的家族口径。</li>
+  </ol>
+  <h3 style="margin-top:14px">ui/primitives/Select API 草案（按 B 起草）</h3>
+  <pre><code>&lt;Select                                    // 单组件，无复合子组件（A 语法糖可后加，YAGNI）
+  options={viewOptions}                    // SelectOption&lt;V&gt;[]，字段名与 antd 对齐（value/label/disabled）
+  value={view} onValueChange={setView}     // 受控 / defaultValue 非受控（§5.3 契约）
+  placeholder="选择视图"                    // 空值占位（ink-3）
+  searchable                               // M0 受限版内置本地过滤（label / searchText 做 includes）
+/&gt;
+
+interface SelectOption&lt;V = string&gt; {
+  value: V;
+  label: ReactNode;            // string 直用；富行传 JSX（图标 + 双行 + 徽章）
+  disabled?: boolean;
+  group?: string;              // 分组键，按首次出现顺序分组（标签 tiny 600）
+  searchText?: string;         // 富 label 的搜索代理字段（string label 免填）
+}
+
+interface SelectProps&lt;V&gt; {
+  options: SelectOption&lt;V&gt;[];
+  value?: V | null;  defaultValue?: V | null;  onValueChange?: (v: V) =&gt; void;  // M0 无清空路径，实现收窄为 V
+  placeholder?: string;
+  size?: "sm" | "md";          // 34px / 28px（§5.3 统一尺寸契约）
+  searchable?: boolean;        // 弹层内嵌搜索框（30px，surface 底），自动聚焦
+  filter?: (opt: SelectOption&lt;V&gt;, query: string) =&gt; boolean;   // 默认 includes
+  emptyText?: string;          // 过滤空态，默认「无匹配项」
+  matchTriggerWidth?: boolean; // 默认 true（min-width = 触发器）
+  status?: "error";            // Field 体系错误态（danger 描边）
+  disabled?: boolean;
+  open?: boolean;  onOpenChange?: (open: boolean) =&gt; void;      // 浮层受控（§5.3）
+  // renderOption?(opt, state: { selected, highlighted }): ReactNode  —— 逃生舱，M1 按需加
+}
+// 行为内建（不做成 props）：键盘全表（上表）· aria 接线 · 选中回填触发器 ·
+// flip（D-004 引擎，GAP=4）· 外点关闭 · 焦点归还 · type-ahead 400ms 窗口
+// 明确不做（M0）：多选/标签模式（M1 value: V[]）· 异步 loading prop（换数组即异步，
+//   过渡态用 emptyText 表达）· 虚拟化（M1 列表区换 VirtualList，options 形状不变）</code></pre>
+  <div class="note">实现映射：三份演示页的触发器 + listbox CSS 可直接移植为 Tailwind 类（surface/selected/hover 语义类全在 tokens.css 词表内，零新增 token）；plan-b 页的 filter/分组/大列表即 M0 验收用例；plan-c 页的 createSelectCore 是内部内核参考实现。视觉与键盘行为不在本轮分歧内，用户裁决 API 后任一方案共用同一套皮。</div>
+</div>
+
+<p class="note" style="margin-top:28px">← 返回 <a href="../tooltip/index.html">Tooltip 导览</a>（上一个基础件） · 演示页：<a href="plan-a-compound.html">A 复合组件</a> · <a href="plan-b-options.html">B 数据驱动（推荐）</a> · <a href="plan-c-headless.html">C 无头 hook</a></p>
+
+</div>
+</body>
+</html>
