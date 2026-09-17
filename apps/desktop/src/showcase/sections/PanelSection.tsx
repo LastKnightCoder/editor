@@ -95,7 +95,7 @@ export default function PanelSection() {
         }
         trayClassName=""
       >
-        <EmptyNote className="flex-1">该板块暂无数据 —— 走 null + 空态，禁止造假演示数据</EmptyNote>
+        <EmptyNote className="flex-1">该板块暂无数据</EmptyNote>
       </MatrixRow>
       <MatrixRow name="PanelAction :hover" desc="标题行右侧「前往」链接，锁定 hover 态">
         <span className="text-tau-sm text-ink-2 inline-flex items-center gap-1.5">

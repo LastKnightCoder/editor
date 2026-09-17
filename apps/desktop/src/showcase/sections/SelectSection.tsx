@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 import { Select, type SelectOption } from "@/ui/primitives/Select";
-import { ApiCard, BlockTitle, CanvasCard, DocHead, MatrixRow, Note } from "../kit";
+import { ApiCard, BlockTitle, CanvasCard, DocHead, MatrixRow } from "../kit";
 
 const VIEWS: SelectOption<string>[] = [
   { value: "today", label: "今日" },
@@ -50,14 +50,14 @@ export default function SelectSection() {
       <DocHead
         title="Select"
         en="primitives/Select.tsx"
-        duty="数据驱动单选。options 即选项集合：搜索是一行 filter、分组是 group 字段、异步是换数组；键盘全表与 aria 内建，定位复用 D-004 引擎（gap 4，下方放不下翻上）。"
+        duty="数据驱动单选。options 即选项集合：搜索是一行 filter、分组是 group 字段、异步是换数组；键盘全表与 aria 内建，定位复用自研定位引擎（gap 4，下方放不下自动翻上）。"
         src="src/ui/primitives/Select.tsx"
       />
 
       <CanvasCard
         cap="LIVE"
         note="键盘全表可用：↑↓ / Enter / Esc / Home·End / 敲字跳匹配"
-        stageClassName="flex min-h-[300px] flex-col items-start justify-center gap-6"
+        stageClassName="flex flex-col items-start gap-6"
       >
         <div className="flex flex-wrap items-center gap-4">
           <Select options={VIEWS} value={view} onValueChange={setView} placeholder="选择视图" />
@@ -120,7 +120,7 @@ export default function SelectSection() {
               <td>
                 <code>value · defaultValue · onValueChange</code>
               </td>
-              <td>受控 / 非受控（§5.3 契约）；字段名与 antd 对齐，存量 options 用法直映</td>
+              <td>受控 / 非受控；字段名与 antd 对齐，存量 options 用法直映</td>
             </tr>
             <tr>
               <td>
@@ -140,19 +140,11 @@ export default function SelectSection() {
               <td>
                 <code>open · onOpenChange</code>
               </td>
-              <td>浮层受控（对齐 §5.3 契约）；matchTriggerWidth 默认开</td>
+              <td>浮层受控；matchTriggerWidth 默认开</td>
             </tr>
           </tbody>
         </table>
       </ApiCard>
-
-      <Note>
-        表单控件家族口径（2026-09-17 裁决 sunken→group→surface）：触发器与搜索框 =
-        <em> surface 亮底 + line-1 描边</em>，「浮起物」语感。层级 <em>z-[250]</em>
-        （命令面板 101 &lt; Toast 200 &lt; Select/Menu 250 &lt; Tooltip 300）；Esc 仅 open 态在组件
-        DOM 上消费——焦点链即 LIFO，不进 D-003 全局注册表。M0 明确不做：多选 （M1{" "}
-        <code>value: V[]</code>）、异步 loading prop、虚拟化、renderOption。
-      </Note>
     </>
   );
 }

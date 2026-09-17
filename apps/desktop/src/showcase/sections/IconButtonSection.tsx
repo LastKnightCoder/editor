@@ -6,7 +6,7 @@
 
 import { CalendarDays, MoreHorizontal, Plus, Search } from "lucide-react";
 import { IconButton } from "@/ui/primitives/IconButton";
-import { ApiCard, BlockTitle, CanvasCard, DemoButton, DocHead, MatrixRow, Note } from "../kit";
+import { ApiCard, BlockTitle, CanvasCard, DocHead, MatrixRow, Note } from "../kit";
 
 export default function IconButtonSection() {
   return (
@@ -14,7 +14,7 @@ export default function IconButtonSection() {
       <DocHead
         title="IconButton"
         en="primitives/IconButton.tsx"
-        duty="30px 方形无底幽灵按钮，hover 淡墨（A2 反馈语言）。图标随 color 继承，尺寸微调靠 className 覆盖。"
+        duty="30px 方形无底幽灵按钮，hover 淡墨。图标随 color 继承，尺寸微调靠 className 覆盖。"
         src="src/ui/primitives/IconButton.tsx"
       />
 
@@ -116,14 +116,7 @@ export default function IconButtonSection() {
         </table>
       </ApiCard>
 
-      <Note>
-        bg-press token 预留未消费——组件无显式 :active 态，按压场景由 hover 覆盖（如实呈现现状）。
-      </Note>
-
-      <div className="mt-6 flex items-center gap-3">
-        <span className="text-tau-meta text-ink-2">对照：</span>
-        <DemoButton>button（无 antd 等价物，Button 基础件待 §9 任务 2）</DemoButton>
-      </div>
+      <Note>无 :active 态——按压场景由 hover 覆盖。</Note>
     </>
   );
 }
