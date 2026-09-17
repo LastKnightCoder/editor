@@ -127,6 +127,15 @@
 - 已知限制（2026-09-17 评审）：legacy `searchContent` 管线 catch 后返回空数组，检索故障时面板展示「无结果」空态而非错误提示——错误态与空态混淆，待检索管线迁移（或 ui/primitives 补 Toast）时区分；`useOverlayDismiss` 注册表的 LIFO/优先级/注销语义由 `src/page/__tests__/overlayDismiss.test.tsx` 守护。Esc 仲裁与 Tab 焦点圈闭、关闭后焦点恢复到触发元素的完整收口，留待通用浮层基建（§9 任务 4）统一处理（面板已做最小版：关闭时焦点还回触发元素）。
 - 影响：03 指南 §2（目录树 +features/search、PageProvider 职责）、§5（Esc 仲裁落定）、§9 任务 3 完成；tokens.css 补 `--color-overlay` 的 @theme 映射（token 协议四处同步完成：contract/两主题数据块/映射）。
 
+## D-018 Tooltip 与浮层定位引擎选型：自研 JS mini 引擎（方案 B）`已定（2026-09-17，用户裁决）`
+
+- 背景：02 规范 §5.2 裁定 Tooltip/Popover/Menu/Select 共享一个浮层定位引擎（M0 专项）。mockups/tooltip/ 出三路线交互稿（A 原生锚定 popover+CSS Anchor Positioning / B JS 引擎 / C 伪元素·title 凑合），Electron 43（Chromium ~150）实机验证后用户裁决定 B。
+- 实测关键结论（留档，决定性）：① CSS 无 floating-ui 式任意 shift，`position-try-fallbacks` 只有 flip 族且候选「整块放得下才启用、全失败回首选位」；② `safe anchor-center` 语法可解析但布局异常（被误判溢出降级 start，Chromium 146 实测）；③ `[popover]` 的 UA 样式（`inset:0; overflow:auto; width/height:fit-content`）必须显式重置，否则 position-area 合成被破坏、出滚动条、箭头被裁——方案 A 的这三条保守性使用户倾向 B 的「策略可编程」。
+- 选择：① `ui/primitives/Tooltip.tsx` = Portal（body + fixed z-[300]）+ 自研 mini 引擎（`tooltipPosition.ts` 纯函数：offset(8) → flip → shift(视口 pad 8) → arrow 投影），单测 8 例守护引擎数学；② 箭头 = 8px 旋转方块、尖端单角 2.5px 圆角、中心落边框外缘（-5px 补 padding-box 包含块差），top/bottom 描 right/bottom、left/right 描 left/top；③ 行为内建：hover intent 450ms + 400ms 内重开免延迟（组联动）、focus-visible、aria-describedby 自动接线、disabled 子元素自动包 wrapper、动态锚 rAF 跟随、scroll(capture)/resize 重算；受控 `open` 对齐 §5.3 契约；④ 反相配色复用 `bg-ink-1 text-ink-inverse`（深浅主题自动反相，零新增 token）；⑤ 不接 Esc、不进浮层退场注册表（瞬态非阻断，同 Toast 的 D-017 口径）；不承载可交互内容（那是 Popover/Menu）。
+- 排除：方案 A 留档 mockups/tooltip/plan-a-native.html（若未来某组件 CSS 锚定足够，可局部评估，不动本条）；floating-ui 依赖不引入（引擎 ~100 行自研可测，够用再加）；方案 C（伪元素/title）禁入产品代码。
+- 首批接入：stats 页（写作趋势受控模式 + 专注节律/到期柱图/构成与评分条），消灭该页全部原生 title。
+- 影响：03 指南 §9 任务 2（Tooltip 完成，余 Button/Input/Select/Menu）；Menu/Select/Popover 后续复用 `tooltipPosition.ts` 引擎扩展中间件（size 同宽、虚拟锚点等届时再议）。
+
 ---
 
 ## Page 迁移清单（M2 起滚动勾选）

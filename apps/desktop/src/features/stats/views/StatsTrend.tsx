@@ -5,6 +5,7 @@
  */
 
 import { useMemo, useState } from "react";
+import { Tooltip } from "@/ui/primitives/Tooltip";
 import type { TrendDay } from "../types";
 
 const W = 1000;
@@ -115,21 +116,38 @@ export function StatsTrend({ trend }: { trend: TrendDay[] }) {
             />
           )}
         </svg>
-        {hovered && hover !== null && (
-          <div
-            className="bg-ink-1 text-ink-inverse pointer-events-none absolute z-[3] -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[11px] leading-[1.45]"
-            style={{
-              left: `${(geo.pts[hover][0] / W) * 100}%`,
-              top: `${(geo.pts[hover][1] / H) * 100}%`,
-            }}
-          >
-            <b className="text-[12.5px] tabular-nums">{hovered.words.toLocaleString("zh-CN")}</b> 字
-            <br />
-            <span className="opacity-70">
-              {hovered.date} · 新建 {hovered.cardsCreated + hovered.articlesCreated}
-            </span>
-          </div>
-        )}
+        {/* 悬浮锚：常驻的零尺寸点跟随当前数据格；Tooltip 受控 open，
+            引擎的 rAF 跟随让 tooltip 随鼠标逐格平滑移动（数据点贴顶时自动 flip 到下方） */}
+        <Tooltip
+          open={hover !== null}
+          placement="top"
+          content={
+            hovered ? (
+              <>
+                <b className="text-[12.5px] tabular-nums">
+                  {hovered.words.toLocaleString("zh-CN")}
+                </b>{" "}
+                字
+                <br />
+                <span className="opacity-70">
+                  {hovered.date} · 新建 {hovered.cardsCreated + hovered.articlesCreated}
+                </span>
+              </>
+            ) : null
+          }
+        >
+          <span
+            className="pointer-events-none absolute size-0"
+            style={
+              hover !== null
+                ? {
+                    left: `${(geo.pts[hover][0] / W) * 100}%`,
+                    top: `${(geo.pts[hover][1] / H) * 100}%`,
+                  }
+                : undefined
+            }
+          />
+        </Tooltip>
       </div>
       <div className="text-ink-3 mt-1.5 flex justify-between px-px text-[10.5px]">
         {trend.map((d, i) =>

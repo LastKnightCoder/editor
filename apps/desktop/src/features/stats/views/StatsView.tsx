@@ -14,6 +14,7 @@ import { openPomodoroWindow } from "@/commands";
 import { useEdgeFade } from "@/hooks/useEdgeFade";
 import { EmptyNote, Panel, PanelAction, PanelNote, PanelTitle } from "@/ui/primitives/Panel";
 import { Loading } from "@/ui/primitives/Loading";
+import { Tooltip } from "@/ui/primitives/Tooltip";
 import { YearHeatmap } from "@/ui/primitives/YearHeatmap";
 import { useStatsSnapshot } from "../queries";
 import { STATS_RANGES, type StatsRange, type StatsTotals } from "../types";
@@ -152,12 +153,15 @@ export function StatsView() {
               <>
                 <div className="mt-3 flex h-4 overflow-hidden rounded-lg">
                   {COMP_ROWS.map(row => (
-                    <i
+                    <Tooltip
                       key={row.name}
-                      className={row.barClass}
-                      title={`${row.name} ${pctStr(row.pick(totals), totals.wordsTotal)}`}
-                      style={{ width: pct(row.pick(totals), totals.wordsTotal) }}
-                    />
+                      content={`${row.name} ${pctStr(row.pick(totals), totals.wordsTotal)}`}
+                    >
+                      <i
+                        className={row.barClass}
+                        style={{ width: pct(row.pick(totals), totals.wordsTotal) }}
+                      />
+                    </Tooltip>
                   ))}
                 </div>
                 <div className="mt-2 flex flex-col gap-0.5">
@@ -220,12 +224,15 @@ export function StatsView() {
               <>
                 <div className="mt-1 flex h-3 overflow-hidden rounded-md">
                   {RATING_ROWS.map(row => (
-                    <i
+                    <Tooltip
                       key={row.key}
-                      className={row.barClass}
-                      title={`${row.label} ${pctStr(review.ratings[row.key], review.total)}`}
-                      style={{ width: pct(review.ratings[row.key], review.total) }}
-                    />
+                      content={`${row.label} ${pctStr(review.ratings[row.key], review.total)}`}
+                    >
+                      <i
+                        className={row.barClass}
+                        style={{ width: pct(review.ratings[row.key], review.total) }}
+                      />
+                    </Tooltip>
                   ))}
                 </div>
                 <div className="text-ink-2 mt-2 flex flex-wrap gap-x-3.5 gap-y-1 text-[11px]">
@@ -270,19 +277,19 @@ export function StatsView() {
               <>
                 <div className="flex h-[96px] items-end gap-[3px]">
                   {rhythm.hourBuckets.map((n, h) => (
-                    <div
-                      key={h}
-                      className="flex h-full min-w-0 flex-1 flex-col justify-end"
-                      title={`${String(h).padStart(2, "0")}:00 · ${n} 个番茄`}
-                    >
-                      <i
-                        className={clsx(
-                          "rounded-t-[3px]",
-                          h === rhythm.peakHour ? "bg-accent" : "bg-accent opacity-50"
-                        )}
-                        style={{ height: `${Math.max(4, (n / maxOf(rhythm.hourBuckets)) * 100)}%` }}
-                      />
-                    </div>
+                    <Tooltip key={h} content={`${String(h).padStart(2, "0")}:00 · ${n} 个番茄`}>
+                      <div className="flex h-full min-w-0 flex-1 flex-col justify-end">
+                        <i
+                          className={clsx(
+                            "rounded-t-[3px]",
+                            h === rhythm.peakHour ? "bg-accent" : "bg-accent opacity-50"
+                          )}
+                          style={{
+                            height: `${Math.max(4, (n / maxOf(rhythm.hourBuckets)) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </Tooltip>
                   ))}
                 </div>
                 <div className="text-ink-3 mt-1 flex gap-[3px] text-[9.5px]">
@@ -432,16 +439,14 @@ function DueStrip({ buckets }: { buckets: number[] }) {
       <div className="text-tau-micro text-ink-3">未来 7 天到期</div>
       <div className="mt-1 flex h-[52px] items-end gap-[3px]">
         {buckets.map((n, i) => (
-          <div
-            key={i}
-            className="flex h-full min-w-0 flex-1 flex-col justify-end"
-            title={`${labels[i]} · ${n} 张到期`}
-          >
-            <i
-              className={clsx("rounded-t-[3px]", i === 0 ? "bg-accent" : "bg-accent opacity-40")}
-              style={{ height: `${max > 0 ? Math.max(6, (n / max) * 100) : 6}%` }}
-            />
-          </div>
+          <Tooltip key={i} content={`${labels[i]} · ${n} 张到期`}>
+            <div className="flex h-full min-w-0 flex-1 flex-col justify-end">
+              <i
+                className={clsx("rounded-t-[3px]", i === 0 ? "bg-accent" : "bg-accent opacity-40")}
+                style={{ height: `${max > 0 ? Math.max(6, (n / max) * 100) : 6}%` }}
+              />
+            </div>
+          </Tooltip>
         ))}
       </div>
       <div className="text-ink-3 mt-0.5 flex gap-[3px] text-[9.5px]">
