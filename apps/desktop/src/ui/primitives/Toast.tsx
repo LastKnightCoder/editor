@@ -29,7 +29,11 @@ export interface ToastOptions {
   duration?: number;
 }
 
-interface ToastItem {
+/**
+ * 单条胶囊（受 item 驱动的纯展示件）。导出供样板间（src/showcase）构造
+ * duration=0 的常显标本——产品代码仍应只消费 toast 命令式 API 与 ToastHost。
+ */
+export interface ToastItem {
   id: number;
   type: ToastType;
   message: string;
@@ -206,7 +210,7 @@ export function ToastHost() {
   );
 }
 
-function ToastPill({ item }: { item: ToastItem }) {
+export function ToastPill({ item }: { item: ToastItem }) {
   const remove = useToastStore(s => s.remove);
   const [entered, setEntered] = useState(false);
   const [leaving, setLeaving] = useState(false);

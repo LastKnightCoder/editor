@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>样板间 方案 C · 主题对照台（cream × cocoa 同屏） — Tau 桌面端</title>
+<!--
+  【样板间 · 方案 C：主题对照台 —— 双主题同屏并排，不做切换】
+
+  信息架构：主题维度优先。cream（暖纸）与 cocoa（暖纸·夜）左右并排，同一组件
+  渲染两份——主题同构验证零成本：一眼看出反相配色（Tooltip 墨底在两主题下
+  各自反相）、阴影档随主题变化、YearHeatmap 陶土橙硬编码未随主题调整等问题。
+
+  特色：每行组件头部带「验收检查点」复选框（点击标记该组件双主题一致性已核），
+  顶部进度条实时汇总——把样板间当双主题验收工作台用。
+
+  组件清单与视觉对齐 ui/primitives 源码现状（2026-09-17）。
+
+  交互清单：整页滚动逐组件对照 · 验收复选 + 进度汇总 · Toast 真实触发（两侧同发）·
+  Tooltip hover（两侧同显）· 热力图 hover 呼吸。
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+}
+/* 中性壳（页面自身不随主题——左右两列各自强制 data-theme） */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); font-size: 13px; line-height: 1.65; background: #1b1813; color: #d8cfc0; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+::-webkit-scrollbar { width: 9px; }
+::-webkit-scrollbar-thumb { background: #3a342b; border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+
+/* ── tau token（两组主题块供列容器消费）── */
+.tau { --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1); }
+.tau[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #faf6ec; --bg-sunken: #ece5d4;
+  --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09);
+  --bg-selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c; --ink-2: #736552; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+  --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+  --focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+  --ok: #61795f; --ok-soft: #e5ede2; --warn: #a38c4d; --warn-soft: #f6efd6;
+  --danger: #b0564d; --danger-soft: #f6e3e0; --info: #5c7d99; --info-soft: #e2ebf3;
+  --tag-1: #61795f; --tag-2: #5c7d99; --tag-3: #8a7aa6; --tag-4: #a38c4d; --tag-5: #b06a5e;
+  --overlay: rgba(67, 57, 44, 0.35);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+}
+.tau[data-theme="cocoa"] {
+  color-scheme: dark;
+  --bg-page: #221d16; --bg-surface: #2e2820; --bg-group: #2a241b; --bg-sunken: #1a1611;
+  --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11);
+  --bg-selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+  --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+  --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+  --focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+  --ok: #8cab87; --ok-soft: #243023; --warn: #c4a458; --warn-soft: #302917;
+  --danger: #d97e66; --danger-soft: #34201a; --info: #83aecf; --info-soft: #1e2a35;
+  --tag-1: #8cab87; --tag-2: #83aecf; --tag-3: #a596c8; --tag-4: #c4a458; --tag-5: #d0806a;
+  --overlay: rgba(10, 8, 5, 0.55);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+
+/* ── 头部（中性壳样式）── */
+.masthead { padding: 30px 28px 18px; max-width: 1280px; margin: 0 auto; }
+.masthead h1 { font-size: 21px; font-weight: 650; color: #f0e9dc; letter-spacing: -0.01em; }
+.masthead p { font-size: 12.5px; color: #a89a85; max-width: 88ch; margin-top: 4px; }
+.masthead p em { color: #e8a184; font-style: normal; font-weight: 550; }
+.progress-wrap { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+.progress-bar { flex: 1; max-width: 380px; height: 6px; border-radius: 99px; background: #322c23; overflow: hidden; }
+.progress-bar i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, hsl(22 58% 52%), hsl(22 62% 65%)); transition: width 240ms var(--ease-out); }
+.progress-text { font-family: var(--mono); font-size: 11px; color: #a89a85; }
+
+/* ── 双列布局 ── */
+.duo-wrap { max-width: 1280px; margin: 0 auto; padding: 0 28px 140px; }
+.duo-head { position: sticky; top: 0; z-index: 90; display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+  padding: 10px 0 8px; background: linear-gradient(#1b1813 82%, transparent); }
+.duo-head .col-label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600;
+  border-radius: 9px; padding: 7px 14px; }
+.duo-head .cream { background: #f3eee2; color: #43392c; }
+.duo-head .cocoa { background: #2e2820; color: #ece2d0; }
+.duo-head .col-label .sub { font-family: var(--mono); font-size: 10px; opacity: 0.55; font-weight: 400; }
+
+.row { margin-top: 30px; }
+.row-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 0 2px 10px; }
+.row-head h2 { font-size: 15px; font-weight: 650; color: #f0e9dc; }
+.row-head .en { font-family: var(--mono); font-size: 10.5px; color: #857768; }
+.row-head .check { font-size: 11.5px; color: #a89a85; }
+.row-head .verify { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: #a89a85;
+  border: 1px solid #3a342b; border-radius: 99px; padding: 4px 13px; transition: all 160ms var(--ease-out); }
+.row-head .verify:hover { border-color: #6b6152; color: #d8cfc0; }
+.row-head .verify.done { border-color: hsl(22 62% 55%); color: hsl(22 62% 70%); }
+.row-head .verify .box { width: 13px; height: 13px; border-radius: 4px; border: 1.5px solid currentColor; display: grid; place-items: center; font-size: 9px; }
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.pane { border-radius: 14px; overflow: hidden; }
+.pane .pane-tag { font-family: var(--mono); font-size: 10px; padding: 5px 12px; letter-spacing: 0.05em; }
+.pane[data-pane="cream"] .pane-tag { background: #e9e1d2; color: #736552; }
+.pane[data-pane="cocoa"] .pane-tag { background: #1a1611; color: #857768; }
+.pane .stage { background: var(--bg-page); padding: 22px 20px; display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: center; gap: 18px; min-height: 120px; color: var(--ink-1); }
+.pane .stage.col { flex-direction: column; align-items: stretch; }
+.pane .stage.left { justify-content: flex-start; }
+.pane-foot { font-size: 10.5px; color: #857768; padding: 7px 4px 0; font-family: var(--mono); }
+
+/* ══ 组件复刻（消费列内 token）══ */
+.c-iconbtn { width: 30px; height: 30px; border-radius: var(--radius-sm); display: grid; place-items: center;
+  color: var(--ink-2); transition: background 160ms var(--ease-out), color 160ms var(--ease-out); }
+.c-iconbtn:hover, .c-iconbtn.is-hover { background: var(--bg-hover); color: var(--ink-1); }
+.c-iconbtn:disabled, .c-iconbtn.is-disabled { opacity: 0.35; cursor: default; background: none; color: var(--ink-2); }
+.c-iconbtn.sm27 { width: 27px; height: 27px; }
+
+.c-panel { background: var(--bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.c-panel.pad-base { padding: 18px 20px; }
+.c-panel.pad-compact { padding: 12px 16px; }
+.c-panel-title { font-size: 14.5px; font-weight: 600; color: var(--ink-1); display: flex; align-items: center; gap: 8px; }
+.c-panel-note { font-size: 11.5px; color: var(--ink-3); font-weight: 400; }
+.c-empty-note { border-radius: var(--radius-sm); background: var(--bg-group); font-size: 12px; color: var(--ink-3);
+  margin-top: 10px; padding: 10px 12px; line-height: 1.6; }
+.c-panel-action { margin-left: auto; margin-right: -4px; display: inline-flex; align-items: center; gap: 2px;
+  border-radius: 7px; padding: 2px 4px; font-size: 11.5px; font-weight: 400; color: var(--ink-3);
+  transition: background 160ms var(--ease-out), color 160ms var(--ease-out); }
+.c-panel-action:hover, .c-panel-action.is-hover { background: var(--bg-hover); color: var(--ink-1); }
+
+.c-toast { display: inline-flex; align-items: center; gap: 10px; min-height: 36px; max-width: 420px;
+  border-radius: 99px; background: var(--bg-surface); border: 1px solid var(--line-1); box-shadow: var(--shadow-float);
+  padding: 0 15px; font-size: 12px; color: var(--ink-1); cursor: pointer; }
+.c-toast .t-icon { width: 15px; height: 15px; stroke-width: 2; flex: none; }
+.c-toast .t-text { padding: 7px 0; }
+.t-success { color: var(--ok); } .t-error { color: var(--danger); } .t-warning { color: var(--warn); }
+.t-info { color: var(--info); } .t-loading { color: var(--ink-2); }
+.t-loading .t-icon { animation: spin 0.75s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.c-toast .t-action { flex: none; border-radius: 7px; padding: 4px 7px; font-size: 12px; font-weight: 600; color: var(--accent-text); }
+.demo-btn { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 14px;
+  border-radius: 10px; background: var(--bg-group); border: 1px solid var(--line-1); color: var(--ink-2); font-size: 12px; }
+.demo-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+
+.tip { position: relative; max-width: 280px; padding: 5px 10px; border-radius: var(--radius-sm);
+  background: var(--ink-1); color: var(--ink-inverse); border: 1px solid color-mix(in srgb, var(--ink-inverse) 15%, transparent);
+  box-shadow: var(--shadow-card); font-size: 12px; line-height: 1.55; width: max-content; }
+.tip kbd { font-family: var(--mono); font-size: 10.5px; padding: 0 5px; border-radius: 5px; background: rgba(127, 127, 127, 0.22); }
+.tip-pair { position: relative; padding: 34px 0 14px; display: flex; justify-content: center; }
+.tip-pair .demo-btn { position: relative; z-index: 2; }
+.tip-pair .tip { position: absolute; top: 0; }
+.tip-inline { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+
+.c-spinner { width: 16px; height: 16px; border-radius: 99px; display: inline-block;
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent); border-top-color: var(--accent);
+  animation: spin 0.75s linear infinite; }
+.c-spinner.lg { width: 20px; height: 20px; }
+.loading-box { height: 150px; border-radius: var(--radius-md); background: var(--bg-group); width: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.loading-box p { font-size: 12px; color: var(--ink-3); }
+
+.hm-wrap { width: 100%; }
+.hm-months { display: flex; color: var(--ink-3); font-size: 9px; margin-bottom: 4px; }
+.hm-months span { flex: 1 1 0; overflow: hidden; white-space: nowrap; }
+.hm-grid { display: flex; gap: 3px; }
+.hm-week { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; justify-content: flex-end; }
+.hm-week:last-child { justify-content: flex-start; }
+.hm-day { aspect-ratio: 1; width: 100%; flex-shrink: 0; }
+.hm-day .dot { width: 100%; height: 100%; border-radius: 99px; }
+.hm-day:hover .dot { animation: hmPulse 0.5s linear alternate infinite; }
+@keyframes hmPulse { 0% { transform: scale(1.18); } 50% { transform: scale(1); } 100% { transform: scale(0.85); } }
+.hm-legend { display: flex; align-items: center; justify-content: flex-end; gap: 3px; color: var(--ink-3); font-size: 9px; margin-top: 6px; }
+.hm-legend .dot { width: 8px; height: 8px; border-radius: 99px; }
+
+.swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; width: 100%; }
+.swatch { border-radius: 9px; border: 1px solid var(--line-1); overflow: hidden; background: var(--bg-surface); }
+.swatch .chip { height: 30px; }
+.swatch .meta { padding: 4px 7px 5px; }
+.swatch .name { font-family: var(--mono); font-size: 9px; color: var(--ink-1); }
+.swatch .val { font-family: var(--mono); font-size: 8.5px; color: var(--ink-3); }
+
+.type-row { display: flex; align-items: baseline; gap: 14px; padding: 6px 0; border-bottom: 1px dashed var(--line-1); }
+.type-row:last-child { border-bottom: none; }
+.type-row .spec { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); width: 150px; flex: none; }
+.shadow-cards { display: flex; gap: 14px; flex-wrap: wrap; }
+.shadow-card-demo { width: 46%; min-width: 150px; height: 74px; background: var(--bg-surface); border-radius: var(--radius-lg);
+  display: grid; place-items: center; font-family: var(--mono); font-size: 10px; color: var(--ink-2); }
+
+/* 真实 Toast（两列同发时各挂各的 pane） */
+.toast-zone { position: absolute; z-index: 200; display: flex; flex-direction: column; gap: 9px; pointer-events: none; align-items: center; left: 50%; top: 46px; transform: translateX(-50%); }
+.toast-live { pointer-events: auto; opacity: 0; transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out); transform: translateY(-14px); }
+.toast-live.enter { opacity: 1; transform: none; }
+
+.plan-badge { position: fixed; left: 16px; bottom: 16px; z-index: 120; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.plan-badge .tag { display: inline-flex; align-items: center; gap: 7px; background: #2e2820;
+  border: 1px solid #3a3227; border-radius: 99px; padding: 6px 13px; font-size: 11.5px; color: #a89a85; }
+.plan-badge .tag b { color: hsl(22 66% 70%); font-weight: 600; }
+.plan-note { width: 340px; background: #2e2820; border: 1px solid #3a3227; border-radius: 12px;
+  padding: 14px 16px; font-size: 12px; color: #a89a85; line-height: 1.75; display: none; }
+.plan-note.open { display: block; }
+.plan-note h4 { font-size: 12.5px; color: #ece2d0; margin-bottom: 6px; }
+.plan-note em { color: #e8a184; font-style: normal; font-weight: 550; }
+.plan-note .links { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #3a3227; font-size: 11px; }
+.plan-note .links a { color: hsl(22 66% 70%); text-decoration: none; }
+.plan-note .links a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <h1>Tau 样板间 · 主题对照台</h1>
+  <p>cream（暖纸）与 cocoa（暖纸·夜）<em>同屏并排</em>——同一组件渲染两份，主题同构验证零切换成本。重点盯四类主题敏感点：<em>反相配色</em>（Tooltip 在两主题下各自反相）、<em>阴影档</em>（shadow-card / float 取值随主题变）、<em>透明交互底</em>（hover / press / selected 的 alpha 基色不同）、<em>硬编码色</em>（YearHeatmap 陶土橙目前未随主题调整）。每行右上「验收」复选核对该组件的双主题一致性，顶部实时汇总。</p>
+  <div class="progress-wrap">
+    <div class="progress-bar"><i id="progFill"></i></div>
+    <span class="progress-text" id="progText">0 / 8 已验收</span>
+  </div>
+</div>
+
+<div class="duo-wrap">
+  <div class="duo-head">
+    <div class="col-label cream">☀ cream · 暖纸<span class="sub">light</span></div>
+    <div class="col-label cocoa">🌙 cocoa · 暖纸夜<span class="sub">dark</span></div>
+  </div>
+
+  <!-- IconButton -->
+  <div class="row" data-row="iconbutton">
+    <div class="row-head"><h2>IconButton</h2><span class="en">30px ghost</span>
+      <span class="check">核对点：hover 淡墨两主题浓度感一致 · disabled 35% 不透明度可辨</span>
+      <button class="verify"><span class="box"></span>验收</button></div>
+    <div class="duo">
+      <div class="tau" data-theme="cream"><div class="pane" data-pane="cream"><div class="pane-tag">CREAM</div>
+        <div class="stage">
+          <button class="c-iconbtn"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+          <button class="c-iconbtn is-hover"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+          <button class="c-iconbtn" disabled><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+          <button class="c-iconbtn sm27"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+        </div></div></div>
+      <div class="tau" data-theme="cocoa"><div class="pane" data-pane="cocoa"><div class="pane-tag">COCOA</div>
+        <div class="stage">
+          <button class="c-iconbtn"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+          <button class="c-iconbtn is-hover"><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+          <button class="c-iconbtn" disabled><svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+          <button class="c-iconbtn sm27"><svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+        </div></div></div>
+    </div>
+    <div class="pane-foot">default · hover(锁定) · disabled · 27px 覆盖</div>
+  </div>
+
+  <!-- Panel -->
+  <div class="row" data-row="panel">
+    <div class="row-head"><h2>Panel 族</h2><span class="en">surface card</span>
+      <span class="check">核对点：shadow-card 在暗底的可见度 · EmptyNote 灰底对比</span>
+      <button class="verify"><span class="box"></span>验收</button></div>
+    <div class="duo">
+      <div class="tau" data-theme="cream"><div class="pane" data-pane="cream"><div class="pane-tag">CREAM</div>
+        <div class="stage col">
+          <div class="c-panel pad-compact">
+            <div class="c-panel-title" style="font-size:13px">最近编辑 <span class="c-panel-note">14 天内</span>
+              <button class="c-panel-action is-hover">全部 <svg class="icon" style="width:12px;height:12px" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div>
+            <div style="margin-top:6px;font-size:12px;color:var(--ink-2)">pad=compact（首页密度）</div>
+          </div>
+          <p class="c-empty-note">暂无数据 —— EmptyNote 空态注记</p>
+        </div></div></div>
+      <div class="tau" data-theme="cocoa"><div class="pane" data-pane="cocoa"><div class="pane-tag">COCOA</div>
+        <div class="stage col">
+          <div class="c-panel pad-compact">
+            <div class="c-panel-title" style="font-size:13px">最近编辑 <span class="c-panel-note">14 天内</span>
+              <button class="c-panel-action is-hover">全部 <svg class="icon" style="width:12px;height:12px" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div>
+            <div style="margin-top:6px;font-size:12px;color:var(--ink-2)">pad=compact（首页密度）</div>
+          </div>
+          <p class="c-empty-note">暂无数据 —— EmptyNote 空态注记</p>
+        </div></div></div>
+    </div>
+    <div class="pane-foot">panel(compact) + Title/Note/Action(hover 锁定) + EmptyNote</div>
+  </div>
+
+  <!-- Toast -->
+  <div class="row" data-row="toast">
+    <div class="row-head"><h2>Toast</h2><span class="en">inline pill</span>
+      <span class="check">核对点：五语义色图标暗底可辨 · shadow-float 暗底层次</span>
+      <button class="verify"><span class="box"></span>验收</button></div>
+    <div class="duo">
+      <div class="tau" data-theme="cream" style="position:relative"><div class="pane" data-pane="cream"><div class="pane-tag">CREAM</div>
+        <div class="toast-zone" data-zone></div>
+        <div class="stage col left" style="align-items:flex-start">
+          <button class="demo-btn" data-fire>两侧同发一条 success</button>
+          <div class="c-toast"><svg class="t-icon t-success" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg><span class="t-text">已保存</span></div>
+          <div class="c-toast"><svg class="t-icon t-error" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg><span class="t-text">同步失败，已保留本地副本</span></div>
+          <div class="c-toast"><svg class="t-icon t-warning" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span class="t-text">存储空间不足 15%</span></div>
+          <div class="c-toast"><svg class="t-icon t-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span class="t-text">已切换到年度视图</span></div>
+          <div class="c-toast"><svg class="t-icon t-loading" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg><span class="t-text">正在导入数据…</span></div>
+        </div></div></div>
+      <div class="tau" data-theme="cocoa" style="position:relative"><div class="pane" data-pane="cocoa"><div class="pane-tag">COCOA</div>
+        <div class="toast-zone" data-zone></div>
+        <div class="stage col left" style="align-items:flex-start">
+          <button class="demo-btn" data-fire>两侧同发一条 success</button>
+          <div class="c-toast"><svg class="t-icon t-success" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg><span class="t-text">已保存</span></div>
+          <div class="c-toast"><svg class="t-icon t-error" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg><span class="t-text">同步失败，已保留本地副本</span></div>
+          <div class="c-toast"><svg class="t-icon t-warning" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span class="t-text">存储空间不足 15%</span></div>
+          <div class="c-toast"><svg class="t-icon t-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span class="t-text">已切换到年度视图</span></div>
+          <div class="c-toast"><svg class="t-icon t-loading" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg><span class="t-text">正在导入数据…</span></div>
+        </div></div></div>
+    </div>
+    <div class="pane-foot">五类型常显标本 + 顶行按钮两列同发（同一条反馈在两主题下的样子）</div>
+  </div>
+
+  <!-- Tooltip -->
+  <div class="row" data-row="tooltip">
+    <div class="row-head"><h2>Tooltip</h2><span class="en">反相配色 · 关键核对</span>
+      <span class="check">核对点：bg-ink-1 在两主题各自反相 —— cream 下深棕底米字 / cocoa 下米底深字</span>
+      <button class="verify"><span class="box"></span>验收</button></div>
+    <div class="duo">
+      <div class="tau" data-theme="cream"><div class="pane" data-pane="cream"><div class="pane-tag">CREAM</div>
+        <div class="stage col">
+          <div class="tip-pair"><button class="demo-btn" data-tip-anchor>悬停我（450ms）</button>
+            <div class="tip" data-tip>top · 反相墨底</div></div>
+          <div class="tip-inline">
+            <div class="tip">复制 <kbd>Ctrl</kbd> + <kbd>C</kbd></div>
+            <div class="tip" style="max-width:230px">长文本在 280px 自动换行，深浅主题各自反相、对比度由 token 保障。</div>
+          </div>
+        </div></div></div>
+      <div class="tau" data-theme="cocoa"><div class="pane" data-pane="cocoa"><div class="pane-tag">COCOA</div>
+        <div class="stage col">
+          <div class="tip-pair"><button class="demo-btn" data-tip-anchor>悬停我（450ms）</button>
+            <div class="tip" data-tip>top · 反相墨底</div></div>
+          <div class="tip-inline">
+            <div class="tip">复制 <kbd>Ctrl</kbd> + <kbd>C</kbd></div>
+            <div class="tip" style="max-width:230px">长文本在 280px 自动换行，深浅主题各自反相、对比度由 token 保障。</div>
+          </div>
+        </div></div></div>
+    </div>
+    <div class="pane-foot">12 位矩阵与边缘 fallback 见方案 A/B，本台聚焦反相配色这一主题敏感点</div>
+  </div>
+
+  <!-- Loading -->
+  <div class="row" data-row="loading">
+    <div class="row-head"><h2>Spinner · Loading</h2><span class="en">accent ring</span>
+      <span class="check">核对点：accent 环两主题的明度感 · 暗底 30% 底环可辨</span>
+      <button class="verify"><span class="box"></span>验收</button></div>
+    <div class="duo">
+      <div class="tau" data-theme="cream"><div class="pane" data-pane="cream"><div class="pane-tag">CREAM</div>
+        <div class="stage col">
+          <div style="display:flex;gap:18px;align-items:center"><span class="c-spinner"></span><span class="c-spinner lg"></span>
+            <span style="display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2)"><span class="c-spinner" style="width:13px;height:13px;border-width:1.5px"></span>正在统计…</span></div>
+          <div class="loading-box"><span class="c-spinner lg"></span><p>加载中…</p></div>
+        </div></div></div>
+      <div class="tau" data-theme="cocoa"><div class="pane" data-pane="cocoa"><div class="pane-tag">COCOA</div>
+        <div class="stage col">
+          <div style="display:flex;gap:18px;align-items:center"><span class="c-spinner"></span><span class="c-spinner lg"></span>
+            <span style="display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-2)"><span class="c-spinner" style="width:13px;height:13px;border-width:1.5px"></span>正在统计…</span></div>
+          <div class="loading-box"><span class="c-spinner lg"></span><p>加载中…</p></div>
+        </div></div></div>
+    </div>
+    <div class="pane-foot">16 / 20 / 13px 行内 + 页面级版式</div>
+  </div>
+
+  <!-- YearHeatmap -->
+  <div class="row" data-row="heatmap">
+    <div class="row-head"><h2>YearHeatmap</h2><span class="en">⚠ 已知主题债</span>
+      <span class="check">核对点：陶土橙 rgba(217,119,87,α) 硬编码 —— 两列当前同值，夜色下浅档偏灰，待裁决是否派生夜色阶</span>
+      <button class="verify"><span class="box"></span>验收</button></div>
+    <div class="duo">
+      <div class="tau" data-theme="cream"><div class="pane" data-pane="cream"><div class="pane-tag">CREAM</div>
+        <div class="stage" style="display:block;padding:18px"><div class="hm-wrap" data-hm></div></div></div></div>
+      <div class="tau" data-theme="cocoa"><div class="pane" data-pane="cocoa"><div class="pane-tag">COCOA</div>
+        <div class="stage" style="display:block;padding:18px"><div class="hm-wrap" data-hm></div></div></div></div>
+    </div>
+    <div class="pane-foot">同一份数据两侧渲染 —— hover 呼吸可用；色阶同值即本行要暴露的问题</div>
+  </div>
+
+  <!-- Token -->
+  <div class="row" data-row="token">
+    <div class="row-head"><h2>Token 色板</h2><span class="en">值并排读</span>
+      <span class="check">核对点：同名 token 两列取值差异 · 软底色（*-soft）明度策略</span>
+      <button class="verify"><span class="box"></span>验收</button></div>
+    <div class="duo">
+      <div class="tau" data-theme="cream"><div class="pane" data-pane="cream"><div class="pane-tag">CREAM</div>
+        <div class="stage" style="display:block;padding:14px"><div class="swatch-grid" data-swatch></div></div></div></div>
+      <div class="tau" data-theme="cocoa"><div class="pane" data-pane="cocoa"><div class="pane-tag">COCOA</div>
+        <div class="stage" style="display:block;padding:14px"><div class="swatch-grid" data-swatch></div></div></div></div>
+    </div>
+    <div class="pane-foot">背景 / 墨 / 线 / 品牌 / 语义 / 标签五色 —— 值实时读自各列 data-theme</div>
+  </div>
+
+  <!-- Scale -->
+  <div class="row" data-row="scale">
+    <div class="row-head"><h2>尺度与动效</h2><span class="en">与主题正交 · 阴影例外</span>
+      <span class="check">核对点：字号/圆角两列恒同 · shadow-card / float / focus-ring 取值随主题变（本台最易漏看的差异）</span>
+      <button class="verify"><span class="box"></span>验收</button></div>
+    <div class="duo">
+      <div class="tau" data-theme="cream"><div class="pane" data-pane="cream"><div class="pane-tag">CREAM</div>
+        <div class="stage col">
+          <div style="width:100%">
+            <div class="type-row"><span class="spec">tau-hero · 25</span><span style="font-size:25px;font-weight:650">主标题 Aa</span></div>
+            <div class="type-row"><span class="spec">tau-title · 14.5</span><span style="font-size:14.5px;font-weight:600">面板标题 Aa</span></div>
+            <div class="type-row"><span class="spec">tau-body · 13</span><span style="font-size:13px">正文 Aa</span></div>
+            <div class="type-row"><span class="spec">tau-micro · 11.5</span><span style="font-size:11.5px">微字 Aa</span></div>
+          </div>
+          <div class="shadow-cards" style="width:100%">
+            <div class="shadow-card-demo" style="box-shadow:var(--shadow-card)">shadow-card</div>
+            <div class="shadow-card-demo" style="box-shadow:var(--shadow-float)">shadow-float</div>
+            <div class="shadow-card-demo" style="box-shadow:var(--focus-ring)">focus-ring</div>
+            <div class="shadow-card-demo" style="border-radius:8px">radius-sm 8</div>
+          </div>
+        </div></div></div>
+      <div class="tau" data-theme="cocoa"><div class="pane" data-pane="cocoa"><div class="pane-tag">COCOA</div>
+        <div class="stage col">
+          <div style="width:100%">
+            <div class="type-row"><span class="spec">tau-hero · 25</span><span style="font-size:25px;font-weight:650">主标题 Aa</span></div>
+            <div class="type-row"><span class="spec">tau-title · 14.5</span><span style="font-size:14.5px;font-weight:600">面板标题 Aa</span></div>
+            <div class="type-row"><span class="spec">tau-body · 13</span><span style="font-size:13px">正文 Aa</span></div>
+            <div class="type-row"><span class="spec">tau-micro · 11.5</span><span style="font-size:11.5px">微字 Aa</span></div>
+          </div>
+          <div class="shadow-cards" style="width:100%">
+            <div class="shadow-card-demo" style="box-shadow:var(--shadow-card)">shadow-card</div>
+            <div class="shadow-card-demo" style="box-shadow:var(--shadow-float)">shadow-float</div>
+            <div class="shadow-card-demo" style="box-shadow:var(--focus-ring)">focus-ring</div>
+            <div class="shadow-card-demo" style="border-radius:8px">radius-sm 8</div>
+          </div>
+        </div></div></div>
+    </div>
+    <div class="pane-foot">字号阶梯全 9 档与圆角三档见方案 A/B；本台聚焦「与主题正交」声明的真实成立度</div>
+  </div>
+</div>
+
+<div class="plan-badge">
+  <button class="tag" id="noteToggle"><b>方案 C</b> 主题对照台 · 交互说明</button>
+  <div class="plan-note" id="planNote">
+    <h4>双主题同屏，不切换</h4>
+    cream / cocoa 左右并排渲染同一组件——<em>主题同构验证</em>是本台唯一目的：
+    反相配色、阴影档、透明交互底、硬编码色四类敏感点一眼现形（本页已替你把
+    YearHeatmap 的主题债摆在明面上）。行头「验收」复选汇总成顶部进度条，可当
+    <em>双主题验收工作台</em>用。代价：单主题画布宽度减半，组件状态覆盖不如 A/B 全。
+    <div class="links">对比：<a href="plan-a-inspector.html">A 检查器</a> · <a href="plan-b-gallery.html">B 画廊</a> · <b>C 主题对照台</b> · <a href="index.html">导览</a></div>
+  </div>
+</div>
+
+<script>
+/* ───────── 验收复选 + 进度 ───────── */
+const rows = document.querySelectorAll(".row");
+function paintProgress() {
+  const done = document.querySelectorAll(".row-head .verify.done").length;
+  document.getElementById("progFill").style.width = `${(done / rows.length) * 100}%`;
+  document.getElementById("progText").textContent = `${done} / ${rows.length} 已验收`;
+}
+document.querySelectorAll(".row-head .verify").forEach(btn => btn.addEventListener("click", () => {
+  btn.classList.toggle("done");
+  btn.querySelector(".box").textContent = btn.classList.contains("done") ? "✓" : "";
+  paintProgress();
+}));
+paintProgress();
+
+/* ───────── Toast 两侧同发 ───────── */
+document.querySelectorAll("[data-fire]").forEach(btn => btn.addEventListener("click", () => {
+  document.querySelectorAll(".tau").forEach(tau => {
+    const zone = tau.querySelector("[data-zone]");
+    const el = document.createElement("div");
+    el.className = "c-toast toast-live";
+    el.innerHTML = `<svg class="t-icon t-success" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg><span class="t-text">已保存（两侧同发）</span>`;
+    zone.appendChild(el);
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("enter")));
+    const close = () => { el.style.opacity = "0"; setTimeout(() => el.remove(), 220); };
+    el.addEventListener("click", close);
+    setTimeout(close, 2600);
+  });
+}));
+
+/* ───────── Tooltip 两侧同显（450ms） ───────── */
+document.querySelectorAll("[data-tip-anchor]").forEach(anchor => {
+  const tip = anchor.parentElement.querySelector("[data-tip]");
+  let timer = null;
+  anchor.addEventListener("pointerenter", () => {
+    timer = setTimeout(() => { tip.style.opacity = "1"; tip.style.transform = "none"; }, 450);
+  });
+  anchor.addEventListener("pointerleave", () => {
+    clearTimeout(timer);
+    tip.style.opacity = "0"; tip.style.transform = "translateY(2px)";
+  });
+  tip.style.transition = "opacity 130ms var(--ease-out), transform 130ms var(--ease-out)";
+  tip.style.opacity = "0"; tip.style.transform = "translateY(2px)";
+});
+
+/* ───────── YearHeatmap（两侧同数据） ───────── */
+const DOT = [["rgba(217,119,87,0.1)", 0.72], ["rgba(217,119,87,0.32)", 0.78], ["rgba(217,119,87,0.52)", 0.85], ["rgba(217,119,87,0.74)", 0.92], ["rgb(217,119,87)", 1]];
+function level(c) { return c === 0 ? 0 : c < 5 ? 1 : c < 10 ? 2 : c < 20 ? 3 : 4; }
+(function renderHeatmap() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  const weeks = []; let week = [];
+  let seed = 7;
+  const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  for (let d = new Date(start); d <= now; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+    week.push({ date: d, count: Math.floor(rnd() * 26) });
+    if (d.getDay() === 0) { weeks.push(week); week = []; }
+  }
+  if (week.length) weeks.push(week);
+  const spans = []; let curM = -1;
+  for (const w of weeks) { const m = w[0].date.getMonth() + 1; if (m !== curM) { spans.push({ label: `${m}月`, n: 0 }); curM = m; } spans[spans.length - 1].n += 1; }
+  const html = `
+    <div class="hm-months">${spans.map(s => `<span style="flex:${s.n} 1 0">${s.label}</span>`).join("")}</div>
+    <div class="hm-grid">${weeks.map(w => `
+      <div class="hm-week">${w.map(d => `<div class="hm-day" title="${d.date.toISOString().slice(0, 10)} · ${d.count} 次"><div class="dot" style="background:${DOT[level(d.count)][0]};transform:scale(${DOT[level(d.count)][1]})"></div></div>`).join("")}</div>`).join("")}</div>
+    <div class="hm-legend">少${DOT.map(([c, s]) => `<span class="dot" style="background:${c};transform:scale(${s})"></span>`).join("")}多</div>`;
+  document.querySelectorAll("[data-hm]").forEach(el => { el.innerHTML = html; });
+})();
+
+/* ───────── Token 色板（各自读列内 data-theme 的值） ───────── */
+const NAMES = [
+  ["bg-page", "页面"], ["bg-surface", "表面"], ["bg-group", "分组"], ["bg-sunken", "沉底"],
+  ["bg-hover", "悬停"], ["bg-press", "按下"], ["bg-selected", "选中"],
+  ["ink-1", "主墨"], ["ink-2", "次墨"], ["ink-3", "弱墨"], ["ink-inverse", "反相"],
+  ["line-1", "线1"], ["accent", "品牌"], ["accent-soft", "品牌底"], ["accent-text", "品牌字"],
+  ["ok", "成功"], ["danger", "错误"], ["warn", "警告"], ["info", "信息"],
+  ["tag-1", "标签1"], ["tag-2", "标签2"], ["tag-3", "标签3"], ["tag-4", "标签4"], ["tag-5", "标签5"],
+];
+document.querySelectorAll("[data-swatch]").forEach(grid => {
+  const cs = getComputedStyle(grid.closest(".tau"));
+  grid.innerHTML = NAMES.map(([name, cn]) => {
+    const val = cs.getPropertyValue(`--${name}`).trim();
+    return `<div class="swatch"><div class="chip" style="background:var(--${name})"></div>
+      <div class="meta"><div class="name">${name}</div><div class="val">${val.slice(0, 17)}</div></div></div>`;
+  }).join("");
+});
+
+document.getElementById("noteToggle").addEventListener("click", () =>
+  document.getElementById("planNote").classList.toggle("open"));
+</script>
+</body>
+</html>

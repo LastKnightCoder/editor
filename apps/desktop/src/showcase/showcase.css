@@ -1,0 +1,9 @@
+/*
+ * 样板间样式入口：tailwind + tau token 映射 + .app 作用域 base（focus 环 /
+ * selection / 细滚动条）。刻意不引入主入口的 tailwind.css（其连带 legacy 的
+ * theme-colors.css 与 packages @source），样板间只需要设计系统本身。
+ * 页面内样式一律 Tailwind 语义类（D-013），本文件不加任何手写规则。
+ */
+@import "tailwindcss";
+@import "../ui/theme/tokens.css";
+@import "../app/base.css";

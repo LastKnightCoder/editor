@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tau 样板间 · 组件检查器</title>
+  <script>
+    // 首帧主题：与 index.html 内联脚本同源同逻辑（key 白名单 + system 解析），
+    // 避免 React 包加载前闪无主题色；详见 ui/theme/themeStore.ts
+    try {
+      var mode = localStorage.getItem("tau-theme");
+      var key;
+      if (mode === "system") {
+        key = matchMedia("(prefers-color-scheme: dark)").matches ? "cocoa" : "cream";
+      } else {
+        key = mode === "cocoa" || mode === "cream" ? mode : "cream";
+      }
+      document.documentElement.dataset.theme = key;
+    } catch (e) {
+      document.documentElement.dataset.theme = "cream";
+    }
+  </script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/showcase/main.tsx"></script>
+</body>
+
+</html>

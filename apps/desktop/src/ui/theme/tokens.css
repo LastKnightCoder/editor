@@ -135,15 +135,15 @@
 
   --tau-bg-page: #f3eee2;
   --tau-bg-surface: #fffdf9;
-  --tau-bg-group: #faf6ec;
-  --tau-bg-sunken: #ece5d4;
+  --tau-bg-group: #ece4d4;
+  --tau-bg-sunken: #e2d8c0;
 
   --tau-bg-hover: rgba(67, 57, 44, 0.05);
   --tau-bg-press: rgba(67, 57, 44, 0.09);
   --tau-bg-selected: rgba(217, 119, 87, 0.12);
 
   --tau-ink-1: #43392c;
-  --tau-ink-2: #736552;
+  --tau-ink-2: #6a5c49;
   --tau-ink-3: #a89a85;
   --tau-ink-inverse: #fff8ef;
 
@@ -187,8 +187,8 @@
 
   --tau-bg-page: #221d16;
   --tau-bg-surface: #2e2820;
-  --tau-bg-group: #2a241b;
-  --tau-bg-sunken: #1a1611;
+  --tau-bg-group: #19150e;
+  --tau-bg-sunken: #100d08;
 
   --tau-bg-hover: rgba(236, 226, 208, 0.06);
   --tau-bg-press: rgba(236, 226, 208, 0.11);

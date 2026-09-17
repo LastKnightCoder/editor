@@ -17,8 +17,10 @@ export default defineTheme({
   palette: {
     paper: "#221d16", // 窗口底：深可可纸
     surface: "#2e2820", // 卡片/面板：咖啡纸（最亮层）
-    group: "#2a241b", // 分组容器
-    sunken: "#1a1611", // 输入底/代码块等凹陷区（比窗口底更深）
+    // 与 cream 对称：凹陷填充落在 page 之下（原 #2a241b 对 surface 仅 1.054，
+    // 等于没有）。深色下 surface 最亮、sunken 最暗，故"沉"= 更暗。
+    group: "#19150e", // 对 page 1.087、对 surface 1.247
+    sunken: "#100d08", // 比 group 再深一档（对 page 1.159）
     ink1: "#ece2d0",
     ink2: "#a89a85",
     ink3: "#857768",

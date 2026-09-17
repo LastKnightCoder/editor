@@ -1,6 +1,7 @@
 /**
  * Tooltip 定位引擎单测 —— computeTooltipPosition 的四段中间件数学：
- * offset（间距 8）→ flip（主轴翻对侧）→ shift（交叉轴夹回视口）→ arrow（锚点中心投影）。
+ * offset（间距 8）→ flip（主轴翻对侧，按主轴占位尺寸判空间）→ shift（夹回视口，
+ * 且仅在锚点与视口相交时生效）→ arrow（锚点中心投影）。
  * jsdom 无布局：anchor 传伪 DOMRect，pop 传尺寸对象；视口用 jsdom 默认 1024×768。
  */
 
@@ -69,5 +70,33 @@ describe("computeTooltipPosition", () => {
   it("箭头投影在边缘内 clamp（两端各留 10px）", () => {
     const r = computeTooltipPosition(rect(-30, 300, 60, 40), size(120, 30), "top");
     expect(r.arrowX).toBe(10);
+  });
+
+  describe("shift 闸门：锚点离屏时不夹回视口", () => {
+    it("锚点滚到视口下方：tip 跟随锚点离屏，不被钉在视口底边", () => {
+      // 锚点 top=1200 > vh(768)。夹取会把 y 拉到 730（视口底边）→ 与锚点脱钩，
+      // 一屏多个离屏锚点的 tip 全挤在底边（样板间 12 常显 tip 的堆叠即此）
+      const r = computeTooltipPosition(rect(462, 1200, 100, 40), size(120, 30), "top");
+      expect(r.y).toBe(1200 - 8 - 30);
+    });
+
+    it("锚点滚到视口上方：tip 跟随锚点离屏，不浮到视口顶边", () => {
+      // 锚点 bottom=-160 < 0 → 翻到下方、y=-152；夹取会把它拉到 8（视口顶边）
+      const r = computeTooltipPosition(rect(462, -200, 100, 40), size(120, 30), "top");
+      expect(r.side).toBe("bottom");
+      expect(r.y).toBe(-160 + 8);
+    });
+
+    it("锚点只要还与视口相交就照常夹（闸门边界）", () => {
+      const r = computeTooltipPosition(rect(0, 764, 20, 40), size(200, 30), "top");
+      expect(r.x).toBe(8);
+    });
+  });
+
+  it("左右位 flip 按宽度判空间（原先误用高度，横向放不下也不翻）", () => {
+    // 锚点左侧只有 50-8=42px，tip 宽 120 → 放不下，应翻到右侧
+    const r = computeTooltipPosition(rect(50, 300, 80, 40), size(120, 30), "left");
+    expect(r.side).toBe("right");
+    expect(r.x).toBe(130 + 8);
   });
 });

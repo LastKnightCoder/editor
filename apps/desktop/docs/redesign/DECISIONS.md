@@ -135,6 +135,59 @@
 - 排除：方案 A 留档 mockups/tooltip/plan-a-native.html（若未来某组件 CSS 锚定足够，可局部评估，不动本条）；floating-ui 依赖不引入（引擎 ~100 行自研可测，够用再加）；方案 C（伪元素/title）禁入产品代码。
 - 首批接入：stats 页（写作趋势受控模式 + 专注节律/到期柱图/构成与评分条），消灭该页全部原生 title。
 - 影响：03 指南 §9 任务 2（Tooltip 完成，余 Button/Input/Select/Menu）；Menu/Select/Popover 后续复用 `tooltipPosition.ts` 引擎扩展中间件（size 同宽、虚拟锚点等届时再议）。
+- 追记（2026-09-17，用户报告「下面的 tooltip 上来了、堆叠在一起」后修正两处引擎 bug）：
+  ① **shift 中间件加闸门：锚点与视口不相交时完全不夹**。原实现无条件把 x/y 夹进视口，锚点滚出视口后 tip 被强行钉在视口边缘、与锚点脱钩——一屏多个离屏锚点全挤在同一条边上，即样板间 12 个常显 tip 的「堆叠上浮」。锚点离屏时让它自然跟随锚点离屏即可（几何上就不可见，无需额外的显隐态管理）。**闸门取"相交"而非"完全可见"**：锚点半露在折线外时仍照常夹，符合"贴边仍要可读"的本意。
+  ② **flip 判空间改用主轴占位尺寸**：原实现上下位、左右位一律拿 `pop.offsetHeight` 比。左右位的主轴是横轴，应比宽度——横向明明放不下却被误判为放得下，于是不翻对侧、被 shift 钉在视口侧边压住锚点。
+  两条都是纯函数缺陷，已在 `__tests__/tooltip.test.ts` 补 4 例守护（含闸门边界：锚点只要还与视口相交就照常夹）。
+- 追记（2026-09-17，样板间侧）：Tooltip 档案的锚点由「`size-2` 示意圆点」改为**真实控件**（位置矩阵用 `IconButton` + Info 图标、内容形态用 `DemoButton`）——tooltip 的真实宿主就是按钮，圆点既看不出锚点尺寸对 flip/shift 的影响，也示范不了真实接线。
+
+## D-019 组件样板间（组件检查器）：独立 Vite MPA + ui/primitives 真实现 `已定（2026-09-17，用户裁决）`
+
+- 背景：主题重写后适配新页面前需要组件样板间（living style guide）对照审阅。mockups/showcase/ 三方案（A 检查器 / B 画廊 / C 主题对照台）+ 三轮视觉迭代（v1 全主题色但 ink-3 说明对比不足且舞台与展品同底；v2 中性工作台 `--wb-*` 因「白卡套色块」双层嵌套被否；v3 单层舞台+工作台明暗联动仍属主题外第二套配色被否）后定稿 v4「全主题色版」：配色零发明，层级 = page（环境）→ surface（画布卡/API 卡，即 Panel 视觉）→ sunken（展品舞台，token「沉底」语义）→ 展品，说明文字 ≥ ink-2（AA），排版直接用 tau 字号词表五档。
+- 选择：① 承载 = 独立 Vite MPA——`showcase.html` + `src/showcase/`（kit 布局原语 + 8 个档案 sections + registry），`vite.config.showcase.mts`（端口 6199，`server.open` 自动开浏览器，无 electron 插件纯浏览器），script = desktop `showcase` + 根透传 `pnpm showcase`。不经 definePage/Page 协议（开发工具页非业务页面，不进导航栈）；② 展品一律 import `ui/primitives` 真实现，零样式复刻——瞬态锁定 = 直接施加 hover 视觉类（`className="bg-hover text-ink-1"` 常驻），Tooltip 常显标本 = 受控 `open`（引擎实时定位，滚动同步跟随），Toast 常显标本 = `ToastPill` 本体构造 duration=0 的 item；③ 样式全 Tailwind 语义类（D-013），唯一 CSS 入口 `showcase.css`（tailwind + tokens.css + base.css，刻意不引主入口 tailwind.css 的 legacy theme-colors）；④ 主题复用 themeStore（`initThemeRuntime`，localStorage 与主应用共享偏好）；热力图为确定性伪随机演示数据（注明）。
+- 排除：Storybook/Ladle（8 档案规模 YAGNI，03 指南 §9 落地路径原判）；mockup HTML 作为长期样板间（复刻漂移，降级为视觉定稿稿留档 mockups/showcase/）。
+- 追记（2026-09-17，用户裁决，v5）：① 去掉展品背后的底色块——sunken 舞台与托盘底色、顶栏「展品底」四档切换一并移除（FloorContext 删除），层级简化为 page → surface 卡 → 展品，展品直接坐在 surface 卡上（Panel 靠 shadow-card 浮起）；② LIVE 标注行与演示内容间距加大到 20px（`stageClassName` 改为档案必填，顺带消除与默认类同属性争优先级的竞态）。
+- 维护义务（防腐化）：新增/修改 primitives 或 token 时，同一提交在 `src/showcase/sections/registry.tsx` 与对应档案同步（新组件 = 新档案一行 + section 文件）；样板间与源码不一致视同文档腐化。
+- 影响：`Toast.tsx` 导出 `ToastPill`/`ToastItem`（注释约定仅样板间消费，产品代码仍走 toast API + ToastHost）；03 指南 §9 任务 2 的配套审阅工具就位。
+
+## D-020 样板间 v6：排版/配色重排 + Token 色板真实用法化 `已定（2026-09-17，用户裁决"对配色和排版都不满意，重构一番"）`
+
+- 背景：D-019 定稿的 v4/v5 骨架在实机截图上暴露两类病灶。**配色**：① Token 档案的透明棋格用 `repeating-conic-gradient(…, transparent 0% 50%)` 衬底，`transparent` = rgba(0,0,0,0)，sRGB 插值把整块染成脏绿棋盘，是页面最刺眼的污染源，且把色芯本身压暗（accent 看着发黑）；② accent 全页只在 1.5px 装饰点上出现，页面读起来"米黄一坨、没上色"；③ `bg-group` 之于 `bg-surface` / `bg-page` 的亮度差不足（cream：#faf6ec vs #fffdf9 vs #f3eee2），EmptyNote、Loading 演示底这类"灰底行"基本看不见。**排版**：① 字号阶梯 9 档相邻仅差 0.5px，越挤的档位越该有强对比的地方反而没有；② 状态行说明只有 11.5px（micro）中文读起来吃力，且强制 `min-h-24`（96px）把 IconButton 四个状态拉到 700px 高——又长又空；③ 小节题用 11px uppercase + 0.09em 字距，uppercase 对中文无效，中英混排只剩"工程 README"气质；④ 内容限宽 1000px + 状态行第二列 1fr 拉满，展品左对齐后右侧大片空白；⑤ 行内 `code` 在状态行说明里没有代码样式，`bg-hover`、`size-[27px]` 与正文同形无法辨识。
+- 选择（均在样板间自身范围内，不动主题取值、不动产品组件）：
+  1. **棋盘格换两色实体**：色芯改 `linear-gradient(var(--tau-token), var(--tau-token))` 叠在 `repeating-conic-gradient(var(--tau-line-2) …, var(--tau-bg-surface) …)` 上，杜绝 `transparent` 参与插值；幅面 16px 降噪。
+  2. **色芯按真实用法渲染**（TokenSection 的 kind 三分）：`fill` 涂色块、`text` 直接用该墨色渲染"文字示例"（比色块更能回答"够不够黑"）、`line` 放大成 3px 条（1px 发丝线在该尺度不可见）。色值全部经 CSS 变量内联，切主题零重算。
+  3. **accent 升为容器锚点**：LIVE / API 卡的标注行 = accent 实心点 + accent-text 标签（cap 与说明拆成两个 prop，说明退为 ink-3 小字），全页因此有稳定的暖橙出现位；表面依旧中性，颜色仍只表意（不违反 02 §1 视觉宪法）。
+  4. **排版重建**：状态行去 `min-h-24` 改内容撑开（py-3.5 + 展品区 min-h 60px），左列 230px、说明抬到 12.5px 并补行内 code 样式；小节题改中文 semibold 主 + 英文 mono 副（`en` prop），去 uppercase 与大字距；档案内容去掉页面级限宽（改由 DocHead 的 74ch / Note 的 80ch 逐段限宽），API 表单独 `max-w-[860px]` 防宽屏拉伸；**说明性正文下限 12.5px**，11.5px 只留给角标、token 值与图注。
+  5. **CanvasCard `stage` 双模**：`card`（默认，白卡画布）/ `page`（无底色，展品坐 page 环境）。Panel 档案改用 `page`——展品本身是白卡，白卡叠白卡只能靠阴影分辨，这是 D-019 去掉 sunken 展品底之后遗留的自证缺口。
+  6. **主题入口改三态分段**（浅色 / 深色 / 系统）：样板间的主要用途是配色对照，Titlebar 那枚循环按钮看完不知道当前在哪一档。分段控件轨道用 `bg-sunken`（`bg-group` 做轨道时选中胶囊会消失在 surface 里）。Toast 档案的位置选择同款复用 `Segmented`。
+  7. **侧栏保持"复刻真实 Sidebar"定位**：图标改回不指定颜色、随按钮色继承（原实现钉死 `text-ink-3`，激活态会出现灰图标 + 深标签的漂移），其余条目/激活态样式一律不动。
+- 已知缺陷（本轮**只记录不修**，需用户裁决，均属主题/产品层而非样板间层）：
+  - `bg-group` 与 `bg-surface`、`bg-page` 的亮度差不足，作为"分组底 / 次级填充"在两种底上都读不出来（正例对照见 Token 档案的 Background 组）。修它要动 `themes/cream.theme.ts` + `cocoa.theme.ts` + `tokens.css` + parity 断言，属全局调色板变更，影响 home/stats 已有页面，故不在本轮范围。
+  - 真实 Sidebar 激活态 = `bg-hover`（5% 墨）+ 左缘 3px accent 竖点，"融合态"的代价是激活项在视觉上很弱（样板间如实复刻，未改）。若判定为缺陷，应改壳层而非样板间。
+  - `ui/primitives/Panel.tsx` 的 `EmptyNote` 用 `bg-group`，在白卡内几乎不可见（同上第一条根因）。
+- 排除：动主题色值（全局影响，另案）；多栏矩阵（宽屏下把状态行两栏并排）——档案条目数少、Tooltip/Loading 有宽展品，收益不抵结构风险，YAGNI；给 BlockTitle 加 accent 竖条——与侧栏激活态竖条语言重复，且属装饰性用色。
+- 影响：`src/showcase/kit.tsx`（原语重写：DocHead/CanvasCard/BlockTitle/MatrixRow/ApiCard/Note 调整 + 新增 Segmented）、`ShowcaseApp.tsx`（壳层）、8 个 section 与 `TokenSection.tsx`（重做）同步；02 规范 §3 补"说明性正文下限 12.5px"一行。样板间维护义务与档案清单不变（D-019）。
+- 追记（2026-09-17，版心三轮定稿）：本条目原定"去掉页面级限宽，改由 DocHead 74ch / Note 80ch 逐段限宽"——ch 在 13px 下只折出 **629 / 655px**，而档案内容区在 1440/1920 下是 1142/1622px，于是全页并存四种宽度（展品满宽 / API 表 860 / 职责说明 629 / 注记 655），最窄的一溜缩在角落、越往下越像断层。
+  - 第二轮（用户「太宽了」，标注经像素比对落在 860 边界上）：收到 740px——860 在 13px 下约 66 个中文字/行，中文长句读起来累；740 约 57 字，是技术注记的舒适上限。
+  - 第三轮（用户「有的设置了版心，有的是全宽，比如 live 面板，能不能统一设置版心，然后水平居中」）：**取消"展品满宽 + 文本列"两种宽度，改为全页唯一版心 `PAGE_COL = max-w-[740px]`，由 ShowcaseApp 在 titlebar / 内容区 / 状态栏三处同一 `mx-auto` 居中承载**。档案内的块（DocHead / Note / ApiCard）不再各自写 max-w——各写各的正是宽度漂开的根因。效果：Titlebar 面包屑、LIVE 画布卡、状态矩阵、API 表、正文注记、状态栏共用同一条左右竖线，1920 下两侧各留 481px 对称留白。
+  - 代价与取舍（已验证）：LIVE 画布卡与热力图随之变窄——热力图是"全宽自适应"组件（周列 `flex-1` + 月份标签 `truncate`），740 卡片内实测 692px、无溢出，只是点距从 ~20px 收到 ~13px；Tooltip 位置矩阵（3×122px + 间距 = 398px）在 428px 装订道内仍单行放下。若将来出现放不下的展品，应改档案自身的呈现，不要再动版心（版心一旦分叉就会退回前三轮的循环）。
+- 追记（2026-09-17，用户报告状态矩阵「排版太丑」后修正）：
+  ① **矩阵行两列改共用一条顶线**：状态名与标本齐平、说明作为次行挂在名字下。原先整行 `items-center`，遇到高标本（Loading 演示框）标签被甩到盒子腰上像浮空；而矮标本（16px Spinner）又会跟"说明"那一行对齐而不是与状态名对齐——行的身份是名字，不是说明。标本区同时去掉 min-h（节奏交给 `py-4`），矮标本不再孤立悬在空槽中央。
+  ② **标签列 230→280px**：说明文案少折一截，消掉「底 + accent 顶弧」这类孤字行。
+  ③ **顺带修掉 `Loading` 的兜底高度不可覆盖**（`ui/primitives/Loading.tsx` API 变更）：原先兜底写成基础类 `min-h-[45vh]`，调用方传 `className="min-h-0"` 会被压掉——同名 utility 的胜负由 Tailwind **生成顺序**决定，不由 class 书写顺序决定，那个覆盖一直是静默失效的（样板间把 Loading 放进 168px 演示框时内容被 `overflow-hidden` 裁空才暴露）。改为 `minHeight` prop（默认仍 45vh，走 inline style，可靠覆盖）。产品侧唯一调用点 `AppShell` 不传该 prop，行为不变。
+
+## D-021 表面阶梯重排（bg-group/bg-sunken 下沉）+ 侧栏激活态改 bg-selected `已定（2026-09-17，用户裁决"修复这两个缺陷"）`
+
+- 背景：D-020 只记录未修的两个主题/壳层缺陷，本轮修复。**缺陷一**：实测 WCAG 对比度证实 `bg-group` 是死档——cream 对 `surface` 仅 **1.062**、对 `page` 1.073（`page→surface` 参照值 1.140），即它在两个方向都读不出来；根因是它被夹在 page 与 surface 之间，而它的 5 个消费点（`Panel.EmptyNote`、`HomeView` kind 徽章、`Titlebar` kbd 提示、`AppShell` 次级按钮、`SearchPalette` 页脚与标签）都需要"在周围底色上显形"。`bg-sunken` 同病（对 page 1.085）。**缺陷二**：侧栏激活态用 `bg-hover`（5% 墨，对 page 1.086）承担"选中"语义太弱——真正的选中 token `bg-selected`（accent 叠层）当时只在命令面板选中行用了一处。
+- 选择：
+  1. **把 `group` / `sunken` 沉到 `page` 之下**，方向定为"凹陷填充"（这是唯一能让同一底色在 page 与 surface 上都显形的解——夹在中间则两头都读不出）。cream：`group` #faf6ec→**#ece4d4**（对 page 1.092 / 对 surface 1.244）、`sunken` #ece5d4→**#e2d8c0**（对 page 1.224）；cocoa 同构镜像（surface 最亮故"沉"= 更暗）：`group` #2a241b→**#19150e**、`sunken` #1a1611→**#100d08**。
+  2. **cream `ink-2` 压深留余量** #736552→**#6a5c49**：原值对 page 只有 4.89:1、对 sunken 3.99:1，没有余量——底一加深就跌破 AA。压深 14% 后 page 5.60 / surface 6.38 / group 5.13 / sunken 4.57，全部达标且不破坏"柔和"（仍是 400 字重下的次墨）。cocoa `ink-2` 本来就有余量，不动。
+  3. **补偿受影响的 meta 文字**：落在 group 上的 `ink-3` 从 2.55 掉到 2.18（本就 sub-AA 的装饰档），按 02 §2.3"meta 行用 ink-2，不单设 meta-ink"的既有口径改为 `ink-2`——`Panel.EmptyNote`、`HomeView` kind 徽章、`SearchPalette` 页脚提示三处（改动后 5.13，比原 2.55 更好）。
+  4. **侧栏激活态 `bg-hover` → `bg-selected`**（`app/Sidebar.tsx` 的 `NavItemButton` + 样板间复刻）：对 page 从 1.086 提到 **1.174** 且带 accent 色相。02 §1 视觉宪法本就允许 accent 用于"选中"，此前是漏用而非越界。**文字保持 ink-1**（不再叠 accent-text），避免"竖条 + 底色 + 文字"三重 accent；悬停态仍用 `bg-hover`（悬停是反馈，选中才是状态）。
+  5. **门禁补守卫**：`theme-parity.test.ts` 增三条 AA 断言——`ink-2` 对 `bg-group` / `bg-sunken`、`ink-1` 对 `bg-sunken`（≥4.5）。这是本轮真正防复发的机制：加深下沉档时会强制复核落在其上的墨色。02 规范新增 **§2.6 表面阶梯铁律**（四档单调有序 + 相邻档对比度 ≥1.10 + 加深下沉档必须复核其上墨色）。
+- 排除：**不动 `page` / `surface`**（用户认可的"纸 + 卡"观感由这两档承担，动它波及全部页面）；不给侧栏激活项改 `accent-text` 文字色（三重 accent）；不全面整改 `ink-3` 的既有 sub-AA 用法（它是文档口径里的"占位/禁用"装饰档，对 page 只有 2.38:1，属存量问题，需单独立项裁决）。
+- 影响：`themes/cream.theme.ts`、`themes/cocoa.theme.ts`、`theme/tokens.css`（两主题数据块同步，parity 测试守护取值一致）、`theme/__tests__/theme-parity.test.ts`、`app/Sidebar.tsx`、`ui/primitives/Panel.tsx`、`features/home/views/HomeView.tsx`、`features/search/SearchPalette.tsx`、样板间 `ShowcaseApp.tsx`（复刻同步）；02 规范 §2.3 词汇表注释、§2.5 指标、新增 §2.6。
+- 验证：`theme-parity.test.ts` 6 项全过；`tsc --noEmit` 0 错误；浅/深双主题截图复验样板间（Panel 档案的 EmptyNote 从"几乎看不见"变为清晰凹陷行、代码 chip 变清晰、侧栏激活项可辨）。**真壳层未启动验证**（启动 Electron 会触发主进程初始化并动到本机真实数据库，代价与风险不成比例）——侧栏结论来自样板间的同 class 串复刻 + 对比度实测。
 
 ---
 

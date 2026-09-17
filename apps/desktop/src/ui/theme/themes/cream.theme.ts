@@ -14,10 +14,16 @@ export default defineTheme({
   palette: {
     paper: "#f3eee2", // 窗口底
     surface: "#fffdf9", // 卡片/面板
-    group: "#faf6ec", // 分组容器（比 surface 沉半档，代替横线）
-    sunken: "#ece5d4", // 输入底/代码块等凹陷区
+    // 分组底 / 次级填充：**下沉到 page 之下**（D-021）。原值 #faf6ec 夹在
+    // page(1.073) 与 surface(1.062) 之间，两头都读不出来；下沉后对 page 1.092、
+    // 对 surface 1.244。方向定为"凹陷填充"是因为它的消费点（EmptyNote、kind
+    // 徽章、kbd 提示、命令面板标签、次级按钮）全都要在周围底色上显形。
+    group: "#ece4d4",
+    sunken: "#e2d8c0", // 输入底/代码块等凹陷区：比 group 再深一档（对 page 1.224）
     ink1: "#43392c",
-    ink2: "#736552",
+    // 原值 #736552 对 page 仅 4.89、对 sunken 3.99——下沉底一深就跌破 AA。
+    // 压深留出余量：page 5.60 / surface 6.38 / group 5.13 / sunken 4.57。
+    ink2: "#6a5c49",
     ink3: "#a89a85",
     inkInverse: "#fff8ef",
     accentHue: 22,
