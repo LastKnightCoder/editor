@@ -36,6 +36,7 @@ import { useSearchContent, resultDisplay, relativeTime } from "./queries";
 import { useThemeStore } from "@/ui/theme/themeStore";
 import { DEFAULT_DARK_KEY, DEFAULT_LIGHT_KEY } from "@/ui/theme/theme";
 import { Spinner } from "@/ui/primitives/Loading";
+import { toast } from "@/ui/primitives/Toast";
 import type { IndexType, SearchResult } from "@/types";
 
 /* ---------- 前缀语法：追加语义，冒号兼容全角 ---------- */
@@ -135,11 +136,23 @@ export function SearchPalette() {
       closeAnd(() => navigator.push(pageKey));
     } else if (action === "cycle-theme") {
       // 深浅直切（不经过 system）：循环切到 system 时若系统深浅与当前一致，视觉无变化
-      closeAnd(() =>
-        setMode(resolvedTheme === DEFAULT_DARK_KEY ? DEFAULT_LIGHT_KEY : DEFAULT_DARK_KEY)
-      );
+      const next = resolvedTheme === DEFAULT_DARK_KEY ? DEFAULT_LIGHT_KEY : DEFAULT_DARK_KEY;
+      closeAnd(() => {
+        setMode(next);
+        toast.success(`已切换到${next === DEFAULT_DARK_KEY ? "深色" : "浅色"}主题`);
+      });
     }
   };
+
+  // 检索失败反馈（isError 翻真时触发一次；重试成功自动复位）
+  useEffect(() => {
+    if (!contentQuery.isError) return;
+    const reason = contentQuery.error instanceof Error ? contentQuery.error.message : "";
+    toast.error(`搜索失败${reason ? `：${reason}` : "，请稍后重试"}`, {
+      action: { label: "重试", onClick: () => void contentQuery.refetch() },
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contentQuery.isError, contentQuery.error]);
 
   /* ---------- 行构造 ---------- */
 
