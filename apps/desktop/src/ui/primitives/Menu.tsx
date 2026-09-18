@@ -19,11 +19,14 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactElement,
   type ReactNode,
+  type Ref,
 } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronRight } from "lucide-react";
 import { cn } from "@/ui/cn";
-import { computeTooltipPosition } from "./tooltipPosition";
+import { mergeRefs } from "./mergeRefs";
+import { useAnchoredPosition } from "./useAnchoredPosition";
+import { registerDismissLayer, type RegisterDismissLayerOptions } from "./useLayerDismiss";
 import { useListNavigation } from "./useListNavigation";
 import { useMenuTree } from "./useMenuTree";
 
@@ -32,11 +35,9 @@ const SUBMENU_HOVER_MS = 260;
 
 /* ───────── 上下文 ───────── */
 
-/** 根级：命令项触发后的整树关闭 + 浮层容器登记（外点判定用） */
+/** 根级：命令项触发后的整树关闭（外点/互斥由 dismiss 层逐层登记承担，D-013） */
 export interface MenuRootContextValue {
   closeMenu: () => void;
-  registerContainer: (el: HTMLDivElement) => void;
-  unregisterContainer: (el: HTMLDivElement) => void;
 }
 const MenuRootContext = createContext<MenuRootContextValue | null>(null);
 
@@ -97,6 +98,10 @@ interface MenuSurfaceProps {
   placement: "bottom-start" | "bottom-end" | "right-start";
   /** 子层响应 ← 键（主层不响应，避免误关） */
   isSub?: boolean;
+  /** 触发器判定（dismiss 层用：点它不算外点；主层 = 根触发器，子层默认无） */
+  isAnchor?: RegisterDismissLayerOptions["isAnchor"];
+  /** 触发器 el（dismiss 层判父层用：子层锚 = 父项，落在主层 DOM 内即为其子层） */
+  getAnchorEl?: () => HTMLElement | null;
   className?: string;
   children: ReactNode;
 }
@@ -108,6 +113,8 @@ function MenuSurface({
   getAnchor,
   placement,
   isSub = false,
+  isAnchor,
+  getAnchorEl,
   className,
   children,
 }: MenuSurfaceProps) {
@@ -149,46 +156,30 @@ function MenuSurface({
     [nav.current, nav.set, activeSubId]
   );
 
-  const place = () => {
-    const c = containerRef.current;
-    const anchor = getAnchor();
-    if (!c || !anchor) return;
-    const { x, y, side } = computeTooltipPosition(anchor, c, placement, { gap: GAP });
-    c.style.left = `${x}px`;
-    c.style.top = `${y}px`;
-    c.dataset.dir = side === "top" ? "up" : "down";
-  };
+  // 定位生命周期收口 useAnchoredPosition（D-013）：进场双遍 + scroll(capture)/resize 跟随
+  useAnchoredPosition({
+    open,
+    getAnchor,
+    popRef: containerRef,
+    placement,
+    gap: GAP,
+    onPlace: ({ side }, c) => {
+      c.dataset.dir = side === "top" ? "up" : "down";
+    },
+  });
 
-  // open 期间：进场定位（两遍：先量内容实际尺寸再精调）+ 焦点入层 + 高亮归位
-  // + scroll/resize 跟随（照 Select 模式）；关闭时清子层状态（重开不残留）
+  // open 时：焦点入层 + 高亮归位；关闭时清子层状态（重开不残留）
   useLayoutEffect(() => {
     if (!open) {
       setActiveSubId(null);
       return;
     }
     nav.reset();
-    place();
-    place();
     try {
       containerRef.current?.focus({ preventScroll: true });
     } catch {
       /* noop */
     }
-    let queued = false;
-    const schedule = () => {
-      if (queued) return;
-      queued = true;
-      requestAnimationFrame(() => {
-        queued = false;
-        place();
-      });
-    };
-    window.addEventListener("scroll", schedule, true);
-    window.addEventListener("resize", schedule);
-    return () => {
-      window.removeEventListener("scroll", schedule, true);
-      window.removeEventListener("resize", schedule);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -199,13 +190,21 @@ function MenuSurface({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, nav.current]);
 
-  // 容器登记进根（外点判定要覆盖子层 Portal 出去的 DOM）
+  // 登记进 dismiss 层仲裁表：外点关闭、跨实例互斥与「点菜单内容不是外点」的
+  // 链判定都在这（D-013 收口，useMenuTree 不再挂自己的监听）；子层经 getAnchorEl
+  // 声明父层。关闭走 onClose（主层 = closeMenu 整树关还焦；子层 = 通知父层收起）
   useEffect(() => {
+    if (!open) return;
     const el = containerRef.current;
-    if (!el || !root) return;
-    root.registerContainer(el);
-    return () => root.unregisterContainer(el);
-  }, [root]);
+    if (!el) return;
+    return registerDismissLayer({
+      el,
+      isAnchor: isAnchor ?? (() => false),
+      close: onClose,
+      anchorEl: getAnchorEl?.() ?? null,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -406,7 +405,7 @@ function MenuCheckboxItem({
         className
       )}
     >
-      {/* 控件式方框：选中填 accent + 反色勾（方案 B 形制） */}
+      {/* 控件式方框：选中填 accent + 反色勾 */}
       <span
         className={cn(
           "flex size-[15px] shrink-0 items-center justify-center rounded-[4px] border-[1.5px]",
@@ -573,6 +572,7 @@ function MenuSubmenu({ label, icon, disabled, children }: MenuSubmenuProps) {
             focusReturn={level.focusSelf}
             getAnchor={() => document.getElementById(id)?.getBoundingClientRect() ?? null}
             placement="right-start"
+            getAnchorEl={() => document.getElementById(id)}
           >
             {children}
           </MenuSurface>,
@@ -626,7 +626,6 @@ export function Menu({
     open: openProp,
     onOpenChange,
     focusReturn: () => triggerRef.current?.focus(),
-    isTarget: target => triggerRef.current?.contains(target) ?? false,
   });
   const { open, setOpen, closeMenu, rootValue } = tree;
 
@@ -634,13 +633,9 @@ export function Menu({
   const injected: Record<string, unknown> = {
     "aria-haspopup": "menu" as const,
     "aria-expanded": open,
-    ref: (el: HTMLElement | null) => {
+    ref: mergeRefs((triggerEl.props as { ref?: Ref<HTMLElement> }).ref, el => {
       triggerRef.current = el;
-      const orig = (triggerEl.props as { ref?: unknown }).ref;
-      if (typeof orig === "function") (orig as (n: HTMLElement | null) => void)(el);
-      else if (orig && typeof orig === "object")
-        (orig as { current: HTMLElement | null }).current = el;
-    },
+    }),
     onClick: (e: ReactMouseEvent) => {
       (triggerEl.props as { onClick?: (e: ReactMouseEvent) => void }).onClick?.(e);
       if (!e.defaultPrevented) setOpen(!open);
@@ -674,6 +669,8 @@ export function Menu({
           focusReturn={() => triggerRef.current?.focus()}
           getAnchor={() => triggerRef.current?.getBoundingClientRect() ?? null}
           placement={align === "end" ? "bottom-end" : "bottom-start"}
+          isAnchor={target => triggerRef.current?.contains(target) ?? false}
+          getAnchorEl={() => triggerRef.current}
           className={className}
         >
           {children}
@@ -698,7 +695,6 @@ export function ContextMenu({ children, content, className }: ContextMenuProps) 
   const targetRef = useRef<HTMLElement | null>(null);
   const tree = useMenuTree({
     focusReturn: () => targetRef.current?.focus(),
-    isTarget: target => targetRef.current?.contains(target) ?? false,
   });
   const { open, setOpen, closeMenu, rootValue } = tree;
 
@@ -725,6 +721,8 @@ export function ContextMenu({ children, content, className }: ContextMenuProps) 
           focusReturn={() => targetRef.current?.focus()}
           getAnchor={() => pointRef.current}
           placement="bottom-start"
+          isAnchor={target => targetRef.current?.contains(target) ?? false}
+          getAnchorEl={() => targetRef.current}
           className={className}
         >
           {content}
