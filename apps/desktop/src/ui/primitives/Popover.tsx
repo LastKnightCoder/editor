@@ -1,10 +1,10 @@
 /**
- * Popover 基础件 —— 锚定式可交互内容浮层（D-013）。
+ * Popover 基础件 —— 锚定式可交互内容浮层（D-014）。
  *
  * 家族分工：Tooltip 瞬态说明（hover/focus、不可交互）、Menu 命令面板、Select 表单值
  * 选择、Dialog 模态决策、Toast 回执；Popover 收「点击触发、内容可继续操作」的
  * 非模态浮层——说明卡 / 过滤器组 / 色板 / 成员卡 / 卡片预览。antd 存量 Popover 的
- * trigger="hover" 用法迁 Tooltip、placement 12 向同名直映（D-013 迁移口径）。
+ * trigger="hover" 用法迁 Tooltip、placement 12 向同名直映（D-014 迁移口径）。
  *
  * 形制：无标题栏内容卡（surface + line-1 + radius-lg + shadow-float）；
  * 头行随需（icon 圆底 + 标题 + ghost ×），无内容不空转；footer 随需（hairline 之上

@@ -9,7 +9,7 @@ export interface UseMenuTreeOptions {
 
 /**
  * 菜单树开合状态机：受控 open + 整树关闭（还焦触发器）。
- * 外点与跨实例互斥自 D-013 起收口 useLayerDismiss（MenuSurface 逐层登记），
+ * 外点与跨实例互斥自 D-014 起收口 useLayerDismiss（MenuSurface 逐层登记），
  * 本 hook 不再挂自己的 document 监听——同一 pointerdown 双关会让受控
  * onOpenChange 收到两次回调。
  */

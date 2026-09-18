@@ -1,5 +1,5 @@
 /**
- * 浮层定位引擎（Tooltip / Select / Menu / Popover 共用，D-004；D-013 起更名
+ * 浮层定位引擎（Tooltip / Select / Menu / Popover 共用，D-004；D-014 起更名
  * anchoredPosition——四家消费后不再顶着 tooltip 专名）——不依赖 React，可单独单测。
  * 中间件链：offset（间距默认 8）→ flip（主轴放不下翻对侧）→ shift（夹回视口，边距 8）→
  * arrow（锚点中心在边缘上的投影，两端各留 10px）。
