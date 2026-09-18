@@ -14,10 +14,12 @@ import {
   MousePointerClick,
   Palette,
   PanelTop,
+  RectangleHorizontal,
   Ruler,
   SquarePlus,
 } from "lucide-react";
 
+import ButtonSection from "./ButtonSection";
 import IconButtonSection from "./IconButtonSection";
 import SelectSection from "./SelectSection";
 import MenuSection from "./MenuSection";
@@ -39,6 +41,13 @@ export interface SectionMeta {
 }
 
 export const SECTIONS: SectionMeta[] = [
+  {
+    key: "button",
+    label: "Button",
+    group: "基础件",
+    icon: RectangleHorizontal,
+    component: ButtonSection,
+  },
   {
     key: "iconbutton",
     label: "IconButton",

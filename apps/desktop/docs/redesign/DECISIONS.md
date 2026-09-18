@@ -108,6 +108,14 @@
 - 推翻（2026-09-18 用户裁决）：**Scroller 组件删除**——`Scroller.tsx` / `Scroller.test.tsx` / 样板间档案移除，Dialog/Sidebar/StatsView/ShowcaseApp 回退手写三件套（edge-fade-scroll 类 + useEdgeFade + callback ref），`.scrollbar-inset` 规则一并删除（gutter/barInset 能力不复存在）。滚动区仍以手写三件套为标准接法，edge fade 与滚动条 hover 显隐行为不变。
 - 追记（同日第四轮）：删除 Scroller 后用户单独裁决——**仅 Dialog** 的正文滚动条做专属形制（勿外推，其余滚动区维持全局 4px）：thumb 4px 宽 + 2px 圆角；**上下 4px 间距加在 track（轨道）上**（轨道透明上下边框缩短 thumb 活动区，thumb 自身无边框、圆角不被侵蚀——thumb border 通路吃圆角、margin 通路无效、渐变自绘被否，track 是间距的正确宿主）；**距右缘 4px = 滚动容器自身的透明右边框**。失败通路留档：thumb 透明右框挤位（伪元素 clip 不可靠，墨条被裁掉一半）、-mr/pr 借位（卡片无外层留白，滚动条被推出卡片外）。关键认知：伪元素上做位移/裁剪都不可靠，布局级偏移才是正路；圆角上限受墨条宽度钳制（宽的一半）。
 
+## D-013 Button 基础件：方案 B「现代产品」形制 + 六变体音量阶梯
+
+- 背景：Button 三方案设计稿（`mockups/button/`，A 纸面凸版 letterpress / B 现代产品 / C 密集工作台内嵌 kbd，同变体集同状态机只换皮），2026-09-18 用户裁决方案 B。API 面非分歧点（02 §5.2/§5.3 已定：variant × size sm/md、forwardRef、focus-ring 全局口径）；第一消费者是 ConfirmDialog 应答区 BTN_BASE——其注释「Button primitive 落地前在此收口，落地后迁移」的欠账由本定稿偿还。
+- 选择：① **形制 = 方案 B**——primary 是 accent 实心 + 1px 微投影（color-mix accent 40%），hover 换 accent-hover、active brightness 压暗，反馈是「光」的不是位移的；secondary = surface 亮底 + line-1 描边 hover 边框加深（D-007/D-009 浮起物口径，即 ConfirmDialog BTN_SECOND 原样）；soft = accent-soft 平底（工具栏次级强调，比 secondary 轻、比 ghost 重）；ghost = 无底 hover 淡墨（与 IconButton 同反馈语言）；danger 两档对齐 D-011 危险分级——实心红只给确认位，列表/工具栏一律 soft；② **六变体 × sm 28 / md 34 × 六状态**（default/hover/press/focus-visible/disabled/loading），radius 10 走任意值 `rounded-[10px]`（ConfirmDialog 已开先例，词表不为一档圆角扩档）；③ **loading 上收为内建语义**——aria-busy + Spinner + `loadingText` 文案切换 + 一并 disabled（原生属性同时封锁指针与 Tab 队列），ConfirmDialog 的手动 Spinner 拼装退役；④ 图标仅左位 16px stroke 1.75（`icon={Plus}`），icon-only 归 IconButton 不设档；⑤ ghost 无底色，disabled 单独提到 opacity 0.55（公共 0.45 在浅底上几乎不可辨，mockup 实机自检修正）。
+- 排除：A 的 letterpress 暗边与按压位移（暗边需派生 token、cocoa 下 group 次级是「洞」辨识度弱——三案暗账已披露）；C 的密度（sm 24 贴命中面积下限、12px 字在 1080p/125% 缩放下发糊）；C 的内嵌 kbd（可嫁接件，真有带快捷键的按钮位再议，YAGNI 未嫁接，`shortcut` prop 暂不建）；radius 增补 token（上述任意值口径）。
+- 影响：`ui/primitives/Button.tsx` + `__tests__/Button.test.tsx`；ConfirmDialog 的 BTN_BASE/BTN_PRIMARY/BTN_PRIMARY_DANGER/BTN_SECOND 四常量删除，footer 两按钮改用 Button（主按钮 busy 走内建 loading 语义，spinner/aria-busy/disabled 一体），`canConfirm` 保留为 handleConfirm 守卫；样板间「Button」档案（LIVE 变体全谱 + 状态矩阵 + 尺寸/block + loading 实试标本）；03 指南 §5 使用边界与 §9 任务 2；`mockups/button/plan-b-modern.html` 更新为定稿口径（A/C 留档对照）。
+- 验证：`__tests__/Button.test.tsx` 9 例（变体/尺寸/block 类落地 · type 默认与透传 · disabled 原生封锁 · loading 语义四件套 · loadingText 缺省保持 children · icon 左位 · cn 覆盖合并非静默失效 · ref 转发 · data-_/aria-_ 透传）；Dialog.test.tsx 9 例回归全绿（ConfirmDialog 迁移无行为回退）；tsc 0 错误；样板间双主题目验。
+
 ---
 
 ## Page 迁移清单（M2 起滚动勾选）
