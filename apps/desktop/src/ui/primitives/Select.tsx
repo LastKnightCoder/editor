@@ -10,10 +10,10 @@
  *    Home·End 首末 / type-ahead 400ms 窗口（非 searchable）/ Tab 关闭并自然移出
  *  - aria：触发器 combobox + 弹层 listbox + aria-activedescendant 指向高亮项；
  *    选中（bg-selected + Check，当前值）与高亮（bg-hover，键盘停留行）两态并存
- *  - 定位复用 D-004 引擎（computeTooltipPosition("bottom") + gap 4）：下方放不下
+ *  - 定位复用 D-004 引擎（computeAnchoredPosition("bottom") + gap 4）：下方放不下
  *    翻上方（动画方向跟随）；弹层 min-width = 触发器宽（matchTriggerWidth，默认开）
  *  - 外点关闭（pointerdown capture）· 选中即关 · 焦点归还触发器 ·
- *    scroll(capture)/resize → rAF 合并重定位（照 Tooltip 的跟随模式）
+ *    scroll(capture)/resize/内容尺寸 → rAF 合并重定位（照 Tooltip 的跟随模式）
  *  - Esc：仅 open 态在组件 DOM 上消费（preventDefault + stopPropagation）——焦点链
  *    即 LIFO（Esc 归焦点所在的浮层，嵌套浮层逐层退场），closed 态零参与；不进
  *    D-003 全局注册表（那是命令面板等壳层浮层的仲裁，ui 基础件不反向依赖 page/）
@@ -41,7 +41,9 @@ import { createPortal } from "react-dom";
 import clsx from "clsx";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { cn } from "@/ui/cn";
-import { computeTooltipPosition } from "./tooltipPosition";
+import { mergeRefs } from "./mergeRefs";
+import { useAnchoredPosition } from "./useAnchoredPosition";
+import { useLayerDismiss } from "./useLayerDismiss";
 import { useListNavigation } from "./useListNavigation";
 
 export interface SelectOption<V = string> {
@@ -172,19 +174,22 @@ export function Select<V = string>({
     triggerRef.current?.focus();
   };
 
-  /** 定位写入（两遍：先量内容实际尺寸再精调；min-width 同宽在此设置） */
-  const place = () => {
-    const a = triggerRef.current;
-    const m = menuRef.current;
-    if (!a || !m) return;
-    if (matchTriggerWidth) m.style.minWidth = `${a.getBoundingClientRect().width}px`;
-    const { x, y, side } = computeTooltipPosition(a.getBoundingClientRect(), m, "bottom", {
-      gap: 4,
-    });
-    m.style.left = `${x}px`;
-    m.style.top = `${y}px`;
-    m.dataset.dir = side === "top" ? "up" : "down";
-  };
+  /** 定位生命周期收口 useAnchoredPosition（D-013）；min-width 在 onPlace 设置，
+   *  第二遍精调时同步布局已带上新宽度 */
+  useAnchoredPosition({
+    open,
+    getAnchor: () => triggerRef.current?.getBoundingClientRect() ?? null,
+    popRef: menuRef,
+    placement: "bottom",
+    gap: 4,
+    onPlace: ({ side }, m) => {
+      if (matchTriggerWidth) {
+        const a = triggerRef.current;
+        if (a) m.style.minWidth = `${a.getBoundingClientRect().width}px`;
+      }
+      m.dataset.dir = side === "top" ? "up" : "down";
+    },
+  });
 
   // 高亮行滚动跟随（jsdom 无 scrollIntoView，可选链防御）
   useEffect(() => {
@@ -192,12 +197,10 @@ export function Select<V = string>({
     menuRef.current?.querySelector(`[data-index="${hl}"]`)?.scrollIntoView?.({ block: "nearest" });
   }, [open, hl]);
 
-  // open 期间：进场定位 + searchable 聚焦 + scroll/resize 跟随（照 Tooltip 模式）
+  // open 时：高亮归位 + searchable 聚焦（定位由 useAnchoredPosition 承担）
   useLayoutEffect(() => {
     if (!open) return;
     resetHl();
-    place();
-    place();
     if (searchable) {
       // data-open 同步生效后 visibility 已切换，同步可聚焦；rAF 兜底无渲染帧环境
       try {
@@ -210,44 +213,24 @@ export function Select<V = string>({
           searchRef.current?.focus({ preventScroll: true });
       });
     }
-    let queued = false;
-    const schedule = () => {
-      if (queued) return;
-      queued = true;
-      requestAnimationFrame(() => {
-        queued = false;
-        place();
-      });
-    };
-    window.addEventListener("scroll", schedule, true);
-    window.addEventListener("resize", schedule);
-    return () => {
-      window.removeEventListener("scroll", schedule, true);
-      window.removeEventListener("resize", schedule);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, searchable]);
 
-  // 过滤词变化：重算高亮 + 重定位（弹层高度随命中数变化）
+  // 过滤词变化：重算高亮（重定位由 useAnchoredPosition 的尺寸自适应承担——弹层高度随命中数变化）
   useLayoutEffect(() => {
     if (!open) return;
     resetHl();
-    place();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  // 外点关闭（弹层内滚动不是外点；焦点不抢——pointerdown 不 preventDefault）
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (e: PointerEvent) => {
-      const t = e.target as Node;
-      if (rootRef.current?.contains(t) || menuRef.current?.contains(t)) return;
-      setOpen(false);
-    };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    return () => document.removeEventListener("pointerdown", onPointerDown, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  // 外点关闭 → dismiss 层仲裁（登记制：弹层内再开的 Menu/Popover 不算外点）
+  useLayerDismiss({
+    open,
+    layerRef: menuRef,
+    close: () => setOpen(false),
+    isAnchor: target => rootRef.current?.contains(target) ?? false,
+    getAnchorEl: () => triggerRef.current,
+  });
 
   const pickHighlighted = () => {
     const opt = visible[hl] ?? visible.find(o => !o.disabled);
@@ -397,11 +380,9 @@ export function Select<V = string>({
   return (
     <div ref={rootRef} className={cn("inline-flex", className)} data-disabled={disabled}>
       <button
-        ref={el => {
+        ref={mergeRefs(ref, el => {
           triggerRef.current = el;
-          if (typeof ref === "function") ref(el);
-          else if (ref && typeof ref === "object") ref.current = el;
-        }}
+        })}
         type="button"
         role="combobox"
         aria-haspopup="listbox"
