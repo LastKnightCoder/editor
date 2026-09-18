@@ -177,10 +177,11 @@ export function Segmented<T extends string>({
   options: readonly { value: T; label: ReactNode; title?: string }[];
   onChange: (value: T) => void;
 }) {
-  // 轨道用 sunken（最深的凹陷档），选中胶囊用 surface 浮起——D-006 把 group/sunken
-  // 沉到 page 之下后两档都可用，这里取最深的一档让"轨道 - 胶囊"关系最强
+  // 轨道用 group（分组底）、选中胶囊用 surface 浮起：sunken 是「进度轨道 / 凹陷画布」
+  // 专档（D-009），落在分段控件上是一片比 page 深一档的重色块；group 同属暖纸系的分组底，
+  // 既在 page 与 surface 上都显形，又不抢展品的注意力
   return (
-    <div className="bg-sunken inline-flex items-center gap-0.5 rounded-[10px] p-0.5">
+    <div className="bg-group inline-flex items-center gap-0.5 rounded-[10px] p-0.5">
       {options.map(option => (
         <button
           key={option.value}

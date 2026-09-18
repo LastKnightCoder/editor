@@ -195,7 +195,8 @@ export function SearchPalette() {
     icon: c.icon,
     title: c.label,
     sub: c.section,
-    tag: { label: c.section, cls: "bg-sunken text-ink-2" },
+    // 分组标签走 group 底（同页脚 bg-group/60 的次级填充语言），sunken 专供进度轨道/凹陷画布
+    tag: { label: c.section, cls: "bg-group text-ink-2" },
     run: () => runCommand(c),
   });
 
