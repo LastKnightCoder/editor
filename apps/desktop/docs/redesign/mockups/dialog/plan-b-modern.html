@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dialog 定稿 · 方案 B 现代产品（+ 上下文徽标 / footer 影响行 / edge fade） — Tau 桌面端</title>
+<!--
+  【Dialog 定稿：方案 B · 现代产品 —— 2026-09-18 用户裁决，嫁接 A/C 三件增量元素】
+
+  心智：Linear / Notion / Arc。Dialog 是一件「浮起的产品面板」：体内大标题（16px / 650）
+  开门见山，hairline 把按钮栏划成明确的应答区，主按钮 accent 实心坐在最右；
+  遮罩带 blur——世界往后退，对话向前走（「产品打光」而非「系统变暗」）。
+  与 Menu B 药丸行、Toast 卡片、命令面板同一浮层语言（选择 B 的决定性理由）。
+
+  定稿嫁接（A/C 的增量元素，不破坏形制）：
+  - 上下文徽标（自 C）：标题回归动作语义（「删除笔记本」），操作对象挂 chip；
+    长名截断有专属 UI，批量多开不迷路
+  - footer 影响行（自 C）：hairline 左侧念后果（「24 张卡片 · 废纸篓保留 30 天」），
+    信息一处一责——正文讲动作、影响行讲后果、hint 讲解锁规则、按钮文案不再带数量
+  - edge fade（对齐项目既有协议 useEdgeFade + .edge-fade-scroll，替代 C 的标题栏阴影）：
+    长内容滚动时上下缘 12px mask 渐隐，只在真能滚的方向显形
+  - 尺寸档是预设不是牢笼：sm 380 / md 440 / lg 560 之外允许 width 任意值覆盖
+
+  danger 两档原则（用户裁决）：
+  - 轻 danger（归档级）：实心红按钮 + 影响行，一步确认
+  - 真·不可逆（删笔记本 / 清空废纸篓）：type-to-confirm 输入对象名解锁
+
+  本页演示 Dialog 的完整元素清单（A/C 留档对照，本页为定稿口径）：
+  - 确认对话（归档卡片）：dismissible——× / Esc / 遮罩点击均可关
+  - 危险确认（删除笔记本）：critical + type-to-confirm——输入「工作 · 重构」解锁删除
+  - 表单对话（新建笔记本）：输入 + Select + 开关，Enter 提交、空值禁用主按钮
+  - 阻断通知（版本冲突）：纯文字头部（无 icon）+ 徽标，二选一
+  - 长内容滚动（更新说明）：头尾固定、body 滚动、edge fade、三档宽度 + width 任意值
+  - 异步提交（导出 PDF）：loading 期间一切关闭路径失效 → toast 反馈
+
+  定稿视觉规范：
+  - 卡片：surface + line-1 + radius-lg(16) + shadow-float；宽度档 sm 380 / md 440 / lg 560（默认 md）+ width 覆盖
+  - 标题：16px / 650 动作式（「删除笔记本」），操作对象挂徽标（group 底 chip，随需出现）；右上 ×（28px ghost）
+  - 描述：13px ink-2；hairline 划出按钮应答区（border-top line-2）
+  - footer：左侧影响行（11.5px ink-3 / danger 色），右侧按钮组、主按钮最右；34px 高、radius 10
+  - 遮罩：overlay + backdrop blur(4px)；动效 scale(0.97)+translateY(8px) 200ms
+
+  暗账（定稿后仍要还的账，页底有体验块）：
+  - blur 遮罩的 GPU 账单：大窗 + 低端机连续开关有重绘成本，录屏/截图工具兼容性另算
+  - type-to-confirm 是行为税：档位必须只给「真不可逆」，轻度危险一步确认，否则全线劝退
+  - 16px 标题 + 34px 按钮最「重」：轻确认用 sm 档收敛体量（A 的克制，学以致用）
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  --titlebar-h: 46px; --sidebar-w: 218px; --statusbar-h: 30px;
+}
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #ece4d4; --bg-sunken: #e2d8c0;
+  --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09);
+  --bg-selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+  --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+  --danger: #b0564d; --danger-soft: rgba(176, 86, 77, 0.1);
+  --warn: #9a7b3f; --warn-soft: rgba(154, 123, 63, 0.12);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+  --overlay: rgba(45, 35, 20, 0.28);
+}
+[data-theme="cocoa"] {
+  color-scheme: dark;
+  --bg-page: #221d16; --bg-surface: #2e2820; --bg-group: #19150e; --bg-sunken: #100d08;
+  --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11);
+  --bg-selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+  --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+  --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+  --danger: #d97e66; --danger-soft: rgba(217, 126, 102, 0.14);
+  --warn: #c9a869; --warn-soft: rgba(201, 168, 105, 0.14);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+  --overlay: rgba(6, 4, 1, 0.55);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font); font-size: 13px; line-height: 1.65; color: var(--ink-1);
+  background: var(--bg-page); overflow: hidden; min-width: 1080px; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+input, select { font: inherit; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+::-webkit-scrollbar { width: 9px; }
+::-webkit-scrollbar-thumb { background: var(--line-1); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+
+.app { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); grid-template-rows: 100vh;
+  grid-template-areas: "sidebar main"; }
+.main { grid-area: main; display: flex; flex-direction: column; min-width: 0; background: var(--bg-page); }
+.sidebar { grid-area: sidebar; padding: 0 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.sidebar-head { display: flex; align-items: center; gap: 8px; height: var(--titlebar-h); padding: 0 6px; margin-bottom: 6px; }
+.brand-mark { width: 24px; height: 24px; border-radius: 8px; background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.brand-name { font-weight: 600; font-size: 13.5px; }
+.nav-label { font-size: 11px; color: var(--ink-3); padding: 8px 10px 6px; letter-spacing: 0.02em; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px;
+  border-radius: 10px; color: var(--ink-2); text-align: left; }
+.nav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-item.active { background: var(--bg-selected); color: var(--accent-text); font-weight: 550; }
+.titlebar { height: var(--titlebar-h); flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.icon-btn { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-2); }
+.icon-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.crumb { color: var(--ink-3); font-size: 12.5px; }
+.titlebar .spacer { flex: 1; }
+.win-controls { display: flex; gap: 6px; }
+.win-controls .dot { width: 12px; height: 12px; border-radius: 99px; background: var(--bg-sunken); border: 1px solid var(--line-1); }
+.home { flex: 1; overflow-y: auto; padding: 26px 40px 48px; }
+.home h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+.home .date { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; margin-bottom: 22px; }
+.panel { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card); padding: 18px 20px; margin-bottom: 16px; }
+.panel h3 { font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 12px; letter-spacing: 0.03em; }
+.statusbar { height: var(--statusbar-h); flex: none; display: flex; align-items: center; gap: 14px;
+  padding: 0 16px; font-size: 11.5px; color: var(--ink-3); border-top: 1px solid var(--line-1); }
+.row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; line-height: 1.8; }
+.note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+code.inline { font-family: var(--mono); font-size: 11px; background: var(--bg-group); padding: 1px 5px; border-radius: 5px; }
+
+.code-card { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 10px;
+  padding: 12px 14px; font-family: var(--mono); font-size: 11.5px; line-height: 1.75; color: var(--ink-2);
+  overflow-x: auto; white-space: pre; margin-top: 12px; }
+.code-card .tag { color: var(--accent-text); }
+.code-card .attr { color: var(--ink-1); }
+.code-card .cmt { color: var(--ink-3); }
+.cost-block { border: 1px dashed var(--line-1); border-radius: 10px; padding: 12px 14px; margin-top: 12px;
+  font-size: 12px; color: var(--ink-2); line-height: 1.8; background: var(--bg-surface); }
+.cost-block b { color: var(--danger); }
+.kbd-row { display: flex; gap: 8px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-3); margin-top: 10px; }
+.kbd-row kbd { padding: 1px 6px; border: 1px solid var(--line-1); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--bg-surface); font-size: 11px; font-family: var(--mono); }
+
+/* ── 演示卡片（触发场景的素材） ── */
+.ctx-card { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px;
+  background: var(--bg-surface); border: 1px solid var(--line-1); margin-bottom: 8px; }
+.ctx-card .dot { width: 8px; height: 8px; border-radius: 99px; flex: none; }
+.ctx-card .t { font-size: 13px; font-weight: 550; }
+.ctx-card .m { font-size: 11.5px; color: var(--ink-3); margin-left: auto; }
+
+/* ── 表单控件（D-007 家族口径：surface 亮底 + line-1 描边） ── */
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.field label { font-size: 12px; color: var(--ink-2); font-weight: 550; }
+.ipt { height: 34px; padding: 0 11px; border-radius: var(--radius-sm); background: var(--bg-surface);
+  border: 1px solid var(--line-1); color: var(--ink-1); font-size: 13px; outline: none;
+  transition: border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out); }
+.ipt:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.ipt::placeholder { color: var(--ink-3); }
+.sel-trigger { display: flex; align-items: center; justify-content: space-between; height: 34px; padding: 0 11px;
+  border-radius: var(--radius-sm); background: var(--bg-surface); border: 1px solid var(--line-1);
+  color: var(--ink-1); font-size: 13px; }
+.sel-trigger .caret { width: 13px; height: 13px; color: var(--ink-3); }
+.check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-2); cursor: pointer; }
+.check .box { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--ink-3);
+  display: grid; place-items: center; color: var(--ink-inverse); background: var(--bg-surface); flex: none; }
+.check.on .box { background: var(--accent); border-color: var(--accent); }
+.check .box svg { width: 11px; height: 11px; stroke-width: 3; display: none; }
+.check.on .box svg { display: block; }
+
+/* ═══════════ Dialog 本体 · 方案 B 皮：现代产品 ═══════════ */
+.dlg-root { position: fixed; inset: 0; z-index: 340; display: none; place-items: center; padding: 32px; }
+.dlg-root.open { display: grid; }
+.dlg-mask { position: absolute; inset: 0; background: var(--overlay);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  opacity: 0; transition: opacity 200ms var(--ease-out); }
+.dlg-root.show .dlg-mask { opacity: 1; }
+.dlg { position: relative; width: 440px; max-width: 100%; max-height: min(78vh, 660px);
+  display: flex; flex-direction: column; background: var(--bg-surface); border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-float);
+  opacity: 0; transform: scale(0.97) translateY(8px);
+  transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out); }
+.dlg-root.show .dlg { opacity: 1; transform: none; }
+.dlg[data-size="sm"] { width: 380px; }
+.dlg[data-size="lg"] { width: 560px; }
+@keyframes dlg-shake { 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); } 80% { transform: translateX(3px); } }
+.dlg.shake { animation: dlg-shake 300ms var(--ease-out); }
+
+.dlg-x { position: absolute; top: 12px; right: 12px; }
+.dlg-x .icon-btn { width: 28px; height: 28px; border-radius: 8px; }
+.dlg-head { padding: 22px 48px 0 24px; flex: none; }
+.dlg-head h2 { font-size: 16px; font-weight: 650; letter-spacing: -0.01em; line-height: 1.45; }
+.dlg-body { padding: 6px 24px 20px; overflow-y: auto; font-size: 13px; color: var(--ink-2); line-height: 1.65; }
+.dlg-body b { color: var(--ink-1); font-weight: 600; }
+/* B 独有：hairline 划出应答区 */
+.dlg-foot { flex: none; display: flex; align-items: center; gap: 8px;
+  padding: 14px 24px; border-top: 1px solid var(--line-2); }
+/* 定稿嫁接（自 C）：footer 影响行——左侧念后果，右侧按钮作答；无影响行时按钮仍靠右 */
+.dlg-foot > .btn { margin-left: auto; }
+.dlg-foot > .btn + .btn { margin-left: 8px; }
+.dlg-impact + .btn { margin-left: 0; }
+.dlg-impact { flex: 1; min-width: 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.5; }
+.dlg-impact.danger { color: var(--danger); }
+.dlg-impact .dot { display: inline-block; width: 5px; height: 5px; border-radius: 99px;
+  background: currentColor; margin-right: 6px; vertical-align: 2px; }
+/* 定稿嫁接（自 C）：上下文徽标——标题动作化，对象挂 chip 随需出现；
+   底色对齐 D-009 行内小药丸口径：surface 亮底 + line-1 描边（group 底在卡片上显深，2026-09-18 用户反馈） */
+.dlg-head { display: flex; align-items: center; gap: 8px; }
+.dlg-head h2 { flex: none; }
+.dlg-chip { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 10px;
+  border-radius: 99px; background: var(--bg-surface); border: 1px solid var(--line-1);
+  font-size: 11px; color: var(--ink-2); flex: none; max-width: 176px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.dlg-chip .dot { width: 6px; height: 6px; border-radius: 99px; flex: none; }
+/* 阻断通知不带 icon：40px 圆底与 17px 内联两轮试验均被否决（2026-09-18 用户裁决），
+   文字头部（标题 + 徽标）与其它对话同构，分量由 critical 行为与文案承担 */
+/* 定稿嫁接：edge fade（对齐壳层 .edge-fade-scroll 协议；fallback 0——JS 未接线时不渐隐） */
+.dlg-body.fade { --edge-fade-top-size: 12px; --edge-fade-bottom-size: 12px;
+  padding-top: 4px; padding-bottom: 24px;
+  -webkit-mask-image: linear-gradient(180deg,
+    transparent 0, #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 0)),
+    #000 calc(100% - var(--edge-fade-bottom-size) * var(--edge-bottom-on, 0)), transparent 100%);
+  mask-image: linear-gradient(180deg,
+    transparent 0, #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 0)),
+    #000 calc(100% - var(--edge-fade-bottom-size) * var(--edge-bottom-on, 0)), transparent 100%); }
+/* type-to-confirm（B 独有：输入对象名解锁删除） */
+.confirm-field { margin-top: 12px; }
+.confirm-field .ipt { width: 100%; height: 36px; }
+.confirm-field .hint { font-size: 11.5px; color: var(--ink-3); margin-top: 6px; }
+.confirm-field .hint code { font-family: var(--mono); font-size: 11px; color: var(--accent-text); }
+
+/* ── 按钮（B 皮：34px / radius 10；主按钮最右） ── */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 34px;
+  padding: 0 17px; border-radius: 10px; font-size: 13px; font-weight: 600;
+  transition: background 140ms var(--ease-out), border-color 140ms var(--ease-out), opacity 140ms; }
+.btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.btn-primary { background: var(--accent); color: var(--ink-inverse); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary.danger { background: var(--danger); }
+.btn-primary.danger:hover { filter: brightness(1.06); }
+.btn-second { background: var(--bg-surface); border: 1px solid var(--line-1); color: var(--ink-1); font-weight: 550; }
+.btn-second:hover { border-color: var(--ink-3); }
+.btn[disabled] { opacity: 0.45; pointer-events: none; }
+.btn .spin { width: 13px; height: 13px; border-radius: 99px; border: 2px solid currentColor;
+  border-top-color: transparent; animation: rot 0.7s linear infinite; flex: none; }
+@keyframes rot { to { transform: rotate(360deg); } }
+
+/* 长内容（更新说明）演示 */
+.log-item { padding: 10px 0; border-bottom: 1px solid var(--line-2); font-size: 12.5px; }
+.log-item:last-child { border-bottom: none; }
+.log-item .tag-line { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.log-item .ver { font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 99px;
+  background: var(--accent-soft); color: var(--accent-text); }
+.log-item .dt { font-size: 11px; color: var(--ink-3); }
+.size-chip { display: inline-flex; align-items: center; height: 26px; padding: 0 12px; border-radius: 99px;
+  border: 1px solid var(--line-1); background: var(--bg-surface); color: var(--ink-2); font-size: 12px; }
+.size-chip.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); font-weight: 550; }
+
+/* 演示 toast */
+.demo-toast { position: fixed; right: 20px; bottom: 44px; z-index: 400; display: flex; align-items: center; gap: 8px;
+  background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 10px; box-shadow: var(--shadow-float);
+  padding: 9px 14px; font-size: 12.5px; color: var(--ink-1); opacity: 0; transform: translateY(6px);
+  pointer-events: none; transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out); }
+.demo-toast.show { opacity: 1; transform: none; }
+.demo-toast .ok-ic { width: 14px; height: 14px; color: var(--ok, #61795f); }
+.demo-toast .ok-ic svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+.plan-badge { position: fixed; left: 16px; bottom: 42px; z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.plan-badge .tag { display: inline-flex; align-items: center; gap: 7px; background: var(--bg-surface);
+  border: 1px solid var(--line-1); box-shadow: var(--shadow-card); border-radius: 99px; padding: 6px 13px;
+  font-size: 11.5px; color: var(--ink-2); }
+.plan-badge .tag b { color: var(--accent-text); font-weight: 600; }
+.plan-note { width: 342px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px;
+  box-shadow: var(--shadow-card); padding: 14px 16px; font-size: 12px; color: var(--ink-2); line-height: 1.75; display: none; }
+.plan-note.open { display: block; }
+.plan-note h4 { font-size: 12.5px; color: var(--ink-1); margin-bottom: 6px; }
+.plan-note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+.plan-note .try { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); color: var(--ink-3); font-size: 11.5px; }
+.plan-note .links { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); font-size: 11px; color: var(--ink-3); }
+.plan-note .links a { color: var(--accent-text); text-decoration: none; }
+.plan-note .links a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head"><div class="brand-mark">τ</div><div class="brand-name">Tau</div></div>
+    <div class="nav-label">工作台</div>
+    <button class="nav-item active">今日</button>
+    <button class="nav-item">日程</button>
+    <button class="nav-item">待办</button>
+    <div class="nav-label">知识</div>
+    <button class="nav-item">卡片库</button>
+    <button class="nav-item">文章</button>
+  </aside>
+
+  <div class="main">
+    <header class="titlebar">
+      <span class="crumb">· 设置 · 基础件设计稿</span>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="themeBtn" title="切换主题"><span id="themeIcon"></span></button>
+      <div class="win-controls"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    </header>
+
+    <div class="home">
+      <h1>Dialog 设计稿 · <span style="color:var(--accent-text)">定稿</span></h1>
+      <div class="date">方案 B 现代产品（2026-09-18 裁决）+ 嫁接件：上下文徽标 · footer 影响行 · edge fade · width 任意值</div>
+
+      <!-- ── Panel 1 确认对话 ── -->
+      <div class="panel">
+        <h3>确认对话 · dismissible（× / Esc / 遮罩皆可关）</h3>
+        <div class="row">
+          <button class="btn btn-second" type="button" data-dialog-for="dlgArchive">归档这张卡片…</button>
+        </div>
+        <div class="code-card"><span class="cmt">// 语义预设组件：确认类对话一句话接线（Dialog 的最薄封装）</span>
+<span class="tag">&lt;ConfirmDialog</span>
+  <span class="attr">open={archiving} onOpenChange={setArchiving}</span>
+  <span class="attr">title="归档卡片" context="桌面端重构 · 架构笔记"</span>
+  <span class="attr">impact="可随时在侧栏「档案」中恢复"</span>
+  <span class="attr">confirmText="归档" onConfirm={archive}</span><span class="tag">/&gt;</span></div>
+        <div class="kbd-row"><kbd>Enter</kbd> 确认（默认应答） · <kbd>Esc</kbd> 取消 · <kbd>Tab</kbd> 圈闭 · 焦点落主按钮 · 关闭后焦点归还触发器</div>
+      </div>
+
+      <!-- ── Panel 2 危险确认 ── -->
+      <div class="panel">
+        <h3>危险确认 · type-to-confirm（输入名称解锁删除 · critical）</h3>
+        <div style="max-width: 560px">
+          <div class="ctx-card">
+            <span class="dot" style="background:#8a7aa6"></span>
+            <span class="t">工作 · 重构</span>
+            <span class="m">笔记本 · 24 张卡片</span>
+            <button class="btn btn-second" type="button" style="height:28px; margin-left:12px" data-dialog-for="dlgDelete">删除…</button>
+          </div>
+        </div>
+        <div class="note">danger <em>两档</em>：真·不可逆（删笔记本）才走 type-to-confirm——输入「工作 · 重构」
+          删除按钮才苏醒；轻 danger（归档级）一步确认即走（Panel 1 那样）。信息一处一责：
+          <em>标题讲动作、徽标记对象、正文讲事实、影响行念后果（24 张卡片 · 30 天）、hint 讲解锁规则</em>，
+          按钮文案因此简化回「删除」。critical 无 ×、遮罩点击抖动、焦点落「取消」。</div>
+      </div>
+
+      <!-- ── Panel 3 表单对话 ── -->
+      <div class="panel">
+        <h3>表单对话 · 新建笔记本（Enter 提交 · 空值禁用主按钮）</h3>
+        <div class="row">
+          <button class="btn btn-primary" type="button" data-dialog-for="dlgNewBook">新建笔记本…</button>
+        </div>
+        <div class="code-card"><span class="cmt">// 通用容器：Body 自由排版，Footer 声明按钮序列（hairline 之上，主按钮恒在右）</span>
+<span class="tag">&lt;Dialog</span> <span class="attr">open={open} onOpenChange={setOpen} title="新建笔记本"</span><span class="tag">&gt;</span>
+  <span class="tag">&lt;Dialog.Body&gt;</span>…输入 / Select / 开关（D-007 控件口径）<span class="tag">&lt;/Dialog.Body&gt;</span>
+  <span class="tag">&lt;Dialog.Footer&gt;</span><span class="tag">&lt;Button</span> <span class="attr">onClick={close}</span><span class="tag">&gt;</span>取消<span class="tag">&lt;/Button&gt;</span>
+    <span class="tag">&lt;Button</span> <span class="attr">variant="primary" disabled={!name} loading={busy}</span><span class="tag">&gt;</span>创建<span class="tag">&lt;/Button&gt;</span><span class="tag">&lt;/Dialog.Footer&gt;</span>
+<span class="tag">&lt;/Dialog&gt;</span></div>
+        <div class="note">首输入框自动聚焦全选；表单走 <code class="inline">Enter 提交</code>（dialog 承载 form 语义）；
+          名称为空时主按钮禁用——<em>校验内联在按钮上</em>，不做弹中弹的错误提示。</div>
+      </div>
+
+      <!-- ── Panel 4 阻断通知 ── -->
+      <div class="panel">
+        <h3>阻断通知 · 版本冲突（纯文字头部 · critical 二选一）</h3>
+        <div class="row">
+          <button class="btn btn-second" type="button" data-dialog-for="dlgConflict">模拟：打开冲突卡片</button>
+        </div>
+        <div class="note">阻断通知<em>不带 icon</em>——40px 圆底与 17px 内联两轮试验都因「与文字头部
+          不一体」被否决，最终纯文字（标题 + 徽标），与其它对话同构；分量由 critical 行为
+          （无 ×、遮罩抖动）与文案承担。<em>「保留我的」放主按钮位</em>（安全侧），「重载他们的」是次按钮。</div>
+      </div>
+
+      <!-- ── Panel 5 长内容 + 尺寸档 ── -->
+      <div class="panel">
+        <h3>长内容滚动 · 头尾固定 · edge fade · 尺寸档 + width 任意值</h3>
+        <div class="row">
+          <button class="btn btn-second" type="button" data-dialog-for="dlgChangelog">查看更新说明…</button>
+          <span style="width:14px"></span>
+          <button class="size-chip" type="button" data-size-for="sm">sm · 380</button>
+          <button class="size-chip on" type="button" data-size-for="md">md · 440</button>
+          <button class="size-chip" type="button" data-size-for="lg">lg · 560</button>
+          <button class="size-chip" type="button" data-size-for="custom">width · 520</button>
+        </div>
+        <div class="note">正文区独立滚动，标题与应答区钉住；滚动时上下缘 <em>edge fade</em> 渐隐
+          （对齐壳层 useEdgeFade 协议，只在真能滚的方向显形）。高度上限 78vh，超出才滚。
+          尺寸档是<em>预设不是牢笼</em>：三档之外可传 width 任意值覆盖——预设给常见场景，
+          业务特殊版式（如双列选择器）不必硬凑档位。</div>
+      </div>
+
+      <!-- ── Panel 6 异步提交 ── -->
+      <div class="panel">
+        <h3>异步提交 · loading 期间一切关闭路径失效</h3>
+        <div class="row">
+          <button class="btn btn-second" type="button" data-dialog-for="dlgExport">导出为 PDF…</button>
+        </div>
+        <div class="note">主按钮进入 loading（spinner + 文案切换）后，<em>Esc / 遮罩 / × 全部失效</em>——
+          半途关闭的导出是坏文件；完成后自动关闭并交 <em>Toast</em> 报告结果（D-003 家族分工：Dialog 管决策，Toast 管回执）。</div>
+      </div>
+
+      <!-- ── Panel 7 暗账 ── -->
+      <div class="panel">
+        <h3>暗账 · 本方案绕不开的三件事</h3>
+        <div class="cost-block">
+          <b>① blur 遮罩的 GPU 账单：</b>backdrop-filter 在大窗口 + 低端机上连续开关有可感重绘成本；
+          录屏 / 截图 / 远程桌面下 blur 的观感另算一笔兼容性账。
+        </div>
+        <div class="cost-block" style="margin-top: 8px">
+          <b>② type-to-confirm 是行为税：</b>输入名称挡住手滑，也挡住急性子——档位必须只给
+          「真不可逆」（删除笔记本/清空废纸篓），轻度危险（归档）继续一步确认，否则全线劝退。
+        </div>
+        <div class="cost-block" style="margin-top: 8px">
+          <b>③ 最重的一件 Dialog：</b>16px 大标题 + 34px 按钮 + hairline 分区，纵向开销三案最大；
+          高频小确认（每次归档都停 320ms 动效）会显「隆重」，密集操作流里偏慢。
+        </div>
+      </div>
+    </div>
+
+    <div class="statusbar"><span>Tau v2 · 重构中</span><span>方案 B · 定稿 2026-09-18 · A/C 留档对照</span></div>
+  </div>
+</div>
+
+<!-- ═══════════ Dialog 浮层（body 级，fixed 遮罩 + 居中卡片） ═══════════ -->
+
+<!-- P1 确认（dismissible） -->
+<div class="dlg-root" id="dlgArchive" data-critical="false" data-focus="primary">
+  <div class="dlg-mask" data-mask></div>
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgArchiveTitle">
+    <div class="dlg-x"><button class="icon-btn dlg-close" type="button" aria-label="关闭"><svg class="icon" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dlg-head"><h2 id="dlgArchiveTitle">归档卡片</h2>
+      <span class="dlg-chip"><span class="dot" style="background:#c8553d"></span>桌面端重构 · 架构笔记</span></div>
+    <div class="dlg-body">卡片将从列表移入档案，内容与标签不变。</div>
+    <div class="dlg-foot">
+      <div class="dlg-impact"><span class="dot"></span>可随时在侧栏「档案」中恢复</div>
+      <button class="btn btn-second dlg-cancel" type="button">取消</button>
+      <button class="btn btn-primary dlg-ok" type="button" data-done="已归档：架构笔记">归档</button>
+    </div>
+  </div>
+</div>
+
+<!-- P2 危险确认（critical + type-to-confirm） -->
+<div class="dlg-root" id="dlgDelete" data-critical="true" data-focus="cancel">
+  <div class="dlg-mask" data-mask></div>
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgDeleteTitle">
+    <div class="dlg-head"><h2 id="dlgDeleteTitle">删除笔记本</h2>
+      <span class="dlg-chip"><span class="dot" style="background:#8a7aa6"></span>工作 · 重构</span></div>
+    <div class="dlg-body">笔记本及其全部内容将移入废纸篓，清空后不可撤销。
+      <div class="confirm-field">
+        <input class="ipt" id="delConfirm" placeholder="输入笔记本名称以确认" autocomplete="off">
+        <div class="hint">输入 <code>工作 · 重构</code> 解锁删除按钮</div>
+      </div>
+    </div>
+    <div class="dlg-foot">
+      <div class="dlg-impact danger"><span class="dot"></span>24 张卡片 · 废纸篓保留 30 天</div>
+      <button class="btn btn-second dlg-cancel" type="button">取消</button>
+      <button class="btn btn-primary danger dlg-ok" type="button" disabled data-done="已删除笔记本：工作 · 重构">删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- P3 表单（dismissible） -->
+<div class="dlg-root" id="dlgNewBook" data-critical="false" data-focus="first-input">
+  <div class="dlg-mask" data-mask></div>
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgNewBookTitle">
+    <div class="dlg-x"><button class="icon-btn dlg-close" type="button" aria-label="关闭"><svg class="icon" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dlg-head"><h2 id="dlgNewBookTitle">新建笔记本</h2></div>
+    <form class="dlg-body" id="dlgNewBookForm">
+      <div class="field">
+        <label for="nbName">名称</label>
+        <input class="ipt" id="nbName" placeholder="给笔记本起个名字" maxlength="24" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>位置</label>
+        <div class="sel-trigger"><span>收件箱</span><span class="caret"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span></div>
+      </div>
+      <div class="check on" id="nbPin" role="checkbox" aria-checked="true" tabindex="0">
+        <span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <span>创建后置顶显示</span>
+      </div>
+    </form>
+    <div class="dlg-foot">
+      <div class="dlg-impact"><span class="dot"></span>创建在「收件箱」下，可稍后拖动归位</div>
+      <button class="btn btn-second dlg-cancel" type="button">取消</button>
+      <button class="btn btn-primary dlg-ok" type="button" disabled data-done="已创建笔记本">创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- P4 阻断通知（critical，无 ×，纯文字头部） -->
+<div class="dlg-root" id="dlgConflict" data-critical="true" data-focus="primary">
+  <div class="dlg-mask" data-mask></div>
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgConflictTitle">
+    <div class="dlg-head">
+      <h2 id="dlgConflictTitle">卡片已在其它设备修改</h2>
+      <span class="dlg-chip"><span class="dot" style="background:#c8553d"></span>桌面端重构 · 架构笔记</span>
+    </div>
+    <div class="dlg-body">较新版本来自手机端（今天 09:12）。两份修改无法自动合并，需要选一份保留。</div>
+    <div class="dlg-foot">
+      <div class="dlg-impact"><span class="dot"></span>落选版本保留在「历史版本」</div>
+      <button class="btn btn-second dlg-cancel" type="button" data-done="已重载远端版本">重载他们的</button>
+      <button class="btn btn-primary dlg-ok" type="button" data-done="已保留本地版本">保留我的</button>
+    </div>
+  </div>
+</div>
+
+<!-- P5 长内容 + 尺寸档（dismissible，默认 md） -->
+<div class="dlg-root" id="dlgChangelog" data-critical="false" data-focus="primary">
+  <div class="dlg-mask" data-mask></div>
+  <div class="dlg" data-size="md" role="dialog" aria-modal="true" aria-labelledby="dlgChangelogTitle">
+    <div class="dlg-x"><button class="icon-btn dlg-close" type="button" aria-label="关闭"><svg class="icon" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dlg-head"><h2 id="dlgChangelogTitle">更新说明</h2></div>
+    <div class="dlg-body fade" id="changelogBody"></div>
+    <div class="dlg-foot">
+      <button class="btn btn-primary dlg-ok dlg-cancel" type="button">知道了</button>
+    </div>
+  </div>
+</div>
+
+<!-- P6 异步提交（dismissible → loading 时封锁） -->
+<div class="dlg-root" id="dlgExport" data-critical="false" data-focus="primary">
+  <div class="dlg-mask" data-mask></div>
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgExportTitle">
+    <div class="dlg-x"><button class="icon-btn dlg-close" type="button" aria-label="关闭"><svg class="icon" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="dlg-head"><h2 id="dlgExportTitle">导出为 PDF</h2>
+      <span class="dlg-chip"><span class="dot" style="background:#c8553d"></span>桌面端重构 · 架构笔记</span></div>
+    <div class="dlg-body">导出 1,204 字 · 3 张配图，含代码块与标签页，保存到「文稿」文件夹。</div>
+    <div class="dlg-foot">
+      <div class="dlg-impact"><span class="dot"></span>上次导出：昨天 14:20</div>
+      <button class="btn btn-second dlg-cancel" type="button">取消</button>
+      <button class="btn btn-primary dlg-ok" type="button" data-async="850" data-done="已导出：架构笔记.pdf">导出</button>
+    </div>
+  </div>
+</div>
+
+<div class="demo-toast" id="demoToast"><span class="ok-ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span><span id="demoToastTxt"></span></div>
+
+<div class="plan-badge">
+  <button class="tag" id="noteToggle"><b>方案 B · 已定稿</b> 嫁接件与交互说明</button>
+  <div class="plan-note" id="planNote">
+    <h4>定稿 = B + 三件嫁接</h4>
+    B 基底（体内大标题 + hairline 应答区 + blur 遮罩 + 主按钮最右）不变，嫁接
+    <em>上下文徽标</em>（标题动作化、对象挂 chip）、<em>footer 影响行</em>（后果贴决策点，信息一处一责）、
+    <em>edge fade</em>（对齐壳层 useEdgeFade 协议的滚动渐隐）。尺寸档 sm/md/lg 之外可传
+    <em>width 任意值</em>。danger 两档：轻 danger 一步确认，真·不可逆才 type-to-confirm。
+    <div class="try">试试：「删除…」看徽标 + 影响行 + 输入解锁；「更新说明」滚动看上下缘渐隐、
+      切「width · 520」看任意宽度；「导出」看 loading 封锁与 toast 回执；右上角切 cocoa。</div>
+    <div class="links">留档对照：<a href="plan-a-classic.html">A 经典桌面</a> · <b>B 现代产品（定稿）</b> · <a href="plan-c-dense.html">C 密集工作台</a> · <a href="index.html">导览</a></div>
+  </div>
+</div>
+
+<script>
+/* ───────── 图标 / 主题 ───────── */
+const P = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+};
+let theme = "cream";
+function toggleTheme() {
+  theme = theme === "cream" ? "cocoa" : "cream";
+  document.documentElement.dataset.theme = theme;
+  document.getElementById("themeIcon").innerHTML =
+    `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P[theme === "cream" ? "moon" : "sun"]}</svg>`;
+}
+document.getElementById("themeBtn").addEventListener("click", toggleTheme);
+document.getElementById("themeIcon").innerHTML = `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P.moon}</svg>`;
+
+/* ───────── 演示 toast ───────── */
+let toastTimer = 0;
+function demoToast(msg) {
+  const t = document.getElementById("demoToast");
+  document.getElementById("demoToastTxt").textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 1600);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   mini dialog 引擎（三页共行为，皮不同）：
+   开合动效 · 遮罩/Esc/× 关闭（critical 抖动拒绝）· Tab 焦点圈闭
+   · 焦点归还 · Enter 默认应答 · 表单提交 · 异步 loading 封锁
+   ═══════════════════════════════════════════════════════════════ */
+const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select, [tabindex]:not([tabindex="-1"])';
+const openStack = [];   // LIFO：Esc 关栈顶（同一时刻允许多层，先关最上层）
+
+function dlgEl(root) { return root.querySelector(".dlg"); }
+function busy(root) { return root.dataset.busy === "true"; }
+
+function openDlg(root, trigger) {
+  root._triggerEl = trigger || null;
+  trigger?.setAttribute("aria-expanded", "true");
+  root.classList.add("open");
+  requestAnimationFrame(() => root.classList.add("show"));
+  const dlg = dlgEl(root);
+  // 初始焦点：危险/冲突落取消（防回车误触），表单落首输入框，其余落主按钮
+  let target = null;
+  if (root.dataset.focus === "cancel") target = root.querySelector(".dlg-cancel");
+  else if (root.dataset.focus === "first-input") target = dlg.querySelector("input");
+  else target = root.querySelector(".dlg-foot .dlg-ok") || dlg.querySelector(FOCUSABLE);
+  (target || dlg).focus({ preventScroll: true });
+  root.dispatchEvent(new CustomEvent("dlg-open"));
+  openStack.push(root);
+}
+function closeDlg(root, restoreFocus = true) {
+  if (!root.classList.contains("open") || busy(root)) return;
+  root.classList.remove("show");
+  setTimeout(() => {
+    root.classList.remove("open");
+    const i = openStack.indexOf(root); if (i > -1) openStack.splice(i, 1);
+    if (restoreFocus) {
+      const trig = root._triggerEl;
+      trig?.focus(); trig?.setAttribute("aria-expanded", "false");
+    }
+  }, 200);
+}
+function shakeDlg(root) {
+  const dlg = dlgEl(root);
+  dlg.classList.remove("shake"); void dlg.offsetWidth; dlg.classList.add("shake");
+}
+
+/* 遮罩：dismissible 关闭；critical 抖动拒绝 */
+document.querySelectorAll(".dlg-root").forEach(root => {
+  root.querySelector("[data-mask]").addEventListener("click", () => {
+    if (busy(root)) return;
+    if (root.dataset.critical === "true") shakeDlg(root); else closeDlg(root);
+  });
+  root.querySelectorAll(".dlg-close, .dlg-cancel").forEach(el =>
+    el.addEventListener("click", () => closeDlg(root)));
+  /* Enter = 默认应答（主按钮）；表单内天然如此，非表单也统一 */
+  dlgEl(root).addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.isComposing && e.target.tagName !== "TEXTAREA") {
+      e.preventDefault();
+      root.querySelector(".dlg-foot .dlg-ok")?.click();
+    }
+  });
+});
+
+/* Esc 关栈顶（critical/busy 抖动或忽略）· Tab 圈闭 */
+document.addEventListener("keydown", e => {
+  if (!openStack.length) return;
+  const root = openStack[openStack.length - 1];
+  if (e.key === "Escape") {
+    e.preventDefault(); e.stopPropagation();
+    if (busy(root)) return;
+    if (root.dataset.critical === "true") shakeDlg(root); else closeDlg(root);
+  } else if (e.key === "Tab") {
+    const f = [...dlgEl(root).querySelectorAll(FOCUSABLE)].filter(el => el.offsetParent !== null);
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+});
+
+/* 主按钮：即答关闭 or 异步 loading → 完成关闭 + toast */
+document.querySelectorAll(".dlg-ok").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const root = btn.closest(".dlg-root");
+    const finish = () => {
+      if (btn.dataset.async) {   // 先复位 busy 封锁，再走关闭
+        btn.innerHTML = btn.dataset.label; delete root.dataset.busy;
+      }
+      closeDlg(root);
+      demoToast(btn.dataset.done || "已完成");
+    };
+    if (btn.dataset.async) {
+      root.dataset.busy = "true";
+      btn.dataset.label = btn.textContent;
+      btn.innerHTML = '<span class="spin"></span>导出中…';
+      btn.setAttribute("aria-busy", "true");
+      setTimeout(finish, +btn.dataset.async);
+    } else finish();
+  });
+});
+
+/* 触发器登记 */
+document.querySelectorAll("[data-dialog-for]").forEach(el => {
+  const root = document.getElementById(el.dataset.dialogFor);
+  if (!root) return;
+  el.setAttribute("aria-haspopup", "dialog");
+  el.addEventListener("click", () => {
+    if (root.classList.contains("open")) closeDlg(root); else openDlg(root, el);
+  });
+});
+
+/* B 独有：type-to-confirm——输入对象名解锁删除；每次打开重置 */
+(() => {
+  const root = document.getElementById("dlgDelete");
+  const NAME = "工作 · 重构";
+  const ipt = root.querySelector("#delConfirm"), ok = root.querySelector(".dlg-ok");
+  const sync = () => { ok.disabled = ipt.value.trim() !== NAME; };
+  ipt.addEventListener("input", sync);
+  root.addEventListener("dlg-open", () => { ipt.value = ""; sync(); ipt.focus({ preventScroll: true }); });
+  sync();
+})();
+
+/* 表单演示：空值禁用主按钮 · checkbox 切换 · form 提交走主按钮 */
+(() => {
+  const root = document.getElementById("dlgNewBook");
+  const name = root.querySelector("#nbName"), ok = root.querySelector(".dlg-ok");
+  const sync = () => { ok.disabled = !name.value.trim(); };
+  name.addEventListener("input", sync);
+  sync();
+  document.getElementById("dlgNewBookForm").addEventListener("submit", e => { e.preventDefault(); if (!ok.disabled) ok.click(); });
+  const pin = document.getElementById("nbPin");
+  const togglePin = () => {
+    pin.classList.toggle("on");
+    pin.setAttribute("aria-checked", pin.classList.contains("on"));
+  };
+  pin.addEventListener("click", togglePin);
+  pin.addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); togglePin(); } });
+})();
+
+/* 更新说明演示数据 + 尺寸档切换 */
+(() => {
+  const logs = [
+    ["v0.4.0", "09-16", "浮层引擎 mini floating-ui 手记落库：Tooltip 定位抽纯函数 computeTooltipPosition，Menu/Select 复用同一数学。"],
+    ["v0.3.2", "09-14", "Select 基础件定稿数据驱动 API；表单控件家族统一 surface 亮底 + line-1 描边口径。"],
+    ["v0.3.1", "09-12", "Tooltip 落地 hover intent 与受控 open；样板间首批档案（Button / IconButton / Tooltip / Toast）。"],
+    ["v0.3.0", "09-10", "命令面板（Ctrl+K）实装：命令 + 内容混合检索，空态落最近访问；Esc 仲裁 LIFO 收口。"],
+    ["v0.2.4", "09-05", "主题系统双主题全键校验（AA 对比度断言）；样板间接入 themeStore 真实现。"],
+    ["v0.2.3", "09-01", "修复浮层定位离屏锚点堆叠问题；shift 闸门与主轴占位判断补齐单测。"],
+    ["v0.2.0", "08-28", "Page 协议落地：definePage 声明式页面 + 纯函数栈机，Activity 保活；侧栏条目改 navigation.ts 单源。"],
+    ["v0.1.6", "08-25", "统计页矩阵视图：热力图轴标一次性字号；快照差分工具收口 utils。"],
+    ["v0.1.4", "08-23", "首页最近编辑 14→30→90→365 天渐进加载凑满即停；空态与加载骨架统一。"],
+    ["v0.1.2", "08-21", "侧栏导航数据单源（navigation.ts）；Titlebar 主题切换入口。"],
+    ["v0.1.0", "08-20", "首个内部版本：新壳层（Titlebar + Sidebar + Statusbar）、首页快照视图。"],
+    ["v0.0.9", "08-15", "内部预演版：token 契约与双主题（cream / cocoa）跑通 AA 校验。"],
+  ];
+  const body = document.getElementById("changelogBody");
+  body.innerHTML = logs.map(([v, d, txt]) =>
+    `<div class="log-item"><div class="tag-line"><span class="ver">${v}</span><span class="dt">${d}</span></div>${txt}</div>`).join("");
+  /* 定稿嫁接：edge fade——对齐壳层 useEdgeFade 协议（1px 容差，只在真能滚的方向显形） */
+  const syncFade = () => {
+    body.style.setProperty("--edge-top-on", body.scrollTop > 1 ? "1" : "0");
+    body.style.setProperty("--edge-bottom-on", body.scrollHeight - body.scrollTop - body.clientHeight > 1 ? "1" : "0");
+  };
+  body.addEventListener("scroll", syncFade, { passive: true });
+  document.getElementById("dlgChangelog").addEventListener("dlg-open", () => requestAnimationFrame(syncFade));
+  syncFade();
+  /* 尺寸档 + width 任意值覆盖（预设不是牢笼） */
+  const dlg = document.querySelector("#dlgChangelog .dlg");
+  document.querySelectorAll("[data-size-for]").forEach(chip => {
+    chip.addEventListener("click", () => {
+      document.querySelectorAll("[data-size-for]").forEach(c => c.classList.remove("on"));
+      chip.classList.add("on");
+      if (chip.dataset.sizeFor === "custom") { delete dlg.dataset.size; dlg.style.width = "520px"; }
+      else { dlg.style.width = ""; dlg.dataset.size = chip.dataset.sizeFor; }
+    });
+  });
+})();
+
+/* plan-note 开合 */
+document.getElementById("noteToggle").addEventListener("click", () =>
+  document.getElementById("planNote").classList.toggle("open"));
+</script>
+</body>
+</html>

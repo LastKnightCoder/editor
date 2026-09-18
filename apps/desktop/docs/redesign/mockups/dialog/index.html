@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tau 桌面端 · Dialog 方案导览（三路线对比 + 形制语言裁决）</title>
+<!--
+  Dialog 基础件设计导览：与 Menu/Select 同族工作流。技术底盘不是分歧点——
+  居中模态不需要 D-004 锚定引擎；焦点圈闭/归还、滚动锁定、Enter 默认应答是
+  标准件；Esc 属模态阻断浮层，走 D-003 useOverlayDismiss 注册表（命令面板同族；
+  Select/Menu 的「焦点链 LIFO 自消费」是瞬态锚定浮层口径，不外推）。
+  家族分工已由 D-003 定下：Menu 不做确认——确认归 ConfirmDialog、撤销归 Toast。
+
+  真正的开放决策是「形制语言」：同一套元素清单（确认/危险/表单/阻断通知/
+  长内容/异步提交），三种标题形制、按钮顺序与遮罩材质。三份演示页共用 tau
+  双主题、同一份元素清单与交互行为，差异只在皮，供综合选择。
+-->
+<style>
+:root {
+  --ink: #1d1f24; --ink-2: #5b606b; --ink-3: #8b919c;
+  --bg: #fcfcfd; --surface: #fff; --line: #e6e8ec; --accent: #4650c8;
+  --accent-soft: rgba(70, 80, 200, 0.09);
+  --good: #3e6b4f; --bad: #9c5148;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--ink); background: var(--bg); font-size: 14px; line-height: 1.75; }
+.page { max-width: 1020px; margin: 0 auto; padding: 48px 32px 96px; }
+h1 { font-size: 26px; letter-spacing: -0.01em; margin-bottom: 8px; }
+.lede { color: var(--ink-2); max-width: 78ch; margin-bottom: 8px; }
+.lede b { color: var(--ink); }
+h2 { font-size: 19px; margin: 46px 0 6px; }
+h2 + p { color: var(--ink-2); margin-bottom: 16px; max-width: 78ch; }
+a { color: var(--accent); }
+kbd { padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--surface); font-size: 12px; font-family: ui-monospace, Consolas, monospace; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--accent-soft);
+  color: var(--accent); border-radius: 5px; padding: 1px 6px; }
+pre { background: #f6f7f9; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+  font-size: 12.5px; line-height: 1.8; overflow-x: auto; color: var(--ink-2); margin-top: 10px; }
+pre code { background: none; color: inherit; padding: 0; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+td b.ok { color: var(--good); } td b.bad { color: var(--bad); } td b.mid { color: #8a6d3b; }
+
+.plan-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 14px; }
+@media (max-width: 900px) { .plan-grid { grid-template-columns: 1fr; } }
+.plan-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+.plan-card h3 { font-size: 15.5px; margin-bottom: 2px; }
+.plan-card .en { font-size: 11.5px; color: var(--ink-3); margin-bottom: 10px; }
+.plan-card .stance { font-size: 12.5px; color: var(--ink-2); margin-bottom: 12px; min-height: 66px; }
+.plan-card .stance b { color: var(--ink); }
+/* 线框示意：三种 Dialog 形制的抽象 */
+.wf { height: 118px; border: 1px solid var(--line); border-radius: 10px; background: #f6f7f9;
+  position: relative; margin-bottom: 12px; padding: 10px 12px; display: flex; flex-direction: column; }
+.wf-title { border-radius: 99px; background: #c9cdd4; height: 8px; }
+.wf-x { position: absolute; top: 9px; right: 9px; width: 11px; height: 11px; border-radius: 3px;
+  background: #e3e5ea; }
+.wf-lines { margin-top: 7px; }
+.wf-line { border-radius: 99px; background: #d7dae0; height: 6px; margin: 4px 0; }
+.wf-foot { margin-top: auto; display: flex; align-items: center; gap: 5px; }
+.wf-impact { border-radius: 99px; background: #e3e5ea; height: 6px; flex: 1; max-width: 90px; }
+.wf-spacer { flex: 1; }
+.wf-btn { border-radius: 5px; background: #eceef2; border: 1px solid var(--line); height: 15px; width: 42px; flex: none; }
+.wf-btn.primary { background: #4650c8; border-color: #4650c8; }
+.wf-btn.danger { background: #9c5148; border-color: #9c5148; }
+.wf-bar { border-bottom: 1px solid var(--line); margin: 0 -12px; padding: 0 12px 6px; display: flex; align-items: center; gap: 5px; }
+.wf-chip { border-radius: 99px; background: #e3e5ea; height: 9px; width: 52px; flex: none; }
+.wf-ico { width: 9px; height: 9px; border-radius: 99px; background: #c9cdd4; flex: none; }
+.plan-card ul { list-style: none; font-size: 12.5px; color: var(--ink-2); }
+.plan-card li { padding-left: 15px; position: relative; margin: 3px 0; }
+.plan-card li::before { content: "·"; position: absolute; left: 4px; color: var(--ink-3); }
+.plan-card li.good { color: var(--good); }
+.plan-card li.bad { color: var(--bad); }
+.open-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px; border-radius: 9px;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 550; text-decoration: none; margin-top: 10px; }
+.open-btn:hover { filter: brightness(1.08); }
+.plan-card .fit { font-size: 12px; background: #f6f7f9; border: 1px dashed var(--line); border-radius: 8px;
+  padding: 8px 12px; margin-top: 10px; color: var(--ink-2); }
+.plan-card .fit b { color: var(--ink); }
+
+.decision { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-top: 14px; }
+.decision h3 { font-size: 15px; margin-bottom: 8px; }
+.decision ol { padding-left: 20px; font-size: 13px; color: var(--ink-2); }
+.decision ol li { margin: 7px 0; }
+.decision ol li b { color: var(--ink); }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; }
+.verdict { display: inline-flex; align-items: center; gap: 6px; background: #eef4ee; color: var(--good);
+  border: 1px solid #d5e3d5; border-radius: 99px; padding: 2px 12px; font-size: 12px; font-weight: 600;
+  vertical-align: 2px; margin-left: 6px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Dialog 基础件 · 方案导览</h1>
+<p class="lede">已定稿：<b style="color:#3e6b4f;">方案 B · 现代产品（2026-09-18 用户裁决，D-011）</b>——A/C 留档对照。
+定稿在 B 基底上嫁接三件增量元素（不破坏形制）：<b>上下文徽标</b>（标题动作化、对象挂 chip）、
+<b>footer 影响行</b>（后果贴决策点，信息一处一责）、<b>edge fade</b>（滚动渐隐对齐壳层 useEdgeFade 协议，
+替代 C 的标题栏阴影）；尺寸档 sm/md/lg 之外允许 <b>width 任意值</b>覆盖；danger 两档——
+轻 danger 一步确认，真·不可逆才 type-to-confirm。
+Dialog 是<b>模态决策容器</b>——系统有事要问、用户必须作答的地方（家族分工见 D-003：
+Menu 不做确认，确认归 ConfirmDialog、撤销归 Toast）。技术底盘已定：居中模态不需要 D-004 锚定引擎；
+焦点圈闭/归还、滚动锁定、Enter 默认应答是标准件；Esc 属模态阻断浮层，走 <b>D-003 useOverlayDismiss
+注册表</b>（命令面板同族——Select/Menu 的「焦点链 LIFO 自消费」是瞬态锚定浮层的口径，不外推）。
+三份演示页同内容、同行为、共引擎，差异全在皮；<b>plan-b 已更新为定稿口径</b>。</p>
+
+<!-- ═══════════ 业界参照 ═══════════ -->
+<h2>业界参照</h2>
+<table>
+  <thead><tr><th>产品 / 库</th><th>形态语言</th><th>值得借鉴</th></tr></thead>
+  <tbody>
+    <tr><td><b>macOS NSAlert</b></td><td>体内标题 + 描述 + 按钮右下主最右；Ventura 起无 icon</td><td>回车即默认应答的三十年肌肉记忆；危险对话焦点落取消的安全默认</td></tr>
+    <tr><td><b>Windows 11 WinUI ContentDialog</b></td><td>标题栏 + 内容 + 命令区；Primary 在左第一位</td><td>任务对话框的「标题栏」结构；footer 影响范围行的信息编排</td></tr>
+    <tr><td><b>VS Code / JetBrains</b></td><td>紧凑排版 + 标题栏 + 按钮行；滚动时标题栏下阴影</td><td>密集工作台语感；IDE 滚动反馈的工程处理</td></tr>
+    <tr><td><b>Linear</b></td><td>体内大标题 + hairline 按钮区 + blur 遮罩 + destructive 红</td><td>现代 SaaS 模态范本；「世界往后退，对话向前走」的遮罩材质</td></tr>
+    <tr><td><b>Notion / GitHub</b></td><td>删除确认要求输入对象名（type-to-confirm）</td><td>真不可逆操作的最重确认档；按钮文案带数量（「删除 24 张卡片」）</td></tr>
+    <tr><td><b>Radix Dialog</b></td><td>无皮 headless：Portal + focus trap + aria-modal</td><td>API 面蓝本：DialogPrimitive 与 antd Modal 同构（antd 为 legacy 迁移对象）</td></tr>
+  </tbody>
+</table>
+<p class="note">共识：① 模态居中是主形态——侧滑/锚定承载归 Drawer/Popover 家族，不在本稿；
+② 按钮顺序是平台身份（mac 主最右 / Win 主最左），选一要贯穿全应用；
+③ danger 要有独立档位——实心红 + 量化后果，type-to-confirm 只给真不可逆；
+④ 遮罩材质与动效定义「系统感 vs 产品感」（纯色+缩放=系统，blur+平移=产品）；
+⑤ critical（无 ×、遮罩不可关）与 dismissible 的分界：是否允许不带答案离开。</p>
+
+<!-- ═══════════ 三方案 ═══════════ -->
+<h2>三条形制路线</h2>
+<div class="plan-grid">
+
+  <div class="plan-card">
+    <h3>方案 A · 经典桌面</h3>
+    <div class="en">macOS 语感 — 体内标题 · 无分隔线按钮栏 · 主按钮最右</div>
+    <div class="wf">
+      <div class="wf-title" style="width:38%"></div><div class="wf-x"></div>
+      <div class="wf-lines"><div class="wf-line" style="width:92%"></div><div class="wf-line" style="width:64%"></div></div>
+      <div class="wf-foot"><div class="wf-spacer"></div><div class="wf-btn"></div><div class="wf-btn primary"></div></div>
+    </div>
+    <div class="stance"><b>跟操作系统走的模态对话。</b>无标题栏、无 hairline——按钮直接坐在描述下方
+      （mac alert 的克制）；主按钮最右、回车即默认应答；遮罩纯色不 blur——「系统变暗」而非「产品打光」。</div>
+    <ul>
+      <li class="good">零学习成本——从任何桌面应用过来的用户不需要适应</li>
+      <li class="good">结构最薄：轻确认（归档）不背标题栏/影响行的框架，纵向开销小</li>
+      <li class="bad">层次全靠 shadow-float 一层撑，cream 浅色主题下存在感偏弱</li>
+      <li class="bad">主按钮最右是 mac 记忆，Windows 用户顺序相反</li>
+    </ul>
+    <div class="fit"><b>适用</b>：系统级语境——版本冲突、同步失败、权限询问——「操作系统在问话」的身份感。</div>
+    <a class="open-btn" href="plan-a-classic.html">打开演示 →</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>方案 B · 现代产品 <span class="verdict">已定稿</span></h3>
+    <div class="en">Linear 语感 — 体内大标题 · hairline 应答区 · type-to-confirm · + 嫁接件</div>
+    <div class="wf">
+      <div class="wf-title" style="width:46%; height:10px"></div><div class="wf-x"></div>
+      <div class="wf-lines"><div class="wf-line" style="width:92%"></div><div class="wf-line" style="width:64%"></div>
+        <div class="wf-line" style="width:78%; background:#eceefc"></div></div>
+      <div class="wf-foot" style="border-top:1px solid var(--line); margin:6px -12px 0; padding:6px 12px 0">
+        <div class="wf-spacer"></div><div class="wf-btn"></div><div class="wf-btn danger"></div></div>
+    </div>
+    <div class="stance"><b>对话框是产品的一部分，不是系统弹窗。</b>体内大标题（16px）开门见山，
+      hairline 划出应答区，blur 遮罩让世界后退；danger 走 type-to-confirm（输入名称解锁删除），
+      按钮文案带数量——与 Menu B 药丸行、Toast 卡片同一浮层语言。</div>
+    <ul>
+      <li class="good">与已定稿浮层（Menu B / Toast / 命令面板）语言连续性最强</li>
+      <li class="good">danger 后果感表达最强：输入确认 + 实心红 + 数量入文案</li>
+      <li class="bad">blur 遮罩的 GPU 账单：大窗低端机连续开关有重绘成本</li>
+      <li class="bad">16px 标题 + 34px 按钮最重，高频小确认显「隆重」</li>
+    </ul>
+    <div class="fit"><b>适用</b>：产品语境——删除/导出/分享/表单——「这是个有设计的产品」的身份感。</div>
+    <a class="open-btn" href="plan-b-modern.html">打开演示 →</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>方案 C · 密集工作台</h3>
+    <div class="en">WinUI / IDE 语感 — 标题栏横条 · 上下文徽标 · footer 影响行 · 主按钮在左</div>
+    <div class="wf">
+      <div class="wf-bar"><div class="wf-title" style="width:26%; height:7px"></div><div class="wf-chip"></div><div class="wf-x"></div></div>
+      <div class="wf-lines" style="margin-top:5px"><div class="wf-line" style="width:94%"></div></div>
+      <div class="wf-foot" style="border-top:1px solid var(--line); margin:6px -12px 0; padding:6px 12px 0">
+        <div class="wf-impact" style="background:#e5c4bf; max-width:110px"></div><div class="wf-spacer"></div>
+        <div class="wf-btn danger"></div><div class="wf-btn"></div></div>
+    </div>
+    <div class="stance"><b>对话框是工作台的一块任务面板。</b>标题栏横条挂标题 + 上下文徽标（操作对象是谁）
+      + ×；footer 左念影响范围、右放按钮（主按钮在左，WinUI 顺序）；正文 12.5px 紧凑，
+      滚动时标题栏下渐显阴影。动效克制无缩放——工具不做戏。</div>
+    <ul>
+      <li class="good">信息结构最强：对象徽标 + 影响行，批量/多开操作不迷路</li>
+      <li class="good">同屏信息量最大，长内容（更新说明）滚动体验最好</li>
+      <li class="bad">主按钮在左是 Win 记忆，mac 用户相反（A 的暗账镜像）</li>
+      <li class="bad">结构感在小对话里空转——轻确认没有影响行可念时框架大于内容</li>
+    </ul>
+    <div class="fit"><b>适用</b>：批量操作、长内容、专业流——「这是专业工具」的身份感。</div>
+    <a class="open-btn" href="plan-c-dense.html">打开演示 →</a>
+  </div>
+</div>
+
+<!-- ═══════════ 视觉差异对照 ═══════════ -->
+<h2>视觉差异对照表</h2>
+<p>同一套元素清单（确认 / 危险 / 表单 / 阻断通知 / 长内容 / 异步提交），三种形制参数。</p>
+<table>
+  <thead><tr><th>维度</th><th>A · 经典桌面</th><th>B · 现代产品</th><th>C · 密集工作台</th></tr></thead>
+  <tbody>
+    <tr><td>卡片圆角</td><td>radius-md 12</td><td>radius-lg 16</td><td>radius-sm 8</td></tr>
+    <tr><td>宽度档（共用）</td><td>默认 sm 380</td><td><b class="ok">默认 md 440</b></td><td>默认 sm 380</td></tr>
+    <tr><td>标题形制</td><td>体内标题 15px / 620 + 右上 ×</td><td><b class="ok">体内大标题 16px / 650</b> + ×</td><td>标题栏横条 13px / 600 + <b class="ok">上下文徽标</b> + ×</td></tr>
+    <tr><td>正文</td><td>13px / 1.65</td><td>13px / 1.65</td><td>12.5px / 1.6（紧凑）</td></tr>
+    <tr><td>footer 形制</td><td>无分隔线，按钮右对齐</td><td>hairline（line-2）+ 右对齐</td><td>line-1 + <b class="ok">左侧影响行</b> + 按钮右对齐</td></tr>
+    <tr><td>按钮高度 / 圆角</td><td>32 / 8</td><td>34 / 10</td><td>28 / 6</td></tr>
+    <tr><td>主按钮位</td><td>最右（mac 顺序）</td><td>最右（mac 顺序）</td><td><b class="ok">最左第一位</b>（WinUI 顺序）</td></tr>
+    <tr><td>danger 表达</td><td>实心红 + risk-line 后果行</td><td>实心红 + <b class="ok">type-to-confirm</b> + 数量入文案</td><td>实心红 + footer 影响行（红点）</td></tr>
+    <tr><td>阻断通知配重</td><td>纯文字（Ventura 口径）</td><td>icon 40px soft 圆底 <b class="mid">（定稿弃用 → 纯文字）</b></td><td>标题内联 icon 16px + 上下文徽标</td></tr>
+    <tr><td>遮罩</td><td>纯色 0.32</td><td><b class="ok">纯色 + blur(4px)</b></td><td>纯色 0.4（更深）</td></tr>
+    <tr><td>进场动效</td><td>scale 0.98 + fade 180ms</td><td>scale 0.97 + translateY(8px) 200ms</td><td><b class="ok">translateY(4px) + fade 140ms 无缩放</b></td></tr>
+    <tr><td>独有元素</td><td>—</td><td>type-to-confirm、icon 头</td><td>上下文徽标、footer 影响行、滚动阴影渐显</td></tr>
+    <tr><td>归档对话总高（约）</td><td>186px</td><td>218px</td><td>196px（两道横线结构）</td></tr>
+  </tbody>
+</table>
+<p class="note">注：三者不可「各取一半拼盘」——设计系统要单一语言（标题形制 / 按钮顺序 / footer 形制 /
+遮罩材质四个维度必须同源），混搭会出现「同一应用两套对话框」的割裂感。可嫁接的只有增量元素：
+C 的上下文徽标与影响行、B 的 type-to-confirm 都能落到任何基底上而不破坏形制。
+选择 = 为产品的主要语境定身份。</p>
+
+<!-- ═══════════ 行为契约 ═══════════ -->
+<h2>行为契约（三方案共用，定稿后随实现落地）</h2>
+<table>
+  <thead><tr><th>能力</th><th>行为</th><th>出处 / 备注</th></tr></thead>
+  <tbody>
+    <tr><td>承载</td><td>body 级 Portal（fixed 遮罩 + 居中卡片），不经 definePage（D-002）；打开时锁定底层滚动</td><td>承载方式（局部 state vs 全局 store）随定稿记 DECISIONS</td></tr>
+    <tr><td>z 序</td><td>遮罩 340 / 卡片 350——居面板 101 &lt; Toast 200 &lt; Select/Menu 250 &lt; Tooltip 300 之上</td><td>Toast 与 Dialog 并存时的层序（Toast 要压过遮罩）实现期复核</td></tr>
+    <tr><td>Esc</td><td>挂 <b>D-003 useOverlayDismiss 注册表</b>（LIFO 先关最上层浮层）；critical 抖动拒绝；loading 态无效</td><td>模态阻断浮层与命令面板同族；Select/Menu 的自消费口径不外推</td></tr>
+    <tr><td>关闭矩阵</td><td>dismissible = × + Esc + 遮罩点击；critical = 无 ×、遮罩点击抖动、仅按钮作答；loading = 全失效</td><td>分界语义：是否允许不带答案离开</td></tr>
+    <tr><td>焦点</td><td>打开即圈闭（Tab 循环）；初始焦点：danger/critical → 取消，表单 → 首输入框，其余 → 主按钮；关闭归还触发器</td><td>危险对话焦点落取消 = 回车不误触</td></tr>
+    <tr><td>Enter</td><td>默认应答 = Primary 按钮（A/B 在最右、C 在最左，DOM 顺序不改变语义）；IME isComposing 让位</td><td>dialog 承载 form 语义，表单 Enter 提交</td></tr>
+    <tr><td>校验</td><td>内联在主按钮 disabled（空值/不匹配），不做弹中弹错误提示</td><td>type-to-confirm 同理：输入匹配才解锁</td></tr>
+    <tr><td>滚动</td><td>仅 body 区滚动，头尾钉住；高度上限 78vh，超出才滚</td><td>C 皮另有滚动阴影渐显</td></tr>
+    <tr><td>尺寸档</td><td>sm 380 / md 440 / lg 560——只改宽度，不改任何排版参数</td><td>档位是宽度词，不是密度词</td></tr>
+    <tr><td>异步</td><td>loading（spinner + 文案切换 + aria-busy）期间关闭路径全失效；完成自动关闭 + Toast 回执</td><td>D-003 家族分工：Dialog 管决策，Toast 管回执</td></tr>
+    <tr><td>aria</td><td>role=dialog + aria-modal=true + aria-labelledby；触发器 aria-haspopup=dialog + aria-expanded</td><td>antd Modal 同构，迁移语义不损失</td></tr>
+  </tbody>
+</table>
+
+<!-- ═══════════ 决策建议与 API ═══════════ -->
+<h2>决策建议与 API 草案</h2>
+<div class="decision">
+  <h3>怎么选</h3>
+  <ol>
+    <li><b>看浮层语言连续性定身份</b>：已定稿的浮层家族全是现代产品语言——Menu B 药丸行（D-010）、
+      Toast 卡片、命令面板（D-003）。若认同「Dialog 跟产品走」，B 的连续性最强（blur 遮罩 + hairline
+      应答区 + 实心红 danger 一脉）；若认同「模态对话跟操作系统走」，A 最稳；若批量操作与长内容是
+      主战场，C 的信息结构（上下文徽标 + 影响行）最实用。</li>
+    <li><b>两个可嫁接、四个不可混</b>：上下文徽标 / footer 影响行（C）与 type-to-confirm（B）是增量元素，
+      可嫁接到任何基底；但<b>标题形制 / 按钮顺序 / footer 形制 / 遮罩材质四维必须整体三选一</b>——
+      它们共同定义「对话的形制」，拼盘必割裂。</li>
+    <li><b>type-to-confirm 是档位不是装饰</b>：只给真不可逆（删除笔记本、清空废纸篓）；
+      轻度危险（归档）永远一步确认，否则全线劝退。</li>
+    <li><b>落地即收口</b>：定稿后 Dialog + ConfirmDialog 进 <code>ui/primitives/</code>（03 指南 §9 任务清单），
+      Esc 接 <code>useOverlayDismiss</code>（D-003），表单控件沿 D-007 surface 口径；
+      实现提交同步 03 指南组件小节与 DECISIONS.md（编号顺延）。</li>
+  </ol>
+  <h3 style="margin-top:14px">ui/primitives/Dialog API 草案</h3>
+  <pre><code>&lt;Dialog open={open} onOpenChange={setOpen} title="新建笔记本" size="md"&gt;   // 通用容器
+  &lt;Dialog.Body&gt;…输入 / Select / 开关（D-007 控件口径）…&lt;/Dialog.Body&gt;
+  &lt;Dialog.Footer&gt;                                                  // 按钮序列，主按钮语义位恒定
+    &lt;Button onClick={close}&gt;取消&lt;/Button&gt;
+    &lt;Button variant="primary" disabled={!name} loading={busy}&gt;创建&lt;/Button&gt;
+  &lt;/Dialog.Footer&gt;
+&lt;/Dialog&gt;
+
+&lt;ConfirmDialog                                                    // 语义预设：确认类一句话接线
+  open={deleting} onOpenChange={setDeleting}
+  title="删除笔记本" context="工作 · 重构"                         // C 定稿保留徽标，A/B 砍
+  impact="24 张卡片 · 废纸篓保留 30 天"                            // C 定稿保留影响行
+  confirmText="删除" cancelText="取消"
+  danger typeToConfirm="工作 · 重构"                               // B 定稿保留输入确认
+  critical focus="cancel" onConfirm={del} /&gt;
+
+interface DialogProps {
+  open: boolean; onOpenChange(v: boolean): void;
+  title: string;
+  critical?: boolean;            // 无 × + 遮罩/Esc 抖动拒绝——「必须作答」档
+  size?: "sm" | "md" | "lg";     // 宽度词：380 / 440 / 560，不改排版
+}
+// 内建行为（不做成 props）：Esc（D-003 注册表 LIFO）· Tab 圈闭 · 焦点归还
+// · Enter 默认应答（IME isComposing 让位）· 滚动锁定与 body 独立滚动
+// · loading 封锁关闭 · 开合动效 · critical 抖动 · 底层滚动锁定
+// ConfirmDialog = Dialog 的最薄预设：danger 自动 focus=cancel；
+// 异步结果回执交 Toast（D-003 家族分工：Dialog 管决策，Toast 管回执）</code></pre>
+  <div class="note">实现映射：三份演示页的 mini dialog 引擎（开合动效、遮罩/Esc/× 关闭矩阵、critical
+    抖动、Tab 圈闭、焦点归还、Enter 应答、异步 loading 封锁、滚动阴影）可直接移植为 primitives 参考；
+    定稿方案的 CSS 皮即组件 Tailwind 类的蓝本。</div>
+</div>
+
+<p class="note" style="margin-top:28px">← 返回 <a href="../menu/index.html">Menu 导览</a>（上一个基础件） · 演示页：<a href="plan-a-classic.html">A 经典桌面</a> · <a href="plan-b-modern.html">B 现代产品</a> · <a href="plan-c-dense.html">C 密集工作台</a></p>
+
+</div>
+</body>
+</html>
