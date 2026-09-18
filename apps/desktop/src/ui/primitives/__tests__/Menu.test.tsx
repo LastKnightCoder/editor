@@ -140,13 +140,13 @@ describe("Menu（方案 B）", () => {
     const head = hlItem(h.menu);
     expect(head).not.toBeNull();
     click(head as Element);
-    const sub = menusInDoc()[1];
+    const sub = menusInDoc()[1]!;
     key(sub, "ArrowDown");
     expect(hlItem(sub)?.textContent).toBe("Markdown");
     expect(hlItem(h.menu)).toBe(head);
     key(sub, "Home");
     expect(hlItem(h.menu)).toBe(head);
-    click(head);
+    click(head!);
     expect(menusInDoc()).toHaveLength(1);
     expect(document.activeElement).toBe(h.menu);
   });
