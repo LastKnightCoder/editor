@@ -92,6 +92,22 @@
 - 运行时：`useMenuTree` 统一维护整树关闭、容器登记、外点和跨实例互斥；关闭回调读取最新 props。任意层 Tab/Shift+Tab 关闭整树，还焦触发位置后保留浏览器默认焦点移动；子层键盘事件不重复驱动父层导航。
 - 验证：`__tests__/Menu.test.tsx` 覆盖触发即关/开关不关/radio 互斥/子层键盘与退场/Home·End/受控开合与回调更新/禁用子菜单/外点/右键/全局单开互斥；`__tests__/useListNavigation.test.tsx` 守护导航边界，`select.test.tsx` 守护复用回归；样板间「Menu · ContextMenu」档案提供 LIVE 标本、状态矩阵与 API 备忘。
 
+## D-011 Dialog/ConfirmDialog 基础件：方案 B「现代产品」形制 + 三件嫁接
+
+- 背景：Dialog 三方案设计稿（`mockups/dialog/`，A 经典桌面 / B 现代产品 / C 密集工作台，同内容共行为只换皮），2026-09-18 用户裁决方案 B。技术底盘非分歧点：居中模态不需要 D-004 锚定引擎；**Esc 走焦点链 LIFO（DOM 内消费 stopPropagation，同 D-007/D-010 口径）**——设计导览稿原建议接 D-003 useOverlayDismiss 注册表，实现期推翻：该 hook 在 `page/PageProvider`，ui 基础件接入即反向依赖 page/（Select 已立的铁律）；且 Dialog 打开即焦点圈闭，Esc 必然先落在卡片 DOM 上，焦点链 LIFO 天然成立，无需注册表仲裁；表单控件沿 D-007 surface 口径；家族分工沿 D-003（Menu 不确认，确认归 ConfirmDialog、撤销归 Toast）。
+- 选择：① **形制 = 方案 B**——体内大标题 16px/650 + hairline 应答区（主按钮最右）+ blur 遮罩（overlay + backdrop-filter 4px）+ 进场 scale(0.97)+translateY(8px) 200ms，与 Menu B/Toast/命令面板同一浮层语言；② **嫁接三件增量元素**（不破坏形制）：上下文徽标（自 C，标题动作化「删除笔记本」、操作对象挂 chip 随需出现）、footer 影响行（自 C，hairline 左侧念后果，信息一处一责——标题讲动作/徽标记对象/正文讲事实/影响行念后果/按钮文案不带数量）、滚动渐隐（对齐壳层 useEdgeFade 协议的 edge fade，**替代 C 的标题栏阴影方案**——用户点名对齐项目既有 edge fade）；③ **尺寸档是预设不是牢笼**（用户裁决）：sm 380 / md 440（默认）/ lg 560 之外允许 `width` 任意值覆盖，预设给常见场景、业务特殊版式不必硬凑档位；④ **danger 两档**（用户裁决）：轻 danger 一步确认（实心红 + 影响行），真·不可逆（删笔记本/清空废纸篓）才 type-to-confirm 输入对象名解锁。
+- 行为契约：critical（无 ×、遮罩/Esc 点击抖动拒绝、仅按钮作答）与 dismissible 分界 = 是否允许不带答案离开；初始焦点 danger/critical 落取消、表单落首输入框、其余落主按钮，关闭归还触发器；Tab 圈闭；Enter = 默认应答（IME isComposing 让位）；loading 态（spinner + aria-busy）封锁一切关闭路径，完成自动关闭 + Toast 回执；仅 body 区滚动（头尾钉住、上限 78vh）；打开锁定底层滚动。z 序：遮罩 340 / 卡片 350（面板 101 < Toast 200 < Select/Menu 250 < Tooltip 300 之上；Toast 压过遮罩的层序实现期复核）。
+- 排除：A/C 形制（标题形制/按钮顺序/footer 形制/遮罩材质四维整体三选一）；C 的主按钮在左（WinUI 顺序，与已定稿浮层家族的 mac/Linear 顺序相反）；C 的标题栏阴影渐显（被 edge fade 嫁接取代）；**阻断通知的 icon 头**（40px soft 圆底 → 17px 内联两轮实机试验均被用户否决——大色块/图形在纯文字头部里「不一体」，最终纯文字：标题 + 徽标，分量由 critical 行为与文案承担）；统一尺寸默认（业务决定，组件默认 md 仅兜底）；danger 全档 type-to-confirm（行为税，轻危险劝退）。
+- 影响：`ui/primitives/Dialog.tsx` + `ConfirmDialog.tsx`、`__tests__/Dialog.test.tsx`、样板间「Dialog · ConfirmDialog」档案、03 指南 §5 使用边界小节与 §9 任务 2 勾选、base.css 的 `.edge-fade-scroll` 去 `.app` 前缀与滚动条四条规则全局化（Dialog Portal 在 body 级，不在 .app 子树内；滚动条须盖掉 main.less 对 body 级浮层的宽条+内阴影，hover 显隐由 scrollbarAutoHide 的 document 级事件委托天然覆盖）；`mockups/dialog/plan-b-modern.html` 已更新为定稿口径（A/C 留档对照）。另：徽标底色实机反馈从 bg-group 回正 surface 亮底 + line-1（对齐 D-009）；阻断通知 icon 头两轮试验（40px 圆底 / 17px 内联）均被用户否决。
+- 验证：`__tests__/Dialog.test.tsx` 8 例（开合 aria · 关闭矩阵三态 · Tab 圈闭与焦点归还 · 尺寸档/width · type-to-confirm 门槛/Enter 应答/重开重置 · loading 封锁与即关）；tsc 0 错误；顺手修 Menu.test 存量类型错两处（sub/head 非空断言）；样板间双主题目验。
+
+## D-012 ConfirmDialog 异步确认语义（原 Scroller 收口当日被推翻删除）
+
+- 背景：ConfirmDialog 的受控 loading 存在 React 快照竞态——调用方在 onConfirm 里才 set loading=true，handleConfirm 同步判断 `!loading` 已按 false 立即关闭（样板间导出演示「loading 一闪而过弹窗即关」，与 mockup 行为不符，用户实机反馈）。同日曾为此间引出的滚动区收口需求新建 Scroller 基础件（edge fade 接线 + 滚动条样式一处收口，四消费者迁入），并在滚动条观感上多轮调优（gutter 内容间距 / barInset 滚动条右缘内缩 + 端部呼吸）。
+- 选择（保留项）：① **ConfirmDialog onConfirm 支持 Promise**（async 函数天然满足）——自动进入 loading、resolve 自动关闭、reject 保持打开（错误就地处理）；受控 `loading` prop 保留给多步进度，注释里写明不能在 onConfirm 里才 set loading 的快照陷阱；② base.css 滚动条四条规则全局化（去 .app 前缀，对抗 main.less 对 body 级浮层的污染）与 `.edge-fade-scroll` 去 `.app` 前缀（Dialog Portal 在 body 级）——这是 Dialog 滚动条正确性的修复，与组件无关，继续有效。
+- 推翻（2026-09-18 用户裁决）：**Scroller 组件删除**——`Scroller.tsx` / `Scroller.test.tsx` / 样板间档案移除，Dialog/Sidebar/StatsView/ShowcaseApp 回退手写三件套（edge-fade-scroll 类 + useEdgeFade + callback ref），`.scrollbar-inset` 规则一并删除（gutter/barInset 能力不复存在）。滚动区仍以手写三件套为标准接法，edge fade 与滚动条 hover 显隐行为不变。
+- 追记（同日第四轮）：删除 Scroller 后用户单独裁决——**仅 Dialog** 的正文滚动条做专属形制（勿外推，其余滚动区维持全局 4px）：thumb 4px 宽 + 2px 圆角；**上下 4px 间距加在 track（轨道）上**（轨道透明上下边框缩短 thumb 活动区，thumb 自身无边框、圆角不被侵蚀——thumb border 通路吃圆角、margin 通路无效、渐变自绘被否，track 是间距的正确宿主）；**距右缘 4px = 滚动容器自身的透明右边框**。失败通路留档：thumb 透明右框挤位（伪元素 clip 不可靠，墨条被裁掉一半）、-mr/pr 借位（卡片无外层留白，滚动条被推出卡片外）。关键认知：伪元素上做位移/裁剪都不可靠，布局级偏移才是正路；圆角上限受墨条宽度钳制（宽的一半）。
+
 ---
 
 ## Page 迁移清单（M2 起滚动勾选）

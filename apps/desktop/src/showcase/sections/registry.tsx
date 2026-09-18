@@ -15,11 +15,13 @@ import {
   Palette,
   PanelTop,
   Ruler,
+  SquarePlus,
 } from "lucide-react";
 
 import IconButtonSection from "./IconButtonSection";
 import SelectSection from "./SelectSection";
 import MenuSection from "./MenuSection";
+import DialogSection from "./DialogSection";
 import PanelSection from "./PanelSection";
 import ToastSection from "./ToastSection";
 import TooltipSection from "./TooltipSection";
@@ -52,6 +54,13 @@ export const SECTIONS: SectionMeta[] = [
     group: "基础件",
     icon: MousePointerClick,
     component: MenuSection,
+  },
+  {
+    key: "dialog",
+    label: "Dialog · ConfirmDialog",
+    group: "基础件",
+    icon: SquarePlus,
+    component: DialogSection,
   },
   { key: "toast", label: "Toast", group: "反馈", icon: Bell, component: ToastSection },
   {
