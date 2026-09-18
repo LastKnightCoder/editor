@@ -24,7 +24,7 @@ import {
 } from "react";
 import clsx from "clsx";
 import { Dialog } from "./Dialog";
-import { Spinner } from "./Loading";
+import { Button } from "./Button";
 
 export interface ConfirmDialogProps {
   open: boolean;
@@ -50,21 +50,6 @@ export interface ConfirmDialogProps {
   width?: number;
   className?: string;
 }
-
-/** 应答区按钮（B 皮：34px / radius 10）——Button primitive 落地前在此收口，落地后迁移 */
-const BTN_BASE =
-  "inline-flex h-[34px] items-center justify-center gap-[7px] rounded-[10px] px-[17px] " +
-  "text-tau-body ease-tau-out outline-none focus-visible:shadow-[var(--tau-focus-ring)] " +
-  "transition-[background,border-color,opacity] duration-[140ms] disabled:pointer-events-none disabled:opacity-45";
-const BTN_PRIMARY = clsx(BTN_BASE, "bg-accent text-ink-inverse font-[600] hover:bg-accent-hover");
-const BTN_PRIMARY_DANGER = clsx(
-  BTN_BASE,
-  "bg-danger text-ink-inverse font-[600] hover:brightness-[1.06]"
-);
-const BTN_SECOND = clsx(
-  BTN_BASE,
-  "border-line-1 bg-surface text-ink-1 font-[550] border hover:border-ink-3"
-);
 
 export function ConfirmDialog({
   open,
@@ -140,27 +125,25 @@ export function ConfirmDialog({
       className={className}
       footer={
         <>
-          <button
-            type="button"
-            className={BTN_SECOND}
+          <Button
+            variant="secondary"
             disabled={busy}
             data-autofocus={danger || undefined}
             onClick={() => onOpenChange(false)}
           >
             {cancelText}
-          </button>
-          <button
+          </Button>
+          <Button
             ref={confirmRef}
-            type="button"
-            className={danger ? BTN_PRIMARY_DANGER : BTN_PRIMARY}
-            disabled={!canConfirm}
-            aria-busy={busy || undefined}
+            variant={danger ? "danger" : "primary"}
+            disabled={!confirmed}
+            loading={busy}
+            loadingText={loadingText}
             data-autofocus={!danger || undefined}
             onClick={handleConfirm}
           >
-            {busy && <Spinner className="border-current/30 size-[13px] border-t-current" />}
-            {busy ? loadingText : confirmText}
-          </button>
+            {confirmText}
+          </Button>
         </>
       }
     >
