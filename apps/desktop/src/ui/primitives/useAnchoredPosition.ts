@@ -1,7 +1,7 @@
 /**
  * 锚定跟随 hook —— open 期间的浮层定位生命周期（useAnchoredPosition）。
  * Tooltip / Menu / Select / Popover 四家原先各写一遍的同构 useLayoutEffect 收口于此
- * （D-013 抽取）：进场双遍定位（先量内容实际尺寸再精调）→ scroll(capture)/resize
+ * （D-014 抽取）：进场双遍定位（先量内容实际尺寸再精调）→ scroll(capture)/resize
  * rAF 合并重算 → 内容尺寸变化经 ResizeObserver 自适应（jsdom 无 RO，静默跳过）→
  * 可选 rAF 轮询锚 rect（Tooltip 特有的动态锚：趋势图 hover 热区随鼠标移动，无 DOM
  * 事件可挂）。

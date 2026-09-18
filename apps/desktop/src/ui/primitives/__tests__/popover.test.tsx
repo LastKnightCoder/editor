@@ -1,5 +1,5 @@
 /**
- * Popover 基础件单测（D-013）：
+ * Popover 基础件单测（D-014）：
  * 开合与 aria 接线（dialog/haspopup/expanded/labelled-by 头行）· 初始焦点
  * （data-autofocus 优先，否则卡片）· Esc 焦点链（卡片与触发器两处消费、还焦、
  * 不冒泡）· Tab 移出即关 · 外点关闭与浮层内点击不关 · 嵌套链（二级 Popover

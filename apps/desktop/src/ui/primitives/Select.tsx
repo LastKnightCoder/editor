@@ -174,7 +174,7 @@ export function Select<V = string>({
     triggerRef.current?.focus();
   };
 
-  /** 定位生命周期收口 useAnchoredPosition（D-013）；min-width 在 onPlace 设置，
+  /** 定位生命周期收口 useAnchoredPosition（D-014）；min-width 在 onPlace 设置，
    *  第二遍精调时同步布局已带上新宽度 */
   useAnchoredPosition({
     open,

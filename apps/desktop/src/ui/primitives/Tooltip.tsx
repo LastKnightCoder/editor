@@ -2,7 +2,7 @@
  * Tooltip 基础件 —— Portal + 自研 JS mini 定位引擎（选型与排除记录见 D-004）。
  *
  * Portal（body 追加 fixed 元素）+ 自研 mini 定位引擎（D-004；定位生命周期收口
- * useAnchoredPosition，箭头复用 FloatingArrow——D-013 四家共用底盘），中间件链：
+ * useAnchoredPosition，箭头复用 FloatingArrow——D-014 四家共用底盘），中间件链：
  * offset（间距 8）→ flip（主轴放不下翻对侧）→ shift（交叉轴夹回视口，边距 8）→
  * arrow（锚点中心在边缘上的投影，两端各留 10px）。
  *
@@ -39,7 +39,7 @@ import { FloatingArrow } from "./FloatingArrow";
 import { mergeRefs } from "./mergeRefs";
 import { useAnchoredPosition } from "./useAnchoredPosition";
 
-/** 引擎类型的历史名（D-004 起对外暴露；D-013 引擎更名后保留别名，存量引用不动） */
+/** 引擎类型的历史名（D-004 起对外暴露；D-014 引擎更名后保留别名，存量引用不动） */
 export type TooltipPlacement = AnchoredPlacement;
 export type TooltipSide = AnchoredSide;
 export type TooltipAlign = AnchoredAlign;
@@ -91,7 +91,7 @@ export function Tooltip({
   useEffect(() => () => window.clearTimeout(timerRef.current), []);
 
   // open 期间的定位生命周期（双遍进场 / scroll(capture)/resize/内容尺寸跟随 /
-  // rAF 轮询动态锚）收口在 useAnchoredPosition（D-013 四家共用）；
+  // rAF 轮询动态锚）收口在 useAnchoredPosition（D-014 四家共用）；
   // 此处只声明 Tooltip 特有的衍生写入
   useAnchoredPosition({
     open,

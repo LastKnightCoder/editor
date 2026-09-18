@@ -35,7 +35,7 @@ const SUBMENU_HOVER_MS = 260;
 
 /* ───────── 上下文 ───────── */
 
-/** 根级：命令项触发后的整树关闭（外点/互斥由 dismiss 层逐层登记承担，D-013） */
+/** 根级：命令项触发后的整树关闭（外点/互斥由 dismiss 层逐层登记承担，D-014） */
 export interface MenuRootContextValue {
   closeMenu: () => void;
 }
@@ -156,7 +156,7 @@ function MenuSurface({
     [nav.current, nav.set, activeSubId]
   );
 
-  // 定位生命周期收口 useAnchoredPosition（D-013）：进场双遍 + scroll(capture)/resize 跟随
+  // 定位生命周期收口 useAnchoredPosition（D-014）：进场双遍 + scroll(capture)/resize 跟随
   useAnchoredPosition({
     open,
     getAnchor,
@@ -191,7 +191,7 @@ function MenuSurface({
   }, [open, nav.current]);
 
   // 登记进 dismiss 层仲裁表：外点关闭、跨实例互斥与「点菜单内容不是外点」的
-  // 链判定都在这（D-013 收口，useMenuTree 不再挂自己的监听）；子层经 getAnchorEl
+  // 链判定都在这（D-014 收口，useMenuTree 不再挂自己的监听）；子层经 getAnchorEl
   // 声明父层。关闭走 onClose（主层 = closeMenu 整树关还焦；子层 = 通知父层收起）
   useEffect(() => {
     if (!open) return;
