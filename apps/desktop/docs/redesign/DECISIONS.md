@@ -116,6 +116,21 @@
 - 影响：`ui/primitives/Button.tsx` + `__tests__/Button.test.tsx`；ConfirmDialog 的 BTN_BASE/BTN_PRIMARY/BTN_PRIMARY_DANGER/BTN_SECOND 四常量删除，footer 两按钮改用 Button（主按钮 busy 走内建 loading 语义，spinner/aria-busy/disabled 一体），`canConfirm` 保留为 handleConfirm 守卫；样板间「Button」档案（LIVE 变体全谱 + 状态矩阵 + 尺寸/block + loading 实试标本）；03 指南 §5 使用边界与 §9 任务 2；`mockups/button/plan-b-modern.html` 更新为定稿口径（A/C 留档对照）。
 - 验证：`__tests__/Button.test.tsx` 9 例（变体/尺寸/block 类落地 · type 默认与透传 · disabled 原生封锁 · loading 语义四件套 · loadingText 缺省保持 children · icon 左位 · cn 覆盖合并非静默失效 · ref 转发 · data-_/aria-_ 透传）；Dialog.test.tsx 9 例回归全绿（ConfirmDialog 迁移无行为回退）；tsc 0 错误；样板间双主题目验。
 
+## D-015 文章页定稿 A3「月刊」并落地（features/articles）
+
+- 背景：文章页三方案设计稿（`mockups/articles/`，A 杂志书架 / B 档案行 / C 浏览台双栏，2026-09-19 用户裁决以 A 为基础演进；A 系三变体 A1 书架 v2 / A2 密集书架 / A3 月刊，同日裁决 **A3 定稿**）。评审基线（详见 PREFERENCES.md）：新建/导入在工具栏右上角（废除右下悬浮球）、无限滚动（废除手动加载与分页器）、无 banner 文章以 **id 派生色封面**兜底（12 色粉彩板，×7 错开取色，同篇同色、相邻异色）、无页内搜索（全局 Ctrl K）与排序（按月归段即时间序）、sticky 三层（工具栏 44 / 标签栏 38 / 月头 82px）背景连续不透字、「窗口打开」仅 Electron 渲染。
+- 选择：① **形态 = A3 月刊**——按月分段（sticky 月头：月份 + 篇数 + 当月字数）+ 段首 featured 双列宽横卡（容器 ≥612px 才 `col-span-2`，窄窗退化单列防隐式列溢出）+ 置顶段在最前；② **数据**：主进程新增 `get-article-page`（轻量分页：不取正文全文，`substr(content,1,1200)` 摘要原料，排序 is_top DESC + update_time DESC，标签 LIKE 过滤）与 `get-article-tag-counts`（tags JSON 逐行解析聚合），渲染端 useInfiniteQuery 窗口 + scroll 触底预加载 700px；月分段为纯前端分桶，与分页流解耦；③ **点击卡片 = Electron 独立窗口打开编辑**（`openArticleInNewWindow`）——article-detail 页迁移前的过渡动线，迁移后改页内导航；④ 操作迁移：置顶 / 删除（ConfirmDialog danger）/ 新建 / 导入 Markdown / 换封面（useUploadResource）/ 演示模式（按需 findOneArticle 拉全文）/ Markdown 导出；**图片 / EPUB / PDF 导出未迁**（legacy antd 弹窗组件，待导出中心迁移时一并处理，首版不挂死入口）。
+- 影响：`features/articles/`（page/views/queries/types 四件套）、`src-electron/main/modules/tables/article.ts` 新增两命令（走既有 database tables 注册层，非新模块）、`src/types/article.ts` 增 `ArticlePageItem/ArticleTagCount`、`page/legacy.tsx` 删除 articles 占位；旧 `pages/ArticleListView`（legacy Tab 系统入口）仍在 `/legacy` 路由可用，删除跟 P-articles 锚点走（04 删除清单届时补消费者调查）。
+- 追记（2026-09-19 实机反馈迭代）：① **点击卡片/新建改为页内导航**——新增 `article-detail` 占位页（params 型 definePage，按 id 去重，真实元信息 + 迁移说明，不渲染假正文），独立窗口降级为卡片菜单里的显式动作「窗口打开」（仅 Electron 渲染）；② **sticky 月头与渐隐的兼容定式**——滚动容器 useEdgeFade 关 top（mask 渐隐带与 sticky 实底头互斥），月头 sticky top-0 实底 + 底缘 13px 渐透承担顶部 edge fade（卡片在标题下方淡出，无透明缝）；③ 工具栏摘要补累计字数（分页命令 COUNT 同语句 SUM）；④ **featured 横卡（段首左图右内容双列大卡）被实机否决移除**——即使摘要放宽到 6 行/300 字，横向空间仍大量空白；段内统一竖卡，摘要恢复紧凑策略（数据层 72 字 + 正文两行/封面文字三行省略）。单卡月份"首卡形态不佳"问题随 featured 移除一并消失。
+- 验证：tsc 0 错误；vitest page/ui/features 域 240 通过（8 个失败为存量：YtDlp/mcp/CardPreview/DiffHighlightedEditor 等改动前后一致，git stash 对照确认）；mockup 三轮浏览器实测（无限滚动按月递增、sticky 间隙 0、封面零白卡）。
+
+## D-016 hover 变体去媒体查询包裹（触摸屏设备 hover 全灭修复）
+
+- 背景：文章页实机反馈「hover 卡片无任何反应（阴影/浮现操作按钮都不出）、focus-within 正常（选中文字能唤出操作）、重启 dev 依旧」。排查链：类串/cn 合并/覆盖层/Dialog·Toast 关闭态残留/PageHost 保活恢复全部排除后定位——**Tailwind v4 默认把 `hover:` 变体包在 `@media (hover: hover)` 里**，用户设备带触摸屏（高 DPI Surface 类），Chromium 判定 `hover: none` → 全应用所有 `hover:` 规则静默不生效；`group-focus-within` 等无此包裹所以正常。此前"会抖动"说明窗口输入判定在触摸/鼠标间翻转（Windows 混合输入设备常态）。
+- 选择：主入口 `src/tailwind.css` 与样板间 `src/showcase/showcase.css` 各加 `@custom-variant hover (&:hover);`——恢复 v3 行为（纯 `:hover`，无媒体查询）。桌面 Electron 产品鼠标永远存在，hoverOnlyWhenSupported 对桌面端是纯伤害；代价是真触摸使用时 hover 态会粘滞，属可接受的边缘。
+- 影响：全应用 `hover:` 类行为（侧栏/按钮/卡片所有 hover 反馈）在触摸屏设备恢复；与 `@custom-variant dark` 同位的既有先例。
+- 验证：tsc 0 错误、ui 域 91 测试全过；确证手段 devtools console `matchMedia("(hover: hover)").matches` 于故障期为 false。
+
 ---
 
 ## Page 迁移清单（M2 起滚动勾选）
@@ -125,7 +140,7 @@
 - cards 卡片库（M2 样板域，第一个）
 - card-detail 卡片详情
 - library 知识库（documents/pdf/vec 合并）
-- articles 文章
+- ~~articles 文章~~ ✅ 2026-09-19 A3 月刊落地（D-015）
 - feed 订阅/稍后读
 - projects 项目
 - learning（vibe-learning + flashcard 合并）
