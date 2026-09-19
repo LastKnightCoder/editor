@@ -4,7 +4,7 @@
  */
 
 import { useMemo } from "react";
-import { YearHeatmap, type YearHeatmapDay } from "@/ui/primitives/YearHeatmap";
+import { YearHeatmap, type YearHeatmapDay } from "@tau/ui/YearHeatmap";
 import { CanvasCard, DocHead, Note } from "../kit";
 
 function demoDays(): YearHeatmapDay[] {
@@ -28,7 +28,7 @@ export default function HeatmapSection() {
         title="YearHeatmap"
         en="primitives/YearHeatmap.tsx"
         duty="全年活动热力图（圆点）：home/stats 两域共用自绘图表。圆点、色阶随 scale 递增、周列贴底对齐、hover 呼吸、全宽自适应；输入为 {date, count}[] 纯数据，零业务依赖。"
-        src="src/ui/primitives/YearHeatmap.tsx"
+        src="packages/ui/src/primitives/YearHeatmap.tsx"
       />
 
       <CanvasCard cap="LIVE" note="确定性演示数据 · hover 呼吸" stageClassName="block">

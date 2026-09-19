@@ -33,10 +33,10 @@ import {
   type PaletteScope,
 } from "./searchMeta";
 import { useSearchContent, resultDisplay, relativeTime } from "./queries";
-import { useThemeStore } from "@/ui/theme/themeStore";
-import { DEFAULT_DARK_KEY, DEFAULT_LIGHT_KEY } from "@/ui/theme/theme";
-import { Spinner } from "@/ui/primitives/Loading";
-import { toast } from "@/ui/primitives/Toast";
+import { useThemeStore } from "@tau/ui/theme/runtime";
+import { DEFAULT_DARK_KEY, DEFAULT_LIGHT_KEY } from "@tau/ui/theme";
+import { Spinner } from "@tau/ui/Loading";
+import { toast } from "@tau/ui/Toast";
 import type { IndexType, SearchResult } from "@/types";
 
 /* ---------- 前缀语法：追加语义，冒号兼容全角 ---------- */

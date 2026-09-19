@@ -7,8 +7,8 @@
  */
 
 import { Info } from "lucide-react";
-import { IconButton } from "@/ui/primitives/IconButton";
-import { Tooltip, type TooltipPlacement } from "@/ui/primitives/Tooltip";
+import { IconButton } from "@tau/ui/IconButton";
+import { Tooltip, type TooltipPlacement } from "@tau/ui/Tooltip";
 import { BlockTitle, CanvasCard, DemoButton, DocHead, MatrixRow, Note } from "../kit";
 
 const SIDES = ["top", "bottom", "left", "right"] as const;
@@ -37,7 +37,7 @@ export default function TooltipSection() {
         title="Tooltip"
         en="primitives/Tooltip.tsx"
         duty="Portal + 自研 mini 定位引擎（offset→flip→shift→arrow）。反相墨底配色（bg-ink-1 / text-ink-inverse，深浅主题各自反相）；hover intent 450ms，400ms 内重开免延迟。"
-        src="src/ui/primitives/Tooltip.tsx · anchoredPosition.ts"
+        src="packages/ui/src/primitives/Tooltip.tsx · anchoredPosition.ts"
       />
 
       <CanvasCard

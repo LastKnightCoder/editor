@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Archive, Plus, Search, Trash2 } from "lucide-react";
-import { Button } from "@/ui/primitives/Button";
+import { Button } from "@tau/ui/Button";
 import { ApiCard, BlockTitle, CanvasCard, DocHead, MatrixRow } from "../kit";
 
 /** loading 标本：点击进入 1.4s 载入后复位（spinner + 文案切换 + 封锁全可验） */
@@ -41,7 +41,7 @@ export default function ButtonSection() {
         title="Button"
         en="primitives/Button.tsx"
         duty="文字按钮六变体 × 两档尺寸。primary 是 accent 实心 + 微投影（每屏至多一枚）；secondary 亮底描边承取消与表单；soft 是工具栏次级强调；danger 两档对齐确认位与列表位的危险分级。"
-        src="src/ui/primitives/Button.tsx"
+        src="packages/ui/src/primitives/Button.tsx"
       />
 
       <CanvasCard

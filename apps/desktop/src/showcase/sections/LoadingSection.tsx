@@ -2,7 +2,7 @@
  * Spinner · Loading 档案 —— 本体即 ui/primitives/Loading。
  */
 
-import { Loading, Spinner } from "@/ui/primitives/Loading";
+import { Loading, Spinner } from "@tau/ui/Loading";
 import { BlockTitle, DocHead, MatrixRow } from "../kit";
 
 export default function LoadingSection() {
@@ -12,7 +12,7 @@ export default function LoadingSection() {
         title="Spinner · Loading"
         en="primitives/Loading.tsx"
         duty="Spinner 圆环可单独行内使用（accent 描边）；Loading 铺满父容器居中，无高度链时用 minHeight prop 兜底（默认 45vh，自带高度时传 0 关闭）。"
-        src="src/ui/primitives/Loading.tsx"
+        src="packages/ui/src/primitives/Loading.tsx"
       />
 
       <BlockTitle en="States">状态矩阵</BlockTitle>

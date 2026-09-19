@@ -6,8 +6,8 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { Dialog } from "@/ui/primitives/Dialog";
-import { ConfirmDialog } from "@/ui/primitives/ConfirmDialog";
+import { Dialog } from "@tau/ui/Dialog";
+import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
 import {
   ApiCard,
   BlockTitle,
@@ -66,7 +66,7 @@ export default function DialogSection() {
         title="Dialog · ConfirmDialog"
         en="primitives/Dialog.tsx · primitives/ConfirmDialog.tsx"
         duty="模态决策容器。Dialog 是通用壳（标题/徽标/正文/影响行/应答区三段固定，footer 由调用方给按钮序列）；ConfirmDialog 是它的确认语义预设——一句话接线，danger 两档与输入解锁内建。遮罩 blur、焦点圈闭、Esc/Tab/Enter 键盘表、异步封锁全部内建。"
-        src="src/ui/primitives/Dialog.tsx"
+        src="packages/ui/src/primitives/Dialog.tsx"
       />
 
       <CanvasCard

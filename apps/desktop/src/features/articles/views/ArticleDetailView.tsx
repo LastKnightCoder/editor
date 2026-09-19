@@ -5,7 +5,7 @@
  */
 
 import { usePage } from "@/page/PageProvider";
-import { Loading } from "@/ui/primitives/Loading";
+import { Loading } from "@tau/ui/Loading";
 import { useArticleDetail } from "../queries";
 import { formatWords } from "./ArticleCard";
 

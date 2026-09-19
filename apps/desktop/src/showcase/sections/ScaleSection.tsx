@@ -24,7 +24,7 @@ export default function ScaleSection() {
         title="尺度与动效"
         en="与主题正交的全局常量"
         duty="字号 / 圆角 / 阴影 / 动效 / 布局常量不随主题变，Tailwind 词一律 tau 命名空间。阴影两档取值随主题变（唯一的例外）。"
-        src="src/ui/theme/tokens.css · @theme inline"
+        src="packages/ui/src/theme/tokens.css · @theme inline"
       />
 
       <CanvasCard cap="LIVE" note="字号阶梯 · 9 档" stageClassName="block">

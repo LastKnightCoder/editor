@@ -1,8 +1,9 @@
 @import "tailwindcss";
 @import "./styles/theme-colors.css";
-@import "./ui/theme/tokens.css";
+@import "@tau/ui/theme/tokens.css";
 @source "../../../packages/editor/src";
 @source "../../../packages/shared/src";
+@source "../../../packages/ui/src";
 
 @theme {
   --spacing-15: 60px;

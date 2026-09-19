@@ -4,7 +4,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { Tooltip } from "@/ui/primitives/Tooltip";
+import { Tooltip } from "@tau/ui/Tooltip";
 import type { TrendDay } from "../types";
 
 const W = 1000;
