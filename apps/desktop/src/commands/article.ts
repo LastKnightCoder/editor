@@ -1,6 +1,12 @@
 import { articleCommands } from "@/commands/contracts/article";
 import type { ArticleContentResult } from "@/commands/contracts/article";
-import { IArticle, ICreateArticle, IUpdateArticle } from "@/types";
+import {
+  IArticle,
+  ICreateArticle,
+  IUpdateArticle,
+  ArticlePageItem,
+  ArticleTagCount,
+} from "@/types";
 
 export type { ArticleContentResult };
 
@@ -28,6 +34,18 @@ export async function findOneArticle(id: number): Promise<IArticle> {
 
 export async function getAllArticles(): Promise<IArticle[]> {
   return articleCommands.getAll.call();
+}
+
+export async function getArticlePage(
+  offset: number,
+  limit: number,
+  tag?: string
+): Promise<{ items: ArticlePageItem[]; total: number; totalWords: number }> {
+  return articleCommands.listPage.call(offset, limit, tag);
+}
+
+export async function getArticleTagCounts(): Promise<ArticleTagCount[]> {
+  return articleCommands.tagCounts.call();
 }
 
 export async function updateArticleIsTop(id: number, isTop: boolean): Promise<IArticle> {

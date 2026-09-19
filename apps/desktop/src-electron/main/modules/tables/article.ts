@@ -2,7 +2,13 @@ import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import { assertContentIsLocal, findCollaborationBinding } from "../collaboration-guard";
 import { canonicalContentTitle } from "../collaboration/content-sessions";
-import { ICreateArticle, IUpdateArticle, IArticle } from "@/types";
+import {
+  ICreateArticle,
+  IUpdateArticle,
+  IArticle,
+  ArticlePageItem,
+  ArticleTagCount,
+} from "@/types";
 import Operation from "./operation";
 import { getMarkdown } from "@/utils/markdown.ts";
 import { basename } from "node:path";
@@ -34,6 +40,8 @@ export default class ArticleTable {
       "update-article": this.updateArticle.bind(this),
       "delete-article": this.deleteArticleById.bind(this),
       "get-all-articles": this.getAllArticles.bind(this),
+      "get-article-page": this.getArticlePage.bind(this),
+      "get-article-tag-counts": this.getArticleTagCounts.bind(this),
       "get-article-by-id": this.getArticleById.bind(this),
       "attach-podcast-to-article": this.attachPodcast.bind(this),
       "detach-podcast-from-article": this.detachPodcast.bind(this),
@@ -413,6 +421,81 @@ export default class ArticleTable {
     });
 
     return result;
+  }
+
+  // 文章页轻量分页列表：不取正文全文（摘要由 contents.content 前缀在渲染端派生），
+  // 排序 置顶优先 + 最近编辑，供月刊列表的无限滚动窗口消费
+  static getArticlePage(
+    db: Database.Database,
+    offset: number,
+    limit: number,
+    tag?: string
+  ): { items: ArticlePageItem[]; total: number; totalWords: number } {
+    // tags 为 JSON 文本列，元素必带引号；清洗通配符与引号防误配/注入
+    const likeTag = tag ? `%"${tag.replace(/[%_"\\]/g, "")}"%` : null;
+    const where = likeTag ? "WHERE a.is_delete = 0 AND a.tags LIKE ?" : "WHERE a.is_delete = 0";
+
+    const agg = db
+      .prepare(
+        `SELECT COUNT(*) AS n, COALESCE(SUM(ct.count), 0) AS words
+         FROM articles a
+         LEFT JOIN contents ct ON a.content_id = ct.id
+         ${where}`
+      )
+      .get(...(likeTag ? [likeTag] : [])) as { n: number; words: number };
+
+    const rows = db
+      .prepare(
+        `SELECT a.id, a.title, a.author, a.create_time, a.update_time, a.tags,
+                a.banner_bg, a.banner_position, a.is_top,
+                ct.count, substr(ct.content, 1, 1200) AS excerpt
+         FROM articles a
+         LEFT JOIN contents ct ON a.content_id = ct.id
+         ${where}
+         ORDER BY a.is_top DESC, a.update_time DESC
+         LIMIT ? OFFSET ?`
+      )
+      .all(...(likeTag ? [likeTag] : []), limit, offset) as Record<string, unknown>[];
+
+    const items: ArticlePageItem[] = rows.map(row => ({
+      id: row.id as number,
+      title: (row.title as string) || "",
+      author: (row.author as string) || "",
+      createTime: row.create_time as number,
+      updateTime: row.update_time as number,
+      tags: ArticleTable.parseTags(row.tags),
+      bannerBg: (row.banner_bg as string) || "",
+      bannerPosition: (row.banner_position as string) || "center",
+      isTop: Boolean(row.is_top),
+      words: (row.count as number | null) ?? 0,
+      excerpt: (row.excerpt as string) || "",
+    }));
+    return { items, total: agg.n, totalWords: agg.words };
+  }
+
+  // 标签聚合计数（文章页过滤 pills 数据源）
+  static getArticleTagCounts(db: Database.Database): ArticleTagCount[] {
+    const rows = db
+      .prepare("SELECT tags FROM articles WHERE is_delete = 0 AND tags IS NOT NULL AND tags != ''")
+      .all() as { tags: string }[];
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      for (const tag of ArticleTable.parseTags(row.tags)) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      }
+    }
+    return [...counts.entries()]
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+  }
+
+  private static parseTags(raw: unknown): string[] {
+    try {
+      const parsed = JSON.parse(String(raw ?? "[]"));
+      return Array.isArray(parsed) ? parsed.filter((t): t is string => typeof t === "string") : [];
+    } catch {
+      return [];
+    }
   }
 
   // 根据 IDs 获取文章内容（转换为 Markdown）
