@@ -381,7 +381,7 @@ export function DateRangePicker({
           "border-line-1 bg-surface text-ink-1 group/trigger",
           "rounded-tau-sm inline-flex items-center gap-2 border",
           "ease-tau-out transition-[border-color,box-shadow] duration-[160ms]",
-          "hover:border-ink-3 focus-visible:border-accent outline-none focus-visible:shadow-[var(--tau-focus-ring)]",
+          "hover:not-focus-visible:border-ink-3/50 focus-visible:border-accent outline-none focus-visible:shadow-[var(--tau-focus-ring)]",
           "data-[open=true]:border-accent data-[status=error]:border-danger",
           "disabled:pointer-events-none disabled:opacity-55",
           "tabular-nums",
