@@ -1,0 +1,2 @@
+# 部署脚本经 scp 上传到 Linux 执行，CRLF 会导致 bash "set: pipefail: invalid option name"
+*.sh text eol=lf
