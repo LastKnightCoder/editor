@@ -30,6 +30,9 @@ export interface InputProps extends Omit<ComponentProps<"input">, "size"> {
   /** 有值时容器 hover/focus 显现清空 ×；点击清空并保留焦点 */
   clearable?: boolean;
   size?: "sm" | "md";
+  /** 形态：outlined（默认，亮底描边浮起物）| bare（无皮行内形态——无边框背景与
+   *  focus 反馈，高度与选中表现归宿主，如行内编辑单元格） */
+  variant?: "outlined" | "bare";
 }
 
 /** 受控清空：走原生 setter + input 事件，受控 onChange 自然触发（焦点留在输入框） */
@@ -44,6 +47,7 @@ export function Input({
   lead: Lead,
   clearable = false,
   size = "md",
+  variant = "outlined",
   className,
   onChange,
   defaultValue,
@@ -59,19 +63,23 @@ export function Input({
     <div
       data-disabled={props.disabled || undefined}
       className={cn(
-        "border-line-1 bg-surface group/input flex w-full items-center gap-2",
-        "rounded-tau-sm ease-tau-out border transition-[border-color,box-shadow] duration-[160ms]",
-        "hover:not-focus-within:border-ink-3/50 focus-within:border-accent focus-within:shadow-[var(--tau-focus-ring)]",
-        // 错误态：正源 aria-invalid（挂在 input 上，容器经 has- 响应）
-        "has-[[aria-invalid=true]]:border-danger has-[[aria-invalid=true]:hover]:border-danger",
-        "has-[[aria-invalid=true]]:focus-within:border-danger",
-        "has-[[aria-invalid=true]]:focus-within:shadow-[0_0_0_3px_var(--tau-danger-soft)]",
-        // 只读：框在、零响应——:read-only 必须限定 input，否则容器里的 span/button
-        // （任意不可编辑元素）会让 :has() 恒真，盖掉全部 focus 效果
-        "has-[input:read-only]:border-line-1 has-[input:read-only]:hover:border-line-1",
-        "has-[input:read-only]:focus-within:border-line-1 has-[input:read-only]:focus-within:shadow-none",
+        "group/input flex w-full items-center gap-2",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-55",
-        size === "sm" ? "h-[28px] pl-2.5 pr-[3px]" : "h-[34px] pl-3 pr-1"
+        variant === "outlined" &&
+          cn(
+            "border-line-1 bg-surface",
+            "rounded-tau-sm ease-tau-out border transition-[border-color,box-shadow] duration-[160ms]",
+            "hover:not-focus-within:border-ink-3/50 focus-within:border-accent focus-within:shadow-[var(--tau-focus-ring)]",
+            // 错误态：正源 aria-invalid（挂在 input 上，容器经 has- 响应）
+            "has-[[aria-invalid=true]]:border-danger has-[[aria-invalid=true]:hover]:border-danger",
+            "has-[[aria-invalid=true]]:focus-within:border-danger",
+            "has-[[aria-invalid=true]]:focus-within:shadow-[0_0_0_3px_var(--tau-danger-soft)]",
+            // 只读：框在、零响应——:read-only 必须限定 input，否则容器里的 span/button
+            // （任意不可编辑元素）会让 :has() 恒真，盖掉全部 focus 效果
+            "has-[input:read-only]:border-line-1 has-[input:read-only]:hover:border-line-1",
+            "has-[input:read-only]:focus-within:border-line-1 has-[input:read-only]:focus-within:shadow-none",
+            size === "sm" ? "h-[28px] pl-2.5 pr-[3px]" : "h-[34px] pl-3 pr-1"
+          )
       )}
     >
       {Lead && (
