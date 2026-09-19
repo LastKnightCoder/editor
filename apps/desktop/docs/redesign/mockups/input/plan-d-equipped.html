@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Input 方案 D · 装备化（输入容器的完整拼装能力） — Tau 桌面端</title>
+<!--
+  【Input 方案 D：装备化 —— Input 是「输入容器」，不是「一个框」】
+
+  心智：形制沿用 A（surface + line-1 + focus ring，2026-09-17 裁决不变），
+  分歧在能力面——把「输入框周围能挂什么」做成完整的拼装系统：
+  - 槽位：lead（前缀：icon / 文本标签 / kbd 提示）· value（输入位）·
+    trail（后缀：清空 × / 单位 / 显隐眼睛 / 步进器 −+）
+  - addon：框外拼接（按钮与框连体成组，搜索按钮、「转到」按钮）
+  - 特化形态：Password（显隐）/ NumberInput（步进器 + 校验）/
+    Textarea（计数器）/ 搜索框（FilterBar 皮）
+  - 拼装纪律：框内挂静默信息（icon/单位/计数），动作用框外 addon 或
+    框内独立按钮位（命中 ≥24×24）——避免框里塞一排按钮变成工具栏
+
+  本页重点演示：
+  1. 槽位矩阵（lead × trail 的组合全景）
+  2. addon 组合（框外按钮连体）
+  3. 特化形态：密码显隐 / 数值步进 / 计数器
+  4. 真实场景：FilterBar（搜索 + 范围 + 应用）
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  --titlebar-h: 46px; --sidebar-w: 218px; --statusbar-h: 30px;
+}
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #ece4d4; --bg-sunken: #e2d8c0;
+  --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09);
+  --bg-selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+  --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+  --danger: #b0564d; --danger-soft: #f6e3e0;
+  --focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+}
+[data-theme="cocoa"] {
+  color-scheme: dark;
+  --bg-page: #221d16; --bg-surface: #2e2820; --bg-group: #19150e; --bg-sunken: #100d08;
+  --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11);
+  --bg-selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+  --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+  --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+  --danger: #d97e66; --danger-soft: #34201a;
+  --focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font); font-size: 13px; line-height: 1.65; color: var(--ink-1);
+  background: var(--bg-page); overflow: hidden; min-width: 1080px; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+::-webkit-scrollbar { width: 9px; }
+::-webkit-scrollbar-thumb { background: var(--line-1); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+.app { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); grid-template-rows: 100vh;
+  grid-template-areas: "sidebar main"; }
+.main { grid-area: main; display: flex; flex-direction: column; min-width: 0; background: var(--bg-page); }
+.sidebar { grid-area: sidebar; padding: 0 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.sidebar-head { display: flex; align-items: center; gap: 8px; height: var(--titlebar-h); padding: 0 6px; margin-bottom: 6px; }
+.brand-mark { width: 24px; height: 24px; border-radius: 8px; background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.brand-name { font-weight: 600; font-size: 13.5px; }
+.nav-label { font-size: 11px; color: var(--ink-3); padding: 8px 10px 6px; letter-spacing: 0.02em; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px;
+  border-radius: 10px; color: var(--ink-2); text-align: left; }
+.nav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-item.active { background: var(--bg-selected); color: var(--accent-text); font-weight: 550; }
+.titlebar { height: var(--titlebar-h); flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.icon-btn { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-2); }
+.icon-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.crumb { color: var(--ink-3); font-size: 12.5px; }
+.titlebar .spacer { flex: 1; }
+.win-controls { display: flex; gap: 6px; }
+.win-controls .dot { width: 12px; height: 12px; border-radius: 99px; background: var(--bg-sunken); border: 1px solid var(--line-1); }
+.home { flex: 1; overflow-y: auto; padding: 26px 40px 48px; }
+.home h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+.home .date { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; margin-bottom: 22px; }
+.panel { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card); padding: 18px 20px; margin-bottom: 16px; }
+.panel h3 { font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 12px; letter-spacing: 0.03em; }
+.statusbar { height: var(--statusbar-h); flex: none; display: flex; align-items: center; gap: 14px;
+  padding: 0 16px; font-size: 11.5px; color: var(--ink-3); border-top: 1px solid var(--line-1); }
+.row { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; line-height: 1.8; }
+.note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+code.inline { font-family: var(--mono); font-size: 11px; background: var(--bg-group); padding: 1px 5px; border-radius: 5px; }
+.code-card { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 10px;
+  padding: 12px 14px; font-family: var(--mono); font-size: 11.5px; line-height: 1.75; color: var(--ink-2);
+  overflow-x: auto; white-space: pre; margin-top: 12px; }
+.code-card .tag { color: var(--accent-text); }
+.code-card .attr { color: var(--ink-1); }
+.code-card .cmt { color: var(--ink-3); }
+.kbd-row { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-3); margin-top: 10px; }
+.kbd-row > span { display: inline-flex; align-items: center; gap: 6px; }
+.kbd-row kbd { padding: 1px 6px; border: 1px solid var(--line-1); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--bg-surface); font-size: 11px; font-family: var(--mono); }
+.verdict { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-selected); color: var(--accent-text);
+  border: 1px solid var(--accent-soft); border-radius: 99px; padding: 1px 10px; font-size: 11px; font-weight: 600; vertical-align: 2px; }
+.cell { display: flex; flex-direction: column; gap: 6px; width: 240px; }
+.cell .cap { font-size: 11.5px; color: var(--ink-3); }
+
+/* ═══════════ Input 本体（方案 D · 装备化，形制同 A） ═══════════ */
+.inp { display: flex; align-items: center; gap: 8px; height: 34px; width: 100%;
+  padding: 0 4px 0 12px; border-radius: var(--radius-sm);
+  background: var(--bg-surface); border: 1px solid var(--line-1);
+  transition: border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out); }
+.inp:hover { border-color: var(--ink-3); }
+.inp:focus-within { border-color: var(--accent); box-shadow: var(--focus-ring); }
+.inp input, .inp textarea { flex: 1; min-width: 0; border: none; background: none; outline: none;
+  font: inherit; font-size: 13px; color: var(--ink-1); }
+.inp input::placeholder, .inp textarea::placeholder { color: var(--ink-3); }
+.inp.sm { height: 28px; padding: 0 3px 0 10px; }
+.inp.sm input { font-size: 12px; }
+.inp.error { border-color: var(--danger); }
+.inp.error:focus-within { box-shadow: 0 0 0 3px var(--danger-soft); }
+
+/* 槽位：lead（icon / 文本 / kbd）与 trail（单位 / 动作按钮） */
+.inp .lead { display: grid; place-items: center; color: var(--ink-3); flex: none; }
+.inp .lead svg { width: 15px; height: 15px; }
+.inp:focus-within .lead { color: var(--accent-text); }
+.inp .lead.text { font-size: 12px; color: var(--ink-2); }
+.inp .lead kbd { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+  border: 1px solid var(--line-1); border-radius: 4px; padding: 0 5px; }
+.inp .trail-unit { font-size: 12px; color: var(--ink-3); flex: none; padding-right: 6px; }
+.inp .act { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center;
+  color: var(--ink-3); flex: none; }
+.inp .act svg { width: 14px; height: 14px; }
+.inp .act:hover { background: var(--bg-hover); color: var(--ink-1); }
+.inp .act:active { background: var(--bg-press); }
+.inp .clear { visibility: hidden; }
+.inp:hover .clear, .inp:focus-within .clear { visibility: visible; }
+
+/* 步进器（NumberInput 特化 trail） */
+.inp .stepper { display: flex; flex-direction: column; flex: none; margin-right: -2px; }
+.inp .stepper button { width: 20px; height: 15px; display: grid; place-items: center; color: var(--ink-3); }
+.inp .stepper button:first-child { border-radius: 6px 6px 0 0; }
+.inp .stepper button:last-child { border-radius: 0 0 6px 6px; }
+.inp .stepper button:hover { background: var(--bg-hover); color: var(--ink-1); }
+.inp .stepper svg { width: 11px; height: 11px; }
+
+/* addon：框外按钮连体 */
+.addon { display: inline-flex; align-items: stretch; }
+.addon .inp { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.addon .inp:focus-within { z-index: 1; position: relative; }
+.addon > button { border: 1px solid var(--line-1); border-left: none; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 0 14px; color: var(--ink-2); font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px;
+  transition: background 130ms, color 130ms, border-color 130ms; }
+.addon > button:hover { border-color: var(--ink-3); color: var(--ink-1); background: var(--bg-hover); }
+.addon > button.primary { background: var(--accent); border-color: var(--accent); color: var(--ink-inverse); font-weight: 550; }
+.addon > button.primary:hover { background: var(--accent-hover); }
+
+/* textarea 计数 */
+.inp.multi { height: auto; padding: 8px 10px; align-items: flex-start; }
+.inp.multi textarea { resize: none; font-size: 13px; line-height: 1.65; }
+.inp .count { flex: none; align-self: flex-end; font-size: 11px; color: var(--ink-3);
+  font-variant-numeric: tabular-nums; padding-bottom: 1px; }
+.inp .count.over { color: var(--danger); }
+
+/* FilterBar 场景 */
+.filterbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px;
+  background: var(--bg-page); border: 1px solid var(--line-1); border-radius: 12px; }
+.filterbar .f-label { font-size: 12px; color: var(--ink-2); }
+.sel-trigger { display: inline-flex; align-items: center; gap: 8px; height: 28px; min-width: 130px;
+  padding: 0 5px 0 10px; border-radius: var(--radius-sm); background: var(--bg-surface);
+  border: 1px solid var(--line-1); color: var(--ink-1); font-size: 12px; text-align: left; }
+.sel-trigger:hover { border-color: var(--ink-3); }
+.sel-trigger .caret { color: var(--ink-3); font-size: 10px; margin-left: auto; }
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+.stat-cell { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 10px; padding: 12px 14px; }
+.stat-cell .num { font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat-cell .cap { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+
+.plan-badge { position: fixed; left: 16px; bottom: 42px; z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.plan-badge .tag { display: inline-flex; align-items: center; gap: 7px; background: var(--bg-surface);
+  border: 1px solid var(--line-1); box-shadow: var(--shadow-card); border-radius: 99px; padding: 6px 13px;
+  font-size: 11.5px; color: var(--ink-2); }
+.plan-badge .tag b { color: var(--accent-text); font-weight: 600; }
+.plan-note { width: 342px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px;
+  box-shadow: var(--shadow-card); padding: 14px 16px; font-size: 12px; color: var(--ink-2); line-height: 1.75; display: none; }
+.plan-note.open { display: block; }
+.plan-note h4 { font-size: 12.5px; color: var(--ink-1); margin-bottom: 6px; }
+.plan-note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+.plan-note .try { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); color: var(--ink-3); font-size: 11.5px; }
+.plan-note .links { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); font-size: 11px; color: var(--ink-3); }
+.plan-note .links a { color: var(--accent-text); text-decoration: none; }
+.plan-note .links a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head"><div class="brand-mark">τ</div><div class="brand-name">Tau</div></div>
+    <div class="nav-label">工作台</div>
+    <button class="nav-item">今日</button>
+    <button class="nav-item">日程</button>
+    <button class="nav-item active">统计</button>
+    <div class="nav-label">知识</div>
+    <button class="nav-item">卡片库</button>
+    <button class="nav-item">数据库</button>
+  </aside>
+
+  <div class="main">
+    <header class="titlebar">
+      <span class="crumb">· 组件设计稿 · Input</span>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="themeBtn" title="切换主题"><span id="themeIcon"></span></button>
+      <div class="win-controls"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    </header>
+
+    <div class="home">
+      <h1>Input 设计稿 · 方案 D <span class="verdict">能力全集</span></h1>
+      <div class="date">装备化 —— 形制同 A（surface + line-1 + ring），分歧在能力面：槽位（lead / trail）+ addon（框外连体）+ 特化形态的完整拼装系统</div>
+
+      <div class="panel">
+        <h3>槽位矩阵 · LEAD × TRAIL（框内挂静默信息，动作按钮独立成位）</h3>
+        <div class="row">
+          <div class="cell">
+            <div class="inp">
+              <span class="lead"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+              <input type="text" placeholder="搜索…" class="has-clear">
+              <button class="act clear" title="清空" tabindex="-1"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+            </div>
+            <span class="cap">lead icon + 清空 ×</span>
+          </div>
+          <div class="cell">
+            <div class="inp">
+              <span class="lead text">https://</span>
+              <input type="text" placeholder="api.tau.app" class="has-clear">
+              <button class="act clear" title="清空" tabindex="-1"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+            </div>
+            <span class="cap">lead 文本标签（URL 前缀）</span>
+          </div>
+          <div class="cell">
+            <div class="inp">
+              <input type="text" value="1200" inputmode="decimal">
+              <span class="trail-unit">px</span>
+            </div>
+            <span class="cap">trail 单位</span>
+          </div>
+          <div class="cell">
+            <div class="inp">
+              <span class="lead"><svg viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+              <input type="password" value="tau-password" id="pw" class="has-clear">
+              <button class="act" id="pwToggle" title="显示密码" tabindex="-1"><svg viewBox="0 0 24 24"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg></button>
+              <button class="act clear" title="清空" tabindex="-1"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+            </div>
+            <span class="cap">Password：眼睛显隐 + 清空</span>
+          </div>
+          <div class="cell">
+            <div class="inp">
+              <input type="text" placeholder="跳转到行">
+              <span class="lead" style="margin-left: auto"><kbd>↵</kbd></span>
+            </div>
+            <span class="cap">trail kbd 提示（Enter 生效）</span>
+          </div>
+        </div>
+        <div class="note">拼装纪律：框内挂<em>静默信息</em>（icon / 标签 / 单位 / kbd），动作（清空 / 显隐）
+          是独立按钮位且命中 ≥24×24；超过两个动作就该挪 addon 或重新设计——框不是工具栏。</div>
+      </div>
+
+      <div class="panel">
+        <h3>addon 组合 · 框外连体（框承担输入，按钮承担动作）</h3>
+        <div class="row">
+          <div class="cell" style="width: 300px">
+            <div class="addon">
+              <div class="inp" style="width: 200px">
+                <span class="lead"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+                <input type="text" placeholder="搜索卡片…">
+              </div>
+              <button class="primary" type="button" id="searchBtn">
+                <svg viewBox="0 0 24 24" style="width:13px;height:13px"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>搜索
+              </button>
+            </div>
+            <span class="cap">输入 + 主按钮连体（按钮用 primary 档）</span>
+          </div>
+          <div class="cell" style="width: 300px">
+            <div class="addon">
+              <div class="inp" style="width: 160px">
+                <span class="lead text">卡片 #</span>
+                <input type="text" inputmode="decimal" value="1024">
+              </div>
+              <button type="button" id="gotoBtn">转到</button>
+            </div>
+            <span class="cap">前缀标签 + 次级按钮连体</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>特化形态 · NUMBER（步进器）/ TEXTAREA（计数器）</h3>
+        <div class="row">
+          <div class="cell" style="width: 180px">
+            <div class="inp">
+              <input type="text" inputmode="decimal" id="stepperVal" value="15" class="has-clear">
+              <span class="stepper">
+                <button title="增加" tabindex="-1" data-step="1"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+                <button title="减少" tabindex="-1" data-step="-1"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+              </span>
+            </div>
+            <span class="cap">步进器 −+（步长 1，可长按）</span>
+          </div>
+          <div class="cell" style="width: 180px">
+            <div class="inp">
+              <input type="text" inputmode="decimal" id="stepperHalf" value="0.5" class="has-clear">
+              <span class="stepper">
+                <button title="增加" tabindex="-1" data-half="0.5"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+                <button title="减少" tabindex="-1" data-half="-0.5"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg></button>
+              </span>
+            </div>
+            <span class="cap">小数步长 0.5（保留一位）</span>
+          </div>
+          <div class="cell" style="width: 320px">
+            <div class="inp multi">
+              <textarea rows="4" maxlength="200" id="ta" placeholder="备注（最多 200 字）…"></textarea>
+              <span class="count" id="taCount">0 / 200</span>
+            </div>
+            <span class="cap">Textarea + 计数器（超限转 danger）</span>
+          </div>
+        </div>
+        <div class="code-card"><span class="cmt">// API 草案：槽位与 addon 都走 props（非复合子组件——Select「数据驱动」同款心智）</span>
+<span class="tag">&lt;Input</span> <span class="attr">lead</span>={Search} <span class="attr">clearable</span> <span class="attr">status</span>="error" <span class="attr">size</span>="sm" <span class="tag">/&gt;</span>
+<span class="tag">&lt;Input</span> <span class="attr">lead</span>="https://"                          <span class="cmt">// icon 组件或文本标签二选一</span>
+        <span class="attr">trail</span>="px"                                  <span class="cmt">// 静默后缀：单位 / kbd 提示</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;Input.Password</span> <span class="attr">revealable</span> /&gt;                        <span class="cmt">// 特化：眼睛显隐（非 bool prop——值语义不同）</span>
+<span class="tag">&lt;NumberInput</span> <span class="attr">value</span>={n} <span class="attr">onValueChange</span>={setN} <span class="attr">step</span>={1} <span class="attr">stepper</span> /&gt;
+<span class="tag">&lt;InputAddon&gt;</span> <span class="tag">&lt;Input</span> … <span class="tag">/&gt;</span> <span class="tag">&lt;Button</span> <span class="attr">variant</span>="primary" <span class="tag">&gt;</span>搜索<span class="tag">&lt;/Button&gt;</span> <span class="tag">&lt;/InputAddon&gt;</span>
+<span class="cmt">// 拼装纪律：框内只挂静默信息（icon/标签/单位/kbd/计数），动作是独立按钮位（命中 ≥ 24×24）</span></div>
+      </div>
+
+      <div class="panel">
+        <h3>真实场景 · FilterBar（搜索 + 选择 + 应用，全装备混排）</h3>
+        <div class="filterbar">
+          <div class="addon">
+            <div class="inp sm" style="width: 190px">
+              <span class="lead"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+              <input type="text" placeholder="标题 / 标签 / 全文…" class="has-clear" id="fbSearch">
+              <button class="act clear" title="清空" tabindex="-1"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+            </div>
+            <button type="button" id="fbBtn">搜索</button>
+          </div>
+          <span class="f-label">范围</span>
+          <button class="sel-trigger" type="button">最近 30 天 <span class="caret">▾</span></button>
+          <span class="f-label">类型</span>
+          <button class="sel-trigger" type="button">全部 <span class="caret">▾</span></button>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-cell"><div class="num" id="st1">862</div><div class="cap">命中卡片</div></div>
+          <div class="stat-cell"><div class="num" id="st2">12</div><div class="cap">笔记本</div></div>
+          <div class="stat-cell"><div class="num" id="st3">38</div><div class="cap">标签</div></div>
+        </div>
+        <div class="note">FilterBar 是 D 的主消费点：sm 输入 + addon 搜索按钮 + Select 触发器同排——
+          <em>形制同 A</em>所以与选择器零违和，装备位各司其职。</div>
+      </div>
+    </div>
+
+    <div class="statusbar"><span>Tau v2 · 重构中</span><span id="statusInfo">方案 D · 装备化 · 槽位 + addon + 特化形态</span></div>
+  </div>
+</div>
+
+<div class="plan-badge">
+  <button class="tag" id="noteToggle"><b>方案 D</b> 装备化 · 能力全集 · 交互说明</button>
+  <div class="plan-note" id="planNote">
+    <h4>装备化（能力全集）</h4>
+    形制不变（同 A），把 Input 做成<em>输入容器</em>：lead/trail 槽位、
+    addon 框外连体、Password/Number/计数器特化。纪律：框内挂静默信息、
+    动作独立成位——框不是工具栏。
+    <div class="try">试试：密码框点眼睛显隐；步进器 −+ 调数值（第二个 0.5 步长）；
+      textarea 计数超限转红；FilterBar 点搜索联动统计；右上角切主题。</div>
+    <div class="links">对比：<a href="plan-a-outline.html">A 经典描边</a> · <a href="plan-b-filled.html">B 柔和填充</a> · <a href="plan-c-underline.html">C 下划线行内</a> · <b>D 装备化</b> · <a href="index.html">导览</a></div>
+  </div>
+</div>
+
+<script>
+const P = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+};
+let theme = "cream";
+function toggleTheme() {
+  theme = theme === "cream" ? "cocoa" : "cream";
+  document.documentElement.dataset.theme = theme;
+  document.getElementById("themeIcon").innerHTML =
+    `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P[theme === "cream" ? "moon" : "sun"]}</svg>`;
+}
+document.getElementById("themeBtn").addEventListener("click", toggleTheme);
+document.getElementById("themeIcon").innerHTML = `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P.moon}</svg>`;
+const status = (t) => document.getElementById("statusInfo").textContent = t;
+
+/* ───────── 清空 ───────── */
+document.querySelectorAll(".inp .clear").forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const input = btn.closest(".inp").querySelector("input, textarea");
+    input.value = "";
+    input.focus();
+    status("clearable → 空值（焦点留在输入框）");
+  });
+});
+document.querySelectorAll(".has-clear").forEach((input) => {
+  input.addEventListener("input", () => status(`onChange → "${input.value}"`));
+});
+
+/* ───────── 密码显隐 ───────── */
+const pw = document.getElementById("pw");
+const pwToggle = document.getElementById("pwToggle");
+pwToggle.addEventListener("click", () => {
+  const show = pw.type === "password";
+  pw.type = show ? "text" : "password";
+  pwToggle.title = show ? "隐藏密码" : "显示密码";
+  pwToggle.style.color = show ? "var(--accent-text)" : "";
+  status(show ? "密码已显示" : "密码已隐藏");
+});
+
+/* ───────── 步进器 ───────── */
+const stepOf = (input, delta, precision) => {
+  const cur = Number(input.value) || 0;
+  const next = Math.max(0, Number((cur + delta).toFixed(1)));
+  input.value = precision === 0 ? String(Math.round(next)) : next.toFixed(1);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+};
+document.querySelectorAll(".stepper [data-step]").forEach((b) => {
+  b.addEventListener("click", () => stepOf(document.getElementById("stepperVal"), Number(b.dataset.step), 0));
+});
+document.querySelectorAll(".stepper [data-half]").forEach((b) => {
+  b.addEventListener("click", () => stepOf(document.getElementById("stepperHalf"), Number(b.dataset.half), 1));
+});
+
+/* ───────── 计数器 ───────── */
+const ta = document.getElementById("ta");
+const taCount = document.getElementById("taCount");
+const sync = () => {
+  const n = ta.value.length, max = Number(ta.getAttribute("maxlength"));
+  taCount.textContent = `${n} / ${max}`;
+  taCount.classList.toggle("over", n >= max);
+};
+ta.addEventListener("input", sync);
+sync();
+
+/* ───────── FilterBar 联动 ───────── */
+const shuffle = () => {
+  for (const id of ["st1", "st2", "st3"]) {
+    document.getElementById(id).textContent = String(Math.floor(Math.random() * 900) + 20);
+  }
+};
+document.getElementById("searchBtn").addEventListener("click", shuffle);
+document.getElementById("gotoBtn").addEventListener("click", () => status("转到 → 卡片 #1024（页面跳转）"));
+
+document.getElementById("noteToggle").addEventListener("click", () => document.getElementById("planNote").classList.toggle("open"));
+</script>
+</body>
+</html>

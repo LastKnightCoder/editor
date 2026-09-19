@@ -151,6 +151,15 @@
 - 实现：`packages/ui/src/primitives/datepicker/`（calendarEngine 纯函数 + CalendarPanel + TimeField + 两导出），替换同日未提交的初版实现（range/showTime 布尔 prop + 时间戳值模型，无消费者）；database 包 DateEditor/DateFilter 同步迁移（时间戳 ↔ string 桥接放消费侧）。
 - 验证：`__tests__/datepicker.test.tsx` + `calendarEngine.test.ts` 22 例（值协议越界拒绝 · day 即点即定 · minute 挂起与确定 · 时刻宽松键入/越界还原/网格选格 · 预设即点即定与命中回显 · 钻取 · 键盘开合/方向键/Enter/Esc 不冒泡 · 禁用日期 · 范围三道闸与反序交换 · 外点关闭）；@tau/ui 全量 130 例回归绿；@tau/ui / @tau/database / apps/desktop 三处 tsc 0 错误；样板间「DatePicker」档案已登记。
 
+## D-019 Input 组件族：方案 A「经典描边」重写，错误态正源 aria-invalid、FormField 归 patterns
+
+- 定向（2026-09-19，mockups/input/ 四方案评审）：A「经典描边」为基线——surface 亮底 + line-1 + focus ring，与 Select/DatePicker 触发器同皮（2026-09-17 裁决延续）；B 槽形 / C 下划线行内 / D 装备化未采纳，D 的装备位（lead 文本后缀 / addon / 密码显隐 / 步进器）等真实消费点出现再裁。
+- 边界（用户裁决）：Input 只专注输入的基本能力——错误态正源是原生 `aria-invalid`（无 status prop，容器经 has- 变体响应，视觉与读屏语义锁死同源）；判定（zod）/ 错误文案 / touched 策略归表单层；FormField 移出 Input 归 `ui/patterns` 的 FormRow（02 §5.1 规划位，现 patterns/FormRow.tsx 为未经设计稿评审的占位迁移，勿在此基础上加能力）。
+- NumberInput（用户裁决）：beforeinput 事前拦截取代事后标红——非数字字符与粘贴根本进不来；粘贴先清洗（"¥1,200" → "1200"）再插入；合法中间态（"5." / "-"）放行，IME compositionend 兜底，blur/Enter 归一化。实现走原生 addEventListener（React 合成 onBeforeInput 在部分环境回退 polyfill 路径，与生产不一致）。
+- 状态优先级（用户裁决）：focus 显式高于 hover——`hover:not-focus-*:border-…` 让位（鼠标悬停聚焦时 hover 色不得压过 accent 描边）；只读 = 框在 + ink-2 + 默认光标 + 零响应（区别于禁用的降透明）。
+- 教训：`has(:read-only)` 匹配任意不可编辑后代元素（span / button 全中招）导致 :has() 恒真、盖掉全部 focus 效果——:read-only 必须限定到表单元素（has(input:read-only)）。
+- 实现：`packages/ui/src/primitives/input/`（Input / Textarea / NumberInput / numberGuard 纯函数层 + 16 例测试）；mockups/input/ 四方案 + 导览留档；@tau/ui 整包未跟踪期间 index.ts 导出与 Select 的 hover 同步修正随包首次提交。
+
 ## Page 迁移清单（M2 起滚动勾选）
 
 > 33 个 TabType 的完整映射与合并方案见蓝图 §5.3，此处只跟踪迁移状态。
