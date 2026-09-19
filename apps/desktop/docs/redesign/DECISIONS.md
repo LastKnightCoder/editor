@@ -160,6 +160,14 @@
 - 教训：`has(:read-only)` 匹配任意不可编辑后代元素（span / button 全中招）导致 :has() 恒真、盖掉全部 focus 效果——:read-only 必须限定到表单元素（has(input:read-only)）。
 - 实现：`packages/ui/src/primitives/input/`（Input / Textarea / NumberInput / numberGuard 纯函数层 + 16 例测试）；mockups/input/ 四方案 + 导览留档；@tau/ui 整包未跟踪期间 index.ts 导出与 Select 的 hover 同步修正随包首次提交。
 
+## D-020 Checkbox / Switch：方案 A 语言重写，Choice.tsx 拆除；新增 bg-track 控件轨道 token
+
+- 定向（2026-09-19，mockups/checkbox/ 与 mockups/switch/）：按 Input 方案 A「经典描边」语言定稿——Checkbox 16×16 视觉格 surface + line-1、选中 accent 实底 + 勾 110ms 淡入（无动效 prop，用户裁决「纯粹一点」）；Switch「轨道是槽、thumb 是浮起物」——未选中轨道消费 bg-track，thumb 恒为 surface + ink-3 描边环（选中后功成身退），选中转 accent。
+- 新增语义 token `--tau-bg-track`（用户裁决：组件禁止 color-mix 派生 hack——问题在深色主题取值层解决）：控件轨道（开关/滑杆槽）是部件色，不属表面四档阶梯（D-006「沉到 page 之下」约束不到——深色下 group/sunken 必然偏黑）。取值 cream #e0d6c3 / cocoa #463d31（亮于 surface 使 thumb 可辨）。tokenContract 新增 control 组、02 §2.3 词汇表同步。
+- 结构铁律（教训）：Tailwind peer-* 变体只匹配 peer 的后续兄弟（`~ *`）——格子/勾图标放在 input 深层后代会静默失效（勾选无视觉）；必须同层兄弟结构，父级响应用 has- 变体。另：条件互斥的类（bg-track/bg-accent、border-ink-3/border-transparent）走 JS 三元，同传会被 tailwind-merge 判同组只留一个。
+- 拆除：Choice.tsx 杂烩文件删除；RadioGroup 原样迁出占位（未经设计稿，待定稿重做）；Tabs 无消费者随拆。
+- 实现：primitives/Checkbox.tsx + Switch.tsx + RadioGroup.tsx（占位）+ **tests**/choice.test.tsx 8 例；theme 体系（tokenContract/themes/tokens.css）随 @tau/ui 包首次提交进库。
+
 ## Page 迁移清单（M2 起滚动勾选）
 
 > 33 个 TabType 的完整映射与合并方案见蓝图 §5.3，此处只跟踪迁移状态。
