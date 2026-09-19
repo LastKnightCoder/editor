@@ -7,3 +7,5 @@
 @import "tailwindcss";
 @import "../ui/theme/tokens.css";
 @import "../app/base.css";
+/* 同主入口：hover 变体恢复纯 :hover（触摸屏设备 hover:none 判定不杀 hover 反馈） */
+@custom-variant hover (&:hover);

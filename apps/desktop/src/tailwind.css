@@ -300,6 +300,10 @@
 }
 
 @custom-variant dark (.dark &);
+/* hover 变体去 v4 默认的 @media (hover: hover) 包裹，恢复纯 :hover——
+   桌面端鼠标永远存在，触摸屏设备（Surface 等）被 Chromium 判为 hover:none 时
+   会静默杀掉全应用所有 hover: 反馈（2026-09-19 文章页实机排查，DECISIONS D-016） */
+@custom-variant hover (&:hover);
 
 @layer components {
   .prose-reader img {
