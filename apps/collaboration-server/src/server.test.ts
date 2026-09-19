@@ -152,4 +152,29 @@ describe("协作权限和持久化", () => {
     for (let i = 0; i < 5; i++) store.create(owner.id, String(i));
     expect(() => store.create(owner.id, "extra")).toThrow("上限");
   });
+
+  it("发布含本地资源路径的内容返回 4xx 并透传原因，而非 500 兜底", async () => {
+    const { app, store } = await setup();
+    const owner = store.register("作者");
+    const created = store.create(owner.id, "local-path");
+    const doc = createSharedDocument({
+      title: "本地资源",
+      content: [{ type: "paragraph", children: [{ text: "正文" }] }],
+      bannerBg: "",
+      bannerPosition: "center",
+    });
+    doc.getMap("meta").set("bannerBg", "file:///etc/passwd");
+    const response = await app.inject({
+      method: "POST",
+      url: `/v1/documents/${created.id}/publish`,
+      headers: auth(owner),
+      payload: { state: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64") },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "INVALID_CONTENT",
+      message: expect.stringContaining("本地路径"),
+    });
+    doc.destroy();
+  });
 });

@@ -4,6 +4,7 @@ import { slateNodesToInsertDelta, yTextToSlateElement } from "@slate-yjs/core";
 import type { Descendant } from "slate";
 import {
   ASSET_PREFIX,
+  CollaborationError,
   COLLABORATION_VERSION,
   type ContentNode,
   type SharedContent,
@@ -411,19 +412,24 @@ export function isSafeResource(value: string, field = ""): boolean {
   return httpUrl(value);
 }
 
+// 内容校验失败属于客户端问题（INVALID_CONTENT），抛 CollaborationError 以 4xx 透传原因，
+// 避免被服务端 5xx 兜底成"服务器暂时无法完成请求"。
 export function validateDocument(doc: Y.Doc, maxBytes = 8 * 1024 * 1024) {
-  if (doc.getMap("meta").get("mode") === "local") throw new Error("本机会话不能直接上传");
+  if (doc.getMap("meta").get("mode") === "local")
+    throw new CollaborationError("INVALID_CONTENT", "本机会话不能直接上传");
   if (doc.getMap("meta").get("version") !== COLLABORATION_VERSION)
-    throw new Error("协作文档版本不兼容，请升级 Tau");
-  if (Y.encodeStateAsUpdate(doc).byteLength > maxBytes) throw new Error("协作文档超过大小限制");
+    throw new CollaborationError("INVALID_CONTENT", "协作文档版本不兼容，请升级 Tau");
+  if (Y.encodeStateAsUpdate(doc).byteLength > maxBytes)
+    throw new CollaborationError("INVALID_CONTENT", "协作文档超过大小限制");
   const article = readSharedContent(doc);
-  if (article.title.length > 500) throw new Error("共享名称过长");
+  if (article.title.length > 500) throw new CollaborationError("INVALID_CONTENT", "共享名称过长");
   let count = 0;
   const visit = (value: unknown, depth: number, key = "") => {
-    if (depth > 64 || ++count > 150000) throw new Error("文档结构超过限制");
+    if (depth > 64 || ++count > 150000)
+      throw new CollaborationError("INVALID_CONTENT", "文档结构超过限制");
     if (typeof value === "string") {
       if (RESOURCE_FIELDS.has(key) && !isSafeResource(value, key))
-        throw new Error("共享内容不能包含本地路径或私有资源地址");
+        throw new CollaborationError("INVALID_CONTENT", "共享内容不能包含本地路径或私有资源地址");
       return;
     }
     if (Array.isArray(value)) {
@@ -432,9 +438,11 @@ export function validateDocument(doc: Y.Doc, maxBytes = 8 * 1024 * 1024) {
     }
     if (value && typeof value === "object") {
       const object = value as Record<string, unknown>;
-      if (PRIVATE_BLOCKS.has(String(object.type || ""))) throw new Error("不支持共享本地实体块");
+      if (PRIVATE_BLOCKS.has(String(object.type || "")))
+        throw new CollaborationError("INVALID_CONTENT", "不支持共享本地实体块");
       for (const [name, entry] of Object.entries(object)) {
-        if (UNSAFE_KEYS.includes(name)) throw new Error("文档包含无效属性");
+        if (UNSAFE_KEYS.includes(name))
+          throw new CollaborationError("INVALID_CONTENT", "文档包含无效属性");
         visit(entry, depth + 1, name);
       }
     }
