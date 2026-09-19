@@ -179,10 +179,12 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
     },
   });
 
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler((error, request, reply) => {
     const failure = error as Error & { statusCode?: number };
     const status =
       error instanceof CollaborationError ? error.statusCode : failure.statusCode || 500;
+    // disableRequestLogging 关闭了常规请求日志，5xx 必须在此留痕，否则线上无从排查。
+    if (status >= 500) request.log.error({ err: error, url: request.url }, "request failed");
     reply.code(status).send({
       code: error instanceof CollaborationError ? error.code : "REQUEST_FAILED",
       message: status >= 500 ? "服务器暂时无法完成请求，请稍后重试" : failure.message,
