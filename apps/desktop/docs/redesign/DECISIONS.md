@@ -74,7 +74,7 @@
 - 背景：`IconButton` 承诺「尺寸微调靠 className 覆盖」（侧栏头写 `size-[27px]`，样板间同款示例），但 Tailwind 同属性工具类的胜负由**生成顺序**决定、clsx 的先后顺序无效——实测 `size-[27px]` 被默认 `size-[30px]` 吃掉（按钮仍渲染 30px），`MatrixRow` 的 `trayClassName="items-center"` 同样被默认 `items-start` 吃掉。覆盖失效是静默的，只在样板间对照时才看得出来。
 - 选择：`ui/cn.ts` 导出 `cn = twMerge(clsx(...))`，primitives 与样板间 kit 的 className 合并一律用它；项目自有尺度词（`text-tau-*`/`font-tau*`/`rounded-tau-*`/`shadow-card|float`/`ease-tau-out`/`animate-hm-pulse`）在 cn 内登记进对应 classGroup——tailwind-merge 不认识它们，不登记时会把 `text-tau-meta` 与 `text-ink-2` 判为同组互删（静默丢字号，实测复现）。
 - 排除：让调用方写 important（`size-[27px]!`）——把机制缺陷转嫁成逐个记忆负担；改组件 API（尺寸 prop）——样板间与侧栏头已按 className 演示，且覆盖诉求不止尺寸。
-- 验证：`src/ui/__tests__/cn.test.ts` 守护①词表与 tokens.css 的尺度词一一对应（新增 token 漏登记即红）②合并语义（同类覆盖取后者、字号与语义色不相残）；样板间 IconButton 档案目验 27/30 两标本图标共线。
+- 验证：`packages/ui/src/__tests__/cn.test.ts` 守护①词表与 tokens.css 的尺度词一一对应（新增 token 漏登记即红）②合并语义（同类覆盖取后者、字号与语义色不相残）；样板间 IconButton 档案目验 27/30 两标本图标共线。
 
 ## D-009 档案内标识块底色回正：代码 chip / 路径徽标 → surface 亮底 + 描边
 
@@ -116,6 +116,18 @@
 - 影响：`ui/primitives/Button.tsx` + `__tests__/Button.test.tsx`；ConfirmDialog 的 BTN_BASE/BTN_PRIMARY/BTN_PRIMARY_DANGER/BTN_SECOND 四常量删除，footer 两按钮改用 Button（主按钮 busy 走内建 loading 语义，spinner/aria-busy/disabled 一体），`canConfirm` 保留为 handleConfirm 守卫；样板间「Button」档案（LIVE 变体全谱 + 状态矩阵 + 尺寸/block + loading 实试标本）；03 指南 §5 使用边界与 §9 任务 2；`mockups/button/plan-b-modern.html` 更新为定稿口径（A/C 留档对照）。
 - 验证：`__tests__/Button.test.tsx` 9 例（变体/尺寸/block 类落地 · type 默认与透传 · disabled 原生封锁 · loading 语义四件套 · loadingText 缺省保持 children · icon 左位 · cn 覆盖合并非静默失效 · ref 转发 · data-_/aria-_ 透传）；Dialog.test.tsx 9 例回归全绿（ConfirmDialog 迁移无行为回退）；tsc 0 错误；样板间双主题目验。
 
+## D-014 Popover 基础件：方案 B「现代产品」形制 + 浮层公共底盘抽取（useAnchoredPosition / FloatingArrow / mergeRefs / useLayerDismiss）
+
+- 背景：Popover 三方案设计稿（`mockups/popover/`，A 经典桌面 / B 现代产品 / C 密集工作台，同内容共行为只换皮），2026-09-18 用户裁决方案 B。设计稿同步回答「与 Tooltip 能抽多少公共」：定位引擎早已公共（D-004），真正的账在引擎之外——定位跟随 useLayoutEffect / 箭头几何 / ref 合并在 Tooltip、Menu、Select 三处各有一份近似实现，Popover 是第四消费者，按「两例交集才抽」（D-007 原则）本次一并兑现。家族分工：Tooltip 瞬态说明（hover/focus、不可交互）、Menu 命令面板、Select 表单值选择、Dialog 模态决策、Toast 回执；Popover 收「点击触发、内容可继续操作」的非模态浮层。
+- 选择：① **形制 = 方案 B**——无标题栏内容卡（surface + line-1 + radius-lg + shadow-float）、头行随需（icon 圆底 + 标题 + ghost ×，色板/成员卡可无头行零框架税）、footer 随需（hairline 之上按钮右对齐）、8px 菱形箭头 surface 档（与 Tooltip 同几何）、进场 translateY(4px)+scale(0.98) 160ms 方向随 flip——与 Menu B/Toast/Dialog B 同一浮层语言；② **API = 复合组件**（`Popover.Header/.Body/.Footer` + trigger 克隆注入）——内容任意（说明卡/过滤器/色板/成员卡），数据驱动无 DSL 可言，同 Menu 复合裁决不外推反例；③ **行为**：click toggle 内建（hover 说明归 Tooltip、右键归 ContextMenu，不设 trigger props）；定位 D-004 引擎 **placement 12 向全表的首个消费者**（gap 8、宽随内容 180–340、无 matchTriggerWidth 概念）；Esc 焦点链 LIFO（同 D-007/D-010/D-011 口径，不进 D-003 注册表）；Tab 移出即关（非模态不圈闭，还焦触发器后浏览器续移）；初始焦点落 `data-autofocus`（无则卡片自身）；受控 open（§5.3）。
+- 公共底盘四件抽取（同提交兑现）：① `tooltipPosition.ts` → **`anchoredPosition.ts`**（函数更名 `computeAnchoredPosition`，Tooltip/Menu/Select/测试引用点同步；`TooltipPlacement` 等类型在 Tooltip.tsx 保留别名，存量引用不动；箭头投影写入 `applyArrowPosition` 与 ARROW_SIZE/ARROW_TIP_OFFSET 常量同住引擎文件，组件文件只导出组件）；② **`useAnchoredPosition`**——三处同构的「双遍进场定位 + scroll(capture)/resize rAF 合并重算」收口，Tooltip 特有的 rAF 轮询动态锚参数化为 `pollAnchor`，Select 的 minWidth 写入走 `onPlace` 回调，内容尺寸变化经 ResizeObserver 自适应重定位（评审修正：初版以内容 props 做 `deps`，父级无关 re-render 也会换 identity 导致整个生命周期重挂，改为观察浮层自身尺寸，jsdom 无 RO 静默跳过）；③ **`FloatingArrow` + `applyArrowPosition`**——箭头几何与投影写入组件化，配色两档（tooltip 反相 ink-1 / surface 亮底），宿主约定 `group/float` + `data-side`；④ **`mergeRefs`**——三处克隆注入的 ref 合并收口。有意不抽两件：hover intent（Tooltip 特有瞬态意图判定，click 语义无对应物）、触发器事件注入（hover+focus 与 click 键盘开合事件集不同，合并即「参数选模式」复合体）。
+- **useLayerDismiss（登记制外点仲裁）**：外点关闭（pointerdown capture）+ 嵌套链（子层触发器落在哪个已开层 DOM 内即为其子层，Portal 兄弟无法 contains 判定）+ 顶层互斥（开新层关非祖先链层）+ **层序分配**（登记时按全局开合序递增 zIndex：React 深度优先提交让嵌套浮层的 portal 先于宿主插入 body，同 z-[250] 时 DOM 靠后者绘制在上、子层反被父层盖住——2026-09-18 用户实机反馈「高级选项被一级盖住」；内联 zIndex 覆盖静态基线，后开恒在上，Dialog 340 / Tooltip 300 不走本表不受影响）。消费者：Popover/Select 走 hook；**Menu 的 useMenuTree 卸下外点监听与 activeMenuClose 互斥单例**——两套监听并存时同一 pointerdown 双关，受控 onOpenChange 会收到两次回调（测试实测），职责单化到 dismiss 层；MenuSurface 逐层登记（主层 isAnchor+getAnchorEl 传根触发器、子层 getAnchorEl 传父项），useMenuTree 只剩受控 open 与整树关闭还焦。useMenuTree 的 registerContainer 容器登记随之删除（子层自身即独立层，链判定取代容器集合）。
+- 迁移口径（antd Popover）：`trigger="hover"` 用法迁 Tooltip、`trigger="focus"` 逐例复核（focus-visible 显示归 Tooltip）；placement 12 向同名直映；title/content 二分对应 Header/Body；04 删除清单随锚点事件补章节。
+- 影响：`ui/primitives/`（Popover.tsx 新增；anchoredPosition.ts 更名；useAnchoredPosition/FloatingArrow/mergeRefs/useLayerDismiss 新增；Tooltip/Menu/Select 改造为消费者）、`__tests__/`（tooltip.test.ts → anchoredPosition.test.ts 更名、popover.test.tsx 新增）、样板间「Popover」档案（Dialog 之后，四种头行形态 + 嵌套链演示）、03 指南 §2 目录树 primitives 补齐 / §5 Popover 使用边界 / §9 任务 2 勾选、`mockups/popover/plan-b-modern.html` 已标注定稿口径（A/C 留档对照）。Popover.Body 滚动条：thumb 走全局 4px 细墨条（Dialog 的 track 间距/圆角专属形制勿外推，D-012），但**距右缘 4px 的透明右边框挤位手法扩展到 Popover**（2026-09-18 用户实机反馈：滚动条贴容器右缘）——D-012「勿外推」收窄为 thumb 形制不外推，右缘内缩是浮层滚动区的通用口径。
+- 验证：`__tests__/popover.test.tsx` 11 例（开合 aria 与 labelled-by 接头行 · data-autofocus 初始焦点 · Esc 两处消费不冒泡还焦 · Tab 放行默认行为 · 触发器键盘开合 · 外点/浮层内点击/× · 嵌套链不误伤 + Esc LIFO · 顶层互斥 · 受控 open · 箭头 prop）；既有 65 例回归全绿（Menu 65→58 内含子层链路经 dismiss 层重验）；tsc 0 错误；样板间双主题目验。
+
+---
+
 ## D-015 文章页定稿 A3「月刊」并落地（features/articles）
 
 - 背景：文章页三方案设计稿（`mockups/articles/`，A 杂志书架 / B 档案行 / C 浏览台双栏，2026-09-19 用户裁决以 A 为基础演进；A 系三变体 A1 书架 v2 / A2 密集书架 / A3 月刊，同日裁决 **A3 定稿**）。评审基线（详见 PREFERENCES.md）：新建/导入在工具栏右上角（废除右下悬浮球）、无限滚动（废除手动加载与分页器）、无 banner 文章以 **id 派生色封面**兜底（12 色粉彩板，×7 错开取色，同篇同色、相邻异色）、无页内搜索（全局 Ctrl K）与排序（按月归段即时间序）、sticky 三层（工具栏 44 / 标签栏 38 / 月头 82px）背景连续不透字、「窗口打开」仅 Electron 渲染。
@@ -131,27 +143,19 @@
 - 影响：全应用 `hover:` 类行为（侧栏/按钮/卡片所有 hover 反馈）在触摸屏设备恢复；与 `@custom-variant dark` 同位的既有先例。
 - 验证：tsc 0 错误、ui 域 91 测试全过；确证手段 devtools console `matchMedia("(hover: hover)").matches` 于故障期为 false。
 
-## D-014 Popover 基础件：方案 B「现代产品」形制 + 浮层公共底盘抽取（useAnchoredPosition / FloatingArrow / mergeRefs / useLayerDismiss）
-
-- 背景：Popover 三方案设计稿（`mockups/popover/`，A 经典桌面 / B 现代产品 / C 密集工作台，同内容共行为只换皮），2026-09-18 用户裁决方案 B。设计稿同步回答「与 Tooltip 能抽多少公共」：定位引擎早已公共（D-004），真正的账在引擎之外——定位跟随 useLayoutEffect / 箭头几何 / ref 合并在 Tooltip、Menu、Select 三处各有一份近似实现，Popover 是第四消费者，按「两例交集才抽」（D-007 原则）本次一并兑现。家族分工：Tooltip 瞬态说明（hover/focus、不可交互）、Menu 命令面板、Select 表单值选择、Dialog 模态决策、Toast 回执；Popover 收「点击触发、内容可继续操作」的非模态浮层。
-- 选择：① **形制 = 方案 B**——无标题栏内容卡（surface + line-1 + radius-lg + shadow-float）、头行随需（icon 圆底 + 标题 + ghost ×，色板/成员卡可无头行零框架税）、footer 随需（hairline 之上按钮右对齐）、8px 菱形箭头 surface 档（与 Tooltip 同几何）、进场 translateY(4px)+scale(0.98) 160ms 方向随 flip——与 Menu B/Toast/Dialog B 同一浮层语言；② **API = 复合组件**（`Popover.Header/.Body/.Footer` + trigger 克隆注入）——内容任意（说明卡/过滤器/色板/成员卡），数据驱动无 DSL 可言，同 Menu 复合裁决不外推反例；③ **行为**：click toggle 内建（hover 说明归 Tooltip、右键归 ContextMenu，不设 trigger props）；定位 D-004 引擎 **placement 12 向全表的首个消费者**（gap 8、宽随内容 180–340、无 matchTriggerWidth 概念）；Esc 焦点链 LIFO（同 D-007/D-010/D-011 口径，不进 D-003 注册表）；Tab 移出即关（非模态不圈闭，还焦触发器后浏览器续移）；初始焦点落 `data-autofocus`（无则卡片自身）；受控 open（§5.3）。
-- 公共底盘四件抽取（同提交兑现）：① `tooltipPosition.ts` → **`anchoredPosition.ts`**（函数更名 `computeAnchoredPosition`，Tooltip/Menu/Select/测试引用点同步；`TooltipPlacement` 等类型在 Tooltip.tsx 保留别名，存量引用不动；箭头投影写入 `applyArrowPosition` 与 ARROW_SIZE/ARROW_TIP_OFFSET 常量同住引擎文件，组件文件只导出组件）；② **`useAnchoredPosition`**——三处同构的「双遍进场定位 + scroll(capture)/resize rAF 合并重算」收口，Tooltip 特有的 rAF 轮询动态锚参数化为 `pollAnchor`，Select 的 minWidth 写入走 `onPlace` 回调，内容尺寸变化经 ResizeObserver 自适应重定位（评审修正：初版以内容 props 做 `deps`，父级无关 re-render 也会换 identity 导致整个生命周期重挂，改为观察浮层自身尺寸，jsdom 无 RO 静默跳过）；③ **`FloatingArrow` + `applyArrowPosition`**——箭头几何与投影写入组件化，配色两档（tooltip 反相 ink-1 / surface 亮底），宿主约定 `group/float` + `data-side`；④ **`mergeRefs`**——三处克隆注入的 ref 合并收口。有意不抽两件：hover intent（Tooltip 特有瞬态意图判定，click 语义无对应物）、触发器事件注入（hover+focus 与 click 键盘开合事件集不同，合并即「参数选模式」复合体）。
-- **useLayerDismiss（登记制外点仲裁）**：外点关闭（pointerdown capture）+ 嵌套链（子层触发器落在哪个已开层 DOM 内即为其子层，Portal 兄弟无法 contains 判定）+ 顶层互斥（开新层关非祖先链层）+ **层序分配**（登记时按全局开合序递增 zIndex：React 深度优先提交让嵌套浮层的 portal 先于宿主插入 body，同 z-[250] 时 DOM 靠后者绘制在上、子层反被父层盖住——2026-09-18 用户实机反馈「高级选项被一级盖住」；内联 zIndex 覆盖静态基线，后开恒在上，Dialog 340 / Tooltip 300 不走本表不受影响）。消费者：Popover/Select 走 hook；**Menu 的 useMenuTree 卸下外点监听与 activeMenuClose 互斥单例**——两套监听并存时同一 pointerdown 双关，受控 onOpenChange 会收到两次回调（测试实测），职责单化到 dismiss 层；MenuSurface 逐层登记（主层 isAnchor+getAnchorEl 传根触发器、子层 getAnchorEl 传父项），useMenuTree 只剩受控 open 与整树关闭还焦。useMenuTree 的 registerContainer 容器登记随之删除（子层自身即独立层，链判定取代容器集合）。
-- 迁移口径（antd Popover）：`trigger="hover"` 用法迁 Tooltip、`trigger="focus"` 逐例复核（focus-visible 显示归 Tooltip）；placement 12 向同名直映；title/content 二分对应 Header/Body；04 删除清单随锚点事件补章节。
-- 影响：`ui/primitives/`（Popover.tsx 新增；anchoredPosition.ts 更名；useAnchoredPosition/FloatingArrow/mergeRefs/useLayerDismiss 新增；Tooltip/Menu/Select 改造为消费者）、`__tests__/`（tooltip.test.ts → anchoredPosition.test.ts 更名、popover.test.tsx 新增）、样板间「Popover」档案（Dialog 之后，四种头行形态 + 嵌套链演示）、03 指南 §2 目录树 primitives 补齐 / §5 Popover 使用边界 / §9 任务 2 勾选、`mockups/popover/plan-b-modern.html` 已标注定稿口径（A/C 留档对照）。Popover.Body 滚动条：thumb 走全局 4px 细墨条（Dialog 的 track 间距/圆角专属形制勿外推，D-012），但**距右缘 4px 的透明右边框挤位手法扩展到 Popover**（2026-09-18 用户实机反馈：滚动条贴容器右缘）——D-012「勿外推」收窄为 thumb 形制不外推，右缘内缩是浮层滚动区的通用口径。
-- 验证：`__tests__/popover.test.tsx` 11 例（开合 aria 与 labelled-by 接头行 · data-autofocus 初始焦点 · Esc 两处消费不冒泡还焦 · Tab 放行默认行为 · 触发器键盘开合 · 外点/浮层内点击/× · 嵌套链不误伤 + Esc LIFO · 顶层互斥 · 受控 open · 箭头 prop）；既有 65 例回归全绿（Menu 65→58 内含子层链路经 dismiss 层重验）；tsc 0 错误；样板间双主题目验。
-
 ---
 
-## D-018 DatePicker 组件族：方案 A 经典月历为基座，值形状拆两导出、能力走 prop
+## D-017 DatePicker 组件族：方案 A 经典月历为基座，值形状拆两导出、能力走 prop
 
 - 定向（2026-09-19，mockups/datepicker/ 四方案评审）：A「经典月历」为基座——即点即定、标题钻取（日→月→年代）、六周固定 42 格、界外日可点跨月。B 复合面板并入范围形态，C 输入驱动挂起为 inputMode 候选，D 紧凑迷你挂起待行内消费点出现再裁。
 - API 按值形状拆分：`DatePicker`（value: string | null）与 `DateRangePicker`（value: readonly [string, string] | null）两个导出共享日历引擎/弹层契约/触发器皮；时间与预设不另立组件——`precision: "day" | "minute"`（取代 antd showTime，值格式 "YYYY-MM-DD[ HH:mm]" 随之确定）与 `presets`（数据驱动、内容使用方决定、即点即定）走 prop。纯时刻（HH:mm）唯一消费点是 TimeRecordView，暂缓独立 TimePicker 原语。
 - 提交模型跟着 precision 走：day 点日期即提交；minute 点日期只挂起，底栏时刻区（自由键入任意分钟 + 步长网格快捷通道）+「确定」显式提交；范围手选走「起点 → 悬停预览 → 终点（自动交换）→ 确定」三道闸，预设一律即选即定。
 - 实现：`packages/ui/src/primitives/datepicker/`（calendarEngine 纯函数 + CalendarPanel + TimeField + 两导出），替换同日未提交的初版实现（range/showTime 布尔 prop + 时间戳值模型，无消费者）；database 包 DateEditor/DateFilter 同步迁移（时间戳 ↔ string 桥接放消费侧）。
-- 验证：`__tests__/datepicker.test.tsx` + `calendarEngine.test.ts` 22 例（值协议越界拒绝 · day 即点即定 · minute 挂起与确定 · 时刻宽松键入/越界还原/网格选格 · 预设即点即定与命中回显 · 钻取 · 键盘开合/方向键/Enter/Esc 不冒泡 · 禁用日期 · 范围三道闸与反序交换 · 外点关闭）；@tau/ui 全量 130 例回归绿；@tau/ui / @tau/database / apps/desktop 三处 tsc 0 错误；样板间「DatePicker」档案已登记。
+- 验证：`__tests__/datepicker.test.tsx` + `calendarEngine.test.ts` 22 例（值协议越界拒绝 · day 即点即定 · minute 挂起与确定 · 时刻宽松键入/越界还原/网格选格 · 预设即点即定与命中回显 · 钻取 · 键盘开合/方向键/Enter/Esc 不冒泡 · 禁用日期 · 范围三道闸与反序交换 · 外点关闭）；@tau/ui 全量 130 例回归绿；@tau/ui / apps/desktop 两处 tsc 0 错误；样板间「DatePicker」档案已登记。
 
-## D-019 Input 组件族：方案 A「经典描边」重写，错误态正源 aria-invalid、FormField 归 patterns
+---
+
+## D-018 Input 组件族：方案 A「经典描边」重写，错误态正源 aria-invalid、FormField 归 patterns
 
 - 定向（2026-09-19，mockups/input/ 四方案评审）：A「经典描边」为基线——surface 亮底 + line-1 + focus ring，与 Select/DatePicker 触发器同皮（2026-09-17 裁决延续）；B 槽形 / C 下划线行内 / D 装备化未采纳，D 的装备位（lead 文本后缀 / addon / 密码显隐 / 步进器）等真实消费点出现再裁。
 - 边界（用户裁决）：Input 只专注输入的基本能力——错误态正源是原生 `aria-invalid`（无 status prop，容器经 has- 变体响应，视觉与读屏语义锁死同源）；判定（zod）/ 错误文案 / touched 策略归表单层；FormField 移出 Input 归 `ui/patterns` 的 FormRow（02 §5.1 规划位，现 patterns/FormRow.tsx 为未经设计稿评审的占位迁移，勿在此基础上加能力）。
@@ -160,7 +164,7 @@
 - 教训：`has(:read-only)` 匹配任意不可编辑后代元素（span / button 全中招）导致 :has() 恒真、盖掉全部 focus 效果——:read-only 必须限定到表单元素（has(input:read-only)）。
 - 实现：`packages/ui/src/primitives/input/`（Input / Textarea / NumberInput / numberGuard 纯函数层 + 16 例测试）；mockups/input/ 四方案 + 导览留档；@tau/ui 整包未跟踪期间 index.ts 导出与 Select 的 hover 同步修正随包首次提交。
 
-## D-020 Checkbox / Switch：方案 A 语言重写，Choice.tsx 拆除；新增 bg-track 控件轨道 token
+## D-019 Checkbox / Switch：方案 A 语言重写，Choice.tsx 拆除；新增 bg-track 控件轨道 token
 
 - 定向（2026-09-19，mockups/checkbox/ 与 mockups/switch/）：按 Input 方案 A「经典描边」语言定稿——Checkbox 16×16 视觉格 surface + line-1、选中 accent 实底 + 勾 110ms 淡入（无动效 prop，用户裁决「纯粹一点」）；Switch「轨道是槽、thumb 是浮起物」——未选中轨道消费 bg-track，thumb 恒为 surface + ink-3 描边环（选中后功成身退），选中转 accent。
 - 新增语义 token `--tau-bg-track`（用户裁决：组件禁止 color-mix 派生 hack——问题在深色主题取值层解决）：控件轨道（开关/滑杆槽）是部件色，不属表面四档阶梯（D-006「沉到 page 之下」约束不到——深色下 group/sunken 必然偏黑）。取值 cream #e0d6c3 / cocoa #463d31（亮于 surface 使 thumb 可辨）。tokenContract 新增 control 组、02 §2.3 词汇表同步。
@@ -168,23 +172,22 @@
 - 拆除：Choice.tsx 杂烩文件删除；RadioGroup 原样迁出占位（未经设计稿，待定稿重做）；Tabs 无消费者随拆。
 - 实现：primitives/Checkbox.tsx + Switch.tsx + RadioGroup.tsx（占位）+ **tests**/choice.test.tsx 8 例；theme 体系（tokenContract/themes/tokens.css）随 @tau/ui 包首次提交进库。
 
-## D-021 Radio / RadioGroup：环+点形制定稿，API 从 options 数据驱动改组合式
+## D-020 Radio / RadioGroup：环+点形制定稿，API 从 options 数据驱动改组合式
 
 - 定向（2026-09-19，mockups/radio/ 评审后用户拍板「按此实现」）：选中态取**环+点**（line-1 → accent 描边 + 中心 accent 实点 110ms 进场）而非 Checkbox 的实底翻转——「经典描边」语言里状态变化落在描边维度（与 Input focus、Checkbox hover 同一语法），radio 形状本身即语义（圆+心），16px 格上实底挖洞环厚仅 ~4.5px 信噪比低；实底变体留 mockups 对照页。零新 token。
 - API 组合式（推翻占位的 options 数据驱动，antd Radio.Group options 不采）：`RadioGroup`（fieldset/legend 组语义 + `value/defaultValue/onValueChange` 受控契约 + `orientation: horizontal | vertical` + `name` 默认 useId + 组级 disabled 走 fieldset 原生传播）包 `Radio`（`value/label/description`）；描述行（label+desc 两行顶对齐）只有组合式能表达。Radio 须在组内用（context 通道），组外退化为裸原生 radio（自传 name）。
 - 一处对 mockup 的纠偏：description 字号取 `text-tau-meta`（12.5px）而非设计稿的 11.5px——02 规范说明性正文下限裁决优先于视觉参考。
 - 原生 radio 组行为白送不重造：Tab 一次进组（选中项/首个可用项）、方向键移动即选择（roving）、组内互斥；错误态正源 aria-invalid 且选中优先（同 Checkbox）。
-- 消费方迁移：@tau/database plugins 3 处（日期排序/分组依据、评分步长）options → 组合式，随 database 侧改动提交。
 - 实现：primitives/RadioGroup.tsx（context + 组）+ Radio.tsx + **tests**/radio.test.tsx 9 例；@tau/ui 全量 163 例绿；样板间并入 ChoiceSection（Checkbox/Switch/Radio 选择控件同档，registry label 同步）。
 
-## D-022 Tag：A+B 结合 II「点 + 软底」定稿，色点落为可选能力；ValueDisplay 族首件出列
+## D-021 Tag：A+B 结合 II「点 + 软底」定稿，色点落为可选能力；ValueDisplay 族首件出列
 
 - 定向（2026-09-19，mockups/tag/ 三方案 + 两轮结合稿评审）：A 描边+色点 / B 软底 / C 点标记三案，用户裁决取 A、B 结合——先出结合稿 I（彩描边：surface + 1px 分类色描边 + 同源文字），同日追加「A 的点 + B 的背景」出结合稿 II，**终选 II**：soft 底 + 同系 solid 文字 + solid 色点三层同色阶（Notion select 选项语感）；I 与 A/C 留档 mockups 供后续参照。
-- 色点是能力而非固定形制：`showDot` prop（默认开；gray 恒无点——无色 = 无分类）。@tau/database 消费方（ChoiceCell / 编辑器已选区 / 选项列表）实际全数 `showDot={false}`——产品内基准形态为纯软底，点留给后续强调场景。
+- 色点是能力而非固定形制：`showDot` prop（默认开；gray 恒无点——无色 = 无分类）。产品内基准形态为纯软底，点留给强调场景。
 - 契约：7 色板与 ColorSwatch 同源（red/orange/yellow/green/gray/blue/purple 映射 danger/accent 系/warn/ok/group/info/tag-3）；orange 文字走 accent-text、点走 accent（**分语义位**——文字位与图形位分 token，新主题各自跟随对比度约束）；语义状态复用色板不设 status prop；单尺寸（高 22、tau-sm）无档；长文本 truncate；antd 的 bordered/icon/Clickable/Checkable 一律不迁。
 - 纯展示 span（非交互、无命中要求）；`onRemove` 数据驱动显 ×（button + aria-label，伪元素外扩热区 24 不撑破药丸，focus-visible 才显 ring，stopPropagation 防表格行牵连）。
 - 编辑浮层裁决：已选区 Tag 不加 onRemove——浮层内标签是纯展示，提交/取消/失焦由编辑宿主（InlineEditCell）统一仲裁，业务按钮绕过仲裁会与焦点域判定打架（用户裁决「让弹窗去处理」）。
-- 实现：primitives/Tag.tsx（TAG_COLORS/TagColor 色板契约随迁，ValueDisplay.tsx 剩 ColorSwatch/ProgressBar/Rating 占位）+ **tests**/tag.test.tsx 5 例；零新 token（soft/solid 全既有）；@tau/ui 全量 168 例绿；样板间新建 TagSection。database 侧同步（随使用方工作区）：ChoiceEditor 单选分支 Checkbox→RadioGroup（D-021 收尾）+ gap-1 紧凑档 + 各消费点 showDot={false}。
+- 实现：primitives/Tag.tsx（TAG_COLORS/TagColor 色板契约随迁，ValueDisplay.tsx 剩 ColorSwatch/ProgressBar/Rating 占位）+ **tests**/tag.test.tsx 5 例；零新 token（soft/solid 全既有）；@tau/ui 全量 168 例绿；样板间新建 TagSection。
 
 ## Page 迁移清单（M2 起滚动勾选）
 
