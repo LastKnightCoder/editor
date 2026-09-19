@@ -17,12 +17,15 @@ import {
   RectangleHorizontal,
   Ruler,
   SquarePlus,
+  Tag as TagIcon,
   MessagesSquare,
 } from "lucide-react";
 
 import ButtonSection from "./ButtonSection";
 import IconButtonSection from "./IconButtonSection";
 import SelectSection from "./SelectSection";
+import ChoiceSection from "./ChoiceSection";
+import DatePickerSection from "./DatePickerSection";
 import MenuSection from "./MenuSection";
 import DialogSection from "./DialogSection";
 import PopoverSection from "./PopoverSection";
@@ -33,6 +36,7 @@ import LoadingSection from "./LoadingSection";
 import HeatmapSection from "./HeatmapSection";
 import TokenSection from "./TokenSection";
 import ScaleSection from "./ScaleSection";
+import TagSection from "./TagSection";
 
 export interface SectionMeta {
   key: string;
@@ -59,6 +63,21 @@ export const SECTIONS: SectionMeta[] = [
   },
   { key: "panel", label: "Panel 族", group: "基础件", icon: PanelTop, component: PanelSection },
   { key: "select", label: "Select", group: "基础件", icon: ListChecks, component: SelectSection },
+  {
+    key: "choice",
+    label: "Checkbox · Switch · Radio",
+    group: "基础件",
+    icon: ListChecks,
+    component: ChoiceSection,
+  },
+  { key: "tag", label: "Tag", group: "基础件", icon: TagIcon, component: TagSection },
+  {
+    key: "datepicker",
+    label: "DatePicker",
+    group: "基础件",
+    icon: CalendarDays,
+    component: DatePickerSection,
+  },
   {
     key: "menu",
     label: "Menu · ContextMenu",
