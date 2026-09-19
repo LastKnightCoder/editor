@@ -143,6 +143,14 @@
 
 ---
 
+## D-018 DatePicker 组件族：方案 A 经典月历为基座，值形状拆两导出、能力走 prop
+
+- 定向（2026-09-19，mockups/datepicker/ 四方案评审）：A「经典月历」为基座——即点即定、标题钻取（日→月→年代）、六周固定 42 格、界外日可点跨月。B 复合面板并入范围形态，C 输入驱动挂起为 inputMode 候选，D 紧凑迷你挂起待行内消费点出现再裁。
+- API 按值形状拆分：`DatePicker`（value: string | null）与 `DateRangePicker`（value: readonly [string, string] | null）两个导出共享日历引擎/弹层契约/触发器皮；时间与预设不另立组件——`precision: "day" | "minute"`（取代 antd showTime，值格式 "YYYY-MM-DD[ HH:mm]" 随之确定）与 `presets`（数据驱动、内容使用方决定、即点即定）走 prop。纯时刻（HH:mm）唯一消费点是 TimeRecordView，暂缓独立 TimePicker 原语。
+- 提交模型跟着 precision 走：day 点日期即提交；minute 点日期只挂起，底栏时刻区（自由键入任意分钟 + 步长网格快捷通道）+「确定」显式提交；范围手选走「起点 → 悬停预览 → 终点（自动交换）→ 确定」三道闸，预设一律即选即定。
+- 实现：`packages/ui/src/primitives/datepicker/`（calendarEngine 纯函数 + CalendarPanel + TimeField + 两导出），替换同日未提交的初版实现（range/showTime 布尔 prop + 时间戳值模型，无消费者）；database 包 DateEditor/DateFilter 同步迁移（时间戳 ↔ string 桥接放消费侧）。
+- 验证：`__tests__/datepicker.test.tsx` + `calendarEngine.test.ts` 22 例（值协议越界拒绝 · day 即点即定 · minute 挂起与确定 · 时刻宽松键入/越界还原/网格选格 · 预设即点即定与命中回显 · 钻取 · 键盘开合/方向键/Enter/Esc 不冒泡 · 禁用日期 · 范围三道闸与反序交换 · 外点关闭）；@tau/ui 全量 130 例回归绿；@tau/ui / @tau/database / apps/desktop 三处 tsc 0 错误；样板间「DatePicker」档案已登记。
+
 ## Page 迁移清单（M2 起滚动勾选）
 
 > 33 个 TabType 的完整映射与合并方案见蓝图 §5.3，此处只跟踪迁移状态。
