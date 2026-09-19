@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tau 桌面端 · DatePicker 方案导览（四形态路线对比）</title>
+<!--
+  DatePicker 基础件设计导览。与 Select 一轮（分歧在 API 形态）不同，DatePicker 的
+  API 契约没有争议——02 §5.3 已锁（value/onValueChange + open/onOpenChange +
+  size + forwardRef），本轮分歧在「面板形态 × 提交模型 × 输入通道」：
+  经典月历（钻取基座）/ 复合面板（范围主场）/ 输入驱动（键盘通道）/ 紧凑迷你（密度特化）。
+  四页共用同一触发器家族与弹层三件套，证明「形态与契约解耦」。
+  02 §5.2 已定口径：DatePicker = 弹层日历面板（dialog 浮层），定位走 D-004 自研
+  mini 引擎，Esc 走浮层 LIFO。dayjs 为日期基座（legacy DatePicker 已在用）。
+-->
+<style>
+:root {
+  --ink: #1d1f24; --ink-2: #5b606b; --ink-3: #8b919c;
+  --bg: #fcfcfd; --surface: #fff; --line: #e6e8ec; --accent: #4650c8;
+  --accent-soft: rgba(70, 80, 200, 0.09);
+  --good: #3e6b4f; --bad: #9c5148;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--ink); background: var(--bg); font-size: 14px; line-height: 1.75; }
+.page { max-width: 1060px; margin: 0 auto; padding: 48px 32px 96px; }
+h1 { font-size: 26px; letter-spacing: -0.01em; margin-bottom: 8px; }
+.lede { color: var(--ink-2); max-width: 80ch; margin-bottom: 8px; }
+.lede b { color: var(--ink); }
+h2 { font-size: 19px; margin: 46px 0 6px; }
+h2 + p { color: var(--ink-2); margin-bottom: 16px; max-width: 80ch; }
+a { color: var(--accent); }
+kbd { padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--surface); font-size: 12px; font-family: ui-monospace, Consolas, monospace; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--accent-soft);
+  color: var(--accent); border-radius: 5px; padding: 1px 6px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+td b.ok { color: var(--good); } td b.bad { color: var(--bad); } td b.mid { color: #8a6d3b; }
+
+.plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; }
+@media (max-width: 900px) { .plan-grid { grid-template-columns: 1fr; } }
+.plan-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+.plan-card h3 { font-size: 15.5px; margin-bottom: 2px; }
+.plan-card .en { font-size: 11.5px; color: var(--ink-3); margin-bottom: 10px; }
+.plan-card .stance { font-size: 12.5px; color: var(--ink-2); margin-bottom: 12px; }
+.plan-card .stance b { color: var(--ink); }
+.wf { height: 118px; border: 1px solid var(--line); border-radius: 10px; background: #f6f7f9;
+  position: relative; margin-bottom: 12px; overflow: hidden; font-family: ui-monospace, Consolas, monospace; }
+.wf .node { position: absolute; border-radius: 6px; background: #fff; border: 1px solid var(--line);
+  font-size: 10.5px; color: var(--ink-2); padding: 2px 8px; white-space: nowrap; }
+.wf .node.acc { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.wf .node.dim { background: #f0f1f4; color: var(--ink-3); }
+.wf .arrow { position: absolute; color: #b6bac2; font-size: 11px; }
+.plan-card ul { list-style: none; font-size: 12.5px; color: var(--ink-2); }
+.plan-card li { padding-left: 15px; position: relative; margin: 3px 0; }
+.plan-card li::before { content: "·"; position: absolute; left: 4px; color: var(--ink-3); }
+.plan-card li.good { color: var(--good); }
+.plan-card li.bad { color: var(--bad); }
+.open-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px; border-radius: 9px;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 550; text-decoration: none; margin-top: 10px; }
+.open-btn:hover { filter: brightness(1.08); }
+.plan-card .fit { font-size: 12px; background: #f6f7f9; border: 1px dashed var(--line); border-radius: 8px;
+  padding: 8px 12px; margin-top: 10px; color: var(--ink-2); }
+.plan-card .fit b { color: var(--ink); }
+
+.decision { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-top: 14px; }
+.decision h3 { font-size: 15px; margin-bottom: 8px; }
+.decision ol { padding-left: 20px; font-size: 13px; color: var(--ink-2); }
+.decision ol li { margin: 7px 0; }
+.decision ol li b { color: var(--ink); }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; }
+.verdict { display: inline-flex; align-items: center; gap: 6px; background: #eef4ee; color: var(--good);
+  border: 1px solid #d5e3d5; border-radius: 99px; padding: 2px 12px; font-size: 12px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>DatePicker 基础件 · 方案导览</h1>
+<p class="lede">本轮已出方向：<b>以方案 A 为基座</b>（经典月历 · 即点即定 · 钻取导航），扩展能力走 prop——<code>presets</code> 预设行（日历下方、内容使用方决定）与 <code>precision="minute"</code>（底栏时刻区 + 15 分钟时刻网格 + 确定提交，取代 antd showTime）；按「值形状」拆两个导出 <b>DatePicker / DateRangePicker</b>（B 形态并入，共享日历引擎 / 弹层契约 / 触发器），时间与预设不另立组件。方案 A 演示页已升级为 <b>A+</b>（含全部扩展演示）。四页共用同一触发器家族与弹层三件套（surface 最亮 + shadow-float + radius-lg，D-004 mini 引擎定位）。已锁共识：02 §5.2 已定 DatePicker = 弹层日历面板（M2 前），API 契约走 §5.3（<code>value/onValueChange</code> + 浮层 <code>open/onOpenChange</code>），日期基座 <b>dayjs</b>（legacy 已在用）。</p>
+
+<!-- ═══════════ 业界参照 ═══════════ -->
+<h2>业界参照</h2>
+<table>
+  <thead><tr><th>产品 / 库</th><th>形态</th><th>值得借鉴 / 教训</th></tr></thead>
+  <tbody>
+    <tr><td><b>antd DatePicker</b></td><td>月历 + 钻取 + showTime/Range 全家桶</td><td>钻取导航（点标题进月/年视图）是中文用户熟悉的心智；反面教材是 API 面失控（picker/showTime/panelRender/inputRender……）与面板信息密度过高——自研守住受限版边界</td></tr>
+    <tr><td><b>Radix / React-Aria Calendar</b></td><td>无头日历 + 组合</td><td>键盘网格导航与 aria 语义的天花板（方向键/PgUp/Home/End 全内建），本轮 A/D 键盘模型的参照</td></tr>
+    <tr><td><b>Linear</b></td><td>轻量月历 + 快捷词</td><td>桌面生产力工具的语感来源：面板轻、无装饰、即点即定；范围用悬停预览——B 的预览交互参照</td></tr>
+    <tr><td><b>Notion 日期属性</b></td><td>输入即解析 + 日历辅助</td><td>打字优先的范本：自然语言词表收敛（today/tomorrow/下周三），无效输入安静报错——C 的词表边界参照</td></tr>
+    <tr><td><b>Things / 系统日历 popover</b></td><td>紧凑格子</td><td>行内改期的小面板语感（26px 格级别）；教训是格太小触屏不可用——D 的命中面积裁决点</td></tr>
+    <tr><td><b>原生 <code>&lt;input type="date"&gt;</code></td><td>HTML</td><td>无障碍白送但弹层由系统渲染：<b>不可主题化</b>，cocoa 深色窗口里弹系统白色面板——一票否决（Electron 无原生加成），仅作认知锚点</td></tr>
+  </tbody>
+</table>
+<p class="note">共识（四方案一致，不进裁决）：① 触发器与 Select / Input 同族（surface 亮底 + line-1 描边，2026-09-17 表单控件裁决）；② 弹层 = 浮层三件套 + D-004 mini 引擎（Select/Menu/Popover 同源）+ Portal z-[250]；③ Esc 走浮层 LIFO（useEscapeDismiss），业务组件不自监听；④ 周一起始（dayjs zh-CN 现状）；⑤ 数字一律 tabular-nums；⑥ 今天/选中/范围三态的用色纪律：实底只给「选中端点」，soft 底给范围中段，今天只是文字色 + 圆点。</p>
+
+<!-- ═══════════ 四方案 ═══════════ -->
+<h2>四条形态路线</h2>
+<div class="plan-grid">
+
+  <div class="plan-card">
+    <h3>方案 A · 经典月历 <span class="verdict">基座已定向</span></h3>
+    <div class="en">钻取导航基座 — plan-a-classic.html（已升级 A+）</div>
+    <div class="wf">
+      <div class="node acc" style="left:30px; top:12px;">‹ 2026年9月 ›</div>
+      <div class="node dim" style="left:30px; top:38px;">一 二 三 四 五 六 日</div>
+      <div class="node" style="left:56px; top:64px;">15 16 <b style="color:#4650c8">17</b> 18</div>
+      <div class="node dim" style="left:30px; top:90px;">今天 · 清空（文本动作）</div>
+      <div class="arrow" style="left:150px; top:22px;">↓ 点标题钻取</div>
+      <div class="node dim" style="left:196px; top:38px;">月视图 12 格</div>
+      <div class="node dim" style="left:200px; top:64px;">年代视图 12 格</div>
+    </div>
+    <div class="stance"><b>最薄的单日期面板。</b>276px 紧凑弹层 + 即点即定（无确定按钮）；标题钻取（日→月→年）取代 antd 的年月切换面板；界外日可点自动跨月；六周固定高度防跳变。</div>
+    <ul>
+      <li class="good">单日期最短路径：点一下即提交</li>
+      <li class="good">实现最薄，是 B/C/D 共用的结构母体</li>
+      <li class="good">antd 用户零学习（钻取心智同源）</li>
+      <li class="good">A+ 扩展：presets 预设行（内容使用方决定）+ precision="minute" 时刻区</li>
+      <li class="bad">范围选择装不下（由 DateRangePicker 同引擎承载）</li>
+      <li class="bad">纯鼠标路径，打字用户要伸手拿鼠标</li>
+    </ul>
+    <div class="fit"><b>适合：</b>单日期的默认答案；范围走 DateRangePicker（B 形态并入），时间与预设走 prop 不另立组件。</div>
+    <a class="open-btn" href="plan-a-classic.html">打开方案 A+</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>方案 B · 复合面板</h3>
+    <div class="en">范围主场 — plan-b-composite.html</div>
+    <div class="wf">
+      <div class="node acc" style="left:26px; top:12px;">预设列</div>
+      <div class="node dim" style="left:26px; top:36px;">本周 · 最近30天</div>
+      <div class="node" style="left:104px; top:12px;">9月 ‹ ›</div>
+      <div class="node" style="left:186px; top:12px;">10月</div>
+      <div class="node dim" style="left:104px; top:36px;">[soft底区间→端点]</div>
+      <div class="node acc" style="left:26px; top:90px;">9月12日 – 9月19日 · 共 8 天 ｜ 清空 · 确定</div>
+      <div class="arrow" style="left:76px; top:22px;">→</div>
+    </div>
+    <div class="stance"><b>范围 = 查询意图的表达。</b>预设列（业务传入、即选即定）+ 双月并排（跨月不翻页）+ 底栏（摘要 + 清空/确定）。手选范围走「预览 → 摘要 → 确定」三道闸——范围错一格就触发下游重查询。</div>
+    <ul>
+      <li class="good">日记筛选 / 统计范围一步到位，预设是高频刚需</li>
+      <li class="good">悬停预览：选错在提交前看得见</li>
+      <li class="good">不传 presets/range 即退化为 A（同一结构，非第二个组件）</li>
+      <li class="bad">面板最宽（约 640px）、结构最重</li>
+      <li class="bad">确定按钮对单日期场景是纯摩擦（所以退化态恢复即点即定）</li>
+    </ul>
+    <div class="fit"><b>适合：</b>MomentFilterBar、统计页范围筛选——antd RangePicker 的对应物。</div>
+    <a class="open-btn" href="plan-b-composite.html">打开方案 B</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>方案 C · 输入驱动</h3>
+    <div class="en">键盘通道 — plan-c-input.html</div>
+    <div class="wf">
+      <div class="node acc" style="left:30px; top:12px;">[ 明天            📅 ]</div>
+      <div class="node" style="left:30px; top:38px;">→ 2026年9月20日 · 周日</div>
+      <div class="node dim" style="left:30px; top:64px;">（辅助日历 · 高亮候选）</div>
+      <div class="node dim" style="left:30px; top:90px;">Enter 提交 · Esc 还原</div>
+      <div class="arrow" style="left:216px; top:16px;">打字优先</div>
+      <div class="node dim" style="left:196px; top:60px;">日历兜底</div>
+    </div>
+    <div class="stance"><b>打字是第一通道。</b>触发器即输入框，边输边解析；候选条实时投影解析结果；日历退居确认与兜底。词表白名单（相对日 / ±n 天 / 周X / 月日 / 绝对日期），不认识安静报 danger——<b>不做自由 NLP，猜错的日期比报错贵</b>。</div>
+    <ul>
+      <li class="good">键盘宪法（02 §1 第 5 条）的极致演绎，行内编辑零摩擦</li>
+      <li class="good">Esc 还原而非清空——输入框语义的正确性</li>
+      <li class="good">与 A 同一面板引擎，inputMode 换通道而已</li>
+      <li class="bad">词表是长期维护面（每加一个词都要过一遍歧义）</li>
+      <li class="bad">鼠标/触屏用户无增益</li>
+    </ul>
+    <div class="fit"><b>适合：</b>数据库 DatePlugin 行内属性、任务快速录入——Notion 式消费点。</div>
+    <a class="open-btn" href="plan-c-input.html">打开方案 C</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>方案 D · 紧凑迷你</h3>
+    <div class="en">密度特化 — plan-d-dense.html</div>
+    <div class="wf">
+      <div class="node acc" style="left:26px; top:12px;">‹ 2026/9 ›（点→月条）</div>
+      <div class="node dim" style="left:26px; top:36px;">一二三四五六日（10px）</div>
+      <div class="node" style="left:44px; top:60px;">26px 格 × 7</div>
+      <div class="node dim" style="left:26px; top:88px;">今天 · 9月19日（micro 条）</div>
+      <div class="arrow" style="left:186px; top:16px;">216px</div>
+      <div class="node dim" style="left:196px; top:60px;">无底栏</div>
+    </div>
+    <div class="stance"><b>行内改期的就地一击。</b>216px 面板 / 26px 格 / 无底栏（今天收进 20px micro 条）；月条快拨一击直达任意月。触发器退化为<b>行内日期 chip</b>（group 底、hover 显形）——不是每个消费点都配得上 276px 面板。</div>
+    <ul>
+      <li class="good">密度宪法（02 §1 第 3 条）的极致演绎：面板面积比 A 缩减 44%</li>
+      <li class="good">清单行不遮挡后续行，改期后焦点留在原地</li>
+      <li class="good">月条快拨比钻取少一层（一击跨任意月）</li>
+      <li class="bad">26px 格是命中面积临界（宪法 ≥ 24×24 留 2px 余量），触屏不可用</li>
+      <li class="bad">不承载范围与时间（装不下，那是 panel 的职责）</li>
+    </ul>
+    <div class="fit"><b>适合：</b>任务清单行内改期、低优先级的属性编辑位。</div>
+    <a class="open-btn" href="plan-d-dense.html">打开方案 D</a>
+  </div>
+</div>
+
+<!-- ═══════════ 建议与裁决清单 ═══════════ -->
+<div class="decision">
+  <h3>已定向方案（2026-09-19 评审）与组合建议</h3>
+  <ol>
+    <li><b>A 为基座并升级 A+（已定向）</b>：即点即定 + 钻取保留；<code>presets</code> 预设行（日历下方、数据驱动、即点即定）与 <code>precision="day" | "minute"</code>（值格式与提交模型联动：day 即点即定，minute 时刻区 + 确定提交）走 prop，不另立组件；</li>
+    <li><b>按值形状拆两个导出</b>：<code>DatePicker</code>（value: string | null）与 <code>DateRangePicker</code>（B 形态并入，value: [string, string]），共享日历引擎 / 弹层契约 / 触发器 / dayjs 值协议；可暴露 <code>DatePicker.RangePicker</code> 别名让 legacy codemod 零改动；</li>
+    <li><b>C 的解析层作为 <code>inputMode</code> 候选增强</b>：词表白名单先行（相对日/±n/周X/月日/绝对日期六类），范围输入 M1 再议——待行内输入消费点出现再裁；</li>
+    <li><b>D 挂起</b>，等行内改期消费点真实出现再裁——26px 命中临界设计需要真实使用数据背书；</li>
+    <li><b>纯时刻（TimeRecordView）暂缓</b>：唯一独立值形状（HH:mm）但消费点仅一个；出现迁移需求时再立独立 TimePicker 原语，复用同一时刻网格。</li>
+  </ol>
+</div>
+
+<div class="decision">
+  <h3>裁决清单（定稿前需要拍板的点）</h3>
+  <ol>
+    <li><b>默认形态尺寸</b>：A 的 276px / 32px 格，还是向 D 方向收紧一档（248px / 28px 格）？</li>
+    <li><b>范围承载</b>：已定向——<code>DateRangePicker</code> 独立导出（B 形态并入，同引擎），不做 A 的 shift 点选扩展；</li>
+    <li><b>提交模型边界</b>：已定向——单日期即点即定、手选范围显式确认、minute 精度显式确认（预设一律即选即定）；</li>
+    <li><b>输入通道</b>：C 的词表是否进 M2？「下周三」按周一起始的语义（本周已过 → 下周）是否符合用户直觉？</li>
+    <li><b>时间输入（antd showTime 对应物）</b>：已定向——<code>precision="minute"</code> + A+ 底栏时刻网格（15 分钟步长，<code>timeStep</code> 可调）；任意分钟键入随 inputMode 一并再议；</li>
+    <li><b>周起始确认</b>：周一（dayjs zh-CN 现状）——涉及跨周预设语义，定稿后写进 03 指南。</li>
+    <li><b>界外日显隐</b>：四方案均显示（ink-3 参与导航）；若嫌噪可改为仅相邻月补位。</li>
+    <li><b>禁用日期 API 名</b>：<code>isDateDisabled(d: string)</code>（string 入参，业务侧零 dayjs 依赖）是否接受？</li>
+  </ol>
+</div>
+
+<p class="note">工作流提示：四份方案页均可交互（真实日历渲染 + 双主题切换 + 键盘行为），评审时建议逐页过「视觉宪法五条」对照；
+定稿后选中形态落 <code>packages/ui/src/primitives/DatePicker.tsx</code> + 样板间档案（03 指南 §6 迁移流程），本目录 mockups 保留为视觉参考。</p>
+
+</div>
+</body>
+</html>

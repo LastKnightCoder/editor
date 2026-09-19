@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DatePicker 方案 A+ · 经典月历基座 + 预设/时刻扩展 — Tau 桌面端</title>
+<!--
+  【DatePicker 方案 A+：经典月历基座 + 三个扩展能力】
+
+  评审方向已定：以 A（经典月历 · 即点即定 · 钻取导航）为基座，按「值形状拆分、
+  能力走 prop」扩展——单日期与范围是两个导出（DatePicker / DateRangePicker，
+  共享日历引擎/弹层契约/触发器），时间与预设不另立组件：
+
+  - presets：预设行，显示在日历下方（一行 chips）；数据驱动，内容由使用方决定
+    （如「今天」「今天 · 下午六点」），即点即定，当前值命中时高亮
+  - precision: "day" | "minute"：值粒度。day → "YYYY-MM-DD" 点日期即提交；
+    minute → "YYYY-MM-DD HH:mm"，点日期只选中，底栏出现时刻区（可自由键入任意分钟的
+    时刻框 + 15 分钟步长时刻网格作为快捷通道），「确定」显式提交——提交模型跟着 precision 走
+  - Esc 逐层退场：时刻网格先关，再关面板（浮层 LIFO 的面板内演绎）
+
+  本页重点演示：
+  1. 面板解剖（静态展开 + 标注）——A 基座形态
+  2. 基础与状态矩阵：placeholder / 带值可清除 / sm / disabled / error
+  3. 钻取导航与键盘
+  4. 预设行 · PRESETS（使用方决定内容）
+  5. 带时间 · PRECISION="MINUTE"（时刻网格 + 确定提交）
+  6. 真实场景：待办 TaskDialog（minute + 预设）
+  7. antd 存量迁移对照（含 showTime / presets / RangePicker）
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  --titlebar-h: 46px; --sidebar-w: 218px; --statusbar-h: 30px;
+}
+/* token 与 packages/ui/src/theme/tokens.css 同步（D-006 表面阶梯） */
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #ece4d4; --bg-sunken: #e2d8c0;
+  --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09);
+  --bg-selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+  --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+  --danger: #b0564d; --danger-soft: #f6e3e0;
+  --focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+}
+[data-theme="cocoa"] {
+  color-scheme: dark;
+  --bg-page: #221d16; --bg-surface: #2e2820; --bg-group: #19150e; --bg-sunken: #100d08;
+  --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11);
+  --bg-selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+  --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+  --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+  --danger: #d97e66; --danger-soft: #34201a;
+  --focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font); font-size: 13px; line-height: 1.65; color: var(--ink-1);
+  background: var(--bg-page); overflow: hidden; min-width: 1080px; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+::-webkit-scrollbar { width: 9px; }
+::-webkit-scrollbar-thumb { background: var(--line-1); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+
+.app { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); grid-template-rows: 100vh;
+  grid-template-areas: "sidebar main"; }
+.main { grid-area: main; display: flex; flex-direction: column; min-width: 0; background: var(--bg-page); }
+.sidebar { grid-area: sidebar; padding: 0 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.sidebar-head { display: flex; align-items: center; gap: 8px; height: var(--titlebar-h); padding: 0 6px; margin-bottom: 6px; }
+.brand-mark { width: 24px; height: 24px; border-radius: 8px; background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.brand-name { font-weight: 600; font-size: 13.5px; }
+.nav-label { font-size: 11px; color: var(--ink-3); padding: 8px 10px 6px; letter-spacing: 0.02em; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px;
+  border-radius: 10px; color: var(--ink-2); text-align: left; }
+.nav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-item.active { background: var(--bg-selected); color: var(--accent-text); font-weight: 550; }
+.titlebar { height: var(--titlebar-h); flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.icon-btn { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-2); }
+.icon-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.crumb { color: var(--ink-3); font-size: 12.5px; }
+.titlebar .spacer { flex: 1; }
+.win-controls { display: flex; gap: 6px; }
+.win-controls .dot { width: 12px; height: 12px; border-radius: 99px; background: var(--bg-sunken); border: 1px solid var(--line-1); }
+.home { flex: 1; overflow-y: auto; padding: 26px 40px 48px; }
+.home h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+.home .date { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; margin-bottom: 22px; }
+.panel { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card); padding: 18px 20px; margin-bottom: 16px; }
+.panel h3 { font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 12px; letter-spacing: 0.03em; }
+.statusbar { height: var(--statusbar-h); flex: none; display: flex; align-items: center; gap: 14px;
+  padding: 0 16px; font-size: 11.5px; color: var(--ink-3); border-top: 1px solid var(--line-1); }
+.row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; line-height: 1.8; }
+.note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+code.inline { font-family: var(--mono); font-size: 11px; background: var(--bg-group); padding: 1px 5px; border-radius: 5px; }
+.code-card { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 10px;
+  padding: 12px 14px; font-family: var(--mono); font-size: 11.5px; line-height: 1.75; color: var(--ink-2);
+  overflow-x: auto; white-space: pre; margin-top: 12px; }
+.code-card .tag { color: var(--accent-text); }
+.code-card .attr { color: var(--ink-1); }
+.code-card .cmt { color: var(--ink-3); }
+.kbd-row { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-3); margin-top: 10px; }
+.kbd-row > span { display: inline-flex; align-items: center; gap: 6px; }
+.kbd-row kbd { padding: 1px 6px; border: 1px solid var(--line-1); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--bg-surface); font-size: 11px; font-family: var(--mono); }
+.verdict { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-selected); color: var(--accent-text);
+  border: 1px solid var(--accent-soft); border-radius: 99px; padding: 1px 10px; font-size: 11px; font-weight: 600; vertical-align: 2px; }
+.legend { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 18px; margin-top: 12px;
+  font-size: 12px; color: var(--ink-2); line-height: 1.7; }
+.legend li { list-style: none; display: flex; gap: 8px; align-items: flex-start; }
+.legend .n { flex: none; width: 18px; height: 18px; margin-top: 2px; border-radius: 99px; background: var(--accent-soft);
+  color: var(--accent-text); font-size: 11px; font-weight: 600; display: grid; place-items: center; }
+.anatomy { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+.field { display: flex; flex-direction: column; gap: 6px; max-width: 340px; }
+.field > label { font-size: 12.5px; font-weight: 600; color: var(--ink-1); }
+.field .help { font-size: 12px; color: var(--ink-3); }
+.form-card { background: var(--bg-page); border: 1px solid var(--line-1); border-radius: var(--radius-md);
+  padding: 18px 20px; max-width: 400px; }
+.form-card .f-title { font-size: 14.5px; font-weight: 650; margin-bottom: 14px; }
+.form-card .field + .field { margin-top: 14px; }
+
+/* ═══════════ DatePicker 本体（方案 A+ · 经典月历 + 扩展） ═══════════ */
+.dp { position: relative; display: inline-flex; vertical-align: top; }
+.dp-trigger { display: inline-flex; align-items: center; gap: 8px; height: 34px; min-width: 168px;
+  padding: 0 6px 0 12px; border-radius: var(--radius-sm); background: var(--bg-surface);
+  border: 1px solid var(--line-1); color: var(--ink-1); font-size: 13px; text-align: left;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 160ms var(--ease-out), background 160ms var(--ease-out); }
+.dp-trigger:hover { border-color: var(--ink-3); }
+.dp-trigger:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--accent); }
+.dp-trigger[data-open="true"] { border-color: var(--accent); }
+.dp-trigger .value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-trigger .value.placeholder { color: var(--ink-3); }
+.dp-trigger .cal-ico { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center;
+  color: var(--ink-3); transition: color 160ms; }
+.dp-trigger .cal-ico svg { width: 15px; height: 15px; }
+.dp-trigger[data-open="true"] .cal-ico { color: var(--accent-text); }
+.dp-trigger .clear-btn { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center;
+  color: var(--ink-3); opacity: 0; transition: opacity 130ms; }
+.dp-trigger .clear-btn svg { width: 13px; height: 13px; }
+.dp-trigger:hover .clear-btn { opacity: 1; }
+.dp-trigger .clear-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.dp.sm .dp-trigger { height: 28px; min-width: 138px; font-size: 12px; padding: 0 4px 0 10px; }
+.dp.minute .dp-trigger { min-width: 198px; }
+.dp.disabled { opacity: 0.55; pointer-events: none; }
+.dp-trigger.error { border-color: var(--danger); }
+.dp-trigger.error:hover { border-color: var(--danger); }
+
+.dp-panel { position: fixed; z-index: 250; width: 276px; background: var(--bg-surface);
+  border: 1px solid var(--line-1); border-radius: var(--radius-lg); box-shadow: var(--shadow-float);
+  padding: 12px; visibility: hidden; opacity: 0; transform: translateY(4px); pointer-events: none;
+  transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out), visibility 160ms; }
+.dp-panel[data-open="true"] { visibility: visible; opacity: 1; transform: none; pointer-events: auto; }
+.dp-panel.static { position: static; visibility: visible; opacity: 1; transform: none; pointer-events: auto;
+  box-shadow: var(--shadow-card); }
+.dp-panel:focus-visible { outline: none; }
+.dp-panel:focus-visible .dp-day[data-hl="true"] { box-shadow: var(--focus-ring); }
+
+.dp-head { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.dp-label { flex: 1; height: 30px; border-radius: var(--radius-sm); display: inline-flex; align-items: center;
+  justify-content: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--ink-1);
+  font-variant-numeric: tabular-nums; transition: background 130ms; }
+.dp-label:hover { background: var(--bg-hover); }
+.dp-label .chev { color: var(--ink-3); display: inline-flex; }
+.dp-label .chev svg { width: 13px; height: 13px; }
+.dp-nav { width: 30px; height: 30px; border-radius: var(--radius-sm); display: grid; place-items: center;
+  color: var(--ink-2); transition: background 130ms, color 130ms; }
+.dp-nav:hover { background: var(--bg-hover); color: var(--ink-1); }
+.dp-nav svg { width: 15px; height: 15px; }
+
+.dp-week { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 2px; }
+.dp-week span { text-align: center; font-size: 11px; color: var(--ink-3); height: 22px; line-height: 22px; }
+.dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.dp-day { height: 32px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center;
+  font-size: 12.5px; color: var(--ink-1); font-variant-numeric: tabular-nums; cursor: pointer; position: relative;
+  transition: background 130ms, color 130ms; }
+.dp-day:hover, .dp-day[data-hl="true"] { background: var(--bg-hover); }
+.dp-day.out { color: var(--ink-3); }
+.dp-day.today { color: var(--accent-text); font-weight: 600; }
+.dp-day.today::after { content: ""; position: absolute; bottom: 4px; left: 50%; width: 3px; height: 3px;
+  margin-left: -1.5px; border-radius: 99px; background: var(--accent-text); }
+.dp-day.selected { background: var(--accent); color: var(--ink-inverse); font-weight: 600; }
+.dp-day.selected:hover { background: var(--accent-hover); }
+.dp-day.selected.today::after { background: var(--ink-inverse); }
+
+.dp-mgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+.dp-mcell { height: 46px; border-radius: var(--radius-sm); display: grid; place-items: center;
+  font-size: 12.5px; color: var(--ink-1); cursor: pointer; font-variant-numeric: tabular-nums;
+  transition: background 130ms; }
+.dp-mcell:hover, .dp-mcell[data-hl="true"] { background: var(--bg-hover); }
+.dp-mcell.sel { background: var(--bg-selected); color: var(--accent-text); font-weight: 600; }
+.dp-mgrid.years .dp-mcell { color: var(--ink-2); }
+.dp-mgrid.years .dp-mcell.cur { color: var(--ink-1); }
+
+/* ── 扩展 1：预设行（日历下方，内容使用方决定） ── */
+.preset-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px;
+  padding-top: 8px; border-top: 1px solid var(--line-2); }
+.preset-row .p-label { font-size: 11px; color: var(--ink-3); margin-right: 2px; flex: none; }
+.preset-chip { height: 26px; padding: 0 11px; border-radius: 7px; background: var(--bg-group);
+  color: var(--ink-2); font-size: 11.5px; font-variant-numeric: tabular-nums;
+  transition: background 130ms, color 130ms; }
+.preset-chip:hover { background: var(--bg-hover); color: var(--ink-1); }
+.preset-chip.on { background: var(--bg-selected); color: var(--accent-text); font-weight: 550; }
+
+/* ── A 基座底栏（day 精度） ── */
+.dp-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px;
+  padding-top: 8px; border-top: 1px solid var(--line-2); }
+.dp-foot button { height: 26px; padding: 0 10px; border-radius: 7px; font-size: 12px; color: var(--ink-2);
+  transition: background 130ms, color 130ms; }
+.dp-foot button:hover { background: var(--bg-hover); color: var(--ink-1); }
+.dp-foot .today-btn { color: var(--accent-text); font-weight: 550; }
+.dp-foot .today-btn:hover { background: var(--bg-selected); color: var(--accent-text); }
+
+/* ── 扩展 2：时刻区（minute 精度底栏） + 时刻网格 ──
+   时刻框可自由键入（HH:MM 任意分钟），网格是快捷通道；
+   底栏单行：时刻框 + 清空 + 确定（276px 面板内宽 252px，内容 ≈208px 不换行） */
+.dp-timefoot { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid var(--line-2); }
+.time-input { display: inline-flex; align-items: center; gap: 3px; height: 28px; width: 96px;
+  padding: 0 2px 0 8px; border-radius: 8px; border: 1px solid var(--line-1); background: var(--bg-surface);
+  flex: none; transition: border-color 130ms; }
+.time-input:hover { border-color: var(--ink-3); }
+.time-input[data-open="true"] { border-color: var(--accent); }
+.time-input.invalid { border-color: var(--danger); }
+.time-input .clock { width: 13px; height: 13px; color: var(--ink-3); flex: none; }
+.time-input input { flex: 1; min-width: 0; border: none; background: none; outline: none;
+  font: inherit; font-size: 12px; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+.time-input input::placeholder { color: var(--ink-3); }
+.time-input .t-caret { width: 20px; height: 22px; border-radius: 5px; display: grid; place-items: center;
+  color: var(--ink-3); flex: none; }
+.time-input .t-caret:hover { background: var(--bg-hover); color: var(--ink-1); }
+.time-input .t-caret svg { width: 12px; height: 12px; }
+.dp-timefoot .spacer { flex: 1; }
+.dp-timefoot .ghost { height: 28px; padding: 0 12px; border-radius: 8px; font-size: 12px; color: var(--ink-2); }
+.dp-timefoot .ghost:hover { background: var(--bg-hover); color: var(--ink-1); }
+.dp-timefoot .primary { height: 28px; padding: 0 16px; border-radius: 8px; background: var(--accent);
+  color: var(--ink-inverse); font-size: 12px; font-weight: 550; }
+.dp-timefoot .primary:hover { background: var(--accent-hover); }
+.dp-timefoot .primary:disabled { opacity: 0.5; cursor: default; background: var(--accent); }
+
+.time-pop { position: absolute; right: 10px; bottom: 54px; z-index: 5; width: 220px;
+  max-height: 188px; overflow-y: auto; background: var(--bg-surface); border: 1px solid var(--line-1);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-float); padding: 6px; }
+.time-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; }
+.time-cell { height: 26px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
+  font-size: 11.5px; color: var(--ink-1); font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: background 130ms, color 130ms; }
+.time-cell:hover { background: var(--bg-hover); }
+.time-cell.now { color: var(--accent-text); font-weight: 600; }
+.time-cell.on { background: var(--accent); color: var(--ink-inverse); font-weight: 600; }
+
+.plan-badge { position: fixed; left: 16px; bottom: 42px; z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.plan-badge .tag { display: inline-flex; align-items: center; gap: 7px; background: var(--bg-surface);
+  border: 1px solid var(--line-1); box-shadow: var(--shadow-card); border-radius: 99px; padding: 6px 13px;
+  font-size: 11.5px; color: var(--ink-2); }
+.plan-badge .tag b { color: var(--accent-text); font-weight: 600; }
+.plan-note { width: 342px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px;
+  box-shadow: var(--shadow-card); padding: 14px 16px; font-size: 12px; color: var(--ink-2); line-height: 1.75; display: none; }
+.plan-note.open { display: block; }
+.plan-note h4 { font-size: 12.5px; color: var(--ink-1); margin-bottom: 6px; }
+.plan-note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+.plan-note .try { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); color: var(--ink-3); font-size: 11.5px; }
+.plan-note .links { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); font-size: 11px; color: var(--ink-3); }
+.plan-note .links a { color: var(--accent-text); text-decoration: none; }
+.plan-note .links a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head"><div class="brand-mark">τ</div><div class="brand-name">Tau</div></div>
+    <div class="nav-label">工作台</div>
+    <button class="nav-item">今日</button>
+    <button class="nav-item">日程</button>
+    <button class="nav-item active">待办</button>
+    <div class="nav-label">知识</div>
+    <button class="nav-item">卡片库</button>
+    <button class="nav-item">统计</button>
+  </aside>
+
+  <div class="main">
+    <header class="titlebar">
+      <span class="crumb">· 组件设计稿 · DatePicker</span>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="themeBtn" title="切换主题"><span id="themeIcon"></span></button>
+      <div class="win-controls"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    </header>
+
+    <div class="home">
+      <h1>DatePicker 设计稿 · 方案 A+ <span class="verdict">基座已定向 · 扩展演示</span></h1>
+      <div class="date">经典月历基座 + 预设行 + precision 时刻区 —— 值形状拆分（DatePicker / DateRangePicker 同引擎），时间与预设走 prop</div>
+
+      <div class="panel">
+        <h3>面板解剖 · 静态展开（A 基座形态）</h3>
+        <div class="anatomy">
+          <div class="dp-panel static" id="anatomyPanel" tabindex="-1"></div>
+          <ul class="legend">
+            <li><span class="n">1</span><span>标题钻取：点「9月 2026」进 12 月格，再点进年代格；‹ › 步长随视图换（月/年/十年）</span></li>
+            <li><span class="n">2</span><span>今天：accent 文字 + 3px 圆点，安静标记不抢选中（反馈安静而确定）</span></li>
+            <li><span class="n">3</span><span>选中：accent 实底 + ink-inverse——面板里唯一的实底色块（色彩表意的唯一落点）</span></li>
+            <li><span class="n">4</span><span>界外日：ink-3 参与导航与点选，自动跨月（六周固定 42 格，面板高度不跳变）</span></li>
+            <li><span class="n">5</span><span>底栏（day 精度）：今天 / 清空两个文本动作；minute 精度换成时刻区 + 确定（见下）</span></li>
+            <li><span class="n">6</span><span>层级全靠亮度与留白：无内部分割线，网格间 3px 呼吸即可读</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>基础与状态 · SIZE / STATE MATRIX</h3>
+        <div class="row">
+          <div class="dp" data-dp>
+            <button class="dp-trigger" type="button">
+              <span class="value placeholder">选择日期…</span>
+              <span class="cal-ico"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+            </button>
+            <div class="dp-panel" tabindex="-1"></div>
+          </div>
+          <div class="dp" data-dp>
+            <button class="dp-trigger" type="button">
+              <span class="value"></span>
+              <span class="clear-btn" title="清空"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></span>
+              <span class="cal-ico"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+            </button>
+            <div class="dp-panel" tabindex="-1"></div>
+          </div>
+          <div class="dp sm" data-dp>
+            <button class="dp-trigger" type="button">
+              <span class="value placeholder">FilterBar 用 sm</span>
+              <span class="cal-ico"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+            </button>
+            <div class="dp-panel" tabindex="-1"></div>
+          </div>
+          <div class="dp disabled" data-dp>
+            <button class="dp-trigger" type="button">
+              <span class="value">2026年10月1日</span>
+              <span class="cal-ico"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+            </button>
+            <div class="dp-panel" tabindex="-1"></div>
+          </div>
+          <div class="dp" data-dp>
+            <button class="dp-trigger error" type="button">
+              <span class="value">2026年9月1日</span>
+              <span class="cal-ico"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+            </button>
+            <div class="dp-panel" tabindex="-1"></div>
+          </div>
+        </div>
+        <div class="note">触发器与 Select 同族（surface 亮底 + line-1 描边，表单控件 2026-09-17 裁决）；
+          带值时 hover 浮出 <em>×</em> 清除；error 态只换描边色 + 由 Field 体系给帮助文案，不在控件内塞文案。</div>
+      </div>
+
+      <div class="panel">
+        <h3>钻取与键盘 · DRILL-DOWN &amp; KEYBOARD</h3>
+        <div class="row">
+          <div class="dp" data-dp>
+            <button class="dp-trigger" type="button">
+              <span class="value placeholder">试试：点标题 / 方向键 / T</span>
+              <span class="cal-ico"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+            </button>
+            <div class="dp-panel" tabindex="-1"></div>
+          </div>
+        </div>
+        <div class="kbd-row">
+          <span><kbd>↑↓←→</kbd> 网格导航</span>
+          <span><kbd>PgUp PgDn</kbd> 翻月</span>
+          <span><kbd>T</kbd> 今天</span>
+          <span><kbd>Enter</kbd> 提交（day）/ 确定（minute）</span>
+          <span><kbd>Esc</kbd> 逐层退场（时刻网格 → 面板）</span>
+        </div>
+        <div class="code-card"><span class="cmt">// 组件族：按「值形状」拆两个导出，共享日历引擎 / 弹层契约（D-004）/ 触发器 / dayjs 值协议</span>
+<span class="tag">&lt;DatePicker</span>                                <span class="cmt">// 单日期：value: string | null</span>
+  <span class="attr">value</span>={due} <span class="attr">onValueChange</span>={setDue}
+  <span class="attr">precision</span>="minute"                     <span class="cmt">// "day"(默认) | "minute"——值格式与提交模型随之切换</span>
+  <span class="attr">presets</span>={[                             <span class="cmt">// 预设行（日历下方）：内容使用方决定，即点即定</span>
+    { <span class="attr">label</span>: "今天 · 下午六点", <span class="attr">value</span>: () =&gt; todayAt("18:00") },
+    { <span class="attr">label</span>: "明早九点",       <span class="attr">value</span>: () =&gt; tomorrowAt("09:00") },
+  ]}
+  <span class="attr">clearable</span> <span class="attr">isDateDisabled</span>={(d) =&gt; d &lt; today}
+<span class="tag">/&gt;</span>
+<span class="tag">&lt;DateRangePicker</span> <span class="attr">value</span>={[s, e]} <span class="attr">onValueChange</span>={setRange} <span class="attr">presets</span>={RANGE_PRESETS} <span class="tag">/&gt;</span>
+<span class="cmt">// precision="day" → 值 "YYYY-MM-DD"，点日期即提交；"minute" → 值 "YYYY-MM-DD HH:mm"，时刻区 + 确定提交</span>
+<span class="cmt">// 可另暴露 DatePicker.RangePicker = DateRangePicker 别名，legacy 的 const { RangePicker } = DatePicker 零改动迁移</span></div>
+      </div>
+
+      <div class="panel">
+        <h3>扩展一 · 预设行 PRESETS（内容使用方决定，即点即定）</h3>
+        <div class="row">
+          <div class="dp" data-dp data-presets="quick">
+            <button class="dp-trigger" type="button">
+              <span class="value placeholder">试试点下面的预设…</span>
+              <span class="cal-ico"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+            </button>
+            <div class="dp-panel" tabindex="-1"></div>
+          </div>
+        </div>
+        <div class="note">预设显示在<em>日历下方</em>（group 底 chips，一行 ≤5 个），数据驱动：
+          <code class="inline">presets=[{ label, value: () =&gt; string }]</code>——组件不内置业务词表，
+          用「今天 / 明天 / 下周一 / 周末」还是「今天 · 下午三点」由使用方决定。
+          点预设 = 取值 + 提交 + 关闭（一步到位）；当前值命中预设时该 chip 高亮回显。</div>
+      </div>
+
+      <div class="panel">
+        <h3>扩展二 · 带时间 PRECISION="MINUTE"（时刻网格 + 确定提交）</h3>
+        <div class="row">
+          <div class="dp minute" data-dp data-precision="minute">
+            <button class="dp-trigger" type="button">
+              <span class="value placeholder">选日期与时刻…</span>
+              <span class="cal-ico"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+            </button>
+            <div class="dp-panel" tabindex="-1"></div>
+          </div>
+        </div>
+        <div class="kbd-row">
+          <span><kbd>点日期</kbd> 仅选中（不关闭）</span>
+          <span><kbd>时刻框</kbd> 直接键入任意分钟（9:5 → 09:05）</span>
+          <span><kbd>▾</kbd> 展开 15 分钟网格（快捷通道）</span>
+          <span><kbd>Enter</kbd> 确定</span>
+          <span><kbd>Esc</kbd> 先关网格再关面板</span>
+        </div>
+        <div class="note">提交模型跟着 precision 走：day 精度即点即定；minute 精度下点日期只是<em>选中</em>，
+          底栏换成时刻区（时刻框 + 清空 / 确定，单行排布）。时刻<em>可自由键入</em>（"9" → 09:00、"9:5" → 09:05、
+          越界或非数字失焦还原），网格是 15 分钟步长的快捷通道（<code class="inline">timeStep</code> 可调，
+          当前时段 accent 标记，键入值不在步长上则网格不高亮）；值格式 <code class="inline">"YYYY-MM-DD HH:mm"</code>。</div>
+      </div>
+
+      <div class="panel">
+        <h3>真实场景 · 待办 TaskDialog（minute + 业务预设）</h3>
+        <div class="form-card">
+          <div class="f-title">新建任务</div>
+          <div class="field">
+            <label>任务名称</label>
+            <div class="dp" style="width: 100%; pointer-events: none; opacity: 0.92">
+              <div class="dp-trigger" style="width: 100%; cursor: text">
+                <span class="value placeholder">整理十月的重构里程碑…</span>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label>截止时间</label>
+            <div class="dp minute" data-dp data-precision="minute" data-presets="task" style="width: 100%">
+              <button class="dp-trigger" type="button" style="width: 100%">
+                <span class="value placeholder">选择日期与时刻…</span>
+                <span class="cal-ico"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+              </button>
+              <div class="dp-panel" tabindex="-1"></div>
+            </div>
+            <div class="help">预设「今天 · 下午六点 / 明早九点 / 周五下班」是业务传入的演示——组件只认数据</div>
+          </div>
+        </div>
+        <div class="note">legacy 消费点直映：TaskDialog（截止时间）、EventDialog（事件时间）、
+          DatePlugin（数据库属性，<code class="inline">showTime</code> 配置 → <code class="inline">precision="minute"</code>）。</div>
+      </div>
+
+      <div class="panel">
+        <h3>antd 存量迁移对照</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12.5px">
+          <thead><tr>
+            <th style="text-align:left; padding: 6px 10px; color: var(--ink-3); font-size: 11.5px; border-bottom: 1px solid var(--line-1)">antd 用法</th>
+            <th style="text-align:left; padding: 6px 10px; color: var(--ink-3); font-size: 11.5px; border-bottom: 1px solid var(--line-1)">自研 A+</th>
+          </tr></thead>
+          <tbody style="color: var(--ink-2)">
+            <tr><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><code class="inline">onChange(date, dateString)</code></td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><code class="inline">onValueChange(v)</code>，v 为字符串（moment 对象不外泄）</td></tr>
+            <tr><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><code class="inline">allowClear</code> / <code class="inline">placeholder</code></td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><code class="inline">clearable</code> / 同名</td></tr>
+            <tr><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><code class="inline">showTime</code>（DatePlugin 在用）</td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><code class="inline">precision="minute"</code>——布尔换粒度枚举，值格式进类型契约</td></tr>
+            <tr><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><code class="inline">presets</code>（v5）</td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">同名同心智：<code class="inline">{ label, value }</code>，即点即定</td></tr>
+            <tr><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><code class="inline">picker="month" / "year"</code></td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">标题钻取内置；确需月值精度时 precision 加 <code class="inline">"month"</code> 档（YAGNI，暂缓）</td></tr>
+            <tr><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><code class="inline">disabledDate</code></td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><code class="inline">isDateDisabled</code>（string 入参，业务侧零 dayjs 依赖）</td></tr>
+            <tr><td style="padding: 7px 10px"><code class="inline">DatePicker.RangePicker</code></td><td style="padding: 7px 10px"><code class="inline">DateRangePicker</code>（B 形态同引擎）；可暴露 <code class="inline">DatePicker.RangePicker</code> 别名，codemod 零改动</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="statusbar"><span>Tau v2 · 重构中</span><span id="statusInfo">方案 A+ · 基座 + presets / precision 扩展</span></div>
+  </div>
+</div>
+
+<div class="plan-badge">
+  <button class="tag" id="noteToggle"><b>方案 A+</b> 经典月历基座 · 预设 + 时刻扩展 · 交互说明</button>
+  <div class="plan-note" id="planNote">
+    <h4>A+（基座已定向）</h4>
+    A 的即点即定 + 钻取保留为基座；两个扩展走 prop：<em>presets</em> 预设行
+    （日历下方、内容使用方决定、即点即定）与 <em>precision="minute"</em>
+    （底栏时刻区 + 15 分钟时刻网格 + 确定提交）。值形状拆两个导出：
+    DatePicker / DateRangePicker 共享引擎，时间与预设不另立组件。
+    <div class="try">试试：预设行点一下直接提交回填；minute 面板点日期不关闭、
+      时刻框直接键入 10:37（任意分钟）、▾ 展开网格快捷选择、Esc 先关网格再关面板；右上角切 cream / cocoa。</div>
+    <div class="links">对比：<b>A+ 基座已定向</b> · <a href="plan-b-composite.html">B 复合面板（→ DateRangePicker 形态）</a> · <a href="plan-c-input.html">C 输入驱动（inputMode 候选）</a> · <a href="plan-d-dense.html">D 紧凑迷你</a> · <a href="index.html">导览</a></div>
+  </div>
+</div>
+
+<script>
+/* ───────── 图标 / 主题 ───────── */
+const P = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  chevL: '<path d="m15 18-6-6 6-6"/>',
+  chevR: '<path d="m9 18 6-6-6-6"/>',
+  chevD: '<path d="m6 9 6 6 6-6"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+};
+let theme = "cream";
+function toggleTheme() {
+  theme = theme === "cream" ? "cocoa" : "cream";
+  document.documentElement.dataset.theme = theme;
+  document.getElementById("themeIcon").innerHTML =
+    `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P[theme === "cream" ? "moon" : "sun"]}</svg>`;
+}
+document.getElementById("themeBtn").addEventListener("click", toggleTheme);
+document.getElementById("themeIcon").innerHTML = `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P.moon}</svg>`;
+const status = (t) => document.getElementById("statusInfo").textContent = t;
+
+/* ═══════════ 日历内核（周一起始，六周固定 42 格） ═══════════ */
+const WEEK = ["一", "二", "三", "四", "五", "六", "日"];
+const WEEKCN = ["日", "一", "二", "三", "四", "五", "六"];
+const TODAY = new Date();
+const pad = (n) => String(n).padStart(2, "0");
+const fmtEN = (d) => d ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` : "";
+const fmtCN = (d) => d ? `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日` : "";
+const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+function cellsOf(y, m) {
+  const off = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+  const base = new Date(y, m - 1, 1 - off);
+  const arr = [];
+  for (let i = 0; i < 42; i++) arr.push(new Date(base.getFullYear(), base.getMonth(), base.getDate() + i));
+  return arr;
+}
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const startOfWeek = addDays(TODAY, -((TODAY.getDay() + 6) % 7));
+const withTime = (d, time) => ({ date: d, time });
+
+/* 预设数据（使用方传入的演示数据）：day 精度给 Date，minute 精度给 { date, time } */
+const PRESET_SETS = {
+  quick: [
+    { label: "今天", value: () => TODAY },
+    { label: "明天", value: () => addDays(TODAY, 1) },
+    { label: "下周一", value: () => addDays(startOfWeek, 7) },
+    { label: "周末", value: () => addDays(startOfWeek, 5) },
+  ],
+  task: [
+    { label: "今天 · 下午六点", value: () => withTime(TODAY, "18:00") },
+    { label: "明早九点", value: () => withTime(addDays(TODAY, 1), "09:00") },
+    { label: "周五下班", value: () => withTime(addDays(startOfWeek, 4), "18:00") },
+  ],
+};
+function presetActive(p, pr) {
+  if (!p.value) return false;
+  const r = pr.value();
+  const rd = r instanceof Date ? r : r.date;
+  if (!sameDay(p.value, rd)) return false;
+  return p.precision === "minute" && r.time ? p.time === r.time : true;
+}
+
+/* ═══════════ 面板渲染：days / months / years 三视图 + 扩展区 ═══════════ */
+function render(p) {
+  const el = p.panel;
+  el.innerHTML = "";
+  const head = document.createElement("div");
+  head.className = "dp-head";
+  const prev = `<button class="dp-nav" data-act="prev" aria-label="上一${p.view === "days" ? "月" : p.view === "months" ? "年" : "十年"}"><svg viewBox="0 0 24 24">${P.chevL}</svg></button>`;
+  const next = `<button class="dp-nav" data-act="next" aria-label="下一${p.view === "days" ? "月" : p.view === "months" ? "年" : "十年"}"><svg viewBox="0 0 24 24">${P.chevR}</svg></button>`;
+  let label;
+  if (p.view === "days") label = `${p.y}年${p.m}月`;
+  else if (p.view === "months") label = `${p.y}年`;
+  else label = `${Math.floor(p.y / 10) * 10} — ${Math.floor(p.y / 10) * 10 + 9}`;
+  head.innerHTML = `${prev}<button class="dp-label" data-act="drill" aria-live="polite">${label}
+    <span class="chev"><svg viewBox="0 0 24 24">${P.chevD}</svg></span></button>${next}`;
+  el.appendChild(head);
+
+  if (p.view === "days") {
+    const week = document.createElement("div");
+    week.className = "dp-week";
+    week.innerHTML = WEEK.map((w) => `<span>${w}</span>`).join("");
+    el.appendChild(week);
+    const grid = document.createElement("div");
+    grid.className = "dp-grid";
+    grid.setAttribute("role", "grid");
+    const display = p.precision === "minute" ? (p.selDate || p.value) : p.value;
+    cellsOf(p.y, p.m).forEach((d, i) => {
+      const c = document.createElement("div");
+      c.className = "dp-day" + (d.getMonth() + 1 !== p.m ? " out" : "") + (sameDay(d, TODAY) ? " today" : "") + (sameDay(d, display) ? " selected" : "");
+      c.textContent = d.getDate();
+      c.id = `${p.id}-d${i}`;
+      c.setAttribute("role", "gridcell");
+      if (sameDay(d, p.hl)) { c.dataset.hl = "true"; grid.setAttribute("aria-activedescendant", c.id); }
+      c.addEventListener("click", () => dayClick(p, d));
+      c.addEventListener("mouseenter", () => setHl(p, d, false));
+      grid.appendChild(c);
+    });
+    el.appendChild(grid);
+    if (p.presets) el.appendChild(presetRow(p));
+    el.appendChild(p.precision === "minute" ? timeFoot(p) : foot(p));
+  } else {
+    const grid = document.createElement("div");
+    grid.className = "dp-mgrid" + (p.view === "years" ? " years" : "");
+    grid.setAttribute("role", "grid");
+    const items = p.view === "months"
+      ? Array.from({ length: 12 }, (_, i) => ({ key: i + 1, text: `${i + 1}月`, on: i + 1 === p.m }))
+      : Array.from({ length: 12 }, (_, i) => {
+          const y = Math.floor(p.y / 10) * 10 - 1 + i;
+          return { key: y, text: y, on: y >= Math.floor(p.y / 10) * 10 && y <= Math.floor(p.y / 10) * 10 + 9, cur: y === p.y };
+        });
+    items.forEach((it, i) => {
+      const c = document.createElement("div");
+      c.className = "dp-mcell" + (it.on ? " sel" : "") + (it.cur ? " cur" : "");
+      c.textContent = it.text;
+      c.id = `${p.id}-m${i}`;
+      c.setAttribute("role", "gridcell");
+      if (p.view === "months" && p.hlM === it.key) { c.dataset.hl = "true"; grid.setAttribute("aria-activedescendant", c.id); }
+      if (p.view === "years" && p.hlY === it.key) { c.dataset.hl = "true"; grid.setAttribute("aria-activedescendant", c.id); }
+      c.addEventListener("click", () => {
+        if (p.view === "months") { p.m = it.key; p.hlM = null; p.view = "days"; }
+        else { p.y = it.key; p.hlY = null; p.view = "months"; }
+        render(p);
+      });
+      grid.appendChild(c);
+    });
+    el.appendChild(grid);
+  }
+  el.dataset.view = p.view;
+}
+function foot(p) {
+  const f = document.createElement("div");
+  f.className = "dp-foot";
+  f.innerHTML = `<button class="today-btn" data-act="today">今天</button><button data-act="clear">清空</button>`;
+  return f;
+}
+function presetRow(p) {
+  const row = document.createElement("div");
+  row.className = "preset-row";
+  row.innerHTML = `<span class="p-label">常用</span>`;
+  p.presets.forEach((pr, i) => {
+    const b = document.createElement("button");
+    b.className = "preset-chip" + (presetActive(p, pr) ? " on" : "");
+    b.textContent = pr.label;
+    b.dataset.act = `preset:${i}`;
+    row.appendChild(b);
+  });
+  return row;
+}
+/* 时刻归一化："9" → 09:00，"9:5" → 09:05，"09:05"/"9:05" 直映；越界或非数字返回 null */
+function normalizeTime(s) {
+  const m = s.trim().replace(/：/g, ":").match(/^(\d{1,2})(?::(\d{1,2}))?$/);
+  if (!m) return null;
+  const h = +m[1], min = m[2] === undefined ? 0 : +m[2];
+  if (h > 23 || min > 59) return null;
+  return `${pad(h)}:${pad(min)}`;
+}
+function scrollTimePopTo(p, timeStr) {
+  const pop = p.panel.querySelector(".time-pop");
+  if (!pop) return;
+  const [h, m] = timeStr.split(":").map(Number);
+  const q = `${pad(h)}:${pad(Math.floor(m / 15) * 15)}`; // 滚到最近的步长刻度
+  pop.querySelector(`.time-cell[data-v="${q}"]`)?.scrollIntoView({ block: "center" });
+}
+function timeFoot(p) {
+  const f = document.createElement("div");
+  f.className = "dp-timefoot";
+  const ready = !!(p.selDate || p.value);
+  f.innerHTML = `
+    <div class="time-input" data-open="${p.timeOpen}">
+      <svg class="clock" viewBox="0 0 24 24">${P.clock}</svg>
+      <input type="text" inputmode="numeric" maxlength="5" spellcheck="false" value="${p.timeDraft ?? p.time}" placeholder="HH:MM" aria-label="时刻">
+      <button class="t-caret" data-act="time" title="时刻网格"><svg viewBox="0 0 24 24">${P.chevD}</svg></button>
+    </div>
+    <span class="spacer"></span>
+    <button class="ghost" data-act="clear">清空</button>
+    <button class="primary" data-act="apply" ${ready ? "" : "disabled"}>确定</button>`;
+  const box = f.querySelector(".time-input");
+  const input = f.querySelector("input");
+  input.addEventListener("input", () => {
+    p.timeDraft = input.value;
+    const n = normalizeTime(input.value);
+    box.classList.toggle("invalid", input.value.trim() !== "" && !n);
+    if (n && p.timeOpen) scrollTimePopTo(p, n); // 草稿有效时网格跟随滚动（不写值）
+  });
+  input.addEventListener("blur", () => {
+    const n = normalizeTime(input.value);
+    if (n) { p.time = n; status(`时刻 → ${n}（任意分钟可键入，「确定」提交）`); }
+    else status("时刻输入无效，已还原");
+    p.timeDraft = null;
+    input.value = p.time;
+    box.classList.remove("invalid");
+    if (p.timeOpen) { // 网格开着则同步高亮（值在步长上才命中）
+      p.panel.querySelector(".time-pop")
+        ?.querySelectorAll(".time-cell")
+        .forEach((c) => c.classList.toggle("on", c.dataset.v === p.time));
+    }
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault(); e.stopPropagation();
+      const n = normalizeTime(input.value);
+      if (n) { p.time = n; p.timeDraft = null; }
+      if (p.selDate || p.value) commitMinute(p);
+    } else if (e.key === "Escape") {
+      // 无效草稿先还原，再冒泡给面板 Esc 仲裁（先关网格、再关面板）
+      if (!normalizeTime(input.value)) {
+        input.value = p.time; p.timeDraft = null; box.classList.remove("invalid");
+      }
+    } else if (e.key.length === 1 && !/[\d:]/.test(e.key) && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault(); // 只接受数字与冒号
+    }
+  });
+  return f;
+}
+/* ── 时刻网格：15 分钟步长（快捷通道）；键入值不在步长上则不高亮 ── */
+function renderTimePop(p) {
+  p.panel.querySelectorAll(".time-pop").forEach((x) => x.remove());
+  if (!p.timeOpen) return;
+  const pop = document.createElement("div");
+  pop.className = "time-pop";
+  const grid = document.createElement("div");
+  grid.className = "time-grid";
+  const nowQ = `${pad(TODAY.getHours())}:${pad(Math.floor(TODAY.getMinutes() / 15) * 15)}`;
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 15, 30, 45]) {
+      const v = `${pad(h)}:${pad(m)}`;
+      const c = document.createElement("div");
+      c.className = "time-cell" + (v === p.time ? " on" : "") + (v === nowQ ? " now" : "");
+      c.dataset.v = v;
+      c.textContent = v;
+      c.addEventListener("click", () => {
+        p.time = v; p.timeOpen = false;
+        render(p);
+        status(`时刻 → ${v}（网格快捷选择，「确定」提交）`);
+      });
+      grid.appendChild(c);
+    }
+  }
+  pop.appendChild(grid);
+  p.panel.appendChild(pop);
+  scrollTimePopTo(p, p.time);
+}
+
+/* ── 提交路径 ── */
+function dayClick(p, d) {
+  if (p.precision === "minute") {
+    p.selDate = d; p.hl = d;
+    if (d.getMonth() + 1 !== p.m) { p.y = d.getFullYear(); p.m = d.getMonth() + 1; }
+    render(p);
+    status(`已选 ${fmtCN(d)}（未提交）——设时刻后「确定」`);
+  } else {
+    pick(p, d);
+  }
+}
+function pick(p, d) {
+  if (!p.trigger) return; // 静态解剖标本：只演示形态，不接线
+  p.value = d; p.hl = d; p.y = d.getFullYear(); p.m = d.getMonth() + 1; p.view = "days";
+  syncTrigger(p);
+  status(`onValueChange → "${fmtEN(d)}"（即点即定，面板关闭）`);
+  close(p);
+}
+function applyPreset(p, pr) {
+  const r = pr.value();
+  const d = r instanceof Date ? r : r.date;
+  p.value = d; p.selDate = d;
+  if (r.time) p.time = r.time;
+  p.hl = d; p.y = d.getFullYear(); p.m = d.getMonth() + 1; p.view = "days";
+  syncTrigger(p);
+  status(`预设「${pr.label}」即点即定 → "${p.precision === "minute" ? `${fmtEN(d)} ${p.time}` : fmtEN(d)}"`);
+  close(p);
+}
+function commitMinute(p) {
+  const d = p.selDate || p.value;
+  if (!d) return;
+  p.value = d; p.selDate = null;
+  syncTrigger(p);
+  status(`onValueChange → "${fmtEN(d)} ${p.time}"（日期 + 时刻，确定提交）`);
+  close(p);
+}
+function syncTrigger(p) {
+  if (!p.trigger) return;
+  const v = p.trigger.querySelector(".value");
+  if (p.value) {
+    v.textContent = p.precision === "minute" ? `${fmtCN(p.value)} ${p.time}` : fmtCN(p.value);
+    v.classList.remove("placeholder");
+  } else {
+    v.textContent = p.placeholder;
+    v.classList.add("placeholder");
+  }
+}
+function setHl(p, d, rerender = true) {
+  p.hl = d;
+  if (rerender) render(p);
+  else {
+    p.panel.querySelectorAll(".dp-day").forEach((c) => delete c.dataset.hl);
+    const idx = cellsOf(p.y, p.m).findIndex((x) => sameDay(x, d));
+    const cell = p.panel.querySelector(`#${p.id}-d${idx}`);
+    if (cell) { cell.dataset.hl = "true"; cell.scrollIntoView?.({ block: "nearest" }); }
+  }
+}
+
+/* ═══════════ 弹层定位 / 开合（D-004 mini 引擎的 mockup 版） ═══════════ */
+const GAP = 4;
+function place(p) {
+  const r = p.trigger.getBoundingClientRect();
+  const w = 276;
+  const mh = p.panel.offsetHeight, vh = innerHeight;
+  const below = vh - r.bottom - GAP, up = r.top - GAP;
+  const dir = below >= mh || below >= up ? "down" : "up";
+  const left = Math.min(Math.max(8, r.left), Math.max(8, innerWidth - 8 - w));
+  p.panel.style.left = `${left}px`;
+  p.panel.style.top = dir === "down" ? `${r.bottom + GAP}px` : `${Math.max(8, r.top - GAP - mh)}px`;
+}
+function open(p) {
+  if (p.open) return;
+  p.open = true;
+  p.trigger.dataset.open = "true";
+  p.trigger.setAttribute("aria-expanded", "true");
+  p.panel.dataset.open = "true";
+  if (p.value) { p.y = p.value.getFullYear(); p.m = p.value.getMonth() + 1; p.hl = p.value; }
+  else if (!p.hl) p.hl = TODAY;
+  p.y ??= TODAY.getFullYear(); p.m ??= TODAY.getMonth() + 1;
+  p.view = "days";
+  p.timeOpen = false;
+  p.timeDraft = null;
+  p.selDate = null;
+  render(p);
+  place(p);
+  p.panel.focus({ preventScroll: true });
+}
+function close(p, refocus = true) {
+  if (!p.open || !p.trigger) return;
+  p.open = false;
+  p.timeOpen = false;
+  p.trigger.dataset.open = "false";
+  p.trigger.setAttribute("aria-expanded", "false");
+  p.panel.dataset.open = "false";
+  if (refocus) p.trigger.focus();
+}
+
+/* ═══════════ 交互接线 ═══════════ */
+let uid = 0;
+function mountDatePicker(root) {
+  const trigger = root.querySelector(".dp-trigger");
+  const panel = root.querySelector(".dp-panel");
+  if (!trigger || !panel) return null;
+  const p = {
+    id: `dp${++uid}`, root, trigger, panel, open: false,
+    view: "days", y: null, m: null, hl: null, hlM: null, hlY: null, value: null,
+    precision: root.dataset.precision === "minute" ? "minute" : "day",
+    presets: PRESET_SETS[root.dataset.presets] || null,
+    time: "09:00", timeDraft: null, selDate: null, timeOpen: false,
+    placeholder: trigger.querySelector(".value")?.textContent || "选择日期…",
+  };
+  trigger.setAttribute("role", "combobox");
+  trigger.setAttribute("aria-haspopup", "grid");
+  trigger.setAttribute("aria-expanded", "false");
+
+  if (root.classList.contains("disabled") || trigger.classList.contains("error")) {
+    if (trigger.classList.contains("error")) { p.value = new Date(2026, 8, 1); }
+    syncTrigger(p);
+  }
+  const clear = trigger.querySelector(".clear-btn");
+  if (clear) {
+    p.value = TODAY; // 「带值可清除」标本：初始给今天
+    syncTrigger(p);
+    clear.addEventListener("click", (e) => {
+      e.stopPropagation();
+      p.value = null; p.selDate = null; syncTrigger(p); status('onValueChange → null（clearable）');
+    });
+  }
+
+  trigger.addEventListener("click", () => p.open ? close(p) : open(p));
+  trigger.addEventListener("keydown", (e) => {
+    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && !p.open) { e.preventDefault(); open(p); }
+    else if ((e.key === "Enter" || e.key === " ") && !p.open) { e.preventDefault(); open(p); }
+  });
+  panel.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault(); e.stopPropagation();
+      if (p.timeOpen) { p.timeOpen = false; render(p); status("Esc → 先关时刻网格（浮层 LIFO）"); }
+      else close(p);
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (p.precision === "minute") { commitMinute(p); return; }
+      if (p.hl) pick(p, p.hl);
+      return;
+    }
+    if (p.view === "days") {
+      const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 }[e.key];
+      if (step !== undefined) {
+        e.preventDefault();
+        const cells = cellsOf(p.y, p.m);
+        let i = cells.findIndex((d) => sameDay(d, p.hl));
+        if (i < 0) i = cells.findIndex((d) => sameDay(d, TODAY));
+        i = Math.max(0, Math.min(41, i + step));
+        const d = cells[i];
+        if (d.getMonth() + 1 !== p.m) { p.y = d.getFullYear(); p.m = d.getMonth() + 1; }
+        setHl(p, d);
+      } else if (e.key === "PageUp" || e.key === "PageDown") {
+        e.preventDefault();
+        const nm = p.m + (e.key === "PageUp" ? -1 : 1);
+        p.y += Math.floor((nm - 1) / 12); p.m = ((nm - 1 + 12) % 12) + 1;
+        const clamp = new Date(p.y, p.m, 0).getDate();
+        setHl(p, new Date(p.y, p.m - 1, Math.min(p.hl?.getDate() ?? TODAY.getDate(), clamp)));
+      } else if (e.key === "t" || e.key === "T") {
+        e.preventDefault(); setHl(p, TODAY); status("T → 跳到今天（未提交，Enter 确认）");
+      }
+    } else {
+      const grid = panel.querySelectorAll(".dp-mcell");
+      let i = [...grid].findIndex((c) => c.dataset.hl === "true");
+      const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -3, ArrowDown: 3 }[e.key];
+      if (step !== undefined) {
+        e.preventDefault();
+        i = Math.max(0, Math.min(grid.length - 1, (i < 0 ? (p.view === "months" ? p.m - 1 : 0) : i) + step));
+        grid.forEach((c) => delete c.dataset.hl);
+        grid[i].dataset.hl = "true";
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (i < 0) i = p.view === "months" ? p.m - 1 : 0;
+        grid[i]?.click();
+      }
+    }
+  });
+  panel.addEventListener("click", (e) => {
+    const actEl = e.target.closest("[data-act]");
+    if (!actEl) return;
+    const act = actEl.dataset.act;
+    if (act.startsWith("preset:")) {
+      applyPreset(p, p.presets[Number(act.slice(7))]);
+    } else if (act === "time") {
+      p.timeOpen = !p.timeOpen;
+      render(p);
+      renderTimePop(p);
+      status(p.timeOpen ? "时刻网格展开（15 分钟步长，当前时段 accent 标记）" : "时刻网格收起");
+    } else if (act === "apply") {
+      commitMinute(p);
+    } else if (act === "prev" || act === "next") {
+      const d = act === "prev" ? -1 : 1;
+      if (p.view === "days") { const nm = p.m + d; p.y += Math.floor((nm - 1) / 12); p.m = ((nm - 1 + 12) % 12) + 1; render(p); }
+      else if (p.view === "months") { p.y += d; render(p); }
+      else { p.y += d * 10; render(p); }
+      status(`${act === "prev" ? "‹" : "›"} → ${p.view === "days" ? `${p.y}年${p.m}月` : p.view === "months" ? `${p.y}年` : "年代"}（步长随视图）`);
+    } else if (act === "drill") {
+      p.view = p.view === "days" ? "months" : "years";
+      render(p);
+      status(`标题钻取 → ${p.view === "months" ? "月视图（12 格）" : "年代视图（12 格）"}`);
+    } else if (act === "today") {
+      pick(p, TODAY);
+    } else if (act === "clear") {
+      p.value = null; p.selDate = null; p.time = "09:00"; p.timeOpen = false;
+      syncTrigger(p); close(p);
+      status("onValueChange → null（底栏清空）");
+    }
+  });
+  const reposition = () => p.open && place(p);
+  window.addEventListener("resize", reposition);
+  window.addEventListener("scroll", reposition, true);
+  return p;
+}
+
+/* 全量挂载（静态标本页跳过） */
+const mounted = [...document.querySelectorAll(".dp")].map(mountDatePicker).filter(Boolean);
+
+/* 面板解剖标本：静态展开、固定选中今天 */
+const anatomy = document.getElementById("anatomyPanel");
+anatomy.innerHTML = "";
+(() => {
+  const p = { id: "ana", panel: anatomy, view: "days", y: TODAY.getFullYear(), m: TODAY.getMonth() + 1,
+    hl: new Date(TODAY.getFullYear(), TODAY.getMonth(), Math.min(TODAY.getDate() + 2, 28)), value: TODAY,
+    hlM: null, hlY: null, precision: "day", presets: null, time: "09:00", timeDraft: null, selDate: null, timeOpen: false };
+  render(p);
+})();
+
+/* plan-note 开合 */
+document.getElementById("noteToggle").addEventListener("click", () => document.getElementById("planNote").classList.toggle("open"));
+
+/* 外点关闭 */
+document.addEventListener("pointerdown", (e) => {
+  mounted.forEach((p) => {
+    if (p.open && !p.root.contains(e.target)) close(p, false);
+    else if (p.open && p.timeOpen && p.panel.contains(e.target)
+      && !e.target.closest(".time-pop") && !e.target.closest(".time-input")) {
+      p.timeOpen = false; render(p); // 点时刻框与网格以外区域收起时刻网格
+    }
+  });
+}, true);
+</script>
+</body>
+</html>
