@@ -168,6 +168,15 @@
 - 拆除：Choice.tsx 杂烩文件删除；RadioGroup 原样迁出占位（未经设计稿，待定稿重做）；Tabs 无消费者随拆。
 - 实现：primitives/Checkbox.tsx + Switch.tsx + RadioGroup.tsx（占位）+ **tests**/choice.test.tsx 8 例；theme 体系（tokenContract/themes/tokens.css）随 @tau/ui 包首次提交进库。
 
+## D-021 Radio / RadioGroup：环+点形制定稿，API 从 options 数据驱动改组合式
+
+- 定向（2026-09-19，mockups/radio/ 评审后用户拍板「按此实现」）：选中态取**环+点**（line-1 → accent 描边 + 中心 accent 实点 110ms 进场）而非 Checkbox 的实底翻转——「经典描边」语言里状态变化落在描边维度（与 Input focus、Checkbox hover 同一语法），radio 形状本身即语义（圆+心），16px 格上实底挖洞环厚仅 ~4.5px 信噪比低；实底变体留 mockups 对照页。零新 token。
+- API 组合式（推翻占位的 options 数据驱动，antd Radio.Group options 不采）：`RadioGroup`（fieldset/legend 组语义 + `value/defaultValue/onValueChange` 受控契约 + `orientation: horizontal | vertical` + `name` 默认 useId + 组级 disabled 走 fieldset 原生传播）包 `Radio`（`value/label/description`）；描述行（label+desc 两行顶对齐）只有组合式能表达。Radio 须在组内用（context 通道），组外退化为裸原生 radio（自传 name）。
+- 一处对 mockup 的纠偏：description 字号取 `text-tau-meta`（12.5px）而非设计稿的 11.5px——02 规范说明性正文下限裁决优先于视觉参考。
+- 原生 radio 组行为白送不重造：Tab 一次进组（选中项/首个可用项）、方向键移动即选择（roving）、组内互斥；错误态正源 aria-invalid 且选中优先（同 Checkbox）。
+- 消费方迁移：@tau/database plugins 3 处（日期排序/分组依据、评分步长）options → 组合式，随 database 侧改动提交。
+- 实现：primitives/RadioGroup.tsx（context + 组）+ Radio.tsx + **tests**/radio.test.tsx 9 例；@tau/ui 全量 163 例绿；样板间并入 ChoiceSection（Checkbox/Switch/Radio 选择控件同档，registry label 同步）。
+
 ## Page 迁移清单（M2 起滚动勾选）
 
 > 33 个 TabType 的完整映射与合并方案见蓝图 §5.3，此处只跟踪迁移状态。
