@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react-swc";
 import tailwindcss from "@tailwindcss/vite";
 import electron from "vite-plugin-electron/simple";
 import fs from "fs-extra";
+import { createThemeBootstrapScript } from "../../packages/ui/src/theme/bootstrap";
 
 import * as path from "path";
 
@@ -57,6 +58,7 @@ export default defineConfig(() => {
       },
     },
     plugins: [
+      { name: "tau-theme-bootstrap", transformIndexHtml: () => [{ tag: "script", children: createThemeBootstrapScript(), injectTo: "head-prepend" }] },
       react(),
       tailwindcss(),
       electron({

@@ -11,7 +11,7 @@ import {
   type ToastItem,
   type ToastPosition,
   type ToastType,
-} from "@/ui/primitives/Toast";
+} from "@tau/ui/Toast";
 import { ApiCard, BlockTitle, CanvasCard, DemoButton, DocHead, MatrixRow, Segmented } from "../kit";
 
 const POSITIONS: ToastPosition[] = ["top-center", "top-right", "bottom-right", "bottom-center"];
@@ -50,7 +50,7 @@ export default function ToastSection() {
         title="Toast"
         en="primitives/Toast.tsx"
         duty="轻量内联胶囊。单行 36px：类型语义色只落图标 + 一句话 + 可选动作；无关闭钮——整条点击关闭，悬停冻结倒计时；同位置上限 4 条挤掉最老。"
-        src="src/ui/primitives/Toast.tsx"
+        src="packages/ui/src/primitives/Toast.tsx"
       />
 
       <CanvasCard

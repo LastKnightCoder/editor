@@ -7,7 +7,7 @@
  * 色值一律走 CSS 变量内联（D-001 允许，取值随 data-theme 级联，无需重算）。
  */
 
-import { useThemeStore } from "@/ui/theme/themeStore";
+import { useThemeStore } from "@tau/ui/theme/runtime";
 import { BlockTitle, DocHead, Note } from "../kit";
 
 type Kind = "fill" | "text" | "line";
@@ -133,7 +133,7 @@ export default function TokenSection() {
         title="Token 色板"
         en="theme/tokens.css · tokenContract.ts"
         duty={`全部语义色 token，值随 data-theme 级联（当前：${resolved}）。色芯按真实用法渲染——填色块、直接着色文字、放大线宽；半透明 token 叠在两色实体棋格上以显形。`}
-        src="src/ui/theme/tokens.css"
+        src="packages/ui/src/theme/tokens.css"
       />
 
       {GROUPS.map(group => (

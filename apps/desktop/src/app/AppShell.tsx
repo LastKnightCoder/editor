@@ -14,12 +14,12 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent } from "rea
 import clsx from "clsx";
 import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
-import { initThemeRuntime } from "@/ui/theme/themeStore";
-import { Loading } from "@/ui/primitives/Loading";
-import { ToastHost } from "@/ui/primitives/Toast";
+import { initThemeRuntime } from "@tau/ui/theme/runtime";
+import { Loading } from "@tau/ui/Loading";
+import { ToastHost } from "@tau/ui/Toast";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { useSearchStore } from "@/features/search/searchStore";
-import { initScrollbarAutoHide } from "./scrollbarAutoHide";
+import { initScrollbarAutoHide } from "@tau/ui/hooks";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
 import {
@@ -54,9 +54,13 @@ export default function AppShell() {
   }, []);
 
   useEffect(() => {
-    initThemeRuntime();
-    initScrollbarAutoHide();
+    const stopTheme = initThemeRuntime();
+    const stopScrollbars = initScrollbarAutoHide();
     connect();
+    return () => {
+      stopTheme();
+      stopScrollbars();
+    };
   }, [connect]);
 
   if (boot !== "ready") {

@@ -6,13 +6,18 @@
 
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
-import { initThemeRuntime } from "@/ui/theme/themeStore";
-import { initScrollbarAutoHide } from "@/app/scrollbarAutoHide";
+import { initThemeRuntime } from "@tau/ui/theme/runtime";
+import { initScrollbarAutoHide } from "@tau/ui/hooks";
 import "./showcase.css";
 import { ShowcaseApp } from "./ShowcaseApp";
 
-initThemeRuntime();
-initScrollbarAutoHide();
+const stopTheme = initThemeRuntime();
+const stopScrollbars = initScrollbarAutoHide();
+if (import.meta.hot)
+  import.meta.hot.dispose(() => {
+    stopTheme();
+    stopScrollbars();
+  });
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <StrictMode>

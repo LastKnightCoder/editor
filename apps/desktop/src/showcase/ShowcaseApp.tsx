@@ -23,9 +23,9 @@ import { useState } from "react";
 import clsx from "clsx";
 import { Monitor, Moon, Sun } from "lucide-react";
 import logo from "@/assets/logo.png";
-import { useEdgeFade } from "@/hooks/useEdgeFade";
-import { useThemeStore, type ThemeMode } from "@/ui/theme/themeStore";
-import { ToastHost } from "@/ui/primitives/Toast";
+import { useEdgeFade } from "@tau/ui/hooks";
+import { useThemeStore, type ThemeMode } from "@tau/ui/theme/runtime";
+import { ToastHost } from "@tau/ui/Toast";
 import { PAGE_COL, Segmented } from "./kit";
 import { SECTIONS, SECTION_GROUPS, type SectionKey } from "./sections/registry";
 

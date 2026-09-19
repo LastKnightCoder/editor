@@ -15,8 +15,8 @@ import {
   Pin,
   Trash2,
 } from "lucide-react";
-import { ContextMenu, Menu } from "@/ui/primitives/Menu";
-import { cn } from "@/ui/cn";
+import { ContextMenu, Menu } from "@tau/ui/Menu";
+import { cn } from "@tau/ui/cn";
 import { ApiCard, BlockTitle, CanvasCard, DocHead, MatrixRow } from "../kit";
 
 /**
@@ -52,7 +52,7 @@ export default function MenuSection() {
         title="Menu"
         en="primitives/Menu.tsx"
         duty="动作触发的浮层命令面板：命令 / 开关 / 单选组 / 分隔 / 子菜单的异构序列（复合组件，D-010）。命令项触发即关，checkbox·radio 触发不关；键盘全表与 aria 内建，定位复用自研引擎（gap 4），Esc 走焦点链 LIFO 不进 D-003 注册表（同 Select 口径）。"
-        src="src/ui/primitives/Menu.tsx"
+        src="packages/ui/src/primitives/Menu.tsx"
       />
 
       <CanvasCard

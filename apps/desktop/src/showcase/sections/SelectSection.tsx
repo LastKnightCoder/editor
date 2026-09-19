@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { Select, type SelectOption } from "@/ui/primitives/Select";
+import { Select, type SelectOption } from "@tau/ui/Select";
 import { ApiCard, BlockTitle, CanvasCard, DocHead, MatrixRow } from "../kit";
 
 const VIEWS: SelectOption<string>[] = [
@@ -51,7 +51,7 @@ export default function SelectSection() {
         title="Select"
         en="primitives/Select.tsx"
         duty="数据驱动单选。options 即选项集合：搜索是一行 filter、分组是 group 字段、异步是换数组；键盘全表与 aria 内建，定位复用自研定位引擎（gap 4，下方放不下自动翻上）。"
-        src="src/ui/primitives/Select.tsx"
+        src="packages/ui/src/primitives/Select.tsx"
       />
 
       <CanvasCard

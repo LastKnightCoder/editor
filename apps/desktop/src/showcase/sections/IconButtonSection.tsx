@@ -5,7 +5,7 @@
  */
 
 import { CalendarDays, MoreHorizontal, Plus, Search } from "lucide-react";
-import { IconButton } from "@/ui/primitives/IconButton";
+import { IconButton } from "@tau/ui/IconButton";
 import { ApiCard, BlockTitle, CanvasCard, DocHead, MatrixRow, Note } from "../kit";
 
 export default function IconButtonSection() {
@@ -15,7 +15,7 @@ export default function IconButtonSection() {
         title="IconButton"
         en="primitives/IconButton.tsx"
         duty="30px 方形无底幽灵按钮，hover 淡墨。图标随 color 继承，尺寸微调靠 className 覆盖。"
-        src="src/ui/primitives/IconButton.tsx"
+        src="packages/ui/src/primitives/IconButton.tsx"
       />
 
       <CanvasCard

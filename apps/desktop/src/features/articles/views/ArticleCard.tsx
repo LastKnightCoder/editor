@@ -9,9 +9,9 @@
 import type { LucideIcon } from "lucide-react";
 import { Download, ImagePlus, MonitorUp, MoreHorizontal, Play, Star, Trash2 } from "lucide-react";
 import LocalImage from "@/components/LocalImage";
-import { IconButton } from "@/ui/primitives/IconButton";
-import { Menu } from "@/ui/primitives/Menu";
-import { cn } from "@/ui/cn";
+import { IconButton } from "@tau/ui/IconButton";
+import { Menu } from "@tau/ui/Menu";
+import { cn } from "@tau/ui/cn";
 import { articleExcerpt } from "../queries";
 import type { ArticlePageItem } from "@/types";
 

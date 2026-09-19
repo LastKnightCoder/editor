@@ -4,7 +4,7 @@
  */
 
 import { ChevronRight } from "lucide-react";
-import { EmptyNote, Panel, PanelAction, PanelNote, PanelTitle } from "@/ui/primitives/Panel";
+import { EmptyNote, Panel, PanelAction, PanelNote, PanelTitle } from "@tau/ui/Panel";
 import { ApiCard, BlockTitle, CanvasCard, DocHead, MatrixRow } from "../kit";
 
 function SampleRows() {
@@ -26,7 +26,7 @@ export default function PanelSection() {
         title="Panel 族"
         en="primitives/Panel.tsx"
         duty="壳层内容区的基础白卡容器（surface 底 + shadow-card，无描边）+ 标题行配套件。pad 三档对应域密度：base（统计页）/ compact（首页）/ none（自管内距）。"
-        src="src/ui/primitives/Panel.tsx"
+        src="packages/ui/src/primitives/Panel.tsx"
       />
 
       {/* 展品本身即白卡 —— 用 page 舞台，否则白卡叠白卡只能靠阴影分辨 */}

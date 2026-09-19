@@ -5,10 +5,11 @@
  * 外点、Esc 焦点链、Tab 移出、嵌套链与顶层互斥键盘全可用。
  */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import clsx from "clsx";
 import { Repeat2, SlidersHorizontal } from "lucide-react";
-import { Popover } from "@/ui/primitives/Popover";
+import { Popover } from "@tau/ui/Popover";
+import { AnchoredPanel } from "@tau/ui/AnchoredPanel";
 import { ApiCard, BlockTitle, CanvasCard, DemoButton, DocHead, MatrixRow, Note } from "../kit";
 
 /** 应答区按钮（Button 落地后迁移；与 DialogSection 同款形制） */
@@ -56,6 +57,8 @@ export default function PopoverSection() {
   const [color, setColor] = useState(6);
   const [type, setType] = useState(0);
   const [weakOnly, setWeakOnly] = useState(true);
+  const [hosted, setHosted] = useState(false);
+  const hostedAnchor = useRef<HTMLButtonElement>(null);
 
   return (
     <>
@@ -63,7 +66,7 @@ export default function PopoverSection() {
         title="Popover"
         en="primitives/Popover.tsx"
         duty="锚定式可交互内容浮层（非模态）。点击触发、内容可继续操作——说明卡 / 过滤器组 / 色板 / 成员卡 / 卡片预览；家族分工里它收下 Tooltip（瞬态说明，不可交互）与 Menu（命令面板）、Dialog（模态决策）之间的最大一块。定位 12 向全表 + flip/shift，外点关闭、嵌套链共存、顶层互斥、Esc 焦点链全部内建。"
-        src="src/ui/primitives/Popover.tsx"
+        src="packages/ui/src/primitives/Popover.tsx"
       />
 
       <CanvasCard
@@ -72,6 +75,24 @@ export default function PopoverSection() {
         stageClassName="flex flex-col gap-6"
       >
         <div className="flex flex-wrap items-center gap-4">
+          <button
+            type="button"
+            ref={hostedAnchor}
+            className={clsx(BTN, BTN_SECOND)}
+            onClick={() => setHosted(previous => !previous)}
+          >
+            AnchoredPanel（宿主托管）
+          </button>
+          {hosted && (
+            <AnchoredPanel anchor={hostedAnchor.current} className="w-[300px]">
+              <AnchoredPanel.Body>
+                面板没有自己的开合：宿主 state 在它就在，卸载即消失。不监听外点、不消费
+                Esc/Tab（这些事件原样冒泡给宿主），定位与卡片视觉与 Popover 同源。适合
+                「浮层即交互会话一部分」的场景，如行内编辑器的选项面板。
+              </AnchoredPanel.Body>
+            </AnchoredPanel>
+          )}
+
           <Popover trigger={<DemoButton>间隔重复？</DemoButton>} placement="top">
             <Popover.Header icon={<Repeat2 />}>间隔重复 · Spaced Repetition</Popover.Header>
             <Popover.Body>
