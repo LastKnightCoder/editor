@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DatePicker 方案 C · 输入驱动（解析优先，日历辅助） — Tau 桌面端</title>
+<!--
+  【DatePicker 方案 C：输入驱动 —— 键盘是一等公民的极致演绎】
+
+  心智：日期的第一输入通道是「打字」，日历是确认与兜底的第二通道：
+  - 触发器 = 输入框（surface 亮底，与 Input 同族），边输边解析
+  - 解析词表收敛：今天/明天/后天/昨天/前天 · N天后/N天前 · 周X/下周X ·
+    9月19日 · 2026-09-19 · 9/19——覆盖 95% 手输意图，不认识的安静报 danger
+  - 面板顶部 = 解析候选条（→ 2026年9月20日 · 周日），Enter 提交；
+    日历高亮候选日期，点选与打字殊途同归
+  - Esc 还原为上次已提交值（输入框语义，不是清空）
+
+  本页重点演示：
+  1. 解析优先：候选条实时反馈、无效输入 danger 态
+  2. 解析词表（M0 词表边界——白名单收敛，不做自由 NLP）
+  3. 真实场景：数据库任务属性编辑器（DatePlugin 行内即输即解析）
+  4. 与 A/B 的关系：同一面板引擎，换的是触发器与提交通道
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  --titlebar-h: 46px; --sidebar-w: 218px; --statusbar-h: 30px;
+}
+/* token 与 packages/ui/src/theme/tokens.css 同步（D-006 表面阶梯） */
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #ece4d4; --bg-sunken: #e2d8c0;
+  --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09);
+  --bg-selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+  --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+  --danger: #b0564d; --danger-soft: #f6e3e0;
+  --focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+}
+[data-theme="cocoa"] {
+  color-scheme: dark;
+  --bg-page: #221d16; --bg-surface: #2e2820; --bg-group: #19150e; --bg-sunken: #100d08;
+  --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11);
+  --bg-selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+  --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+  --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+  --danger: #d97e66; --danger-soft: #34201a;
+  --focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font); font-size: 13px; line-height: 1.65; color: var(--ink-1);
+  background: var(--bg-page); overflow: hidden; min-width: 1080px; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+::-webkit-scrollbar { width: 9px; }
+::-webkit-scrollbar-thumb { background: var(--line-1); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+
+.app { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); grid-template-rows: 100vh;
+  grid-template-areas: "sidebar main"; }
+.main { grid-area: main; display: flex; flex-direction: column; min-width: 0; background: var(--bg-page); }
+.sidebar { grid-area: sidebar; padding: 0 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.sidebar-head { display: flex; align-items: center; gap: 8px; height: var(--titlebar-h); padding: 0 6px; margin-bottom: 6px; }
+.brand-mark { width: 24px; height: 24px; border-radius: 8px; background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.brand-name { font-weight: 600; font-size: 13.5px; }
+.nav-label { font-size: 11px; color: var(--ink-3); padding: 8px 10px 6px; letter-spacing: 0.02em; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px;
+  border-radius: 10px; color: var(--ink-2); text-align: left; }
+.nav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-item.active { background: var(--bg-selected); color: var(--accent-text); font-weight: 550; }
+.titlebar { height: var(--titlebar-h); flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.icon-btn { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-2); }
+.icon-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.crumb { color: var(--ink-3); font-size: 12.5px; }
+.titlebar .spacer { flex: 1; }
+.win-controls { display: flex; gap: 6px; }
+.win-controls .dot { width: 12px; height: 12px; border-radius: 99px; background: var(--bg-sunken); border: 1px solid var(--line-1); }
+.home { flex: 1; overflow-y: auto; padding: 26px 40px 48px; }
+.home h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+.home .date { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; margin-bottom: 22px; }
+.panel { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card); padding: 18px 20px; margin-bottom: 16px; }
+.panel h3 { font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 12px; letter-spacing: 0.03em; }
+.statusbar { height: var(--statusbar-h); flex: none; display: flex; align-items: center; gap: 14px;
+  padding: 0 16px; font-size: 11.5px; color: var(--ink-3); border-top: 1px solid var(--line-1); }
+.row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; line-height: 1.8; }
+.note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+code.inline { font-family: var(--mono); font-size: 11px; background: var(--bg-group); padding: 1px 5px; border-radius: 5px; }
+.code-card { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 10px;
+  padding: 12px 14px; font-family: var(--mono); font-size: 11.5px; line-height: 1.75; color: var(--ink-2);
+  overflow-x: auto; white-space: pre; margin-top: 12px; }
+.code-card .tag { color: var(--accent-text); }
+.code-card .attr { color: var(--ink-1); }
+.code-card .cmt { color: var(--ink-3); }
+.kbd-row { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-3); margin-top: 10px; }
+.kbd-row > span { display: inline-flex; align-items: center; gap: 6px; }
+.kbd-row kbd { padding: 1px 6px; border: 1px solid var(--line-1); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--bg-surface); font-size: 11px; font-family: var(--mono); }
+.verdict { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-selected); color: var(--accent-text);
+  border: 1px solid var(--accent-soft); border-radius: 99px; padding: 1px 10px; font-size: 11px; font-weight: 600; vertical-align: 2px; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.chip { height: 26px; padding: 0 12px; border-radius: 99px; background: var(--bg-group); color: var(--ink-2);
+  font-size: 12px; font-variant-numeric: tabular-nums; }
+.chip:hover { background: var(--bg-hover); color: var(--ink-1); }
+
+/* 属性编辑器场景 */
+.prop-card { background: var(--bg-page); border: 1px solid var(--line-1); border-radius: var(--radius-md);
+  padding: 16px 18px; max-width: 460px; }
+.prop-row { display: grid; grid-template-columns: 84px 1fr; gap: 12px; align-items: center; padding: 8px 0; }
+.prop-row + .prop-row { border-top: 1px solid var(--line-2); }
+.prop-row .k { font-size: 12px; color: var(--ink-3); }
+.prop-row .v { font-size: 13px; color: var(--ink-1); min-height: 28px; display: flex; align-items: center; }
+.tag-pill { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 6px;
+  background: var(--bg-group); color: var(--ink-2); font-size: 11.5px; }
+
+/* ═══════════ DatePicker 本体（方案 C · 输入驱动） ═══════════ */
+.dp { position: relative; display: inline-flex; vertical-align: top; }
+.dp-input { display: inline-flex; align-items: center; gap: 8px; height: 34px; width: 208px;
+  padding: 0 6px 0 12px; border-radius: var(--radius-sm); background: var(--bg-surface);
+  border: 1px solid var(--line-1); color: var(--ink-1); font-size: 13px; text-align: left;
+  font-variant-numeric: tabular-nums; cursor: text;
+  transition: border-color 160ms var(--ease-out); }
+.dp-input:hover { border-color: var(--ink-3); }
+.dp-input:focus-within { outline: none; box-shadow: var(--focus-ring); border-color: var(--accent); }
+.dp-input[data-open="true"] { border-color: var(--accent); }
+.dp-input input { flex: 1; min-width: 0; border: none; background: none; outline: none;
+  font: inherit; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+.dp-input input::placeholder { color: var(--ink-3); }
+.dp-input .cal-ico { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center;
+  color: var(--ink-3); transition: color 160ms; cursor: pointer; }
+.dp-input .cal-ico svg { width: 15px; height: 15px; }
+.dp-input .cal-ico:hover { background: var(--bg-hover); color: var(--ink-1); }
+.dp-input[data-open="true"] .cal-ico { color: var(--accent-text); }
+.dp-input.invalid { border-color: var(--danger); }
+.dp-input.invalid:focus-within { box-shadow: 0 0 0 3px var(--danger-soft); border-color: var(--danger); }
+.dp.sm .dp-input { height: 28px; width: 176px; font-size: 12px; padding: 0 4px 0 10px; }
+
+.dp-panel { position: fixed; z-index: 250; width: 264px; background: var(--bg-surface);
+  border: 1px solid var(--line-1); border-radius: var(--radius-lg); box-shadow: var(--shadow-float);
+  padding: 10px; visibility: hidden; opacity: 0; transform: translateY(4px); pointer-events: none;
+  transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out), visibility 160ms; }
+.dp-panel[data-open="true"] { visibility: visible; opacity: 1; transform: none; pointer-events: auto; }
+
+/* 解析候选条 */
+.cand { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 4px 8px; margin-bottom: 8px;
+  border-radius: var(--radius-sm); background: var(--bg-group); font-size: 12.5px; color: var(--ink-2);
+  font-variant-numeric: tabular-nums; }
+.cand .arr { color: var(--ink-3); font-family: var(--mono); flex: none; }
+.cand.ok b { color: var(--accent-text); font-weight: 600; }
+.cand.ok .sub { color: var(--ink-3); font-size: 11.5px; margin-left: auto; flex: none; }
+.cand.bad { color: var(--danger); background: var(--danger-soft); }
+.cand .keys { margin-left: auto; font-size: 11px; color: var(--ink-3); flex: none;
+  display: inline-flex; gap: 6px; align-items: center; }
+.cand .keys kbd { padding: 0 5px; border: 1px solid var(--line-1); border-radius: 4px;
+  font-size: 10.5px; font-family: var(--mono); background: var(--bg-surface); }
+
+/* 日历（辅助通道） */
+.dp-head { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+.dp-label { flex: 1; height: 28px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12.5px; font-weight: 600; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+.dp-nav { width: 28px; height: 28px; border-radius: var(--radius-sm); display: grid; place-items: center;
+  color: var(--ink-2); transition: background 130ms, color 130ms; }
+.dp-nav:hover { background: var(--bg-hover); color: var(--ink-1); }
+.dp-nav svg { width: 14px; height: 14px; }
+.dp-week { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 2px; }
+.dp-week span { text-align: center; font-size: 10.5px; color: var(--ink-3); height: 20px; line-height: 20px; }
+.dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.dp-day { height: 29px; border-radius: 7px; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: var(--ink-1); font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: background 130ms, color 130ms; }
+.dp-day:hover { background: var(--bg-hover); }
+.dp-day.out { color: var(--ink-3); }
+.dp-day.today { color: var(--accent-text); font-weight: 600; }
+.dp-day.cand-day { background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+.dp-day.cand-day:hover { background: var(--accent-soft); }
+.dp-day.committed { background: var(--accent); color: var(--ink-inverse); font-weight: 600; }
+.dp-day.committed:hover { background: var(--accent-hover); }
+.dp-foot { display: flex; align-items: center; justify-content: space-between; margin-top: 8px;
+  padding-top: 8px; border-top: 1px solid var(--line-2); }
+.dp-foot .hint { font-size: 11px; color: var(--ink-3); }
+.dp-foot button { height: 24px; padding: 0 9px; border-radius: 6px; font-size: 11.5px; color: var(--ink-2); }
+.dp-foot button:hover { background: var(--bg-hover); color: var(--ink-1); }
+.dp-foot .today-btn { color: var(--accent-text); font-weight: 550; }
+
+.plan-badge { position: fixed; left: 16px; bottom: 42px; z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.plan-badge .tag { display: inline-flex; align-items: center; gap: 7px; background: var(--bg-surface);
+  border: 1px solid var(--line-1); box-shadow: var(--shadow-card); border-radius: 99px; padding: 6px 13px;
+  font-size: 11.5px; color: var(--ink-2); }
+.plan-badge .tag b { color: var(--accent-text); font-weight: 600; }
+.plan-note { width: 342px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px;
+  box-shadow: var(--shadow-card); padding: 14px 16px; font-size: 12px; color: var(--ink-2); line-height: 1.75; display: none; }
+.plan-note.open { display: block; }
+.plan-note h4 { font-size: 12.5px; color: var(--ink-1); margin-bottom: 6px; }
+.plan-note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+.plan-note .try { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); color: var(--ink-3); font-size: 11.5px; }
+.plan-note .links { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); font-size: 11px; color: var(--ink-3); }
+.plan-note .links a { color: var(--accent-text); text-decoration: none; }
+.plan-note .links a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head"><div class="brand-mark">τ</div><div class="brand-name">Tau</div></div>
+    <div class="nav-label">工作台</div>
+    <button class="nav-item">今日</button>
+    <button class="nav-item">日程</button>
+    <button class="nav-item active">待办</button>
+    <div class="nav-label">知识</div>
+    <button class="nav-item">卡片库</button>
+    <button class="nav-item">数据库</button>
+  </aside>
+
+  <div class="main">
+    <header class="titlebar">
+      <span class="crumb">· 组件设计稿 · DatePicker</span>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="themeBtn" title="切换主题"><span id="themeIcon"></span></button>
+      <div class="win-controls"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    </header>
+
+    <div class="home">
+      <h1>DatePicker 设计稿 · 方案 C <span class="verdict">键盘通道</span></h1>
+      <div class="date">输入驱动 · 解析优先 —— 日期的第一输入通道是打字，日历是确认与兜底的第二通道</div>
+
+      <div class="panel">
+        <h3>解析优先 · LIVE PARSE</h3>
+        <div class="row">
+          <div class="dp" data-dp>
+            <div class="dp-input" tabindex="-1">
+              <input type="text" placeholder="输入：明天 / 9月19日 / 2026-09-19 / +3…" spellcheck="false">
+              <span class="cal-ico" title="展开日历"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+            </div>
+            <div class="dp-panel" tabindex="-1"></div>
+          </div>
+          <div class="dp sm" data-dp>
+            <div class="dp-input" tabindex="-1">
+              <input type="text" placeholder="sm · 行内编辑" spellcheck="false">
+              <span class="cal-ico"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+            </div>
+            <div class="dp-panel" tabindex="-1"></div>
+          </div>
+        </div>
+        <div class="chips" id="chipRow">
+          <button class="chip" type="button">今天</button>
+          <button class="chip" type="button">明天</button>
+          <button class="chip" type="button">后天</button>
+          <button class="chip" type="button">3天后</button>
+          <button class="chip" type="button">下周三</button>
+          <button class="chip" type="button">10月1日</button>
+          <button class="chip" type="button">2026-12-31</button>
+          <button class="chip" type="button">9/19</button>
+          <button class="chip" type="button">banana（无效）</button>
+        </div>
+        <div class="note">候选条 = 解析结果的<em>实时投影</em>（group 底、accent-text 强调）；
+          无效输入安静转 danger，<b>不提交、不清空</b>——输入框语义里打错字是常态。
+          词表点击即代填，方便对比。</div>
+        <div class="code-card"><span class="cmt">// API 草案：默认仍是 A 的按钮触发器，inputMode 换成输入通道（同一面板引擎）</span>
+<span class="tag">&lt;DatePicker</span>
+  <span class="attr">inputMode</span>="text"                 <span class="cmt">// 触发器 = 输入框，边输边解析</span>
+  <span class="attr">value</span>={due}                       <span class="cmt">// "YYYY-MM-DD" | null</span>
+  <span class="attr">onValueChange</span>={setDue}            <span class="cmt">// Enter 或点日历才提交</span>
+  <span class="attr">parse</span>={parseDateText}             <span class="cmt">// 词表白名单（下表）；返回 null = 无效</span>
+<span class="tag">/&gt;</span>
+<span class="cmt">// "明天" → +1 · "3天后" → +3 · "下周三" → 下周三 · "9月19日" → 今年（已过则明年）· "9/19" → 今年 9 月 19</span></div>
+      </div>
+
+      <div class="panel">
+        <h3>解析词表 · M0 白名单边界（不做自由 NLP）</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12.5px">
+          <thead><tr>
+            <th style="text-align:left; padding: 6px 10px; color: var(--ink-3); font-size: 11.5px; border-bottom: 1px solid var(--line-1)">输入</th>
+            <th style="text-align:left; padding: 6px 10px; color: var(--ink-3); font-size: 11.5px; border-bottom: 1px solid var(--line-1)">解析</th>
+            <th style="text-align:left; padding: 6px 10px; color: var(--ink-3); font-size: 11.5px; border-bottom: 1px solid var(--line-1)">备注</th>
+          </tr></thead>
+          <tbody style="color: var(--ink-2)">
+            <tr><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><code class="inline">今天 / 明天 / 后天 / 昨天 / 前天</code></td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">相对今天 ±n</td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">最高频，放词表首位</td></tr>
+            <tr><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><code class="inline">3天后 / 3天前 / +3 / -3</code></td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">today ± n</td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">计划速记习惯</td></tr>
+            <tr><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><code class="inline">周三 / 星期三 / 下周三</code></td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">本周 / 下周的目标星期（周一起始）</td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">「周三」= 本周已过则下周</td></tr>
+            <tr><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><code class="inline">9月19日 / 9月19</code></td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">今年目标日（已过 → 明年）</td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">候选条标注实际年份</td></tr>
+            <tr><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><code class="inline">2026-09-19 / 2026/9/19</code></td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">绝对日期直映</td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">tabular-nums 天然对齐</td></tr>
+            <tr><td style="padding: 7px 10px"><code class="inline">9/19</code></td><td style="padding: 7px 10px">今年 9 月 19（已过 → 明年）</td><td style="padding: 7px 10px">斜杠短格式</td></tr>
+          </tbody>
+        </table>
+        <div class="note">边界即契约：白名单外的输入一律「无法识别」，<em>不做模糊猜测</em>（猜错的日期比报错贵）。
+          范围输入（<code class="inline">9月1日 到 9月15日</code>）M1 再议——先让单日期通道立住。</div>
+      </div>
+
+      <div class="panel">
+        <h3>真实场景 · 数据库任务属性编辑器（DatePlugin 行内）</h3>
+        <div class="prop-card">
+          <div class="prop-row">
+            <span class="k">任务</span>
+            <span class="v">桌面端重构 · 里程碑梳理</span>
+          </div>
+          <div class="prop-row">
+            <span class="k">截止日期</span>
+            <span class="v">
+              <div class="dp" data-dp>
+                <div class="dp-input" tabindex="-1">
+                  <input type="text" placeholder="如：下周五" spellcheck="false">
+                  <span class="cal-ico"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+                </div>
+                <div class="dp-panel" tabindex="-1"></div>
+              </div>
+            </span>
+          </div>
+          <div class="prop-row">
+            <span class="k">标签</span>
+            <span class="v" style="gap: 6px">
+              <span class="tag-pill">重构</span><span class="tag-pill">桌面端</span>
+            </span>
+          </div>
+          <div class="prop-row">
+            <span class="k">创建时间</span>
+            <span class="v" style="color: var(--ink-3); font-variant-numeric: tabular-nums">2026-09-12 14:32（只读）</span>
+          </div>
+        </div>
+        <div class="kbd-row" style="margin-top: 14px">
+          <span><kbd>任意键</kbd> 边输边解析</span>
+          <span><kbd>Enter</kbd> 提交候选</span>
+          <span><kbd>↑↓←→</kbd> 日历内导航</span>
+          <span><kbd>Esc</kbd> 还原已提交值并关闭</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="statusbar"><span>Tau v2 · 重构中</span><span id="statusInfo">方案 C · 输入驱动 · Enter 提交 / Esc 还原</span></div>
+  </div>
+</div>
+
+<div class="plan-badge">
+  <button class="tag" id="noteToggle"><b>方案 C</b> 输入驱动 · 解析优先 · 交互说明</button>
+  <div class="plan-note" id="planNote">
+    <h4>输入驱动（键盘通道）</h4>
+    触发器即输入框：<em>打字是第一通道</em>，日历退居确认与兜底。词表白名单收敛
+    （相对日 / ±n 天 / 周X / 月日 / 绝对日期），不做自由 NLP——猜错的日期比报错贵。
+    Esc 还原而非清空（输入框语义）。行内属性编辑、任务快速录入的主场。
+    <div class="try">试试：点词表 chip 代填；输入 banana 看 danger 态；Enter 提交后 Esc 还原；
+      右上角切 cream / cocoa。</div>
+    <div class="links">对比：<a href="plan-a-classic.html">A 经典月历</a> · <a href="plan-b-composite.html">B 复合面板</a> · <b>C 输入驱动</b> · <a href="plan-d-dense.html">D 紧凑迷你</a> · <a href="index.html">导览</a></div>
+  </div>
+</div>
+
+<script>
+/* ───────── 图标 / 主题 ───────── */
+const P = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  chevL: '<path d="m15 18-6-6 6-6"/>',
+  chevR: '<path d="m9 18 6-6-6-6"/>',
+};
+let theme = "cream";
+function toggleTheme() {
+  theme = theme === "cream" ? "cocoa" : "cream";
+  document.documentElement.dataset.theme = theme;
+  document.getElementById("themeIcon").innerHTML =
+    `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P[theme === "cream" ? "moon" : "sun"]}</svg>`;
+}
+document.getElementById("themeBtn").addEventListener("click", toggleTheme);
+document.getElementById("themeIcon").innerHTML = `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P.moon}</svg>`;
+const status = (t) => document.getElementById("statusInfo").textContent = t;
+
+/* ═══════════ 日历内核（周一起始，六周固定 42 格） ═══════════ */
+const WEEK = ["一", "二", "三", "四", "五", "六", "日"];
+const WEEKCN = ["日", "一", "二", "三", "四", "五", "六"];
+const TODAY = new Date();
+const pad = (n) => String(n).padStart(2, "0");
+const fmtEN = (d) => d ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` : "";
+const fmtCN = (d) => `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+function cellsOf(y, m) {
+  const off = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+  const base = new Date(y, m - 1, 1 - off);
+  const arr = [];
+  for (let i = 0; i < 42; i++) arr.push(new Date(base.getFullYear(), base.getMonth(), base.getDate() + i));
+  return arr;
+}
+function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+
+/* ═══════════ 解析器（白名单词表） ═══════════ */
+function parseDateText(q) {
+  const t = q.trim().replace(/\s+/g, "");
+  if (!t) return null;
+  let m;
+  const rel = { "前天": -2, "昨天": -1, "今天": 0, "明天": 1, "后天": 2 };
+  if (t in rel) return { d: addDays(TODAY, rel[t]), why: t };
+  if ((m = t.match(/^([+-])(\d{1,3})$/))) return { d: addDays(TODAY, Number(`${m[1]}${m[2]}`)), why: t };
+  if ((m = t.match(/^(\d{1,3})天[后前]$/))) return { d: addDays(TODAY, (t.includes("天前") ? -1 : 1) * Number(m[1])), why: t };
+  if ((m = t.match(/^(下|本|这)?(?:星期|周)([一二三四五六日天])$/))) {
+    const idxMap = { "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "日": 0, "天": 0 };
+    const target = idxMap[m[2]];
+    const monday = addDays(TODAY, -((TODAY.getDay() + 6) % 7));
+    let d = addDays(monday, target === 0 ? 6 : target - 1);
+    if (m[1] === "下") d = addDays(d, 7);
+    else if (!m[1] && d < TODAY) d = addDays(d, 7); // 本周已过 → 下周
+    return { d, why: `${m[1] ?? ""}周${m[2]}` };
+  }
+  if ((m = t.match(/^(\d{1,2})月(\d{1,2})[日号]?$/))) {
+    let y = TODAY.getFullYear();
+    let d = new Date(y, m[1] - 1, m[2]);
+    if (d < TODAY) d = new Date(++y, m[1] - 1, m[2]);
+    return { d, why: `${m[1]}月${m[2]}日` };
+  }
+  if ((m = t.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/))) {
+    const d = new Date(Number(m[1]), m[2] - 1, m[3]);
+    return { d, why: "绝对日期" };
+  }
+  if ((m = t.match(/^(\d{1,2})\/(\d{1,2})$/))) {
+    let y = TODAY.getFullYear();
+    let d = new Date(y, m[1] - 1, m[2]);
+    if (d < TODAY) d = new Date(++y, m[1] - 1, m[2]);
+    return { d, why: `${m[1]}/${m[2]}` };
+  }
+  return null;
+}
+
+/* ═══════════ 面板渲染：候选条 + 辅助日历 ═══════════ */
+function render(p) {
+  const el = p.panel;
+  el.innerHTML = "";
+  const cand = document.createElement("div");
+  if (!p.query.trim()) {
+    cand.className = "cand";
+    cand.innerHTML = `<span class="arr">›</span><span>${p.value ? `已提交 <b style="color:var(--accent-text)">${fmtCN(p.value)}</b>` : "等待输入…"}</span>
+      <span class="keys"><kbd>Enter</kbd>提交 <kbd>Esc</kbd>还原</span>`;
+  } else if (p.candidate) {
+    cand.className = "cand ok";
+    cand.innerHTML = `<span class="arr">→</span><span><b>${fmtCN(p.candidate.d)}</b>（${p.candidate.why}）</span>
+      <span class="sub">周${WEEKCN[p.candidate.d.getDay()]}</span>`;
+  } else {
+    cand.className = "cand bad";
+    cand.innerHTML = `<span class="arr">?</span><span>无法识别为日期（词表见下）</span>`;
+  }
+  el.appendChild(cand);
+
+  const focusD = p.candidate?.d || p.value || TODAY;
+  const head = document.createElement("div");
+  head.className = "dp-head";
+  head.innerHTML = `<button class="dp-nav" data-nav="-1"><svg viewBox="0 0 24 24">${P.chevL}</svg></button>
+    <span class="dp-label">${focusD.getFullYear()}年${focusD.getMonth() + 1}月</span>
+    <button class="dp-nav" data-nav="1"><svg viewBox="0 0 24 24">${P.chevR}</svg></button>`;
+  head.querySelectorAll("[data-nav]").forEach((b) => b.addEventListener("click", () => {
+    p.forceY = (p.forceY ?? focusD.getFullYear());
+    p.forceM = (p.forceM ?? focusD.getMonth() + 1);
+    const nm = p.forceM + Number(b.dataset.nav);
+    p.forceM = ((nm - 1 + 12) % 12) + 1; p.forceY += Math.floor((nm - 1) / 12);
+    render(p);
+  }));
+  el.appendChild(head);
+  const week = document.createElement("div");
+  week.className = "dp-week";
+  week.innerHTML = WEEK.map((w) => `<span>${w}</span>`).join("");
+  el.appendChild(week);
+  const y = p.forceY ?? focusD.getFullYear(), m = p.forceM ?? focusD.getMonth() + 1;
+  const grid = document.createElement("div");
+  grid.className = "dp-grid";
+  cellsOf(y, m).forEach((d) => {
+    const c = document.createElement("div");
+    c.className = "dp-day"
+      + (d.getMonth() + 1 !== m ? " out" : "")
+      + (sameDay(d, TODAY) ? " today" : "")
+      + (p.candidate && sameDay(d, p.candidate.d) ? " cand-day" : "")
+      + (!p.candidate && p.value && sameDay(d, p.value) ? " committed" : "");
+    c.textContent = d.getDate();
+    c.addEventListener("click", () => {
+      commit(p, d, "日历点选");
+    });
+    grid.appendChild(c);
+  });
+  el.appendChild(grid);
+  const foot = document.createElement("div");
+  foot.className = "dp-foot";
+  foot.innerHTML = `<span class="hint">输入与点选殊途同归</span><button class="today-btn" data-today>今天</button>`;
+  foot.querySelector("[data-today]").addEventListener("click", () => commit(p, TODAY, "底栏今天"));
+  el.appendChild(foot);
+}
+function commit(p, d, via) {
+  p.value = d;
+  p.query = fmtEN(d);
+  p.candidate = { d, why: via };
+  p.input.value = fmtCN(d);
+  p.input.closest(".dp-input").classList.remove("invalid");
+  p.forceY = p.forceM = null;
+  render(p);
+  status(`onValueChange → "${fmtEN(d)}"（${via}）`);
+  close(p);
+}
+
+/* ═══════════ 定位 / 开合 ═══════════ */
+const GAP = 4;
+function place(p) {
+  const r = p.input.closest(".dp-input").getBoundingClientRect();
+  const w = 264, mh = p.panel.offsetHeight;
+  const below = innerHeight - r.bottom - GAP, up = r.top - GAP;
+  const dir = below >= mh || below >= up ? "down" : "up";
+  const left = Math.min(Math.max(8, r.left), Math.max(8, innerWidth - 8 - w));
+  p.panel.style.left = `${left}px`;
+  p.panel.style.top = dir === "down" ? `${r.bottom + GAP}px` : `${Math.max(8, r.top - GAP - mh)}px`;
+}
+function open(p) {
+  if (p.open) return;
+  p.open = true;
+  p.input.closest(".dp-input").dataset.open = "true";
+  p.panel.dataset.open = "true";
+  p.forceY = p.forceM = null;
+  render(p);
+  place(p);
+}
+function close(p) {
+  if (!p.open) return;
+  p.open = false;
+  p.input.closest(".dp-input").dataset.open = "false";
+  p.panel.dataset.open = "false";
+}
+
+/* 实例挂载 */
+function mount(root) {
+  const input = root.querySelector("input");
+  const panel = root.querySelector(".dp-panel");
+  const p = { root, input, panel, open: false, query: "", candidate: null, value: null, forceY: null, forceM: null };
+  input.addEventListener("focus", () => { open(p); render(p); });
+  input.addEventListener("input", () => {
+    p.query = input.value;
+    p.candidate = parseDateText(p.query);
+    p.forceY = p.forceM = null;
+    input.closest(".dp-input").classList.toggle("invalid", !!p.query.trim() && !p.candidate);
+    if (!p.open) open(p);   // 输入即打开（不依赖 focus 事件，嵌入环境也可靠）
+    else { render(p); place(p); }
+    status(p.candidate ? `解析 → "${fmtEN(p.candidate.d)}"（${p.candidate.why}）· Enter 提交`
+      : p.query.trim() ? "无法识别（白名单词表外）" : "等待输入…");
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const d = p.candidate?.d || p.value;
+      if (d) commit(p, d, p.candidate ? "Enter" : "重提交");
+    } else if (e.key === "Escape") {
+      e.preventDefault(); e.stopPropagation();
+      p.query = p.value ? fmtEN(p.value) : "";
+      input.value = p.value ? fmtCN(p.value) : "";
+      p.candidate = null;
+      input.closest(".dp-input").classList.remove("invalid");
+      close(p);
+      status("Esc → 还原已提交值（输入框语义）");
+    }
+  });
+  root.querySelector(".cal-ico").addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (p.open) { close(p); } else { open(p); input.focus(); }
+  });
+  panel.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); input.focus(); close(p); }
+    else if (e.key === "Enter" && p.candidate) { e.preventDefault(); commit(p, p.candidate.d, "Enter"); }
+  });
+  const reposition = () => p.open && place(p);
+  window.addEventListener("resize", reposition);
+  window.addEventListener("scroll", reposition, true);
+  return p;
+}
+const pickers = [...document.querySelectorAll(".dp")].map(mount);
+
+/* 词表 chip 代填 */
+document.getElementById("chipRow").addEventListener("click", (e) => {
+  const chip = e.target.closest(".chip");
+  if (!chip) return;
+  const p = pickers[0];
+  p.input.focus();
+  const text = chip.textContent.replace("（无效）", "");
+  p.input.value = text;
+  p.input.dispatchEvent(new Event("input", { bubbles: true }));
+});
+
+/* plan-note 开合 */
+document.getElementById("noteToggle").addEventListener("click", () => document.getElementById("planNote").classList.toggle("open"));
+
+/* 外点关闭 */
+document.addEventListener("pointerdown", (e) => {
+  pickers.forEach((p) => { if (p.open && !p.root.contains(e.target)) close(p); });
+}, true);
+</script>
+</body>
+</html>

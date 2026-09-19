@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DatePicker 方案 B · 复合面板（预设 + 双月 + 底栏确认） — Tau 桌面端</title>
+<!--
+  【DatePicker 方案 B：复合面板 —— 范围选择的主场】
+
+  心智：日期「范围」不是两个单日期的拼装，而是一次查询意图的表达：
+  - 结构 = 预设列（业务高频一步到位）+ 双月日历（跨月范围不翻页）+ 底栏（区间摘要 + 清空/确定）
+  - 提交模型 = 显式确认：点首末日期只做预览（accent-soft 区间底），「确定」才提交——
+    范围选错的代价高（触发下游重查询），不适用 A 的即点即定
+  - 预设 = 即选即定（今天/本周/最近 30 天是明确意图，没有误选空间）
+  - 数据驱动心智与 Select 方案 B 同源：presets 是查询参数的 UI 投影，业务传入
+
+  本页重点演示：
+  1. 范围复合（静态展开 + 标注）：预设列 / 双月 / 悬停预览 / 底栏摘要
+  2. FilterBar 真实场景：日记 MomentFilterBar（范围 × 类型 × 应用，联动统计）
+  3. 单日期退化形态：收起预设列与底栏、单月、即点即定——结构同一套，证明「B ⊃ A」
+  4. 与方案 A 的提交模型对照（显式确认 vs 即点即定的适用边界）
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  --titlebar-h: 46px; --sidebar-w: 218px; --statusbar-h: 30px;
+}
+/* token 与 packages/ui/src/theme/tokens.css 同步（D-006 表面阶梯） */
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #ece4d4; --bg-sunken: #e2d8c0;
+  --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09);
+  --bg-selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+  --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+  --danger: #b0564d; --danger-soft: #f6e3e0;
+  --focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+}
+[data-theme="cocoa"] {
+  color-scheme: dark;
+  --bg-page: #221d16; --bg-surface: #2e2820; --bg-group: #19150e; --bg-sunken: #100d08;
+  --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11);
+  --bg-selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+  --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+  --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+  --danger: #d97e66; --danger-soft: #34201a;
+  --focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font); font-size: 13px; line-height: 1.65; color: var(--ink-1);
+  background: var(--bg-page); overflow: hidden; min-width: 1180px; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+::-webkit-scrollbar { width: 9px; }
+::-webkit-scrollbar-thumb { background: var(--line-1); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+
+.app { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); grid-template-rows: 100vh;
+  grid-template-areas: "sidebar main"; }
+.main { grid-area: main; display: flex; flex-direction: column; min-width: 0; background: var(--bg-page); }
+.sidebar { grid-area: sidebar; padding: 0 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.sidebar-head { display: flex; align-items: center; gap: 8px; height: var(--titlebar-h); padding: 0 6px; margin-bottom: 6px; }
+.brand-mark { width: 24px; height: 24px; border-radius: 8px; background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.brand-name { font-weight: 600; font-size: 13.5px; }
+.nav-label { font-size: 11px; color: var(--ink-3); padding: 8px 10px 6px; letter-spacing: 0.02em; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px;
+  border-radius: 10px; color: var(--ink-2); text-align: left; }
+.nav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-item.active { background: var(--bg-selected); color: var(--accent-text); font-weight: 550; }
+.titlebar { height: var(--titlebar-h); flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.icon-btn { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-2); }
+.icon-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.crumb { color: var(--ink-3); font-size: 12.5px; }
+.titlebar .spacer { flex: 1; }
+.win-controls { display: flex; gap: 6px; }
+.win-controls .dot { width: 12px; height: 12px; border-radius: 99px; background: var(--bg-sunken); border: 1px solid var(--line-1); }
+.home { flex: 1; overflow-y: auto; padding: 26px 40px 48px; }
+.home h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+.home .date { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; margin-bottom: 22px; }
+.panel { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card); padding: 18px 20px; margin-bottom: 16px; }
+.panel h3 { font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 12px; letter-spacing: 0.03em; }
+.statusbar { height: var(--statusbar-h); flex: none; display: flex; align-items: center; gap: 14px;
+  padding: 0 16px; font-size: 11.5px; color: var(--ink-3); border-top: 1px solid var(--line-1); }
+.row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; line-height: 1.8; }
+.note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+code.inline { font-family: var(--mono); font-size: 11px; background: var(--bg-group); padding: 1px 5px; border-radius: 5px; }
+.code-card { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 10px;
+  padding: 12px 14px; font-family: var(--mono); font-size: 11.5px; line-height: 1.75; color: var(--ink-2);
+  overflow-x: auto; white-space: pre; margin-top: 12px; }
+.code-card .tag { color: var(--accent-text); }
+.code-card .attr { color: var(--ink-1); }
+.code-card .cmt { color: var(--ink-3); }
+.kbd-row { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-3); margin-top: 10px; }
+.kbd-row > span { display: inline-flex; align-items: center; gap: 6px; }
+.kbd-row kbd { padding: 1px 6px; border: 1px solid var(--line-1); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--bg-surface); font-size: 11px; font-family: var(--mono); }
+.verdict { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-selected); color: var(--accent-text);
+  border: 1px solid var(--accent-soft); border-radius: 99px; padding: 1px 10px; font-size: 11px; font-weight: 600; vertical-align: 2px; }
+.legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 18px; margin-top: 14px;
+  font-size: 12px; color: var(--ink-2); line-height: 1.7; }
+.legend li { list-style: none; display: flex; gap: 8px; align-items: flex-start; }
+.legend .n { flex: none; width: 18px; height: 18px; margin-top: 2px; border-radius: 99px; background: var(--accent-soft);
+  color: var(--accent-text); font-size: 11px; font-weight: 600; display: grid; place-items: center; }
+
+.filterbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px;
+  background: var(--bg-page); border: 1px solid var(--line-1); border-radius: 12px; }
+.filterbar .f-label { font-size: 12px; color: var(--ink-2); }
+.pill { height: 28px; padding: 0 12px; border-radius: 8px; font-size: 12px; color: var(--ink-2);
+  border: 1px solid var(--line-1); background: var(--bg-surface); }
+.pill:hover { border-color: var(--ink-3); color: var(--ink-1); }
+.pill.on { background: var(--bg-selected); border-color: transparent; color: var(--accent-text); font-weight: 550; }
+.btn-primary { height: 28px; padding: 0 14px; border-radius: 8px; background: var(--accent); color: var(--ink-inverse);
+  font-size: 12px; font-weight: 550; }
+.btn-primary:hover { background: var(--accent-hover); }
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+.stat-cell { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 10px; padding: 12px 14px; }
+.stat-cell .num { font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat-cell .cap { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+
+/* ═══════════ DatePicker 本体（方案 B · 复合面板） ═══════════ */
+.dp { position: relative; display: inline-flex; vertical-align: top; }
+.dp-trigger { display: inline-flex; align-items: center; gap: 8px; height: 34px; min-width: 210px;
+  padding: 0 6px 0 12px; border-radius: var(--radius-sm); background: var(--bg-surface);
+  border: 1px solid var(--line-1); color: var(--ink-1); font-size: 13px; text-align: left;
+  font-variant-numeric: tabular-nums;
+  transition: border-color 160ms var(--ease-out), background 160ms var(--ease-out); }
+.dp-trigger:hover { border-color: var(--ink-3); }
+.dp-trigger:focus-visible { outline: none; box-shadow: var(--focus-ring); border-color: var(--accent); }
+.dp-trigger[data-open="true"] { border-color: var(--accent); }
+.dp-trigger .value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-trigger .value.placeholder { color: var(--ink-3); }
+.dp-trigger .cal-ico { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center;
+  color: var(--ink-3); transition: color 160ms; }
+.dp-trigger .cal-ico svg { width: 15px; height: 15px; }
+.dp-trigger[data-open="true"] .cal-ico { color: var(--accent-text); }
+.dp.sm .dp-trigger { height: 28px; min-width: 178px; font-size: 12px; padding: 0 4px 0 10px; }
+
+.dp-panel { position: fixed; z-index: 250; background: var(--bg-surface); border: 1px solid var(--line-1);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-float); padding: 12px;
+  visibility: hidden; opacity: 0; transform: translateY(4px); pointer-events: none;
+  transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out), visibility 160ms;
+  display: flex; gap: 10px; }
+.dp-panel[data-open="true"] { visibility: visible; opacity: 1; transform: none; pointer-events: auto; }
+.dp-panel.static { position: static; visibility: visible; opacity: 1; transform: none; pointer-events: auto;
+  box-shadow: var(--shadow-card); }
+.dp-panel:focus-visible { outline: none; }
+.dp-panel.simple { display: block; width: 264px; }
+
+/* 预设列 */
+.presets { width: 128px; flex: none; display: flex; flex-direction: column; gap: 2px;
+  padding-right: 10px; border-right: 1px solid var(--line-2); }
+.presets .p-title { font-size: 11px; font-weight: 600; color: var(--ink-3); padding: 4px 8px 6px; }
+.preset { display: flex; align-items: center; justify-content: space-between; height: 28px; padding: 0 8px;
+  border-radius: var(--radius-sm); font-size: 12.5px; color: var(--ink-2); text-align: left;
+  transition: background 130ms, color 130ms; }
+.preset:hover { background: var(--bg-hover); color: var(--ink-1); }
+.preset.on { background: var(--bg-selected); color: var(--accent-text); font-weight: 550; }
+.preset .days { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.preset.on .days { color: var(--accent-text); opacity: 0.75; }
+
+/* 双月区 */
+.months { display: flex; gap: 10px; }
+.mcol { width: 226px; }
+.mcol + .mcol { padding-left: 10px; border-left: 1px solid var(--line-2); }
+.dp-head { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.dp-label { flex: 1; height: 28px; border-radius: var(--radius-sm); display: inline-flex; align-items: center;
+  justify-content: center; font-size: 12.5px; font-weight: 600; color: var(--ink-1);
+  font-variant-numeric: tabular-nums; }
+.dp-nav { width: 28px; height: 28px; border-radius: var(--radius-sm); display: grid; place-items: center;
+  color: var(--ink-2); visibility: hidden; transition: background 130ms, color 130ms; }
+.mcol:first-child .dp-nav.l, .mcol:last-child .dp-nav.r { visibility: visible; }
+.dp-nav:hover { background: var(--bg-hover); color: var(--ink-1); }
+.dp-nav svg { width: 14px; height: 14px; }
+.dp-week { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 2px; }
+.dp-week span { text-align: center; font-size: 10.5px; color: var(--ink-3); height: 20px; line-height: 20px; }
+.dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.dp-day { height: 29px; border-radius: 7px; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; color: var(--ink-1); font-variant-numeric: tabular-nums; cursor: pointer;
+  transition: background 130ms, color 130ms; }
+.dp-day:hover { background: var(--bg-hover); }
+.dp-day.out { color: var(--ink-3); }
+.dp-day.today { color: var(--accent-text); font-weight: 600; }
+.dp-day.today::after { content: ""; position: absolute; }
+.dp-day.in-range { background: var(--accent-soft); border-radius: 0; }
+.dp-day.in-range:hover { background: var(--accent-soft); }
+.dp-day.edge { background: var(--accent); color: var(--ink-inverse); font-weight: 600; border-radius: 7px; }
+.dp-day.edge:hover { background: var(--accent-hover); }
+.dp-day.edge.start { border-radius: 7px 0 0 7px; }
+.dp-day.edge.end { border-radius: 0 7px 7px 0; }
+.dp-day.edge.start.end { border-radius: 7px; }
+
+/* 底栏 */
+.dp-foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--line-2); }
+.dp-sum { flex: 1; min-width: 0; font-size: 12px; color: var(--ink-2); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dp-sum b { color: var(--ink-1); font-weight: 600; }
+.dp-sum .cnt { color: var(--accent-text); font-weight: 550; }
+.dp-foot .ghost { height: 28px; padding: 0 12px; border-radius: 8px; font-size: 12px; color: var(--ink-2); }
+.dp-foot .ghost:hover { background: var(--bg-hover); color: var(--ink-1); }
+.dp-foot .primary { height: 28px; padding: 0 16px; border-radius: 8px; background: var(--accent);
+  color: var(--ink-inverse); font-size: 12px; font-weight: 550; }
+.dp-foot .primary:hover { background: var(--accent-hover); }
+.dp-foot .primary:disabled { opacity: 0.5; cursor: default; }
+
+/* simple 退化形态（= A 的结构） */
+.simple .dp-label { pointer-events: none; }
+.simple .dp-nav { visibility: visible; }
+.simple .dp-foot-apply { display: none; }
+
+.plan-badge { position: fixed; left: 16px; bottom: 42px; z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.plan-badge .tag { display: inline-flex; align-items: center; gap: 7px; background: var(--bg-surface);
+  border: 1px solid var(--line-1); box-shadow: var(--shadow-card); border-radius: 99px; padding: 6px 13px;
+  font-size: 11.5px; color: var(--ink-2); }
+.plan-badge .tag b { color: var(--accent-text); font-weight: 600; }
+.plan-note { width: 342px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px;
+  box-shadow: var(--shadow-card); padding: 14px 16px; font-size: 12px; color: var(--ink-2); line-height: 1.75; display: none; }
+.plan-note.open { display: block; }
+.plan-note h4 { font-size: 12.5px; color: var(--ink-1); margin-bottom: 6px; }
+.plan-note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+.plan-note .try { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); color: var(--ink-3); font-size: 11.5px; }
+.plan-note .links { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); font-size: 11px; color: var(--ink-3); }
+.plan-note .links a { color: var(--accent-text); text-decoration: none; }
+.plan-note .links a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head"><div class="brand-mark">τ</div><div class="brand-name">Tau</div></div>
+    <div class="nav-label">工作台</div>
+    <button class="nav-item">今日</button>
+    <button class="nav-item">日程</button>
+    <button class="nav-item">待办</button>
+    <div class="nav-label">知识</div>
+    <button class="nav-item">日记</button>
+    <button class="nav-item active">统计</button>
+  </aside>
+
+  <div class="main">
+    <header class="titlebar">
+      <span class="crumb">· 组件设计稿 · DatePicker</span>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="themeBtn" title="切换主题"><span id="themeIcon"></span></button>
+      <div class="win-controls"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    </header>
+
+    <div class="home">
+      <h1>DatePicker 设计稿 · 方案 B <span class="verdict">范围主场</span></h1>
+      <div class="date">复合面板 · 预设 + 双月 + 底栏确认 —— 范围不是两个单日期的拼装，而是一次查询意图的表达</div>
+
+      <div class="panel">
+        <h3>面板解剖 · 静态展开（范围形态）</h3>
+        <div class="dp-panel static" id="anatomyPanel" tabindex="-1"></div>
+        <ul class="legend">
+          <li><span class="n">1</span><span>预设列：业务高频一步到位（今天 / 本周 / 最近 30 天…），即选即定并关闭</span></li>
+          <li><span class="n">2</span><span>双月并排：跨月范围不翻页——左 ‹ 右 › 承载翻月，中间以 line-2 弱分隔</span></li>
+          <li><span class="n">3</span><span>悬停预览：点下起点后，鼠标扫过的区间打 accent-soft 底——选错在提交前就看得见</span></li>
+          <li><span class="n">4</span><span>端点实底：起/止 accent 实底 + ink-inverse，中段只有 soft 底（色彩表意，不装饰）</span></li>
+          <li><span class="n">5</span><span>底栏摘要：「9月12日 – 9月19日 · 共 8 天」——提交前最后一眼确认</span></li>
+          <li><span class="n">6</span><span>显式确认：清空 / 确定两个动作；确定前 onValueChange 不触发（范围选错代价高）</span></li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h3>真实场景 · FilterBar（日记 MomentFilterBar 消费点）</h3>
+        <div class="filterbar">
+          <span class="f-label">范围</span>
+          <div class="dp" data-dp-range>
+            <button class="dp-trigger sm" type="button" style="height: 28px">
+              <span class="value placeholder">日期范围…</span>
+              <span class="cal-ico"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+            </button>
+            <div class="dp-panel" tabindex="-1"></div>
+          </div>
+          <span class="f-label">类型</span>
+          <button class="pill on" type="button">全部</button>
+          <button class="pill" type="button">图文</button>
+          <button class="pill" type="button">笔记</button>
+          <button class="btn-primary" id="applyBtn" type="button" style="margin-left: auto">应用</button>
+        </div>
+        <div class="row" style="margin-top: 18px; align-items: baseline; gap: 8px">
+          <span style="font-size: 24px; font-weight: 650; font-variant-numeric: tabular-nums" id="statCount">36</span>
+          <span style="color: var(--ink-3); font-size: 12.5px">篇日记 · 确定后联动（试试选个范围点确定）</span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-cell"><div class="num" id="stA">18</div><div class="cap">图文</div></div>
+          <div class="stat-cell"><div class="num" id="stB">12</div><div class="cap">笔记</div></div>
+          <div class="stat-cell"><div class="num" id="stC">6</div><div class="cap">闪念</div></div>
+        </div>
+        <div class="code-card"><span class="cmt">// API 草案：presets 是查询参数的 UI 投影（Select 方案 B 数据驱动心智同源），业务传入</span>
+<span class="tag">const</span> RANGE_PRESETS = [
+  { <span class="attr">label</span>: "本周",   <span class="attr">range</span>: () =&gt; [startOf(<span class="tag">"week"</span>), <span class="tag">today</span>] },
+  { <span class="attr">label</span>: "最近 30 天", <span class="attr">range</span>: () =&gt; [addDays(<span class="tag">today</span>, -29), <span class="tag">today</span>] },
+]
+<span class="tag">&lt;DateRangePicker</span>
+  <span class="attr">value</span>={[start, end]}          <span class="cmt">// [string, string] | null</span>
+  <span class="attr">onValueChange</span>={setRange}     <span class="cmt">// 显式确认后才触发（预览不算数）</span>
+  <span class="attr">presets</span>={RANGE_PRESETS}      <span class="cmt">// 预设即选即定；不传则整列收起 → 退化见下</span>
+<span class="tag">/&gt;</span></div>
+      </div>
+
+      <div class="panel">
+        <h3>单日期退化形态 · 同一结构收起两侧（B ⊃ A）</h3>
+        <div class="row">
+          <div class="dp" data-dp-simple>
+            <button class="dp-trigger" type="button">
+              <span class="value placeholder">选择日期…</span>
+              <span class="cal-ico"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+            </button>
+            <div class="dp-panel simple" tabindex="-1"></div>
+          </div>
+        </div>
+        <div class="note">不传 <code class="inline">presets</code>、<code class="inline">range</code> 时：预设列与底栏收起、单月、恢复
+          <em>即点即定</em>——就是方案 A 的形态。也就是说 B 不是第二个组件，是同一结构的
+          「范围扩展态」；单日期 API 面与 A 完全一致。</div>
+      </div>
+
+      <div class="panel">
+        <h3>提交模型对照 · 即点即定 vs 显式确认</h3>
+        <table style="width: 100%; border-collapse: collapse; font-size: 12.5px">
+          <thead><tr>
+            <th style="text-align:left; padding: 6px 10px; color: var(--ink-3); font-size: 11.5px; border-bottom: 1px solid var(--line-1)">场景</th>
+            <th style="text-align:left; padding: 6px 10px; color: var(--ink-3); font-size: 11.5px; border-bottom: 1px solid var(--line-1)">提交模型</th>
+            <th style="text-align:left; padding: 6px 10px; color: var(--ink-3); font-size: 11.5px; border-bottom: 1px solid var(--line-1)">理由</th>
+          </tr></thead>
+          <tbody style="color: var(--ink-2)">
+            <tr><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">单日期（待办截止 / 事件日期）</td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><b style="color: var(--ink-1)">即点即定</b></td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">点错重点一下即可，最短路径赢</td></tr>
+            <tr><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">预设（本周 / 最近 30 天）</td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)"><b style="color: var(--ink-1)">即选即定</b></td><td style="padding: 7px 10px; border-bottom: 1px solid var(--line-2)">意图明确无歧义，确认按钮反而是摩擦</td></tr>
+            <tr><td style="padding: 7px 10px">手选范围（起 → 止）</td><td style="padding: 7px 10px"><b style="color: var(--accent-text)">显式确认（本方案）</b></td><td style="padding: 7px 10px">范围错一格就触发下游重查询；预览 + 摘要 + 确定三道闸</td></tr>
+          </tbody>
+        </table>
+        <div class="kbd-row" style="margin-top: 12px">
+          <span><kbd>←→</kbd> 起点 / <kbd>Shift+←→</kbd> 终点（端点高亮切换）</span>
+          <span><kbd>Enter</kbd> 提交</span>
+          <span><kbd>Esc</kbd> 放弃预览并关闭</span>
+          <span><kbd>P</kbd> 焦点跳预设列</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="statusbar"><span>Tau v2 · 重构中</span><span id="statusInfo">方案 B · 复合面板 · 显式确认</span></div>
+  </div>
+</div>
+
+<div class="plan-badge">
+  <button class="tag" id="noteToggle"><b>方案 B</b> 复合面板 · 预设 + 双月 · 交互说明</button>
+  <div class="plan-note" id="planNote">
+    <h4>复合面板（范围主场）</h4>
+    预设列 + 双月日历 + 底栏确认：手选范围走<em>预览 → 摘要 → 确定</em>三道闸，
+    预设与单日期退化态即点即定。presets 数据驱动（业务传入，组件不内置业务词表）。
+    代价：面板宽（约 640px）、结构最重——只有「范围」消费点才配这个重量，
+    单日期场景请让它退化。
+    <div class="try">试试：点一个起点后扫过区间看预览；点预设即选即定并联动统计；
+      退化形态点日期即提交；右上角切 cream / cocoa。</div>
+    <div class="links">对比：<a href="plan-a-classic.html">A 经典月历</a> · <b>B 复合面板</b> · <a href="plan-c-input.html">C 输入驱动</a> · <a href="plan-d-dense.html">D 紧凑迷你</a> · <a href="index.html">导览</a></div>
+  </div>
+</div>
+
+<script>
+/* ───────── 图标 / 主题 ───────── */
+const P = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  chevL: '<path d="m15 18-6-6 6-6"/>',
+  chevR: '<path d="m9 18 6-6-6-6"/>',
+};
+let theme = "cream";
+function toggleTheme() {
+  theme = theme === "cream" ? "cocoa" : "cream";
+  document.documentElement.dataset.theme = theme;
+  document.getElementById("themeIcon").innerHTML =
+    `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P[theme === "cream" ? "moon" : "sun"]}</svg>`;
+}
+document.getElementById("themeBtn").addEventListener("click", toggleTheme);
+document.getElementById("themeIcon").innerHTML = `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P.moon}</svg>`;
+const status = (t) => document.getElementById("statusInfo").textContent = t;
+
+/* ═══════════ 日历内核（周一起始，六周固定 42 格） ═══════════ */
+const WEEK = ["一", "二", "三", "四", "五", "六", "日"];
+const TODAY = new Date();
+const pad = (n) => String(n).padStart(2, "0");
+const fmtEN = (d) => d ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` : "";
+const fmtMD = (d) => d ? `${d.getMonth() + 1}月${d.getDate()}日` : "";
+const sameDay = (a, b) => a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+const dayTs = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+function cellsOf(y, m) {
+  const off = (new Date(y, m - 1, 1).getDay() + 6) % 7;
+  const base = new Date(y, m - 1, 1 - off);
+  const arr = [];
+  for (let i = 0; i < 42; i++) arr.push(new Date(base.getFullYear(), base.getMonth(), base.getDate() + i));
+  return arr;
+}
+function addDays(d, n) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n); }
+
+/* 预设（业务传入的演示数据） */
+const startOfWeek = addDays(TODAY, -((TODAY.getDay() + 6) % 7));
+const PRESETS = [
+  { label: "今天", days: 1, range: () => [TODAY, TODAY] },
+  { label: "昨天", days: 1, range: () => [addDays(TODAY, -1), addDays(TODAY, -1)] },
+  { label: "本周", days: 7, range: () => [startOfWeek, TODAY] },
+  { label: "最近 7 天", days: 7, range: () => [addDays(TODAY, -6), TODAY] },
+  { label: "最近 30 天", days: 30, range: () => [addDays(TODAY, -29), TODAY] },
+  { label: "本月", days: null, range: () => [new Date(TODAY.getFullYear(), TODAY.getMonth(), 1), TODAY] },
+  { label: "今年", days: null, range: () => [new Date(TODAY.getFullYear(), 0, 1), TODAY] },
+];
+
+/* ═══════════ 渲染：范围面板 / simple 退化 ═══════════ */
+function monthCol(p, y, m, first) {
+  const col = document.createElement("div");
+  col.className = "mcol";
+  const head = document.createElement("div");
+  head.className = "dp-head";
+  head.innerHTML =
+    `${first ? `<button class="dp-nav l" data-nav="-1"><svg viewBox="0 0 24 24">${P.chevL}</svg></button>` : "<span class=\"dp-nav\"></span>"}
+     <span class="dp-label">${y}年${m}月</span>
+     ${first ? "<span class=\"dp-nav\"></span>" : `<button class="dp-nav r" data-nav="1"><svg viewBox="0 0 24 24">${P.chevR}</svg></button>`}`;
+  col.appendChild(head);
+  const week = document.createElement("div");
+  week.className = "dp-week";
+  week.innerHTML = WEEK.map((w) => `<span>${w}</span>`).join("");
+  col.appendChild(week);
+  const grid = document.createElement("div");
+  grid.className = "dp-grid";
+  cellsOf(y, m).forEach((d) => {
+    const c = document.createElement("div");
+    let cls = "dp-day";
+    if (d.getMonth() + 1 !== m) cls += " out";
+    if (sameDay(d, TODAY)) cls += " today";
+    const ts = dayTs(d);
+    const [s, e, h] = [p.start && dayTs(p.start), p.end && dayTs(p.end), p.hover && dayTs(p.hover)];
+    const lo = s !== null && s !== undefined ? s : null;
+    if (lo !== null && e != null) {
+      const a = Math.min(lo, e), b = Math.max(lo, e);
+      if (ts === a && ts === b) cls += " edge start end";
+      else if (ts === a) cls += " edge start";
+      else if (ts === b) cls += " edge end";
+      else if (ts > a && ts < b) cls += " in-range";
+    } else if (lo !== null && h != null && !p.committed) {
+      const a = Math.min(lo, h), b = Math.max(lo, h);
+      if (ts === a && ts === b) cls += " edge start end";
+      else if (ts === a) cls += " edge start";
+      else if (ts === b) cls += " edge end";
+      else if (ts > a && ts < b) cls += " in-range";
+    }
+    c.className = cls;
+    c.textContent = d.getDate();
+    c.addEventListener("click", () => dayClick(p, d));
+    c.addEventListener("mouseenter", () => { if (p.start && !p.end) { p.hover = d; renderRange(p); } });
+    grid.appendChild(c);
+  });
+  col.appendChild(grid);
+  return col;
+}
+function sumText(p) {
+  if (!p.start) return "选择起始日期…";
+  if (!p.end) return `起 <b>${fmtMD(p.start)}</b> · 再选终止日期`;
+  const a = p.start <= p.end ? p.start : p.end, b = p.start <= p.end ? p.end : p.start;
+  const n = Math.round((dayTs(b) - dayTs(a)) / 86400000) + 1;
+  return `<b>${fmtMD(a)}</b> – <b>${fmtMD(b)}</b> · 共 <span class="cnt">${n}</span> 天`;
+}
+function renderRange(p) {
+  const el = p.panel;
+  el.innerHTML = "";
+  const presets = document.createElement("div");
+  presets.className = "presets";
+  presets.innerHTML = `<div class="p-title">常用范围</div>`;
+  PRESETS.forEach((pr) => {
+    const b = document.createElement("button");
+    b.className = "preset" + (p.presetOn === pr.label ? " on" : "");
+    b.innerHTML = `${pr.label}${pr.days ? `<span class="days">${pr.days}天</span>` : ""}`;
+    b.addEventListener("click", () => {
+      const [s, e] = pr.range();
+      p.start = s; p.end = e; p.committed = true; p.presetOn = pr.label;
+      p.y = s.getFullYear(); p.m = s.getMonth() + 1;
+      syncTrigger(p); renderRange(p);
+      status(`预设「${pr.label}」即选即定 → ["${fmtEN(s)}", "${fmtEN(e)}"]`);
+      close(p);
+    });
+    presets.appendChild(b);
+  });
+  el.appendChild(presets);
+  const months = document.createElement("div");
+  months.className = "months";
+  const m2 = p.m + 1, y2 = p.m + 1 > 12 ? p.y + 1 : p.y;
+  months.appendChild(monthCol(p, p.y, p.m, true));
+  months.appendChild(monthCol(p, y2, m2 % 12 || 12, false));
+  months.querySelectorAll("[data-nav]").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      const nm = p.m + Number(btn.dataset.nav);
+      p.y += Math.floor((nm - 1) / 12); p.m = ((nm - 1 + 12) % 12) + 1;
+      p.presetOn = null; renderRange(p);
+    }));
+  el.appendChild(months);
+  const foot = document.createElement("div");
+  foot.className = "dp-foot";
+  foot.style.cssText = "margin-left:138px";
+  foot.innerHTML = `<span class="dp-sum">${sumText(p)}</span>
+    <button class="ghost" data-act="clear">清空</button>
+    <button class="primary" data-act="apply" ${p.start && p.end ? "" : "disabled"}>确定</button>`;
+  foot.querySelector('[data-act="clear"]').addEventListener("click", () => {
+    p.start = p.end = null; p.committed = false; p.presetOn = null;
+    syncTrigger(p); renderRange(p);
+    status("清空 → 预览归零（未提交）");
+  });
+  foot.querySelector('[data-act="apply"]').addEventListener("click", () => {
+    if (!p.start || !p.end) return;
+    p.committed = true; syncTrigger(p);
+    p.onApply?.(p.start, p.end);
+    close(p);
+  });
+  el.appendChild(foot);
+}
+function dayClick(p, d) {
+  if (!p.start || (p.start && p.end)) { p.start = d; p.end = null; p.hover = null; p.committed = false; p.presetOn = null; }
+  else {
+    p.end = d;
+    if (dayTs(p.end) < dayTs(p.start)) [p.start, p.end] = [p.end, p.start];
+  }
+  renderRange(p);
+  status(p.end ? `预览：${fmtEN(p.start)} → ${fmtEN(p.end)}（确定才提交）` : `起点：${fmtEN(p.start)}（悬停预览区间）`);
+}
+function syncTrigger(p) {
+  if (!p.trigger) return; // 静态解剖标本不接线
+  const v = p.trigger.querySelector(".value");
+  if (p.start && p.end) {
+    const a = p.start <= p.end ? p.start : p.end, b = p.start <= p.end ? p.end : p.start;
+    v.textContent = `${fmtMD(a)} – ${fmtMD(b)}${a.getFullYear() !== b.getFullYear() ? ` ${b.getFullYear()}年` : ""}`;
+    v.classList.remove("placeholder");
+  } else if (p.start) { v.textContent = `自 ${fmtMD(p.start)} 起…`; v.classList.remove("placeholder"); }
+  else { v.textContent = p.placeholder; v.classList.add("placeholder"); }
+}
+
+/* ═══════════ 弹层定位 / 开合 ═══════════ */
+const GAP = 4;
+function place(p) {
+  const r = p.trigger.getBoundingClientRect();
+  const w = p.panel.offsetWidth, mh = p.panel.offsetHeight;
+  const below = innerHeight - r.bottom - GAP, up = r.top - GAP;
+  const dir = below >= mh || below >= up ? "down" : "up";
+  const left = Math.min(Math.max(8, r.left), Math.max(8, innerWidth - 8 - w));
+  p.panel.style.left = `${left}px`;
+  p.panel.style.top = dir === "down" ? `${r.bottom + GAP}px` : `${Math.max(8, r.top - GAP - mh)}px`;
+}
+function open(p) {
+  if (p.open) return;
+  p.open = true;
+  p.trigger.dataset.open = "true";
+  p.trigger.setAttribute("aria-expanded", "true");
+  p.panel.dataset.open = "true";
+  if (!p.y) { p.y = (p.start || TODAY).getFullYear(); p.m = (p.start || TODAY).getMonth() + 1; }
+  renderRange(p);
+  place(p);
+  p.panel.focus({ preventScroll: true });
+}
+function close(p, refocus = true) {
+  if (!p.open) return;
+  p.open = false;
+  p.trigger.dataset.open = "false";
+  p.trigger.setAttribute("aria-expanded", "false");
+  p.panel.dataset.open = "false";
+  if (refocus) p.trigger.focus();
+}
+
+/* 范围实例挂载 */
+let uid = 0;
+function mountRange(root) {
+  const trigger = root.querySelector(".dp-trigger");
+  const panel = root.querySelector(".dp-panel");
+  const p = { id: `r${++uid}`, root, trigger, panel, open: false, y: null, m: null,
+    start: null, end: null, hover: null, committed: false, presetOn: null, onApply: null,
+    placeholder: trigger.querySelector(".value").textContent || "日期范围…" };
+  trigger.setAttribute("aria-haspopup", "grid");
+  trigger.setAttribute("aria-expanded", "false");
+  trigger.addEventListener("click", () => p.open ? close(p) : open(p));
+  trigger.addEventListener("keydown", (e) => {
+    if ((e.key === "ArrowDown" || e.key === "Enter") && !p.open) { e.preventDefault(); open(p); }
+  });
+  panel.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(p); }
+    else if (e.key === "Enter" && p.start && p.end) { e.preventDefault(); panel.querySelector('[data-act="apply"]')?.click(); }
+  });
+  panel.addEventListener("mouseleave", () => { if (!p.end && p.hover) { p.hover = null; renderRange(p); } });
+  const reposition = () => p.open && place(p);
+  window.addEventListener("resize", reposition);
+  window.addEventListener("scroll", reposition, true);
+  return p;
+}
+const rangePickers = [...document.querySelectorAll("[data-dp-range]")].map(mountRange);
+
+/* FilterBar 联动：确定 → 统计刷新（onValueChange 触发 react-query 重取的缩影） */
+const fb = rangePickers[0];
+fb.onApply = (s, e) => {
+  const n = Math.round((dayTs(e) - dayTs(s)) / 86400000) + 1;
+  document.getElementById("statCount").textContent = String(Math.max(3, Math.round(n * 1.2)));
+  document.getElementById("stA").textContent = String(Math.max(1, Math.round(n * 0.5)));
+  document.getElementById("stB").textContent = String(Math.max(1, Math.round(n * 0.35)));
+  document.getElementById("stC").textContent = String(Math.max(1, Math.round(n * 0.15)));
+  status(`onValueChange → ["${fmtEN(s)}", "${fmtEN(e)}"] → 日记列表重取`);
+};
+document.getElementById("applyBtn").addEventListener("click", () => status("FilterBar 应用 → useQuery invalidate（日记快照重取）"));
+
+/* ═══════════ simple 退化形态（结构 = 方案 A） ═══════════ */
+function renderSimple(p) {
+  const el = p.panel;
+  el.innerHTML = "";
+  const head = document.createElement("div");
+  head.className = "dp-head";
+  head.innerHTML = `<button class="dp-nav" data-nav="-1"><svg viewBox="0 0 24 24">${P.chevL}</svg></button>
+    <span class="dp-label">${p.y}年${p.m}月</span>
+    <button class="dp-nav" data-nav="1"><svg viewBox="0 0 24 24">${P.chevR}</svg></button>`;
+  head.querySelectorAll("[data-nav]").forEach((b) => b.addEventListener("click", () => {
+    const nm = p.m + Number(b.dataset.nav);
+    p.y += Math.floor((nm - 1) / 12); p.m = ((nm - 1 + 12) % 12) + 1; renderSimple(p);
+  }));
+  el.appendChild(head);
+  const week = document.createElement("div");
+  week.className = "dp-week";
+  week.innerHTML = WEEK.map((w) => `<span>${w}</span>`).join("");
+  el.appendChild(week);
+  const grid = document.createElement("div");
+  grid.className = "dp-grid";
+  cellsOf(p.y, p.m).forEach((d) => {
+    const c = document.createElement("div");
+    c.className = "dp-day" + (d.getMonth() + 1 !== p.m ? " out" : "") + (sameDay(d, TODAY) ? " today" : "") + (sameDay(d, p.value) ? " edge start end" : "");
+    c.textContent = d.getDate();
+    c.addEventListener("click", () => {
+      p.value = d; syncSimple(p); renderSimple(p);
+      status(`退化形态 · 即点即定 → "${fmtEN(d)}"（与方案 A 同行为）`);
+      closeSimple(p);
+    });
+    grid.appendChild(c);
+  });
+  el.appendChild(grid);
+}
+function syncSimple(p) {
+  const v = p.trigger.querySelector(".value");
+  if (p.value) { v.textContent = `${p.value.getFullYear()}年${p.value.getMonth() + 1}月${p.value.getDate()}日`; v.classList.remove("placeholder"); }
+}
+const simpleRoot = document.querySelector("[data-dp-simple]");
+const sp = { root: simpleRoot, trigger: simpleRoot.querySelector(".dp-trigger"),
+  panel: simpleRoot.querySelector(".dp-panel"), open: false, y: TODAY.getFullYear(), m: TODAY.getMonth() + 1, value: null };
+sp.trigger.addEventListener("click", () => {
+  if (sp.open) return closeSimple(sp);
+  sp.open = true; sp.trigger.dataset.open = "true"; sp.panel.dataset.open = "true";
+  renderSimple(sp);
+  const r = sp.trigger.getBoundingClientRect();
+  sp.panel.style.left = `${Math.min(Math.max(8, r.left), innerWidth - 8 - 264)}px`;
+  sp.panel.style.top = `${Math.min(r.bottom + GAP, innerHeight - sp.panel.offsetHeight - 8)}px`;
+  sp.panel.focus({ preventScroll: true });
+});
+function closeSimple(p) { p.open = false; p.trigger.dataset.open = "false"; p.panel.dataset.open = "false"; }
+sp.panel.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); closeSimple(sp); } });
+
+/* ═══════════ 面板解剖标本（静态展开） ═══════════ */
+const anatomy = document.getElementById("anatomyPanel");
+(() => {
+  const s = addDays(TODAY, -7), e = addDays(TODAY, -1);
+  const p = { panel: anatomy, y: TODAY.getFullYear(), m: TODAY.getMonth() + 1,
+    start: s, end: e, hover: null, committed: true, presetOn: "最近 7 天" };
+  renderRange(p);
+})();
+
+/* plan-note 开合 */
+document.getElementById("noteToggle").addEventListener("click", () => document.getElementById("planNote").classList.toggle("open"));
+
+/* 外点关闭 */
+document.addEventListener("pointerdown", (e) => {
+  rangePickers.forEach((p) => { if (p.open && !p.root.contains(e.target)) close(p, false); });
+  if (sp.open && !sp.root.contains(e.target)) closeSimple(sp);
+}, true);
+</script>
+</body>
+</html>
