@@ -177,6 +177,15 @@
 - 消费方迁移：@tau/database plugins 3 处（日期排序/分组依据、评分步长）options → 组合式，随 database 侧改动提交。
 - 实现：primitives/RadioGroup.tsx（context + 组）+ Radio.tsx + **tests**/radio.test.tsx 9 例；@tau/ui 全量 163 例绿；样板间并入 ChoiceSection（Checkbox/Switch/Radio 选择控件同档，registry label 同步）。
 
+## D-022 Tag：A+B 结合 II「点 + 软底」定稿，色点落为可选能力；ValueDisplay 族首件出列
+
+- 定向（2026-09-19，mockups/tag/ 三方案 + 两轮结合稿评审）：A 描边+色点 / B 软底 / C 点标记三案，用户裁决取 A、B 结合——先出结合稿 I（彩描边：surface + 1px 分类色描边 + 同源文字），同日追加「A 的点 + B 的背景」出结合稿 II，**终选 II**：soft 底 + 同系 solid 文字 + solid 色点三层同色阶（Notion select 选项语感）；I 与 A/C 留档 mockups 供后续参照。
+- 色点是能力而非固定形制：`showDot` prop（默认开；gray 恒无点——无色 = 无分类）。@tau/database 消费方（ChoiceCell / 编辑器已选区 / 选项列表）实际全数 `showDot={false}`——产品内基准形态为纯软底，点留给后续强调场景。
+- 契约：7 色板与 ColorSwatch 同源（red/orange/yellow/green/gray/blue/purple 映射 danger/accent 系/warn/ok/group/info/tag-3）；orange 文字走 accent-text、点走 accent（**分语义位**——文字位与图形位分 token，新主题各自跟随对比度约束）；语义状态复用色板不设 status prop；单尺寸（高 22、tau-sm）无档；长文本 truncate；antd 的 bordered/icon/Clickable/Checkable 一律不迁。
+- 纯展示 span（非交互、无命中要求）；`onRemove` 数据驱动显 ×（button + aria-label，伪元素外扩热区 24 不撑破药丸，focus-visible 才显 ring，stopPropagation 防表格行牵连）。
+- 编辑浮层裁决：已选区 Tag 不加 onRemove——浮层内标签是纯展示，提交/取消/失焦由编辑宿主（InlineEditCell）统一仲裁，业务按钮绕过仲裁会与焦点域判定打架（用户裁决「让弹窗去处理」）。
+- 实现：primitives/Tag.tsx（TAG_COLORS/TagColor 色板契约随迁，ValueDisplay.tsx 剩 ColorSwatch/ProgressBar/Rating 占位）+ **tests**/tag.test.tsx 5 例；零新 token（soft/solid 全既有）；@tau/ui 全量 168 例绿；样板间新建 TagSection。database 侧同步（随使用方工作区）：ChoiceEditor 单选分支 Checkbox→RadioGroup（D-021 收尾）+ gap-1 紧凑档 + 各消费点 showDot={false}。
+
 ## Page 迁移清单（M2 起滚动勾选）
 
 > 33 个 TabType 的完整映射与合并方案见蓝图 §5.3，此处只跟踪迁移状态。
