@@ -20,6 +20,7 @@
     "bench:whiteboard-render-profile": "cross-env WHITEBOARD_RENDER_BENCH=1 vitest run src/components/WhiteBoard/utils/benchmarks/render-profile.benchmark.test.tsx --reporter=verbose"
   },
   "dependencies": {
+    "@tau/ui": "workspace:*",
     "7zip-min": "^2.1.0",
     "@firecrawl/anydoc": "^0.2.4",
     "@hocuspocus/provider": "4.6.0",

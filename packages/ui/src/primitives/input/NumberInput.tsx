@@ -27,11 +27,14 @@ export interface NumberInputProps extends Omit<
   value: number | null;
   onValueChange: (value: number | null) => void;
   size?: "sm" | "md";
+  /** 形态透传 Input：bare 为无皮行内形态（无边框背景与 focus 反馈，归宿主） */
+  variant?: "outlined" | "bare";
 }
 
 export function NumberInput({
   value,
   onValueChange,
+  variant,
   onBlur,
   onKeyDown,
   ref,
@@ -81,6 +84,7 @@ export function NumberInput({
   return (
     <Input
       {...props}
+      variant={variant}
       ref={mergeRefs(ref, el => {
         inputEl.current = el;
       })}
