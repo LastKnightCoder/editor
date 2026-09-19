@@ -6,6 +6,10 @@
  * 收起预设列与底栏、去掉 range 即回到单日期形态——不是第二个日历，是同一结构的
  * 范围扩展态。
  *
+ * 分层（同 DatePicker/DatePickerPanel）：DateRangePickerPanel 是可独立使用的
+ * 内嵌面板（受控显示 + onCommit 确定，块级渲染，无开合无定位——宿主托管场景
+ * 直接用它）；DateRangePicker = 触发器 + 开合 + 定位 + 外点仲裁 + Panel。
+ *
  * 行为内建（不做成 props）：
  *  - 提交模型：手选范围走「点起点 → 悬停预览 → 点终点（自动交换）→ 确定」三道闸
  *    （范围错一格就触发下游重查询，不做即点即定）；预设即选即定
@@ -47,24 +51,6 @@ export interface DateRangePreset {
   range: () => readonly [string, string] | null;
 }
 
-export interface DateRangePickerProps {
-  value?: readonly [string, string] | null;
-  defaultValue?: readonly [string, string] | null;
-  onValueChange?: (value: [string, string] | null) => void;
-  /** 预设列（面板左列）：数据驱动，即选即定 */
-  presets?: readonly DateRangePreset[];
-  placeholder?: string;
-  size?: "sm" | "md";
-  clearable?: boolean;
-  isDateDisabled?: (day: string) => boolean;
-  disabled?: boolean;
-  status?: "error";
-  open?: boolean;
-  onOpenChange?: (open: boolean) => void;
-  className?: string;
-  ref?: Ref<HTMLButtonElement>;
-}
-
 /** 排序 + 升序化（终点早于起点时交换） */
 const ordered = (a: string, b: string): [string, string] =>
   toDateKey(parseValue(a) ?? new Date(0)) <= toDateKey(parseValue(b) ?? new Date(0))
@@ -78,63 +64,47 @@ const daysBetween = (start: Date, end: Date) =>
       86400000
   ) + 1;
 
-export function DateRangePicker({
-  value: valueProp,
-  defaultValue = null,
-  onValueChange,
+/** 禁用日期谓词转 Date 版（"YYYY-MM-DD" 入参，业务侧零 Date 依赖） */
+const dateDisabledOf = (isDateDisabled?: (day: string) => boolean) =>
+  isDateDisabled
+    ? (date: Date) =>
+        isDateDisabled(
+          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+        )
+    : undefined;
+
+/* ───────── 内嵌面板（宿主托管） ───────── */
+
+export interface DateRangePickerPanelProps {
+  /** 受控显示值（两端 "YYYY-MM-DD"，升序） */
+  value: readonly [string, string] | null;
+  /** 确定提交：手选「确定」/ 预设即点即定 / 清空 */
+  onCommit: (value: [string, string] | null) => void;
+  presets?: readonly DateRangePreset[];
+  disabled?: boolean;
+  /** 禁用日期谓词（入参 "YYYY-MM-DD"，业务侧零 Date 依赖） */
+  isDateDisabled?: (day: string) => boolean;
+  className?: string;
+  ref?: Ref<HTMLDivElement>;
+}
+
+export function DateRangePickerPanel({
+  value,
+  onCommit,
   presets,
-  placeholder = "日期范围",
-  size = "md",
-  clearable = false,
-  isDateDisabled,
   disabled = false,
-  status,
-  open: openProp,
-  onOpenChange,
+  isDateDisabled,
   className,
   ref,
-}: DateRangePickerProps) {
-  const portalContainer = usePortalContainer();
+}: DateRangePickerPanelProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const triggerRef = useRef<HTMLButtonElement | null>(null);
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const [internalValue, setInternalValue] = useState<readonly [string, string] | null>(
-    defaultValue
-  );
-  const [internalOpen, setInternalOpen] = useState(false);
   const [month, setMonth] = useState(() => {
-    const base = parseValue((valueProp ?? defaultValue)?.[0] ?? "") ?? new Date();
+    const base = parseValue(value?.[0] ?? "") ?? new Date();
     return new Date(base.getFullYear(), base.getMonth(), 1);
   });
   /** 手选草稿：start 有了 end 未定时展示悬停预览 */
   const [draft, setDraft] = useState<{ start: Date; end: Date | null } | null>(null);
   const [hover, setHover] = useState<Date | null>(null);
-
-  const value = valueProp !== undefined ? valueProp : internalValue;
-  const open = openProp ?? internalOpen;
-  const panelId = useId();
-
-  const setOpen = (v: boolean) => {
-    setInternalOpen(v);
-    onOpenChange?.(v);
-  };
-  const commit = (next: [string, string] | null) => {
-    setInternalValue(next);
-    onValueChange?.(next);
-  };
-  const commitAndClose = (next: [string, string]) => {
-    commit(next);
-    setDraft(null);
-    setHover(null);
-    setOpen(false);
-    triggerRef.current?.focus();
-  };
-  const clear = () => {
-    commit(null);
-    setDraft(null);
-    setHover(null);
-    setOpen(false);
-  };
 
   /** 面板当前展示的区间：手选草稿优先，否则已提交值 */
   const rangeStart = draft?.start ?? parseValue(value?.[0] ?? "") ?? null;
@@ -152,31 +122,7 @@ export function DateRangePicker({
     (rangeStart != null && sameDay(date, rangeStart)) ||
     (previewEnd != null && sameDay(date, previewEnd));
 
-  const dateDisabled = isDateDisabled
-    ? (date: Date) =>
-        isDateDisabled(
-          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
-        )
-    : undefined;
-
-  useAnchoredPosition({
-    open,
-    getAnchor: () => triggerRef.current?.getBoundingClientRect() ?? null,
-    popRef: panelRef,
-    placement: "bottom",
-    gap: 4,
-    onPlace: ({ side }, el) => {
-      el.dataset.dir = side === "top" ? "up" : "down";
-    },
-  });
-
-  useLayerDismiss({
-    open,
-    layerRef: panelRef,
-    close: () => setOpen(false),
-    isAnchor: target => rootRef.current?.contains(target) ?? false,
-    getAnchorEl: () => triggerRef.current,
-  });
+  const dateDisabled = dateDisabledOf(isDateDisabled);
 
   const pickDate = (date: Date) => {
     if (!draft || draft.end != null) {
@@ -187,52 +133,45 @@ export function DateRangePicker({
     const [s, e] = draft.start <= date ? [draft.start, date] : [date, draft.start];
     setDraft({ start: s, end: e }); // 等确定才提交
   };
-
   const apply = () => {
     if (!rangeStart || !rangeEnd) return;
-    commitAndClose([toDateKey(rangeStart), toDateKey(rangeEnd)]);
+    onCommit([toDateKey(rangeStart), toDateKey(rangeEnd)]);
+    setDraft(null);
+    setHover(null);
+  };
+  const clear = () => {
+    onCommit(null);
+    setDraft(null);
+    setHover(null);
+  };
+  const applyPreset = (preset: DateRangePreset) => {
+    const next = preset.range();
+    if (next === null) {
+      clear();
+      return;
+    }
+    const [s, e] = ordered(next[0], next[1]);
+    const start = parseValue(s);
+    if (start) setMonth(new Date(start.getFullYear(), start.getMonth(), 1));
+    setDraft(null);
+    setHover(null);
+    onCommit([s, e]);
   };
 
-  // 打开落初始焦点到网格容器（键盘导航的 target；Esc/Enter 面板层仲裁）
+  // 挂载即聚焦网格（键盘导航入口；宿主浮层常驻渲染时随 key 重挂复位）
   useEffect(() => {
-    if (!open) return;
     try {
-      panelRef.current
+      rootRef.current
         ?.querySelector<HTMLElement>("[data-calendar-panel]")
         ?.focus({ preventScroll: true });
     } catch {
       /* jsdom 部分元素无 focus */
     }
-  }, [open]);
+  }, []);
 
-  const onTriggerKeyDown = (e: ReactKeyboardEvent<HTMLButtonElement>) => {
+  const onRootKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (e.nativeEvent.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
-    if (e.key === "Escape" && open) {
-      e.preventDefault();
-      e.stopPropagation();
-      setOpen(false);
-    } else if (e.key === "Tab" && open) {
-      setOpen(false);
-    } else if (
-      !open &&
-      (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ")
-    ) {
-      e.preventDefault();
-      setDraft(null);
-      setOpen(true);
-    }
-  };
-
-  const onPanelKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (e.nativeEvent.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
-    if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      setOpen(false);
-      triggerRef.current?.focus();
-    } else if (e.key === "Tab") {
-      setOpen(false);
-    } else if (e.key === "Enter" && rangeStart && rangeEnd) {
+    if (e.key === "Enter" && rangeStart && rangeEnd) {
       e.preventDefault();
       apply();
     }
@@ -256,26 +195,12 @@ export function DateRangePicker({
     return value[0] === s && value[1] === e;
   };
 
-  const display = value == null ? null : formatRangeDisplay(value[0], value[1]);
-
-  const panel = createPortal(
+  return (
     <div
-      ref={panelRef}
-      id={panelId}
-      role="dialog"
-      aria-label="选择日期范围"
-      aria-hidden={!open}
-      data-open={open}
-      onKeyDown={onPanelKeyDown}
-      tabIndex={-1}
+      ref={mergeRefs(ref, rootRef)}
+      onKeyDown={onRootKeyDown}
       onMouseLeave={() => setHover(null)}
-      className={cn(
-        "bg-surface border-line-1 shadow-float rounded-tau-lg border p-3",
-        "fixed left-0 top-0 z-[250]",
-        "ease-tau-out outline-none transition-[opacity,transform,visibility] duration-[160ms]",
-        open ? "opacity-100" : "invisible translate-y-[4px] opacity-0",
-        !open && "data-[dir=up]:-translate-y-[4px]"
-      )}
+      className={cn("p-3", className)}
     >
       <div className="flex gap-2.5">
         {presets && presets.length > 0 && (
@@ -287,17 +212,7 @@ export function DateRangePicker({
                   key={i}
                   type="button"
                   aria-pressed={presetMatches(preset)}
-                  onClick={() => {
-                    const next = preset.range();
-                    if (next === null) {
-                      clear();
-                      return;
-                    }
-                    const [s, e] = ordered(next[0], next[1]);
-                    const start = parseValue(s);
-                    if (start) setMonth(new Date(start.getFullYear(), start.getMonth(), 1));
-                    commitAndClose([s, e]);
-                  }}
+                  onClick={() => applyPreset(preset)}
                   className={cn(
                     "text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm h-[28px] px-2 text-left text-[12.5px]",
                     presetMatches(preset) && "bg-selected text-accent-text font-[550]"
@@ -343,8 +258,9 @@ export function DateRangePicker({
         </span>
         <button
           type="button"
+          disabled={disabled}
           onClick={clear}
-          className="text-ink-2 hover:bg-hover hover:text-ink-1 h-[28px] rounded-[8px] px-3 text-[12px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
+          className="text-ink-2 hover:bg-hover hover:text-ink-1 h-[28px] rounded-[8px] px-3 text-[12px] outline-none focus-visible:shadow-[var(--tau-focus-ring)] disabled:pointer-events-none disabled:opacity-50"
         >
           清空
         </button>
@@ -357,6 +273,152 @@ export function DateRangePicker({
           确定
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ───────── 触发式组合件 ───────── */
+
+export interface DateRangePickerProps {
+  value?: readonly [string, string] | null;
+  defaultValue?: readonly [string, string] | null;
+  onValueChange?: (value: [string, string] | null) => void;
+  /** 预设列（面板左列）：数据驱动，即选即定 */
+  presets?: readonly DateRangePreset[];
+  placeholder?: string;
+  size?: "sm" | "md";
+  clearable?: boolean;
+  isDateDisabled?: (day: string) => boolean;
+  disabled?: boolean;
+  status?: "error";
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  className?: string;
+  ref?: Ref<HTMLButtonElement>;
+}
+
+export function DateRangePicker({
+  value: valueProp,
+  defaultValue = null,
+  onValueChange,
+  presets,
+  placeholder = "日期范围",
+  size = "md",
+  clearable = false,
+  isDateDisabled,
+  disabled = false,
+  status,
+  open: openProp,
+  onOpenChange,
+  className,
+  ref,
+}: DateRangePickerProps) {
+  const portalContainer = usePortalContainer();
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [internalValue, setInternalValue] = useState<readonly [string, string] | null>(
+    defaultValue
+  );
+  const [internalOpen, setInternalOpen] = useState(false);
+  // 打开会话号：递增即重挂面板（草稿/悬停/月份复位 + 落焦网格）
+  const [session, setSession] = useState(0);
+
+  const value = valueProp !== undefined ? valueProp : internalValue;
+  const open = openProp ?? internalOpen;
+  const panelId = useId();
+
+  const setOpen = (v: boolean) => {
+    setInternalOpen(v);
+    onOpenChange?.(v);
+  };
+  const commit = (next: [string, string] | null) => {
+    setInternalValue(next);
+    onValueChange?.(next);
+  };
+
+  useAnchoredPosition({
+    open,
+    getAnchor: () => triggerRef.current?.getBoundingClientRect() ?? null,
+    popRef: panelRef,
+    placement: "bottom",
+    gap: 4,
+    onPlace: ({ side }, el) => {
+      el.dataset.dir = side === "top" ? "up" : "down";
+    },
+  });
+
+  useLayerDismiss({
+    open,
+    layerRef: panelRef,
+    close: () => setOpen(false),
+    isAnchor: target => rootRef.current?.contains(target) ?? false,
+    getAnchorEl: () => triggerRef.current,
+  });
+
+  const onTriggerKeyDown = (e: ReactKeyboardEvent<HTMLButtonElement>) => {
+    if (e.nativeEvent.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.key === "Escape" && open) {
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+    } else if (e.key === "Tab" && open) {
+      setOpen(false);
+    } else if (
+      !open &&
+      (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ")
+    ) {
+      e.preventDefault();
+      setSession(session => session + 1);
+      setOpen(true);
+    }
+  };
+
+  const onPanelKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.nativeEvent.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+      triggerRef.current?.focus();
+    } else if (e.key === "Tab") {
+      setOpen(false);
+    }
+    // Enter 由面板内 onRootKeyDown 提交
+  };
+
+  const display = value == null ? null : formatRangeDisplay(value[0], value[1]);
+
+  const panel = createPortal(
+    <div
+      ref={panelRef}
+      id={panelId}
+      role="dialog"
+      aria-label="选择日期范围"
+      aria-hidden={!open}
+      data-open={open}
+      onKeyDown={onPanelKeyDown}
+      tabIndex={-1}
+      className={cn(
+        "bg-surface border-line-1 shadow-float rounded-tau-lg border",
+        "fixed left-0 top-0 z-[250]",
+        "ease-tau-out outline-none transition-[opacity,transform,visibility] duration-[160ms]",
+        open ? "opacity-100" : "invisible translate-y-[4px] opacity-0",
+        !open && "data-[dir=up]:-translate-y-[4px]"
+      )}
+    >
+      <DateRangePickerPanel
+        key={session}
+        value={value}
+        presets={presets}
+        disabled={disabled}
+        isDateDisabled={isDateDisabled}
+        onCommit={next => {
+          commit(next);
+          setOpen(false);
+          triggerRef.current?.focus();
+        }}
+      />
     </div>,
     portalContainer
   );
@@ -375,7 +437,13 @@ export function DateRangePicker({
         disabled={disabled}
         data-open={open}
         data-status={status}
-        onClick={() => (open ? setOpen(false) : setOpen(true))}
+        onClick={() => {
+          if (open) setOpen(false);
+          else {
+            setSession(session => session + 1);
+            setOpen(true);
+          }
+        }}
         onKeyDown={onTriggerKeyDown}
         className={cn(
           "border-line-1 bg-surface text-ink-1 group/trigger",
@@ -400,7 +468,8 @@ export function DateRangePicker({
             tabIndex={-1}
             onClick={(e: ReactMouseEvent) => {
               e.stopPropagation();
-              clear();
+              commit(null);
+              setOpen(false);
             }}
             className="text-ink-3 hover:bg-hover hover:text-ink-1 invisible grid size-[22px] place-items-center rounded-[6px] group-hover/trigger:visible"
           >

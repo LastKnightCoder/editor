@@ -4,8 +4,12 @@
  * 值形状拆分的单日期侧：value: string | null（"YYYY-MM-DD"，precision="minute"
  * 时 "YYYY-MM-DD HH:mm"）；范围归 DateRangePicker（同一引擎，别在此加 range）。
  *
+ * 分层（同 Popover/AnchoredPanel）：DatePickerPanel 是可独立使用的内嵌面板
+ * （受控显示 + onCommit 确定，块级渲染，无开合无定位——宿主托管场景直接用它，
+ * 如行内编辑器浮层）；DatePicker = 触发器 + 开合 + 定位 + 外点仲裁 + Panel。
+ *
  * 行为内建（不做成 props）：
- *  - 提交模型跟着 precision 走：day 点日期即提交并关闭；minute 点日期只挂起，
+ *  - 提交模型跟着 precision 走：day 点日期即提交；minute 点日期只挂起，
  *    底栏时刻区（TimeField：自由键入 + 步长网格）+「确定」显式提交——带时间的
  *    值改起来贵，不做即点即定；预设（presets）取值即完整，一律即点即定
  *  - 钻取导航：点标题 days → months → 年代（12 格），‹ › 步长随视图换
@@ -51,6 +55,181 @@ export interface DatePickerPreset {
   /** 调用时求值（"今天"这类动态日期每次打开都新鲜）；返回 null 表示清空 */
   value: () => string | null;
 }
+
+/* ───────── 内嵌面板（宿主托管） ───────── */
+
+export interface DatePickerPanelProps {
+  /** 受控显示值（"YYYY-MM-DD" / "YYYY-MM-DD HH:mm"） */
+  value: string | null;
+  /** 确定提交：day 点日期 / minute 确定 / 预设 / 今天 / 清空 */
+  onCommit: (value: string | null) => void;
+  precision?: DatePrecision;
+  presets?: readonly DatePickerPreset[];
+  timeStep?: number;
+  disabled?: boolean;
+  /** 禁用日期谓词（入参 "YYYY-MM-DD"，业务侧零 Date 依赖） */
+  isDateDisabled?: (day: string) => boolean;
+  className?: string;
+  ref?: Ref<HTMLDivElement>;
+}
+
+export function DatePickerPanel({
+  value,
+  onCommit,
+  precision = "day",
+  presets,
+  timeStep = 15,
+  disabled = false,
+  isDateDisabled,
+  className,
+  ref,
+}: DatePickerPanelProps) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [view, setView] = useState<CalendarView>("days");
+  const [month, setMonth] = useState(() => {
+    const base = parseValue(value ?? "") ?? new Date();
+    return new Date(base.getFullYear(), base.getMonth(), 1);
+  });
+  const [hl, setHl] = useState<Date | null>(() => parseValue(value ?? "") ?? new Date());
+  const [pending, setPending] = useState<Date | null>(null); // minute：已点选未确认的日期
+  const [time, setTime] = useState(() => value?.slice(11) || "09:00");
+
+  const valueDate = parseValue(value ?? "");
+  /** minute 精度的当前日期展示位：挂起值优先（选了还没确认） */
+  const activeDate = precision === "minute" ? (pending ?? valueDate) : valueDate;
+  /** 分钟精度的确认就绪：有挂起日期或已有值即可确定 */
+  const minuteReady = precision !== "minute" || activeDate != null;
+  const presetActive = (preset: DatePickerPreset) => value != null && value === preset.value();
+
+  const dateDisabled = isDateDisabled
+    ? (date: Date) =>
+        isDateDisabled(
+          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+        )
+    : undefined;
+
+  const pickDate = (date: Date) => {
+    if (precision === "minute") {
+      setPending(date);
+      setHl(date);
+      return;
+    }
+    onCommit(formatValue(date, precision));
+  };
+  const applyMinute = () => {
+    if (!activeDate) return;
+    activeDate.setHours(Number(time.slice(0, 2)), Number(time.slice(3)), 0, 0);
+    onCommit(formatValue(activeDate, precision));
+  };
+  const applyPresets = (preset: DatePickerPreset) => {
+    const next = preset.value();
+    if (next === null) {
+      onCommit(null);
+      return;
+    }
+    const date = parseValue(next);
+    if (!date) return;
+    if (precision === "minute" && next.includes(" ")) setTime(next.slice(11));
+    onCommit(formatValue(date, precision));
+  };
+  const pickToday = () => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    onCommit(formatValue(now, precision));
+  };
+
+  // 挂载即聚焦网格（键盘导航入口；宿主浮层常驻渲染时随 key 重挂复位）
+  useEffect(() => {
+    try {
+      rootRef.current
+        ?.querySelector<HTMLElement>("[data-calendar-panel]")
+        ?.focus({ preventScroll: true });
+    } catch {
+      /* jsdom 部分元素无 focus */
+    }
+  }, []);
+
+  return (
+    <div ref={mergeRefs(ref, rootRef)} className={cn("w-[276px] p-3", className)}>
+      <CalendarPanel
+        month={month}
+        onMonthChange={setMonth}
+        view={view}
+        onViewChange={setView}
+        isSelected={date => activeDate != null && sameDay(date, activeDate)}
+        isDateDisabled={dateDisabled}
+        highlighted={view === "days" ? hl : null}
+        onHighlight={setHl}
+        onPickDate={pickDate}
+      />
+      {presets && presets.length > 0 && (
+        <div className="border-line-2 mt-2 flex flex-wrap items-center gap-1.5 border-t pt-2">
+          <span className="text-ink-3 mr-0.5 text-[11px]">常用</span>
+          {presets.map((preset, i) => (
+            <button
+              key={i}
+              type="button"
+              aria-pressed={presetActive(preset)}
+              data-on={presetActive(preset) || undefined}
+              onClick={() => applyPresets(preset)}
+              className={cn(
+                "text-ink-2 bg-group hover:bg-hover hover:text-ink-1 h-[26px] rounded-[7px] px-[11px] text-[11.5px]",
+                "data-[on]:bg-selected data-[on]:text-accent-text data-[on]:font-[550]"
+              )}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {precision === "minute" ? (
+        <div className="border-line-2 mt-2 flex items-center gap-2 border-t pt-2">
+          <TimeField
+            value={time}
+            onValueChange={setTime}
+            step={timeStep}
+            onSubmit={applyMinute}
+            disabled={disabled}
+          />
+          <button
+            type="button"
+            onClick={() => onCommit(null)}
+            className="text-ink-2 hover:bg-hover hover:text-ink-1 h-[28px] rounded-[8px] px-3 text-[12px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
+          >
+            清空
+          </button>
+          <button
+            type="button"
+            disabled={!minuteReady}
+            onClick={applyMinute}
+            className="bg-accent text-ink-inverse hover:bg-accent-hover ml-auto h-[28px] rounded-[8px] px-4 text-[12px] font-[550] outline-none focus-visible:shadow-[var(--tau-focus-ring)] disabled:pointer-events-none disabled:opacity-50"
+          >
+            确定
+          </button>
+        </div>
+      ) : (
+        <div className="border-line-2 mt-2 flex items-center justify-between border-t pt-2">
+          <button
+            type="button"
+            onClick={pickToday}
+            className="text-accent-text hover:bg-selected rounded-[7px] px-2.5 py-1 text-[12px] font-[550] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
+          >
+            今天
+          </button>
+          <button
+            type="button"
+            onClick={() => onCommit(null)}
+            className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-[7px] px-2.5 py-1 text-[12px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
+          >
+            清空
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ───────── 触发式组合件 ───────── */
 
 export interface DatePickerProps {
   value?: string | null;
@@ -102,21 +281,12 @@ export function DatePicker({
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [internalValue, setInternalValue] = useState<string | null>(defaultValue);
   const [internalOpen, setInternalOpen] = useState(false);
-  const [view, setView] = useState<CalendarView>("days");
-  const [month, setMonth] = useState(() => {
-    const base = parseValue(valueProp ?? defaultValue ?? "") ?? new Date();
-    return new Date(base.getFullYear(), base.getMonth(), 1);
-  });
-  const [hl, setHl] = useState<Date | null>(() => parseValue(valueProp ?? defaultValue ?? ""));
-  const [pending, setPending] = useState<Date | null>(null); // minute：已点选未确认的日期
-  const [time, setTime] = useState(() => (valueProp ?? defaultValue ?? "").slice(11) || "09:00");
+  // 打开会话号：递增即重挂 DatePickerPanel（视图/挂起/月份/高亮复位 + 落焦网格）
+  const [session, setSession] = useState(0);
 
   const value = valueProp !== undefined ? valueProp : internalValue;
   const open = openProp ?? internalOpen;
   const panelId = useId();
-  const valueDate = parseValue(value ?? "");
-  /** minute 精度的当前日期展示位：挂起值优先（选了还没确认） */
-  const activeDate = precision === "minute" ? (pending ?? valueDate) : valueDate;
 
   const setOpen = (v: boolean) => {
     setInternalOpen(v);
@@ -126,24 +296,6 @@ export function DatePicker({
     setInternalValue(next);
     onValueChange?.(next);
   };
-  const commitAndClose = (date: Date) => {
-    commit(formatValue(date, precision));
-    setPending(null);
-    setOpen(false);
-    triggerRef.current?.focus();
-  };
-  const clear = () => {
-    commit(null);
-    setPending(null);
-    setOpen(false);
-  };
-
-  const dateDisabled = isDateDisabled
-    ? (date: Date) =>
-        isDateDisabled(
-          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
-        )
-    : undefined;
 
   useAnchoredPosition({
     open,
@@ -164,54 +316,6 @@ export function DatePicker({
     getAnchorEl: () => triggerRef.current,
   });
 
-  // 打开复位：视图回 days、挂起清空、月份与高亮对齐当前值（无值对齐今天）
-  const onOpenEffect = () => {
-    setView("days");
-    setPending(null);
-    const base = valueDate ?? new Date();
-    setMonth(new Date(base.getFullYear(), base.getMonth(), 1));
-    setHl(valueDate ?? new Date());
-  };
-
-  const pickDate = (date: Date) => {
-    if (precision === "minute") {
-      setPending(date);
-      setHl(date);
-      return;
-    }
-    commitAndClose(date);
-  };
-
-  const applyPresets = (preset: DatePickerPreset) => {
-    const next = preset.value();
-    if (next === null) {
-      clear();
-      return;
-    }
-    const date = parseValue(next);
-    if (!date) return;
-    if (precision === "minute" && next.includes(" ")) setTime(next.slice(11));
-    commitAndClose(date);
-  };
-
-  const applyMinute = () => {
-    if (!activeDate) return;
-    activeDate.setHours(Number(time.slice(0, 2)), Number(time.slice(3)), 0, 0);
-    commitAndClose(activeDate);
-  };
-
-  // 打开落初始焦点到网格容器（键盘导航的 target；Esc/Enter 面板层仲裁）
-  useEffect(() => {
-    if (!open) return;
-    try {
-      panelRef.current
-        ?.querySelector<HTMLElement>("[data-calendar-panel]")
-        ?.focus({ preventScroll: true });
-    } catch {
-      /* jsdom 部分元素无 focus */
-    }
-  }, [open]);
-
   const onTriggerKeyDown = (e: ReactKeyboardEvent<HTMLButtonElement>) => {
     if (e.nativeEvent.isComposing || e.altKey || e.ctrlKey || e.metaKey) return;
     if (e.key === "Escape" && open) {
@@ -225,7 +329,7 @@ export function DatePicker({
       (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ")
     ) {
       e.preventDefault();
-      onOpenEffect();
+      setSession(session => session + 1);
       setOpen(true);
     }
   };
@@ -244,13 +348,6 @@ export function DatePicker({
     // （避免同一事件冒泡双路径重复提交）
   };
 
-  /** 分钟精度的确认就绪：有挂起日期或已有值即可确定 */
-  const minuteReady = precision !== "minute" || activeDate != null;
-  const presetActive = (preset: DatePickerPreset) => {
-    if (value == null) return false;
-    return value === preset.value();
-  };
-
   const display = value == null ? null : formatDisplay(value);
 
   const panel = createPortal(
@@ -264,91 +361,27 @@ export function DatePicker({
       onKeyDown={onPanelKeyDown}
       tabIndex={-1}
       className={cn(
-        "bg-surface border-line-1 shadow-float rounded-tau-lg w-[276px] border p-3",
+        "bg-surface border-line-1 shadow-float rounded-tau-lg border",
         "fixed left-0 top-0 z-[250]",
         "ease-tau-out outline-none transition-[opacity,transform,visibility] duration-[160ms]",
         open ? "opacity-100" : "invisible translate-y-[4px] opacity-0",
         !open && "data-[dir=up]:-translate-y-[4px]"
       )}
     >
-      <CalendarPanel
-        month={month}
-        onMonthChange={setMonth}
-        view={view}
-        onViewChange={setView}
-        isSelected={date => activeDate != null && sameDay(date, activeDate)}
-        isDateDisabled={dateDisabled}
-        highlighted={view === "days" ? hl : null}
-        onHighlight={setHl}
-        onPickDate={pickDate}
+      <DatePickerPanel
+        key={session}
+        value={value}
+        precision={precision}
+        presets={presets}
+        timeStep={timeStep}
+        disabled={disabled}
+        isDateDisabled={isDateDisabled}
+        onCommit={next => {
+          commit(next);
+          setOpen(false);
+          triggerRef.current?.focus();
+        }}
       />
-      {presets && presets.length > 0 && (
-        <div className="border-line-2 mt-2 flex flex-wrap items-center gap-1.5 border-t pt-2">
-          <span className="text-ink-3 mr-0.5 text-[11px]">常用</span>
-          {presets.map((preset, i) => (
-            <button
-              key={i}
-              type="button"
-              aria-pressed={presetActive(preset)}
-              data-on={presetActive(preset) || undefined}
-              onClick={() => applyPresets(preset)}
-              className={cn(
-                "text-ink-2 bg-group hover:bg-hover hover:text-ink-1 h-[26px] rounded-[7px] px-[11px] text-[11.5px]",
-                "data-[on]:bg-selected data-[on]:text-accent-text data-[on]:font-[550]"
-              )}
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-      )}
-      {precision === "minute" ? (
-        <div className="border-line-2 mt-2 flex items-center gap-2 border-t pt-2">
-          <TimeField
-            value={time}
-            onValueChange={setTime}
-            step={timeStep}
-            onSubmit={applyMinute}
-            disabled={disabled}
-          />
-          <button
-            type="button"
-            onClick={clear}
-            className="text-ink-2 hover:bg-hover hover:text-ink-1 h-[28px] rounded-[8px] px-3 text-[12px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
-          >
-            清空
-          </button>
-          <button
-            type="button"
-            disabled={!minuteReady}
-            onClick={applyMinute}
-            className="bg-accent text-ink-inverse hover:bg-accent-hover ml-auto h-[28px] rounded-[8px] px-4 text-[12px] font-[550] outline-none focus-visible:shadow-[var(--tau-focus-ring)] disabled:pointer-events-none disabled:opacity-50"
-          >
-            确定
-          </button>
-        </div>
-      ) : (
-        <div className="border-line-2 mt-2 flex items-center justify-between border-t pt-2">
-          <button
-            type="button"
-            onClick={() => {
-              const now = new Date();
-              now.setHours(0, 0, 0, 0);
-              commitAndClose(now);
-            }}
-            className="text-accent-text hover:bg-selected rounded-[7px] px-2.5 py-1 text-[12px] font-[550] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
-          >
-            今天
-          </button>
-          <button
-            type="button"
-            onClick={clear}
-            className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-[7px] px-2.5 py-1 text-[12px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
-          >
-            清空
-          </button>
-        </div>
-      )}
     </div>,
     portalContainer
   );
@@ -370,7 +403,7 @@ export function DatePicker({
         onClick={() => {
           if (open) setOpen(false);
           else {
-            onOpenEffect();
+            setSession(session => session + 1);
             setOpen(true);
           }
         }}
@@ -398,7 +431,8 @@ export function DatePicker({
             tabIndex={-1}
             onClick={(e: ReactMouseEvent) => {
               e.stopPropagation();
-              clear();
+              commit(null);
+              setOpen(false);
             }}
             className="text-ink-3 hover:bg-hover hover:text-ink-1 invisible grid size-[22px] place-items-center rounded-[6px] group-hover/trigger:visible"
           >
