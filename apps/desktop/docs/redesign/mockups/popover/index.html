@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tau 桌面端 · Popover 方案导览（三路线对比 + 与 Tooltip 公共底盘）</title>
+<!--
+  Popover 基础件设计导览：与 Menu/Select/Dialog 同族工作流。
+  技术底盘不是分歧点——定位复用 D-004 引擎（Tooltip/Select/Menu 之后第四家），
+  Esc 走焦点链 LIFO 自消费（D-007/D-010/D-011 同口径），触发 click 内建
+  （hover 说明是 Tooltip 的职责，不设 trigger props）。
+  家族分工：Tooltip 瞬态说明（不可交互）、Menu 命令面板、Select 表单值选择、
+  Dialog 模态决策、Toast 回执；Popover = 锚定式可交互内容浮层（非模态）。
+
+  本稿新增的重点回答：Popover 与 Tooltip 能抽多少公共底盘？
+  → 现状盘点 + 四件抽取（useAnchoredPosition / FloatingArrow / mergeRefs /
+    外点互斥泛化），以及两件「有意不抽」（hover intent、触发器事件注入）。
+  详见「公共底盘」一节——这是本次实现期真正的结构决策。
+
+  真正的开放决策是「形制语言」：同一套元素清单（说明卡 / 过滤器组 / 色板 /
+  成员卡 / 卡片预览 / 长内容），三种箭头形制、标题形制与密度。三份演示页
+  共用 tau 双主题、同一份元素清单与交互行为，差异只在皮，供综合选择。
+-->
+<style>
+:root {
+  --ink: #1d1f24; --ink-2: #5b606b; --ink-3: #8b919c;
+  --bg: #fcfcfd; --surface: #fff; --line: #e6e8ec; --accent: #4650c8;
+  --accent-soft: rgba(70, 80, 200, 0.09);
+  --good: #3e6b4f; --bad: #9c5148;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--ink); background: var(--bg); font-size: 14px; line-height: 1.75; }
+.page { max-width: 1020px; margin: 0 auto; padding: 48px 32px 96px; }
+h1 { font-size: 26px; letter-spacing: -0.01em; margin-bottom: 8px; }
+.lede { color: var(--ink-2); max-width: 78ch; margin-bottom: 8px; }
+.lede b { color: var(--ink); }
+h2 { font-size: 19px; margin: 46px 0 6px; }
+h2 + p { color: var(--ink-2); margin-bottom: 16px; max-width: 78ch; }
+a { color: var(--accent); }
+kbd { padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--surface); font-size: 12px; font-family: ui-monospace, Consolas, monospace; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--accent-soft);
+  color: var(--accent); border-radius: 5px; padding: 1px 6px; }
+pre { background: #f6f7f9; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+  font-size: 12.5px; line-height: 1.8; overflow-x: auto; color: var(--ink-2); margin-top: 10px; }
+pre code { background: none; color: inherit; padding: 0; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+td b.ok { color: var(--good); } td b.bad { color: var(--bad); } td b.mid { color: #8a6d3b; }
+
+.plan-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 14px; }
+@media (max-width: 900px) { .plan-grid { grid-template-columns: 1fr; } }
+.plan-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+.plan-card h3 { font-size: 15.5px; margin-bottom: 2px; }
+.plan-card .en { font-size: 11.5px; color: var(--ink-3); margin-bottom: 10px; }
+.plan-card .stance { font-size: 12.5px; color: var(--ink-2); margin-bottom: 12px; min-height: 66px; }
+.plan-card .stance b { color: var(--ink); }
+/* 线框示意：三种 Popover 形制的抽象 */
+.wf { height: 122px; border: 1px solid var(--line); border-radius: 10px; background: #f6f7f9;
+  position: relative; margin-bottom: 12px; padding: 10px 12px; display: flex; flex-direction: column; }
+.wf-bar { border-bottom: 1px solid var(--line); margin: 0 -12px 7px; padding: 0 12px 5px; display: flex; align-items: center; gap: 6px; }
+.wf-title { border-radius: 99px; background: #c9cdd4; height: 7px; }
+.wf-x { position: absolute; top: 9px; right: 9px; width: 11px; height: 11px; border-radius: 3px;
+  background: #e3e5ea; }
+.wf-line { border-radius: 99px; background: #d7dae0; height: 6px; margin: 4px 0; }
+.wf-foot { margin-top: auto; display: flex; align-items: center; gap: 5px; }
+.wf-btn { border-radius: 5px; background: #eceef2; border: 1px solid var(--line); height: 14px; width: 38px; flex: none; }
+.wf-btn.primary { background: #4650c8; border-color: #4650c8; }
+.wf-spacer { flex: 1; }
+/* 箭头线框：A 短梯形 / B 菱形 / C 无 */
+.wf-arrow-a { position: absolute; left: 26px; bottom: -7px; width: 22px; height: 14px;
+  background: #fff; border: 1px solid var(--line); border-top: none;
+  clip-path: polygon(0 0, 100% 0, 72% 100%, 28% 100%); }
+.wf-arrow-b { position: absolute; left: 34px; bottom: -5px; width: 10px; height: 10px;
+  background: #fff; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  transform: rotate(45deg) skew(6deg, 6deg); }
+.wf-anchor { position: absolute; left: 20px; bottom: -34px; width: 64px; height: 18px; border-radius: 5px;
+  background: #e3e5ea; border: 1px solid var(--line); }
+.plan-card ul { list-style: none; font-size: 12.5px; color: var(--ink-2); }
+.plan-card li { padding-left: 15px; position: relative; margin: 3px 0; }
+.plan-card li::before { content: "·"; position: absolute; left: 4px; color: var(--ink-3); }
+.plan-card li.good { color: var(--good); }
+.plan-card li.bad { color: var(--bad); }
+.open-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px; border-radius: 9px;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 550; text-decoration: none; margin-top: 10px; }
+.open-btn:hover { filter: brightness(1.08); }
+.plan-card .fit { font-size: 12px; background: #f6f7f9; border: 1px dashed var(--line); border-radius: 8px;
+  padding: 8px 12px; margin-top: 10px; color: var(--ink-2); }
+.plan-card .fit b { color: var(--ink); }
+
+.decision { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-top: 14px; }
+.decision h3 { font-size: 15px; margin-bottom: 8px; }
+.decision ol { padding-left: 20px; font-size: 13px; color: var(--ink-2); }
+.decision ol li { margin: 7px 0; }
+.decision ol li b { color: var(--ink); }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; }
+td .sub { display: block; font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+.verdict { display: inline-flex; align-items: center; gap: 6px; background: #eef4ee; color: var(--good);
+  border: 1px solid #d5e3d5; border-radius: 99px; padding: 2px 12px; font-size: 12px; font-weight: 600;
+  vertical-align: 2px; margin-left: 6px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Popover 基础件 · 方案导览</h1>
+<p class="lede">已定稿：<b style="color:#3e6b4f;">方案 B · 现代产品（2026-09-18 用户裁决，D-013）</b>——A/C 留档对照。
+定稿实现已落地：<code>ui/primitives/Popover.tsx</code>（Header/Body/Footer 复合组件），
+公共底盘四件同提交抽取（anchoredPosition 更名 / useAnchoredPosition / FloatingArrow /
+mergeRefs / useLayerDismiss），样板间已有档案。
+Popover 是<b>锚定式可交互内容浮层</b>——非模态、点击触发、内容任意（说明卡 / 过滤器组 /
+色板 / 成员卡 / 卡片预览）。家族分工已经划好（D-003 / D-004 文件头口径）：Tooltip 管<b>瞬态说明</b>
+（hover / focus、不可交互、无 Esc），Menu 管<b>命令面板</b>，Select 管<b>表单值选择</b>，Dialog 管
+<b>模态决策</b>，Toast 管<b>回执</b>；Popover 收下中间最大的一块——<b>「点了才出现、里面可以继续操作」
+的锚定内容</b>。技术底盘不是分歧点：定位复用 <b>D-004 引擎</b>（第四家）、Esc 走<b>焦点链 LIFO
+自消费</b>（同 D-007/D-010/D-011）、触发 <b>click 内建</b>（不设 trigger props——hover 说明归 Tooltip，
+antd 的 trigger="hover" 是历史包袱，迁移语义不损失）。<b>与 Tooltip 的公共底盘
+抽离清单</b>（见下节）已随实现兑现。三份演示页同内容、同行为、共引擎，差异全在皮。</p>
+
+<!-- ═══════════ 业界参照 ═══════════ -->
+<h2>业界参照</h2>
+<table>
+  <thead><tr><th>产品 / 库</th><th>形态语言</th><th>值得借鉴</th></tr></thead>
+  <tbody>
+    <tr><td><b>macOS NSPopover</b></td><td>标题栏 + 短梯形箭头 + 面板材质；系统级锚定面板（账户 / 共享）</td><td>「小窗」身份感：有头有关，长内容不迷路；箭头与锚点的强绑定</td></tr>
+    <tr><td><b>Windows 11 Flyout</b></td><td>无箭头、轻关闭（light dismiss）——点外部即收</td><td>light dismiss 行为范式；被遮内容仍可见（非模态的边界自觉）</td></tr>
+    <tr><td><b>Slack / Linear</b></td><td>无标题栏内容卡 + 小菱形箭头；过滤器与成员卡的标准载体</td><td>内容即界面：头行（icon + 标题）随需出现，无内容不空转</td></tr>
+    <tr><td><b>Notion preview</b></td><td>hover 延迟出现预览，点击钉住（pin）转驻留</td><td>意图分层：扫视（hover）与驻留（click）两种深度</td></tr>
+    <tr><td><b>Radix Popover</b></td><td>headless：Portal + anchor + role=dialog + aria-expanded</td><td>API 面蓝本；与 antd Popover 同构（antd 为 legacy 迁移对象）</td></tr>
+    <tr><td><b>antd Popover</b></td><td>title + content + trigger + placement 12 向 + open 受控</td><td>存量语义对照：title/content 分块、placement 全表、受控 open 直映</td></tr>
+  </tbody>
+</table>
+<p class="note">共识：① 非模态是身份——不遮罩、不圈闭 Tab、light dismiss；② 箭头是指向性语言，
+选了就要贯穿（A 短梯形 / B 菱形 / C 无箭头靠位移对齐）；③ 内容宽度自适应锚内容（不是下拉的
+同宽默认）；④ 触发器语义 = click（hover 归 Tooltip、右键归 ContextMenu）；
+⑤ antd 迁移面：title/content → 头行/正文、placement 12 向 → 同名直映、trigger hover → 用 Tooltip 重接。</p>
+
+<!-- ═══════════ 公共底盘 ═══════════ -->
+<h2>公共底盘：Popover 与 Tooltip 能抽什么（本稿重点）</h2>
+<p>定位引擎早已公共（<code>tooltipPosition.ts</code>，Tooltip/Select/Menu 三家用，D-004）。
+真正的账在<b>定位引擎之外</b>：跟随逻辑 / 箭头几何 / ref 合并在三个文件里各有一份近似实现，
+Popover 落地时会出现第四份——按「两例交集才抽」（D-007）的既有原则，这次是抽取窗口。</p>
+<table>
+  <thead><tr><th>抽取物</th><th>现状（2026-09-18）</th><th>Popover 落地动作</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><b>定位引擎</b><span class="sub">computeTooltipPosition</span></td>
+      <td>已公共（纯函数，D-004）；Select/Menu 只吃 <code>bottom*</code> 少数几向</td>
+      <td>第四家复用，<b>placement 全 12 向首次吃满</b>（Popover 的主诉求）；文件届时可更名 <code>anchoredPosition.ts</code>（DECISIONS 记录，引用点四处同步）</td>
+    </tr>
+    <tr>
+      <td><b>锚定跟随</b><span class="sub">useAnchoredPosition</span></td>
+      <td><b>三份重复</b>：Tooltip（含 rAF 轮询动态锚）、MenuSurface、Select——双遍定位 + scroll(capture)/resize rAF 合并重算，各写一遍</td>
+      <td>抽 hook：<code>{ open, placement, gap, pollAnchor?, onPlace }</code>——轮询是 Tooltip 特有参数化；<code>onPlace</code> 承接 Select 的 minWidth 逻辑；四家改一处</td>
+    </tr>
+    <tr>
+      <td><b>箭头几何</b><span class="sub">FloatingArrow</span></td>
+      <td>Tooltip 内联实现：8px 菱形、data-side 旋转、只描外斜两边、尖端 2.5px 圆角</td>
+      <td>抽组件，<b>几何不动、配色参数化</b>：Tooltip 反相 ink-1 / Popover surface 底 + line-1 描边（B 方案直接消费；A/C 无此箭头则仅两例共用）</td>
+    </tr>
+    <tr>
+      <td><b>ref 合并</b><span class="sub">mergeRefs</span></td>
+      <td><b>三份重复</b>：Tooltip 253-260 / Menu 637-643 / Select 399-404——回调 ref 与对象 ref 两种都照顾</td>
+      <td>抽工具函数（~8 行），四家 + 未来 Button/Input 受益；零风险</td>
+    </tr>
+    <tr>
+      <td><b>外点关闭 + 互斥</b><span class="sub">useDismissableLayer（草案名）</span></td>
+      <td>两套：Select 手写单容器判定；useMenuTree 多容器登记 + 模块级互斥单例（Menu 语义）</td>
+      <td>从 useMenuTree 泛化：多容器登记照搬；<b>互斥放宽为「顶层锚定浮层互斥、嵌套浮层共存」</b>（popover 里开 Menu/Select/二级 popover 是常态）；Menu 特有语义留在 Menu</td>
+    </tr>
+    <tr>
+      <td><b>受控 open 契约</b></td>
+      <td>全家族既有口径（§5.3：open/onOpenChange，受控即接管时机）</td>
+      <td>直接沿用——这是 props 约定，无实现可抽</td>
+    </tr>
+  </tbody>
+</table>
+<p class="note"><b>有意不抽的两件</b>：① hover intent（450ms 进入 / 400ms 重开免延迟）——Tooltip 特有的
+瞬态意图判定，Popover 是 click 语义，没有对应物；② 触发器事件注入（Tooltip 的 pass() 透传 /
+Menu 的 injected）——事件集不同（hover+focus vs click+键盘开合），强行合并会造出「参数选模式」的
+复合体，违反 KISS；协议照 Menu 的注释文档化即可（元素必须透传 props 与 ref）。<br>
+抽取动作全部发生在 <b>Popover 实现提交内</b>（一处一提交原则）；三份演示页的 mini 引擎就是
+<code>useAnchoredPosition + FloatingArrow + 外点登记</code> 的可直接移植参考。</p>
+
+<!-- ═══════════ 三方案 ═══════════ -->
+<h2>三条形制路线</h2>
+<div class="plan-grid">
+
+  <div class="plan-card">
+    <h3>方案 A · 经典桌面</h3>
+    <div class="en">macOS NSPopover 语感 — 标题栏横条 · 短梯形箭头 · 面板身份</div>
+    <div class="wf">
+      <div class="wf-bar"><div class="wf-title" style="width:24%"></div><div class="wf-x"></div></div>
+      <div class="wf-line" style="width:92%"></div><div class="wf-line" style="width:64%"></div>
+      <div class="wf-foot"><div class="wf-spacer"></div><div class="wf-btn"></div><div class="wf-btn primary"></div></div>
+      <div class="wf-arrow-a"></div>
+      <div class="wf-anchor"></div>
+    </div>
+    <div class="stance"><b>锚定浮层是一件小窗。</b>标题栏横条（13px 标题 + ×）+ 内容 + 应答区，
+      短梯形箭头钉在锚点上——macOS 系统面板（账户 / 共享 / 输入源）的完整语感；
+      有头有关，长内容与多操作不迷路。</div>
+    <ul>
+      <li class="good">结构最完整：标题栏让「这是什么浮层」始终可见，Esc 关闭有 × 兜底</li>
+      <li class="good">箭头最强：短梯形贴锚，指向性三案最明确</li>
+      <li class="bad">一句话说明卡也背标题栏——轻内容显「隆重」（Dialog A 的暗账同款）</li>
+      <li class="bad">标题栏 + 箭头 + 边框的框架成本，与「零横线」铁律需要小心调和</li>
+    </ul>
+    <div class="fit"><b>适用</b>：系统级锚定面板——账户、同步状态、输入源——「操作系统的小窗」身份感。</div>
+    <a class="open-btn" href="plan-a-classic.html">打开演示 →</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>方案 B · 现代产品 <span class="verdict">已定稿</span></h3>
+    <div class="en">Slack / Linear 语感 — 无标题栏内容卡 · 头行随需 · 菱形箭头</div>
+    <div class="wf">
+      <div style="display:flex;align-items:center;gap:7px;margin:2px 0 8px">
+        <div style="width:16px;height:16px;border-radius:99px;background:#dcd2c2;flex:none"></div>
+        <div class="wf-title" style="width:30%;height:8px"></div>
+      </div>
+      <div class="wf-line" style="width:92%"></div><div class="wf-line" style="width:64%"></div><div class="wf-line" style="width:78%"></div>
+      <div class="wf-foot"><div class="wf-spacer"></div><div class="wf-btn"></div><div class="wf-btn primary"></div></div>
+      <div class="wf-arrow-b"></div>
+      <div class="wf-anchor"></div>
+    </div>
+    <div class="stance"><b>浮层是内容本身，不是容器。</b>无标题栏；需要标题时用「头行」（16px 圆底 icon +
+      13.5px 标题 + 可选 ghost ×），随需出现、无内容不空转；8px 菱形箭头与 Tooltip 完全同几何
+      （抽 FloatingArrow 的直接理由），surface 底 + line-1 描边 + shadow-float。</div>
+    <ul>
+      <li class="good">与已定稿浮层家族（Menu B 药丸行 / Toast 卡片 / Dialog B）语言连续性最强</li>
+      <li class="good">轻内容（一句话说明卡）零框架税，重内容（过滤器组）头行 + footer 撑得住</li>
+      <li class="bad">无标题栏：长内容滚动时「我在哪」只剩头行一条线索（靠 edge fade 补）</li>
+      <li class="bad">8px 箭头指向性弱于 A 的短梯形——远距离锚定时视觉关联偏含蓄</li>
+    </ul>
+    <div class="fit"><b>适用</b>：产品内嵌浮层——过滤器、色板、成员卡、卡片预览——「这是产品的一部分」。</div>
+    <a class="open-btn" href="plan-b-modern.html">打开演示 →</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>方案 C · 密集工作台</h3>
+    <div class="en">IDE inspector 语感 — 无箭头 · radius-md · 可 pin 驻留 · edge fade</div>
+    <div class="wf" style="border-radius:7px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
+        <div class="wf-title" style="width:20%;height:7px"></div>
+        <div class="wf-x" style="top:2px;right:2px;width:10px;height:10px;border-radius:2px"></div>
+      </div>
+      <div class="wf-line" style="width:94%;height:5px;margin:3px 0"></div>
+      <div class="wf-line" style="width:88%;height:5px;margin:3px 0"></div>
+      <div class="wf-line" style="width:96%;height:5px;margin:3px 0"></div>
+      <div class="wf-line" style="width:70%;height:5px;margin:3px 0"></div>
+      <div class="wf-foot" style="margin-top:8px"><div class="wf-btn" style="height:12px;width:32px"></div><div class="wf-spacer"></div><div class="wf-btn" style="height:12px;width:32px"></div></div>
+      <div class="wf-anchor" style="left:14px;width:56px"></div>
+    </div>
+    <div class="stance"><b>锚定浮层是检查器，不是气泡。</b>无箭头（贴齐 + 位移对齐表达归属）、
+      radius-md 12、12.5px 紧凑排版、行高收敛；<b>可 pin</b>——钉住后豁免 light dismiss，
+      变成驻留面板（Notion preview 的点击钉住同源）；长内容 edge fade。</div>
+    <ul>
+      <li class="good">同屏信息量最大：属性面板 / 过滤器组一次展开不折行</li>
+      <li class="good">pin 解决「边看边改」：浮层与底层内容并存工作，这是 A/B 都给不了的</li>
+      <li class="bad">无箭头失去指向性——锚定关系全靠贴齐，多浮层同屏时归属易混</li>
+      <li class="bad">pin 是行为复杂度：钉住态的层级 / 互斥 / 关闭路径都要单独定义</li>
+    </ul>
+    <div class="fit"><b>适用</b>：属性检查器、批量过滤器、快捷键表——「专业工具的附属面板」。</div>
+    <a class="open-btn" href="plan-c-dense.html">打开演示 →</a>
+  </div>
+</div>
+
+<!-- ═══════════ 视觉差异对照 ═══════════ -->
+<h2>视觉差异对照表</h2>
+<p>同一套元素清单（说明卡 / 过滤器组 / 色板 / 成员卡 / 卡片预览 / 长内容），三种形制参数。</p>
+<table>
+  <thead><tr><th>维度</th><th>A · 经典桌面</th><th>B · 现代产品</th><th>C · 密集工作台</th></tr></thead>
+  <tbody>
+    <tr><td>卡片圆角</td><td>radius-lg 16</td><td>radius-lg 16</td><td>radius-md 12</td></tr>
+    <tr><td>箭头形制</td><td><b>短梯形</b>（22×14，surface 底续边框）</td><td><b>8px 菱形</b>（与 Tooltip 同几何，line-1 描外斜边）</td><td><b>无箭头</b>（gap 4 贴齐锚点）</td></tr>
+    <tr><td>标题形制</td><td>标题栏横条 13px/600 + hairline 下沿</td><td>头行随需：16px 圆底 icon + 13.5px/600 标题 + ghost ×（可选）</td><td>紧凑头 12px/600 ink-2 + pin 图钉位</td></tr>
+    <tr><td>正文</td><td>13px / 1.65</td><td>13px / 1.65</td><td>12.5px / 1.6（紧凑）</td></tr>
+    <tr><td>控件高度</td><td>34 / radius-sm</td><td>34 / radius-sm（D-007 家族口径）</td><td>28 / radius-sm</td></tr>
+    <tr><td>footer 形制</td><td>hairline 之上按钮行（右对齐）</td><td>随需：无操作即无 footer，有则 hairline 之上</td><td>无 hairline，留白分隔（零横线最彻底）</td></tr>
+    <tr><td>进场动效</td><td>translateY(4px) + fade 160ms（锚点侧 origin）</td><td>translateY(4px) + scale(0.98) + fade 160ms</td><td>translateY(3px) + fade 140ms（无缩放）</td></tr>
+    <tr><td>驻留（pin）</td><td>—</td><td>—（预览卡演示 click 钉住 / 再点解除，非全局能力）</td><td><b>图钉内建</b>：钉住豁免 light dismiss</td></tr>
+    <tr><td>长内容</td><td>标题栏钉住 + body 滚动</td><td>头行钉住 + body 滚动 + edge fade</td><td>紧凑头钉住 + body 滚动 + edge fade</td></tr>
+    <tr><td>独有元素</td><td>标题栏、短梯形箭头</td><td>头行 icon、Footer 影响位省略（归 Dialog）</td><td>图钉、双列属性网格</td></tr>
+  </tbody>
+</table>
+<p class="note">注：与 Dialog 三案不同，Popover 三案的「皮」差异维度里<b>箭头形制与 pin 是行为级差异</b>——
+箭头几何影响 FloatingArrow 抽取的配色面；pin 影响 useDismissableLayer 的豁免语义。若嫁接
+（例如 B 皮 + C 的 pin），两件都要在 DECISIONS 记录；标题形制 / footer 形制 / 密度三维仍然
+必须整体三选一，拼盘必割裂。</p>
+
+<!-- ═══════════ 行为契约 ═══════════ -->
+<h2>行为契约（三方案共用，定稿后随实现落地）</h2>
+<table>
+  <thead><tr><th>能力</th><th>行为</th><th>出处 / 备注</th></tr></thead>
+  <tbody>
+    <tr><td>触发</td><td><b>click 内建</b>（触发器克隆注入 onClick + aria）；再点触发器 = 关闭（toggle）</td><td>不设 trigger props；hover 说明 → Tooltip 重接（antd 迁移口径）；右键 → ContextMenu</td></tr>
+    <tr><td>承载</td><td>body 级 Portal + fixed，z-[250]（Select/Menu 同层，Tooltip 300 / Dialog 340 之下）</td><td>非模态无遮罩；同层互斥见「外点」行</td></tr>
+    <tr><td>定位</td><td>D-004 引擎全 placement 12 向 + flip + shift；gap 默认 8；内容宽自适应（min-w-[180] max-w-[340]），<b>matchTriggerWidth 默认关</b>（非下拉）</td><td>Popover 是引擎 placement 全表的第一个消费者</td></tr>
+    <tr><td>跟随</td><td>open 期间 scroll(capture)/resize → rAF 合并重定位（抽 useAnchoredPosition 后四家同源）</td><td>轮询动态锚（Tooltip 特有）不在 Popover 开</td></tr>
+    <tr><td>Esc</td><td>仅 open 态在浮层 DOM 消费（preventDefault + stopPropagation）——<b>焦点链 LIFO</b>，同 Select/Menu/Dialog 口径；关闭还焦触发器</td><td>不进 D-003 注册表（ui 不反向依赖 page/，D-011 已复判）</td></tr>
+    <tr><td>Tab</td><td>非模态不圈闭：Tab 自然移出即关闭（同 Menu/Select），焦点不强制归还</td><td>与 Dialog（圈闭）的分界即模态 / 非模态</td></tr>
+    <tr><td>外点</td><td>pointerdown capture 关闭；<b>多容器登记</b>（浮层内再开的 Menu/Select/二级 popover 不算外点）；顶层锚定浮层互斥（开新关旧），嵌套共存</td><td>useDismissableLayer 泛化的目标形态；Select 手写版届时并入</td></tr>
+    <tr><td>aria</td><td>role="dialog"（非模态，无 aria-modal）+ aria-labelledby 头行；触发器 aria-haspopup="dialog" + aria-expanded</td><td>Radx / antd 同构，迁移语义不损失</td></tr>
+    <tr><td>受控</td><td>open / onOpenChange（§5.3）；受控即接管开合时机，样板间常显标本用它</td><td>全家族既有契约</td></tr>
+    <tr><td>键盘开合</td><td>触发器 Enter / Space / ↓ 开（同 Menu）；浮层内 Esc 关（见上）</td><td>浮层内不做全局键盘导航——内容任意，导航归内容（列表用 Menu/Select）</td></tr>
+    <tr><td>尺寸</td><td>宽度随内容（min/max 约束内），高度上限 min(60vh, 420px) 超出滚动 + edge fade</td><td>「尺寸档」归 Dialog；Popover 宽度本质是内容宽度</td></tr>
+  </tbody>
+</table>
+
+<!-- ═══════════ 决策建议与 API ═══════════ -->
+<h2>决策建议与 API 草案</h2>
+<div class="decision">
+  <h3>怎么选</h3>
+  <ol>
+    <li><b>看浮层语言连续性定身份</b>：已定稿家族全是现代产品语言（Menu B 药丸行 D-010、Toast 卡片、
+      Dialog B D-011）。Popover 的主战场是过滤器 / 色板 / 成员卡——B 的「内容即浮层」与这些场景
+      天然同构；A 的标题栏适合系统级面板但与「零横线」铁律相抵；C 的 pin 与密排版适合检查器场景，
+      但无箭头 + 行为复杂度把它推向「未来的 Inspector 容器」而非通用 Popover。</li>
+    <li><b>pin 是唯一的行为级嫁接件</b>：B 皮 + 图钉（钉住豁免 light dismiss）可嫁接不破形制；
+      箭头形制（短梯形 / 菱形 / 无）与标题形制不可混。</li>
+    <li><b>antd 迁移面先想清楚</b>：存量 <code>Popover</code> 的 trigger="hover" 用法迁 Tooltip、
+      trigger="focus" 逐例复核（focus-visible 显示归 Tooltip）；placement 12 向同名直映；
+      title/content 二分对应头行 / 正文。04 删除清单随锚点事件补章节。</li>
+    <li><b>落地即抽公共底盘</b>：定稿后同提交内完成 useAnchoredPosition / mergeRefs / FloatingArrow /
+      useDismissableLayer 四件抽取（见公共底盘表），Tooltip / Menu / Select 改造为消费者——
+      抽取不前置（没有第四消费者时不动存量），也不欠账（落地即还）。同步 03 指南 §9 组件清单与
+      DECISIONS.md（编号顺延）。</li>
+  </ol>
+  <h3 style="margin-top:14px">ui/primitives/Popover API 草案</h3>
+  <pre><code>&lt;Popover trigger={&lt;IconButton icon={Filter}/&gt;} placement="bottom-start"&gt;   // 触发器克隆注入
+  &lt;Popover.Header icon={&lt;SlidersHorizontal/&gt;}&gt;筛选&lt;/Popover.Header&gt;    // 头行随需（B 定稿形制）
+  &lt;Popover.Body&gt;                                                  // 内容任意：表单 / 色板 / 文本
+    …chips / Select（D-007）/ 开关…
+  &lt;/Popover.Body&gt;
+  &lt;Popover.Footer&gt;                                                // 应答区随需：无操作即无
+    &lt;Button onClick={reset}&gt;重置&lt;/Button&gt;
+    &lt;Button variant="primary" onClick={apply}&gt;应用&lt;/Button&gt;
+  &lt;/Popover.Footer&gt;
+&lt;/Popover&gt;
+
+interface PopoverProps {
+  trigger: ReactElement;                 // 协议同 Tooltip/Menu：必须透传 props 与 ref
+  placement?: PopoverPlacement;          // 12 向全表，默认 "top"（同 Tooltip；antd 直映）
+  open?: boolean;                        // 受控（§5.3；样板间常显标本）
+  onOpenChange?: (open: boolean) =&gt; void;
+  arrow?: boolean;                       // 定稿形制相关：B 菱形（A 短梯形 / C 无）
+  className?: string;                    // 透传浮层（宽度控制如 w-[360px]）
+  children: ReactNode;                   // Header/Body/Footer 复合声明（B）或裸内容
+}
+// 内建行为（不做成 props）：click toggle · 定位 D-004 引擎全表 + flip/shift + gap 8
+// · scroll/resize 跟随（useAnchoredPosition）· 外点关闭 + 多容器登记 + 顶层互斥
+// · Esc 焦点链 LIFO · Tab 移出即关 · aria dialog/haspopup/expanded · 开合动效 160ms</code></pre>
+  <div class="note">实现映射：三份演示页的 mini popover 引擎（12 向定位 + flip/shift + 箭头投影、
+    外点登记互斥、Esc LIFO、scroll 跟随、edge fade、C 的 pin）可直接移植为 primitives 参考；
+    定稿方案的 CSS 皮即组件 Tailwind 类的蓝本。</div>
+</div>
+
+<p class="note" style="margin-top:28px">← 返回 <a href="../dialog/index.html">Dialog 导览</a>（上一个基础件） · 演示页：<a href="plan-a-classic.html">A 经典桌面</a> · <a href="plan-b-modern.html">B 现代产品</a> · <a href="plan-c-dense.html">C 密集工作台</a></p>
+
+</div>
+</body>
+</html>
