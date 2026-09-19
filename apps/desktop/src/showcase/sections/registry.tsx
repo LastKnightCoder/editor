@@ -7,6 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   Bell,
   CalendarDays,
+  TextCursorInput,
   LayoutGrid,
   ListChecks,
   LoaderCircle,
@@ -24,6 +25,7 @@ import {
 import ButtonSection from "./ButtonSection";
 import IconButtonSection from "./IconButtonSection";
 import SelectSection from "./SelectSection";
+import InputSection from "./InputSection";
 import ChoiceSection from "./ChoiceSection";
 import DatePickerSection from "./DatePickerSection";
 import MenuSection from "./MenuSection";
@@ -63,6 +65,7 @@ export const SECTIONS: SectionMeta[] = [
   },
   { key: "panel", label: "Panel 族", group: "基础件", icon: PanelTop, component: PanelSection },
   { key: "select", label: "Select", group: "基础件", icon: ListChecks, component: SelectSection },
+  { key: "input", label: "Input", group: "基础件", icon: TextCursorInput, component: InputSection },
   {
     key: "choice",
     label: "Checkbox · Switch · Radio",
