@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tag 设计稿 · A+B 结合（彩色描边）— Tau 桌面端</title>
+<!--
+  【Tag 设计稿 · A+B 结合「彩色描边」：2026-09-19 用户裁决 A、B 两案结合的落地演绎】
+
+  心智：A 出「皮结构」、B 出「色相语义」——surface 亮底 + 1px 分类色描边
+  药丸 + 同系 solid 文字。描边即扫读色环（B 的分色速度），surface 底与
+  line-1 家族同构（A 的浮起物连续感），无底色块（避开 B 的密集彩度）。
+  - 无色 = 无分类：默认（gray）回退中性——line-1 描边 + ink-2 文字，
+    与 Input 家族完全同皮（无分类时不彩）
+  - 色点退场：描边已带色相，点成三重冗余（描边 + 文字已双彩）
+  - 零新 token：描边与文字消费同一 solid（AA 对比度已被色板守护）
+  - 纯展示件：本体是 span；closable 的 × 是 button（热区 24、
+    focus-visible 才显 ring、hover 用 bg-press/ bg-hover）
+  - 单尺寸高 22px（12px 字），长文本 truncate
+
+  结合的另两种演绎（页内对照，不采）：
+  - 中性描边 + 彩文字：色感更轻，但 12px 文字的分色速度回到 A 档
+  - soft 底 + 描边：cream 下 line-1 与 soft 底明度接近，描边隐形——
+    结合落空（退化为纯 B）
+
+  本页重点演示：
+  1. 色板矩阵（7 分类色 + gray 默认回退中性 + 语义状态用法）
+  2. 结合演绎对照（彩描边 / 中性描边+彩字 / soft 底+描边）
+  3. 能力（closable / 截断 / 密集 / 与输入控件混排同构）
+  4. 真实场景：database 表格 + 文章元数据 + 过滤条件条
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  --titlebar-h: 46px; --sidebar-w: 218px; --statusbar-h: 30px;
+}
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #ece4d4; --bg-sunken: #e2d8c0;
+  --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09);
+  --bg-selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+  --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+  --ok: #61795f; --ok-soft: #e5ede2;
+  --warn: #a38c4d; --warn-soft: #f6efd6;
+  --danger: #b0564d; --danger-soft: #f6e3e0;
+  --info: #5c7d99; --info-soft: #e2ebf3;
+  --tag-3: #8a7aa6; --tag-3-soft: #ebe6f3;
+  --focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+}
+[data-theme="cocoa"] {
+  color-scheme: dark;
+  --bg-page: #221d16; --bg-surface: #2e2820; --bg-group: #19150e; --bg-sunken: #100d08;
+  --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11);
+  --bg-selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+  --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+  --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+  --ok: #8cab87; --ok-soft: #243023;
+  --warn: #c4a458; --warn-soft: #302917;
+  --danger: #d97e66; --danger-soft: #34201a;
+  --info: #83aecf; --info-soft: #1e2a35;
+  --tag-3: #a596c8; --tag-3-soft: #292335;
+  --focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font); font-size: 13px; line-height: 1.65; color: var(--ink-1);
+  background: var(--bg-page); overflow: hidden; min-width: 1080px; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.app { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); grid-template-rows: 100vh;
+  grid-template-areas: "sidebar main"; }
+.main { grid-area: main; display: flex; flex-direction: column; min-width: 0; background: var(--bg-page); }
+.sidebar { grid-area: sidebar; padding: 0 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.sidebar-head { display: flex; align-items: center; gap: 8px; height: var(--titlebar-h); padding: 0 6px; margin-bottom: 6px; }
+.brand-mark { width: 24px; height: 24px; border-radius: 8px; background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.brand-name { font-weight: 600; font-size: 13.5px; }
+.nav-label { font-size: 11px; color: var(--ink-3); padding: 8px 10px 6px; letter-spacing: 0.02em; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px;
+  border-radius: 10px; color: var(--ink-2); text-align: left; }
+.nav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-item.active { background: var(--bg-selected); color: var(--accent-text); font-weight: 550; }
+.titlebar { height: var(--titlebar-h); flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.icon-btn { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-2); }
+.icon-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.crumb { color: var(--ink-3); font-size: 12.5px; }
+.titlebar .spacer { flex: 1; }
+.win-controls { display: flex; gap: 6px; }
+.win-controls .dot { width: 12px; height: 12px; border-radius: 99px; background: var(--bg-sunken); border: 1px solid var(--line-1); }
+.home { flex: 1; overflow-y: auto; padding: 26px 40px 48px; }
+.home h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+.home .date { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; margin-bottom: 22px; }
+.panel { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card); padding: 18px 20px; margin-bottom: 16px; }
+.panel h3 { font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 12px; letter-spacing: 0.03em; }
+.statusbar { height: var(--statusbar-h); flex: none; display: flex; align-items: center; gap: 14px;
+  padding: 0 16px; font-size: 11.5px; color: var(--ink-3); border-top: 1px solid var(--line-1); }
+.row { display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; line-height: 1.8; }
+.note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+code.inline { font-family: var(--mono); font-size: 11px; background: var(--bg-group); padding: 1px 5px; border-radius: 5px; }
+.code-card { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 10px;
+  padding: 12px 14px; font-family: var(--mono); font-size: 11.5px; line-height: 1.75; color: var(--ink-2);
+  overflow-x: auto; white-space: pre; margin-top: 12px; }
+.code-card .tag { color: var(--accent-text); }
+.code-card .attr { color: var(--ink-1); }
+.code-card .cmt { color: var(--ink-3); }
+.kbd-row { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-3); margin-top: 10px; }
+.kbd-row > span { display: inline-flex; align-items: center; gap: 6px; }
+.kbd-row kbd { padding: 1px 6px; border: 1px solid var(--line-1); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--bg-surface); font-size: 11px; font-family: var(--mono); }
+.verdict { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-selected); color: var(--accent-text);
+  border: 1px solid var(--accent-soft); border-radius: 99px; padding: 1px 10px; font-size: 11px; font-weight: 600; vertical-align: 2px; }
+.cell { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.cell .cap { font-size: 11.5px; color: var(--ink-3); }
+.tag-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ═══════════ Tag 本体（A+B 结合：彩色描边） ═══════════ */
+.tag { display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  height: 22px; padding: 0 9px; border-radius: 99px;
+  background: var(--bg-surface); border: 1px solid var(--line-1);
+  font-size: 12px; line-height: 1; color: var(--ink-2); }
+.tag .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 分类色：描边与文字同源 solid（AA 由色板守护）；描边透明度降半档让它轻于文字 */
+.tag.red { border-color: var(--danger); color: var(--danger); }
+.tag.orange { border-color: var(--accent); color: var(--accent-text); }
+.tag.yellow { border-color: var(--warn); color: var(--warn); }
+.tag.green { border-color: var(--ok); color: var(--ok); }
+.tag.blue { border-color: var(--info); color: var(--info); }
+.tag.purple { border-color: var(--tag-3); color: var(--tag-3); }
+.tag .x { display: grid; place-items: center; width: 16px; height: 16px; margin: 0 -3px 0 -1px;
+  border-radius: 99px; opacity: 0.75; cursor: pointer; }
+.tag .x:hover { background: var(--bg-press); opacity: 1; }
+.tag .x:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.tag .x svg { width: 11px; height: 11px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; }
+
+/* 演绎对照速写 */
+.variant { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--line-1);
+  border-radius: var(--radius-md); }
+.variant .v-cap { font-size: 11px; color: var(--ink-3); flex: 1; min-width: 140px; line-height: 1.6; }
+.variant .v-cap b { color: var(--ink-1); font-weight: 600; }
+.v-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 99px;
+  font-size: 12px; line-height: 1; background: var(--bg-surface); }
+.v-tag.red { border: 1px solid var(--danger); color: var(--danger); }
+.v-tag.blue { border: 1px solid var(--info); color: var(--info); }
+.v2 .v-tag { border: 1px solid var(--line-1); }
+.v2 .v-tag.red { color: var(--danger); }
+.v2 .v-tag.blue { color: var(--info); }
+.v3 .v-tag.red { border: 1px solid var(--line-1); background: var(--danger-soft); color: var(--danger); }
+.v3 .v-tag.blue { border: 1px solid var(--line-1); background: var(--info-soft); color: var(--info); }
+.pick { display: inline-flex; align-items: center; border-radius: 99px; padding: 0 7px; height: 18px;
+  font-size: 10.5px; font-weight: 600; flex: none; }
+.pick.yes { background: var(--bg-selected); color: var(--accent-text); }
+.pick.no { background: var(--bg-group); color: var(--ink-3); }
+
+/* 与输入控件同皮演示（Input 方案 A 框） */
+.demo-input { height: 30px; padding: 0 10px; border-radius: 9px; font-size: 12.5px;
+  background: var(--bg-surface); border: 1px solid var(--line-1); color: var(--ink-3);
+  display: inline-flex; align-items: center; }
+
+/* database 表格场景 */
+.tbl { border: 1px solid var(--line-1); border-radius: var(--radius-md); overflow: hidden; max-width: 640px; background: var(--bg-surface); }
+.tbl-head, .tr { display: grid; grid-template-columns: 1.6fr 0.8fr 1.4fr; gap: 12px; align-items: center; padding: 7px 14px; }
+.tbl-head { font-size: 11.5px; font-weight: 600; color: var(--ink-3); border-bottom: 1px solid var(--line-1); letter-spacing: 0.02em; }
+.tr + .tr { border-top: 1px solid var(--line-2); }
+.tr:hover { background: var(--bg-hover); }
+.tr .name { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 文章元数据场景 */
+.article { max-width: 560px; }
+.article h4 { font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+.article .meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--ink-3); font-size: 12px; }
+
+/* 过滤条件条场景 */
+.filter-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; max-width: 640px;
+  padding: 8px 10px; border-radius: var(--radius-md); border: 1px solid var(--line-1); background: var(--bg-surface); min-height: 46px; }
+.filter-bar .demo-input { flex: 1; min-width: 120px; border-style: dashed; }
+.plan-badge { position: fixed; left: 16px; bottom: 42px; z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.plan-badge .tag-pill { display: inline-flex; align-items: center; gap: 7px; background: var(--bg-surface);
+  border: 1px solid var(--line-1); box-shadow: var(--shadow-card); border-radius: 99px; padding: 6px 13px;
+  font-size: 11.5px; color: var(--ink-2); }
+.plan-badge .tag-pill b { color: var(--accent-text); font-weight: 600; }
+.plan-note { width: 342px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px;
+  box-shadow: var(--shadow-card); padding: 14px 16px; font-size: 12px; color: var(--ink-2); line-height: 1.75; display: none; }
+.plan-note.open { display: block; }
+.plan-note h4 { font-size: 12.5px; color: var(--ink-1); margin-bottom: 6px; }
+.plan-note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+.plan-note .try { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); color: var(--ink-3); font-size: 11.5px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head"><div class="brand-mark">τ</div><div class="brand-name">Tau</div></div>
+    <div class="nav-label">工作台</div>
+    <button class="nav-item">今日</button>
+    <button class="nav-item">日程</button>
+    <button class="nav-item active">待办</button>
+    <div class="nav-label">知识</div>
+    <button class="nav-item">卡片库</button>
+    <button class="nav-item">设置</button>
+  </aside>
+
+  <div class="main">
+    <header class="titlebar">
+      <span class="crumb">· 组件设计稿 · Tag · <a href="index.html" style="color:inherit;text-decoration:underline dotted">方案导览</a></span>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="themeBtn" title="切换主题"><span id="themeIcon"></span></button>
+      <div class="win-controls"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    </header>
+
+    <div class="home">
+      <h1>Tag 设计稿 · A+B 结合 <span class="verdict">彩色描边</span></h1>
+      <div class="date">A 出皮结构（surface 亮底 + 描边药丸）、B 出色相语义（描边与文字同源 solid）——描边即扫读色环，无底色块避开密集彩度</div>
+
+      <div class="panel">
+        <h3>色板矩阵 · COLOR MATRIX（7 分类色 + gray 默认回退中性 + 语义状态用法）</h3>
+        <div class="tag-row" style="margin-bottom:10px">
+          <span class="tag"><span class="txt">未分类</span></span>
+          <span class="tag red"><span class="txt">红 · 重要</span></span>
+          <span class="tag orange"><span class="txt">橙 · 橙</span></span>
+          <span class="tag yellow"><span class="txt">黄 · 黄</span></span>
+          <span class="tag green"><span class="txt">绿 · 绿</span></span>
+          <span class="tag blue"><span class="txt">蓝 · 蓝</span></span>
+          <span class="tag purple"><span class="txt">紫 · 紫</span></span>
+        </div>
+        <div class="tag-row">
+          <span class="tag green"><span class="txt">已完成</span></span>
+          <span class="tag yellow"><span class="txt">进行中</span></span>
+          <span class="tag red"><span class="txt">已逾期</span></span>
+          <span class="tag blue"><span class="txt">同步中</span></span>
+          <span class="tag"><span class="txt">草稿</span></span>
+        </div>
+        <div class="note">描边与文字消费<em>同一 solid token</em>（对比度 AA 由色板守护，零新 token）；
+          语义状态复用分类色板。色点退场——描边已带色相，点成三重冗余。
+          <em>无色 = 无分类</em>：默认灰回退 line-1 描边 + ink-2 文字，与 Input 家族完全同皮。</div>
+      </div>
+
+      <div class="panel">
+        <h3>结合演绎对照 · WHICH BLEND（三种结合方式的取舍）</h3>
+        <div class="row" style="flex-direction:column; align-items:stretch; gap:10px; max-width:720px">
+          <div class="variant">
+            <div class="tag-row">
+              <span class="v-tag red">已逾期</span>
+              <span class="v-tag blue">同步中</span>
+            </div>
+            <div class="v-cap"><b>彩色描边（本稿）</b>：surface 底 + 分类色描边 + solid 文字——描边即色环，
+              扫读分色接近 B，surface 底保住 A 的家族结构。</div>
+            <span class="pick yes">采</span>
+          </div>
+          <div class="variant v2">
+            <div class="tag-row">
+              <span class="v-tag red">已逾期</span>
+              <span class="v-tag blue">同步中</span>
+            </div>
+            <div class="v-cap"><b>中性描边 + 彩文字</b>：line-1 描边不动、仅文字带色——家族连续性完美，
+              但 12px 文字的分色速度退回 A 档（色块面积极小）。</div>
+            <span class="pick no">不采</span>
+          </div>
+          <div class="variant v3">
+            <div class="tag-row">
+              <span class="v-tag red">已逾期</span>
+              <span class="v-tag blue">同步中</span>
+            </div>
+            <div class="v-cap"><b>soft 底 + 描边</b>：色块最响——但 cream 下 line-1 与 soft 底明度接近，
+              <b>描边隐形、结合落空</b>（退化为纯 B，密集彩度问题原样回来）。</div>
+            <span class="pick no">不采</span>
+          </div>
+        </div>
+        <div class="note">「结合」的可行解必须让 A 的描边在 B 的色感下仍然存在——彩描边是唯一双主题都成立的交点
+          （cocoa 下亮彩描边在暗 surface 上同样清晰）。</div>
+      </div>
+
+      <div class="panel">
+        <h3>能力 · CAPABILITY（closable / 截断 / 密集 / 与输入控件混排同构）</h3>
+        <div class="row" style="gap:28px">
+          <div class="cell">
+            <div class="tag-row">
+              <span class="tag blue"><span class="txt">设计</span><button class="x" aria-label="移除 设计"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+              <span class="tag green"><span class="txt">开发</span><button class="x" aria-label="移除 开发"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+              <span class="tag orange"><span class="txt">文档</span><button class="x" aria-label="移除 文档"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+            </div>
+            <span class="cap">closable：× 热区 24（视觉 16）、hover 用通用 bg-press</span>
+          </div>
+          <div class="cell">
+            <div style="max-width:180px">
+              <span class="tag purple"><span class="txt">一个特别长的标签名称会被截断</span></span>
+            </div>
+            <span class="cap">长文本 truncate（容器约束 max-width）</span>
+          </div>
+          <div class="cell">
+            <div style="max-width:300px" class="tag-row">
+              <span class="tag red"><span class="txt">紧急</span></span>
+              <span class="tag blue"><span class="txt">本周</span></span>
+              <span class="tag"><span class="txt">待整理</span></span>
+              <span class="tag green"><span class="txt">复盘</span></span>
+              <span class="tag yellow"><span class="txt">灵感</span></span>
+            </div>
+            <span class="cap">密集换行：1px 彩描边线噪可控（无底色块）</span>
+          </div>
+          <div class="cell">
+            <div class="tag-row">
+              <span class="demo-input">搜索或输入…</span>
+              <span class="tag orange"><span class="txt">进行中</span></span>
+            </div>
+            <span class="cap">与输入控件混排：surface 底同构，仅描边换色</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>真实场景 · database 表格（状态列 + 标签列）</h3>
+        <div class="tbl">
+          <div class="tbl-head"><span>任务</span><span>状态</span><span>标签</span></div>
+          <div class="tr"><span class="name">Input 组件族重写</span><span class="tag green"><span class="txt">已完成</span></span><span class="tag-row"><span class="tag blue"><span class="txt">设计系统</span></span><span class="tag"><span class="txt">M0</span></span></span></div>
+          <div class="tr"><span class="name">NumberInput 拦截链路测试</span><span class="tag yellow"><span class="txt">进行中</span></span><span class="tag-row"><span class="tag purple"><span class="txt">测试</span></span></span></div>
+          <div class="tr"><span class="name">样板间档案补齐</span><span class="tag"><span class="txt">草稿</span></span><span class="tag-row"><span class="tag orange"><span class="txt">文档</span></span></span></div>
+          <div class="tr"><span class="name">浮层定位引擎专项</span><span class="tag red"><span class="txt">已逾期</span></span><span class="tag-row"><span class="tag red"><span class="txt">紧急</span></span><span class="tag blue"><span class="txt">M1</span></span></span></div>
+        </div>
+        <div class="note">状态列：彩描边色环扫读分色（B 的效率）；标签列：多值密集时无底色块（A 的安静）——
+          两案的主场优势各就各位。</div>
+      </div>
+
+      <div class="panel">
+        <h3>真实场景 · 文章元数据 + 过滤条件条（closable 主场）</h3>
+        <div class="article" style="margin-bottom:14px">
+          <h4>桌面端重构蓝图：从 Tab 系统到 Page 协议</h4>
+          <div class="meta">
+            <span>9月19日</span><span>·</span><span>12 分钟</span>
+            <span class="tag blue"><span class="txt">架构</span></span>
+            <span class="tag green"><span class="txt">重构</span></span>
+          </div>
+        </div>
+        <div class="filter-bar" id="filterBar">
+          <span class="tag blue" data-filter><span class="txt">分类：架构</span><button class="x" aria-label="移除 分类：架构"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+          <span class="tag purple" data-filter><span class="txt">作者：Tau</span><button class="x" aria-label="移除 作者：Tau"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+          <span class="tag yellow" data-filter><span class="txt">本月</span><button class="x" aria-label="移除 本月"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+          <span class="demo-input">添加过滤条件…</span>
+        </div>
+        <div class="note">元数据行：彩描边让 Tag 从正文密度里显形（一档轻响）；过滤条件条：描边即条件边界，
+          × 移除、Tab 可达。</div>
+      </div>
+
+      <div class="panel">
+        <h3>API 草案与迁移对照</h3>
+        <div class="code-card"><span class="cmt">// API 草案：纯展示 span + 可选移除钮（契约与前稿一致，形制落彩描边）</span>
+<span class="tag">&lt;Tag</span> <span class="attr">color</span>="blue"<span class="tag">&gt;</span>设计<span class="tag">&lt;/Tag&gt;</span>                          <span class="cmt">// 7 色板：red/orange/yellow/green/gray(默认)/blue/purple——与 ColorSwatch 同源</span>
+<span class="tag">&lt;Tag</span> <span class="attr">color</span>="green" <span class="attr">onRemove</span>={() =&gt; remove(id)}<span class="tag">&gt;</span>开发<span class="tag">&lt;/Tag&gt;</span>   <span class="cmt">// 传 onRemove 才渲染 ×（button + aria-label，热区 24）</span>
+<span class="cmt">// 单尺寸（高 22、字 12px tau-sm）、长文本 truncate、无 size 档/无 status prop/无 icon 前缀（真实消费点出现再裁）</span>
+<span class="cmt">// antd 对照：color 预设 → 7 色板（ColorSwatch 同源）；closable+onClose → onRemove（有则显 ×）；</span>
+<span class="cmt">//            bordered/icon → 不迁（值展示保持纯）；Tag.Clickable/Checkable → 不建——交互归 Button/Checkbox</span></div>
+        <div class="kbd-row">
+          <span><kbd>Tab</kbd> 只到达 ×（Tag 本体是 span，非交互）</span>
+          <span>× hover 加深底、focus-visible 才显 ring</span>
+          <span>点击 × 即移除（onRemove 回报）</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="statusbar"><span>Tau v2 · 重构中</span><span id="statusInfo">Tag · A+B 结合 · 彩色描边（零新 token）</span></div>
+  </div>
+</div>
+
+<div class="plan-badge">
+  <button class="tag-pill" id="noteToggle"><b>Tag A+B 结合</b> 彩色描边 · 交互说明</button>
+  <div class="plan-note" id="planNote">
+    <h4>A+B 结合：彩色描边</h4>
+    A 出皮结构（surface 亮底 + 描边药丸，家族连续）、B 出色相语义（描边与文字
+    同源 solid，扫读分色）——无底色块，密集不吵；无色回退中性皮。
+    描边与文字同一 token，<em>零新 token</em>；色点退场（三重冗余）。
+    <div class="try">试试：演绎对照区对比三种结合；表格状态列扫读与标签列密集；
+      过滤条件条点 × 移除；右上角切主题（cocoa 亮彩描边）。</div>
+  </div>
+</div>
+
+<script>
+const P = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+};
+let theme = "cream";
+function toggleTheme() {
+  theme = theme === "cream" ? "cocoa" : "cream";
+  document.documentElement.dataset.theme = theme;
+  document.getElementById("themeIcon").innerHTML =
+    `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P[theme === "cream" ? "moon" : "sun"]}</svg>`;
+}
+document.getElementById("themeBtn").addEventListener("click", toggleTheme);
+document.getElementById("themeIcon").innerHTML = `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P.moon}</svg>`;
+const status = (t) => document.getElementById("statusInfo").textContent = t;
+
+/* closable 接线：点 × 移除所在 Tag + 回报 */
+document.querySelectorAll(".tag .x").forEach((x) =>
+  x.addEventListener("click", () => {
+    const label = x.closest(".tag").querySelector(".txt").textContent;
+    x.closest(".tag").remove();
+    status(`onRemove → "${label}"`);
+  })
+);
+
+document.getElementById("noteToggle").addEventListener("click", () => document.getElementById("planNote").classList.toggle("open"));
+</script>
+</body>
+</html>
