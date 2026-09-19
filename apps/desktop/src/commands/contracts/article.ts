@@ -1,5 +1,11 @@
 import { command } from "@tau/rpc";
-import type { IArticle, ICreateArticle, IUpdateArticle } from "@/types";
+import type {
+  IArticle,
+  ICreateArticle,
+  IUpdateArticle,
+  ArticlePageItem,
+  ArticleTagCount,
+} from "@/types";
 
 /** 文章内容按 id 批量取回的条目（供 AI 等消费方的受控摘要） */
 export interface ArticleContentResult {
@@ -22,6 +28,11 @@ export const articleCommands = {
   remove: command<[number], number>("delete-article"),
   getById: command<[number], IArticle>("get-article-by-id"),
   getAll: command<[], IArticle[]>("get-all-articles"),
+  listPage: command<
+    [number, number, (string | undefined)?],
+    { items: ArticlePageItem[]; total: number; totalWords: number }
+  >("get-article-page"),
+  tagCounts: command<[], ArticleTagCount[]>("get-article-tag-counts"),
   updateIsTop: command<[number, boolean], IArticle>("update-article-is-top"),
   updateBannerBg: command<[number, string], IArticle>("update-article-banner-bg"),
   getArticlesByDates: command<[string[]], Record<string, IArticle[]>>("get-articles-by-dates"),
