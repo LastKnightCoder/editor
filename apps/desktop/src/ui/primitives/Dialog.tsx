@@ -1,10 +1,9 @@
 /**
- * Dialog 基础件 —— 模态决策容器（形制与嫁接裁决见 D-011，定稿稿 mockups/dialog/）。
+ * Dialog 基础件 —— 模态决策容器 + ConfirmDialog 语义预设（形制与行为裁决见 D-011）。
  *
- * B「现代产品」形制：体内大标题 + 上下文徽标（自 C 嫁接）+ hairline 应答区（主按钮
- * 最右，按钮序列由 footer 提供）+ blur 遮罩；长内容滚动区接 edge fade（对齐壳层
- * useEdgeFade 协议）。阻断通知不带 icon——两轮实机试验均被否决，文字头部与其它
- * 对话同构（D-011 排除记录）。
+ * 形制：体内大标题 + 上下文徽标（context）+ hairline 应答区（主按钮最右，按钮序列
+ * 由 footer 提供）+ blur 遮罩；长内容滚动区接 edge fade（对齐壳层 useEdgeFade
+ * 协议）。阻断通知不带 icon，文字头部与其它对话同构（D-011）。
  *
  * 行为内建（不做成 props）：
  *  - 开合动效：遮罩淡入 + 卡片 scale(0.97)+translateY(8px)，退场等长后卸载

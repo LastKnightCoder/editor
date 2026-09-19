@@ -1,7 +1,8 @@
 /**
  * Tooltip 基础件 —— Portal + 自研 JS mini 定位引擎（选型与排除记录见 D-004）。
  *
- * Portal（body 追加 fixed 元素）+ 自研 mini 定位引擎，中间件链：
+ * Portal（body 追加 fixed 元素）+ 自研 mini 定位引擎（D-004；定位生命周期收口
+ * useAnchoredPosition，箭头复用 FloatingArrow——D-014 四家共用底盘），中间件链：
  * offset（间距 8）→ flip（主轴放不下翻对侧）→ shift（交叉轴夹回视口，边距 8）→
  * arrow（锚点中心在边缘上的投影，两端各留 10px）。
  *
@@ -20,17 +21,28 @@ import {
   useEffect,
   isValidElement,
   useId,
-  useLayoutEffect,
   useRef,
   useState,
   type ReactElement,
   type ReactNode,
+  type Ref,
 } from "react";
 import { createPortal } from "react-dom";
 import clsx from "clsx";
-import { computeTooltipPosition, type TooltipPlacement } from "./tooltipPosition";
+import {
+  applyArrowPosition,
+  type AnchoredAlign,
+  type AnchoredPlacement,
+  type AnchoredSide,
+} from "./anchoredPosition";
+import { FloatingArrow } from "./FloatingArrow";
+import { mergeRefs } from "./mergeRefs";
+import { useAnchoredPosition } from "./useAnchoredPosition";
 
-export type { TooltipPlacement, TooltipSide, TooltipAlign } from "./tooltipPosition";
+/** 引擎类型的历史名（D-004 起对外暴露；D-014 引擎更名后保留别名，存量引用不动） */
+export type TooltipPlacement = AnchoredPlacement;
+export type TooltipSide = AnchoredSide;
+export type TooltipAlign = AnchoredAlign;
 
 export interface TooltipProps {
   content: ReactNode;
@@ -78,73 +90,20 @@ export function Tooltip({
   // 卸载时清掉挂起中的显示延迟
   useEffect(() => () => window.clearTimeout(timerRef.current), []);
 
-  /** 定位写入（量两遍：首遍拿内容实际尺寸，第二遍按尺寸精调） */
-  const apply = useCallback(() => {
-    const a = anchorRef.current;
-    const p = popRef.current;
-    if (!a || !p) return;
-    const { x, y, side, arrowX, arrowY } = computeTooltipPosition(
-      a.getBoundingClientRect(),
-      p,
-      placement
-    );
-    p.style.left = `${x}px`;
-    p.style.top = `${y}px`;
-    p.dataset.side = side;
-    const ar = p.firstElementChild as HTMLElement | null;
-    if (ar) {
-      if (arrowX != null) {
-        ar.style.left = `${arrowX}px`;
-        ar.style.top = side === "bottom" ? "-5px" : "auto";
-        ar.style.bottom = side === "top" ? "-5px" : "auto";
-        ar.style.right = "auto";
-      } else {
-        ar.style.top = `${arrowY}px`;
-        ar.style.left = side === "right" ? "-5px" : "auto";
-        ar.style.right = side === "left" ? "-5px" : "auto";
-        ar.style.bottom = "auto";
-      }
-    }
-  }, [placement]);
-
-  // open 期间：进场即定位；scroll(capture)/resize → rAF 合并重算；
-  // rAF 轮询锚 rect（动态锚场景：趋势图 hover 热区随鼠标逐格移动，无 DOM 事件可挂）
-  useLayoutEffect(() => {
-    if (!open) return;
-    apply();
-    apply();
-    let queued = false;
-    const schedule = () => {
-      if (queued) return;
-      queued = true;
-      requestAnimationFrame(() => {
-        queued = false;
-        apply();
-      });
-    };
-    window.addEventListener("scroll", schedule, true);
-    window.addEventListener("resize", schedule);
-    let raf = 0;
-    let lastRect = "";
-    const poll = () => {
-      const a = anchorRef.current;
-      if (a) {
-        const r = a.getBoundingClientRect();
-        const key = `${r.left},${r.top},${r.width},${r.height}`;
-        if (key !== lastRect) {
-          lastRect = key;
-          apply();
-        }
-      }
-      raf = requestAnimationFrame(poll);
-    };
-    raf = requestAnimationFrame(poll);
-    return () => {
-      window.removeEventListener("scroll", schedule, true);
-      window.removeEventListener("resize", schedule);
-      cancelAnimationFrame(raf);
-    };
-  }, [open, apply, content]);
+  // open 期间的定位生命周期（双遍进场 / scroll(capture)/resize/内容尺寸跟随 /
+  // rAF 轮询动态锚）收口在 useAnchoredPosition（D-014 四家共用）；
+  // 此处只声明 Tooltip 特有的衍生写入
+  useAnchoredPosition({
+    open,
+    getAnchor: () => anchorRef.current?.getBoundingClientRect() ?? null,
+    popRef,
+    placement,
+    pollAnchor: true,
+    onPlace: (pos, pop) => {
+      pop.dataset.side = pos.side;
+      if (arrow) applyArrowPosition(pos, pop);
+    },
+  });
 
   if (!isValidElement(children)) return null;
   const child = children as ReactElement<Record<string, unknown>>;
@@ -195,32 +154,14 @@ export function Tooltip({
       role="tooltip"
       aria-hidden={!open}
       className={clsx(
-        "bg-ink-1 text-ink-inverse border-ink-inverse/15 shadow-card group/tip",
+        "bg-ink-1 text-ink-inverse border-ink-inverse/15 shadow-card group/float",
         "pointer-events-none fixed left-0 top-0 z-[300] w-max max-w-[280px]",
         "rounded-tau-sm border px-2.5 py-[5px] text-[12px] leading-[1.55]",
         "ease-tau-out transition-[opacity,transform] duration-[130ms]",
         open ? "opacity-100" : "translate-y-[2px] scale-[0.98] opacity-0"
       )}
     >
-      {arrow && (
-        <span
-          aria-hidden
-          className={clsx(
-            // 不能用 border 打底（四边描边）：内侧两条边藏在 tooltip 主体里不该有框，
-            // 只描旋转后朝外的两条斜边。top/bottom 尖端=右下角 → 描 right/bottom、圆右下角；
-            // left/right 尖端=左上角 → 描 left/top、圆左上角（与 mockup 实测修正一致）
-            "border-ink-inverse/15 bg-ink-1 pointer-events-none absolute size-2",
-            "group-data-[side=top]/tip:rotate-45",
-            "group-data-[side=top]/tip:rounded-br-[2.5px] group-data-[side=top]/tip:border-b group-data-[side=top]/tip:border-r",
-            "group-data-[side=bottom]/tip:rotate-[225deg]",
-            "group-data-[side=bottom]/tip:rounded-br-[2.5px] group-data-[side=bottom]/tip:border-b group-data-[side=bottom]/tip:border-r",
-            "group-data-[side=left]/tip:rotate-[135deg]",
-            "group-data-[side=left]/tip:rounded-tl-[2.5px] group-data-[side=left]/tip:border-l group-data-[side=left]/tip:border-t",
-            "group-data-[side=right]/tip:-rotate-45",
-            "group-data-[side=right]/tip:rounded-tl-[2.5px] group-data-[side=right]/tip:border-l group-data-[side=right]/tip:border-t"
-          )}
-        />
-      )}
+      {arrow && <FloatingArrow tone="tooltip" />}
       {content}
     </div>,
     document.body
@@ -250,14 +191,9 @@ export function Tooltip({
   const trigger = cloneElement(child, {
     ...handlers,
     "aria-describedby": open ? tipId : childProps["aria-describedby"],
-    ref: (el: HTMLElement | null) => {
+    ref: mergeRefs(childProps.ref as Ref<HTMLElement> | undefined, el => {
       anchorRef.current = el;
-      // 合并调用方已有 ref（回调 ref 与对象 ref 两种都照顾；React 19 里 ref 在 props 上）
-      const prev = childProps.ref;
-      if (typeof prev === "function") (prev as (node: HTMLElement | null) => void)(el);
-      else if (prev && typeof prev === "object")
-        (prev as React.MutableRefObject<HTMLElement | null>).current = el;
-    },
+    }),
   });
 
   return (

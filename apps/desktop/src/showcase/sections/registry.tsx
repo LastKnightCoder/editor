@@ -17,6 +17,7 @@ import {
   RectangleHorizontal,
   Ruler,
   SquarePlus,
+  MessagesSquare,
 } from "lucide-react";
 
 import ButtonSection from "./ButtonSection";
@@ -24,6 +25,7 @@ import IconButtonSection from "./IconButtonSection";
 import SelectSection from "./SelectSection";
 import MenuSection from "./MenuSection";
 import DialogSection from "./DialogSection";
+import PopoverSection from "./PopoverSection";
 import PanelSection from "./PanelSection";
 import ToastSection from "./ToastSection";
 import TooltipSection from "./TooltipSection";
@@ -70,6 +72,13 @@ export const SECTIONS: SectionMeta[] = [
     group: "基础件",
     icon: SquarePlus,
     component: DialogSection,
+  },
+  {
+    key: "popover",
+    label: "Popover",
+    group: "基础件",
+    icon: MessagesSquare,
+    component: PopoverSection,
   },
   { key: "toast", label: "Toast", group: "反馈", icon: Bell, component: ToastSection },
   {
