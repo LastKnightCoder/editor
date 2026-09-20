@@ -101,7 +101,7 @@ export default function AppShell() {
 }
 
 function ShellLayout() {
-  const { state } = usePage();
+  const { state, statusBars } = usePage();
   const width = useShellStore(s => s.sidebarWidth);
   const setWidth = useShellStore(s => s.setSidebarWidth);
   const toggle = useShellStore(s => s.toggleSidebar);
@@ -132,7 +132,10 @@ function ShellLayout() {
         <main className="min-h-0 overflow-y-auto">
           <PageHost state={state} />
         </main>
-        <footer className="text-tau-micro text-ink-3 flex select-none items-center gap-4 px-3.5" />
+        {/* 页面级状态栏（usePageStatusBar 按栈顶页注入；无注册保持空壳） */}
+        <footer className="text-tau-micro text-ink-3 flex min-h-0 select-none items-center px-3.5">
+          {currentKey ? statusBars.get(currentKey) : undefined}
+        </footer>
       </div>
       {/* 全局命令面板浮层（Ctrl+K，D-003）：fixed 定位，须在 PageProvider 内使用导航 */}
       <SearchPalette />

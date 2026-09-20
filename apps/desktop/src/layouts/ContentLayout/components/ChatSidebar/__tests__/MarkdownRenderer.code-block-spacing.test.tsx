@@ -49,14 +49,12 @@ describe("ChatSidebar MarkdownRenderer code block spacing", () => {
           }}
           shouldRender={true}
         />
-      </MarkdownProvider>,
+      </MarkdownProvider>
     );
 
-    const codeBlock = container.querySelector(
-      '[data-testid="code-block"]',
-    ) as HTMLElement | null;
+    const codeBlock = container.querySelector('[data-testid="code-block"]') as HTMLElement | null;
     const spacingWrapper = container.querySelector(
-      '[data-markdown-pre="true"]',
+      '[data-markdown-pre="true"]'
     ) as HTMLElement | null;
 
     expect(codeBlock).toBeTruthy();
@@ -78,11 +76,7 @@ describe("ChatSidebar MarkdownRenderer code block spacing", () => {
             code: ({ children, ...props }: any) => (
               <div
                 data-testid="code-block"
-                data-kind={
-                  props["data-markdown-block-code"] === "true"
-                    ? "block"
-                    : "inline"
-                }
+                data-kind={props["data-markdown-block-code"] === "true" ? "block" : "inline"}
               >
                 {children}
               </div>
@@ -90,12 +84,10 @@ describe("ChatSidebar MarkdownRenderer code block spacing", () => {
           }}
           shouldRender={true}
         />
-      </MarkdownProvider>,
+      </MarkdownProvider>
     );
 
-    const codeBlock = container.querySelector(
-      '[data-testid="code-block"]',
-    ) as HTMLElement | null;
+    const codeBlock = container.querySelector('[data-testid="code-block"]') as HTMLElement | null;
 
     expect(codeBlock?.dataset.kind).toBe("block");
     expect(codeBlock?.textContent).toContain("const a = 1;");
@@ -113,11 +105,7 @@ describe("ChatSidebar MarkdownRenderer code block spacing", () => {
             code: ({ children, ...props }: any) => (
               <span
                 data-testid="inline-code"
-                data-kind={
-                  props["data-markdown-block-code"] === "true"
-                    ? "block"
-                    : "inline"
-                }
+                data-kind={props["data-markdown-block-code"] === "true" ? "block" : "inline"}
               >
                 {children}
               </span>
@@ -125,12 +113,10 @@ describe("ChatSidebar MarkdownRenderer code block spacing", () => {
           }}
           shouldRender={true}
         />
-      </MarkdownProvider>,
+      </MarkdownProvider>
     );
 
-    const inlineCode = container.querySelector(
-      '[data-testid="inline-code"]',
-    ) as HTMLElement | null;
+    const inlineCode = container.querySelector('[data-testid="inline-code"]') as HTMLElement | null;
 
     expect(inlineCode?.dataset.kind).toBe("inline");
     expect(inlineCode?.textContent).toBe("inline code");

@@ -42,17 +42,13 @@ describe("ChatSidebar MarkdownRenderer content-link", () => {
             '请阅读 :content-link[测试卡片]{refId=42 contentId=301 contentType=card title="测试卡片"} 后回答'
           }
           markdownComponents={{
-            span: ({
-              children,
-              className,
-            }: {
-              children?: ReactNode;
-              className?: string;
-            }) => <span className={className}>{children}</span>,
+            span: ({ children, className }: { children?: ReactNode; className?: string }) => (
+              <span className={className}>{children}</span>
+            ),
           }}
           shouldRender={true}
         />
-      </MarkdownProvider>,
+      </MarkdownProvider>
     );
 
     const reference = container.querySelector(".document-reference");

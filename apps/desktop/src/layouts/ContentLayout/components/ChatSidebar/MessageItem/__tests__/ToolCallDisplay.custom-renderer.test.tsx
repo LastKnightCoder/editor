@@ -3,17 +3,14 @@ import type { ReactNode } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 import type { ToolCallExecutionState } from "@/types";
-import {
-  registerToolCallRenderer,
-  unregisterToolCallRenderer,
-} from "@/tool-call-renderers";
+import { registerToolCallRenderer, unregisterToolCallRenderer } from "@/tool-call-renderers";
 import type { ToolCallCustomRendererProps } from "@/tool-call-renderers";
 import ToolCallDisplay from "../ToolCallDisplay";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 const createExecution = (
-  overrides: Partial<ToolCallExecutionState> = {},
+  overrides: Partial<ToolCallExecutionState> = {}
 ): ToolCallExecutionState => ({
   toolCallId: "call-test-1",
   toolName: "test_tool",
@@ -49,7 +46,7 @@ describe("MessageItem/ToolCallDisplay custom renderer", () => {
     unregisterToolCallRenderer(execution.toolName);
 
     const { root, container } = await mount(
-      <ToolCallDisplay execution={execution} isDark={false} />,
+      <ToolCallDisplay execution={execution} isDark={false} />
     );
 
     expect(container.textContent).toContain(execution.toolName);
@@ -65,20 +62,15 @@ describe("MessageItem/ToolCallDisplay custom renderer", () => {
     });
     let receivedProps: unknown = null;
 
-    registerToolCallRenderer(
-      execution.toolName,
-      (props: ToolCallCustomRendererProps) => {
-        receivedProps = props;
-        return <div data-testid="custom-renderer">custom renderer</div>;
-      },
-    );
+    registerToolCallRenderer(execution.toolName, (props: ToolCallCustomRendererProps) => {
+      receivedProps = props;
+      return <div data-testid="custom-renderer">custom renderer</div>;
+    });
     const { root, container } = await mount(
-      <ToolCallDisplay execution={execution} isDark={false} />,
+      <ToolCallDisplay execution={execution} isDark={false} />
     );
 
-    expect(
-      container.querySelector('[data-testid="custom-renderer"]'),
-    ).toBeTruthy();
+    expect(container.querySelector('[data-testid="custom-renderer"]')).toBeTruthy();
     const capturedProps = receivedProps as ToolCallCustomRendererProps;
     expect(capturedProps.parsedInput).toEqual({
       user: "alice",
@@ -97,21 +89,16 @@ describe("MessageItem/ToolCallDisplay custom renderer", () => {
     });
     let receivedProps: unknown = null;
 
-    registerToolCallRenderer(
-      execution.toolName,
-      (props: ToolCallCustomRendererProps) => {
-        receivedProps = props;
-        return <div data-testid="custom-renderer-bad-json">bad json</div>;
-      },
-    );
+    registerToolCallRenderer(execution.toolName, (props: ToolCallCustomRendererProps) => {
+      receivedProps = props;
+      return <div data-testid="custom-renderer-bad-json">bad json</div>;
+    });
 
     const { root, container } = await mount(
-      <ToolCallDisplay execution={execution} isDark={false} />,
+      <ToolCallDisplay execution={execution} isDark={false} />
     );
 
-    expect(
-      container.querySelector('[data-testid="custom-renderer-bad-json"]'),
-    ).toBeTruthy();
+    expect(container.querySelector('[data-testid="custom-renderer-bad-json"]')).toBeTruthy();
     const capturedProps = receivedProps as ToolCallCustomRendererProps;
     expect(capturedProps.parsedInput).toBeNull();
     expect(capturedProps.inputParseError).toBeTruthy();
@@ -132,7 +119,7 @@ describe("MessageItem/ToolCallDisplay custom renderer", () => {
 
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const { root, container } = await mount(
-      <ToolCallDisplay execution={execution} isDark={false} />,
+      <ToolCallDisplay execution={execution} isDark={false} />
     );
 
     expect(container.textContent).toContain(execution.toolName);
@@ -162,15 +149,11 @@ describe("MessageItem/ToolCallDisplay custom renderer", () => {
     });
 
     const { root, container } = await mount(
-      <ToolCallDisplay execution={execution} isDark={false} />,
+      <ToolCallDisplay execution={execution} isDark={false} />
     );
 
-    expect(
-      container.querySelector('[data-testid="renderer-key-renderer"]'),
-    ).toBeTruthy();
-    expect(
-      container.querySelector('[data-testid="tool-name-renderer"]'),
-    ).toBeFalsy();
+    expect(container.querySelector('[data-testid="renderer-key-renderer"]')).toBeTruthy();
+    expect(container.querySelector('[data-testid="tool-name-renderer"]')).toBeFalsy();
 
     await unmount(root, container);
     unregisterToolCallRenderer(execution.toolName);

@@ -16,11 +16,7 @@ interface DraggableTabProps {
   onClose: (e: React.MouseEvent) => void;
   onSwitch: () => void;
   onMove: (dragIndex: number, hoverIndex: number) => void;
-  onDragEnd: (
-    tab: ITab,
-    paneId: string,
-    dropZone?: "left" | "right" | "top" | "bottom",
-  ) => void;
+  onDragEnd: (tab: ITab, paneId: string, dropZone?: "left" | "right" | "top" | "bottom") => void;
   groupColor?: string;
 }
 
@@ -58,19 +54,15 @@ const DraggableTab = memo((props: DraggableTabProps) => {
     groupColor,
   } = props;
   const ref = useRef<HTMLDivElement>(null);
-  const reorderTabGroup = useTabStore((state) => state.reorderTabGroup);
-  const moveTabGroupToTab = useTabStore((state) => state.moveTabGroupToTab);
+  const reorderTabGroup = useTabStore(state => state.reorderTabGroup);
+  const moveTabGroupToTab = useTabStore(state => state.moveTabGroupToTab);
   const { hoverClass, divideClass } = useThemeColors();
 
   // 激活 tab 背景:accent 淡色;圆弧直接内嵌同一 CSS 变量
   const getActiveClass = () => "bg-[var(--th-accent-soft)]";
   const activeTabBgColor = "var(--th-accent-soft)";
 
-  const [{ isDragging }, drag] = useDrag<
-    TabDragItem,
-    void,
-    { isDragging: boolean }
-  >({
+  const [{ isDragging }, drag] = useDrag<TabDragItem, void, { isDragging: boolean }>({
     type: "TAB",
     item: () => ({
       type: "TAB",
@@ -79,7 +71,7 @@ const DraggableTab = memo((props: DraggableTabProps) => {
       index,
       originalPaneId: paneId, // 记录原始 paneId
     }),
-    collect: (monitor) => ({
+    collect: monitor => ({
       isDragging: monitor.isDragging(),
     }),
     end: (item, monitor) => {
@@ -116,13 +108,9 @@ const DraggableTab = memo((props: DraggableTabProps) => {
     },
   });
 
-  const [{ handlerId }, drop] = useDrop<
-    DragItem,
-    void,
-    { handlerId: string | symbol | null }
-  >({
+  const [{ handlerId }, drop] = useDrop<DragItem, void, { handlerId: string | symbol | null }>({
     accept: ["TAB", "TAB_GROUP"],
-    collect: (monitor) => ({
+    collect: monitor => ({
       handlerId: monitor.getHandlerId(),
     }),
     hover: (item: DragItem, monitor) => {
@@ -157,9 +145,7 @@ const DraggableTab = memo((props: DraggableTabProps) => {
           if (item.tab.groupId !== tab.groupId) {
             if (tab.groupId) {
               // 目标 tab 在分组中，将拖动的 tab 加入该分组
-              useTabStore
-                .getState()
-                .setTabGroup(paneId, item.tab.id, tab.groupId);
+              useTabStore.getState().setTabGroup(paneId, item.tab.id, tab.groupId);
               item.tab.groupId = tab.groupId;
             }
             // 如果目标 tab 不在分组中，groupId 已经在 moveTabToPane 中被清除了
@@ -179,8 +165,7 @@ const DraggableTab = memo((props: DraggableTabProps) => {
 
         // 确定鼠标位置
         const hoverBoundingRect = ref.current.getBoundingClientRect();
-        const hoverMiddleX =
-          (hoverBoundingRect.right - hoverBoundingRect.left) / 2;
+        const hoverMiddleX = (hoverBoundingRect.right - hoverBoundingRect.left) / 2;
         const clientOffset = monitor.getClientOffset();
         if (!clientOffset) return;
         const hoverClientX = clientOffset.x - hoverBoundingRect.left;
@@ -200,9 +185,7 @@ const DraggableTab = memo((props: DraggableTabProps) => {
           // 如果拖动的 tab 和目标 tab 的分组不同，需要更新分组
           if (tab.groupId) {
             // 目标 tab 在分组中，将拖动的 tab 加入该分组
-            useTabStore
-              .getState()
-              .setTabGroup(paneId, item.tab.id, tab.groupId);
+            useTabStore.getState().setTabGroup(paneId, item.tab.id, tab.groupId);
             item.tab.groupId = tab.groupId;
           } else if (item.tab.groupId) {
             // 目标 tab 不在分组中，取消拖动 tab 的分组
@@ -251,13 +234,11 @@ const DraggableTab = memo((props: DraggableTabProps) => {
 
         // 同一 pane 内的分组拖拽
         const hoverBoundingRect = ref.current.getBoundingClientRect();
-        const hoverMiddleX =
-          (hoverBoundingRect.right - hoverBoundingRect.left) / 2;
+        const hoverMiddleX = (hoverBoundingRect.right - hoverBoundingRect.left) / 2;
         const clientOffset = monitor.getClientOffset();
         if (!clientOffset) return;
         const hoverClientX = clientOffset.x - hoverBoundingRect.left;
-        const position: "before" | "after" =
-          hoverClientX < hoverMiddleX ? "before" : "after";
+        const position: "before" | "after" = hoverClientX < hoverMiddleX ? "before" : "after";
 
         if (tab.groupId) {
           // 当前 tab 在分组中，分组和分组之间排序
@@ -276,28 +257,28 @@ const DraggableTab = memo((props: DraggableTabProps) => {
   const showDivider = !isFirst && !isActive && !isPrevActive;
 
   return (
-    <div className="flex items-center h-8 group">
+    <div className="group flex h-8 items-center">
       <div
         className={classnames(
-          "w-0.5 h-3 shrink-0 mr-1 rounded-full transition-opacity group-hover:opacity-0",
+          "mr-1 h-3 w-0.5 shrink-0 rounded-full transition-opacity group-hover:opacity-0",
           divideClass,
           {
             "opacity-0": !showDivider,
             "opacity-100": showDivider,
-          },
+          }
         )}
       />
       <div
         ref={ref}
         data-handler-id={handlerId}
         className={classnames(
-          "flex w-full min-w-[72px] items-center gap-2 px-3 cursor-pointer select-none max-w-[200px] transition-colors duration-150 app-region-no-drag border-b-2 border-transparent relative",
+          "app-region-no-drag relative flex w-full min-w-[72px] max-w-[200px] cursor-pointer select-none items-center gap-2 border-b-2 border-transparent px-3 transition-colors duration-150",
           isActive ? getActiveClass() : "",
-          isActive ? "rounded-t-lg h-8 my-0" : "h-7 my-0.5 rounded-lg",
+          isActive ? "my-0 h-8 rounded-t-lg" : "my-0.5 h-7 rounded-lg",
           !isActive ? hoverClass : "",
           {
             "opacity-40": isDragging,
-          },
+          }
         )}
         style={
           isActive
@@ -314,14 +295,14 @@ const DraggableTab = memo((props: DraggableTabProps) => {
         {isActive && (
           <>
             <div
-              className="absolute bottom-[-2px] left-[-12px] w-3 h-3 pointer-events-none will-change-auto"
+              className="pointer-events-none absolute bottom-[-2px] left-[-12px] h-3 w-3 will-change-auto"
               style={{
                 background: `radial-gradient(circle at top left, transparent 12px, ${activeTabBgColor} 12px)`,
                 transition: "none",
               }}
             />
             <div
-              className="absolute bottom-[-2px] right-[-12px] w-3 h-3 pointer-events-none will-change-auto"
+              className="pointer-events-none absolute bottom-[-2px] right-[-12px] h-3 w-3 will-change-auto"
               style={{
                 background: `radial-gradient(circle at top right, transparent 12px, ${activeTabBgColor} 12px)`,
                 transition: "none",
@@ -329,16 +310,14 @@ const DraggableTab = memo((props: DraggableTabProps) => {
             />
           </>
         )}
-        <span className="flex-1 min-w-0 text-sm truncate text-(--text-color)">
-          {tab.title}
-        </span>
+        <span className="text-(--text-color) min-w-0 flex-1 truncate text-sm">{tab.title}</span>
         <button
           className={classnames(
-            "flex items-center justify-center w-4 h-4 border-none cursor-pointer text-sm rounded-full text-(--text-secondary-color) transition-all opacity-0 group-hover:opacity-100",
+            "text-(--text-secondary-color) flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border-none text-sm opacity-0 transition-all group-hover:opacity-100",
             hoverClass,
             {
               "opacity-100": isActive,
-            },
+            }
           )}
           onClick={onClose}
           type="button"

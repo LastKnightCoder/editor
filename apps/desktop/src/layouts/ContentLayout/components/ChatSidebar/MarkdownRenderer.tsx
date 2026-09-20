@@ -16,28 +16,19 @@ import remarkGfm from "remark-gfm";
 import remarkCjkFriendly from "remark-cjk-friendly/parseOnly";
 import remarkCjkFriendlyGfmStrikethrough from "remark-cjk-friendly-gfm-strikethrough/parseOnly";
 import { Tooltip } from "antd";
-import MarkdownContext, {
-  useMarkdownContext,
-  MarkdownMessageMeta,
-} from "./MarkdownContext";
+import MarkdownContext, { useMarkdownContext, MarkdownMessageMeta } from "./MarkdownContext";
 import { remarkDocumentReference } from "@tau/shared";
 import remarkPdfCitation from "@/utils/remark-pdf-citation";
 import { getRefTypeLabel, getRefTypeColor } from "@/utils";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
-import {
-  getProjectItemById,
-  getRootDocumentsByDocumentItemId,
-} from "@/commands";
+import { getProjectItemById, getRootDocumentsByDocumentItemId } from "@/commands";
 import { getDiaryEntryById } from "@/commands/diary";
 import LocalImage from "@/components/LocalImage";
 import LocalImagePreviewPortal from "@/components/LocalImagePreviewPortal";
 import useThemeColors from "@/hooks/useThemeColors";
 import styles from "./MarkdownRenderer.module.less";
-import {
-  MARKDOWN_BLOCK_CODE_ATTRIBUTE,
-  MARKDOWN_BLOCK_CODE_VALUE,
-} from "./codeBlockUtils";
+import { MARKDOWN_BLOCK_CODE_ATTRIBUTE, MARKDOWN_BLOCK_CODE_VALUE } from "./codeBlockUtils";
 
 const remarkPlugins = [
   remarkMath,
@@ -74,11 +65,7 @@ const MarkdownImage = ({
         <LocalImage url={src} alt={alt} className={imageClassName} {...props} />
       </button>
       {previewOpen ? (
-        <LocalImagePreviewPortal
-          url={src}
-          alt={alt}
-          onClose={() => setPreviewOpen(false)}
-        />
+        <LocalImagePreviewPortal url={src} alt={alt} onClose={() => setPreviewOpen(false)} />
       ) : null}
     </span>
   );
@@ -96,7 +83,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
   ({ content, className, markdownComponents, shouldRender, messageMeta }) => {
     const baseContext = useMarkdownContext();
     const { cache, isVisible } = baseContext;
-    const openInNewTab = useTabStore((state) => state.openInNewTab);
+    const openInNewTab = useTabStore(state => state.openInNewTab);
     const { accentColor, secondaryTextClass } = useThemeColors();
 
     // 处理文档引用点击
@@ -153,7 +140,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
           }
         }
       },
-      [openInNewTab],
+      [openInNewTab]
     );
 
     // 自定义组件，用于渲染文档引用
@@ -162,18 +149,15 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       return {
         ...markdownComponents,
         pre: ({ children, className, node: _node, ...props }: any) => {
-          const childrenWithBlockCodeMarker = Children.map(
-            children,
-            (child) => {
-              if (!isValidElement<Record<string, unknown>>(child)) {
-                return child;
-              }
+          const childrenWithBlockCodeMarker = Children.map(children, child => {
+            if (!isValidElement<Record<string, unknown>>(child)) {
+              return child;
+            }
 
-              return cloneElement(child, {
-                [MARKDOWN_BLOCK_CODE_ATTRIBUTE]: MARKDOWN_BLOCK_CODE_VALUE,
-              } as Record<string, string>);
-            },
-          );
+            return cloneElement(child, {
+              [MARKDOWN_BLOCK_CODE_ATTRIBUTE]: MARKDOWN_BLOCK_CODE_VALUE,
+            } as Record<string, string>);
+          });
 
           return (
             <div
@@ -198,17 +182,17 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
             return (
               <Tooltip title={`${refLabel}: ${text}`} placement="top">
                 <span
-                  className="document-reference cursor-pointer inline-block px-1 py-0.5 rounded text-sm font-medium transition-all duration-200 hover:scale-105"
+                  className="document-reference inline-block cursor-pointer rounded px-1 py-0.5 text-sm font-medium transition-all duration-200 hover:scale-105"
                   style={{
                     color: refColor,
                     backgroundColor: `${refColor}15`,
                     border: `1px solid ${refColor}30`,
                   }}
                   onClick={() => handleReferenceClick(id, type)}
-                  onMouseEnter={(e) => {
+                  onMouseEnter={e => {
                     e.currentTarget.style.backgroundColor = `${refColor}25`;
                   }}
-                  onMouseLeave={(e) => {
+                  onMouseLeave={e => {
                     e.currentTarget.style.backgroundColor = `${refColor}15`;
                   }}
                 >
@@ -238,20 +222,14 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
         },
         ul: ({ className, children, ...props }: any) => {
           return (
-            <ul
-              {...props}
-              className={classnames(styles.bulletedList, className)}
-            >
+            <ul {...props} className={classnames(styles.bulletedList, className)}>
               {children}
             </ul>
           );
         },
         ol: ({ className, children, ...props }: any) => {
           return (
-            <ol
-              {...props}
-              className={classnames(styles.numberedList, className)}
-            >
+            <ol {...props} className={classnames(styles.numberedList, className)}>
               {children}
             </ol>
           );
@@ -268,15 +246,15 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
             <blockquote
               {...props}
               className={classnames(
-                "relative my-4 pl-[1.5em] py-[0.75em] italic leading-relaxed transition-colors duration-200",
+                "relative my-4 py-[0.75em] pl-[1.5em] italic leading-relaxed transition-colors duration-200",
                 secondaryTextClass,
-                "[&_p]:my-0 [&_p+p]:mt-2",
-                className,
+                "[&_p+p]:mt-2 [&_p]:my-0",
+                className
               )}
             >
               <div
                 aria-hidden="true"
-                className="absolute left-0 top-1 bottom-1 w-1 rounded-full select-none"
+                className="absolute bottom-1 left-0 top-1 w-1 select-none rounded-full"
                 style={{ backgroundColor: accentColor }}
               />
               {children}
@@ -287,14 +265,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
           if (typeof src !== "string" || !src) {
             return null;
           }
-          return (
-            <MarkdownImage
-              src={src}
-              alt={alt}
-              className={className}
-              props={props}
-            />
-          );
+          return <MarkdownImage src={src} alt={alt} className={className} props={props} />;
         },
       };
     }, [markdownComponents, handleReferenceClick]);
@@ -352,7 +323,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     if (!isVisible || !shouldRender) return null;
 
     return <>{renderedContent}</>;
-  },
+  }
 );
 
 MarkdownRenderer.displayName = "MarkdownRenderer";

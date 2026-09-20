@@ -6,7 +6,7 @@ describe("ChatSidebar codeBlockUtils", () => {
     expect(
       shouldRenderAsBlockCode({
         className: "language-ts",
-      }),
+      })
     ).toBe(true);
   });
 
@@ -14,7 +14,7 @@ describe("ChatSidebar codeBlockUtils", () => {
     expect(
       shouldRenderAsBlockCode({
         "data-markdown-block-code": "true",
-      }),
+      })
     ).toBe(true);
   });
 
@@ -23,7 +23,7 @@ describe("ChatSidebar codeBlockUtils", () => {
       shouldRenderAsBlockCode({
         className: undefined,
         "data-markdown-block-code": undefined,
-      }),
+      })
     ).toBe(false);
   });
 });

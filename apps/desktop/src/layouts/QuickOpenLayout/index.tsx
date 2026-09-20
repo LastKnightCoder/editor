@@ -10,6 +10,7 @@ import { platform, isMac } from "@/platform";
 import useSettingStore from "@/stores/useSettingStore";
 import FullScreenLoading from "@/components/FullScreenLoading";
 import GlobalTitlebar from "@/layouts/ContentLayout/components/GlobalTitlebar";
+import { ToastHost } from "@tau/ui";
 
 interface QuickOpenLayoutProps {
   title?: string;
@@ -84,6 +85,8 @@ const QuickOpenLayout = ({ title }: QuickOpenLayoutProps) => {
         <div className={styles.content}>
           <Outlet />
         </div>
+        {/* 去 antd 后共享组件的 toast 反馈宿主（useFlashcardGeneration/协作控制等） */}
+        <ToastHost />
       </div>
     </FullScreenLoading>
   );

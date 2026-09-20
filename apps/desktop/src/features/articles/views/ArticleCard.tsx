@@ -31,8 +31,8 @@ const COVER_GRADIENTS = [
   "linear-gradient(140deg, #ddd8a5, #b3a860)",
 ] as const;
 
-/** 相邻 id 错开取色（×7 mod 12），同一篇永远同一色 */
-const coverGradientOf = (id: number): string => COVER_GRADIENTS[(id * 7 + 3) % 12];
+/** 相邻 id 错开取色（×7 mod 12），同一篇永远同一色（详情页 hero 兜底同源复用） */
+export const coverGradientOf = (id: number): string => COVER_GRADIENTS[(id * 7 + 3) % 12];
 
 /** 文字封面的前景（粉彩底上的定稿对比色，出处同上） */
 const TEXT_ON_COVER = "rgba(67,57,44,0.82)";

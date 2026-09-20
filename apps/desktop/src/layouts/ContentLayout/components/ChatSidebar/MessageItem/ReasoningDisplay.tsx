@@ -72,28 +72,17 @@ const ReasoningDisplay: React.FC<ReasoningDisplayProps> = ({
 
   return (
     <div className={`${styles.reasoningCard} ${isDark ? styles.dark : ""}`}>
-      <div
-        className={styles.reasoningHeader}
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
+      <div className={styles.reasoningHeader} onClick={() => setIsExpanded(!isExpanded)}>
         <div className={styles.headerContent}>
           {isThinking ? (
             <LoadingOutlined className={styles.icon} spin />
           ) : (
             <BulbOutlined className={styles.icon} />
           )}
-          <span className={styles.title}>
-            {isThinking ? "思考中" : "已思考"}
-          </span>
-          {startTime && (
-            <span className={styles.duration}>
-              {formatDuration(displayDuration)}
-            </span>
-          )}
+          <span className={styles.title}>{isThinking ? "思考中" : "已思考"}</span>
+          {startTime && <span className={styles.duration}>{formatDuration(displayDuration)}</span>}
         </div>
-        <button className={styles.expandButton}>
-          {isExpanded ? "▼" : "▶"}
-        </button>
+        <button className={styles.expandButton}>{isExpanded ? "▼" : "▶"}</button>
       </div>
 
       {isExpanded && (

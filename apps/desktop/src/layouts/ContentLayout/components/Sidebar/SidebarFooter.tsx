@@ -44,7 +44,7 @@ const ThemeToggle = memo(
       showTooltip={showTooltip}
       disableDefaultHover={disableDefaultHover}
     />
-  ),
+  )
 );
 
 // 使用单独的SettingsButton组件
@@ -72,22 +72,17 @@ const SettingsButton = memo(
       showTooltip={showTooltip}
       disableDefaultHover={disableDefaultHover}
     />
-  ),
+  )
 );
 
 const SidebarFooter = memo((props: SidebarFooterProps) => {
-  const {
-    isShortWidth,
-    itemClassName,
-    showTooltip = true,
-    disableDefaultHover = false,
-  } = props;
+  const { isShortWidth, itemClassName, showTooltip = true, disableDefaultHover = false } = props;
 
   const { darkMode, onDarkModeChange } = useSettingStore(
-    useShallow((state) => ({
+    useShallow(state => ({
       darkMode: state.setting.darkMode,
       onDarkModeChange: state.onDarkModeChange,
-    })),
+    }))
   );
 
   const navigateToSettings = useMemoizedFn(() => {

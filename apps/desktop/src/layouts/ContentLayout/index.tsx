@@ -17,6 +17,7 @@ import SettingModal from "./components/SettingModal";
 import GlobalTitlebar from "./components/GlobalTitlebar";
 import FullScreenLoading from "@/components/FullScreenLoading";
 import { initAiServer } from "@/services/aiServer";
+import { ToastHost } from "@tau/ui";
 import { platform } from "@/platform";
 
 const ShortSidebarLayout = memo(() => {
@@ -67,6 +68,8 @@ const ShortSidebarLayout = memo(() => {
         <Search />
         <SettingModal />
         <CommandPanel />
+        {/* 去 antd 后共享组件的 toast 反馈宿主（useFlashcardCreation/协作控制等） */}
+        <ToastHost />
       </div>
     </FullScreenLoading>
   );

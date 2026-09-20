@@ -1,16 +1,10 @@
 import { produce } from "immer";
-import type {
-  ChatMessage,
-  RequestMessage,
-  ResponseMessage,
-  TextContent,
-} from "@/types";
+import type { ChatMessage, RequestMessage, ResponseMessage, TextContent } from "@/types";
 import { Role } from "@/constants";
 import { buildAssistantHistoryMessages } from "@/services/assistantMessageBlocks";
 import { isAbortError } from "@tau/agent";
 
-export const shouldRestoreInputAfterSendError = (error: unknown): boolean =>
-  !isAbortError(error);
+export const shouldRestoreInputAfterSendError = (error: unknown): boolean => !isAbortError(error);
 
 export const getRequestMessageText = (message: RequestMessage): string => {
   if (typeof message.content === "string") {
@@ -19,13 +13,11 @@ export const getRequestMessageText = (message: RequestMessage): string => {
 
   return message.content
     .filter((item): item is TextContent => item.type === "text")
-    .map((item) => item.text)
+    .map(item => item.text)
     .join("\n");
 };
 
-export const getLastUserMessageIndex = (
-  messages: ChatMessage["messages"],
-): number =>
+export const getLastUserMessageIndex = (messages: ChatMessage["messages"]): number =>
   messages.reduce((lastIndex, message, index) => {
     if (message.role === Role.User) {
       return index;
@@ -33,17 +25,14 @@ export const getLastUserMessageIndex = (
     return lastIndex;
   }, -1);
 
-export const formatGeneratedChatTitle = (title: string): string =>
-  title.trim().slice(0, 20);
+export const formatGeneratedChatTitle = (title: string): string => title.trim().slice(0, 20);
 
 export const shouldGenerateChatTitle = (
   chat: Pick<ChatMessage, "titleDirty">,
-  hasTitleModelConfig: boolean,
+  hasTitleModelConfig: boolean
 ): boolean => chat.titleDirty === false && hasTitleModelConfig;
 
-export const buildTitleSummaryMessages = (
-  chat: ChatMessage,
-): RequestMessage[] =>
+export const buildTitleSummaryMessages = (chat: ChatMessage): RequestMessage[] =>
   chat.messages
     .slice(1)
     .slice(-2)
@@ -53,8 +42,7 @@ export const buildTitleSummaryMessages = (
         const sourceContent = userMessage.content;
         const textContent = Array.isArray(sourceContent)
           ? sourceContent.filter(
-              (item): item is TextContent =>
-                item.type === "text" && item.text.trim().length > 0,
+              (item): item is TextContent => item.type === "text" && item.text.trim().length > 0
             )
           : sourceContent
             ? [
@@ -77,17 +65,15 @@ export const buildTitleSummaryMessages = (
       };
     })
     .filter(
-      (message) =>
+      message =>
         Array.isArray(message.content) &&
         message.content.length > 0 &&
-        message.content.some(
-          (item) => item.type === "text" && item.text.trim().length > 0,
-        ),
+        message.content.some(item => item.type === "text" && item.text.trim().length > 0)
     );
 
 export const buildResetBaseChat = (
   chat: ChatMessage,
-  visibleMessageIndex: number,
+  visibleMessageIndex: number
 ): ChatMessage | null => {
   const actualIndex = visibleMessageIndex + 1;
   const targetMessage = chat.messages[actualIndex];
@@ -95,7 +81,7 @@ export const buildResetBaseChat = (
     return null;
   }
 
-  return produce(chat, (draft) => {
+  return produce(chat, draft => {
     draft.messages = draft.messages.slice(0, actualIndex);
   });
 };
@@ -104,7 +90,7 @@ export const buildFullHistoryMessages = (
   chat: ChatMessage,
   options?: {
     excludeMessageIndex?: number;
-  },
+  }
 ): RequestMessage[] =>
   chat.messages
     .slice(1)

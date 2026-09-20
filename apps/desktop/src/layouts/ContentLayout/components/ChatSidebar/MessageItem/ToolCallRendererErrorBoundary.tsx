@@ -23,10 +23,7 @@ class ToolCallRendererErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error): void {
-    console.error(
-      `[ToolCallRenderer] Custom renderer for "${this.props.toolName}" crashed`,
-      error,
-    );
+    console.error(`[ToolCallRenderer] Custom renderer for "${this.props.toolName}" crashed`, error);
   }
 
   render() {

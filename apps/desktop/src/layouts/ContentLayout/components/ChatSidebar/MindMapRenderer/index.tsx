@@ -40,10 +40,7 @@ const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
     const debouncedCode = useDebounce(code, { wait: 500 });
 
     // 基于代码内容生成唯一的存储 key
-    const storageKey = useMemo(
-      () => `mindmap-height-${hashCode(debouncedCode)}`,
-      [debouncedCode],
-    );
+    const storageKey = useMemo(() => `mindmap-height-${hashCode(debouncedCode)}`, [debouncedCode]);
 
     // 高度持久化（每个思维导图独立）- 仅在非填充模式下使用
     const [height, setHeight] = useLocalStorageState<number>(storageKey, {
@@ -59,10 +56,7 @@ const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
 
         const handleMouseMove = (moveEvent: MouseEvent) => {
           const deltaY = moveEvent.clientY - startY;
-          const newHeight = Math.min(
-            MAX_HEIGHT,
-            Math.max(MIN_HEIGHT, startHeight + deltaY),
-          );
+          const newHeight = Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, startHeight + deltaY));
           setHeight(newHeight);
         };
 
@@ -74,7 +68,7 @@ const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
         document.addEventListener("mousemove", handleMouseMove);
         document.addEventListener("mouseup", handleMouseUp);
       },
-      [height, setHeight],
+      [height, setHeight]
     );
 
     // 解析 Markdown 列表为 MindMapNodeData
@@ -107,27 +101,18 @@ const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
             <pre>{error}</pre>
           </div>
         ) : data ? (
-          <Suspense
-            fallback={
-              <div className={styles.mindMapLoading}>加载思维导图组件...</div>
-            }
-          >
+          <Suspense fallback={<div className={styles.mindMapLoading}>加载思维导图组件...</div>}>
             <div
               className={classNames(styles.mindMapWrapper, {
                 [styles.fillWrapper]: fillContainer,
               })}
-              style={
-                fillContainer ? undefined : { height: height ?? DEFAULT_HEIGHT }
-              }
+              style={fillContainer ? undefined : { height: height ?? DEFAULT_HEIGHT }}
             >
               <MindMap ref={ref} data={data} themeId={themeId} />
             </div>
             {/* 拖拽调整高度的手柄 - 填充模式下不显示 */}
             {!fillContainer && (
-              <div
-                className={styles.resizeHandle}
-                onMouseDown={handleResizeStart}
-              />
+              <div className={styles.resizeHandle} onMouseDown={handleResizeStart} />
             )}
           </Suspense>
         ) : (
@@ -135,7 +120,7 @@ const MindMapRenderer = forwardRef<MindMapRef, MindMapRendererProps>(
         )}
       </div>
     );
-  },
+  }
 );
 
 MindMapRenderer.displayName = "MindMapRenderer";

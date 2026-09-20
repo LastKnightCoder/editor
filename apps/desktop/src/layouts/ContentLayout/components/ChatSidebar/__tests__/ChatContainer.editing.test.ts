@@ -12,9 +12,7 @@ import {
 import { Role } from "@/constants";
 import type { ChatMessage, RequestMessage, ResponseMessage } from "@/types";
 
-const createUserMessage = (
-  content: RequestMessage["content"],
-): RequestMessage => ({
+const createUserMessage = (content: RequestMessage["content"]): RequestMessage => ({
   role: Role.User,
   content,
 });
@@ -24,10 +22,7 @@ const createAssistantMessage = (content: string): ResponseMessage => ({
   content,
 });
 
-const createAssistantHistoryMessage = (
-  content: string,
-  turnId: string,
-): ResponseMessage => ({
+const createAssistantHistoryMessage = (content: string, turnId: string): ResponseMessage => ({
   role: Role.Assistant,
   content,
   assistant_blocks: [
@@ -70,7 +65,7 @@ describe("ChatContainer 编辑辅助逻辑", () => {
       shouldRestoreInputAfterSendError({
         name: "AbortError",
         message: "用户主动终止",
-      }),
+      })
     ).toBe(false);
     expect(shouldRestoreInputAfterSendError(new Error("网络异常"))).toBe(true);
   });
@@ -101,13 +96,9 @@ describe("ChatContainer 编辑辅助逻辑", () => {
   });
 
   it("应去掉生成标题前后的空白后再截断", () => {
-    expect(formatGeneratedChatTitle("\n\n  这是一个测试标题  \n")).toBe(
-      "这是一个测试标题",
-    );
+    expect(formatGeneratedChatTitle("\n\n  这是一个测试标题  \n")).toBe("这是一个测试标题");
     expect(
-      formatGeneratedChatTitle(
-        "\n\n  这是一个超过二十个字符的测试标题用于验证截断行为  ",
-      ),
+      formatGeneratedChatTitle("\n\n  这是一个超过二十个字符的测试标题用于验证截断行为  ")
     ).toBe("这是一个超过二十个字符的测试标题用于验证");
   });
 
@@ -177,13 +168,11 @@ describe("ChatContainer 编辑辅助逻辑", () => {
   });
 
   it("构造请求历史时不应截断超过 20 组的对话", () => {
-    const messages: ChatMessage["messages"] = [
-      { role: Role.System, content: "system" },
-    ];
+    const messages: ChatMessage["messages"] = [{ role: Role.System, content: "system" }];
     for (let index = 1; index <= 25; index += 1) {
       messages.push(
         createUserMessage([{ type: "text", text: `问题 ${index}` }]),
-        createAssistantHistoryMessage(`回答 ${index}`, `turn-${index}`),
+        createAssistantHistoryMessage(`回答 ${index}`, `turn-${index}`)
       );
     }
     const chat: ChatMessage = {
@@ -197,9 +186,7 @@ describe("ChatContainer 编辑辅助逻辑", () => {
     const history = buildFullHistoryMessages(chat);
 
     expect(history).toHaveLength(50);
-    expect(history[0]).toEqual(
-      createUserMessage([{ type: "text", text: "问题 1" }]),
-    );
+    expect(history[0]).toEqual(createUserMessage([{ type: "text", text: "问题 1" }]));
     expect(history.at(-1)).toEqual({
       role: Role.Assistant,
       content: [{ type: "text", text: "回答 25" }],

@@ -37,8 +37,8 @@ const getTextContent = (message: RequestMessage): string => {
   }
 
   return message.content
-    .filter((item) => item.type === "text")
-    .map((item) => item.text)
+    .filter(item => item.type === "text")
+    .map(item => item.text)
     .join("\n");
 };
 
@@ -48,7 +48,7 @@ const getImageContent = (message: RequestMessage): ChatMessageViewImage[] => {
   }
 
   return message.content
-    .filter((item) => item.type === "image")
+    .filter(item => item.type === "image")
     .map((item, index) => ({
       url: item.image,
       alt: `User uploaded image ${index + 1}`,
@@ -76,14 +76,10 @@ const getFileContent = (message: RequestMessage): ChatMessageViewFile[] => {
 
   return message.content
     .filter(
-      (
-        item,
-      ): item is Extract<
-        ChatSessionMessage["content"][number],
-        { type: "file" }
-      > => item.type === "file" && typeof item.file === "string",
+      (item): item is Extract<ChatSessionMessage["content"][number], { type: "file" }> =>
+        item.type === "file" && typeof item.file === "string"
     )
-    .map((item) => ({
+    .map(item => ({
       path: item.file,
       name: parseFileName(item.file, item.fileName),
     }));
@@ -111,12 +107,8 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     const files = userMessage ? getFileContent(userMessage) : [];
     const assistantBlocks = useMemo(
       () =>
-        isUser
-          ? []
-          : (getAssistantContentBlocks(
-              message as ResponseMessage,
-            ) as ContentBlock[]),
-      [isUser, message],
+        isUser ? [] : (getAssistantContentBlocks(message as ResponseMessage) as ContentBlock[]),
+      [isUser, message]
     );
 
     const openFileInExplorer = useCallback(
@@ -135,7 +127,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
           antdMessage.error("无法打开文件");
         }
       },
-      [antdMessage],
+      [antdMessage]
     );
 
     const handleDelete = useCallback(
@@ -152,7 +144,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
           },
         });
       },
-      [modal, onDeleteMessage],
+      [modal, onDeleteMessage]
     );
 
     const renderMarkdown = useCallback(
@@ -182,7 +174,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
           />
         );
       },
-      [isVisible, markdownComponents, messageMeta],
+      [isVisible, markdownComponents, messageMeta]
     );
 
     return (
@@ -220,7 +212,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(
         )}
       />
     );
-  },
+  }
 );
 
 MessageItem.displayName = "MessageItem";

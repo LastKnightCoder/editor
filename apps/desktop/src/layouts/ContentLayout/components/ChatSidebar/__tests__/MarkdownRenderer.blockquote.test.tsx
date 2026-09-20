@@ -42,7 +42,7 @@ describe("ChatSidebar MarkdownRenderer blockquote", () => {
           markdownComponents={{}}
           shouldRender={true}
         />
-      </MarkdownProvider>,
+      </MarkdownProvider>
     );
 
     const blockquote = container.querySelector("blockquote");
@@ -51,7 +51,7 @@ describe("ChatSidebar MarkdownRenderer blockquote", () => {
     expect(blockquote?.className).toContain("italic");
     expect(blockquote?.className).toContain("leading-relaxed");
     const accentBar = blockquote?.querySelector(
-      ".absolute.left-0.top-1.bottom-1.w-1.rounded-full.select-none",
+      ".absolute.left-0.top-1.bottom-1.w-1.rounded-full.select-none"
     ) as HTMLElement | null;
     expect(accentBar).toBeTruthy();
     expect(accentBar?.style.backgroundColor).toBeTruthy();
