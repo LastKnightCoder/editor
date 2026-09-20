@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, memo, useRef } from "react";
-import classNames from "classnames";
-import CustomModal from "@/components/CustomModal";
+import { Dialog, toast } from "@tau/ui";
 import { Button, SectionTitle, TextInput, TextStrong, TextSecondary } from "./ui";
 import { usePodcastGeneration } from "@/hooks/usePodcastGeneration";
 import type { PodcastSpeaker, IPodcast, PodcastScriptLine } from "@/types/podcast";
@@ -108,17 +107,9 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
       }
     }, [open, initialPodcast, setInitialState]);
 
-    // 通知系统
-    const [notices, setNotices] = useState<Array<{ id: number; type: NoticeType; text: string }>>(
-      []
-    );
+    // 通知走全局 toast（type 与 toast 方法名一一对应）
     const notify = useCallback((type: NoticeType, text: string) => {
-      const id = Date.now() + Math.floor(Math.random() * 1000);
-      setNotices(prev => [...prev, { id, type, text }]);
-      const timeout = type === "error" ? 4000 : 2500;
-      window.setTimeout(() => {
-        setNotices(prev => prev.filter(n => n.id !== id));
-      }, timeout);
+      toast[type](text);
     }, []);
 
     const handleGenerate = useCallback(async () => {
@@ -237,38 +228,17 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
       );
 
     return (
-      <CustomModal
+      <Dialog
         title="生成播客"
         open={open}
-        onCancel={handleClose}
+        onOpenChange={next => {
+          if (!next) handleClose();
+        }}
         width={800}
+        locked={status === "loading"}
         footer={footerNode}
-        maskClosable={false}
-        closeOnEscape={status !== "loading"}
-        bodyClassName="overflow-y-auto pt-3 px-2"
       >
         <div className="space-y-6">
-          {/* 通知显示 */}
-          {notices.length > 0 && (
-            <div className="space-y-2">
-              {notices.map(notice => (
-                <div
-                  key={notice.id}
-                  className={classNames(
-                    "whitespace-pre-wrap rounded-lg px-3 py-2 text-sm",
-                    notice.type === "success" && "bg-[var(--th-success)]/10 text-status-success",
-                    notice.type === "error" && "bg-[var(--th-danger)]/10 text-status-error",
-                    notice.type === "warning" && "bg-[var(--th-warning)]/10 text-status-warning",
-                    notice.type === "info" &&
-                      "bg-gray-100 text-gray-700 dark:bg-zinc-800 dark:text-zinc-300"
-                  )}
-                >
-                  {notice.text}
-                </div>
-              ))}
-            </div>
-          )}
-
           {/* 初始配置阶段 */}
           {status === "idle" && (
             <div className="space-y-4">
@@ -281,7 +251,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                   onChange={setPodcastName}
                   maxLength={100}
                 />
-                <div className="mt-1 text-right text-xs text-gray-400 dark:text-zinc-500">
+                <div className="text-ink-3 text-tau-sm mt-1 text-right tabular-nums">
                   {podcastName.length}/100
                 </div>
               </div>
@@ -374,7 +344,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
                   onChange={setPodcastName}
                   maxLength={100}
                 />
-                <div className="mt-1 text-right text-xs text-gray-400 dark:text-zinc-500">
+                <div className="text-ink-3 text-tau-sm mt-1 text-right tabular-nums">
                   {podcastName.length}/100
                 </div>
               </div>
@@ -405,19 +375,19 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
             <div className="space-y-4">
               <SectionTitle>生成失败</SectionTitle>
               {error && (
-                <div className="whitespace-pre-wrap rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">
+                <div className="bg-danger-soft text-danger rounded-tau-md text-tau-body whitespace-pre-wrap p-3">
                   {error}
                 </div>
               )}
               <details open className="mt-4">
-                <summary className="cursor-pointer select-none text-xs font-medium text-gray-500 dark:text-zinc-400">
+                <summary className="text-ink-3 text-tau-sm cursor-pointer select-none font-medium">
                   详细日志
                 </summary>
-                <div className="mt-2 max-h-64 space-y-0.5 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-zinc-700/50 dark:bg-zinc-800/60">
+                <div className="border-line-1 rounded-tau-md mt-2 max-h-64 space-y-0.5 overflow-y-auto border p-3">
                   {logs.map((log, index) => (
                     <div
                       key={index}
-                      className="font-mono text-xs leading-relaxed text-gray-600 dark:text-zinc-300"
+                      className="text-ink-2 font-tau-mono text-tau-sm leading-relaxed"
                     >
                       {log}
                     </div>
@@ -427,7 +397,7 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
             </div>
           )}
         </div>
-      </CustomModal>
+      </Dialog>
     );
   }
 );

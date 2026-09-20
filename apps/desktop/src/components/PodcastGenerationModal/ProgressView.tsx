@@ -22,23 +22,20 @@ export const ProgressView = ({
         {stageNames[stage] || stage}
         {stage === "tts" && ` (${ttsCompleted}/${ttsTotal})`}
       </SectionTitle>
-      <div className="w-full h-1.5 rounded-full bg-gray-100 dark:bg-zinc-800 overflow-hidden">
+      <div className="bg-track h-1.5 w-full overflow-hidden rounded-full">
         <div
-          className="h-full bg-gray-900 dark:bg-gray-100 rounded-full transition-all duration-300 ease-out"
+          className="bg-accent ease-tau-out h-full rounded-full transition-all duration-300"
           style={{ width: `${stageProgress}%` }}
         />
       </div>
 
       <details open className="mt-4">
-        <summary className="cursor-pointer text-xs font-medium text-gray-500 dark:text-zinc-400 select-none">
+        <summary className="text-ink-3 text-tau-sm cursor-pointer select-none font-medium">
           详细日志
         </summary>
-        <div className="mt-2 max-h-64 overflow-y-auto space-y-0.5 p-3 rounded-lg bg-gray-50 dark:bg-zinc-800/60 border border-gray-100 dark:border-zinc-700/50">
+        <div className="border-line-1 rounded-tau-md mt-2 max-h-64 space-y-0.5 overflow-y-auto border p-3">
           {logs.map((log, index) => (
-            <div
-              key={index}
-              className="text-xs font-mono text-gray-600 dark:text-zinc-300 leading-relaxed"
-            >
+            <div key={index} className="text-ink-2 font-tau-mono text-tau-sm leading-relaxed">
               {log}
             </div>
           ))}
