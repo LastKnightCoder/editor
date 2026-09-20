@@ -14,11 +14,12 @@ export default defineTheme({
   palette: {
     paper: "#f3eee2", // 窗口底
     surface: "#fffdf9", // 卡片/面板
-    // 分组底 / 次级填充：**下沉到 page 之下**（D-006）。原值 #faf6ec 夹在
-    // page(1.073) 与 surface(1.062) 之间，两头都读不出来；下沉后对 page 1.092、
-    // 对 surface 1.244。方向定为"凹陷填充"是因为它的消费点（EmptyNote、kind
-    // 徽章、kbd 提示、命令面板标签、次级按钮）全都要在周围底色上显形。
-    group: "#ece4d4",
+    // 分组底 / 次级填充：**下沉到 page 之下**（D-006 方向不变，程度收敛）。
+    // 初版 #ece4d4（对 page 1.092 / surface 1.244）按小面积元素（kbd 提示、
+    // kind 徽章、次级按钮）的显形度取值；消费点扩展到 Tag、Panel、工具条等
+    // 大面积容器后凹陷感过重显脏，2026-09-20 上调至对 page 1.045 /
+    // surface 1.191 的折中，ink 对比度余量同步放大（ink-2 5.13 → 5.36）。
+    group: "#f0e9d8",
     sunken: "#e2d8c0", // 输入底/代码块等凹陷区：比 group 再深一档（对 page 1.224）
     track: "#e0d6c3", // 控件轨道（开关/滑杆槽）：米灰，与 thumb(surface) 拉开
     ink1: "#43392c",

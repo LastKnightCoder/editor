@@ -19,7 +19,8 @@ export default defineTheme({
     surface: "#2e2820", // 卡片/面板：咖啡纸（最亮层）
     // 与 cream 对称：凹陷填充落在 page 之下（原 #2a241b 对 surface 仅 1.054，
     // 等于没有）。深色下 surface 最亮、sunken 最暗，故"沉"= 更暗。
-    group: "#19150e", // 对 page 1.087、对 surface 1.247
+    // 2026-09-20 与 cream 同步收敛一档：对 page 1.044 / surface 1.197。
+    group: "#1e1912",
     sunken: "#100d08", // 比 group 再深一档（对 page 1.159）
     track: "#463d31", // 控件轨道：中暖棕，亮于 surface——thumb 在其上可辨且不显黑
     ink1: "#ece2d0",
