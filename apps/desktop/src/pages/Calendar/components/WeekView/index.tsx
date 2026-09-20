@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
+import { toast } from "@tau/ui";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { useTimeSlotDrag } from "@/hooks/useTimeSlotDrag";
@@ -83,7 +84,7 @@ const WeekView = () => {
   const createDayDragHandler = (dayDate: Date, dayIndex: number) => {
     return (startMinutes: number, endMinutes: number) => {
       if (calendars.length === 0) {
-        alert("请先创建一个日历");
+        toast.warning("请先创建一个日历");
         return;
       }
 
