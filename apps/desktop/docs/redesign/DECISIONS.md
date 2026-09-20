@@ -28,6 +28,8 @@
 
 ## D-003 命令面板（全局搜索浮层）承载方式与 Esc 浮层仲裁
 
+- **追记（2026-09-20 用户裁决）：移除「Esc=后退」**——Esc 只承担浮层退场（LIFO 语义不变、浮层内输入框的 Esc 同义），无浮层时无操作。起因：文章详情页按 Esc 整页回退到列表，误触即丢编辑上下文。后退归 Alt+←/→ 与标题栏后退按钮；`overlayDismiss.test.tsx` 三例断言同步（全关后不再断言回退）。
+
 - 承载 = app 壳层挂载的 feature 级浮层（`features/search/SearchPalette`，fixed 定位，不经路由与页面栈；可 import `app/navigation.ts` 纯数据清单，与侧栏同源）。交互定稿 = mockups/search/ 方案 A「统一混合面板」+ 用户追加（类型多选、前缀追加、全角冒号、退格删筛选、IME 组合中不改写）。
 - Esc 仲裁收口 PageProvider：浮层退场注册表（`useOverlayDismiss`，Map 保序 LIFO）——Esc 先关最上层浮层，优先于编辑上下文与后退；Ctrl+K/P 面板自监听 toggle。命令源 = navigation.ts 全量 + 已接线动作（不造假）；内容检索复用 legacy searchHybridContent 管线（react-query 防抖，未配 embedding 走 FTS）；空态「最近访问」来自 searchStore（localStorage `tau-search-history`；不复用旧 useNavigationHistoryStore——绑旧 TabType）。
 - 追记（同日用户裁决）：结果区改**相关性平铺**（命令置顶，内容不分组不收起）；摘要提取用双端同构 `utils/richTextText.ts`；主题动作为深浅直切（不循环 system）。
@@ -58,6 +60,7 @@
 - 排除：不动 page/surface（"纸 + 卡"观感承担者）；不整改 ink-3 存量 sub-AA（装饰档，另案）。
 - 影响：两主题 .theme.ts + tokens.css + parity 测试、Sidebar、Panel、HomeView、SearchPalette、样板间复刻；02 §2.3/§2.5/新增 §2.6。
 - 验证：parity 6 项全过、tsc 0 错误、双主题样板间目验（真壳层未启动——会动真实数据库，结论来自同 class 复刻 + 对比度实测）。
+- **2026-09-20 追记（group 取值再平衡，用户裁决「每个用 group 的地方都不好看」）**：group 的消费点已从本条裁决时的小面积元素（kbd 提示、kind 徽章、次级按钮）扩展到 Tag、Panel、DatePicker、编辑器工具条、值展示条等大面积容器，1.09/1.25 档的显形度对容器过重、观感显脏。取值收敛：cream #ece4d4→**#f0e9d8**、cocoa #19150e→**#1e1912**（对 page 1.045/1.044、对 surface 1.191/1.197，两主题对称）；「沉到 page 之下」的方向与阶梯单调性不变，ink-2 对 group 对比度余量反而放大（cream 5.13→5.36、cocoa 6.60→6.34），parity 6 项复跑通过。
 
 ## D-007 Select 基础件：API 形态方案 B（数据驱动）+ 表单控件家族 surface 口径
 
@@ -93,6 +96,8 @@
 - 验证：`__tests__/Menu.test.tsx` 覆盖触发即关/开关不关/radio 互斥/子层键盘与退场/Home·End/受控开合与回调更新/禁用子菜单/外点/右键/全局单开互斥；`__tests__/useListNavigation.test.tsx` 守护导航边界，`select.test.tsx` 守护复用回归；样板间「Menu · ContextMenu」档案提供 LIVE 标本、状态矩阵与 API 备忘。
 
 ## D-011 Dialog/ConfirmDialog 基础件：方案 B「现代产品」形制 + 三件嫁接
+
+- **2026-09-20 追记（头部可选 icon + subtitle）**：初版头部纯文字（大标题 + context 徽标），弹窗迁移实践中多个场景（闪卡编辑、AI 生成、选择卡组）需要图标身份与次级说明位。Dialog 新增可选 `icon`（16px、ink-2、随需出现）与 `subtitle`（标题下 meta 说明行）两个 props——不传时保持纯文字形制，「阻断通知纯文字头部」的克制口径仍是默认。
 
 - 背景：Dialog 三方案设计稿（`mockups/dialog/`，A 经典桌面 / B 现代产品 / C 密集工作台，同内容共行为只换皮），2026-09-18 用户裁决方案 B。技术底盘非分歧点：居中模态不需要 D-004 锚定引擎；**Esc 走焦点链 LIFO（DOM 内消费 stopPropagation，同 D-007/D-010 口径）**——设计导览稿原建议接 D-003 useOverlayDismiss 注册表，实现期推翻：该 hook 在 `page/PageProvider`，ui 基础件接入即反向依赖 page/（Select 已立的铁律）；且 Dialog 打开即焦点圈闭，Esc 必然先落在卡片 DOM 上，焦点链 LIFO 天然成立，无需注册表仲裁；表单控件沿 D-007 surface 口径；家族分工沿 D-003（Menu 不确认，确认归 ConfirmDialog、撤销归 Toast）。
 - 选择：① **形制 = 方案 B**——体内大标题 16px/650 + hairline 应答区（主按钮最右）+ blur 遮罩（overlay + backdrop-filter 4px）+ 进场 scale(0.97)+translateY(8px) 200ms，与 Menu B/Toast/命令面板同一浮层语言；② **嫁接三件增量元素**（不破坏形制）：上下文徽标（自 C，标题动作化「删除笔记本」、操作对象挂 chip 随需出现）、footer 影响行（自 C，hairline 左侧念后果，信息一处一责——标题讲动作/徽标记对象/正文讲事实/影响行念后果/按钮文案不带数量）、滚动渐隐（对齐壳层 useEdgeFade 协议的 edge fade，**替代 C 的标题栏阴影方案**——用户点名对齐项目既有 edge fade）；③ **尺寸档是预设不是牢笼**（用户裁决）：sm 380 / md 440（默认）/ lg 560 之外允许 `width` 任意值覆盖，预设给常见场景、业务特殊版式不必硬凑档位；④ **danger 两档**（用户裁决）：轻 danger 一步确认（实心红 + 影响行），真·不可逆（删笔记本/清空废纸篓）才 type-to-confirm 输入对象名解锁。
