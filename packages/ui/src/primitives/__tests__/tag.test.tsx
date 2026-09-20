@@ -58,7 +58,7 @@ describe("Tag", () => {
     expect(byClass("bg-ok-soft")[0].className).toContain("text-ok");
     expect(byClass("bg-info-soft")[0].className).toContain("text-info");
     expect(byClass("bg-tag-3-soft")[0].className).toContain("text-tag-3");
-    expect(byClass("bg-group")[0].className).toContain("text-ink-2");
+    expect(byClass("bg-surface")[0].className).toContain("text-ink-2");
     // 点：彩色 6 色 solid，orange 点走 accent（与文字分位）
     const redDot = byClass("bg-danger-soft")[0].querySelector("span:not(.truncate)")!;
     expect(redDot.className).toContain("bg-danger");
@@ -67,11 +67,12 @@ describe("Tag", () => {
     expect(orangeDot.className).not.toContain("accent-text");
   });
 
-  it("gray 默认：group 底 + ink-2 文字，恒无点（showDot 也压不住）", () => {
+  it("gray 默认：surface 亮底 + line-1 描边（D-009 行内药丸口径）+ ink-2 文字，恒无点（showDot 也压不住）", () => {
     const h = render(<Tag showDot>未分类</Tag>);
     cleanups.push(h.cleanup);
     const tag = h.container.querySelector("span") as HTMLElement;
-    expect(tag.className).toContain("bg-group");
+    expect(tag.className).toContain("bg-surface");
+    expect(tag.className).toContain("border-line-1");
     expect(tag.className).toContain("text-ink-2");
     expect(tag.querySelectorAll("span")).toHaveLength(1); // 只剩 truncate 文字位
   });

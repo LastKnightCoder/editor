@@ -43,6 +43,10 @@ export interface DialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
+  /** 标题左侧图标（16px、ink-2，随需出现；阻断通知等场景保持纯文字头部） */
+  icon?: ReactNode;
+  /** 标题下的次级说明行（meta 字号，随需出现） */
+  subtitle?: string;
   /** 操作对象（上下文徽标，随需出现；标题保持动作语义） */
   context?: string;
   /** footer 影响行——后果量化贴决策点；impactDanger 走 danger 色 */
@@ -91,6 +95,8 @@ export function Dialog({
   open,
   onOpenChange,
   title,
+  icon,
+  subtitle,
   context,
   impact,
   impactDanger,
@@ -237,6 +243,11 @@ export function Dialog({
             </IconButton>
           )}
           <div className="flex items-center gap-2 pl-6 pr-12 pt-[22px]">
+            {icon && (
+              <span className="text-ink-2 flex size-4 shrink-0 items-center justify-center [&_svg]:size-4">
+                {icon}
+              </span>
+            )}
             <h2
               id={titleId}
               className="text-ink-1 shrink-0 text-[16px] font-[650] leading-[1.45] tracking-[-0.01em]"
@@ -250,6 +261,7 @@ export function Dialog({
               </span>
             )}
           </div>
+          {subtitle && <p className="text-ink-3 text-tau-meta mt-[3px] pl-6 pr-12">{subtitle}</p>}
           <div
             ref={setBodyEl}
             className="edge-fade-scroll scrollbar-inset text-ink-2 text-tau-body overflow-y-auto border-r-4 border-r-transparent px-6 pb-[22px] pt-[8px]"
