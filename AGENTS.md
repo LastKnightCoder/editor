@@ -282,8 +282,8 @@ pnpm add -D
 - `page/`（导航框架）与 `packages/ui/`（设计系统）零业务依赖，禁止 import `features/`、`app/`、`pages/`、`layouts/` 的任何代码。
 - 新页面一律在 `features/<域>/pages/<key>.page.tsx` 用 `definePage` 声明（文件即注册，Vite glob 自动收集），禁止中心登记表；`key` 与 `app/navigation.ts` 一致即接管侧边栏入口。definePage 只承载页面——dialog/drawer 等浮层不经本协议（D-002），如需浮层导航先在 DECISIONS.md 裁决承载方式。
 - `features/` 域之间不得 import 彼此的 store；共享的口径工具放 `src/utils/`（如 statistic 快照差分）。
-- 导航只经 `navigator.push/replace/back/forward/popToTop`；Esc=后退、Alt+←/→=后退/前进由 PageProvider/Titlebar 统一仲裁，业务代码禁止自行监听这些键；Esc 与 Alt+方向键必须让位编辑上下文（`isEditableTarget`）与输入法组合（`e.isComposing`）。
-- 全局浮层（命令面板等）按 D-003 模式承载：feature 级组件由壳层挂载（不经路由/页面栈），并经 `useOverlayDismiss` 接入 Esc 仲裁（LIFO 先关浮层、优先于编辑上下文与后退）；浮层业务代码禁止自行监听 Esc。
+- 导航只经 `navigator.push/replace/back/forward/popToTop`；Esc 只承担浮层退场（无浮层时无操作，「Esc=后退」已移除，见 DECISIONS.md D-003 追记）、Alt+←/→=后退/前进由 PageProvider/Titlebar 统一仲裁，业务代码禁止自行监听这些键；Alt+方向键必须让位编辑上下文（`isEditableTarget`）与输入法组合（`e.isComposing`）。
+- 全局浮层（命令面板等）按 D-003 模式承载：feature 级组件由壳层挂载（不经路由/页面栈），并经 `useOverlayDismiss` 接入 Esc 仲裁（LIFO 先关浮层、优先于编辑上下文）；浮层业务代码禁止自行监听 Esc。
 - `match: "single"/"params"` 的 page 重复 push 由栈机去重（栈顶同参 no-op、异参原位更新），不要在调用侧再做"是否已激活"判断。
 - page 的 `status` 只进不退（migrating→new）；回退必须在 `DECISIONS.md` 记录原因。
 

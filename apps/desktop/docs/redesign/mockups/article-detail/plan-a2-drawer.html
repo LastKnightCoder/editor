@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<title>文章详情 · A2 抽屉 — Tau 桌面端</title>
+<!--
+  【视觉参考，非导出源】（D-001）：mockup 用于对照评审，落地时样式迁移组件 Tailwind。
+  A2 · 抽屉（第一轮方案 A 的演进，四点反馈的应对）——
+  反馈① 底部操作过多 → 工具全部上移为顶部文档工具栏，底部状态栏纯状态
+          （字数 · 协作 · 自动保存 | 阅读% · Esc）；
+  反馈② 顶部滚动进度条 → 删除；
+  反馈③ 侧栏收起后正文不居中 / 收起后无法展开 → 根治：
+          · 版心（hero + 正文列 720px）用 grid [1fr 720 1fr] 恒居中，列表开合只平移版心；
+          · 列表开关固定在顶部工具栏（永远可达，不再依赖藏在页面里的浮钮），
+            160ms 推挤动画；产品默认收起、记忆上次状态（mock 为评审展示展开态）；
+  反馈④ 是否需要文章列表 → 本版回答：保留，但降为「按需唤起的抽屉」——
+          双侧栏常驻的代价（写作区被夹击）与零列表的代价（切换要退出再进）各取一半：
+          需要连续整理/多篇切换时一键唤出，专注写作时一键收起（VS Code 侧栏范式）。
+
+  功能保留对照（旧版 → 本方案）：
+  · 文章列表（置顶/当前高亮/hover ⋯：置顶·导出 MD/图片/EPUB/PDF·窗口·删除）→ 抽屉列表全量保留
+  · 其余与 A1 相同：hero 封面（hover 换图）、标题行内编辑、播客条、标签行、
+    目录 sticky + 工具栏开关、复制/源码/制卡/播客/演示/沉浸/新窗口在工具栏、状态栏纯状态
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+}
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #ece4d4; --bg-sunken: #e2d8c0;
+  --bg-hover: rgba(67,57,44,0.05); --bg-press: rgba(67,57,44,0.09); --bg-selected: rgba(217,119,87,0.12);
+  --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2; --line-2: rgba(233,225,210,0.55);
+  --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22,58%,42%,0.12); --accent-text: #a05236;
+  --ok: #61795f; --ok-soft: #e5ede2; --danger: #b0564d; --danger-soft: #f6e3e0;
+  --shadow-card: 0 1px 2px rgba(120,100,70,0.05), 0 10px 24px -14px rgba(120,100,70,0.18);
+  --shadow-float: 0 16px 40px -12px rgba(120,100,70,0.4);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: var(--font); font-size: 13px; line-height: 1.6; color: var(--ink-1);
+  background: var(--bg-page); overflow: hidden; min-width: 1200px; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ── 融合骨架 ── */
+.app { display: grid; grid-template-columns: 218px 4px minmax(0,1fr); grid-template-rows: 100vh;
+  grid-template-areas: "sidebar resizer main"; }
+.sidebar { grid-area: sidebar; padding: 0 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.sidebar-head { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 6px; margin-bottom: 6px; flex: none; }
+.brand-mark { width: 24px; height: 24px; border-radius: 8px; background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.brand-name { font-weight: 600; font-size: 13.5px; }
+.nav-section { margin-top: 12px; }
+.nav-label { font-size: 11px; color: var(--ink-3); padding: 0 10px 6px; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px;
+  border-radius: 10px; color: var(--ink-2); font-size: 13px; text-align: left; }
+.nav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-item.active { background: var(--bg-hover); color: var(--ink-1); font-weight: 500; position: relative; }
+.nav-item.active::before { content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--accent); }
+.resizer { grid-area: resizer; }
+.main { grid-area: main; display: grid; grid-template-rows: 46px 44px minmax(0,1fr) 30px; min-width: 0; }
+.titlebar { display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.nav-btn { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); }
+.nav-btn:hover:not(:disabled) { background: var(--bg-hover); color: var(--ink-1); }
+.nav-btn:disabled { opacity: 0.35; cursor: default; }
+.crumb { color: var(--ink-2); font-size: 12.5px; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.crumb .cur { color: var(--ink-1); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 42ch; }
+.crumb .sep { color: var(--ink-3); }
+.titlebar-spacer { flex: 1; }
+.kbd-pill { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 4px 0 12px;
+  background: var(--bg-surface); border-radius: 999px; box-shadow: var(--shadow-card); color: var(--ink-2); font-size: 12px; }
+kbd { height: 20px; padding: 0 6px; border-radius: 6px; background: var(--bg-group); color: var(--ink-2);
+  font-size: 11px; font-family: ui-monospace, Consolas, monospace; display: inline-flex; align-items: center; }
+.win-controls { display: flex; gap: 2px; margin-left: 4px; }
+.win-btn { width: 36px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); }
+.win-btn:hover { background: var(--bg-hover); }
+.win-btn.close:hover { background: #c25450; color: #fff; }
+
+/* ── 顶部文档工具栏 ── */
+.dtoolbar { display: flex; align-items: center; gap: 10px; padding: 0 16px;
+  border-bottom: 1px solid var(--line-2); background: var(--bg-page); }
+.tg { display: flex; align-items: center; }
+.tg-sep { width: 1px; height: 16px; background: var(--line-1); margin: 0 4px; }
+.seg { display: flex; align-items: center; height: 28px; padding: 2.5px; border-radius: 9px; background: var(--bg-group); }
+.seg button { display: flex; align-items: center; gap: 6px; height: 23px; padding: 0 12px; border-radius: 7px;
+  font-size: 12px; color: var(--ink-2); }
+.seg button .icon { width: 13.5px; height: 13.5px; }
+.seg button.on { background: var(--bg-surface); color: var(--ink-1); font-weight: 500; box-shadow: 0 1px 2px rgba(120,100,70,0.12); }
+.tbtn { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 8px;
+  font-size: 12px; color: var(--ink-2); }
+.tbtn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.tbtn.on { color: var(--accent-text); background: var(--accent-soft); }
+.tbtn .icon { width: 14.5px; height: 14.5px; }
+.tbtn .tri { width: 0; height: 0; border-left: 3.5px solid transparent; border-right: 3.5px solid transparent;
+  border-top: 4px solid currentColor; opacity: 0.7; margin-top: 2px; }
+.tspacer { flex: 1; }
+
+/* ── 舞台：抽屉列表 + 阅读区 ── */
+.stage { display: flex; height: 100%; min-height: 0; }
+
+/* 抽屉列表：宽度动画 160ms；内部固定 232 防挤压；开关在工具栏（永远可达） */
+.alist { width: 232px; flex: none; border-right: 1px solid var(--line-2); overflow: hidden;
+  transition: width 160ms var(--ease-out), border-color 160ms var(--ease-out); }
+.stage.list-hidden .alist { width: 0; border-right-color: transparent; }
+.alist-inner { width: 232px; height: 100%; display: flex; flex-direction: column; }
+.alist-head { display: flex; align-items: baseline; gap: 7px; height: 42px; padding: 0 18px; flex: none; }
+.alist-head .t { font-size: 12.5px; font-weight: 600; }
+.alist-head .n { font-size: 11px; color: var(--ink-3); }
+.alist-body { flex: 1; overflow-y: auto; padding: 0 10px 12px 12px; }
+.aitem { display: flex; align-items: center; gap: 6px; width: 100%; height: 30px; padding: 0 8px;
+  border-radius: 8px; color: var(--ink-2); font-size: 12.5px; text-align: left; }
+.aitem + .aitem { margin-top: 1px; }
+.aitem:hover { background: var(--bg-hover); color: var(--ink-1); }
+.aitem.on { background: var(--bg-selected); color: var(--accent-text); font-weight: 500; }
+.aitem .pin { width: 11px; height: 11px; color: var(--accent-text); stroke-width: 2; }
+.aitem .pin.off { visibility: hidden; }
+.aitem .tt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aitem .dt { font-size: 10.5px; color: var(--ink-3); flex: none; }
+.aitem.on .dt { color: var(--accent-text); opacity: 0.7; }
+.aitem .more { width: 20px; height: 20px; border-radius: 6px; display: none; place-items: center; color: var(--ink-3); flex: none; }
+.aitem:hover .more { display: grid; }
+.aitem:hover .dt { display: none; }
+.aitem .more:hover { background: var(--bg-press); color: var(--ink-1); }
+.aitem .more .icon { width: 14px; height: 14px; }
+
+/* 阅读区：版心恒居中（grid 三列；列表开合只平移版心） */
+.reader { flex: 1; min-width: 0; }
+.scrollarea { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--bg-sunken) transparent; }
+
+.hero { position: relative; width: 720px; max-width: calc(100% - 52px); margin: 18px auto 0;
+  border-radius: var(--radius-lg); overflow: hidden; aspect-ratio: 21 / 9;
+  display: flex; align-items: flex-end; isolation: isolate; }
+.hero .art { position: absolute; inset: 0; z-index: -2; background: linear-gradient(140deg, #e8c4a8, #d9885f); }
+.hero .art::after { content: ""; position: absolute; inset: 0; opacity: 0.5; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E"); }
+.hero .veil { position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(180deg, rgba(42,32,22,0.05) 0%, rgba(42,32,22,0.14) 46%, rgba(42,32,22,0.62) 100%); }
+.hero-cover-btn { position: absolute; right: 12px; top: 12px; display: flex; align-items: center; gap: 6px;
+  height: 26px; padding: 0 11px; border-radius: 999px; background: rgba(26,19,12,0.45);
+  color: rgba(255,248,239,0.92); font-size: 11.5px; backdrop-filter: blur(6px); opacity: 0;
+  transition: opacity 140ms var(--ease-out); }
+.hero:hover .hero-cover-btn { opacity: 1; }
+.hero-cover-btn:hover { background: rgba(26,19,12,0.65); }
+.hero-cover-btn .icon { width: 13px; height: 13px; }
+.hero-body { padding: 0 30px 24px; color: var(--ink-inverse); width: 100%; }
+.hero-meta { display: flex; align-items: center; gap: 10px; font-size: 12px; margin-bottom: 10px;
+  color: rgba(255,248,239,0.85); }
+.hero-meta .dot { width: 3px; height: 3px; border-radius: 50%; background: rgba(255,248,239,0.55); }
+.hero-title { font-size: 27px; font-weight: 600; line-height: 1.35; letter-spacing: -0.01em;
+  max-width: 24em; text-wrap: balance; border-radius: 6px; }
+body.editing .hero-title:hover { outline: 1px dashed rgba(255,248,239,0.5); outline-offset: 6px; }
+
+.sheet { display: grid; grid-template-columns: 1fr minmax(0, 720px) 1fr; padding: 32px 26px 60px; align-items: start; }
+.prose { grid-column: 2; min-width: 0; }
+
+.podcast { display: flex; align-items: center; gap: 12px; background: var(--bg-surface);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-card); padding: 10px 14px; margin-bottom: 30px; }
+.podcast .pp { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; flex: none; }
+.podcast .pp .icon { width: 15px; height: 15px; fill: currentColor; stroke: none; }
+.podcast .info { min-width: 0; }
+.podcast .info b { display: block; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.podcast .info span { font-size: 11px; color: var(--ink-3); }
+.wave { display: flex; align-items: center; gap: 2px; height: 26px; flex: 1; min-width: 0; margin: 0 8px; }
+.wave i { flex: 1; min-width: 1.5px; max-width: 3px; border-radius: 2px; background: var(--bg-sunken); }
+.wave i.hi { background: var(--accent); opacity: 0.85; }
+.podcast .tm { font-size: 11.5px; color: var(--ink-2); flex: none; }
+.podcast .ops { display: flex; gap: 2px; flex: none; opacity: 0; transition: opacity 140ms; }
+.podcast:hover .ops { opacity: 1; }
+.podcast .ops .pbtn { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; color: var(--ink-3); }
+.podcast .ops .pbtn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.podcast .ops .pbtn .icon { width: 14px; height: 14px; }
+
+.prose > p { font-size: 13.5px; line-height: 1.95; color: var(--ink-1); margin: 0 0 1.1em; text-align: justify; }
+.h2 { display: flex; align-items: baseline; gap: 10px; margin: 2.3em 0 0.8em; }
+.h2 .no { font-family: ui-monospace, Consolas, monospace; font-size: 11px; color: var(--accent-text); letter-spacing: 0.04em; }
+.h2 h2 { font-size: 16.5px; font-weight: 600; letter-spacing: -0.005em; }
+.h3 h3 { font-size: 14px; font-weight: 600; margin: 1.8em 0 0.6em; }
+.prose blockquote { margin: 1.6em 0; padding: 10px 16px; background: var(--bg-group);
+  border-left: 3px solid var(--accent); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 13.5px; line-height: 1.85; color: var(--ink-2); }
+.prose ol, .prose ul { margin: 0 0 1.2em; padding-left: 22px; }
+.prose li { font-size: 13.5px; line-height: 1.9; margin-bottom: 0.45em; }
+.prose li::marker { color: var(--accent-text); font-variant-numeric: tabular-nums; }
+.prose code { font-family: ui-monospace, Consolas, monospace; font-size: 12px; background: var(--bg-surface);
+  border: 1px solid var(--line-1); border-radius: 5px; padding: 1px 6px; color: var(--accent-text); }
+.figure { margin: 1.8em 0; }
+.figure .art { position: relative; border-radius: var(--radius-md); overflow: hidden; aspect-ratio: 21 / 9;
+  background: linear-gradient(140deg, #ccd8c2, #96ab8a); }
+.figure .art::after { content: ""; position: absolute; inset: 0; opacity: 0.5; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E"); }
+.figure figcaption { margin-top: 8px; text-align: center; font-size: 11.5px; color: var(--ink-3); }
+.caret { display: inline-block; width: 1.5px; height: 1.05em; background: var(--accent);
+  vertical-align: -0.18em; margin-left: 1px; animation: blink 1.1s steps(1) infinite; }
+body.readonly .caret { display: none; }
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .caret { animation: none; } }
+
+.tags-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 34px;
+  padding-top: 18px; border-top: 1px solid var(--line-2); }
+.tags-row .lbl { font-size: 11.5px; color: var(--ink-3); margin-right: 2px; }
+.tpill { display: flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; border-radius: 6px;
+  font-size: 11.5px; background: var(--bg-group); color: var(--ink-2); }
+.tpill .tx:hover { color: var(--ink-1); }
+body.editing .tpill .tx { border-radius: 4px; }
+body.editing .tpill .tx:hover { outline: 1px dashed var(--line-1); }
+.tpill .rm { width: 14px; height: 14px; border-radius: 4px; display: grid; place-items: center; color: var(--ink-3); }
+.tpill .rm:hover { color: var(--danger); background: var(--danger-soft); }
+.tpill .rm .icon { width: 11px; height: 11px; }
+.tadd { display: flex; align-items: center; gap: 5px; height: 24px; padding: 0 11px; border-radius: 6px;
+  font-size: 11.5px; color: var(--ink-3); border: 1px dashed var(--line-1); }
+.tadd:hover { color: var(--ink-2); border-color: var(--ink-3); }
+.tadd .icon { width: 12px; height: 12px; }
+
+.outline { grid-column: 3; justify-self: start; margin-left: 44px; width: 208px; position: sticky; top: 16px;
+  max-height: calc(100vh - 46px - 44px - 30px - 32px); overflow-y: auto; scrollbar-width: none; padding-bottom: 16px; }
+.outline.outline-hidden { display: none; }
+.outline .cap { display: flex; align-items: baseline; gap: 7px; padding: 2px 2px 10px; }
+.outline .cap b { font-size: 12px; font-weight: 600; }
+.outline .cap span { font-family: ui-monospace, Consolas, monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.05em; }
+.oli { display: block; width: 100%; text-align: left; font-size: 12px; color: var(--ink-3); line-height: 1.5;
+  padding: 5px 10px; border-radius: 7px; border-left: 2px solid transparent; background: none; }
+.oli:hover { color: var(--ink-1); background: var(--bg-hover); }
+.oli.l3 { padding-left: 24px; font-size: 11.5px; }
+.oli.on { color: var(--accent-text); font-weight: 500; background: var(--bg-selected); border-left-color: var(--accent); }
+
+.statusbar { display: flex; align-items: center; gap: 14px; padding: 0 16px; color: var(--ink-3);
+  font-size: 11.5px; border-top: 1px solid var(--line-2); background: var(--bg-page); }
+.sb-word { color: var(--ink-2); }
+.sb-collab { display: flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+  color: var(--ink-2); transition: background 140ms; }
+.sb-collab:hover { background: var(--bg-hover); }
+.sb-collab .icon { width: 13px; height: 13px; }
+.sb-collab .live { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+.sb-saved { display: flex; align-items: center; gap: 5px; color: var(--ink-3); }
+.sb-saved .icon { width: 12px; height: 12px; color: var(--ok); }
+.sb-spacer { flex: 1; }
+.sb-esc { display: flex; align-items: center; gap: 6px; }
+</style>
+</head>
+<body class="editing">
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-head">
+      <span style="display:flex;align-items:center;gap:8px"><span class="brand-mark">τ</span><span class="brand-name">Tau</span></span>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">工作台</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-flame"/></svg><span>今日</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">知识</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-layers"/></svg><span>卡片库</span></button>
+      <button class="nav-item active"><svg class="icon"><use href="#i-article"/></svg><span>文章</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-book"/></svg><span>知识库</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">学习</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-repeat"/></svg><span>闪卡复习</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">工具</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-calendar"/></svg><span>日程</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-chart"/></svg><span>统计</span></button>
+    </div>
+  </nav>
+  <div class="resizer"></div>
+  <div class="main">
+    <header class="titlebar">
+      <button class="nav-btn" title="后退 (Alt ←)"><svg class="icon" style="width:16px;height:16px"><use href="#i-back"/></svg></button>
+      <button class="nav-btn" disabled title="前进 (Alt →)"><svg class="icon" style="width:16px;height:16px"><use href="#i-fwd"/></svg></button>
+      <span class="crumb"><span>文章</span><span class="sep">/</span><span class="cur">为什么写长文要先搭骨架</span></span>
+      <div class="titlebar-spacer"></div>
+      <button class="kbd-pill"><svg class="icon" style="width:13px;height:13px"><use href="#i-search"/></svg>搜索或跳转…<kbd>Ctrl K</kbd></button>
+      <div class="win-controls"><span class="win-btn"></span><span class="win-btn"></span><span class="win-btn close"></span></div>
+    </header>
+
+    <!-- 顶部文档工具栏：模式 | 视图（列表/目录） | 提取 | 生成 | 场景 -->
+    <div class="dtoolbar">
+      <div class="tg">
+        <div class="seg" role="group" aria-label="模式">
+          <button id="seg-edit" class="on"><svg class="icon"><use href="#i-pencil"/></svg>编辑</button>
+          <button id="seg-read"><svg class="icon"><use href="#i-book-open"/></svg>预览</button>
+        </div>
+      </div>
+      <span class="tg-sep"></span>
+      <div class="tg">
+        <button class="tbtn on" id="btn-list" title="文章列表（默认收起，记忆状态）"><svg class="icon"><use href="#i-panel-left"/></svg>列表</button>
+        <button class="tbtn on" id="btn-outline"><svg class="icon"><use href="#i-list"/></svg>目录</button>
+      </div>
+      <span class="tg-sep"></span>
+      <div class="tg">
+        <button class="tbtn" title="复制为 Markdown 或微信公众号格式"><svg class="icon"><use href="#i-copy"/></svg>复制<i class="tri"></i></button>
+        <button class="tbtn" title="查看源码"><svg class="icon"><use href="#i-code"/></svg>源码</button>
+      </div>
+      <span class="tg-sep"></span>
+      <div class="tg">
+        <button class="tbtn" title="手动制卡 / AI 制卡"><svg class="icon"><use href="#i-card"/></svg>制卡<i class="tri"></i></button>
+        <button class="tbtn" title="生成 / 编辑播客"><svg class="icon"><use href="#i-mic"/></svg>播客</button>
+      </div>
+      <span class="tspacer"></span>
+      <div class="tg">
+        <button class="tbtn" title="演示模式"><svg class="icon"><use href="#i-presentation"/></svg>演示</button>
+        <button class="tbtn" title="沉浸模式"><svg class="icon"><use href="#i-maximize"/></svg>沉浸</button>
+        <button class="tbtn" title="在新窗口中打开（仅 Electron）"><svg class="icon"><use href="#i-external"/></svg>窗口</button>
+      </div>
+    </div>
+
+    <main class="content" style="min-height:0">
+      <div class="stage" id="stage">
+        <!-- 抽屉列表：mock 展示展开态；产品默认收起 -->
+        <aside class="alist" id="alist">
+          <div class="alist-inner">
+            <div class="alist-head"><span class="t">文章列表</span><span class="n num">42</span></div>
+            <div class="alist-body">
+              <button class="aitem on"><svg class="icon pin"><use href="#i-pin"/></svg><span class="tt">为什么写长文要先搭骨架</span><span class="dt num">今天</span><span class="more" title="置顶 / 导出 / 删除"><svg class="icon"><use href="#i-more"/></svg></span></button>
+              <button class="aitem"><svg class="icon pin"><use href="#i-pin"/></svg><span class="tt">关于「渐进式总结」的再思考</span><span class="dt num">09-16</span><span class="more"><svg class="icon"><use href="#i-more"/></svg></span></button>
+              <button class="aitem"><svg class="icon pin off"><use href="#i-pin"/></svg><span class="tt">收集与连接的拉锯</span><span class="dt num">今天</span><span class="more"><svg class="icon"><use href="#i-more"/></svg></span></button>
+              <button class="aitem"><svg class="icon pin off"><use href="#i-pin"/></svg><span class="tt">与 Claude 协作的半小时：上下文比结论值钱</span><span class="dt num">今天</span><span class="more"><svg class="icon"><use href="#i-more"/></svg></span></button>
+              <button class="aitem"><svg class="icon pin off"><use href="#i-pin"/></svg><span class="tt">费曼技巧实践手记 · 第六周</span><span class="dt num">今天</span><span class="more"><svg class="icon"><use href="#i-more"/></svg></span></button>
+              <button class="aitem"><svg class="icon pin off"><use href="#i-pin"/></svg><span class="tt">「记忆的错觉」读书摘录 · 第 4 章</span><span class="dt num">09-18</span><span class="more"><svg class="icon"><use href="#i-more"/></svg></span></button>
+              <button class="aitem"><svg class="icon pin off"><use href="#i-pin"/></svg><span class="tt">一张卡片写作模板的五次重构</span><span class="dt num">09-18</span><span class="more"><svg class="icon"><use href="#i-more"/></svg></span></button>
+              <button class="aitem"><svg class="icon pin off"><use href="#i-pin"/></svg><span class="tt">周末知识库盘点清单</span><span class="dt num">09-18</span><span class="more"><svg class="icon"><use href="#i-more"/></svg></span></button>
+              <button class="aitem"><svg class="icon pin off"><use href="#i-pin"/></svg><span class="tt">论「小」工具的魅力</span><span class="dt num">09-18</span><span class="more"><svg class="icon"><use href="#i-more"/></svg></span></button>
+              <button class="aitem"><svg class="icon pin off"><use href="#i-pin"/></svg><span class="tt">间隔重复的最优间隔并不存在</span><span class="dt num">09-16</span><span class="more"><svg class="icon"><use href="#i-more"/></svg></span></button>
+              <button class="aitem"><svg class="icon pin off"><use href="#i-pin"/></svg><span class="tt">双链笔记的涌现结构</span><span class="dt num">09-15</span><span class="more"><svg class="icon"><use href="#i-more"/></svg></span></button>
+              <button class="aitem"><svg class="icon pin off"><use href="#i-pin"/></svg><span class="tt">写作是思考的显影</span><span class="dt num">09-15</span><span class="more"><svg class="icon"><use href="#i-more"/></svg></span></button>
+            </div>
+          </div>
+        </aside>
+
+        <!-- 阅读区 -->
+        <section class="reader">
+          <div class="scrollarea" id="scroll">
+            <div class="hero">
+              <div class="art"></div>
+              <div class="veil"></div>
+              <button class="hero-cover-btn" title="更换封面 / 调整位置"><svg class="icon"><use href="#i-image"/></svg>封面</button>
+              <div class="hero-body">
+                <div class="hero-meta num">
+                  <span>2026-09-12 创建</span><span class="dot"></span><span>今天 08:24 编辑</span><span class="dot"></span><span>3,482 字</span>
+                </div>
+                <h1 class="hero-title" title="点击编辑标题">为什么写长文要先搭骨架</h1>
+              </div>
+            </div>
+
+            <div class="sheet">
+              <article class="prose">
+                <div class="podcast">
+                  <button class="pp" title="播放"><svg class="icon"><use href="#i-play"/></svg></button>
+                  <div class="info">
+                    <b>为什么写长文要先搭骨架 · 双人对谈</b>
+                    <span class="num">已生成 09-17 · 12:36</span>
+                  </div>
+                  <div class="wave" aria-hidden="true">
+                    <i style="height:30%"></i><i style="height:52%" class="hi"></i><i style="height:41%"></i><i style="height:66%"></i><i style="height:38%"></i><i style="height:58%" class="hi"></i><i style="height:47%"></i><i style="height:72%"></i><i style="height:35%"></i><i style="height:61%"></i><i style="height:44%" class="hi"></i><i style="height:55%"></i><i style="height:33%"></i><i style="height:68%"></i><i style="height:49%"></i><i style="height:57%"></i><i style="height:39%"></i><i style="height:63%" class="hi"></i><i style="height:45%"></i><i style="height:52%"></i><i style="height:36%"></i><i style="height:70%"></i><i style="height:42%" class="hi"></i><i style="height:59%"></i><i style="height:48%"></i><i style="height:64%"></i><i style="height:37%"></i><i style="height:54%"></i><i style="height:46%" class="hi"></i><i style="height:69%"></i><i style="height:40%"></i><i style="height:56%"></i><i style="height:34%"></i><i style="height:62%"></i><i style="height:50%"></i><i style="height:58%"></i><i style="height:43%" class="hi"></i><i style="height:67%"></i><i style="height:38%"></i><i style="height:53%"></i>
+                  </div>
+                  <span class="tm num">04:12 / 12:36</span>
+                  <span class="ops">
+                    <button class="pbtn" title="重新生成"><svg class="icon"><use href="#i-refresh"/></svg></button>
+                    <button class="pbtn" title="移除播客"><svg class="icon"><use href="#i-trash"/></svg></button>
+                  </span>
+                </div>
+
+                <p>每次动笔前，我都会先做一件看起来多余的事：一个字的正文都不写，先把骨架搭起来。这篇文章就拆开讲讲，为什么这件「多余」的事，恰恰是长文成败的分水岭。</p>
+
+                <div class="h2" id="h-1" data-sec><span class="no">§ 01</span><h2>大纲是叙述的顺序</h2></div>
+                <p>大多数人写长文的方式，是先列一个大纲：开头讲背景，中间讲三个要点，结尾升华一下。这没有错，但它回答的是「先说什么、后说什么」——是叙述的顺序。叙述顺序关心听众的体验：哪里需要铺垫，哪里可以加速，哪里该停顿。</p>
+                <p>问题在于，叙述顺畅不等于论证成立。一篇读起来行云流水的文章，可能每一个论点都没有落地。大纲让文章「好读」，却不保证它「站得住」。</p>
+
+                <div class="h2" id="h-2" data-sec><span class="no">§ 02</span><h2>骨架是论证的顺序</h2></div>
+                <p>骨架回答的是另一个问题：论点是什么，靠什么撑住它。它不关心阅读体验，只关心逻辑结构。搭骨架的时候，你不在写文章，是在搭房子。</p>
+                <div class="h3" id="h-2-1" data-sec><h3>先立论点</h3></div>
+                <p>用一句话写下你要证明什么。写不出一句话，说明你还没有论点，只有一堆想说的话。这句话会贴在骨架的最顶端，后面所有东西都为它服务。</p>
+                <div class="h3" id="h-2-2" data-sec><h3>再排证据</h3></div>
+                <p>列出支持论点的两到四个证据，每个证据一行，暂时不展开。证据之间的顺序按「力度」排，最强的放中间而不是开头——开头要用它破题，结尾要用它收束。</p>
+                <div class="h3" id="h-2-3" data-sec><h3>最后才是修辞</h3></div>
+                <blockquote>没有地址的思想，等于不存在。编号是思想的坐标系，链接是思想的街道。</blockquote>
+                <p>修辞是最后一步，也是最便宜的一步。骨架不稳时写下的漂亮句子，最后都要成段删掉——舍不得删，文章就开始注水。</p>
+
+                <div class="h2" id="h-3" data-sec><span class="no">§ 03</span><h2>五步搭骨架</h2></div>
+                <ol>
+                  <li>用一句话写下你要证明什么（论点句，主语 + 谓语 + 宾语，不许用「和」）。</li>
+                  <li>列出支持论点的 2–4 个证据，每个证据只写一行。</li>
+                  <li>给每个证据标注来源类型：经验、引用还是数据。</li>
+                  <li>找到最弱的那个证据，问一句「删掉它，论点还站得住吗」。</li>
+                  <li>以上四步都稳了，才允许写第一段正文。</li>
+                </ol>
+                <p>整个过程通常不超过二十分钟，却能把「写到一半发现立不住」的事故消灭在动笔之前。</p>
+
+                <div class="h2" id="h-4" data-sec><span class="no">§ 04</span><h2>骨架的复用</h2></div>
+                <p>骨架不只是文章的脚手架，拆下来还能当卡片用。我会把每一次搭好的骨架存成一张结构卡片，编号类似 <code>frame-2026-0912</code>，正文写完之后骨架不删，留在文章头部。</p>
+                <figure class="figure">
+                  <div class="art"></div>
+                  <figcaption>图 1 · 一张骨架卡片：论点在顶，证据分行，弱证据标灰</figcaption>
+                </figure>
+                <p>三个月后回看，结构卡片比正文更有信息量：它保留了「当时怎么想的」，而正文只保留了「最后怎么说」。改写旧文时，先改骨架再改正文，顺序不会乱。</p>
+
+                <div class="h2" id="h-5" data-sec><span class="no">§ 05</span><h2>结语</h2></div>
+                <p>骨架不是形式主义，是把思考从「流」变成「结构」的那次搬运。搬运很费力，但搬完之后，写作只剩下一件简单的事：把已经站稳的东西，说清楚。<span class="caret"></span></p>
+
+                <div class="tags-row">
+                  <span class="lbl">标签</span>
+                  <span class="tpill"><span class="tx">写作</span><button class="rm" title="移除标签"><svg class="icon"><use href="#i-x"/></svg></button></span>
+                  <span class="tpill"><span class="tx">方法论</span><button class="rm" title="移除标签"><svg class="icon"><use href="#i-x"/></svg></button></span>
+                  <button class="tadd" title="添加标签"><svg class="icon"><use href="#i-plus"/></svg>添加</button>
+                </div>
+              </article>
+
+              <nav class="outline" id="outline" aria-label="目录">
+                <div class="cap"><b>目录</b><span>OUTLINE</span></div>
+                <button class="oli" data-target="h-1">大纲是叙述的顺序</button>
+                <button class="oli" data-target="h-2">骨架是论证的顺序</button>
+                <button class="oli l3" data-target="h-2-1">先立论点</button>
+                <button class="oli l3" data-target="h-2-2">再排证据</button>
+                <button class="oli l3" data-target="h-2-3">最后才是修辞</button>
+                <button class="oli" data-target="h-3">五步搭骨架</button>
+                <button class="oli" data-target="h-4">骨架的复用</button>
+                <button class="oli" data-target="h-5">结语</button>
+              </nav>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="statusbar">
+      <span class="sb-word num">3,482 字</span>
+      <button class="sb-collab" title="协作控制"><svg class="icon"><use href="#i-users"/></svg>2 人在线<span class="live"></span></button>
+      <span class="sb-saved"><svg class="icon"><use href="#i-check"/></svg>已保存 · 刚刚</span>
+      <span class="sb-spacer"></span>
+      <span class="num" id="sb-progress">阅读 0%</span>
+      <span class="sb-esc">返回列表<kbd>Esc</kbd></span>
+    </footer>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 10 5-10 5L2 7l10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></symbol>
+  <symbol id="i-article" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h6"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/><circle cx="5" cy="12" r="1.4"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-fwd" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-book-open" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></symbol>
+  <symbol id="i-presentation" viewBox="0 0 24 24"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></symbol>
+  <symbol id="i-maximize" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-panel-left" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></symbol>
+</svg>
+
+<script>
+/* ── 演示交互（评审用）── */
+const scroll = document.getElementById("scroll");
+const sbProgress = document.getElementById("sb-progress");
+scroll.addEventListener("scroll", () => {
+  const max = scroll.scrollHeight - scroll.clientHeight;
+  sbProgress.textContent = `阅读 ${Math.round((max > 0 ? scroll.scrollTop / max : 0) * 100)}%`;
+}, { passive: true });
+
+const olis = [...document.querySelectorAll(".oli")];
+olis.forEach(b => b.addEventListener("click", () => {
+  document.getElementById(b.dataset.target).scrollIntoView({ behavior: "smooth", block: "start" });
+}));
+const secs = [...document.querySelectorAll("[data-sec]")];
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (!e.isIntersecting) return;
+    olis.forEach(b => b.classList.toggle("on", b.dataset.target === e.target.id));
+  });
+}, { root: scroll, rootMargin: "-15% 0px -70% 0px" });
+secs.forEach(s => io.observe(s));
+
+/* 编辑 / 预览 segmented */
+const segEdit = document.getElementById("seg-edit");
+const segRead = document.getElementById("seg-read");
+segEdit.addEventListener("click", () => {
+  segEdit.classList.add("on"); segRead.classList.remove("on");
+  document.body.classList.add("editing"); document.body.classList.remove("readonly");
+});
+segRead.addEventListener("click", () => {
+  segRead.classList.add("on"); segEdit.classList.remove("on");
+  document.body.classList.remove("editing"); document.body.classList.add("readonly");
+});
+
+/* 抽屉列表开关（工具栏入口，永远可达；版心 grid 恒居中，开合只平移） */
+const stage = document.getElementById("stage");
+const btnList = document.getElementById("btn-list");
+btnList.addEventListener("click", () => {
+  const hidden = stage.classList.toggle("list-hidden");
+  btnList.classList.toggle("on", !hidden);
+});
+const btnOutline = document.getElementById("btn-outline");
+btnOutline.addEventListener("click", () => {
+  const off = document.getElementById("outline").classList.toggle("outline-hidden");
+  btnOutline.classList.toggle("on", !off);
+});
+</script>
+</body>
+</html>
