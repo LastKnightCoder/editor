@@ -1,12 +1,11 @@
 import { useMemo } from "react";
-import { LoadingOutlined } from "@ant-design/icons";
 import { Sparkles, CreditCard, Check, Edit2 } from "lucide-react";
-import CustomModal from "@/components/CustomModal";
-import CustomCheckbox from "@/components/CustomCheckbox";
+import type { TagColor } from "@tau/ui";
+import { Button, Checkbox, Dialog, Spinner, Tag } from "@tau/ui";
+import DeckIcon from "@/components/DeckIcon";
 import { FLASHCARD_TYPE_META, extractPlainText } from "@/utils/flashcard";
 import type { GeneratedFlashcard } from "@/hooks/useFlashcardGeneration";
 import type { FlashcardDeck } from "@/types";
-import "./index.css";
 
 interface FlashcardGenerationModalProps {
   open: boolean;
@@ -24,19 +23,10 @@ interface FlashcardGenerationModalProps {
   onEditCard: (card: GeneratedFlashcard) => void;
 }
 
-const difficultyLabels: Record<string, { label: string; color: string }> = {
-  foundation: {
-    label: "基础",
-    color: "bg-[var(--th-success)]/15 text-status-success",
-  },
-  standard: {
-    label: "常规",
-    color: "bg-[var(--th-info)]/15 text-status-info dark:bg-[var(--th-accent)]/20",
-  },
-  advanced: {
-    label: "进阶",
-    color: "bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400",
-  },
+const difficultyLabels: Record<string, { label: string; color: TagColor }> = {
+  foundation: { label: "基础", color: "green" },
+  standard: { label: "常规", color: "blue" },
+  advanced: { label: "进阶", color: "orange" },
 };
 
 const FlashcardGenerationModal = ({
@@ -86,28 +76,40 @@ const FlashcardGenerationModal = ({
   };
 
   return (
-    <CustomModal
+    <Dialog
       open={open}
-      onCancel={onCancel}
-      width="900px"
-      centered
-      footer={null}
+      onOpenChange={next => {
+        if (!next) onCancel();
+      }}
       title="AI 生成闪卡"
+      icon={<Sparkles />}
       subtitle="基于卡片内容智能生成复习卡片"
-      icon={<Sparkles className="h-5 w-5 text-[var(--th-text-secondary)]" />}
-      bodyClassName="flashcard-generation-modal-body"
+      width={900}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onCancel}>
+            取消
+          </Button>
+          <Button
+            variant="primary"
+            icon={Check}
+            onClick={onConfirm}
+            disabled={isGenerating || selectedCount === 0 || !selectedDeck}
+          >
+            添加 {selectedCount} 张闪卡
+          </Button>
+        </>
+      }
     >
       {/* Deck Selection Header */}
-      <div className="mb-4 flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-zinc-800/50">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">{selectedDeck?.emoji || "📚"}</span>
-          <span className="font-medium text-gray-700 dark:text-slate-200">
-            {selectedDeck?.name || "未选择卡组"}
-          </span>
+      <div className="border-line-1 rounded-tau-md mb-4 flex items-center justify-between border p-3">
+        <div className="text-ink-1 flex items-center gap-2">
+          <DeckIcon emoji={selectedDeck?.emoji} className="text-ink-2 size-[18px] text-lg" />
+          <span className="text-tau-body font-medium">{selectedDeck?.name || "未选择卡组"}</span>
         </div>
         <button
           onClick={onChangeDeck}
-          className="text-sm text-[var(--th-active-text)] hover:underline"
+          className="text-accent hover:text-accent-hover text-tau-sm transition-colors"
         >
           更换卡组
         </button>
@@ -115,17 +117,15 @@ const FlashcardGenerationModal = ({
 
       {/* Status Display */}
       {isGenerating && (
-        <div className="border-[var(--th-border-focus)]/30 mb-4 rounded-lg border bg-[var(--th-accent-soft)] p-4">
-          <div className="flex items-center gap-2 text-[var(--th-active-text)]">
-            <LoadingOutlined className="text-lg" />
-            <span>{isPending ? "等待模型输出..." : "正在生成闪卡..."}</span>
-          </div>
+        <div className="bg-accent-soft text-accent rounded-tau-md text-tau-body mb-4 flex items-center gap-2 p-4">
+          <Spinner className="size-4" />
+          <span>{isPending ? "等待模型输出..." : "正在生成闪卡..."}</span>
         </div>
       )}
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-500/30 dark:bg-red-500/10">
-          <p className="text-red-700 dark:text-red-400">生成失败: {error.message}</p>
+        <div className="bg-danger-soft text-danger rounded-tau-md mb-4 p-4">
+          <p className="text-tau-body">生成失败: {error.message}</p>
         </div>
       )}
 
@@ -133,80 +133,66 @@ const FlashcardGenerationModal = ({
       {generatedCards.length > 0 && (
         <>
           <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm text-gray-600 dark:text-slate-400">
+            <span className="text-ink-3 text-tau-body tabular-nums">
               已生成 {generatedCards.length} 张闪卡，已选择 {selectedCount} 张
             </span>
-            <div className="flex gap-2">
+            <div className="flex gap-1">
               <button
                 onClick={onSelectAll}
-                className="dark:hover:bg-[var(--th-accent)]/10 rounded px-2 py-1 text-xs text-[var(--th-active-text)] hover:bg-[var(--th-accent-soft)]"
+                className="text-accent hover:bg-accent-soft text-tau-sm rounded px-2 py-1 transition-colors"
               >
                 全选
               </button>
               <button
                 onClick={onDeselectAll}
-                className="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 dark:text-slate-400 dark:hover:bg-zinc-700"
+                className="text-ink-3 hover:bg-hover hover:text-ink-2 text-tau-sm rounded px-2 py-1 transition-colors"
               >
                 取消全选
               </button>
             </div>
           </div>
 
-          <div className="max-h-[400px] space-y-3 overflow-auto pr-2">
+          <div className="max-h-[400px] space-y-3 overflow-y-auto pr-2">
             {generatedCards.map(card => (
               <div
                 key={card.id}
-                className={`rounded-xl border p-4 transition-all ${
+                className={`rounded-tau-md ease-tau-out border-[1.5px] p-4 transition-colors ${
                   card.selected
-                    ? "border-[var(--th-border-focus)]/40 bg-[var(--th-accent-soft)]/50"
-                    : "border-gray-200 hover:border-gray-300 dark:border-slate-700 dark:hover:border-slate-600"
+                    ? "border-accent bg-accent-soft"
+                    : "border-line-1 hover:border-ink-3/50"
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className="cursor-pointer pt-0.5" onClick={() => onToggleCard(card.id)}>
-                    <CustomCheckbox
-                      checked={card.selected}
-                      onChange={() => onToggleCard(card.id)}
-                    />
+                  <div className="pt-0.5">
+                    <Checkbox checked={card.selected} onChange={() => onToggleCard(card.id)} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 dark:bg-zinc-700 dark:text-slate-300">
-                        {FLASHCARD_TYPE_META[card.type]?.label || card.type}
-                      </span>
-                      <span
-                        className={`rounded px-2 py-0.5 text-xs ${difficultyLabels[card.difficulty]?.color || ""}`}
-                      >
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <Tag>{FLASHCARD_TYPE_META[card.type]?.label || card.type}</Tag>
+                      <Tag color={difficultyLabels[card.difficulty]?.color}>
                         {difficultyLabels[card.difficulty]?.label || card.difficulty}
-                      </span>
+                      </Tag>
                       {card.tags.length > 0 && (
                         <div className="flex gap-1">
                           {card.tags.slice(0, 2).map(tag => (
-                            <span
-                              key={tag}
-                              className="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-zinc-700 dark:text-slate-400"
-                            >
-                              {tag}
-                            </span>
+                            <Tag key={tag}>{tag}</Tag>
                           ))}
                         </div>
                       )}
                     </div>
-                    <p className="line-clamp-2 text-sm text-gray-800 dark:text-white">
-                      {getPromptText(card)}
-                    </p>
+                    <p className="text-ink-1 text-tau-body line-clamp-2">{getPromptText(card)}</p>
                     {getAnswerPreview(card) && (
-                      <p className="mt-1 line-clamp-1 text-xs text-gray-500 dark:text-slate-400">
+                      <p className="text-ink-3 text-tau-sm mt-1 line-clamp-1">
                         答案: {getAnswerPreview(card)}
                       </p>
                     )}
                   </div>
                   <button
                     onClick={() => onEditCard(card)}
-                    className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-active-text)]"
+                    className="text-ink-3 hover:bg-hover hover:text-ink-2 rounded-tau-sm p-2 transition-colors"
                     title="编辑闪卡"
                   >
-                    <Edit2 className="h-4 w-4" />
+                    <Edit2 className="size-4" strokeWidth={1.75} />
                   </button>
                 </div>
               </div>
@@ -218,29 +204,11 @@ const FlashcardGenerationModal = ({
       {/* Empty State */}
       {!isGenerating && !error && generatedCards.length === 0 && (
         <div className="py-12 text-center">
-          <CreditCard className="mx-auto mb-3 h-12 w-12 text-gray-300 dark:text-slate-600" />
-          <p className="text-gray-500 dark:text-slate-400">等待生成闪卡...</p>
+          <CreditCard className="text-ink-3 mx-auto mb-3 size-12 opacity-40" strokeWidth={1.75} />
+          <p className="text-ink-3 text-tau-body">等待生成闪卡...</p>
         </div>
       )}
-
-      {/* Footer */}
-      <div className="mt-4 flex items-center justify-end gap-3 border-t border-gray-200 pt-4 dark:border-slate-700">
-        <button
-          onClick={onCancel}
-          className="rounded-lg bg-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-300 dark:bg-zinc-700 dark:text-slate-200 dark:hover:bg-slate-600"
-        >
-          取消
-        </button>
-        <button
-          onClick={onConfirm}
-          disabled={isGenerating || selectedCount === 0 || !selectedDeck}
-          className="flex items-center gap-2 rounded-lg bg-[var(--th-btn-bg)] px-4 py-2 text-sm font-medium text-[var(--th-btn-text)] transition-colors hover:bg-[var(--th-btn-hover)] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Check className="h-4 w-4" />
-          添加 {selectedCount} 张闪卡
-        </button>
-      </div>
-    </CustomModal>
+    </Dialog>
   );
 };
 

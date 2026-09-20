@@ -1,5 +1,6 @@
 import { Editor, Transforms, Range, Element as SlateElement } from "slate";
 import type { Descendant } from "slate";
+import { toast } from "@tau/ui";
 import type { FlashcardBlankElement } from "@/editor-extensions/flashcard-blank/types";
 
 // 生成唯一ID
@@ -23,14 +24,11 @@ export const wrapAsBlank = (editor: Editor) => {
   // 检查选区是否包含已有空格
   const [existingBlank] = Editor.nodes(editor, {
     at: selection,
-    match: (n) =>
-      !Editor.isEditor(n) &&
-      SlateElement.isElement(n) &&
-      n.type === "flashcard-blank",
+    match: n => !Editor.isEditor(n) && SlateElement.isElement(n) && n.type === "flashcard-blank",
   });
 
   if (existingBlank) {
-    alert("选区包含已有空格，请先解除标记");
+    toast.warning("选区包含已有空格，请先解除标记");
     return;
   }
 
@@ -61,10 +59,7 @@ export const wrapAsBlank = (editor: Editor) => {
  */
 export const unwrapBlank = (editor: Editor) => {
   Transforms.unwrapNodes(editor, {
-    match: (n) =>
-      !Editor.isEditor(n) &&
-      SlateElement.isElement(n) &&
-      n.type === "flashcard-blank",
+    match: n => !Editor.isEditor(n) && SlateElement.isElement(n) && n.type === "flashcard-blank",
   });
 };
 
@@ -72,7 +67,7 @@ export const unwrapBlank = (editor: Editor) => {
  * 从 richContent 提取所有空格到数组
  */
 export const extractBlanksFromRichContent = (
-  richContent: Descendant[],
+  richContent: Descendant[]
 ): FlashcardBlankElement[] => {
   const blanks: FlashcardBlankElement[] = [];
 

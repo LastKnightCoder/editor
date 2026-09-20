@@ -30,9 +30,7 @@ const RichTextEditor = ({
   // Editor onInit 回调，确保编辑器初始化后同步最新的 value
   const handleEditorInit = useCallback(() => {
     if (editorRef.current && valueRef.current) {
-      const currentValue = JSON.stringify(
-        editorRef.current.getEditor().children,
-      );
+      const currentValue = JSON.stringify(editorRef.current.getEditor().children);
       const newValue = JSON.stringify(valueRef.current);
 
       if (currentValue !== newValue) {
@@ -44,9 +42,7 @@ const RichTextEditor = ({
   // 当 value prop 改变时，更新编辑器内容
   useEffect(() => {
     if (editorRef.current && value) {
-      const currentValue = JSON.stringify(
-        editorRef.current.getEditor().children,
-      );
+      const currentValue = JSON.stringify(editorRef.current.getEditor().children);
       const newValue = JSON.stringify(value);
 
       if (currentValue !== newValue) {
@@ -66,19 +62,13 @@ const RichTextEditor = ({
 
   return (
     <div
-      className={`rich-text-editor-wrapper ${isDark ? "dark" : "light"}`}
-      style={{
-        backgroundColor: isDark ? "rgba(255, 255, 255, 0.03)" : "#f9fafb",
-        borderRadius: "12px",
-        border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.1)" : "#e5e7eb"}`,
-        overflow: "hidden",
-        minHeight,
-      }}
+      className="bg-surface border-line-1 rounded-tau-md overflow-hidden border"
+      style={{ minHeight }}
     >
       <Editor
         ref={editorRef}
         initValue={value}
-        onChange={(newValue) => onChange(newValue)}
+        onChange={newValue => onChange(newValue)}
         onInit={handleEditorInit}
         readonly={false}
         extensions={extensions}
@@ -92,10 +82,7 @@ const RichTextEditor = ({
         }}
       />
       {allowBlanks && editorRef.current && (
-        <ClozeEditorToolbar
-          editor={editorRef.current.getEditor()}
-          isDark={isDark}
-        />
+        <ClozeEditorToolbar editor={editorRef.current.getEditor()} isDark={isDark} />
       )}
     </div>
   );

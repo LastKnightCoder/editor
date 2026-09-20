@@ -37,7 +37,7 @@ const ClozeRichEditor = ({ value, onChange, isDark }: ClozeRichEditorProps) => {
       }
       return <span {...props.attributes}>{props.children}</span>;
     },
-    [isDark],
+    [isDark]
   );
 
   return (

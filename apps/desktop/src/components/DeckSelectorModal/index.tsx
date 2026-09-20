@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Layers, Plus } from "lucide-react";
-import CustomModal from "@/components/CustomModal";
+import { Dialog, Spinner } from "@tau/ui";
 import useFlashcardStore from "@/stores/useFlashcardStore";
 import type { FlashcardDeck } from "@/types";
 import DeckFormModal from "@/pages/FlashcardCenter/DeckFormModal";
-import useThemeColors from "@/hooks/useThemeColors";
+import DeckIcon from "@/components/DeckIcon";
 
 interface DeckSelectorModalProps {
   open: boolean;
@@ -27,7 +27,6 @@ const DeckSelectorModal = ({
     fetchDecks: state.fetchDecks,
   }));
 
-  const themeColors = useThemeColors();
   const [createDeckModalOpen, setCreateDeckModalOpen] = useState(false);
   const [selectorVisible, setSelectorVisible] = useState(true);
 
@@ -71,39 +70,36 @@ const DeckSelectorModal = ({
   return (
     <>
       {selectorVisible && (
-        <CustomModal
+        <Dialog
           open={open}
-          onCancel={onCancel}
-          width="500px"
-          centered
-          footer={null}
+          onOpenChange={next => {
+            if (!next) onCancel();
+          }}
           title={title}
+          icon={<Layers />}
           subtitle={subtitle}
-          icon={<Layers className="h-5 w-5 text-[var(--th-active-text)]" />}
+          width={500}
         >
           <div className="space-y-3">
             <button
               onClick={handleCreateDeck}
-              className={`w-full rounded-xl border-2 border-dashed p-4 text-left transition-all ${themeColors.borderClass} ${themeColors.hoverBorderClass} ${themeColors.hoverClass}`}
+              className="border-line-2 text-ink-2 hover:border-ink-3/50 hover:bg-hover rounded-tau-md w-full border border-dashed p-4 text-left transition-colors"
             >
               <div className="flex items-center gap-3">
-                <div
-                  className={`flex h-10 w-10 items-center justify-center rounded-full ${themeColors.tagBgClass}`}
-                >
-                  <Plus className={`h-5 w-5 ${themeColors.activeTextClass}`} />
+                <div className="bg-accent-soft text-accent grid size-10 place-items-center rounded-full">
+                  <Plus className="size-5" strokeWidth={1.75} />
                 </div>
                 <div className="flex-1">
-                  <h4 className={`font-medium ${themeColors.activeTextClass}`}>创建新卡组</h4>
-                  <p className={`text-sm ${themeColors.secondaryTextClass}`}>
-                    为闪卡创建一个新的卡组
-                  </p>
+                  <h4 className="text-ink-1 text-tau-body font-medium">创建新卡组</h4>
+                  <p className="text-ink-3 text-tau-sm">为闪卡创建一个新的卡组</p>
                 </div>
               </div>
             </button>
 
-            <div className="max-h-[400px] space-y-2 overflow-auto">
+            <div className="max-h-[400px] space-y-2 overflow-y-auto">
               {loadingDecks && (
-                <div className={`py-8 text-center ${themeColors.secondaryTextClass}`}>
+                <div className="text-ink-3 text-tau-body flex items-center justify-center gap-2 py-8">
+                  <Spinner className="size-4" />
                   加载中...
                 </div>
               )}
@@ -111,12 +107,11 @@ const DeckSelectorModal = ({
               {!loadingDecks && decks.length === 0 && (
                 <div className="py-8 text-center">
                   <Layers
-                    className={`mx-auto mb-3 h-12 w-12 ${themeColors.secondaryTextClass} opacity-50`}
+                    className="text-ink-3 mx-auto mb-3 size-12 opacity-50"
+                    strokeWidth={1.75}
                   />
-                  <p className={`${themeColors.secondaryTextClass} mb-2`}>还没有任何卡组</p>
-                  <p className={`text-sm ${themeColors.secondaryTextClass} opacity-70`}>
-                    点击上方按钮创建第一个卡组
-                  </p>
+                  <p className="text-ink-2 text-tau-body mb-2">还没有任何卡组</p>
+                  <p className="text-ink-3/70 text-tau-sm">点击上方按钮创建第一个卡组</p>
                 </div>
               )}
 
@@ -125,21 +120,22 @@ const DeckSelectorModal = ({
                   <button
                     key={deck.id}
                     onClick={() => handleSelect(deck)}
-                    className={`w-full rounded-xl border p-4 text-left transition-all ${themeColors.cardBorderClass} ${themeColors.hoverBorderClass} ${themeColors.hoverClass}`}
+                    className="border-line-1 hover:border-ink-3/50 hover:bg-hover rounded-tau-md w-full border p-4 text-left transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{deck.emoji || "📚"}</span>
+                      <DeckIcon
+                        emoji={deck.emoji}
+                        className="text-ink-2 size-6 shrink-0 text-2xl"
+                      />
                       <div className="min-w-0 flex-1">
-                        <h4 className={`truncate font-medium ${themeColors.activeTextClass}`}>
+                        <h4 className="text-ink-1 text-tau-body truncate font-medium">
                           {deck.name}
                         </h4>
                         {deck.description && (
-                          <p className={`truncate text-sm ${themeColors.textClass}`}>
-                            {deck.description}
-                          </p>
+                          <p className="text-ink-3 text-tau-sm truncate">{deck.description}</p>
                         )}
                       </div>
-                      <div className={`text-xs ${themeColors.secondaryTextClass}`}>
+                      <div className="text-ink-3 text-tau-sm tabular-nums">
                         {deck.stats?.totalCards || 0} 张卡
                       </div>
                     </div>
@@ -147,7 +143,7 @@ const DeckSelectorModal = ({
                 ))}
             </div>
           </div>
-        </CustomModal>
+        </Dialog>
       )}
 
       {/* 创建卡组模态框 */}
@@ -157,7 +153,6 @@ const DeckSelectorModal = ({
           mode: "create",
         }}
         onClose={handleCreateDeckClose}
-        themeColors={themeColors}
       />
     </>
   );

@@ -6,7 +6,7 @@ import ContentExportModal from "@/components/ContentExportModal";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
 import EditTitleModal from "@/components/EditTitleModal";
 import EpubExportModal from "@/components/EpubExportModal";
-import FlashcardEditor from "@/pages/FlashcardCenter/FlashcardEditor";
+import FlashcardEditor from "@/components/FlashcardEditor";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
@@ -17,10 +17,7 @@ import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import useSettingStore from "@/stores/useSettingStore";
 import useTabStore from "@/stores/useTabStore";
-import {
-  attachPodcastToProjectItem,
-  detachPodcastFromProjectItem,
-} from "@/commands/podcast";
+import { attachPodcastToProjectItem, detachPodcastFromProjectItem } from "@/commands/podcast";
 import {
   getProjectItemById,
   openProjectItemInNewWindow,
@@ -59,7 +56,7 @@ interface UseProjectItemMoreActionsOptions {
 }
 
 export const useProjectItemMoreActions = (
-  options: UseProjectItemMoreActionsOptions,
+  options: UseProjectItemMoreActionsOptions
 ): {
   moreMenuItems: MenuProps["items"];
   handleMoreMenuClick: MenuProps["onClick"];
@@ -84,18 +81,15 @@ export const useProjectItemMoreActions = (
   const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
   const [isPresentation, setIsPresentation] = useState(false);
 
-  const darkMode = useSettingStore((state) => state.setting.darkMode);
-  const navigateTo = useTabStore((state) => state.navigateTo);
-  const openInNewTab = useTabStore((state) => state.openInNewTab);
-  const panes = useTabStore((state) => state.panes);
-  const activePaneId = useTabStore((state) => state.activePaneId);
-  const projectItemEventBus = useMemo(
-    () => defaultProjectItemEventBus.createEditor(),
-    [],
-  );
+  const darkMode = useSettingStore(state => state.setting.darkMode);
+  const navigateTo = useTabStore(state => state.navigateTo);
+  const openInNewTab = useTabStore(state => state.openInNewTab);
+  const panes = useTabStore(state => state.panes);
+  const activePaneId = useTabStore(state => state.activePaneId);
+  const projectItemEventBus = useMemo(() => defaultProjectItemEventBus.createEditor(), []);
   const { modal, message: messageInstance } = App.useApp();
   const { message } = App.useApp();
-  const { createWhiteBoard } = useWhiteBoardStore((state) => ({
+  const { createWhiteBoard } = useWhiteBoardStore(state => ({
     createWhiteBoard: state.createWhiteBoard,
   }));
 
@@ -107,18 +101,13 @@ export const useProjectItemMoreActions = (
 
   const moreMenuItems: MenuProps["items"] = useMemo(
     () => getProjectItemMoreMenuItems(projectItem),
-    [projectItem?.projectItemType, projectItem?.refType, projectItem?.podcast],
+    [projectItem?.projectItemType, projectItem?.refType, projectItem?.podcast]
   );
 
-  const publishProjectItemUpdate = useMemoizedFn(
-    (nextProjectItem: ProjectItem) => {
-      onProjectItemChange?.(nextProjectItem);
-      projectItemEventBus.publishProjectItemEvent(
-        "project-item:updated",
-        nextProjectItem,
-      );
-    },
-  );
+  const publishProjectItemUpdate = useMemoizedFn((nextProjectItem: ProjectItem) => {
+    onProjectItemChange?.(nextProjectItem);
+    projectItemEventBus.publishProjectItemEvent("project-item:updated", nextProjectItem);
+  });
 
   const flashcard = useFlashcardCreation({
     getContent: () => projectItem?.content || [],
@@ -129,23 +118,19 @@ export const useProjectItemMoreActions = (
     }),
   });
 
-  const {
-    podcastModalOpen,
-    openPodcastModal,
-    closePodcastModal,
-    handlePodcastSuccess,
-  } = usePodcastAttachment({
-    hostId: projectItem?.id || 0,
-    currentPodcast: projectItem?.podcast,
-    attachPodcast: attachPodcastToProjectItem,
-    detachPodcast: detachPodcastFromProjectItem,
-    reloadHost: getProjectItemById,
-    onHostReloaded: publishProjectItemUpdate,
-    message: messageInstance,
-    messages: {
-      created: "播客已添加到文档",
-    },
-  });
+  const { podcastModalOpen, openPodcastModal, closePodcastModal, handlePodcastSuccess } =
+    usePodcastAttachment({
+      hostId: projectItem?.id || 0,
+      currentPodcast: projectItem?.podcast,
+      attachPodcast: attachPodcastToProjectItem,
+      detachPodcast: detachPodcastFromProjectItem,
+      reloadHost: getProjectItemById,
+      onHostReloaded: publishProjectItemUpdate,
+      message: messageInstance,
+      messages: {
+        created: "播客已添加到文档",
+      },
+    });
 
   const handleRemoveProjectItem = useMemoizedFn(async () => {
     if (!projectItem) return;
@@ -160,7 +145,7 @@ export const useProjectItemMoreActions = (
           const [parentProjectItem] = await removeChildProjectItem(
             projectId,
             parentProjectItemId,
-            projectItem.id,
+            projectItem.id
           );
           if (parentProjectItem) {
             publishProjectItemUpdate(parentProjectItem);
@@ -182,183 +167,168 @@ export const useProjectItemMoreActions = (
     });
   });
 
-  const handleEditTitleConfirm = useMemoizedFn(
-    async (result: { title: string }) => {
-      if (!projectItem) {
-        setEditTitleModalOpen(false);
-        return;
-      }
-
-      const textContent = result.title.trim();
-      if (!textContent) {
-        setEditTitleModalOpen(false);
-        return;
-      }
-
-      let nextTitle = textContent;
-      if (projectItem.projectItemType === EProjectItemType.WebView) {
-        if (webLinkId) {
-          updateWebLink({
-            id: webLinkId,
-            title: textContent,
-          }).catch((err) => console.error("更新网页标题失败:", err));
-        } else if (displayWebviewUrl) {
-          nextTitle = `${textContent} [${displayWebviewUrl}]`;
-        }
-      }
-
-      if (nextTitle !== projectItem.title) {
-        const updatedProjectItem = await updateProjectItem({
-          ...projectItem,
-          title: nextTitle,
-        });
-        if (updatedProjectItem) {
-          publishProjectItemUpdate(updatedProjectItem);
-          getTitleHandle?.()?.setValue?.(
-            projectItem.projectItemType === EProjectItemType.WebView
-              ? textContent
-              : nextTitle,
-          );
-        }
-      }
-
+  const handleEditTitleConfirm = useMemoizedFn(async (result: { title: string }) => {
+    if (!projectItem) {
       setEditTitleModalOpen(false);
-    },
-  );
+      return;
+    }
 
-  const handleMoreMenuClick: MenuProps["onClick"] = useMemoizedFn(
-    async ({ key }) => {
-      if (!projectItem) return;
+    const textContent = result.title.trim();
+    if (!textContent) {
+      setEditTitleModalOpen(false);
+      return;
+    }
 
-      if (key === "to-card") {
-        const freshProjectItem = await getProjectItemById(projectItem.id);
-        if (!freshProjectItem) return;
-        const { createCardFromProjectItem } = await import("@/commands");
-        const createdCard = await createCardFromProjectItem(
-          freshProjectItem.id,
+    let nextTitle = textContent;
+    if (projectItem.projectItemType === EProjectItemType.WebView) {
+      if (webLinkId) {
+        updateWebLink({
+          id: webLinkId,
+          title: textContent,
+        }).catch(err => console.error("更新网页标题失败:", err));
+      } else if (displayWebviewUrl) {
+        nextTitle = `${textContent} [${displayWebviewUrl}]`;
+      }
+    }
+
+    if (nextTitle !== projectItem.title) {
+      const updatedProjectItem = await updateProjectItem({
+        ...projectItem,
+        title: nextTitle,
+      });
+      if (updatedProjectItem) {
+        publishProjectItemUpdate(updatedProjectItem);
+        getTitleHandle?.()?.setValue?.(
+          projectItem.projectItemType === EProjectItemType.WebView ? textContent : nextTitle
         );
-        const nextProjectItem = produce(freshProjectItem, (draft) => {
-          draft.refId = createdCard.id;
-          draft.refType = "card";
+      }
+    }
+
+    setEditTitleModalOpen(false);
+  });
+
+  const handleMoreMenuClick: MenuProps["onClick"] = useMemoizedFn(async ({ key }) => {
+    if (!projectItem) return;
+
+    if (key === "to-card") {
+      const freshProjectItem = await getProjectItemById(projectItem.id);
+      if (!freshProjectItem) return;
+      const { createCardFromProjectItem } = await import("@/commands");
+      const createdCard = await createCardFromProjectItem(freshProjectItem.id);
+      const nextProjectItem = produce(freshProjectItem, draft => {
+        draft.refId = createdCard.id;
+        draft.refType = "card";
+      });
+      const updatedProjectItem = await updateProjectItem(nextProjectItem);
+      if (!updatedProjectItem) return;
+      publishProjectItemUpdate(updatedProjectItem);
+      const { defaultCardEventBus } = await import("@/utils");
+      defaultCardEventBus.createEditor().publishCardEvent("card:created", createdCard);
+      message.success("成功建立卡片");
+    } else if (key === "to-white-board") {
+      if (
+        projectItem.projectItemType !== EProjectItemType.WhiteBoard ||
+        !projectItem.whiteBoardContentId
+      ) {
+        return;
+      }
+      if (projectItem.refType === "white-board") return;
+      const createWhiteBoardData = {
+        title: projectItem.title,
+        description: projectItem.title,
+        tags: [],
+        whiteBoardContentList: [
+          {
+            name: projectItem.title,
+            data: {
+              children: [],
+              viewPort: {
+                zoom: 1,
+                minX: 0,
+                minY: 0,
+                width: 0,
+                height: 0,
+              },
+              selection: {
+                selectArea: null,
+                selectedElements: [],
+              },
+              presentationSequences: [],
+            },
+          } as Pick<WhiteBoardContent, "data" | "name">,
+        ],
+        snapshot: "",
+      };
+      try {
+        const createdWhiteBoard = await createWhiteBoard(createWhiteBoardData);
+        const nextProjectItem = produce(projectItem, draft => {
+          draft.refId = createdWhiteBoard.id;
+          draft.refType = "white-board";
         });
         const updatedProjectItem = await updateProjectItem(nextProjectItem);
         if (!updatedProjectItem) return;
         publishProjectItemUpdate(updatedProjectItem);
-        const { defaultCardEventBus } = await import("@/utils");
-        defaultCardEventBus
-          .createEditor()
-          .publishCardEvent("card:created", createdCard);
-        message.success("成功建立卡片");
-      } else if (key === "to-white-board") {
-        if (
-          projectItem.projectItemType !== EProjectItemType.WhiteBoard ||
-          !projectItem.whiteBoardContentId
-        ) {
-          return;
-        }
-        if (projectItem.refType === "white-board") return;
-        const createWhiteBoardData = {
-          title: projectItem.title,
-          description: projectItem.title,
-          tags: [],
-          whiteBoardContentList: [
-            {
-              name: projectItem.title,
-              data: {
-                children: [],
-                viewPort: {
-                  zoom: 1,
-                  minX: 0,
-                  minY: 0,
-                  width: 0,
-                  height: 0,
-                },
-                selection: {
-                  selectArea: null,
-                  selectedElements: [],
-                },
-                presentationSequences: [],
-              },
-            } as Pick<WhiteBoardContent, "data" | "name">,
-          ],
-          snapshot: "",
-        };
-        try {
-          const createdWhiteBoard =
-            await createWhiteBoard(createWhiteBoardData);
-          const nextProjectItem = produce(projectItem, (draft) => {
-            draft.refId = createdWhiteBoard.id;
-            draft.refType = "white-board";
-          });
-          const updatedProjectItem = await updateProjectItem(nextProjectItem);
-          if (!updatedProjectItem) return;
-          publishProjectItemUpdate(updatedProjectItem);
-          message.success("成功创建白板");
-        } catch (e) {
-          console.error(e);
-          message.error("创建白板失败");
-        }
-      } else if (key === "remove") {
-        await handleRemoveProjectItem();
-      } else if (key === "copy-markdown") {
-        await copyMarkdownToClipboard(projectItem.content, messageInstance);
-      } else if (key === "copy-wechat") {
-        await copyWechatHtmlToClipboard(projectItem.content, messageInstance);
-      } else if (key === "export-markdown") {
-        const markdown = getMarkdown(projectItem.content);
-        downloadMarkdown(markdown, projectItem.title);
-      } else if (key === "export-image") {
-        setExportModalOpen(true);
-      } else if (key === "export-epub") {
-        setEpubExportModalOpen(true);
-      } else if (key === "export-pdf") {
-        setPdfExportModalOpen(true);
-      } else if (key === "edit-title") {
-        if (onRequestInlineTitleEdit) {
-          onRequestInlineTitleEdit();
-        } else {
-          setEditTitleModalOpen(true);
-        }
-      } else if (key === "presentation-mode") {
-        if (projectItem.projectItemType !== EProjectItemType.Document) return;
-        setIsPresentation(true);
-      } else if (key === "open-in-new-window") {
-        const databaseName = useSettingStore.getState().setting.database.active;
-        openProjectItemInNewWindow(databaseName, projectItem.id);
-      } else if (key === "open-in-new-tab") {
-        let targetPaneId: string | undefined;
-        if (panes.length > 1) {
-          const otherPane = panes.find((p) => p.id !== activePaneId);
-          targetPaneId = otherPane?.id;
-        }
-
-        if (projectItem.projectItemType === EProjectItemType.WebView) {
-          if (displayWebviewUrl) {
-            openInNewTab(
-              TabType.WebView,
-              { url: displayWebviewUrl },
-              targetPaneId,
-            );
-          } else {
-            message.error("无法提取 URL");
-          }
-        } else {
-          openInNewTab(
-            TabType.ProjectDetail,
-            { id: projectId, itemId: projectItem.id },
-            targetPaneId,
-            projectItem.title || "项目",
-          );
-        }
-      } else if (key === "manual-flashcard") {
-        flashcard.openManualFlashcard();
-      } else if (key === "ai-flashcard") {
-        flashcard.openAiFlashcard();
-      } else if (key === "generate-podcast") {
-        openPodcastModal();
+        message.success("成功创建白板");
+      } catch (e) {
+        console.error(e);
+        message.error("创建白板失败");
       }
-    },
-  );
+    } else if (key === "remove") {
+      await handleRemoveProjectItem();
+    } else if (key === "copy-markdown") {
+      await copyMarkdownToClipboard(projectItem.content, messageInstance);
+    } else if (key === "copy-wechat") {
+      await copyWechatHtmlToClipboard(projectItem.content, messageInstance);
+    } else if (key === "export-markdown") {
+      const markdown = getMarkdown(projectItem.content);
+      downloadMarkdown(markdown, projectItem.title);
+    } else if (key === "export-image") {
+      setExportModalOpen(true);
+    } else if (key === "export-epub") {
+      setEpubExportModalOpen(true);
+    } else if (key === "export-pdf") {
+      setPdfExportModalOpen(true);
+    } else if (key === "edit-title") {
+      if (onRequestInlineTitleEdit) {
+        onRequestInlineTitleEdit();
+      } else {
+        setEditTitleModalOpen(true);
+      }
+    } else if (key === "presentation-mode") {
+      if (projectItem.projectItemType !== EProjectItemType.Document) return;
+      setIsPresentation(true);
+    } else if (key === "open-in-new-window") {
+      const databaseName = useSettingStore.getState().setting.database.active;
+      openProjectItemInNewWindow(databaseName, projectItem.id);
+    } else if (key === "open-in-new-tab") {
+      let targetPaneId: string | undefined;
+      if (panes.length > 1) {
+        const otherPane = panes.find(p => p.id !== activePaneId);
+        targetPaneId = otherPane?.id;
+      }
+
+      if (projectItem.projectItemType === EProjectItemType.WebView) {
+        if (displayWebviewUrl) {
+          openInNewTab(TabType.WebView, { url: displayWebviewUrl }, targetPaneId);
+        } else {
+          message.error("无法提取 URL");
+        }
+      } else {
+        openInNewTab(
+          TabType.ProjectDetail,
+          { id: projectId, itemId: projectItem.id },
+          targetPaneId,
+          projectItem.title || "项目"
+        );
+      }
+    } else if (key === "manual-flashcard") {
+      flashcard.openManualFlashcard();
+    } else if (key === "ai-flashcard") {
+      flashcard.openAiFlashcard();
+    } else if (key === "generate-podcast") {
+      openPodcastModal();
+    }
+  });
 
   const moreActionModals = (
     <>
@@ -410,9 +380,7 @@ export const useProjectItemMoreActions = (
         onCancel={flashcard.closeDeckSelector}
         onSelect={flashcard.handleDeckSelect}
         title={
-          flashcard.deckSelectorMode === "manual"
-            ? "选择卡组 - 手动制卡"
-            : "选择卡组 - AI 制卡"
+          flashcard.deckSelectorMode === "manual" ? "选择卡组 - 手动制卡" : "选择卡组 - AI 制卡"
         }
       />
       {flashcard.flashcardEditorOpen && flashcard.selectedDeck && (

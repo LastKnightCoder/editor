@@ -9,17 +9,11 @@ interface BlankConfigPopoverProps {
   isDark: boolean;
 }
 
-const BlankConfigPopover = ({
-  element,
-  onClose,
-  isDark,
-}: BlankConfigPopoverProps) => {
+const BlankConfigPopover = ({ element, onClose, isDark }: BlankConfigPopoverProps) => {
   const editor = useSlateStatic();
   const [placeholder, setPlaceholder] = useState(element.placeholder || "");
   const [answer, setAnswer] = useState(element.answer || "");
-  const [alternatives, setAlternatives] = useState<string[]>(
-    element.alternativeAnswers || [],
-  );
+  const [alternatives, setAlternatives] = useState<string[]>(element.alternativeAnswers || []);
 
   const handleSave = () => {
     const path = ReactEditor.findPath(editor, element);
@@ -28,11 +22,9 @@ const BlankConfigPopover = ({
       {
         placeholder: placeholder.trim(),
         answer: answer.trim(),
-        alternativeAnswers: alternatives
-          .filter((alt) => alt.trim())
-          .map((alt) => alt.trim()),
+        alternativeAnswers: alternatives.filter(alt => alt.trim()).map(alt => alt.trim()),
       } as Partial<FlashcardBlankElement>,
-      { at: path },
+      { at: path }
     );
     onClose();
   };
@@ -67,7 +59,7 @@ const BlankConfigPopover = ({
         minWidth: "280px",
         boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
       }}
-      onClick={(e) => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}
     >
       <div className="form-section" style={{ marginBottom: "12px" }}>
         <label
@@ -85,7 +77,7 @@ const BlankConfigPopover = ({
         <input
           type="text"
           value={placeholder}
-          onChange={(e) => setPlaceholder(e.target.value)}
+          onChange={e => setPlaceholder(e.target.value)}
           placeholder="如：国家名、人物、年份等"
           className="form-input"
           style={{
@@ -127,7 +119,7 @@ const BlankConfigPopover = ({
         <input
           type="text"
           value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
+          onChange={e => setAnswer(e.target.value)}
           placeholder="输入正确答案"
           className="form-input"
           required
@@ -171,7 +163,7 @@ const BlankConfigPopover = ({
             <input
               type="text"
               value={alt}
-              onChange={(e) => handleAlternativeChange(index, e.target.value)}
+              onChange={e => handleAlternativeChange(index, e.target.value)}
               placeholder={`备选答案 ${index + 1}`}
               className="form-input"
               style={{
@@ -193,9 +185,7 @@ const BlankConfigPopover = ({
                 height: "28px",
                 borderRadius: "4px",
                 border: "none",
-                backgroundColor: isDark
-                  ? "rgba(239, 68, 68, 0.2)"
-                  : "rgba(239, 68, 68, 0.1)",
+                backgroundColor: isDark ? "rgba(239, 68, 68, 0.2)" : "rgba(239, 68, 68, 0.1)",
                 color: "#ef4444",
                 fontSize: "18px",
                 cursor: "pointer",
