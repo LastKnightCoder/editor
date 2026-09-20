@@ -9,7 +9,7 @@ import SidebarToggleButton from "@/components/SidebarToggleButton";
 import DeckSidebar from "./DeckSidebar";
 import DeckFormModal from "./DeckFormModal";
 import FlashcardGrid from "./FlashcardGrid";
-import FlashcardEditor from "./FlashcardEditor";
+import FlashcardEditor from "@/components/FlashcardEditor";
 import ReviewModal from "./ReviewModal";
 import useTheme from "@/hooks/useTheme";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -43,7 +43,7 @@ const FlashcardCenter = () => {
     refreshActiveDeck,
     setFilters,
   } = useFlashcardStore(
-    useShallow((state) => ({
+    useShallow(state => ({
       decks: state.decks,
       activeDeckId: state.activeDeckId,
       loadingDecks: state.loadingDecks,
@@ -62,7 +62,7 @@ const FlashcardCenter = () => {
       getActiveCards: state.getActiveCards,
       refreshActiveDeck: state.refreshActiveDeck,
       setFilters: state.setFilters,
-    })),
+    }))
   );
 
   const [deckModal, setDeckModal] = useState<DeckModalState>({
@@ -73,19 +73,13 @@ const FlashcardCenter = () => {
   const [editorMode, setEditorMode] = useState<"create" | "edit">("create");
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
 
-  const [hideSidebar, setHideSidebar] = useLocalStorageState(
-    "flashcard-center-hide-sidebar",
-    {
-      defaultValue: false,
-    },
-  );
+  const [hideSidebar, setHideSidebar] = useLocalStorageState("flashcard-center-hide-sidebar", {
+    defaultValue: false,
+  });
 
-  const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
-    "flashcard-center-sidebar-width",
-    {
-      defaultValue: 280,
-    },
-  );
+  const [sidebarWidth, setSidebarWidth] = useLocalStorageState("flashcard-center-sidebar-width", {
+    defaultValue: 280,
+  });
 
   const onFoldSidebar = useMemoizedFn(() => {
     setHideSidebar(!hideSidebar);
@@ -123,7 +117,7 @@ const FlashcardCenter = () => {
       setFilters({ search: term });
       refreshActiveDeck();
     },
-    [refreshActiveDeck, setFilters],
+    [refreshActiveDeck, setFilters]
   );
 
   const handleStatusToggle = useCallback(
@@ -137,18 +131,18 @@ const FlashcardCenter = () => {
       setFilters({ statuses: Array.from(statusSet) });
       refreshActiveDeck();
     },
-    [filters.statuses, refreshActiveDeck, setFilters],
+    [filters.statuses, refreshActiveDeck, setFilters]
   );
 
   const handleDeleteCard = useCallback(
     async (cardId: number) => {
       await deleteCard(cardId);
     },
-    [deleteCard],
+    [deleteCard]
   );
 
   return (
-    <div className="flex h-full w-full relative">
+    <div className="relative flex h-full w-full">
       <ResizableAndHideableSidebar
         width={sidebarWidth ?? 280}
         onWidthChange={setSidebarWidth}
@@ -170,23 +164,15 @@ const FlashcardCenter = () => {
           themeColors={themeColors}
         />
       </ResizableAndHideableSidebar>
-      <SidebarToggleButton.Expand
-        isHidden={!!hideSidebar}
-        onToggle={onFoldSidebar}
-        side="left"
-      />
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <div className="flex items-center justify-between px-8 pt-8 pb-4">
+      <SidebarToggleButton.Expand isHidden={!!hideSidebar} onToggle={onFoldSidebar} side="left" />
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-8 pb-4 pt-8">
           <div>
-            <h1
-              className={`mt-2 text-2xl font-semibold ${themeColors.activeTextClass}`}
-            >
+            <h1 className={`mt-2 text-2xl font-semibold ${themeColors.activeTextClass}`}>
               {activeDeck ? activeDeck.name : "尚未创建卡组"}
             </h1>
             {activeDeck && activeDeck.description && (
-              <p className={`mt-1 ${themeColors.textClass}`}>
-                {activeDeck.description}
-              </p>
+              <p className={`mt-1 ${themeColors.textClass}`}>{activeDeck.description}</p>
             )}
           </div>
           <div className="flex items-center gap-3">
@@ -202,20 +188,20 @@ const FlashcardCenter = () => {
                 }
               }}
               disabled={!activeDeck}
-              className={`h-11 px-6 rounded-full font-semibold shadow-lg transition hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed ${themeColors.primaryButtonClass}`}
+              className={`h-11 rounded-full px-6 font-semibold shadow-lg transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 ${themeColors.primaryButtonClass}`}
             >
               开始回顾
             </button>
             <button
               onClick={handleOpenCreateCard}
               disabled={!activeDeck}
-              className={`h-11 px-6 rounded-full font-semibold transition disabled:opacity-60 disabled:cursor-not-allowed border ${themeColors.borderClass} ${themeColors.hoverClass} ${themeColors.activeTextClass}`}
+              className={`h-11 rounded-full border px-6 font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${themeColors.borderClass} ${themeColors.hoverClass} ${themeColors.activeTextClass}`}
             >
               新建闪卡
             </button>
           </div>
         </div>
-        <div className="flex-1 min-h-0 px-6 pb-6 overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-hidden px-6 pb-6">
           <FlashcardGrid
             cards={activeCards}
             loading={loadingCards}
@@ -246,7 +232,6 @@ const FlashcardCenter = () => {
       <DeckFormModal
         state={deckModal}
         onClose={() => setDeckModal({ open: false, mode: "create" })}
-        themeColors={themeColors}
       />
       <FlashcardEditor
         open={editorOpen}

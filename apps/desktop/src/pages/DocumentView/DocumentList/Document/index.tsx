@@ -38,7 +38,7 @@ import PresentationMode from "@/components/PresentationMode";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
-import FlashcardEditor from "@/pages/FlashcardCenter/FlashcardEditor";
+import FlashcardEditor from "@/components/FlashcardEditor";
 import useFlashcardCreation from "@/hooks/useFlashcardCreation";
 import useSettingStore from "@/stores/useSettingStore";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";

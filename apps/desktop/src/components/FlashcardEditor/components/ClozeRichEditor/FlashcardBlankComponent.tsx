@@ -24,9 +24,7 @@ const FlashcardBlankComponent = ({
       {...attributes}
       className="flashcard-blank-inline"
       style={{
-        backgroundColor: isDark
-          ? "rgba(59, 130, 246, 0.2)"
-          : "rgba(59, 130, 246, 0.12)",
+        backgroundColor: isDark ? "rgba(59, 130, 246, 0.2)" : "rgba(59, 130, 246, 0.12)",
         padding: "1px 8px",
         borderRadius: "4px",
         border: `1px solid ${isDark ? "rgba(59, 130, 246, 0.35)" : "rgba(59, 130, 246, 0.25)"}`,
@@ -56,8 +54,8 @@ const FlashcardBlankComponent = ({
           opacity: 0.7,
           transition: "opacity 0.2s",
         }}
-        onMouseEnter={(e) => (e.currentTarget.style.opacity = "1")}
-        onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.7")}
+        onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
+        onMouseLeave={e => (e.currentTarget.style.opacity = "0.7")}
         title="配置空格"
       >
         ⚙️

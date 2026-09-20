@@ -56,7 +56,7 @@ import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
-import FlashcardEditor from "@/pages/FlashcardCenter/FlashcardEditor";
+import FlashcardEditor from "@/components/FlashcardEditor";
 import { findOneArticle, openArticleInNewWindow } from "@/commands/article";
 import { attachPodcastToArticle, detachPodcastFromArticle } from "@/commands/podcast";
 
