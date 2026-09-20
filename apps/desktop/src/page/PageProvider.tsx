@@ -19,12 +19,14 @@ import {
   useMemo,
   useReducer,
   useRef,
+  useState,
+  type Dispatch,
   type ReactNode,
+  type SetStateAction,
 } from "react";
 import * as sm from "./core/stackMachine";
 import { getPageMeta } from "./core/pageMeta";
 import { sanitizeParams } from "./core/paramsSchema";
-import { isEditableTarget } from "./dom";
 
 export interface Navigator {
   push(key: string, params?: Record<string, unknown>): void;
@@ -40,13 +42,24 @@ export interface Navigator {
 /** 注册浮层退场回调，返回注销函数（LIFO：Esc 先关最上层浮层，见 D-003）。 */
 export type RegisterOverlayDismiss = (dismiss: () => void) => () => void;
 
+/** 页面级槽位注入（面包屑/状态栏）：按 page key 注册，仅栈顶页的内容被显示 */
+export type RegisterPageSlot = (key: string, node: ReactNode) => () => void;
+
 interface PageContextValue {
   navigator: Navigator;
   state: sm.StackMachineState;
   registerOverlayDismiss: RegisterOverlayDismiss;
+  /** 当前栈顶页注册的面包屑（无则 undefined，Titlebar 回退到默认 label） */
+  breadcrumbs: ReadonlyMap<string, ReactNode>;
+  /** 当前栈顶页注册的状态栏内容（无则空壳） */
+  statusBars: ReadonlyMap<string, ReactNode>;
+  registerBreadcrumb: RegisterPageSlot;
+  registerStatusBar: RegisterPageSlot;
 }
 
 const PageContext = createContext<PageContextValue | null>(null);
+
+const EMPTY_NODE_MAP: ReadonlyMap<string, ReactNode> = new Map();
 
 type StackAction =
   | { type: "push" | "replace"; key: string; params?: Record<string, unknown> }
@@ -144,8 +157,9 @@ export function PageProvider({
     []
   );
 
-  // Esc 仲裁（03 指南 §5）：先关最上层浮层（浮层输入框里的 Esc 同义，优先于
-  // 「取消编辑」），无浮层再让位编辑上下文，最后后退。根页无操作。
+  // Esc 仲裁（03 指南 §5）：只承担浮层退场（注册表 LIFO，浮层输入框里的 Esc
+  // 同义）；无浮层时无操作——后退由 Alt+←/→ 与标题栏按钮承担（2026-09-20
+  // 用户裁决移除 Esc=后退：详情页误触即丢编辑上下文）。
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.isComposing) return;
@@ -153,18 +167,39 @@ export function PageProvider({
       if (dismissers.length > 0) {
         e.preventDefault();
         dismissers[dismissers.length - 1]();
-        return;
       }
-      if (isEditableTarget(e.target)) return; // 输入上下文里 Esc 的语义是取消编辑
-      navigator.back();
     };
     window.addEventListener("keydown", onKeydown);
     return () => window.removeEventListener("keydown", onKeydown);
-  }, [navigator]);
+  }, []);
+
+  /* 页面级槽位注册表（面包屑/状态栏）：按 page key 存 ReactNode，壳层只渲染
+     栈顶 key 的条目。node 须由调用方 useMemo 稳定化（见 usePageSlot JSDoc），
+     同值守卫避免无关重渲染级联 */
+  const [breadcrumbs, setBreadcrumbs] = useState<ReadonlyMap<string, ReactNode>>(EMPTY_NODE_MAP);
+  const [statusBars, setStatusBars] = useState<ReadonlyMap<string, ReactNode>>(EMPTY_NODE_MAP);
+  const registerBreadcrumb = useRegisterSlot(setBreadcrumbs);
+  const registerStatusBar = useRegisterSlot(setStatusBars);
 
   const value = useMemo<PageContextValue>(
-    () => ({ navigator, state, registerOverlayDismiss }),
-    [navigator, state, registerOverlayDismiss]
+    () => ({
+      navigator,
+      state,
+      registerOverlayDismiss,
+      breadcrumbs,
+      statusBars,
+      registerBreadcrumb,
+      registerStatusBar,
+    }),
+    [
+      navigator,
+      state,
+      registerOverlayDismiss,
+      breadcrumbs,
+      statusBars,
+      registerBreadcrumb,
+      registerStatusBar,
+    ]
   );
   return <PageContext.Provider value={value}>{children}</PageContext.Provider>;
 }
@@ -181,6 +216,52 @@ export function useOverlayDismiss(dismiss: () => void, active = true) {
     if (!active) return;
     return registerOverlayDismiss(() => dismissRef.current());
   }, [active, registerOverlayDismiss]);
+}
+
+/**
+ * 页面级槽位注入（usePageBreadcrumb / usePageStatusBar 的实现）。
+ * node 必须经 useMemo 稳定化：每次渲染新建 JSX 对象会让注册 effect 无限
+ * 重跑（注册 → context 变化 → 页面重渲染 → 新对象 → 再注册）。
+ */
+function usePageSlot(register: RegisterPageSlot, key: string, node: ReactNode) {
+  useEffect(() => register(key, node), [register, key, node]);
+}
+
+/** 注入标题栏面包屑（替换默认「· label」）；仅当该页是栈顶时显示 */
+export function usePageBreadcrumb(key: string, node: ReactNode) {
+  const { registerBreadcrumb } = usePage();
+  usePageSlot(registerBreadcrumb, key, node);
+}
+
+/** 注入底部状态栏内容；仅当该页是栈顶时显示（无注册则为空壳） */
+export function usePageStatusBar(key: string, node: ReactNode) {
+  const { registerStatusBar } = usePage();
+  usePageSlot(registerStatusBar, key, node);
+}
+
+/** 槽位注册函数构造：同 key 同 node 守卫 + 注销清理（卸载/切换页面时） */
+function useRegisterSlot(
+  setSlots: Dispatch<SetStateAction<ReadonlyMap<string, ReactNode>>>
+): RegisterPageSlot {
+  return useMemo(
+    () => (key: string, node: ReactNode) => {
+      setSlots(prev => {
+        if (prev.get(key) === node) return prev;
+        const next = new Map(prev);
+        next.set(key, node);
+        return next;
+      });
+      return () => {
+        setSlots(prev => {
+          if (!prev.has(key)) return prev;
+          const next = new Map(prev);
+          next.delete(key);
+          return next;
+        });
+      };
+    },
+    [setSlots]
+  );
 }
 
 export function usePage(): PageContextValue {
