@@ -16,9 +16,7 @@ function descendantsToText(descendants: Descendant[]): string {
   return descendants
     .map((node: any) => {
       if (node.type === "paragraph" && node.children) {
-        return node.children
-          .map((child: any) => child.text || "")
-          .join("");
+        return node.children.map((child: any) => child.text || "").join("");
       }
       return "";
     })
@@ -133,17 +131,12 @@ function layoutMindMap(
     let currentY = y;
 
     node.children.forEach(child => {
-      const nextX = direction === "right"
-        ? x + width + HORIZONTAL_SPACING
-        : x - HORIZONTAL_SPACING - estimateTextWidth(descendantsToText(child.text));
+      const nextX =
+        direction === "right"
+          ? x + width + HORIZONTAL_SPACING
+          : x - HORIZONTAL_SPACING - estimateTextWidth(descendantsToText(child.text));
 
-      const childLayout = layoutMindMap(
-        child,
-        nextX,
-        currentY,
-        direction,
-        level + 1
-      );
+      const childLayout = layoutMindMap(child, nextX, currentY, direction, level + 1);
       layoutNode.children.push(childLayout);
       currentY += calculateSubtreeHeight(childLayout) + VERTICAL_SPACING;
     });

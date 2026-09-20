@@ -52,14 +52,10 @@ export const MarkdownProvider: React.FC<MarkdownProviderProps> = ({
       isVisible,
       messageMeta,
     }),
-    [cache, isDark, isVisible, messageMeta],
+    [cache, isDark, isVisible, messageMeta]
   );
 
-  return (
-    <MarkdownContext.Provider value={contextValue}>
-      {children}
-    </MarkdownContext.Provider>
-  );
+  return <MarkdownContext.Provider value={contextValue}>{children}</MarkdownContext.Provider>;
 };
 
 // 创建一个自定义hook以便于使用上下文

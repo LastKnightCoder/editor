@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { App } from "antd";
 import { Check, LogOut, RefreshCw, Share2, UserMinus, X } from "lucide-react";
+import { toast } from "@tau/ui";
 import type { ContentSessionTarget } from "@tau/collaboration";
 import {
   createSharedContent,
@@ -55,7 +55,6 @@ export default function ContentCollaborationControl({
   const [codeExpiresAt, setCodeExpiresAt] = useState<number>();
   const [error, setError] = useState<string>();
   const [confirming, setConfirming] = useState<PendingConfirm>();
-  const { message } = App.useApp();
   const requests = state.requests.filter(
     request => request.documentId === id && request.status === "pending"
   );
@@ -185,7 +184,7 @@ export default function ContentCollaborationControl({
                     variant="solid"
                     value={code}
                     label="复制协作码"
-                    onCopied={() => message.success("协作码已复制")}
+                    onCopied={() => toast.success("协作码已复制")}
                   />
                 ) : (
                   <IconButton
@@ -326,7 +325,7 @@ export default function ContentCollaborationControl({
                 disabled={busy}
                 onClick={() => {
                   if (session.pending) {
-                    message.warning("仍有未同步改动，请等待同步后再退出");
+                    toast.warning("仍有未同步改动，请等待同步后再退出");
                     return;
                   }
                   setConfirming(

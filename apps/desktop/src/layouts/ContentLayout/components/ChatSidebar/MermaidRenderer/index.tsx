@@ -14,10 +14,7 @@ interface MermaidRendererProps {
   refreshKey?: number;
 }
 
-const MermaidRenderer: React.FC<MermaidRendererProps> = ({
-  code,
-  refreshKey,
-}) => {
+const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code, refreshKey }) => {
   const { message } = App.useApp();
   const { isDark } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -90,7 +87,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
   }, [debouncedCode, isDark, mermaidId, refreshKey, internalRefreshKey]);
 
   const handleRefresh = () => {
-    setInternalRefreshKey((prev) => prev + 1);
+    setInternalRefreshKey(prev => prev + 1);
   };
 
   const handleCopySource = () => {
@@ -100,7 +97,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
       },
       () => {
         message.error("复制失败");
-      },
+      }
     );
   };
 
@@ -128,10 +125,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
       // 设置明确的尺寸属性
       clonedSvg.setAttribute("width", String(width));
       clonedSvg.setAttribute("height", String(height));
-      clonedSvg.setAttribute(
-        "viewBox",
-        `${bbox.x || 0} ${bbox.y || 0} ${width} ${height}`,
-      );
+      clonedSvg.setAttribute("viewBox", `${bbox.x || 0} ${bbox.y || 0} ${width} ${height}`);
 
       const canvas = document.createElement("canvas");
       const scale = 2; // 提高分辨率
@@ -160,7 +154,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
         ctx.drawImage(img, 0, 0, width, height);
         URL.revokeObjectURL(url);
 
-        canvas.toBlob((blob) => {
+        canvas.toBlob(blob => {
           if (blob) {
             const downloadUrl = URL.createObjectURL(blob);
             const a = document.createElement("a");
@@ -196,14 +190,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
       }
 
       if (error) {
-        return (
-          <Alert
-            type="error"
-            message="Diagram render error"
-            description={error}
-            showIcon
-          />
-        );
+        return <Alert type="error" message="Diagram render error" description={error} showIcon />;
       }
 
       return (
@@ -219,10 +206,8 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
       );
     } else {
       return (
-        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-neutral-900 p-3">
-          <LazySyntaxHighlighter language="mermaid">
-            {code}
-          </LazySyntaxHighlighter>
+        <div className="flex-1 overflow-auto bg-gray-50 p-3 dark:bg-neutral-900">
+          <LazySyntaxHighlighter language="mermaid">{code}</LazySyntaxHighlighter>
         </div>
       );
     }
@@ -251,15 +236,9 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
             <Tooltip title={viewMode === "preview" ? "查看源码" : "查看预览"}>
               <button
                 className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-100 hover:text-gray-900 active:translate-y-px dark:text-gray-300 dark:hover:bg-neutral-700 dark:hover:text-white"
-                onClick={() =>
-                  setViewMode(viewMode === "preview" ? "source" : "preview")
-                }
+                onClick={() => setViewMode(viewMode === "preview" ? "source" : "preview")}
               >
-                {viewMode === "preview" ? (
-                  <Code size={16} />
-                ) : (
-                  <Eye size={16} />
-                )}
+                {viewMode === "preview" ? <Code size={16} /> : <Eye size={16} />}
               </button>
             </Tooltip>
             {viewMode === "source" && (
@@ -299,10 +278,7 @@ const MermaidRenderer: React.FC<MermaidRendererProps> = ({
 
       {/* 全屏模式 */}
       {isFullscreen && (
-        <FullscreenPortal
-          title="Mermaid Diagram"
-          onClose={() => setIsFullscreen(false)}
-        >
+        <FullscreenPortal title="Mermaid Diagram" onClose={() => setIsFullscreen(false)}>
           {renderContent()}
         </FullscreenPortal>
       )}

@@ -42,7 +42,7 @@ describe("ChatSidebar MarkdownRenderer editor language", () => {
           markdownComponents={{}}
           shouldRender={true}
         />
-      </MarkdownProvider>,
+      </MarkdownProvider>
     );
 
     const unorderedList = container.querySelector("ul");

@@ -666,8 +666,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
     const getPersistedSystemContent = useMemoizedFn((chat: ChatMessage) => {
       const systemMessage = chat.messages.find(message => message.role === Role.System) as
-        | ResponseMessage
-        | undefined;
+        ResponseMessage | undefined;
       return systemMessage?.content || customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
     });
 

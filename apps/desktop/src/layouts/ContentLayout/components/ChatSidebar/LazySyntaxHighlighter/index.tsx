@@ -61,7 +61,7 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), 2000);
       })
-      .catch((err) => {
+      .catch(err => {
         console.error("Failed to copy code:", err);
       });
   };
@@ -78,11 +78,7 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
 
   return (
     <div className={styles.syntaxContainer}>
-      <button
-        className={styles.copyButton}
-        onClick={handleCopyCode}
-        title="Copy code"
-      >
+      <button className={styles.copyButton} onClick={handleCopyCode} title="Copy code">
         <BiCopy />
         {isCopied && <span className={styles.copyTooltip}>已复制!</span>}
       </button>
@@ -93,9 +89,7 @@ const LazySyntaxHighlighter: React.FC<LazySyntaxHighlighterProps> = ({
           margin: 0,
           borderRadius: "8px",
           overflow: "hidden",
-          boxShadow: isDark
-            ? "0 1px 2px 0 rgba(0, 0, 0, 0.25)"
-            : "0 1px 2px 0 rgba(0, 0, 0, 0.1)",
+          boxShadow: isDark ? "0 1px 2px 0 rgba(0, 0, 0, 0.25)" : "0 1px 2px 0 rgba(0, 0, 0, 0.1)",
           fontSize: "0.8em",
           lineHeight: "1.8",
         }}

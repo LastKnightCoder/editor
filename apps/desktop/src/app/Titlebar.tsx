@@ -15,7 +15,7 @@ import { useSearchStore } from "@/features/search/searchStore";
 import { WindowControls } from "./WindowControls";
 
 export function Titlebar() {
-  const { navigator, state } = usePage();
+  const { navigator, state, breadcrumbs } = usePage();
   const togglePalette = useSearchStore(s => s.togglePalette);
 
   // Alt+←/→ 全局键盘导航（Esc 在 PageProvider 内处理）；
@@ -37,6 +37,9 @@ export function Titlebar() {
 
   const currentKey = state.back[state.back.length - 1]?.key;
   const crumb = currentKey ? (getPageMeta(currentKey)?.label ?? currentKey) : "";
+  /* 页面注册的自定义面包屑（usePageBreadcrumb）整条替换默认「· label」；
+     自定义内容可能可交互（如文章详情的速切器），须让出拖拽区 */
+  const customCrumb = currentKey ? breadcrumbs.get(currentKey) : undefined;
   const canBack = state.back.length > 1;
   const canForward = state.forward.length > 0;
 
@@ -60,7 +63,12 @@ export function Titlebar() {
           <ArrowRight size={17} strokeWidth={1.75} />
         </IconButton>
       </div>
-      <span className="text-tau-meta text-ink-2">· {crumb}</span>
+      {/* 自定义面包屑可能可交互（如详情页速切器），须让出拖拽区；null（加载中）回退默认 */}
+      {customCrumb != null ? (
+        <div className="app-region-no-drag flex min-w-0 items-center">{customCrumb}</div>
+      ) : (
+        <span className="text-tau-meta text-ink-2">· {crumb}</span>
+      )}
 
       <div className="flex-1" />
       {/* 全局搜索/命令面板（Ctrl+K，D-003） */}

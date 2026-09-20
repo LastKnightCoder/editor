@@ -1,7 +1,7 @@
 import { memo, type ButtonHTMLAttributes, type CSSProperties } from "react";
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
-import { Tooltip } from "antd";
+import { Tooltip } from "@tau/ui";
 import { memberColor, type CollaborationSession, type Member } from "@tau/collaboration";
 
 export function memberActivity(member: Member): string {
@@ -144,7 +144,7 @@ export const IconButton = memo(function IconButton({
         ? "text-text-2 hover:bg-[color-mix(in_oklab,var(--th-success)_14%,transparent)] hover:text-status-success"
         : "text-text-2 hover:bg-hover hover:text-text-1";
   return (
-    <Tooltip title={label} mouseEnterDelay={0.2}>
+    <Tooltip content={label} delay={200}>
       {/* span 包装让 disabled 状态下 Tooltip 仍可显示 */}
       <span className="inline-flex">
         <button

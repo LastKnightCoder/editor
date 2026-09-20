@@ -38,9 +38,7 @@ describe("ChatSidebar MarkdownRenderer PDF 引用", () => {
     const { root, container } = await mount(
       <MarkdownProvider isDark={false} isVisible={true}>
         <MarkdownRenderer
-          content={
-            "这是结论段落 :pdfref[第12页｜证据摘要]{page=12 charStart=10 charEnd=20}"
-          }
+          content={"这是结论段落 :pdfref[第12页｜证据摘要]{page=12 charStart=10 charEnd=20}"}
           markdownComponents={{
             span: ({
               children,
@@ -50,17 +48,14 @@ describe("ChatSidebar MarkdownRenderer PDF 引用", () => {
               children?: ReactNode;
               className?: string;
             } & Record<string, unknown>) => (
-              <span
-                className={className}
-                data-page={String(props["data-page"] || "")}
-              >
+              <span className={className} data-page={String(props["data-page"] || "")}>
                 {children}
               </span>
             ),
           }}
           shouldRender={true}
         />
-      </MarkdownProvider>,
+      </MarkdownProvider>
     );
 
     const paragraphs = container.querySelectorAll("p");

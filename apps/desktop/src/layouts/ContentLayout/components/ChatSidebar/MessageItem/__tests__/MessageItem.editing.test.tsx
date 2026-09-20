@@ -9,9 +9,7 @@ import type { RequestMessage } from "@/types";
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
-const createUserMessage = (
-  content: RequestMessage["content"],
-): RequestMessage => ({
+const createUserMessage = (content: RequestMessage["content"]): RequestMessage => ({
   role: Role.User,
   content,
 });
@@ -47,12 +45,10 @@ describe("MessageItem 编辑按钮", () => {
         isVisible={true}
         onEditMessage={onEditMessage}
         messageIndex={3}
-      />,
+      />
     );
 
-    const editButton = container.querySelector(
-      'button[title="编辑"]',
-    ) as HTMLButtonElement | null;
+    const editButton = container.querySelector('button[title="编辑"]') as HTMLButtonElement | null;
     expect(editButton).toBeTruthy();
 
     await act(async () => {
@@ -72,7 +68,7 @@ describe("MessageItem 编辑按钮", () => {
         markdownComponents={{}}
         isVisible={true}
         messageIndex={0}
-      />,
+      />
     );
 
     expect(container.querySelector('button[title="编辑"]')).toBeNull();

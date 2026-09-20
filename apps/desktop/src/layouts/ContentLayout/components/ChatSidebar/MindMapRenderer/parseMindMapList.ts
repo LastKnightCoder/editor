@@ -6,9 +6,7 @@ import { ParagraphElement } from "@tau/editor/src";
 
 interface ListItemNode {
   type: "list-item";
-  children: Array<
-    ParagraphElement | { type: "bulleted-list"; children: ListItemNode[] }
-  >;
+  children: Array<ParagraphElement | { type: "bulleted-list"; children: ListItemNode[] }>;
 }
 
 interface BulletedListNode {
@@ -22,9 +20,7 @@ interface BulletedListNode {
  */
 function extractTextFromListItem(listItem: ListItemNode): Descendant[] {
   // 找到第一个 paragraph 子节点
-  const paragraph = listItem.children.find(
-    (child) => child.type === "paragraph",
-  );
+  const paragraph = listItem.children.find(child => child.type === "paragraph");
   if (paragraph && paragraph.type === "paragraph") {
     // 返回完整的 paragraph 结构
     return [paragraph] as ParagraphElement[];
@@ -91,14 +87,11 @@ export function parseMindMapList(markdownList: string): MindMapNodeData | null {
     const descendants = importFromMarkdown(markdownList);
 
     // 查找第一个 bulleted-list 节点
-    const bulletedList = descendants.find(
-      (node) => node.type === "bulleted-list",
-    ) as BulletedListNode | undefined;
+    const bulletedList = descendants.find(node => node.type === "bulleted-list") as
+      BulletedListNode | undefined;
 
     if (!bulletedList) {
-      throw new Error(
-        "未找到无序列表，请确保使用 Markdown 无序列表语法（- 或 *）",
-      );
+      throw new Error("未找到无序列表，请确保使用 Markdown 无序列表语法（- 或 *）");
     }
 
     if (bulletedList.children.length === 0) {
@@ -106,9 +99,7 @@ export function parseMindMapList(markdownList: string): MindMapNodeData | null {
     }
 
     if (bulletedList.children.length > 1) {
-      throw new Error(
-        `思维导图只能有一个根节点，当前有 ${bulletedList.children.length} 个根节点`,
-      );
+      throw new Error(`思维导图只能有一个根节点，当前有 ${bulletedList.children.length} 个根节点`);
     }
 
     // 将根 list-item 转换为 MindMapNodeData

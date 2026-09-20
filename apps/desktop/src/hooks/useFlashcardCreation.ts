@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { App } from "antd";
 import { Descendant } from "slate";
 
+import { toast } from "@tau/ui";
+
 import useLLMConfig from "./useLLMConfig";
-import useFlashcardGeneration, {
-  GeneratedFlashcard,
-} from "./useFlashcardGeneration";
+import useFlashcardGeneration, { GeneratedFlashcard } from "./useFlashcardGeneration";
 import useFlashcardStore from "@/stores/useFlashcardStore";
 import type { FlashcardDeck, FlashcardReferenceInput } from "@/types";
 
@@ -15,30 +14,21 @@ interface UseFlashcardCreationOptions {
   getReference: () => FlashcardReferenceInput;
 }
 
-export default function useFlashcardCreation(
-  options: UseFlashcardCreationOptions,
-) {
+export default function useFlashcardCreation(options: UseFlashcardCreationOptions) {
   const { getContent, getReference } = options;
-  const { message } = App.useApp();
 
   // 状态
   const [deckSelectorOpen, setDeckSelectorOpen] = useState(false);
-  const [deckSelectorMode, setDeckSelectorMode] = useState<"manual" | "ai">(
-    "manual",
-  );
+  const [deckSelectorMode, setDeckSelectorMode] = useState<"manual" | "ai">("manual");
   const [selectedDeck, setSelectedDeck] = useState<FlashcardDeck | null>(null);
   const [flashcardEditorOpen, setFlashcardEditorOpen] = useState(false);
   const [aiGenerationModalOpen, setAiGenerationModalOpen] = useState(false);
-  const [editingGeneratedCard, setEditingGeneratedCard] =
-    useState<GeneratedFlashcard | null>(null);
-  const [generatedCardEditModalOpen, setGeneratedCardEditModalOpen] =
-    useState(false);
+  const [editingGeneratedCard, setEditingGeneratedCard] = useState<GeneratedFlashcard | null>(null);
+  const [generatedCardEditModalOpen, setGeneratedCardEditModalOpen] = useState(false);
 
   // LLM 配置
-  const {
-    providerConfig: flashcardProviderConfig,
-    modelConfig: flashcardModelConfig,
-  } = useLLMConfig("flashcardGeneration");
+  const { providerConfig: flashcardProviderConfig, modelConfig: flashcardModelConfig } =
+    useLLMConfig("flashcardGeneration");
 
   // 闪卡生成 hook
   const {
@@ -56,7 +46,7 @@ export default function useFlashcardCreation(
   } = useFlashcardGeneration(flashcardProviderConfig, flashcardModelConfig);
 
   // 闪卡 store
-  const createFlashcard = useFlashcardStore((state) => state.createCard);
+  const createFlashcard = useFlashcardStore(state => state.createCard);
 
   // 打开手动制卡
   const openManualFlashcard = useMemoizedFn(() => {
@@ -67,7 +57,7 @@ export default function useFlashcardCreation(
   // 打开 AI 制卡
   const openAiFlashcard = useMemoizedFn(() => {
     if (!flashcardProviderConfig || !flashcardModelConfig) {
-      message.error("请先在设置中配置闪卡生成的模型");
+      toast.error("请先在设置中配置闪卡生成的模型");
       return;
     }
     setDeckSelectorMode("ai");
@@ -91,9 +81,9 @@ export default function useFlashcardCreation(
   const handleConfirmAiGeneration = useMemoizedFn(async () => {
     if (!selectedDeck) return;
 
-    const selectedCards = generatedCards.filter((c) => c.selected);
+    const selectedCards = generatedCards.filter(c => c.selected);
     if (selectedCards.length === 0) {
-      message.warning("请至少选择一张闪卡");
+      toast.warning("请至少选择一张闪卡");
       return;
     }
 
@@ -119,12 +109,12 @@ export default function useFlashcardCreation(
         }
       }
 
-      message.success(`成功创建 ${successCount} 张闪卡`);
+      toast.success(`成功创建 ${successCount} 张闪卡`);
       setAiGenerationModalOpen(false);
       resetGeneration();
       setSelectedDeck(null);
     } catch (err) {
-      message.error("创建闪卡失败");
+      toast.error("创建闪卡失败");
       console.error(err);
     }
   });
@@ -145,17 +135,13 @@ export default function useFlashcardCreation(
 
   // 保存编辑后的 AI 生成闪卡
   const handleSaveGeneratedCard = useMemoizedFn(
-    (
-      updates: Partial<
-        Omit<GeneratedFlashcard, "id" | "selected">
-      >,
-    ) => {
+    (updates: Partial<Omit<GeneratedFlashcard, "id" | "selected">>) => {
       if (!editingGeneratedCard) return;
       updateCard(editingGeneratedCard.id, updates);
       setGeneratedCardEditModalOpen(false);
       setEditingGeneratedCard(null);
-      message.success("闪卡已更新");
-    },
+      toast.success("闪卡已更新");
+    }
   );
 
   // 关闭手动制卡编辑器

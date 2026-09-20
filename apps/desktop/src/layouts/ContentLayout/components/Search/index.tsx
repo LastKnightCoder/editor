@@ -15,26 +15,23 @@ import If from "@/components/If";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import SearchResultItem from "./SearchResultItem";
-import {
-  getProjectItemById,
-  getRootDocumentsByDocumentItemId,
-} from "@/commands";
+import { getProjectItemById, getRootDocumentsByDocumentItemId } from "@/commands";
 
 const Search = memo(() => {
   const { isDark } = useTheme();
-  const openInNewTab = useTabStore((state) => state.openInNewTab);
+  const openInNewTab = useTabStore(state => state.openInNewTab);
 
   const searchRef = useRef<EditTextHandle>(null);
   const lastSearchText = useRef("");
   const resultsListRef = useRef<HTMLDivElement>(null);
 
   const { open, searchLoading, searchResults, onSearch } = useCommandPanelStore(
-    useShallow((state) => ({
+    useShallow(state => ({
       open: state.open,
       searchLoading: state.searchLoading,
       searchResults: state.searchResults,
       onSearch: state.onSearch,
-    })),
+    }))
   );
 
   const resultsVirtualizer = useVirtualizer({
@@ -164,22 +161,22 @@ const Search = memo(() => {
   if (!open) return null;
 
   return (
-    <div className="fixed w-screen h-screen left-0 top-0 z-[10000]">
+    <div className="fixed left-0 top-0 z-[10000] h-screen w-screen">
       <div
         className={classnames(
-          "absolute w-full h-full bg-[rgba(17,25,39,0.8)]",
-          isDark && "dark:bg-[rgba(17,25,39,0.8)]",
+          "absolute h-full w-full bg-[rgba(17,25,39,0.8)]",
+          isDark && "dark:bg-[rgba(17,25,39,0.8)]"
         )}
         onClick={onClickMask}
       />
       <div
         className={classnames(
-          "absolute w-[640px] max-h-[80vh] max-w-[80vw] top-[15vh] left-1/2 -translate-x-1/2 min-h-[200px] flex flex-col rounded-lg shadow-[rgba(0,0,0,0)_0px_0px_0px_0px,rgba(0,0,0,0)_0px_0px_0px_0px,rgba(0,0,0,0.1)_0px_10px_15px_-3px,rgba(0,0,0,0.1)_0px_4px_6px_-4px]",
-          isDark ? "bg-[rgba(49,49,52,1)]" : "bg-white",
+          "absolute left-1/2 top-[15vh] flex max-h-[80vh] min-h-[200px] w-[640px] max-w-[80vw] -translate-x-1/2 flex-col rounded-lg shadow-[rgba(0,0,0,0)_0px_0px_0px_0px,rgba(0,0,0,0)_0px_0px_0px_0px,rgba(0,0,0,0.1)_0px_10px_15px_-3px,rgba(0,0,0,0.1)_0px_4px_6px_-4px]",
+          isDark ? "bg-[rgba(49,49,52,1)]" : "bg-white"
         )}
       >
-        <div className="flex w-full h-14 py-4 box-border items-center border-b border-(--th-border)">
-          <div className="flex-none w-10 h-full flex items-center justify-center">
+        <div className="border-(--th-border) box-border flex h-14 w-full items-center border-b py-4">
+          <div className="flex h-full w-10 flex-none items-center justify-center">
             {searchLoading ? <LoadingOutlined /> : <SearchOutlined />}
           </div>
           <EditText
@@ -189,19 +186,19 @@ const Search = memo(() => {
             contentEditable
             defaultFocus
             defaultValue={lastSearchText.current || ""}
-            onChange={(value) => {
+            onChange={value => {
               lastSearchText.current = value;
             }}
           />
         </div>
 
-        <div className="flex-1 overflow-hidden flex flex-col max-h-[calc(80vh-56px)]">
+        <div className="flex max-h-[calc(80vh-56px)] flex-1 flex-col overflow-hidden">
           <div
-            className="flex-1 flex flex-col min-h-[160px] h-full"
+            className="flex h-full min-h-[160px] flex-1 flex-col"
             style={{ overflow: searchLoading ? "hidden" : "auto" }}
           >
             <If condition={searchLoading}>
-              <div className="flex-1 flex items-center justify-center text-4xl min-h-[160px] w-full">
+              <div className="flex min-h-[160px] w-full flex-1 items-center justify-center text-4xl">
                 <LoadingOutlined />
               </div>
             </If>
@@ -218,7 +215,7 @@ const Search = memo(() => {
                 <If condition={searchResults.length > 0}>
                   <div
                     ref={resultsListRef}
-                    className="flex flex-col gap-4 p-4 overflow-y-auto flex-1"
+                    className="flex flex-1 flex-col gap-4 overflow-y-auto p-4"
                   >
                     <div
                       style={{
@@ -227,33 +224,29 @@ const Search = memo(() => {
                         position: "relative",
                       }}
                     >
-                      {resultsVirtualizer
-                        .getVirtualItems()
-                        .map((virtualItem) => {
-                          const result = searchResults[virtualItem.index];
-                          return (
-                            <div
-                              key={`search-${result.id}-${result.type}`}
-                              style={{
-                                position: "absolute",
-                                top: 0,
-                                left: 0,
-                                width: "100%",
-                                height: `${virtualItem.size}px`,
-                                transform: `translateY(${virtualItem.start}px)`,
-                              }}
-                            >
-                              <SearchResultItem
-                                result={result}
-                                getRefTypeLabel={getRefTypeLabel}
-                                getTagColor={getTagColor}
-                                handleSearchResultClick={
-                                  handleSearchResultClick
-                                }
-                              />
-                            </div>
-                          );
-                        })}
+                      {resultsVirtualizer.getVirtualItems().map(virtualItem => {
+                        const result = searchResults[virtualItem.index];
+                        return (
+                          <div
+                            key={`search-${result.id}-${result.type}`}
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              width: "100%",
+                              height: `${virtualItem.size}px`,
+                              transform: `translateY(${virtualItem.start}px)`,
+                            }}
+                          >
+                            <SearchResultItem
+                              result={result}
+                              getRefTypeLabel={getRefTypeLabel}
+                              getTagColor={getTagColor}
+                              handleSearchResultClick={handleSearchResultClick}
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </If>
