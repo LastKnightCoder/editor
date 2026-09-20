@@ -40,7 +40,7 @@ import {
 import { createPortal } from "react-dom";
 import { usePortalContainer } from "../UiProvider";
 import clsx from "clsx";
-import { Check, ChevronDown, Search } from "lucide-react";
+import { Check, ChevronDown, Plus, Search } from "lucide-react";
 import { cn } from "../cn";
 import { mergeRefs } from "./mergeRefs";
 import { useAnchoredPosition } from "./useAnchoredPosition";
@@ -69,6 +69,8 @@ interface SelectBaseProps<V> {
   /** 弹层内嵌搜索框（本地过滤；自定义策略传 filter） */
   searchable?: boolean;
   filter?: (option: SelectOption<V>, query: string) => boolean;
+  /** searchable 下允许用输入值直接创建选项（query 无精确匹配时出现「使用 "query"」行，Enter 直达） */
+  creatable?: boolean;
   /** 过滤空态文案 */
   emptyText?: string;
   /** 弹层 min-width 跟随触发器（默认开） */
@@ -119,6 +121,7 @@ export function Select<V = string>({
   placeholder = "请选择",
   size = "md",
   searchable = false,
+  creatable = false,
   filter,
   emptyText = "无匹配项",
   matchTriggerWidth = true,
@@ -150,6 +153,13 @@ export function Select<V = string>({
     if (!searchable || !q) return options;
     return options.filter(o => (filter ?? defaultFilter<V>)(o, q));
   }, [options, query, searchable, filter]);
+
+  const createValue = query.trim();
+  const showCreatable =
+    searchable &&
+    creatable &&
+    createValue.length > 0 &&
+    !options.some(o => String(o.value) === createValue);
 
   /** 高亮在可见序列上环游 / 边缘直达 / type-ahead（与 Menu 共用的交集，D-007） */
   const nav = useListNavigation<number>({
@@ -269,7 +279,11 @@ export function Select<V = string>({
 
   const pickHighlighted = () => {
     const opt = visible[hl] ?? visible.find(o => !o.disabled);
-    if (opt) pick(opt);
+    if (opt) {
+      pick(opt);
+      return;
+    }
+    if (showCreatable) pick({ value: createValue as V, label: createValue });
   };
 
   /** open 态的导航键（trigger 与 menu 共用：非 searchable 焦点在触发器、searchable 在搜索框） */
@@ -408,7 +422,23 @@ export function Select<V = string>({
           </div>
         )
       )}
-      {visible.length === 0 && (
+      {showCreatable && (
+        <div
+          role="option"
+          aria-selected={false}
+          onClick={() => {
+            pick({ value: createValue as V, label: createValue });
+          }}
+          className={clsx(
+            "text-accent-text hover:bg-hover rounded-tau-sm flex h-8 cursor-pointer items-center gap-2 px-2.5",
+            size === "sm" ? "text-tau-sm" : "text-tau-body"
+          )}
+        >
+          <Plus aria-hidden className="size-[13px] shrink-0" strokeWidth={2} />
+          <span className="min-w-0 flex-1 truncate">使用 &ldquo;{createValue}&rdquo;</span>
+        </div>
+      )}
+      {visible.length === 0 && !showCreatable && (
         <div className="text-ink-3 text-tau-meta py-4 text-center">{emptyText}</div>
       )}
     </div>,
@@ -450,17 +480,20 @@ export function Select<V = string>({
         <span
           className={clsx(
             "flex min-w-0 flex-1 items-center gap-2 truncate text-left",
-            !selected.length && "text-ink-3"
+            !selected.length && value == null && "text-ink-3"
           )}
         >
           {selected.length
             ? selected.map((option, index) => (
                 <span key={index}>
                   {option.label}
-                  {index < selected.length - 1 ? "、" : ""}
+                  {index < selected.length - 1 && "、"}
                 </span>
               ))
-            : placeholder}
+            : // 非受控 creatable：创建值不在 options 里，回显原始值兜底
+              !multiple && value != null && value !== ""
+              ? String(value)
+              : placeholder}
         </span>
         <ChevronDown
           className={clsx(

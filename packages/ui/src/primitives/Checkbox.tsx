@@ -97,7 +97,7 @@ export function Checkbox({
           )}
         />
       </span>
-      {label != null && <span className="text-ink-1 text-tau-body">{label}</span>}
+      {label != null && <span className="text-ink-1 text-tau-body whitespace-nowrap">{label}</span>}
     </label>
   );
 }

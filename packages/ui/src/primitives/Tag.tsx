@@ -24,7 +24,8 @@ const TAG_STYLES: Record<TagColor, { shell: string; dot: string }> = {
   orange: { shell: "bg-accent-soft text-accent-text", dot: "bg-accent" },
   yellow: { shell: "bg-warn-soft text-warn", dot: "bg-warn" },
   green: { shell: "bg-ok-soft text-ok", dot: "bg-ok" },
-  gray: { shell: "bg-group text-ink-2", dot: "" },
+  // gray = 无分类：surface 亮底 + line-1 描边（D-009 行内药丸口径——白卡上同底靠描边显形）
+  gray: { shell: "border-line-1 bg-surface text-ink-2 border", dot: "" },
   blue: { shell: "bg-info-soft text-info", dot: "bg-info" },
   purple: { shell: "bg-tag-3-soft text-tag-3", dot: "bg-tag-3" },
 };

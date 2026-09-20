@@ -186,6 +186,37 @@ describe("Select（数据驱动）", () => {
     expect(h.menu.querySelector<HTMLInputElement>("input")!.value).toBe("");
   });
 
+  it("creatable：query 无匹配出「使用 query」行，点击/Enter 收创建值；有精确匹配不出", () => {
+    const onValueChange = vi.fn();
+    const h = render(
+      <Select
+        options={[{ value: "my-voice", label: "my-voice" }]}
+        searchable
+        creatable
+        onValueChange={onValueChange}
+      />
+    );
+    cleanups.push(h.cleanup);
+    click(h.trigger);
+
+    const input = h.menu.querySelector<HTMLInputElement>("input")!;
+    // 无匹配：出创建行（空态被 creatable 吞掉），Enter 直达创建值并回显
+    typeInto(input, "自定义");
+    expect(h.menu.textContent).toContain("使用 “自定义”");
+    expect(h.menu.textContent).not.toContain("没有匹配");
+    key(input, "Enter");
+    expect(onValueChange).toHaveBeenCalledWith("自定义");
+    expect(h.trigger.textContent).toContain("自定义");
+    expect(h.trigger.getAttribute("aria-expanded")).toBe("false");
+
+    // query 与已有 value 精确相等：不出创建行，命中选项本身
+    click(h.trigger);
+    const input2 = h.menu.querySelector<HTMLInputElement>("input")!;
+    typeInto(input2, "my-voice");
+    expect(h.menu.textContent).not.toContain("使用 ");
+    expect(options(h.menu)).toHaveLength(1);
+  });
+
   it("分组：group 字段按首现顺序渲染组标签", () => {
     const h = render(<Select options={OPTIONS} />);
     cleanups.push(h.cleanup);
