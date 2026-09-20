@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { Button, SelectField, TextInput, TextSecondary } from "./ui";
+import { Select } from "@tau/ui";
+import { Button, TextInput } from "./ui";
 import type { PodcastSpeaker } from "@/types/podcast";
 import { SpeakerRole } from "@/types/podcast";
 import type { VoiceOption } from "./types";
@@ -10,10 +11,7 @@ export interface SpeakerConfigProps {
   setSpeakers: React.Dispatch<React.SetStateAction<PodcastSpeaker[]>>;
   voices: VoiceOption[];
   voicesLoading: boolean;
-  notify: (
-    type: "success" | "error" | "warning" | "info",
-    text: string,
-  ) => void;
+  notify: (type: "success" | "error" | "warning" | "info", text: string) => void;
 }
 
 export const SpeakerConfig = ({
@@ -48,20 +46,16 @@ export const SpeakerConfig = ({
       }
       setSpeakers(speakers.filter((_, i) => i !== index));
     },
-    [speakers, notify, setSpeakers],
+    [speakers, notify, setSpeakers]
   );
 
   const updateSpeaker = useCallback(
-    (
-      index: number,
-      field: keyof PodcastSpeaker,
-      value: string | SpeakerRole,
-    ) => {
+    (index: number, field: keyof PodcastSpeaker, value: string | SpeakerRole) => {
       const newSpeakers = [...speakers];
       newSpeakers[index] = { ...newSpeakers[index], [field]: value };
 
       if (field === "voiceId") {
-        const voice = voices.find((v) => v.id === (value as string));
+        const voice = voices.find(v => v.id === (value as string));
         if (voice) {
           newSpeakers[index].voiceName = voice.name || voice.id;
         }
@@ -69,15 +63,15 @@ export const SpeakerConfig = ({
 
       setSpeakers(newSpeakers);
     },
-    [speakers, voices, setSpeakers],
+    [speakers, voices, setSpeakers]
   );
 
   return (
     <div className="space-y-3">
       {voicesLoading && (
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-zinc-500">
+        <div className="text-ink-3 text-tau-sm flex items-center gap-1.5">
           <svg
-            className="w-3 h-3 animate-spin"
+            className="h-3 w-3 animate-spin"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -95,12 +89,12 @@ export const SpeakerConfig = ({
             <TextInput
               placeholder="名称"
               value={speaker.name}
-              onChange={(value) => updateSpeaker(index, "name", value)}
+              onChange={value => updateSpeaker(index, "name", value)}
               className="w-[120px] shrink-0"
             />
-            <SelectField
+            <Select
               value={speaker.role}
-              onChange={(value) => updateSpeaker(index, "role", value)}
+              onValueChange={value => updateSpeaker(index, "role", value)}
               className="w-[100px] shrink-0"
               options={[
                 {
@@ -113,24 +107,22 @@ export const SpeakerConfig = ({
                 },
               ]}
             />
-            <SelectField
+            <Select
               placeholder="选择或输入音色 ID"
               value={speaker.voiceId || undefined}
-              onChange={(value) => updateSpeaker(index, "voiceId", value)}
-              className="flex-1 min-w-0"
+              onValueChange={value => updateSpeaker(index, "voiceId", value)}
+              className="min-w-0 flex-1"
               searchable
               creatable
-              options={voices.map((voice) => ({
+              options={voices.map(voice => ({
                 value: voice.id,
                 label: (
-                  <div>
-                    <div>{voice.name || voice.id}</div>
+                  <span className="flex min-w-0 items-baseline gap-2">
+                    <span className="truncate">{voice.name || voice.id}</span>
                     {voice.description && (
-                      <TextSecondary className="text-xs">
-                        {voice.description}
-                      </TextSecondary>
+                      <span className="text-ink-3 text-tau-tiny truncate">{voice.description}</span>
                     )}
-                  </div>
+                  </span>
                 ),
                 searchText: `${voice.name || ""} ${voice.id} ${voice.description || ""}`,
               }))}
@@ -140,7 +132,7 @@ export const SpeakerConfig = ({
                 icon={<Trash2 size={14} />}
                 variant="danger"
                 size="small"
-                className="w-7 h-7 px-0 shrink-0"
+                className="h-7 w-7 shrink-0 px-0"
                 onClick={() => removeSpeaker(index)}
               />
             )}

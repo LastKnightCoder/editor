@@ -184,10 +184,10 @@ export const ResultPreview = ({
       </TextSecondary>
 
       <details open className="mt-4">
-        <summary className="flex cursor-pointer select-none items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-zinc-400">
+        <summary className="text-ink-3 text-tau-sm flex cursor-pointer select-none items-center gap-1.5 font-medium">
           <FileText size={14} className="inline-block" /> 查看脚本
         </summary>
-        <div className="flex max-h-[400px] flex-col gap-2 overflow-y-auto pt-3">
+        <div className="flex max-h-[400px] flex-col gap-2 overflow-y-auto px-1 pb-1 pt-3">
           {scriptLines.map((line, index) => {
             const isEditing = editingSegmentIndex === index;
             const isRegenerating = regeneratingSegmentIndex === index;
@@ -198,12 +198,12 @@ export const ResultPreview = ({
               <div
                 key={index}
                 className={classNames(
-                  "rounded-lg p-3 transition-colors duration-150",
+                  "rounded-tau-md p-3 transition-colors duration-150",
                   isEditing
-                    ? "bg-[var(--th-accent-soft)] shadow-[0_0_0_1px_rgba(59,130,246,0.3)]"
+                    ? "bg-accent-soft shadow-[0_0_0_1.5px_var(--tau-accent)]"
                     : isRegenerating
-                      ? "bg-amber-50 shadow-[0_0_0_1px_rgba(245,158,11,0.3)] dark:bg-amber-500/10"
-                      : "bg-gray-50 shadow-[0_0_0_1px_rgba(34,42,53,0.06)] hover:shadow-[0_0_0_1px_rgba(34,42,53,0.12)] dark:bg-zinc-800/50 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04)] dark:hover:shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
+                      ? "bg-warn-soft shadow-[0_0_0_1.5px_var(--tau-warn)]"
+                      : "shadow-[0_0_0_1px_var(--tau-line-1)] hover:shadow-[0_0_0_1.5px_var(--tau-ink-3)]"
                 )}
               >
                 <div className="mb-2 flex items-center justify-between">
@@ -214,7 +214,7 @@ export const ResultPreview = ({
                       {line.duration.toFixed(1)}s)
                     </TextSecondary>
                     {isRegenerating && (
-                      <TextSecondary className="text-xs text-yellow-700 dark:text-yellow-400">
+                      <TextSecondary className="text-warn text-tau-sm">
                         正在重新生成...
                       </TextSecondary>
                     )}
@@ -266,7 +266,7 @@ export const ResultPreview = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700 dark:text-zinc-200">
+                  <div className="text-ink-2 text-tau-body whitespace-pre-wrap leading-relaxed">
                     {line.text}
                   </div>
                 )}

@@ -279,7 +279,7 @@ export const VoiceClonePanel = ({
   ]);
 
   return (
-    <div className="mt-4 border-t border-gray-100 pt-4 dark:border-zinc-700/50">
+    <div className="border-line-1 mt-4 border-t pt-4">
       <Button
         icon={<Volume2 size={14} />}
         onClick={() => setShowCloneForm(!showCloneForm)}
@@ -290,14 +290,14 @@ export const VoiceClonePanel = ({
       </Button>
 
       {showCloneForm && (
-        <div className="mt-3 space-y-4 rounded-lg bg-gray-50/80 p-4 dark:bg-zinc-800/30">
+        <div className="border-line-1 rounded-tau-md mt-3 space-y-4 border p-4">
           <TextStrong className="mb-2 block">音色克隆列表</TextStrong>
 
           <div className="max-h-[40vh] space-y-3 overflow-y-auto pr-1">
             {cloneItems.map((item, index) => (
               <div
                 key={item.id}
-                className="space-y-3 rounded-lg bg-white p-4 shadow-[0_0_0_1px_rgba(34,42,53,0.08),0_1px_2px_rgba(0,0,0,0.04)] dark:bg-zinc-900 dark:shadow-[0_0_0_1px_rgba(255,255,255,0.06)]"
+                className="border-line-1 bg-surface rounded-tau-md space-y-3 border p-4"
               >
                 <div className="flex items-center justify-between">
                   <TextStrong>音色 {index + 1}</TextStrong>
@@ -327,12 +327,10 @@ export const VoiceClonePanel = ({
                     error={!!item.voiceIdError}
                   />
                   {item.voiceIdError && (
-                    <div className="mt-1 text-xs text-red-600 dark:text-red-400">
-                      {item.voiceIdError}
-                    </div>
+                    <div className="text-danger text-tau-sm mt-1">{item.voiceIdError}</div>
                   )}
                   {item.voiceId && !item.voiceIdError && item.voiceId.length >= 8 && (
-                    <div className="text-status-success mt-1 text-xs">✓ Voice ID 格式正确</div>
+                    <div className="text-ok text-tau-sm mt-1">✓ Voice ID 格式正确</div>
                   )}
                 </div>
 
@@ -370,7 +368,7 @@ export const VoiceClonePanel = ({
                       {item.audioFiles.map(file => (
                         <div
                           key={file.id}
-                          className="flex items-center justify-between gap-2 rounded-md bg-gray-50 px-2.5 py-1.5 text-xs dark:bg-zinc-800/40"
+                          className="border-line-1 rounded-tau-sm text-tau-sm flex items-center justify-between gap-2 border px-2.5 py-1.5"
                         >
                           <span className="flex-1 truncate">{file.name}</span>
                           <Button
