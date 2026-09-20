@@ -18,6 +18,7 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import AnswerModal from "@/components/AnswerModal";
 import TodoDetailsPanel from "@/components/Todo/Details/DetailsPanel";
 import { Editor } from "@tau/editor/src";
+import { toast } from "@tau/ui";
 import useFlashcardStore from "@/stores/useFlashcardStore";
 import useRightChatSidebarStore from "@/stores/useRightChatSidebarStore";
 import { useTodoStore } from "@/stores/useTodoStore";
@@ -516,7 +517,7 @@ const RightComponentsSidebar = memo(() => {
   const handleStartDeckReview = async (deckId: number) => {
     const queue = await queueReviews({ deckId, limit: 30 });
     if (queue.length === 0) {
-      window.alert("这个卡组当前没有需要复习的闪卡");
+      toast.info("这个卡组当前没有需要复习的闪卡");
       void refreshWorkbenchReviewQueue();
       return;
     }
@@ -685,7 +686,7 @@ const RightComponentsSidebar = memo(() => {
                   onRefresh={async () => {
                     const queue = await refreshWorkbenchReviewQueue();
                     if (queue.length === 0) {
-                      window.alert("当前没有需要复习的闪卡");
+                      toast.info("当前没有需要复习的闪卡");
                     }
                   }}
                   onStartDeckReview={handleStartDeckReview}

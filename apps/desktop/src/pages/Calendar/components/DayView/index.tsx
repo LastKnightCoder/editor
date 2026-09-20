@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from "react";
+import { toast } from "@tau/ui";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { useCalendarEvents, useAllDayEvents, useTimedEvents } from "@/hooks/useCalendarEvents";
 import { useEventOverlap } from "@/hooks/useEventOverlap";
@@ -82,7 +83,7 @@ const DayView = () => {
   // 拖拽创建事件 - 直接打开侧边弹窗
   const handleTimeSlotSelect = (startMinutes: number, endMinutes: number) => {
     if (calendars.length === 0) {
-      alert("请先创建一个日历");
+      toast.warning("请先创建一个日历");
       return;
     }
 

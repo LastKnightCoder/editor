@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { AutoComplete } from "antd";
+import { toast } from "@tau/ui";
 import { MdClose } from "react-icons/md";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { Calendar } from "@/types";
@@ -43,7 +44,7 @@ const EditCalendarDialog = ({ calendar, onClose }: EditCalendarDialogProps) => {
     e.preventDefault();
 
     if (!title.trim()) {
-      alert("请输入日历名称");
+      toast.warning("请输入日历名称");
       return;
     }
 

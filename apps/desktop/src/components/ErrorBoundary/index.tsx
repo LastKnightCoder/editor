@@ -9,10 +9,7 @@ interface IErrorBoundaryState {
   error: string;
 }
 
-class ErrorBoundary extends React.Component<
-  IErrorBoundaryProps,
-  IErrorBoundaryState
-> {
+class ErrorBoundary extends React.Component<IErrorBoundaryProps, IErrorBoundaryState> {
   constructor(props: IErrorBoundaryProps) {
     super(props);
     this.state = { error: "" };
@@ -26,7 +23,11 @@ class ErrorBoundary extends React.Component<
   render() {
     const { error } = this.state;
     if (error) {
-      return <div>{error}</div>;
+      return (
+        <div className="text-danger bg-danger-soft rounded-tau-sm text-tau-sm px-3 py-2">
+          {error}
+        </div>
+      );
     } else {
       return <>{this.props.children}</>;
     }
