@@ -1,17 +1,14 @@
-import { memo, useCallback, useMemo, useRef, useState } from "react";
-import { Descendant } from "slate";
-import { Button, message } from "antd";
-import { IoClose } from "react-icons/io5";
-import classNames from "classnames";
+import { memo, useCallback, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import type { Descendant } from "slate";
+import { X } from "lucide-react";
+import { Button as TauButton, toast } from "@tau/ui";
 import { useLocalStorageState } from "ahooks";
 
 import { Editor } from "@tau/editor/src";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
-import styles from "./index.module.less";
-import TabsIndicator, { TabItem } from "../TabsIndicator";
 import { produce } from "immer";
-import CustomModal from "@/components/CustomModal";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 
 interface ExportConfig {
@@ -24,58 +21,50 @@ interface ExportConfig {
 const DARK_THEME_CONFIGS: ExportConfig[] = [
   {
     name: "夜色静谧",
-    background:
-      "linear-gradient(135deg,rgb(27, 27, 31) 0%,rgb(33, 31, 32) 100%)",
+    background: "linear-gradient(135deg,rgb(27, 27, 31) 0%,rgb(33, 31, 32) 100%)",
     theme: "dark",
     width: 600,
   },
   {
     name: "晨光微澜",
-    background:
-      "linear-gradient(135deg,rgb(78, 77, 132) 0%,rgb(141, 107, 115) 100%)",
+    background: "linear-gradient(135deg,rgb(78, 77, 132) 0%,rgb(141, 107, 115) 100%)",
     theme: "dark",
     width: 600,
   },
   {
     name: "日落余晖",
-    background:
-      "linear-gradient(135deg,rgb(148, 109, 59) 0%,rgb(150, 148, 41) 100%)",
+    background: "linear-gradient(135deg,rgb(148, 109, 59) 0%,rgb(150, 148, 41) 100%)",
     theme: "dark",
     width: 600,
   },
   {
     name: "海洋之歌",
-    background:
-      "linear-gradient(135deg,rgb(50, 84, 124) 0%,rgb(33, 43, 133) 100%)",
+    background: "linear-gradient(135deg,rgb(50, 84, 124) 0%,rgb(33, 43, 133) 100%)",
     theme: "dark",
     width: 600,
   },
 
   {
     name: "星空幻境",
-    background:
-      "linear-gradient(135deg,rgb(44, 62, 80) 0%,rgb(76, 73, 141) 100%)",
+    background: "linear-gradient(135deg,rgb(44, 62, 80) 0%,rgb(76, 73, 141) 100%)",
     theme: "dark",
     width: 600,
   },
   {
     name: "暗夜森林",
-    background:
-      "linear-gradient(135deg,rgb(30, 60, 40) 0%,rgb(40, 80, 60) 100%)",
+    background: "linear-gradient(135deg,rgb(30, 60, 40) 0%,rgb(40, 80, 60) 100%)",
     theme: "dark",
     width: 600,
   },
   {
     name: "炽热熔岩",
-    background:
-      "linear-gradient(135deg,rgb(101, 31, 35) 0%,rgb(178, 53, 42) 100%)",
+    background: "linear-gradient(135deg,rgb(101, 31, 35) 0%,rgb(178, 53, 42) 100%)",
     theme: "dark",
     width: 600,
   },
   {
     name: "紫罗秘境",
-    background:
-      "linear-gradient(135deg,rgb(74, 47, 90) 0%,rgb(128, 72, 144) 100%)",
+    background: "linear-gradient(135deg,rgb(74, 47, 90) 0%,rgb(128, 72, 144) 100%)",
     theme: "dark",
     width: 600,
   },
@@ -90,50 +79,43 @@ const LIGHT_THEME_CONFIGS: ExportConfig[] = [
   },
   {
     name: "梦幻晨曦",
-    background:
-      "linear-gradient(135deg,rgb(190, 214, 253) 0%,rgb(203, 176, 246) 100%)",
+    background: "linear-gradient(135deg,rgb(190, 214, 253) 0%,rgb(203, 176, 246) 100%)",
     theme: "light",
     width: 600,
   },
   {
     name: "晴空微澜",
-    background:
-      "linear-gradient(135deg,rgb(161, 218, 251) 0%,rgb(117, 149, 255) 100%)",
+    background: "linear-gradient(135deg,rgb(161, 218, 251) 0%,rgb(117, 149, 255) 100%)",
     theme: "light",
     width: 600,
   },
   {
     name: "紫气东来",
-    background:
-      "linear-gradient(135deg,rgb(218, 205, 252) 0%,rgb(168, 143, 255) 100%)",
+    background: "linear-gradient(135deg,rgb(218, 205, 252) 0%,rgb(168, 143, 255) 100%)",
     theme: "light",
     width: 600,
   },
   {
     name: "粉樱飞舞",
-    background:
-      "linear-gradient(135deg,rgb(255, 182, 193) 0%,rgb(255, 160, 200) 100%)",
+    background: "linear-gradient(135deg,rgb(255, 182, 193) 0%,rgb(255, 160, 200) 100%)",
     theme: "light",
     width: 600,
   },
   {
     name: "柠檬清香",
-    background:
-      "linear-gradient(135deg,rgb(255, 253, 150) 0%,rgb(205, 255, 176) 100%)",
+    background: "linear-gradient(135deg,rgb(255, 253, 150) 0%,rgb(205, 255, 176) 100%)",
     theme: "light",
     width: 600,
   },
   {
     name: "蜜桃甜心",
-    background:
-      "linear-gradient(135deg,rgb(255, 218, 185) 0%,rgb(255, 176, 176) 100%)",
+    background: "linear-gradient(135deg,rgb(255, 218, 185) 0%,rgb(255, 176, 176) 100%)",
     theme: "light",
     width: 600,
   },
   {
     name: "薄荷清凉",
-    background:
-      "linear-gradient(135deg,rgb(152, 251, 152) 0%,rgb(135, 206, 235) 100%)",
+    background: "linear-gradient(135deg,rgb(152, 251, 152) 0%,rgb(135, 206, 235) 100%)",
     theme: "light",
     width: 600,
   },
@@ -150,17 +132,14 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
   const { open, onClose, content, title } = props;
   const previewRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
-  const extensions = useDynamicExtensionsStore((state) => state.extensions);
+  const extensions = useDynamicExtensionsStore(state => state.extensions);
 
   const currentDarkTheme = useRef(DARK_THEME_CONFIGS[0]);
   const currentLightTheme = useRef(LIGHT_THEME_CONFIGS[0]);
 
-  const [exportConfig, setExportConfig] = useLocalStorageState<ExportConfig>(
-    "export-config",
-    {
-      defaultValue: DARK_THEME_CONFIGS[0],
-    },
-  );
+  const [exportConfig, setExportConfig] = useLocalStorageState<ExportConfig>("export-config", {
+    defaultValue: DARK_THEME_CONFIGS[0],
+  });
 
   const { background, theme, width } = exportConfig as ExportConfig;
 
@@ -184,8 +163,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
       mask.style.justifyContent = "center";
       mask.style.zIndex = "1000";
       mask.style.borderRadius = "8px";
-      mask.innerHTML =
-        '<div data-mask style="color: #666; font-size: 14px;">正在生成图片...</div>';
+      mask.innerHTML = '<div data-mask style="color: #666; font-size: 14px;">正在生成图片...</div>';
 
       // 找到预览区域的父容器
       const previewContainer = originalElement.parentElement;
@@ -203,13 +181,13 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
       originalElement.style.overflow = "visible";
 
       // 等待DOM更新和动态元素渲染
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       const blob = await captureBlobWithSnapdom(originalElement, {
         dpr: window.devicePixelRatio || 1,
         type: "png",
         quality: 0.95,
-        filter: (element) => {
+        filter: element => {
           // 返回 false 表示排除，true 表示保留
           const shouldIgnore =
             element === mask ||
@@ -239,10 +217,10 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
       link.click();
       URL.revokeObjectURL(link.href);
 
-      message.success("图片导出成功");
+      toast.success("图片导出成功");
     } catch (error) {
       console.error("Export failed:", error);
-      message.error("导出失败，请重试");
+      toast.error("导出失败，请重试");
 
       // 确保恢复状态
       if (previewRef.current) {
@@ -251,7 +229,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
 
         // 清理可能残留的遮罩层
         const masks = document.querySelectorAll("div[data-mask]");
-        masks.forEach((mask) => {
+        masks.forEach(mask => {
           if (mask.parentElement) {
             mask.parentElement.removeChild(mask);
           }
@@ -265,7 +243,7 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
   const handleChangeTheme = useCallback(
     (theme: "light" | "dark") => {
       if (!exportConfig) return;
-      const newConfig = produce(exportConfig, (draft) => {
+      const newConfig = produce(exportConfig, draft => {
         draft.theme = theme;
         draft.background =
           theme === "dark"
@@ -275,19 +253,19 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
       });
       setExportConfig(newConfig);
     },
-    [currentDarkTheme, currentLightTheme, exportConfig, setExportConfig],
+    [currentDarkTheme, currentLightTheme, exportConfig, setExportConfig]
   );
 
   const handleChangeWidth = useCallback(
     (widthStr: string) => {
       if (!exportConfig) return;
       const width = parseInt(widthStr, 10);
-      const newConfig = produce(exportConfig, (draft) => {
+      const newConfig = produce(exportConfig, draft => {
         draft.width = width;
       });
       setExportConfig(newConfig);
     },
-    [exportConfig, setExportConfig],
+    [exportConfig, setExportConfig]
   );
 
   const handleSelectConfig = useCallback(
@@ -298,67 +276,43 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
         currentLightTheme.current = config;
       }
       // 保留当前的 width 设置
-      const newConfig = produce(config, (draft) => {
+      const newConfig = produce(config, draft => {
         draft.width = exportConfig?.width ?? 600;
       });
       setExportConfig(newConfig);
     },
-    [currentDarkTheme, currentLightTheme, exportConfig, setExportConfig],
+    [currentDarkTheme, currentLightTheme, exportConfig, setExportConfig]
   );
 
-  const tabs = useMemo(() => {
-    return [
-      {
-        key: "dark",
-        label: "深色主题",
-      },
-      {
-        key: "light",
-        label: "浅色主题",
-      },
-    ] as TabItem<"light" | "dark">[];
-  }, []);
+  const widthOptions = [
+    { key: "375", label: "移动端" },
+    { key: "600", label: "桌面端" },
+  ];
 
-  const widthTabs = useMemo(() => {
-    return [
-      {
-        key: "375",
-        label: "移动端",
-      },
-      {
-        key: "600",
-        label: "桌面端",
-      },
-    ] as TabItem<string>[];
-  }, []);
+  const themeOptions = [
+    { key: "dark", label: "深色主题" },
+    { key: "light", label: "浅色主题" },
+  ];
 
-  return (
-    <CustomModal
-      open={open}
-      onCancel={onClose}
-      footer={null}
-      width={1200}
-      className={styles.cardExportModal}
-      destroyOnClose
-      closeIcon={null}
-      bodyClassName="p-0"
-      contentClassName="p-0 bg-transparent shadow-none border-none !max-h-[80vh] h-[80vh]"
-      overlayClassName="bg-black/60"
+  if (!open) return null;
+
+  const presetConfigs = theme === "dark" ? DARK_THEME_CONFIGS : LIGHT_THEME_CONFIGS;
+
+  return createPortal(
+    <div
+      className="bg-overlay fixed inset-0 z-[340] grid place-items-center p-8 backdrop-blur-[4px]"
+      onClick={onClose}
     >
-      <div className="flex h-full bg-gray-50 dark:bg-zinc-900 rounded-xl overflow-hidden shadow-2xl">
-        <div
-          className={classNames(
-            "flex-1 p-6 flex items-center justify-center bg-gray-100 dark:bg-zinc-800",
-            styles.previewArea,
-          )}
-        >
-          <div className="relative max-h-full overflow-auto">
+      <div
+        className="border-line-1 bg-surface shadow-float rounded-tau-lg flex h-[80vh] max-h-full w-[1200px] max-w-full overflow-hidden border"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* 预览区 */}
+        <div className="bg-page flex flex-1 items-center justify-center p-6">
+          <div className="max-h-full overflow-auto">
             <div
               ref={previewRef}
-              className={classNames(
-                "p-8 rounded-lg shadow-lg",
-                styles.previewContent,
-              )}
+              className="rounded-tau-md shadow-card p-8"
               style={{
                 background: background,
                 width: `${width}px`,
@@ -366,10 +320,9 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
             >
               {title && (
                 <div
-                  className={classNames(
-                    "mb-4 text-xl font-semibold text-center",
-                    theme === "dark" ? "text-white" : "text-black",
-                  )}
+                  className={`mb-4 text-center text-xl font-semibold ${
+                    theme === "dark" ? "text-white" : "text-black"
+                  }`}
                 >
                   {title}
                 </div>
@@ -384,95 +337,107 @@ const ContentExportModal = memo((props: ContentExportModalProps) => {
           </div>
         </div>
 
-        <div
-          className={classNames(
-            "w-80 bg-white dark:bg-zinc-900 border-l border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden",
-            styles.configPanel,
-          )}
-        >
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-              导出设置
-            </h3>
+        {/* 配置面板 */}
+        <div className="border-line-1 bg-surface flex w-80 shrink-0 flex-col border-l">
+          <div className="border-line-1 flex items-center justify-between border-b px-4 py-3.5">
+            <h3 className="text-ink-1 text-tau-body font-[600]">导出设置</h3>
             <button
+              type="button"
+              aria-label="关闭"
               onClick={onClose}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-500 dark:text-gray-400 transition-all duration-200 hover:scale-110"
+              className="text-ink-3 hover:bg-hover hover:text-ink-1 rounded-tau-sm grid size-7 place-items-center transition-colors"
             >
-              <IoClose size={18} />
+              <X className="size-4" strokeWidth={1.75} />
             </button>
           </div>
 
-          <div className="flex-1 min-h-0 p-4 space-y-6">
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
             <div>
-              <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                宽度
+              <div className="text-ink-1 text-tau-meta mb-2 font-medium">宽度</div>
+              <div className="flex gap-1.5">
+                {widthOptions.map(item => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    aria-pressed={String(width) === item.key}
+                    onClick={() => handleChangeWidth(item.key)}
+                    className={`text-tau-sm ease-tau-out rounded-full px-3 py-1 font-medium transition-colors ${
+                      String(width) === item.key
+                        ? "bg-accent-soft text-accent-text"
+                        : "text-ink-3 hover:bg-hover hover:text-ink-2"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </div>
-              <TabsIndicator
-                tabs={widthTabs}
-                activeTab={String(width)}
-                onChange={handleChangeWidth}
-              />
             </div>
 
             <div>
-              <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                主题
+              <div className="text-ink-1 text-tau-meta mb-2 font-medium">主题</div>
+              <div className="flex gap-1.5">
+                {themeOptions.map(item => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    aria-pressed={theme === item.key}
+                    onClick={() => handleChangeTheme(item.key as "light" | "dark")}
+                    className={`text-tau-sm ease-tau-out rounded-full px-3 py-1 font-medium transition-colors ${
+                      theme === item.key
+                        ? "bg-accent-soft text-accent-text"
+                        : "text-ink-3 hover:bg-hover hover:text-ink-2"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </div>
-              <TabsIndicator
-                tabs={tabs}
-                activeTab={theme}
-                onChange={handleChangeTheme}
-              />
-              <div className="grid grid-cols-2 gap-2 mt-3">
-                {theme === "dark"
-                  ? DARK_THEME_CONFIGS.map((preset) => (
-                      <div
-                        key={preset.name}
-                        className="h-15 flex items-center justify-center rounded-lg cursor-pointer text-white"
-                        style={{
-                          background: preset.background,
-                        }}
-                        onClick={() => {
-                          handleSelectConfig(preset);
-                        }}
-                      >
-                        {preset.name}
-                      </div>
-                    ))
-                  : LIGHT_THEME_CONFIGS.map((preset) => (
-                      <div
-                        key={preset.name}
-                        className="h-15 flex items-center justify-center rounded-lg cursor-pointer text-black"
-                        style={{
-                          background: preset.background,
-                        }}
-                        onClick={() => {
-                          handleSelectConfig(preset);
-                        }}
-                      >
-                        {preset.name}
-                      </div>
-                    ))}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {presetConfigs.map(preset => {
+                  const active = background === preset.background;
+                  return (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => handleSelectConfig(preset)}
+                      className={`rounded-tau-md text-tau-sm flex h-14 cursor-pointer items-center justify-center transition-shadow ${
+                        theme === "dark" ? "text-white" : "text-black"
+                      } ${
+                        active
+                          ? "shadow-[0_0_0_2px_var(--tau-surface),0_0_0_4px_var(--tau-accent)]"
+                          : "hover:shadow-[0_0_0_2px_var(--tau-surface),0_0_0_3.5px_var(--tau-ink-3)]"
+                      }`}
+                      style={{ background: preset.background }}
+                    >
+                      {preset.name}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
 
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-            <Button
+          <div className="border-line-1 border-t p-4">
+            <TauButton
+              variant="primary"
               onClick={handleExport}
               loading={exporting}
-              className="w-full rounded-full! h-12! border-none!"
+              loadingText="导出中..."
+              block
+              className="h-11 rounded-full"
               style={{
                 background,
                 color: theme === "dark" ? "#fff" : "#000",
               }}
             >
-              {exporting ? "导出中..." : "导出图片"}
-            </Button>
+              导出图片
+            </TauButton>
           </div>
         </div>
       </div>
-    </CustomModal>
+    </div>,
+    document.body
   );
 });
 

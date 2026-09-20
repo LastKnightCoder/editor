@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { App } from "antd";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import type { Descendant } from "slate";
+import { BookOpen } from "lucide-react";
+import { Button, Dialog, Input, Textarea, toast } from "@tau/ui";
 import { readBinaryFile, selectFile, showInFolder } from "@/commands";
-import CustomModal from "@/components/CustomModal";
 import type { EpubMetadataInput } from "@/types";
 import { resolveLocalMediaPath } from "@/utils/localMediaPath";
 import { remoteResourceToLocal } from "@/utils/resouce";
@@ -22,6 +22,9 @@ interface EpubExportModalProps {
 }
 
 const STORAGE_KEY = "epub-export-metadata-remembered";
+
+/** 表单字段标签，口径与 ui/patterns 的 FormField 一致 */
+const FIELD_LABEL = "text-ink-1 text-tau-meta font-medium";
 
 const normalizeText = (value?: string) => (value || "").trim();
 const isHttpUrl = (value: string) => /^https?:\/\//i.test(value);
@@ -106,7 +109,6 @@ const sourceToDataUri = async (source: string) => {
 
 const EpubExportModal = (props: EpubExportModalProps) => {
   const { open, onClose, content, title } = props;
-  const { message } = App.useApp();
   const [exporting, setExporting] = useState(false);
   const [coverCandidates, setCoverCandidates] = useState<CoverCandidate[]>([]);
   const [loadingCoverCandidates, setLoadingCoverCandidates] = useState(false);
@@ -251,10 +253,10 @@ const EpubExportModal = (props: EpubExportModalProps) => {
         ...prev,
         coverImageSrc: dataUri,
       }));
-      message.success("封面图已更新");
+      toast.success("封面图已更新");
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      message.error(`读取封面图失败：${msg}`);
+      toast.error(`读取封面图失败：${msg}`);
     }
   });
 
@@ -289,15 +291,15 @@ const EpubExportModal = (props: EpubExportModalProps) => {
     };
 
     if (!normalizedMetadata.title) {
-      message.error("书名不能为空");
+      toast.warning("书名不能为空");
       return;
     }
     if (!normalizedMetadata.author) {
-      message.error("作者不能为空");
+      toast.warning("作者不能为空");
       return;
     }
     if (!normalizedMetadata.language) {
-      message.error("语言不能为空");
+      toast.warning("语言不能为空");
       return;
     }
 
@@ -315,9 +317,9 @@ const EpubExportModal = (props: EpubExportModalProps) => {
       });
 
       if (result.canceled) {
-        message.info("已取消 EPUB 导出");
+        toast.info("已取消 EPUB 导出");
       } else {
-        message.success(
+        toast.success(
           result.filePath ? `EPUB 导出成功，已保存到：${result.filePath}` : "EPUB 导出成功"
         );
         if (result.filePath) {
@@ -328,129 +330,121 @@ const EpubExportModal = (props: EpubExportModalProps) => {
           }
         }
         if (result.warnings.length > 0) {
-          message.warning(`导出完成，但有 ${result.warnings.length} 条警告`);
+          toast.warning(`导出完成，但有 ${result.warnings.length} 条警告`);
           console.warn("EPUB 导出警告:", result.warnings);
         }
       }
       onClose();
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      message.error(`EPUB 导出失败：${msg}`);
+      toast.error(`EPUB 导出失败：${msg}`);
     } finally {
       setExporting(false);
     }
   });
 
   return (
-    <CustomModal
+    <Dialog
       title="导出 EPUB"
+      icon={<BookOpen />}
       subtitle="填写电子书元数据后导出，图片会内嵌，音视频会转换为占位链接。"
       open={open}
-      onCancel={onClose}
-      onOk={handleConfirm}
-      okText="导出"
-      confirmLoading={exporting}
+      onOpenChange={next => {
+        if (!next) onClose();
+      }}
       width={620}
-      bodyClassName="p-5"
-      destroyOnClose={false}
+      locked={exporting}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={exporting}>
+            取消
+          </Button>
+          <Button
+            variant="primary"
+            onClick={handleConfirm}
+            loading={exporting}
+            loadingText="导出中..."
+          >
+            导出
+          </Button>
+        </>
+      }
     >
       <div className="space-y-4">
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-            书名
-          </label>
-          <input
+          <label className={FIELD_LABEL}>书名</label>
+          <Input
             type="text"
             value={metadata.title}
             placeholder="请输入书名"
             onChange={event => onFieldChange("title", event.target.value)}
-            className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-              作者
-            </label>
-            <input
+            <label className={FIELD_LABEL}>作者</label>
+            <Input
               type="text"
               value={metadata.author}
               placeholder="请输入作者"
               onChange={event => onFieldChange("author", event.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
             />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-              语言
-            </label>
-            <input
+            <label className={FIELD_LABEL}>语言</label>
+            <Input
               type="text"
               value={metadata.language}
               placeholder="例如 zh-CN / en"
               onChange={event => onFieldChange("language", event.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
             />
           </div>
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-            简介
-          </label>
-          <textarea
+          <label className={FIELD_LABEL}>简介</label>
+          <Textarea
             value={metadata.description}
             rows={3}
             placeholder="可选，建议一句话简介"
             onChange={event => onFieldChange("description", event.target.value)}
-            className="w-full resize-y rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
           />
         </div>
 
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-              封面图（可选）
-            </label>
+            <label className={FIELD_LABEL}>封面图（可选）</label>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleChooseCoverFromFile}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-900 dark:text-slate-200 dark:hover:bg-zinc-800"
-              >
+              <Button size="sm" variant="secondary" onClick={handleChooseCoverFromFile}>
                 选择本地图片
-              </button>
-              <button
-                type="button"
-                onClick={handleClearCover}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-700 transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-900 dark:text-slate-200 dark:hover:bg-zinc-800"
-              >
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleClearCover}>
                 清除封面
-              </button>
+              </Button>
             </div>
           </div>
 
           {selectedCoverPreview ? (
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 dark:border-slate-700 dark:bg-zinc-950">
+            <div className="border-line-1 bg-surface rounded-tau-md border p-3">
               <img
                 src={selectedCoverPreview}
                 alt="封面预览"
-                className="h-44 w-full rounded-lg object-cover"
+                className="rounded-tau-sm h-44 w-full object-cover"
               />
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-6 text-center text-xs text-gray-500 dark:border-slate-700 dark:bg-zinc-950 dark:text-slate-400">
+            <div className="border-line-2 text-ink-3 rounded-tau-md text-tau-sm border border-dashed px-4 py-6 text-center">
               未选择封面图
             </div>
           )}
 
-          <div className="text-xs text-gray-500 dark:text-slate-400">
+          <div className="text-ink-3 text-tau-sm">
             自动提取正文图片作为候选，导出时会以内嵌图片写入 EPUB。
           </div>
 
           {loadingCoverCandidates ? (
-            <div className="text-xs text-gray-500 dark:text-slate-400">正在提取正文图片...</div>
+            <div className="text-ink-3 text-tau-sm">正在提取正文图片...</div>
           ) : coverCandidates.length > 0 ? (
             <div className="grid grid-cols-3 gap-3">
               {coverCandidates.map(candidate => {
@@ -460,18 +454,18 @@ const EpubExportModal = (props: EpubExportModalProps) => {
                     key={candidate.id}
                     type="button"
                     onClick={() => handleSelectCoverCandidate(candidate)}
-                    className={`rounded-lg border p-1 text-left transition-all ${
+                    className={`rounded-tau-md ease-tau-out border-[1.5px] p-1 text-left transition-colors ${
                       selected
-                        ? "ring-[var(--th-accent)]/30 border-[var(--th-accent)] ring-2"
-                        : "hover:border-[var(--th-border-focus)]/50 border-gray-200 dark:border-slate-700"
+                        ? "border-accent shadow-[0_0_0_2px_var(--tau-accent-soft)]"
+                        : "border-line-1 hover:border-ink-3/50"
                     }`}
                   >
                     <img
                       src={candidate.dataUri}
                       alt={candidate.label}
-                      className="h-20 w-full rounded-md object-cover"
+                      className="rounded-tau-sm h-20 w-full object-cover"
                     />
-                    <div className="truncate px-1 pt-1 text-[11px] text-gray-600 dark:text-slate-300">
+                    <div className="text-ink-2 truncate px-1 pt-1 text-[11px]">
                       {candidate.label}
                     </div>
                   </button>
@@ -479,13 +473,11 @@ const EpubExportModal = (props: EpubExportModalProps) => {
               })}
             </div>
           ) : (
-            <div className="text-xs text-gray-500 dark:text-slate-400">
-              未从正文中提取到可用图片
-            </div>
+            <div className="text-ink-3 text-tau-sm">未从正文中提取到可用图片</div>
           )}
         </div>
       </div>
-    </CustomModal>
+    </Dialog>
   );
 };
 
