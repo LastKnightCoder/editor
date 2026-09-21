@@ -4,7 +4,8 @@
  * 标签增删改经既有 AddTag。无 footer；右上区（× 下方）平铺「进入详情」+
  * More 菜单（域内共享 CardActionMenu；「进入详情」菜单项与演示前落盘为预览
  * 特有差异，经 props 注入）。元数据由卡片查询同步，标签仅提交字段补丁；
- * 正文经 useEditContent 同步。
+ * 正文经 useEditContent 同步。「进入详情」落盘后交 actions.onOpenDetail
+ * （宿主演示为 navigator.push("card-detail")）。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -27,7 +28,6 @@ import type { CardItemActions } from "../types";
 import { Dialog } from "@tau/ui/Dialog";
 import { IconButton } from "@tau/ui/IconButton";
 import { Button } from "@tau/ui/Button";
-import { toast } from "@tau/ui/Toast";
 
 const SAVE_INTERVAL = 500;
 
@@ -144,14 +144,20 @@ export function CardPreviewDialog({
 
   const meta = useMemo(() => {
     if (!editing) return "";
-    return `创建于 ${formatDate(editing.create_time, true)} · 最后修改 ${formatDate(editing.update_time, true)} · ${editing.count} 字`;
+    return [
+      `创建于 ${formatDate(editing.create_time, true)}`,
+      `最后修改 ${formatDate(editing.update_time, true)}`,
+      editing.links.length > 0 ? `${editing.links.length} 连接` : null,
+      `${editing.count} 字`,
+    ]
+      .filter(Boolean)
+      .join(" · ");
   }, [editing]);
 
   const openDetail = async () => {
     await saveCard();
     onOpenChange(false);
-    /* 卡片详情页未迁移，入口保留但降级提示 */
-    toast.info("卡片详情页尚未迁移，敬请期待");
+    if (editing) actions.onOpenDetail(editing);
   };
 
   return (

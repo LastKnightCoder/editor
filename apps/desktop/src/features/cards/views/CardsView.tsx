@@ -10,7 +10,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePageBreadcrumb, usePageStatusBar } from "@/page/PageProvider";
+import { usePage, usePageBreadcrumb, usePageStatusBar } from "@/page/PageProvider";
 import { Download, Layers, PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react";
 import type { Descendant } from "slate";
 import "../cards.css";
@@ -65,6 +65,7 @@ const CATEGORY_ORDER: ("all" | ECardCategory)[] = [
 ];
 
 export function CardsView() {
+  const { navigator } = usePage();
   const feed = useCardsFeed();
   const mutations = useCardsMutations();
   const queryClient = useQueryClient();
@@ -175,7 +176,7 @@ export function CardsView() {
 
   const actions: CardItemActions = {
     onOpen: card => setPreviewCardId(card.id),
-    onOpenDetail: () => toast.info("卡片详情页尚未迁移，敬请期待"),
+    onOpenDetail: card => navigator.push("card-detail", { id: card.id }),
     onToggleTop: card => mutations.toggleTop.mutate({ card, isTop: !card.isTop }),
     onPresent: card => {
       void requireFullCard(card).then(full => full && setPresenting(full));
