@@ -1,10 +1,8 @@
 import React, { memo, useMemo, useRef, useState } from "react";
 import { useDrag, useDrop } from "react-dnd";
-import classnames from "classnames";
-import { MdDelete } from "react-icons/md";
+import { Trash2 } from "lucide-react";
 import { RowData, ColumnDef, CellValue } from "../../types";
 import PluginManager from "../../PluginManager";
-import useThemeColors from "@/hooks/useThemeColors";
 
 interface KanbanCardProps {
   row: RowData;
@@ -62,7 +60,6 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
   }) => {
     const ref = useRef<HTMLDivElement>(null);
     const [isHovered, setIsHovered] = useState(false);
-    const themeColors = useThemeColors();
 
     const [{ isDragging }, drag] = useDrag({
       type: "kanban-card",
@@ -123,22 +120,17 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         style={{ opacity: isDragging ? 0.5 : 1 }}
-        className={classnames(
-          "group relative cursor-pointer rounded-xl border p-3 shadow-sm transition-all hover:-translate-y-[1px] hover:shadow-md",
-          themeColors.cardBgClass,
-          themeColors.hoverClass,
-          "border-black/6 dark:border-white/8"
-        )}
+        className="bg-surface border-line-1 shadow-card rounded-tau-md ease-tau-out hover:shadow-float group relative cursor-pointer border p-3 transition-shadow duration-[160ms]"
       >
         {!readonly && onDelete && isHovered && (
           <div
-            className="absolute right-2 top-2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
+            className="text-ink-3 hover:bg-danger-soft hover:text-danger rounded-tau-sm absolute right-2 top-2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center transition-colors"
             onClick={e => {
               e.stopPropagation();
               onDelete();
             }}
           >
-            <MdDelete className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" strokeWidth={1.75} />
           </div>
         )}
         <div className="space-y-2">
@@ -161,7 +153,7 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
             })()}
 
           {(doneColumn || fieldColumns.some(col => !isEmptyFieldValue(row[col.id]))) && (
-            <div className="border-black/6 dark:border-white/8 space-y-1.5 border-t pt-2">
+            <div className="border-line-2 space-y-1.5 border-t pt-2">
               {doneColumn && (
                 <div
                   className="flex items-center gap-2"
@@ -170,11 +162,7 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
                   }}
                 >
                   {showFieldLabels && (
-                    <span
-                      className={classnames("shrink-0 text-[11px]", themeColors.secondaryTextClass)}
-                    >
-                      {doneColumn.title}
-                    </span>
+                    <span className="text-tau-micro text-ink-2 shrink-0">{doneColumn.title}</span>
                   )}
                   {(() => {
                     const plugin = pluginManager.getPlugin(doneColumn.type);
@@ -206,12 +194,7 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
                 return (
                   <div key={column.id} className="flex items-start gap-2">
                     {showFieldLabels && (
-                      <span
-                        className={classnames(
-                          "shrink-0 pt-0.5 text-[11px]",
-                          themeColors.secondaryTextClass
-                        )}
-                      >
+                      <span className="text-tau-micro text-ink-2 shrink-0 pt-0.5">
                         {column.title}
                       </span>
                     )}

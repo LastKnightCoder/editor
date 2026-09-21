@@ -1,7 +1,5 @@
 import React, { memo } from "react";
-import classNames from "classnames";
-import { MdAdd } from "react-icons/md";
-import useThemeColors from "@/hooks/useThemeColors";
+import { Plus } from "lucide-react";
 
 interface AddCardProps {
   onClick: () => void;
@@ -9,23 +7,15 @@ interface AddCardProps {
 }
 
 const AddCard: React.FC<AddCardProps> = memo(({ onClick }) => {
-  const themeColors = useThemeColors();
-
   return (
     <div
-      className={classNames(
-        "h-[240px] rounded-lg cursor-pointer transition-all duration-300 bg-transparent border-2 border-dashed flex flex-col items-center justify-center gap-2",
-        themeColors.borderClass,
-        themeColors.secondaryTextClass,
-        themeColors.hoverBorderClass,
-        themeColors.hoverTextClass,
-      )}
+      className="border-line-1 text-ink-2 hover:border-ink-3 hover:text-ink-1 hover:bg-hover rounded-tau-md flex h-[240px] cursor-pointer flex-col items-center justify-center gap-2 border-2 border-dashed bg-transparent transition-colors"
       onClick={onClick}
     >
-      <div className="text-5xl flex items-center justify-center">
-        <MdAdd />
+      <div className="flex items-center justify-center">
+        <Plus className="size-8" strokeWidth={1.75} />
       </div>
-      <div className="text-sm font-medium">新页面</div>
+      <div className="text-tau-sm font-medium">新页面</div>
     </div>
   );
 });

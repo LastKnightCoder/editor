@@ -1,12 +1,12 @@
 import React, { memo, useState, useMemo, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
-import { App } from "antd";
 import { useDatabaseStore } from "../../hooks";
 import PluginManager from "../../PluginManager";
 import { RowData, ColumnDef, CellValue, SelectOption, DatabaseConfig } from "../../types";
 import KanbanColumn from "./KanbanColumn";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
+import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
 import { v4 as uuidv4 } from "uuid";
 import { resolveKanbanCardDisplay } from "./cardDisplayConfig";
 interface KanbanViewProps {
@@ -21,7 +21,7 @@ interface KanbanViewProps {
 
 const KanbanView: React.FC<KanbanViewProps> = memo(
   ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, onRowDelete, config }) => {
-    const { modal } = App.useApp();
+    const [confirmDeleteRowId, setConfirmDeleteRowId] = useState<string | null>(null);
 
     const {
       columns,
@@ -194,16 +194,7 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
         onRowDelete(rowId);
       } else {
         // 否则显示确认对话框后使用内部的 deleteRow
-        modal.confirm({
-          title: "删除卡片",
-          content: "确定要删除该卡片吗？",
-          okButtonProps: {
-            danger: true,
-          },
-          onOk: () => {
-            deleteRow(rowId);
-          },
-        });
+        setConfirmDeleteRowId(rowId);
       }
     });
 
@@ -233,10 +224,10 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
 
     if (!groupColumn || groupColumn.type !== "select") {
       return (
-        <div className="flex h-full w-full items-center justify-center text-gray-500">
+        <div className="text-ink-2 flex h-full w-full items-center justify-center">
           <div className="text-center">
-            <div className="mb-2 text-lg">无法显示看板视图</div>
-            <div className="text-sm">
+            <div className="text-ink-1 text-tau-body-lg mb-2 font-medium">无法显示看板视图</div>
+            <div className="text-tau-sm text-ink-3">
               {!groupColumn ? "未配置分组列" : "分组列类型必须是单选类型"}
             </div>
           </div>
@@ -310,6 +301,21 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
             pluginManager={pluginManager}
           />
         )}
+        <ConfirmDialog
+          open={confirmDeleteRowId !== null}
+          onOpenChange={open => {
+            if (!open) setConfirmDeleteRowId(null);
+          }}
+          title="删除卡片"
+          impact="确定要删除该卡片吗？"
+          danger
+          confirmText="删除"
+          onConfirm={() => {
+            const rowId = confirmDeleteRowId;
+            if (!rowId) return;
+            deleteRow(rowId);
+          }}
+        />
       </div>
     );
   }

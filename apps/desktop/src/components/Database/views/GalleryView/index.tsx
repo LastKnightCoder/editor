@@ -1,6 +1,5 @@
 import React, { memo, useState, useRef, useEffect, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { App } from "antd";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useDatabaseStore } from "../../hooks";
 import PluginManager from "../../PluginManager";
@@ -9,6 +8,7 @@ import GalleryCard from "./GalleryCard";
 import AddCard from "./AddCard";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
+import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
 import { v4 as uuidv4 } from "uuid";
 const emptyOnCellChange = () => {
   // no-op
@@ -26,7 +26,7 @@ interface GalleryViewProps {
 
 const GalleryView: React.FC<GalleryViewProps> = memo(
   ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, onRowDelete, config }) => {
-    const { modal } = App.useApp();
+    const [confirmDeleteRowId, setConfirmDeleteRowId] = useState<string | null>(null);
 
     const {
       columns,
@@ -150,16 +150,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
       if (onRowDelete) {
         onRowDelete(rowId);
       } else {
-        modal.confirm({
-          title: "删除行",
-          content: "确定要删除该行吗？",
-          okButtonProps: {
-            danger: true,
-          },
-          onOk: () => {
-            deleteRow(rowId);
-          },
-        });
+        setConfirmDeleteRowId(rowId);
       }
     });
 
@@ -183,7 +174,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
                 onCellValueChange={emptyOnCellChange}
               />
             </div>
-            <span className="text-sm font-normal text-gray-500">{group.rows.length}</span>
+            <span className="text-tau-sm text-ink-3 tabular-nums">{group.rows.length}</span>
           </div>
         );
       }
@@ -394,6 +385,21 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
             pluginManager={pluginManager}
           />
         )}
+        <ConfirmDialog
+          open={confirmDeleteRowId !== null}
+          onOpenChange={open => {
+            if (!open) setConfirmDeleteRowId(null);
+          }}
+          title="删除行"
+          impact="确定要删除该行吗？"
+          danger
+          confirmText="删除"
+          onConfirm={() => {
+            const rowId = confirmDeleteRowId;
+            if (!rowId) return;
+            deleteRow(rowId);
+          }}
+        />
       </div>
     );
   }
