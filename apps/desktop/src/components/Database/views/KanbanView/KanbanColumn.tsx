@@ -1,12 +1,10 @@
 import React, { memo, useRef } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import classnames from "classnames";
 import { RowData, ColumnDef, CellValue } from "../../types";
 import PluginManager from "../../PluginManager";
 import KanbanCard from "./KanbanCard";
 import AddCard from "./AddCard";
-import useThemeColors from "@/hooks/useThemeColors";
 
 interface KanbanColumnProps {
   groupValue: CellValue;
@@ -64,7 +62,6 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
   }) => {
     const ref = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const themeColors = useThemeColors();
 
     const [{ isDragging }, drag] = useDrag({
       type: "kanban-column",
@@ -108,7 +105,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
     const renderHeader = () => {
       // 对于"未分类"列，直接显示文字
       if (groupValue === null || groupValue === undefined || groupValue === "") {
-        return <span className={themeColors.secondaryTextClass}>{groupLabel}</span>;
+        return <span className="text-ink-2">{groupLabel}</span>;
       }
 
       // 对于有值的列，使用 SelectPlugin 的 Renderer
@@ -136,20 +133,12 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
           width: "308px",
           opacity: isDragging ? 0.5 : 1,
         }}
-        className={classnames(
-          "flex h-full shrink-0 flex-col rounded-2xl p-2",
-          "bg-black/[0.03] dark:bg-white/[0.04]"
-        )}
+        className="bg-group rounded-tau-lg flex h-full shrink-0 flex-col p-2"
       >
         {/* 列头 */}
         <div className="mb-1 flex items-center justify-between px-2 py-2">
-          <div className="flex items-center gap-2 font-medium">{renderHeader()}</div>
-          <span
-            className={classnames(
-              "rounded-full bg-black/[0.06] px-2 py-0.5 text-xs dark:bg-white/[0.08]",
-              themeColors.secondaryTextClass
-            )}
-          >
+          <div className="text-ink-1 flex items-center gap-2 font-medium">{renderHeader()}</div>
+          <span className="bg-page text-ink-3 text-tau-sm rounded-full px-2 py-0.5 tabular-nums">
             {rows.length}
           </span>
         </div>

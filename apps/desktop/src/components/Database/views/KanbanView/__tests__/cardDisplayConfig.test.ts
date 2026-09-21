@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ColumnDef, KanbanViewConfig } from "../../../types";
-import {
-  getTemplateDefaultCardDisplay,
-  resolveKanbanCardDisplay,
-} from "../cardDisplayConfig";
+import { getTemplateDefaultCardDisplay, resolveKanbanCardDisplay } from "../cardDisplayConfig";
 
 const columns: ColumnDef[] = [
   { id: "title", title: "标题", type: "text", isPrimary: true },
@@ -17,16 +14,7 @@ const columns: ColumnDef[] = [
 ];
 
 const viewConfig = {
-  columnOrder: [
-    "title",
-    "status",
-    "tags",
-    "done",
-    "notes",
-    "priority",
-    "hiddenText",
-    "cover",
-  ],
+  columnOrder: ["title", "status", "tags", "done", "notes", "priority", "hiddenText", "cover"],
 };
 
 describe("cardDisplayConfig", () => {

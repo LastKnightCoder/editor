@@ -45,31 +45,26 @@ export interface ResolvedKanbanCardDisplay {
   candidateFields: ColumnDef[];
 }
 
-const normalizeTemplate = (
-  template?: KanbanCardDisplayConfig["template"],
-): KanbanCardTemplate => {
+const normalizeTemplate = (template?: KanbanCardDisplayConfig["template"]): KanbanCardTemplate => {
   if (template === "compact" || template === "task" || template === "detail") {
     return template;
   }
   return DEFAULT_KANBAN_TEMPLATE;
 };
 
-const getOrderedColumns = (
-  columns: ColumnDef[],
-  columnOrder: string[],
-): ColumnDef[] => {
-  const columnMap = new Map(columns.map((column) => [column.id, column]));
+const getOrderedColumns = (columns: ColumnDef[], columnOrder: string[]): ColumnDef[] => {
+  const columnMap = new Map(columns.map(column => [column.id, column]));
   const orderedColumns: ColumnDef[] = [];
   const usedColumnIds = new Set<string>();
 
-  columnOrder.forEach((columnId) => {
+  columnOrder.forEach(columnId => {
     const column = columnMap.get(columnId);
     if (!column || usedColumnIds.has(column.id)) return;
     orderedColumns.push(column);
     usedColumnIds.add(column.id);
   });
 
-  columns.forEach((column) => {
+  columns.forEach(column => {
     if (usedColumnIds.has(column.id)) return;
     orderedColumns.push(column);
   });
@@ -79,47 +74,37 @@ const getOrderedColumns = (
 
 const resolveDoneColumnId = (
   orderedColumns: ColumnDef[],
-  preferredDoneColumnId?: string,
+  preferredDoneColumnId?: string
 ): string | undefined => {
   if (preferredDoneColumnId) {
     const doneColumn = orderedColumns.find(
-      (column) =>
-        column.id === preferredDoneColumnId &&
-        column.type === "checkbox" &&
-        !column.hidden,
+      column => column.id === preferredDoneColumnId && column.type === "checkbox" && !column.hidden
     );
     if (doneColumn) {
       return doneColumn.id;
     }
   }
 
-  return orderedColumns.find(
-    (column) => column.type === "checkbox" && !column.hidden,
-  )?.id;
+  return orderedColumns.find(column => column.type === "checkbox" && !column.hidden)?.id;
 };
 
 const sortByTaskPriority = (columns: ColumnDef[]): ColumnDef[] => {
-  const prioritized = columns.filter((column) =>
-    TASK_PRIORITY_TYPES.has(column.type),
-  );
-  const others = columns.filter(
-    (column) => !TASK_PRIORITY_TYPES.has(column.type),
-  );
+  const prioritized = columns.filter(column => TASK_PRIORITY_TYPES.has(column.type));
+  const others = columns.filter(column => !TASK_PRIORITY_TYPES.has(column.type));
   return [...prioritized, ...others];
 };
 
 const getTemplateDefaultFieldIds = (
   template: KanbanCardTemplate,
-  candidates: ColumnDef[],
+  candidates: ColumnDef[]
 ): string[] => {
   if (template === "compact") {
     return [];
   }
 
   const maxCount = TEMPLATE_DEFAULT_FIELD_LIMIT[template];
-  const source =
-    template === "task" ? sortByTaskPriority(candidates) : candidates;
-  return source.slice(0, maxCount).map((column) => column.id);
+  const source = template === "task" ? sortByTaskPriority(candidates) : candidates;
+  return source.slice(0, maxCount).map(column => column.id);
 };
 
 const getCandidateFields = ({
@@ -129,7 +114,7 @@ const getCandidateFields = ({
   orderedColumns: ColumnDef[];
   excludedColumnIds: Set<string>;
 }): ColumnDef[] => {
-  return orderedColumns.filter((column) => {
+  return orderedColumns.filter(column => {
     if (column.hidden) return false;
     if (excludedColumnIds.has(column.id)) return false;
     return KANBAN_CARD_SUPPORTED_FIELD_TYPES.has(column.type);
@@ -138,15 +123,13 @@ const getCandidateFields = ({
 
 const normalizeVisibleFieldIds = (
   inputIds: string[] | undefined,
-  candidateFields: ColumnDef[],
+  candidateFields: ColumnDef[]
 ): string[] => {
   if (!inputIds || inputIds.length === 0) return [];
 
-  const candidateIds = new Set(candidateFields.map((field) => field.id));
-  const selectedSet = new Set(inputIds.filter((id) => candidateIds.has(id)));
-  return candidateFields
-    .map((field) => field.id)
-    .filter((fieldId) => selectedSet.has(fieldId));
+  const candidateIds = new Set(candidateFields.map(field => field.id));
+  const selectedSet = new Set(inputIds.filter(id => candidateIds.has(id)));
+  return candidateFields.map(field => field.id).filter(fieldId => selectedSet.has(fieldId));
 };
 
 export const resolveKanbanCardDisplay = ({
@@ -158,14 +141,8 @@ export const resolveKanbanCardDisplay = ({
 }: ResolveKanbanCardDisplayParams): ResolvedKanbanCardDisplay => {
   const cardDisplay = kanbanConfig?.cardDisplay;
   const template = normalizeTemplate(cardDisplay?.template);
-  const orderedColumns = getOrderedColumns(
-    columns,
-    viewConfig.columnOrder || [],
-  );
-  const doneColumnId = resolveDoneColumnId(
-    orderedColumns,
-    cardDisplay?.doneColumnId,
-  );
+  const orderedColumns = getOrderedColumns(columns, viewConfig.columnOrder || []);
+  const doneColumnId = resolveDoneColumnId(orderedColumns, cardDisplay?.doneColumnId);
 
   const excludedColumnIds = new Set<string>();
   if (primaryColumnId) excludedColumnIds.add(primaryColumnId);
@@ -178,7 +155,7 @@ export const resolveKanbanCardDisplay = ({
   });
   const configuredVisibleFieldIds = normalizeVisibleFieldIds(
     cardDisplay?.visibleFieldIds,
-    candidateFields,
+    candidateFields
   );
 
   const visibleFieldIds =
@@ -212,10 +189,7 @@ export const getTemplateDefaultCardDisplay = ({
   primaryColumnId?: string;
   doneColumnId?: string;
 }): { template: KanbanCardTemplate; visibleFieldIds: string[] } => {
-  const orderedColumns = getOrderedColumns(
-    columns,
-    viewConfig.columnOrder || [],
-  );
+  const orderedColumns = getOrderedColumns(columns, viewConfig.columnOrder || []);
   const excludedColumnIds = new Set<string>();
   if (primaryColumnId) excludedColumnIds.add(primaryColumnId);
   if (groupColumnId) excludedColumnIds.add(groupColumnId);

@@ -1,13 +1,11 @@
 import React, { memo, useEffect, useState, useRef, useMemo } from "react";
-import classNames from "classnames";
-import { MdDelete } from "react-icons/md";
+import { Trash2 } from "lucide-react";
 import { RowData, ColumnDef, CellValue } from "../../types";
 import { getContentById } from "@/commands/content";
 import { Descendant } from "slate";
 import { EditorRef } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
 import { ImageItem } from "../../plugins/ImagePlugin/types";
-import useThemeColors from "@/hooks/useThemeColors";
 
 interface GalleryCardProps {
   row: RowData;
@@ -21,13 +19,12 @@ interface GalleryCardProps {
 }
 
 const GalleryCard: React.FC<GalleryCardProps> = memo(
-  ({ row, columns, coverType, coverImageColumnId, onClick, onDelete, readonly, theme }) => {
+  ({ row, columns, coverType, coverImageColumnId, onClick, onDelete, readonly }) => {
     const [detailContent, setDetailContent] = useState<Descendant[] | null>(null);
     const previewContent = useMemo(() => detailContent?.slice(0, 2), [detailContent]);
     const [coverImage, setCoverImage] = useState<string | null>(null);
     const [isHovered, setIsHovered] = useState(false);
     const editorRef = useRef<EditorRef>(null);
-    const themeColors = useThemeColors();
 
     // 获取主列的值
     const primaryColumn = columns.find(col => col.isPrimary);
@@ -59,38 +56,23 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
 
     return (
       <div
-        className={classNames(
-          "group relative flex h-[240px] cursor-pointer flex-col overflow-hidden rounded-lg border transition-all duration-300",
-          themeColors.cardBgClass,
-          themeColors.cardBorderClass
-        )}
+        className="bg-surface shadow-card rounded-tau-md ease-tau-out hover:shadow-float group relative flex h-[240px] cursor-pointer flex-col overflow-hidden transition-shadow duration-[160ms]"
         onClick={onClick}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
         {!readonly && onDelete && isHovered && (
           <div
-            className={classNames(
-              "absolute right-2 top-2 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors",
-              {
-                "bg-red-500 text-white hover:bg-red-600": theme === "light",
-                "bg-red-600 text-white hover:bg-red-700": theme === "dark",
-              }
-            )}
+            className="bg-danger text-ink-inverse absolute right-2 top-2 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-[filter] hover:brightness-110"
             onClick={e => {
               e.stopPropagation();
               onDelete();
             }}
           >
-            <MdDelete className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" strokeWidth={1.75} />
           </div>
         )}
-        <div
-          className={classNames(
-            "relative min-h-0 flex-1 overflow-hidden",
-            themeColors.inputBgClass
-          )}
-        >
+        <div className="bg-page relative min-h-0 flex-1 overflow-hidden">
           {coverType === "detail" && detailContent && (
             <div className="h-full w-full overflow-hidden p-3">
               <Editor
@@ -109,19 +91,8 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
             />
           )}
         </div>
-        <div
-          className={classNames(
-            "flex h-[60px] items-center border-t px-4 py-3",
-            themeColors.cardBgClass,
-            themeColors.cardBorderClass
-          )}
-        >
-          <span
-            className={classNames(
-              "w-full overflow-hidden text-ellipsis whitespace-nowrap text-base font-medium",
-              themeColors.activeTextClass
-            )}
-          >
+        <div className="border-line-2 bg-surface flex h-[60px] items-center border-t px-4 py-3">
+          <span className="text-ink-1 text-tau-body-lg w-full overflow-hidden text-ellipsis whitespace-nowrap font-medium">
             {primaryValue || "未命名"}
           </span>
         </div>
