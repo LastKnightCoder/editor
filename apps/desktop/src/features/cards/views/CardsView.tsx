@@ -129,7 +129,7 @@ export function CardsView() {
       <div className="text-tau-sm text-ink-3 flex min-w-0 flex-1 items-center gap-3.5 tabular-nums">
         <span className="flex-1" />
         <span>
-          {tagNodeCount} 组标签 · {linkCount} 条链接
+          {tagNodeCount} 组标签 · {linkCount} 条连接
         </span>
       </div>
     ),
