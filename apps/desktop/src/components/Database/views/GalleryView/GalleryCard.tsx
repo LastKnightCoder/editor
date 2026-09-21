@@ -6,6 +6,7 @@ import { Descendant } from "slate";
 import { EditorRef } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
 import { ImageItem } from "../../plugins/ImagePlugin/types";
+import { coverGradientOfKey } from "@/utils/cover";
 
 interface GalleryCardProps {
   row: RowData;
@@ -72,7 +73,7 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
             <Trash2 className="h-4 w-4" strokeWidth={1.75} />
           </div>
         )}
-        <div className="bg-page relative min-h-0 flex-1 overflow-hidden">
+        <div className="relative min-h-0 flex-1 overflow-hidden">
           {coverType === "detail" && detailContent && (
             <div className="h-full w-full overflow-hidden p-3">
               <Editor
@@ -88,6 +89,14 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
               src={coverImage}
               alt={primaryValue || "封面"}
               className="h-full w-full object-cover"
+            />
+          )}
+          {/* 封面空态兜底：无详情内容 / 图片列未设置图片时按行 id 派生粉彩渐变（同文章卡） */}
+          {((coverType === "detail" && !detailContent) ||
+            (coverType === "image" && !coverImage)) && (
+            <div
+              className="absolute inset-0"
+              style={{ backgroundImage: coverGradientOfKey(row.id) }}
             />
           )}
         </div>
