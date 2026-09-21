@@ -25,7 +25,11 @@ import type { EditorCollaborationBinding } from "./types";
 
 const PROJECTION_ORIGIN = Symbol("collaboration-projection");
 
-export function withCollaboration<T extends Editor>(base: T, binding: EditorCollaborationBinding) {
+export function withCollaboration<T extends Editor>(
+  base: T,
+  binding: EditorCollaborationBinding,
+  { cursors = true }: { cursors?: boolean } = {}
+) {
   const editor = withCursors(
     withYHistory(
       withYjs(base, binding.root || getBody(binding.doc), {
@@ -33,12 +37,12 @@ export function withCollaboration<T extends Editor>(base: T, binding: EditorColl
       })
     ),
     binding.awareness,
-    { cursorDataField: "user" }
+    { cursorDataField: "user", autoSend: cursors }
   );
   const sendCursorPosition = editor.sendCursorPosition;
   editor.sendCursorPosition = range => {
     // 失焦时保留最后选区，窗口关闭时由 awareness 移除。
-    if (range) sendCursorPosition(range);
+    if (cursors && range) sendCursorPosition(range);
   };
   editor.undoManager.addToScope(getFields(binding.doc));
   const insertText = editor.insertText;

@@ -1,6 +1,6 @@
 import Editor from "@/components/ContentEditor";
 import { Tag } from "antd";
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { SearchResult } from "@/types";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
@@ -20,6 +20,7 @@ const SearchResultItem = memo(
     handleSearchResultClick: (result: SearchResult) => void;
   }) => {
     const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
+    const previewContent = useMemo(() => result.content.slice(0, 3), [result.content]);
     return (
       <div className={styles.item} onClick={() => handleSearchResultClick(result)}>
         <div>
@@ -28,12 +29,11 @@ const SearchResultItem = memo(
           </Tag>
         </div>
         <Editor
-          previewBlocks={3}
           style={{
             flex: 1,
             overflow: "hidden",
           }}
-          initValue={result.content.slice(0, 3)}
+          initValue={previewContent}
           readonly={true}
           extensions={dynamicExtensions}
         />

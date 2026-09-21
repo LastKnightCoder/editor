@@ -434,7 +434,6 @@ const useDiaryConfig = () => {
             placement="bottom"
             content={
               <Editor
-                previewBlocks={3}
                 style={{ maxWidth: 320, maxHeight: 180, overflow: "hidden" }}
                 readonly
                 initValue={content?.slice(0, 3) || []}

@@ -5,8 +5,7 @@ import { MdMoreHoriz } from "react-icons/md";
 import { AiFillPushpin } from "react-icons/ai";
 import { Dropdown, MenuProps, Tooltip } from "antd";
 import { useMemoizedFn } from "ahooks";
-import { EditorRef } from "@tau/editor/src";
-import Editor from "@/components/ContentEditor";
+import { Editor, type EditorRef } from "@tau/editor/src";
 import { useShallow } from "zustand/react/shallow";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
@@ -61,6 +60,7 @@ const CardItem = memo(
     const databaseName = useSettingStore(useShallow(state => state.setting.database.active));
 
     const { content, tags, isTop, contentId } = card;
+    const previewContent = useMemo(() => content.slice(0, 3), [content]);
     const chatReference = useMemo(
       () => ({
         entityType: "card" as const,
@@ -210,13 +210,10 @@ const CardItem = memo(
           </div>
           <ErrorBoundary>
             <Editor
-              contentId={contentId}
               ref={editorRef}
               className="max-h-75 pointer-events-none overflow-hidden"
               readonly={true}
-              initValue={content.slice(0, 3)}
-              previewBlocks={3}
-              source={{ sourceType: "card", sourceId: card.id }}
+              initValue={previewContent}
               extensions={dynamicExtensions}
             />
           </ErrorBoundary>

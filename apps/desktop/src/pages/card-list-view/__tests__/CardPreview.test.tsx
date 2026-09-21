@@ -39,13 +39,8 @@ vi.mock("antd", async () => {
         {icon}
       </button>
     ),
-    Tooltip: ({
-      children,
-      title,
-    }: {
-      children: React.ReactElement;
-      title: string;
-    }) => ReactModule.cloneElement(children, { title } as any),
+    Tooltip: ({ children, title }: { children: React.ReactElement; title: string }) =>
+      ReactModule.cloneElement(children, { title } as any),
   };
 });
 
@@ -54,8 +49,8 @@ vi.mock("@ant-design/icons", () => ({
   ExpandOutlined: () => <span>前往详情</span>,
 }));
 
-vi.mock("@tau/editor/src", () => ({
-  Editor: () => <div data-testid="editor" />,
+vi.mock("@/components/ContentEditor", () => ({
+  default: () => <div data-testid="editor" />,
 }));
 
 vi.mock("@/components/AddTag", () => ({
@@ -114,14 +109,12 @@ vi.mock("@/hooks/useEditContent", () => ({
 }));
 
 vi.mock("@/stores/useTabStore", () => ({
-  default: (
-    selector: (state: { navigateTo: typeof navigateToMock }) => unknown,
-  ) => selector({ navigateTo: navigateToMock }),
+  default: (selector: (state: { navigateTo: typeof navigateToMock }) => unknown) =>
+    selector({ navigateTo: navigateToMock }),
 }));
 
 vi.mock("@/stores/useDynamicExtensionsStore", () => ({
-  default: (selector: (state: { extensions: never[] }) => unknown) =>
-    selector({ extensions: [] }),
+  default: (selector: (state: { extensions: never[] }) => unknown) => selector({ extensions: [] }),
 }));
 
 vi.mock("@/utils", () => ({
@@ -157,13 +150,11 @@ describe("CardPreview", () => {
     root = createRoot(container);
 
     await act(async () => {
-      root?.render(
-        <CardPreview cardId={42} visible={true} onClose={onClose} />,
-      );
+      root?.render(<CardPreview cardId={42} visible={true} onClose={onClose} />);
     });
 
     const detailButton = container.querySelector(
-      'button[title="前往详情"]',
+      'button[title="前往详情"]'
     ) as HTMLButtonElement | null;
     expect(detailButton).not.toBeNull();
 
@@ -171,11 +162,7 @@ describe("CardPreview", () => {
       detailButton?.click();
     });
 
-    expect(navigateToMock).toHaveBeenCalledWith(
-      expect.anything(),
-      { id: 42 },
-      "卡片详情 #42",
-    );
+    expect(navigateToMock).toHaveBeenCalledWith(expect.anything(), { id: 42 }, "卡片详情 #42");
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -187,17 +174,12 @@ describe("CardPreview", () => {
 
     await act(async () => {
       root?.render(
-        <CardPreview
-          cardId={42}
-          visible={true}
-          onClose={vi.fn()}
-          onGoToDetail={onClose}
-        />,
+        <CardPreview cardId={42} visible={true} onClose={vi.fn()} onGoToDetail={onClose} />
       );
     });
 
     const detailButton = container.querySelector(
-      'button[title="前往详情"]',
+      'button[title="前往详情"]'
     ) as HTMLButtonElement | null;
     expect(detailButton).not.toBeNull();
 
