@@ -5,7 +5,7 @@ const ColumnIcon = ({ type, pluginManager }: { type: string; pluginManager?: Plu
   const Icon = plugin?.Icon;
   if (!Icon) return <span className="mr-1.5" />;
   return (
-    <span className="text-ink-2 mr-1.5 inline-flex items-center justify-center">
+    <span className="text-ink-2 mr-1.5 inline-flex items-center justify-center [&_svg]:size-[14px]">
       <Icon />
     </span>
   );
