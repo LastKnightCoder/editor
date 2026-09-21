@@ -32,7 +32,7 @@ import {
   Presentation,
 } from "lucide-react";
 import type { EditorRef } from "@tau/editor/src";
-import { usePage, usePageBreadcrumb, usePageStatusBar } from "@/page/PageProvider";
+import { usePage, usePageBreadcrumb, usePageParams, usePageStatusBar } from "@/page/PageProvider";
 import { isElectron } from "@/electron";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -92,9 +92,9 @@ function cloneRange(selection: Range | null): Range | null {
 }
 
 export function ArticleDetailView() {
-  const { state, navigator } = usePage();
-  // 栈顶即当前页（params page 的 id 在栈顶条目上）
-  const id = Number(state.back[state.back.length - 1]?.params.id);
+  const { navigator } = usePage();
+  // 本实例 params（PageHost 按栈条目注入；勿读全局栈顶——多实例保活时会串台）
+  const { id } = usePageParams<{ id: number }>();
 
   const {
     editingArticle,
