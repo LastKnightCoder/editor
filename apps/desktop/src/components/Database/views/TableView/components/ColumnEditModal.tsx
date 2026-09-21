@@ -1,13 +1,15 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ColumnDef, SelectOption } from "../../../types";
 import { v4 as uuid } from "uuid";
 import { SELECT_COLORS } from "../../../constants";
 import SelectList from "./SelectList";
 import PluginManager from "../../../PluginManager";
-import CustomCheckbox from "@/components/CustomCheckbox";
 import { DatePluginConfig } from "../../../plugins/DatePlugin/index";
-import CustomModal from "@/components/CustomModal";
-import { SelectDropDown } from "@tau/shared";
+import { Button } from "@tau/ui/Button";
+import { Checkbox } from "@tau/ui";
+import { Dialog } from "@tau/ui/Dialog";
+import { Input } from "@tau/ui/Input";
+import { Select } from "@tau/ui/Select";
 
 interface ColumnEditModalProps {
   open: boolean;
@@ -18,29 +20,15 @@ interface ColumnEditModalProps {
   pluginManager: PluginManager;
 }
 
-const inputClass =
-  "w-full px-4 py-3.5 rounded-xl text-sm outline-none transition-all bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-white shadow-inner placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)]";
-
-const labelClass =
-  "text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400";
+const labelClass = "text-tau-meta font-medium text-ink-2";
 
 const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
   open,
   column,
   onCancel,
   onSave,
-  theme = "light",
   pluginManager,
 }) => {
-  const typeButtonRef = useRef<HTMLButtonElement>(null);
-  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
-
-  const sortButtonRef = useRef<HTMLButtonElement>(null);
-  const [showSortDropdown, setShowSortDropdown] = useState(false);
-
-  const groupButtonRef = useRef<HTMLButtonElement>(null);
-  const [showGroupDropdown, setShowGroupDropdown] = useState(false);
-
   const [title, setTitle] = useState("列名");
   const [type, setType] = useState("text");
   const [width, setWidth] = useState(200);
@@ -101,9 +89,6 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
       }
       setTitleError("");
       setOptionInput("");
-      setShowTypeDropdown(false);
-      setShowSortDropdown(false);
-      setShowGroupDropdown(false);
     }
   }, [open, column?.id]);
 
@@ -152,77 +137,56 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
   };
 
   return (
-    <CustomModal
+    <Dialog
       open={open}
-      onCancel={onCancel}
-      onOk={handleOk}
+      onOpenChange={next => {
+        if (!next) onCancel();
+      }}
       title={column ? "编辑列" : "新建列"}
-      okText="保存"
-      cancelText="取消"
       width={400}
-      destroyOnClose
-      maskClosable={false}
-      bodyClassName="px-2 pb-2 -mx-2"
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={onCancel}>
+            取消
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleOk}>
+            保存
+          </Button>
+        </>
+      }
     >
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         {/* 列标题 */}
         <div className="flex flex-col gap-1.5">
-          <label className={labelClass}>列标题</label>
-          <input
-            type="text"
+          <span className={labelClass}>列标题</span>
+          <Input
             value={title}
             onChange={e => {
               setTitle(e.target.value);
               if (e.target.value.trim()) setTitleError("");
             }}
-            className={inputClass}
             placeholder="请输入列标题"
+            aria-invalid={titleError ? true : undefined}
           />
-          {titleError && <p className="text-xs text-red-500 dark:text-red-400">{titleError}</p>}
+          {titleError && <p className="text-danger text-tau-sm">{titleError}</p>}
         </div>
 
         {/* 列类型 */}
         <div className="flex flex-col gap-1.5">
-          <label className={labelClass}>列类型</label>
-          <button
-            ref={typeButtonRef}
-            type="button"
-            onClick={() => setShowTypeDropdown(v => !v)}
-            className={`${inputClass} flex cursor-pointer items-center justify-between`}
-          >
-            <span>{pluginOptions.find(p => p.value === type)?.label ?? type}</span>
-            <svg
-              className={`ml-2 h-4 w-4 shrink-0 text-gray-400 transition-transform dark:text-slate-500 ${showTypeDropdown ? "rotate-180" : ""}`}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-          <SelectDropDown
-            items={pluginOptions}
-            selectedKey={type}
-            show={showTypeDropdown}
-            onClose={() => setShowTypeDropdown(false)}
-            onSelect={item => setType(item.value)}
-            triggerElement={typeButtonRef.current}
-            getKey={item => item.value}
-            renderItem={item => item.label}
-          />
+          <span className={labelClass}>列类型</span>
+          <Select value={type} onValueChange={setType} options={pluginOptions} className="w-full" />
         </div>
 
         {/* 列宽度 */}
         <div className="flex flex-col gap-1.5">
-          <label className={labelClass}>列宽度</label>
+          <span className={labelClass}>列宽度</span>
           <input
             type="number"
             min={50}
             max={500}
             value={width}
             onChange={e => setWidth(Number(e.target.value))}
-            className={`${inputClass} [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
+            className="border-line-1 bg-surface text-ink-1 placeholder:text-ink-3 focus:border-accent rounded-tau-sm text-tau-body w-full border px-3 py-2 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             placeholder="200"
           />
         </div>
@@ -230,9 +194,8 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
         {/* 选项配置（select / multiSelect） */}
         {(type === "select" || type === "multiSelect") && (
           <div className="flex flex-col gap-1.5">
-            <label className={labelClass}>选项</label>
-            <input
-              type="text"
+            <span className={labelClass}>选项</span>
+            <Input
               value={optionInput}
               onChange={e => setOptionInput(e.target.value)}
               onKeyDown={e => {
@@ -242,17 +205,11 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
                   setOptionInput("");
                 }
               }}
-              className={inputClass}
               placeholder="输入后按回车新增"
             />
             {options.length > 0 && (
               <div className="mt-1">
-                <SelectList
-                  options={options}
-                  theme={theme}
-                  onClear={removeOption}
-                  className="flex-wrap"
-                />
+                <SelectList options={options} onClear={removeOption} className="flex-wrap" />
               </div>
             )}
           </div>
@@ -260,82 +217,38 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
 
         {/* 日期类型配置 */}
         {type === "date" && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <CustomCheckbox checked={showTime} onChange={() => setShowTime(!showTime)} />
-              <span className="text-sm text-gray-700 dark:text-gray-200">包含时间</span>
-            </div>
+          <div className="flex flex-col gap-3">
+            <Checkbox
+              checked={showTime}
+              onChange={() => setShowTime(!showTime)}
+              label={<span className="text-tau-body text-ink-1">包含时间</span>}
+            />
 
-            <div className="flex items-center gap-3">
-              <CustomCheckbox checked={isRange} onChange={() => setIsRange(!isRange)} />
-              <span className="text-sm text-gray-700 dark:text-gray-200">结束日期</span>
-            </div>
+            <Checkbox
+              checked={isRange}
+              onChange={() => setIsRange(!isRange)}
+              label={<span className="text-tau-body text-ink-1">结束日期</span>}
+            />
 
             {isRange && (
               <>
                 <div className="flex flex-col gap-1.5">
-                  <label className={labelClass}>排序依据</label>
-                  <button
-                    ref={sortButtonRef}
-                    type="button"
-                    onClick={() => setShowSortDropdown(v => !v)}
-                    className={`${inputClass} flex cursor-pointer items-center justify-between`}
-                  >
-                    <span>
-                      {dateFieldOptions.find(o => o.value === sortField)?.label ?? sortField}
-                    </span>
-                    <svg
-                      className={`ml-2 h-4 w-4 shrink-0 text-gray-400 transition-transform dark:text-slate-500 ${showSortDropdown ? "rotate-180" : ""}`}
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
-                  </button>
-                  <SelectDropDown
-                    items={dateFieldOptions}
-                    selectedKey={sortField}
-                    show={showSortDropdown}
-                    onClose={() => setShowSortDropdown(false)}
-                    onSelect={item => setSortField(item.value as "start" | "end")}
-                    triggerElement={sortButtonRef.current}
-                    getKey={item => item.value}
-                    renderItem={item => item.label}
+                  <span className={labelClass}>排序依据</span>
+                  <Select
+                    value={sortField}
+                    onValueChange={value => setSortField(value as "start" | "end")}
+                    options={dateFieldOptions}
+                    className="w-full"
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className={labelClass}>分组依据</label>
-                  <button
-                    ref={groupButtonRef}
-                    type="button"
-                    onClick={() => setShowGroupDropdown(v => !v)}
-                    className={`${inputClass} flex cursor-pointer items-center justify-between`}
-                  >
-                    <span>
-                      {dateFieldOptions.find(o => o.value === groupField)?.label ?? groupField}
-                    </span>
-                    <svg
-                      className={`ml-2 h-4 w-4 shrink-0 text-gray-400 transition-transform dark:text-slate-500 ${showGroupDropdown ? "rotate-180" : ""}`}
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
-                  </button>
-                  <SelectDropDown
-                    items={dateFieldOptions}
-                    selectedKey={groupField}
-                    show={showGroupDropdown}
-                    onClose={() => setShowGroupDropdown(false)}
-                    onSelect={item => setGroupField(item.value as "start" | "end")}
-                    triggerElement={groupButtonRef.current}
-                    getKey={item => item.value}
-                    renderItem={item => item.label}
+                  <span className={labelClass}>分组依据</span>
+                  <Select
+                    value={groupField}
+                    onValueChange={value => setGroupField(value as "start" | "end")}
+                    options={dateFieldOptions}
+                    className="w-full"
                   />
                 </div>
               </>
@@ -343,7 +256,7 @@ const ColumnEditModal: React.FC<ColumnEditModalProps> = ({
           </div>
         )}
       </div>
-    </CustomModal>
+    </Dialog>
   );
 };
 

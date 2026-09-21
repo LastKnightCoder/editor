@@ -1,65 +1,33 @@
 import { memo } from "react";
 import { SelectOption } from "../../../types";
-import { SELECT_COLORS_CONFIG } from "../../../constants";
+import { Tag } from "@tau/ui";
 
 interface SelectListProps {
   options: SelectOption[];
-  theme: "light" | "dark";
   onSelect?: (option: SelectOption) => void;
   onClear?: (id: string) => void;
   className?: string;
 }
 
 const SelectList = memo((props: SelectListProps) => {
-  const { options, theme, onSelect, onClear, className } = props;
+  const { options, onSelect, onClear, className } = props;
 
   if (options.length === 0) {
     return null;
   }
 
   return (
-    <div className={`flex flex-nowrap items-center gap-1 h-full ${className}`}>
-      {options.map((option) => {
+    <div className={`flex h-full flex-nowrap items-center gap-1 ${className}`}>
+      {options.map(option => {
         return (
-          <div
+          <Tag
             key={option.id}
-            style={{
-              width: "fit-content",
-              flex: "none",
-              fontSize: "12px",
-              padding: "2px 4px",
-              borderRadius: "4px",
-              backgroundColor:
-                SELECT_COLORS_CONFIG[option.color][theme].backgroundColor,
-              color: SELECT_COLORS_CONFIG[option.color][theme].color,
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-            onClick={() => onSelect?.(option)}
+            color={option.color}
+            onClick={onSelect ? () => onSelect(option) : undefined}
+            onRemove={onClear ? () => onClear(option.id) : undefined}
           >
-            <span>{option.name}</span>
-            {onClear && (
-              <button
-                type="button"
-                className="w-3 h-3 rounded-full flex items-center justify-center cursor-pointer hover:bg-red-500/20"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClear?.(option.id);
-                }}
-              >
-                <svg
-                  className="w-2 h-2"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                >
-                  <path d="M18 6 6 18M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
+            {option.name}
+          </Tag>
         );
       })}
     </div>

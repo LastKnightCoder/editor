@@ -7,10 +7,10 @@ import ColumnHeader from "./components/ColumnHeader";
 import PluginManager from "../../PluginManager";
 import ColumnEditModal from "./components/ColumnEditModal";
 import RowDetailModal from "../../components/RowDetailModal";
-import classNames from "classnames";
 import Row from "./components/Row";
-import { App } from "antd";
-import { useThemeColors } from "@/hooks";
+import { Plus } from "lucide-react";
+import { Tooltip } from "@tau/ui/Tooltip";
+import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
 
 interface TableViewProps {
   pluginManager: PluginManager;
@@ -74,8 +74,7 @@ const TableView: React.FC<TableViewProps> = memo(
       clearCellSelection: state.clearCellSelection,
     }));
 
-    const { modal } = App.useApp();
-    const { borderClass, glassPanelBg, hoverClass } = useThemeColors();
+    const [confirmDeleteRowId, setConfirmDeleteRowId] = useState<string | null>(null);
 
     const scrollParentRef = useRef<HTMLDivElement>(null);
     const tableBodyRef = useRef<HTMLDivElement>(null);
@@ -117,14 +116,7 @@ const TableView: React.FC<TableViewProps> = memo(
       if (onRowDelete) {
         onRowDelete(rowId);
       } else {
-        modal.confirm({
-          title: "删除行",
-          content: "确定要删除该行吗？",
-          okButtonProps: {
-            danger: true,
-          },
-          onOk: () => deleteRow(rowId),
-        });
+        setConfirmDeleteRowId(rowId);
       }
     });
 
@@ -270,17 +262,9 @@ const TableView: React.FC<TableViewProps> = memo(
     }, []);
 
     const renderHeader = useMemoizedFn(() => (
-      <div
-        className={classNames(
-          "sticky top-0 z-10 box-border flex w-full flex-col border-y backdrop-blur-xl",
-          borderClass,
-          glassPanelBg
-        )}
-      >
+      <div className="border-line-2 bg-surface sticky top-0 z-10 box-border flex w-full flex-col border-y">
         <div className="flex w-full min-w-max flex-row">
-          <div
-            className={classNames("box-border h-10 w-[50px] min-w-[50px] border-r", borderClass)}
-          ></div>
+          <div className="border-line-2 box-border h-10 w-[50px] min-w-[50px] border-r"></div>
           {visibleColumnOrder.map(columnId => {
             const column = storeColumns.find(col => col.id === columnId);
             if (!column) return null;
@@ -302,20 +286,15 @@ const TableView: React.FC<TableViewProps> = memo(
           })}
           {allowAddColumn && (
             <div className="flex w-[40px] min-w-[40px] items-center justify-center">
-              <button
-                className={classNames(
-                  "p-0] flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border-0 text-base leading-none",
-                  hoverClass,
-                  {
-                    "text-gray-600": theme === "light",
-                    "text-gray-200": theme === "dark",
-                  }
-                )}
-                onClick={handleAddColumn}
-                type="button"
-              >
-                +
-              </button>
+              <Tooltip content="新列">
+                <button
+                  className="text-ink-3 hover:bg-hover hover:text-ink-1 grid h-6 w-6 cursor-pointer place-items-center rounded-full border-0"
+                  onClick={handleAddColumn}
+                  type="button"
+                >
+                  <Plus className="size-4" strokeWidth={1.75} />
+                </button>
+              </Tooltip>
             </div>
           )}
         </div>
@@ -327,7 +306,7 @@ const TableView: React.FC<TableViewProps> = memo(
         const Renderer = pluginManager.getPlugin(item.column.type)?.Renderer;
         if (!Renderer) return null;
         return (
-          <div className={classNames("h-10 border-b", borderClass)}>
+          <div className="border-line-2 bg-group/60 h-10 border-b">
             <Renderer
               value={item.columnValue}
               column={item.column}
@@ -419,11 +398,12 @@ const TableView: React.FC<TableViewProps> = memo(
           <div className="sticky bottom-0 z-20">
             <div className="relative box-border flex h-12 items-center gap-[10px]">
               <button
-                className={classNames("cursor-pointer rounded p-2 text-sm transition", hoverClass)}
+                className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm text-tau-sm flex cursor-pointer items-center gap-1.5 p-2 transition-colors"
                 onClick={handleAddRow}
                 type="button"
               >
-                + 添加行
+                <Plus className="size-[14px]" strokeWidth={1.75} />
+                添加行
               </button>
             </div>
           </div>
@@ -447,6 +427,21 @@ const TableView: React.FC<TableViewProps> = memo(
             pluginManager={pluginManager}
           />
         )}
+        <ConfirmDialog
+          open={confirmDeleteRowId !== null}
+          onOpenChange={open => {
+            if (!open) setConfirmDeleteRowId(null);
+          }}
+          title="删除行"
+          impact="确定要删除该行吗？"
+          danger
+          confirmText="删除"
+          onConfirm={() => {
+            const rowId = confirmDeleteRowId;
+            if (!rowId) return;
+            deleteRow(rowId);
+          }}
+        />
         {rowDetailOpen && editingRow && (
           <RowDetailModal
             row={editingRow}

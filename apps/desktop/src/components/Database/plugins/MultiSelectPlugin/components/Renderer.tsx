@@ -8,7 +8,7 @@ interface RendererProps {
   theme: "light" | "dark";
 }
 
-const Renderer: React.FC<RendererProps> = memo(({ value, column, theme }) => {
+const Renderer: React.FC<RendererProps> = memo(({ value, column }) => {
   if (!value) return null;
 
   const config = column.config as { options: SelectOption[] };
@@ -17,8 +17,8 @@ const Renderer: React.FC<RendererProps> = memo(({ value, column, theme }) => {
   if (config?.options && Array.isArray(config.options)) {
     const coloredOptions: SelectOption[] = [];
 
-    values.forEach((val) => {
-      const option = config.options!.find((opt) => opt.id === val);
+    values.forEach(val => {
+      const option = config.options!.find(opt => opt.id === val);
       if (option) {
         if ((option as SelectOption).color) {
           coloredOptions.push(option);
@@ -27,10 +27,8 @@ const Renderer: React.FC<RendererProps> = memo(({ value, column, theme }) => {
     });
 
     return (
-      <div className="flex items-center w-full h-full box-border py-1 px-2">
-        {coloredOptions.length > 0 && (
-          <SelectList options={coloredOptions} theme={theme} />
-        )}
+      <div className="box-border flex h-full w-full items-center px-2 py-1">
+        {coloredOptions.length > 0 && <SelectList options={coloredOptions} />}
       </div>
     );
   }

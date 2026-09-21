@@ -117,8 +117,6 @@ const Cell: React.FC<CellProps> = memo(
     row,
     onOpenRowDetail,
   }) => {
-    const isDark = theme === "dark";
-
     // 检查列级别和全局 readonly
     const isColumnReadonly = Boolean(readonly || column.readonly);
 
@@ -176,16 +174,10 @@ const Cell: React.FC<CellProps> = memo(
     // 根据模式渲染
     if (isEditing) {
       return (
-        <div className={classNames("z[3] relative h-10 overflow-hidden p-0")} style={cellStyle}>
-          <div
-            className={classNames(
-              "pointer-events-none absolute left-0 top-0 box-border h-full w-full border",
-              {
-                "border-[var(--th-border-focus)]": !isDark,
-                "border-[var(--th-border-focus)]/30": isDark,
-              }
-            )}
-          ></div>
+        <div
+          className={classNames("ring-accent relative z-[3] h-10 overflow-hidden p-0 ring-2")}
+          style={cellStyle}
+        >
           {plugin?.Editor ? (
             <MemoizedEditor
               plugin={
@@ -214,22 +206,9 @@ const Cell: React.FC<CellProps> = memo(
         onDoubleClick={handleDoubleClick}
       >
         {isSelected ? (
-          <div
-            className={classNames(
-              "pointer-events-none absolute left-0 top-0 box-border h-full w-full border",
-              {
-                "border-[var(--th-border-focus)]": !isDark,
-                "border-[var(--th-border-focus)]/30": isDark,
-              }
-            )}
-          />
+          <div className="border-accent pointer-events-none absolute left-0 top-0 box-border h-full w-full border-2" />
         ) : (
-          <div
-            className={classNames("absolute right-0 top-0 h-full border-r", {
-              "border-gray-400/50": theme === "light",
-              "border-[#fff]/10": theme === "dark",
-            })}
-          />
+          <div className="border-line-2 absolute right-0 top-0 h-full border-r" />
         )}
         {column.isPrimary && row ? (
           <PrimaryColumnRenderer

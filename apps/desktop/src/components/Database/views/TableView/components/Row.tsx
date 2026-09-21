@@ -1,14 +1,12 @@
-import React, { memo, useMemo, useRef } from "react";
+import React, { memo, useRef } from "react";
 import { useDrag, useDrop, DropTargetMonitor, DragSourceMonitor } from "react-dnd";
 import classnames from "classnames";
+import { GripVertical } from "lucide-react";
+import { Menu } from "@tau/ui/Menu";
 
 import { ColumnDef, RowData, CellCoord, CellValue } from "../../../types";
 import Cell from "./Cell";
 import PluginManager from "../../../PluginManager";
-import { MdDragIndicator } from "react-icons/md";
-import { Dropdown, DropdownProps } from "antd";
-
-import { useThemeColors } from "@/hooks";
 
 const ROW_TYPE = "tableRow";
 
@@ -62,24 +60,6 @@ const Row: React.FC<RowProps> = memo(
     onOpenRowDetail,
   }) => {
     const ref = useRef<HTMLDivElement>(null);
-    const { hoverClass, borderClass } = useThemeColors();
-
-    const menuProps = useMemo(() => {
-      return {
-        trigger: ["click"],
-        menu: {
-          items: [
-            {
-              key: "delete",
-              label: "删除",
-              onClick: () => {
-                deleteRow(row.id);
-              },
-            },
-          ],
-        },
-      } satisfies DropdownProps;
-    }, [deleteRow, row.id]);
 
     const [, drag] = useDrag(
       () => ({
@@ -123,23 +103,28 @@ const Row: React.FC<RowProps> = memo(
       <div
         ref={ref}
         className={classnames(
-          "flex h-10 w-full min-w-max flex-row border-b transition-[box-shadow,background-color,transform] duration-150 ease-linear",
-          borderClass,
-          hoverClass
+          "border-line-2 hover:bg-hover flex h-10 w-full min-w-max flex-row border-b",
+          "ease-tau-out transition-colors duration-[160ms]"
         )}
       >
-        <div
-          className={classnames(
-            "group relative box-border flex w-[50px] min-w-[50px] cursor-grab flex-col items-center justify-center border-r",
-            borderClass
-          )}
-        >
-          <div className="flex items-center gap-1 py-2 text-[12px] text-gray-500">
-            <Dropdown {...menuProps}>
-              <span className="flex cursor-pointer items-center">
-                <MdDragIndicator />
-              </span>
-            </Dropdown>
+        <div className="group/row border-line-2 relative box-border flex w-[50px] min-w-[50px] cursor-grab flex-col items-center justify-center border-r">
+          <div className="text-ink-3 text-tau-sm flex items-center gap-1 py-2 tabular-nums">
+            <Menu
+              align="start"
+              trigger={
+                <button
+                  type="button"
+                  title="行操作"
+                  className="text-ink-3 hover:text-ink-1 grid size-[18px] cursor-pointer place-items-center rounded-[5px] opacity-0 transition-opacity focus-visible:opacity-100 group-hover/row:opacity-100"
+                >
+                  <GripVertical className="size-4" strokeWidth={1.75} />
+                </button>
+              }
+            >
+              <Menu.Item danger onSelect={() => deleteRow(row.id)}>
+                删除
+              </Menu.Item>
+            </Menu>
             <span>{rowIndex}</span>
           </div>
         </div>
