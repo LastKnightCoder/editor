@@ -16,10 +16,21 @@ import ContentTable from "./content";
 import ProjectTable from "./project";
 
 import log from "electron-log";
+import type { CardDatabaseScope, CardMetadataPatch } from "@/types/card";
+
+/** 列表预览块口径：渲染取前 3 块、标题/拖拽取 ≤200 字文本，块数封顶防无文本块失控 */
+const CARD_PREVIEW_BLOCK_MIN = 3;
+const CARD_PREVIEW_BLOCK_CAP = 12;
+const CARD_PREVIEW_TEXT_TARGET = 200;
 
 export default class CardTable {
   static getListenEvents() {
     return {
+      "cards:get-scoped": this.getScopedCards.bind(this),
+      "cards:get-scoped-card": this.getScopedCard.bind(this),
+      "cards:create-scoped": this.createScopedCard.bind(this),
+      "cards:patch-scoped": this.patchScopedCard.bind(this),
+      "cards:remove-scoped": this.removeScopedCard.bind(this),
       "create-card": this.createCard.bind(this),
       "create-card-from-project-item": this.createCardFromProjectItem.bind(this),
       "update-card": this.updateCard.bind(this),
@@ -41,6 +52,71 @@ export default class CardTable {
       "get-cards-content-by-ids": this.getCardsContentByIds.bind(this),
       "workbench:list-expiring-temporary-cards": this.listExpiringTemporaryCards.bind(this),
     };
+  }
+
+  private static assertDatabase(db: Database.Database, scope: CardDatabaseScope) {
+    if (basename(db.name).replace(/\.db$/, "") !== scope.databaseName.replace(/\.db$/, "")) {
+      throw new Error("数据库已切换，请重新打开卡片");
+    }
+  }
+
+  static getScopedCards(db: Database.Database, scope: CardDatabaseScope) {
+    this.assertDatabase(db, scope);
+    // 列表轻表：不 JOIN podcasts、content 截为预览块，全量数据经 getScopedCard 按需单卡获取
+    const stmt = db.prepare(`
+      SELECT c.id, c.create_time, c.update_time, c.tags, c.links, c.category, c.content_id, c.is_top, c.podcast_id,
+             ct.content, ct.count, ct.update_time as content_update_time
+      FROM cards c
+      LEFT JOIN contents ct ON c.content_id = ct.id
+      ORDER BY c.is_top DESC, c.create_time DESC
+    `);
+    return (stmt.all() as any[]).map(row => {
+      const card = this.parseCard(row);
+      card.content = this.selectListContent(card.content);
+      return card;
+    });
+  }
+
+  static getScopedCard(db: Database.Database, request: CardDatabaseScope & { id: number }) {
+    this.assertDatabase(db, request);
+    const card = this.getCardById(db, request.id);
+    if (!card) throw new Error("卡片不存在");
+    return card;
+  }
+
+  static createScopedCard(
+    db: Database.Database,
+    request: CardDatabaseScope & { card: ICreateCard }
+  ) {
+    this.assertDatabase(db, request);
+    return this.createCard(db, request.card);
+  }
+
+  static patchScopedCard(
+    db: Database.Database,
+    request: CardDatabaseScope & { id: number; patch: CardMetadataPatch },
+    ctx: CommandContext = fallbackCommandContext
+  ) {
+    this.assertDatabase(db, request);
+    const card = this.getCardById(db, request.id);
+    if (!card) throw new Error("卡片不存在");
+    const { tags, links, category, isTop } = request.patch;
+    return this.updateCard(
+      db,
+      {
+        ...card,
+        tags: tags ?? card.tags,
+        links: links ?? card.links,
+        category: category ?? card.category,
+        isTop: isTop ?? card.isTop,
+      },
+      ctx
+    );
+  }
+
+  static removeScopedCard(db: Database.Database, request: CardDatabaseScope & { id: number }) {
+    this.assertDatabase(db, request);
+    return this.deleteCard(db, request.id);
   }
 
   static upgradeTable(db: Database.Database) {
@@ -122,6 +198,26 @@ export default class CardTable {
       podcastId: card.podcast_id || undefined,
       podcast,
     };
+  }
+
+  /** 取头部预览块：凑满最小块数后按累计文本长度截断（Slate 块递归取 text 叶子） */
+  private static selectListContent(content: any[]): any[] {
+    const preview: any[] = [];
+    let chars = 0;
+    for (const block of content) {
+      preview.push(block);
+      chars += this.blockTextLength(block);
+      if (preview.length >= CARD_PREVIEW_BLOCK_CAP) break;
+      if (preview.length >= CARD_PREVIEW_BLOCK_MIN && chars >= CARD_PREVIEW_TEXT_TARGET) break;
+    }
+    return preview;
+  }
+
+  private static blockTextLength(node: any): number {
+    if (!node || typeof node !== "object") return 0;
+    if (typeof node.text === "string") return node.text.length;
+    const children = (node.children ?? []) as any[];
+    return children.reduce((sum, child) => sum + this.blockTextLength(child), 0);
   }
 
   static getAllCards(db: Database.Database) {

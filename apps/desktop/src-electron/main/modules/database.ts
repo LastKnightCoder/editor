@@ -607,6 +607,7 @@ class DatabaseModule implements Module {
           if (useTransaction) {
             db.exec("ROLLBACK");
           }
+          throw e;
         }
       });
     });
