@@ -13,17 +13,7 @@ interface CalendarEventProps {
 }
 
 const CalendarEvent: React.FC<CalendarEventProps> = memo(
-  ({
-    title,
-    color,
-    spanType,
-    left,
-    width,
-    top,
-    onClick,
-    onMouseDown,
-    onContextMenu,
-  }) => {
+  ({ title, color, spanType, left, width, top, onClick, onMouseDown, onContextMenu }) => {
     // 根据 spanType 调整圆角样式
     let borderRadius = "4px";
     if (spanType === "start") {
@@ -39,7 +29,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = memo(
         onClick={onClick}
         onMouseDown={onMouseDown}
         onContextMenu={onContextMenu}
-        className="absolute cursor-pointer text-xs text-white shadow-sm pointer-events-auto flex items-center hover:opacity-90 transition-opacity"
+        className="text-ink-inverse pointer-events-auto absolute flex cursor-pointer items-center text-xs shadow-sm transition-opacity hover:opacity-90"
         style={{
           backgroundColor: color,
           left,
@@ -56,7 +46,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = memo(
         <div className="truncate font-medium">{title}</div>
       </div>
     );
-  },
+  }
 );
 
 CalendarEvent.displayName = "CalendarEvent";
