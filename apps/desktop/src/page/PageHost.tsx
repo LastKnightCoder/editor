@@ -10,6 +10,7 @@ import { Activity, useMemo } from "react";
 import * as sm from "./core/stackMachine";
 import { getPageDefinition } from "./registry";
 import { LegacyPendingPage } from "./LegacyPendingPage";
+import { PageParamsProvider } from "./PageProvider";
 
 export function PageHost({ state }: { state: sm.StackMachineState }) {
   const activeId = sm.current(state)?.id;
@@ -38,9 +39,11 @@ export function PageHost({ state }: { state: sm.StackMachineState }) {
             className={isActive ? "h-full" : undefined}
             style={isActive ? undefined : { display: "none" }}
           >
-            <Activity mode={isActive ? "visible" : "hidden"}>
-              {definition ? <definition.component /> : <LegacyPendingPage pageKey={entry.key} />}
-            </Activity>
+            <PageParamsProvider value={entry.params}>
+              <Activity mode={isActive ? "visible" : "hidden"}>
+                {definition ? <definition.component /> : <LegacyPendingPage pageKey={entry.key} />}
+              </Activity>
+            </PageParamsProvider>
           </div>
         );
       })}

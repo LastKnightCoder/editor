@@ -59,6 +59,13 @@ interface PageContextValue {
 
 const PageContext = createContext<PageContextValue | null>(null);
 
+/**
+ * 实例级 params（PageHost 按栈条目注入）：params 页读参数必须经 usePageParams，
+ * 勿从 usePage().state 的全局栈顶取——多个 params 实例保活时，被隐藏的实例
+ * 会读到栈顶（别人）的 params，引发数据串台与错误落盘。
+ */
+const PageParamsContext = createContext<Readonly<Record<string, unknown>>>({});
+
 const EMPTY_NODE_MAP: ReadonlyMap<string, ReactNode> = new Map();
 
 type StackAction =
@@ -269,3 +276,14 @@ export function usePage(): PageContextValue {
   if (!ctx) throw new Error("usePage 必须在 <PageProvider> 内使用");
   return ctx;
 }
+
+/**
+ * 读本实例的 params（PageHost 按栈条目注入，schema 净化后的原始类型）。
+ * 泛型由调用方声明与 page 定义一致的字段形状；single 页 params 为空对象。
+ */
+export function usePageParams<T extends Record<string, unknown> = Record<string, unknown>>(): T {
+  return useContext(PageParamsContext) as T;
+}
+
+/** PageHost 专用：把栈条目的 params 注入该实例的子树 */
+export const PageParamsProvider = PageParamsContext.Provider;
