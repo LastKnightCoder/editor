@@ -232,6 +232,7 @@
 - `theme: "light"|"dark"` prop 线保留：CellPlugin 的 Editor/Renderer 契约含 theme，清签名属数据契约变更，超出换皮边界；组件内已不再消费。
 - `editor-extensions/database/index.module.less` 保留：拖放视觉（drop-common/drag-common）是全部 editor 扩展共享的存量惯例，仅将包装层颜色换 `--tau-*` 变量，随 editor 域迁移一并清理。
 - 日历事件色由裸 hex 改 `var(--tau-accent)`（数据色经 color-mix 派生软底）。
+- 追记（2026-09-21，用户裁决）：**ViewTabs 工具行的悬停反馈弃用 bg-hover 淡墨底，改透明度梯度**——视图胶囊（未激活）与 ⋯/筛选/排序/分组/新视图等轻量图标钮常态 `opacity-60`、hover `opacity-100`、按下 `opacity-80`（同 VS Code / MUI IconButton 惯例）；视图 ⋯ 常显（不再 hover 才显，避免点击后 :focus-visible 锁亮的残留）；激活语义仍走 `bg-selected`（选中 ≠ 悬停反馈，D-006 不受影响）。口径仅限 Database 工具行，全局反馈语言仍按 03 指南 §4。
 
 ## Page 迁移清单（M2 起滚动勾选）
 

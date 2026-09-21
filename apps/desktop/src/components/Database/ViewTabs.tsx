@@ -163,11 +163,11 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
         ref={setContainerRef}
         style={{ opacity: isDragging ? 0.6 : 1 }}
         className={cn(
-          "group/tab inline-flex h-7 cursor-pointer items-center gap-0.5 rounded-full pl-3 pr-1.5",
-          "ease-tau-out transition-colors duration-[160ms]",
+          "inline-flex h-7 cursor-pointer items-center gap-0.5 rounded-full pl-3 pr-1.5",
+          "ease-tau-out transition-[background-color,opacity] duration-[160ms]",
           isActive
             ? "bg-selected text-ink-1 font-medium"
-            : "text-ink-2 hover:bg-hover hover:text-ink-1"
+            : "text-ink-2 opacity-60 hover:opacity-100"
         )}
         onClick={() => onActivate(view.id)}
         onDoubleClick={event => {
@@ -196,7 +196,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
               ref={moreButtonRef}
               type="button"
               title="视图操作"
-              className="text-ink-3 hover:bg-press hover:text-ink-1 grid size-[22px] place-items-center rounded-[7px] opacity-0 transition-opacity focus-visible:opacity-100 group-hover/tab:opacity-100"
+              className="text-ink-2 grid size-[22px] place-items-center rounded-[7px] opacity-60 transition-opacity hover:opacity-100 active:opacity-80 aria-expanded:opacity-100"
               onClick={e => e.stopPropagation()}
             >
               <MoreHorizontal className="size-4" strokeWidth={1.75} />
@@ -236,7 +236,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
 
 ViewTabItem.displayName = "ViewTabItem";
 
-/** 工具栏圆形切换钮：激活 = bg-selected，悬停 = 淡墨 */
+/** 工具栏圆形切换钮：激活 = bg-selected；悬停反馈 = 透明度梯度（60/100/80） */
 const ToolbarToggle = ({
   active,
   label,
@@ -258,8 +258,10 @@ const ToolbarToggle = ({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "ease-tau-out grid size-7 place-items-center rounded-full transition-colors duration-[160ms]",
-        active ? "bg-selected text-ink-1" : "text-ink-2 hover:bg-hover hover:text-ink-1"
+        "ease-tau-out grid size-7 place-items-center rounded-full transition-[background-color,opacity] duration-[160ms]",
+        active
+          ? "bg-selected text-ink-1"
+          : "text-ink-2 opacity-60 hover:opacity-100 active:opacity-80"
       )}
     >
       <Icon className="size-4" strokeWidth={1.75} />
@@ -425,7 +427,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           <Tooltip content="新视图">
             <button
               type="button"
-              className="text-ink-3 hover:bg-hover hover:text-ink-1 ease-tau-out grid size-7 place-items-center rounded-full transition-colors duration-[160ms]"
+              className="text-ink-2 ease-tau-out grid size-7 place-items-center rounded-full opacity-60 transition-opacity duration-[160ms] hover:opacity-100 active:opacity-80"
               onClick={() => setShowViewTypeSelect(true)}
             >
               <Plus className="size-4" strokeWidth={1.75} />
