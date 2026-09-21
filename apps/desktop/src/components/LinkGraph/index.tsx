@@ -1,6 +1,6 @@
 import { Graph, NodeEvent, CanvasEvent } from "@antv/g6";
 import type { NodeData, IElementEvent } from "@antv/g6";
-import { useEffect, useRef, useState, memo } from "react";
+import { useEffect, useMemo, useRef, useState, memo } from "react";
 import classnames from "classnames";
 import { useMemoizedFn } from "ahooks";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
@@ -11,6 +11,7 @@ import { useThemeColors } from "@/hooks";
 import { ICard } from "@/types";
 import { Editor, EditorRef } from "@tau/editor/src";
 import Loading from "@/components/Loading";
+import { graphTopologyKey, type GraphTopology } from "./topology";
 
 /**
  * 使用 BFS 检测图中的连通分量
@@ -18,12 +19,12 @@ import Loading from "@/components/Loading";
  */
 function findConnectedComponents(
   nodes: { id: string }[],
-  edges: { source: string; target: string }[],
+  edges: { source: string; target: string }[]
 ): string[][] {
   // 构建邻接表
   const adjacency = new Map<string, Set<string>>();
-  nodes.forEach((n) => adjacency.set(n.id, new Set()));
-  edges.forEach((e) => {
+  nodes.forEach(n => adjacency.set(n.id, new Set()));
+  edges.forEach(e => {
     adjacency.get(e.source)?.add(e.target);
     adjacency.get(e.target)?.add(e.source);
   });
@@ -41,7 +42,7 @@ function findConnectedComponents(
       if (!current || visited.has(current)) continue;
       visited.add(current);
       component.push(current);
-      adjacency.get(current)?.forEach((neighbor) => {
+      adjacency.get(current)?.forEach(neighbor => {
         if (!visited.has(neighbor)) queue.push(neighbor);
       });
     }
@@ -61,7 +62,7 @@ function simulateClusterPositions(
   radii: number[],
   width: number,
   height: number,
-  iterations = 150,
+  iterations = 150
 ): { x: number; y: number }[] {
   const count = radii.length;
   if (count === 0) return [];
@@ -142,18 +143,16 @@ function simulateClusterPositions(
       // 边界约束（软边界）
       const margin = radii[i];
       if (centers[i].x < margin) centers[i].x = margin;
-      if (centers[i].x > layoutWidth - margin)
-        centers[i].x = layoutWidth - margin;
+      if (centers[i].x > layoutWidth - margin) centers[i].x = layoutWidth - margin;
       if (centers[i].y < margin) centers[i].y = margin;
-      if (centers[i].y > layoutHeight - margin)
-        centers[i].y = layoutHeight - margin;
+      if (centers[i].y > layoutHeight - margin) centers[i].y = layoutHeight - margin;
     }
 
     currentAlpha *= alphaDecay;
   }
 
   // 返回最终位置（归一化到原始画布坐标）
-  return centers.map((c) => ({
+  return centers.map(c => ({
     x: (c.x / layoutWidth) * width,
     y: (c.y / layoutHeight) * height,
   }));
@@ -166,7 +165,7 @@ function simulateClusterPositions(
 function assignInitialPositions(
   components: string[][],
   width: number,
-  height: number,
+  height: number
 ): Map<string, { x: number; y: number }> {
   const positions = new Map<string, { x: number; y: number }>();
 
@@ -174,7 +173,7 @@ function assignInitialPositions(
 
   // 计算每个簇的预估半径（基于节点数量）
   // 大型簇需要更大的空间
-  const clusterRadii = components.map((component) => {
+  const clusterRadii = components.map(component => {
     const nodeCount = component.length;
     // 基础半径 + 根据节点数量增长的半径
     // 使用 sqrt 使增长更平缓，避免超大簇占据过多空间
@@ -182,12 +181,7 @@ function assignInitialPositions(
   });
 
   // 使用力模拟算法计算簇中心位置
-  const clusterCenters = simulateClusterPositions(
-    clusterRadii,
-    width,
-    height,
-    150,
-  );
+  const clusterCenters = simulateClusterPositions(clusterRadii, width, height, 150);
 
   // 为每个簇内的节点分配位置
   components.forEach((component, clusterIndex) => {
@@ -270,14 +264,18 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     onClickCard,
     enableHoverPreview = true,
   } = props;
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
 
   const [isAfterLayout, setIsAfterLayout] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const graph = useRef<Graph | null>(null);
+  const appliedTopology = useRef<GraphTopology | null>(null);
+  const topologyKey = useMemo(
+    () => graphTopologyKey(initCards, getCardLinks),
+    [initCards, getCardLinks]
+  );
+  const topology = useMemo(() => JSON.parse(topologyKey) as GraphTopology, [topologyKey]);
+  const paddingKey = JSON.stringify(fitViewPadding);
   const editorRef = useRef<EditorRef>(null);
   const initCardsRef = useRef<ICard[]>(initCards);
   const prevSize = useRef<{ width: number; height: number }>({
@@ -364,9 +362,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
           if (node.id !== id) {
             const currentStates = graph.current!.getElementState(node.id);
             // 只清除 selected 状态，保留 current 状态
-            stateUpdates[node.id] = currentStates.filter(
-              (s: string) => s !== "selected",
-            );
+            stateUpdates[node.id] = currentStates.filter((s: string) => s !== "selected");
           }
         });
         if (Object.keys(stateUpdates).length > 0) {
@@ -381,8 +377,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       }
 
       // 获取位置 - 使用类型断言访问 client 属性
-      const clientPos = (evt as unknown as { client: { x: number; y: number } })
-        .client;
+      const clientPos = (evt as unknown as { client: { x: number; y: number } }).client;
       const x = clientPos?.x ?? 0;
       const y = clientPos?.y ?? 0;
       // 获取容器偏移量
@@ -390,7 +385,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       setShow(true);
       setPosition({ x: x - left + 10, y: y - top + 10 });
       setActiveId(Number(id));
-      getCardById(Number(id)).then((card) => {
+      getCardById(Number(id)).then(card => {
         if (editorRef.current) {
           editorRef.current.setEditorValue(card.content);
         }
@@ -409,23 +404,17 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     const stateUpdates: Record<string, string[]> = {};
     allNodes.forEach((node: NodeData) => {
       const currentStates = graph.current!.getElementState(node.id);
-      stateUpdates[node.id] = currentStates.filter(
-        (s: string) => s !== "selected",
-      );
+      if (!currentStates.includes("selected")) return;
+      stateUpdates[node.id] = currentStates.filter((s: string) => s !== "selected");
     });
 
     if (Object.keys(stateUpdates).length > 0) {
-      graph.current.setElementState(stateUpdates);
+      void graph.current.setElementState(stateUpdates, false);
     }
   });
 
   const handleNodeClick = useMemoizedFn((evt: IElementEvent) => {
-    if (
-      !ref.current ||
-      !isAfterLayout ||
-      !graph.current ||
-      !initCardsRef.current
-    ) {
+    if (!ref.current || !isAfterLayout || !graph.current || !initCardsRef.current) {
       return;
     }
     const target = evt.target;
@@ -437,7 +426,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     clearSelectedNodeStates();
 
     if (onClickCard) {
-      const card = initCardsRef.current.find((card) => card.id === Number(id));
+      const card = initCardsRef.current.find(card => card.id === Number(id));
       if (card) {
         onClickCard(card);
       }
@@ -451,7 +440,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     setActiveId(-1);
   });
 
-  const handleInitialize = useMemoizedFn((cards: ICard[]) => {
+  const handleInitialize = useMemoizedFn(() => {
     if (!ref.current) return;
     setIsAfterLayout(false);
     setShow(false);
@@ -461,18 +450,6 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
     if (graph.current) {
       graph.current.destroy();
     }
-    const nodeIdSet = new Set(cards.map((card) => String(card.id)));
-    const cardLinksMap = new Map<number, number[]>();
-    const cardLinkCountMap = new Map<string, number>();
-
-    cards.forEach((card) => {
-      const links = getCardLinks(card).filter((link) =>
-        nodeIdSet.has(String(link)),
-      );
-      cardLinksMap.set(card.id, links);
-      cardLinkCountMap.set(String(card.id), links.length);
-    });
-
     graph.current = new Graph({
       container: ref.current,
       width,
@@ -519,8 +496,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
         },
         collide: {
           radius: (node: NodeData) => {
-            const linkCount = cardLinkCountMap.get(node.id) ?? 0;
-            const size = Math.min(linkCount * 10 + 30, 80);
+            const size = Number(node.style?.size ?? 30);
             return size / 2 + 25; // 增加安全边距，防止节点过于接近
           },
           strength: 1,
@@ -533,35 +509,19 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       behaviors: ["drag-canvas", "zoom-canvas"],
     });
 
-    // 先创建基础节点数据（用于连通分量检测）
-    const basicNodes = cards.map((card) => ({
-      id: String(card.id),
-    }));
-
-    const edges = cards
-      .map((card) =>
-        (cardLinksMap.get(card.id) || []).map((link) => ({
-          source: String(card.id),
-          target: String(link),
-        })),
-      )
-      .flat();
+    const { nodes: basicNodes, edges } = topology;
 
     // 检测连通分量并分配初始位置
     const components = findConnectedComponents(basicNodes, edges);
     const initialPositions = assignInitialPositions(components, width, height);
 
     // 为节点添加初始位置
-    const nodes = cards.map((card) => {
-      const nodeId = String(card.id);
-      const pos = initialPositions.get(nodeId);
+    const nodes = basicNodes.map(node => {
+      const pos = initialPositions.get(node.id);
       return {
-        id: nodeId,
+        ...node,
         style: {
-          size: Math.min(
-            (cardLinksMap.get(card.id)?.length ?? 0) * 10 + 30,
-            80,
-          ),
+          ...node.style,
           x: pos?.x,
           y: pos?.y,
         },
@@ -573,11 +533,12 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       edges,
     });
 
-    graph.current.render();
-
-    graph.current.once("afterrender", () => {
-      setIsAfterLayout(true);
+    appliedTopology.current = topology;
+    const instance = graph.current;
+    instance.once("afterrender", () => {
+      if (graph.current === instance) setIsAfterLayout(true);
     });
+    void instance.render();
 
     graph.current.on(NodeEvent.POINTER_ENTER, handleNodeMouseEnter);
     graph.current.on(NodeEvent.POINTER_LEAVE, handleNodeMouseLeave);
@@ -589,51 +550,18 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   const handleCurrentCardIdsChange = useMemoizedFn(
     (currentCardIds: number[] | undefined, isAfterLayout?: boolean) => {
       if (!graph.current || !isAfterLayout) return;
-      try {
-        // 获取当前处于 current 状态的节点
-        const currentNodeData = graph.current.getElementDataByState(
-          "node",
-          "current",
-        );
-        // 清除这些节点的 current 状态
-        currentNodeData.forEach((nodeData: NodeData) => {
-          if (!graph.current) return;
-          try {
-            const currentStates = graph.current.getElementState(nodeData.id);
-            const newStates = currentStates.filter(
-              (s: string) => s !== "current",
-            );
-            graph.current.setElementState(nodeData.id, newStates);
-          } catch {
-            // 忽略元素未准备好的错误
-          }
-        });
-        // 设置新的 current 状态
-        // 获取所有节点 ID 用于检查节点是否存在
-        const allNodeIds = new Set(
-          graph.current.getNodeData().map((n: NodeData) => n.id),
-        );
-        currentCardIds?.forEach((id) => {
-          if (!graph.current) return;
-          const nodeId = String(id);
-          // 检查节点是否存在于图中
-          if (!allNodeIds.has(nodeId)) return;
-          try {
-            const currentStates = graph.current.getElementState(nodeId);
-            if (!currentStates.includes("current")) {
-              graph.current.setElementState(nodeId, [
-                ...currentStates,
-                "current",
-              ]);
-            }
-          } catch {
-            // 忽略元素未准备好的错误
-          }
-        });
-      } catch {
-        // 忽略图未准备好的错误
+      const currentIds = new Set(currentCardIds?.map(String));
+      const updates: Record<string, string[]> = {};
+      for (const node of graph.current.getNodeData()) {
+        const states = graph.current.getElementState(node.id);
+        const current = currentIds.has(node.id);
+        if (states.includes("current") === current) continue;
+        updates[node.id] = current
+          ? [...states, "current"]
+          : states.filter(state => state !== "current");
       }
-    },
+      if (Object.keys(updates).length) void graph.current.setElementState(updates, false);
+    }
   );
 
   useEffect(() => {
@@ -642,15 +570,66 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
 
   useEffect(() => {
     const cancelInitialization = scheduleGraphInitialization(() => {
-      handleInitialize(initCards);
+      handleInitialize();
     });
 
     return () => {
       cancelInitialization();
       if (graph.current) graph.current.destroy();
       graph.current = null;
+      appliedTopology.current = null;
     };
-  }, [handleInitialize, initCards, fitViewPadding]);
+  }, [handleInitialize, fitView, paddingKey]);
+
+  useEffect(() => {
+    const instance = graph.current;
+    if (!instance || !isAfterLayout || appliedTopology.current === topology) return;
+    const existing = new Map(instance.getNodeData().map(node => [node.id, node]));
+    const currentIds = new Set(currentCardIds?.map(String));
+    const nodes = topology.nodes.map((node, index) => {
+      const previous = existing.get(node.id);
+      const states = previous
+        ? instance.getElementState(node.id).filter(state => state !== "current")
+        : [];
+      if (currentIds.has(node.id)) states.push("current");
+      // 原节点保留布局坐标；新增节点先分散放置，不为数据更新重跑全图布局。
+      return {
+        ...node,
+        states,
+        style: {
+          x: (index % 10) * 60,
+          y: Math.floor(index / 10) * 60,
+          ...previous?.style,
+          ...node.style,
+        },
+      };
+    });
+    appliedTopology.current = topology;
+    instance.setData({ nodes, edges: topology.edges });
+    void instance.draw();
+    if (activeId !== -1 && !nodes.some(node => node.id === String(activeId))) {
+      mouseEnterId.current = null;
+      setShow(false);
+      setActiveId(-1);
+    }
+  }, [topology, isAfterLayout, currentCardIds, activeId]);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const observer = new ResizeObserver(() => {
+      const instance = graph.current;
+      if (!instance) return;
+      const width = node.clientWidth;
+      const height = node.clientHeight;
+      if (prevSize.current.width === width && prevSize.current.height === height) return;
+      instance.setSize(width, height);
+      if (fitView) void instance.fitView();
+      prevSize.current = { width, height };
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [fitView]);
 
   useEffect(() => {
     void applyThemeToGraph();
@@ -682,8 +661,7 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
   }, [currentCardIds, handleCurrentCardIdsChange, isAfterLayout]);
 
   useEffect(() => {
-    if (!graph.current || !ref.current || activeId === -1 || !isAfterLayout)
-      return;
+    if (!graph.current || !ref.current || activeId === -1 || !isAfterLayout) return;
 
     const handleGraphZoomAndMove = () => {
       if (!graph.current || !ref.current) return;
@@ -697,17 +675,16 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
       const x = nodeStyle.x as number | undefined;
       const y = nodeStyle.y as number | undefined;
       if (x === undefined || y === undefined) return;
-      const { top, left } = ref.current.getBoundingClientRect();
       // 获取节点尺寸
       const size = (nodeStyle.size as number) || 30;
       // 获取画布的缩放比例
       const ratio = graph.current.getZoom();
       const actualSize = size * ratio;
-      // 将画布坐标转换为视口坐标
+      // 视口坐标已相对图谱容器，无需再减去容器在窗口中的偏移。
       const viewportPoint = graph.current.getViewportByCanvas([x, y]);
       setPosition({
-        x: viewportPoint[0] - left + actualSize / 2,
-        y: viewportPoint[1] - top + actualSize / 2,
+        x: viewportPoint[0] + actualSize / 2,
+        y: viewportPoint[1] + actualSize / 2,
       });
     };
 
@@ -724,41 +701,18 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
 
   return (
     <div
-      className={classnames("w-full relative overflow-hidden", className)}
+      className={classnames("relative w-full overflow-hidden", className)}
       style={style}
-      ref={(node) => {
-        if (node) {
-          ref.current = node;
-          if (resizeObserverRef.current) {
-            resizeObserverRef.current.disconnect();
-          }
-          resizeObserverRef.current = new ResizeObserver(() => {
-            if (graph.current) {
-              const width = node.clientWidth;
-              const height = node.clientHeight;
-              if (
-                prevSize.current.width === width &&
-                prevSize.current.height === height
-              ) {
-                return;
-              }
-              graph.current.setSize(width, height);
-              graph.current.fitView();
-              prevSize.current = { width, height };
-            }
-          });
-          resizeObserverRef.current.observe(node);
-        }
-      }}
+      ref={ref}
     >
       {!isAfterLayout && (
-        <div className="w-full h-full flex justify-center items-center">
+        <div className="flex h-full w-full items-center justify-center">
           <Loading />
         </div>
       )}
       {show && (
         <div
-          className="absolute z-20 pointer-events-auto rounded-[18px] bg-[rgba(248,250,255,0.9)] dark:bg-[rgba(10,15,28,0.85)] border border-[rgba(255,255,255,0.45)] dark:border-[rgba(255,255,255,0.12)] shadow-[0_18px_45px_rgba(15,23,42,0.25)] dark:shadow-[0_22px_60px_rgba(2,6,23,0.7)] backdrop-blur-[18px] backdrop-saturate-180 text-[rgba(15,23,42,0.95)] dark:text-[rgba(241,245,249,0.95)] animate-fadeIn"
+          className="backdrop-saturate-180 animate-fadeIn pointer-events-auto absolute z-20 rounded-[18px] border border-[rgba(255,255,255,0.45)] bg-[rgba(248,250,255,0.9)] text-[rgba(15,23,42,0.95)] shadow-[0_18px_45px_rgba(15,23,42,0.25)] backdrop-blur-[18px] dark:border-[rgba(255,255,255,0.12)] dark:bg-[rgba(10,15,28,0.85)] dark:text-[rgba(241,245,249,0.95)] dark:shadow-[0_22px_60px_rgba(2,6,23,0.7)]"
           style={{
             left: position.x,
             top: position.y,
@@ -766,24 +720,20 @@ const LinkGraph = memo((props: ILinkGraphProps) => {
             maxHeight: cardMaxHeight,
             fontSize: cardFontSize,
           }}
-          onClickCapture={(e) => e.stopPropagation()}
-          onMouseDownCapture={(e) => e.stopPropagation()}
-          onPointerDownCapture={(e) => e.stopPropagation()}
-          onPointerMoveCapture={(e) => e.stopPropagation()}
-          onWheelCapture={(e) => e.stopPropagation()}
+          onClickCapture={e => e.stopPropagation()}
+          onMouseDownCapture={e => e.stopPropagation()}
+          onPointerDownCapture={e => e.stopPropagation()}
+          onPointerMoveCapture={e => e.stopPropagation()}
+          onWheelCapture={e => e.stopPropagation()}
         >
           <div
-            className="border-l-20 border-r-8 border-y-20 px-2-5 border-transparent overflow-y-auto w-[420px] max-h-[360px]"
+            className="border-l-20 border-y-20 px-2-5 max-h-[360px] w-[420px] overflow-y-auto border-r-8 border-transparent"
             style={{
               maxWidth: cardWidth,
               paddingRight: 12,
             }}
           >
-            <Editor
-              ref={editorRef}
-              readonly={true}
-              extensions={dynamicExtensions}
-            />
+            <Editor ref={editorRef} readonly={true} extensions={dynamicExtensions} />
           </div>
         </div>
       )}
