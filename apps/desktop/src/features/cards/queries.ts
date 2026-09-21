@@ -25,6 +25,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
 import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
 import { defaultContentEventBus } from "@/utils/event-bus/content-event-bus";
+import { startOfWeek } from "@/utils/time";
 import { toast } from "@tau/ui/Toast";
 import type { CardFilter, CardTagNode, CardTimeGroup, CardTimeGroupKey } from "./types";
 
@@ -236,8 +237,7 @@ function timeGroupKey(ts: number, startOfToday: number): CardTimeGroupKey {
   const today = new Date(startOfToday);
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
-  const week = new Date(today);
-  week.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  const week = startOfWeek(today);
   const month = new Date(today.getFullYear(), today.getMonth(), 1);
   if (ts >= startOfToday) return "today";
   if (ts >= yesterday.getTime()) return "yesterday";
