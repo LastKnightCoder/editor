@@ -64,7 +64,7 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "知识",
     items: [
-      { key: "cards", label: "卡片库", icon: Layers }, // legacy: card-list-view
+      { key: "cards", label: "卡片库", icon: Layers }, // features/cards
       { key: "articles", label: "文章", icon: FileText }, // legacy: ArticleListView
       { key: "diary", label: "日记", icon: PenLine }, // legacy: DiaryView（TabType.DailyNote）
       { key: "library", label: "知识库", icon: Book }, // legacy: DocumentsView + PdfView + VecDocumentView（合并目标，蓝图 §5.3）

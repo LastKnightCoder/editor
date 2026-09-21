@@ -12,10 +12,11 @@ import type { Descendant } from "slate";
 type ContentEditorProps = ComponentProps<typeof Editor> & {
   contentId?: number;
   source?: Omit<ContentSessionTarget, "contentId">;
+  onLoadError?: (error: string) => void;
 };
 
 const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
-  ({ contentId, source, ...props }, ref) => {
+  ({ contentId, source, onLoadError, ...props }, ref) => {
     const sessions = useCollaborationStore(state => state.sessions);
     const readonly = props.readonly ?? true;
     const { entry, error: sessionError } = useContentSession(contentId, source);
@@ -26,6 +27,10 @@ const ContentEditor = forwardRef<EditorRef, ContentEditorProps>(
     const editorRef = useRef<EditorRef | null>(null);
     callback.current = props.onChange;
     const presence = useCollaborationPresence(binding, readonly || frozen);
+    useEffect(() => {
+      const loadError = sessionError || (!binding && error);
+      if (loadError) onLoadError?.(loadError);
+    }, [sessionError, error, binding, onLoadError]);
     useEffect(() => {
       if (binding && article && editorRef.current)
         callback.current?.(article.content as Descendant[], editorRef.current.getEditor());

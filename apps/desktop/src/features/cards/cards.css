@@ -1,0 +1,11 @@
+/*
+ * 卡片域保留样式（D-001 白名单第 4 类）——仅正文预览限高渐隐的复杂 mask，
+ * 其余样式均为组件 Tailwind。
+ */
+
+/* 正文预览溢出限高时挂类启用：底部 24px（约一行行高）渐隐，替代 overflow 硬切；
+   未溢出卡片不挂类，不承担 mask 合成成本 */
+.cards-fade-bottom {
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 24px), transparent 100%);
+}
