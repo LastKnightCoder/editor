@@ -1,8 +1,5 @@
 import { Editor, Element, Node } from "slate";
-import {
-  deleteDataTable,
-  incrementDataTableRefCount,
-} from "@/commands/data-table";
+import { deleteDataTable, incrementDataTableRefCount } from "@/commands/data-table";
 import type { DatabaseElement } from "../types";
 
 type DatabaseEditor = Editor & {
@@ -17,28 +14,20 @@ export const overwrite = (editor: Editor) => {
   const databaseEditor = editor as DatabaseEditor;
   const { isBlock, isVoid, apply } = editor;
 
-  editor.isBlock = (element) => {
+  editor.isBlock = element => {
     return element.type === "database" ? true : isBlock(element);
   };
 
-  editor.isVoid = (element) => {
+  editor.isVoid = element => {
     return element.type === "database" ? true : isVoid(element);
   };
 
-  editor.apply = (op) => {
-    if (
-      op.type === "remove_node" &&
-      isDatabaseElement(op.node) &&
-      !databaseEditor.isResetValue
-    ) {
+  editor.apply = op => {
+    if (op.type === "remove_node" && isDatabaseElement(op.node) && !databaseEditor.isResetValue) {
       void deleteDataTable(op.node.tableId);
     }
 
-    if (
-      op.type === "insert_node" &&
-      isDatabaseElement(op.node) &&
-      !databaseEditor.isResetValue
-    ) {
+    if (op.type === "insert_node" && isDatabaseElement(op.node) && !databaseEditor.isResetValue) {
       if (databaseEditor.isInsertDatabase) {
         databaseEditor.isInsertDatabase = false;
       } else {

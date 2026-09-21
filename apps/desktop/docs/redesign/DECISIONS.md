@@ -224,6 +224,15 @@
 - 实例提交入口原子更新状态、查询投影和变更来源；外部确认命令不产生保存回调，用户事件携带字段差量。快照兼容入口的基线差分只在核心维护，宿主不再反推修改。
 - 看板组序纳入核心投影；视图切换保存各自配置并原子更新投影，重命名与重排不重新应用旧配置。不改为受控组件，不通过 key 重建或 props 同步覆盖内部编辑。
 
+## D-026 Database 组件 tau 主题化（原位换皮）
+
+- `components/Database` + `CardDatabaseView` + `editor-extensions/database` 全量换装 tau token 与 primitives、antd/react-icons/`--th-*` 清零（2026-09-21，M1–M6 六提交）；行为与 D-024/D-025 数据协议不变。
+- **RowDetailModal 保留 CustomModal 壳**：其全屏展开（覆盖标题栏、px-12 版式）是 Dialog 尺寸体系外的高度自定义表面，为不重构展开特性而保留自建壳（壳本身无 antd）；内部确认弹窗/图标/灰阶已换 tau。ViewTypeSelectModal / ColumnEditModal 已迁 Dialog。
+- select 选项色：`constants/select.ts` 的 per-theme rgba 色表删除，`SELECT_COLORS` 七色词与 Tag 七色板恒等映射，展示统一 Tag（D-021 语感）；颜色修改走 ColorSwatch。
+- `theme: "light"|"dark"` prop 线保留：CellPlugin 的 Editor/Renderer 契约含 theme，清签名属数据契约变更，超出换皮边界；组件内已不再消费。
+- `editor-extensions/database/index.module.less` 保留：拖放视觉（drop-common/drag-common）是全部 editor 扩展共享的存量惯例，仅将包装层颜色换 `--tau-*` 变量，随 editor 域迁移一并清理。
+- 日历事件色由裸 hex 改 `var(--tau-accent)`（数据色经 color-mix 派生软底）。
+
 ## Page 迁移清单（M2 起滚动勾选）
 
 > 33 个 TabType 的完整映射与合并方案见蓝图 §5.3，此处只跟踪迁移状态。

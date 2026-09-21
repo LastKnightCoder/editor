@@ -1,6 +1,6 @@
 import React, { memo, useState, useRef, useMemo } from "react";
-import { App } from "antd";
-import { MdAdd, MdClose, MdLink } from "react-icons/md";
+import { Link2, Plus, X } from "lucide-react";
+import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
 import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import { ColumnDef, CellValue } from "@/components/Database/types";
@@ -19,10 +19,9 @@ interface CardLinksRendererProps {
 }
 
 const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
-  ({ value, column, theme, readonly, onCellValueChange }) => {
+  ({ value, column, readonly, onCellValueChange }) => {
     const links = Array.isArray(value) ? (value as number[]) : [];
-    const isDark = theme === "dark";
-    const { modal } = App.useApp();
+    const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
     const [hoveredLinkId, setHoveredLinkId] = useState<number | null>(null);
     const [selectorModalVisible, setSelectorModalVisible] = useState(false);
@@ -67,19 +66,7 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
         return; // 只读链接不能删除
       }
 
-      modal.confirm({
-        title: "确认删除",
-        content: "确定要删除这个链接吗？",
-        okText: "确定",
-        cancelText: "取消",
-        okButtonProps: {
-          danger: true,
-        },
-        onOk() {
-          const newValue = links.filter(id => id !== linkId);
-          onCellValueChange(newValue);
-        },
-      });
+      setConfirmDeleteId(linkId);
     });
 
     const handleLinkClick = useMemoizedFn((linkId: number) => {
@@ -129,15 +116,9 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
                 <motion.div
                   key={linkId}
                   className={classNames(
-                    "group relative flex min-w-0 flex-none cursor-pointer items-center gap-2 overflow-visible rounded border px-2 py-1 transition-all",
+                    "border-line-1 bg-surface hover:bg-hover rounded-tau-sm group relative flex min-w-0 flex-none cursor-pointer items-center gap-2 overflow-visible border px-2 py-1 transition-colors",
                     {
-                      "border-gray-300 bg-gray-100 hover:border-gray-400 hover:bg-gray-200":
-                        !isDark && !isReadonly,
-                      "border-gray-600 bg-zinc-700 hover:border-gray-500 hover:bg-gray-600":
-                        isDark && !isReadonly,
-                      "cursor-default border-gray-400 bg-gray-200 opacity-60":
-                        !isDark && isReadonly,
-                      "cursor-default border-gray-500 bg-gray-600 opacity-60": isDark && isReadonly,
+                      "cursor-default opacity-60": isReadonly,
                     }
                   )}
                   onMouseEnter={() => setHoveredLinkId(linkId)}
@@ -149,10 +130,13 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
                   }}
                 >
                   <div className="flex flex-none items-center">
-                    <MdLink className="h-4 w-4 text-[var(--th-accent)]" />
+                    <Link2 className="text-accent h-4 w-4" strokeWidth={1.75} />
                   </div>
 
-                  <span className="max-w-24 truncate text-[12px]" title={getLinkCardTitle(linkId)}>
+                  <span
+                    className="text-ink-1 text-tau-sm max-w-24 truncate"
+                    title={getLinkCardTitle(linkId)}
+                  >
                     {getLinkCardTitle(linkId)}
                   </span>
 
@@ -164,15 +148,10 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
                         exit={{ scale: 0, opacity: 0 }}
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
-                        className={classNames(
-                          "absolute -right-1 -top-1 z-10 flex h-3 w-3 cursor-pointer items-center justify-center rounded-full bg-red-500 shadow-lg",
-                          {
-                            "bg-red-700": isDark,
-                          }
-                        )}
+                        className="bg-danger text-ink-inverse absolute -right-1 -top-1 z-10 flex h-3 w-3 cursor-pointer items-center justify-center rounded-full shadow-lg"
                         onClick={e => handleDeleteLink(linkId, e)}
                       >
-                        <MdClose className="h-2 w-2 text-white" />
+                        <X className="h-2 w-2" strokeWidth={2.5} />
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -185,22 +164,32 @@ const CardLinksRenderer: React.FC<CardLinksRendererProps> = memo(
         {/* 添加按钮 */}
         {!readonly && (
           <div
-            className={classNames(
-              "absolute right-1 top-1/2 flex -translate-y-1/2 cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 transition-colors",
-              {
-                "bg-gray-200/80 text-gray-700 hover:bg-gray-300/80": !isDark,
-                "bg-zinc-700/80 text-gray-200 hover:bg-gray-600/80": isDark,
-              }
-            )}
+            className="bg-group hover:bg-hover text-ink-2 hover:text-ink-1 rounded-tau-sm absolute right-1 top-1/2 flex -translate-y-1/2 cursor-pointer items-center gap-1 px-1.5 py-1 transition-colors"
             role="button"
             aria-label="添加链接"
             onClick={() => setSelectorModalVisible(true)}
           >
-            <MdAdd className="h-4 w-4" />
+            <Plus className="h-4 w-4" strokeWidth={1.75} />
           </div>
         )}
 
         {/* 卡片选择模态框 */}
+        <ConfirmDialog
+          open={confirmDeleteId !== null}
+          onOpenChange={open => {
+            if (!open) setConfirmDeleteId(null);
+          }}
+          title="确认删除"
+          impact="确定要删除这个链接吗？"
+          danger
+          confirmText="确定"
+          onConfirm={() => {
+            const linkId = confirmDeleteId;
+            if (linkId === null) return;
+            onCellValueChange(links.filter(id => id !== linkId));
+          }}
+        />
+
         <ContentSelectorModal
           open={selectorModalVisible}
           onCancel={() => setSelectorModalVisible(false)}

@@ -1,5 +1,5 @@
 import { CellPlugin } from "@/components/Database/types";
-import { MdLink } from "react-icons/md";
+import { Link2 } from "lucide-react";
 import Renderer from "./components/Renderer";
 import { CardLinksPluginConfig } from "./types";
 
@@ -8,7 +8,7 @@ const CardLinksPlugin: CellPlugin<CardLinksPluginConfig> = {
   name: "卡片链接",
   editable: false, // 无编辑器模式，通过渲染器直接操作
   Renderer: Renderer as any,
-  Icon: ({ className }) => <MdLink className={className} />,
+  Icon: ({ className }) => <Link2 className={className} strokeWidth={1.75} />,
 
   beforeSave: (value: number[]) => {
     if (!Array.isArray(value)) return [];

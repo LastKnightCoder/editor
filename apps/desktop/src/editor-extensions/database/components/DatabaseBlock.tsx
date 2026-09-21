@@ -1,13 +1,7 @@
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
-import { Empty, Skeleton } from "antd";
 import { memo, useMemo, useState, useRef, useEffect } from "react";
-import {
-  RenderElementProps,
-  ReactEditor,
-  useSlateStatic,
-  useReadOnly,
-} from "slate-react";
+import { RenderElementProps, ReactEditor, useSlateStatic, useReadOnly } from "slate-react";
 import { Transforms } from "slate";
 import { useEditDatabaseWithContext } from "@tau/shared";
 import { AddParagraph, useDragAndDrop } from "@tau/editor/src";
@@ -26,10 +20,9 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
   const { element, attributes, children } = props;
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
+    element,
+  });
   const isLast = useIsLastElement(element);
   const { tableId, height } = element;
   const databaseState = useEditDatabaseWithContext(tableId);
@@ -44,10 +37,7 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
   const handleResizeMove = useMemoizedFn((event: MouseEvent) => {
     if (resizeStart.current == null) return;
     const delta = event.clientY - resizeStart.current;
-    const nextHeight = Math.max(
-      12,
-      Math.min(60, startHeight.current + delta / 16),
-    );
+    const nextHeight = Math.max(12, Math.min(60, startHeight.current + delta / 16));
     const path = ReactEditor.findPath(editor, element);
     Transforms.setNodes(editor, { height: nextHeight }, { at: path });
   });
@@ -65,29 +55,26 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
     };
   }, [handleResizeMove, handleResizeEnd]);
 
-  const handleResizeStart = useMemoizedFn(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      if (readOnly) return;
-      event.preventDefault();
-      resizeStart.current = event.clientY;
-      startHeight.current = element.height;
-      document.addEventListener("mousemove", handleResizeMove);
-      document.addEventListener("mouseup", handleResizeEnd);
-    },
-  );
+  const handleResizeStart = useMemoizedFn((event: React.MouseEvent<HTMLDivElement>) => {
+    if (readOnly) return;
+    event.preventDefault();
+    resizeStart.current = event.clientY;
+    startHeight.current = element.height;
+    document.addEventListener("mousemove", handleResizeMove);
+    document.addEventListener("mouseup", handleResizeEnd);
+  });
 
   const activeViewId = databaseState?.activeViewId ?? null;
   const views = databaseState?.views ?? [];
   const activeView = useMemo(() => {
-    return views.find((view) => view.id === activeViewId) ?? null;
+    return views.find(view => view.id === activeViewId) ?? null;
   }, [views, activeViewId]);
 
   const renderContent = () => {
     if (loading) {
       return (
-        <Skeleton
-          active
-          paragraph={false}
+        <div
+          className="bg-group rounded-tau-lg animate-pulse"
           style={{ minHeight: `${height}em`, margin: "3em 0" }}
         />
       );
@@ -96,7 +83,7 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
     if (!databaseState?.table || !activeView) {
       return (
         <div className={styles.empty} style={{ minHeight: `${height}em` }}>
-          <Empty description="未找到对应的数据表" />
+          <span className="text-ink-3 text-tau-sm">未找到对应的数据表</span>
         </div>
       );
     }
@@ -112,10 +99,8 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
           viewConfig={activeView.config}
           onActiveViewIdChange={
             databaseState?.onActiveViewIdChange
-              ? async (viewId) => {
-                  await Promise.resolve(
-                    databaseState.onActiveViewIdChange?.(viewId),
-                  );
+              ? async viewId => {
+                  await Promise.resolve(databaseState.onActiveViewIdChange?.(viewId));
                 }
               : undefined
           }
@@ -134,7 +119,7 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
       className={classNames(styles.container, {
@@ -157,7 +142,7 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
         {!(readOnly && isLast) && <AddParagraph element={element} />}
         {!readOnly && (
           <div
-            ref={(node) => {
+            ref={node => {
               drag(node);
             }}
             className={classNames(styles.dragHandler, {
