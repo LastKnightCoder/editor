@@ -41,7 +41,11 @@ import { IconButton } from "./IconButton";
 
 export interface DialogProps {
   open: boolean;
+  /** 提前挂载内容，待异步初始化完成后再显示并接管焦点。 */
+  contentReady?: boolean;
   onOpenChange: (open: boolean) => void;
+  /** 退场完成且内容卸载后调用，可在此清理业务草稿。 */
+  onAfterClose?: () => void;
   title: string;
   /** 标题左侧图标（16px、ink-2，随需出现；阻断通知等场景保持纯文字头部） */
   icon?: ReactNode;
@@ -93,7 +97,9 @@ function shakeCard(el: HTMLElement | null) {
 
 export function Dialog({
   open,
+  contentReady = true,
   onOpenChange,
+  onAfterClose,
   title,
   icon,
   subtitle,
@@ -113,6 +119,9 @@ export function Dialog({
   const portalContainer = usePortalContainer();
   const cardRef = useRef<HTMLDivElement | null>(null);
   const lastActiveRef = useRef<HTMLElement | null>(null);
+  const wasMounted = useRef(false);
+  const afterCloseRef = useRef(onAfterClose);
+  afterCloseRef.current = onAfterClose;
   const [bodyEl, setBodyEl] = useState<HTMLDivElement | null>(null);
   const titleId = useId();
 
@@ -122,25 +131,29 @@ export function Dialog({
   useEffect(() => {
     if (open) {
       setMounted(true);
+      if (!contentReady) {
+        setShown(false);
+        return;
+      }
       const raf = requestAnimationFrame(() => setShown(true));
       return () => cancelAnimationFrame(raf);
     }
     setShown(false);
     const timer = setTimeout(() => setMounted(false), 200);
     return () => clearTimeout(timer);
-  }, [open]);
+  }, [open, contentReady]);
 
   // 打开：记录触发元素（关闭归还）+ 锁底层滚动
   useEffect(() => {
-    if (!open) return;
+    if (!open || !contentReady) return;
     lastActiveRef.current =
       document.activeElement instanceof HTMLElement ? document.activeElement : null;
     return lockBodyScroll(portalContainer.ownerDocument);
-  }, [open]);
+  }, [open, contentReady]);
 
   // 挂载后落初始焦点：[data-autofocus] 优先（表单首输入框 / danger 的取消按钮），否则卡片自身
   useEffect(() => {
-    if (!mounted || !open) return;
+    if (!mounted || !open || !contentReady) return;
     const card = cardRef.current;
     if (!card) return;
     const target = card.querySelector<HTMLElement>("[data-autofocus]") ?? card;
@@ -149,13 +162,20 @@ export function Dialog({
     } catch {
       /* jsdom 部分元素无 focus */
     }
-  }, [mounted, open]);
+  }, [mounted, open, contentReady]);
 
   // 卸载瞬间归还焦点给触发元素（键盘用户不断链）
   useEffect(() => {
-    if (mounted) return;
+    if (mounted) {
+      wasMounted.current = true;
+      return;
+    }
     lastActiveRef.current?.focus?.();
     lastActiveRef.current = null;
+    if (wasMounted.current) {
+      wasMounted.current = false;
+      afterCloseRef.current?.();
+    }
   }, [mounted]);
 
   useEdgeFade(bodyEl);
@@ -201,11 +221,14 @@ export function Dialog({
   return createPortal(
     <div
       onClick={onMaskClick}
+      aria-hidden={!contentReady || undefined}
+      inert={!contentReady || undefined}
       className={clsx(
         "bg-overlay fixed inset-0 z-[340] grid place-items-center p-8",
         "backdrop-blur-[4px]",
         "ease-tau-out transition-opacity duration-[200ms]",
-        shown ? "opacity-100" : "opacity-0"
+        shown ? "opacity-100" : "opacity-0",
+        !contentReady && "pointer-events-none invisible"
       )}
     >
       <PortalScope>
@@ -264,7 +287,10 @@ export function Dialog({
           {subtitle && <p className="text-ink-3 text-tau-meta mt-[3px] pl-6 pr-12">{subtitle}</p>}
           <div
             ref={setBodyEl}
-            className="edge-fade-scroll scrollbar-inset text-ink-2 text-tau-body overflow-y-auto border-r-4 border-r-transparent px-6 pb-[22px] pt-[8px]"
+            className={clsx(
+              "edge-fade-scroll scrollbar-inset text-ink-2 text-tau-body min-h-0 overflow-y-auto border-r-4 border-r-transparent px-6 pt-[8px]",
+              footer || impact ? "pb-[22px]" : "mb-4 pb-[6px]"
+            )}
           >
             {children}
           </div>
