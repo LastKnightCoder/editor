@@ -245,7 +245,7 @@ export function Dialog({
           onKeyDown={onCardKeyDown}
           style={width ? { width } : undefined}
           className={clsx(
-            "bg-surface border-line-1 shadow-float",
+            "bg-surface border-line-1 shadow-float relative",
             "rounded-tau-lg flex max-h-[min(78vh,660px)] max-w-full flex-col border",
             size === "sm" ? "w-[380px]" : size === "lg" ? "w-[560px]" : "w-[440px]",
             "ease-tau-out transition-[opacity,transform] duration-[200ms]",
