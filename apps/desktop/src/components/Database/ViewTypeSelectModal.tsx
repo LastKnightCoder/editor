@@ -1,14 +1,16 @@
-import React, { memo, useState } from "react";
-import { Input, Form, Select } from "antd";
-import classNames from "classnames";
-import { MdTableChart, MdViewModule, MdCalendarToday, MdViewKanban } from "react-icons/md";
+import React, { memo, useEffect, useState } from "react";
+import { CalendarDays, LayoutGrid, SquareKanban, Table2 } from "lucide-react";
+import { cn } from "@tau/ui/cn";
 import { DataTableViewType } from "@/types";
-import CustomModal from "@/components/CustomModal";
+import { Button } from "@tau/ui/Button";
+import { Dialog } from "@tau/ui/Dialog";
+import { Input } from "@tau/ui/Input";
+import { Select } from "@tau/ui/Select";
 
 interface ViewType {
   type: DataTableViewType | string;
   name: string;
-  icon: React.ReactNode;
+  icon: typeof Table2;
   disabled?: boolean;
   disabledReason?: string;
 }
@@ -27,197 +29,164 @@ interface ViewTypeSelectModalProps {
 }
 
 const ViewTypeSelectModal: React.FC<ViewTypeSelectModalProps> = memo(
-  ({ open, onCancel, onConfirm, columns, theme }) => {
+  ({ open, onCancel, onConfirm, columns }) => {
     const [selectedType, setSelectedType] = useState<DataTableViewType | null>(null);
+    const [name, setName] = useState("");
+    const [dateColumnId, setDateColumnId] = useState<string | null>(null);
+    const [groupColumnId, setGroupColumnId] = useState<string | null>(null);
     const [userModifiedName, setUserModifiedName] = useState(false);
-    const [form] = Form.useForm<{
-      name: string;
-      dateColumnId?: string;
-      groupColumnId?: string;
-    }>();
 
     // 检查是否有日期列
     const dateColumns = columns.filter(col => col.type === "date");
-    const hasDateColumn = dateColumns.length > 0;
 
     // 检查是否有单选列
     const selectColumns = columns.filter(col => col.type === "select");
-    const hasSelectColumn = selectColumns.length > 0;
 
     // 动态生成视图类型列表
     const viewTypes: ViewType[] = [
-      {
-        type: "table",
-        name: "表格",
-        icon: <MdTableChart />,
-      },
-      {
-        type: "gallery",
-        name: "画廊",
-        icon: <MdViewModule />,
-      },
+      { type: "table", name: "表格", icon: Table2 },
+      { type: "gallery", name: "画廊", icon: LayoutGrid },
       {
         type: "calendar",
         name: "日历",
-        icon: <MdCalendarToday />,
-        disabled: !hasDateColumn,
+        icon: CalendarDays,
+        disabled: dateColumns.length === 0,
         disabledReason: "需要至少一个日期列",
       },
       {
         type: "kanban",
         name: "看板",
-        icon: <MdViewKanban />,
-        disabled: !hasSelectColumn,
+        icon: SquareKanban,
+        disabled: selectColumns.length === 0,
         disabledReason: "需要至少一个单选列",
       },
     ];
 
-    const handleSelectType = (type: DataTableViewType) => {
-      setSelectedType(type);
-
-      // 如果用户没有手动修改过名称，则自动更新为新的视图类型名称
-      if (!userModifiedName) {
-        const defaultName = viewTypes.find(v => v.type === type)?.name || "";
-        form.setFieldsValue({ name: defaultName });
-      }
-    };
-
-    const handleOk = async () => {
-      if (!selectedType) return;
-      try {
-        const values = await form.validateFields();
-        onConfirm(selectedType, values.name, values.dateColumnId, values.groupColumnId);
-        form.resetFields();
+    useEffect(() => {
+      if (!open) {
         setSelectedType(null);
         setUserModifiedName(false);
-      } catch (error) {
-        console.error("表单验证失败:", error);
+        setName("");
+        setDateColumnId(null);
+        setGroupColumnId(null);
+      }
+    }, [open]);
+
+    const handleSelectType = (type: DataTableViewType) => {
+      setSelectedType(type);
+      // 如果用户没有手动修改过名称，则自动更新为新的视图类型名称
+      if (!userModifiedName) {
+        setName(viewTypes.find(v => v.type === type)?.name || "");
       }
     };
 
-    const handleCancel = () => {
-      form.resetFields();
-      setSelectedType(null);
-      setUserModifiedName(false);
-      onCancel();
+    const canConfirm =
+      Boolean(selectedType) &&
+      name.trim().length > 0 &&
+      (selectedType !== "calendar" || Boolean(dateColumnId)) &&
+      (selectedType !== "kanban" || Boolean(groupColumnId));
+
+    const handleOk = () => {
+      if (!selectedType || !canConfirm) return;
+      onConfirm(selectedType, name.trim(), dateColumnId ?? undefined, groupColumnId ?? undefined);
     };
 
     return (
-      <CustomModal
+      <Dialog
         open={open}
+        onOpenChange={next => {
+          if (!next) onCancel();
+        }}
         title="添加新视图"
-        onCancel={handleCancel}
-        onOk={handleOk}
-        okText="创建"
-        cancelText="取消"
         width={600}
-        okButtonProps={{ disabled: !selectedType }}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={onCancel}>
+              取消
+            </Button>
+            <Button variant="primary" size="sm" disabled={!canConfirm} onClick={handleOk}>
+              创建
+            </Button>
+          </>
+        }
       >
-        <div className="py-4">
-          <div className="mb-6 grid grid-cols-2 gap-4">
-            {viewTypes.map(viewType => (
-              <div
-                key={viewType.type}
-                className={classNames(
-                  "relative flex flex-col items-center justify-center rounded-lg border-2 p-6 transition-all",
-                  {
-                    "hover:bg-[var(--th-accent-soft)]/50 cursor-pointer border-gray-300 bg-white hover:border-[var(--th-border-hover)]":
-                      theme === "light" && !viewType.disabled && selectedType !== viewType.type,
-                    "cursor-pointer border-[var(--th-border-focus)] bg-white":
-                      theme === "light" && selectedType === viewType.type,
-                    "cursor-not-allowed border-gray-300 bg-gray-100 opacity-50":
-                      theme === "light" && viewType.disabled,
-                    "cursor-pointer border-[#434343] bg-[#1f1f1f] hover:border-[#177ddc] hover:bg-[#177ddc]/10":
-                      theme === "dark" && !viewType.disabled && selectedType !== viewType.type,
-                    "cursor-pointer border-[#177ddc] bg-[#177ddc]/20 bg-[#1f1f1f]":
-                      theme === "dark" && selectedType === viewType.type,
-                    "cursor-not-allowed border-[#434343] bg-[#2a2a2a] opacity-50":
-                      theme === "dark" && viewType.disabled,
-                  }
-                )}
-                onClick={() => {
-                  if (!viewType.disabled) {
-                    handleSelectType(viewType.type as DataTableViewType);
-                  }
-                }}
-                title={viewType.disabled ? viewType.disabledReason : undefined}
-              >
-                <div
-                  className={classNames("mb-2 text-5xl", {
-                    "text-gray-600": theme === "light" && !viewType.disabled,
-                    "text-[var(--th-accent)]": theme === "light" && selectedType === viewType.type,
-                    "text-gray-500": theme === "dark" && !viewType.disabled,
-                    "text-[#177ddc]": theme === "dark" && selectedType === viewType.type,
-                  })}
+        <div className="flex flex-col gap-5 py-1">
+          <div className="grid grid-cols-2 gap-3">
+            {viewTypes.map(viewType => {
+              const Icon = viewType.icon;
+              const selected = selectedType === viewType.type;
+              return (
+                <button
+                  key={viewType.type}
+                  type="button"
+                  disabled={viewType.disabled}
+                  title={viewType.disabled ? viewType.disabledReason : undefined}
+                  onClick={() => handleSelectType(viewType.type as DataTableViewType)}
+                  className={cn(
+                    "ease-tau-out rounded-tau-md flex flex-col items-center justify-center gap-1.5 border p-5 transition-colors duration-[160ms]",
+                    viewType.disabled
+                      ? "text-ink-3 border-line-2 bg-page cursor-not-allowed opacity-60"
+                      : selected
+                        ? "border-accent bg-accent-soft text-accent-text cursor-pointer"
+                        : "border-line-1 bg-surface text-ink-2 hover:border-ink-3 hover:bg-hover cursor-pointer"
+                  )}
                 >
-                  {viewType.icon}
-                </div>
-                <div
-                  className={classNames("text-sm font-medium", {
-                    "text-[#2c2c2c]": theme === "light",
-                    "text-white": theme === "dark",
-                  })}
-                >
-                  {viewType.name}
-                </div>
-                {viewType.disabled && viewType.disabledReason && (
-                  <div className="mt-1 text-center text-xs text-gray-500">
-                    {viewType.disabledReason}
-                  </div>
-                )}
-              </div>
-            ))}
+                  <Icon
+                    className={cn("size-8", selected ? "text-accent" : "text-ink-2")}
+                    strokeWidth={1.5}
+                  />
+                  <span className={cn("text-tau-body font-medium", selected && "text-accent-text")}>
+                    {viewType.name}
+                  </span>
+                  {viewType.disabled && viewType.disabledReason && (
+                    <span className="text-tau-micro text-ink-3">{viewType.disabledReason}</span>
+                  )}
+                </button>
+              );
+            })}
           </div>
           {selectedType && (
-            <Form form={form} layout="vertical" className="mt-6">
-              <Form.Item
-                label="视图名称"
-                name="name"
-                rules={[{ required: true, message: "请输入视图名称" }]}
-                initialValue={viewTypes.find(v => v.type === selectedType)?.name || ""}
-              >
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <span className="text-tau-meta text-ink-2 font-medium">视图名称</span>
                 <Input
+                  value={name}
+                  onChange={e => {
+                    setName(e.target.value);
+                    setUserModifiedName(true);
+                  }}
                   placeholder="请输入视图名称"
                   maxLength={50}
-                  onChange={() => setUserModifiedName(true)}
                 />
-              </Form.Item>
+              </div>
 
               {selectedType === "calendar" && (
-                <Form.Item
-                  label="日期列"
-                  name="dateColumnId"
-                  rules={[{ required: true, message: "请选择日期列" }]}
-                >
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-tau-meta text-ink-2 font-medium">日期列</span>
                   <Select
+                    value={dateColumnId}
+                    onValueChange={setDateColumnId}
                     placeholder="选择用于日历的日期列"
-                    options={dateColumns.map(col => ({
-                      label: col.title,
-                      value: col.id,
-                    }))}
+                    options={dateColumns.map(col => ({ value: col.id, label: col.title }))}
                   />
-                </Form.Item>
+                </div>
               )}
 
               {selectedType === "kanban" && (
-                <Form.Item
-                  label="分组列"
-                  name="groupColumnId"
-                  rules={[{ required: true, message: "请选择单选列作为分组依据" }]}
-                >
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-tau-meta text-ink-2 font-medium">分组列</span>
                   <Select
+                    value={groupColumnId}
+                    onValueChange={setGroupColumnId}
                     placeholder="选择用于看板分组的单选列"
-                    options={selectColumns.map(col => ({
-                      label: col.title,
-                      value: col.id,
-                    }))}
+                    options={selectColumns.map(col => ({ value: col.id, label: col.title }))}
                   />
-                </Form.Item>
+                </div>
               )}
-            </Form>
+            </div>
           )}
         </div>
-      </CustomModal>
+      </Dialog>
     );
   }
 );

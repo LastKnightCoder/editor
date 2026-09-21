@@ -1,25 +1,23 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import classNames from "classnames";
-import { MdAdd, MdMoreHoriz, MdOutlineGroupWork, MdSort, MdOutlineFilterAlt } from "react-icons/md";
+import { ArrowDownUp, Filter, Layers, MoreHorizontal, Plus, Search } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import { useDrag, useDrop } from "react-dnd";
+import { cn } from "@tau/ui/cn";
+import { Input } from "@tau/ui/Input";
+import { Menu } from "@tau/ui/Menu";
+import { Popover } from "@tau/ui/Popover";
+import { Tooltip } from "@tau/ui/Tooltip";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import { DataTableView } from "@/types";
 import { useDatabaseStore } from "./hooks";
-import { Tooltip } from "antd";
 import GroupPanel from "./GroupPanel";
 import SortPanel from "./SortPanel";
 import PluginManager from "./PluginManager";
 import FilterPanel from "./FilterPanel";
 import ViewTypeSelectModal from "./ViewTypeSelectModal";
 import ViewEditPanel from "./ViewEditPanel";
-import SearchInput from "@/components/SearchInput";
 import { DataTableViewType } from "@/types";
 import type { GalleryViewConfig, CalendarViewConfig, KanbanViewConfig } from "./types";
-import { Dropdown } from "antd";
-import type { MenuProps } from "antd";
-import { useThemeColors } from "@/hooks";
-import ContextPanel from "./ContextPanel";
 
 interface DragItem {
   type: "view-tab";
@@ -90,10 +88,9 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
     onReorder,
     onUpdateView,
   }) => {
-    const { activeClass, hoverClass } = useThemeColors();
     const editRef = useRef<EditTextHandle | null>(null);
     const [showEditPopover, setShowEditPopover] = useState(false);
-    const moreButtonRef = useRef<HTMLDivElement>(null);
+    const moreButtonRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
       if (isEditing) {
@@ -161,31 +158,16 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
       }
     );
 
-    const menuItems: MenuProps["items"] = [
-      {
-        key: "edit",
-        label: "编辑",
-        onClick: handleEditClick,
-      },
-      ...(allowDelete
-        ? [
-            {
-              key: "delete",
-              label: "删除",
-              danger: true,
-              onClick: () => onDelete?.(view.id),
-            },
-          ]
-        : []),
-    ];
-
     return (
       <div
         ref={setContainerRef}
         style={{ opacity: isDragging ? 0.6 : 1 }}
-        className={classNames(
-          "inline-flex h-9 cursor-pointer items-center gap-1 rounded-full px-3 transition-colors",
-          isActive ? activeClass : `text-[#807D78] dark:text-[#A5A199] ${hoverClass}`
+        className={cn(
+          "group/tab inline-flex h-7 cursor-pointer items-center gap-0.5 rounded-full pl-3 pr-1.5",
+          "ease-tau-out transition-colors duration-[160ms]",
+          isActive
+            ? "bg-selected text-ink-1 font-medium"
+            : "text-ink-2 hover:bg-hover hover:text-ink-1"
         )}
         onClick={() => onActivate(view.id)}
         onDoubleClick={event => {
@@ -200,28 +182,45 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
           key={`${view.id}-${view.name}`}
           defaultValue={view.name}
           contentEditable={isEditing}
-          className={classNames(
-            "flex h-9 max-w-[140px] cursor-pointer items-center truncate px-0 text-sm outline-none",
+          className={cn(
+            "text-tau-meta flex h-7 max-w-[140px] cursor-pointer items-center truncate px-0 outline-none",
             { "cursor-default select-none": !isEditing }
           )}
           onBlur={commitChange}
           onPressEnter={commitChange}
           isSlateEditor={true}
         />
-        <Dropdown menu={{ items: menuItems }} trigger={["click"]}>
-          <div
-            ref={moreButtonRef}
-            className="flex h-9 items-center justify-center"
-            onClick={e => e.stopPropagation()}
-          >
-            <MdMoreHoriz className="flex-none text-base" />
-          </div>
-        </Dropdown>
-        <ContextPanel
+        <Menu
+          trigger={
+            <button
+              ref={moreButtonRef}
+              type="button"
+              title="视图操作"
+              className="text-ink-3 hover:bg-press hover:text-ink-1 grid size-[22px] place-items-center rounded-[7px] opacity-0 transition-opacity focus-visible:opacity-100 group-hover/tab:opacity-100"
+              onClick={e => e.stopPropagation()}
+            >
+              <MoreHorizontal className="size-4" strokeWidth={1.75} />
+            </button>
+          }
+        >
+          <Menu.Item onSelect={handleEditClick}>编辑</Menu.Item>
+          {allowDelete && (
+            <Menu.Item
+              danger
+              onSelect={() => {
+                onDelete?.(view.id);
+              }}
+            >
+              删除
+            </Menu.Item>
+          )}
+        </Menu>
+        <Popover
+          anchor={moreButtonRef.current}
           open={showEditPopover}
-          triggerRef={moreButtonRef}
-          onClose={() => setShowEditPopover(false)}
-          placement="bottomRight"
+          onOpenChange={setShowEditPopover}
+          placement="bottom-end"
+          arrow={false}
         >
           <ViewEditPanel
             view={view}
@@ -229,13 +228,44 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
             onConfirm={handleUpdateView}
             onClose={() => setShowEditPopover(false)}
           />
-        </ContextPanel>
+        </Popover>
       </div>
     );
   }
 );
 
 ViewTabItem.displayName = "ViewTabItem";
+
+/** 工具栏圆形切换钮：激活 = bg-selected，悬停 = 淡墨 */
+const ToolbarToggle = ({
+  active,
+  label,
+  icon: Icon,
+  onClick,
+  buttonRef,
+}: {
+  active: boolean;
+  label: string;
+  icon: typeof Filter;
+  onClick: () => void;
+  buttonRef: React.RefObject<HTMLButtonElement | null>;
+}) => (
+  <Tooltip content={label}>
+    <button
+      ref={buttonRef}
+      type="button"
+      aria-label={label}
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        "ease-tau-out grid size-7 place-items-center rounded-full transition-colors duration-[160ms]",
+        active ? "bg-selected text-ink-1" : "text-ink-2 hover:bg-hover hover:text-ink-1"
+      )}
+    >
+      <Icon className="size-4" strokeWidth={1.75} />
+    </button>
+  </Tooltip>
+);
 
 const ViewTabs: React.FC<ViewTabsProps> = memo(
   ({
@@ -248,7 +278,6 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     onReorderViews,
     theme,
   }) => {
-    const { activeClass, hoverClass } = useThemeColors();
     const {
       activeViewId,
       views,
@@ -277,9 +306,9 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     const [showFilter, setShowFilter] = useState(false);
     const [showViewTypeSelect, setShowViewTypeSelect] = useState(false);
 
-    const filterButtonRef = useRef<HTMLDivElement>(null);
-    const sortButtonRef = useRef<HTMLDivElement>(null);
-    const groupButtonRef = useRef<HTMLDivElement>(null);
+    const filterButtonRef = useRef<HTMLButtonElement>(null);
+    const sortButtonRef = useRef<HTMLButtonElement>(null);
+    const groupButtonRef = useRef<HTMLButtonElement>(null);
 
     const orderedIds = useMemo(() => views.map(view => view.id), [views]);
     const orderedIdsRef = useRef<number[]>(orderedIds);
@@ -374,7 +403,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
 
     return (
       <div className="flex items-center gap-2 pb-2">
-        <div className="flex items-center gap-2 overflow-x-auto">
+        <div className="flex items-center gap-1 overflow-x-auto">
           {views.map((view, index) => (
             <ViewTabItem
               key={view.id}
@@ -393,46 +422,39 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
               onUpdateView={handleUpdateView}
             />
           ))}
-          <div
-            className={classNames(
-              "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-gray-600 dark:text-gray-400",
-              hoverClass
-            )}
-            onClick={() => setShowViewTypeSelect(true)}
-          >
-            <div className="flex h-9 items-center justify-center">
-              <Tooltip title="新视图">
-                <MdAdd />
-              </Tooltip>
-            </div>
-          </div>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <SearchInput
-            value={searchKeyword}
-            onChange={text => setQuery({ text })}
-            placeholder="搜索..."
-          />
-          <Tooltip title="筛选设置">
-            <div
-              ref={filterButtonRef}
-              className={classNames(
-                "ml-auto flex h-9 cursor-pointer items-center gap-1 rounded-full px-3",
-                viewConfig.filters ? activeClass : hoverClass,
-                {
-                  "text-[#2C2C2C] dark:text-[#FFFFFF]": !viewConfig.filters,
-                }
-              )}
-              onClick={() => setShowFilter(!showFilter)}
+          <Tooltip content="新视图">
+            <button
+              type="button"
+              className="text-ink-3 hover:bg-hover hover:text-ink-1 ease-tau-out grid size-7 place-items-center rounded-full transition-colors duration-[160ms]"
+              onClick={() => setShowViewTypeSelect(true)}
             >
-              <MdOutlineFilterAlt />
-            </div>
+              <Plus className="size-4" strokeWidth={1.75} />
+            </button>
           </Tooltip>
-          <ContextPanel
+        </div>
+        <div className="ml-auto flex items-center gap-1.5">
+          <Input
+            size="sm"
+            lead={Search}
+            clearable
+            value={searchKeyword}
+            onChange={e => setQuery({ text: e.target.value })}
+            placeholder="搜索..."
+            className="w-[150px]"
+          />
+          <ToolbarToggle
+            active={Boolean(viewConfig.filters)}
+            label="筛选设置"
+            icon={Filter}
+            buttonRef={filterButtonRef}
+            onClick={() => setShowFilter(!showFilter)}
+          />
+          <Popover
+            anchor={filterButtonRef.current}
             open={showFilter}
-            triggerRef={filterButtonRef}
-            onClose={() => setShowFilter(false)}
-            placement="bottomRight"
+            onOpenChange={setShowFilter}
+            placement="bottom-end"
+            arrow={false}
           >
             <FilterPanel
               columns={columns}
@@ -442,27 +464,20 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
               onClose={() => setShowFilter(false)}
               theme={theme}
             />
-          </ContextPanel>
-          <Tooltip title="排序设置">
-            <div
-              ref={sortButtonRef}
-              className={classNames(
-                "ml-auto flex h-9 cursor-pointer items-center gap-1 rounded-full px-3",
-                viewConfig.sorts?.length > 0 ? activeClass : hoverClass,
-                {
-                  "text-[#2C2C2C] dark:text-[#FFFFFF]": !viewConfig.sorts?.length,
-                }
-              )}
-              onClick={() => setShowSorting(!showSorting)}
-            >
-              <MdSort />
-            </div>
-          </Tooltip>
-          <ContextPanel
+          </Popover>
+          <ToolbarToggle
+            active={(viewConfig.sorts?.length ?? 0) > 0}
+            label="排序设置"
+            icon={ArrowDownUp}
+            buttonRef={sortButtonRef}
+            onClick={() => setShowSorting(!showSorting)}
+          />
+          <Popover
+            anchor={sortButtonRef.current}
             open={showSorting}
-            triggerRef={sortButtonRef}
-            onClose={() => setShowSorting(false)}
-            placement="bottomRight"
+            onOpenChange={setShowSorting}
+            placement="bottom-end"
+            arrow={false}
           >
             <SortPanel
               pluginManager={pluginManager}
@@ -471,27 +486,20 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
               onChange={nextSorts => setSorts(nextSorts)}
               onClose={() => setShowSorting(false)}
             />
-          </ContextPanel>
-          <Tooltip title="分组设置">
-            <div
-              ref={groupButtonRef}
-              className={classNames(
-                "ml-auto flex h-9 cursor-pointer items-center gap-1 rounded-full px-3",
-                viewConfig.groupBy !== null ? activeClass : hoverClass,
-                {
-                  "text-[#2C2C2C] dark:text-[#FFFFFF]": viewConfig.groupBy === null,
-                }
-              )}
-              onClick={() => setShowGrouping(!showGrouping)}
-            >
-              <MdOutlineGroupWork />
-            </div>
-          </Tooltip>
-          <ContextPanel
+          </Popover>
+          <ToolbarToggle
+            active={viewConfig.groupBy !== null}
+            label="分组设置"
+            icon={Layers}
+            buttonRef={groupButtonRef}
+            onClick={() => setShowGrouping(!showGrouping)}
+          />
+          <Popover
+            anchor={groupButtonRef.current}
             open={showGrouping}
-            triggerRef={groupButtonRef}
-            onClose={() => setShowGrouping(false)}
-            placement="bottomRight"
+            onOpenChange={setShowGrouping}
+            placement="bottom-end"
+            arrow={false}
           >
             <GroupPanel
               pluginManager={pluginManager}
@@ -500,7 +508,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
               onClose={() => setShowGrouping(false)}
               onSubmit={groupBy => setGroupBy(groupBy)}
             />
-          </ContextPanel>
+          </Popover>
         </div>
         <ViewTypeSelectModal
           open={showViewTypeSelect}

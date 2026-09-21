@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { MdAdd, MdClose } from "react-icons/md";
+import { Plus, X } from "lucide-react";
 import { produce } from "immer";
 
 import type {
@@ -13,6 +13,7 @@ import type {
 } from "./types";
 import PluginManager from "./PluginManager";
 import SimpleDropdown from "./SimpleDropdown";
+import { Button } from "@tau/ui/Button";
 
 interface FilterPanelProps {
   columns: ColumnDef[];
@@ -42,10 +43,7 @@ const createEmptyGroup = (): FilterGroup => ({
 const FilterPanel: React.FC<FilterPanelProps> = memo(
   ({ columns, filters, pluginManager, onChange, onClose, theme }) => {
     const filterableColumns = useMemo(() => {
-      return columns.filter(
-        (column) =>
-          (pluginManager.getPlugin(column.type)?.filters ?? []).length,
-      );
+      return columns.filter(column => (pluginManager.getPlugin(column.type)?.filters ?? []).length);
     }, [columns, pluginManager]);
 
     const [localFilters, setLocalFilters] = useState<FilterGroup>(() => {
@@ -59,12 +57,8 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
       setLocalFilters(cloned ?? createEmptyGroup());
     }, [filters]);
 
-    const createCondition = (
-      column: ColumnDef | undefined,
-    ): FilterCondition => {
-      const definitions = column
-        ? (pluginManager.getPlugin(column.type)?.filters ?? [])
-        : [];
+    const createCondition = (column: ColumnDef | undefined): FilterCondition => {
+      const definitions = column ? (pluginManager.getPlugin(column.type)?.filters ?? []) : [];
       const firstDefinition = definitions[0];
       return {
         id: uuidv4(),
@@ -79,97 +73,81 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
     };
 
     const handleAddCondition = (groupId: string) => {
-      setLocalFilters((prev) =>
-        produce(prev, (draft) => {
+      setLocalFilters(prev =>
+        produce(prev, draft => {
           const target = findGroupById(draft, groupId);
           if (!target) return;
           const column = filterableColumns[0];
           target.children.push(createCondition(column));
-        }),
+        })
       );
     };
 
     const handleRemoveNode = (groupId: string, nodeId: string) => {
-      setLocalFilters((prev) =>
-        produce(prev, (draft) => {
+      setLocalFilters(prev =>
+        produce(prev, draft => {
           const target = findGroupById(draft, groupId);
           if (!target) return;
-          target.children = target.children.filter(
-            (child) => child.id !== nodeId,
-          );
-        }),
+          target.children = target.children.filter(child => child.id !== nodeId);
+        })
       );
     };
 
-    const handleGroupLogicChange = (
-      groupId: string,
-      logic: FilterLogicOperator,
-    ) => {
-      setLocalFilters((prev) =>
-        produce(prev, (draft) => {
+    const handleGroupLogicChange = (groupId: string, logic: FilterLogicOperator) => {
+      setLocalFilters(prev =>
+        produce(prev, draft => {
           const target = findGroupById(draft, groupId);
           if (target) {
             target.logic = logic;
           }
-        }),
+        })
       );
     };
 
     const handleFieldChange = (conditionId: string, fieldId: string | null) => {
-      setLocalFilters((prev) =>
-        produce(prev, (draft) => {
+      setLocalFilters(prev =>
+        produce(prev, draft => {
           const condition = findConditionById(draft, conditionId);
           if (!condition) return;
           condition.fieldId = fieldId;
-          const column = columns.find((col) => col.id === fieldId);
-          const definitions = column
-            ? (pluginManager.getPlugin(column.type)?.filters ?? [])
-            : [];
+          const column = columns.find(col => col.id === fieldId);
+          const definitions = column ? (pluginManager.getPlugin(column.type)?.filters ?? []) : [];
           condition.operator = definitions[0]?.operator ?? null;
           condition.value =
             definitions[0]?.getInitialValue && column
               ? definitions[0].getInitialValue(column)
               : null;
-        }),
+        })
       );
     };
 
-    const handleOperatorChange = (
-      conditionId: string,
-      operator: string | null,
-    ) => {
-      setLocalFilters((prev) =>
-        produce(prev, (draft) => {
+    const handleOperatorChange = (conditionId: string, operator: string | null) => {
+      setLocalFilters(prev =>
+        produce(prev, draft => {
           const condition = findConditionById(draft, conditionId);
           if (!condition) return;
           condition.operator = operator;
-          const column = columns.find((col) => col.id === condition.fieldId);
+          const column = columns.find(col => col.id === condition.fieldId);
           if (!column) return;
-          const definitions =
-            pluginManager.getPlugin(column.type)?.filters ?? [];
-          const definition = definitions.find(
-            (item) => item.operator === operator,
-          );
+          const definitions = pluginManager.getPlugin(column.type)?.filters ?? [];
+          const definition = definitions.find(item => item.operator === operator);
           if (definition?.getInitialValue) {
             condition.value = definition.getInitialValue(column);
           } else if (!definition?.requiresValue) {
             condition.value = null;
           }
-        }),
+        })
       );
     };
 
-    const handleValueChange = (
-      conditionId: string,
-      value: CellValue | null,
-    ) => {
-      setLocalFilters((prev) =>
-        produce(prev, (draft) => {
+    const handleValueChange = (conditionId: string, value: CellValue | null) => {
+      setLocalFilters(prev =>
+        produce(prev, draft => {
           const condition = findConditionById(draft, conditionId);
           if (condition) {
             condition.value = value;
           }
-        }),
+        })
       );
     };
 
@@ -190,112 +168,101 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
       return (
         <div
           key={group.id}
-          className="rounded-[12px] border border-[rgba(15,23,42,0.1)] dark:border-[rgba(226,232,240,0.1)] px-2 py-2 flex flex-col gap-2"
+          className="border-line-2 rounded-tau-md flex flex-col gap-2 border px-2 py-2"
         >
           <div className="flex items-center gap-2">
             <SimpleDropdown
-              items={LOGIC_OPTIONS.map((opt) => ({
+              items={LOGIC_OPTIONS.map(opt => ({
                 key: opt.value,
                 label: opt.label,
               }))}
-              onSelect={(value) =>
-                handleGroupLogicChange(group.id, value as FilterLogicOperator)
-              }
+              onSelect={value => handleGroupLogicChange(group.id, value as FilterLogicOperator)}
             >
-              <div className="px-2 py-1 rounded-[8px] bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(10,15,28,0.4)] border border-transparent hover:border-[rgba(15,23,42,0.15)] dark:hover:border-[rgba(226,232,240,0.15)] cursor-pointer text-[13px]">
-                {LOGIC_OPTIONS.find((opt) => opt.value === group.logic)?.label}
+              <div className="bg-surface border-line-1 hover:border-ink-3 text-ink-1 rounded-tau-sm text-tau-sm cursor-pointer border px-2 py-1 transition-colors">
+                {LOGIC_OPTIONS.find(opt => opt.value === group.logic)?.label}
               </div>
             </SimpleDropdown>
             {parentId && (
               <button
                 type="button"
-                className="ml-auto border-none bg-transparent p-1 text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)] hover:text-[#ff5f5a] cursor-pointer"
+                className="text-ink-3 hover:text-danger ml-auto cursor-pointer border-none bg-transparent p-1"
                 onClick={() => handleRemoveNode(parentId, group.id)}
               >
-                <MdClose className="text-base" />
+                <X className="size-4" strokeWidth={1.75} />
               </button>
             )}
           </div>
           <div className="flex flex-col gap-1.5">
             {group.children.length ? (
-              group.children.map((child) => renderNode(child, group))
+              group.children.map(child => renderNode(child, group))
             ) : (
-              <div className="text-[13px] text-center py-4 text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)]">
-                请添加条件
-              </div>
+              <div className="text-tau-body text-ink-3 py-4 text-center">请添加条件</div>
             )}
           </div>
           <button
             type="button"
-            className="w-full border-none bg-transparent px-2 py-1.5 rounded-[10px] flex items-center justify-center gap-1 text-[13px] cursor-pointer transition-all hover:bg-[rgba(255,255,255,0.6)] dark:hover:bg-[rgba(148,163,184,0.15)] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm text-tau-sm ease-tau-out flex w-full cursor-pointer items-center justify-center gap-1 border-none bg-transparent px-2 py-1.5 transition-colors duration-[160ms] disabled:cursor-not-allowed disabled:opacity-40"
             onClick={() => handleAddCondition(group.id)}
             disabled={!filterableColumns.length}
           >
-            <MdAdd className="text-base" />
+            <Plus className="size-4" strokeWidth={1.75} />
             <span>添加条件</span>
           </button>
         </div>
       );
     };
 
-    const renderCondition = (
-      condition: FilterCondition,
-      group: FilterGroup,
-    ) => {
-      const column =
-        columns.find((col) => col.id === condition.fieldId) ?? null;
-      const definitions = column
-        ? (pluginManager.getPlugin(column.type)?.filters ?? [])
-        : [];
+    const renderCondition = (condition: FilterCondition, group: FilterGroup) => {
+      const column = columns.find(col => col.id === condition.fieldId) ?? null;
+      const definitions = column ? (pluginManager.getPlugin(column.type)?.filters ?? []) : [];
       const requiresValue = definitions.find(
-        (definition) => definition.operator === condition.operator,
+        definition => definition.operator === condition.operator
       )?.requiresValue;
 
       return (
         <div
           key={condition.id}
-          className="flex flex-col gap-2 rounded-[10px] px-2 py-2 border border-[rgba(15,23,42,0.1)] dark:border-[rgba(226,232,240,0.1)]"
+          className="border-line-2 rounded-tau-md flex flex-col gap-2 border px-2 py-2"
         >
           <div className="flex items-center gap-2">
             <SimpleDropdown
-              items={filterableColumns.map((col) => ({
+              items={filterableColumns.map(col => ({
                 key: col.id,
                 label: col.title,
               }))}
-              onSelect={(value) => handleFieldChange(condition.id, value)}
+              onSelect={value => handleFieldChange(condition.id, value)}
               className="flex-1"
             >
-              <div className="flex-1 px-2 py-1.5 rounded-[8px] bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(10,15,28,0.4)] border border-transparent hover:border-[rgba(15,23,42,0.15)] dark:hover:border-[rgba(226,232,240,0.15)] cursor-pointer text-[13px] truncate">
+              <div className="bg-surface border-line-1 hover:border-ink-3 text-ink-1 rounded-tau-sm text-tau-sm flex-1 cursor-pointer truncate border px-2 py-1.5 transition-colors">
                 {column?.title || "选择字段"}
               </div>
             </SimpleDropdown>
             <SimpleDropdown
-              items={definitions.map((def) => ({
+              items={definitions.map(def => ({
                 key: def.operator,
                 label: def.label ?? def.operator,
               }))}
-              onSelect={(value) => handleOperatorChange(condition.id, value)}
+              onSelect={value => handleOperatorChange(condition.id, value)}
             >
-              <div className="w-20 px-2 py-1.5 rounded-[8px] bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(10,15,28,0.4)] border border-transparent hover:border-[rgba(15,23,42,0.15)] dark:hover:border-[rgba(226,232,240,0.15)] cursor-pointer text-[13px] text-center">
-                {definitions.find((d) => d.operator === condition.operator)
-                  ?.label ?? "操作"}
+              <div className="bg-surface border-line-1 hover:border-ink-3 text-ink-1 rounded-tau-sm text-tau-sm w-20 cursor-pointer border px-2 py-1.5 text-center transition-colors">
+                {definitions.find(d => d.operator === condition.operator)?.label ?? "操作"}
               </div>
             </SimpleDropdown>
             <button
               type="button"
-              className="border-none bg-transparent p-1 text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)] hover:text-[#ff5f5a] cursor-pointer"
+              className="text-ink-3 hover:text-danger cursor-pointer border-none bg-transparent p-1"
               onClick={() => handleRemoveNode(group.id, condition.id)}
             >
-              <MdClose className="text-base" />
+              <X className="size-4" strokeWidth={1.75} />
             </button>
           </div>
           {column && requiresValue !== false && (
-            <div className="border border-dashed border-[rgba(15,23,42,0.15)] dark:border-[rgba(226,232,240,0.15)] rounded-[8px] px-2 py-1">
+            <div className="border-line-2 rounded-tau-sm border border-dashed px-2 py-1">
               <FilterValueEditor
                 key={`${condition.id}-${column.id}-${column.type}`}
                 column={column}
                 value={condition.value ?? null}
-                onChange={(value) => handleValueChange(condition.id, value)}
+                onChange={value => handleValueChange(condition.id, value)}
                 pluginManager={pluginManager}
                 theme={theme}
               />
@@ -306,54 +273,38 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
     };
 
     return (
-      <div className="w-[420px] max-h-[520px] overflow-y-auto text-[rgba(15,23,42,0.95)] dark:text-[rgba(241,245,249,0.95)]">
+      <div className="text-ink-1 max-h-[520px] w-[420px] overflow-y-auto">
         <div className="flex flex-col gap-3">
           <div className="px-2">
-            <div className="text-xs font-medium text-[rgba(15,23,42,0.55)] dark:text-[rgba(226,232,240,0.55)]">
-              筛选
-            </div>
-            <div className="text-[11px] text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)] mt-0.5">
-              设置筛选条件以限定表格中的记录
-            </div>
+            <div className="text-tau-micro text-ink-2 font-medium">筛选</div>
+            <div className="text-tau-micro text-ink-3 mt-0.5">设置筛选条件以限定表格中的记录</div>
           </div>
           {filterableColumns.length === 0 ? (
-            <div className="px-3 py-8 text-[13px] text-center text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)]">
+            <div className="text-tau-body text-ink-3 px-3 py-8 text-center">
               当前没有支持筛选的字段
             </div>
           ) : (
             renderGroup(localFilters)
           )}
-          <div className="h-px bg-[rgba(15,23,42,0.1)] dark:bg-[rgba(226,232,240,0.1)]" />
-          <div className="flex gap-2 px-2">
-            <button
-              type="button"
-              className="flex-1 px-3 py-1.5 rounded-[10px] text-[13px] border-none bg-transparent hover:bg-[rgba(255,255,255,0.6)] dark:hover:bg-[rgba(148,163,184,0.15)] cursor-pointer transition-all"
-              onClick={onClose}
-            >
+          <div className="text-tau-body flex gap-2 px-2">
+            <Button variant="ghost" size="sm" block onClick={onClose}>
               取消
-            </button>
-            <button
-              type="button"
-              className="flex-1 px-3 py-1.5 rounded-[10px] text-[13px] border-none bg-[rgba(59,130,246,0.9)] dark:bg-[rgba(59,130,246,0.8)] text-white hover:bg-[rgba(59,130,246,1)] cursor-pointer transition-all"
-              onClick={handleConfirm}
-            >
+            </Button>
+            <Button variant="primary" size="sm" block onClick={handleConfirm}>
               确定
-            </button>
+            </Button>
           </div>
         </div>
       </div>
     );
-  },
+  }
 );
 
 FilterPanel.displayName = "FilterPanel";
 
 export default FilterPanel;
 
-const findGroupById = (
-  group: FilterGroup,
-  targetId: string,
-): FilterGroup | null => {
+const findGroupById = (group: FilterGroup, targetId: string): FilterGroup | null => {
   if (group.id === targetId) return group;
   for (const child of group.children) {
     if (child.type === "group") {
@@ -364,10 +315,7 @@ const findGroupById = (
   return null;
 };
 
-const findConditionById = (
-  group: FilterGroup,
-  conditionId: string,
-): FilterCondition | null => {
+const findConditionById = (group: FilterGroup, conditionId: string): FilterCondition | null => {
   for (const child of group.children) {
     if (child.type === "condition" && child.id === conditionId) {
       return child;
@@ -382,7 +330,7 @@ const findConditionById = (
 
 const normalizeFilters = (group: FilterGroup): FilterGroup | null => {
   const normalizedChildren: FilterNode[] = group.children
-    .map((child) => {
+    .map(child => {
       if (child.type === "group") {
         return normalizeFilters(child);
       }
@@ -446,12 +394,8 @@ const FilterValueEditor: React.FC<FilterValueEditorProps> = memo(
       );
     }
 
-    return (
-      <div className="text-[13px] text-[rgba(15,23,42,0.45)] dark:text-[rgba(226,232,240,0.45)]">
-        该字段暂无编辑器
-      </div>
-    );
-  },
+    return <div className="text-tau-body text-ink-3">该字段暂无编辑器</div>;
+  }
 );
 
 FilterValueEditor.displayName = "FilterValueEditor";
