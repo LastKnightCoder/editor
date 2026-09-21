@@ -49,7 +49,7 @@ export function ColorSwatch({
           aria-pressed={value === color}
           onClick={() => onChange(color)}
           className={cn(
-            "rounded-tau-sm size-7 text-xs focus-visible:shadow-[var(--tau-focus-ring)]",
+            "rounded-tau-sm size-7 cursor-pointer text-xs focus-visible:shadow-[var(--tau-focus-ring)]",
             SWATCH_STYLES[color],
             value === color && "ring-accent ring-2"
           )}

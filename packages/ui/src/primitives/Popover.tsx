@@ -248,7 +248,7 @@ function PopoverHeader({ icon, children }: PopoverHeaderProps) {
         type="button"
         aria-label="关闭"
         onClick={() => root.close(true)}
-        className="text-ink-3 hover:bg-hover hover:text-ink-1 -mr-1 grid size-7 shrink-0 place-items-center rounded-[8px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
+        className="text-ink-3 hover:bg-hover hover:text-ink-1 -mr-1 grid size-7 shrink-0 cursor-pointer place-items-center rounded-[8px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
       >
         <X className="size-[13px]" strokeWidth={2} />
       </button>

@@ -214,7 +214,7 @@ export function DateRangePickerPanel({
                   aria-pressed={presetMatches(preset)}
                   onClick={() => applyPreset(preset)}
                   className={cn(
-                    "text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm h-[28px] px-2 text-left text-[12.5px]",
+                    "text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm h-[28px] cursor-pointer px-2 text-left text-[12.5px]",
                     presetMatches(preset) && "bg-selected text-accent-text font-[550]"
                   )}
                 >
@@ -260,7 +260,7 @@ export function DateRangePickerPanel({
           type="button"
           disabled={disabled}
           onClick={clear}
-          className="text-ink-2 hover:bg-hover hover:text-ink-1 h-[28px] rounded-[8px] px-3 text-[12px] outline-none focus-visible:shadow-[var(--tau-focus-ring)] disabled:pointer-events-none disabled:opacity-50"
+          className="text-ink-2 hover:bg-hover hover:text-ink-1 h-[28px] cursor-pointer rounded-[8px] px-3 text-[12px] outline-none focus-visible:shadow-[var(--tau-focus-ring)] disabled:pointer-events-none disabled:opacity-50"
         >
           清空
         </button>
@@ -268,7 +268,7 @@ export function DateRangePickerPanel({
           type="button"
           disabled={!(rangeStart && rangeEnd)}
           onClick={apply}
-          className="bg-accent text-ink-inverse hover:bg-accent-hover h-[28px] rounded-[8px] px-4 text-[12px] font-[550] outline-none focus-visible:shadow-[var(--tau-focus-ring)] disabled:pointer-events-none disabled:opacity-50"
+          className="bg-accent text-ink-inverse hover:bg-accent-hover h-[28px] cursor-pointer rounded-[8px] px-4 text-[12px] font-[550] outline-none focus-visible:shadow-[var(--tau-focus-ring)] disabled:pointer-events-none disabled:opacity-50"
         >
           确定
         </button>
@@ -446,7 +446,7 @@ export function DateRangePicker({
         }}
         onKeyDown={onTriggerKeyDown}
         className={cn(
-          "border-line-1 bg-surface text-ink-1 group/trigger",
+          "border-line-1 bg-surface text-ink-1 group/trigger cursor-pointer",
           "rounded-tau-sm inline-flex items-center gap-2 border",
           "ease-tau-out transition-[border-color,box-shadow] duration-[160ms]",
           "hover:not-focus-visible:border-ink-3/50 focus-visible:border-accent outline-none focus-visible:shadow-[var(--tau-focus-ring)]",
@@ -471,7 +471,7 @@ export function DateRangePicker({
               commit(null);
               setOpen(false);
             }}
-            className="text-ink-3 hover:bg-hover hover:text-ink-1 invisible grid size-[22px] place-items-center rounded-[6px] group-hover/trigger:visible"
+            className="text-ink-3 hover:bg-hover hover:text-ink-1 invisible grid size-[22px] cursor-pointer place-items-center rounded-[6px] group-hover/trigger:visible"
           >
             <X className="size-[13px]" />
           </span>
