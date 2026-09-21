@@ -1,5 +1,11 @@
 import { command } from "@tau/rpc";
-import type { ICard, ICreateCard, IUpdateCard } from "@/types";
+import type {
+  ICard,
+  ICreateCard,
+  IUpdateCard,
+  CardMetadataPatch,
+  CardDatabaseScope,
+} from "@/types/card";
 
 /** 卡片内容按 id 批量取回的条目（供 AI 等消费方的受控摘要） */
 export interface CardContentResult {
@@ -20,6 +26,13 @@ export interface RandomCardsQuery {
  * 本契约当前约束渲染侧调用的 channel 与类型；主进程注册点契约化随 tables 批次推进。
  */
 export const cardCommands = {
+  getScoped: command<[CardDatabaseScope], ICard[]>("cards:get-scoped"),
+  getScopedDetail: command<[CardDatabaseScope & { id: number }], ICard>("cards:get-scoped-card"),
+  createScoped: command<[CardDatabaseScope & { card: ICreateCard }], ICard>("cards:create-scoped"),
+  patchScoped: command<[CardDatabaseScope & { id: number; patch: CardMetadataPatch }], ICard>(
+    "cards:patch-scoped"
+  ),
+  removeScoped: command<[CardDatabaseScope & { id: number }], number>("cards:remove-scoped"),
   create: command<[ICreateCard], ICard>("create-card"),
   createFromProjectItem: command<[number], ICard>("create-card-from-project-item"),
   getAll: command<[], ICard[]>("get-all-cards"),

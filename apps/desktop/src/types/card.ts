@@ -23,14 +23,14 @@ export interface ICard {
   podcast?: IPodcast;
 }
 
-export type ICreateCard = Omit<
-  ICard,
-  "id" | "create_time" | "update_time" | "contentId"
->;
-export type IUpdateCard = Omit<
-  ICard,
-  "create_time" | "update_time" | "content" | "count"
->;
+export type ICreateCard = Omit<ICard, "id" | "create_time" | "update_time" | "contentId">;
+export type IUpdateCard = Omit<ICard, "create_time" | "update_time" | "content" | "count">;
+
+export type CardMetadataPatch = Partial<Pick<ICard, "tags" | "links" | "category" | "isTop">>;
+
+export interface CardDatabaseScope {
+  databaseName: string;
+}
 
 export interface ICardTree {
   tag: string;

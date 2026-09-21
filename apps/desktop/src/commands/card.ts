@@ -1,8 +1,33 @@
 import { cardCommands } from "@/commands/contracts/card";
 import type { CardContentResult } from "@/commands/contracts/card";
 import { ICard, ICreateCard, IUpdateCard } from "@/types";
+import type { CardMetadataPatch } from "@/types/card";
 
 export type { CardContentResult };
+
+export async function getScopedCards(databaseName: string): Promise<ICard[]> {
+  return cardCommands.getScoped.call({ databaseName });
+}
+
+export async function getScopedCard(databaseName: string, id: number): Promise<ICard> {
+  return cardCommands.getScopedDetail.call({ databaseName, id });
+}
+
+export async function createScopedCard(databaseName: string, card: ICreateCard): Promise<ICard> {
+  return cardCommands.createScoped.call({ databaseName, card });
+}
+
+export async function patchScopedCard(
+  databaseName: string,
+  id: number,
+  patch: CardMetadataPatch
+): Promise<ICard> {
+  return cardCommands.patchScoped.call({ databaseName, id, patch });
+}
+
+export async function deleteScopedCard(databaseName: string, id: number): Promise<number> {
+  return cardCommands.removeScoped.call({ databaseName, id });
+}
 
 export async function createCard(card: ICreateCard): Promise<ICard> {
   return cardCommands.create.call(card);

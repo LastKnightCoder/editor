@@ -201,6 +201,12 @@
 - 裁决：明暗**唯一 DOM 写者** = 主题 runtime 的 `applyThemeToDom`；JS 判定**唯一信号** = `<html>.dark` 类（`data-theme="dark"` 字面值仅作旧宿主兼容读法）。`setting.darkMode` 降级为旧设置存储，旧入口 `onDarkModeChange` 转发 `useThemeStore.setMode(cocoa/cream)`，`useSyncTheme` 只留 `data-accent` 同步。编辑器包 `.editor` 不再自定义 `--th-*`，颜色 token 由宿主 `:root` 级级联——桌面 `styles/theme-colors.css`（`:root`/`:root.dark`）、移动端 `styles.css` 桥接块（移动端深色主题下同样被截断，一并修复）；`index.tsx` 容器上的 `styles.dark` 哈希类随之移除（变量块删除后成死引用，且 CSS Modules 哈希类本就命中不了 `dark:` 变体的字面 `.dark`）。
 - 实现：`useDesktopEditorConfig` 明暗改从 themeStore `resolved` 派生（`getTheme(resolved)?.mode === "dark"`，accent 色板同源）；`packages/editor` `useSystemTheme` 与桌面 `useTheme` 改读 `.dark` 类；03 指南 §3「主题模式与切换」补「共存期明暗判定」口径。
 
+## D-023 数据库命令分发层错误统一上抛，撤销 `cards:` 前缀豁免
+
+- 问题（2026-09-20，cards 迁移 review）：database 模块分发层的 catch 历史上吞错——`log.error` + `ROLLBACK` 后不 rethrow，渲染端 `invoke` 对失败 resolve `undefined`，调用方无感知失败，`undefined` 继续传播产生更难查的二次错误。cards 迁移时曾以 `eventName.startsWith("cards:")` 前缀给新 scoped 命令族单独开错误通道（渲染端 toast / 错误态依赖 rejection），这是隐式协议：下一个迁移域无从知晓该约定，分发层也随前缀白名单腐化。
+- 裁决：**所有**数据库命令失败统一 `throw e` 回传渲染端（rejection）；事务语义不变（先 `ROLLBACK` 再上抛）。旧调用方未 catch 的失败从「静默 `undefined`」变为 unhandled rejection——这是暴露既有债务而非新缺陷，按域在接线时补 catch / toast，不为兼容吞错回退。
+- 实现：`database.ts` 分发 catch 移除前缀判断直接 `throw`；cards scoped 命令链路（`assertDatabase` 校验、mutation `onError` toast）行为不变。
+
 ## Page 迁移清单（M2 起滚动勾选）
 
 > 33 个 TabType 的完整映射与合并方案见蓝图 §5.3，此处只跟踪迁移状态。
