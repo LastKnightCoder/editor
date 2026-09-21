@@ -363,7 +363,7 @@ export default RowDetailModal;
 interface ColumnPropertyRowProps {
   column: ColumnDef;
   columnOrder: string[];
-  moveColumn: (fromIndex: number, toIndex: number) => void;
+  moveColumn: (columnId: string, targetId: string) => void;
   pluginManager: PluginManager;
   theme: "light" | "dark";
   rowData: RowData;
@@ -429,7 +429,7 @@ const ColumnPropertyRow: React.FC<ColumnPropertyRowProps> = ({
         const hoverIndex = columnOrder.indexOf(column.id);
         if (hoverIndex === -1 || item.orderIndex === hoverIndex) return;
 
-        moveColumn(item.orderIndex, hoverIndex);
+        moveColumn(item.id, column.id);
         item.orderIndex = hoverIndex;
       },
     }),

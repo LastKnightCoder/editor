@@ -1,10 +1,5 @@
 import React, { memo, useMemo, useRef } from "react";
-import {
-  useDrag,
-  useDrop,
-  DropTargetMonitor,
-  DragSourceMonitor,
-} from "react-dnd";
+import { useDrag, useDrop, DropTargetMonitor, DragSourceMonitor } from "react-dnd";
 import classnames from "classnames";
 
 import { ColumnDef, RowData, CellCoord, CellValue } from "../../../types";
@@ -19,7 +14,6 @@ const ROW_TYPE = "tableRow";
 
 interface RowDragItem {
   id: string;
-  index: number;
   type: string;
 }
 
@@ -40,7 +34,7 @@ interface RowProps {
   onStopEditing: () => void;
   onCellChange: (rowId: string, columnId: string, value: CellValue) => void;
   onColumnChange: (column: ColumnDef) => void;
-  moveRow?: (dragIndex: number, hoverIndex: number) => void; // 拖拽排序方法
+  moveRow?: (rowId: string, targetId: string) => void;
   deleteRow: (rowId: string) => void;
   onOpenRowDetail?: (row: RowData) => void;
 }
@@ -90,12 +84,13 @@ const Row: React.FC<RowProps> = memo(
     const [, drag] = useDrag(
       () => ({
         type: ROW_TYPE,
-        item: { id: row.id, index: rowIndex - 1, type: ROW_TYPE }, // rowIndex减1以匹配实际数组索引
+        item: { id: row.id, type: ROW_TYPE },
+        canDrag: () => Boolean(moveRow) && !readonly,
         collect: (monitor: DragSourceMonitor) => ({
           isDragging: monitor.isDragging(),
         }),
       }),
-      [row.id, rowIndex],
+      [row.id, moveRow, readonly]
     );
 
     const [, drop] = useDrop(
@@ -110,18 +105,14 @@ const Row: React.FC<RowProps> = memo(
             return;
           }
 
-          const dragIndex = item.index;
-          const hoverIndex = rowIndex - 1; // rowIndex减1以匹配实际数组索引
-
-          if (dragIndex === hoverIndex) {
+          if (item.id === row.id) {
             return;
           }
 
-          moveRow(dragIndex, hoverIndex);
-          item.index = hoverIndex;
+          moveRow(item.id, row.id);
         },
       }),
-      [rowIndex, moveRow],
+      [row.id, moveRow, readonly]
     );
 
     if (moveRow) {
@@ -132,20 +123,20 @@ const Row: React.FC<RowProps> = memo(
       <div
         ref={ref}
         className={classnames(
-          "h-10 flex flex-row w-full min-w-max border-b transition-[box-shadow,background-color,transform] duration-150 ease-linear",
+          "flex h-10 w-full min-w-max flex-row border-b transition-[box-shadow,background-color,transform] duration-150 ease-linear",
           borderClass,
-          hoverClass,
+          hoverClass
         )}
       >
         <div
           className={classnames(
-            "w-[50px] min-w-[50px] box-border border-r flex flex-col justify-center items-center relative cursor-grab group",
-            borderClass,
+            "group relative box-border flex w-[50px] min-w-[50px] cursor-grab flex-col items-center justify-center border-r",
+            borderClass
           )}
         >
-          <div className="flex gap-1 items-center text-gray-500 text-[12px] py-2">
+          <div className="flex items-center gap-1 py-2 text-[12px] text-gray-500">
             <Dropdown {...menuProps}>
-              <span className="cursor-pointer flex items-center">
+              <span className="flex cursor-pointer items-center">
                 <MdDragIndicator />
               </span>
             </Dropdown>
@@ -153,22 +144,15 @@ const Row: React.FC<RowProps> = memo(
           </div>
         </div>
 
-        {columnOrder.map((columnId) => {
-          const column = columns.find((col) => col.id === columnId);
+        {columnOrder.map(columnId => {
+          const column = columns.find(col => col.id === columnId);
           if (!column) return null;
 
-          const isSelected =
-            selectedCell?.rowId === row.id &&
-            selectedCell?.columnId === columnId;
-          const isEditing =
-            editingCell?.rowId === row.id && editingCell?.columnId === columnId;
+          const isSelected = selectedCell?.rowId === row.id && selectedCell?.columnId === columnId;
+          const isEditing = editingCell?.rowId === row.id && editingCell?.columnId === columnId;
           const plugin = pluginManager.getPlugin(column.type);
           const renderedValue = plugin
-            ? pluginManager.transformAfterLoad(
-                column.type,
-                row[columnId],
-                column.config,
-              )
+            ? pluginManager.transformAfterLoad(column.type, row[columnId], column.config)
             : row[columnId];
 
           return (
@@ -197,7 +181,7 @@ const Row: React.FC<RowProps> = memo(
         })}
       </div>
     );
-  },
+  }
 );
 
 export default Row;

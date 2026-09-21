@@ -207,11 +207,13 @@
 - 裁决：**所有**数据库命令失败统一 `throw e` 回传渲染端（rejection）；事务语义不变（先 `ROLLBACK` 再上抛）。旧调用方未 catch 的失败从「静默 `undefined`」变为 unhandled rejection——这是暴露既有债务而非新缺陷，按域在接线时补 catch / toast，不为兼容吞错回退。
 - 实现：`database.ts` 分发 catch 移除前缀判断直接 `throw`；cards scoped 命令链路（`assertDatabase` 校验、mutation `onError` toast）行为不变。
 
+- 看板组序纳入核心投影；视图切换保存各自配置并原子更新投影，重命名与重排不重新应用旧配置。不改为受控组件，不通过 key 重建或 props 同步覆盖内部编辑。
+
 ## Page 迁移清单（M2 起滚动勾选）
 
 > 33 个 TabType 的完整映射与合并方案见蓝图 §5.3，此处只跟踪迁移状态。
 
-- cards 卡片库（M2 样板域，第一个）
+- ~~cards 卡片库（M2 样板域，第一个）~~ ✅ 2026-09-20 A1 卡片墙+时间分组落地（mockups/cards 七轮评审定稿；CardDatabaseView 提升至 components 共用，04 清单 §cards）
 - card-detail 卡片详情
 - library 知识库（documents/pdf/vec 合并）
 - ~~articles 文章~~ ✅ 2026-09-19 A3 月刊落地（D-015）

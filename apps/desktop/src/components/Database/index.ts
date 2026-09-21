@@ -14,6 +14,11 @@ import type {
   ValidationRule,
   DatabaseData,
   TableViewConfig,
+  FilterGroup,
+  DatabaseQuery,
+  DatabaseCommand,
+  DatabaseChange,
+  RowChanges,
 } from "./types";
 
 export type {
@@ -28,6 +33,11 @@ export type {
   DatabaseData,
   DatabaseStoreType,
   TableViewConfig,
+  FilterGroup,
+  DatabaseQuery,
+  DatabaseCommand,
+  DatabaseChange,
+  RowChanges,
 };
 
 export { PluginManager, plugins, createDatabaseStore, DatabaseContext, hooks };

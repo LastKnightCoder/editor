@@ -1,16 +1,18 @@
-import {
-  useEffect,
-  ReactNode,
-  useMemo,
-  forwardRef,
-  useImperativeHandle,
-} from "react";
+import { useEffect, ReactNode, useMemo, forwardRef, useImperativeHandle } from "react";
 import { useCreation, useMemoizedFn } from "ahooks";
 import { App } from "antd";
 import classnames from "classnames";
 import useTheme from "@/hooks/useTheme";
 
-import { CellPlugin, DatabaseProps, RowData, DataTableViewType } from "./types";
+import {
+  CellPlugin,
+  DatabaseProps,
+  RowData,
+  DataTableViewType,
+  DatabaseQuery,
+  DatabaseCommand,
+  DatabaseChange,
+} from "./types";
 import { createDatabaseStore } from "./DatabaseStore";
 import { builtInPlugins } from "./plugins";
 import PluginManager from "./PluginManager";
@@ -29,6 +31,8 @@ export interface DatabaseRef {
   addRow: (rowData?: Partial<RowData>) => void;
   updateRow: (rowId: string, data: Partial<RowData>) => void;
   getRows: () => RowData[];
+  dispatch: (command: DatabaseCommand, source?: DatabaseChange["source"]) => void;
+  setQuery: (query: Partial<DatabaseQuery>) => void;
 }
 
 const Database = forwardRef<DatabaseRef, DatabaseProps>(
@@ -56,7 +60,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       readonly,
       className,
     },
-    ref,
+    ref
   ): ReactNode => {
     const pluginMgr = useCreation(() => {
       const pluginMgr = new PluginManager();
@@ -66,10 +70,10 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       }
       pluginMgr.loadAllPlugins();
       return pluginMgr;
-    }, [plugins]);
+    }, []);
     const store = useCreation(
-      () => createDatabaseStore(columns, data, viewConfig, views, activeViewId),
-      [],
+      () => createDatabaseStore(columns, data, viewConfig, views, activeViewId, pluginMgr),
+      []
     );
 
     const { theme: systemTheme } = useTheme();
@@ -79,6 +83,8 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
 
     // 暴露 ref 方法
     useImperativeHandle(ref, () => ({
+      dispatch: (command, source) => store.getState().dispatch(command, source),
+      setQuery: query => store.getState().setQuery(query),
       deleteRow: (rowId: string) => {
         store.getState().deleteRow(rowId);
       },
@@ -86,10 +92,11 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         store.getState().addRow(rowData);
       },
       updateRow: (rowId: string, data: Partial<RowData>) => {
-        Object.keys(data).forEach((key) => {
-          if (key !== "id") {
-            store.getState().updateCellValue(rowId, key, data[key]);
-          }
+        if (!store.getState().rows.some(row => row.id === rowId)) return;
+        store.getState().commitHistory();
+        store.getState().dispatch({
+          type: "rows.apply",
+          changes: { upsert: [{ ...data, id: rowId }], remove: [] },
         });
       },
       getRows: () => {
@@ -99,30 +106,11 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
 
     useEffect(() => {
       const unsubscribe = store.subscribe((state, prevState) => {
-        if (onDataChange) {
-          const dataChanged =
-            JSON.stringify({ columns: state.columns, rows: state.rows }) !==
-            JSON.stringify({
-              columns: prevState.columns,
-              rows: prevState.rows,
-            });
-
-          if (dataChanged) {
-            onDataChange({
-              columns: state.columns,
-              rows: state.rows,
-            });
-          }
-        }
-
-        if (onViewConfigChange) {
-          const viewConfigChanged =
-            JSON.stringify(state.viewConfig) !==
-            JSON.stringify(prevState.viewConfig);
-          if (viewConfigChanged) {
-            onViewConfigChange(state.viewConfig);
-          }
-        }
+        const change = state.lastChange;
+        if (!change || change === prevState.lastChange || change.source !== "user") return;
+        if (change.dataChanged)
+          onDataChange?.({ columns: state.columns, rows: state.rows }, change);
+        if (change.viewChanged) onViewConfigChange?.(state.viewConfig);
       });
 
       return () => {
@@ -135,27 +123,23 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     });
 
     useKeyboardNavigation(
-      (direction) => {
+      direction => {
         store.getState().moveCellSelection(direction);
       },
-      (e) => {
-        const { selectedCell, editingCell } = store.getState();
+      e => {
+        const { selectedCell, editingCell, columns } = store.getState();
         if (selectedCell && !editingCell && !readonly) {
-          const column = columns.find(
-            (col) => col.id === selectedCell.columnId,
-          );
+          const column = columns.find(col => col.id === selectedCell.columnId);
           if (!column) return;
           const plugin = pluginMgr.getPlugin(column.type);
           if (!plugin) return;
           if (plugin.editable) {
             e.preventDefault();
             e.stopPropagation();
-            store
-              .getState()
-              .startEditing(selectedCell.rowId, selectedCell.columnId);
+            store.getState().startEditing(selectedCell.rowId, selectedCell.columnId);
           }
         }
-      },
+      }
     );
 
     const handleCreateView = useMemoizedFn(
@@ -163,15 +147,15 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         type: DataTableViewType,
         name: string,
         dateColumnId?: string,
-        groupColumnId?: string,
+        groupColumnId?: string
       ) => {
-        const currentView = views.find((view) => view.id === activeViewId);
+        const { views, activeViewId, viewConfig } = store.getState();
+        const currentView = views.find(view => view.id === activeViewId);
         if (!currentView) return;
-        const nextOrder =
-          Math.max(0, ...views.map((view) => view.order ?? 0)) + 1;
+        const nextOrder = Math.max(0, ...views.map(view => view.order ?? 0)) + 1;
 
         // 构建视图配置
-        const config = { ...currentView.config };
+        const config = { ...viewConfig };
 
         // 如果是日历视图，添加日期列配置
         if (type === "calendar" && dateColumnId) {
@@ -200,25 +184,13 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         });
 
         if (result) {
-          store.setState((prev) => ({
-            ...prev,
-            views: [...prev.views, result],
-            activeViewId: result.id,
-          }));
-
-          // 如果是日历视图，更新 store 中的 calendarConfig
-          if (type === "calendar" && result.config.calendarConfig) {
-            store.getState().setCalendarConfig(result.config.calendarConfig);
-          }
-
-          // 如果是看板视图，更新 store 中的 kanbanConfig
-          if (type === "kanban" && result.config.kanbanConfig) {
-            store.getState().setKanbanConfig(result.config.kanbanConfig);
-          }
+          store
+            .getState()
+            .dispatch({ type: "view.receive", view: result, activate: true }, "external");
 
           onActiveViewIdChange?.(result.id);
         }
-      },
+      }
     );
 
     const handleDeleteView = useMemoizedFn(async (viewId: number) => {
@@ -230,35 +202,32 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         onOk: async () => {
           const result = await onDeleteView?.(viewId);
           if (result) {
-            store.setState({
-              views: views.filter((view) => view.id !== viewId),
-              activeViewId: views[0]?.id ?? null,
-            });
-            onActiveViewIdChange?.(views[0]?.id ?? null);
+            store.getState().dispatch({ type: "view.remove", id: viewId }, "external");
+            onActiveViewIdChange?.(store.getState().activeViewId);
           }
         },
       });
     });
 
-    const handleRenameView = useMemoizedFn(
-      async (viewId: number, name: string) => {
-        if (!onRenameView) return;
-        const result = await onRenameView(viewId, name);
-        if (result) {
-          store.setState((prev) => ({
-            ...prev,
-            views: prev.views.map((view) =>
-              view.id === result.id ? { ...view, name: result.name } : view,
-            ),
-          }));
-        }
-      },
-    );
+    const handleRenameView = useMemoizedFn(async (viewId: number, name: string) => {
+      if (!onRenameView) return;
+      const result = await onRenameView(viewId, name);
+      if (result) {
+        const current = store.getState().views.find(view => view.id === viewId);
+        if (current)
+          store
+            .getState()
+            .dispatch(
+              { type: "view.receive", view: { ...current, name: result.name } },
+              "external"
+            );
+      }
+    });
 
     const handleUpdateView = useMemoizedFn(
       async (
         viewId: number,
-        updates: Parameters<NonNullable<DatabaseProps["onUpdateView"]>>[1],
+        updates: Parameters<NonNullable<DatabaseProps["onUpdateView"]>>[1]
       ) => {
         if (!onUpdateView) return;
 
@@ -266,56 +235,20 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
         const updated = await onUpdateView(viewId, updates);
         if (!updated) return;
 
-        // 更新本地 store
-        store.setState((prev) => ({
-          ...prev,
-          views: prev.views.map((v) => (v.id === updated.id ? updated : v)),
-        }));
-
-        // 如果更新的是当前活动视图，同时更新 viewConfig
-        const currentActiveViewId = store.getState().activeViewId;
-        if (viewId === currentActiveViewId) {
-          if (updated.config.galleryConfig) {
-            store.getState().setGalleryConfig(updated.config.galleryConfig);
-          }
-          if (updated.config.calendarConfig) {
-            store.getState().setCalendarConfig(updated.config.calendarConfig);
-          }
-          if (updated.config.kanbanConfig) {
-            store.getState().setKanbanConfig(updated.config.kanbanConfig);
-          }
-        }
-      },
+        store.getState().dispatch({ type: "view.receive", view: updated }, "external");
+      }
     );
 
     const handleReorderViews = useMemoizedFn((orderedIds: number[]) => {
-      store.setState((prev) => {
-        const ordered = orderedIds
-          .map((id) => prev.views.find((view) => view.id === id))
-          .filter((view): view is (typeof prev.views)[number] => !!view)
-          .map((view, index) => ({ ...view, order: index }));
-        return {
-          ...prev,
-          views: ordered,
-        };
-      });
+      store.getState().dispatch({ type: "views.reorder", ids: orderedIds });
       onReorderViews?.(orderedIds);
     });
 
-    const storeActiveViewId = store((state) => state.activeViewId);
-    const storeViews = store((state) => state.views);
-
-    useEffect(() => {
-      const currentView = storeViews.find((v) => v.id === storeActiveViewId);
-      if (currentView) {
-        store.getState().setViewConfig(currentView.config);
-      }
-    }, [storeActiveViewId, storeViews, store]);
+    const storeActiveViewId = store(state => state.activeViewId);
+    const storeViews = store(state => state.views);
 
     const View = useMemo(() => {
-      const activeView = storeViews.find(
-        (view) => view.id === storeActiveViewId,
-      );
+      const activeView = storeViews.find(view => view.id === storeActiveViewId);
       if (!activeView) return null;
 
       const viewProps = {
@@ -329,13 +262,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       };
 
       if (activeView.type === "table") {
-        return (
-          <TableView
-            key={activeView.id}
-            {...viewProps}
-            startResize={startResize}
-          />
-        );
+        return <TableView key={activeView.id} {...viewProps} startResize={startResize} />;
       }
 
       if (activeView.type === "gallery") {
@@ -357,6 +284,8 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       finalTheme,
       readonly,
       onRowDetailOpen,
+      onRowAdd,
+      onRowDelete,
       config,
       store,
     ]);
@@ -364,13 +293,9 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     return (
       <DatabaseContext.Provider value={store}>
         <div
-          className={classnames(
-            "relative w-full h-full flex flex-col",
-            className,
-            {
-              "cursor-col-resize select-none": isResizing,
-            },
-          )}
+          className={classnames("relative flex h-full w-full flex-col", className, {
+            "cursor-col-resize select-none": isResizing,
+          })}
         >
           <div className="shrink-0">
             <ViewTabs
@@ -384,11 +309,11 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
               theme={finalTheme}
             />
           </div>
-          <div className="w-full flex-1 min-h-0">{View}</div>
+          <div className="min-h-0 w-full flex-1">{View}</div>
         </div>
       </DatabaseContext.Provider>
     );
-  },
+  }
 );
 
 Database.displayName = "Database";

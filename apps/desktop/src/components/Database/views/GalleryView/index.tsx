@@ -3,7 +3,6 @@ import { useMemoizedFn } from "ahooks";
 import { App } from "antd";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useDatabaseStore } from "../../hooks";
-import { useFilteredAndSortedRows } from "../../hooks/useFilteredAndSortedRows";
 import PluginManager from "../../PluginManager";
 import { RowData, ColumnDef, CellValue, DatabaseConfig } from "../../types";
 import GalleryCard from "./GalleryCard";
@@ -31,7 +30,6 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
 
     const {
       columns,
-      rows,
       viewConfig,
       addRow,
       updateCellValue,
@@ -39,10 +37,8 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
       editColumn,
       columnWidths,
       deleteRow,
-      searchKeyword,
-    } = useDatabaseStore((state) => ({
+    } = useDatabaseStore(state => ({
       columns: state.columns,
-      rows: state.rows,
       viewConfig: state.viewConfig,
       addRow: state.addRow,
       updateCellValue: state.updateCellValue,
@@ -50,7 +46,6 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
       editColumn: state.editColumn,
       columnWidths: state.columnWidths,
       deleteRow: state.deleteRow,
-      searchKeyword: state.searchKeyword,
     }));
 
     const [rowDetailOpen, setRowDetailOpen] = useState(false);
@@ -60,13 +55,8 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [columnsPerRow, setColumnsPerRow] = useState(4);
 
-    const { groupedRows, isGrouped } = useFilteredAndSortedRows(
-      rows,
-      columns,
-      viewConfig,
-      pluginManager,
-      searchKeyword
-    );
+    const projection = useDatabaseStore(state => state.projection);
+    const { groups: groupedRows, grouped: isGrouped } = projection;
 
     const galleryConfig = viewConfig.galleryConfig ?? {
       coverType: "detail" as const,
@@ -90,7 +80,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
       if (!editingRow) return;
 
       // 更新行数据
-      Object.keys(rowData).forEach((key) => {
+      Object.keys(rowData).forEach(key => {
         if (key !== "id") {
           updateCellValue(editingRow.id, key, rowData[key]);
         }
@@ -123,7 +113,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
         const newRow: RowData = {
           id: newId,
         };
-        columns.forEach((column) => {
+        columns.forEach(column => {
           newRow[column.id] = newRowData[column.id] ?? null;
         });
 
@@ -183,7 +173,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
           group.rows.length > 0 ? group.rows[0][group.column.id] : null;
 
         return (
-          <div className="flex items-center gap-2 mb-4 -ml-1">
+          <div className="-ml-1 mb-4 flex items-center gap-2">
             <div className="flex items-center">
               <Renderer
                 value={columnValue}
@@ -193,7 +183,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
                 onCellValueChange={emptyOnCellChange}
               />
             </div>
-            <span className="text-sm text-gray-500 font-normal">{group.rows.length}</span>
+            <span className="text-sm font-normal text-gray-500">{group.rows.length}</span>
           </div>
         );
       }
@@ -237,7 +227,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
 
     const virtualRows: VirtualRow[] = useMemo(() => {
       const rows: VirtualRow[] = [];
-      groupedRows.forEach((group) => {
+      groupedRows.forEach(group => {
         // 添加分组标题行
         if (isGrouped && group.key !== "__all__") {
           rows.push({ type: "header", group });
@@ -274,7 +264,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
     const virtualizer = useVirtualizer({
       count: virtualRows.length,
       getScrollElement: () => scrollContainerRef.current,
-      estimateSize: (index) => {
+      estimateSize: index => {
         const row = virtualRows[index];
         if (row.type === "header") {
           return 48; // 分组标题高度
@@ -287,7 +277,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
     });
 
     return (
-      <div className="w-full h-full flex flex-col">
+      <div className="flex h-full w-full flex-col">
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-6">
           <div
             style={{
@@ -296,7 +286,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
               position: "relative",
             }}
           >
-            {virtualizer.getVirtualItems().map((virtualItem) => {
+            {virtualizer.getVirtualItems().map(virtualItem => {
               const virtualRow = virtualRows[virtualItem.index];
 
               if (virtualRow.type === "header") {
@@ -329,12 +319,12 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
                   }}
                 >
                   <div
-                    className="grid gap-4 mb-4"
+                    className="mb-4 grid gap-4"
                     style={{
                       gridTemplateColumns: `repeat(${columnsPerRow}, 1fr)`,
                     }}
                   >
-                    {virtualRow.cards.map((row) => (
+                    {virtualRow.cards.map(row => (
                       <GalleryCard
                         key={row.id}
                         row={row}
@@ -391,7 +381,7 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
             column={
               editingColumnId
                 ? (() => {
-                    const found = columns.find((c) => c.id === editingColumnId);
+                    const found = columns.find(c => c.id === editingColumnId);
                     if (!found) return null;
                     const width = columnWidths[editingColumnId] || found.width || 200;
                     return { ...found, width } as ColumnDef;
