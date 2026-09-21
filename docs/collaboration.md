@@ -81,12 +81,12 @@ apps/desktop/e2e/                           Electron 端到端测试（生产编
 
 对存量文件的修改要点：
 
-- `packages/editor/src/index.tsx`：`collaboration` / `previewBlocks` props；协作模式剔除 `withHistory`（撤销交给 Yjs）；挂载 `SafeCollaborationElement` / `SharedTabs` / `CollaborationCursors`；数据持有端对私有占位块按原扩展渲染真身。
+- `packages/editor/src/index.tsx`：通过 `collaboration` 接入协作；协作模式剔除 `withHistory`（撤销交给 Yjs）；挂载 `SafeCollaborationElement` / `SharedTabs` / `CollaborationCursors`；数据持有端对私有占位块按原扩展渲染真身。正文截取由调用方负责，Editor 不提供预览块数属性。
 - `src-electron/main/modules/tables/{content,article,document,project}.ts`：content 读写经会话与乐观锁；标题以协作标题为权威（空标题不覆盖调用方）；协作内容禁止直写 / 删除。
 - `modules/database.ts` + `packages/db-schema`（`main.sql` / `main/10_core.sql`）：新增 `collaboration_bindings` 表（表计数 79，`check-schema-parity.mjs` 已同步）；打开数据库时迁移旧文章绑定。
 - `hooks/useEditContent.ts` / `useEditDailyNote.ts` / `useItemUpdateListener.ts`：会话存在时内容由会话驱动，跳过节流落库；标签页标题联动。
 - `services/content-editing/*`：`expectedRevision` 贯穿 AI 编辑提案与检查点。
-- 30+ 页面与组件：`Editor → ContentEditor`、标题组件替换、状态栏协作入口、只读预览 `previewBlocks` 截断。
+- 页面与组件：编辑入口通过 ContentEditor 建立协作会话，配合标题组件与状态栏协作入口；卡片墙只读摘要直接使用 Editor，调用方通过 `useMemo` 稳定 `content.slice(0, 3)` 的结果，正文变化通过内容事件更新。
 - 工程化：`.prettierrc.json`（原 `.prettier.json` 文件名不生效）、`scripts/quality.mjs`（增量 lint/format）、根 `package.json` 命令。
 
 ## 4. 产品功能入口

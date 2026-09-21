@@ -30,8 +30,6 @@ import CollaborationCursors from "./collaboration/Cursors";
 import SafeCollaborationElement, { requiresSafeRendering } from "./collaboration/SafeElement";
 import { useCreation, useMemoizedFn } from "ahooks";
 
-import { useEditorConfig } from "./contexts/EditorConfig";
-import useSystemTheme from "./hooks/useSystemTheme";
 import { useEditorExtensions } from "./contexts/EditorProvider";
 import { useServiceRegistry } from "./services/hooks";
 import type { ServiceIdentifier } from "./services/tokens";
@@ -93,8 +91,9 @@ import "./extensions/drop-common.less";
 import styles from "./index.module.less";
 
 interface IEditorProps {
-  previewBlocks?: number;
   collaboration?: EditorCollaborationBinding;
+  /** 关闭协作光标的发送与展示，正文同步不受影响。 */
+  collaborationCursors?: boolean;
   initValue?: Descendant[];
   onChange?: (value: Descendant[], editor: Editor) => void;
   onSelectionChange?: () => void;
@@ -157,11 +156,9 @@ const Index = memo(
       decorate,
       customRenderLeaf,
       collaboration,
-      previewBlocks,
+      collaborationCursors = true,
     } = props;
 
-    const systemTheme = useSystemTheme();
-    const editorConfig = useEditorConfig();
     const hostExtensions = useEditorExtensions();
     const pluginOptimizer = useCreation(() => new PluginOptimizer(), []);
     const registry = useServiceRegistry();
@@ -199,13 +196,18 @@ const Index = memo(
       // 服务方法必须在创建时挂载：render 阶段的组件（如 ListItem）会调用 editor.getService，
       // 若延迟到 useEffect 挂载，首次渲染时方法尚不存在
       const slateEditor = collaboration
-        ? withCollaboration(enhancedEditor, collaboration)
+        ? withCollaboration(enhancedEditor, collaboration, { cursors: collaborationCursors })
         : enhancedEditor;
       slateEditor.getService = <T,>(id: ServiceIdentifier<T>): T => registryRef.current.get(id);
       slateEditor.tryGetService = <T,>(id: ServiceIdentifier<T>): T | undefined =>
         registryRef.current.tryGet(id);
       return slateEditor;
-    }, [optimizedExtensionData.plugins, collaboration?.doc, collaboration?.root]);
+    }, [
+      optimizedExtensionData.plugins,
+      collaboration?.doc,
+      collaboration?.root,
+      collaborationCursors,
+    ]);
 
     useEffect(() => {
       if (!YjsEditor.isYjsEditor(editor)) return;
@@ -232,15 +234,6 @@ const Index = memo(
 
     const renderElement = useMemoizedFn((props: RenderElementProps) => {
       const { type } = props.element;
-      if (readonly && previewBlocks !== undefined) {
-        const path = ReactEditor.findPath(editor, props.element);
-        if (path.length === 1 && path[0] >= previewBlocks)
-          return (
-            <div {...props.attributes} style={{ display: "none" }}>
-              {props.children}
-            </div>
-          );
-      }
       if (collaboration && collaboration.mode !== "local" && requiresSafeRendering(type)) {
         const collabId = (props.element as ContentNode).collabId;
         const privateNode =
@@ -467,11 +460,7 @@ const Index = memo(
               style={collaboration ? { position: "relative" } : { display: "contents" }}
             >
               <Editable
-                className={classnames(
-                  styles.editor,
-                  { [styles.dark]: (theme ?? editorConfig?.theme.mode ?? systemTheme) === "dark" },
-                  props.className
-                )}
+                className={classnames(styles.editor, props.className)}
                 style={props.style}
                 readOnly={readonly}
                 renderElement={renderElement}
@@ -506,7 +495,7 @@ const Index = memo(
                 onFocus={onFocus}
                 onBlur={onBlur}
               />
-              {collaboration && (
+              {collaboration && collaborationCursors && (
                 <CollaborationCursors
                   containerRef={collaborationContainerRef as React.RefObject<HTMLDivElement>}
                 />

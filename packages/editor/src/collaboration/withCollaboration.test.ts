@@ -1,13 +1,15 @@
 import { expect, it, vi } from "vitest";
 import { createEditor, Editor, Transforms } from "slate";
 import { Awareness } from "y-protocols/awareness";
+import * as Y from "yjs";
 import { YjsEditor } from "@slate-yjs/core";
 import { createSharedDocument, readSharedContent } from "@tau/collaboration";
 import { withCollaboration } from "./withCollaboration";
 
 const setup = (
   content: Parameters<typeof createSharedDocument>[0]["content"],
-  overrides: Partial<Parameters<typeof withCollaboration>[1]> = {}
+  overrides: Partial<Parameters<typeof withCollaboration>[1]> = {},
+  options: Parameters<typeof withCollaboration>[2] = {}
 ) => {
   const doc = createSharedDocument({
     title: "内容",
@@ -17,18 +19,59 @@ const setup = (
   });
   const awareness = new Awareness(doc);
   const privateNodes = new Map();
-  const editor = withCollaboration(createEditor(), {
-    doc,
-    awareness,
-    origin: {},
-    privateNodes,
-    uploadResource: async () => "",
-    resolveResource: async value => value,
-    ...overrides,
-  });
+  const editor = withCollaboration(
+    createEditor(),
+    {
+      doc,
+      awareness,
+      origin: {},
+      privateNodes,
+      uploadResource: async () => "",
+      resolveResource: async value => value,
+      ...overrides,
+    },
+    options
+  );
   YjsEditor.connect(editor);
   return { doc, awareness, privateNodes, editor };
 };
+
+it("关闭摘要光标后不发送选区，仍接收正文同步", async () => {
+  const content = [{ type: "paragraph", children: [{ text: "原始正文" }] }];
+  const source = setup(content);
+  const previewDoc = new Y.Doc();
+  Y.applyUpdate(previewDoc, Y.encodeStateAsUpdate(source.doc));
+  const previewAwareness = new Awareness(previewDoc);
+  const preview = setup(
+    content,
+    { doc: previewDoc, awareness: previewAwareness },
+    { cursors: false }
+  );
+  try {
+    Transforms.select(preview.editor, Editor.start(preview.editor, []));
+    await Promise.resolve();
+    expect(previewAwareness.getLocalState()?.selection).toBeUndefined();
+    preview.editor.sendCursorPosition(preview.editor.selection);
+    expect(previewAwareness.getLocalState()?.selection).toBeUndefined();
+
+    Transforms.select(source.editor, Editor.end(source.editor, []));
+    source.editor.insertText("追加内容");
+    await Promise.resolve();
+    YjsEditor.flushLocalChanges(source.editor);
+    expect(source.awareness.getLocalState()?.selection).toBeTruthy();
+    Y.applyUpdate(previewDoc, Y.encodeStateAsUpdate(source.doc));
+    expect(Editor.string(preview.editor, [])).toBe("原始正文追加内容");
+    expect(previewAwareness.getLocalState()?.selection).toBeUndefined();
+  } finally {
+    for (const instance of [source, preview]) {
+      YjsEditor.disconnect(instance.editor);
+      instance.awareness.destroy();
+      instance.doc.destroy();
+    }
+    previewAwareness.destroy();
+    previewDoc.destroy();
+  }
+});
 
 it("全选替换后有有效内容，并可撤销自己的替换", () => {
   const { doc, awareness, editor } = setup([

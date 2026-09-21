@@ -86,12 +86,7 @@ const DailyNoteView = () => {
                 });
               }}
             >
-              <Editor
-                previewBlocks={1}
-                initValue={dailyNote.content.slice(0, 1)}
-                extensions={extensions}
-                readonly
-              />
+              <Editor initValue={dailyNote.content.slice(0, 1)} extensions={extensions} readonly />
               <div
                 className={styles.delete}
                 onClick={e => {

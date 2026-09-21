@@ -62,6 +62,7 @@ const ArticleCard = (props: IArticleCardProps) => {
   } = props;
 
   const articleEventBus = useCreation(() => defaultArticleEventBus.createEditor(), []);
+  const previewContent = useMemo(() => article.content.slice(0, 1), [article.content]);
 
   const { isDark } = useTheme();
   const navigateTo = useTabStore(state => state.navigateTo);
@@ -307,8 +308,7 @@ const ArticleCard = (props: IArticleCardProps) => {
             <Editor
               className={styles.editor}
               ref={editorRef}
-              initValue={article.content.slice(0, 1)}
-              previewBlocks={1}
+              initValue={previewContent}
               source={{ sourceType: "article", sourceId: article.id, sourceTitle: article.title }}
               readonly
             />
