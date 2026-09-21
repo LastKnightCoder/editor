@@ -126,7 +126,6 @@ export const useProjectItemMoreActions = (
       detachPodcast: detachPodcastFromProjectItem,
       reloadHost: getProjectItemById,
       onHostReloaded: publishProjectItemUpdate,
-      message: messageInstance,
       messages: {
         created: "播客已添加到文档",
       },

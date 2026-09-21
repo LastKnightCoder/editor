@@ -453,7 +453,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       detachPodcast: detachPodcastFromProjectItem,
       reloadHost: getProjectItemById,
       onHostReloaded: setProjectItem,
-      message,
       messages: {
         created: "播客已添加到文档",
       },

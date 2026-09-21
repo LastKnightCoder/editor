@@ -233,7 +233,6 @@ const EditCard = (props: IEditCardProps) => {
     detachPodcast: detachPodcastFromCard,
     reloadHost: getCardById,
     onHostReloaded: setEditingCard,
-    message,
     messages: {
       created: "播客已添加到卡片",
     },

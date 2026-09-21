@@ -1,12 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import type { MessageInstance } from "antd/es/message/interface";
+import { toast } from "@tau/ui";
 import type { IPodcast, SpeakerRole, PodcastScriptLine } from "@/types/podcast";
-import {
-  createPodcast,
-  deletePodcast,
-  updatePodcast,
-} from "@/commands/podcast";
+import { createPodcast, deletePodcast, updatePodcast } from "@/commands/podcast";
 
 export interface PodcastAttachmentMessages {
   created: string;
@@ -21,7 +17,6 @@ export interface UsePodcastAttachmentOptions<THost> {
   detachPodcast: (hostId: number) => Promise<void>;
   reloadHost: (hostId: number) => Promise<THost | null>;
   onHostReloaded: (host: THost) => void;
-  message: MessageInstance;
   messages?: Partial<PodcastAttachmentMessages>;
 }
 
@@ -29,9 +24,7 @@ export interface UsePodcastAttachmentOptions<THost> {
  * 处理播客创建/编辑/删除与宿主（卡片/文章等）关联的通用逻辑。
  * 只负责数据与状态，UI 由调用侧决定。
  */
-export const usePodcastAttachment = <THost>(
-  options: UsePodcastAttachmentOptions<THost>,
-) => {
+export const usePodcastAttachment = <THost>(options: UsePodcastAttachmentOptions<THost>) => {
   const {
     hostId,
     currentPodcast,
@@ -39,7 +32,6 @@ export const usePodcastAttachment = <THost>(
     detachPodcast,
     reloadHost,
     onHostReloaded,
-    message,
     messages,
   } = options;
 
@@ -77,7 +69,7 @@ export const usePodcastAttachment = <THost>(
         voiceName: string;
         role: SpeakerRole;
       }[],
-      name?: string,
+      name?: string
     ) => {
       try {
         const existedPodcast = currentPodcastRef.current;
@@ -91,7 +83,7 @@ export const usePodcastAttachment = <THost>(
             speakers,
           });
           await refreshHost();
-          message.success(messages?.updated ?? "播客已更新");
+          toast.success(messages?.updated ?? "播客已更新");
         } else {
           const podcast = await createPodcast({
             name,
@@ -103,13 +95,13 @@ export const usePodcastAttachment = <THost>(
           });
           await attachPodcast(hostId, podcast.id);
           await refreshHost();
-          message.success(messages?.created ?? "播客已添加");
+          toast.success(messages?.created ?? "播客已添加");
         }
       } catch (error) {
         console.error("保存播客失败:", error);
-        message.error("保存播客失败");
+        toast.error("保存播客失败");
       }
-    },
+    }
   );
 
   const handleDeletePodcast = useMemoizedFn(async () => {
@@ -120,10 +112,10 @@ export const usePodcastAttachment = <THost>(
       await detachPodcast(hostId);
       await deletePodcast(existedPodcast.id);
       await refreshHost();
-      message.success(messages?.deleted ?? "播客已删除");
+      toast.success(messages?.deleted ?? "播客已删除");
     } catch (error) {
       console.error("删除播客失败:", error);
-      message.error("删除播客失败");
+      toast.error("删除播客失败");
     }
   });
 
