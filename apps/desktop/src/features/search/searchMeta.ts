@@ -73,7 +73,7 @@ export interface PaletteCommand {
   keywords?: string;
   kind: "page" | "action";
   pageKey?: string;
-  action?: "cycle-theme";
+  action?: "cycle-theme" | "open-settings";
 }
 
 let cached: PaletteCommand[] | null = null;
@@ -91,14 +91,26 @@ export function paletteCommands(): PaletteCommand[] {
         pageKey: item.key,
       }))
     ),
-    ...NAV_FOOTER.map(item => ({
-      id: `page:${item.key}`,
-      label: item.label,
-      section: "工具",
-      icon: item.icon,
-      kind: "page" as const,
-      pageKey: item.key,
-    })),
+    ...NAV_FOOTER.map(item =>
+      item.opensOverlay === "settings"
+        ? {
+            id: "action:open-settings",
+            label: item.label,
+            section: "工具",
+            icon: item.icon,
+            keywords: "settings preferences 设置 偏好 配置",
+            kind: "action" as const,
+            action: "open-settings" as const,
+          }
+        : {
+            id: `page:${item.key}`,
+            label: item.label,
+            section: "工具",
+            icon: item.icon,
+            kind: "page" as const,
+            pageKey: item.key,
+          }
+    ),
   ];
   cached = [
     ...pages,

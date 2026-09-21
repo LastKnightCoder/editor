@@ -18,10 +18,12 @@ import { initThemeRuntime } from "@tau/ui/theme/runtime";
 import { Loading } from "@tau/ui/Loading";
 import { ToastHost } from "@tau/ui/Toast";
 import { SearchPalette } from "@/features/search/SearchPalette";
+import { SettingsDialog } from "@/features/settings/SettingsDialog";
 import { useSearchStore } from "@/features/search/searchStore";
 import { isReplayableVisit } from "@/features/search/searchMeta";
 import { initScrollbarAutoHide } from "@tau/ui/hooks";
 import useSettingStore from "@/stores/useSettingStore";
+import useSyncFont from "@/hooks/useSyncFont";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
 import {
@@ -53,6 +55,10 @@ export default function AppShell() {
 
 function ShellBody() {
   const [boot, setBoot] = useState<"connecting" | "failed" | "ready">("connecting");
+
+  // 字体设置 → body CSS 变量（--font/--font-size/--mono-font）。legacy 挂在 App.tsx，
+  // 新壳层不渲染它——不挂则 /shell 下字体设置全部失效（2026-09-21 外观页接线发现）
+  useSyncFont();
 
   const connect = useCallback(() => {
     setBoot("connecting");
@@ -164,6 +170,8 @@ function ShellLayout() {
       </div>
       {/* 全局命令面板浮层（Ctrl+K，D-003）：fixed 定位，须在 PageProvider 内使用导航 */}
       <SearchPalette />
+      {/* 全局设置弹窗（Ctrl+,，D-028）：壳层浮层，同命令面板挂载模式 */}
+      <SettingsDialog />
       {/* 全局 toast（z 高于命令面板，面板打开时反馈仍可见） */}
       <ToastHost />
     </div>

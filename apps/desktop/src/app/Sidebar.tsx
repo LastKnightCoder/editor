@@ -12,6 +12,7 @@ import { useEdgeFade } from "@tau/ui/hooks";
 import { IconButton } from "@tau/ui/IconButton";
 import logo from "@/assets/logo.png";
 import { useShellStore } from "./shellStore";
+import { useSettingsStore } from "./settingsStore";
 import { NAV_FOOTER, NAV_SECTIONS, type NavItem } from "./navigation";
 
 export function Sidebar({ resizing }: { resizing: boolean }) {
@@ -20,6 +21,7 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
   const toggle = useShellStore(s => s.toggleSidebar);
   const navSectionCollapsed = useShellStore(s => s.navSectionCollapsed);
   const toggleNavSection = useShellStore(s => s.toggleNavSection);
+  const openSettings = useSettingsStore(s => s.openSettings);
 
   // 边缘渐隐：callback ref（组折叠动画经 transitionend 重测，见 useEdgeFade）
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
@@ -148,8 +150,11 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
             key={item.key}
             item={item}
             collapsed={collapsed}
-            active={item.key === currentKey}
-            onClick={() => navigator.push(item.key)}
+            // 浮层入口（设置弹窗）不是页面栈页，无激活态
+            active={item.opensOverlay ? false : item.key === currentKey}
+            onClick={() =>
+              item.opensOverlay === "settings" ? openSettings() : navigator.push(item.key)
+            }
           />
         ))}
       </div>

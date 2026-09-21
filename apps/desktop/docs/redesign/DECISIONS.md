@@ -246,6 +246,19 @@
 - 筛选空态为通用文案引导（不硬编码业务快捷）；排序空态推荐 = 日期类型列前两个。
 - 冒烟测试 `Database/__tests__/ViewTabs.test.tsx`（胶囊渲染/计数、搜索展开与 Esc、三面板打开断言；Popover 经 Portal 挂 body，断言查 document）。
 
+## D-028 设置弹窗：方案 A 经典双栏骨架落地（壳层浮层 + 14 子页分组重排）
+
+- 定向（2026-09-21，mockups/settings/ 三案对比，用户裁决方案 A 经典双栏、逐页慢慢设计）：760×min(560,82vh) 居中弹窗，blur 遮罩 + surface 卡（Dialog 家族同语言）；左栏 198px 分区导航、右栏子页独立滚动（edge fade 三件套）。视觉对齐 mockup 方案 A 定稿：左右栏 surface 统一亮底 + **hairline 结构分隔**（头部下缘 line-1、导航列右缘 line-1、设置行间 line-2 末行无线）——弹窗容器内部的结构线，同 Dialog footer hairline 性质，不属 §4.2 零横线针对的页面区块分隔（首版曾以右栏 bg-page 底色分区替代横线，用户校准否决）。保存模型 = 即时保存（无应答区），legacy 显式保存按钮随逐页设计移除。
+- 承载：**feature 级浮层由壳层挂载**（D-003 命令面板同族，AppShell 内 `<SettingsDialog />`）；开闭态归 `app/settingsStore.ts`（壳层 UI 状态——Sidebar / 命令面板 / Ctrl+, 多入口共享，features 域禁止互引 store，故不放 features/settings）；Esc 走 useOverlayDismiss 注册表；关闭焦点归还触发元素；`Ctrl+,`（Mac `Cmd+,`）全局 toggle。
+- 入口三处：Sidebar 底部（navigation.ts 的 NavItem 新增 `opensOverlay: "settings"` 标记，Sidebar 按标记开浮层而非 push，浮层入口无页面激活态）；命令面板（searchMeta 生成 `action: "open-settings"` 命令）；快捷键。
+- 分组重排（用户裁决按最佳实践重配，legacy 14 子页全量对齐不遗漏）：通用（外观）→ 数据（同步 / 资源存储 / 发布）→ AI 服务（大语言模型 / 嵌入模型 / 图片生成 / 文字转语音 / 语音转录，按生成管线排序）→ 扩展（模块功能 / 白板录制 / 集成 / 杂项）→ 支持（关于软件）。使用频率递减、关于殿后；「杂项」暂名保留，逐页设计时拆解正名。
+- 单源：`features/settings/sections.tsx` 是设置导航的唯一修改点（分组/排序/图标/组件映射）；未设计子页消费 `PendingSection` 诚实空态（不造演示数据）；外观为首个真实子页（主题 mode 接 themeStore 即刻生效），逐页设计时替换 component 即可。子页持久化记忆：重开设置回到上次分区（settingsStore partialize section）。
+- legacy `SettingModal`（/legacy 侧全屏 Tab）不动，M1 随壳层删除；`page/legacy.tsx` 的 settings 占位页保留（不再被侧边栏 push）。
+- 验证：tsc / eslint 全绿；浏览器实测（侧栏入口开合、分区切换、主题切换落 `data-theme` + `.dark`、Esc / Ctrl+, 快捷键）通过。
+- **外观子页定稿（2026-09-21，mockups/settings/appearance/ 三案对比，用户裁决方案 A 行流式）**：分节按「界面 / 编辑器」两层语义（字体字号只作用于编辑器正文，节标题即说明书）；主题模式 = 三张迷你窗口预览卡（跟随系统 / 浅色 / 深色接 themeStore mode 三档，legacy darkMode 布尔为其子集）+ 行内只读解析说明；中英字体 = searchable Select（getAllFonts，react-query staleTime Infinity）；字号 = stepper 12–24 边界禁用；图片圆角/阴影四档（历史 boolean 阴影值读取时归一化、写入即清洗）；**「深浅切换时提示」开关经用户裁决删除**（toast 反馈是交互行为不是设置项）；**主题色 6 色板不迁移**——新主题体系 defineTheme 中 accent 随主题内置，色板是 legacy data-accent 旧体系产物，存量选择迁移映射到默认。实现：`features/settings/sections/AppearanceSection.tsx` + `components/SectionTitle.tsx`。
+- **定稿追记（2026-09-21 用户校准）**：① 弹窗宽度 760→**860**（右栏内容区太窄）；② 字体选择补**预览**——Select 富 label「字体名 + 预览句按该字体渲染」（触发器与选项同构），预览句与回退栈对齐 legacy SettingFontPicker（中文「春风又绿江南岸」/ 英文 "Sphinx of black quartz" / 代码 "const f = (s) => s;"），实现收口 `components/FontSelect.tsx`。
+- **字体生效链路修复 + 全局化（2026-09-21，外观页接线发现 → 用户裁决）**：fontSetting 数据未丢，断点两处——① `useSyncFont`（→ CSS 变量）原挂 legacy 根 App.tsx，/shell 不渲染它；② 壳层根 `font-tau` 截断 font-family 继承（编辑器根 `.editor` 显式 `var(--font/--font-size, inherit)` 兜底）。用户随后裁决**字体/字号为应用级默认、root 下全局生效**（非编辑器专属）：useSyncFont 重写为 root 覆盖 `--tau-font`/`--tau-font-mono`（壳层 UI font-tau 即时生效）+ 按 13px 基准等比缩放 `--tau-text-*` 档位（层级保持、间距圆角不动）+ 既有 `--font/--font-size/--mono-font` 一并写 root。**配套 token 改造**：`@theme inline` 对字面值会内联进工具类致运行时覆盖无效——字号 token 改为 `:root` 字面值层（`--tau-text-*`）+ `@theme inline` var 桥接（tokens.css，对齐颜色 token 既有模式）。外观页分节语义随之调整：「编辑器 · 正文/代码块」并为「界面 · 字体」（desc 全局生效），「编辑器 · 图片」改「内容 · 图片」。同批修 Select 弹层：滚动收口列表区（搜索框移出滚动区、滚动条不贴边不溢出圆角）+ 触发器 `w-full`（定宽 className 真正生效）。
+
 ## Page 迁移清单（M2 起滚动勾选）
 
 > 33 个 TabType 的完整映射与合并方案见蓝图 §5.3，此处只跟踪迁移状态。
