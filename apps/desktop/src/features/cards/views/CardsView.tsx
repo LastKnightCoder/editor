@@ -413,7 +413,6 @@ export function CardsView() {
           deleteBridge.current = null;
         }}
         title="删除卡片"
-        context={cardTitle(pendingDelete)}
         description="卡片将从卡片库中移除。"
         impact="卡片的正文与双向链接将不再可访问"
         danger
