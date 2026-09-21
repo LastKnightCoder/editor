@@ -25,7 +25,8 @@
     "./ConfirmDialog": "./src/primitives/ConfirmDialog.tsx",
     "./Popover": "./src/primitives/Popover.tsx",
     "./AnchoredPanel": "./src/primitives/AnchoredPanel.tsx",
-    "./YearHeatmap": "./src/primitives/YearHeatmap.tsx"
+    "./YearHeatmap": "./src/primitives/YearHeatmap.tsx",
+    "./Input": "./src/primitives/input/Input.tsx"
   },
   "scripts": {
     "test": "vitest run",
