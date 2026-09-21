@@ -173,7 +173,7 @@ export function DatePickerPanel({
               data-on={presetActive(preset) || undefined}
               onClick={() => applyPresets(preset)}
               className={cn(
-                "text-ink-2 bg-group hover:bg-hover hover:text-ink-1 h-[26px] rounded-[7px] px-[11px] text-[11.5px]",
+                "text-ink-2 bg-group hover:bg-hover hover:text-ink-1 h-[26px] cursor-pointer rounded-[7px] px-[11px] text-[11.5px]",
                 "data-[on]:bg-selected data-[on]:text-accent-text data-[on]:font-[550]"
               )}
             >
@@ -194,7 +194,7 @@ export function DatePickerPanel({
           <button
             type="button"
             onClick={() => onCommit(null)}
-            className="text-ink-2 hover:bg-hover hover:text-ink-1 h-[28px] rounded-[8px] px-3 text-[12px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
+            className="text-ink-2 hover:bg-hover hover:text-ink-1 h-[28px] cursor-pointer rounded-[8px] px-3 text-[12px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
           >
             清空
           </button>
@@ -202,7 +202,7 @@ export function DatePickerPanel({
             type="button"
             disabled={!minuteReady}
             onClick={applyMinute}
-            className="bg-accent text-ink-inverse hover:bg-accent-hover ml-auto h-[28px] rounded-[8px] px-4 text-[12px] font-[550] outline-none focus-visible:shadow-[var(--tau-focus-ring)] disabled:pointer-events-none disabled:opacity-50"
+            className="bg-accent text-ink-inverse hover:bg-accent-hover ml-auto h-[28px] cursor-pointer rounded-[8px] px-4 text-[12px] font-[550] outline-none focus-visible:shadow-[var(--tau-focus-ring)] disabled:pointer-events-none disabled:opacity-50"
           >
             确定
           </button>
@@ -212,14 +212,14 @@ export function DatePickerPanel({
           <button
             type="button"
             onClick={pickToday}
-            className="text-accent-text hover:bg-selected rounded-[7px] px-2.5 py-1 text-[12px] font-[550] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
+            className="text-accent-text hover:bg-selected cursor-pointer rounded-[7px] px-2.5 py-1 text-[12px] font-[550] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
           >
             今天
           </button>
           <button
             type="button"
             onClick={() => onCommit(null)}
-            className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-[7px] px-2.5 py-1 text-[12px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
+            className="text-ink-2 hover:bg-hover hover:text-ink-1 cursor-pointer rounded-[7px] px-2.5 py-1 text-[12px] outline-none focus-visible:shadow-[var(--tau-focus-ring)]"
           >
             清空
           </button>
@@ -409,7 +409,7 @@ export function DatePicker({
         }}
         onKeyDown={onTriggerKeyDown}
         className={cn(
-          "border-line-1 bg-surface text-ink-1 group/trigger",
+          "border-line-1 bg-surface text-ink-1 group/trigger cursor-pointer",
           "rounded-tau-sm inline-flex items-center gap-2 border",
           "ease-tau-out transition-[border-color,box-shadow] duration-[160ms]",
           "hover:not-focus-visible:border-ink-3/50 focus-visible:border-accent outline-none focus-visible:shadow-[var(--tau-focus-ring)]",
@@ -434,7 +434,7 @@ export function DatePicker({
               commit(null);
               setOpen(false);
             }}
-            className="text-ink-3 hover:bg-hover hover:text-ink-1 invisible grid size-[22px] place-items-center rounded-[6px] group-hover/trigger:visible"
+            className="text-ink-3 hover:bg-hover hover:text-ink-1 invisible grid size-[22px] cursor-pointer place-items-center rounded-[6px] group-hover/trigger:visible"
           >
             <X className="size-[13px]" />
           </span>

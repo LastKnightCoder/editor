@@ -35,7 +35,7 @@ export interface ButtonProps extends ComponentProps<"button"> {
 }
 
 const BASE =
-  "text-tau-body inline-flex h-[34px] items-center justify-center gap-[7px] rounded-[10px] " +
+  "text-tau-body inline-flex h-[34px] cursor-pointer items-center justify-center gap-[7px] rounded-[10px] " +
   "px-[17px] font-[550] whitespace-nowrap select-none outline-none " +
   "ease-tau-out transition-[background,border-color,box-shadow,filter,color] duration-[140ms] " +
   "focus-visible:shadow-[var(--tau-focus-ring)] " +

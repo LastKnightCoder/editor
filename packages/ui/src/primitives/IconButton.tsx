@@ -11,7 +11,7 @@ export function IconButton({ className, type = "button", ...props }: ComponentPr
     <button
       type={type}
       className={cn(
-        "rounded-tau-sm text-ink-2 grid size-[30px] place-items-center",
+        "rounded-tau-sm text-ink-2 grid size-[30px] cursor-pointer place-items-center",
         "ease-tau-out transition-[background,color] duration-[160ms]",
         "enabled:hover:bg-hover enabled:hover:text-ink-1",
         "disabled:cursor-default disabled:opacity-35",
