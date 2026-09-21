@@ -1,10 +1,7 @@
 import dayjs from "dayjs";
 import { DateValue } from "../index";
 
-export const formatDate = (
-  ts: number | null,
-  format = "YYYY-MM-DD",
-): string => {
+export const formatDate = (ts: number | null, format = "YYYY-MM-DD"): string => {
   if (ts === null || ts === undefined) return "";
   try {
     return dayjs(new Date(ts)).format(format);
@@ -47,7 +44,7 @@ export const formatDateForInput = (ts: number | null): string => {
 export const formatDateRange = (
   value: DateValue | null,
   showTime = false,
-  isRange = false,
+  isRange = false
 ): string => {
   if (!value || (value.start === null && value.end === null)) {
     return "";

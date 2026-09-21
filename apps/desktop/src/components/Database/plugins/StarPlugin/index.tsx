@@ -1,7 +1,7 @@
 import React from "react";
 import { CellPlugin, CellValue, ColumnDef } from "../../types";
 import Star from "@/components/Star";
-import { MdStarRate } from "react-icons/md";
+import { Star as StarIcon } from "lucide-react";
 
 interface StarConfig {
   max?: number; // 默认 5
@@ -43,7 +43,7 @@ const Renderer: React.FC<{
   };
 
   return (
-    <div className="w-full h-full flex items-center px-2" onClick={onClickContainer}>
+    <div className="flex h-full w-full items-center px-2" onClick={onClickContainer}>
       <Star
         value={current}
         onChange={handleChange}
@@ -61,7 +61,7 @@ const StarPlugin: CellPlugin<StarConfig> = {
   name: "评分",
   editable: false,
   Renderer,
-  Icon: ({ className }) => <MdStarRate className={className} />,
+  Icon: ({ className }) => <StarIcon className={className} />,
   beforeSave: (value, config) => normalize(value, config),
   afterLoad: (value, config) => normalize(value, config),
   getGroupKey: (row, column) => {
@@ -69,7 +69,7 @@ const StarPlugin: CellPlugin<StarConfig> = {
     if (!value) return "";
     return String(value);
   },
-  sort: (params) => {
+  sort: params => {
     const { a, b, direction } = params;
     if (a === b) return 0;
 

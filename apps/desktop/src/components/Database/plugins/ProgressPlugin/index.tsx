@@ -1,5 +1,5 @@
 import { CellPlugin } from "../../types";
-import { MdAutoGraph } from "react-icons/md";
+import { TrendingUp } from "lucide-react";
 import { Renderer, Editor } from "./components";
 import { ProgressValue } from "./types";
 
@@ -9,7 +9,7 @@ const ProgressPlugin: CellPlugin<null> = {
   editable: true,
   Renderer,
   Editor,
-  Icon: ({ className }) => <MdAutoGraph className={className} />,
+  Icon: ({ className }) => <TrendingUp className={className} />,
 
   beforeSave: (value: ProgressValue | string | number) => {
     // 处理不同格式的输入
@@ -53,7 +53,7 @@ const ProgressPlugin: CellPlugin<null> = {
       return "";
     return `${value.current}/${value.target}`;
   },
-  sort: (params) => {
+  sort: params => {
     const { a, b, direction } = params;
     if (typeof a !== "object" || typeof b !== "object") return 0;
     if (a === b || a === null || b === null) return 0;

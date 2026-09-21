@@ -1,6 +1,6 @@
 import React, { memo, useState, useRef, useEffect } from "react";
-import { Popover } from "antd";
-import { MdAdd, MdClose, MdChevronLeft, MdChevronRight } from "react-icons/md";
+import { Popover as TauPopover } from "@tau/ui/Popover";
+import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import LocalImage from "@/components/LocalImage";
 import useUploadResource from "@/hooks/useUploadResource";
@@ -20,17 +20,15 @@ interface ImageRendererProps {
 }
 
 const ImageRenderer: React.FC<ImageRendererProps> = memo(
-  ({ value, readonly, theme, onCellValueChange }) => {
+  ({ value, readonly, onCellValueChange }) => {
     const imageList = Array.isArray(value) ? value : [];
-    const isDark = theme === "dark";
     const [previewVisible, setPreviewVisible] = useState(false);
     const [previewIndex, setPreviewIndex] = useState(0);
     const [uploadPopoverVisible, setUploadPopoverVisible] = useState(false);
     const [hoveredImageId, setHoveredImageId] = useState<string | null>(null);
-    const [slideDirection, setSlideDirection] = useState<"left" | "right">(
-      "right",
-    );
+    const [slideDirection, setSlideDirection] = useState<"left" | "right">("right");
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const addTriggerRef = useRef<HTMLDivElement>(null);
     const uploadResource = useUploadResource();
 
     const handleImageClick = useMemoizedFn((index: number) => {
@@ -40,12 +38,12 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
 
     const handlePrevImage = useMemoizedFn(() => {
       setSlideDirection("left");
-      setPreviewIndex((prev) => (prev === 0 ? imageList.length - 1 : prev - 1));
+      setPreviewIndex(prev => (prev === 0 ? imageList.length - 1 : prev - 1));
     });
 
     const handleNextImage = useMemoizedFn(() => {
       setSlideDirection("right");
-      setPreviewIndex((prev) => (prev === imageList.length - 1 ? 0 : prev + 1));
+      setPreviewIndex(prev => (prev === imageList.length - 1 ? 0 : prev + 1));
     });
 
     const handleKeyDown = useMemoizedFn((e: KeyboardEvent) => {
@@ -74,50 +72,46 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
       }
     }, [previewVisible, handleKeyDown]);
 
-    const handleDeleteImage = useMemoizedFn(
-      (imageId: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        const newValue = imageList.filter((item) => item.id !== imageId);
-        onCellValueChange(newValue);
-      },
-    );
+    const handleDeleteImage = useMemoizedFn((imageId: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      const newValue = imageList.filter(item => item.id !== imageId);
+      onCellValueChange(newValue);
+    });
 
     const handleUploadImage = useMemoizedFn(() => {
       fileInputRef.current?.click();
       setUploadPopoverVisible(false);
     });
 
-    const handleFileChange = useMemoizedFn(
-      async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (!files) return;
+    const handleFileChange = useMemoizedFn(async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files) return;
 
-        const newImages: ImageItem[] = [];
+      const newImages: ImageItem[] = [];
 
-        for (const file of Array.from(files)) {
-          try {
-            const url = await uploadResource(file);
-            if (url) {
-              newImages.push({
-                id: uuid(),
-                url,
-                alt: file.name,
-              });
-            }
-          } catch (error) {
-            console.error("上传图片失败:", error);
+      for (const file of Array.from(files)) {
+        try {
+          const url = await uploadResource(file);
+          if (url) {
+            newImages.push({
+              id: uuid(),
+              url,
+              alt: file.name,
+            });
           }
+        } catch (error) {
+          console.error("上传图片失败:", error);
         }
+      }
 
-        if (newImages.length > 0) {
-          onCellValueChange([...imageList, ...newImages]);
-        }
+      if (newImages.length > 0) {
+        onCellValueChange([...imageList, ...newImages]);
+      }
 
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
-      },
-    );
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    });
 
     const handleAddLink = useMemoizedFn((link: string) => {
       const newImage: ImageItem = {
@@ -130,20 +124,13 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
       setUploadPopoverVisible(false);
     });
 
-    const uploadContent = (
-      <ImageUpload
-        onUploadLocal={handleUploadImage}
-        onAddLink={handleAddLink}
-      />
-    );
-
     return (
-      <div className="relative flex items-center gap-2 px-2 py-1 h-full w-full">
-        <div className="flex items-center flex-nowrap gap-2 flex-1">
+      <div className="relative flex h-full w-full items-center gap-2 px-2 py-1">
+        <div className="flex flex-1 flex-nowrap items-center gap-2">
           {imageList.map((image, index) => (
             <motion.div
               key={image.id}
-              className="relative group cursor-pointer flex-none"
+              className="group relative flex-none cursor-pointer"
               onMouseEnter={() => setHoveredImageId(image.id)}
               onMouseLeave={() => setHoveredImageId(null)}
               onClick={() => handleImageClick(index)}
@@ -151,7 +138,7 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
               <LocalImage
                 url={image.url}
                 alt={image.alt || "图片"}
-                className="w-8 h-8 object-cover rounded border border-gray-400/50 transition-shadow hover:shadow-md"
+                className="border-line-1 hover:shadow-float h-8 w-8 rounded border object-cover transition-shadow"
               />
 
               <AnimatePresence>
@@ -162,10 +149,10 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
                     exit={{ scale: 0 }}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    className="absolute -top-1 -right-1 w-4 h-4 bg-gray-400/50 rounded-full flex items-center justify-center cursor-pointer shadow-lg"
-                    onClick={(e) => handleDeleteImage(image.id, e)}
+                    className="bg-ink-1/70 text-ink-inverse absolute -right-1 -top-1 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full shadow-lg"
+                    onClick={e => handleDeleteImage(image.id, e)}
                   >
-                    <MdClose className="w-2 h-2 text-white" />
+                    <X className="h-2 w-2" strokeWidth={2.5} />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -174,26 +161,26 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
         </div>
 
         {!readonly && (
-          <Popover
-            content={uploadContent}
-            trigger="click"
-            placement="bottomRight"
+          <TauPopover
+            anchor={addTriggerRef.current}
+            placement="bottom-end"
             open={uploadPopoverVisible}
             onOpenChange={setUploadPopoverVisible}
+            arrow={false}
           >
-            <div
-              className={
-                "absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-1  rounded-md cursor-pointer transition-colors" +
-                (isDark
-                  ? " bg-zinc-700/80 text-gray-200 hover:bg-gray-600/80"
-                  : " bg-gray-200/80 text-gray-700 hover:bg-gray-300/80")
-              }
-              role="button"
-              aria-label="添加图片"
-            >
-              <MdAdd className="w-4 h-4" />
-            </div>
-          </Popover>
+            <ImageUpload onUploadLocal={handleUploadImage} onAddLink={handleAddLink} />
+          </TauPopover>
+        )}
+        {!readonly && (
+          <div
+            ref={addTriggerRef}
+            className="bg-group hover:bg-hover text-ink-2 hover:text-ink-1 rounded-tau-sm absolute right-1 top-1/2 flex -translate-y-1/2 cursor-pointer items-center gap-1 px-1.5 py-1 transition-colors"
+            role="button"
+            aria-label="添加图片"
+            onClick={() => setUploadPopoverVisible(v => !v)}
+          >
+            <Plus className="h-4 w-4" strokeWidth={1.75} />
+          </div>
         )}
 
         <input
@@ -213,28 +200,28 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
-                className="fixed inset-0 flex items-center justify-center z-50"
+                className="fixed inset-0 z-50 flex items-center justify-center"
                 onClick={() => setPreviewVisible(false)}
               >
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-black/60"
+                  className="bg-overlay absolute inset-0"
                 />
 
                 <div
-                  className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center"
-                  onClick={(e) => e.stopPropagation()}
+                  className="relative flex max-h-[90vh] max-w-[90vw] items-center justify-center"
+                  onClick={e => e.stopPropagation()}
                 >
                   {imageList.length > 1 && (
                     <motion.button
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                      className="bg-ink-1/60 text-ink-inverse hover:bg-ink-1/80 absolute left-4 top-1/2 z-10 -translate-y-1/2 rounded-full p-2 transition-colors"
                       onClick={handlePrevImage}
                     >
-                      <MdChevronLeft className="w-6 h-6" />
+                      <ChevronLeft className="h-6 w-6" strokeWidth={1.75} />
                     </motion.button>
                   )}
 
@@ -242,14 +229,14 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
                     <motion.button
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors"
+                      className="bg-ink-1/60 text-ink-inverse hover:bg-ink-1/80 absolute right-4 top-1/2 z-10 -translate-y-1/2 rounded-full p-2 transition-colors"
                       onClick={handleNextImage}
                     >
-                      <MdChevronRight className="w-6 h-6" />
+                      <ChevronRight className="h-6 w-6" strokeWidth={1.75} />
                     </motion.button>
                   )}
 
-                  <div className="relative overflow-hidden w-[80vw] h-[80vh] max-w-4xl max-h-3xl flex items-center justify-center">
+                  <div className="max-h-3xl relative flex h-[80vh] w-[80vw] max-w-4xl items-center justify-center overflow-hidden">
                     <AnimatePresence mode="wait" custom={slideDirection}>
                       {imageList.length > 0 && imageList[previewIndex] && (
                         <motion.div
@@ -276,7 +263,7 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
                           <LocalImage
                             url={imageList[previewIndex].url}
                             alt={imageList[previewIndex].alt || "图片"}
-                            className="w-full h-full object-contain rounded-lg shadow-2xl cursor-zoom-out"
+                            className="h-full w-full cursor-zoom-out rounded-lg object-contain shadow-2xl"
                             onClick={() => setPreviewVisible(false)}
                           />
                         </motion.div>
@@ -288,7 +275,7 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-black/50 text-white text-sm"
+                      className="bg-ink-1/60 text-ink-inverse text-tau-sm absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 tabular-nums"
                     >
                       {previewIndex + 1} / {imageList.length}
                     </motion.div>
@@ -300,7 +287,7 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
         </AnimatePresence>
       </div>
     );
-  },
+  }
 );
 
 export default ImageRenderer;

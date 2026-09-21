@@ -1,8 +1,8 @@
 import React from "react";
+import { PanelRight } from "lucide-react";
 import { CellValue, ColumnDef, RowData } from "../../types";
-import { TbLayoutSidebarRight } from "react-icons/tb";
 import { useMemoizedFn } from "ahooks";
-import { Tooltip } from "antd";
+import { Tooltip } from "@tau/ui/Tooltip";
 import EditText from "@/components/EditText";
 
 const PrimaryColumnRenderer: React.FC<{
@@ -14,9 +14,7 @@ const PrimaryColumnRenderer: React.FC<{
   className?: string;
   row?: RowData;
   onOpenDetail?: (row: RowData) => void;
-}> = ({ value, theme, row, onOpenDetail }) => {
-  const isDark = theme === "dark";
-
+}> = ({ value, row, onOpenDetail }) => {
   const handleOpenDetail = useMemoizedFn((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -26,29 +24,25 @@ const PrimaryColumnRenderer: React.FC<{
   });
 
   return (
-    <div className="relative w-full h-full flex items-center">
+    <div className="relative flex h-full w-full items-center">
       <EditText
         key={value}
         defaultValue={value}
         contentEditable={false}
-        className="px-2 py-2 h-full w-full text-sm flex items-center overflow-hidden text-ellipsis whitespace-nowrap box-border"
+        className="text-ink-1 text-tau-body box-border flex h-full w-full items-center overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2"
       />
       <div
-        className={
-          "absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1 px-1.5 py-1 rounded-md cursor-pointer" +
-          (isDark
-            ? " bg-zinc-700/80 text-gray-200"
-            : " bg-gray-200/80 text-gray-700")
-        }
-        onDoubleClick={(e) => {
+        className="bg-group text-ink-2 rounded-tau-sm absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-1 px-1.5 py-1"
+        onDoubleClick={e => {
           e.stopPropagation();
           e.preventDefault();
         }}
       >
-        <Tooltip title="打开详情" mouseEnterDelay={1}>
-          <TbLayoutSidebarRight
+        <Tooltip content="打开详情" delay={1000}>
+          <PanelRight
             onClick={handleOpenDetail}
-            className="w-4 h-4"
+            className="hover:text-ink-1 h-4 w-4 cursor-pointer"
+            strokeWidth={1.75}
           />
         </Tooltip>
       </div>

@@ -1,7 +1,7 @@
 import React from "react";
 import { CellPlugin, CellValue, ColumnDef } from "../../types";
 import CustomCheckbox from "@/components/CustomCheckbox";
-import { MdCheckBox } from "react-icons/md";
+import { SquareCheck } from "lucide-react";
 
 const Renderer: React.FC<{
   value: CellValue;
@@ -30,7 +30,7 @@ const Renderer: React.FC<{
 
   return (
     <div
-      className="w-full h-full flex items-center px-2"
+      className="flex h-full w-full items-center px-2"
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
@@ -44,13 +44,13 @@ const CheckboxPlugin: CellPlugin<unknown> = {
   name: "复选框",
   editable: false,
   Renderer,
-  Icon: ({ className }) => <MdCheckBox className={className} />,
-  beforeSave: (value) => Boolean(value),
-  afterLoad: (value) => Boolean(value),
+  Icon: ({ className }) => <SquareCheck className={className} />,
+  beforeSave: value => Boolean(value),
+  afterLoad: value => Boolean(value),
   getGroupKey: (row, column) => {
     return String(row[column.id]);
   },
-  sort: (params) => {
+  sort: params => {
     const { a, b, direction } = params;
     if (a === b) return 0;
 
@@ -63,9 +63,9 @@ const CheckboxPlugin: CellPlugin<unknown> = {
     const trueValues = ["是", "true", "1", "yes", "选中", "已选"];
     const falseValues = ["否", "false", "0", "no", "未选"];
     if (checked) {
-      return trueValues.some((v) => v.includes(searchLower));
+      return trueValues.some(v => v.includes(searchLower));
     } else {
-      return falseValues.some((v) => v.includes(searchLower));
+      return falseValues.some(v => v.includes(searchLower));
     }
   },
   filters: [

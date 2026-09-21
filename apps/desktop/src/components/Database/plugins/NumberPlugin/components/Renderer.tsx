@@ -7,22 +7,20 @@ interface NumberRendererProps {
   column: ColumnDef;
 }
 
-const NumberRenderer: React.FC<NumberRendererProps> = memo(
-  ({ value, column }) => {
-    const config = column.config as {
-      precision?: number;
-      thousandSeparator?: boolean;
-      prefix?: string;
-      suffix?: string;
-    };
-    const formattedValue = formatNumber(value as number | string, config);
+const NumberRenderer: React.FC<NumberRendererProps> = memo(({ value, column }) => {
+  const config = column.config as {
+    precision?: number;
+    thousandSeparator?: boolean;
+    prefix?: string;
+    suffix?: string;
+  };
+  const formattedValue = formatNumber(value as number | string, config);
 
-    return (
-      <div className="w-full h-full px-2 py-2 flex items-center overflow-hidden text-ellipsis whitespace-nowrap box-border">
-        {formattedValue}
-      </div>
-    );
-  },
-);
+  return (
+    <div className="box-border flex h-full w-full items-center overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2">
+      {formattedValue}
+    </div>
+  );
+});
 
 export default NumberRenderer;

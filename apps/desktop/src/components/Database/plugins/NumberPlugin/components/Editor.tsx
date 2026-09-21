@@ -19,8 +19,7 @@ const NumberEditor: React.FC<NumberEditorProps> = memo(
       max?: number;
     };
 
-    const initialValue =
-      value !== null && value !== undefined ? String(value) : "";
+    const initialValue = value !== null && value !== undefined ? String(value) : "";
 
     const handleChange = useMemoizedFn((value: string) => {
       const parsedNumber = parseNumber(formatNumber(value, config));
@@ -32,7 +31,7 @@ const NumberEditor: React.FC<NumberEditorProps> = memo(
     });
 
     return (
-      <div className="w-full h-full relative">
+      <div className="relative h-full w-full">
         <EditText
           defaultFocus={true}
           defaultValue={formatNumber(initialValue, config)}
@@ -40,12 +39,12 @@ const NumberEditor: React.FC<NumberEditorProps> = memo(
           onChange={handleChange}
           onBlur={onFinishEdit}
           onPressEnter={onFinishEdit}
-          className="w-full h-full px-2 py-2 flex items-center"
+          className="flex h-full w-full items-center px-2 py-2"
           isSlateEditor
         />
       </div>
     );
-  },
+  }
 );
 
 export default NumberEditor;

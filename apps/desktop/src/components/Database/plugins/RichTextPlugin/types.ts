@@ -10,11 +10,5 @@ export type RichTextPluginValue = RichTextItem[];
 
 export interface RichTextPluginConfig {
   maxItems?: number;
-  allowedTypes?: (
-    | "card"
-    | "article"
-    | "document"
-    | "project-item"
-    | "custom"
-  )[];
+  allowedTypes?: ("card" | "article" | "document" | "project-item" | "custom")[];
 }
