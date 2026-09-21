@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tau 桌面端 · 外观子页方案导览（三路线对比）</title>
+<!--
+  外观子页设计导览：功能清单对齐 legacy AppearanceSetting 全量不丢；
+  分节按「界面 / 编辑器」两层语义重组（legacy 字体字号作用于编辑器正文，
+  这一分界在新设计里显式化）。主题色 accent 色板不迁移（2026-09-21 用户指示：
+  新主题体系 defineTheme 中 accent 随主题内置，6 色板是 legacy data-accent
+  旧体系产物）。三案共用骨架定稿弹窗（方案 A 容器），差异在子页形态。
+-->
+<style>
+:root {
+  --ink: #1d1f24; --ink-2: #5b606b; --ink-3: #8b919c;
+  --bg: #fcfcfd; --surface: #fff; --line: #e6e8ec; --accent: #4650c8;
+  --accent-soft: rgba(70, 80, 200, 0.09);
+  --good: #3e6b4f; --bad: #9c5148;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--ink); background: var(--bg); font-size: 14px; line-height: 1.75; }
+.page { max-width: 1020px; margin: 0 auto; padding: 48px 32px 96px; }
+h1 { font-size: 26px; letter-spacing: -0.01em; margin-bottom: 8px; }
+.lede { color: var(--ink-2); max-width: 78ch; margin-bottom: 8px; }
+.lede b { color: var(--ink); }
+h2 { font-size: 19px; margin: 46px 0 6px; }
+h2 + p { color: var(--ink-2); margin-bottom: 16px; max-width: 78ch; }
+a { color: var(--accent); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+td b { color: var(--ink); }
+
+.plan-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 14px; }
+@media (max-width: 900px) { .plan-grid { grid-template-columns: 1fr; } }
+.plan-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+.plan-card h3 { font-size: 15.5px; margin-bottom: 2px; }
+.plan-card .en { font-size: 11.5px; color: var(--ink-3); margin-bottom: 10px; }
+.plan-card .stance { font-size: 12.5px; color: var(--ink-2); margin-bottom: 12px; min-height: 84px; }
+.plan-card .stance b { color: var(--ink); }
+.wf { height: 118px; border: 1.5px solid #c9cdd4; border-radius: 10px; background: #f6f7f9;
+  position: relative; margin-bottom: 12px; padding: 9px 11px; display: flex; flex-direction: column; }
+.wf-line { border-radius: 99px; background: #d7dae0; height: 6px; margin: 4px 0; }
+.wf-line.short { width: 46px; } .wf-line.mid { width: 84px; } .wf-line.long { width: 112px; }
+.wf-line.tiny { width: 26px; height: 5px; }
+.wf-cards { display: flex; gap: 6px; }
+.wf-card { border: 1px solid #e3e5ea; border-radius: 7px; background: #fff; flex: 1; padding: 5px 6px; }
+.wf-card.on { border-color: #4650c8; border-width: 1.5px; }
+.wf-seg { display: flex; gap: 3px; background: #eceef2; border-radius: 7px; padding: 3px; }
+.wf-seg span { flex: 1; height: 14px; border-radius: 5px; background: #fff; border: 1px solid #e3e5ea; }
+.wf-seg span.on { background: #4650c8; border-color: #4650c8; }
+.wf-band { display: flex; gap: 3px; margin-top: 7px; }
+.wf-band i { height: 12px; flex: 1; border-radius: 3px; background: #e3e5ea; border: 1px solid #dfe2e8; }
+.wf-prev { border: 1px solid #e3e5ea; border-radius: 7px; background: #fff; height: 62px;
+  display: grid; grid-template-columns: 34px 1fr; margin-bottom: 6px; overflow: hidden; }
+.wf-prev .s { background: #f6f7f9; border-right: 1px solid #e3e5ea; }
+.wf-prev .m { padding: 6px 7px; display: flex; flex-direction: column; gap: 4px; }
+.plan-card ul { list-style: none; font-size: 12.5px; color: var(--ink-2); }
+.plan-card li { padding-left: 15px; position: relative; margin: 3px 0; }
+.plan-card li::before { content: "·"; position: absolute; left: 4px; color: var(--ink-3); }
+.plan-card li.good { color: var(--good); }
+.plan-card li.bad { color: var(--bad); }
+.open-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px; border-radius: 9px;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 550; text-decoration: none; margin-top: 10px; }
+.open-btn:hover { filter: brightness(1.08); }
+.decision { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-top: 14px; }
+.decision h3 { font-size: 15px; margin-bottom: 8px; }
+.decision ol { padding-left: 20px; font-size: 13px; color: var(--ink-2); }
+.decision ol li { margin: 9px 0; }
+.decision ol li b { color: var(--ink); }
+.decision ol li .q { color: var(--ink); font-weight: 600; }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>设置 · 外观子页 · 方案导览</h1>
+<p class="lede">已定稿：<b style="color:#3e6b4f;">方案 A · 行流式（2026-09-21 用户裁决）</b>——B/C 留档对照。
+定稿即：分节标题 + 设置行流（hairline 行分隔），主题 = 三张迷你窗口预览卡（跟随系统
+即第三卡 + 行内解析说明）；「深浅切换时提示」开关经裁决删除（toast 反馈不是设置项）；
+字号 = stepper；字体 = searchable Select；图片圆角/阴影 = 四档 Select。
+外观是设置弹窗逐页重设计的第一页（骨架已落地，D-028）。
+功能清单对齐 legacy 外观设置<b>全量不丢</b>：
+<b>主题模式（升级为三档：跟随系统 / 浅色 Cream / 深色 Cocoa，themeStore 真实能力）、
+中文字体、英文字体、正文字号（12–24）、代码字体、图片默认圆角与阴影</b>。
+<b>主题色 6 色板不迁移</b>（新主题体系 defineTheme 中 accent 随主题内置，
+色板是 legacy data-accent 旧体系产物）。分节按「<b>界面 / 编辑器</b>」两层语义重组——
+legacy 字体字号只作用于编辑器正文，这一分界在新设计里显式化。</p>
+
+<!-- ═══════════ 功能对照 ═══════════ -->
+<h2>legacy 功能 → 新设计映射</h2>
+<table>
+  <thead><tr><th>legacy 项</th><th>去向</th><th>备注</th></tr></thead>
+  <tbody>
+    <tr><td><b>主题模式</b>（浅/深布尔）</td><td>三档：跟随系统 / 浅色 / 深色</td><td>themeStore mode 三档能力；darkMode 布尔为其子集（D-022 已接转发）</td></tr>
+    <tr><td><b>主题色</b>（6 色 accent 板）</td><td><b>移除</b></td><td>新主题体系 accent 随主题内置（cream/cocoa 各自的陶土橙）；存量选择迁移映射到默认</td></tr>
+    <tr><td><b>中文字体 / 英文字体 / 字号</b></td><td>编辑器 · 正文节</td><td>作用于文章与卡片正文区，不影响界面控件（分节标题即说明书）</td></tr>
+    <tr><td><b>代码字体</b></td><td>编辑器 · 代码块节</td><td>行内代码与代码块共用</td></tr>
+    <tr><td><b>图片圆角 / 图片阴影</b></td><td>编辑器 · 图片节</td><td>单图与图库未单独指定时的默认外观（四档：无/小/中/大）</td></tr>
+  </tbody>
+</table>
+
+<!-- ═══════════ 三方案 ═══════════ -->
+<h2>三案形态</h2>
+<p>A 为定稿（骨架语言直系延续）；B/C 留档对照，可嫁接元素以 A 为基底。</p>
+
+<div class="plan-grid">
+  <div class="plan-card">
+    <h3>A · 行流式 <span style="font-size:11.5px;color:#3e6b4f;font-weight:600">✓ 定稿</span></h3>
+    <div class="en">骨架语言的直系延续</div>
+    <div class="wf">
+      <div class="wf-cards">
+        <div class="wf-card"><div class="wf-line tiny"></div><div class="wf-line short" style="margin-top:10px"></div></div>
+        <div class="wf-card on"><div class="wf-line tiny"></div><div class="wf-line short" style="margin-top:10px"></div></div>
+        <div class="wf-card"><div class="wf-line tiny"></div><div class="wf-line short" style="margin-top:10px"></div></div>
+      </div>
+      <div class="wf-line mid" style="margin-top:10px;background:#b9bdc6"></div>
+      <div class="wf-line long"></div>
+      <div class="wf-line long"></div>
+    </div>
+    <div class="stance">分节标题 + <b>设置行流</b>（hairline 行分隔）；主题 = <b>三张迷你窗口预览卡</b>
+      （跟随系统即第三卡，画半浅半深）。扫读最快、与弹窗骨架同构。</div>
+    <ul>
+      <li class="good">预览卡一眼看到主题长什么样（版式级预览）</li>
+      <li class="good">行流密度高：560 高度内全量可见不滚动</li>
+      <li class="bad">三卡 + 行流纵向开销最大（但刚好放下）</li>
+    </ul>
+    <a class="open-btn" href="plan-a-rows.html">打开演示 plan-a</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>B · 分节卡片</h3>
+    <div class="en">现代产品 · 分段控件 + token 色带</div>
+    <div class="wf">
+      <div class="wf-seg"><span></span><span class="on"></span><span></span></div>
+      <div class="wf-band"><i></i><i></i><i></i><i></i><i></i></div>
+      <div style="border:1px solid #e3e5ea;border-radius:7px;margin-top:7px;padding:6px 7px;background:#fff">
+        <div style="display:flex;gap:5px"><div class="wf-line tiny"></div><div class="wf-line short"></div></div>
+        <div class="wf-line long" style="margin-top:5px"></div>
+      </div>
+    </div>
+    <div class="stance">每节一张<b>描边卡</b>；主题 = <b>三段分段控件</b> + <b>token 色带</b>即时反映
+      解析色谱；字号 = <b>滑杆</b>；字体两列并排。纵向最省（比 A 省 ~80px）。</div>
+    <ul>
+      <li class="good">分段控件 + 色带：最紧凑的现代语感</li>
+      <li class="good">卡是「一组相关设置的器皿」，节界最清晰</li>
+      <li class="bad">色带只给色谱不给版式——主题预览弱于 A/C</li>
+      <li class="bad">滑杆拖拽快但精度差（stepper 相反）</li>
+    </ul>
+    <a class="open-btn" href="plan-b-cards.html">打开演示 plan-b</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>C · 实时预览</h3>
+    <div class="en">所见即所得 · 预览驱动</div>
+    <div class="wf">
+      <div class="wf-prev">
+        <div class="s"></div>
+        <div class="m"><div class="wf-line tiny" style="background:#b9bdc6"></div><div class="wf-line mid"></div>
+          <div style="display:flex;gap:5px"><div style="width:40px;height:12px;border-radius:3px;background:#e3e5ea"></div><div class="wf-line short" style="margin:3px 0"></div></div></div>
+      </div>
+      <div class="wf-cards">
+        <div class="wf-card"><div class="wf-line tiny"></div></div>
+        <div class="wf-card on"><div class="wf-line tiny"></div></div>
+        <div class="wf-card"><div class="wf-line tiny"></div></div>
+      </div>
+    </div>
+    <div class="stance">顶部一块<b>迷你内容页预览</b>（导航选中态/正文/图片/代码块/按钮），下方所有设置
+      <b>即时反映</b>——设置与结果同屏，零心智映射。</div>
+    <ul>
+      <li class="good">字体/字号/圆角阴影的效果当场可见——外观页最贴题</li>
+      <li class="good">演示说服力最强（给非设计同学看效果）</li>
+      <li class="bad">预览吃 ~180px 纵向，设置区必须滚动</li>
+      <li class="bad">实现与维护成本最高；预览≠全应用，存在映射误差</li>
+    </ul>
+    <a class="open-btn" href="plan-c-preview.html">打开演示 plan-c</a>
+  </div>
+</div>
+
+<!-- ═══════════ 待裁决 ═══════════ -->
+<h2>已裁决记录</h2>
+<div class="decision">
+  <h3>2026-09-21 用户裁决</h3>
+  <ol>
+    <li><b>方案 A 行流式定稿</b>；B/C 留档对照。</li>
+    <li><b>「深浅切换时提示」开关删除</b>——toast 反馈是交互行为不是设置项；跟随系统的解析结果
+      改为行内只读说明（「当前解析：浅色 · Cream（随系统）」），不占设置项名义。</li>
+    <li><b>主题色 6 色板不迁移</b>——新主题体系 accent 随主题内置。</li>
+    <li>主题三档（跟随系统/浅色/深色）平铺三卡；字号 stepper（12–24）；图片节的节名沿用「编辑器 · 图片」。</li>
+  </ol>
+  <div class="note">返回：<a href="../index.html">设置骨架导览</a>。</div>
+</div>
+
+<p class="note">mockups/settings/appearance/ · 2026-09-21 · 定稿后替换 features/settings/sections/AppearanceSection.tsx。</p>
+
+</div>
+</body>
+</html>
