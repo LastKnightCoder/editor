@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设置 · 外观 · 方案 B 分节卡片 — Tau 桌面端</title>
+<!--
+  【外观子页 · 方案 B —— 分节卡片 / 分段控件】
+
+  心智：现代产品语感——每节一张「透明底 + line-1 描边」卡（容器口径 D-001），
+  卡内行靠留白不画线；主题模式 = 三段分段控件（跟随系统 | 浅色 | 深色）+
+  下方 token 色带即时反映当前解析结果；字号 = 滑杆（12–24，accent 轨道）。
+
+  与 A 的三处分歧：
+  - 主题选择形态：三张预览卡 vs 分段控件（B 省 ~80px 纵向，但少了「一眼看到
+    两种主题长什么样」的预览价值——色带只给色谱不给版式）
+  - 分节容器：hairline 行流 vs 描边卡片（卡片更像「一组相关设置的器皿」，
+    代价是每卡上下 padding 累计的纵向开销）
+  - 字号：stepper vs 滑杆（滑杆拖拽快但精度差，stepper 点按精确但慢）
+
+  功能清单与 A 完全一致（主题三档 / 中英字体 + 字号 / 代码字体 / 图片圆角阴影）。
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  --titlebar-h: 46px; --sidebar-w: 218px; --statusbar-h: 30px;
+}
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #ece4d4; --bg-sunken: #e2d8c0;
+  --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09);
+  --bg-selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+  --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+  --overlay: rgba(45, 35, 20, 0.28);
+}
+[data-theme="cocoa"] {
+  color-scheme: dark;
+  --bg-page: #221d16; --bg-surface: #2e2820; --bg-group: #19150e; --bg-sunken: #100d08;
+  --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11);
+  --bg-selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+  --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+  --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+  --overlay: rgba(6, 4, 1, 0.55);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font); font-size: 13px; line-height: 1.65; color: var(--ink-1);
+  background: var(--bg-page); overflow: hidden; min-width: 1080px; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+input, select { font: inherit; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+::-webkit-scrollbar { width: 9px; }
+::-webkit-scrollbar-thumb { background: var(--line-1); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
+
+/* ── 演示壳层（同 A 稿） ── */
+.app { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); grid-template-rows: 100vh;
+  grid-template-areas: "sidebar main"; }
+.main { grid-area: main; display: flex; flex-direction: column; min-width: 0; background: var(--bg-page); }
+.sidebar { grid-area: sidebar; padding: 0 10px 10px; display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+.sidebar-head { display: flex; align-items: center; gap: 8px; height: var(--titlebar-h); padding: 0 6px; margin-bottom: 6px; }
+.brand-mark { width: 24px; height: 24px; border-radius: 8px; background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.brand-name { font-weight: 600; font-size: 13.5px; }
+.nav-scroll { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.nav-label { font-size: 11px; color: var(--ink-3); padding: 8px 10px 6px; letter-spacing: 0.02em; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px;
+  border-radius: 10px; color: var(--ink-2); text-align: left; }
+.nav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-item.active { background: var(--bg-selected); color: var(--accent-text); font-weight: 550; }
+.side-foot { flex: none; border-top: 1px solid var(--line-2); padding: 10px 0 2px; margin-top: 8px; }
+.titlebar { height: var(--titlebar-h); flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.icon-btn { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-2); }
+.icon-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.crumb { color: var(--ink-3); font-size: 12.5px; }
+.titlebar .spacer { flex: 1; }
+.win-controls { display: flex; gap: 6px; }
+.win-controls .dot { width: 12px; height: 12px; border-radius: 99px; background: var(--bg-sunken); border: 1px solid var(--line-1); }
+.home { flex: 1; overflow-y: auto; padding: 26px 40px 48px; }
+.home h1 { font-size: 22px; font-weight: 650; }
+.statusbar { height: var(--statusbar-h); flex: none; display: flex; align-items: center; gap: 14px;
+  padding: 0 16px; font-size: 11.5px; color: var(--ink-3); border-top: 1px solid var(--line-1); }
+
+/* ── 设置弹窗骨架（同定稿） ── */
+.set-root { position: fixed; inset: 0; z-index: 340; display: grid; place-items: center; padding: 32px; }
+.set-mask { position: absolute; inset: 0; background: var(--overlay);
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.set-modal { position: relative; width: 760px; height: 560px; display: flex; flex-direction: column;
+  background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-float); overflow: hidden; }
+.set-head { flex: none; height: 48px; display: flex; align-items: center; padding: 0 8px 0 20px;
+  border-bottom: 1px solid var(--line-1); }
+.set-head h2 { font-size: 14px; font-weight: 650; flex: 1; }
+.set-body { flex: 1; display: grid; grid-template-columns: 198px minmax(0, 1fr); min-height: 0; }
+.set-nav { border-right: 1px solid var(--line-1); overflow-y: auto; padding: 8px 8px 14px;
+  display: flex; flex-direction: column; gap: 1px; }
+.set-nav .group-label { font-size: 10.5px; color: var(--ink-3); padding: 10px 10px 4px; letter-spacing: 0.05em; }
+.snav-item { display: flex; align-items: center; gap: 9px; width: 100%; height: 32px; padding: 0 10px;
+  border-radius: 9px; color: var(--ink-2); font-size: 12.5px; text-align: left; }
+.snav-item .icon { width: 15px; height: 15px; color: var(--ink-3); }
+.snav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.snav-item.active { background: var(--bg-selected); color: var(--accent-text); font-weight: 550; }
+.snav-item.active .icon { color: var(--accent-text); }
+.set-content { overflow-y: auto; padding: 20px 26px 28px; min-width: 0; }
+
+/* ═══ 外观子页 · 方案 B：分节卡片 ═══ */
+.page-head h3 { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
+.page-head p { font-size: 12px; color: var(--ink-3); margin-top: 1px; }
+.sec-title { font-size: 11.5px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.04em;
+  margin: 22px 0 8px; padding-left: 2px; }
+.card { border: 1px solid var(--line-1); border-radius: var(--radius-md); padding: 6px 16px 8px; }
+
+/* 主题分段控件（槽 = group 底，选中段浮起 surface 卡） */
+.seg { display: flex; gap: 3px; background: var(--bg-group); border-radius: 10px; padding: 3px; }
+.seg button { flex: 1; height: 30px; border-radius: 8px; color: var(--ink-2); font-size: 12.5px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: background 140ms var(--ease-out), color 140ms var(--ease-out); }
+.seg button:hover { color: var(--ink-1); }
+.seg button.on { background: var(--bg-surface); color: var(--ink-1); font-weight: 550; box-shadow: var(--shadow-card); }
+.seg button .icon { width: 14px; height: 14px; }
+
+/* token 色带：当前解析结果的色谱可视化 */
+.spectrum { display: flex; align-items: center; gap: 10px; padding: 12px 0 8px; }
+.spectrum .chips { display: flex; gap: 4px; flex: 1; }
+.spectrum .chip { height: 18px; flex: 1; border-radius: 5px; border: 1px solid rgba(0,0,0,0.06); position: relative; }
+.spectrum .chip i { position: absolute; inset: 0; border-radius: 4px; }
+.spectrum .name { font-size: 11.5px; color: var(--ink-3); flex: none; }
+.spectrum .name b { color: var(--ink-1); font-weight: 600; }
+
+/* 卡内设置行：无行间线，靠留白 */
+.row { display: flex; align-items: center; gap: 16px; padding: 12px 0; }
+.row.sub { border-top: 1px solid var(--line-2); } /* 卡内小节分隔 */
+.row .row-main { flex: 1; min-width: 0; }
+.row .row-main .t { font-size: 13px; font-weight: 550; line-height: 1.45; }
+.row .row-main .d { font-size: 11.5px; color: var(--ink-3); line-height: 1.55; margin-top: 1px; }
+.row .row-ctrl { flex: none; display: flex; align-items: center; gap: 8px; }
+.mini-label { font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.05em; padding-top: 10px; }
+
+/* 两列网格（卡内并排控件） */
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 10px 0 12px; }
+.field .fl { font-size: 12px; color: var(--ink-2); font-weight: 550; margin-bottom: 6px; }
+
+/* Select（D-007） */
+.sel { position: relative; }
+.sel-trigger { display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 32px;
+  width: 100%; padding: 0 11px; border-radius: var(--radius-sm); background: var(--bg-surface);
+  border: 1px solid var(--line-1); color: var(--ink-1); font-size: 12.5px; cursor: pointer; }
+.sel-trigger:hover { border-color: var(--ink-3); }
+.sel.open .sel-trigger { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.sel-trigger .icon { width: 13px; height: 13px; color: var(--ink-3); }
+.sel-menu { position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 20;
+  background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-float); padding: 5px; display: none; }
+.sel.open .sel-menu { display: block; }
+.sel-menu .opt { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 9px;
+  border-radius: 7px; color: var(--ink-2); font-size: 12.5px; cursor: pointer; }
+.sel-menu .opt:hover { background: var(--bg-hover); color: var(--ink-1); }
+.sel-menu .opt.on { color: var(--accent-text); font-weight: 550; }
+
+/* 字号滑杆 */
+.slider-row { display: flex; align-items: center; gap: 14px; flex: 1; }
+.slider { flex: 1; appearance: none; height: 4px; border-radius: 99px; background: var(--bg-sunken); outline: none; cursor: pointer; }
+.slider::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; border-radius: 99px;
+  background: var(--bg-surface); border: 1.5px solid var(--accent); box-shadow: var(--shadow-card);
+  transition: transform 140ms var(--ease-out); }
+.slider::-webkit-slider-thumb:hover { transform: scale(1.12); }
+.slider-val { width: 40px; text-align: center; font-size: 12.5px; font-weight: 550;
+  font-variant-numeric: tabular-nums; color: var(--ink-1);
+  background: var(--bg-group); border-radius: 7px; padding: 3px 0; }
+.slider-cap { font-size: 10.5px; color: var(--ink-3); width: 20px; text-align: center; }
+
+/* 说明牌 */
+.plan-badge { position: fixed; left: 16px; bottom: 42px; z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.plan-badge .tag { display: inline-flex; align-items: center; gap: 7px; background: var(--bg-surface);
+  border: 1px solid var(--line-1); box-shadow: var(--shadow-card); border-radius: 99px; padding: 6px 13px;
+  font-size: 11.5px; color: var(--ink-2); }
+.plan-badge .tag b { color: var(--accent-text); font-weight: 600; }
+.plan-note { width: 348px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px;
+  box-shadow: var(--shadow-card); padding: 14px 16px; font-size: 12px; color: var(--ink-2); line-height: 1.75; display: none; }
+.plan-note.open { display: block; }
+.plan-note h4 { font-size: 12.5px; color: var(--ink-1); margin-bottom: 6px; }
+.plan-note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+.plan-note .try { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); color: var(--ink-3); font-size: 11.5px; }
+.plan-note .links { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); font-size: 11px; color: var(--ink-3); }
+.plan-note .links a { color: var(--accent-text); text-decoration: none; }
+.plan-note .links a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head"><div class="brand-mark">τ</div><div class="brand-name">Tau</div></div>
+    <div class="nav-scroll">
+      <div class="nav-label">工作台</div>
+      <button class="nav-item active">今日</button>
+      <button class="nav-item">日程</button>
+      <button class="nav-item">待办</button>
+      <div class="nav-label">知识</div>
+      <button class="nav-item">卡片库</button>
+      <button class="nav-item">文章</button>
+    </div>
+    <div class="side-foot">
+      <button class="nav-item"><span class="icon" data-ic="sliders"></span><span>设置</span></button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="titlebar">
+      <span class="crumb">· 设置 · 外观 · 方案 B 分节卡片</span>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="themeBtn" title="切换主题"><span id="themeIcon"></span></button>
+      <div class="win-controls"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    </header>
+    <div class="home"><h1>今日</h1><div style="color:var(--ink-3);font-size:12.5px;margin-top:2px">9 月 21 日 周一</div></div>
+    <div class="statusbar"><span>Tau v2 · 外观子页设计稿 B</span></div>
+  </div>
+</div>
+
+<div class="set-root">
+  <div class="set-mask"></div>
+  <div class="set-modal" role="dialog" aria-label="设置">
+    <div class="set-head">
+      <h2>设置</h2>
+      <button class="icon-btn" aria-label="关闭"><span class="icon" data-ic="x" style="width:14px;height:14px"></span></button>
+    </div>
+    <div class="set-body">
+      <nav class="set-nav">
+        <div class="group-label">通用</div>
+        <button class="snav-item active"><span class="icon" data-ic="palette"></span>外观</button>
+        <button class="snav-item"><span class="icon" data-ic="keyboard"></span>操作与快捷键</button>
+        <div class="group-label">数据</div>
+        <button class="snav-item"><span class="icon" data-ic="sync"></span>同步</button>
+        <button class="snav-item"><span class="icon" data-ic="database"></span>资源存储</button>
+        <button class="snav-item"><span class="icon" data-ic="upload"></span>发布</button>
+        <div class="group-label">AI 服务</div>
+        <button class="snav-item"><span class="icon" data-ic="sparkles"></span>大语言模型</button>
+        <button class="snav-item"><span class="icon" data-ic="layers"></span>嵌入模型</button>
+        <button class="snav-item"><span class="icon" data-ic="image"></span>图片生成</button>
+        <button class="snav-item"><span class="icon" data-ic="mic"></span>语音与转录</button>
+        <div class="group-label">扩展</div>
+        <button class="snav-item"><span class="icon" data-ic="grid"></span>模块功能</button>
+        <button class="snav-item"><span class="icon" data-ic="video"></span>白板录制</button>
+        <button class="snav-item"><span class="icon" data-ic="link"></span>集成</button>
+        <button class="snav-item"><span class="icon" data-ic="wrench"></span>杂项</button>
+        <div class="group-label">支持</div>
+        <button class="snav-item"><span class="icon" data-ic="info"></span>关于软件</button>
+      </nav>
+
+      <div class="set-content">
+        <div class="page-head"><h3>外观</h3><p>主题与编辑器呈现——更改即刻生效</p></div>
+
+        <div class="sec-title">界面 · 主题</div>
+        <div class="card">
+          <div class="row" style="padding-bottom: 10px">
+            <div class="row-main">
+              <div class="t">模式</div>
+              <div class="d">跟随系统时随操作系统亮暗自动切换</div>
+            </div>
+            <div class="row-ctrl" style="flex:1.2">
+              <div class="seg" id="modeSeg" style="width: 100%">
+                <button data-mode="system"><span class="icon" data-ic="monitor"></span>跟随系统</button>
+                <button data-mode="cream" class="on"><span class="icon" data-ic="sun"></span>浅色</button>
+                <button data-mode="cocoa"><span class="icon" data-ic="moon"></span>深色</button>
+              </div>
+            </div>
+          </div>
+          <div class="row sub" style="padding-top: 10px; padding-bottom: 6px">
+            <div class="spectrum">
+              <span class="name">当前解析 <b id="resolvedName">浅色 · Cream</b></span>
+              <div class="chips" id="spectrumChips">
+                <span class="chip"><i style="background:#f3eee2"></i></span>
+                <span class="chip"><i style="background:#fffdf9"></i></span>
+                <span class="chip"><i style="background:#ece4d4"></i></span>
+                <span class="chip"><i style="background:#e2d8c0"></i></span>
+                <span class="chip"><i style="background:rgba(217,119,87,.4)"></i></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec-title">编辑器</div>
+        <div class="card">
+          <div class="mini-label">正文</div>
+          <div class="cols">
+            <div class="field">
+              <div class="fl">中文字体</div>
+              <div class="sel" data-menu="zhFonts">
+                <button class="sel-trigger"><span>霞鹜文楷 · LXGW WenKai</span><span class="icon" data-ic="chev-down"></span></button>
+                <div class="sel-menu"></div>
+              </div>
+            </div>
+            <div class="field">
+              <div class="fl">英文字体</div>
+              <div class="sel" data-menu="enFonts">
+                <button class="sel-trigger"><span>Inter</span><span class="icon" data-ic="chev-down"></span></button>
+                <div class="sel-menu"></div>
+              </div>
+            </div>
+          </div>
+          <div class="row" style="padding-bottom: 14px">
+            <div class="row-main"><div class="t">字号</div><div class="d">编辑器正文字号</div></div>
+            <div class="slider-row" style="max-width: 260px">
+              <span class="slider-cap">12</span>
+              <input type="range" class="slider" id="fsSlider" min="12" max="24" value="16">
+              <span class="slider-cap">24</span>
+              <span class="slider-val" id="fsVal">16</span>
+            </div>
+          </div>
+
+          <div class="row sub">
+            <div class="row-main"><div class="t">代码字体</div><div class="d">行内代码与代码块共用</div></div>
+            <div class="row-ctrl" style="width: 240px">
+              <div class="sel" data-menu="codeFonts">
+                <button class="sel-trigger"><span style="font-family:var(--mono)">JetBrains Mono</span><span class="icon" data-ic="chev-down"></span></button>
+                <div class="sel-menu"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mini-label" style="border-top: 1px solid var(--line-2); margin-top: 2px; padding-top: 12px">图片</div>
+          <div class="row" style="padding-bottom: 8px">
+            <div class="row-main"><div class="d" style="margin:0">单图与图库未单独指定时使用的默认外观</div></div>
+          </div>
+          <div class="cols" style="padding-top: 0">
+            <div class="field">
+              <div class="fl">圆角</div>
+              <div class="sel" data-menu="radius">
+                <button class="sel-trigger"><span>中圆角</span><span class="icon" data-ic="chev-down"></span></button>
+                <div class="sel-menu"></div>
+              </div>
+            </div>
+            <div class="field">
+              <div class="fl">阴影</div>
+              <div class="sel" data-menu="shadow">
+                <button class="sel-trigger"><span>小阴影</span><span class="icon" data-ic="chev-down"></span></button>
+                <div class="sel-menu"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="plan-badge">
+  <button class="tag" id="noteToggle"><b>外观 · 方案 B 分节卡片</b> 分段控件 + token 色带</button>
+  <div class="plan-note" id="planNote">
+    <h4>B · 分节卡片（现代产品语感）</h4>
+    每节一张<em>描边卡</em>；主题模式 = <em>三段分段控件</em>（跟随系统 / 浅色 / 深色）+
+    <em>token 色带</em>即时反映当前解析色谱；字号 = <em>滑杆</em>；字体两列并排。
+    比省 A 约 80px 纵向；色带只给色谱不给版式预览，主题「长什么样」的表达弱于 A 的预览卡。
+    <div class="try">试试：分段控件切「深色」全稿变 cocoa、色带与解析名联动；「跟随系统」段演示
+    解析为浅色；拖字号滑杆（12–24）；卡内小节 hairline 只做分隔。</div>
+    <div class="links">对比：<a href="plan-a-rows.html">A 行流式</a> · <b>B 分节卡片（本页）</b> ·
+      <a href="plan-c-preview.html">C 实时预览</a> · <a href="index.html">导览</a></div>
+  </div>
+</div>
+
+<script>
+/* ── 图标字典（新增 monitor） ── */
+const I = {
+  sliders: '<line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/>',
+  palette: '<circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="7.5" r="1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="10" r="1" fill="currentColor" stroke="none"/><path d="M12 21a9 9 0 0 0 9-9"/>',
+  keyboard: '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/>',
+  sync: '<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>',
+  database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/>',
+  upload: '<path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/>',
+  sparkles: '<path d="M9.9 3.5 11 6.4l2.9 1.1-2.9 1.1-1.1 2.9-1.1-2.9L6.8 7.5 9.7 6.4 9.9 3.5Z"/><path d="M18 13.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1Z"/>',
+  image: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.5-3.5L7 22"/>',
+  layers: '<path d="m12 2 9 4.9-9 4.9-9-4.9L12 2Z"/><path d="m3 11.9 9 4.9 9-4.9"/><path d="m3 16.9 9 4.9 9-4.9"/>',
+  mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 19v3"/>',
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  video: '<path d="m16 13 5.2-3.9v8L16 13z"/><rect x="2" y="6" width="14" height="12" rx="2"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/>',
+  wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  chevDown: '<path d="m6 9 6 6 6-6"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  monitor: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>',
+};
+document.querySelectorAll("[data-ic]").forEach(el => {
+  el.innerHTML = `<svg class="icon" viewBox="0 0 24 24" ${el.getAttribute("style") || ""}>${I[el.dataset.ic] || ""}</svg>`;
+  el.removeAttribute("style");
+});
+
+/* ── 主题分段控件 + 色带联动 ── */
+const SPECTRUM = {
+  cream: { name: "浅色 · Cream", chips: ["#f3eee2", "#fffdf9", "#ece4d4", "#e2d8c0", "rgba(217,119,87,.4)"] },
+  cocoa: { name: "深色 · Cocoa", chips: ["#221d16", "#2e2820", "#19150e", "#100d08", "hsla(22,62%,65%,.5)"] },
+};
+let theme = "cream";
+let mode = "cream"; /* 语义模式（system 时解析到 theme） */
+function applyTheme(t) {
+  theme = t; document.documentElement.dataset.theme = t;
+  document.getElementById("themeIcon").innerHTML =
+    `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${I[t === "cream" ? "moon" : "sun"]}</svg>`;
+}
+function syncSpectrum() {
+  const spec = SPECTRUM[theme];
+  document.getElementById("resolvedName").textContent =
+    mode === "system" ? `${spec.name}（系统）` : spec.name;
+  document.querySelectorAll("#spectrumChips .chip i").forEach((el, i) =>
+    el.style.background = spec.chips[i]);
+}
+document.getElementById("modeSeg").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-mode]");
+  if (!btn) return;
+  document.querySelectorAll("#modeSeg button").forEach(b => b.classList.toggle("on", b === btn));
+  mode = btn.dataset.mode;
+  /* system 段演示：解析到与非 system 相对的另一档（真机由 prefers-color-scheme 决定） */
+  applyTheme(mode === "system" ? (theme === "cream" ? "cocoa" : "cream") : mode);
+  syncSpectrum();
+});
+document.getElementById("themeBtn").addEventListener("click", () => {
+  applyTheme(theme === "cream" ? "cocoa" : "cream");
+  if (mode !== "system") {
+    mode = theme;
+    document.querySelectorAll("#modeSeg button").forEach(b =>
+      b.classList.toggle("on", b.dataset.mode === mode));
+  }
+  syncSpectrum();
+});
+syncSpectrum();
+
+/* ── Select ── */
+const MENUS = {
+  zhFonts: ["霞鹜文楷 · LXGW WenKai", "思源黑体 · Source Han Sans", "微软雅黑 · Microsoft YaHei", "苹方 · PingFang SC", "系统默认"],
+  enFonts: ["Inter", "Segoe UI", "Roboto", "Georgia", "系统默认"],
+  codeFonts: ["JetBrains Mono", "Cascadia Mono", "Fira Code", "Consolas", "系统默认"],
+  radius: ["无圆角", "小圆角", "中圆角", "大圆角"],
+  shadow: ["无阴影", "小阴影", "中阴影", "大阴影"],
+};
+document.querySelectorAll(".sel").forEach(sel => {
+  const menu = sel.querySelector(".sel-menu");
+  const trigger = sel.querySelector(".sel-trigger");
+  const render = () => {
+    const cur = trigger.querySelector("span").textContent;
+    menu.innerHTML = MENUS[sel.dataset.menu].map(o =>
+      `<div class="opt ${o === cur ? "on" : ""}"><svg class="icon" style="width:13px;height:13px;visibility:${o === cur ? "visible" : "hidden"}" viewBox="0 0 24 24">${I.check}</svg>${o}</div>`).join("");
+    menu.querySelectorAll(".opt").forEach(opt => opt.addEventListener("click", () => {
+      trigger.querySelector("span").textContent = opt.textContent.trim();
+      sel.classList.remove("open");
+    }));
+  };
+  trigger.addEventListener("click", e => {
+    e.stopPropagation();
+    document.querySelectorAll(".sel.open").forEach(s => s !== sel && s.classList.remove("open"));
+    render();
+    sel.classList.toggle("open");
+  });
+});
+document.addEventListener("click", () =>
+  document.querySelectorAll(".sel.open").forEach(s => s.classList.remove("open")));
+
+/* ── 字号滑杆 ── */
+const fsSlider = document.getElementById("fsSlider");
+fsSlider.addEventListener("input", () =>
+  document.getElementById("fsVal").textContent = fsSlider.value);
+
+/* ── 说明牌 ── */
+document.getElementById("noteToggle").addEventListener("click", () =>
+  document.getElementById("planNote").classList.toggle("open"));
+</script>
+</body>
+</html>
