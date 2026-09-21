@@ -24,7 +24,6 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
     const [detailContent, setDetailContent] = useState<Descendant[] | null>(null);
     const previewContent = useMemo(() => detailContent?.slice(0, 2), [detailContent]);
     const [coverImage, setCoverImage] = useState<string | null>(null);
-    const [isHovered, setIsHovered] = useState(false);
     const editorRef = useRef<EditorRef>(null);
 
     // 获取主列的值
@@ -59,19 +58,21 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
       <div
         className="bg-surface shadow-card rounded-tau-md ease-tau-out hover:shadow-float group relative flex h-[240px] cursor-pointer flex-col overflow-hidden transition-shadow duration-[160ms]"
         onClick={onClick}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
-        {!readonly && onDelete && isHovered && (
-          <div
-            className="bg-danger text-ink-inverse absolute right-2 top-2 z-10 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-[filter] hover:brightness-110"
+        {/* hover 浮出的删除钮：毛玻璃白底保证在任意封面上可读，中性色出现、
+            hover 图标才转 danger（破坏性语义留给确认弹窗） */}
+        {!readonly && onDelete && (
+          <button
+            type="button"
+            title="删除卡片"
+            className="bg-surface/85 text-ink-2 ease-tau-out hover:text-danger absolute right-2 top-2 z-10 grid size-[26px] cursor-pointer place-items-center rounded-full opacity-0 shadow-sm backdrop-blur-sm transition-[opacity,color] duration-[160ms] group-hover:opacity-100"
             onClick={e => {
               e.stopPropagation();
               onDelete();
             }}
           >
-            <Trash2 className="h-4 w-4" strokeWidth={1.75} />
-          </div>
+            <Trash2 className="size-[14px]" strokeWidth={1.75} />
+          </button>
         )}
         <div className="relative min-h-0 flex-1 overflow-hidden">
           {coverType === "detail" && detailContent && (
