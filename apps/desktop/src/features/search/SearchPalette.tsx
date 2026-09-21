@@ -4,6 +4,8 @@
  * 一个入口承载两种搜索：内容（FTS+向量混合，防抖 250ms）与命令/页面（navigation.ts
  * 同源）。结果区为相关性平铺：命令组置顶，内容不分组、不收起，按检索管线返回的
  * 相关性顺序全部展开（不做按类型分组与组尾深入条目）。
+ * 空态「最近访问 + 常用」只收无参可重放的 single 页（isReplayableVisit）：二级页
+ * （card-detail/article-detail）缺 id 不可回跳，既不记录也不展示。
  * 类型筛选（chips 单选/Ctrl+点击多选/Shift+←→、前缀「卡片:」追加、全角冒号、
  * 空输入退格删筛选、Esc 分层退场）与 IME 让位行为见 D-003。
  */
@@ -29,6 +31,7 @@ import {
   matchCommands,
   scopeLabel,
   scopeIcon,
+  isReplayableVisit,
   type PaletteCommand,
   type PaletteScope,
 } from "./searchMeta";
@@ -204,10 +207,13 @@ export function SearchPalette() {
     const out: Group[] = [];
 
     if (!trimmedQ && scopes.size === 0) {
-      const recent = visits.slice(0, 5).map(recentRow);
+      // 二级页（card-detail/article-detail 等）只存 key 无法回跳，存量持久化记录同此过滤
+      const replayable = visits.filter(v => isReplayableVisit(v.key));
+      const recent = replayable.slice(0, 5).map(recentRow);
       if (recent.length) out.push({ label: "最近访问", rows: recent });
       const recentKeys = new Set(recent.map(r => r.key));
-      const frequent = [...visits]
+      // replayable 为局部新数组，就地排序不影响上面的 recent
+      const frequent = replayable
         .sort((a, b) => b.count - a.count)
         .slice(0, 5)
         .filter(v => !recentKeys.has(`recent:${v.key}`))

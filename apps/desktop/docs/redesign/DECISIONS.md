@@ -33,6 +33,7 @@
 - 承载 = app 壳层挂载的 feature 级浮层（`features/search/SearchPalette`，fixed 定位，不经路由与页面栈；可 import `app/navigation.ts` 纯数据清单，与侧栏同源）。交互定稿 = mockups/search/ 方案 A「统一混合面板」+ 用户追加（类型多选、前缀追加、全角冒号、退格删筛选、IME 组合中不改写）。
 - Esc 仲裁收口 PageProvider：浮层退场注册表（`useOverlayDismiss`，Map 保序 LIFO）——Esc 先关最上层浮层，优先于编辑上下文与后退；Ctrl+K/P 面板自监听 toggle。命令源 = navigation.ts 全量 + 已接线动作（不造假）；内容检索复用 legacy searchHybridContent 管线（react-query 防抖，未配 embedding 走 FTS）；空态「最近访问」来自 searchStore（localStorage `tau-search-history`；不复用旧 useNavigationHistoryStore——绑旧 TabType）。
 - 追记（同日用户裁决）：结果区改**相关性平铺**（命令置顶，内容不分组不收起）；摘要提取用双端同构 `utils/richTextText.ts`；主题动作为深浅直切（不循环 system）。
+- 追记（2026-09-21 用户裁决）：**二级页不进命令面板**——访问记录只存 page key，params 页（card-detail/article-detail）缺 id 无法回跳（无参 push 被参数净化整条拒绝，条目点了没反应），故写入端（AppShell）与展示端（SearchPalette 空态「最近访问/常用」）共用 `isReplayableVisit`（`match === "single"`）过滤，存量 localStorage 记录同此不展示；`searchMeta.test.ts` 守护。
 - 已知限制：检索故障时空态与错误态混淆（待管线迁移区分）；Tab 圈闭/焦点恢复已做最小版，完整收口留通用浮层基建（§9 任务 4）。LIFO 语义由 `overlayDismiss.test.tsx` 守护。
 - 影响：03 指南 §2/§5/§9 任务 3；tokens.css 补 `--color-overlay` 映射。
 
