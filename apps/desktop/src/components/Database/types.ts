@@ -15,6 +15,7 @@ import {
   KanbanCardDisplayConfig,
   SortRule,
   GroupRule,
+  GroupGranularity,
   FilterGroup,
   FilterNode,
   FilterCondition,
@@ -38,6 +39,7 @@ export type {
   KanbanCardDisplayConfig,
   SortRule,
   GroupRule,
+  GroupGranularity,
   FilterGroup,
   FilterNode,
   FilterCondition,
@@ -144,7 +146,7 @@ export interface CellPlugin<T> {
     readonly: boolean;
     autoOpen?: boolean;
   }>;
-  getGroupKey?: (row: RowData, column: ColumnDef) => string;
+  getGroupKey?: (row: RowData, column: ColumnDef, granularity?: GroupGranularity) => string;
   sort?: (params: {
     a: CellValue;
     b: CellValue;

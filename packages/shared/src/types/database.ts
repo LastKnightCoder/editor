@@ -93,10 +93,7 @@ export type CreateDataTableView = Omit<
   config?: Partial<TableViewConfig>;
 };
 
-export type UpdateDataTableView = Omit<
-  DataTableView,
-  "createTime" | "updateTime"
->;
+export type UpdateDataTableView = Omit<DataTableView, "createTime" | "updateTime">;
 
 // ============ Filter Types ============
 
@@ -128,10 +125,14 @@ export interface SortRule {
   priority: number;
 }
 
+/** 日期分组的聚合粒度（仅日期类字段生效，缺省按月） */
+export type GroupGranularity = "day" | "week" | "month";
+
 export interface GroupRule {
   id: string;
   fieldId: string;
   strategy?: "text" | "select" | "multiSelect" | "checkbox" | "star" | string;
+  granularity?: GroupGranularity;
 }
 
 // ============ Validation Types ============
@@ -155,10 +156,7 @@ export interface DatabaseHookResult {
   onActiveViewIdChange?: (viewId: number | null) => Promise<void> | void;
   onCreateView?: (view: CreateDataTableView) => Promise<DataTableView | null>;
   onDeleteView?: (viewId: number) => Promise<number | null>;
-  onRenameView?: (
-    viewId: number,
-    name: string,
-  ) => Promise<DataTableView | null>;
+  onRenameView?: (viewId: number, name: string) => Promise<DataTableView | null>;
   onUpdateView?: (
     viewId: number,
     updates: {
@@ -167,7 +165,7 @@ export interface DatabaseHookResult {
       galleryConfig?: GalleryViewConfig;
       calendarConfig?: CalendarViewConfig;
       kanbanConfig?: KanbanViewConfig;
-    },
+    }
   ) => Promise<DataTableView | null>;
   onReorderViews?: (orderedIds: number[]) => Promise<void>;
 }

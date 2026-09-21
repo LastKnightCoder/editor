@@ -1,7 +1,8 @@
-import { CellPlugin } from "../../types";
+import { CellPlugin, GroupGranularity } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "./components/Editor";
 import { CalendarDays } from "lucide-react";
+import { startOfWeek } from "@/utils/time";
 
 // 日期插件配置类型
 export interface DatePluginConfig {
@@ -17,6 +18,23 @@ export interface DateValue {
   start: number | null;
   end: number | null;
 }
+
+const padDate = (value: number) => String(value).padStart(2, "0");
+
+/** 本地时区自然日键：YYYY-MM-DD */
+const dayKey = (date: Date) =>
+  `${date.getFullYear()}-${padDate(date.getMonth() + 1)}-${padDate(date.getDate())}`;
+
+/** 本地时区自然月键：YYYY-MM */
+const monthKey = (date: Date) => `${date.getFullYear()}-${padDate(date.getMonth() + 1)}`;
+
+/** 本地时区自然周键（周一起始）：周一日期 ~ 周日日期 */
+const weekKey = (date: Date) => {
+  const monday = startOfWeek(date);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return `${dayKey(monday)} ~ ${dayKey(sunday)}`;
+};
 
 const DatePlugin: CellPlugin<DatePluginConfig> = {
   type: "date",
@@ -82,7 +100,7 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
     return { start: null, end: null };
   },
 
-  getGroupKey: (row, column) => {
+  getGroupKey: (row, column, granularity: GroupGranularity = "month") => {
     const value = row[column.id];
     if (!value || typeof value !== "object") return "null";
 
@@ -91,7 +109,12 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
     const field = config?.groupField || "start";
 
     const timestamp = dateValue[field];
-    return timestamp !== null ? String(timestamp) : "null";
+    if (timestamp === null) return "null";
+
+    const date = new Date(timestamp);
+    if (granularity === "day") return dayKey(date);
+    if (granularity === "week") return weekKey(date);
+    return monthKey(date);
   },
 
   sort: params => {
