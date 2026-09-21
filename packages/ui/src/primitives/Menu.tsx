@@ -260,7 +260,7 @@ function MenuSurface({
         onKeyDown={onKeyDown}
         className={cn(
           "bg-surface border-line-1 shadow-float rounded-tau-lg border p-[6px]",
-          "fixed left-0 top-0 z-[250] max-h-[300px] min-w-[224px] max-w-[320px] overflow-y-auto",
+          "fixed left-0 top-0 z-[250] max-h-[300px] w-max max-w-[min(320px,calc(100vw-16px))] overflow-y-auto",
           "ease-tau-out transition-[opacity,transform,visibility] duration-[160ms]",
           "outline-none",
           open ? "opacity-100" : "invisible translate-y-[4px] opacity-0",
@@ -562,7 +562,7 @@ function MenuSubmenu({ label, icon, disabled, children }: MenuSubmenuProps) {
       >
         <MenuIconSlot icon={icon} />
         <span className="min-w-0 flex-1 truncate">{label}</span>
-        <ChevronRight className="text-ink-3 ml-auto h-3 w-3 shrink-0 pl-[14px]" strokeWidth={2} />
+        <ChevronRight className="text-ink-3 ml-auto h-3 w-3 shrink-0" strokeWidth={2} />
       </div>
       {open &&
         createPortal(
