@@ -10,7 +10,7 @@ import { formatDate, getContentLength } from "@/utils";
 import LocalImage from "@/components/LocalImage";
 import { cn } from "@tau/ui";
 
-import { coverGradientOf } from "../views/ArticleCard";
+import { coverGradientOf } from "@/utils/cover";
 
 interface ArticleHeroProps {
   article: IArticle;

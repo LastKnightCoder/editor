@@ -13,26 +13,8 @@ import { IconButton } from "@tau/ui/IconButton";
 import { Menu } from "@tau/ui/Menu";
 import { cn } from "@tau/ui/cn";
 import { articleExcerpt } from "../queries";
+import { coverGradientOf } from "@/utils/cover";
 import type { ArticlePageItem } from "@/types";
-
-/** 封面派生色板：12 色粉彩渐变（出处 mockups/articles 2026-09-19 裁决，双主题共用） */
-const COVER_GRADIENTS = [
-  "linear-gradient(140deg, #e8c4a8, #d9885f)",
-  "linear-gradient(140deg, #ccd8c2, #96ab8a)",
-  "linear-gradient(140deg, #c8d2dd, #92a5b8)",
-  "linear-gradient(140deg, #e2cf9f, #c0a05e)",
-  "linear-gradient(140deg, #e5c9c4, #c98d84)",
-  "linear-gradient(140deg, #cfc8ba, #a39682)",
-  "linear-gradient(140deg, #eccaa2, #d89a5e)",
-  "linear-gradient(140deg, #d3dcc6, #a3b58e)",
-  "linear-gradient(140deg, #cfe0dc, #9dbbb4)",
-  "linear-gradient(140deg, #ddd4e0, #b3a3c4)",
-  "linear-gradient(140deg, #eed3c2, #dd9a86)",
-  "linear-gradient(140deg, #ddd8a5, #b3a860)",
-] as const;
-
-/** 相邻 id 错开取色（×7 mod 12），同一篇永远同一色（详情页 hero 兜底同源复用） */
-export const coverGradientOf = (id: number): string => COVER_GRADIENTS[(id * 7 + 3) % 12];
 
 /** 文字封面的前景（粉彩底上的定稿对比色，出处同上） */
 const TEXT_ON_COVER = "rgba(67,57,44,0.82)";
