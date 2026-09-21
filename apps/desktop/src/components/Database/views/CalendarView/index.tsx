@@ -1,8 +1,6 @@
 import React, { memo, useState, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { MdChevronLeft, MdChevronRight } from "react-icons/md";
-import { App } from "antd";
-import classnames from "classnames";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import dayjs from "dayjs";
 import { v4 as uuidv4 } from "uuid";
 import { useDatabaseStore } from "../../hooks";
@@ -12,7 +10,8 @@ import { DateValue, DatePluginConfig } from "../../plugins/DatePlugin";
 import MonthGrid from "./MonthGrid";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
-import useThemeColors from "@/hooks/useThemeColors";
+import { Button } from "@tau/ui/Button";
+import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
 
 interface CalendarViewProps {
   pluginManager: PluginManager;
@@ -26,8 +25,7 @@ interface CalendarViewProps {
 
 const CalendarView: React.FC<CalendarViewProps> = memo(
   ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, onRowDelete, config }) => {
-    const { modal } = App.useApp();
-    const themeColors = useThemeColors();
+    const [confirmDeleteRow, setConfirmDeleteRow] = useState<RowData | null>(null);
 
     const {
       columns,
@@ -104,7 +102,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
             title,
             startDate: dateValue.start,
             endDate,
-            color: "#3b82f6", // 默认蓝色
+            color: "var(--tau-accent)",
             rowData: row,
           };
         })
@@ -215,13 +213,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       if (onRowDelete) {
         onRowDelete(rowData.id);
       } else {
-        modal.confirm({
-          title: "确定删除此事件吗？",
-          okButtonProps: { danger: true },
-          onOk: () => {
-            deleteRow(rowData.id);
-          },
-        });
+        setConfirmDeleteRow(rowData);
       }
     });
 
@@ -270,19 +262,11 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       return (
         <div className="flex h-full items-center justify-center">
           <div className="text-center">
-            <p className={classnames("mb-4", themeColors.secondaryTextClass)}>
-              日历视图需要至少一个日期类型的列
-            </p>
+            <p className="text-ink-2 mb-4">日历视图需要至少一个日期类型的列</p>
             {!readonly && (
-              <button
-                onClick={handleAddColumn}
-                className={classnames(
-                  "rounded px-4 py-2 transition-colors",
-                  themeColors.primaryButtonClass
-                )}
-              >
+              <Button variant="primary" size="sm" onClick={handleAddColumn}>
                 添加日期列
-              </button>
+              </Button>
             )}
           </div>
           {columnEditOpen && (
@@ -302,33 +286,25 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     return (
       <div className="flex h-full w-full flex-col">
         {/* 顶部工具栏 */}
-        <div
-          className={classnames(
-            "flex items-center justify-between border-b px-4 py-3",
-            themeColors.borderClass
-          )}
-        >
-          <div className="flex items-center gap-2">
+        <div className="border-line-2 flex items-center justify-between border-b px-4 py-2.5">
+          <div className="flex items-center gap-1">
             <button
               onClick={handlePreviousMonth}
-              className={classnames("rounded p-1", themeColors.hoverClass)}
+              className="text-ink-2 hover:bg-hover hover:text-ink-1 grid size-7 place-items-center rounded-full transition-colors"
             >
-              <MdChevronLeft className="h-5 w-5" />
+              <ChevronLeft className="h-4 w-4" strokeWidth={1.75} />
             </button>
             <button
               onClick={handleNextMonth}
-              className={classnames("rounded p-1", themeColors.hoverClass)}
+              className="text-ink-2 hover:bg-hover hover:text-ink-1 grid size-7 place-items-center rounded-full transition-colors"
             >
-              <MdChevronRight className="h-5 w-5" />
+              <ChevronRight className="h-4 w-4" strokeWidth={1.75} />
             </button>
-            <button
-              onClick={handleToday}
-              className={classnames("rounded px-3 py-1 text-sm", themeColors.hoverClass)}
-            >
+            <Button variant="secondary" size="sm" onClick={handleToday} className="ml-1">
               今天
-            </button>
+            </Button>
           </div>
-          <h2 className="text-lg font-semibold">
+          <h2 className="text-ink-1 text-tau-title-lg font-semibold">
             {currentYear}年{currentMonth}月
           </h2>
           <div className="w-32" /> {/* 占位，保持标题居中 */}
@@ -383,6 +359,20 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
             pluginManager={pluginManager}
           />
         )}
+        <ConfirmDialog
+          open={confirmDeleteRow !== null}
+          onOpenChange={open => {
+            if (!open) setConfirmDeleteRow(null);
+          }}
+          title="确定删除此事件吗？"
+          danger
+          confirmText="删除"
+          onConfirm={() => {
+            const row = confirmDeleteRow;
+            if (!row) return;
+            deleteRow(row.id);
+          }}
+        />
       </div>
     );
   }
