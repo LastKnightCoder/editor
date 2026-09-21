@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>卡片库 · 顶部布局方案对比</title>
+<style>
+  /* ── 主题 token（取自 cream「暖纸 · 晨」，apps/desktop packages/ui/src/theme/themes/cream.theme.ts）── */
+  :root {
+    --page: #f3eee2;
+    --surface: #fffdf9;
+    --surface-hover: #f6f3ef;
+    --group: #f0e9d8;
+    --sunken: #e2d8c0;
+    --track: #e0d6c3;
+    --hover: rgba(67, 57, 44, 0.05);
+    --press: rgba(67, 57, 44, 0.09);
+    --selected: rgba(217, 119, 87, 0.12);
+    --ink1: #43392c;
+    --ink2: #6a5c49;
+    --ink3: #a89a85;
+    --ink-inverse: #fff8ef;
+    --line1: #e9e1d2;
+    --line2: rgba(233, 225, 210, 0.55);
+    --accent: hsl(22 58% 42%);
+    --accent-text: #a05236;
+    --danger: #b0564d;
+    --danger-soft: #f6e3e0;
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+    --tag2: #5c7d99; --tag2s: #e2ebf3;
+    --tag3: #8a7aa6; --tag3s: #ebe6f3;
+    --tag4: #a38c4d; --tag4s: #f6efd6;
+    --tag5: #b06a5e; --tag5s: #f6e3e0;
+    --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--sunken); color: var(--ink1); font-family: var(--font); }
+  button { font-family: inherit; border: 0; background: none; cursor: pointer; }
+  svg { display: block; }
+
+  /* ── demo 页框架 ── */
+  .demo { max-width: 1560px; margin: 0 auto; padding: 26px 30px 48px; }
+  .demo-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 22px; margin-bottom: 18px; }
+  .demo-head h1 { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+  .demo-head .sub { font-size: 12.5px; color: var(--ink2); padding-bottom: 2px; }
+  .plan-tabs { display: flex; gap: 6px; margin-left: auto; }
+  .plan-tab {
+    height: 32px; padding: 0 14px; border-radius: 999px; font-size: 12.5px; font-weight: 500;
+    color: var(--ink2); background: var(--surface); box-shadow: var(--shadow-card); transition: all .16s;
+  }
+  .plan-tab:hover { color: var(--ink1); }
+  .plan-tab.on { background: var(--accent); color: var(--ink-inverse); font-weight: 600; }
+  .plan-tab .tag { margin-left: 6px; font-size: 10.5px; opacity: .85; font-weight: 400; }
+
+  .layout { display: flex; gap: 18px; align-items: flex-start; }
+  .stage { flex: 1; min-width: 0; }
+
+  /* 高度对比条形图 */
+  .chart { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow-card); padding: 14px 16px; margin-bottom: 16px; }
+  .chart h3 { font-size: 12px; font-weight: 600; color: var(--ink2); margin-bottom: 10px; letter-spacing: .02em; }
+  .chart-row { display: grid; grid-template-columns: 96px 1fr 44px; align-items: center; gap: 10px; padding: 4px 0; }
+  .chart-row .name { font-size: 12px; color: var(--ink2); text-align: right; cursor: pointer; }
+  .chart-row .track { height: 10px; border-radius: 999px; background: var(--group); overflow: hidden; }
+  .chart-row .fill { height: 100%; border-radius: 999px; background: #d8ccb2; transition: background .16s; }
+  .chart-row .px { font-size: 11.5px; color: var(--ink3); font-variant-numeric: tabular-nums; }
+  .chart-row.cur .name { color: var(--ink1); font-weight: 600; }
+  .chart-row.cur .fill { background: var(--accent); }
+  .chart-row.cur .px { color: var(--accent-text); font-weight: 600; }
+  .chart .note { font-size: 11px; color: var(--ink3); margin-top: 8px; }
+
+  /* ── 模拟应用窗口 ── */
+  .window {
+    background: var(--page); border-radius: 14px; box-shadow: var(--shadow-float); overflow: hidden;
+    display: flex; flex-direction: column; height: 780px;
+  }
+  .win-titlebar { display: flex; align-items: center; height: 34px; padding: 0 14px; gap: 7px; flex: none; }
+  .win-titlebar .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--track); }
+  .win-titlebar .label { margin: 0 auto; font-size: 11.5px; color: var(--ink3); transform: translateX(-24px); }
+  .win-body { flex: 1; min-height: 0; display: flex; }
+
+  /* 侧边栏 */
+  .sidebar { width: 200px; flex: none; padding: 10px 10px; display: flex; flex-direction: column; gap: 2px; }
+  .side-logo { display: flex; align-items: center; gap: 9px; padding: 8px 10px 16px; }
+  .side-logo .mark { width: 24px; height: 24px; border-radius: 8px; background: var(--accent); color: var(--ink-inverse); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+  .side-logo .name { font-size: 13px; font-weight: 600; }
+  .side-logo .logo-mark { width: 24px; height: 24px; border-radius: 8px; background: var(--accent); color: var(--ink-inverse); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+  .nav-item { display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; color: var(--ink2); }
+  .nav-item svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .nav-item.on { background: var(--selected); color: var(--ink1); font-weight: 600; }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .page { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 26px; max-width: 1760px; width: 100%; margin: 0 auto; }
+
+  /* 状态栏 */
+  .statusbar { flex: none; height: 28px; border-top: 1px solid var(--line1); display: flex; align-items: center; padding: 0 14px; gap: 14px; font-size: 12px; color: var(--ink3); }
+  .statusbar .crumb { color: var(--ink2); }
+  .statusbar .spacer { flex: 1; }
+  .statusbar .moved-in { color: var(--ink2); font-weight: 500; }
+
+  /* ── 通用控件（尺寸还原自 CardsView.tsx / ViewTabs.tsx）── */
+  .row { display: flex; align-items: center; flex: none; }
+  .row1 { height: 44px; gap: 14px; }
+  .row1 .title { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+  .row1 .stat { font-size: 12px; color: var(--ink2); font-variant-numeric: tabular-nums; }
+  .row1 .stat b { color: var(--ink1); font-weight: 600; }
+  .flex1 { flex: 1; }
+
+  .searchbox { display: flex; align-items: center; gap: 7px; height: 30px; width: 220px; padding: 0 10px; background: var(--sunken); border-radius: 8px; font-size: 12.5px; color: var(--ink3); border: 1px solid transparent; }
+  .searchbox svg { width: 14px; height: 14px; stroke: var(--ink3); stroke-width: 2; fill: none; stroke-linecap: round; flex: none; }
+  .searchbox.small { width: 150px; height: 28px; background: var(--surface); border: 1px solid var(--line1); }
+
+  .iconbtn { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--ink2); }
+  .iconbtn:hover { background: var(--hover); color: var(--ink1); }
+  .iconbtn svg { width: 15px; height: 15px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+  .btn-primary { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 13px; border-radius: 8px; background: var(--accent); color: var(--ink-inverse); font-size: 12.5px; font-weight: 500; }
+  .btn-primary svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2.2; fill: none; stroke-linecap: round; }
+  .btn-primary .caret { width: 11px; height: 11px; stroke-width: 2.4; opacity: .9; }
+
+  /* 分类 chips（现状 / 方案一） */
+  .row2 { height: 36px; padding-bottom: 6px; gap: 6px; }
+  .chip { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; background: var(--surface); color: var(--ink2); box-shadow: var(--shadow-card); transition: all .15s; }
+  .chip:hover { color: var(--ink1); }
+  .chip.on { background: var(--selected); color: var(--ink1); font-weight: 600; }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .chip .cnt { font-size: 11px; color: var(--ink3); font-variant-numeric: tabular-nums; }
+  .chip.on .cnt { color: var(--accent-text); }
+  .chip.lean { background: none; box-shadow: none; height: 26px; padding: 0 10px; color: var(--ink3); }
+  .chip.lean:hover, .chip.lean.on { background: var(--hover); color: var(--ink1); }
+  .chip.lean .cnt { display: none; }
+  .chip.lean.on .cnt, .chip.lean:hover .cnt { display: inline; }
+  .chip.lean .dot { display: none; }
+  .chip.lean.on .dot { display: block; }
+
+  /* 视图切换（页面级三视图） */
+  .viewswitch { display: flex; align-items: center; gap: 2px; }
+  .vtab { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 8px; font-size: 12px; color: var(--ink3); transition: all .15s; }
+  .vtab:hover { background: var(--hover); color: var(--ink1); }
+  .vtab.on { background: var(--selected); color: var(--ink1); font-weight: 500; }
+  .vtab svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Database ViewTabs（第三行） */
+  .vt-row { display: flex; align-items: center; gap: 8px; flex: none; }
+  .vt-row.heavy { padding-bottom: 8px; }
+  .vt-row.light { padding-bottom: 8px; }
+  .pill { display: flex; align-items: center; gap: 4px; height: 36px; padding: 0 12px; border-radius: 999px; font-size: 13px; color: var(--ink2); transition: background .15s; }
+  .pill:hover { background: var(--hover); }
+  .pill.on { background: var(--selected); color: var(--ink1); font-weight: 500; }
+  .pill .more svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.6; fill: none; stroke-linecap: round; }
+  .pill-tool { width: 36px; height: 36px; justify-content: center; padding: 0; }
+  .pill-tool svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.7; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  /* 方案二轻量化后的表格 tab */
+  .gtab { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 8px; font-size: 12px; color: var(--ink3); transition: all .15s; }
+  .gtab:hover { background: var(--hover); color: var(--ink1); }
+  .gtab.on { background: var(--selected); color: var(--ink1); font-weight: 500; }
+  .gtab svg { width: 13px; height: 13px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .vsep { width: 1px; height: 16px; background: var(--line1); margin: 0 4px; }
+
+  /* ── 表格 ── */
+  .table-zone { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .thead { display: flex; align-items: center; height: 40px; border-top: 1px solid var(--line1); border-bottom: 1px solid var(--line1); background: rgba(255, 253, 249, 0.72); backdrop-filter: blur(10px); flex: none; }
+  .th { font-size: 12px; font-weight: 500; color: var(--ink2); padding: 0 10px; flex: none; }
+  .th.idx { width: 50px; border-right: 1px solid var(--line1); height: 100%; display: flex; align-items: center; padding: 0 0 0 0; justify-content: center; }
+  .tr { display: flex; align-items: center; height: 40px; border-bottom: 1px solid var(--line2); flex: none; }
+  .tr:hover { background: var(--hover); }
+  .td { padding: 0 10px; font-size: 12.5px; color: var(--ink1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: none; }
+  .td.idx { width: 50px; font-size: 12px; color: var(--ink3); text-align: center; padding: 0; font-variant-numeric: tabular-nums; }
+  .td .cat { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 6px; font-size: 11.5px; font-weight: 500; }
+  .td .tg { display: inline-flex; align-items: center; height: 19px; padding: 0 7px; border-radius: 6px; font-size: 11px; margin-right: 4px; }
+  .td.links { color: var(--ink3); font-size: 12px; }
+  .td.time { color: var(--ink2); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .addrow { flex: none; height: 48px; display: flex; align-items: center; gap: 10px; padding-left: 4px; }
+  .addrow button { display: flex; align-items: center; gap: 2px; padding: 8px; border-radius: 8px; font-size: 12.5px; color: var(--ink2); }
+  .addrow button:hover { background: var(--hover); }
+
+  /* ── 标注系统 ── */
+  .mark { position: relative; }
+  .pin { position: absolute; top: -7px; right: -7px; z-index: 30; width: 17px; height: 17px; border-radius: 50%; background: var(--accent); color: var(--ink-inverse); font-size: 10.5px; font-style: normal; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2.5px var(--page); }
+  .pin.pain { background: var(--danger); }
+  .mark.hot { outline: 2px dashed var(--accent); outline-offset: 2px; border-radius: 10px; animation: breathe 1.1s ease-in-out infinite; }
+  .mark.hot .pin.pain, .pin.pain { outline: none; }
+  .mark.hot:has(.pin.pain) { outline-color: var(--danger); }
+  @keyframes breathe { 50% { outline-color: rgba(160, 82, 54, 0.25); } }
+
+  /* 下拉浮层（方案一/二：导入收进新建） */
+  .dropdown { position: absolute; top: 36px; right: 0; width: 176px; background: var(--surface); border-radius: 12px; box-shadow: var(--shadow-float); padding: 5px; z-index: 40; }
+  .dropdown .di { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; color: var(--ink1); }
+  .dropdown .di svg { width: 14px; height: 14px; stroke: var(--ink3); stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .dropdown .di.hl { background: var(--hover); }
+  .btn-wrap { position: relative; }
+
+  /* ── 右侧说明面板 ── */
+  .notes { width: 320px; flex: none; display: flex; flex-direction: column; gap: 12px; }
+  .note-card { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow-card); padding: 16px 16px 14px; }
+  .note-card h2 { font-size: 13.5px; font-weight: 600; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; }
+  .note-card .en { font-size: 11px; color: var(--ink3); margin-bottom: 10px; }
+  .badge-rec { font-size: 10px; font-weight: 600; color: var(--ink-inverse); background: var(--accent); border-radius: 999px; padding: 2px 8px; letter-spacing: .04em; }
+  .badge-cost { font-size: 10px; font-weight: 600; border-radius: 999px; padding: 2px 8px; letter-spacing: .04em; }
+  .cost-low { color: var(--ink2); background: var(--group); }
+  .cost-mid { color: var(--accent-text); background: hsla(22, 58%, 42%, 0.12); }
+  .cost-high { color: var(--danger); background: var(--danger-soft); }
+  .fix-list { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+  .fix-list li { display: flex; gap: 9px; font-size: 12px; color: var(--ink2); line-height: 1.55; padding: 5px 7px; margin: 0 -7px; border-radius: 8px; cursor: default; }
+  .fix-list li:hover { background: var(--hover); color: var(--ink1); }
+  .fix-list .n { flex: none; width: 17px; height: 17px; margin-top: 1px; border-radius: 50%; background: var(--accent); color: var(--ink-inverse); font-size: 10.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .fix-list li.pain .n { background: var(--danger); }
+  .fix-list b { color: var(--ink1); font-weight: 600; }
+  .note-foot { margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--line1); font-size: 11.5px; color: var(--ink3); line-height: 1.6; }
+
+  /* 方案切换 */
+  .pane { display: none; }
+  .pane.on { display: block; }
+  .notegroup { display: none; }
+  .notegroup.on { display: block; }
+
+  @media (max-width: 1180px) {
+    .layout { flex-direction: column; }
+    .notes { width: 100%; }
+  }
+</style>
+</head>
+<body data-plan="cur">
+<div class="demo">
+  <div class="demo-head">
+    <h1>卡片库 · 顶部布局方案对比</h1>
+    <div class="sub">同一场景：<b>表格模式</b>（头部堆叠最重的视图）· 尺寸按 CardsView.tsx / ViewTabs.tsx 实测还原 · hover 右侧改动点可在窗口中定位</div>
+    <div class="plan-tabs">
+      <button class="plan-tab on" data-plan="cur">现状基线</button>
+      <button class="plan-tab" data-plan="p1">方案一 <span class="tag">视觉减压</span></button>
+      <button class="plan-tab" data-plan="p2">方案二 <span class="tag">控件归位</span></button>
+      <button class="plan-tab" data-plan="p3">方案三 <span class="tag">Notion 式单行</span></button>
+    </div>
+  </div>
+
+  <div class="chart" id="chart"></div>
+
+  <div class="layout">
+    <div class="stage">
+      <div class="pane on" data-plan-pane="cur"><div class="window" id="win-cur"></div></div>
+      <div class="pane" data-plan-pane="p1"><div class="window" id="win-p1"></div></div>
+      <div class="pane" data-plan-pane="p2"><div class="window" id="win-p2"></div></div>
+      <div class="pane" data-plan-pane="p3"><div class="window" id="win-p3"></div></div>
+    </div>
+
+    <aside class="notes">
+      <div class="notegroup on" data-notes="cur">
+        <div class="note-card">
+          <h2>现状基线 <span class="badge-cost cost-low">作为对照</span></h2>
+          <div class="en">CardsView.tsx 顶部两行 + Database ViewTabs 第三行</div>
+          <ul class="fix-list">
+            <li class="pain" data-target="cur-1"><span class="n">1</span><span><b>三行工具栏垂直堆叠</b>：44 + 42 + 44px（含 py-5 的 20px 间距），到首行数据共 190px。</span></li>
+            <li class="pain" data-target="cur-2"><span class="n">2</span><span><b>双搜索框同屏</b>：外层语义搜索与表格内文本过滤同时出现，职责不同但视觉重复。</span></li>
+            <li class="pain" data-target="cur-3"><span class="n">3</span><span><b>信息密度超载</b>：第一行 5 组信息、第二行 7+ 组（每个 chip = 色点 + 名 + 计数），右上角两排控件零间距堆叠。</span></li>
+          </ul>
+          <div class="note-foot">头部高度 190px，占 780px 视口的约 1/4；三行视觉权重相等，没有主次。</div>
+        </div>
+      </div>
+
+      <div class="notegroup" data-notes="p1">
+        <div class="note-card">
+          <h2>方案一 · 视觉减压 <span class="badge-cost cost-low">成本 低 · 半天</span></h2>
+          <div class="en">不动信息架构，只降每行密度</div>
+          <ul class="fix-list">
+            <li data-target="p1-1"><span class="n">1</span><span><b>统计读数挪入底部状态栏</b>："共 N 张 · N 字"是看一眼型信息，与已有的"N 组标签 · N 条链接"同族归位。</span></li>
+            <li data-target="p1-2"><span class="n">2</span><span><b>导入收进"新建"次级菜单</b>：低频操作不占一等席位（图中为展开态示意）。</span></li>
+            <li data-target="p1-3"><span class="n">3</span><span><b>chips 瘦身</b>：常态只有文字，色点与计数仅在选中 / hover 时出现。</span></li>
+            <li data-target="p1-4"><span class="n">4</span><span><b>两行中缝加 6px 呼吸感</b>，去掉贴身堆叠。</span></li>
+          </ul>
+          <div class="note-foot">高度基本不变（+6px），但每行信息组从 5/7 降到 3/4。缺点：表格模式三行堆叠的本质没动。</div>
+        </div>
+      </div>
+
+      <div class="notegroup" data-notes="p2">
+        <div class="note-card">
+          <h2>方案二 · 控件归位 <span class="badge-rec">推荐</span> <span class="badge-cost cost-mid">成本 中 · 1~2 天</span></h2>
+          <div class="en">方案一全部内容 + 消灭两级工具栏的重复</div>
+          <ul class="fix-list">
+            <li data-target="p2-5"><span class="n">5</span><span><b>砍掉表格内层搜索框</b>：外层搜索已通过 searchResults 注入表格，内层是第二套过滤入口，语义打架。</span></li>
+            <li data-target="p2-6"><span class="n">6</span><span><b>表格视图 tab 轻量化</b>：36px 圆胶囊改为 28px 轻胶囊，与外层视图切换同一视觉语言；py-5 收窄——三行从"三等重"变"两重一轻"。</span></li>
+          </ul>
+          <div class="note-foot">头部 190 → 176px；语义上只剩一个搜索框、一套筛选入口（分类 chips）。这是收益 / 成本最优的组合，不动状态架构、不需要裁决记录。</div>
+        </div>
+      </div>
+
+      <div class="notegroup" data-notes="p3">
+        <div class="note-card">
+          <h2>方案三 · Notion 式单行 <span class="badge-cost cost-high">成本 高 · 行为变更</span></h2>
+          <div class="en">视图系统统一，头部只留一行</div>
+          <ul class="fix-list">
+            <li data-target="p3-1"><span class="n">1</span><span><b>卡片墙 / 图谱 / 表格视图全部平级为 tab</b>：视图切换即 setActiveViewId，不再有"页面级 + 表格级"两级工具栏。</span></li>
+            <li data-target="p3-2"><span class="n">2</span><span><b>分类筛选降为轻上下文条</b>：无边影、无常态计数，保留三视图共用分类的语义。</span></li>
+            <li data-target="p3-3"><span class="n">3</span><span><b>统计由状态栏承担</b>（同方案一）。</span></li>
+          </ul>
+          <div class="note-foot">头部 190 → 118px，最彻底。代价：preferences.view 与 Database views 两套状态需统一（真值归一 / 类型扩展 / 存储迁移），是用户可感知的行为变更，按规范需先在 DECISIONS.md 裁决。留作视图系统演进方向。</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ───────────────────────── 数据 ───────────────────────── */
+const CATS = {
+  all:  { label: "全部", count: 128 },
+  tmp:  { label: "临时", count: 31, color: "#c96f4e", soft: "rgba(201,111,78,0.12)" },
+  lit:  { label: "文献", count: 45, color: "#5c7d99", soft: "rgba(92,125,153,0.13)" },
+  per:  { label: "永久", count: 38, color: "#61795f", soft: "rgba(97,121,95,0.14)" },
+  the:  { label: "主题", count: 14, color: "#a38c4d", soft: "rgba(163,140,77,0.15)" },
+};
+const ROWS = [
+  { t: "卢曼卡片盒的索引结构：原子化与链接密度", cat: "per", tags: [["笔记法", "var(--tag2)", "var(--tag2s)"], ["索引", "var(--tag4)", "var(--tag4s)"]], links: 5, ct: "2026-09-12", ut: "2026-09-18" },
+  { t: "《卡片笔记写作法》§3 摘录：写作是思考的外化", cat: "lit", tags: [["读书笔记", "var(--tag3)", "var(--tag3s)"]], links: 3, ct: "2026-09-08", ut: "2026-09-15" },
+  { t: "Zettelkasten 与「第二大脑」的差异辨析", cat: "the", tags: [["知识管理", "var(--tag5)", "var(--tag5s)"], ["对比", "var(--tag2)", "var(--tag2s)"]], links: 8, ct: "2026-08-30", ut: "2026-09-02" },
+  { t: "标签树要不要支持拖拽排序（待定）", cat: "tmp", tags: [["产品想法", "var(--tag4)", "var(--tag4s)"]], links: 1, ct: "2026-09-19", ut: "2026-09-19" },
+  { t: "Evergreen notes 与传统笔记的复利差异", cat: "per", tags: [["笔记法", "var(--tag2)", "var(--tag2s)"], ["evergreen", "var(--tag3)", "var(--tag3s)"]], links: 4, ct: "2026-08-21", ut: "2026-09-10" },
+  { t: "Andy Matuschak 工作流访谈要点整理", cat: "lit", tags: [["访谈", "var(--tag5)", "var(--tag5s)"], ["工作流", "var(--tag4)", "var(--tag4s)"]], links: 2, ct: "2026-07-14", ut: "2026-08-02" },
+];
+const HEIGHTS = [
+  { key: "cur", name: "现状基线", px: 190 },
+  { key: "p1",  name: "方案一", px: 196 },
+  { key: "p2",  name: "方案二", px: 176 },
+  { key: "p3",  name: "方案三", px: 118 },
+];
+
+/* ───────────────────────── 图标 ───────────────────────── */
+const I = {
+  search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7.5"/><path d="M21 21l-4.35-4.35"/></svg>',
+  download: '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+  plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  caret: '<svg viewBox="0 0 24 24" class="caret"><path d="m6 9 6 6 6-6"/></svg>',
+  panel: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>',
+  filter: '<svg viewBox="0 0 24 24"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>',
+  sort: '<svg viewBox="0 0 24 24"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg>',
+  grid: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>',
+  table: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18M3 9h18M3 15h18"/></svg>',
+  share: '<svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>',
+  layers: '<svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>',
+  more: '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>',
+  home: '<svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+  file: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+  chart: '<svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+  gear: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+};
+
+/* ─────────────── 窗口公共骨架 ─────────────── */
+const pin = (n, pain) => `<i class="pin${pain ? " pain" : ""}">${n}</i>`;
+const mark = (id, n, pain, inner) => `<span class="mark" data-anno="${id}">${inner}${pin(n, pain)}</span>`;
+
+function sidebar() {
+  return `
+  <div class="sidebar">
+    <div class="side-logo"><div class="logo-mark">墨</div><div class="name">墨屉</div></div>
+    <div class="nav-item">${I.home}<span>首页</span></div>
+    <div class="nav-item">${I.file}<span>文章</span></div>
+    <div class="nav-item on">${I.layers}<span>卡片库</span></div>
+    <div class="nav-item">${I.chart}<span>统计</span></div>
+    <div class="nav-item" style="margin-top:auto">${I.gear}<span>设置</span></div>
+  </div>`;
+}
+
+function statusbar(plan, annoId) {
+  const moved = `<span class="moved-in mark" data-anno="${annoId}"><b style="color:var(--ink1)">128 张</b> · 32,640 字${pin(annoId.endsWith("-3") ? 3 : 1)}</span>`;
+  return `
+  <div class="statusbar">
+    <span class="crumb">卡片库</span>
+    <span class="spacer"></span>
+    ${plan !== "cur" ? moved : ""}
+    <span>42 组标签 · 128 条链接</span>
+  </div>`;
+}
+
+function thead() {
+  return `
+  <div class="thead">
+    <div class="th idx"></div>
+    <div class="th" style="width:260px">标题</div>
+    <div class="th" style="width:130px">分类</div>
+    <div class="th" style="width:180px">标签</div>
+    <div class="th" style="width:220px">链接</div>
+    <div class="th" style="width:150px">创建时间</div>
+    <div class="th" style="width:150px">更新时间</div>
+  </div>`;
+}
+
+function tbody() {
+  return ROWS.map((r, i) => {
+    const c = CATS[r.cat];
+    const tags = r.tags.map(([n, col, bg]) => `<span class="tg" style="color:${col};background:${bg}">${n}</span>`).join("");
+    return `
+    <div class="tr">
+      <div class="td idx">${i + 1}</div>
+      <div class="td" style="width:260px">${r.t}</div>
+      <div class="td" style="width:130px"><span class="cat" style="color:${c.color};background:${c.soft}">${c.label}卡</span></div>
+      <div class="td" style="width:180px">${tags}</div>
+      <div class="td links" style="width:220px">→ ${r.links} 张卡片</div>
+      <div class="td time" style="width:150px">${r.ct}</div>
+      <div class="td time" style="width:150px">${r.ut}</div>
+    </div>`;
+  }).join("");
+}
+
+const tableZone = `
+  <div class="table-zone">
+    ${thead()}
+    ${tbody()}
+    <div class="addrow"><button>＋ 添加行</button></div>
+  </div>`;
+
+/* ─────────────── 各方案头部 ─────────────── */
+
+/* 现状：第一行（统计在读数位） */
+function row1Cur() {
+  return `
+  <div class="row row1">
+    <div class="title">卡片库</div>
+    <div class="stat mark" data-anno="cur-3">共 <b>128</b> 张 · <b>32,640</b> 字${pin(3, true)}</div>
+    <div class="flex1"></div>
+    ${mark("cur-2", 2, true, `<div class="searchbox">${I.search}<span>搜索卡片…</span></div>`)}
+    <div class="iconbtn" title="导入 Markdown">${I.download}</div>
+    <button class="btn-primary">${I.plus}新建卡片</button>
+  </div>`;
+}
+
+/* 方案一/二第一行：统计挪状态栏 + 导入收进新建下拉 */
+function row1Lean(plan) {
+  return `
+  <div class="row row1">
+    <div class="title">卡片库</div>
+    <div class="flex1"></div>
+    <div class="searchbox">${I.search}<span>搜索卡片…</span></div>
+    ${mark(plan + "-2", 2, false, `
+    <div class="btn-wrap">
+      <button class="btn-primary">${I.plus}新建${I.caret}</button>
+      <div class="dropdown">
+        <div class="di hl">${I.plus}新建卡片</div>
+        <div class="di">${I.download}导入 Markdown…</div>
+      </div>
+    </div>`)}
+  </div>`;
+}
+
+/* 分类 chips：现状版（色点+名+计数） / 瘦身版 */
+function row2Chips(lean) {
+  const order = ["all", "tmp", "lit", "per", "the"];
+  return order.map((k, idx) => {
+    const c = CATS[k];
+    const active = k === "all";
+    const dot = k !== "all" ? `<span class="dot" style="background:${c.color}"></span>` : "";
+    if (!lean) {
+      return `<button class="chip${active ? " on" : ""}${idx === 1 ? " mark" : ""}"${idx === 1 ? ` data-anno="cur-3"` : ""}>${dot}${c.label}<span class="cnt">${c.count}</span>${idx === 1 ? pin(3, true) : ""}</button>`;
+    }
+    /* 瘦身：常态仅文字，hover/选中才展开色点与计数（第二个 chip 摆出 hover 态示意） */
+    const hovering = idx === 1;
+    return `<button class="chip lean${active ? " on" : ""}" style="${hovering ? "background:var(--hover);color:var(--ink1)" : ""}"><span class="dot" style="background:${c.color}${hovering ? ";display:block" : ""}"></span>${c.label}<span class="cnt" style="${hovering ? "display:inline" : ""}">${c.count}</span></button>`;
+  }).join("");
+}
+
+function row2(plan) {
+  const lean = plan !== "cur";
+  const chips = row2Chips(lean);
+  const viewswitch = `
+    <div class="viewswitch">
+      <button class="vtab">${I.layers}卡片墙</button>
+      <button class="vtab">${I.share}图谱</button>
+      <button class="vtab on">${I.table}表格</button>
+    </div>`;
+  return `
+  <div class="row row2${lean ? " mark" : ""}"${lean ? ` data-anno="${plan}-4"` : ""} style="${lean ? "margin-top:6px" : ""}">
+    ${lean
+      ? `<span class="mark" data-anno="${plan}-3" style="display:flex;gap:6px">${chips}${pin(3)}</span>`
+      : chips}
+    <div class="flex1"></div>
+    ${viewswitch}
+    ${lean ? pin(4) : ""}
+  </div>`;
+}
+
+/* 现状第三行：Database ViewTabs（圆胶囊 + 内层搜索框） */
+function viewTabsCur() {
+  return `
+  <div style="padding:20px 0 0">
+    <div class="vt-row heavy mark" data-anno="cur-1" style="padding-top:20px;margin-top:-20px;padding-bottom:8px">
+      <button class="pill on">所有卡片<span class="more">${I.more}</span></button>
+      <button class="pill">阅读中<span class="more">${I.more}</span></button>
+      <button class="pill">看板<span class="more">${I.more}</span></button>
+      <button class="pill pill-tool" title="新视图">${I.plus}</button>
+      <div class="flex1"></div>
+      ${mark("cur-2", 2, true, `<div class="searchbox small">${I.search}<span>搜索...</span></div>`)}
+      <button class="pill pill-tool" title="筛选">${I.filter}</button>
+      <button class="pill pill-tool" title="排序">${I.sort}</button>
+      <button class="pill pill-tool" title="分组">${I.grid}</button>
+      ${pin(1, true)}
+    </div>
+  </div>`;
+}
+
+/* 方案二第三行：无内层搜索框 + 轻胶囊 tab */
+function viewTabsLean() {
+  return `
+  <div style="padding-top:8px">
+    <div class="vt-row light mark" data-anno="p2-6">
+      <button class="gtab">${I.table}所有卡片</button>
+      <button class="gtab">${I.table}阅读中</button>
+      <button class="gtab">${I.grid}看板</button>
+      <button class="gtab" style="padding:0 8px">${I.plus}</button>
+      <div class="flex1"></div>
+      <button class="iconbtn" title="筛选" style="width:28px;height:28px">${I.filter}</button>
+      <button class="iconbtn" title="排序" style="width:28px;height:28px">${I.sort}</button>
+      <button class="iconbtn" title="分组" style="width:28px;height:28px">${I.grid}</button>
+      ${pin(6)}
+    </div>
+  </div>`;
+}
+
+/* 方案三：单行 tab + 轻分类条 */
+function rowNotion() {
+  return `
+  <div class="row row1">
+    ${mark("p3-1", 1, false, `
+    <div style="display:flex;align-items:center;gap:2px">
+      <button class="gtab" style="height:30px;font-size:12.5px">${I.layers}卡片墙</button>
+      <button class="gtab" style="height:30px;font-size:12.5px">${I.share}图谱</button>
+      <span class="vsep" style="height:18px"></span>
+      <button class="gtab on" style="height:30px;font-size:12.5px">${I.table}所有卡片</button>
+      <button class="gtab" style="height:30px;font-size:12.5px">${I.grid}看板视图</button>
+      <button class="gtab" style="height:30px;padding:0 8px">${I.plus}</button>
+    </div>`)}
+    <div class="flex1"></div>
+    <div class="searchbox">${I.search}<span>搜索卡片…</span></div>
+    <button class="btn-primary">${I.plus}新建</button>
+  </div>
+  <div class="row" style="height:28px;margin-top:6px;margin-bottom:2px;gap:14px" >
+    ${mark("p3-2", 2, false, `
+    <div style="display:flex;align-items:center;gap:12px;font-size:12px">
+      <span style="color:var(--accent-text);font-weight:600">全部 128</span>
+      <span style="color:var(--ink3)">临时 31</span>
+      <span style="color:var(--ink3)">文献 45</span>
+      <span style="color:var(--ink3)">永久 38</span>
+      <span style="color:var(--ink3)">主题 14</span>
+    </div>`)}
+  </div>`;
+}
+
+/* ─────────────── 组装 ─────────────── */
+function build(plan) {
+  let head;
+  if (plan === "cur") head = row1Cur() + row2("cur") + viewTabsCur();
+  else if (plan === "p1") head = row1Lean("p1") + row2("p1") + viewTabsCur();
+  else if (plan === "p2") head = row1Lean("p2") + row2("p2") + viewTabsLean();
+  else head = rowNotion();
+
+  /* 状态栏统计标注：方案一/二对条目 ①，方案三对条目 ③（统计由状态栏承担） */
+  const statAnno = plan === "p3" ? "p3-3" : `${plan}-1`;
+
+  return `
+    <div class="win-titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="label">墨屉 — 知识库</span></div>
+    <div class="win-body">
+      ${sidebar()}
+      <div class="main">
+        <div class="page">${head}${tableZone}</div>
+        ${statusbar(plan, statAnno)}
+      </div>
+    </div>`;
+}
+
+for (const p of ["cur", "p1", "p2", "p3"]) {
+  document.getElementById("win-" + p).innerHTML = build(p);
+}
+
+/* ─────────────── 高度对比图 ─────────────── */
+const chart = document.getElementById("chart");
+const maxPx = Math.max(...HEIGHTS.map(h => h.px));
+chart.innerHTML = `<h3>头部高度对比（窗口顶 → 表格首行数据）</h3>` + HEIGHTS.map(h => `
+  <div class="chart-row${h.key === "cur" ? " cur" : ""}" data-chart="${h.key}">
+    <span class="name">${h.name}</span>
+    <div class="track"><div class="fill" style="width:${(h.px / maxPx * 100).toFixed(1)}%"></div></div>
+    <span class="px">${h.px}px</span>
+  </div>`).join("") + `<div class="note">方案一较现状 +6px（行间呼吸感）；高度是次要指标，主要看密度与层级——方案三直接砍掉两级工具栏的概念。</div>`;
+
+/* ─────────────── 交互：方案切换 ─────────────── */
+document.querySelectorAll(".plan-tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const plan = btn.dataset.plan;
+    document.body.dataset.plan = plan;
+    document.querySelectorAll(".plan-tab").forEach(b => b.classList.toggle("on", b === btn));
+    document.querySelectorAll(".pane").forEach(p => p.classList.toggle("on", p.dataset.planPane === plan));
+    document.querySelectorAll(".notegroup").forEach(g => g.classList.toggle("on", g.dataset.notes === plan));
+    document.querySelectorAll(".chart-row").forEach(r => r.classList.toggle("cur", r.dataset.chart === plan));
+  });
+});
+chart.addEventListener("click", e => {
+  const row = e.target.closest(".chart-row");
+  if (row) document.querySelector(`.plan-tab[data-plan="${row.dataset.chart}"]`).click();
+});
+
+/* hover 改动点 → 窗口内定位 */
+document.querySelectorAll(".fix-list li[data-target]").forEach(li => {
+  li.addEventListener("mouseenter", () => {
+    const el = document.querySelector(`.pane.on [data-anno="${li.dataset.target}"]`);
+    if (el) el.classList.add("hot");
+  });
+  li.addEventListener("mouseleave", () => {
+    document.querySelectorAll(".mark.hot").forEach(el => el.classList.remove("hot"));
+  });
+});
+</script>
+</body>
+</html>
