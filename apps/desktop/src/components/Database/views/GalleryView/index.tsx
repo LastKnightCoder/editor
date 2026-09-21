@@ -260,8 +260,8 @@ const GalleryView: React.FC<GalleryViewProps> = memo(
         if (row.type === "header") {
           return 48; // 分组标题高度
         } else {
-          // 卡片行高度：卡片高度约 280px + 间隙 16px
-          return 296;
+          // 卡片高 240 + 行距 16（与列间 gap-4 一致）
+          return 256;
         }
       },
       overscan: 5,
