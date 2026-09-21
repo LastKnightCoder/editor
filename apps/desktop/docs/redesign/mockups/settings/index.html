@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tau 桌面端 · 设置弹窗方案导览（三路线对比 + 骨架裁决）</title>
+<!--
+  设置弹窗设计导览：前置约束已定（左下角入口 + 弹窗承载，用户 2026-09-21 指令），
+  开放决策是「骨架形制」——legacy 14 个设置子页在一个弹窗里如何组织导航。
+  三份演示页共用 tau 双主题、同一批实做子页（外观 / 同步 / 大语言模型），
+  差异在导航组织，供综合选择。子页内容逐页重设计是骨架定稿后的下一步。
+-->
+<style>
+:root {
+  --ink: #1d1f24; --ink-2: #5b606b; --ink-3: #8b919c;
+  --bg: #fcfcfd; --surface: #fff; --line: #e6e8ec; --accent: #4650c8;
+  --accent-soft: rgba(70, 80, 200, 0.09);
+  --good: #3e6b4f; --bad: #9c5148; --mid: #8a6d3b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--ink); background: var(--bg); font-size: 14px; line-height: 1.75; }
+.page { max-width: 1020px; margin: 0 auto; padding: 48px 32px 96px; }
+h1 { font-size: 26px; letter-spacing: -0.01em; margin-bottom: 8px; }
+.lede { color: var(--ink-2); max-width: 78ch; margin-bottom: 8px; }
+.lede b { color: var(--ink); }
+h2 { font-size: 19px; margin: 46px 0 6px; }
+h2 + p { color: var(--ink-2); margin-bottom: 16px; max-width: 78ch; }
+a { color: var(--accent); }
+kbd { padding: 1px 6px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--surface); font-size: 12px; font-family: ui-monospace, Consolas, monospace; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: var(--accent-soft);
+  color: var(--accent); border-radius: 5px; padding: 1px 6px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+td b.ok { color: var(--good); } td b.bad { color: var(--bad); } td b.mid { color: var(--mid); }
+
+.plan-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 14px; }
+@media (max-width: 900px) { .plan-grid { grid-template-columns: 1fr; } }
+.plan-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+.plan-card h3 { font-size: 15.5px; margin-bottom: 2px; }
+.plan-card .en { font-size: 11.5px; color: var(--ink-3); margin-bottom: 10px; }
+.plan-card .stance { font-size: 12.5px; color: var(--ink-2); margin-bottom: 12px; min-height: 88px; }
+.plan-card .stance b { color: var(--ink); }
+/* 线框示意：三种骨架的抽象 */
+.wf { height: 132px; border: 1.5px solid #c9cdd4; border-radius: 10px; background: #f6f7f9;
+  position: relative; margin-bottom: 12px; padding: 10px 12px; display: flex; gap: 10px; }
+.wf-col { display: flex; flex-direction: column; gap: 5px; }
+.wf-line { border-radius: 99px; background: #d7dae0; height: 6px; }
+.wf-line.short { width: 46px; } .wf-line.mid { width: 80px; } .wf-line.long { width: 110px; }
+.wf-line.sel { background: rgba(70, 80, 200, 0.45); }
+.wf-glabel { font-size: 7px; color: #a2a7b0; letter-spacing: 0.06em; margin-top: 3px; }
+.wf-nav { width: 78px; border-right: 1px solid #e3e5ea; padding-right: 8px; flex: none; }
+.wf-main { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.wf-search { height: 12px; border-radius: 4px; background: #e9ebef; border: 1px solid #dfe2e8;
+  position: relative; margin-bottom: 2px; flex: none; }
+.wf-search::after { content: "🔍"; position: absolute; right: 5px; top: -2px; font-size: 8px; opacity: .5; }
+.wf-cards { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.wf-card { border: 1px solid #e3e5ea; border-radius: 6px; background: #fff; padding: 5px 7px; display: flex; flex-direction: column; gap: 4px; }
+.wf-foot { margin: 6px -12px -10px; padding: 6px 12px; border-top: 1px solid #e3e5ea; display: flex;
+  align-items: center; gap: 5px; font-size: 7px; color: #a2a7b0; }
+.wf-dot { width: 5px; height: 5px; border-radius: 99px; background: #3e6b4f; flex: none; }
+.wf-rows { display: flex; flex-direction: column; gap: 3px; flex: 1; margin-top: 2px; }
+.wf-zrow { display: flex; align-items: center; gap: 5px; height: 13px; }
+.wf-zrow .ic { width: 8px; height: 8px; border-radius: 3px; background: #c9cdd4; flex: none; }
+.wf-zrow .tx { height: 5px; border-radius: 99px; background: #d7dae0; width: 52px; flex: none; }
+.wf-zrow .sm { height: 5px; border-radius: 99px; background: #e3e5ea; flex: 1; max-width: 64px; margin-left: auto; }
+.wf-zrow .sm.ok { background: rgba(62, 107, 79, 0.4); }
+.wf-zrow .sm.warn { background: rgba(154, 81, 72, 0.45); }
+.wf-zrow .chv { color: #c2c6ce; font-size: 8px; margin-left: 2px; }
+.plan-card ul { list-style: none; font-size: 12.5px; color: var(--ink-2); }
+.plan-card li { padding-left: 15px; position: relative; margin: 3px 0; }
+.plan-card li::before { content: "·"; position: absolute; left: 4px; color: var(--ink-3); }
+.plan-card li.good { color: var(--good); }
+.plan-card li.bad { color: var(--bad); }
+.open-btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px; border-radius: 9px;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 550; text-decoration: none; margin-top: 10px; }
+.open-btn:hover { filter: brightness(1.08); }
+.plan-card .fit { font-size: 12px; background: #f6f7f9; border: 1px dashed var(--line); border-radius: 8px;
+  padding: 8px 12px; margin-top: 10px; color: var(--ink-2); }
+.plan-card .fit b { color: var(--ink); }
+
+.decision { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-top: 14px; }
+.decision h3 { font-size: 15px; margin-bottom: 8px; }
+.decision ol { padding-left: 20px; font-size: 13px; color: var(--ink-2); }
+.decision ol li { margin: 9px 0; }
+.decision ol li b { color: var(--ink); }
+.decision ol li .q { color: var(--ink); font-weight: 600; }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>设置弹窗 · 方案导览</h1>
+<p class="lede">已定稿：<b style="color:#3e6b4f;">方案 A · 经典双栏（2026-09-21 用户裁决，D-028）</b>——B/C 留档对照。设置弹窗的入口与承载已由用户定下：<b>左下角入口（侧栏底部固定）+ 弹窗形态</b>。
+当前需要裁决的是<b>骨架形制</b>——legacy 的 <b>14 个设置子页</b>（外观 / 同步 / 资源存储 / 发布 /
+大语言模型 / 图片生成 / 嵌入模型 / 文字转语音 / 语音转录 / 白板录制 / 模块功能 / 集成 / 杂项 / 关于）
+在一个弹窗里如何组织导航。三份演示页共用 tau 双主题（cream / cocoa）、同一弹窗语言
+（blur 遮罩 + surface 卡 + radius-lg + shadow-float，D-011 Dialog 同族）与同一批实做子页
+（<b>外观 / 同步 / 大语言模型</b>，其余入口为占位），差异全在导航组织，供综合选择。
+<b>每页说明牌内可切暗色主题实测</b>；子页内容的逐页重设计是骨架定稿后的下一步。</p>
+
+<!-- ═══════════ 业界参照 ═══════════ -->
+<h2>业界参照</h2>
+<table>
+  <thead><tr><th>产品</th><th>骨架</th><th>值得借鉴 / 警惕</th></tr></thead>
+  <tbody>
+    <tr><td><b>macOS 系统设置</b>（Ventura+）</td><td>弹窗 + 左侧图标导航，internet accounts 类条目下钻</td><td>「全部入口平铺」的信任感；混用导航与下钻时心智分裂是其最大批评</td></tr>
+    <tr><td><b>Windows 11 设置</b></td><td>左分组导航 + 右设置行 + 顶部搜索</td><td>搜索直达设置项（含关键词命中）是入口多时的救命稻草</td></tr>
+    <tr><td><b>Linear / Notion</b></td><td>大弹窗（或独立窗）+ 侧导航，即时保存</td><td>现代产品语感；「逛用导航、找用搜索」的分工</td></tr>
+    <tr><td><b>Slack / Discord</b></td><td>左栏两级导航（分组 + 合租页），宽弹窗</td><td>设置项极多时的两级组织；但 Discord 的深树是反面教材</td></tr>
+    <tr><td><b>VS Code</b></td><td>页签 + 搜索过滤扁平设置行</td><td>把「找」做到极致（搜索即界面）；表单感强、产品感弱</td></tr>
+    <tr><td><b>iOS 设置 / Things</b></td><td>列表 + 当前值摘要 + 下钻</td><td>状态外显——不点开也能体检；跨页移动慢是其代价</td></tr>
+  </tbody>
+</table>
+
+<!-- ═══════════ 三方案 ═══════════ -->
+<h2>三版骨架</h2>
+<p>同一信息架构（通用 / 数据 / AI 服务 / 扩展 / 支持 五组，14 子页归组），三种导航组织。
+每页实做「外观 / 同步 / 大语言模型」三个代表子页（轻 / 中 / 重各一），可交互。</p>
+
+<div class="plan-grid">
+  <div class="plan-card">
+    <h3>A · 经典双栏</h3>
+    <div class="en">760×560 · macOS 系统设置 / VSCode 语感</div>
+    <div class="wf">
+      <div class="wf-col wf-nav">
+        <div class="wf-glabel">通用</div>
+        <div class="wf-line short sel"></div>
+        <div class="wf-line mid"></div>
+        <div class="wf-glabel">数据</div>
+        <div class="wf-line mid"></div>
+        <div class="wf-line short"></div>
+        <div class="wf-glabel">AI</div>
+        <div class="wf-line long"></div>
+      </div>
+      <div class="wf-col wf-main">
+        <div class="wf-line mid" style="background:#b9bdc6"></div>
+        <div class="wf-line long"></div>
+        <div class="wf-line long"></div>
+        <div class="wf-line mid"></div>
+        <div class="wf-line long"></div>
+      </div>
+    </div>
+    <div class="stance">左窄栏<b>图标入口轻分四组</b>，全部子页一次平铺、<b>零跳转</b>；
+      右栏为当前子页设置行。无搜索、即时保存、无 footer——<b>最克制、实现最轻</b>。</div>
+    <ul>
+      <li class="good">所有入口可见：结构最稳，学习成本最低</li>
+      <li class="good">页面零层级：任何子页一键直达</li>
+      <li class="bad">无搜索：找「某个开关」靠扫视与记忆</li>
+      <li class="bad">左栏 14 项 ≈ 满屏；再加子页左栏要滚</li>
+    </ul>
+    <div class="fit"><b>适合</b>：设置项数量稳定、用户偏「逛」的桌面心智。</div>
+    <a class="open-btn" href="plan-a-classic.html">打开演示 plan-a</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>B · 现代产品</h3>
+    <div class="en">920×640 · Linear / Notion 设置语感</div>
+    <div class="wf">
+      <div class="wf-col wf-main">
+        <div class="wf-search"></div>
+        <div style="display:flex; gap:10px; flex:1; min-height:0">
+          <div class="wf-col wf-nav" style="width:64px">
+            <div class="wf-glabel">通用</div>
+            <div class="wf-line short sel"></div>
+            <div class="wf-line mid"></div>
+            <div class="wf-glabel">数据</div>
+            <div class="wf-line short"></div>
+          </div>
+          <div class="wf-col wf-cards">
+            <div class="wf-card"><div class="wf-line short"></div><div class="wf-line long"></div><div class="wf-line mid"></div></div>
+            <div class="wf-card"><div class="wf-line short"></div><div class="wf-line mid"></div></div>
+          </div>
+        </div>
+        <div class="wf-foot"><span class="wf-dot"></span>自动保存 · 恢复默认</div>
+      </div>
+    </div>
+    <div class="stance">header 内嵌<b>搜索框</b>（<kbd>/</kbd> 聚焦，过滤左栏 + 命中高亮）；
+      右栏大标题 + <b>分节 surface 卡片</b>承载设置行；footer 唱<b>「更改自动保存」</b>。
+      <b>逛用导航、找用搜索</b>。</div>
+    <ul>
+      <li class="good">搜索兜底：14 子页再多也不怕找不到</li>
+      <li class="good">卡片化 + 大标题：右栏自成页面，产品感最强</li>
+      <li class="bad">920 宽：小窗口（1280 笔记本）占比偏高</li>
+      <li class="bad">与 Ctrl+K 命令面板能力重叠，需裁决分工</li>
+    </ul>
+    <div class="fit"><b>适合</b>：设置项持续增长、高频「直奔某个设置」的使用方式。</div>
+    <a class="open-btn" href="plan-b-modern.html">打开演示 plan-b</a>
+  </div>
+
+  <div class="plan-card">
+    <h3>C · 分层下钻</h3>
+    <div class="en">640×600 · iOS 设置 / Things 语感</div>
+    <div class="wf">
+      <div class="wf-col wf-main">
+        <div class="wf-rows">
+          <div class="wf-zrow"><span class="ic"></span><span class="tx"></span><span class="sm"></span><span class="chv">›</span></div>
+          <div class="wf-zrow"><span class="ic"></span><span class="tx"></span><span class="sm ok"></span><span class="chv">›</span></div>
+          <div class="wf-zrow"><span class="ic"></span><span class="tx"></span><span class="sm warn"></span><span class="chv">›</span></div>
+          <div class="wf-zrow"><span class="ic"></span><span class="tx"></span><span class="sm"></span><span class="chv">›</span></div>
+          <div class="wf-zrow"><span class="ic"></span><span class="tx"></span><span class="sm"></span><span class="chv">›</span></div>
+          <div class="wf-zrow"><span class="ic"></span><span class="tx"></span><span class="sm"></span><span class="chv">›</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="stance">首页是<b>设置项列表</b>：每行带<b>当前值摘要</b>（同步通了吗 / 几个提供商 /
+      什么主题——打开即读）；点行进子页，<b>右滑进入、← 返回</b>，Esc 先退子页再关弹窗。
+      弹窗最小，<b>每次只面对一件事</b>。</div>
+    <ul>
+      <li class="good">状态外显：不点开即可体检配置健康度</li>
+      <li class="good">640 宽：小窗口从容，视觉最轻</li>
+      <li class="bad">跨页移动慢：返回→再进，高频跨页者烦</li>
+      <li class="bad">摘要列是硬要求：每页必须养出「当前值一句话」</li>
+    </ul>
+    <div class="fit"><b>适合</b>：用户多为「看一眼状态 / 改一处」的低频轻交互。</div>
+    <a class="open-btn" href="plan-c-dive.html">打开演示 plan-c</a>
+  </div>
+</div>
+
+<!-- ═══════════ 待裁决决策点 ═══════════ -->
+<h2>骨架之外的待裁决点</h2>
+<div class="decision">
+  <h3>定稿前需要一并拍板（建议随骨架一起裁决）</h3>
+  <ol>
+    <li><span class="q">保存模型：</span>三稿统一演示<b>即时保存</b>（改了就生效，B 的 footer 状态条是其产品化表达）。
+      legacy 多为显式「保存」按钮。建议定即时保存并逐页清理显式保存；若某些子页（如同步目标切换）确需确认，
+      按页单独处理而不是全局回退。</li>
+    <li><span class="q">设置搜索与命令面板的分工：</span>B 的弹窗内搜索与已有 Ctrl+K 命令面板（D-003）能力重叠。
+      两条路：命令面板索引设置项后弹窗内不再做搜索（选 A/C 时自然回避）；或弹窗内保留轻量过滤作为「上下文内找」。
+      若选 B，建议命令面板跳转设置子页作为统一入口。</li>
+    <li><span class="q">14 子页的再分组：</span>三稿共用草案——「杂项」拆解并入通用；文字转语音 / 语音转录 / 白板录制
+      三页是否合并为「语音与转录」一组（或一页三段）；「发布」「集成」的去留按 M 系列迁移计划定。</li>
+    <li><span class="q">承载与落地（架构约束）：</span>D-002 规定 dialog/drawer 不经 Page 协议——设置弹窗应作为
+      <b>feature 级浮层由壳层挂载</b>（命令面板同族，D-003 模式），Esc 经 useOverlayDismiss 仲裁；
+      落地前需在 DECISIONS.md 追加条目（含左下角入口与 <kbd>Ctrl+,</kbd> 快捷键）。</li>
+    <li><span class="q">尺寸策略：</span>A 760 / B 920 / C 640 是预设值。设置弹窗跨 13~16 子页，
+      是否允许子页声明自己的尺寸偏好（预设不是牢笼，同 Dialog 的 width 覆盖口径）。</li>
+  </ol>
+  <div class="note">三案可嫁接：例如 A 的平铺导航 + C 的摘要列（导航行带当前值），或 B 的骨架 + A 的无 footer。
+  导览页鼓励综合裁决——定稿后 plan 页将更新为定稿口径（同 Dialog 工作流）。</div>
+</div>
+
+<p class="note">mockups/settings/ · 2026-09-21 · 与 dialog / menu / select 基础件工作流同族：
+定稿 → 嫁接增量 → 更新定稿页 → DECISIONS.md 记录。</p>
+
+</div>
+</body>
+</html>
