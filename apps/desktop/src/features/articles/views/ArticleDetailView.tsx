@@ -22,14 +22,20 @@ import type { Descendant, Range } from "slate";
 import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import {
+  BookOpen,
   ChevronUp,
-  Copy,
+  ClipboardCopy,
   CreditCard,
   Download,
   FileAudio,
+  FileType,
+  FileText,
+  Image as ImageIcon,
   Maximize2,
+  MessageSquare,
   Play,
   Presentation,
+  Sparkles,
 } from "lucide-react";
 import type { EditorRef } from "@tau/editor/src";
 import { usePage, usePageBreadcrumb, usePageParams, usePageStatusBar } from "@/page/PageProvider";
@@ -331,13 +337,13 @@ export function ArticleDetailView() {
         >
           <Menu.Group>提取</Menu.Group>
           <Menu.Item
-            icon={<Copy className="size-[15px]" strokeWidth={1.75} />}
+            icon={<ClipboardCopy className="size-[15px]" strokeWidth={1.75} />}
             onSelect={() => void copyMarkdownToClipboard(editingArticle.content, toastAdapter)}
           >
             复制 Markdown
           </Menu.Item>
           <Menu.Item
-            icon={<Copy className="size-[15px]" strokeWidth={1.75} />}
+            icon={<MessageSquare className="size-[15px]" strokeWidth={1.75} />}
             onSelect={() => void copyWechatHtmlToClipboard(editingArticle.content, toastAdapter)}
           >
             复制公众号格式
@@ -347,10 +353,30 @@ export function ArticleDetailView() {
             label="导出文章"
             icon={<Download className="size-[15px]" strokeWidth={1.75} />}
           >
-            <Menu.Item onSelect={handleExportMarkdownFile}>Markdown 文件</Menu.Item>
-            <Menu.Item onSelect={() => setExportKind("image")}>图片</Menu.Item>
-            <Menu.Item onSelect={() => setExportKind("epub")}>EPUB</Menu.Item>
-            <Menu.Item onSelect={() => setExportKind("pdf")}>PDF</Menu.Item>
+            <Menu.Item
+              onSelect={handleExportMarkdownFile}
+              icon={<FileText className="size-[15px]" strokeWidth={1.75} />}
+            >
+              Markdown 文件
+            </Menu.Item>
+            <Menu.Item
+              onSelect={() => setExportKind("image")}
+              icon={<ImageIcon className="size-[15px]" strokeWidth={1.75} />}
+            >
+              图片
+            </Menu.Item>
+            <Menu.Item
+              onSelect={() => setExportKind("epub")}
+              icon={<BookOpen className="size-[15px]" strokeWidth={1.75} />}
+            >
+              EPUB
+            </Menu.Item>
+            <Menu.Item
+              onSelect={() => setExportKind("pdf")}
+              icon={<FileType className="size-[15px]" strokeWidth={1.75} />}
+            >
+              PDF
+            </Menu.Item>
           </Menu.Submenu>
           <Menu.Group>生成</Menu.Group>
           <Menu.Item
@@ -360,7 +386,7 @@ export function ArticleDetailView() {
             {editingArticle.podcast ? "编辑播客" : "生成播客"}
           </Menu.Item>
           <Menu.Item
-            icon={<CreditCard className="size-[15px]" strokeWidth={1.75} />}
+            icon={<Sparkles className="size-[15px]" strokeWidth={1.75} />}
             onSelect={() => flashcard.openAiFlashcard()}
           >
             AI 制卡
