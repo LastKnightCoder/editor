@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { PendingSection } from "./components/PendingSection";
 import { AppearanceSection } from "./sections/AppearanceSection";
+import { SyncSection } from "./sections/SyncSection";
 
 export type SettingsSectionKey =
   | "appearance"
@@ -70,7 +71,7 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
   {
     label: "数据",
     sections: [
-      { key: "sync", label: "同步", icon: RefreshCw, component: pending("同步") },
+      { key: "sync", label: "同步", icon: RefreshCw, component: SyncSection },
       { key: "imageBed", label: "资源存储", icon: Database, component: pending("资源存储") },
       { key: "publish", label: "发布", icon: Upload, component: pending("发布") },
     ],
