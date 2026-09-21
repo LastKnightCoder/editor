@@ -111,14 +111,17 @@ export function SettingsDialog() {
                     <div className="text-tau-tiny text-ink-3 px-2.5 pb-1 pt-2.5 tracking-[0.05em]">
                       {group.label}
                     </div>
-                    {group.sections.map(def => (
-                      <SectionNavButton
-                        key={def.key}
-                        def={def}
-                        active={def.key === activeDef.key}
-                        onSelect={() => setSection(def.key)}
-                      />
-                    ))}
+                    {/* 组内条目留 2px 呼吸（紧排显拥挤，2026-09-23 用户校准） */}
+                    <div className="flex flex-col gap-0.5">
+                      {group.sections.map(def => (
+                        <SectionNavButton
+                          key={def.key}
+                          def={def}
+                          active={def.key === activeDef.key}
+                          onSelect={() => setSection(def.key)}
+                        />
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
