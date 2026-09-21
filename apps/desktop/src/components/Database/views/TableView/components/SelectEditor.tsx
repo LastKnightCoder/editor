@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
 import { v4 as uuid } from "uuid";
-import classnames from "classnames";
+import { Plus } from "lucide-react";
 import { produce } from "immer";
 
 import { CellValue, ColumnDef, SelectOption } from "../../../types";
 import { SELECT_COLORS } from "../../../constants";
-import { Popover } from "antd";
+import { Popover } from "@tau/ui/Popover";
 import SelectList from "./SelectList";
 import VerticalSelectList from "./VerticalSelectList";
 
@@ -26,7 +26,6 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
   onColumnChange,
   onCellValueChange,
   onFinishEdit,
-  theme,
   autoOpen = false,
 }) => {
   const [isOpen, setIsOpen] = useState(autoOpen);
@@ -35,14 +34,12 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
   const [selectedOptions, setSelectedOptions] = useState<SelectOption[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
 
   const nextColor = useMemo(() => {
     return SELECT_COLORS[(options.length + 1) % SELECT_COLORS.length];
   }, [options]);
 
   const isMultiSelect = column.type === "multiSelect";
-  const isDark = theme === "dark";
 
   const initOptions = useMemoizedFn(() => {
     const config = column.config || { options: [] };
@@ -56,13 +53,11 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
       if (isMultiSelect && Array.isArray(value)) {
         setSelectedOptions(
           value
-            .map((optionId) =>
-              optionsFromConfig.find((option) => option.id === optionId),
-            )
-            .filter((option) => option !== undefined),
+            .map(optionId => optionsFromConfig.find(option => option.id === optionId))
+            .filter(option => option !== undefined)
         );
       } else if (!isMultiSelect) {
-        const option = optionsFromConfig.find((option) => option.id === value);
+        const option = optionsFromConfig.find(option => option.id === value);
         setSelectedOptions(option ? [option] : []);
       }
     } else {
@@ -78,16 +73,14 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
     if (!searchTerm) {
       return options;
     }
-    return options.filter((option) =>
-      option.name.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
+    return options.filter(option => option.name.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [options, searchTerm]);
 
   const addOption = (
     option: string,
-    color: (typeof SELECT_COLORS)[number],
+    color: (typeof SELECT_COLORS)[number]
   ): SelectOption | null => {
-    if (option && !options.map((o) => o.name).includes(option)) {
+    if (option && !options.map(o => o.name).includes(option)) {
       const newOption = {
         id: uuid(),
         name: option,
@@ -96,7 +89,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
       const newOptions = [...options, newOption];
       setOptions(newOptions);
 
-      const newColumn = produce(column, (draft) => {
+      const newColumn = produce(column, draft => {
         if (draft.config) {
           draft.config.options = newOptions;
         } else {
@@ -113,21 +106,19 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
   const removeSelectedOption = useMemoizedFn((optionId: string) => {
     onCellValueChange(
       isMultiSelect
-        ? selectedOptions
-            .filter((item) => item.id !== optionId)
-            .map((o) => o.id)
-        : selectedOptions.filter((item) => item.id !== optionId)[0].id,
+        ? selectedOptions.filter(item => item.id !== optionId).map(o => o.id)
+        : selectedOptions.filter(item => item.id !== optionId)[0].id
     );
-    setSelectedOptions(selectedOptions.filter((item) => item.id !== optionId));
+    setSelectedOptions(selectedOptions.filter(item => item.id !== optionId));
   });
 
   const deleteOption = useMemoizedFn((option: SelectOption) => {
     // 从选项列表中删除该选项
-    const newOptions = options.filter((o) => o.id !== option.id);
+    const newOptions = options.filter(o => o.id !== option.id);
     setOptions(newOptions);
 
     // 更新列配置
-    const newColumn = produce(column, (draft) => {
+    const newColumn = produce(column, draft => {
       if (draft.config) {
         draft.config.options = newOptions;
       }
@@ -135,27 +126,19 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
     onColumnChange?.(newColumn);
 
     // 如果该选项被选中，则从选中项中移除
-    const newSelectedOptions = selectedOptions.filter(
-      (selected) => selected.id !== option.id,
-    );
+    const newSelectedOptions = selectedOptions.filter(selected => selected.id !== option.id);
     setSelectedOptions(newSelectedOptions);
-    onCellValueChange(
-      isMultiSelect
-        ? newSelectedOptions.map((o) => o.id)
-        : newSelectedOptions[0].id,
-    );
+    onCellValueChange(isMultiSelect ? newSelectedOptions.map(o => o.id) : newSelectedOptions[0].id);
   });
 
   const changeOptionColor = useMemoizedFn(
     (option: SelectOption, newColor: (typeof SELECT_COLORS)[number]) => {
       // 更新选项颜色
-      const newOptions = options.map((o) =>
-        o.id === option.id ? { ...o, color: newColor } : o,
-      );
+      const newOptions = options.map(o => (o.id === option.id ? { ...o, color: newColor } : o));
       setOptions(newOptions);
 
       // 更新列配置
-      const newColumn = produce(column, (draft) => {
+      const newColumn = produce(column, draft => {
         if (draft.config) {
           draft.config.options = newOptions;
         }
@@ -163,57 +146,49 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
       onColumnChange?.(newColumn);
 
       // 更新已选中的选项（如果该选项被选中）
-      const newSelectedOptions = selectedOptions.map((selected) =>
-        selected.id === option.id ? { ...selected, color: newColor } : selected,
+      const newSelectedOptions = selectedOptions.map(selected =>
+        selected.id === option.id ? { ...selected, color: newColor } : selected
       );
       setSelectedOptions(newSelectedOptions);
       onCellValueChange(
-        isMultiSelect
-          ? newSelectedOptions.map((o) => o.id)
-          : newSelectedOptions[0].id,
+        isMultiSelect ? newSelectedOptions.map(o => o.id) : newSelectedOptions[0].id
       );
-    },
+    }
   );
 
-  const editOptionName = useMemoizedFn(
-    (option: SelectOption, newName: string) => {
-      // 检查新名称是否已存在（排除当前选项）
-      const nameExists = options.some(
-        (o) => o.id !== option.id && o.name === newName,
-      );
+  const editOptionName = useMemoizedFn((option: SelectOption, newName: string) => {
+    // 检查新名称是否已存在（排除当前选项）
+    const nameExists = options.some(o => o.id !== option.id && o.name === newName);
 
-      if (nameExists || !newName.trim()) {
-        return;
+    if (nameExists || !newName.trim()) {
+      return;
+    }
+
+    // 更新选项名称
+    const newOptions = options.map(o => (o.id === option.id ? { ...o, name: newName } : o));
+    setOptions(newOptions);
+
+    // 更新列配置
+    const newColumn = produce(column, draft => {
+      if (draft.config) {
+        draft.config.options = newOptions;
       }
+    }) as ColumnDef<{ options: SelectOption[] }>;
+    onColumnChange?.(newColumn);
 
-      // 更新选项名称
-      const newOptions = options.map((o) =>
-        o.id === option.id ? { ...o, name: newName } : o,
-      );
-      setOptions(newOptions);
-
-      // 更新列配置
-      const newColumn = produce(column, (draft) => {
-        if (draft.config) {
-          draft.config.options = newOptions;
-        }
-      }) as ColumnDef<{ options: SelectOption[] }>;
-      onColumnChange?.(newColumn);
-
-      // 更新已选中的选项（如果该选项被选中）
-      const newSelectedOptions = selectedOptions.map((selected) =>
-        selected.id === option.id ? { ...selected, name: newName } : selected,
-      );
-      setSelectedOptions(newSelectedOptions);
-    },
-  );
+    // 更新已选中的选项（如果该选项被选中）
+    const newSelectedOptions = selectedOptions.map(selected =>
+      selected.id === option.id ? { ...selected, name: newName } : selected
+    );
+    setSelectedOptions(newSelectedOptions);
+  });
 
   const handleSelect = useMemoizedFn((option: SelectOption) => {
     let newSelectedOptions: SelectOption[];
 
     if (isMultiSelect) {
       if (selectedOptions.includes(option)) {
-        newSelectedOptions = selectedOptions.filter((item) => item !== option);
+        newSelectedOptions = selectedOptions.filter(item => item !== option);
       } else {
         newSelectedOptions = [...selectedOptions, option];
       }
@@ -221,18 +196,14 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
       newSelectedOptions = [option];
     }
     setSelectedOptions(newSelectedOptions);
-    onCellValueChange(
-      isMultiSelect
-        ? newSelectedOptions.map((o) => o.id)
-        : newSelectedOptions[0].id,
-    );
+    onCellValueChange(isMultiSelect ? newSelectedOptions.map(o => o.id) : newSelectedOptions[0].id);
   });
 
   const handleKeyDown = useMemoizedFn((e: React.KeyboardEvent) => {
     if (e.key === "Enter" && searchTerm) {
       e.preventDefault();
       const matchingOption = options.find(
-        (option) => option.name.toLowerCase() === searchTerm.toLowerCase(),
+        option => option.name.toLowerCase() === searchTerm.toLowerCase()
       );
 
       if (matchingOption) {
@@ -246,11 +217,7 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
       setSearchTerm("");
     } else if (e.key === "Escape") {
       setIsOpen(false);
-      onCellValueChange(
-        isMultiSelect
-          ? selectedOptions.map((o) => o.id)
-          : selectedOptions[0].id,
-      );
+      onCellValueChange(isMultiSelect ? selectedOptions.map(o => o.id) : selectedOptions[0].id);
       onFinishEdit();
     }
   });
@@ -267,124 +234,90 @@ const SelectEditor: React.FC<SelectEditorProps> = ({
 
   return (
     <div
-      className="relative w-full h-full py-0 px-2 relative"
+      className="relative h-full w-full px-2 py-0"
       onClick={() => {
         setIsOpen(!isOpen);
       }}
       ref={containerRef}
     >
-      <SelectList options={selectedOptions} theme={theme} />
+      <SelectList options={selectedOptions} />
       <Popover
+        anchor={containerRef.current}
         placement="bottom"
-        trigger="click"
         open={isOpen}
-        onOpenChange={(open) => {
+        onOpenChange={open => {
           if (!open) {
             setIsOpen(false);
             onFinishEdit();
           }
         }}
         arrow={false}
-        styles={{
-          container: {
-            padding: 0,
-            background: "transparent",
-          },
-        }}
-        content={
-          <div
-            className={classnames(
-              "relative max-w-[180px] max-h-[240px] flex flex-col overflow-y-auto rounded-lg shadow-lg border",
-              {
-                "bg-white border-gray-200": !isDark,
-                "bg-black border-gray-500": isDark,
-                "-mt-10": selectedOptions.length > 0,
-              },
-            )}
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-            }}
-            ref={popoverRef}
-          >
-            {selectedOptions.length > 0 && (
-              <div className="my-2">
+        className={selectedOptions.length > 0 ? "-mt-10 w-[236px]" : "w-[236px]"}
+      >
+        <div
+          className="text-ink-1 relative flex max-h-[240px] flex-col overflow-y-auto"
+          onClick={e => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          onMouseDown={e => {
+            e.stopPropagation();
+          }}
+        >
+          {selectedOptions.length > 0 && (
+            <div className="my-2">
+              <SelectList
+                options={selectedOptions}
+                onClear={removeSelectedOption}
+                className="flex-wrap gap-2 px-3"
+              />
+            </div>
+          )}
+          <input
+            ref={inputRef}
+            type="text"
+            className="border-line-2 placeholder:text-ink-3 text-tau-body border-b bg-transparent px-3 py-2 outline-none"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={selectedOptions.length > 0 ? "" : "选择或输入..."}
+            autoFocus
+          />
+          <div className="text-tau-sm text-ink-3 mb-1 mt-2 px-3">选择或创建一个选项</div>
+          <VerticalSelectList
+            options={filteredOptions}
+            onSelect={handleSelect}
+            onDelete={deleteOption}
+            onEdit={editOptionName}
+            onColorChange={changeOptionColor}
+            className="my-1 max-h-[160px] overflow-y-auto px-2"
+          />
+          {searchTerm && filteredOptions.length === 0 && (
+            <div
+              onClick={() => {
+                const addedOption = addOption(searchTerm, nextColor);
+                if (addedOption) {
+                  handleSelect(addedOption);
+                }
+                setSearchTerm("");
+              }}
+            >
+              <div className="hover:bg-hover text-ink-2 rounded-tau-sm text-tau-sm m-1 flex cursor-pointer items-center gap-1 px-2 py-1">
+                <Plus className="size-3.5" strokeWidth={1.75} />
+                <div>创建</div>
                 <SelectList
-                  options={selectedOptions}
-                  onClear={removeSelectedOption}
-                  theme={theme}
-                  className="flex-wrap px-3 gap-2"
+                  options={[
+                    {
+                      id: nextColor,
+                      name: searchTerm,
+                      color: nextColor,
+                    },
+                  ]}
                 />
               </div>
-            )}
-            <input
-              ref={inputRef}
-              type="text"
-              className={classnames(
-                "outline-none border-b-1 bg-transparent text-[14px] px-3 py-2 placeholder-gray-400",
-                {
-                  "text-gray-900 border-gray-200": !isDark,
-                  "text-gray-100 border-gray-700": isDark,
-                },
-              )}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={selectedOptions.length > 0 ? "" : "选择或输入..."}
-              autoFocus
-            />
-            <div className="px-3 mt-2 mb-1 text-[12px] text-gray-500">
-              选择或创建一个选项
             </div>
-            <VerticalSelectList
-              options={filteredOptions}
-              theme={theme}
-              onSelect={handleSelect}
-              onDelete={deleteOption}
-              onEdit={editOptionName}
-              onColorChange={changeOptionColor}
-              className="my-1 px-2 max-h-[160px] overflow-y-auto"
-            />
-            {searchTerm && filteredOptions.length === 0 && (
-              <div
-                onClick={() => {
-                  const addedOption = addOption(searchTerm, nextColor);
-                  if (addedOption) {
-                    handleSelect(addedOption);
-                  }
-                  setSearchTerm("");
-                }}
-              >
-                <div
-                  className={classnames(
-                    "m-1 px-2 py-1 rounded-md flex items-center gap-1 cursor-pointer text-[12px] text-gray-500",
-                    {
-                      "hover:bg-gray-100": !isDark,
-                      "hover:bg-zinc-700": isDark,
-                    },
-                  )}
-                >
-                  <div>创建</div>
-                  <SelectList
-                    options={[
-                      {
-                        id: nextColor,
-                        name: searchTerm,
-                        color: nextColor,
-                      },
-                    ]}
-                    theme={theme}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        }
-      >
-        <div className="w-full h-full"></div>
+          )}
+        </div>
       </Popover>
     </div>
   );

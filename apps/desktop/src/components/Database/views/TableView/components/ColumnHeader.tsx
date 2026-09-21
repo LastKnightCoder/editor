@@ -1,12 +1,13 @@
-import React, { memo, useMemo, useRef } from "react";
+import React, { memo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Dropdown, App } from "antd";
+import { MoreHorizontal } from "lucide-react";
+import { Menu } from "@tau/ui/Menu";
+import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
 
 import { useDrag, useDrop, DropTargetMonitor, DragSourceMonitor } from "react-dnd";
 import { ColumnDef } from "../../../types";
 import PluginManager from "../../../PluginManager";
 import classNames from "classnames";
-import { MoreOutlined } from "@ant-design/icons";
 import ColumnIcon from "../../../ColumnIcon";
 
 const COLUMN_HEADER = "columnHeader";
@@ -37,15 +38,12 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
     moveColumn,
     onEdit,
     pluginManager,
-    theme,
     readonly,
     onDelete,
     allowDeleteColumn = true,
   }) => {
     const ref = useRef<HTMLDivElement>(null);
-    const isDark = theme === "dark";
-
-    const { modal } = App.useApp();
+    const [confirmDelete, setConfirmDelete] = useState(false);
 
     // 处理调整大小开始
     const handleResizeStart = useMemoizedFn((e: React.MouseEvent) => {
@@ -112,55 +110,14 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
       opacity: isDragging ? 0.5 : 1,
     };
 
-    const moreMenuItems = useMemo(() => {
-      if (readonly) return [];
-
-      const items = [
-        {
-          key: "edit",
-          label: "编辑",
-          onClick: () => {
-            if (readonly) return;
-            onEdit?.(column.id);
-          },
-        },
-      ];
-
-      // 主列不显示删除选项，或者如果不允许删除列，则不显示
-      if (!column.isPrimary && allowDeleteColumn) {
-        items.push({
-          key: "delete",
-          label: "删除",
-          onClick: () => {
-            if (readonly) return;
-            modal.confirm({
-              title: "确认删除",
-              content: "确定要删除这条列吗？",
-              okText: "确认",
-              okButtonProps: {
-                danger: true,
-              },
-              onOk: () => onDelete?.(column.id),
-            });
-          },
-        });
-      }
-
-      return items;
-    }, [readonly, column.id, column.isPrimary, allowDeleteColumn, onEdit, onDelete, modal]);
-
     return (
       <div
         ref={ref}
         className={classNames(
-          "border-px relative box-border h-10 border-r p-0 transition-[box-shadow,opacity,background-color,transform] duration-150 ease-linear",
-          {
-            "border-gray-400/50": theme === "light",
-            "border-white/10": theme === "dark",
-          },
+          "border-line-2 relative box-border h-10 border-r p-0 transition-[box-shadow,opacity,background-color,transform] duration-150 ease-linear",
           {
             "z-10 cursor-grabbing opacity-50": isDragging,
-            "bg-[#e3f2fd]": isOver && canDrop && !isDragging,
+            "bg-accent-soft": isOver && canDrop && !isDragging,
           }
         )}
         onDoubleClick={onDoubleClick}
@@ -168,28 +125,62 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
       >
         <div className="box-border flex h-full cursor-grab items-center px-2 py-2">
           <div
-            className="flex h-full flex-1 cursor-pointer items-center overflow-hidden whitespace-nowrap font-semibold"
+            className="flex h-full flex-1 cursor-pointer items-center overflow-hidden whitespace-nowrap font-medium"
             title={column.title}
           >
             <ColumnIcon type={column.type} pluginManager={pluginManager} />
-            <span className="text-truncate flex h-full items-center text-sm">{column.title}</span>
+            <span className="text-tau-sm text-ink-2 flex h-full items-center truncate">
+              {column.title}
+            </span>
           </div>
           {!readonly && !column.readonly && (
-            <Dropdown menu={{ items: moreMenuItems }} trigger={["hover"]}>
-              <div className="hover:bg-(--th-bg-hover) flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full p-1 text-[12px]">
-                <MoreOutlined />
-              </div>
-            </Dropdown>
+            <Menu
+              align="end"
+              trigger={
+                <button
+                  type="button"
+                  title="列操作"
+                  className="text-ink-3 hover:bg-hover hover:text-ink-1 grid h-4 w-4 shrink-0 cursor-pointer place-items-center rounded-full"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <MoreHorizontal className="size-[14px]" strokeWidth={1.75} />
+                </button>
+              }
+            >
+              <Menu.Item
+                onSelect={() => {
+                  if (readonly) return;
+                  onEdit?.(column.id);
+                }}
+              >
+                编辑
+              </Menu.Item>
+              {!column.isPrimary && allowDeleteColumn && (
+                <Menu.Item
+                  danger
+                  onSelect={() => {
+                    if (readonly) return;
+                    setConfirmDelete(true);
+                  }}
+                >
+                  删除
+                </Menu.Item>
+              )}
+            </Menu>
           )}
           <div
-            className={classNames(
-              "absolute right-[-2px] top-0 h-full w-1 cursor-col-resize bg-transparent",
-              {
-                "hover:bg-gray-500": isDark,
-                "hover:bg-gray-200": !isDark,
-              }
-            )}
+            className="hover:bg-hover absolute right-[-2px] top-0 h-full w-1 cursor-col-resize bg-transparent"
             onMouseDown={handleResizeStart}
+          />
+          <ConfirmDialog
+            open={confirmDelete}
+            onOpenChange={setConfirmDelete}
+            title="确认删除"
+            context={column.title}
+            impact="确定要删除这条列吗？将移除该列的所有数据"
+            danger
+            confirmText="确认"
+            onConfirm={() => onDelete?.(column.id)}
           />
         </div>
       </div>

@@ -8,7 +8,7 @@ interface RendererProps {
   theme: "light" | "dark";
 }
 
-const Renderer: React.FC<RendererProps> = memo(({ value, theme, column }) => {
+const Renderer: React.FC<RendererProps> = memo(({ value, column }) => {
   if (!value) {
     return null;
   }
@@ -17,7 +17,7 @@ const Renderer: React.FC<RendererProps> = memo(({ value, theme, column }) => {
 
   // 查找匹配的选项
   if (config?.options && Array.isArray(config.options)) {
-    const option = config.options.find((opt) => opt.id === value);
+    const option = config.options.find(opt => opt.id === value);
 
     if (option) {
       const label = option.name;
@@ -25,14 +25,14 @@ const Renderer: React.FC<RendererProps> = memo(({ value, theme, column }) => {
 
       if (color) {
         return (
-          <div className="flex items-center h-full w-full px-2">
-            <SelectList options={[option]} theme={theme} />
+          <div className="flex h-full w-full items-center px-2">
+            <SelectList options={[option]} />
           </div>
         );
       }
 
       return (
-        <div className="flex items-center h-full w-full px-2">
+        <div className="flex h-full w-full items-center px-2">
           <span className="inline-block">{label}</span>
         </div>
       );
