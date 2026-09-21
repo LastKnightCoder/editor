@@ -4,6 +4,12 @@
   color: var(--th-text);
   caret-color: var(--th-text);
 
+  // 内容区字体 = 用户设置（宿主 body 级 --font/--font-size，桌面 useSyncFont 写入）。
+  // 显式声明是因为新壳层根有设计系统字体（font-tau/text-tau-body），继承在那里被
+  // 截断；CSS 变量沿 DOM 级联可穿透。无该变量的宿主（如移动端）回退继承
+  font-family: var(--font, inherit);
+  font-size: var(--font-size, inherit);
+
   ::selection {
     background: var(--th-accent-soft);
     color: var(--th-text);
