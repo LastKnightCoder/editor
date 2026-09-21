@@ -7,8 +7,10 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
+  BookOpen,
   Download,
   ExternalLink,
+  FileType,
   FileText,
   Image as ImageIcon,
   Layers,
@@ -88,10 +90,10 @@ export function CardActionMenu({
         >
           图片
         </Menu.Item>
-        <Menu.Item onSelect={() => actions.onExportEpub(card)} icon={<MenuIcon icon={FileText} />}>
+        <Menu.Item onSelect={() => actions.onExportEpub(card)} icon={<MenuIcon icon={BookOpen} />}>
           EPUB
         </Menu.Item>
-        <Menu.Item onSelect={() => actions.onExportPdf(card)} icon={<MenuIcon icon={FileText} />}>
+        <Menu.Item onSelect={() => actions.onExportPdf(card)} icon={<MenuIcon icon={FileType} />}>
           PDF
         </Menu.Item>
       </Menu.Submenu>
