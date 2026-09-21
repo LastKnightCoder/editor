@@ -19,6 +19,7 @@ import { Loading } from "@tau/ui/Loading";
 import { ToastHost } from "@tau/ui/Toast";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { useSearchStore } from "@/features/search/searchStore";
+import { isReplayableVisit } from "@/features/search/searchMeta";
 import { initScrollbarAutoHide } from "@tau/ui/hooks";
 import useSettingStore from "@/stores/useSettingStore";
 import { Sidebar } from "./Sidebar";
@@ -138,6 +139,7 @@ function ShellLayout() {
   useEffect(() => {
     if (!currentKey || lastRecorded.current === currentKey) return;
     lastRecorded.current = currentKey;
+    if (!isReplayableVisit(currentKey)) return; // 二级页只存 key 无法回跳（缺 id）
     recordVisit(currentKey);
   }, [currentKey, recordVisit]);
 

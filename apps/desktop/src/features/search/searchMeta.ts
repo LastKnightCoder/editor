@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { NAV_SECTIONS, NAV_FOOTER } from "@/app/navigation";
+import { getPageMeta } from "@/page/core/pageMeta";
 import type { IndexType } from "@/types";
 
 /** 内容实体类型 → 面板呈现（标签/类型色/图标）与跳转目标模块 */
@@ -123,4 +124,15 @@ export function matchCommands(commands: PaletteCommand[], q: string): PaletteCom
       c.section.toLowerCase().includes(q) ||
       (c.keywords?.toLowerCase().includes(q) ?? false)
   );
+}
+
+/* ---------- 访问记录可回跳判定 ---------- */
+
+/**
+ * 访问记录只存 page key，故只有 single 页面（无参即可还原实例）能作为「最近访问/常用」
+ * 条目重放；params/multi 二级页缺 id 无法定位，push 会被参数净化整条拒绝，条目点了没反应。
+ * 写入端（AppShell 记录）与展示端（SearchPalette 渲染）共用本判据，存量持久化记录同此过滤。
+ */
+export function isReplayableVisit(key: string): boolean {
+  return getPageMeta(key)?.match === "single";
 }
