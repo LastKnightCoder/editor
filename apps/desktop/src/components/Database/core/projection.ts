@@ -123,9 +123,12 @@ export function projectDatabase(
       }
     }
   } else if (groupColumn) {
+    const granularity = view.groupBy?.granularity;
     const buckets = new Map<string, RowData[]>();
     for (const row of ordered) {
-      const key = plugins.getPlugin(groupColumn.type)?.getGroupKey?.(row, groupColumn) || "未分组";
+      const key =
+        plugins.getPlugin(groupColumn.type)?.getGroupKey?.(row, groupColumn, granularity) ||
+        "未分组";
       if (!buckets.has(key)) buckets.set(key, []);
       buckets.get(key)!.push(row);
     }

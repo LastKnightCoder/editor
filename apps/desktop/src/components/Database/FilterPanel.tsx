@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { Plus, X } from "lucide-react";
+import { ChevronDown, Plus, X } from "lucide-react";
 import { produce } from "immer";
 
 import type {
@@ -13,7 +13,10 @@ import type {
 } from "./types";
 import PluginManager from "./PluginManager";
 import SimpleDropdown from "./SimpleDropdown";
+import ColumnIcon from "./ColumnIcon";
+import { countFilterConditions } from "./core/filterTree";
 import { Button } from "@tau/ui/Button";
+import { cn } from "@tau/ui/cn";
 
 interface FilterPanelProps {
   columns: ColumnDef[];
@@ -24,10 +27,15 @@ interface FilterPanelProps {
   theme: "light" | "dark";
 }
 
-const LOGIC_OPTIONS: Array<{ label: string; value: FilterLogicOperator }> = [
-  { label: "与", value: "and" },
-  { label: "或", value: "or" },
-];
+const LOGIC_SEGMENT_LABEL: Record<FilterLogicOperator, string> = {
+  and: "满足全部条件",
+  or: "满足任一条件",
+};
+
+const NESTED_LOGIC_LABEL: Record<FilterLogicOperator, string> = {
+  and: "其中，全部满足",
+  or: "其中，任一满足",
+};
 
 const cloneFilterGroup = (group: FilterGroup | null): FilterGroup | null => {
   return group ? JSON.parse(JSON.stringify(group)) : null;
@@ -79,6 +87,16 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
           if (!target) return;
           const column = filterableColumns[0];
           target.children.push(createCondition(column));
+        })
+      );
+    };
+
+    const handleAddGroup = (groupId: string) => {
+      setLocalFilters(prev =>
+        produce(prev, draft => {
+          const target = findGroupById(draft, groupId);
+          if (!target) return;
+          target.children.push(createEmptyGroup());
         })
       );
     };
@@ -157,60 +175,56 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
       onClose?.();
     };
 
+    const handleClearAll = () => {
+      setLocalFilters(createEmptyGroup());
+    };
+
+    const conditionCount = countFilterConditions(localFilters);
+
     const renderNode = (node: FilterNode, parentGroup: FilterGroup) => {
       if (node.type === "group") {
-        return renderGroup(node, parentGroup.id);
+        return renderNestedGroup(node, parentGroup.id);
       }
       return renderCondition(node, parentGroup);
     };
 
-    const renderGroup = (group: FilterGroup, parentId?: string) => {
-      return (
-        <div
-          key={group.id}
-          className="border-line-2 rounded-tau-md flex flex-col gap-2 border px-2 py-2"
-        >
-          <div className="flex items-center gap-2">
-            <SimpleDropdown
-              items={LOGIC_OPTIONS.map(opt => ({
-                key: opt.value,
-                label: opt.label,
-              }))}
-              onSelect={value => handleGroupLogicChange(group.id, value as FilterLogicOperator)}
-            >
-              <div className="bg-surface border-line-1 hover:border-ink-3 text-ink-1 rounded-tau-sm text-tau-sm cursor-pointer border px-2 py-1 transition-colors">
-                {LOGIC_OPTIONS.find(opt => opt.value === group.logic)?.label}
-              </div>
-            </SimpleDropdown>
-            {parentId && (
-              <button
-                type="button"
-                className="text-ink-3 hover:text-danger ml-auto cursor-pointer border-none bg-transparent p-1"
-                onClick={() => handleRemoveNode(parentId, group.id)}
-              >
-                <X className="size-4" strokeWidth={1.75} />
-              </button>
-            )}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            {group.children.length ? (
-              group.children.map(child => renderNode(child, group))
-            ) : (
-              <div className="text-tau-body text-ink-3 py-4 text-center">请添加条件</div>
-            )}
-          </div>
+    const renderNestedGroup = (group: FilterGroup, parentId: string) => (
+      <div
+        key={group.id}
+        className="bg-page rounded-tau-md group/nested flex flex-col gap-1.5 p-1.5"
+      >
+        <div className="flex items-center gap-1 px-1">
           <button
             type="button"
-            className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm text-tau-sm ease-tau-out flex w-full cursor-pointer items-center justify-center gap-1 border-none bg-transparent px-2 py-1.5 transition-colors duration-[160ms] disabled:cursor-not-allowed disabled:opacity-40"
-            onClick={() => handleAddCondition(group.id)}
-            disabled={!filterableColumns.length}
+            className="text-tau-meta text-ink-2 hover:text-ink-1 ease-tau-out cursor-pointer rounded-[6px] px-1.5 py-0.5 transition-colors duration-[160ms]"
+            onClick={() => handleGroupLogicChange(group.id, group.logic === "and" ? "or" : "and")}
+            title="点击切换组合逻辑"
           >
-            <Plus className="size-4" strokeWidth={1.75} />
-            <span>添加条件</span>
+            {NESTED_LOGIC_LABEL[group.logic]}
+          </button>
+          <button
+            type="button"
+            aria-label="删除条件组"
+            className="text-ink-3 hover:bg-danger-soft hover:text-danger ease-tau-out ml-auto cursor-pointer rounded-[6px] p-1 opacity-0 transition-opacity duration-[160ms] group-hover/nested:opacity-100"
+            onClick={() => handleRemoveNode(parentId, group.id)}
+          >
+            <X className="size-3.5" strokeWidth={1.75} />
           </button>
         </div>
-      );
-    };
+        <div className="flex flex-col gap-0.5">
+          {group.children.map(child => renderNode(child, group))}
+        </div>
+        <button
+          type="button"
+          className="text-ink-3 hover:bg-hover hover:text-ink-1 rounded-tau-sm text-tau-sm ease-tau-out flex w-full cursor-pointer items-center gap-1 border-none bg-transparent px-2 py-1 transition-colors duration-[160ms]"
+          onClick={() => handleAddCondition(group.id)}
+          disabled={!filterableColumns.length}
+        >
+          <Plus className="size-3.5" strokeWidth={2.1} />
+          <span>添加条件</span>
+        </button>
+      </div>
+    );
 
     const renderCondition = (condition: FilterCondition, group: FilterGroup) => {
       const column = columns.find(col => col.id === condition.fieldId) ?? null;
@@ -222,42 +236,48 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
       return (
         <div
           key={condition.id}
-          className="border-line-2 rounded-tau-md flex flex-col gap-2 border px-2 py-2"
+          className="group/cond hover:bg-hover ease-tau-out rounded-tau-sm flex min-h-8 items-center gap-1 px-1 py-1 transition-colors duration-[160ms]"
         >
-          <div className="flex items-center gap-2">
-            <SimpleDropdown
-              items={filterableColumns.map(col => ({
-                key: col.id,
-                label: col.title,
-              }))}
-              onSelect={value => handleFieldChange(condition.id, value)}
-              className="flex-1"
-            >
-              <div className="bg-surface border-line-1 hover:border-ink-3 text-ink-1 rounded-tau-sm text-tau-sm flex-1 cursor-pointer truncate border px-2 py-1.5 transition-colors">
-                {column?.title || "选择字段"}
-              </div>
-            </SimpleDropdown>
-            <SimpleDropdown
-              items={definitions.map(def => ({
-                key: def.operator,
-                label: def.label ?? def.operator,
-              }))}
-              onSelect={value => handleOperatorChange(condition.id, value)}
-            >
-              <div className="bg-surface border-line-1 hover:border-ink-3 text-ink-1 rounded-tau-sm text-tau-sm w-20 cursor-pointer border px-2 py-1.5 text-center transition-colors">
-                {definitions.find(d => d.operator === condition.operator)?.label ?? "操作"}
-              </div>
-            </SimpleDropdown>
-            <button
-              type="button"
-              className="text-ink-3 hover:text-danger cursor-pointer border-none bg-transparent p-1"
-              onClick={() => handleRemoveNode(group.id, condition.id)}
-            >
-              <X className="size-4" strokeWidth={1.75} />
-            </button>
-          </div>
+          <SimpleDropdown
+            items={filterableColumns.map(col => ({
+              key: col.id,
+              label: (
+                <div className="flex items-center gap-2">
+                  <ColumnIcon type={col.type} pluginManager={pluginManager} />
+                  <span>{col.title}</span>
+                </div>
+              ),
+            }))}
+            onSelect={value => handleFieldChange(condition.id, value)}
+            className="min-w-0 flex-1"
+          >
+            <div className="text-ink-1 hover:bg-surface-hover text-tau-sm flex h-7 min-w-0 flex-1 cursor-pointer items-center gap-1.5 rounded-[7px] px-2 transition-colors">
+              {column ? (
+                <ColumnIcon type={column.type} pluginManager={pluginManager} />
+              ) : (
+                <span className="text-ink-3">选择字段</span>
+              )}
+              {column && <span className="truncate">{column.title}</span>}
+              <ChevronDown
+                className="text-ink-3 ml-auto size-3 shrink-0 opacity-60"
+                strokeWidth={2.25}
+              />
+            </div>
+          </SimpleDropdown>
+          <SimpleDropdown
+            items={definitions.map(def => ({
+              key: def.operator,
+              label: def.label ?? def.operator,
+            }))}
+            onSelect={value => handleOperatorChange(condition.id, value)}
+          >
+            <div className="text-ink-2 hover:bg-surface-hover text-tau-sm flex h-7 cursor-pointer items-center gap-1 whitespace-nowrap rounded-[7px] px-2 transition-colors">
+              {definitions.find(d => d.operator === condition.operator)?.label ?? "操作"}
+              <ChevronDown className="text-ink-3 size-3 shrink-0 opacity-60" strokeWidth={2.25} />
+            </div>
+          </SimpleDropdown>
           {column && requiresValue !== false && (
-            <div className="border-line-2 rounded-tau-sm border border-dashed px-2 py-1">
+            <div className="min-w-0 flex-[1.2]">
               <FilterValueEditor
                 key={`${condition.id}-${column.id}-${column.type}`}
                 column={column}
@@ -268,29 +288,96 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
               />
             </div>
           )}
+          <button
+            type="button"
+            aria-label="删除条件"
+            className="text-ink-3 hover:bg-danger-soft hover:text-danger ease-tau-out ml-auto grid size-6 shrink-0 cursor-pointer place-items-center rounded-[7px] opacity-0 transition-opacity duration-[160ms] group-hover/cond:opacity-100"
+            onClick={() => handleRemoveNode(group.id, condition.id)}
+          >
+            <X className="size-3.5" strokeWidth={2.2} />
+          </button>
         </div>
       );
     };
 
     return (
-      <div className="text-ink-1 max-h-[520px] w-[420px] overflow-y-auto">
-        <div className="flex flex-col gap-3">
-          <div className="px-2">
-            <div className="text-tau-micro text-ink-2 font-medium">筛选</div>
-            <div className="text-tau-micro text-ink-3 mt-0.5">设置筛选条件以限定表格中的记录</div>
+      <div className="text-ink-1 max-h-[520px] w-[384px] overflow-y-auto p-2.5">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-baseline gap-2 px-1">
+            <span className="text-tau-meta text-ink-1 font-semibold">筛选</span>
+            {conditionCount > 0 && (
+              <span className="text-tau-micro text-ink-3">{conditionCount} 个条件</span>
+            )}
           </div>
           {filterableColumns.length === 0 ? (
             <div className="text-tau-body text-ink-3 px-3 py-8 text-center">
               当前没有支持筛选的字段
             </div>
           ) : (
-            renderGroup(localFilters)
+            <>
+              <div className="bg-group rounded-tau-sm flex p-0.5">
+                {(Object.keys(LOGIC_SEGMENT_LABEL) as FilterLogicOperator[]).map(logic => (
+                  <button
+                    key={logic}
+                    type="button"
+                    onClick={() => handleGroupLogicChange(localFilters.id, logic)}
+                    className={cn(
+                      "text-tau-sm ease-tau-out h-6 flex-1 cursor-pointer rounded-[6px] transition-colors duration-[160ms]",
+                      localFilters.logic === logic
+                        ? "bg-surface text-ink-1 shadow-card font-medium"
+                        : "text-ink-2 hover:text-ink-1"
+                    )}
+                  >
+                    {LOGIC_SEGMENT_LABEL[logic]}
+                  </button>
+                ))}
+              </div>
+              {localFilters.children.length ? (
+                <div className="flex flex-col gap-0.5">
+                  {localFilters.children.map(child => renderNode(child, localFilters))}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-1 py-5 text-center">
+                  <p className="text-tau-body text-ink-2 font-medium">从添加条件开始</p>
+                  <p className="text-tau-meta text-ink-3">按条件组合缩小本视图的范围</p>
+                </div>
+              )}
+              <div className="flex gap-1 px-1">
+                <button
+                  type="button"
+                  className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm text-tau-sm ease-tau-out flex cursor-pointer items-center gap-1 border-none bg-transparent px-2 py-1.5 transition-colors duration-[160ms] disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => handleAddCondition(localFilters.id)}
+                  disabled={!filterableColumns.length}
+                >
+                  <Plus className="size-3.5" strokeWidth={2.1} />
+                  <span>添加条件</span>
+                </button>
+                <button
+                  type="button"
+                  className="text-ink-3 hover:bg-hover hover:text-ink-1 rounded-tau-sm text-tau-sm ease-tau-out flex cursor-pointer items-center gap-1 border-none bg-transparent px-2 py-1.5 transition-colors duration-[160ms]"
+                  onClick={() => handleAddGroup(localFilters.id)}
+                >
+                  <Plus className="size-3.5" strokeWidth={2.1} />
+                  <span>添加条件组</span>
+                </button>
+              </div>
+            </>
           )}
-          <div className="text-tau-body flex gap-2 px-2">
-            <Button variant="ghost" size="sm" block onClick={onClose}>
+          <div className="border-line-2 mt-1 flex items-center gap-1.5 border-t px-1 pt-2.5">
+            {conditionCount > 0 && (
+              <button
+                type="button"
+                className="text-tau-micro text-ink-3 hover:text-danger ease-tau-out cursor-pointer rounded-[6px] px-1.5 py-1 transition-colors duration-[160ms]"
+                onClick={handleClearAll}
+              >
+                清空
+              </button>
+            )}
+            <span className="flex-1" />
+            <Button variant="ghost" size="sm" onClick={onClose}>
               取消
             </Button>
-            <Button variant="primary" size="sm" block onClick={handleConfirm}>
+            <Button variant="primary" size="sm" onClick={handleConfirm}>
               确定
             </Button>
           </div>
@@ -367,7 +454,7 @@ const FilterValueEditor: React.FC<FilterValueEditorProps> = memo(
     if (plugin?.Editor) {
       const EditorComponent = plugin.Editor;
       return (
-        <div className="h-10">
+        <div className="h-10 w-full overflow-hidden">
           <EditorComponent
             value={value ?? null}
             column={column}
@@ -382,7 +469,7 @@ const FilterValueEditor: React.FC<FilterValueEditorProps> = memo(
     } else if (plugin?.Renderer) {
       const RendererComponent = plugin.Renderer;
       return (
-        <div className="h-10">
+        <div className="h-10 w-full overflow-hidden">
           <RendererComponent
             value={value ?? null}
             column={column}

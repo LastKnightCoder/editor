@@ -161,6 +161,7 @@ export type {
   FilterNode,
   SortRule,
   GroupRule,
+  GroupGranularity,
   ValidationRule,
   DatabaseHookResult,
 } from "./types/database";

@@ -1,9 +1,17 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDownUp, Filter, Layers, MoreHorizontal, Plus, Search } from "lucide-react";
+import {
+  ArrowDownUp,
+  ChevronDown,
+  Filter,
+  Layers,
+  MoreHorizontal,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import { useDrag, useDrop } from "react-dnd";
 import { cn } from "@tau/ui/cn";
-import { Input } from "@tau/ui/Input";
 import { Menu } from "@tau/ui/Menu";
 import { Popover } from "@tau/ui/Popover";
 import { Tooltip } from "@tau/ui/Tooltip";
@@ -14,6 +22,7 @@ import GroupPanel from "./GroupPanel";
 import SortPanel from "./SortPanel";
 import PluginManager from "./PluginManager";
 import FilterPanel from "./FilterPanel";
+import { countFilterConditions } from "./core/filterTree";
 import ViewTypeSelectModal from "./ViewTypeSelectModal";
 import ViewEditPanel from "./ViewEditPanel";
 import { DataTableViewType } from "@/types";
@@ -236,15 +245,17 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
 
 ViewTabItem.displayName = "ViewTabItem";
 
-/** 工具栏圆形切换钮：激活 = bg-selected；悬停反馈 = 透明度梯度（60/100/80） */
-const ToolbarToggle = ({
+/** 工具栏胶囊钮：图标 + 文字 + 激活计数；静止幽灵态（透明度梯度），激活 = bg-selected */
+const ToolbarPill = ({
   active,
+  count,
   label,
   icon: Icon,
   onClick,
   buttonRef,
 }: {
   active: boolean;
+  count?: number;
   label: string;
   icon: typeof Filter;
   onClick: () => void;
@@ -258,16 +269,92 @@ const ToolbarToggle = ({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "ease-tau-out grid size-7 place-items-center rounded-full transition-[background-color,opacity] duration-[160ms]",
+        "ease-tau-out flex h-7 items-center gap-1.5 rounded-full px-2.5 transition-[background-color,opacity] duration-[160ms]",
         active
           ? "bg-selected text-ink-1"
           : "text-ink-2 opacity-60 hover:opacity-100 active:opacity-80"
       )}
     >
-      <Icon className="size-4" strokeWidth={1.75} />
+      <Icon className="size-[13px]" strokeWidth={1.75} />
+      <span className="text-tau-meta">{label}</span>
+      {active && count ? (
+        <span className="text-accent-text text-[10.5px] font-bold tabular-nums">{count}</span>
+      ) : null}
+      <ChevronDown className="size-[11px] opacity-50" strokeWidth={2.25} />
     </button>
   </Tooltip>
 );
+
+/** 搜索：默认只有一个图标钮，点击展开输入框；清空 + 失焦收回，有关键词时保持展开 */
+const CollapsibleSearch = ({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (text: string) => void;
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // 关键词被外部清空（如切换视图）时收起；输入中清空（焦点仍在）保持展开
+  useEffect(() => {
+    if (value === "" && document.activeElement !== inputRef.current) setExpanded(false);
+  }, [value]);
+
+  if (!expanded) {
+    return (
+      <Tooltip content="搜索本视图">
+        <button
+          type="button"
+          aria-label="搜索本视图"
+          onClick={() => {
+            setExpanded(true);
+            requestAnimationFrame(() => inputRef.current?.focus());
+          }}
+          className="text-ink-2 ease-tau-out grid size-7 cursor-pointer place-items-center rounded-full opacity-60 transition-opacity duration-[160ms] hover:opacity-100 active:opacity-80"
+        >
+          <Search className="size-[15px]" strokeWidth={1.75} />
+        </button>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <div className="border-line-1 bg-surface flex h-7 w-52 items-center gap-1.5 rounded-full border px-2.5">
+      <Search className="text-ink-3 size-[15px] shrink-0" strokeWidth={1.75} />
+      <input
+        ref={inputRef}
+        value={value}
+        placeholder="搜索本视图…"
+        onChange={e => onChange(e.target.value)}
+        onBlur={() => {
+          if (value === "") setExpanded(false);
+        }}
+        onKeyDown={e => {
+          if (e.key === "Escape" && !e.nativeEvent.isComposing) {
+            if (value !== "") onChange("");
+            else setExpanded(false);
+            e.stopPropagation();
+          }
+        }}
+        className="text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[12.5px] outline-none"
+      />
+      {value !== "" && (
+        <button
+          type="button"
+          aria-label="清空搜索"
+          onClick={() => {
+            onChange("");
+            inputRef.current?.focus();
+          }}
+          className="text-ink-3 hover:bg-hover hover:text-ink-1 grid size-[20px] shrink-0 cursor-pointer place-items-center rounded-[6px]"
+        >
+          <X className="size-3" strokeWidth={2.2} />
+        </button>
+      )}
+    </div>
+  );
+};
 
 const ViewTabs: React.FC<ViewTabsProps> = memo(
   ({
@@ -308,9 +395,24 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     const [showFilter, setShowFilter] = useState(false);
     const [showViewTypeSelect, setShowViewTypeSelect] = useState(false);
 
+    // 切换视图时清空搜索词并收起搜索框（不跨视图保留）
+    const previousViewIdRef = useRef(activeViewId);
+    useEffect(() => {
+      if (previousViewIdRef.current !== activeViewId) {
+        previousViewIdRef.current = activeViewId;
+        if (searchKeyword !== "") setQuery({ text: "" });
+      }
+    }, [activeViewId, searchKeyword, setQuery]);
+
     const filterButtonRef = useRef<HTMLButtonElement>(null);
     const sortButtonRef = useRef<HTMLButtonElement>(null);
     const groupButtonRef = useRef<HTMLButtonElement>(null);
+
+    const filterCount = useMemo(
+      () => countFilterConditions(viewConfig.filters),
+      [viewConfig.filters]
+    );
+    const sortCount = viewConfig.sorts?.length ?? 0;
 
     const orderedIds = useMemo(() => views.map(view => view.id), [views]);
     const orderedIdsRef = useRef<number[]>(orderedIds);
@@ -435,18 +537,11 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           </Tooltip>
         </div>
         <div className="ml-auto flex items-center gap-1.5">
-          <Input
-            size="sm"
-            lead={Search}
-            clearable
-            value={searchKeyword}
-            onChange={e => setQuery({ text: e.target.value })}
-            placeholder="搜索..."
-            className="w-[150px]"
-          />
-          <ToolbarToggle
-            active={Boolean(viewConfig.filters)}
-            label="筛选设置"
+          <CollapsibleSearch value={searchKeyword} onChange={text => setQuery({ text })} />
+          <ToolbarPill
+            active={filterCount > 0}
+            count={filterCount}
+            label="筛选"
             icon={Filter}
             buttonRef={filterButtonRef}
             onClick={() => setShowFilter(!showFilter)}
@@ -457,6 +552,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
             onOpenChange={setShowFilter}
             placement="bottom-end"
             arrow={false}
+            className="max-w-[420px]"
           >
             <FilterPanel
               columns={columns}
@@ -467,9 +563,10 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
               theme={theme}
             />
           </Popover>
-          <ToolbarToggle
-            active={(viewConfig.sorts?.length ?? 0) > 0}
-            label="排序设置"
+          <ToolbarPill
+            active={sortCount > 0}
+            count={sortCount}
+            label="排序"
             icon={ArrowDownUp}
             buttonRef={sortButtonRef}
             onClick={() => setShowSorting(!showSorting)}
@@ -489,9 +586,9 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
               onClose={() => setShowSorting(false)}
             />
           </Popover>
-          <ToolbarToggle
+          <ToolbarPill
             active={viewConfig.groupBy !== null}
-            label="分组设置"
+            label="分组"
             icon={Layers}
             buttonRef={groupButtonRef}
             onClick={() => setShowGrouping(!showGrouping)}
