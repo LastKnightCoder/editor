@@ -3,6 +3,7 @@ import classNames from "classnames";
 import { ColumnDef, TableViewConfig } from "./types";
 import PluginManager from "./PluginManager";
 import ColumnIcon from "./ColumnIcon";
+import { Button } from "@tau/ui/Button";
 
 interface GroupPanelProps {
   columns: ColumnDef[];
@@ -21,8 +22,7 @@ const GroupPanel: React.FC<GroupPanelProps> = ({
 }) => {
   const supportedColumns = useMemo(() => {
     return columns.filter(
-      (column) =>
-        typeof pluginManager.getPlugin(column.type)?.getGroupKey === "function",
+      column => typeof pluginManager.getPlugin(column.type)?.getGroupKey === "function"
     );
   }, [columns, pluginManager]);
 
@@ -38,7 +38,7 @@ const GroupPanel: React.FC<GroupPanelProps> = ({
       onClose();
       return;
     }
-    const column = supportedColumns.find((col) => col.id === selectedId);
+    const column = supportedColumns.find(col => col.id === selectedId);
     if (!column) {
       onSubmit(null);
       onClose();
@@ -58,56 +58,45 @@ const GroupPanel: React.FC<GroupPanelProps> = ({
   };
 
   return (
-    <div className="w-64 flex flex-col gap-1 text-[rgba(15,23,42,0.95)] dark:text-[rgba(241,245,249,0.95)]">
-      <div className="px-2 py-1 text-xs font-medium text-[rgba(15,23,42,0.55)] dark:text-[rgba(226,232,240,0.55)]">
-        分组方式
-      </div>
-      <div className="flex flex-col gap-1">
+    <div className="text-ink-1 flex w-64 flex-col gap-1.5 py-1">
+      <div className="text-tau-micro text-ink-2 px-2.5 py-1 font-medium">分组方式</div>
+      <div className="flex flex-col gap-0.5">
         <button
           type="button"
           className={classNames(
-            "w-full border-none bg-transparent px-3 py-2 rounded-[14px] flex items-center gap-2 text-[13px] cursor-pointer transition-all",
+            "rounded-tau-sm text-tau-sm ease-tau-out flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-2.5 py-1.5 transition-colors duration-[160ms]",
             selectedId === ""
-              ? "bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(148,163,184,0.15)]"
-              : "hover:bg-[rgba(255,255,255,0.6)] dark:hover:bg-[rgba(148,163,184,0.15)]",
+              ? "bg-selected text-ink-1 font-medium"
+              : "text-ink-2 hover:bg-hover hover:text-ink-1"
           )}
           onClick={() => handleSelect("")}
         >
           <span className="flex-1 text-left">无</span>
         </button>
-        {supportedColumns.map((column) => (
+        {supportedColumns.map(column => (
           <button
             key={column.id}
             type="button"
             className={classNames(
-              "w-full border-none bg-transparent px-3 py-2 rounded-[14px] flex items-center gap-2 text-[13px] cursor-pointer transition-all",
+              "rounded-tau-sm text-tau-sm ease-tau-out flex w-full cursor-pointer items-center gap-2 border-none bg-transparent px-2.5 py-1.5 transition-colors duration-[160ms]",
               selectedId === column.id
-                ? "bg-[rgba(255,255,255,0.6)] dark:bg-[rgba(148,163,184,0.15)]"
-                : "hover:bg-[rgba(255,255,255,0.6)] dark:hover:bg-[rgba(148,163,184,0.15)]",
+                ? "bg-selected text-ink-1 font-medium"
+                : "text-ink-2 hover:bg-hover hover:text-ink-1"
             )}
             onClick={() => handleSelect(column.id)}
           >
             <ColumnIcon type={column.type} pluginManager={pluginManager} />
-            <span className="flex-1 text-left">{column.title}</span>
+            <span className="flex-1 truncate text-left">{column.title}</span>
           </button>
         ))}
       </div>
-      <div className="h-px bg-[rgba(15,23,42,0.1)] dark:bg-[rgba(226,232,240,0.1)] my-1" />
-      <div className="flex gap-2 px-2">
-        <button
-          type="button"
-          className="flex-1 px-3 py-1.5 rounded-[10px] text-[13px] border-none bg-transparent hover:bg-[rgba(255,255,255,0.6)] dark:hover:bg-[rgba(148,163,184,0.15)] cursor-pointer transition-all"
-          onClick={onClose}
-        >
+      <div className="text-tau-body flex gap-2 px-2.5 pt-1.5">
+        <Button variant="ghost" size="sm" block onClick={onClose}>
           取消
-        </button>
-        <button
-          type="button"
-          className="flex-1 px-3 py-1.5 rounded-[10px] text-[13px] border-none bg-[rgba(59,130,246,0.9)] dark:bg-[rgba(59,130,246,0.8)] text-white hover:bg-[rgba(59,130,246,1)] cursor-pointer transition-all"
-          onClick={handleConfirm}
-        >
+        </Button>
+        <Button variant="primary" size="sm" block onClick={handleConfirm}>
           确定
-        </button>
+        </Button>
       </div>
     </div>
   );

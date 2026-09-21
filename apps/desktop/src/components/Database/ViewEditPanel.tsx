@@ -9,11 +9,13 @@ import {
 } from "./types";
 import { useMemoizedFn } from "ahooks";
 import ColumnDropdown from "./ColumnDropdown";
-import CustomRadio from "@/components/CustomRadio";
 import {
   getTemplateDefaultCardDisplay,
   resolveKanbanCardDisplay,
 } from "./views/KanbanView/cardDisplayConfig";
+import { Button } from "@tau/ui/Button";
+import { Input } from "@tau/ui/Input";
+import { Checkbox, Radio, RadioGroup } from "@tau/ui";
 
 interface ViewEditPanelProps {
   view: DataTableView | null;
@@ -255,72 +257,51 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
         style={{
           width: "min(380px, calc(100vw - 32px))",
           maxHeight: "min(85vh, 780px)",
-          padding: "20px",
         }}
-        className="flex flex-col overflow-hidden"
+        className="flex flex-col gap-4 overflow-hidden p-5 pt-4"
       >
         <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
           {/* Title */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-              视图名称
-            </label>
-            <input
-              type="text"
+            <span className="text-tau-meta text-ink-2 font-medium">视图名称</span>
+            <Input
               value={name}
               onChange={e => setName(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
               placeholder="请输入视图名称"
               maxLength={50}
+              data-autofocus
             />
           </div>
 
           {/* View Type */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-              视图类型
-            </label>
-            <div className="space-y-2">
-              {[
-                { value: "table", label: "表格" },
-                { value: "gallery", label: "画廊" },
-                { value: "calendar", label: "日历" },
-                { value: "kanban", label: "看板" },
-              ].map(option => (
-                <CustomRadio
-                  key={option.value}
-                  checked={viewType === option.value}
-                  onChange={() => setViewType(option.value as DataTableViewType)}
-                  label={option.label}
-                  className="text-sm"
-                />
-              ))}
-            </div>
-          </div>
+          <RadioGroup
+            label="视图类型"
+            value={viewType}
+            onValueChange={value => setViewType(value as DataTableViewType)}
+            orientation="vertical"
+          >
+            <Radio value="table" label="表格" />
+            <Radio value="gallery" label="画廊" />
+            <Radio value="calendar" label="日历" />
+            <Radio value="kanban" label="看板" />
+          </RadioGroup>
 
           {/* Gallery Config */}
           {viewType === "gallery" && (
             <>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                  封面类型
-                </label>
-                <div className="space-y-2">
-                  <CustomRadio
-                    checked={coverType === "detail"}
-                    onChange={() => setCoverType("detail")}
-                    label="详情"
-                    className="text-sm"
-                  />
-                  <CustomRadio
-                    checked={coverType === "image"}
-                    onChange={() => setCoverType("image")}
-                    label={imageColumns.length === 0 ? "图片 （无图片列）" : "图片"}
-                    disabled={imageColumns.length === 0}
-                    className="text-sm"
-                  />
-                </div>
-              </div>
+              <RadioGroup
+                label="封面类型"
+                value={coverType}
+                onValueChange={value => setCoverType(value as "detail" | "image")}
+                orientation="vertical"
+              >
+                <Radio value="detail" label="详情" />
+                <Radio
+                  value="image"
+                  disabled={imageColumns.length === 0}
+                  label={imageColumns.length === 0 ? "图片（无图片列）" : "图片"}
+                />
+              </RadioGroup>
 
               {coverType === "image" && imageColumns.length > 0 && (
                 <ColumnDropdown
@@ -349,9 +330,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                 label="日期列"
               />
               {dateColumns.length === 0 && (
-                <div className="-mt-2 text-sm text-gray-500 dark:text-slate-400">
-                  请先添加一个日期类型的列
-                </div>
+                <div className="text-tau-sm text-ink-3">请先添加一个日期类型的列</div>
               )}
             </>
           )}
@@ -359,28 +338,16 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
           {/* Kanban Config */}
           {viewType === "kanban" && (
             <>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                  卡片模板
-                </label>
-                <div className="space-y-2">
-                  {[
-                    { value: "compact", label: "简洁（仅标题）" },
-                    { value: "task", label: "任务（标题 + 完成 + 2属性）" },
-                    { value: "detail", label: "详情（标题 + 完成 + 4属性）" },
-                  ].map(templateOption => (
-                    <CustomRadio
-                      key={templateOption.value}
-                      checked={kanbanTemplate === templateOption.value}
-                      onChange={() =>
-                        handleTemplateChange(templateOption.value as KanbanCardTemplate)
-                      }
-                      label={templateOption.label}
-                      className="text-sm"
-                    />
-                  ))}
-                </div>
-              </div>
+              <RadioGroup
+                label="卡片模板"
+                value={kanbanTemplate}
+                onValueChange={value => handleTemplateChange(value as KanbanCardTemplate)}
+                orientation="vertical"
+              >
+                <Radio value="compact" label="简洁（仅标题）" />
+                <Radio value="task" label="任务（标题 + 完成 + 2属性）" />
+                <Radio value="detail" label="详情（标题 + 完成 + 4属性）" />
+              </RadioGroup>
 
               <ColumnDropdown
                 columns={selectColumns}
@@ -391,9 +358,7 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                 label="分组列"
               />
               {selectColumns.length === 0 && (
-                <div className="-mt-2 text-sm text-gray-500 dark:text-slate-400">
-                  请先添加一个单选类型的列
-                </div>
+                <div className="text-tau-sm text-ink-3">请先添加一个单选类型的列</div>
               )}
 
               <ColumnDropdown
@@ -410,42 +375,32 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                 label="完成状态列"
               />
               {checkboxColumns.length === 0 && (
-                <div className="-mt-2 text-sm text-gray-500 dark:text-slate-400">
-                  当前没有复选框列，卡片将不显示完成状态
-                </div>
+                <div className="text-tau-sm text-ink-3">当前没有复选框列，卡片将不显示完成状态</div>
               )}
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                  卡片属性字段
-                </label>
+                <span className="text-tau-meta text-ink-2 font-medium">卡片属性字段</span>
                 {kanbanTemplate === "compact" ? (
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 dark:border-slate-700 dark:bg-zinc-900 dark:text-slate-400">
+                  <div className="bg-page text-tau-sm text-ink-3 rounded-tau-md px-3 py-2">
                     简洁模板不展示属性字段
                   </div>
                 ) : (
-                  <div className="max-h-44 space-y-2 overflow-y-auto rounded-xl border border-gray-200 bg-gray-50 p-2 dark:border-slate-700 dark:bg-zinc-950">
+                  <div className="bg-page rounded-tau-md max-h-44 overflow-y-auto p-1.5">
                     {kanbanDisplay.candidateFields.length === 0 ? (
-                      <div className="px-2 py-1 text-sm text-gray-500 dark:text-slate-400">
-                        暂无可显示字段
-                      </div>
+                      <div className="text-tau-sm text-ink-3 px-2 py-1">暂无可显示字段</div>
                     ) : (
                       kanbanDisplay.candidateFields.map(field => {
                         const checked = kanbanVisibleFieldIds.includes(field.id);
                         return (
                           <label
                             key={field.id}
-                            className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 hover:bg-gray-100 dark:hover:bg-zinc-800"
+                            className="rounded-tau-sm hover:bg-hover flex cursor-pointer items-center px-1.5 py-1"
                           >
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={checked}
                               onChange={() => handleVisibleFieldToggle(field.id)}
-                              className="h-4 w-4 accent-[var(--th-accent)]"
                             />
-                            <span className="text-sm text-gray-700 dark:text-slate-200">
-                              {field.title}
-                            </span>
+                            <span className="text-tau-sm text-ink-1 ml-2">{field.title}</span>
                           </label>
                         );
                       })
@@ -454,13 +409,13 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
                 )}
               </div>
 
-              <label className="flex cursor-pointer items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 dark:border-slate-700 dark:bg-zinc-950">
-                <span className="text-sm text-gray-700 dark:text-slate-200">显示字段标签</span>
-                <input
-                  type="checkbox"
+              <label className="bg-page rounded-tau-md flex cursor-pointer items-center justify-between px-3 py-2">
+                <span className="text-tau-sm text-ink-1">显示字段标签</span>
+                <Checkbox
                   checked={kanbanShowFieldLabels}
-                  onChange={event => setKanbanShowFieldLabels(event.target.checked)}
-                  className="h-4 w-4 accent-[var(--th-accent)]"
+                  onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
+                    setKanbanShowFieldLabels(event.target.checked)
+                  }
                 />
               </label>
             </>
@@ -468,22 +423,13 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
         </div>
 
         {/* Footer */}
-        <div className="mt-4 flex shrink-0 gap-2 border-t border-gray-200 pt-4 dark:border-slate-700">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 cursor-pointer rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm font-semibold text-gray-700 transition-all hover:bg-gray-200 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-200 dark:hover:bg-zinc-700"
-          >
+        <div className="flex shrink-0 gap-2">
+          <Button variant="secondary" size="sm" block onClick={onClose}>
             取消
-          </button>
-          <button
-            type="button"
-            onClick={handleOk}
-            disabled={!canSave}
-            className="flex-1 cursor-pointer rounded-xl border-none bg-[var(--th-btn-bg)] px-4 py-3 text-sm font-semibold text-[var(--th-btn-text)] shadow-[0_4px_14px_rgba(99,102,241,0.35),0_1px_2px_rgba(0,0,0,0.05)] transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:transform-none disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
-          >
+          </Button>
+          <Button variant="primary" size="sm" block onClick={handleOk} disabled={!canSave}>
             保存
-          </button>
+          </Button>
         </div>
       </div>
     );

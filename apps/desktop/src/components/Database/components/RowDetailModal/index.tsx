@@ -1,13 +1,5 @@
 import React, { useState, useEffect, useRef, memo, useMemo } from "react";
-import {
-  MdAdd,
-  MdDragIndicator,
-  MdDeleteOutline,
-  MdOutlineEdit,
-  MdFullscreen,
-  MdFullscreenExit,
-  MdClose,
-} from "react-icons/md";
+import { Maximize2, Minimize2, Pencil, Plus, Trash2, GripVertical, X } from "lucide-react";
 import { ColumnDef, RowData, CellValue } from "../../types";
 import { PluginManager } from "../../PluginManager";
 import { getContentById, createContent } from "@/commands/content";
@@ -16,13 +8,12 @@ import Editor from "@/components/ContentEditor";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import ColumnIcon from "@/components/Database/ColumnIcon";
-import { App } from "antd";
 import { useDrag, useDrop, DragSourceMonitor } from "react-dnd";
 import classNames from "classnames";
+import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
 import ColumnEditModal from "../../views/TableView/components/ColumnEditModal";
 import { useDatabaseStore } from "../../hooks";
 import CustomModal from "@/components/CustomModal";
-import useThemeColors from "@/hooks/useThemeColors";
 
 const COLUMN_ITEM_TYPE = "rowDetailModalColumn";
 
@@ -63,9 +54,7 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
     const [editingColumn, setEditingColumn] = useState<string | null>(null);
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
     const [isExpanded, setIsExpanded] = useState(false);
-
-    const { modal } = App.useApp();
-    const themeColors = useThemeColors();
+    const [confirmDeleteColumn, setConfirmDeleteColumn] = useState<ColumnDef | null>(null);
 
     const { columnOrder, moveColumn, editColumn, deleteColumnWithCleanup, columnWidths } =
       useDatabaseStore(state => ({
@@ -164,22 +153,17 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
         return;
       }
 
-      modal.confirm({
-        title: "确认删除属性",
-        content: `删除属性“${column.title}”将移除所有相关数据，是否继续？`,
-        okText: "删除",
-        cancelText: "取消",
-        okButtonProps: {
-          danger: true,
-        },
-        onOk: async () => {
-          await deleteColumnWithCleanup(column.id, pluginManager);
-          setRowData((prev: RowData) => {
-            const next = { ...prev } as RowData;
-            delete next[column.id];
-            return next;
-          });
-        },
+      setConfirmDeleteColumn(column);
+    });
+
+    const handleConfirmDeleteColumn = useMemoizedFn(async () => {
+      const column = confirmDeleteColumn;
+      if (!column) return;
+      await deleteColumnWithCleanup(column.id, pluginManager);
+      setRowData((prev: RowData) => {
+        const next = { ...prev } as RowData;
+        delete next[column.id];
+        return next;
       });
     });
 
@@ -249,43 +233,33 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                     onChange={e => handleColumnValueChange(primaryColumn.id, e.target.value)}
                     disabled={readonly || primaryColumn.readonly}
                     className={classNames(
-                      "w-full border-0 bg-transparent px-0 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:text-gray-100",
+                      "text-ink-1 w-full border-0 bg-transparent px-0 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60",
                       isExpanded ? "py-1 text-[34px]" : "py-1 text-2xl"
                     )}
                     placeholder={`输入${primaryColumn.title}`}
                   />
                 )}
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center gap-1.5">
                 <button
                   type="button"
-                  className={classNames(
-                    "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all",
-                    themeColors.tagBgClass,
-                    themeColors.textClass,
-                    themeColors.hoverClass
-                  )}
+                  className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm flex h-8 w-8 cursor-pointer items-center justify-center transition-colors"
                   onClick={() => setIsExpanded(prev => !prev)}
                   title={isExpanded ? "退出展开" : "展开"}
                 >
                   {isExpanded ? (
-                    <MdFullscreenExit className="h-4 w-4" />
+                    <Minimize2 className="h-4 w-4" strokeWidth={1.75} />
                   ) : (
-                    <MdFullscreen className="h-4 w-4" />
+                    <Maximize2 className="h-4 w-4" strokeWidth={1.75} />
                   )}
                 </button>
                 <button
                   type="button"
-                  className={classNames(
-                    "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all",
-                    themeColors.tagBgClass,
-                    themeColors.textClass,
-                    themeColors.hoverClass
-                  )}
+                  className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm flex h-8 w-8 cursor-pointer items-center justify-center transition-colors"
                   onClick={handleClose}
                   title="关闭"
                 >
-                  <MdClose className="h-4 w-4" />
+                  <X className="h-4 w-4" strokeWidth={1.75} />
                 </button>
               </div>
             </div>
@@ -318,9 +292,9 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
                       e.stopPropagation();
                       onAddColumn();
                     }}
-                    className="flex h-10 cursor-pointer items-center gap-2 rounded px-2 text-sm text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-zinc-700/50 dark:hover:text-gray-200"
+                    className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm text-tau-sm flex h-9 cursor-pointer items-center gap-2 px-2 transition-colors"
                   >
-                    <MdAdd className="mr-1.5 h-[14px] w-[14px]" />
+                    <Plus className="h-[14px] w-[14px]" strokeWidth={1.75} />
                     <span>添加属性</span>
                   </button>
                 )}
@@ -350,6 +324,18 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
               pluginManager={pluginManager}
             />
           )}
+          <ConfirmDialog
+            open={confirmDeleteColumn !== null}
+            onOpenChange={open => {
+              if (!open) setConfirmDeleteColumn(null);
+            }}
+            title="确认删除属性"
+            context={confirmDeleteColumn?.title}
+            impact="删除属性将移除该列的所有数据"
+            danger
+            confirmText="删除"
+            onConfirm={() => handleConfirmDeleteColumn()}
+          />
         </div>
       </CustomModal>
     );
@@ -477,58 +463,57 @@ const ColumnPropertyRow: React.FC<ColumnPropertyRowProps> = ({
       );
     }
 
-    return (
-      <span className="text-sm text-gray-900 dark:text-gray-100">
-        {String(rowData[column.id] || "")}
-      </span>
-    );
+    return <span className="text-tau-body text-ink-1">{String(rowData[column.id] || "")}</span>;
   };
 
   return (
     <div
       ref={ref}
-      className={classNames("flex min-w-0 items-center gap-3 rounded px-2 py-1 transition-colors", {
-        "cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-700/50": !readonly,
-        "opacity-50": isDragging,
-      })}
+      className={classNames(
+        "rounded-tau-sm flex min-w-0 items-center gap-3 px-2 py-1 transition-colors",
+        {
+          "hover:bg-hover cursor-pointer": !readonly,
+          "opacity-50": isDragging,
+        }
+      )}
       onClick={handleRowClick}
     >
       {!readonly && (
-        <span className="cursor-grab text-gray-400 dark:text-gray-500">
-          <MdDragIndicator />
+        <span className="text-ink-3 cursor-grab">
+          <GripVertical className="size-4" strokeWidth={1.75} />
         </span>
       )}
       <div className="flex w-32 shrink-0 items-center gap-2">
         <ColumnIcon type={column.type} pluginManager={pluginManager} />
-        <span className="text-sm text-gray-500 dark:text-gray-400">{column.title}</span>
+        <span className="text-tau-sm text-ink-2 truncate">{column.title}</span>
       </div>
       <div className="flex min-h-[40px] min-w-0 flex-1 items-center">
         <div className="w-full min-w-0">{valueRenderer()}</div>
       </div>
       {!readonly && (
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            className="text-ink-3 hover:text-ink-1 grid size-6 place-items-center rounded-[7px]"
             onClick={e => {
               e.stopPropagation();
               onEditColumnConfig(column.id);
             }}
             title="编辑属性"
           >
-            <MdOutlineEdit className="h-4 w-4" />
+            <Pencil className="h-[14px] w-[14px]" strokeWidth={1.75} />
           </button>
           {allowDeleteColumn && (
             <button
               type="button"
-              className="text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400"
+              className="text-ink-3 hover:text-danger grid size-6 place-items-center rounded-[7px]"
               onClick={e => {
                 e.stopPropagation();
                 onDeleteColumn(column);
               }}
               title="删除属性"
             >
-              <MdDeleteOutline className="h-4 w-4" />
+              <Trash2 className="h-[14px] w-[14px]" strokeWidth={1.75} />
             </button>
           )}
         </div>
