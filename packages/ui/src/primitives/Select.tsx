@@ -357,7 +357,9 @@ export function Select<V = string>({
       onKeyDown={onMenuKeyDown}
       className={clsx(
         "bg-surface border-line-1 shadow-float group/menu",
-        "fixed left-0 top-0 z-[250] max-h-[292px] max-w-[340px] overflow-y-auto",
+        // 滚动收口在列表区（搜索框固定其上）：外层只裁圆角——滚动条随列表落在
+        // 弹层 padding 内缘，上下留距、不溢出圆角
+        "fixed left-0 top-0 z-[250] flex max-h-[292px] max-w-[340px] flex-col overflow-hidden",
         "rounded-tau-lg border p-[5px]",
         "ease-tau-out transition-[opacity,transform,visibility] duration-[160ms]",
         open ? "opacity-100" : "invisible translate-y-[4px] opacity-0",
@@ -365,7 +367,7 @@ export function Select<V = string>({
       )}
     >
       {searchable && (
-        <div className="bg-surface border-line-1 sticky -top-[5px] -mx-[5px] -mb-[5px] border-b px-[5px] pb-2 pt-[5px]">
+        <div className="border-line-1 bg-surface flex-none border-b pb-2">
           <div className="border-line-1 bg-surface focus-within:border-accent rounded-tau-sm relative flex items-center border transition-colors">
             <Search className="text-ink-3 pointer-events-none absolute left-2.5 size-[13px]" />
             <input
@@ -383,64 +385,66 @@ export function Select<V = string>({
           </div>
         </div>
       )}
-      {rows.map(row =>
-        row.kind === "group" ? (
+      <div className="min-h-0 flex-1 overflow-y-auto pt-[5px]">
+        {rows.map(row =>
+          row.kind === "group" ? (
+            <div
+              key={`g-${row.key}`}
+              className="text-ink-3 text-tau-tiny px-2.5 pb-1 pt-2 font-semibold first:pt-1"
+            >
+              {row.key || "其他"}
+            </div>
+          ) : (
+            <div
+              key={String(row.opt.value)}
+              id={`${menuId}-opt-${row.index}`}
+              role="option"
+              aria-selected={isSelected(row.opt.value)}
+              data-index={row.index}
+              data-hl={hl === row.index}
+              data-selected={isSelected(row.opt.value)}
+              data-disabled={row.opt.disabled === true}
+              onPointerEnter={() => !row.opt.disabled && setHl(row.index)}
+              onClick={() => pick(row.opt)}
+              className={clsx(
+                "text-ink-1 rounded-tau-sm flex h-8 cursor-pointer items-center gap-2 px-2.5",
+                size === "sm" ? "text-tau-sm" : "text-tau-body",
+                "data-[selected=true]:bg-selected data-[selected=true]:font-[550]",
+                "data-[hl=true]:data-[selected=false]:bg-hover",
+                "data-[disabled=true]:text-ink-3 data-[disabled=true]:pointer-events-none"
+              )}
+            >
+              <span className="min-w-0 flex-1 truncate">{row.opt.label}</span>
+              <Check
+                className={clsx(
+                  "text-accent-text size-[15px] shrink-0",
+                  "transition-[opacity,transform] duration-[130ms]",
+                  isSelected(row.opt.value) ? "scale-100 opacity-100" : "scale-80 opacity-0"
+                )}
+              />
+            </div>
+          )
+        )}
+        {showCreatable && (
           <div
-            key={`g-${row.key}`}
-            className="text-ink-3 text-tau-tiny px-2.5 pb-1 pt-2 font-semibold first:pt-1"
-          >
-            {row.key || "其他"}
-          </div>
-        ) : (
-          <div
-            key={String(row.opt.value)}
-            id={`${menuId}-opt-${row.index}`}
             role="option"
-            aria-selected={isSelected(row.opt.value)}
-            data-index={row.index}
-            data-hl={hl === row.index}
-            data-selected={isSelected(row.opt.value)}
-            data-disabled={row.opt.disabled === true}
-            onPointerEnter={() => !row.opt.disabled && setHl(row.index)}
-            onClick={() => pick(row.opt)}
+            aria-selected={false}
+            onClick={() => {
+              pick({ value: createValue as V, label: createValue });
+            }}
             className={clsx(
-              "text-ink-1 rounded-tau-sm flex h-8 cursor-pointer items-center gap-2 px-2.5",
-              size === "sm" ? "text-tau-sm" : "text-tau-body",
-              "data-[selected=true]:bg-selected data-[selected=true]:font-[550]",
-              "data-[hl=true]:data-[selected=false]:bg-hover",
-              "data-[disabled=true]:text-ink-3 data-[disabled=true]:pointer-events-none"
+              "text-accent-text hover:bg-hover rounded-tau-sm flex h-8 cursor-pointer items-center gap-2 px-2.5",
+              size === "sm" ? "text-tau-sm" : "text-tau-body"
             )}
           >
-            <span className="min-w-0 flex-1 truncate">{row.opt.label}</span>
-            <Check
-              className={clsx(
-                "text-accent-text size-[15px] shrink-0",
-                "transition-[opacity,transform] duration-[130ms]",
-                isSelected(row.opt.value) ? "scale-100 opacity-100" : "scale-80 opacity-0"
-              )}
-            />
+            <Plus aria-hidden className="size-[13px] shrink-0" strokeWidth={2} />
+            <span className="min-w-0 flex-1 truncate">使用 &ldquo;{createValue}&rdquo;</span>
           </div>
-        )
-      )}
-      {showCreatable && (
-        <div
-          role="option"
-          aria-selected={false}
-          onClick={() => {
-            pick({ value: createValue as V, label: createValue });
-          }}
-          className={clsx(
-            "text-accent-text hover:bg-hover rounded-tau-sm flex h-8 cursor-pointer items-center gap-2 px-2.5",
-            size === "sm" ? "text-tau-sm" : "text-tau-body"
-          )}
-        >
-          <Plus aria-hidden className="size-[13px] shrink-0" strokeWidth={2} />
-          <span className="min-w-0 flex-1 truncate">使用 &ldquo;{createValue}&rdquo;</span>
-        </div>
-      )}
-      {visible.length === 0 && !showCreatable && (
-        <div className="text-ink-3 text-tau-meta py-4 text-center">{emptyText}</div>
-      )}
+        )}
+        {visible.length === 0 && !showCreatable && (
+          <div className="text-ink-3 text-tau-meta py-4 text-center">{emptyText}</div>
+        )}
+      </div>
     </div>,
     portalContainer
   );
@@ -467,7 +471,7 @@ export function Select<V = string>({
         onKeyDown={onTriggerKeyDown}
         className={clsx(
           "border-line-1 bg-surface text-ink-1 group/trigger",
-          "rounded-tau-sm inline-flex items-center gap-2 border",
+          "rounded-tau-sm inline-flex w-full items-center gap-2 border",
           "ease-tau-out transition-[border-color,box-shadow] duration-[160ms]",
           "hover:not-focus-visible:border-ink-3/50 focus-visible:border-accent outline-none focus-visible:shadow-[var(--tau-focus-ring)]",
           "data-[open=true]:border-accent data-[status=error]:border-danger",
