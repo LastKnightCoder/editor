@@ -36,6 +36,7 @@ import {
   type PaletteScope,
 } from "./searchMeta";
 import { useSearchContent, resultDisplay, relativeTime } from "./queries";
+import { useSettingsStore } from "@/app/settingsStore";
 import { useThemeStore } from "@tau/ui/theme/runtime";
 import { DEFAULT_DARK_KEY, DEFAULT_LIGHT_KEY } from "@tau/ui/theme";
 import { Spinner } from "@tau/ui/Loading";
@@ -144,6 +145,8 @@ export function SearchPalette() {
         setMode(next);
         toast.success(`已切换到${next === DEFAULT_DARK_KEY ? "深色" : "浅色"}主题`);
       });
+    } else if (action === "open-settings") {
+      closeAnd(() => useSettingsStore.getState().openSettings());
     }
   };
 

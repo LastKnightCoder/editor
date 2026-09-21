@@ -42,6 +42,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** 徽标数据源标识（后续接 query：如闪卡到期数） */
   badge?: "review-due";
+  /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
+  opensOverlay?: "settings";
 }
 
 export interface NavSection {
@@ -99,5 +101,6 @@ export const NAV_SECTIONS: NavSection[] = [
 ];
 
 export const NAV_FOOTER: NavItem[] = [
-  { key: "settings", label: "设置", icon: SlidersHorizontal }, // legacy: Settings（15 子页拆解）
+  // legacy 全屏设置页仍走 TabType.Settings（/legacy 侧）；新壳层入口打开设置弹窗（D-028）
+  { key: "settings", label: "设置", icon: SlidersHorizontal, opensOverlay: "settings" },
 ];
