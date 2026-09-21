@@ -8,6 +8,11 @@ let VITE_DEV_SERVER_URL: string;
 let indexHtml: string;
 let preload: string;
 
+// 主窗口内容下限（CSS px）：与渲染壳层 .app 的 min-w-[1080px] 对齐，
+// 实际 minWidth 按页面 zoomFactor 在此基准上放大
+const CONTENT_MIN_WIDTH = 1080;
+const CONTENT_MIN_HEIGHT = 600;
+
 // 窗口类型定义
 type EditorType =
   | "card"
@@ -86,6 +91,29 @@ export class WindowManager {
 
     ipcMain.handle("show-and-focus-window", () => {
       this.showOrCreateMainWindow();
+    });
+
+    // 页面缩放（Ctrl±/Ctrl+滚轮）压缩 CSS 视口（视口宽 = 窗口 DIP / zoomFactor），
+    // 渲染端在 zoom 变化时上报刷新：主窗口最小尺寸 = 内容下限 × zoomFactor，
+    // 保证任意缩放下壳层内容不被裁。zoom-changed 事件不覆盖键盘路径，故由渲染端上报
+    ipcMain.handle("refresh-window-min-size", event => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      if (!win || !this.mainWindows.has(win)) return;
+      const zoom = win.webContents.getZoomFactor();
+      const nextWidth = Math.ceil(CONTENT_MIN_WIDTH * zoom);
+      const nextHeight = Math.ceil(CONTENT_MIN_HEIGHT * zoom);
+      const [curWidth, curHeight] = win.getMinimumSize();
+      if (curWidth === nextWidth && curHeight === nextHeight) return;
+      win.setMinimumSize(nextWidth, nextHeight);
+      // Windows 上 setMinimumSize 只记录约束不立即钳制当前尺寸：停在旧下限的
+      // 窗口（如 1080）在 zoom 放大后不会自动撑大，须在此补齐到新下限
+      const [width, height] = win.getSize();
+      if (width < nextWidth || height < nextHeight) {
+        win.setSize(Math.max(width, nextWidth), Math.max(height, nextHeight));
+      }
+      log.debug(
+        `按缩放系数更新主窗口最小尺寸: zoom=${zoom.toFixed(2)}, ${nextWidth}x${nextHeight}`
+      );
     });
 
     ipcMain.handle("get-full-screen-status", event => {
@@ -344,6 +372,10 @@ export class WindowManager {
     const win = new BrowserWindow({
       width: 1200,
       height: 800,
+      // 与渲染壳层 .app 的 min-w-[1080px] 对齐：窗口不可小于内容下限，杜绝整树右侧被裁。
+      // 页面缩放下由渲染端经 refresh-window-min-size 按 zoomFactor 放大此下限
+      minWidth: CONTENT_MIN_WIDTH,
+      minHeight: CONTENT_MIN_HEIGHT,
       autoHideMenuBar: true,
       icon: path.join(path.dirname(preload), "../../build/icon.png"),
       webPreferences: {

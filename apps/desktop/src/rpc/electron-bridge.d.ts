@@ -8,6 +8,8 @@ declare global {
     off: (channel: string, listener: (...args: unknown[]) => void) => void;
     /** 渲染进程 console 劫持后的日志上报（fire-and-forget），由主进程写入 session 日志文件 */
     sendLog: (level: string, message: string) => void;
+    /** 页面缩放系数（Ctrl±/Ctrl+滚轮等 Chromium 缩放路径） */
+    getZoomFactor: () => number;
   }
 }
 

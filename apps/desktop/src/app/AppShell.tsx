@@ -63,6 +63,22 @@ export default function AppShell() {
     };
   }, [connect]);
 
+  /* 页面缩放（Ctrl±/Ctrl+滚轮）压缩 CSS 视口，壳层 min-w 会超出视口被裁：zoom
+     变化时上报主进程按 zoomFactor 放大窗口最小尺寸。zoom 变化必伴生 window
+     resize（视口 CSS 尺寸改变），resize 即统一信号源，覆盖全部缩放路径 */
+  useEffect(() => {
+    let lastZoom = 0;
+    const reportZoom = () => {
+      const zoom = window.electron?.getZoomFactor?.() ?? 1;
+      if (zoom === lastZoom) return;
+      lastZoom = zoom;
+      void window.electron?.invoke("refresh-window-min-size");
+    };
+    reportZoom();
+    window.addEventListener("resize", reportZoom);
+    return () => window.removeEventListener("resize", reportZoom);
+  }, []);
+
   if (boot !== "ready") {
     return (
       <div className={shellRootClass}>
