@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>卡片库设计探索 · 总览</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #faf6ec;
+    --bg-hover: rgba(67, 57, 44, 0.05);
+    --ink-1: #43392c; --ink-2: #736552; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --line: #e9e1d2;
+    --ok: #61795f; --warn: #a38c4d; --danger: #b0564d;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg-page); color: var(--ink-1);
+    font: 14px/1.75 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 40px 8vw 80px;
+  }
+  header h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+  header .sub { color: var(--ink-2); margin-top: 4px; max-width: 78ch; }
+  header .meta { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+  h2 { font-size: 16px; margin: 42px 0 14px; font-weight: 650; }
+  h2 .tag { font-size: 11.5px; font-weight: 500; color: var(--accent-text); background: var(--accent-soft); border-radius: 99px; padding: 1px 10px; margin-left: 8px; vertical-align: 2px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--bg-surface); border-radius: 16px; padding: 20px 22px;
+    box-shadow: 0 1px 2px rgba(67, 57, 44, 0.04), 0 6px 24px rgba(67, 57, 44, 0.05);
+    text-decoration: none; color: inherit; display: block;
+    transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 200ms;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(67, 57, 44, 0.05), 0 12px 32px rgba(67, 57, 44, 0.09); }
+  .card .no { font: 600 12px/1 ui-monospace, Consolas, monospace; color: var(--accent-text); }
+  .card h3 { font-size: 15.5px; margin: 6px 0 2px; }
+  .card .who { font-size: 12px; color: var(--ink-3); }
+  .card p { font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  .card .verdict { margin-top: 10px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .verdict .good { color: var(--ok); }
+  .verdict .bad { color: var(--danger); }
+
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(67, 57, 44, 0.04), 0 6px 24px rgba(67, 57, 44, 0.05); font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--bg-group); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line); }
+  td:first-child { color: var(--ink-1); font-weight: 500; }
+  tr > td:not(:first-child), tr > th:not(:first-child) { min-width: 14ch; }
+  .pill { display: inline-block; font-size: 11px; border-radius: 99px; padding: 0 9px; margin-right: 4px; white-space: nowrap; }
+  .pill.done { color: var(--ok); background: #e5ede2; }
+  .pill.light { color: var(--warn); background: #f6efd6; }
+  .pill.new { color: var(--accent-text); background: var(--accent-soft); }
+  .pill.cut { color: var(--danger); background: rgba(176,86,77,0.12); }
+
+  .callout {
+    background: var(--bg-surface); border-radius: 14px; padding: 18px 22px; margin-top: 14px;
+    box-shadow: 0 1px 2px rgba(67, 57, 44, 0.04), 0 6px 24px rgba(67, 57, 44, 0.05);
+    border-left: 3px solid var(--accent);
+  }
+  .callout b { color: var(--ink-1); }
+  .callout p { color: var(--ink-2); font-size: 13.5px; }
+  .callout p + p { margin-top: 8px; }
+  code { font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--bg-group); padding: 1px 6px; border-radius: 5px; color: var(--accent-text); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>卡片库设计探索 · 三方案</h1>
+  <p class="sub">背景：卡片库（<code>card-list-view</code>，导航 key <code>cards</code>「知识 · 卡片库」）是 Zettelkasten 式卡片盒的列表页，现状是「左侧标签树 + 单列虚拟滚动卡片流」，外挂图谱 / 数据库两个视图。单列 <code>max-w-800</code> 一屏仅 1-2 张卡，宽度大量闲置；<code>getAllCards</code> 全量拉取（每条含完整正文 JSON）；卡片操作（窗口打开 / 置顶 / 演示 / 删除 / 导出×4 / 编辑分类）全部收在 antd Dropdown；预览与新建都是居中弹窗。以下三个方向共用同一套 mock 数据（36 张卡片 / 同一批正文、标签、链接），浏览器打开即可交互（分类 / 标签 / 搜索过滤、视图切换、预览、键盘动线均为真实现）。</p>
+  <p class="meta">2026-09-20 初版 · 2026-09-20 第二轮（用户反馈融合） · cream 主题实测色值 · 壳层与 home-final / articles 同构 · 卡片正文为纯文本摘录示意（真实场景为 tau-editor 富文本只读预览，文献卡带引用样式）</p>
+</header>
+
+<h2>旧版功能盘点<span class="tag">迁移底线 · 三方案必须全承接</span></h2>
+<table>
+  <tr><th>功能区</th><th>旧版实现（card-list-view）</th><th>新方案承接方式（三方案共通）</th></tr>
+  <tr><td>三种视图</td><td>列表 / 关系图谱（LinkGraph）/ 数据库（Database 组件，table·gallery·calendar·kanban 四型视图、行内编辑分类/标签/链接、列宽持久化、行增删）</td><td>三视图全保留，切换入口改挂标题栏面包屑下拉（2026-09-21 落地裁决，见下方基线修正；mock 示意仍画在工具栏）；图谱 / 表格整块复用旧组件（A 案给了完整示意），仅列表视图重排</td></tr>
+  <tr><td>四分类筛选</td><td>顶栏 Dropdown（全部/闪念/文献/永久/主题，Zettelkasten 产线）</td><td>升格为常驻分类 chips（A/C 在树栏，B 在筛选带），带计数</td></tr>
+  <tr><td>层级标签树</td><td>左侧 CardTreePanel（<code>tag/child</code> 前缀匹配过滤，可调宽 200-400px）</td><td>A/C 保留左树（层级展开 + 计数 + 面包屑）；B 改横向 pills（顶层 + 二级链式展开）——<b>此为 B 的取舍点，需裁决</b></td></tr>
+  <tr><td>搜索</td><td>SearchInput → <code>searchContent</code> 语义搜索（limit 200，embedding 模型信息注入）</td><td>工具栏搜索框保留；mock 用包含匹配示意，落地走既有命令</td></tr>
+  <tr><td>排序</td><td>置顶优先 → 创建时间降序</td><td>保留；B/C 叠加时间分组（置顶/今天/昨天/本周/本月/更早）</td></tr>
+  <tr><td>新建卡片</td><td>居中弹窗 CreateCard（tau-editor + 标签增删改 + 草稿 localStorage 暂存）</td><td>A/B 保留弹窗；C 升格为右栏新建态（弹窗废除）——<b>C 的核心主张</b></td></tr>
+  <tr><td>导入</td><td>「+」菜单 → Markdown 多选导入（<code>importFromMarkdown</code>，分类默认闪念）</td><td>工具栏右上角导入 icon（对齐文章页 D-015 裁决：废除右下悬浮球）</td></tr>
+  <tr><td>预览 / 快速编辑</td><td>居中弹窗 CardPreview（可直接编辑正文，0.5s 自动保存；标签增删改；元信息；「前往详情」）</td><td>弹窗<b>纯净化</b>（第四轮裁决）：只承担编辑正文 + 标签管理，头部仅「进入详情 / 关闭」——与旧版定位一致；操作不进弹窗</td></tr>
+  <tr><td>卡片操作 ×9</td><td>Dropdown：窗口打开（Electron）/ 置顶 / 演示模式 / 删除（confirm）/ 导出 MD·图片·EPUB·PDF / 编辑分类</td><td>全部收归卡片行内：hover 平铺「详情 / 更多」，⋯ 菜单承载其余（置顶 / 演示 / 窗口打开 / 导出×4 / 分类 / 删除）；四个导出 Dialog、PresentationMode、<code>openCardInNewWindow</code> 复用</td></tr>
+  <tr><td>进入详情</td><td>卡片右上角 icon → TabType.CardDetail</td><td>hover 平铺「进入详情」→ <code>navigator.push("card-detail/:id")</code>（Page 协议）</td></tr>
+  <tr><td>拖拽进聊天</td><td><code>useChatContentDrag</code>（卡片可拖到聊天侧栏作引用）</td><td>卡片节点保留 drag 绑定（纯迁移，视觉不呈现）</td></tr>
+  <tr><td>跨编辑器同步</td><td><code>defaultCardEventBus</code>（card:created / card:updated，列表与弹窗、独立窗口间同步）</td><td>纯迁移，随数据层接线走 react-query invalidation + 事件总线</td></tr>
+  <tr><td>回到顶部悬浮球</td><td>FloatButton（scrollTop &gt; 100 出现）</td><td><span class="pill cut">废除</span>对齐文章页裁决（右下悬浮球废除，无限滚动 + 键盘 Home/↑↑）</td></tr>
+  <tr><td>时间线视图</td><td>已注释掉（ViewMode.Timeline 死代码）</td><td><span class="pill cut">不承接</span>维持注释状态；B 案的时间分组已覆盖其意图</td></tr>
+</table>
+
+<h2>三个方案</h2>
+<div class="cards">
+  <a class="card" href="plan-a-wall.html">
+    <div class="no">方案 A</div>
+    <h3>卡片墙 <span class="who">· 瀑布流网格</span></h3>
+    <p>延续旧版「一卡一世界」的卡片隐喻，废除单列虚拟列表改为多列瀑布流：置顶升格双列宽横卡，四分类色点 + 文献卡引用样式 + 链接计数入卡面；左侧层级标签树保留。图谱 / 表格视图给了完整示意（表格含四型视图 tabs）。</p>
+    <div class="verdict"><span class="good">✓ 功能覆盖最全、卡片「作品感」最强、三视图示意完整</span><span class="bad">✗ 密度最低（一屏 ~8 张），长文本卡片高度不齐</span></div>
+  </a>
+  <a class="card" href="plan-b-rows.html">
+    <div class="no">方案 B</div>
+    <h3>卡片盒行 <span class="who">· 高密度列表</span></h3>
+    <p>与今日页「继续编辑」、文章页 B 案同构的行式语言：时间分组 sticky 头 + 行首分类色条 + 摘要单行 + 标签/链接/字数列 + hover 平铺操作；↑↓ 键盘移动 + ↵ 预览。标签树改横向 pills（取舍点）。</p>
+    <div class="verdict"><span class="good">✓ 密度最高（一屏 ~18 行）、键盘效率高、与首页基因连续</span><span class="bad">✗ 无卡片形态感，长摘要看不全；标签层级横向展开较弱</span></div>
+  </a>
+  <a class="card" href="plan-c-desk.html">
+    <div class="no">方案 C</div>
+    <h3>双栏工作台 <span class="who">· 列表 + 常驻预览</span></h3>
+    <p>邮件客户端式三栏（标签树 / 紧凑列表 / 常驻预览）：预览弹窗升格为右栏工作面——正文可直接编辑、标签增删、链接卡片 chips 点击跳转、操作全部平铺；新建也在右栏完成（弹窗废除）。读卡 / 改卡 / 连卡不经弹层。</p>
+    <div class="verdict"><span class="good">✓ 编辑动线最短（预览即编辑）、链接跳转闭环、键盘动线完整</span><span class="bad">✗ 三栏挤占宽度（窄窗口需折叠），列表密度受中栏限宽</span></div>
+  </a>
+</div>
+
+<h2>第二轮 · 融合方案 D<span class="tag">2026-09-20 评审反馈</span></h2>
+<p class="sub" style="margin-bottom:14px">第一轮反馈（各方案吸引点）：<b>A 的左侧标签树</b>、<b>B 的时间分组排序</b>、<b>C 的明确工作区</b>；另裁决：<b>页内不设搜索框</b>（titlebar Ctrl K 全局搜索已覆盖，本页只做浏览与加工，A/B/C 已同步移除）。据此产出融合方案 D。</p>
+<div class="cards">
+  <a class="card" href="plan-d-fusion.html">
+    <div class="no">方案 D</div>
+    <h3>融合工作台 <span class="who">· 第二轮 · 已被第三轮推翻，留档对照</span></h3>
+    <p>三基因合一：左栏分类 + 层级标签树（A）· 中栏时间分组列表，分组头 sticky（B）· 右栏独立工作台大卡——预览即编辑、链接 chips 跳转、操作平铺、新建同区完成，更重阴影与左侧色脊强化「工作区与其他明确分开」（C）。无页内搜索，↑↓ 浏览 + ↵ 选中 + Ctrl ↵ 保存新建。</p>
+    <div class="verdict"><span class="good">✓ 三个吸引点全部保留、浏览与加工同屏、键盘动线完整</span><span class="bad">✗ 弃用：第三轮裁决回到卡片墙形态（用户更喜欢 A 的卡面呈现）</span></div>
+  </a>
+</div>
+
+<h2>第三轮 · A1 卡片墙 + 时间分组<span class="tag">2026-09-20 定稿方向</span></h2>
+<p class="sub" style="margin-bottom:14px">用户裁决：<b>还是喜欢 A</b>，在 A 基础上叠加 B 的时间分组看效果。A1 由此产生——A 骨架原样（左树 / 瀑布流 / 置顶双列宽横卡 / 图谱 / 表格 / 预览弹窗），其上按 <b>置顶 → 今天 → 昨天 → 本周 → 本月 → 更早</b> 分段：每段一个 sticky 分组头（计数随筛选联动），段内各自瀑布流（列内高度均衡，不跨组补位，时间锚点清晰）。</p>
+<div class="cards">
+  <a class="card" href="plan-a1-grouped.html">
+    <div class="no">A1</div>
+    <h3>卡片墙 · 时间分组 <span class="who">· 定稿方向</span></h3>
+    <p>A 的全部 + B 的时间分段：置顶横卡区不变；今天/昨天/本周/本月/更早每组 sticky 分组头 + 组内瀑布流，滚动自带时间锚点；分组计数随分类 / 标签筛选联动；工具栏筛选搜索（第五轮恢复，聚焦时展宽）；预览弹窗纯净化（编辑 + 标签，操作在 ⋯ 菜单）。</p>
+    <div class="verdict"><span class="good">✓ 卡片「作品感」与时间秩序兼得、与 A3 月刊（文章页）同构</span><span class="bad">✗ 比纯 A 密度略降（每组首行不满列）；跨组跳转靠滚动</span></div>
+  </a>
+</div>
+
+<h2>维度对比</h2>
+<table>
+  <tr><th>维度</th><th>A 卡片墙</th><th>B 卡片盒行</th><th>C 双栏工作台</th><th>D 融合工作台</th><th>A1 墙+分组</th></tr>
+  <tr><td>单屏可见条数</td><td>~8 张（瀑布流 3-5 列）</td><td><b>~18 行</b></td><td>列表 ~14 行 + 预览 1 张</td><td>列表 ~14 行 + 工作台 1 张</td><td>~8 张（每组各自布局）</td></tr>
+  <tr><td>与旧版习惯连续性</td><td><b>强（卡片隐喻保留）</b></td><td>中（单列→行式）</td><td>中（弹窗→常驻栏）</td><td>中（弹窗→工作台）</td><td><b>强（卡片隐喻保留）</b></td></tr>
+  <tr><td>正文预览量</td><td><b>每卡 3-5 行（最充分）</b></td><td>单行截断</td><td>右栏全文</td><td>工作台全文</td><td>每卡 3-5 行</td></tr>
+  <tr><td>编辑动线</td><td>弹窗内编辑（2 步）</td><td>弹窗内编辑（2 步）</td><td><b>右栏直接编辑（1 步）</b></td><td><b>工作台直接编辑（1 步）</b></td><td>弹窗内编辑（2 步）</td></tr>
+  <tr><td>链接 / 图谱动线</td><td>⇄ 计数 → 切图谱</td><td>计数 → 切图谱</td><td><b>chips 点击跳转 + 「在图谱中查看」</b></td><td><b>chips 点击跳转 + 「在图谱中查看」</b></td><td>⇄ 计数 → 切图谱</td></tr>
+  <tr><td>标签树能力</td><td><b>完整（层级树 + 面包屑）</b></td><td>横向 pills（二级链式，层级感弱）</td><td><b>完整（与分类合并进左栏）</b></td><td><b>完整（与分类合并进左栏）</b></td><td><b>完整（层级树 + 面包屑）</b></td></tr>
+  <tr><td>时间分组</td><td>无（仅置顶区）</td><td><b>有（sticky 分组头）</b></td><td>无</td><td><b>有（sticky 分组头）</b></td><td><b>有（sticky 分组头 + 组内瀑布流）</b></td></tr>
+  <tr><td>键盘效率</td><td>低（鼠标为主）</td><td>高（↑↓ + ↵）</td><td><b>高（↑↓ 即预览）</b></td><td><b>高（↑↓ 即预览）</b></td><td>低（鼠标为主）</td></tr>
+  <tr><td>宽度利用</td><td>网格随宽增列</td><td>行拉满全宽</td><td>三栏固定分配</td><td>三栏固定分配（224 / 376 / 剩余）</td><td>网格随宽增列</td></tr>
+  <tr><td>适合定位</td><td>「卡片即作品」的展示墙</td><td>「先找再开」的效率档案盒</td><td>「读改连一体」的加工台</td><td><b>「浏览 + 加工」的常驻工作台</b></td><td><b>「作品感 + 时间秩序」的展示墙</b></td></tr>
+</table>
+
+<h2>实现成本映射<span class="tag">数据接线评估</span></h2>
+<table>
+  <tr><th>页面区块</th><th>数据来源</th><th>状态</th></tr>
+  <tr><td>列表数据（渐进拉取）</td><td>需新增主进程命令 <code>listCards({limit, offset, category, tagPrefix, query})</code>：JOIN contents 只取 <code>count</code> 与首块文本，ORDER BY is_top DESC + create_time DESC。现有 <code>getAllCards</code> 每条含完整正文 JSON，直接违反「列表禁止全量拉取」规范（与文章页 D-015 同款问题）</td><td><span class="pill new">需新增</span>主进程查询命令 1 个（BACKGROUND 层）</td></tr>
+  <tr><td>标签树（层级 + 计数）</td><td><code>tags</code> 为 JSON 文本列：主进程轻量聚合命令（仅扫 tags 列按 <code>/</code> 前缀聚合计数），或列表首屏前端派生（36-数千张量级均可行）</td><td><span class="pill light">轻量</span>聚合命令或前端派生二选一</td></tr>
+  <tr><td>分类计数 chips</td><td>同一聚合命令顺带 <code>GROUP BY category</code>，或前端对已拉页派生（全量计数需单独 COUNT 查询）</td><td><span class="pill light">轻量</span></td></tr>
+  <tr><td>容器级响应式（等高网格）</td><td>卡片墙纯 CSS <code>auto-fill + minmax(min(100%,288px),1fr)</code>：同行 stretch 等高 + 列数随容器宽增减（侧边栏收起/展开、窄窗口统一覆盖，窄于单卡宽降单列）——无 JS observer、无 @container（<code>container-type</code> 与 track 百分比冲突已验证弃用），对齐文章页 A3 做法</td><td><span class="pill done">纯 CSS</span>零新增依赖</td></tr>
+  <tr><td>页内筛选搜索（A1 恢复，落地时撤销）</td><td>工具栏搜索框做<b>当前列表轻量筛选</b>（标题/标签/分类包含匹配）；与 titlebar Ctrl K 全局语义搜索并存——落地时用户裁决<b>撤销</b>：语义检索统一走 Ctrl K，本页只做分类 / 标签筛选（DECISIONS.md D-024 追记）。本行为 mock 期方案对比留档</td><td><span class="pill light">已撤销</span>不落地</td></tr>
+  <tr><td>摘要文本（卡面 / 行内 / 右栏）</td><td>正文首块纯文本：列表命令直接返回 <code>excerpt</code> 字段（推荐，避免拉正文），渲染端 <code>getEditorText</code> 作兜底</td><td><span class="pill light">命令扩展</span></td></tr>
+  <tr><td>置顶 / 删除 / 分类变更</td><td><code>updateCard</code>（isTop / category）/ <code>deleteCard</code> 现有命令，删除走确认浮层</td><td><span class="pill done">已接线</span>纯 UI 迁移</td></tr>
+  <tr><td>新建 / 导入 Markdown</td><td><code>createCard</code> / <code>selectFile + readTextFile + importFromMarkdown</code> 均已有；草稿 localStorage 行为保留</td><td><span class="pill done">已接线</span></td></tr>
+  <tr><td>预览编辑 + 自动保存</td><td>旧 CardPreview 的 <code>useEditCard</code>（0.5s 节流保存 + unmount 兜底）整体迁移；C 案换宿主（弹窗→右栏）逻辑不变</td><td><span class="pill done">已接线</span>换宿主</td></tr>
+  <tr><td>导出 MD/图片/EPUB/PDF · 演示 · 独立窗口</td><td>四个导出 Dialog、PresentationMode、<code>openCardInNewWindow</code> 均已有（8e3807c 已 Dialog 化），迁移复用</td><td><span class="pill done">已接线</span>纯 UI 迁移</td></tr>
+  <tr><td>图谱视图</td><td>LinkGraph 组件 + <code>getInlineLinks</code>（links ∪ 内联链接）整体复用，仅容器换壳</td><td><span class="pill done">已接线</span>整块复用</td></tr>
+  <tr><td>数据库视图</td><td>Database 组件 + <code>useCardDatabaseViewStore</code>（视图/列宽持久化）+ CardLinksPlugin 整块复用</td><td><span class="pill done">已接线</span>整块复用</td></tr>
+  <tr><td>Page 协议接线</td><td><code>features/cards/pages/cards.page.tsx</code> definePage 声明（key 已占位 navigation.ts），queries 走 react-query + <code>refetchOnWindowFocus</code>；卡片详情页 <code>card-detail/:id</code> 需另行裁决（match: "params"）</td><td><span class="pill new">需新增</span>页面域四件套</td></tr>
+</table>
+
+<div class="callout">
+  <p><b>基线裁决（对齐文章页 D-015，自动适用，无需重议）</b>：新建 / 导入入口在工具栏<b>右上角</b>（右下悬浮球废除，连带废除回顶悬浮球）；列表数据 <b>LIMIT 渐进拉取 + 无限滚动</b>（废除 <code>getAllCards</code> 全量）；「窗口打开」仅 Electron 渲染（<code>isElectron</code>）；Esc 只承担浮层退场（预览弹窗 / 菜单 Esc 关闭即此口径）。</p>
+  <p><b>基线追加（2026-09-20 第二轮）</b>：<b>页内不设搜索框</b>——titlebar 全局搜索（Ctrl K，<code>searchContent</code> types:["card"] 已覆盖卡片语义搜索）统一承担，本页只做浏览与加工；A/B/C/D 四案已同步移除，空态文案引导 Ctrl K。</p>
+  <p><b>基线修正（2026-09-20 第五轮，仅 A1）</b>：<b>恢复工具栏筛选搜索</b>——页内搜索的定位是「当前列表轻量筛选」（操作轻、即时、不离开浏览上下文），与 Ctrl K 全局语义搜索（跨实体跳转）并不重复；第二轮裁决对 A1 不再适用，A/B/D 维持无搜索留档。</p>
+  <p><b>基线修正（2026-09-20 落地后）</b>：<b>撤销页内搜索</b>——第五轮恢复的工具栏搜索框在落地后被否决移除：语义检索由全局命令面板（Ctrl K，<code>searchContent</code> types:["card"]）统一承担，本页只做分类 / 标签筛选，空态文案引导 Ctrl K（回到第二轮基线，见 DECISIONS.md D-024 追记）。<code>plan-a1-grouped.html</code> 的搜索框形制保留为该轮留档。</p>
+  <p><b>基线修正（2026-09-21 落地后）</b>：<b>视图切换移入标题栏面包屑</b>——筛选行右端「卡片墙 / 图谱 / 表格」三项并排被评「拥挤且不协调」（与左侧分类胶囊材质、尺寸、选中形制都不一致），改经 <code>usePageBreadcrumb</code> 挂标题栏面包屑下拉（「卡片库 / [卡片墙 ▾]」，同文章详情速切器形制，Menu 命令项 + 选中高亮，不用 Radio）；筛选行只留分类 chips。A1 mockup 的「筛选行右端视图切换」形制保留为该轮留档。</p>
+  <p><b>基线追加（2026-09-20 第四轮）</b>：<b>CardPreview 弹窗纯净化</b>——弹窗只承担纯粹的编辑 / 预览（正文编辑 + 标签管理），头部仅「进入详情 / 关闭」，与旧版定位对齐；置顶 / 导出 / 删除 / 演示 / 窗口打开等操作不进弹窗，全部收归卡片行内（hover 平铺 + ⋯ 菜单）。A / A1 / B 已同步。</p>
+  <p><b>基线追加（2026-09-20 第六轮）</b>：<b>容器级响应式</b>——侧边栏收起/展开、面板拖宽都会改变容器宽度但不触发 <code>window.resize</code>，仅做页面级响应式会漏。mock 内置侧边栏收起/展开按钮演示此场景（落地时由壳层 Sidebar 真实承担，页面只依赖容器宽度变化）。</p>
+  <p><b>基线定稿（2026-09-20 第七轮，修正第六轮技术选型）</b>：<b>等高网格取代瀑布流与 observer</b>——卡片墙为纯 CSS <code>repeat(auto-fill, minmax(min(100%, 288px), 1fr))</code>（对齐文章页 A3 / D-015 做法）：① 同行卡片 stretch <b>等高</b>（并列不等高参差不齐、JS 重分配 resize 跳列抖动不收敛，均不可接受）；② 列数由 grid 引擎按容器宽增减，<b>天然容器级响应</b>，ResizeObserver / @container 皆不需要（且 <code>container-type</code> 与 track 内 <code>min(100%,…)</code> 相互冲突会导致列数计算溢出，已弃用）；③ 窄于单卡宽自然降单列，杜绝旧 JS 版 <code>max(2, …)</code> 下限把窄容器硬塞 2 列的失响应问题；④ 卡片正文区 <code>flex:1</code>、foot 贴底。置顶横卡同法 <code>auto-fit</code> 升降列。</p>
+  <p><b>待裁决</b>：① 主方案已定为 <b>A1 · 卡片墙 + 时间分组</b>（第三轮：回到 A 叠加 B 的分组，D 留档对照）；② 卡片详情页（CardDetailView，旧 TabType.CardDetail）是否同批迁移 <code>card-detail/:id</code>（本组 mockup 不含详情页排版，需另行探索）。</p>
+  <p><b>mock 数据口径</b>（三方案一致）：36 张卡片（闪念 14 / 文献 7 / 永久 13 / 主题 2，置顶 2），约 4.2k 字，时间分布今天 → 6 月；标签 6 组 45 例（含「认知/记忆」「认知/注意力」「读书/文明」「读书/卡片笔记」层级）；links 关系覆盖 16 张卡供图谱与 ⇄ 计数。四分类色：闪念 <code>#c96f4e</code> 橙 / 文献 <code>#5c7d99</code> 蓝 / 永久 <code>#61795f</code> 绿 / 主题 <code>#a38c4d</code> 黄。</p>
+</div>
+
+</body>
+</html>
