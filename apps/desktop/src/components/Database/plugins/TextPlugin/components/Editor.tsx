@@ -10,35 +10,33 @@ interface TextEditorProps {
   onFinishEdit: () => void;
 }
 
-const TextEditor: React.FC<TextEditorProps> = memo(
-  ({ value, onCellValueChange, onFinishEdit }) => {
-    const scrollRef = useRef<HTMLDivElement>(null);
+const TextEditor: React.FC<TextEditorProps> = memo(({ value, onCellValueChange, onFinishEdit }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-    const handleWheel = useMemoizedFn((e: React.WheelEvent<HTMLDivElement>) => {
-      if (scrollRef.current) {
-        scrollRef.current.scrollLeft += e.deltaY;
-      }
-    });
+  const handleWheel = useMemoizedFn((e: React.WheelEvent<HTMLDivElement>) => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollLeft += e.deltaY;
+    }
+  });
 
-    return (
-      <div
-        className="w-full h-full relative overflow-x-auto scrollbar-hide"
-        ref={scrollRef}
-        onWheel={handleWheel}
-      >
-        <EditText
-          defaultValue={value?.toString() || ""}
-          onChange={onCellValueChange}
-          onBlur={onFinishEdit}
-          onPressEnter={onFinishEdit}
-          contentEditable={true}
-          defaultFocus={true}
-          className="w-full text-sm h-full px-2 py-2 flex items-center whitespace-nowrap"
-          isSlateEditor
-        />
-      </div>
-    );
-  },
-);
+  return (
+    <div
+      className="scrollbar-hide relative h-full w-full overflow-x-auto"
+      ref={scrollRef}
+      onWheel={handleWheel}
+    >
+      <EditText
+        defaultValue={value?.toString() || ""}
+        onChange={onCellValueChange}
+        onBlur={onFinishEdit}
+        onPressEnter={onFinishEdit}
+        contentEditable={true}
+        defaultFocus={true}
+        className="flex h-full w-full items-center whitespace-nowrap px-2 py-2 text-sm"
+        isSlateEditor
+      />
+    </div>
+  );
+});
 
 export default TextEditor;

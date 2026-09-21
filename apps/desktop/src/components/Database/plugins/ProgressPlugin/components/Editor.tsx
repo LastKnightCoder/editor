@@ -1,5 +1,4 @@
 import React, { memo, useRef, useEffect, useState } from "react";
-import { Input, InputRef } from "antd";
 import { useMemoizedFn, useUnmount } from "ahooks";
 import { ColumnDef } from "../../../types";
 import { ProgressValue } from "../types";
@@ -14,8 +13,11 @@ interface ProgressEditorProps {
   readonly: boolean;
 }
 
+const inputClass =
+  "border-line-1 bg-surface text-ink-1 focus:border-accent w-[60px] rounded-tau-sm border px-1.5 py-1 text-center text-tau-sm tabular-nums outline-none";
+
 const ProgressEditor: React.FC<ProgressEditorProps> = memo(
-  ({ value, onCellValueChange, onFinishEdit, theme, readonly }) => {
+  ({ value, onCellValueChange, onFinishEdit, readonly }) => {
     // 确保 value 是正确的格式
     const progressValue =
       value && typeof value === "object" && "current" in value && "target" in value
@@ -26,8 +28,8 @@ const ProgressEditor: React.FC<ProgressEditorProps> = memo(
     const [targetValue, setTargetValue] = useState(String(progressValue.target));
     const [focusedInput, setFocusedInput] = useState<"current" | "target">("current");
 
-    const currentInputRef = useRef<InputRef>(null);
-    const targetInputRef = useRef<InputRef>(null);
+    const currentInputRef = useRef<HTMLInputElement>(null);
+    const targetInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
       // 默认聚焦到当前进度输入框
@@ -132,12 +134,10 @@ const ProgressEditor: React.FC<ProgressEditorProps> = memo(
       }, 0);
     });
 
-    const isDark = theme === "dark";
-
     if (readonly) {
       return (
         <div className="flex h-full w-full items-center gap-2 px-2 py-1">
-          <span className={`text-sm ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+          <span className="text-ink-1 text-tau-sm tabular-nums">
             {currentValue}/{targetValue}
           </span>
         </div>
@@ -146,48 +146,30 @@ const ProgressEditor: React.FC<ProgressEditorProps> = memo(
 
     return (
       <div className="flex h-full w-full items-center gap-2 px-2 py-1" onKeyDown={handleKeyDown}>
-        <Input
+        <input
           ref={currentInputRef}
           value={currentValue}
           onChange={handleCurrentChange}
           onBlur={updateValue}
           onFocus={() => setFocusedInput("current")}
           placeholder="当前"
-          className={`text-center ${focusedInput === "current" ? "ring-2 ring-[var(--th-accent)]" : ""}`}
-          style={{
-            width: "60px",
-            fontSize: "12px",
-            backgroundColor: isDark ? "#374151" : "#ffffff",
-            borderColor: focusedInput === "current" ? "#3b82f6" : isDark ? "#6b7280" : "#d1d5db",
-            color: isDark ? "#f3f4f6" : "#111827",
-          }}
+          className={`${inputClass} ${focusedInput === "current" ? "ring-accent/40 ring-2" : ""}`}
         />
 
-        <span className={`text-sm font-medium ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-          /
-        </span>
+        <span className="text-ink-3 text-tau-sm font-medium">/</span>
 
-        <Input
+        <input
           ref={targetInputRef}
           value={targetValue}
           onChange={handleTargetChange}
           onBlur={updateValue}
           onFocus={() => setFocusedInput("target")}
           placeholder="目标"
-          className={`text-center ${focusedInput === "target" ? "ring-2 ring-[var(--th-accent)]" : ""}`}
-          style={{
-            width: "60px",
-            fontSize: "12px",
-            backgroundColor: isDark ? "#374151" : "#ffffff",
-            borderColor: focusedInput === "target" ? "#3b82f6" : isDark ? "#6b7280" : "#d1d5db",
-            color: isDark ? "#f3f4f6" : "#111827",
-          }}
+          className={`${inputClass} ${focusedInput === "target" ? "ring-accent/40 ring-2" : ""}`}
         />
 
         {/* 快捷键提示 */}
-        <div className={`flex-none text-xs ${isDark ? "text-gray-500" : "text-gray-400"} ml-2`}>
-          Ctrl+← →
-        </div>
+        <div className="text-ink-3 text-tau-sm ml-2 flex-none">Ctrl+← →</div>
       </div>
     );
   }

@@ -1,7 +1,7 @@
 import { CellPlugin, SelectOption } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "../../views/TableView/components/SelectEditor";
-import { MdChecklist } from "react-icons/md";
+import { ListChecks } from "lucide-react";
 
 const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   type: "multiSelect",
@@ -10,16 +10,16 @@ const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   Renderer,
   // @ts-ignore
   Editor,
-  Icon: ({ className }) => <MdChecklist className={className} />,
+  Icon: ({ className }) => <ListChecks className={className} />,
 
   beforeSave: (value: string[], configs) => {
     if (!value || !Array.isArray(value)) return [];
-    return value.filter((v) => configs.options.find((opt) => opt.id === v));
+    return value.filter(v => configs.options.find(opt => opt.id === v));
   },
 
   afterLoad: (value: string[], configs) => {
     if (!value || !Array.isArray(value)) return [];
-    return value.filter((v) => configs.options.find((opt) => opt.id === v));
+    return value.filter(v => configs.options.find(opt => opt.id === v));
   },
   getGroupKey: (row, column) => {
     const value = row[column.id];
@@ -31,8 +31,8 @@ const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
     const config = column.config as { options: SelectOption[] } | undefined;
     const options = config?.options ?? [];
     const searchLower = searchValue.toLowerCase();
-    return cellValue.some((id) => {
-      const option = options.find((opt) => opt.id === id);
+    return cellValue.some(id => {
+      const option = options.find(opt => opt.id === id);
       return option?.name.toLowerCase().includes(searchLower);
     });
   },
@@ -48,7 +48,7 @@ const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
         }
         const targets = Array.isArray(filterValue) ? filterValue : filterValue ? [filterValue] : [];
         if (!targets.length) return false;
-        return targets.every((value) => cellValue.includes(value));
+        return targets.every(value => cellValue.includes(value));
       },
     },
     {
@@ -62,7 +62,7 @@ const MultiSelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
         }
         const targets = Array.isArray(filterValue) ? filterValue : filterValue ? [filterValue] : [];
         if (!targets.length) return false;
-        return targets.some((value) => cellValue.includes(value));
+        return targets.some(value => cellValue.includes(value));
       },
     },
     {

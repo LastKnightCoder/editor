@@ -1,7 +1,7 @@
-import React, { memo, useState, useRef } from "react";
+import React, { memo, useRef, useState } from "react";
 import EditText from "@/components/EditText";
 import { useMemoizedFn } from "ahooks";
-import { Popover } from "antd";
+import { Tooltip } from "@tau/ui/Tooltip";
 import { ColumnDef } from "../../../types";
 interface TextRendererProps {
   value: string;
@@ -11,6 +11,7 @@ interface TextRendererProps {
 const HOVER_DELAY = 1000;
 const TextRenderer: React.FC<TextRendererProps> = memo(({ value }) => {
   const [isHovering, setIsHovering] = useState(false);
+  const cellRef = useRef<HTMLDivElement>(null);
   const timer = useRef<number | null>(null);
 
   const onMouseLeave = useMemoizedFn(() => {
@@ -28,30 +29,34 @@ const TextRenderer: React.FC<TextRendererProps> = memo(({ value }) => {
   });
 
   return (
-    <Popover
-      open={isHovering}
-      content={
-        <EditText
-          key={value}
-          defaultValue={value}
-          contentEditable={false}
-          className="px-2 py-2 max-w-[200px]"
-        />
-      }
-    >
-      <div
-        className="w-full h-full"
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
+    <>
+      <Tooltip
+        open={isHovering}
+        onOpenChange={setIsHovering}
+        content={
+          <EditText
+            key={value}
+            defaultValue={value}
+            contentEditable={false}
+            className="max-w-[200px] px-2 py-2"
+          />
+        }
       >
-        <EditText
-          key={value}
-          defaultValue={value}
-          contentEditable={false}
-          className="px-2 py-2 h-full w-full text-sm flex items-center overflow-hidden text-ellipsis whitespace-nowrap box-border"
-        />
-      </div>
-    </Popover>
+        <div
+          ref={cellRef}
+          className="h-full w-full"
+          onMouseEnter={onMouseEnter}
+          onMouseLeave={onMouseLeave}
+        >
+          <EditText
+            key={value}
+            defaultValue={value}
+            contentEditable={false}
+            className="text-ink-1 text-tau-body box-border flex h-full w-full items-center overflow-hidden text-ellipsis whitespace-nowrap px-2 py-2"
+          />
+        </div>
+      </Tooltip>
+    </>
   );
 });
 

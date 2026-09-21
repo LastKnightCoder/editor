@@ -9,23 +9,21 @@ interface LinkEditorProps {
   onFinishEdit: () => void;
 }
 
-const LinkEditor: React.FC<LinkEditorProps> = memo(
-  ({ value, onCellValueChange, onFinishEdit }) => {
-    return (
-      <div className="w-full min-h-10 relative">
-        <EditText
-          defaultValue={value?.toString() || ""}
-          onChange={onCellValueChange}
-          onBlur={onFinishEdit}
-          onPressEnter={onFinishEdit}
-          contentEditable={true}
-          defaultFocus={true}
-          className="w-full text-sm min-h-10 px-2 py-2 flex items-center"
-          isSlateEditor
-        />
-      </div>
-    );
-  },
-);
+const LinkEditor: React.FC<LinkEditorProps> = memo(({ value, onCellValueChange, onFinishEdit }) => {
+  return (
+    <div className="relative min-h-10 w-full">
+      <EditText
+        defaultValue={value?.toString() || ""}
+        onChange={onCellValueChange}
+        onBlur={onFinishEdit}
+        onPressEnter={onFinishEdit}
+        contentEditable={true}
+        defaultFocus={true}
+        className="flex min-h-10 w-full items-center px-2 py-2 text-sm"
+        isSlateEditor
+      />
+    </div>
+  );
+});
 
 export default LinkEditor;

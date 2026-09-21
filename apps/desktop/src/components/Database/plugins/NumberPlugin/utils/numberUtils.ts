@@ -12,7 +12,7 @@ export const formatNumber = (
     thousandSeparator?: boolean;
     prefix?: string;
     suffix?: string;
-  },
+  }
 ): string => {
   if (value === null || value === undefined || value === "") return "";
 

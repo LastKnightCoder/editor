@@ -1,7 +1,7 @@
 import { CellPlugin } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "./components/Editor";
-import { MdCalendarToday } from "react-icons/md";
+import { CalendarDays } from "lucide-react";
 
 // 日期插件配置类型
 export interface DatePluginConfig {
@@ -24,7 +24,7 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
   editable: true,
   Renderer,
   Editor,
-  Icon: ({ className }) => <MdCalendarToday className={className} />,
+  Icon: ({ className }) => <CalendarDays className={className} />,
 
   // 保存前转换为统一格式 { start, end }
   beforeSave: (value, config) => {
@@ -60,7 +60,7 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
   },
 
   // 加载后返回统一格式，并迁移旧数据
-  afterLoad: (value) => {
+  afterLoad: value => {
     if (value === null || value === undefined) {
       return { start: null, end: null };
     }
@@ -94,7 +94,7 @@ const DatePlugin: CellPlugin<DatePluginConfig> = {
     return timestamp !== null ? String(timestamp) : "null";
   },
 
-  sort: (params) => {
+  sort: params => {
     const { a, b, direction, columnConfig } = params;
     const config = columnConfig as DatePluginConfig | undefined;
     const field = config?.sortField || "start";

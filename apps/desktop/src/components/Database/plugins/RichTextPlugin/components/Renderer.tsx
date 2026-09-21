@@ -1,6 +1,8 @@
 import React, { memo, useState, useRef } from "react";
-import { Popover, App } from "antd";
-import { MdAdd, MdClose, MdDescription, MdArticle, MdNote, MdFolder } from "react-icons/md";
+import { Popover as TauPopover } from "@tau/ui/Popover";
+import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
+import { toast } from "@tau/ui/Toast";
+import { FileText, Folder, Plus, StickyNote, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import { v4 as uuid } from "uuid";
@@ -12,7 +14,6 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { createContent, deleteContent, incrementContentRefCount } from "@/commands/content";
 import { SearchResult } from "@/types";
 import { Descendant } from "slate";
-import classNames from "classnames";
 
 interface RichTextRendererProps {
   value: RichTextPluginValue;
@@ -25,7 +26,6 @@ interface RichTextRendererProps {
 const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
   ({ value, readonly, theme, onCellValueChange }) => {
     const richTextList = Array.isArray(value) ? value : [];
-    const isDark = theme === "dark";
 
     const [addPopoverVisible, setAddPopoverVisible] = useState(false);
     const [selectorModalVisible, setSelectorModalVisible] = useState(false);
@@ -33,25 +33,25 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
     const [currentEditingContentId, setCurrentEditingContentId] = useState<number | null>(null);
     const [currentEditingTitle, setCurrentEditingTitle] = useState("");
+    const [confirmDeleteItem, setConfirmDeleteItem] = useState<RichTextItem | null>(null);
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-    const { message, modal } = App.useApp();
+    const addTriggerRef = useRef<HTMLDivElement>(null);
 
     const getTypeIcon = (type: RichTextItem["type"]) => {
       const iconProps = "w-4 h-4";
       switch (type) {
         case "card":
-          return <MdNote className={`${iconProps} text-[var(--th-accent)]`} />;
+          return <StickyNote className={`${iconProps} text-accent`} strokeWidth={1.75} />;
         case "article":
-          return <MdArticle className={`${iconProps} text-green-500`} />;
+          return <FileText className={`${iconProps} text-ok`} strokeWidth={1.75} />;
         case "project-item":
-          return <MdFolder className={`${iconProps} text-orange-500`} />;
+          return <Folder className={`${iconProps} text-warn`} strokeWidth={1.75} />;
         case "document":
-          return <MdDescription className={`${iconProps} text-purple-500`} />;
+          return <FileText className={`${iconProps} text-tag-5`} strokeWidth={1.75} />;
         case "custom":
         default:
-          return <MdDescription className={`${iconProps} text-gray-500`} />;
+          return <FileText className={`${iconProps} text-ink-3`} strokeWidth={1.75} />;
       }
     };
 
@@ -67,29 +67,23 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
       // 找到要删除的项目
       const itemToDelete = richTextList.find(item => item.id === itemId);
       if (!itemToDelete) return;
+      setConfirmDeleteItem(itemToDelete);
+    });
 
-      modal.confirm({
-        title: "确认删除",
-        content: "确定要删除这个富文本文档吗？",
-        okText: "确定",
-        cancelText: "取消",
-        okButtonProps: {
-          danger: true,
-        },
-        async onOk() {
-          try {
-            // 删除 content 记录（会自动减少引用计数）
-            await deleteContent(itemToDelete.contentId);
+    const handleConfirmDelete = useMemoizedFn(async () => {
+      const itemToDelete = confirmDeleteItem;
+      if (!itemToDelete) return;
+      try {
+        // 删除 content 记录（会自动减少引用计数）
+        await deleteContent(itemToDelete.contentId);
 
-            const newValue = richTextList.filter(item => item.id !== itemId);
-            onCellValueChange(newValue);
-            message.success("文档删除成功");
-          } catch (error) {
-            console.error("删除文档失败:", error);
-            message.error("删除文档失败");
-          }
-        },
-      });
+        const newValue = richTextList.filter(item => item.id !== itemToDelete.id);
+        onCellValueChange(newValue);
+        toast.success("文档删除成功");
+      } catch (error) {
+        console.error("删除文档失败:", error);
+        toast.error("删除文档失败");
+      }
     });
 
     // 关联文档
@@ -128,11 +122,11 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
           setCurrentEditingTitle("未命名文档");
           setEditModalVisible(true);
 
-          message.success("文档创建成功");
+          toast.success("文档创建成功");
         }
       } catch (error) {
         console.error("创建文档失败:", error);
-        message.error("创建文档失败");
+        toast.error("创建文档失败");
       }
     });
 
@@ -145,7 +139,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
       // 检查是否已经关联
       const exists = richTextList.some(doc => doc.contentId === item.contentId);
       if (exists) {
-        message.warning("该文档已经关联");
+        toast.warning("该文档已经关联");
         return;
       }
 
@@ -162,10 +156,10 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
 
         const newValue = [...richTextList, newRichTextItem];
         onCellValueChange(newValue);
-        message.success("文档关联成功");
+        toast.success("文档关联成功");
       } catch (error) {
         console.error("关联文档失败:", error);
-        message.error("关联文档失败");
+        toast.error("关联文档失败");
       }
     });
 
@@ -194,14 +188,6 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
       onCellValueChange(newValue);
     });
 
-    const dropdownContent = (
-      <DropdownMenu
-        theme={theme}
-        onLinkDocument={handleLinkDocument}
-        onCreateDocument={handleCreateDocument}
-      />
-    );
-
     return (
       <div className="relative h-full w-full items-center" onWheel={handleWheel}>
         <div
@@ -218,19 +204,14 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
             {richTextList.map(item => (
               <motion.div
                 key={item.id}
-                className={classNames(
-                  "group relative flex min-w-0 flex-none cursor-pointer items-center gap-2 overflow-visible rounded border border-gray-200 px-2 py-1 transition-all hover:border-[var(--th-border-hover)] hover:bg-[var(--th-accent-soft)]",
-                  {
-                    "border-gray-700 bg-zinc-800 hover:border-gray-600 hover:bg-zinc-700": isDark,
-                  }
-                )}
+                className="border-line-1 bg-surface hover:bg-hover rounded-tau-sm group relative flex min-w-0 flex-none cursor-pointer items-center gap-2 overflow-visible border px-2 py-1 transition-colors"
                 onMouseEnter={() => setHoveredItemId(item.id)}
                 onMouseLeave={() => setHoveredItemId(null)}
                 onClick={() => handleItemClick(item)}
               >
                 <div className="flex flex-none items-center">{getTypeIcon(item.type)}</div>
 
-                <span className="max-w-24 truncate text-[12px]" title={item.title}>
+                <span className="text-ink-1 text-tau-sm max-w-24 truncate" title={item.title}>
                   {item.title}
                 </span>
 
@@ -242,15 +223,10 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
                       exit={{ scale: 0, opacity: 0 }}
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
-                      className={classNames(
-                        "absolute -right-1 -top-1 z-10 flex h-3 w-3 cursor-pointer items-center justify-center rounded-full bg-red-500 shadow-lg",
-                        {
-                          "bg-red-700": isDark,
-                        }
-                      )}
+                      className="bg-danger text-ink-inverse absolute -right-1 -top-1 z-10 flex h-3 w-3 cursor-pointer items-center justify-center rounded-full shadow-lg"
                       onClick={e => handleDeleteItem(item.id, e)}
                     >
-                      <MdClose className="h-2 w-2 text-white" />
+                      <X className="h-2 w-2" strokeWidth={2.5} />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -261,35 +237,44 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
 
         {/* 添加按钮 */}
         {!readonly && (
-          <Popover
-            content={dropdownContent}
-            trigger="click"
-            placement="bottomRight"
+          <TauPopover
+            anchor={addTriggerRef.current}
+            placement="bottom-end"
             open={addPopoverVisible}
             onOpenChange={setAddPopoverVisible}
-            showArrow={false}
-            styles={{
-              content: {
-                padding: 0,
-                background: "transparent",
-              },
-            }}
+            arrow={false}
           >
-            <div
-              className={classNames(
-                "absolute right-1 top-1/2 flex -translate-y-1/2 cursor-pointer items-center gap-1 rounded-md px-1.5 py-1 transition-colors",
-                {
-                  "bg-gray-200/80 text-gray-700 hover:bg-gray-300/80": !isDark,
-                  "bg-zinc-700/80 text-gray-200 hover:bg-gray-600/80": isDark,
-                }
-              )}
-              role="button"
-              aria-label="添加富文本"
-            >
-              <MdAdd className="h-4 w-4" />
-            </div>
-          </Popover>
+            <DropdownMenu
+              theme={theme}
+              onLinkDocument={handleLinkDocument}
+              onCreateDocument={handleCreateDocument}
+            />
+          </TauPopover>
         )}
+        {!readonly && (
+          <div
+            ref={addTriggerRef}
+            className="bg-group hover:bg-hover text-ink-2 hover:text-ink-1 rounded-tau-sm absolute right-1 top-1/2 flex -translate-y-1/2 cursor-pointer items-center gap-1 px-1.5 py-1 transition-colors"
+            role="button"
+            aria-label="添加富文本"
+            onClick={() => setAddPopoverVisible(v => !v)}
+          >
+            <Plus className="h-4 w-4" strokeWidth={1.75} />
+          </div>
+        )}
+
+        <ConfirmDialog
+          open={confirmDeleteItem !== null}
+          onOpenChange={open => {
+            if (!open) setConfirmDeleteItem(null);
+          }}
+          title="确认删除"
+          context={confirmDeleteItem?.title}
+          impact="确定要删除这个富文本文档吗？"
+          danger
+          confirmText="确定"
+          onConfirm={() => handleConfirmDelete()}
+        />
 
         {/* 文档选择模态框 */}
         <ContentSelectorModal

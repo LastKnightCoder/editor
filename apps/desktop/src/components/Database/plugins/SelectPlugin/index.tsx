@@ -1,7 +1,7 @@
 import { CellPlugin, SelectOption } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "../../views/TableView/components/SelectEditor";
-import { MdArrowDropDownCircle } from "react-icons/md";
+import { CircleChevronDown } from "lucide-react";
 
 const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   type: "select",
@@ -10,13 +10,13 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   Renderer,
   // @ts-ignore
   Editor,
-  Icon: ({ className }) => <MdArrowDropDownCircle className={className} />,
+  Icon: ({ className }) => <CircleChevronDown className={className} />,
 
   // 保存前确保值为字符串
   beforeSave: (value: string, config: { options: SelectOption[] }) => {
     if (value === null || value === undefined || value === "") return null;
     const options = Array.isArray(config?.options) ? config.options : [];
-    const option = options.find((opt) => opt.id === value);
+    const option = options.find(opt => opt.id === value);
     if (option) {
       return option.id;
     } else {
@@ -27,7 +27,7 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
   afterLoad: (value: string, config: { options: SelectOption[] }) => {
     if (value === null || value === undefined || value === "") return null;
     const options = Array.isArray(config?.options) ? config.options : [];
-    const option = options.find((opt) => opt.id === value);
+    const option = options.find(opt => opt.id === value);
     if (option) {
       return option.id;
     } else {
@@ -39,7 +39,7 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
     if (!value) return "";
     return value;
   },
-  sort: (params) => {
+  sort: params => {
     const { a, b, direction } = params;
     if (a === b) return 0;
     if (typeof a !== "string" || typeof b !== "string") return 0;
@@ -49,7 +49,7 @@ const SelectPlugin: CellPlugin<{ options: SelectOption[] }> = {
     if (!cellValue || !searchValue) return false;
     const config = column.config as { options: SelectOption[] } | undefined;
     const options = config?.options ?? [];
-    const option = options.find((opt) => opt.id === cellValue);
+    const option = options.find(opt => opt.id === cellValue);
     if (!option) return false;
     return option.name.toLowerCase().includes(searchValue.toLowerCase());
   },

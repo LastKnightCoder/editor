@@ -1,13 +1,9 @@
-import React, { useEffect, memo, useRef } from "react";
-import { useMemoizedFn } from "ahooks";
-import { DatePicker } from "antd";
+import React, { memo, useEffect, useRef, useState } from "react";
 import dayjs from "dayjs";
-import "./Editor.less";
+import { DatePicker, DateRangePicker } from "@tau/ui";
 
 import { CellValue, ColumnDef } from "../../../types";
 import { DatePluginConfig, DateValue } from "../index";
-
-const { RangePicker } = DatePicker;
 
 interface DateEditorProps {
   value: CellValue;
@@ -15,67 +11,49 @@ interface DateEditorProps {
   onCellValueChange: (newValue: CellValue) => void;
   onFinishEdit: () => void;
   theme: "light" | "dark";
+  readonly?: boolean;
+  autoOpen?: boolean;
 }
 
 const DateEditor: React.FC<DateEditorProps> = memo(
-  ({ value, column, onCellValueChange, onFinishEdit }) => {
+  ({ value, column, onCellValueChange, onFinishEdit, autoOpen = false }) => {
     const config = column.config as DatePluginConfig | undefined;
     const dateValue = value as DateValue;
     const hasChangedRef = useRef(false);
-    const isOpenRef = useRef(false);
+    const [open, setOpen] = useState(autoOpen);
 
     const showTime = config?.showTime || false;
     const isRange = config?.isRange || false;
-    const format = showTime ? "YYYY-MM-DD HH:mm:ss" : "YYYY-MM-DD";
+    const format = showTime ? "YYYY-MM-DD HH:mm" : "YYYY-MM-DD";
 
-    useEffect(() => {
-      const pickerInput = document.querySelector(
-        `.tw-date-editor .ant-picker-input input`,
-      );
-      if (pickerInput) {
-        (pickerInput as HTMLElement).focus();
-      }
-    }, []);
+    const toTimestamp = (str: string | null | undefined) => (str ? dayjs(str).valueOf() : null);
 
-    const handleSingleChange = useMemoizedFn((date: dayjs.Dayjs | null) => {
-      const ts = date ? date.toDate().getTime() : null;
+    const handleSingleChange = (next: string | null) => {
+      const ts = toTimestamp(next);
       onCellValueChange({ start: ts, end: ts });
       hasChangedRef.current = true;
-    });
+    };
 
-    const handleRangeChange = useMemoizedFn(
-      (dates: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null) => {
-        if (!dates) {
-          onCellValueChange({ start: null, end: null });
-        } else {
-          const [start, end] = dates;
-          onCellValueChange({
-            start: start ? start.toDate().getTime() : null,
-            end: end ? end.toDate().getTime() : null,
-          });
-        }
-        hasChangedRef.current = true;
-      },
-    );
-
-    const handleOpenChange = useMemoizedFn((open: boolean) => {
-      isOpenRef.current = open;
-      if (!open && hasChangedRef.current) {
-        setTimeout(() => {
-          onFinishEdit();
-        }, 100);
+    const handleRangeChange = (next: [string, string] | null) => {
+      if (!next) {
+        onCellValueChange({ start: null, end: null });
+      } else {
+        onCellValueChange({
+          start: toTimestamp(next[0]),
+          end: toTimestamp(next[1]),
+        });
       }
-    });
+      hasChangedRef.current = true;
+    };
 
-    const handleBlur = useMemoizedFn(() => {
-      if (!isOpenRef.current) {
-        setTimeout(() => {
-          onFinishEdit();
-        }, 100);
+    const handleOpenChange = (next: boolean) => {
+      setOpen(next);
+      if (!next && hasChangedRef.current) {
+        onFinishEdit();
       }
-    });
+    };
 
-    const handleKeyDown = useMemoizedFn((e: KeyboardEvent) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Enter") {
         onFinishEdit();
       } else if (e.key === "Escape") {
@@ -84,63 +62,58 @@ const DateEditor: React.FC<DateEditorProps> = memo(
         }
         onFinishEdit();
       }
-    });
+    };
 
     useEffect(() => {
       document.addEventListener("keydown", handleKeyDown);
       return () => {
         document.removeEventListener("keydown", handleKeyDown);
       };
-    }, [handleKeyDown]);
+    }, []);
 
     if (!isRange) {
-      const singleValue = dateValue?.start
-        ? dayjs(new Date(dateValue.start))
-        : null;
+      const singleValue = dateValue?.start ? dayjs(new Date(dateValue.start)).format(format) : null;
 
       return (
-        <div className={`tw-date-editor w-full h-full`}>
+        <div className="bg-page flex h-full w-full items-center px-1">
           <DatePicker
             value={singleValue}
-            onChange={handleSingleChange}
+            onValueChange={handleSingleChange}
             onOpenChange={handleOpenChange}
-            onBlur={handleBlur}
-            allowClear
-            format={format}
-            showTime={showTime}
-            inputReadOnly={false}
-            autoFocus
-            className="w-full h-full border-0 outline-none shadow-none bg-transparent [&_.ant-picker-input]:h-full [&_.ant-picker-input>input]:h-full [&_.ant-picker-input>input]:px-4 [&_.ant-picker-input>input]:py-2"
+            open={open}
+            precision={showTime ? "minute" : "day"}
+            clearable
+            size="sm"
+            placeholder="选择日期"
+            className="w-full"
           />
         </div>
       );
     }
 
-    const rangeValue: [dayjs.Dayjs | null, dayjs.Dayjs | null] | null =
+    const rangeValue: [string, string] | null =
       dateValue?.start || dateValue?.end
         ? [
-            dateValue.start ? dayjs(new Date(dateValue.start)) : null,
-            dateValue.end ? dayjs(new Date(dateValue.end)) : null,
+            dateValue.start ? dayjs(new Date(dateValue.start)).format(format) : "",
+            dateValue.end ? dayjs(new Date(dateValue.end)).format(format) : "",
           ]
         : null;
 
     return (
-      <div className={`tw-date-editor w-full h-full`}>
-        <RangePicker
+      <div className="bg-page flex h-full w-full items-center px-1">
+        <DateRangePicker
           value={rangeValue}
-          onChange={handleRangeChange}
+          onValueChange={handleRangeChange}
           onOpenChange={handleOpenChange}
-          onBlur={handleBlur}
-          allowClear
-          format={format}
-          showTime={showTime}
-          inputReadOnly={false}
-          autoFocus
-          className="w-full h-full border-0 outline-none shadow-none bg-transparent [&_.ant-picker-input]:h-full [&_.ant-picker-input>input]:h-full [&_.ant-picker-input>input]:px-4 [&_.ant-picker-input>input]:py-2"
+          open={open}
+          clearable
+          size="sm"
+          placeholder="日期范围"
+          className="w-full"
         />
       </div>
     );
-  },
+  }
 );
 
 export default DateEditor;

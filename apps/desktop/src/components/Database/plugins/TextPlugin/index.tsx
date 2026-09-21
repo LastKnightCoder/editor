@@ -1,7 +1,7 @@
 import { CellPlugin } from "../../types";
 import Renderer from "./components/Renderer";
 import Editor from "./components/Editor";
-import { MdTextFields } from "react-icons/md";
+import { Type } from "lucide-react";
 
 const TextPlugin: CellPlugin<any> = {
   type: "text",
@@ -9,14 +9,14 @@ const TextPlugin: CellPlugin<any> = {
   editable: true,
   Renderer,
   Editor,
-  Icon: ({ className }: { className?: string }) => <MdTextFields className={className} />,
+  Icon: ({ className }: { className?: string }) => <Type className={className} />,
 
   beforeSave: (value: string) => value,
   afterLoad: (value: string) => value,
   getGroupKey: (row, column) => {
     return String(row[column.id]);
   },
-  sort: (params) => {
+  sort: params => {
     const { a, b, direction } = params;
     if (a === b) return 0;
     if (typeof a !== "string" || typeof b !== "string") return 0;
