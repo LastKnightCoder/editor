@@ -17,6 +17,8 @@ export default defineTheme({
   palette: {
     paper: "#221d16", // 窗口底：深可可纸
     surface: "#2e2820", // 卡片/面板：咖啡纸（最亮层）
+    // 实底控件 hover 档：bg-hover 6% 奶油墨叠 surface 的不透明合成（同 cream 口径）
+    surfaceHover: "#39332b",
     // 与 cream 对称：凹陷填充落在 page 之下（原 #2a241b 对 surface 仅 1.054，
     // 等于没有）。深色下 surface 最亮、sunken 最暗，故"沉"= 更暗。
     // 2026-09-20 与 cream 同步收敛一档：对 page 1.044 / surface 1.197。
@@ -34,6 +36,7 @@ export default defineTheme({
   tokens: p => ({
     "bg-page": String(p.paper),
     "bg-surface": String(p.surface),
+    "bg-surface-hover": String(p.surfaceHover),
     "bg-group": String(p.group),
     "bg-sunken": String(p.sunken),
     "bg-track": String(p.track),

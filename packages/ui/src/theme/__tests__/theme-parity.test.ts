@@ -129,6 +129,9 @@ describe("theme 对比度达 AA（02 规范 §2.5）", () => {
   const cases: Array<{ fg: TokenWord; bg: TokenWord; min: number; why: string }> = [
     { fg: "ink-1", bg: "bg-page", min: 7, why: "正文文字 / 窗口底" },
     { fg: "ink-1", bg: "bg-surface", min: 7, why: "正文文字 / 卡片" },
+    // 实底控件（浮起图标按钮等）hover 态：surface-hover 是不透明 hover 档
+    { fg: "ink-1", bg: "bg-surface-hover", min: 7, why: "正文文字 / 实底控件 hover" },
+    { fg: "ink-2", bg: "bg-surface-hover", min: 4.5, why: "次要文字 / 实底控件 hover" },
     { fg: "ink-2", bg: "bg-page", min: 4.5, why: "次要文字 / 窗口底" },
     { fg: "ink-2", bg: "bg-surface", min: 4.5, why: "次要文字 / 卡片" },
     { fg: "accent-text", bg: "bg-page", min: 4.5, why: "强调文字 / 窗口底" },

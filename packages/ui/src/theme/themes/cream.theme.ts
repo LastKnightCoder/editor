@@ -35,6 +35,9 @@ export default defineTheme({
   tokens: p => ({
     "bg-page": String(p.paper),
     "bg-surface": String(p.surface),
+    // 实底控件的 hover 档：bg-hover 5% 墨叠 surface 的不透明合成——半透明
+    // bg-hover 会整体替换实底（底色消失），浮起按钮必须用不透明 hover
+    "bg-surface-hover": "#f6f3ef",
     "bg-group": String(p.group),
     "bg-sunken": String(p.sunken),
     "bg-track": String(p.track),
