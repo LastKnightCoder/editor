@@ -128,7 +128,6 @@ const EditArticle = memo((props: IEditArticleProps) => {
     detachPodcast: detachPodcastFromArticle,
     reloadHost: findOneArticle,
     onHostReloaded: setEditingArticle,
-    message,
     messages: {
       created: "播客已添加到文章",
     },
