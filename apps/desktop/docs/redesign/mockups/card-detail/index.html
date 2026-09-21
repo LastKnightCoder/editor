@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>卡片详情页设计探索 · 总览</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #faf6ec;
+    --bg-hover: rgba(67, 57, 44, 0.05);
+    --ink-1: #43392c; --ink-2: #736552; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --line: #e9e1d2;
+    --ok: #61795f; --warn: #a38c4d; --danger: #b0564d;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg-page); color: var(--ink-1);
+    font: 14px/1.75 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 40px 8vw 80px;
+  }
+  header h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+  header .sub { color: var(--ink-2); margin-top: 4px; max-width: 78ch; }
+  header .meta { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+  h2 { font-size: 16px; margin: 42px 0 14px; font-weight: 650; }
+  h2 .tag { font-size: 11.5px; font-weight: 500; color: var(--accent-text); background: var(--accent-soft); border-radius: 99px; padding: 1px 10px; margin-left: 8px; vertical-align: 2px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .card {
+    background: var(--bg-surface); border-radius: 16px; padding: 20px 22px;
+    box-shadow: 0 1px 2px rgba(67, 57, 44, 0.04), 0 6px 24px rgba(67, 57, 44, 0.05);
+    text-decoration: none; color: inherit; display: block;
+    transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 200ms;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 2px 4px rgba(67, 57, 44, 0.05), 0 12px 32px rgba(67, 57, 44, 0.09); }
+  .card .no { font: 600 12px/1 ui-monospace, Consolas, monospace; color: var(--accent-text); }
+  .card h3 { font-size: 15.5px; margin: 6px 0 2px; }
+  .card .who { font-size: 12px; color: var(--ink-3); }
+  .card p { font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  .card .verdict { margin-top: 10px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .verdict .good { color: var(--ok); }
+  .verdict .bad { color: var(--danger); }
+
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(67, 57, 44, 0.04), 0 6px 24px rgba(67, 57, 44, 0.05); font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--bg-group); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line); }
+  td:first-child { color: var(--ink-1); font-weight: 500; }
+  tr > td:not(:first-child), tr > th:not(:first-child) { min-width: 14ch; }
+  .pill { display: inline-block; font-size: 11px; border-radius: 99px; padding: 0 9px; margin-right: 4px; white-space: nowrap; }
+  .pill.done { color: var(--ok); background: #e5ede2; }
+  .pill.light { color: var(--warn); background: #f6efd6; }
+  .pill.new { color: var(--accent-text); background: var(--accent-soft); }
+  .pill.cut { color: var(--danger); background: rgba(176,86,77,0.12); }
+
+  .callout {
+    background: var(--bg-surface); border-radius: 14px; padding: 18px 22px; margin-top: 14px;
+    box-shadow: 0 1px 2px rgba(67, 57, 44, 0.04), 0 6px 24px rgba(67, 57, 44, 0.05);
+    border-left: 3px solid var(--accent);
+  }
+  .callout b { color: var(--ink-1); }
+  .callout p { color: var(--ink-2); font-size: 13.5px; }
+  .callout p + p { margin-top: 8px; }
+  code { font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--bg-group); padding: 1px 6px; border-radius: 5px; color: var(--accent-text); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>卡片详情页设计探索 · 三方案</h1>
+  <p class="sub">迁移对象：legacy <code>src/pages/CardDetailView/EditCard.tsx</code>（773 行，旧 TabType.CardDetail）。现状缺口：新架构列表页（<code>features/cards</code>）已迁移，预览弹窗「进入详情」按钮降级为 toast「卡片详情页尚未迁移」——本组 mockup 即 cards 列表页总览「待裁决 ②」预留的探索。卡片是 Zettelkasten 知识卡片（Slate 富文本 + 四分类 + 层级标签 + 双向链接，无标题字段、无封面），与文章（作品、线性阅读、封面叙事）本质不同：卡片短、以连接为灵魂、是加工对象——三方案在<b>「连接放哪里 / 元数据放哪里 / 卡片以什么形态呈现」</b>三条轴上取不同位置，其余共用一套已裁决基线。</p>
+  <p class="meta">2026-09-20 初版 · cream 主题实测色值 · 壳层与 home-final / article-detail A4 / cards A1 同构 · 三案 mock 数据与列表页 A1 完全同口径（36 张卡，主角 = 卡 1「知识的复利来自连接而非收集」置顶永久卡）· 浏览器打开即可交互：速切器换卡（卡 1 永久 / 卡 2 主题 MOC / 卡 5 文献三种卡型完整正文）、添加/解除链接、分类切换、置顶、删除确认、[ ] 键盘轮换均为真实现</p>
+</header>
+
+<h2>旧版功能盘点<span class="tag">迁移底线 · 三方案必须全承接</span></h2>
+<table>
+  <tr><th>功能区</th><th>旧版实现（EditCard.tsx）</th><th>新方案承接方式（三案共通）</th></tr>
+  <tr><td>正文编辑</td><td>Slate Editor + 编辑/预览切换（readonly）+ 0.5s 自动保存 + unmount 兜底 + 跨窗口事件总线同步</td><td><b>常编辑态</b>（取消只读态，文章页 A4 裁决平移：无编辑/预览切换 UI，readonly 若保留由页面 params 决定）；保存与同步机制纯迁移（<code>useEditContent</code> + <code>useEditCard</code>）</td></tr>
+  <tr><td>标题</td><td>无标题字段（cards 表无 title，正文首块即标题）</td><td>正文首段升为视觉标题（16.5px/600，hover 虚线示意可编辑）——「首行即标题」，不新增输入框</td></tr>
+  <tr><td>分类</td><td>More 菜单 → 编辑分类（闪念/文献/永久/主题）</td><td>分类徽章就地切换（A/C 在卡头徽章下拉，B 在档案栏四色点选器），带四类语义说明</td></tr>
+  <tr><td>置顶</td><td>More 菜单</td><td>卡头 pin 按钮（B 为档案栏开关）+ 速切器条目 ⋯，与列表页卡面图钉语言一致</td></tr>
+  <tr><td>标签</td><td>底部 AddTag：增删改 + 拖拽排序</td><td>标签 pills 行（A/C 在正文末，B 在档案栏）；排序落地时保留拖拽</td></tr>
+  <tr><td>关联列表 / 添加链接</td><td>右下 StatusBar 开 Drawer（LinkList + CardItem2 缩略卡 + AddCardLinkModal 选卡），双向写 links</td><td>就地化（A 正文末连接区 chips / B 档案栏行列表 / C 图谱 + 图下列表），添加链接为居中选卡浮层（搜索 + 点选即连，双边写逻辑迁移）</td></tr>
+  <tr><td>关联图谱</td><td>Drawer + LinkGraph（links ∪ 内联 content-link BFS 闭包）</td><td>A = 入口按钮开浮层；B = 迷你图谱缩略 + 大图入口；C = <b>活的局部图谱</b>（两层 BFS 动态生成，节点可点跳卡）+ 「全库图谱」跳列表页图谱视图</td></tr>
+  <tr><td>正文内联引用</td><td>content-link 编辑器节点（可内联引用卡片/文章）</td><td>accent 下划线行内样式（hover 浮卡预览），与显式 links 合并去重后进连接区（角标区分双向/内联）</td></tr>
+  <tr><td>制作闪卡</td><td>More 菜单：手动制卡 / AI 制卡（<code>useFlashcardCreation</code>，refType content 引用）</td><td>底栏「生成」组；已制闪卡列表进详情页（A 正文末区 / B 档案栏 / C 卡纸行，数据来源 <code>flashcard_references</code> 按 contentId 反查）</td></tr>
+  <tr><td>播客</td><td>PodcastPlayer + 生成/移除</td><td>有播客时正文顶播放条（A4 形态）；无播客时入口在底栏「生成」组（mock 主打卡未挂播客，不造假数据）</td></tr>
+  <tr><td>复制 / 导出</td><td>More 菜单：复制 Markdown / 公众号 HTML；导出 Markdown / 图片 / EPUB / PDF（四 Dialog 已换皮）</td><td>底栏「更多 ⌃」菜单「提取」+「导出」两组，四个导出 Dialog 复用</td></tr>
+  <tr><td>演示 / 沉浸 / 独立窗口</td><td>More 菜单：PresentationMode / 沉浸 / openCardInNewWindow（SingleCardEditor 落地）</td><td>底栏「场景」组；「窗口打开」仅 Electron 渲染（isElectron，Web 不渲染入口）</td></tr>
+  <tr><td>删除</td><td>More 菜单（级联：FTS/向量索引、document_items、contents 引用计数）</td><td>速切器条目 ⋯ → 确认浮层（明确提示双边清理链接）；级联逻辑纯迁移</td></tr>
+  <tr><td>字数 / 协作 / 保存状态</td><td>StatusBar：count、ContentCollaborationControl（sourceType card）、自动保存指示</td><td>底部状态栏（字数 · 协作 pill · 已保存），对齐 A4 底栏语言</td></tr>
+  <tr><td>新 Tab 打开</td><td>More 菜单（旧 Tab 系统概念）</td><td><span class="pill cut">移除</span>Page 架构栈机对同参 push 去重，「再开一个 Tab」无语义</td></tr>
+  <tr><td>查看源码</td><td>StatusBar（Slate JSON 调试视图）</td><td><span class="pill cut">移除</span>legacy debug 遗留，随文章页 2026-09-19 裁决不迁移</td></tr>
+  <tr><td>页面导航</td><td>Tab 系统（无相邻切换概念）</td><td>面包屑「卡片库 / #001 标题」+ <b>速切器</b>（A4 认可范式：当前卡即切换按钮，浮层含搜索/分类色点/时间分组/条目 ⋯）+ <b>[ ] 键盘轮换</b> + 底栏上一张/下一张——详情页内换卡不弹栈，浏览动线与列表页连续</td></tr>
+</table>
+
+<h2>三个方案</h2>
+<div class="cards">
+  <a class="card" href="plan-a-plain.html" style="grid-column:1/-1;max-width:760px">
+    <div class="no">方案 A · 素卡 <span style="color:var(--ok)">— 主方案方向（v2 已按第二轮反馈修订）</span></div>
+    <h3>素卡 <span class="who">· 单栏就地</span></h3>
+    <p>与文章页 A4「静」同族的极简路线：正文列 640 恒居中，卡头一行 meta（编号 + 分类徽章 + pin + 时间 + <b>⋯ 菜单在时间右侧，legacy 位置</b>），一切就地——标签、连接区（<b>有关联才渲染，空卡不堆区块</b>）。底栏纯状态（字数 · 协作 · 保存）。<b>v2 修订</b>：撤掉底栏「更多 ⌃」、暂不做闪卡关联与图谱、去掉面包屑速切器（换卡 = 点连接 chip / 内联引用 / 后退回列表）、删除入口回 ⋯ 菜单、空卡添加连接走 ⋯ 菜单「连接 → 添加链接」。</p>
+    <div class="verdict"><span class="good">✓ 与文章页基因最连续、空卡干净（meta + 正文 + 标签即全部）、窄窗最稳、实现最轻</span><span class="bad">✗ 连接多时正文末区块拉长；换卡依赖跳转与返回（无页内切换器）</span></div>
+  </a>
+  <a class="card" href="plan-b-desk.html">
+    <div class="no">方案 B <span class="who" style="color:var(--danger)">留档对照</span></div>
+    <h3>卡片桌 <span class="who">· 双栏档案</span></h3>
+    <p>正文列 + 常驻档案栏（272px sticky，无重容器、留白分组）：关联（行列表 + 解链 + 迷你图谱缩略）/ 标签 / 闪卡 / 档案（分类四色点选器、置顶开关、编号、时间、字数）。卡头精简为编号 + 时间。回应 PREFERENCES 原始偏好「详情页用双栏」。窄窗折叠（A2 抽屉手法）。</p>
+    <div class="verdict"><span class="good">✓ 连接管理最顺手（列表耐读、多链接不挤正文）；元数据集中一处；正文视野最纯</span><span class="bad">✗ 宽度依赖（&lt;1280 需折叠）；档案栏与「卡片是完整作品」的整卡叙事略有张力</span></div>
+  </a>
+  <a class="card" href="plan-c-street.html">
+    <div class="no">方案 C <span class="who" style="color:var(--danger)">留档对照</span></div>
+    <h3>街道 <span class="who">· 图谱主视觉</span></h3>
+    <p>「编号是思想的坐标系，链接是思想的街道」——左侧实体卡纸（surface 浮起 + 分类色脊 + 投影，bg-page 即桌面），右侧凹陷画布（bg-sunken）承载<b>活的局部图谱</b>：中心 = 本卡，两层 BFS 邻接动态生成，节点分类色、hover 显首行、点击即换卡——沿街道散步式浏览；图下列表兜底。</p>
+    <div class="verdict"><span class="good">✓ Zettelkasten 网络叙事最完整、换卡动线最直觉（点节点即走）、「卡片在网中位置」一眼可读</span><span class="bad">✗ 宽度要求最高（图谱 &lt;360px 不可用）；日常专注写作时图谱是右侧常亮干扰；实现最重（布局器 + 交互）</span></div>
+  </a>
+</div>
+
+<h2>维度对比</h2>
+<table>
+  <tr><th>维度</th><th>A 素卡</th><th>B 卡片桌</th><th>C 街道</th></tr>
+  <tr><td>与文章页 A4 的关系</td><td><b>同构平移</b>（单栏 + 一切就地 + 底栏动作）</td><td>同基线不同版面（双栏）</td><td>版面语言独立（卡纸 + 画布）</td></tr>
+  <tr><td>连接呈现</td><td>正文末 chips 区（第二正文）</td><td>档案栏行列表 + 缩略图</td><td><b>活的图谱（可点可跳）</b> + 列表兜底</td></tr>
+  <tr><td>元数据归属</td><td>卡头 meta 行（徽章就地切换）</td><td><b>档案栏集中</b>（点选器/开关/明细）</td><td>卡头徽章（同 A）+ 色脊随分类变</td></tr>
+  <tr><td>正文视野纯度</td><td>中（末尾带三区块）</td><td><b>最高（正文即正文）</b></td><td>高（卡纸内只带标签 + 闪卡行）</td></tr>
+  <tr><td>换卡动线</td><td>速切器 / [ ] 键</td><td>速切器 / [ ] 键 / 档案栏点行</td><td><b>速切器 / [ ] 键 / 点图谱节点（最短）</b></td></tr>
+  <tr><td>宽度要求</td><td><b>最低（单列自适应）</b></td><td>中（右栏 272，窄窗折叠）</td><td>最高（图谱 ≥360，卡纸 640）</td></tr>
+  <tr><td>实现成本</td><td><b>最轻</b>（纯版面，组件全复用）</td><td>轻 + 档案栏组件化</td><td>最重（图谱布局器/交互/缩放，可站在 X6 LinkGraph 上）</td></tr>
+  <tr><td>适合定位</td><td>「卡是短文」的安静加工页</td><td>「读改连一体」的常驻工作台</td><td>「卡是网络节点」的导航台</td></tr>
+</table>
+
+<h2>实现成本映射<span class="tag">数据接线评估</span></h2>
+<table>
+  <tr><th>页面区块</th><th>数据来源</th><th>状态</th></tr>
+  <tr><td>单卡全量</td><td><code>cards:get-scoped-card</code>（新架构 scoped 系列，带 databaseName 防切库错写）已存在；react-query 走 <code>features/cards/queries.ts</code> 的 <code>useCardDetail</code>（已实现，事件总线单卡并入缓存）</td><td><span class="pill done">已接线</span></td></tr>
+  <tr><td>元数据 patch（分类/置顶/标签/链接）</td><td><code>cards:patch-scoped</code>（<code>CardMetadataPatch</code>）+ <code>useCardsMutations</code> 已存在；双向链接双边写在 <code>useEditCard</code> 已有逻辑，迁移即可</td><td><span class="pill done">已接线</span></td></tr>
+  <tr><td>删除（级联清理）</td><td><code>cards:remove-scoped</code> 已存在；确认浮层走 ConfirmDialog（features/cards 已有）</td><td><span class="pill done">已接线</span></td></tr>
+  <tr><td>速切器列表</td><td>复用列表页轻表 <code>useCardsFeed</code> 缓存（36-数千张 LIMIT 渐进已裁决）；分组/搜索为纯前端派生</td><td><span class="pill light">轻量</span>复用既有 query</td></tr>
+  <tr><td>连接区（links ∪ 内联引用）</td><td><code>getInlineLinks()</code>（utils/card.ts 深度遍历 content-link）+ links 字段并集，纯渲染端逻辑已有；邻接卡标题需按 id 批量取轻表缓存，未命中再补拉</td><td><span class="pill light">轻量</span>可能加一个按 ids 批量摘要命令</td></tr>
+  <tr><td>已制闪卡列表</td><td><code>flashcard_references</code> 按 contentId 反查（现有命令按 card_id 查引用，<b>反向查询需新增</b>：主进程一条 SELECT JOIN flashcards）；无引用显示空态文案</td><td><span class="pill new">需新增</span>主进程反查命令 1 个（BACKGROUND 层）</td></tr>
+  <tr><td>局部图谱（仅 C 案）</td><td><code>getAllLinkedCards()</code> BFS 闭包已有；图渲染可直接复用 X6 LinkGraph 组件（全库版）或自绘轻量 SVG 局部版（mock 即自绘，两层邻接 + 极坐标布局足够）</td><td><span class="pill light">轻量～中</span>复用或自绘二选一</td></tr>
+  <tr><td>正文编辑 + 自动保存</td><td><code>useEditContent</code>（contents 层节流）+ <code>useEditCard</code> 整体迁移；编辑器本体由 <code>@tau/editor</code> 承担（D-015，不在本轮 mockup 范围）</td><td><span class="pill done">已接线</span>换宿主</td></tr>
+  <tr><td>制卡 / 播客 / 导出×4 / 演示 / 独立窗口</td><td><code>useFlashcardCreation</code>、播客命令、四个导出 Dialog（8e3807c 已 Dialog 化）、PresentationMode、<code>openCardInNewWindow</code> 全部已有</td><td><span class="pill done">已接线</span>纯 UI 迁移</td></tr>
+  <tr><td>Page 协议接线</td><td><code>features/cards/pages/card-detail.page.tsx</code>（match: "params" + getId: <code>card-${id}</code> + createPageSchema），照抄 <code>article-detail.page.tsx</code> 模板；列表页/预览弹窗「进入详情」改 <code>navigator.push("card-detail/:id")</code>（替换降级 toast）</td><td><span class="pill new">需新增</span>页面域四件套</td></tr>
+</table>
+
+<div class="callout">
+  <p><b>第二轮反馈（2026-09-20，A 案定为方向，plan-a-plain.html 已修订为 v2）</b>：① <b>动作入口回归卡头</b>——底栏不显示「更多」，⋯ 菜单放 meta 行「时间信息的右侧」（legacy EditCard 顶栏位置），向下弹出；底栏回归纯状态；② <b>按需呈现，空卡不堆区块</b>——新建空卡只有 meta + 正文 + 标签行；连接区仅在有连接时渲染；③ <b>暂不显示关联闪卡、不做图谱入口</b>（图谱在卡片库列表页已有整视图）；④ <b>面包屑不做速切器</b>——换卡 = 点连接 chip / 内联引用跳转 / 后退回列表；v1 的底栏上一张/下一张与 [ ] 键盘轮换一并移除（自创能力，撤回）；⑤ 删除入口回 ⋯ 菜单底部（danger + 确认浮层）；⑥ 空卡添加连接的唯一入口 = ⋯ 菜单「连接 → 添加链接」。B / C 留档对照，不再同步修订。</p>
+  <p><b>基线裁决（对齐文章页 A4 / 列表页 A1，自动适用，评审不必重议）</b>：① <b>常编辑态</b>——不做编辑/预览切换（文章页裁决平移），readonly 若保留由页面 params 决定；② <b>Esc 只承担浮层退场</b>（D-003），无浮层时无操作；③ 「窗口打开」仅 Electron 渲染；④ 「新 Tab 打开」「查看源码」不迁移。</p>
+  <p><b>卡片详情页特有基线（v2 口径）</b>：① <b>首行即标题</b>——cards 无标题字段，正文首块升为视觉标题，不新增标题输入框；② <b>编号语言</b>——<code>#001</code> mono 编号作为卡片的「地址」贯穿卡头/面包屑（对齐「编号是思想的坐标系」的产品叙事，列表页 A1 未用编号，若采纳需回填列表页口径）；③ <b>连接区数据口径</b>——显式 links ∪ 正文内联 content-link 合并去重，角标区分双向/内联，<b>有关联才渲染</b>；④ 面包屑静态（「卡片库 / #001 标题」），点连接 chip / 内联引用即原位换卡（match: "params" 异参原位更新），其余换卡走后退回列表。</p>
+  <p><b>待裁决</b>：① A v2 细节确认后进入实现（页面四件套 + 预览弹窗「进入详情」接线）；② 编号语言是否进列表页（卡面/行首加 <code>#001</code>）；③ 文献卡的「摘录块 + 批注」呈现（mock 用文献蓝脊引文块示意，真实 Slate 引用样式随编辑器迁移定稿）；④ 闪卡关联列表后续版本是否回归（数据链路 <code>flashcard_references</code> 反查保留在成本映射中）。</p>
+  <p><b>mock 数据口径</b>（与列表页 A1 完全同源）：36 张卡（闪念 14 / 文献 7 / 永久 13 / 主题 2，置顶 2），四分类色一致（闪念 <code>#c96f4e</code> / 文献 <code>#5c7d99</code> / 永久 <code>#61795f</code> / 主题 <code>#a38c4d</code>）。三张卡做完整正文：卡 1（永久论点卡，内联引用 #020，已制 2 张闪卡）、卡 2（主题 MOC 索引页，四条主线条目各带内联链接）、卡 5（文献摘录卡，摘录块 + 批注段）；其余 33 张摘要级正文（速切器换卡可见）。links 关系覆盖 16 张卡，C 案图谱按 mock links 动态 BFS 生成。</p>
+</div>
+
+</body>
+</html>
