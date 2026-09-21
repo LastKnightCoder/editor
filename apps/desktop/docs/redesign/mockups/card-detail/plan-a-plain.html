@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<title>卡片详情 · A 素卡（v2）— Tau 桌面端</title>
+<!--
+  【视觉参考，非导出源】（D-001）：mockup 用于对照评审，落地时样式迁移组件 Tailwind。
+  A · 素卡 v2——单栏就地式卡片详情页，v1 反馈修订（2026-09-20 用户裁决）：
+    ① 动作入口回归卡头：撤掉底栏「更多 ⌃」，⋯ 菜单放在 meta 行「时间信息的右侧」
+      （legacy EditCard 顶栏位置），向下弹出；底栏回归纯状态（字数 · 协作 · 已保存）；
+    ② 按需呈现，空卡不堆区块：连接区只在「已有连接」时渲染（links ∪ 正文内联引用）；
+      新建空卡页面只有 meta 行 + 正文 + 标签行，干干净净；
+    ③ 暂不显示关联闪卡（数据链路保留，后续版本再议）、不显示图谱入口；
+    ④ 面包屑不做速切器：换卡动线 = 点连接 chip / 内联引用跳转 / 后退回列表（页面栈语义）；
+       底栏上一张/下一张与 [ ] 键盘轮换一并移除（v1 自创，非 legacy 能力）；
+    ⑤ 删除入口回到 ⋯ 菜单底部（legacy 原位，danger 红字 + 确认浮层）；
+    ⑥ 空卡添加连接的唯一入口 = ⋯ 菜单「连接 → 添加链接」；有连接后连接区平铺「+ 添加链接」。
+  ⋯ 菜单结构（向下弹出，legacy More 全量承接）：
+    生成（AI 制卡 / 手动制卡 / 生成播客）· 连接（添加链接）·
+    导出与复制（复制 MD / 公众号 · 导出 MD / 图片 / EPUB / PDF）·
+    场景（演示 / 沉浸 / 新窗口，仅 Electron）· —— 删除卡片。
+  保留 v1 已认可项：常编辑态（取消只读态）· 首行即标题（cards 无标题字段，正文首块升为
+  视觉标题）· #001 mono 编号语言 · 分类徽章就地切换（带四类语义说明）· 卡头 pin ·
+  标签行在正文末 · 内联 content-link（accent 下划线）与显式 links 合并去重进连接区
+  （角标区分双向 / 内联）· 添加链接居中选卡浮层（双边写）· Esc 逐层退浮层。
+  旧版功能承接对照（EditCard.tsx → v2）：
+    · 编辑/预览切换 → 取消只读态（常编辑态，文章页 A4 裁决平移）
+    · 分类编辑 / 置顶 → 卡头徽章 / pin 就地（legacy 在 More 菜单）
+    · 标签增删改 → 正文末标签行（hover 虚线示意改名）
+    · 关联列表 / 添加链接（Drawer + LinkList + AddCardLinkModal）→ 连接区（有关联才显示）+
+      居中选卡浮层；点 chip 即 push 该卡详情（双边写逻辑随 useEditCard 迁移）
+    · 制作闪卡（手动/AI）· 生成播客 · 复制 · 导出×4 · 演示 / 沉浸 / 新窗口 → ⋯ 菜单
+    · 删除（级联清理）→ ⋯ 菜单底部 + 确认浮层
+    · 字数 / 协作 / 保存状态 → 底部状态栏（纯状态）
+    · 关联图谱 / 闪卡关联列表 → 暂不呈现（本轮裁决；图谱在卡片库列表页已有整视图）
+    · 新 Tab 打开 → 移除（Page 栈机同参去重，无语义）；查看源码 → 移除（legacy debug）
+  mock 数据与列表页 A1 同口径：36 张卡，主角 = 卡 1「知识的复利来自连接而非收集」
+  （置顶 · 永久 · links [12,20,25] + 内联 [20]）；卡 2（MOC 索引）/ 卡 5（文献摘录）
+  完整正文，点其连接 chip / 内联引用可看三种卡型；无 links 的卡（如卡 3）页面无连接区——
+  空卡形态同理（meta + 正文 + 标签行即全部）。
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+}
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #ece4d4; --bg-sunken: #e2d8c0;
+  --bg-hover: rgba(67,57,44,0.05); --bg-press: rgba(67,57,44,0.09); --bg-selected: rgba(217,119,87,0.12);
+  --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2; --line-2: rgba(233,225,210,0.55);
+  --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22,58%,42%,0.12); --accent-text: #a05236;
+  --ok: #61795f; --ok-soft: #e5ede2; --danger: #b0564d; --danger-soft: #f6e3e0;
+  --cat-temporary: #c96f4e; --cat-temporary-soft: rgba(201,111,78,0.11);
+  --cat-literature: #5c7d99; --cat-literature-soft: rgba(92,125,153,0.12);
+  --cat-permanent: #61795f; --cat-permanent-soft: rgba(97,121,95,0.13);
+  --cat-theme: #a38c4d; --cat-theme-soft: rgba(163,140,77,0.14);
+  --shadow-card: 0 1px 2px rgba(120,100,70,0.05), 0 10px 24px -14px rgba(120,100,70,0.18);
+  --shadow-float: 0 16px 40px -12px rgba(120,100,70,0.4);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: var(--font); font-size: 13px; line-height: 1.6; color: var(--ink-1);
+  background: var(--bg-page); overflow: hidden; min-width: 1200px; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.num { font-variant-numeric: tabular-nums; }
+::placeholder { color: var(--ink-3); }
+
+/* ── 融合骨架（与 A4 / A1 同构）── */
+.app { display: grid; grid-template-columns: 218px 4px minmax(0,1fr); grid-template-rows: 100vh;
+  grid-template-areas: "sidebar resizer main"; }
+.sidebar { grid-area: sidebar; padding: 0 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.sidebar-head { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 6px; margin-bottom: 6px; flex: none; }
+.brand-mark { width: 24px; height: 24px; border-radius: 8px; background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.brand-name { font-weight: 600; font-size: 13.5px; }
+.nav-section { margin-top: 12px; }
+.nav-label { font-size: 11px; color: var(--ink-3); padding: 0 10px 6px; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px;
+  border-radius: 10px; color: var(--ink-2); font-size: 13px; text-align: left; }
+.nav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-item.active { background: var(--bg-hover); color: var(--ink-1); font-weight: 500; position: relative; }
+.nav-item.active::before { content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--accent); }
+.resizer { grid-area: resizer; }
+.main { grid-area: main; display: grid; grid-template-rows: 46px minmax(0,1fr) 30px; min-width: 0; }
+.titlebar { display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.nav-btn { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); }
+.nav-btn:hover:not(:disabled) { background: var(--bg-hover); color: var(--ink-1); }
+.nav-btn:disabled { opacity: 0.35; cursor: default; }
+/* 面包屑：静态（无速切器）——当前卡标题截断 */
+.crumb { color: var(--ink-2); font-size: 12.5px; display: flex; align-items: center; gap: 6px; min-width: 0; }
+.crumb .back-link { border-radius: 6px; padding: 3px 7px; margin-left: -7px; }
+.crumb .back-link:hover { background: var(--bg-hover); color: var(--accent-text); }
+.crumb .sep { color: var(--ink-3); }
+.crumb .cur { display: flex; align-items: baseline; gap: 7px; min-width: 0; color: var(--ink-1); font-weight: 500; }
+.crumb .cur .no { font-family: ui-monospace, Consolas, monospace; font-size: 11px; color: var(--accent-text); font-weight: 600; }
+.crumb .cur .tt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 44ch; }
+.titlebar-spacer { flex: 1; }
+.kbd-pill { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 4px 0 12px;
+  background: var(--bg-surface); border-radius: 999px; box-shadow: var(--shadow-card); color: var(--ink-2); font-size: 12px; }
+kbd { height: 20px; padding: 0 6px; border-radius: 6px; background: var(--bg-group); color: var(--ink-2);
+  font-size: 11px; font-family: ui-monospace, Consolas, monospace; display: inline-flex; align-items: center; }
+.win-controls { display: flex; gap: 2px; margin-left: 4px; }
+.win-btn { width: 36px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); }
+.win-btn:hover { background: var(--bg-hover); }
+.win-btn.close:hover { background: #c25450; color: #fff; }
+
+/* ── 阅读区：正文列 640 恒居中 ── */
+.scrollarea { height: 100%; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--bg-sunken) transparent; }
+.sheet { display: grid; grid-template-columns: 1fr minmax(0, 640px) 1fr; padding: 30px 26px 72px; align-items: start; }
+.prose { grid-column: 2; min-width: 0; }
+
+/* 卡头 meta 行：编号 · 分类徽章 · pin · 时间 · ⋯（时间右侧，legacy 位置） */
+.meta-row { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+.cardno { font-family: ui-monospace, Consolas, monospace; font-size: 12px; font-weight: 600;
+  color: var(--accent-text); letter-spacing: 0.03em; }
+.cat-badge { display: inline-flex; align-items: center; gap: 6px; height: 24px;
+  padding: 0 10px; border-radius: 7px; font-size: 11.5px; font-weight: 500; }
+.cat-badge .cdot { width: 7px; height: 7px; border-radius: 50%; }
+.cat-badge .chev { width: 11px; height: 11px; opacity: 0.6; }
+.cat-badge:hover { filter: brightness(0.97); }
+.meta-times { font-size: 12px; color: var(--ink-3); display: flex; align-items: center; gap: 8px; }
+.meta-times .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--line-1); }
+.pin-btn { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-3); }
+.pin-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.pin-btn.on { color: var(--accent-text); }
+.pin-btn .icon { width: 14.5px; height: 14.5px; }
+/* ⋯ 更多（时间信息右侧，向下弹出） */
+.head-more-wrap { position: relative; margin-left: auto; }
+.head-more { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-3); }
+.head-more:hover { background: var(--bg-hover); color: var(--ink-1); }
+.head-more .icon { width: 16px; height: 16px; }
+.head-more-wrap.open .head-more { background: var(--bg-hover); color: var(--ink-1); }
+.more-menu { position: absolute; right: 0; top: 30px; width: 224px; max-height: calc(100vh - 160px);
+  display: none; flex-direction: column; overflow-y: auto; scrollbar-width: thin;
+  scrollbar-color: var(--bg-sunken) transparent;
+  background: var(--bg-surface); border-radius: var(--radius-md); padding: 5px;
+  box-shadow: var(--shadow-float), 0 0 0 1px rgba(120,100,70,0.08); z-index: 50; }
+.head-more-wrap.open .more-menu { display: flex; }
+.m-group { font-size: 10.5px; color: var(--ink-3); padding: 8px 9px 4px; }
+.m-group:first-child { padding-top: 4px; }
+.m-item { display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 9px; border-radius: 8px;
+  font-size: 12.5px; color: var(--ink-2); text-align: left; width: 100%; }
+.m-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.m-item .icon { width: 14.5px; height: 14.5px; color: var(--ink-3); }
+.m-item:hover .icon { color: var(--ink-2); }
+.m-item.danger { color: var(--danger); }
+.m-item.danger .icon { color: var(--danger); }
+.m-item.danger:hover { background: var(--danger-soft); }
+.m-sep { height: 1px; background: var(--line-2); margin: 5px 7px; }
+
+/* 分类切换浮层 */
+.cat-wrap { position: relative; }
+.cat-menu { position: absolute; left: 0; top: 30px; width: 236px; display: none; flex-direction: column;
+  background: var(--bg-surface); border-radius: var(--radius-md); padding: 5px;
+  box-shadow: var(--shadow-float), 0 0 0 1px rgba(120,100,70,0.08); z-index: 50; }
+.cat-wrap.open .cat-menu { display: flex; }
+.cat-opt { display: flex; align-items: flex-start; gap: 9px; padding: 8px 9px; border-radius: 8px; text-align: left; }
+.cat-opt:hover { background: var(--bg-hover); }
+.cat-opt .cdot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: none; }
+.cat-opt b { display: block; font-size: 12.5px; font-weight: 500; color: var(--ink-1); }
+.cat-opt span { display: block; font-size: 11px; color: var(--ink-3); line-height: 1.5; }
+.cat-opt.on { background: var(--bg-selected); }
+.cat-opt.on b { color: var(--accent-text); }
+
+/* 正文：首行即标题（卡片无标题字段，首块升为视觉标题） */
+.prose .lead { font-size: 16.5px; font-weight: 600; line-height: 1.6; letter-spacing: -0.005em;
+  margin: 0 0 0.9em; border-radius: 6px; }
+body.editing .prose .lead:hover { outline: 1px dashed var(--line-1); outline-offset: 6px; }
+.prose > p { font-size: 13.5px; line-height: 1.95; color: var(--ink-1); margin: 0 0 1.1em; text-align: justify; }
+.prose blockquote { margin: 1.6em 0; padding: 10px 16px; background: var(--bg-group);
+  border-left: 3px solid var(--accent); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 13.5px; line-height: 1.85; color: var(--ink-2); }
+.prose ol, .prose ul { margin: 0 0 1.2em; padding-left: 22px; }
+.prose li { font-size: 13.5px; line-height: 1.9; margin-bottom: 0.45em; }
+.prose li::marker { color: var(--accent-text); font-variant-numeric: tabular-nums; }
+/* 文献卡摘录块（文献蓝脊，区别于普通引文的 accent 脊） */
+.prose blockquote.src { border-left-color: var(--cat-literature); }
+.prose blockquote.src .src-cap { display: block; font-size: 11px; color: var(--cat-literature);
+  font-family: ui-monospace, Consolas, monospace; letter-spacing: 0.04em; margin-bottom: 4px; }
+/* 内联卡片引用（content-link 编辑器节点）：accent 下划线 */
+.cref { color: var(--accent-text); text-decoration: underline; text-decoration-color: var(--accent-soft);
+  text-underline-offset: 3px; cursor: pointer; border-radius: 2px; }
+.cref:hover { text-decoration-color: var(--accent-text); background: var(--accent-soft); }
+.caret { display: inline-block; width: 1.5px; height: 1.05em; background: var(--accent);
+  vertical-align: -0.18em; margin-left: 1px; animation: blink 1.1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .caret { animation: none; } }
+/* MOC 索引卡：条目列表形态 */
+.moc-list { margin: 0.4em 0 1.2em; display: flex; flex-direction: column; gap: 4px; }
+.moc-item { display: flex; align-items: baseline; gap: 10px; padding: 10px 14px; border-radius: var(--radius-sm);
+  background: var(--bg-surface); box-shadow: var(--shadow-card); font-size: 13px; color: var(--ink-2); line-height: 1.75; }
+.moc-item .no { font-family: ui-monospace, Consolas, monospace; font-size: 11px; color: var(--accent-text); flex: none; }
+.moc-item b { font-weight: 500; color: var(--ink-1); }
+
+/* 标签行（正文末，A4 形态） */
+.tags-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 36px;
+  padding-top: 18px; border-top: 1px solid var(--line-2); }
+.tags-row .lbl { font-size: 11.5px; color: var(--ink-3); margin-right: 2px; }
+.tpill { display: flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; border-radius: 6px;
+  font-size: 11.5px; background: var(--bg-group); color: var(--ink-2); }
+.tpill .tx:hover { color: var(--ink-1); }
+body.editing .tpill .tx:hover { outline: 1px dashed var(--line-1); border-radius: 4px; }
+.tpill .rm { width: 14px; height: 14px; border-radius: 4px; display: grid; place-items: center; color: var(--ink-3); }
+.tpill .rm:hover { color: var(--danger); background: var(--danger-soft); }
+.tpill .rm .icon { width: 11px; height: 11px; }
+.tadd { display: flex; align-items: center; gap: 5px; height: 24px; padding: 0 11px; border-radius: 6px;
+  font-size: 11.5px; color: var(--ink-3); border: 1px dashed var(--line-1); }
+.tadd:hover { color: var(--ink-2); border-color: var(--ink-3); }
+.tadd .icon { width: 12px; height: 12px; }
+
+/* 连接区：有关联才渲染（空卡不显示） */
+.sec { margin-top: 26px; }
+.sec-cap { display: flex; align-items: baseline; gap: 8px; padding: 0 2px 10px; }
+.sec-cap b { font-size: 12px; font-weight: 600; }
+.sec-cap span { font-family: ui-monospace, Consolas, monospace; font-size: 10px; color: var(--ink-3); letter-spacing: 0.05em; }
+.sec-cap .cnt { font-size: 11px; color: var(--ink-3); font-weight: 400; font-variant-numeric: tabular-nums; margin-left: 2px; }
+.link-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.lchip { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 11px;
+  border-radius: 8px; background: var(--bg-group); font-size: 12px; color: var(--ink-2); max-width: 100%; }
+.lchip:hover { background: var(--bg-hover); color: var(--ink-1); }
+.lchip .cdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.lchip .tt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; max-width: 34ch; }
+.lchip .kind { width: 12px; height: 12px; color: var(--ink-3); flex: none; }
+.lchip .x { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center;
+  color: var(--ink-3); flex: none; margin: 0 -4px 0 2px; }
+.lchip .x:hover { color: var(--danger); background: var(--danger-soft); }
+.lchip .x .icon { width: 11px; height: 11px; }
+.lchip-add { display: flex; align-items: center; gap: 5px; height: 30px; padding: 0 12px; border-radius: 8px;
+  font-size: 12px; color: var(--ink-3); border: 1px dashed var(--line-1); }
+.lchip-add:hover { color: var(--ink-2); border-color: var(--ink-3); }
+.lchip-add .icon { width: 12.5px; height: 12.5px; }
+
+/* ── 居中浮层：添加链接 / 删除确认（dialog 语言）── */
+.veil { position: fixed; inset: 0; background: rgba(67,57,44,0.28); display: none;
+  place-items: center; z-index: 90; animation: fadein 160ms var(--ease-out); }
+.veil.open { display: grid; }
+@keyframes fadein { from { opacity: 0; } }
+.dialog { width: 460px; max-height: 70vh; display: flex; flex-direction: column; background: var(--bg-surface);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-float), 0 0 0 1px rgba(120,100,70,0.08);
+  padding: 16px; animation: pop 200ms var(--ease-out); }
+@keyframes pop { from { opacity: 0; transform: translateY(6px) scale(0.985); } }
+.dialog h3 { font-size: 13.5px; font-weight: 600; margin: 2px 2px 12px; }
+.dialog .d-search { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px;
+  border-radius: var(--radius-sm); background: var(--bg-group); margin-bottom: 8px; flex: none; }
+.dialog .d-search .icon { width: 14px; height: 14px; color: var(--ink-3); }
+.dialog .d-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; font: 12.5px var(--font); }
+.d-list { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--bg-sunken) transparent;
+  display: flex; flex-direction: column; gap: 2px; }
+.d-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; border-radius: 8px;
+  font-size: 12.5px; color: var(--ink-2); text-align: left; }
+.d-row:hover { background: var(--bg-hover); color: var(--ink-1); }
+.d-row .cdot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.d-row .tt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.d-row .add { font-size: 11.5px; color: var(--accent-text); opacity: 0; flex: none; }
+.d-row:hover .add { opacity: 1; }
+.d-empty { text-align: center; color: var(--ink-3); font-size: 12.5px; padding: 26px 0; }
+.d-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; flex: none; }
+.btn { display: inline-flex; align-items: center; height: 30px; padding: 0 14px; border-radius: 8px;
+  font-size: 12.5px; color: var(--ink-2); }
+.btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.btn.danger { background: var(--danger); color: #fff; font-weight: 500; }
+.btn.danger:hover { filter: brightness(0.95); }
+.d-body { font-size: 12.5px; color: var(--ink-2); line-height: 1.8; padding: 2px; }
+
+/* ── 底部状态栏：纯状态（字数 · 协作 · 保存）── */
+.statusbar { display: flex; align-items: center; gap: 14px; padding: 0 16px; color: var(--ink-3);
+  font-size: 11.5px; border-top: 1px solid var(--line-2); background: var(--bg-page); }
+.sb-word { color: var(--ink-2); }
+.sb-collab { display: flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+  color: var(--ink-2); transition: background 140ms; }
+.sb-collab:hover { background: var(--bg-hover); }
+.sb-collab .icon { width: 13px; height: 13px; }
+.sb-collab .live { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+.sb-saved { display: flex; align-items: center; gap: 5px; }
+.sb-saved .icon { width: 12px; height: 12px; color: var(--ok); }
+.sb-spacer { flex: 1; }
+</style>
+</head>
+<body class="editing">
+<div class="app">
+  <nav class="sidebar">
+    <div class="sidebar-head">
+      <span style="display:flex;align-items:center;gap:8px"><span class="brand-mark">τ</span><span class="brand-name">Tau</span></span>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">工作台</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-flame"/></svg><span>今日</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">知识</div>
+      <button class="nav-item active"><svg class="icon"><use href="#i-layers"/></svg><span>卡片库</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-article"/></svg><span>文章</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-book"/></svg><span>知识库</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">学习</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-repeat"/></svg><span>闪卡复习</span></button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">工具</div>
+      <button class="nav-item"><svg class="icon"><use href="#i-calendar"/></svg><span>日程</span></button>
+      <button class="nav-item"><svg class="icon"><use href="#i-chart"/></svg><span>统计</span></button>
+    </div>
+  </nav>
+  <div class="resizer"></div>
+  <div class="main">
+    <header class="titlebar">
+      <button class="nav-btn" title="后退 (Alt ←)"><svg class="icon" style="width:16px;height:16px"><use href="#i-back"/></svg></button>
+      <button class="nav-btn" disabled title="前进 (Alt →)"><svg class="icon" style="width:16px;height:16px"><use href="#i-fwd"/></svg></button>
+      <span class="crumb">
+        <span class="back-link" title="返回卡片库">卡片库</span><span class="sep">/</span>
+        <span class="cur"><span class="no" id="crumb-no">#001</span><span class="tt" id="crumb-tt">知识的复利来自连接而非收集</span></span>
+      </span>
+      <div class="titlebar-spacer"></div>
+      <button class="kbd-pill"><svg class="icon" style="width:13px;height:13px"><use href="#i-search"/></svg>搜索或跳转…<kbd>Ctrl K</kbd></button>
+      <div class="win-controls"><span class="win-btn"></span><span class="win-btn"></span><span class="win-btn close"></span></div>
+    </header>
+
+    <main class="content" style="min-height:0">
+      <div class="scrollarea" id="scroll">
+        <div class="sheet">
+          <article class="prose" id="prose"></article>
+        </div>
+      </div>
+    </main>
+
+    <!-- 底部状态栏：纯状态（无动作入口） -->
+    <footer class="statusbar">
+      <span class="sb-word num" id="sb-words">212 字</span>
+      <button class="sb-collab" title="协作控制"><svg class="icon"><use href="#i-users"/></svg>2 人在线<span class="live"></span></button>
+      <span class="sb-saved"><svg class="icon"><use href="#i-check"/></svg>已保存 · 刚刚</span>
+      <span class="sb-spacer"></span>
+    </footer>
+  </div>
+</div>
+
+<!-- 添加链接浮层（旧 AddCardLinkModal 的 dialog 化） -->
+<div class="veil" id="link-veil">
+  <div class="dialog">
+    <h3>添加链接</h3>
+    <label class="d-search">
+      <svg class="icon"><use href="#i-search"/></svg>
+      <input type="text" id="link-q" placeholder="搜索要连接的卡片…">
+    </label>
+    <div class="d-list" id="link-list"></div>
+  </div>
+</div>
+
+<!-- 删除确认浮层 -->
+<div class="veil" id="del-veil">
+  <div class="dialog" style="width:380px">
+    <h3>删除卡片</h3>
+    <p class="d-body" id="del-body">确定删除这张卡片？正文引用计数将减一，关联链接会双边清理。</p>
+    <div class="d-foot">
+      <button class="btn" id="del-cancel">取消</button>
+      <button class="btn danger" id="del-ok">删除</button>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-flame" viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 2 10 5-10 5L2 7l10-5z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></symbol>
+  <symbol id="i-article" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h6"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/><circle cx="5" cy="12" r="1.4"/></symbol>
+  <symbol id="i-more-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-fwd" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+  <symbol id="i-textlink" viewBox="0 0 24 24"><path d="M9 15l6-6"/><path d="M11 6l1-1a4.95 4.95 0 0 1 7 7l-1 1"/><path d="M13 18l-1 1a4.95 4.95 0 0 1-7-7l1-1"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></symbol>
+  <symbol id="i-presentation" viewBox="0 0 24 24"><path d="M2 3h20"/><path d="M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3"/><path d="m7 21 5-5 5 5"/></symbol>
+  <symbol id="i-maximize" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h6"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></symbol>
+</svg>
+
+<script>
+/* ── mock 数据（与列表页 A1 同口径；links 可被演示交互修改）── */
+const CAT = {
+  temporary:  { name: "闪念", full: "闪念笔记", c: "var(--cat-temporary)",  cs: "var(--cat-temporary-soft)",  desc: "未经加工的原始念头，一个月不更新会被自动清理" },
+  literature: { name: "文献", full: "文献笔记", c: "var(--cat-literature)", cs: "var(--cat-literature-soft)", desc: "他人论述的摘录：原文 + 页码 + 摘录理由，不改写" },
+  permanent:  { name: "永久", full: "永久笔记", c: "var(--cat-permanent)",  cs: "var(--cat-permanent-soft)",  desc: "用自己的话重写的论点，一张卡只承载一件事" },
+  theme:      { name: "主题", full: "主题笔记", c: "var(--cat-theme)",      cs: "var(--cat-theme-soft)",      desc: "MOC 索引页：串起一个主题下的卡片，回答「关于 X 我写过什么」" },
+};
+const C = (id, cat, tags, words, grp, date, text, links = []) => ({ id, cat, tags, words, grp, date, text, links });
+const CARDS = [
+  Object.assign(C(1, "permanent", ["卡片盒", "方法论"], 212, "today", "09-20",
+    "知识的复利来自连接而非收集。收集创造库存，连接创造利息；而库存是要付仓储成本的——每一次「以后再看」，都是一笔记在未来自己账上的负债。", [12, 20, 25]), { top: true }),
+  Object.assign(C(2, "theme", ["读书/卡片笔记", "卡片盒"], 186, "today", "09-20",
+    "MOC · 卡片盒方法总览。卢曼的秘密不在卡片，在编号：编号是思想的坐标系，没有地址的思想等于不存在。本卡作索引页，串起四条主线——原子化、编号、连接、反刍。", [12, 20, 25, 30]), { top: true }),
+  C(3, "temporary", ["写作"], 64, "today", "09-20", "写作是思考的显影：脑子里的念头是高清的，落到纸上全是噪点。把信噪比提到别人能读懂的程度，就是写作全部的工作量。"),
+  C(4, "temporary", ["卡片盒"], 52, "today", "09-20", "三条闪念没有归属标签，先挂在「卡片盒」待整理——周五盘点时统一决定去留，不让 inbox 变成仓库。"),
+  C(5, "literature", ["读书/文明"], 148, "today", "09-20", "《文明》第二季第 4 期：地理是文明的硬约束。大河的走向决定了粮食的分布，粮食的分布决定了城市的选址，城市的选址决定了帝国扩张的方向。", [22]),
+  C(6, "permanent", ["认知/记忆"], 172, "today", "09-20", "流畅感是记忆最大的骗子：重读时越顺，说明线索越熟；而线索的熟悉，恰恰掩盖了提取的生疏。检验记住与否的唯一标准，是合上书还能不能复述。", [13, 29]),
+  C(7, "temporary", ["认知/注意力"], 38, "yesterday", "09-19", "注意力残留：每次切换后，残留的思绪要 15 分钟才消散。", [17, 19]),
+  C(8, "temporary", ["工具流"], 45, "yesterday", "09-19", "写脚本自动化一件一年只做三次的事，纯粹因为第三次手动做的时候忍无可忍。值吗？值。"),
+  C(9, "literature", ["读书/卡片笔记"], 156, "yesterday", "09-19", "《卡片笔记写作法》重读：闪念卡片与文献卡片是两条不同的产线——前者记录自己的念头，后者摘录他人的论述。混在一起，就是灾难的开始。"),
+  C(10, "permanent", ["方法论"], 168, "yesterday", "09-19", "我理解的「慢就是快」：快是跳过理解直达答案，慢是让每一步都踩实。跳过的部分不会消失，总会在下一个路口等你，而且利息不低。"),
+  C(11, "temporary", ["写作"], 30, "yesterday", "09-19", "标题先写最烂的那版。烂标题是占位符，好标题是承诺——别在一开始就许诺。"),
+  C(12, "permanent", ["卡片盒"], 194, "week", "09-17", "原子化不是碎片化。一张卡片只承载一个论点，论证材料放在链接的另一端；「一卡一事」牺牲的是单卡的完整感，换来的是复用与重组的自由。", [1, 2]),
+  C(13, "temporary", ["认知/记忆"], 44, "week", "09-17", "间隔重复的最优间隔并不存在——算法能给的是兜底，不是最优。", [6]),
+  C(14, "literature", ["读书/文明"], 132, "week", "09-16", "《文明》第二季第 3 期摘录：盐铁之辩的本质不是经济问题，是中央与地方的权力边界问题。财政工具从来都是政治工具。"),
+  C(15, "permanent", ["写作"], 158, "week", "09-16", "写长文先搭骨架。大纲是叙述的顺序，骨架是论证的顺序——先立论点，再排证据，最后才是修辞。骨架立住之后，写作变成填空。"),
+  C(16, "temporary", ["方法论"], 36, "week", "09-15", "模板每次变复杂一点，写的时候反而更快一点。约束本身就是脚手架。"),
+  C(17, "permanent", ["认知/注意力"], 176, "week", "09-15", "深度工作的环境设计清单：手机放另一个房间、通知全关、任务写在纸上而非屏幕上、开始前倒一杯水。全部是为了让「切换」这件事变贵。", [7, 19]),
+  C(18, "literature", ["读书/卡片笔记"], 141, "week", "09-14", "渐进式总结的第二遍不是压缩，是改写。用自己的话重述时丢失的那部分，恰恰是还没理解的部分——丢失率就是理解率的反面。"),
+  C(19, "temporary", ["认知/注意力"], 47, "week", "09-14", "通知全关第七天：戒断反应消失，第一次出现连续三小时的沉浸。", [17]),
+  C(20, "permanent", ["卡片盒"], 165, "week", "09-13", "编号是思想的坐标系。卢曼给每张卡片一个不重复的地址，新卡片插在旧卡片的缝隙里（21/3a），位置本身就是语境。", [2, 1]),
+  C(21, "temporary", ["写作"], 41, "month", "09-08", "晨间随笔第 30 天：前二十天产出的是情绪垃圾，后十天偶尔出现一句真话。真话率 5%，值回全部时间。"),
+  C(22, "literature", ["读书/文明"], 120, "month", "09-05", "《文明》第二季第 2 期摘录：造纸术西传的真正意义不是知识变便宜，而是「删改」变可能——可修改的媒介才有版本的概念。", [5]),
+  C(23, "permanent", ["方法论"], 149, "month", "09-03", "费曼技巧实践：向想象中的听众解释「为什么卡片要原子化」，讲到第三句就卡壳。卡住的地方，就是理解的边界；边界比知识本身更有价值。"),
+  C(24, "temporary", ["工具流"], 58, "month", "09-01", "「素材库」改叫「引文池」之后，往里丢东西前会多想一秒——命名在悄悄塑造行为。"),
+  C(25, "permanent", ["卡片盒"], 172, "month", "08-28", "链接的价值不在建立的瞬间，而在三个月后你在完全不同的语境里撞见它的那次意外。双链笔记的涌现结构，需要的是时间和足够的节点密度。", [1]),
+  C(26, "temporary", ["卡片盒"], 49, "month", "08-25", "孤儿链接三条：指向已删除卡片的链接没有清理。盘点清单再 +1。"),
+  C(27, "permanent", ["写作"], 134, "month", "08-22", "给重要文章定一个「复读日」：好书读两遍胜过读两本。第二遍带着第一遍留下的问题去读，密度完全不同。"),
+  C(28, "literature", ["读书/卡片笔记"], 128, "month", "08-18", "文献卡片纪律：只记语境，不改写。原文摘录 + 页码 + 当时为什么摘它，三条缺一不可；改写是永久卡片阶段的事。"),
+  C(29, "temporary", ["认知/记忆"], 52, "month", "08-15", "回忆式复习第二个月：「想不起来」的痛苦指数断崖式下降——原来提取本身是可以训练的。", [6]),
+  C(30, "permanent", ["卡片盒"], 181, "month", "08-12", "反对自己的卡片：肌肉在对抗中生长，思维在反驳中生长。照抄一百张卡片，不如愤怒地反驳一张——反驳逼你亮出自己的论点。", [2]),
+  C(31, "temporary", ["工具流"], 63, "earlier", "07-30", "小而钝的工具：大而全的工具替你做决定，小而钝的工具逼你面对自己的流程。后者往往更能留下东西。"),
+  C(32, "literature", ["读书/文明"], 137, "earlier", "07-21", "《文明》第二季第 1 期摘录：文明的第一驱动力是「讲故事的能力」——超过 150 人的协作，靠的不是熟悉，而是共同的叙事。"),
+  C(33, "permanent", ["写作"], 129, "earlier", "07-14", "手机写作的秘诀是放弃编辑：只管往前写，格式、错字、结构全部留给回桌面后的自己。先有素材，再谈加工。"),
+  C(34, "temporary", ["方法论"], 55, "earlier", "07-06", "公开学习最难的不是被批评，而是忍受「这还不成熟」的羞耻感。但它确实加速了迭代。"),
+  C(35, "permanent", ["认知/记忆"], 163, "earlier", "06-28", "提取练习优于重读：测试效应的证据很扎实——主动提取一次的记忆留存，是被动重读三次的三倍，尽管重读的感觉更好。", [6]),
+  C(36, "theme", ["卡片盒", "写作"], 158, "earlier", "06-15", "MOC · 写作主题索引：写作即思考的显影、骨架先于修辞、烂标题是占位符、复读日的密度。本卡是「写作」标签的地图页，回答「关于写作我写过什么」。", [3, 15, 21, 27, 33]),
+];
+const byId = Object.fromEntries(CARDS.map(c => [c.id, c]));
+
+/* 完整正文（三种卡型）；inline = 正文内联 content-link 引用的卡片。
+   闪卡关联列表本轮不呈现（v2 裁决）。 */
+const RICH = {
+  1: {
+    inline: [20],
+    body: `
+      <p class="lead">知识的复利来自连接而非收集。</p>
+      <p>收集创造库存，连接创造利息；而库存是要付仓储成本的——每一次「以后再看」，都是一笔记在未来自己账上的负债。</p>
+      <blockquote><span class="cref" data-goto="20" title="#020 编号是思想的坐标系">编号是思想的坐标系，链接是思想的街道</span>——卡片盒里没有孤岛，只有还没被发现的航线。</blockquote>
+      <p>所以整理卡片盒的动作不是归档，而是连线：遇到一张新卡，先问「它让我想起谁」，而不是「它该放进哪个文件夹」。前者在制造利息，后者在制造仓库。这与<span class="cref" data-goto="12" title="#012 原子化不是碎片化">原子化</span>是一体两面——卡足够小，连接才足够密。</p>
+      <p>三条实践：</p>
+      <ol>
+        <li>新卡入库，必连一张旧卡；连不上就说明它还不是一张卡，只是一个念头。</li>
+        <li>连接时写一句「为什么连」——三个月后这句话比链接本身更值钱。</li>
+        <li>每月盘点孤儿卡：零连接的永久卡是假永久，要么连线，要么降级。<span class="caret"></span></li>
+      </ol>`,
+  },
+  2: {
+    inline: [12, 20, 25, 30],
+    body: `
+      <p class="lead">MOC · 卡片盒方法总览</p>
+      <p>卢曼的秘密不在卡片，在编号：编号是思想的坐标系，没有地址的思想等于不存在。本卡作索引页，串起四条主线——</p>
+      <div class="moc-list">
+        <div class="moc-item"><span class="no">01</span><span><b><span class="cref" data-goto="12" title="#012">原子化</span></b>：一卡一事不是碎片化，是复用的前提。</span></div>
+        <div class="moc-item"><span class="no">02</span><span><b><span class="cref" data-goto="20" title="#020">编号</span></b>：给思想一个不重复的地址，位置本身就是语境。</span></div>
+        <div class="moc-item"><span class="no">03</span><span><b><span class="cref" data-goto="25" title="#025">连接</span></b>：链接的价值在三个月后的那次意外撞见。</span></div>
+        <div class="moc-item"><span class="no">04</span><span><b><span class="cref" data-goto="30" title="#030">反刍</span></b>：反对自己的卡片，反驳逼你亮出论点。<span class="caret"></span></span></div>
+      </div>`,
+  },
+  5: {
+    inline: [22],
+    body: `
+      <p class="lead">地理是文明的硬约束</p>
+      <blockquote class="src"><span class="src-cap">摘录 · 《文明》第二季 第 4 期</span>
+        大河的走向决定了粮食的分布，粮食的分布决定了城市的选址，城市的选址决定了帝国扩张的方向。地理不是背景板，是每一代决策者头顶的预算约束。</blockquote>
+      <p>批注：这条链条里没有一处「文化决定论」，全是物流与热量。对照<span class="cref" data-goto="22" title="#022 造纸术西传">上一期的媒介视角</span>，文明的解释框架似乎总在「约束条件」里打转——先看河，再看人。<span class="caret"></span></p>`,
+  },
+};
+
+const state = { id: 1 };
+const $ = s => document.querySelector(s);
+const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const firstLine = c => c.text.split("。")[0] + "。";
+const no3 = id => "#" + String(id).padStart(3, "0");
+
+/* ── 渲染：卡头（含 ⋯ 菜单）+ 正文 + 标签 + 连接区（有关联才渲染）── */
+function renderCard(id) {
+  state.id = id;
+  const c = byId[id], rich = RICH[id];
+  document.getElementById("crumb-no").textContent = no3(id);
+  document.getElementById("crumb-tt").textContent = firstLine(c);
+  document.getElementById("sb-words").textContent = c.words.toLocaleString() + " 字";
+
+  const inline = rich ? rich.inline : [];
+  const linked = [...new Set([...(c.links || []), ...inline])].filter(x => x !== id);
+
+  document.getElementById("prose").innerHTML = `
+    <div class="meta-row">
+      <span class="cardno num">${no3(id)}</span>
+      <span class="cat-wrap" id="cat-wrap">
+        <button class="cat-badge" id="cat-btn" style="background:${CAT[c.cat].cs};color:${CAT[c.cat].c}">
+          <span class="cdot" style="background:${CAT[c.cat].c}"></span>${CAT[c.cat].full}
+          <svg class="icon chev"><use href="#i-more-chev"/></svg>
+        </button>
+        <div class="cat-menu">
+          ${Object.entries(CAT).map(([k, v]) => `
+            <button class="cat-opt ${k === c.cat ? "on" : ""}" data-cat="${k}">
+              <span class="cdot" style="background:${v.c}"></span>
+              <span><b>${v.full}</b><span>${v.desc}</span></span>
+            </button>`).join("")}
+        </div>
+      </span>
+      <button class="pin-btn ${c.top ? "on" : ""}" id="pin-btn" title="${c.top ? "取消置顶" : "置顶"}">
+        <svg class="icon"><use href="#i-pin"/></svg>
+      </button>
+      <span class="meta-times num"><span>2026-${c.date} 创建</span><span class="dot"></span><span>今天 14:32 编辑</span></span>
+      <span class="head-more-wrap" id="more-wrap">
+        <button class="head-more" id="more-btn" title="更多操作"><svg class="icon"><use href="#i-more"/></svg></button>
+        <div class="more-menu">
+          <div class="m-group">生成</div>
+          <button class="m-item" data-act="ai-card"><svg class="icon"><use href="#i-sparkles"/></svg>AI 制卡（闪卡）</button>
+          <button class="m-item" data-act="manual-card"><svg class="icon"><use href="#i-card"/></svg>手动制卡（闪卡）</button>
+          <button class="m-item" data-act="podcast"><svg class="icon"><use href="#i-mic"/></svg>生成播客</button>
+          <div class="m-group">连接</div>
+          <button class="m-item" data-act="add-link"><svg class="icon"><use href="#i-link"/></svg>添加链接</button>
+          <div class="m-group">导出 / 复制</div>
+          <button class="m-item"><svg class="icon"><use href="#i-copy"/></svg>复制 Markdown</button>
+          <button class="m-item"><svg class="icon"><use href="#i-copy"/></svg>复制公众号格式</button>
+          <button class="m-item"><svg class="icon"><use href="#i-download"/></svg>导出 Markdown</button>
+          <button class="m-item"><svg class="icon"><use href="#i-image"/></svg>导出图片</button>
+          <button class="m-item"><svg class="icon"><use href="#i-book"/></svg>导出 EPUB</button>
+          <button class="m-item"><svg class="icon"><use href="#i-file"/></svg>导出 PDF</button>
+          <div class="m-group">场景</div>
+          <button class="m-item"><svg class="icon"><use href="#i-presentation"/></svg>演示模式</button>
+          <button class="m-item"><svg class="icon"><use href="#i-maximize"/></svg>沉浸模式</button>
+          <button class="m-item"><svg class="icon"><use href="#i-external"/></svg>在新窗口打开</button>
+          <div class="m-sep"></div>
+          <button class="m-item danger" data-act="del"><svg class="icon"><use href="#i-trash"/></svg>删除卡片</button>
+        </div>
+      </span>
+    </div>
+    ${rich ? rich.body : `<p class="lead">${esc(c.text.split("。")[0])}。</p><p>${esc(c.text.split("。").slice(1).join("。"))}${c.text.endsWith("。") ? "" : "。"}<span class="caret"></span></p>`}
+    <div class="tags-row">
+      <span class="lbl">标签</span>
+      ${c.tags.map(t => `<span class="tpill"><span class="tx">${esc(t)}</span><button class="rm" title="移除标签"><svg class="icon"><use href="#i-x"/></svg></button></span>`).join("")}
+      <button class="tadd" title="添加标签"><svg class="icon"><use href="#i-plus"/></svg>添加</button>
+    </div>
+    ${linked.length ? `
+    <div class="sec">
+      <div class="sec-cap"><b>连接</b><span>LINKED</span><span class="cnt">${linked.length}</span></div>
+      <div class="link-chips">
+        ${linked.map(l => {
+          const t = byId[l], isIn = inline.includes(l), isEx = (c.links || []).includes(l);
+          return `<button class="lchip" data-goto="${l}" title="${esc(t.text)}">
+            <span class="cdot" style="background:${CAT[t.cat].c}"></span>
+            <span class="tt">${esc(firstLine(t))}</span>
+            <svg class="icon kind" ><use href="#i-${isIn && !isEx ? "textlink" : "link"}"/></svg>
+            <span class="x" data-unlink="${l}" title="解除链接"><svg class="icon"><use href="#i-x"/></svg></span>
+          </button>`;
+        }).join("")}
+        <button class="lchip-add" id="add-link"><svg class="icon"><use href="#i-plus"/></svg>添加链接</button>
+      </div>
+    </div>` : ""}`;
+  document.getElementById("scroll").scrollTop = 0;
+
+  /* 分类切换 */
+  const catWrap = document.getElementById("cat-wrap");
+  document.getElementById("cat-btn").addEventListener("click", e => {
+    e.stopPropagation(); closeFloats("cat"); catWrap.classList.toggle("open");
+  });
+  catWrap.querySelectorAll(".cat-opt").forEach(o => o.addEventListener("click", () => {
+    c.cat = o.dataset.cat; renderCard(id);
+  }));
+
+  /* 置顶切换 */
+  document.getElementById("pin-btn").addEventListener("click", () => { c.top = !c.top; renderCard(id); });
+
+  /* ⋯ 菜单（时间右侧，向下弹出） */
+  const moreWrap = document.getElementById("more-wrap");
+  document.getElementById("more-btn").addEventListener("click", e => {
+    e.stopPropagation(); closeFloats("more"); moreWrap.classList.toggle("open");
+  });
+  moreWrap.querySelectorAll(".m-item").forEach(m => m.addEventListener("click", e => {
+    e.stopPropagation();
+    const act = m.dataset.act;
+    if (!act) return alert("→ " + m.textContent.trim() + "（Dialog / 能力已有，纯 UI 迁移）");
+    closeFloats();
+    if (act === "add-link") openLinkDialog();
+    else if (act === "del") {
+      document.getElementById("del-body").innerHTML =
+        `确定删除 <b>${esc(firstLine(c))}</b> 吗？正文引用计数将减一，关联链接会双边清理。`;
+      delTarget = id; document.getElementById("del-veil").classList.add("open");
+    }
+    else alert("→ " + m.textContent.trim() + "（能力已有，纯 UI 迁移）");
+  }));
+
+  /* 连接 chip / 内联引用：点击跳卡；⋯ 解链（双边清理） */
+  document.querySelectorAll("#prose [data-goto]").forEach(b => b.addEventListener("click", e => {
+    if (e.target.closest("[data-unlink]")) return;
+    renderCard(Number(b.dataset.goto));
+  }));
+  document.querySelectorAll("#prose [data-unlink]").forEach(x => x.addEventListener("click", e => {
+    e.stopPropagation();
+    const l = Number(x.dataset.unlink);
+    c.links = (c.links || []).filter(v => v !== l);
+    byId[l].links = (byId[l].links || []).filter(v => v !== id);
+    renderCard(id);
+  }));
+  const addLink = document.getElementById("add-link");
+  if (addLink) addLink.addEventListener("click", e => { e.stopPropagation(); openLinkDialog(); });
+}
+
+/* ── 添加链接浮层 ── */
+function openLinkDialog() {
+  document.getElementById("link-veil").classList.add("open");
+  document.getElementById("link-q").value = "";
+  renderLinkList("");
+  setTimeout(() => document.getElementById("link-q").focus(), 30);
+}
+function renderLinkList(q) {
+  const c = byId[state.id];
+  const rows = CARDS.filter(x => x.id !== state.id &&
+    !(c.links || []).includes(x.id) &&
+    (!q || x.text.toLowerCase().includes(q.toLowerCase())));
+  document.getElementById("link-list").innerHTML = rows.map(x => `
+    <button class="d-row" data-id="${x.id}">
+      <span class="cdot" style="background:${CAT[x.cat].c}"></span>
+      <span class="tt">${esc(firstLine(x))}</span>
+      <span class="add">+ 连接</span>
+    </button>`).join("") || `<div class="d-empty">没有可连接的卡片</div>`;
+  document.querySelectorAll("#link-list .d-row").forEach(r => r.addEventListener("click", () => {
+    const l = Number(r.dataset.id);
+    c.links = [...(c.links || []), l];          /* 双向写：对方 links 也补上 */
+    byId[l].links = [...(byId[l].links || []), state.id];
+    document.getElementById("link-veil").classList.remove("open");
+    renderCard(state.id);
+  }));
+}
+document.getElementById("link-q").addEventListener("input", e => renderLinkList(e.target.value));
+
+/* ── 删除确认 ── */
+let delTarget = null;
+document.getElementById("del-cancel").addEventListener("click", () => document.getElementById("del-veil").classList.remove("open"));
+document.getElementById("del-ok").addEventListener("click", () => {
+  const i = CARDS.findIndex(c => c.id === delTarget);
+  const dead = CARDS.splice(i, 1)[0];
+  dead.links.forEach(l => { if (byId[l]) byId[l].links = (byId[l].links || []).filter(v => v !== dead.id); });
+  document.getElementById("del-veil").classList.remove("open");
+  if (dead.id === state.id) renderCard(CARDS[Math.max(0, i - 1)].id);
+});
+
+/* ── 浮层仲裁：互斥 + 外点关闭 + Esc 逐层退场 ── */
+function closeFloats(except) {
+  if (except !== "more") { const m = document.getElementById("more-wrap"); if (m) m.classList.remove("open"); }
+  if (except !== "cat") { const c = document.getElementById("cat-wrap"); if (c) c.classList.remove("open"); }
+}
+document.addEventListener("click", e => {
+  if (!e.target.closest(".head-more-wrap, .cat-wrap")) closeFloats();
+});
+document.getElementById("link-veil").addEventListener("click", e => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove("open");
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    document.querySelectorAll(".veil.open").forEach(v => v.classList.remove("open"));
+    closeFloats();
+  }
+});
+
+renderCard(1);
+</script>
+</body>
+</html>
