@@ -251,7 +251,7 @@
 > 33 个 TabType 的完整映射与合并方案见蓝图 §5.3，此处只跟踪迁移状态。
 
 - ~~cards 卡片库（M2 样板域，第一个）~~ ✅ 2026-09-20 A1 卡片墙+时间分组落地（mockups/cards 七轮评审定稿；CardDatabaseView 提升至 components 共用，04 清单 §cards）
-- card-detail 卡片详情
+- ~~card-detail 卡片详情~~ ✅ 2026-09-20 A 素卡 v2 落地（mockups/card-detail 三案评审 + 二轮反馈定稿：⋯ 菜单回卡头时间右侧、连接区有关联才渲染、暂不做闪卡关联与图谱入口、面包屑无速切器；预览弹窗「进入详情」接线 navigator.push）
 - library 知识库（documents/pdf/vec 合并）
 - ~~articles 文章~~ ✅ 2026-09-19 A3 月刊落地（D-015）
 - feed 订阅/稍后读
