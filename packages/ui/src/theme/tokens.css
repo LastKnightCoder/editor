@@ -25,6 +25,18 @@
     -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans",
     "Microsoft YaHei", sans-serif;
   --tau-font-mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+
+  /* 字号档位字面值层——@theme inline 的 --text-tau-* 经 var 桥接引用此处；
+     用户「全局字号」设置在运行时覆盖本层（桌面 useSyncFont 等比缩放全部档位） */
+  --tau-text-hero: 25px;
+  --tau-text-title-lg: 20px;
+  --tau-text-title: 14.5px;
+  --tau-text-body-lg: 13.5px;
+  --tau-text-body: 13px;
+  --tau-text-meta: 12.5px;
+  --tau-text-sm: 12px;
+  --tau-text-micro: 11.5px;
+  --tau-text-tiny: 11px;
 }
 
 /* 语义类名映射：组件写 bg-page / text-ink-1 / border-line-1 等，主题无关 */
@@ -79,17 +91,18 @@
 
   /* ── 尺度词（D-001，tau 命名空间，见 02 规范 §3/§4）── */
 
-  /* 字号：A2 定稿取值回填 */
-  --text-tau-hero: 25px;
-  --text-tau-title-lg: 20px;
-  --text-tau-title: 14.5px;
-  --text-tau-body-lg: 13.5px;
-  --text-tau-body: 13px;
+  /* 字号：A2 定稿取值（经 :root 字面值层 --tau-text-* 桥接，支持运行时整体缩放——
+     @theme inline 对字面值会内联进工具类导致不可覆盖，必须走 var 引用） */
+  --text-tau-hero: var(--tau-text-hero);
+  --text-tau-title-lg: var(--tau-text-title-lg);
+  --text-tau-title: var(--tau-text-title);
+  --text-tau-body-lg: var(--tau-text-body-lg);
+  --text-tau-body: var(--tau-text-body);
   --text-tau-body--line-height: 1.65;
-  --text-tau-meta: 12.5px;
-  --text-tau-sm: 12px;
-  --text-tau-micro: 11.5px;
-  --text-tau-tiny: 11px;
+  --text-tau-meta: var(--tau-text-meta);
+  --text-tau-sm: var(--tau-text-sm);
+  --text-tau-micro: var(--tau-text-micro);
+  --text-tau-tiny: var(--tau-text-tiny);
 
   /* 圆角三档 */
   --radius-tau-sm: var(--tau-radius-sm);
