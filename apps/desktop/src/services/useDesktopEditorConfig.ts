@@ -2,6 +2,8 @@ import { useMemo } from "react";
 
 import type { EditorConfig } from "@tau/editor/src";
 import type { ThemeColors } from "@tau/editor/src/types/services";
+import { getTheme } from "@tau/ui/theme";
+import { useThemeStore } from "@tau/ui/theme/runtime";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import { ACCENT_COLORS, ACCENT_OKLCH } from "@/constants/accent";
 import { openExternal } from "@/commands/extra";
@@ -26,8 +28,7 @@ const EDITOR_THEME_CLASSES: ThemeColors = {
   cardBgClass: "bg-[var(--th-card-bg)]",
 };
 
-const getThemeColorsFromSetting = (setting: ISetting): ThemeColors => {
-  const isDarkMode = !!setting.darkMode;
+const getThemeColorsFromSetting = (setting: ISetting, isDarkMode: boolean): ThemeColors => {
   const accent = setting.appearance?.accent ?? "indigo";
   const accentPair = ACCENT_COLORS[accent] ?? ACCENT_COLORS.indigo;
   const { h, c } = ACCENT_OKLCH[accent] ?? ACCENT_OKLCH.indigo;
@@ -41,12 +42,15 @@ const getThemeColorsFromSetting = (setting: ISetting): ThemeColors => {
 
 export const useDesktopEditorConfig = (): EditorConfig => {
   const setting = useSettingStore(state => state.setting);
+  // 明暗唯一正源是主题 runtime 的 resolved 主题（data-theme 语义 key），不再读 setting.darkMode
+  const resolved = useThemeStore(state => state.resolved);
+  const isDark = getTheme(resolved)?.mode === "dark";
 
   return useMemo(
     () => ({
       theme: {
-        mode: setting.darkMode ? "dark" : "light",
-        colors: getThemeColorsFromSetting(setting),
+        mode: isDark ? "dark" : "light",
+        colors: getThemeColorsFromSetting(setting, isDark),
       },
       appearance: {
         image: {
@@ -58,6 +62,6 @@ export const useDesktopEditorConfig = (): EditorConfig => {
         void openExternal(url);
       },
     }),
-    [setting]
+    [setting, isDark]
   );
 };

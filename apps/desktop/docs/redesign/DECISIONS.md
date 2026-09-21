@@ -195,6 +195,12 @@
 - 编辑浮层裁决：已选区 Tag 不加 onRemove——浮层内标签是纯展示，提交/取消/失焦由编辑宿主（InlineEditCell）统一仲裁，业务按钮绕过仲裁会与焦点域判定打架（用户裁决「让弹窗去处理」）。
 - 实现：primitives/Tag.tsx（TAG_COLORS/TagColor 色板契约随迁，ValueDisplay.tsx 剩 ColorSwatch/ProgressBar/Rating 占位）+ **tests**/tag.test.tsx 5 例；零新 token（soft/solid 全既有）；@tau/ui 全量 168 例绿；样板间新建 TagSection。
 
+## D-022 共存期明暗判定收口：`<html>.dark` 类为唯一信号，`setting.darkMode` 退出 DOM 写入
+
+- 问题（2026-09-20，Editor 深色不跟随排查）：新主题（`[data-theme=cream|cocoa]` + `--tau-*`）下编辑器保持浅色，三级判定链全断——宿主不传 `theme` prop；`EditorProvider config.theme.mode` 读旧 `setting.darkMode`（Titlebar 切主题不更新它）；DOM 兜底 `useSystemTheme` 比对 `dataset.theme === "dark"` 而新系统写语义 key。另有三处叠加伤：`.editor` 容器局部硬编码 `--th-text: black` / `--th-accent-soft`（浅色）就近覆盖宿主 `:root.dark` 深色值；旧 `useSyncTheme` 与 `applyAppearanceFromSetting` 双写 `data-theme`/`.dark` 与 `applyThemeToDom` 打架（App 树内 effect 子先父后，mount 时旧写者覆盖新写者）；桌面 `useTheme`（antd ConfigProvider 等消费）同样比对字面值全盲。
+- 裁决：明暗**唯一 DOM 写者** = 主题 runtime 的 `applyThemeToDom`；JS 判定**唯一信号** = `<html>.dark` 类（`data-theme="dark"` 字面值仅作旧宿主兼容读法）。`setting.darkMode` 降级为旧设置存储，旧入口 `onDarkModeChange` 转发 `useThemeStore.setMode(cocoa/cream)`，`useSyncTheme` 只留 `data-accent` 同步。编辑器包 `.editor` 不再自定义 `--th-*`，颜色 token 由宿主 `:root` 级级联——桌面 `styles/theme-colors.css`（`:root`/`:root.dark`）、移动端 `styles.css` 桥接块（移动端深色主题下同样被截断，一并修复）；`index.tsx` 容器上的 `styles.dark` 哈希类随之移除（变量块删除后成死引用，且 CSS Modules 哈希类本就命中不了 `dark:` 变体的字面 `.dark`）。
+- 实现：`useDesktopEditorConfig` 明暗改从 themeStore `resolved` 派生（`getTheme(resolved)?.mode === "dark"`，accent 色板同源）；`packages/editor` `useSystemTheme` 与桌面 `useTheme` 改读 `.dark` 类；03 指南 §3「主题模式与切换」补「共存期明暗判定」口径。
+
 ## Page 迁移清单（M2 起滚动勾选）
 
 > 33 个 TabType 的完整映射与合并方案见蓝图 §5.3，此处只跟踪迁移状态。

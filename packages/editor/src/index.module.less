@@ -1,13 +1,8 @@
 .editor {
+  // 颜色 token（--th-*）由宿主在 :root 级定义并随主题切换，此处不做局部覆盖，
+  // 否则会截断宿主的深色值（桌面 theme-colors.css、移动端 styles.css 桥接块）
   color: var(--th-text);
   caret-color: var(--th-text);
-  --th-accent-soft: #d9f0ff;
-  --th-text: black;
-
-  &.dark {
-    --th-accent-soft: #182f3f;
-    --th-text: rgba(255, 255, 255, 0.9);
-  }
 
   ::selection {
     background: var(--th-accent-soft);
