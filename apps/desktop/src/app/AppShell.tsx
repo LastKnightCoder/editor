@@ -20,6 +20,7 @@ import { ToastHost } from "@tau/ui/Toast";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { useSearchStore } from "@/features/search/searchStore";
 import { initScrollbarAutoHide } from "@tau/ui/hooks";
+import useSettingStore from "@/stores/useSettingStore";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
 import {
@@ -44,6 +45,12 @@ const shellRootClass =
 ensureLegacyPages();
 
 export default function AppShell() {
+  const databaseName = useSettingStore(state => state.setting.database.active);
+  // key = 活动数据库名：切库时整体重建壳层（含启动连接流程与页面栈）
+  return <ShellBody key={databaseName} />;
+}
+
+function ShellBody() {
   const [boot, setBoot] = useState<"connecting" | "failed" | "ready">("connecting");
 
   const connect = useCallback(() => {

@@ -13,12 +13,12 @@ const CardLinksPlugin: CellPlugin<CardLinksPluginConfig> = {
   beforeSave: (value: number[]) => {
     if (!Array.isArray(value)) return [];
     // 过滤出有效的卡片 ID（数字）
-    return value.filter((id) => typeof id === "number" && id > 0);
+    return value.filter(id => typeof id === "number" && id > 0);
   },
 
   afterLoad: (value: number[]) => {
     if (!Array.isArray(value)) return [];
-    return value.filter((id) => typeof id === "number" && id > 0);
+    return value.filter(id => typeof id === "number" && id > 0);
   },
 
   getGroupKey: (row, column) => {
@@ -27,7 +27,7 @@ const CardLinksPlugin: CellPlugin<CardLinksPluginConfig> = {
     return `${value.length} 个链接`;
   },
 
-  sort: (params) => {
+  sort: params => {
     const { a, b, direction } = params;
     if (!Array.isArray(a) || !Array.isArray(b)) return 0;
 

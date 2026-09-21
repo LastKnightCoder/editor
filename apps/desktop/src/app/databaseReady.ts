@@ -5,11 +5,12 @@
  * setting.database.active（persist）里是当前数据库名，connectDatabaseByName
  * 连接后主进程命令才有数据库上下文（否则报 "No database name found"）。
  *
- * 后续接线（03 指南）：数据库切换事件（emitDatabaseChange）监听与重连。
+ * 壳层按活动数据库重建；连接状态供页面查询控制启用时机。
  */
 
 import { connectDatabaseByName } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
+import useGlobalStateStore from "@/stores/useGlobalStateStore";
 
 /** 本地 SQLite 正常毫秒级完成；超过视为挂起，不能让壳层永远停在启动屏 */
 const CONNECT_TIMEOUT_MS = 10_000;
@@ -38,9 +39,18 @@ export async function ensureDatabaseReady(): Promise<boolean> {
     return false;
   }
   try {
+    useGlobalStateStore.setState(state => ({
+      databaseStatus: { ...state.databaseStatus, [active]: "connecting" },
+    }));
     await withTimeout(connectDatabaseByName(active), CONNECT_TIMEOUT_MS);
+    useGlobalStateStore.setState(state => ({
+      databaseStatus: { ...state.databaseStatus, [active]: "ready" },
+    }));
     return true;
   } catch (e) {
+    useGlobalStateStore.setState(state => ({
+      databaseStatus: { ...state.databaseStatus, [active]: "error" },
+    }));
     console.warn("[shell] 数据库连接失败：", e);
     return false;
   }

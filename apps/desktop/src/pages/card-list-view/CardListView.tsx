@@ -2,35 +2,23 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useCreation, useMemoizedFn } from "ahooks";
 import { Dropdown, MenuProps, FloatButton, App } from "antd";
 import { Descendant } from "slate";
-import {
-  LoadingOutlined,
-  PlusOutlined,
-  UpOutlined,
-  CaretDownOutlined,
-} from "@ant-design/icons";
+import { LoadingOutlined, PlusOutlined, UpOutlined, CaretDownOutlined } from "@ant-design/icons";
 
-import useCardsManagementStore, {
-  ViewMode,
-} from "@/stores/useCardsManagementStore";
+import useCardsManagementStore, { ViewMode } from "@/stores/useCardsManagementStore";
 import { useShallow } from "zustand/react/shallow";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 
 import CardTreePanel from "./CardTreePanel";
 import CardListPanel, { CardListPanelRef } from "./CardListPanel";
 import CardGraph from "./CardGraph";
-import CardDatabaseView, { CardDatabaseViewRef } from "./CardDatabaseView";
+import CardDatabaseView, { CardDatabaseViewRef } from "@/components/CardDatabaseView";
 import CreateCard from "./CreateCard";
 import CardPreview from "./CardPreview";
 import If from "@/components/If";
 import PresentationMode from "@/components/PresentationMode";
 import { ICard, ECardCategory, ICreateCard } from "@/types";
 import { cardCategoryName } from "@/constants";
-import {
-  getContentLength,
-  importFromMarkdown,
-  defaultCardEventBus,
-  searchContent,
-} from "@/utils";
+import { getContentLength, importFromMarkdown, defaultCardEventBus, searchContent } from "@/utils";
 import {
   getAllCards,
   createCard,
@@ -56,45 +44,31 @@ const CardListView = () => {
   const [cards, setCards] = useState<ICard[]>([]);
   const [loading, setLoading] = useState(false);
   const [isCreatingCard, setIsCreatingCard] = useState(false);
-  const [previewCardId, setPreviewCardId] = useState<number | undefined>(
-    undefined,
-  );
+  const [previewCardId, setPreviewCardId] = useState<number | undefined>(undefined);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [showScrollToTop, setShowScrollToTop] = useState(false);
-  const [pendingCardCategory, setPendingCardCategory] =
-    useState<ECardCategory | null>(null);
+  const [pendingCardCategory, setPendingCardCategory] = useState<ECardCategory | null>(null);
   const [cardSearchQuery, setCardSearchQuery] = useState("");
-  const [searchedCardIds, setSearchedCardIds] = useState<Set<number> | null>(
-    null,
-  );
+  const [searchedCardIds, setSearchedCardIds] = useState<Set<number> | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const { modal } = App.useApp();
   const cardDatabaseViewRef = useRef<CardDatabaseViewRef>(null);
   const searchRequestIdRef = useRef(0);
-  const { hoverClass, activeClass, borderClass, buttonBg, buttonTextClass } =
-    useThemeColors();
+  const { hoverClass, activeClass, borderClass, buttonBg, buttonTextClass } = useThemeColors();
 
   const cardEventBus = useCreation(() => {
     return defaultCardEventBus.createEditor();
   }, []);
 
   useEffect(() => {
-    const unsubscribeCreated = cardEventBus.subscribeToOtherEditors(
-      "card:created",
-      (data) => {
-        if (cards.find((c) => c.id === data.card.id)) return;
-        setCards((prevCards) => [data.card, ...prevCards]);
-      },
-    );
-    const unsubscribeUpdated = cardEventBus.subscribeToOtherEditors(
-      "card:updated",
-      (data) => {
-        const updatedCard = data.card;
-        setCards((prevCards) =>
-          prevCards.map((c) => (c.id === updatedCard.id ? updatedCard : c)),
-        );
-      },
-    );
+    const unsubscribeCreated = cardEventBus.subscribeToOtherEditors("card:created", data => {
+      if (cards.find(c => c.id === data.card.id)) return;
+      setCards(prevCards => [data.card, ...prevCards]);
+    });
+    const unsubscribeUpdated = cardEventBus.subscribeToOtherEditors("card:updated", data => {
+      const updatedCard = data.card;
+      setCards(prevCards => prevCards.map(c => (c.id === updatedCard.id ? updatedCard : c)));
+    });
 
     return () => {
       unsubscribeCreated();
@@ -112,7 +86,7 @@ const CardListView = () => {
     startPresentation,
     stopPresentation,
   } = useCardsManagementStore(
-    useShallow((state) => {
+    useShallow(state => {
       return {
         activeCardTag: state.activeCardTag,
         selectCategory: state.selectCategory,
@@ -121,7 +95,7 @@ const CardListView = () => {
         startPresentation: state.startPresentation,
         stopPresentation: state.stopPresentation,
       };
-    }),
+    })
   );
 
   // 计算排序后的卡片
@@ -190,7 +164,7 @@ const CardListView = () => {
 
       if (searchRequestIdRef.current !== requestId) return;
 
-      setSearchedCardIds(new Set(results.map((result) => result.id)));
+      setSearchedCardIds(new Set(results.map(result => result.id)));
       cardListRef.current?.scrollToTop();
     } catch (error) {
       if (searchRequestIdRef.current !== requestId) return;
@@ -206,7 +180,7 @@ const CardListView = () => {
   const handleCreateCard = useMemoizedFn(async (card: ICreateCard) => {
     try {
       const newCard = await createCard(card);
-      setCards((prevCards) => [newCard, ...prevCards]);
+      setCards(prevCards => [newCard, ...prevCards]);
       // 如果是数据库视图，手动添加行
       if (viewMode === ViewMode.Database) {
         cardDatabaseViewRef.current?.addCardRow(newCard);
@@ -256,57 +230,49 @@ const CardListView = () => {
     }
   });
 
-  const handleDeleteCard = useMemoizedFn(
-    async (cardId: number): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        try {
-          modal.confirm({
-            title: "删除卡片",
-            content: "确定要删除该卡片吗？",
-            okText: "确定",
-            cancelText: "取消",
-            okButtonProps: {
-              danger: true,
-            },
-            onOk: async () => {
-              await deleteCard(cardId);
-              setCards((prevCards) =>
-                prevCards.filter((card) => card.id !== cardId),
-              );
-              resolve();
-            },
-            onCancel: () => {
-              reject(new Error("取消删除卡片"));
-            },
-          });
-        } catch (error) {
-          console.error("Failed to delete card:", error);
-          reject(error);
-        }
-      });
-    },
-  );
-
-  const handleUpdateCardCategory = useMemoizedFn(
-    async (card: ICard, category: ECardCategory) => {
+  const handleDeleteCard = useMemoizedFn(async (cardId: number): Promise<void> => {
+    return new Promise((resolve, reject) => {
       try {
-        const updatedCard = await updateCard({
-          ...card,
-          category,
+        modal.confirm({
+          title: "删除卡片",
+          content: "确定要删除该卡片吗？",
+          okText: "确定",
+          cancelText: "取消",
+          okButtonProps: {
+            danger: true,
+          },
+          onOk: async () => {
+            await deleteCard(cardId);
+            setCards(prevCards => prevCards.filter(card => card.id !== cardId));
+            resolve();
+          },
+          onCancel: () => {
+            reject(new Error("取消删除卡片"));
+          },
         });
-        setCards((prevCards) =>
-          prevCards.map((c) => (c.id === updatedCard.id ? updatedCard : c)),
-        );
-        cardEventBus.publishCardEvent("card:updated", updatedCard);
       } catch (error) {
-        console.error("Failed to update card category:", error);
+        console.error("Failed to delete card:", error);
+        reject(error);
       }
-    },
-  );
+    });
+  });
+
+  const handleUpdateCardCategory = useMemoizedFn(async (card: ICard, category: ECardCategory) => {
+    try {
+      const updatedCard = await updateCard({
+        ...card,
+        category,
+      });
+      setCards(prevCards => prevCards.map(c => (c.id === updatedCard.id ? updatedCard : c)));
+      cardEventBus.publishCardEvent("card:updated", updatedCard);
+    } catch (error) {
+      console.error("Failed to update card category:", error);
+    }
+  });
 
   const handleToggleCardTop = useMemoizedFn(async (cardId: number) => {
     try {
-      const card = cards.find((c) => c.id === cardId);
+      const card = cards.find(c => c.id === cardId);
       if (!card) return;
 
       const updatedCard = await updateCard({
@@ -314,49 +280,44 @@ const CardListView = () => {
         isTop: !card.isTop,
       });
 
-      setCards((prevCards) =>
-        prevCards.map((c) => (c.id === updatedCard.id ? updatedCard : c)),
-      );
+      setCards(prevCards => prevCards.map(c => (c.id === updatedCard.id ? updatedCard : c)));
       cardEventBus.publishCardEvent("card:updated", updatedCard);
     } catch (error) {
       console.error("Failed to toggle card top:", error);
     }
   });
 
-  const handleSaveCard = useMemoizedFn(
-    async (content: Descendant[], tags: string[]) => {
-      const category =
-        pendingCardCategory ||
-        (selectCategory === ("all" as unknown as ECardCategory)
-          ? ECardCategory.Temporary
-          : selectCategory);
+  const handleSaveCard = useMemoizedFn(async (content: Descendant[], tags: string[]) => {
+    const category =
+      pendingCardCategory ||
+      (selectCategory === ("all" as unknown as ECardCategory)
+        ? ECardCategory.Temporary
+        : selectCategory);
 
-      const card: ICreateCard = {
-        content,
-        tags,
-        links: [],
-        category,
-        count: 0,
-        isTop: false,
-      };
-      await handleCreateCard(card);
-      setIsCreatingCard(false);
-      setPendingCardCategory(null);
-    },
-  );
+    const card: ICreateCard = {
+      content,
+      tags,
+      links: [],
+      category,
+      count: 0,
+      isTop: false,
+    };
+    await handleCreateCard(card);
+    setIsCreatingCard(false);
+    setPendingCardCategory(null);
+  });
 
   const filterCards = useMemoizedFn(
     (cards: ICard[], selectCategory: ECardCategory, activeCardTag: string) => {
-      const cardWithCategory = cards.filter((card) => {
+      const cardWithCategory = cards.filter(card => {
         return (
-          card.category === selectCategory ||
-          selectCategory === ("all" as unknown as ECardCategory)
+          card.category === selectCategory || selectCategory === ("all" as unknown as ECardCategory)
         );
       });
 
       if (!activeCardTag) return cardWithCategory;
-      return cardWithCategory.filter((card) =>
-        card.tags.some((tag) => {
+      return cardWithCategory.filter(card =>
+        card.tags.some(tag => {
           const activeCardTags = activeCardTag.split("/");
           const tags = tag.split("/");
           if (tags.length < activeCardTags.length) return false;
@@ -364,37 +325,24 @@ const CardListView = () => {
             if (activeCardTags[i] !== tags[i]) return false;
           }
           return true;
-        }),
+        })
       );
-    },
+    }
   );
 
   const filteredCards = useMemo(() => {
-    const tagAndCategoryFilteredCards = filterCards(
-      sortedCards,
-      selectCategory,
-      activeCardTag,
-    );
+    const tagAndCategoryFilteredCards = filterCards(sortedCards, selectCategory, activeCardTag);
 
     if (!cardSearchQuery.trim() || !searchedCardIds) {
       return tagAndCategoryFilteredCards;
     }
 
-    const cardById = new Map(
-      tagAndCategoryFilteredCards.map((card) => [card.id, card]),
-    );
+    const cardById = new Map(tagAndCategoryFilteredCards.map(card => [card.id, card]));
 
     return Array.from(searchedCardIds)
-      .map((cardId) => cardById.get(cardId))
+      .map(cardId => cardById.get(cardId))
       .filter((card): card is ICard => Boolean(card));
-  }, [
-    sortedCards,
-    selectCategory,
-    activeCardTag,
-    filterCards,
-    cardSearchQuery,
-    searchedCardIds,
-  ]);
+  }, [sortedCards, selectCategory, activeCardTag, filterCards, cardSearchQuery, searchedCardIds]);
 
   const handleMoreClick = useMemoizedFn(async ({ key }: { key: string }) => {
     if (key === "create-card") {
@@ -468,33 +416,33 @@ const CardListView = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-full w-full">
+      <div className="flex h-full w-full items-center justify-center">
         <LoadingOutlined style={{ fontSize: 24 }} spin />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full w-full overflow-hidden">
-      <div className="flex flex-col h-full w-full overflow-hidden">
+    <div className="flex h-full w-full flex-col overflow-hidden">
+      <div className="flex h-full w-full flex-col overflow-hidden">
         <div className="flex h-full w-full overflow-hidden">
           <CardTreePanel
             cards={sortedCards}
             activeCardTag={activeCardTag}
             onClickTag={handleClickTag}
           />
-          <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden relative">
-            <div className="h-10 mt-3 shrink-0 flex justify-between items-center px-10">
-              <div className="px-4 flex items-center gap-2 rounded-full h-full">
-                {viewModeMenuItems.map((item) => (
+          <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+            <div className="mt-3 flex h-10 shrink-0 items-center justify-between px-10">
+              <div className="flex h-full items-center gap-2 rounded-full px-4">
+                {viewModeMenuItems.map(item => (
                   <div
                     key={item.key}
                     className={classNames(
-                      "px-3 h-full flex items-center rounded-full cursor-pointer transition-all",
+                      "flex h-full cursor-pointer items-center rounded-full px-3 transition-all",
                       {
                         [activeClass]: viewMode === item.key,
                         [hoverClass]: viewMode !== item.key,
-                      },
+                      }
                     )}
                     onClick={item.onClick}
                   >
@@ -502,18 +450,18 @@ const CardListView = () => {
                   </div>
                 ))}
               </div>
-              <div className="flex-1 flex justify-end px-3">
+              <div className="flex flex-1 justify-end px-3">
                 <SearchInput
                   value={cardSearchQuery}
                   onChange={handleSearchCards}
                   placeholder="搜索卡片..."
                 />
               </div>
-              <div className="flex gap-3 h-10 items-center mr-3">
+              <div className="mr-3 flex h-10 items-center gap-3">
                 <Dropdown
                   trigger={["click"]}
                   menu={{
-                    items: Object.keys(categoryWithAll).map((key) => ({
+                    items: Object.keys(categoryWithAll).map(key => ({
                       label: categoryWithAll[key as ECardCategory],
                       key: key,
                       disabled: selectCategory === (key as ECardCategory),
@@ -527,22 +475,20 @@ const CardListView = () => {
                 >
                   <div
                     className={classNames(
-                      "flex items-center gap-3 h-10 cursor-pointer border rounded-full px-3 py-1 transition-all",
+                      "flex h-10 cursor-pointer items-center gap-3 rounded-full border px-3 py-1 transition-all",
                       borderClass,
-                      hoverClass,
+                      hoverClass
                     )}
                   >
-                    <span>
-                      {categoryWithAll[selectCategory as ECardCategory]}
-                    </span>
+                    <span>{categoryWithAll[selectCategory as ECardCategory]}</span>
                     <CaretDownOutlined />
                   </div>
                 </Dropdown>
                 <div
                   className={classNames(
-                    "cursor-pointer w-10 h-10 flex items-center justify-center rounded-full transition-all",
+                    "flex h-10 w-10 cursor-pointer items-center justify-center rounded-full transition-all",
                     buttonBg,
-                    buttonTextClass,
+                    buttonTextClass
                   )}
                 >
                   <Dropdown
@@ -557,7 +503,7 @@ const CardListView = () => {
                 </div>
               </div>
             </div>
-            <div className="w-full flex-1 min-h-0 flex flex-col overflow-hidden relative">
+            <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden">
               <If condition={viewMode === ViewMode.List}>
                 <CardListPanel
                   ref={cardListRef}
@@ -581,19 +527,20 @@ const CardListView = () => {
                 <CardGraph
                   initCards={sortedCards}
                   onClickCard={handleCardClick}
-                  className="w-full h-full"
+                  className="h-full w-full"
                   enableHoverPreview={!isPreviewVisible}
-                  currentCardIds={filteredCards.map((card) => card.id)}
+                  currentCardIds={filteredCards.map(card => card.id)}
                 />
               </If>
               <If condition={viewMode === ViewMode.Database}>
                 <CardDatabaseView
                   ref={cardDatabaseViewRef}
-                  cards={filteredCards}
-                  allCards={sortedCards}
+                  cards={sortedCards}
+                  tag={activeCardTag}
+                  searchResults={cardSearchQuery.trim() ? searchedCardIds : null}
                   selectCategory={selectCategory}
                   onCardClick={handleCardClick}
-                  onOpenCreateCard={(defaultCategory) => {
+                  onOpenCreateCard={defaultCategory => {
                     setPendingCardCategory(defaultCategory);
                     setIsCreatingCard(true);
                   }}
