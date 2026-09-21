@@ -125,9 +125,14 @@ export function Dialog({
   const [bodyEl, setBodyEl] = useState<HTMLDivElement | null>(null);
   const titleId = useId();
 
-  // 进出场：open 时挂载 + rAF 后上 shown（播进场）；关时先撤 shown，退场时长的定时后卸载
+  // 进出场：open 时挂载 + rAF 后上 shown（播进场）；关时先撤 shown，退场时长的定时后卸载。
+  // visible 在渲染期由 open/contentReady 派生：宿主页面被 Activity 保活停驻时退场
+  // effect 不再运行、卸载定时器被清，shown/mounted 会冻结——portal 又挂在页面外
+  // （不随页面 display:none 隐藏），渲染期短路保证此时弹窗必然退到不可见不可点，
+  // 页面重新激活后 effect 补跑完成卸载与 onAfterClose。
   const [mounted, setMounted] = useState(open);
   const [shown, setShown] = useState(false);
+  const visible = open && contentReady;
   useEffect(() => {
     if (open) {
       setMounted(true);
@@ -227,8 +232,9 @@ export function Dialog({
         "bg-overlay fixed inset-0 z-[340] grid place-items-center p-8",
         "backdrop-blur-[4px]",
         "ease-tau-out transition-opacity duration-[200ms]",
-        shown ? "opacity-100" : "opacity-0",
-        !contentReady && "pointer-events-none invisible"
+        visible && shown ? "opacity-100" : "opacity-0",
+        !visible && "pointer-events-none",
+        !contentReady && "invisible"
       )}
     >
       <PortalScope>
@@ -249,8 +255,8 @@ export function Dialog({
             "rounded-tau-lg flex max-h-[min(78vh,660px)] max-w-full flex-col border",
             size === "sm" ? "w-[380px]" : size === "lg" ? "w-[560px]" : "w-[440px]",
             "ease-tau-out transition-[opacity,transform] duration-[200ms]",
-            shown ? "opacity-100" : "translate-y-[8px] scale-[0.97] opacity-0",
-            !shown && "pointer-events-none",
+            visible && shown ? "opacity-100" : "translate-y-[8px] scale-[0.97] opacity-0",
+            !(visible && shown) && "pointer-events-none",
             className
           )}
         >

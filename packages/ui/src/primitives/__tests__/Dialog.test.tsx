@@ -11,6 +11,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { useState, type ReactNode } from "react";
+import { Activity } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Dialog } from "../Dialog";
 import { ConfirmDialog } from "../ConfirmDialog";
@@ -283,6 +284,66 @@ describe("Dialog", () => {
     ));
     expect(h2.card()!.style.width).toBe("520px");
     h2.cleanup();
+  });
+
+  it("宿主 Activity 保活停驻时退场不冻结：open 关闭与页面隐藏同批提交后弹窗退到不可见不可点，回页后补卸载", async () => {
+    /* 回归：弹窗开着时宿主页面被切走（如「进入详情」先关弹窗再 push，两者同批提交）。
+       Activity hidden 停驻退场 effect、清掉卸载定时器，而 portal 挂在页面外不随
+       display:none 隐藏——修复前弹窗以 opacity-100 冻结盖在新页面上且永远关不掉。 */
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const api: { hide?: () => void; resume?: () => void } = {};
+    const afterClose = vi.fn();
+
+    function Host() {
+      const [open, setOpen] = useState(true);
+      const [hidden, setHidden] = useState(false);
+      api.hide = () => {
+        setOpen(false);
+        setHidden(true);
+      };
+      api.resume = () => setHidden(false);
+      return (
+        <div style={hidden ? { display: "none" } : undefined}>
+          <Activity mode={hidden ? "hidden" : "visible"}>
+            <Dialog open={open} onOpenChange={() => {}} onAfterClose={afterClose} title="t">
+              正文
+            </Dialog>
+          </Activity>
+        </div>
+      );
+    }
+
+    await act(async () => {
+      root.render(<Host />);
+    });
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 30));
+    });
+    expect(maskOf().className).toContain("opacity-100");
+
+    await act(async () => {
+      api.hide!();
+    });
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 30));
+    });
+    const frozenMask = maskOf();
+    expect(frozenMask).not.toBeNull(); // mounted 冻结，DOM 尚未卸载
+    expect(frozenMask.className).toContain("opacity-0"); // 渲染期短路：视觉已退场
+    expect(frozenMask.className).toContain("pointer-events-none"); // 透明残骸不拦截新页面
+    expect(afterClose).not.toHaveBeenCalled();
+
+    await act(async () => {
+      api.resume!(); // 返回宿主页面：effect 补跑，退场走完
+    });
+    await flushAnim();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(afterClose).toHaveBeenCalledTimes(1);
+
+    act(() => root.unmount());
+    container.remove();
   });
 });
 
