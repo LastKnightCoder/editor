@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { produce } from "immer";
 import { merge } from "lodash";
 import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
+import { useThemeStore } from "@tau/ui/theme/runtime";
 
 import { EGithubCDN } from "@/constants/github";
 import {
@@ -174,8 +175,7 @@ const migrateImageGenerationConfig = <T extends Partial<ISetting>>(setting: T): 
 /** 旧 backgroundType(gradient1~9/solid)一次性迁移为 accent + 柔光开关 */
 const migrateAppearanceSetting = (setting: ISetting) => {
   const appearance = setting.appearance as
-    | (NonNullable<ISetting["appearance"]> & { backgroundType?: string })
-    | undefined;
+    (NonNullable<ISetting["appearance"]> & { backgroundType?: string }) | undefined;
   if (!appearance) return;
   const legacy = appearance.backgroundType;
   if (legacy) {
@@ -694,10 +694,7 @@ const applyAppearanceFromSetting = (setting: ISetting) => {
     return;
   }
 
-  const isDark = setting.darkMode;
-  document.documentElement.dataset.theme = isDark ? "dark" : "light";
-  document.documentElement.classList.toggle("dark", isDark);
-
+  // 主题（data-theme/.dark）只由 @tau/ui 主题 runtime 写入，此处只应用字体
   const target = document.body ?? document.documentElement;
   const { chineseFont, englishFont, fontSize, codeFont } = setting.fontSetting;
   const font = `${englishFont}, ${chineseFont}`;
@@ -1054,8 +1051,7 @@ if (cachedSetting) {
 applyAppearanceFromSetting(initialState.setting);
 
 let registeredSettingNotificationClient:
-  | ReturnType<typeof useBackendWebsocketStore.getState>["client"]
-  | null = null;
+  ReturnType<typeof useBackendWebsocketStore.getState>["client"] | null = null;
 let registeredSettingNotificationHandler: ((payload: unknown) => void) | null = null;
 
 const useSettingStore = create<IState & IActions>((set, get) => ({
@@ -1139,6 +1135,8 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
         draft.darkMode = darkMode;
       }),
     });
+    // 旧入口（legacy 侧边栏/演示模式等）转发到主题 runtime，保证 DOM 主题只有一个写者
+    useThemeStore.getState().setMode(darkMode ? "cocoa" : "cream");
   },
   updateModuleOrder: moduleOrder => {
     const { setting } = get();
