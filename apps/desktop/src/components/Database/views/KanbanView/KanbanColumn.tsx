@@ -19,7 +19,7 @@ interface KanbanColumnProps {
   readonly: boolean;
   onCardClick: (row: RowData) => void;
   onAddCard?: (groupValue: CellValue) => void;
-  onMoveCard: (dragRowId: string, hoverRowId: string) => void;
+  onMoveCard?: (dragRowId: string, hoverRowId: string) => void;
   onChangeCardGroup: (rowId: string, newGroupValue: CellValue) => void;
   onToggleDone: (rowId: string, checked: boolean) => void;
   onMoveColumn: (dragGroupValue: CellValue, hoverGroupValue: CellValue) => void;
@@ -69,15 +69,16 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
     const [{ isDragging }, drag] = useDrag({
       type: "kanban-column",
       item: { type: "kanban-column", groupValue, index },
-      collect: (monitor) => ({
+      canDrag: () => !readonly,
+      collect: monitor => ({
         isDragging: monitor.isDragging(),
       }),
     });
 
     const [, drop] = useDrop<DragItem>({
       accept: "kanban-column",
-      hover: (item) => {
-        if (!ref.current) return;
+      hover: item => {
+        if (!ref.current || readonly) return;
         if (item.groupValue === groupValue) return;
 
         onMoveColumn(item.groupValue, groupValue);
@@ -94,26 +95,20 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
       estimateSize: () => 120, // 预估卡片高度 + 间距
       overscan: 5,
       // 支持动态高度测量
-      measureElement: (el) => {
+      measureElement: el => {
         const card = el.firstElementChild;
         if (!card) return 120; // 默认高度
         // 包括元素自身高度和间距（space-y-2 = 8px）
         return card.getBoundingClientRect().height + 8;
       },
-      getItemKey: (index) => rows[index]?.id || index,
+      getItemKey: index => rows[index]?.id || index,
     });
 
     // 渲染列标题
     const renderHeader = () => {
       // 对于"未分类"列，直接显示文字
-      if (
-        groupValue === null ||
-        groupValue === undefined ||
-        groupValue === ""
-      ) {
-        return (
-          <span className={themeColors.secondaryTextClass}>{groupLabel}</span>
-        );
+      if (groupValue === null || groupValue === undefined || groupValue === "") {
+        return <span className={themeColors.secondaryTextClass}>{groupLabel}</span>;
       }
 
       // 对于有值的列，使用 SelectPlugin 的 Renderer
@@ -142,19 +137,17 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
           opacity: isDragging ? 0.5 : 1,
         }}
         className={classnames(
-          "shrink-0 flex flex-col h-full rounded-2xl p-2",
-          "bg-black/[0.03] dark:bg-white/[0.04]",
+          "flex h-full shrink-0 flex-col rounded-2xl p-2",
+          "bg-black/[0.03] dark:bg-white/[0.04]"
         )}
       >
         {/* 列头 */}
-        <div className="flex items-center justify-between px-2 py-2 mb-1">
-          <div className="flex items-center gap-2 font-medium">
-            {renderHeader()}
-          </div>
+        <div className="mb-1 flex items-center justify-between px-2 py-2">
+          <div className="flex items-center gap-2 font-medium">{renderHeader()}</div>
           <span
             className={classnames(
-              "text-xs px-2 py-0.5 rounded-full bg-black/[0.06] dark:bg-white/[0.08]",
-              themeColors.secondaryTextClass,
+              "rounded-full bg-black/[0.06] px-2 py-0.5 text-xs dark:bg-white/[0.08]",
+              themeColors.secondaryTextClass
             )}
           >
             {rows.length}
@@ -170,7 +163,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
               position: "relative",
             }}
           >
-            {virtualizer.getVirtualItems().map((virtualItem) => {
+            {virtualizer.getVirtualItems().map(virtualItem => {
               const row = rows[virtualItem.index];
               return (
                 <div
@@ -196,9 +189,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
                     onMove={onMoveCard}
                     onChangeGroup={onChangeCardGroup}
                     onToggleDone={onToggleDone}
-                    onDelete={
-                      onDeleteCard ? () => onDeleteCard(row.id) : undefined
-                    }
+                    onDelete={onDeleteCard ? () => onDeleteCard(row.id) : undefined}
                     doneColumnId={doneColumnId}
                     visibleFieldIds={visibleFieldIds}
                     showFieldLabels={showFieldLabels}
@@ -219,7 +210,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
         )}
       </div>
     );
-  },
+  }
 );
 
 KanbanColumn.displayName = "KanbanColumn";

@@ -2,12 +2,7 @@ import React, { memo, useMemo, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Dropdown, App } from "antd";
 
-import {
-  useDrag,
-  useDrop,
-  DropTargetMonitor,
-  DragSourceMonitor,
-} from "react-dnd";
+import { useDrag, useDrop, DropTargetMonitor, DragSourceMonitor } from "react-dnd";
 import { ColumnDef } from "../../../types";
 import PluginManager from "../../../PluginManager";
 import classNames from "classnames";
@@ -20,8 +15,7 @@ interface ColumnHeaderProps {
   column: ColumnDef;
   width: number;
   onResizeStart: (columnId: string, startX: number, startWidth: number) => void;
-  index: number;
-  moveColumn: (dragIndex: number, hoverIndex: number) => void;
+  moveColumn: (columnId: string, targetId: string) => void;
   onEdit?: (columnId: string) => void; // 列编辑回调
   pluginManager?: PluginManager;
   theme: "light" | "dark";
@@ -32,7 +26,6 @@ interface ColumnHeaderProps {
 
 interface DragItem {
   id: string;
-  index: number;
   type: string;
 }
 
@@ -41,7 +34,6 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
     column,
     width,
     onResizeStart,
-    index,
     moveColumn,
     onEdit,
     pluginManager,
@@ -74,7 +66,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
     const [{ isDragging }, drag] = useDrag(
       () => ({
         type: COLUMN_HEADER,
-        item: { id: column.id, index, type: COLUMN_HEADER },
+        item: { id: column.id, type: COLUMN_HEADER },
         canDrag: () => {
           return !readonly;
         },
@@ -83,7 +75,7 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
           return { isDragging: dragging };
         },
       }),
-      [column.id, column.title, index, readonly],
+      [column.id, column.title, readonly]
     );
 
     // 实现拖放目标功能
@@ -98,22 +90,16 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
           if (!ref.current || readonly) {
             return;
           }
-          const dragIndex = item.index;
-          const hoverIndex = index;
-
           // 如果拖到自己上面，不做任何操作
-          if (dragIndex === hoverIndex) {
+          if (item.id === column.id) {
             return;
           }
 
           // 执行移动，只要拖到其他列上就立即移动，不需要判断鼠标位置
-          moveColumn(dragIndex, hoverIndex);
-
-          // 更新item的索引以便后续操作
-          item.index = hoverIndex;
+          moveColumn(item.id, column.id);
         },
       }),
-      [index, moveColumn, readonly, column.title],
+      [column.id, moveColumn, readonly]
     );
 
     drag(drop(ref));
@@ -161,64 +147,54 @@ const ColumnHeader: React.FC<ColumnHeaderProps> = memo(
       }
 
       return items;
-    }, [
-      readonly,
-      column.id,
-      column.isPrimary,
-      allowDeleteColumn,
-      onEdit,
-      onDelete,
-      modal,
-    ]);
+    }, [readonly, column.id, column.isPrimary, allowDeleteColumn, onEdit, onDelete, modal]);
 
     return (
       <div
         ref={ref}
         className={classNames(
-          "relative p-0 box-border h-10 transition-[box-shadow,opacity,background-color,transform] duration-150 ease-linear border-r border-px",
+          "border-px relative box-border h-10 border-r p-0 transition-[box-shadow,opacity,background-color,transform] duration-150 ease-linear",
           {
             "border-gray-400/50": theme === "light",
             "border-white/10": theme === "dark",
           },
           {
-            "opacity-50 cursor-grabbing z-10": isDragging,
+            "z-10 cursor-grabbing opacity-50": isDragging,
             "bg-[#e3f2fd]": isOver && canDrop && !isDragging,
-          },
+          }
         )}
         onDoubleClick={onDoubleClick}
         style={headerStyle}
       >
-        <div className="flex items-center px-2 py-2 h-full cursor-grab box-border">
+        <div className="box-border flex h-full cursor-grab items-center px-2 py-2">
           <div
-            className="flex items-center h-full flex-1 whitespace-nowrap overflow-hidden font-semibold cursor-pointer"
+            className="flex h-full flex-1 cursor-pointer items-center overflow-hidden whitespace-nowrap font-semibold"
             title={column.title}
           >
             <ColumnIcon type={column.type} pluginManager={pluginManager} />
-            <span className="text-truncate h-full flex items-center text-sm">
-              {column.title}
-            </span>
+            <span className="text-truncate flex h-full items-center text-sm">{column.title}</span>
           </div>
           {!readonly && !column.readonly && (
             <Dropdown menu={{ items: moreMenuItems }} trigger={["hover"]}>
-              <div className="w-4 h-4 text-[12px] p-1 cursor-pointer hover:bg-(--th-bg-hover) rounded-full flex items-center justify-center shrink-0">
+              <div className="hover:bg-(--th-bg-hover) flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full p-1 text-[12px]">
                 <MoreOutlined />
               </div>
             </Dropdown>
           )}
           <div
             className={classNames(
-              "absolute top-0 right-[-2px] w-1 h-full cursor-col-resize bg-transparent",
+              "absolute right-[-2px] top-0 h-full w-1 cursor-col-resize bg-transparent",
               {
                 "hover:bg-gray-500": isDark,
                 "hover:bg-gray-200": !isDark,
-              },
+              }
             )}
             onMouseDown={handleResizeStart}
           />
         </div>
       </div>
     );
-  },
+  }
 );
 
 export default ColumnHeader;

@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useState, useRef } from "react";
+import React, { memo, useEffect, useState, useRef, useMemo } from "react";
 import classNames from "classnames";
 import { MdDelete } from "react-icons/md";
 import { RowData, ColumnDef, CellValue } from "../../types";
@@ -23,6 +23,7 @@ interface GalleryCardProps {
 const GalleryCard: React.FC<GalleryCardProps> = memo(
   ({ row, columns, coverType, coverImageColumnId, onClick, onDelete, readonly, theme }) => {
     const [detailContent, setDetailContent] = useState<Descendant[] | null>(null);
+    const previewContent = useMemo(() => detailContent?.slice(0, 2), [detailContent]);
     const [coverImage, setCoverImage] = useState<string | null>(null);
     const [isHovered, setIsHovered] = useState(false);
     const editorRef = useRef<EditorRef>(null);
@@ -93,11 +94,10 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
           {coverType === "detail" && detailContent && (
             <div className="h-full w-full overflow-hidden p-3">
               <Editor
-                previewBlocks={2}
                 ref={editorRef}
                 readonly
                 className="h-full text-sm leading-relaxed"
-                initValue={detailContent.slice(0, 2)}
+                initValue={previewContent}
               />
             </div>
           )}

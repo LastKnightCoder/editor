@@ -13,7 +13,7 @@ interface KanbanCardProps {
   theme: "light" | "dark";
   readonly?: boolean;
   onClick: () => void;
-  onMove: (dragRowId: string, hoverRowId: string) => void;
+  onMove?: (dragRowId: string, hoverRowId: string) => void;
   onChangeGroup: (rowId: string, newGroupValue: CellValue) => void;
   onToggleDone: (rowId: string, checked: boolean) => void;
   onDelete?: () => void;
@@ -67,15 +67,16 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
     const [{ isDragging }, drag] = useDrag({
       type: "kanban-card",
       item: { type: "kanban-card", rowId: row.id, index, groupValue },
-      collect: (monitor) => ({
+      canDrag: () => !readonly,
+      collect: monitor => ({
         isDragging: monitor.isDragging(),
       }),
     });
 
     const [, drop] = useDrop<DragItem>({
       accept: "kanban-card",
-      hover: (item) => {
-        if (!ref.current) return;
+      hover: item => {
+        if (!ref.current || readonly) return;
 
         // 如果是同一张卡片，不处理
         if (item.rowId === row.id) return;
@@ -89,7 +90,7 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
         }
 
         // 同一组内的重新排序
-        if (item.index !== index) {
+        if (onMove && item.index !== index) {
           onMove(item.rowId, row.id);
           item.index = index;
         }
@@ -98,27 +99,21 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
 
     drag(drop(ref));
 
-    const columnMap = useMemo(
-      () => new Map(columns.map((column) => [column.id, column])),
-      [columns],
-    );
-    const primaryColumn = useMemo(
-      () => columns.find((column) => column.isPrimary),
-      [columns],
-    );
+    const columnMap = useMemo(() => new Map(columns.map(column => [column.id, column])), [columns]);
+    const primaryColumn = useMemo(() => columns.find(column => column.isPrimary), [columns]);
     const doneColumn = useMemo(
       () =>
         doneColumnId && columnMap.get(doneColumnId)?.type === "checkbox"
           ? columnMap.get(doneColumnId)
           : undefined,
-      [columnMap, doneColumnId],
+      [columnMap, doneColumnId]
     );
     const fieldColumns = useMemo(
       () =>
         visibleFieldIds
-          .map((columnId) => columnMap.get(columnId))
+          .map(columnId => columnMap.get(columnId))
           .filter((column): column is ColumnDef => !!column),
-      [columnMap, visibleFieldIds],
+      [columnMap, visibleFieldIds]
     );
 
     return (
@@ -129,21 +124,21 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
         onMouseLeave={() => setIsHovered(false)}
         style={{ opacity: isDragging ? 0.5 : 1 }}
         className={classnames(
-          "group p-3 rounded-xl cursor-pointer transition-all border relative shadow-sm hover:shadow-md hover:-translate-y-[1px]",
+          "group relative cursor-pointer rounded-xl border p-3 shadow-sm transition-all hover:-translate-y-[1px] hover:shadow-md",
           themeColors.cardBgClass,
           themeColors.hoverClass,
-          "border-black/6 dark:border-white/8",
+          "border-black/6 dark:border-white/8"
         )}
       >
         {!readonly && onDelete && isHovered && (
           <div
-            className="absolute top-2 right-2 z-20 w-6 h-6 rounded-md flex items-center justify-center cursor-pointer transition-colors text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
-            onClick={(e) => {
+            className="absolute right-2 top-2 z-20 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
+            onClick={e => {
               e.stopPropagation();
               onDelete();
             }}
           >
-            <MdDelete className="w-4 h-4" />
+            <MdDelete className="h-4 w-4" />
           </div>
         )}
         <div className="space-y-2">
@@ -165,22 +160,18 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
               );
             })()}
 
-          {(doneColumn ||
-            fieldColumns.some((col) => !isEmptyFieldValue(row[col.id]))) && (
-            <div className="border-t border-black/6 dark:border-white/8 pt-2 space-y-1.5">
+          {(doneColumn || fieldColumns.some(col => !isEmptyFieldValue(row[col.id]))) && (
+            <div className="border-black/6 dark:border-white/8 space-y-1.5 border-t pt-2">
               {doneColumn && (
                 <div
                   className="flex items-center gap-2"
-                  onClick={(event) => {
+                  onClick={event => {
                     event.stopPropagation();
                   }}
                 >
                   {showFieldLabels && (
                     <span
-                      className={classnames(
-                        "text-[11px] shrink-0",
-                        themeColors.secondaryTextClass,
-                      )}
+                      className={classnames("shrink-0 text-[11px]", themeColors.secondaryTextClass)}
                     >
                       {doneColumn.title}
                     </span>
@@ -196,9 +187,7 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
                           column={doneColumn}
                           theme={theme}
                           readonly={Boolean(readonly)}
-                          onCellValueChange={(newValue) =>
-                            onToggleDone(row.id, Boolean(newValue))
-                          }
+                          onCellValueChange={newValue => onToggleDone(row.id, Boolean(newValue))}
                         />
                       </div>
                     );
@@ -206,7 +195,7 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
                 </div>
               )}
 
-              {fieldColumns.map((column) => {
+              {fieldColumns.map(column => {
                 const value = row[column.id];
                 if (isEmptyFieldValue(value)) return null;
 
@@ -219,8 +208,8 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
                     {showFieldLabels && (
                       <span
                         className={classnames(
-                          "text-[11px] shrink-0 pt-0.5",
-                          themeColors.secondaryTextClass,
+                          "shrink-0 pt-0.5 text-[11px]",
+                          themeColors.secondaryTextClass
                         )}
                       >
                         {column.title}
@@ -243,7 +232,7 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
         </div>
       </div>
     );
-  },
+  }
 );
 
 KanbanCard.displayName = "KanbanCard";

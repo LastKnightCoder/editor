@@ -51,6 +51,34 @@ export type CellValue = SharedCellValue | ImageItem[];
 export type RowData = SharedRowData;
 export type DatabaseData = SharedDatabaseData;
 
+/** 会话查询与持久视图共同组成一次查询，分组策略显式指定。 */
+export interface DatabaseQuery {
+  text: string;
+  filters: FilterGroup | null;
+  searchResults: readonly string[] | null;
+  grouping: "view" | "none";
+}
+
+export interface RowChanges {
+  upsert: RowData[];
+  remove: string[];
+}
+
+export type DatabaseCommand =
+  | { type: "rows.apply"; changes: RowChanges }
+  | { type: "rows.receive"; rows: RowData[] }
+  | { type: "column.configure"; id: string; config: unknown }
+  | { type: "view.receive"; view: DataTableView; activate?: boolean }
+  | { type: "view.remove"; id: number }
+  | { type: "views.reorder"; ids: number[] };
+
+export interface DatabaseChange {
+  source: "user" | "external";
+  rows: RowChanges;
+  dataChanged: boolean;
+  viewChanged: boolean;
+}
+
 // Database-specific configuration
 export interface DatabaseConfig {
   allowAddColumn?: boolean;
@@ -60,6 +88,7 @@ export interface DatabaseConfig {
 }
 
 export interface DatabaseProps {
+  /** 初始数据；挂载后的外部变更通过 DatabaseRef 显式操作。 */
   data: RowData[];
   columns: ColumnDef[];
   views: DataTableView[];
@@ -67,15 +96,12 @@ export interface DatabaseProps {
   viewConfig: TableViewConfig;
   config?: DatabaseConfig;
   plugins?: CellPlugin<unknown>[];
-  onDataChange?: (data: DatabaseData) => void;
+  onDataChange?: (data: DatabaseData, change: DatabaseChange) => void;
   onViewConfigChange?: (config: TableViewConfig) => void;
   onActiveViewIdChange?: (viewId: number | null) => Promise<void>;
   onCreateView?: (view: CreateDataTableView) => Promise<DataTableView | null>;
   onDeleteView?: (viewId: number) => Promise<number | null>;
-  onRenameView?: (
-    viewId: number,
-    name: string,
-  ) => Promise<DataTableView | null>;
+  onRenameView?: (viewId: number, name: string) => Promise<DataTableView | null>;
   onUpdateView?: (
     viewId: number,
     updates: {
@@ -84,7 +110,7 @@ export interface DatabaseProps {
       galleryConfig?: GalleryViewConfig;
       calendarConfig?: CalendarViewConfig;
       kanbanConfig?: KanbanViewConfig;
-    },
+    }
   ) => Promise<DataTableView | null>;
   onReorderViews?: (orderedIds: number[]) => Promise<void>;
   onRowDetailOpen?: (row: RowData) => void;
@@ -135,12 +161,7 @@ export interface CellPlugin<T> {
   afterLoad?: (value: CellValue, config: T) => CellValue;
   onColumnCleanup?: (columnData: CellValue[]) => Promise<void> | void;
   filters?: CellFilterDefinition<T>[];
-  search?: (
-    searchValue: string,
-    cellValue: CellValue,
-    column: ColumnDef,
-    row: RowData,
-  ) => boolean;
+  search?: (searchValue: string, cellValue: CellValue, column: ColumnDef, row: RowData) => boolean;
 }
 
 // ValidationRule is imported from @tau/shared
@@ -175,6 +196,6 @@ export interface CellFilterDefinition<TColumnConfig> {
   filter: (
     filterValue: CellValue | null,
     row: RowData,
-    column: ColumnDef<TColumnConfig>,
+    column: ColumnDef<TColumnConfig>
   ) => boolean;
 }

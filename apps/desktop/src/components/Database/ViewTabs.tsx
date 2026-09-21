@@ -1,12 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import classNames from "classnames";
-import {
-  MdAdd,
-  MdMoreHoriz,
-  MdOutlineGroupWork,
-  MdSort,
-  MdOutlineFilterAlt,
-} from "react-icons/md";
+import { MdAdd, MdMoreHoriz, MdOutlineGroupWork, MdSort, MdOutlineFilterAlt } from "react-icons/md";
 import { useMemoizedFn } from "ahooks";
 import { useDrag, useDrop } from "react-dnd";
 import EditText, { EditTextHandle } from "@/components/EditText";
@@ -21,11 +15,7 @@ import ViewTypeSelectModal from "./ViewTypeSelectModal";
 import ViewEditPanel from "./ViewEditPanel";
 import SearchInput from "@/components/SearchInput";
 import { DataTableViewType } from "@/types";
-import type {
-  GalleryViewConfig,
-  CalendarViewConfig,
-  KanbanViewConfig,
-} from "./types";
+import type { GalleryViewConfig, CalendarViewConfig, KanbanViewConfig } from "./types";
 import { Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import { useThemeColors } from "@/hooks";
@@ -42,7 +32,7 @@ interface ViewTabsProps {
     type: DataTableViewType,
     name: string,
     dateColumnId?: string,
-    groupColumnId?: string,
+    groupColumnId?: string
   ) => void;
   onDeleteView?: (viewId: number) => Promise<void>;
   onActiveViewIdChange?: (viewId: number) => Promise<void>;
@@ -55,7 +45,7 @@ interface ViewTabsProps {
       galleryConfig?: GalleryViewConfig;
       calendarConfig?: CalendarViewConfig;
       kanbanConfig?: KanbanViewConfig;
-    },
+    }
   ) => Promise<void>;
   onReorderViews?: (orderedIds: number[]) => Promise<void> | void;
   theme: "light" | "dark";
@@ -80,7 +70,7 @@ interface ViewTabItemProps {
     type: DataTableViewType,
     galleryConfig?: GalleryViewConfig,
     calendarConfig?: CalendarViewConfig,
-    kanbanConfig?: KanbanViewConfig,
+    kanbanConfig?: KanbanViewConfig
   ) => Promise<void>;
 }
 
@@ -119,17 +109,17 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
       () => ({
         type: "view-tab",
         item: { type: "view-tab", id: view.id },
-        collect: (monitor) => ({
+        collect: monitor => ({
           isDragging: monitor.isDragging(),
         }),
       }),
-      [view.id],
+      [view.id]
     );
 
     const [, drop] = useDrop<DragItem>(
       () => ({
         accept: "view-tab",
-        hover: (item) => {
+        hover: item => {
           if (!onReorder || item.id === view.id) return;
           const currentOrder = getOrderedIds();
           const dragIndex = currentOrder.indexOf(item.id);
@@ -140,7 +130,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
           onReorder(nextIds);
         },
       }),
-      [getOrderedIds, onReorder, view.id, index],
+      [getOrderedIds, onReorder, view.id, index]
     );
 
     const setContainerRef = (node: HTMLDivElement | null) => {
@@ -164,18 +154,11 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
         type: DataTableViewType,
         galleryConfig?: GalleryViewConfig,
         calendarConfig?: CalendarViewConfig,
-        kanbanConfig?: KanbanViewConfig,
+        kanbanConfig?: KanbanViewConfig
       ) => {
-        await onUpdateView?.(
-          viewId,
-          name,
-          type,
-          galleryConfig,
-          calendarConfig,
-          kanbanConfig,
-        );
+        await onUpdateView?.(viewId, name, type, galleryConfig, calendarConfig, kanbanConfig);
         setShowEditPopover(false);
-      },
+      }
     );
 
     const menuItems: MenuProps["items"] = [
@@ -201,13 +184,11 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
         ref={setContainerRef}
         style={{ opacity: isDragging ? 0.6 : 1 }}
         className={classNames(
-          "inline-flex items-center gap-1 px-3 h-9 rounded-full transition-colors cursor-pointer",
-          isActive
-            ? activeClass
-            : `text-[#807D78] dark:text-[#A5A199] ${hoverClass}`,
+          "inline-flex h-9 cursor-pointer items-center gap-1 rounded-full px-3 transition-colors",
+          isActive ? activeClass : `text-[#807D78] dark:text-[#A5A199] ${hoverClass}`
         )}
         onClick={() => onActivate(view.id)}
-        onDoubleClick={(event) => {
+        onDoubleClick={event => {
           event.stopPropagation();
           if (!isEditing) {
             onStartEdit(view.id, view.name);
@@ -220,8 +201,8 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
           defaultValue={view.name}
           contentEditable={isEditing}
           className={classNames(
-            "truncate h-9 flex items-center max-w-[140px] text-sm px-0 outline-none cursor-pointer",
-            { "select-none cursor-default": !isEditing },
+            "flex h-9 max-w-[140px] cursor-pointer items-center truncate px-0 text-sm outline-none",
+            { "cursor-default select-none": !isEditing }
           )}
           onBlur={commitChange}
           onPressEnter={commitChange}
@@ -230,10 +211,10 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
         <Dropdown menu={{ items: menuItems }} trigger={["click"]}>
           <div
             ref={moreButtonRef}
-            className="h-9 flex items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
+            className="flex h-9 items-center justify-center"
+            onClick={e => e.stopPropagation()}
           >
-            <MdMoreHoriz className="text-base flex-none" />
+            <MdMoreHoriz className="flex-none text-base" />
           </div>
         </Dropdown>
         <ContextPanel
@@ -251,7 +232,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
         </ContextPanel>
       </div>
     );
-  },
+  }
 );
 
 ViewTabItem.displayName = "ViewTabItem";
@@ -278,8 +259,8 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
       setFilters,
       setActiveViewId,
       searchKeyword,
-      setSearchKeyword,
-    } = useDatabaseStore((state) => ({
+      setQuery,
+    } = useDatabaseStore(state => ({
       activeViewId: state.activeViewId,
       views: state.views,
       viewConfig: state.viewConfig,
@@ -288,8 +269,8 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
       setSorts: state.setSorts,
       setFilters: state.setFilters,
       setActiveViewId: state.setActiveViewId,
-      searchKeyword: state.searchKeyword,
-      setSearchKeyword: state.setSearchKeyword,
+      searchKeyword: state.query.text,
+      setQuery: state.setQuery,
     }));
     const [showGrouping, setShowGrouping] = useState(false);
     const [showSorting, setShowSorting] = useState(false);
@@ -300,7 +281,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     const sortButtonRef = useRef<HTMLDivElement>(null);
     const groupButtonRef = useRef<HTMLDivElement>(null);
 
-    const orderedIds = useMemo(() => views.map((view) => view.id), [views]);
+    const orderedIds = useMemo(() => views.map(view => view.id), [views]);
     const orderedIdsRef = useRef<number[]>(orderedIds);
     const previousOrderRef = useRef(JSON.stringify(orderedIds));
 
@@ -332,30 +313,28 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
       setEditingId(viewId);
     });
 
-    const handleCommit = useMemoizedFn(
-      async (viewId: number, value: string, fallback: string) => {
-        if (editingId !== viewId) return;
-        const trimmed = value.trim();
-        if (!trimmed) {
-          stopEditing();
-          return;
-        }
-        if (!onRenameView) {
-          stopEditing();
-          return;
-        }
-        if (trimmed === fallback) {
-          stopEditing();
-          return;
-        }
-        try {
-          await onRenameView(viewId, trimmed);
-          stopEditing();
-        } catch (error) {
-          console.error("重命名视图失败:", error);
-        }
-      },
-    );
+    const handleCommit = useMemoizedFn(async (viewId: number, value: string, fallback: string) => {
+      if (editingId !== viewId) return;
+      const trimmed = value.trim();
+      if (!trimmed) {
+        stopEditing();
+        return;
+      }
+      if (!onRenameView) {
+        stopEditing();
+        return;
+      }
+      if (trimmed === fallback) {
+        stopEditing();
+        return;
+      }
+      try {
+        await onRenameView(viewId, trimmed);
+        stopEditing();
+      } catch (error) {
+        console.error("重命名视图失败:", error);
+      }
+    });
 
     const handleReorder = useMemoizedFn((nextOrderedIds: number[]) => {
       if (!onReorderViews) return;
@@ -367,15 +346,10 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     });
 
     const handleCreateView = useMemoizedFn(
-      (
-        type: DataTableViewType,
-        name: string,
-        dateColumnId?: string,
-        groupColumnId?: string,
-      ) => {
+      (type: DataTableViewType, name: string, dateColumnId?: string, groupColumnId?: string) => {
         onCreateView?.(type, name, dateColumnId, groupColumnId);
         setShowViewTypeSelect(false);
-      },
+      }
     );
 
     const handleUpdateView = useMemoizedFn(
@@ -385,7 +359,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
         type: DataTableViewType,
         galleryConfig?: GalleryViewConfig,
         calendarConfig?: CalendarViewConfig,
-        kanbanConfig?: KanbanViewConfig,
+        kanbanConfig?: KanbanViewConfig
       ) => {
         if (!onUpdateView) return;
         await onUpdateView(viewId, {
@@ -395,7 +369,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           calendarConfig,
           kanbanConfig,
         });
-      },
+      }
     );
 
     return (
@@ -421,12 +395,12 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           ))}
           <div
             className={classNames(
-              "flex w-9 h-9 items-center justify-center rounded-full text-gray-600 dark:text-gray-400 cursor-pointer",
-              hoverClass,
+              "flex h-9 w-9 cursor-pointer items-center justify-center rounded-full text-gray-600 dark:text-gray-400",
+              hoverClass
             )}
             onClick={() => setShowViewTypeSelect(true)}
           >
-            <div className="h-9 flex items-center justify-center">
+            <div className="flex h-9 items-center justify-center">
               <Tooltip title="新视图">
                 <MdAdd />
               </Tooltip>
@@ -436,18 +410,18 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
         <div className="ml-auto flex items-center gap-2">
           <SearchInput
             value={searchKeyword}
-            onChange={setSearchKeyword}
+            onChange={text => setQuery({ text })}
             placeholder="搜索..."
           />
           <Tooltip title="筛选设置">
             <div
               ref={filterButtonRef}
               className={classNames(
-                "flex h-9 items-center ml-auto gap-1 px-3 rounded-full cursor-pointer",
+                "ml-auto flex h-9 cursor-pointer items-center gap-1 rounded-full px-3",
                 viewConfig.filters ? activeClass : hoverClass,
                 {
                   "text-[#2C2C2C] dark:text-[#FFFFFF]": !viewConfig.filters,
-                },
+                }
               )}
               onClick={() => setShowFilter(!showFilter)}
             >
@@ -464,7 +438,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
               columns={columns}
               filters={viewConfig.filters ?? null}
               pluginManager={pluginManager}
-              onChange={(nextFilters) => setFilters(nextFilters)}
+              onChange={nextFilters => setFilters(nextFilters)}
               onClose={() => setShowFilter(false)}
               theme={theme}
             />
@@ -473,12 +447,11 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
             <div
               ref={sortButtonRef}
               className={classNames(
-                "flex h-9 items-center ml-auto gap-1 px-3 rounded-full cursor-pointer",
+                "ml-auto flex h-9 cursor-pointer items-center gap-1 rounded-full px-3",
                 viewConfig.sorts?.length > 0 ? activeClass : hoverClass,
                 {
-                  "text-[#2C2C2C] dark:text-[#FFFFFF]":
-                    !viewConfig.sorts?.length,
-                },
+                  "text-[#2C2C2C] dark:text-[#FFFFFF]": !viewConfig.sorts?.length,
+                }
               )}
               onClick={() => setShowSorting(!showSorting)}
             >
@@ -495,7 +468,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
               pluginManager={pluginManager}
               columns={columns}
               sorts={viewConfig.sorts ?? []}
-              onChange={(nextSorts) => setSorts(nextSorts)}
+              onChange={nextSorts => setSorts(nextSorts)}
               onClose={() => setShowSorting(false)}
             />
           </ContextPanel>
@@ -503,12 +476,11 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
             <div
               ref={groupButtonRef}
               className={classNames(
-                "flex h-9 items-center ml-auto gap-1 px-3 rounded-full cursor-pointer",
+                "ml-auto flex h-9 cursor-pointer items-center gap-1 rounded-full px-3",
                 viewConfig.groupBy !== null ? activeClass : hoverClass,
                 {
-                  "text-[#2C2C2C] dark:text-[#FFFFFF]":
-                    viewConfig.groupBy === null,
-                },
+                  "text-[#2C2C2C] dark:text-[#FFFFFF]": viewConfig.groupBy === null,
+                }
               )}
               onClick={() => setShowGrouping(!showGrouping)}
             >
@@ -526,7 +498,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
               columns={columns}
               config={viewConfig.groupBy ?? null}
               onClose={() => setShowGrouping(false)}
-              onSubmit={(groupBy) => setGroupBy(groupBy)}
+              onSubmit={groupBy => setGroupBy(groupBy)}
             />
           </ContextPanel>
         </div>
@@ -539,7 +511,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
         />
       </div>
     );
-  },
+  }
 );
 
 ViewTabs.displayName = "ViewTabs";

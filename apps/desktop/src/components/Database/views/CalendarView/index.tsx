@@ -6,7 +6,6 @@ import classnames from "classnames";
 import dayjs from "dayjs";
 import { v4 as uuidv4 } from "uuid";
 import { useDatabaseStore } from "../../hooks";
-import { useFilteredAndSortedRows } from "../../hooks/useFilteredAndSortedRows";
 import PluginManager from "../../PluginManager";
 import { RowData, ColumnDef, DatabaseConfig } from "../../types";
 import { DateValue, DatePluginConfig } from "../../plugins/DatePlugin";
@@ -32,7 +31,6 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
 
     const {
       columns,
-      rows,
       viewConfig,
       updateCellValue,
       addRow,
@@ -40,10 +38,8 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       editColumn,
       columnWidths,
       deleteRow,
-      searchKeyword,
-    } = useDatabaseStore((state) => ({
+    } = useDatabaseStore(state => ({
       columns: state.columns,
-      rows: state.rows,
       viewConfig: state.viewConfig,
       updateCellValue: state.updateCellValue,
       addRow: state.addRow,
@@ -51,7 +47,6 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       editColumn: state.editColumn,
       columnWidths: state.columnWidths,
       deleteRow: state.deleteRow,
-      searchKeyword: state.searchKeyword,
     }));
 
     const [currentDate, setCurrentDate] = useState(Date.now());
@@ -60,13 +55,8 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     const [columnEditOpen, setColumnEditOpen] = useState(false);
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
 
-    const { groupedRows } = useFilteredAndSortedRows(
-      rows,
-      columns,
-      viewConfig,
-      pluginManager,
-      searchKeyword
-    );
+    const projection = useDatabaseStore(state => state.projection);
+    const groupedRows = projection.groups;
 
     // 获取日历视图配置的日期列
     const calendarConfig = viewConfig.calendarConfig;
@@ -75,14 +65,14 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     // 找到日期列
     const dateColumn = useMemo(() => {
       if (dateColumnId) {
-        return columns.find((col) => col.id === dateColumnId);
+        return columns.find(col => col.id === dateColumnId);
       }
       // 如果没有配置，使用第一个日期类型的列
-      return columns.find((col) => col.type === "date");
+      return columns.find(col => col.type === "date");
     }, [columns, dateColumnId]);
 
     // 获取主列
-    const primaryColumn = columns.find((col) => col.isPrimary);
+    const primaryColumn = columns.find(col => col.isPrimary);
 
     // 转换 rows 为日历事件格式
     const calendarEvents = useMemo(() => {
@@ -93,10 +83,10 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       const isRange = dateConfig?.isRange || false;
 
       // 合并所有分组的行
-      const allRows = groupedRows.flatMap((group) => group.rows);
+      const allRows = groupedRows.flatMap(group => group.rows);
 
       return allRows
-        .map((row) => {
+        .map(row => {
           const dateValue = row[dateColumn.id] as DateValue;
 
           // 过滤掉没有有效日期的行
@@ -169,7 +159,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
         const newRow: RowData = {
           id: newId,
         };
-        columns.forEach((column) => {
+        columns.forEach(column => {
           newRow[column.id] = newRowData[column.id] ?? null;
         });
 
@@ -209,7 +199,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
         const newRow: RowData = {
           id: newId,
         };
-        columns.forEach((column) => {
+        columns.forEach(column => {
           newRow[column.id] = newRowData[column.id] ?? null;
         });
 
@@ -244,7 +234,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
       if (!editingRow) return;
 
       // 更新行数据
-      Object.keys(rowData).forEach((key) => {
+      Object.keys(rowData).forEach(key => {
         if (key !== "id") {
           updateCellValue(editingRow.id, key, rowData[key]);
         }
@@ -278,7 +268,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     // 如果没有日期列，显示提示
     if (!dateColumn) {
       return (
-        <div className="flex items-center justify-center h-full">
+        <div className="flex h-full items-center justify-center">
           <div className="text-center">
             <p className={classnames("mb-4", themeColors.secondaryTextClass)}>
               日历视图需要至少一个日期类型的列
@@ -287,7 +277,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
               <button
                 onClick={handleAddColumn}
                 className={classnames(
-                  "px-4 py-2 rounded transition-colors",
+                  "rounded px-4 py-2 transition-colors",
                   themeColors.primaryButtonClass
                 )}
               >
@@ -310,30 +300,30 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     }
 
     return (
-      <div className="w-full h-full flex flex-col">
+      <div className="flex h-full w-full flex-col">
         {/* 顶部工具栏 */}
         <div
           className={classnames(
-            "flex items-center justify-between px-4 py-3 border-b",
+            "flex items-center justify-between border-b px-4 py-3",
             themeColors.borderClass
           )}
         >
           <div className="flex items-center gap-2">
             <button
               onClick={handlePreviousMonth}
-              className={classnames("p-1 rounded", themeColors.hoverClass)}
+              className={classnames("rounded p-1", themeColors.hoverClass)}
             >
-              <MdChevronLeft className="w-5 h-5" />
+              <MdChevronLeft className="h-5 w-5" />
             </button>
             <button
               onClick={handleNextMonth}
-              className={classnames("p-1 rounded", themeColors.hoverClass)}
+              className={classnames("rounded p-1", themeColors.hoverClass)}
             >
-              <MdChevronRight className="w-5 h-5" />
+              <MdChevronRight className="h-5 w-5" />
             </button>
             <button
               onClick={handleToday}
-              className={classnames("px-3 py-1 text-sm rounded", themeColors.hoverClass)}
+              className={classnames("rounded px-3 py-1 text-sm", themeColors.hoverClass)}
             >
               今天
             </button>
@@ -380,7 +370,7 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
             column={
               editingColumnId
                 ? (() => {
-                    const found = columns.find((c) => c.id === editingColumnId);
+                    const found = columns.find(c => c.id === editingColumnId);
                     if (!found) return null;
                     const width = columnWidths[editingColumnId] || found.width || 200;
                     return { ...found, width } as ColumnDef;
