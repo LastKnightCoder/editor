@@ -5,10 +5,7 @@ import blockPanelItems from "./block-panel-items";
 import { overwrite } from "./plugins";
 import type { DatabaseElement } from "./types";
 export type { DatabaseElement } from "./types";
-import {
-  createBlockElementPlugin,
-  createVoidElementPlugin,
-} from "@tau/editor/src";
+import { createBlockElementPlugin, createVoidElementPlugin } from "@tau/editor/src";
 
 class DatabaseExtension extends Base implements IExtension {
   type = "database";
@@ -18,21 +15,14 @@ class DatabaseExtension extends Base implements IExtension {
   }
 
   override getPlugins() {
-    return [
-      overwrite,
-      createBlockElementPlugin(this.type),
-      createVoidElementPlugin(this.type),
-    ];
+    return [overwrite, createBlockElementPlugin(this.type), createVoidElementPlugin(this.type)];
   }
 
   render(props: RenderElementProps) {
     const { element, attributes, children } = props;
 
     return (
-      <DatabaseBlock
-        element={element as unknown as DatabaseElement}
-        attributes={attributes}
-      >
+      <DatabaseBlock element={element as unknown as DatabaseElement} attributes={attributes}>
         {children}
       </DatabaseBlock>
     );

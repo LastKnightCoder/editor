@@ -8,7 +8,7 @@ const items: IBlockPanelListItem[] = [
     title: "数据库视图",
     description: "插入一个数据表视图",
     keywords: ["database", "数据表", "table"],
-    onClick: (editor) => {
+    onClick: editor => {
       insertDatabase(editor);
     },
   },

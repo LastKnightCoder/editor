@@ -1,6 +1,6 @@
-import { useEffect, ReactNode, useMemo, forwardRef, useImperativeHandle } from "react";
+import { useEffect, ReactNode, useMemo, useState, forwardRef, useImperativeHandle } from "react";
 import { useCreation, useMemoizedFn } from "ahooks";
-import { App } from "antd";
+import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
 import classnames from "classnames";
 import useTheme from "@/hooks/useTheme";
 
@@ -79,7 +79,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     const { theme: systemTheme } = useTheme();
     const finalTheme = theme || systemTheme;
 
-    const { modal } = App.useApp();
+    const [confirmDeleteViewId, setConfirmDeleteViewId] = useState<number | null>(null);
 
     // 暴露 ref 方法
     useImperativeHandle(ref, () => ({
@@ -194,19 +194,17 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     );
 
     const handleDeleteView = useMemoizedFn(async (viewId: number) => {
-      modal.confirm({
-        title: "确定删除此视图吗？",
-        okButtonProps: {
-          danger: true,
-        },
-        onOk: async () => {
-          const result = await onDeleteView?.(viewId);
-          if (result) {
-            store.getState().dispatch({ type: "view.remove", id: viewId }, "external");
-            onActiveViewIdChange?.(store.getState().activeViewId);
-          }
-        },
-      });
+      setConfirmDeleteViewId(viewId);
+    });
+
+    const handleConfirmDeleteView = useMemoizedFn(async () => {
+      const viewId = confirmDeleteViewId;
+      if (viewId === null) return;
+      const result = await onDeleteView?.(viewId);
+      if (result) {
+        store.getState().dispatch({ type: "view.remove", id: viewId }, "external");
+        onActiveViewIdChange?.(store.getState().activeViewId);
+      }
     });
 
     const handleRenameView = useMemoizedFn(async (viewId: number, name: string) => {
@@ -310,6 +308,16 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
             />
           </div>
           <div className="min-h-0 w-full flex-1">{View}</div>
+          <ConfirmDialog
+            open={confirmDeleteViewId !== null}
+            onOpenChange={open => {
+              if (!open) setConfirmDeleteViewId(null);
+            }}
+            title="确定删除此视图吗？"
+            danger
+            confirmText="删除"
+            onConfirm={() => handleConfirmDeleteView()}
+          />
         </div>
       </DatabaseContext.Provider>
     );
