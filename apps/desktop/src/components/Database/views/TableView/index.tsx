@@ -9,8 +9,7 @@ import ColumnEditModal from "./components/ColumnEditModal";
 import RowDetailModal from "../../components/RowDetailModal";
 import Row from "./components/Row";
 import { Plus } from "lucide-react";
-import { Tooltip } from "@tau/ui/Tooltip";
-import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
+import { Tooltip, ConfirmDialog } from "@tau/ui";
 
 interface TableViewProps {
   pluginManager: PluginManager;

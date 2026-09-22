@@ -1,6 +1,6 @@
 import { FC, useMemo } from "react";
 import type { ColumnDef } from "./types";
-import { Select } from "@tau/ui/Select";
+import { Select } from "@tau/ui";
 
 interface ColumnDropdownProps {
   columns: ColumnDef[];

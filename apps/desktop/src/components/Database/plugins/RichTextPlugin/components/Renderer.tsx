@@ -1,7 +1,5 @@
 import React, { memo, useState, useRef } from "react";
-import { Popover as TauPopover } from "@tau/ui/Popover";
-import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
-import { toast } from "@tau/ui/Toast";
+import { Popover as TauPopover, ConfirmDialog, toast } from "@tau/ui";
 import { FileText, Folder, Plus, StickyNote, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";

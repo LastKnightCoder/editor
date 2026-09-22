@@ -10,8 +10,7 @@ import { DateValue, DatePluginConfig } from "../../plugins/DatePlugin";
 import MonthGrid from "./MonthGrid";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
-import { Button } from "@tau/ui/Button";
-import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
+import { Button, ConfirmDialog } from "@tau/ui";
 
 interface CalendarViewProps {
   pluginManager: PluginManager;

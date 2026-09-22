@@ -1,4 +1,5 @@
 export * from "./cn";
+export * from "./hooks";
 export * from "./UiProvider";
 export * from "./primitives/Button";
 export * from "./primitives/IconButton";

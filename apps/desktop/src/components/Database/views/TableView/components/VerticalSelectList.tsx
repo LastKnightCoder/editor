@@ -2,9 +2,7 @@ import { SelectOption } from "../../../types";
 import { SELECT_COLORS } from "../../../constants";
 import { memo, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
-import { ColorSwatch, Tag } from "@tau/ui";
-import { Input } from "@tau/ui/Input";
-import { Menu } from "@tau/ui/Menu";
+import { ColorSwatch, Tag, Input, Menu } from "@tau/ui";
 
 interface VerticalSelectListProps {
   options: SelectOption[];

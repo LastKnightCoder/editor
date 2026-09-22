@@ -2,7 +2,7 @@ import React, { memo, useRef } from "react";
 import { useDrag, useDrop, DropTargetMonitor, DragSourceMonitor } from "react-dnd";
 import classnames from "classnames";
 import { GripVertical } from "lucide-react";
-import { Menu } from "@tau/ui/Menu";
+import { Menu } from "@tau/ui";
 
 import { ColumnDef, RowData, CellCoord, CellValue } from "../../../types";
 import Cell from "./Cell";

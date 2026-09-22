@@ -7,8 +7,7 @@
  */
 
 import { Info } from "lucide-react";
-import { IconButton } from "@tau/ui/IconButton";
-import { Tooltip, type TooltipPlacement } from "@tau/ui/Tooltip";
+import { IconButton, Tooltip, type TooltipPlacement } from "@tau/ui";
 import { BlockTitle, CanvasCard, DemoButton, DocHead, MatrixRow, Note } from "../kit";
 
 const SIDES = ["top", "bottom", "left", "right"] as const;

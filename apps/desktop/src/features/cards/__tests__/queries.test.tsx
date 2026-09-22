@@ -27,7 +27,10 @@ vi.mock("@/commands/card", () => ({
   createScopedCard: vi.fn(),
   deleteScopedCard: vi.fn(),
 }));
-vi.mock("@tau/ui/Toast", () => ({ toast: { error: vi.fn() } }));
+vi.mock("@tau/ui", async () => {
+  const actual = await vi.importActual<typeof import("@tau/ui")>("@tau/ui");
+  return { ...actual, toast: { error: vi.fn() } };
+});
 vi.mock("@/stores/useSettingStore", async () => {
   const { create } = await import("zustand");
   return { default: create(() => ({ setting: { database: { active: "a" } } })) };

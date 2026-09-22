@@ -1,6 +1,6 @@
 import { useEffect, ReactNode, useMemo, useState, forwardRef, useImperativeHandle } from "react";
 import { useCreation, useMemoizedFn } from "ahooks";
-import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
+import { ConfirmDialog } from "@tau/ui";
 import classnames from "classnames";
 import useTheme from "@/hooks/useTheme";
 

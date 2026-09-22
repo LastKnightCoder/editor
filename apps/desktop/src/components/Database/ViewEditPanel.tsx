@@ -13,9 +13,7 @@ import {
   getTemplateDefaultCardDisplay,
   resolveKanbanCardDisplay,
 } from "./views/KanbanView/cardDisplayConfig";
-import { Button } from "@tau/ui/Button";
-import { Input } from "@tau/ui/Input";
-import { Checkbox, Radio, RadioGroup } from "@tau/ui";
+import { Button, Input, Checkbox, Radio, RadioGroup } from "@tau/ui";
 
 interface ViewEditPanelProps {
   view: DataTableView | null;

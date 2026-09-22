@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Archive, Plus, Search, Trash2 } from "lucide-react";
-import { Button } from "@tau/ui/Button";
+import { Button } from "@tau/ui";
 import { ApiCard, BlockTitle, CanvasCard, DocHead, MatrixRow } from "../kit";
 
 /** loading 标本：点击进入 1.4s 载入后复位（spinner + 文案切换 + 封锁全可验） */

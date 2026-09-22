@@ -22,7 +22,7 @@ import {
 import type { ReactElement } from "react";
 import type { ECardCategory, ICard } from "@/types";
 import { cardCategoryName } from "@/constants/card";
-import { Menu } from "@tau/ui/Menu";
+import { Menu } from "@tau/ui";
 import { CATEGORY_COLORS } from "../categoryColors";
 import type { CardItemActions } from "../types";
 

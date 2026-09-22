@@ -2,7 +2,7 @@
  * Spinner · Loading 档案 —— 本体即 ui/primitives/Loading。
  */
 
-import { Loading, Spinner } from "@tau/ui/Loading";
+import { Loading, Spinner } from "@tau/ui";
 import { BlockTitle, DocHead, MatrixRow } from "../kit";
 
 export default function LoadingSection() {

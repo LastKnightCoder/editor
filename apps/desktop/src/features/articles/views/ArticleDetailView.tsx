@@ -69,8 +69,7 @@ import {
   getMarkdown,
 } from "@/utils";
 import type { IArticle } from "@/types";
-import { Loading, Menu, toast, cn } from "@tau/ui";
-import { useEdgeFade } from "@tau/ui/hooks";
+import { Loading, Menu, toast, cn, useEdgeFade } from "@tau/ui";
 
 import { ArticlePodcast } from "../components/ArticlePodcast";
 import { ArticleHero } from "../components/ArticleHero";

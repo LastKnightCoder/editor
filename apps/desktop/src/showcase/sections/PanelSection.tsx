@@ -4,7 +4,7 @@
  */
 
 import { ChevronRight } from "lucide-react";
-import { EmptyNote, Panel, PanelAction, PanelNote, PanelTitle } from "@tau/ui/Panel";
+import { EmptyNote, Panel, PanelAction, PanelNote, PanelTitle } from "@tau/ui";
 import { ApiCard, BlockTitle, CanvasCard, DocHead, MatrixRow } from "../kit";
 
 function SampleRows() {

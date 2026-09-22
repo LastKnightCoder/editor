@@ -5,13 +5,7 @@
  */
 
 import { useState, type ReactNode } from "react";
-import {
-  toast,
-  ToastPill,
-  type ToastItem,
-  type ToastPosition,
-  type ToastType,
-} from "@tau/ui/Toast";
+import { toast, ToastPill, type ToastItem, type ToastPosition, type ToastType } from "@tau/ui";
 import { ApiCard, BlockTitle, CanvasCard, DemoButton, DocHead, MatrixRow, Segmented } from "../kit";
 
 const POSITIONS: ToastPosition[] = ["top-center", "top-right", "bottom-right", "bottom-center"];

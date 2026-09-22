@@ -26,7 +26,7 @@ import useGlobalStateStore from "@/stores/useGlobalStateStore";
 import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
 import { defaultContentEventBus } from "@/utils/event-bus/content-event-bus";
 import { startOfWeek } from "@/utils/time";
-import { toast } from "@tau/ui/Toast";
+import { toast } from "@tau/ui";
 import type { CardFilter, CardTagNode, CardTimeGroup, CardTimeGroupKey } from "./types";
 
 export const cardsKey = (databaseName: string) => ["cards", databaseName, "all"] as const;

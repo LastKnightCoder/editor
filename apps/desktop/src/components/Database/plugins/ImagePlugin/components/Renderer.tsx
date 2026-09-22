@@ -1,5 +1,5 @@
 import React, { memo, useState, useRef, useEffect } from "react";
-import { Popover as TauPopover } from "@tau/ui/Popover";
+import { Popover as TauPopover } from "@tau/ui";
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import LocalImage from "@/components/LocalImage";

@@ -2,7 +2,7 @@ import React from "react";
 import { PanelRight } from "lucide-react";
 import { CellValue, ColumnDef, RowData } from "../../types";
 import { useMemoizedFn } from "ahooks";
-import { Tooltip } from "@tau/ui/Tooltip";
+import { Tooltip } from "@tau/ui";
 import EditText from "@/components/EditText";
 
 const PrimaryColumnRenderer: React.FC<{

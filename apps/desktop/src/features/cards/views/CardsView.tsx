@@ -27,12 +27,7 @@ import { getScopedCard, openCardInNewWindow } from "@/commands/card";
 import { readTextFile, selectFile } from "@/commands";
 import { downloadMarkdown, getContentLength, getMarkdown, importFromMarkdown } from "@/utils";
 import { getEditorText } from "@/utils/editor";
-import { Button } from "@tau/ui/Button";
-import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
-import { IconButton } from "@tau/ui/IconButton";
-import { Loading } from "@tau/ui/Loading";
-import { toast } from "@tau/ui/Toast";
-import { cn } from "@tau/ui/cn";
+import { Button, ConfirmDialog, IconButton, Loading, toast, cn } from "@tau/ui";
 import {
   buildTagTree,
   cardDetailKey,

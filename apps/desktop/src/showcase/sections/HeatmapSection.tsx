@@ -4,7 +4,7 @@
  */
 
 import { useMemo } from "react";
-import { YearHeatmap, type YearHeatmapDay } from "@tau/ui/YearHeatmap";
+import { YearHeatmap, type YearHeatmapDay } from "@tau/ui";
 import { CanvasCard, DocHead, Note } from "../kit";
 
 function demoDays(): YearHeatmapDay[] {

@@ -1,11 +1,7 @@
 import React, { memo, useEffect, useState } from "react";
 import { CalendarDays, LayoutGrid, SquareKanban, Table2 } from "lucide-react";
-import { cn } from "@tau/ui/cn";
+import { cn, Button, Dialog, Input, Select } from "@tau/ui";
 import { DataTableViewType } from "@/types";
-import { Button } from "@tau/ui/Button";
-import { Dialog } from "@tau/ui/Dialog";
-import { Input } from "@tau/ui/Input";
-import { Select } from "@tau/ui/Select";
 
 interface ViewType {
   type: DataTableViewType | string;

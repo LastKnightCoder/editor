@@ -25,9 +25,7 @@ import type { ICard } from "@/types";
 import { cardCategoryName } from "@/constants/card";
 import { CardActionMenu } from "./CardActionMenu";
 import type { CardItemActions } from "../types";
-import { Dialog } from "@tau/ui/Dialog";
-import { IconButton } from "@tau/ui/IconButton";
-import { Button } from "@tau/ui/Button";
+import { Dialog, IconButton, Button } from "@tau/ui";
 
 const SAVE_INTERVAL = 500;
 

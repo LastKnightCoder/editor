@@ -1,8 +1,7 @@
 import React, { memo, useRef, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { MoreHorizontal } from "lucide-react";
-import { Menu } from "@tau/ui/Menu";
-import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
+import { Menu, ConfirmDialog } from "@tau/ui";
 
 import { useDrag, useDrop, DropTargetMonitor, DragSourceMonitor } from "react-dnd";
 import { ColumnDef } from "../../../types";

@@ -1,12 +1,11 @@
 import { memo, useEffect, useMemo, useState, useCallback } from "react";
 import { ArrowDown, ArrowUp, ChevronDown, GripVertical, Plus, X } from "lucide-react";
-import { cn } from "@tau/ui/cn";
+import { cn, Button } from "@tau/ui";
 import { ColumnDef } from "./types";
 import { SortRule } from "@/types";
 import ColumnIcon from "./ColumnIcon";
 import PluginManager from "./PluginManager";
 import SimpleDropdown from "./SimpleDropdown";
-import { Button } from "@tau/ui/Button";
 
 interface SortPanelProps {
   columns: ColumnDef[];

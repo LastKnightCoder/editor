@@ -10,7 +10,7 @@ import { useMemoizedFn } from "ahooks";
 import ColumnIcon from "@/components/Database/ColumnIcon";
 import { useDrag, useDrop, DragSourceMonitor } from "react-dnd";
 import classNames from "classnames";
-import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
+import { ConfirmDialog } from "@tau/ui";
 import ColumnEditModal from "../../views/TableView/components/ColumnEditModal";
 import { useDatabaseStore } from "../../hooks";
 import CustomModal from "@/components/CustomModal";

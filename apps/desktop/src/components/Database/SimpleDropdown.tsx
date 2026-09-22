@@ -1,5 +1,5 @@
 import { memo, ReactElement } from "react";
-import { Menu } from "@tau/ui/Menu";
+import { Menu } from "@tau/ui";
 
 interface DropdownItem {
   key: string;

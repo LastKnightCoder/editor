@@ -14,10 +14,16 @@ import clsx from "clsx";
 import { ChevronRight } from "lucide-react";
 import { openPomodoroWindow } from "@/commands";
 import { usePage } from "@/page/PageProvider";
-import { useEdgeFade } from "@tau/ui/hooks";
-import { EmptyNote, Panel, PanelNote, PanelTitle, PanelAction } from "@tau/ui/Panel";
-import { Loading } from "@tau/ui/Loading";
-import { YearHeatmap } from "@tau/ui/YearHeatmap";
+import {
+  useEdgeFade,
+  EmptyNote,
+  Panel,
+  PanelNote,
+  PanelTitle,
+  PanelAction,
+  Loading,
+  YearHeatmap,
+} from "@tau/ui";
 import { useHomeSnapshot, minutesToHM } from "../queries";
 import type { RecentEdit } from "../types";
 import "../home.css";

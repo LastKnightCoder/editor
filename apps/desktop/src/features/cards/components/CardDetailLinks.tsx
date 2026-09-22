@@ -14,7 +14,7 @@ import { getInlineLinks } from "@/utils/card";
 import { getEditorText } from "@/utils/editor";
 import { cardCategoryName } from "@/constants/card";
 import { resultDisplay, useSearchContent } from "@/features/search/queries";
-import { Dialog } from "@tau/ui/Dialog";
+import { Dialog } from "@tau/ui";
 import { CATEGORY_COLORS } from "../categoryColors";
 
 /** links ∪ 内联引用，去重并排除自身；返回 id 与「是否仅来自正文内联」 */

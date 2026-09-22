@@ -11,10 +11,7 @@ import {
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import { useDrag, useDrop } from "react-dnd";
-import { cn } from "@tau/ui/cn";
-import { Menu } from "@tau/ui/Menu";
-import { Popover } from "@tau/ui/Popover";
-import { Tooltip } from "@tau/ui/Tooltip";
+import { cn, Menu, Popover, Tooltip } from "@tau/ui";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import { DataTableView } from "@/types";
 import { useDatabaseStore } from "./hooks";

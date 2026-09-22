@@ -7,7 +7,7 @@
 import { StrictMode } from "react";
 import ReactDOM from "react-dom/client";
 import { initThemeRuntime } from "@tau/ui/theme/runtime";
-import { initScrollbarAutoHide } from "@tau/ui/hooks";
+import { initScrollbarAutoHide } from "@tau/ui";
 import "./showcase.css";
 import { ShowcaseApp } from "./ShowcaseApp";
 

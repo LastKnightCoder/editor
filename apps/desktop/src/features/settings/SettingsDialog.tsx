@@ -12,8 +12,7 @@ import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import clsx from "clsx";
 import { useOverlayDismiss } from "@/page/PageProvider";
-import { useEdgeFade } from "@tau/ui/hooks";
-import { IconButton } from "@tau/ui/IconButton";
+import { useEdgeFade, IconButton } from "@tau/ui";
 import { useSettingsStore } from "@/app/settingsStore";
 import { SETTINGS_GROUPS, SETTINGS_SECTIONS } from "./sections";
 

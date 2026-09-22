@@ -15,8 +15,7 @@ import PluginManager from "./PluginManager";
 import SimpleDropdown from "./SimpleDropdown";
 import ColumnIcon from "./ColumnIcon";
 import { countFilterConditions } from "./core/filterTree";
-import { Button } from "@tau/ui/Button";
-import { cn } from "@tau/ui/cn";
+import { Button, cn } from "@tau/ui";
 
 interface FilterPanelProps {
   columns: ColumnDef[];

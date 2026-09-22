@@ -6,8 +6,7 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { Dialog } from "@tau/ui/Dialog";
-import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
+import { Dialog, ConfirmDialog } from "@tau/ui";
 import {
   ApiCard,
   BlockTitle,

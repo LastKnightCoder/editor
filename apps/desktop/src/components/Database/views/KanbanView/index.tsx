@@ -6,7 +6,7 @@ import { RowData, ColumnDef, CellValue, SelectOption, DatabaseConfig } from "../
 import KanbanColumn from "./KanbanColumn";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
-import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
+import { ConfirmDialog } from "@tau/ui";
 import { v4 as uuidv4 } from "uuid";
 import { resolveKanbanCardDisplay } from "./cardDisplayConfig";
 interface KanbanViewProps {
