@@ -16,7 +16,7 @@ import { produce } from "immer";
 import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
 import { useThemeStore } from "@tau/ui/theme/runtime";
 import { DEFAULT_DARK_KEY, DEFAULT_LIGHT_KEY } from "@tau/ui/theme";
-import { Select } from "@tau/ui/Select";
+import { Select } from "@tau/ui";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import { getAllFonts } from "@/commands";
 import { SettingRow } from "../components/SettingRow";

@@ -5,11 +5,7 @@ import { SELECT_COLORS } from "../../../constants";
 import SelectList from "./SelectList";
 import PluginManager from "../../../PluginManager";
 import { DatePluginConfig } from "../../../plugins/DatePlugin/index";
-import { Button } from "@tau/ui/Button";
-import { Checkbox } from "@tau/ui";
-import { Dialog } from "@tau/ui/Dialog";
-import { Input } from "@tau/ui/Input";
-import { Select } from "@tau/ui/Select";
+import { Button, Dialog, Input, Select, Checkbox } from "@tau/ui";
 
 interface ColumnEditModalProps {
   open: boolean;

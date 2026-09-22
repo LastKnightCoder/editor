@@ -4,7 +4,7 @@
  */
 
 import { useMemo } from "react";
-import { Select } from "@tau/ui/Select";
+import { Select } from "@tau/ui";
 
 export type FontKind = "chinese" | "english" | "code";
 

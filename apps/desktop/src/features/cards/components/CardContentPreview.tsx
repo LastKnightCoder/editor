@@ -3,7 +3,7 @@ import { Editor } from "@tau/editor/src";
 import type { ICard } from "@/types";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
-import { cn } from "@tau/ui/cn";
+import { cn } from "@tau/ui";
 
 export function CardContentPreview({
   content,

@@ -1,10 +1,9 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Check } from "lucide-react";
-import { cn } from "@tau/ui/cn";
+import { cn, Button } from "@tau/ui";
 import { ColumnDef, TableViewConfig, GroupGranularity } from "./types";
 import PluginManager from "./PluginManager";
 import ColumnIcon from "./ColumnIcon";
-import { Button } from "@tau/ui/Button";
 import { useDatabaseStore } from "./hooks";
 
 interface GroupPanelProps {

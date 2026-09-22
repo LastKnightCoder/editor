@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { Select, type SelectOption } from "@tau/ui/Select";
+import { Select, type SelectOption } from "@tau/ui";
 import { ApiCard, BlockTitle, CanvasCard, DocHead, MatrixRow } from "../kit";
 
 const VIEWS: SelectOption<string>[] = [

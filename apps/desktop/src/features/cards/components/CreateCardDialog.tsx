@@ -16,9 +16,7 @@ import { DEFAULT_CARD_CONTENT } from "@/constants";
 import { getContentLength } from "@/utils";
 import { ECardCategory, type ICard } from "@/types";
 import { cardCategoryName } from "@/constants/card";
-import { Button } from "@tau/ui/Button";
-import { Dialog } from "@tau/ui/Dialog";
-import { toast } from "@tau/ui/Toast";
+import { Button, Dialog, toast } from "@tau/ui";
 
 export interface CreateCardDialogProps {
   open: boolean;

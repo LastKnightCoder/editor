@@ -22,7 +22,7 @@
  */
 
 import type { ComponentProps, ReactNode } from "react";
-import { cn } from "@tau/ui/cn";
+import { cn } from "@tau/ui";
 
 /**
  * 档案页版心 —— 全页唯一内容宽度，单一事实源：

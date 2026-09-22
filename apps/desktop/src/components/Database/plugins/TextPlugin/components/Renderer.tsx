@@ -1,7 +1,7 @@
 import React, { memo, useRef, useState } from "react";
 import EditText from "@/components/EditText";
 import { useMemoizedFn } from "ahooks";
-import { Tooltip } from "@tau/ui/Tooltip";
+import { Tooltip } from "@tau/ui";
 import { ColumnDef } from "../../../types";
 interface TextRendererProps {
   value: string;

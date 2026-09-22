@@ -1,6 +1,6 @@
 import React, { memo, useState, useRef, useMemo } from "react";
 import { Link2, Plus, X } from "lucide-react";
-import { ConfirmDialog } from "@tau/ui/ConfirmDialog";
+import { ConfirmDialog } from "@tau/ui";
 import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
 import { ColumnDef, CellValue } from "@/components/Database/types";

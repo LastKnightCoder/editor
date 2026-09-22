@@ -27,20 +27,22 @@ vi.mock("../queries", () => ({
     { label: "今天", cards: cards.filter(card => !card.isTop) },
   ],
 }));
-vi.mock("@tau/ui/Menu", () => ({
-  Menu: Object.assign(({ trigger }: any) => trigger, {
-    Item: () => null,
-    Submenu: () => null,
-    Separator: () => null,
-  }),
-}));
-vi.mock("@tau/ui/IconButton", () => ({
-  IconButton: ({ children, title, onClick }: any) => (
-    <button title={title} onClick={onClick}>
-      {children}
-    </button>
-  ),
-}));
+vi.mock("@tau/ui", async () => {
+  const actual = await vi.importActual<typeof import("@tau/ui")>("@tau/ui");
+  return {
+    ...actual,
+    Menu: Object.assign(({ trigger }: any) => trigger, {
+      Item: () => null,
+      Submenu: () => null,
+      Separator: () => null,
+    }),
+    IconButton: ({ children, title, onClick }: any) => (
+      <button title={title} onClick={onClick}>
+        {children}
+      </button>
+    ),
+  };
+});
 vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: ({ count }: { count: number }) => ({
     getTotalSize: () => 1000,

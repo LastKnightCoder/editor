@@ -7,8 +7,7 @@
 
 import { ChevronRight, Tags } from "lucide-react";
 import { useState } from "react";
-import { useEdgeFade } from "@tau/ui/hooks";
-import { cn } from "@tau/ui/cn";
+import { useEdgeFade, cn } from "@tau/ui";
 import type { CardTagNode } from "../types";
 
 export interface CardTreePanelProps {

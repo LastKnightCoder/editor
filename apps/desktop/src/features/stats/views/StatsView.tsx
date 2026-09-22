@@ -11,11 +11,17 @@ import { useState, type ReactNode } from "react";
 import { Flame, PenLine, Repeat, Timer, type LucideIcon } from "lucide-react";
 import { usePage } from "@/page/PageProvider";
 import { openPomodoroWindow } from "@/commands";
-import { useEdgeFade } from "@tau/ui/hooks";
-import { EmptyNote, Panel, PanelAction, PanelNote, PanelTitle } from "@tau/ui/Panel";
-import { Loading } from "@tau/ui/Loading";
-import { Tooltip } from "@tau/ui/Tooltip";
-import { YearHeatmap } from "@tau/ui/YearHeatmap";
+import {
+  useEdgeFade,
+  EmptyNote,
+  Panel,
+  PanelAction,
+  PanelNote,
+  PanelTitle,
+  Loading,
+  Tooltip,
+  YearHeatmap,
+} from "@tau/ui";
 import { useStatsSnapshot } from "../queries";
 import { STATS_RANGES, type StatsRange, type StatsTotals } from "../types";
 import { StatsTrend } from "./StatsTrend";

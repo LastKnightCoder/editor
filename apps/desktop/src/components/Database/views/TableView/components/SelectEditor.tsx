@@ -6,7 +6,7 @@ import { produce } from "immer";
 
 import { CellValue, ColumnDef, SelectOption } from "../../../types";
 import { SELECT_COLORS } from "../../../constants";
-import { Popover } from "@tau/ui/Popover";
+import { Popover } from "@tau/ui";
 import SelectList from "./SelectList";
 import VerticalSelectList from "./VerticalSelectList";
 

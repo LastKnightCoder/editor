@@ -1,7 +1,5 @@
 import { memo, useState } from "react";
-import { cn } from "@tau/ui/cn";
-import { Button } from "@tau/ui/Button";
-import { Input } from "@tau/ui/Input";
+import { cn, Button, Input } from "@tau/ui";
 
 interface ImageUploadProps {
   onUploadLocal: () => void;

@@ -5,7 +5,7 @@
  */
 
 import { CalendarDays, MoreHorizontal, Plus, Search } from "lucide-react";
-import { IconButton } from "@tau/ui/IconButton";
+import { IconButton } from "@tau/ui";
 import { ApiCard, BlockTitle, CanvasCard, DocHead, MatrixRow, Note } from "../kit";
 
 export default function IconButtonSection() {

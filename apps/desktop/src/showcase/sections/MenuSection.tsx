@@ -15,8 +15,7 @@ import {
   Pin,
   Trash2,
 } from "lucide-react";
-import { ContextMenu, Menu } from "@tau/ui/Menu";
-import { cn } from "@tau/ui/cn";
+import { ContextMenu, Menu, cn } from "@tau/ui";
 import { ApiCard, BlockTitle, CanvasCard, DocHead, MatrixRow } from "../kit";
 
 /**

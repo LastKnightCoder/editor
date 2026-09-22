@@ -46,9 +46,10 @@ vi.mock("@/components/AddTag", () => ({
     <button onClick={() => addTag(`标签${tags.length + 1}`)}>标签：{tags.join(",")}</button>
   ),
 }));
-vi.mock("@tau/ui/Dialog", async () => {
-  const actual = await vi.importActual<typeof import("@tau/ui/Dialog")>("@tau/ui/Dialog");
+vi.mock("@tau/ui", async () => {
+  const actual = await vi.importActual<typeof import("@tau/ui")>("@tau/ui");
   return {
+    ...actual,
     Dialog: (props: any) =>
       mocks.realDialog ? (
         <actual.Dialog {...props} />
@@ -59,28 +60,23 @@ vi.mock("@tau/ui/Dialog", async () => {
           {props.children}
         </div>
       ) : null,
-  };
-});
-vi.mock("@tau/ui/IconButton", () => ({
-  IconButton: ({ children, onClick, title }: any) => (
-    <button onClick={onClick} title={title}>
-      {children}
-    </button>
-  ),
-}));
-vi.mock("@tau/ui/Menu", () => {
-  const Menu = Object.assign(({ children }: any) => <div>{children}</div>, {
-    Item: ({ children, onSelect, disabled }: any) => (
-      <button disabled={disabled} onClick={onSelect}>
+    IconButton: ({ children, onClick, title }: any) => (
+      <button onClick={onClick} title={title}>
         {children}
       </button>
     ),
-    Submenu: ({ children }: any) => <div>{children}</div>,
-    Separator: () => null,
-  });
-  return { Menu };
+    Menu: Object.assign(({ children }: any) => <div>{children}</div>, {
+      Item: ({ children, onSelect, disabled }: any) => (
+        <button disabled={disabled} onClick={onSelect}>
+          {children}
+        </button>
+      ),
+      Submenu: ({ children }: any) => <div>{children}</div>,
+      Separator: () => null,
+    }),
+    toast: { error: vi.fn(), info: vi.fn() },
+  };
 });
-vi.mock("@tau/ui/Toast", () => ({ toast: { error: vi.fn(), info: vi.fn() } }));
 
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root;

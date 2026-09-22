@@ -39,8 +39,7 @@ import { useSearchContent, resultDisplay, relativeTime } from "./queries";
 import { useSettingsStore } from "@/app/settingsStore";
 import { useThemeStore } from "@tau/ui/theme/runtime";
 import { DEFAULT_DARK_KEY, DEFAULT_LIGHT_KEY } from "@tau/ui/theme";
-import { Spinner } from "@tau/ui/Loading";
-import { toast } from "@tau/ui/Toast";
+import { Spinner, toast } from "@tau/ui";
 import type { IndexType, SearchResult } from "@/types";
 
 /* ---------- 前缀语法：追加语义，冒号兼容全角 ---------- */

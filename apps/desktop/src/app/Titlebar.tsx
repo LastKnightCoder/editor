@@ -8,7 +8,7 @@ import { isWinOrLinux } from "@/platform";
 import { usePage } from "@/page/PageProvider";
 import { getPageMeta } from "@/page/core/pageMeta";
 import { isEditableTarget } from "@/page/dom";
-import { IconButton } from "@tau/ui/IconButton";
+import { IconButton } from "@tau/ui";
 import { getTheme } from "@tau/ui/theme";
 import { nextMode, useThemeStore } from "@tau/ui/theme/runtime";
 import { useSearchStore } from "@/features/search/searchStore";

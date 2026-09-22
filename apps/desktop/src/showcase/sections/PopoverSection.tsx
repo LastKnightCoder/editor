@@ -8,8 +8,7 @@
 import { useRef, useState } from "react";
 import clsx from "clsx";
 import { Repeat2, SlidersHorizontal } from "lucide-react";
-import { Popover } from "@tau/ui/Popover";
-import { AnchoredPanel } from "@tau/ui/AnchoredPanel";
+import { Popover, AnchoredPanel } from "@tau/ui";
 import { ApiCard, BlockTitle, CanvasCard, DemoButton, DocHead, MatrixRow, Note } from "../kit";
 
 /** 应答区按钮（Button 落地后迁移；与 DialogSection 同款形制） */

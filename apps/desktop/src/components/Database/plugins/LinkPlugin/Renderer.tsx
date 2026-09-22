@@ -4,7 +4,7 @@ import { CellValue, ColumnDef } from "../../types";
 import { normalizeUrl } from "./utils";
 import { useMemoizedFn } from "ahooks";
 import { openExternal } from "@/commands";
-import { Tooltip } from "@tau/ui/Tooltip";
+import { Tooltip } from "@tau/ui";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 

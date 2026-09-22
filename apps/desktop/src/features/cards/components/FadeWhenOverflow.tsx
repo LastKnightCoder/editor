@@ -5,7 +5,7 @@
  */
 
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { cn } from "@tau/ui/cn";
+import { cn } from "@tau/ui";
 
 export function FadeWhenOverflow({
   className,
