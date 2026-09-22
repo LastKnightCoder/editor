@@ -1,6 +1,5 @@
 import { memo, useEffect, useMemo, useState, useCallback } from "react";
-import classNames from "classnames";
-import useThemeColors from "@/hooks/useThemeColors";
+import { Spinner } from "@tau/ui";
 import { PublishContentType } from "@/types/publish";
 import { Project } from "@/types/project";
 import { IDocument } from "@/types/document";
@@ -23,7 +22,6 @@ import {
 } from "./components";
 
 const PublishSelector = memo(() => {
-  const themeColors = useThemeColors();
   const [activeTab, setActiveTab] = useState<PublishContentType>("card");
 
   // 加载选择状态
@@ -53,12 +51,8 @@ const PublishSelector = memo(() => {
   } = useContentLoader();
 
   // 项目/知识库树缓存
-  const [projectTrees, setProjectTrees] = useState<Map<number, DocTreeNode[]>>(
-    new Map(),
-  );
-  const [documentTrees, setDocumentTrees] = useState<
-    Map<number, DocTreeNode[]>
-  >(new Map());
+  const [projectTrees, setProjectTrees] = useState<Map<number, DocTreeNode[]>>(new Map());
+  const [documentTrees, setDocumentTrees] = useState<Map<number, DocTreeNode[]>>(new Map());
 
   // 初始化加载
   useEffect(() => {
@@ -75,17 +69,17 @@ const PublishSelector = memo(() => {
       const current = isItemSelected("card", cardId);
       batchToggle("card", [cardId], !current);
     },
-    [isItemSelected, batchToggle],
+    [isItemSelected, batchToggle]
   );
 
   // 批量切换卡片（按标签）
   const handleToggleTagCards = useCallback(
     (node: CardTagNode, selected: boolean) => {
       const cards = collectCardsFromTagNode(node);
-      const ids = cards.map((c) => c.id);
+      const ids = cards.map(c => c.id);
       batchToggle("card", ids, selected);
     },
-    [batchToggle],
+    [batchToggle]
   );
 
   // 切换文章选择
@@ -94,7 +88,7 @@ const PublishSelector = memo(() => {
       const current = isItemSelected("article", articleId);
       batchToggle("article", [articleId], !current);
     },
-    [isItemSelected, batchToggle],
+    [isItemSelected, batchToggle]
   );
 
   // 批量切换文章
@@ -102,7 +96,7 @@ const PublishSelector = memo(() => {
     (ids: number[], selected: boolean) => {
       batchToggle("article", ids, selected);
     },
-    [batchToggle],
+    [batchToggle]
   );
 
   // 加载项目树
@@ -110,10 +104,10 @@ const PublishSelector = memo(() => {
     async (entity: Project | IDocument): Promise<DocTreeNode[]> => {
       const project = entity as Project;
       const nodes = await buildProjectTree(project);
-      setProjectTrees((prev) => new Map(prev).set(project.id, nodes));
+      setProjectTrees(prev => new Map(prev).set(project.id, nodes));
       return nodes;
     },
-    [],
+    []
   );
 
   // 加载知识库树
@@ -121,10 +115,10 @@ const PublishSelector = memo(() => {
     async (entity: Project | IDocument): Promise<DocTreeNode[]> => {
       const document = entity as IDocument;
       const nodes = await buildDocumentTree(document);
-      setDocumentTrees((prev) => new Map(prev).set(document.id, nodes));
+      setDocumentTrees(prev => new Map(prev).set(document.id, nodes));
       return nodes;
     },
-    [],
+    []
   );
 
   // 更新项目作用域
@@ -132,7 +126,7 @@ const PublishSelector = memo(() => {
     async (entityId: number, scope: EntityScope) => {
       await updateEntityScope("project", entityId, scope);
     },
-    [updateEntityScope],
+    [updateEntityScope]
   );
 
   // 更新知识库作用域
@@ -140,7 +134,7 @@ const PublishSelector = memo(() => {
     async (entityId: number, scope: EntityScope) => {
       await updateEntityScope("document", entityId, scope);
     },
-    [updateEntityScope],
+    [updateEntityScope]
   );
 
   // 更新问题管理分组作用域
@@ -152,7 +146,7 @@ const PublishSelector = memo(() => {
       }
       await updateEntityScope("quest", groupId, scope);
     },
-    [handleEntityToggle, updateEntityScope],
+    [handleEntityToggle, updateEntityScope]
   );
 
   // 渲染当前 Tab 内容
@@ -160,14 +154,7 @@ const PublishSelector = memo(() => {
     if (isLoading) {
       return (
         <div className="flex h-64 items-center justify-center">
-          <div
-            className={classNames(
-              "h-10 w-10 animate-spin rounded-full border-2",
-              themeColors.cardBorderClass,
-              "border-t-current",
-              themeColors.activeTextClass,
-            )}
-          />
+          <Spinner className="size-7" />
         </div>
       );
     }
@@ -198,9 +185,7 @@ const PublishSelector = memo(() => {
             questions={questions}
             isItemSelected={isItemSelected}
             scopes={questScopes}
-            onToggleGroup={(id, enabled) =>
-              handleEntityToggle("quest", id, enabled)
-            }
+            onToggleGroup={(id, enabled) => handleEntityToggle("quest", id, enabled)}
             onUpdateScope={handleUpdateQuestScope}
           />
         );
@@ -212,9 +197,7 @@ const PublishSelector = memo(() => {
             isItemSelected={isItemSelected}
             scopes={projectScopes}
             treeCache={projectTrees}
-            onToggleEntity={(id, enabled) =>
-              handleEntityToggle("project", id, enabled)
-            }
+            onToggleEntity={(id, enabled) => handleEntityToggle("project", id, enabled)}
             onUpdateScope={handleUpdateProjectScope}
             onLoadTree={handleLoadProjectTree}
           />
@@ -227,9 +210,7 @@ const PublishSelector = memo(() => {
             isItemSelected={isItemSelected}
             scopes={documentScopes}
             treeCache={documentTrees}
-            onToggleEntity={(id, enabled) =>
-              handleEntityToggle("document", id, enabled)
-            }
+            onToggleEntity={(id, enabled) => handleEntityToggle("document", id, enabled)}
             onUpdateScope={handleUpdateDocumentScope}
             onLoadTree={handleLoadDocumentTree}
           />
@@ -240,13 +221,7 @@ const PublishSelector = memo(() => {
   };
 
   return (
-    <div
-      className={classNames(
-        "rounded-xl border p-6",
-        themeColors.cardBgClass,
-        themeColors.cardBorderClass,
-      )}
-    >
+    <div className="pt-1">
       <Header totalSelected={getTotalSelectedCount()} />
 
       <TabBar

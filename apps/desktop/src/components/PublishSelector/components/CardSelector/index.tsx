@@ -1,7 +1,7 @@
 import { memo, useState, useMemo, useCallback, useEffect, useRef } from "react";
-import classNames from "classnames";
+import clsx from "clsx";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import useThemeColors from "@/hooks/useThemeColors";
+import { Eye, Layers } from "lucide-react";
 import { CardTagNode, CardListItem, PublishContentType } from "../../types";
 import { CARD_CATEGORY_LABEL } from "../../constants";
 import { collectCardsFromTagNode } from "../../utils";
@@ -20,7 +20,6 @@ interface CardSelectorProps {
 
 export const CardSelector = memo<CardSelectorProps>(
   ({ tree, isItemSelected, onToggleCard, onToggleTagCards }) => {
-    const themeColors = useThemeColors();
     const [activeTagId, setActiveTagId] = useState<string>("");
     const [previewCard, setPreviewCard] = useState<CardListItem | null>(null);
     const [onlySelected, setOnlySelected] = useState(false);
@@ -83,35 +82,15 @@ export const CardSelector = memo<CardSelectorProps>(
 
     return (
       <>
-        <div
-          className={classNames(
-            "flex max-h-[520px] overflow-hidden rounded-xl border",
-            themeColors.cardBorderClass
-          )}
-        >
+        <div className="border-line-1 rounded-tau-md flex max-h-[520px] overflow-hidden border">
           {/* 左侧：标签树（窄） */}
-          <div
-            className={classNames(
-              "flex w-56 flex-shrink-0 flex-col border-r",
-              themeColors.cardBorderClass
-            )}
-          >
-            <div
-              className={classNames(
-                "flex flex-shrink-0 items-center justify-between border-b px-4 py-3 text-sm font-medium",
-                themeColors.cardBorderClass,
-                themeColors.textClass
-              )}
-            >
+          <div className="border-line-1 flex w-56 shrink-0 flex-col border-r">
+            <div className="border-line-1 text-ink-1 flex shrink-0 items-center justify-between border-b px-4 py-3 text-[13px] font-medium">
               <span>标签树</span>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto py-2">
               {tree.length === 0 ? (
-                <div
-                  className={classNames("p-4 text-center text-sm", themeColors.secondaryTextClass)}
-                >
-                  暂无标签
-                </div>
+                <div className="text-ink-3 p-4 text-center text-[13px]">暂无标签</div>
               ) : (
                 tree.map(node => (
                   <TagTreeNode
@@ -128,11 +107,11 @@ export const CardSelector = memo<CardSelectorProps>(
 
           {/* 右侧：卡片列表（宽） */}
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-            <div className="flex-shrink-0 px-3 py-2">
+            <div className="shrink-0 px-3 py-2">
               <SearchToolbar
                 query={query}
                 onQueryChange={setQuery}
-                placeholder="搜索卡片标题或标签..."
+                placeholder="搜索卡片标题或标签…"
                 showSelectAll={displayCards.length > 0}
                 allSelected={allSelected}
                 onSelectAll={handleSelectAll}
@@ -162,7 +141,6 @@ export const CardSelector = memo<CardSelectorProps>(
           </div>
         </div>
 
-        {/* 预览弹窗 */}
         {previewCard && (
           <ContentPreviewModal
             open={!!previewCard}
@@ -174,18 +152,7 @@ export const CardSelector = memo<CardSelectorProps>(
               category: CARD_CATEGORY_LABEL[previewCard.category],
               updateTime: previewCard.updateTime,
             }}
-            icon={
-              <svg
-                className="h-5 w-5 text-amber-500"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-            }
-            iconBgColor="bg-amber-50 dark:bg-amber-500/20 border-amber-200 dark:border-amber-500/30"
+            icon={<Layers size={16} strokeWidth={1.75} />}
           />
         )}
       </>
@@ -203,7 +170,6 @@ const TagTreeNode = memo<{
   isItemSelected: (type: PublishContentType, id: number) => boolean;
   depth?: number;
 }>(({ node, activeTagId, onSelect, isItemSelected, depth = 0 }) => {
-  const themeColors = useThemeColors();
   const isActive = activeTagId === node.id;
 
   const cards = useMemo(() => collectCardsFromTagNode(node), [node]);
@@ -215,25 +181,22 @@ const TagTreeNode = memo<{
   return (
     <div>
       <button
+        type="button"
         onClick={() => onSelect(node.id)}
-        className={classNames(
-          "mx-1 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm transition-colors",
-          isActive
-            ? "bg-zinc-200/70 font-medium text-zinc-950 dark:bg-zinc-700/60 dark:text-zinc-50"
-            : ["hover:bg-gray-50 dark:hover:bg-zinc-800/30", themeColors.textClass]
+        className={clsx(
+          "mx-1 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-[13px] transition-colors",
+          isActive ? "bg-selected text-ink-1 font-medium" : "text-ink-2 hover:bg-hover"
         )}
         style={{ paddingLeft: depth * 12 + 12, width: "calc(100% - 8px)" }}
       >
         <span className="flex-1 truncate">{node.label}</span>
         {selectedCount > 0 && (
-          <span className="rounded-full bg-zinc-200 px-1.5 py-0.5 text-[10px] text-zinc-700 dark:bg-zinc-700 dark:text-zinc-100">
+          <span className="bg-group text-ink-2 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums">
             {selectedCount}/{node.count}
           </span>
         )}
         {selectedCount === 0 && (
-          <span className={classNames("text-xs", themeColors.secondaryTextClass)}>
-            {node.count}
-          </span>
+          <span className="text-ink-3 text-[11px] tabular-nums">{node.count}</span>
         )}
       </button>
       {node.children.map(child => (
@@ -260,7 +223,6 @@ const CardList = memo<{
   onToggleCard: (cardId: number) => void;
   onPreview: (card: CardListItem) => void;
 }>(({ activeTagId, cards, isItemSelected, onToggleCard, onPreview }) => {
-  const themeColors = useThemeColors();
   const parentRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
@@ -302,11 +264,9 @@ const CardList = memo<{
               className="px-3 py-1"
             >
               <div
-                className={classNames(
-                  "flex min-h-[56px] items-center gap-3 rounded-lg px-4 py-3 transition-colors",
-                  selected
-                    ? "bg-zinc-200/60 dark:bg-zinc-700/50"
-                    : "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
+                className={clsx(
+                  "rounded-tau-sm flex min-h-[56px] items-center gap-3 px-4 py-3 transition-colors",
+                  selected ? "bg-selected" : "hover:bg-hover"
                 )}
               >
                 <SelectionCheckbox
@@ -316,47 +276,22 @@ const CardList = memo<{
                 />
                 <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onPreview(card)}>
                   <div
-                    className={classNames(
-                      "truncate text-sm",
-                      selected
-                        ? "font-medium text-zinc-950 dark:text-zinc-50"
-                        : themeColors.textClass
+                    className={clsx(
+                      "truncate text-[13px]",
+                      selected ? "text-ink-1 font-medium" : "text-ink-1"
                     )}
                   >
                     {card.title}
                   </div>
-                  <div
-                    className={classNames(
-                      "mt-0.5 truncate text-xs",
-                      themeColors.secondaryTextClass
-                    )}
-                  >
-                    {card.summary}
-                  </div>
+                  <div className="text-tau-tiny text-ink-3 mt-0.5 truncate">{card.summary}</div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => onPreview(card)}
-                  className={classNames(
-                    "flex-shrink-0 rounded-lg p-1.5 transition-colors",
-                    "hover:bg-gray-200 dark:hover:bg-zinc-700",
-                    themeColors.secondaryTextClass
-                  )}
+                  className="text-ink-3 hover:bg-hover hover:text-ink-1 shrink-0 rounded-md p-1.5 transition-colors"
                   title="预览"
                 >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                    />
-                  </svg>
+                  <Eye size={15} strokeWidth={1.75} />
                 </button>
               </div>
             </div>

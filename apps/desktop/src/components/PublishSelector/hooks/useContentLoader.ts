@@ -6,10 +6,7 @@ import {
   getAllDocuments,
   getAllQuestions,
 } from "@/commands";
-import {
-  listQuestionGroups,
-  QuestionGroupDTO,
-} from "@/commands/question-group";
+import { listQuestionGroups, QuestionGroupDTO } from "@/commands/question-group";
 import { ICard } from "@/types/card";
 import { IArticle } from "@/types/article";
 import { Project } from "@/types/project";
@@ -58,9 +55,7 @@ export function useContentLoader(): UseContentLoaderReturn {
       setCards(cardsData);
       setArticles(articlesData);
       // 只保留文档树类型的项目
-      setProjects(
-        projectsData.filter((p) => p.projectType === "document-tree"),
-      );
+      setProjects(projectsData.filter(p => p.projectType === "document-tree"));
       setDocuments(documentsData);
       setQuestionGroups(questionGroupsData);
       setQuestions(questionsData);

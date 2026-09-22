@@ -36,7 +36,7 @@ import type { IDocument, ICreateDocumentItem } from "@/types/document";
 import {
   buildProjectTree,
   buildDocumentTree,
-} from "@/pages/Settings/PublishSetting/PublishSelector/utils/treeBuilder";
+} from "@/components/PublishSelector/utils/treeBuilder";
 
 interface DocTreeNode {
   id: number;

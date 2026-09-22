@@ -27,13 +27,7 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
-import { Button } from "@tau/ui/Button";
-import { Checkbox, Switch } from "@tau/ui";
-import { Dialog } from "@tau/ui/Dialog";
-import { Input } from "@tau/ui/Input";
-import { Select } from "@tau/ui/Select";
-import { toast } from "@tau/ui/Toast";
-import { useEdgeFade } from "@tau/ui/hooks";
+import { Button, Checkbox, Switch, Dialog, Input, Select, toast, useEdgeFade } from "@tau/ui";
 import useSettingStore, { EImageBed, ESync } from "@/stores/useSettingStore";
 import { getBucketList } from "@/commands";
 import { getReposByOwner, getBranchesByRepo } from "@/utils";
@@ -796,7 +790,7 @@ export function ResourceSection() {
         onOpenChange={setBlacklistOpen}
         onAfterClose={() => setSelectedBlacklistNames([])}
         title="加入黑名单"
-        subtitle="黑名单文件不参与资源目录同步，跨配置共用"
+        subtitle="黑名单文件不参与资源目录同步"
         footer={
           <>
             <Button variant="secondary" size="sm" onClick={() => setBlacklistOpen(false)}>

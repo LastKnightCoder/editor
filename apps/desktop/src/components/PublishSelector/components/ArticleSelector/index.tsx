@@ -1,7 +1,7 @@
 import { memo, useState, useMemo, useCallback, useRef } from "react";
-import classNames from "classnames";
+import clsx from "clsx";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import useThemeColors from "@/hooks/useThemeColors";
+import { Eye, FileText } from "lucide-react";
 import { IArticle } from "@/types/article";
 import { PublishContentType } from "@/types/publish";
 import { buildPlainText } from "../../utils";
@@ -29,7 +29,6 @@ interface ArticleSelectorProps {
 
 export const ArticleSelector = memo<ArticleSelectorProps>(
   ({ articles, isItemSelected, onToggleArticle, onBatchToggle }) => {
-    const themeColors = useThemeColors();
     const [previewArticle, setPreviewArticle] = useState<ArticleListItem | null>(null);
     const [onlySelected, setOnlySelected] = useState(false);
 
@@ -84,17 +83,14 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
     return (
       <>
         <div
-          className={classNames(
-            "flex flex-col overflow-hidden rounded-xl border",
-            themeColors.cardBorderClass
-          )}
+          className="border-line-1 rounded-tau-md flex flex-col overflow-hidden border"
           style={{ height: 520, maxHeight: 520 }}
         >
-          <div className="flex-shrink-0 px-3 py-2">
+          <div className="shrink-0 px-3 py-2">
             <SearchToolbar
               query={query}
               onQueryChange={setQuery}
-              placeholder="搜索文章标题..."
+              placeholder="搜索文章标题…"
               showSelectAll={displayArticles.length > 0}
               allSelected={allSelected}
               onSelectAll={handleSelectAll}
@@ -121,7 +117,6 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
           </div>
         </div>
 
-        {/* 预览弹窗 */}
         {previewArticle && (
           <ContentPreviewModal
             open={!!previewArticle}
@@ -134,18 +129,7 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
               updateTime: previewArticle.updateTime,
               createTime: previewArticle.createTime,
             }}
-            icon={
-              <svg
-                className="h-5 w-5 text-zinc-500"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            }
-            iconBgColor="border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800"
+            icon={<FileText size={16} strokeWidth={1.75} />}
           />
         )}
       </>
@@ -162,7 +146,6 @@ const ArticleList = memo<{
   onToggleArticle: (articleId: number) => void;
   onPreview: (article: ArticleListItem) => void;
 }>(({ articles, isItemSelected, onToggleArticle, onPreview }) => {
-  const themeColors = useThemeColors();
   const parentRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
@@ -199,11 +182,9 @@ const ArticleList = memo<{
               className="px-3 py-1"
             >
               <div
-                className={classNames(
-                  "flex min-h-[76px] items-start gap-3 rounded-lg px-4 py-3.5 transition-colors",
-                  selected
-                    ? "bg-zinc-200/60 dark:bg-zinc-700/50"
-                    : "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
+                className={clsx(
+                  "rounded-tau-sm flex min-h-[76px] items-start gap-3 px-4 py-3.5 transition-colors",
+                  selected ? "bg-selected" : "hover:bg-hover"
                 )}
               >
                 <SelectionCheckbox
@@ -213,47 +194,24 @@ const ArticleList = memo<{
                 />
                 <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onPreview(article)}>
                   <div
-                    className={classNames(
-                      "truncate text-sm",
-                      selected
-                        ? "font-medium text-zinc-950 dark:text-zinc-50"
-                        : themeColors.textClass
+                    className={clsx(
+                      "truncate text-[13px]",
+                      selected ? "text-ink-1 font-medium" : "text-ink-1"
                     )}
                   >
                     {article.title}
                   </div>
-                  <div
-                    className={classNames(
-                      "mt-1 line-clamp-2 text-xs",
-                      themeColors.secondaryTextClass
-                    )}
-                  >
+                  <div className="text-tau-tiny text-ink-3 mt-1 line-clamp-2">
                     {article.description}
                   </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => onPreview(article)}
-                  className={classNames(
-                    "flex-shrink-0 rounded-lg p-1.5 transition-colors",
-                    "hover:bg-gray-200 dark:hover:bg-zinc-700",
-                    themeColors.secondaryTextClass
-                  )}
+                  className="text-ink-3 hover:bg-hover hover:text-ink-1 shrink-0 rounded-md p-1.5 transition-colors"
                   title="预览"
                 >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                    />
-                  </svg>
+                  <Eye size={15} strokeWidth={1.75} />
                 </button>
               </div>
             </div>

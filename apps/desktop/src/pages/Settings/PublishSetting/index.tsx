@@ -7,7 +7,7 @@ import classNames from "classnames";
 import GithubPublishSetting from "./GithubPublishSetting";
 import S3PublishSetting from "./S3PublishSetting";
 import LocalPublishSetting from "./LocalPublishSetting";
-import PublishSelector from "./PublishSelector";
+import PublishSelector from "@/components/PublishSelector";
 
 import LocalImage from "@/components/LocalImage";
 import useSettingStore, { EPublishProvider } from "@/stores/useSettingStore";

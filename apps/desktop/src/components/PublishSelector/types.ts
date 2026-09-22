@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import { Descendant } from "slate";
 import { ICard, ECardCategory } from "@/types/card";
 import { IArticle } from "@/types/article";
@@ -78,7 +79,7 @@ export interface TabConfig {
   key: PublishContentType;
   label: string;
   description: string;
-  icon: React.ReactNode;
+  icon: LucideIcon;
 }
 
 /**

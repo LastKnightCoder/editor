@@ -1,6 +1,6 @@
 import { memo, useMemo, useState, useCallback } from "react";
-import classNames from "classnames";
-import useThemeColors from "@/hooks/useThemeColors";
+import clsx from "clsx";
+import { RefreshCw, Search, X } from "lucide-react";
 import { PublishContentType } from "@/types/publish";
 import { IQuestion } from "@/types/question";
 import { QuestionGroupDTO } from "@/commands/question-group";
@@ -46,21 +46,19 @@ const STATUS_LABEL: Record<IQuestion["status"], string> = {
 
 const STATUS_STYLE: Record<IQuestion["status"], { title: string; badge: string; dot: string }> = {
   not_started: {
-    title: "text-zinc-600 dark:text-zinc-300",
-    badge:
-      "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700",
-    dot: "bg-zinc-400",
+    title: "text-ink-2",
+    badge: "bg-group text-ink-2",
+    dot: "bg-sunken",
   },
   in_progress: {
-    title: "text-amber-700 dark:text-amber-300",
-    badge:
-      "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30",
-    dot: "bg-amber-500",
+    title: "text-warn",
+    badge: "bg-warn-soft text-warn",
+    dot: "bg-warn",
   },
   resolved: {
-    title: "text-status-success",
-    badge: "bg-[var(--th-success)]/10 text-status-success border-[var(--th-success)]/30",
-    dot: "bg-status-success",
+    title: "text-ok",
+    badge: "bg-ok-soft text-ok",
+    dot: "bg-ok",
   },
 };
 
@@ -112,7 +110,6 @@ function getGroupSelectedCount(
 
 export const QuestSelector = memo<QuestSelectorProps>(
   ({ groups, questions, isItemSelected, scopes, onToggleGroup, onUpdateScope }) => {
-    const themeColors = useThemeColors();
     const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
     const [onlySelected, setOnlySelected] = useState(false);
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -232,37 +229,15 @@ export const QuestSelector = memo<QuestSelectorProps>(
     );
 
     return (
-      <div
-        className={classNames(
-          "flex max-h-[560px] min-h-[480px] overflow-hidden rounded-xl border",
-          themeColors.cardBorderClass
-        )}
-      >
-        <div
-          className={classNames(
-            "flex w-60 flex-shrink-0 flex-col border-r",
-            themeColors.cardBorderClass
-          )}
-        >
-          <div
-            className={classNames(
-              "flex flex-shrink-0 items-center justify-between border-b px-4 py-3 text-sm font-medium",
-              themeColors.cardBorderClass,
-              themeColors.textClass
-            )}
-          >
+      <div className="border-line-1 rounded-tau-md flex max-h-[560px] min-h-[480px] overflow-hidden border">
+        <div className="border-line-1 flex w-60 shrink-0 flex-col border-r">
+          <div className="border-line-1 text-ink-1 flex shrink-0 items-center justify-between border-b px-4 py-3 text-[13px] font-medium">
             <span>分类</span>
-            <span className={classNames("text-xs", themeColors.secondaryTextClass)}>
-              {groupItems.length}
-            </span>
+            <span className="text-tau-tiny text-ink-3 tabular-nums">{groupItems.length}</span>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto py-2">
             {groupItems.length === 0 ? (
-              <div
-                className={classNames("p-4 text-center text-sm", themeColors.secondaryTextClass)}
-              >
-                暂无分类
-              </div>
+              <div className="text-ink-3 p-4 text-center text-[13px]">暂无分类</div>
             ) : (
               groupItems.map(group => (
                 <QuestGroupButton
@@ -279,7 +254,7 @@ export const QuestSelector = memo<QuestSelectorProps>(
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="flex-shrink-0 border-b border-gray-100 px-3 py-3 dark:border-zinc-800">
+          <div className="border-line-2 shrink-0 border-b px-3 py-3">
             <QuestToolbar
               query={query}
               onQueryChange={setQuery}
@@ -335,16 +310,12 @@ const QuestGroupButton = memo<{
   onSelect: () => void;
   onToggle: () => void;
 }>(({ group, active, selectedCount, onSelect, onToggle }) => {
-  const themeColors = useThemeColors();
-
   return (
     <div className="px-2 py-1">
       <div
-        className={classNames(
-          "flex items-center gap-2 rounded-lg px-2 py-2 transition-colors",
-          active
-            ? "bg-zinc-200/70 dark:bg-zinc-700/60"
-            : "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
+        className={clsx(
+          "flex items-center gap-2 rounded-md px-2 py-2 transition-colors",
+          active ? "bg-selected" : "hover:bg-hover"
         )}
       >
         <SelectionCheckbox
@@ -359,19 +330,17 @@ const QuestGroupButton = memo<{
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
         >
           <span
-            className={classNames(
-              "min-w-0 flex-1 truncate text-sm",
-              active ? "font-medium text-zinc-900 dark:text-zinc-100" : themeColors.textClass
+            className={clsx(
+              "min-w-0 flex-1 truncate text-[13px]",
+              active ? "text-ink-1 font-medium" : "text-ink-2"
             )}
           >
             {group.title}
           </span>
           <span
-            className={classNames(
-              "flex-shrink-0 text-xs",
-              selectedCount > 0
-                ? "font-medium text-zinc-800 dark:text-zinc-100"
-                : themeColors.secondaryTextClass
+            className={clsx(
+              "shrink-0 text-[11px] tabular-nums",
+              selectedCount > 0 ? "text-ink-1 font-medium" : "text-ink-3"
             )}
           >
             {selectedCount > 0
@@ -410,64 +379,36 @@ const QuestToolbar = memo<{
     onSelectAll,
     isFiltering,
   }) => {
-    const themeColors = useThemeColors();
-
     return (
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative min-w-[220px] flex-1">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <svg
-                className={classNames(
-                  "h-4 w-4",
-                  isFiltering ? "animate-spin" : "",
-                  themeColors.secondaryTextClass
-                )}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </div>
+      <div className="space-y-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[200px] flex-1">
+            <span className="text-ink-3 pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
+              {isFiltering ? (
+                <RefreshCw size={14} strokeWidth={1.75} className="animate-spin" />
+              ) : (
+                <Search size={14} strokeWidth={1.75} />
+              )}
+            </span>
             <input
               type="text"
               value={query}
               onChange={event => onQueryChange(event.target.value)}
-              placeholder="搜索标题或描述..."
-              className={classNames(
-                "w-full rounded-lg border py-2 pl-10 pr-4 text-sm transition-colors",
-                "bg-zinc-50 dark:bg-zinc-800/80",
-                "border-zinc-200 dark:border-zinc-700/80",
-                themeColors.textClass,
-                "placeholder:text-gray-400 dark:placeholder:text-gray-500",
-                "focus:outline-none",
-                themeColors.focusRingClass
+              placeholder="搜索标题或描述…"
+              className={clsx(
+                "border-line-1 bg-surface text-ink-1 placeholder:text-ink-3",
+                "focus:border-accent rounded-tau-sm h-[30px] w-full border pl-8 pr-8 text-[12.5px]",
+                "transition-colors focus:outline-none"
               )}
             />
             {query && (
               <button
                 type="button"
                 onClick={() => onQueryChange("")}
-                className={classNames(
-                  "absolute inset-y-0 right-0 flex items-center pr-3",
-                  themeColors.secondaryTextClass,
-                  "hover:text-gray-600 dark:hover:text-gray-300"
-                )}
+                aria-label="清空搜索"
+                className="text-ink-3 hover:text-ink-1 absolute inset-y-0 right-0 flex items-center pr-2.5"
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+                <X size={14} strokeWidth={1.75} />
               </button>
             )}
           </div>
@@ -477,30 +418,20 @@ const QuestToolbar = memo<{
               <button
                 type="button"
                 onClick={onSelectAll}
-                className={classNames(
-                  "flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
-                  themeColors.cardBgClass,
-                  themeColors.cardBorderClass,
-                  themeColors.hoverClass,
-                  themeColors.textClass
-                )}
+                className="border-line-1 text-ink-2 hover:border-ink-3 hover:bg-hover flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] transition-colors"
               >
+                <SelectionCheckbox checked={allSelected} size="sm" interactive={false} />
                 <span>{allSelected ? "取消全选" : "全选"}</span>
               </button>
             )}
             <button
               type="button"
               onClick={() => onOnlySelectedChange(!onlySelected)}
-              className={classNames(
-                "rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
+              className={clsx(
+                "rounded-full border px-2.5 py-1 text-[11.5px] transition-colors",
                 onlySelected
-                  ? [themeColors.activeClass, themeColors.activeBorderClass]
-                  : [
-                      themeColors.cardBgClass,
-                      themeColors.cardBorderClass,
-                      themeColors.hoverClass,
-                      themeColors.textClass,
-                    ]
+                  ? "bg-accent-soft text-accent-text border-transparent font-semibold"
+                  : "border-line-1 text-ink-2 hover:border-ink-3 hover:bg-hover"
               )}
             >
               仅显示已选
@@ -508,22 +439,17 @@ const QuestToolbar = memo<{
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           {STATUS_OPTIONS.map(option => (
             <button
               key={option.value}
               type="button"
               onClick={() => onStatusFilterChange(option.value)}
-              className={classNames(
-                "rounded-lg border px-2.5 py-1.5 text-xs transition-colors",
+              className={clsx(
+                "rounded-full border px-2.5 py-0.5 text-[11px] transition-colors",
                 statusFilter === option.value
-                  ? [themeColors.activeClass, themeColors.activeBorderClass]
-                  : [
-                      themeColors.cardBgClass,
-                      themeColors.cardBorderClass,
-                      themeColors.hoverClass,
-                      themeColors.secondaryTextClass,
-                    ]
+                  ? "bg-accent-soft text-accent-text border-transparent font-semibold"
+                  : "border-line-1 text-ink-3 hover:border-ink-3 hover:bg-hover"
               )}
             >
               {option.label}
@@ -542,18 +468,15 @@ const QuestQuestionRow = memo<{
   selected: boolean;
   onToggle: () => void;
 }>(({ question, selected, onToggle }) => {
-  const themeColors = useThemeColors();
   const statusStyle = STATUS_STYLE[question.status];
 
   return (
     <button
       type="button"
       onClick={onToggle}
-      className={classNames(
-        "flex w-full items-start gap-3 rounded-lg px-4 py-3.5 text-left transition-colors",
-        selected
-          ? "bg-zinc-200/60 dark:bg-zinc-700/50"
-          : "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
+      className={clsx(
+        "rounded-tau-sm flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors",
+        selected ? "bg-selected" : "hover:bg-hover"
       )}
     >
       <SelectionCheckbox
@@ -564,30 +487,23 @@ const QuestQuestionRow = memo<{
       />
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex flex-wrap items-center gap-2">
-          <span className={classNames("h-2 w-2 rounded-full", statusStyle.dot)} />
-          <span
-            className={classNames("rounded-md border px-1.5 py-0.5 text-[11px]", statusStyle.badge)}
-          >
+          <span className={clsx("h-2 w-2 rounded-full", statusStyle.dot)} />
+          <span className={clsx("rounded-full px-2 py-px text-[11px]", statusStyle.badge)}>
             {STATUS_LABEL[question.status]}
           </span>
-          <span className={classNames("text-xs", themeColors.secondaryTextClass)}>
+          <span className="text-tau-tiny text-ink-3 tabular-nums">
             {question.answers.length} 答案
           </span>
         </div>
         <div
-          className={classNames(
-            "line-clamp-2 text-sm font-medium leading-5",
-            selected ? "text-zinc-950 dark:text-zinc-50" : statusStyle.title
+          className={clsx(
+            "line-clamp-2 text-[13px] font-medium leading-5",
+            selected ? "text-ink-1" : statusStyle.title
           )}
         >
           {question.questionContent || `条目 #${question.id}`}
         </div>
-        <div
-          className={classNames(
-            "mt-1 line-clamp-2 text-xs leading-5",
-            themeColors.secondaryTextClass
-          )}
-        >
+        <div className="text-tau-tiny text-ink-3 mt-1 line-clamp-2 leading-5">
           {getQuestSummary(question)}
         </div>
       </div>

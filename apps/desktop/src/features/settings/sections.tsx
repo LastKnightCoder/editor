@@ -29,6 +29,7 @@ import { PendingSection } from "./components/PendingSection";
 import { AppearanceSection } from "./sections/AppearanceSection";
 import { SyncSection } from "./sections/SyncSection";
 import { ResourceSection } from "./sections/ResourceSection";
+import { PublishSection } from "./sections/PublishSection";
 
 export type SettingsSectionKey =
   | "appearance"
@@ -79,7 +80,7 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         icon: Database,
         component: ResourceSection,
       },
-      { key: "publish", label: "发布", icon: Upload, component: pending("发布") },
+      { key: "publish", label: "发布", icon: Upload, component: PublishSection },
     ],
   },
   {
