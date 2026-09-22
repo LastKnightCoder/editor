@@ -1,8 +1,8 @@
 import { memo, useState, useMemo, useCallback, useEffect } from "react";
-import classNames from "classnames";
-import useThemeColors from "@/hooks/useThemeColors";
-import CustomModal from "@/components/CustomModal";
+import clsx from "clsx";
+import { Dialog, Button, Spinner } from "@tau/ui";
 import { Editor } from "@tau/editor/src";
+import { FileText, Folder } from "lucide-react";
 import { Project } from "@/types/project";
 import { IDocument } from "@/types/document";
 import { DocTreeNode, EntityScope } from "../../types";
@@ -24,7 +24,6 @@ interface EntityTreeModalProps {
 export const EntityTreeModal = memo<EntityTreeModalProps>(
   ({ open, loading, type, entity, nodes, currentScope, onCancel, onConfirm }) => {
     const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
-    const themeColors = useThemeColors();
     const typeLabel = type === "project" ? "项目" : "知识库";
 
     // 初始化选中的 ID
@@ -97,98 +96,53 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
     const allSelected = selectedIds.size === totalIds.length;
 
     return (
-      <CustomModal
+      <Dialog
         open={open}
-        onCancel={onCancel}
-        width="90vw"
-        bodyClassName="!p-0"
-        contentClassName="flex flex-col"
+        onOpenChange={next => {
+          if (!next) onCancel();
+        }}
         title={entity.title || `${typeLabel} #${entity.id}`}
         subtitle={`已选择 ${selectedIds.size} / ${totalIds.length} 篇内容`}
+        width={1080}
         footer={
-          <div className="flex w-full items-center justify-between gap-3 text-sm">
+          <div className="flex w-full items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <button
-                onClick={handleSelectAll}
-                className={classNames(
-                  "rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors",
-                  themeColors.cardBgClass,
-                  themeColors.cardBorderClass,
-                  "hover:bg-gray-100 dark:hover:bg-zinc-800/50",
-                  themeColors.textClass
-                )}
-              >
+              <Button variant="secondary" size="sm" onClick={handleSelectAll}>
                 {allSelected ? "取消全选" : "全选"}
-              </button>
-              <span className={themeColors.secondaryTextClass}>
-                共 {totalIds.length} 篇可发布文档
-              </span>
+              </Button>
+              <span className="text-tau-tiny text-ink-3">共 {totalIds.length} 篇可发布文档</span>
             </div>
             <div className="flex gap-2">
-              <button
-                className={classNames(
-                  "rounded-lg border px-4 py-1.5 text-sm font-medium transition-colors",
-                  themeColors.cardBgClass,
-                  themeColors.cardBorderClass,
-                  "hover:bg-gray-100 dark:hover:bg-zinc-800/50",
-                  themeColors.textClass
-                )}
-                onClick={onCancel}
-              >
+              <Button variant="secondary" size="sm" onClick={onCancel}>
                 取消
-              </button>
-              <button
-                className={classNames(
-                  "rounded-lg px-4 py-1.5 text-sm font-medium transition-colors",
-                  themeColors.primaryButtonClass
-                )}
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                loading={loading}
                 onClick={() => onConfirm(selectedIds)}
-                disabled={loading}
               >
                 保存
-              </button>
+              </Button>
             </div>
           </div>
         }
       >
         <div className="flex flex-1 overflow-hidden" style={{ height: "65vh", maxHeight: "65vh" }}>
           {/* 左侧：文档树（窄） */}
-          <div
-            className={classNames(
-              "flex w-64 flex-shrink-0 flex-col border-r",
-              themeColors.cardBorderClass
-            )}
-          >
-            <div
-              className={classNames(
-                "flex flex-shrink-0 items-center justify-between border-b px-4 py-3 text-sm font-medium",
-                themeColors.cardBorderClass,
-                themeColors.textClass
-              )}
-            >
+          <div className="border-line-1 flex w-64 shrink-0 flex-col border-r">
+            <div className="border-line-1 text-ink-1 flex shrink-0 items-center justify-between border-b px-4 py-3 text-[13px] font-medium">
               <span>文档结构</span>
-              <span className={classNames("text-xs", themeColors.secondaryTextClass)}>
+              <span className="text-tau-tiny text-ink-3 tabular-nums">
                 {selectedIds.size}/{totalIds.length}
               </span>
             </div>
             {loading ? (
               <div className="flex flex-1 items-center justify-center">
-                <div
-                  className={classNames(
-                    "h-8 w-8 animate-spin rounded-full border-2",
-                    themeColors.cardBorderClass,
-                    "border-t-current",
-                    themeColors.activeTextClass
-                  )}
-                />
+                <Spinner className="size-7" />
               </div>
             ) : nodes.length === 0 ? (
-              <div
-                className={classNames(
-                  "flex flex-1 items-center justify-center text-sm",
-                  themeColors.secondaryTextClass
-                )}
-              >
+              <div className="text-ink-3 flex flex-1 items-center justify-center text-[13px]">
                 暂无可发布的文档
               </div>
             ) : (
@@ -211,39 +165,22 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
           <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
             {previewNode ? (
               <>
-                {/* 预览标题栏 */}
-                <div
-                  className={classNames(
-                    "flex flex-shrink-0 items-center gap-3 border-b px-6 py-3",
-                    themeColors.cardBorderClass
-                  )}
-                >
-                  <div
-                    className={classNames(
-                      "h-2 w-2 flex-shrink-0 rounded-full",
-                      selectedIds.has(previewNode.id)
-                        ? "bg-[var(--th-accent)]"
-                        : "bg-gray-300 dark:bg-gray-600"
+                <div className="border-line-1 flex shrink-0 items-center gap-3 border-b px-6 py-3">
+                  <span
+                    className={clsx(
+                      "h-2 w-2 shrink-0 rounded-full",
+                      selectedIds.has(previewNode.id) ? "bg-accent" : "bg-sunken"
                     )}
                   />
-                  <h3
-                    className={classNames("truncate text-base font-medium", themeColors.textClass)}
-                  >
+                  <h3 className="text-tau-body text-ink-1 truncate font-medium">
                     {previewNode.title}
                   </h3>
                   {!previewNode.hasContent && (
-                    <span
-                      className={classNames(
-                        "flex-shrink-0 rounded-full px-2 py-0.5 text-xs",
-                        themeColors.tagBgClass,
-                        themeColors.secondaryTextClass
-                      )}
-                    >
+                    <span className="bg-group text-ink-2 shrink-0 rounded-full px-2 py-0.5 text-[11px]">
                       文件夹
                     </span>
                   )}
                 </div>
-                {/* 预览内容 */}
                 <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
                   {previewNode.hasContent ? (
                     <Editor
@@ -251,46 +188,24 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                       initValue={previewNode.content}
                       readonly
                       extensions={dynamicExtensions}
-                      className={classNames("text-sm", themeColors.textClass)}
+                      className="text-tau-body text-ink-1"
                     />
                   ) : (
-                    <div
-                      className={classNames(
-                        "flex h-full items-center justify-center text-sm",
-                        themeColors.secondaryTextClass
-                      )}
-                    >
+                    <div className="text-ink-3 flex h-full items-center justify-center text-[13px]">
                       此节点为文件夹，无内容可预览
                     </div>
                   )}
                 </div>
               </>
             ) : (
-              <div
-                className={classNames(
-                  "flex flex-1 flex-col items-center justify-center gap-3",
-                  themeColors.secondaryTextClass
-                )}
-              >
-                <svg
-                  className="h-12 w-12 opacity-30"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-                <span className="text-sm">点击左侧文档查看预览</span>
+              <div className="text-ink-3 flex flex-1 flex-col items-center justify-center gap-3">
+                <FileText size={40} strokeWidth={1.25} className="opacity-40" />
+                <span className="text-[13px]">点击左侧文档查看预览</span>
               </div>
             )}
           </div>
         </div>
-      </CustomModal>
+      </Dialog>
     );
   }
 );
@@ -306,8 +221,6 @@ const DocTreeNodeItem = memo<{
   activeNodeId: number | null;
   depth?: number;
 }>(({ node, selectedIds, onToggle, onClick, activeNodeId, depth = 0 }) => {
-  const themeColors = useThemeColors();
-
   const descendantIds = useMemo(() => collectDocNodeIds([node]), [node]);
   const allSelected = descendantIds.length > 0 && descendantIds.every(id => selectedIds.has(id));
   const partiallySelected = !allSelected && descendantIds.some(id => selectedIds.has(id));
@@ -316,11 +229,9 @@ const DocTreeNodeItem = memo<{
   return (
     <div>
       <div
-        className={classNames(
+        className={clsx(
           "mx-1 flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 transition-colors",
-          isActive
-            ? "bg-zinc-200/70 dark:bg-zinc-700/60"
-            : "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
+          isActive ? "bg-selected" : "hover:bg-hover"
         )}
         style={{ paddingLeft: depth * 12 + 12 }}
         onClick={() => onClick(node.id)}
@@ -332,27 +243,15 @@ const DocTreeNodeItem = memo<{
           size="sm"
         />
         <span
-          className={classNames(
-            "flex-1 truncate text-sm",
-            isActive ? "font-medium text-zinc-950 dark:text-zinc-50" : themeColors.textClass
+          className={clsx(
+            "flex-1 truncate text-[13px]",
+            isActive ? "text-ink-1 font-medium" : "text-ink-2"
           )}
         >
           {node.title}
         </span>
         {!node.hasContent && node.children.length > 0 && (
-          <svg
-            className={classNames("h-3.5 w-3.5 flex-shrink-0", themeColors.secondaryTextClass)}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-            />
-          </svg>
+          <Folder size={13} strokeWidth={1.75} className="text-ink-3 shrink-0" />
         )}
       </div>
       {node.children.map(child => (

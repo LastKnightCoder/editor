@@ -24,9 +24,7 @@ export function decodeScope(raw: string): EntityScope {
     const parsed = JSON.parse(raw);
     if (parsed && parsed.mode === "partial" && Array.isArray(parsed.nodes)) {
       const nodeIds = new Set(
-        parsed.nodes.filter(
-          (value: unknown) => typeof value === "number",
-        ) as number[],
+        parsed.nodes.filter((value: unknown) => typeof value === "number") as number[]
       );
       if (nodeIds.size > 0) {
         return { mode: "partial", nodeIds };

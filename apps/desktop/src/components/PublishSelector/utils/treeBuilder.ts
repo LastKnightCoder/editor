@@ -48,7 +48,7 @@ export function buildCardTagTree(cards: ICard[]): CardTagNode[] {
   const root = new Map<string, CardTagNodeBuilder>();
   const untagged: CardListItem[] = [];
 
-  cards.forEach((card) => {
+  cards.forEach(card => {
     const item: CardListItem = {
       id: card.id,
       title: card.tags[0] || `卡片 #${card.id}`,
@@ -64,10 +64,10 @@ export function buildCardTagTree(cards: ICard[]): CardTagNode[] {
       return;
     }
 
-    card.tags.forEach((tagPath) => {
+    card.tags.forEach(tagPath => {
       const segments = tagPath
         .split("/")
-        .map((segment) => segment.trim())
+        .map(segment => segment.trim())
         .filter(Boolean);
       if (segments.length === 0) {
         untagged.push(item);
@@ -77,9 +77,7 @@ export function buildCardTagTree(cards: ICard[]): CardTagNode[] {
     });
   });
 
-  const tree = Array.from(root.values()).map((node) =>
-    normalizeTagNode(node, []),
-  );
+  const tree = Array.from(root.values()).map(node => normalizeTagNode(node, []));
 
   if (untagged.length > 0) {
     tree.unshift({
@@ -101,7 +99,7 @@ export function buildCardTagTree(cards: ICard[]): CardTagNode[] {
 function insertTagNode(
   container: Map<string, CardTagNodeBuilder>,
   segments: string[],
-  card: CardListItem,
+  card: CardListItem
 ) {
   const [current, ...rest] = segments;
   let node = container.get(current);
@@ -120,10 +118,7 @@ function insertTagNode(
 /**
  * 标准化标签节点
  */
-function normalizeTagNode(
-  node: CardTagNodeBuilder,
-  ancestors: string[],
-): CardTagNode {
+function normalizeTagNode(node: CardTagNodeBuilder, ancestors: string[]): CardTagNode {
   const id = [...ancestors, node.label].join(" /");
   return {
     id,
@@ -131,8 +126,8 @@ function normalizeTagNode(
     depth: ancestors.length,
     count: node.count,
     cards: node.cards,
-    children: Array.from(node.children.values()).map((child) =>
-      normalizeTagNode(child, [...ancestors, node.label]),
+    children: Array.from(node.children.values()).map(child =>
+      normalizeTagNode(child, [...ancestors, node.label])
     ),
   };
 }
@@ -142,39 +137,33 @@ function normalizeTagNode(
  */
 export function collectCardsFromTagNode(node: CardTagNode): CardListItem[] {
   const cards = [...node.cards];
-  node.children.forEach((child) =>
-    cards.push(...collectCardsFromTagNode(child)),
-  );
+  node.children.forEach(child => cards.push(...collectCardsFromTagNode(child)));
   return cards;
 }
 
 /**
  * 构建项目文档树
  */
-export async function buildProjectTree(
-  project: Project,
-): Promise<DocTreeNode[]> {
+export async function buildProjectTree(project: Project): Promise<DocTreeNode[]> {
   const rootIds = Array.isArray(project.children) ? project.children : [];
   if (rootIds.length === 0) return [];
   const map = await loadProjectItemsMap(rootIds);
   return rootIds
-    .map((id) => createProjectTreeNode(map, id))
+    .map(id => createProjectTreeNode(map, id))
     .filter((node): node is DocTreeNode => Boolean(node));
 }
 
 /**
  * 加载项目条目映射
  */
-async function loadProjectItemsMap(
-  rootIds: number[],
-): Promise<Map<number, ProjectItem>> {
+async function loadProjectItemsMap(rootIds: number[]): Promise<Map<number, ProjectItem>> {
   const queue = [...new Set(rootIds)];
   const map = new Map<number, ProjectItem>();
   const visited = new Set<number>();
   while (queue.length > 0) {
     const batch = queue.splice(0, 20);
     const items = await getProjectItemsByIds(batch);
-    items.forEach((item) => {
+    items.forEach(item => {
       if (visited.has(item.id)) return;
       visited.add(item.id);
       map.set(item.id, item);
@@ -189,18 +178,14 @@ async function loadProjectItemsMap(
 /**
  * 创建项目树节点
  */
-function createProjectTreeNode(
-  map: Map<number, ProjectItem>,
-  itemId: number,
-): DocTreeNode | null {
+function createProjectTreeNode(map: Map<number, ProjectItem>, itemId: number): DocTreeNode | null {
   const item = map.get(itemId);
   if (!item) return null;
   const children = (item.children || [])
-    .map((childId) => createProjectTreeNode(map, childId))
+    .map(childId => createProjectTreeNode(map, childId))
     .filter((node): node is DocTreeNode => Boolean(node));
   const hasContent =
-    item.projectItemType === EProjectItemType.Document &&
-    hasMeaningfulContent(item.content || []);
+    item.projectItemType === EProjectItemType.Document && hasMeaningfulContent(item.content || []);
   return {
     id: item.id,
     title: item.title || `条目 #${item.id}`,
@@ -213,30 +198,26 @@ function createProjectTreeNode(
 /**
  * 构建知识库文档树
  */
-export async function buildDocumentTree(
-  document: IDocument,
-): Promise<DocTreeNode[]> {
+export async function buildDocumentTree(document: IDocument): Promise<DocTreeNode[]> {
   const rootIds = Array.isArray(document.children) ? document.children : [];
   if (rootIds.length === 0) return [];
   const map = await loadDocumentItemsMap(rootIds);
   return rootIds
-    .map((id) => createDocumentTreeNode(map, id))
+    .map(id => createDocumentTreeNode(map, id))
     .filter((node): node is DocTreeNode => Boolean(node));
 }
 
 /**
  * 加载知识库条目映射
  */
-async function loadDocumentItemsMap(
-  rootIds: number[],
-): Promise<Map<number, IDocumentItem>> {
+async function loadDocumentItemsMap(rootIds: number[]): Promise<Map<number, IDocumentItem>> {
   const queue = [...new Set(rootIds)];
   const map = new Map<number, IDocumentItem>();
   const visited = new Set<number>();
   while (queue.length > 0) {
     const batch = queue.splice(0, 20);
     const items = await getDocumentItemsByIds(batch);
-    items.forEach((item) => {
+    items.forEach(item => {
       if (visited.has(item.id)) return;
       visited.add(item.id);
       map.set(item.id, item);
@@ -253,12 +234,12 @@ async function loadDocumentItemsMap(
  */
 function createDocumentTreeNode(
   map: Map<number, IDocumentItem>,
-  itemId: number,
+  itemId: number
 ): DocTreeNode | null {
   const item = map.get(itemId);
   if (!item) return null;
   const children = (item.children || [])
-    .map((childId) => createDocumentTreeNode(map, childId))
+    .map(childId => createDocumentTreeNode(map, childId))
     .filter((node): node is DocTreeNode => Boolean(node));
   const hasContent = hasMeaningfulContent(item.content || []);
   return {
@@ -299,10 +280,7 @@ export function collectDocNodeIds(nodes: DocTreeNode[]): number[] {
 /**
  * 查找文档树节点
  */
-export function findDocTreeNode(
-  nodes: DocTreeNode[],
-  id: number,
-): DocTreeNode | undefined {
+export function findDocTreeNode(nodes: DocTreeNode[], id: number): DocTreeNode | undefined {
   for (const node of nodes) {
     if (node.id === id) return node;
     const child = findDocTreeNode(node.children, id);

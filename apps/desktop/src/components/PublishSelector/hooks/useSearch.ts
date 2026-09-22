@@ -27,19 +27,17 @@ export function useSearch<T>({
     if (!debouncedQuery.trim()) return items;
 
     const lower = debouncedQuery.toLowerCase().trim();
-    return items.filter((item) =>
-      searchFields.some((field) => {
+    return items.filter(item =>
+      searchFields.some(field => {
         const value = (item as Record<string, unknown>)[field as string];
         if (typeof value === "string") {
           return value.toLowerCase().includes(lower);
         }
         if (Array.isArray(value)) {
-          return value.some(
-            (v) => typeof v === "string" && v.toLowerCase().includes(lower),
-          );
+          return value.some(v => typeof v === "string" && v.toLowerCase().includes(lower));
         }
         return false;
-      }),
+      })
     );
   }, [items, debouncedQuery, searchFields]);
 

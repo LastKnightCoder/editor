@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>发布子页 · 定稿记录（案 1 legacy 同构四节全内嵌） — Tau 桌面端</title>
+<!--
+  【发布子页定稿记录（2026-09-22 裁决：形态取探讨稿 publish-designs.html 案 1 · legacy 同构四节全内嵌）】
+
+  本页 = 案 1 定稿 specimen（与落地形态一致）+ 裁决与落地映射记录。
+  功能严格对齐 legacy：发布目标（GitHub Pages / S3 静态托管 / 本地导出，凭据在
+  集成子页）→ 站点配置（标题 / 描述 / 公开 URL / favicon 本地缓存）→ 发布内容
+  （内嵌 PublishSelector 五类勾选，选择持久化）→ 发布操作（增量推送 / 本地导出，
+  五阶段进度 + 取消）。
+
+  关键落地决策：
+  - PublishSelector（3860 行，antd 零依赖、内部相对引用自洽）自
+    pages/Settings/PublishSetting/ 纯搬家至 src/components/ 共享层（git mv），
+    legacy 与新子页两处消费（03 指南 §6.1；04 清单 §settings 登记）；换皮
+    （useThemeColors → tau token）留后续
+  - GitHub basePath 按仓库名自动推导（username.github.io → /，否则 /repo/）只读；
+    发布方式开关 = 使用 Git Push（clone/push 批量上传避开 API 限速）+ 工作目录
+  - 发布中进度卡对齐同步/资源子页的 busy 状态卡语言（旋转图标 + 阶段 + 进度条
+    + 当前文件 + 取消）
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  --ok: #61795f; --ok-soft: rgba(97, 121, 95, 0.12);
+}
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #ece4d4; --bg-sunken: #e2d8c0;
+  --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+  --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+  --warn: #9a7b3f; --warn-soft: rgba(154, 123, 63, 0.12);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+}
+[data-theme="cocoa"] {
+  color-scheme: dark;
+  --bg-page: #221d16; --bg-surface: #2e2820; --bg-group: #19150e; --bg-sunken: #100d08;
+  --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+  --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+  --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+  --warn: #c9a869; --warn-soft: rgba(201, 168, 105, 0.14);
+  --ok-soft: rgba(97, 121, 95, 0.22);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { min-height: 100%; }
+body {
+  font-family: var(--font); font-size: 13px; line-height: 1.65; color: var(--ink-1);
+  background: var(--bg-page); -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.page { max-width: 980px; margin: 0 auto; padding: 40px 32px 96px; }
+.page > h1 { font-size: 24px; font-weight: 650; letter-spacing: -0.01em; }
+.lede { color: var(--ink-2); font-size: 13px; max-width: 78ch; margin: 6px 0 8px; }
+.lede b { color: var(--ink-1); }
+.theme-btn { position: fixed; top: 16px; right: 20px; z-index: 50; width: 32px; height: 32px;
+  border-radius: 10px; display: grid; place-items: center; color: var(--ink-2);
+  background: var(--bg-surface); border: 1px solid var(--line-1); box-shadow: var(--shadow-card); }
+.panel { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card); padding: 22px 26px 20px; margin-top: 26px; }
+.panel > h2 { font-size: 16px; font-weight: 650; margin-bottom: 4px; }
+.panel .sub { font-size: 12.5px; color: var(--ink-2); margin-bottom: 14px; max-width: 78ch; }
+.specimen { border: 1px dashed var(--line-1); border-radius: var(--radius-md);
+  background: var(--bg-surface); padding: 20px 24px 14px; position: relative; }
+.specimen .corner { position: absolute; top: -9px; left: 12px; font-size: 10.5px; color: var(--ink-3);
+  background: var(--bg-page); padding: 0 8px; letter-spacing: 0.04em; }
+.specimen h3 { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
+.specimen .page-desc { font-size: 12px; color: var(--ink-3); margin-top: 1px; }
+.hero-status { border: 1px solid var(--line-1); border-radius: var(--radius-md);
+  padding: 14px 16px 12px; margin-top: 12px; }
+.hero-status .st-top { display: flex; align-items: center; gap: 13px; }
+.hero-status .st-ic { width: 36px; height: 36px; border-radius: 99px; display: grid;
+  place-items: center; flex: none; background: var(--accent-soft); color: var(--accent-text); }
+.hero-status .st-ic .icon { width: 17px; height: 17px; }
+.hero-status .st-main { min-width: 0; flex: 1; }
+.hero-status .st-t { font-size: 13.5px; font-weight: 600; line-height: 1.45; }
+.hero-status .st-d { font-size: 11.5px; color: var(--ink-3); margin-top: 2px;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hero-status .st-d b { color: var(--ink-2); font-weight: 550; font-variant-numeric: tabular-nums; }
+.hero-status .st-actions { margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px; }
+.prog { height: 5px; border-radius: 99px; background: var(--bg-sunken); overflow: hidden; margin-top: 10px; }
+.prog > i { display: block; height: 100%; border-radius: 99px; background: var(--accent); }
+.phase-chip { font-size: 11px; padding: 1px 9px; border-radius: 99px; line-height: 18px;
+  background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+.btn { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 15px;
+  border-radius: 9px; font-size: 12.5px; font-weight: 550;
+  background: var(--bg-surface); border: 1px solid var(--line-1); color: var(--ink-1); }
+.btn:hover { border-color: var(--ink-3); }
+.btn .icon { width: 14px; height: 14px; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--ink-inverse); font-weight: 600; }
+.sec-title { font-size: 11.5px; font-weight: 600; color: var(--ink-3); letter-spacing: 0.04em;
+  margin: 20px 0 2px; padding-left: 2px; display: flex; align-items: baseline; gap: 8px; }
+.sec-title .cnt { font-weight: 500; font-variant-numeric: tabular-nums; }
+.set-row { display: flex; align-items: center; gap: 18px; padding: 11px 0; border-bottom: 1px solid var(--line-2); }
+.set-row:last-child { border-bottom: none; }
+.row-main { flex: 1; min-width: 0; }
+.row-main .t { font-size: 13px; font-weight: 550; line-height: 1.45; }
+.row-main .d { font-size: 11.5px; color: var(--ink-3); line-height: 1.55; margin-top: 1px; }
+.row-ctrl { flex: none; display: flex; align-items: center; gap: 8px; }
+.sel-trigger { display: flex; align-items: center; justify-content: space-between; gap: 10px; height: 32px;
+  padding: 0 11px; border-radius: var(--radius-sm); background: var(--bg-surface);
+  border: 1px solid var(--line-1); color: var(--ink-1); font-size: 12.5px; min-width: 168px; cursor: pointer; }
+.sel-trigger:hover { border-color: var(--ink-3); }
+.sel-trigger .icon { width: 13px; height: 13px; color: var(--ink-3); }
+.ipt { height: 32px; padding: 0 11px; border-radius: var(--radius-sm); background: var(--bg-surface);
+  border: 1px solid var(--line-1); color: var(--ink-1); font-size: 12.5px; display: flex; align-items: center;
+  min-width: 0; }
+.ipt.mono { font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+.ipt.readonly { background: var(--bg-group); color: var(--ink-3); }
+.ipt input { border: none; outline: none; background: none; color: inherit; font: inherit; width: 100%; }
+.ipt input::placeholder { color: var(--ink-3); }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; padding: 12px 0 6px; }
+.fields .field.full { grid-column: 1 / -1; }
+.field .fl { font-size: 11.5px; color: var(--ink-2); font-weight: 550; margin-bottom: 5px; }
+.switch { width: 34px; height: 20px; border-radius: 99px; background: var(--bg-sunken);
+  border: 1px solid var(--line-1); position: relative; flex: none; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
+  border-radius: 99px; background: var(--bg-surface); box-shadow: 0 1px 2px rgba(0,0,0,0.18); }
+.switch.on { background: var(--accent); border-color: var(--accent); }
+.switch.on::after { transform: translateX(14px); background: var(--ink-inverse); }
+.hint-line { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink-3);
+  padding: 10px 0 2px; }
+.hint-line a { color: var(--accent-text); text-decoration: none; font-weight: 550; }
+.chips { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 10px 0 6px; }
+.chip { font-size: 11px; padding: 2px 10px; border-radius: 99px; border: 1px solid var(--line-1);
+  color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.chip.on { background: var(--accent-soft); border-color: transparent; color: var(--accent-text); font-weight: 600; }
+.pick-search { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px;
+  border-radius: var(--radius-sm); border: 1px solid var(--line-1); color: var(--ink-3);
+  font-size: 12px; margin-top: 4px; }
+.tree-row { display: flex; align-items: center; gap: 9px; padding: 6.5px 0; border-bottom: 1px solid var(--line-2); }
+.tree-row .n { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 500; }
+.tree-row.sub .n { font-weight: 400; font-size: 12px; color: var(--ink-2); }
+.tree-row .c { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.tree-box { border: 1px solid var(--line-1); border-radius: var(--radius-md); padding: 4px 14px 10px; margin-top: 10px; }
+.ckb { width: 15px; height: 15px; border-radius: 4.5px; border: 1.5px solid var(--ink-3);
+  flex: none; display: grid; place-items: center; color: transparent; font-size: 10px; font-weight: 700; }
+.ckb.on { background: var(--accent); border-color: var(--accent); color: var(--ink-inverse); }
+.ckb.half { background: var(--accent-soft); border-color: var(--accent); }
+.fav { width: 34px; height: 34px; border-radius: 9px; background: var(--bg-group);
+  display: grid; place-items: center; color: var(--ink-3); flex: none; }
+.fav .icon { width: 16px; height: 16px; }
+.reco ol { padding-left: 20px; font-size: 13px; color: var(--ink-2); }
+.reco ol li { margin: 8px 0; }
+.reco ol li b { color: var(--ink-1); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinning .icon { animation: spin 1.2s linear infinite; }
+</style>
+</head>
+<body>
+<button class="theme-btn" id="themeBtn" title="切换主题"></button>
+<div class="page">
+
+<h1>发布子页 · 定稿记录</h1>
+<p class="lede">
+2026-09-22 裁决：<b>形态取探讨稿案 1（legacy 同构四节全内嵌）</b>——发布目标 → 站点配置 →
+发布内容 → 发布操作自上而下，功能与 legacy 一一对应；发布中进度卡对齐同步 / 资源子页的
+busy 状态卡语言。内容选择器经<b>纯搬家</b>进共享层内嵌消费（antd 零依赖）。
+下方 specimen 即落地形态全貌（宽 ~610px）。
+</p>
+
+<!-- ═══════════ 定稿 specimen · 上两节 ═══════════ -->
+<div class="panel">
+  <h2>定稿 · 发布目标 + 站点配置（GitHub Pages 态）</h2>
+  <div class="specimen">
+    <span class="corner">发布子页内容区 · 上两节</span>
+    <h3>发布</h3>
+    <div class="page-desc">将选中的内容生成静态站点并发布</div>
+
+    <div class="sec-title" style="margin-top: 16px">发布目标 · GitHub Pages</div>
+    <div class="set-row" style="padding-top: 6px">
+      <div class="row-main"><div class="t">提供商</div><div class="d">GitHub Pages / S3 静态托管 / 本地导出</div></div>
+      <div class="row-ctrl"><div class="sel-trigger"><span>GitHub Pages</span><span class="icon" data-ic="chev"></span></div></div>
+    </div>
+    <div class="fields">
+      <div class="field">
+        <div class="fl">仓库</div>
+        <div class="sel-trigger"><span style="font-family:var(--mono);font-size:11.5px">lastknight / my-notes</span><span class="icon" data-ic="chev"></span></div>
+      </div>
+      <div class="field">
+        <div class="fl">部署分支</div>
+        <div class="sel-trigger"><span style="font-family:var(--mono);font-size:11.5px">gh-pages</span><span class="icon" data-ic="chev"></span></div>
+      </div>
+      <div class="field">
+        <div class="fl">访问路径（自动推导）</div>
+        <div class="ipt mono readonly">/my-notes/</div>
+      </div>
+      <div class="field">
+        <div class="fl">发布方式</div>
+        <div style="display:flex;align-items:center;gap:10px;height:32px">
+          <span class="switch on"></span><span style="font-size:12px;color:var(--ink-2)">Git Push（快，避开限速）</span>
+        </div>
+      </div>
+      <div class="field full">
+        <div class="fl">Git 工作目录（可选，缓存克隆加速）</div>
+        <div style="display:flex;gap:8px">
+          <div class="ipt mono" style="flex:1"><input placeholder="留空则自动使用应用缓存目录"></div>
+          <button class="btn">选择</button>
+        </div>
+      </div>
+    </div>
+    <div class="set-row">
+      <div class="row-main"><div class="t">测试连接</div><div class="d">验证 Token、仓库与分支可访问</div></div>
+      <div class="row-ctrl"><button class="btn"><span class="icon" data-ic="zap"></span>测试</button></div>
+    </div>
+    <div class="hint-line">
+      <span class="icon" data-ic="zap" style="width:13px;height:13px"></span>
+      Token 在 <a href="#">集成 · GitHub</a> 中配置；发布地址自动推导为 username.github.io/仓库名/。
+    </div>
+
+    <div class="sec-title">站点配置</div>
+    <div class="fields" style="padding-top: 8px">
+      <div class="field"><div class="fl">站点标题</div><div class="ipt"><input value="我的博客"></div></div>
+      <div class="field"><div class="fl">公开 URL（RSS 用）</div><div class="ipt"><input placeholder="https://example.com"></div></div>
+      <div class="field full"><div class="fl">站点描述</div><div class="ipt"><input placeholder="记录学习与思考"></div></div>
+    </div>
+    <div class="set-row">
+      <div class="row-main"><div class="t">站点 Favicon</div><div class="d">SVG / PNG / ICO，选择后缓存本地自动复用</div></div>
+      <div class="row-ctrl">
+        <span class="fav"><span class="icon" data-ic="image"></span></span>
+        <button class="btn">选择文件</button>
+        <button class="btn">清除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ 定稿 specimen · 下两节 ═══════════ -->
+<div class="panel">
+  <h2>定稿 · 发布内容 + 发布操作（含发布中）</h2>
+  <div class="specimen">
+    <span class="corner">发布子页内容区 · 下两节</span>
+    <div class="sec-title" style="margin-top: 14px">发布内容</div>
+    <div class="chips">
+      <span class="chip on">卡片 12</span>
+      <span class="chip">文章 3</span>
+      <span class="chip">问题 0</span>
+      <span class="chip">项目 1</span>
+      <span class="chip">知识库 2</span>
+    </div>
+    <div class="pick-search"><span class="icon" data-ic="search" style="width:13px;height:13px"></span>搜索卡片标题或标签…</div>
+    <div class="tree-box">
+      <div class="tree-row"><span class="ckb on">✓</span><span class="n">#前端</span><span class="c">8 张</span></div>
+      <div class="tree-row sub" style="padding-left: 24px"><span class="ckb on">✓</span><span class="n">#react</span><span class="c">5 张</span></div>
+      <div class="tree-row sub" style="padding-left: 24px"><span class="ckb half"></span><span class="n">#css</span><span class="c">3 张 · 已选 1</span></div>
+      <div class="tree-row"><span class="ckb half"></span><span class="n">#读书笔记</span><span class="c">6 张 · 已选 2</span></div>
+      <div class="tree-row"><span class="ckb"></span><span class="n">#随想</span><span class="c">4 张</span></div>
+    </div>
+
+    <div class="sec-title">发布操作</div>
+    <div class="set-row" style="padding-top: 6px">
+      <div class="row-main"><div class="t">开始发布</div><div class="d">按内容哈希增量推送，只上传变更文件</div></div>
+      <div class="row-ctrl"><button class="btn btn-primary"><span class="icon" data-ic="upload-cloud"></span>发布</button></div>
+    </div>
+    <div class="hero-status">
+      <div class="st-top">
+        <span class="st-ic spinning"><span class="icon" data-ic="refresh"></span></span>
+        <div class="st-main">
+          <div class="st-t">推送中</div>
+          <div class="st-d">
+            <span class="phase-chip">阶段 3 / 5</span>
+            <span>已处理 <b>42 / 58</b></span>
+            <span style="font-family:var(--mono);font-size:10.5px">当前 articles/hello-world.html</span>
+          </div>
+        </div>
+      </div>
+      <div class="prog"><i style="width: 72%"></i></div>
+      <div class="st-actions"><button class="btn">取消发布</button></div>
+    </div>
+  </div>
+
+  <ol class="reco" style="margin-top: 14px">
+    <li><b>形态（2026-09-22 裁决）</b>：取探讨稿案 1——四节全内嵌与 legacy 一一对应，勾选就地、
+      无弹层；案 2 状态卡置顶 / 案 3 紧凑合并否决（动作在页首弱化线性流程 / 高级字段折叠伤可发现性）。</li>
+    <li><b>PublishSelector 搬家</b>：3860 行选择器（antd 零依赖、内部相对引用自洽）自
+      pages/Settings/PublishSetting/ 纯搬家至 <b>src/components/PublishSelector/</b>（git mv 不改代码），
+      legacy PublishSetting 与新 PublishSection 两处消费；VibeLearning InsertNoteToTreeModal 的
+      treeBuilder 引用同步改路径。04 清单 §settings 登记，换皮（useThemeColors → tau token）留后续。</li>
+    <li><b>GitHub 特例</b>：仓库下拉值规范为 owner/name，选中即推导 basePath（username.github.io → /，
+      否则 /repo/）只读展示；「发布方式」开关 = 使用 Git Push（clone/push 批量上传避开 API 限速），
+      关闭时 Git 工作目录联动禁用；凭据未配时仓库 / 分支下拉禁用占位、提示行转 warn。</li>
+    <li><b>动作语义</b>：云家「发布」= 下载模板 → executePublish（增量哈希比对，只传变更），可「测试连接」；
+      本地「导出」= 选输出目录 → exportPublishOutput；发布中经 publish-progress WebSocket 推送，
+      进度卡显示五阶段（准备 / 生成 / 推送 / 清理 / 完成）+ 已处理 / 当前文件 + 取消。</li>
+    <li><b>站点配置</b>：标题 / 描述 / 公开 URL（RSS 绝对链接，留空降级站内路径）；favicon 选择后
+      缓存本地（换格式自动清旧缓存），预览经 LocalImage，可清除。</li>
+    <li><b>落地</b>：替换 features/settings/sections 的 publish 占位；命令族
+      executePublish / checkPublishConnection / downloadPublishTemplate / exportPublishOutput 与
+      publishFavicon 工具全量复用，无新主进程代码。</li>
+  </ol>
+</div>
+
+</div>
+
+<script>
+const I = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  chev: '<path d="m6 9 6 6 6-6"/>',
+  zap: '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  image: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m21 15-4.35-4.35a2 2 0 0 0-2.83 0L3 21"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>',
+  'upload-cloud': '<path d="M4 14.9A7 7 0 1 1 15.7 8h1.8a4.5 4.5 0 0 1 2.5 8.2"/><path d="M12 12v9"/><path d="m16 16-4-4-4 4"/>',
+};
+document.querySelectorAll("[data-ic]").forEach(el =>
+  el.innerHTML = `<svg class="icon" viewBox="0 0 24 24">${I[el.dataset.ic] || ""}</svg>`);
+let theme = "cream";
+const btn = document.getElementById("themeBtn");
+const paint = () => btn.innerHTML = `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${I[theme === "cream" ? "moon" : "sun"]}</svg>`;
+btn.addEventListener("click", () => { theme = theme === "cream" ? "cocoa" : "cream"; document.documentElement.dataset.theme = theme; paint(); });
+paint();
+</script>
+</body>
+</html>
