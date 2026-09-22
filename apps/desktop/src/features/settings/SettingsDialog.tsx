@@ -129,7 +129,7 @@ export function SettingsDialog() {
             {/* 右栏：当前子页（surface 亮底，对齐 mockup 方案 A；独立滚动 + edge fade） */}
             <div
               ref={setScrollEl}
-              className="edge-fade-scroll -mr-[5px] min-h-0 overflow-y-auto pb-7 pl-6 pr-[29px] pt-5"
+              className="edge-fade-scroll -mr-[5px] min-h-0 overflow-y-auto pb-5 pl-6 pr-[29px] pt-5"
             >
               <ActiveSection />
             </div>
