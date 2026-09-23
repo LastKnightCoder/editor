@@ -8,12 +8,7 @@ import React, {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import {
-  useMemoizedFn,
-  useCreation,
-  useThrottleFn,
-  useLocalStorageState,
-} from "ahooks";
+import { useMemoizedFn, useCreation, useThrottleFn, useLocalStorageState } from "ahooks";
 import classnames from "classnames";
 import { App } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
@@ -102,20 +97,13 @@ import AudioSelectorModal from "./components/AudioSelectorModal";
 import ExportImageModal from "./components/ExportImageModal";
 import ImagePreviewModal from "./components/ImagePreviewModal";
 import EditTitleModal from "@/components/EditTitleModal";
-import InsertNoteToTreeModal from "@/pages/VibeLearningView/AppSidebar/components/InsertNoteToTreeModal";
-import {
-  createContent,
-  updateContent,
-  decrementContentRefCount,
-} from "@/commands/content";
+import InsertNoteToTreeModal from "@/components/InsertNoteToTreeModal";
+import { createContent, updateContent, decrementContentRefCount } from "@/commands/content";
 import { createEmptyVideoNote, getVideoNoteById } from "@/commands";
 import { buildCardFromContent, getCardByContentId } from "@/commands/card";
-import {
-  buildArticleFromContent,
-  getArticleByContentId,
-} from "@/commands/article";
+import { buildArticleFromContent, getArticleByContentId } from "@/commands/article";
 import { getContentLength } from "@/utils";
-import VideoNotePanel from "@/pages/ProjectView/VideoNoteView/VideoNotePanel";
+import VideoNotePanel from "@/components/VideoNotePanel/VideoNotePanel";
 import type { VideoMetaInfo } from "@/types";
 
 const simplifiedRenderZoomThreshold = 0.3;
@@ -215,18 +203,12 @@ const WhiteBoard = memo(
     const toolbarVisible = showToolbar ?? !readonly;
     const attributeSetterVisible = showAttributeSetter ?? !readonly;
 
-    const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
-      "whiteboard-sidebar-width",
-      {
-        defaultValue: 300,
-      },
-    );
-    const [sidebarOpen, setSidebarOpen] = useLocalStorageState(
-      "whiteboard-sidebar-open",
-      {
-        defaultValue: true,
-      },
-    );
+    const [sidebarWidth, setSidebarWidth] = useLocalStorageState("whiteboard-sidebar-width", {
+      defaultValue: 300,
+    });
+    const [sidebarOpen, setSidebarOpen] = useLocalStorageState("whiteboard-sidebar-open", {
+      defaultValue: true,
+    });
 
     const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
     const [activeNoteTitle, setActiveNoteTitle] = useState<string | null>(null);
@@ -234,20 +216,19 @@ const WhiteBoard = memo(
       videoNoteId: number;
       elementId: string;
     } | null>(null);
-    const [activeVideoElement, setActiveVideoElement] =
-      useState<HTMLVideoElement | null>(null);
+    const [activeVideoElement, setActiveVideoElement] = useState<HTMLVideoElement | null>(null);
     const videoElementRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
-    const creatingVideoNoteRefs = useRef<Map<string, Promise<number | null>>>(
-      new Map(),
-    );
+    const creatingVideoNoteRefs = useRef<Map<string, Promise<number | null>>>(new Map());
     const activeNoteIdRef = useRef<number | null>(null);
     useEffect(() => {
       activeNoteIdRef.current = activeNoteId;
     }, [activeNoteId]);
-    const [videoNotePanelWidth, setVideoNotePanelWidth] =
-      useLocalStorageState<number>("whiteboard-video-note-panel-width", {
+    const [videoNotePanelWidth, setVideoNotePanelWidth] = useLocalStorageState<number>(
+      "whiteboard-video-note-panel-width",
+      {
         defaultValue: 420,
-      });
+      }
+    );
     const [imagePreview, setImagePreview] = useState<{
       open: boolean;
       src: string;
@@ -278,24 +259,17 @@ const WhiteBoard = memo(
         setPoint: (point: Point | null) => {
           const isSamePoint =
             (currentPoint === null && point === null) ||
-            (!!currentPoint &&
-              !!point &&
-              currentPoint.x === point.x &&
-              currentPoint.y === point.y);
+            (!!currentPoint && !!point && currentPoint.x === point.x && currentPoint.y === point.y);
           if (isSamePoint) return;
           currentPoint = point;
-          listeners.forEach((listener) => listener());
+          listeners.forEach(listener => listener());
         },
       };
     }, []);
 
     // 网格设置
-    const {
-      gridVisible,
-      gridSize,
-      handleGridVisibleChange,
-      handleGridSizeChange,
-    } = useGridSettings();
+    const { gridVisible, gridSize, handleGridVisibleChange, handleGridSizeChange } =
+      useGridSettings();
 
     // 创建画板实例
     const board = useCreation<Board>(() => {
@@ -327,7 +301,7 @@ const WhiteBoard = memo(
         initSelection,
         plugins,
         initPresentationSequences,
-        readonly,
+        readonly
       );
     }, []);
 
@@ -335,27 +309,23 @@ const WhiteBoard = memo(
     // window.board = board;
 
     const isArrowMoving = useListenArrowMove(board);
-    const { isMoving: isElementsMoving, movingStore } =
-      useElementsMoving(board);
+    const { isMoving: isElementsMoving, movingStore } = useElementsMoving(board);
     const { markInteracting } = usePreventTextSelection(containerRef);
     const [refLineVersion, setRefLineVersion] = useState(0);
 
     // 右键菜单触发的弹窗状态
-    const [contextMenuModal, setContextMenuModal] =
-      useState<ContextMenuModalPayload | null>(null);
-    const [pendingRichTextCreateTarget, setPendingRichTextCreateTarget] =
-      useState<{
-        elementId: string;
-        mode: "project" | "document";
-        contentId: number;
-        title: string;
-      } | null>(null);
-    const [pendingRichTextTitlePrompt, setPendingRichTextTitlePrompt] =
-      useState<{
-        elementId: string;
-        mode: "project" | "document";
-        contentId: number;
-      } | null>(null);
+    const [contextMenuModal, setContextMenuModal] = useState<ContextMenuModalPayload | null>(null);
+    const [pendingRichTextCreateTarget, setPendingRichTextCreateTarget] = useState<{
+      elementId: string;
+      mode: "project" | "document";
+      contentId: number;
+      title: string;
+    } | null>(null);
+    const [pendingRichTextTitlePrompt, setPendingRichTextTitlePrompt] = useState<{
+      elementId: string;
+      mode: "project" | "document";
+      contentId: number;
+    } | null>(null);
     const richTextLinkCheckRef = useRef(
       new Map<
         string,
@@ -364,7 +334,7 @@ const WhiteBoard = memo(
           cardChecked: boolean;
           articleChecked: boolean;
         }
-      >(),
+      >()
     );
     const { message, modal } = App.useApp();
 
@@ -399,10 +369,7 @@ const WhiteBoard = memo(
       }
 
       const currentContent = latestElement.content || [];
-      const newContentId = await createContent(
-        currentContent,
-        getContentLength(currentContent),
-      );
+      const newContentId = await createContent(currentContent, getContentLength(currentContent));
       if (!newContentId) {
         throw new Error("创建共享内容失败");
       }
@@ -416,11 +383,7 @@ const WhiteBoard = memo(
           contentId: newContentId,
           content: currentContent,
         };
-        const ops = BoardUtil.diffNodePatchOnly(
-          latestElement,
-          newElement,
-          path,
-        );
+        const ops = BoardUtil.diffNodePatchOnly(latestElement, newElement, path);
         if (ops.length > 0) {
           board.apply(ops);
         }
@@ -438,13 +401,8 @@ const WhiteBoard = memo(
         mode: "card" | "article" | "project" | "document";
       }) => {
         try {
-          const { contentId } = await ensureRichTextContentId(
-            payload.elementId,
-          );
-          const latestElement = BoardUtil.getElementById(
-            board,
-            payload.elementId,
-          ) as
+          const { contentId } = await ensureRichTextContentId(payload.elementId);
+          const latestElement = BoardUtil.getElementById(board, payload.elementId) as
             | (BoardElement & {
                 linkedCardId?: number;
                 linkedArticleId?: number;
@@ -459,11 +417,7 @@ const WhiteBoard = memo(
                   ...latestElement,
                   linkedCardId: card.id,
                 };
-                const ops = BoardUtil.diffNodePatchOnly(
-                  latestElement,
-                  newElement,
-                  path,
-                );
+                const ops = BoardUtil.diffNodePatchOnly(latestElement, newElement, path);
                 if (ops.length > 0) {
                   board.apply(ops);
                 }
@@ -481,11 +435,7 @@ const WhiteBoard = memo(
                   ...latestElement,
                   linkedArticleId: article.id,
                 };
-                const ops = BoardUtil.diffNodePatchOnly(
-                  latestElement,
-                  newElement,
-                  path,
-                );
+                const ops = BoardUtil.diffNodePatchOnly(latestElement, newElement, path);
                 if (ops.length > 0) {
                   board.apply(ops);
                 }
@@ -535,25 +485,25 @@ const WhiteBoard = memo(
         });
 
         return pluginItems.map(convertItem);
-      },
+      }
     );
 
     // 获取画板数据
     const { children, viewPort, selection } = useSyncExternalStore(
       board.subscribe,
-      board.getSnapshot,
+      board.getSnapshot
     );
     const { zoom } = viewPort;
 
     useEffect(() => {
-      const currentElementIds = new Set(children.map((child) => child.id));
+      const currentElementIds = new Set(children.map(child => child.id));
       for (const elementId of richTextLinkCheckRef.current.keys()) {
         if (!currentElementIds.has(elementId)) {
           richTextLinkCheckRef.current.delete(elementId);
         }
       }
 
-      children.forEach((child) => {
+      children.forEach(child => {
         if (child.type !== "richtext" || !child.contentId) {
           return;
         }
@@ -582,12 +532,9 @@ const WhiteBoard = memo(
         if (!child.linkedCardId && !record.cardChecked) {
           record.cardChecked = true;
           getCardByContentId(child.contentId)
-            .then((card) => {
+            .then(card => {
               if (!card) return;
-              const latestElement = BoardUtil.getElementById(
-                board,
-                child.id,
-              ) as
+              const latestElement = BoardUtil.getElementById(board, child.id) as
                 | (BoardElement & {
                     contentId?: number;
                     linkedCardId?: number;
@@ -608,16 +555,12 @@ const WhiteBoard = memo(
                 ...latestElement,
                 linkedCardId: card.id,
               };
-              const ops = BoardUtil.diffNodePatchOnly(
-                latestElement,
-                newElement,
-                path,
-              );
+              const ops = BoardUtil.diffNodePatchOnly(latestElement, newElement, path);
               if (ops.length > 0) {
                 board.apply(ops);
               }
             })
-            .catch((error) => {
+            .catch(error => {
               console.error("Failed to hydrate rich text card link:", error);
             });
         }
@@ -625,12 +568,9 @@ const WhiteBoard = memo(
         if (!child.linkedArticleId && !record.articleChecked) {
           record.articleChecked = true;
           getArticleByContentId(child.contentId)
-            .then((article) => {
+            .then(article => {
               if (!article) return;
-              const latestElement = BoardUtil.getElementById(
-                board,
-                child.id,
-              ) as
+              const latestElement = BoardUtil.getElementById(board, child.id) as
                 | (BoardElement & {
                     contentId?: number;
                     linkedArticleId?: number;
@@ -651,16 +591,12 @@ const WhiteBoard = memo(
                 ...latestElement,
                 linkedArticleId: article.id,
               };
-              const ops = BoardUtil.diffNodePatchOnly(
-                latestElement,
-                newElement,
-                path,
-              );
+              const ops = BoardUtil.diffNodePatchOnly(latestElement, newElement, path);
               if (ops.length > 0) {
                 board.apply(ops);
               }
             })
-            .catch((error) => {
+            .catch(error => {
               console.error("Failed to hydrate rich text article link:", error);
             });
         }
@@ -669,52 +605,33 @@ const WhiteBoard = memo(
 
     // 获取演示模式状态（直接从 board.presentationManager 订阅）
     const isPresentationMode = useSyncExternalStore(
-      (callback) => {
+      callback => {
         board.presentationManager.on("presentationModeChange", callback);
-        return () =>
-          board.presentationManager.off("presentationModeChange", callback);
+        return () => board.presentationManager.off("presentationModeChange", callback);
       },
-      () => board.presentationManager.isPresentationMode,
+      () => board.presentationManager.isPresentationMode
     );
 
     const currentSequence = useSyncExternalStore(
-      (callback) => {
-        board.presentationManager.on(
-          "presentationCurrentSequenceChange",
-          callback,
-        );
-        return () =>
-          board.presentationManager.off(
-            "presentationCurrentSequenceChange",
-            callback,
-          );
+      callback => {
+        board.presentationManager.on("presentationCurrentSequenceChange", callback);
+        return () => board.presentationManager.off("presentationCurrentSequenceChange", callback);
       },
-      () => board.presentationManager.currentSequence,
+      () => board.presentationManager.currentSequence
     );
 
     const currentFrameIndex = useSyncExternalStore(
-      (callback) => {
-        board.presentationManager.on(
-          "presentationCurrentFrameIndexChange",
-          callback,
-        );
-        return () =>
-          board.presentationManager.off(
-            "presentationCurrentFrameIndexChange",
-            callback,
-          );
+      callback => {
+        board.presentationManager.on("presentationCurrentFrameIndexChange", callback);
+        return () => board.presentationManager.off("presentationCurrentFrameIndexChange", callback);
       },
-      () => board.presentationManager.currentFrameIndex,
+      () => board.presentationManager.currentFrameIndex
     );
 
     // 演示模式下过滤只显示当前帧包含的元素
     const filteredChildren = useMemo(() => {
       // 非演示模式返回所有元素
-      if (
-        !isPresentationMode ||
-        !currentSequence ||
-        currentFrameIndex === null
-      ) {
+      if (!isPresentationMode || !currentSequence || currentFrameIndex === null) {
         return children;
       }
 
@@ -726,7 +643,7 @@ const WhiteBoard = memo(
       // 递归过滤元素
       const filterElements = (elements: BoardElement[]): BoardElement[] => {
         return elements
-          .map((element) => {
+          .map(element => {
             // 如果元素在帧中，保留它及其所有子元素
             if (frameElementIds.has(element.id)) {
               return element;
@@ -756,13 +673,8 @@ const WhiteBoard = memo(
     } = useElementsSorting(filteredChildren, selection);
 
     // 获取视口控制函数
-    const {
-      handleContainerResize,
-      handleZoomIn,
-      handleZoomOut,
-      handleZoomTo,
-      handleFitElements,
-    } = useViewPortControls(board, zoom);
+    const { handleContainerResize, handleZoomIn, handleZoomOut, handleZoomTo, handleFitElements } =
+      useViewPortControls(board, zoom);
 
     // 暴露 ref 方法
     useImperativeHandle(
@@ -776,7 +688,7 @@ const WhiteBoard = memo(
         zoomOut: () => handleZoomOut(),
         zoomTo: (zoomValue: number) => handleZoomTo(zoomValue),
       }),
-      [board, handleZoomIn, handleZoomOut, handleZoomTo],
+      [board, handleZoomIn, handleZoomOut, handleZoomTo]
     );
 
     // 事件处理
@@ -811,23 +723,14 @@ const WhiteBoard = memo(
     } = useEventHandlers(board);
 
     // 节流处理指针移动事件
-    const { run: handleOnPointerMove } = useThrottleFn(
-      nonThrottledHandleOnPointerMove,
-      {
-        wait: 25,
-      },
-    );
+    const { run: handleOnPointerMove } = useThrottleFn(nonThrottledHandleOnPointerMove, {
+      wait: 25,
+    });
 
-    const setPointerViewport = useMemoizedFn(
-      (event: React.PointerEvent<HTMLDivElement>) => {
-        const point = PointUtil.screenToViewPort(
-          board,
-          event.clientX,
-          event.clientY,
-        );
-        pointerViewportStore.setPoint(point ?? null);
-      },
-    );
+    const setPointerViewport = useMemoizedFn((event: React.PointerEvent<HTMLDivElement>) => {
+      const point = PointUtil.screenToViewPort(board, event.clientX, event.clientY);
+      pointerViewportStore.setPoint(point ?? null);
+    });
     const clearPointerViewport = useMemoizedFn(() => {
       pointerViewportStore.setPoint(null);
     });
@@ -838,22 +741,20 @@ const WhiteBoard = memo(
         markInteracting(event.target);
         setPointerViewport(event);
         handleOnPointerDown(event);
-      },
+      }
     );
 
     const handleContainerPointerMove = useMemoizedFn(
       (event: React.PointerEvent<HTMLDivElement>) => {
         setPointerViewport(event);
         handleOnPointerMove(event);
-      },
+      }
     );
 
-    const handleContainerPointerUp = useMemoizedFn(
-      (event: React.PointerEvent<HTMLDivElement>) => {
-        setPointerViewport(event);
-        handleOnPointerUp(event);
-      },
-    );
+    const handleContainerPointerUp = useMemoizedFn((event: React.PointerEvent<HTMLDivElement>) => {
+      setPointerViewport(event);
+      handleOnPointerUp(event);
+    });
     const handleContainerPointerLeave = useMemoizedFn(() => {
       clearPointerViewport();
     });
@@ -927,10 +828,7 @@ const WhiteBoard = memo(
     useEffect(() => {
       const handleOpenVideoNote = async (element: VideoElement) => {
         try {
-          const latestElement = BoardUtil.getElementById(
-            board,
-            element.id,
-          ) as VideoElement | null;
+          const latestElement = BoardUtil.getElementById(board, element.id) as VideoElement | null;
           const targetElement = latestElement ?? element;
           let videoNoteId = targetElement.videoNoteId;
 
@@ -947,7 +845,7 @@ const WhiteBoard = memo(
               creating = (async () => {
                 const currentBeforeCreate = BoardUtil.getElementById(
                   board,
-                  element.id,
+                  element.id
                 ) as VideoElement | null;
                 const currentVideoNoteId = currentBeforeCreate?.videoNoteId;
                 if (currentVideoNoteId) {
@@ -958,7 +856,7 @@ const WhiteBoard = memo(
                 }
 
                 const created = await createEmptyVideoNote(
-                  getVideoNoteMetaInfo(currentBeforeCreate ?? targetElement),
+                  getVideoNoteMetaInfo(currentBeforeCreate ?? targetElement)
                 );
                 if (!created) {
                   return null;
@@ -966,22 +864,17 @@ const WhiteBoard = memo(
 
                 const currentElement = BoardUtil.getElementById(
                   board,
-                  element.id,
+                  element.id
                 ) as VideoElement | null;
-                const currentAfterCreateVideoNoteId =
-                  currentElement?.videoNoteId;
+                const currentAfterCreateVideoNoteId = currentElement?.videoNoteId;
                 if (currentAfterCreateVideoNoteId) {
-                  const existing = await getVideoNoteById(
-                    currentAfterCreateVideoNoteId,
-                  );
+                  const existing = await getVideoNoteById(currentAfterCreateVideoNoteId);
                   if (existing) {
                     return currentAfterCreateVideoNoteId;
                   }
                 }
 
-                const path =
-                  currentElement &&
-                  PathUtil.getPathByElement(board, currentElement);
+                const path = currentElement && PathUtil.getPathByElement(board, currentElement);
                 if (path) {
                   board.apply({
                     type: "set_node",
@@ -1016,9 +909,7 @@ const WhiteBoard = memo(
             videoNoteId,
             elementId: element.id,
           });
-          setActiveVideoElement(
-            videoElementRefs.current.get(element.id) ?? null,
-          );
+          setActiveVideoElement(videoElementRefs.current.get(element.id) ?? null);
         } catch (error) {
           console.error("Open whiteboard video note failed:", error);
           message.error("打开视频笔记失败");
@@ -1026,14 +917,11 @@ const WhiteBoard = memo(
       };
 
       const handleElementRemove = (removedElements: BoardElement[]) => {
-        removedElements.forEach((element) => {
+        removedElements.forEach(element => {
           videoElementRefs.current.delete(element.id);
         });
-        setActiveVideoNote((current) => {
-          if (
-            current &&
-            removedElements.some((element) => element.id === current.elementId)
-          ) {
+        setActiveVideoNote(current => {
+          if (current && removedElements.some(element => element.id === current.elementId)) {
             setActiveVideoElement(null);
             return null;
           }
@@ -1050,7 +938,7 @@ const WhiteBoard = memo(
         } else {
           videoElementRefs.current.delete(payload.elementId);
         }
-        setActiveVideoNote((current) => {
+        setActiveVideoNote(current => {
           if (current?.elementId === payload.elementId) {
             setActiveVideoElement(payload.video);
           }
@@ -1071,15 +959,11 @@ const WhiteBoard = memo(
     // 监听取消关联笔记的二次确认
     useEffect(() => {
       const handleConfirmUnlinkNote = (nodeId: string) => {
-        const node = BoardUtil.getElementById(
-          board,
-          nodeId,
-        ) as MindNodeElement | null;
+        const node = BoardUtil.getElementById(board, nodeId) as MindNodeElement | null;
         if (!node?.contentId) return;
         modal.confirm({
           title: "取消关联笔记",
-          content:
-            "确定取消该节点与笔记的关联吗？笔记内容不会被删除，可稍后重新关联。",
+          content: "确定取消该节点与笔记的关联吗？笔记内容不会被删除，可稍后重新关联。",
           okText: "取消关联",
           okButtonProps: { danger: true },
           cancelText: "再想想",
@@ -1116,7 +1000,7 @@ const WhiteBoard = memo(
 
     useEffect(() => {
       const handleRefLineChange = () => {
-        setRefLineVersion((value) => value + 1);
+        setRefLineVersion(value => value + 1);
       };
       board.on("ref-line:change", handleRefLineChange);
       return () => {
@@ -1125,10 +1009,7 @@ const WhiteBoard = memo(
     }, [board]);
 
     useEffect(() => {
-      const handleOpenImagePreview = (payload: {
-        src: string;
-        alt?: string;
-      }) => {
+      const handleOpenImagePreview = (payload: { src: string; alt?: string }) => {
         if (!payload?.src) return;
         setImagePreview({
           open: true,
@@ -1192,10 +1073,7 @@ const WhiteBoard = memo(
         document.removeEventListener("pointerdown", handleOnGlobalPointerDown);
         document.removeEventListener("pointermove", handleOnGlobalPointerMove);
         document.removeEventListener("pointerup", handleOnGlobalPointerUp);
-        document.removeEventListener(
-          "pointercancel",
-          handleOnGlobalPointerCancel,
-        );
+        document.removeEventListener("pointercancel", handleOnGlobalPointerCancel);
         document.removeEventListener("paste", handleOnPaste);
         document.removeEventListener("copy", handleOnCopy);
         document.removeEventListener("cut", handleOnCut);
@@ -1216,7 +1094,7 @@ const WhiteBoard = memo(
     // 获取参考线
     const refLines = useMemo(
       () => board.refLine.matchRefLines(15 / zoom),
-      [board, zoom, refLineVersion],
+      [board, zoom, refLineVersion]
     );
 
     // 演示相关处理函数
@@ -1234,11 +1112,9 @@ const WhiteBoard = memo(
     });
 
     // 全览功能
-    const handleFitAll = useMemoizedFn(
-      (e: React.MouseEvent<HTMLDivElement>) => {
-        return handleFitElements(FIT_VIEW_PADDING, true)(e);
-      },
-    );
+    const handleFitAll = useMemoizedFn((e: React.MouseEvent<HTMLDivElement>) => {
+      return handleFitElements(FIT_VIEW_PADDING, true)(e);
+    });
 
     const handleCloseImagePreview = useMemoizedFn(() => {
       setImagePreview({
@@ -1260,17 +1136,13 @@ const WhiteBoard = memo(
                   simplifiedRenderZoomThreshold,
                 }}
               >
-                <ArrowConnectPointOverlayContext.Provider
-                  value={connectPointOverlayRef}
-                >
-                  <PointerViewportStoreContext.Provider
-                    value={pointerViewportStore}
-                  >
-                    <div className="flex h-full relative">
+                <ArrowConnectPointOverlayContext.Provider value={connectPointOverlayRef}>
+                  <PointerViewportStoreContext.Provider value={pointerViewportStore}>
+                    <div className="relative flex h-full">
                       {showSidebar && !isPresentationMode && (
                         <>
                           <ResizeableAndHideableSidebar
-                            className="relative shrink-0 h-full flex-none overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
+                            className="relative h-full flex-none shrink-0 overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
                             width={sidebarWidth ?? 300}
                             onWidthChange={setSidebarWidth}
                             open={!!sidebarOpen}
@@ -1289,11 +1161,7 @@ const WhiteBoard = memo(
                       )}
                       <div
                         ref={containerRef}
-                        className={classnames(
-                          "flex-1 min-w-0",
-                          styles.boardContainer,
-                          className,
-                        )}
+                        className={classnames("min-w-0 flex-1", styles.boardContainer, className)}
                         style={style}
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
@@ -1322,9 +1190,7 @@ const WhiteBoard = memo(
                             viewPort={viewPort}
                             centerConnectArrows={centerConnectArrows}
                             noneCenterConnectArrows={noneCenterConnectArrows}
-                            centerConnectAndSelectedArrows={
-                              centerConnectAndSelectedArrows
-                            }
+                            centerConnectAndSelectedArrows={centerConnectAndSelectedArrows}
                             isolateStaticSelection={isolateStaticSelection}
                             gridVisible={gridVisible}
                             gridSize={gridSize}
@@ -1370,7 +1236,7 @@ const WhiteBoard = memo(
                         {activeNoteId != null && (
                           <motion.div
                             key="note-panel"
-                            className="absolute right-0 top-0 bottom-0 z-50"
+                            className="absolute bottom-0 right-0 top-0 z-50"
                             initial={{ x: "100%", opacity: 0.6 }}
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: "100%", opacity: 0.6 }}
@@ -1392,7 +1258,7 @@ const WhiteBoard = memo(
                         {activeVideoNote != null && (
                           <motion.div
                             key="video-note-panel"
-                            className="absolute right-0 top-0 bottom-0 z-50"
+                            className="absolute bottom-0 right-0 top-0 z-50"
                             initial={{ x: "100%", opacity: 0.6 }}
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: "100%", opacity: 0.6 }}
@@ -1405,25 +1271,19 @@ const WhiteBoard = memo(
                             <ResizeableAndHideableSidebar
                               width={videoNotePanelWidth || 420}
                               open
-                              onWidthChange={(width) =>
-                                setVideoNotePanelWidth(width)
-                              }
+                              onWidthChange={width => setVideoNotePanelWidth(width)}
                               minWidth={320}
                               maxWidth={720}
                               resizeHandleSide="left"
                               sidebarPosition="right"
-                              className="h-full bg-white dark:bg-[#1e1e1e] z-50 flex flex-col border-l border-[#f0f0f0] dark:border-[#2a2a2a] overflow-hidden"
+                              className="z-50 flex h-full flex-col overflow-hidden border-l border-[#f0f0f0] bg-white dark:border-[#2a2a2a] dark:bg-[#1e1e1e]"
                             >
                               <div
                                 className="relative h-full"
                                 style={{ width: videoNotePanelWidth || 420 }}
                                 data-whiteboard-stop-keyboard="true"
-                                onKeyDownCapture={(event) =>
-                                  event.stopPropagation()
-                                }
-                                onKeyUpCapture={(event) =>
-                                  event.stopPropagation()
-                                }
+                                onKeyDownCapture={event => event.stopPropagation()}
+                                onKeyUpCapture={event => event.stopPropagation()}
                               >
                                 <button
                                   type="button"
@@ -1471,9 +1331,7 @@ const WhiteBoard = memo(
                         action={
                           contextMenuModal?.action === "reference" ||
                           contextMenuModal?.action === "create"
-                            ? (contextMenuModal?.action as
-                                | "reference"
-                                | "create")
+                            ? (contextMenuModal?.action as "reference" | "create")
                             : undefined
                         }
                       />
@@ -1494,9 +1352,7 @@ const WhiteBoard = memo(
                         onClose={() => setContextMenuModal(null)}
                         board={board}
                         action={contextMenuModal?.action}
-                        selectedElementIds={
-                          contextMenuModal?.selectedElementIds
-                        }
+                        selectedElementIds={contextMenuModal?.selectedElementIds}
                       />
                       <ImagePreviewModal
                         open={imagePreview.open}
@@ -1533,16 +1389,14 @@ const WhiteBoard = memo(
                             ? (
                                 BoardUtil.getElementById(
                                   board,
-                                  pendingRichTextCreateTarget.elementId,
+                                  pendingRichTextCreateTarget.elementId
                                 ) as BoardElement & {
                                   content?: any[];
                                 }
                               )?.content || []
                             : []
                         }
-                        sourceContentId={
-                          pendingRichTextCreateTarget?.contentId || null
-                        }
+                        sourceContentId={pendingRichTextCreateTarget?.contentId || null}
                         insertMode="shared-content"
                         onCancel={() => setPendingRichTextCreateTarget(null)}
                         onSuccess={() => {
@@ -1559,7 +1413,7 @@ const WhiteBoard = memo(
         </SelectionContext.Provider>
       </BoardContext.Provider>
     );
-  }),
+  })
 );
 
 export default WhiteBoard;

@@ -1,6 +1,6 @@
 import { IExtension } from "@tau/editor/src";
 import { useEffect, useState } from "react";
-import { useProjectContext } from "@/pages/ProjectView/ProjectContext";
+import { useProjectContext } from "@/features/projects/components/ProjectView/ProjectContext";
 import { useDocumentContext } from "@/pages/DocumentView/DocumentContext";
 
 const useDynamicExtensions = () => {
@@ -27,7 +27,7 @@ const useDynamicExtensions = () => {
           createDocumentCardListExtension(documentItemId),
           chatReferenceExtension,
         ]);
-      },
+      }
     );
   }, [projectItemId, documentItemId]);
 

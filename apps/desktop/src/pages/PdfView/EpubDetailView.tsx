@@ -1,7 +1,7 @@
 import { Empty } from "antd";
 import { useEffect, useState } from "react";
 
-import EpubReader from "./EpubReader/index";
+import EpubReader from "@/components/EpubReader";
 import { getEpubById } from "@/commands/epub";
 import { Epub } from "@/types";
 import { LoadingOutlined } from "@ant-design/icons";
@@ -19,7 +19,7 @@ const EpubDetailView = () => {
     if (epubId) {
       setLoading(true);
       getEpubById(epubId)
-        .then((epub) => {
+        .then(epub => {
           setEpub(epub);
         })
         .finally(() => {
@@ -30,19 +30,19 @@ const EpubDetailView = () => {
 
   if (!epubId) {
     return (
-      <div className="w-full h-full flex items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         <Empty description="EPUB不存在或已被删除" />
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full flex flex-col">
-      <div className="flex-1 flex overflow-hidden relative">
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 min-h-0 overflow-hidden">
+    <div className="flex h-full w-full flex-col">
+      <div className="relative flex flex-1 overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-hidden">
             {loading ? (
-              <div className="w-full h-full flex items-center justify-center">
+              <div className="flex h-full w-full items-center justify-center">
                 <LoadingOutlined />
               </div>
             ) : epub ? (

@@ -2,7 +2,7 @@ import { Empty } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalStorageState } from "ahooks";
 
-import EditPdf from "./EditPdf";
+import EditPdf from "@/components/EditPdf";
 import PdfChatPanel, { type PdfChatPanelHandle } from "./PdfChatPanel";
 import { getPdfById } from "@/commands";
 import { Pdf } from "@/types";
@@ -17,25 +17,22 @@ import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSideba
 const PdfDetailView = () => {
   const { id } = useTabParams(TabType.PdfDetail);
   const pdfId = id;
-  const mainDbName = useSettingStore((state) => state.setting.database.active);
+  const mainDbName = useSettingStore(state => state.setting.database.active);
   const chatPanelRef = useRef<PdfChatPanelHandle>(null);
 
   const [pdf, setPdf] = useState<Pdf | null>(null);
   const [loading, setLoading] = useState(false);
   const [chatCollapsed, setChatCollapsed] = useState(false);
   const [jumpTarget, setJumpTarget] = useState<PdfCitationTarget | null>(null);
-  const [chatWidth, setChatWidth] = useLocalStorageState(
-    "pdf-chat-panel-width",
-    {
-      defaultValue: 440,
-    },
-  );
+  const [chatWidth, setChatWidth] = useLocalStorageState("pdf-chat-panel-width", {
+    defaultValue: 440,
+  });
 
   useEffect(() => {
     if (pdfId) {
       setLoading(true);
       getPdfById(pdfId)
-        .then((pdf) => {
+        .then(pdf => {
           setPdf(pdf);
         })
         .finally(() => {
@@ -58,14 +55,12 @@ const PdfDetailView = () => {
         if (context.text) {
           base.push(`该区域相关文本：\n${context.text}`);
         }
-        base.push(
-          "请结合截图区域、当前页文本和全文搜索回答问题，并说明你的依据。",
-        );
+        base.push("请结合截图区域、当前页文本和全文搜索回答问题，并说明你的依据。");
       }
       base.push("如果证据不足，请明确说明。");
       return base.join("\n\n");
     },
-    [],
+    []
   );
 
   const handleAskAI = async (context: PdfAskAIContext) => {
@@ -77,27 +72,23 @@ const PdfDetailView = () => {
 
   if (!pdfId) {
     return (
-      <div className="w-full h-full flex items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center">
         <Empty description="PDF不存在或已被删除" />
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full flex flex-col">
-      <div className="flex-1 flex overflow-hidden relative">
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-          <div className="flex-1 min-h-0 overflow-hidden">
+    <div className="flex h-full w-full flex-col">
+      <div className="relative flex flex-1 overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-hidden">
             {loading ? (
-              <div className="w-full h-full flex items-center justify-center">
+              <div className="flex h-full w-full items-center justify-center">
                 <LoadingOutlined />
               </div>
             ) : pdf ? (
-              <EditPdf
-                pdf={pdf}
-                onAskAI={handleAskAI}
-                jumpTarget={jumpTarget}
-              />
+              <EditPdf pdf={pdf} onAskAI={handleAskAI} jumpTarget={jumpTarget} />
             ) : (
               <Empty description="请选择一个PDF文件" />
             )}
@@ -105,11 +96,11 @@ const PdfDetailView = () => {
         </div>
         {pdf ? (
           <ResizableAndHideableSidebar
-            className="relative box-border flex-none h-full"
+            className="relative box-border h-full flex-none"
             width={chatWidth ?? 440}
             open={!chatCollapsed}
-            onToggle={() => setChatCollapsed((prev) => !prev)}
-            onWidthChange={(width) => {
+            onToggle={() => setChatCollapsed(prev => !prev)}
+            onWidthChange={width => {
               setChatWidth(width);
             }}
             resizeHandleSide="left"
@@ -124,8 +115,8 @@ const PdfDetailView = () => {
               pdf={pdf}
               mainDbName={mainDbName}
               collapsed={chatCollapsed}
-              onToggleCollapsed={() => setChatCollapsed((prev) => !prev)}
-              onCitationNavigate={(target) => {
+              onToggleCollapsed={() => setChatCollapsed(prev => !prev)}
+              onCitationNavigate={target => {
                 setJumpTarget({ ...target });
               }}
             />

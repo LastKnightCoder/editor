@@ -9,11 +9,7 @@ import type { MindMapNodeActionContext } from "@/components/MindMap";
 import { MindMapNodeData } from "@/components/MindMap/types";
 import { IDocument } from "@/types";
 import { TabType } from "@/types/tab";
-import {
-  EDragPosition,
-  IDragItem,
-  type as sidebarDragType,
-} from "@/hooks/useDragAndDrop";
+import { EDragPosition, IDragItem, type as sidebarDragType } from "@/hooks/useDragAndDrop";
 import useTabStore from "@/stores/useTabStore";
 import { updateDocumentItem } from "@/commands";
 import { defaultDocumentItemEventBus } from "@/utils";
@@ -21,7 +17,7 @@ import {
   buildMindMapDropGuide,
   getMindMapDropPlacement,
   MindMapDropPlacement,
-} from "@/pages/shared/mindMapTreeUtils";
+} from "@/utils/mindMapTreeUtils";
 import { DocumentTreeData, canMoveDocumentTreeItem } from "./documentTree";
 import { useDocumentTreeOperations } from "./useDocumentTreeOperations";
 import {
@@ -41,20 +37,17 @@ interface DocumentMindMapViewProps {
   moreMenuItems: MenuProps["items"];
   onAddMenuClick: (
     info: Parameters<NonNullable<MenuProps["onClick"]>>[0],
-    parentDocumentItemId?: number,
+    parentDocumentItemId?: number
   ) => void;
   onMoreMenuClick: (
     info: Parameters<NonNullable<MenuProps["onClick"]>>[0],
-    meta: DocumentMindMapNodeMeta,
+    meta: DocumentMindMapNodeMeta
   ) => void;
   refreshDocument: () => void;
   reloadTree: (options?: { silent?: boolean }) => void | Promise<void>;
   initialPan?: { x: number; y: number };
   initialZoom?: number;
-  onViewportChange?: (viewport: {
-    pan: { x: number; y: number };
-    zoom: number;
-  }) => void;
+  onViewportChange?: (viewport: { pan: { x: number; y: number }; zoom: number }) => void;
 }
 
 const DOCUMENT_NODE_SELECTOR = "data-document-mindmap-node-id";
@@ -63,35 +56,28 @@ const DOCUMENT_ROOT_SELECTOR = "data-document-mindmap-root";
 const isDropPlacementAllowed = (
   placement: MindMapDropPlacement | null,
   dragItem: IDragItem,
-  treeData: DocumentTreeData,
+  treeData: DocumentTreeData
 ) => {
   if (!placement) return false;
-  if (
-    dragItem.parentId === placement.parentId &&
-    dragItem.isRoot === placement.parentIsRoot
-  ) {
-    const currentIndex = dragItem.parentChildren.findIndex(
-      (id) => id === dragItem.itemId,
-    );
+  if (dragItem.parentId === placement.parentId && dragItem.isRoot === placement.parentIsRoot) {
+    const currentIndex = dragItem.parentChildren.findIndex(id => id === dragItem.itemId);
     if (
       currentIndex >= 0 &&
-      (placement.insertIndex === currentIndex ||
-        placement.insertIndex === currentIndex + 1)
+      (placement.insertIndex === currentIndex || placement.insertIndex === currentIndex + 1)
     ) {
       return false;
     }
   }
 
   const parentChildren = placement.parentIsRoot
-    ? treeData.nodes.map((node) => node.item.id)
+    ? treeData.nodes.map(node => node.item.id)
     : treeData.itemMap.get(placement.parentId)?.children;
 
   return canMoveDocumentTreeItem({
     treeData,
     dragItem,
     dropTargetId: placement.referenceNodeId
-      ? (treeData.nodeMap.get(placement.referenceNodeId)?.item.id ??
-        dragItem.itemId)
+      ? (treeData.nodeMap.get(placement.referenceNodeId)?.item.id ?? dragItem.itemId)
       : placement.parentId,
     dragPosition:
       placement.indicator === "inside"
@@ -125,8 +111,7 @@ const DocumentMindMapNodeContent = memo(
     const [editing, setEditing] = useState(false);
     const [moreMenuOpen, setMoreMenuOpen] = useState(false);
     const isDocument = meta.nodeKind === "document";
-    const canDrag =
-      meta.nodeKind === "document-item" && Boolean(meta.documentItemId);
+    const canDrag = meta.nodeKind === "document-item" && Boolean(meta.documentItemId);
     const dragItem: IDragItem | null =
       canDrag && meta.documentItemId && meta.documentItem
         ? {
@@ -151,11 +136,11 @@ const DocumentMindMapNodeContent = memo(
         type: sidebarDragType,
         item: dragItem,
         canDrag: () => Boolean(dragItem),
-        collect: (monitor) => ({
+        collect: monitor => ({
           isDragging: monitor.isDragging(),
         }),
       }),
-      [dragItem],
+      [dragItem]
     );
 
     if (!isDocument) {
@@ -181,10 +166,7 @@ const DocumentMindMapNodeContent = memo(
       };
       window.addEventListener("mindmap:canvas-pointer-down", finishEditing);
       return () => {
-        window.removeEventListener(
-          "mindmap:canvas-pointer-down",
-          finishEditing,
-        );
+        window.removeEventListener("mindmap:canvas-pointer-down", finishEditing);
       };
     }, [editing, meta, onRename]);
 
@@ -199,21 +181,19 @@ const DocumentMindMapNodeContent = memo(
           isDragging && "opacity-50",
           activeDropPlacement?.indicator === "inside" &&
             activeDropPlacement.referenceNodeId === meta.nodeId &&
-            "rounded outline outline-2 outline-[var(--th-active-text)]",
+            "rounded outline outline-2 outline-[var(--th-active-text)]"
         )}
-        onContextMenu={(event) => {
+        onContextMenu={event => {
           if (!isDocument) {
             event.stopPropagation();
           }
         }}
       >
         {isDocument ? (
-          <div className="whitespace-nowrap text-sm font-semibold leading-6">
-            {meta.title}
-          </div>
+          <div className="whitespace-nowrap text-sm font-semibold leading-6">{meta.title}</div>
         ) : (
           <div
-            onDoubleClick={(event) => {
+            onDoubleClick={event => {
               event.stopPropagation();
               startEditing();
             }}
@@ -243,12 +223,7 @@ const DocumentMindMapNodeContent = memo(
       </div>
     );
 
-    if (
-      isDocument ||
-      !meta.documentItem ||
-      !moreMenuItems ||
-      moreMenuItems.length === 0
-    ) {
+    if (isDocument || !meta.documentItem || !moreMenuItems || moreMenuItems.length === 0) {
       return content;
     }
 
@@ -258,7 +233,7 @@ const DocumentMindMapNodeContent = memo(
         onOpenChange={setMoreMenuOpen}
         menu={{
           items: moreMenuItems,
-          onClick: (info) => {
+          onClick: info => {
             info.domEvent.stopPropagation();
             setMoreMenuOpen(false);
             onMoreMenuClick(info, meta);
@@ -269,7 +244,7 @@ const DocumentMindMapNodeContent = memo(
         {content}
       </Dropdown>
     );
-  },
+  }
 );
 
 DocumentMindMapNodeContent.displayName = "DocumentMindMapNodeContent";
@@ -313,7 +288,7 @@ const DocumentMindMapNodeActions = memo(
         onOpenChange={setOpen}
         menu={{
           items: addMenuItems,
-          onClick: (info) => {
+          onClick: info => {
             setOpen(false);
             onAddMenuClick(info, isDocument ? undefined : meta.documentItemId);
           },
@@ -326,16 +301,16 @@ const DocumentMindMapNodeActions = memo(
             className={classnames(
               "absolute top-1/2 z-10 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full bg-gray-100 text-[11px] text-black/65 opacity-0 transition-opacity hover:bg-gray-200 hover:text-black/90 group-hover/mindmap-node:opacity-100 dark:bg-zinc-700 dark:text-white/70 dark:hover:bg-zinc-600 dark:hover:text-white",
               open && "opacity-100",
-              sideClass,
+              sideClass
             )}
-            onClick={(event) => event.stopPropagation()}
+            onClick={event => event.stopPropagation()}
           >
             <PlusOutlined />
           </button>
         </Tooltip>
       </Dropdown>
     );
-  },
+  }
 );
 
 DocumentMindMapNodeActions.displayName = "DocumentMindMapNodeActions";
@@ -357,16 +332,13 @@ const DocumentMindMapView = (props: DocumentMindMapViewProps) => {
     onViewportChange,
   } = props;
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [dropPlacement, setDropPlacement] =
-    useState<MindMapDropPlacement | null>(null);
+  const [dropPlacement, setDropPlacement] = useState<MindMapDropPlacement | null>(null);
   const [foldStateVersion, setFoldStateVersion] = useState(0);
-  const navigateTo = useTabStore((state) => state.navigateTo);
+  const navigateTo = useTabStore(state => state.navigateTo);
   const mindMapData = useMemo(
     () =>
       buildDocumentMindMapData(document, treeData, (itemId, path) => {
-        const raw = window.localStorage.getItem(
-          `document-item-${databaseName}-${itemId}`,
-        );
+        const raw = window.localStorage.getItem(`document-item-${databaseName}-${itemId}`);
         if (raw === null) {
           return path.length === 1;
         }
@@ -376,12 +348,9 @@ const DocumentMindMapView = (props: DocumentMindMapViewProps) => {
           return path.length === 1;
         }
       }),
-    [databaseName, document, foldStateVersion, treeData],
+    [databaseName, document, foldStateVersion, treeData]
   );
-  const documentItemEventBus = useMemo(
-    () => defaultDocumentItemEventBus.createEditor(),
-    [],
-  );
+  const documentItemEventBus = useMemo(() => defaultDocumentItemEventBus.createEditor(), []);
   const { moveDocumentItem } = useDocumentTreeOperations({
     documentId: document.id,
     treeData,
@@ -401,9 +370,7 @@ const DocumentMindMapView = (props: DocumentMindMapViewProps) => {
           dragItem: item,
         });
         setDropPlacement(
-          isDropPlacementAllowed(nextPlacement, item, treeData)
-            ? nextPlacement
-            : null,
+          isDropPlacementAllowed(nextPlacement, item, treeData) ? nextPlacement : null
         );
       },
       canDrop: (item, monitor) => {
@@ -436,8 +403,7 @@ const DocumentMindMapView = (props: DocumentMindMapViewProps) => {
           return;
         }
         const dropTargetId =
-          placement.referenceNodeId &&
-          treeData.nodeMap.get(placement.referenceNodeId)?.item.id;
+          placement.referenceNodeId && treeData.nodeMap.get(placement.referenceNodeId)?.item.id;
         void (async () => {
           await moveDocumentItem({
             dragItem: item,
@@ -454,15 +420,13 @@ const DocumentMindMapView = (props: DocumentMindMapViewProps) => {
         })();
       },
     }),
-    [document.id, dropPlacement, moveDocumentItem, reloadTree, treeData],
+    [document.id, dropPlacement, moveDocumentItem, reloadTree, treeData]
   );
 
   drop(containerRef);
 
   const selectedNodeIds = activeItemId
-    ? (treeData.itemNodeMap.get(activeItemId) || []).map((node) =>
-        getDocumentMindMapNodeId(node),
-      )
+    ? (treeData.itemNodeMap.get(activeItemId) || []).map(node => getDocumentMindMapNodeId(node))
     : [getDocumentMindMapRootId(document.id)];
   const dropGuide = useMemo(
     () =>
@@ -472,7 +436,7 @@ const DocumentMindMapView = (props: DocumentMindMapViewProps) => {
         nodeSelector: DOCUMENT_NODE_SELECTOR,
         rootSelector: DOCUMENT_ROOT_SELECTOR,
       }),
-    [dropPlacement],
+    [dropPlacement]
   );
 
   const handleRename = async (meta: DocumentMindMapNodeMeta, title: string) => {
@@ -482,10 +446,7 @@ const DocumentMindMapView = (props: DocumentMindMapViewProps) => {
       title,
     });
     if (!updated) return;
-    documentItemEventBus.publishDocumentItemEvent(
-      "document-item:updated",
-      updated,
-    );
+    documentItemEventBus.publishDocumentItemEvent("document-item:updated", updated);
   };
 
   return (
@@ -506,12 +467,12 @@ const DocumentMindMapView = (props: DocumentMindMapViewProps) => {
           if (!documentItemId) return;
           window.localStorage.setItem(
             `document-item-${databaseName}-${documentItemId}`,
-            JSON.stringify(!folded),
+            JSON.stringify(!folded)
           );
-          setFoldStateVersion((version) => version + 1);
+          setFoldStateVersion(version => version + 1);
         }}
         className="group"
-        onNodeClick={(nodeId) => {
+        onNodeClick={nodeId => {
           const documentItemId = parseDocumentMindMapItemId(nodeId);
           if (!documentItemId) {
             navigateTo(TabType.DocumentDetail, { id: document.id });
@@ -521,10 +482,10 @@ const DocumentMindMapView = (props: DocumentMindMapViewProps) => {
           navigateTo(
             TabType.DocumentDetail,
             { id: document.id, itemId: documentItemId },
-            `知识库 - ${item?.title || `#${documentItemId}`}`,
+            `知识库 - ${item?.title || `#${documentItemId}`}`
           );
         }}
-        renderNodeContent={(node) => (
+        renderNodeContent={node => (
           <DocumentMindMapNodeContent
             node={node}
             onRename={handleRename}
