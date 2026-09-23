@@ -82,6 +82,8 @@ export interface WindowApi {
   hidePomodoroImmersiveWindow(): Promise<void>;
   /** 订阅窗口最大化状态变化；返回取消订阅函数 */
   onMaximizedChange(callback: (maximized: boolean) => void): () => void;
+  /** 订阅窗口全屏状态变化；返回取消订阅函数 */
+  onFullScreenChange(callback: (fullScreen: boolean) => void): () => void;
   /** 订阅窗口焦点变化（Web 下映射为页面 focus/blur）；返回取消订阅函数 */
   onFocusChange(callback: (focused: boolean) => void): () => void;
 }

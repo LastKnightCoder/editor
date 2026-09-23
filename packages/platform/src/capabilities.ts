@@ -19,6 +19,7 @@ export const CAPABILITY_IDS = [
   "window.pomodoro-mini",
   "window.pomodoro-immersive",
   "window.maximized-events",
+  "window.fullscreen-events",
   "window.focus-events",
   "fileDialog.select-file",
   "fileDialog.select-directory",

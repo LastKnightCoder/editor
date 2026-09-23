@@ -1,6 +1,6 @@
 /**
  * 侧边栏 —— 模块条目来自 navigation.ts（数据驱动），样式 Tailwind 优先（D-001）。
- * 收起态由 shellStore 驱动条件类；拖宽时由 AppShell 传 resizing 关宽度过渡；Mac 红绿灯占位由 isMac 条件渲染。
+ * 收起态由 shellStore 驱动条件类；拖宽时由 AppShell 传 resizing 关宽度过渡；Mac 信号灯由 isMac 条件渲染。
  */
 
 import { useState } from "react";
@@ -13,6 +13,8 @@ import logo from "@/assets/logo.png";
 import { useShellStore } from "./shellStore";
 import { useSettingsStore } from "./settingsStore";
 import { NAV_FOOTER, NAV_SECTIONS, type NavItem } from "./navigation";
+import { MacTrafficLights } from "./WindowControls";
+import { useFullScreen } from "./useFullScreen";
 
 export function Sidebar({ resizing }: { resizing: boolean }) {
   const { navigator, state } = usePage();
@@ -21,6 +23,8 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
   const navSectionCollapsed = useShellStore(s => s.navSectionCollapsed);
   const toggleNavSection = useShellStore(s => s.toggleNavSection);
   const openSettings = useSettingsStore(s => s.openSettings);
+  // 全屏下隐藏 mac 信号灯（对齐平台惯例），头部布局随之收拢
+  const fullScreen = useFullScreen();
 
   // 边缘渐隐：callback ref（组折叠动画经 transitionend 重测，见 useEdgeFade）
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
@@ -45,15 +49,9 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
           collapsed ? "flex-col gap-3 px-0 py-2.5" : "mb-1.5 h-[var(--tau-titlebar-h)] px-1.5"
         )}
       >
-        {/* Mac 红绿灯占位（真实窗口为系统控件让位）；Windows/Linux 不渲染 */}
-        {isMac && (
-          <div aria-hidden className={clsx("flex items-center gap-2", collapsed ? "pr-0" : "pr-1")}>
-            {/* 平台原生控件色，刻意不走主题 token */}
-            <span className="size-3 rounded-full bg-[#ff5f57]" />
-            <span className="size-3 rounded-full bg-[#febc2e]" />
-            <span className="size-3 rounded-full bg-[#28c840]" />
-          </div>
-        )}
+        {/* Mac 自绘信号灯（原生已被主进程移出屏幕，见 WindowControls；全屏下
+            隐藏对齐平台惯例）；Windows/Linux 不渲染 */}
+        {isMac && !fullScreen && <MacTrafficLights collapsed={collapsed} />}
         {!collapsed && (
           <span className="flex items-center gap-2">
             {/* 应用图标（build/icon.png 同源，自带圆角与米白底，勿再加底色）。
