@@ -30,6 +30,7 @@ import { AppearanceSection } from "./sections/AppearanceSection";
 import { SyncSection } from "./sections/SyncSection";
 import { ResourceSection } from "./sections/ResourceSection";
 import { PublishSection } from "./sections/PublishSection";
+import { LLMSection } from "./sections/LLMSection";
 import { EmbeddingSection } from "./sections/EmbeddingSection";
 
 export type SettingsSectionKey =
@@ -87,7 +88,7 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
   {
     label: "AI 服务",
     sections: [
-      { key: "llm", label: "大语言模型", icon: Sparkles, component: pending("大语言模型") },
+      { key: "llm", label: "大语言模型", icon: Sparkles, component: LLMSection },
       { key: "embedding", label: "嵌入模型", icon: Layers, component: EmbeddingSection },
       {
         key: "imageGeneration",
