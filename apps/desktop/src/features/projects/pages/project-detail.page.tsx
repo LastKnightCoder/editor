@@ -4,11 +4,15 @@
  * 工作台本体（文档树 / 数据表格 / Vibe Learning 三型）后续迁移，见 DECISIONS.md。
  */
 
-import { createPageSchema, paramNumber } from "@/page/core/paramsSchema";
+import { createPageSchema, paramNumber, paramOptional } from "@/page/core/paramsSchema";
 import { definePage } from "@/page/definePage";
 import { ProjectDetailView } from "../views/ProjectDetailView";
 
-const schema = createPageSchema({ id: paramNumber() });
+const schema = createPageSchema({
+  id: paramNumber(),
+  // 定位到文档树具体条目（跨项目跳转/新建后定位；同项目内点击走域内 setActiveItemId）
+  itemId: paramOptional(paramNumber()),
+});
 
 export default definePage({
   key: "project-detail",

@@ -9,9 +9,7 @@ import {
 import { ChevronDown } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import useThemeColors from "@/hooks/useThemeColors";
-import useTabStore from "@/stores/useTabStore";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
-import { TabType } from "@/types/tab";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import ProjectItem from "./ProjectItem";
 import If from "@/components/If";
@@ -83,13 +81,14 @@ import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import ProjectMindMapView from "./ProjectMindMapView";
 import { useProjectTreeData } from "./useProjectTreeData";
 import { useProjectContext } from "../ProjectContext";
+import { usePage } from "@/page/PageProvider";
 
 const Project = () => {
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const { message } = App.useApp();
   const uploadResource = useUploadResource();
   const { projectId: id, itemId } = useProjectContext();
-  const navigateTo = useTabStore(state => state.navigateTo);
+  const { navigator } = usePage();
   const { setting } = useSettingStore(state => ({ setting: state.setting }));
   const databaseName = setting.database.active;
   const [hideSidebar, setHideSidebar] = useState(false);
@@ -151,7 +150,7 @@ const Project = () => {
   });
 
   const handleSwitchProject = useMemoizedFn((proj: IProject) => {
-    navigateTo(TabType.ProjectDetail, { id: proj.id });
+    navigator.push("project-detail", { id: proj.id });
   });
 
   const handleToggleProjectDropdown = useMemoizedFn((e: React.MouseEvent) => {
@@ -266,19 +265,12 @@ const Project = () => {
           addingParentProjectItemId
         );
         if (projectItem) {
-          navigateTo(
-            TabType.ProjectDetail,
-            {
-              id: newProject.id,
-              itemId: projectItem.id,
-            },
-            `项目 - ${projectItem.title || `#${projectItem.id}`}`
-          );
+          navigator.push("project-detail", { id: newProject.id, itemId: projectItem.id });
         }
         setAddingParentProjectItemId(undefined);
       },
     }),
-    [addProjectItemToTarget, addingParentProjectItemId, message, navigateTo, project]
+    [addProjectItemToTarget, addingParentProjectItemId, message, navigator, project]
   );
 
   const { handleYoutubeConfirm, handleBilibiliConfirm, handleRemoteVideoConfirm } =
@@ -332,14 +324,7 @@ const Project = () => {
         addingParentProjectItemId
       );
       if (item) {
-        navigateTo(
-          TabType.ProjectDetail,
-          {
-            id: newProject.id,
-            itemId: item.id,
-          },
-          `项目 - ${item.title || `#${item.id}`}`
-        );
+        navigator.push("project-detail", { id: newProject.id, itemId: item.id });
       }
       setAddingParentProjectItemId(undefined);
       closeModal(ModalKey.Webview);
@@ -394,10 +379,7 @@ const Project = () => {
         addingParentProjectItemId
       );
       if (item) {
-        navigateTo(TabType.ProjectDetail, {
-          id: project.id,
-          itemId: item.id,
-        });
+        navigator.push("project-detail", { id: project.id, itemId: item.id });
       }
       setAddingParentProjectItemId(undefined);
       onCardCancel();
@@ -443,10 +425,7 @@ const Project = () => {
         addingParentProjectItemId
       );
       if (item) {
-        navigateTo(TabType.ProjectDetail, {
-          id: project.id,
-          itemId: item.id,
-        });
+        navigator.push("project-detail", { id: project.id, itemId: item.id });
       }
       setAddingParentProjectItemId(undefined);
       onWhiteBoardCancel();
@@ -516,14 +495,7 @@ const Project = () => {
           parentProjectItemId
         );
         if (item) {
-          navigateTo(
-            TabType.ProjectDetail,
-            {
-              id: newProject.id,
-              itemId: item.id,
-            },
-            `项目 - ${item.title || `#${item.id}`}`
-          );
+          navigator.push("project-detail", { id: newProject.id, itemId: item.id });
         }
       } else if (key === "add-white-board-project-item") {
         const whiteBoardContent = await createWhiteBoardContent({
@@ -560,14 +532,7 @@ const Project = () => {
           parentProjectItemId
         );
         if (item) {
-          navigateTo(
-            TabType.ProjectDetail,
-            {
-              id: newProject.id,
-              itemId: item.id,
-            },
-            `项目 - ${item.title || `#${item.id}`}`
-          );
+          navigator.push("project-detail", { id: newProject.id, itemId: item.id });
         }
       } else if (key === "add-local-video-note-project-item") {
         // 选择视频文件
@@ -605,14 +570,7 @@ const Project = () => {
           parentProjectItemId
         );
         if (projectItem) {
-          navigateTo(
-            TabType.ProjectDetail,
-            {
-              id: newProject.id,
-              itemId: projectItem.id,
-            },
-            `项目 - ${projectItem.title || `#${projectItem.id}`}`
-          );
+          navigator.push("project-detail", { id: newProject.id, itemId: projectItem.id });
         }
       } else if (key === "add-remote-video-note-project-item") {
         setAddingParentProjectItemId(parentProjectItemId);
@@ -658,14 +616,7 @@ const Project = () => {
           parentProjectItemId
         );
         if (projectItem2) {
-          navigateTo(
-            TabType.ProjectDetail,
-            {
-              id: newProject2.id,
-              itemId: projectItem2.id,
-            },
-            `项目 - ${projectItem2.title || `#${projectItem2.id}`}`
-          );
+          navigator.push("project-detail", { id: newProject2.id, itemId: projectItem2.id });
         }
       } else if (key === "add-remote-audio-note-project-item") {
         setAddingParentProjectItemId(parentProjectItemId);
@@ -703,14 +654,7 @@ const Project = () => {
           parentProjectItemId
         );
         if (item) {
-          navigateTo(
-            TabType.ProjectDetail,
-            {
-              id: newProject.id,
-              itemId: item.id,
-            },
-            `项目 - ${item.title || `#${item.id}`}`
-          );
+          navigator.push("project-detail", { id: newProject.id, itemId: item.id });
         }
       } else if (key === "add-local-pdf-project-item") {
         try {
@@ -729,10 +673,7 @@ const Project = () => {
             parentProjectItemId
           );
           if (item) {
-            navigateTo(TabType.ProjectDetail, {
-              id: project.id,
-              itemId: item.id,
-            });
+            navigator.push("project-detail", { id: project.id, itemId: item.id });
           }
           message.success("本地 PDF 添加成功");
         } catch (error) {
@@ -763,10 +704,7 @@ const Project = () => {
             parentProjectItemId
           );
           if (item) {
-            navigateTo(TabType.ProjectDetail, {
-              id: project.id,
-              itemId: item.id,
-            });
+            navigator.push("project-detail", { id: project.id, itemId: item.id });
           }
           message.success("本地 EPUB 添加成功");
         } catch (error) {
@@ -817,14 +755,7 @@ const Project = () => {
             parentProjectItemId
           );
           if (item) {
-            navigateTo(
-              TabType.ProjectDetail,
-              {
-                id: newProject.id,
-                itemId: item.id,
-              },
-              `项目 - ${item.title || `#${item.id}`}`
-            );
+            navigator.push("project-detail", { id: newProject.id, itemId: item.id });
           }
         }
       }
@@ -850,7 +781,7 @@ const Project = () => {
             <div className={styles.title}>
               <HomeOutlined
                 onClick={() => {
-                  navigateTo(TabType.ProjectList);
+                  navigator.push("projects");
                 }}
               />
               <div className="flex-1 overflow-hidden">
