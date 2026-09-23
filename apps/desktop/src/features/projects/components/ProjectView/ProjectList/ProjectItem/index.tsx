@@ -2,7 +2,6 @@ import { useState, useEffect, memo, useRef, useMemo } from "react";
 import classnames from "classnames";
 import { useCreation, useLocalStorageState, useMemoizedFn } from "ahooks";
 import useUploadResource from "@/hooks/useUploadResource";
-import { Dropdown, MenuProps } from "antd";
 import {
   getFileBaseName,
   readTextFile,
@@ -47,6 +46,7 @@ import {
 } from "../../shared/hooks/useEpubHandlers";
 import { useAudioHandlers, createChildAudioStrategy } from "../../shared/hooks/useAudioHandlers";
 import { ADD_MENU_ITEMS } from "../../shared/constants/menuItems";
+import { renderMenuEntries } from "../../shared/menuEntries";
 import { ModalKey } from "../../shared/constants/modalKeys";
 
 import SVG from "react-inlinesvg";
@@ -98,7 +98,7 @@ import WebViewSelectModal, { type WebViewSelectResult } from "@/components/WebVi
 
 import { createProjectCardListExtension } from "@/editor-extensions";
 import useProjectItemMoreActions from "./useProjectItemMoreActions";
-import { toast, Tooltip } from "@tau/ui";
+import { toast, Tooltip, Menu } from "@tau/ui";
 
 const TOP_DROP_INDICATOR_CLASS = [
   "before:content-['']",
@@ -510,7 +510,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     },
   });
 
-  const handleAddMenuClick: MenuProps["onClick"] = useMemoizedFn(async ({ key }) => {
+  const handleAddMenuClick = useMemoizedFn(async (key: string) => {
     if (key === "add-project-item") {
       if (!projectItemId) return;
       const createProjectItem: CreateProjectItem = {
@@ -939,30 +939,30 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             }}
             className="flex flex-none items-center"
           >
-            <Dropdown
-              menu={{
-                items: moreMenuItems,
-                onClick: handleMoreMenuClick,
-              }}
+            <Menu
+              align="end"
+              trigger={
+                <div
+                  className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}`}
+                >
+                  <MoreHorizontal />
+                </div>
+              }
             >
-              <div
-                className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}`}
-              >
-                <MoreHorizontal />
-              </div>
-            </Dropdown>
-            <Dropdown
-              menu={{
-                items: ADD_MENU_ITEMS,
-                onClick: handleAddMenuClick,
-              }}
+              {renderMenuEntries(moreMenuItems, key => void handleMoreMenuClick(key))}
+            </Menu>
+            <Menu
+              align="end"
+              trigger={
+                <div
+                  className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}`}
+                >
+                  <Plus />
+                </div>
+              }
             >
-              <div
-                className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}`}
-              >
-                <Plus />
-              </div>
-            </Dropdown>
+              {renderMenuEntries(ADD_MENU_ITEMS, key => void handleAddMenuClick(key))}
+            </Menu>
           </div>
         </div>
         <div

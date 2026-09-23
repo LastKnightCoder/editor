@@ -1,6 +1,6 @@
 import { memo, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Tooltip } from "@tau/ui";
-import { Dropdown, MenuProps } from "antd";
+import { renderMenuEntries, type MenuEntryList } from "../shared/menuEntries";
+import { Menu, ContextMenu } from "@tau/ui";
 import { Book, FileText, FolderOpen, Globe, Plus, Table, Video } from "lucide-react";
 import { AudioLines } from "lucide-react";
 import { useDrag, useDrop } from "react-dnd";
@@ -40,11 +40,8 @@ interface ProjectMindMapViewProps {
   whiteBoards: WhiteBoard[];
   pdfs: Pdf[];
   epubs: Epub[];
-  addMenuItems: MenuProps["items"];
-  onAddMenuClick: (
-    info: Parameters<NonNullable<MenuProps["onClick"]>>[0],
-    parentProjectItemId?: number
-  ) => void;
+  addMenuItems: MenuEntryList;
+  onAddMenuClick: (key: string, parentProjectItemId?: number) => void;
   refreshProject: () => void;
   reloadTree: (options?: { silent?: boolean }) => void | Promise<void>;
   initialPan?: { x: number; y: number };
@@ -122,7 +119,6 @@ const ProjectMindMapItemActions = memo(
     refreshProject: ProjectMindMapViewProps["refreshProject"];
     startEditing: () => void;
   }) => {
-    const [moreMenuOpen, setMoreMenuOpen] = useState(false);
     const { moreMenuItems, handleMoreMenuClick, moreActionModals } = useProjectItemMoreActions({
       projectId: meta.projectId,
       projectItem: meta.projectItem,
@@ -137,15 +133,6 @@ const ProjectMindMapItemActions = memo(
       onRequestInlineTitleEdit: startEditing,
     });
 
-    useEffect(() => {
-      if (!moreMenuOpen) return;
-      const closeMenu = () => setMoreMenuOpen(false);
-      window.addEventListener("mindmap:canvas-pointer-down", closeMenu);
-      return () => {
-        window.removeEventListener("mindmap:canvas-pointer-down", closeMenu);
-      };
-    }, [moreMenuOpen]);
-
     if (!moreMenuItems || moreMenuItems.length === 0) {
       return (
         <>
@@ -157,21 +144,13 @@ const ProjectMindMapItemActions = memo(
 
     return (
       <>
-        <Dropdown
-          open={moreMenuOpen}
-          onOpenChange={setMoreMenuOpen}
-          menu={{
-            items: moreMenuItems,
-            onClick: info => {
-              info.domEvent.stopPropagation();
-              setMoreMenuOpen(false);
-              handleMoreMenuClick?.(info);
-            },
-          }}
-          trigger={["contextMenu"]}
+        <ContextMenu
+          content={renderMenuEntries(moreMenuItems, key => {
+            handleMoreMenuClick?.(key);
+          })}
         >
           {content}
-        </Dropdown>
+        </ContextMenu>
         {moreActionModals}
       </>
     );
@@ -340,7 +319,7 @@ const ProjectMindMapNodeActions = memo(
   }: {
     node: MindMapNodeData;
     context: MindMapNodeActionContext;
-    addMenuItems: MenuProps["items"];
+    addMenuItems: MenuEntryList;
     onAddMenuClick: ProjectMindMapViewProps["onAddMenuClick"];
   }) => {
     const meta = node.meta as ProjectMindMapNodeMeta;
@@ -365,32 +344,31 @@ const ProjectMindMapNodeActions = memo(
     }, [open]);
 
     return (
-      <Dropdown
+      <Menu
         open={open}
         onOpenChange={setOpen}
-        menu={{
-          items: addMenuItems,
-          onClick: info => {
-            setOpen(false);
-            onAddMenuClick(info, isProject ? undefined : meta.projectItemId);
-          },
-        }}
-        trigger={["click"]}
-      >
-        <Tooltip content={isProject ? "添加根节点" : "添加子节点"}>
+        align="end"
+        trigger={
           <button
+            type="button"
             data-mindmap-interactive
+            title={isProject ? "添加根节点" : "添加子节点"}
+            aria-label={isProject ? "添加根节点" : "添加子节点"}
             className={classnames(
               "absolute top-1/2 z-10 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full bg-gray-100 text-[11px] text-black/65 opacity-0 transition-opacity hover:bg-gray-200 hover:text-black/90 group-hover/mindmap-node:opacity-100 dark:bg-zinc-700 dark:text-white/70 dark:hover:bg-zinc-600 dark:hover:text-white",
               open && "opacity-100",
               sideClass
             )}
-            onClick={event => event.stopPropagation()}
           >
             <Plus />
           </button>
-        </Tooltip>
-      </Dropdown>
+        }
+      >
+        {renderMenuEntries(addMenuItems, key => {
+          setOpen(false);
+          onAddMenuClick(key, isProject ? undefined : meta.projectItemId);
+        })}
+      </Menu>
     );
   }
 );

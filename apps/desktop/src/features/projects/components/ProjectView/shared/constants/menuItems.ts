@@ -1,6 +1,6 @@
-import { MenuProps } from "antd";
+import type { MenuEntryList } from "../menuEntries";
 
-export const ADD_MENU_ITEMS: MenuProps["items"] = [
+export const ADD_MENU_ITEMS: MenuEntryList = [
   {
     key: "add-project-item",
     label: "添加文档",

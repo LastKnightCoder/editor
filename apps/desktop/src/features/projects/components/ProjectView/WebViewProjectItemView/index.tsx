@@ -9,9 +9,8 @@ import {
   Book,
   Volume2,
 } from "lucide-react";
-import { Dropdown } from "antd";
-import type { MenuProps } from "antd";
 import { useMemoizedFn } from "ahooks";
+import { renderMenuEntries, type MenuEntryList } from "../shared/menuEntries";
 import { Descendant, Path, Transforms } from "slate";
 import { Webview } from "@tau/shared";
 import type { WebviewRef } from "@tau/shared";
@@ -71,7 +70,7 @@ import { useProjectContext } from "../ProjectContext";
 import { ReactEditor } from "slate-react";
 import type { CommentElement, CustomEditor } from "@tau/editor/src";
 import contextMenuStyles from "@/components/WhiteBoard/index.module.less";
-import { toast, Tooltip, ConfirmDialog } from "@tau/ui";
+import { toast, Tooltip, ConfirmDialog, Menu } from "@tau/ui";
 
 // Icons
 const ClipIcon = () => (
@@ -1010,75 +1009,31 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     openPodcastModal();
   });
 
-  const moreMenuItems: MenuProps["items"] = [
-    {
-      key: "refresh",
-      label: (
-        <div className="flex items-center gap-2">
-          <RotateCw strokeWidth={1.75} />
-          <span>刷新网页</span>
-        </div>
-      ),
-    },
-    {
-      key: "browser",
-      label: (
-        <div className="flex items-center gap-2">
-          <ExternalLinkIcon />
-          <span>在浏览器中打开</span>
-        </div>
-      ),
-    },
-    {
-      key: "new-tab",
-      label: (
-        <div className="flex items-center gap-2">
-          <NewTabIcon />
-          <span>在新标签页打开</span>
-        </div>
-      ),
-    },
+  const moreMenuItems: MenuEntryList = [
+    { key: "refresh", label: "刷新网页", icon: <RotateCw strokeWidth={1.75} /> },
+    { key: "browser", label: "在浏览器中打开", icon: <ExternalLinkIcon /> },
+    { key: "new-tab", label: "在新标签页打开", icon: <NewTabIcon /> },
   ];
 
   if (notes.length > 0) {
     moreMenuItems.push(
-      { type: "divider" },
-      {
-        key: "note-rename",
-        label: (
-          <div className="flex items-center gap-2">
-            <PenLine />
-            <span>重命名笔记</span>
-          </div>
-        ),
-      },
-      {
-        key: "note-delete",
-        label: (
-          <div className="flex items-center gap-2 text-red-500">
-            <Trash2 />
-            <span>删除笔记</span>
-          </div>
-        ),
-      }
+      { key: "divider-1", label: "", divider: true },
+      { key: "note-rename", label: "重命名笔记", icon: <PenLine /> },
+      { key: "note-delete", label: "删除笔记", icon: <Trash2 />, danger: true }
     );
   }
 
   // 添加播客生成菜单项
   moreMenuItems.push(
-    { type: "divider" },
+    { key: "divider-2", label: "", divider: true },
     {
       key: "generate-podcast",
-      label: (
-        <div className="flex items-center gap-2">
-          <Volume2 strokeWidth={1.75} />
-          <span>{projectItem?.podcast ? "编辑播客" : "生成播客"}</span>
-        </div>
-      ),
+      label: projectItem?.podcast ? "编辑播客" : "生成播客",
+      icon: <Volume2 strokeWidth={1.75} />,
     }
   );
 
-  const handleMoreMenuClick = useMemoizedFn<NonNullable<MenuProps["onClick"]>>(({ key }) => {
+  const handleMoreMenuClick = useMemoizedFn((key: string) => {
     if (key === "refresh") {
       handleRefresh();
     } else if (key === "browser") {
@@ -1381,21 +1336,23 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             </Tooltip>
           )}
 
-          {/* 更多操作 */}
-          <Dropdown
-            menu={{ items: moreMenuItems, onClick: handleMoreMenuClick }}
-            trigger={["click"]}
-            placement="bottomRight"
-          >
-            <Tooltip content="更多操作" delay={500}>
+          {/* 更多操作（trigger 用原生 button + title：Menu.trigger 需单一透传元素，
+              Tooltip 包裹会吞注入） */}
+          <Menu
+            align="end"
+            trigger={
               <button
+                type="button"
+                title="更多操作"
+                aria-label="更多操作"
                 className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 transition-all hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
-                onClick={e => e.preventDefault()}
               >
                 <MoreHorizontal />
               </button>
-            </Tooltip>
-          </Dropdown>
+            }
+          >
+            {renderMenuEntries(moreMenuItems, key => void handleMoreMenuClick(key))}
+          </Menu>
         </div>
       </div>
 

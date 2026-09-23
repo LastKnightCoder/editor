@@ -1,6 +1,6 @@
 import { ReactNode, useMemo, useState } from "react";
 import { ConfirmDialog } from "@tau/ui";
-import type { MenuProps } from "antd";
+import type { MenuEntryList } from "../../shared/menuEntries";
 import { produce } from "immer";
 
 import ContentExportModal from "@/components/ContentExportModal";
@@ -60,8 +60,8 @@ interface UseProjectItemMoreActionsOptions {
 export const useProjectItemMoreActions = (
   options: UseProjectItemMoreActionsOptions
 ): {
-  moreMenuItems: MenuProps["items"];
-  handleMoreMenuClick: MenuProps["onClick"];
+  moreMenuItems: MenuEntryList;
+  handleMoreMenuClick: (key: string) => void;
   moreActionModals: ReactNode;
 } => {
   const {
@@ -99,7 +99,7 @@ export const useProjectItemMoreActions = (
     linkId: webLinkId,
   } = useProjectWebLinkMeta(projectItem);
 
-  const moreMenuItems: MenuProps["items"] = useMemo(
+  const moreMenuItems: MenuEntryList = useMemo(
     () => getProjectItemMoreMenuItems(projectItem),
     [projectItem?.projectItemType, projectItem?.refType, projectItem?.podcast]
   );
@@ -204,7 +204,7 @@ export const useProjectItemMoreActions = (
     setEditTitleModalOpen(false);
   });
 
-  const handleMoreMenuClick: MenuProps["onClick"] = useMemoizedFn(async ({ key }) => {
+  const handleMoreMenuClick = useMemoizedFn(async (key: string) => {
     if (!projectItem) return;
 
     if (key === "to-card") {

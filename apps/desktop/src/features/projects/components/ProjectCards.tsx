@@ -39,9 +39,11 @@ function MenuIcon({ icon: Icon }: { icon: LucideIcon }) {
   return <Icon className="size-[15px] shrink-0" strokeWidth={1.75} />;
 }
 
-/* hover 浮现的操作钮底色（surface 卡上的浅底小方块，同 ArticleCard CoverOps） */
+/* hover 浮现的操作钮：实底浮起小方块（bg-surface-hover 即「实底控件」档，浅主题略沉于卡面、
+   深主题浮于卡面）+ 发丝描边；封面图上的奶油底口径见 ArticleCard CoverOps，不适用纯色卡面。
+   hover 背景必须显式覆写为同一实底——IconButton 基底的半透明 bg-hover 会把实底冲掉 */
 const OPS_BTN =
-  "shadow-card size-[23px] rounded-[7px] bg-[rgba(255,248,239,0.86)] enabled:hover:bg-[#fff8ef]";
+  "shadow-card size-[23px] rounded-[7px] bg-surface-hover outline-1 -outline-offset-1 outline-line-1 enabled:hover:bg-surface-hover";
 
 /** 卡片 hover 反馈：lift 轻抬阴影（2026-09-23 用户校准——float 浮层档又大又重，
     新增 lift 档贴近纸面的浅晕）+ 1px 描边亮起（双主题都醒目，无位移） */
