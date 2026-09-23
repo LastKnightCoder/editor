@@ -186,6 +186,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
   const [titleEditable, setTitleEditable] = useState(false);
   const titleRef = useRef<EditTextHandle>(null);
+  const titleAnchorRef = useRef<HTMLDivElement>(null);
+  const [titleTruncated, setTitleTruncated] = useState(false);
   const [projectItem, setProjectItem] = useState<ProjectItem>();
   const [folderOpen, setFolderOpen] = useLocalStorageState<boolean>(
     `project-item-${databaseName}-${projectItemId}`,
@@ -280,6 +282,28 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     url: displayWebviewUrl,
     linkId: webLinkId,
   } = useProjectWebLinkMeta(projectItem);
+
+  useEffect(() => {
+    const titleElement = titleAnchorRef.current?.firstElementChild;
+    if (!(titleElement instanceof HTMLElement)) return;
+
+    const measure = () => {
+      setTitleTruncated(titleElement.scrollWidth > titleElement.clientWidth);
+    };
+    measure();
+    const resizeObserver = new ResizeObserver(measure);
+    resizeObserver.observe(titleElement);
+    const mutationObserver = new MutationObserver(measure);
+    mutationObserver.observe(titleElement, {
+      childList: true,
+      characterData: true,
+      subtree: true,
+    });
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+    };
+  }, [projectItem?.id, titleEditable]);
 
   useEffect(() => {
     if (itemId === projectItemId) {
@@ -835,6 +859,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           <div className="flex min-h-[30px] min-w-0 flex-1 items-center gap-[8px] overflow-hidden">
             <Tooltip
               content={projectItem.children.length > 0 ? (folderOpen ? "收起" : "展开") : undefined}
+              disabled={projectItem.children.length === 0}
               delay={1000}
             >
               <div
@@ -877,9 +902,13 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                     ? projectItemTitle
                     : projectItem.title
                 }
+                disabled={titleEditable || !titleTruncated}
                 delay={1000}
               >
-                <div className="w-full min-w-0">
+                <div
+                  ref={titleAnchorRef}
+                  className={classnames("min-w-0 max-w-full", titleEditable ? "w-full" : "w-fit")}
+                >
                   <EditText
                     className={classnames("w-full min-w-0 max-w-full truncate leading-[32px]", {
                       [`rounded border ${borderClass} whitespace-normal px-2`]: titleEditable,
