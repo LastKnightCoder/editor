@@ -9,7 +9,7 @@ import {
   Book,
   Volume2,
 } from "lucide-react";
-import { App, Dropdown } from "antd";
+import { Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { Descendant, Path, Transforms } from "slate";
@@ -71,7 +71,7 @@ import { useProjectContext } from "../ProjectContext";
 import { ReactEditor } from "slate-react";
 import type { CommentElement, CustomEditor } from "@tau/editor/src";
 import contextMenuStyles from "@/components/WhiteBoard/index.module.less";
-import { toast, Tooltip } from "@tau/ui";
+import { toast, Tooltip, ConfirmDialog } from "@tau/ui";
 
 // Icons
 const ClipIcon = () => (
@@ -160,7 +160,14 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const slateEditorRef = useRef<CustomEditor | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const projectItemEventBus = defaultProjectItemEventBus.createEditor();
-  const { modal } = App.useApp();
+  /* 命令式 modal.confirm → 声明式：待确认动作（重新解析覆盖 ×2 / 删除笔记） */
+  const [pendingConfirm, setPendingConfirm] = useState<null | {
+    title: string;
+    description: string;
+    danger?: boolean;
+    confirmText?: string;
+    action: () => void | Promise<void>;
+  }>(null);
   const themeColors = useThemeColors();
   useProjectContext(); // Keep context active
   const openInNewTab = useTabStore(state => state.openInNewTab);
@@ -608,12 +615,11 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     }
 
     if (savedWebClip) {
-      modal.confirm({
+      setPendingConfirm({
         title: "重新解析网页",
-        content: "已存在解析文档，重新解析将覆盖现有内容。确定要继续吗？",
-        okText: "确定",
-        cancelText: "取消",
-        onOk: () => doStartLocalClip(mode),
+        description: "已存在解析文档，重新解析将覆盖现有内容。确定要继续吗？",
+        confirmText: "确定",
+        action: () => doStartLocalClip(mode),
       });
       return;
     }
@@ -669,12 +675,11 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
     // 如果已存在解析文档，需要确认
     if (savedWebClip) {
-      modal.confirm({
+      setPendingConfirm({
         title: "重新解析网页",
-        content: "已存在解析文档，重新解析将覆盖现有内容。确定要继续吗？",
-        okText: "确定",
-        cancelText: "取消",
-        onOk: doStartClip,
+        description: "已存在解析文档，重新解析将覆盖现有内容。确定要继续吗？",
+        confirmText: "确定",
+        action: doStartClip,
       });
     } else {
       doStartClip();
@@ -1083,13 +1088,13 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     } else if (key === "note-rename" && notes[0]) {
       handleOpenRenameNote(notes[0]);
     } else if (key === "note-delete" && notes[0]) {
-      modal.confirm({
+      const noteId = notes[0].id;
+      setPendingConfirm({
         title: "删除笔记",
-        content: "删除后无法恢复，确定删除这篇笔记吗？",
-        okText: "删除",
-        okButtonProps: { danger: true },
-        cancelText: "取消",
-        onOk: () => handleDeleteNote(notes[0].id),
+        description: "删除后无法恢复，确定删除这篇笔记吗？",
+        danger: true,
+        confirmText: "删除",
+        action: () => handleDeleteNote(noteId),
       });
     } else if (key === "generate-podcast") {
       handleGeneratePodcast();
@@ -1487,6 +1492,21 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         onSuccess={handlePodcastSuccess}
         onCancel={closePodcastModal}
         saveText="保存到文档"
+      />
+      <ConfirmDialog
+        open={pendingConfirm !== null}
+        onOpenChange={next => {
+          if (!next) setPendingConfirm(null);
+        }}
+        title={pendingConfirm?.title ?? ""}
+        description={pendingConfirm?.description ?? ""}
+        danger={pendingConfirm?.danger}
+        confirmText={pendingConfirm?.confirmText ?? "确定"}
+        onConfirm={async () => {
+          const pending = pendingConfirm;
+          setPendingConfirm(null);
+          await pending?.action();
+        }}
       />
     </div>
   );

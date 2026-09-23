@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { Popconfirm } from "antd";
 import {
   FileText,
   AudioLines,
@@ -47,7 +46,7 @@ import useEditContent from "@/hooks/useEditContent";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import AddResourceModal from "./AddResourceModal";
 import ResourcePreviewPanel from "./ResourcePreview";
-import { toast, Tooltip, IconButton } from "@tau/ui";
+import { toast, Tooltip, IconButton, ConfirmDialog } from "@tau/ui";
 
 type PanelView = "resource-list" | "resource-preview" | "note-preview";
 type ResourceDropPosition = "before" | "after";
@@ -173,6 +172,8 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
 }) => {
   const rowRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<HTMLButtonElement>(null);
+  /* 删除确认（原 antd Popconfirm → ConfirmDialog） */
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const [{ isDragging }, drag] = useDrag(
     () => ({
@@ -297,24 +298,31 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
             <Pencil />
           </IconButton>
         </Tooltip>
-        <Popconfirm
-          key="delete"
-          title="确定删除此资源？"
-          onConfirm={() => onDelete(resource)}
-          onPopupClick={event => event.stopPropagation()}
-          okText="删除"
-          cancelText="取消"
-        >
-          <Tooltip content="删除">
-            <IconButton
-              title="删除"
-              className="text-danger hover:bg-danger-soft"
-              onClick={event => event.stopPropagation()}
-            >
-              <Trash2 />
-            </IconButton>
-          </Tooltip>
-        </Popconfirm>
+        <Tooltip content="删除">
+          <IconButton
+            title="删除"
+            className="text-danger hover:bg-danger-soft"
+            onClick={event => {
+              event.stopPropagation();
+              setDeleteConfirmOpen(true);
+            }}
+          >
+            <Trash2 />
+          </IconButton>
+        </Tooltip>
+        <ConfirmDialog
+          open={deleteConfirmOpen}
+          onOpenChange={setDeleteConfirmOpen}
+          title="删除资源"
+          context={resource.name}
+          description="确定删除此资源吗？"
+          danger
+          confirmText="删除"
+          onConfirm={() => {
+            setDeleteConfirmOpen(false);
+            onDelete(resource);
+          }}
+        />
       </div>
     </div>
   );

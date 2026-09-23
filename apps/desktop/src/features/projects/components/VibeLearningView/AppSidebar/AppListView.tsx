@@ -1,6 +1,5 @@
 import { memo, useEffect, useState, useMemo, forwardRef, useImperativeHandle } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { App } from "antd";
 import {
   ListOrdered,
   Highlighter,
@@ -42,7 +41,7 @@ import {
 import { formatDate } from "@/utils";
 import QuizTestModal from "./apps/QuizTestModal";
 import QuizEditModal from "./apps/QuizEditModal";
-import { toast } from "@tau/ui";
+import { toast, ConfirmDialog } from "@tau/ui";
 
 export interface AppListViewRef {
   refreshNotes: () => Promise<void>;
@@ -95,8 +94,13 @@ const AppListView = memo(
       onEditPPT,
       onEditReport,
     } = props;
-    const { modal } = App.useApp();
     const themeColors = useThemeColors();
+    /* 命令式 confirm → 声明式：待确认删除（笔记/测验集） */
+    const [pendingConfirm, setPendingConfirm] = useState<null | {
+      title: string;
+      description: string;
+      action: () => void | Promise<void>;
+    }>(null);
 
     const [notes, setNotes] = useState<VLNote[]>([]);
     const [loading, setLoading] = useState(true);
@@ -168,14 +172,10 @@ const AppListView = memo(
     // 删除笔记
     const handleDeleteNote = useMemoizedFn((e: React.MouseEvent, note: VLNote) => {
       e.stopPropagation(); // 阻止事件冒泡，避免触发编辑
-
-      modal.confirm({
+      setPendingConfirm({
         title: "删除笔记",
-        content: `确定要删除"${note.title || "无标题笔记"}"吗？`,
-        okText: "删除",
-        cancelText: "取消",
-        okButtonProps: { danger: true },
-        onOk: async () => {
+        description: `确定要删除"${note.title || "无标题笔记"}"吗？`,
+        action: async () => {
           try {
             await deleteVLNote(note.id);
             toast.success("笔记已删除");
@@ -244,13 +244,10 @@ const AppListView = memo(
     // 删除测验集
     const handleDeleteQuizSet = useMemoizedFn((e: React.MouseEvent, quizSet: VLQuizSet) => {
       e.stopPropagation();
-      modal.confirm({
+      setPendingConfirm({
         title: "删除测验集",
-        content: `确定要删除"${quizSet.name}"吗？相关的测验记录也会被删除。`,
-        okText: "删除",
-        cancelText: "取消",
-        okButtonProps: { danger: true },
-        onOk: async () => {
+        description: `确定要删除"${quizSet.name}"吗？相关的测验记录也会被删除。`,
+        action: async () => {
           try {
             await deleteQuizSet(quizSet.id);
             toast.success("测验集已删除");
@@ -713,6 +710,22 @@ const AppListView = memo(
 
         {/* 编辑弹窗 */}
         <QuizEditModal open={showEditModal} quizSet={selectedQuizSet} onClose={handleCloseEdit} />
+
+        <ConfirmDialog
+          open={pendingConfirm !== null}
+          onOpenChange={next => {
+            if (!next) setPendingConfirm(null);
+          }}
+          title={pendingConfirm?.title ?? ""}
+          description={pendingConfirm?.description ?? ""}
+          danger
+          confirmText="删除"
+          onConfirm={async () => {
+            const pending = pendingConfirm;
+            setPendingConfirm(null);
+            await pending?.action();
+          }}
+        />
       </div>
     );
   })
