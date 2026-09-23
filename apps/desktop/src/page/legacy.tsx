@@ -24,7 +24,6 @@ export const LEGACY_PAGES: Record<string, string> = {
   feed: "订阅",
   weread: "微信读书",
   resources: "资源管理",
-  projects: "项目",
   questions: "问题管理",
   skills: "Skill 管理",
   collaboration: "协作",
