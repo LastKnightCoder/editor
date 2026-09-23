@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import { Dropdown, Empty, MenuProps, Tooltip } from "antd";
+import { Dropdown, MenuProps } from "antd";
 import { Network, House, ListTree, Plus } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
@@ -77,7 +77,7 @@ import ProjectMindMapView from "./ProjectMindMapView";
 import { useProjectTreeData } from "./useProjectTreeData";
 import { useProjectContext } from "../ProjectContext";
 import { usePage } from "@/page/PageProvider";
-import { toast } from "@tau/ui";
+import { toast, Tooltip } from "@tau/ui";
 
 const Project = () => {
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
@@ -795,7 +795,7 @@ const Project = () => {
               </div>
             </div>
             <div className={styles.icons}>
-              <Tooltip title={sidebarView === "tree" ? "切换到思维导图" : "切换到树视图"}>
+              <Tooltip content={sidebarView === "tree" ? "切换到思维导图" : "切换到树视图"}>
                 <div
                   className={classnames(styles.icon, "mr-1 transition-colors")}
                   onClick={() => setSidebarView(sidebarView === "tree" ? "mindmap" : "tree")}
@@ -844,7 +844,9 @@ const Project = () => {
             ) : (
               <>
                 <If condition={project.children.length === 0}>
-                  <Empty description={"项目下暂无文档"} />
+                  <div className="text-ink-3 flex h-full items-center justify-center text-[12.5px]">
+                    项目下暂无文档
+                  </div>
                 </If>
                 <For
                   data={project.children}

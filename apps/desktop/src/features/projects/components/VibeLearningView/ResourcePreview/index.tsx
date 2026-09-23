@@ -1,5 +1,5 @@
 import { ArrowLeft } from "lucide-react";
-import { Button, Tooltip } from "antd";
+import { Tooltip, IconButton } from "@tau/ui";
 import type { VLResource } from "@/types/vibe-learning";
 import VideoPreview from "./VideoPreview";
 import AudioPreview from "./AudioPreview";
@@ -32,13 +32,10 @@ const ResourcePreviewPanel: React.FC<ResourcePreviewPanelProps> = ({ resource, o
     <div className="flex h-full flex-col overflow-hidden">
       {/* 头部 */}
       <div className="flex shrink-0 items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-        <Tooltip title="返回">
-          <Button
-            type="text"
-            size="small"
-            icon={<ArrowLeft strokeWidth={1.75} />}
-            onClick={onBack}
-          />
+        <Tooltip content="返回">
+          <IconButton title="返回" onClick={onBack}>
+            <ArrowLeft strokeWidth={1.75} />
+          </IconButton>
         </Tooltip>
         <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium">
           {resource.name}

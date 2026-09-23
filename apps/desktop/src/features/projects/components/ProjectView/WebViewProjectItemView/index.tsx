@@ -9,7 +9,7 @@ import {
   Book,
   Volume2,
 } from "lucide-react";
-import { App, Tooltip, Dropdown } from "antd";
+import { App, Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import { useMemoizedFn } from "ahooks";
 import { Descendant, Path, Transforms } from "slate";
@@ -71,7 +71,7 @@ import { useProjectContext } from "../ProjectContext";
 import { ReactEditor } from "slate-react";
 import type { CommentElement, CustomEditor } from "@tau/editor/src";
 import contextMenuStyles from "@/components/WhiteBoard/index.module.less";
-import { toast } from "@tau/ui";
+import { toast, Tooltip } from "@tau/ui";
 
 // Icons
 const ClipIcon = () => (
@@ -1248,7 +1248,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         {/* 标题区域 - 点击编辑 icon 弹窗编辑 */}
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <h1 className="m-0 truncate text-lg font-semibold leading-snug">{title}</h1>
-          <Tooltip title="编辑标题" mouseEnterDelay={0.5}>
+          <Tooltip content="编辑标题" delay={500}>
             <button
               className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-zinc-800 dark:hover:text-gray-300"
               onClick={handleEditTitle}
@@ -1262,7 +1262,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         <div className="ml-2 flex items-center gap-1">
           {showDocumentSidebar && (
             <>
-              <Tooltip title="显示/隐藏目录" mouseEnterDelay={0.5}>
+              <Tooltip content="显示/隐藏目录" delay={500}>
                 <button
                   className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(sidebarMode === "outline", "green")}`}
                   onClick={() => setSidebarMode(sidebarMode === "outline" ? null : "outline")}
@@ -1270,7 +1270,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                   <OutlineMenuIcon />
                 </button>
               </Tooltip>
-              <Tooltip title="显示/隐藏评论" mouseEnterDelay={0.5}>
+              <Tooltip content="显示/隐藏评论" delay={500}>
                 <button
                   className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(sidebarMode === "comments", "purple")}`}
                   onClick={() => setSidebarMode(sidebarMode === "comments" ? null : "comments")}
@@ -1281,7 +1281,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             </>
           )}
           {hasClipResult && (
-            <Tooltip title={docTooltip} mouseEnterDelay={0.5}>
+            <Tooltip content={docTooltip} delay={500}>
               <button
                 className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(docButtonActive, "green")}`}
                 onClick={handleToggleParsedDocument}
@@ -1290,7 +1290,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               </button>
             </Tooltip>
           )}
-          <Tooltip title={noteTooltip} mouseEnterDelay={0.5}>
+          <Tooltip content={noteTooltip} delay={500}>
             <button
               className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(noteButtonActive, "purple")} disabled:cursor-not-allowed disabled:opacity-50`}
               onClick={() => {
@@ -1310,8 +1310,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             onMouseLeave={scheduleCloseClipMenu}
           >
             <Tooltip
-              title={isAnyClipping ? "取消解析" : hasClipResult ? "重新解析" : "解析网页"}
-              mouseEnterDelay={0.5}
+              content={isAnyClipping ? "取消解析" : hasClipResult ? "重新解析" : "解析网页"}
+              delay={500}
             >
               <button
                 className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${
@@ -1366,7 +1366,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
           {/* 分屏视图 - 仅当有文档时显示 */}
           {hasAnyDocument && (
-            <Tooltip title={viewMode === "split" ? "退出分屏" : "分屏视图"} mouseEnterDelay={0.5}>
+            <Tooltip content={viewMode === "split" ? "退出分屏" : "分屏视图"} delay={500}>
               <button
                 className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(viewMode === "split", "purple")}`}
                 onClick={() => void handleToggleSplit()}
@@ -1382,7 +1382,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
             trigger={["click"]}
             placement="bottomRight"
           >
-            <Tooltip title="更多操作" mouseEnterDelay={0.5}>
+            <Tooltip content="更多操作" delay={500}>
               <button
                 className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 transition-all hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
                 onClick={e => e.preventDefault()}

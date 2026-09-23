@@ -1,5 +1,4 @@
 import { memo, useState, useRef } from "react";
-import { Empty, Spin } from "antd";
 import { Loader2 } from "lucide-react";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import useSettingStore from "@/stores/useSettingStore";
@@ -87,7 +86,7 @@ const VibeLearningViewContent = memo(({ projectId }: VibeLearningViewProps) => {
   if (loading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <Spin indicator={<Loader2 strokeWidth={1.75} />} />
+        <Loader2 className="size-5 animate-spin" strokeWidth={1.75} />
       </div>
     );
   }
@@ -95,7 +94,9 @@ const VibeLearningViewContent = memo(({ projectId }: VibeLearningViewProps) => {
   if (!project) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <Empty description="项目不存在或已被删除" />
+        <div className="bg-surface shadow-card rounded-tau-lg px-8 py-6 text-center">
+          <p className="text-ink-2 text-[14px]">项目不存在或已被删除</p>
+        </div>
       </div>
     );
   }

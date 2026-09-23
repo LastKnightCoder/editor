@@ -1,5 +1,4 @@
 import React, { useRef, useState } from "react";
-import { Flex, Tag } from "antd";
 import { useMemoizedFn } from "ahooks";
 import classnames from "classnames";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -207,16 +206,21 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
                     onClick={handleItemClick.bind(null, item)}
                     style={{ contentVisibility: "auto" }}
                   >
-                    <Flex gap={8} align="center" className="mb-2">
+                    <div className="mb-2 flex items-center gap-2">
                       <div>
-                        <Tag color={getTypeColor(item.type)}>{getTypeLabel(item.type)}</Tag>
+                        <span
+                          className="rounded-[5px] px-[7px] py-px text-[11px]"
+                          style={{ color: getTypeColor(item.type) }}
+                        >
+                          {getTypeLabel(item.type)}
+                        </span>
                       </div>
                       {item.title && (
                         <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold text-gray-800 dark:text-white">
                           {item.title}
                         </div>
                       )}
-                    </Flex>
+                    </div>
                     <div className="mb-2 flex gap-2.5 text-xs text-gray-500 dark:text-slate-400">
                       <span>更新于：{formatDate(item.updateTime, true)}</span>
                     </div>

@@ -2,7 +2,7 @@ import { useState, useEffect, memo, useRef, useMemo } from "react";
 import classnames from "classnames";
 import { useCreation, useLocalStorageState, useMemoizedFn } from "ahooks";
 import useUploadResource from "@/hooks/useUploadResource";
-import { Dropdown, MenuProps, Tooltip } from "antd";
+import { Dropdown, MenuProps } from "antd";
 import {
   getFileBaseName,
   readTextFile,
@@ -98,7 +98,7 @@ import WebViewSelectModal, { type WebViewSelectResult } from "@/components/WebVi
 
 import { createProjectCardListExtension } from "@/editor-extensions";
 import useProjectItemMoreActions from "./useProjectItemMoreActions";
-import { toast } from "@tau/ui";
+import { toast, Tooltip } from "@tau/ui";
 
 const TOP_DROP_INDICATOR_CLASS = [
   "before:content-['']",
@@ -833,8 +833,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         >
           <div className="flex min-h-[30px] min-w-0 flex-1 items-center gap-[8px] overflow-hidden">
             <Tooltip
-              title={projectItem.children.length > 0 ? (folderOpen ? "收起" : "展开") : undefined}
-              mouseEnterDelay={1}
+              content={projectItem.children.length > 0 ? (folderOpen ? "收起" : "展开") : undefined}
+              delay={1000}
             >
               <div
                 className={classnames(
@@ -871,13 +871,12 @@ const ProjectItem = memo((props: IProjectItemProps) => {
             </Tooltip>
             <div className="min-w-0 flex-1 overflow-hidden">
               <Tooltip
-                title={
+                content={
                   projectItem.projectItemType === EProjectItemType.WebView
                     ? projectItemTitle
                     : projectItem.title
                 }
-                mouseEnterDelay={1}
-                trigger={"hover"}
+                delay={1000}
               >
                 <div className="w-full min-w-0">
                   <EditText
