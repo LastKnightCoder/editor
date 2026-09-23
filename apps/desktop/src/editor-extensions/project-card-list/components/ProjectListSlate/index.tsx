@@ -9,9 +9,8 @@ import classnames from "classnames";
 import styles from "./index.module.less";
 import { MdDragIndicator } from "react-icons/md";
 import React from "react";
-import useTabStore from "@/stores/useTabStore";
-import { TabType } from "@/types/tab";
-import { useProjectContext } from "@/features/projects/components/ProjectView/ProjectContext";
+import { toast } from "@tau/ui";
+import { openContent } from "@/services/open-content";
 
 interface IProjectCardExtensionProps {
   element: ProjectCardListElement;
@@ -26,10 +25,12 @@ const DocumentListSlate = (props: IProjectCardExtensionProps) => {
     element,
   });
 
-  const navigateTo = useTabStore(state => state.navigateTo);
-  const { projectId } = useProjectContext();
-  const onClickItem = (item: ProjectItem) => {
-    navigateTo(TabType.ProjectDetail, { id: projectId, itemId: item.id }, `项目 - ${item.title}`);
+  const onClickItem = async (item: ProjectItem) => {
+    try {
+      await openContent("project-item", item.id);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "打开项目文档失败");
+    }
   };
 
   const { projectItemId } = element;

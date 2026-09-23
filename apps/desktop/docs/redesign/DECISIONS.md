@@ -311,6 +311,10 @@
 
 ## D-033 项目详情接入（三型 legacy 整体搬迁 · 以新版组织为准）
 
+### 2026-09-23 追记：清除已迁移入口的 Tab 导航
+
+用户要求修复现有导航问题且不考虑 legacy 兼容。已迁移入口统一接 Page：“新 Tab”改为“在应用内打开”，分栏语义移除；网页、内嵌白板、内容块预览增加实际 Page 承载，知识库内容沿用已有独立窗口入口。非 React 的 MCP／AI 服务由壳层注入 Page navigator 与栈快照，不创建虚拟 Tab store，也不让 page 框架反向依赖业务。现有 MCP 内容提供者只作序列化器复用；未实现的目标返回错误。旧 pages/layouts 随原删除锚点退役，不做兼容改造。详见 03 指南「Page 导航入口与服务层接线」。
+
 - 背景：project-detail 需承载三型工作台（文档树 / 数据表格 / Vibe Learning）。用户裁决（2026-09-23）：**以新版为准**——不造新版不需要的 Context/桥、不迁就 legacy（/legacy 详情可断，编译通过是唯一硬要求）、组织架构按新版合理方式（业务归业务域，不把业务塞共享层）、尽可能复用、不改功能不换皮；违规先指出后处理。
 - 选择：① **归置**——ProjectView（三型分派 + 文档树 + 八型 item 视图，72 文件）与 VibeLearningView（40 文件）整目录 `git mv` → `features/projects/components/`；跨域件提升：EditPdf + EpubReader → `@/components`（library 域将来复用）、InsertNoteToTreeModal + LoadingSpinner（白板/Feed/扩展笔记消费）、VideoNotePanel 闭包 9 文件 + extensions（白板嵌入视频笔记——**功能保留不删**，白板未迁移≠可删用户否决删子功能提案）、projectTree / mindMapTreeUtils → `@/utils`（batch-export / DocumentView 跨域消费的纯树工具）；② **传参**——不伪造 TabProvider 桥：入口 props 化（ProjectView `{projectId, itemId?}`、VibeLearningView `{projectId}`）、ProjectList 改读 ProjectContext，useTabParams 消费清零；③ **legacy 清理**——TabContent 删 ProjectView lazy 与 `case TabType.ProjectDetail`；`useTabStore(navigateTo)` 残留 7 处保留（新壳层下无效果但不崩溃，换皮时接 navigator）。
 - 违规随迁清单（换皮阶段处理）：antd 约 51 文件 / @ant-design/icons 19 文件（棘轮只减不增）；4 个 `.module.less`；A2 视觉违反（antd 皮、硬编码边框色、横线）；`DataTableProjectView` 与 `TableProjectItemView` 同构重复（合并）；`batch-export`（utils）仍依赖 `@/pages/DocumentView` 的 documentTree（知识库域迁移时收编）；`hooks/useDynamicExtensions`、`editor-extensions/ProjectListSlate` 引 features 域的 ProjectContext（hooks→features 无明文红线但方向倒挂，项目域 editor-extensions 归位时处理）。

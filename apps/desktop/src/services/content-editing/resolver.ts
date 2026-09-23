@@ -1,14 +1,11 @@
-import useTabStore from "@/stores/useTabStore";
+import { getActiveTab } from "@/mcp/tab-content/utils";
 import { TabType } from "@/types/tab";
 import { getCardById } from "@/commands/card";
 import { findOneArticle } from "@/commands/article";
 import { getDocumentItem } from "@/commands/document";
 import { getProjectItemById } from "@/commands/project";
 import { getContentById } from "@/commands/content";
-import {
-  getActiveEditingSession,
-  getActiveEditingSessionByContentId,
-} from "./active-editor-session";
+import { getActiveEditingSessionByContentId } from "./active-editor-session";
 import { createContentSnapshot } from "./snapshot";
 import { putSnapshot } from "./snapshot-store";
 import type { ContentSnapshot, ResolvedContentTarget } from "./types";
@@ -23,27 +20,13 @@ export const resolveContentTarget = async (payload?: {
     };
   }
 
-  const activeSession = getActiveEditingSession();
-  if (activeSession) {
-    return {
-      contentId: activeSession.contentId,
-      entityType: activeSession.entityType,
-      entityId: activeSession.entityId,
-      tabId: activeSession.tabId,
-      paneId: activeSession.paneId,
-      tabType: activeSession.tabType,
-      source: "active-session",
-    };
-  }
-
-  const state = useTabStore.getState();
-  const activePane = state.panes.find(pane => pane.id === state.activePaneId);
-  const activeTab = activePane?.tabs.find(tab => tab.id === activePane.activeTabId);
-  if (!activePane || !activeTab) {
+  const active = getActiveTab();
+  const activeTab = active?.tab;
+  if (!active || !activeTab) {
     throw new Error("TARGET_NOT_FOUND: 当前没有激活的编辑目标");
   }
 
-  if (activeTab.type === TabType.CardDetail) {
+  if (activeTab.type === "card-detail") {
     const cardId = Number((activeTab.params as { id?: number } | undefined)?.id);
     if (!cardId) {
       throw new Error("TARGET_NOT_FOUND: CardDetail 缺少 card id");
@@ -54,13 +37,13 @@ export const resolveContentTarget = async (payload?: {
       entityType: "card",
       entityId: card.id,
       tabId: activeTab.id,
-      paneId: activePane.id,
-      tabType: activeTab.type,
+      paneId: active.paneId,
+      tabType: TabType.CardDetail,
       source: "active-tab",
     };
   }
 
-  if (activeTab.type === TabType.ArticleDetail) {
+  if (activeTab.type === "article-detail") {
     const articleId = Number((activeTab.params as { id?: number } | undefined)?.id);
     if (!articleId) {
       throw new Error("TARGET_NOT_FOUND: ArticleDetail 缺少 article id");
@@ -71,13 +54,13 @@ export const resolveContentTarget = async (payload?: {
       entityType: "article",
       entityId: article.id,
       tabId: activeTab.id,
-      paneId: activePane.id,
-      tabType: activeTab.type,
+      paneId: active.paneId,
+      tabType: TabType.ArticleDetail,
       source: "active-tab",
     };
   }
 
-  if (activeTab.type === TabType.DocumentDetail) {
+  if (activeTab.type === "document-detail") {
     const itemId = Number((activeTab.params as { itemId?: number } | undefined)?.itemId);
     if (!itemId) {
       throw new Error("UNSUPPORTED_TAB: 文档总览没有可编辑 contentId，请进入具体文档项");
@@ -91,13 +74,13 @@ export const resolveContentTarget = async (payload?: {
       entityType: "document-item",
       entityId: item.id,
       tabId: activeTab.id,
-      paneId: activePane.id,
-      tabType: activeTab.type,
+      paneId: active.paneId,
+      tabType: TabType.DocumentDetail,
       source: "active-tab",
     };
   }
 
-  if (activeTab.type === TabType.ProjectDetail) {
+  if (activeTab.type === "project-detail") {
     const itemId = Number((activeTab.params as { itemId?: number } | undefined)?.itemId);
     if (!itemId) {
       throw new Error("UNSUPPORTED_TAB: 项目总览没有可编辑 contentId，请进入具体项目项");
@@ -111,8 +94,8 @@ export const resolveContentTarget = async (payload?: {
       entityType: "project-item",
       entityId: item.id,
       tabId: activeTab.id,
-      paneId: activePane.id,
-      tabType: activeTab.type,
+      paneId: active.paneId,
+      tabType: TabType.ProjectDetail,
       source: "active-tab",
     };
   }

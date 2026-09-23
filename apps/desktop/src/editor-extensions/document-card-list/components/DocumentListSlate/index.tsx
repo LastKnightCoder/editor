@@ -9,9 +9,8 @@ import classnames from "classnames";
 import styles from "./index.module.less";
 import { MdDragIndicator } from "react-icons/md";
 import React from "react";
-import useTabStore from "@/stores/useTabStore";
-import { TabType } from "@/types/tab";
-import { useDocumentContext } from "@/pages/DocumentView/DocumentContext";
+import { toast } from "@tau/ui";
+import { openContent } from "@/services/open-content";
 
 interface IDocumentCardExtensionProps {
   element: DocumentCardListElement;
@@ -20,28 +19,25 @@ interface IDocumentCardExtensionProps {
 }
 
 const DocumentListSlate = (props: IDocumentCardExtensionProps) => {
-  const { documentId } = useDocumentContext();
   const { attributes, children, element } = props;
-  const navigateTo = useTabStore((state) => state.navigateTo);
 
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
+    element,
+  });
 
-  const onClickItem = (item: IDocumentItem) => {
-    navigateTo(
-      TabType.DocumentDetail,
-      { id: documentId, itemId: item.id },
-      `知识库 - ${item.title}`,
-    );
+  const onClickItem = async (item: IDocumentItem) => {
+    try {
+      await openContent("document-item", item.id);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "打开知识库文档失败");
+    }
   };
 
   const { documentItemId } = element;
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
       className={classnames(styles.dropContainer, {
@@ -56,7 +52,7 @@ const DocumentListSlate = (props: IDocumentCardExtensionProps) => {
       <AddParagraph element={element as any} />
       <div
         contentEditable={false}
-        ref={(node) => {
+        ref={node => {
           drag(node);
         }}
         className={classnames(styles.dragHandler, {

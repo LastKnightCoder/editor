@@ -4,13 +4,9 @@ import { chatStreamCore } from "@/hooks/useChatLLM";
 import useSettingStore from "@/stores/useSettingStore";
 import type { ISetting } from "@/stores/useSettingStore";
 import useSkillStore from "@/stores/useSkillStore";
-import useTabStore from "@/stores/useTabStore";
-import { TabType } from "@/types/tab";
+import { openContent } from "./open-content";
+import { openPage } from "./page-navigation";
 import { produce } from "immer";
-import {
-  getProjectItemById,
-  getRootDocumentsByDocumentItemId,
-} from "@/commands";
 import { ensureToolingReady } from "@/tools";
 import { Role } from "@/constants";
 import type {
@@ -34,28 +30,17 @@ import {
   getFileExtension,
   showInFolder,
 } from "@/commands/file";
-import {
-  incrementResourceRefCount,
-  decrementResourceRefCount,
-} from "@/commands/resource";
+import { incrementResourceRefCount, decrementResourceRefCount } from "@/commands/resource";
 import { uploadResource } from "@/hooks/useUploadResource";
-import {
-  createContent,
-  getContentById,
-  updateContent,
-} from "@/commands/content";
+import { createContent, getContentById, updateContent } from "@/commands/content";
 import { buildCardFromContent, isContentIsCard } from "@/commands/card";
-import {
-  buildArticleFromContent,
-  isContentIsArticle,
-} from "@/commands/article";
+import { buildArticleFromContent, isContentIsArticle } from "@/commands/article";
 import { getContentLength, defaultContentEventBus } from "@/utils";
 import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
 import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import useExtNoteInsertStore from "@/stores/useExtNoteInsertStore";
 import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
 import { showAndFocusWindow } from "@/commands/window";
-import { getDiaryEntryById } from "@/commands/diary";
 import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
 import type { BlockData } from "@/types/block-preview";
 import { streamCodexChat } from "@/services/codex/codexChatStream";
@@ -130,17 +115,13 @@ let isInitialized = false;
 let disposeContentRemoteUpdateForwarder: (() => void) | null = null;
 const contentSubscriptionRegistry = new Map<string, Set<number>>();
 
-const setSubscribedContentIds = ({
-  subscriberId,
-  contentIds,
-}: ContentSubscriptionSetParams) => {
+const setSubscribedContentIds = ({ subscriberId, contentIds }: ContentSubscriptionSetParams) => {
   const normalizedIds = Array.from(
     new Set(
       contentIds.filter(
-        (contentId): contentId is number =>
-          Number.isInteger(contentId) && contentId > 0,
-      ),
-    ),
+        (contentId): contentId is number => Number.isInteger(contentId) && contentId > 0
+      )
+    )
   );
 
   if (!normalizedIds.length) {
@@ -168,17 +149,13 @@ const getLLMConfig = (feature: keyof ISetting["llmUsageSettings"] = "chat") => {
     return { providerConfig: null, modelConfig: null };
   }
 
-  const providerConfig = llmConfigs.find(
-    (config) => config.id === usageConfig.providerId,
-  );
+  const providerConfig = llmConfigs.find(config => config.id === usageConfig.providerId);
 
   if (!providerConfig) {
     return { providerConfig: null, modelConfig: null };
   }
 
-  const modelConfig = providerConfig.models?.find(
-    (model) => model.name === usageConfig.modelName,
-  );
+  const modelConfig = providerConfig.models?.find(model => model.name === usageConfig.modelName);
 
   return {
     providerConfig,
@@ -189,7 +166,7 @@ const getLLMConfig = (feature: keyof ISetting["llmUsageSettings"] = "chat") => {
 const executeBrowserTool = async (
   call: ToolCallPayload,
   requestId: string,
-  conversationKey?: string,
+  conversationKey?: string
 ): Promise<{ content: string } | null> => {
   if (!extToolClient) {
     return { content: "浏览器工具服务未连接" };
@@ -209,7 +186,7 @@ const executeBrowserTool = async (
           },
         },
       },
-      10 * 60 * 1000,
+      10 * 60 * 1000
     );
     return result as { content: string };
   } catch (error) {
@@ -221,9 +198,9 @@ const executeBrowserTool = async (
 const handleCodexGetAvailability = async () => resolveCodexAvailability();
 
 const mapBrowserToolsToCodexMcpTools = (
-  browserTools: ToolDefinition[] = [],
+  browserTools: ToolDefinition[] = []
 ): CodexMcpToolDefinition[] =>
-  browserTools.map((tool) => ({
+  browserTools.map(tool => ({
     name: tool.function.name,
     description: tool.function.description,
     parameters: tool.function.parameters,
@@ -243,7 +220,7 @@ const handleAiCodexChat = async (
   params: AiChatParams,
   server: WebSocketServer,
   finalMessages: RequestMessage[],
-  mergedSystemPrompt: string,
+  mergedSystemPrompt: string
 ) => {
   const {
     requestId,
@@ -257,15 +234,10 @@ const handleAiCodexChat = async (
     throw new Error("缺少可发送给 Codex 的消息");
   }
 
-  const rawCodexInput = await buildCodexInputFromMessageContent(
-    latestMessage.content,
-  );
+  const rawCodexInput = await buildCodexInputFromMessageContent(latestMessage.content);
   const codexInput = agentSessionId
     ? rawCodexInput
-    : prependCodexSystemPromptToInput(
-        rawCodexInput,
-        buildCodexSystemPrompt(mergedSystemPrompt),
-      );
+    : prependCodexSystemPromptToInput(rawCodexInput, buildCodexSystemPrompt(mergedSystemPrompt));
 
   if (Array.isArray(codexInput) && codexInput.length === 0) {
     throw new Error("缺少可发送给 Codex 的内容");
@@ -283,18 +255,14 @@ const handleAiCodexChat = async (
       agentSessionId,
       workingDirectory,
       externalMcpTools,
-      executeExternalMcpTool: (call) =>
-        executeBrowserTool(call, requestId, conversationKey),
-      onEvent: (event) => {
+      executeExternalMcpTool: call => executeBrowserTool(call, requestId, conversationKey),
+      onEvent: event => {
         if (event.type === "thread-started") {
           currentAgentSessionId = event.threadId;
-          server.sendNotification<AiStreamNotificationData>(
-            "ai.stream.agentSession",
-            {
-              requestId,
-              agentSessionId: event.threadId,
-            },
-          );
+          server.sendNotification<AiStreamNotificationData>("ai.stream.agentSession", {
+            requestId,
+            agentSessionId: event.threadId,
+          });
           return;
         }
 
@@ -309,13 +277,10 @@ const handleAiCodexChat = async (
 
         if (event.type === "reasoning-delta") {
           fullReasoning = event.reasoningText;
-          server.sendNotification<AiStreamNotificationData>(
-            "ai.stream.reasoning",
-            {
-              requestId,
-              reasoning: event.delta,
-            },
-          );
+          server.sendNotification<AiStreamNotificationData>("ai.stream.reasoning", {
+            requestId,
+            reasoning: event.delta,
+          });
           return;
         }
 
@@ -358,10 +323,7 @@ const handleAiCodexChat = async (
   };
 };
 
-const handleAiChat = async (
-  request: RpcRequestMessage,
-  server: WebSocketServer,
-) => {
+const handleAiChat = async (request: RpcRequestMessage, server: WebSocketServer) => {
   const params = request.params as unknown as AiChatParams;
   const {
     requestId,
@@ -404,19 +366,11 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
   }
 
   if (systemSections.length > 0) {
-    finalMessages = [
-      { role: Role.System, content: systemSections.join("\n\n") },
-      ...finalMessages,
-    ];
+    finalMessages = [{ role: Role.System, content: systemSections.join("\n\n") }, ...finalMessages];
   }
 
   if (agentType === "codex") {
-    return await handleAiCodexChat(
-      params,
-      server,
-      finalMessages,
-      systemSections.join("\n\n"),
-    );
+    return await handleAiCodexChat(params, server, finalMessages, systemSections.join("\n\n"));
   }
 
   // 获取 LLM 配置
@@ -427,9 +381,7 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
   }
 
   // 记录浏览器工具名称，用于路由
-  const browserToolNames = new Set(
-    (browserTools || []).map((t) => t.function.name),
-  );
+  const browserToolNames = new Set((browserTools || []).map(t => t.function.name));
 
   // 创建自定义工具执行器
   const executeToolCall =
@@ -439,13 +391,13 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
           context?: {
             conversationKey?: string;
             toolContext?: ToolExecutionMetadata;
-          },
+          }
         ): Promise<{ content: string } | null> => {
           if (browserToolNames.has(call.function.name)) {
             return await executeBrowserTool(
               call,
               requestId,
-              context?.conversationKey || conversationKey,
+              context?.conversationKey || conversationKey
             );
           }
           // 本地工具由 chatStreamCore 内部处理
@@ -484,7 +436,7 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
         reasoning: fetchText,
       });
     },
-    onToolCallsUpdate: (executions) => {
+    onToolCallsUpdate: executions => {
       server.sendNotification<AiStreamNotificationData>("ai.stream.tool", {
         requestId,
         executions,
@@ -499,7 +451,7 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
         reasoning,
       });
     },
-    onError: (error) => {
+    onError: error => {
       server.sendNotification<AiStreamNotificationData>("ai.stream.finish", {
         requestId,
         error: error.message,
@@ -525,10 +477,7 @@ const handleExtClipperExtract = async (request: RpcRequestMessage) => {
   });
 
   try {
-    const provider =
-      mode === "smart"
-        ? createSmartExtractProvider()
-        : createFullPageProvider();
+    const provider = mode === "smart" ? createSmartExtractProvider() : createFullPageProvider();
 
     const markdown = await collectClipStream(
       provider.clip({
@@ -536,7 +485,7 @@ const handleExtClipperExtract = async (request: RpcRequestMessage) => {
         url,
         title: title || "",
         options: { smartExtractClean: true },
-      }),
+      })
     );
 
     console.log("[aiServer] Clipper 提取成功:", {
@@ -664,18 +613,16 @@ const handleSettingsSetLlmUsage = async (request: RpcRequestMessage) => {
   };
 
   useSettingStore.setState(
-    produce((draft) => {
+    produce(draft => {
       if (!draft.setting.llmUsageSettings[params.feature]) {
         draft.setting.llmUsageSettings[params.feature] = {
           providerId: "",
           modelName: "",
         };
       }
-      draft.setting.llmUsageSettings[params.feature].providerId =
-        params.providerId;
-      draft.setting.llmUsageSettings[params.feature].modelName =
-        params.modelName;
-    }),
+      draft.setting.llmUsageSettings[params.feature].providerId = params.providerId;
+      draft.setting.llmUsageSettings[params.feature].modelName = params.modelName;
+    })
   );
 
   return { success: true };
@@ -764,10 +711,7 @@ const handleArticleBuildFromContent = async (request: RpcRequestMessage) => {
     contentId: number;
     title?: string;
   };
-  const article = await buildArticleFromContent(
-    params.contentId,
-    params.title || "",
-  );
+  const article = await buildArticleFromContent(params.contentId, params.title || "");
   // 通知桌面端文章列表刷新
   defaultArticleEventBus.publish("article:created", {
     article,
@@ -818,95 +762,30 @@ const handleBlockPreviewOpen = async (request: RpcRequestMessage) => {
     return { success: false, error: "缺少 block 数据" };
   }
 
-  const block = params.block;
-  const { openInNewTab } = useTabStore.getState();
-
   await showAndFocusWindow();
-  openInNewTab(
-    TabType.BlockPreview,
-    { block },
-    undefined,
-    block.metadata.title || `${block.type} 预览`,
-  );
-  return { success: true };
+  try {
+    openPage("block-preview", { id: params.block.id, block: JSON.stringify(params.block) });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
 };
 
-// ==================== Tab 操作 RPC 处理器 ====================
-
 const handleTabOpen = async (request: RpcRequestMessage) => {
-  const params = request.params as unknown as {
-    type: string;
-    id: number;
-    itemId?: number;
-    block?: BlockData;
-  };
-
-  const { type, id } = params;
-  const { openInNewTab } = useTabStore.getState();
-
-  // 确保桌面端窗口可见并聚焦
+  const params = request.params as unknown as { type: string; id: number; block?: BlockData };
   await showAndFocusWindow();
-
   try {
-    switch (type) {
-      case "card":
-        openInNewTab(TabType.CardDetail, { id });
-        break;
-      case "article":
-        openInNewTab(TabType.ArticleDetail, { id });
-        break;
-      case "project-item": {
-        // 获取项目项所属的项目
-        const projectItem = await getProjectItemById(id);
-        if (projectItem && projectItem.projects.length > 0) {
-          const projectId = projectItem.projects[0];
-          openInNewTab(TabType.ProjectDetail, { id: projectId, itemId: id });
-        } else {
-          openInNewTab(TabType.ProjectList);
-        }
-        break;
+    if (params.type === "block-preview") {
+      const block = params.block;
+      if (!block || !block.id || typeof block.content !== "string" || !block.metadata) {
+        return { success: false, error: "预览内容无效" };
       }
-      case "document-item": {
-        // 获取知识库项所属的知识库
-        const documents = await getRootDocumentsByDocumentItemId(id);
-        if (documents && documents.length > 0) {
-          const documentId = documents[0].id;
-          openInNewTab(TabType.DocumentDetail, { id: documentId, itemId: id });
-        } else {
-          openInNewTab(TabType.DocumentList);
-        }
-        break;
-      }
-      case "diary-daily": {
-        try {
-          const entry = await getDiaryEntryById(id);
-          openInNewTab(TabType.DailyNote, {
-            date: entry.date,
-          });
-        } catch {
-          openInNewTab(TabType.DailyNote);
-        }
-        break;
-      }
-      case "block-preview": {
-        if (!params.block) {
-          return { success: false, error: "缺少 block 数据" };
-        }
-        openInNewTab(
-          TabType.BlockPreview,
-          { block: params.block },
-          undefined,
-          params.block.metadata.title || `${params.block.type} 预览`,
-        );
-        break;
-      }
-      default:
-        console.warn(`[aiServer] 未知的 Tab 类型: ${type}`);
-        return { success: false, error: `未知的 Tab 类型: ${type}` };
+      openPage("block-preview", { id: block.id, block: JSON.stringify(block) });
+    } else {
+      await openContent(params.type, params.id);
     }
     return { success: true };
   } catch (error) {
-    console.error("[aiServer] 打开 Tab 失败:", error);
     return { success: false, error: (error as Error).message };
   }
 };
@@ -929,16 +808,13 @@ export const initAiServer = () => {
   aiServer = new WebSocketServer("aiServer");
 
   // 注册 ai.chat 处理器
-  aiServer.addRequestHandler("ai.chat", async (request) => {
+  aiServer.addRequestHandler("ai.chat", async request => {
     return await handleAiChat(request, aiServer!);
   });
-  aiServer.addRequestHandler(
-    "codex.getAvailability",
-    handleCodexGetAvailability,
-  );
+  aiServer.addRequestHandler("codex.getAvailability", handleCodexGetAvailability);
 
   // 注册 ext.clipper.extract 处理器
-  aiServer.addRequestHandler("ext.clipper.extract", async (request) => {
+  aiServer.addRequestHandler("ext.clipper.extract", async request => {
     return await handleExtClipperExtract(request);
   });
 
@@ -947,66 +823,30 @@ export const initAiServer = () => {
   aiServer.addRequestHandler("file.getHomeDir", handleFileGetHomeDir);
   aiServer.addRequestHandler("file.getEditorDir", handleFileGetEditorDir);
   aiServer.addRequestHandler("file.readBinaryFile", handleFileReadBinaryFile);
-  aiServer.addRequestHandler(
-    "file.getFileExtension",
-    handleFileGetFileExtension,
-  );
-  aiServer.addRequestHandler(
-    "file.remoteResourceToLocal",
-    handleFileRemoteResourceToLocal,
-  );
+  aiServer.addRequestHandler("file.getFileExtension", handleFileGetFileExtension);
+  aiServer.addRequestHandler("file.remoteResourceToLocal", handleFileRemoteResourceToLocal);
   aiServer.addRequestHandler("file.showInFolder", handleFileShowInFolder);
   aiServer.addRequestHandler("resource.upload", handleResourceUpload);
-  aiServer.addRequestHandler(
-    "resource.incrementRef",
-    handleResourceIncrementRef,
-  );
-  aiServer.addRequestHandler(
-    "resource.decrementRef",
-    handleResourceDecrementRef,
-  );
+  aiServer.addRequestHandler("resource.incrementRef", handleResourceIncrementRef);
+  aiServer.addRequestHandler("resource.decrementRef", handleResourceDecrementRef);
 
   // 注册设置相关 RPC 处理器
-  aiServer.addRequestHandler(
-    "settings.getLlmConfigs",
-    handleSettingsGetLlmConfigs,
-  );
-  aiServer.addRequestHandler(
-    "settings.getChatModelConfig",
-    handleSettingsGetChatModelConfig,
-  );
+  aiServer.addRequestHandler("settings.getLlmConfigs", handleSettingsGetLlmConfigs);
+  aiServer.addRequestHandler("settings.getChatModelConfig", handleSettingsGetChatModelConfig);
   aiServer.addRequestHandler("settings.setLlmUsage", handleSettingsSetLlmUsage);
   aiServer.addRequestHandler("settings.getSkills", handleSettingsGetSkills);
-  aiServer.addRequestHandler(
-    "settings.getEmbeddingModelInfo",
-    handleSettingsGetEmbeddingModelInfo,
-  );
+  aiServer.addRequestHandler("settings.getEmbeddingModelInfo", handleSettingsGetEmbeddingModelInfo);
 
   // 注册内容/卡片/文章 RPC 处理器
-  aiServer.addRequestHandler(
-    "settings.getCurrentDatabase",
-    handleSettingsGetCurrentDatabase,
-  );
+  aiServer.addRequestHandler("settings.getCurrentDatabase", handleSettingsGetCurrentDatabase);
   aiServer.addRequestHandler("content.create", handleContentCreate);
   aiServer.addRequestHandler("content.getById", handleContentGetById);
-  aiServer.addRequestHandler(
-    "content.subscription.set",
-    handleContentSubscriptionSet,
-  );
+  aiServer.addRequestHandler("content.subscription.set", handleContentSubscriptionSet);
   aiServer.addRequestHandler("content.update", handleContentUpdate);
-  aiServer.addRequestHandler(
-    "card.buildFromContent",
-    handleCardBuildFromContent,
-  );
-  aiServer.addRequestHandler(
-    "article.buildFromContent",
-    handleArticleBuildFromContent,
-  );
+  aiServer.addRequestHandler("card.buildFromContent", handleCardBuildFromContent);
+  aiServer.addRequestHandler("article.buildFromContent", handleArticleBuildFromContent);
   aiServer.addRequestHandler("card.isContentIsCard", handleCardIsContentIsCard);
-  aiServer.addRequestHandler(
-    "article.isContentIsArticle",
-    handleArticleIsContentIsArticle,
-  );
+  aiServer.addRequestHandler("article.isContentIsArticle", handleArticleIsContentIsArticle);
   aiServer.addRequestHandler("note.showInsertModal", handleNoteShowInsertModal);
   aiServer.addRequestHandler("mcp.manager.open", handleMcpManagerOpen);
   aiServer.addRequestHandler("block.preview.open", handleBlockPreviewOpen);
@@ -1018,9 +858,7 @@ export const initAiServer = () => {
   // 延迟连接，等待浏览器扩展连接
   setTimeout(() => {
     try {
-      extToolClient = new WebSocketClient(
-        `ws://localhost:${WS_PORT}/extToolServer`,
-      );
+      extToolClient = new WebSocketClient(`ws://localhost:${WS_PORT}/extToolServer`);
       console.log("[aiServer] 已连接到浏览器工具服务");
     } catch (error) {
       console.warn("[aiServer] 连接浏览器工具服务失败:", error);
@@ -1029,20 +867,17 @@ export const initAiServer = () => {
 
   disposeContentRemoteUpdateForwarder = defaultContentEventBus.subscribe(
     "content:updated",
-    (data) => {
+    data => {
       if (!aiServer) return;
       if (data.sourceUuid === "browser-extension") return;
       if (!hasAnySubscriberForContentId(data.content.id)) return;
 
-      aiServer.sendNotification<RemoteContentUpdatedNotificationData>(
-        "content.remoteUpdated",
-        {
-          contentId: data.content.id,
-          updateTime: data.content.updateTime,
-          sourceUuid: data.sourceUuid,
-        },
-      );
-    },
+      aiServer.sendNotification<RemoteContentUpdatedNotificationData>("content.remoteUpdated", {
+        contentId: data.content.id,
+        updateTime: data.content.updateTime,
+        sourceUuid: data.sourceUuid,
+      });
+    }
   );
 
   isInitialized = true;

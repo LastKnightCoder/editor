@@ -1,158 +1,109 @@
-import useTabStore from "@/stores/useTabStore";
+import { getPageNavigation } from "@/services/page-navigation";
+import { getPageMeta } from "@/page/core/pageMeta";
 import { tabContentRegistry } from "./registry";
-import type {
-  TabContentResponse,
-  PaneContentResponse,
-  TabContentOptions,
-} from "./types";
-import type { ITab, IPane } from "@/types/tab";
+import type { TabContentResponse, PaneContentResponse, TabContentOptions } from "./types";
+import { TabType, type ITab } from "@/types/tab";
 
-/**
- * 获取当前所有 Panes 的信息
- */
+const PANEL_ID = "page-stack";
+
+// 仅复用内容序列化器，页面身份和激活状态始终来自 Page 栈。
+const CONTENT_PROVIDERS: Record<string, TabType> = {
+  home: TabType.Home,
+  cards: TabType.CardList,
+  "card-detail": TabType.CardDetail,
+  articles: TabType.ArticleList,
+  "article-detail": TabType.ArticleDetail,
+  projects: TabType.ProjectList,
+  "project-detail": TabType.ProjectDetail,
+  webview: TabType.WebView,
+  "whiteboard-content": TabType.WhiteBoardDetail,
+};
+
 export function getCurrentPanels(): PaneContentResponse[] {
-  const state = useTabStore.getState();
-
-  return state.panes.map((pane) => ({
-    paneId: pane.id,
-    activeTabId: pane.activeTabId,
-    tabCount: pane.tabs.length,
-    direction: pane.direction,
-    splitRatio: pane.splitRatio,
-    groups: pane.groups?.map((group) => ({
-      id: group.id,
-      title: group.title,
-      color: group.color,
-      collapsed: group.collapsed,
-    })),
-    tabs: pane.tabs.map((tab) => ({
-      id: tab.id,
-      type: tab.type,
-      title: tab.title,
-      isActive: tab.id === pane.activeTabId,
-      hasParams: !!tab.params,
-    })),
-  }));
+  const { state } = getPageNavigation();
+  const active = state.back.at(-1);
+  return [
+    {
+      paneId: PANEL_ID,
+      activeTabId: active?.id ?? "",
+      tabCount: state.back.length,
+      tabs: state.back.map(entry => ({
+        id: entry.id,
+        type: entry.key,
+        title: getPageMeta(entry.key)?.label ?? entry.key,
+        isActive: entry.id === active?.id,
+        hasParams: Object.keys(entry.params).length > 0,
+      })),
+    },
+  ];
 }
 
-/**
- * 获取指定 Pane 下的所有 Tabs
- */
 export function getPaneTabs(paneId: string): PaneContentResponse | null {
-  const state = useTabStore.getState();
-  const pane = state.panes.find((p) => p.id === paneId);
+  return paneId === PANEL_ID ? getCurrentPanels()[0] : null;
+}
 
-  if (!pane) {
-    return null;
-  }
-
+export function getActiveTab() {
+  const entry = getPageNavigation().state.back.at(-1);
+  if (!entry) return null;
   return {
-    paneId: pane.id,
-    activeTabId: pane.activeTabId,
-    tabCount: pane.tabs.length,
-    direction: pane.direction,
-    splitRatio: pane.splitRatio,
-    groups: pane.groups?.map((group) => ({
-      id: group.id,
-      title: group.title,
-      color: group.color,
-      collapsed: group.collapsed,
-    })),
-    tabs: pane.tabs.map((tab) => ({
-      id: tab.id,
-      type: tab.type,
-      title: tab.title,
-      isActive: tab.id === pane.activeTabId,
-      hasParams: !!tab.params,
-    })),
+    paneId: PANEL_ID,
+    tab: {
+      id: entry.id,
+      type: entry.key,
+      title: getPageMeta(entry.key)?.label ?? entry.key,
+      params: entry.params,
+    },
+    isActive: true as const,
   };
 }
 
-/**
- * 获取当前激活的 Tab
- */
-export function getActiveTab(): {
-  paneId: string;
-  tab: ITab;
-  isActive: true;
-} | null {
-  const state = useTabStore.getState();
-  const activePane = state.panes.find((p) => p.id === state.activePaneId);
-
-  if (!activePane) {
-    return null;
-  }
-
-  const activeTab = activePane.tabs.find(
-    (t) => t.id === activePane.activeTabId,
-  );
-
-  if (!activeTab) {
-    return null;
-  }
-
-  return {
-    paneId: activePane.id,
-    tab: activeTab,
-    isActive: true,
-  };
-}
-
-/**
- * 获取指定 Tab 的内容
- */
 export async function getTabContent(
   tabId: string,
-  options?: TabContentOptions,
+  options?: TabContentOptions
 ): Promise<TabContentResponse | null> {
-  const state = useTabStore.getState();
-
-  // 查找 tab
-  let foundPane: IPane | null = null;
-  let foundTab: ITab | null = null;
-
-  for (const pane of state.panes) {
-    const tab = pane.tabs.find((t) => t.id === tabId);
-    if (tab) {
-      foundPane = pane;
-      foundTab = tab;
-      break;
-    }
-  }
-
-  if (!foundTab || !foundPane) {
-    return null;
-  }
-
-  // 获取对应的 provider
-  const provider = tabContentRegistry.getProvider(foundTab.type);
-
+  const { state } = getPageNavigation();
+  const entry = state.back.find(page => page.id === tabId);
+  if (!entry) return null;
+  const metadata = {
+    id: entry.id,
+    type: entry.key,
+    title: getPageMeta(entry.key)?.label ?? entry.key,
+    params: entry.params,
+    paneId: PANEL_ID,
+    isActive: state.back.at(-1)?.id === entry.id,
+  };
+  const type = CONTENT_PROVIDERS[entry.key];
+  const provider = type ? tabContentRegistry.getProvider(type) : null;
   if (!provider) {
-    throw new Error(`No provider registered for tab type: ${foundTab.type}`);
+    return {
+      metadata,
+      contentType: "object",
+      content: {
+        pageKey: entry.key,
+        params: entry.params,
+        description: "此页面尚未提供内容读取能力",
+      },
+    };
   }
-
-  // 获取内容
-  const isActive = foundTab.id === foundPane.activeTabId;
-  const content = await provider.getContent(foundTab, options);
-
-  // 添加 paneId 和 isActive 信息
-  content.metadata.paneId = foundPane.id;
-  content.metadata.isActive = isActive;
-
-  return content;
+  const params =
+    entry.key === "whiteboard-content"
+      ? { type: "content", whiteBoardContentId: entry.params.id }
+      : entry.params;
+  const content = await provider.getContent(
+    {
+      id: entry.id,
+      type,
+      title: metadata.title,
+      params: params as ITab["params"],
+    },
+    options
+  );
+  return { ...content, metadata: { ...content.metadata, ...metadata } };
 }
 
-/**
- * 获取当前激活 Tab 的内容
- */
 export async function getActiveTabContent(
-  options?: TabContentOptions,
+  options?: TabContentOptions
 ): Promise<TabContentResponse | null> {
-  const activeTabInfo = getActiveTab();
-
-  if (!activeTabInfo) {
-    return null;
-  }
-
-  return getTabContent(activeTabInfo.tab.id, options);
+  const active = getActiveTab();
+  return active ? getTabContent(active.tab.id, options) : null;
 }
