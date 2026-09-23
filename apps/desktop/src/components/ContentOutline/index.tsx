@@ -1,6 +1,5 @@
 /**
- * 文章目录（mockups/article-detail/plan-a4-quiet.html 定稿形态，重写而非复用
- * legacy EditorOutline + Outline 两级组件）。
+ * 正文公共目录：文章与项目文档共用。
  * 能力：点击条目在滚动容器内平滑定位到标题锚点；滚动时同步高亮当前节
  * （legacy 仅有点击滚动，滚动→高亮的同步是本轮新增）。
  * 锚点解析协议：默认按 header.id 查 DOM；编辑器场景由调用方传 resolveAnchor
@@ -9,7 +8,8 @@
 
 import { useEffect, useState } from "react";
 import type { Descendant } from "slate";
-import type { HeaderElement } from "@tau/editor/src";
+import type { EditorRef, HeaderElement } from "@tau/editor/src";
+import { ReactEditor } from "slate-react";
 import { getInlineElementText } from "@/utils";
 import { cn } from "@tau/ui";
 
@@ -20,7 +20,7 @@ export interface OutlineHeader {
   title: string;
 }
 
-interface ArticleOutlineProps {
+interface ContentOutlineProps {
   headers: OutlineHeader[];
   /** 滚动容器：高亮同步的观察根，也是点击定位的滚动目标 */
   scrollEl?: HTMLElement | null;
@@ -33,28 +33,39 @@ interface ArticleOutlineProps {
   className?: string;
 }
 
-/** 当前节 = 顶边位于容器顶部 25% 视线以下的最后一个标题 */
-const ACTIVE_LINE_RATIO = 0.25;
-
 /** 从 Slate 正文提取标题结构（提取口径复刻 legacy EditorOutline） */
-export function extractArticleHeaders(content: Descendant[] | null | undefined): OutlineHeader[] {
+export function extractContentHeaders(content: Descendant[] | null | undefined): OutlineHeader[] {
   if (!content) return [];
   const headers = content.filter(
     node => (node as { type?: string }).type === "header"
   ) as HeaderElement[];
   return headers.map((header, index) => ({
-    id: `article-h-${index}`,
+    id: `content-h-${index}`,
     level: header.level,
     title: header.children.map(getInlineElementText).join(""),
   }));
 }
 
-export function ArticleOutline({
+export function resolveEditorHeaderAnchor(
+  editor: ReturnType<EditorRef["getEditor"]> | undefined,
+  index: number
+): HTMLElement | null {
+  if (!editor) return null;
+  const node = editor.children.filter(node => (node as { type?: string }).type === "header")[index];
+  if (!node) return null;
+  try {
+    return ReactEditor.toDOMNode(editor, node as never);
+  } catch {
+    return null;
+  }
+}
+
+export function ContentOutline({
   headers,
   scrollEl,
   resolveAnchor,
   className,
-}: ArticleOutlineProps) {
+}: ContentOutlineProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const findAnchor = (header: OutlineHeader, index: number): HTMLElement | null => {
@@ -68,15 +79,26 @@ export function ArticleOutline({
     let raf = 0;
     const sync = () => {
       raf = 0;
-      const containerTop = scrollEl.getBoundingClientRect().top;
-      const line = containerTop + scrollEl.clientHeight * ACTIVE_LINE_RATIO;
+      const maxScrollTop = scrollEl.scrollHeight - scrollEl.clientHeight;
+      // 触底时选中末节，1px 容差兼容缩放取整。
+      if (maxScrollTop > 1 && scrollEl.scrollTop >= maxScrollTop - 1) {
+        setActiveId(headers[headers.length - 1]?.id ?? null);
+        return;
+      }
+      const containerTop = scrollEl.getBoundingClientRect().top + scrollEl.clientTop;
+      const containerBottom = containerTop + scrollEl.clientHeight;
       let current: string | null = null;
-      // headers 与正文顺序一致：找到最后一个越过视线的标题即停
+      // 优先最上方可见标题；没有可见标题时回落到视口上方最近的章节。
       for (let index = 0; index < headers.length; index += 1) {
         const anchor = findAnchor(headers[index], index);
         if (!anchor) continue;
-        if (anchor.getBoundingClientRect().top <= line) current = headers[index].id;
-        else break;
+        const rect = anchor.getBoundingClientRect();
+        if (rect.bottom <= containerTop) {
+          current = headers[index].id;
+          continue;
+        }
+        if (rect.top < containerBottom) current = headers[index].id;
+        break;
       }
       setActiveId(current);
     };
@@ -109,10 +131,9 @@ export function ArticleOutline({
   if (headers.length === 0) return null;
 
   return (
-    <nav aria-label="目录" className={cn("w-[208px]", className)}>
-      <div className="flex items-baseline gap-1.5 px-0.5 pb-2">
-        <b className="text-tau-sm font-semibold">目录</b>
-        <span className="font-tau-mono text-ink-3 text-[10px] tracking-wider">OUTLINE</span>
+    <nav aria-label="大纲" className={cn("w-[208px]", className)}>
+      <div className="px-0.5 pb-2">
+        <b className="text-tau-sm font-semibold">大纲</b>
       </div>
       {headers.map((header, index) => (
         <button
