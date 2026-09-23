@@ -76,10 +76,11 @@ import { ArticleHero } from "../components/ArticleHero";
 import { ArticleTags } from "../components/ArticleTags";
 import { ArticleSwitcher } from "../components/ArticleSwitcher";
 import {
-  ArticleOutline,
-  extractArticleHeaders,
+  ContentOutline,
+  extractContentHeaders,
+  resolveEditorHeaderAnchor,
   type OutlineHeader,
-} from "../components/ArticleOutline";
+} from "@/components/ContentOutline";
 
 /** copy utils 的 MessageApi 是结构类型，toast 同形适配（不引 antd message） */
 const toastAdapter = {
@@ -215,18 +216,7 @@ export function ArticleDetailView() {
      editor.children 脱钩，直接 toDOMNode 会抛错）——按序索引编辑器实时
      children 再定位 DOM（口径同编辑器自带 scrollHeaderIntoView 的实现） */
   const resolveAnchor = useCallback((_header: OutlineHeader, index: number): HTMLElement | null => {
-    const editor = editorRef.current?.getEditor();
-    if (!editor) return null;
-    const liveHeaders = editor.children.filter(
-      node => (node as { type?: string }).type === "header"
-    );
-    const node = liveHeaders[index];
-    if (!node) return null;
-    try {
-      return ReactEditor.toDOMNode(editor, node as never);
-    } catch {
-      return null;
-    }
+    return resolveEditorHeaderAnchor(editorRef.current?.getEditor(), index);
   }, []);
 
   /* 换封面：选择 → 上传资源 → 落库 → 本地态同步（口径同列表页 handleChangeCover） */
@@ -434,10 +424,10 @@ export function ArticleDetailView() {
     return <Loading />;
   }
 
-  const headers = extractArticleHeaders(editingArticle.content);
+  const headers = extractContentHeaders(editingArticle.content);
 
   return (
-    <div className="h-full">
+    <div className="h-full pr-4">
       {/* 滚动区：版心恒居中（hero 与正文列同轴）；状态栏与面包屑由壳层槽位渲染 */}
       <div
         ref={setScrollEl}
@@ -498,7 +488,7 @@ export function ArticleDetailView() {
 
           {/* 目录：贴正文右缘 sticky（不参与版心计算） */}
           <div className="sticky top-4 col-start-3 ml-7">
-            <ArticleOutline headers={headers} scrollEl={scrollEl} resolveAnchor={resolveAnchor} />
+            <ContentOutline headers={headers} scrollEl={scrollEl} resolveAnchor={resolveAnchor} />
           </div>
         </div>
       </div>

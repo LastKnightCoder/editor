@@ -18,6 +18,7 @@ interface EditorOutlineProps {
   onClickHeader: (index: number) => void;
 }
 
+/** @deprecated 待删除；新消费者使用公共 ContentOutline，迁移清单见 04「旧大纲」。 */
 const EditorOutline = (props: EditorOutlineProps) => {
   const { className, style, content, show, onClickHeader } = props;
 
@@ -38,10 +39,8 @@ const EditorOutline = (props: EditorOutlineProps) => {
 
   const headers = useMemo(() => {
     if (!content) return [];
-    const headers = content.filter(
-      (node) => node.type === "header",
-    ) as HeaderElement[];
-    return headers.map((header) => ({
+    const headers = content.filter(node => node.type === "header") as HeaderElement[];
+    return headers.map(header => ({
       level: header.level,
       title: header.children.map(getInlineElementText).join(""),
     }));
@@ -57,7 +56,7 @@ const EditorOutline = (props: EditorOutlineProps) => {
           {
             [styles.hide]: !show,
           },
-          className,
+          className
         )}
         style={style}
       >

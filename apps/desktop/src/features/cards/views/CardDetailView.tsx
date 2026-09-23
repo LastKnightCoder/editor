@@ -299,7 +299,7 @@ export function CardDetailView() {
     );
 
   return (
-    <div className="h-full">
+    <div className="h-full pr-4">
       <div className="edge-fade-scroll h-full overflow-y-auto">
         <div className="grid grid-cols-[1fr_minmax(0,640px)_1fr] items-start px-[26px] pb-8 pt-8">
           <article className="col-start-2 min-w-0">
