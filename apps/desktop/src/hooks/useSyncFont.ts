@@ -20,6 +20,13 @@ const TAU_TEXT_STEPS: Record<string, number> = {
 /** 排版基准 = --text-tau-body 的定义值，用户字号以它为缩放基准 */
 const BASE_FONT_SIZE = 13;
 
+/**
+ * 壳层 UI 阻尼系数（2026-09-23 用户裁决）：字号相对基准的偏移只按半速率传导到
+ * --tau-text-*（壳层界面）；编辑器内容仍经 --font-size 1:1 跟随。
+ * 例：字号 16 → 壳层 body 14.5px，字号 24 → 壳层 body 18.5px。
+ */
+const SHELL_UI_DAMPING = 0.5;
+
 const useSyncFont = () => {
   const fontSetting = useSettingStore(state => state.setting.fontSetting);
 
@@ -27,11 +34,11 @@ const useSyncFont = () => {
     const { chineseFont, englishFont, fontSize, codeFont } = fontSetting;
     const font = `${englishFont}, ${chineseFont}`;
     const root = document.documentElement;
-    const scale = fontSize / BASE_FONT_SIZE;
+    const scale = 1 + (fontSize / BASE_FONT_SIZE - 1) * SHELL_UI_DAMPING;
 
     // 用户字体/字号 = 应用级默认（root 覆盖，2026-09-21 用户裁决全局生效）：
     // 覆盖 --tau-font / --tau-font-mono 让 font-tau 全部消费者（壳层 UI）即时换字体；
-    // 字号按基准等比缩放 --text-tau-* 档位（排版层级保持，间距圆角不动）。
+    // 字号按基准阻尼缩放 --text-tau-* 档位（排版层级保持，间距圆角不动）。
     // --font / --font-size / --mono-font 是 legacy 样式与编辑器包的既有变量，一并写 root
     root.style.setProperty("--font", font);
     root.style.setProperty("--font-size", `${fontSize}px`);
