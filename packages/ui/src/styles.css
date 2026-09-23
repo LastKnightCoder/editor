@@ -78,17 +78,3 @@
     animation-duration: 0.01ms !important;
   }
 }
-
-/* lucide 图标基线（antd→lucide 迁移的对照落差）：
- * ① 粗细：lucide 默认 stroke-width="2" 偏粗，项目词表基线 1.75——只改写「默认 2」
- *    的实例（显式传 1.5/1.9/3 等特例保持作者意图，属性选择器不命中）；
- * ② 尺寸：lucide 默认 24px，而 antd icon 是 1em 随字号——无显式尺寸类
- *    （size-* / h-* / w-*）时兜底 1em 与上下文字号对齐；显式类/内联样式
- *    经 :not 排除，层叠不受影响。body 级浮层（portal）同覆盖。 */
-.lucide[stroke-width="2"] {
-  stroke-width: 1.75;
-}
-.lucide:not([class*="size-"]):not([class*="h-"]):not([class*="w-"]) {
-  width: 1em;
-  height: 1em;
-}
