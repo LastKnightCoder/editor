@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Segmented 设计稿 · Input 家族连体描边 — Tau 桌面端</title>
+<!--
+  【Segmented 设计稿：凹槽深底否决后的重设计——Input 家族「连体描边」语言】
+
+  背景与裁决链：
+  - 02 规范 §5.2：antd Tabs → 自研 Segmented（M1），「内容切换不该用 Tab——那是导航的事」
+  - 嵌入模型子页设计稿（settings/embedding-plans.html）首版取凹槽分段（bg-sunken 轨道 +
+    surface 胶囊滑块，macOS 语言）；2026-09-23 用户否决深底轨道——本页即重设计
+  - 新语言与 Input 方案 A「经典描边」同源：容器 = 一枚 hairline 描边控件（surface + line-1），
+    段间 hairline 分割，激活段 = accent-soft 轻染 + accent-text（与导航选中/chip.on 同一选中语言）；
+    零凹槽、零投影、零滑块——深底彻底退场，状态变化只发生在「色染 + 字重」维度
+  - 语义不变：radiogroup 单选（RadioGroup D-026 同源），Tab 一次进组、方向键移动即选择
+
+  本页重点演示：
+  1. 状态矩阵（默认/激活/hover/press/禁用段/全组禁用 × sm/md × 图标段/纯图标段）
+  2. 形制对比（连体描边推荐 vs 分离胶囊对照，可裁）
+  3. 键盘与组语义 + API 草案
+  4. 真实场景：嵌入模型来源（设置子页消费者）· 统计时间窗 · 视图密度（纯图标）
+-->
+<style>
+:root {
+  --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  --titlebar-h: 46px; --sidebar-w: 218px; --statusbar-h: 30px;
+}
+[data-theme="cream"] {
+  color-scheme: light;
+  --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #ece4d4; --bg-sunken: #e2d8c0;
+  --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09);
+  --bg-selected: rgba(217, 119, 87, 0.12);
+  --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+  --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+  --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%);
+  --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+  --focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+  --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+}
+[data-theme="cocoa"] {
+  color-scheme: dark;
+  --bg-page: #221d16; --bg-surface: #2e2820; --bg-group: #19150e; --bg-sunken: #100d08;
+  --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11);
+  --bg-selected: hsla(22, 62%, 65%, 0.2);
+  --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+  --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+  --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%);
+  --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+  --focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font); font-size: 13px; line-height: 1.65; color: var(--ink-1);
+  background: var(--bg-page); overflow: hidden; min-width: 1080px; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+.icon { width: 17px; height: 17px; stroke: currentColor; stroke-width: 1.75; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.app { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); grid-template-rows: 100vh;
+  grid-template-areas: "sidebar main"; }
+.main { grid-area: main; display: flex; flex-direction: column; min-width: 0; background: var(--bg-page); }
+.sidebar { grid-area: sidebar; padding: 0 10px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
+.sidebar-head { display: flex; align-items: center; gap: 8px; height: var(--titlebar-h); padding: 0 6px; margin-bottom: 6px; }
+.brand-mark { width: 24px; height: 24px; border-radius: 8px; background: linear-gradient(145deg, var(--accent-hover), var(--accent));
+  color: var(--ink-inverse); display: grid; place-items: center; font-size: 13px; font-weight: 600; }
+.brand-name { font-weight: 600; font-size: 13.5px; }
+.nav-label { font-size: 11px; color: var(--ink-3); padding: 8px 10px 6px; letter-spacing: 0.02em; }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px;
+  border-radius: 10px; color: var(--ink-2); text-align: left; }
+.nav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-item.active { background: var(--bg-selected); color: var(--accent-text); font-weight: 550; }
+.titlebar { height: var(--titlebar-h); flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+.icon-btn { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-2); }
+.icon-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.crumb { color: var(--ink-3); font-size: 12.5px; }
+.titlebar .spacer { flex: 1; }
+.win-controls { display: flex; gap: 6px; }
+.win-controls .dot { width: 12px; height: 12px; border-radius: 99px; background: var(--bg-sunken); border: 1px solid var(--line-1); }
+.home { flex: 1; overflow-y: auto; padding: 26px 40px 48px; }
+.home h1 { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+.home .date { color: var(--ink-3); font-size: 12.5px; margin-top: 2px; margin-bottom: 22px; max-width: 88ch; }
+.panel { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card); padding: 18px 20px; margin-bottom: 16px; }
+.panel h3 { font-size: 12px; font-weight: 600; color: var(--ink-3); margin-bottom: 12px; letter-spacing: 0.03em; }
+.statusbar { height: var(--statusbar-h); flex: none; display: flex; align-items: center; gap: 14px;
+  padding: 0 16px; font-size: 11.5px; color: var(--ink-3); border-top: 1px solid var(--line-1); }
+.row { display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap; }
+.note { font-size: 12px; color: var(--ink-3); margin-top: 10px; line-height: 1.8; }
+.note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+code.inline { font-family: var(--mono); font-size: 11px; background: var(--bg-group); padding: 1px 5px; border-radius: 5px; }
+.code-card { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 10px;
+  padding: 12px 14px; font-family: var(--mono); font-size: 11.5px; line-height: 1.75; color: var(--ink-2);
+  overflow-x: auto; white-space: pre; margin-top: 12px; }
+.code-card .tag { color: var(--accent-text); }
+.code-card .attr { color: var(--ink-1); }
+.code-card .cmt { color: var(--ink-3); }
+.kbd-row { display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-3); margin-top: 10px; }
+.kbd-row > span { display: inline-flex; align-items: center; gap: 6px; }
+.kbd-row kbd { padding: 1px 6px; border: 1px solid var(--line-1); border-bottom-width: 2px; border-radius: 5px;
+  background: var(--bg-surface); font-size: 11px; font-family: var(--mono); }
+.verdict { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-selected); color: var(--accent-text);
+  border: 1px solid var(--accent-soft); border-radius: 99px; padding: 1px 10px; font-size: 11px; font-weight: 600; vertical-align: 2px; }
+.cell { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.cell .cap { font-size: 11.5px; color: var(--ink-3); }
+
+/* ═══════════ Segmented 本体（连体描边语言） ═══════════ */
+/* 容器 = 一枚 hairline 控件（surface + line-1），段间 hairline 分割；
+   激活 = accent-soft 轻染 + accent-text；无轨道、无滑块、无投影 */
+.seg { display: inline-flex; align-items: stretch; border: 1px solid var(--line-1);
+  border-radius: 8px; background: var(--bg-surface); }
+.seg .it { position: relative; display: inline-flex; align-items: center; gap: 6px;
+  height: 26px; padding: 0 14px; font-size: 12px; font-weight: 500; color: var(--ink-2);
+  cursor: pointer; user-select: none;
+  transition: background 160ms var(--ease-out), color 160ms var(--ease-out); }
+.seg .it + .it { border-left: 1px solid var(--line-1); }
+.seg .it .icon { width: 13px; height: 13px; }
+.seg .it:hover:not(:has(input:checked)):not(:has(input:disabled)) { background: var(--bg-hover); color: var(--ink-1); }
+.seg .it:active:not(:has(input:checked)):not(:has(input:disabled)) { background: var(--bg-press); }
+.seg .it input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.seg .it input:disabled { cursor: default; }
+.seg .it:has(input:checked) { background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+.seg .it:has(input:disabled) { opacity: 0.55; }
+.seg .it:has(input:disabled) input { pointer-events: none; }
+.seg .it:has(input:focus-visible)::after { content: ""; position: absolute; inset: 2px;
+  border-radius: 5px; box-shadow: var(--focus-ring); }
+/* md 档（对齐 Button md 34 / radius 9） */
+.seg.md { border-radius: 9px; }
+.seg.md .it { height: 32px; padding: 0 16px; font-size: 12.5px; }
+.seg.md .it .icon { width: 14px; height: 14px; }
+/* 纯图标段：窄内衬，命中仍 ≥ 28 宽 */
+.seg .it.ic { padding: 0 8px; }
+.seg .it.ic .icon { width: 15px; height: 15px; }
+/* 全组禁用 */
+.seg.off { pointer-events: none; }
+.seg.off .it { opacity: 0.55; }
+
+/* 形制对照：分离胶囊（无连体描边，段各自成 pills，gap 6） */
+.seg.pills { border: none; background: none; gap: 6px; }
+.seg.pills .it { border: 1px solid transparent; border-radius: 8px; height: 28px; }
+.seg.pills .it + .it { border-left: 1px solid transparent; }
+.seg.pills .it:has(input:checked) { border-color: var(--accent-soft); }
+
+.plan-badge { position: fixed; left: 16px; bottom: 42px; z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.plan-badge .tag { display: inline-flex; align-items: center; gap: 7px; background: var(--bg-surface);
+  border: 1px solid var(--line-1); box-shadow: var(--shadow-card); border-radius: 99px; padding: 6px 13px;
+  font-size: 11.5px; color: var(--ink-2); }
+.plan-badge .tag b { color: var(--accent-text); font-weight: 600; }
+.plan-note { width: 342px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px;
+  box-shadow: var(--shadow-card); padding: 14px 16px; font-size: 12px; color: var(--ink-2); line-height: 1.75; display: none; }
+.plan-note.open { display: block; }
+.plan-note h4 { font-size: 12.5px; color: var(--ink-1); margin-bottom: 6px; }
+.plan-note em { color: var(--accent-text); font-style: normal; font-weight: 550; }
+.plan-note .try { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line-1); color: var(--ink-3); font-size: 11.5px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head"><div class="brand-mark">τ</div><div class="brand-name">Tau</div></div>
+    <div class="nav-label">工作台</div>
+    <button class="nav-item">今日</button>
+    <button class="nav-item">日程</button>
+    <button class="nav-item">待办</button>
+    <div class="nav-label">知识</div>
+    <button class="nav-item">卡片库</button>
+    <button class="nav-item">文章</button>
+    <button class="nav-item active">设置</button>
+  </aside>
+
+  <div class="main">
+    <header class="titlebar">
+      <span class="crumb">· 组件设计稿 · Segmented</span>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="themeBtn" title="切换主题"><span id="themeIcon"></span></button>
+      <div class="win-controls"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    </header>
+
+    <div class="home">
+      <h1>Segmented 设计稿 <span class="verdict">Input 家族 · 连体描边</span></h1>
+      <div class="date">凹槽深底否决后的重设计：容器是一枚 hairline 描边控件（surface + line-1，与 Input/Select 触发器同皮），
+        段间 hairline 分割，激活段 accent-soft 轻染 + accent-text——零轨道、零滑块、零投影，深底彻底退场；
+        语义仍是 radiogroup 单选（Tab 一次进组、方向键移动即选择）</div>
+
+      <div class="panel">
+        <h3>状态矩阵（全部可点选；Tab 进组后方向键，看段内 ring）</h3>
+        <div class="row">
+          <div class="cell">
+            <div class="seg">
+              <label class="it"><input type="radio" name="m1" value="a"><span>选项 A</span></label>
+              <label class="it"><input type="radio" name="m1" value="b"><span>选项 B</span></label>
+            </div>
+            <span class="cap">默认：surface + line-1，文字 ink-2</span>
+          </div>
+          <div class="cell">
+            <div class="seg">
+              <label class="it"><input type="radio" name="m2" value="a" checked><span>选项 A</span></label>
+              <label class="it"><input type="radio" name="m2" value="b"><span>选项 B</span></label>
+            </div>
+            <span class="cap">激活：accent-soft 轻染 + accent-text 600</span>
+          </div>
+          <div class="cell">
+            <div class="seg">
+              <label class="it"><input type="radio" name="m3" value="a" checked><span>选项 A</span></label>
+              <label class="it"><input type="radio" name="m3" value="b"><span>选项 B</span></label>
+              <label class="it"><input type="radio" name="m3" value="c"><span>选项 C</span></label>
+            </div>
+            <span class="cap">hover 未选段：淡墨 bg-hover（试试）</span>
+          </div>
+          <div class="cell">
+            <div class="seg">
+              <label class="it"><input type="radio" name="m4" value="a" checked disabled><span>锁定项</span></label>
+              <label class="it"><input type="radio" name="m4" value="b"><span>另一项</span></label>
+            </div>
+            <span class="cap">禁用段：降透明 55%，选中态保留</span>
+          </div>
+          <div class="cell">
+            <div class="seg off">
+              <label class="it"><input type="radio" name="m5" value="a" checked><span>选项 A</span></label>
+              <label class="it"><input type="radio" name="m5" value="b"><span>选项 B</span></label>
+            </div>
+            <span class="cap">全组禁用：一档压全组</span>
+          </div>
+          <div class="cell">
+            <div class="seg md">
+              <label class="it"><input type="radio" name="m6" value="a" checked><span>选项 A</span></label>
+              <label class="it"><input type="radio" name="m6" value="b"><span>选项 B</span></label>
+            </div>
+            <span class="cap">md 档：总高 34 / radius 9（对齐 Button md）</span>
+          </div>
+          <div class="cell">
+            <div class="seg">
+              <label class="it"><input type="radio" name="m7" value="a" checked><span class="icon" data-ic="hard"></span><span>本地模型</span></label>
+              <label class="it"><input type="radio" name="m7" value="b"><span class="icon" data-ic="globe"></span><span>API 模型</span></label>
+            </div>
+            <span class="cap">图标段：图标随文字同染（13px）</span>
+          </div>
+          <div class="cell">
+            <div class="seg">
+              <label class="it ic" title="列表"><input type="radio" name="m8" value="list" checked><span class="icon" data-ic="list"></span></label>
+              <label class="it ic" title="网格"><input type="radio" name="m8" value="grid"><span class="icon" data-ic="grid"></span></label>
+              <label class="it ic" title="看板"><input type="radio" name="m8" value="board"><span class="icon" data-ic="board"></span></label>
+            </div>
+            <span class="cap">纯图标段：aria-label 必填（title 演示）</span>
+          </div>
+        </div>
+        <div class="note">状态语法与 Input 家族同纪律：hover 只落在<em>未选段</em>（淡墨，激活段色染不被冲淡）、
+          press 加深一档（<code class="inline">bg-press</code>）、<em>focus-visible 才显 ring</em>（roving 跟随方向键，
+          inset 2px 不被容器圆角裁切）；禁用分两档——单项（保留已选态的锁定）与全组（<code class="inline">fieldset disabled</code> 压全组）。
+          激活语义与侧栏导航项（<code class="inline">bg-selected + accent-text</code>）同源：选中是「轻染」不是「浮起」。</div>
+      </div>
+
+      <div class="panel">
+        <h3>形制对比 · 连体描边（推荐） vs 分离胶囊（对照，可裁）</h3>
+        <div class="row">
+          <div class="cell">
+            <div class="seg">
+              <label class="it"><input type="radio" name="f1" value="a" checked><span>连体描边</span></label>
+              <label class="it"><input type="radio" name="f1" value="b"><span>另一项</span></label>
+              <label class="it"><input type="radio" name="f1" value="c"><span>第三项</span></label>
+            </div>
+            <span class="cap">连体：一枚描边控件，控件感最强</span>
+          </div>
+          <div class="cell">
+            <div class="seg pills">
+              <label class="it"><input type="radio" name="f2" value="a" checked><span>分离胶囊</span></label>
+              <label class="it"><input type="radio" name="f2" value="b"><span>另一项</span></label>
+              <label class="it"><input type="radio" name="f2" value="c"><span>第三项</span></label>
+            </div>
+            <span class="cap">分离：更轻，但读作筛选 chips 而非一枚控件</span>
+          </div>
+        </div>
+        <div class="note">推荐 <em>连体描边</em>：整段共享一条 hairline 外框，「这是一枚控件」的边界由描边一次说清，
+          与 Input / Select 触发器 / Radio 环同一家族语法；激活轻染在描边内完成，不需要轨道承托。
+          分离胶囊留此对照——它更接近 publish 子页的 chip.on 语言，适合「筛选标签」场景；
+          若裁决翻转，组件层只换容器与段的两个类。段数口径不变：<em>2–5 段</em>，再多该用 Select（值切换）。</div>
+      </div>
+
+      <div class="panel">
+        <h3>键盘与组语义</h3>
+        <div class="kbd-row">
+          <span><kbd>Tab</kbd> 一次进组（到达选中项；无选中则首个可用项）</span>
+          <span><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> 移动即选择（原生 roving，环形环绕）</span>
+          <span>点击段任意处即选；纯图标段命中 ≥ 28 宽</span>
+          <span>选择即生效（即时语义，无 Space 二次确认）</span>
+        </div>
+        <div class="code-card"><span class="cmt">// API 草案：Segmented 管组语义（radiogroup），Item 是分段（原生 input[type=radio] 隐藏实现，与 RadioGroup D-026 同源）</span>
+<span class="tag">&lt;Segmented</span>
+  <span class="attr">value</span>={source} <span class="attr">onValueChange</span>={setSource}
+  <span class="attr">size</span>="sm"                                       <span class="cmt">// sm 28（默认）/ md 34；radius 8 / 9</span>
+<span class="tag">&gt;</span>
+  <span class="tag">&lt;Segmented.Item</span> <span class="attr">value</span>="local" <span class="attr">icon</span>={HardDrive} <span class="attr">label</span>="本地模型" <span class="tag">/&gt;</span>
+  <span class="tag">&lt;Segmented.Item</span> <span class="attr">value</span>="api" <span class="attr">icon</span>={Globe} <span class="attr">label</span>="API 模型" <span class="attr">disabled</span> <span class="tag">/&gt;</span>
+<span class="tag">&lt;/Segmented&gt;</span>
+<span class="cmt">// 组级 disabled（fieldset）压单项；无 loading / error 态——它不是表单输入，是即时的视图切换</span>
+<span class="cmt">// 纯图标段：label 省略时 aria-label 必填；计数徽标不建（数据库视图胶囊 D-027 的职责）</span>
+<span class="cmt">// antd 对照：Tabs → Segmented（02 §5.2）；Tabs.TabPane 无对应物——内容区归调用方渲染，组件只管切换器</span></div>
+      </div>
+
+      <div class="panel">
+        <h3>真实场景 · 嵌入模型来源（设置子页消费者）· 统计时间窗（md）· 视图密度（纯图标）</h3>
+        <div class="row" style="gap: 48px">
+          <div class="cell">
+            <div class="seg">
+              <label class="it"><input type="radio" name="emb-src" value="local" checked><span class="icon" data-ic="hard"></span><span>本地模型</span></label>
+              <label class="it"><input type="radio" name="emb-src" value="api"><span class="icon" data-ic="globe"></span><span>API 模型</span></label>
+            </div>
+            <span class="cap">嵌入模型子页 · 页题下形态切换（sm · 图标段）</span>
+          </div>
+          <div class="cell">
+            <div class="seg md">
+              <label class="it"><input type="radio" name="stats-range" value="day"><span>日</span></label>
+              <label class="it"><input type="radio" name="stats-range" value="week" checked><span>周</span></label>
+              <label class="it"><input type="radio" name="stats-range" value="month"><span>月</span></label>
+              <label class="it"><input type="radio" name="stats-range" value="year"><span>年</span></label>
+            </div>
+            <span class="cap">统计页 · 时间窗（md · 四段纯文字）</span>
+          </div>
+          <div class="cell">
+            <div class="seg">
+              <label class="it ic" title="列表视图"><input type="radio" name="view-density" value="list" checked><span class="icon" data-ic="list"></span></label>
+              <label class="it ic" title="网格视图"><input type="radio" name="view-density" value="grid"><span class="icon" data-ic="grid"></span></label>
+              <label class="it ic" title="看板视图" disabled><input type="radio" name="view-density" value="board"><span class="icon" data-ic="board"></span></label>
+            </div>
+            <span class="cap">卡片库 · 视图密度（纯图标 · 含禁用段）</span>
+          </div>
+        </div>
+        <div class="note">三个场景覆盖三种取形：<em>图标段</em>（设置子页的形态切换，正是凹槽版被否决的消费者）、
+          <em>md 纯文字四段</em>（时间窗，段数上限内的典型）、<em>纯图标</em>（视图密度，禁用段演示看板未开放）。
+          切换经底部状态栏回报 <code class="inline">onValueChange</code>；真实接线时嵌入模型页的切换仍走
+          ConfirmDialog 确认（后台重建向量索引），组件本身不弹窗。</div>
+      </div>
+    </div>
+
+    <div class="statusbar"><span>Tau v2 · 重构中</span><span id="statusInfo">Segmented · Input 家族连体描边 · radiogroup roving</span></div>
+  </div>
+</div>
+
+<div class="plan-badge">
+  <button class="tag" id="noteToggle"><b>Segmented</b> 连体描边 · 交互说明</button>
+  <div class="plan-note" id="planNote">
+    <h4>Segmented（Input 家族 · 连体描边）</h4>
+    容器 = surface + line-1 的 hairline 控件，段间 hairline 分割；激活段 accent-soft 轻染 +
+    accent-text 600，hover 未选段淡墨、press 加深、focus-visible ring 随 roving 走；
+    无轨道无滑块无投影——凹槽深底（macOS 语言）已被否决，本页为重设计定稿候选。
+    radiogroup 单选语义（Tab 一次进组、方向键移动即选），sm 28 / md 34，段数 2–5。
+    <div class="try">试试：状态矩阵逐组点选（hover 未选段看淡墨）；Tab 进组后 ←→ 移动；
+      图标段与纯图标段；形制对比里两枚对照；真实场景三组切换看状态栏回报。</div>
+  </div>
+</div>
+
+<script>
+const P = {
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>',
+  moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  hard: '<line x1="22" y1="12" x2="2" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+  list: '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+  board: '<rect x="3" y="3" width="18" height="5" rx="1"/><rect x="3" y="13" width="12" height="5" rx="1"/>',
+};
+document.querySelectorAll("[data-ic]").forEach(el =>
+  el.innerHTML = `<svg class="icon" viewBox="0 0 24 24">${P[el.dataset.ic] || ""}</svg>`);
+let theme = "cream";
+function setTheme(t) {
+  theme = t;
+  document.documentElement.dataset.theme = t;
+  document.getElementById("themeIcon").innerHTML =
+    `<svg class="icon" style="width:15px;height:15px" viewBox="0 0 24 24">${P[t === "cream" ? "moon" : "sun"]}</svg>`;
+}
+document.getElementById("themeBtn").addEventListener("click", () => setTheme(theme === "cream" ? "cocoa" : "cream"));
+setTheme("cream");
+const status = (t) => document.getElementById("statusInfo").textContent = t;
+document.querySelectorAll(".seg:not(.off) input").forEach((i) =>
+  i.addEventListener("change", () => {
+    const seg = i.closest(".seg");
+    const label = seg.querySelector(`label:has(input[value="${i.value}"])`)?.textContent.trim() || i.value;
+    status(`onValueChange → "${i.value}"（${label}）`);
+  })
+);
+document.getElementById("noteToggle").addEventListener("click", () => document.getElementById("planNote").classList.toggle("open"));
+</script>
+</body>
+</html>
