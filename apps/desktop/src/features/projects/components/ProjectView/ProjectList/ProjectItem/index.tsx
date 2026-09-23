@@ -26,7 +26,6 @@ import SelectEpubModal from "@/components/SelectEpubModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import useProjectsStore from "@/stores/useProjectsStore";
 import useSettingStore from "@/stores/useSettingStore";
-import useTabStore from "@/stores/useTabStore";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useDragAndDrop, { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
 import useAddRefCard from "./useAddRefCard";
@@ -63,7 +62,6 @@ import {
   Pdf,
   Epub,
 } from "@/types";
-import { TabType } from "@/types/tab";
 import usePdfsStore from "@/stores/usePdfsStore";
 import useEpubsStore from "@/stores/useEpubsStore";
 import { importLocalBook } from "../../shared/utils/bookImport";
@@ -179,9 +177,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const projectItemEventBus = useCreation(() => defaultProjectItemEventBus.createEditor(), []);
   const uploadResource = useUploadResource();
 
-  const { projectId, itemId } = useProjectContext();
+  const { projectId, itemId, setActiveItemId } = useProjectContext();
   const databaseName = useSettingStore.getState().setting.database.active;
-  const navigateTo = useTabStore(state => state.navigateTo);
   const { hoverClass, activeClass, borderClass } = useThemeColors();
 
   const [titleEditable, setTitleEditable] = useState(false);
@@ -830,18 +827,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           onClick={async () => {
             const activeProjectItem = await getProjectItemById(projectItem.id);
             if (!activeProjectItem) return;
-            const displayTitle =
-              projectItem.projectItemType === EProjectItemType.WebView
-                ? projectItemTitle
-                : projectItem.title;
-            navigateTo(
-              TabType.ProjectDetail,
-              {
-                id: projectId,
-                itemId: projectItem.id,
-              },
-              `项目 - ${displayTitle || `#${projectItem.id}`}`
-            );
+            setActiveItemId?.(projectItem.id);
           }}
         >
           <div className="flex min-h-[30px] min-w-0 flex-1 items-center gap-[8px] overflow-hidden">
