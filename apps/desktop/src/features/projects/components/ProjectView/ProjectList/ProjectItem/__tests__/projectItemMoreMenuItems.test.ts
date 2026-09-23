@@ -27,6 +27,7 @@ describe("getProjectItemMoreMenuItems", () => {
 
     expect(getKeys(items)).toEqual([
       "scene",
+      "collaboration",
       "copy",
       "export",
       "generate",
@@ -35,6 +36,7 @@ describe("getProjectItemMoreMenuItems", () => {
     ]);
     expect(getKeys(items.find(item => item.key === "scene")!.children!)).toEqual([
       "presentation-mode",
+      "immersive-mode",
     ]);
     expect(getKeys(items.find(item => item.key === "generate")!.children!)).toEqual([
       "to-card",

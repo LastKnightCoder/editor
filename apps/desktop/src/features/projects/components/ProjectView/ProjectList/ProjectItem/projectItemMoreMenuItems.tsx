@@ -12,6 +12,8 @@ import {
   Image as ImageIcon,
   Layers,
   MessageSquare,
+  Maximize2,
+  Share2,
   Play,
   Presentation,
   Sparkles,
@@ -49,6 +51,7 @@ export const getProjectItemMoreMenuItems = (
         icon: menuIcon(Presentation),
         children: compactMenuItems([
           { key: "presentation-mode", label: "演示模式", icon: menuIcon(Play) },
+          { key: "immersive-mode", label: "沉浸模式", icon: menuIcon(Maximize2) },
           // 独立窗口为 Electron 专属能力，Web 端不展示入口
           isElectron
             ? {
@@ -59,6 +62,7 @@ export const getProjectItemMoreMenuItems = (
             : undefined,
         ]),
       },
+      { key: "collaboration", label: "发起协作", icon: menuIcon(Share2) },
       {
         key: "copy",
         label: "复制",

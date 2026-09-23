@@ -40,6 +40,7 @@ import { TabType } from "@/types/tab";
 import { useMemoizedFn } from "ahooks";
 import { getProjectItemMoreMenuItems } from "./projectItemMoreMenuItems";
 import { toast } from "@tau/ui";
+import { useProjectContext } from "../../ProjectContext";
 
 interface UseProjectItemMoreActionsOptions {
   projectId: number;
@@ -76,6 +77,7 @@ export const useProjectItemMoreActions = (
     getTitleHandle,
     onRequestInlineTitleEdit,
   } = options;
+  const { requestDocumentAction } = useProjectContext();
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const [epubExportModalOpen, setEpubExportModalOpen] = useState(false);
@@ -207,7 +209,12 @@ export const useProjectItemMoreActions = (
   const handleMoreMenuClick = useMemoizedFn(async (key: string) => {
     if (!projectItem) return;
 
-    if (key === "to-card") {
+    if (key === "immersive-mode" || key === "collaboration") {
+      requestDocumentAction?.({
+        itemId: projectItem.id,
+        type: key === "immersive-mode" ? "immersive" : "collaboration",
+      });
+    } else if (key === "to-card") {
       const freshProjectItem = await getProjectItemById(projectItem.id);
       if (!freshProjectItem) return;
       const { createCardFromProjectItem } = await import("@/commands");

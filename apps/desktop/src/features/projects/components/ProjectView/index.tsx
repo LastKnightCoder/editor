@@ -3,8 +3,8 @@ import EditProjectView from "./EditProjectView";
 import DataTableProjectView from "./DataTableProjectView";
 import VibeLearningView from "../VibeLearningView";
 import { Button } from "@tau/ui";
-import ProjectContext from "./ProjectContext";
-import { useEffect, useRef, useState } from "react";
+import ProjectContext, { type ProjectDocumentAction } from "./ProjectContext";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Project, EProjectType } from "@/types";
 import { getProjectById } from "@/commands";
 import { Loader2 } from "lucide-react";
@@ -19,6 +19,19 @@ interface ProjectViewProps {
 
 const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
   const { navigator } = usePage();
+  const [documentAction, setDocumentAction] = useState<ProjectDocumentAction | null>(null);
+  const clearDocumentAction = useCallback(() => setDocumentAction(null), []);
+  const requestDocumentAction = useCallback(
+    (action: ProjectDocumentAction) => {
+      setDocumentAction(action);
+      navigator.push("project-detail", { id: projectId, itemId: action.itemId });
+    },
+    [navigator, projectId]
+  );
+
+  useEffect(() => {
+    setDocumentAction(action => (action && action.itemId !== itemId ? null : action));
+  }, [projectId, itemId]);
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -91,6 +104,9 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
         projectId: projectId,
         itemId: itemId,
         containerWidth,
+        documentAction,
+        requestDocumentAction,
+        clearDocumentAction,
       }}
     >
       <div ref={containerRef} className="flex h-full w-full">
