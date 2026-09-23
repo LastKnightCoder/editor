@@ -26,13 +26,21 @@ describe("getProjectItemMoreMenuItems", () => {
     });
 
     expect(getKeys(items)).toEqual([
-      "to-card",
-      "create-flashcard",
-      "generate-podcast",
-      "presentation-mode",
+      "scene",
       "copy",
       "export",
+      "generate",
+      "remove-divider",
       "remove",
+    ]);
+    expect(getKeys(items.find(item => item.key === "scene")!.children!)).toEqual([
+      "presentation-mode",
+    ]);
+    expect(getKeys(items.find(item => item.key === "generate")!.children!)).toEqual([
+      "to-card",
+      "ai-flashcard",
+      "manual-flashcard",
+      "generate-podcast",
     ]);
   });
 
@@ -42,7 +50,9 @@ describe("getProjectItemMoreMenuItems", () => {
       refType: "card",
     });
 
-    expect(getKeys(items)).not.toContain("to-card");
+    expect(getKeys(items.find(item => item.key === "generate")!.children!)).not.toContain(
+      "to-card"
+    );
   });
 
   it("白板根据关联状态返回对应菜单项", () => {
