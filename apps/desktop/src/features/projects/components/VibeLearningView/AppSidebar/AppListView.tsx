@@ -654,9 +654,9 @@ const AppListView = memo(
                             className={classNames(
                               "flex h-7 w-7 items-center justify-center rounded-lg border transition-all",
                               "opacity-0 group-hover:opacity-100",
-                              "border-red-200 dark:border-red-500/30",
-                              "hover:bg-red-50 dark:hover:bg-red-500/10",
-                              "text-red-500 dark:text-red-400"
+                              "border-red-200",
+                              "hover:bg-danger-soft",
+                              "text-danger"
                             )}
                           >
                             <Trash2 className="h-4 w-4" strokeWidth={1.75} />
@@ -784,23 +784,23 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
   const levelConfig = {
     excellent: {
       text: "text-status-success",
-      bg: "bg-[var(--th-success)]/10",
-      border: "border-[var(--th-success)]/30",
+      bg: "bg-ok/10",
+      border: "border-ok/30",
     },
     good: {
       text: "text-status-info",
-      bg: "bg-[var(--th-info)]/10",
-      border: "border-[var(--th-info)]/30",
+      bg: "bg-info/10",
+      border: "border-info/30",
     },
     pass: {
       text: "text-status-warning",
-      bg: "bg-[var(--th-warning)]/10",
-      border: "border-[var(--th-warning)]/30",
+      bg: "bg-warn-soft",
+      border: "border-warn/30",
     },
     fail: {
       text: "text-status-error",
-      bg: "bg-[var(--th-danger)]/10",
-      border: "border-[var(--th-danger)]/30",
+      bg: "bg-danger/10",
+      border: "border-danger/30",
     },
   };
 
@@ -968,7 +968,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           </span>
           <button
             type="button"
-            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-active-text)]"
+            className="text-ink-3 hover:bg-accent-soft hover:text-accent-text flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all"
             onClick={onAddToResources}
             title="添加到资源列表"
           >
@@ -980,7 +980,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           </button>
           <button
             type="button"
-            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+            className="text-ink-3 flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all hover:bg-red-50 hover:text-red-500"
             onClick={onDelete}
             title="删除笔记"
           >
@@ -1045,7 +1045,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           {isPPT && onEditPPT && !isGenerating && (
             <button
               type="button"
-              className="flex h-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent px-2 text-xs font-medium text-gray-400 opacity-0 transition-all hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-active-text)] group-hover:opacity-100"
+              className="text-ink-3 hover:bg-accent-soft hover:text-accent-text flex h-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent px-2 text-xs font-medium opacity-0 transition-all group-hover:opacity-100"
               onClick={e => {
                 e.stopPropagation();
                 onEditPPT(note);
@@ -1060,7 +1060,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           {isReport && onEditReport && !isGenerating && (
             <button
               type="button"
-              className="flex h-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent px-2 text-xs font-medium text-gray-400 opacity-0 transition-all hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-active-text)] group-hover:opacity-100"
+              className="text-ink-3 hover:bg-accent-soft hover:text-accent-text flex h-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent px-2 text-xs font-medium opacity-0 transition-all group-hover:opacity-100"
               onClick={e => {
                 e.stopPropagation();
                 onEditReport(note);
@@ -1083,7 +1083,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           {!isGenerating && (
             <button
               type="button"
-              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-active-text)]"
+              className="text-ink-3 hover:bg-accent-soft hover:text-accent-text flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all"
               onClick={onAddToResources}
               title="添加到资源列表"
             >
@@ -1097,7 +1097,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           {!isGenerating && (
             <button
               type="button"
-              className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
+              className="text-ink-3 flex h-6 w-6 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all hover:bg-red-50 hover:text-red-500"
               onClick={onDelete}
               title="删除笔记"
             >

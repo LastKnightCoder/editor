@@ -880,12 +880,12 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   return (
     <div className="flex h-full flex-col">
       {/* 顶部栏 */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-[#e8e8e8] px-4 py-3 dark:border-[#2a2a2a]">
+      <div className="border-line-1 flex shrink-0 items-center gap-3 border-b px-4 py-3">
         <button
-          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a]"
+          className="hover:bg-hover flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors"
           onClick={handleBack}
         >
-          <ArrowLeft className="size-4 text-[#666] dark:text-[#999]" strokeWidth={1.75} />
+          <ArrowLeft className="text-ink-2 size-4" strokeWidth={1.75} />
         </button>
 
         <div className="min-w-0 flex-1">
@@ -898,11 +898,11 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               onKeyDown={e => e.key === "Enter" && handleTitleBlur()}
               placeholder="请输入标题"
               autoFocus
-              className="w-full border-none bg-transparent p-0 text-base font-medium text-[#333] outline-none placeholder:text-[#999] dark:text-[#e0e0e0]"
+              className="text-ink-1 placeholder:text-ink-3 w-full border-none bg-transparent p-0 text-base font-medium outline-none"
             />
           ) : (
             <h3
-              className="m-0 cursor-pointer truncate text-base font-medium text-[#333] dark:text-[#e0e0e0]"
+              className="text-ink-1 m-0 cursor-pointer truncate text-base font-medium"
               onClick={() => !isGenerating && setIsEditingTitle(true)}
             >
               {title || "无标题笔记"}
@@ -912,13 +912,13 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
         <div className="flex items-center gap-2">
           {isGenerating && (
-            <span className="flex items-center text-xs text-[var(--th-accent)]">
+            <span className="text-accent flex items-center text-xs">
               <LoadingSpinner size="small" className="mr-1" />
               生成中
             </span>
           )}
           {!isGenerating && saving && (
-            <span className="flex items-center text-xs text-[#999]">
+            <span className="text-ink-3 flex items-center text-xs">
               <LoadingSpinner size="small" className="mr-1" />
               保存中
             </span>
@@ -926,10 +926,10 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           {!isGenerating && (
             <button
               ref={moreButtonRef}
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a]"
+              className="hover:bg-hover flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors"
               onClick={() => setShowMoreMenu(!showMoreMenu)}
             >
-              <MoreHorizontal className="size-4 text-[#666] dark:text-[#999]" strokeWidth={1.75} />
+              <MoreHorizontal className="text-ink-2 size-4" strokeWidth={1.75} />
             </button>
           )}
           <SelectDropDown
@@ -955,8 +955,8 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       <div className={`flex-1 overflow-auto ${isMindMap || isPPT ? "" : "p-4"}`}>
         {/* 生成错误提示 */}
         {generationError && (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-500/20 dark:bg-red-500/10">
-            <p className="text-sm text-red-600 dark:text-red-400">生成失败: {generationError}</p>
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-danger text-sm">生成失败: {generationError}</p>
           </div>
         )}
 
@@ -1000,7 +1000,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               )}
             </div>
           ) : isReport ? (
-            <div className="h-full bg-white dark:bg-zinc-900">
+            <div className="bg-surface h-full">
               {isElectron ? (
                 <webview
                   src={reportPreviewUrl}
@@ -1035,10 +1035,8 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 />
               )}
               {!podcast && currentNote?.podcastId && (
-                <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-500/20 dark:bg-yellow-500/10">
-                  <p className="text-sm text-yellow-600 dark:text-yellow-400">
-                    播客数据加载失败，请刷新页面重试
-                  </p>
+                <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4">
+                  <p className="text-warn text-sm">播客数据加载失败，请刷新页面重试</p>
                 </div>
               )}
               {/* 脚本内容（只读） */}
@@ -1068,17 +1066,15 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
       {/* 全屏显示思维导图 */}
       {isMindMap && isFullscreen && (
-        <div className="fixed bottom-0 left-0 right-0 top-12 z-50 flex flex-col bg-white dark:bg-[#1a1a1a]">
+        <div className="bg-surface fixed bottom-0 left-0 right-0 top-12 z-50 flex flex-col">
           {/* 全屏顶部栏 */}
-          <div className="flex shrink-0 items-center justify-between border-b border-[#e8e8e8] px-4 py-3 dark:border-[#2a2a2a]">
-            <h3 className="m-0 text-base font-medium text-[#333] dark:text-[#e0e0e0]">
-              {title || "无标题笔记"}
-            </h3>
+          <div className="border-line-1 flex shrink-0 items-center justify-between border-b px-4 py-3">
+            <h3 className="text-ink-1 m-0 text-base font-medium">{title || "无标题笔记"}</h3>
             <button
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a]"
+              className="hover:bg-hover flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors"
               onClick={handleToggleFullscreen}
             >
-              <Minimize className="size-4 text-[#666] dark:text-[#999]" strokeWidth={1.75} />
+              <Minimize className="text-ink-2 size-4" strokeWidth={1.75} />
             </button>
           </div>
           {/* 全屏思维导图区域 */}
@@ -1103,10 +1099,10 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       {isPPT && isFullscreen && (
         <div className="fixed bottom-0 left-0 right-0 top-12 z-50 flex flex-col bg-black">
           {/* 全屏顶部栏 */}
-          <div className="flex shrink-0 items-center justify-between border-b border-[#2a2a2a] bg-[#1a1a1a] px-4 py-3">
-            <h3 className="m-0 text-base font-medium text-[#e0e0e0]">{title || "无标题 PPT"}</h3>
+          <div className="border-ink-1/30 bg-ink-1 flex shrink-0 items-center justify-between border-b px-4 py-3">
+            <h3 className="text-ink-inverse m-0 text-base font-medium">{title || "无标题 PPT"}</h3>
             <button
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-[#e0e0e0] transition-colors hover:bg-[#2a2a2a]"
+              className="text-ink-inverse flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-white/10"
               onClick={handleToggleFullscreen}
             >
               <Minimize className="size-4" strokeWidth={1.75} />
@@ -1139,13 +1135,11 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       )}
 
       {isReport && isFullscreen && (
-        <div className="fixed bottom-0 left-0 right-0 top-12 z-50 flex flex-col bg-white dark:bg-zinc-900">
-          <div className="flex shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 py-3 dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
-            <h3 className="m-0 text-base font-medium text-gray-800 dark:text-[#e0e0e0]">
-              {title || "无标题报告"}
-            </h3>
+        <div className="bg-surface fixed bottom-0 left-0 right-0 top-12 z-50 flex flex-col">
+          <div className="border-line-1 bg-surface flex shrink-0 items-center justify-between border-b px-4 py-3">
+            <h3 className="text-ink-1 m-0 text-base font-medium">{title || "无标题报告"}</h3>
             <button
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-gray-600 transition-colors hover:bg-gray-100 dark:text-[#e0e0e0] dark:hover:bg-[#2a2a2a]"
+              className="text-ink-2 hover:bg-group flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors"
               onClick={handleToggleFullscreen}
             >
               <Minimize className="size-4" strokeWidth={1.75} />

@@ -11,7 +11,6 @@ import WebViewProjectItemView from "../WebViewProjectItemView";
 import TableProjectItemView from "../TableProjectItemView";
 import PdfProjectItemView from "../PdfProjectItemView";
 import EpubProjectItemView from "../EpubProjectItemView";
-import styles from "./index.module.less";
 import { toast } from "@tau/ui";
 
 const EditProjectView = () => {
@@ -40,7 +39,7 @@ const EditProjectView = () => {
 
   if (projectItem.projectItemType === EProjectItemType.VideoNote) {
     return (
-      <div className={styles.container}>
+      <div className="h-full w-full">
         <VideoNoteView key={projectItem.id} videoNoteId={projectItem.refId} />
       </div>
     );
@@ -48,7 +47,7 @@ const EditProjectView = () => {
 
   if (projectItem.projectItemType === EProjectItemType.AudioNote) {
     return (
-      <div className={styles.container}>
+      <div className="h-full w-full">
         <AudioNoteView
           key={projectItem.id}
           audioNoteId={projectItem.refId}
@@ -60,7 +59,7 @@ const EditProjectView = () => {
 
   if (projectItem.projectItemType === EProjectItemType.Pdf) {
     return (
-      <div className={styles.container}>
+      <div className="h-full w-full">
         <PdfProjectItemView key={projectItem.id} projectItemId={projectItem.id} />
       </div>
     );
@@ -68,7 +67,7 @@ const EditProjectView = () => {
 
   if (projectItem.projectItemType === EProjectItemType.Epub) {
     return (
-      <div className={styles.container}>
+      <div className="h-full w-full">
         <EpubProjectItemView key={projectItem.id} projectItemId={projectItem.id} />
       </div>
     );
@@ -76,7 +75,7 @@ const EditProjectView = () => {
 
   if (projectItem.projectItemType === EProjectItemType.WhiteBoard) {
     return (
-      <div className={styles.container}>
+      <div className="h-full w-full">
         <WhiteBoardProjectView key={projectItem.id} projectItemId={projectItem.id} />
       </div>
     );
@@ -84,7 +83,7 @@ const EditProjectView = () => {
 
   if (projectItem.projectItemType === EProjectItemType.TableView) {
     return (
-      <div className={styles.container}>
+      <div className="h-full w-full">
         <TableProjectItemView key={projectItem.id} projectItemId={projectItem.id} />
       </div>
     );
@@ -92,7 +91,7 @@ const EditProjectView = () => {
 
   if (projectItem.projectItemType === EProjectItemType.WebView) {
     return (
-      <div className={styles.container}>
+      <div className="h-full w-full">
         <WebViewProjectItemView key={projectItem.id} projectItemId={projectItem.id} />
       </div>
     );
@@ -100,7 +99,7 @@ const EditProjectView = () => {
 
   if (projectItem.projectItemType === EProjectItemType.Document) {
     return (
-      <div className={styles.container}>
+      <div className="h-full w-full">
         <EditProject key={projectItem.id} projectItemId={projectItem.id} />
       </div>
     );

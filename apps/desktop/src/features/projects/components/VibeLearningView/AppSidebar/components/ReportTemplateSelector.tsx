@@ -17,7 +17,7 @@ const ReportTemplateSelector = memo((props: ReportTemplateSelectorProps) => {
 
   return (
     <div className="space-y-3">
-      <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+      <label className="text-ink-2 block text-[11px] font-semibold uppercase tracking-wider">
         {title}
       </label>
 
@@ -57,14 +57,11 @@ const TemplateCard = memo((props: TemplateCardProps) => {
         "relative cursor-pointer overflow-hidden rounded-xl transition-all duration-200",
         "border-2",
         isSelected
-          ? "shadow-[var(--th-accent)]/20 border-[var(--th-border-focus)] shadow-lg"
-          : "border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600"
+          ? "shadow-accent/20 border-accent shadow-lg"
+          : "border-line-1 hover:border-line-1"
       )}
     >
-      <div
-        className="relative w-full bg-gray-100 dark:bg-zinc-800"
-        style={{ aspectRatio: "16 / 10" }}
-      >
+      <div className="bg-group relative w-full" style={{ aspectRatio: "16 / 10" }}>
         {isElectron ? (
           <webview
             src={previewUrl}
@@ -92,24 +89,22 @@ const TemplateCard = memo((props: TemplateCardProps) => {
         )}
 
         {isSelected && (
-          <div className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--th-accent)]">
+          <div className="bg-accent absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full">
             <Check className="h-3 w-3 text-white" strokeWidth={3} />
           </div>
         )}
       </div>
 
-      <div className="bg-white px-3 py-2.5 dark:bg-zinc-800/80">
+      <div className="bg-surface px-3 py-2.5">
         <div
           className={classNames(
             "truncate text-xs font-medium",
-            isSelected ? "text-[var(--th-active-text)]" : "text-gray-700 dark:text-gray-300"
+            isSelected ? "text-accent-text" : "text-ink-2"
           )}
         >
           {template.name}
         </div>
-        <div className="mt-0.5 truncate text-[10px] text-gray-400 dark:text-gray-500">
-          {template.description}
-        </div>
+        <div className="text-ink-3 mt-0.5 truncate text-[10px]">{template.description}</div>
       </div>
     </div>
   );

@@ -216,14 +216,14 @@ const HighlightsGenerateModal = memo((props: HighlightsGenerateModalProps) => {
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
     "bg-amber-500 text-white",
     "hover:bg-amber-600",
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+    "disabled:bg-sunken disabled:text-ink-3 disabled:cursor-not-allowed"
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
-    "hover:bg-gray-200 dark:hover:bg-zinc-700",
-    "border border-gray-200 dark:border-gray-700"
+    "bg-group text-ink-2",
+    "hover:bg-hover",
+    "border border-line-1"
   );
 
   // 渲染底部按钮
@@ -259,7 +259,7 @@ const HighlightsGenerateModal = memo((props: HighlightsGenerateModalProps) => {
       title="提炼学习重点"
       subtitle="选择资源，AI 将自动分析并提取核心知识点"
       icon={<Highlighter className="h-5 w-5 text-amber-500" strokeWidth={1.75} />}
-      iconBgColor="bg-amber-50 dark:bg-amber-500/20 border-amber-200 dark:border-amber-500/30"
+      iconBgColor="bg-warn-soft border-amber-200"
       footer={renderFooter()}
       showCloseButton={!isCreating}
     >

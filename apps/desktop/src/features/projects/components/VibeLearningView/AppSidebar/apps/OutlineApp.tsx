@@ -302,18 +302,18 @@ const OutlineApp = memo((props: OutlineAppProps) => {
   return (
     <div className="flex h-full flex-col">
       {/* 顶部栏 */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-[#e8e8e8] px-4 py-3 dark:border-[#2a2a2a]">
+      <div className="border-line-1 flex shrink-0 items-center gap-3 border-b px-4 py-3">
         <button
-          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a]"
+          className="hover:bg-hover flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors"
           onClick={onBack}
         >
-          <ArrowLeft className="size-4 text-[#666] dark:text-[#999]" strokeWidth={1.75} />
+          <ArrowLeft className="text-ink-2 size-4" strokeWidth={1.75} />
         </button>
 
-        <h3 className="m-0 flex-1 text-base font-medium text-[#333] dark:text-[#e0e0e0]">
+        <h3 className="text-ink-1 m-0 flex-1 text-base font-medium">
           学习大纲
           {generating && (
-            <span className="ml-2 inline-flex items-center text-sm font-normal text-[#999]">
+            <span className="text-ink-3 ml-2 inline-flex items-center text-sm font-normal">
               <LoadingSpinner size="small" className="mr-1" />
               生成中...
             </span>
@@ -322,11 +322,11 @@ const OutlineApp = memo((props: OutlineAppProps) => {
 
         {hasContent && !generating && (
           <button
-            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a]"
+            className="hover:bg-hover flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors"
             onClick={copyOutline}
             title="复制大纲"
           >
-            <Copy className="size-4 text-[#666] dark:text-[#999]" strokeWidth={1.75} />
+            <Copy className="text-ink-2 size-4" strokeWidth={1.75} />
           </button>
         )}
       </div>
@@ -353,7 +353,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
         {loading && !hasContent && (
           <div className="flex h-full flex-col items-center justify-center p-4">
             <LoadingSpinner size="large" />
-            <p className="mt-4 text-sm text-[#999]">正在探索资料并生成大纲...</p>
+            <p className="text-ink-3 mt-4 text-sm">正在探索资料并生成大纲...</p>
           </div>
         )}
 
@@ -393,7 +393,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
 
       {/* 底部操作栏 */}
       {hasContent && !generating && (
-        <div className="shrink-0 border-t border-[#e8e8e8] p-4 dark:border-[#2a2a2a]">
+        <div className="border-line-1 shrink-0 border-t p-4">
           <SimpleButton
             block
             icon={<RotateCw className="size-4" strokeWidth={1.75} />}
@@ -406,7 +406,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
 
       {/* 生成中的停止按钮 */}
       {generating && (
-        <div className="shrink-0 border-t border-[#e8e8e8] p-4 dark:border-[#2a2a2a]">
+        <div className="border-line-1 shrink-0 border-t p-4">
           <SimpleButton block variant="danger" onClick={stopGeneration}>
             停止生成
           </SimpleButton>

@@ -92,25 +92,25 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
     <div className="flex flex-col items-center justify-center py-12">
       {/* 动画图标 */}
       <div className="relative">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--th-accent-soft)]">
-          <Sparkles className="h-8 w-8 animate-pulse text-[var(--th-accent)]" strokeWidth={1.75} />
+        <div className="bg-accent-soft flex h-20 w-20 items-center justify-center rounded-full">
+          <Sparkles className="text-accent h-8 w-8 animate-pulse" strokeWidth={1.75} />
         </div>
         <motion.div
-          className="absolute inset-0 h-20 w-20 rounded-full border-2 border-[var(--th-border-focus)] border-t-transparent"
+          className="border-accent absolute inset-0 h-20 w-20 rounded-full border-2 border-t-transparent"
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
         />
       </div>
 
       {/* 状态文字 */}
-      <p className="mt-6 text-base font-medium text-gray-700 dark:text-gray-200">{statusText}</p>
+      <p className="text-ink-2 mt-6 text-base font-medium">{statusText}</p>
 
       {/* 已生成数量 */}
       {generatedCount !== undefined && generatedCount > 0 && (
         <motion.p
           initial={{ opacity: 0, y: 5 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mt-2 text-sm font-medium text-[var(--th-accent)]"
+          className="text-accent mt-2 text-sm font-medium"
         >
           已生成 {generatedCount} {generatedUnit}
         </motion.p>
@@ -123,18 +123,14 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
           animate={{ opacity: 1, y: 0 }}
           className={classNames(
             "mt-4 flex w-full max-w-xs items-center gap-3 rounded-xl",
-            "border border-[var(--th-border)] bg-[var(--th-accent-soft)] px-4 py-3",
-            "dark:border-[var(--th-border-focus)]/20 dark:bg-[var(--th-accent)]/10 text-[var(--th-active-text)]"
+            "border-line-1 bg-accent-soft border px-4 py-3",
+            "border-accent/20 text-accent-text"
           )}
         >
           <FileCode2 className="h-4 w-4 shrink-0" strokeWidth={1.75} />
           <div className="min-w-0">
-            <div className="text-[11px] font-medium text-[var(--th-accent)]">
-              {outputLabel} 大小
-            </div>
-            <div className="text-base font-semibold text-gray-800 dark:text-gray-100">
-              {outputSize}
-            </div>
+            <div className="text-accent text-[11px] font-medium">{outputLabel} 大小</div>
+            <div className="text-ink-1 text-base font-semibold">{outputSize}</div>
           </div>
         </motion.div>
       )}
@@ -142,7 +138,7 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
       {/* 工具调用进度 */}
       {shouldShowToolProgress && (
         <div className="mt-4 w-full max-w-xs">
-          <div className="mb-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+          <div className="text-ink-2 mb-2 flex items-center justify-between text-xs">
             <span>资料获取进度</span>
             <span>
               {completedCount}/{totalCount}
@@ -158,13 +154,13 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
               >
                 {execution.status === "executing" ? (
                   <Loader2
-                    className="h-3 w-3 shrink-0 animate-spin text-[var(--th-accent)]"
+                    className="text-accent h-3 w-3 shrink-0 animate-spin"
                     strokeWidth={1.75}
                   />
                 ) : execution.status === "success" ? (
                   <Check className="text-status-success h-3 w-3 shrink-0" strokeWidth={1.75} />
                 ) : execution.status === "pending" ? (
-                  <div className="h-3 w-3 shrink-0 rounded-full border border-gray-300 dark:border-gray-600" />
+                  <div className="border-line-1 h-3 w-3 shrink-0 rounded-full border" />
                 ) : (
                   <div className="h-3 w-3 shrink-0 rounded-full bg-red-500" />
                 )}
@@ -172,10 +168,10 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
                   className={classNames(
                     "truncate",
                     execution.status === "executing"
-                      ? "text-[var(--th-active-text)]"
+                      ? "text-accent-text"
                       : execution.status === "success"
-                        ? "text-gray-500 dark:text-gray-400"
-                        : "text-gray-400 dark:text-gray-500"
+                        ? "text-ink-2"
+                        : "text-ink-3"
                   )}
                 >
                   {getToolIcon(execution.toolName)}
@@ -194,9 +190,9 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
           onClick={onStop}
           className={classNames(
             "mt-6 rounded-xl px-5 py-2.5 text-sm font-medium transition-all",
-            "bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-gray-300",
-            "hover:bg-gray-200 dark:hover:bg-zinc-700",
-            "border border-gray-200 dark:border-gray-700"
+            "bg-group text-ink-2",
+            "hover:bg-hover",
+            "border-line-1 border"
           )}
         >
           {stopButtonText}

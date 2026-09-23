@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { Network, House, ListTree, Plus } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
-import useThemeColors from "@/hooks/useThemeColors";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { DEFAULT_COLUMNS, DEFAULT_ROWS } from "@/constants";
 import ProjectItem from "./ProjectItem";
@@ -12,7 +11,6 @@ import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSideb
 import { SelectDropDown } from "@tau/shared";
 import SidebarToggleButton from "@/components/SidebarToggleButton";
 
-import styles from "./index.module.less";
 import {
   CreateProjectItem,
   EProjectItemType,
@@ -69,7 +67,6 @@ import XiaoyuzhouInput from "../AudioNoteView/components/XiaoyuzhouInput";
 import WebViewSelectModal, { type WebViewSelectResult } from "@/components/WebViewSelectModal";
 import SelectPdfModal from "@/components/SelectPdfModal";
 import SelectEpubModal from "@/components/SelectEpubModal";
-import classnames from "classnames";
 import usePdfsStore from "@/stores/usePdfsStore";
 import useEpubsStore from "@/stores/useEpubsStore";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
@@ -87,7 +84,6 @@ const Project = () => {
   const { setting } = useSettingStore(state => ({ setting: state.setting }));
   const databaseName = setting.database.active;
   const [hideSidebar, setHideSidebar] = useState(false);
-  const { divideClass } = useThemeColors();
   const [sidebarWidth, setSidebarWidth] = useLocalStorageState("project-list-sidebar-width", {
     defaultValue: 300,
   });
@@ -765,9 +761,9 @@ const Project = () => {
         disableResize={false}
         className="h-full"
       >
-        <div className={styles.list}>
-          <div className={styles.header}>
-            <div className={styles.title}>
+        <div className="border-b-16 box-border flex h-full flex-col border-transparent px-4 pb-0">
+          <div className="flex h-[60px] flex-none items-center justify-between px-3">
+            <div className="flex min-w-0 items-center gap-3 overflow-hidden text-ellipsis whitespace-nowrap">
               <House
                 className="size-4"
                 strokeWidth={1.75}
@@ -778,23 +774,23 @@ const Project = () => {
               <div className="flex-1 overflow-hidden">
                 <div
                   ref={triggerRef}
-                  className="group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 transition-all hover:bg-gray-100 dark:hover:bg-zinc-800"
+                  className="hover:bg-hover group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 transition-all"
                   onClick={handleToggleProjectDropdown}
                 >
                   <span className="truncate">{project.title}</span>
                   <ChevronDown
                     size={16}
-                    className={`text-gray-900 transition-transform duration-200 dark:text-gray-100 ${
+                    className={`text-ink-1 transition-transform duration-200 ${
                       showProjectDropdown ? "rotate-180" : ""
                     }`}
                   />
                 </div>
               </div>
             </div>
-            <div className={styles.icons}>
+            <div className="flex items-center gap-3">
               <Tooltip content={sidebarView === "tree" ? "切换到思维导图" : "切换到树视图"}>
                 <div
-                  className={classnames(styles.icon, "mr-1 transition-colors")}
+                  className={"mr-1 cursor-pointer transition-colors"}
                   onClick={() => setSidebarView(sidebarView === "tree" ? "mindmap" : "tree")}
                 >
                   {sidebarView === "tree" ? (
@@ -806,7 +802,7 @@ const Project = () => {
               </Tooltip>
               <Menu
                 trigger={
-                  <div className={styles.icon}>
+                  <div className="cursor-pointer">
                     <Plus className="size-4" strokeWidth={1.75} />
                   </div>
                 }
@@ -816,8 +812,7 @@ const Project = () => {
               </Menu>
             </div>
           </div>
-          <div className={classnames(styles.divider, divideClass)}></div>
-          <div className={styles.contentArea}>
+          <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {sidebarView === "mindmap" ? (
               treeLoading ? (
                 <div className="flex h-full items-center justify-center text-sm opacity-60">

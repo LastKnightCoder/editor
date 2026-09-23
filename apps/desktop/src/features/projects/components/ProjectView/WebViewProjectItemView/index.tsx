@@ -1092,7 +1092,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   // 获取主题色的 active 样式
   const getActiveButtonClass = (isActive: boolean, color: "green" | "purple") => {
     if (!isActive) {
-      return "bg-transparent text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-zinc-800";
+      return "bg-transparent text-ink-2 hover:bg-hover";
     }
     // 使用主题色
     if (color === "green") {
@@ -1157,14 +1157,14 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           <div className="relative min-w-0 max-w-[720px] flex-1">
             {isAnyClipping && (
               <div
-                className={`mb-4 flex items-center gap-2 rounded-lg border ${themeColors.borderClass} ${"bg-[var(--th-bg-hover)]"} px-4 py-3 text-sm ${themeColors.textClass}`}
+                className={`mb-4 flex items-center gap-2 rounded-lg border ${themeColors.borderClass} ${"bg-hover"} px-4 py-3 text-sm ${themeColors.textClass}`}
               >
                 <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
                 <span>正在解析网页内容，请稍候...</span>
               </div>
             )}
             {currentClipError && (
-              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {currentClipError}
               </div>
             )}
@@ -1223,7 +1223,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           <h1 className="m-0 truncate text-lg font-semibold leading-snug">{title}</h1>
           <Tooltip content="编辑标题" delay={500}>
             <button
-              className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-zinc-800 dark:hover:text-gray-300"
+              className="text-ink-3 hover:bg-group hover:text-ink-2 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all"
               onClick={handleEditTitle}
             >
               <Pencil className="size-4" strokeWidth={1.75} />
@@ -1290,7 +1290,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${
                   isAnyClipping
                     ? `${themeColors.activeClass}`
-                    : "bg-transparent text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
+                    : "text-ink-2 hover:bg-group bg-transparent"
                 }`}
                 onClick={() => {
                   closeClipMenu();
@@ -1362,7 +1362,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 type="button"
                 title="更多操作"
                 aria-label="更多操作"
-                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 transition-all hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
+                className="text-ink-2 hover:bg-group flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all"
               >
                 <MoreHorizontal className="size-4" strokeWidth={1.75} />
               </button>

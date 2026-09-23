@@ -94,7 +94,7 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
       }}
     >
       <div ref={containerRef} className="flex h-full w-full">
-        <div className="h-full overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]">
+        <div className="border-line-1 h-full overflow-hidden border-r">
           <ProjectList />
         </div>
 

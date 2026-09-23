@@ -135,13 +135,13 @@ const DataTableProjectView = memo((props: { projectId: number }) => {
           </div>
           <div
             ref={triggerRef}
-            className="flex cursor-pointer items-center gap-1 rounded-md p-2 transition-all hover:bg-gray-100 dark:hover:bg-zinc-800"
+            className="hover:bg-hover flex cursor-pointer items-center gap-1 rounded-md p-2 transition-all"
             onClick={handleToggleProjectDropdown}
           >
             <ChevronDown
               size={16}
               strokeWidth={1.75}
-              className={`text-gray-900 transition-transform duration-200 dark:text-gray-100 ${
+              className={`text-ink-1 transition-transform duration-200 ${
                 showProjectDropdown ? "rotate-180" : ""
               }`}
             />

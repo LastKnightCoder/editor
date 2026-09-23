@@ -23,11 +23,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   onSegmentClick,
 }) => {
   if (!segments || segments.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-8 text-sm text-gray-400 dark:text-gray-500">
-        暂无字幕
-      </div>
-    );
+    return <div className="text-ink-3 flex items-center justify-center py-8 text-sm">暂无字幕</div>;
   }
 
   return (
@@ -44,18 +40,14 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
           }}
           className={classNames(
             "flex cursor-pointer flex-col gap-0.5 rounded-md p-2 transition-colors",
-            currentSegmentIndex === index
-              ? "bg-[var(--th-info)]/15 dark:"
-              : "hover:bg-gray-100 dark:hover:bg-zinc-800"
+            currentSegmentIndex === index ? "bg-info/15 dark:" : "hover:bg-hover"
           )}
           onClick={() => onSegmentClick(segment)}
         >
-          <span className="shrink-0 font-mono text-xs text-[var(--th-accent)]">
+          <span className="text-accent shrink-0 font-mono text-xs">
             {formatTime(segment.start)}
           </span>
-          <span className="break-words text-sm text-gray-700 dark:text-gray-300">
-            {segment.text}
-          </span>
+          <span className="text-ink-2 break-words text-sm">{segment.text}</span>
         </div>
       ))}
     </div>

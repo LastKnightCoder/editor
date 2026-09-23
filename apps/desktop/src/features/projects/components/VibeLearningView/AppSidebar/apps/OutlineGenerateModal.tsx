@@ -214,16 +214,16 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
   // 按钮样式
   const primaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-    "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]",
-    "hover:bg-[var(--th-btn-hover)]",
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+    "bg-accent text-white",
+    "hover:bg-accent-hover",
+    "disabled:bg-sunken disabled:text-ink-3 disabled:cursor-not-allowed"
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
-    "hover:bg-gray-200 dark:hover:bg-zinc-700",
-    "border border-gray-200 dark:border-gray-700"
+    "bg-group text-ink-2",
+    "hover:bg-hover",
+    "border border-line-1"
   );
 
   // 渲染底部按钮
@@ -258,7 +258,7 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
       destroyOnClose
       title="生成学习大纲"
       subtitle="选择资源，AI 将自动分析并生成结构化学习大纲"
-      icon={<ListOrdered className="h-5 w-5 text-[var(--th-text-secondary)]" strokeWidth={1.75} />}
+      icon={<ListOrdered className="text-ink-2 h-5 w-5" strokeWidth={1.75} />}
       footer={renderFooter()}
       showCloseButton={!isCreating}
     >

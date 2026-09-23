@@ -295,7 +295,7 @@ const AppSidebar = memo(
     }, []);
 
     return (
-      <div className="flex h-full w-full flex-col border-l border-[#e8e8e8] dark:border-[#2a2a2a]">
+      <div className="border-line-1 flex h-full w-full flex-col border-l">
         {currentView === "app-list" && (
           <AppListView
             ref={appListViewRef}

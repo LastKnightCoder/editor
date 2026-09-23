@@ -223,8 +223,8 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
     <div
       ref={rowRef}
       className={classNames(
-        "group flex items-start gap-3 border-b border-gray-100 py-3 transition-colors last:border-b-0 dark:border-gray-800",
-        "cursor-pointer rounded-lg px-2 hover:bg-gray-50/70 dark:hover:bg-zinc-900/40",
+        "border-line-1 group flex items-start gap-3 border-b py-3 transition-colors last:border-b-0",
+        "hover:bg-group/70 cursor-pointer rounded-lg px-2",
         {
           "opacity-70": dimmed,
           "opacity-40": isDragging,
@@ -235,14 +235,14 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
       <button
         ref={handleRef}
         type="button"
-        className="mt-1 flex h-6 w-6 shrink-0 cursor-grab items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 active:cursor-grabbing dark:hover:bg-zinc-800"
+        className="text-ink-3 hover:bg-group hover:text-ink-2 mt-1 flex h-6 w-6 shrink-0 cursor-grab items-center justify-center rounded-md active:cursor-grabbing"
         onClick={event => event.stopPropagation()}
         aria-label={`拖动排序 ${resource.name}`}
       >
         <MdDragIndicator size={16} />
       </button>
 
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-gray-100 text-base text-gray-600 dark:bg-zinc-800 dark:text-gray-400">
+      <span className="bg-group text-ink-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-base">
         {getResourceIcon(resource.resourceType)}
       </span>
 
@@ -649,7 +649,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     return (
       <div className="flex h-full flex-col overflow-hidden">
         {/* 头部 */}
-        <div className="flex shrink-0 items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+        <div className="border-line-1 flex shrink-0 items-center gap-2 border-b px-4 py-3">
           <Tooltip content="返回">
             <IconButton title="返回" onClick={handleNotePreviewBack}>
               <ArrowLeft className="size-4" strokeWidth={1.75} />
@@ -663,7 +663,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         <div className="flex-1 overflow-auto p-4">
           {noteLoading ? (
             <div className="flex h-full items-center justify-center">
-              <Loader2 className="size-6 animate-spin text-gray-400" strokeWidth={1.75} />
+              <Loader2 className="text-ink-3 size-6 animate-spin" strokeWidth={1.75} />
             </div>
           ) : noteContent ? (
             <ErrorBoundary>
@@ -677,7 +677,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
               />
             </ErrorBoundary>
           ) : (
-            <div className="flex h-full items-center justify-center text-sm text-gray-400 dark:text-gray-500">
+            <div className="text-ink-3 flex h-full items-center justify-center text-sm">
               无法加载笔记内容
             </div>
           )}
@@ -692,10 +692,10 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
       {/* 头部 */}
       <div className="mb-4 flex items-center gap-2">
         <h3 className="m-0 text-base font-semibold">资源</h3>
-        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-zinc-800 dark:text-gray-400">
+        <span className="bg-group text-ink-2 rounded-full px-2 py-0.5 text-xs">
           {orderedResources.length}
         </span>
-        {savingOrder && <span className="text-xs text-[var(--th-accent)]">保存顺序中...</span>}
+        {savingOrder && <span className="text-accent text-xs">保存顺序中...</span>}
       </div>
 
       {/* 添加资料按钮 */}
@@ -703,7 +703,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         <button
           type="button"
           onClick={handleOpenAddResourceModal}
-          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-600 transition-all hover:border-[var(--th-border-focus)] hover:text-[var(--th-accent)] dark:border-gray-700 dark:bg-[#1f1f1f] dark:text-gray-400 dark:hover:border-[var(--th-border-focus)] dark:hover:text-[var(--th-accent)]"
+          className="border-line-1 bg-group text-ink-2 hover:border-accent hover:text-accent flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-3 text-sm font-medium transition-all"
         >
           <Plus className="size-4" strokeWidth={1.75} />
           <span>添加资料</span>
@@ -713,7 +713,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
       {/* 资源列表 */}
       <div className="flex-1 overflow-y-auto">
         {orderedResources.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-sm text-gray-400 dark:text-gray-500">
+          <div className="text-ink-3 flex h-full items-center justify-center text-sm">
             暂无资源，请上传文件
           </div>
         ) : (

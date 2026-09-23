@@ -7,7 +7,6 @@ import {
   XiaoyuzhouEpisodeInfo,
 } from "@/commands/xiaoyuzhou";
 import CustomModal from "@/components/CustomModal";
-import styles from "./XiaoyuzhouInput.module.less";
 
 interface XiaoyuzhouInputProps {
   open: boolean;
@@ -84,8 +83,8 @@ const XiaoyuzhouInput = (props: XiaoyuzhouInputProps) => {
       footer={null}
       width={480}
     >
-      <div className={styles.container}>
-        <div className={styles.inputRow}>
+      <div className="flex flex-col gap-4 py-2">
+        <div className="flex gap-2">
           <Input
             placeholder="粘贴小宇宙播客链接..."
             lead={Link}
@@ -109,24 +108,30 @@ const XiaoyuzhouInput = (props: XiaoyuzhouInputProps) => {
         )}
 
         {loading && (
-          <div className={styles.loadingState}>
+          <div className="text-ink-2 flex items-center justify-center gap-2 p-4 text-[13px]">
             <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
             <span>正在解析播客信息...</span>
           </div>
         )}
 
         {episodeInfo && (
-          <div className={styles.preview}>
+          <div className="bg-group border-line-1 flex gap-3 rounded-[8px] border p-3">
             {episodeInfo.coverUrl && (
-              <img className={styles.previewCover} src={episodeInfo.coverUrl} alt="" />
+              <img
+                className="size-14 shrink-0 rounded-[8px] object-cover"
+                src={episodeInfo.coverUrl}
+                alt=""
+              />
             )}
-            <div className={styles.previewInfo}>
-              <div className={styles.previewTitle}>{episodeInfo.title || "未知标题"}</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-ink-1 mb-1 truncate text-[14px] font-medium">
+                {episodeInfo.title || "未知标题"}
+              </div>
               {episodeInfo.podcastName && (
-                <div className={styles.previewPodcast}>{episodeInfo.podcastName}</div>
+                <div className="text-ink-2 mb-0.5 text-[12px]">{episodeInfo.podcastName}</div>
               )}
               {episodeInfo.duration && (
-                <div className={styles.previewDuration}>
+                <div className="text-ink-3 text-[12px]">
                   时长: {Math.floor(episodeInfo.duration / 60)} 分钟
                 </div>
               )}
@@ -135,7 +140,7 @@ const XiaoyuzhouInput = (props: XiaoyuzhouInputProps) => {
         )}
 
         {episodeInfo && (
-          <div className={styles.footer}>
+          <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={handleClose}>
               取消
             </Button>
