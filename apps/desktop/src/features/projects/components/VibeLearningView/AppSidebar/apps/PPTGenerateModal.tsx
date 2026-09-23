@@ -2,7 +2,7 @@ import { isElectron } from "@/electron";
 import { useHtmlPreviewUrl } from "@/utils/html-preview";
 import { memo, useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { App, Spin } from "antd";
+import { Spin } from "antd";
 import { Presentation, Sparkles, RefreshCw, Loader2, CheckCircle2, Code, Eye } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
@@ -20,6 +20,7 @@ import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
 import { PPT_TEMPLATES, DEFAULT_TEMPLATE_ID, getTemplateById } from "@/constants/ppt-templates";
 import { GenerationConfigStep, GeneratingProgress, PPTTemplateSelector } from "../components";
 import { runGenerationTask } from "@/services/generation-orchestrator";
+import { toast } from "@tau/ui";
 
 interface PPTGenerateModalProps {
   open: boolean;
@@ -33,7 +34,6 @@ type Step = "select-resources" | "generating" | "preview";
 
 const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
   const { open, projectId, mainDbName, onClose, onNoteCreated } = props;
-  const { message } = App.useApp();
 
   // LLM 配置
   const { providerConfig, modelConfig } = useLLMConfig("chat");
@@ -115,12 +115,12 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
   // 开始生成 PPT
   const handleStartGenerate = useMemoizedFn(async () => {
     if (selectedResourceIds.length === 0) {
-      message.error("请选择至少一个资源");
+      toast.error("请选择至少一个资源");
       return;
     }
 
     if (!providerConfig || !modelConfig) {
-      message.error("请先在设置中配置 AI 模型");
+      toast.error("请先在设置中配置 AI 模型");
       return;
     }
 
@@ -161,7 +161,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
         onError: e => {
           setIsGenerating(false);
           console.error("Generate PPT error:", e);
-          message.error(e.message || "生成 PPT 失败");
+          toast.error(e.message || "生成 PPT 失败");
           if (!generatedHtml) {
             setStep("select-resources");
           } else {
@@ -203,7 +203,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
   // 保存为笔记
   const handleSave = useMemoizedFn(async () => {
     if (!cleanedHtml.trim()) {
-      message.error("没有可保存的内容");
+      toast.error("没有可保存的内容");
       return;
     }
 
@@ -233,7 +233,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
         type: "ppt",
       });
 
-      message.success("PPT 已保存为笔记");
+      toast.success("PPT 已保存为笔记");
 
       // 回调通知创建了笔记
       onNoteCreated?.(note);
@@ -241,7 +241,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
       onClose();
     } catch (e) {
       console.error("Failed to save PPT:", e);
-      message.error((e as Error).message || "保存失败");
+      toast.error((e as Error).message || "保存失败");
     } finally {
       setSaving(false);
     }

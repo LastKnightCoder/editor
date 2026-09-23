@@ -2,7 +2,7 @@ import { useState, useEffect, memo, useRef, useMemo } from "react";
 import classnames from "classnames";
 import { useCreation, useLocalStorageState, useMemoizedFn } from "ahooks";
 import useUploadResource from "@/hooks/useUploadResource";
-import { Dropdown, MenuProps, message, Tooltip } from "antd";
+import { Dropdown, MenuProps, Tooltip } from "antd";
 import {
   getFileBaseName,
   readTextFile,
@@ -66,16 +66,15 @@ import usePdfsStore from "@/stores/usePdfsStore";
 import useEpubsStore from "@/stores/useEpubsStore";
 import { importLocalBook } from "../../shared/utils/bookImport";
 import {
-  FileOutlined,
-  FolderOpenTwoTone,
-  MoreOutlined,
-  PlusOutlined,
-  GlobalOutlined,
-  VideoCameraOutlined,
-  TableOutlined,
-  FilePdfOutlined,
-  BookOutlined,
-} from "@ant-design/icons";
+  FileText,
+  FolderOpen,
+  MoreHorizontal,
+  Plus,
+  Globe,
+  Video,
+  Table,
+  Book,
+} from "lucide-react";
 import {
   getContentLength,
   getEditorText,
@@ -99,6 +98,7 @@ import WebViewSelectModal, { type WebViewSelectResult } from "@/components/WebVi
 
 import { createProjectCardListExtension } from "@/editor-extensions";
 import useProjectItemMoreActions from "./useProjectItemMoreActions";
+import { toast } from "@tau/ui";
 
 const TOP_DROP_INDICATOR_CLASS = [
   "before:content-['']",
@@ -198,7 +198,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const { modalStates, openModal, closeModal } = useProjectItemModalStates();
   const { createWebLinkRecord, handleSelectWebviewFile } = useWebLinkHandlers({
     uploadResource,
-    messageKeyPrefix: "project-item",
   });
 
   const videoStrategy = useMemo(
@@ -360,7 +359,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
 
   const handleWebviewConfirm = useMemoizedFn(async (result: WebViewSelectResult) => {
     if (!projectItem || !projectId) {
-      message.error("项目文档尚未加载完成");
+      toast.error("项目文档尚未加载完成");
       return;
     }
 
@@ -386,10 +385,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       }
 
       closeModal(ModalKey.Webview);
-      message.success("网页添加成功");
+      toast.success("网页添加成功");
     } catch (error) {
       console.error("添加网页失败:", error);
-      message.error("添加网页失败");
+      toast.error("添加网页失败");
     }
   });
 
@@ -443,7 +442,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         dragPosition,
       });
       if (!result) {
-        message.warning("移动失败，目标位置可能已变化");
+        toast.warning("移动失败，目标位置可能已变化");
         return;
       }
       const needRefreshId = [...result.refreshItemIds];
@@ -587,7 +586,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         filePath: filePath[0],
       });
       if (!item) {
-        message.error("创建视频失败");
+        toast.error("创建视频失败");
         return;
       }
       const fileName = await getFileBaseName(filePath[0], true);
@@ -628,7 +627,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
         filePath: filePath[0],
       });
       if (!audioNote) {
-        message.error("创建音频笔记失败");
+        toast.error("创建音频笔记失败");
         return;
       }
       const audioFileName = await getFileBaseName(filePath[0], true);
@@ -692,10 +691,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           category: "",
         });
         await pdfStrategy.addProjectItem(createProjectItemFromPdf(pdf));
-        message.success("本地 PDF 添加成功");
+        toast.success("本地 PDF 添加成功");
       } catch (error) {
         console.error("添加本地 PDF 失败:", error);
-        message.error("添加本地 PDF 失败");
+        toast.error("添加本地 PDF 失败");
       }
     } else if (key === "add-remote-pdf-project-item") {
       openModal(ModalKey.RemotePdf);
@@ -715,10 +714,10 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           progressPercentage: 0,
         });
         await epubStrategy.addProjectItem(createProjectItemFromEpub(epub));
-        message.success("本地 EPUB 添加成功");
+        toast.success("本地 EPUB 添加成功");
       } catch (error) {
         console.error("添加本地 EPUB 失败:", error);
-        message.error("添加本地 EPUB 失败");
+        toast.error("添加本地 EPUB 失败");
       }
     } else if (key === "add-remote-epub-project-item") {
       openModal(ModalKey.RemoteEpub);
@@ -852,21 +851,21 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                 }}
               >
                 {projectItem.children.length > 0 ? (
-                  <FolderOpenTwoTone />
+                  <FolderOpen />
                 ) : projectItem.projectItemType === EProjectItemType.WhiteBoard ? (
                   <SVG src={whiteBoardIcon} />
                 ) : projectItem.projectItemType === EProjectItemType.VideoNote ? (
-                  <VideoCameraOutlined />
+                  <Video />
                 ) : projectItem.projectItemType === EProjectItemType.WebView ? (
-                  <GlobalOutlined />
+                  <Globe />
                 ) : projectItem.projectItemType === EProjectItemType.TableView ? (
-                  <TableOutlined />
+                  <Table />
                 ) : projectItem.projectItemType === EProjectItemType.Pdf ? (
-                  <FilePdfOutlined className="text-red-500" />
+                  <FileText className="text-red-500" />
                 ) : projectItem.projectItemType === EProjectItemType.Epub ? (
-                  <BookOutlined />
+                  <Book />
                 ) : (
-                  <FileOutlined />
+                  <FileText />
                 )}
               </div>
             </Tooltip>
@@ -950,7 +949,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               <div
                 className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}`}
               >
-                <MoreOutlined />
+                <MoreHorizontal />
               </div>
             </Dropdown>
             <Dropdown
@@ -962,7 +961,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
               <div
                 className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}`}
               >
-                <PlusOutlined />
+                <Plus />
               </div>
             </Dropdown>
           </div>

@@ -1,7 +1,7 @@
 import { useMemoizedFn } from "ahooks";
-import { message } from "antd";
 import { createWebLink, getFileBaseName, readTextFile, selectFile } from "@/commands";
 import { WebLinkSourceType } from "@/types";
+import { toast } from "@tau/ui";
 
 export interface WebviewFileResult {
   url: string;
@@ -15,7 +15,6 @@ export interface UseWebLinkHandlersOptions {
    * 用于区分不同组件的 message key 前缀
    * @default "weblink"
    */
-  messageKeyPrefix?: string;
 }
 
 /**
@@ -23,7 +22,7 @@ export interface UseWebLinkHandlersOptions {
  * 提取 ProjectList 和 ProjectItem 中重复的 WebLink 处理逻辑
  */
 export const useWebLinkHandlers = (options: UseWebLinkHandlersOptions) => {
-  const { uploadResource, messageKeyPrefix = "weblink" } = options;
+  const { uploadResource } = options;
 
   /**
    * 创建 WebLink 记录
@@ -56,15 +55,9 @@ export const useWebLinkHandlers = (options: UseWebLinkHandlersOptions) => {
     if (!filePaths || filePaths.length === 0) return null;
 
     const filePath = filePaths[0];
-    const messageKey = `${messageKeyPrefix}-webview-html`;
 
+    const loadingId = toast.loading("正在上传 HTML 文件...");
     try {
-      message.loading({
-        key: messageKey,
-        content: "正在上传 HTML 文件...",
-        duration: 0,
-      });
-
       const fileName = await getFileBaseName(filePath);
       const fileTitle = await getFileBaseName(filePath, true);
       const fileContent = await readTextFile(filePath);
@@ -74,17 +67,12 @@ export const useWebLinkHandlers = (options: UseWebLinkHandlersOptions) => {
 
       const uploadedUrl = await uploadResource(htmlFile);
       if (!uploadedUrl) {
-        message.error({
-          key: messageKey,
-          content: "上传 HTML 文件失败",
-        });
+        toast.dismiss(loadingId);
+        toast.error("上传 HTML 文件失败");
         return null;
       }
 
-      message.success({
-        key: messageKey,
-        content: "HTML 文件已添加",
-      });
+      toast.resolve(loadingId, "HTML 文件已添加");
 
       return {
         url: uploadedUrl,
@@ -93,10 +81,8 @@ export const useWebLinkHandlers = (options: UseWebLinkHandlersOptions) => {
       };
     } catch (error) {
       console.error("选择 HTML 文件失败:", error);
-      message.error({
-        key: messageKey,
-        content: "选择 HTML 文件失败",
-      });
+      toast.dismiss(loadingId);
+      toast.error("选择 HTML 文件失败");
       return null;
     }
   });

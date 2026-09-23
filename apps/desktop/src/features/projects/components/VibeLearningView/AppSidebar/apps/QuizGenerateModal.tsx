@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "motion/react";
 import { RefreshCw, CheckCircle2, Check, Loader2, Sparkles } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
-import { App } from "antd";
 
 import CustomModal from "@/components/CustomModal";
 import useQuizGeneration from "@/hooks/useQuizGeneration";
@@ -14,6 +13,7 @@ import useVLTools from "@/hooks/useVLTools";
 import type { GeneratedQuizItem, CreateVLQuizItemInput, ToolCallExecutionState } from "@/types";
 import { FLASHCARD_TYPE_META } from "@/utils/flashcard";
 import { GenerationConfigStep, GeneratingProgress } from "../components";
+import { toast } from "@tau/ui";
 
 interface QuizGenerateModalProps {
   open: boolean;
@@ -26,7 +26,6 @@ type Step = "select-resources" | "generating" | "preview";
 
 const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
   const { open, projectId, mainDbName, onClose } = props;
-  const { message } = App.useApp();
 
   // LLM 配置
   const { providerConfig, modelConfig } = useLLMConfig("chat");
@@ -109,7 +108,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
   // 开始生成测验（使用工具模式，AI 自主获取资料内容）
   const handleStartGenerate = useMemoizedFn(async () => {
     if (selectedResourceIds.length === 0) {
-      message.error("请选择至少一个资源");
+      toast.error("请选择至少一个资源");
       return;
     }
 
@@ -142,12 +141,12 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
   const handleSave = useMemoizedFn(async () => {
     const selectedItems = generatedItems.filter(item => item.selected);
     if (selectedItems.length === 0) {
-      message.error("请选择至少一道题目");
+      toast.error("请选择至少一道题目");
       return;
     }
 
     if (!quizName.trim()) {
-      message.error("请输入测验名称");
+      toast.error("请输入测验名称");
       return;
     }
 
@@ -176,11 +175,11 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
 
       await createItemsBatch(items);
 
-      message.success("测验创建成功");
+      toast.success("测验创建成功");
       onClose();
     } catch (error) {
       console.error("Failed to save quiz:", error);
-      message.error("保存失败");
+      toast.error("保存失败");
     } finally {
       setSaving(false);
     }

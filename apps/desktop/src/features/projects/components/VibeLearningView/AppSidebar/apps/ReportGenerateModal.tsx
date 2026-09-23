@@ -2,7 +2,7 @@ import { isElectron } from "@/electron";
 import { useHtmlPreviewUrl } from "@/utils/html-preview";
 import { memo, useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { App, Spin } from "antd";
+import { Spin } from "antd";
 import { FileBarChart, Sparkles, RefreshCw, Loader2, CheckCircle2, Code, Eye } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
@@ -25,6 +25,7 @@ import {
 import { GenerationConfigStep, GeneratingProgress } from "../components";
 import ReportTemplateSelector from "../components/ReportTemplateSelector";
 import { runGenerationTask } from "@/services/generation-orchestrator";
+import { toast } from "@tau/ui";
 
 interface ReportGenerateModalProps {
   open: boolean;
@@ -38,7 +39,6 @@ type Step = "select-resources" | "generating" | "preview";
 
 const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
   const { open, projectId, mainDbName, onClose, onNoteCreated } = props;
-  const { message } = App.useApp();
 
   const { providerConfig, modelConfig } = useLLMConfig("chat");
 
@@ -116,12 +116,12 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
 
   const handleStartGenerate = useMemoizedFn(async () => {
     if (selectedResourceIds.length === 0) {
-      message.error("请选择至少一个资源");
+      toast.error("请选择至少一个资源");
       return;
     }
 
     if (!providerConfig || !modelConfig) {
-      message.error("请先在设置中配置 AI 模型");
+      toast.error("请先在设置中配置 AI 模型");
       return;
     }
 
@@ -162,7 +162,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
         onError: e => {
           setIsGenerating(false);
           console.error("Generate Report error:", e);
-          message.error(e.message || "生成报告失败");
+          toast.error(e.message || "生成报告失败");
           if (!generatedHtml) {
             setStep("select-resources");
           } else {
@@ -201,7 +201,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
 
   const handleSave = useMemoizedFn(async () => {
     if (!cleanedHtml.trim()) {
-      message.error("没有可保存的内容");
+      toast.error("没有可保存的内容");
       return;
     }
 
@@ -228,12 +228,12 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
         type: "report",
       });
 
-      message.success("报告已保存为笔记");
+      toast.success("报告已保存为笔记");
       onNoteCreated?.(note);
       onClose();
     } catch (e) {
       console.error("Failed to save Report:", e);
-      message.error((e as Error).message || "保存失败");
+      toast.error((e as Error).message || "保存失败");
     } finally {
       setSaving(false);
     }

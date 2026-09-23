@@ -1,6 +1,6 @@
 import { memo, useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Upload, App } from "antd";
+import { Upload } from "antd";
 import {
   FileText,
   Globe,
@@ -40,6 +40,7 @@ import type { StreamOption } from "@/types/youtube";
 import type { SearchResult } from "@/types/search";
 import NoteSelector from "./AppSidebar/components/NoteSelector";
 import useEditorExtensions from "@/hooks/useDynamicExtensions";
+import { toast } from "@tau/ui";
 
 interface AddResourceModalProps {
   open: boolean;
@@ -195,7 +196,6 @@ const extractTitleFromHtml = (html: string): string | null => {
 
 const AddResourceModal = memo((props: AddResourceModalProps) => {
   const { open, projectId, mainDbName, onClose, onSuccess } = props;
-  const { message } = App.useApp();
   const { setting } = useSettingStore.getState();
 
   // Tab 状态
@@ -355,11 +355,11 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       });
 
       setUploadedFiles(prev => [...prev, file.name]);
-      message.success(`上传成功: ${file.name}`);
+      toast.success(`上传成功: ${file.name}`);
       onSuccess();
     } catch (error) {
       console.error("Upload failed:", error);
-      message.error(`上传失败: ${file.name}`);
+      toast.error(`上传失败: ${file.name}`);
     } finally {
       setUploading(false);
     }
@@ -370,12 +370,12 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   // 网址剪藏处理
   const handleClipUrl = useMemoizedFn(async () => {
     if (!url.trim()) {
-      message.warning("请输入网址");
+      toast.warning("请输入网址");
       return;
     }
 
     if (!isValidUrl(url.trim())) {
-      message.error("请输入有效的网址（以 http:// 或 https:// 开头）");
+      toast.error("请输入有效的网址（以 http:// 或 https:// 开头）");
       return;
     }
 
@@ -490,7 +490,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       });
 
       setProcessingStep("done");
-      message.success("网页剪藏成功");
+      toast.success("网页剪藏成功");
       onSuccess();
 
       // 延迟关闭弹窗
@@ -704,7 +704,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       }
 
       setVideoStep("done");
-      message.success("视频添加成功，正在后台处理...");
+      toast.success("视频添加成功，正在后台处理...");
       onSuccess();
 
       setTimeout(() => {
@@ -759,7 +759,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       });
 
       setNoteStep("done");
-      message.success("笔记添加成功");
+      toast.success("笔记添加成功");
       onSuccess();
 
       // 延迟关闭弹窗

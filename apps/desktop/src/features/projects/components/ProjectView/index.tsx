@@ -7,7 +7,7 @@ import ProjectContext from "./ProjectContext";
 import { useEffect, useRef, useState } from "react";
 import { Project, EProjectType } from "@/types";
 import { getProjectById } from "@/commands";
-import { LoadingOutlined } from "@ant-design/icons";
+import { Loader2 } from "lucide-react";
 import { usePage } from "@/page/PageProvider";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 
@@ -52,7 +52,7 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
   if (loading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <LoadingOutlined />
+        <Loader2 strokeWidth={1.75} />
       </div>
     );
   }

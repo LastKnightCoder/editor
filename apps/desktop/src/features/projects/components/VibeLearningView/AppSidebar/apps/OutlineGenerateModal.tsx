@@ -1,6 +1,5 @@
 import { memo, useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { App } from "antd";
 import { ListOrdered, Sparkles } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
@@ -17,6 +16,7 @@ import { VLNote } from "@/types/vibe-learning";
 import { importFromMarkdown, getContentLength } from "@/utils";
 import { GenerationConfigStep } from "../components";
 import { runGenerationTask } from "@/services/generation-orchestrator";
+import { toast } from "@tau/ui";
 
 interface OutlineGenerateModalProps {
   open: boolean;
@@ -28,7 +28,6 @@ interface OutlineGenerateModalProps {
 
 const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
   const { open, projectId, mainDbName, onClose, onNoteCreated } = props;
-  const { message } = App.useApp();
 
   // LLM 配置
   const { providerConfig, modelConfig } = useLLMConfig("chat");
@@ -152,12 +151,12 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
   // 开始生成大纲
   const handleStartGenerate = useMemoizedFn(async () => {
     if (selectedResourceIds.length === 0) {
-      message.error("请选择至少一个资源");
+      toast.error("请选择至少一个资源");
       return;
     }
 
     if (!providerConfig || !modelConfig) {
-      message.error("请先在设置中配置 AI 模型");
+      toast.error("请先在设置中配置 AI 模型");
       return;
     }
 
@@ -202,7 +201,7 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
       runBackgroundGeneration(note.id, newContentId, resourceNames, userPrompt);
     } catch (e) {
       console.error("Failed to start outline generation:", e);
-      message.error((e as Error).message || "生成失败");
+      toast.error((e as Error).message || "生成失败");
       setIsCreating(false);
     }
   });

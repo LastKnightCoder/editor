@@ -1,22 +1,21 @@
 import { useState, useEffect, useRef } from "react";
-import { Button, Tag, Tooltip, Popconfirm, message } from "antd";
+import { Button, Tag, Tooltip, Popconfirm } from "antd";
 import {
-  FileOutlined,
-  AudioOutlined,
-  VideoCameraOutlined,
-  PictureOutlined,
-  FilePdfOutlined,
-  DeleteOutlined,
-  ReloadOutlined,
-  LoadingOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  WarningOutlined,
-  CloseCircleOutlined,
-  EditOutlined,
-  PlusOutlined,
-  ArrowLeftOutlined,
-} from "@ant-design/icons";
+  FileText,
+  AudioLines,
+  Video,
+  Image,
+  Trash2,
+  RotateCw,
+  Loader2,
+  CircleCheck,
+  Clock,
+  TriangleAlert,
+  CircleX,
+  Pencil,
+  Plus,
+  ArrowLeft,
+} from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 import { Descendant } from "slate";
@@ -48,6 +47,7 @@ import useEditContent from "@/hooks/useEditContent";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import AddResourceModal from "./AddResourceModal";
 import ResourcePreviewPanel from "./ResourcePreview";
+import { toast } from "@tau/ui";
 
 type PanelView = "resource-list" | "resource-preview" | "note-preview";
 type ResourceDropPosition = "before" | "after";
@@ -64,15 +64,15 @@ interface ResourcePanelProps {
 const getResourceIcon = (type: VLResourceType) => {
   switch (type) {
     case "pdf":
-      return <FilePdfOutlined />;
+      return <FileText />;
     case "audio":
-      return <AudioOutlined />;
+      return <AudioLines />;
     case "video":
-      return <VideoCameraOutlined />;
+      return <Video />;
     case "image":
-      return <PictureOutlined />;
+      return <Image />;
     default:
-      return <FileOutlined />;
+      return <FileText />;
   }
 };
 
@@ -80,20 +80,20 @@ const getResourceIcon = (type: VLResourceType) => {
 const getStatusIcon = (status: VLResourceStatus) => {
   const config = statusConfig[status];
   if (config.spin) {
-    return <LoadingOutlined spin />;
+    return <Loader2 strokeWidth={1.75} />;
   }
   switch (status) {
     case "completed":
-      return <CheckCircleOutlined />;
+      return <CircleCheck />;
     case "pending":
-      return <ClockCircleOutlined />;
+      return <Clock />;
     case "need_convert":
     case "need_index":
-      return <WarningOutlined />;
+      return <TriangleAlert />;
     case "failed":
-      return <CloseCircleOutlined />;
+      return <CircleX />;
     default:
-      return <ClockCircleOutlined />;
+      return <Clock />;
   }
 };
 
@@ -264,7 +264,7 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
             <Button
               type="text"
               size="small"
-              icon={<ReloadOutlined />}
+              icon={<RotateCw strokeWidth={1.75} />}
               onClick={event => {
                 event.stopPropagation();
                 onReprocess(resource);
@@ -277,7 +277,7 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
             <Button
               type="text"
               size="small"
-              icon={<ReloadOutlined />}
+              icon={<RotateCw strokeWidth={1.75} />}
               onClick={event => {
                 event.stopPropagation();
                 onReindex(resource);
@@ -289,7 +289,7 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
           <Button
             type="text"
             size="small"
-            icon={<EditOutlined />}
+            icon={<Pencil />}
             onClick={event => {
               event.stopPropagation();
               onStartEdit(resource);
@@ -309,7 +309,7 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
               type="text"
               size="small"
               danger
-              icon={<DeleteOutlined />}
+              icon={<Trash2 />}
               onClick={event => event.stopPropagation()}
             />
           </Tooltip>
@@ -374,7 +374,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
       })
       .catch(err => {
         console.error("Failed to load note content:", err);
-        message.error("加载笔记内容失败");
+        toast.error("加载笔记内容失败");
       })
       .finally(() => setNoteLoading(false));
   }, [previewingNoteMeta?.contentId]);
@@ -403,7 +403,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         setNoteContent(null);
         setCurrentView("note-preview");
       } catch {
-        message.error("无法解析笔记信息");
+        toast.error("无法解析笔记信息");
       }
       return;
     }
@@ -428,7 +428,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         await openFileWithDefaultApp(localPath);
       } catch (error) {
         console.error("Open file failed:", error);
-        message.error("打开文件失败");
+        toast.error("打开文件失败");
       }
     }
   });
@@ -452,11 +452,11 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         mainDbName,
         markdownPath: resource.markdownPath || undefined,
       });
-      message.success("删除成功");
+      toast.success("删除成功");
       onResourcesChange();
     } catch (error) {
       console.error("Delete failed:", error);
-      message.error("删除失败");
+      toast.error("删除失败");
     }
   });
 
@@ -473,14 +473,14 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         type: status === "need_index" ? "index_only" : "full",
       });
       if (!result.accepted && result.reason === "already_running") {
-        message.info("该资源正在处理中");
+        toast.info("该资源正在处理中");
         return;
       }
-      message.success("已添加到处理队列");
+      toast.success("已添加到处理队列");
       refreshStatus();
     } catch (error) {
       console.error("Reprocess failed:", error);
-      message.error("添加处理任务失败");
+      toast.error("添加处理任务失败");
     }
   });
 
@@ -496,14 +496,14 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         type: "index_only",
       });
       if (!result.accepted && result.reason === "already_running") {
-        message.info("该资源正在处理中");
+        toast.info("该资源正在处理中");
         return;
       }
-      message.success("已添加到索引队列");
+      toast.success("已添加到索引队列");
       refreshStatus();
     } catch (error) {
       console.error("Reindex failed:", error);
-      message.error("添加索引任务失败");
+      toast.error("添加索引任务失败");
     }
   });
 
@@ -532,7 +532,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     if (!editingResource) return;
     const trimmedBaseName = result.title.trim();
     if (!trimmedBaseName) {
-      message.warning("资源名称不能为空");
+      toast.warning("资源名称不能为空");
       return;
     }
     const { extension } = getNameParts(editingResource.name);
@@ -543,11 +543,11 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
     }
     try {
       await updateVLResource({ id: editingResource.id, name: newFullName });
-      message.success("重命名成功");
+      toast.success("重命名成功");
       onResourcesChange();
     } catch (error) {
       console.error("Rename failed:", error);
-      message.error("重命名失败");
+      toast.error("重命名失败");
     } finally {
       handleCancelEdit();
     }
@@ -585,7 +585,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
       const fallbackResources = sourceResourcesRef.current;
       orderedResourcesRef.current = fallbackResources;
       setOrderedResources(fallbackResources);
-      message.error("保存资源顺序失败");
+      toast.error("保存资源顺序失败");
     } finally {
       isPersistingOrderRef.current = false;
       setSavingOrder(false);
@@ -645,7 +645,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
             <Button
               type="text"
               size="small"
-              icon={<ArrowLeftOutlined />}
+              icon={<ArrowLeft strokeWidth={1.75} />}
               onClick={handleNotePreviewBack}
             />
           </Tooltip>
@@ -657,7 +657,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         <div className="flex-1 overflow-auto p-4">
           {noteLoading ? (
             <div className="flex h-full items-center justify-center">
-              <LoadingOutlined spin className="text-2xl text-gray-400" />
+              <Loader2 className="text-2xl text-gray-400" strokeWidth={1.75} />
             </div>
           ) : noteContent ? (
             <ErrorBoundary>
@@ -699,7 +699,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
           onClick={handleOpenAddResourceModal}
           className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-600 transition-all hover:border-[var(--th-border-focus)] hover:text-[var(--th-accent)] dark:border-gray-700 dark:bg-[#1f1f1f] dark:text-gray-400 dark:hover:border-[var(--th-border-focus)] dark:hover:text-[var(--th-accent)]"
         >
-          <PlusOutlined />
+          <Plus />
           <span>添加资料</span>
         </button>
       </div>

@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { App } from "antd";
 import EditProject from "../EditProjectItem";
 
 import { getProjectItemById } from "@/commands";
@@ -13,11 +12,10 @@ import TableProjectItemView from "../TableProjectItemView";
 import PdfProjectItemView from "../PdfProjectItemView";
 import EpubProjectItemView from "../EpubProjectItemView";
 import styles from "./index.module.less";
+import { toast } from "@tau/ui";
 
 const EditProjectView = () => {
   const { itemId: activeProjectItemId } = useProjectContext();
-
-  const { message } = App.useApp();
 
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
 
@@ -29,14 +27,14 @@ const EditProjectView = () => {
         })
         .catch(e => {
           console.error(e);
-          message.error("获取项目内容失败");
+          toast.error("获取项目内容失败");
         });
     }
 
     return () => {
       setProjectItem(null);
     };
-  }, [activeProjectItemId, message]);
+  }, [activeProjectItemId]);
 
   if (!projectItem) return null;
 

@@ -1,6 +1,6 @@
 import { memo, useState, useRef } from "react";
-import { Empty, Spin, message } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { Empty, Spin } from "antd";
+import { Loader2 } from "lucide-react";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import useSettingStore from "@/stores/useSettingStore";
 import { getProjectById } from "@/commands";
@@ -16,6 +16,7 @@ import type { VLResource } from "@/types/vibe-learning";
 import ResourcePanel from "./ResourcePanel";
 import ChatPanel from "./ChatPanel";
 import AppSidebar, { type AppSidebarRef } from "./AppSidebar";
+import { toast } from "@tau/ui";
 
 interface VibeLearningViewProps {
   projectId: number;
@@ -62,7 +63,7 @@ const VibeLearningViewContent = memo(({ projectId }: VibeLearningViewProps) => {
       setResources(resourcesData);
     } catch (error) {
       console.error("Failed to load VibeLearning data:", error);
-      message.error("加载项目数据失败");
+      toast.error("加载项目数据失败");
     } finally {
       setLoading(false);
     }
@@ -86,7 +87,7 @@ const VibeLearningViewContent = memo(({ projectId }: VibeLearningViewProps) => {
   if (loading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <Spin indicator={<LoadingOutlined spin />} />
+        <Spin indicator={<Loader2 strokeWidth={1.75} />} />
       </div>
     );
   }

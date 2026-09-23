@@ -1,16 +1,15 @@
 import { memo, useEffect, useState } from "react";
-import { App } from "antd";
 
 import { getPdfById, getProjectItemById } from "@/commands";
 import { EProjectItemType, Pdf, ProjectItem } from "@/types";
 import EditPdf from "@/components/EditPdf";
+import { toast } from "@tau/ui";
 
 interface PdfProjectItemViewProps {
   projectItemId: number;
 }
 
 const PdfProjectItemView = memo(({ projectItemId }: PdfProjectItemViewProps) => {
-  const { message } = App.useApp();
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const [pdf, setPdf] = useState<Pdf | null>(null);
 
@@ -32,7 +31,7 @@ const PdfProjectItemView = memo(({ projectItemId }: PdfProjectItemViewProps) => 
         setPdf(pdfData);
       } catch (error) {
         console.error("加载 PDF 项失败:", error);
-        message.error("加载 PDF 内容失败");
+        toast.error("加载 PDF 内容失败");
       }
     };
 
@@ -43,7 +42,7 @@ const PdfProjectItemView = memo(({ projectItemId }: PdfProjectItemViewProps) => 
       setProjectItem(null);
       setPdf(null);
     };
-  }, [projectItemId, message]);
+  }, [projectItemId]);
 
   if (!projectItem || !pdf) return null;
 

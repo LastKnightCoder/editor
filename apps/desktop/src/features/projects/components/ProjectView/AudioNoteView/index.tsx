@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { SoundOutlined, LoadingOutlined, ThunderboltOutlined } from "@ant-design/icons";
+import { Volume2, Loader2, Zap } from "lucide-react";
 import { FileText, Pencil, ChevronDown, Sparkles } from "lucide-react";
 import { App } from "antd";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
@@ -43,6 +43,7 @@ import AudioPlayer from "./components/AudioPlayer";
 import ChaptersPanel from "./components/ChaptersPanel";
 import useSettingStore from "@/stores/useSettingStore";
 import { AudioNote, AudioNoteItem, TranscriptSegment, AudioChapter } from "@/types";
+import { toast } from "@tau/ui";
 import {
   VIDEO_NOTE_AUTO_LANGUAGE,
   resolveVideoNoteOptimizationLanguage,
@@ -67,7 +68,7 @@ interface AudioNoteViewProps {
 }
 
 const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewProps) => {
-  const { message, modal } = App.useApp();
+  const { modal } = App.useApp();
   const { setting } = useSettingStore(s => ({ setting: s.setting }));
   const themeColors = useThemeColors();
 
@@ -270,7 +271,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
       });
 
       if (!audioPath) {
-        message.error("音频地址为空");
+        toast.error("音频地址为空");
         return;
       }
 
@@ -297,7 +298,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
       }
 
       if (!result.success || !result.data) {
-        message.error(result.error || "转录失败");
+        toast.error(result.error || "转录失败");
         return;
       }
 
@@ -344,7 +345,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
         setAudioNote(updatedNote);
       }
 
-      message.success("转录完成");
+      toast.success("转录完成");
 
       if (segments.length > 0) {
         void handleGenerateInsights(
@@ -357,7 +358,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
       }
     } catch (error) {
       console.error(error);
-      message.error("转录失败");
+      toast.error("转录失败");
     } finally {
       setIsTranscribing(false);
       setTranscriptionProgress("");
@@ -384,7 +385,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
   const handleGenerateInsights = useMemoizedFn(async (segments: TranscriptSegment[]) => {
     if (!summaryProviderConfig || !summaryModelConfig) {
       console.warn("[AudioNote] 跳过章节生成：视频总结模型未配置");
-      message.info("提示：配置「视频总结」模型后可自动生成章节");
+      toast.info("提示：配置「视频总结」模型后可自动生成章节");
       return;
     }
 
@@ -424,14 +425,14 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
       }
     } catch (e) {
       console.error("[AudioNote] 章节生成失败:", e);
-      message.error("章节生成失败");
+      toast.error("章节生成失败");
     }
   });
 
   // Summary
   const handleStartSummary = useMemoizedFn(() => {
     if (!audioNote?.transcriptSegments) {
-      message.warning("请先完成转录");
+      toast.warning("请先完成转录");
       return;
     }
     setIsSummarizing(true);
@@ -521,7 +522,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
     {
       key: "transcript",
       label: "转录",
-      icon: <SoundOutlined className="text-xs" />,
+      icon: <Volume2 className="text-xs" strokeWidth={1.75} />,
     },
     { key: "highlights", label: "高亮", icon: <Sparkles size={14} /> },
     { key: "summary", label: "总结", icon: <FileText size={14} /> },
@@ -534,7 +535,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
   if (!audioNote) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <LoadingOutlined className="animate-spin text-2xl text-gray-400" />
+        <Loader2 className="animate-text-2xl text-gray-400" strokeWidth={1.75} />
       </div>
     );
   }
@@ -584,7 +585,11 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
             onClick={handleStartTranscription}
             title={isTranscribing ? transcriptionProgress : "转录音频"}
           >
-            {isTranscribing ? <LoadingOutlined className="animate-spin" /> : <SoundOutlined />}
+            {isTranscribing ? (
+              <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
+            ) : (
+              <Volume2 strokeWidth={1.75} />
+            )}
           </button>
 
           {/* AI optimize button */}
@@ -595,7 +600,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
               onClick={handleAIOptimize}
               title="AI 优化断句"
             >
-              <ThunderboltOutlined />
+              <Zap strokeWidth={1.75} />
             </button>
           )}
         </div>
@@ -638,12 +643,12 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                     >
                       {isGeneratingInsights ? (
                         <>
-                          <LoadingOutlined className="animate-spin" />
+                          <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
                           生成中...
                         </>
                       ) : (
                         <>
-                          <ThunderboltOutlined />
+                          <Zap strokeWidth={1.75} />
                           生成章节
                         </>
                       )}
@@ -693,7 +698,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                       >
                         {isSummarizing ? (
                           <>
-                            <LoadingOutlined className="animate-spin" />
+                            <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
                             <span>生成中...</span>
                           </>
                         ) : (
@@ -716,13 +721,13 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                       <div className="flex h-full flex-col items-center justify-center gap-4">
                         {isTranscribing ? (
                           <div className="flex flex-col items-center gap-3 text-gray-500 dark:text-gray-400">
-                            <LoadingOutlined className="animate-spin text-2xl" />
+                            <Loader2 className="animate-text-2xl" strokeWidth={1.75} />
                             <span className="text-sm">{transcriptionProgress || "转录中..."}</span>
                           </div>
                         ) : (
                           <div className="flex flex-col items-center gap-4">
                             <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-gray-500">
-                              <SoundOutlined className="text-3xl" />
+                              <Volume2 className="text-3xl" strokeWidth={1.75} />
                               <span className="text-sm">暂无转录内容</span>
                             </div>
                             <button
@@ -730,7 +735,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                               onClick={handleStartTranscription}
                               disabled={isTranscribing}
                             >
-                              <ThunderboltOutlined />
+                              <Zap strokeWidth={1.75} />
                               开始转录
                             </button>
                           </div>
@@ -741,7 +746,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                         {isOptimizing && streamingSegments.length > 0 ? (
                           <>
                             <div className="mb-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                              <LoadingOutlined className="animate-spin" />
+                              <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
                               AI 优化断句中...
                             </div>
                             {streamingSegments.map((segment, index) => (
@@ -760,7 +765,10 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                                   {segment.text}
                                 </span>
                                 {segment.status === "pending" && (
-                                  <LoadingOutlined className="ml-auto animate-spin text-xs text-gray-400" />
+                                  <Loader2
+                                    className="animate-text-xs ml-auto text-gray-400"
+                                    strokeWidth={1.75}
+                                  />
                                 )}
                               </div>
                             ))}
@@ -769,7 +777,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                           <>
                             {isOptimizing && (
                               <div className="mb-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-                                <LoadingOutlined className="animate-spin" />
+                                <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
                                 AI 优化断句中...
                               </div>
                             )}
@@ -820,12 +828,12 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                           >
                             {isGeneratingInsights ? (
                               <>
-                                <LoadingOutlined className="animate-spin" />
+                                <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
                                 生成中...
                               </>
                             ) : (
                               <>
-                                <ThunderboltOutlined />
+                                <Zap strokeWidth={1.75} />
                                 生成高亮
                               </>
                             )}
@@ -868,7 +876,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                             onClick={handleStartSummary}
                             disabled={isSummarizing}
                           >
-                            <ThunderboltOutlined />
+                            <Zap strokeWidth={1.75} />
                             生成总结
                           </button>
                         )}

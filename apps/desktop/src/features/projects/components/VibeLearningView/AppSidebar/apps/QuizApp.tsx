@@ -25,6 +25,7 @@ import { formatDate } from "@/utils";
 import QuizGenerateModal from "./QuizGenerateModal";
 import QuizTestModal from "./QuizTestModal";
 import QuizEditModal from "./QuizEditModal";
+import { toast } from "@tau/ui";
 
 interface QuizAppProps {
   projectId: number;
@@ -34,7 +35,7 @@ interface QuizAppProps {
 
 const QuizApp = memo((props: QuizAppProps) => {
   const { projectId, mainDbName, onBack } = props;
-  const { modal, message } = App.useApp();
+  const { modal } = App.useApp();
   const themeColors = useThemeColors();
 
   const {
@@ -96,7 +97,7 @@ const QuizApp = memo((props: QuizAppProps) => {
       setSelectedQuizSet(quizSet);
       setShowTestModal(true);
     } catch (error) {
-      message.error((error as Error).message || "无法开始测验");
+      toast.error((error as Error).message || "无法开始测验");
     }
   });
 
@@ -121,9 +122,9 @@ const QuizApp = memo((props: QuizAppProps) => {
       onOk: async () => {
         try {
           await deleteQuizSet(quizSet.id);
-          message.success("测验集已删除");
+          toast.success("测验集已删除");
         } catch (error) {
-          message.error("删除失败");
+          toast.error("删除失败");
         }
       },
     });

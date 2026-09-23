@@ -2,7 +2,6 @@ import { isElectron } from "@/electron";
 import { useHtmlPreviewUrl } from "@/utils/html-preview";
 import { memo, useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { App } from "antd";
 import { Presentation, Sparkles, RefreshCw, Loader2, CheckCircle2, Code, Eye } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
@@ -19,6 +18,7 @@ import { importFromMarkdown, getMarkdown } from "@/utils";
 import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
 import { GenerationConfigStep, GeneratingProgress } from "../components";
 import { runGenerationTask } from "@/services/generation-orchestrator";
+import { toast } from "@tau/ui";
 
 interface PPTEditModalProps {
   open: boolean;
@@ -33,7 +33,6 @@ type Step = "config" | "generating" | "preview";
 
 const PPTEditModal = memo((props: PPTEditModalProps) => {
   const { open, note, projectId, mainDbName, onClose, onNoteUpdated } = props;
-  const { message } = App.useApp();
 
   // LLM 配置
   const { providerConfig, modelConfig } = useLLMConfig("chat");
@@ -85,7 +84,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
       // 获取 Content
       const content = await getContentById(noteToLoad.contentId);
       if (!content) {
-        message.error("无法加载 PPT 内容");
+        toast.error("无法加载 PPT 内容");
         return;
       }
 
@@ -99,11 +98,11 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
       if (htmlContent && htmlContent.trim()) {
         setCurrentHtml(htmlContent);
       } else {
-        message.error("无法解析 PPT 内容");
+        toast.error("无法解析 PPT 内容");
       }
     } catch (e) {
       console.error("Failed to load PPT content:", e);
-      message.error("加载 PPT 失败");
+      toast.error("加载 PPT 失败");
     }
   });
 
@@ -143,17 +142,17 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
   // 开始 AI 编辑
   const handleStartEdit = useMemoizedFn(async () => {
     if (!userPrompt.trim()) {
-      message.error("请输入编辑指令");
+      toast.error("请输入编辑指令");
       return;
     }
 
     if (!providerConfig || !modelConfig) {
-      message.error("请先在设置中配置 AI 模型");
+      toast.error("请先在设置中配置 AI 模型");
       return;
     }
 
     if (!currentHtml) {
-      message.error("无法获取当前 PPT 内容");
+      toast.error("无法获取当前 PPT 内容");
       return;
     }
 
@@ -193,7 +192,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
         onError: e => {
           setIsGenerating(false);
           console.error("Edit PPT error:", e);
-          message.error(e.message || "编辑 PPT 失败");
+          toast.error(e.message || "编辑 PPT 失败");
           if (!generatedHtml) {
             setStep("config");
           } else {
@@ -242,13 +241,13 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
   // 保存修改
   const handleSave = useMemoizedFn(async () => {
     if (!note) {
-      message.error("笔记信息丢失");
+      toast.error("笔记信息丢失");
       return;
     }
 
     const htmlToSave = cleanedHtml || currentHtml;
     if (!htmlToSave.trim()) {
-      message.error("没有可保存的内容");
+      toast.error("没有可保存的内容");
       return;
     }
 
@@ -272,7 +271,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
         title: newTitle,
       });
 
-      message.success("保存成功");
+      toast.success("保存成功");
 
       // 回调通知更新了笔记
       if (updatedNote) {
@@ -282,7 +281,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
       onClose();
     } catch (e) {
       console.error("Failed to save PPT:", e);
-      message.error((e as Error).message || "保存失败");
+      toast.error((e as Error).message || "保存失败");
     } finally {
       setSaving(false);
     }

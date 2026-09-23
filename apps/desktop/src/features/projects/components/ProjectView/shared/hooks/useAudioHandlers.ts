@@ -1,5 +1,4 @@
 import { useMemoizedFn } from "ahooks";
-import { message } from "antd";
 import { createEmptyAudioNote } from "@/commands";
 import {
   CreateProjectItem,
@@ -10,6 +9,7 @@ import {
 import type { BilibiliVideoSelectResult } from "@/components/BilibiliVideoSelectModal";
 import type { YoutubeVideoSelectResult } from "@/components/YoutubeVideoSelectModal";
 import { ModalKey } from "../constants/modalKeys";
+import { toast } from "@tau/ui";
 
 export interface AudioAddStrategy {
   addProjectItem: (createItem: CreateProjectItem) => Promise<void>;
@@ -46,7 +46,7 @@ export interface UseAudioHandlersOptions {
 export const createRootAudioStrategy = (config: RootAudioStrategyConfig): AudioAddStrategy => ({
   addProjectItem: async (createItem: CreateProjectItem) => {
     if (!config.project) {
-      message.error("项目尚未加载完成");
+      toast.error("项目尚未加载完成");
       return;
     }
 
@@ -69,7 +69,7 @@ export const createRootAudioStrategy = (config: RootAudioStrategyConfig): AudioA
 export const createChildAudioStrategy = (config: ChildAudioStrategyConfig): AudioAddStrategy => ({
   addProjectItem: async (createItem: CreateProjectItem) => {
     if (!config.projectItem || !config.projectId) {
-      message.error("项目信息不完整");
+      toast.error("项目信息不完整");
       return;
     }
 
@@ -94,7 +94,7 @@ export const useAudioHandlers = (options: UseAudioHandlersOptions) => {
     });
 
     if (!audioNote) {
-      message.error("创建音频笔记失败");
+      toast.error("创建音频笔记失败");
       return;
     }
 
@@ -132,7 +132,7 @@ export const useAudioHandlers = (options: UseAudioHandlersOptions) => {
       });
 
       if (!audioNote) {
-        message.error("创建音频笔记失败");
+        toast.error("创建音频笔记失败");
         return;
       }
 
@@ -164,7 +164,7 @@ export const useAudioHandlers = (options: UseAudioHandlersOptions) => {
     });
 
     if (!audioNote) {
-      message.error("创建音频笔记失败");
+      toast.error("创建音频笔记失败");
       return;
     }
 
@@ -194,7 +194,7 @@ export const useAudioHandlers = (options: UseAudioHandlersOptions) => {
     });
 
     if (!audioNote) {
-      message.error("创建音频笔记失败");
+      toast.error("创建音频笔记失败");
       return;
     }
 

@@ -1,6 +1,5 @@
 import { memo, useState, useRef, useEffect, lazy, Suspense, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { App } from "antd";
 import { Network, Sparkles, RefreshCw, Loader2, CheckCircle2 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
@@ -19,6 +18,7 @@ import { parseMindMapList } from "@/layouts/ContentLayout/components/ChatSidebar
 import { MindMapNodeData } from "@/components/MindMap/types";
 import { GenerationConfigStep, GeneratingProgress } from "../components";
 import { runGenerationTask } from "@/services/generation-orchestrator";
+import { toast } from "@tau/ui";
 
 const MindMap = lazy(() => import("@/components/MindMap"));
 
@@ -34,7 +34,6 @@ type Step = "select-resources" | "generating" | "preview";
 
 const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
   const { open, projectId, mainDbName, onClose, onNoteCreated } = props;
-  const { message } = App.useApp();
 
   const { isDark } = useTheme();
   const themeId = useMemo(() => {
@@ -119,12 +118,12 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
   // 开始生成思维导图
   const handleStartGenerate = useMemoizedFn(async () => {
     if (selectedResourceIds.length === 0) {
-      message.error("请选择至少一个资源");
+      toast.error("请选择至少一个资源");
       return;
     }
 
     if (!providerConfig || !modelConfig) {
-      message.error("请先在设置中配置 AI 模型");
+      toast.error("请先在设置中配置 AI 模型");
       return;
     }
 
@@ -164,7 +163,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
         onError: e => {
           setIsGenerating(false);
           console.error("Generate mindmap error:", e);
-          message.error(e.message || "生成思维导图失败");
+          toast.error(e.message || "生成思维导图失败");
           if (!generatedMarkdown) {
             setStep("select-resources");
           } else {
@@ -207,7 +206,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
   // 保存为笔记
   const handleSave = useMemoizedFn(async () => {
     if (!generatedMarkdown.trim()) {
-      message.error("没有可保存的内容");
+      toast.error("没有可保存的内容");
       return;
     }
 
@@ -231,7 +230,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
         type: "mindmap",
       });
 
-      message.success("思维导图已保存为笔记");
+      toast.success("思维导图已保存为笔记");
 
       // 回调通知创建了笔记
       onNoteCreated?.(note);
@@ -239,7 +238,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
       onClose();
     } catch (e) {
       console.error("Failed to save mindmap:", e);
-      message.error((e as Error).message || "保存失败");
+      toast.error((e as Error).message || "保存失败");
     } finally {
       setSaving(false);
     }

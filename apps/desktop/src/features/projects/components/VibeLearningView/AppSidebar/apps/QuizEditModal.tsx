@@ -21,6 +21,7 @@ import useVLQuizStore from "@/stores/useVLQuizStore";
 import type { VLQuizSet, VLQuizItem, UpdateVLQuizItemInput } from "@/types";
 import type { FlashcardOption } from "@/types/flashcard";
 import { FLASHCARD_TYPE_META, extractPlainText } from "@/utils/flashcard";
+import { toast } from "@tau/ui";
 
 interface QuizEditModalProps {
   open: boolean;
@@ -30,7 +31,7 @@ interface QuizEditModalProps {
 
 const QuizEditModal = memo((props: QuizEditModalProps) => {
   const { open, quizSet, onClose } = props;
-  const { message, modal } = App.useApp();
+  const { modal } = App.useApp();
 
   const {
     itemsByQuizSet,
@@ -79,10 +80,10 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
     setSavingName(true);
     try {
       await updateQuizSet({ id: quizSet.id, name: quizName.trim() });
-      message.success("名称已更新");
+      toast.success("名称已更新");
       setIsEditingName(false);
     } catch (error) {
-      message.error("更新失败");
+      toast.error("更新失败");
     } finally {
       setSavingName(false);
     }
@@ -107,13 +108,13 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
       onOk: async () => {
         try {
           await deleteItem(item.id);
-          message.success("题目已删除");
+          toast.success("题目已删除");
           // 刷新测验集列表以更新题目数量
           if (currentProjectId) {
             fetchQuizSets(currentProjectId);
           }
         } catch (error) {
-          message.error("删除失败");
+          toast.error("删除失败");
         }
       },
     });
@@ -526,7 +527,6 @@ interface QuizItemEditFormProps {
 
 const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
   const { item, onSave, onCancel } = props;
-  const { message } = App.useApp();
 
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState(() => ({
@@ -545,12 +545,12 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
       if (item.type === "single-choice" || item.type === "multiple-choice") {
         // 验证选项
         if (formData.options.some(opt => !opt.label.trim())) {
-          message.error("请填写所有选项内容");
+          toast.error("请填写所有选项内容");
           setSaving(false);
           return;
         }
         if (!formData.options.some(opt => opt.isCorrect)) {
-          message.error("请至少选择一个正确答案");
+          toast.error("请至少选择一个正确答案");
           setSaving(false);
           return;
         }
@@ -564,14 +564,14 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
       newData.explanation = formData.explanation;
 
       await onSave({ id: item.id, data: newData });
-      message.success("保存成功");
+      toast.success("保存成功");
       onCancel();
     } catch (error) {
-      message.error("保存失败");
+      toast.error("保存失败");
     } finally {
       setSaving(false);
     }
-  }, [item, formData, onSave, onCancel, message]);
+  }, [item, formData, onSave, onCancel]);
 
   // 更新选项
   const updateOption = useCallback((index: number, updates: Partial<FlashcardOption>) => {
