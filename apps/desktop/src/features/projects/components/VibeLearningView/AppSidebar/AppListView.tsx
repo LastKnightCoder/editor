@@ -301,7 +301,7 @@ const AppListView = memo(
     const apps: AppItem[] = [
       {
         key: "outline",
-        icon: <ListOrdered className="h-5 w-5" />,
+        icon: <ListOrdered className="h-5 w-5" strokeWidth={1.75} />,
         title: "学习大纲",
         description: "梳理学习路径",
         available: true,
@@ -309,7 +309,7 @@ const AppListView = memo(
       },
       {
         key: "highlights",
-        icon: <Highlighter className="h-5 w-5" />,
+        icon: <Highlighter className="h-5 w-5" strokeWidth={1.75} />,
         title: "重点提炼",
         description: "提取核心干货",
         available: true,
@@ -317,7 +317,7 @@ const AppListView = memo(
       },
       {
         key: "article",
-        icon: <FileText className="h-5 w-5" />,
+        icon: <FileText className="h-5 w-5" strokeWidth={1.75} />,
         title: "文章生成",
         description: "生成可阅读长文",
         available: true,
@@ -325,7 +325,7 @@ const AppListView = memo(
       },
       {
         key: "mindmap",
-        icon: <Network className="h-5 w-5" />,
+        icon: <Network className="h-5 w-5" strokeWidth={1.75} />,
         title: "思维导图",
         description: "可视化知识结构",
         available: true,
@@ -333,7 +333,7 @@ const AppListView = memo(
       },
       {
         key: "ppt",
-        icon: <Presentation className="h-5 w-5" />,
+        icon: <Presentation className="h-5 w-5" strokeWidth={1.75} />,
         title: "PPT",
         description: "高效汇报和演示",
         available: true,
@@ -341,7 +341,7 @@ const AppListView = memo(
       },
       {
         key: "report",
-        icon: <FileBarChart className="h-5 w-5" />,
+        icon: <FileBarChart className="h-5 w-5" strokeWidth={1.75} />,
         title: "报告",
         description: "数据分析报告",
         available: true,
@@ -349,7 +349,7 @@ const AppListView = memo(
       },
       {
         key: "quiz",
-        icon: <CircleHelp className="h-5 w-5" />,
+        icon: <CircleHelp className="h-5 w-5" strokeWidth={1.75} />,
         title: "测验",
         description: "自测掌握程度",
         available: true,
@@ -357,7 +357,7 @@ const AppListView = memo(
       },
       {
         key: "podcast",
-        icon: <Mic className="h-5 w-5" />,
+        icon: <Mic className="h-5 w-5" strokeWidth={1.75} />,
         title: "播客生成",
         description: "AI 生成对话播客",
         available: true,
@@ -421,6 +421,7 @@ const AppListView = memo(
                           "ml-auto h-3.5 w-3.5",
                           themeColors.secondaryTextClass
                         )}
+                        strokeWidth={1.75}
                       />
                     )}
                   </div>
@@ -447,6 +448,7 @@ const AppListView = memo(
               <div className="flex flex-col items-center justify-center py-8">
                 <Loader2
                   className={classNames("h-6 w-6 animate-spin", themeColors.iconTextClass)}
+                  strokeWidth={1.75}
                 />
                 <p className={classNames("mt-2 text-xs", themeColors.secondaryTextClass)}>
                   加载中...
@@ -459,7 +461,10 @@ const AppListView = memo(
                   themeColors.cardBorderClass
                 )}
               >
-                <Inbox className={classNames("mb-2 h-10 w-10", themeColors.secondaryTextClass)} />
+                <Inbox
+                  className={classNames("mb-2 h-10 w-10", themeColors.secondaryTextClass)}
+                  strokeWidth={1.75}
+                />
                 <p className={classNames("text-sm", themeColors.secondaryTextClass)}>暂无笔记</p>
               </div>
             ) : (
@@ -498,6 +503,7 @@ const AppListView = memo(
               <div className="flex flex-col items-center justify-center py-8">
                 <Loader2
                   className={classNames("h-6 w-6 animate-spin", themeColors.iconTextClass)}
+                  strokeWidth={1.75}
                 />
                 <p className={classNames("mt-2 text-xs", themeColors.secondaryTextClass)}>
                   加载中...
@@ -510,7 +516,10 @@ const AppListView = memo(
                   themeColors.cardBorderClass
                 )}
               >
-                <Inbox className={classNames("mb-2 h-10 w-10", themeColors.secondaryTextClass)} />
+                <Inbox
+                  className={classNames("mb-2 h-10 w-10", themeColors.secondaryTextClass)}
+                  strokeWidth={1.75}
+                />
                 <p className={classNames("mb-3 text-sm", themeColors.secondaryTextClass)}>
                   暂无测验集
                 </p>
@@ -522,7 +531,7 @@ const AppListView = memo(
                     themeColors.primaryButtonClass
                   )}
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
                   创建测验
                 </button>
               </div>
@@ -581,13 +590,13 @@ const AppListView = memo(
                           >
                             {bestScore !== null && (
                               <span className="flex items-center gap-1.5">
-                                <Trophy className="h-3.5 w-3.5 text-amber-500" />
+                                <Trophy className="h-3.5 w-3.5 text-amber-500" strokeWidth={1.75} />
                                 最高 {bestScore.toFixed(0)}%
                               </span>
                             )}
                             {latestRecord && (
                               <span className="flex items-center gap-1.5">
-                                <Clock className="h-3.5 w-3.5" />
+                                <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />
                                 {formatDate(latestRecord.createTime, true)}
                               </span>
                             )}
@@ -606,7 +615,7 @@ const AppListView = memo(
                               "disabled:cursor-not-allowed disabled:opacity-50"
                             )}
                           >
-                            <Play className="h-3.5 w-3.5" />
+                            <Play className="h-3.5 w-3.5" strokeWidth={1.75} />
                             测验
                           </button>
                           {(bestScore !== null || latestRecord !== null) && (
@@ -621,7 +630,7 @@ const AppListView = memo(
                                 themeColors.textClass
                               )}
                             >
-                              <History className="h-4 w-4" />
+                              <History className="h-4 w-4" strokeWidth={1.75} />
                             </button>
                           )}
                           <button
@@ -636,7 +645,7 @@ const AppListView = memo(
                               themeColors.textClass
                             )}
                           >
-                            <Pencil className="h-4 w-4" />
+                            <Pencil className="h-4 w-4" strokeWidth={1.75} />
                           </button>
                           <button
                             type="button"
@@ -650,7 +659,7 @@ const AppListView = memo(
                               "text-red-500 dark:text-red-400"
                             )}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-4 w-4" strokeWidth={1.75} />
                           </button>
                         </div>
                       </motion.div>
@@ -675,7 +684,7 @@ const AppListView = memo(
             )}
             onClick={onCreateNote}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" strokeWidth={1.75} />
             <span>新建笔记</span>
           </button>
         </div>
@@ -744,7 +753,10 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 className={classNames("h-8 w-8 animate-spin", themeColors.iconTextClass)} />
+        <Loader2
+          className={classNames("h-8 w-8 animate-spin", themeColors.iconTextClass)}
+          strokeWidth={1.75}
+        />
         <p className={classNames("mt-3 text-sm", themeColors.secondaryTextClass)}>加载中...</p>
       </div>
     );
@@ -753,7 +765,10 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
   if (records.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Inbox className={classNames("mb-3 h-12 w-12", themeColors.secondaryTextClass)} />
+        <Inbox
+          className={classNames("mb-3 h-12 w-12", themeColors.secondaryTextClass)}
+          strokeWidth={1.75}
+        />
         <p className={classNames("text-sm", themeColors.secondaryTextClass)}>暂无测验记录</p>
       </div>
     );
@@ -820,7 +835,7 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
                       themeColors.activeTextClass
                     )}
                   >
-                    <CheckCircle2 className="text-status-success h-4 w-4" />
+                    <CheckCircle2 className="text-status-success h-4 w-4" strokeWidth={1.75} />
                     {record.correctCount}/{record.totalCount} 题正确
                   </span>
                   <span
@@ -829,7 +844,7 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
                       themeColors.secondaryTextClass
                     )}
                   >
-                    <Clock className="h-3 w-3" />
+                    <Clock className="h-3 w-3" strokeWidth={1.75} />
                     用时 {Math.floor(record.duration / 60)}分{record.duration % 60}秒
                   </span>
                 </div>
@@ -939,7 +954,10 @@ const NoteListItem = memo((props: NoteListItemProps) => {
           )}
           onClick={onClick}
         >
-          <Mic className={classNames("h-4 w-4 shrink-0", themeColors.iconTextClass)} />
+          <Mic
+            className={classNames("h-4 w-4 shrink-0", themeColors.iconTextClass)}
+            strokeWidth={1.75}
+          />
           <span
             className={classNames(
               "flex-1 truncate text-sm font-medium",
@@ -955,9 +973,9 @@ const NoteListItem = memo((props: NoteListItemProps) => {
             title="添加到资源列表"
           >
             {addingToResources ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
             ) : (
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4" strokeWidth={1.75} />
             )}
           </button>
           <button
@@ -966,7 +984,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
             onClick={onDelete}
             title="删除笔记"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" strokeWidth={1.75} />
           </button>
         </div>
         {/* 播客播放器 */}
@@ -980,6 +998,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
             <div className="flex items-center justify-center py-2">
               <Loader2
                 className={classNames("h-4 w-4 animate-spin", themeColors.secondaryTextClass)}
+                strokeWidth={1.75}
               />
             </div>
           </div>
@@ -1006,7 +1025,10 @@ const NoteListItem = memo((props: NoteListItemProps) => {
     >
       <div className="flex items-center gap-2.5">
         {isGenerating ? (
-          <Loader2 className={classNames("text-status-info h-4 w-4 shrink-0 animate-spin")} />
+          <Loader2
+            className={classNames("text-status-info h-4 w-4 shrink-0 animate-spin")}
+            strokeWidth={1.75}
+          />
         ) : (
           <NoteIcon className={classNames("h-4 w-4 shrink-0", themeColors.secondaryTextClass)} />
         )}
@@ -1030,7 +1052,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
               }}
               title="AI 编辑"
             >
-              <Sparkles className="mr-1 h-3.5 w-3.5" />
+              <Sparkles className="mr-1 h-3.5 w-3.5" strokeWidth={1.75} />
               AI 编辑
             </button>
           )}
@@ -1045,7 +1067,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
               }}
               title="AI 编辑"
             >
-              <Sparkles className="mr-1 h-3.5 w-3.5" />
+              <Sparkles className="mr-1 h-3.5 w-3.5" strokeWidth={1.75} />
               AI 编辑
             </button>
           )}
@@ -1066,9 +1088,9 @@ const NoteListItem = memo((props: NoteListItemProps) => {
               title="添加到资源列表"
             >
               {addingToResources ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
               ) : (
-                <Plus className="h-4 w-4" />
+                <Plus className="h-4 w-4" strokeWidth={1.75} />
               )}
             </button>
           )}
@@ -1079,7 +1101,7 @@ const NoteListItem = memo((props: NoteListItemProps) => {
               onClick={onDelete}
               title="删除笔记"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-4 w-4" strokeWidth={1.75} />
             </button>
           )}
         </div>

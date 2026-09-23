@@ -851,21 +851,21 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                 }}
               >
                 {projectItem.children.length > 0 ? (
-                  <FolderOpen />
+                  <FolderOpen className="size-4" strokeWidth={1.75} />
                 ) : projectItem.projectItemType === EProjectItemType.WhiteBoard ? (
                   <SVG src={whiteBoardIcon} />
                 ) : projectItem.projectItemType === EProjectItemType.VideoNote ? (
-                  <Video />
+                  <Video className="size-4" strokeWidth={1.75} />
                 ) : projectItem.projectItemType === EProjectItemType.WebView ? (
-                  <Globe />
+                  <Globe className="size-4" strokeWidth={1.75} />
                 ) : projectItem.projectItemType === EProjectItemType.TableView ? (
-                  <Table />
+                  <Table className="size-4" strokeWidth={1.75} />
                 ) : projectItem.projectItemType === EProjectItemType.Pdf ? (
-                  <FileText className="text-red-500" />
+                  <FileText className="size-4 text-red-500" strokeWidth={1.75} />
                 ) : projectItem.projectItemType === EProjectItemType.Epub ? (
-                  <Book />
+                  <Book className="size-4" strokeWidth={1.75} />
                 ) : (
-                  <FileText />
+                  <FileText className="size-4" strokeWidth={1.75} />
                 )}
               </div>
             </Tooltip>
@@ -945,7 +945,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                 <div
                   className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}`}
                 >
-                  <MoreHorizontal />
+                  <MoreHorizontal className="size-4" strokeWidth={1.75} />
                 </div>
               }
             >
@@ -957,7 +957,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                 <div
                   className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full transition-colors duration-200 ${hoverClass}`}
                 >
-                  <Plus />
+                  <Plus className="size-4" strokeWidth={1.75} />
                 </div>
               }
             >

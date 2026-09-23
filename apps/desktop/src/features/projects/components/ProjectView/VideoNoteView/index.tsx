@@ -285,7 +285,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
             themeColors.iconTextClass
           )}
         >
-          <Video size={26} />
+          <Video className="size-[26px]" strokeWidth={1.75} />
         </div>
         <p className={classNames("text-sm font-medium", themeColors.textClass)}>视频笔记不存在</p>
         <p className={classNames("text-xs", themeColors.secondaryTextClass)}>
@@ -375,7 +375,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                   </h2>
                   <div className="mt-2.5 flex flex-wrap items-center gap-2">
                     <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-white/10 dark:text-gray-300">
-                      <Video size={12} />
+                      <Video className="size-3" strokeWidth={1.75} />
                       {sourceLabel}
                     </span>
                     <span
@@ -386,7 +386,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                           : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
                       )}
                     >
-                      <Captions size={12} />
+                      <Captions className="size-3" strokeWidth={1.75} />
                       {transcriptCount > 0 ? `已转录 ${transcriptCount} 段` : "未转录"}
                     </span>
                     <span
@@ -397,7 +397,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                           : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
                       )}
                     >
-                      <FileText size={12} />
+                      <FileText className="size-3" strokeWidth={1.75} />
                       {hasSummary ? "已总结" : "未总结"}
                     </span>
                   </div>

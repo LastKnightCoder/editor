@@ -662,7 +662,11 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       ? [
           {
             key: "fullscreen",
-            icon: isFullscreen ? <Minimize /> : <Maximize />,
+            icon: isFullscreen ? (
+              <Minimize className="size-4" strokeWidth={1.75} />
+            ) : (
+              <Maximize className="size-4" strokeWidth={1.75} />
+            ),
             label: isFullscreen ? "退出全屏" : "全屏显示",
             onClick: handleToggleFullscreen,
           },
@@ -670,13 +674,13 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             ? [
                 {
                   key: "add-to-resources",
-                  icon: <Import />,
+                  icon: <Import className="size-4" strokeWidth={1.75} />,
                   label: "添加到资源列表",
                   onClick: handleAddToResourceList,
                 },
                 {
                   key: "download-html",
-                  icon: <Download />,
+                  icon: <Download className="size-4" strokeWidth={1.75} />,
                   label: "下载 HTML",
                   onClick: handleDownloadPPT,
                 },
@@ -686,13 +690,13 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             ? [
                 {
                   key: "add-to-resources",
-                  icon: <Import />,
+                  icon: <Import className="size-4" strokeWidth={1.75} />,
                   label: "添加到资源列表",
                   onClick: handleAddToResourceList,
                 },
                 {
                   key: "download-html",
-                  icon: <Download />,
+                  icon: <Download className="size-4" strokeWidth={1.75} />,
                   label: "下载 HTML",
                   onClick: handleDownloadReport,
                 },
@@ -702,31 +706,31 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             ? [
                 {
                   key: "add-to-resources",
-                  icon: <Import />,
+                  icon: <Import className="size-4" strokeWidth={1.75} />,
                   label: "添加到资源列表",
                   onClick: handleAddToResourceList,
                 },
                 {
                   key: "download-md",
-                  icon: <Download />,
+                  icon: <Download className="size-4" strokeWidth={1.75} />,
                   label: "下载 Markdown",
                   onClick: handleDownloadMarkdown,
                 },
                 {
                   key: "export-pdf",
-                  icon: <FileText />,
+                  icon: <FileText className="size-4" strokeWidth={1.75} />,
                   label: exportingDocumentFormat === "pdf" ? "导出 PDF 中..." : "导出 PDF",
                   onClick: handleExportPdf,
                 },
                 {
                   key: "export-epub",
-                  icon: <FileText />,
+                  icon: <FileText className="size-4" strokeWidth={1.75} />,
                   label: exportingDocumentFormat === "epub" ? "导出 EPUB 中..." : "导出 EPUB",
                   onClick: handleExportEpub,
                 },
                 {
                   key: "export-image",
-                  icon: <Image />,
+                  icon: <Image className="size-4" strokeWidth={1.75} />,
                   label: exportingMindMapImage ? "导出中..." : "导出为图片",
                   onClick: handleExportMindMapImage,
                 },
@@ -734,7 +738,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             : []),
           {
             key: "delete",
-            icon: <Trash2 />,
+            icon: <Trash2 className="size-4" strokeWidth={1.75} />,
             label: "删除笔记",
             danger: true,
             onClick: handleDelete,
@@ -744,43 +748,43 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         ? [
             {
               key: "add-to-resources",
-              icon: <Import />,
+              icon: <Import className="size-4" strokeWidth={1.75} />,
               label: "添加到资源列表",
               onClick: handleAddToResourceList,
             },
             {
               key: "insert-to-project",
-              icon: <Import />,
+              icon: <Import className="size-4" strokeWidth={1.75} />,
               label: "插入到项目",
               onClick: handleInsertToProject,
             },
             {
               key: "insert-to-document",
-              icon: <Import />,
+              icon: <Import className="size-4" strokeWidth={1.75} />,
               label: "插入到知识库",
               onClick: handleInsertToDocument,
             },
             {
               key: "download-md",
-              icon: <Download />,
+              icon: <Download className="size-4" strokeWidth={1.75} />,
               label: "下载 Markdown",
               onClick: handleDownloadMarkdown,
             },
             {
               key: "export-pdf",
-              icon: <FileText />,
+              icon: <FileText className="size-4" strokeWidth={1.75} />,
               label: exportingDocumentFormat === "pdf" ? "导出 PDF 中..." : "导出 PDF",
               onClick: handleExportPdf,
             },
             {
               key: "export-epub",
-              icon: <FileText />,
+              icon: <FileText className="size-4" strokeWidth={1.75} />,
               label: exportingDocumentFormat === "epub" ? "导出 EPUB 中..." : "导出 EPUB",
               onClick: handleExportEpub,
             },
             {
               key: "delete",
-              icon: <Trash2 />,
+              icon: <Trash2 className="size-4" strokeWidth={1.75} />,
               label: "删除笔记",
               danger: true,
               onClick: handleDelete,
@@ -791,7 +795,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               ? [
                   {
                     key: "convert-to-card",
-                    icon: <CreditCard />,
+                    icon: <CreditCard className="size-4" strokeWidth={1.75} />,
                     label: "转为卡片",
                     onClick: handleConvertToCard,
                   },
@@ -801,7 +805,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               ? [
                   {
                     key: "convert-to-article",
-                    icon: <FileText />,
+                    icon: <FileText className="size-4" strokeWidth={1.75} />,
                     label: "转为文章",
                     onClick: handleConvertToArticle,
                   },
@@ -809,43 +813,43 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               : []),
             {
               key: "add-to-resources",
-              icon: <Import />,
+              icon: <Import className="size-4" strokeWidth={1.75} />,
               label: "添加到资源列表",
               onClick: handleAddToResourceList,
             },
             {
               key: "insert-to-project",
-              icon: <Import />,
+              icon: <Import className="size-4" strokeWidth={1.75} />,
               label: "插入到项目",
               onClick: handleInsertToProject,
             },
             {
               key: "insert-to-document",
-              icon: <Import />,
+              icon: <Import className="size-4" strokeWidth={1.75} />,
               label: "插入到知识库",
               onClick: handleInsertToDocument,
             },
             {
               key: "download-md",
-              icon: <Download />,
+              icon: <Download className="size-4" strokeWidth={1.75} />,
               label: "下载 Markdown",
               onClick: handleDownloadMarkdown,
             },
             {
               key: "export-pdf",
-              icon: <FileText />,
+              icon: <FileText className="size-4" strokeWidth={1.75} />,
               label: exportingDocumentFormat === "pdf" ? "导出 PDF 中..." : "导出 PDF",
               onClick: handleExportPdf,
             },
             {
               key: "export-epub",
-              icon: <FileText />,
+              icon: <FileText className="size-4" strokeWidth={1.75} />,
               label: exportingDocumentFormat === "epub" ? "导出 EPUB 中..." : "导出 EPUB",
               onClick: handleExportEpub,
             },
             {
               key: "delete",
-              icon: <Trash2 />,
+              icon: <Trash2 className="size-4" strokeWidth={1.75} />,
               label: "删除笔记",
               danger: true,
               onClick: handleDelete,
@@ -925,7 +929,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a]"
               onClick={() => setShowMoreMenu(!showMoreMenu)}
             >
-              <MoreHorizontal className="text-[#666] dark:text-[#999]" />
+              <MoreHorizontal className="size-4 text-[#666] dark:text-[#999]" strokeWidth={1.75} />
             </button>
           )}
           <SelectDropDown
@@ -1074,7 +1078,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a]"
               onClick={handleToggleFullscreen}
             >
-              <Minimize className="text-[#666] dark:text-[#999]" />
+              <Minimize className="size-4 text-[#666] dark:text-[#999]" strokeWidth={1.75} />
             </button>
           </div>
           {/* 全屏思维导图区域 */}
@@ -1105,7 +1109,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-[#e0e0e0] transition-colors hover:bg-[#2a2a2a]"
               onClick={handleToggleFullscreen}
             >
-              <Minimize />
+              <Minimize className="size-4" strokeWidth={1.75} />
             </button>
           </div>
           {/* 全屏 PPT 区域 */}
@@ -1144,7 +1148,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-gray-600 transition-colors hover:bg-gray-100 dark:text-[#e0e0e0] dark:hover:bg-[#2a2a2a]"
               onClick={handleToggleFullscreen}
             >
-              <Minimize />
+              <Minimize className="size-4" strokeWidth={1.75} />
             </button>
           </div>
           <div className="flex-1 overflow-hidden">

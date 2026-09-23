@@ -243,7 +243,7 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
         disabled={selectedResourceIds.length === 0 || isCreating}
         className={classNames(primaryButtonClass, "flex items-center gap-2")}
       >
-        <Sparkles className="h-4 w-4" />
+        <Sparkles className="h-4 w-4" strokeWidth={1.75} />
         {isCreating ? "创建中..." : "生成大纲"}
       </button>
     </div>
@@ -258,7 +258,7 @@ const OutlineGenerateModal = memo((props: OutlineGenerateModalProps) => {
       destroyOnClose
       title="生成学习大纲"
       subtitle="选择资源，AI 将自动分析并生成结构化学习大纲"
-      icon={<ListOrdered className="h-5 w-5 text-[var(--th-text-secondary)]" />}
+      icon={<ListOrdered className="h-5 w-5 text-[var(--th-text-secondary)]" strokeWidth={1.75} />}
       footer={renderFooter()}
       showCloseButton={!isCreating}
     >

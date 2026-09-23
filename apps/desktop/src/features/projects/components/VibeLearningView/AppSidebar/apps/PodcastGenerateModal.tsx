@@ -525,7 +525,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
             }
             className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
-            <Sparkles className="h-4 w-4" />
+            <Sparkles className="h-4 w-4" strokeWidth={1.75} />
             生成播客
           </button>
         </div>
@@ -540,7 +540,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
           onClick={handleRegenerate}
           className={classNames(secondaryButtonClass, "flex items-center gap-2")}
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
           重新生成
         </button>
         <div className="flex gap-3">
@@ -554,9 +554,9 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
             className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
             {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
             ) : (
-              <CheckCircle2 className="h-4 w-4" />
+              <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />
             )}
             保存为笔记
           </button>
@@ -602,7 +602,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
       destroyOnClose
       title={getModalTitle()}
       subtitle={getModalSubtitle()}
-      icon={<Mic className="h-5 w-5 text-[var(--th-text-secondary)]" />}
+      icon={<Mic className="h-5 w-5 text-[var(--th-text-secondary)]" strokeWidth={1.75} />}
       footer={renderFooter()}
       showCloseButton={step !== "generating"}
       bodyClassName="overflow-y-auto pt-3"

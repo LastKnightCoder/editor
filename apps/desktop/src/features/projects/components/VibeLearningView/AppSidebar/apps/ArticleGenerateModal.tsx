@@ -254,7 +254,7 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
         disabled={selectedResourceIds.length === 0 || isCreating}
         className={classNames(primaryButtonClass, "flex items-center gap-2")}
       >
-        <Sparkles className="h-4 w-4" />
+        <Sparkles className="h-4 w-4" strokeWidth={1.75} />
         {isCreating ? "创建中..." : "生成文章"}
       </button>
     </div>
@@ -269,7 +269,7 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
       destroyOnClose
       title="生成学习文章"
       subtitle="选择资源和文章风格，AI 将生成一篇可直接阅读的长文章"
-      icon={<FileText className="h-5 w-5 text-[var(--th-text-secondary)]" />}
+      icon={<FileText className="h-5 w-5 text-[var(--th-text-secondary)]" strokeWidth={1.75} />}
       footer={renderFooter()}
       showCloseButton={!isCreating}
     >

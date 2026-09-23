@@ -63,15 +63,15 @@ interface ResourcePanelProps {
 const getResourceIcon = (type: VLResourceType) => {
   switch (type) {
     case "pdf":
-      return <FileText />;
+      return <FileText className="size-4" strokeWidth={1.75} />;
     case "audio":
-      return <AudioLines />;
+      return <AudioLines className="size-4" strokeWidth={1.75} />;
     case "video":
-      return <Video />;
+      return <Video className="size-4" strokeWidth={1.75} />;
     case "image":
-      return <Image />;
+      return <Image className="size-4" strokeWidth={1.75} />;
     default:
-      return <FileText />;
+      return <FileText className="size-4" strokeWidth={1.75} />;
   }
 };
 
@@ -79,20 +79,20 @@ const getResourceIcon = (type: VLResourceType) => {
 const getStatusIcon = (status: VLResourceStatus) => {
   const config = statusConfig[status];
   if (config.spin) {
-    return <Loader2 strokeWidth={1.75} />;
+    return <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />;
   }
   switch (status) {
     case "completed":
-      return <CircleCheck />;
+      return <CircleCheck className="size-4" strokeWidth={1.75} />;
     case "pending":
-      return <Clock />;
+      return <Clock className="size-4" strokeWidth={1.75} />;
     case "need_convert":
     case "need_index":
-      return <TriangleAlert />;
+      return <TriangleAlert className="size-4" strokeWidth={1.75} />;
     case "failed":
-      return <CircleX />;
+      return <CircleX className="size-4" strokeWidth={1.75} />;
     default:
-      return <Clock />;
+      return <Clock className="size-4" strokeWidth={1.75} />;
   }
 };
 
@@ -270,7 +270,7 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
                 onReprocess(resource);
               }}
             >
-              <RotateCw strokeWidth={1.75} />
+              <RotateCw className="size-4" strokeWidth={1.75} />
             </IconButton>
           </Tooltip>
         )}
@@ -283,7 +283,7 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
                 onReindex(resource);
               }}
             >
-              <RotateCw strokeWidth={1.75} />
+              <RotateCw className="size-4" strokeWidth={1.75} />
             </IconButton>
           </Tooltip>
         )}
@@ -295,7 +295,7 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
               onStartEdit(resource);
             }}
           >
-            <Pencil />
+            <Pencil className="size-4" strokeWidth={1.75} />
           </IconButton>
         </Tooltip>
         <Tooltip content="删除">
@@ -307,7 +307,7 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
               setDeleteConfirmOpen(true);
             }}
           >
-            <Trash2 />
+            <Trash2 className="size-4" strokeWidth={1.75} />
           </IconButton>
         </Tooltip>
         <ConfirmDialog
@@ -652,7 +652,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         <div className="flex shrink-0 items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
           <Tooltip content="返回">
             <IconButton title="返回" onClick={handleNotePreviewBack}>
-              <ArrowLeft strokeWidth={1.75} />
+              <ArrowLeft className="size-4" strokeWidth={1.75} />
             </IconButton>
           </Tooltip>
           <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium">
@@ -663,7 +663,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         <div className="flex-1 overflow-auto p-4">
           {noteLoading ? (
             <div className="flex h-full items-center justify-center">
-              <Loader2 className="text-2xl text-gray-400" strokeWidth={1.75} />
+              <Loader2 className="size-6 animate-spin text-gray-400" strokeWidth={1.75} />
             </div>
           ) : noteContent ? (
             <ErrorBoundary>
@@ -705,7 +705,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
           onClick={handleOpenAddResourceModal}
           className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-600 transition-all hover:border-[var(--th-border-focus)] hover:text-[var(--th-accent)] dark:border-gray-700 dark:bg-[#1f1f1f] dark:text-gray-400 dark:hover:border-[var(--th-border-focus)] dark:hover:text-[var(--th-accent)]"
         >
-          <Plus />
+          <Plus className="size-4" strokeWidth={1.75} />
           <span>添加资料</span>
         </button>
       </div>

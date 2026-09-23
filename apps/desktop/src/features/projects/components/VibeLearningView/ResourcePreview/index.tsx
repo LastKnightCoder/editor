@@ -34,7 +34,7 @@ const ResourcePreviewPanel: React.FC<ResourcePreviewPanelProps> = ({ resource, o
       <div className="flex shrink-0 items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
         <Tooltip content="返回">
           <IconButton title="返回" onClick={onBack}>
-            <ArrowLeft strokeWidth={1.75} />
+            <ArrowLeft className="size-4" strokeWidth={1.75} />
           </IconButton>
         </Tooltip>
         <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium">

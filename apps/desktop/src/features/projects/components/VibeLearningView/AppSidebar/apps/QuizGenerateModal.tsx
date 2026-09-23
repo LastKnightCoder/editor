@@ -371,7 +371,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
             disabled={selectedResourceIds.length === 0}
             className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
-            <Sparkles className="h-4 w-4" />
+            <Sparkles className="h-4 w-4" strokeWidth={1.75} />
             生成测验
           </button>
         </div>
@@ -385,7 +385,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
           onClick={handleRegenerate}
           className={classNames(secondaryButtonClass, "flex items-center gap-2")}
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
           重新生成
         </button>
         <div className="flex gap-3">
@@ -399,9 +399,9 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
             className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
             {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
             ) : (
-              <CheckCircle2 className="h-4 w-4" />
+              <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />
             )}
             保存测验
           </button>
@@ -447,7 +447,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
       destroyOnClose
       title={getModalTitle()}
       subtitle={getModalSubtitle()}
-      icon={<Sparkles className="h-5 w-5 text-[var(--th-text-secondary)]" />}
+      icon={<Sparkles className="h-5 w-5 text-[var(--th-text-secondary)]" strokeWidth={1.75} />}
       footer={renderFooter()}
       showCloseButton={step !== "generating"}
     >
@@ -533,7 +533,7 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
             : "border-gray-300 dark:border-gray-600"
         )}
       >
-        {item.selected && <Check className="h-3 w-3 text-white" />}
+        {item.selected && <Check className="h-3 w-3 text-white" strokeWidth={1.75} />}
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-1.5 flex flex-wrap items-center gap-2">

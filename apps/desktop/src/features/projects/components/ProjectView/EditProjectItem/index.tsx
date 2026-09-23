@@ -223,7 +223,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
             className="cursor-pointer rounded p-1 transition-colors hover:bg-black/10"
             onClick={handleEnterImmersiveMode}
           >
-            <Maximize2 size={14} />
+            <Maximize2 className="size-3.5" strokeWidth={1.75} />
           </div>
         </Tooltip>
       </div>

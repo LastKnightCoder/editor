@@ -296,7 +296,7 @@ const AudioPlayer = (props: AudioPlayerProps) => {
           onClick={skipBackward}
           title="后退 10s"
         >
-          <RotateCcw size={20} />
+          <RotateCcw className="size-5" strokeWidth={1.75} />
           <span className="absolute text-[8px] font-bold leading-none">10</span>
         </button>
         <button
@@ -306,14 +306,18 @@ const AudioPlayer = (props: AudioPlayerProps) => {
           )}
           onClick={togglePlay}
         >
-          {playing ? <Pause size={22} /> : <Play size={22} className="ml-0.5" />}
+          {playing ? (
+            <Pause className="size-[22px]" strokeWidth={1.75} />
+          ) : (
+            <Play className="ml-0.5 size-[22px]" strokeWidth={1.75} />
+          )}
         </button>
         <button
           className="relative flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-zinc-700"
           onClick={skipForward}
           title="前进 10s"
         >
-          <RotateCw size={20} />
+          <RotateCw className="size-5" strokeWidth={1.75} />
           <span className="absolute text-[8px] font-bold leading-none">10</span>
         </button>
 
@@ -324,7 +328,7 @@ const AudioPlayer = (props: AudioPlayerProps) => {
             onClick={() => setShowSpeedMenu(!showSpeedMenu)}
           >
             {playbackRate}x
-            <ChevronDown size={12} />
+            <ChevronDown className="size-3" strokeWidth={1.75} />
           </button>
           {showSpeedMenu && (
             <div className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-zinc-600 dark:bg-zinc-800">

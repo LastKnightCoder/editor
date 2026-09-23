@@ -327,7 +327,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700"
             )}
           >
-            <Eye className="h-3.5 w-3.5" />
+            <Eye className="h-3.5 w-3.5" strokeWidth={1.75} />
             预览
           </button>
           <button
@@ -340,7 +340,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700"
             )}
           >
-            <Code className="h-3.5 w-3.5" />
+            <Code className="h-3.5 w-3.5" strokeWidth={1.75} />
             源码
           </button>
         </div>
@@ -423,7 +423,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
             disabled={selectedResourceIds.length === 0}
             className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
-            <Sparkles className="h-4 w-4" />
+            <Sparkles className="h-4 w-4" strokeWidth={1.75} />
             生成报告
           </button>
         </div>
@@ -437,7 +437,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
           onClick={handleRegenerate}
           className={classNames(secondaryButtonClass, "flex items-center gap-2")}
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
           重新生成
         </button>
         <div className="flex gap-3">
@@ -451,9 +451,9 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
             className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
             {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
             ) : (
-              <CheckCircle2 className="h-4 w-4" />
+              <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />
             )}
             保存为笔记
           </button>
@@ -497,7 +497,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
       destroyOnClose
       title={getModalTitle()}
       subtitle={getModalSubtitle()}
-      icon={<FileBarChart className="h-5 w-5 text-[var(--th-text-secondary)]" />}
+      icon={<FileBarChart className="h-5 w-5 text-[var(--th-text-secondary)]" strokeWidth={1.75} />}
       footer={renderFooter()}
       showCloseButton={step !== "generating"}
     >

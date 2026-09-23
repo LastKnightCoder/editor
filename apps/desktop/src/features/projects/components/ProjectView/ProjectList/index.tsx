@@ -769,6 +769,8 @@ const Project = () => {
           <div className={styles.header}>
             <div className={styles.title}>
               <House
+                className="size-4"
+                strokeWidth={1.75}
                 onClick={() => {
                   navigator.push("projects");
                 }}
@@ -795,13 +797,17 @@ const Project = () => {
                   className={classnames(styles.icon, "mr-1 transition-colors")}
                   onClick={() => setSidebarView(sidebarView === "tree" ? "mindmap" : "tree")}
                 >
-                  {sidebarView === "tree" ? <ListTree /> : <Network />}
+                  {sidebarView === "tree" ? (
+                    <ListTree className="size-4" strokeWidth={1.75} />
+                  ) : (
+                    <Network className="size-4" strokeWidth={1.75} />
+                  )}
                 </div>
               </Tooltip>
               <Menu
                 trigger={
                   <div className={styles.icon}>
-                    <Plus />
+                    <Plus className="size-4" strokeWidth={1.75} />
                   </div>
                 }
                 align="end"

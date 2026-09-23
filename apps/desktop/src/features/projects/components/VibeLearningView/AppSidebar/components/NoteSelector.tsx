@@ -112,7 +112,11 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
     <div className="box-border flex h-full max-h-[500px] flex-col overflow-y-auto overflow-x-hidden">
       <div className="relative mb-4 box-border flex w-full shrink-0 items-center p-0">
         <div className="z-1 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-base text-gray-400 dark:text-slate-500">
-          {searching ? <Loader2 strokeWidth={1.75} /> : <Search strokeWidth={1.75} />}
+          {searching ? (
+            <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
+          ) : (
+            <Search className="size-4" strokeWidth={1.75} />
+          )}
         </div>
         <EditText
           defaultValue=""
@@ -137,7 +141,7 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
       >
         <If condition={searching}>
           <div className="flex h-full w-full items-center justify-center py-12 text-[2em]">
-            <Loader2 strokeWidth={1.75} />
+            <Loader2 className="size-8 animate-spin" strokeWidth={1.75} />
           </div>
         </If>
         <If condition={!searching && !hasSearched}>
