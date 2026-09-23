@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useImperativeHandle, useState, type Ref } from "react";
+import { useMemoizedFn } from "ahooks";
 import { Check, LogOut, RefreshCw, Share2, UserMinus, X } from "lucide-react";
 import { toast } from "@tau/ui";
 import type { ContentSessionTarget } from "@tau/collaboration";
@@ -32,18 +33,27 @@ interface PendingConfirm {
   action: () => Promise<void>;
 }
 
+export interface ContentCollaborationControlHandle {
+  open: () => void;
+}
+
 export default function ContentCollaborationControl({
   contentId,
   documentId,
   source,
   compact = false,
+  ref,
+  hideTrigger = false,
 }: {
   contentId?: number;
   documentId?: string;
   source?: Omit<ContentSessionTarget, "contentId">;
   compact?: boolean;
+  ref?: Ref<ContentCollaborationControlHandle>;
+  hideTrigger?: boolean;
 }) {
-  const { entry } = useContentSession(contentId, source);
+  const { entry, error: sessionError } = useContentSession(contentId, source);
+  const [openRequested, setOpenRequested] = useState(false);
   const origin = source || entry?.source;
   const state = useCollaborationStore();
   const [createdId, setCreatedId] = useState<string>();
@@ -96,6 +106,28 @@ export default function ContentCollaborationControl({
   const members = session
     ? [...session.members].sort((a, b) => Number(b.online) - Number(a.online))
     : [];
+  const openCollaboration = useMemoizedFn(() => {
+    if (busy || entry?.frozen) return;
+    setOpen(true);
+    if (!session) {
+      void run(generateCode);
+      return;
+    }
+    // 已共享时读取现有协作码，不轮换邀请。
+    if (session.role === "owner" && active)
+      void run(async () => {
+        const cached = await getCurrentCollaborationInvitation(session.id);
+        setCode(cached?.code || "");
+        setCodeExpiresAt(cached?.expiresAt);
+      });
+  });
+  useImperativeHandle(ref, () => ({ open: () => setOpenRequested(true) }), []);
+  useEffect(() => {
+    if (!openRequested || (!entry && !sessionError && !documentId)) return;
+    setOpenRequested(false);
+    if (sessionError) toast.error(sessionError);
+    else openCollaboration();
+  }, [openRequested, entry, sessionError, documentId, openCollaboration]);
   if (!contentId && !documentId) return null;
   return (
     <span
@@ -103,47 +135,38 @@ export default function ContentCollaborationControl({
       onClick={event => event.stopPropagation()}
       onMouseDown={event => event.stopPropagation()}
     >
-      <button
-        type="button"
-        className={`hover:bg-hover inline-flex min-h-[22px] max-w-full cursor-pointer items-center gap-1.5 rounded-full bg-transparent py-0.5 align-middle text-xs text-inherit transition duration-150 ease-out focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--th-border-focus)] disabled:cursor-wait disabled:opacity-50 ${
-          compact ? "px-1" : "px-2"
-        }`}
-        aria-label={session ? `协作：${label}` : "发起协作"}
-        title={
-          session
-            ? `${label} · ${status?.label}${requests.length ? ` · ${requests.length} 个待审批` : ""}`
-            : "发起协作"
-        }
-        disabled={busy || entry?.frozen}
-        onClick={() => {
-          setOpen(true);
-          if (!session) {
-            void run(generateCode);
-            return;
+      {!hideTrigger && (
+        <button
+          type="button"
+          className={`hover:bg-hover inline-flex min-h-[22px] max-w-full cursor-pointer items-center gap-1.5 rounded-full bg-transparent py-0.5 align-middle text-xs text-inherit transition duration-150 ease-out focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--th-border-focus)] disabled:cursor-wait disabled:opacity-50 ${
+            compact ? "px-1" : "px-2"
+          }`}
+          aria-label={session ? `协作：${label}` : "发起协作"}
+          title={
+            session
+              ? `${label} · ${status?.label}${requests.length ? ` · ${requests.length} 个待审批` : ""}`
+              : "发起协作"
           }
-          // 已共享：优先取本机缓存的协作码（只读，不轮换），无缓存再由作者手动生成。
-          if (session.role === "owner" && active)
-            void run(async () => {
-              const cached = await getCurrentCollaborationInvitation(session.id);
-              setCode(cached?.code || "");
-              setCodeExpiresAt(cached?.expiresAt);
-            });
-        }}
-      >
-        {session ? (
-          <StatusDot tone={active && session.connection === "connected" ? "live" : status!.tone} />
-        ) : (
-          <Share2 size={13} className="text-text-3" />
-        )}
-        {!compact && (
-          <span className="overflow-hidden text-ellipsis whitespace-nowrap">{label}</span>
-        )}
-        {requests.length > 0 && (
-          <span className="bg-status-error min-w-4 rounded-full px-1 text-center text-[10px] font-semibold tabular-nums leading-4 text-white">
-            {requests.length}
-          </span>
-        )}
-      </button>
+          disabled={busy || entry?.frozen}
+          onClick={openCollaboration}
+        >
+          {session ? (
+            <StatusDot
+              tone={active && session.connection === "connected" ? "live" : status!.tone}
+            />
+          ) : (
+            <Share2 size={13} className="text-text-3" />
+          )}
+          {!compact && (
+            <span className="overflow-hidden text-ellipsis whitespace-nowrap">{label}</span>
+          )}
+          {requests.length > 0 && (
+            <span className="bg-status-error min-w-4 rounded-full px-1 text-center text-[10px] font-semibold tabular-nums leading-4 text-white">
+              {requests.length}
+            </span>
+          )}
+        </button>
+      )}
       <CustomModal
         open={open}
         onCancel={() => setOpen(false)}
