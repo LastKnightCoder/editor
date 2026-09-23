@@ -49,6 +49,7 @@ import { HeaderElement } from "@tau/editor/src";
 import useEditArticle from "@/hooks/useEditArticle.ts";
 import useEditContent from "@/hooks/useEditContent";
 import useRegisterActiveEditingContext from "@/hooks/useRegisterActiveEditingContext";
+import { useTabContext } from "@/contexts/TabContext";
 import useFlashcardCreation from "@/hooks/useFlashcardCreation";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import useSettingStore from "@/stores/useSettingStore";
@@ -147,6 +148,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
   const editorRef = useRef<EditorRef>(null);
   const immersiveEntrySelectionRef = useRef<Range | null>(null);
   const pendingSelectionRef = useRef<Range | null>(null);
+  const tabCtx = useTabContext();
   const {
     handleSelectionChange: handleEditorSelectionChange,
     handleFocus: handleEditorFocus,
@@ -154,6 +156,7 @@ const EditArticle = memo((props: IEditArticleProps) => {
   } = useRegisterActiveEditingContext({
     contentId: editingArticle?.contentId,
     entityType: "article",
+    host: { tabId: tabCtx.tab.id, paneId: tabCtx.paneId, tabType: tabCtx.tab.type },
     entityId: editingArticle?.id,
     editorRef,
     content: editingArticle?.content,

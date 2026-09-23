@@ -27,6 +27,7 @@ import ImmersiveEditorMode, {
 
 import useEditContent from "@/hooks/useEditContent";
 import useRegisterActiveEditingContext from "@/hooks/useRegisterActiveEditingContext";
+import { useTabContext } from "@/contexts/TabContext";
 import useFlashcardCreation from "@/hooks/useFlashcardCreation";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
@@ -118,6 +119,7 @@ const EditCard = (props: IEditCardProps) => {
   const editorRef = useRef<EditorRef>(null);
   const immersiveEntrySelectionRef = useRef<Range | null>(null);
   const pendingSelectionRef = useRef<Range | null>(null);
+  const tabCtx = useTabContext();
   const {
     handleSelectionChange: handleEditorSelectionChange,
     handleFocus: handleEditorFocus,
@@ -125,6 +127,7 @@ const EditCard = (props: IEditCardProps) => {
   } = useRegisterActiveEditingContext({
     contentId: editingCard?.contentId,
     entityType: "card",
+    host: { tabId: tabCtx.tab.id, paneId: tabCtx.paneId, tabType: tabCtx.tab.type },
     entityId: editingCard?.id,
     editorRef,
     content: editingCard?.content,

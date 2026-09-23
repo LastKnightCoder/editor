@@ -16,6 +16,7 @@ import ImmersiveEditorMode, {
 import useEditDoc from "./useEditDoc";
 import useEditContent from "@/hooks/useEditContent";
 import useRegisterActiveEditingContext from "@/hooks/useRegisterActiveEditingContext";
+import { useTabContext } from "@/contexts/TabContext";
 
 import { EditOutlined, ReadOutlined } from "@ant-design/icons";
 import { MdFormatIndentIncrease, MdFormatIndentDecrease, MdOutlineCode } from "react-icons/md";
@@ -82,6 +83,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
     editorRef.current?.setEditorValue(content);
     onContentChangeFromEditDoc(content);
   });
+  const tabCtx = useTabContext();
   const {
     handleSelectionChange: handleEditorSelectionChange,
     handleFocus: handleEditorFocus,
@@ -89,6 +91,7 @@ const EditDocumentItem = memo((props: EditDocumentItemProps) => {
   } = useRegisterActiveEditingContext({
     contentId: documentItem?.contentId,
     entityType: "document-item",
+    host: { tabId: tabCtx.tab.id, paneId: tabCtx.paneId, tabType: tabCtx.tab.type },
     entityId: documentItem?.id,
     editorRef,
     content: documentItem?.content,

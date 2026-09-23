@@ -1,7 +1,6 @@
 import { RefObject, useEffect, useMemo, useRef } from "react";
 import { Descendant } from "slate";
 import type { EditorRef } from "@tau/editor/src";
-import { useOptionalTabContext } from "@/contexts/TabContext";
 import {
   createActiveEditingSessionId,
   removeActiveEditingSession,
@@ -11,6 +10,15 @@ import {
   upsertActiveEditingSession,
 } from "@/services/content-editing";
 import type { EntityType } from "@/services/content-editing";
+import type { TabType } from "@/types/tab";
+
+/** 编辑会话的宿主定位——legacy 多 tab 语境由调用方传自己的 tab 信息；
+ *  无 tab 语境（新壳层页面）省略，会话的可选定位字段为空 */
+export interface ActiveEditingHost {
+  tabId?: string;
+  paneId?: string;
+  tabType?: TabType;
+}
 
 interface UseRegisterActiveEditingContextOptions {
   contentId?: number;
@@ -18,15 +26,11 @@ interface UseRegisterActiveEditingContextOptions {
   entityId?: number;
   editorRef: RefObject<EditorRef | null>;
   content: Descendant[] | undefined;
+  host?: ActiveEditingHost;
 }
 
 const useRegisterActiveEditingContext = (options: UseRegisterActiveEditingContextOptions) => {
-  const { contentId, entityType, entityId, editorRef, content } = options;
-  /* 新壳层页面无 legacy tab Provider：降级为稳定假值（会话注册/光标追踪照常，
-     tab 定位能力仅 legacy 多 tab 语境有效） */
-  const tabContext = useOptionalTabContext();
-  const tab = tabContext?.tab;
-  const paneId = tabContext?.paneId ?? "shell";
+  const { contentId, entityType, entityId, editorRef, content, host } = options;
   const sessionIdRef = useRef<string>(createActiveEditingSessionId());
 
   const canRegister = useMemo(() => {
@@ -42,15 +46,15 @@ const useRegisterActiveEditingContext = (options: UseRegisterActiveEditingContex
       contentId,
       entityType,
       entityId,
-      tabId: tab?.id ?? "shell-page",
-      paneId,
-      tabType: tab?.type,
+      tabId: host?.tabId,
+      paneId: host?.paneId,
+      tabType: host?.tabType,
       content: content || [],
     });
     return () => {
       removeActiveEditingSession(sessionIdRef.current);
     };
-  }, [canRegister, contentId, entityType, entityId, tab?.id, tab?.type, paneId]);
+  }, [canRegister, contentId, entityType, entityId, host?.tabId, host?.tabType, host?.paneId]);
 
   useEffect(() => {
     if (!canRegister || !content) return;
