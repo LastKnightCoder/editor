@@ -269,7 +269,7 @@
 - library 知识库（documents/pdf/vec 合并）
 - ~~articles 文章~~ ✅ 2026-09-19 A3 月刊落地（D-015）
 - feed 订阅/稍后读
-- projects 项目
+- ~~projects 项目~~ ✅ 2026-09-23 C 学习驾驶舱落地（D-031；project-detail 占位，三型工作台待迁移）
 - learning（vibe-learning + flashcard 合并）
 - schedule（calendar + time-record 合并）
 - diary 日记
@@ -291,6 +291,12 @@
 
 - 推翻 D-019/D-020 的「Checkbox/Switch/Radio 并入 ChoiceSection 同档」聚合口径（2026-09-23）：Checkbox / Switch / Radio / Segmented 各自独立档案，registry 四条目（key `checkbox` / `switch` / `radio` / `segmented`，与其它基础件一组件一条目对齐）。动因：各组件示例需扩充（状态矩阵 + 场景 + 受控联动），单聚合页无限膨胀且侧栏无法直达。
 - 档案结构统一为「状态矩阵 → 场景 → 受控演示 → API 备忘」：Checkbox（任务清单全选联动 / 偏好多选受控回显）；Switch（设置行 aria-label 用法 / 联动显隐）；Radio（描述行组合式 / 主题受控回显 / 导入向导）；Segmented（段数 2–5 全谱 / 图标段与纯图标段 / 形态切换场景）。API 备忘按组件归属拆走：bg-track token 归 Switch 档，「antd Radio.Button 分段形态不建」归 Radio 档。
+
+## D-031 项目列表页定稿（方案 C 学习驾驶舱）
+
+- 背景：项目列表现状 = antd 卡片网格 + 右下悬浮球（hover 触发展开三型菜单，触发不稳）；卡片仅标题与富文本描述（每卡内嵌只读 Editor 实例），无类型标识/子项计数/时间；归档折叠无筛选。三案 mockup（`mockups/projects/`：A 书架网格 / B 档案行 / C 学习驾驶舱，共用同一套 13 项 mock 数据），2026-09-23 用户裁决 C 落地初版。
+- 选择：① **布局 = 学习驾驶舱**——首屏「继续学习」双 hero 大卡（置顶优先 + 最近更新升格；被选中项目仍在下方全部网格——hero 是入口的放大不是分流，与今日页「继续编辑」同基因）→「全部项目」紧凑网格 → 底部归档折叠段；hero 行动位 = accent-soft 文字链「进入项目」（工具栏「新建」已是本屏唯一 primary，D-013 每屏至多一枚）；② **新建入口移工具栏右上**（primary「新建」默认文档树 + chevron Menu 三型预选），废除悬浮球（对齐文章页 2026-09-19 评审基线）；③ **类型 pills**（全部/文档树/数据表格/Vibe Learning 带计数）；类型派生色 = 青蓝/紫罗兰/accent 语义类（设计数据色不进主题词表，cocoa 对应值实现时与封面派生色板一并校准）；无页内搜索（D-024 口径，语义检索走全局 Ctrl+K）、无排序 UI（默认「置顶 → 更新时间」序）；④ **hero 的 Vibe 学习进度不渲染**（暂无聚合数据源，mockup 待裁决 ①；有数据源后作为 hero 槽位补入）；⑤ **归档折叠为页面 useState**（每次进入默认收起；legacy showArchived persist 不迁移）；⑥ 新建/编辑弹窗字段对齐 legacy EditProjectInfoModal（标题 + 类型 pills + 富文本描述·ContentEditor），编辑态类型不可改（三型工作台形态不同，改型破坏子项语义）；⑦ 删除确认 impact 忠实主进程级联（deleteProject：文档树清孤立子项、Vibe 删资源/聊天/索引）；整体导出经共享层 BatchExportModal（§6.1 换皮不搬家，04 清单 §projects 登记）；⑧ **project-detail 为诚实占位页**（呈现项目身份 + 返回，三型工作台后续迁移，另立锚点）。
+- 实现：`features/projects/`（types / queries——getProjectList 全量轻表 + useProjectMutations 整域失效（patch 优先取列表缓存免二次 IPC）/ projectTypeMeta 三型单源（label/icon/派生色）/ components——ProjectCards 两形态卡 + CreateProjectDialog / views——ProjectsView + ProjectDetailView 占位 / pages——projects + project-detail）；状态栏经 usePageStatusBar（N 项目 · M 文档 · K 归档）；`page/legacy.tsx` 删 projects 占位行。**计数口径（2026-09-23 用户校准）**：卡片/段头/状态栏的「N 个文档」= 项目内全部条目数（含文档树深层节点——深层节点 projects 数组继承父节点登记，`addChildProjectItem` 落库即带），不是 `Project.children` 顶层 id 数；数据源为主进程新增聚合命令 `get-project-item-counts`（一条 json_each GROUP BY 返回全量映射，避免逐项目 N+1），counts 独立 queryKey（`["projects","item-counts"]`）供列表与详情共用、随域前缀失效。工具栏标题后不放计数（pills 与状态栏已承载，避免重复，2026-09-23 用户校准）。**hero 段语义校准（2026-09-23 用户裁决）**：段头改「置顶项目 · N 个 · M 个文档」，选取由「置顶优先+最近更新取前 2」收敛为**置顶全部**（更新序；无置顶整段不渲染，最近项目由「全部项目」网格首行承接）；「升格不分流」保留（置顶 mini 卡仍在全部网格）。验证：tsc 0 错误、eslint 0 error（page 文件 react-refresh warning 与样板一致）。
 
 ## D-032 cream sunken 换值去黄 + 角色钉死为轨道/凹槽专档
 

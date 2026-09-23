@@ -247,6 +247,7 @@ export default class ProjectTable {
       "get-project-items-by-ids": this.getProjectItemsByIds.bind(this),
       "get-project-item-by-ref": this.getProjectItemByRef.bind(this),
       "get-project-item-count-in-project": this.getProjectItemCountInProject.bind(this),
+      "get-project-item-counts": this.getProjectItemCounts.bind(this),
       "get-all-project-items-not-in-project": this.getAllProjectItemsNotInProject.bind(this),
       "is-project-item-not-in-any-project": this.isProjectItemNotInAnyProject.bind(this),
       "get-project-items-not-in-any-project": this.getProjectItemsNotInAnyProject.bind(this),
@@ -724,6 +725,17 @@ export default class ProjectTable {
     `);
     const result = stmt.get(projectId) as { "COUNT(*)": number };
     return result["COUNT(*)"];
+  }
+
+  /** 全部项目的条目计数（含文档树深层节点——projects 数组逐层登记）：一条聚合供列表页消费 */
+  static getProjectItemCounts(db: Database.Database): Record<number, number> {
+    const stmt = db.prepare(`
+      SELECT je.value AS projectId, COUNT(*) AS count
+      FROM project_item pi, json_each(pi.projects) je
+      GROUP BY je.value
+    `);
+    const rows = stmt.all() as { projectId: number; count: number }[];
+    return Object.fromEntries(rows.map(row => [row.projectId, row.count]));
   }
 
   static getAllProjectItemsNotInProject(db: Database.Database, projectId: number): ProjectItem[] {
