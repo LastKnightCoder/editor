@@ -234,7 +234,7 @@ function usePageSlot(register: RegisterPageSlot, key: string, node: ReactNode) {
   useEffect(() => register(key, node), [register, key, node]);
 }
 
-/** 注入标题栏面包屑（替换默认「· label」）；仅当该页是栈顶时显示 */
+/** 注入标题栏面包屑（替换默认「label」）；仅当该页是栈顶时显示 */
 export function usePageBreadcrumb(key: string, node: ReactNode) {
   const { registerBreadcrumb } = usePage();
   usePageSlot(registerBreadcrumb, key, node);
