@@ -338,6 +338,7 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
 
   const resize = useImageResize({
     initialSize: { width },
+    emElementRef: containerRef,
     minWidth: 50,
     maxWidth,
     minHeight: 10,
@@ -420,7 +421,11 @@ const Image: React.FC<React.PropsWithChildren<IImageProps>> = props => {
           [styles.alignRight]: align === "right",
         })}
         style={{
-          width: resize.size.width ? `${resize.size.width}px` : width ? `${width}px` : "auto",
+          width: resize.size.width
+            ? `${resize.size.width / 16}em`
+            : width
+              ? `${width / 16}em`
+              : "auto",
           maxWidth: "100%",
           ["--image-border-radius" as string]: imageAppearanceStyle.borderRadius,
         }}

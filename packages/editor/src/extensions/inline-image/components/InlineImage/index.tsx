@@ -99,6 +99,7 @@ const InlineImageComponent: React.FC<InlineImageProps> = memo(props => {
   // 使用 resize hook 处理图片调整大小
   const resize = useImageResize({
     initialSize: { width, height },
+    emElementRef: imageRef,
     minWidth: 10,
     maxWidth,
     minHeight: 10,
