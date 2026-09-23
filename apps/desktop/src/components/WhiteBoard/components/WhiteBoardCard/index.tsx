@@ -8,9 +8,8 @@ import { getWhiteBoardContentById } from "@/commands/white-board";
 import { WhiteBoardContent } from "@/types";
 import { Spin, Empty } from "antd";
 import LocalImage from "@/components/LocalImage";
-import { navigateTo } from "@/utils/navigation";
-import { TabType } from "@/types/tab";
-import useTabParams from "@/hooks/useTabParams";
+import { openPage } from "@/services/page-navigation";
+import { toast } from "@tau/ui";
 import useTheme from "@/hooks/useTheme";
 
 interface WhiteBoardCardProps {
@@ -18,42 +17,26 @@ interface WhiteBoardCardProps {
   element: WhiteBoardElement;
 }
 
-const defaultSnapshot =
-  "https://d2hulr7xnfjroe.cloudfront.net/Frame_1321315996_35405ab097.png";
+const defaultSnapshot = "https://d2hulr7xnfjroe.cloudfront.net/Frame_1321315996_35405ab097.png";
 
 // 固定高度常量
 export const WHITEBOARD_CARD_HEIGHT = 80;
 
 const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
-  const { element, board } = props;
+  const { element } = props;
   const { isDark } = useTheme();
-  const { x, y, width, whiteBoardContentId, name, description, snapshot } =
-    element;
+  const { x, y, width, whiteBoardContentId, name, description, snapshot } = element;
 
   // 固定高度
   const height = WHITEBOARD_CARD_HEIGHT;
 
-  // 获取当前页面的 breadcrumb
-  const tabParams = useTabParams(TabType.WhiteBoardDetail);
-
-  // 从 board 的 resourceSource 获取当前的 whiteboardContentId
-  const currentContentId =
-    board.resourceSource?.type === "whiteboard"
-      ? board.resourceSource.id
-      : undefined;
-
-  // 如果是 content 类型，使用 TabParams 的 breadcrumb，否则为空数组
-  const currentBreadcrumb =
-    tabParams.type === "content" ? tabParams.breadcrumb || [] : [];
-
   const [loading, setLoading] = useState(false);
-  const [whiteBoardContent, setWhiteBoardContent] =
-    useState<WhiteBoardContent | null>(null);
+  const [whiteBoardContent, setWhiteBoardContent] = useState<WhiteBoardContent | null>(null);
 
   useEffect(() => {
     setLoading(true);
     getWhiteBoardContentById(whiteBoardContentId)
-      .then((content) => {
+      .then(content => {
         setWhiteBoardContent(content);
       })
       .catch(() => {
@@ -70,35 +53,17 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
 
     if (!whiteBoardContent) return;
 
-    // 构建新的 breadcrumb：当前路径 + 当前白板内容 ID
-    const newBreadcrumb = currentContentId
-      ? [...currentBreadcrumb, currentContentId]
-      : [];
-
-    // 导航到引用的白板内容
-    navigateTo(
-      TabType.WhiteBoardDetail,
-      {
-        type: "content",
-        whiteBoardContentId: whiteBoardContent.id,
-        breadcrumb: newBreadcrumb,
-      },
-      whiteBoardContent.name,
-    );
+    try {
+      openPage("whiteboard-content", { id: whiteBoardContent.id });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "打开白板失败");
+    }
   });
 
-  const backgroundColor = isDark
-    ? "rgba(30, 35, 45, 0.85)"
-    : "rgba(248, 250, 255, 0.9)";
-  const textColor = isDark
-    ? "rgba(241, 245, 249, 0.9)"
-    : "rgba(15, 23, 42, 0.85)";
-  const descriptionColor = isDark
-    ? "rgba(148, 163, 184, 0.8)"
-    : "rgba(100, 116, 139, 0.85)";
-  const borderColor = isDark
-    ? "rgba(255, 255, 255, 0.12)"
-    : "rgba(255, 255, 255, 0.45)";
+  const backgroundColor = isDark ? "rgba(30, 35, 45, 0.85)" : "rgba(248, 250, 255, 0.9)";
+  const textColor = isDark ? "rgba(241, 245, 249, 0.9)" : "rgba(15, 23, 42, 0.85)";
+  const descriptionColor = isDark ? "rgba(148, 163, 184, 0.8)" : "rgba(100, 116, 139, 0.85)";
+  const borderColor = isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.45)";
   const iconBgColor = isDark ? "#fbbf24" : "#fbbf24";
   const shadowStyle = isDark
     ? "0 4px 12px rgba(0, 0, 0, 0.35)"
@@ -216,7 +181,7 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
             <LocalImage
               url={snapshot || whiteBoardContent.imgUrl || defaultSnapshot}
               alt={name || whiteBoardContent.name}
-              className="w-full h-full object-cover select-none"
+              className="h-full w-full select-none object-cover"
               draggable={false}
             />
           ) : (
