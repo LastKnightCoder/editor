@@ -35,11 +35,11 @@ interface ResizeableAndHideableSidebarProps {
    * 适合“收起时完全不可见，只在边缘悬浮展开”的场景。
    */
   showInternalExpandButtonWhenClosed?: boolean;
+  /** 透传 WidthResizable：常驻淡分隔线标出拖拽边界 */
+  showDivider?: boolean;
 }
 
-const ResizeableAndHideableSidebar = (
-  props: ResizeableAndHideableSidebarProps,
-) => {
+const ResizeableAndHideableSidebar = (props: ResizeableAndHideableSidebarProps) => {
   const {
     width,
     open,
@@ -57,6 +57,7 @@ const ResizeableAndHideableSidebar = (
     disableResize = false,
     handleOffset,
     showInternalExpandButtonWhenClosed = false,
+    showDivider,
   } = props;
 
   const [isHoveringEdge, setIsHoveringEdge] = useState(false);
@@ -71,7 +72,7 @@ const ResizeableAndHideableSidebar = (
     (_width: number, actualWidth?: number) => {
       onWidthChange?.(width, actualWidth);
     },
-    [onWidthChange, width],
+    [onWidthChange, width]
   );
 
   const ref = useDragAndHideSidebar<HTMLDivElement>({
@@ -102,7 +103,7 @@ const ResizeableAndHideableSidebar = (
           defaultWidth={actualWidth}
           minWidth={minWidth}
           maxWidth={maxWidth}
-          onResize={(width) => {
+          onResize={width => {
             onWidthChange?.(width, width);
           }}
           style={{
@@ -111,6 +112,7 @@ const ResizeableAndHideableSidebar = (
           side={resolvedResizeHandleSide}
           disableResize={disableResize}
           handleOffset={handleOffset}
+          showDivider={showDivider}
           className="h-full"
         >
           {children}
@@ -119,7 +121,7 @@ const ResizeableAndHideableSidebar = (
 
       {onToggle && open && (
         <div
-          className={`absolute ${sidebarPosition === "left" ? "right-0" : "left-0"} top-0 bottom-0 w-6 z-5`}
+          className={`absolute ${sidebarPosition === "left" ? "right-0" : "left-0"} z-5 bottom-0 top-0 w-6`}
           onMouseEnter={() => setIsHoveringEdge(true)}
           onMouseLeave={() => setIsHoveringEdge(false)}
         >
@@ -128,20 +130,13 @@ const ResizeableAndHideableSidebar = (
             className={`transition-opacity duration-200 ${isHoveringEdge ? "opacity-100" : "opacity-0"}`}
             style={{ pointerEvents: isHoveringEdge ? "auto" : "none" }}
           >
-            <SidebarToggleButton.Collapse
-              onToggle={onToggle}
-              side={sidebarPosition}
-            />
+            <SidebarToggleButton.Collapse onToggle={onToggle} side={sidebarPosition} />
           </div>
         </div>
       )}
 
       {onToggle && !open && showInternalExpandButtonWhenClosed && (
-        <SidebarToggleButton.Expand
-          isHidden
-          onToggle={onToggle}
-          side={sidebarPosition}
-        />
+        <SidebarToggleButton.Expand isHidden onToggle={onToggle} side={sidebarPosition} />
       )}
     </div>
   );
