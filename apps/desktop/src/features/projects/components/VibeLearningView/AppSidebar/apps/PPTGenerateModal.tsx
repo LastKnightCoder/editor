@@ -343,7 +343,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700"
             )}
           >
-            <Eye className="h-3.5 w-3.5" />
+            <Eye className="h-3.5 w-3.5" strokeWidth={1.75} />
             预览
           </button>
           <button
@@ -356,7 +356,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700"
             )}
           >
-            <Code className="h-3.5 w-3.5" />
+            <Code className="h-3.5 w-3.5" strokeWidth={1.75} />
             源码
           </button>
         </div>
@@ -442,7 +442,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
             disabled={selectedResourceIds.length === 0}
             className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
-            <Sparkles className="h-4 w-4" />
+            <Sparkles className="h-4 w-4" strokeWidth={1.75} />
             生成 PPT
           </button>
         </div>
@@ -457,7 +457,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
           onClick={handleRegenerate}
           className={classNames(secondaryButtonClass, "flex items-center gap-2")}
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
           重新生成
         </button>
         <div className="flex gap-3">
@@ -471,9 +471,9 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
             className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
             {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
             ) : (
-              <CheckCircle2 className="h-4 w-4" />
+              <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />
             )}
             保存为笔记
           </button>
@@ -519,7 +519,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
       destroyOnClose
       title={getModalTitle()}
       subtitle={getModalSubtitle()}
-      icon={<Presentation className="h-5 w-5 text-orange-500" />}
+      icon={<Presentation className="h-5 w-5 text-orange-500" strokeWidth={1.75} />}
       iconBgColor="bg-orange-50 dark:bg-orange-500/20 border-orange-200 dark:border-orange-500/30"
       footer={renderFooter()}
       showCloseButton={step !== "generating"}

@@ -341,7 +341,10 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-[var(--th-accent)]" />
+                  <Loader2
+                    className="h-6 w-6 animate-spin text-[var(--th-accent)]"
+                    strokeWidth={1.75}
+                  />
                   <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
                     加载思维导图组件...
                   </span>
@@ -410,7 +413,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
             disabled={selectedResourceIds.length === 0}
             className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
-            <Sparkles className="h-4 w-4" />
+            <Sparkles className="h-4 w-4" strokeWidth={1.75} />
             生成思维导图
           </button>
         </div>
@@ -425,7 +428,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
           onClick={handleRegenerate}
           className={classNames(secondaryButtonClass, "flex items-center gap-2")}
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
           重新生成
         </button>
         <div className="flex gap-3">
@@ -439,9 +442,9 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
             className={classNames(primaryButtonClass, "flex items-center gap-2")}
           >
             {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
             ) : (
-              <CheckCircle2 className="h-4 w-4" />
+              <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />
             )}
             保存为笔记
           </button>
@@ -487,7 +490,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
       destroyOnClose
       title={getModalTitle()}
       subtitle={getModalSubtitle()}
-      icon={<Network className="h-5 w-5 text-[var(--th-text-secondary)]" />}
+      icon={<Network className="h-5 w-5 text-[var(--th-text-secondary)]" strokeWidth={1.75} />}
       footer={renderFooter()}
       showCloseButton={step !== "generating"}
     >

@@ -140,6 +140,7 @@ const DataTableProjectView = memo((props: { projectId: number }) => {
           >
             <ChevronDown
               size={16}
+              strokeWidth={1.75}
               className={`text-gray-900 transition-transform duration-200 dark:text-gray-100 ${
                 showProjectDropdown ? "rotate-180" : ""
               }`}

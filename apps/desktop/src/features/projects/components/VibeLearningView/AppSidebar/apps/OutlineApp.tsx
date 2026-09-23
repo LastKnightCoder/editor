@@ -339,7 +339,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
             <EmptyState description="点击下方按钮生成学习大纲">
               <SimpleButton
                 variant="primary"
-                icon={<RotateCw strokeWidth={1.75} />}
+                icon={<RotateCw className="size-4" strokeWidth={1.75} />}
                 onClick={generateOutline}
                 className="mt-4"
               >
@@ -363,7 +363,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
             <EmptyState description={error}>
               <SimpleButton
                 variant="primary"
-                icon={<RotateCw strokeWidth={1.75} />}
+                icon={<RotateCw className="size-4" strokeWidth={1.75} />}
                 onClick={generateOutline}
                 className="mt-4"
               >
@@ -394,7 +394,11 @@ const OutlineApp = memo((props: OutlineAppProps) => {
       {/* 底部操作栏 */}
       {hasContent && !generating && (
         <div className="shrink-0 border-t border-[#e8e8e8] p-4 dark:border-[#2a2a2a]">
-          <SimpleButton block icon={<RotateCw strokeWidth={1.75} />} onClick={generateOutline}>
+          <SimpleButton
+            block
+            icon={<RotateCw className="size-4" strokeWidth={1.75} />}
+            onClick={generateOutline}
+          >
             重新生成
           </SimpleButton>
         </div>

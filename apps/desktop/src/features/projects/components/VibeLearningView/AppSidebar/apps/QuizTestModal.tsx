@@ -303,17 +303,17 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                 {showResult ? (
                   isCorrect || (isSelected && !isCorrect) ? (
                     isCorrect ? (
-                      <CheckCircle2 className={`h-5 w-5 ${iconColor}`} />
+                      <CheckCircle2 className={`h-5 w-5 ${iconColor}`} strokeWidth={1.75} />
                     ) : (
-                      <XCircle className={`h-5 w-5 ${iconColor}`} />
+                      <XCircle className={`h-5 w-5 ${iconColor}`} strokeWidth={1.75} />
                     )
                   ) : (
-                    <Circle className={`h-5 w-5 ${iconColor}`} />
+                    <Circle className={`h-5 w-5 ${iconColor}`} strokeWidth={1.75} />
                   )
                 ) : isSelected ? (
-                  <CheckCircle2 className={`h-5 w-5 ${iconColor}`} />
+                  <CheckCircle2 className={`h-5 w-5 ${iconColor}`} strokeWidth={1.75} />
                 ) : (
-                  <Circle className={`h-5 w-5 ${iconColor}`} />
+                  <Circle className={`h-5 w-5 ${iconColor}`} strokeWidth={1.75} />
                 )}
               </div>
               <span
@@ -433,7 +433,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
             )}
           >
             <p className="text-status-success mb-2 flex items-center gap-2 text-sm font-bold">
-              <CheckCircle2 className="h-4 w-4" /> 参考答案
+              <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} /> 参考答案
             </p>
             <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
               <p className="whitespace-pre-wrap">{data.answer}</p>
@@ -549,7 +549,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
               isDark ? "bg-zinc-800" : "bg-gray-50"
             )}
           >
-            <Target className="mb-2 h-5 w-5 text-[var(--th-accent)]" />
+            <Target className="mb-2 h-5 w-5 text-[var(--th-accent)]" strokeWidth={1.75} />
             <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
               {quizRecord.correctCount}/{quizRecord.totalCount}
             </div>
@@ -561,7 +561,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
               isDark ? "bg-zinc-800" : "bg-gray-50"
             )}
           >
-            <Clock className="mb-2 h-5 w-5 text-amber-500" />
+            <Clock className="mb-2 h-5 w-5 text-amber-500" strokeWidth={1.75} />
             <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
               {Math.floor(quizRecord.duration / 60)}:
               {String(quizRecord.duration % 60).padStart(2, "0")}
@@ -574,7 +574,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
               isDark ? "bg-zinc-800" : "bg-gray-50"
             )}
           >
-            <Trophy className="mb-2 h-5 w-5 text-[var(--th-accent)]" />
+            <Trophy className="mb-2 h-5 w-5 text-[var(--th-accent)]" strokeWidth={1.75} />
             <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
               {quizRecord.totalCount}
             </div>
@@ -715,12 +715,12 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                           "自我评估"
                         ) : currentAnswerCorrect ? (
                           <>
-                            <Check className="h-5 w-5" />
+                            <Check className="h-5 w-5" strokeWidth={1.75} />
                             回答正确！
                           </>
                         ) : (
                           <>
-                            <X className="h-5 w-5" />
+                            <X className="h-5 w-5" strokeWidth={1.75} />
                             回答错误
                           </>
                         )}
@@ -761,7 +761,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                         : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
                     )}
                   >
-                    <ChevronLeft className="h-5 w-5" />
+                    <ChevronLeft className="h-5 w-5" strokeWidth={1.75} />
                     上一题
                   </button>
                 </div>
@@ -799,7 +799,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                       className="flex items-center gap-2 rounded-xl bg-[var(--th-btn-bg)] px-8 py-3 text-lg font-bold text-[var(--th-btn-text)] transition-all duration-200 hover:bg-[var(--th-btn-hover)]"
                     >
                       下一题
-                      <ChevronRight className="h-5 w-5" />
+                      <ChevronRight className="h-5 w-5" strokeWidth={1.75} />
                     </button>
                   )}
                 </div>

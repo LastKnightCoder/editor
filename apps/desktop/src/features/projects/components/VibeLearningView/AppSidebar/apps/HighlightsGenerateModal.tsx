@@ -243,7 +243,7 @@ const HighlightsGenerateModal = memo((props: HighlightsGenerateModalProps) => {
         disabled={selectedResourceIds.length === 0 || isCreating}
         className={classNames(primaryButtonClass, "flex items-center gap-2")}
       >
-        <Sparkles className="h-4 w-4" />
+        <Sparkles className="h-4 w-4" strokeWidth={1.75} />
         {isCreating ? "创建中..." : "提炼重点"}
       </button>
     </div>
@@ -258,7 +258,7 @@ const HighlightsGenerateModal = memo((props: HighlightsGenerateModalProps) => {
       destroyOnClose
       title="提炼学习重点"
       subtitle="选择资源，AI 将自动分析并提取核心知识点"
-      icon={<Highlighter className="h-5 w-5 text-amber-500" />}
+      icon={<Highlighter className="h-5 w-5 text-amber-500" strokeWidth={1.75} />}
       iconBgColor="bg-amber-50 dark:bg-amber-500/20 border-amber-200 dark:border-amber-500/30"
       footer={renderFooter()}
       showCloseButton={!isCreating}

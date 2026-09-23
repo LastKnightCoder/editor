@@ -43,16 +43,16 @@ const getToolIcon = (toolName: string) => {
   switch (toolName) {
     case "search_resource_content":
     case "grep_resource_content":
-      return <Search className="mr-1 inline h-3 w-3" />;
+      return <Search className="mr-1 inline h-3 w-3" strokeWidth={1.75} />;
     case "batch_search_project_knowledge":
-      return <Search className="mr-1 inline h-3 w-3" />;
+      return <Search className="mr-1 inline h-3 w-3" strokeWidth={1.75} />;
     case "batch_read_search_hits":
-      return <FileText className="mr-1 inline h-3 w-3" />;
+      return <FileText className="mr-1 inline h-3 w-3" strokeWidth={1.75} />;
     case "read_resource_content":
-      return <BookOpen className="mr-1 inline h-3 w-3" />;
+      return <BookOpen className="mr-1 inline h-3 w-3" strokeWidth={1.75} />;
     case "read_resource_lines":
     case "read_resource_range":
-      return <FileText className="mr-1 inline h-3 w-3" />;
+      return <FileText className="mr-1 inline h-3 w-3" strokeWidth={1.75} />;
     default:
       return null;
   }
@@ -93,7 +93,7 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
       {/* 动画图标 */}
       <div className="relative">
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--th-accent-soft)]">
-          <Sparkles className="h-8 w-8 animate-pulse text-[var(--th-accent)]" />
+          <Sparkles className="h-8 w-8 animate-pulse text-[var(--th-accent)]" strokeWidth={1.75} />
         </div>
         <motion.div
           className="absolute inset-0 h-20 w-20 rounded-full border-2 border-[var(--th-border-focus)] border-t-transparent"
@@ -127,7 +127,7 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
             "dark:border-[var(--th-border-focus)]/20 dark:bg-[var(--th-accent)]/10 text-[var(--th-active-text)]"
           )}
         >
-          <FileCode2 className="h-4 w-4 shrink-0" />
+          <FileCode2 className="h-4 w-4 shrink-0" strokeWidth={1.75} />
           <div className="min-w-0">
             <div className="text-[11px] font-medium text-[var(--th-accent)]">
               {outputLabel} 大小
@@ -157,9 +157,12 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
                 className="flex items-center gap-2 text-xs"
               >
                 {execution.status === "executing" ? (
-                  <Loader2 className="h-3 w-3 shrink-0 animate-spin text-[var(--th-accent)]" />
+                  <Loader2
+                    className="h-3 w-3 shrink-0 animate-spin text-[var(--th-accent)]"
+                    strokeWidth={1.75}
+                  />
                 ) : execution.status === "success" ? (
-                  <Check className="text-status-success h-3 w-3 shrink-0" />
+                  <Check className="text-status-success h-3 w-3 shrink-0" strokeWidth={1.75} />
                 ) : execution.status === "pending" ? (
                   <div className="h-3 w-3 shrink-0 rounded-full border border-gray-300 dark:border-gray-600" />
                 ) : (

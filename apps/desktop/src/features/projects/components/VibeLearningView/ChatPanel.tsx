@@ -546,7 +546,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources 
   if (status === EVLChatStatus.LOADING) {
     return (
       <div className="flex h-full items-center justify-center">
-        <Loader2 strokeWidth={1.75} />
+        <Loader2 className="size-5 animate-spin" strokeWidth={1.75} />
       </div>
     );
   }
@@ -573,7 +573,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources 
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center">
-                  <Loader2 strokeWidth={1.75} />
+                  <Loader2 className="size-5 animate-spin" strokeWidth={1.75} />
                 </div>
               }
             >

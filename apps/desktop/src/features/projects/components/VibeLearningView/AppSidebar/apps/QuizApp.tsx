@@ -171,7 +171,7 @@ const QuizApp = memo((props: QuizAppProps) => {
           )}
           onClick={onBack}
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-5 w-5" strokeWidth={1.75} />
         </button>
 
         <h3
@@ -185,7 +185,10 @@ const QuizApp = memo((props: QuizAppProps) => {
       <div className="flex-1 overflow-auto p-4">
         {loadingQuizSets ? (
           <div className="flex h-full flex-col items-center justify-center">
-            <Loader2 className={classNames("h-8 w-8 animate-spin", themeColors.iconTextClass)} />
+            <Loader2
+              className={classNames("h-8 w-8 animate-spin", themeColors.iconTextClass)}
+              strokeWidth={1.75}
+            />
             <p className={classNames("mt-4 text-sm", themeColors.secondaryTextClass)}>加载中...</p>
           </div>
         ) : quizSets.length === 0 ? (
@@ -196,7 +199,10 @@ const QuizApp = memo((props: QuizAppProps) => {
                 themeColors.cardBorderClass
               )}
             >
-              <Inbox className={classNames("mb-4 h-16 w-16", themeColors.secondaryTextClass)} />
+              <Inbox
+                className={classNames("mb-4 h-16 w-16", themeColors.secondaryTextClass)}
+                strokeWidth={1.75}
+              />
               <p className={classNames("mb-6 text-base", themeColors.secondaryTextClass)}>
                 暂无测验集
               </p>
@@ -208,7 +214,7 @@ const QuizApp = memo((props: QuizAppProps) => {
                   themeColors.primaryButtonClass
                 )}
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-4 w-4" strokeWidth={1.75} />
                 创建测验
               </button>
             </div>
@@ -278,13 +284,13 @@ const QuizApp = memo((props: QuizAppProps) => {
                       >
                         {bestScore !== null && (
                           <span className="flex items-center gap-1.5">
-                            <Trophy className="h-3.5 w-3.5 text-amber-500" />
+                            <Trophy className="h-3.5 w-3.5 text-amber-500" strokeWidth={1.75} />
                             最高 {bestScore.toFixed(0)}%
                           </span>
                         )}
                         {latestRecord && (
                           <span className="flex items-center gap-1.5">
-                            <Clock className="h-3.5 w-3.5" />
+                            <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />
                             {formatDate(latestRecord.createTime, true)}
                           </span>
                         )}
@@ -303,7 +309,7 @@ const QuizApp = memo((props: QuizAppProps) => {
                           "disabled:cursor-not-allowed disabled:opacity-50"
                         )}
                       >
-                        <Play className="h-3.5 w-3.5" />
+                        <Play className="h-3.5 w-3.5" strokeWidth={1.75} />
                         开始测验
                       </button>
                       {(bestScore !== null || latestRecord !== null) && (
@@ -318,7 +324,7 @@ const QuizApp = memo((props: QuizAppProps) => {
                             themeColors.textClass
                           )}
                         >
-                          <History className="h-4 w-4" />
+                          <History className="h-4 w-4" strokeWidth={1.75} />
                         </button>
                       )}
                       <button
@@ -333,7 +339,7 @@ const QuizApp = memo((props: QuizAppProps) => {
                           themeColors.textClass
                         )}
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-4 w-4" strokeWidth={1.75} />
                       </button>
                       <button
                         type="button"
@@ -347,7 +353,7 @@ const QuizApp = memo((props: QuizAppProps) => {
                           "text-red-500 dark:text-red-400"
                         )}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" strokeWidth={1.75} />
                       </button>
                     </div>
                   </motion.div>
@@ -372,7 +378,7 @@ const QuizApp = memo((props: QuizAppProps) => {
               themeColors.hoverClass
             )}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" strokeWidth={1.75} />
             创建新测验
           </button>
         </div>
@@ -459,7 +465,10 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 className={classNames("h-8 w-8 animate-spin", themeColors.iconTextClass)} />
+        <Loader2
+          className={classNames("h-8 w-8 animate-spin", themeColors.iconTextClass)}
+          strokeWidth={1.75}
+        />
         <p className={classNames("mt-3 text-sm", themeColors.secondaryTextClass)}>加载中...</p>
       </div>
     );
@@ -468,7 +477,10 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
   if (records.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Inbox className={classNames("mb-3 h-12 w-12", themeColors.secondaryTextClass)} />
+        <Inbox
+          className={classNames("mb-3 h-12 w-12", themeColors.secondaryTextClass)}
+          strokeWidth={1.75}
+        />
         <p className={classNames("text-sm", themeColors.secondaryTextClass)}>暂无测验记录</p>
       </div>
     );
@@ -535,7 +547,7 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
                       themeColors.activeTextClass
                     )}
                   >
-                    <CheckCircle2 className="text-status-success h-4 w-4" />
+                    <CheckCircle2 className="text-status-success h-4 w-4" strokeWidth={1.75} />
                     {record.correctCount}/{record.totalCount} 题正确
                   </span>
                   <span
@@ -544,7 +556,7 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
                       themeColors.secondaryTextClass
                     )}
                   >
-                    <Clock className="h-3 w-3" />
+                    <Clock className="h-3 w-3" strokeWidth={1.75} />
                     用时 {Math.floor(record.duration / 60)}分{record.duration % 60}秒
                   </span>
                 </div>

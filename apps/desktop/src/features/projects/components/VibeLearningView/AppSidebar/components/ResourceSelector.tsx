@@ -58,7 +58,7 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-[var(--th-accent)]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--th-accent)]" strokeWidth={1.75} />
         <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">加载资源中...</p>
       </div>
     );
@@ -68,7 +68,7 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
   if (resources.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 py-12 dark:border-gray-700">
-        <Inbox className="mb-3 h-12 w-12 text-gray-300 dark:text-gray-600" />
+        <Inbox className="mb-3 h-12 w-12 text-gray-300 dark:text-gray-600" strokeWidth={1.75} />
         <p className="text-sm text-gray-500 dark:text-gray-400">{emptyText}</p>
       </div>
     );
@@ -120,9 +120,12 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
                     : "border-gray-300 dark:border-gray-600"
                 )}
               >
-                {isSelected && <Check className="h-3 w-3 text-white" />}
+                {isSelected && <Check className="h-3 w-3 text-white" strokeWidth={1.75} />}
               </div>
-              <FileText className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500" />
+              <FileText
+                className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500"
+                strokeWidth={1.75}
+              />
               <span className="flex-1 truncate text-sm text-gray-700 dark:text-gray-200">
                 {resource.name}
               </span>

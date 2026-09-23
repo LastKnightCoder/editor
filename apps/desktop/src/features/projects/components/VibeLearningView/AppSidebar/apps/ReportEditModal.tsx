@@ -332,7 +332,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
               : "cursor-not-allowed bg-gray-300 text-gray-500 dark:bg-zinc-700 dark:text-gray-400"
           )}
         >
-          <Sparkles className="h-4 w-4" />
+          <Sparkles className="h-4 w-4" strokeWidth={1.75} />
           开始编辑
         </button>
       </div>
@@ -365,7 +365,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
                 : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
             )}
           >
-            <Eye className="h-4 w-4" />
+            <Eye className="h-4 w-4" strokeWidth={1.75} />
             预览
           </button>
           <button
@@ -377,7 +377,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
                 : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
             )}
           >
-            <Code className="h-4 w-4" />
+            <Code className="h-4 w-4" strokeWidth={1.75} />
             源码
           </button>
         </div>
@@ -416,7 +416,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
                 )
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-gray-500">
-                  <Loader2 className="h-8 w-8 animate-spin" />
+                  <Loader2 className="h-8 w-8 animate-spin" strokeWidth={1.75} />
                 </div>
               )
             ) : (
@@ -435,7 +435,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
           onClick={handleReEdit}
           className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-800"
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
           重新编辑
         </button>
 
@@ -460,12 +460,12 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
           >
             {saving ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
                 保存中...
               </>
             ) : (
               <>
-                <CheckCircle2 className="h-4 w-4" />
+                <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} />
                 保存
               </>
             )}
@@ -497,7 +497,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
       footer={null}
       title={
         <div className="flex items-center gap-2">
-          <FileBarChart className="h-5 w-5 text-[var(--th-accent)]" />
+          <FileBarChart className="h-5 w-5 text-[var(--th-accent)]" strokeWidth={1.75} />
           <span>{getStepTitle()}</span>
           {note && <span className="text-sm text-gray-500 dark:text-gray-400">- {note.title}</span>}
         </div>

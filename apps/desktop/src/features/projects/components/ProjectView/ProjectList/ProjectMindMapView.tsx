@@ -50,16 +50,19 @@ interface ProjectMindMapViewProps {
 }
 
 const getItemIcon = (type?: EProjectItemType, hasChildren = false) => {
-  if (hasChildren) return <FolderOpen />;
-  if (!type) return <FolderOpen />;
-  if (type === EProjectItemType.WhiteBoard) return <FolderOpen />;
-  if (type === EProjectItemType.VideoNote) return <Video />;
-  if (type === EProjectItemType.AudioNote) return <AudioLines size={14} />;
-  if (type === EProjectItemType.WebView) return <Globe />;
-  if (type === EProjectItemType.TableView) return <Table />;
-  if (type === EProjectItemType.Pdf) return <FileText className="text-red-500" />;
-  if (type === EProjectItemType.Epub) return <Book />;
-  return <FileText />;
+  if (hasChildren) return <FolderOpen className="size-4" strokeWidth={1.75} />;
+  if (!type) return <FolderOpen className="size-4" strokeWidth={1.75} />;
+  if (type === EProjectItemType.WhiteBoard)
+    return <FolderOpen className="size-4" strokeWidth={1.75} />;
+  if (type === EProjectItemType.VideoNote) return <Video className="size-4" strokeWidth={1.75} />;
+  if (type === EProjectItemType.AudioNote)
+    return <AudioLines className="size-3.5" strokeWidth={1.75} />;
+  if (type === EProjectItemType.WebView) return <Globe className="size-4" strokeWidth={1.75} />;
+  if (type === EProjectItemType.TableView) return <Table className="size-4" strokeWidth={1.75} />;
+  if (type === EProjectItemType.Pdf)
+    return <FileText className="size-4 text-red-500" strokeWidth={1.75} />;
+  if (type === EProjectItemType.Epub) return <Book className="size-4" strokeWidth={1.75} />;
+  return <FileText className="size-4" strokeWidth={1.75} />;
 };
 
 const PROJECT_NODE_SELECTOR = "data-project-mindmap-node-id";
@@ -251,7 +254,7 @@ const MindMapNodeContent = memo(
       >
         <span className="flex h-5 w-5 flex-none items-center justify-center text-[16px]">
           {isProject ? (
-            <FolderOpen />
+            <FolderOpen className="size-4" strokeWidth={1.75} />
           ) : (
             getItemIcon(
               meta.projectItem?.projectItemType,
@@ -360,7 +363,7 @@ const ProjectMindMapNodeActions = memo(
               sideClass
             )}
           >
-            <Plus />
+            <Plus className="size-4" strokeWidth={1.75} />
           </button>
         }
       >

@@ -155,7 +155,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
       destroyOnClose
       title="编辑测验"
       subtitle="修改测验信息和题目内容"
-      icon={<Pencil className="h-5 w-5 text-[var(--th-text-secondary)]" />}
+      icon={<Pencil className="h-5 w-5 text-[var(--th-text-secondary)]" strokeWidth={1.75} />}
       footer={null}
     >
       <div className="space-y-6">
@@ -193,9 +193,9 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
                 )}
               >
                 {savingName ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
                 ) : (
-                  <Check className="h-4 w-4" />
+                  <Check className="h-4 w-4" strokeWidth={1.75} />
                 )}
               </button>
               <button
@@ -203,7 +203,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
                 onClick={handleCancelEditName}
                 className="rounded-lg bg-gray-100 p-2.5 text-gray-600 transition-all hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-400 dark:hover:bg-zinc-700"
               >
-                <X className="h-4 w-4" />
+                <X className="h-4 w-4" strokeWidth={1.75} />
               </button>
             </div>
           ) : (
@@ -218,7 +218,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
               <span className="text-sm text-gray-800 dark:text-white">
                 {quizSet?.name || "未命名"}
               </span>
-              <Pencil className="h-4 w-4 text-gray-400" />
+              <Pencil className="h-4 w-4 text-gray-400" strokeWidth={1.75} />
             </div>
           )}
         </div>
@@ -234,12 +234,18 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
 
           {loadingItems ? (
             <div className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-[var(--th-accent)]" />
+              <Loader2
+                className="h-8 w-8 animate-spin text-[var(--th-accent)]"
+                strokeWidth={1.75}
+              />
               <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">加载题目中...</p>
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 py-12 dark:border-gray-700">
-              <AlertCircle className="mb-3 h-12 w-12 text-gray-300 dark:text-gray-600" />
+              <AlertCircle
+                className="mb-3 h-12 w-12 text-gray-300 dark:text-gray-600"
+                strokeWidth={1.75}
+              />
               <p className="text-sm text-gray-500 dark:text-gray-400">暂无题目</p>
             </div>
           ) : (
@@ -388,7 +394,7 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
             className="dark:hover:bg-[var(--th-btn-hover)]/10 rounded-lg p-1.5 text-gray-400 transition-all hover:bg-[var(--th-accent-soft)] hover:text-[var(--th-accent)]"
             title="编辑"
           >
-            <Pencil className="h-4 w-4" />
+            <Pencil className="h-4 w-4" strokeWidth={1.75} />
           </button>
           <button
             type="button"
@@ -399,12 +405,12 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
             className="rounded-lg p-1.5 text-gray-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
             title="删除"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" strokeWidth={1.75} />
           </button>
           {isExpanded ? (
-            <ChevronUp className="h-4 w-4 text-gray-400" />
+            <ChevronUp className="h-4 w-4 text-gray-400" strokeWidth={1.75} />
           ) : (
-            <ChevronDown className="h-4 w-4 text-gray-400" />
+            <ChevronDown className="h-4 w-4 text-gray-400" strokeWidth={1.75} />
           )}
         </div>
       </div>
@@ -462,7 +468,9 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
               >
                 <span className="font-medium">{String.fromCharCode(65 + idx)}.</span>
                 <span className="flex-1">{opt.label}</span>
-                {opt.isCorrect && <Check className="text-status-success h-4 w-4" />}
+                {opt.isCorrect && (
+                  <Check className="text-status-success h-4 w-4" strokeWidth={1.75} />
+                )}
               </div>
             ))}
           </div>
@@ -657,7 +665,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
                       : "border-gray-300 hover:border-[var(--th-success)] dark:border-gray-600"
                   )}
                 >
-                  {opt.isCorrect && <Check className="h-3 w-3" />}
+                  {opt.isCorrect && <Check className="h-3 w-3" strokeWidth={1.75} />}
                 </button>
                 <input
                   type="text"
@@ -677,7 +685,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
                     onClick={() => removeOption(idx)}
                     className="shrink-0 rounded-lg p-1.5 text-gray-400 transition-all hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-500/10"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4" strokeWidth={1.75} />
                   </button>
                 )}
               </div>
@@ -687,7 +695,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
               onClick={addOption}
               className="flex items-center gap-1.5 text-xs font-medium text-[var(--th-accent)] hover:text-[var(--th-accent)]"
             >
-              <Plus className="h-3.5 w-3.5" />
+              <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
               添加选项
             </button>
           </div>
@@ -804,7 +812,11 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
             "disabled:cursor-not-allowed disabled:opacity-50"
           )}
         >
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {saving ? (
+            <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
+          ) : (
+            <Save className="h-4 w-4" strokeWidth={1.75} />
+          )}
           保存
         </button>
       </div>

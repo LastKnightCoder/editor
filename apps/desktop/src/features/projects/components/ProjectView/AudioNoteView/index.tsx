@@ -514,7 +514,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
     {
       key: "transcript",
       label: "转录",
-      icon: <Volume2 className="text-xs" strokeWidth={1.75} />,
+      icon: <Volume2 className="size-3.5" strokeWidth={1.75} />,
     },
     { key: "highlights", label: "高亮", icon: <Sparkles size={14} /> },
     { key: "summary", label: "总结", icon: <FileText size={14} /> },
@@ -527,7 +527,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
   if (!audioNote) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <Loader2 className="animate-text-2xl text-gray-400" strokeWidth={1.75} />
+        <Loader2 className="size-6 animate-spin text-gray-400" strokeWidth={1.75} />
       </div>
     );
   }
@@ -580,7 +580,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
             {isTranscribing ? (
               <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
             ) : (
-              <Volume2 strokeWidth={1.75} />
+              <Volume2 className="size-4" strokeWidth={1.75} />
             )}
           </button>
 
@@ -592,7 +592,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
               onClick={handleAIOptimize}
               title="AI 优化断句"
             >
-              <Zap strokeWidth={1.75} />
+              <Zap className="size-4" strokeWidth={1.75} />
             </button>
           )}
         </div>
@@ -640,7 +640,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                         </>
                       ) : (
                         <>
-                          <Zap strokeWidth={1.75} />
+                          <Zap className="size-4" strokeWidth={1.75} />
                           生成章节
                         </>
                       )}
@@ -713,13 +713,13 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                       <div className="flex h-full flex-col items-center justify-center gap-4">
                         {isTranscribing ? (
                           <div className="flex flex-col items-center gap-3 text-gray-500 dark:text-gray-400">
-                            <Loader2 className="animate-text-2xl" strokeWidth={1.75} />
+                            <Loader2 className="size-6 animate-spin" strokeWidth={1.75} />
                             <span className="text-sm">{transcriptionProgress || "转录中..."}</span>
                           </div>
                         ) : (
                           <div className="flex flex-col items-center gap-4">
                             <div className="flex flex-col items-center gap-2 text-gray-400 dark:text-gray-500">
-                              <Volume2 className="text-3xl" strokeWidth={1.75} />
+                              <Volume2 className="size-8" strokeWidth={1.75} />
                               <span className="text-sm">暂无转录内容</span>
                             </div>
                             <button
@@ -727,7 +727,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                               onClick={handleStartTranscription}
                               disabled={isTranscribing}
                             >
-                              <Zap strokeWidth={1.75} />
+                              <Zap className="size-4" strokeWidth={1.75} />
                               开始转录
                             </button>
                           </div>
@@ -758,7 +758,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                                 </span>
                                 {segment.status === "pending" && (
                                   <Loader2
-                                    className="animate-text-xs ml-auto text-gray-400"
+                                    className="ml-auto size-4 animate-spin text-gray-400"
                                     strokeWidth={1.75}
                                   />
                                 )}
@@ -825,7 +825,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                               </>
                             ) : (
                               <>
-                                <Zap strokeWidth={1.75} />
+                                <Zap className="size-4" strokeWidth={1.75} />
                                 生成高亮
                               </>
                             )}
@@ -868,7 +868,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                             onClick={handleStartSummary}
                             disabled={isSummarizing}
                           >
-                            <Zap strokeWidth={1.75} />
+                            <Zap className="size-4" strokeWidth={1.75} />
                             生成总结
                           </button>
                         )}

@@ -52,7 +52,7 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
   if (loading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <Loader2 strokeWidth={1.75} />
+        <Loader2 className="size-5 animate-spin" strokeWidth={1.75} />
       </div>
     );
   }
