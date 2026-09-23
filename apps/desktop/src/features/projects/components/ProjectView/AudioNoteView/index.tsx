@@ -35,7 +35,6 @@ import { useLLMConfig } from "@/hooks/useLLMConfig";
 import { useTranscriptionOptimization } from "@/hooks/useTranscriptionOptimization";
 import { useVideoSummary } from "@/hooks/useVideoSummary";
 import { useVideoInsights } from "@/hooks/useVideoInsights";
-import useThemeColors from "@/hooks/useThemeColors";
 import { AudioControllerImpl } from "./AudioController";
 import { resolveAudioPathForTranscription } from "./audio-source";
 import AudioPlayer from "./components/AudioPlayer";
@@ -68,7 +67,6 @@ interface AudioNoteViewProps {
 
 const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewProps) => {
   const { setting } = useSettingStore(s => ({ setting: s.setting }));
-  const themeColors = useThemeColors();
 
   // Audio state
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -661,17 +659,8 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                     className={classNames(
                       "flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-all",
                       activeTab === tab.key
-                        ? [
-                            themeColors.activeClass,
-                            themeColors.activeTextClass,
-                            themeColors.activeBorderClass,
-                          ]
-                        : [
-                            themeColors.cardBgClass,
-                            "text-ink-2",
-                            themeColors.cardBorderClass,
-                            themeColors.hoverClass,
-                          ]
+                        ? ["bg-accent-soft text-accent-text", "text-accent-text", "border-accent"]
+                        : ["bg-surface", "text-ink-2", "border-line-1", "hover:bg-hover"]
                     )}
                   >
                     {tab.icon}

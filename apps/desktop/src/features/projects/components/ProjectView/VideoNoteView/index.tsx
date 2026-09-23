@@ -5,7 +5,6 @@ import { FileText, Captions, Video } from "lucide-react";
 
 import ResizablePanel from "@/components/ResizablePanel";
 import LocalVideo from "@/components/LocalVideo";
-import useThemeColors from "@/hooks/useThemeColors";
 import BilibiliVideoLoader from "@/components/BilibiliVideoLoader";
 import YoutubeVideoLoader from "@/components/YoutubeVideoLoader";
 import RemoteVideoLoader from "@/components/RemoteVideoLoader";
@@ -39,7 +38,6 @@ interface IVideoNoteViewProps {
 const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
   const autoCacheRemoteVideo = useSettingStore(state => state.setting.misc.video.autoCacheRemote);
   const { itemId: activeProjectItemId } = useProjectContext();
-  const themeColors = useThemeColors();
 
   const videoElementRef = useRef<HTMLVideoElement | null>(null);
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
@@ -265,12 +263,12 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           <span
             className={classNames(
               "absolute inset-0 animate-spin rounded-full border-2 border-transparent",
-              themeColors.iconTextClass
+              "text-accent-text"
             )}
             style={{ borderTopColor: "currentColor" }}
           />
         </div>
-        <span className={classNames("text-sm", themeColors.secondaryTextClass)}>加载中...</span>
+        <span className={classNames("text-sm", "text-ink-2")}>加载中...</span>
       </div>
     );
   }
@@ -281,16 +279,14 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         <div
           className={classNames(
             "flex h-14 w-14 items-center justify-center rounded-2xl",
-            themeColors.iconBgClass,
-            themeColors.iconTextClass
+            "bg-group",
+            "text-accent-text"
           )}
         >
           <Video className="size-[26px]" strokeWidth={1.75} />
         </div>
-        <p className={classNames("text-sm font-medium", themeColors.textClass)}>视频笔记不存在</p>
-        <p className={classNames("text-xs", themeColors.secondaryTextClass)}>
-          该笔记可能已被删除或加载异常
-        </p>
+        <p className={classNames("text-sm font-medium", "text-ink-1")}>视频笔记不存在</p>
+        <p className={classNames("text-xs", "text-ink-2")}>该笔记可能已被删除或加载异常</p>
       </div>
     );
   }
