@@ -55,13 +55,20 @@ export function WindowControls() {
 
 /** macOS 自绘信号灯：主进程已把原生信号灯移出屏幕（window-manager
  *  trafficLightPosition -1000），红关闭/黄最小化/绿全屏；符号常显对齐原生
- *  聚焦态观感。尺寸/间距沿 Sidebar 头部占位几何（12px 圆点、8px 间距），
- *  collapsed 控制与 logo 的水平间距（收起态头部为纵向排布）。
+ *  聚焦态观感。尺寸/间距沿 Sidebar 头部占位几何（12px 圆点、8px 间距）；
+ *  collapsed 时带子撑满标题栏高度（--tau-titlebar-h）使圆点中线与右侧标题栏
+ *  对齐，且 self-start 贴头部左缩进不水平居中（52px 带子居中后红点仅 3px
+ *  贴窗口圆角，太局促，见 Sidebar 头部注释）。
  *  符号自绘粗笔/实心 SVG（lucide 描边图标 8px 下细弱失真），统一半透明黑
  *  ——对齐 macOS Big Sur+ 原生符号色，叠三色圆点自然融合不突兀。 */
 export function MacTrafficLights({ collapsed }: { collapsed: boolean }) {
   return (
-    <div className={clsx("app-region-no-drag flex items-center gap-2", !collapsed && "pr-1")}>
+    <div
+      className={clsx(
+        "app-region-no-drag flex items-center gap-2",
+        collapsed ? "h-[var(--tau-titlebar-h)] self-start" : "pr-1"
+      )}
+    >
       <button
         type="button"
         className="grid size-3 cursor-default place-items-center rounded-full bg-[#ff5f57] text-black/50 hover:bg-[#ff5f57]/90"
