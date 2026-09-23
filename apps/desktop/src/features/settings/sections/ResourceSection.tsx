@@ -606,6 +606,57 @@ export function ResourceSection() {
                 )}
               </div>
             </div>
+            <div className="flex flex-none gap-2">
+              {isSyncing ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={RefreshCw}
+                    onClick={() => void handleRefreshSync()}
+                  >
+                    刷新
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={X}
+                    onClick={() => void handleCancelSync()}
+                  >
+                    停止
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {errorFiles.length > 0 && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={AlertTriangle}
+                      onClick={() => setFileFilter("error")}
+                    >
+                      查看问题 {errorFiles.length}
+                    </Button>
+                  )}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={RefreshCw}
+                    onClick={() => void handleRefreshSync()}
+                  >
+                    刷新
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={CloudUpload}
+                    onClick={() => void handleSync()}
+                  >
+                    {errorFiles.length > 0 ? "重试失败" : "同步"}
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
 
           {isSyncing && (
@@ -616,79 +667,6 @@ export function ResourceSection() {
               />
             </div>
           )}
-
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {(
-              [
-                ["上传", progress.uploadCount],
-                ["下载", progress.downloadCount],
-                ["跳过", progress.skippedCount],
-                ["失败", progress.errorCount],
-              ] as const
-            ).map(([label, count]) => (
-              <span
-                key={label}
-                className={clsx(
-                  "rounded-full px-2 py-px text-[11px] tabular-nums",
-                  label === "失败" && count > 0 ? "bg-warn-soft text-warn" : "bg-group text-ink-2"
-                )}
-              >
-                {label} <b className="font-semibold">{count}</b>
-              </span>
-            ))}
-          </div>
-
-          <div className="mt-3 flex justify-end gap-2">
-            {isSyncing ? (
-              <>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={RefreshCw}
-                  onClick={() => void handleRefreshSync()}
-                >
-                  刷新
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={X}
-                  onClick={() => void handleCancelSync()}
-                >
-                  停止
-                </Button>
-              </>
-            ) : (
-              <>
-                {errorFiles.length > 0 && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    icon={AlertTriangle}
-                    onClick={() => setFileFilter("error")}
-                  >
-                    查看问题 {errorFiles.length}
-                  </Button>
-                )}
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={RefreshCw}
-                  onClick={() => void handleRefreshSync()}
-                >
-                  刷新
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon={CloudUpload}
-                  onClick={() => void handleSync()}
-                >
-                  {errorFiles.length > 0 ? "重试失败" : "同步"}
-                </Button>
-              </>
-            )}
-          </div>
         </div>
       )}
 

@@ -291,3 +291,10 @@
 
 - 推翻 D-019/D-020 的「Checkbox/Switch/Radio 并入 ChoiceSection 同档」聚合口径（2026-09-23）：Checkbox / Switch / Radio / Segmented 各自独立档案，registry 四条目（key `checkbox` / `switch` / `radio` / `segmented`，与其它基础件一组件一条目对齐）。动因：各组件示例需扩充（状态矩阵 + 场景 + 受控联动），单聚合页无限膨胀且侧栏无法直达。
 - 档案结构统一为「状态矩阵 → 场景 → 受控演示 → API 备忘」：Checkbox（任务清单全选联动 / 偏好多选受控回显）；Switch（设置行 aria-label 用法 / 联动显隐）；Radio（描述行组合式 / 主题受控回显 / 导入向导）；Segmented（段数 2–5 全谱 / 图标段与纯图标段 / 形态切换场景）。API 备忘按组件归属拆走：bg-track token 归 Switch 档，「antd Radio.Button 分段形态不建」归 Radio 档。
+
+## D-032 cream sunken 换值去黄 + 角色钉死为轨道/凹槽专档
+
+- 缺陷：cream `sunken` #e2d8c0 黄味重、明度低，与陶土橙 accent 同框（进度轨道、波形）显脏（用户观感「非常不搭配」）；`cream.theme.ts` 行内注释仍写「输入底/代码块等凹陷区」，与 D-007（表单控件 = surface 亮底 + line-1 描边）、D-009（代码 chip 同家族、sunken 退回进度轨道专档）两条裁决矛盾——全库消费方核查证实真实用法只有轨道/凹槽类（进度轨道 ×4、波形、时间轴竖线、分隔线、圆点），无任何输入框/代码块消费。
+- 选择（2026-09-23，mockups/settings-redesign/sunken-candidates.html 五候选真实用法对比，用户裁决取候选 D）：① cream `sunken` #e2d8c0 → **#e7dbc8**（提明度减黄、保留暖调；ink-2 对其 4.74、对 page 1.181，阶梯秩序与相邻 ≥1.10 铁律不破）；② **角色钉死 = 轨道/凹槽专档，明文禁止作输入框/代码块底**——输入框/选择器/代码 chip 一律 surface 亮底 + line-1 描边（D-007/D-009 家族语言），注释与 02 §2.3 词汇表同步写明；③ cocoa `sunken` #100d08 不动（近纯黑，与浅色黄味问题不同源）。
+- 影响：`cream.theme.ts`（取值 + 注释）、`tokens.css` cream 数据块、`AppearanceSection` 主题预览卡 3 处硬编码色同步（该文件另有 group 旧值 #ece4d4 残留，未在本轮处理）、02 §2.3。
+- 验证：`@tau/ui` 178 例全绿（含 theme-parity AA 门禁）；候选页五种真实用法 × 两种底色目验。

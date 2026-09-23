@@ -20,11 +20,11 @@ export default defineTheme({
     // 大面积容器后凹陷感过重显脏，2026-09-20 上调至对 page 1.045 /
     // surface 1.191 的折中，ink 对比度余量同步放大（ink-2 5.13 → 5.36）。
     group: "#f0e9d8",
-    sunken: "#e2d8c0", // 输入底/代码块等凹陷区：比 group 再深一档（对 page 1.224）
+    sunken: "#e7dbc8", // 轨道/凹槽专档：进度轨道、波形未播放段、时间轴（对 page 1.181）；输入框/代码块禁用本档——走 surface 亮底 + line-1 描边（D-007/D-009/D-032）
     track: "#e0d6c3", // 控件轨道（开关/滑杆槽）：米灰，与 thumb(surface) 拉开
     ink1: "#43392c",
     // 原值 #736552 对 page 仅 4.89、对 sunken 3.99——下沉底一深就跌破 AA。
-    // 压深留出余量：page 5.60 / surface 6.38 / group 5.13 / sunken 4.57。
+    // 压深留出余量：page 5.60 / surface 6.38 / group 5.13 / sunken 4.74。
     ink2: "#6a5c49",
     ink3: "#a89a85",
     inkInverse: "#fff8ef",
