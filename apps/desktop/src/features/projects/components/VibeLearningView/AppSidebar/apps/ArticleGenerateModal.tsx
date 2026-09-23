@@ -226,16 +226,16 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
 
   const primaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-    "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]",
-    "hover:bg-[var(--th-btn-hover)]",
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+    "bg-accent text-white",
+    "hover:bg-accent-hover",
+    "disabled:bg-sunken disabled:text-ink-3 disabled:cursor-not-allowed"
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
-    "hover:bg-gray-200 dark:hover:bg-zinc-700",
-    "border border-gray-200 dark:border-gray-700"
+    "bg-group text-ink-2",
+    "hover:bg-hover",
+    "border border-line-1"
   );
 
   const renderFooter = () => (
@@ -269,7 +269,7 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
       destroyOnClose
       title="生成学习文章"
       subtitle="选择资源和文章风格，AI 将生成一篇可直接阅读的长文章"
-      icon={<FileText className="h-5 w-5 text-[var(--th-text-secondary)]" strokeWidth={1.75} />}
+      icon={<FileText className="text-ink-2 h-5 w-5" strokeWidth={1.75} />}
       footer={renderFooter()}
       showCloseButton={!isCreating}
     >
@@ -298,7 +298,7 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
           />
 
           <div>
-            <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+            <label className="text-ink-2 mb-2 block text-[11px] font-semibold uppercase tracking-wider">
               文章风格
             </label>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -312,16 +312,12 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
                     className={classNames(
                       "rounded-xl border px-4 py-3 text-left transition-all",
                       selected
-                        ? "border-[var(--th-border-focus)] bg-[var(--th-accent-soft)]"
-                        : "border-gray-200 bg-white hover:border-[var(--th-border-hover)] dark:border-gray-700 dark:bg-zinc-900/60"
+                        ? "border-accent bg-accent-soft"
+                        : "border-line-1 bg-surface hover:border-line-1"
                     )}
                   >
-                    <div className="text-sm font-semibold text-gray-800 dark:text-white">
-                      {option.label}
-                    </div>
-                    <div className="mt-1 text-xs leading-5 text-gray-500 dark:text-slate-400">
-                      {option.description}
-                    </div>
+                    <div className="text-ink-1 text-sm font-semibold">{option.label}</div>
+                    <div className="text-ink-2 mt-1 text-xs leading-5">{option.description}</div>
                   </button>
                 );
               })}

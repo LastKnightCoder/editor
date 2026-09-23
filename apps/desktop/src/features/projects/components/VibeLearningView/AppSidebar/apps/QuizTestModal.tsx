@@ -254,26 +254,24 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
           const isCorrect = option.isCorrect;
           const showResult = showAnswer;
 
-          let cardStyle =
-            "border-gray-200 dark:border-gray-700 hover:border-[var(--th-border-hover)] hover:bg-gray-50 dark:hover:bg-zinc-800/50";
-          let iconColor = "text-gray-300 dark:text-gray-600 group-hover:text-[var(--th-accent)]";
+          let cardStyle = "border-line-1 hover:border-line-1 hover:bg-group";
+          let iconColor = "text-ink-3 group-hover:text-accent";
 
           if (!showResult) {
             if (isSelected) {
-              cardStyle = "border-[var(--th-border-focus)] bg-[var(--th-accent-soft)] shadow-sm";
-              iconColor = "text-[var(--th-accent)]";
+              cardStyle = "border-accent bg-accent-soft shadow-sm";
+              iconColor = "text-accent";
             }
           } else {
             if (isCorrect) {
-              cardStyle =
-                "border-[var(--th-success)] bg-[var(--th-success)]/10 ring-1 ring-[var(--th-success)]/20";
+              cardStyle = "border-ok bg-ok/10 ring-1 ring-ok/20";
               iconColor = "text-status-success";
             } else if (isSelected && !isCorrect) {
-              cardStyle = "border-[var(--th-danger)] bg-[var(--th-danger)]/10";
+              cardStyle = "border-danger bg-danger/10";
               iconColor = "text-status-error";
             } else {
-              cardStyle = "border-gray-100 dark:border-gray-800 opacity-60";
-              iconColor = "text-gray-300 dark:text-gray-600";
+              cardStyle = "border-line-1 opacity-60";
+              iconColor = "text-ink-3";
             }
           }
 
@@ -318,8 +316,8 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
               </div>
               <span
                 className={classNames("text-base leading-relaxed transition-colors", {
-                  "font-medium text-gray-900 dark:text-gray-100": !showResult || isCorrect,
-                  "text-gray-500 dark:text-gray-400": showResult && !isSelected && !isCorrect,
+                  "text-ink-1 font-medium": !showResult || isCorrect,
+                  "text-ink-2": showResult && !isSelected && !isCorrect,
                   "text-status-error": showResult && isSelected && !isCorrect,
                 })}
               >
@@ -348,34 +346,32 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
           const showResult = showAnswer;
           const Icon = option.icon;
 
-          let btnClass =
-            "border-gray-200 dark:border-gray-700 bg-white dark:bg-zinc-800 hover:border-gray-300 dark:hover:border-gray-600";
-          let textClass = "text-gray-600 dark:text-gray-400";
-          let iconClass = "text-gray-400 dark:text-gray-500";
+          let btnClass = "border-line-1 bg-surface hover:border-line-1";
+          let textClass = "text-ink-2";
+          let iconClass = "text-ink-3";
 
           if (!showResult) {
             if (isSelected) {
               btnClass =
                 option.value === true
-                  ? "border-[var(--th-success)] bg-[var(--th-success)]/10 shadow-sm"
-                  : "border-[var(--th-danger)] bg-[var(--th-danger)]/10 shadow-sm";
+                  ? "border-ok bg-ok/10 shadow-sm"
+                  : "border-danger bg-danger/10 shadow-sm";
               textClass = option.value === true ? "text-status-success" : "text-status-error";
               iconClass = option.value === true ? "text-status-success" : "text-status-error";
             } else {
-              btnClass += " hover:bg-gray-50 dark:hover:bg-zinc-700/50";
+              btnClass += " hover:bg-group";
             }
           } else {
             if (isCorrect) {
-              btnClass =
-                "border-[var(--th-success)] bg-[var(--th-success)]/10 ring-1 ring-[var(--th-success)]/20";
+              btnClass = "border-ok bg-ok/10 ring-1 ring-ok/20";
               textClass = "text-status-success";
               iconClass = "text-status-success";
             } else if (isSelected && !isCorrect) {
-              btnClass = "border-[var(--th-danger)] bg-[var(--th-danger)]/10";
+              btnClass = "border-danger bg-danger/10";
               textClass = "text-status-error";
               iconClass = "text-status-error";
             } else {
-              btnClass = "border-gray-100 dark:border-gray-800 opacity-50";
+              btnClass = "border-line-1 opacity-50";
             }
           }
 
@@ -414,10 +410,10 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
           placeholder="请输入你的答案..."
           className={classNames(
             "min-h-[160px] w-full resize-none rounded-xl border-2 px-5 py-4 text-base leading-relaxed transition-all",
-            "focus:ring-[var(--th-accent)]/10 focus:border-[var(--th-border-focus)] focus:outline-none focus:ring-4",
+            "focus:ring-accent/10 focus:border-accent focus:outline-none focus:ring-4",
             isDark
-              ? "border-gray-700 bg-zinc-800 text-gray-100 placeholder-gray-500"
-              : "border-gray-200 bg-white text-gray-900 placeholder-gray-400",
+              ? "border-line-1 bg-sunken text-ink-1 placeholder:text-ink-3"
+              : "border-line-1 bg-surface text-ink-1 placeholder-gray-400",
             { "cursor-not-allowed opacity-60": showAnswer }
           )}
         />
@@ -427,15 +423,13 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
             animate={{ opacity: 1, y: 0 }}
             className={classNames(
               "rounded-xl border-l-4 p-5 shadow-sm",
-              isDark
-                ? "border-[var(--th-success)]/50 bg-zinc-800"
-                : "border-[var(--th-success)] bg-white shadow-gray-100"
+              isDark ? "border-ok/50 bg-sunken" : "border-ok bg-surface shadow-gray-100"
             )}
           >
             <p className="text-status-success mb-2 flex items-center gap-2 text-sm font-bold">
               <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} /> 参考答案
             </p>
-            <div className="prose prose-sm dark:prose-invert max-w-none text-gray-700 dark:text-gray-300">
+            <div className="prose prose-sm text-ink-2 max-w-none">
               <p className="whitespace-pre-wrap">{data.answer}</p>
             </div>
           </motion.div>
@@ -459,7 +453,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
       case "cloze":
         return null; // 填空题内容已在题干中渲染
       default:
-        return <p className="text-gray-500">未知题型</p>;
+        return <p className="text-ink-2">未知题型</p>;
     }
   };
 
@@ -478,29 +472,29 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
 
     const levelConfig = {
       excellent: {
-        gradient: "from-[var(--th-accent)] to-[var(--th-accent-hover)]",
-        bg: "bg-[var(--th-accent-soft)]",
-        text: "text-[var(--th-active-text)]",
+        gradient: "from-accent to-accent-hover",
+        bg: "bg-accent-soft",
+        text: "text-accent-text",
         label: "太棒了！",
         emoji: "🎉",
       },
       good: {
-        gradient: "from-[var(--th-info)] to-[var(--th-info)]",
-        bg: "bg-[var(--th-info)]/10",
+        gradient: "from-info to-info",
+        bg: "bg-info/10",
         text: "text-status-info",
         label: "做得不错！",
         emoji: "👍",
       },
       pass: {
-        gradient: "from-[var(--th-warning)] to-[var(--th-warning)]",
-        bg: "bg-[var(--th-warning)]/10",
+        gradient: "from-warn to-warn",
+        bg: "bg-warn-soft",
         text: "text-status-warning",
         label: "继续加油！",
         emoji: "💪",
       },
       fail: {
-        gradient: "from-[var(--th-danger)] to-[var(--th-danger)]",
-        bg: "bg-[var(--th-danger)]/10",
+        gradient: "from-danger to-danger",
+        bg: "bg-danger/10",
         text: "text-status-error",
         label: "再接再厉！",
         emoji: "📚",
@@ -532,7 +526,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
               >
                 {quizRecord.score.toFixed(0)}
               </div>
-              <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">分</div>
+              <div className="text-ink-2 mt-1 text-sm">分</div>
             </div>
           </div>
           <div className="absolute -right-2 -top-2 text-4xl">{config.emoji}</div>
@@ -543,42 +537,25 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
 
         {/* 统计卡片 */}
         <div className="mb-8 grid w-full max-w-md grid-cols-3 gap-4">
-          <div
-            className={classNames(
-              "flex flex-col items-center rounded-xl p-4",
-              isDark ? "bg-zinc-800" : "bg-gray-50"
-            )}
-          >
-            <Target className="mb-2 h-5 w-5 text-[var(--th-accent)]" strokeWidth={1.75} />
-            <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
+          <div className={classNames("flex flex-col items-center rounded-xl p-4", "bg-group")}>
+            <Target className="text-accent mb-2 h-5 w-5" strokeWidth={1.75} />
+            <div className="text-ink-1 text-lg font-bold">
               {quizRecord.correctCount}/{quizRecord.totalCount}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">正确率</div>
+            <div className="text-ink-2 text-xs">正确率</div>
           </div>
-          <div
-            className={classNames(
-              "flex flex-col items-center rounded-xl p-4",
-              isDark ? "bg-zinc-800" : "bg-gray-50"
-            )}
-          >
+          <div className={classNames("flex flex-col items-center rounded-xl p-4", "bg-group")}>
             <Clock className="mb-2 h-5 w-5 text-amber-500" strokeWidth={1.75} />
-            <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
+            <div className="text-ink-1 text-lg font-bold">
               {Math.floor(quizRecord.duration / 60)}:
               {String(quizRecord.duration % 60).padStart(2, "0")}
             </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">用时</div>
+            <div className="text-ink-2 text-xs">用时</div>
           </div>
-          <div
-            className={classNames(
-              "flex flex-col items-center rounded-xl p-4",
-              isDark ? "bg-zinc-800" : "bg-gray-50"
-            )}
-          >
-            <Trophy className="mb-2 h-5 w-5 text-[var(--th-accent)]" strokeWidth={1.75} />
-            <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
-              {quizRecord.totalCount}
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">总题数</div>
+          <div className={classNames("flex flex-col items-center rounded-xl p-4", "bg-group")}>
+            <Trophy className="text-accent mb-2 h-5 w-5" strokeWidth={1.75} />
+            <div className="text-ink-1 text-lg font-bold">{quizRecord.totalCount}</div>
+            <div className="text-ink-2 text-xs">总题数</div>
           </div>
         </div>
 
@@ -615,26 +592,26 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
         {step === "testing" && (
           <>
             {/* Header & Progress */}
-            <div className="border-b border-gray-100 px-8 pb-4 pt-6 dark:border-gray-800">
+            <div className="border-line-1 border-b px-8 pb-4 pt-6">
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {quizSet && <span className="text-xl">{quizSet.emoji}</span>}
                   <div className="flex items-center gap-2">
-                    <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-bold text-gray-500 dark:bg-zinc-800 dark:text-gray-400">
+                    <span className="bg-group text-ink-2 rounded-md px-2 py-0.5 text-xs font-bold">
                       {progress.current} / {progress.total}
                     </span>
-                    <span className="text-sm font-medium text-gray-400 dark:text-gray-500">
+                    <span className="text-ink-3 text-sm font-medium">
                       {typeLabels[currentItem.type] || currentItem.type}
                     </span>
                   </div>
                 </div>
-                <span className="text-sm font-bold text-[var(--th-accent)]">
+                <span className="text-accent text-sm font-bold">
                   {Math.round(progressPercent)}%
                 </span>
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-zinc-800">
+              <div className="bg-group h-1.5 overflow-hidden rounded-full">
                 <motion.div
-                  className="h-full rounded-full bg-[var(--th-accent)]"
+                  className="bg-accent h-full rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${progressPercent}%` }}
                   transition={{ duration: 0.4, ease: "easeOut" }}
@@ -665,7 +642,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                     key={`prompt-${currentItem.id}`}
                     content={currentItem.prompt}
                     isDark={isDark}
-                    className="text-xl font-medium leading-normal text-gray-900 md:text-2xl dark:text-gray-50"
+                    className="text-ink-1 text-xl font-medium leading-normal md:text-2xl"
                   />
                 )}
 
@@ -674,7 +651,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                     {currentItem.tags.map(tag => (
                       <span
                         key={tag}
-                        className="rounded-md border border-gray-200 bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500 dark:border-gray-700 dark:bg-zinc-800 dark:text-gray-400"
+                        className="border-line-1 bg-group text-ink-2 rounded-md border px-2.5 py-1 text-xs font-medium"
                       >
                         #{tag}
                       </span>
@@ -699,8 +676,8 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                       className={classNames(
                         "rounded-xl border-l-4 p-5 shadow-sm",
                         currentAnswerCorrect || currentItem.type === "qa"
-                          ? "bg-[var(--th-success)]/10 border-[var(--th-success)] shadow-[var(--th-shadow-sm)]"
-                          : "bg-[var(--th-warning)]/10 border-[var(--th-warning)] shadow-[var(--th-shadow-sm)]"
+                          ? "bg-ok/10 border-ok shadow-sm"
+                          : "bg-warn-soft border-warn shadow-sm"
                       )}
                     >
                       <p
@@ -726,7 +703,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                         )}
                       </p>
                       {currentItem.data.explanation ? (
-                        <div className="mt-3 text-base leading-relaxed text-gray-700 dark:text-gray-300">
+                        <div className="text-ink-2 mt-3 text-base leading-relaxed">
                           <span className="mb-1 block text-sm font-semibold opacity-75">
                             解析：
                           </span>
@@ -735,9 +712,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                       ) : (
                         !currentAnswerCorrect &&
                         currentItem.type !== "qa" && (
-                          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                            暂无解析，请参考正确答案。
-                          </p>
+                          <p className="text-ink-2 mt-1 text-sm">暂无解析，请参考正确答案。</p>
                         )
                       )}
                     </div>
@@ -747,7 +722,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
             </div>
 
             {/* Footer Actions */}
-            <div className="border-t border-gray-100 bg-gray-50/50 p-6 dark:border-gray-800 dark:bg-zinc-900/50">
+            <div className="border-line-1 bg-group/50 border-t p-6">
               <div className="flex items-center">
                 {/* 上一题按钮 */}
                 <div className="flex-1">
@@ -757,8 +732,8 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                     className={classNames(
                       "flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium transition-all",
                       progress.current <= 1
-                        ? "cursor-not-allowed text-gray-300 dark:text-gray-600"
-                        : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
+                        ? "text-ink-3 cursor-not-allowed"
+                        : "text-ink-2 hover:bg-group"
                     )}
                   >
                     <ChevronLeft className="h-5 w-5" strokeWidth={1.75} />
@@ -775,8 +750,8 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                       className={classNames(
                         "rounded-xl px-8 py-3 text-lg font-bold transition-all duration-200",
                         canSubmitAnswer
-                          ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)]"
-                          : "cursor-not-allowed bg-gray-200 text-gray-400 dark:bg-zinc-800"
+                          ? "bg-accent hover:bg-accent-hover text-white"
+                          : "bg-sunken text-ink-3 cursor-not-allowed"
                       )}
                     >
                       提交答案
@@ -784,7 +759,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                   ) : isLastQuestion ? (
                     <button
                       onClick={handleFinish}
-                      className="bg-linear-to-r rounded-xl from-[var(--th-accent)] to-[var(--th-accent-hover)] px-8 py-3 text-lg font-bold text-white transition-all duration-200 hover:opacity-90"
+                      className="bg-linear-to-r from-accent to-accent-hover rounded-xl px-8 py-3 text-lg font-bold text-white transition-all duration-200 hover:opacity-90"
                     >
                       完成测验
                     </button>
@@ -796,7 +771,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                   {showAnswer && !isLastQuestion && (
                     <button
                       onClick={handleNext}
-                      className="flex items-center gap-2 rounded-xl bg-[var(--th-btn-bg)] px-8 py-3 text-lg font-bold text-[var(--th-btn-text)] transition-all duration-200 hover:bg-[var(--th-btn-hover)]"
+                      className="bg-accent hover:bg-accent-hover flex items-center gap-2 rounded-xl px-8 py-3 text-lg font-bold text-white transition-all duration-200"
                     >
                       下一题
                       <ChevronRight className="h-5 w-5" strokeWidth={1.75} />

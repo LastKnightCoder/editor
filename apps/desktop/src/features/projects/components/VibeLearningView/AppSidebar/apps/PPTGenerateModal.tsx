@@ -329,7 +329,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
     <div className="space-y-4">
       {/* 预览/源码切换 */}
       <div className="flex items-center justify-between">
-        <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+        <label className="text-ink-2 text-[11px] font-semibold uppercase tracking-wider">
           PPT 预览
         </label>
         <div className="flex items-center gap-2">
@@ -339,8 +339,8 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
             className={classNames(
               "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
               viewMode === "preview"
-                ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700"
+                ? "bg-accent text-white"
+                : "bg-group text-ink-2 hover:bg-sunken"
             )}
           >
             <Eye className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -351,9 +351,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
             onClick={() => setViewMode("source")}
             className={classNames(
               "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
-              viewMode === "source"
-                ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-zinc-800 dark:text-gray-300 dark:hover:bg-zinc-700"
+              viewMode === "source" ? "bg-accent text-white" : "bg-group text-ink-2 hover:bg-sunken"
             )}
           >
             <Code className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -364,10 +362,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
 
       {/* 预览区域 */}
       <div
-        className={classNames(
-          "overflow-hidden rounded-xl border",
-          "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50"
-        )}
+        className={classNames("overflow-hidden rounded-xl border", "border-line-1 bg-group")}
         style={{ height: 400 }}
       >
         {viewMode === "preview" ? (
@@ -400,7 +395,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
           )
         ) : (
           <div className="h-full overflow-auto p-4">
-            <pre className="whitespace-pre-wrap font-mono text-xs text-gray-600 dark:text-gray-300">
+            <pre className="text-ink-2 whitespace-pre-wrap font-mono text-xs">
               {cleanedHtml || generatedHtml}
             </pre>
           </div>
@@ -412,16 +407,16 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
   // 按钮样式
   const primaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-    "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]",
-    "hover:bg-[var(--th-btn-hover)]",
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+    "bg-accent text-white",
+    "hover:bg-accent-hover",
+    "disabled:bg-sunken disabled:text-ink-3 disabled:cursor-not-allowed"
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
-    "hover:bg-gray-200 dark:hover:bg-zinc-700",
-    "border border-gray-200 dark:border-gray-700"
+    "bg-group text-ink-2",
+    "hover:bg-hover",
+    "border border-line-1"
   );
 
   // 渲染底部按钮
@@ -520,7 +515,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
       title={getModalTitle()}
       subtitle={getModalSubtitle()}
       icon={<Presentation className="h-5 w-5 text-orange-500" strokeWidth={1.75} />}
-      iconBgColor="bg-orange-50 dark:bg-orange-500/20 border-orange-200 dark:border-orange-500/30"
+      iconBgColor="bg-orange-50 border-orange-200"
       footer={renderFooter()}
       showCloseButton={step !== "generating"}
     >

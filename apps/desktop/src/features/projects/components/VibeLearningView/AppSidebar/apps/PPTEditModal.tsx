@@ -348,7 +348,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
       <div className="flex items-center justify-end gap-3 pt-2">
         <button
           onClick={handleClose}
-          className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-800"
+          className="text-ink-2 hover:bg-group rounded-lg px-4 py-2 text-sm font-medium transition-colors"
         >
           取消
         </button>
@@ -359,8 +359,8 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
             "rounded-lg px-4 py-2 text-sm font-medium transition-all",
             "flex items-center gap-2",
             userPrompt.trim()
-              ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)]"
-              : "cursor-not-allowed bg-gray-300 text-gray-500 dark:bg-zinc-700 dark:text-gray-400"
+              ? "bg-accent hover:bg-accent-hover text-white"
+              : "bg-sunken text-ink-2 cursor-not-allowed"
           )}
         >
           <Sparkles className="h-4 w-4" strokeWidth={1.75} />
@@ -394,9 +394,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
             onClick={() => setViewMode("preview")}
             className={classNames(
               "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-              viewMode === "preview"
-                ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]"
-                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
+              viewMode === "preview" ? "bg-accent text-white" : "text-ink-2 hover:bg-group"
             )}
           >
             <Eye className="h-4 w-4" strokeWidth={1.75} />
@@ -406,9 +404,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
             onClick={() => setViewMode("source")}
             className={classNames(
               "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-              viewMode === "source"
-                ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]"
-                : "text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
+              viewMode === "source" ? "bg-accent text-white" : "text-ink-2 hover:bg-group"
             )}
           >
             <Code className="h-4 w-4" strokeWidth={1.75} />
@@ -418,7 +414,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
 
         <button
           onClick={() => setShowPreview(!showPreview)}
-          className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
+          className="text-ink-2 hover:bg-group rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
         >
           {showPreview ? "隐藏预览" : "显示预览"}
         </button>
@@ -426,7 +422,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
 
       {/* 预览区域 */}
       {showPreview && (
-        <div className="relative w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-zinc-900">
+        <div className="border-line-1 bg-group relative w-full overflow-hidden rounded-lg border">
           <div className="aspect-video w-full">
             {viewMode === "preview" ? (
               htmlPreviewUrl ? (
@@ -449,13 +445,13 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
                   />
                 )
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-gray-500">
+                <div className="text-ink-2 flex h-full w-full items-center justify-center">
                   <Loader2 className="h-8 w-8 animate-spin" strokeWidth={1.75} />
                 </div>
               )
             ) : (
               <div className="h-full w-full overflow-auto p-4">
-                <pre className="whitespace-pre-wrap break-words text-xs text-gray-800 dark:text-gray-200">
+                <pre className="text-ink-1 whitespace-pre-wrap break-words text-xs">
                   {cleanedHtml || currentHtml}
                 </pre>
               </div>
@@ -468,7 +464,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
       <div className="flex items-center justify-between pt-2">
         <button
           onClick={handleReEdit}
-          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-800"
+          className="text-ink-2 hover:bg-group flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
         >
           <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
           重新编辑
@@ -478,7 +474,7 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
           {cleanedHtml && (
             <button
               onClick={handleDiscard}
-              className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-800"
+              className="text-ink-2 hover:bg-group rounded-lg px-4 py-2 text-sm font-medium transition-colors"
             >
               放弃修改
             </button>
@@ -489,8 +485,8 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
             className={classNames(
               "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all",
               saving
-                ? "cursor-not-allowed bg-gray-300 text-gray-500 dark:bg-zinc-700"
-                : "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] hover:bg-[var(--th-btn-hover)]"
+                ? "bg-sunken text-ink-2 cursor-not-allowed"
+                : "bg-accent hover:bg-accent-hover text-white"
             )}
           >
             {saving ? (
@@ -533,9 +529,9 @@ const PPTEditModal = memo((props: PPTEditModalProps) => {
       footer={null}
       title={
         <div className="flex items-center gap-2">
-          <Presentation className="h-5 w-5 text-[var(--th-active-text)]" strokeWidth={1.75} />
+          <Presentation className="text-accent-text h-5 w-5" strokeWidth={1.75} />
           <span>{getStepTitle()}</span>
-          {note && <span className="text-sm text-gray-500 dark:text-gray-400">- {note.title}</span>}
+          {note && <span className="text-ink-2 text-sm">- {note.title}</span>}
         </div>
       }
     >

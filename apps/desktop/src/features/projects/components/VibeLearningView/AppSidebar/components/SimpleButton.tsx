@@ -43,11 +43,11 @@ const SimpleButton = memo((props: SimpleButtonProps) => {
       case "primary":
         return primaryButtonClass;
       case "danger":
-        return "bg-red-500/80 dark:bg-red-600/80 text-white border-red-500/50 dark:border-red-600/50 hover:bg-red-600/90 dark:hover:bg-red-500/90";
+        return "bg-red-500/80 text-white border-red-500/50 hover:bg-red-600/90";
       case "text":
         return `bg-transparent border-transparent ${textClass} ${hoverClass}`;
       default:
-        return `bg-white/80 dark:bg-white/5 backdrop-blur-sm ${textClass} ${borderClass} ${hoverClass}`;
+        return `bg-surface/80 backdrop-blur-sm ${textClass} ${borderClass} ${hoverClass}`;
     }
   };
 

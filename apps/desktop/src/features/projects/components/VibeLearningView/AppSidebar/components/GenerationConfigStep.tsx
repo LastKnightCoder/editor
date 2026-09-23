@@ -71,7 +71,7 @@ const GenerationConfigStep = memo((props: GenerationConfigStepProps) => {
 
       {/* 额外提示输入 */}
       <div>
-        <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+        <label className="text-ink-2 mb-2 block text-[11px] font-semibold uppercase tracking-wider">
           {promptTitle}
         </label>
         <textarea
@@ -81,9 +81,9 @@ const GenerationConfigStep = memo((props: GenerationConfigStepProps) => {
           rows={3}
           className={classNames(
             "w-full resize-none rounded-xl px-4 py-3 text-sm outline-none transition-all",
-            "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
-            "text-gray-800 placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500",
-            "focus:ring-[var(--th-accent)]/20 focus:border-[var(--th-border-focus)] focus:ring-2"
+            "border-line-1 bg-group border",
+            "text-ink-1 placeholder:text-ink-3",
+            "focus:ring-accent/20 focus:border-accent focus:ring-2"
           )}
         />
       </div>

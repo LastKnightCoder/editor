@@ -261,7 +261,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-4">
         <div className="relative h-10 w-10">
-          <span className="absolute inset-0 rounded-full border-2 border-gray-200 dark:border-slate-700" />
+          <span className="border-line-1 absolute inset-0 rounded-full border-2" />
           <span
             className={classNames(
               "absolute inset-0 animate-spin rounded-full border-2 border-transparent",
@@ -333,7 +333,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                 <div
                   className={classNames(
                     "relative w-full overflow-hidden rounded-xl",
-                    showVideo ? "bg-black" : "bg-gray-100 dark:bg-zinc-900"
+                    showVideo ? "bg-black" : "bg-group"
                   )}
                   style={{
                     aspectRatio: "16/9",
@@ -369,21 +369,19 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                   )}
                 </div>
 
-                <div className="mt-4 rounded-xl border border-gray-200 bg-white/60 p-4 dark:border-slate-700 dark:bg-white/5">
-                  <h2 className="truncate text-base font-semibold text-gray-900 dark:text-gray-100">
+                <div className="border-line-1 bg-surface/60 mt-4 rounded-xl border p-4">
+                  <h2 className="text-ink-1 truncate text-base font-semibold">
                     {projectItemTitle || videoNote?.description || "未命名视频"}
                   </h2>
                   <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-white/10 dark:text-gray-300">
+                    <span className="bg-group text-ink-2 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs">
                       <Video className="size-3" strokeWidth={1.75} />
                       {sourceLabel}
                     </span>
                     <span
                       className={classNames(
                         "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs",
-                        transcriptCount > 0
-                          ? "bg-[var(--th-success)]/10 text-status-success"
-                          : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
+                        transcriptCount > 0 ? "bg-ok/10 text-status-success" : "bg-group text-ink-2"
                       )}
                     >
                       <Captions className="size-3" strokeWidth={1.75} />
@@ -392,9 +390,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                     <span
                       className={classNames(
                         "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs",
-                        hasSummary
-                          ? "dark:bg-[var(--th-accent)]/15 bg-[var(--th-accent-soft)] text-[var(--th-active-text)]"
-                          : "bg-gray-100 text-gray-500 dark:bg-white/10 dark:text-gray-400"
+                        hasSummary ? "bg-accent-soft text-accent-text" : "bg-group text-ink-2"
                       )}
                     >
                       <FileText className="size-3" strokeWidth={1.75} />

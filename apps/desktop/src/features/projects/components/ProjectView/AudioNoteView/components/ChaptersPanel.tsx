@@ -38,7 +38,7 @@ const ChaptersPanel = (props: ChaptersPanelProps) => {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-1.5 px-1 text-xs font-semibold text-gray-600 dark:text-gray-300">
+      <div className="text-ink-2 flex items-center gap-1.5 px-1 text-xs font-semibold">
         <Clock className="size-[13px]" strokeWidth={1.75} />
         <span>章节</span>
       </div>
@@ -51,17 +51,15 @@ const ChaptersPanel = (props: ChaptersPanelProps) => {
               className={classNames(
                 "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-all",
                 isActive
-                  ? "border-[var(--th-border-focus)]/40 bg-[var(--th-accent-soft)]"
-                  : "border-transparent hover:border-gray-200 hover:bg-gray-50 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/50"
+                  ? "border-accent/40 bg-accent-soft"
+                  : "hover:border-line-1 hover:bg-group border-transparent"
               )}
               onClick={() => onSeek(chapter.startTime)}
             >
               <div
                 className={classNames(
                   "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
-                  isActive
-                    ? "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] dark:bg-[var(--th-accent)]"
-                    : "bg-gray-200 text-gray-600 dark:bg-zinc-700 dark:text-gray-300"
+                  isActive ? "bg-accent text-white" : "bg-sunken text-ink-2"
                 )}
               >
                 {index + 1}
@@ -70,18 +68,18 @@ const ChaptersPanel = (props: ChaptersPanelProps) => {
                 <div
                   className={classNames(
                     "text-sm font-medium leading-5",
-                    isActive ? "text-[var(--th-active-text)]" : "text-gray-800 dark:text-gray-200"
+                    isActive ? "text-accent-text" : "text-ink-1"
                   )}
                 >
                   {chapter.title}
                 </div>
                 {chapter.summary && (
-                  <div className="mt-0.5 line-clamp-2 text-xs leading-4 text-gray-500 dark:text-gray-400">
+                  <div className="text-ink-2 mt-0.5 line-clamp-2 text-xs leading-4">
                     {chapter.summary}
                   </div>
                 )}
               </div>
-              <span className="shrink-0 font-mono text-[11px] leading-5 text-gray-400 dark:text-gray-500">
+              <span className="text-ink-3 shrink-0 font-mono text-[11px] leading-5">
                 {formatTimeMs(chapter.startTime)}
               </span>
             </div>

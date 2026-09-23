@@ -58,8 +58,8 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-[var(--th-accent)]" strokeWidth={1.75} />
-        <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">加载资源中...</p>
+        <Loader2 className="text-accent h-8 w-8 animate-spin" strokeWidth={1.75} />
+        <p className="text-ink-2 mt-3 text-sm">加载资源中...</p>
       </div>
     );
   }
@@ -67,9 +67,9 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
   // 空状态
   if (resources.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-200 py-12 dark:border-gray-700">
-        <Inbox className="mb-3 h-12 w-12 text-gray-300 dark:text-gray-600" strokeWidth={1.75} />
-        <p className="text-sm text-gray-500 dark:text-gray-400">{emptyText}</p>
+      <div className="border-line-1 flex flex-col items-center justify-center rounded-xl border-2 border-dashed py-12">
+        <Inbox className="text-ink-3 mb-3 h-12 w-12" strokeWidth={1.75} />
+        <p className="text-ink-2 text-sm">{emptyText}</p>
       </div>
     );
   }
@@ -78,23 +78,20 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
     <div>
       {showHeader && (
         <div className="mb-3 flex items-center justify-between">
-          <label className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+          <label className="text-ink-2 text-[11px] font-semibold uppercase tracking-wider">
             {title}
           </label>
           <button
             type="button"
             onClick={onToggleAll}
-            className="dark:hover: text-xs font-medium text-[var(--th-accent)] transition-colors hover:text-[var(--th-active-text)]"
+            className="dark:hover: text-accent hover:text-accent-text text-xs font-medium transition-colors"
           >
             {isAllSelected ? "取消全选" : "全选"}
           </button>
         </div>
       )}
 
-      <div
-        className="overflow-auto rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50"
-        style={{ maxHeight }}
-      >
+      <div className="border-line-1 bg-group overflow-auto rounded-xl border" style={{ maxHeight }}>
         {resources.map((resource, index) => {
           const isSelected = selectedResourceIds.includes(resource.id);
           return (
@@ -105,30 +102,21 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
               transition={{ delay: index * 0.02 }}
               className={classNames(
                 "flex cursor-pointer items-center gap-3 px-4 py-3 transition-all",
-                "border-b border-gray-100 last:border-b-0 dark:border-gray-700/50",
-                isSelected
-                  ? "bg-[var(--th-accent-soft)]"
-                  : "hover:bg-gray-100 dark:hover:bg-zinc-700/50"
+                "border-line-1 border-b last:border-b-0",
+                isSelected ? "bg-accent-soft" : "hover:bg-hover/50"
               )}
               onClick={() => onToggleResource(resource.id)}
             >
               <div
                 className={classNames(
                   "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-all",
-                  isSelected
-                    ? "border-[var(--th-accent)] bg-[var(--th-accent)]"
-                    : "border-gray-300 dark:border-gray-600"
+                  isSelected ? "border-accent bg-accent" : "border-line-1"
                 )}
               >
                 {isSelected && <Check className="h-3 w-3 text-white" strokeWidth={1.75} />}
               </div>
-              <FileText
-                className="h-4 w-4 shrink-0 text-gray-400 dark:text-gray-500"
-                strokeWidth={1.75}
-              />
-              <span className="flex-1 truncate text-sm text-gray-700 dark:text-gray-200">
-                {resource.name}
-              </span>
+              <FileText className="text-ink-3 h-4 w-4 shrink-0" strokeWidth={1.75} />
+              <span className="text-ink-2 flex-1 truncate text-sm">{resource.name}</span>
             </motion.div>
           );
         })}

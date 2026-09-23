@@ -779,7 +779,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   const renderFileTab = () => (
     <div className="space-y-4">
       <label
-        className={`block cursor-pointer rounded-xl border border-dashed border-gray-200 bg-gray-50 transition-all hover:border-[var(--th-border-focus)] dark:border-gray-700 dark:bg-zinc-800/50 ${
+        className={`border-line-1 bg-group hover:border-accent block cursor-pointer rounded-xl border border-dashed transition-all ${
           uploading ? "pointer-events-none" : ""
         }`}
         onDragOver={event => {
@@ -810,24 +810,17 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         <div className="py-8">
           {uploading ? (
             <div className="flex flex-col items-center gap-3">
-              <Loader2
-                className="h-10 w-10 animate-spin text-[var(--th-accent)]"
-                strokeWidth={1.75}
-              />
-              <p className="m-0 text-sm text-gray-600 dark:text-gray-400">上传中...</p>
+              <Loader2 className="text-accent h-10 w-10 animate-spin" strokeWidth={1.75} />
+              <p className="text-ink-2 m-0 text-sm">上传中...</p>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--th-accent-soft)]">
-                <UploadIcon className="h-6 w-6 text-[var(--th-accent)]" />
+              <div className="bg-accent-soft flex h-14 w-14 items-center justify-center rounded-full">
+                <UploadIcon className="text-accent h-6 w-6" />
               </div>
               <div>
-                <p className="m-0 text-sm font-medium text-gray-700 dark:text-gray-200">
-                  点击或拖拽文件上传
-                </p>
-                <p className="m-0 mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  支持 PDF、Word、音视频等格式
-                </p>
+                <p className="text-ink-2 m-0 text-sm font-medium">点击或拖拽文件上传</p>
+                <p className="text-ink-2 m-0 mt-1 text-xs">支持 PDF、Word、音视频等格式</p>
               </div>
             </div>
           )}
@@ -837,14 +830,14 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       {/* 已上传文件列表 */}
       {uploadedFiles.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">已上传</p>
+          <p className="text-ink-2 text-xs font-medium">已上传</p>
           <div className="space-y-1.5">
             {uploadedFiles.map((fileName, index) => (
               <motion.div
                 key={index}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="bg-[var(--th-success)]/10 text-status-success flex items-center gap-2 rounded-lg px-3 py-2"
+                className="bg-ok/10 text-status-success flex items-center gap-2 rounded-lg px-3 py-2"
               >
                 <Check className="h-4 w-4" strokeWidth={1.75} />
                 <span className="truncate text-sm">{fileName}</span>
@@ -860,7 +853,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   const renderUrlTab = () => (
     <div className="space-y-4">
       <div>
-        <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+        <label className="text-ink-2 mb-2 block text-[11px] font-semibold uppercase tracking-wider">
           网页地址
         </label>
         <input
@@ -871,20 +864,18 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           disabled={processingStep !== "idle"}
           className={classNames(
             "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
-            "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
-            "text-gray-800 placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500",
-            "focus:ring-[var(--th-accent)]/20 focus:border-[var(--th-border-focus)] focus:ring-2",
+            "border-line-1 bg-group border",
+            "text-ink-1 placeholder:text-ink-3",
+            "focus:ring-accent/20 focus:border-accent focus:ring-2",
             "disabled:cursor-not-allowed disabled:opacity-60"
           )}
         />
       </div>
 
       <div>
-        <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+        <label className="text-ink-2 mb-2 block text-[11px] font-semibold uppercase tracking-wider">
           资源标题
-          <span className="ml-1 font-normal normal-case text-gray-400 dark:text-gray-500">
-            （可选，留空则自动提取）
-          </span>
+          <span className="text-ink-3 ml-1 font-normal normal-case">（可选，留空则自动提取）</span>
         </label>
         <input
           type="text"
@@ -894,9 +885,9 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           disabled={processingStep !== "idle"}
           className={classNames(
             "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
-            "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
-            "text-gray-800 placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500",
-            "focus:ring-[var(--th-accent)]/20 focus:border-[var(--th-border-focus)] focus:ring-2",
+            "border-line-1 bg-group border",
+            "text-ink-1 placeholder:text-ink-3",
+            "focus:ring-accent/20 focus:border-accent focus:ring-2",
             "disabled:cursor-not-allowed disabled:opacity-60"
           )}
           onKeyDown={e => {
@@ -915,16 +906,16 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           className="flex flex-col items-center py-8"
         >
           <div className="relative">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--th-accent-soft)]">
-              <Globe className="h-7 w-7 text-[var(--th-accent)]" strokeWidth={1.75} />
+            <div className="bg-accent-soft flex h-16 w-16 items-center justify-center rounded-full">
+              <Globe className="text-accent h-7 w-7" strokeWidth={1.75} />
             </div>
             <motion.div
-              className="absolute inset-0 h-16 w-16 rounded-full border-2 border-[var(--th-border-focus)] border-t-transparent"
+              className="border-accent absolute inset-0 h-16 w-16 rounded-full border-2 border-t-transparent"
               animate={{ rotate: 360 }}
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             />
           </div>
-          <p className="mt-4 text-sm font-medium text-gray-700 dark:text-gray-200">
+          <p className="text-ink-2 mt-4 text-sm font-medium">
             {processingStep === "fetching" && "正在获取网页内容..."}
             {processingStep === "extracting" && "正在提取文章内容..."}
             {processingStep === "saving" && "正在保存资源..."}
@@ -939,7 +930,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center py-8"
         >
-          <div className="bg-[var(--th-success)]/10 flex h-16 w-16 items-center justify-center rounded-full">
+          <div className="bg-ok/10 flex h-16 w-16 items-center justify-center rounded-full">
             <Check className="text-status-success h-8 w-8" strokeWidth={1.75} />
           </div>
           <p className="text-status-success mt-4 text-sm font-medium">剪藏成功</p>
@@ -951,12 +942,12 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         <motion.div
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-500/20 dark:bg-red-500/10"
+          className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3"
         >
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" strokeWidth={1.75} />
           <div>
-            <p className="m-0 text-sm font-medium text-red-600 dark:text-red-400">剪藏失败</p>
-            <p className="m-0 mt-1 text-xs text-red-500 dark:text-red-400/80">{error}</p>
+            <p className="text-danger m-0 text-sm font-medium">剪藏失败</p>
+            <p className="text-danger/80 m-0 mt-1 text-xs">{error}</p>
           </div>
         </motion.div>
       )}
@@ -969,7 +960,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       {videoStep === "input" && (
         <>
           <div>
-            <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+            <label className="text-ink-2 mb-2 block text-[11px] font-semibold uppercase tracking-wider">
               Bilibili / YouTube 视频链接
             </label>
             <input
@@ -989,8 +980,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
               }}
               className={classNames(
                 "w-full rounded-xl px-4 py-3.5 text-sm outline-none transition-all",
-                "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
-                "text-gray-800 placeholder:text-gray-400 dark:text-white dark:placeholder:text-gray-500",
+                "border-line-1 bg-group border",
+                "text-ink-1 placeholder:text-ink-3",
                 "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20",
                 "disabled:cursor-not-allowed disabled:opacity-60"
               )}
@@ -998,7 +989,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           </div>
 
           {videoError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] text-red-600">
               {videoError}
             </div>
           )}
@@ -1008,22 +999,22 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       {videoStep === "config" && videoInfo && (
         <>
           {/* 视频预览 */}
-          <div className="flex items-center gap-3 border-b border-gray-200 pb-4 dark:border-gray-700">
+          <div className="border-line-1 flex items-center gap-3 border-b pb-4">
             {videoInfo.cover && (
               <LocalImage
                 url={videoInfo.cover}
                 alt={videoInfo.title}
-                className="h-[54px] w-24 shrink-0 rounded-lg border border-gray-200 object-cover shadow-sm dark:border-gray-700"
+                className="border-line-1 h-[54px] w-24 shrink-0 rounded-lg border object-cover shadow-sm"
               />
             )}
             <div className="min-w-0 flex-1">
               <h3
-                className="m-0 overflow-hidden text-ellipsis whitespace-nowrap pr-2 text-sm font-semibold text-gray-800 dark:text-white"
+                className="text-ink-1 m-0 overflow-hidden text-ellipsis whitespace-nowrap pr-2 text-sm font-semibold"
                 title={videoInfo.title}
               >
                 {videoInfo.title}
               </h3>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-ink-2 mt-1 text-xs">
                 {videoInfo.provider === "bilibili"
                   ? "请选择清晰度"
                   : "默认已选择最高可用流，可按需调整"}
@@ -1033,7 +1024,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
 
           {videoInfo.provider === "bilibili" ? (
             <div>
-              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+              <label className="text-ink-2 mb-2 block text-[11px] font-semibold uppercase tracking-wider">
                 清晰度
               </label>
               <div className="relative">
@@ -1042,8 +1033,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                   onChange={e => setSelectedQuality(Number(e.target.value))}
                   className={classNames(
                     "w-full cursor-pointer appearance-none rounded-xl py-3 pl-4 pr-10 text-sm outline-none transition-all",
-                    "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
-                    "text-gray-800 dark:text-white",
+                    "border-line-1 bg-group border",
+                    "text-ink-1",
                     "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20"
                   )}
                 >
@@ -1055,7 +1046,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                   ))}
                 </select>
                 <svg
-                  className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                  className="text-ink-3 pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -1068,7 +1059,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           ) : (
             <>
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                <label className="text-ink-2 mb-2 block text-[11px] font-semibold uppercase tracking-wider">
                   视频流
                 </label>
                 <div className="relative">
@@ -1077,8 +1068,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                     onChange={e => setSelectedVideoStream(e.target.value)}
                     className={classNames(
                       "w-full cursor-pointer appearance-none rounded-xl py-3 pl-4 pr-10 text-sm outline-none transition-all",
-                      "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
-                      "text-gray-800 dark:text-white",
+                      "border-line-1 bg-group border",
+                      "text-ink-1",
                       "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20"
                     )}
                   >
@@ -1091,7 +1082,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                     ))}
                   </select>
                   <svg
-                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                    className="text-ink-3 pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -1102,7 +1093,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                 </div>
               </div>
               <div>
-                <label className="mb-2 block text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                <label className="text-ink-2 mb-2 block text-[11px] font-semibold uppercase tracking-wider">
                   音频流
                 </label>
                 <div className="relative">
@@ -1111,8 +1102,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                     onChange={e => setSelectedAudioStream(e.target.value)}
                     className={classNames(
                       "w-full cursor-pointer appearance-none rounded-xl py-3 pl-4 pr-10 text-sm outline-none transition-all",
-                      "border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-zinc-800/50",
-                      "text-gray-800 dark:text-white",
+                      "border-line-1 bg-group border",
+                      "text-ink-1",
                       "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20"
                     )}
                   >
@@ -1124,7 +1115,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                     ))}
                   </select>
                   <svg
-                    className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500"
+                    className="text-ink-3 pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -1138,7 +1129,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           )}
 
           {videoError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] text-red-600">
               {videoError}
             </div>
           )}
@@ -1152,7 +1143,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           className="flex flex-col items-center py-8"
         >
           <div className="relative">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-pink-50 dark:bg-pink-500/10">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-pink-50">
               <Video className="h-7 w-7 text-pink-500" strokeWidth={1.75} />
             </div>
             <motion.div
@@ -1161,9 +1152,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             />
           </div>
-          <p className="mt-4 text-sm font-medium text-gray-700 dark:text-gray-200">
-            正在添加视频...
-          </p>
+          <p className="text-ink-2 mt-4 text-sm font-medium">正在添加视频...</p>
         </motion.div>
       )}
 
@@ -1173,13 +1162,11 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center py-8"
         >
-          <div className="bg-[var(--th-success)]/10 flex h-16 w-16 items-center justify-center rounded-full">
+          <div className="bg-ok/10 flex h-16 w-16 items-center justify-center rounded-full">
             <Check className="text-status-success h-8 w-8" strokeWidth={1.75} />
           </div>
           <p className="text-status-success mt-4 text-sm font-medium">添加成功</p>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-            视频正在后台下载和处理中...
-          </p>
+          <p className="text-ink-2 mt-1 text-xs">视频正在后台下载和处理中...</p>
         </motion.div>
       )}
     </div>
@@ -1199,12 +1186,12 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             <motion.div
               initial={{ opacity: 0, y: -5 }}
               animate={{ opacity: 1, y: 0 }}
-              className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-500/20 dark:bg-red-500/10"
+              className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3"
             >
               <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" strokeWidth={1.75} />
               <div>
-                <p className="m-0 text-sm font-medium text-red-600 dark:text-red-400">添加失败</p>
-                <p className="m-0 mt-1 text-xs text-red-500 dark:text-red-400/80">{noteError}</p>
+                <p className="text-danger m-0 text-sm font-medium">添加失败</p>
+                <p className="text-danger/80 m-0 mt-1 text-xs">{noteError}</p>
               </div>
             </motion.div>
           )}
@@ -1218,18 +1205,16 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           className="flex flex-col items-center py-8"
         >
           <div className="relative">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--th-accent-soft)]">
-              <StickyNote className="h-7 w-7 text-[var(--th-accent)]" strokeWidth={1.75} />
+            <div className="bg-accent-soft flex h-16 w-16 items-center justify-center rounded-full">
+              <StickyNote className="text-accent h-7 w-7" strokeWidth={1.75} />
             </div>
             <motion.div
-              className="absolute inset-0 h-16 w-16 rounded-full border-2 border-[var(--th-accent)] border-t-transparent"
+              className="border-accent absolute inset-0 h-16 w-16 rounded-full border-2 border-t-transparent"
               animate={{ rotate: 360 }}
               transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
             />
           </div>
-          <p className="mt-4 text-sm font-medium text-gray-700 dark:text-gray-200">
-            正在添加笔记...
-          </p>
+          <p className="text-ink-2 mt-4 text-sm font-medium">正在添加笔记...</p>
         </motion.div>
       )}
 
@@ -1239,7 +1224,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           animate={{ opacity: 1, scale: 1 }}
           className="flex flex-col items-center py-8"
         >
-          <div className="bg-[var(--th-success)]/10 flex h-16 w-16 items-center justify-center rounded-full">
+          <div className="bg-ok/10 flex h-16 w-16 items-center justify-center rounded-full">
             <Check className="text-status-success h-8 w-8" strokeWidth={1.75} />
           </div>
           <p className="text-status-success mt-4 text-sm font-medium">添加成功</p>
@@ -1251,16 +1236,16 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   // 按钮样式
   const primaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-    "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]",
-    "hover:bg-[var(--th-btn-hover)]",
-    "disabled:bg-gray-200 dark:disabled:bg-zinc-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+    "bg-accent text-white",
+    "hover:bg-accent-hover",
+    "disabled:bg-sunken disabled:text-ink-3 disabled:cursor-not-allowed"
   );
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-gray-100 dark:bg-zinc-800 text-gray-600 dark:text-gray-300",
-    "hover:bg-gray-200 dark:hover:bg-zinc-700",
-    "border border-gray-200 dark:border-gray-700"
+    "bg-group text-ink-2",
+    "hover:bg-hover",
+    "border border-line-1"
   );
 
   // 渲染底部按钮
@@ -1317,7 +1302,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                 "rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200",
                 "bg-pink-500 text-white",
                 "hover:bg-pink-600",
-                "disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:bg-zinc-800",
+                "disabled:bg-sunken disabled:text-ink-3 disabled:cursor-not-allowed",
                 "flex items-center gap-2"
               )}
             >
@@ -1348,8 +1333,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
               onClick={handleAddVideo}
               className={classNames(
                 "rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200",
-                "bg-[var(--th-btn-bg)] text-[var(--th-btn-text)]",
-                "hover:bg-[var(--th-btn-hover)]",
+                "bg-accent text-white",
+                "hover:bg-accent-hover",
                 "flex items-center gap-2"
               )}
             >
@@ -1409,7 +1394,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       destroyOnClose
       title="添加资料"
       subtitle="上传文件、剪藏网页或添加视频"
-      icon={<Plus className="h-5 w-5 text-[var(--th-text-secondary)]" strokeWidth={1.75} />}
+      icon={<Plus className="text-ink-2 h-5 w-5" strokeWidth={1.75} />}
       footer={renderFooter()}
       showCloseButton={canClose}
     >
@@ -1426,7 +1411,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       )}
 
       {/* Tab 切换 */}
-      <div className="mb-5 flex gap-1 rounded-xl bg-gray-100 p-1 dark:bg-zinc-800">
+      <div className="bg-group mb-5 flex gap-1 rounded-xl p-1">
         <button
           type="button"
           onClick={() => setActiveTab("file")}
@@ -1438,8 +1423,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           className={classNames(
             "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
             activeTab === "file"
-              ? "bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white"
-              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300",
+              ? "bg-surface text-ink-1 shadow-sm"
+              : "text-ink-2 hover:text-ink-2",
             "disabled:cursor-not-allowed disabled:opacity-50"
           )}
         >
@@ -1456,9 +1441,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           }
           className={classNames(
             "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
-            activeTab === "url"
-              ? "bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white"
-              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300",
+            activeTab === "url" ? "bg-surface text-ink-1 shadow-sm" : "text-ink-2 hover:text-ink-2",
             "disabled:cursor-not-allowed disabled:opacity-50"
           )}
         >
@@ -1476,8 +1459,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           className={classNames(
             "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
             activeTab === "video"
-              ? "bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white"
-              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300",
+              ? "bg-surface text-ink-1 shadow-sm"
+              : "text-ink-2 hover:text-ink-2",
             "disabled:cursor-not-allowed disabled:opacity-50"
           )}
         >
@@ -1495,8 +1478,8 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           className={classNames(
             "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
             activeTab === "note"
-              ? "bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white"
-              : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300",
+              ? "bg-surface text-ink-1 shadow-sm"
+              : "text-ink-2 hover:text-ink-2",
             "disabled:cursor-not-allowed disabled:opacity-50"
           )}
         >

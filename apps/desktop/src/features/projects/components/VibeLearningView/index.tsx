@@ -112,7 +112,7 @@ const VibeLearningViewContent = memo(({ projectId }: VibeLearningViewProps) => {
         sidebarPosition="left"
         minWidth={280}
         maxWidth={600}
-        className="h-full shrink-0 overflow-hidden border-r border-[#e8e8e8] dark:border-[#2a2a2a]"
+        className="border-line-1 h-full shrink-0 overflow-hidden border-r"
       >
         <ResourcePanel
           projectId={projectId}
@@ -145,7 +145,7 @@ const VibeLearningViewContent = memo(({ projectId }: VibeLearningViewProps) => {
         side="left"
         minWidth={280}
         maxWidth={600}
-        className="h-full shrink-0 overflow-hidden border-l border-[#e8e8e8] dark:border-[#2a2a2a]"
+        className="border-line-1 h-full shrink-0 overflow-hidden border-l"
       >
         <AppSidebar
           ref={appSidebarRef}

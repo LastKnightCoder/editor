@@ -348,9 +348,9 @@ const QuizApp = memo((props: QuizAppProps) => {
                         className={classNames(
                           "flex h-8 w-8 items-center justify-center rounded-lg border transition-all",
                           "opacity-0 group-hover:opacity-100",
-                          "border-red-200 dark:border-red-500/30",
-                          "hover:bg-red-50 dark:hover:bg-red-500/10",
-                          "text-red-500 dark:text-red-400"
+                          "border-red-200",
+                          "hover:bg-danger-soft",
+                          "text-danger"
                         )}
                       >
                         <Trash2 className="h-4 w-4" strokeWidth={1.75} />
@@ -496,23 +496,23 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
   const levelConfig = {
     excellent: {
       text: "text-status-success",
-      bg: "bg-[var(--th-success)]/10",
-      border: "border-[var(--th-success)]/30",
+      bg: "bg-ok/10",
+      border: "border-ok/30",
     },
     good: {
       text: "text-status-info",
-      bg: "bg-[var(--th-info)]/10",
-      border: "border-[var(--th-info)]/30",
+      bg: "bg-info/10",
+      border: "border-info/30",
     },
     pass: {
       text: "text-status-warning",
-      bg: "bg-[var(--th-warning)]/10",
-      border: "border-[var(--th-warning)]/30",
+      bg: "bg-warn-soft",
+      border: "border-warn/30",
     },
     fail: {
       text: "text-status-error",
-      bg: "bg-[var(--th-danger)]/10",
-      border: "border-[var(--th-danger)]/30",
+      bg: "bg-danger/10",
+      border: "border-danger/30",
     },
   };
 

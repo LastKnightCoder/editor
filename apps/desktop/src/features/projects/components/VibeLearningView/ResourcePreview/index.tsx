@@ -21,7 +21,7 @@ const ResourcePreviewPanel: React.FC<ResourcePreviewPanelProps> = ({ resource, o
         return <HtmlPreview resource={resource} />;
       default:
         return (
-          <div className="flex h-full items-center justify-center text-sm text-gray-400 dark:text-gray-500">
+          <div className="text-ink-3 flex h-full items-center justify-center text-sm">
             不支持预览此类型
           </div>
         );
@@ -31,7 +31,7 @@ const ResourcePreviewPanel: React.FC<ResourcePreviewPanelProps> = ({ resource, o
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* 头部 */}
-      <div className="flex shrink-0 items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+      <div className="border-line-1 flex shrink-0 items-center gap-2 border-b px-4 py-3">
         <Tooltip content="返回">
           <IconButton title="返回" onClick={onBack}>
             <ArrowLeft className="size-4" strokeWidth={1.75} />

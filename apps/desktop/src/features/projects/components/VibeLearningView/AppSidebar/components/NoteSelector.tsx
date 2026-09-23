@@ -111,7 +111,7 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
   return (
     <div className="box-border flex h-full max-h-[500px] flex-col overflow-y-auto overflow-x-hidden">
       <div className="relative mb-4 box-border flex w-full shrink-0 items-center p-0">
-        <div className="z-1 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-base text-gray-400 dark:text-slate-500">
+        <div className="z-1 text-ink-3 pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-base">
           {searching ? (
             <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
           ) : (
@@ -124,7 +124,7 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
           contentEditable={true}
           onChange={setSearch}
           onPressEnter={searchItems}
-          className="relative flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 pl-11 text-sm text-gray-900 outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:bg-white focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:bg-zinc-900"
+          className="border-line-1 bg-group text-ink-1 placeholder:text-ink-3 focus:border-accent focus:bg-surface relative flex-1 rounded-xl border px-4 py-3 pl-11 text-sm outline-none transition-all"
           onDeleteEmpty={() => {
             setSearch("");
             setSearchedItems([]);
@@ -145,7 +145,7 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
           </div>
         </If>
         <If condition={!searching && !hasSearched}>
-          <div className="flex h-full w-full flex-col items-center justify-center px-5 py-10 text-gray-400 dark:text-slate-500">
+          <div className="text-ink-3 flex h-full w-full flex-col items-center justify-center px-5 py-10">
             <svg
               className="mb-3 h-12 w-12 opacity-50"
               viewBox="0 0 24 24"
@@ -161,7 +161,7 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
           </div>
         </If>
         <If condition={!searching && hasSearched && searchedItems.length === 0}>
-          <div className="flex h-full w-full flex-col items-center justify-center px-5 py-10 text-gray-400 dark:text-slate-500">
+          <div className="text-ink-3 flex h-full w-full flex-col items-center justify-center px-5 py-10">
             <svg
               className="mb-3 h-12 w-12 opacity-50"
               viewBox="0 0 24 24"
@@ -203,9 +203,9 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
                   <div
                     className={classnames(
                       "cursor-pointer rounded-xl border p-4 transition-all",
-                      "border-gray-200 dark:border-slate-700",
-                      "hover:border-[var(--th-border-focus)] dark:hover:border-[var(--th-border-focus)]",
-                      "dark:hover:bg-[var(--th-btn-hover)]/5 hover:bg-[var(--th-accent-soft)]/50"
+                      "border-line-1",
+                      "hover:border-accent",
+                      "/5 hover:bg-accent-soft/50"
                     )}
                     onClick={handleItemClick.bind(null, item)}
                     style={{ contentVisibility: "auto" }}
@@ -220,16 +220,16 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
                         </span>
                       </div>
                       {item.title && (
-                        <div className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold text-gray-800 dark:text-white">
+                        <div className="text-ink-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold">
                           {item.title}
                         </div>
                       )}
                     </div>
-                    <div className="mb-2 flex gap-2.5 text-xs text-gray-500 dark:text-slate-400">
+                    <div className="text-ink-2 mb-2 flex gap-2.5 text-xs">
                       <span>更新于：{formatDate(item.updateTime, true)}</span>
                     </div>
                     <ErrorBoundary>
-                      <div className="max-h-[120px] overflow-hidden text-sm text-gray-600 dark:text-slate-400">
+                      <div className="text-ink-2 max-h-[120px] overflow-hidden text-sm">
                         <Editor
                           readonly={true}
                           initValue={item.content.slice(0, 3)}

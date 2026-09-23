@@ -244,7 +244,7 @@ const MindMapNodeContent = memo(
           isDragging && "opacity-50",
           activeDropPlacement?.indicator === "inside" &&
             activeDropPlacement.referenceNodeId === meta.nodeId &&
-            "rounded outline outline-2 outline-[var(--th-active-text)]"
+            "outline-accent-text rounded outline outline-2"
         )}
         onContextMenu={event => {
           if (!isProject) {
@@ -358,7 +358,7 @@ const ProjectMindMapNodeActions = memo(
             title={isProject ? "添加根节点" : "添加子节点"}
             aria-label={isProject ? "添加根节点" : "添加子节点"}
             className={classnames(
-              "absolute top-1/2 z-10 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full bg-gray-100 text-[11px] text-black/65 opacity-0 transition-opacity hover:bg-gray-200 hover:text-black/90 group-hover/mindmap-node:opacity-100 dark:bg-zinc-700 dark:text-white/70 dark:hover:bg-zinc-600 dark:hover:text-white",
+              "bg-group hover:bg-hover absolute top-1/2 z-10 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-[11px] text-black/65 opacity-0 transition-opacity hover:text-black/90 group-hover/mindmap-node:opacity-100",
               open && "opacity-100",
               sideClass
             )}
@@ -581,7 +581,7 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
         >
           <path
             d={dropGuide.d}
-            stroke="var(--th-active-text)"
+            stroke="var(--tau-accent-text)"
             strokeWidth={3}
             strokeLinecap="round"
             fill="none"

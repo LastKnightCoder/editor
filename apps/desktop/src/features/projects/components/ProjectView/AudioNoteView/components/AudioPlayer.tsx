@@ -228,7 +228,7 @@ const AudioPlayer = (props: AudioPlayerProps) => {
         : null;
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-zinc-700 dark:bg-zinc-800/50">
+    <div className="border-line-1 bg-group flex flex-col gap-4 rounded-2xl border p-5">
       <audio ref={audioRef} src={audioSrc} preload="metadata" />
 
       {/* Header: cover + title */}
@@ -241,29 +241,23 @@ const AudioPlayer = (props: AudioPlayerProps) => {
           />
         )}
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-semibold text-gray-800 dark:text-gray-100">
-            {title}
-          </div>
-          {subtitle && (
-            <div className="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">
-              {subtitle}
-            </div>
-          )}
+          <div className="text-ink-1 truncate text-sm font-semibold">{title}</div>
+          {subtitle && <div className="text-ink-2 mt-0.5 truncate text-xs">{subtitle}</div>}
         </div>
       </div>
 
       {/* Progress bar */}
       <div className="group cursor-pointer" ref={progressRef} onClick={handleProgressClick}>
         <div className="relative flex h-3 items-center">
-          <div className="absolute inset-x-0 h-1 rounded-full bg-gray-200 transition-[height] group-hover:h-1.5 dark:bg-zinc-600">
+          <div className="bg-sunken absolute inset-x-0 h-1 rounded-full transition-[height] group-hover:h-1.5">
             <div
-              className="absolute left-0 top-0 h-full rounded-full bg-[var(--th-accent)] transition-[width] duration-100 dark:bg-[var(--th-accent)]"
+              className="bg-accent absolute left-0 top-0 h-full rounded-full transition-[width] duration-100"
               style={{ width: `${progress}%` }}
             />
           </div>
           {/* Playback indicator dot */}
           <div
-            className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--th-accent)] opacity-0 shadow-sm transition-opacity group-hover:opacity-100 dark:bg-[var(--th-accent)]"
+            className="bg-accent absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-0 shadow-sm transition-opacity group-hover:opacity-100"
             style={{ left: `${progress}%` }}
           />
           {/* Chapter markers */}
@@ -274,7 +268,7 @@ const AudioPlayer = (props: AudioPlayerProps) => {
                 return (
                   <div
                     key={ch.id}
-                    className="absolute top-1/2 h-2.5 w-0.5 -translate-y-1/2 rounded-full bg-gray-400/60 dark:bg-gray-500/60"
+                    className="bg-ink-2/60 absolute top-1/2 h-2.5 w-0.5 -translate-y-1/2 rounded-full"
                     style={{ left: `${pos}%` }}
                     title={ch.title}
                   />
@@ -283,7 +277,7 @@ const AudioPlayer = (props: AudioPlayerProps) => {
             </>
           )}
         </div>
-        <div className="mt-1 flex justify-between font-mono text-[11px] text-gray-500 dark:text-gray-400">
+        <div className="text-ink-2 mt-1 flex justify-between font-mono text-[11px]">
           <span>{formatTime(currentTime)}</span>
           <span>{formatTime(duration)}</span>
         </div>
@@ -292,7 +286,7 @@ const AudioPlayer = (props: AudioPlayerProps) => {
       {/* Controls */}
       <div className="flex items-center justify-center gap-4">
         <button
-          className="relative flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-zinc-700"
+          className="text-ink-2 hover:bg-sunken relative flex h-9 w-9 items-center justify-center rounded-full transition-colors"
           onClick={skipBackward}
           title="后退 10s"
         >
@@ -302,7 +296,7 @@ const AudioPlayer = (props: AudioPlayerProps) => {
         <button
           className={classNames(
             "flex items-center justify-center rounded-full transition-colors",
-            "h-11 w-11 bg-[var(--th-btn-bg)] text-[var(--th-btn-text)] shadow-md hover:bg-[var(--th-btn-hover)] dark:bg-[var(--th-accent)] dark:hover:bg-[var(--th-accent)]"
+            "bg-accent hover:bg-accent-hover h-11 w-11 text-white shadow-md"
           )}
           onClick={togglePlay}
         >
@@ -313,7 +307,7 @@ const AudioPlayer = (props: AudioPlayerProps) => {
           )}
         </button>
         <button
-          className="relative flex h-9 w-9 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-200 dark:text-gray-300 dark:hover:bg-zinc-700"
+          className="text-ink-2 hover:bg-sunken relative flex h-9 w-9 items-center justify-center rounded-full transition-colors"
           onClick={skipForward}
           title="前进 10s"
         >
@@ -324,22 +318,22 @@ const AudioPlayer = (props: AudioPlayerProps) => {
         {/* Speed dropdown */}
         <div className="relative" ref={speedMenuRef}>
           <button
-            className="flex items-center gap-0.5 rounded-md border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-600 transition-colors hover:bg-gray-100 dark:border-zinc-600 dark:text-gray-300 dark:hover:bg-zinc-700"
+            className="border-line-1 text-ink-2 hover:bg-group flex items-center gap-0.5 rounded-md border px-2 py-1 text-xs font-semibold transition-colors"
             onClick={() => setShowSpeedMenu(!showSpeedMenu)}
           >
             {playbackRate}x
             <ChevronDown className="size-3" strokeWidth={1.75} />
           </button>
           {showSpeedMenu && (
-            <div className="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-zinc-600 dark:bg-zinc-800">
+            <div className="border-line-1 bg-surface absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-lg border py-1 shadow-lg">
               {playbackSpeeds.map(speed => (
                 <button
                   key={speed}
                   className={classNames(
                     "block w-full whitespace-nowrap px-4 py-1.5 text-left text-xs transition-colors",
                     speed === playbackRate
-                      ? "dark: bg-[var(--th-accent-soft)] font-semibold text-[var(--th-active-text)]"
-                      : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-zinc-700"
+                      ? "bg-accent-soft text-accent-text font-semibold"
+                      : "text-ink-2 hover:bg-group"
                   )}
                   onClick={() => selectSpeed(speed)}
                 >
@@ -353,9 +347,9 @@ const AudioPlayer = (props: AudioPlayerProps) => {
 
       {/* Loading/download progress overlay */}
       {(isLoading || loadError || downloadProgress) && (
-        <div className="text-center text-xs text-gray-500 dark:text-gray-400">
+        <div className="text-ink-2 text-center text-xs">
           {loadError ? (
-            <span className="text-red-500 dark:text-red-400">{loadError}</span>
+            <span className="text-danger">{loadError}</span>
           ) : (
             downloadProgress?.message || "加载中..."
           )}
