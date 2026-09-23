@@ -19,23 +19,26 @@ const EditProjectView = () => {
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
 
   useEffect(() => {
+    let active = true;
     if (activeProjectItemId) {
       getProjectItemById(activeProjectItemId)
         .then(item => {
-          setProjectItem(item);
+          if (active) setProjectItem(item);
         })
         .catch(e => {
+          if (!active) return;
           console.error(e);
           toast.error("获取项目内容失败");
         });
     }
 
     return () => {
+      active = false;
       setProjectItem(null);
     };
   }, [activeProjectItemId]);
 
-  if (!projectItem) return null;
+  if (!projectItem || projectItem.id !== activeProjectItemId) return null;
 
   if (projectItem.projectItemType === EProjectItemType.VideoNote) {
     return (
