@@ -10,9 +10,8 @@ import MindMap from "@/components/MindMap";
 import type { MindMapNodeActionContext } from "@/components/MindMap";
 import { MindMapNodeData } from "@/components/MindMap/types";
 import { EProjectItemType, Epub, ICard, Pdf, Project, WhiteBoard } from "@/types";
-import { TabType } from "@/types/tab";
 import { EDragPosition, IDragItem, type as sidebarDragType } from "@/hooks/useDragAndDrop";
-import useTabStore from "@/stores/useTabStore";
+import { usePage } from "@/page/PageProvider";
 import { updateProjectItem } from "@/commands";
 import { defaultProjectItemEventBus } from "@/utils";
 import { ProjectTreeData, canMoveProjectTreeItem } from "@/utils/projectTree";
@@ -403,7 +402,7 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [dropPlacement, setDropPlacement] = useState<MindMapDropPlacement | null>(null);
   const [foldStateVersion, setFoldStateVersion] = useState(0);
-  const navigateTo = useTabStore(state => state.navigateTo);
+  const { navigator } = usePage();
   const mindMapData = useMemo(
     () =>
       buildProjectMindMapData(project, treeData, (itemId, path) => {
@@ -544,15 +543,10 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
         onNodeClick={nodeId => {
           const projectItemId = parseProjectMindMapItemId(nodeId);
           if (!projectItemId) {
-            navigateTo(TabType.ProjectDetail, { id: project.id });
+            navigator.push("project-detail", { id: project.id });
             return;
           }
-          const item = treeData.itemMap.get(projectItemId);
-          navigateTo(
-            TabType.ProjectDetail,
-            { id: project.id, itemId: projectItemId },
-            `项目 - ${item?.title || `#${projectItemId}`}`
-          );
+          navigator.push("project-detail", { id: project.id, itemId: projectItemId });
         }}
         renderNodeContent={node => (
           <MindMapNodeContent

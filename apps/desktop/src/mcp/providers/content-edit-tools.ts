@@ -4,8 +4,7 @@ import { createArticle, findOneArticle } from "@/commands/article";
 import { getDocumentItem } from "@/commands/document";
 import { getProjectItemById } from "@/commands/project";
 import { getContentById } from "@/commands/content";
-import useTabStore from "@/stores/useTabStore";
-import { TabType } from "@/types/tab";
+import { openPage } from "@/services/page-navigation";
 import { ECardCategory } from "@/types/card";
 import { getContentLength } from "@/utils";
 import { importFromMarkdown } from "@/utils/markdown";
@@ -38,11 +37,7 @@ const reviewToolExecution = {
   timeoutMs: null,
 } as const;
 
-const toToolError = (
-  code: string,
-  message: string,
-  extra?: Record<string, unknown>,
-) => {
+const toToolError = (code: string, message: string, extra?: Record<string, unknown>) => {
   return {
     success: false,
     errorCode: code,
@@ -98,25 +93,19 @@ const getSelectionContext = (payload: {
       selectionBefore: "",
       selectionAfter: "",
       currentBlockMarkdown: currentBlockRange
-        ? snapshot.markdown.slice(
-            currentBlockRange.start,
-            currentBlockRange.end,
-          )
+        ? snapshot.markdown.slice(currentBlockRange.start, currentBlockRange.end)
         : "",
     };
   }
 
-  const selectedMarkdown = snapshot.markdown.slice(
-    selectedRange.start,
-    selectedRange.end,
-  );
+  const selectedMarkdown = snapshot.markdown.slice(selectedRange.start, selectedRange.end);
   const selectionBefore = snapshot.markdown.slice(
     Math.max(0, selectedRange.start - beforeWindow),
-    selectedRange.start,
+    selectedRange.start
   );
   const selectionAfter = snapshot.markdown.slice(
     selectedRange.end,
-    Math.min(snapshot.markdown.length, selectedRange.end + afterWindow),
+    Math.min(snapshot.markdown.length, selectedRange.end + afterWindow)
   );
 
   return {
@@ -206,14 +195,7 @@ const executeOperationsWithReviewPolicy = async (payload: {
     matchId: string;
   };
 }) => {
-  const {
-    target,
-    baseHash,
-    operations,
-    dryRun = false,
-    context,
-    matched,
-  } = payload;
+  const { target, baseHash, operations, dryRun = false, context, matched } = payload;
 
   if (dryRun) {
     return previewOperationsCore({
@@ -227,13 +209,12 @@ const executeOperationsWithReviewPolicy = async (payload: {
   // 检查当前对话是否已有 pending 的审阅会话，防止并发提案
   const conversationKey = context?.conversationKey;
   if (conversationKey && hasPendingReviewSession(conversationKey)) {
-    console.log(
-      "[executeOperationsWithReviewPolicy] 已有 pending 会话，拒绝新提案",
-      { conversationKey },
-    );
+    console.log("[executeOperationsWithReviewPolicy] 已有 pending 会话，拒绝新提案", {
+      conversationKey,
+    });
     return toToolError(
       "REVIEW_PENDING",
-      "当前对话中已有一个待审核的修改提案，请先完成审核（确认应用、拒绝或提交修改意见）后再发起新的修改。",
+      "当前对话中已有一个待审核的修改提案，请先完成审核（确认应用、拒绝或提交修改意见）后再发起新的修改。"
     );
   }
 
@@ -252,19 +233,13 @@ const executeOperationsWithReviewPolicy = async (payload: {
     });
 
     if (!proposalResult.success) {
-      console.log(
-        "[executeOperationsWithReviewPolicy] 创建提案失败:",
-        proposalResult,
-      );
+      console.log("[executeOperationsWithReviewPolicy] 创建提案失败:", proposalResult);
       return proposalResult;
     }
 
-    console.log(
-      "[executeOperationsWithReviewPolicy] 提案创建成功，进入等待审核流程",
-      {
-        proposalId: proposalResult.proposal.proposalId,
-      },
-    );
+    console.log("[executeOperationsWithReviewPolicy] 提案创建成功，进入等待审核流程", {
+      proposalId: proposalResult.proposal.proposalId,
+    });
 
     // 强制所有提案都必须经过用户审核，不再支持自动应用
     const result = await createPendingContentEditReview({
@@ -273,9 +248,7 @@ const executeOperationsWithReviewPolicy = async (payload: {
       matched,
     });
 
-    console.log(
-      "[executeOperationsWithReviewPolicy] 用户已完成审核，工具返回结果",
-    );
+    console.log("[executeOperationsWithReviewPolicy] 用户已完成审核，工具返回结果");
     return result;
   } catch (error) {
     if (error instanceof EditEngineError) {
@@ -310,8 +283,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
   tools: () => [
     {
       name: "get_active_editing_context",
-      description:
-        "获取当前激活编辑会话信息，包括 contentId、选区上下文、当前块内容、文档哈希等。",
+      description: "获取当前激活编辑会话信息，包括 contentId、选区上下文、当前块内容、文档哈希等。",
       parameters: {
         type: "object",
         properties: {} as Record<string, ToolParameterSchema>,
@@ -325,7 +297,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
             content: JSON.stringify(
               toToolError("TARGET_NOT_FOUND", "当前没有激活的编辑会话"),
               null,
-              2,
+              2
             ),
           };
         }
@@ -356,7 +328,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
               source: session.snapshot.source,
             },
             null,
-            2,
+            2
           ),
         };
       },
@@ -384,7 +356,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         required: ["contentId"],
         additionalProperties: false,
       },
-      executor: async (args) => {
+      executor: async args => {
         const contentId = args.contentId as number;
         const range = args.range as [number, number] | undefined;
 
@@ -398,7 +370,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                 ...payload,
               },
               null,
-              2,
+              2
             ),
           };
         } catch (error) {
@@ -410,7 +382,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                   "请确认传入的是 contentId（contents 表主键），而不是 cardId/articleId/documentItemId/projectItemId。若你只有实体 ID，请先调用 resolve_entity_content_id。",
               }),
               null,
-              2,
+              2
             ),
           };
         }
@@ -425,13 +397,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         properties: {
           entityType: {
             type: "string",
-            enum: [
-              "card",
-              "article",
-              "project-item",
-              "document-item",
-              "question-answer",
-            ],
+            enum: ["card", "article", "project-item", "document-item", "question-answer"],
             description:
               "实体类型：card(卡片)、article(文章)、project-item(项目文档项)、document-item(知识库文档项)、question-answer(问题答案，entityId 即 contentId)",
           },
@@ -443,13 +409,9 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         required: ["entityType", "entityId"],
         additionalProperties: false,
       },
-      executor: async (args) => {
+      executor: async args => {
         const entityType = args.entityType as
-          | "card"
-          | "article"
-          | "project-item"
-          | "document-item"
-          | "question-answer";
+          "card" | "article" | "project-item" | "document-item" | "question-answer";
         const entityId = args.entityId as number;
 
         try {
@@ -464,7 +426,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                   contentId: card.contentId,
                 },
                 null,
-                2,
+                2
               ),
             };
           }
@@ -480,7 +442,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                   contentId: article.contentId,
                 },
                 null,
-                2,
+                2
               ),
             };
           }
@@ -490,12 +452,9 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
             if (!item) {
               return {
                 content: JSON.stringify(
-                  toToolError(
-                    "ENTITY_NOT_FOUND",
-                    `未找到 project-item ${entityId}`,
-                  ),
+                  toToolError("ENTITY_NOT_FOUND", `未找到 project-item ${entityId}`),
                   null,
-                  2,
+                  2
                 ),
               };
             }
@@ -508,7 +467,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                   contentId: item.contentId,
                 },
                 null,
-                2,
+                2
               ),
             };
           }
@@ -518,12 +477,9 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
             if (!content) {
               return {
                 content: JSON.stringify(
-                  toToolError(
-                    "ENTITY_NOT_FOUND",
-                    `未找到 question-answer ${entityId}`,
-                  ),
+                  toToolError("ENTITY_NOT_FOUND", `未找到 question-answer ${entityId}`),
                   null,
-                  2,
+                  2
                 ),
               };
             }
@@ -537,7 +493,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                   contentId: content.id,
                 },
                 null,
-                2,
+                2
               ),
             };
           }
@@ -546,12 +502,9 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
           if (!item) {
             return {
               content: JSON.stringify(
-                toToolError(
-                  "ENTITY_NOT_FOUND",
-                  `未找到 document-item ${entityId}`,
-                ),
+                toToolError("ENTITY_NOT_FOUND", `未找到 document-item ${entityId}`),
                 null,
-                2,
+                2
               ),
             };
           }
@@ -565,22 +518,18 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                 contentId: item.contentId,
               },
               null,
-              2,
+              2
             ),
           };
         } catch (error) {
           return {
             content: JSON.stringify(
-              toToolError(
-                "RESOLVE_CONTENT_ID_FAILED",
-                (error as Error).message,
-                {
-                  entityType,
-                  entityId,
-                },
-              ),
+              toToolError("RESOLVE_CONTENT_ID_FAILED", (error as Error).message, {
+                entityType,
+                entityId,
+              }),
               null,
-              2,
+              2
             ),
           };
         }
@@ -623,13 +572,9 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         required: ["queryText"],
         additionalProperties: false,
       },
-      executor: async (args) => {
+      executor: async args => {
         const queryText = args.queryText as string;
-        const matchMode = args.matchMode as
-          | "exact"
-          | "normalized"
-          | "fuzzy"
-          | undefined;
+        const matchMode = args.matchMode as "exact" | "normalized" | "fuzzy" | undefined;
         const occurrence = args.occurrence as number | undefined;
         const beforeHint = args.beforeHint as string | undefined;
         const afterHint = args.afterHint as string | undefined;
@@ -660,16 +605,12 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                 candidates: matches,
               },
               null,
-              2,
+              2
             ),
           };
         } catch (error) {
           return {
-            content: JSON.stringify(
-              toToolError("FIND_FAILED", (error as Error).message),
-              null,
-              2,
-            ),
+            content: JSON.stringify(toToolError("FIND_FAILED", (error as Error).message), null, 2),
           };
         }
       },
@@ -755,7 +696,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
             content: JSON.stringify(
               toToolError("INVALID_ARGUMENT", "operations 不能为空"),
               null,
-              2,
+              2
             ),
             isParameterError: true,
           };
@@ -824,11 +765,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         const target = args.target as { contentId?: number } | undefined;
         const searchText = args.searchText as string;
         const replaceText = args.replaceText as string;
-        const matchMode = args.matchMode as
-          | "exact"
-          | "normalized"
-          | "fuzzy"
-          | undefined;
+        const matchMode = args.matchMode as "exact" | "normalized" | "fuzzy" | undefined;
         const occurrence = args.occurrence as number | undefined;
         const beforeHint = args.beforeHint as string | undefined;
         const afterHint = args.afterHint as string | undefined;
@@ -839,7 +776,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
             content: JSON.stringify(
               toToolError("INVALID_ARGUMENT", "searchText 不能为空"),
               null,
-              2,
+              2
             ),
             isParameterError: true,
           };
@@ -869,7 +806,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                   documentHash: snapshot.hash,
                 }),
                 null,
-                2,
+                2
               ),
             };
           }
@@ -883,17 +820,17 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                   {
                     contentId: resolved.contentId,
                     snapshotId: snapshot.id,
-                    candidates: matches.map((item) => ({
+                    candidates: matches.map(item => ({
                       matchId: item.matchId,
                       start: item.start,
                       end: item.end,
                       confidence: item.confidence,
                       excerpt: item.excerpt,
                     })),
-                  },
+                  }
                 ),
                 null,
-                2,
+                2
               ),
             };
           }
@@ -945,7 +882,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                 },
               },
               null,
-              2,
+              2
             ),
           };
         } catch (error) {
@@ -953,7 +890,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
             content: JSON.stringify(
               toToolError("REPLACE_BY_TEXT_FAILED", (error as Error).message),
               null,
-              2,
+              2
             ),
           };
         }
@@ -1052,12 +989,10 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         required: ["markdown"],
         additionalProperties: false,
       },
-      executor: async (args) => {
+      executor: async args => {
         const markdown = args.markdown as string;
         const tags = (args.tags as string[] | undefined) || [];
-        const category =
-          (args.category as ECardCategory | undefined) ||
-          ECardCategory.Temporary;
+        const category = (args.category as ECardCategory | undefined) || ECardCategory.Temporary;
 
         try {
           const content = importFromMarkdown(markdown);
@@ -1070,13 +1005,17 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
             isTop: false,
           });
 
-          useTabStore
-            .getState()
-            .openInNewTab(TabType.CardDetail, { id: card.id });
           defaultCardEventBus.publish("card:created", {
             card,
             sourceUuid: "content-edit-tools",
           });
+
+          let navigationError: string | undefined;
+          try {
+            openPage("card-detail", { id: card.id });
+          } catch (error) {
+            navigationError = error instanceof Error ? error.message : "打开卡片失败";
+          }
 
           return {
             content: JSON.stringify(
@@ -1089,13 +1028,11 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                   category: card.category,
                   tags: card.tags,
                 },
-                activatedTab: {
-                  type: TabType.CardDetail,
-                  id: card.id,
-                },
+                activatedPage: navigationError ? null : { key: "card-detail", id: card.id },
+                navigationError,
               },
               null,
-              2,
+              2
             ),
           };
         } catch (error) {
@@ -1103,7 +1040,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
             content: JSON.stringify(
               toToolError("CREATE_CARD_FAILED", (error as Error).message),
               null,
-              2,
+              2
             ),
           };
         }
@@ -1137,7 +1074,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         required: ["markdown"],
         additionalProperties: false,
       },
-      executor: async (args) => {
+      executor: async args => {
         const markdown = args.markdown as string;
         const title = (args.title as string | undefined) || "默认文章标题";
         const tags = (args.tags as string[] | undefined) || [];
@@ -1158,13 +1095,17 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
             count: getContentLength(content),
           });
 
-          useTabStore
-            .getState()
-            .openInNewTab(TabType.ArticleDetail, { id: article.id });
           defaultArticleEventBus.publish("article:created", {
             article,
             sourceUuid: "content-edit-tools",
           });
+
+          let navigationError: string | undefined;
+          try {
+            openPage("article-detail", { id: article.id });
+          } catch (error) {
+            navigationError = error instanceof Error ? error.message : "打开文章失败";
+          }
 
           return {
             content: JSON.stringify(
@@ -1177,13 +1118,11 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
                   title: article.title,
                   tags: article.tags,
                 },
-                activatedTab: {
-                  type: TabType.ArticleDetail,
-                  id: article.id,
-                },
+                activatedPage: navigationError ? null : { key: "article-detail", id: article.id },
+                navigationError,
               },
               null,
-              2,
+              2
             ),
           };
         } catch (error) {
@@ -1191,7 +1130,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
             content: JSON.stringify(
               toToolError("CREATE_ARTICLE_FAILED", (error as Error).message),
               null,
-              2,
+              2
             ),
           };
         }

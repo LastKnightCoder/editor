@@ -12,13 +12,12 @@ import { useMemoizedFn } from "ahooks";
 import { produce } from "immer";
 import { useEditDatabaseWithContext } from "@tau/shared";
 import { ChevronDown } from "lucide-react";
-import useTabStore from "@/stores/useTabStore";
-import { TabType } from "@/types/tab";
+import { usePage } from "@/page/PageProvider";
 import { SelectDropDown } from "@tau/shared";
 
 const DataTableProjectView = memo((props: { projectId: number }) => {
   const { projectId } = props;
-  const navigateTo = useTabStore(state => state.navigateTo);
+  const { navigator } = usePage();
 
   const [project, setProject] = useState<Project | null>(null);
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -68,7 +67,7 @@ const DataTableProjectView = memo((props: { projectId: number }) => {
   }, [projectId]);
 
   const handleSwitchProject = useMemoizedFn((proj: Project) => {
-    navigateTo(TabType.ProjectDetail, { id: proj.id });
+    navigator.push("project-detail", { id: proj.id });
   });
 
   const handleToggleProjectDropdown = useMemoizedFn((e: React.MouseEvent) => {

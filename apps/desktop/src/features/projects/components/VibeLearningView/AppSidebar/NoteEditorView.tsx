@@ -43,10 +43,9 @@ import { cleanReportHtmlContent } from "@/constants/prompts/report-generation";
 import { buildDefaultEpubMetadata, exportSlateToEpubWithDialog } from "@/utils/epub-export";
 import { exportSlateToPdfWithDialog } from "@/utils/pdf-export";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
-import useTabStore from "@/stores/useTabStore";
+import { usePage } from "@/page/PageProvider";
 import useEditContent from "@/hooks/useEditContent";
 import useOutlineGenerationStore from "@/stores/useOutlineGenerationStore";
-import { TabType } from "@/types/tab";
 import { toast, ConfirmDialog } from "@tau/ui";
 
 const DEFAULT_CONTENT: Descendant[] = [
@@ -105,7 +104,7 @@ interface NoteEditorViewProps {
 const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const { projectId, mainDbName, note, onBack, onNoteSaved, onResourcesChange } = props;
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
-  const openInNewTab = useTabStore(state => state.openInNewTab);
+  const { navigator } = usePage();
 
   // 大纲生成状态
   const isGenerating = useOutlineGenerationStore(state =>
@@ -356,7 +355,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       setIsCard(true);
       toast.success("已创建卡片");
       // 打开卡片详情
-      openInNewTab(TabType.CardDetail, { id: card.id }, undefined, getEditorText(card.content, 10));
+      navigator.push("card-detail", { id: card.id });
     } catch (error) {
       console.error("Failed to create card:", error);
       toast.error("创建卡片失败");
@@ -375,12 +374,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       const article = await buildArticleFromContent(savedNote.contentId);
       setIsArticle(true);
       toast.success("已创建文章");
-      openInNewTab(
-        TabType.ArticleDetail,
-        { id: article.id },
-        undefined,
-        article.title || getEditorText(content, 10)
-      );
+      navigator.push("article-detail", { id: article.id });
     } catch (error) {
       console.error("Failed to create article:", error);
       toast.error("创建文章失败");

@@ -191,7 +191,7 @@ export const getProjectItemMoreMenuItems = (
       },
       {
         key: "open-in-new-tab",
-        label: "新 Tab 打开",
+        label: "在应用内打开",
       },
     ];
   }

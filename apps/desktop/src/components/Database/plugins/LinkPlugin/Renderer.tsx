@@ -4,9 +4,8 @@ import { CellValue, ColumnDef } from "../../types";
 import { normalizeUrl } from "./utils";
 import { useMemoizedFn } from "ahooks";
 import { openExternal } from "@/commands";
-import { Tooltip } from "@tau/ui";
-import useTabStore from "@/stores/useTabStore";
-import { TabType } from "@/types/tab";
+import { Tooltip, toast } from "@tau/ui";
+import { openPage } from "@/services/page-navigation";
 
 const Renderer: React.FC<{
   value: CellValue;
@@ -17,8 +16,6 @@ const Renderer: React.FC<{
   className?: string;
 }> = ({ value }) => {
   const url = useMemo(() => normalizeUrl(String(value ?? "")), [value]);
-
-  const openInNewTab = useTabStore(state => state.openInNewTab);
 
   const openInBrowser = useMemoizedFn((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -31,7 +28,11 @@ const Renderer: React.FC<{
     e.stopPropagation();
     e.preventDefault();
     if (!url) return;
-    openInNewTab(TabType.WebView, { url });
+    try {
+      openPage("webview", { url });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "打开网页失败");
+    }
   });
 
   if (!value) {
@@ -60,7 +61,7 @@ const Renderer: React.FC<{
             strokeWidth={1.75}
           />
         </Tooltip>
-        <Tooltip content="在新 Tab 中打开" delay={1000}>
+        <Tooltip content="在应用内打开" delay={1000}>
           <PanelRight
             onClick={handleOpenInNewTab}
             className="hover:text-ink-1 h-4 w-4 cursor-pointer"
