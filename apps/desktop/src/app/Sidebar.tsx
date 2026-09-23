@@ -115,7 +115,7 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
                   title={folded ? `展开「${section.label}」` : `收起「${section.label}」`}
                 >
                   <ChevronDown
-                    size={13}
+                    size="1em"
                     strokeWidth={1.75}
                     className={clsx(
                       "ease-tau-out shrink-0 transition-transform duration-[200ms]",
@@ -183,7 +183,8 @@ function NavItemButton({
     <button
       type="button"
       className={clsx(
-        "text-tau-body flex h-[34px] w-full items-center rounded-[10px] text-left",
+        // 行高随字号档位折算（行盒 + 8px 余量）：固定 34px 在大字号下文字会撑满行高
+        "text-tau-body flex h-[calc(1.65em+8px)] w-full items-center rounded-[10px] text-left",
         "ease-tau-out transition-[background,color] duration-[160ms]",
         collapsed ? "justify-center px-0" : "gap-2.5 px-2.5",
         active
@@ -197,7 +198,8 @@ function NavItemButton({
       onClick={onClick}
       title={item.label}
     >
-      <ItemIcon className="shrink-0" size={17} strokeWidth={1.75} />
+      {/* 图标随字号档位（em）：17px 锚定 fontSize 16 的既有观感，大字号下不被文字甩开 */}
+      <ItemIcon className="shrink-0" size="1.06em" strokeWidth={1.75} />
       {/* 窄态（最小 120px）下长标签溢出省略，悬停 title 可见全名 */}
       {!collapsed && <span className="min-w-0 truncate">{item.label}</span>}
     </button>
