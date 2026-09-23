@@ -1,6 +1,5 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { App } from "antd";
 import { FileText, Sparkles } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
@@ -18,6 +17,7 @@ import { VLNote } from "@/types/vibe-learning";
 import { getContentLength, importFromMarkdown } from "@/utils";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
 import { GenerationConfigStep } from "../components";
+import { toast } from "@tau/ui";
 
 interface ArticleGenerateModalProps {
   open: boolean;
@@ -56,7 +56,6 @@ const STYLE_OPTIONS: Array<{
 
 const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
   const { open, projectId, mainDbName, onClose, onNoteCreated } = props;
-  const { message } = App.useApp();
 
   const { providerConfig, modelConfig } = useLLMConfig("chat");
   const {
@@ -175,12 +174,12 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
 
   const handleStartGenerate = useMemoizedFn(async () => {
     if (selectedResourceIds.length === 0) {
-      message.error("请选择至少一个资源");
+      toast.error("请选择至少一个资源");
       return;
     }
 
     if (!providerConfig || !modelConfig) {
-      message.error("请先在设置中配置 AI 模型");
+      toast.error("请先在设置中配置 AI 模型");
       return;
     }
 
@@ -216,7 +215,7 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
       runBackgroundGeneration(note.id, newContentId, resourceNames, userPrompt, style);
     } catch (e) {
       console.error("Failed to start article generation:", e);
-      message.error((e as Error).message || "生成失败");
+      toast.error((e as Error).message || "生成失败");
       setIsCreating(false);
     }
   });

@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Tooltip, Alert, Spin } from "antd";
-import type { MessageInstance } from "antd/es/message/interface";
 import { Code, Eye, Copy, Download, Maximize2, RotateCw } from "lucide-react";
 import { measurePerformance } from "../../utils/performance";
 import styles from "./index.module.less";
@@ -14,7 +13,8 @@ export interface MermaidRendererProps {
   /** 是否为暗色主题 */
   isDark?: boolean;
   /** antd message 实例，由消费端通过 App.useApp() 获取后传入 */
-  messageApi?: MessageInstance;
+  /** 结构兼容 antd message 与 @tau/ui toast（success/error 单参调用同构） */
+  messageApi?: { success(msg: string): unknown; error(msg: string): unknown };
   /** 可选的 key 用于刷新 */
   refreshKey?: number;
 }

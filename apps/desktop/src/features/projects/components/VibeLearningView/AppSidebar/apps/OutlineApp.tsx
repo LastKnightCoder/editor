@@ -1,7 +1,6 @@
 import { memo, useState, useRef, useEffect } from "react";
 import { Descendant } from "slate";
-import { App } from "antd";
-import { ArrowLeftOutlined, ReloadOutlined, CopyOutlined } from "@ant-design/icons";
+import { ArrowLeft, RotateCw, Copy } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import { LoadingSpinner, EmptyState, SimpleButton } from "../components";
 
@@ -16,6 +15,7 @@ import { createContent, updateContent, getContentById } from "@/commands";
 import { VLNote, VLResource } from "@/types/vibe-learning";
 import { importFromMarkdown, getContentLength, getMarkdown } from "@/utils";
 import { runGenerationTask } from "@/services/generation-orchestrator";
+import { toast } from "@tau/ui";
 
 // 默认空内容
 const DEFAULT_CONTENT: Descendant[] = [
@@ -50,7 +50,6 @@ const OutlineApp = memo((props: OutlineAppProps) => {
     userPrompt: propUserPrompt,
     autoStart,
   } = props;
-  const { message } = App.useApp();
 
   const { providerConfig, modelConfig } = useLLMConfig("chat");
 
@@ -169,7 +168,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
   // 生成大纲
   const generateOutline = useMemoizedFn(async () => {
     if (!providerConfig || !modelConfig) {
-      message.error("请先在设置中配置 AI 模型");
+      toast.error("请先在设置中配置 AI 模型");
       return;
     }
 
@@ -265,9 +264,9 @@ const OutlineApp = memo((props: OutlineAppProps) => {
     if (!markdownContent) return;
     try {
       await navigator.clipboard.writeText(markdownContent);
-      message.success("大纲已复制到剪贴板");
+      toast.success("大纲已复制到剪贴板");
     } catch (e) {
-      message.error("复制失败");
+      toast.error("复制失败");
     }
   });
 
@@ -308,7 +307,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
           className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a]"
           onClick={onBack}
         >
-          <ArrowLeftOutlined className="text-[#666] dark:text-[#999]" />
+          <ArrowLeft className="size-4 text-[#666] dark:text-[#999]" strokeWidth={1.75} />
         </button>
 
         <h3 className="m-0 flex-1 text-base font-medium text-[#333] dark:text-[#e0e0e0]">
@@ -327,7 +326,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
             onClick={copyOutline}
             title="复制大纲"
           >
-            <CopyOutlined className="text-[#666] dark:text-[#999]" />
+            <Copy className="size-4 text-[#666] dark:text-[#999]" strokeWidth={1.75} />
           </button>
         )}
       </div>
@@ -340,7 +339,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
             <EmptyState description="点击下方按钮生成学习大纲">
               <SimpleButton
                 variant="primary"
-                icon={<ReloadOutlined />}
+                icon={<RotateCw strokeWidth={1.75} />}
                 onClick={generateOutline}
                 className="mt-4"
               >
@@ -364,7 +363,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
             <EmptyState description={error}>
               <SimpleButton
                 variant="primary"
-                icon={<ReloadOutlined />}
+                icon={<RotateCw strokeWidth={1.75} />}
                 onClick={generateOutline}
                 className="mt-4"
               >
@@ -395,7 +394,7 @@ const OutlineApp = memo((props: OutlineAppProps) => {
       {/* 底部操作栏 */}
       {hasContent && !generating && (
         <div className="shrink-0 border-t border-[#e8e8e8] p-4 dark:border-[#2a2a2a]">
-          <SimpleButton block icon={<ReloadOutlined />} onClick={generateOutline}>
+          <SimpleButton block icon={<RotateCw strokeWidth={1.75} />} onClick={generateOutline}>
             重新生成
           </SimpleButton>
         </div>

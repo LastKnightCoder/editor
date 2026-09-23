@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { App } from "antd";
 import { useLocalStorageState } from "ahooks";
 import classNames from "classnames";
 import { FileText, Captions, Video } from "lucide-react";
@@ -29,6 +28,7 @@ import {
 } from "@/components/VideoNotePanel/transcription-language";
 import { useProjectContext } from "../ProjectContext";
 import VideoNotePanel from "@/components/VideoNotePanel/VideoNotePanel";
+import { toast } from "@tau/ui";
 
 const SUBTITLE_MOUNTED_STORAGE_PREFIX = "video_note_subtitle_mounted_";
 
@@ -37,7 +37,6 @@ interface IVideoNoteViewProps {
 }
 
 const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
-  const { message } = App.useApp();
   const autoCacheRemoteVideo = useSettingStore(state => state.setting.misc.video.autoCacheRemote);
   const { itemId: activeProjectItemId } = useProjectContext();
   const themeColors = useThemeColors();
@@ -89,14 +88,14 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
           return;
         }
         if (!note) {
-          message.error("视频笔记不存在");
+          toast.error("视频笔记不存在");
           setVideoNote(null);
           return;
         }
         setVideoNote(note);
       } catch (error) {
         console.error("Failed to load video note:", error);
-        message.error("加载失败");
+        toast.error("加载失败");
       } finally {
         if (mounted) {
           setLoading(false);
@@ -109,7 +108,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
     return () => {
       mounted = false;
     };
-  }, [videoNoteId, message]);
+  }, [videoNoteId]);
 
   useEffect(() => {
     if (!activeProjectItemId) {

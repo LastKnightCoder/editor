@@ -42,6 +42,7 @@ import {
 import { formatDate } from "@/utils";
 import QuizTestModal from "./apps/QuizTestModal";
 import QuizEditModal from "./apps/QuizEditModal";
+import { toast } from "@tau/ui";
 
 export interface AppListViewRef {
   refreshNotes: () => Promise<void>;
@@ -94,7 +95,7 @@ const AppListView = memo(
       onEditPPT,
       onEditReport,
     } = props;
-    const { modal, message } = App.useApp();
+    const { modal } = App.useApp();
     const themeColors = useThemeColors();
 
     const [notes, setNotes] = useState<VLNote[]>([]);
@@ -177,11 +178,11 @@ const AppListView = memo(
         onOk: async () => {
           try {
             await deleteVLNote(note.id);
-            message.success("笔记已删除");
+            toast.success("笔记已删除");
             loadNotes(); // 刷新列表
           } catch (error) {
             console.error("Failed to delete note:", error);
-            message.error("删除失败");
+            toast.error("删除失败");
           }
         },
       });
@@ -207,13 +208,13 @@ const AppListView = memo(
 
         if (result.created) {
           onResourcesChange();
-          message.success("已添加到资源列表");
+          toast.success("已添加到资源列表");
         } else {
-          message.info("该内容已在资源列表中");
+          toast.info("该内容已在资源列表中");
         }
       } catch (error) {
         console.error("Failed to add note to resources:", error);
-        message.error("添加到资源列表失败");
+        toast.error("添加到资源列表失败");
       } finally {
         setAddingResourceNoteIds(prev => prev.filter(itemId => itemId !== note.id));
       }
@@ -226,7 +227,7 @@ const AppListView = memo(
         setSelectedQuizSet(quizSet);
         setShowTestModal(true);
       } catch (error) {
-        message.error((error as Error).message || "无法开始测验");
+        toast.error((error as Error).message || "无法开始测验");
       }
     });
 
@@ -252,9 +253,9 @@ const AppListView = memo(
         onOk: async () => {
           try {
             await deleteQuizSet(quizSet.id);
-            message.success("测验集已删除");
+            toast.success("测验集已删除");
           } catch (error) {
-            message.error("删除失败");
+            toast.error("删除失败");
           }
         },
       });

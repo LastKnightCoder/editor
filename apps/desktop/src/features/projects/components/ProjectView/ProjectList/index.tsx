@@ -1,11 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import { Dropdown, Empty, MenuProps, App, Tooltip } from "antd";
-import {
-  ApartmentOutlined,
-  HomeOutlined,
-  NodeExpandOutlined,
-  PlusOutlined,
-} from "@ant-design/icons";
+import { Dropdown, Empty, MenuProps, Tooltip } from "antd";
+import { Network, House, ListTree, Plus } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import useThemeColors from "@/hooks/useThemeColors";
@@ -82,10 +77,10 @@ import ProjectMindMapView from "./ProjectMindMapView";
 import { useProjectTreeData } from "./useProjectTreeData";
 import { useProjectContext } from "../ProjectContext";
 import { usePage } from "@/page/PageProvider";
+import { toast } from "@tau/ui";
 
 const Project = () => {
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
-  const { message } = App.useApp();
   const uploadResource = useUploadResource();
   const { projectId: id, itemId } = useProjectContext();
   const { navigator } = usePage();
@@ -142,7 +137,6 @@ const Project = () => {
   const { modalStates, openModal, closeModal } = useProjectItemModalStates();
   const { createWebLinkRecord, handleSelectWebviewFile } = useWebLinkHandlers({
     uploadResource,
-    messageKeyPrefix: "upload",
   });
 
   const onFoldSidebar = useMemoizedFn(() => {
@@ -257,7 +251,7 @@ const Project = () => {
     () => ({
       addProjectItem: async (createItem: CreateProjectItem) => {
         if (!project) {
-          message.error("项目尚未加载完成");
+          toast.error("项目尚未加载完成");
           return;
         }
         const [newProject, projectItem] = await addProjectItemToTarget(
@@ -270,7 +264,7 @@ const Project = () => {
         setAddingParentProjectItemId(undefined);
       },
     }),
-    [addProjectItemToTarget, addingParentProjectItemId, message, navigator, project]
+    [addProjectItemToTarget, addingParentProjectItemId, navigator, project]
   );
 
   const { handleYoutubeConfirm, handleBilibiliConfirm, handleRemoteVideoConfirm } =
@@ -301,7 +295,7 @@ const Project = () => {
 
   const handleWebviewConfirm = useMemoizedFn(async (result: WebViewSelectResult) => {
     if (!project) {
-      message.error("项目尚未加载完成");
+      toast.error("项目尚未加载完成");
       return;
     }
 
@@ -328,10 +322,10 @@ const Project = () => {
       }
       setAddingParentProjectItemId(undefined);
       closeModal(ModalKey.Webview);
-      message.success("网页添加成功");
+      toast.success("网页添加成功");
     } catch (error) {
       console.error("添加网页失败:", error);
-      message.error("添加网页失败");
+      toast.error("添加网页失败");
     }
   });
 
@@ -408,7 +402,7 @@ const Project = () => {
       if (!project) return;
       const fullWhiteBoard = await getWhiteBoardById(whiteBoards[0].id);
       if (!fullWhiteBoard || fullWhiteBoard.whiteBoardContentIds.length === 0) {
-        message.error(`获取白板 ${whiteBoards[0].title} 数据失败`);
+        toast.error(`获取白板 ${whiteBoards[0].title} 数据失败`);
         return;
       }
       const [, item] = await addProjectItemToTarget(
@@ -551,7 +545,7 @@ const Project = () => {
           filePath: filePath[0],
         });
         if (!item) {
-          message.error("创建视频笔记失败");
+          toast.error("创建视频笔记失败");
           return;
         }
         const fileName = await getFileBaseName(filePath[0], true);
@@ -597,7 +591,7 @@ const Project = () => {
           filePath: filePath[0],
         });
         if (!audioNote) {
-          message.error("创建音频笔记失败");
+          toast.error("创建音频笔记失败");
           return;
         }
         const fileName = await getFileBaseName(filePath[0], true);
@@ -675,10 +669,10 @@ const Project = () => {
           if (item) {
             navigator.push("project-detail", { id: project.id, itemId: item.id });
           }
-          message.success("本地 PDF 添加成功");
+          toast.success("本地 PDF 添加成功");
         } catch (error) {
           console.error("添加本地 PDF 失败:", error);
-          message.error("添加本地 PDF 失败");
+          toast.error("添加本地 PDF 失败");
         }
       } else if (key === "add-remote-pdf-project-item") {
         setAddingParentProjectItemId(parentProjectItemId);
@@ -706,10 +700,10 @@ const Project = () => {
           if (item) {
             navigator.push("project-detail", { id: project.id, itemId: item.id });
           }
-          message.success("本地 EPUB 添加成功");
+          toast.success("本地 EPUB 添加成功");
         } catch (error) {
           console.error("添加本地 EPUB 失败:", error);
-          message.error("添加本地 EPUB 失败");
+          toast.error("添加本地 EPUB 失败");
         }
       } else if (key === "add-remote-epub-project-item") {
         setAddingParentProjectItemId(parentProjectItemId);
@@ -779,7 +773,7 @@ const Project = () => {
         <div className={styles.list}>
           <div className={styles.header}>
             <div className={styles.title}>
-              <HomeOutlined
+              <House
                 onClick={() => {
                   navigator.push("projects");
                 }}
@@ -806,7 +800,7 @@ const Project = () => {
                   className={classnames(styles.icon, "mr-1 transition-colors")}
                   onClick={() => setSidebarView(sidebarView === "tree" ? "mindmap" : "tree")}
                 >
-                  {sidebarView === "tree" ? <NodeExpandOutlined /> : <ApartmentOutlined />}
+                  {sidebarView === "tree" ? <ListTree /> : <Network />}
                 </div>
               </Tooltip>
               <Dropdown
@@ -816,7 +810,7 @@ const Project = () => {
                 }}
               >
                 <div className={styles.icon}>
-                  <PlusOutlined />
+                  <Plus />
                 </div>
               </Dropdown>
             </div>

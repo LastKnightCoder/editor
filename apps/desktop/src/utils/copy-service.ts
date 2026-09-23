@@ -1,11 +1,7 @@
 import { Descendant } from "slate";
 import { getMarkdown } from "./markdown-helper";
 import { htmlSerializerRegistry } from "./html-serializers";
-import {
-  processHtmlForWechat,
-  getWechatStyles,
-  resolveCssVariables,
-} from "./wechat";
+import { processHtmlForWechat, getWechatStyles, resolveCssVariables } from "./wechat";
 
 interface MessageApi {
   success: (msg: string) => void;
@@ -17,7 +13,7 @@ interface MessageApi {
  */
 export async function copyMarkdownToClipboard(
   content: Descendant[],
-  message?: MessageApi,
+  message?: MessageApi
 ): Promise<boolean> {
   try {
     const markdown = getMarkdown(content);
@@ -36,7 +32,7 @@ export async function copyMarkdownToClipboard(
  */
 export async function copyWechatHtmlToClipboard(
   content: Descendant[],
-  message?: MessageApi,
+  message?: MessageApi
 ): Promise<boolean> {
   try {
     // 1. Serialize Slate content to HTML (async for Tailwind compilation)
@@ -51,7 +47,7 @@ export async function copyWechatHtmlToClipboard(
 
     // 3. Process Tailwind CSS to resolve variables and extract utilities
     const resolvedTailwindCss = tailwindCssCollector
-      .map((css) => resolveCssVariables(css))
+      .map(css => resolveCssVariables(css))
       .join("\n");
 
     // 4. Get WeChat styles and merge with resolved Tailwind CSS

@@ -5,8 +5,7 @@
  */
 
 import { useState, useMemo, memo, lazy, Suspense, useRef, useEffect } from "react";
-import { App } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
+import { Loader2 } from "lucide-react";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { useShallow } from "zustand/react/shallow";
 import "katex/dist/katex.min.css";
@@ -38,6 +37,7 @@ import type { VLResource } from "@/types/vibe-learning";
 import useVLChatStore, { EVLChatStatus } from "@/stores/useVLChatStore";
 import { useVibeLearningChat } from "./useVibeLearningChat";
 import { CHAT_AGENT_TYPE_STORAGE_KEY, normalizeChatAgentType } from "@/constants/chatAgent";
+import { toast } from "@tau/ui";
 
 const ChatContainer = lazy(
   () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer")
@@ -173,7 +173,6 @@ interface ChatPanelProps {
 
 const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources }) => {
   const { isDark } = useTheme();
-  const { message } = App.useApp();
   const editTitleRef = useRef<EditTextHandle>(null);
   const chatContainerRef = useRef<ChatContainerHandle>(null);
   const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(CHAT_AGENT_TYPE_STORAGE_KEY, {
@@ -281,7 +280,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources 
     try {
       await createChat(messages, undefined, normalizeChatAgentType(rememberedAgentType));
     } catch (error) {
-      message.error("创建对话失败");
+      toast.error("创建对话失败");
       console.error(error);
     } finally {
       setCreateMessageLoading(false);
@@ -295,7 +294,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources 
     try {
       await updateChat({ ...currentChat, title });
     } catch (error) {
-      message.error("更新标题失败");
+      toast.error("更新标题失败");
       console.error(error);
     }
   });
@@ -312,7 +311,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources 
       await deleteChat(chatId);
       // deleteChat 内部已经处理了当前对话的切换逻辑
     } catch (error) {
-      message.error("删除对话失败");
+      toast.error("删除对话失败");
       console.error(error);
       throw error;
     }
@@ -439,7 +438,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources 
       .replace(/\r?\n$/, "");
 
     if (language === "mermaid") {
-      return <MermaidRenderer code={code} isDark={isDark} messageApi={message} />;
+      return <MermaidRenderer code={code} isDark={isDark} messageApi={toast} />;
     }
 
     if (language === "html") {
@@ -547,7 +546,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources 
   if (status === EVLChatStatus.LOADING) {
     return (
       <div className="flex h-full items-center justify-center">
-        <LoadingOutlined />
+        <Loader2 strokeWidth={1.75} />
       </div>
     );
   }
@@ -574,7 +573,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources 
             <Suspense
               fallback={
                 <div className="flex h-full items-center justify-center">
-                  <LoadingOutlined />
+                  <Loader2 strokeWidth={1.75} />
                 </div>
               }
             >

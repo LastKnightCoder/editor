@@ -1,17 +1,16 @@
 import { memo, useEffect, useState } from "react";
-import { App } from "antd";
 
 import { getEpubById } from "@/commands/epub";
 import { getProjectItemById } from "@/commands";
 import { EProjectItemType, Epub, ProjectItem } from "@/types";
 import EpubReader from "@/components/EpubReader";
+import { toast } from "@tau/ui";
 
 interface EpubProjectItemViewProps {
   projectItemId: number;
 }
 
 const EpubProjectItemView = memo(({ projectItemId }: EpubProjectItemViewProps) => {
-  const { message } = App.useApp();
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const [epub, setEpub] = useState<Epub | null>(null);
 
@@ -33,7 +32,7 @@ const EpubProjectItemView = memo(({ projectItemId }: EpubProjectItemViewProps) =
         setEpub(epubData);
       } catch (error) {
         console.error("加载 EPUB 项失败:", error);
-        message.error("加载 EPUB 内容失败");
+        toast.error("加载 EPUB 内容失败");
       }
     };
 
@@ -44,7 +43,7 @@ const EpubProjectItemView = memo(({ projectItemId }: EpubProjectItemViewProps) =
       setProjectItem(null);
       setEpub(null);
     };
-  }, [projectItemId, message]);
+  }, [projectItemId]);
 
   if (!projectItem || !epub) return null;
 

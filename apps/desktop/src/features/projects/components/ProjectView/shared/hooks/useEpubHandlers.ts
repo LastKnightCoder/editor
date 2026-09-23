@@ -1,5 +1,4 @@
 import { useMemoizedFn } from "ahooks";
-import { message } from "antd";
 
 import { RemoteEpubSelectResult } from "@/components/RemoteEpubSelectModal";
 import {
@@ -11,6 +10,7 @@ import {
 } from "@/types";
 import { ModalKey } from "../constants/modalKeys";
 import useEpubsStore from "@/stores/useEpubsStore";
+import { toast } from "@tau/ui";
 
 export interface EpubAddStrategy {
   addProjectItem: (createItem: CreateProjectItem) => Promise<void>;
@@ -47,7 +47,7 @@ export interface ChildEpubStrategyConfig {
 export const createRootEpubStrategy = (config: RootEpubStrategyConfig): EpubAddStrategy => ({
   addProjectItem: async createItem => {
     if (!config.project) {
-      message.error("项目尚未加载完成");
+      toast.error("项目尚未加载完成");
       return;
     }
 
@@ -73,7 +73,7 @@ export const createRootEpubStrategy = (config: RootEpubStrategyConfig): EpubAddS
 export const createChildEpubStrategy = (config: ChildEpubStrategyConfig): EpubAddStrategy => ({
   addProjectItem: async createItem => {
     if (!config.projectItem || !config.projectId) {
-      message.error("项目文档尚未加载完成");
+      toast.error("项目文档尚未加载完成");
       return;
     }
 
@@ -114,26 +114,26 @@ export const useEpubHandlers = ({ closeModal, strategy }: UseEpubHandlersOptions
 
       await strategy.addProjectItem(createProjectItemFromEpub(epub));
       closeModal(ModalKey.RemoteEpub);
-      message.success("远程 EPUB 添加成功");
+      toast.success("远程 EPUB 添加成功");
     } catch (error) {
       console.error("添加远程 EPUB 失败:", error);
-      message.error("添加远程 EPUB 失败");
+      toast.error("添加远程 EPUB 失败");
     }
   });
 
   const handleSelectEpubConfirm = useMemoizedFn(async (epub: Epub | null) => {
     if (!epub) {
-      message.warning("请选择 EPUB 文件");
+      toast.warning("请选择 EPUB 文件");
       return;
     }
 
     try {
       await strategy.addProjectItem(createProjectItemFromEpub(epub));
       closeModal(ModalKey.SelectEpub);
-      message.success("EPUB 关联成功");
+      toast.success("EPUB 关联成功");
     } catch (error) {
       console.error("关联 EPUB 失败:", error);
-      message.error("关联 EPUB 失败");
+      toast.error("关联 EPUB 失败");
     }
   });
 

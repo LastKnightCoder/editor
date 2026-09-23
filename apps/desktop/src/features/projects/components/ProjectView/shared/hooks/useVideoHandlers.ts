@@ -1,5 +1,4 @@
 import { useMemoizedFn } from "ahooks";
-import { message } from "antd";
 import { createEmptyVideoNote } from "@/commands";
 import {
   CreateProjectItem,
@@ -11,6 +10,7 @@ import { ModalKey } from "../constants/modalKeys";
 import type { YoutubeVideoSelectResult } from "@/components/YoutubeVideoSelectModal";
 import type { BilibiliVideoSelectResult } from "@/components/BilibiliVideoSelectModal";
 import type { RemoteVideoSelectResult } from "@/components/RemoteVideoSelectModal";
+import { toast } from "@tau/ui";
 
 /**
  * 视频添加策略接口
@@ -59,7 +59,7 @@ export interface UseVideoHandlersOptions {
 export const createRootVideoStrategy = (config: RootVideoStrategyConfig): VideoAddStrategy => ({
   addProjectItem: async (createItem: CreateProjectItem) => {
     if (!config.project) {
-      message.error("项目尚未加载完成");
+      toast.error("项目尚未加载完成");
       return;
     }
 
@@ -88,7 +88,7 @@ export const createRootVideoStrategy = (config: RootVideoStrategyConfig): VideoA
 export const createChildVideoStrategy = (config: ChildVideoStrategyConfig): VideoAddStrategy => ({
   addProjectItem: async (createItem: CreateProjectItem) => {
     if (!config.projectItem || !config.projectId) {
-      message.error("项目文档尚未加载完成");
+      toast.error("项目文档尚未加载完成");
       return;
     }
 
@@ -121,7 +121,7 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
       });
 
       if (!item) {
-        message.error("创建视频笔记失败");
+        toast.error("创建视频笔记失败");
         return;
       }
 
@@ -138,10 +138,10 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
 
       await strategy.addProjectItem(createProjectItem);
       closeModal(ModalKey.Youtube);
-      message.success("YouTube 视频笔记添加成功！");
+      toast.success("YouTube 视频笔记添加成功！");
     } catch (e) {
       console.error(e);
-      message.error("添加 YouTube 视频失败");
+      toast.error("添加 YouTube 视频失败");
     }
   });
 
@@ -152,7 +152,7 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
     try {
       const item = await createEmptyVideoNote(result.metaInfo);
       if (!item) {
-        message.error("创建视频笔记失败");
+        toast.error("创建视频笔记失败");
         return;
       }
 
@@ -169,10 +169,10 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
 
       await strategy.addProjectItem(createProjectItem);
       closeModal(ModalKey.Bilibili);
-      message.success("Bilibili 视频笔记添加成功");
+      toast.success("Bilibili 视频笔记添加成功");
     } catch (error) {
       console.error("添加 Bilibili 视频失败:", error);
-      message.error("添加 Bilibili 视频失败");
+      toast.error("添加 Bilibili 视频失败");
     }
   });
 
@@ -187,7 +187,7 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
       });
 
       if (!item) {
-        message.error("创建视频笔记失败");
+        toast.error("创建视频笔记失败");
         return;
       }
 
@@ -204,10 +204,10 @@ export const useVideoHandlers = (options: UseVideoHandlersOptions) => {
 
       await strategy.addProjectItem(createProjectItem);
       closeModal(ModalKey.WebVideo);
-      message.success("远程视频添加成功");
+      toast.success("远程视频添加成功");
     } catch (error) {
       console.error("添加远程视频失败:", error);
-      message.error("添加在线视频失败");
+      toast.error("添加在线视频失败");
     }
   });
 

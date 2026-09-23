@@ -1,15 +1,6 @@
 import { memo, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dropdown, MenuProps, Tooltip } from "antd";
-import {
-  BookOutlined,
-  FileOutlined,
-  FilePdfOutlined,
-  FolderOpenOutlined,
-  GlobalOutlined,
-  PlusOutlined,
-  TableOutlined,
-  VideoCameraOutlined,
-} from "@ant-design/icons";
+import { Book, FileText, FolderOpen, Globe, Plus, Table, Video } from "lucide-react";
 import { AudioLines } from "lucide-react";
 import { useDrag, useDrop } from "react-dnd";
 import classnames from "classnames";
@@ -61,16 +52,16 @@ interface ProjectMindMapViewProps {
 }
 
 const getItemIcon = (type?: EProjectItemType, hasChildren = false) => {
-  if (hasChildren) return <FolderOpenOutlined />;
-  if (!type) return <FolderOpenOutlined />;
-  if (type === EProjectItemType.WhiteBoard) return <FolderOpenOutlined />;
-  if (type === EProjectItemType.VideoNote) return <VideoCameraOutlined />;
+  if (hasChildren) return <FolderOpen />;
+  if (!type) return <FolderOpen />;
+  if (type === EProjectItemType.WhiteBoard) return <FolderOpen />;
+  if (type === EProjectItemType.VideoNote) return <Video />;
   if (type === EProjectItemType.AudioNote) return <AudioLines size={14} />;
-  if (type === EProjectItemType.WebView) return <GlobalOutlined />;
-  if (type === EProjectItemType.TableView) return <TableOutlined />;
-  if (type === EProjectItemType.Pdf) return <FilePdfOutlined className="text-red-500" />;
-  if (type === EProjectItemType.Epub) return <BookOutlined />;
-  return <FileOutlined />;
+  if (type === EProjectItemType.WebView) return <Globe />;
+  if (type === EProjectItemType.TableView) return <Table />;
+  if (type === EProjectItemType.Pdf) return <FileText className="text-red-500" />;
+  if (type === EProjectItemType.Epub) return <Book />;
+  return <FileText />;
 };
 
 const PROJECT_NODE_SELECTOR = "data-project-mindmap-node-id";
@@ -280,7 +271,7 @@ const MindMapNodeContent = memo(
       >
         <span className="flex h-5 w-5 flex-none items-center justify-center text-[16px]">
           {isProject ? (
-            <FolderOpenOutlined />
+            <FolderOpen />
           ) : (
             getItemIcon(
               meta.projectItem?.projectItemType,
@@ -395,7 +386,7 @@ const ProjectMindMapNodeActions = memo(
             )}
             onClick={event => event.stopPropagation()}
           >
-            <PlusOutlined />
+            <Plus />
           </button>
         </Tooltip>
       </Dropdown>

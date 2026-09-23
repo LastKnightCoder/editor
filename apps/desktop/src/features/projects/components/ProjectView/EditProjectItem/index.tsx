@@ -15,7 +15,6 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
 import useEditContent from "@/hooks/useEditContent";
-import useRegisterActiveEditingContext from "@/hooks/useRegisterActiveEditingContext";
 import useThemeColors from "@/hooks/useThemeColors";
 import ImmersiveEditorMode, {
   type ImmersiveEditorExitPayload,
@@ -70,18 +69,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     editorRef.current?.setEditorValue(content);
     onContentChangeFromEditProjectItem(content);
   });
-  const {
-    handleSelectionChange: handleEditorSelectionChange,
-    handleFocus: handleEditorFocus,
-    handleBlur: handleEditorBlur,
-  } = useRegisterActiveEditingContext({
-    contentId: projectItem?.contentId,
-    entityType: "project-item",
-    entityId: projectItem?.id,
-    editorRef,
-    content: projectItem?.content,
-  });
-
   useRafInterval(async () => {
     const updatedProjectItem = await saveProjectItem();
     if (updatedProjectItem) {
@@ -206,9 +193,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                 initValue={projectItem.content}
                 onInit={onInit}
                 onChange={onContentChange}
-                onSelectionChange={handleEditorSelectionChange}
-                onFocus={handleEditorFocus}
-                onBlur={handleEditorBlur}
                 readonly={false}
                 extensions={extensions}
               />

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Input, Button, Spin, Alert } from "antd";
-import { LinkOutlined, LoadingOutlined } from "@ant-design/icons";
+import { Link, Loader2 } from "lucide-react";
 import {
   parseXiaoyuzhouUrl,
   fetchXiaoyuzhouEpisode,
@@ -88,7 +88,7 @@ const XiaoyuzhouInput = (props: XiaoyuzhouInputProps) => {
         <div className={styles.inputRow}>
           <Input
             placeholder="粘贴小宇宙播客链接..."
-            prefix={<LinkOutlined />}
+            prefix={<Link strokeWidth={1.75} />}
             value={url}
             onChange={e => setUrl(e.target.value)}
             onPressEnter={handleParse}
@@ -103,7 +103,7 @@ const XiaoyuzhouInput = (props: XiaoyuzhouInputProps) => {
 
         {loading && (
           <div className={styles.loadingState}>
-            <Spin indicator={<LoadingOutlined />} />
+            <Spin indicator={<Loader2 strokeWidth={1.75} />} />
             <span>正在解析播客信息...</span>
           </div>
         )}

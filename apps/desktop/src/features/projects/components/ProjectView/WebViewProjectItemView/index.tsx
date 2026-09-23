@@ -1,14 +1,14 @@
 ﻿import { useState, useRef, useEffect } from "react";
 import {
-  LoadingOutlined,
-  ReloadOutlined,
-  EditOutlined,
-  MoreOutlined,
-  DeleteOutlined,
-  FormOutlined,
-  BookOutlined,
-  SoundOutlined,
-} from "@ant-design/icons";
+  Loader2,
+  RotateCw,
+  Pencil,
+  MoreHorizontal,
+  Trash2,
+  PenLine,
+  Book,
+  Volume2,
+} from "lucide-react";
 import { App, Tooltip, Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import { useMemoizedFn } from "ahooks";
@@ -71,6 +71,7 @@ import { useProjectContext } from "../ProjectContext";
 import { ReactEditor } from "slate-react";
 import type { CommentElement, CustomEditor } from "@tau/editor/src";
 import contextMenuStyles from "@/components/WhiteBoard/index.module.less";
+import { toast } from "@tau/ui";
 
 // Icons
 const ClipIcon = () => (
@@ -159,7 +160,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const slateEditorRef = useRef<CustomEditor | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const projectItemEventBus = defaultProjectItemEventBus.createEditor();
-  const { message, modal } = App.useApp();
+  const { modal } = App.useApp();
   const themeColors = useThemeColors();
   useProjectContext(); // Keep context active
   const openInNewTab = useTabStore(state => state.openInNewTab);
@@ -225,7 +226,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       }
     } catch (error) {
       console.error("Failed to load note content:", error);
-      message.error("加载笔记内容失败");
+      toast.error("加载笔记内容失败");
     }
   });
 
@@ -379,10 +380,10 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         }
       }
 
-      message.success("网页解析完成");
+      toast.success("网页解析完成");
     },
     onError: error => {
-      message.error(`解析失败: ${error}`);
+      toast.error(`解析失败: ${error}`);
     },
   });
 
@@ -533,7 +534,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
   const doStartLocalClip = useMemoizedFn(async (mode: "smart" | "full") => {
     if (!currentUrl) {
-      message.error("无法获取网页 URL");
+      toast.error("无法获取网页 URL");
       return;
     }
 
@@ -553,7 +554,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
       const html = await webviewRef.current?.getHTML();
       if (!html) {
-        message.error("获取网页内容失败");
+        toast.error("获取网页内容失败");
         if (viewMode !== "split") {
           setViewMode("webview");
         }
@@ -583,14 +584,14 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       await saveLocalClipResult(parsed);
       setParsedContent(parsed);
       editorRef.current?.setEditorValue(parsed);
-      message.success("网页解析完成");
+      toast.success("网页解析完成");
     } catch (error) {
       if (error instanceof Error && error.message === "aborted") {
         return;
       }
       const errorMessage = error instanceof Error ? error.message : "解析失败";
       setLocalClipError(errorMessage);
-      message.error(`解析失败: ${errorMessage}`);
+      toast.error(`解析失败: ${errorMessage}`);
       if (viewMode !== "split") {
         setViewMode("webview");
       }
@@ -623,7 +624,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   // 执行解析
   const doStartClip = useMemoizedFn(async () => {
     if (!currentUrl) {
-      message.error("无法获取网页 URL");
+      toast.error("无法获取网页 URL");
       return;
     }
 
@@ -639,7 +640,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       // 获取 HTML 内容
       const html = await webviewRef.current?.getHTML();
       if (!html) {
-        message.error("获取网页内容失败");
+        toast.error("获取网页内容失败");
         if (viewMode !== "split") {
           setViewMode("webview");
         }
@@ -652,7 +653,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       void startClip(contentHTML, currentUrl, title || "", false);
     } catch (error) {
       console.error("Start clip error:", error);
-      message.error("开始解析失败");
+      toast.error("开始解析失败");
       if (viewMode !== "split") {
         setViewMode("webview");
       }
@@ -705,11 +706,11 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       }));
       setActiveNoteId(note.id);
       await persistPreferredNote(note.contentId);
-      message.success("已创建新笔记");
+      toast.success("已创建新笔记");
       return note;
     } catch (error) {
       console.error("Failed to create note:", error);
-      message.error("创建笔记失败，请重试");
+      toast.error("创建笔记失败，请重试");
       return null;
     } finally {
       setCreatingDocument(false);
@@ -815,10 +816,10 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           }
         }
       }
-      message.success("笔记已删除");
+      toast.success("笔记已删除");
     } catch (error) {
       console.error("Failed to delete note:", error);
-      message.error("删除笔记失败，请重试");
+      toast.error("删除笔记失败，请重试");
     }
   });
 
@@ -846,10 +847,10 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         title: trimmed,
       });
       setNotes(prev => prev.map(item => (item.id === updated.id ? updated : item)));
-      message.success("笔记标题已更新");
+      toast.success("笔记标题已更新");
     } catch (error) {
       console.error("Failed to rename note:", error);
-      message.error("重命名笔记失败，请重试");
+      toast.error("重命名笔记失败，请重试");
     } finally {
       setRenamingNote(null);
     }
@@ -870,7 +871,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         if (hasClipResult) {
           nextSource = "parsed";
         } else {
-          message.warning("暂无可显示的文档");
+          toast.warning("暂无可显示的文档");
           return;
         }
       } else {
@@ -887,7 +888,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         await persistPreferredNote(note.contentId);
         setNoteEditorContent(note);
       } else {
-        message.warning("暂无可显示的文档");
+        toast.warning("暂无可显示的文档");
         return;
       }
     }
@@ -957,7 +958,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     projectItemEventBus.publishProjectItemEvent("project-item:updated", updatedProjectItem);
 
     setEditTitleModalOpen(false);
-    message.success("标题已更新");
+    toast.success("标题已更新");
   });
 
   // 处理编辑器内容变化
@@ -997,7 +998,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const handleGeneratePodcast = useMemoizedFn(() => {
     // 检查是否有转录文档
     if (!hasClipResult || parsedContent.length === 0) {
-      message.warning("请先转录网页内容后再生成播客");
+      toast.warning("请先转录网页内容后再生成播客");
       return;
     }
 
@@ -1009,7 +1010,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       key: "refresh",
       label: (
         <div className="flex items-center gap-2">
-          <ReloadOutlined />
+          <RotateCw strokeWidth={1.75} />
           <span>刷新网页</span>
         </div>
       ),
@@ -1041,7 +1042,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         key: "note-rename",
         label: (
           <div className="flex items-center gap-2">
-            <FormOutlined />
+            <PenLine />
             <span>重命名笔记</span>
           </div>
         ),
@@ -1050,7 +1051,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         key: "note-delete",
         label: (
           <div className="flex items-center gap-2 text-red-500">
-            <DeleteOutlined />
+            <Trash2 />
             <span>删除笔记</span>
           </div>
         ),
@@ -1065,7 +1066,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       key: "generate-podcast",
       label: (
         <div className="flex items-center gap-2">
-          <SoundOutlined />
+          <Volume2 strokeWidth={1.75} />
           <span>{projectItem?.podcast ? "编辑播客" : "生成播客"}</span>
         </div>
       ),
@@ -1185,7 +1186,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               <div
                 className={`mb-4 flex items-center gap-2 rounded-lg border ${themeColors.borderClass} ${"bg-[var(--th-bg-hover)]"} px-4 py-3 text-sm ${themeColors.textClass}`}
               >
-                <LoadingOutlined />
+                <Loader2 strokeWidth={1.75} />
                 <span>正在解析网页内容，请稍候...</span>
               </div>
             )}
@@ -1252,7 +1253,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-zinc-800 dark:hover:text-gray-300"
               onClick={handleEditTitle}
             >
-              <EditOutlined className="text-sm" />
+              <Pencil className="text-sm" />
             </button>
           </Tooltip>
         </div>
@@ -1298,7 +1299,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               }}
               disabled={creatingDocument && notes.length === 0}
             >
-              <BookOutlined />
+              <Book />
             </button>
           </Tooltip>
 
@@ -1323,7 +1324,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                   void handleStartClip();
                 }}
               >
-                {isAnyClipping ? <LoadingOutlined /> : <ClipIcon />}
+                {isAnyClipping ? <Loader2 strokeWidth={1.75} /> : <ClipIcon />}
               </button>
             </Tooltip>
             <div
@@ -1386,7 +1387,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-gray-600 transition-all hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
                 onClick={e => e.preventDefault()}
               >
-                <MoreOutlined />
+                <MoreHorizontal />
               </button>
             </Tooltip>
           </Dropdown>

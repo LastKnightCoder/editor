@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { CreateProjectItem, EProjectItemType, ICard, ProjectItem } from "@/types";
 import { useCreation, useMemoizedFn } from "ahooks";
-import { App } from "antd";
 import { produce } from "immer";
 import {
   updateProjectItem,
@@ -10,13 +9,12 @@ import {
   addChildProjectItem,
 } from "@/commands";
 import { defaultProjectItemEventBus, defaultCardEventBus } from "@/utils";
+import { toast } from "@tau/ui";
 
 const useAddRefCard = (cards: ICard[], projectId: number, projectItem?: ProjectItem) => {
   const [selectCardModalOpen, setSelectCardModalOpen] = useState(false);
 
   const projectItemEventBus = useCreation(() => defaultProjectItemEventBus.createEditor(), []);
-
-  const { message } = App.useApp();
 
   const excludeCardIds = useMemo(() => {
     if (!projectItem) return [];
@@ -37,7 +35,7 @@ const useAddRefCard = (cards: ICard[], projectId: number, projectItem?: ProjectI
 
   const onOk = useMemoizedFn(async (selectedCards: ICard[]) => {
     if (selectedCards.length === 0) {
-      message.warning("请选择卡片");
+      toast.warning("请选择卡片");
       return;
     }
 

@@ -1,5 +1,4 @@
 import { useMemoizedFn } from "ahooks";
-import { message } from "antd";
 
 import { RemotePdfSelectResult } from "@/components/RemotePdfSelectModal";
 import {
@@ -11,6 +10,7 @@ import {
 } from "@/types";
 import { ModalKey } from "../constants/modalKeys";
 import usePdfsStore from "@/stores/usePdfsStore";
+import { toast } from "@tau/ui";
 
 export interface PdfAddStrategy {
   addProjectItem: (createItem: CreateProjectItem) => Promise<void>;
@@ -47,7 +47,7 @@ export interface ChildPdfStrategyConfig {
 export const createRootPdfStrategy = (config: RootPdfStrategyConfig): PdfAddStrategy => ({
   addProjectItem: async createItem => {
     if (!config.project) {
-      message.error("项目尚未加载完成");
+      toast.error("项目尚未加载完成");
       return;
     }
 
@@ -73,7 +73,7 @@ export const createRootPdfStrategy = (config: RootPdfStrategyConfig): PdfAddStra
 export const createChildPdfStrategy = (config: ChildPdfStrategyConfig): PdfAddStrategy => ({
   addProjectItem: async createItem => {
     if (!config.projectItem || !config.projectId) {
-      message.error("项目文档尚未加载完成");
+      toast.error("项目文档尚未加载完成");
       return;
     }
 
@@ -113,26 +113,26 @@ export const usePdfHandlers = ({ closeModal, strategy }: UsePdfHandlersOptions) 
 
       await strategy.addProjectItem(createProjectItemFromPdf(pdf));
       closeModal(ModalKey.RemotePdf);
-      message.success("远程 PDF 添加成功");
+      toast.success("远程 PDF 添加成功");
     } catch (error) {
       console.error("添加远程 PDF 失败:", error);
-      message.error("添加远程 PDF 失败");
+      toast.error("添加远程 PDF 失败");
     }
   });
 
   const handleSelectPdfConfirm = useMemoizedFn(async (pdf: Pdf | null) => {
     if (!pdf) {
-      message.warning("请选择 PDF 文件");
+      toast.warning("请选择 PDF 文件");
       return;
     }
 
     try {
       await strategy.addProjectItem(createProjectItemFromPdf(pdf));
       closeModal(ModalKey.SelectPdf);
-      message.success("PDF 关联成功");
+      toast.success("PDF 关联成功");
     } catch (error) {
       console.error("关联 PDF 失败:", error);
-      message.error("关联 PDF 失败");
+      toast.error("关联 PDF 失败");
     }
   });
 

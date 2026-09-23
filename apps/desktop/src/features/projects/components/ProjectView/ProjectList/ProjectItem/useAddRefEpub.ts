@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import { Epub, ProjectItem } from "@/types";
 import { ModalKey, ModalStates } from "../../shared/constants/modalKeys";
+import { toast } from "@tau/ui";
 
 interface UseAddRefEpubOptions {
   modalStates: ModalStates;
@@ -14,7 +14,6 @@ interface UseAddRefEpubOptions {
 }
 
 const useAddRefEpub = (epubs: Epub[], options: UseAddRefEpubOptions) => {
-  const { message } = App.useApp();
   const [selectedEpub, setSelectedEpub] = useState<Epub | null>(null);
 
   const excludeEpubIds = useMemo(() => {
@@ -41,7 +40,7 @@ const useAddRefEpub = (epubs: Epub[], options: UseAddRefEpubOptions) => {
 
   const onOk = useMemoizedFn(async () => {
     if (!selectedEpub) {
-      message.warning("请选择 EPUB 文件");
+      toast.warning("请选择 EPUB 文件");
       return;
     }
     await options.onConfirm(selectedEpub);

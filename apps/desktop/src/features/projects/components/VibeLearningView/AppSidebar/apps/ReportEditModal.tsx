@@ -2,7 +2,6 @@ import { isElectron } from "@/electron";
 import { useHtmlPreviewUrl } from "@/utils/html-preview";
 import { memo, useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { App } from "antd";
 import { FileBarChart, Sparkles, RefreshCw, Loader2, CheckCircle2, Code, Eye } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
@@ -19,6 +18,7 @@ import { importFromMarkdown, getMarkdown } from "@/utils";
 import { cleanReportHtmlContent } from "@/constants/prompts/report-generation";
 import { GenerationConfigStep, GeneratingProgress } from "../components";
 import { runGenerationTask } from "@/services/generation-orchestrator";
+import { toast } from "@tau/ui";
 
 interface ReportEditModalProps {
   open: boolean;
@@ -33,7 +33,6 @@ type Step = "config" | "generating" | "preview";
 
 const ReportEditModal = memo((props: ReportEditModalProps) => {
   const { open, note, projectId, mainDbName, onClose, onNoteUpdated } = props;
-  const { message } = App.useApp();
 
   const { providerConfig, modelConfig } = useLLMConfig("chat");
 
@@ -77,7 +76,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
     try {
       const content = await getContentById(noteToLoad.contentId);
       if (!content) {
-        message.error("无法加载报告内容");
+        toast.error("无法加载报告内容");
         return;
       }
 
@@ -87,11 +86,11 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
       if (htmlContent && htmlContent.trim()) {
         setCurrentHtml(htmlContent);
       } else {
-        message.error("无法解析报告内容");
+        toast.error("无法解析报告内容");
       }
     } catch (e) {
       console.error("Failed to load report content:", e);
-      message.error("加载报告失败");
+      toast.error("加载报告失败");
     }
   });
 
@@ -126,17 +125,17 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
 
   const handleStartEdit = useMemoizedFn(async () => {
     if (!userPrompt.trim()) {
-      message.error("请输入编辑指令");
+      toast.error("请输入编辑指令");
       return;
     }
 
     if (!providerConfig || !modelConfig) {
-      message.error("请先在设置中配置 AI 模型");
+      toast.error("请先在设置中配置 AI 模型");
       return;
     }
 
     if (!currentHtml) {
-      message.error("无法获取当前报告内容");
+      toast.error("无法获取当前报告内容");
       return;
     }
 
@@ -176,7 +175,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
         onError: e => {
           setIsGenerating(false);
           console.error("Edit Report error:", e);
-          message.error(e.message || "编辑报告失败");
+          toast.error(e.message || "编辑报告失败");
           if (!generatedHtml) {
             setStep("config");
           } else {
@@ -221,13 +220,13 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
 
   const handleSave = useMemoizedFn(async () => {
     if (!note) {
-      message.error("笔记信息丢失");
+      toast.error("笔记信息丢失");
       return;
     }
 
     const htmlToSave = cleanedHtml || currentHtml;
     if (!htmlToSave.trim()) {
-      message.error("没有可保存的内容");
+      toast.error("没有可保存的内容");
       return;
     }
 
@@ -247,7 +246,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
         title: newTitle,
       });
 
-      message.success("保存成功");
+      toast.success("保存成功");
 
       if (updatedNote) {
         onNoteUpdated?.(updatedNote);
@@ -256,7 +255,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
       onClose();
     } catch (e) {
       console.error("Failed to save Report:", e);
-      message.error((e as Error).message || "保存失败");
+      toast.error((e as Error).message || "保存失败");
     } finally {
       setSaving(false);
     }

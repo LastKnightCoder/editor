@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { message } from "antd";
 
 import { CreateProjectItem, EProjectItemType, ProjectItem, WhiteBoard } from "@/types";
 import { getWhiteBoardById, addRootProjectItem, addChildProjectItem } from "@/commands";
+import { toast } from "@tau/ui";
 
 const useAddRefWhiteBoard = (
   whiteBoards: WhiteBoard[],
@@ -31,7 +31,7 @@ const useAddRefWhiteBoard = (
   // 处理确认选择
   const onOk = useMemoizedFn(async (whiteBoards: WhiteBoard[]) => {
     if (whiteBoards.length === 0) {
-      message.error("请选择白板");
+      toast.error("请选择白板");
       return;
     }
 
@@ -46,7 +46,7 @@ const useAddRefWhiteBoard = (
       // 获取完整的白板数据
       const fullWhiteBoard = await getWhiteBoardById(whiteBoard.id);
       if (!fullWhiteBoard || fullWhiteBoard.whiteBoardContentIds.length === 0) {
-        message.error(`获取白板 ${whiteBoard.title} 数据失败`);
+        toast.error(`获取白板 ${whiteBoard.title} 数据失败`);
         return;
       }
 
@@ -72,7 +72,7 @@ const useAddRefWhiteBoard = (
       }
     } catch (e) {
       console.error(e);
-      message.error("关联白板失败");
+      toast.error("关联白板失败");
     }
   });
 

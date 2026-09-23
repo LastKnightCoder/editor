@@ -38,6 +38,7 @@ import { EProjectItemType, ProjectItem, WhiteBoardContent } from "@/types";
 import { TabType } from "@/types/tab";
 import { useMemoizedFn } from "ahooks";
 import { getProjectItemMoreMenuItems } from "./projectItemMoreMenuItems";
+import { toast } from "@tau/ui";
 
 interface UseProjectItemMoreActionsOptions {
   projectId: number;
@@ -87,8 +88,7 @@ export const useProjectItemMoreActions = (
   const panes = useTabStore(state => state.panes);
   const activePaneId = useTabStore(state => state.activePaneId);
   const projectItemEventBus = useMemo(() => defaultProjectItemEventBus.createEditor(), []);
-  const { modal, message: messageInstance } = App.useApp();
-  const { message } = App.useApp();
+  const { modal } = App.useApp();
   const { createWhiteBoard } = useWhiteBoardStore(state => ({
     createWhiteBoard: state.createWhiteBoard,
   }));
@@ -223,7 +223,7 @@ export const useProjectItemMoreActions = (
       publishProjectItemUpdate(updatedProjectItem);
       const { defaultCardEventBus } = await import("@/utils");
       defaultCardEventBus.createEditor().publishCardEvent("card:created", createdCard);
-      message.success("成功建立卡片");
+      toast.success("成功建立卡片");
     } else if (key === "to-white-board") {
       if (
         projectItem.projectItemType !== EProjectItemType.WhiteBoard ||
@@ -267,17 +267,17 @@ export const useProjectItemMoreActions = (
         const updatedProjectItem = await updateProjectItem(nextProjectItem);
         if (!updatedProjectItem) return;
         publishProjectItemUpdate(updatedProjectItem);
-        message.success("成功创建白板");
+        toast.success("成功创建白板");
       } catch (e) {
         console.error(e);
-        message.error("创建白板失败");
+        toast.error("创建白板失败");
       }
     } else if (key === "remove") {
       await handleRemoveProjectItem();
     } else if (key === "copy-markdown") {
-      await copyMarkdownToClipboard(projectItem.content, messageInstance);
+      await copyMarkdownToClipboard(projectItem.content, toast);
     } else if (key === "copy-wechat") {
-      await copyWechatHtmlToClipboard(projectItem.content, messageInstance);
+      await copyWechatHtmlToClipboard(projectItem.content, toast);
     } else if (key === "export-markdown") {
       const markdown = getMarkdown(projectItem.content);
       downloadMarkdown(markdown, projectItem.title);
@@ -310,7 +310,7 @@ export const useProjectItemMoreActions = (
         if (displayWebviewUrl) {
           openInNewTab(TabType.WebView, { url: displayWebviewUrl }, targetPaneId);
         } else {
-          message.error("无法提取 URL");
+          toast.error("无法提取 URL");
         }
       } else {
         openInNewTab(

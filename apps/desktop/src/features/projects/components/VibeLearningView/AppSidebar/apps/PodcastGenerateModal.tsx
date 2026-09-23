@@ -1,6 +1,5 @@
 import { memo, useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { App } from "antd";
 import { Mic, Sparkles, RefreshCw, Loader2, CheckCircle2 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
@@ -33,6 +32,7 @@ import { VoiceClonePanel } from "@/components/PodcastGenerationModal/VoiceCloneP
 import { ProgressView } from "@/components/PodcastGenerationModal/ProgressView";
 import { ResultPreview } from "@/components/PodcastGenerationModal/ResultPreview";
 import { normalizeDurationRange } from "@/components/PodcastGenerationModal/utils";
+import { toast } from "@tau/ui";
 import type {
   CloneVoiceItem,
   NoticeType,
@@ -51,7 +51,6 @@ type Step = "select-resources" | "generating" | "preview";
 
 const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
   const { open, projectId, mainDbName, onClose, onNoteCreated } = props;
-  const { message } = App.useApp();
 
   // LLM 配置
   const { providerConfig, modelConfig } = useLLMConfig("podcastGeneration");
@@ -207,22 +206,22 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
   // 开始生成播客
   const handleStartGenerate = useMemoizedFn(async () => {
     if (selectedResourceIds.length === 0) {
-      message.error("请选择至少一个资源");
+      toast.error("请选择至少一个资源");
       return;
     }
 
     if (!podcastName.trim()) {
-      message.error("请输入播客名称");
+      toast.error("请输入播客名称");
       return;
     }
 
     if (speakers.some(s => !s.voiceId)) {
-      message.error("请为所有说话人选择音色");
+      toast.error("请为所有说话人选择音色");
       return;
     }
 
     if (!providerConfig || !modelConfig) {
-      message.error("请先在设置中配置播客生成的 AI 模型");
+      toast.error("请先在设置中配置播客生成的 AI 模型");
       return;
     }
 
@@ -261,7 +260,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
   // 保存为笔记
   const handleSave = useMemoizedFn(async () => {
     if (!audioUrl) {
-      message.error("没有可保存的播客");
+      toast.error("没有可保存的播客");
       return;
     }
 
@@ -298,7 +297,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
         podcastId: podcast.id,
       });
 
-      message.success("播客已保存为笔记");
+      toast.success("播客已保存为笔记");
 
       // 回调通知创建了笔记
       onNoteCreated?.(note);
@@ -306,7 +305,7 @@ const PodcastGenerateModal = memo((props: PodcastGenerateModalProps) => {
       onClose();
     } catch (e) {
       console.error("保存播客失败:", e);
-      message.error((e as Error).message || "保存失败");
+      toast.error((e as Error).message || "保存失败");
     } finally {
       setSaving(false);
     }

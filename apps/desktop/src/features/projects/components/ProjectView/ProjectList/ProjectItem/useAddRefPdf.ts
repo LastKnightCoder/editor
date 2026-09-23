@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import { Pdf, ProjectItem } from "@/types";
 import { ModalKey, ModalStates } from "../../shared/constants/modalKeys";
+import { toast } from "@tau/ui";
 
 interface UseAddRefPdfOptions {
   modalStates: ModalStates;
@@ -14,7 +14,6 @@ interface UseAddRefPdfOptions {
 }
 
 const useAddRefPdf = (pdfs: Pdf[], options: UseAddRefPdfOptions) => {
-  const { message } = App.useApp();
   const [selectedPdf, setSelectedPdf] = useState<Pdf | null>(null);
 
   const excludePdfIds = useMemo(() => {
@@ -41,7 +40,7 @@ const useAddRefPdf = (pdfs: Pdf[], options: UseAddRefPdfOptions) => {
 
   const onOk = useMemoizedFn(async () => {
     if (!selectedPdf) {
-      message.warning("请选择 PDF 文件");
+      toast.warning("请选择 PDF 文件");
       return;
     }
     await options.onConfirm(selectedPdf);
