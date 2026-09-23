@@ -25,6 +25,7 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
   const openSettings = useSettingsStore(s => s.openSettings);
   // 全屏下隐藏 mac 信号灯（对齐平台惯例），头部布局随之收拢
   const fullScreen = useFullScreen();
+  const lightsShown = isMac && !fullScreen;
 
   // 边缘渐隐：callback ref（组折叠动画经 transitionend 重测，见 useEdgeFade）
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
@@ -45,13 +46,20 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
       <div
         className={clsx(
           "app-region-drag flex shrink-0 items-center gap-2",
-          // 收起态无 mb，头部 pb(10px) 直接承担与首个图标的间距（第一组亦无 mt）
-          collapsed ? "flex-col gap-3 px-0 py-2.5" : "mb-1.5 h-[var(--tau-titlebar-h)] px-1.5"
+          // 收起态无 mb，头部 pb(10px) 直接承担与首个图标的间距（第一组亦无 mt）；
+          // 有信号灯带时无 pt——带子自身撑满标题栏高度（见 MacTrafficLights），中线与
+          // 右侧对齐；无信号灯（全屏 / Windows/Linux）补回 pt 避免折叠按钮贴顶。
+          // px-1（叠加 nav 的 px-2.5 = 绝对 14px 左缩进，同标题栏版心节奏）：信号灯带
+          // self-start 贴左缩进、不水平居中——52px 的带子居中后红点只剩 3px 贴窗口
+          // 圆角，太局促；对称内边距下 » 按钮与下图标列中线保持 29px 不变
+          collapsed
+            ? clsx("flex-col gap-3 px-1 pb-2.5", !lightsShown && "pt-2.5")
+            : "mb-1.5 h-[var(--tau-titlebar-h)] px-1.5"
         )}
       >
         {/* Mac 自绘信号灯（原生已被主进程移出屏幕，见 WindowControls；全屏下
             隐藏对齐平台惯例）；Windows/Linux 不渲染 */}
-        {isMac && !fullScreen && <MacTrafficLights collapsed={collapsed} />}
+        {lightsShown && <MacTrafficLights collapsed={collapsed} />}
         {!collapsed && (
           <span className="flex items-center gap-2">
             {/* 应用图标（build/icon.png 同源，自带圆角与米白底，勿再加底色）。
