@@ -1,5 +1,4 @@
 import { memo, ButtonHTMLAttributes, ReactNode } from "react";
-import useThemeColors from "@/hooks/useThemeColors";
 
 type ButtonVariant = "primary" | "default" | "danger" | "text";
 type ButtonSize = "small" | "medium" | "large";
@@ -33,7 +32,10 @@ const SimpleButton = memo((props: SimpleButtonProps) => {
     ...rest
   } = props;
 
-  const { primaryButtonClass, hoverClass, borderClass, textClass } = useThemeColors();
+  const primaryButtonClass = "bg-accent text-white hover:bg-accent-hover";
+  const hoverClass = "hover:bg-hover";
+  const borderClass = "border-line-1";
+  const textClass = "text-ink-1";
 
   const isDisabled = disabled || loading;
 

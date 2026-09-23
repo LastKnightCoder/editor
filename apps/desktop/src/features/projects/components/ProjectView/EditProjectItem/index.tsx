@@ -15,7 +15,6 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import EditorOutline from "@/components/EditorOutline";
 import { EditCardContext } from "@/context.ts";
 import useEditContent from "@/hooks/useEditContent";
-import useThemeColors from "@/hooks/useThemeColors";
 import ImmersiveEditorMode, {
   type ImmersiveEditorExitPayload,
 } from "@/components/ImmersiveEditorMode";
@@ -47,7 +46,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   const [editorRemountKey, setEditorRemountKey] = useState(0);
   const projectItemEventBus = useCreation(() => defaultProjectItemEventBus.createEditor(), []);
 
-  const { borderClass } = useThemeColors();
+  const borderClass = "border-line-1";
 
   const {
     projectItem,

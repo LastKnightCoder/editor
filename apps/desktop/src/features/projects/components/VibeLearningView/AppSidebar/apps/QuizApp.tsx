@@ -17,7 +17,6 @@ import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
 
 import CustomModal from "@/components/CustomModal";
-import useThemeColors from "@/hooks/useThemeColors";
 import useVLQuizStore from "@/stores/useVLQuizStore";
 import type { VLQuizSet, VLQuizRecord } from "@/types";
 import { formatDate } from "@/utils";
@@ -34,7 +33,6 @@ interface QuizAppProps {
 
 const QuizApp = memo((props: QuizAppProps) => {
   const { projectId, mainDbName, onBack } = props;
-  const themeColors = useThemeColors();
 
   const {
     quizSetsByProject,
@@ -160,23 +158,21 @@ const QuizApp = memo((props: QuizAppProps) => {
       <div
         className={classNames(
           "flex shrink-0 items-center gap-3 border-b px-4 py-3",
-          themeColors.borderClass
+          "border-line-1"
         )}
       >
         <button
           className={classNames(
             "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all",
-            themeColors.hoverClass,
-            themeColors.textClass
+            "hover:bg-hover",
+            "text-ink-1"
           )}
           onClick={onBack}
         >
           <ArrowLeft className="h-5 w-5" strokeWidth={1.75} />
         </button>
 
-        <h3
-          className={classNames("m-0 flex-1 text-base font-semibold", themeColors.activeTextClass)}
-        >
+        <h3 className={classNames("m-0 flex-1 text-base font-semibold", "text-accent-text")}>
           测验
         </h3>
       </div>
@@ -186,32 +182,27 @@ const QuizApp = memo((props: QuizAppProps) => {
         {loadingQuizSets ? (
           <div className="flex h-full flex-col items-center justify-center">
             <Loader2
-              className={classNames("h-8 w-8 animate-spin", themeColors.iconTextClass)}
+              className={classNames("h-8 w-8 animate-spin", "text-accent-text")}
               strokeWidth={1.75}
             />
-            <p className={classNames("mt-4 text-sm", themeColors.secondaryTextClass)}>加载中...</p>
+            <p className={classNames("mt-4 text-sm", "text-ink-2")}>加载中...</p>
           </div>
         ) : quizSets.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center">
             <div
               className={classNames(
                 "flex flex-col items-center justify-center rounded-2xl border-2 border-dashed px-8 py-12",
-                themeColors.cardBorderClass
+                "border-line-1"
               )}
             >
-              <Inbox
-                className={classNames("mb-4 h-16 w-16", themeColors.secondaryTextClass)}
-                strokeWidth={1.75}
-              />
-              <p className={classNames("mb-6 text-base", themeColors.secondaryTextClass)}>
-                暂无测验集
-              </p>
+              <Inbox className={classNames("mb-4 h-16 w-16", "text-ink-2")} strokeWidth={1.75} />
+              <p className={classNames("mb-6 text-base", "text-ink-2")}>暂无测验集</p>
               <button
                 type="button"
                 onClick={handleOpenGenerate}
                 className={classNames(
                   "flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all",
-                  themeColors.primaryButtonClass
+                  "bg-accent hover:bg-accent-hover text-white"
                 )}
               >
                 <Plus className="h-4 w-4" strokeWidth={1.75} />
@@ -235,9 +226,9 @@ const QuizApp = memo((props: QuizAppProps) => {
                     transition={{ delay: index * 0.05 }}
                     className={classNames(
                       "group rounded-xl border p-4 backdrop-blur-sm transition-all",
-                      themeColors.cardBgClass,
-                      themeColors.cardBorderClass,
-                      themeColors.hoverBorderClass
+                      "bg-surface",
+                      "border-line-1",
+                      "hover:border-line-1"
                     )}
                   >
                     {/* 标题行 */}
@@ -246,7 +237,7 @@ const QuizApp = memo((props: QuizAppProps) => {
                       <span
                         className={classNames(
                           "flex-1 truncate text-sm font-semibold",
-                          themeColors.activeTextClass
+                          "text-accent-text"
                         )}
                       >
                         {quizSet.name}
@@ -254,8 +245,8 @@ const QuizApp = memo((props: QuizAppProps) => {
                       <span
                         className={classNames(
                           "rounded-md px-2 py-0.5 text-xs font-medium",
-                          themeColors.tagBgClass,
-                          themeColors.tagTextClass
+                          "bg-group",
+                          "text-ink-2"
                         )}
                       >
                         {quizSet.itemCount} 题
@@ -264,12 +255,7 @@ const QuizApp = memo((props: QuizAppProps) => {
 
                     {/* 描述 */}
                     {quizSet.description && (
-                      <p
-                        className={classNames(
-                          "mb-3 line-clamp-2 text-xs",
-                          themeColors.secondaryTextClass
-                        )}
-                      >
+                      <p className={classNames("mb-3 line-clamp-2 text-xs", "text-ink-2")}>
                         {quizSet.description}
                       </p>
                     )}
@@ -277,10 +263,7 @@ const QuizApp = memo((props: QuizAppProps) => {
                     {/* 统计信息 */}
                     {(bestScore !== null || latestRecord) && (
                       <div
-                        className={classNames(
-                          "mb-3 flex items-center gap-4 text-xs",
-                          themeColors.secondaryTextClass
-                        )}
+                        className={classNames("mb-3 flex items-center gap-4 text-xs", "text-ink-2")}
                       >
                         {bestScore !== null && (
                           <span className="flex items-center gap-1.5">
@@ -305,7 +288,7 @@ const QuizApp = memo((props: QuizAppProps) => {
                         disabled={quizSet.itemCount === 0}
                         className={classNames(
                           "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all",
-                          themeColors.primaryButtonClass,
+                          "bg-accent hover:bg-accent-hover text-white",
                           "disabled:cursor-not-allowed disabled:opacity-50"
                         )}
                       >
@@ -319,9 +302,9 @@ const QuizApp = memo((props: QuizAppProps) => {
                           title="查看测验记录"
                           className={classNames(
                             "flex h-8 w-8 items-center justify-center rounded-lg border transition-all",
-                            themeColors.cardBorderClass,
-                            themeColors.hoverClass,
-                            themeColors.textClass
+                            "border-line-1",
+                            "hover:bg-hover",
+                            "text-ink-1"
                           )}
                         >
                           <History className="h-4 w-4" strokeWidth={1.75} />
@@ -334,9 +317,9 @@ const QuizApp = memo((props: QuizAppProps) => {
                         className={classNames(
                           "flex h-8 w-8 items-center justify-center rounded-lg border transition-all",
                           "opacity-0 group-hover:opacity-100",
-                          themeColors.cardBorderClass,
-                          themeColors.hoverClass,
-                          themeColors.textClass
+                          "border-line-1",
+                          "hover:bg-hover",
+                          "text-ink-1"
                         )}
                       >
                         <Pencil className="h-4 w-4" strokeWidth={1.75} />
@@ -366,16 +349,16 @@ const QuizApp = memo((props: QuizAppProps) => {
 
       {/* 底部新建按钮 */}
       {quizSets.length > 0 && (
-        <div className={classNames("shrink-0 border-t p-4", themeColors.borderClass)}>
+        <div className={classNames("shrink-0 border-t p-4", "border-line-1")}>
           <button
             type="button"
             onClick={handleOpenGenerate}
             className={classNames(
               "flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition-all",
-              themeColors.cardBorderClass,
-              themeColors.cardBgClass,
-              themeColors.textClass,
-              themeColors.hoverClass
+              "border-line-1",
+              "bg-surface",
+              "text-ink-1",
+              "hover:bg-hover"
             )}
           >
             <Plus className="h-4 w-4" strokeWidth={1.75} />
@@ -460,16 +443,15 @@ interface QuizRecordsListProps {
 
 const QuizRecordsList = memo((props: QuizRecordsListProps) => {
   const { records, loading } = props;
-  const themeColors = useThemeColors();
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
         <Loader2
-          className={classNames("h-8 w-8 animate-spin", themeColors.iconTextClass)}
+          className={classNames("h-8 w-8 animate-spin", "text-accent-text")}
           strokeWidth={1.75}
         />
-        <p className={classNames("mt-3 text-sm", themeColors.secondaryTextClass)}>加载中...</p>
+        <p className={classNames("mt-3 text-sm", "text-ink-2")}>加载中...</p>
       </div>
     );
   }
@@ -477,11 +459,8 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
   if (records.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <Inbox
-          className={classNames("mb-3 h-12 w-12", themeColors.secondaryTextClass)}
-          strokeWidth={1.75}
-        />
-        <p className={classNames("text-sm", themeColors.secondaryTextClass)}>暂无测验记录</p>
+        <Inbox className={classNames("mb-3 h-12 w-12", "text-ink-2")} strokeWidth={1.75} />
+        <p className={classNames("text-sm", "text-ink-2")}>暂无测验记录</p>
       </div>
     );
   }
@@ -544,24 +523,19 @@ const QuizRecordsList = memo((props: QuizRecordsListProps) => {
                   <span
                     className={classNames(
                       "flex items-center gap-1.5 text-sm font-medium",
-                      themeColors.activeTextClass
+                      "text-accent-text"
                     )}
                   >
                     <CheckCircle2 className="text-status-success h-4 w-4" strokeWidth={1.75} />
                     {record.correctCount}/{record.totalCount} 题正确
                   </span>
-                  <span
-                    className={classNames(
-                      "flex items-center gap-1.5 text-xs",
-                      themeColors.secondaryTextClass
-                    )}
-                  >
+                  <span className={classNames("flex items-center gap-1.5 text-xs", "text-ink-2")}>
                     <Clock className="h-3 w-3" strokeWidth={1.75} />
                     用时 {Math.floor(record.duration / 60)}分{record.duration % 60}秒
                   </span>
                 </div>
               </div>
-              <div className={classNames("text-xs font-medium", themeColors.secondaryTextClass)}>
+              <div className={classNames("text-xs font-medium", "text-ink-2")}>
                 {formatDate(record.createTime, true)}
               </div>
             </motion.div>

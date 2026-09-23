@@ -1,5 +1,4 @@
 import { memo, ReactNode } from "react";
-import useThemeColors from "@/hooks/useThemeColors";
 
 interface EmptyStateProps {
   description?: string;
@@ -10,7 +9,8 @@ interface EmptyStateProps {
 
 const EmptyState = memo((props: EmptyStateProps) => {
   const { description = "暂无数据", icon, className = "", children } = props;
-  const { secondaryTextClass, iconTextClass } = useThemeColors();
+  const secondaryTextClass = "text-ink-2";
+  const iconTextClass = "text-ink-3";
 
   return (
     <div className={`flex flex-col items-center justify-center py-8 ${className}`}>

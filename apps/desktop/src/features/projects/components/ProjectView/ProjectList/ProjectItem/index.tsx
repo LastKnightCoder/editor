@@ -86,7 +86,6 @@ import whiteBoardIcon from "@/assets/icons/white-board.svg";
 import EditText, { EditTextHandle } from "@/components/EditText";
 import { useProjectContext } from "../../ProjectContext";
 import { usePage } from "@/page/PageProvider";
-import { useThemeColors } from "@/hooks";
 import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
 import BilibiliVideoSelectModal from "@/components/BilibiliVideoSelectModal";
 import RemoteVideoSelectModal from "@/components/RemoteVideoSelectModal";
@@ -181,7 +180,9 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const { projectId, itemId } = useProjectContext();
   const { navigator } = usePage();
   const databaseName = useSettingStore.getState().setting.database.active;
-  const { hoverClass, activeClass, borderClass } = useThemeColors();
+  const hoverClass = "hover:bg-hover";
+  const activeClass = "bg-accent-soft text-accent-text";
+  const borderClass = "border-line-1";
 
   const [titleEditable, setTitleEditable] = useState(false);
   const titleRef = useRef<EditTextHandle>(null);

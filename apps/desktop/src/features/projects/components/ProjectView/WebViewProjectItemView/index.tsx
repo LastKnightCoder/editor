@@ -57,7 +57,6 @@ import {
 } from "@/commands";
 import { type ProjectItem, WebClip, WebNote } from "@/types";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
-import useThemeColors from "@/hooks/useThemeColors";
 import useEditContent from "@/hooks/useEditContent";
 import useWebClip from "@/hooks/useWebClip";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
@@ -167,7 +166,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     confirmText?: string;
     action: () => void | Promise<void>;
   }>(null);
-  const themeColors = useThemeColors();
   useProjectContext(); // Keep context active
   const openInNewTab = useTabStore(state => state.openInNewTab);
 
@@ -1096,12 +1094,12 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     }
     // 使用主题色
     if (color === "green") {
-      return `${themeColors.activeClass}`;
+      return `${"bg-accent-soft text-accent-text"}`;
     }
     if (color === "purple") {
-      return `${themeColors.activeClass}`;
+      return `${"bg-accent-soft text-accent-text"}`;
     }
-    return themeColors.activeClass;
+    return "bg-accent-soft text-accent-text";
   };
 
   const getClipMenuItemClass = (disabled: boolean) =>
@@ -1157,7 +1155,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           <div className="relative min-w-0 max-w-[720px] flex-1">
             {isAnyClipping && (
               <div
-                className={`mb-4 flex items-center gap-2 rounded-lg border ${themeColors.borderClass} ${"bg-hover"} px-4 py-3 text-sm ${themeColors.textClass}`}
+                className={`mb-4 flex items-center gap-2 rounded-lg border ${"border-line-1"} ${"bg-hover"} px-4 py-3 text-sm ${"text-ink-1"}`}
               >
                 <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
                 <span>正在解析网页内容，请稍候...</span>
@@ -1215,9 +1213,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   return (
     <div className="flex h-full w-full flex-col">
       {/* Header */}
-      <div
-        className={`flex items-center justify-between border-b ${themeColors.borderClass} px-4 py-2.5`}
-      >
+      <div className={`flex items-center justify-between border-b ${"border-line-1"} px-4 py-2.5`}>
         {/* 标题区域 - 点击编辑 icon 弹窗编辑 */}
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <h1 className="m-0 truncate text-lg font-semibold leading-snug">{title}</h1>
@@ -1289,7 +1285,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               <button
                 className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${
                   isAnyClipping
-                    ? `${themeColors.activeClass}`
+                    ? `${"bg-accent-soft text-accent-text"}`
                     : "text-ink-2 hover:bg-group bg-transparent"
                 }`}
                 onClick={() => {
@@ -1380,7 +1376,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           <ResizablePanel
             id={`project-webview-split-${projectItemId}`}
             className="h-full w-full"
-            leftClassName={`h-full overflow-hidden border-r ${themeColors.borderClass}`}
+            leftClassName={`h-full overflow-hidden border-r ${"border-line-1"}`}
             rightClassName="h-full overflow-hidden"
             minLeft={360}
             minRight={420}
