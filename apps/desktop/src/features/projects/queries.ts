@@ -76,8 +76,7 @@ export function useProjectsSnapshot(): {
     refetchOnWindowFocus: true,
   });
   const { counts } = useProjectItemCounts();
-  /* useMemo 稳定引用：下游 useMemo 派生（activeAll/状态栏 node）以本数组为 deps，
-     每次渲染新建会击穿 usePageStatusBar 的 node 稳定化 → 注册/重渲染死循环 */
+  /* useMemo 稳定引用：下游 useMemo 派生（activeAll/状态栏读数）以本数组为 deps */
   const projects = useMemo(
     () =>
       (query.data ?? []).map(project => ({

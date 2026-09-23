@@ -8,7 +8,7 @@
  * Sidebar，logo 不随滚动）；内容滚动条经 `-mr/pr` 借位移进右侧 `px-10` 留白，离窗口
  * 右缘 16px（同首页 home-scroll 手法，内容盒右缘不动、与 titlebar 版心对齐）。
  * 两个滚动区都接 `.edge-fade-scroll` + useEdgeFade（首页同款边缘渐隐，只在真能滚的方向显形）；
- * 右列底部保留壳层 statusbar 高度的空条，内容不贴窗口底边。
+ * 右列底部保留 statusbar 高度的空条，内容不贴窗口底边。
  * 显隐沿用全局协议（base.css + scrollbarAutoHide.ts）：4px 细墨条仅 hover/滚动中显形。
  *
  * **版心统一**：全页只有一条宽度 `PAGE_COL`，由本文件在 titlebar 与内容区两处
@@ -147,7 +147,7 @@ export function ShowcaseApp() {
           </div>
         </main>
 
-        {/* 底部状态条：与壳层 statusbar 同高（本页无状态文案，只余留白），
+        {/* 底部状态条：与页面状态栏同高（本页无状态文案，只余留白），
             内容不贴窗口底边 */}
         <footer className="h-[var(--tau-statusbar-h)] shrink-0" />
       </div>

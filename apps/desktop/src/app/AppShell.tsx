@@ -131,7 +131,7 @@ function ShellBody() {
 }
 
 function ShellLayout() {
-  const { state, statusBars } = usePage();
+  const { state } = usePage();
   const width = useShellStore(s => s.sidebarWidth);
   const setWidth = useShellStore(s => s.setSidebarWidth);
   const toggle = useShellStore(s => s.toggleSidebar);
@@ -157,16 +157,13 @@ function ShellLayout() {
         onDoubleClick={toggle}
         onDragChange={setSidebarResizing}
       />
-      {/* 右列整体：标题栏/内容/状态栏只属于主区，侧栏整高贯通窗口（融合骨架） */}
-      <div className="grid min-w-0 grid-rows-[var(--tau-titlebar-h)_minmax(0,1fr)_var(--tau-statusbar-h)]">
+      {/* 右列整体：标题栏/内容只属于主区，侧栏整高贯通窗口（融合骨架）。
+          壳层不提供全局状态栏：需要的页面自带 PageStatusBar，避免无内容页底部留空条 */}
+      <div className="grid min-w-0 grid-rows-[var(--tau-titlebar-h)_minmax(0,1fr)]">
         <Titlebar />
         <main className="min-h-0 overflow-y-auto">
           <PageHost state={state} />
         </main>
-        {/* 页面级状态栏（usePageStatusBar 按栈顶页注入；无注册保持空壳） */}
-        <footer className="text-tau-micro text-ink-3 flex min-h-0 select-none items-center px-3.5">
-          {currentKey ? statusBars.get(currentKey) : undefined}
-        </footer>
       </div>
       {/* 全局命令面板浮层（Ctrl+K，D-003）：fixed 定位，须在 PageProvider 内使用导航 */}
       <SearchPalette />

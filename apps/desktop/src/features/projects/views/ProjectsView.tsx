@@ -13,7 +13,8 @@
 
 import { useMemo, useState } from "react";
 import { ChevronDown, Plus } from "lucide-react";
-import { usePage, usePageStatusBar } from "@/page/PageProvider";
+import { usePage } from "@/page/PageProvider";
+import { PageStatusBar } from "@/page/PageStatusBar";
 import BatchExportModal from "@/components/BatchExportModal";
 import { EProjectType } from "@/types/project";
 import { Button, ConfirmDialog, IconButton, Loading, Menu, cn, toast, useEdgeFade } from "@tau/ui";
@@ -81,7 +82,7 @@ export function ProjectsView() {
 
   const archivedCount = snapshot.projects.length - activeAll.length;
 
-  /* 全局状态栏（仅栈顶显示；node 须 useMemo 稳定化） */
+  /* 页面底部状态栏（PageStatusBar）：右侧展示读数 */
   const statusBarNode = useMemo(
     () => (
       <div className="text-tau-sm text-ink-3 flex min-w-0 flex-1 items-center gap-3.5 tabular-nums">
@@ -94,7 +95,6 @@ export function ProjectsView() {
     ),
     [activeAll, archivedCount]
   );
-  usePageStatusBar("projects", statusBarNode);
 
   /* ---------- 卡片操作 ---------- */
 
@@ -300,6 +300,7 @@ export function ProjectsView() {
           scope={{ type: "project", id: exporting.id, title: exporting.title }}
         />
       )}
+      <PageStatusBar className="px-0.5">{statusBarNode}</PageStatusBar>
     </div>
   );
 }
