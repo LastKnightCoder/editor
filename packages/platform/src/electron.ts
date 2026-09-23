@@ -60,6 +60,14 @@ export function createElectronPlatform(rpc: PlatformInvoker, os: PlatformOs): Pl
         ];
         return () => dispose.forEach(fn => fn());
       },
+      // 主进程 full-screen-change 为单通道无 payload，收到后回查状态取真值
+      onFullScreenChange: (callback: (fullScreen: boolean) => void) =>
+        subscribe("full-screen-change", () => {
+          invoke<WindowState>("get-window-state").then(
+            state => callback(state.isFullScreen),
+            () => callback(false)
+          );
+        }),
       onFocusChange: (callback: (focused: boolean) => void) => {
         const dispose = [
           subscribe("window-focus", () => callback(true)),

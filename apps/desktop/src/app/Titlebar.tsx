@@ -86,7 +86,7 @@ export function Titlebar() {
       </button>
       {/* 主题切换：浅色 → 深色 → 跟随系统 循环（完整外观设置在 M5 设置中心） */}
       <ThemeToggle />
-      {/* Windows/Linux 三键（Mac：系统红绿灯，占位见 Sidebar）；拖拽区行为见 header 类 */}
+      {/* Windows/Linux 三键（Mac：自绘信号灯见 Sidebar 头部）；拖拽区行为见 header 类 */}
       <div className="app-region-no-drag">{isWinOrLinux && <WindowControls />}</div>
     </header>
   );

@@ -56,6 +56,7 @@ class WebWindowApi implements WindowApi {
   openPomodoroImmersiveWindow = unsupported("window.pomodoro-immersive");
   hidePomodoroImmersiveWindow = unsupported("window.pomodoro-immersive");
   onMaximizedChange = unsupportedSync("window.maximized-events");
+  onFullScreenChange = unsupportedSync("window.fullscreen-events");
 
   onFocusChange(callback: (focused: boolean) => void): () => void {
     const handleFocus = () => callback(true);
