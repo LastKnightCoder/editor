@@ -37,7 +37,7 @@ export function Titlebar() {
 
   const currentKey = state.back[state.back.length - 1]?.key;
   const crumb = currentKey ? (getPageMeta(currentKey)?.label ?? currentKey) : "";
-  /* 页面注册的自定义面包屑（usePageBreadcrumb）整条替换默认「· label」；
+  /* 页面注册的自定义面包屑（usePageBreadcrumb）整条替换默认「label」；
      自定义内容可能可交互（如文章详情的速切器），须让出拖拽区 */
   const customCrumb = currentKey ? breadcrumbs.get(currentKey) : undefined;
   const canBack = state.back.length > 1;
@@ -67,7 +67,7 @@ export function Titlebar() {
       {customCrumb != null ? (
         <div className="app-region-no-drag flex min-w-0 items-center">{customCrumb}</div>
       ) : (
-        <span className="text-tau-meta text-ink-2">· {crumb}</span>
+        <span className="text-tau-meta text-ink-2">{crumb}</span>
       )}
 
       <div className="flex-1" />
