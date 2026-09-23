@@ -132,7 +132,8 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
                   folded ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
                 )}
               >
-                <div className="min-h-0 overflow-hidden">
+                {/* space-y 行距：选中/hover 色块不再相贴（同菜单 2px 行距口径） */}
+                <div className="min-h-0 space-y-0.5 overflow-hidden">
                   {section.items.map(item => (
                     <NavItemButton
                       key={item.key}
@@ -149,7 +150,7 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
         })}
       </div>
 
-      <div className="shrink-0 pt-2">
+      <div className="shrink-0 space-y-0.5 pt-2">
         {NAV_FOOTER.map(item => (
           <NavItemButton
             key={item.key}
