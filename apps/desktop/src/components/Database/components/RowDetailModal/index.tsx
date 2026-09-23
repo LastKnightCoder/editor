@@ -10,7 +10,7 @@ import { useMemoizedFn } from "ahooks";
 import ColumnIcon from "@/components/Database/ColumnIcon";
 import { useDrag, useDrop, DragSourceMonitor } from "react-dnd";
 import classNames from "classnames";
-import { ConfirmDialog } from "@tau/ui";
+import { ConfirmDialog, useEdgeFade } from "@tau/ui";
 import ColumnEditModal from "../../views/TableView/components/ColumnEditModal";
 import { useDatabaseStore } from "../../hooks";
 import CustomModal from "@/components/CustomModal";
@@ -55,6 +55,8 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
     const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
     const [isExpanded, setIsExpanded] = useState(false);
     const [confirmDeleteColumn, setConfirmDeleteColumn] = useState<ColumnDef | null>(null);
+    const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+    useEdgeFade(scrollEl);
 
     const { columnOrder, moveColumn, editColumn, deleteColumnWithCleanup, columnWidths } =
       useDatabaseStore(state => ({
@@ -258,8 +260,9 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
             </div>
           </div>
           <div
+            ref={setScrollEl}
             className={classNames(
-              "mr-2 min-h-0 flex-1 overflow-y-auto pb-4",
+              "edge-fade-scroll mr-2 min-h-0 flex-1 overflow-y-auto pb-4",
               isExpanded ? "pl-8 pr-6" : "pl-6 pr-4"
             )}
           >
