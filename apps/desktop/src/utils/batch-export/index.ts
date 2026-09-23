@@ -20,22 +20,13 @@ import {
   buildProjectTreeData,
   loadProjectItemMap,
   type ProjectTreeNode,
-} from "@/pages/ProjectView/ProjectList/projectTree";
+} from "@/utils/projectTree";
 import { htmlSerializerRegistry } from "@/utils/html-serializers";
 import { processEpubAssets } from "@/utils/epub-export/assets";
 import { isMeaningfulHtmlFragment } from "@/utils/epub-export/chaptering";
-import {
-  PDF_BASE_STYLES,
-  PDF_TOC_STYLES,
-  processCodeBlocks,
-} from "@/utils/pdf-html-builder";
+import { PDF_BASE_STYLES, PDF_TOC_STYLES, processCodeBlocks } from "@/utils/pdf-html-builder";
 import { getMarkdown } from "@/utils/markdown-helper";
-import {
-  TextReader,
-  Uint8ArrayWriter,
-  ZipWriter,
-  configure as configureZip,
-} from "@zip.js/zip.js";
+import { TextReader, Uint8ArrayWriter, ZipWriter, configure as configureZip } from "@zip.js/zip.js";
 
 /**
  * 整体导出选择树的节点（嵌套结构，直接映射 antd Tree）
@@ -51,11 +42,7 @@ export interface BatchExportTreeNode {
 }
 
 const escapeHtml = (value: string) =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 const sanitizeFileName = (value: string) => {
   const trimmed = (value || "").trim();
@@ -78,7 +65,7 @@ const hasMeaningfulContent = (content: Descendant[]): boolean => {
     return false;
   }
   const walk = (nodes: unknown[]): boolean =>
-    nodes.some((node) => {
+    nodes.some(node => {
       if (!node || typeof node !== "object") {
         return false;
       }
@@ -98,12 +85,8 @@ const hasMeaningfulContent = (content: Descendant[]): boolean => {
   return walk(content);
 };
 
-const convertProjectNode = (
-  node: ProjectTreeNode,
-  depth: number,
-): BatchExportTreeNode => {
-  const isDocumentItem =
-    node.item.projectItemType === EProjectItemType.Document;
+const convertProjectNode = (node: ProjectTreeNode, depth: number): BatchExportTreeNode => {
+  const isDocumentItem = node.item.projectItemType === EProjectItemType.Document;
   const hasContent = hasMeaningfulContent(node.item.content);
   const exportable = isDocumentItem && hasContent;
   return {
@@ -117,16 +100,11 @@ const convertProjectNode = (
         ? "无正文，不参与导出"
         : "引用类型条目，不参与导出",
     content: node.item.content || [],
-    children: node.children.map((child) =>
-      convertProjectNode(child, depth + 1),
-    ),
+    children: node.children.map(child => convertProjectNode(child, depth + 1)),
   };
 };
 
-const convertDocumentNode = (
-  node: DocumentTreeNode,
-  depth: number,
-): BatchExportTreeNode => {
+const convertDocumentNode = (node: DocumentTreeNode, depth: number): BatchExportTreeNode => {
   const hasContent = hasMeaningfulContent(node.item.content);
   return {
     id: node.item.id,
@@ -135,36 +113,32 @@ const convertDocumentNode = (
     exportable: hasContent,
     disabledReason: hasContent ? undefined : "无正文，不参与导出",
     content: node.item.content || [],
-    children: node.children.map((child) =>
-      convertDocumentNode(child, depth + 1),
-    ),
+    children: node.children.map(child => convertDocumentNode(child, depth + 1)),
   };
 };
 
 /**
  * 加载作用范围内的条目树（顺序 = 应用内展示的 DFS 顺序）
  */
-export const loadScopeTree = async (
-  scope: BatchExportScope,
-): Promise<BatchExportTreeNode[]> => {
+export const loadScopeTree = async (scope: BatchExportScope): Promise<BatchExportTreeNode[]> => {
   if (scope.type === "project") {
     const project = await getProjectById(scope.id);
     const itemMap = await loadProjectItemMap(project.children || []);
     const treeData = buildProjectTreeData(project, itemMap);
-    return treeData.nodes.map((node) => convertProjectNode(node, 0));
+    return treeData.nodes.map(node => convertProjectNode(node, 0));
   }
 
   const document = await getDocument(scope.id);
   const itemMap = await loadDocumentItemMap(document.children || []);
   const treeData = buildDocumentTreeData(document, itemMap);
-  return treeData.nodes.map((node) => convertDocumentNode(node, 0));
+  return treeData.nodes.map(node => convertDocumentNode(node, 0));
 };
 
 /** 收集树中所有可导出条目的 id（DFS 顺序） */
 export const collectExportableIds = (tree: BatchExportTreeNode[]): number[] => {
   const ids: number[] = [];
   const walk = (nodes: BatchExportTreeNode[]) => {
-    nodes.forEach((node) => {
+    nodes.forEach(node => {
       if (node.exportable) {
         ids.push(node.id);
       }
@@ -184,17 +158,15 @@ export const collectExportableIds = (tree: BatchExportTreeNode[]): number[] => {
  */
 export const flattenSelectedChapters = (
   tree: BatchExportTreeNode[],
-  selectedIds: Set<number>,
+  selectedIds: Set<number>
 ): BatchExportChapter[] => {
   const chapters: BatchExportChapter[] = [];
   const hasSelectedDescendant = (node: BatchExportTreeNode): boolean =>
     node.children.some(
-      (child) =>
-        (child.exportable && selectedIds.has(child.id)) ||
-        hasSelectedDescendant(child),
+      child => (child.exportable && selectedIds.has(child.id)) || hasSelectedDescendant(child)
     );
   const walk = (nodes: BatchExportTreeNode[]) => {
-    nodes.forEach((node) => {
+    nodes.forEach(node => {
       if (node.exportable && selectedIds.has(node.id)) {
         chapters.push({
           id: node.id,
@@ -222,7 +194,7 @@ const getChapterHeadingHtml = (
   title: string,
   depth: number,
   rule: BatchExportRule,
-  anchorId?: string,
+  anchorId?: string
 ) => {
   const level = Math.min(rule.headingLevel + depth, 6);
   const idAttr = anchorId ? ` id="${anchorId}"` : "";
@@ -235,11 +207,7 @@ const getChapterAnchorId = (index: number) => `batch-chapter-${index}`;
  * 批量构建的进度回调：processed/total 为本次构建内的处理单元数，
  * label 为正在处理的条目标题
  */
-export type BatchProgressListener = (
-  processed: number,
-  total: number,
-  label?: string,
-) => void;
+export type BatchProgressListener = (processed: number, total: number, label?: string) => void;
 
 /**
  * 构建正文开头的目录页：条目链接到章节标题锚点，
@@ -249,8 +217,7 @@ const buildPdfTocSection = (chapters: BatchExportChapter[]): string => {
   const items = chapters
     .map((chapter, index) => {
       const indent = (chapter.depth + 1) * 1.2;
-      const strongClass =
-        chapter.isGroup || chapter.depth === 0 ? " pdf-toc-item-top" : "";
+      const strongClass = chapter.isGroup || chapter.depth === 0 ? " pdf-toc-item-top" : "";
       return `<a class="pdf-toc-item${strongClass}" href="#${getChapterAnchorId(index)}" style="padding-left:${indent}em"><span class="pdf-toc-text">${escapeHtml(chapter.title)}</span><span class="pdf-toc-leader"></span></a>`;
     })
     .join("\n");
@@ -282,32 +249,19 @@ export const buildBatchPdfPayload = async (input: {
     if (chapter.isGroup) {
       if (input.rule.asHeading) {
         pendingGroupHeadings.push(
-          getChapterHeadingHtml(
-            chapter.title,
-            chapter.depth,
-            input.rule,
-            getChapterAnchorId(index),
-          ),
+          getChapterHeadingHtml(chapter.title, chapter.depth, input.rule, getChapterAnchorId(index))
         );
       }
       input.onProgress?.(index + 1, input.chapters.length);
       continue;
     }
-    const serialized = await htmlSerializerRegistry.serializeAsync(
-      chapter.content || [],
-      {
-        theme: "light",
-        tailwindCssCollector,
-      },
-    );
+    const serialized = await htmlSerializerRegistry.serializeAsync(chapter.content || [], {
+      theme: "light",
+      tailwindCssCollector,
+    });
     input.onProgress?.(index + 1, input.chapters.length, chapter.title);
     const heading = input.rule.asHeading
-      ? getChapterHeadingHtml(
-          chapter.title,
-          chapter.depth,
-          input.rule,
-          getChapterAnchorId(index),
-        )
+      ? getChapterHeadingHtml(chapter.title, chapter.depth, input.rule, getChapterAnchorId(index))
       : "";
     const body = pendingGroupHeadings.join("") + heading + serialized;
     pendingGroupHeadings = [];
@@ -316,19 +270,14 @@ export const buildBatchPdfPayload = async (input: {
     sections.push(
       input.rule.pageBreak && sections.length > 0
         ? `<section style="page-break-before: always;">${body}</section>`
-        : body,
+        : body
     );
   }
 
   // 目录页依赖章节标题锚点，仅在标题注入正文时可用
   const tocSection =
-    input.pdf?.tocPage && input.rule.asHeading
-      ? buildPdfTocSection(input.chapters)
-      : "";
-  const bodyHtml = processCodeBlocks(
-    tocSection + sections.join("\n"),
-    "adaptive",
-  );
+    input.pdf?.tocPage && input.rule.asHeading ? buildPdfTocSection(input.chapters) : "";
+  const bodyHtml = processCodeBlocks(tocSection + sections.join("\n"), "adaptive");
   const tailwindStyles = Array.from(new Set(tailwindCssCollector)).join("\n");
 
   return {
@@ -383,12 +332,9 @@ export const buildBatchEpubPayload = async (input: {
     }
 
     const chapterIndex = chapters.length;
-    const serialized = await htmlSerializerRegistry.serializeAsync(
-      chapter.content || [],
-      {
-        codeTheme: "github-light",
-      },
-    );
+    const serialized = await htmlSerializerRegistry.serializeAsync(chapter.content || [], {
+      codeTheme: "github-light",
+    });
     input.onProgress?.(index + 1, input.chapters.length, chapter.title);
     const groupHeadings = pendingGroups
       .map((group, groupIndex) =>
@@ -396,8 +342,8 @@ export const buildBatchEpubPayload = async (input: {
           group.title,
           group.depth,
           input.rule,
-          `epub-group-${chapterIndex}-${groupIndex}`,
-        ),
+          `epub-group-${chapterIndex}-${groupIndex}`
+        )
       )
       .join("");
     const heading = input.rule.asHeading
@@ -415,9 +361,7 @@ export const buildBatchEpubPayload = async (input: {
       navItems.push({
         title: group.title,
         chapterIndex,
-        anchor: input.rule.asHeading
-          ? `epub-group-${chapterIndex}-${groupIndex}`
-          : undefined,
+        anchor: input.rule.asHeading ? `epub-group-${chapterIndex}-${groupIndex}` : undefined,
         level: group.depth,
       });
     });
@@ -436,21 +380,15 @@ export const buildBatchEpubPayload = async (input: {
 
   // 空章节被过滤后重映射 nav 的章节下标
   const meaningfulIndexes = assetResult.chapters
-    .map((chapter, index) =>
-      isMeaningfulHtmlFragment(chapter.xhtml) ? index : -1,
-    )
-    .filter((index) => index >= 0);
-  const meaningfulChapters = meaningfulIndexes.map(
-    (index) => assetResult.chapters[index],
-  );
+    .map((chapter, index) => (isMeaningfulHtmlFragment(chapter.xhtml) ? index : -1))
+    .filter(index => index >= 0);
+  const meaningfulChapters = meaningfulIndexes.map(index => assetResult.chapters[index]);
   const chapterIndexRemap = new Map(
-    meaningfulIndexes.map((oldIndex, newIndex) => [oldIndex, newIndex]),
+    meaningfulIndexes.map((oldIndex, newIndex) => [oldIndex, newIndex])
   );
-  const meaningfulNavItems = navItems.flatMap((item) => {
+  const meaningfulNavItems = navItems.flatMap(item => {
     const mappedIndex = chapterIndexRemap.get(item.chapterIndex);
-    return mappedIndex === undefined
-      ? []
-      : [{ ...item, chapterIndex: mappedIndex }];
+    return mappedIndex === undefined ? [] : [{ ...item, chapterIndex: mappedIndex }];
   });
 
   const payload: EpubExportPayload = {
@@ -476,11 +414,7 @@ export const buildBatchEpubPayload = async (input: {
   return { payload, warnings: assetResult.warnings };
 };
 
-const getChapterHeadingMarkdown = (
-  title: string,
-  depth: number,
-  rule: BatchExportRule,
-) => {
+const getChapterHeadingMarkdown = (title: string, depth: number, rule: BatchExportRule) => {
   const level = Math.min(rule.headingLevel + depth, 6);
   return `${"#".repeat(level)} ${title}\n\n`;
 };
@@ -491,12 +425,12 @@ const getChapterHeadingMarkdown = (
  */
 export const buildMergedMarkdown = (
   chapters: BatchExportChapter[],
-  rule: BatchExportRule,
+  rule: BatchExportRule
 ): string => {
   // 分组条目仅用于 PDF 目录层级，Markdown 合并跳过空分组
   const parts = chapters
-    .filter((chapter) => !chapter.isGroup)
-    .map((chapter) => {
+    .filter(chapter => !chapter.isGroup)
+    .map(chapter => {
       const heading = rule.asHeading
         ? getChapterHeadingMarkdown(chapter.title, chapter.depth, rule)
         : "";
@@ -525,7 +459,7 @@ const createUniqueNamer = () => {
 export const buildMarkdownZipBytes = async (
   tree: BatchExportTreeNode[],
   selectedIds: Set<number>,
-  onProgress?: BatchProgressListener,
+  onProgress?: BatchProgressListener
 ): Promise<Uint8Array> => {
   configureZip({ useWebWorkers: false });
   const zipWriter = new ZipWriter(new Uint8ArrayWriter());
@@ -533,11 +467,9 @@ export const buildMarkdownZipBytes = async (
 
   const markIncludedNodes = (nodes: BatchExportTreeNode[]): boolean => {
     let hasIncludedNode = false;
-    nodes.forEach((node) => {
+    nodes.forEach(node => {
       const hasIncludedChild = markIncludedNodes(node.children);
-      const included = node.exportable
-        ? selectedIds.has(node.id)
-        : hasIncludedChild;
+      const included = node.exportable ? selectedIds.has(node.id) : hasIncludedChild;
       if (included) {
         includedNodeIds.add(node.id);
         hasIncludedNode = true;
@@ -550,18 +482,13 @@ export const buildMarkdownZipBytes = async (
   const countFiles = (nodes: BatchExportTreeNode[]): number =>
     nodes.reduce(
       (sum, node) =>
-        sum +
-        (includedNodeIds.has(node.id) && node.exportable ? 1 : 0) +
-        countFiles(node.children),
-      0,
+        sum + (includedNodeIds.has(node.id) && node.exportable ? 1 : 0) + countFiles(node.children),
+      0
     );
   const totalFiles = countFiles(tree);
   let processedFiles = 0;
 
-  const walk = async (
-    nodes: BatchExportTreeNode[],
-    dirSegments: string[],
-  ): Promise<void> => {
+  const walk = async (nodes: BatchExportTreeNode[], dirSegments: string[]): Promise<void> => {
     const uniqueDirName = createUniqueNamer();
     const uniqueFileName = createUniqueNamer();
 
@@ -573,10 +500,7 @@ export const buildMarkdownZipBytes = async (
       if (node.exportable) {
         const fileName = uniqueFileName(sanitizeFileName(node.title));
         const markdown = getMarkdown(node.content || []).trim() + "\n";
-        await zipWriter.add(
-          [...dirSegments, `${fileName}.md`].join("/"),
-          new TextReader(markdown),
-        );
+        await zipWriter.add([...dirSegments, `${fileName}.md`].join("/"), new TextReader(markdown));
         processedFiles += 1;
         onProgress?.(processedFiles, totalFiles, node.title);
       }

@@ -6,7 +6,7 @@ import {
   getAdjustedTreeInsertIndex,
   getMindMapTreeNodeId,
   isDescendantTreeNode,
-} from "@/pages/shared/mindMapTreeUtils";
+} from "@/utils/mindMapTreeUtils";
 
 export interface DocumentTreeNode {
   nodeId: string;
@@ -31,21 +31,21 @@ const BATCH_SIZE = 40;
 export const getDocumentTreeNodeId = getMindMapTreeNodeId;
 
 export const loadDocumentItemMap = async (
-  rootIds: number[],
+  rootIds: number[]
 ): Promise<Map<number, IDocumentItem>> => {
   const queue = [...new Set(rootIds)];
   const visited = new Set<number>();
   const itemMap = new Map<number, IDocumentItem>();
 
   while (queue.length > 0) {
-    const batch = queue.splice(0, BATCH_SIZE).filter((id) => !visited.has(id));
+    const batch = queue.splice(0, BATCH_SIZE).filter(id => !visited.has(id));
     if (batch.length === 0) continue;
 
-    batch.forEach((id) => visited.add(id));
+    batch.forEach(id => visited.add(id));
     const items = await getDocumentItemsByIds(batch);
-    items.forEach((item) => {
+    items.forEach(item => {
       itemMap.set(item.id, item);
-      item.children?.forEach((childId) => {
+      item.children?.forEach(childId => {
         if (!visited.has(childId)) {
           queue.push(childId);
         }
@@ -58,7 +58,7 @@ export const loadDocumentItemMap = async (
 
 export const buildDocumentTreeData = (
   document: IDocument,
-  itemMap: Map<number, IDocumentItem>,
+  itemMap: Map<number, IDocumentItem>
 ): DocumentTreeData => {
   const nodeMap = new Map<string, DocumentTreeNode>();
   const itemNodeMap = new Map<number, DocumentTreeNode[]>();
@@ -69,7 +69,7 @@ export const buildDocumentTreeData = (
     parentNodeId: string | undefined,
     parentChildren: number[],
     path: number[],
-    ancestors: Set<number>,
+    ancestors: Set<number>
   ): DocumentTreeNode | null => {
     if (ancestors.has(itemId)) return null;
     const item = itemMap.get(itemId);
@@ -90,14 +90,7 @@ export const buildDocumentTreeData = (
     };
     node.children = (item.children || [])
       .map((childId, index) =>
-        buildNode(
-          childId,
-          item.id,
-          nodeId,
-          item.children,
-          [...path, index],
-          nextAncestors,
-        ),
+        buildNode(childId, item.id, nodeId, item.children, [...path, index], nextAncestors)
       )
       .filter((child): child is DocumentTreeNode => Boolean(child));
     nodeMap.set(nodeId, node);
@@ -107,14 +100,7 @@ export const buildDocumentTreeData = (
 
   const nodes = (document.children || [])
     .map((itemId, index) =>
-      buildNode(
-        itemId,
-        document.id,
-        undefined,
-        document.children,
-        [index],
-        new Set(),
-      ),
+      buildNode(itemId, document.id, undefined, document.children, [index], new Set())
     )
     .filter((node): node is DocumentTreeNode => Boolean(node));
 
@@ -129,7 +115,7 @@ export const buildDocumentTreeData = (
 export const isDocumentDescendantNode = (
   treeData: DocumentTreeData,
   ancestorId: number,
-  maybeDescendantId: number,
+  maybeDescendantId: number
 ) => {
   return isDescendantTreeNode(treeData, ancestorId, maybeDescendantId);
 };

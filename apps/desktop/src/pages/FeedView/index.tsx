@@ -7,11 +7,8 @@ import FeedSidebar from "./components/FeedSidebar";
 import ArticleList from "./components/ArticleList";
 import ReadingPane from "./components/ReadingPane";
 import AddFeedDialog from "./components/AddFeedDialog";
-import InsertNoteToTreeModal from "@/pages/VibeLearningView/AppSidebar/components/InsertNoteToTreeModal";
-import {
-  isBilibiliVideoArticle,
-  resolveBilibiliVideoMetaInfo,
-} from "./utils/bilibiliVideoMeta";
+import InsertNoteToTreeModal from "@/components/InsertNoteToTreeModal";
+import { isBilibiliVideoArticle, resolveBilibiliVideoMetaInfo } from "./utils/bilibiliVideoMeta";
 
 const EMPTY_NOTE_CONTENT: Descendant[] = [];
 
@@ -19,14 +16,14 @@ const FeedView: React.FC = memo(() => {
   const state = useFeedViewState();
   const projectArticle = state.projectArticleToAdd;
   const bilibiliCredentials = useSettingStore(
-    (store) => store.setting.integration.bilibili.credentials,
+    store => store.setting.integration.bilibili.credentials
   );
   const shouldInsertAsBilibiliVideo = Boolean(
     projectArticle &&
     isBilibiliVideoArticle({
       url: projectArticle.url,
       content: projectArticle.content,
-    }),
+    })
   );
 
   return (
@@ -79,12 +76,8 @@ const FeedView: React.FC = memo(() => {
                 onDelete={state.deleteItem}
                 onAddToProject={state.addToProject}
                 onOpenProject={state.openProjectTarget}
-                showBilibiliFollowingsSubscribe={
-                  state.showBilibiliFollowingsSubscribe
-                }
-                onSubscribeBilibiliFollowings={
-                  state.subscribeBilibiliFollowings
-                }
+                showBilibiliFollowingsSubscribe={state.showBilibiliFollowingsSubscribe}
+                onSubscribeBilibiliFollowings={state.subscribeBilibiliFollowings}
               />
             }
             right={
@@ -97,10 +90,7 @@ const FeedView: React.FC = memo(() => {
           />
         }
       />
-      <AddFeedDialog
-        open={state.addDialogOpen}
-        onClose={() => state.setAddDialogOpen(false)}
-      />
+      <AddFeedDialog open={state.addDialogOpen} onClose={() => state.setAddDialogOpen(false)} />
       <InsertNoteToTreeModal
         mode="project"
         open={!!projectArticle}
@@ -126,7 +116,7 @@ const FeedView: React.FC = memo(() => {
                       url: projectArticle.url!,
                       content: projectArticle.content,
                     },
-                    bilibiliCredentials,
+                    bilibiliCredentials
                   );
                 },
               }
