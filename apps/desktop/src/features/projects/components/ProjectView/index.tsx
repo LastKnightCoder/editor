@@ -10,6 +10,7 @@ import { getProjectById } from "@/commands";
 import { Loader2 } from "lucide-react";
 import { usePage } from "@/page/PageProvider";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
+import { useCollapseSidebarOnEnter } from "@/app/shellStore";
 
 interface ProjectViewProps {
   projectId: number;
@@ -49,6 +50,13 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
     setContainerWidth(el.getBoundingClientRect().width);
     return () => observer.disconnect();
   }, [project]);
+
+  // 文档树项目：进入时全局侧栏收成图标列，文档树接替「侧栏」位置；离开不自动展开
+  const hasDocumentTree =
+    !!project &&
+    project.projectType !== EProjectType.DataTable &&
+    project.projectType !== EProjectType.VibeLearning;
+  useCollapseSidebarOnEnter(hasDocumentTree);
 
   // 在数据库连接或切换时加载项目
   useDatabaseChangeEffect(() => {
@@ -97,7 +105,8 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
     return <VibeLearningView projectId={projectId} />;
   }
 
-  // 文档树类型的项目渲染原有的布局
+  // 文档树类型的项目：文档树与正文同装一张抬起的纸面（纸外 = 应用导航，纸内 = 本项目），
+  // 靠纸面边缘与全局侧栏分界；纸内两栏同底，仅文档树右缘一条 1px 淡线兼作拖拽边界提示
   return (
     <ProjectContext.Provider
       value={{
@@ -109,8 +118,11 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
         clearDocumentAction,
       }}
     >
-      <div ref={containerRef} className="flex h-full w-full">
-        <div className="border-line-1 h-full overflow-hidden border-r">
+      <div
+        ref={containerRef}
+        className="tau-sheet bg-surface shadow-card rounded-tau-lg relative mb-2.5 mr-2.5 flex h-[calc(100%-10px)] overflow-hidden"
+      >
+        <div className="h-full overflow-hidden">
           <ProjectList />
         </div>
 

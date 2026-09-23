@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useRef, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useMemo, useState } from "react";
 import { Descendant, Range, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
-import { useEdgeFade } from "@tau/ui";
-import { usePageStatusBar } from "@/page/PageProvider";
+import { cn, useEdgeFade } from "@tau/ui";
 import { useProjectContext } from "../ProjectContext";
 import useEdit from "./useEdit";
 import { formatDate, defaultProjectItemEventBus } from "@/utils";
@@ -30,8 +29,7 @@ import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import { createProjectCardListExtension } from "@/editor-extensions";
 
-const DOCUMENT_COLUMNS =
-  "@[960px]/editor:grid-cols-[minmax(0,720px)_208px] grid grid-cols-[minmax(0,720px)] items-start justify-center gap-7 px-6";
+const DOCUMENT_COLUMNS = "grid grid-cols-[minmax(0,720px)] items-start justify-center gap-7 px-6";
 
 const cloneRange = (selection: Range | null): Range | null => {
   if (!selection) return null;
@@ -54,6 +52,17 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   const { documentAction, clearDocumentAction } = useProjectContext();
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
+  const [outlineScrollEl, setOutlineScrollEl] = useState<HTMLDivElement | null>(null);
+  useEdgeFade(outlineScrollEl);
+  const [outlineMaxHeight, setOutlineMaxHeight] = useState<number>();
+  useLayoutEffect(() => {
+    if (!scrollEl) return;
+    const updateHeight = () => setOutlineMaxHeight(Math.max(0, scrollEl.clientHeight - 40));
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(scrollEl);
+    return () => observer.disconnect();
+  }, [scrollEl]);
   const immersiveEntrySelectionRef = useRef<Range | null>(null);
   const pendingSelectionRef = useRef<Range | null>(null);
   const titleRef = useRef<EditTextHandle>(null);
@@ -143,18 +152,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     clearDocumentAction?.();
   }, [documentAction, projectItem, projectItemId, clearDocumentAction, handleEnterImmersiveMode]);
 
-  const wordCount = projectItem?.count;
-  const statusBarNode = useMemo(
-    () =>
-      wordCount !== undefined ? (
-        <div className="text-tau-sm text-ink-3 flex flex-1 justify-end tabular-nums">
-          {wordCount.toLocaleString("zh-CN")} 字
-        </div>
-      ) : null,
-    [wordCount]
-  );
-  usePageStatusBar("project-detail", statusBarNode);
-
   const headers = useMemo(
     () => extractContentHeaders(projectItem?.content),
     [projectItem?.content]
@@ -194,9 +191,19 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   if (!projectItem) return null;
 
   return (
-    <div className="@container/editor relative h-full pr-4">
-      <div ref={setScrollEl} className="edge-fade-scroll h-full overflow-y-auto">
-        <div className={`${DOCUMENT_COLUMNS} pb-8 pt-5`}>
+    // py-4：滚动视口与纸面上下缘留出圆角半径的间距，正文滚动时在视口边缘渐隐，不贴卡片边缘裁切
+    <div className="@container/editor relative h-full py-4 pr-4">
+      <div
+        ref={setScrollEl}
+        className="edge-fade-scroll tau-sheet-scroll h-full overflow-y-auto [--edge-fade-bottom-size:24px] [--edge-fade-top-size:24px]"
+      >
+        <div
+          className={cn(
+            DOCUMENT_COLUMNS,
+            "pt-5",
+            headers.length > 0 && "@[960px]/editor:grid-cols-[minmax(0,720px)_208px]"
+          )}
+        >
           <article className="min-w-0">
             <header className="min-w-0">
               <div className={`mb-5 border-b ${borderClass} pb-2.5 text-[2.2em] font-bold`}>
@@ -218,6 +225,8 @@ const EditProjectItem = (props: { projectItemId: number }) => {
               <div className="mb-6 flex gap-2.5 text-[0.9em] opacity-80">
                 <div>创建于 {formatDate(projectItem.createTime, true)}</div>
                 <div>最后修改于 {formatDate(projectItem.updateTime, true)}</div>
+                {/* 字数属于文档本身，随信息行走（项目详情不设底部状态栏） */}
+                <div className="tabular-nums">{projectItem.count.toLocaleString("zh-CN")} 字</div>
               </div>
             </header>
             <EditCardContext.Provider
@@ -239,9 +248,20 @@ const EditProjectItem = (props: { projectItemId: number }) => {
               </ErrorBoundary>
             </EditCardContext.Provider>
           </article>
-          <div className="@[960px]/editor:block sticky top-5 hidden">
-            <ContentOutline headers={headers} scrollEl={scrollEl} resolveAnchor={resolveAnchor} />
-          </div>
+          {headers.length > 0 && (
+            <div
+              ref={setOutlineScrollEl}
+              className="@[960px]/editor:block edge-fade-scroll sticky top-5 hidden overflow-y-auto overscroll-y-contain"
+              style={{ maxHeight: outlineMaxHeight }}
+            >
+              <ContentOutline
+                headers={headers}
+                scrollEl={scrollEl}
+                resolveAnchor={resolveAnchor}
+                className="w-full"
+              />
+            </div>
+          )}
         </div>
       </div>
       <ContentCollaborationControl
