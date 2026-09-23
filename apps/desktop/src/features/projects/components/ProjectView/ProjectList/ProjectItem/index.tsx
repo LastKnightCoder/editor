@@ -86,6 +86,7 @@ import whiteBoardIcon from "@/assets/icons/white-board.svg";
 
 import EditText, { EditTextHandle } from "@/components/EditText";
 import { useProjectContext } from "../../ProjectContext";
+import { usePage } from "@/page/PageProvider";
 import { useThemeColors } from "@/hooks";
 import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
 import BilibiliVideoSelectModal from "@/components/BilibiliVideoSelectModal";
@@ -177,7 +178,8 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const projectItemEventBus = useCreation(() => defaultProjectItemEventBus.createEditor(), []);
   const uploadResource = useUploadResource();
 
-  const { projectId, itemId, setActiveItemId } = useProjectContext();
+  const { projectId, itemId } = useProjectContext();
+  const { navigator } = usePage();
   const databaseName = useSettingStore.getState().setting.database.active;
   const { hoverClass, activeClass, borderClass } = useThemeColors();
 
@@ -827,7 +829,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           onClick={async () => {
             const activeProjectItem = await getProjectItemById(projectItem.id);
             if (!activeProjectItem) return;
-            setActiveItemId?.(projectItem.id);
+            navigator.push("project-detail", { id: projectId, itemId: projectItem.id });
           }}
         >
           <div className="flex min-h-[30px] min-w-0 flex-1 items-center gap-[8px] overflow-hidden">
