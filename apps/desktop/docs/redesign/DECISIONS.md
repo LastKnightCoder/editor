@@ -279,3 +279,10 @@
 - chat 归位 feature
 - settings 拆解（15 子页）
 - home 首页看板
+
+## D-029 Segmented 连体描边定稿与嵌入模型子页落地（凹槽深底否决）
+
+- 背景：嵌入模型子页设计稿（mockups/settings/embedding-designs.html，2026-09-23）三案裁决取案 1 分段，首版形制为 macOS 式凹槽（bg-sunken 轨道 + surface 胶囊滑块）；用户否决深底轨道，要求先落通用组件（mockups/segmented/index.html）再消费。
+- 选择（通用组件）：① **形制 = 连体描边（Input 方案 A 家族语言）**——容器是一枚 hairline 控件（surface + line-1 描边 · radius 8，与 Input / Select 触发器同皮），段间 hairline 分割（`[&+&]:border-l`），激活段 = accent-soft 轻染 + accent-text 600（与侧栏选中项 bg-selected 同一「轻染不是浮起」语言）；零轨道、零滑块、零投影。hover 淡墨只落未选段（`hover:[&:not(:has(:checked))]` 任意变体保确定性）、press bg-press、focus-visible 才显 ring（inset 2px peer 锚 span，不被容器圆角裁切）；② **API = 复合组件** `Segmented`（`label` → aria-label 组名必填、不渲染可见标签；value/defaultValue/onValueChange 受控契约；`size: sm 28 | md 34(radius 9)`；`name` useId）+ `Segmented.Item`（value/label/icon/disabled，label 省略即纯图标段、aria-label 必填）；原生 input[type=radio] 承载语义——Tab 一次进组、方向键移动即选择（roving）白送（D-026 Radio 同构）；无 loading/error 态（即时形态切换，非表单输入）；③ **分界口径**（02 §5.2 的落地细化）：形态切换（字段不同构）用分段、值切换（字段同构）用 Select——同步/资源/发布三子页的 Select 溶解与之互补；段数 2–5，再多该用 Select。形制对照「分离胶囊」留 mockups/segmented/ 对照区（未采）。
+- 嵌入模型子页（mockups/settings/embedding-plans.html 定稿，`sections/EmbeddingSection.tsx`）：分段 = 模型来源（embeddingProvider.currentConfigId 单选，本地 ⇄ API 互斥）；本地态 = 运行环境（下载源 / 设备策略 / 批大小）+ 本地模型（下载进度/取消、启用确认 + 健康预热、删除、健康检查 Dialog 展示）；API 态 = Provider 配置（新增/编辑 Dialog：名称 · API Key · Base URL；激活；删除）+ 模型登记（名称/描述/维度/多模态/距离，维度变更 Toast 提示自动重建索引）；检索模型节独立于来源、常驻切换区之外（Query Expander / Reranker 双开关 + 下载源/设备/批大小 + 扩展/重排行）。三类切换（本地⇄API / Provider 激活 / 模型启用）均 ConfirmDialog 确认「后台自动重建向量索引」；即时保存（无应答区）；本地配置常驻兜底逻辑随页迁移（首开补建 LOCAL_CONFIG_ID）。命令族全量复用 embedding-model / search-model，无新主进程代码。
+- 验证：`segmented.test.tsx` 7 例（组语义 aria-label/同 name/受控互斥 · 非受控 · 连体描边/分割线/轻染/hover-not-checked/ring 锚类 · 单项/组级禁用 · md 档 · 图标段与纯图标段）；ui 包既有 171 例回归全绿；apps/desktop tsc 0 错误；样板间 Choice 档案增 Segmented 展区（registry label 更新）。设置两份 mockup（embedding-designs / embedding-plans）已同步连体描边皮肤与追记。
