@@ -8,7 +8,7 @@ import { ChevronDown, ChevronsLeft } from "lucide-react";
 import clsx from "clsx";
 import { isMac } from "@/platform";
 import { usePage } from "@/page/PageProvider";
-import { useEdgeFade, IconButton } from "@tau/ui";
+import { useEdgeFade, IconButton, Tooltip } from "@tau/ui";
 import logo from "@/assets/logo.png";
 import { useShellStore } from "./shellStore";
 import { useSettingsStore } from "./settingsStore";
@@ -73,19 +73,21 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
             <span className="text-tau-body-lg font-semibold">Tau</span>
           </span>
         )}
-        <IconButton
-          // 头部容器是窗口拖拽区，按钮必须 no-drag 让位，否则点击被拖拽劫持
-          className={clsx("app-region-no-drag size-[27px]", collapsed ? "ml-0" : "ml-auto")}
-          onClick={toggle}
-          title={collapsed ? "展开侧边栏" : "收起侧边栏"}
-          aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
-        >
-          <ChevronsLeft
-            size={16}
-            strokeWidth={1.75}
-            style={collapsed ? { transform: "scaleX(-1)" } : undefined}
-          />
-        </IconButton>
+        <Tooltip content="展开侧边栏" placement="right" disabled={!collapsed}>
+          <IconButton
+            // 头部容器是窗口拖拽区，按钮必须 no-drag 让位，否则点击被拖拽劫持
+            className={clsx("app-region-no-drag size-[27px]", collapsed ? "ml-0" : "ml-auto")}
+            onClick={toggle}
+            title={collapsed ? undefined : "收起侧边栏"}
+            aria-label={collapsed ? "展开侧边栏" : "收起侧边栏"}
+          >
+            <ChevronsLeft
+              size={16}
+              strokeWidth={1.75}
+              style={collapsed ? { transform: "scaleX(-1)" } : undefined}
+            />
+          </IconButton>
+        </Tooltip>
       </div>
 
       {/* 滚动收口在导航列表：头部 logo 区与底部设置不随滚动；边缘渐隐（base.css
@@ -180,7 +182,7 @@ function NavItemButton({
   onClick: () => void;
 }) {
   const ItemIcon = item.icon;
-  return (
+  const button = (
     <button
       type="button"
       className={clsx(
@@ -197,12 +199,18 @@ function NavItemButton({
           : "text-ink-2 hover:bg-hover hover:text-ink-1"
       )}
       onClick={onClick}
-      title={item.label}
+      title={collapsed ? undefined : item.label}
+      aria-label={item.label}
     >
       {/* 图标随字号档位（em）：17px 锚定 fontSize 16 的既有观感，大字号下不被文字甩开 */}
       <ItemIcon className="shrink-0" size="1.06em" strokeWidth={1.75} />
       {/* 窄态（最小 120px）下长标签溢出省略，悬停 title 可见全名 */}
       {!collapsed && <span className="min-w-0 truncate">{item.label}</span>}
     </button>
+  );
+  return (
+    <Tooltip content={item.label} placement="right" disabled={!collapsed}>
+      {button}
+    </Tooltip>
   );
 }
