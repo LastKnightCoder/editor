@@ -1,5 +1,6 @@
 import { ReactNode, useMemo, useState } from "react";
-import { App, MenuProps } from "antd";
+import { ConfirmDialog } from "@tau/ui";
+import type { MenuProps } from "antd";
 import { produce } from "immer";
 
 import ContentExportModal from "@/components/ContentExportModal";
@@ -88,7 +89,6 @@ export const useProjectItemMoreActions = (
   const panes = useTabStore(state => state.panes);
   const activePaneId = useTabStore(state => state.activePaneId);
   const projectItemEventBus = useMemo(() => defaultProjectItemEventBus.createEditor(), []);
-  const { modal } = App.useApp();
   const { createWhiteBoard } = useWhiteBoardStore(state => ({
     createWhiteBoard: state.createWhiteBoard,
   }));
@@ -131,12 +131,15 @@ export const useProjectItemMoreActions = (
       },
     });
 
-  const handleRemoveProjectItem = useMemoizedFn(async () => {
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+  const handleRemoveProjectItem = useMemoizedFn(() => {
     if (!projectItem) return;
-    modal.confirm({
-      title: "删除项目文档",
-      content: "确定删除该项目文档吗？",
-      onOk: async () => {
+    setRemoveConfirmOpen(true);
+  });
+  const handleRemoveProjectItemConfirm = useMemoizedFn(async () => {
+    if (!projectItem) return;
+    {
+      {
         if (isRoot) {
           await removeRootProjectItem(projectId, projectItem.id);
           refreshProject?.();
@@ -157,13 +160,8 @@ export const useProjectItemMoreActions = (
             itemId: undefined,
           });
         }
-      },
-      okText: "确定",
-      cancelText: "取消",
-      okButtonProps: {
-        danger: true,
-      },
-    });
+      }
+    }
   });
 
   const handleEditTitleConfirm = useMemoizedFn(async (result: { title: string }) => {
@@ -331,6 +329,18 @@ export const useProjectItemMoreActions = (
 
   const moreActionModals = (
     <>
+      <ConfirmDialog
+        open={removeConfirmOpen}
+        onOpenChange={setRemoveConfirmOpen}
+        title="删除项目文档"
+        description="确定删除该项目文档吗？"
+        danger
+        confirmText="确定"
+        onConfirm={async () => {
+          setRemoveConfirmOpen(false);
+          await handleRemoveProjectItemConfirm();
+        }}
+      />
       <EditTitleModal
         open={editTitleModalOpen}
         onCancel={() => setEditTitleModalOpen(false)}

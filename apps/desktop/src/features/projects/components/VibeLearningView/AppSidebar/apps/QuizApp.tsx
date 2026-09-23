@@ -1,6 +1,5 @@
 import { memo, useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { App } from "antd";
 import {
   ArrowLeft,
   Plus,
@@ -25,7 +24,7 @@ import { formatDate } from "@/utils";
 import QuizGenerateModal from "./QuizGenerateModal";
 import QuizTestModal from "./QuizTestModal";
 import QuizEditModal from "./QuizEditModal";
-import { toast } from "@tau/ui";
+import { toast, ConfirmDialog } from "@tau/ui";
 
 interface QuizAppProps {
   projectId: number;
@@ -35,7 +34,6 @@ interface QuizAppProps {
 
 const QuizApp = memo((props: QuizAppProps) => {
   const { projectId, mainDbName, onBack } = props;
-  const { modal } = App.useApp();
   const themeColors = useThemeColors();
 
   const {
@@ -112,22 +110,9 @@ const QuizApp = memo((props: QuizAppProps) => {
   });
 
   // 删除测验集
+  const [deleteQuizSetConfirm, setDeleteQuizSetConfirm] = useState<VLQuizSet | null>(null);
   const handleDeleteQuizSet = useMemoizedFn((quizSet: VLQuizSet) => {
-    modal.confirm({
-      title: "删除测验集",
-      content: `确定要删除"${quizSet.name}"吗？相关的测验记录也会被删除。`,
-      okText: "删除",
-      cancelText: "取消",
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await deleteQuizSet(quizSet.id);
-          toast.success("测验集已删除");
-        } catch (error) {
-          toast.error("删除失败");
-        }
-      },
-    });
+    setDeleteQuizSetConfirm(quizSet);
   });
 
   // 查看测验记录
@@ -431,6 +416,32 @@ const QuizApp = memo((props: QuizAppProps) => {
 
       {/* 编辑弹窗 */}
       <QuizEditModal open={showEditModal} quizSet={selectedQuizSet} onClose={handleCloseEdit} />
+
+      <ConfirmDialog
+        open={deleteQuizSetConfirm !== null}
+        onOpenChange={next => {
+          if (!next) setDeleteQuizSetConfirm(null);
+        }}
+        title="删除测验集"
+        description={
+          deleteQuizSetConfirm
+            ? `确定要删除"${deleteQuizSetConfirm.name}"吗？相关的测验记录也会被删除。`
+            : ""
+        }
+        danger
+        confirmText="删除"
+        onConfirm={async () => {
+          const quizSet = deleteQuizSetConfirm;
+          setDeleteQuizSetConfirm(null);
+          if (!quizSet) return;
+          try {
+            await deleteQuizSet(quizSet.id);
+            toast.success("测验集已删除");
+          } catch (error) {
+            toast.error("删除失败");
+          }
+        }}
+      />
     </div>
   );
 });

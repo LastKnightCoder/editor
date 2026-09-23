@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Volume2, Loader2, Zap } from "lucide-react";
 import { FileText, Pencil, ChevronDown, Sparkles } from "lucide-react";
-import { App } from "antd";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import classNames from "classnames";
 import { Descendant } from "slate";
@@ -43,7 +42,7 @@ import AudioPlayer from "./components/AudioPlayer";
 import ChaptersPanel from "./components/ChaptersPanel";
 import useSettingStore from "@/stores/useSettingStore";
 import { AudioNote, AudioNoteItem, TranscriptSegment, AudioChapter } from "@/types";
-import { toast } from "@tau/ui";
+import { toast, ConfirmDialog } from "@tau/ui";
 import {
   VIDEO_NOTE_AUTO_LANGUAGE,
   resolveVideoNoteOptimizationLanguage,
@@ -68,7 +67,6 @@ interface AudioNoteViewProps {
 }
 
 const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewProps) => {
-  const { modal } = App.useApp();
   const { setting } = useSettingStore(s => ({ setting: s.setting }));
   const themeColors = useThemeColors();
 
@@ -243,21 +241,15 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
     return () => document.removeEventListener("mousedown", handleClick);
   }, [showLanguageMenu]);
 
+  const [llmConfirm, setLlmConfirm] = useState<null | { errorMessage: string }>(null);
+
   // Transcription
   const handleStartTranscription = useMemoizedFn(async () => {
     if (!audioNote) return;
 
     const llmRequirement = checkTranscriptionLLMRequirement();
     if (llmRequirement.needsLLM && !llmRequirement.isConfigured) {
-      modal.confirm({
-        title: "LLM 优化配置不完整",
-        content: `${llmRequirement.errorMessage}。是否打开设置页面进行配置？`,
-        okText: "打开设置",
-        cancelText: "取消转录",
-        onOk: () => {
-          openSettingsModal("llm");
-        },
-      });
+      setLlmConfirm({ errorMessage: llmRequirement.errorMessage ?? "LLM 配置不完整" });
       return;
     }
 
@@ -939,6 +931,20 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
           }
         />
       </div>
+      <ConfirmDialog
+        open={llmConfirm !== null}
+        onOpenChange={next => {
+          if (!next) setLlmConfirm(null);
+        }}
+        title="LLM 优化配置不完整"
+        description={llmConfirm ? `${llmConfirm.errorMessage}。是否打开设置页面进行配置？` : ""}
+        confirmText="打开设置"
+        cancelText="取消转录"
+        onConfirm={() => {
+          setLlmConfirm(null);
+          openSettingsModal("llm");
+        }}
+      />
     </div>
   );
 };

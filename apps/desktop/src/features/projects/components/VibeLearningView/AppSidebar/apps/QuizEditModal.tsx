@@ -14,14 +14,13 @@ import {
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
-import { App } from "antd";
 
 import CustomModal from "@/components/CustomModal";
 import useVLQuizStore from "@/stores/useVLQuizStore";
 import type { VLQuizSet, VLQuizItem, UpdateVLQuizItemInput } from "@/types";
 import type { FlashcardOption } from "@/types/flashcard";
 import { FLASHCARD_TYPE_META, extractPlainText } from "@/utils/flashcard";
-import { toast } from "@tau/ui";
+import { toast, ConfirmDialog } from "@tau/ui";
 
 interface QuizEditModalProps {
   open: boolean;
@@ -31,7 +30,6 @@ interface QuizEditModalProps {
 
 const QuizEditModal = memo((props: QuizEditModalProps) => {
   const { open, quizSet, onClose } = props;
-  const { modal } = App.useApp();
 
   const {
     itemsByQuizSet,
@@ -98,26 +96,9 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
   });
 
   // 删除题目
+  const [deleteItemConfirm, setDeleteItemConfirm] = useState<VLQuizItem | null>(null);
   const handleDeleteItem = useMemoizedFn((item: VLQuizItem) => {
-    modal.confirm({
-      title: "删除题目",
-      content: "确定要删除这道题目吗？此操作无法撤销。",
-      okText: "删除",
-      cancelText: "取消",
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await deleteItem(item.id);
-          toast.success("题目已删除");
-          // 刷新测验集列表以更新题目数量
-          if (currentProjectId) {
-            fetchQuizSets(currentProjectId);
-          }
-        } catch (error) {
-          toast.error("删除失败");
-        }
-      },
-    });
+    setDeleteItemConfirm(item);
   });
 
   // 展开/收起题目
@@ -286,6 +267,32 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteItemConfirm !== null}
+        onOpenChange={next => {
+          if (!next) setDeleteItemConfirm(null);
+        }}
+        title="删除题目"
+        description="确定要删除这道题目吗？此操作无法撤销。"
+        danger
+        confirmText="删除"
+        onConfirm={async () => {
+          const item = deleteItemConfirm;
+          setDeleteItemConfirm(null);
+          if (!item) return;
+          try {
+            await deleteItem(item.id);
+            toast.success("题目已删除");
+            // 刷新测验集列表以更新题目数量
+            if (currentProjectId) {
+              fetchQuizSets(currentProjectId);
+            }
+          } catch (error) {
+            toast.error("删除失败");
+          }
+        }}
+      />
     </CustomModal>
   );
 });

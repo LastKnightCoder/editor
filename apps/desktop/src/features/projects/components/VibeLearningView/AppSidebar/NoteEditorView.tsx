@@ -2,7 +2,6 @@ import { isElectron } from "@/electron";
 import { useHtmlPreviewUrl } from "@/utils/html-preview";
 import { memo, useEffect, useRef, useState, useMemo } from "react";
 import { Descendant } from "slate";
-import { App } from "antd";
 import {
   ArrowLeft,
   MoreHorizontal,
@@ -48,7 +47,7 @@ import useTabStore from "@/stores/useTabStore";
 import useEditContent from "@/hooks/useEditContent";
 import useOutlineGenerationStore from "@/stores/useOutlineGenerationStore";
 import { TabType } from "@/types/tab";
-import { toast } from "@tau/ui";
+import { toast, ConfirmDialog } from "@tau/ui";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -106,7 +105,6 @@ interface NoteEditorViewProps {
 const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const { projectId, mainDbName, note, onBack, onNoteSaved, onResourcesChange } = props;
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
-  const { modal } = App.useApp();
   const openInNewTab = useTabStore(state => state.openInNewTab);
 
   // 大纲生成状态
@@ -438,29 +436,13 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   });
 
   // 删除笔记
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const handleDelete = useMemoizedFn(() => {
     if (!currentNote) {
       onBack();
       return;
     }
-
-    modal.confirm({
-      title: "删除笔记",
-      content: "确定要删除该笔记吗？",
-      okText: "确定",
-      cancelText: "取消",
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await deleteVLNote(currentNote.id);
-          toast.success("笔记已删除");
-          onBack();
-        } catch (error) {
-          console.error("Failed to delete note:", error);
-          toast.error("删除笔记失败");
-        }
-      },
-    });
+    setDeleteConfirmOpen(true);
   });
 
   // 切换全屏显示
@@ -1210,6 +1192,26 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         sourceContentId={contentId}
         onCancel={() => setInsertDocumentModalOpen(false)}
         onSuccess={() => setInsertDocumentModalOpen(false)}
+      />
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="删除笔记"
+        description="确定要删除该笔记吗？删除后无法恢复。"
+        danger
+        confirmText="删除"
+        onConfirm={async () => {
+          if (!currentNote) return;
+          setDeleteConfirmOpen(false);
+          try {
+            await deleteVLNote(currentNote.id);
+            toast.success("笔记已删除");
+            onBack();
+          } catch (error) {
+            console.error("Failed to delete note:", error);
+            toast.error("删除笔记失败");
+          }
+        }}
       />
     </div>
   );
