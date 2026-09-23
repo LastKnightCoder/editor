@@ -7,6 +7,8 @@ import type { LucideIcon } from "lucide-react";
 import {
   Bell,
   CalendarDays,
+  CircleDot,
+  Columns3,
   TextCursorInput,
   LayoutGrid,
   ListChecks,
@@ -17,8 +19,10 @@ import {
   PanelTop,
   RectangleHorizontal,
   Ruler,
+  SquareCheck,
   SquarePlus,
   Tag as TagIcon,
+  ToggleLeft,
   MessagesSquare,
 } from "lucide-react";
 
@@ -26,7 +30,10 @@ import ButtonSection from "./ButtonSection";
 import IconButtonSection from "./IconButtonSection";
 import SelectSection from "./SelectSection";
 import InputSection from "./InputSection";
-import ChoiceSection from "./ChoiceSection";
+import CheckboxSection from "./CheckboxSection";
+import SwitchSection from "./SwitchSection";
+import RadioSection from "./RadioSection";
+import SegmentedSection from "./SegmentedSection";
 import DatePickerSection from "./DatePickerSection";
 import MenuSection from "./MenuSection";
 import DialogSection from "./DialogSection";
@@ -67,11 +74,20 @@ export const SECTIONS: SectionMeta[] = [
   { key: "select", label: "Select", group: "基础件", icon: ListChecks, component: SelectSection },
   { key: "input", label: "Input", group: "基础件", icon: TextCursorInput, component: InputSection },
   {
-    key: "choice",
-    label: "Checkbox · Switch · Radio",
+    key: "checkbox",
+    label: "Checkbox",
     group: "基础件",
-    icon: ListChecks,
-    component: ChoiceSection,
+    icon: SquareCheck,
+    component: CheckboxSection,
+  },
+  { key: "switch", label: "Switch", group: "基础件", icon: ToggleLeft, component: SwitchSection },
+  { key: "radio", label: "Radio", group: "基础件", icon: CircleDot, component: RadioSection },
+  {
+    key: "segmented",
+    label: "Segmented",
+    group: "基础件",
+    icon: Columns3,
+    component: SegmentedSection,
   },
   { key: "tag", label: "Tag", group: "基础件", icon: TagIcon, component: TagSection },
   {
