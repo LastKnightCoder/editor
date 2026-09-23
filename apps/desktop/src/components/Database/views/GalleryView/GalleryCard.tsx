@@ -56,7 +56,7 @@ const GalleryCard: React.FC<GalleryCardProps> = memo(
 
     return (
       <div
-        className="bg-surface shadow-card rounded-tau-md ease-tau-out hover:shadow-float group relative flex h-[240px] cursor-pointer flex-col overflow-hidden transition-shadow duration-[160ms]"
+        className="bg-surface shadow-card rounded-tau-md ease-tau-out hover:shadow-lift group relative flex h-[240px] cursor-pointer flex-col overflow-hidden transition-shadow duration-[160ms]"
         onClick={onClick}
       >
         {/* hover 浮出的删除钮：毛玻璃白底保证在任意封面上可读，中性色出现、
