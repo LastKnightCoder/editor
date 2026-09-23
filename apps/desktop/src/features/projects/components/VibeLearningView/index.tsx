@@ -2,9 +2,7 @@ import { memo, useState, useRef } from "react";
 import { Empty, Spin, message } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
-import useTabParams from "@/hooks/useTabParams";
 import useSettingStore from "@/stores/useSettingStore";
-import { TabType } from "@/types/tab";
 import { getProjectById } from "@/commands";
 import { getVLResourcesByProjectId } from "@/commands/vibe-learning";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
@@ -19,10 +17,11 @@ import ResourcePanel from "./ResourcePanel";
 import ChatPanel from "./ChatPanel";
 import AppSidebar, { type AppSidebarRef } from "./AppSidebar";
 
-const VibeLearningViewContent = memo(() => {
-  const { id } = useTabParams(TabType.ProjectDetail);
-  const projectId = Number(id);
+interface VibeLearningViewProps {
+  projectId: number;
+}
 
+const VibeLearningViewContent = memo(({ projectId }: VibeLearningViewProps) => {
   const mainDbName = useSettingStore(state => state.setting.database.active);
   const { state: previewState } = useBlockPreview();
 
@@ -162,10 +161,10 @@ const VibeLearningViewContent = memo(() => {
   );
 });
 
-const VibeLearningView = memo(() => {
+const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
   return (
     <BlockPreviewProvider>
-      <VibeLearningViewContent />
+      <VibeLearningViewContent projectId={projectId} />
     </BlockPreviewProvider>
   );
 });

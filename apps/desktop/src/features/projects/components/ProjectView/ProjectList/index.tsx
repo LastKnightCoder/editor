@@ -8,7 +8,6 @@ import {
 } from "@ant-design/icons";
 import { ChevronDown } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
-import useTabParams from "@/hooks/useTabParams";
 import useThemeColors from "@/hooks/useThemeColors";
 import useTabStore from "@/stores/useTabStore";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
@@ -89,7 +88,7 @@ const Project = () => {
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const { message } = App.useApp();
   const uploadResource = useUploadResource();
-  const { id, itemId } = useTabParams(TabType.ProjectDetail);
+  const { projectId: id, itemId } = useProjectContext();
   const navigateTo = useTabStore(state => state.navigateTo);
   const { setting } = useSettingStore(state => ({ setting: state.setting }));
   const databaseName = setting.database.active;
