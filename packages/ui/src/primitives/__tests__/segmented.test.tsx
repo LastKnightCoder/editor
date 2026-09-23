@@ -105,6 +105,8 @@ describe("Segmented", () => {
     expect(group.className).toContain("rounded-tau-sm");
     const labels = [...h.container.querySelectorAll("label")];
     expect(labels[1].className).toContain("[&+&]:border-l"); // 段间 hairline 分割
+    expect(labels[0].className).toContain("first:rounded-l-[7px]"); // 首末段内圆角贴容器
+    expect(labels[0].className).toContain("last:rounded-r-[7px]");
     expect(labels[0].className).toContain("has-[:checked]:bg-accent-soft"); // 激活轻染
     expect(labels[0].className).toContain("has-[:checked]:text-accent-text");
     expect(labels[0].className).toContain("has-[:checked]:font-semibold");
@@ -150,6 +152,7 @@ describe("Segmented", () => {
     const label = h.container.querySelector("label")!;
     expect(label.className).toContain("h-[32px]");
     expect(label.className).toContain("text-tau-meta");
+    expect(label.className).toContain("first:rounded-l-[8px]"); // md 档内圆角随容器 9px
   });
 
   it("图标段与纯图标段：lucide 渲染、纯图标收窄内衬且 aria-label 透传", () => {

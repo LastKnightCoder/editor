@@ -124,12 +124,15 @@ export function SegmentedItem({
         "text-ink-2 text-tau-sm relative inline-flex h-[26px] cursor-pointer items-center gap-1.5 px-[14px] font-medium",
         "ease-tau-out select-none transition-[background-color,color] duration-[160ms]",
         "border-line-1 [&+&]:border-l",
+        // 首末段内圆角贴容器（外 radius 8/9 − 1px 描边）：激活染/hover 底不溢出圆角
+        "first:rounded-l-[7px] last:rounded-r-[7px]",
         // hover/press 只落未选段：激活染不被冲淡（checked 判定走 :has，任意变体保序确定）
         "hover:[&:not(:has(:checked))]:bg-hover hover:[&:not(:has(:checked))]:text-ink-1",
         "active:[&:not(:has(:checked))]:bg-press",
         "has-[:checked]:bg-accent-soft has-[:checked]:text-accent-text has-[:checked]:font-semibold",
         "has-[:disabled]:pointer-events-none has-[:disabled]:opacity-55",
-        group?.size === "md" && "text-tau-meta h-[32px] px-[16px]",
+        group?.size === "md" &&
+          "text-tau-meta h-[32px] px-[16px] first:rounded-l-[8px] last:rounded-r-[8px]",
         label == null && "px-2",
         className
       )}

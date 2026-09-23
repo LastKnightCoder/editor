@@ -119,6 +119,11 @@ code.inline { font-family: var(--mono); font-size: 11px; background: var(--bg-gr
   cursor: pointer; user-select: none;
   transition: background 160ms var(--ease-out), color 160ms var(--ease-out); }
 .seg .it + .it { border-left: 1px solid var(--line-1); }
+/* 首末段内圆角贴容器（外 radius − 1px 描边）：激活染/hover 底不溢出圆角 */
+.seg .it:first-child { border-radius: 7px 0 0 7px; }
+.seg .it:last-child { border-radius: 0 7px 7px 0; }
+.seg.md .it:first-child { border-radius: 8px 0 0 8px; }
+.seg.md .it:last-child { border-radius: 0 8px 8px 0; }
 .seg .it .icon { width: 13px; height: 13px; }
 .seg .it:hover:not(:has(input:checked)):not(:has(input:disabled)) { background: var(--bg-hover); color: var(--ink-1); }
 .seg .it:active:not(:has(input:checked)):not(:has(input:disabled)) { background: var(--bg-press); }
