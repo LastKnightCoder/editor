@@ -191,7 +191,7 @@ function ThemeModeCard({
           <>
             <div className="absolute inset-y-0 left-0 w-1/2 bg-[#f3eee2]">
               <div className="absolute inset-y-0 left-0 w-[18px] border-r border-[#e9e1d2] bg-[#fffdf9]" />
-              <div className="absolute left-[24px] top-[22px] h-[6px] w-[26px] rounded-full bg-[#e2d8c0]" />
+              <div className="absolute left-[24px] top-[22px] h-[6px] w-[26px] rounded-full bg-[#e7dbc8]" />
               <div className="absolute left-[24px] top-[34px] h-[6px] w-[34px] rounded-full bg-[#ece4d4]" />
             </div>
             <div className="absolute inset-y-0 right-0 w-1/2 bg-[#221d16]">
@@ -204,12 +204,12 @@ function ThemeModeCard({
         {preview === "light" && (
           <div className="absolute inset-0 bg-[#f3eee2]">
             <div className="absolute inset-y-0 left-0 w-10 border-r border-[#e9e1d2] bg-[#fffdf9]" />
-            <div className="absolute left-[52px] top-3 h-[7px] w-[58px] rounded-full bg-[#e2d8c0]" />
+            <div className="absolute left-[52px] top-3 h-[7px] w-[58px] rounded-full bg-[#e7dbc8]" />
             <div className="absolute left-[52px] top-[26px] h-[7px] w-[80px] rounded-full bg-[#ece4d4]" />
             <div
               className={clsx(
                 "absolute left-[52px] top-10 h-[10px] w-[42px] rounded-[4px] transition-colors duration-[160ms]",
-                active ? "bg-[#aa5f3d]" : "bg-[#e2d8c0]"
+                active ? "bg-[#aa5f3d]" : "bg-[#e7dbc8]"
               )}
             />
           </div>
