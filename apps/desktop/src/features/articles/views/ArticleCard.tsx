@@ -35,7 +35,7 @@ export interface ArticleCardProps {
   onOpenWindow?(article: ArticlePageItem): void;
 }
 
-/** 封面 hover 浮现的操作（浅底小号置顶按钮 + 更多菜单） */
+/** 封面 hover 浮现的操作（主题实底置顶按钮 + 更多菜单） */
 function CoverOps(props: ArticleCardProps) {
   const { article } = props;
   return (
@@ -46,7 +46,7 @@ function CoverOps(props: ArticleCardProps) {
       <IconButton
         title={article.isTop ? "取消置顶" : "置顶"}
         onClick={() => props.onToggleTop(article)}
-        className="shadow-card size-[23px] rounded-[7px] bg-[rgba(255,248,239,0.86)] enabled:hover:bg-[#fff8ef]"
+        className="bg-surface-hover shadow-card enabled:hover:bg-surface-hover size-[23px] rounded-[7px]"
       >
         <Star
           className={cn("size-[13px]", article.isTop && "fill-accent text-accent")}
@@ -58,7 +58,7 @@ function CoverOps(props: ArticleCardProps) {
         trigger={
           <IconButton
             title="更多操作"
-            className="shadow-card size-[23px] rounded-[7px] bg-[rgba(255,248,239,0.86)] enabled:hover:bg-[#fff8ef]"
+            className="bg-surface-hover shadow-card enabled:hover:bg-surface-hover size-[23px] rounded-[7px]"
           >
             <MoreHorizontal className="size-[13px]" strokeWidth={1.75} />
           </IconButton>
@@ -149,7 +149,7 @@ export function ArticleCard(props: ArticleCardProps) {
           <div className="absolute inset-0" style={{ backgroundImage: gradient }} />
         )}
         {article.isTop && (
-          <span className="text-accent absolute left-2.5 top-2.5 grid size-[22px] place-items-center rounded-[8px] bg-[rgba(255,248,239,0.86)]">
+          <span className="bg-surface-hover text-accent absolute left-2.5 top-2.5 grid size-[22px] place-items-center rounded-[8px]">
             <Star className="fill-accent size-[13px]" strokeWidth={1.75} />
           </span>
         )}

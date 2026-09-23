@@ -40,7 +40,7 @@ function MenuIcon({ icon: Icon }: { icon: LucideIcon }) {
 }
 
 /* hover 浮现的操作钮：实底浮起小方块（bg-surface-hover 即「实底控件」档，浅主题略沉于卡面、
-   深主题浮于卡面）+ 发丝描边；封面图上的奶油底口径见 ArticleCard CoverOps，不适用纯色卡面。
+   深主题浮于卡面）+ 发丝描边。
    hover 背景必须显式覆写为同一实底——IconButton 基底的半透明 bg-hover 会把实底冲掉 */
 const OPS_BTN =
   "shadow-card size-[23px] rounded-[7px] bg-surface-hover outline-1 -outline-offset-1 outline-line-1 enabled:hover:bg-surface-hover";
