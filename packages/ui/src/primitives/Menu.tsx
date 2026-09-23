@@ -260,7 +260,7 @@ function MenuSurface({
         onKeyDown={onKeyDown}
         className={cn(
           "bg-surface border-line-1 shadow-float rounded-tau-lg border p-[6px]",
-          "fixed left-0 top-0 z-[250] max-h-[300px] w-max min-w-[160px] max-w-[min(320px,calc(100vw-16px))] overflow-y-auto",
+          "fixed left-0 top-0 z-[250] flex max-h-[300px] w-max min-w-[160px] max-w-[min(320px,calc(100vw-16px))] flex-col overflow-hidden",
           "ease-tau-out transition-[opacity,transform,visibility] duration-[160ms]",
           "outline-none",
           open ? "opacity-100" : "invisible translate-y-[4px] opacity-0",
@@ -268,7 +268,7 @@ function MenuSurface({
           className
         )}
       >
-        {children}
+        <div className="min-h-0 overflow-y-auto pr-[6px]">{children}</div>
       </div>
     </MenuLevelContext.Provider>
   );

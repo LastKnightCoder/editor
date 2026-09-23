@@ -39,11 +39,36 @@ function MenuTrigger({ children, className, ...rest }: ComponentProps<"button">)
   );
 }
 
+const DEMO_PROJECTS = [
+  "生成式软件工程",
+  "源核",
+  "编译原理",
+  "影视剧",
+  "电影",
+  "Cursor 账号",
+  "收藏夹",
+  "网页快捷方式",
+  "职业成长漫谈",
+  "设计系统",
+  "阅读笔记",
+  "旅行计划",
+  "摄影练习",
+  "音乐收藏",
+  "年度回顾",
+  "归档项目",
+];
+
 export default function MenuSection() {
   const [sort, setSort] = useState("mtime");
   const [showWords, setShowWords] = useState(true);
   const [pin, setPin] = useState(true);
   const [fired, setFired] = useState("（尚未触发）");
+  const [project, setProject] = useState("编译原理");
+  const projectItems = DEMO_PROJECTS.map(name => (
+    <Menu.Item key={name} onSelect={() => setProject(name)}>
+      {name}
+    </Menu.Item>
+  ));
 
   return (
     <>
@@ -98,6 +123,26 @@ export default function MenuSection() {
         <div className="text-tau-meta text-ink-3 font-tau-mono">
           最近命令 = {fired} · sort = {sort} · showWords = {String(showWords)} · pin = {String(pin)}
         </div>
+      </CanvasCard>
+
+      <BlockTitle en="SCROLL">长菜单与滚动留白</BlockTitle>
+      <CanvasCard
+        cap="LIVE · SCROLL"
+        note="16 项长列表：滚动区距外壳四周 6px，滚动条与左侧高亮区域、右侧边框内缘各留 6px，不侵入上下圆角。滚动到底或按 Home / End 检查首尾项；主菜单、子菜单、右键菜单共用同一规则。"
+        stageClassName="flex flex-col items-start gap-4"
+      >
+        <div className="flex flex-wrap items-center gap-4">
+          <Menu trigger={<MenuTrigger>切换项目：{project}</MenuTrigger>}>{projectItems}</Menu>
+          <Menu trigger={<MenuTrigger>长子菜单</MenuTrigger>}>
+            <Menu.Submenu label="切换到项目">{projectItems}</Menu.Submenu>
+          </Menu>
+          <ContextMenu content={projectItems}>
+            <div className="border-line-1 text-ink-2 text-tau-body rounded-tau-sm border border-dashed px-4 py-2">
+              在此右键切换项目
+            </div>
+          </ContextMenu>
+        </div>
+        <span className="text-ink-3 text-tau-meta">当前项目：{project}</span>
       </CanvasCard>
 
       <BlockTitle en="ContextMenu（右键承载）">上下文菜单</BlockTitle>
