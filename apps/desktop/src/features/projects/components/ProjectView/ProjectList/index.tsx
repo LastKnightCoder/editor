@@ -8,7 +8,6 @@ import ProjectItem from "./ProjectItem";
 import If from "@/components/If";
 import For from "@/components/For";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
-import { SelectDropDown } from "@tau/shared";
 import SidebarToggleButton from "@/components/SidebarToggleButton";
 
 import {
@@ -107,8 +106,7 @@ const Project = () => {
       createEpub: state.createEpub,
     }))
   );
-  const [showProjectDropdown, setShowProjectDropdown] = useState(false);
-  const triggerRef = useRef<HTMLDivElement>(null);
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [addingParentProjectItemId, setAddingParentProjectItemId] = useState<number | undefined>(
     undefined
   );
@@ -141,11 +139,6 @@ const Project = () => {
 
   const handleSwitchProject = useMemoizedFn((proj: IProject) => {
     navigator.push("project-detail", { id: proj.id });
-  });
-
-  const handleToggleProjectDropdown = useMemoizedFn((e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowProjectDropdown(!showProjectDropdown);
   });
 
   useEffect(() => {
@@ -762,29 +755,49 @@ const Project = () => {
         className="h-full"
       >
         <div className="border-b-16 box-border flex h-full flex-col border-transparent px-4 pb-0">
-          <div className="flex h-[60px] flex-none items-center justify-between px-3">
-            <div className="flex min-w-0 items-center gap-3 overflow-hidden text-ellipsis whitespace-nowrap">
-              <House
-                className="size-4"
-                strokeWidth={1.75}
+          <div className="flex h-[60px] flex-none items-center justify-between pl-[9px] pr-3">
+            <div className="flex min-w-0 items-center overflow-hidden text-ellipsis whitespace-nowrap">
+              <button
+                type="button"
+                aria-label="返回项目列表"
+                className="hover:bg-hover flex size-[30px] shrink-0 items-center justify-center rounded-full transition-colors"
                 onClick={() => {
                   navigator.push("projects");
                 }}
-              />
+              >
+                <House className="size-4" strokeWidth={1.75} />
+              </button>
               <div className="flex-1 overflow-hidden">
-                <div
-                  ref={triggerRef}
-                  className="hover:bg-hover group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 transition-all"
-                  onClick={handleToggleProjectDropdown}
+                <Menu
+                  open={projectMenuOpen}
+                  onOpenChange={setProjectMenuOpen}
+                  trigger={
+                    <button
+                      type="button"
+                      className="hover:bg-hover flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-left transition-all"
+                    >
+                      <span className="truncate">{project.title}</span>
+                      <ChevronDown
+                        size={16}
+                        className={`text-ink-1 transition-transform duration-200 ${
+                          projectMenuOpen ? "rotate-180" : ""
+                        }`}
+                      />
+                    </button>
+                  }
                 >
-                  <span className="truncate">{project.title}</span>
-                  <ChevronDown
-                    size={16}
-                    className={`text-ink-1 transition-transform duration-200 ${
-                      showProjectDropdown ? "rotate-180" : ""
-                    }`}
-                  />
-                </div>
+                  {allProjects.map(proj => (
+                    <Menu.Item
+                      key={proj.id}
+                      onSelect={() => handleSwitchProject(proj)}
+                      className={
+                        proj.id === project.id ? "text-accent-text font-medium" : undefined
+                      }
+                    >
+                      {proj.title}
+                    </Menu.Item>
+                  ))}
+                </Menu>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -965,17 +978,6 @@ const Project = () => {
         </div>
       </ResizeableAndHideableSidebar>
       <SidebarToggleButton.Expand isHidden={hideSidebar} onToggle={onFoldSidebar} side="left" />
-      <SelectDropDown
-        items={allProjects}
-        selectedKey={project.id}
-        show={showProjectDropdown}
-        onClose={() => setShowProjectDropdown(false)}
-        onSelect={handleSwitchProject}
-        triggerElement={triggerRef.current}
-        getKey={proj => proj.id}
-        renderItem={proj => proj.title}
-        width={240}
-      />
     </>
   );
 };
