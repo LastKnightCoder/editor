@@ -33,6 +33,14 @@ const TYPE_KEYS = [
   EProjectType.VibeLearning,
 ] as const;
 
+const DELETE_IMPACT: Record<EProjectType, string> = {
+  [EProjectType.DocumentTree]:
+    "仅属于此项目的子项将一并删除；其他项目共用的子项会保留。删除后不可恢复。",
+  [EProjectType.DataTable]:
+    "将解除项目与表格的关联，并清理不再被引用的行详情内容。此操作不可恢复。",
+  [EProjectType.VibeLearning]: "此学习项目内的资源、笔记、测验和聊天记录将一并删除，不可恢复。",
+};
+
 export function ProjectsView() {
   const { navigator } = usePage();
   const snapshot = useProjectsSnapshot();
@@ -256,7 +264,7 @@ export function ProjectsView() {
         onCreated={created => navigator.push("project-detail", { id: created.id })}
       />
 
-      {/* 删除确认（级联事实见主进程 deleteProject：文档树清孤立子项、Vibe 删资源与聊天） */}
+      {/* 删除影响按项目类型展示，与主进程的级联删除范围一致。 */}
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={open => {
@@ -264,8 +272,8 @@ export function ProjectsView() {
         }}
         title="删除项目"
         context={deleting?.title || `项目 #${deleting?.id}`}
-        description="项目将从列表移除。"
-        impact="项目内的子项、关联资源与聊天记录将一并删除，不可恢复。"
+        description="项目将被永久删除。"
+        impact={deleting ? DELETE_IMPACT[deleting.projectType] : undefined}
         danger
         confirmText="删除"
         loading={deletingBusy}
