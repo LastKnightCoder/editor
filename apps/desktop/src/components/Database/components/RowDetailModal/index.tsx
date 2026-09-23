@@ -208,61 +208,61 @@ const RowDetailModal: React.FC<RowDetailModalProps> = memo(
         centered={!isExpanded}
         overlayClassName={isExpanded ? "!items-start !px-0 !pt-0 !pb-0" : ""}
         overlayStyle={modalOverlayStyle}
-        contentClassName={classNames("p-0", isExpanded && "!rounded-none !border-0 !shadow-none")}
+        contentClassName={classNames("!p-0", isExpanded && "!rounded-none !border-0 !shadow-none")}
         bodyClassName="h-full overflow-hidden"
         contentStyle={modalContentStyle}
       >
-        <div
-          className={classNames(
-            "flex h-full min-h-0 flex-col",
-            isExpanded ? "px-12 py-6" : "px-10 py-4"
-          )}
-        >
+        <div className="flex h-full min-h-0 flex-col py-4">
           <div
             className={classNames(
-              "min-h-0 flex-1 overflow-y-auto pb-4",
-              isExpanded ? "pr-6" : "pr-4"
+              "mb-4 flex shrink-0 items-start gap-4 pr-2",
+              isExpanded ? "pl-8" : "pl-6"
             )}
           >
-            <div className="mb-5 flex shrink-0 items-start gap-4">
-              <div className="min-w-0 flex-1">
-                {primaryColumn && (
-                  <input
-                    type="text"
-                    value={String(rowData[primaryColumn.id] || "")}
-                    onChange={e => handleColumnValueChange(primaryColumn.id, e.target.value)}
-                    disabled={readonly || primaryColumn.readonly}
-                    className={classNames(
-                      "text-ink-1 w-full border-0 bg-transparent px-0 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60",
-                      isExpanded ? "py-1 text-[34px]" : "py-1 text-2xl"
-                    )}
-                    placeholder={`输入${primaryColumn.title}`}
-                  />
-                )}
-              </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                <button
-                  type="button"
-                  className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm flex h-8 w-8 cursor-pointer items-center justify-center transition-colors"
-                  onClick={() => setIsExpanded(prev => !prev)}
-                  title={isExpanded ? "退出展开" : "展开"}
-                >
-                  {isExpanded ? (
-                    <Minimize2 className="h-4 w-4" strokeWidth={1.75} />
-                  ) : (
-                    <Maximize2 className="h-4 w-4" strokeWidth={1.75} />
+            <div className="min-w-0 flex-1">
+              {primaryColumn && (
+                <input
+                  type="text"
+                  value={String(rowData[primaryColumn.id] || "")}
+                  onChange={e => handleColumnValueChange(primaryColumn.id, e.target.value)}
+                  disabled={readonly || primaryColumn.readonly}
+                  className={classNames(
+                    "text-ink-1 w-full border-0 bg-transparent px-0 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60",
+                    isExpanded ? "py-1 text-[34px]" : "py-1 text-2xl"
                   )}
-                </button>
-                <button
-                  type="button"
-                  className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm flex h-8 w-8 cursor-pointer items-center justify-center transition-colors"
-                  onClick={handleClose}
-                  title="关闭"
-                >
-                  <X className="h-4 w-4" strokeWidth={1.75} />
-                </button>
-              </div>
+                  placeholder={`输入${primaryColumn.title}`}
+                />
+              )}
             </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm flex h-8 w-8 cursor-pointer items-center justify-center transition-colors"
+                onClick={() => setIsExpanded(prev => !prev)}
+                title={isExpanded ? "退出展开" : "展开"}
+              >
+                {isExpanded ? (
+                  <Minimize2 className="h-4 w-4" strokeWidth={1.75} />
+                ) : (
+                  <Maximize2 className="h-4 w-4" strokeWidth={1.75} />
+                )}
+              </button>
+              <button
+                type="button"
+                className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm flex h-8 w-8 cursor-pointer items-center justify-center transition-colors"
+                onClick={handleClose}
+                title="关闭"
+              >
+                <X className="h-4 w-4" strokeWidth={1.75} />
+              </button>
+            </div>
+          </div>
+          <div
+            className={classNames(
+              "mr-2 min-h-0 flex-1 overflow-y-auto pb-4",
+              isExpanded ? "pl-8 pr-6" : "pl-6 pr-4"
+            )}
+          >
             {otherColumns.length > 0 && (
               <div className="mb-5 shrink-0">
                 <div className="space-y-1">
