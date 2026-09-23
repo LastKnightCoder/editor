@@ -1,18 +1,26 @@
-import { useEffect, useRef, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useMemo, useState } from "react";
 import { Descendant, Range, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
-import { Tooltip } from "@tau/ui";
-import { Maximize2 } from "lucide-react";
+import { useEdgeFade } from "@tau/ui";
+import { usePageStatusBar } from "@/page/PageProvider";
+import { useProjectContext } from "../ProjectContext";
 import useEdit from "./useEdit";
 import { formatDate, defaultProjectItemEventBus } from "@/utils";
 import { EditorRef } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
-import ContentCollaborationControl from "@/components/ContentCollaborationControl";
+import ContentCollaborationControl, {
+  type ContentCollaborationControlHandle,
+} from "@/components/ContentCollaborationControl";
 import { EditTextHandle } from "@/components/EditText";
 import EditText from "@/components/CollaborativeTitle";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import EditorOutline from "@/components/EditorOutline";
+import {
+  ContentOutline,
+  extractContentHeaders,
+  resolveEditorHeaderAnchor,
+  type OutlineHeader,
+} from "@/components/ContentOutline";
 import { EditCardContext } from "@/context.ts";
 import useEditContent from "@/hooks/useEditContent";
 import ImmersiveEditorMode, {
@@ -21,6 +29,9 @@ import ImmersiveEditorMode, {
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 import { createProjectCardListExtension } from "@/editor-extensions";
+
+const DOCUMENT_COLUMNS =
+  "@[960px]/editor:grid-cols-[minmax(0,720px)_208px] grid grid-cols-[minmax(0,720px)] items-start justify-center gap-7 px-6";
 
 const cloneRange = (selection: Range | null): Range | null => {
   if (!selection) return null;
@@ -39,6 +50,10 @@ const cloneRange = (selection: Range | null): Range | null => {
 const EditProjectItem = (props: { projectItemId: number }) => {
   const { projectItemId } = props;
   const editorRef = useRef<EditorRef>(null);
+  const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
+  const { documentAction, clearDocumentAction } = useProjectContext();
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  useEdgeFade(scrollEl);
   const immersiveEntrySelectionRef = useRef<Range | null>(null);
   const pendingSelectionRef = useRef<Range | null>(null);
   const titleRef = useRef<EditTextHandle>(null);
@@ -121,9 +136,32 @@ const EditProjectItem = (props: { projectItemId: number }) => {
     setImmersiveMode(true);
   });
 
-  const onClickHeader = useMemoizedFn((index: number) => {
-    editorRef.current?.scrollHeaderIntoView(index);
-  });
+  useEffect(() => {
+    if (!projectItem || documentAction?.itemId !== projectItemId) return;
+    if (documentAction.type === "immersive") handleEnterImmersiveMode();
+    else collaborationRef.current?.open();
+    clearDocumentAction?.();
+  }, [documentAction, projectItem, projectItemId, clearDocumentAction, handleEnterImmersiveMode]);
+
+  const wordCount = projectItem?.count;
+  const statusBarNode = useMemo(
+    () =>
+      wordCount !== undefined ? (
+        <div className="text-tau-sm text-ink-3 flex flex-1 justify-end tabular-nums">
+          {wordCount.toLocaleString("zh-CN")} 字
+        </div>
+      ) : null,
+    [wordCount]
+  );
+  usePageStatusBar("project-detail", statusBarNode);
+
+  const headers = useMemo(
+    () => extractContentHeaders(projectItem?.content),
+    [projectItem?.content]
+  );
+  const resolveAnchor = useCallback((_header: OutlineHeader, index: number) => {
+    return resolveEditorHeaderAnchor(editorRef.current?.getEditor(), index);
+  }, []);
 
   const onPressEnter = useMemoizedFn(async () => {
     titleRef.current?.blur();
@@ -156,76 +194,66 @@ const EditProjectItem = (props: { projectItemId: number }) => {
   if (!projectItem) return null;
 
   return (
-    <div className="relative flex h-full w-full flex-col">
-      <div className="@container/editor flex min-h-0 w-full flex-1 justify-center gap-10 overflow-y-auto px-10 py-5">
-        <div className="relative min-w-0 max-w-[720px] flex-1">
-          <div className={`mb-5 border-b ${borderClass} pb-2.5 text-[2.2em] font-bold`}>
-            <EditText
-              contentId={projectItem.contentId}
-              source={{
-                sourceType: "project-item",
-                sourceId: projectItem.id,
-                sourceTitle: projectItem.title,
+    <div className="@container/editor relative h-full pr-4">
+      <div ref={setScrollEl} className="edge-fade-scroll h-full overflow-y-auto">
+        <div className={`${DOCUMENT_COLUMNS} pb-8 pt-5`}>
+          <article className="min-w-0">
+            <header className="min-w-0">
+              <div className={`mb-5 border-b ${borderClass} pb-2.5 text-[2.2em] font-bold`}>
+                <EditText
+                  contentId={projectItem.contentId}
+                  source={{
+                    sourceType: "project-item",
+                    sourceId: projectItem.id,
+                    sourceTitle: projectItem.title,
+                  }}
+                  key={projectItem.id}
+                  ref={titleRef}
+                  defaultValue={projectItem.title}
+                  onChange={onTitleChange}
+                  contentEditable={true}
+                  onPressEnter={onPressEnter}
+                />
+              </div>
+              <div className="mb-6 flex gap-2.5 text-[0.9em] opacity-80">
+                <div>创建于 {formatDate(projectItem.createTime, true)}</div>
+                <div>最后修改于 {formatDate(projectItem.updateTime, true)}</div>
+              </div>
+            </header>
+            <EditCardContext.Provider
+              value={{
+                cardId: -1,
               }}
-              key={projectItem.id}
-              ref={titleRef}
-              defaultValue={projectItem.title}
-              onChange={onTitleChange}
-              contentEditable={true}
-              onPressEnter={onPressEnter}
-            />
+            >
+              <ErrorBoundary>
+                <Editor
+                  contentId={projectItem?.contentId}
+                  key={`${projectItem.id}-${editorRemountKey}`}
+                  ref={editorRef}
+                  initValue={projectItem.content}
+                  onInit={onInit}
+                  onChange={onContentChange}
+                  readonly={false}
+                  extensions={extensions}
+                />
+              </ErrorBoundary>
+            </EditCardContext.Provider>
+          </article>
+          <div className="@[960px]/editor:block sticky top-5 hidden">
+            <ContentOutline headers={headers} scrollEl={scrollEl} resolveAnchor={resolveAnchor} />
           </div>
-          <div className="mb-6 flex gap-2.5 text-[0.9em] opacity-80">
-            <div>创建于 {formatDate(projectItem.createTime, true)}</div>
-            <div>最后修改于 {formatDate(projectItem.updateTime, true)}</div>
-          </div>
-          <EditCardContext.Provider
-            value={{
-              cardId: -1,
-            }}
-          >
-            <ErrorBoundary>
-              <Editor
-                contentId={projectItem?.contentId}
-                key={`${projectItem.id}-${editorRemountKey}`}
-                ref={editorRef}
-                initValue={projectItem.content}
-                onInit={onInit}
-                onChange={onContentChange}
-                readonly={false}
-                extensions={extensions}
-              />
-            </ErrorBoundary>
-          </EditCardContext.Provider>
         </div>
-        <EditorOutline
-          className="@[720px]/editor:block hidden"
-          content={projectItem.content}
-          show={true}
-          onClickHeader={onClickHeader}
-        />
       </div>
-      <div className="flex min-h-8 shrink-0 items-center justify-end gap-2 px-4 py-1 opacity-80">
-        <ContentCollaborationControl
-          contentId={projectItem.contentId}
-          source={{
-            sourceType: "project-item",
-            sourceId: projectItem.id,
-            sourceTitle: projectItem.title,
-          }}
-        />
-        <div className="text-sm leading-5 opacity-80">
-          <div>字数：{projectItem.count}</div>
-        </div>
-        <Tooltip content="沉浸模式">
-          <div
-            className="cursor-pointer rounded p-1 transition-colors hover:bg-black/10"
-            onClick={handleEnterImmersiveMode}
-          >
-            <Maximize2 className="size-3.5" strokeWidth={1.75} />
-          </div>
-        </Tooltip>
-      </div>
+      <ContentCollaborationControl
+        ref={collaborationRef}
+        hideTrigger
+        contentId={projectItem.contentId}
+        source={{
+          sourceType: "project-item",
+          sourceId: projectItem.id,
+          sourceTitle: projectItem.title,
+        }}
+      />
 
       {/* 沉浸模式 */}
       {immersiveMode && (
