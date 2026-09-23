@@ -2,7 +2,7 @@ import { useEffect, useRef, useMemo, useState } from "react";
 import { Descendant, Range, Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import { useCreation, useMemoizedFn, useRafInterval, useUnmount } from "ahooks";
-import { Tooltip } from "antd";
+import { Tooltip } from "@tau/ui";
 import { Maximize2 } from "lucide-react";
 import useEdit from "./useEdit";
 import { formatDate, defaultProjectItemEventBus } from "@/utils";
@@ -218,7 +218,7 @@ const EditProjectItem = (props: { projectItemId: number }) => {
         <div className="text-sm leading-5 opacity-80">
           <div>字数：{projectItem.count}</div>
         </div>
-        <Tooltip title="沉浸模式">
+        <Tooltip content="沉浸模式">
           <div
             className="cursor-pointer rounded p-1 transition-colors hover:bg-black/10"
             onClick={handleEnterImmersiveMode}

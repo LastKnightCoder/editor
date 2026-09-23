@@ -2,7 +2,6 @@ import { isElectron } from "@/electron";
 import { useHtmlPreviewUrl } from "@/utils/html-preview";
 import { memo, useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Spin } from "antd";
 import { Presentation, Sparkles, RefreshCw, Loader2, CheckCircle2, Code, Eye } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
@@ -396,7 +395,7 @@ const PPTGenerateModal = memo((props: PPTGenerateModalProps) => {
             )
           ) : (
             <div className="flex h-full items-center justify-center">
-              <Spin size="large" />
+              <Loader2 className="size-6 animate-spin" strokeWidth={1.75} />
             </div>
           )
         ) : (

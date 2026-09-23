@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Input, Button, Spin, Alert } from "antd";
-import { Link, Loader2 } from "lucide-react";
+import { Button, Input } from "@tau/ui";
+import { Link, Loader2, CircleAlert } from "lucide-react";
 import {
   parseXiaoyuzhouUrl,
   fetchXiaoyuzhouEpisode,
@@ -88,22 +88,29 @@ const XiaoyuzhouInput = (props: XiaoyuzhouInputProps) => {
         <div className={styles.inputRow}>
           <Input
             placeholder="粘贴小宇宙播客链接..."
-            prefix={<Link strokeWidth={1.75} />}
+            lead={Link}
             value={url}
             onChange={e => setUrl(e.target.value)}
-            onPressEnter={handleParse}
+            onKeyDown={e => {
+              if (e.key === "Enter") handleParse();
+            }}
             disabled={loading}
           />
-          <Button type="primary" onClick={handleParse} loading={loading}>
+          <Button variant="primary" onClick={handleParse} loading={loading}>
             解析
           </Button>
         </div>
 
-        {error && <Alert type="error" message={error} showIcon />}
+        {error && (
+          <div className="bg-danger-soft text-danger rounded-tau-sm flex items-center gap-2 px-3 py-2 text-[12.5px]">
+            <CircleAlert className="size-4 shrink-0" strokeWidth={1.75} />
+            {error}
+          </div>
+        )}
 
         {loading && (
           <div className={styles.loadingState}>
-            <Spin indicator={<Loader2 strokeWidth={1.75} />} />
+            <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
             <span>正在解析播客信息...</span>
           </div>
         )}
@@ -129,8 +136,10 @@ const XiaoyuzhouInput = (props: XiaoyuzhouInputProps) => {
 
         {episodeInfo && (
           <div className={styles.footer}>
-            <Button onClick={handleClose}>取消</Button>
-            <Button type="primary" onClick={handleConfirm}>
+            <Button variant="secondary" onClick={handleClose}>
+              取消
+            </Button>
+            <Button variant="primary" onClick={handleConfirm}>
               添加
             </Button>
           </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Button, Tag, Tooltip, Popconfirm } from "antd";
+import { Popconfirm } from "antd";
 import {
   FileText,
   AudioLines,
@@ -47,7 +47,7 @@ import useEditContent from "@/hooks/useEditContent";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import AddResourceModal from "./AddResourceModal";
 import ResourcePreviewPanel from "./ResourcePreview";
-import { toast } from "@tau/ui";
+import { toast, Tooltip, IconButton } from "@tau/ui";
 
 type PanelView = "resource-list" | "resource-preview" | "note-preview";
 type ResourceDropPosition = "before" | "after";
@@ -252,49 +252,50 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
           </span>
         </div>
         <div className="mt-1 flex items-center">
-          <Tag color={config.color} icon={getStatusIcon(status)} className="m-0! text-xs!">
+          <span className="inline-flex items-center gap-1 text-xs" style={{ color: config.color }}>
+            {getStatusIcon(status)}
             {tagText}
-          </Tag>
+          </span>
         </div>
       </div>
 
       <div className="ml-2 flex shrink-0 items-center gap-1">
         {!config.spin && status !== "completed" && (
-          <Tooltip title="重新处理" key="reprocess">
-            <Button
-              type="text"
-              size="small"
-              icon={<RotateCw strokeWidth={1.75} />}
+          <Tooltip content="重新处理" key="reprocess">
+            <IconButton
+              title="重新处理"
               onClick={event => {
                 event.stopPropagation();
                 onReprocess(resource);
               }}
-            />
+            >
+              <RotateCw strokeWidth={1.75} />
+            </IconButton>
           </Tooltip>
         )}
         {status === "completed" && (
-          <Tooltip title="重新索引" key="reindex">
-            <Button
-              type="text"
-              size="small"
-              icon={<RotateCw strokeWidth={1.75} />}
+          <Tooltip content="重新索引" key="reindex">
+            <IconButton
+              title="重新索引"
               onClick={event => {
                 event.stopPropagation();
                 onReindex(resource);
               }}
-            />
+            >
+              <RotateCw strokeWidth={1.75} />
+            </IconButton>
           </Tooltip>
         )}
-        <Tooltip title="重命名" key="rename">
-          <Button
-            type="text"
-            size="small"
-            icon={<Pencil />}
+        <Tooltip content="重命名" key="rename">
+          <IconButton
+            title="重命名"
             onClick={event => {
               event.stopPropagation();
               onStartEdit(resource);
             }}
-          />
+          >
+            <Pencil />
+          </IconButton>
         </Tooltip>
         <Popconfirm
           key="delete"
@@ -304,14 +305,14 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
           okText="删除"
           cancelText="取消"
         >
-          <Tooltip title="删除">
-            <Button
-              type="text"
-              size="small"
-              danger
-              icon={<Trash2 />}
+          <Tooltip content="删除">
+            <IconButton
+              title="删除"
+              className="text-danger hover:bg-danger-soft"
               onClick={event => event.stopPropagation()}
-            />
+            >
+              <Trash2 />
+            </IconButton>
           </Tooltip>
         </Popconfirm>
       </div>
@@ -641,13 +642,10 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
       <div className="flex h-full flex-col overflow-hidden">
         {/* 头部 */}
         <div className="flex shrink-0 items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-          <Tooltip title="返回">
-            <Button
-              type="text"
-              size="small"
-              icon={<ArrowLeft strokeWidth={1.75} />}
-              onClick={handleNotePreviewBack}
-            />
+          <Tooltip content="返回">
+            <IconButton title="返回" onClick={handleNotePreviewBack}>
+              <ArrowLeft strokeWidth={1.75} />
+            </IconButton>
           </Tooltip>
           <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm font-medium">
             {previewingNoteMeta.title || "笔记"}

@@ -1,5 +1,6 @@
 import { memo, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Dropdown, MenuProps, Tooltip } from "antd";
+import { Tooltip } from "@tau/ui";
+import { Dropdown, MenuProps } from "antd";
 import { Book, FileText, FolderOpen, Globe, Plus, Table, Video } from "lucide-react";
 import { AudioLines } from "lucide-react";
 import { useDrag, useDrop } from "react-dnd";
@@ -376,7 +377,7 @@ const ProjectMindMapNodeActions = memo(
         }}
         trigger={["click"]}
       >
-        <Tooltip title={isProject ? "添加根节点" : "添加子节点"}>
+        <Tooltip content={isProject ? "添加根节点" : "添加子节点"}>
           <button
             data-mindmap-interactive
             className={classnames(
