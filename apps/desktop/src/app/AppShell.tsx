@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent } from "rea
 import clsx from "clsx";
 import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
+import { PageNavigationBridge } from "./PageNavigationBridge";
 import { initThemeRuntime } from "@tau/ui/theme/runtime";
 import { Loading, ToastHost, initScrollbarAutoHide } from "@tau/ui";
 import { SearchPalette } from "@/features/search/SearchPalette";
@@ -123,6 +124,7 @@ function ShellBody() {
 
   return (
     <PageProvider initialKey="home">
+      <PageNavigationBridge />
       <ShellLayout />
     </PageProvider>
   );
