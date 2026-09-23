@@ -1,7 +1,7 @@
 import { RefObject, useEffect, useMemo, useRef } from "react";
 import { Descendant } from "slate";
 import type { EditorRef } from "@tau/editor/src";
-import { useTabContext } from "@/contexts/TabContext";
+import { useOptionalTabContext } from "@/contexts/TabContext";
 import {
   createActiveEditingSessionId,
   removeActiveEditingSession,
@@ -20,11 +20,13 @@ interface UseRegisterActiveEditingContextOptions {
   content: Descendant[] | undefined;
 }
 
-const useRegisterActiveEditingContext = (
-  options: UseRegisterActiveEditingContextOptions,
-) => {
+const useRegisterActiveEditingContext = (options: UseRegisterActiveEditingContextOptions) => {
   const { contentId, entityType, entityId, editorRef, content } = options;
-  const { tab, paneId } = useTabContext();
+  /* 新壳层页面无 legacy tab Provider：降级为稳定假值（会话注册/光标追踪照常，
+     tab 定位能力仅 legacy 多 tab 语境有效） */
+  const tabContext = useOptionalTabContext();
+  const tab = tabContext?.tab;
+  const paneId = tabContext?.paneId ?? "shell";
   const sessionIdRef = useRef<string>(createActiveEditingSessionId());
 
   const canRegister = useMemo(() => {
@@ -40,15 +42,15 @@ const useRegisterActiveEditingContext = (
       contentId,
       entityType,
       entityId,
-      tabId: tab.id,
+      tabId: tab?.id ?? "shell-page",
       paneId,
-      tabType: tab.type,
+      tabType: tab?.type,
       content: content || [],
     });
     return () => {
       removeActiveEditingSession(sessionIdRef.current);
     };
-  }, [canRegister, contentId, entityType, entityId, tab.id, tab.type, paneId]);
+  }, [canRegister, contentId, entityType, entityId, tab?.id, tab?.type, paneId]);
 
   useEffect(() => {
     if (!canRegister || !content) return;

@@ -19,12 +19,6 @@ interface ProjectViewProps {
 
 const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
   const { navigator } = usePage();
-  /* 选中条目：初始来自外部定位（props.itemId），后续由树节点点击/新建经
-     setActiveItemId 本地更新；push 异参原位更新 props 时同步回落 */
-  const [activeItemId, setActiveItemId] = useState(itemId);
-  useEffect(() => {
-    setActiveItemId(itemId);
-  }, [itemId]);
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,9 +88,8 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
     <ProjectContext.Provider
       value={{
         projectId: projectId,
-        itemId: activeItemId,
+        itemId: itemId,
         containerWidth,
-        setActiveItemId,
       }}
     >
       <div ref={containerRef} className="flex h-full w-full">

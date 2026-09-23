@@ -15,7 +15,7 @@ import { useProjectDetail } from "../queries";
 import ProjectView from "../components/ProjectView";
 
 export function ProjectDetailView() {
-  const { id } = usePageParams<{ id: number }>();
+  const { id, itemId } = usePageParams<{ id: number; itemId?: number }>();
   const { project, loading } = useProjectDetail(id);
   const { navigator } = usePage();
 
@@ -51,5 +51,5 @@ export function ProjectDetailView() {
     );
   }
 
-  return <ProjectView projectId={id} />;
+  return <ProjectView projectId={id} itemId={itemId} />;
 }
