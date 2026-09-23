@@ -304,3 +304,10 @@
 - 选择（2026-09-23，mockups/settings-redesign/sunken-candidates.html 五候选真实用法对比，用户裁决取候选 D）：① cream `sunken` #e2d8c0 → **#e7dbc8**（提明度减黄、保留暖调；ink-2 对其 4.74、对 page 1.181，阶梯秩序与相邻 ≥1.10 铁律不破）；② **角色钉死 = 轨道/凹槽专档，明文禁止作输入框/代码块底**——输入框/选择器/代码 chip 一律 surface 亮底 + line-1 描边（D-007/D-009 家族语言），注释与 02 §2.3 词汇表同步写明；③ cocoa `sunken` #100d08 不动（近纯黑，与浅色黄味问题不同源）。
 - 影响：`cream.theme.ts`（取值 + 注释）、`tokens.css` cream 数据块、`AppearanceSection` 主题预览卡 3 处硬编码色同步（该文件另有 group 旧值 #ece4d4 残留，未在本轮处理）、02 §2.3。
 - 验证：`@tau/ui` 178 例全绿（含 theme-parity AA 门禁）；候选页五种真实用法 × 两种底色目验。
+
+## D-033 项目详情接入（三型 legacy 整体搬迁 · 以新版组织为准）
+
+- 背景：project-detail 需承载三型工作台（文档树 / 数据表格 / Vibe Learning）。用户裁决（2026-09-23）：**以新版为准**——不造新版不需要的 Context/桥、不迁就 legacy（/legacy 详情可断，编译通过是唯一硬要求）、组织架构按新版合理方式（业务归业务域，不把业务塞共享层）、尽可能复用、不改功能不换皮；违规先指出后处理。
+- 选择：① **归置**——ProjectView（三型分派 + 文档树 + 八型 item 视图，72 文件）与 VibeLearningView（40 文件）整目录 `git mv` → `features/projects/components/`；跨域件提升：EditPdf + EpubReader → `@/components`（library 域将来复用）、InsertNoteToTreeModal + LoadingSpinner（白板/Feed/扩展笔记消费）、VideoNotePanel 闭包 9 文件 + extensions（白板嵌入视频笔记——**功能保留不删**，白板未迁移≠可删用户否决删子功能提案）、projectTree / mindMapTreeUtils → `@/utils`（batch-export / DocumentView 跨域消费的纯树工具）；② **传参**——不伪造 TabProvider 桥：入口 props 化（ProjectView `{projectId, itemId?}`、VibeLearningView `{projectId}`）、ProjectList 改读 ProjectContext，useTabParams 消费清零；③ **legacy 清理**——TabContent 删 ProjectView lazy 与 `case TabType.ProjectDetail`；`useTabStore(navigateTo)` 残留 7 处保留（新壳层下无效果但不崩溃，换皮时接 navigator）。
+- 违规随迁清单（换皮阶段处理）：antd 约 51 文件 / @ant-design/icons 19 文件（棘轮只减不增）；4 个 `.module.less`；A2 视觉违反（antd 皮、硬编码边框色、横线）；`DataTableProjectView` 与 `TableProjectItemView` 同构重复（合并）；`batch-export`（utils）仍依赖 `@/pages/DocumentView` 的 documentTree（知识库域迁移时收编）；`hooks/useDynamicExtensions`、`editor-extensions/ProjectListSlate` 引 features 域的 ProjectContext（hooks→features 无明文红线但方向倒挂，项目域 editor-extensions 归位时处理）。
+- 实现：薄壳 `views/ProjectDetailView.tsx`（判存在 + usePageBreadcrumb 项目标题 + 渲染 ProjectView）；文档同步 04 清单 §projects（ProjectDetail 分支删除登记 + 提升件消费者表）与 03 指南 §1/§2。验证：tsc 全绿（含 src-electron）、搬入目录 eslint 0 error（存量 warning 随迁不修保 rename）、vitest 36 例全过（含随迁的 InsertNoteToTreeModal / VideoNotePanel / projectTree 测试）。
