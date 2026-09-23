@@ -112,10 +112,10 @@ export function ArticleCard(props: ArticleCardProps) {
       className={cn(
         "bg-surface shadow-card ease-tau-out group relative flex cursor-pointer flex-col overflow-hidden rounded-[var(--tau-radius-md)]",
         // hover 无位移（D-013「反馈是光的」）：translateY 上浮会在卡片下缘
-        // 制造 hover 进出循环（鼠标落边缘带反复触发）。反馈 = 阴影加深 + 1px
-        // 描边亮起（阴影在深色主题下对比弱，描边双主题都醒目）
+        // 制造 hover 进出循环（鼠标落边缘带反复触发）。反馈 = lift 轻抬阴影 +
+        // 1px 描边亮起（阴影在深色主题下对比弱，描边双主题都醒目）
         "transition-[box-shadow,outline-color] duration-200",
-        "outline-line-1 hover:shadow-float outline-0 -outline-offset-1 hover:outline-1"
+        "outline-line-1 hover:shadow-lift outline-0 -outline-offset-1 hover:outline-1"
       )}
     >
       {/* 封面 */}

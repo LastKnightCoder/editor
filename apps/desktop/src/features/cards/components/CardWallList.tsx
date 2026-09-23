@@ -243,7 +243,7 @@ function FeaturedCard({
       className={cn(
         "bg-surface shadow-card ease-tau-out group relative flex cursor-pointer overflow-hidden rounded-[var(--tau-radius-lg)] py-4 pl-[18px] pr-5",
         "transition-[box-shadow,outline-color] duration-200",
-        "outline-line-1 hover:shadow-float outline-0 -outline-offset-1 hover:outline-1"
+        "outline-line-1 hover:shadow-lift outline-0 -outline-offset-1 hover:outline-1"
       )}
     >
       <span className="absolute inset-y-0 left-0 w-1" style={{ background: color.text }} />

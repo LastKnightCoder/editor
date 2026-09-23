@@ -53,7 +53,7 @@ export function CardItemView({ card, actions, previewMaxHeight = 150 }: CardItem
       className={cn(
         "bg-surface shadow-card ease-tau-out group flex cursor-pointer flex-col gap-2 rounded-[var(--tau-radius-md)] p-[13px] pb-[11px]",
         "transition-[box-shadow,outline-color] duration-200",
-        "outline-line-1 hover:shadow-float outline-0 -outline-offset-1 hover:outline-1"
+        "outline-line-1 hover:shadow-lift outline-0 -outline-offset-1 hover:outline-1"
       )}
       style={
         card.isTop

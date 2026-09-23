@@ -138,7 +138,7 @@ const ImageRenderer: React.FC<ImageRendererProps> = memo(
               <LocalImage
                 url={image.url}
                 alt={image.alt || "图片"}
-                className="border-line-1 hover:shadow-float h-8 w-8 rounded border object-cover transition-shadow"
+                className="border-line-1 hover:shadow-lift h-8 w-8 rounded border object-cover transition-shadow"
               />
 
               <AnimatePresence>

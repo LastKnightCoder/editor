@@ -109,8 +109,9 @@
   --radius-tau-md: var(--tau-radius-md);
   --radius-tau-lg: var(--tau-radius-lg);
 
-  /* 阴影两档（tokenContract float 组词） */
+  /* 阴影三档（tokenContract float 组词）：card 静止 / lift 卡片 hover 轻抬 / float 浮层 */
   --shadow-card: var(--tau-shadow-card);
+  --shadow-lift: var(--tau-shadow-lift);
   --shadow-float: var(--tau-shadow-float);
 
   /* 缓动 */
@@ -188,6 +189,7 @@
 
   --tau-overlay: rgba(67, 57, 44, 0.35);
   --tau-shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+  --tau-shadow-lift: 0 1px 2px rgba(120, 100, 70, 0.06), 0 6px 16px -10px rgba(120, 100, 70, 0.22);
   --tau-shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
 }
 
@@ -242,5 +244,6 @@
 
   --tau-overlay: rgba(10, 8, 5, 0.55);
   --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
   --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
 }

@@ -83,6 +83,7 @@ export default defineTheme({
 
     overlay: "rgba(67, 57, 44, 0.35)",
     "shadow-card": "0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18)",
+    "shadow-lift": "0 1px 2px rgba(120, 100, 70, 0.06), 0 6px 16px -10px rgba(120, 100, 70, 0.22)",
     "shadow-float": "0 16px 40px -12px rgba(120, 100, 70, 0.4)",
   }),
 });

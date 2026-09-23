@@ -120,7 +120,7 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         style={{ opacity: isDragging ? 0.5 : 1 }}
-        className="bg-surface border-line-1 shadow-card rounded-tau-md ease-tau-out hover:shadow-float group relative cursor-pointer border p-3 transition-shadow duration-[160ms]"
+        className="bg-surface border-line-1 shadow-card rounded-tau-md ease-tau-out hover:shadow-lift group relative cursor-pointer border p-3 transition-shadow duration-[160ms]"
       >
         {!readonly && onDelete && isHovered && (
           <div
