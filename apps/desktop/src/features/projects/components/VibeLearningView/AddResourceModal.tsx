@@ -1,6 +1,5 @@
 import { memo, useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Upload } from "antd";
 import {
   FileText,
   Globe,
@@ -14,7 +13,6 @@ import {
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import classNames from "classnames";
-import type { UploadProps } from "antd";
 
 import CustomModal from "@/components/CustomModal";
 import LocalImage from "@/components/LocalImage";
@@ -41,6 +39,9 @@ import type { SearchResult } from "@/types/search";
 import NoteSelector from "./AppSidebar/components/NoteSelector";
 import useEditorExtensions from "@/hooks/useDynamicExtensions";
 import { toast } from "@tau/ui";
+
+const ACCEPTED_UPLOAD_TYPES =
+  ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.html,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv,.jpg,.jpeg,.png,.gif,.webp,.bmp";
 
 interface AddResourceModalProps {
   open: boolean;
@@ -774,24 +775,38 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     }
   });
 
-  // 上传组件配置
-  const uploadProps: UploadProps = {
-    name: "file",
-    multiple: true,
-    showUploadList: false,
-    beforeUpload: handleUpload,
-    accept:
-      ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.html,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv,.jpg,.jpeg,.png,.gif,.webp,.bmp",
-  };
-
   // 渲染文件上传 Tab
   const renderFileTab = () => (
     <div className="space-y-4">
-      <Upload.Dragger
-        {...uploadProps}
-        disabled={uploading}
-        className="bg-gray-50! dark:bg-zinc-800/50! border-dashed! border-gray-200! dark:border-gray-700! rounded-xl! hover:border-[var(--th-border-focus)]! transition-all"
+      <label
+        className={`block cursor-pointer rounded-xl border border-dashed border-gray-200 bg-gray-50 transition-all hover:border-[var(--th-border-focus)] dark:border-gray-700 dark:bg-zinc-800/50 ${
+          uploading ? "pointer-events-none" : ""
+        }`}
+        onDragOver={event => {
+          event.preventDefault();
+          if (!uploading) event.dataTransfer.dropEffect = "copy";
+        }}
+        onDrop={event => {
+          event.preventDefault();
+          if (uploading) return;
+          for (const file of Array.from(event.dataTransfer.files)) {
+            void handleUpload(file);
+          }
+        }}
       >
+        <input
+          type="file"
+          multiple
+          className="hidden"
+          accept={ACCEPTED_UPLOAD_TYPES}
+          disabled={uploading}
+          onChange={event => {
+            for (const file of Array.from(event.target.files ?? [])) {
+              void handleUpload(file);
+            }
+            event.target.value = "";
+          }}
+        />
         <div className="py-8">
           {uploading ? (
             <div className="flex flex-col items-center gap-3">
@@ -814,7 +829,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
             </div>
           )}
         </div>
-      </Upload.Dragger>
+      </label>
 
       {/* 已上传文件列表 */}
       {uploadedFiles.length > 0 && (

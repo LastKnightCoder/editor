@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import { Dropdown, MenuProps } from "antd";
 import { Network, House, ListTree, Plus } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
@@ -38,6 +37,7 @@ import { useAudioHandlers } from "../shared/hooks/useAudioHandlers";
 import { usePdfHandlers, createProjectItemFromPdf } from "../shared/hooks/usePdfHandlers";
 import { useEpubHandlers, createProjectItemFromEpub } from "../shared/hooks/useEpubHandlers";
 import { ADD_MENU_ITEMS } from "../shared/constants/menuItems";
+import { renderMenuEntries } from "../shared/menuEntries";
 import { ModalKey } from "../shared/constants/modalKeys";
 import {
   getFileBaseName,
@@ -77,7 +77,7 @@ import ProjectMindMapView from "./ProjectMindMapView";
 import { useProjectTreeData } from "./useProjectTreeData";
 import { useProjectContext } from "../ProjectContext";
 import { usePage } from "@/page/PageProvider";
-import { toast, Tooltip } from "@tau/ui";
+import { toast, Tooltip, Menu } from "@tau/ui";
 
 const Project = () => {
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
@@ -462,299 +462,294 @@ const Project = () => {
     onConfirm: handleSelectEpubConfirm,
   });
 
-  const handleAddMenuClick = useMemoizedFn(
-    async (
-      { key }: Parameters<NonNullable<MenuProps["onClick"]>>[0],
-      parentProjectItemId?: number
-    ) => {
-      if (!project) return;
-      if (key === "add-project-item") {
-        const createProjectItem: CreateProjectItem = {
-          title: "新文档",
-          content: [
-            {
-              type: "paragraph",
-              children: [{ type: "formatted", text: "" }],
-            },
-          ],
-          children: [],
-          refType: "",
-          refId: 0,
-          projectItemType: EProjectItemType.Document,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-        const [newProject, item] = await addProjectItemToTarget(
-          createProjectItem,
-          parentProjectItemId
-        );
-        if (item) {
-          navigator.push("project-detail", { id: newProject.id, itemId: item.id });
-        }
-      } else if (key === "add-white-board-project-item") {
-        const whiteBoardContent = await createWhiteBoardContent({
-          name: "新白板",
-          imgUrl: "",
-          data: {
-            children: [],
-            viewPort: {
-              zoom: 1,
-              minX: 0,
-              minY: 0,
-              width: 0,
-              height: 0,
-            },
-            selection: {
-              selectArea: null,
-              selectedElements: [],
-            },
-            presentationSequences: [],
+  const handleAddMenuClick = useMemoizedFn(async (key: string, parentProjectItemId?: number) => {
+    if (!project) return;
+    if (key === "add-project-item") {
+      const createProjectItem: CreateProjectItem = {
+        title: "新文档",
+        content: [
+          {
+            type: "paragraph",
+            children: [{ type: "formatted", text: "" }],
           },
-        });
-        const createProjectItem: CreateProjectItem = {
-          title: "新白板",
-          content: [],
-          whiteBoardContentId: whiteBoardContent.id,
+        ],
+        children: [],
+        refType: "",
+        refId: 0,
+        projectItemType: EProjectItemType.Document,
+        count: 0,
+        whiteBoardContentId: 0,
+      };
+      const [newProject, item] = await addProjectItemToTarget(
+        createProjectItem,
+        parentProjectItemId
+      );
+      if (item) {
+        navigator.push("project-detail", { id: newProject.id, itemId: item.id });
+      }
+    } else if (key === "add-white-board-project-item") {
+      const whiteBoardContent = await createWhiteBoardContent({
+        name: "新白板",
+        imgUrl: "",
+        data: {
           children: [],
-          refType: "",
-          refId: 0,
-          projectItemType: EProjectItemType.WhiteBoard,
-          count: 0,
-        };
+          viewPort: {
+            zoom: 1,
+            minX: 0,
+            minY: 0,
+            width: 0,
+            height: 0,
+          },
+          selection: {
+            selectArea: null,
+            selectedElements: [],
+          },
+          presentationSequences: [],
+        },
+      });
+      const createProjectItem: CreateProjectItem = {
+        title: "新白板",
+        content: [],
+        whiteBoardContentId: whiteBoardContent.id,
+        children: [],
+        refType: "",
+        refId: 0,
+        projectItemType: EProjectItemType.WhiteBoard,
+        count: 0,
+      };
+      const [newProject, item] = await addProjectItemToTarget(
+        createProjectItem,
+        parentProjectItemId
+      );
+      if (item) {
+        navigator.push("project-detail", { id: newProject.id, itemId: item.id });
+      }
+    } else if (key === "add-local-video-note-project-item") {
+      // 选择视频文件
+      const filePath = await selectFile({
+        properties: ["openFile"],
+        filters: [
+          {
+            name: "Video",
+            extensions: ["mp4", "mov", "avi", "mkv", "flv", "wmv", "webm"],
+          },
+        ],
+      });
+      if (!filePath) return;
+      const item = await createEmptyVideoNote({
+        type: "local",
+        filePath: filePath[0],
+      });
+      if (!item) {
+        toast.error("创建视频笔记失败");
+        return;
+      }
+      const fileName = await getFileBaseName(filePath[0], true);
+      const createProjectItem: CreateProjectItem = {
+        title: fileName,
+        content: [],
+        children: [],
+        refType: "video-note",
+        refId: item.id,
+        projectItemType: EProjectItemType.VideoNote,
+        count: 0,
+        whiteBoardContentId: 0,
+      };
+      const [newProject, projectItem] = await addProjectItemToTarget(
+        createProjectItem,
+        parentProjectItemId
+      );
+      if (projectItem) {
+        navigator.push("project-detail", { id: newProject.id, itemId: projectItem.id });
+      }
+    } else if (key === "add-remote-video-note-project-item") {
+      setAddingParentProjectItemId(parentProjectItemId);
+      openModal(ModalKey.WebVideo);
+    } else if (key === "add-bilibili-video-note-project-item") {
+      setAddingParentProjectItemId(parentProjectItemId);
+      openModal(ModalKey.Bilibili);
+    } else if (key === "add-youtube-video-note-project-item") {
+      setAddingParentProjectItemId(parentProjectItemId);
+      openModal(ModalKey.Youtube);
+    } else if (key === "add-local-audio-note-project-item") {
+      const filePath = await selectFile({
+        properties: ["openFile"],
+        filters: [
+          {
+            name: "Audio",
+            extensions: ["mp3", "wav", "m4a", "flac", "ogg", "aac", "wma"],
+          },
+        ],
+      });
+      if (!filePath) return;
+      const audioNote = await createEmptyAudioNote({
+        type: "local",
+        filePath: filePath[0],
+      });
+      if (!audioNote) {
+        toast.error("创建音频笔记失败");
+        return;
+      }
+      const fileName = await getFileBaseName(filePath[0], true);
+      const createProjectItem: CreateProjectItem = {
+        title: fileName,
+        content: [],
+        children: [],
+        refType: "audio-note",
+        refId: audioNote.id,
+        projectItemType: EProjectItemType.AudioNote,
+        count: 0,
+        whiteBoardContentId: 0,
+      };
+      const [newProject2, projectItem2] = await addProjectItemToTarget(
+        createProjectItem,
+        parentProjectItemId
+      );
+      if (projectItem2) {
+        navigator.push("project-detail", { id: newProject2.id, itemId: projectItem2.id });
+      }
+    } else if (key === "add-remote-audio-note-project-item") {
+      setAddingParentProjectItemId(parentProjectItemId);
+      openModal(ModalKey.RemoteAudio);
+    } else if (key === "add-xiaoyuzhou-audio-note-project-item") {
+      setAddingParentProjectItemId(parentProjectItemId);
+      openModal(ModalKey.XiaoyuzhouPodcast);
+    } else if (key === "add-bilibili-audio-note-project-item") {
+      setAddingParentProjectItemId(parentProjectItemId);
+      openModal(ModalKey.BilibiliAudio);
+    } else if (key === "add-youtube-audio-note-project-item") {
+      setAddingParentProjectItemId(parentProjectItemId);
+      openModal(ModalKey.YoutubeAudio);
+    } else if (key === "add-webview-project-item") {
+      setAddingParentProjectItemId(parentProjectItemId);
+      openModal(ModalKey.Webview);
+    } else if (key === "add-table-project-item") {
+      const dataTable = await createDataTable({
+        columns: DEFAULT_COLUMNS,
+        rows: DEFAULT_ROWS,
+        activeViewId: null,
+      });
+      const createProjectItem: CreateProjectItem = {
+        title: "新表格",
+        content: [],
+        children: [],
+        refType: "data-table",
+        refId: dataTable.id,
+        projectItemType: EProjectItemType.TableView,
+        count: 0,
+        whiteBoardContentId: 0,
+      };
+      const [newProject, item] = await addProjectItemToTarget(
+        createProjectItem,
+        parentProjectItemId
+      );
+      if (item) {
+        navigator.push("project-detail", { id: newProject.id, itemId: item.id });
+      }
+    } else if (key === "add-local-pdf-project-item") {
+      try {
+        const fileInfo = await importLocalBook("pdf");
+        if (!fileInfo) return;
+        const pdf = await createPdf({
+          fileName: fileInfo.fileName,
+          filePath: fileInfo.filePath,
+          isLocal: true,
+          remoteUrl: "",
+          tags: [],
+          category: "",
+        });
+        const [, item] = await addProjectItemToTarget(
+          createProjectItemFromPdf(pdf),
+          parentProjectItemId
+        );
+        if (item) {
+          navigator.push("project-detail", { id: project.id, itemId: item.id });
+        }
+        toast.success("本地 PDF 添加成功");
+      } catch (error) {
+        console.error("添加本地 PDF 失败:", error);
+        toast.error("添加本地 PDF 失败");
+      }
+    } else if (key === "add-remote-pdf-project-item") {
+      setAddingParentProjectItemId(parentProjectItemId);
+      openModal(ModalKey.RemotePdf);
+    } else if (key === "link-pdf-project-item") {
+      setAddingParentProjectItemId(parentProjectItemId);
+      openSelectPdfModal();
+    } else if (key === "add-local-epub-project-item") {
+      try {
+        const fileInfo = await importLocalBook("epub");
+        if (!fileInfo) return;
+        const epub = await createEpub({
+          fileName: fileInfo.fileName,
+          filePath: fileInfo.filePath,
+          isLocal: true,
+          remoteUrl: "",
+          tags: [],
+          category: "default",
+          progressPercentage: 0,
+        });
+        const [, item] = await addProjectItemToTarget(
+          createProjectItemFromEpub(epub),
+          parentProjectItemId
+        );
+        if (item) {
+          navigator.push("project-detail", { id: project.id, itemId: item.id });
+        }
+        toast.success("本地 EPUB 添加成功");
+      } catch (error) {
+        console.error("添加本地 EPUB 失败:", error);
+        toast.error("添加本地 EPUB 失败");
+      }
+    } else if (key === "add-remote-epub-project-item") {
+      setAddingParentProjectItemId(parentProjectItemId);
+      openModal(ModalKey.RemoteEpub);
+    } else if (key === "link-epub-project-item") {
+      setAddingParentProjectItemId(parentProjectItemId);
+      openSelectEpubModal();
+    } else if (key === "link-card-project-item") {
+      setAddingParentProjectItemId(parentProjectItemId);
+      openSelectCardModal();
+    } else if (key === "link-white-board-project-item") {
+      setAddingParentProjectItemId(parentProjectItemId);
+      openSelectWhiteBoardModal();
+    } else if (key === "import-markdown") {
+      const filePath = await selectFile({
+        properties: ["openFile", "multiSelections"],
+        filters: [
+          {
+            name: "Markdown",
+            extensions: ["md"],
+          },
+        ],
+      }).catch(e => {
+        console.error(e);
+        return null;
+      });
+      if (!filePath) return;
+      for (const path of filePath) {
+        const markdown = await readTextFile(path);
+        const content = importFromMarkdown(markdown, ["yaml"]);
+        const fileName = await getFileBaseName(path, true);
         const [newProject, item] = await addProjectItemToTarget(
-          createProjectItem,
+          {
+            title: fileName,
+            content,
+            children: [],
+            refType: "",
+            refId: 0,
+            projectItemType: EProjectItemType.Document,
+            count: getContentLength(content),
+            whiteBoardContentId: 0,
+          },
           parentProjectItemId
         );
         if (item) {
           navigator.push("project-detail", { id: newProject.id, itemId: item.id });
-        }
-      } else if (key === "add-local-video-note-project-item") {
-        // 选择视频文件
-        const filePath = await selectFile({
-          properties: ["openFile"],
-          filters: [
-            {
-              name: "Video",
-              extensions: ["mp4", "mov", "avi", "mkv", "flv", "wmv", "webm"],
-            },
-          ],
-        });
-        if (!filePath) return;
-        const item = await createEmptyVideoNote({
-          type: "local",
-          filePath: filePath[0],
-        });
-        if (!item) {
-          toast.error("创建视频笔记失败");
-          return;
-        }
-        const fileName = await getFileBaseName(filePath[0], true);
-        const createProjectItem: CreateProjectItem = {
-          title: fileName,
-          content: [],
-          children: [],
-          refType: "video-note",
-          refId: item.id,
-          projectItemType: EProjectItemType.VideoNote,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-        const [newProject, projectItem] = await addProjectItemToTarget(
-          createProjectItem,
-          parentProjectItemId
-        );
-        if (projectItem) {
-          navigator.push("project-detail", { id: newProject.id, itemId: projectItem.id });
-        }
-      } else if (key === "add-remote-video-note-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openModal(ModalKey.WebVideo);
-      } else if (key === "add-bilibili-video-note-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openModal(ModalKey.Bilibili);
-      } else if (key === "add-youtube-video-note-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openModal(ModalKey.Youtube);
-      } else if (key === "add-local-audio-note-project-item") {
-        const filePath = await selectFile({
-          properties: ["openFile"],
-          filters: [
-            {
-              name: "Audio",
-              extensions: ["mp3", "wav", "m4a", "flac", "ogg", "aac", "wma"],
-            },
-          ],
-        });
-        if (!filePath) return;
-        const audioNote = await createEmptyAudioNote({
-          type: "local",
-          filePath: filePath[0],
-        });
-        if (!audioNote) {
-          toast.error("创建音频笔记失败");
-          return;
-        }
-        const fileName = await getFileBaseName(filePath[0], true);
-        const createProjectItem: CreateProjectItem = {
-          title: fileName,
-          content: [],
-          children: [],
-          refType: "audio-note",
-          refId: audioNote.id,
-          projectItemType: EProjectItemType.AudioNote,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-        const [newProject2, projectItem2] = await addProjectItemToTarget(
-          createProjectItem,
-          parentProjectItemId
-        );
-        if (projectItem2) {
-          navigator.push("project-detail", { id: newProject2.id, itemId: projectItem2.id });
-        }
-      } else if (key === "add-remote-audio-note-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openModal(ModalKey.RemoteAudio);
-      } else if (key === "add-xiaoyuzhou-audio-note-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openModal(ModalKey.XiaoyuzhouPodcast);
-      } else if (key === "add-bilibili-audio-note-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openModal(ModalKey.BilibiliAudio);
-      } else if (key === "add-youtube-audio-note-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openModal(ModalKey.YoutubeAudio);
-      } else if (key === "add-webview-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openModal(ModalKey.Webview);
-      } else if (key === "add-table-project-item") {
-        const dataTable = await createDataTable({
-          columns: DEFAULT_COLUMNS,
-          rows: DEFAULT_ROWS,
-          activeViewId: null,
-        });
-        const createProjectItem: CreateProjectItem = {
-          title: "新表格",
-          content: [],
-          children: [],
-          refType: "data-table",
-          refId: dataTable.id,
-          projectItemType: EProjectItemType.TableView,
-          count: 0,
-          whiteBoardContentId: 0,
-        };
-        const [newProject, item] = await addProjectItemToTarget(
-          createProjectItem,
-          parentProjectItemId
-        );
-        if (item) {
-          navigator.push("project-detail", { id: newProject.id, itemId: item.id });
-        }
-      } else if (key === "add-local-pdf-project-item") {
-        try {
-          const fileInfo = await importLocalBook("pdf");
-          if (!fileInfo) return;
-          const pdf = await createPdf({
-            fileName: fileInfo.fileName,
-            filePath: fileInfo.filePath,
-            isLocal: true,
-            remoteUrl: "",
-            tags: [],
-            category: "",
-          });
-          const [, item] = await addProjectItemToTarget(
-            createProjectItemFromPdf(pdf),
-            parentProjectItemId
-          );
-          if (item) {
-            navigator.push("project-detail", { id: project.id, itemId: item.id });
-          }
-          toast.success("本地 PDF 添加成功");
-        } catch (error) {
-          console.error("添加本地 PDF 失败:", error);
-          toast.error("添加本地 PDF 失败");
-        }
-      } else if (key === "add-remote-pdf-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openModal(ModalKey.RemotePdf);
-      } else if (key === "link-pdf-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openSelectPdfModal();
-      } else if (key === "add-local-epub-project-item") {
-        try {
-          const fileInfo = await importLocalBook("epub");
-          if (!fileInfo) return;
-          const epub = await createEpub({
-            fileName: fileInfo.fileName,
-            filePath: fileInfo.filePath,
-            isLocal: true,
-            remoteUrl: "",
-            tags: [],
-            category: "default",
-            progressPercentage: 0,
-          });
-          const [, item] = await addProjectItemToTarget(
-            createProjectItemFromEpub(epub),
-            parentProjectItemId
-          );
-          if (item) {
-            navigator.push("project-detail", { id: project.id, itemId: item.id });
-          }
-          toast.success("本地 EPUB 添加成功");
-        } catch (error) {
-          console.error("添加本地 EPUB 失败:", error);
-          toast.error("添加本地 EPUB 失败");
-        }
-      } else if (key === "add-remote-epub-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openModal(ModalKey.RemoteEpub);
-      } else if (key === "link-epub-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openSelectEpubModal();
-      } else if (key === "link-card-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openSelectCardModal();
-      } else if (key === "link-white-board-project-item") {
-        setAddingParentProjectItemId(parentProjectItemId);
-        openSelectWhiteBoardModal();
-      } else if (key === "import-markdown") {
-        const filePath = await selectFile({
-          properties: ["openFile", "multiSelections"],
-          filters: [
-            {
-              name: "Markdown",
-              extensions: ["md"],
-            },
-          ],
-        }).catch(e => {
-          console.error(e);
-          return null;
-        });
-        if (!filePath) return;
-        for (const path of filePath) {
-          const markdown = await readTextFile(path);
-          const content = importFromMarkdown(markdown, ["yaml"]);
-          const fileName = await getFileBaseName(path, true);
-          const [newProject, item] = await addProjectItemToTarget(
-            {
-              title: fileName,
-              content,
-              children: [],
-              refType: "",
-              refId: 0,
-              projectItemType: EProjectItemType.Document,
-              count: getContentLength(content),
-              whiteBoardContentId: 0,
-            },
-            parentProjectItemId
-          );
-          if (item) {
-            navigator.push("project-detail", { id: newProject.id, itemId: item.id });
-          }
         }
       }
     }
-  );
+  });
 
   if (!project) return null;
 
@@ -803,16 +798,16 @@ const Project = () => {
                   {sidebarView === "tree" ? <ListTree /> : <Network />}
                 </div>
               </Tooltip>
-              <Dropdown
-                menu={{
-                  items: ADD_MENU_ITEMS,
-                  onClick: handleAddMenuClick,
-                }}
+              <Menu
+                trigger={
+                  <div className={styles.icon}>
+                    <Plus />
+                  </div>
+                }
+                align="end"
               >
-                <div className={styles.icon}>
-                  <Plus />
-                </div>
-              </Dropdown>
+                {renderMenuEntries(ADD_MENU_ITEMS, key => void handleAddMenuClick(key))}
+              </Menu>
             </div>
           </div>
           <div className={classnames(styles.divider, divideClass)}></div>

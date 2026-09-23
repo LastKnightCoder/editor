@@ -1,11 +1,11 @@
-import type { MenuProps } from "antd";
+import type { MenuEntryList } from "../../shared/menuEntries";
 
 import { EProjectItemType, type ProjectItem } from "@/types/project";
 import { isElectron } from "@/electron";
 
 type ProjectItemMenuSource = Partial<Pick<ProjectItem, "projectItemType" | "refType" | "podcast">>;
 
-type ProjectItemMenuItems = NonNullable<MenuProps["items"]>;
+type ProjectItemMenuItems = MenuEntryList;
 type ProjectItemMenuItem = ProjectItemMenuItems[number];
 
 const isMenuItem = (item: ProjectItemMenuItem | undefined): item is ProjectItemMenuItem =>
@@ -16,7 +16,7 @@ const compactMenuItems = (items: Array<ProjectItemMenuItem | undefined>): Projec
 
 export const getProjectItemMoreMenuItems = (
   projectItem?: ProjectItemMenuSource | null
-): MenuProps["items"] => {
+): MenuEntryList => {
   if (projectItem?.projectItemType === EProjectItemType.Document) {
     return compactMenuItems([
       projectItem?.refType !== "card"
