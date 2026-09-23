@@ -52,6 +52,8 @@ export interface TooltipProps {
   arrow?: boolean;
   /** 显示延迟毫秒（默认 450；400ms 内重开免延迟） */
   delay?: number;
+  /** 暂停提示并清理内部打开状态与延迟；优先于 open，不影响子元素交互。 */
+  disabled?: boolean;
   /** 受控模式（对齐 §5.3 浮层 open 契约）：传入后组件不再做 hover intent，由调用方管理 */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -68,6 +70,7 @@ export function Tooltip({
   placement = "top",
   arrow = true,
   delay = 450,
+  disabled = false,
   open: openProp,
   onOpenChange,
   children,
@@ -76,7 +79,7 @@ export function Tooltip({
   const anchorRef = useRef<HTMLElement | null>(null);
   const popRef = useRef<HTMLDivElement | null>(null);
   const [openState, setOpenState] = useState(false);
-  const open = openProp ?? openState;
+  const open = !disabled && (openProp ?? openState);
   const tipId = useId();
   const timerRef = useRef<number>(0);
 
@@ -91,6 +94,12 @@ export function Tooltip({
 
   // 卸载时清掉挂起中的显示延迟
   useEffect(() => () => window.clearTimeout(timerRef.current), []);
+
+  useEffect(() => {
+    if (!disabled) return;
+    window.clearTimeout(timerRef.current);
+    setOpenState(false);
+  }, [disabled]);
 
   // open 期间的定位生命周期（双遍进场 / scroll(capture)/resize/内容尺寸跟随 /
   // rAF 轮询动态锚）收口在 useAnchoredPosition（D-014 四家共用）；
@@ -114,25 +123,25 @@ export function Tooltip({
 
   // hover intent：受控模式跳过（调用方自己管理时机）
   const enter = () => {
-    if (controlled) return;
+    if (disabled || controlled) return;
     window.clearTimeout(timerRef.current);
     const wait = Date.now() - lastClosedAt < REOPEN_SKIP_MS ? 0 : delay;
     timerRef.current = window.setTimeout(() => setOpen(true), wait);
   };
   const leave = () => {
-    if (controlled) return;
+    if (disabled || controlled) return;
     window.clearTimeout(timerRef.current);
     setOpen(false);
   };
   const focus = (e: React.FocusEvent) => {
-    if (controlled) return; // 受控：时机全归调用方（与 enter/leave 一致）
+    if (disabled || controlled) return; // 受控：时机全归调用方（与 enter/leave 一致）
     if ((e.target as HTMLElement).matches(":focus-visible")) {
       window.clearTimeout(timerRef.current);
       setOpen(true);
     }
   };
   const blur = () => {
-    if (!controlled) setOpen(false);
+    if (!disabled && !controlled) setOpen(false);
   };
 
   // 透传调用方已有的事件处理器（childProps 为宽类型，逐个判函数再调）
