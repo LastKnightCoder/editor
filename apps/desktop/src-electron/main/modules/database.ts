@@ -51,8 +51,7 @@ import CalendarGroupTable from "./tables/calendar-group";
 import CalendarTable from "./tables/calendar";
 import CalendarEventTable from "./tables/calendar-event";
 import PodcastTable from "./tables/podcast";
-import ResourceTable from "./tables/resource";
-import ResourceGroupTable from "./tables/resource-group";
+import ResourceHardCleanupTable from "./tables/resource-hard-cleanup";
 import WebLinkTable from "./tables/web-link";
 import WebClipTable from "./tables/web-clip";
 import WebNoteTable from "./tables/web-note";
@@ -240,8 +239,7 @@ class DatabaseModule implements Module {
       CalendarTable,
       CalendarEventTable,
       TodoCalendarSyncTable, // 移到 CalendarGroupTable 之后
-      ResourceGroupTable,
-      ResourceTable,
+      ResourceHardCleanupTable,
       WebLinkTable,
       WebClipTable,
       WebNoteTable,

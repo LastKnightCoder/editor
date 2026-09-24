@@ -2,8 +2,6 @@ import type Database from "better-sqlite3";
 import type { ContentNode, SourceBinding, SourceType } from "@tau/collaboration";
 import { PRIVATE_BLOCKS, SOURCE_TYPES } from "@tau/collaboration";
 import { findCollaborationBinding } from "../collaboration-guard";
-import ResourceTable from "../tables/resource";
-import log from "electron-log";
 
 const parseSourceType = (value: string | undefined | null): SourceType | undefined =>
   SOURCE_TYPES.includes(value as SourceType) ? (value as SourceType) : undefined;
@@ -92,24 +90,6 @@ export function restoreContentBinding(
         sourceTitle: row.source_title,
       }
     : undefined;
-}
-
-// 协作资源本地化落盘时登记进用户资源库，使其可被资源管理与引用扫描纳管，避免成为孤儿文件
-export function registerLocalizedResource(
-  db: Database.Database,
-  contentId: number,
-  file: { path: string; name: string }
-) {
-  try {
-    ResourceTable.createOrUpdateResource(db, {
-      name: file.name,
-      path: file.path,
-      type: ResourceTable.getResourceType(file.path),
-      source: { type: "content", id: contentId },
-    });
-  } catch (error) {
-    log.warn("登记协作本地化资源失败", file.path, error);
-  }
 }
 
 export function writeContentProjection(

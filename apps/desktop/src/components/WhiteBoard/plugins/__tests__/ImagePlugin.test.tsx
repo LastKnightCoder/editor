@@ -29,9 +29,7 @@ vi.mock("@/utils", () => ({
   getImageInfo: vi.fn(),
 }));
 
-const createContext = (
-  overrides: Partial<ContextMenuContext> = {},
-): ContextMenuContext => {
+const createContext = (overrides: Partial<ContextMenuContext> = {}): ContextMenuContext => {
   return {
     clientX: 0,
     clientY: 0,
@@ -48,7 +46,7 @@ const createContext = (
 };
 
 const getCreateImageMenu = (items: PluginContextMenuItem[]) => {
-  const menu = items.find((item) => item.key === "create-image");
+  const menu = items.find(item => item.key === "create-image");
   expect(menu).toBeTruthy();
   return menu!;
 };
@@ -59,12 +57,7 @@ describe("ImagePlugin", () => {
     const items = plugin.getContextMenu(createContext());
     const menu = getCreateImageMenu(items);
 
-    expect(menu.children?.map((item) => item.label)).toEqual([
-      "本地上传",
-      "资源库",
-      "输入 URL",
-      "AI 图片生成",
-    ]);
+    expect(menu.children?.map(item => item.label)).toEqual(["本地上传", "输入 URL", "AI 图片生成"]);
   });
 
   it("图片插入菜单应触发对应 action", () => {
@@ -74,22 +67,18 @@ describe("ImagePlugin", () => {
 
     const expectedActions = [
       ["image-local", "local"],
-      ["image-resource", "resource"],
       ["image-url", "url"],
       ["image-ai", "ai"],
     ];
 
     expectedActions.forEach(([key, action]) => {
-      const item = menu.children?.find((child) => child.key === key);
+      const item = menu.children?.find(child => child.key === key);
       expect(item).toBeTruthy();
       item?.onSelect(ctx);
-      expect(ctx.board.emit).toHaveBeenLastCalledWith(
-        "context-menu:open-modal",
-        {
-          type: "image",
-          action,
-        },
-      );
+      expect(ctx.board.emit).toHaveBeenLastCalledWith("context-menu:open-modal", {
+        type: "image",
+        action,
+      });
     });
   });
 });

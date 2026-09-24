@@ -2,12 +2,12 @@ import classNames from "classnames";
 import { Image, Video, Music, FileText, BookOpen, Paperclip, Play } from "lucide-react";
 
 import LocalImage from "@/components/LocalImage";
-import { ResourceType } from "@/types";
+import { ResourceFileType } from "@/types";
 
 export interface ResourcePreviewItem {
   name: string;
   path: string;
-  type: ResourceType;
+  type: ResourceFileType;
 }
 
 interface ResourceThumbnailProps {
@@ -18,7 +18,7 @@ interface ResourceThumbnailProps {
   className?: string;
 }
 
-const getResourceIcon = (type: ResourceType) => {
+const getResourceIcon = (type: ResourceFileType) => {
   const iconClass = "w-5 h-5";
   switch (type) {
     case "image":
@@ -36,7 +36,7 @@ const getResourceIcon = (type: ResourceType) => {
   }
 };
 
-const iconColors: Record<ResourceType, string> = {
+const iconColors: Record<ResourceFileType, string> = {
   image: "",
   video: "",
   audio: "",

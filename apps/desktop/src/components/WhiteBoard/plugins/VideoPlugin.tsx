@@ -1,13 +1,4 @@
-import {
-  Video,
-  Link,
-  Download,
-  Upload,
-  FolderOpen,
-  MonitorPlay,
-  Youtube,
-  FileText,
-} from "lucide-react";
+import { Video, Link, Download, Upload, MonitorPlay, Youtube, FileText } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
 import { uploadResource } from "@/hooks/useUploadResource";
@@ -46,7 +37,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
         asContainer: ContainmentBehavior.None,
         canBeContained: true,
         // 58f0660e53ef5165 ColumnFf0851c651654e0e542675315b5065b958f0660e53cd8f6c51b35b9aFf0c89c1 CapabilityService.canContainFf09
-        canBeContainedBy: (container) => container.type === "column",
+        canBeContainedBy: container => container.type === "column",
       },
       movement: { behavior: MovementBehavior.Normal },
       render: {
@@ -60,7 +51,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
           return DOMSizeMeasurer.measureMediaHeight(
             video.naturalWidth || video.width || targetWidth,
             video.naturalHeight || video.height || targetWidth * 0.5625, // 16:9
-            targetWidth,
+            targetWidth
           );
         },
       },
@@ -88,18 +79,6 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
               ctx.board.emit("context-menu:open-modal", {
                 type: "video",
                 action: "local",
-              });
-            },
-          },
-          {
-            key: "video-resource",
-            label: "资源库",
-            icon: <FolderOpen size={14} />,
-            priority: 1,
-            onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
-                type: "video",
-                action: "resource",
               });
             },
           },
@@ -145,9 +124,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
     }
 
     // 右键视频元素 → 添加视频操作菜单
-    const videoElements = targetElements.filter(
-      (el) => el.type === "video",
-    ) as VideoElement[];
+    const videoElements = targetElements.filter(el => el.type === "video") as VideoElement[];
     if (videoElements.length === 1) {
       const videoElement = videoElements[0];
 
@@ -219,10 +196,8 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
     if (videoFiles.length === 0) return;
 
     Promise.all(
-      videoFiles.map((file) =>
-        Promise.all([getVideoInfo(file), Promise.resolve(file)]),
-      ),
-    ).then(async (videos) => {
+      videoFiles.map(file => Promise.all([getVideoInfo(file), Promise.resolve(file)]))
+    ).then(async videos => {
       message.loading({
         key: "uploading-video",
         content: "正在处理视频，请稍候...",

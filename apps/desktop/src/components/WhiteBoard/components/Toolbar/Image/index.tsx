@@ -1,7 +1,7 @@
 import { useState } from "react";
 import SVG from "react-inlinesvg";
 import { Tooltip, Popover } from "antd";
-import { Upload, FolderOpen, Link, Sparkles } from "lucide-react";
+import { Upload, Link, Sparkles } from "lucide-react";
 import imageIcon from "@/assets/white-board/image.svg";
 
 import { useBoard } from "../../../hooks";
@@ -17,7 +17,7 @@ const Image = (props: ImageProps) => {
   const board = useBoard();
   const [actionOpen, setActionOpen] = useState(false);
 
-  const openImageAction = (action: "local" | "resource" | "url" | "ai") => {
+  const openImageAction = (action: "local" | "url" | "ai") => {
     setActionOpen(false);
     board.emit("context-menu:open-modal", {
       type: "image",
@@ -31,12 +31,6 @@ const Image = (props: ImageProps) => {
       label: "本地上传",
       icon: <Upload size={16} />,
       onSelect: () => openImageAction("local"),
-    },
-    {
-      key: "library",
-      label: "资源库",
-      icon: <FolderOpen size={16} />,
-      onSelect: () => openImageAction("resource"),
     },
     {
       key: "url",

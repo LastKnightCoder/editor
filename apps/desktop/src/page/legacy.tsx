@@ -23,7 +23,6 @@ export const LEGACY_PAGES: Record<string, string> = {
   pomodoro: "番茄专注",
   feed: "订阅",
   weread: "微信读书",
-  resources: "资源管理",
   questions: "问题管理",
   skills: "Skill 管理",
   collaboration: "协作",

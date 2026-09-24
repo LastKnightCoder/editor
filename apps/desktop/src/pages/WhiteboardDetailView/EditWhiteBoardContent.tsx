@@ -5,16 +5,8 @@ import { useRafInterval, useMemoizedFn } from "ahooks";
 import { Empty } from "antd";
 import { WhiteBoardContent as IWhiteBoardContent } from "@/types";
 import { LoadingOutlined } from "@ant-design/icons";
-import {
-  BoardElement,
-  ViewPort,
-  Selection,
-  PresentationSequence,
-} from "@/components/WhiteBoard";
-import {
-  getWhiteBoardContentById,
-  updateWhiteBoardContent,
-} from "@/commands/white-board";
+import { BoardElement, ViewPort, Selection, PresentationSequence } from "@/components/WhiteBoard";
+import { getWhiteBoardContentById, updateWhiteBoardContent } from "@/commands/white-board";
 
 interface EditWhiteBoardContentProps {
   whiteBoardContentId: number;
@@ -25,15 +17,14 @@ const EditWhiteBoardContent = (props: EditWhiteBoardContentProps) => {
   const { whiteBoardContentId, breadcrumb } = props;
 
   const [loading, setLoading] = useState(false);
-  const [whiteBoardContent, setWhiteBoardContent] =
-    useState<IWhiteBoardContent | null>(null);
+  const [whiteBoardContent, setWhiteBoardContent] = useState<IWhiteBoardContent | null>(null);
   const changed = useRef(false);
   const latestDataRef = useRef<IWhiteBoardContent["data"] | null>(null);
 
   useEffect(() => {
     setLoading(true);
     getWhiteBoardContentById(whiteBoardContentId)
-      .then((content) => {
+      .then(content => {
         setWhiteBoardContent(content);
         latestDataRef.current = null;
         changed.current = false;
@@ -56,7 +47,7 @@ const EditWhiteBoardContent = (props: EditWhiteBoardContentProps) => {
       if (!whiteBoardContent) return;
       latestDataRef.current = data;
       changed.current = true;
-    },
+    }
   );
 
   const saveWhiteBoardContent = useMemoizedFn(async () => {
@@ -85,7 +76,7 @@ const EditWhiteBoardContent = (props: EditWhiteBoardContentProps) => {
 
   if (loading) {
     return (
-      <div className="w-full h-full flex justify-center items-center">
+      <div className="flex h-full w-full items-center justify-center">
         <LoadingOutlined className="text-2xl" />
       </div>
     );
@@ -96,25 +87,19 @@ const EditWhiteBoardContent = (props: EditWhiteBoardContentProps) => {
   }
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden">
+    <div className="flex h-full w-full flex-col overflow-hidden">
       {/* 面包屑导航 - 始终显示 */}
-      <WhiteBoardBreadcrumb
-        breadcrumb={breadcrumb}
-        currentContentName={whiteBoardContent.name}
-      />
+      <WhiteBoardBreadcrumb breadcrumb={breadcrumb} currentContentName={whiteBoardContent.name} />
 
       <div className="flex-1 overflow-hidden">
         <WhiteBoard
           key={whiteBoardContent.id}
-          className="w-full h-full"
+          className="h-full w-full"
           initData={whiteBoardContent.data.children}
           initViewPort={whiteBoardContent.data.viewPort}
           initSelection={whiteBoardContent.data.selection}
-          initPresentationSequences={
-            whiteBoardContent.data.presentationSequences
-          }
+          initPresentationSequences={whiteBoardContent.data.presentationSequences}
           onChange={onWhiteBoardContentChange}
-          whiteboardContentId={whiteBoardContent.id}
         />
       </div>
     </div>

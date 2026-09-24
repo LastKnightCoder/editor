@@ -19,7 +19,6 @@ import {
   File as FileIcon,
   FileText,
   FolderKanban,
-  FolderOpen,
   Globe,
   Layers3,
   Library,
@@ -83,7 +82,6 @@ const CATEGORIES: Array<{ label: string; modules: Array<[key: string, icon: Luci
     modules: [
       ["flashcard", Layers3],
       ["skillManagement", Wand2],
-      ["resourceManagement", FolderOpen],
       ["collaboration", Users],
     ],
   },

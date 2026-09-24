@@ -38,7 +38,6 @@ function Content({ id }: { id: number }) {
       initSelection={content.data.selection}
       initViewPort={content.data.viewPort}
       initPresentationSequences={content.data.presentationSequences}
-      whiteboardContentId={content.id}
       onChange={onChange}
     />
   );

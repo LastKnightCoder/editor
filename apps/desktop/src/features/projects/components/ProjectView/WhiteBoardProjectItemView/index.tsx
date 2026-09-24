@@ -60,7 +60,6 @@ const WhiteBoardProjectView = memo((props: { projectItemId: number }) => {
       initViewPort={data.viewPort}
       initPresentationSequences={data.presentationSequences}
       onChange={onWhiteBoardChange}
-      whiteboardContentId={whiteBoardContent.id}
     />
   );
 });
