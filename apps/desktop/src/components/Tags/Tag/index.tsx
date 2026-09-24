@@ -1,20 +1,15 @@
 import { ReactNode } from "react";
-import classnames from "classnames";
 
-import { CloseOutlined, TagOutlined } from "@ant-design/icons";
-import { useThemeColors } from "@/hooks";
-
-import styles from "./index.module.less";
+import { Tag as TauTag, cn } from "@tau/ui";
 
 interface ITagProps {
   tag: ReactNode;
-  showSharp?: boolean;
+  /** 兼容保留：D-021 裁决标签不迁图标，传值不生效 */
   showIcon?: boolean;
-  icon?: React.ReactNode;
   closable?: boolean;
   hoverAble?: boolean;
   onClose?: () => void;
-  onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onClick?: (e: React.MouseEvent) => void;
   className?: string;
   style?: React.CSSProperties;
   isEditing?: boolean;
@@ -25,9 +20,6 @@ interface ITagProps {
 const Tag = (props: ITagProps) => {
   const {
     tag,
-    showSharp,
-    showIcon,
-    icon,
     closable,
     hoverAble,
     onClose,
@@ -39,45 +31,32 @@ const Tag = (props: ITagProps) => {
     onEditBlur,
   } = props;
 
-  const { tagBgClass, hoverClass, tagTextClass } = useThemeColors();
-
-  const tagClassName = classnames(
-    styles.tagContainer,
-    tagBgClass,
-    tagTextClass,
-    {
-      [hoverClass]: hoverAble,
-    },
-    className,
-  );
-
   return (
-    <div className={tagClassName} style={style} onClick={onClick}>
-      {showIcon && (icon || <TagOutlined />)}
-      <div className={styles.tag}>
-        {showSharp ? "#" : ""}
-        {isEditing ? (
-          <div
-            ref={editRef}
-            contentEditable={true}
-            suppressContentEditableWarning
-            onBlur={onEditBlur}
-            style={{
-              outline: "none",
-              minWidth: "1em",
-              display: "inline-block",
-            }}
-          />
-        ) : (
-          tag
-        )}
-      </div>
-      {closable && (
-        <div className={styles.close} onClick={onClose}>
-          <CloseOutlined />
-        </div>
+    <TauTag
+      onClick={onClick}
+      onRemove={closable ? onClose : undefined}
+      style={style}
+      className={cn(
+        hoverAble && "hover:bg-surface-hover hover:text-ink-1 cursor-pointer",
+        className
       )}
-    </div>
+    >
+      {isEditing ? (
+        <div
+          ref={editRef}
+          contentEditable={true}
+          suppressContentEditableWarning
+          onBlur={onEditBlur}
+          style={{
+            outline: "none",
+            minWidth: "1em",
+            display: "inline-block",
+          }}
+        />
+      ) : (
+        tag
+      )}
+    </TauTag>
   );
 };
 
