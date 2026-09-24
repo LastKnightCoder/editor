@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>项目详情页 · 双侧栏布局方案</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #faf6ec; --bg-sunk: #ede6d6;
+    --bg-hover: rgba(67, 57, 44, 0.05);
+    --ink-1: #43392c; --ink-2: #736552; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --line: #e9e1d2;
+    --ok: #61795f; --danger: #b0564d;
+    --shadow: 0 1px 2px rgba(67,57,44,.04), 0 6px 24px rgba(67,57,44,.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #e8e1d1; color: var(--ink-1);
+    font: 14px/1.7 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 40px 6vw 100px;
+  }
+  header h1 { font-size: 22px; font-weight: 650; }
+  header p { color: var(--ink-2); max-width: 80ch; margin-top: 6px; }
+  section { margin-top: 56px; }
+  section h2 { font-size: 17px; font-weight: 650; display: flex; align-items: baseline; gap: 10px; }
+  section h2 .no { font: 600 13px ui-monospace, monospace; color: var(--accent-text); }
+  section h2 .tag { font-size: 11.5px; font-weight: 500; color: var(--accent-text); background: var(--accent-soft); border-radius: 99px; padding: 1px 10px; }
+  .desc { color: var(--ink-2); max-width: 86ch; margin: 6px 0 14px; font-size: 13.5px; }
+  .pros { display: flex; gap: 28px; font-size: 12.5px; margin-top: 12px; flex-wrap: wrap; }
+  .pros div { max-width: 48ch; }
+  .pros .g { color: var(--ok); } .pros .b { color: var(--danger); }
+
+  /* ---------- mini window ---------- */
+  .win {
+    height: 520px; border-radius: 14px; overflow: hidden; background: var(--bg-page);
+    box-shadow: 0 2px 6px rgba(67,57,44,.08), 0 20px 50px rgba(67,57,44,.12);
+    display: flex; flex-direction: column; font-size: 12.5px; position: relative;
+  }
+  .titlebar { height: 38px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 14px; color: var(--ink-2); }
+  .dots { display: flex; gap: 6px; } .dots i { width: 10px; height: 10px; border-radius: 50%; background: #e0d6c4; }
+  .crumb { color: var(--ink-3); } .crumb b { color: var(--ink-1); font-weight: 500; }
+  .search { margin-left: auto; background: var(--bg-surface); border-radius: 8px; padding: 2px 10px; color: var(--ink-3); font-size: 11.5px; }
+  .body { flex: 1; display: flex; min-height: 0; }
+
+  .nav { width: 168px; flex: none; padding: 6px 10px; color: var(--ink-2); overflow: hidden; }
+  .nav .grp { font-size: 10.5px; color: var(--ink-3); margin: 10px 6px 2px; }
+  .nav .it { padding: 3px 8px; border-radius: 6px; display: flex; gap: 8px; align-items: center; }
+  .nav .it::before { content: ""; width: 11px; height: 11px; border: 1.4px solid currentColor; border-radius: 3px; opacity: .6; flex: none; }
+  .nav .it.on { background: var(--bg-hover); color: var(--ink-1); font-weight: 500; }
+
+  .tree { width: 200px; flex: none; padding: 10px 8px; overflow: hidden; }
+  .tree .head { display: flex; align-items: center; gap: 6px; padding: 4px 8px 10px; font-weight: 600; color: var(--ink-1); }
+  .tree .head small { margin-left: auto; color: var(--ink-3); font-weight: 400; }
+  .tree .n { padding: 4px 8px; border-radius: 6px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tree .n.l1 { padding-left: 22px; } .tree .n.l2 { padding-left: 36px; }
+  .tree .n.f { color: var(--ink-1); }
+  .tree .n.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 500; }
+
+  .doc { flex: 1; min-width: 0; padding: 28px 40px; overflow: hidden; display: flex; gap: 28px; }
+  .doc .main { flex: 1; min-width: 0; }
+  .doc h3 { font-size: 22px; font-weight: 600; letter-spacing: .02em; }
+  .doc .meta { color: var(--ink-3); font-size: 11px; margin: 8px 0 18px; }
+  .doc h4 { font-size: 15px; margin: 14px 0 6px; }
+  .doc p { color: var(--ink-2); font-size: 12px; line-height: 1.9; margin-bottom: 8px; }
+  .toc { width: 110px; flex: none; color: var(--ink-3); font-size: 11.5px; }
+  .toc div { padding: 2px 8px; } .toc .on { color: var(--accent-text); border-left: 2px solid var(--accent); }
+
+  .note { position: absolute; font-size: 11px; background: var(--ink-1); color: #fff; padding: 3px 9px; border-radius: 6px; pointer-events: none; white-space: nowrap; }
+  .note::after { content: ""; position: absolute; left: 12px; bottom: -4px; width: 8px; height: 8px; background: inherit; transform: rotate(45deg); }
+
+  /* ---------- A: 纸面托盘 ---------- */
+  .A .sheet { flex: 1; display: flex; margin: 0 10px 10px 0; background: var(--bg-surface); border-radius: 12px; box-shadow: var(--shadow); min-width: 0; overflow: hidden; }
+  .A .tree { background: var(--bg-group); }
+
+  /* ---------- B: 侧栏换挡 ---------- */
+  .B .rail { width: 50px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 8px; }
+  .B .rail i { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-3); }
+  .B .rail i::before { content: ""; width: 13px; height: 13px; border: 1.5px solid currentColor; border-radius: 3px; }
+  .B .rail i.on { background: var(--bg-hover); color: var(--ink-1); }
+  .B .rail hr { width: 18px; border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+  .B .tree { width: 220px; }
+  .B .doc { background: var(--bg-surface); border-radius: 12px 0 0 0; box-shadow: var(--shadow); }
+  .B .flyout { position: absolute; left: 56px; top: 90px; width: 168px; background: var(--bg-surface); border-radius: 10px; box-shadow: 0 8px 30px rgba(67,57,44,.18); padding: 6px; opacity: .96; }
+
+  /* ---------- C: 侧栏下钻 ---------- */
+  .C .nav { width: 220px; }
+  .C .back { display: flex; gap: 6px; align-items: center; color: var(--ink-3); padding: 4px 8px; font-size: 11.5px; }
+  .C .proj { margin: 6px 0 8px; padding: 8px 10px; border-radius: 10px; background: var(--bg-surface); box-shadow: var(--shadow); display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--ink-1); }
+  .C .proj span { width: 18px; height: 18px; border-radius: 5px; background: var(--accent-soft); }
+  .C .proj small { margin-left: auto; color: var(--ink-3); font-weight: 400; }
+  .C .tree { width: auto; padding: 0; }
+  .C .doc { background: var(--bg-surface); border-radius: 12px; margin: 0 10px 10px 0; box-shadow: var(--shadow); }
+
+  /* ---------- D: 浮动目录 ---------- */
+  .D .doc { background: var(--bg-surface); border-radius: 12px; margin: 0 10px 10px 0; box-shadow: var(--shadow); padding-left: 64px; position: relative; }
+  .D .pop { position: absolute; left: 180px; top: 48px; bottom: 20px; width: 220px; background: var(--bg-surface); border-radius: 12px; box-shadow: 0 12px 40px rgba(67,57,44,.2); }
+  .D .tab { position: absolute; left: 176px; top: 50%; width: 4px; height: 44px; border-radius: 4px; background: var(--line); }
+  .D .mini { position: absolute; left: 190px; top: 60px; display: flex; flex-direction: column; gap: 7px; }
+  .D .mini i { width: 14px; height: 3px; border-radius: 2px; background: var(--line); } .D .mini i.on { background: var(--accent); width: 20px; }
+
+  .rec { margin-top: 64px; background: var(--bg-surface); border-radius: 14px; padding: 22px 26px; box-shadow: var(--shadow); border-left: 3px solid var(--accent); max-width: 110ch; }
+  .rec h2 { font-size: 16px; margin-bottom: 8px; }
+  .rec p, .rec li { color: var(--ink-2); font-size: 13.5px; } .rec ul { padding-left: 20px; margin-top: 6px; } .rec b { color: var(--ink-1); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>项目详情页 · 全局侧栏 × 文档树 布局方案</h1>
+  <p>问题：全局侧栏与项目文档树都是「竖排文字列表 + 同一底色」，并排时视觉权重相同，只能靠文档树右侧 1px 竖线区分，既违和又生硬。
+  下面 4 个方案都去掉这条竖线，改用 <b>层级（底色/阴影/容器）</b> 或 <b>形态（图标轨/下钻/浮层）</b> 来区分两者。</p>
+</header>
+
+<template id="nav">
+  <div class="grp">工作台</div><div class="it">今日</div><div class="it">日程</div><div class="it">待办</div>
+  <div class="grp">知识</div><div class="it">卡片库</div><div class="it">文章</div><div class="it">知识库</div><div class="it">白板</div>
+  <div class="grp">学习</div><div class="it on">项目</div><div class="it">闪卡复习</div><div class="it">问题管理</div>
+  <div class="grp">AI</div><div class="it">AI 对话</div>
+</template>
+<template id="tree">
+  <div class="n f">▾ 大纲</div>
+  <div class="n l1">总纲</div>
+  <div class="n l1 f">▾ 主世界相关设定</div>
+  <div class="n l2 on">主世界设定</div>
+  <div class="n l2">主世界修炼体系</div>
+  <div class="n l2">主世界地图及势力划分</div>
+  <div class="n l2">主世界武器体系设定</div>
+  <div class="n l1">陆言设定</div>
+  <div class="n l1">天阙结算机制设定</div>
+  <div class="n l1">写作套路</div>
+  <div class="n l1">阙令发布规则</div>
+</template>
+<template id="doc">
+  <div class="main">
+    <h3>主世界设定</h3>
+    <div class="meta">创建于 08-02 10:46　最后修改于 09-06 22:00</div>
+    <h4>世界基底</h4>
+    <p>主世界是一个天炁充盈、强者辈出、道争激烈的玄幻世界。本地人认为天地之间流动着一种超凡根基，称为天炁。修士以天炁淬体、开脉、施术、摄象、辟域，最终一步步走向登天。</p>
+    <p>从更高层视角看，天炁是主世界源核活跃后的外显。主世界正处在源潮增长期，天地超凡活性不断上升，各地秘境、异象、强者遗迹、古战场也随之频繁出现。</p>
+    <p>这个世界并不缺少天炁。真正稀缺的，是那些能够让修士看见高境道路的天地痕迹。</p>
+    <h4>天痕</h4>
+    <p>天痕不是普通资源，也不是可以随意搬运的灵物。它更像天地曾经被某种强大力量刻下的痕迹。</p>
+  </div>
+  <div class="toc"><div class="on">世界基底</div><div>天痕</div><div>争道</div><div>开脉登天体系</div><div>势力格局</div><div>城市与生活</div></div>
+</template>
+<template id="bar">
+  <div class="titlebar"><div class="dots"><i></i><i></i><i></i></div><span class="crumb">项目 / 源核 / <b>主世界设定</b></span><span class="search">搜索或跳转… Ctrl K</span></div>
+</template>
+
+<!-- A -->
+<section>
+  <h2><span class="no">A</span>纸面托盘<span class="tag">推荐 · 改动最小</span></h2>
+  <p class="desc">全局侧栏留在「桌面」底色上；文档树 + 正文装进同一张抬起的「纸」（圆角 + 柔阴影）。文档树在纸内用略深一档的 <code>bg-group</code> 底色，与正文靠色块分界，不需要竖线。
+  语义很清楚：纸外是 App 导航，纸内是这个项目。</p>
+  <div class="win A">
+    <div data-t="bar"></div>
+    <div class="body">
+      <div class="nav" data-t="nav"></div>
+      <div class="sheet">
+        <div class="tree"><div class="head">⌂ 源核 ▾<small>⇤ ＋</small></div><div data-t="tree"></div></div>
+        <div class="doc" data-t="doc"></div>
+      </div>
+    </div>
+    <div class="note" style="left:190px;top:56px">纸面边缘 = 分界，无竖线</div>
+  </div>
+  <div class="pros">
+    <div class="g">＋ 只改容器样式，布局与交互不变；与现有 bg-surface / shadow-card 体系一致</div>
+    <div class="g">＋ 其它详情页（白板、PDF、表格）可复用同一张「纸」</div>
+    <div class="b">－ 横向仍占两栏宽度，窄屏需配合折叠</div>
+  </div>
+</section>
+
+<!-- B -->
+<section>
+  <h2><span class="no">B</span>侧栏换挡</h2>
+  <p class="desc">进入项目详情时，全局侧栏自动收成 50px 图标轨（悬停弹出完整菜单），文档树顶替到「侧栏」位置并与侧栏共用桌面底色；正文是唯一抬起的纸面。
+  任一时刻只有一列文字侧栏，形态差异（图标 vs 文字树）天然可区分。</p>
+  <div class="win B">
+    <div data-t="bar"></div>
+    <div class="body">
+      <div class="rail"><i></i><i></i><i></i><hr><i></i><i></i><i></i><hr><i class="on"></i><i></i><i></i></div>
+      <div class="tree"><div class="head">⌂ 源核 ▾<small>⇤ ＋</small></div><div data-t="tree"></div></div>
+      <div class="doc" data-t="doc"></div>
+    </div>
+    <div class="note" style="left:60px;top:470px">离开项目后侧栏自动展开</div>
+  </div>
+  <div class="pros">
+    <div class="g">＋ 正文区最宽；最接近 VS Code / Linear 的心智</div>
+    <div class="g">＋ 侧栏折叠状态已有（« 按钮），可复用，只需按路由记忆状态</div>
+    <div class="b">－ 进出项目时侧栏形态切换，需要动效过渡，否则会跳</div>
+  </div>
+</section>
+
+<!-- C -->
+<section>
+  <h2><span class="no">C</span>侧栏下钻</h2>
+  <p class="desc">文档树直接「进入」全局侧栏：点项目后侧栏整体左滑切换成项目模式，顶部是「← 工作台」返回 + 项目卡片头，下方是文档树。像 Notion / 飞书知识库的层级导航。</p>
+  <div class="win C">
+    <div data-t="bar"></div>
+    <div class="body">
+      <div class="nav">
+        <div class="back">← 返回导航</div>
+        <div class="proj"><span></span>源核<small>▾</small></div>
+        <div class="tree" data-t="tree"></div>
+      </div>
+      <div class="doc" data-t="doc"></div>
+    </div>
+  </div>
+  <div class="pros">
+    <div class="g">＋ 彻底只有一列侧栏，最干净</div>
+    <div class="b">－ 在项目内切到「今日 / 待办」要多一步；需要改侧栏架构（插槽/栈式导航）</div>
+    <div class="b">－ 多个项目 Tab 并存时，侧栏内容要跟随 Tab 切换</div>
+  </div>
+</section>
+
+<!-- D -->
+<section>
+  <h2><span class="no">D</span>浮动目录</h2>
+  <p class="desc">文档树默认隐藏，正文左侧留一条「目录刻度」（当前层级缩略）。鼠标移到纸面左缘或按快捷键时，文档树以浮层卡片滑出；可钉住，钉住后退化为方案 A。</p>
+  <div class="win D">
+    <div data-t="bar"></div>
+    <div class="body">
+      <div class="nav" data-t="nav"></div>
+      <div class="doc" data-t="doc"></div>
+    </div>
+    <div class="mini"><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i></div>
+    <div class="pop tree" style="padding:10px 8px"><div class="head">⌂ 源核 ▾<small>📌</small></div><div data-t="tree"></div></div>
+    <div class="note" style="left:410px;top:56px">悬停左缘滑出，可钉住</div>
+  </div>
+  <div class="pros">
+    <div class="g">＋ 沉浸写作体验最好</div>
+    <div class="b">－ 文档树可发现性差，频繁切换文档时多一次悬停</div>
+  </div>
+</section>
+
+<div class="rec">
+  <h2>建议</h2>
+  <ul>
+    <li><b>A 作为默认</b>：改动集中在 <code>ProjectView/index.tsx</code> 的容器（去掉 <code>border-r border-line-1</code>，外包一层 <code>bg-surface rounded-tau-lg shadow-card</code>，文档树改 <code>bg-group</code>），风险小。</li>
+    <li><b>叠加 B 的自动收起</b>作为设置项或窄屏（&lt; 1200px）自动行为，解决两栏占宽问题。</li>
+    <li>C 改动大、D 牺牲可发现性，适合作为后续探索。</li>
+  </ul>
+</div>
+
+<script>
+  document.querySelectorAll('[data-t]').forEach(el => {
+    el.innerHTML = document.getElementById(el.dataset.t).innerHTML;
+  });
+</script>
+</body>
+</html>

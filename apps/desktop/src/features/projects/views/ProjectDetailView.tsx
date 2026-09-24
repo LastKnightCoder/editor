@@ -8,25 +8,50 @@
  */
 
 import { useMemo } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, PanelLeft } from "lucide-react";
 import { usePage, usePageParams, usePageBreadcrumb } from "@/page/PageProvider";
-import { Button, Loading } from "@tau/ui";
+import { Button, IconButton, Loading, Tooltip } from "@tau/ui";
+import { EProjectType } from "@/types";
 import { useProjectDetail } from "../queries";
+import { useProjectTreeStore } from "../projectTreeStore";
 import ProjectView from "../components/ProjectView";
 
 export function ProjectDetailView() {
   const { id, itemId } = usePageParams<{ id: number; itemId?: number }>();
   const { project, loading } = useProjectDetail(id);
   const { navigator } = usePage();
+  const treeCollapsed = useProjectTreeStore(s => s.collapsed);
+  const toggleTree = useProjectTreeStore(s => s.toggle);
 
-  /* 标题栏面包屑（node 须 useMemo 稳定化）：静态项目标题 */
+  // 只有文档树型项目有侧栏；数据表格 / Vibe Learning 不出切换按钮
+  const hasDocumentTree =
+    !!project &&
+    project.projectType !== EProjectType.DataTable &&
+    project.projectType !== EProjectType.VibeLearning;
+
+  /* 标题栏面包屑（node 须 useMemo 稳定化）：文档树切换按钮 + 项目标题。
+     按钮钉在标题栏固定位置，收起/展开只换图标，不随侧栏移动 */
   const breadcrumbNode = useMemo(
     () => (
-      <span className="text-tau-meta text-ink-2 min-w-0 truncate px-1.5 py-0.5">
-        {project?.title || `项目 #${id}`}
+      <span className="flex min-w-0 items-center gap-1">
+        {hasDocumentTree && (
+          <Tooltip content={treeCollapsed ? "展开侧边栏" : "收起侧边栏"} placement="bottom">
+            <IconButton
+              className="shrink-0"
+              onClick={toggleTree}
+              aria-label={treeCollapsed ? "展开侧边栏" : "收起侧边栏"}
+              aria-expanded={!treeCollapsed}
+            >
+              <PanelLeft size={17} strokeWidth={1.75} />
+            </IconButton>
+          </Tooltip>
+        )}
+        <span className="text-tau-meta text-ink-2 min-w-0 truncate px-1.5 py-0.5">
+          {project?.title || `项目 #${id}`}
+        </span>
       </span>
     ),
-    [project?.title, id]
+    [project?.title, id, hasDocumentTree, treeCollapsed, toggleTree]
   );
   usePageBreadcrumb("project-detail", breadcrumbNode);
 

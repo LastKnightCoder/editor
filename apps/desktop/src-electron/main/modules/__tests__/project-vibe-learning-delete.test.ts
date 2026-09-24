@@ -2,12 +2,17 @@ import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("electron", () => ({
+  app: { getPath: () => "/tmp" },
   BrowserWindow: {
     getAllWindows: () => [],
   },
   ipcMain: {
     handle: vi.fn(),
   },
+}));
+
+vi.mock("../video-note-index-queue", () => ({
+  default: { enqueueTask: vi.fn(), cleanupVideoNoteArtifacts: vi.fn() },
 }));
 
 import MAIN_SCHEMA_SQL from "../../../../../../packages/db-schema/schema/main.sql?raw";
@@ -30,11 +35,7 @@ function createTestDatabase() {
   return db;
 }
 
-function countByProjectId(
-  db: Database.Database,
-  tableName: string,
-  projectId: number,
-): number {
+function countByProjectId(db: Database.Database, tableName: string, projectId: number): number {
   const row = db
     .prepare(`SELECT COUNT(*) as count FROM ${tableName} WHERE project_id = ?`)
     .get(projectId) as { count: number };
@@ -140,9 +141,9 @@ describe("ProjectTable.deleteProject(VibeLearning)", () => {
 
     expect(deleteChanges).toBe(1);
     expect(
-      db
-        .prepare("SELECT COUNT(*) as count FROM project WHERE id = ?")
-        .get(project.id) as { count: number },
+      db.prepare("SELECT COUNT(*) as count FROM project WHERE id = ?").get(project.id) as {
+        count: number;
+      }
     ).toEqual({ count: 0 });
     expect(countByProjectId(db, "vibe_learning_resources", project.id)).toBe(0);
     expect(countByProjectId(db, "vibe_learning_chats", project.id)).toBe(0);
@@ -151,15 +152,13 @@ describe("ProjectTable.deleteProject(VibeLearning)", () => {
     expect(countByProjectId(db, "vl_quiz_record", project.id)).toBe(0);
     expect(
       db
-        .prepare(
-          "SELECT COUNT(*) as count FROM vl_quiz_item WHERE quiz_set_id = ?",
-        )
-        .get(quizSet.id) as { count: number },
+        .prepare("SELECT COUNT(*) as count FROM vl_quiz_item WHERE quiz_set_id = ?")
+        .get(quizSet.id) as { count: number }
     ).toEqual({ count: 0 });
     expect(
-      db
-        .prepare("SELECT COUNT(*) as count FROM contents WHERE id = ?")
-        .get(noteContentId) as { count: number },
+      db.prepare("SELECT COUNT(*) as count FROM contents WHERE id = ?").get(noteContentId) as {
+        count: number;
+      }
     ).toEqual({ count: 0 });
   });
 
@@ -211,8 +210,6 @@ describe("ProjectTable.deleteProject(VibeLearning)", () => {
     expect(projectB.id).not.toBe(projectA.id);
     expect(VLNoteTable.listByProjectId(db, projectB.id)).toHaveLength(0);
     expect(VLQuizTable.listQuizSets(db, projectB.id)).toHaveLength(0);
-    expect(
-      VibeLearningResourceTable.getResourcesByProjectId(db, projectB.id),
-    ).toHaveLength(0);
+    expect(VibeLearningResourceTable.getResourcesByProjectId(db, projectB.id)).toHaveLength(0);
   });
 });

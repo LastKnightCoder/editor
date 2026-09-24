@@ -22,7 +22,6 @@ export enum TabType {
   Settings = "settings",
   Calendar = "calendar",
   ChatManagement = "chatManagement",
-  ResourceManagement = "resourceManagement",
   Todo = "todo",
   Questions = "questions",
   Pomodoro = "pomodoro",
@@ -59,7 +58,6 @@ export type TabParams = {
   [TabType.Settings]: undefined;
   [TabType.Calendar]: undefined;
   [TabType.ChatManagement]: undefined;
-  [TabType.ResourceManagement]: undefined;
   [TabType.Todo]: undefined;
   [TabType.Questions]: undefined;
   [TabType.Pomodoro]: undefined;
@@ -124,7 +122,6 @@ export const TAB_TITLES: Record<TabType, string> = {
   [TabType.Settings]: "设置",
   [TabType.Calendar]: "日历",
   [TabType.ChatManagement]: "聊天管理",
-  [TabType.ResourceManagement]: "资源管理",
   [TabType.Todo]: "任务列表",
   [TabType.Questions]: "问题管理",
   [TabType.Pomodoro]: "番茄专注",

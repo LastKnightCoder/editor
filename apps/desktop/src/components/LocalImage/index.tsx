@@ -19,11 +19,13 @@ interface ILocalImageProps {
   className?: string;
   style?: React.CSSProperties;
   onClick?: () => void;
+  /** 回退地址也加载失败时回调（调用方据此换兜底展示，避免裂图） */
+  onLoadError?: () => void;
   [key: string]: any;
 }
 
 const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>((props, ref) => {
-  const { url, alt, className, style, onClick, ...restProps } = props;
+  const { url, alt, className, style, onClick, onLoadError, ...restProps } = props;
   const cdnUrl = useGithubCdnUrl(url) || url;
 
   const [previewUrl, setPreviewUrl] = useState<string>();
@@ -89,8 +91,12 @@ const LocalImage = forwardRef<HTMLImageElement, ILocalImageProps>((props, ref) =
   }, [cdnUrl, autoCacheRemoteImage, alt, remoteResourceToLocalService]);
 
   const onError = useMemoizedFn(() => {
-    console.log("onError", cdnUrl);
-    setPreviewUrl(cdnUrl);
+    // 先回退到原始地址重试一次；仍失败才交给调用方兜底
+    if (previewUrl !== cdnUrl) {
+      setPreviewUrl(cdnUrl);
+      return;
+    }
+    onLoadError?.();
   });
 
   if (isConverting || !previewUrl) return null;

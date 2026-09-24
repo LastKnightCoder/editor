@@ -1,58 +1,65 @@
 /**
  * 设置分区清单 —— 单一信息架构（数据驱动，SettingsDialog 只负责渲染）。
  *
- * 对齐 legacy 设置弹窗全部 14 个子页（不遗漏），分组与排序按桌面设置惯例重排
- * （D-028，mockups/settings/ 方案 A 经典双栏）：通用 → 数据 → AI 服务 → 扩展 → 支持，
- * 使用频率递减、关于殿后；AI 服务按生成管线排序（对话 → 检索 → 生图 → 语音）。
- * 逐页重设计时替换对应条目的 component 即可，本文件即设置导航的唯一修改点。
+ * 2026-09-24 重排（mockups/settings/index.html 第三版定稿）：分区名按内容正名——
+ * 「杂项」→ 剪藏与缓存、「集成」→ 账号与连接、「关于软件」→ 关于与更新；文字转语音与
+ * 语音转录并为「语音」。分组：通用 → 数据 → 连接 → AI 服务 → 创作工具 → 系统。
+ * 页头（标题 + 说明）由 SettingsDialog 按 label / description 统一渲染，子页不再自绘；
+ * keywords 供导航搜索命中分区内的设置项名。
+ * 12 个分区已全部落地（D-036）；本文件即设置导航的唯一修改点。
  */
 
 import type { ComponentType } from "react";
 import {
   Palette,
   RefreshCw,
-  Database,
-  Upload,
+  HardDrive,
   Sparkles,
   Layers,
   ImageIcon,
-  Volume2,
-  Mic,
+  AudioLines,
   LayoutGrid,
   Video,
-  Blocks,
-  Wrench,
+  Plug,
+  Archive,
   Info,
   type LucideIcon,
 } from "lucide-react";
-import { PendingSection } from "./components/PendingSection";
 import { AppearanceSection } from "./sections/AppearanceSection";
 import { SyncSection } from "./sections/SyncSection";
 import { ResourceSection } from "./sections/ResourceSection";
-import { PublishSection } from "./sections/PublishSection";
 import { LLMSection } from "./sections/LLMSection";
 import { EmbeddingSection } from "./sections/EmbeddingSection";
+import { ModuleSection } from "./sections/ModuleSection";
+import { CacheSection } from "./sections/CacheSection";
+import { IntegrationSection } from "./sections/IntegrationSection";
+import { ImageGenerationSection } from "./sections/ImageGenerationSection";
+import { VoiceSection } from "./sections/VoiceSection";
+import { WhiteboardRecordingSection } from "./sections/WhiteboardRecordingSection";
+import { AboutSection } from "./sections/AboutSection";
 
 export type SettingsSectionKey =
   | "appearance"
+  | "module"
   | "sync"
   | "imageBed"
-  | "publish"
+  | "cache"
+  | "integration"
   | "llm"
   | "embedding"
   | "imageGeneration"
-  | "textToSpeech"
-  | "transcription"
-  | "module"
+  | "voice"
   | "whiteboardRecording"
-  | "integration"
-  | "misc"
   | "app";
 
 export interface SettingsSectionDef {
   key: SettingsSectionKey;
   label: string;
+  /** 页头说明：一句话讲清这一页管什么 */
+  description: string;
   icon: LucideIcon;
+  /** 导航搜索的额外命中词（分区内的设置项名） */
+  keywords?: string[];
   component: ComponentType;
 }
 
@@ -61,62 +68,142 @@ export interface SettingsSectionGroup {
   sections: SettingsSectionDef[];
 }
 
-/** 待设计子页的占位组件（逐页重设计时被真实分区替换） */
-const pending = (label: string): ComponentType => {
-  const Section = () => <PendingSection label={label} />;
-  return Section;
-};
-
 export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
   {
     label: "通用",
-    sections: [{ key: "appearance", label: "外观", icon: Palette, component: AppearanceSection }],
+    sections: [
+      {
+        key: "appearance",
+        label: "外观",
+        description: "主题、字体与内容图片的默认呈现，改动即刻生效",
+        icon: Palette,
+        keywords: ["主题", "深色", "浅色", "字体", "字号", "代码字体", "图片圆角", "图片阴影"],
+        component: AppearanceSection,
+      },
+      {
+        key: "module",
+        label: "功能模块",
+        description: "关闭的模块从侧栏和命令面板中隐藏，数据保留",
+        icon: LayoutGrid,
+        keywords: ["模块", "侧栏"],
+        component: ModuleSection,
+      },
+    ],
   },
   {
     label: "数据",
     sections: [
-      { key: "sync", label: "同步", icon: RefreshCw, component: SyncSection },
+      {
+        key: "sync",
+        label: "同步",
+        description: "把数据库和本地资源文件同步到远端，全部手动触发",
+        icon: RefreshCw,
+        keywords: [
+          "WebDAV",
+          "S3",
+          "OSS",
+          "GitHub",
+          "远程",
+          "数据库",
+          "资源同步",
+          "新建数据库",
+          "黑名单",
+        ],
+        component: SyncSection,
+      },
       {
         key: "imageBed",
         label: "资源存储",
-        icon: Database,
+        description: "笔记里插入的图片和附件上传到哪里",
+        icon: HardDrive,
+        keywords: ["图床", "上传", "本地目录"],
         component: ResourceSection,
       },
-      { key: "publish", label: "发布", icon: Upload, component: PublishSection },
+      {
+        key: "cache",
+        label: "剪藏与缓存",
+        description: "网页剪藏行为、远程媒体的自动缓存与空间占用",
+        icon: Archive,
+        keywords: ["缓存", "翻译", "视频缓存", "音频缓存", "图片缓存"],
+        component: CacheSection,
+      },
+    ],
+  },
+  {
+    label: "连接",
+    sections: [
+      {
+        key: "integration",
+        label: "账号与连接",
+        description: "第三方服务的账号与凭据，其它设置页从这里读取连接",
+        icon: Plug,
+        keywords: ["集成", "Bilibili", "YouTube", "微信读书", "Minimax", "Token", "API Key"],
+        component: IntegrationSection,
+      },
     ],
   },
   {
     label: "AI 服务",
     sections: [
-      { key: "llm", label: "大语言模型", icon: Sparkles, component: LLMSection },
-      { key: "embedding", label: "嵌入模型", icon: Layers, component: EmbeddingSection },
+      {
+        key: "llm",
+        label: "大语言模型",
+        description: "接入服务商与模型，再为各项功能指定模型",
+        icon: Sparkles,
+        keywords: ["LLM", "服务商", "模型", "功能分配", "API Key"],
+        component: LLMSection,
+      },
+      {
+        key: "embedding",
+        label: "嵌入与检索",
+        description: "知识库检索用的向量模型与检索增强，切换后会在后台重建索引",
+        icon: Layers,
+        keywords: ["向量", "Embedding", "Reranker", "重排", "查询扩展"],
+        component: EmbeddingSection,
+      },
       {
         key: "imageGeneration",
         label: "图片生成",
+        description: "文生图服务，兼容 OpenAI Images 接口",
         icon: ImageIcon,
-        component: pending("图片生成"),
+        keywords: ["文生图"],
+        component: ImageGenerationSection,
       },
-      { key: "textToSpeech", label: "文字转语音", icon: Volume2, component: pending("文字转语音") },
-      { key: "transcription", label: "语音转录", icon: Mic, component: pending("语音转录") },
+      {
+        key: "voice",
+        label: "语音",
+        description: "音视频转录与语音合成",
+        icon: AudioLines,
+        keywords: ["转录", "whisper", "TTS", "文字转语音", "断句"],
+        component: VoiceSection,
+      },
     ],
   },
   {
-    label: "扩展",
+    label: "创作工具",
     sections: [
-      { key: "module", label: "模块功能", icon: LayoutGrid, component: pending("模块功能") },
       {
         key: "whiteboardRecording",
         label: "白板录制",
+        description: "白板演示录制的默认行为与导出",
         icon: Video,
-        component: pending("白板录制"),
+        keywords: ["录制", "麦克风", "摄像头", "导出格式"],
+        component: WhiteboardRecordingSection,
       },
-      { key: "integration", label: "集成", icon: Blocks, component: pending("集成") },
-      { key: "misc", label: "杂项", icon: Wrench, component: pending("杂项") },
     ],
   },
   {
-    label: "支持",
-    sections: [{ key: "app", label: "关于软件", icon: Info, component: pending("关于软件") }],
+    label: "系统",
+    sections: [
+      {
+        key: "app",
+        label: "关于与更新",
+        description: "版本、更新与命令行工具",
+        icon: Info,
+        keywords: ["版本", "更新", "命令行"],
+        component: AboutSection,
+      },
+    ],
   },
 ];
 

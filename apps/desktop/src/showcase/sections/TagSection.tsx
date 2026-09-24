@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Plus } from "lucide-react";
 import { Tag, type TagColor } from "@tau/ui";
 import { ApiCard, DocHead, MatrixRow } from "../kit";
 
@@ -21,6 +22,12 @@ export default function TagSection() {
         src="packages/ui"
         duty="值展示标签（A+B 结合 II「点 + 软底」）：soft 底 + 同系 solid 文字 + 可选色点——三层同色阶；纯展示 span，onRemove 数据驱动显 ×。"
       />
+      <MatrixRow name="临时复现：AddTag 按钮" desc="TauTag + lucide Plus + 文本（复现两行 bug）">
+        <Tag className="hover:bg-surface-hover hover:text-ink-1 cursor-pointer">
+          <Plus aria-hidden className="mr-0.5 size-3 shrink-0" strokeWidth={2} />
+          添加标签
+        </Tag>
+      </MatrixRow>
       <MatrixRow
         name="色板"
         desc="7 分类色与 ColorSwatch 同源，语义状态复用色板；gray 无点（无色 = 无分类）"

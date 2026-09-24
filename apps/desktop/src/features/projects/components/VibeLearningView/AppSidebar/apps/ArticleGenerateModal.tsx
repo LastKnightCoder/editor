@@ -233,7 +233,7 @@ const ArticleGenerateModal = memo((props: ArticleGenerateModalProps) => {
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-group text-ink-2",
+    "bg-hover text-ink-2",
     "hover:bg-hover",
     "border border-line-1"
   );

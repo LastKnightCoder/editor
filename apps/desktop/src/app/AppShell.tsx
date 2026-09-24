@@ -14,8 +14,9 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent } from "rea
 import clsx from "clsx";
 import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
+import { PageNavigationBridge } from "./PageNavigationBridge";
 import { initThemeRuntime } from "@tau/ui/theme/runtime";
-import { Loading, ToastHost, initScrollbarAutoHide } from "@tau/ui";
+import { Loading, NotificationHost, ToastHost, initScrollbarAutoHide } from "@tau/ui";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { SettingsDialog } from "@/features/settings/SettingsDialog";
 import { useSearchStore } from "@/features/search/searchStore";
@@ -110,7 +111,7 @@ function ShellBody() {
               <button
                 type="button"
                 onClick={() => setBoot("ready")}
-                className="rounded-tau-md bg-group text-ink-2 px-4 py-1.5"
+                className="rounded-tau-md bg-hover text-ink-2 px-4 py-1.5"
               >
                 仍要进入
               </button>
@@ -123,13 +124,14 @@ function ShellBody() {
 
   return (
     <PageProvider initialKey="home">
+      <PageNavigationBridge />
       <ShellLayout />
     </PageProvider>
   );
 }
 
 function ShellLayout() {
-  const { state, statusBars } = usePage();
+  const { state } = usePage();
   const width = useShellStore(s => s.sidebarWidth);
   const setWidth = useShellStore(s => s.setSidebarWidth);
   const toggle = useShellStore(s => s.toggleSidebar);
@@ -155,22 +157,21 @@ function ShellLayout() {
         onDoubleClick={toggle}
         onDragChange={setSidebarResizing}
       />
-      {/* 右列整体：标题栏/内容/状态栏只属于主区，侧栏整高贯通窗口（融合骨架） */}
-      <div className="grid min-w-0 grid-rows-[var(--tau-titlebar-h)_minmax(0,1fr)_var(--tau-statusbar-h)]">
+      {/* 右列整体：标题栏/内容只属于主区，侧栏整高贯通窗口（融合骨架）。
+          壳层不提供全局状态栏：需要的页面自带 PageStatusBar，避免无内容页底部留空条 */}
+      <div className="grid min-w-0 grid-rows-[var(--tau-titlebar-h)_minmax(0,1fr)]">
         <Titlebar />
         <main className="min-h-0 overflow-y-auto">
           <PageHost state={state} />
         </main>
-        {/* 页面级状态栏（usePageStatusBar 按栈顶页注入；无注册保持空壳） */}
-        <footer className="text-tau-micro text-ink-3 flex min-h-0 select-none items-center px-3.5">
-          {currentKey ? statusBars.get(currentKey) : undefined}
-        </footer>
       </div>
       {/* 全局命令面板浮层（Ctrl+K，D-003）：fixed 定位，须在 PageProvider 内使用导航 */}
       <SearchPalette />
       {/* 全局设置弹窗（Ctrl+,，D-028）：壳层浮层，同命令面板挂载模式 */}
       <SettingsDialog />
-      {/* 全局 toast（z 高于命令面板，面板打开时反馈仍可见） */}
+      {/* 全局通知卡栈（右上角，D-038）：协作申请 / 应用更新 / 发布结果等后台事件 */}
+      <NotificationHost />
+      {/* 全局 toast（z 高于命令面板与通知卡栈，面板打开时反馈仍可见） */}
       <ToastHost />
     </div>
   );

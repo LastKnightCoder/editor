@@ -8,6 +8,8 @@ import { IDocument } from "@/types/document";
 import { DocTreeNode, EntityScope } from "../../types";
 import { collectDocNodeIds, findDocTreeNode } from "../../utils";
 import { SelectionCheckbox } from "../SelectionCheckbox";
+import { SelectAllButton } from "../SearchToolbar";
+import { FadeScroll } from "../FadeScroll";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 interface EntityTreeModalProps {
@@ -80,7 +82,7 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
 
     // 点击预览节点
     const handleClickNode = useCallback((nodeId: number) => {
-      setActiveNodeId(prev => (prev === nodeId ? null : nodeId));
+      setActiveNodeId(nodeId);
     }, []);
 
     // 全选/取消全选
@@ -95,6 +97,8 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
 
     const allSelected = selectedIds.size === totalIds.length;
 
+    const selectedCount = selectedIds.size;
+
     return (
       <Dialog
         open={open}
@@ -102,51 +106,56 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
           if (!next) onCancel();
         }}
         title={entity.title || `${typeLabel} #${entity.id}`}
-        subtitle={`已选择 ${selectedIds.size} / ${totalIds.length} 篇内容`}
-        width={1080}
+        context={typeLabel}
+        subtitle="勾选要公开的文档，点击标题预览内容"
+        width={1040}
+        fill
+        impact={
+          selectedCount === 0 && totalIds.length > 0
+            ? `未勾选任何文档，保存后将不再发布此${typeLabel}`
+            : `已选 ${selectedCount} / ${totalIds.length} 篇可发布文档`
+        }
+        impactDanger={selectedCount === 0 && totalIds.length > 0}
         footer={
-          <div className="flex w-full items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Button variant="secondary" size="sm" onClick={handleSelectAll}>
-                {allSelected ? "取消全选" : "全选"}
-              </Button>
-              <span className="text-tau-tiny text-ink-3">共 {totalIds.length} 篇可发布文档</span>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="secondary" size="sm" onClick={onCancel}>
-                取消
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                loading={loading}
-                onClick={() => onConfirm(selectedIds)}
-              >
-                保存
-              </Button>
-            </div>
-          </div>
+          <>
+            <Button variant="secondary" size="sm" onClick={onCancel}>
+              取消
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              loading={loading}
+              onClick={() => onConfirm(selectedIds)}
+            >
+              保存
+            </Button>
+          </>
         }
       >
-        <div className="flex flex-1 overflow-hidden" style={{ height: "65vh", maxHeight: "65vh" }}>
-          {/* 左侧：文档树（窄） */}
-          <div className="border-line-1 flex w-64 shrink-0 flex-col border-r">
-            <div className="border-line-1 text-ink-1 flex shrink-0 items-center justify-between border-b px-4 py-3 text-[13px] font-medium">
-              <span>文档结构</span>
-              <span className="text-tau-tiny text-ink-3 tabular-nums">
-                {selectedIds.size}/{totalIds.length}
+        <div className="grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)]">
+          {/* 左侧：文档树——列表自身滚动，头部钉住 */}
+          <div className="border-line-2 flex min-h-0 flex-col border-r">
+            <div className="flex shrink-0 items-center gap-2 pb-1.5 pl-[18px] pr-2.5 pt-3">
+              <span className="text-ink-3 text-[11.5px] font-medium">文档结构</span>
+              <span className="font-tau-mono text-ink-3 text-[11px] tabular-nums">
+                {selectedCount}/{totalIds.length}
               </span>
+              {!loading && totalIds.length > 0 && (
+                <span className="ml-auto">
+                  <SelectAllButton allSelected={allSelected} onClick={handleSelectAll} />
+                </span>
+              )}
             </div>
             {loading ? (
               <div className="flex flex-1 items-center justify-center">
-                <Spinner className="size-7" />
+                <Spinner className="size-6" />
               </div>
             ) : nodes.length === 0 ? (
               <div className="text-ink-3 flex flex-1 items-center justify-center text-[13px]">
                 暂无可发布的文档
               </div>
             ) : (
-              <div className="min-h-0 flex-1 overflow-y-auto py-2">
+              <FadeScroll className="mb-3 min-h-0 flex-1 px-1.5 pb-1">
                 {nodes.map(node => (
                   <DocTreeNodeItem
                     key={node.id}
@@ -157,32 +166,34 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                     activeNodeId={activeNodeId}
                   />
                 ))}
-              </div>
+              </FadeScroll>
             )}
           </div>
 
-          {/* 右侧：预览面板（宽） */}
-          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          {/* 右侧：预览——仅正文区滚动；空态/文件夹态居中不滚动 */}
+          <div className="flex min-h-0 min-w-0 flex-col">
             {previewNode ? (
               <>
-                <div className="border-line-1 flex shrink-0 items-center gap-3 border-b px-6 py-3">
+                <div className="border-line-2 flex shrink-0 items-center gap-2.5 border-b px-7 py-3">
                   <span
                     className={clsx(
-                      "h-2 w-2 shrink-0 rounded-full",
-                      selectedIds.has(previewNode.id) ? "bg-accent" : "bg-sunken"
+                      "size-2 shrink-0 rounded-full",
+                      selectedIds.has(previewNode.id) ? "bg-accent" : "bg-track"
                     )}
                   />
-                  <h3 className="text-tau-body text-ink-1 truncate font-medium">
+                  <h3 className="text-tau-body text-ink-1 min-w-0 truncate font-medium">
                     {previewNode.title}
                   </h3>
-                  {!previewNode.hasContent && (
-                    <span className="bg-group text-ink-2 shrink-0 rounded-full px-2 py-0.5 text-[11px]">
-                      文件夹
-                    </span>
-                  )}
+                  <span className="text-tau-micro text-ink-3 ml-auto shrink-0">
+                    {!previewNode.hasContent
+                      ? "文件夹"
+                      : selectedIds.has(previewNode.id)
+                        ? "将发布"
+                        : "未勾选"}
+                  </span>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-                  {previewNode.hasContent ? (
+                {previewNode.hasContent ? (
+                  <FadeScroll className="min-h-0 flex-1 px-7 pb-6 pt-4">
                     <Editor
                       key={previewNode.id}
                       initValue={previewNode.content}
@@ -190,16 +201,19 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                       extensions={dynamicExtensions}
                       className="text-tau-body text-ink-1"
                     />
-                  ) : (
-                    <div className="text-ink-3 flex h-full items-center justify-center text-[13px]">
-                      此节点为文件夹，无内容可预览
-                    </div>
-                  )}
-                </div>
+                  </FadeScroll>
+                ) : (
+                  <div className="text-ink-3 flex flex-1 flex-col items-center justify-center gap-2.5">
+                    <Folder size={32} strokeWidth={1.25} className="opacity-50" />
+                    <span className="text-[13px]">
+                      文件夹，包含 {collectDocNodeIds(previewNode.children).length} 篇文档
+                    </span>
+                  </div>
+                )}
               </>
             ) : (
-              <div className="text-ink-3 flex flex-1 flex-col items-center justify-center gap-3">
-                <FileText size={40} strokeWidth={1.25} className="opacity-40" />
+              <div className="text-ink-3 flex flex-1 flex-col items-center justify-center gap-2.5">
+                <FileText size={32} strokeWidth={1.25} className="opacity-50" />
                 <span className="text-[13px]">点击左侧文档查看预览</span>
               </div>
             )}
@@ -230,7 +244,7 @@ const DocTreeNodeItem = memo<{
     <div>
       <div
         className={clsx(
-          "mx-1 flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 transition-colors",
+          "flex cursor-pointer items-center gap-2 rounded-[7px] py-1.5 pr-2.5 transition-colors",
           isActive ? "bg-selected" : "hover:bg-hover"
         )}
         style={{ paddingLeft: depth * 12 + 12 }}

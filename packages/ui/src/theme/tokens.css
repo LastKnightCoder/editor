@@ -44,7 +44,6 @@
   --color-page: var(--tau-bg-page);
   --color-surface: var(--tau-bg-surface);
   --color-surface-hover: var(--tau-bg-surface-hover);
-  --color-group: var(--tau-bg-group);
   --color-sunken: var(--tau-bg-sunken);
   --color-track: var(--tau-bg-track);
   --color-hover: var(--tau-bg-hover);
@@ -145,7 +144,6 @@
   --tau-bg-page: #f3eee2;
   --tau-bg-surface: #fffdf9;
   --tau-bg-surface-hover: #f6f3ef;
-  --tau-bg-group: #f0e9d8;
   --tau-bg-sunken: #e7dbc8;
   --tau-bg-track: #e0d6c3;
 
@@ -200,7 +198,6 @@
   --tau-bg-page: #221d16;
   --tau-bg-surface: #2e2820;
   --tau-bg-surface-hover: #39332b;
-  --tau-bg-group: #1e1912;
   --tau-bg-sunken: #100d08;
   --tau-bg-track: #463d31;
 

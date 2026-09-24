@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import { Role } from "@/constants";
 
 vi.mock("@/commands", () => ({
-  getResourceById: vi.fn(),
   getHomeDir: vi.fn(),
   readBinaryFile: vi.fn(),
 }));
@@ -44,7 +43,7 @@ describe("chatMessageNormalization mentions", () => {
     expect(Array.isArray(firstMessage?.content)).toBe(true);
 
     const textItem = (firstMessage?.content as Array<{ type: string }>).find(
-      (item) => item.type === "text",
+      item => item.type === "text"
     ) as
       | {
           type: "text";
@@ -52,9 +51,7 @@ describe("chatMessageNormalization mentions", () => {
         }
       | undefined;
 
-    expect(textItem?.text).toContain(
-      "以下是用户在本条消息中显式提及的内部内容引用",
-    );
+    expect(textItem?.text).toContain("以下是用户在本条消息中显式提及的内部内容引用");
     expect(textItem?.text).toContain("[Reference 1]");
     expect(textItem?.text).toContain("entityType=card");
     expect(textItem?.text).toContain("entityId=42");
@@ -63,7 +60,7 @@ describe("chatMessageNormalization mentions", () => {
     expect(textItem?.text).toContain("previewText=这是卡片摘要");
     expect(textItem?.text).toContain("用户原始消息：");
     expect(textItem?.text).toContain(
-      '请结合 :content-link[测试卡片]{refId=42 contentId=301 contentType=card title="测试卡片"} 回答',
+      '请结合 :content-link[测试卡片]{refId=42 contentId=301 contentType=card title="测试卡片"} 回答'
     );
   });
 

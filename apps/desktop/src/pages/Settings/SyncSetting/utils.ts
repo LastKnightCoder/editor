@@ -1,4 +1,4 @@
-import { IResource, ResourceType } from "@/types";
+import { ResourceFileType } from "@/types";
 
 export const LOCAL_RESOURCE_DIR = "resources";
 
@@ -17,53 +17,16 @@ export const IMAGE_EXTENSIONS = createExtSet([
   "ico",
 ]);
 
-export const VIDEO_EXTENSIONS = createExtSet([
-  "mp4",
-  "mov",
-  "mkv",
-  "webm",
-  "avi",
-  "flv",
-]);
+export const VIDEO_EXTENSIONS = createExtSet(["mp4", "mov", "mkv", "webm", "avi", "flv"]);
 
-export const AUDIO_EXTENSIONS = createExtSet([
-  "mp3",
-  "m4a",
-  "aac",
-  "wav",
-  "ogg",
-  "flac",
-]);
+export const AUDIO_EXTENSIONS = createExtSet(["mp3", "m4a", "aac", "wav", "ogg", "flac"]);
 
 const PDF_EXTENSIONS = createExtSet(["pdf"]);
 const EPUB_EXTENSIONS = createExtSet(["epub"]);
 
-export const matchResourceByName = (
-  resources: IResource[],
-  fileName: string,
-) => {
-  if (!fileName) return null;
-  const normalized = fileName.toLowerCase();
-  for (const resource of resources) {
-    const nameLower = resource.name.toLowerCase();
-    const pathLower = resource.path.toLowerCase();
-    if (
-      resource.name === fileName ||
-      resource.path === fileName ||
-      nameLower === normalized ||
-      pathLower === normalized ||
-      normalized.endsWith(nameLower) ||
-      pathLower.endsWith(normalized)
-    ) {
-      return resource;
-    }
-  }
-  return null;
-};
-
 export const inferPreviewType = (
-  fileName: string,
-): Extract<ResourceType, "image" | "video" | "audio"> | null => {
+  fileName: string
+): Extract<ResourceFileType, "image" | "video" | "audio"> | null => {
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
   if (IMAGE_EXTENSIONS.has(ext)) return "image";
   if (VIDEO_EXTENSIONS.has(ext)) return "video";
@@ -71,7 +34,7 @@ export const inferPreviewType = (
   return null;
 };
 
-export const inferResourceType = (fileName: string): ResourceType | null => {
+export const inferResourceFileType = (fileName: string): ResourceFileType | null => {
   const ext = fileName.split(".").pop()?.toLowerCase() || "";
   if (IMAGE_EXTENSIONS.has(ext)) return "image";
   if (VIDEO_EXTENSIONS.has(ext)) return "video";

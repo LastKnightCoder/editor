@@ -1,28 +1,4 @@
 -- 资源域表
-CREATE TABLE IF NOT EXISTS resource_group (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        parent_id INTEGER,
-        order_index INTEGER DEFAULT 0,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        FOREIGN KEY (parent_id) REFERENCES resource_group(id) ON DELETE CASCADE
-      );
-CREATE TABLE IF NOT EXISTS resources (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        path TEXT NOT NULL,
-        type TEXT NOT NULL,
-        sources TEXT NOT NULL,
-        ref_count INTEGER DEFAULT 0,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      , group_id INTEGER);
-CREATE TABLE IF NOT EXISTS resource_scan_version (
-        id INTEGER PRIMARY KEY,
-        version INTEGER NOT NULL,
-        last_scan_time INTEGER NOT NULL
-      );
 CREATE TABLE IF NOT EXISTS web_link (
         id INTEGER PRIMARY KEY,
         create_time INTEGER NOT NULL,

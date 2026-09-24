@@ -1,12 +1,14 @@
 import { memo, useMemo, useState, useCallback } from "react";
 import clsx from "clsx";
-import { RefreshCw, Search, X } from "lucide-react";
 import { PublishContentType } from "@/types/publish";
 import { IQuestion } from "@/types/question";
 import { QuestionGroupDTO } from "@/commands/question-group";
-import { EntityScope } from "../../types";
+import { EntityScope, SelectionFilter } from "../../types";
+import { matchesSelectionFilter, selectionFilterLabel } from "../../utils";
 import { SelectionCheckbox } from "../SelectionCheckbox";
 import { EmptyPlaceholder } from "../EmptyPlaceholder";
+import { SearchInput, SelectionSegment, SelectAllButton } from "../SearchToolbar";
+import { FadeScroll } from "../FadeScroll";
 import { useSearch } from "../../hooks";
 
 interface QuestGroupItem {
@@ -44,19 +46,16 @@ const STATUS_LABEL: Record<IQuestion["status"], string> = {
   resolved: "已解决",
 };
 
-const STATUS_STYLE: Record<IQuestion["status"], { title: string; badge: string; dot: string }> = {
+const STATUS_STYLE: Record<IQuestion["status"], { badge: string; dot: string }> = {
   not_started: {
-    title: "text-ink-2",
-    badge: "bg-group text-ink-2",
+    badge: "bg-hover text-ink-2",
     dot: "bg-sunken",
   },
   in_progress: {
-    title: "text-warn",
     badge: "bg-warn-soft text-warn",
     dot: "bg-warn",
   },
   resolved: {
-    title: "text-ok",
     badge: "bg-ok-soft text-ok",
     dot: "bg-ok",
   },
@@ -111,7 +110,7 @@ function getGroupSelectedCount(
 export const QuestSelector = memo<QuestSelectorProps>(
   ({ groups, questions, isItemSelected, scopes, onToggleGroup, onUpdateScope }) => {
     const [activeGroupId, setActiveGroupId] = useState<number | null>(null);
-    const [onlySelected, setOnlySelected] = useState(false);
+    const [selectionFilter, setSelectionFilter] = useState<SelectionFilter>("all");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
     const groupItems = useMemo<QuestGroupItem[]>(() => {
@@ -176,11 +175,13 @@ export const QuestSelector = memo<QuestSelectorProps>(
       if (statusFilter !== "all") {
         items = items.filter(question => question.status === statusFilter);
       }
-      if (onlySelected) {
-        items = items.filter(question => activeSelectedIds.has(question.id));
+      if (selectionFilter !== "all") {
+        items = items.filter(question =>
+          matchesSelectionFilter(selectionFilter, activeSelectedIds.has(question.id))
+        );
       }
       return items;
-    }, [activeSelectedIds, filteredItems, onlySelected, statusFilter]);
+    }, [activeSelectedIds, filteredItems, selectionFilter, statusFilter]);
 
     const allSelected = useMemo(
       () =>
@@ -229,13 +230,13 @@ export const QuestSelector = memo<QuestSelectorProps>(
     );
 
     return (
-      <div className="border-line-1 rounded-tau-md flex max-h-[560px] min-h-[480px] overflow-hidden border">
-        <div className="border-line-1 flex w-60 shrink-0 flex-col border-r">
-          <div className="border-line-1 text-ink-1 flex shrink-0 items-center justify-between border-b px-4 py-3 text-[13px] font-medium">
+      <div className="flex h-full min-h-0">
+        <div className="flex w-48 shrink-0 flex-col pl-1 pt-3.5">
+          <div className="text-ink-3 flex shrink-0 items-baseline justify-between px-3 pb-1.5 text-[11.5px] font-medium">
             <span>分类</span>
-            <span className="text-tau-tiny text-ink-3 tabular-nums">{groupItems.length}</span>
+            <span className="font-mono text-[11px] tabular-nums">{groupItems.length}</span>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto py-2">
+          <FadeScroll className="mb-3 min-h-0 flex-1 pb-1">
             {groupItems.length === 0 ? (
               <div className="text-ink-3 p-4 text-center text-[13px]">暂无分类</div>
             ) : (
@@ -250,18 +251,18 @@ export const QuestSelector = memo<QuestSelectorProps>(
                 />
               ))
             )}
-          </div>
+          </FadeScroll>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="border-line-2 shrink-0 border-b px-3 py-3">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className="shrink-0 px-4 pb-2 pt-3.5">
             <QuestToolbar
               query={query}
               onQueryChange={setQuery}
               statusFilter={statusFilter}
               onStatusFilterChange={setStatusFilter}
-              onlySelected={onlySelected}
-              onOnlySelectedChange={setOnlySelected}
+              selectionFilter={selectionFilter}
+              onSelectionFilterChange={setSelectionFilter}
               showSelectAll={displayQuestions.length > 0}
               allSelected={allSelected}
               onSelectAll={handleSelectAll}
@@ -269,21 +270,21 @@ export const QuestSelector = memo<QuestSelectorProps>(
             />
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
+          <FadeScroll className="mb-3 min-h-0 flex-1 px-2.5 pb-1">
             {!activeGroup ? (
               <EmptyPlaceholder text="暂无问题分类" />
             ) : displayQuestions.length === 0 ? (
               <EmptyPlaceholder
                 text={
-                  onlySelected
-                    ? "暂无已选条目"
-                    : query || statusFilter !== "all"
-                      ? "无匹配结果"
+                  query || statusFilter !== "all"
+                    ? "无匹配结果"
+                    : selectionFilter !== "all"
+                      ? `暂无${selectionFilterLabel(selectionFilter)}条目`
                       : "此分类下暂无条目"
                 }
               />
             ) : (
-              <div className="space-y-2">
+              <div className="flex flex-col gap-0.5">
                 {displayQuestions.map(question => (
                   <QuestQuestionRow
                     key={question.id}
@@ -294,7 +295,7 @@ export const QuestSelector = memo<QuestSelectorProps>(
                 ))}
               </div>
             )}
-          </div>
+          </FadeScroll>
         </div>
       </div>
     );
@@ -311,10 +312,10 @@ const QuestGroupButton = memo<{
   onToggle: () => void;
 }>(({ group, active, selectedCount, onSelect, onToggle }) => {
   return (
-    <div className="px-2 py-1">
+    <div className="py-px">
       <div
         className={clsx(
-          "flex items-center gap-2 rounded-md px-2 py-2 transition-colors",
+          "flex items-center gap-2 rounded-[8px] px-2 py-1.5 transition-colors",
           active ? "bg-selected" : "hover:bg-hover"
         )}
       >
@@ -332,15 +333,15 @@ const QuestGroupButton = memo<{
           <span
             className={clsx(
               "min-w-0 flex-1 truncate text-[13px]",
-              active ? "text-ink-1 font-medium" : "text-ink-2"
+              active ? "text-accent-text font-medium" : "text-ink-2"
             )}
           >
             {group.title}
           </span>
           <span
             className={clsx(
-              "shrink-0 text-[11px] tabular-nums",
-              selectedCount > 0 ? "text-ink-1 font-medium" : "text-ink-3"
+              "shrink-0 font-mono text-[11px] tabular-nums",
+              selectedCount > 0 ? "text-ink-2" : "text-ink-3"
             )}
           >
             {selectedCount > 0
@@ -360,8 +361,8 @@ const QuestToolbar = memo<{
   onQueryChange: (query: string) => void;
   statusFilter: StatusFilter;
   onStatusFilterChange: (value: StatusFilter) => void;
-  onlySelected: boolean;
-  onOnlySelectedChange: (value: boolean) => void;
+  selectionFilter: SelectionFilter;
+  onSelectionFilterChange: (value: SelectionFilter) => void;
   showSelectAll: boolean;
   allSelected: boolean;
   onSelectAll: () => void;
@@ -372,84 +373,39 @@ const QuestToolbar = memo<{
     onQueryChange,
     statusFilter,
     onStatusFilterChange,
-    onlySelected,
-    onOnlySelectedChange,
+    selectionFilter,
+    onSelectionFilterChange,
     showSelectAll,
     allSelected,
     onSelectAll,
     isFiltering,
   }) => {
     return (
-      <div className="space-y-2.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[200px] flex-1">
-            <span className="text-ink-3 pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
-              {isFiltering ? (
-                <RefreshCw size={14} strokeWidth={1.75} className="animate-spin" />
-              ) : (
-                <Search size={14} strokeWidth={1.75} />
-              )}
-            </span>
-            <input
-              type="text"
-              value={query}
-              onChange={event => onQueryChange(event.target.value)}
-              placeholder="搜索标题或描述…"
-              className={clsx(
-                "border-line-1 bg-surface text-ink-1 placeholder:text-ink-3",
-                "focus:border-accent rounded-tau-sm h-[30px] w-full border pl-8 pr-8 text-[12.5px]",
-                "transition-colors focus:outline-none"
-              )}
-            />
-            {query && (
-              <button
-                type="button"
-                onClick={() => onQueryChange("")}
-                aria-label="清空搜索"
-                className="text-ink-3 hover:text-ink-1 absolute inset-y-0 right-0 flex items-center pr-2.5"
-              >
-                <X size={14} strokeWidth={1.75} />
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {showSelectAll && (
-              <button
-                type="button"
-                onClick={onSelectAll}
-                className="border-line-1 text-ink-2 hover:border-ink-3 hover:bg-hover flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] transition-colors"
-              >
-                <SelectionCheckbox checked={allSelected} size="sm" interactive={false} />
-                <span>{allSelected ? "取消全选" : "全选"}</span>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => onOnlySelectedChange(!onlySelected)}
-              className={clsx(
-                "rounded-full border px-2.5 py-1 text-[11.5px] transition-colors",
-                onlySelected
-                  ? "bg-accent-soft text-accent-text border-transparent font-semibold"
-                  : "border-line-1 text-ink-2 hover:border-ink-3 hover:bg-hover"
-              )}
-            >
-              仅显示已选
-            </button>
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
+          <SearchInput
+            query={query}
+            onQueryChange={onQueryChange}
+            placeholder="搜索标题或描述…"
+            isFiltering={isFiltering}
+          />
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <SelectionSegment value={selectionFilter} onChange={onSelectionFilterChange} />
+            {showSelectAll && <SelectAllButton allSelected={allSelected} onClick={onSelectAll} />}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1">
           {STATUS_OPTIONS.map(option => (
             <button
               key={option.value}
               type="button"
               onClick={() => onStatusFilterChange(option.value)}
               className={clsx(
-                "rounded-full border px-2.5 py-0.5 text-[11px] transition-colors",
+                "rounded-[6px] px-2 py-0.5 text-[11.5px] transition-colors",
                 statusFilter === option.value
-                  ? "bg-accent-soft text-accent-text border-transparent font-semibold"
-                  : "border-line-1 text-ink-3 hover:border-ink-3 hover:bg-hover"
+                  ? "bg-accent-soft text-accent-text font-medium"
+                  : "text-ink-3 hover:bg-hover hover:text-ink-2"
               )}
             >
               {option.label}
@@ -474,10 +430,7 @@ const QuestQuestionRow = memo<{
     <button
       type="button"
       onClick={onToggle}
-      className={clsx(
-        "rounded-tau-sm flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors",
-        selected ? "bg-selected" : "hover:bg-hover"
-      )}
+      className="hover:bg-hover flex w-full items-start gap-2.5 rounded-[8px] px-2 py-2 text-left transition-colors"
     >
       <SelectionCheckbox
         checked={selected}
@@ -486,7 +439,7 @@ const QuestQuestionRow = memo<{
         size="sm"
       />
       <div className="min-w-0 flex-1">
-        <div className="mb-1.5 flex flex-wrap items-center gap-2">
+        <div className="mb-1 flex flex-wrap items-center gap-2">
           <span className={clsx("h-2 w-2 rounded-full", statusStyle.dot)} />
           <span className={clsx("rounded-full px-2 py-px text-[11px]", statusStyle.badge)}>
             {STATUS_LABEL[question.status]}
@@ -495,12 +448,7 @@ const QuestQuestionRow = memo<{
             {question.answers.length} 答案
           </span>
         </div>
-        <div
-          className={clsx(
-            "line-clamp-2 text-[13px] font-medium leading-5",
-            selected ? "text-ink-1" : statusStyle.title
-          )}
-        >
+        <div className="text-ink-1 line-clamp-2 text-[13px] leading-5">
           {question.questionContent || `条目 #${question.id}`}
         </div>
         <div className="text-tau-tiny text-ink-3 mt-1 line-clamp-2 leading-5">

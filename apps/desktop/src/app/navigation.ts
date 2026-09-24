@@ -26,9 +26,9 @@ import {
   Timer,
   CircleHelp,
   Inbox,
-  Folder,
   FolderKanban,
   BarChart3,
+  Send,
   MessageCircle,
   Sparkles,
   Users,
@@ -58,7 +58,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: "home", label: "今日", icon: Flame },
       { key: "schedule", label: "日程", icon: Calendar }, // legacy: Calendar + TimeRecordView
-      { key: "todos", label: "待办", icon: ListTodo }, // features/todos（独立页，不并入 schedule，D-034）
+      { key: "todos", label: "待办", icon: ListTodo }, // features/todos（独立页，不并入 schedule，D-039）
       { key: "pomodoro", label: "番茄专注", icon: Timer }, // legacy: Pomodoro（域归 schedule，独立小窗口保留，蓝图 §5.3）
       { key: "collaboration", label: "协作", icon: Users }, // legacy: CollaborationView（实时协作会话）
     ],
@@ -94,8 +94,8 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "工具",
     items: [
-      { key: "resources", label: "资源管理", icon: Folder }, // legacy: ResourceManagement
       { key: "stats", label: "统计", icon: BarChart3 }, // 新架构：数据回顾页
+      { key: "publish", label: "发布", icon: Send }, // 新架构：静态站点发布（自设置弹窗抽出，D-035）
     ],
   },
 ];

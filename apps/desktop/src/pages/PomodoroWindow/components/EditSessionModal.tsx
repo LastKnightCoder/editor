@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { MdClose, MdEdit } from "react-icons/md";
 import { useMemoizedFn } from "ahooks";
 import { PomodoroSession } from "@/types";
-import "@/pages/Calendar/components/EventDialog/index.css";
+import "./modal-scroll.css";
 
 interface EditSessionModalProps {
   session: PomodoroSession | null;

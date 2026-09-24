@@ -115,7 +115,7 @@ const XiaoyuzhouInput = (props: XiaoyuzhouInputProps) => {
         )}
 
         {episodeInfo && (
-          <div className="bg-group border-line-1 flex gap-3 rounded-[8px] border p-3">
+          <div className="border-line-1 flex gap-3 rounded-[8px] border p-3">
             {episodeInfo.coverUrl && (
               <img
                 className="size-14 shrink-0 rounded-[8px] object-cover"

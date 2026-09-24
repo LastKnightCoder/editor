@@ -173,7 +173,7 @@ export function DatePickerPanel({
               data-on={presetActive(preset) || undefined}
               onClick={() => applyPresets(preset)}
               className={cn(
-                "text-ink-2 bg-group hover:bg-hover hover:text-ink-1 h-[26px] cursor-pointer rounded-[7px] px-[11px] text-[11.5px]",
+                "text-ink-2 bg-hover hover:bg-press hover:text-ink-1 h-[26px] cursor-pointer rounded-[7px] px-[11px] text-[11.5px]",
                 "data-[on]:bg-selected data-[on]:text-accent-text data-[on]:font-[550]"
               )}
             >

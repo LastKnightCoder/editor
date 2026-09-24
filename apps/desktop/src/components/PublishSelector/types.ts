@@ -83,6 +83,11 @@ export interface TabConfig {
 }
 
 /**
+ * 列表选择状态过滤：全部 / 已选 / 未选
+ */
+export type SelectionFilter = "all" | "selected" | "unselected";
+
+/**
  * 选择项基础接口
  */
 export interface SelectableItem {

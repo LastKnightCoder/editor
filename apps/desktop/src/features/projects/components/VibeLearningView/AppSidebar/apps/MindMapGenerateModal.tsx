@@ -319,14 +319,14 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
           思维导图预览
         </label>
         <div
-          className={classNames("overflow-hidden rounded-xl border", "border-line-1 bg-group")}
+          className={classNames("overflow-hidden rounded-xl border", "border-line-1")}
           style={{ height: 400 }}
         >
           {parseError ? (
             <div className="flex h-full flex-col items-center justify-center p-6">
               <div className="text-danger mb-2 text-sm">解析错误</div>
               <div className="text-ink-2 text-center text-xs">{parseError}</div>
-              <div className="bg-group mt-4 max-h-40 w-full overflow-auto rounded-lg p-3">
+              <div className="border-line-1 mt-4 max-h-40 w-full overflow-auto rounded-lg border p-3">
                 <pre className="text-ink-2 whitespace-pre-wrap text-xs">{generatedMarkdown}</pre>
               </div>
             </div>
@@ -355,10 +355,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
           查看原始内容
         </summary>
         <div
-          className={classNames(
-            "max-h-40 overflow-auto rounded-xl border p-3",
-            "border-line-1 bg-group"
-          )}
+          className={classNames("max-h-40 overflow-auto rounded-xl border p-3", "border-line-1")}
         >
           <pre className="text-ink-2 whitespace-pre-wrap font-mono text-xs">
             {generatedMarkdown}
@@ -378,7 +375,7 @@ const MindMapGenerateModal = memo((props: MindMapGenerateModalProps) => {
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-group text-ink-2",
+    "bg-hover text-ink-2",
     "hover:bg-hover",
     "border border-line-1"
   );

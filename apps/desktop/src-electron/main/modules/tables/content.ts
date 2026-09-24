@@ -11,7 +11,6 @@ import Operation from "./operation";
 import WhiteBoardContentTable from "./white-board-content";
 import CardTable from "./card";
 import QuestionTable from "./question";
-import ResourceTable from "./resource";
 import { assertContentIsLocal } from "../collaboration-guard";
 import {
   contentSession,
@@ -257,7 +256,7 @@ export default class ContentTable {
       const whiteBoardContentId: number[] = [];
       const questionId: number[] = [];
 
-      // 遍历内容，找到所有资源并减少引用计数
+      // 遍历内容，释放嵌入白板和问题的引用
       dfs(content?.content || [], node => {
         if (node.type === "whiteboard" && node.whiteBoardContentId) {
           whiteBoardContentId.push(node.whiteBoardContentId);
@@ -266,42 +265,6 @@ export default class ContentTable {
         if (node.type === "question" && node.questionId) {
           // @ts-ignore
           questionId.push(node.questionId);
-        }
-
-        // 减少资源引用计数
-        // @ts-ignore
-        if (node.type === "image" && node.url) {
-          // @ts-ignore
-          ResourceTable.decrementRefCount(db, node.url);
-        }
-        // @ts-ignore
-        if (node.type === "inline-image" && node.url) {
-          // @ts-ignore
-          ResourceTable.decrementRefCount(db, node.url);
-        }
-        // @ts-ignore
-        if (node.type === "image-gallery" && node.images && Array.isArray(node.images)) {
-          // @ts-ignore
-          for (const image of node.images) {
-            if (image.url) {
-              ResourceTable.decrementRefCount(db, image.url);
-            }
-          }
-        }
-        // @ts-ignore
-        if (node.type === "video" && node.src) {
-          // @ts-ignore
-          ResourceTable.decrementRefCount(db, node.src);
-        }
-        // @ts-ignore
-        if (node.type === "audio" && node.src) {
-          // @ts-ignore
-          ResourceTable.decrementRefCount(db, node.src);
-        }
-        // @ts-ignore
-        if (node.type === "file-attachment" && node.filePath) {
-          // @ts-ignore
-          ResourceTable.decrementRefCount(db, node.filePath);
         }
       });
 

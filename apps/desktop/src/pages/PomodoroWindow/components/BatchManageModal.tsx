@@ -5,7 +5,7 @@ import { MdClose, MdPlaylistAddCheck } from "react-icons/md";
 import { App } from "antd";
 import { PomodoroSession } from "@/types";
 import CustomCheckbox from "@/components/CustomCheckbox";
-import "@/pages/Calendar/components/EventDialog/index.css";
+import "./modal-scroll.css";
 
 interface BatchManageModalProps {
   open: boolean;

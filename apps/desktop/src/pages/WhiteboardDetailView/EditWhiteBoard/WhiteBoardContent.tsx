@@ -28,14 +28,11 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
     onReorderSubWhiteBoards,
   } = useEditWhiteBoard(whiteBoardId);
 
-  const [addSubWhiteBoardModalOpen, setAddSubWhiteBoardModalOpen] =
-    useState(false);
+  const [addSubWhiteBoardModalOpen, setAddSubWhiteBoardModalOpen] = useState(false);
 
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editItem, setEditItem] = useState<IWhiteBoardContent | null>(null);
-  const [subWhiteBoards, setSubWhiteBoards] = useState<IWhiteBoardContent[]>(
-    [],
-  );
+  const [subWhiteBoards, setSubWhiteBoards] = useState<IWhiteBoardContent[]>([]);
 
   useRafInterval(() => {
     saveSubWhiteBoard();
@@ -86,7 +83,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
   };
 
   const handleMoveSubWhiteBoard = (dragIndex: number, hoverIndex: number) => {
-    setSubWhiteBoards((prev) => {
+    setSubWhiteBoards(prev => {
       if (
         dragIndex < 0 ||
         hoverIndex < 0 ||
@@ -105,19 +102,18 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
 
   const handleSubWhiteBoardDragEnd = () => {
     if (!whiteBoard) return;
-    const currentIds = whiteBoard.whiteBoardContentList.map((item) => item.id);
-    const nextIds = subWhiteBoards.map((item) => item.id);
+    const currentIds = whiteBoard.whiteBoardContentList.map(item => item.id);
+    const nextIds = subWhiteBoards.map(item => item.id);
     const hasOrderChanged =
-      currentIds.length !== nextIds.length ||
-      currentIds.some((id, index) => id !== nextIds[index]);
+      currentIds.length !== nextIds.length || currentIds.some((id, index) => id !== nextIds[index]);
     if (!hasOrderChanged) return;
     onReorderSubWhiteBoards(nextIds);
   };
 
   if (loading) {
     return (
-      <div className="w-full h-full flex justify-center items-center">
-        <Loader2 className="text-2xl animate-spin" />
+      <div className="flex h-full w-full items-center justify-center">
+        <Loader2 className="animate-spin text-2xl" />
       </div>
     );
   }
@@ -131,24 +127,21 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
   }
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden">
+    <div className="flex h-full w-full flex-col overflow-hidden">
       <div className="flex-1 overflow-hidden">
         <WhiteBoard
           key={activeSubWhiteBoard.id}
-          className="w-full h-full"
+          className="h-full w-full"
           initData={activeSubWhiteBoard.data.children}
           initViewPort={activeSubWhiteBoard.data.viewPort}
           initSelection={activeSubWhiteBoard.data.selection}
-          initPresentationSequences={
-            activeSubWhiteBoard.data.presentationSequences
-          }
+          initPresentationSequences={activeSubWhiteBoard.data.presentationSequences}
           onChange={onSubWhiteBoardContentChange}
-          whiteboardContentId={activeSubWhiteBoard.id}
         />
       </div>
 
       {/* 底部的子白板列表 */}
-      <div className="shrink-0 flex items-center gap-1 px-3 py-2 overflow-x-auto backdrop-blur-md bg-[rgba(248,250,255,0.7)] dark:bg-[rgba(10,15,28,0.7)] border-t border-[rgba(15,23,42,0.08)] dark:border-[rgba(255,255,255,0.08)] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-thumb]:bg-[rgba(15,23,42,0.2)] dark:[&::-webkit-scrollbar-thumb]:bg-[rgba(255,255,255,0.2)] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+      <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-t border-[rgba(15,23,42,0.08)] bg-[rgba(248,250,255,0.7)] px-3 py-2 backdrop-blur-md dark:border-[rgba(255,255,255,0.08)] dark:bg-[rgba(10,15,28,0.7)] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-[rgba(15,23,42,0.2)] dark:[&::-webkit-scrollbar-thumb]:bg-[rgba(255,255,255,0.2)] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:h-1.5">
         {subWhiteBoards.map((item, index) => (
           <SubWhiteBoardItem
             key={item.id}
@@ -163,7 +156,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
           />
         ))}
         <div
-          className="min-w-[32px] h-8 rounded-xl flex items-center justify-center cursor-pointer shrink-0 text-[rgba(15,23,42,0.6)] dark:text-[rgba(241,245,249,0.6)] hover:bg-[rgba(255,255,255,0.5)] dark:hover:bg-[rgba(148,163,184,0.12)] hover:text-[rgba(15,23,42,0.95)] dark:hover:text-[rgba(248,250,252,0.95)] transition-all duration-150"
+          className="flex h-8 min-w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-xl text-[rgba(15,23,42,0.6)] transition-all duration-150 hover:bg-[rgba(255,255,255,0.5)] hover:text-[rgba(15,23,42,0.95)] dark:text-[rgba(241,245,249,0.6)] dark:hover:bg-[rgba(148,163,184,0.12)] dark:hover:text-[rgba(248,250,252,0.95)]"
           onClick={() => setAddSubWhiteBoardModalOpen(true)}
         >
           <Plus size={20} />

@@ -322,9 +322,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
             onClick={() => setViewMode("preview")}
             className={classNames(
               "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
-              viewMode === "preview"
-                ? "bg-accent text-white"
-                : "bg-group text-ink-2 hover:bg-sunken"
+              viewMode === "preview" ? "bg-accent text-white" : "bg-hover text-ink-2 hover:bg-press"
             )}
           >
             <Eye className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -335,7 +333,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
             onClick={() => setViewMode("source")}
             className={classNames(
               "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all",
-              viewMode === "source" ? "bg-accent text-white" : "bg-group text-ink-2 hover:bg-sunken"
+              viewMode === "source" ? "bg-accent text-white" : "bg-hover text-ink-2 hover:bg-press"
             )}
           >
             <Code className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -345,7 +343,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
       </div>
 
       <div
-        className={classNames("overflow-hidden rounded-xl border", "border-line-1 bg-group")}
+        className={classNames("overflow-hidden rounded-xl border", "border-line-1")}
         style={{ height: 400 }}
       >
         {viewMode === "preview" ? (
@@ -396,7 +394,7 @@ const ReportGenerateModal = memo((props: ReportGenerateModalProps) => {
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-group text-ink-2",
+    "bg-hover text-ink-2",
     "hover:bg-hover",
     "border border-line-1"
   );

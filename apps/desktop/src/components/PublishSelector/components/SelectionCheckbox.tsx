@@ -12,10 +12,11 @@ interface SelectionCheckboxProps {
 
 export const SelectionCheckbox = memo<SelectionCheckboxProps>(
   ({ checked, indeterminate = false, onChange, size = "md", interactive = true }) => {
+    const on = checked || indeterminate;
     const className = clsx(
       size === "sm" ? "size-4" : "size-[18px]",
-      "flex shrink-0 items-center justify-center rounded-[5px] border-[1.5px] transition-colors",
-      checked || indeterminate ? "border-accent bg-accent" : "border-ink-3 hover:border-ink-2"
+      "flex shrink-0 items-center justify-center rounded-[5px] transition-colors",
+      on ? "bg-accent" : "bg-surface shadow-[inset_0_0_0_1.5px_var(--tau-bg-track)]"
     );
     const content = (
       <>
@@ -32,7 +33,9 @@ export const SelectionCheckbox = memo<SelectionCheckboxProps>(
             <path d="M5 13l4 4L19 7" />
           </svg>
         )}
-        {indeterminate && !checked && <span className="bg-ink-inverse h-0.5 w-2 rounded-full" />}
+        {indeterminate && !checked && (
+          <span className="bg-ink-inverse h-[1.8px] w-2 rounded-full" />
+        )}
       </>
     );
 
@@ -47,6 +50,8 @@ export const SelectionCheckbox = memo<SelectionCheckboxProps>(
     return (
       <button
         type="button"
+        role="checkbox"
+        aria-checked={indeterminate && !checked ? "mixed" : checked}
         onClick={e => {
           e.stopPropagation();
           onChange?.();

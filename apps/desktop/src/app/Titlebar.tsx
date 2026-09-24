@@ -80,7 +80,7 @@ export function Titlebar() {
       >
         <Search size={13} strokeWidth={1.75} />
         搜索或跳转…
-        <kbd className="bg-group text-tau-tiny text-ink-2 inline-flex h-5 items-center rounded-md px-1.5 font-mono">
+        <kbd className="bg-hover text-tau-tiny text-ink-2 inline-flex h-5 items-center rounded-md px-1.5 font-mono">
           Ctrl K
         </kbd>
       </button>

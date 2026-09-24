@@ -30,11 +30,7 @@ import {
   GithubResourceSyncOptions,
 } from "@/types/resource-sync";
 import { IRemoteFileInfo } from "@/types/sync";
-import {
-  downloadFileFromGithub,
-  listGithubFiles,
-  uploadFileToGithub,
-} from "@/utils/github";
+import { downloadFileFromGithub, listGithubFiles, uploadFileToGithub } from "@/utils/github";
 import databaseModule from "./database";
 
 interface SyncTask {
@@ -54,7 +50,7 @@ const RESOURCE_PREFIX = "resources";
 const STATUS_DIR_NAME = "sync-status";
 
 const sleep = (ms: number) =>
-  new Promise((resolve) => {
+  new Promise(resolve => {
     setTimeout(resolve, ms);
   });
 
@@ -121,9 +117,7 @@ class RateLimitedExecutor {
       } catch (error) {
         lastError = error as Error;
         if (i < this.config.retryCount) {
-          const delay =
-            this.config.retryDelayMs *
-            Math.pow(this.config.retryBackoffMultiplier, i);
+          const delay = this.config.retryDelayMs * Math.pow(this.config.retryBackoffMultiplier, i);
           await sleep(delay);
         }
       } finally {
@@ -164,20 +158,17 @@ class AliossAdapter implements ProviderAdapter {
           marker,
           "max-keys": 1000,
         },
-        {},
+        {}
       );
       const objects = res.objects || [];
       objects.forEach((obj: any) => {
         if (!obj.name || String(obj.name).endsWith("/")) return;
         const relativePath = this.stripBase(obj.name);
         files.push({
-          name:
-            relativePath.split("/").filter(Boolean).pop() || relativePath || "",
+          name: relativePath.split("/").filter(Boolean).pop() || relativePath || "",
           path: relativePath,
           size: obj.size || 0,
-          lastModified: obj.lastModified
-            ? new Date(obj.lastModified).getTime()
-            : undefined,
+          lastModified: obj.lastModified ? new Date(obj.lastModified).getTime() : undefined,
         });
       });
       marker = res.isTruncated ? res.nextMarker : undefined;
@@ -241,24 +232,19 @@ class S3Adapter implements ProviderAdapter {
           Bucket: this.options.bucket,
           Prefix: keyPrefix || undefined,
           ContinuationToken: continuation,
-        }),
+        })
       );
-      (res.Contents || []).forEach((obj) => {
+      (res.Contents || []).forEach(obj => {
         if (!obj.Key || obj.Key.endsWith("/")) return;
         const relativePath = this.stripBase(obj.Key);
         files.push({
-          name:
-            relativePath.split("/").filter(Boolean).pop() || relativePath || "",
+          name: relativePath.split("/").filter(Boolean).pop() || relativePath || "",
           path: relativePath,
           size: Number(obj.Size || 0),
-          lastModified: obj.LastModified
-            ? new Date(obj.LastModified).getTime()
-            : undefined,
+          lastModified: obj.LastModified ? new Date(obj.LastModified).getTime() : undefined,
         });
       });
-      continuation = res.IsTruncated
-        ? res.NextContinuationToken || undefined
-        : undefined;
+      continuation = res.IsTruncated ? res.NextContinuationToken || undefined : undefined;
     } while (continuation);
     return files;
   }
@@ -270,7 +256,7 @@ class S3Adapter implements ProviderAdapter {
         Bucket: this.options.bucket,
         Key: key,
         Body: content,
-      }),
+      })
     );
   }
 
@@ -280,7 +266,7 @@ class S3Adapter implements ProviderAdapter {
       new GetObjectCommand({
         Bucket: this.options.bucket,
         Key: key,
-      }),
+      })
     );
     // @ts-ignore
     const bodyStream = res.Body;
@@ -346,15 +332,10 @@ class WebDavAdapter implements ProviderAdapter {
         if (item.type === "file") {
           const relativePath = this.stripBase(item.filename || "");
           files.push({
-            name:
-              relativePath.split("/").filter(Boolean).pop() ||
-              item.basename ||
-              "",
+            name: relativePath.split("/").filter(Boolean).pop() || item.basename || "",
             path: relativePath,
             size: Number(item.size || 0),
-            lastModified: item.lastmod
-              ? new Date(item.lastmod).getTime()
-              : undefined,
+            lastModified: item.lastmod ? new Date(item.lastmod).getTime() : undefined,
           });
         } else if (item.type === "directory") {
           queue.push(item.filename);
@@ -394,18 +375,14 @@ class WebDavAdapter implements ProviderAdapter {
 
   private buildPath(objectName: string) {
     const cleanedName = objectName.replace(/^\/+/, "");
-    const cleanedBase = (this.basePath || "")
-      .replace(/^\/+/, "")
-      .replace(/\/+$/, "");
+    const cleanedBase = (this.basePath || "").replace(/^\/+/, "").replace(/\/+$/, "");
     const full = [cleanedBase, cleanedName].filter(Boolean).join("/");
     return `/${full.replace(/\/+/g, "/")}`;
   }
 
   private stripBase(fullPath: string) {
     const normalized = fullPath.replace(/^\/+/, "");
-    const cleanedBase = (this.basePath || "")
-      .replace(/^\/+/, "")
-      .replace(/\/+$/, "");
+    const cleanedBase = (this.basePath || "").replace(/^\/+/, "").replace(/\/+$/, "");
     if (!cleanedBase) return normalized;
     if (normalized.startsWith(`${cleanedBase}/`)) {
       return normalized.slice(cleanedBase.length + 1);
@@ -431,7 +408,7 @@ class GithubAdapter implements ProviderAdapter {
       branch: this.options.branch,
     });
 
-    return files.map((file) => {
+    return files.map(file => {
       const relativePath = this.stripBase(file.path || file.name || "");
       return {
         name: file.name || relativePath,
@@ -470,17 +447,13 @@ class GithubAdapter implements ProviderAdapter {
 
   private buildPath(objectName: string) {
     const cleanedName = objectName.replace(/^\/+/, "");
-    const cleanedBase = (this.basePath || "")
-      .replace(/^\/+/, "")
-      .replace(/\/+$/, "");
+    const cleanedBase = (this.basePath || "").replace(/^\/+/, "").replace(/\/+$/, "");
     return [cleanedBase, cleanedName].filter(Boolean).join("/");
   }
 
   private stripBase(fullPath: string) {
     const normalized = fullPath.replace(/^\/+/, "");
-    const cleanedBase = (this.basePath || "")
-      .replace(/^\/+/, "")
-      .replace(/\/+$/, "");
+    const cleanedBase = (this.basePath || "").replace(/^\/+/, "").replace(/\/+$/, "");
     if (!cleanedBase) return normalized;
     if (normalized.startsWith(`${cleanedBase}/`)) {
       return normalized.slice(cleanedBase.length + 1);
@@ -550,6 +523,12 @@ class ResourceSyncModule {
       return this.statusMeta?.file || null;
     });
 
+    ipcMain.handle("resource-sync:list-local-files", async () => {
+      const directory = path.join(PathUtil.getAppDir(), RESOURCE_PREFIX);
+      await ensureDir(directory);
+      return this.scanLocalFiles(directory);
+    });
+
     ipcMain.handle("resource-sync:refresh", async (_event, options) => {
       try {
         const payload = (options as ResourceSyncOptions) || this.lastOptions;
@@ -568,10 +547,7 @@ class ResourceSyncModule {
     });
   }
 
-  private getRateLimitConfig(
-    provider: ResourceSyncProvider,
-    override?: Partial<IRateLimitConfig>,
-  ) {
+  private getRateLimitConfig(provider: ResourceSyncProvider, override?: Partial<IRateLimitConfig>) {
     const base = RATE_LIMIT_CONFIGS[provider] || RATE_LIMIT_CONFIGS.alioss;
     const merged = {
       ...base,
@@ -596,10 +572,7 @@ class ResourceSyncModule {
     }
   }
 
-  private async startSync(
-    options: ResourceSyncOptions,
-    flags?: { retryFailedOnly?: boolean },
-  ) {
+  private async startSync(options: ResourceSyncOptions, flags?: { retryFailedOnly?: boolean }) {
     if (this.running) {
       return { ok: false, message: "资源同步正在进行中" };
     }
@@ -624,21 +597,20 @@ class ResourceSyncModule {
       if (flags?.retryFailedOnly) {
         retryTargets = this.markErrorsPending();
         if (blacklist.size && retryTargets?.size) {
-          blacklist.forEach((name) => retryTargets?.delete(name));
+          blacklist.forEach(name => retryTargets?.delete(name));
         }
       }
 
       const plan = await this.buildPlan(this.adapter, retryTargets, blacklist);
       log.info("[resource-sync] plan built", {
         total: plan.tasks.length,
-        uploads: plan.tasks.filter((t) => t.direction === "upload").length,
-        downloads: plan.tasks.filter((t) => t.direction === "download").length,
+        uploads: plan.tasks.filter(t => t.direction === "upload").length,
+        downloads: plan.tasks.filter(t => t.direction === "download").length,
       });
       await this.saveStatusFile();
 
       if (plan.tasks.length === 0) {
-        this.progress.status =
-          this.progress.errorCount > 0 ? "error" : "completed";
+        this.progress.status = this.progress.errorCount > 0 ? "error" : "completed";
         this.notifyProgress();
         if (this.progress.status === "completed") {
           this.sendCompletion();
@@ -647,9 +619,7 @@ class ResourceSyncModule {
         }
         return {
           ok: this.progress.status === "completed",
-          message: flags?.retryFailedOnly
-            ? "没有需要重试的文件"
-            : "没有需要同步的文件",
+          message: flags?.retryFailedOnly ? "没有需要重试的文件" : "没有需要同步的文件",
         };
       }
 
@@ -657,7 +627,7 @@ class ResourceSyncModule {
       this.notifyProgress();
 
       this.executor = new RateLimitedExecutor(
-        this.getRateLimitConfig(options.provider, options.rateLimit),
+        this.getRateLimitConfig(options.provider, options.rateLimit)
       );
 
       await this.executeTasks(plan.tasks);
@@ -701,10 +671,7 @@ class ResourceSyncModule {
       adapter = this.createAdapter(options);
       this.adapter = adapter;
     } catch (error) {
-      log.warn(
-        "[resource-sync] refresh create adapter failed, use local only",
-        error,
-      );
+      log.warn("[resource-sync] refresh create adapter failed, use local only", error);
       adapter = null;
     }
     const statusMeta = await this.prepareStatusFile(options);
@@ -721,8 +688,8 @@ class ResourceSyncModule {
     this.notifyProgress();
     log.info("[resource-sync] refresh completed", {
       total: plan.tasks.length,
-      upload: plan.tasks.filter((t) => t.direction === "upload").length,
-      download: plan.tasks.filter((t) => t.direction === "download").length,
+      upload: plan.tasks.filter(t => t.direction === "upload").length,
+      download: plan.tasks.filter(t => t.direction === "download").length,
       adapterReady: !!adapter,
     });
     return this.statusMeta?.file || null;
@@ -730,7 +697,7 @@ class ResourceSyncModule {
 
   private markErrorsPending() {
     const retryTargets = new Set<string>();
-    Object.keys(this.statuses).forEach((name) => {
+    Object.keys(this.statuses).forEach(name => {
       const status = this.statuses[name];
       if (status.syncStatus === ResourceSyncStatus.Error) {
         this.statuses[name] = {
@@ -754,19 +721,17 @@ class ResourceSyncModule {
     const db = databaseModule.getCurrentDatabase();
     if (!db) return new Set<string>();
     try {
-      const rows = db
-        .prepare("SELECT file_name FROM resource_sync_blacklist")
-        .all() as Array<{ file_name: string }>;
-      return new Set(rows.map((row) => row.file_name));
+      const rows = db.prepare("SELECT file_name FROM resource_sync_blacklist").all() as Array<{
+        file_name: string;
+      }>;
+      return new Set(rows.map(row => row.file_name));
     } catch (error) {
       log.error("[resource-sync] load blacklist failed", error);
       return new Set<string>();
     }
   }
 
-  private async prepareStatusFile(
-    options: ResourceSyncOptions,
-  ): Promise<StatusFileMeta> {
+  private async prepareStatusFile(options: ResourceSyncOptions): Promise<StatusFileMeta> {
     const statusDir = path.join(PathUtil.getAppDir(), STATUS_DIR_NAME);
     await ensureDir(statusDir);
     const statusInfo = this.getStatusFileName(options);
@@ -794,7 +759,7 @@ class ResourceSyncModule {
       }
     }
 
-    Object.keys(statusFile.files).forEach((name) => {
+    Object.keys(statusFile.files).forEach(name => {
       const status = statusFile.files[name];
       if (status.syncStatus === ResourceSyncStatus.Syncing) {
         statusFile.files[name] = {
@@ -884,11 +849,11 @@ class ResourceSyncModule {
   private async buildPlan(
     adapter: ProviderAdapter | null,
     retryTargets?: Set<string> | null,
-    blacklist?: Set<string> | null,
+    blacklist?: Set<string> | null
   ) {
     if (!adapter) {
       log.warn(
-        "[resource-sync] buildPlan without remote adapter, only local files will be considered",
+        "[resource-sync] buildPlan without remote adapter, only local files will be considered"
       );
     }
     const resourcesDir = path.join(PathUtil.getAppDir(), RESOURCE_PREFIX);
@@ -900,16 +865,11 @@ class ResourceSyncModule {
       try {
         remoteFiles = await adapter.list(`${RESOURCE_PREFIX}/`);
       } catch (error) {
-        log.warn(
-          "[resource-sync] list remote files failed, fallback to local only",
-          error,
-        );
+        log.warn("[resource-sync] list remote files failed, fallback to local only", error);
         remoteFiles = [];
       }
     }
-    const remoteMap = new Map<string, IRemoteFileInfo>(
-      remoteFiles.map((item) => [item.name, item]),
-    );
+    const remoteMap = new Map<string, IRemoteFileInfo>(remoteFiles.map(item => [item.name, item]));
 
     const newStatuses: Record<string, IFileSyncStatus> = {};
     const tasks: SyncTask[] = [];
@@ -983,7 +943,7 @@ class ResourceSyncModule {
   private initStatus(
     existing: IFileSyncStatus | undefined,
     direction: "upload" | "download",
-    size: number,
+    size: number
   ): IFileSyncStatus {
     const status: IFileSyncStatus = existing
       ? { ...existing }
@@ -1026,31 +986,23 @@ class ResourceSyncModule {
   private recalculateProgress(skippedCount?: number) {
     const statuses = Object.values(this.statuses);
     this.progress.totalFiles = statuses.length;
-    this.progress.uploadCount = statuses.filter(
-      (s) => s.syncDirection === "upload",
-    ).length;
-    this.progress.downloadCount = statuses.filter(
-      (s) => s.syncDirection === "download",
-    ).length;
+    this.progress.uploadCount = statuses.filter(s => s.syncDirection === "upload").length;
+    this.progress.downloadCount = statuses.filter(s => s.syncDirection === "download").length;
     this.progress.skippedCount =
       skippedCount !== undefined
         ? skippedCount
-        : statuses.filter((s) => s.syncDirection === null).length;
+        : statuses.filter(s => s.syncDirection === null).length;
     this.progress.errorCount = statuses.filter(
-      (s) => s.syncStatus === ResourceSyncStatus.Error,
+      s => s.syncStatus === ResourceSyncStatus.Error
     ).length;
     this.progress.processedFiles = statuses.filter(
-      (s) =>
-        s.syncStatus === ResourceSyncStatus.Synced ||
-        s.syncStatus === ResourceSyncStatus.Error,
+      s => s.syncStatus === ResourceSyncStatus.Synced || s.syncStatus === ResourceSyncStatus.Error
     ).length;
   }
 
   private async executeTasks(tasks: SyncTask[]) {
     if (!this.executor || !this.adapter) return;
-    const promises = tasks.map((task) =>
-      this.executor!.execute(() => this.runTask(task)),
-    );
+    const promises = tasks.map(task => this.executor!.execute(() => this.runTask(task)));
     await Promise.allSettled(promises);
   }
 
@@ -1059,8 +1011,7 @@ class ResourceSyncModule {
     if (this.cancelRequested) return;
 
     this.statuses[task.name] = {
-      ...(this.statuses[task.name] ||
-        this.initStatus(undefined, task.direction, task.size)),
+      ...(this.statuses[task.name] || this.initStatus(undefined, task.direction, task.size)),
       syncStatus: ResourceSyncStatus.Syncing,
       errorMessage: null,
     };
@@ -1080,8 +1031,7 @@ class ResourceSyncModule {
         await fs.writeFile(task.localPath, content);
       }
       this.statuses[task.name] = {
-        ...(this.statuses[task.name] ||
-          this.initStatus(undefined, task.direction, task.size)),
+        ...(this.statuses[task.name] || this.initStatus(undefined, task.direction, task.size)),
         syncStatus: ResourceSyncStatus.Synced,
         lastSyncTime: Date.now(),
         errorMessage: null,
@@ -1126,11 +1076,7 @@ class ResourceSyncModule {
       ...this.statusMeta.file,
       files: this.statuses,
     };
-    await fs.writeFile(
-      this.statusMeta.path,
-      JSON.stringify(content, null, 2),
-      "utf-8",
-    );
+    await fs.writeFile(this.statusMeta.path, JSON.stringify(content, null, 2), "utf-8");
     this.statusMeta.file = content;
   }
 

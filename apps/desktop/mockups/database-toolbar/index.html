@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Database 顶部工具栏 · 沉浸化方案</title>
+<style>
+  /* ---------- tokens：与 packages/ui/src/theme/tokens.css 一致 ---------- */
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #f0e9d8; --bg-sunken: #e7dbc8; --bg-track: #e0d6c3;
+    --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09);
+    --bg-selected: rgba(217, 119, 87, 0.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --star: #e9a21b; --tag-mix: 13%; --tag-ink: 0%;
+    --shadow-card: 0 1px 2px rgba(67,57,44,.04), 0 8px 28px rgba(67,57,44,.06);
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  }
+  [data-theme="cocoa"] {
+    color-scheme: dark;
+    --bg-page: #221d16; --bg-surface: #2e2820; --bg-group: #1e1912; --bg-sunken: #100d08; --bg-track: #463d31;
+    --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11);
+    --bg-selected: hsla(22, 62%, 65%, 0.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768;
+    --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+    --accent: hsl(22 62% 65%); --accent-text: hsl(22 66% 70%); --accent-soft: hsla(22, 62%, 65%, 0.16);
+    --star: #e0a33a; --tag-mix: 20%; --tag-ink: 38%;
+    --shadow-card: 0 1px 2px rgba(0,0,0,.2), 0 8px 28px rgba(0,0,0,.25);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 13px/1.6 var(--font); -webkit-font-smoothing: antialiased; transition: background .24s var(--ease); }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  svg.i { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  /* ---------- 顶部控制条（mock 自身，不属于方案） ---------- */
+  .ctrl { position: sticky; top: 0; z-index: 50; display: flex; align-items: center; gap: 14px; padding: 12px 28px;
+    background: color-mix(in srgb, var(--bg-page) 86%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line-1); }
+  .ctrl h1 { font-size: 13.5px; font-weight: 600; margin-right: 6px; }
+  .seg { display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: var(--bg-hover); }
+  .seg button { height: 26px; padding: 0 12px; border-radius: 7px; font-size: 12.5px; color: var(--ink-2); transition: all .16s var(--ease); }
+  .seg button.on { background: var(--bg-surface); color: var(--ink-1); font-weight: 500; box-shadow: 0 1px 2px rgba(67,57,44,.1); }
+  .seg button kbd { font: 10px var(--mono); opacity: .45; margin-left: 5px; }
+  .ctrl .sp { flex: 1; }
+  .ctrl label { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+
+  /* ---------- 画布 ---------- */
+  .stage { padding: 34px 44px 30px; min-height: 560px; }
+  .note { margin: 0 44px 60px; padding: 18px 20px; border-radius: 12px; background: var(--bg-hover); display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 24px; font-size: 12.5px; color: var(--ink-2); }
+  .note h3 { font-size: 13.5px; color: var(--ink-1); margin-bottom: 6px; font-weight: 600; }
+  .note h4 { font-size: 12px; margin-bottom: 4px; font-weight: 600; }
+  .note ul { padding-left: 16px; } .note li { margin: 2px 0; }
+  .note .g h4 { color: #61795f; } .note .b h4 { color: #b0564d; }
+  .note .tip { margin-top: 10px; color: var(--ink-3); font-size: 11.5px; }
+
+  /* ---------- DB 通用 ---------- */
+  .db { position: relative; max-width: 1060px; }
+  .tb { display: flex; align-items: center; gap: 8px; }
+  .tabs { display: flex; align-items: center; gap: 4px; }
+  .tools { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+
+  .ghost { color: var(--ink-2); opacity: .6; transition: opacity .16s var(--ease), background-color .16s var(--ease), color .16s var(--ease); }
+  .ghost:hover { opacity: 1; }
+  .icon-btn { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 99px; }
+
+  .search { display: flex; align-items: center; gap: 6px; height: 28px; width: 200px; padding: 0 10px; border-radius: 99px; border: 1px solid var(--line-1); background: var(--bg-surface); }
+  .search svg { color: var(--ink-3); }
+  .search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; font: 12.5px var(--font); color: var(--ink-1); }
+  .search input::placeholder { color: var(--ink-3); }
+
+  /* 表格 */
+  .grid { display: grid; grid-template-columns: 44px 166px 112px 116px 186px 176px minmax(60px, 1fr); }
+  .thead { font-size: 12.5px; color: var(--ink-2); }
+  .th { display: flex; align-items: center; gap: 7px; height: 35px; white-space: nowrap; overflow: hidden; padding: 0 8px; border-right: 1px solid var(--line-2); position: relative; }
+  .th:first-child { border-right: 1px solid var(--line-2); }
+  .th svg { width: 14px; height: 14px; color: var(--ink-2); }
+  .th .more { margin-left: auto; opacity: .55; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; }
+  .th.add { border-right: 0; } .th.add svg { color: var(--ink-3); }
+  .tr { border-bottom: 1px solid var(--line-2); transition: background-color .12s; }
+  .td { display: flex; align-items: center; gap: 6px; height: 35px; padding: 0 8px; border-right: 1px solid var(--line-2); font-size: 13px; min-width: 0; }
+  .td:last-child { border-right: 0; }
+  .td.idx { justify-content: center; color: var(--ink-3); font: 12px var(--mono); }
+  .td.name span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: .02em; }
+  .rbtn { display: grid; place-items: center; width: 24px; height: 22px; border-radius: 6px; background: var(--bg-hover); color: var(--ink-2); flex: none; transition: opacity .16s var(--ease); }
+  .rbtn svg { width: 14px; height: 14px; }
+  .cover { width: 26px; height: 26px; border-radius: 4px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.06); }
+  .td.cov .rbtn { margin-left: auto; background: var(--bg-hover); border-radius: 99px; width: 24px; }
+  .stars { display: flex; gap: 2px; color: var(--star); }
+  .stars svg { width: 14px; height: 14px; stroke-width: 1.6; }
+  .tag { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: 99px; font-size: 12px; white-space: nowrap;
+    background: color-mix(in srgb, var(--c) var(--tag-mix), transparent); color: color-mix(in srgb, var(--c), #fff var(--tag-ink)); }
+  .tag::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .tag.plain { background: var(--bg-surface); color: var(--ink-1); box-shadow: inset 0 0 0 1px var(--line-1); }
+  .tag.plain::before { display: none; }
+  .tag.yr { font-family: var(--mono); font-size: 12px; letter-spacing: .02em; }
+  .td.tags { gap: 4px; overflow: hidden; }
+  .empty-rows { padding: 30px; text-align: center; color: var(--ink-3); font-size: 12.5px; }
+
+  /* 行内按钮悬停显示 */
+  body.hover-btns .db:not(.v-now) .tr .rbtn { opacity: 0; }
+  body.hover-btns .db:not(.v-now) .tr:hover .rbtn { opacity: 1; }
+  .db:not(.v-now) .tr:hover { background: var(--bg-hover); }
+  .db:not(.v-now) .th .more { opacity: 0; transition: opacity .16s; }
+  .db:not(.v-now) .th:hover .more { opacity: .55; }
+
+  /* 条件 chip */
+  .chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 4px 0 9px; border-radius: 99px; font-size: 12px; color: var(--ink-2);
+    background: var(--bg-hover); white-space: nowrap; transition: background-color .16s var(--ease); }
+  .chip:hover { background: var(--bg-press); }
+  .chip svg { width: 12px; height: 12px; }
+  .chip b { color: var(--ink-1); font-weight: 500; }
+  .chip .x { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 99px; opacity: .5; }
+  .chip .x:hover { opacity: 1; background: var(--bg-press); }
+  .chip.accent { background: var(--accent-soft); color: var(--accent-text); }
+  .chip.accent b { color: var(--accent-text); }
+
+  /* ================= 现状 ================= */
+  .v-now .tb { padding-bottom: 8px; }
+  .v-now .tab { display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 6px 0 12px; border-radius: 99px; font-size: 12.5px; color: var(--ink-2); opacity: .6; transition: all .16s var(--ease); }
+  .v-now .tab:hover { opacity: 1; }
+  .v-now .tab.on { background: var(--bg-selected); color: var(--ink-1); font-weight: 500; opacity: 1; }
+  .v-now .tab .dots { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; opacity: .6; }
+  .v-now .pill { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 99px; font-size: 12.5px; }
+  .v-now .pill svg { width: 13px; height: 13px; }
+  .v-now .pill .chev { width: 11px; height: 11px; opacity: .5; stroke-width: 2.25; }
+  .v-now .pill.on { background: var(--bg-selected); color: var(--ink-1); opacity: 1; }
+  .v-now .pill .cnt { color: var(--accent-text); font-size: 10.5px; font-weight: 700; }
+  .v-now .thead { background: var(--bg-surface); border-top: 1px solid var(--line-2); border-bottom: 1px solid var(--line-2); }
+
+  /* ================= A / A+ 书签式 ================= */
+  .v-A .tb, .v-Aplus .tb { height: 38px; border-bottom: 1px solid var(--line-1); gap: 0; }
+  .v-A .tabs, .v-Aplus .tabs { gap: 20px; height: 100%; padding-left: 10px; }
+  .bm { position: relative; display: inline-flex; align-items: center; gap: 4px; height: 100%; font-size: 13px; color: var(--ink-3); transition: color .16s var(--ease); }
+  .bm:hover { color: var(--ink-2); }
+  .bm.on { color: var(--ink-1); font-weight: 500; }
+  .bm.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px; background: var(--ink-1); }
+  .bm.on.has-dots::after { right: 26px; }
+  .bm .dots { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; opacity: 0; color: var(--ink-3); transition: opacity .16s; }
+  .bm.on:hover .dots { opacity: 1; }
+  .bm .dots:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .bm svg.vi { width: 14px; height: 14px; opacity: .8; }
+  .v-A .add-view, .v-Aplus .add-view { margin-left: -6px; width: 24px; height: 24px; color: var(--ink-3); opacity: .8; }
+  .v-A .add-view:hover, .v-Aplus .add-view:hover { color: var(--ink-1); }
+  .v-A .tools, .v-Aplus .tools { gap: 2px; }
+  .tool { position: relative; display: flex; align-items: center; gap: 3px; height: 28px; min-width: 28px; justify-content: center; padding: 0 6px; border-radius: 8px; color: var(--ink-2); opacity: .55; transition: all .16s var(--ease); }
+  .tool:hover { opacity: 1; background: var(--bg-hover); }
+  .tool.on { opacity: 1; color: var(--accent-text); }
+  .tool .cnt { font: 600 11px var(--mono); }
+  .v-A .thead, .v-Aplus .thead { border-bottom: 1px solid var(--line-1); }
+  .v-A .th, .v-Aplus .th { color: var(--ink-3); }
+  .v-A .th svg, .v-Aplus .th svg { color: var(--ink-3); }
+  .v-Aplus .conds { display: flex; gap: 6px; margin-right: 8px; }
+  .v-Aplus .divider { width: 1px; height: 14px; background: var(--line-1); margin: 0 6px 0 2px; }
+
+  /* 表格 / 画廊 视图图标 */
+  /* ================= B 隐身式 ================= */
+  .v-B .tb { height: 36px; }
+  .v-B .vswitch { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px 0 6px; margin-left: -6px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--ink-1); transition: background-color .16s; }
+  .v-B .vswitch:hover, .v-B .vswitch.open { background: var(--bg-hover); }
+  .v-B .vswitch .vi { width: 15px; height: 15px; color: var(--ink-2); }
+  .v-B .vswitch .chev { width: 12px; height: 12px; color: var(--ink-3); stroke-width: 2.2; }
+  .v-B .vswitch .n { font: 500 11px var(--mono); color: var(--ink-3); margin-left: -1px; }
+  .v-B .tools { opacity: 0; transform: translateY(2px); transition: opacity .24s var(--ease), transform .24s var(--ease); gap: 2px; }
+  .v-B:hover .tools, .v-B .tools.pin { opacity: 1; transform: none; }
+  .v-B .conds { display: flex; align-items: center; gap: 6px; padding: 2px 0 10px; }
+  .v-B .conds .clear { font-size: 12px; color: var(--ink-3); margin-left: 4px; }
+  .v-B .conds .clear:hover { color: var(--ink-1); }
+  .v-B .thead { border-bottom: 1px solid var(--line-1); }
+  .v-B .th { color: var(--ink-3); } .v-B .th svg { color: var(--ink-3); }
+  .v-B .th, .v-B .td { border-right-color: transparent; }
+  .v-B .tb + .grid.thead { margin-top: 4px; }
+  .menu { position: absolute; top: 36px; left: -6px; z-index: 20; min-width: 200px; padding: 5px; border-radius: 12px; background: var(--bg-surface); border: 1px solid var(--line-1);
+    box-shadow: 0 10px 34px rgba(67,57,44,.14); font-size: 13px; }
+  .menu .mi { display: flex; align-items: center; gap: 8px; width: 100%; height: 30px; padding: 0 9px; border-radius: 7px; color: var(--ink-1); text-align: left; }
+  .menu .mi:hover { background: var(--bg-hover); }
+  .menu .mi svg { width: 15px; height: 15px; color: var(--ink-2); }
+  .menu .mi .ck { margin-left: auto; color: var(--accent-text); }
+  .menu .sep { height: 1px; background: var(--line-1); margin: 4px 6px; }
+  .menu .mi.sub { color: var(--ink-2); }
+
+  /* ================= C 卡片式 ================= */
+  .v-C { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 14px; box-shadow: var(--shadow-card); overflow: hidden; }
+  .v-C .tb { height: 46px; padding: 0 14px 0 16px; border-bottom: 1px solid var(--line-1); }
+  .v-C .tabs { height: 100%; }
+  .v-C .ct { position: relative; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-3); transition: color .16s var(--ease), background-color .16s var(--ease); }
+  .v-C .ct svg { width: 14px; height: 14px; opacity: .8; }
+  .v-C .ct:hover { color: var(--ink-2); }
+  .v-C .ct.on { color: var(--ink-1); font-weight: 500; }
+  /* 标签样式 1：下划线（压在卡片头部分隔线上） */
+  .ct-line .tabs { gap: 20px; }
+  .ct-line .ct { height: 100%; }
+  .ct-line .ct.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px; background: var(--ink-1); }
+  /* 标签样式 2：浅胶囊（中性 hover 色，无轨道） */
+  .ct-pill .tabs { gap: 2px; margin-left: -6px; }
+  .ct-pill .ct { height: 28px; padding: 0 10px; border-radius: 8px; color: var(--ink-2); }
+  .ct-pill .ct:hover { background: var(--bg-hover); }
+  .ct-pill .ct.on { background: var(--bg-press); color: var(--ink-1); }
+  /* 标签样式 3：纯文字（字重 + 墨色对比） */
+  .ct-text .tabs { gap: 18px; }
+  .ct-text .ct svg { display: none; }
+  .ct-text .ct { font-size: 13.5px; }
+  .ct-text .ct.on { font-weight: 600; }
+  .v-C .add-view { width: 26px; height: 26px; color: var(--ink-3); margin-left: 4px; }
+  .v-C .tools { gap: 2px; }
+  .v-C .tool { gap: 5px; padding: 0 9px; font-size: 12.5px; }
+  .v-C .tool svg { width: 13px; height: 13px; }
+  .v-C .tool.on { background: var(--accent-soft); }
+  .v-C .thead { border-bottom: 1px solid var(--line-1); }
+  .v-C .th, .v-C .th svg { color: var(--ink-3); }
+  .v-C .tr:last-child { border-bottom: 0; }
+  .v-C .tr:hover { background: var(--bg-surface-hover, var(--bg-hover)); }
+</style>
+</head>
+<body class="hover-btns">
+<svg width="0" height="0" style="position:absolute">
+  <defs><linearGradient id="half"><stop offset="50%" style="stop-color:var(--star)"/><stop offset="50%" stop-color="transparent"/></linearGradient></defs>
+</svg>
+
+<div class="ctrl">
+  <h1>Database 顶部</h1>
+  <div class="seg" id="variants"></div>
+  <div class="sp"></div>
+  <label><input type="checkbox" id="hoverBtns" checked> 行内按钮悬停显示</label>
+  <div class="seg" id="ctab"></div>
+  <div class="seg" id="theme">
+    <button data-t="cream" class="on">浅色</button><button data-t="cocoa">深色</button>
+  </div>
+</div>
+
+<div class="stage"><div id="db"></div></div>
+<div class="note" id="note"></div>
+
+<script>
+const P = {
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  filter: '<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>',
+  sort: '<path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/>',
+  layers: '<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+  more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  chev: '<path d="m6 9 6 6 6-6"/>',
+  x: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  type: '<path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/>',
+  image: '<rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/>',
+  star: '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>',
+  multi: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+  select: '<circle cx="12" cy="12" r="10"/><path d="m16 10-4 4-4-4"/>',
+  panel: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/>',
+  table: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M12 3v18"/>',
+  gallery: '<rect width="7" height="7" x="3" y="3" rx="1.5"/><rect width="7" height="7" x="14" y="3" rx="1.5"/><rect width="7" height="7" x="3" y="14" rx="1.5"/><rect width="7" height="7" x="14" y="14" rx="1.5"/>',
+};
+const ic = (n, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24">${P[n]}</svg>`;
+
+const C = { 动作:'#c0623e', 悬疑:'#a8892f', 治愈:'#5f8a5a', 剧情:'#4f7bb5', 犯罪:'#b8532f', 科幻:'#b0923a', 历史:'#8a6bb0', 战争:'#b0483f', 动漫:null,
+  2025:'#c0623e', 2010:null, 1988:'#4f7bb5', 2016:'#8a6bb0', 2023:'#b0483f', 2020:'#a8892f', 2014:'#5f8a5a' };
+const MOVIES = [
+  ['捕风追影', 5, ['动作'], 2025, ['#3b4148','#8b9199']],
+  ['盗梦空间', 5, ['悬疑'], 2010, ['#6f8aa3','#c9d3dc']],
+  ['龙猫', 5, ['治愈','动漫'], 1988, ['#4b6a7c','#d88fa0']],
+  ['让子弹飞', 5, ['剧情'], 2010, ['#2b2622','#7b6a58']],
+  ['看不见的客人', 5, ['悬疑','剧情','犯罪'], 2016, ['#1f3346','#8aa0b5']],
+  ['菊次郎的夏天', 5, ['治愈'], null, ['#4f8a3c','#b8d98e']],
+  ['流浪地球2', 5, ['科幻'], 2023, ['#5a1f14','#e0873e']],
+  ['狩猎', 4.5, ['动作'], 2020, ['#7a4a3a','#c9b49a']],
+  ['消失的爱人', 4.5, ['悬疑'], 2014, ['#7c95a8','#dfe6ea']],
+  ['南京照相馆', 0, ['剧情','历史','战争'], 2025, ['#3a3530','#9a9188']],
+];
+const RAW_ORDER = [3, 1, 6, 0, 9, 4, 2, 8, 5, 7];
+const VIEWS = [{ id: 'g', name: '画廊', icon: 'gallery' }, { id: 't', name: '表格', icon: 'table' }];
+
+const S = { v: 'Aplus', view: 't', sort: true, filter: false, group: false, q: '', searchOpen: false, menu: false, ctab: 'line' };
+
+const VARIANTS = [
+  { k: 'now', label: '现状' },
+  { k: 'A', label: 'A 书签式' },
+  { k: 'Aplus', label: 'A+ 书签 + 条件（推荐）' },
+  { k: 'B', label: 'B 隐身式' },
+  { k: 'C', label: 'C 卡片式' },
+];
+const NOTES = {
+  now: { t: '现状', d: '工具栏漂在页面底色上，表头是一条白底；当前视图与「排序 1」使用相同的 bg-selected 胶囊，两个色块互相抢；每个 tab 常驻 ···、每个工具常驻 ▾。',
+    g: ['功能都摆在明面上，可发现性最好'], b: ['两层结构（浮动按钮 + 白色表头）割裂', '“当前视图”和“有条件生效”语义不同却同样式', '静止态元素过多'] },
+  A: { t: 'A · 书签式', d: '视图 tab 改为文字 + 2px 下划线，下划线压在唯一一条分隔线上，把工具栏和表格缝成一体；表头去白底只留 hairline；工具只留图标，生效时变 accent 色并显示计数（不加底色）。',
+    g: ['改动小，只动 ViewTabs 与表头样式', '选中态只剩一种语言（下划线），生效态只剩一种（accent 色）', '静止时整行几乎只剩文字'] , b: ['「↕ 1」只告诉你“有排序”，看不出按什么排'] },
+  Aplus: { t: 'A+ · 书签式 + 行内条件（推荐）', d: '在 A 的基础上，把生效的排序 / 筛选 / 分组以可读的 chip 放在工具图标左侧：「↕ 个人评价 降序 ×」。条件本身变成内容，可直接点 × 移除；无条件时这块完全消失。',
+    g: ['当前视图一眼可见，条件含义一眼可读', '无条件时与 A 一样干净', '点击 chip 可直接打开对应面板（实现时）'], b: ['条件很多时需要折叠为「+2」', '比 A 多一个组件'] },
+  B: { t: 'B · 隐身式', d: '视图切换收成一个“标题式”下拉；搜索 / 筛选 / 排序 / 分组只在鼠标移入数据库时淡入；生效条件单独一行 chip。去掉了列之间的竖线，最接近“读一张表”。',
+    g: ['沉浸感最强，静止时像文档里的一段内容', '条件行信息最完整'], b: ['切换视图多一次点击，视图多时不直观', '工具默认隐藏，新用户可发现性差', '鼠标移入移出会有元素闪现'] },
+  C: { t: 'C · 卡片式', d: '整个数据库是一张 surface 卡片：卡片头 = 视图标签 + 工具（带文字）；表头与行同为 surface 底色，只靠 hairline 分隔。顶部可切换三种视图标签样式对比。',
+    g: ['结构最稳、边界最清晰', '适合数据库作为页面主体、周围还有其他内容的场景'], b: ['是“框起来”而非“融进去”，沉浸感一般', '整页多一层容器阴影'] },
+};
+
+function tag(t, yr) {
+  const c = C[t];
+  return c ? `<span class="tag ${yr ? 'yr' : ''}" style="--c:${c}">${t}</span>` : `<span class="tag plain ${yr ? 'yr' : ''}">${t}</span>`;
+}
+function stars(r) {
+  let h = '';
+  for (let i = 1; i <= 5; i++) {
+    const fill = r >= i ? 'currentColor' : r >= i - .5 ? 'url(#half)' : 'none';
+    h += `<svg class="i" viewBox="0 0 24 24" style="fill:${fill}">${P.star}</svg>`;
+  }
+  return `<div class="stars">${h}</div>`;
+}
+
+function rows() {
+  let idx = S.sort ? MOVIES.map((_, i) => i) : RAW_ORDER;
+  if (S.filter) idx = idx.filter(i => MOVIES[i][2].includes('悬疑'));
+  if (S.q) idx = idx.filter(i => MOVIES[i][0].includes(S.q));
+  if (!idx.length) return `<div class="empty-rows">没有匹配的记录</div>`;
+  return idx.map((i, n) => {
+    const [name, r, cats, yr, g] = MOVIES[i];
+    return `<div class="grid tr">
+      <div class="td idx">${n + 1}</div>
+      <div class="td name"><span>${name}</span><button class="rbtn" title="展开">${ic('panel')}</button></div>
+      <div class="td cov"><div class="cover" style="background:linear-gradient(145deg,${g[0]},${g[1]})"></div><button class="rbtn" title="添加">${ic('plus')}</button></div>
+      <div class="td">${stars(r)}</div>
+      <div class="td tags">${cats.map(c => tag(c)).join('')}</div>
+      <div class="td">${yr ? tag(yr, true) : ''}</div>
+      <div class="td"></div>
+    </div>`;
+  }).join('');
+}
+
+function thead() {
+  const cols = [['type','名称'],['image','封面'],['star','个人评价'],['multi','分类'],['select','年份']];
+  return `<div class="grid thead"><div class="th"></div>${cols.map(([i, t]) =>
+    `<div class="th">${ic(i)}<span>${t}</span><span class="more">${ic('more')}</span></div>`).join('')}<div class="th add">${ic('plus')}</div></div>`;
+}
+
+function searchBox(btnCls) {
+  if (S.searchOpen) return `<div class="search">${ic('search')}<input id="q" placeholder="搜索本视图…" value="${S.q}"></div>`;
+  return `<button class="${btnCls}" data-act="search" title="搜索本视图">${ic('search')}</button>`;
+}
+
+const COND = {
+  sort: () => `<span class="chip">${ic('sort')}<b>个人评价</b>降序<span class="x" data-act="sort">${ic('x')}</span></span>`,
+  filter: () => `<span class="chip">${ic('filter')}<b>分类</b>包含 悬疑<span class="x" data-act="filter">${ic('x')}</span></span>`,
+  group: () => `<span class="chip">${ic('layers')}按 <b>年份</b> 分组<span class="x" data-act="group">${ic('x')}</span></span>`,
+};
+const activeConds = () => ['filter', 'sort', 'group'].filter(k => S[k]).map(k => COND[k]()).join('');
+
+function toolbar() {
+  const v = S.v;
+  if (v === 'now') {
+    const pill = (k, label, icon, cnt) => `<button class="pill ghost ${S[k] ? 'on' : ''}" data-act="${k}">${ic(icon)}<span>${label}</span>${S[k] && cnt ? `<span class="cnt">${cnt}</span>` : ''}${ic('chev', 'chev')}</button>`;
+    return `<div class="tb"><div class="tabs">${VIEWS.map(w => `<span class="tab ${S.view === w.id ? 'on' : ''}" data-view="${w.id}">${w.name}<span class="dots">${ic('more')}</span></span>`).join('')}
+      <button class="icon-btn ghost">${ic('plus')}</button></div>
+      <div class="tools">${searchBox('icon-btn ghost')}${pill('filter','筛选','filter',1)}${pill('sort','排序','sort',1)}${pill('group','分组','layers')}</div></div>`;
+  }
+  const tool = (k, icon, label, cnt, withLabel) => `<button class="tool ${S[k] ? 'on' : ''}" data-act="${k}" title="${label}">${ic(icon)}${withLabel ? `<span>${label}</span>` : ''}${S[k] && cnt && v === 'A' ? `<span class="cnt">${cnt}</span>` : ''}</button>`;
+  const tools = (wl) => `${searchBox('tool')}${tool('filter','filter','筛选',1,wl)}${tool('sort','sort','排序',1,wl)}${tool('group','layers','分组',0,wl)}`;
+
+  if (v === 'A' || v === 'Aplus') {
+    const conds = v === 'Aplus' && activeConds() ? `<div class="conds">${activeConds()}</div><span class="divider"></span>` : '';
+    return `<div class="tb"><div class="tabs">${VIEWS.map(w => `<span class="bm has-dots ${S.view === w.id ? 'on' : ''}" data-view="${w.id}">${w.name}<span class="dots">${ic('more')}</span></span>`).join('')}
+      <button class="icon-btn add-view" title="新视图">${ic('plus')}</button></div>
+      <div class="tools">${conds}${tools(false)}</div></div>`;
+  }
+  if (v === 'B') {
+    const cur = VIEWS.find(w => w.id === S.view);
+    const menu = S.menu ? `<div class="menu">${VIEWS.map(w => `<button class="mi" data-view="${w.id}">${ic(w.icon)}${w.name}${S.view === w.id ? `<span class="ck">${ic('check')}</span>` : ''}</button>`).join('')}
+      <div class="sep"></div><button class="mi sub">${ic('plus')}新建视图</button><button class="mi sub">${ic('more')}编辑当前视图</button></div>` : '';
+    const conds = activeConds() ? `<div class="conds">${activeConds()}<button class="clear" data-act="clear">清除</button></div>` : '';
+    return `<div class="tb" style="position:relative"><button class="vswitch ${S.menu ? 'open' : ''}" data-act="menu">${ic(cur.icon, 'vi')}${cur.name}${ic('chev', 'chev')}</button>${menu}
+      <div class="tools ${S.searchOpen ? 'pin' : ''}">${tools(false)}</div></div>${conds}`;
+  }
+  if (v === 'C') {
+    return `<div class="tb"><div class="tabs">${VIEWS.map(w => `<span class="ct ${S.view === w.id ? 'on' : ''}" data-view="${w.id}">${ic(w.icon)}${w.name}</span>`).join('')}</div>
+      <button class="icon-btn add-view ghost">${ic('plus')}</button>
+      <div class="tools">${tools(true)}</div></div>`;
+  }
+}
+
+function render() {
+  const db = document.getElementById('db');
+  db.className = `db v-${S.v}` + (S.v === 'C' ? ` ct-${S.ctab}` : '');
+  const ct = document.getElementById('ctab');
+  ct.style.display = S.v === 'C' ? '' : 'none';
+  ct.innerHTML = [['line','下划线'],['pill','浅胶囊'],['text','纯文字']].map(([k, l]) => `<button data-ct="${k}" class="${S.ctab === k ? 'on' : ''}">${l}</button>`).join('');
+  db.innerHTML = toolbar() + thead() + `<div id="rows">${rows()}</div>`;
+  document.getElementById('variants').innerHTML = VARIANTS.map((x, i) => `<button data-v="${x.k}" class="${S.v === x.k ? 'on' : ''}">${x.label}<kbd>${i + 1}</kbd></button>`).join('');
+  const n = NOTES[S.v];
+  document.getElementById('note').innerHTML = `<div><h3>${n.t}</h3><p>${n.d}</p><p class="tip">可交互：点击筛选 / 排序 / 分组图标切换生效状态，chip 上 × 可移除；点击搜索展开输入；数字键 1–5 切换方案。</p></div>
+    <div class="g"><h4>优点</h4><ul>${n.g.map(x => `<li>${x}</li>`).join('')}</ul></div>
+    <div class="b"><h4>代价</h4><ul>${n.b.map(x => `<li>${x}</li>`).join('')}</ul></div>`;
+  const q = document.getElementById('q');
+  if (q) {
+    q.addEventListener('input', e => { S.q = e.target.value; document.getElementById('rows').innerHTML = rows(); });
+    q.addEventListener('blur', () => { if (!S.q) { S.searchOpen = false; render(); } });
+    q.addEventListener('keydown', e => { if (e.key === 'Escape') { S.q = ''; S.searchOpen = false; render(); } });
+  }
+}
+
+document.addEventListener('click', e => {
+  const v = e.target.closest('[data-v]');
+  if (v) { S.v = v.dataset.v; S.menu = false; render(); return; }
+  const ctb = e.target.closest('[data-ct]');
+  if (ctb) { S.ctab = ctb.dataset.ct; render(); return; }
+  const t = e.target.closest('[data-t]');
+  if (t) {
+    document.documentElement.dataset.theme = t.dataset.t;
+    document.querySelectorAll('#theme button').forEach(b => b.classList.toggle('on', b === t));
+    return;
+  }
+  const view = e.target.closest('[data-view]');
+  if (view && !e.target.closest('.dots')) { S.view = view.dataset.view; S.menu = false; render(); return; }
+  const a = e.target.closest('[data-act]');
+  if (a) {
+    const k = a.dataset.act;
+    if (k === 'search') { S.searchOpen = true; render(); requestAnimationFrame(() => document.getElementById('q')?.focus()); return; }
+    if (k === 'menu') S.menu = !S.menu;
+    else if (k === 'clear') { S.sort = S.filter = S.group = false; }
+    else S[k] = !S[k];
+    render(); return;
+  }
+  if (S.menu && !e.target.closest('.menu')) { S.menu = false; render(); }
+});
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const i = +e.key - 1;
+  if (VARIANTS[i]) { S.v = VARIANTS[i].k; S.menu = false; render(); }
+});
+document.getElementById('hoverBtns').addEventListener('change', e => document.body.classList.toggle('hover-btns', e.target.checked));
+render();
+</script>
+</body>
+</html>

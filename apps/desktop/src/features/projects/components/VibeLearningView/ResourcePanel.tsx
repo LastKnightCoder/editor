@@ -224,7 +224,7 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
       ref={rowRef}
       className={classNames(
         "border-line-1 group flex items-start gap-3 border-b py-3 transition-colors last:border-b-0",
-        "hover:bg-group/70 cursor-pointer rounded-lg px-2",
+        "hover:bg-hover cursor-pointer rounded-lg px-2",
         {
           "opacity-70": dimmed,
           "opacity-40": isDragging,
@@ -235,14 +235,14 @@ const ResourceListItem: React.FC<ResourceListItemProps> = ({
       <button
         ref={handleRef}
         type="button"
-        className="text-ink-3 hover:bg-group hover:text-ink-2 mt-1 flex h-6 w-6 shrink-0 cursor-grab items-center justify-center rounded-md active:cursor-grabbing"
+        className="text-ink-3 hover:bg-hover hover:text-ink-2 mt-1 flex h-6 w-6 shrink-0 cursor-grab items-center justify-center rounded-md active:cursor-grabbing"
         onClick={event => event.stopPropagation()}
         aria-label={`拖动排序 ${resource.name}`}
       >
         <MdDragIndicator size={16} />
       </button>
 
-      <span className="bg-group text-ink-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-base">
+      <span className="bg-hover text-ink-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-base">
         {getResourceIcon(resource.resourceType)}
       </span>
 
@@ -692,7 +692,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
       {/* 头部 */}
       <div className="mb-4 flex items-center gap-2">
         <h3 className="m-0 text-base font-semibold">资源</h3>
-        <span className="bg-group text-ink-2 rounded-full px-2 py-0.5 text-xs">
+        <span className="bg-hover text-ink-2 rounded-full px-2 py-0.5 text-xs">
           {orderedResources.length}
         </span>
         {savingOrder && <span className="text-accent text-xs">保存顺序中...</span>}
@@ -703,7 +703,7 @@ const ResourcePanel: React.FC<ResourcePanelProps> = ({
         <button
           type="button"
           onClick={handleOpenAddResourceModal}
-          className="border-line-1 bg-group text-ink-2 hover:border-accent hover:text-accent flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-3 text-sm font-medium transition-all"
+          className="border-line-1 text-ink-2 hover:border-accent hover:text-accent flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-3 text-sm font-medium transition-all"
         >
           <Plus className="size-4" strokeWidth={1.75} />
           <span>添加资料</span>

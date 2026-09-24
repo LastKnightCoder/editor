@@ -3,7 +3,7 @@
  * 工具栏（标题 + 今日摘要 + 按日期/按项目分段切换）→ 自然语言快速添加 → 项目 pills →
  * 左板议程（时间分段）+ 右板（今日打卡 / 本周负荷 / 最近完成）；详情为右侧抽屉，恰好盖住右板。
  *
- * 裁决（DECISIONS D-034）：不并入日程页、不注册状态栏（计数在工具栏摘要与 pills）、删除不二次
+ * 裁决（DECISIONS D-039）：不并入日程页、不放页面状态栏 PageStatusBar（计数在工具栏摘要与 pills）、删除不二次
  * 确认（立即从列表消失 + Toast 撤销，5 秒后才真正落库）、不保留独立 /todo 小窗口。
  *
  * 带日期的子任务按自己的日期进议程（行尾标父任务），不再只藏在父任务抽屉里。
@@ -324,7 +324,7 @@ export function TodosView() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="mx-auto flex h-full max-w-[1720px] flex-col px-[26px]">
+      <div className="mx-auto flex h-full max-w-[1720px] flex-col px-[26px] pb-4">
         {/* 工具栏：计数摘要在此（不注册状态栏）；分段方式切换 */}
         <div className="flex h-[44px] flex-none items-center gap-3">
           <h1 className="text-[19px] font-semibold tracking-[-0.01em]">待办</h1>

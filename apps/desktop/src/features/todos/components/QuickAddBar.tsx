@@ -12,7 +12,7 @@ import { dateTimeWord, hm, recurrenceText } from "../model";
 import { GroupDot } from "./TodoBits";
 
 const TOKEN_CLASS = {
-  normal: "bg-group text-ink-1",
+  normal: "bg-hover text-ink-1",
   deadline: "bg-warn-soft text-ink-1 [&_svg]:text-warn",
   planned: "bg-info-soft text-ink-1 [&_svg]:text-info",
   recurring: "bg-ok-soft text-ink-1 [&_svg]:text-ok",
@@ -83,12 +83,12 @@ export function QuickAddBar({
           {parsed ? (
             <>
               回车添加
-              <kbd className="bg-group text-ink-2 rounded-[5px] px-[5px] py-0.5 font-mono text-[11px]">
+              <kbd className="bg-hover text-ink-2 rounded-[5px] px-[5px] py-0.5 font-mono text-[11px]">
                 ⏎
               </kbd>
             </>
           ) : (
-            <kbd className="bg-group text-ink-2 rounded-[5px] px-[5px] py-0.5 font-mono text-[11px]">
+            <kbd className="bg-hover text-ink-2 rounded-[5px] px-[5px] py-0.5 font-mono text-[11px]">
               ⌘N
             </kbd>
           )}

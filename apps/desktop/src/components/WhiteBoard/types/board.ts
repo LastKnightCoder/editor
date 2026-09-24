@@ -112,7 +112,7 @@ export interface IBoardPlugin {
   claimPointerGesture?(
     board: Board,
     event: PointerEvent,
-    hitElement: BoardElement,
+    hitElement: BoardElement
   ): InteractionState | null;
   onMouseDown?: EventHandler;
   onGlobalMouseDown?: EventHandler;
@@ -145,33 +145,25 @@ export interface IBoardPlugin {
     board: Board,
     element: BoardElement & any,
     connectId: string,
-    customOffset?: CustomOffset,
+    customOffset?: CustomOffset
   ) => Point | null;
   isElementSelected?: (
     board: Board,
     element: BoardElement & any,
-    selectArea?: Selection["selectArea"],
+    selectArea?: Selection["selectArea"]
   ) => boolean;
   moveElement?: (
     board: Board,
     element: BoardElement & any,
     offsetX: number,
-    offsetY: number,
+    offsetY: number
   ) => BoardElement | null;
-  isHit?(
-    board: Board,
-    element: BoardElement & any,
-    x: number,
-    y: number,
-  ): boolean;
+  isHit?(board: Board, element: BoardElement & any, x: number, y: number): boolean;
   render?: (
     board: Board,
-    value: { element: BoardElement & any; children?: React.ReactElement[] },
+    value: { element: BoardElement & any; children?: React.ReactElement[] }
   ) => React.ReactElement;
-  getBounds?: (
-    board: Board,
-    element: BoardElement & any,
-  ) => ElementBounds | null;
+  getBounds?: (board: Board, element: BoardElement & any) => ElementBounds | null;
   // 获取右键菜单项
   getContextMenu?: (context: ContextMenuContext) => PluginContextMenuItem[];
   // 声明插件能力
@@ -184,14 +176,7 @@ export interface BoardTheme {
 
 // 右键菜单触发弹窗的事件 Payload
 export interface ContextMenuModalPayload {
-  type:
-    | "card"
-    | "image"
-    | "video"
-    | "audio"
-    | "webview"
-    | "whiteboard"
-    | "export-image";
-  action?: string; // image: local/resource/url/ai; video: local/resource/url/bilibili/youtube; audio: local/resource/url/tts; whiteboard: create/reference; export-image: board/selection
+  type: "card" | "image" | "video" | "audio" | "webview" | "whiteboard" | "export-image";
+  action?: string; // image: local/url/ai; video: local/url/bilibili/youtube; audio: local/url/tts; whiteboard: create/reference; export-image: board/selection
   selectedElementIds?: string[];
 }

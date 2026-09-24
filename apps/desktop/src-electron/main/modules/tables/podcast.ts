@@ -1,6 +1,5 @@
 import Database from "better-sqlite3";
 import Operation from "./operation";
-import ResourceTable from "./resource";
 
 export interface IPodcast {
   id: number;
@@ -63,16 +62,14 @@ export default class PodcastTable {
     const tableInfo = db.prepare("PRAGMA table_info(podcasts)").all() as Array<{
       name: string;
     }>;
-    const hasNameColumn = tableInfo.some((col) => col.name === "name");
+    const hasNameColumn = tableInfo.some(col => col.name === "name");
 
     if (!hasNameColumn) {
       db.exec("ALTER TABLE podcasts ADD COLUMN name TEXT");
     }
 
     // 检查是否存在 script_lines 字段
-    const hasScriptLinesColumn = tableInfo.some(
-      (col) => col.name === "script_lines",
-    );
+    const hasScriptLinesColumn = tableInfo.some(col => col.name === "script_lines");
     if (!hasScriptLinesColumn) {
       db.exec("ALTER TABLE podcasts ADD COLUMN script_lines TEXT");
     }
@@ -112,7 +109,7 @@ export default class PodcastTable {
       JSON.stringify(data.scriptLines || []),
       data.duration,
       JSON.stringify(data.speakers),
-      1, // 初始引用计数为 1
+      1 // 初始引用计数为 1
     );
 
     const createdPodcastId = Number(res.lastInsertRowid);
@@ -125,10 +122,7 @@ export default class PodcastTable {
     return podcast;
   }
 
-  static getPodcastById(
-    db: Database.Database,
-    podcastId: number,
-  ): IPodcast | null {
+  static getPodcastById(db: Database.Database, podcastId: number): IPodcast | null {
     const stmt = db.prepare("SELECT * FROM podcasts WHERE id = ?");
     const row = stmt.get(podcastId);
     if (!row) {
@@ -139,27 +133,15 @@ export default class PodcastTable {
 
   static deletePodcast(db: Database.Database, podcastId: number): number {
     // 先减少引用计数
-    const decrementStmt = db.prepare(
-      "UPDATE podcasts SET ref_count = ref_count - 1 WHERE id = ?",
-    );
+    const decrementStmt = db.prepare("UPDATE podcasts SET ref_count = ref_count - 1 WHERE id = ?");
     decrementStmt.run(podcastId);
 
     // 查询当前引用计数
-    const refCountStmt = db.prepare(
-      "SELECT ref_count FROM podcasts WHERE id = ?",
-    );
-    const result = refCountStmt.get(podcastId) as
-      | { ref_count: number }
-      | undefined;
+    const refCountStmt = db.prepare("SELECT ref_count FROM podcasts WHERE id = ?");
+    const result = refCountStmt.get(podcastId) as { ref_count: number } | undefined;
 
     // 如果引用计数为 0，则删除
     if (result && result.ref_count <= 0) {
-      // 先获取 podcast 信息，减少资源引用计数
-      const podcast = this.getPodcastById(db, podcastId);
-      if (podcast?.audioUrl) {
-        ResourceTable.decrementRefCount(db, podcast.audioUrl);
-      }
-
       const deleteStmt = db.prepare("DELETE FROM podcasts WHERE id = ?");
       Operation.insertOperation(db, "podcast", "delete", podcastId, Date.now());
       return deleteStmt.run(podcastId).changes;
@@ -169,21 +151,13 @@ export default class PodcastTable {
   }
 
   static incrementRefCount(db: Database.Database, podcastId: number): void {
-    const stmt = db.prepare(
-      "UPDATE podcasts SET ref_count = ref_count + 1 WHERE id = ?",
-    );
+    const stmt = db.prepare("UPDATE podcasts SET ref_count = ref_count + 1 WHERE id = ?");
     stmt.run(podcastId);
   }
 
-  static updateName(
-    db: Database.Database,
-    podcastId: number,
-    name: string,
-  ): IPodcast | null {
+  static updateName(db: Database.Database, podcastId: number, name: string): IPodcast | null {
     const now = Date.now();
-    const stmt = db.prepare(
-      "UPDATE podcasts SET name = ?, update_time = ? WHERE id = ?",
-    );
+    const stmt = db.prepare("UPDATE podcasts SET name = ?, update_time = ? WHERE id = ?");
     console.log(name, now, podcastId);
     stmt.run(name, now, podcastId);
     Operation.insertOperation(db, "podcast", "update", podcastId, now);
@@ -193,18 +167,12 @@ export default class PodcastTable {
   static updatePodcast(
     db: Database.Database,
     podcastId: number,
-    data: Partial<ICreatePodcast>,
+    data: Partial<ICreatePodcast>
   ): IPodcast | null {
     const now = Date.now();
     const podcast = this.getPodcastById(db, podcastId);
     if (!podcast) {
       return null;
-    }
-
-    // 如果音频 URL 发生变化，需要更新资源引用计数
-    if (data.audioUrl && data.audioUrl !== podcast.audioUrl) {
-      ResourceTable.decrementRefCount(db, podcast.audioUrl);
-      ResourceTable.incrementRefCount(db, data.audioUrl);
     }
 
     const stmt = db.prepare(`
@@ -224,15 +192,11 @@ export default class PodcastTable {
       data.name !== undefined ? data.name : podcast.name,
       data.audioUrl || podcast.audioUrl,
       data.script !== undefined ? data.script : podcast.script,
-      data.scriptLines
-        ? JSON.stringify(data.scriptLines)
-        : JSON.stringify(podcast.scriptLines),
+      data.scriptLines ? JSON.stringify(data.scriptLines) : JSON.stringify(podcast.scriptLines),
       data.duration !== undefined ? data.duration : podcast.duration,
-      data.speakers
-        ? JSON.stringify(data.speakers)
-        : JSON.stringify(podcast.speakers),
+      data.speakers ? JSON.stringify(data.speakers) : JSON.stringify(podcast.speakers),
       now,
-      podcastId,
+      podcastId
     );
 
     Operation.insertOperation(db, "podcast", "update", podcastId, now);

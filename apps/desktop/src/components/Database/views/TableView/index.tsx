@@ -261,7 +261,7 @@ const TableView: React.FC<TableViewProps> = memo(
     }, []);
 
     const renderHeader = useMemoizedFn(() => (
-      <div className="border-line-2 bg-surface sticky top-0 z-10 box-border flex w-full flex-col border-y">
+      <div className="border-line-1 bg-surface sticky top-0 z-10 box-border flex w-full flex-col border-b">
         <div className="flex w-full min-w-max flex-row">
           <div className="border-line-2 box-border h-10 w-[50px] min-w-[50px] border-r"></div>
           {visibleColumnOrder.map(columnId => {
@@ -305,7 +305,7 @@ const TableView: React.FC<TableViewProps> = memo(
         const Renderer = pluginManager.getPlugin(item.column.type)?.Renderer;
         if (!Renderer) return null;
         return (
-          <div className="border-line-2 bg-group/60 h-10 border-b">
+          <div className="border-line-2 h-10 border-b">
             <Renderer
               value={item.columnValue}
               column={item.column}

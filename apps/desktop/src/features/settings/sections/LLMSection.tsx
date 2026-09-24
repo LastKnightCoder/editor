@@ -1,11 +1,12 @@
 /**
  * 大语言模型 —— AI 服务商接入与各功能的主力模型分配（llm-designs.html 案 1 定稿）。
  *
- * 三节：服务商（切换条 + 凭据字段网格——点选仅切换「正在编辑哪家」，服务商没有
- * 「当前/生效」语义，各功能在下方分配节独立指定模型，不同于同步/图床的 active）→
- * 模型（行流 + 能力/参数 chips + 在用计数，增删改走浮层表单）→ 功能分配
- * （下划线式分类 tab + 组合选择器：searchable Select 按服务商分组，选项行 =
- *   模型名 + 能力角标，取代 legacy 两级下拉）。删除服务商/模型时一并清空引用它们的分配槽位，
+ * 页内两个 Tab（2026-09-24 第三版重排）：
+ * - 服务商与模型：顶部 ProviderSwitcher 切换「正在编辑哪家」（服务商没有「当前/生效」语义，
+ *   不同于同步/图床的 active），下方整宽分组「连接」（凭据设置行）+「模型」（分隔行：名称与
+ *   能力/参数签同行、在用计数与编辑删除常驻右侧，增删改走浮层表单）——provider-layout.html 方案 A；
+ * - 功能分配：按分类分组面板，每行一个组合选择器（searchable Select 按服务商分组，
+ *   选项行 = 模型名 + 能力角标，取代 legacy 两级下拉）；Tab 角标 = 未分配功能数。删除服务商/模型时一并清空引用它们的分配槽位，
  * 模型改名时分配引用跟随——legacy 均会留悬空引用。
  */
 
@@ -16,13 +17,9 @@ import { v4 as uuidv4 } from "uuid";
 import {
   AudioLines,
   ChevronDown,
-  Copy,
-  Eye,
-  EyeOff,
   File as FileIcon,
   Globe,
   Image as ImageIcon,
-  KeyRound,
   Link2,
   Pencil,
   Plus,
@@ -36,7 +33,15 @@ import { Button, ConfirmDialog, Dialog, IconButton, Input, Select, toast } from 
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import type { LLMUsageConfig, ModelConfig, ProviderConfig } from "@/types/llm";
 import { SettingRow } from "../components/SettingRow";
-import { SectionTitle } from "../components/SectionTitle";
+import { ROW_DIVIDER } from "../components/rowDivider";
+import { SettingsGroup } from "../components/SettingsGroup";
+import {
+  FieldBox,
+  ProviderSection,
+  ProviderSwitcher,
+  SecretInput,
+} from "../components/ProviderLayout";
+import { SettingsTabs } from "../components/SettingsTabs";
 
 type FeatureKey = keyof ISetting["llmUsageSettings"];
 
@@ -163,9 +168,68 @@ function modelToForm(model: ModelConfig): ModelFormState {
   };
 }
 
+/** 模型行：名称与能力 / 参数签同一行，描述与名称不同才显示；在用计数与编辑 / 删除常驻右侧 */
+function ModelRow({
+  model,
+  usage,
+  onEdit,
+  onDelete,
+}: {
+  model: ModelConfig;
+  usage: number;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const description = model.description?.trim();
+  return (
+    <div
+      className={clsx(
+        "rounded-tau-sm flex min-h-[52px] items-center gap-3 px-3 py-2.5",
+        ROW_DIVIDER
+      )}
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="font-tau-mono text-ink-1 mr-0.5 text-[12.5px] font-medium">
+            {model.name}
+          </span>
+          {capabilityLabels(model).map(label => (
+            <CapChip key={label} label={label} />
+          ))}
+          {model.contextWindowK != null && <MetaChip>上下文 {model.contextWindowK}k</MetaChip>}
+          {model.maxOutputTokens != null && <MetaChip>输出 {model.maxOutputTokens}</MetaChip>}
+          {model.temperature != null && <MetaChip>温度 {model.temperature}</MetaChip>}
+          {model.messageFormat === "claude" && <MetaChip>Claude 格式</MetaChip>}
+          {model.apiProtocol === "responses" && <MetaChip>Responses API</MetaChip>}
+        </div>
+        {description && description !== model.name && (
+          <div className="text-tau-meta text-ink-2 mt-0.5 truncate">{description}</div>
+        )}
+      </div>
+      <span
+        className={clsx(
+          "text-tau-sm flex flex-none items-center gap-1 tabular-nums",
+          usage > 0 ? "text-ink-2" : "text-ink-3"
+        )}
+      >
+        <Link2 size={12} strokeWidth={1.75} />
+        {usage > 0 ? `${usage} 项功能在用` : "未使用"}
+      </span>
+      <div className="flex flex-none gap-0.5">
+        <IconButton aria-label={`编辑模型 ${model.name}`} onClick={onEdit}>
+          <Pencil size={14} strokeWidth={1.75} />
+        </IconButton>
+        <IconButton aria-label={`删除模型 ${model.name}`} onClick={onDelete}>
+          <Trash2 size={14} strokeWidth={1.75} />
+        </IconButton>
+      </div>
+    </div>
+  );
+}
+
 function CapChip({ label }: { label: string }) {
   return (
-    <span className="bg-group text-ink-2 text-tau-tiny rounded-full px-2 font-medium leading-[17px]">
+    <span className="bg-hover text-ink-2 text-tau-tiny rounded-full px-2 font-medium leading-[17px]">
       {label}
     </span>
   );
@@ -200,7 +264,6 @@ export function LLMSection() {
   /* ── 切换条：editingId 失效时回落第一家 ── */
   const [editingId, setEditingId] = useState<string | null>(null);
   const editing = llmConfigs.find(p => p.id === editingId) ?? llmConfigs[0];
-  const [showApiKey, setShowApiKey] = useState(false);
 
   const mutateProviders = (fn: (providers: ProviderConfig[]) => void) => {
     useSettingStore.setState(s => ({
@@ -410,10 +473,9 @@ export function LLMSection() {
       usage => usage.providerId === providerId && usage.modelName === modelName
     ).length;
 
-  /* ── 功能分配：分类 tab + 组合选择器 ── */
-  const [category, setCategory] = useState(ASSIGNMENT_CATEGORIES[0].label);
-  const activeCategory =
-    ASSIGNMENT_CATEGORIES.find(c => c.label === category) ?? ASSIGNMENT_CATEGORIES[0];
+  /* ── 页内 Tab：服务商与模型 / 功能分配 ── */
+  const [tab, setTab] = useState<"providers" | "assignment">("providers");
+  const unassignedCount = Object.values(llmUsageSettings).filter(usage => usage === null).length;
 
   /** 全部 (服务商, 模型) 平铺；选项 value 为下标，选择时反查成 providerId + modelName */
   const modelEntries = useMemo(
@@ -458,216 +520,119 @@ export function LLMSection() {
   };
 
   return (
-    <section>
-      <h3 className="text-tau-body-lg font-semibold">大语言模型</h3>
-      <div className="text-tau-tiny text-ink-3 mt-0.5">
-        AI 服务商接入与模型条目管理 · 为各功能分配主力模型
-      </div>
+    <>
+      <SettingsTabs
+        label="大语言模型视图"
+        value={tab}
+        onChange={setTab}
+        items={[
+          { key: "providers", label: "服务商与模型" },
+          { key: "assignment", label: "功能分配", badge: unassignedCount || undefined },
+        ]}
+      />
 
-      {/* ── 服务商：切换条 + 凭据字段网格 ── */}
-      <SectionTitle title={`服务商${llmConfigs.length > 0 ? ` · ${llmConfigs.length}` : ""}`} />
-      <div className="flex flex-wrap gap-1.5 pt-1">
-        {llmConfigs.map(provider => {
-          const active = editing?.id === provider.id;
-          return (
-            <button
-              key={provider.id}
-              type="button"
-              aria-pressed={active}
-              onClick={() => setEditingId(provider.id)}
-              className={clsx(
-                "text-tau-body flex h-[30px] items-center gap-1.5 rounded-full border pl-1 pr-3",
-                "ease-tau-out transition-[background,color,border-color] duration-[160ms]",
-                active
-                  ? "bg-selected text-ink-1 border-transparent font-semibold"
-                  : "border-line-1 text-ink-2 hover:border-ink-3 hover:text-ink-1"
-              )}
-            >
-              <span
-                className={clsx(
-                  "bg-group text-ink-2 grid size-5 place-items-center rounded-full text-[10px] font-semibold",
-                  active && "bg-accent-soft text-accent-text"
-                )}
-              >
-                {provider.name.trim().charAt(0).toUpperCase() || "?"}
-              </span>
-              {provider.name}
-            </button>
-          );
-        })}
-        <button
-          type="button"
-          onClick={openProviderCreate}
-          className="border-line-1 text-ink-3 text-tau-body ease-tau-out hover:border-accent hover:text-accent-text flex h-[30px] items-center gap-1.5 rounded-full border border-dashed px-3 transition-[color,border-color] duration-[160ms]"
-        >
-          <Plus size={13} strokeWidth={1.75} />
-          新建服务商
-        </button>
-      </div>
-
-      {!editing ? (
-        <div className="text-tau-meta text-ink-3 py-6 text-center">
-          尚无服务商——点击「新建服务商」填入凭据，再到模型节添加条目
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-x-3 pt-3">
-            <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-tau-meta text-ink-2 font-medium">名称</span>
-              <Input
-                value={editing.name}
-                placeholder="如 DeepSeek"
-                onChange={e => updateProviderField("name", e.target.value)}
-              />
-            </label>
-            <label className="flex min-w-0 flex-col gap-1.5">
-              <span className="text-tau-meta text-ink-2 font-medium">Base URL</span>
-              <Input
-                className="font-tau-mono"
-                value={editing.baseUrl}
-                placeholder="https://api.example.com/v1"
-                spellCheck={false}
-                onChange={e => updateProviderField("baseUrl", e.target.value)}
-              />
-            </label>
-            <div className="col-span-2 flex min-w-0 flex-col gap-1.5">
-              <span className="text-tau-meta text-ink-2 font-medium">API Key</span>
-              <div className="flex items-center gap-1.5">
-                <Input
-                  className="font-tau-mono min-w-0 flex-1"
-                  type={showApiKey ? "text" : "password"}
-                  value={editing.apiKey}
-                  placeholder="sk-…"
-                  spellCheck={false}
-                  onChange={e => updateProviderField("apiKey", e.target.value)}
-                />
-                <IconButton
-                  aria-label={showApiKey ? "隐藏 API Key" : "显示 API Key"}
-                  onClick={() => setShowApiKey(v => !v)}
-                >
-                  {showApiKey ? (
-                    <EyeOff size={14} strokeWidth={1.75} />
-                  ) : (
-                    <Eye size={14} strokeWidth={1.75} />
-                  )}
-                </IconButton>
-                <IconButton
-                  aria-label="复制 API Key"
-                  onClick={() => void copyApiKey(editing.apiKey)}
-                >
-                  <Copy size={14} strokeWidth={1.75} />
-                </IconButton>
-              </div>
-            </div>
-          </div>
-          <div className="text-tau-tiny text-ink-3 flex items-center gap-2 px-0.5 pt-3">
-            <KeyRound size={13} strokeWidth={1.75} className="flex-none" />
-            <span className="flex-1">
-              点选仅切换「正在编辑哪家」，服务商没有生效状态——各功能用哪个模型在功能分配指定；字段改动即时保存。
-            </span>
-            <Button
-              variant="danger-soft"
-              size="sm"
-              icon={Trash2}
-              onClick={() => setProviderDeleteOpen(true)}
-            >
-              删除服务商
-            </Button>
-          </div>
-
-          {/* ── 模型：行流 + 在用计数 ── */}
-          <div className="flex items-end justify-between">
-            <SectionTitle title={`模型 · ${editing.models.length}`} />
-            <Button variant="primary" size="sm" icon={Plus} onClick={openModelCreate}>
-              添加模型
-            </Button>
-          </div>
-          {editing.models.length === 0 ? (
-            <div className="text-tau-meta text-ink-3 py-5 text-center">
-              暂无模型——点击「添加模型」创建第一个条目
+      {tab === "providers" ? (
+        <SettingsGroup>
+          <ProviderSwitcher
+            label="大语言模型服务商"
+            items={llmConfigs.map(provider => ({
+              id: provider.id,
+              label: provider.name || "未命名",
+              meta: provider.models.length,
+            }))}
+            activeId={editing?.id}
+            onSelect={setEditingId}
+            addLabel="添加服务商"
+            onAdd={openProviderCreate}
+          />
+          {!editing ? (
+            <div className="text-tau-meta text-ink-2 px-3 py-8 text-center">
+              还没有服务商——点击「添加服务商」填入凭据，再添加模型
             </div>
           ) : (
-            editing.models.map(model => {
-              const count = usageCount(editing.id, model.name);
-              return (
-                <div
-                  key={model.name}
-                  className="border-line-2 group flex items-start gap-3 border-b py-2.5 last:border-b-0"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="font-tau-mono text-tau-body text-ink-1 font-medium">
-                      {model.name}
-                    </div>
-                    <div className="text-tau-meta text-ink-2 mt-0.5">{model.description}</div>
-                    <div className="mt-1.5 flex flex-wrap gap-1">
-                      {capabilityLabels(model).map(label => (
-                        <CapChip key={label} label={label} />
-                      ))}
-                      {model.contextWindowK != null && (
-                        <MetaChip>上下文 {model.contextWindowK}k</MetaChip>
-                      )}
-                      {model.maxOutputTokens != null && (
-                        <MetaChip>输出 {model.maxOutputTokens}</MetaChip>
-                      )}
-                      {model.temperature != null && <MetaChip>温度 {model.temperature}</MetaChip>}
-                      {model.messageFormat === "claude" && <MetaChip>Claude 格式</MetaChip>}
-                      {model.apiProtocol === "responses" && <MetaChip>Responses API</MetaChip>}
-                    </div>
-                  </div>
-                  <span
-                    className={clsx(
-                      "text-tau-tiny flex flex-none items-center gap-1",
-                      count > 0 ? "text-accent-text font-medium" : "text-ink-3"
-                    )}
+            <>
+              <ProviderSection
+                title="连接"
+                description={`${editing.name || "未命名"} 的名称与凭据`}
+                action={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Trash2}
+                    onClick={() => setProviderDeleteOpen(true)}
                   >
-                    <Link2 size={12} strokeWidth={1.75} />
-                    {count > 0 ? `${count} 项功能在用` : "未使用"}
-                  </span>
-                  <div className="flex flex-none gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                    <IconButton aria-label="编辑模型" onClick={() => openModelEdit(model)}>
-                      <Pencil size={14} strokeWidth={1.75} />
-                    </IconButton>
-                    <IconButton aria-label="删除模型" onClick={() => setModelDelete(model)}>
-                      <Trash2 size={14} strokeWidth={1.75} />
-                    </IconButton>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </>
-      )}
+                    删除服务商
+                  </Button>
+                }
+              >
+                <SettingRow title="名称">
+                  <FieldBox>
+                    <Input
+                      value={editing.name}
+                      placeholder="如 DeepSeek"
+                      onChange={e => updateProviderField("name", e.target.value)}
+                    />
+                  </FieldBox>
+                </SettingRow>
+                <SettingRow title="API Key">
+                  <FieldBox>
+                    <SecretInput
+                      label="API Key"
+                      value={editing.apiKey}
+                      placeholder="sk-…"
+                      onChange={value => updateProviderField("apiKey", value)}
+                      onCopy={() => void copyApiKey(editing.apiKey)}
+                    />
+                  </FieldBox>
+                </SettingRow>
+                <SettingRow title="Base URL" description="OpenAI 兼容的接口地址">
+                  <FieldBox>
+                    <Input
+                      className="font-tau-mono"
+                      value={editing.baseUrl}
+                      placeholder="https://api.example.com/v1"
+                      spellCheck={false}
+                      onChange={e => updateProviderField("baseUrl", e.target.value)}
+                    />
+                  </FieldBox>
+                </SettingRow>
+              </ProviderSection>
 
-      {/* ── 功能分配：下划线式分类 tab + 组合选择器 ── */}
-      <SectionTitle title="功能分配" desc="各功能独立指定「服务商 · 模型」，未分配的功能不可调用" />
-      <div
-        className="border-line-1 mt-1 flex gap-0.5 border-b"
-        role="tablist"
-        aria-label="功能分类"
-      >
-        {ASSIGNMENT_CATEGORIES.map(cat => {
-          const active = cat.label === activeCategory.label;
-          return (
-            <button
-              key={cat.label}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setCategory(cat.label)}
-              className={clsx(
-                "text-tau-body -mb-px h-[30px] border-b-2 px-3 font-medium",
-                "ease-tau-out transition-[color,border-color] duration-[160ms]",
-                active
-                  ? "border-accent text-ink-1 font-semibold"
-                  : "text-ink-2 hover:text-ink-1 border-transparent"
-              )}
-            >
-              {cat.label}
-            </button>
-          );
-        })}
-      </div>
-      <div className="pt-1">{activeCategory.features.map(renderAssignmentRow)}</div>
+              <ProviderSection
+                title="模型"
+                description={`${editing.models.length} 个 · 在「功能分配」中指定给各项功能`}
+                action={
+                  <Button variant="ghost" size="sm" icon={Plus} onClick={openModelCreate}>
+                    添加模型
+                  </Button>
+                }
+              >
+                {editing.models.length === 0 ? (
+                  <div className="text-tau-meta text-ink-2 px-3 py-6 text-center">
+                    暂无模型——点击「添加模型」创建第一个条目
+                  </div>
+                ) : (
+                  editing.models.map(model => (
+                    <ModelRow
+                      key={model.name}
+                      model={model}
+                      usage={usageCount(editing.id, model.name)}
+                      onEdit={() => openModelEdit(model)}
+                      onDelete={() => setModelDelete(model)}
+                    />
+                  ))
+                )}
+              </ProviderSection>
+            </>
+          )}
+        </SettingsGroup>
+      ) : (
+        ASSIGNMENT_CATEGORIES.map(cat => (
+          <SettingsGroup key={cat.label} title={cat.label}>
+            {cat.features.map(renderAssignmentRow)}
+          </SettingsGroup>
+        ))
+      )}
 
       {/* ── 浮层：新建服务商 ── */}
       <Dialog
@@ -935,6 +900,6 @@ export function LLMSection() {
         confirmText="删除"
         onConfirm={confirmModelDelete}
       />
-    </section>
+    </>
   );
 }

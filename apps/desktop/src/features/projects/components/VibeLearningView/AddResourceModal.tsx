@@ -779,7 +779,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   const renderFileTab = () => (
     <div className="space-y-4">
       <label
-        className={`border-line-1 bg-group hover:border-accent block cursor-pointer rounded-xl border border-dashed transition-all ${
+        className={`border-line-1 hover:border-accent block cursor-pointer rounded-xl border border-dashed transition-all ${
           uploading ? "pointer-events-none" : ""
         }`}
         onDragOver={event => {
@@ -864,7 +864,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           disabled={processingStep !== "idle"}
           className={classNames(
             "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
-            "border-line-1 bg-group border",
+            "border-line-1 border",
             "text-ink-1 placeholder:text-ink-3",
             "focus:ring-accent/20 focus:border-accent focus:ring-2",
             "disabled:cursor-not-allowed disabled:opacity-60"
@@ -885,7 +885,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           disabled={processingStep !== "idle"}
           className={classNames(
             "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
-            "border-line-1 bg-group border",
+            "border-line-1 border",
             "text-ink-1 placeholder:text-ink-3",
             "focus:ring-accent/20 focus:border-accent focus:ring-2",
             "disabled:cursor-not-allowed disabled:opacity-60"
@@ -980,7 +980,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
               }}
               className={classNames(
                 "w-full rounded-xl px-4 py-3.5 text-sm outline-none transition-all",
-                "border-line-1 bg-group border",
+                "border-line-1 border",
                 "text-ink-1 placeholder:text-ink-3",
                 "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20",
                 "disabled:cursor-not-allowed disabled:opacity-60"
@@ -1033,7 +1033,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                   onChange={e => setSelectedQuality(Number(e.target.value))}
                   className={classNames(
                     "w-full cursor-pointer appearance-none rounded-xl py-3 pl-4 pr-10 text-sm outline-none transition-all",
-                    "border-line-1 bg-group border",
+                    "border-line-1 border",
                     "text-ink-1",
                     "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20"
                   )}
@@ -1068,7 +1068,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                     onChange={e => setSelectedVideoStream(e.target.value)}
                     className={classNames(
                       "w-full cursor-pointer appearance-none rounded-xl py-3 pl-4 pr-10 text-sm outline-none transition-all",
-                      "border-line-1 bg-group border",
+                      "border-line-1 border",
                       "text-ink-1",
                       "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20"
                     )}
@@ -1102,7 +1102,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
                     onChange={e => setSelectedAudioStream(e.target.value)}
                     className={classNames(
                       "w-full cursor-pointer appearance-none rounded-xl py-3 pl-4 pr-10 text-sm outline-none transition-all",
-                      "border-line-1 bg-group border",
+                      "border-line-1 border",
                       "text-ink-1",
                       "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20"
                     )}
@@ -1243,7 +1243,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-group text-ink-2",
+    "bg-hover text-ink-2",
     "hover:bg-hover",
     "border border-line-1"
   );
@@ -1411,7 +1411,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
       )}
 
       {/* Tab 切换 */}
-      <div className="bg-group mb-5 flex gap-1 rounded-xl p-1">
+      <div className="bg-hover mb-5 flex gap-1 rounded-xl p-1">
         <button
           type="button"
           onClick={() => setActiveTab("file")}

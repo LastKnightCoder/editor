@@ -1,12 +1,13 @@
 import { memo, useState, useMemo, useCallback, useRef } from "react";
-import clsx from "clsx";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Eye, FileText } from "lucide-react";
 import { IArticle } from "@/types/article";
 import { PublishContentType } from "@/types/publish";
-import { buildPlainText } from "../../utils";
+import { buildPlainText, matchesSelectionFilter, selectionFilterLabel } from "../../utils";
+import { SelectionFilter } from "../../types";
 import { SelectionCheckbox } from "../SelectionCheckbox";
 import { SearchToolbar } from "../SearchToolbar";
+import { FadeScroll } from "../FadeScroll";
 import { EmptyPlaceholder } from "../EmptyPlaceholder";
 import { ContentPreviewModal } from "../ContentPreviewModal";
 import { useSearch } from "../../hooks";
@@ -30,7 +31,7 @@ interface ArticleSelectorProps {
 export const ArticleSelector = memo<ArticleSelectorProps>(
   ({ articles, isItemSelected, onToggleArticle, onBatchToggle }) => {
     const [previewArticle, setPreviewArticle] = useState<ArticleListItem | null>(null);
-    const [onlySelected, setOnlySelected] = useState(false);
+    const [selectionFilter, setSelectionFilter] = useState<SelectionFilter>("all");
 
     // 转换文章为列表项
     const articleItems = useMemo<ArticleListItem[]>(
@@ -54,12 +55,11 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
 
     // 根据过滤条件显示文章
     const displayArticles = useMemo(() => {
-      let items = filteredItems;
-      if (onlySelected) {
-        items = items.filter(item => isItemSelected("article", item.id));
-      }
-      return items;
-    }, [filteredItems, onlySelected, isItemSelected]);
+      if (selectionFilter === "all") return filteredItems;
+      return filteredItems.filter(item =>
+        matchesSelectionFilter(selectionFilter, isItemSelected("article", item.id))
+      );
+    }, [filteredItems, selectionFilter, isItemSelected]);
 
     // 检查是否全选
     const allSelected = useMemo(() => {
@@ -82,29 +82,29 @@ export const ArticleSelector = memo<ArticleSelectorProps>(
 
     return (
       <>
-        <div
-          className="border-line-1 rounded-tau-md flex flex-col overflow-hidden border"
-          style={{ height: 520, maxHeight: 520 }}
-        >
-          <div className="shrink-0 px-3 py-2">
-            <SearchToolbar
-              query={query}
-              onQueryChange={setQuery}
-              placeholder="搜索文章标题…"
-              showSelectAll={displayArticles.length > 0}
-              allSelected={allSelected}
-              onSelectAll={handleSelectAll}
-              showOnlySelected
-              onlySelected={onlySelected}
-              onOnlySelectedChange={setOnlySelected}
-              isFiltering={isFiltering}
-            />
-          </div>
+        <div className="flex h-full min-h-0 flex-col">
+          <SearchToolbar
+            query={query}
+            onQueryChange={setQuery}
+            placeholder="搜索文章标题…"
+            showSelectAll={displayArticles.length > 0}
+            allSelected={allSelected}
+            onSelectAll={handleSelectAll}
+            selectionFilter={selectionFilter}
+            onSelectionFilterChange={setSelectionFilter}
+            isFiltering={isFiltering}
+          />
 
-          <div className="min-h-0 flex-1 overflow-hidden">
+          <div className="mb-3 min-h-0 flex-1 overflow-hidden">
             {displayArticles.length === 0 ? (
               <EmptyPlaceholder
-                text={onlySelected ? "暂无已选文章" : query ? "无匹配结果" : "暂无文章"}
+                text={
+                  query
+                    ? "无匹配结果"
+                    : selectionFilter !== "all"
+                      ? `暂无${selectionFilterLabel(selectionFilter)}文章`
+                      : "暂无文章"
+                }
               />
             ) : (
               <ArticleList
@@ -151,12 +151,12 @@ const ArticleList = memo<{
   const virtualizer = useVirtualizer({
     count: articles.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 88,
+    estimateSize: () => 72,
     overscan: 5,
   });
 
   return (
-    <div ref={parentRef} className="h-full overflow-y-auto">
+    <FadeScroll scrollRef={parentRef} className="h-full px-2.5 pb-1">
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -179,36 +179,23 @@ const ArticleList = memo<{
                 height: `${virtualItem.size}px`,
                 transform: `translateY(${virtualItem.start}px)`,
               }}
-              className="px-3 py-1"
             >
-              <div
-                className={clsx(
-                  "rounded-tau-sm flex min-h-[76px] items-start gap-3 px-4 py-3.5 transition-colors",
-                  selected ? "bg-selected" : "hover:bg-hover"
-                )}
-              >
+              <div className="hover:bg-hover flex h-full items-start gap-2.5 rounded-[8px] px-2 py-2 transition-colors">
                 <SelectionCheckbox
                   checked={selected}
                   onChange={() => onToggleArticle(article.id)}
                   size="sm"
                 />
                 <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onPreview(article)}>
-                  <div
-                    className={clsx(
-                      "truncate text-[13px]",
-                      selected ? "text-ink-1 font-medium" : "text-ink-1"
-                    )}
-                  >
-                    {article.title}
-                  </div>
-                  <div className="text-tau-tiny text-ink-3 mt-1 line-clamp-2">
+                  <div className="text-ink-1 truncate text-[13px]">{article.title}</div>
+                  <div className="text-tau-tiny text-ink-3 mt-0.5 line-clamp-2">
                     {article.description}
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => onPreview(article)}
-                  className="text-ink-3 hover:bg-hover hover:text-ink-1 shrink-0 rounded-md p-1.5 transition-colors"
+                  className="text-ink-3 hover:bg-press hover:text-ink-1 shrink-0 rounded-[6px] p-1.5 transition-colors"
                   title="预览"
                 >
                   <Eye size={15} strokeWidth={1.75} />
@@ -218,7 +205,7 @@ const ArticleList = memo<{
           );
         })}
       </div>
-    </div>
+    </FadeScroll>
   );
 });
 

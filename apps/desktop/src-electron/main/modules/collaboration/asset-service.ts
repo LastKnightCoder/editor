@@ -215,14 +215,8 @@ export class CollaborationAssetService {
     return path;
   }
 
-  async localize(
-    url: string,
-    documentId: string,
-    value: SharedContent,
-    onStored?: (file: { path: string; name: string }) => void
-  ) {
+  async localize(url: string, documentId: string, value: SharedContent) {
     const local = structuredClone(value);
-    const stored = new Set<string>();
     await mapResources(local, async reference => {
       if (!reference.startsWith(ASSET_PREFIX)) return reference;
       const cached = await this.resolve(url, documentId, reference.slice(ASSET_PREFIX.length));
@@ -231,13 +225,8 @@ export class CollaborationAssetService {
       const bytes = await readFile(cached);
       const hash = createHash("sha256").update(bytes).digest("hex");
       const target = join(directory, hash + extname(cached));
-      // 仅在首次落盘时回调，调用方据此做一次性登记，避免重复计数
       if (!existsSync(target)) {
         await copyFile(cached, target);
-        if (onStored && !stored.has(target)) {
-          stored.add(target);
-          onStored({ path: target, name: basename(cached) });
-        }
       }
       return target;
     });

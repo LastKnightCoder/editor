@@ -21,6 +21,8 @@ interface IWidthResizableProps {
   style?: React.CSSProperties;
   disableResize?: boolean;
   handleOffset?: number; // 拖拽条偏移量（像素），正值向外偏移
+  /** 常驻 1px 淡分隔线标出可拖拽边界；hover / 拖拽时加粗为 2px 强调色 */
+  showDivider?: boolean;
 }
 
 const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = props => {
@@ -34,6 +36,7 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = props 
     style = {},
     disableResize = false,
     handleOffset = 0,
+    showDivider = false,
   } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const themeColors = useThemeColors();
@@ -155,16 +158,26 @@ const WidthResizable: React.FC<PropsWithChildren<IWidthResizableProps>> = props 
           })}
           style={handleOffset ? { [side === "left" ? "left" : "right"]: -handleOffset } : undefined}
         >
-          <div
-            className={classnames(
-              "pointer-events-none h-full w-[4px] rounded-sm transition-colors duration-300 ease-in-out",
-              side === "left" ? "ml-0 mr-auto" : "ml-auto mr-0"
-            )}
-            style={{
-              backgroundColor:
-                showHandleHighlight || isResizing ? handleHighlightColor : "transparent",
-            }}
-          />
+          {showDivider ? (
+            <div
+              className={classnames(
+                "pointer-events-none h-full transition-[background-color,width] duration-200 ease-in-out",
+                side === "left" ? "ml-0 mr-auto" : "ml-auto mr-0",
+                showHandleHighlight || isResizing ? "bg-accent w-[2px]" : "bg-line-1 w-px"
+              )}
+            />
+          ) : (
+            <div
+              className={classnames(
+                "pointer-events-none h-full w-[4px] rounded-sm transition-colors duration-300 ease-in-out",
+                side === "left" ? "ml-0 mr-auto" : "ml-auto mr-0"
+              )}
+              style={{
+                backgroundColor:
+                  showHandleHighlight || isResizing ? handleHighlightColor : "transparent",
+              }}
+            />
+          )}
         </div>
       )}
     </div>

@@ -101,7 +101,7 @@ export function createExtensionEditorRegistry({
   };
 
   return createServiceRegistry(register => {
-    // ==================== 资源管理（简化实现）====================
+    // ==================== 媒体文件服务（简化实现）====================
     register(IResourceService, {
       upload: async (_file: File) => {
         // 后续可通过 WebSocket 传输文件

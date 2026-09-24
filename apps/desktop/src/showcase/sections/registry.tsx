@@ -6,6 +6,7 @@ import type { ComponentType } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Bell,
+  BellRing,
   CalendarDays,
   CircleDot,
   Columns3,
@@ -40,6 +41,7 @@ import DialogSection from "./DialogSection";
 import PopoverSection from "./PopoverSection";
 import PanelSection from "./PanelSection";
 import ToastSection from "./ToastSection";
+import NotificationSection from "./NotificationSection";
 import TooltipSection from "./TooltipSection";
 import LoadingSection from "./LoadingSection";
 import HeatmapSection from "./HeatmapSection";
@@ -119,6 +121,13 @@ export const SECTIONS: SectionMeta[] = [
     component: PopoverSection,
   },
   { key: "toast", label: "Toast", group: "反馈", icon: Bell, component: ToastSection },
+  {
+    key: "notification",
+    label: "Notification",
+    group: "反馈",
+    icon: BellRing,
+    component: NotificationSection,
+  },
   {
     key: "tooltip",
     label: "Tooltip",

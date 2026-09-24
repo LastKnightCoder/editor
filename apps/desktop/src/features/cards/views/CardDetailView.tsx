@@ -3,7 +3,8 @@
  * 单栏正文列（640）恒居中，卡头一行 meta（分类 Tag 只读展示 · 时间 · ⋯ 菜单；
  * 分类切换与编号语言 2026-09-21 裁决：切换收进 ⋯ 菜单「编辑分类」，#id 与置顶操作移除），
  * 标签行在正文末，连接区仅在有连接时渲染（空卡不堆区块）。
- * 面包屑静态（无速切器）与底部状态栏（协作 · 字数）经槽位注入壳层。
+ * 面包屑静态（无速切器）经槽位注入壳层；无底部状态栏——字数并入卡头 meta，
+ * 协作入口收进 ⋯ 菜单「发起协作」（控件隐藏触发器，经 ref 打开弹窗）。
  *
  * 保存分工（对齐预览弹窗/文章详情的双链路）：正文走 useEditContent
  * （content 表节流 + content:updated 广播，缓存由 queries 按 contentId 并入），
@@ -40,12 +41,13 @@ import {
   MoreHorizontal,
   Play,
   Presentation,
+  Share2,
   Sparkles,
   Trash2,
   Wand2,
 } from "lucide-react";
 import type { EditorRef } from "@tau/editor/src";
-import { usePage, usePageBreadcrumb, usePageParams, usePageStatusBar } from "@/page/PageProvider";
+import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { isElectron } from "@/electron";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -55,7 +57,9 @@ import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
 import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
-import ContentCollaborationControl from "@/components/ContentCollaborationControl";
+import ContentCollaborationControl, {
+  type ContentCollaborationControlHandle,
+} from "@/components/ContentCollaborationControl";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
@@ -123,6 +127,7 @@ export function CardDetailView() {
   const darkMode = useSettingStore(state => state.setting.darkMode);
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const editorRef = useRef<EditorRef>(null);
+  const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
 
   const [presenting, setPresenting] = useState<Descendant[] | null>(null);
   const [immersive, setImmersive] = useState(false);
@@ -266,22 +271,6 @@ export function CardDetailView() {
   }, [card, cardTitle, navigator]);
   usePageBreadcrumb("card-detail", breadcrumbNode);
 
-  /* 全局状态栏：协作 · 字数（须 useMemo 稳定化） */
-  const statusBarNode = useMemo(() => {
-    if (!card) return null;
-    return (
-      <div className="text-tau-sm text-ink-3 flex min-w-0 flex-1 items-center gap-3.5">
-        <ContentCollaborationControl
-          contentId={card.contentId}
-          source={{ sourceType: "card", sourceId: card.id, sourceTitle: cardTitle }}
-        />
-        <span className="text-ink-2 tabular-nums">{card.count.toLocaleString("zh-CN")} 字</span>
-        <span className="flex-1" />
-      </div>
-    );
-  }, [card, cardTitle]);
-  usePageStatusBar("card-detail", statusBarNode);
-
   if (Number.isFinite(id) && detailQuery.isPending) return <Loading />;
   if (detailQuery.error)
     return (
@@ -299,9 +288,9 @@ export function CardDetailView() {
     );
 
   return (
-    <div className="h-full pr-4">
-      <div className="edge-fade-scroll h-full overflow-y-auto">
-        <div className="grid grid-cols-[1fr_minmax(0,640px)_1fr] items-start px-[26px] pb-8 pt-8">
+    <div className="flex h-full flex-col pb-4">
+      <div className="edge-fade-scroll mr-4 min-h-0 flex-1 overflow-y-auto [--edge-fade-bottom-size:24px]">
+        <div className="grid grid-cols-[1fr_minmax(0,640px)_1fr] items-start px-[26px] pb-2 pt-8">
           <article className="col-start-2 min-w-0">
             {/* 卡头 meta：分类 Tag（只读展示，切换在 ⋯ 菜单「编辑分类」）· 时间 ·
                 ⋯ 菜单（时间右侧）；置顶操作在列表页承担（2026-09-21 裁决，详情页不做） */}
@@ -309,7 +298,7 @@ export function CardDetailView() {
               <CategoryBadge category={card.category} full />
               <span className="text-tau-meta text-ink-3 tabular-nums">
                 创建于 {formatDate(card.create_time, true)} · 最后修改{" "}
-                {formatDate(card.update_time, true)}
+                {formatDate(card.update_time, true)} · {card.count.toLocaleString("zh-CN")} 字
               </span>
 
               {/* ⋯ 更多（时间右侧）：按频率排布——场景（演示/沉浸，高频）与连接在前，
@@ -363,6 +352,12 @@ export function CardDetailView() {
                     onSelect={() => setAddLinkOpen(true)}
                   >
                     添加连接
+                  </Menu.Item>
+                  <Menu.Item
+                    icon={<Share2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                    onSelect={() => collaborationRef.current?.open()}
+                  >
+                    发起协作
                   </Menu.Item>
                   <Menu.Submenu
                     label="编辑分类"
@@ -633,6 +628,14 @@ export function CardDetailView() {
         onSave={flashcard.handleSaveGeneratedCard}
         onCancel={flashcard.closeGeneratedCardEditModal}
         isDark={darkMode}
+      />
+
+      {/* 协作：触发器隐藏，由 ⋯ 菜单「发起协作」经 ref 打开弹窗 */}
+      <ContentCollaborationControl
+        ref={collaborationRef}
+        hideTrigger
+        contentId={card.contentId}
+        source={{ sourceType: "card", sourceId: card.id, sourceTitle: cardTitle }}
       />
 
       {/* 演示模式（legacy 搬用） */}
