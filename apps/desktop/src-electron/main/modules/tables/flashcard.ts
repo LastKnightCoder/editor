@@ -11,6 +11,8 @@ import {
   FlashcardReference,
   FlashcardReferenceInput,
   FlashcardReviewPayload,
+  FlashcardReviewResult,
+  FlashcardUndoReviewPayload,
   FlashcardQueueRequest,
   FlashcardReviewRating,
   FlashcardReviewStats,
@@ -91,6 +93,7 @@ const DEFAULT_EMOJI = "🧠";
 const EASE_RANGE = { min: 1.3, max: 3.5 };
 
 class FlashcardTable {
+  private static readonly reviewIdHighWater = new WeakMap<Database.Database, number>();
   static getListenEvents() {
     return {
       "flashcard:list-decks": this.listDecks.bind(this),
@@ -105,6 +108,7 @@ class FlashcardTable {
       "flashcard:delete-card": this.deleteFlashcard.bind(this),
       "flashcard:get-review-queue": this.getReviewQueue.bind(this),
       "flashcard:submit-review": this.submitReview.bind(this),
+      "flashcard:undo-review": this.undoReview.bind(this),
       "flashcard:review-stats": this.getReviewStats.bind(this),
     };
   }
@@ -430,7 +434,7 @@ class FlashcardTable {
         deck_id,
         COUNT(*) AS total_cards,
         SUM(CASE WHEN review_count = 0 THEN 1 ELSE 0 END) AS new_cards,
-        SUM(CASE WHEN due_time <= ? THEN 1 ELSE 0 END) AS due_cards,
+        SUM(CASE WHEN due_time <= ? AND status != 'suspended' THEN 1 ELSE 0 END) AS due_cards,
         SUM(CASE WHEN status = 'learning' THEN 1 ELSE 0 END) AS learning_cards,
         MAX(last_review_time) AS last_review_time
       FROM flashcards
@@ -888,6 +892,9 @@ class FlashcardTable {
       const placeholders = params.statuses.map(() => "?").join(",");
       conditions.push(`status IN (${placeholders})`);
       values.push(...params.statuses);
+    } else {
+      // 暂停的卡不进复习队列（未显式指定状态时）
+      conditions.push("status != 'suspended'");
     }
 
     if (!params.includeUpcoming) {
@@ -938,19 +945,23 @@ class FlashcardTable {
     return { nextLevel, nextEase, dueTime, interval, status };
   }
 
-  static submitReview(db: Database.Database, payload: FlashcardReviewPayload): Flashcard | null {
-    const row = db.prepare(`SELECT * FROM flashcards WHERE id = ?`).get(payload.cardId) as
-      CardRow | undefined;
-    if (!row) return null;
+  static submitReview(
+    db: Database.Database,
+    payload: FlashcardReviewPayload
+  ): FlashcardReviewResult | null {
+    return db.transaction(() => {
+      const row = db.prepare(`SELECT * FROM flashcards WHERE id = ?`).get(payload.cardId) as
+        CardRow | undefined;
+      if (!row) return null;
 
-    const { nextLevel, nextEase, dueTime, interval, status } = this.calculateSchedule(
-      row,
-      payload.rating
-    );
-    const now = Date.now();
+      const { nextLevel, nextEase, dueTime, interval, status } = this.calculateSchedule(
+        row,
+        payload.rating
+      );
+      const now = Date.now();
 
-    db.prepare(
-      `UPDATE flashcards SET
+      db.prepare(
+        `UPDATE flashcards SET
         review_level = ?,
         due_time = ?,
         last_review_time = ?,
@@ -959,23 +970,102 @@ class FlashcardTable {
         status = ?,
         update_time = ?
        WHERE id = ?`
-    ).run(nextLevel, dueTime, now, nextEase, status, now, payload.cardId);
+      ).run(nextLevel, dueTime, now, nextEase, status, now, payload.cardId);
 
-    db.prepare(
-      `INSERT INTO flashcard_reviews (card_id, deck_id, rating, review_time, interval, review_level, ease_factor, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(
-      payload.cardId,
-      payload.deckId,
-      payload.rating,
-      now,
-      interval,
-      nextLevel,
-      nextEase,
-      payload.notes ?? null
-    );
+      // INTEGER PRIMARY KEY 会复用刚撤销的最大 ID；会话内保留高水位，避免旧凭据命中新记录。
+      const maxReviewId =
+        (db.prepare("SELECT MAX(id) AS id FROM flashcard_reviews").get() as { id: number | null })
+          .id ?? 0;
+      const reviewId = Math.max(maxReviewId, this.reviewIdHighWater.get(db) ?? 0) + 1;
+      this.reviewIdHighWater.set(db, reviewId);
+      db.prepare(
+        `INSERT INTO flashcard_reviews (id, card_id, deck_id, rating, review_time, interval, review_level, ease_factor, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        reviewId,
+        payload.cardId,
+        row.deck_id,
+        payload.rating,
+        now,
+        interval,
+        nextLevel,
+        nextEase,
+        payload.notes ?? null
+      );
 
-    return this.getFlashcard(db, payload.cardId);
+      const updated = this.getFlashcard(db, payload.cardId)!;
+      return {
+        ...updated,
+        undo: {
+          cardId: row.id,
+          reviewId,
+          previous: {
+            reviewLevel: row.review_level,
+            easeFactor: row.ease_factor,
+            dueTime: row.due_time,
+            lastReviewTime: row.last_review_time,
+            reviewCount: row.review_count,
+            status: row.status as Flashcard["status"],
+          },
+        },
+      };
+    })();
+  }
+
+  /**
+   * 仅撤销凭据指向的最新评分；校验、删除记录与恢复排期在同一事务中完成。
+   */
+  static undoReview(db: Database.Database, payload: FlashcardUndoReviewPayload): Flashcard | null {
+    const { previous } = payload;
+    const undo = db.transaction(() => {
+      const row = db.prepare(`SELECT * FROM flashcards WHERE id = ?`).get(payload.cardId) as
+        CardRow | undefined;
+      if (!row) return null;
+      const latest = db
+        .prepare(
+          `SELECT id, review_time, review_level, ease_factor FROM flashcard_reviews
+         WHERE card_id = ? ORDER BY id DESC LIMIT 1`
+        )
+        .get(payload.cardId) as
+        { id: number; review_time: number; review_level: number; ease_factor: number } | undefined;
+      if (
+        !latest ||
+        latest.id !== payload.reviewId ||
+        row.review_count !== previous.reviewCount + 1 ||
+        row.last_review_time !== latest.review_time ||
+        row.review_level !== latest.review_level ||
+        row.ease_factor !== latest.ease_factor ||
+        row.status === "suspended"
+      ) {
+        throw new Error("评分记录已变化，无法撤销");
+      }
+      db.prepare(`DELETE FROM flashcard_reviews WHERE id = ? AND card_id = ?`).run(
+        payload.reviewId,
+        payload.cardId
+      );
+      db.prepare(
+        `UPDATE flashcards SET
+          review_level = ?,
+          due_time = ?,
+          last_review_time = ?,
+          review_count = ?,
+          ease_factor = ?,
+          status = ?,
+          update_time = ?
+         WHERE id = ?`
+      ).run(
+        previous.reviewLevel,
+        previous.dueTime,
+        previous.lastReviewTime,
+        previous.reviewCount,
+        previous.easeFactor,
+        previous.status,
+        Date.now(),
+        payload.cardId
+      );
+      return this.getFlashcard(db, payload.cardId);
+    });
+    return undo();
   }
 }
 
