@@ -16,24 +16,20 @@ export default class TodoItemTable {
     const tableInfo = db.pragma("table_info(todo_item)") as Array<{
       name: string;
     }>;
-    const columnNames = new Set(tableInfo.map((col) => col.name));
+    const columnNames = new Set(tableInfo.map(col => col.name));
 
     // 迁移旧的 description 列到 description_content_id
     const hasOldDescription = columnNames.has("description");
-    const hasNewDescriptionContentId = columnNames.has(
-      "description_content_id",
-    );
+    const hasNewDescriptionContentId = columnNames.has("description_content_id");
 
     if (hasOldDescription && !hasNewDescriptionContentId) {
       // 添加新列
-      db.exec(
-        `ALTER TABLE todo_item ADD COLUMN description_content_id INTEGER;`,
-      );
+      db.exec(`ALTER TABLE todo_item ADD COLUMN description_content_id INTEGER;`);
 
       // 获取所有有描述的待办项
       const itemsWithDescription = db
         .prepare(
-          `SELECT id, description FROM todo_item WHERE description IS NOT NULL AND description != ''`,
+          `SELECT id, description FROM todo_item WHERE description IS NOT NULL AND description != ''`
         )
         .all() as Array<{ id: number; description: string }>;
 
@@ -48,9 +44,10 @@ export default class TodoItemTable {
         const contentId = ContentTable.createContent(db, { content });
 
         // 更新 todo_item 的 description_content_id
-        db.prepare(
-          `UPDATE todo_item SET description_content_id = ? WHERE id = ?`,
-        ).run(contentId, item.id);
+        db.prepare(`UPDATE todo_item SET description_content_id = ? WHERE id = ?`).run(
+          contentId,
+          item.id
+        );
       }
 
       // 删除旧的 description 列（SQLite 需要重建表）
@@ -91,19 +88,13 @@ export default class TodoItemTable {
 
     // 添加新字段（如果不存在）
     if (!columnNames.has("type")) {
-      db.exec(
-        `ALTER TABLE todo_item ADD COLUMN type TEXT NOT NULL DEFAULT 'normal';`,
-      );
-      db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_todo_item_type ON todo_item(type);`,
-      );
+      db.exec(`ALTER TABLE todo_item ADD COLUMN type TEXT NOT NULL DEFAULT 'normal';`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_todo_item_type ON todo_item(type);`);
     }
 
     if (!columnNames.has("start_at")) {
       db.exec(`ALTER TABLE todo_item ADD COLUMN start_at INTEGER;`);
-      db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_todo_item_start ON todo_item(start_at);`,
-      );
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_todo_item_start ON todo_item(start_at);`);
     }
 
     if (!columnNames.has("remind_before")) {
@@ -120,30 +111,16 @@ export default class TodoItemTable {
   }
 
   static rebuildIndexes(db: Database.Database) {
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_todo_item_group ON todo_item(group_id);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_todo_item_parent ON todo_item(parent_id);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_todo_item_sort ON todo_item(parent_id, sort_index);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_todo_item_completed ON todo_item(is_completed);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_todo_item_due ON todo_item(due_at);`);
     db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_item_group ON todo_item(group_id);`,
+      `CREATE INDEX IF NOT EXISTS idx_todo_item_description_content ON todo_item(description_content_id);`
     );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_item_parent ON todo_item(parent_id);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_item_sort ON todo_item(parent_id, sort_index);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_item_completed ON todo_item(is_completed);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_item_due ON todo_item(due_at);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_item_description_content ON todo_item(description_content_id);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_item_type ON todo_item(type);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_todo_item_start ON todo_item(start_at);`,
-    );
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_todo_item_type ON todo_item(type);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_todo_item_start ON todo_item(start_at);`);
   }
 
   static getListenEvents() {
@@ -160,6 +137,24 @@ export default class TodoItemTable {
       "todo:delete-item-cascade": this.deleteItemCascade.bind(this),
       "workbench:list-todo-preview": this.listWorkbenchPreview.bind(this),
     } as const;
+  }
+
+  /**
+   * 日历一致性：截止 / 计划任务在增改后写入「待办清单」日历；类型变更先清旧映射再按新类型重建。
+   * 周期任务的日历事件由日历读取时按规则即时生成（calendar-event.getEventsByDateRange），这里不写。
+   * 同步失败不阻断待办本身的增改（与 deleteItemCascade 的清理口径一致）。
+   */
+  static syncCalendar(db: Database.Database, item: TodoItem, previousType?: TodoItemType) {
+    try {
+      if (previousType && previousType !== item.type) {
+        TodoCalendarSyncTable.removeTodoItem(db, { todoItemId: item.id });
+      }
+      if (item.type === "deadline" || item.type === "planned") {
+        TodoCalendarSyncTable.syncTodoItem(db, { todoItem: item });
+      }
+    } catch (e) {
+      console.error("[TodoItem] 同步日历失败:", e);
+    }
   }
 
   static parse(row: any): TodoItem {
@@ -189,10 +184,7 @@ export default class TodoItemTable {
     return item;
   }
 
-  static listItems(
-    db: Database.Database,
-    params: { groupId: number },
-  ): TodoItem[] {
+  static listItems(db: Database.Database, params: { groupId: number }): TodoItem[] {
     const stmt = db.prepare(
       `SELECT
         ti.*,
@@ -200,7 +192,7 @@ export default class TodoItemTable {
       FROM todo_item ti
       LEFT JOIN contents c ON ti.description_content_id = c.id
       WHERE ti.group_id = ? AND ti.is_archived = 0
-      ORDER BY ti.parent_id IS NOT NULL, ti.parent_id, ti.sort_index`,
+      ORDER BY ti.parent_id IS NOT NULL, ti.parent_id, ti.sort_index`
     );
     return (stmt.all(params.groupId) as any[]).map(this.parse);
   }
@@ -208,7 +200,7 @@ export default class TodoItemTable {
   // 按任务类型列出所有任务（用于系统组）
   static listItemsByType(
     db: Database.Database,
-    params: { type: TodoItemType | "all" },
+    params: { type: TodoItemType | "all" }
   ): TodoItem[] {
     let sql = `
       SELECT
@@ -237,7 +229,7 @@ export default class TodoItemTable {
       status?: "pending" | "completed" | "all";
       limit?: number;
       cursor?: number | null;
-    } = {},
+    } = {}
   ): WorkbenchTodoPreviewResponse {
     const limit = Math.min(Math.max(payload.limit ?? 10, 1), 50);
     const offset = Math.max(payload.cursor ?? 0, 0);
@@ -262,7 +254,7 @@ export default class TodoItemTable {
       .prepare(
         `SELECT COUNT(*) as total
          FROM todo_item ti
-         ${where}`,
+         ${where}`
       )
       .get(...params) as { total: number };
 
@@ -278,17 +270,17 @@ export default class TodoItemTable {
            ti.due_at ASC,
            ti.update_time DESC,
            ti.id DESC
-         LIMIT ? OFFSET ?`,
+         LIMIT ? OFFSET ?`
       )
       .all(...params, now, limit + 1, offset) as any[];
     const pageRows = rows.slice(0, limit);
     const rowMap = new Map<number, any>();
-    pageRows.forEach((row) => rowMap.set(row.id, row));
+    pageRows.forEach(row => rowMap.set(row.id, row));
     const ancestorStmt = db.prepare(
       `SELECT ti.*, c.content as content_content
        FROM todo_item ti
        LEFT JOIN contents c ON ti.description_content_id = c.id
-       WHERE ti.id = ? AND ti.is_archived = 0`,
+       WHERE ti.id = ? AND ti.is_archived = 0`
     );
     for (const row of pageRows) {
       let parentId = row.parent_id as number | null;
@@ -321,7 +313,7 @@ export default class TodoItemTable {
          WHERE tg.is_archived = 0 AND tg.is_system = 0
          GROUP BY tg.id
          HAVING pending > 0
-         ORDER BY overdue DESC, pending DESC, tg.sort_index ASC`,
+         ORDER BY overdue DESC, pending DESC, tg.sort_index ASC`
       )
       .all(now) as any[];
 
@@ -331,13 +323,13 @@ export default class TodoItemTable {
            SUM(CASE WHEN is_completed = 0 THEN 1 ELSE 0 END) as pendingTotal,
            SUM(CASE WHEN is_completed = 0 AND due_at IS NOT NULL AND due_at < ? THEN 1 ELSE 0 END) as overdueTotal
          FROM todo_item
-         WHERE is_archived = 0`,
+         WHERE is_archived = 0`
       )
       .get(now) as { pendingTotal: number | null; overdueTotal: number | null };
 
     return {
       items: pageItems.map(this.parse),
-      groups: groupRows.map((row) => ({
+      groups: groupRows.map(row => ({
         group: {
           id: row.id,
           title: row.title,
@@ -363,29 +355,23 @@ export default class TodoItemTable {
   static getMaxSortIndexInParent(
     db: Database.Database,
     parentId: number | null,
-    groupId: number,
+    groupId: number
   ): number {
     const stmt = parentId
       ? db.prepare(
-          `SELECT MAX(sort_index) AS max_idx FROM todo_item WHERE parent_id = ? AND group_id = ?`,
+          `SELECT MAX(sort_index) AS max_idx FROM todo_item WHERE parent_id = ? AND group_id = ?`
         )
       : db.prepare(
-          `SELECT MAX(sort_index) AS max_idx FROM todo_item WHERE parent_id IS NULL AND group_id = ?`,
+          `SELECT MAX(sort_index) AS max_idx FROM todo_item WHERE parent_id IS NULL AND group_id = ?`
         );
-    const row = parentId
-      ? (stmt.get(parentId, groupId) as any)
-      : (stmt.get(groupId) as any);
+    const row = parentId ? (stmt.get(parentId, groupId) as any) : (stmt.get(groupId) as any);
     return row?.max_idx ?? 0;
   }
 
   static createItem(db: Database.Database, payload: CreateTodoItem): TodoItem {
     const now = Date.now();
     const sortIndex =
-      this.getMaxSortIndexInParent(
-        db,
-        payload.parentId ?? null,
-        payload.groupId,
-      ) + 1024;
+      this.getMaxSortIndexInParent(db, payload.parentId ?? null, payload.groupId) + 1024;
 
     // 如果提供了 description，创建 content 记录
     let descriptionContentId: number | null = null;
@@ -404,7 +390,7 @@ export default class TodoItemTable {
 
     const insert = db.prepare(
       `INSERT INTO todo_item (group_id, parent_id, title, type, description_content_id, is_completed, start_at, due_at, remind_before, completed_at, sort_index, is_archived, create_time, update_time)
-       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, NULL, ?, 0, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, NULL, ?, 0, ?, ?)`
     );
     const res = insert.run(
       payload.groupId,
@@ -417,7 +403,7 @@ export default class TodoItemTable {
       payload.remindBefore ?? null,
       sortIndex,
       now,
-      now,
+      now
     );
     const id = Number(res.lastInsertRowid);
     const row = db
@@ -427,17 +413,17 @@ export default class TodoItemTable {
           c.content as content_content
         FROM todo_item ti
         LEFT JOIN contents c ON ti.description_content_id = c.id
-        WHERE ti.id = ?`,
+        WHERE ti.id = ?`
       )
       .get(id);
-    return this.parse(row);
+    const created = this.parse(row);
+    this.syncCalendar(db, created);
+    return created;
   }
 
   static updateItem(db: Database.Database, payload: UpdateTodoItem): TodoItem {
     const now = Date.now();
-    const cur = db
-      .prepare(`SELECT * FROM todo_item WHERE id = ?`)
-      .get(payload.id) as
+    const cur = db.prepare(`SELECT * FROM todo_item WHERE id = ?`).get(payload.id) as
       | {
           title: string;
           type: string;
@@ -455,27 +441,14 @@ export default class TodoItemTable {
       payload.descriptionContentId === undefined
         ? cur.description_content_id
         : payload.descriptionContentId;
-    const startAt =
-      (payload.startAt === undefined ? cur.start_at : payload.startAt) ?? null;
-    const dueAt =
-      (payload.dueAt === undefined ? cur.due_at : payload.dueAt) ?? null;
+    const startAt = (payload.startAt === undefined ? cur.start_at : payload.startAt) ?? null;
+    const dueAt = (payload.dueAt === undefined ? cur.due_at : payload.dueAt) ?? null;
     const remindBefore =
-      (payload.remindBefore === undefined
-        ? cur.remind_before
-        : payload.remindBefore) ?? null;
+      (payload.remindBefore === undefined ? cur.remind_before : payload.remindBefore) ?? null;
 
     db.prepare(
-      `UPDATE todo_item SET title = ?, type = ?, description_content_id = ?, start_at = ?, due_at = ?, remind_before = ?, update_time = ? WHERE id = ?`,
-    ).run(
-      title,
-      type,
-      descriptionContentId,
-      startAt,
-      dueAt,
-      remindBefore,
-      now,
-      payload.id,
-    );
+      `UPDATE todo_item SET title = ?, type = ?, description_content_id = ?, start_at = ?, due_at = ?, remind_before = ?, update_time = ? WHERE id = ?`
+    ).run(title, type, descriptionContentId, startAt, dueAt, remindBefore, now, payload.id);
 
     const row = db
       .prepare(
@@ -484,35 +457,36 @@ export default class TodoItemTable {
           c.content as content_content
         FROM todo_item ti
         LEFT JOIN contents c ON ti.description_content_id = c.id
-        WHERE ti.id = ?`,
+        WHERE ti.id = ?`
       )
       .get(payload.id);
-    return this.parse(row);
+    const updated = this.parse(row);
+    this.syncCalendar(db, updated, cur.type as TodoItemType);
+    return updated;
   }
 
-  static archiveItem(
-    db: Database.Database,
-    params: { id: number; isArchived: boolean },
-  ): number {
+  static archiveItem(db: Database.Database, params: { id: number; isArchived: boolean }): number {
     const now = Date.now();
     const res = db
-      .prepare(
-        `UPDATE todo_item SET is_archived = ?, update_time = ? WHERE id = ?`,
-      )
+      .prepare(`UPDATE todo_item SET is_archived = ?, update_time = ? WHERE id = ?`)
       .run(params.isArchived ? 1 : 0, now, params.id);
     return res.changes;
   }
 
   static deleteItem(db: Database.Database, id: number): number {
+    // 先清日历映射与事件（映射表无外键，不清会残留到下次启动的孤儿清理）
+    try {
+      TodoCalendarSyncTable.removeTodoItem(db, { todoItemId: id });
+    } catch (e) {
+      // 忽略清理日历事件时的错误
+    }
+
     // 获取 description_content_id
-    const item = db
-      .prepare(`SELECT description_content_id FROM todo_item WHERE id = ?`)
-      .get(id) as { description_content_id: number | null } | undefined;
+    const item = db.prepare(`SELECT description_content_id FROM todo_item WHERE id = ?`).get(id) as
+      { description_content_id: number | null } | undefined;
 
     // 删除待办项
-    const changes = db
-      .prepare(`DELETE FROM todo_item WHERE id = ?`)
-      .run(id).changes;
+    const changes = db.prepare(`DELETE FROM todo_item WHERE id = ?`).run(id).changes;
 
     // 如果有关联的 content，删除它（会减少引用计数）
     if (item?.description_content_id) {
@@ -524,7 +498,7 @@ export default class TodoItemTable {
 
   static toggleCompleteCascade(
     db: Database.Database,
-    params: { id: number; isCompleted: boolean },
+    params: { id: number; isCompleted: boolean }
   ): number {
     const now = Date.now();
     const isCompleted = params.isCompleted ? 1 : 0;
@@ -538,117 +512,76 @@ export default class TodoItemTable {
       SET is_completed = ${isCompleted},
           completed_at = CASE WHEN ${isCompleted} = 1 THEN ${now} ELSE NULL END,
           update_time = ${now}
-      WHERE id IN (SELECT id FROM descendants);`,
+      WHERE id IN (SELECT id FROM descendants);`
     );
     const res = db.prepare(`SELECT changes() AS c`).get() as { c: number };
     return res.c;
   }
 
-  static moveAndReorder(
-    db: Database.Database,
-    payload: MoveAndReorderPayload,
-  ): TodoItem {
+  /**
+   * 移动 / 排序。位置语义（与 legacy SortableItem、MCP move_todo 一致）：
+   *  - beforeId = 插到它「前面」（落位后的下一个兄弟）；afterId = 插到它「后面」（落位后的上一个兄弟）；
+   *  - 两者都给时以 beforeId 定位（两者本应相邻）；都不给 = 追加到末尾。
+   * sort_index 取前后邻居的中点；间隙耗尽（相邻整数）时整组按 1024 步长重排并把目标放进正确位置——
+   * 旧实现两参分支不校验碰撞（反复插入同一对之间会撞值乱序），单参分支碰撞时把目标兜底扔到末尾。
+   */
+  static moveAndReorder(db: Database.Database, payload: MoveAndReorderPayload): TodoItem {
     const now = Date.now();
-    let newIndex: number;
+    const STEP = 1024;
 
-    const getIndex = (id?: number) => {
-      if (!id) return undefined;
-      const row = db
-        .prepare(`SELECT sort_index, parent_id FROM todo_item WHERE id = ?`)
-        .get(id) as
-        | { sort_index: number; parent_id: number | null }
-        | undefined;
-      return row?.sort_index;
-    };
-
-    const siblings = this.listSiblings(
-      db,
-      payload.toGroupId,
-      payload.toParentId ?? null,
-    )
-      .filter((s) => s.id !== payload.id)
+    const siblings = this.listSiblings(db, payload.toGroupId, payload.toParentId ?? null)
+      .filter(s => s.id !== payload.id)
       .sort((a, b) => a.sortIndex - b.sortIndex);
+    const indexOf = (id?: number) => (id == null ? -1 : siblings.findIndex(s => s.id === id));
 
-    const beforeIdx = getIndex(payload.beforeId);
-    const afterIdx = getIndex(payload.afterId);
+    let position = siblings.length;
+    if (indexOf(payload.beforeId) >= 0) position = indexOf(payload.beforeId);
+    else if (indexOf(payload.afterId) >= 0) position = indexOf(payload.afterId) + 1;
 
-    const recomputeWithNormalized = (): number => {
-      const step = 1024;
-      const upd = db.prepare(
-        `UPDATE todo_item SET sort_index = ?, update_time = ? WHERE id = ?`,
+    const lower = position > 0 ? siblings[position - 1].sortIndex : 0;
+    const upper = position < siblings.length ? siblings[position].sortIndex : lower + 2 * STEP;
+    let newIndex = Math.floor((lower + upper) / 2);
+
+    if (!Number.isFinite(newIndex) || newIndex <= lower || newIndex >= upper) {
+      const update = db.prepare(
+        `UPDATE todo_item SET sort_index = ?, update_time = ? WHERE id = ?`
       );
-      siblings.forEach((it, idx) => upd.run((idx + 1) * step, now, it.id));
-      // 将目标放到末尾作为兜底
-      return (siblings.length + 1) * step;
-    };
-
-    if (beforeIdx !== undefined && afterIdx !== undefined) {
-      newIndex = Math.floor((beforeIdx + afterIdx) / 2);
-    } else if (beforeIdx !== undefined) {
-      // 插入到 beforeId 前面 => 介于 prevSibling 与 beforeId 之间
-      const prev = siblings.filter((s) => s.sortIndex < beforeIdx).pop();
-      const lower = prev?.sortIndex ?? 0;
-      newIndex = Math.floor((lower + beforeIdx) / 2);
-      if (
-        !Number.isFinite(newIndex) ||
-        newIndex <= 0 ||
-        newIndex === lower ||
-        newIndex === beforeIdx
-      ) {
-        newIndex = recomputeWithNormalized();
-      }
-    } else if (afterIdx !== undefined) {
-      // 插入到 afterId 后面 => 介于 afterId 与 nextSibling 之间
-      const next = siblings.find((s) => s.sortIndex > afterIdx);
-      const upper = next?.sortIndex ?? afterIdx + 1024;
-      newIndex = Math.floor((afterIdx + upper) / 2);
-      if (
-        !Number.isFinite(newIndex) ||
-        newIndex <= afterIdx ||
-        newIndex >= upper
-      ) {
-        newIndex = recomputeWithNormalized();
-      }
-    } else {
-      // 末尾
-      const lastIdx =
-        siblings.length > 0 ? siblings[siblings.length - 1].sortIndex : 0;
-      newIndex = lastIdx + 1024;
+      siblings.forEach((sibling, i) => {
+        update.run((i < position ? i + 1 : i + 2) * STEP, now, sibling.id);
+      });
+      newIndex = (position + 1) * STEP;
     }
 
     db.prepare(
-      `UPDATE todo_item SET group_id = ?, parent_id = ?, sort_index = ?, update_time = ? WHERE id = ?`,
-    ).run(
-      payload.toGroupId,
-      payload.toParentId ?? null,
-      newIndex,
-      now,
-      payload.id,
-    );
+      `UPDATE todo_item SET group_id = ?, parent_id = ?, sort_index = ?, update_time = ? WHERE id = ?`
+    ).run(payload.toGroupId, payload.toParentId ?? null, newIndex, now, payload.id);
 
-    const row = db
-      .prepare(`SELECT * FROM todo_item WHERE id = ?`)
-      .get(payload.id);
+    // 跨项目移动时子任务随父迁移（子树 group_id 与根保持一致，否则子任务留在原项目成孤儿）
+    db.prepare(
+      `WITH RECURSIVE descendants(id) AS (
+        SELECT id FROM todo_item WHERE parent_id = ?
+        UNION ALL
+        SELECT ti.id FROM todo_item ti JOIN descendants d ON ti.parent_id = d.id
+      )
+      UPDATE todo_item SET group_id = ?, update_time = ?
+      WHERE id IN (SELECT id FROM descendants) AND group_id != ?`
+    ).run(payload.id, payload.toGroupId, now, payload.toGroupId);
+
+    const row = db.prepare(`SELECT * FROM todo_item WHERE id = ?`).get(payload.id);
     return this.parse(row);
   }
 
-  static listSiblings(
-    db: Database.Database,
-    groupId: number,
-    parentId: number | null,
-  ): TodoItem[] {
+  static listSiblings(db: Database.Database, groupId: number, parentId: number | null): TodoItem[] {
     const stmt =
       parentId !== null
         ? db.prepare(
-            `SELECT * FROM todo_item WHERE group_id = ? AND parent_id = ? ORDER BY sort_index`,
+            `SELECT * FROM todo_item WHERE group_id = ? AND parent_id = ? ORDER BY sort_index`
           )
         : db.prepare(
-            `SELECT * FROM todo_item WHERE group_id = ? AND parent_id IS NULL ORDER BY sort_index`,
+            `SELECT * FROM todo_item WHERE group_id = ? AND parent_id IS NULL ORDER BY sort_index`
           );
     const rows =
-      parentId !== null
-        ? (stmt.all(groupId, parentId) as any[])
-        : (stmt.all(groupId) as any[]);
+      parentId !== null ? (stmt.all(groupId, parentId) as any[]) : (stmt.all(groupId) as any[]);
     return rows.map(this.parse);
   }
 
@@ -664,11 +597,9 @@ export default class TodoItemTable {
       startAt?: number | null;
       dueAt?: number | null;
       remindBefore?: number | null;
-    },
+    }
   ): TodoItem {
-    const ref = db
-      .prepare(`SELECT * FROM todo_item WHERE id = ?`)
-      .get(payload.refId) as any;
+    const ref = db.prepare(`SELECT * FROM todo_item WHERE id = ?`).get(payload.refId) as any;
     if (!ref) throw new Error("ref todo_item not found");
 
     const refItem = this.parse(ref);
@@ -696,16 +627,15 @@ export default class TodoItemTable {
     if (payload.position === "above") {
       // 插到 ref 上方 => between(prevSibling, ref)
       const siblings = this.listSiblings(db, refItem.groupId, refItem.parentId);
-      const idx = siblings.findIndex((s) => s.id === refItem.id);
+      const idx = siblings.findIndex(s => s.id === refItem.id);
       const prev = idx > 0 ? siblings[idx - 1] : undefined;
       beforeId = prev?.id;
       afterId = refItem.id;
     } else if (payload.position === "below") {
       // 插到 ref 下方 => between(ref, nextSibling)
       const siblings = this.listSiblings(db, refItem.groupId, refItem.parentId);
-      const idx = siblings.findIndex((s) => s.id === refItem.id);
-      const next =
-        idx >= 0 && idx < siblings.length - 1 ? siblings[idx + 1] : undefined;
+      const idx = siblings.findIndex(s => s.id === refItem.id);
+      const next = idx >= 0 && idx < siblings.length - 1 ? siblings[idx + 1] : undefined;
       beforeId = refItem.id;
       afterId = next?.id;
     }
@@ -722,14 +652,8 @@ export default class TodoItemTable {
   }
 
   // 递归删除：删除指定节点及其所有子节点
-  static deleteItemCascade(
-    db: Database.Database,
-    params: { id: number },
-  ): number {
-    const id =
-      typeof params === "object"
-        ? (params as any).id
-        : (params as unknown as number);
+  static deleteItemCascade(db: Database.Database, params: { id: number }): number {
+    const id = typeof params === "object" ? (params as any).id : (params as unknown as number);
 
     // 先获取所有要删除的节点的 ID 和 description_content_id
     const descendants = db
@@ -741,7 +665,7 @@ export default class TodoItemTable {
         SELECT ti.id FROM todo_item ti JOIN descendants d ON ti.parent_id = d.id
       )
       SELECT id, description_content_id FROM todo_item WHERE id IN (SELECT id FROM descendants)
-    `,
+    `
       )
       .all(id) as Array<{ id: number; description_content_id: number | null }>;
 
@@ -764,8 +688,7 @@ export default class TodoItemTable {
       DELETE FROM todo_item WHERE id IN (SELECT id FROM descendants)
     `);
     const res = stmt.run(id);
-    const changes =
-      (db.prepare(`SELECT changes() AS c`).get() as any)?.c ?? res.changes ?? 0;
+    const changes = (db.prepare(`SELECT changes() AS c`).get() as any)?.c ?? res.changes ?? 0;
 
     // 删除所有关联的 content（会减少引用计数）
     for (const item of descendants) {
