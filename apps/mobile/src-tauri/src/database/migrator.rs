@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use sha1::{Digest, Sha1};
 
 const MAIN_SCHEMA_SQL: &str = include_str!("../../../../../packages/db-schema/schema/main.sql");
@@ -6,7 +6,7 @@ const INDEX_SCHEMA_SQL: &str = include_str!("../../../../../packages/db-schema/s
 const INDEX_VEC_TEMPLATE_SQL: &str =
     include_str!("../../../../../packages/db-schema/schema/index/20_vec_template.sql");
 
-pub(super) const MAIN_SCHEMA_VERSION: i64 = 2;
+pub(super) const MAIN_SCHEMA_VERSION: i64 = 3;
 const INDEX_SCHEMA_VERSION: i64 = 1;
 const DEFAULT_VEC_DIMENSION: i64 = 3072;
 
@@ -169,6 +169,7 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
         "
         PRAGMA journal_mode = WAL;
         PRAGMA foreign_keys = ON;
+        PRAGMA busy_timeout = 5000;
         ",
     )
     .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: Failed to set main PRAGMA: {e}"))?;
@@ -177,7 +178,9 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     baseline
         .execute_batch(MAIN_SCHEMA_SQL)
         .map_err(|e| e.to_string())?;
-    let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
+    // 立即取写锁：升级事务含全表扫描与 JSON 重写，避免延迟加锁时被并发写入打断成裸 BUSY 错误
+    let tx = rusqlite::Transaction::new_unchecked(conn, TransactionBehavior::Immediate)
+        .map_err(|e| e.to_string())?;
     ensure_schema_meta(&tx)?;
     let stored = get_meta(&tx, "main_schema_version")?
         .and_then(|v| v.parse::<i64>().ok())
@@ -191,6 +194,7 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     {
         super::main_upgrade::upgrade(&tx, &baseline, now_millis())?;
     }
+    super::knowledge_migration::migrate(&tx)?;
     super::main_upgrade::validate(&tx, &baseline)?;
     let broken_reference = tx
         .prepare("PRAGMA foreign_key_check")

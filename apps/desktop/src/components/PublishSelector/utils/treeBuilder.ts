@@ -8,11 +8,8 @@ import {
   Project,
   ProjectItem,
   EProjectItemType,
-  IDocument,
-  IDocumentItem,
 } from "../types";
 import { getProjectItemsByIds } from "@/commands/project";
-import { getDocumentItemsByIds } from "@/commands/document";
 
 /**
  * 从 Slate 节点中提取纯文本
@@ -189,62 +186,6 @@ function createProjectTreeNode(map: Map<number, ProjectItem>, itemId: number): D
   return {
     id: item.id,
     title: item.title || `条目 #${item.id}`,
-    hasContent,
-    content: item.content || [],
-    children,
-  };
-}
-
-/**
- * 构建知识库文档树
- */
-export async function buildDocumentTree(document: IDocument): Promise<DocTreeNode[]> {
-  const rootIds = Array.isArray(document.children) ? document.children : [];
-  if (rootIds.length === 0) return [];
-  const map = await loadDocumentItemsMap(rootIds);
-  return rootIds
-    .map(id => createDocumentTreeNode(map, id))
-    .filter((node): node is DocTreeNode => Boolean(node));
-}
-
-/**
- * 加载知识库条目映射
- */
-async function loadDocumentItemsMap(rootIds: number[]): Promise<Map<number, IDocumentItem>> {
-  const queue = [...new Set(rootIds)];
-  const map = new Map<number, IDocumentItem>();
-  const visited = new Set<number>();
-  while (queue.length > 0) {
-    const batch = queue.splice(0, 20);
-    const items = await getDocumentItemsByIds(batch);
-    items.forEach(item => {
-      if (visited.has(item.id)) return;
-      visited.add(item.id);
-      map.set(item.id, item);
-      if (item.children && item.children.length > 0) {
-        queue.push(...item.children);
-      }
-    });
-  }
-  return map;
-}
-
-/**
- * 创建知识库树节点
- */
-function createDocumentTreeNode(
-  map: Map<number, IDocumentItem>,
-  itemId: number
-): DocTreeNode | null {
-  const item = map.get(itemId);
-  if (!item) return null;
-  const children = (item.children || [])
-    .map(childId => createDocumentTreeNode(map, childId))
-    .filter((node): node is DocTreeNode => Boolean(node));
-  const hasContent = hasMeaningfulContent(item.content || []);
-  return {
-    id: item.id,
-    title: item.title || `文档 ${item.id}`,
     hasContent,
     content: item.content || [],
     children,

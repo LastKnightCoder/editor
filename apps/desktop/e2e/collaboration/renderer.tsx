@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import "../../src/commands/contracts/install";
 import { createRoot } from "react-dom/client";
 import { App } from "antd";
 import { DndProvider } from "react-dnd";
@@ -6,7 +7,8 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { EditorProvider } from "@tau/editor/src";
 import { createEditorRegistry } from "../../src/services/editorRegistry";
 import { useDesktopEditorConfig } from "../../src/services/useDesktopEditorConfig";
-import { registerDesktopEditorExtensions } from "../../src/editor-extensions";
+import { createDesktopEditorExtensions } from "../../src/editor-extensions";
+import { NotificationHost } from "@tau/ui";
 import ContentEditor from "../../src/components/ContentEditor";
 import CollaborativeTitle from "../../src/components/CollaborativeTitle";
 import ContentCollaborationControl from "../../src/components/ContentCollaborationControl";
@@ -14,8 +16,6 @@ import CollaborationPanel from "../../src/components/CollaborationPanel";
 import JoinRequestNotifications from "../../src/components/JoinRequestNotifications";
 import useSettingStore from "../../src/stores/useSettingStore";
 import "../../src/tailwind.css";
-
-registerDesktopEditorExtensions();
 
 useSettingStore.setState(state => ({
   setting: {
@@ -31,11 +31,12 @@ function View() {
   const [second, setSecond] = useState(true);
   // registry/config 引用稳定，避免重渲染时 Context value 失效
   const registry = useMemo(() => createEditorRegistry(), []);
+  const extensions = useMemo(() => createDesktopEditorExtensions(), []);
   const editorConfig = useDesktopEditorConfig();
   return (
     <App>
       <DndProvider backend={HTML5Backend}>
-        <EditorProvider registry={registry} config={editorConfig}>
+        <EditorProvider registry={registry} config={editorConfig} extensions={extensions}>
           <main style={{ padding: 24 }}>
             <CollaborativeTitle
               contentId={7}
@@ -77,6 +78,7 @@ function View() {
             </aside>
           </main>
           <JoinRequestNotifications />
+          <NotificationHost />
         </EditorProvider>
       </DndProvider>
     </App>

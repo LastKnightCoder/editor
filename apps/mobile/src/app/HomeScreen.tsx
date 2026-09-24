@@ -46,7 +46,6 @@ export function HomeScreen() {
   const onOpenDiary = useMemoizedFn(() => switchTabScreen(navigator, "diaryHome"));
   const onOpenArticles = useMemoizedFn(() => navigator.push("articles"));
   const onOpenProjects = useMemoizedFn(() => navigator.push("projects"));
-  const onOpenKnowledge = useMemoizedFn(() => navigator.push("knowledge"));
   const onOpenDiaryEntry = useMemoizedFn((entry: DiaryEntry, segment: DiarySegment) => {
     const baseDate = getBaseDateFromDiaryKey(entry.type, entry.date);
     navigator.push("contentDetail", {
@@ -61,9 +60,6 @@ export function HomeScreen() {
   );
   const onOpenProjectDoc = useMemoizedFn((itemId: number) =>
     navigator.push("projectDocEditor", { itemId })
-  );
-  const onOpenKnowledgeDoc = useMemoizedFn((itemId: number) =>
-    navigator.push("knowledgeNodeEditor", { itemId })
   );
   const onOpenTodo = useMemoizedFn(() => {
     const databaseName =
@@ -115,11 +111,9 @@ export function HomeScreen() {
           onOpenDiary={onOpenDiary}
           onOpenArticles={onOpenArticles}
           onOpenProjects={onOpenProjects}
-          onOpenKnowledge={onOpenKnowledge}
           onOpenDiaryEntry={onOpenDiaryEntry}
           onOpenArticle={onOpenArticle}
           onOpenProjectDoc={onOpenProjectDoc}
-          onOpenKnowledgeDoc={onOpenKnowledgeDoc}
           onPreviewCard={onPreviewCard}
           onError={onError}
         />

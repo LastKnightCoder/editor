@@ -30,9 +30,7 @@ import { PlusOutlined } from "@ant-design/icons";
 import { MenuProps, Dropdown } from "antd";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
-const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
-  props,
-) => {
+const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = props => {
   const { attributes, element, children } = props;
   const editor = useSlateStatic();
   const readOnly = useReadOnly();
@@ -44,14 +42,13 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
   const [contentSelectorVisible, setContentSelectorVisible] = useState(false);
   const [newAnswerModalVisible, setNewAnswerModalVisible] = useState(false);
   const [excludeContentIds, setExcludeContentIds] = useState<number[]>([]);
-  const extensions = useDynamicExtensionsStore((state) => state.extensions);
+  const extensions = useDynamicExtensionsStore(state => state.extensions);
   const { questionId } = element;
 
   const { isDark } = useTheme();
-  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } =
-    useDragAndDrop({
-      element,
-    });
+  const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
+    element,
+  });
 
   // 获取问题和答案
   const fetchQuestion = useMemoizedFn(async () => {
@@ -86,7 +83,7 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
       Transforms.setNodes(editor, { title: value }, { at: path });
       await updateQuestion(questionId, value);
     },
-    { wait: 1000 },
+    { wait: 1000 }
   );
 
   // 处理删除答案
@@ -100,37 +97,35 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
   });
 
   // 处理添加答案
-  const handleAddAnswer = useMemoizedFn(
-    async (item: SearchResult | SearchResult[]) => {
-      try {
-        if (Array.isArray(item)) {
-          item.forEach(async (item) => {
-            await addAnswer(
-              questionId,
-              {
-                contentId: item.contentId,
-                content: item.content,
-              },
-              true,
-            );
-          });
-        } else {
+  const handleAddAnswer = useMemoizedFn(async (item: SearchResult | SearchResult[]) => {
+    try {
+      if (Array.isArray(item)) {
+        item.forEach(async item => {
           await addAnswer(
             questionId,
             {
               contentId: item.contentId,
               content: item.content,
             },
-            true,
+            true
           );
-        }
-      } catch (error) {
-        console.error("添加答案失败:", error);
+        });
+      } else {
+        await addAnswer(
+          questionId,
+          {
+            contentId: item.contentId,
+            content: item.content,
+          },
+          true
+        );
       }
-      fetchQuestion();
-      setContentSelectorVisible(false);
-    },
-  );
+    } catch (error) {
+      console.error("添加答案失败:", error);
+    }
+    fetchQuestion();
+    setContentSelectorVisible(false);
+  });
 
   // 处理查看答案详情
   const handleViewAnswer = useMemoizedFn((answerId: number) => {
@@ -139,7 +134,7 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
   });
 
   const handleAnswerChange = useMemoizedFn((answer: IAnswer) => {
-    setAnswers(answers.map((a) => (a.id === answer.id ? answer : a)));
+    setAnswers(answers.map(a => (a.id === answer.id ? answer : a)));
   });
 
   const addMenu: MenuProps = {
@@ -158,12 +153,12 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
   };
 
   const selectedAnswer = selectedAnswerId
-    ? answers.find((a) => a.id === selectedAnswerId) || null
+    ? answers.find(a => a.id === selectedAnswerId) || null
     : null;
 
   return (
     <div
-      ref={(node) => {
+      ref={node => {
         drop(node);
       }}
       className={styles.container}
@@ -199,11 +194,7 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
               </div>
               {!readOnly && (
                 <div className={styles.addButton}>
-                  <Dropdown
-                    menu={addMenu}
-                    trigger={["hover"]}
-                    placement="bottomRight"
-                  >
+                  <Dropdown menu={addMenu} trigger={["hover"]} placement="bottomRight">
                     <PlusOutlined className={styles.plusIcon} />
                   </Dropdown>
                 </div>
@@ -225,7 +216,7 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
         {!readOnly && (
           <div
             contentEditable={false}
-            ref={(node) => {
+            ref={node => {
               drag(node);
             }}
             className={classnames(styles.dragHandler, {
@@ -245,13 +236,7 @@ const QuestionCard: React.FC<IExtensionBaseProps<QuestionElement>> = (
         open={contentSelectorVisible}
         onCancel={() => setContentSelectorVisible(false)}
         onSelect={handleAddAnswer}
-        contentType={[
-          "card",
-          "article",
-          "project-item",
-          "document-item",
-          "diary-daily",
-        ]}
+        contentType={["card", "article", "project-item", "diary-daily"]}
         extensions={extensions}
         excludeContentIds={excludeContentIds}
       />

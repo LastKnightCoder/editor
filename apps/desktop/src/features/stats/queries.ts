@@ -26,21 +26,19 @@ import type { StatisticData } from "@/types/statistic";
 import type { PomodoroSession } from "@/types";
 import { getSystemGroupStats } from "@/commands/todo";
 import { summaryPomodoroTotal, listPomodoroSessions } from "@/commands/pomodoro";
-import { getAllDocumentItems } from "@/commands/document";
 import { getAllProjectItems } from "@/commands/project";
 import { listFlashcardDecks, getFlashcardReviewStats } from "@/commands/flashcard";
 import type { StatsRange, StatsSnapshot, RangeSummary, FocusRhythm, HeatmapStats } from "./types";
 
 const DAY_MS = 86_400_000;
 
-/** 库存总量 = 当日（实时）快照的存量 + 日记全量字数 + 知识库/项目轻表字数；把每天快照加总会得到天文数字 */
+/** 库存总量 = 当日（实时）快照的存量 + 日记全量字数 + 项目轻表字数；把每天快照加总会得到天文数字 */
 async function fetchTotals() {
-  const [stats, diaries, todoStats, focus, documentItems, projectItems] = await Promise.all([
+  const [stats, diaries, todoStats, focus, projectItems] = await Promise.all([
     getAllStatistic(),
     getAllDiaryEntries().catch(() => []),
     getSystemGroupStats().catch(() => []),
     summaryPomodoroTotal().catch(() => ({ count: 0, focusMs: 0 })),
-    getAllDocumentItems().catch(() => []),
     getAllProjectItems().catch(() => []),
   ]);
   const index = buildSnapshotIndex((stats ?? []) as StatisticData[]);
@@ -50,11 +48,7 @@ async function fetchTotals() {
   const article = snapshotAt(index, "article", today);
   let diaryTotal = 0;
   for (const entry of entries) diaryTotal += entry.wordCount;
-  // 知识库/项目为全量轻表（无正文，count 即字数）
-  const documentWords = (documentItems as { count?: number }[]).reduce(
-    (sum, item) => sum + (item.count ?? 0),
-    0
-  );
+  // 项目为全量轻表（无正文，count 即字数）
   const projectWords = (projectItems as { count?: number }[]).reduce(
     (sum, item) => sum + (item.count ?? 0),
     0
@@ -63,16 +57,14 @@ async function fetchTotals() {
     cards: card.count,
     articles: article.count,
     diaries: entries.filter(d => d.type === "daily").length,
-    documents: (documentItems as unknown[]).length,
     projects: (projectItems as unknown[]).length,
     todoPending: (todoStats ?? []).reduce((sum, g) => sum + g.uncompleted, 0),
     focusMinutesTotal: Math.round(focus.focusMs / 60_000),
     focusSessions: focus.count,
-    wordsTotal: card.wordsCount + article.wordsCount + projectWords + documentWords + diaryTotal,
+    wordsTotal: card.wordsCount + article.wordsCount + projectWords + diaryTotal,
     cardWords: card.wordsCount,
     articleWords: article.wordsCount,
     projectWords,
-    documentWords,
     diaryWords: diaryTotal,
   };
 }
@@ -196,7 +188,6 @@ export async function fetchStatsSnapshot(range: StatsRange): Promise<StatsSnapsh
         cards: 0,
         articles: 0,
         diaries: 0,
-        documents: 0,
         projects: 0,
         todoPending: 0,
         focusMinutesTotal: 0,
@@ -205,7 +196,6 @@ export async function fetchStatsSnapshot(range: StatsRange): Promise<StatsSnapsh
         cardWords: 0,
         articleWords: 0,
         projectWords: 0,
-        documentWords: 0,
         diaryWords: 0,
       },
       "总量"

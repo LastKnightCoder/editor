@@ -3,10 +3,7 @@ import { Box, Text, useInput } from "ink";
 import { getDataAccess } from "../../../data-access/index.js";
 import { getActiveDbName } from "../../../utils/path.js";
 import { SlateRenderer } from "../../../ui/slate-renderer/index.js";
-import {
-  parseSlateContent,
-  type ParseResult,
-} from "../../../ui/slate-renderer/parse.js";
+import { parseSlateContent, type ParseResult } from "../../../ui/slate-renderer/parse.js";
 import { runProjectItemEdit } from "../../project-item/edit.js";
 import { formatDate } from "../../../utils/text.js";
 import { buildTreeLines, TreeNode } from "../../../utils/tree.js";
@@ -19,6 +16,7 @@ interface ProjectItemRow {
   project_item_type: string;
   children: string | null;
   content: string | null;
+  tags: string;
 }
 
 interface ChildItemRow {
@@ -41,9 +39,7 @@ export function ProjectItemDetailView({
   const [contentResult, setContentResult] = useState<ParseResult>({
     status: "empty",
   });
-  const [treeLines, setTreeLines] = useState<{ text: string; id: number }[]>(
-    [],
-  );
+  const [treeLines, setTreeLines] = useState<{ text: string; id: number }[]>([]);
   const [cursor, setCursor] = useState(0);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -55,11 +51,11 @@ export function ProjectItemDetailView({
 
       const row = da.queryOne<ProjectItemRow>(
         `SELECT pi.id, pi.title, pi.create_time, pi.update_time, pi.project_item_type, pi.children,
-                ct.content
+                ct.content, pi.tags
          FROM project_item pi
          LEFT JOIN contents ct ON pi.content_id = ct.id
          WHERE pi.id = ?`,
-        itemId,
+        itemId
       );
 
       if (!row) {
@@ -83,7 +79,7 @@ export function ProjectItemDetailView({
         const placeholders = childIds.map(() => "?").join(",");
         const children = da.query<ChildItemRow>(
           `SELECT id, title, children, project_item_type FROM project_item WHERE id IN (${placeholders})`,
-          ...childIds,
+          ...childIds
         );
 
         const nodeMap = new Map<number, TreeNode>();
@@ -124,9 +120,9 @@ export function ProjectItemDetailView({
     }
     if (treeLines.length > 0) {
       if (key.upArrow || input === "k") {
-        setCursor((c) => (c > 0 ? c - 1 : treeLines.length - 1));
+        setCursor(c => (c > 0 ? c - 1 : treeLines.length - 1));
       } else if (key.downArrow || input === "j") {
-        setCursor((c) => (c < treeLines.length - 1 ? c + 1 : 0));
+        setCursor(c => (c < treeLines.length - 1 ? c + 1 : 0));
       } else if (key.return && onShowProjectItem) {
         const selected = treeLines[cursor];
         if (selected) {
@@ -158,6 +154,9 @@ export function ProjectItemDetailView({
       </Box>
       <Text dimColor>{"─".repeat(60)}</Text>
       <Box flexDirection="column" marginBottom={1}>
+        <Text dimColor>
+          标签：{(JSON.parse(item.tags || "[]") as string[]).join(" · ") || "无"}
+        </Text>
         <Box>
           <Box width={12}>
             <Text dimColor>Type</Text>
@@ -222,8 +221,7 @@ export function ProjectItemDetailView({
         <Text color="green">{message}</Text>
       ) : (
         <Text dimColor>
-          e edit{treeLines.length > 0 ? " · ↑↓/jk select · Enter open" : ""} ·
-          Esc/q back
+          e edit{treeLines.length > 0 ? " · ↑↓/jk select · Enter open" : ""} · Esc/q back
         </Text>
       )}
     </Box>

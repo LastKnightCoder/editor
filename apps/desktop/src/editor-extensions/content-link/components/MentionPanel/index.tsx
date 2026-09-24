@@ -69,7 +69,7 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
       try {
         const results = await searchContent({
           query,
-          types: ["card", "article", "project-item", "document-item"],
+          types: ["card", "article", "project-item"],
           limit: 10,
           modelInfo,
         });

@@ -9,7 +9,6 @@ const TYPE_TILE: Record<PublishContentType, string> = {
   article: "bg-tag-2-soft text-tag-2",
   quest: "bg-tag-3-soft text-tag-3",
   project: "bg-tag-4-soft text-tag-4",
-  document: "bg-tag-5-soft text-tag-5",
 };
 
 interface TypeRailProps {

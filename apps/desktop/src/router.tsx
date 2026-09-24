@@ -6,7 +6,6 @@ const QuickCard = loadable(() => import("@/pages/QuickCard"));
 const SingleCardEditor = loadable(() => import("@/pages/SingleCardEditor"));
 const SingleArticleEditor = loadable(() => import("@/pages/SingleArticleEditor"));
 const SingleProjectItemEditor = loadable(() => import("@/pages/SingleProjectItemEditor"));
-const SingleDocumentItemEditor = loadable(() => import("@/pages/SingleDocumentItemEditor"));
 const SingleMarkdownEditor = loadable(() => import("@/pages/SingleMarkdownEditor"));
 
 const QuickOpenLayout = loadable(() => import("@/layouts/QuickOpenLayout"));
@@ -71,16 +70,6 @@ const routes = [
       {
         index: true,
         element: <SingleProjectItemEditor />,
-      },
-    ],
-  },
-  {
-    path: "/single-document-item-editor/",
-    element: <QuickOpenLayout />,
-    children: [
-      {
-        index: true,
-        element: <SingleDocumentItemEditor />,
       },
     ],
   },

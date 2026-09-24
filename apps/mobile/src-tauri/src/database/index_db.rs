@@ -389,6 +389,42 @@ pub fn resolve_index_database_path(app: &AppHandle, main_db_name: &str) -> Resul
     Ok(resolve_app_dir(app)?.join(resolve_index_database_name(main_db_name)))
 }
 
+/// 同步替换主库后本地索引的 ID 空间整体失效，删除索引文件令其按需全量重建。
+pub fn reset_index_database(app: &AppHandle, main_db_name: &str) -> Result<(), String> {
+    let path = resolve_index_database_path(app, main_db_name)?;
+    // 先标记待重建再删文件：删除失败（如 Windows 文件锁）时，残留索引也会在下次开库触发全量重建
+    if path.exists() {
+        match Connection::open(&path) {
+            Ok(conn) => {
+                let marked = conn
+                    .execute_batch("PRAGMA busy_timeout=5000;")
+                    .map_err(|e| e.to_string())
+                    .and_then(|()| set_meta(&conn, REBUILD_STATE_KEY, "pending"));
+                let closed = conn.close().map_err(|(_, e)| e.to_string());
+                marked.map_err(|e| {
+                    format!("DB_OPEN_FAILED: Failed to mark index rebuild pending: {e}")
+                })?;
+                closed.map_err(|e| format!("DB_OPEN_FAILED: Failed to close index: {e}"))?;
+            }
+            Err(_) => {
+                // 打不开（如文件损坏）则交由下方删除路径处理；删除也失败时最终报错
+            }
+        }
+    }
+    for suffix in ["", "-wal", "-shm"] {
+        let file = format!("{}{suffix}", path.to_string_lossy());
+        if std::path::Path::new(&file).exists() {
+            fs::remove_file(&file)
+                .map_err(|e| format!("DB_OPEN_FAILED: Failed to reset index database: {e}"))?;
+        }
+    }
+    eprintln!(
+        "[mobile-index-db] reset index database done: main_db={}",
+        main_db_name
+    );
+    Ok(())
+}
+
 pub fn open_index_database(app: &AppHandle, main_db_name: &str) -> Result<Connection, String> {
     let path = resolve_index_database_path(app, main_db_name)?;
     eprintln!(
@@ -403,6 +439,9 @@ pub fn open_index_database(app: &AppHandle, main_db_name: &str) -> Result<Connec
     }
     let conn = Connection::open(path)
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to open index database: {e}"))?;
+    // 迁移写入可能与后台 reconcile 的索引写入并发，对齐主库连接的等待策略
+    conn.execute_batch("PRAGMA busy_timeout=5000;")
+        .map_err(|e| format!("DB_OPEN_FAILED: Failed to set index busy_timeout: {e}"))?;
     let embedding_snapshot = resolve_embedding_snapshot_from_app_setting(app);
     let vec_recreated = migrator::ensure_index_schema(&conn, embedding_snapshot.vec_dimensions)?;
     if get_meta(&conn, MIGRATION_STATE_KEY)?.is_none() {
@@ -459,6 +498,7 @@ pub fn ensure_index_database(
         main_db_name, state, rebuild_state
     );
     if state == "done" {
+        super::knowledge_migration::migrate_index(main_conn, &index_conn)?;
         eprintln!(
             "[mobile-index-db] ensure index database skip: main_db={}, migration_state=done, rebuild_state={}, elapsed_ms={}",
             main_db_name,
@@ -509,6 +549,7 @@ pub fn ensure_index_database(
     );
 
     set_meta(&index_conn, MIGRATION_STATE_KEY, "done")?;
+    super::knowledge_migration::migrate_index(main_conn, &index_conn)?;
     let next_rebuild_state = "pending";
     set_meta(&index_conn, REBUILD_STATE_KEY, next_rebuild_state)?;
     eprintln!(

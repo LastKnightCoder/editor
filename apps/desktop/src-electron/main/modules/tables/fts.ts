@@ -6,7 +6,6 @@ import { IndexType, SearchResult, IndexParams, SearchParams } from "@/types";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
-import DocumentTable from "./document";
 import DiaryTable from "./diary";
 import VecDocumentTable from "./vec-document";
 import { getMarkdown } from "@/utils/markdown.ts";
@@ -26,9 +25,7 @@ const addTypePrefix = (id: number, type: string): string => {
   return `${type}:${id}`;
 };
 
-const extractIdFromPrefixed = (
-  prefixedId: string,
-): { id: string; type: string } => {
+const extractIdFromPrefixed = (prefixedId: string): { id: string; type: string } => {
   const [type, id] = prefixedId.split(":");
   return { id, type };
 };
@@ -50,9 +47,7 @@ class FTSTable {
 
   private static hasTable(db: Database.Database, tableName: string): boolean {
     const row = db
-      .prepare(
-        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
-      )
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1")
       .get(tableName);
     return !!row;
   }
@@ -79,39 +74,39 @@ class FTSTable {
       "fts-index-content": (
         _mainDb: Database.Database,
         indexDb: Database.Database,
-        params: IndexParams,
+        params: IndexParams
       ) => this.indexContent(indexDb, params),
       "fts-batch-index-content": (
         _mainDb: Database.Database,
         indexDb: Database.Database,
-        items: IndexParams[],
+        items: IndexParams[]
       ) => this.batchIndexContent(indexDb, items),
       "fts-remove-index": (
         _mainDb: Database.Database,
         indexDb: Database.Database,
         id: number,
-        type: IndexType,
+        type: IndexType
       ) => this.removeIndexByIdAndType(indexDb, id, type),
       "fts-search-content": (
         mainDb: Database.Database,
         indexDb: Database.Database,
-        searchParams: SearchParams,
+        searchParams: SearchParams
       ) => this.searchContent(mainDb, indexDb, searchParams),
       "search-hybrid-content": (
         mainDb: Database.Database,
         indexDb: Database.Database,
-        searchParams: SearchParams,
+        searchParams: SearchParams
       ) => this.searchHybridContent(mainDb, indexDb, searchParams),
       "fts-check-index-exists": (
         _mainDb: Database.Database,
         indexDb: Database.Database,
         id: number,
-        type: IndexType,
+        type: IndexType
       ) => this.checkIndexExists(indexDb, id, type),
       "get-all-fts-results": (
         mainDb: Database.Database,
         indexDb: Database.Database,
-        type?: IndexType,
+        type?: IndexType
       ) => this.getAllFTSResults(mainDb, indexDb, type),
     };
   }
@@ -136,8 +131,8 @@ class FTSTable {
       overlap: 0,
       splitter: "paragraph",
     })
-      .map((chunkText) => chunkText.trim())
-      .filter((chunkText) => !!chunkText);
+      .map(chunkText => chunkText.trim())
+      .filter(chunkText => !!chunkText);
 
     try {
       if (chunks.length === 0) {
@@ -150,7 +145,7 @@ class FTSTable {
       `);
 
       let insertedCount = 0;
-      chunks.forEach((chunkText) => {
+      chunks.forEach(chunkText => {
         const segmentedText = this.segmentText(chunkText).trim();
         if (!segmentedText) return;
         stmt.run(prefixedId, segmentedText, updateTime, type);
@@ -189,8 +184,8 @@ class FTSTable {
           overlap: 0,
           splitter: "paragraph",
         })
-          .map((chunkText) => chunkText.trim())
-          .filter((chunkText) => !!chunkText);
+          .map(chunkText => chunkText.trim())
+          .filter(chunkText => !!chunkText);
 
         if (chunks.length === 0) {
           continue;
@@ -201,7 +196,7 @@ class FTSTable {
           VALUES (?, ?, ?, ?)
         `);
 
-        chunks.forEach((chunkText) => {
+        chunks.forEach(chunkText => {
           const segmentedText = this.segmentText(chunkText).trim();
           if (!segmentedText) return;
           stmt.run(prefixedId, segmentedText, updateTime, type);
@@ -227,11 +222,7 @@ class FTSTable {
     return true;
   }
 
-  static removeIndexByIdAndType(
-    db: Database.Database,
-    id: number,
-    type: IndexType,
-  ) {
+  static removeIndexByIdAndType(db: Database.Database, id: number, type: IndexType) {
     const prefixedId = addTypePrefix(id, type);
     return this.removeIndex(db, prefixedId);
   }
@@ -244,7 +235,7 @@ class FTSTable {
       .prepare(
         `
           DELETE FROM content_fts WHERE type = ?
-        `,
+        `
       )
       .run(type);
     return result.changes;
@@ -253,7 +244,7 @@ class FTSTable {
   static checkIndexExists(
     db: Database.Database,
     id: number,
-    type: IndexType,
+    type: IndexType
   ): { updateTime: number } | null {
     if (!this.hasTable(db, "content_fts")) {
       return null;
@@ -264,11 +255,7 @@ class FTSTable {
     `);
 
     const result: any = stmt.get(prefixedId);
-    if (
-      !result ||
-      result.update_time === null ||
-      result.update_time === undefined
-    ) {
+    if (!result || result.update_time === null || result.update_time === undefined) {
       return null;
     }
     return {
@@ -279,7 +266,7 @@ class FTSTable {
   static getAllFTSResults(
     mainDb: Database.Database,
     indexDb: Database.Database,
-    type?: IndexType,
+    type?: IndexType
   ): SearchResult[] {
     if (!this.hasTable(indexDb, "content_fts")) {
       return [];
@@ -311,7 +298,7 @@ class FTSTable {
 
   private static searchContentByLike(
     mainDb: Database.Database,
-    searchParams: SearchParams,
+    searchParams: SearchParams
   ): SearchResult[] {
     const { query, types = [], limit = 10 } = searchParams;
     if (!query.trim()) {
@@ -321,8 +308,8 @@ class FTSTable {
     const normalizedQuery = query.trim().toLowerCase();
     const tokens = jieba
       .cutForSearch(query, true)
-      .map((token) => token.trim().toLowerCase())
-      .filter((token) => !!token);
+      .map(token => token.trim().toLowerCase())
+      .filter(token => !!token);
 
     const typeSet = new Set(types);
     const shouldIncludeType = (type: IndexType): boolean => {
@@ -334,7 +321,7 @@ class FTSTable {
       if (lowerText.includes(normalizedQuery)) {
         return true;
       }
-      return tokens.some((token) => lowerText.includes(token));
+      return tokens.some(token => lowerText.includes(token));
     };
 
     const partialResults: PartialSearchResult[] = [];
@@ -375,18 +362,6 @@ class FTSTable {
       });
     }
 
-    for (const item of DocumentTable.getAllDocumentItems(mainDb)) {
-      if (!shouldIncludeType("document-item")) continue;
-      const text = getMarkdown(item.content || []).trim();
-      if (!text || !isMatch(text)) continue;
-      partialResults.push({
-        id: item.id,
-        type: "document-item",
-        source: "fts",
-        updateTime: Number(item.updateTime || 0),
-      });
-    }
-
     for (const entry of DiaryTable.getAllDiaryEntries(mainDb)) {
       const entryType: IndexType = "diary-daily";
       if (!shouldIncludeType(entryType)) continue;
@@ -407,7 +382,7 @@ class FTSTable {
   static searchContent(
     mainDb: Database.Database,
     indexDb: Database.Database,
-    searchParams: SearchParams,
+    searchParams: SearchParams
   ): SearchResult[] {
     const { query, types = [], limit = 10 } = searchParams;
 
@@ -419,7 +394,7 @@ class FTSTable {
 
     const segmentedQuery = jieba
       .cutForSearch(query, true)
-      .filter((item) => !!item.trim())
+      .filter(item => !!item.trim())
       .join(" OR ");
 
     if (!segmentedQuery.trim()) {
@@ -451,18 +426,16 @@ class FTSTable {
       params.push(String(limit));
 
       const results = stmt.all(...params);
-      const partialResults: PartialSearchResult[] = results.map(
-        (result: any) => {
-          const { id, type } = extractIdFromPrefixed(result.prefixed_id);
-          return {
-            id: Number(id),
-            type: type as IndexType,
-            source: "fts",
-            updateTime: result.update_time,
-            rank: result.rank,
-          };
-        },
-      );
+      const partialResults: PartialSearchResult[] = results.map((result: any) => {
+        const { id, type } = extractIdFromPrefixed(result.prefixed_id);
+        return {
+          id: Number(id),
+          type: type as IndexType,
+          source: "fts",
+          updateTime: result.update_time,
+          rank: result.rank,
+        };
+      });
 
       return this.getSearchResultDetails(mainDb, partialResults);
     } catch (error) {
@@ -474,7 +447,7 @@ class FTSTable {
   static async searchHybridContent(
     mainDb: Database.Database,
     indexDb: Database.Database,
-    searchParams: SearchParams,
+    searchParams: SearchParams
   ): Promise<SearchResult[]> {
     const adapter = createMainContentAdapter();
     const searchModelConfig = await readSearchModelProviderConfig();
@@ -502,7 +475,7 @@ class FTSTable {
         : new NoopExpander(
             searchModelConfig.enableExpander
               ? "未配置本地 query expansion 模型"
-              : "query expansion 已禁用",
+              : "query expansion 已禁用"
           );
     const reranker =
       searchModelConfig.enableReranker && searchModelConfig.rerankerModel
@@ -513,9 +486,7 @@ class FTSTable {
             devicePolicy: searchModelConfig.devicePolicy,
           })
         : new NoopReranker(
-            searchModelConfig.enableReranker
-              ? "未配置本地 reranker 模型"
-              : "reranker 已禁用",
+            searchModelConfig.enableReranker ? "未配置本地 reranker 模型" : "reranker 已禁用"
           );
 
     const context: MainContentAdapterContext = {
@@ -533,10 +504,10 @@ class FTSTable {
       adapter,
       expander,
       reranker,
-      logger: (pipelineLog) => {
+      logger: pipelineLog => {
         log.info("[SearchCore][main-content]", pipelineLog);
       },
-      stageLogger: (stageLog) => {
+      stageLogger: stageLog => {
         log.info(`[SearchCore][main-content][${stageLog.stage}]`, stageLog);
       },
     });
@@ -546,7 +517,7 @@ class FTSTable {
 
   static getSearchResultDetails(
     db: Database.Database,
-    results: PartialSearchResult[],
+    results: PartialSearchResult[]
   ): SearchResult[] {
     const detailedResults = [];
 
@@ -562,9 +533,6 @@ class FTSTable {
           break;
         case "project-item":
           details = ProjectTable.getProjectItem(db, result.id);
-          break;
-        case "document-item":
-          details = DocumentTable.getDocumentItem(db, result.id);
           break;
         case "diary-daily": {
           const diaryEntry = DiaryTable.getDiaryEntryById(db, result.id);

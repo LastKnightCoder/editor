@@ -30,6 +30,7 @@ export interface ISyncProvider {
 // 数据库信息类型
 export interface IDatabaseInfo {
   version: number;
+  dataModelVersion?: number;
   [key: string]: unknown;
 }
 

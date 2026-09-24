@@ -133,15 +133,6 @@ pub fn run() {
             database::project_item_create,
             database::project_item_update,
             database::project_item_delete,
-            database::document_library_list,
-            database::document_library_get,
-            database::document_item_list,
-            database::document_library_create,
-            database::document_library_update,
-            database::document_library_delete,
-            database::document_item_create,
-            database::document_item_update,
-            database::document_item_delete,
             database::pomodoro_list_presets,
             database::pomodoro_create_preset,
             database::pomodoro_update_preset,
@@ -181,6 +172,7 @@ pub fn run() {
             database::collab_list_bindings,
             database::collab_unbind_content,
             database::collab_project_content,
+            database::collab_knowledge_mapping,
             request_background
         ])
         .setup(|app| {

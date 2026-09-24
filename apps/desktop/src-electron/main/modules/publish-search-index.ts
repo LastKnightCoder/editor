@@ -18,7 +18,7 @@ export interface IPublishSearchDocEntry {
   createTime: number;
   updateTime: number;
   tags: string[];
-  kind: "project" | "document";
+  kind: "project";
   content: Descendant[];
 }
 
@@ -85,21 +85,20 @@ function firstMarkdownLine(markdown: string): string {
   return (
     markdown
       .split(/\r?\n/)
-      .map((line) => line.replace(/^#+\s*/, "").trim())
-      .find((line) => line.length > 0) || ""
+      .map(line => line.replace(/^#+\s*/, "").trim())
+      .find(line => line.length > 0) || ""
   );
 }
 
 function createItem(
   item: Omit<IPublishSearchItem, "typeLabel"> & {
     type: IPublishSearchItemType;
-  },
+  }
 ): IPublishSearchItem {
   const typeLabels: Record<IPublishSearchItemType, string> = {
     card: "卡片",
     article: "文章",
     "project-doc": "项目文档",
-    "knowledge-doc": "知识库文档",
     quest: "求索录",
   };
 
@@ -108,7 +107,7 @@ function createItem(
     title: item.title.trim(),
     summary: item.summary.trim(),
     content: item.content.trim(),
-    tags: item.tags.map((tag) => tag.trim()).filter(Boolean),
+    tags: item.tags.map(tag => tag.trim()).filter(Boolean),
     typeLabel: typeLabels[item.type],
   };
 }
@@ -149,9 +148,9 @@ function buildArticleSearchItem(article: IArticle): IPublishSearchItem {
 }
 
 export function getDocSearchType(
-  kind: IPublishSearchDocEntry["kind"],
-): Extract<IPublishSearchItemType, "project-doc" | "knowledge-doc"> {
-  return kind === "project" ? "project-doc" : "knowledge-doc";
+  _kind: IPublishSearchDocEntry["kind"]
+): Extract<IPublishSearchItemType, "project-doc"> {
+  return "project-doc";
 }
 
 function buildDocSearchItem(entry: IPublishSearchDocEntry): IPublishSearchItem {
@@ -170,16 +169,12 @@ function buildDocSearchItem(entry: IPublishSearchDocEntry): IPublishSearchItem {
   });
 }
 
-function buildQuestSearchItem(
-  entry: IPublishSearchQuestEntry,
-): IPublishSearchItem {
+function buildQuestSearchItem(entry: IPublishSearchQuestEntry): IPublishSearchItem {
   const description = serializeContent(entry.description || []);
   const answers = entry.answers
-    .map((answer) => serializeContent(answer.content || []))
+    .map(answer => serializeContent(answer.content || []))
     .filter(Boolean);
-  const content = compactText(
-    [entry.title, entry.summary, description, ...answers].join(" "),
-  );
+  const content = compactText([entry.title, entry.summary, description, ...answers].join(" "));
 
   return createItem({
     id: entry.id,
@@ -209,7 +204,7 @@ export function buildPublishSearchItems({
 }
 
 export function buildPublishSearchIndexPayload(
-  input: BuildPublishSearchIndexInput,
+  input: BuildPublishSearchIndexInput
 ): IPublishSearchIndexPayload {
   const items = buildPublishSearchItems(input);
   const index = Fuse.createIndex(PUBLISH_SEARCH_OPTIONS.keys || [], items);

@@ -7,18 +7,12 @@ import useSettingStore from "@/stores/useSettingStore";
 import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
 import { Descendant } from "slate";
 
-const VALID_TYPES: IndexType[] = [
-  "card",
-  "article",
-  "project-item",
-  "document-item",
-  "diary-daily",
-];
+const VALID_TYPES: IndexType[] = ["card", "article", "project-item", "diary-daily"];
 
 export const createKnowledgeSearchTool = (): ToolDefinition => ({
   name: "search_knowledge",
   description:
-    "搜索用户的个人知识库内容，包括卡片、文章、项目条目、文档条目、日记、周记、月记等。" +
+    "搜索用户的个人知识库内容，包括卡片、文章、项目条目、日记、周记、月记等。" +
     "当用户的问题可能涉及其已有的笔记、资料或知识时，使用此工具进行检索。" +
     "返回匹配的内容列表（标题、完整内容、类型、ID 等），可在后续回答中引用。",
   parameters: {
@@ -36,16 +30,10 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
         type: "array",
         items: {
           type: "string",
-          enum: [
-            "card",
-            "article",
-            "project-item",
-            "document-item",
-            "diary-daily",
-          ],
+          enum: ["card", "article", "project-item", "diary-daily"],
         },
         description:
-          "可选，限定搜索的内容类型。不传则搜索所有类型。可选值：card（卡片）、article（文章）、project-item（项目条目）、document-item（文档条目）、diary-daily（日记）",
+          "可选，限定搜索的内容类型。不传则搜索所有类型。可选值：card（卡片）、article（文章）、project-item（项目条目）、diary-daily（日记）",
       },
       limit: {
         type: "number",
@@ -54,7 +42,7 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
     },
     required: ["query"],
   },
-  executor: async (args) => {
+  executor: async args => {
     const {
       query,
       types,
@@ -82,9 +70,7 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
 
       const searchTypes =
         types && types.length > 0
-          ? (types.filter((t) =>
-              VALID_TYPES.includes(t as IndexType),
-            ) as IndexType[])
+          ? (types.filter(t => VALID_TYPES.includes(t as IndexType)) as IndexType[])
           : VALID_TYPES;
 
       console.log(
@@ -94,7 +80,7 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
           types: searchTypes,
           limit: Math.min(limit, 10),
           hasModelInfo: !!modelInfo,
-        }),
+        })
       );
 
       const t1 = performance.now();
@@ -108,13 +94,11 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
       const t2 = performance.now();
 
       console.log(
-        `[search_knowledge] searchContent 完成: ${results.length} 条结果, 耗时 ${(t2 - t1).toFixed(0)}ms`,
+        `[search_knowledge] searchContent 完成: ${results.length} 条结果, 耗时 ${(t2 - t1).toFixed(0)}ms`
       );
 
       if (results.length === 0) {
-        console.log(
-          `[search_knowledge] 总耗时 ${(performance.now() - t0).toFixed(0)}ms (无结果)`,
-        );
+        console.log(`[search_knowledge] 总耗时 ${(performance.now() - t0).toFixed(0)}ms (无结果)`);
         return {
           content: JSON.stringify({
             success: true,
@@ -132,7 +116,7 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
         };
       }
 
-      const formattedResults = results.map((r) => ({
+      const formattedResults = results.map(r => ({
         id: r.id,
         contentId: r.contentId,
         type: r.type,
@@ -146,7 +130,7 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
       const t3 = performance.now();
 
       console.log(
-        `[search_knowledge] 格式化完成, 耗时 ${(t3 - t2).toFixed(0)}ms, 总耗时 ${(t3 - t0).toFixed(0)}ms`,
+        `[search_knowledge] 格式化完成, 耗时 ${(t3 - t2).toFixed(0)}ms, 总耗时 ${(t3 - t0).toFixed(0)}ms`
       );
 
       return {
@@ -165,8 +149,7 @@ export const createKnowledgeSearchTool = (): ToolDefinition => ({
         },
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return {
         content: JSON.stringify({
           success: false,

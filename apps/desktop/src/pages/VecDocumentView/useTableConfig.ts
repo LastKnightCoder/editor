@@ -3,7 +3,6 @@ import { useMemo } from "react";
 import useCardConfig from "./useCardConfig";
 import useArticleConig from "./useArticleConfig";
 import useProjectConfig from "./useProjectConfig";
-import useDocumentConfig from "./useDocumentConfig";
 import useDiaryConfig from "./useDiaryConfig";
 import { IndexType } from "@/types";
 
@@ -22,7 +21,6 @@ const useTableConfig = (key: IndexType | "diary"): TableConfig | null => {
   const cardConfig = useCardConfig();
   const articleConfig = useArticleConig();
   const projectConfig = useProjectConfig();
-  const documentConfig = useDocumentConfig();
   const diaryConfig = useDiaryConfig();
 
   const tableConfig = useMemo(() => {
@@ -32,21 +30,12 @@ const useTableConfig = (key: IndexType | "diary"): TableConfig | null => {
       return articleConfig;
     } else if (key === "project-item") {
       return projectConfig;
-    } else if (key === "document-item") {
-      return documentConfig;
     } else if (key === "diary") {
       return diaryConfig;
     } else {
       return null;
     }
-  }, [
-    cardConfig,
-    articleConfig,
-    projectConfig,
-    documentConfig,
-    diaryConfig,
-    key,
-  ]);
+  }, [cardConfig, articleConfig, projectConfig, diaryConfig, key]);
 
   return tableConfig;
 };

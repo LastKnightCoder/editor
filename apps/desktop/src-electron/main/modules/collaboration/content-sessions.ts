@@ -35,8 +35,7 @@ export function contentSession(db: Database.Database, contentId: number) {
   const session = sessions.get(db)?.get(contentId);
   if (!session) return;
   const row = db.prepare("SELECT create_time FROM contents WHERE id=?").get(contentId) as
-    | { create_time: number }
-    | undefined;
+    { create_time: number } | undefined;
   if (row?.create_time !== session.info.source?.contentCreatedAt) {
     sessions.get(db)?.delete(contentId);
     return;
@@ -113,7 +112,7 @@ export function setCanonicalContentTitle(db: Database.Database, contentId: numbe
 }
 
 export function findContentTitle(db: Database.Database, contentId: number) {
-  for (const table of ["articles", "project_item", "document_items"]) {
+  for (const table of ["articles", "project_item"]) {
     const row = db
       .prepare(`SELECT title FROM ${table} WHERE content_id=? ORDER BY id LIMIT 1`)
       .get(contentId) as { title: string } | undefined;
@@ -128,7 +127,6 @@ export function projectContentTitle(db: Database.Database, contentId: number, ti
     for (const [table, entity, field] of [
       ["articles", "article", "articleId"],
       ["project_item", "project-item", "projectItemId"],
-      ["document_items", "document-item", "documentItemId"],
     ]) {
       const rows = db
         .prepare(`SELECT id FROM ${table} WHERE content_id=? AND title<>?`)

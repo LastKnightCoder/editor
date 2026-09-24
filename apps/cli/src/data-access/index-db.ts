@@ -5,13 +5,7 @@ import sqliteVec from "sqlite-vec";
 import { getAppDir, getActiveDbName } from "../utils/path.js";
 
 export type IndexType =
-  | "card"
-  | "article"
-  | "project-item"
-  | "document-item"
-  | "diary-daily"
-  | "diary-weekly"
-  | "diary-monthly";
+  "card" | "article" | "project-item" | "diary-daily" | "diary-weekly" | "diary-monthly";
 
 export interface FTSResult {
   id: number;
@@ -20,28 +14,24 @@ export interface FTSResult {
   rank: number;
 }
 
-function getIndexDbPath(dbName: string): string {
+export function getIndexDbPath(dbName: string): string {
   const baseName = dbName.replace(/\.db$/, "");
   return join(getAppDir(), "index", baseName, `${baseName}.index.db`);
 }
 
 function hasTable(db: Database.Database, tableName: string): boolean {
   const row = db
-    .prepare(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name=? LIMIT 1",
-    )
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=? LIMIT 1")
     .get(tableName) as { name: string } | undefined;
   return !!row;
 }
 
 function isIndexReady(db: Database.Database): boolean {
   if (!hasTable(db, "index_meta")) return false;
-  const migration = db
-    .prepare("SELECT value FROM index_meta WHERE key='migration_state'")
-    .get() as { value?: string } | undefined;
-  const rebuild = db
-    .prepare("SELECT value FROM index_meta WHERE key='rebuild_state'")
-    .get() as { value?: string } | undefined;
+  const migration = db.prepare("SELECT value FROM index_meta WHERE key='migration_state'").get() as
+    { value?: string } | undefined;
+  const rebuild = db.prepare("SELECT value FROM index_meta WHERE key='rebuild_state'").get() as
+    { value?: string } | undefined;
   return migration?.value === "done" && rebuild?.value === "ready";
 }
 
@@ -86,13 +76,13 @@ function tokenizeQuery(query: string): string {
     }
   }
 
-  const unique = [...new Set(tokens.filter((t) => t.length > 0))];
+  const unique = [...new Set(tokens.filter(t => t.length > 0))];
   return unique.join(" OR ");
 }
 
 export function searchFTS(
   query: string,
-  options?: { types?: IndexType[]; limit?: number },
+  options?: { types?: IndexType[]; limit?: number }
 ): FTSResult[] | null {
   const dbName = getActiveDbName();
   const indexPath = getIndexDbPath(dbName);
@@ -141,7 +131,7 @@ export function searchFTS(
       rank: number;
     }>;
 
-    return rows.map((row) => {
+    return rows.map(row => {
       const [type, id] = row.prefixed_id.split(":");
       return {
         id: Number(id),
@@ -168,22 +158,20 @@ export interface VecResult {
 function isVecReady(db: Database.Database): boolean {
   if (!hasTable(db, "vec_documents")) return false;
   if (!hasTable(db, "index_meta")) return false;
-  const migration = db
-    .prepare("SELECT value FROM index_meta WHERE key='migration_state'")
-    .get() as { value?: string } | undefined;
+  const migration = db.prepare("SELECT value FROM index_meta WHERE key='migration_state'").get() as
+    { value?: string } | undefined;
   const vecRebuild = db
     .prepare("SELECT value FROM index_meta WHERE key='vec_rebuild_state'")
     .get() as { value?: string } | undefined;
-  const rebuild = db
-    .prepare("SELECT value FROM index_meta WHERE key='rebuild_state'")
-    .get() as { value?: string } | undefined;
+  const rebuild = db.prepare("SELECT value FROM index_meta WHERE key='rebuild_state'").get() as
+    { value?: string } | undefined;
   const rebuildState = vecRebuild?.value || rebuild?.value || "pending";
   return migration?.value === "done" && rebuildState !== "failed";
 }
 
 export function searchVec(
   queryEmbedding: number[],
-  options?: { types?: IndexType[]; limit?: number; distance?: number },
+  options?: { types?: IndexType[]; limit?: number; distance?: number }
 ): VecResult[] | null {
   const dbName = getActiveDbName();
   const indexPath = getIndexDbPath(dbName);
@@ -214,9 +202,7 @@ export function searchVec(
     const maxDistance = options?.distance ?? 0.6;
 
     const typeClause =
-      types && types.length > 0
-        ? `AND type IN (${types.map(() => "?").join(",")})`
-        : "";
+      types && types.length > 0 ? `AND type IN (${types.map(() => "?").join(",")})` : "";
 
     const sql = `
       SELECT prefixed_id, update_time, content, distance

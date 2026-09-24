@@ -73,8 +73,7 @@ export interface CardsOverviewResponse {
   items: CardListItem[];
 }
 
-export type UnifiedSearchResultType =
-  "card" | "article" | "project-item" | "document-item" | "diary-daily";
+export type UnifiedSearchResultType = "card" | "article" | "project-item" | "diary-daily";
 
 export interface UnifiedSearchResult {
   id: number;
@@ -169,6 +168,7 @@ export type ProjectItemType =
 export interface ProjectItem {
   id: number;
   title: string;
+  tags?: string[];
   children: number[];
   parents: number[];
   projects: number[];
@@ -181,49 +181,12 @@ export interface ProjectItem {
   updateTime: number;
 }
 
-/* ── 知识库 ── */
-
-export interface DocumentLibraryListResponse {
-  items: DocumentLibrary[];
-  total: number;
-}
-
-export interface DocumentLibrary {
-  id: number;
-  title: string;
-  descText: string;
-  children: number[];
-  isTop: boolean;
-  createTime: number;
-  updateTime: number;
-  itemCount: number;
-  linkCount: number;
-}
-
-/** refType: '' = 自持正文文档；'card' | 'article' = 引用 */
-export interface DocumentItem {
-  id: number;
-  title: string;
-  children: number[];
-  parents: number[];
-  documents: number[];
-  refType: string;
-  refId: number;
-  contentId: number | null;
-  count: number;
-  createTime: number;
-  updateTime: number;
-  tags: string[];
-}
-
 /* ── 首页汇总统计 ── */
 
 export interface HomeStats {
   articlesTotal: number;
   projectsTotal: number;
   projectDocumentsTotal: number;
-  documentLibrariesTotal: number;
-  knowledgeDocumentsTotal: number;
 }
 
 export interface SyncVersionResponse {

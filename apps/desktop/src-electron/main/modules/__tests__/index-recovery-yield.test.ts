@@ -38,7 +38,6 @@ const mockContext = vi.hoisted(() => {
     cards: makeItems(30),
     articles: [],
     projects: [],
-    documents: [],
     diaries: [],
     videoRows: makeItems(25),
     databaseModuleMock: {
@@ -54,11 +53,13 @@ const mockContext = vi.hoisted(() => {
       onDatabaseConnected: vi.fn(),
     },
     ftsTableMock: {
+      removeIndexesByType: vi.fn(() => 0),
       checkIndexExists: vi.fn(() => null),
       removeIndexByIdAndType: vi.fn(),
       indexContent: vi.fn(() => true),
     },
     vecTableMock: {
+      removeIndexesByType: vi.fn(() => 0),
       checkIndexExists: vi.fn(() => null),
       indexContent: vi.fn(async () => true),
       clearTableData: vi.fn(),
@@ -96,12 +97,6 @@ vi.mock("../tables/article", () => ({
 vi.mock("../tables/project", () => ({
   default: {
     getAllProjectItems: () => mockContext.projects,
-  },
-}));
-
-vi.mock("../tables/document", () => ({
-  default: {
-    getAllDocumentItems: () => mockContext.documents,
   },
 }));
 

@@ -5,7 +5,6 @@ import databaseModule from "./database";
 import CardTable from "./tables/card";
 import ArticleTable from "./tables/article";
 import ProjectTable from "./tables/project";
-import DocumentTable from "./tables/document";
 import DiaryTable from "./tables/diary";
 import VecDocumentTable from "./tables/vec-document";
 import { getMarkdown } from "@/utils/markdown.ts";
@@ -292,23 +291,6 @@ class MainContentVecIndexQueue implements Module {
         {
           id: item.id,
           type: "project-item",
-          content: getMarkdown(item.content || []).trim(),
-          updateTime: Number(item.updateTime || 0),
-        },
-        forceReindex
-      );
-      processed += 1;
-      await yieldEvery(processed, MainContentVecIndexQueue.COLLECT_YIELD_EVERY);
-    }
-    await yieldToEventLoop();
-
-    for (const item of DocumentTable.getAllDocumentItems(mainDb)) {
-      this.appendTask(
-        indexDb,
-        tasks,
-        {
-          id: item.id,
-          type: "document-item",
           content: getMarkdown(item.content || []).trim(),
           updateTime: Number(item.updateTime || 0),
         },

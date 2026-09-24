@@ -5,11 +5,10 @@ import { StatisticData } from "@/types";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
-import DocumentTable from "./document";
 import log from "electron-log";
 
 // 统计覆盖的内容类型，与首页趋势图 TREND_TYPES 对应
-const STATISTIC_TYPES = ["card", "article", "project-item", "document-item"] as const;
+const STATISTIC_TYPES = ["card", "article", "project-item"] as const;
 
 export default class StatisticTable {
   static upgradeTable(db: Database.Database) {
@@ -77,13 +76,6 @@ export default class StatisticTable {
       return {
         count: projectItems.length,
         wordsCount: projectItems.reduce((acc, item) => acc + item.count, 0),
-      };
-    }
-    if (type === "document-item") {
-      const documentItems = DocumentTable.getAllDocumentItems(db);
-      return {
-        count: documentItems.length,
-        wordsCount: documentItems.reduce((acc, item) => acc + item.count, 0),
       };
     }
     return { count: 0, wordsCount: 0 };

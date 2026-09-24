@@ -18,6 +18,7 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/ali-oss": "^6.16.11",
     "@types/better-sqlite3": "^7.6.12",
     "@types/react": "^19.1.0",
     "@types/ws": "^8.5.13",

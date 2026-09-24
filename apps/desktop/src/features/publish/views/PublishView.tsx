@@ -36,7 +36,7 @@ export function PublishView() {
   const runner = usePublishRun(config);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // 项目/知识库「全选」会逐个实体回调，合并成一次刷新
+  // 项目「全选」会逐个实体回调，合并成一次刷新
   const selectionTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const { onSelectionsChange } = runner;
   const handleSelectionsChange = () => {

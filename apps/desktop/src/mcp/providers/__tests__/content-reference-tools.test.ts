@@ -37,16 +37,13 @@ vi.mock("@/utils/answer-content", () => ({
     isCard: false,
     isArticle: true,
     projectMountCount: 0,
-    documentMountCount: 0,
   })),
   getAnswerPrimaryContentType: vi.fn(() => "article"),
 }));
 
 import { contentReferenceToolsProvider } from "../content-reference-tools";
 
-const getJsonPayload = (
-  result: string | { content: string } | null | undefined,
-) => {
+const getJsonPayload = (result: string | { content: string } | null | undefined) => {
   if (!result || typeof result === "string" || !("content" in result)) {
     throw new Error("工具执行结果不是预期的 JSON 对象");
   }
@@ -57,7 +54,7 @@ describe("content-reference-tools", () => {
   it("应按 contentId 返回正文 markdown 与元信息", async () => {
     const tool = contentReferenceToolsProvider
       .tools()
-      .find((item) => item.name === "get_referenced_content");
+      .find(item => item.name === "get_referenced_content");
 
     expect(tool).toBeTruthy();
 
@@ -77,7 +74,7 @@ describe("content-reference-tools", () => {
   it("应返回可供模型使用的引用元数据", async () => {
     const tool = contentReferenceToolsProvider
       .tools()
-      .find((item) => item.name === "get_referenced_content_meta");
+      .find(item => item.name === "get_referenced_content_meta");
 
     expect(tool).toBeTruthy();
 

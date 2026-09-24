@@ -11,7 +11,6 @@ vi.mock("@/mcp/tab-content/utils", () => ({ getActiveTab: mocks.active }));
 vi.mock("@/commands/card", () => ({ getCardById: mocks.card }));
 vi.mock("@/commands/article", () => ({ findOneArticle: mocks.article }));
 vi.mock("@/commands/project", () => ({ getProjectItemById: mocks.project }));
-vi.mock("@/commands/document", () => ({ getDocumentItem: vi.fn() }));
 vi.mock("@/commands/content", () => ({ getContentById: vi.fn() }));
 
 beforeEach(() => vi.clearAllMocks());

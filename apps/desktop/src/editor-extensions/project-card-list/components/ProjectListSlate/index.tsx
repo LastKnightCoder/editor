@@ -18,7 +18,7 @@ interface IProjectCardExtensionProps {
   children: React.ReactNode;
 }
 
-const DocumentListSlate = (props: IProjectCardExtensionProps) => {
+const ProjectListSlate = (props: IProjectCardExtensionProps) => {
   const { attributes, children, element } = props;
 
   const { drag, drop, isDragging, canDrag, canDrop, isBefore, isOverCurrent } = useDragAndDrop({
@@ -65,4 +65,4 @@ const DocumentListSlate = (props: IProjectCardExtensionProps) => {
   );
 };
 
-export default DocumentListSlate;
+export default ProjectListSlate;

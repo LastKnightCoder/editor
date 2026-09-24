@@ -9,6 +9,7 @@ import {
   reconnectDatabaseFast,
   readBinaryFile,
   writeBinaryFile,
+  renameFileOrDirectory,
   createDir,
   pathExists,
   getSep,
@@ -20,6 +21,7 @@ import useSettingStore from "@/stores/useSettingStore.ts";
 import useGlobalStateStore, { DatabaseConnectionStatus } from "@/stores/useGlobalStateStore";
 import { SyncProviderFactory } from "@/utils/sync";
 import type { IDatabaseInfo } from "@/types/sync";
+import { DATA_MODEL_VERSION, assertCompatibleDataModel } from "@tau/db-schema/src/model-version";
 
 interface SyncCommandOptions {
   onProgress?: (payload: { value: number; status: string }) => void;
@@ -102,12 +104,12 @@ export const upload = async (options?: SyncCommandOptions) => {
   }
 
   emitProgress(options, 5, "正在准备同步...");
+  const { databaseInfoObjectName, databaseInfo } = await getOriginDatabaseInfo();
 
   setDatabaseConnectionStatus(databaseName, "reconnecting");
   await closeDatabase(databaseName);
   emitProgress(options, 15, "正在关闭数据库连接...");
 
-  const { databaseInfoObjectName, databaseInfo } = await getOriginDatabaseInfo();
   emitProgress(options, 25, "正在校验远程数据库版本...");
 
   const originVersion = Number(databaseInfo.version || 0);
@@ -125,6 +127,7 @@ export const upload = async (options?: SyncCommandOptions) => {
   const newDatabaseInfo: IDatabaseInfo = {
     ...databaseInfo,
     version: currentVersion + 1,
+    dataModelVersion: DATA_MODEL_VERSION,
   };
 
   const textEncoder = new TextEncoder();
@@ -250,7 +253,17 @@ export const download = async (options?: SyncCommandOptions) => {
     try {
       emitProgress(options, 60, "正在下载远程数据库文件...");
       const contents = await syncProvider.downloadFile(dataObjectName);
-      await writeBinaryFile(databasePath, contents);
+      const downloadPath = `${databasePath}.download.tmp`;
+      try {
+        await writeBinaryFile(downloadPath, contents);
+        await invoke("validate-downloaded-database", databaseName);
+        // 临时文件与目标同目录，rename 原子替换，避免复制中途崩溃留下半截主库
+        await renameFileOrDirectory(downloadPath, databasePath);
+        // 主库已被远端内容替换，本地索引的 ID 空间整体失效，重置后按需全量重建。
+        await invoke("reset-content-index", databaseName);
+      } finally {
+        await removeFile(downloadPath).catch(() => undefined);
+      }
       emitProgress(options, 85, "正在更新本地数据库...");
     } catch (e) {
       databaseDownloadSuccess = false;
@@ -324,6 +337,7 @@ export const getOriginDatabaseInfo = async () => {
     }
   }
 
+  assertCompatibleDataModel(databaseInfo);
   return {
     isDatabaseInfoExist,
     databaseInfo,

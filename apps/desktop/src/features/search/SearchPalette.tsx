@@ -44,11 +44,10 @@ import type { IndexType, SearchResult } from "@/types";
 
 /* ---------- 前缀语法：追加语义，冒号兼容全角 ---------- */
 
-const TYPE_WORDS = ["卡片", "文章", "知识库", "项目", "日记", "命令"];
+const TYPE_WORDS = ["卡片", "文章", "项目", "日记", "命令"];
 const WORD_TO_SCOPE: Record<string, PaletteScope> = {
   卡片: "card",
   文章: "article",
-  知识库: "document-item",
   项目: "project-item",
   日记: "diary-daily",
   命令: "cmd",

@@ -31,7 +31,6 @@ function SettingsScreen() {
       onOpenSearch={() => navigator.push("search")}
       onOpenArticles={() => navigator.push("articles")}
       onOpenProjects={() => navigator.push("projects")}
-      onOpenKnowledge={() => navigator.push("knowledge")}
       onSwitchDatabase={app.handleSwitchDatabase}
       onSaveSetting={app.handleSaveSetting}
       onCheckVersions={app.handleCheckVersions}

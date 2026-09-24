@@ -135,7 +135,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const [isCard, setIsCard] = useState(false);
   const [isArticle, setIsArticle] = useState(false);
   const [insertProjectModalOpen, setInsertProjectModalOpen] = useState(false);
-  const [insertDocumentModalOpen, setInsertDocumentModalOpen] = useState(false);
 
   // 标题是否有变化
   const titleChangedRef = useRef(false);
@@ -389,16 +388,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       return;
     }
     setInsertProjectModalOpen(true);
-  });
-
-  // 插入到知识库
-  const handleInsertToDocument = useMemoizedFn(async () => {
-    const savedNote = await saveNote();
-    if (!savedNote || !savedNote.contentId) {
-      toast.error("请先保存笔记");
-      return;
-    }
-    setInsertDocumentModalOpen(true);
   });
 
   const handleAddToResourceList = useMemoizedFn(async () => {
@@ -753,12 +742,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               onClick: handleInsertToProject,
             },
             {
-              key: "insert-to-document",
-              icon: <Import className="size-4" strokeWidth={1.75} />,
-              label: "插入到知识库",
-              onClick: handleInsertToDocument,
-            },
-            {
               key: "download-md",
               icon: <Download className="size-4" strokeWidth={1.75} />,
               label: "下载 Markdown",
@@ -816,12 +799,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
               icon: <Import className="size-4" strokeWidth={1.75} />,
               label: "插入到项目",
               onClick: handleInsertToProject,
-            },
-            {
-              key: "insert-to-document",
-              icon: <Import className="size-4" strokeWidth={1.75} />,
-              label: "插入到知识库",
-              onClick: handleInsertToDocument,
             },
             {
               key: "download-md",
@@ -1175,16 +1152,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
         onSuccess={() => setInsertProjectModalOpen(false)}
       />
 
-      {/* 插入到知识库弹窗 */}
-      <InsertNoteToTreeModal
-        mode="document"
-        open={insertDocumentModalOpen}
-        noteTitle={title}
-        noteContent={content}
-        sourceContentId={contentId}
-        onCancel={() => setInsertDocumentModalOpen(false)}
-        onSuccess={() => setInsertDocumentModalOpen(false)}
-      />
       <ConfirmDialog
         open={deleteConfirmOpen}
         onOpenChange={setDeleteConfirmOpen}

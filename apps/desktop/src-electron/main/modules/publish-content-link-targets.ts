@@ -4,14 +4,12 @@ type ContentLinkTargets = NonNullable<IPublishInitData["contentLinkTargets"]>;
 
 type DocEntryTarget = {
   id: number;
-  kind: "project" | "document";
+  kind: "project";
   href: string;
   title: string;
 };
 
-function mergeTargets(
-  base?: IPublishInitData["contentLinkTargets"],
-): ContentLinkTargets {
+function mergeTargets(base?: IPublishInitData["contentLinkTargets"]): ContentLinkTargets {
   return base ? { ...base } : {};
 }
 
@@ -42,13 +40,12 @@ export function buildSelectionContentLinkTargets(input: {
 
 export function mergeDocEntryContentLinkTargets(
   baseTargets: IPublishInitData["contentLinkTargets"],
-  docEntries: DocEntryTarget[],
+  docEntries: DocEntryTarget[]
 ): IPublishInitData["contentLinkTargets"] {
   const targets = mergeTargets(baseTargets);
 
   for (const entry of docEntries) {
-    const contentType =
-      entry.kind === "project" ? "project-item" : "document-item";
+    const contentType = "project-item";
     targets[`${contentType}:${entry.id}`] = {
       contentType,
       refId: entry.id,

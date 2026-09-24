@@ -3,7 +3,7 @@
 // 数据全部走 query 缓存，模块关闭时对应请求与区块一并隐藏。
 
 import { useMemo } from "react";
-import { Article, BookOpen, Books, CheckCircle, FolderOpen, Stack } from "@phosphor-icons/react";
+import { Article, BookOpen, CheckCircle, FolderOpen, Stack } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import type { Descendant } from "slate";
 import { Text as SlateText } from "slate";
@@ -11,7 +11,6 @@ import type { CardListItem, DiaryEntry, DiarySegment } from "../../types";
 import { useDiaryEntries } from "../diary/queries";
 import { useArticlesQuery } from "../articles/queries";
 import { useProjectItemsQuery } from "../projects/queries";
-import { useDocumentItemsQuery } from "../knowledge/queries";
 import { useHomeStatsQuery } from "./queries";
 import { useTodoGroupStats, useTodoItems, useTodoSystemGroups } from "../todo/queries";
 import { toggleTodoComplete } from "../todo/toggleComplete";
@@ -58,10 +57,8 @@ type HomeDashboardProps = {
   onOpenDiary: () => void;
   onOpenArticles: () => void;
   onOpenProjects: () => void;
-  onOpenKnowledge: () => void;
   onOpenArticle: (articleId: number) => void;
   onOpenProjectDoc: (itemId: number) => void;
-  onOpenKnowledgeDoc: (itemId: number) => void;
   onOpenDiaryEntry: (entry: DiaryEntry, segment: DiarySegment) => void;
   onPreviewCard: (cardId: number) => void;
   onError: (error: unknown, fallback: string) => void;
@@ -77,7 +74,6 @@ export function HomeDashboard(props: HomeDashboardProps) {
   const diaryEntriesQuery = useDiaryEntries(props.diaryEnabled);
   const articlesQuery = useArticlesQuery();
   const projectItemsQuery = useProjectItemsQuery();
-  const documentItemsQuery = useDocumentItemsQuery();
   const homeStatsQuery = useHomeStatsQuery();
   const homeStats = homeStatsQuery.data ?? null;
   const pomodoroSummaryQuery = usePomodoroTodaySummary(props.pomodoroEnabled);
@@ -143,7 +139,7 @@ export function HomeDashboard(props: HomeDashboardProps) {
   const recentFeed = useMemo(() => {
     type FeedItem = {
       key: string;
-      kind: "card" | "diary" | "todo" | "article" | "projectDoc" | "knowledgeDoc";
+      kind: "card" | "diary" | "todo" | "article" | "projectDoc";
       title: string;
       time: number;
       action: () => void;
@@ -221,29 +217,8 @@ export function HomeDashboard(props: HomeDashboardProps) {
       });
     });
 
-    // 知识库文档：仅自持正文节点（refType 为空），引用型同理排除
-    pickRecent(
-      (documentItemsQuery.data ?? []).filter(item => !item.refType),
-      3
-    ).forEach(item => {
-      items.push({
-        key: `knowledgeDoc-${item.id}`,
-        kind: "knowledgeDoc",
-        title: item.title,
-        time: item.updateTime,
-        action: () => props.onOpenKnowledgeDoc(item.id),
-      });
-    });
-
     return items.sort((a, b) => b.time - a.time).slice(0, 10);
-  }, [
-    props,
-    diaryEntries,
-    allItemsQuery.data,
-    articlesQuery.data,
-    projectItemsQuery.data,
-    documentItemsQuery.data,
-  ]);
+  }, [props, diaryEntries, allItemsQuery.data, articlesQuery.data, projectItemsQuery.data]);
 
   const feedKindStyle: Record<
     string,
@@ -283,13 +258,6 @@ export function HomeDashboard(props: HomeDashboardProps) {
       icon: FolderOpen,
       tone: "var(--lilac)",
       soft: "var(--lilac-soft)",
-    },
-    knowledgeDoc: {
-      label: "知识库",
-      chip: "bg-sage-soft text-sage",
-      icon: Books,
-      tone: "var(--sage)",
-      soft: "var(--sage-soft)",
     },
   };
 
@@ -410,21 +378,6 @@ export function HomeDashboard(props: HomeDashboardProps) {
             <em className="ml-0.5 text-[12.5px] font-semibold not-italic">篇</em>
           </span>
           <span className="text-ink-2 mt-0.5 block text-[11.5px]">文章</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={props.onOpenKnowledge}
-          className={`${BENTO_CARD_CLASS} bg-sage-soft text-left`}
-          style={{ animationDelay: "0.22s" }}
-        >
-          <span className="text-sage block text-2xl font-extrabold tabular-nums leading-tight">
-            {homeStats ? homeStats.documentLibrariesTotal : "…"}
-            <em className="ml-0.5 text-[12.5px] font-semibold not-italic">个</em>
-          </span>
-          <span className="text-ink-2 mt-0.5 block text-[11.5px]">
-            知识库{homeStats ? ` · ${homeStats.knowledgeDocumentsTotal} 篇文档` : ""}
-          </span>
         </button>
 
         <button

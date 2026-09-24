@@ -11,7 +11,6 @@ import home from "@/assets/icons/home.svg";
 import card from "@/assets/icons/card.svg";
 import article from "@/assets/icons/article.svg";
 import project from "@/assets/icons/project.svg";
-import document from "@/assets/icons/document.svg";
 import daily from "@/assets/icons/daily.svg";
 import whiteBoard from "@/assets/icons/white-board.svg";
 import pdf from "@/assets/icons/pdf.svg";
@@ -157,13 +156,6 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         desc: "项目",
         type: TabType.ProjectList,
         enable: module.project.enable,
-      },
-      {
-        key: "document",
-        icon: document,
-        desc: "知识库",
-        type: TabType.DocumentList,
-        enable: module.document.enable,
       },
       {
         key: "calendar",

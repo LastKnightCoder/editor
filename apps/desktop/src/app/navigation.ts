@@ -5,9 +5,7 @@
  * status 标注迁移进度（蓝图 §5.1），legacy 模块点击后由 LegacyPendingPage 过渡展示。
  * 修改本文件即修改侧边栏——不要在 Sidebar 组件里硬编码条目。
  *
- * 分组对齐老版侧边栏全部一级入口（旧 SidebarNavItems 共 20 项，PDF/索引库并入知识库；
- * VibeLearning 学习项目无独立入口，由「项目」详情承载，不设侧边栏条目）。
- * 域归属走向见蓝图 §5.3（PDF/索引库并入 library，番茄钟/时间记录归 schedule 域）。
+ * 文档树统一由项目承载；VibeLearning 学习项目也由项目详情承载。
  *
  * 图标：lucide-react（线性单色）；多色图标用 react-icons（桌面已有依赖）。
  */
@@ -16,7 +14,6 @@ import {
   Flame,
   Layers,
   FileText,
-  Book,
   BookOpen,
   Presentation,
   PenLine,
@@ -69,7 +66,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: "cards", label: "卡片库", icon: Layers }, // features/cards
       { key: "articles", label: "文章", icon: FileText }, // legacy: ArticleListView
       { key: "diary", label: "日记", icon: PenLine }, // legacy: DiaryView（TabType.DailyNote）
-      { key: "library", label: "知识库", icon: Book }, // legacy: DocumentsView + PdfView + VecDocumentView（合并目标，蓝图 §5.3）
       { key: "whiteboard", label: "白板", icon: Presentation }, // legacy: WhiteBoardView
     ],
   },

@@ -3,7 +3,6 @@ import { Descendant } from "slate";
 import { ICard, ECardCategory } from "@/types/card";
 import { IArticle } from "@/types/article";
 import { Project, ProjectItem, EProjectItemType } from "@/types/project";
-import { IDocument, IDocumentItem } from "@/types/document";
 import { PublishContentType } from "@/types/publish";
 import { IQuestion } from "@/types/question";
 import { QuestionGroupDTO } from "@/commands/question-group";
@@ -34,7 +33,7 @@ export interface CardTagNode {
 }
 
 /**
- * 文档树节点（用于项目和知识库）
+ * 文档树节点（用于项目）
  */
 export interface DocTreeNode {
   id: number;
@@ -57,6 +56,8 @@ export interface EntityScopeAll {
 export interface EntityScopePartial {
   mode: "partial";
   nodeIds: Set<number>;
+  /** 存量范围数据损坏时的标记：按空范围处理并提示用户重新选择 */
+  corrupted?: boolean;
 }
 
 /**
@@ -68,8 +69,8 @@ export type EntityScope = EntityScopeAll | EntityScopePartial;
  * 实体弹窗状态
  */
 export interface EntityModalState {
-  type: "project" | "document" | "quest";
-  entity: Project | IDocument;
+  type: "project" | "quest";
+  entity: Project;
 }
 
 /**
@@ -123,16 +124,6 @@ export interface CardTagNodeBuilder {
 }
 
 // 重导出相关类型
-export type {
-  ICard,
-  ECardCategory,
-  IArticle,
-  IQuestion,
-  Project,
-  ProjectItem,
-  IDocument,
-  IDocumentItem,
-  PublishContentType,
-};
+export type { ICard, ECardCategory, IArticle, IQuestion, Project, ProjectItem, PublishContentType };
 
 export { EProjectItemType };

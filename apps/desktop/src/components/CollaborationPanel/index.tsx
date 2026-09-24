@@ -9,17 +9,10 @@ import useSettingStore from "@/stores/useSettingStore";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import { isElectron } from "@/electron";
-import {
-  findOneArticle,
-  getCardById,
-  getProjectItemById,
-  getDocumentItem,
-  joinCollaboration,
-} from "@/commands";
+import { findOneArticle, getCardById, getProjectItemById, joinCollaboration } from "@/commands";
 import { openArticleInNewWindow } from "@/commands/article";
 import { openCardInNewWindow } from "@/commands/card";
 import { openProjectItemInNewWindow } from "@/commands/project";
-import { openDocumentItemInNewWindow } from "@/commands/document";
 import ContentCollaborationControl from "@/components/ContentCollaborationControl";
 import CustomModal from "@/components/CustomModal";
 import RichTextEditModal from "@/components/RichTextEditModal";
@@ -61,10 +54,7 @@ export default function CollaborationPanel() {
         openProjectItemInNewWindow(source.databaseName, id);
         return;
       }
-      if (id && type === "document-item") {
-        openDocumentItemInNewWindow(source.databaseName, id);
-        return;
-      }
+
       openCenter(session.id);
       return;
     }
@@ -85,13 +75,7 @@ export default function CollaborationPanel() {
           return;
         }
       }
-      if (id && type === "document-item") {
-        const item = await getDocumentItem(id);
-        if (item?.documents[0]) {
-          tabs.openInNewTab(TabType.DocumentDetail, { id: item.documents[0], itemId: id });
-          return;
-        }
-      }
+
       setContentId(source.contentId);
     } catch {
       openCenter(session.id);

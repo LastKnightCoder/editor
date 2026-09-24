@@ -9,8 +9,6 @@ export function getRefTypeLabel(type: string): string {
       return "文章";
     case "project-item":
       return "项目";
-    case "document-item":
-      return "知识库";
     case "diary-daily":
       return "日记";
     default:
@@ -29,8 +27,6 @@ export function getRefTypeColor(type: string): string {
       return "#3b82f6"; // blue
     case "project-item":
       return "#10b981"; // green
-    case "document-item":
-      return "#f59e0b"; // orange
     case "diary-daily":
       return "#8b5cf6"; // purple
     default:

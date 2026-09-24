@@ -15,7 +15,7 @@ import If from "@/components/If";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
 import SearchResultItem from "./SearchResultItem";
-import { getProjectItemById, getRootDocumentsByDocumentItemId } from "@/commands";
+import { getProjectItemById } from "@/commands";
 
 const Search = memo(() => {
   const { isDark } = useTheme();
@@ -96,24 +96,6 @@ const Search = memo(() => {
         console.error("Failed to get project item:", error);
         openInNewTab(TabType.ProjectList);
       }
-    } else if (result.type === "document-item") {
-      // 获取知识库项所属的知识库
-      try {
-        const documents = await getRootDocumentsByDocumentItemId(result.id);
-        if (documents && documents.length > 0) {
-          const documentId = documents[0].id;
-          openInNewTab(TabType.DocumentDetail, {
-            id: documentId,
-            itemId: result.id,
-          });
-        } else {
-          // 如果没有找到知识库，回退到知识库列表
-          openInNewTab(TabType.DocumentList);
-        }
-      } catch (error) {
-        console.error("Failed to get document:", error);
-        openInNewTab(TabType.DocumentList);
-      }
     } else if (result.type === "diary-daily") {
       openInNewTab(TabType.DailyNote, {
         id: result.id,
@@ -131,8 +113,6 @@ const Search = memo(() => {
         return "文章";
       case "project-item":
         return "项目";
-      case "document-item":
-        return "知识库";
       case "diary-daily":
         return "日记";
       default:
@@ -149,8 +129,6 @@ const Search = memo(() => {
         return "blue";
       case "project-item":
         return "green";
-      case "document-item":
-        return "orange";
       case "diary-daily":
         return "purple";
       default:

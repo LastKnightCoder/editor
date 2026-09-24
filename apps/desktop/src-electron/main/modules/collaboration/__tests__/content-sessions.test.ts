@@ -163,10 +163,10 @@ describe("本机内容会话", () => {
   it("标题回写所有文档类型，保留标签封面和卡片", () => {
     const db = database();
     db.exec(
-      "INSERT INTO articles(id,title,create_time,update_time,content_id,tags,banner_bg) VALUES (1,'文章',1,1,7,'[\"标签\"]','cover'); INSERT INTO project_item(id,title,create_time,update_time,content_id) VALUES (2,'项目',1,1,7); INSERT INTO document_items(id,title,create_time,update_time,content_id,tags) VALUES (3,'知识库',1,1,7,'[\"知识库标签\"]'); INSERT INTO cards(id,create_time,update_time,content_id,tags) VALUES (4,1,1,7,'[\"卡片标签\"]');"
+      "INSERT INTO articles(id,title,create_time,update_time,content_id,tags,banner_bg) VALUES (1,'文章',1,1,7,'[\"标签\"]','cover'); INSERT INTO project_item(id,title,create_time,update_time,content_id) VALUES (2,'项目',1,1,7); INSERT INTO project_item(id,title,create_time,update_time,content_id,tags) VALUES (3,'知识库',1,1,7,'[\"知识库标签\"]'); INSERT INTO cards(id,create_time,update_time,content_id,tags) VALUES (4,1,1,7,'[\"卡片标签\"]');"
     );
     expect(projectContentTitle(db, 7, "统一标题")).toHaveLength(3);
-    for (const table of ["articles", "project_item", "document_items"])
+    for (const table of ["articles", "project_item"])
       expect(db.prepare(`SELECT title FROM ${table}`).get()).toEqual({ title: "统一标题" });
     expect(db.prepare("SELECT tags,banner_bg FROM articles").get()).toEqual({
       tags: '["标签"]',

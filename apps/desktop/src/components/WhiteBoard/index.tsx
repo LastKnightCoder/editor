@@ -315,13 +315,13 @@ const WhiteBoard = memo(
     const [contextMenuModal, setContextMenuModal] = useState<ContextMenuModalPayload | null>(null);
     const [pendingRichTextCreateTarget, setPendingRichTextCreateTarget] = useState<{
       elementId: string;
-      mode: "project" | "document";
+      mode: "project";
       contentId: number;
       title: string;
     } | null>(null);
     const [pendingRichTextTitlePrompt, setPendingRichTextTitlePrompt] = useState<{
       elementId: string;
-      mode: "project" | "document";
+      mode: "project";
       contentId: number;
     } | null>(null);
     const richTextLinkCheckRef = useRef(
@@ -396,7 +396,7 @@ const WhiteBoard = memo(
     useEffect(() => {
       const handleRichTextCreateAs = async (payload: {
         elementId: string;
-        mode: "card" | "article" | "project" | "document";
+        mode: "card" | "article" | "project";
       }) => {
         try {
           const { contentId } = await ensureRichTextContentId(payload.elementId);
@@ -1359,11 +1359,7 @@ const WhiteBoard = memo(
                           setPendingRichTextTitlePrompt(null);
                         }}
                         initialTitle=""
-                        modalTitle={
-                          pendingRichTextTitlePrompt?.mode === "project"
-                            ? "创建项目文档"
-                            : "创建知识库文档"
-                        }
+                        modalTitle="创建项目文档"
                         modalDescription="请输入标题后再选择插入位置"
                         placeholder="请输入标题"
                       />

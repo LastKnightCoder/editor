@@ -37,7 +37,7 @@ import {
   deleteDiaryTagSetting,
 } from "@/commands/diary";
 import { createEmptyDiaryContent } from "@/pages/DiaryView/constants/content";
-import type { ICard, IArticle, IDocumentItem, ProjectItem } from "@/types";
+import type { ICard, IArticle, ProjectItem } from "@/types";
 import type { DiaryEntry, DiarySegment, DiaryTagSetting } from "@/types/diary";
 import type { RssEntry, RssFeed } from "@/types/rss";
 import type { IItem } from "@/components/CalendarHeatmap";
@@ -68,7 +68,7 @@ interface RecentDiaryResult {
   tagUsageCounts: Map<string, number>;
 }
 
-export type HomeTrendType = "card" | "article" | "project-item" | "document-item";
+export type HomeTrendType = "card" | "article" | "project-item";
 
 export interface HomeTrendPoint {
   date: string;
@@ -101,7 +101,6 @@ export interface HomeData {
     cards: ICard[];
     articles: IArticle[];
     projectItems: ProjectItem[];
-    documentItems: IDocumentItem[];
   };
   activityHeatmap: IItem[];
   contentTrend: HomeTrendPoint[];
@@ -162,7 +161,6 @@ const EMPTY_RECENT_ACTIVITY: HomeData["recentActivity"] = {
   cards: [],
   articles: [],
   projectItems: [],
-  documentItems: [],
 };
 
 const INITIAL_DATA: HomeData = {
@@ -197,7 +195,7 @@ const INITIAL_DATA: HomeData = {
   errors: {},
 };
 
-const TREND_TYPES: HomeTrendType[] = ["card", "article", "project-item", "document-item"];
+const TREND_TYPES: HomeTrendType[] = ["card", "article", "project-item"];
 
 const formatDate = (date: Date) => dayjs(date).format("YYYY-MM-DD");
 

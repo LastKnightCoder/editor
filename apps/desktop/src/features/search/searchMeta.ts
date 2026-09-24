@@ -9,7 +9,6 @@
 import {
   Layers,
   FileText,
-  Book,
   PenLine,
   FolderKanban,
   SunMoon,
@@ -33,12 +32,6 @@ export const CONTENT_TYPES: Record<
     tag: "bg-tag-4-soft text-tag-4",
     icon: FolderKanban,
   },
-  "document-item": {
-    label: "知识库",
-    navKey: "library",
-    tag: "bg-tag-3-soft text-tag-3",
-    icon: Book,
-  },
   "diary-daily": { label: "日记", navKey: "diary", tag: "bg-warn-soft text-warn", icon: PenLine },
 };
 
@@ -48,7 +41,6 @@ export type PaletteScope = IndexType | "cmd";
 export const SCOPE_ORDER: PaletteScope[] = [
   "card",
   "article",
-  "document-item",
   "project-item",
   "diary-daily",
   "cmd",

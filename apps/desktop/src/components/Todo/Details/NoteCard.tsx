@@ -22,8 +22,6 @@ const getTypeIcon = (type: TodoNoteLink["type"]) => {
       return <MdArticle className={`${iconProps} text-status-success`} />;
     case "project-item":
       return <MdFolder className={`${iconProps} text-orange-500`} />;
-    case "document-item":
-      return <MdDescription className={`${iconProps} text-[var(--th-accent)]`} />;
     case "custom":
     default:
       return <MdDescription className={`${iconProps} text-gray-500`} />;

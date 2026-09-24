@@ -45,8 +45,7 @@ const internalSkillRegistry = new Map<string, InternalSkill>([
     {
       folderName: "tikz",
       name: "TikZ 绘图",
-      description:
-        "渲染 LaTeX 和 TikZ 图表，包括函数图、电路图、化学结构图、交换图等",
+      description: "渲染 LaTeX 和 TikZ 图表，包括函数图、电路图、化学结构图、交换图等",
       readmeContent: tikzReadme,
       isInternal: true,
     },
@@ -56,8 +55,7 @@ const internalSkillRegistry = new Map<string, InternalSkill>([
     {
       folderName: "typst",
       name: "Typst 绘图",
-      description:
-        "使用 Typst 语法渲染图表，包括函数图、电路图、流程图、甘特图等",
+      description: "使用 Typst 语法渲染图表，包括函数图、电路图、流程图、甘特图等",
       readmeContent: typstReadme,
       isInternal: true,
     },
@@ -68,7 +66,7 @@ const internalSkillRegistry = new Map<string, InternalSkill>([
       folderName: "knowledge-base",
       name: "知识库搜索与引用",
       description:
-        "通过 search_knowledge 工具搜索用户的个人知识库（卡片、文章、项目条目、文档条目、日记、周记、月记）。" +
+        "通过 search_knowledge 工具搜索用户的个人知识库（卡片、文章、项目条目、日记、周记、月记）。" +
         "query 只写要查找的主题内容（如「JavaScript this 的用法」），不要包含对话指令或「请搜索」「我的笔记」等非检索内容。" +
         "当用户提问涉及其已有笔记/资料、要求查找/回顾/整理知识、使用了「我的笔记」「找一下」「我之前写的」等表述时，应主动加载此 Skill 并调用搜索。" +
         "引用搜索结果时必须使用 :ref[显示文本]{id=ID type=类型} 语法。" +
@@ -82,12 +80,10 @@ const internalSkillRegistry = new Map<string, InternalSkill>([
 export const isInternalSkill = (folderName: string): boolean =>
   internalSkillRegistry.has(folderName);
 
-export const getInternalSkill = (
-  folderName: string,
-): InternalSkill | undefined => internalSkillRegistry.get(folderName);
+export const getInternalSkill = (folderName: string): InternalSkill | undefined =>
+  internalSkillRegistry.get(folderName);
 
 export const getAllInternalSkills = (): InternalSkill[] =>
   Array.from(internalSkillRegistry.values());
 
-export const getInternalSkillFolderNames = (): string[] =>
-  Array.from(internalSkillRegistry.keys());
+export const getInternalSkillFolderNames = (): string[] => Array.from(internalSkillRegistry.keys());

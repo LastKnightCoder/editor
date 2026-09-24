@@ -54,6 +54,7 @@ export default function AppShell() {
 
 function ShellBody() {
   const [boot, setBoot] = useState<"connecting" | "failed" | "ready">("connecting");
+  const [bootError, setBootError] = useState("");
 
   // 字体设置 → body CSS 变量（--font/--font-size/--mono-font）。legacy 挂在 App.tsx，
   // 新壳层不渲染它——不挂则 /shell 下字体设置全部失效（2026-09-21 外观页接线发现）
@@ -61,9 +62,10 @@ function ShellBody() {
 
   const connect = useCallback(() => {
     setBoot("connecting");
+    setBootError("");
     // 数据命令的前置：连接当前数据库（失败停在启动屏，可重试或降级进入，
     // 各数据区块自行降级为空态）
-    ensureDatabaseReady().then(ok => setBoot(ok ? "ready" : "failed"));
+    ensureDatabaseReady(setBootError).then(ok => setBoot(ok ? "ready" : "failed"));
   }, []);
 
   useEffect(() => {
@@ -96,10 +98,18 @@ function ShellBody() {
     return (
       <div className={shellRootClass}>
         {boot === "connecting" ? (
-          <Loading label="正在连接数据库…" />
+          <div>
+            <Loading label="正在连接数据库…" />
+            <p className="text-ink-2 text-tau-caption mt-3 max-w-md text-center">
+              首次打开较大数据库时需要备份与历史数据迁移，可能耗时数分钟，请勿强制退出
+            </p>
+          </div>
         ) : (
           <div className="text-ink-1 p-6">
             <p className="text-danger mb-3">数据库连接失败，数据区块将不可用。</p>
+            {bootError && (
+              <p className="text-ink-2 text-tau-caption mb-3 max-w-2xl break-words">{bootError}</p>
+            )}
             <div className="flex gap-2">
               <button
                 type="button"
@@ -111,6 +121,7 @@ function ShellBody() {
               <button
                 type="button"
                 onClick={() => setBoot("ready")}
+                disabled={/KNOWLEDGE_MIGRATION|DB_MODEL_INCOMPATIBLE|DB_SCHEMA_/.test(bootError)}
                 className="rounded-tau-md bg-hover text-ink-2 px-4 py-1.5"
               >
                 仍要进入

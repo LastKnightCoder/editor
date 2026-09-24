@@ -8,7 +8,6 @@ import styles from "../MarkdownRenderer.module.less";
 
 vi.mock("@/commands", () => ({
   getProjectItemById: vi.fn(),
-  getRootDocumentsByDocumentItemId: vi.fn(),
 }));
 
 vi.mock("@/commands/diary", () => ({

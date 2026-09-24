@@ -35,6 +35,7 @@ pub struct ProjectListResponse {
 pub struct ProjectItem {
     pub id: i64,
     pub title: String,
+    pub tags: Vec<String>,
     pub children: Vec<i64>,
     pub parents: Vec<i64>,
     pub projects: Vec<i64>,
@@ -81,6 +82,7 @@ pub struct CreateProjectItemPayload {
 pub struct UpdateProjectItemPayload {
     pub id: i64,
     pub title: Option<String>,
+    pub tags: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -117,6 +119,13 @@ fn parse_item_row(row: &Row<'_>) -> rusqlite::Result<ProjectItem> {
     Ok(ProjectItem {
         id: row.get(0)?,
         title: row.get(1)?,
+        tags: serde_json::from_str(&row.get::<_, String>(12)?).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(
+                12,
+                rusqlite::types::Type::Text,
+                Box::new(error),
+            )
+        })?,
         children: parse_id_array(row.get(2)?),
         parents: parse_id_array(row.get(3)?),
         projects: parse_id_array(row.get(4)?),
@@ -134,12 +143,51 @@ fn parse_item_row(row: &Row<'_>) -> rusqlite::Result<ProjectItem> {
 
 fn query_project_by_id(conn: &Connection, id: i64) -> Result<Option<Project>, String> {
     conn.query_row(
-        "SELECT id, title, desc, children, archived, pinned, project_type, create_time, update_time FROM project WHERE id = ?1 LIMIT 1",
+        "SELECT p.id, p.title, p.desc, p.children, p.archived, p.pinned, p.project_type, p.create_time, p.update_time,
+            (SELECT COUNT(*) FROM project_item pi WHERE EXISTS(SELECT 1 FROM json_each(COALESCE(pi.projects,'[]')) WHERE value=p.id))
+         FROM project p WHERE p.id = ?1 LIMIT 1",
         params![id],
         parse_project_row,
     )
     .optional()
     .map_err(|e| db_err("PROJECT_QUERY_FAILED", "query project", e))
+}
+
+fn description_json(text: String) -> String {
+    serde_json::json!([{ "type": "paragraph", "children": [{ "type": "formatted", "text": text }] }]).to_string()
+}
+
+fn next_project_id(conn: &Connection) -> Result<i64, String> {
+    let id: i64 = conn.query_row("SELECT MAX(COALESCE((SELECT MAX(id) FROM project),0),COALESCE((SELECT CAST(value AS INTEGER) FROM migration_meta WHERE key='project:id-seq'),0))+1", [], |r| r.get(0)).map_err(|e| e.to_string())?;
+    if id > 9_007_199_254_740_991 {
+        return Err("PROJECT_ID_EXHAUSTED: 项目 ID 超出安全范围".into());
+    }
+    conn.execute("INSERT INTO migration_meta(key,value) VALUES('project:id-seq',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [id.to_string()]).map_err(|e| e.to_string())?;
+    Ok(id)
+}
+
+#[cfg(test)]
+mod project_model_tests {
+    use super::*;
+
+    #[test]
+    fn detail_count_and_id_sequence_remain_compatible_with_desktop() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(include_str!(
+            "../../../../../packages/db-schema/schema/main.sql"
+        ))
+        .unwrap();
+        conn.execute_batch("INSERT INTO project(id,title,desc,children,create_time,update_time) VALUES(3,'项目','[]','[]',1,1); INSERT INTO migration_meta(key,value) VALUES('project:id-seq','12');").unwrap();
+        assert_eq!(
+            query_project_by_id(&conn, 3).unwrap().unwrap().item_count,
+            0
+        );
+        assert_eq!(next_project_id(&conn).unwrap(), 13);
+        assert_eq!(next_project_id(&conn).unwrap(), 14);
+        let desc: serde_json::Value =
+            serde_json::from_str(&description_json("说明".into())).unwrap();
+        assert_eq!(desc[0]["children"][0]["text"], "说明");
+    }
 }
 
 fn load_item_children(tx: &Connection, item_id: i64) -> Result<Vec<i64>, String> {
@@ -429,7 +477,7 @@ pub fn project_item_list(app: AppHandle) -> Result<Vec<ProjectItem>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT pi.id, pi.title, pi.children, pi.parents, pi.projects, pi.project_item_type,
-                    pi.ref_type, pi.ref_id, pi.content_id, COALESCE(c.count, 0), pi.create_time, pi.update_time
+                    pi.ref_type, pi.ref_id, pi.content_id, COALESCE(c.count, 0), pi.create_time, pi.update_time, pi.tags
              FROM project_item pi
              LEFT JOIN contents c ON c.id = pi.content_id
              ORDER BY pi.create_time ASC",
@@ -459,15 +507,15 @@ pub fn project_create(app: AppHandle, payload: CreateProjectPayload) -> Result<P
     let project_type = payload
         .project_type
         .unwrap_or_else(|| "document-tree".to_string());
+    let project_id = next_project_id(&tx)?;
     tx.execute(
         "
-        INSERT INTO project (title, desc, children, archived, pinned, project_type, data_table_id, create_time, update_time)
-        VALUES (?1, ?2, '[]', 0, 0, ?3, 0, ?4, ?4)
+        INSERT INTO project (title, desc, children, archived, pinned, project_type, data_table_id, create_time, update_time, id)
+        VALUES (?1, ?2, '[]', 0, 0, ?3, 0, ?4, ?4, ?5)
         ",
-        params![title, payload.desc.unwrap_or_default(), project_type, now],
+        params![title, description_json(payload.desc.unwrap_or_default()), project_type, now, project_id],
     )
     .map_err(|e| db_err("PROJECT_CREATE_FAILED", "insert project", e))?;
-    let project_id = tx.last_insert_rowid();
     write_operation(&tx, "project", "insert", project_id, now)?;
     let project = query_project_by_id(&tx, project_id)?
         .ok_or_else(|| "PROJECT_NOT_FOUND: project does not exist".to_string())?;
@@ -486,7 +534,7 @@ pub fn project_update(app: AppHandle, payload: UpdateProjectPayload) -> Result<P
         .ok_or_else(|| "PROJECT_NOT_FOUND: project does not exist".to_string())?;
     let now = now_millis();
     let desc = match payload.desc {
-        Some(desc) => desc,
+        Some(desc) => description_json(desc),
         None => tx
             .query_row(
                 "SELECT desc FROM project WHERE id = ?1 LIMIT 1",
@@ -624,6 +672,7 @@ pub fn project_item_create(
     Ok(ProjectItem {
         id: item_id,
         title,
+        tags: Vec::new(),
         children: Vec::new(),
         parents: payload.parent_id.map(|p| vec![p]).unwrap_or_default(),
         projects: vec![payload.project_id],
@@ -649,8 +698,8 @@ pub fn project_item_update(
     let now = now_millis();
     let changed = tx
         .execute(
-            "UPDATE project_item SET title = COALESCE(?1, title), update_time = ?2 WHERE id = ?3",
-            params![payload.title, now, payload.id],
+            "UPDATE project_item SET title = COALESCE(?1, title), update_time = ?2, tags = COALESCE(?4, tags) WHERE id = ?3",
+            params![payload.title, now, payload.id, payload.tags.map(|tags| serde_json::json!(tags).to_string())],
         )
         .map_err(|e| db_err("PROJECT_ITEM_UPDATE_FAILED", "update item", e))?;
     if changed > 0 {

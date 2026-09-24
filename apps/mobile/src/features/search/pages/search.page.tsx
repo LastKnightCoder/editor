@@ -57,12 +57,6 @@ function SearchScreen() {
           projectTitle: result.containerTitle ?? "",
         });
         break;
-      case "document-item":
-        navigator.push("knowledgeNodeEditor", {
-          itemId: result.id,
-          libraryTitle: result.containerTitle ?? "",
-        });
-        break;
       case "diary-daily":
         if (result.contentId) {
           navigator.push("contentDetail", {

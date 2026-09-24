@@ -1,12 +1,7 @@
 /**
  * 发布内容类型
  */
-export type PublishContentType =
-  | "card"
-  | "article"
-  | "project"
-  | "document"
-  | "quest";
+export type PublishContentType = "card" | "article" | "project" | "quest";
 
 /**
  * 发布选择记录
@@ -28,7 +23,8 @@ export interface IPublishHistory {
   filePath: string;
   contentHash: string;
   sourceType: PublishContentType;
-  sourceId: number;
+  /** 迁移时无映射的历史来源会置空，仅保留行本身供远端旧文件清理 */
+  sourceId: number | null;
   publishTime: number;
 }
 
@@ -104,12 +100,12 @@ export interface IPublishDocCollectionItem {
   id: number;
   title: string;
   href: string;
-  kind: "project" | "document";
+  kind: "project";
   active?: boolean;
 }
 
 export interface IPublishDocCollection {
-  type: "project" | "document";
+  type: "project";
   label: string;
   items: IPublishDocCollectionItem[];
 }
@@ -121,12 +117,7 @@ export interface IPublishContentLinkTarget {
   title?: string;
 }
 
-export type IPublishSearchItemType =
-  | "card"
-  | "article"
-  | "project-doc"
-  | "knowledge-doc"
-  | "quest";
+export type IPublishSearchItemType = "card" | "article" | "project-doc" | "quest";
 
 export interface IPublishSearchItem {
   id: number;

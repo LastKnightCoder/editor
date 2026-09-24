@@ -78,7 +78,7 @@ const INLINE_TOOL_POLICY = `
 1. 所有实际改动必须通过工具完成，禁止仅输出建议文本。
 2. 默认优先使用 \`replace_content_by_text\` 做精准改写。
 3. 需要整篇重写时使用 \`rewrite_content_full\`（必须提供 contentId）。
-4. 若只有 cardId/articleId/projectItemId/documentItemId，先调用 \`resolve_entity_content_id\`。
+4. 若只有 cardId/articleId/projectItemId，先调用 \`resolve_entity_content_id\`。
 5. 严禁将 articleId/cardId 等实体 ID 当作 contentId 直接写入。
 6. 如果 contentId 缺失或不可靠，先明确报错并要求用户确认目标，不执行写入。
 7. 调用编辑工具后，修改不会立即生效，而是生成待用户审阅的提案。只有用户确认应用后，修改才会真正写入。在用户明确确认之前，你不应假设之前的修改已经被应用，也不应为此调用 get_content_markdown 等工具去确认当前内容。

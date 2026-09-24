@@ -2,7 +2,7 @@
 
 ## 概述
 
-你可以通过 `search_knowledge` 工具搜索用户的个人知识库，获取卡片、文章、项目条目、文档条目、日记、周记、月记等内容，并在回答中引用它们。
+你可以通过 `search_knowledge` 工具搜索用户的个人知识库，获取卡片、文章、项目条目、日记、周记、月记等内容，并在回答中引用它们。
 
 ## 何时使用
 
@@ -31,7 +31,6 @@
 - `card` - 卡片
 - `article` - 文章
 - `project-item` - 项目条目
-- `document-item` - 文档条目
 - `diary-daily` - 日记
 - `diary-weekly` - 周记
 - `diary-monthly` - 月记
@@ -77,7 +76,6 @@ query 参数是纯粹的**检索语句**，只包含要查找的主题内容，�
   - `card`
   - `article`
   - `project-item`
-  - `document-item`
   - `diary-daily`
   - `diary-weekly`
   - `diary-monthly`
@@ -86,7 +84,6 @@ query 参数是纯粹的**检索语句**，只包含要查找的主题内容，�
 
 - :ref[这个卡片]{id=123 type=card} 提到了相关概念
 - 根据 :ref[项目文档]{id=456 type=project-item} 的说明
-- 如 :ref[知识库条目]{id=789 type=document-item} 所述
 - 在 :ref[这篇文章]{id=101 type=article} 中有详细讨论
 - 在 :ref[3月5日的日记]{id=201 type=diary-daily} 中记录过
 - :ref[第10周周记]{id=202 type=diary-weekly} 有相关总结

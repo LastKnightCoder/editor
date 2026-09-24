@@ -82,7 +82,7 @@ describe("DocPage", () => {
     });
 
     expect(menuButton?.getAttribute("aria-expanded")).toBe("true");
-    expect(container.textContent).toContain("知识库");
+    expect(container.textContent).toContain("项目");
     expect(container.textContent).toContain("0.4");
     expect(container.textContent).toContain("0.4.4");
     expect(container.querySelectorAll("aside").length).toBeGreaterThanOrEqual(2);

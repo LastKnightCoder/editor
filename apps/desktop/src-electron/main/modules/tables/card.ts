@@ -359,12 +359,6 @@ export default class CardTable {
       VecDocumentTable.removeIndexByIdAndType(db, cardId, "card");
       Operation.insertOperation(db, "card", "delete", cardId, Date.now());
 
-      // 设置isCard为0
-      const documentItemStmt = db.prepare(
-        "UPDATE document_items SET is_card = 0 WHERE is_card = 1 AND card_id = ?"
-      );
-      documentItemStmt.run(cardId);
-
       // 设置project_item ref_type为空字符串
       const projectItemStmt = db.prepare(
         `UPDATE project_item SET ref_type = '' WHERE ref_type = 'card' AND ref_id = ?`

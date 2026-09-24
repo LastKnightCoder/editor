@@ -19,7 +19,7 @@ export interface TodoTodayItem {
 
 export interface RecentEdit {
   id: string;
-  kind: "card" | "article" | "diary" | "document" | "project";
+  kind: "card" | "article" | "diary" | "project";
   title: string;
   updatedText: string;
   wordsCount: number;

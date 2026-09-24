@@ -292,11 +292,6 @@ export default class ArticleTable {
       VecDocumentTable.removeIndexByIdAndType(db, articleId, "article");
       Operation.insertOperation(db, "article", "delete", articleId, Date.now());
 
-      const documentItemStmt = db.prepare(
-        "UPDATE document_items SET is_article = 0 WHERE is_article = 1 AND article_id = ?"
-      );
-      documentItemStmt.run(articleId);
-
       const projectItemStmt = db.prepare(
         "UPDATE project_item SET ref_type = '' WHERE ref_type = 'article' AND ref_id = ?"
       );

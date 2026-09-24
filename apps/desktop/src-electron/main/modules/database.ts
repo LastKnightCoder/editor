@@ -8,7 +8,6 @@ import { Module } from "../types/module";
 import { Table } from "../types/table";
 import CardTable from "./tables/card";
 import ArticleTable from "./tables/article";
-import DocumentTable from "./tables/document";
 import WhiteboardTable from "./tables/whiteboard";
 import ProjectTable from "./tables/project";
 import PdfTable from "./tables/pdf";
@@ -83,6 +82,7 @@ import mainContentIndexDBManager, {
   IndexRebuildTarget,
 } from "./main-content-index-db";
 import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
+import { upgradeKnowledgeDatabase } from "@tau/db-schema/src/knowledge-migration-node";
 import { migrateContentBindings } from "./collaboration/content-repository";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
 
@@ -204,7 +204,6 @@ class DatabaseModule implements Module {
       CardTable,
       ArticleTable,
       ProjectTable,
-      DocumentTable,
       PdfTable,
       PdfChatTable,
       DailyNoteTable,
@@ -308,70 +307,76 @@ class DatabaseModule implements Module {
 
     const openStartAt = Date.now();
     const database = new Database(dbPath);
-    if (!database) throw new Error("No database found");
-    log.info(
-      `[database] openDatabase sqlite open done: db=${name}, elapsedMs=${Date.now() - openStartAt}`
-    );
-
-    const extensionStartAt = Date.now();
-    loadSqliteVecExtension(database);
-    log.info(
-      `[database] openDatabase load sqlite-vec done: db=${name}, elapsedMs=${Date.now() - extensionStartAt}`
-    );
-
-    const vecVersionStartAt = Date.now();
-    const { vec_version } = database.prepare("select vec_version() as vec_version;").get() as any;
-
-    log.info(
-      `[database] openDatabase vec_version read: db=${name}, vec_version=${vec_version}, elapsedMs=${Date.now() - vecVersionStartAt}`
-    );
-
-    const pragmaStartAt = Date.now();
-    database.pragma("journal_mode = WAL");
-    log.info(
-      `[database] openDatabase journal_mode done: db=${name}, elapsedMs=${Date.now() - pragmaStartAt}`
-    );
-
-    const schemaStartAt = Date.now();
-    database.exec(MAIN_SCHEMA_SQL);
-    migrateContentBindings(database);
-    log.info(
-      `[database] openDatabase main schema done: db=${name}, elapsedMs=${Date.now() - schemaStartAt}`
-    );
-
-    if (mode === "maintenance") {
-      const upgradeStartAt = Date.now();
-      for (const table of this.tables) {
-        table.upgradeTable(database);
-      }
+    try {
+      if (!database) throw new Error("No database found");
       log.info(
-        `[database] openDatabase maintenance upgrades done: db=${name}, tableCount=${this.tables.length}, elapsedMs=${Date.now() - upgradeStartAt}`
+        `[database] openDatabase sqlite open done: db=${name}, elapsedMs=${Date.now() - openStartAt}`
       );
 
-      database.exec("DROP TABLE IF EXISTS shortcuts");
+      const extensionStartAt = Date.now();
+      loadSqliteVecExtension(database);
+      log.info(
+        `[database] openDatabase load sqlite-vec done: db=${name}, elapsedMs=${Date.now() - extensionStartAt}`
+      );
 
-      const pageCount = Number(database.pragma("page_count", { simple: true }));
-      const freelistCount = Number(database.pragma("freelist_count", { simple: true }));
-      const pageSize = Number(database.pragma("page_size", { simple: true }));
-      if (shouldVacuumDatabase({ pageCount, freelistCount, pageSize })) {
-        try {
-          const vacuumStartAt = Date.now();
-          database.exec("VACUUM");
-          database.pragma("wal_checkpoint(TRUNCATE)");
-          log.info(
-            `[database] openDatabase vacuum done: db=${name}, reclaimedPages=${freelistCount}, elapsedMs=${Date.now() - vacuumStartAt}`
-          );
-        } catch (e) {
-          console.error(e);
+      const vecVersionStartAt = Date.now();
+      const { vec_version } = database.prepare("select vec_version() as vec_version;").get() as any;
+
+      log.info(
+        `[database] openDatabase vec_version read: db=${name}, vec_version=${vec_version}, elapsedMs=${Date.now() - vecVersionStartAt}`
+      );
+
+      const pragmaStartAt = Date.now();
+      database.pragma("journal_mode = WAL");
+      log.info(
+        `[database] openDatabase journal_mode done: db=${name}, elapsedMs=${Date.now() - pragmaStartAt}`
+      );
+
+      const schemaStartAt = Date.now();
+      database.exec(MAIN_SCHEMA_SQL);
+      upgradeKnowledgeDatabase(database, dbPath);
+      migrateContentBindings(database);
+      log.info(
+        `[database] openDatabase main schema done: db=${name}, elapsedMs=${Date.now() - schemaStartAt}`
+      );
+
+      if (mode === "maintenance") {
+        const upgradeStartAt = Date.now();
+        for (const table of this.tables) {
+          table.upgradeTable(database);
+        }
+        log.info(
+          `[database] openDatabase maintenance upgrades done: db=${name}, tableCount=${this.tables.length}, elapsedMs=${Date.now() - upgradeStartAt}`
+        );
+
+        database.exec("DROP TABLE IF EXISTS shortcuts");
+
+        const pageCount = Number(database.pragma("page_count", { simple: true }));
+        const freelistCount = Number(database.pragma("freelist_count", { simple: true }));
+        const pageSize = Number(database.pragma("page_size", { simple: true }));
+        if (shouldVacuumDatabase({ pageCount, freelistCount, pageSize })) {
+          try {
+            const vacuumStartAt = Date.now();
+            database.exec("VACUUM");
+            database.pragma("wal_checkpoint(TRUNCATE)");
+            log.info(
+              `[database] openDatabase vacuum done: db=${name}, reclaimedPages=${freelistCount}, elapsedMs=${Date.now() - vacuumStartAt}`
+            );
+          } catch (e) {
+            console.error(e);
+          }
         }
       }
+
+      log.info(
+        `[database] openDatabase done: db=${name}, mode=${mode}, totalElapsedMs=${Date.now() - startedAt}`
+      );
+
+      return database;
+    } catch (error) {
+      database.close();
+      throw error;
     }
-
-    log.info(
-      `[database] openDatabase done: db=${name}, mode=${mode}, totalElapsedMs=${Date.now() - startedAt}`
-    );
-
-    return database;
   }
 
   forceCheckpoint(name: string) {
@@ -465,6 +470,34 @@ class DatabaseModule implements Module {
   }
 
   async init() {
+    ipcMain.handle("validate-downloaded-database", (_event, name: string) => {
+      const path = join(PathUtil.getAppDir(), `${this.formatDatabaseName(name)}.db.download.tmp`);
+      const db = new Database(path, { fileMustExist: true });
+      try {
+        loadSqliteVecExtension(db);
+        if (db.pragma("quick_check", { simple: true }) !== "ok")
+          throw new Error("下载数据库完整性检查失败");
+        if (
+          !db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='contents'").get()
+        ) {
+          throw new Error("下载的文件不是 Tau 数据库");
+        }
+        db.exec(MAIN_SCHEMA_SQL);
+        // 临时验证库用后即弃，迁移无需再留备份。
+        upgradeKnowledgeDatabase(db, path, { skipBackup: true });
+        migrateContentBindings(db);
+        const checkpoint = db.pragma("wal_checkpoint(TRUNCATE)") as { busy: number }[];
+        if (checkpoint.some(row => row.busy !== 0)) throw new Error("下载数据库尚未完整落盘");
+        return true;
+      } finally {
+        db.close();
+      }
+    });
+    ipcMain.handle("reset-content-index", (_event, name: string) => {
+      // 同步替换主库后本地索引的 ID 空间整体失效，删除索引文件令其全量重建。
+      mainContentIndexDBManager.resetDatabase(name);
+      return true;
+    });
     // 无来源上下文（联动调用链）的全广播出口，须早于任何命令调用装配
     setCommandBroadcastSink((channel, args) => {
       for (const window of BrowserWindow.getAllWindows()) {

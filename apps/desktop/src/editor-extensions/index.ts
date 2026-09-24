@@ -1,5 +1,4 @@
 import ContentLinkExtension from "./content-link";
-import DocumentCardListExtension from "./document-card-list";
 import FileAttachmentExtension from "./file-attachment";
 import ProjectCardListExtension from "./project-card-list";
 import QuestionCardExtension from "./question-card";
@@ -8,9 +7,6 @@ import InlineAIAssistantExtension from "./inline-ai-assistant";
 import WebviewExtension from "@tau/editor-webview";
 import { createMarkdownPasteImportExtension } from "@tau/editor/src";
 import { desktopImportFromMarkdown } from "@/services/editorServiceImplementations";
-
-export const createDocumentCardListExtension = (documentId?: number) =>
-  new DocumentCardListExtension(documentId);
 
 export const createProjectCardListExtension = (projectId?: number) =>
   new ProjectCardListExtension(projectId);

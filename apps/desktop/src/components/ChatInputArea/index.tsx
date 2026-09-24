@@ -159,12 +159,7 @@ const extractMentionRefsFromEditorContent = (content: Descendant[]): MentionRef[
 
     if (node.type === "content-link") {
       const entityType = node.contentType as MentionEntityType;
-      if (
-        entityType === "card" ||
-        entityType === "article" ||
-        entityType === "project-item" ||
-        entityType === "document-item"
-      ) {
+      if (entityType === "card" || entityType === "article" || entityType === "project-item") {
         mentions.push({
           entityType,
           entityId: Number(node.refId) || 0,

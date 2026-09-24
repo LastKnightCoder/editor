@@ -27,9 +27,6 @@ import type {
   MoveAndReorderTodoItemPayload,
   ArticleDetail,
   ArticleListResponse,
-  DocumentItem,
-  DocumentLibrary,
-  DocumentLibraryListResponse,
   Project,
   ProjectItem,
   ProjectListResponse,
@@ -765,61 +762,19 @@ export function projectItemCreate(params: {
   return trackedInvoke<ProjectItem>("project_item_create", { payload: params });
 }
 
-export function projectItemUpdate(params: { id: number; title?: string }) {
+export function projectItemUpdate(params: { id: number; title?: string; tags?: string[] }) {
   return trackedInvoke<number>("project_item_update", { payload: params });
+}
+
+export function collabKnowledgeMapping(documentId: string) {
+  return trackedInvoke<import("@tau/collaboration").KnowledgeMapping | null>(
+    "collab_knowledge_mapping",
+    { documentId }
+  );
 }
 
 export function projectItemDelete(id: number) {
   return trackedInvoke<number>("project_item_delete", { payload: { id } });
-}
-
-/* ── 知识库 ── */
-
-export function documentLibraryList(params: { offset?: number; limit?: number } = {}) {
-  return trackedInvoke<DocumentLibraryListResponse>("document_library_list", { payload: params });
-}
-
-export function documentLibraryGet(id: number) {
-  return trackedInvoke<DocumentLibrary>("document_library_get", { payload: { id } });
-}
-
-export function documentItemList() {
-  return trackedInvoke<DocumentItem[]>("document_item_list");
-}
-
-export function documentLibraryCreate(params: { title: string; desc?: string }) {
-  return trackedInvoke<DocumentLibrary>("document_library_create", { payload: params });
-}
-
-export function documentLibraryUpdate(params: {
-  id: number;
-  title?: string;
-  desc?: string;
-  isTop?: boolean;
-}) {
-  return trackedInvoke<DocumentLibrary>("document_library_update", { payload: params });
-}
-
-export function documentLibraryDelete(id: number) {
-  return trackedInvoke<number>("document_library_delete", { payload: { id } });
-}
-
-export function documentItemCreate(params: {
-  documentId: number;
-  parentId?: number;
-  title: string;
-  refType?: string;
-  refId?: number;
-}) {
-  return trackedInvoke<DocumentItem>("document_item_create", { payload: params });
-}
-
-export function documentItemUpdate(params: { id: number; title?: string; tags?: string[] }) {
-  return trackedInvoke<number>("document_item_update", { payload: params });
-}
-
-export function documentItemDelete(id: number) {
-  return trackedInvoke<number>("document_item_delete", { payload: { id } });
 }
 
 /* ── 首页汇总统计 ── */

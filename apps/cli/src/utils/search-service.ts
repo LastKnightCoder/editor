@@ -44,8 +44,6 @@ export function getTypeBadge(type: string): { text: string; color: string } {
       return { text: "article", color: "cyan" };
     case "project-item":
       return { text: "project", color: "yellow" };
-    case "document-item":
-      return { text: "document", color: "magenta" };
     case "diary-daily":
     case "diary-weekly":
     case "diary-monthly":
@@ -89,15 +87,6 @@ function loadDetails(ftsResults: FTSResult[], snippetWidth: number): SearchResul
           r.id
         );
         title = row?.title || `ProjectItem #${r.id}`;
-        content = row?.content ?? null;
-        break;
-      }
-      case "document-item": {
-        const row = da.queryOne<{ title: string; content: string | null }>(
-          `SELECT di.title, ct.content FROM document_items di LEFT JOIN contents ct ON di.content_id = ct.id WHERE di.id = ?`,
-          r.id
-        );
-        title = row?.title || `DocItem #${r.id}`;
         content = row?.content ?? null;
         break;
       }
@@ -191,8 +180,9 @@ function searchByLike(
     }>(
       `SELECT pi.id, pi.title, ct.content, pi.update_time FROM project_item pi
        LEFT JOIN contents ct ON pi.content_id = ct.id
-       WHERE pi.title LIKE ? OR ct.content LIKE ?
+       WHERE pi.title LIKE ? OR ct.content LIKE ? OR pi.tags LIKE ?
        ORDER BY pi.update_time DESC LIMIT ?`,
+      likePattern,
       likePattern,
       likePattern,
       limit
@@ -202,33 +192,6 @@ function searchByLike(
         id: row.id,
         type: "project-item",
         title: row.title || `ProjectItem #${row.id}`,
-        snippet: truncateToWidth(extractPlainText(row.content), snippetWidth),
-        updateTime: row.update_time,
-        source: "like",
-      });
-    }
-  }
-
-  if (shouldInclude("document-item")) {
-    const rows = da.query<{
-      id: number;
-      title: string;
-      content: string | null;
-      update_time: number;
-    }>(
-      `SELECT di.id, di.title, ct.content, di.update_time FROM document_items di
-       LEFT JOIN contents ct ON di.content_id = ct.id
-       WHERE di.title LIKE ? OR ct.content LIKE ?
-       ORDER BY di.update_time DESC LIMIT ?`,
-      likePattern,
-      likePattern,
-      limit
-    );
-    for (const row of rows) {
-      results.push({
-        id: row.id,
-        type: "document-item",
-        title: row.title || `DocItem #${row.id}`,
         snippet: truncateToWidth(extractPlainText(row.content), snippetWidth),
         updateTime: row.update_time,
         source: "like",
@@ -324,15 +287,6 @@ function mergeAndLoadDetails(
           item.id
         );
         title = row?.title || `ProjectItem #${item.id}`;
-        if (!content) content = row?.content ?? null;
-        break;
-      }
-      case "document-item": {
-        const row = da.queryOne<{ title: string; content: string | null }>(
-          `SELECT di.title, ct.content FROM document_items di LEFT JOIN contents ct ON di.content_id = ct.id WHERE di.id = ?`,
-          item.id
-        );
-        title = row?.title || `DocItem #${item.id}`;
         if (!content) content = row?.content ?? null;
         break;
       }

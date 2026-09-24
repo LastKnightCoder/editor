@@ -44,9 +44,8 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
         case "article":
           return <FileText className={`${iconProps} text-ok`} strokeWidth={1.75} />;
         case "project-item":
+        case "document": // 历史知识库单元格值：contentId 迁移中不变，仅显示类型过期，按项目条目归并
           return <Folder className={`${iconProps} text-warn`} strokeWidth={1.75} />;
-        case "document":
-          return <FileText className={`${iconProps} text-tag-5`} strokeWidth={1.75} />;
         case "custom":
         default:
           return <FileText className={`${iconProps} text-ink-3`} strokeWidth={1.75} />;
@@ -279,7 +278,7 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
           open={selectorModalVisible}
           onCancel={() => setSelectorModalVisible(false)}
           onSelect={handleSelectDocument}
-          contentType={["card", "article", "project-item", "document-item", "diary-daily"]}
+          contentType={["card", "article", "project-item", "diary-daily"]}
           extensions={[]}
           title="选择要关联的文档"
           emptyDescription="未找到相关文档"

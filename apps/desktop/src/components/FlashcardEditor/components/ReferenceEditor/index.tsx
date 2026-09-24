@@ -148,7 +148,7 @@ const ReferenceEditor = ({ reference, onChange, onRemove, isDark }: ReferenceEdi
             handleContentSelect(item);
           }
         }}
-        contentType={["card", "article", "document-item", "project-item", "diary-daily"]}
+        contentType={["card", "article", "project-item", "diary-daily"]}
         extensions={extensions}
         emptyDescription="无可用内容"
         showTitle={true}

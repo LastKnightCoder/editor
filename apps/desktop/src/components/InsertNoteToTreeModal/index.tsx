@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useCallback, useMemo } from "react";
+import { memo, useState, useEffect, useCallback } from "react";
 import { Descendant } from "slate";
 import { App } from "antd";
 import classNames from "classnames";
@@ -13,18 +13,12 @@ import useThemeColors from "@/hooks/useThemeColors";
 import CustomModal from "@/components/CustomModal";
 import LoadingSpinner from "./LoadingSpinner";
 import { getProjectList } from "@/commands/project";
-import { getAllDocuments } from "@/commands/document";
 import {
   addRootProjectItem,
   addChildProjectItem,
   createSharedProjectItemFromContent,
 } from "@/commands/project";
 import { createWebLink } from "@/commands/web-link";
-import {
-  addRootDocumentItem,
-  addChildDocumentItem,
-  createSharedDocumentItemFromContent,
-} from "@/commands/document";
 import { getContentById } from "@/commands";
 import { createEmptyVideoNote } from "@/commands/video-notes";
 import { getContentLength } from "@/utils";
@@ -32,11 +26,7 @@ import { EProjectType, EProjectItemType } from "@/types/project";
 import type { CreateProjectItem, Project, ProjectItem } from "@/types/project";
 import type { VideoNote } from "@/types/video-note";
 import type { WebLinkSourceType } from "@/types/web-link";
-import type { IDocument, ICreateDocumentItem } from "@/types/document";
-import {
-  buildProjectTree,
-  buildDocumentTree,
-} from "@/components/PublishSelector/utils/treeBuilder";
+import { buildProjectTree } from "@/components/PublishSelector/utils/treeBuilder";
 
 interface DocTreeNode {
   id: number;
@@ -47,7 +37,7 @@ interface DocTreeNode {
 }
 
 interface InsertNoteToTreeModalProps {
-  mode: "project" | "document";
+  mode: "project";
   open: boolean;
   noteTitle: string;
   noteContent: Descendant[];
@@ -149,7 +139,6 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     const themeColors = useThemeColors();
 
     const [projects, setProjects] = useState<Project[]>([]);
-    const [documents, setDocuments] = useState<IDocument[]>([]);
     const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
     const [treeNodes, setTreeNodes] = useState<DocTreeNode[]>([]);
     const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
@@ -157,27 +146,19 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     const [treeLoading, setTreeLoading] = useState(false);
     const [inserting, setInserting] = useState(false);
 
-    // 加载项目或知识库列表
+    // 加载项目列表
     useEffect(() => {
       if (!open) return;
       setLoading(true);
-      if (mode === "project") {
-        getProjectList()
-          .then(allProjects => {
-            setProjects(
-              allProjects.filter(p => p.projectType === EProjectType.DocumentTree && !p.archived)
-            );
-          })
-          .catch(() => message.error("加载列表失败"))
-          .finally(() => setLoading(false));
-      } else {
-        getAllDocuments()
-          .then(allDocs => {
-            setDocuments(allDocs);
-          })
-          .catch(() => message.error("加载列表失败"))
-          .finally(() => setLoading(false));
-      }
+
+      getProjectList()
+        .then(allProjects => {
+          setProjects(
+            allProjects.filter(p => p.projectType === EProjectType.DocumentTree && !p.archived)
+          );
+        })
+        .catch(() => message.error("加载列表失败"))
+        .finally(() => setLoading(false));
     }, [open, mode, message]);
 
     // 关闭时重置状态
@@ -190,22 +171,16 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     }, [open]);
 
     // 当前 mode 对应的列表
-    const entityList = useMemo(
-      () => (mode === "project" ? projects : documents),
-      [mode, projects, documents]
-    );
+    const entityList = projects;
 
-    // 选择项目/知识库，加载文档树
+    // 选择项目，加载文档树
     const handleSelectEntity = useCallback(
-      async (entity: Project | IDocument) => {
+      async (entity: Project) => {
         setSelectedEntityId(entity.id);
         setSelectedNodeId(null);
         setTreeLoading(true);
         try {
-          const nodes =
-            mode === "project"
-              ? await buildProjectTree(entity as Project)
-              : await buildDocumentTree(entity as IDocument);
+          const nodes = await buildProjectTree(entity as Project);
           setTreeNodes(nodes);
         } catch {
           setTreeNodes([]);
@@ -295,21 +270,13 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           }
 
           const title = noteTitle || `答案 #${sourceContentId}`;
-          if (mode === "project") {
-            await createSharedProjectItemFromContent({
-              sourceContentId,
-              projectId: selectedEntityId,
-              parentProjectItemId: selectedNodeId,
-              title,
-            });
-          } else {
-            await createSharedDocumentItemFromContent({
-              sourceContentId,
-              documentId: selectedEntityId,
-              parentDocumentItemId: selectedNodeId,
-              title,
-            });
-          }
+
+          await createSharedProjectItemFromContent({
+            sourceContentId,
+            projectId: selectedEntityId,
+            parentProjectItemId: selectedNodeId,
+            title,
+          });
           message.success("内容已挂载");
         } else {
           let contentToInsert = noteContent;
@@ -321,42 +288,20 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           }
           const count = getContentLength(contentToInsert);
 
-          if (mode === "project") {
-            const newItem: CreateProjectItem = {
-              title: noteTitle || "VL 笔记",
-              content: contentToInsert,
-              children: [],
-              refType: "",
-              refId: 0,
-              projectItemType: EProjectItemType.Document,
-              count,
-              whiteBoardContentId: 0,
-            };
-            if (selectedNodeId) {
-              await addChildProjectItem(selectedNodeId, newItem);
-            } else {
-              await addRootProjectItem(selectedEntityId, newItem);
-            }
+          const newItem: CreateProjectItem = {
+            title: noteTitle || "VL 笔记",
+            content: contentToInsert,
+            children: [],
+            refType: "",
+            refId: 0,
+            projectItemType: EProjectItemType.Document,
+            count,
+            whiteBoardContentId: 0,
+          };
+          if (selectedNodeId) {
+            await addChildProjectItem(selectedNodeId, newItem);
           } else {
-            const newItem: ICreateDocumentItem = {
-              title: noteTitle || "VL 笔记",
-              content: contentToInsert,
-              children: [],
-              tags: [],
-              isArticle: false,
-              articleId: 0,
-              isCard: false,
-              cardId: 0,
-              refType: "",
-              refId: 0,
-              parents: [],
-              count,
-            };
-            if (selectedNodeId) {
-              await addChildDocumentItem(selectedNodeId, newItem);
-            } else {
-              await addRootDocumentItem(selectedEntityId, newItem);
-            }
+            await addRootProjectItem(selectedEntityId, newItem);
           }
           message.success("笔记已插入");
         }
@@ -403,17 +348,13 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
         width={680}
         bodyClassName="!p-0"
         title={
-          mode === "project"
-            ? insertMode === "webview"
-              ? "添加网页到项目"
-              : insertMode === "video-note"
-                ? "添加视频笔记到项目"
-                : insertMode === "shared-content"
-                  ? "创建项目文档"
-                  : "插入笔记到项目"
-            : insertMode === "shared-content"
-              ? "创建知识库文档"
-              : "插入笔记到知识库"
+          insertMode === "webview"
+            ? "添加网页到项目"
+            : insertMode === "video-note"
+              ? "添加视频笔记到项目"
+              : insertMode === "shared-content"
+                ? "创建项目文档"
+                : "插入笔记到项目"
         }
         onOk={handleConfirm}
         okText={actionText}
@@ -423,7 +364,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
       >
         {/* 左右布局 */}
         <div className="flex" style={{ height: 400 }}>
-          {/* 左侧：项目/知识库列表 */}
+          {/* 左侧：项目列表 */}
           <div
             className={classNames(
               "w-56 flex-shrink-0 overflow-y-auto border-r",
@@ -441,7 +382,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
                   themeColors.secondaryTextClass
                 )}
               >
-                {mode === "project" ? "暂无文档类型项目" : "暂无知识库"}
+                {"暂无文档类型项目"}
               </div>
             ) : (
               <div className="py-1">
@@ -476,9 +417,7 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
                 )}
               >
                 <InboxOutlined className="text-3xl opacity-30" />
-                <span className="text-sm">
-                  {mode === "project" ? "请先选择左侧的项目" : "请先选择左侧的知识库"}
-                </span>
+                <span className="text-sm">{"请先选择左侧的项目"}</span>
               </div>
             ) : treeLoading ? (
               <div className="flex h-full items-center justify-center">

@@ -4,8 +4,6 @@ import { openContent } from "../open-content";
 const mocks = vi.hoisted(() => ({
   openPage: vi.fn(),
   getProjectItemById: vi.fn(),
-  getDocumentItem: vi.fn(),
-  openDocumentItemInNewWindow: vi.fn(),
   database: "main",
 }));
 vi.mock("../page-navigation", () => ({
@@ -15,10 +13,6 @@ vi.mock("../page-navigation", () => ({
   }),
 }));
 vi.mock("@/commands/project", () => ({ getProjectItemById: mocks.getProjectItemById }));
-vi.mock("@/commands/document", () => ({
-  getDocumentItem: mocks.getDocumentItem,
-  openDocumentItemInNewWindow: mocks.openDocumentItemInNewWindow,
-}));
 vi.mock("@/stores/useSettingStore", () => ({
   default: { getState: () => ({ setting: { database: { active: mocks.database } } }) },
 }));
@@ -38,10 +32,8 @@ describe("内容打开入口", () => {
     await openContent("project-item", 5);
     expect(mocks.openPage).toHaveBeenLastCalledWith("project-detail", { id: 7, itemId: 5 });
   });
-  it("知识库项复用独立窗口，传递当前数据库", async () => {
-    mocks.getDocumentItem.mockResolvedValue({ id: 6 });
-    await openContent("document-item", 6);
-    expect(mocks.openDocumentItemInNewWindow).toHaveBeenCalledWith("main", 6);
+  it("退役类型明确拒绝打开", async () => {
+    await expect(openContent("document-item", 6)).rejects.toThrow("暂不支持");
     expect(mocks.openPage).not.toHaveBeenCalled();
   });
   it("缺失条目与切库期间的迟到响应均不导航", async () => {

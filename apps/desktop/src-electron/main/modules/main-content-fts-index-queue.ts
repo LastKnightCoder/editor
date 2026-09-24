@@ -5,7 +5,6 @@ import databaseModule, { DatabaseConnectReason } from "./database";
 import CardTable from "./tables/card";
 import ArticleTable from "./tables/article";
 import ProjectTable from "./tables/project";
-import DocumentTable from "./tables/document";
 import DiaryTable from "./tables/diary";
 import FTSTable from "./tables/fts";
 import { getMarkdown } from "@/utils/markdown.ts";
@@ -33,11 +32,9 @@ class MainContentFtsIndexQueue implements Module {
   async init() {
     databaseModule.onDatabaseConnected((dbName, reason) => {
       const generation = ++this.generation;
-      this.enqueue(() => this.runReconcile(generation, dbName, reason)).catch(
-        (error) => {
-          log.error("[MainContentFtsIndexQueue] Reconcile failed:", error);
-        },
-      );
+      this.enqueue(() => this.runReconcile(generation, dbName, reason)).catch(error => {
+        log.error("[MainContentFtsIndexQueue] Reconcile failed:", error);
+      });
     });
     log.info("[MainContentFtsIndexQueue] Module initialized");
   }
@@ -46,7 +43,7 @@ class MainContentFtsIndexQueue implements Module {
     const nextTask = this.runChain.then(task, task);
     this.runChain = nextTask.then(
       () => undefined,
-      () => undefined,
+      () => undefined
     );
     return nextTask;
   }
@@ -55,19 +52,10 @@ class MainContentFtsIndexQueue implements Module {
     return generation !== this.generation;
   }
 
-  private async runReconcile(
-    generation: number,
-    dbName: string,
-    reason: DatabaseConnectReason,
-  ) {
-    const ensureResult = await databaseModule.ensureIndexDatabaseReady(
-      dbName,
-      `fts:${reason}`,
-    );
+  private async runReconcile(generation: number, dbName: string, reason: DatabaseConnectReason) {
+    const ensureResult = await databaseModule.ensureIndexDatabaseReady(dbName, `fts:${reason}`);
     if (!ensureResult) {
-      log.warn(
-        `[MainContentFtsIndexQueue] Skip reconcile, index ensure skipped: ${dbName}`,
-      );
+      log.warn(`[MainContentFtsIndexQueue] Skip reconcile, index ensure skipped: ${dbName}`);
       return;
     }
 
@@ -82,7 +70,7 @@ class MainContentFtsIndexQueue implements Module {
 
     if (reason === "sync_upload_reconnect" && ftsRebuildState === "ready") {
       log.info(
-        `[MainContentFtsIndexQueue] Skip reconcile after upload reconnect: db=${dbName}, rebuildState=${ftsRebuildState}`,
+        `[MainContentFtsIndexQueue] Skip reconcile after upload reconnect: db=${dbName}, rebuildState=${ftsRebuildState}`
       );
       return;
     }
@@ -92,7 +80,7 @@ class MainContentFtsIndexQueue implements Module {
     try {
       const { tasks, removed } = await this.collectTasks(mainDb, indexDb);
       log.info(
-        `[MainContentFtsIndexQueue] Reconcile start: db=${dbName}, reason=${reason}, generation=${generation}, queued=${tasks.length}, removed=${removed}`,
+        `[MainContentFtsIndexQueue] Reconcile start: db=${dbName}, reason=${reason}, generation=${generation}, queued=${tasks.length}, removed=${removed}`
       );
 
       let indexed = 0;
@@ -100,7 +88,7 @@ class MainContentFtsIndexQueue implements Module {
       for (const task of tasks) {
         if (this.isStale(generation)) {
           log.info(
-            `[MainContentFtsIndexQueue] Reconcile stale: db=${dbName}, reason=${reason}, generation=${generation}, indexed=${indexed}, queued=${tasks.length}, removed=${removed}`,
+            `[MainContentFtsIndexQueue] Reconcile stale: db=${dbName}, reason=${reason}, generation=${generation}, indexed=${indexed}, queued=${tasks.length}, removed=${removed}`
           );
           databaseModule.setIndexRebuildState(dbName, "pending", "fts");
           return;
@@ -116,19 +104,17 @@ class MainContentFtsIndexQueue implements Module {
         if (ok) {
           indexed += 1;
         } else {
-          log.warn(
-            `[MainContentFtsIndexQueue] Index failed: type=${task.type}, id=${task.id}`,
-          );
+          log.warn(`[MainContentFtsIndexQueue] Index failed: type=${task.type}, id=${task.id}`);
         }
 
-        await new Promise<void>((resolve) => {
+        await new Promise<void>(resolve => {
           setImmediate(resolve);
         });
       }
 
       databaseModule.setIndexRebuildState(dbName, "ready", "fts");
       log.info(
-        `[MainContentFtsIndexQueue] Reconcile done: db=${dbName}, reason=${reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, removed=${removed}`,
+        `[MainContentFtsIndexQueue] Reconcile done: db=${dbName}, reason=${reason}, generation=${generation}, queued=${tasks.length}, indexed=${indexed}, removed=${removed}`
       );
     } catch (error) {
       databaseModule.setIndexRebuildState(dbName, "failed", "fts");
@@ -138,7 +124,7 @@ class MainContentFtsIndexQueue implements Module {
 
   private async collectTasks(
     mainDb: Database.Database,
-    indexDb: Database.Database,
+    indexDb: Database.Database
   ): Promise<CollectTasksResult> {
     const tasks: MainContentFtsIndexTask[] = [];
     let removed = 0;
@@ -183,18 +169,6 @@ class MainContentFtsIndexQueue implements Module {
     }
     await yieldToEventLoop();
 
-    for (const item of DocumentTable.getAllDocumentItems(mainDb)) {
-      removed += this.appendTask(indexDb, tasks, {
-        id: item.id,
-        type: "document-item",
-        content: getMarkdown(item.content || []).trim(),
-        updateTime: Number(item.updateTime || 0),
-      });
-      processed += 1;
-      await yieldEvery(processed, MainContentFtsIndexQueue.COLLECT_YIELD_EVERY);
-    }
-    await yieldToEventLoop();
-
     for (const entry of DiaryTable.getAllDiaryEntries(mainDb)) {
       removed += this.appendTask(indexDb, tasks, {
         id: entry.id,
@@ -212,7 +186,7 @@ class MainContentFtsIndexQueue implements Module {
   private appendTask(
     indexDb: Database.Database,
     tasks: MainContentFtsIndexTask[],
-    task: MainContentFtsIndexTask,
+    task: MainContentFtsIndexTask
   ): number {
     const indexInfo = FTSTable.checkIndexExists(indexDb, task.id, task.type);
 

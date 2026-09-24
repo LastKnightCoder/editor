@@ -1,12 +1,6 @@
 import { Descendant } from "slate";
 import { v4 as getUuid } from "uuid";
-import {
-  Type,
-  CreditCard,
-  FileText,
-  BookOpenText,
-  FolderOpen,
-} from "lucide-react";
+import { Type, CreditCard, FileText, FolderOpen } from "lucide-react";
 
 import {
   Board,
@@ -23,13 +17,7 @@ import {
   MovementBehavior,
   ChildrenRenderOrder,
 } from "../types/capabilities";
-import {
-  BoardUtil,
-  PathUtil,
-  PointUtil,
-  RichTextUtil,
-  getResizedBBox,
-} from "../utils";
+import { BoardUtil, PathUtil, PointUtil, RichTextUtil, getResizedBBox } from "../utils";
 import { DOMSizeMeasurer } from "../services/DOMSizeMeasurer";
 import RichText from "../components/RichText";
 import { CommonPlugin, CommonElement } from "./CommonPlugin";
@@ -79,7 +67,7 @@ export class RichTextPlugin extends CommonPlugin {
         asContainer: ContainmentBehavior.None,
         canBeContained: true,
         // 58f0660e53ef5165 ColumnFf0851c651654e0e542675315b5065b958f0660e53cd8f6c51b35b9aFf0c89c1 CapabilityService.canContainFf09
-        canBeContainedBy: (container) => container.type === "column",
+        canBeContainedBy: container => container.type === "column",
       },
       movement: { behavior: MovementBehavior.Normal },
       render: {
@@ -95,7 +83,7 @@ export class RichTextPlugin extends CommonPlugin {
             richText.content,
             targetWidth,
             richText.paddingWidth || 16,
-            richText.paddingHeight || 16,
+            richText.paddingHeight || 16
           );
         },
       },
@@ -156,18 +144,6 @@ export class RichTextPlugin extends CommonPlugin {
               }
             : null,
           {
-            key: `richtext-create-as-document-${richText.id}`,
-            label: "知识库文档",
-            icon: <BookOpenText size={14} />,
-            priority: 263,
-            onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("richtext:create-as", {
-                elementId: richText.id,
-                mode: "document",
-              });
-            },
-          },
-          {
             key: `richtext-create-as-project-${richText.id}`,
             label: "项目文档",
             icon: <FolderOpen size={14} />,
@@ -188,11 +164,7 @@ export class RichTextPlugin extends CommonPlugin {
   }
 
   onDblClick(event: MouseEvent, board: Board) {
-    const currentPoint = PointUtil.screenToViewPort(
-      board,
-      event.clientX,
-      event.clientY,
-    );
+    const currentPoint = PointUtil.screenToViewPort(board, event.clientX, event.clientY);
     if (!currentPoint) return;
 
     const { x, y } = currentPoint;
@@ -239,11 +211,7 @@ export class RichTextPlugin extends CommonPlugin {
       return;
     }
 
-    const currentPoint = PointUtil.screenToViewPort(
-      board,
-      e.clientX,
-      e.clientY,
-    );
+    const currentPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!currentPoint) return;
 
     const { x, y } = currentPoint;
@@ -295,15 +263,10 @@ export class RichTextPlugin extends CommonPlugin {
     startPoint: Point,
     endPoint: Point,
     _isPreserveRatio = false,
-    isAdsorb = false,
+    isAdsorb = false
   ) {
     if (!this.originResizeElement) return;
-    const newBBox = getResizedBBox(
-      this.originResizeElement,
-      position,
-      startPoint,
-      endPoint,
-    );
+    const newBBox = getResizedBBox(this.originResizeElement, position, startPoint, endPoint);
     const newElement = {
       ...element,
       ...newBBox,
@@ -324,7 +287,7 @@ export class RichTextPlugin extends CommonPlugin {
       isAdsorb,
       5 / board.viewPort.zoom,
       true,
-      position,
+      position
     );
     board.refLine.setCurrent(updateElement);
     newElement.x = updateElement.rects[0].x;
@@ -359,7 +322,7 @@ export class RichTextPlugin extends CommonPlugin {
     board: Board,
     element: RichTextElement,
     width: number,
-    height: number,
+    height: number
   ) => {
     const { width: w, height: h } = element;
     if (w === width && h === height) return;
@@ -378,11 +341,7 @@ export class RichTextPlugin extends CommonPlugin {
     }
   };
 
-  private onContentChange = (
-    board: Board,
-    element: RichTextElement,
-    value: Descendant[],
-  ) => {
+  private onContentChange = (board: Board, element: RichTextElement, value: Descendant[]) => {
     const path = PathUtil.getPathByElement(board, element);
     if (!path) return;
     const newElement = {
@@ -398,7 +357,7 @@ export class RichTextPlugin extends CommonPlugin {
   private onElementChange = (
     board: Board,
     element: RichTextElement,
-    patch: Partial<RichTextElement>,
+    patch: Partial<RichTextElement>
   ) => {
     const path = PathUtil.getPathByElement(board, element);
     if (!path) return;

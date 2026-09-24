@@ -4,15 +4,7 @@
 import { useRef } from "react";
 import { Search } from "lucide-react";
 import { useEdgeFade } from "../../hooks/useScrollState";
-import {
-  Article,
-  Books,
-  Cards,
-  FolderOpen,
-  ListChecks,
-  Palette,
-  Timer,
-} from "@phosphor-icons/react";
+import { Article, Cards, FolderOpen, ListChecks, Palette, Timer } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { OverviewSection } from "./components/OverviewSection";
 import type { SettingModuleKey, SettingsPageProps } from "./components/types";
@@ -27,10 +19,9 @@ type SettingsScreenProps = SettingsPageProps & {
   onOpenPomodoro?: () => void;
   /** 页头：全局搜索 */
   onOpenSearch?: () => void;
-  /** 功能宫格：文章 / 项目 / 知识库 */
+  /** 功能宫格：文章 / 项目 */
   onOpenArticles?: () => void;
   onOpenProjects?: () => void;
-  onOpenKnowledge?: () => void;
 };
 
 /** 功能宫格：已上线模块直达 + 桌面版待迁移模块预告（v2 我的 Hub） */
@@ -39,7 +30,6 @@ function FeatureGrid(props: {
   onOpenPomodoro?: () => void;
   onOpenArticles?: () => void;
   onOpenProjects?: () => void;
-  onOpenKnowledge?: () => void;
 }) {
   const items: Array<{
     key: string;
@@ -73,14 +63,6 @@ function FeatureGrid(props: {
       label: "项目",
       soft: "var(--lilac-soft)",
       onClick: props.onOpenProjects ?? (() => toast({ type: "info", text: "项目即将上线" })),
-    },
-    {
-      key: "document",
-      icon: Books,
-      tone: "var(--sage)",
-      label: "知识库",
-      soft: "var(--sage-soft)",
-      onClick: props.onOpenKnowledge ?? (() => toast({ type: "info", text: "知识库即将上线" })),
     },
     {
       key: "flashcard",
@@ -165,7 +147,6 @@ export function SettingsPage(props: SettingsScreenProps) {
             onOpenPomodoro={props.onOpenPomodoro}
             onOpenArticles={props.onOpenArticles}
             onOpenProjects={props.onOpenProjects}
-            onOpenKnowledge={props.onOpenKnowledge}
           />
         </div>
         <div className="mt-4">

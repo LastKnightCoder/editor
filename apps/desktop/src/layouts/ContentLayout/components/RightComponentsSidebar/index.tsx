@@ -1008,7 +1008,7 @@ const RightComponentsSidebar = memo(() => {
           setContentSelectorVisible(false);
           data.refreshQuestions();
         }}
-        contentType={["card", "article", "project-item", "document-item", "diary-daily"]}
+        contentType={["card", "article", "project-item", "diary-daily"]}
         extensions={dynamicExtensions}
       />
 

@@ -3,8 +3,8 @@ import { create } from "zustand";
 interface ExtNoteInsertState {
   /** 模态框是否打开 */
   isOpen: boolean;
-  /** 插入模式：项目 / 知识库 */
-  mode: "project" | "document";
+  /** 插入目标 */
+  mode: "project";
   /** 源内容 ID */
   sourceContentId: number | null;
   /** 插入标题 */
@@ -16,7 +16,7 @@ interface ExtNoteInsertState {
 
   /** 打开插入弹窗 */
   openModal: (params: {
-    mode: "project" | "document";
+    mode: "project";
     sourceContentId: number;
     title?: string;
     insertMode?: "copy" | "shared-content";
@@ -26,7 +26,7 @@ interface ExtNoteInsertState {
   closeModal: () => void;
 }
 
-const useExtNoteInsertStore = create<ExtNoteInsertState>((set) => ({
+const useExtNoteInsertStore = create<ExtNoteInsertState>(set => ({
   isOpen: false,
   mode: "project",
   sourceContentId: null,
@@ -34,7 +34,7 @@ const useExtNoteInsertStore = create<ExtNoteInsertState>((set) => ({
   insertMode: "copy",
   onSuccess: null,
 
-  openModal: (params) =>
+  openModal: params =>
     set({
       isOpen: true,
       mode: params.mode,

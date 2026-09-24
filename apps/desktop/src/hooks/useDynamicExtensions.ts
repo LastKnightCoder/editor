@@ -1,13 +1,11 @@
 import { IExtension } from "@tau/editor/src";
 import { useEffect, useState } from "react";
 import { useProjectContext } from "@/features/projects/components/ProjectView/ProjectContext";
-import { useDocumentContext } from "@/pages/DocumentView/DocumentContext";
 
 const useDynamicExtensions = () => {
   const [extensions, setExtensions] = useState<IExtension[]>([]);
 
   const { itemId: projectItemId } = useProjectContext();
-  const { itemId: documentItemId } = useDocumentContext();
 
   useEffect(() => {
     import("@/editor-extensions").then(
@@ -16,7 +14,6 @@ const useDynamicExtensions = () => {
         fileAttachmentExtension,
         questionCardExtension,
         createProjectCardListExtension,
-        createDocumentCardListExtension,
         chatReferenceExtension,
       }) => {
         setExtensions([
@@ -24,12 +21,11 @@ const useDynamicExtensions = () => {
           fileAttachmentExtension,
           questionCardExtension,
           createProjectCardListExtension(projectItemId),
-          createDocumentCardListExtension(documentItemId),
           chatReferenceExtension,
         ]);
       }
     );
-  }, [projectItemId, documentItemId]);
+  }, [projectItemId]);
 
   return extensions;
 };

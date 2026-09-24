@@ -1,9 +1,4 @@
-import {
-  InitData,
-  CardTagTree,
-  ArticleListItem,
-  DocCollection,
-} from "@blog/types";
+import { InitData, CardTagTree, ArticleListItem, DocCollection } from "@blog/types";
 import { Descendant } from "slate";
 
 // Mock 卡片内容
@@ -51,9 +46,7 @@ const mockCardContent: Descendant[] = [
         children: [
           {
             type: "paragraph",
-            children: [
-              { type: "formatted", text: "简洁：每张卡片只记录一个核心概念" },
-            ],
+            children: [{ type: "formatted", text: "简洁：每张卡片只记录一个核心概念" }],
           },
         ],
       },
@@ -126,9 +119,7 @@ const mockArticleContent: Descendant[] = [
         children: [
           {
             type: "paragraph",
-            children: [
-              { type: "formatted", text: "Web 开发：JavaScript、TypeScript" },
-            ],
+            children: [{ type: "formatted", text: "Web 开发：JavaScript、TypeScript" }],
           },
         ],
       },
@@ -690,23 +681,17 @@ const mockDocCollections: DocCollection[] = [
         href: "/docs/project/2.html",
         kind: "project",
       },
-    ],
-  },
-  {
-    type: "document",
-    label: "知识库",
-    items: [
       {
         id: 101,
         title: "创意仓库",
-        href: "/docs/document/101.html",
-        kind: "document",
+        href: "/docs/project/101.html",
+        kind: "project",
       },
       {
         id: 102,
         title: "读书笔记",
-        href: "/docs/document/102.html",
-        kind: "document",
+        href: "/docs/project/102.html",
+        kind: "project",
       },
     ],
   },
@@ -909,7 +894,7 @@ const buildDocOutlineValidationContent = (): Descendant[] => [
 // 卡片页 Mock 数据
 export const mockCardPageData: InitData = {
   site: baseSiteConfig,
-  navigation: baseNavigation.map((n) => ({
+  navigation: baseNavigation.map(n => ({
     ...n,
     active: n.href === "/cards",
   })),
@@ -960,7 +945,7 @@ export const mockCardPageData: InitData = {
 // 文章页 Mock 数据
 export const mockArticlePageData: InitData = {
   site: baseSiteConfig,
-  navigation: baseNavigation.map((n) => ({
+  navigation: baseNavigation.map(n => ({
     ...n,
     active: n.href === "/articles",
   })),
@@ -973,8 +958,7 @@ export const mockArticlePageData: InitData = {
     author: "作者",
     content: mockArticleContent,
     tags: ["编程", "学习方法", "效率"],
-    bannerBg:
-      "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=1200",
+    bannerBg: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=1200",
     createTime: Date.now() - 86400000,
     updateTime: Date.now(),
   },
@@ -987,7 +971,7 @@ export const mockArticlePageData: InitData = {
 // 文档页 Mock 数据
 export const mockDocPageData: InitData = {
   site: baseSiteConfig,
-  navigation: baseNavigation.map((n) => ({
+  navigation: baseNavigation.map(n => ({
     ...n,
     active: n.href === "/docs",
   })),
@@ -1018,9 +1002,9 @@ export const mockDocPageData: InitData = {
       ],
     },
   ],
-  docCollections: mockDocCollections.map((collection) => ({
+  docCollections: mockDocCollections.map(collection => ({
     ...collection,
-    items: collection.items.map((item) => ({
+    items: collection.items.map(item => ({
       ...item,
       active: collection.type === "project" ? item.id === 1 : undefined,
     })),
@@ -1072,9 +1056,7 @@ export const mockDocPageData: InitData = {
             children: [
               {
                 type: "paragraph",
-                children: [
-                  { type: "formatted", text: "卡片式笔记：原子化的知识管理" },
-                ],
+                children: [{ type: "formatted", text: "卡片式笔记：原子化的知识管理" }],
               },
             ],
           },
@@ -1083,9 +1065,7 @@ export const mockDocPageData: InitData = {
             children: [
               {
                 type: "paragraph",
-                children: [
-                  { type: "formatted", text: "双向链接：构建知识网络" },
-                ],
+                children: [{ type: "formatted", text: "双向链接：构建知识网络" }],
               },
             ],
           },
@@ -1094,9 +1074,7 @@ export const mockDocPageData: InitData = {
             children: [
               {
                 type: "paragraph",
-                children: [
-                  { type: "formatted", text: "静态发布：一键发布为博客" },
-                ],
+                children: [{ type: "formatted", text: "静态发布：一键发布为博客" }],
               },
             ],
           },
@@ -1144,7 +1122,7 @@ export const mockDocPageData: InitData = {
 
 export const mockQuestPageData: InitData = {
   site: baseSiteConfig,
-  navigation: baseNavigation.map((n) => ({
+  navigation: baseNavigation.map(n => ({
     ...n,
     active: n.href === "/quests",
   })),
@@ -1154,8 +1132,7 @@ export const mockQuestPageData: InitData = {
   content: {
     id: 1,
     title: "React 列表重渲染时，为什么输入框会失焦？",
-    summary:
-      "排查 key、受控输入和父组件重建之间的关系，最后确认是列表项 key 不稳定。",
+    summary: "排查 key、受控输入和父组件重建之间的关系，最后确认是列表项 key 不稳定。",
     href: "/quests/1.html",
     groupId: 1,
     groupTitle: "前端现场",
@@ -1218,8 +1195,7 @@ export const mockQuestMultiAnswerPageData: InitData = {
     ...(mockQuestPageData.content as any),
     id: 2,
     title: "发布页怎样避免重复打包同一份答案内容？",
-    summary:
-      "同一份 content 可以在卡片、文章和求索录之间复用，发布时按页面需求决定链接或内嵌。",
+    summary: "同一份 content 可以在卡片、文章和求索录之间复用，发布时按页面需求决定链接或内嵌。",
     href: "/quests/2.html",
     groupTitle: "发布",
     description: [
@@ -1347,7 +1323,7 @@ export const mockQuestMultiAnswerPageData: InitData = {
           },
         ],
         source: {
-          type: "document-item",
+          type: "project-item",
           id: 7,
           contentId: 9103,
           title: "发布模块设计记录",
@@ -1363,18 +1339,18 @@ export const mockQuestMultiAnswerPageData: InitData = {
 
 export const mockDocPageSidebarDemoData: InitData = {
   site: baseSiteConfig,
-  navigation: baseNavigation.map((n) => ({
+  navigation: baseNavigation.map(n => ({
     ...n,
     active: n.href === "/docs",
   })),
   rss: mockRss,
   contentLinkTargets: mockContentLinkTargets,
   sidebar: buildDocSidebarValidationDemo(),
-  docCollections: mockDocCollections.map((collection) => ({
+  docCollections: mockDocCollections.map(collection => ({
     ...collection,
-    items: collection.items.map((item) => ({
+    items: collection.items.map(item => ({
       ...item,
-      active: collection.type === "document" ? item.id === 101 : item.id === 1,
+      active: item.id === 101,
     })),
   })),
   content: {
@@ -1402,7 +1378,7 @@ export const mockDocPageSidebarDemoData: InitData = {
 // 首页 Mock 数据
 export const mockHomePageData: InitData = {
   site: baseSiteConfig,
-  navigation: baseNavigation.map((n) => ({
+  navigation: baseNavigation.map(n => ({
     ...n,
     active: n.href === "/",
   })),
@@ -1411,20 +1387,17 @@ export const mockHomePageData: InitData = {
   content: {
     hero: {
       title: "我的知识库",
-      description:
-        "记录学习、思考与成长的地方。这里有我的技术笔记、读书心得和生活感悟。",
+      description: "记录学习、思考与成长的地方。这里有我的技术笔记、读书心得和生活感悟。",
     },
     docStats: {
       projects: 2,
-      documents: 3,
     },
     timeline: [
       {
         type: "card",
         id: 104,
         title: undefined,
-        summary:
-          "React Hooks 使用心得 - 分享在实际项目中使用 Hooks 的经验和最佳实践...",
+        summary: "React Hooks 使用心得 - 分享在实际项目中使用 Hooks 的经验和最佳实践...",
         href: "/cards/104",
         tags: ["技术/前端/React", "编程"],
         publishTime: Date.now() - 86400000,
@@ -1451,8 +1424,7 @@ export const mockHomePageData: InitData = {
         type: "card",
         id: 201,
         title: undefined,
-        summary:
-          "《代码整洁之道》读书笔记 - 整洁的代码是一种艺术，需要不断练习...",
+        summary: "《代码整洁之道》读书笔记 - 整洁的代码是一种艺术，需要不断练习...",
         href: "/cards/201",
         tags: ["读书笔记/编程"],
         publishTime: Date.now() - 86400000 * 5,
@@ -1477,7 +1449,7 @@ export const mockHomePageData: InitData = {
 // 列表页 Mock 数据
 export const mockCardListPageData: InitData = {
   site: baseSiteConfig,
-  navigation: baseNavigation.map((n) => ({
+  navigation: baseNavigation.map(n => ({
     ...n,
     active: n.href === "/cards",
   })),
@@ -1492,8 +1464,7 @@ export const mockCardListPageData: InitData = {
       {
         id: 104,
         title: undefined,
-        summary:
-          "React Hooks 使用心得 - 分享在实际项目中使用 Hooks 的经验和最佳实践",
+        summary: "React Hooks 使用心得 - 分享在实际项目中使用 Hooks 的经验和最佳实践",
         href: "/cards/104",
         tags: ["技术/前端/React", "编程"],
         createTime: Date.now() - 86400000,
@@ -1667,7 +1638,7 @@ export const mockCardListPageData: InitData = {
 
 export const mockArticleListPageData: InitData = {
   site: baseSiteConfig,
-  navigation: baseNavigation.map((n) => ({
+  navigation: baseNavigation.map(n => ({
     ...n,
     active: n.href === "/articles",
   })),
@@ -1688,8 +1659,7 @@ export const mockArticleListPageData: InitData = {
       {
         id: 3,
         title: "构建个人知识管理系统",
-        summary:
-          "从卡片、文章到项目文档，如何建立一套可持续演进的个人知识管理系统。",
+        summary: "从卡片、文章到项目文档，如何建立一套可持续演进的个人知识管理系统。",
         href: "/articles/3",
         tags: ["知识管理", "工作流"],
         createTime: Date.now() - 86400000 * 7,
@@ -1697,8 +1667,7 @@ export const mockArticleListPageData: InitData = {
       {
         id: 4,
         title: "从零开始学 TypeScript",
-        summary:
-          "从基础类型系统到工程实践，梳理 TypeScript 入门到进阶的核心学习路径。",
+        summary: "从基础类型系统到工程实践，梳理 TypeScript 入门到进阶的核心学习路径。",
         href: "/articles/4",
         tags: ["TypeScript", "前端"],
         createTime: Date.now() - 86400000 * 14,
@@ -1723,7 +1692,7 @@ export const mockArticleListPageData: InitData = {
 
 export const mockDocListPageData: InitData = {
   site: baseSiteConfig,
-  navigation: baseNavigation.map((n) => ({
+  navigation: baseNavigation.map(n => ({
     ...n,
     active: n.href === "/docs",
   })),
@@ -1764,7 +1733,7 @@ export const mockDocListPageData: InitData = {
 
 export const mockQuestListPageData: InitData = {
   site: baseSiteConfig,
-  navigation: baseNavigation.map((n) => ({
+  navigation: baseNavigation.map(n => ({
     ...n,
     active: n.href === "/quests",
   })),
@@ -1777,8 +1746,7 @@ export const mockQuestListPageData: InitData = {
       {
         id: 1,
         title: "React 列表重渲染时，为什么输入框会失焦？",
-        summary:
-          "排查 key、受控输入和父组件重建之间的关系，最后确认是列表项 key 不稳定。",
+        summary: "排查 key、受控输入和父组件重建之间的关系，最后确认是列表项 key 不稳定。",
         href: "/quests/1.html",
         tags: ["前端现场"],
         groupId: 1,
@@ -1830,14 +1798,11 @@ export const mockSearchInitDataList: InitData[] = [
 ];
 
 if (typeof window !== "undefined") {
-  (
-    window as typeof window & { __BLOG_DEV_MOCK_DATA__?: InitData[] }
-  ).__BLOG_DEV_MOCK_DATA__ = mockSearchInitDataList;
+  (window as typeof window & { __BLOG_DEV_MOCK_DATA__?: InitData[] }).__BLOG_DEV_MOCK_DATA__ =
+    mockSearchInitDataList;
 }
 
-export function getMockListPageData(
-  type: "card" | "article" | "doc" | "quest" = "card",
-): InitData {
+export function getMockListPageData(type: "card" | "article" | "doc" | "quest" = "card"): InitData {
   switch (type) {
     case "article":
       return mockArticleListPageData;

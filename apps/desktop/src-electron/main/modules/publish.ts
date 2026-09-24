@@ -44,14 +44,12 @@ import BackendWebSocketServer from "../utils/BackendWebSocketServer";
 import CardTable from "./tables/card";
 import ArticleTable from "./tables/article";
 import ProjectTable from "./tables/project";
-import DocumentTable from "./tables/document";
 import QuestionTable from "./tables/question";
 import QuestionGroupTable, { QuestionGroup } from "./tables/question-group";
 import TailwindRuntimeModule from "./tailwind-runtime";
 import { ICard } from "@/types/card";
 import { IArticle } from "@/types/article";
 import { Project, ProjectItem, EProjectItemType } from "@/types/project";
-import { IDocument, IDocumentItem } from "@/types/document";
 import { IQuestion, IAnswer } from "@/types/question";
 import { Descendant } from "slate";
 import publishTemplateManager from "./publish-template-manager";
@@ -109,7 +107,7 @@ interface IDocEntry {
   createTime: number;
   updateTime: number;
   tags: string[];
-  kind: "project" | "document";
+  kind: "project";
   content: Descendant[];
   breadcrumb: { label: string; href?: string }[];
   sidebar?: IPublishInitData["sidebar"];
@@ -143,6 +141,7 @@ interface CardTagTreeNode {
 interface IDocTreeNode {
   id: number;
   title: string;
+  tags: string[];
   children: IDocTreeNode[];
   content: Descendant[];
   createTime: number;
@@ -172,7 +171,7 @@ interface IQuestAnswerEntry {
   updateTime: number;
   content?: Descendant[];
   source?: {
-    type: "card" | "article" | "project-item" | "document-item" | "custom";
+    type: "card" | "article" | "project-item" | "custom";
     id?: number;
     contentId: number;
     href?: string;
@@ -182,15 +181,13 @@ interface IQuestAnswerEntry {
 }
 
 interface IDocCollectionMetaItem {
-  type: "project" | "document";
+  type: "project";
   entityId: number;
   title: string;
   href?: string;
 }
 
-type EntityScopeConfig =
-  | { mode: "all" }
-  | { mode: "partial"; nodes: Set<number> };
+type EntityScopeConfig = { mode: "all" } | { mode: "partial"; nodes: Set<number> };
 
 type ExecutePublishConfig =
   | {
@@ -218,10 +215,7 @@ type ExecutePublishConfig =
       options?: IUploadOptions;
     };
 
-type GithubExecuteConfig = Extract<
-  ExecutePublishConfig,
-  { providerType: "github" }
->;
+type GithubExecuteConfig = Extract<ExecutePublishConfig, { providerType: "github" }>;
 
 class PublishModule implements Module {
   name = "publish";
@@ -233,7 +227,7 @@ class PublishModule implements Module {
 
   async init() {
     // 获取发布配置
-    ipcMain.handle("get-publish-config", async (event) => {
+    ipcMain.handle("get-publish-config", async event => {
       const db = this.getDatabase(event);
       if (!db) return null;
 
@@ -247,23 +241,20 @@ class PublishModule implements Module {
     });
 
     // 执行发布
-    ipcMain.handle(
-      "execute-publish",
-      async (event, config: ExecutePublishConfig) => {
-        const db = this.getDatabase(event);
-        if (!db) {
-          throw new Error("Database not available");
-        }
+    ipcMain.handle("execute-publish", async (event, config: ExecutePublishConfig) => {
+      const db = this.getDatabase(event);
+      if (!db) {
+        throw new Error("Database not available");
+      }
 
-        const siteMeta = this.resolveSiteMeta(
-          config.providerType,
-          config.providerConfig,
-          config.siteConfig,
-        );
+      const siteMeta = this.resolveSiteMeta(
+        config.providerType,
+        config.providerConfig,
+        config.siteConfig
+      );
 
-        return this.executePublish(db, config, siteMeta);
-      },
-    );
+      return this.executePublish(db, config, siteMeta);
+    });
 
     // 重试失败的文件
     ipcMain.handle(
@@ -275,14 +266,14 @@ class PublishModule implements Module {
           providerConfig: Record<string, unknown>;
           files: IPublishFile[];
           options?: IUploadOptions;
-        },
+        }
       ) => {
         return this.retryPublish(config);
-      },
+      }
     );
 
     // 预览发布计划
-    ipcMain.handle("preview-publish-plan", async (event) => {
+    ipcMain.handle("preview-publish-plan", async event => {
       const db = this.getDatabase(event);
       if (!db) {
         throw new Error("Database not available");
@@ -313,7 +304,7 @@ class PublishModule implements Module {
             favicon?: IPublishFaviconConfig;
           };
           settings?: IPublishAppearanceSettings;
-        },
+        }
       ) => {
         const db = this.getDatabase(event);
         if (!db) {
@@ -323,16 +314,11 @@ class PublishModule implements Module {
         const siteMeta = this.resolveSiteMeta(
           payload.providerType,
           payload.providerConfig || {},
-          payload.siteConfig,
+          payload.siteConfig
         );
 
-        return this.exportPublishOutput(
-          db,
-          siteMeta,
-          payload.targetDir,
-          payload.settings,
-        );
-      },
+        return this.exportPublishOutput(db, siteMeta, payload.targetDir, payload.settings);
+      }
     );
 
     // 检查连接
@@ -343,14 +329,14 @@ class PublishModule implements Module {
         config: {
           providerType: "github" | "s3";
           providerConfig: Record<string, unknown>;
-        },
+        }
       ) => {
         const provider = createPublishProvider({
           type: config.providerType,
           [config.providerType]: config.providerConfig,
         });
         return provider.checkConnection();
-      },
+      }
     );
   }
 
@@ -358,15 +344,10 @@ class PublishModule implements Module {
     db: import("better-sqlite3").Database,
     site: ISiteMeta,
     targetDir: string,
-    settings?: IPublishAppearanceSettings,
+    settings?: IPublishAppearanceSettings
   ): Promise<string[]> {
     const selections = PublishSelectionTable.getAll(db);
-    const { files } = await this.generatePublishFiles(
-      db,
-      selections,
-      site,
-      settings,
-    );
+    const { files } = await this.generatePublishFiles(db, selections, site, settings);
 
     if (!existsSync(targetDir)) {
       mkdirSync(targetDir, { recursive: true });
@@ -381,7 +362,7 @@ class PublishModule implements Module {
       writeFileSync(filePath, file.content);
     }
 
-    return files.map((file) => join(targetDir, file.path));
+    return files.map(file => join(targetDir, file.path));
   }
 
   setBackendServer(server: BackendWebSocketServer) {
@@ -402,7 +383,7 @@ class PublishModule implements Module {
       description: string;
       publicUrl?: string;
       favicon?: IPublishFaviconConfig;
-    },
+    }
   ): ISiteMeta {
     let basePath = "/";
     if (providerType === "local") {
@@ -436,10 +417,7 @@ class PublishModule implements Module {
       };
     }
 
-    const faviconOutput = resolvePublishFaviconOutput(
-      site.favicon,
-      site.basePath,
-    );
+    const faviconOutput = resolvePublishFaviconOutput(site.favicon, site.basePath);
 
     return {
       title: site.title,
@@ -454,9 +432,7 @@ class PublishModule implements Module {
     };
   }
 
-  private buildRssInitMeta(
-    site: ISiteMeta,
-  ): NonNullable<IPublishInitData["rss"]> {
+  private buildRssInitMeta(site: ISiteMeta): NonNullable<IPublishInitData["rss"]> {
     return {
       href: buildFeedUrl(site, "/rss.xml"),
     };
@@ -504,19 +480,23 @@ class PublishModule implements Module {
   async buildPublishPlan(
     db: import("better-sqlite3").Database,
     site: ISiteMeta,
-    appearanceSettings?: IPublishAppearanceSettings,
+    appearanceSettings?: IPublishAppearanceSettings
   ): Promise<IPublishPlan> {
     // 获取选中的内容
     const selections = PublishSelectionTable.getAll(db);
 
     // 获取历史发布记录
     const history = PublishHistoryTable.getAll(db);
-    const historyMap = new Map(history.map((h) => [h.filePath, h]));
+    const historyMap = new Map(history.map(h => [h.filePath, h]));
 
     // 生成要发布的文件
-    const { files: newFiles, virtualProcessed } =
-      await this.generatePublishFiles(db, selections, site, appearanceSettings);
-    const newFileMap = new Map(newFiles.map((f) => [f.path, f]));
+    const { files: newFiles, virtualProcessed } = await this.generatePublishFiles(
+      db,
+      selections,
+      site,
+      appearanceSettings
+    );
+    const newFileMap = new Map(newFiles.map(f => [f.path, f]));
 
     const toUpload: IPublishFile[] = [];
     const toDelete: string[] = [];
@@ -546,7 +526,7 @@ class PublishModule implements Module {
       parentPath: string;
     }>,
     site: ISiteMeta,
-    appearanceSettings?: IPublishAppearanceSettings,
+    appearanceSettings?: IPublishAppearanceSettings
   ): Promise<{ files: IPublishFile[]; virtualProcessed: number }> {
     const files: IPublishFile[] = [];
 
@@ -557,14 +537,10 @@ class PublishModule implements Module {
     if (existsSync(assetsDir)) {
       const assetFiles = this.readDirRecursive(assetsDir);
       for (const assetPath of assetFiles) {
-        const relativePath = assetPath
-          .replace(this.templateDir!, "")
-          .replace(/\\/g, "/");
+        const relativePath = assetPath.replace(this.templateDir!, "").replace(/\\/g, "/");
         const content = readFileSync(assetPath);
         files.push({
-          path: relativePath.startsWith("/")
-            ? relativePath.slice(1)
-            : relativePath,
+          path: relativePath.startsWith("/") ? relativePath.slice(1) : relativePath,
           content,
           hash: this.computeHash(content),
         });
@@ -576,10 +552,7 @@ class PublishModule implements Module {
         throw new Error("已缓存的 favicon 不存在，请重新选择后再发布");
       }
       const faviconContent = readFileSync(site.favicon.cachePath);
-      const faviconOutput = resolvePublishFaviconOutput(
-        site.favicon,
-        site.basePath,
-      );
+      const faviconOutput = resolvePublishFaviconOutput(site.favicon, site.basePath);
       files.push({
         path: faviconOutput.outputPath,
         content: faviconContent,
@@ -590,42 +563,37 @@ class PublishModule implements Module {
     const grouped = this.groupSelections(selections);
     const cards = this.loadCards(
       db,
-      grouped.card.map((selection) => selection.contentId),
+      grouped.card.map(selection => selection.contentId)
     );
-    const cardMap = new Map(cards.map((card) => [card.id, card]));
+    const cardMap = new Map(cards.map(card => [card.id, card]));
 
     const articles = this.loadArticles(
       db,
-      grouped.article.map((selection) => selection.contentId),
+      grouped.article.map(selection => selection.contentId)
     );
-    const articleMap = new Map(
-      articles.map((article) => [article.id, article]),
-    );
+    const articleMap = new Map(articles.map(article => [article.id, article]));
 
     const projects = this.loadProjects(db, grouped.project);
-    const documents = this.loadDocuments(db, grouped.document);
     const projectScopes = this.buildEntityScopeMap(grouped.project);
-    const documentScopes = this.buildEntityScopeMap(grouped.document);
     const questScopes = this.buildEntityScopeMap(grouped.quest);
     const hasSelectedQuests = grouped.quest.length > 0;
     const baseContentLinkTargets = buildSelectionContentLinkTargets({
       cardIds: grouped.card
-        .map((selection) => selection.contentId)
-        .filter((contentId) => cardMap.has(contentId)),
+        .map(selection => selection.contentId)
+        .filter(contentId => cardMap.has(contentId)),
       articleIds: grouped.article
-        .map((selection) => selection.contentId)
-        .filter((contentId) => articleMap.has(contentId)),
+        .map(selection => selection.contentId)
+        .filter(contentId => articleMap.has(contentId)),
     });
 
     const navigation = this.buildNavigation({
       cards: cards.length > 0,
       articles: articles.length > 0,
       quests: hasSelectedQuests,
-      documents: projects.length > 0 || documents.length > 0,
+      documents: projects.length > 0,
     });
 
-    const cardTagTree =
-      cards.length > 0 ? this.buildCardTagTree(cards) : undefined;
+    const cardTagTree = cards.length > 0 ? this.buildCardTagTree(cards) : undefined;
 
     const cardCache = new Map(cardMap);
 
@@ -634,11 +602,9 @@ class PublishModule implements Module {
       site,
       navigation,
       projects,
-      documents,
       projectScopes,
-      documentScopes,
       baseContentLinkTargets,
-      appearanceSettings,
+      appearanceSettings
     );
     files.push(...docPublishResult.files);
     const docCollections = docPublishResult.collections;
@@ -653,7 +619,7 @@ class PublishModule implements Module {
       articleMap,
       docCollections,
       contentLinkTargets,
-      appearanceSettings,
+      appearanceSettings
     );
     files.push(...questPublishResult.files);
 
@@ -664,13 +630,9 @@ class PublishModule implements Module {
         docPublishResult.listEntries,
         docCollections,
         contentLinkTargets,
-        appearanceSettings,
+        appearanceSettings
       );
-      const docListHtml = this.injectData(
-        "list.html",
-        docListInit,
-        "docs/index.html",
-      );
+      const docListHtml = this.injectData("list.html", docListInit, "docs/index.html");
       files.push({
         path: "docs/index.html",
         content: Buffer.from(docListHtml),
@@ -693,7 +655,7 @@ class PublishModule implements Module {
         linkedCards,
         docCollections,
         contentLinkTargets,
-        appearanceSettings,
+        appearanceSettings
       );
       const path = `cards/${selection.contentId}.html`;
       const runtimeCss = await this.buildTailwindRuntimeCss(card.content || []);
@@ -719,12 +681,10 @@ class PublishModule implements Module {
         article,
         docCollections,
         contentLinkTargets,
-        appearanceSettings,
+        appearanceSettings
       );
       const path = `articles/${selection.contentId}.html`;
-      const runtimeCss = await this.buildTailwindRuntimeCss(
-        article.content || [],
-      );
+      const runtimeCss = await this.buildTailwindRuntimeCss(article.content || []);
       const html = this.injectData("article.html", initData, path, {
         inlineStyle: runtimeCss,
       });
@@ -745,13 +705,9 @@ class PublishModule implements Module {
         cards,
         docCollections,
         contentLinkTargets,
-        appearanceSettings,
+        appearanceSettings
       );
-      const cardListHtml = this.injectData(
-        "list.html",
-        cardListInit,
-        "cards/index.html",
-      );
+      const cardListHtml = this.injectData("list.html", cardListInit, "cards/index.html");
       files.push({
         path: "cards/index.html",
         content: Buffer.from(cardListHtml),
@@ -767,13 +723,9 @@ class PublishModule implements Module {
         articles,
         docCollections,
         contentLinkTargets,
-        appearanceSettings,
+        appearanceSettings
       );
-      const articleListHtml = this.injectData(
-        "list.html",
-        articleListInit,
-        "articles/index.html",
-      );
+      const articleListHtml = this.injectData("list.html", articleListInit, "articles/index.html");
       files.push({
         path: "articles/index.html",
         content: Buffer.from(articleListHtml),
@@ -788,13 +740,9 @@ class PublishModule implements Module {
         questPublishResult.entries,
         docCollections,
         contentLinkTargets,
-        appearanceSettings,
+        appearanceSettings
       );
-      const questListHtml = this.injectData(
-        "list.html",
-        questListInit,
-        "quests/index.html",
-      );
+      const questListHtml = this.injectData("list.html", questListInit, "quests/index.html");
       files.push({
         path: "quests/index.html",
         content: Buffer.from(questListHtml),
@@ -807,15 +755,11 @@ class PublishModule implements Module {
       navigation,
       cards,
       articles,
-      [
-        ...docPublishResult.timelineEntries,
-        ...questPublishResult.timelineEntries,
-      ],
+      [...docPublishResult.timelineEntries, ...questPublishResult.timelineEntries],
       projects.length,
-      documents.length,
       docCollections,
       contentLinkTargets,
-      appearanceSettings,
+      appearanceSettings
     );
     const homeHtml = this.injectData("home.html", homeInitData, "index.html");
     files.push({
@@ -830,8 +774,8 @@ class PublishModule implements Module {
         cards,
         articles,
         docPublishResult.listEntries,
-        questPublishResult.entries,
-      ),
+        questPublishResult.entries
+      )
     );
     files.push({
       path: "rss.xml",
@@ -845,7 +789,7 @@ class PublishModule implements Module {
         articles,
         docs: docPublishResult.listEntries,
         quests: questPublishResult.entries,
-      }),
+      })
     );
     files.push({
       path: PUBLISH_SEARCH_INDEX_PATH,
@@ -900,7 +844,7 @@ class PublishModule implements Module {
     templateName: string,
     initData: IPublishInitData,
     targetPath: string,
-    options?: { inlineStyle?: string },
+    options?: { inlineStyle?: string }
   ): string {
     const relativePath = TEMPLATE_ENTRY_MAP[templateName] ?? templateName;
     const templatePath = join(this.templateDir!, relativePath);
@@ -926,7 +870,7 @@ class PublishModule implements Module {
     if (initData.site.favicon) {
       html = html.replace(
         /<link rel="icon"[^>]*href="[^"]*" \/>/,
-        `<link rel="icon" type="${initData.site.favicon.mimeType}" href="${initData.site.favicon.href}" />`,
+        `<link rel="icon" type="${initData.site.favicon.mimeType}" href="${initData.site.favicon.href}" />`
       );
     }
 
@@ -939,8 +883,8 @@ class PublishModule implements Module {
           basePath: initData.site.basePath,
           publicUrl: initData.site.publicUrl,
         },
-        "/rss.xml",
-      ),
+        "/rss.xml"
+      )
     );
 
     const inlineStyle = options?.inlineStyle?.trim();
@@ -967,10 +911,9 @@ class PublishModule implements Module {
     articles: IArticle[],
     docTimeline: ITimelineEntry[],
     projectCount: number,
-    documentCount: number,
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings,
+    appearanceSettings?: IPublishAppearanceSettings
   ): IPublishInitData {
     const timeline = this.buildTimelineEntries(cards, articles, docTimeline);
     const hero =
@@ -998,7 +941,6 @@ class PublishModule implements Module {
           },
           docStats: {
             projects: projectCount,
-            documents: documentCount,
           },
         },
         meta: {
@@ -1006,7 +948,7 @@ class PublishModule implements Module {
           publishTime: Date.now(),
         },
       },
-      appearanceSettings,
+      appearanceSettings
     );
   }
 
@@ -1022,7 +964,7 @@ class PublishModule implements Module {
     linkedCards?: ILinkedCardInfo[],
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings,
+    appearanceSettings?: IPublishAppearanceSettings
   ): IPublishInitData {
     return attachPublishAppearanceSettings(
       {
@@ -1048,7 +990,7 @@ class PublishModule implements Module {
           publishTime: Date.now(),
         },
       },
-      appearanceSettings,
+      appearanceSettings
     );
   }
 
@@ -1061,7 +1003,7 @@ class PublishModule implements Module {
     article: IArticle,
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings,
+    appearanceSettings?: IPublishAppearanceSettings
   ): IPublishInitData {
     return attachPublishAppearanceSettings(
       {
@@ -1086,7 +1028,7 @@ class PublishModule implements Module {
           publishTime: Date.now(),
         },
       },
-      appearanceSettings,
+      appearanceSettings
     );
   }
 
@@ -1100,18 +1042,18 @@ class PublishModule implements Module {
     records: ICard[] | IArticle[],
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings,
+    appearanceSettings?: IPublishAppearanceSettings
   ): IPublishInitData {
     const items: IPublishListItem[] =
       type === "card"
-        ? (records as ICard[]).map((card) => ({
+        ? (records as ICard[]).map(card => ({
             id: card.id,
             summary: this.buildSummary(card.content || []),
             href: `/cards/${card.id}.html`,
             tags: card.tags || [],
             createTime: card.create_time,
           }))
-        : (records as IArticle[]).map((article) => ({
+        : (records as IArticle[]).map(article => ({
             id: article.id,
             title: article.title,
             summary: this.buildSummary(article.content || []),
@@ -1145,7 +1087,7 @@ class PublishModule implements Module {
           publishTime: Date.now(),
         },
       },
-      appearanceSettings,
+      appearanceSettings
     );
   }
 
@@ -1154,19 +1096,18 @@ class PublishModule implements Module {
       contentType: PublishContentType;
       contentId: number;
       parentPath: string;
-    }>,
+    }>
   ) {
     return {
-      card: selections.filter((item) => item.contentType === "card"),
-      article: selections.filter((item) => item.contentType === "article"),
-      quest: selections.filter((item) => item.contentType === "quest"),
-      project: selections.filter((item) => item.contentType === "project"),
-      document: selections.filter((item) => item.contentType === "document"),
+      card: selections.filter(item => item.contentType === "card"),
+      article: selections.filter(item => item.contentType === "article"),
+      quest: selections.filter(item => item.contentType === "quest"),
+      project: selections.filter(item => item.contentType === "project"),
     };
   }
 
   private buildEntityScopeMap(
-    selections: Array<{ contentId: number; parentPath: string }>,
+    selections: Array<{ contentId: number; parentPath: string }>
   ): Map<number, EntityScopeConfig> {
     const map = new Map<number, EntityScopeConfig>();
     for (const selection of selections) {
@@ -1175,9 +1116,7 @@ class PublishModule implements Module {
     return map;
   }
 
-  private parseEntityScopeConfig(selection: {
-    parentPath: string;
-  }): EntityScopeConfig {
+  private parseEntityScopeConfig(selection: { parentPath: string }): EntityScopeConfig {
     const raw = selection.parentPath;
     if (!raw || raw.trim().length === 0) {
       return { mode: "all" };
@@ -1186,16 +1125,14 @@ class PublishModule implements Module {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.mode === "partial" && Array.isArray(parsed.nodes)) {
         const nodeIds = (parsed.nodes as unknown[]).filter(
-          (value): value is number => typeof value === "number",
+          (value): value is number => typeof value === "number"
         );
-        if (nodeIds.length > 0) {
-          return { mode: "partial", nodes: new Set(nodeIds) };
-        }
+        return { mode: "partial", nodes: new Set(nodeIds) };
       }
     } catch (error) {
-      // ignore invalid scope payloads
+      log.warn("发布选择范围无效，已按空选择处理", error);
     }
-    return { mode: "all" };
+    return { mode: "partial", nodes: new Set() };
   }
 
   private buildNavigation(sections: {
@@ -1217,19 +1154,13 @@ class PublishModule implements Module {
     return navigation;
   }
 
-  private loadCards(
-    db: import("better-sqlite3").Database,
-    ids: number[],
-  ): ICard[] {
+  private loadCards(db: import("better-sqlite3").Database, ids: number[]): ICard[] {
     const uniqueIds = Array.from(new Set(ids));
     if (!uniqueIds.length) return [];
     return CardTable.getCardByIds(db, uniqueIds);
   }
 
-  private loadArticles(
-    db: import("better-sqlite3").Database,
-    ids: number[],
-  ): IArticle[] {
+  private loadArticles(db: import("better-sqlite3").Database, ids: number[]): IArticle[] {
     const uniqueIds = Array.from(new Set(ids));
     if (!uniqueIds.length) return [];
     return ArticleTable.getArticleByIds(db, uniqueIds);
@@ -1237,9 +1168,9 @@ class PublishModule implements Module {
 
   private loadProjects(
     db: import("better-sqlite3").Database,
-    selections: Array<{ contentId: number }>,
+    selections: Array<{ contentId: number }>
   ): Project[] {
-    const ids = Array.from(new Set(selections.map((item) => item.contentId)));
+    const ids = Array.from(new Set(selections.map(item => item.contentId)));
     const projects: Project[] = [];
     for (const id of ids) {
       try {
@@ -1254,29 +1185,10 @@ class PublishModule implements Module {
     return projects;
   }
 
-  private loadDocuments(
-    db: import("better-sqlite3").Database,
-    selections: Array<{ contentId: number }>,
-  ): IDocument[] {
-    const ids = Array.from(new Set(selections.map((item) => item.contentId)));
-    const docs: IDocument[] = [];
-    for (const id of ids) {
-      try {
-        const doc = DocumentTable.getDocument(db, id);
-        if (doc) {
-          docs.push(doc);
-        }
-      } catch (error) {
-        log.warn(`Document ${id} not found`, error);
-      }
-    }
-    return docs;
-  }
-
   private resolveLinkedCards(
     db: import("better-sqlite3").Database,
     card: ICard,
-    cache: Map<number, ICard>,
+    cache: Map<number, ICard>
   ): ILinkedCardInfo[] {
     if (!Array.isArray(card.links) || card.links.length === 0) {
       return [];
@@ -1319,19 +1231,19 @@ class PublishModule implements Module {
       for (const rawTag of card.tags) {
         const segments = rawTag
           .split("/")
-          .map((segment) => segment.trim())
+          .map(segment => segment.trim())
           .filter(Boolean);
         if (!segments.length) continue;
         this.insertTagNode(root, segments, listItem);
       }
     }
-    return Array.from(root.values()).map((node) => this.normalizeTagNode(node));
+    return Array.from(root.values()).map(node => this.normalizeTagNode(node));
   }
 
   private insertTagNode(
     container: Map<string, CardTagTreeNode>,
     segments: string[],
-    card: IPublishCardListItem,
+    card: IPublishCardListItem
   ) {
     const [current, ...rest] = segments;
     let node = container.get(current);
@@ -1357,9 +1269,7 @@ class PublishModule implements Module {
       tag: node.tag,
       count: node.count,
       cards: node.cards,
-      children: Array.from(node.children.values()).map((child) =>
-        this.normalizeTagNode(child),
-      ),
+      children: Array.from(node.children.values()).map(child => this.normalizeTagNode(child)),
     };
   }
 
@@ -1368,11 +1278,9 @@ class PublishModule implements Module {
     site: ISiteMeta,
     navigation: INavigationItem[],
     projects: Project[],
-    documents: IDocument[],
     projectScopes: Map<number, EntityScopeConfig>,
-    documentScopes: Map<number, EntityScopeConfig>,
     baseContentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings,
+    appearanceSettings?: IPublishAppearanceSettings
   ): Promise<{
     files: IPublishFile[];
     listEntries: IDocEntry[];
@@ -1388,11 +1296,7 @@ class PublishModule implements Module {
     let skippedDocItems = 0;
 
     for (const project of projects) {
-      const result = this.buildProjectDocEntries(
-        db,
-        project,
-        projectScopes.get(project.id),
-      );
+      const result = this.buildProjectDocEntries(db, project, projectScopes.get(project.id));
       skippedDocItems += result.skippedCount;
       if (result.entries.length === 0) {
         continue;
@@ -1409,37 +1313,15 @@ class PublishModule implements Module {
       }
     }
 
-    for (const document of documents) {
-      const result = this.buildDocumentDocEntries(
-        db,
-        document,
-        documentScopes.get(document.id),
-      );
-      skippedDocItems += result.skippedCount;
-      if (result.entries.length === 0) {
-        continue;
-      }
-      entries.push(...result.entries);
-      entityEntryMap.set(`document-${document.id}`, result.entries);
-      if (result.defaultHref) {
-        collectionMeta.push({
-          type: "document",
-          entityId: document.id,
-          title: document.title || `知识库 #${document.id}`,
-          href: result.defaultHref,
-        });
-      }
-    }
-
     const docCollections = this.buildDocCollectionsFromMeta(collectionMeta);
     const contentLinkTargets = mergeDocEntryContentLinkTargets(
       baseContentLinkTargets,
-      entries.map((entry) => ({
+      entries.map(entry => ({
         id: entry.id,
         kind: entry.kind,
         href: entry.href,
         title: entry.title,
-      })),
+      }))
     );
 
     for (const entityEntries of entityEntryMap.values()) {
@@ -1455,12 +1337,10 @@ class PublishModule implements Module {
           next,
           docCollections,
           contentLinkTargets,
-          appearanceSettings,
+          appearanceSettings
         );
         const path = entry.href.replace(/^\//, "");
-        const runtimeCss = await this.buildTailwindRuntimeCss(
-          entry.content || [],
-        );
+        const runtimeCss = await this.buildTailwindRuntimeCss(entry.content || []);
         const html = this.injectData("doc.html", initData, path, {
           inlineStyle: runtimeCss,
         });
@@ -1474,13 +1354,9 @@ class PublishModule implements Module {
       }
     }
 
-    const orderedEntries = entries
-      .slice()
-      .sort((a, b) => a.updateTime - b.updateTime);
+    const orderedEntries = entries.slice().sort((a, b) => a.updateTime - b.updateTime);
 
-    const timelineEntries = orderedEntries.map((entry) =>
-      this.createDocTimelineEntry(entry),
-    );
+    const timelineEntries = orderedEntries.map(entry => this.createDocTimelineEntry(entry));
 
     return {
       files,
@@ -1500,12 +1376,12 @@ class PublishModule implements Module {
     next: IDocEntry | undefined,
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings,
+    appearanceSettings?: IPublishAppearanceSettings
   ): IPublishInitData {
     const activeCollections = this.applyActiveDocCollections(
       docCollections,
       entry.kind,
-      entry.entityId,
+      entry.entityId
     );
     return attachPublishAppearanceSettings(
       {
@@ -1532,12 +1408,12 @@ class PublishModule implements Module {
           publishTime: Date.now(),
         },
       },
-      appearanceSettings,
+      appearanceSettings
     );
   }
 
   private buildDocCollectionsFromMeta(
-    meta: IDocCollectionMetaItem[],
+    meta: IDocCollectionMetaItem[]
   ): IPublishInitData["docCollections"] {
     if (!meta.length) {
       return undefined;
@@ -1545,17 +1421,16 @@ class PublishModule implements Module {
 
     const labelMap: Record<IDocEntry["kind"], string> = {
       project: "项目",
-      document: "知识库",
     };
 
-    const kinds: IDocEntry["kind"][] = ["project", "document"];
+    const kinds: IDocEntry["kind"][] = ["project"];
 
     const collections = kinds
-      .map((kind) => {
+      .map(kind => {
         const items = meta
-          .filter((item) => item.type === kind && item.href)
+          .filter(item => item.type === kind && item.href)
           .sort((a, b) => a.title.localeCompare(b.title, "zh-CN"))
-          .map((item) => ({
+          .map(item => ({
             id: item.entityId,
             title: item.title,
             href: item.href!,
@@ -1580,15 +1455,14 @@ class PublishModule implements Module {
   private applyActiveDocCollections(
     base: IPublishInitData["docCollections"],
     kind: IDocEntry["kind"],
-    entityId: number,
+    entityId: number
   ): IPublishInitData["docCollections"] {
     if (!base) return undefined;
-    return base.map((collection) => ({
+    return base.map(collection => ({
       ...collection,
-      items: collection.items.map((item) => ({
+      items: collection.items.map(item => ({
         ...item,
-        active:
-          collection.type === kind && item.id === entityId ? true : undefined,
+        active: collection.type === kind && item.id === entityId ? true : undefined,
       })),
     }));
   }
@@ -1599,12 +1473,12 @@ class PublishModule implements Module {
     entries: IDocEntry[],
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings,
+    appearanceSettings?: IPublishAppearanceSettings
   ): IPublishInitData {
     const items = entries
       .slice()
       .sort((a, b) => b.updateTime - a.updateTime)
-      .map((entry) => ({
+      .map(entry => ({
         id: entry.id,
         title: entry.title,
         summary: entry.summary,
@@ -1635,7 +1509,7 @@ class PublishModule implements Module {
           publishTime: Date.now(),
         },
       },
-      appearanceSettings,
+      appearanceSettings
     );
   }
 
@@ -1649,7 +1523,7 @@ class PublishModule implements Module {
     publishedArticles: Map<number, IArticle>,
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings,
+    appearanceSettings?: IPublishAppearanceSettings
   ): Promise<{
     files: IPublishFile[];
     entries: IQuestEntry[];
@@ -1661,34 +1535,20 @@ class PublishModule implements Module {
 
     const files: IPublishFile[] = [];
     const entries: IQuestEntry[] = [];
-    const groupMap = new Map(
-      QuestionGroupTable.listGroups(db).map((group) => [group.id, group]),
-    );
+    const groupMap = new Map(QuestionGroupTable.listGroups(db).map(group => [group.id, group]));
 
     for (const selection of selections) {
       const group = groupMap.get(selection.contentId);
       if (!group) continue;
-      const questions = this.loadSelectedQuestQuestions(
-        db,
-        group.id,
-        scopes.get(group.id),
-      );
+      const questions = this.loadSelectedQuestQuestions(db, group.id, scopes.get(group.id));
       for (const question of questions) {
-        const entry = this.createQuestEntry(
-          db,
-          question,
-          group,
-          publishedCards,
-          publishedArticles,
-        );
+        const entry = this.createQuestEntry(db, question, group, publishedCards, publishedArticles);
         entries.push(entry);
       }
     }
 
     entries.sort(
-      (a, b) =>
-        resolveQuestActivityTime(b) - resolveQuestActivityTime(a) ||
-        b.id - a.id,
+      (a, b) => resolveQuestActivityTime(b) - resolveQuestActivityTime(a) || b.id - a.id
     );
 
     for (const entry of entries) {
@@ -1698,12 +1558,10 @@ class PublishModule implements Module {
         entry,
         docCollections,
         contentLinkTargets,
-        appearanceSettings,
+        appearanceSettings
       );
       const path = entry.href.replace(/^\//, "");
-      const runtimeCss = await this.buildTailwindRuntimeCss(
-        this.collectQuestInlineContent(entry),
-      );
+      const runtimeCss = await this.buildTailwindRuntimeCss(this.collectQuestInlineContent(entry));
       const html = this.injectData("quest.html", initData, path, {
         inlineStyle: runtimeCss,
       });
@@ -1719,22 +1577,20 @@ class PublishModule implements Module {
     return {
       files,
       entries,
-      timelineEntries: entries.map((entry) =>
-        this.createQuestTimelineEntry(entry),
-      ),
+      timelineEntries: entries.map(entry => this.createQuestTimelineEntry(entry)),
     };
   }
 
   private loadSelectedQuestQuestions(
     db: import("better-sqlite3").Database,
     groupId: number,
-    scope?: EntityScopeConfig,
+    scope?: EntityScopeConfig
   ): IQuestion[] {
     const questions = QuestionTable.listByGroup(db, groupId, "all", "");
     if (!scope || scope.mode === "all") {
       return questions;
     }
-    return questions.filter((question) => scope.nodes.has(question.id));
+    return questions.filter(question => scope.nodes.has(question.id));
   }
 
   private createQuestEntry(
@@ -1742,25 +1598,18 @@ class PublishModule implements Module {
     question: IQuestion,
     group: QuestionGroup,
     publishedCards: Map<number, ICard>,
-    publishedArticles: Map<number, IArticle>,
+    publishedArticles: Map<number, IArticle>
   ): IQuestEntry {
     const answers = question.answers
-      .map((answerId) => QuestionTable.getAnswerById(db, answerId))
+      .map(answerId => QuestionTable.getAnswerById(db, answerId))
       .filter((answer): answer is IAnswer => Boolean(answer))
-      .map((answer) =>
-        this.createQuestAnswerEntry(
-          db,
-          answer,
-          publishedCards,
-          publishedArticles,
-        ),
-      );
+      .map(answer => this.createQuestAnswerEntry(db, answer, publishedCards, publishedArticles));
 
     const summary =
       this.buildSummary(question.description || [], 96) ||
       answers
-        .map((answer) => this.buildSummary(answer.content || [], 96))
-        .find((text) => text.length > 0) ||
+        .map(answer => this.buildSummary(answer.content || [], 96))
+        .find(text => text.length > 0) ||
       (answers.length > 0 ? `收录 ${answers.length} 个答案` : "暂未记录答案");
     const activityTime = resolveQuestActivityTime({
       createTime: question.createTime,
@@ -1788,14 +1637,9 @@ class PublishModule implements Module {
     db: import("better-sqlite3").Database,
     answer: IAnswer,
     publishedCards: Map<number, ICard>,
-    publishedArticles: Map<number, IArticle>,
+    publishedArticles: Map<number, IArticle>
   ): IQuestAnswerEntry {
-    const source = this.resolveQuestAnswerSource(
-      db,
-      answer.id,
-      publishedCards,
-      publishedArticles,
-    );
+    const source = this.resolveQuestAnswerSource(db, answer.id, publishedCards, publishedArticles);
     const shouldInline = !source?.href;
 
     return {
@@ -1811,7 +1655,7 @@ class PublishModule implements Module {
     db: import("better-sqlite3").Database,
     contentId: number,
     publishedCards: Map<number, ICard>,
-    publishedArticles: Map<number, IArticle>,
+    publishedArticles: Map<number, IArticle>
   ): IQuestAnswerEntry["source"] {
     const card = CardTable.getCardByContentId(db, contentId);
     if (card) {
@@ -1839,30 +1683,13 @@ class PublishModule implements Module {
       };
     }
 
-    const projectItem = ProjectTable.getProjectItemsByContentId(
-      db,
-      contentId,
-    )[0];
+    const projectItem = ProjectTable.getProjectItemsByContentId(db, contentId)[0];
     if (projectItem) {
       return {
         type: "project-item",
         id: projectItem.id,
         contentId,
         title: projectItem.title || `项目条目 #${projectItem.id}`,
-        published: false,
-      };
-    }
-
-    const documentItem = DocumentTable.getDocumentItemsByContentId(
-      db,
-      contentId,
-    )[0];
-    if (documentItem) {
-      return {
-        type: "document-item",
-        id: documentItem.id,
-        contentId,
-        title: documentItem.title || `知识库条目 #${documentItem.id}`,
         published: false,
       };
     }
@@ -1880,7 +1707,7 @@ class PublishModule implements Module {
     entry: IQuestEntry,
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings,
+    appearanceSettings?: IPublishAppearanceSettings
   ): IPublishInitData {
     return attachPublishAppearanceSettings(
       {
@@ -1896,7 +1723,7 @@ class PublishModule implements Module {
           publishTime: Date.now(),
         },
       },
-      appearanceSettings,
+      appearanceSettings
     );
   }
 
@@ -1906,9 +1733,9 @@ class PublishModule implements Module {
     entries: IQuestEntry[],
     docCollections?: IPublishInitData["docCollections"],
     contentLinkTargets?: IPublishInitData["contentLinkTargets"],
-    appearanceSettings?: IPublishAppearanceSettings,
+    appearanceSettings?: IPublishAppearanceSettings
   ): IPublishInitData {
-    const items: IPublishQuestListItem[] = entries.map((entry) => ({
+    const items: IPublishQuestListItem[] = entries.map(entry => ({
       id: entry.id,
       title: entry.title,
       summary: entry.summary,
@@ -1945,21 +1772,18 @@ class PublishModule implements Module {
           publishTime: Date.now(),
         },
       },
-      appearanceSettings,
+      appearanceSettings
     );
   }
 
   private collectQuestInlineContent(entry: IQuestEntry): Descendant[] {
-    return [
-      ...(entry.description || []),
-      ...entry.answers.flatMap((answer) => answer.content || []),
-    ];
+    return [...(entry.description || []), ...entry.answers.flatMap(answer => answer.content || [])];
   }
 
   private buildProjectDocEntries(
     db: import("better-sqlite3").Database,
     project: Project,
-    scope?: EntityScopeConfig,
+    scope?: EntityScopeConfig
   ): {
     entries: IDocEntry[];
     sidebar?: IPublishInitData["sidebar"];
@@ -1987,7 +1811,7 @@ class PublishModule implements Module {
     }
 
     let treeNodes = rootIds
-      .map((id) => this.createProjectTreeNode(itemMap, id))
+      .map(id => this.createProjectTreeNode(itemMap, id))
       .filter((node): node is IDocTreeNode => Boolean(node));
 
     treeNodes = this.filterDocTreeNodes(treeNodes, scope);
@@ -2005,94 +1829,26 @@ class PublishModule implements Module {
     const sidebar = this.buildSidebarTree(
       project.title || `项目 #${project.id}`,
       treeNodes,
-      (nodeId) => `${basePath}/${nodeId}.html`,
+      nodeId => `${basePath}/${nodeId}.html`
     );
 
-    const { entries, defaultHref, skippedCount } =
-      this.collectDocEntriesFromTree(
-        treeNodes,
-        {
-          entityId: project.id,
-          title: project.title || `项目 #${project.id}`,
-          kind: "project",
-          basePath,
-        },
-        sidebar,
-      );
-
-    return { entries, sidebar, defaultHref, skippedCount };
-  }
-
-  private buildDocumentDocEntries(
-    db: import("better-sqlite3").Database,
-    document: IDocument,
-    scope?: EntityScopeConfig,
-  ): {
-    entries: IDocEntry[];
-    sidebar?: IPublishInitData["sidebar"];
-    defaultHref?: string;
-    skippedCount: number;
-  } {
-    const rootIds = Array.isArray(document.children) ? document.children : [];
-    if (rootIds.length === 0) {
-      return {
-        entries: [],
-        sidebar: undefined,
-        defaultHref: undefined,
-        skippedCount: 0,
-      };
-    }
-
-    const itemMap = this.loadDocumentItemsMap(db, rootIds);
-    if (itemMap.size === 0) {
-      return {
-        entries: [],
-        sidebar: undefined,
-        defaultHref: undefined,
-        skippedCount: 0,
-      };
-    }
-
-    let treeNodes = rootIds
-      .map((id) => this.createDocumentTreeNode(itemMap, id))
-      .filter((node): node is IDocTreeNode => Boolean(node));
-
-    treeNodes = this.filterDocTreeNodes(treeNodes, scope);
-
-    if (treeNodes.length === 0) {
-      return {
-        entries: [],
-        sidebar: undefined,
-        defaultHref: undefined,
-        skippedCount: 0,
-      };
-    }
-
-    const basePath = `/docs/document/${document.id}`;
-    const sidebar = this.buildSidebarTree(
-      document.title || `知识库 #${document.id}`,
+    const { entries, defaultHref, skippedCount } = this.collectDocEntriesFromTree(
       treeNodes,
-      (nodeId) => `${basePath}/${nodeId}.html`,
+      {
+        entityId: project.id,
+        title: project.title || `项目 #${project.id}`,
+        kind: "project",
+        basePath,
+      },
+      sidebar
     );
-
-    const { entries, defaultHref, skippedCount } =
-      this.collectDocEntriesFromTree(
-        treeNodes,
-        {
-          entityId: document.id,
-          title: document.title || `知识库 #${document.id}`,
-          kind: "document",
-          basePath,
-        },
-        sidebar,
-      );
 
     return { entries, sidebar, defaultHref, skippedCount };
   }
 
   private loadProjectItemsMap(
     db: import("better-sqlite3").Database,
-    rootIds: number[],
+    rootIds: number[]
   ): Map<number, ProjectItem> {
     const queue = [...new Set(rootIds)];
     const visited = new Set<number>();
@@ -2114,39 +1870,15 @@ class PublishModule implements Module {
     return map;
   }
 
-  private loadDocumentItemsMap(
-    db: import("better-sqlite3").Database,
-    rootIds: number[],
-  ): Map<number, IDocumentItem> {
-    const queue = [...new Set(rootIds)];
-    const visited = new Set<number>();
-    const map = new Map<number, IDocumentItem>();
-
-    while (queue.length > 0) {
-      const batch = queue.splice(0, 20);
-      const items = DocumentTable.getDocumentItemsByIds(db, batch);
-      for (const item of items) {
-        if (visited.has(item.id)) continue;
-        visited.add(item.id);
-        map.set(item.id, item);
-        if (item.children && item.children.length) {
-          queue.push(...item.children);
-        }
-      }
-    }
-
-    return map;
-  }
-
   private createProjectTreeNode(
     map: Map<number, ProjectItem>,
-    itemId: number,
+    itemId: number
   ): IDocTreeNode | null {
     const item = map.get(itemId);
     if (!item) return null;
 
     const children = (item.children || [])
-      .map((childId) => this.createProjectTreeNode(map, childId))
+      .map(childId => this.createProjectTreeNode(map, childId))
       .filter((node): node is IDocTreeNode => Boolean(node));
 
     const hasContent =
@@ -2156,6 +1888,7 @@ class PublishModule implements Module {
     return {
       id: item.id,
       title: item.title || `条目 #${item.id}`,
+      tags: item.tags ?? [],
       children,
       content: item.content || [],
       createTime: item.createTime,
@@ -2164,34 +1897,7 @@ class PublishModule implements Module {
     };
   }
 
-  private createDocumentTreeNode(
-    map: Map<number, IDocumentItem>,
-    itemId: number,
-  ): IDocTreeNode | null {
-    const item = map.get(itemId);
-    if (!item) return null;
-
-    const children = (item.children || [])
-      .map((childId) => this.createDocumentTreeNode(map, childId))
-      .filter((node): node is IDocTreeNode => Boolean(node));
-
-    const hasContent = this.hasMeaningfulContent(item.content || []);
-
-    return {
-      id: item.id,
-      title: item.title || `文档 ${item.id}`,
-      children,
-      content: item.content || [],
-      createTime: item.createTime,
-      updateTime: item.updateTime,
-      hasContent,
-    };
-  }
-
-  private filterDocTreeNodes(
-    nodes: IDocTreeNode[],
-    scope?: EntityScopeConfig,
-  ): IDocTreeNode[] {
+  private filterDocTreeNodes(nodes: IDocTreeNode[], scope?: EntityScopeConfig): IDocTreeNode[] {
     if (!scope || scope.mode === "all") {
       return nodes;
     }
@@ -2201,7 +1907,7 @@ class PublishModule implements Module {
     }
     const filterNode = (node: IDocTreeNode): IDocTreeNode | null => {
       const filteredChildren = (node.children || [])
-        .map((child) => filterNode(child))
+        .map(child => filterNode(child))
         .filter((child): child is IDocTreeNode => Boolean(child));
       const includeSelf = allowedNodes.has(node.id);
       if (!includeSelf && filteredChildren.length === 0) {
@@ -2209,19 +1915,21 @@ class PublishModule implements Module {
       }
       return {
         ...node,
+        hasContent: includeSelf && node.hasContent,
+        content: includeSelf ? node.content : [],
         children: filteredChildren,
       };
     };
 
     return nodes
-      .map((node) => filterNode(node))
+      .map(node => filterNode(node))
       .filter((node): node is IDocTreeNode => Boolean(node));
   }
 
   private buildSidebarTree(
     entityTitle: string,
     nodes: IDocTreeNode[],
-    hrefBuilder: (nodeId: number) => string,
+    hrefBuilder: (nodeId: number) => string
   ): IPublishInitData["sidebar"] {
     const children = this.buildSidebarBranch(nodes, hrefBuilder) || [];
     if (children.length === 0) {
@@ -2237,16 +1945,14 @@ class PublishModule implements Module {
 
   private buildSidebarBranch(
     nodes: IDocTreeNode[],
-    hrefBuilder: (nodeId: number) => string,
+    hrefBuilder: (nodeId: number) => string
   ): IPublishInitData["sidebar"] {
-    return nodes.map((node) => {
+    return nodes.map(node => {
       const childNodes = node.children || [];
       return {
         title: node.title || `文档 ${node.id}`,
         href: node.hasContent ? hrefBuilder(node.id) : undefined,
-        children: childNodes.length
-          ? this.buildSidebarBranch(childNodes, hrefBuilder)
-          : undefined,
+        children: childNodes.length ? this.buildSidebarBranch(childNodes, hrefBuilder) : undefined,
       };
     });
   }
@@ -2259,10 +1965,9 @@ class PublishModule implements Module {
       kind: IDocEntry["kind"];
       basePath: string;
     },
-    sidebar?: IPublishInitData["sidebar"],
+    sidebar?: IPublishInitData["sidebar"]
   ): { entries: IDocEntry[]; defaultHref?: string; skippedCount: number } {
-    const entryInfos: Array<{ node: IDocTreeNode; ancestors: IDocTreeNode[] }> =
-      [];
+    const entryInfos: Array<{ node: IDocTreeNode; ancestors: IDocTreeNode[] }> = [];
     let skippedCount = 0;
 
     const traverse = (node: IDocTreeNode, ancestors: IDocTreeNode[]): void => {
@@ -2271,12 +1976,10 @@ class PublishModule implements Module {
       } else {
         skippedCount++;
       }
-      node.children.forEach((child: IDocTreeNode) =>
-        traverse(child, [...ancestors, node]),
-      );
+      node.children.forEach((child: IDocTreeNode) => traverse(child, [...ancestors, node]));
     };
 
-    nodes.forEach((node) => traverse(node, []));
+    nodes.forEach(node => traverse(node, []));
 
     let defaultHref: string | undefined;
     const entries = entryInfos.map(({ node, ancestors }) => {
@@ -2289,7 +1992,7 @@ class PublishModule implements Module {
           label: entity.title,
           href: defaultHref,
         },
-        ...ancestors.map((ancestor) => {
+        ...ancestors.map(ancestor => {
           const ancestorHref = ancestor.hasContent
             ? `${entity.basePath}/${ancestor.id}.html`
             : undefined;
@@ -2311,7 +2014,7 @@ class PublishModule implements Module {
         href,
         createTime: node.createTime,
         updateTime: node.updateTime,
-        tags: [],
+        tags: node.tags,
         kind: entity.kind,
         content: node.content || [],
         breadcrumb,
@@ -2323,7 +2026,7 @@ class PublishModule implements Module {
   }
 
   private collectTailwindSources(
-    nodes?: Descendant[],
+    nodes?: Descendant[]
   ): Array<{ code: string; extension: "tsx" | "html" }> {
     if (!nodes || nodes.length === 0) {
       return [];
@@ -2358,7 +2061,7 @@ class PublishModule implements Module {
       }
     };
 
-    nodes.forEach((node) => traverse(node));
+    nodes.forEach(node => traverse(node));
     return sources;
   }
 
@@ -2373,10 +2076,7 @@ class PublishModule implements Module {
       let css = this.tailwindCssCache.get(cacheKey);
       if (!css) {
         try {
-          css = await TailwindRuntimeModule.compileTailwindCss(
-            source.code,
-            source.extension,
-          );
+          css = await TailwindRuntimeModule.compileTailwindCss(source.code, source.extension);
           if (css) {
             this.tailwindCssCache.set(cacheKey, css);
           }
@@ -2441,10 +2141,10 @@ class PublishModule implements Module {
   private buildTimelineEntries(
     cards: ICard[],
     articles: IArticle[],
-    docTimeline: ITimelineEntry[],
+    docTimeline: ITimelineEntry[]
   ): ITimelineEntry[] {
     const entries: ITimelineEntry[] = [
-      ...cards.map((card) => ({
+      ...cards.map(card => ({
         type: "card" as const,
         id: card.id,
         summary: this.buildSummary(card.content || []),
@@ -2452,7 +2152,7 @@ class PublishModule implements Module {
         tags: card.tags || [],
         publishTime: card.create_time,
       })),
-      ...articles.map((article) => ({
+      ...articles.map(article => ({
         type: "article" as const,
         id: article.id,
         title: article.title,
@@ -2527,10 +2227,10 @@ class PublishModule implements Module {
     cards: ICard[],
     articles: IArticle[],
     docs: IDocEntry[],
-    quests: IQuestEntry[] = [],
+    quests: IQuestEntry[] = []
   ): IPublishFeedItem[] {
     return [
-      ...articles.map((article) => ({
+      ...articles.map(article => ({
         type: "article" as const,
         id: article.id,
         title: article.title || `文章 #${article.id}`,
@@ -2541,7 +2241,7 @@ class PublishModule implements Module {
         updateTime: article.update_time,
         author: article.author,
       })),
-      ...cards.map((card) => ({
+      ...cards.map(card => ({
         type: "card" as const,
         id: card.id,
         title: this.buildCardFeedTitle(card),
@@ -2551,7 +2251,7 @@ class PublishModule implements Module {
         publishTime: card.create_time,
         updateTime: card.update_time,
       })),
-      ...docs.map((doc) => ({
+      ...docs.map(doc => ({
         type: "doc" as const,
         id: doc.id,
         title: doc.title || `文档 #${doc.id}`,
@@ -2561,7 +2261,7 @@ class PublishModule implements Module {
         publishTime: doc.createTime,
         updateTime: doc.updateTime,
       })),
-      ...quests.map((quest) => ({
+      ...quests.map(quest => ({
         type: "quest" as const,
         id: quest.id,
         title: quest.title,
@@ -2580,12 +2280,12 @@ class PublishModule implements Module {
   async executePublish(
     db: import("better-sqlite3").Database,
     config: ExecutePublishConfig,
-    site: ISiteMeta,
+    site: ISiteMeta
   ): Promise<IPublishResult> {
     const provider = createPublishProvider(
       config.providerType === "github"
         ? { type: "github", github: config.providerConfig }
-        : { type: "s3", s3: config.providerConfig },
+        : { type: "s3", s3: config.providerConfig }
     );
 
     const options = { ...DEFAULT_UPLOAD_OPTIONS, ...config.options };
@@ -2604,8 +2304,7 @@ class PublishModule implements Module {
     };
 
     const extraProcessed = plan.virtualProcessed || 0;
-    const totalOperations =
-      plan.toUpload.length + plan.toDelete.length + extraProcessed;
+    const totalOperations = plan.toUpload.length + plan.toDelete.length + extraProcessed;
     const total = Math.max(1, totalOperations);
     let current = extraProcessed;
 
@@ -2615,10 +2314,7 @@ class PublishModule implements Module {
       total,
     });
 
-    const sendProgress = (
-      phase: IPublishProgress["phase"],
-      currentFile?: string,
-    ) => {
+    const sendProgress = (phase: IPublishProgress["phase"], currentFile?: string) => {
       this.emitProgress({
         phase,
         current,
@@ -2630,10 +2326,7 @@ class PublishModule implements Module {
     // 上传文件
     sendProgress("uploading");
     if (plan.toUpload.length > 0) {
-      const concurrency = Math.max(
-        1,
-        Math.min(options.concurrency, plan.toUpload.length),
-      );
+      const concurrency = Math.max(1, Math.min(options.concurrency, plan.toUpload.length));
       let uploadIndex = 0;
 
       const worker = async () => {
@@ -2671,6 +2364,12 @@ class PublishModule implements Module {
       await Promise.all(workers);
     }
 
+    // 新文件不完整时保留旧地址和历史，下一次发布继续重试。
+    if (result.failed.length > 0) {
+      sendProgress("finishing");
+      return result;
+    }
+
     // 删除旧文件
     sendProgress("deleting");
     for (const path of plan.toDelete) {
@@ -2697,14 +2396,11 @@ class PublishModule implements Module {
   private async uploadWithRetry(
     provider: IPublishProvider,
     file: IPublishFile,
-    options: Required<IUploadOptions>,
+    options: Required<IUploadOptions>
   ): Promise<boolean> {
     for (let attempt = 1; attempt <= options.maxRetries; attempt++) {
       try {
-        const content =
-          typeof file.content === "string"
-            ? Buffer.from(file.content)
-            : file.content;
+        const content = typeof file.content === "string" ? Buffer.from(file.content) : file.content;
         await provider.uploadFile(file.path, content);
         return true;
       } catch (error) {
@@ -2720,16 +2416,13 @@ class PublishModule implements Module {
   private async executeGitCliPublish(
     db: import("better-sqlite3").Database,
     config: GithubExecuteConfig,
-    plan: IPublishPlan,
+    plan: IPublishPlan
   ): Promise<IPublishResult> {
     const providerConfig = config.providerConfig;
     const needsPushStep = plan.toUpload.length + plan.toDelete.length > 0;
     const extraProcessed = plan.virtualProcessed || 0;
     const totalOperations =
-      plan.toUpload.length +
-      plan.toDelete.length +
-      (needsPushStep ? 1 : 0) +
-      extraProcessed;
+      plan.toUpload.length + plan.toDelete.length + (needsPushStep ? 1 : 0) + extraProcessed;
     const total = Math.max(1, totalOperations);
     let current = extraProcessed;
 
@@ -2739,10 +2432,7 @@ class PublishModule implements Module {
       total,
     });
 
-    const sendProgress = (
-      phase: IPublishProgress["phase"],
-      currentFile?: string,
-    ) => {
+    const sendProgress = (phase: IPublishProgress["phase"], currentFile?: string) => {
       this.emitProgress({
         phase,
         current,
@@ -2782,10 +2472,7 @@ class PublishModule implements Module {
         if (!existsSync(dir)) {
           mkdirSync(dir, { recursive: true });
         }
-        const content =
-          typeof file.content === "string"
-            ? Buffer.from(file.content)
-            : file.content;
+        const content = typeof file.content === "string" ? Buffer.from(file.content) : file.content;
         writeFileSync(filePath, content);
         current++;
         sendProgress("uploading");
@@ -2794,11 +2481,8 @@ class PublishModule implements Module {
       await repoGit.add(["-A"]);
 
       const committerName =
-        providerConfig.committerName ||
-        config.siteConfig.title ||
-        "Tau Publisher";
-      const committerEmail =
-        providerConfig.committerEmail || "noreply@tau-editor.local";
+        providerConfig.committerName || config.siteConfig.title || "Tau Publisher";
+      const committerEmail = providerConfig.committerEmail || "noreply@tau-editor.local";
 
       await repoGit.addConfig("user.name", committerName);
       await repoGit.addConfig("user.email", committerEmail);
@@ -2822,7 +2506,7 @@ class PublishModule implements Module {
 
       const result: IPublishResult = {
         success: true,
-        uploaded: plan.toUpload.map((file) => file.path),
+        uploaded: plan.toUpload.map(file => file.path),
         deleted: plan.toDelete,
         failed: [],
         skipped: plan.unchanged,
@@ -2868,10 +2552,7 @@ class PublishModule implements Module {
     }
   }
 
-  private async prepareGitRepository(
-    workingDir: string,
-    remoteUrl: string,
-  ): Promise<void> {
+  private async prepareGitRepository(workingDir: string, remoteUrl: string): Promise<void> {
     const gitDir = join(workingDir, ".git");
     if (existsSync(gitDir)) {
       return;
@@ -2885,15 +2566,12 @@ class PublishModule implements Module {
     try {
       await simpleGit().clone(remoteUrl, workingDir);
     } catch (error) {
-      log.warn(
-        `Clone ${remoteUrl} failed, fallback to initializing repo:`,
-        error,
-      );
+      log.warn(`Clone ${remoteUrl} failed, fallback to initializing repo:`, error);
       mkdirSync(workingDir, { recursive: true });
       const repoGit = simpleGit(workingDir);
       await repoGit.init();
       const remotes = await repoGit.getRemotes(true);
-      if (remotes.some((remote) => remote.name === "origin")) {
+      if (remotes.some(remote => remote.name === "origin")) {
         await repoGit.remote(["set-url", "origin", remoteUrl]);
       } else {
         await repoGit.addRemote("origin", remoteUrl);
@@ -2901,10 +2579,7 @@ class PublishModule implements Module {
     }
   }
 
-  private async checkoutTargetBranch(
-    git: SimpleGit,
-    branch: string,
-  ): Promise<void> {
+  private async checkoutTargetBranch(git: SimpleGit, branch: string): Promise<void> {
     const localBranches = await git.branchLocal();
     if (localBranches.all.includes(branch)) {
       await git.checkout(branch);
@@ -2980,9 +2655,7 @@ class PublishModule implements Module {
   private emitProgress(progress: IPublishProgress) {
     if (!this.backendServer) {
       if (!this.progressWarningLogged) {
-        log.warn(
-          "Backend WebSocket server is not ready, skip publish progress",
-        );
+        log.warn("Backend WebSocket server is not ready, skip publish progress");
         this.progressWarningLogged = true;
       }
       this.pendingProgressEvents.push(progress);
@@ -3007,7 +2680,7 @@ class PublishModule implements Module {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
 

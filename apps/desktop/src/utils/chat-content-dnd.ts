@@ -7,12 +7,7 @@ export interface ChatContentDragCarrier {
   chatContentReference?: MentionRef;
 }
 
-const MENTION_ENTITY_TYPES = new Set<MentionEntityType>([
-  "card",
-  "article",
-  "project-item",
-  "document-item",
-]);
+const MENTION_ENTITY_TYPES = new Set<MentionEntityType>(["card", "article", "project-item"]);
 
 const isMentionRef = (value: unknown): value is MentionRef => {
   if (!value || typeof value !== "object") return false;
@@ -28,14 +23,10 @@ const isMentionRef = (value: unknown): value is MentionRef => {
   );
 };
 
-export const getChatContentDragReference = (
-  item: unknown,
-): MentionRef | null => {
+export const getChatContentDragReference = (item: unknown): MentionRef | null => {
   if (isMentionRef(item)) return item;
   if (!item || typeof item !== "object") return null;
 
   const carrier = item as ChatContentDragCarrier;
-  return isMentionRef(carrier.chatContentReference)
-    ? carrier.chatContentReference
-    : null;
+  return isMentionRef(carrier.chatContentReference) ? carrier.chatContentReference : null;
 };

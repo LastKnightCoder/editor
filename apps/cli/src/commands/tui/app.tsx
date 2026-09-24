@@ -6,10 +6,7 @@ import { ArticleListView } from "./views/article-list.js";
 import { ArticleDetailView } from "./views/article-detail.js";
 import { ProjectListView } from "./views/project-list.js";
 import { ProjectDetailView } from "./views/project-detail.js";
-import { DocumentListView } from "./views/document-list.js";
-import { DocumentDetailView } from "./views/document-detail.js";
 import { ProjectItemDetailView } from "./views/project-item-detail.js";
-import { DocumentItemDetailView } from "./views/document-item-detail.js";
 import { SearchView } from "./views/search.js";
 import { TodoListView } from "./views/todo-list.js";
 import { TodoDetailView } from "./views/todo-detail.js";
@@ -30,9 +27,6 @@ type Page =
   | { type: "project-list" }
   | { type: "project-detail"; projectId: number }
   | { type: "project-item-detail"; itemId: number; backTo: Page }
-  | { type: "document-list" }
-  | { type: "document-detail"; docId: number }
-  | { type: "document-item-detail"; itemId: number; backTo: Page }
   | { type: "todo-list"; groupId?: number; systemType?: string }
   | { type: "todo-detail"; todoId: number; backTo?: Page }
   | { type: "todo-group-list" }
@@ -52,7 +46,6 @@ const MENU_ITEMS = [
   { label: "Card List", description: "Browse and manage cards" },
   { label: "Article List", description: "Browse articles" },
   { label: "Project List", description: "Browse projects" },
-  { label: "Document List", description: "Browse documents" },
   { label: "Todo List", description: "Manage tasks and todos" },
   { label: "Todo Groups", description: "View task groups" },
   { label: "Questions", description: "Browse questions and answers" },
@@ -61,13 +54,7 @@ const MENU_ITEMS = [
   { label: "Quit", description: "Exit TUI" },
 ] as const;
 
-function MainMenu({
-  cursor,
-  onSelect,
-}: {
-  cursor: number;
-  onSelect: (index: number) => void;
-}) {
+function MainMenu({ cursor, onSelect }: { cursor: number; onSelect: (index: number) => void }) {
   return (
     <Box flexDirection="column">
       <Box marginBottom={1}>
@@ -105,9 +92,9 @@ export function TuiApp() {
         return;
       }
       if (key.upArrow || input === "k") {
-        setMenuCursor((c) => (c > 0 ? c - 1 : MENU_ITEMS.length - 1));
+        setMenuCursor(c => (c > 0 ? c - 1 : MENU_ITEMS.length - 1));
       } else if (key.downArrow || input === "j") {
-        setMenuCursor((c) => (c < MENU_ITEMS.length - 1 ? c + 1 : 0));
+        setMenuCursor(c => (c < MENU_ITEMS.length - 1 ? c + 1 : 0));
       } else if (key.return) {
         switch (menuCursor) {
           case 0:
@@ -123,24 +110,21 @@ export function TuiApp() {
             setPage({ type: "project-list" });
             break;
           case 4:
-            setPage({ type: "document-list" });
-            break;
-          case 5:
             setPage({ type: "todo-list" });
             break;
-          case 6:
+          case 5:
             setPage({ type: "todo-group-list" });
             break;
-          case 7:
+          case 6:
             setPage({ type: "question-list" });
             break;
-          case 8:
+          case 7:
             setPage({ type: "db-status" });
             break;
-          case 9:
+          case 8:
             setPage({ type: "sync" });
             break;
-          case 10:
+          case 9:
             exit();
             break;
         }
@@ -179,13 +163,6 @@ export function TuiApp() {
                 backTo: { type: "search" },
               });
               break;
-            case "document-item":
-              setPage({
-                type: "document-item-detail",
-                itemId: id,
-                backTo: { type: "search" },
-              });
-              break;
             default:
               break;
           }
@@ -198,7 +175,7 @@ export function TuiApp() {
     return (
       <CardListView
         onBack={() => setPage({ type: "menu" })}
-        onShowCard={(cardId) => setPage({ type: "card-detail", cardId })}
+        onShowCard={cardId => setPage({ type: "card-detail", cardId })}
       />
     );
   }
@@ -216,9 +193,7 @@ export function TuiApp() {
     return (
       <ArticleListView
         onBack={() => setPage({ type: "menu" })}
-        onShowArticle={(articleId) =>
-          setPage({ type: "article-detail", articleId })
-        }
+        onShowArticle={articleId => setPage({ type: "article-detail", articleId })}
       />
     );
   }
@@ -236,9 +211,7 @@ export function TuiApp() {
     return (
       <ProjectListView
         onBack={() => setPage({ type: "menu" })}
-        onShowProject={(projectId) =>
-          setPage({ type: "project-detail", projectId })
-        }
+        onShowProject={projectId => setPage({ type: "project-detail", projectId })}
       />
     );
   }
@@ -248,34 +221,9 @@ export function TuiApp() {
       <ProjectDetailView
         projectId={page.projectId}
         onBack={() => setPage({ type: "project-list" })}
-        onShowProjectItem={(itemId) =>
+        onShowProjectItem={itemId =>
           setPage({
             type: "project-item-detail",
-            itemId,
-            backTo: page,
-          })
-        }
-      />
-    );
-  }
-
-  if (page.type === "document-list") {
-    return (
-      <DocumentListView
-        onBack={() => setPage({ type: "menu" })}
-        onShowDocument={(docId) => setPage({ type: "document-detail", docId })}
-      />
-    );
-  }
-
-  if (page.type === "document-detail") {
-    return (
-      <DocumentDetailView
-        docId={page.docId}
-        onBack={() => setPage({ type: "document-list" })}
-        onShowDocumentItem={(itemId) =>
-          setPage({
-            type: "document-item-detail",
             itemId,
             backTo: page,
           })
@@ -289,25 +237,9 @@ export function TuiApp() {
       <ProjectItemDetailView
         itemId={page.itemId}
         onBack={() => setPage(page.backTo)}
-        onShowProjectItem={(id) =>
+        onShowProjectItem={id =>
           setPage({
             type: "project-item-detail",
-            itemId: id,
-            backTo: page,
-          })
-        }
-      />
-    );
-  }
-
-  if (page.type === "document-item-detail") {
-    return (
-      <DocumentItemDetailView
-        itemId={page.itemId}
-        onBack={() => setPage(page.backTo)}
-        onShowDocumentItem={(id) =>
-          setPage({
-            type: "document-item-detail",
             itemId: id,
             backTo: page,
           })
@@ -322,9 +254,7 @@ export function TuiApp() {
         initialGroupId={page.groupId}
         initialSystemType={page.systemType}
         onBack={() => setPage({ type: "menu" })}
-        onShowTodo={(todoId) =>
-          setPage({ type: "todo-detail", todoId, backTo: page })
-        }
+        onShowTodo={todoId => setPage({ type: "todo-detail", todoId, backTo: page })}
       />
     );
   }
@@ -334,9 +264,7 @@ export function TuiApp() {
       <TodoDetailView
         todoId={page.todoId}
         onBack={() => setPage(page.backTo ?? { type: "todo-list" })}
-        onShowSubtask={(id) =>
-          setPage({ type: "todo-detail", todoId: id, backTo: page })
-        }
+        onShowSubtask={id => setPage({ type: "todo-detail", todoId: id, backTo: page })}
       />
     );
   }
@@ -345,7 +273,7 @@ export function TuiApp() {
     return (
       <TodoGroupListView
         onBack={() => setPage({ type: "menu" })}
-        onSelectGroup={(selection) =>
+        onSelectGroup={selection =>
           setPage({
             type: "todo-list",
             groupId: selection.groupId,
@@ -361,7 +289,7 @@ export function TuiApp() {
       <QuestionListView
         initialGroupId={page.groupId}
         onBack={() => setPage({ type: "menu" })}
-        onShowQuestion={(questionId) =>
+        onShowQuestion={questionId =>
           setPage({ type: "question-detail", questionId, backTo: page })
         }
       />

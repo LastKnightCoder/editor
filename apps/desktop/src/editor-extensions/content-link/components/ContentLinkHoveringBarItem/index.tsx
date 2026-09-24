@@ -17,7 +17,7 @@ const LinkHoveringItem = memo(() => {
   const selectionRef = useRef<BaseSelection | null>(null);
   const [openSelectModal, setOpenSelectModal] = useState<boolean>(false);
   const { contentId } = useContext(EditContentContext) || {};
-  const extensions = useDynamicExtensionsStore((state) => state.extensions);
+  const extensions = useDynamicExtensionsStore(state => state.extensions);
   const editor = useSlate();
   const selection = useSlateSelection();
   const themeColors = useThemeColors();
@@ -27,10 +27,7 @@ const LinkHoveringItem = memo(() => {
       return false;
     }
     const [contentLink] = Editor.nodes(editor, {
-      match: (n) =>
-        !Editor.isEditor(n) &&
-        Element.isElement(n) &&
-        n.type === "content-link",
+      match: n => !Editor.isEditor(n) && Element.isElement(n) && n.type === "content-link",
     });
     return !!contentLink;
   }, [editor, selection]);
@@ -59,9 +56,7 @@ const LinkHoveringItem = memo(() => {
   };
 
   const onSelectOk = async (selectedResult: SearchResult | SearchResult[]) => {
-    const cardResults = Array.isArray(selectedResult)
-      ? selectedResult
-      : [selectedResult];
+    const cardResults = Array.isArray(selectedResult) ? selectedResult : [selectedResult];
     if (cardResults.length === 0) {
       message.warning("请选择内容");
       return;
@@ -85,14 +80,14 @@ const LinkHoveringItem = memo(() => {
       <Tooltip title={"关联内容"} trigger={"hover"}>
         <div
           className={classnames(
-            "flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer transition-all duration-200",
+            "flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg transition-all duration-200",
             isActive
               ? themeColors.activeClass
               : classnames(
                   themeColors.textClass,
                   themeColors.hoverClass,
-                  themeColors.hoverTextClass,
-                ),
+                  themeColors.hoverTextClass
+                )
           )}
           onClick={handleClick}
         >
@@ -104,13 +99,7 @@ const LinkHoveringItem = memo(() => {
         open={openSelectModal}
         onCancel={onCancelSelect}
         onSelect={onSelectOk}
-        contentType={[
-          "card",
-          "article",
-          "project-item",
-          "document-item",
-          "diary-daily",
-        ]}
+        contentType={["card", "article", "project-item", "diary-daily"]}
         extensions={extensions}
         emptyDescription="没有可选择的内容"
         showTitle={false}

@@ -12,10 +12,6 @@ import ProjectListSlate from "..";
 
 vi.mock("@/services/aiServer", () => ({ initAiServer: vi.fn(), closeAiServer: vi.fn() }));
 vi.mock("@/commands/project", () => ({ getProjectItemById: async () => ({ projects: [7] }) }));
-vi.mock("@/commands/document", () => ({
-  getDocumentItem: vi.fn(),
-  openDocumentItemInNewWindow: vi.fn(),
-}));
 vi.mock("@/stores/useSettingStore", () => ({
   default: { getState: () => ({ setting: { database: { active: "test" } } }) },
 }));

@@ -16,9 +16,9 @@ mod article;
 mod collaboration;
 mod common;
 mod diary;
-mod document;
 mod home_stats;
 mod index_db;
+mod knowledge_migration;
 mod main_upgrade;
 mod migrator;
 mod pomodoro;
@@ -33,10 +33,11 @@ mod todo_calendar_sync;
 pub use article::*;
 pub use collaboration::*;
 pub use diary::*;
-pub use document::*;
 pub use home_stats::*;
 pub use pomodoro::*;
 pub use project::*;
+pub use index_db::reset_index_database;
+pub(crate) use knowledge_migration::DATA_MODEL_VERSION;
 pub use schema::ensure_database_file;
 pub(crate) use schema::invalidate_cached_connection;
 pub use schema::validate_download;
@@ -99,8 +100,8 @@ fn write_content_snapshot(
     } else {
         Value::Array(vec![])
     };
-    let serialized_content =
-        serde_json::to_string(&normalized_content).map_err(|e| format!("{code}: Failed to serialize content: {e}"))?;
+    let serialized_content = serde_json::to_string(&normalized_content)
+        .map_err(|e| format!("{code}: Failed to serialize content: {e}"))?;
 
     let content_changed = tx
         .execute(

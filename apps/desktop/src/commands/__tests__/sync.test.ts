@@ -24,8 +24,7 @@ const mockContext = vi.hoisted(() => {
   const useSettingStoreMock = {
     getState: vi.fn(() => settingState),
     setState: vi.fn((updater: any) => {
-      settingState =
-        typeof updater === "function" ? updater(settingState) : updater;
+      settingState = typeof updater === "function" ? updater(settingState) : updater;
     }),
   };
 
@@ -47,6 +46,7 @@ const mockContext = vi.hoisted(() => {
     connectDatabaseByName: vi.fn(async () => undefined),
     readBinaryFile: vi.fn(async () => new Uint8Array([9, 9, 9])),
     writeBinaryFile: vi.fn(async () => undefined),
+    renameFileOrDirectory: vi.fn(async () => undefined),
     createDir: vi.fn(async () => undefined),
     pathExists: vi.fn(async () => true),
     getSep: vi.fn(async () => "/"),
@@ -78,6 +78,7 @@ vi.mock("@/commands", () => ({
   reconnectDatabaseFast: mockContext.reconnectDatabaseFast,
   readBinaryFile: mockContext.readBinaryFile,
   writeBinaryFile: mockContext.writeBinaryFile,
+  renameFileOrDirectory: mockContext.renameFileOrDirectory,
   createDir: mockContext.createDir,
   pathExists: mockContext.pathExists,
   getSep: mockContext.getSep,
@@ -139,19 +140,17 @@ describe("sync commands reconnect source", () => {
     expect(mockContext.syncProvider.uploadFile).toHaveBeenNthCalledWith(
       1,
       "data.db",
-      new Uint8Array([9, 9, 9]),
+      new Uint8Array([9, 9, 9])
     );
     expect(mockContext.syncProvider.uploadFile).toHaveBeenNthCalledWith(
       2,
       "database_data.db.json",
-      new TextEncoder().encode(JSON.stringify({ version: 2 })),
+      new TextEncoder().encode(JSON.stringify({ version: 2, dataModelVersion: 1 }))
     );
-    expect(mockContext.settingState.setting.database.databases[0].version).toBe(
-      2,
-    );
+    expect(mockContext.settingState.setting.database.databases[0].version).toBe(2);
     expect(mockContext.reconnectDatabaseFast).toHaveBeenCalledWith(
       "data.db",
-      "sync_upload_reconnect",
+      "sync_upload_reconnect"
     );
   });
 
@@ -164,38 +163,30 @@ describe("sync commands reconnect source", () => {
     expect(mockContext.syncProvider.uploadFile).toHaveBeenCalledTimes(1);
     expect(mockContext.syncProvider.uploadFile).toHaveBeenCalledWith(
       "data.db",
-      new Uint8Array([9, 9, 9]),
+      new Uint8Array([9, 9, 9])
     );
     expect(mockContext.useSettingStoreMock.setState).not.toHaveBeenCalled();
-    expect(mockContext.settingState.setting.database.databases[0].version).toBe(
-      1,
-    );
+    expect(mockContext.settingState.setting.database.databases[0].version).toBe(1);
   });
 
   it("版本信息上传失败时不更新本地版本", async () => {
-    mockContext.syncProvider.uploadFile
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(false);
+    mockContext.syncProvider.uploadFile.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 
     const success = await upload();
 
     expect(success).toBe(false);
     expect(mockContext.syncProvider.uploadFile).toHaveBeenCalledTimes(2);
     expect(mockContext.useSettingStoreMock.setState).not.toHaveBeenCalled();
-    expect(mockContext.settingState.setting.database.databases[0].version).toBe(
-      1,
-    );
+    expect(mockContext.settingState.setting.database.databases[0].version).toBe(1);
   });
 
   it("下载完成后使用维护模式重连以执行 schema 迁移", async () => {
-    mockContext.syncProvider.downloadFile.mockImplementation(
-      async (objectName: string) => {
-        if (objectName === "database_data.db.json") {
-          return new TextEncoder().encode(JSON.stringify({ version: 2 }));
-        }
-        return new Uint8Array([1, 2, 3]);
-      },
-    );
+    mockContext.syncProvider.downloadFile.mockImplementation(async (objectName: string) => {
+      if (objectName === "database_data.db.json") {
+        return new TextEncoder().encode(JSON.stringify({ version: 2 }));
+      }
+      return new Uint8Array([1, 2, 3]);
+    });
 
     const success = await download();
 
@@ -209,14 +200,12 @@ describe("sync commands reconnect source", () => {
   });
 
   it("自动下载后立即 reload 时跳过成功后的即时重连", async () => {
-    mockContext.syncProvider.downloadFile.mockImplementation(
-      async (objectName: string) => {
-        if (objectName === "database_data.db.json") {
-          return new TextEncoder().encode(JSON.stringify({ version: 2 }));
-        }
-        return new Uint8Array([1, 2, 3]);
-      },
-    );
+    mockContext.syncProvider.downloadFile.mockImplementation(async (objectName: string) => {
+      if (objectName === "database_data.db.json") {
+        return new TextEncoder().encode(JSON.stringify({ version: 2 }));
+      }
+      return new Uint8Array([1, 2, 3]);
+    });
 
     const success = await download({ skipReconnectAfterSuccess: true });
 

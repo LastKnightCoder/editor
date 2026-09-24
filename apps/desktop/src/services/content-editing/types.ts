@@ -2,7 +2,7 @@ import { Descendant } from "slate";
 import { TabType } from "@/types/tab";
 import { PositionMapper } from "@/utils/positionMapper";
 
-export type EntityType = "card" | "article" | "document-item" | "project-item";
+export type EntityType = "card" | "article" | "project-item";
 export type SnapshotSource = "active-session" | "database";
 
 export interface MarkdownPoint {
@@ -104,12 +104,7 @@ export interface EditApplyResult {
 export type ContentWritePermission = "review_required" | "auto_apply_allowed";
 
 export type ContentEditProposalStatus =
-  | "pending_review"
-  | "applied"
-  | "rejected"
-  | "superseded"
-  | "restored"
-  | "apply_conflicted";
+  "pending_review" | "applied" | "rejected" | "superseded" | "restored" | "apply_conflicted";
 
 export interface ContentEditChangePreview {
   operationId: string;

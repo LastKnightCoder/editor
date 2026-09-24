@@ -45,9 +45,6 @@ const getTypeIcon = (type?: string) => {
       return <MdArticle className={`${iconProps} text-status-success`} />;
     case "project-item":
       return <MdFolder className={`${iconProps} text-orange-500`} />;
-    case "document-item":
-    case "document":
-      return <MdDescription className={`${iconProps} text-[var(--th-accent)]`} />;
     default:
       return <MdDescription className={`${iconProps} text-gray-500`} />;
   }

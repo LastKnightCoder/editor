@@ -363,13 +363,7 @@ pub fn query_cards_by_search(
     query_cards_by_like(conn, query, category, limit, offset)
 }
 
-const SEARCH_TYPES: &[&str] = &[
-    "card",
-    "article",
-    "project-item",
-    "document-item",
-    "diary-daily",
-];
+const SEARCH_TYPES: &[&str] = &["card", "article", "project-item", "diary-daily"];
 
 fn normalize_search_types(types: Option<&[String]>) -> Vec<String> {
     let Some(types) = types else {
@@ -424,7 +418,6 @@ fn parse_first_id(raw: Option<String>) -> Option<i64> {
 fn query_container_title(conn: &Connection, table: &str, id: i64) -> Option<String> {
     let sql = match table {
         "project" => "SELECT title FROM project WHERE id = ?1",
-        "documents" => "SELECT title FROM documents WHERE id = ?1",
         _ => return None,
     };
     conn.query_row(sql, params![id], |row| row.get::<_, String>(0))
@@ -513,32 +506,6 @@ fn hydrate_unified_result(
             )
             .optional()
             .map_err(|e| format!("DB_OPEN_FAILED: hydrate project search result failed: {e}")),
-        "document-item" => conn
-            .query_row(
-                "SELECT di.title, di.content_id, di.update_time, di.documents, c.content
-                 FROM document_items di LEFT JOIN contents c ON di.content_id = c.id WHERE di.id = ?1",
-                params![id],
-                |row| {
-                    let documents: Option<String> = row.get(3)?;
-                    let container_id = parse_first_id(documents);
-                    let container_title = container_id
-                        .and_then(|value| query_container_title(conn, "documents", value));
-                    Ok(UnifiedSearchResult {
-                        id,
-                        result_type: result_type.to_string(),
-                        title: row.get(0)?,
-                        excerpt: content_excerpt(row.get(4)?),
-                        content_id: row.get(1)?,
-                        update_time: row.get(2)?,
-                        score,
-                        date: None,
-                        container_id,
-                        container_title,
-                    })
-                },
-            )
-            .optional()
-            .map_err(|e| format!("DB_OPEN_FAILED: hydrate document search result failed: {e}")),
         "diary-daily" => {
             let base = conn
                 .query_row(
@@ -612,11 +579,7 @@ fn unified_like_sql() -> &'static str {
        UNION ALL
        SELECT 'project-item:' || pi.id, 'project-item', MAX(pi.update_time, COALESCE(c.update_time, 0))
        FROM project_item pi LEFT JOIN contents c ON pi.content_id = c.id
-       WHERE COALESCE(pi.ref_type, '') = '' AND (pi.title LIKE ?1 ESCAPE '\\' OR c.content LIKE ?1 ESCAPE '\\')
-       UNION ALL
-       SELECT 'document-item:' || di.id, 'document-item', MAX(di.update_time, COALESCE(c.update_time, 0))
-       FROM document_items di LEFT JOIN contents c ON di.content_id = c.id
-       WHERE COALESCE(di.ref_type, '') = '' AND (di.title LIKE ?1 ESCAPE '\\' OR di.tags LIKE ?1 ESCAPE '\\' OR c.content LIKE ?1 ESCAPE '\\')
+       WHERE COALESCE(pi.ref_type, '') = '' AND (pi.title LIKE ?1 ESCAPE '\\' OR pi.tags LIKE ?1 ESCAPE '\\' OR c.content LIKE ?1 ESCAPE '\\')
        UNION ALL
        SELECT 'diary-daily:' || d.id, 'diary-daily', d.update_time
        FROM diary_entries d LEFT JOIN contents c ON d.content_id = c.id
@@ -745,23 +708,19 @@ mod tests {
             CREATE TABLE cards (id INTEGER PRIMARY KEY, content_id INTEGER, update_time INTEGER, tags TEXT);
             CREATE TABLE articles (id INTEGER PRIMARY KEY, title TEXT, author TEXT, tags TEXT, content_id INTEGER, update_time INTEGER, is_delete INTEGER);
             CREATE TABLE project (id INTEGER PRIMARY KEY, title TEXT);
-            CREATE TABLE project_item (id INTEGER PRIMARY KEY, title TEXT, content_id INTEGER, update_time INTEGER, projects TEXT, ref_type TEXT);
-            CREATE TABLE documents (id INTEGER PRIMARY KEY, title TEXT);
-            CREATE TABLE document_items (id INTEGER PRIMARY KEY, title TEXT, tags TEXT, content_id INTEGER, update_time INTEGER, documents TEXT, ref_type TEXT);
+            CREATE TABLE project_item (id INTEGER PRIMARY KEY, title TEXT, content_id INTEGER, update_time INTEGER, projects TEXT, ref_type TEXT, tags TEXT);
             CREATE TABLE diary_entries (id INTEGER PRIMARY KEY, type TEXT, date TEXT, tags TEXT, content_id INTEGER, update_time INTEGER);
             CREATE TABLE diary_segments (id INTEGER PRIMARY KEY, diary_id INTEGER, content_id INTEGER, create_time INTEGER);
             INSERT INTO contents VALUES
               (1, '[{\"text\":\"卡片统一搜索\"}]', 10),
               (2, '[{\"text\":\"文章统一搜索\"}]', 20),
               (3, '[{\"text\":\"项目统一搜索\"}]', 30),
-              (4, '[{\"text\":\"知识库统一搜索\"}]', 40),
+              (4, '[{\"text\":\"未挂载内容统一搜索\"}]', 40),
               (5, '[{\"text\":\"日记统一搜索\"}]', 50);
             INSERT INTO cards VALUES (1, 1, 10, '[]');
             INSERT INTO articles VALUES (2, '文章标题', '作者', '[]', 2, 20, 0);
             INSERT INTO project VALUES (3, '项目一');
-            INSERT INTO project_item VALUES (3, '项目文档', 3, 30, '[3]', '');
-            INSERT INTO documents VALUES (4, '知识库一');
-            INSERT INTO document_items VALUES (4, '知识库文档', '[]', 4, 40, '[4]', '');
+            INSERT INTO project_item VALUES (3, '项目文档', 3, 30, '[3]', '', '[]');
             INSERT INTO diary_entries VALUES (5, 'daily', '2026-09-13', '[]', NULL, 50);
             INSERT INTO diary_segments VALUES (5, 5, 5, 1);
             ",
@@ -770,12 +729,11 @@ mod tests {
 
         let (mode, total, items) = query_unified_search(&conn, "统一搜索", None, 1, 20).unwrap();
         assert_eq!(mode, "like");
-        assert_eq!(total, 5);
-        assert_eq!(items.len(), 5);
+        assert_eq!(total, 4);
+        assert_eq!(items.len(), 4);
         assert!(items.iter().any(|item| item.result_type == "card"));
         assert!(items.iter().any(|item| item.result_type == "article"));
         assert!(items.iter().any(|item| item.result_type == "project-item"));
-        assert!(items.iter().any(|item| item.result_type == "document-item"));
         assert!(items.iter().any(|item| item.result_type == "diary-daily"));
     }
 
@@ -790,8 +748,7 @@ mod tests {
             "CREATE TABLE contents (id INTEGER PRIMARY KEY, content TEXT, update_time INTEGER);
              CREATE TABLE articles (id INTEGER PRIMARY KEY, title TEXT, author TEXT, tags TEXT, content_id INTEGER, update_time INTEGER, is_delete INTEGER);
              CREATE TABLE cards (id INTEGER PRIMARY KEY, content_id INTEGER, update_time INTEGER, tags TEXT);
-             CREATE TABLE project_item (id INTEGER PRIMARY KEY, title TEXT, content_id INTEGER, update_time INTEGER, projects TEXT, ref_type TEXT);
-             CREATE TABLE document_items (id INTEGER PRIMARY KEY, title TEXT, tags TEXT, content_id INTEGER, update_time INTEGER, documents TEXT, ref_type TEXT);
+             CREATE TABLE project_item (id INTEGER PRIMARY KEY, title TEXT, content_id INTEGER, update_time INTEGER, projects TEXT, ref_type TEXT, tags TEXT);
              CREATE TABLE diary_entries (id INTEGER PRIMARY KEY, type TEXT, date TEXT, tags TEXT, content_id INTEGER, update_time INTEGER);
              CREATE TABLE diary_segments (id INTEGER PRIMARY KEY, diary_id INTEGER, content_id INTEGER, create_time INTEGER);
              INSERT INTO contents VALUES (1, '[{\"text\":\"全文索引命中\"}]', 10);

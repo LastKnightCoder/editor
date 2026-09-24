@@ -1,5 +1,4 @@
 import { getProjectItemById } from "@/commands/project";
-import { getDocumentItem, openDocumentItemInNewWindow } from "@/commands/document";
 import useSettingStore from "@/stores/useSettingStore";
 import { getPageNavigation, openPage } from "./page-navigation";
 
@@ -27,13 +26,6 @@ export async function openContent(type: string, id: number) {
         ? currentProjectId
         : item.projects[0];
     openPage("project-detail", { id: projectId, itemId: id });
-    return;
-  }
-  if (type === "document-item") {
-    const item = await getDocumentItem(id);
-    ensureDatabase();
-    if (!item) throw new Error("知识库文档不存在");
-    await openDocumentItemInNewWindow(database, id);
     return;
   }
   throw new Error(`暂不支持打开此内容类型：${type}`);

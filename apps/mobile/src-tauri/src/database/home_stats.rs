@@ -14,8 +14,6 @@ pub struct HomeStatsResponse {
     pub articles_total: i64,
     pub projects_total: i64,
     pub project_documents_total: i64,
-    pub document_libraries_total: i64,
-    pub knowledge_documents_total: i64,
 }
 
 fn count(conn: &Connection, sql: &str) -> Result<i64, String> {
@@ -33,11 +31,6 @@ pub fn get_home_stats(app: AppHandle) -> Result<HomeStatsResponse, String> {
             &conn,
             "SELECT COUNT(1) FROM project_item
              WHERE project_item_type = 'document' AND COALESCE(ref_type, '') = ''",
-        )?,
-        document_libraries_total: count(&conn, "SELECT COUNT(1) FROM documents")?,
-        knowledge_documents_total: count(
-            &conn,
-            "SELECT COUNT(1) FROM document_items WHERE COALESCE(ref_type, '') = ''",
         )?,
     })
 }

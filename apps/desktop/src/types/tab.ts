@@ -10,8 +10,6 @@ export enum TabType {
   Collaboration = "collaboration",
   ProjectList = "projectList",
   ProjectDetail = "projectDetail",
-  DocumentList = "documentList",
-  DocumentDetail = "documentDetail",
   WhiteBoardList = "whiteBoardList",
   WhiteBoardDetail = "whiteBoardDetail",
   PdfList = "pdfList",
@@ -44,8 +42,6 @@ export type TabParams = {
   [TabType.Collaboration]: undefined;
   [TabType.ProjectList]: undefined;
   [TabType.ProjectDetail]: { id: number; itemId?: number }; // 项目 ID 和可选的项目项 ID
-  [TabType.DocumentList]: undefined;
-  [TabType.DocumentDetail]: { id: number; itemId?: number }; // 文档 ID 和可选的知识库项 ID
   [TabType.WhiteBoardList]: undefined;
   [TabType.WhiteBoardDetail]:
     | { type: "whiteboard"; id: number } // 打开 WhiteBoard（包含多个 SubWhiteBoards）
@@ -110,8 +106,6 @@ export const TAB_TITLES: Record<TabType, string> = {
   [TabType.Collaboration]: "协作",
   [TabType.ProjectList]: "项目",
   [TabType.ProjectDetail]: "项目详情",
-  [TabType.DocumentList]: "知识库",
-  [TabType.DocumentDetail]: "知识库详情",
   [TabType.WhiteBoardList]: "白板",
   [TabType.WhiteBoardDetail]: "白板详情",
   [TabType.PdfList]: "PDF/EPUB",

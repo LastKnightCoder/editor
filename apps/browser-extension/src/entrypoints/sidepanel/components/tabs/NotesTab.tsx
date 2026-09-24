@@ -10,7 +10,6 @@ import {
   CreditCard,
   FileText,
   FolderInput,
-  BookOpen,
   RefreshCw,
 } from "lucide-react";
 import { App } from "antd";
@@ -647,33 +646,6 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
     }
   });
 
-  // 插入/更新到知识库（桌面端弹窗）
-  const handleInsertToDocument = useMemoizedFn(async () => {
-    if (!aiWsClient || actionLoading) return;
-    setActionLoading(true);
-    setShowMoreMenu(false);
-
-    try {
-      const dbName = await fetchCurrentDbName();
-      if (!dbName) throw new Error("未连接到桌面端");
-
-      const ensured = await ensureContentId(dbName);
-      if (!ensured?.contentId) throw new Error("内容保存失败");
-
-      await aiWsClient.sendRequest("note.showInsertModal", {
-        mode: "document",
-        sourceContentId: ensured.contentId,
-      });
-      antdMessage.success("已发送到桌面端");
-    } catch (error) {
-      if ((error as Error)?.message === "SYNC_CANCELLED") return;
-      console.error("插入到知识库失败:", error);
-      antdMessage.error("插入到知识库失败");
-    } finally {
-      setActionLoading(false);
-    }
-  });
-
   // 仅更新共享内容到桌面端数据库（不构建卡片/文章）
   const handleUpdateContent = useMemoizedFn(async () => {
     if (!aiWsClient || actionLoading) return;
@@ -781,20 +753,12 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
     }
 
     // 始终显示
-    items.push(
-      {
-        key: "insert-project",
-        icon: <FolderInput size={14} />,
-        label: "插入到项目",
-        onClick: handleInsertToProject,
-      },
-      {
-        key: "insert-document",
-        icon: <BookOpen size={14} />,
-        label: "插入到知识库",
-        onClick: handleInsertToDocument,
-      }
-    );
+    items.push({
+      key: "insert-project",
+      icon: <FolderInput size={14} />,
+      label: "插入到项目",
+      onClick: handleInsertToProject,
+    });
 
     return items;
   }, [
@@ -806,7 +770,6 @@ export default function NotesTab({ wsClient, resolvedTheme, url, pendingNoteRef 
     handleBuildCard,
     handleBuildArticle,
     handleInsertToProject,
-    handleInsertToDocument,
   ]);
 
   // More 菜单项选择

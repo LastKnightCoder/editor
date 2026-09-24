@@ -1,4 +1,4 @@
-import { Layers, FileText, MessageSquare, Folder, BookOpen } from "lucide-react";
+import { Layers, FileText, MessageSquare, Folder } from "lucide-react";
 import { PublishContentType } from "@/types/publish";
 import { ECardCategory } from "@/types/card";
 import { TabConfig } from "./types";
@@ -31,12 +31,6 @@ export const TABS: TabConfig[] = [
     description: "选择项目文档",
     icon: Folder,
   },
-  {
-    key: "document",
-    label: "知识库",
-    description: "选择知识库文档",
-    icon: BookOpen,
-  },
 ];
 
 /**
@@ -57,7 +51,6 @@ export const CONTENT_TYPE_LABEL: Record<PublishContentType, string> = {
   article: "文章",
   quest: "问题管理",
   project: "项目",
-  document: "知识库",
 };
 
 /**
@@ -68,7 +61,6 @@ export const EMPTY_PLACEHOLDER: Record<PublishContentType, string> = {
   article: "暂无文章",
   quest: "暂无问题条目",
   project: "暂无项目",
-  document: "暂无知识库",
 };
 
 /**
@@ -79,5 +71,4 @@ export const SEARCH_PLACEHOLDER: Record<PublishContentType, string> = {
   article: "搜索文章标题…",
   quest: "搜索问题标题或分类…",
   project: "搜索项目名称…",
-  document: "搜索知识库名称…",
 };

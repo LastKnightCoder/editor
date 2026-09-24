@@ -7,5 +7,6 @@ export interface ISyncProvider {
 
 export interface IDatabaseInfo {
   version: number;
+  dataModelVersion?: number;
   [key: string]: unknown;
 }

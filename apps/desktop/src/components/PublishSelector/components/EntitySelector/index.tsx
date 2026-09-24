@@ -1,6 +1,5 @@
 import { memo, useState, useMemo, useCallback } from "react";
 import { Project } from "@/types/project";
-import { IDocument } from "@/types/document";
 import { PublishContentType } from "@/types/publish";
 import { EntityScope, DocTreeNode, SelectionFilter } from "../../types";
 import { collectDocNodeIds, matchesSelectionFilter, selectionFilterLabel } from "../../utils";
@@ -14,19 +13,19 @@ import { useSearch } from "../../hooks";
 interface EntityItem {
   id: number;
   title: string;
-  type: "project" | "document";
-  raw: Project | IDocument;
+  type: "project";
+  raw: Project;
 }
 
 interface EntitySelectorProps {
-  type: "project" | "document";
-  entities: (Project | IDocument)[];
+  type: "project";
+  entities: Project[];
   isItemSelected: (type: PublishContentType, id: number) => boolean;
   scopes: Map<number, EntityScope>;
   treeCache: Map<number, DocTreeNode[]>;
   onToggleEntity: (id: number, enabled: boolean) => Promise<void>;
   onUpdateScope: (entityId: number, scope: EntityScope) => Promise<void>;
-  onLoadTree: (entity: Project | IDocument) => Promise<DocTreeNode[]>;
+  onLoadTree: (entity: Project) => Promise<DocTreeNode[]>;
 }
 
 export const EntitySelector = memo<EntitySelectorProps>(
@@ -40,11 +39,11 @@ export const EntitySelector = memo<EntitySelectorProps>(
     onUpdateScope,
     onLoadTree,
   }) => {
-    const [modalEntity, setModalEntity] = useState<Project | IDocument | null>(null);
+    const [modalEntity, setModalEntity] = useState<Project | null>(null);
     const [modalLoading, setModalLoading] = useState(false);
     const [selectionFilter, setSelectionFilter] = useState<SelectionFilter>("all");
 
-    const typeLabel = type === "project" ? "项目" : "知识库";
+    const typeLabel = "项目";
 
     // 转换为统一格式
     const entityItems = useMemo<EntityItem[]>(
@@ -88,7 +87,7 @@ export const EntitySelector = memo<EntitySelectorProps>(
 
     // 打开文档树弹窗
     const handleOpenModal = useCallback(
-      async (entity: Project | IDocument) => {
+      async (entity: Project) => {
         setModalEntity(entity);
         setModalLoading(true);
 
@@ -211,11 +210,12 @@ const EntityCard = memo<{
   onToggle: () => void;
   onManage: () => void;
 }>(({ entity, selected, scope, treeLoaded, totalCount, onToggle, onManage }) => {
-  const typeLabel = entity.type === "project" ? "项目" : "知识库";
+  const typeLabel = "项目";
 
   const scopeDescription = useMemo(() => {
     if (!selected) return `未选择该${typeLabel}`;
     if (!scope || scope.mode === "all") return "将发布全部文档";
+    if (scope.corrupted) return "发布范围数据已失效，请重新选择";
     return `将发布 ${scope.nodeIds.size} 篇文档`;
   }, [selected, scope, typeLabel]);
 
@@ -224,7 +224,13 @@ const EntityCard = memo<{
       <SelectionCheckbox checked={selected} onChange={onToggle} size="sm" />
       <div className="min-w-0 flex-1 cursor-pointer" onClick={onToggle}>
         <div className="text-ink-1 truncate text-[13px]">{entity.title}</div>
-        <div className="text-tau-tiny text-ink-3 mt-0.5 truncate">{scopeDescription}</div>
+        <div
+          className={`text-tau-tiny mt-0.5 truncate ${
+            scope?.mode === "partial" && scope.corrupted ? "text-danger" : "text-ink-3"
+          }`}
+        >
+          {scopeDescription}
+        </div>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
