@@ -9,21 +9,33 @@
  *   无则显示「已是最新」徽标
  * - 同步到云端：本地 → 远端上传；本地落后远程时弹风险确认（远端新变更将被
  *   覆盖），用户可强制同步
- * - 资源文件级同步管理（列表/状态/黑名单）在「资源存储」子页（ResourceSection）
+ *
+ * 2026-09-24 第三版重排：页内分「概览 / 资源文件」两个 Tab。概览 = 数据库卡 + 资源文件卡
+ * 并排（资源目录同步从资源存储页迁入：它与上传目标无关、与数据库共用远端）+ 同步目标；
+ * 资源文件 Tab = 文件列表与黑名单（sections/ResourceSync.tsx）。
+ * 同日追加「本地数据库」Tab：切换 / 新建 / 删除本地库（从 legacy 关于页「数据库管理」迁入，
+ * 实现见 sections/LocalDatabasePanel.tsx）。
  */
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CloudOff, CloudUpload, Download, KeyRound, RefreshCw } from "lucide-react";
+import { ArrowRight, CloudUpload, Database, Download, RefreshCw } from "lucide-react";
 import clsx from "clsx";
 import { produce } from "immer";
-import { Button, ConfirmDialog, Input, Select, toast } from "@tau/ui";
+import { Button, ConfirmDialog, Input, Panel, Segmented, toast } from "@tau/ui";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import { download, getOriginDatabaseInfo, upload } from "@/commands";
 import { isSyncConfigured } from "@/utils/sync";
 import { useSettingsStore } from "@/app/settingsStore";
 import { SettingRow } from "../components/SettingRow";
-import { SectionTitle } from "../components/SectionTitle";
+import { SettingsGroup } from "../components/SettingsGroup";
+import { SettingsTabs } from "../components/SettingsTabs";
+import { StatusChip } from "../components/StatusChip";
+import { LocalDatabasePanel } from "./LocalDatabasePanel";
+import { ResourceSyncCard, ResourceSyncFiles } from "./ResourceSync";
+import { useResourceSyncModel, type FileFilter } from "./useResourceSyncModel";
+
+type SyncTab = "overview" | "files" | "database";
 
 const PROVIDER_LABELS: Record<ESync, string> = {
   [ESync.AliOSS]: "阿里云 OSS",
@@ -35,24 +47,35 @@ const PROVIDER_LABELS: Record<ESync, string> = {
 /** 各家存储定位字段（本页只写 sync 域；凭据在集成子页） */
 const PROVIDER_FIELDS: Record<
   ESync,
-  Array<{ key: string; label: string; placeholder?: string }>
+  Array<{ key: string; label: string; description?: string; placeholder?: string }>
 > = {
   [ESync.AliOSS]: [
     { key: "bucket", label: "Bucket" },
     { key: "region", label: "Region" },
-    { key: "path", label: "路径", placeholder: "留空表示根目录，如：/sync/" },
+    { key: "path", label: "路径", description: "留空表示根目录", placeholder: "如：/sync/" },
   ],
   [ESync.S3]: [
     { key: "bucket", label: "Bucket" },
     { key: "region", label: "Region", placeholder: "如：us-east-1" },
-    { key: "pathPrefix", label: "路径前缀", placeholder: "如：sync/（可选）" },
+    { key: "pathPrefix", label: "路径前缀", description: "可选", placeholder: "如：sync/" },
   ],
-  [ESync.WebDav]: [{ key: "pathPrefix", label: "路径前缀", placeholder: "如：/sync（可选）" }],
+  [ESync.WebDav]: [
+    { key: "pathPrefix", label: "路径前缀", description: "可选", placeholder: "如：/sync" },
+  ],
   [ESync.Github]: [
     { key: "repo", label: "仓库" },
     { key: "branch", label: "分支" },
-    { key: "pathPrefix", label: "路径前缀", placeholder: "如：sync/（可选）" },
+    { key: "pathPrefix", label: "路径前缀", description: "可选", placeholder: "如：sync/" },
   ],
+};
+
+const PROVIDER_ORDER: ESync[] = [ESync.WebDav, ESync.S3, ESync.AliOSS, ESync.Github];
+
+const CREDENTIAL_HINTS: Record<ESync, string> = {
+  [ESync.AliOSS]: "AccessKey 与 Secret",
+  [ESync.S3]: "AccessKey、Secret 与 Endpoint",
+  [ESync.WebDav]: "服务器地址、用户名与密码",
+  [ESync.Github]: "Personal Access Token",
 };
 
 export function SyncSection() {
@@ -163,155 +186,181 @@ export function SyncSection() {
     }));
   };
 
+  const [tab, setTab] = useState<SyncTab>("overview");
+  const [fileFilter, setFileFilter] = useState<FileFilter>("all");
+  const resourceSync = useResourceSyncModel();
+
+  const dbChip = !isConfigured ? (
+    <StatusChip tone="warn">未配置</StatusChip>
+  ) : !remoteKnown ? (
+    <StatusChip>未检查</StatusChip>
+  ) : hasUpdate ? (
+    <StatusChip tone="warn">远程有更新</StatusChip>
+  ) : (
+    <StatusChip tone="ok">已是最新</StatusChip>
+  );
+
   return (
-    <section>
-      <h3 className="text-tau-body-lg font-semibold">同步</h3>
+    <>
+      <SettingsTabs
+        label="同步视图"
+        value={tab}
+        onChange={setTab}
+        items={[
+          { key: "overview", label: "概览" },
+          { key: "files", label: "资源文件", badge: resourceSync.counts.error || undefined },
+          { key: "database", label: "本地数据库" },
+        ]}
+      />
 
-      {/* 状态卡：左侧两行信息（主文案 / 版本+徽标）、右侧按钮组垂直居中，互不挤压 */}
-      <div className="border-line-1 rounded-tau-md mt-3 flex items-center gap-3 border px-4 py-3">
-        <span
-          className={clsx(
-            "grid size-8 shrink-0 place-items-center rounded-full",
-            isConfigured ? "bg-ok-soft text-ok" : "bg-warn-soft text-warn"
-          )}
-        >
-          {isConfigured ? (
-            <CloudUpload size={15} strokeWidth={1.75} />
-          ) : (
-            <CloudOff size={15} strokeWidth={1.75} />
-          )}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="text-tau-body truncate font-semibold">
-            {isConfigured ? `${PROVIDER_LABELS[active]} 已连接` : "尚未配置同步"}
-          </div>
-          <div className="text-tau-tiny mt-0.5 flex items-center gap-2">
-            {isConfigured ? (
-              <>
-                <span className="text-ink-3 tabular-nums">本地 v{localVersion}</span>
-                <span
-                  className={clsx(
-                    "tabular-nums",
-                    hasUpdate ? "text-accent-text font-medium" : "text-ink-3"
-                  )}
-                >
-                  远程 {remoteKnown ? `v${remoteVersion}` : "未检查"}
-                </span>
-                {remoteKnown &&
-                  (hasUpdate ? (
-                    <span className="bg-accent-soft text-accent-text flex-none rounded-full px-2 py-px text-[11px] font-semibold">
-                      有新版本
+      {tab === "overview" ? (
+        <>
+          <SettingsGroup bare>
+            <div className="grid grid-cols-2 gap-3">
+              <Panel pad="none" className="flex min-w-0 flex-col rounded-[14px] px-4 pb-3.5 pt-4">
+                <div className="text-tau-body-lg flex items-center gap-2 font-semibold">
+                  <Database size={15} strokeWidth={1.75} className="text-ink-2" />
+                  数据库
+                  <span className="ml-auto font-normal">{dbChip}</span>
+                </div>
+                <div className="text-tau-meta text-ink-2 mt-0.5 truncate">
+                  {database.active}
+                  {isConfigured && ` · ${PROVIDER_LABELS[active]}`}
+                </div>
+                <dl className="mt-3.5 flex gap-7">
+                  <div>
+                    <dt className="text-tau-sm text-ink-2">本地版本</dt>
+                    <dd className="text-[24px] font-semibold tabular-nums leading-tight">
+                      {localVersion}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-tau-sm text-ink-2">远程版本</dt>
+                    <dd
+                      className={clsx(
+                        "text-[24px] font-semibold tabular-nums leading-tight",
+                        hasUpdate ? "text-accent-text" : !remoteKnown && "text-ink-3"
+                      )}
+                    >
+                      {remoteKnown ? remoteVersion : "—"}
+                    </dd>
+                  </div>
+                </dl>
+                <div className="mt-auto flex gap-2 pt-3.5">
+                  {!isConfigured ? (
+                    <span className="text-tau-meta text-ink-2">
+                      在下方选择存储类型并完善路径后即可同步
                     </span>
+                  ) : hasUpdate ? (
+                    <>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        icon={Download}
+                        onClick={() => setDownloadConfirmOpen(true)}
+                      >
+                        拉取远程
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={CloudUpload}
+                        loading={isSyncing}
+                        onClick={() => setForceSyncConfirmOpen(true)}
+                      >
+                        强制上传
+                      </Button>
+                    </>
                   ) : (
-                    <span className="bg-ok-soft text-ok flex-none rounded-full px-2 py-px text-[11px] font-semibold">
-                      已是最新
-                    </span>
-                  ))}
-              </>
-            ) : (
-              <span className="text-ink-3 truncate">选择提供商并完善存储路径后即可同步</span>
-            )}
-          </div>
-        </div>
-        {isConfigured && (
-          <div className="flex flex-none gap-2">
-            {hasUpdate ? (
-              <>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={CloudUpload}
-                  loading={isSyncing}
-                  onClick={() => setForceSyncConfirmOpen(true)}
+                    <>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        icon={CloudUpload}
+                        loading={isSyncing}
+                        loadingText="同步中…"
+                        onClick={onSyncClick}
+                      >
+                        同步到云端
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        icon={RefreshCw}
+                        loading={isChecking}
+                        loadingText="检查中…"
+                        onClick={() => void onCheckUpdate()}
+                      >
+                        检查
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </Panel>
+              {isConfigured ? (
+                <ResourceSyncCard
+                  model={resourceSync}
+                  onShowIssues={() => {
+                    setFileFilter("error");
+                    setTab("files");
+                  }}
+                />
+              ) : (
+                <Panel
+                  pad="none"
+                  className="text-tau-meta text-ink-2 grid place-items-center rounded-[14px] px-6 text-center"
                 >
-                  强制同步
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon={Download}
-                  onClick={() => setDownloadConfirmOpen(true)}
-                >
-                  下载更新
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={RefreshCw}
-                  loading={isChecking}
-                  loadingText="检查中…"
-                  onClick={() => void onCheckUpdate()}
-                >
-                  检查更新
-                </Button>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon={CloudUpload}
-                  loading={isSyncing}
-                  loadingText="同步中…"
-                  onClick={onSyncClick}
-                >
-                  同步到云端
-                </Button>
-              </>
-            )}
-          </div>
-        )}
-      </div>
+                  资源文件与数据库共用同一个远端，配置同步存储后即可镜像 resources 目录
+                </Panel>
+              )}
+            </div>
+          </SettingsGroup>
 
-      {/* 存储区：提供商 + 各家字段（凭据在集成子页） */}
-      <SectionTitle title={`存储 · ${PROVIDER_LABELS[active]}`} />
-      <SettingRow title="提供商" description="阿里云 OSS / S3 / WebDAV / GitHub">
-        <Select
-          aria-label="同步提供商"
-          className="w-[168px]"
-          value={active}
-          options={(Object.keys(PROVIDER_LABELS) as ESync[]).map(key => ({
-            value: key,
-            label: PROVIDER_LABELS[key],
-          }))}
-          onValueChange={v => setActiveProvider(v as ESync)}
+          <SettingsGroup title="同步目标" description="数据库与资源文件共用同一个远端">
+            <SettingRow title="存储类型">
+              <Segmented
+                label="同步存储类型"
+                size="sm"
+                value={active}
+                onValueChange={v => setActiveProvider(v as ESync)}
+              >
+                {PROVIDER_ORDER.map(key => (
+                  <Segmented.Item key={key} value={key} label={PROVIDER_LABELS[key]} />
+                ))}
+              </Segmented>
+            </SettingRow>
+            {PROVIDER_FIELDS[active].map(field => (
+              <SettingRow key={field.key} title={field.label} description={field.description}>
+                <Input
+                  className="w-[260px]"
+                  value={(sync[active] as Record<string, string>)[field.key] ?? ""}
+                  placeholder={field.placeholder}
+                  spellCheck={false}
+                  onChange={e => updateSyncField(field.key, e.target.value)}
+                />
+              </SettingRow>
+            ))}
+            <SettingRow title="账号凭据" description={CREDENTIAL_HINTS[active]}>
+              <button
+                type="button"
+                className="text-tau-meta text-accent-text inline-flex items-center gap-1 font-medium hover:underline"
+                onClick={() => useSettingsStore.getState().openSettings("integration")}
+              >
+                在「账号与连接」管理
+                <ArrowRight size={13} strokeWidth={1.75} />
+              </button>
+            </SettingRow>
+          </SettingsGroup>
+        </>
+      ) : tab === "files" ? (
+        <ResourceSyncFiles
+          model={resourceSync}
+          filter={fileFilter}
+          onFilterChange={setFileFilter}
         />
-      </SettingRow>
-      <div className="grid grid-cols-2 gap-x-3 pt-3">
-        {PROVIDER_FIELDS[active].map((field, index) => (
-          <label
-            key={field.key}
-            className={clsx(
-              "flex min-w-0 flex-col gap-1.5",
-              PROVIDER_FIELDS[active].length === 1 ||
-                (index === PROVIDER_FIELDS[active].length - 1 &&
-                  PROVIDER_FIELDS[active].length % 2 === 1)
-                ? "col-span-2"
-                : "col-span-1"
-            )}
-          >
-            <span className="text-tau-meta text-ink-2 font-medium">{field.label}</span>
-            <Input
-              value={(sync[active] as Record<string, string>)[field.key] ?? ""}
-              placeholder={field.placeholder}
-              onChange={e => updateSyncField(field.key, e.target.value)}
-            />
-          </label>
-        ))}
-      </div>
-
-      <div className="text-tau-tiny text-ink-3 flex items-center gap-2 px-0.5 pt-2.5">
-        <KeyRound size={13} strokeWidth={1.75} className="flex-none" />
-        服务器地址与账号密钥在
-        <button
-          type="button"
-          className="text-accent-text font-medium hover:underline"
-          onClick={() => useSettingsStore.getState().openSettings("integration")}
-        >
-          集成 · {PROVIDER_LABELS[active]}
-        </button>
-        中配置。
-      </div>
+      ) : (
+        <LocalDatabasePanel />
+      )}
 
       <ConfirmDialog
         open={downloadConfirmOpen}
@@ -334,6 +383,6 @@ export function SyncSection() {
         confirmText="强制同步"
         onConfirm={doUpload}
       />
-    </section>
+    </>
   );
 }
