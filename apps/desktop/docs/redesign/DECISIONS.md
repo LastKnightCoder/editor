@@ -281,7 +281,7 @@
 - weread 微信读书
 - resources 资源管理
 - chat 归位 feature
-- settings 拆解（15 子页）
+- ~~settings 拆解（15 子页）~~ ✅ 2026-09-24 重排为 12 分区全量落地（D-036）
 - home 首页看板
 
 ## D-029 Segmented 连体描边定稿与嵌入模型子页落地（凹槽深底否决）
@@ -334,3 +334,26 @@
 - 实现：`features/publish/`（usePublishConfig 配置读写与就绪判定 / usePublishRun 计划·历史·执行·进度 / views——PublishView、RailCards、SiteSettingsDrawer、format / pages/publish.page.tsx）；PublishSelector 换 TypeRail + 分段过滤，`onSelectionsChange` 回调在页面 250ms 防抖（全选会逐实体回调）。轨道一律 `bg-track`（D-034）。验证：tsc 仅剩存量 AddTag 测试错误；`__tests__/PublishView.test.tsx` 5 例覆盖就绪 / 引导 / 发布中 / 部分失败 / 抽屉切换目标。
 - **运行态全局化（2026-09-24 追记）**：发布在主进程执行，离开页面仍会跑完；原运行态在组件内，后退弹栈 / LRU 卸载后回来显示「就绪」且可再次发布（主进程无并发锁），Activity 隐藏期间进度 handler 也随 effect 停驻。改为 `features/publish/publishRunStore.ts`（zustand）：run 与 `publish-progress` handler 模块级常驻（随 WebSocket client 绑定），`start()` 在 running 时忽略保证单次发布，结束时 toast 一次（用户可能已不在发布页）并自增 `finishSeq`，页面据此刷新历史与计划。`publishRunStore.test.ts` 2 例覆盖并发忽略 / 进度写入 / 运行中不可收起 / 结果与 toast。
 - **内容选择与文档树弹窗（2026-09-24 追记）**：选择器工具栏改可换行（搜索框弹性、分段+全选成组靠右），窄面板不再截断；各滚动列表统一走 `PublishSelector/components/FadeScroll`（useEdgeFade + 底部 12px 外间距）。文档树弹窗原内容写死 65vh，与 Dialog 上限 min(78vh,660px) 冲突导致整窗滚动——Dialog 新增 `fill` 填充布局（卡片定高 min(82vh,760px)、body 为不滚动的 flex 列、无内边距），弹窗改双栏：左 280px 树（头部钉住、列表自滚）、右预览（仅正文区滚动，空态/文件夹态居中不滚）；已选数量与「全不选 = 不再发布」后果收进 footer impact 行。
+
+## D-036 设置弹窗第三版重排：主题语言 + 新信息架构 + 资源同步归位
+
+- 背景（2026-09-24）：用户反馈设置「太拥挤、主题不明确、弹窗太小」，且资源同步入口难找。`mockups/settings/` 三轮评审：v1 三案（`v1-three-plans.html`）裁决方案 A 宽弹窗；v2 按分区配粉彩被否（「太花里胡哨了，要用我们的主题语言」，已记入 PREFERENCES）；v3（`index.html`）定稿。
+- 外壳：min(92vw,1160px)×min(88vh,880px)（视口单位自适应，窗口下限 1080×600 时为 994×528 不溢出；首版定宽 1080×min(780,90vh) 在最小窗口下会越界，用户校准）；右栏内容列撑满（去掉 720 上限——弹窗放宽后内容靠左、右侧大片空白，用户校准），宽度上限由弹窗封顶 1160 控制，内容列最宽约 850，弹窗底 = bg-page（唯一 shadow-float 浮起物），去掉头部横条；左栏 228px = 「设置」标题 + 分区搜索（Input lead/clearable；label / 分组名 / `keywords` 命中，Enter 进首个命中，Ctrl/Cmd+F 聚焦）+ 与应用侧栏同语言的导航；右栏页头（title-lg 20/600 + meta 说明）由 `sections.tsx` 的 `label` / `description` 单源渲染，子页不再自绘标题。
+- 组件：`SettingsGroup`（组标题 + 说明上下排布 → Panel surface + shadow-card 面板，不描边；`bare` / `action` 槽）取代 `SectionTitle`（已删除）；`SettingRow` 行高 ≥56、说明 12.5 / ink-2（02 §3 说明文字下限），同面板相邻行以 line-2 内收弱分隔（`ROW_DIVIDER`，自定义行也挂它）；`SettingsTabs` 下划线 Tab（方向键 roving，角标 warn-soft）；`StatusChip` 淡墨底 + 语义色点。颜色只给 accent 与语义状态，图标中性墨。
+- 信息架构（12 分区）：通用（外观 / 功能模块）→ 数据（同步 / 资源存储 / 剪藏与缓存）→ 连接（账号与连接）→ AI 服务（大语言模型 / 嵌入与检索 / 图片生成 / 语音）→ 创作工具（白板录制）→ 系统（关于与更新）。正名：杂项 → 剪藏与缓存（key `cache`）、集成 → 账号与连接（key 保持 `integration`，既有 `openSettings("integration")` 跳转不变）、关于软件 → 关于与更新；文字转语音 + 语音转录并为「语音」（key `voice`）。持久化的旧 key（misc / textToSpeech / transcription）回落首个分区。
+- 资源目录同步从「资源存储」迁入「同步」页：它与上传目标无关、与数据库共用远端与凭据。同步页分「概览 / 资源文件」Tab——概览 = 数据库卡（本地/远程版本、拉取/强制上传/同步/检查）与资源文件卡（进度、文件/待上传/待下载/失败计数、同步/重试失败/停止）并排 + 同步目标（存储类型改 Segmented 形态切换，路径字段改设置行）；资源文件 Tab = 筛选（Segmented 带计数）+ 文件行 + 黑名单。`useResourceSyncModel` 由 SyncSection 持有单例下传，两 Tab 不重复订阅。资源存储页只剩上传目标 + 上传压缩。
+- 已迁移子页同步重排：外观（主题卡改描边 + 单选圆点、不托起，加「当前生效」解析行；主题名改 暖纸·晨 / 暖纸·夜）；大语言模型分「服务商与模型」（主从：左列服务商、右侧凭据 + 模型描边行）/「功能分配」（按分类分组面板，Tab 角标 = 未分配数）；嵌入分「向量模型 / 检索增强」。
+- 验证：tsc 0 错误；eslint 设置域 0 错误（仅测试文件非空断言类 warning，同既有测试惯例）；新增 `features/settings/__tests__/`——SettingsDialog 4 例（12 分区顺序与页头、导航切换 aria-current、搜索过滤 + Enter、旧 key 回落）、SyncSection 3 例（概览双卡与 Tab 角标、重试失败动作、查看失败项跳 Tab 并按需重传筛选）。未在运行中的 Electron 应用里做界面实测（dev 服务启动会清空 dist-electron 并拉起新 Electron，未另起实例）。
+- **全量落地（2026-09-24 同日追记，用户「一并落地」）**：其余 7 页 + 同步页「本地数据库」Tab 全部落地，`PendingSection` 删除。
+  - 功能模块 `ModuleSection`：四类分组两列开关（说明 = 已启用 x / y），legacy 缺配置的 5 个模块按 mockup 归类；**修 legacy bug**：「设置」模块不再可关闭（不渲染开关；页尾说明注记经用户裁决去掉，没有必要）。
+  - 剪藏与缓存 `CacheSection`：7 个折叠缓存卡合成一个面板——媒体类型 / 来源两级 Segmented、全选与批量删除、「清除全部」只清当前筛选范围并新增确认（写明范围、条数、释放空间，占用按真实 fileSize 汇总）；图片预览用 ImagePreview，音视频 Dialog 原生播放；自动缓存开关说明按实际语义改写（只作用于普通网络链接，YouTube / Bilibili 各有缓存）。
+  - 账号与连接 `IntegrationSection`：存储服务 / 内容平台 / AI 平台三组行式，管理/连接走 Dialog（Bilibili 扫码 ⇄ 手动 Segmented）；YouTube 状态改为「已设代理 / 直连」（legacy 依据的 `youtube.enabled` 无写入方，恒为未连接）；微信读书补「断开连接」；**修 Bilibili 关闭弹窗后取码 / 轮询回调仍改状态的问题**；各服务每次打开回读已保存值。二维码仍用外部 api.qrserver.com（同 legacy）。
+  - 图片生成 `ImageGenerationSection`：同 LLM 服务商主从；点选只切编辑对象，「设为当前」显式切换（legacy 为下拉即切）。
+  - 语音 `VoiceSection`：「语音转录 / 语音合成」Tab；转录程序沿用 legacy `!isMac` 判定；模型下载改单并发（legacy 并发下载互相覆盖进度）；**修 Minimax「前往配置」空实现**——跳「账号与连接」。
+  - 白板录制 `WhiteboardRecordingSection`：录制默认值 / 导出；保存位置只经系统文件夹选择器设置（去掉手输框）。
+  - 关于与更新 `AboutSection`：应用卡（assets/logo.png、版本、更新状态与检查/下载/重启安装、进度、手动下载外链）/ 自动检查更新 / 命令行工具（取到安装状态才渲染入口）。
+  - 同步 ·「本地数据库」Tab `LocalDatabasePanel`：当前数据库切换（同 legacy 无确认）/ 新建（**修重名校验**：按补 .db 后缀后比对）/ 其他数据库删除（legacy 已有能力保留）/ 备份注记。
+  - 验证：tsc 0 错误；eslint 设置域 0 error（29 条 warning 全在测试文件，非空断言 / 空函数 mock）；`features/settings/__tests__` 11 文件 + publish 共 32 例全过。仍未在运行中的 Electron 应用里做界面实测。
+  - 追记（用户校准「左右不对称、模型样式不好看」）：大语言模型 / 图片生成的主从改为共用 `components/ProviderLayout.tsx`——两块并排面板（左 208px 列表 + 右详情，同内边距、首项与标题行顶部对齐），详情标题行放名称与操作（删除收为图标按钮，图片生成的「设为当前」同行）；字段改走 SettingRow + `FieldBox` 300px 定宽，密钥的显隐 / 复制收进框内（`SecretInput`），右缘逐像素对齐；模型条目去掉描边框改分隔行，名称与能力 / 参数签同行、描述与名称相同则不重复显示、在用计数右对齐；二次校准：左右两面板等高（左列随详情拉满，不再一高一低），模型行的编辑 / 删除改为常驻（悬停才出现时右侧大片空白）。
+  - 再追记（用户质疑「那和最开始的区别只是两张卡片？不适合做左右结构」）：`mockups/settings/provider-layout.html` 两案对比，用户裁决**方案 A 顶部切换栏**——左右主从整体撤销（右栏 690~850 宽切出列表后详情被挤、两侧内容量天生不对等、且是全设置唯一异构页）。`ProviderLayout.tsx` 只保留 `ProviderSwitcher`（surface 条内横排服务商 + 模型数 / 「当前」附注，末尾「添加」，多了自然换行）、`FieldBox`、`SecretInput`；下方为标准 SettingsGroup：大语言模型 =「连接」（删除服务商在组标题右侧）+「模型」（添加模型在组标题右侧，模型分隔行编辑删除常驻）；图片生成 =「连接」（设为当前 / 删除在组标题右侧，说明文字表明是否为当前）。三次校准（「分成三块看着散」）：切换栏与各小节收进同一个面板——面板内顶部 ProviderSwitcher，下接 `ProviderSection`。四次校准（「内部层次不分明」——三层同一种细线与留白）：切换栏改为卡片头（下缘 line-1 贯穿结构线）；小节头紧凑化（标题与说明同行、操作居右）；小节内容装进 line-1 描边圆角内框，框内行仍 line-2 弱分隔——形成「卡片 > 内框 > 行」三层，小节之间靠留白。
+  - 遗留：legacy 全局更新通知（`hooks/useAutoUpdateCheck.tsx`，antd notification）的「前往更新」仍打开旧设置弹窗，随 legacy 壳层删除时处理。
