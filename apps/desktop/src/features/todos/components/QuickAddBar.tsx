@@ -89,7 +89,7 @@ export function QuickAddBar({
             </>
           ) : (
             <kbd className="bg-hover text-ink-2 rounded-[5px] px-[5px] py-0.5 font-mono text-[11px]">
-              ⌘N
+              ⌘/
             </kbd>
           )}
         </span>
