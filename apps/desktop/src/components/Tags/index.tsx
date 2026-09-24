@@ -1,9 +1,8 @@
-import classnames from "classnames";
 import { ReactNode, useRef, useCallback } from "react";
 import { useDrag, useDrop } from "react-dnd";
 
+import { cn } from "@tau/ui";
 import Tag from "./Tag";
-import styles from "./index.module.less";
 
 const TAG_DND_TYPE = "TAG_ITEM";
 
@@ -12,9 +11,7 @@ interface DraggableTagProps {
   index: number;
   closable?: boolean;
   onClose?: () => void;
-  onClick?: () => void;
-  showIcon?: boolean;
-  showSharp?: boolean;
+  onClick?: (event: React.MouseEvent) => void;
   hoverAble?: boolean;
   style?: React.CSSProperties;
   isEditing?: boolean;
@@ -30,8 +27,6 @@ const DraggableTag = ({
   closable,
   onClose,
   onClick,
-  showIcon,
-  showSharp,
   hoverAble,
   style,
   isEditing,
@@ -45,7 +40,7 @@ const DraggableTag = ({
   const [{ isDragging }, drag] = useDrag({
     type: TAG_DND_TYPE,
     item: { index },
-    collect: (monitor) => ({
+    collect: monitor => ({
       isDragging: monitor.isDragging(),
     }),
     canDrag: draggable && !isEditing,
@@ -62,8 +57,7 @@ const DraggableTag = ({
       if (dragIndex === hoverIndex) return;
 
       const hoverBoundingRect = ref.current.getBoundingClientRect();
-      const hoverMiddleX =
-        (hoverBoundingRect.right - hoverBoundingRect.left) / 2;
+      const hoverMiddleX = (hoverBoundingRect.right - hoverBoundingRect.left) / 2;
       const clientOffset = monitor.getClientOffset();
       if (!clientOffset) return;
       const hoverClientX = clientOffset.x - hoverBoundingRect.left;
@@ -93,8 +87,6 @@ const DraggableTag = ({
         closable={closable}
         onClose={onClose}
         onClick={onClick}
-        showIcon={showIcon}
-        showSharp={showSharp}
         hoverAble={hoverAble}
         style={style}
         isEditing={isEditing}
@@ -112,9 +104,9 @@ interface TagsProps {
   className?: string;
   style?: React.CSSProperties;
   noWrap?: boolean;
-  onClick?: (tag: string) => void;
+  onClick?: (tag: string, event: React.MouseEvent) => void;
+  /** 兼容保留：D-021 裁决标签不迁图标，传值不生效 */
   showIcon?: boolean;
-  showSharp?: boolean;
   hoverAble?: boolean;
   lastChild?: ReactNode;
   tagStyle?: React.CSSProperties;
@@ -129,8 +121,6 @@ interface TagsProps {
 const Tags = (props: TagsProps) => {
   const {
     tags,
-    showSharp,
-    showIcon,
     closable,
     onClose,
     onClick,
@@ -150,28 +140,26 @@ const Tags = (props: TagsProps) => {
   const handleMove = useCallback(
     (dragIndex: number, hoverIndex: number) => {
       if (!onReorder) return;
-      const filteredTags = tags.filter((tag) => !!tag);
+      const filteredTags = tags.filter(tag => !!tag);
       const newTags = [...filteredTags];
       const [draggedTag] = newTags.splice(dragIndex, 1);
       newTags.splice(hoverIndex, 0, draggedTag);
       onReorder(newTags);
     },
-    [tags, onReorder],
+    [tags, onReorder]
   );
 
   if (!lastChild && (!tags || tags.length === 0)) {
     return null;
   }
 
-  const tagsClassName = classnames(
-    styles.tags,
-    {
-      [styles.noWrap]: noWrap,
-    },
-    className,
+  const tagsClassName = cn(
+    "flex flex-wrap items-center gap-1.5",
+    noWrap ? "h-auto overflow-visible" : "h-[30px] overflow-hidden",
+    className
   );
 
-  const filteredTags = tags.filter((tag) => !!tag);
+  const filteredTags = tags.filter(tag => !!tag);
 
   return (
     <div className={tagsClassName} style={style}>
@@ -184,9 +172,7 @@ const Tags = (props: TagsProps) => {
             index={index}
             closable={closable}
             onClose={() => onClose && onClose(tag)}
-            onClick={() => onClick && onClick(tag)}
-            showIcon={showIcon}
-            showSharp={showSharp}
+            onClick={event => onClick?.(tag, event)}
             hoverAble={hoverAble}
             style={tagStyle}
             isEditing={isCurrentlyEditing}
