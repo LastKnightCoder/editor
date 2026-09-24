@@ -24,7 +24,7 @@ import {
   deleteCalendarEvent,
   getEventsForDay,
   getEventsForWeek,
-  getEventsForMonth,
+  getEventsByDateRange,
   getAllCalendarGroups,
   createCalendarGroup as createCalendarGroupCommand,
   updateCalendarGroup as updateCalendarGroupCommand,
@@ -32,7 +32,7 @@ import {
   mergeCalendars as mergeCalendarsCommand,
 } from "@/commands";
 
-import { getWeekStart } from "@/utils/calendar";
+import { getMonthGridRange, getWeekStart } from "@/utils/calendar";
 
 interface IState {
   // 日历数据
@@ -114,7 +114,7 @@ interface IActions {
   clearMergeSelection: () => void;
   mergeCalendars: (
     sourceIds: number[],
-    targetId: number,
+    targetId: number
   ) => Promise<{ transferredEvents: number; deletedCalendars: number }>;
 }
 
@@ -147,9 +147,7 @@ const useCalendarStore = create<IState & IActions>()(
             getAllCalendars(),
             getAllCalendarGroups(),
           ]);
-          const selectedCalendarIds = calendars
-            .filter((c) => c.visible)
-            .map((c) => c.id);
+          const selectedCalendarIds = calendars.filter(c => c.visible).map(c => c.id);
           set({ calendars, calendarGroups, selectedCalendarIds });
           await get().loadEventsForCurrentView();
         } finally {
@@ -204,28 +202,26 @@ const useCalendarStore = create<IState & IActions>()(
         const calendars = await getAllCalendars();
         set({
           calendars,
-          selectedCalendarIds: get().selectedCalendarIds.filter(
-            (cid) => cid !== id,
-          ),
+          selectedCalendarIds: get().selectedCalendarIds.filter(cid => cid !== id),
         });
         await get().loadEventsForCurrentView();
         return result;
       },
 
       archiveCalendar: async (id: number) => {
-        const calendar = get().calendars.find((c) => c.id === id);
+        const calendar = get().calendars.find(c => c.id === id);
         if (!calendar) throw new Error("Calendar not found");
         return await get().updateCalendar({ ...calendar, archived: true });
       },
 
       unarchiveCalendar: async (id: number) => {
-        const calendar = get().calendars.find((c) => c.id === id);
+        const calendar = get().calendars.find(c => c.id === id);
         if (!calendar) throw new Error("Calendar not found");
         return await get().updateCalendar({ ...calendar, archived: false });
       },
 
       toggleCalendarVisibility: async (id: number) => {
-        const calendar = get().calendars.find((c) => c.id === id);
+        const calendar = get().calendars.find(c => c.id === id);
         if (!calendar) throw new Error("Calendar not found");
         await get().updateCalendar({ ...calendar, visible: !calendar.visible });
         get().toggleCalendarSelection(id);
@@ -305,13 +301,13 @@ const useCalendarStore = create<IState & IActions>()(
             } else {
               state.selectedCalendarIds.push(id);
             }
-          }),
+          })
         );
         get().loadEventsForCurrentView();
       },
 
       selectAllCalendars: () => {
-        set({ selectedCalendarIds: get().calendars.map((c) => c.id) });
+        set({ selectedCalendarIds: get().calendars.map(c => c.id) });
         get().loadEventsForCurrentView();
       },
 
@@ -333,17 +329,16 @@ const useCalendarStore = create<IState & IActions>()(
 
         try {
           if (currentView === "day") {
-            events = await getEventsForDay(
-              date.setHours(0, 0, 0, 0),
-              selectedCalendarIds,
-            );
+            events = await getEventsForDay(date.setHours(0, 0, 0, 0), selectedCalendarIds);
           } else if (currentView === "week") {
             const weekStart = getWeekStart(date);
             events = await getEventsForWeek(weekStart, selectedCalendarIds);
           } else if (currentView === "month" || currentView === "agenda") {
             const year = date.getFullYear();
             const month = date.getMonth() + 1;
-            events = await getEventsForMonth(year, month, selectedCalendarIds);
+            // 按整张月网格取数（含邻月日期），月视图与议程共用
+            const range = getMonthGridRange(year, month);
+            events = await getEventsByDateRange(range.start, range.end, selectedCalendarIds);
           }
 
           set({ events });
@@ -377,7 +372,7 @@ const useCalendarStore = create<IState & IActions>()(
             if (!state.mergeModeEnabled) {
               state.selectedCalendarsForMerge = [];
             }
-          }),
+          })
         );
       },
 
@@ -390,7 +385,7 @@ const useCalendarStore = create<IState & IActions>()(
             } else {
               state.selectedCalendarsForMerge.push(id);
             }
-          }),
+          })
         );
       },
 
@@ -406,9 +401,7 @@ const useCalendarStore = create<IState & IActions>()(
           calendars,
           selectedCalendarsForMerge: [],
           mergeModeEnabled: false,
-          selectedCalendarIds: get().selectedCalendarIds.filter(
-            (id) => !sourceIds.includes(id),
-          ),
+          selectedCalendarIds: get().selectedCalendarIds.filter(id => !sourceIds.includes(id)),
         });
         await get().loadEventsForCurrentView();
         return result;
@@ -416,7 +409,7 @@ const useCalendarStore = create<IState & IActions>()(
     }),
     {
       name: "calendar-store",
-      partialize: (state) => ({
+      partialize: state => ({
         currentView: state.currentView,
         selectedCalendarIds: state.selectedCalendarIds,
         showArchived: state.showArchived,
@@ -424,8 +417,8 @@ const useCalendarStore = create<IState & IActions>()(
         showMyCalendarSection: state.showMyCalendarSection,
         showArchivedSection: state.showArchivedSection,
       }),
-    },
-  ),
+    }
+  )
 );
 
 export default useCalendarStore;

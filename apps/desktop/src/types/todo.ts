@@ -94,6 +94,18 @@ export interface TodoCalendarMapping {
   createTime: number;
 }
 
+// 日历日程的待办来源（日历页勾选完成用；按日程 ID 批量查询）
+export interface TodoCalendarEventSource {
+  calendarEventId: number;
+  todoItemId: number;
+  syncType: TodoCalendarSyncType;
+  recurrenceDate: number | null;
+  /** 周期任务的规则 ID（完成单次需要）；非周期任务为 null */
+  recurrenceId: number | null;
+  /** 普通任务看 is_completed；周期任务看该次是否有完成记录（跳过不算完成） */
+  isCompleted: boolean;
+}
+
 export interface TodoNoteLink {
   id: number;
   todoId: number;
@@ -209,27 +221,13 @@ export interface TodoGroupStats {
   overdue: number;
 }
 
-export type TodoQueryTimeField =
-  | "createTime"
-  | "updateTime"
-  | "dueAt"
-  | "completedAt"
-  | "startAt";
+export type TodoQueryTimeField = "createTime" | "updateTime" | "dueAt" | "completedAt" | "startAt";
 
 export type TodoQueryGroupBy =
-  | "none"
-  | "group"
-  | "status"
-  | "type"
-  | "due_date"
-  | "completion_date";
+  "none" | "group" | "status" | "type" | "due_date" | "completion_date";
 
 export type TodoQuerySort =
-  | "manual"
-  | "dueAtAsc"
-  | "updateTimeDesc"
-  | "createTimeDesc"
-  | "completedAtDesc";
+  "manual" | "dueAtAsc" | "updateTimeDesc" | "createTimeDesc" | "completedAtDesc";
 
 export interface TodoQueryFilter {
   groupIds?: number[];
@@ -328,11 +326,7 @@ export interface TodoDashboardResponse {
 }
 
 export type TodoMutationEntityType =
-  | "group"
-  | "item"
-  | "recurrence"
-  | "note-link"
-  | "calendar-mapping";
+  "group" | "item" | "recurrence" | "note-link" | "calendar-mapping";
 
 export interface TodoMutationEvent {
   clientId?: string;

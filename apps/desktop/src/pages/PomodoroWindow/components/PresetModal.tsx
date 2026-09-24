@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { MdClose, MdTimer } from "react-icons/md";
 import { useMemoizedFn } from "ahooks";
 import { PomodoroMode, PomodoroPreset } from "@/types";
-import "@/pages/Calendar/components/EventDialog/index.css";
+import "./modal-scroll.css";
 
 interface PresetModalProps {
   open: boolean;

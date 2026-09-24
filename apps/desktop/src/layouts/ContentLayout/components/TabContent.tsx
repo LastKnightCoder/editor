@@ -19,7 +19,7 @@ const EpubDetailView = lazy(() => import("@/pages/PdfView/EpubDetailView"));
 const DailyNoteView = lazy(() => import("@/pages/DiaryView"));
 const VecDocumentView = lazy(() => import("@/pages/VecDocumentView"));
 const SettingsPage = lazy(() => import("@/pages/Settings"));
-const CalendarPage = lazy(() => import("@/pages/Calendar"));
+const CalendarPage = lazy(() => import("@/features/schedule/views/ScheduleView"));
 const ChatManagementPage = lazy(() => import("@/pages/ChatManagement"));
 const TodoWindowPage = lazy(() => import("@/pages/TodoWindow"));
 const QuestionWindowPage = lazy(() => import("@/pages/QuestionWindow"));
