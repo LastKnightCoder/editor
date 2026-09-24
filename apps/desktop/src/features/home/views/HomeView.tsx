@@ -288,7 +288,7 @@ function RecentRow({ item, onClick }: { item: RecentEdit; onClick: () => void })
       className="rounded-tau-sm ease-tau-out hover:bg-hover grid w-full grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-3 px-2.5 py-[11px] text-left transition-[background] duration-[160ms]"
       onClick={onClick}
     >
-      <span className="bg-group text-ink-2 justify-self-start rounded-[5px] px-[7px] py-px text-[10.5px]">
+      <span className="bg-hover text-ink-2 justify-self-start rounded-[5px] px-[7px] py-px text-[10.5px]">
         {KIND_LABEL[item.kind]}
       </span>
       <span className="text-tau-meta truncate font-medium">{item.title}</span>

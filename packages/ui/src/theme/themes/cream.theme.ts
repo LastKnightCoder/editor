@@ -14,17 +14,11 @@ export default defineTheme({
   palette: {
     paper: "#f3eee2", // 窗口底
     surface: "#fffdf9", // 卡片/面板
-    // 分组底 / 次级填充：**下沉到 page 之下**（D-006 方向不变，程度收敛）。
-    // 初版 #ece4d4（对 page 1.092 / surface 1.244）按小面积元素（kbd 提示、
-    // kind 徽章、次级按钮）的显形度取值；消费点扩展到 Tag、Panel、工具条等
-    // 大面积容器后凹陷感过重显脏，2026-09-20 上调至对 page 1.045 /
-    // surface 1.191 的折中，ink 对比度余量同步放大（ink-2 5.13 → 5.36）。
-    group: "#f0e9d8",
     sunken: "#e7dbc8", // 轨道/凹槽专档：进度轨道、波形未播放段、时间轴（对 page 1.181）；输入框/代码块禁用本档——走 surface 亮底 + line-1 描边（D-007/D-009/D-032）
     track: "#e0d6c3", // 控件轨道（开关/滑杆槽）：米灰，与 thumb(surface) 拉开
     ink1: "#43392c",
     // 原值 #736552 对 page 仅 4.89、对 sunken 3.99——下沉底一深就跌破 AA。
-    // 压深留出余量：page 5.60 / surface 6.38 / group 5.13 / sunken 4.74。
+    // 压深留出余量：page 5.60 / surface 6.38 / sunken 4.74。
     ink2: "#6a5c49",
     ink3: "#a89a85",
     inkInverse: "#fff8ef",
@@ -38,7 +32,6 @@ export default defineTheme({
     // 实底控件的 hover 档：bg-hover 5% 墨叠 surface 的不透明合成——半透明
     // bg-hover 会整体替换实底（底色消失），浮起按钮必须用不透明 hover
     "bg-surface-hover": "#f6f3ef",
-    "bg-group": String(p.group),
     "bg-sunken": String(p.sunken),
     "bg-track": String(p.track),
 

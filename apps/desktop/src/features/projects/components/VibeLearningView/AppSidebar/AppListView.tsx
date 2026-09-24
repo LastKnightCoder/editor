@@ -386,7 +386,7 @@ const AppListView = memo(
                     "cursor-pointer rounded-xl border p-4 backdrop-blur-sm transition-all",
                     app.available
                       ? ["bg-surface", "border-line-1", "hover:border-line-1"]
-                      : ["cursor-not-allowed opacity-50", "bg-group", "border-line-1"]
+                      : ["cursor-not-allowed opacity-50", "border-line-1"]
                   )}
                   onClick={app.available ? app.onClick : undefined}
                 >
@@ -533,7 +533,7 @@ const AppListView = memo(
                           <span
                             className={classNames(
                               "shrink-0 rounded-md px-2 py-0.5 text-xs font-medium",
-                              "bg-group",
+                              "bg-hover",
                               "text-ink-2"
                             )}
                           >

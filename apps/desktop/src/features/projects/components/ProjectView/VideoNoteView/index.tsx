@@ -279,7 +279,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
         <div
           className={classNames(
             "flex h-14 w-14 items-center justify-center rounded-2xl",
-            "bg-group",
+            "bg-hover",
             "text-accent-text"
           )}
         >
@@ -329,7 +329,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                 <div
                   className={classNames(
                     "relative w-full overflow-hidden rounded-xl",
-                    showVideo ? "bg-black" : "bg-group"
+                    showVideo ? "bg-black" : "bg-hover"
                   )}
                   style={{
                     aspectRatio: "16/9",
@@ -370,14 +370,14 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                     {projectItemTitle || videoNote?.description || "未命名视频"}
                   </h2>
                   <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                    <span className="bg-group text-ink-2 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs">
+                    <span className="bg-hover text-ink-2 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs">
                       <Video className="size-3" strokeWidth={1.75} />
                       {sourceLabel}
                     </span>
                     <span
                       className={classNames(
                         "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs",
-                        transcriptCount > 0 ? "bg-ok/10 text-status-success" : "bg-group text-ink-2"
+                        transcriptCount > 0 ? "bg-ok/10 text-status-success" : "bg-hover text-ink-2"
                       )}
                     >
                       <Captions className="size-3" strokeWidth={1.75} />
@@ -386,7 +386,7 @@ const VideoNoteView = ({ videoNoteId }: IVideoNoteViewProps) => {
                     <span
                       className={classNames(
                         "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs",
-                        hasSummary ? "bg-accent-soft text-accent-text" : "bg-group text-ink-2"
+                        hasSummary ? "bg-accent-soft text-accent-text" : "bg-hover text-ink-2"
                       )}
                     >
                       <FileText className="size-3" strokeWidth={1.75} />

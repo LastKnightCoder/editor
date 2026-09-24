@@ -1133,7 +1133,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           <div className="border-line-1 bg-surface flex shrink-0 items-center justify-between border-b px-4 py-3">
             <h3 className="text-ink-1 m-0 text-base font-medium">{title || "无标题报告"}</h3>
             <button
-              className="text-ink-2 hover:bg-group flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors"
+              className="text-ink-2 hover:bg-hover flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors"
               onClick={handleToggleFullscreen}
             >
               <Minimize className="size-4" strokeWidth={1.75} />

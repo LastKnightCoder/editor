@@ -174,7 +174,7 @@ export function ArticleCard(props: ArticleCardProps) {
             {article.tags.map(tag => (
               <span
                 key={tag}
-                className="bg-group text-ink-2 whitespace-nowrap rounded-[5px] px-[7px] py-px text-[11px]"
+                className="bg-hover text-ink-2 whitespace-nowrap rounded-[5px] px-[7px] py-px text-[11px]"
               >
                 {tag}
               </span>

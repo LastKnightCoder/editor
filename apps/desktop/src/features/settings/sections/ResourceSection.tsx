@@ -75,7 +75,7 @@ const FILE_STATUS_TEXTS: Record<ResourceSyncStatus, string> = {
 
 const FILE_STATUS_BADGES: Record<ResourceSyncStatus, string> = {
   [ResourceSyncStatus.Synced]: "bg-ok-soft text-ok",
-  [ResourceSyncStatus.Pending]: "bg-group text-ink-3",
+  [ResourceSyncStatus.Pending]: "bg-hover text-ink-3",
   [ResourceSyncStatus.Syncing]: "bg-accent-soft text-accent-text",
   [ResourceSyncStatus.Error]: "bg-warn-soft text-warn",
 };
@@ -748,7 +748,7 @@ export function ResourceSection() {
                       key={item.id}
                       type="button"
                       title="点击移出黑名单"
-                      className="border-line-1 bg-group text-ink-2 hover:text-warn font-tau-mono flex items-center gap-1 rounded-full border py-px pl-2 pr-1.5 text-[10.5px]"
+                      className="border-line-1 text-ink-2 hover:text-warn font-tau-mono flex items-center gap-1 rounded-full border py-px pl-2 pr-1.5 text-[10.5px]"
                       onClick={() => void handleRemoveBlacklist(item.fileName)}
                     >
                       {item.fileName}
@@ -821,7 +821,7 @@ function FileRow({ name, status }: { name: string; status: IFileSyncStatus }) {
       <span
         className={clsx(
           "grid size-[30px] shrink-0 place-items-center rounded-md",
-          isError ? "bg-warn-soft text-warn" : "bg-group text-ink-3"
+          isError ? "bg-warn-soft text-warn" : "bg-hover text-ink-3"
         )}
       >
         {isError ? (

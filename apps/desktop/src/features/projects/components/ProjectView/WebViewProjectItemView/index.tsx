@@ -1218,7 +1218,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           <h1 className="m-0 truncate text-lg font-semibold leading-snug">{title}</h1>
           <Tooltip content="编辑标题" delay={500}>
             <button
-              className="text-ink-3 hover:bg-group hover:text-ink-2 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all"
+              className="text-ink-3 hover:bg-hover hover:text-ink-2 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all"
               onClick={handleEditTitle}
             >
               <Pencil className="size-4" strokeWidth={1.75} />
@@ -1285,7 +1285,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${
                   isAnyClipping
                     ? `${"bg-accent-soft text-accent-text"}`
-                    : "text-ink-2 hover:bg-group bg-transparent"
+                    : "text-ink-2 hover:bg-hover bg-transparent"
                 }`}
                 onClick={() => {
                   closeClipMenu();
@@ -1357,7 +1357,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 type="button"
                 title="更多操作"
                 aria-label="更多操作"
-                className="text-ink-2 hover:bg-group flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all"
+                className="text-ink-2 hover:bg-hover flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all"
               >
                 <MoreHorizontal className="size-4" strokeWidth={1.75} />
               </button>

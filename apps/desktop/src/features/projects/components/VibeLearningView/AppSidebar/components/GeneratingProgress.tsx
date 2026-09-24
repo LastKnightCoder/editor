@@ -190,7 +190,7 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
           onClick={onStop}
           className={classNames(
             "mt-6 rounded-xl px-5 py-2.5 text-sm font-medium transition-all",
-            "bg-group text-ink-2",
+            "bg-hover text-ink-2",
             "hover:bg-hover",
             "border-line-1 border"
           )}

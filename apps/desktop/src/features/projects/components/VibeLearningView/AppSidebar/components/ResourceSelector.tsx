@@ -91,7 +91,7 @@ const ResourceSelector = memo((props: ResourceSelectorProps) => {
         </div>
       )}
 
-      <div className="border-line-1 bg-group overflow-auto rounded-xl border" style={{ maxHeight }}>
+      <div className="border-line-1 overflow-auto rounded-xl border" style={{ maxHeight }}>
         {resources.map((resource, index) => {
           const isSelected = selectedResourceIds.includes(resource.id);
           return (

@@ -815,7 +815,7 @@ function LocalModelRow({
             <span
               className={clsx(
                 "flex-none rounded-full px-2 py-px text-[11px] font-medium",
-                model.downloaded ? "bg-group text-ink-3" : "border-line-1 text-ink-3 border"
+                model.downloaded ? "bg-hover text-ink-3" : "border-line-1 text-ink-3 border"
               )}
             >
               {model.downloaded ? "已下载" : "未下载"}
@@ -1284,7 +1284,7 @@ function SearchModelsSection() {
                       </span>
                     )}
                     {kindDisabled(model) && (
-                      <span className="bg-group text-ink-3 flex-none rounded-full px-2 py-px text-[11px] font-medium">
+                      <span className="bg-hover text-ink-3 flex-none rounded-full px-2 py-px text-[11px] font-medium">
                         已关闭
                       </span>
                     )}

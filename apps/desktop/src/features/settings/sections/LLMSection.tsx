@@ -165,7 +165,7 @@ function modelToForm(model: ModelConfig): ModelFormState {
 
 function CapChip({ label }: { label: string }) {
   return (
-    <span className="bg-group text-ink-2 text-tau-tiny rounded-full px-2 font-medium leading-[17px]">
+    <span className="bg-hover text-ink-2 text-tau-tiny rounded-full px-2 font-medium leading-[17px]">
       {label}
     </span>
   );
@@ -485,7 +485,7 @@ export function LLMSection() {
             >
               <span
                 className={clsx(
-                  "bg-group text-ink-2 grid size-5 place-items-center rounded-full text-[10px] font-semibold",
+                  "bg-hover text-ink-2 grid size-5 place-items-center rounded-full text-[10px] font-semibold",
                   active && "bg-accent-soft text-accent-text"
                 )}
               >

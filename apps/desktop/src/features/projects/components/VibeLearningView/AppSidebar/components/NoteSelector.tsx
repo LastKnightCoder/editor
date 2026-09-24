@@ -124,7 +124,7 @@ const NoteSelector: React.FC<NoteSelectorProps> = ({
           contentEditable={true}
           onChange={setSearch}
           onPressEnter={searchItems}
-          className="border-line-1 bg-group text-ink-1 placeholder:text-ink-3 focus:border-accent focus:bg-surface relative flex-1 rounded-xl border px-4 py-3 pl-11 text-sm outline-none transition-all"
+          className="border-line-1 text-ink-1 placeholder:text-ink-3 focus:border-accent focus:bg-surface relative flex-1 rounded-xl border px-4 py-3 pl-11 text-sm outline-none transition-all"
           onDeleteEmpty={() => {
             setSearch("");
             setSearchedItems([]);

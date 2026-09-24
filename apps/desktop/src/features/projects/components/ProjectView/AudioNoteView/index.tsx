@@ -538,7 +538,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
           {/* Language selector */}
           <div className="relative" ref={languageMenuRef}>
             <button
-              className="border-line-1 text-ink-2 hover:bg-group flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors"
+              className="border-line-1 text-ink-2 hover:bg-hover flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors"
               onClick={() => setShowLanguageMenu(!showLanguageMenu)}
               disabled={isTranscribing}
             >
@@ -554,7 +554,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                       "block w-full px-3 py-1.5 text-left text-xs transition-colors",
                       lang.value === selectedLanguage
                         ? "bg-accent-soft text-accent-text font-medium"
-                        : "text-ink-2 hover:bg-group"
+                        : "text-ink-2 hover:bg-hover"
                     )}
                     onClick={() => {
                       setSelectedLanguage(lang.value);
@@ -570,7 +570,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
 
           {/* Transcribe button */}
           <button
-            className="text-ink-2 hover:bg-group flex h-8 w-8 items-center justify-center rounded-md disabled:cursor-not-allowed disabled:opacity-50"
+            className="text-ink-2 hover:bg-hover flex h-8 w-8 items-center justify-center rounded-md disabled:cursor-not-allowed disabled:opacity-50"
             disabled={isTranscribing || !audioNote}
             onClick={handleStartTranscription}
             title={isTranscribing ? transcriptionProgress : "转录音频"}
@@ -585,7 +585,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
           {/* AI optimize button */}
           {audioNote?.transcriptWordSegments && audioNote.transcriptWordSegments.length > 0 && (
             <button
-              className="text-ink-2 hover:bg-group flex h-8 w-8 items-center justify-center rounded-md disabled:cursor-not-allowed disabled:opacity-50"
+              className="text-ink-2 hover:bg-hover flex h-8 w-8 items-center justify-center rounded-md disabled:cursor-not-allowed disabled:opacity-50"
               disabled={isTranscribing || isOptimizing}
               onClick={handleAIOptimize}
               title="AI 优化断句"
@@ -824,7 +824,7 @@ const AudioNoteView = ({ audioNoteId, title: projectItemTitle }: AudioNoteViewPr
                         {highlights.map(h => (
                           <div
                             key={h.id}
-                            className="hover:bg-accent-soft/50 hover:border-accent/40 bg-group cursor-pointer rounded-xl border border-transparent px-3 py-2.5 transition-all"
+                            className="hover:bg-accent-soft/50 hover:border-accent/40 border-line-1 cursor-pointer rounded-xl border px-3 py-2.5 transition-all"
                             onClick={() => handleSeek(h.start)}
                           >
                             <div className="text-ink-1 text-sm font-medium">{h.title}</div>

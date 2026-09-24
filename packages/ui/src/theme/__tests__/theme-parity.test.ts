@@ -137,12 +137,8 @@ describe("theme 对比度达 AA（02 规范 §2.5）", () => {
     { fg: "accent-text", bg: "bg-page", min: 4.5, why: "强调文字 / 窗口底" },
     { fg: "accent-text", bg: "bg-surface", min: 4.5, why: "强调文字 / 卡片" },
     { fg: "ink-inverse", bg: "accent", min: 4.5, why: "accent 实底上文字" },
-    // 下沉填充上的文字：group/sunken 是"凹陷底"，承载 kbd 提示、kind 徽章、
-    // 命令面板标签、EmptyNote、代码 chip。D-006 把这两个 token 沉到 page 之下后
-    // 必须重新守住这里——否则有人把 ink-2 放到更深的底上就会静默跌破 AA。
-    { fg: "ink-2", bg: "bg-group", min: 4.5, why: "次要文字 / 分组底" },
+    // 凹陷底上的文字：sunken 沉在 page 之下，有人把 ink-2 放上去就会静默跌破 AA。
     { fg: "ink-2", bg: "bg-sunken", min: 4.5, why: "次要文字 / 凹陷底" },
-    { fg: "ink-1", bg: "bg-group", min: 4.5, why: "正文 / 分组底（次级按钮、标签）" },
     { fg: "ink-1", bg: "bg-sunken", min: 4.5, why: "正文 / 凹陷底" },
   ];
 

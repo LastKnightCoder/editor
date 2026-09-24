@@ -76,7 +76,7 @@ export function CardDetailLinks({
             /* chip = 跳转与解除两个并列按钮（键盘可分别 Tab 到达），容器承载整体 hover 视觉 */
             <div
               key={id}
-              className="bg-group hover:bg-hover hover:text-ink-1 text-ink-2 ease-tau-out rounded-tau-sm group flex h-[30px] max-w-full items-center text-[12px] transition-colors"
+              className="bg-hover hover:bg-press hover:text-ink-1 text-ink-2 ease-tau-out rounded-tau-sm group flex h-[30px] max-w-full items-center text-[12px] transition-colors"
             >
               <button
                 type="button"

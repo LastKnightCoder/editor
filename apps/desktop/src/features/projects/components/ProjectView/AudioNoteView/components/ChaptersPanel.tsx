@@ -52,7 +52,7 @@ const ChaptersPanel = (props: ChaptersPanelProps) => {
                 "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-all",
                 isActive
                   ? "border-accent/40 bg-accent-soft"
-                  : "hover:border-line-1 hover:bg-group border-transparent"
+                  : "hover:border-line-1 hover:bg-hover border-transparent"
               )}
               onClick={() => onSeek(chapter.startTime)}
             >
