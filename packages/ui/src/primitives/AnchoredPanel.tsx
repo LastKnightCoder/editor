@@ -108,7 +108,9 @@ export interface AnchoredPanelBodyProps {
 }
 
 /** 正文：独立滚动（上限 min(60vh, 420px)）+ 边缘渐隐 + 透明右边框挤位（D-012 手法，
- *  浮层滚动区通用口径）；顶部间距按有无头行分流：无头行自足 14px，有头行收敛 10px */
+ *  浮层滚动区通用口径）；顶部间距按有无头行分流：无头行自足 14px，有头行收敛 10px。
+ *  滚动轨道上下让位（track margin；track 透明边框不缩短 thumb 活动区）：贴浮层边缘的一端
+ *  让出圆角半径，免得 thumb 画进 rounded-tau-lg 的圆角外；头行下方只留 4px */
 function AnchoredPanelBody({ children, className }: AnchoredPanelBodyProps) {
   const hasHeader = useContext(PanelHasHeaderContext) ?? false;
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
@@ -119,7 +121,10 @@ function AnchoredPanelBody({ children, className }: AnchoredPanelBodyProps) {
       className={cn(
         "text-ink-2 text-tau-body edge-fade-scroll",
         "max-h-[min(60vh,420px)] overflow-y-auto border-r-4 border-r-transparent px-4 pb-3.5 leading-[1.65]",
-        hasHeader ? "pt-2.5" : "pt-3.5",
+        "[&::-webkit-scrollbar-track]:mb-[var(--tau-radius-lg)]",
+        hasHeader
+          ? "pt-2.5 [&::-webkit-scrollbar-track]:mt-1"
+          : "pt-3.5 [&::-webkit-scrollbar-track]:mt-[var(--tau-radius-lg)]",
         className
       )}
     >
