@@ -221,17 +221,24 @@ function TimelineRow({
   decorOf: ReturnType<typeof useEventDecor>;
 }) {
   const at = item.kind === "now" ? item.at : item.start;
+  // 已过日程只淡化时间、圆点与卡片，不淡化整行：竖线整条保持同一明度，不断成一截一截
   const rail = (
     <span className="relative flex justify-center">
       <span
         className={cn(
-          "bg-sunken absolute w-0.5 rounded-full",
+          // 轨道色：sunken 在暗色下近黑（#100d08），竖线会成一道黑缝
+          "bg-track absolute w-0.5 rounded-full",
           first ? "top-3.5" : "top-0",
           last ? "h-3.5" : "bottom-0"
         )}
       />
       {item.kind === "event" && (
-        <i className="relative mt-[11px] size-2.5 rounded-full bg-[var(--cal)] shadow-[0_0_0_3px_var(--tau-bg-surface)]" />
+        <i
+          className={cn(
+            "relative mt-[11px] size-2.5 rounded-full bg-[var(--cal)] shadow-[0_0_0_3px_var(--tau-bg-surface)]",
+            past && "opacity-55"
+          )}
+        />
       )}
       {item.kind === "gap" && (
         <i className="bg-surface relative mt-[11px] size-2.5 rounded-full shadow-[inset_0_0_0_1.5px_var(--tau-bg-track),0_0_0_3px_var(--tau-bg-surface)]" />
@@ -247,13 +254,13 @@ function TimelineRow({
       style={item.kind === "event" ? eventToneStyle(item.event, calendars) : undefined}
       className={cn(
         "grid min-h-10 grid-cols-[46px_14px_minmax(0,1fr)] gap-2.5",
-        item.kind === "event" && TONE,
-        past && item.kind === "event" && "opacity-55"
+        item.kind === "event" && TONE
       )}
     >
       <span
         className={cn(
           "font-tau-mono pt-[9px] text-right text-[11.5px] tabular-nums",
+          past && item.kind === "event" && "opacity-55",
           item.kind === "now"
             ? "text-accent-text font-semibold"
             : item.kind === "gap"
@@ -269,7 +276,8 @@ function TimelineRow({
           onClick={e => onPeek(item.event, e.currentTarget)}
           className={cn(
             "my-[3px] cursor-pointer rounded-[10px] px-2.5 py-1.5 transition-[filter] hover:brightness-[0.97]",
-            TONE_SOFT_BG
+            TONE_SOFT_BG,
+            past && "opacity-55"
           )}
         >
           <EventTitle

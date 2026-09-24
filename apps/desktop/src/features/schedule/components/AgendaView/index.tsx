@@ -61,8 +61,12 @@ const AgendaView = () => {
     );
   }
 
+  // 滚动容器上右下留隙，滚动条不贴卡片边缘与圆角；内边距相应减去，内容位置不变
   return (
-    <div ref={setScrollEl} className="edge-fade-scroll h-full overflow-y-auto px-[22px] pb-5 pt-2">
+    <div
+      ref={setScrollEl}
+      className="edge-fade-scroll my-2.5 mr-1.5 h-[calc(100%-20px)] overflow-y-auto pb-2.5 pl-[22px] pr-4"
+    >
       {days.map(({ key, date: day, events: dayEvents }, index) => {
         const isToday = day.isSame(today, "day");
         return (
