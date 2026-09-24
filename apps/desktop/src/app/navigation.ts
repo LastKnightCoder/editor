@@ -37,8 +37,8 @@ export interface NavItem {
   key: string;
   label: string;
   icon: LucideIcon;
-  /** 徽标数据源标识（后续接 query：如闪卡到期数） */
-  badge?: "review-due";
+  /** 徽标数据源标识（后续接 query：如闪卡到期数）；pomodoro-live = 专注中的实时计时 */
+  badge?: "review-due" | "pomodoro-live";
   /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
   opensOverlay?: "settings";
 }
@@ -56,7 +56,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: "home", label: "今日", icon: Flame },
       { key: "schedule", label: "日程", icon: Calendar }, // legacy: Calendar + TimeRecordView
       { key: "todos", label: "待办", icon: ListTodo }, // features/todos（独立页，不并入 schedule，D-040）
-      { key: "pomodoro", label: "番茄专注", icon: Timer }, // legacy: Pomodoro（域归 schedule，独立小窗口保留，蓝图 §5.3）
+      { key: "pomodoro", label: "番茄专注", icon: Timer, badge: "pomodoro-live" }, // features/pomodoro（独立页；小窗与沉浸为辅助窗口）
       { key: "collaboration", label: "协作", icon: Users }, // legacy: CollaborationView（实时协作会话）
     ],
   },

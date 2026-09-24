@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>番茄专注 · 小窗与沉浸窗 二轮</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { overflow: auto; min-width: 0; padding: 36px 6vw 80px; }
+  header { display: flex; align-items: flex-start; gap: 16px; }
+  header h1 { font-size: 22px; font-weight: 600; }
+  header p { color: var(--ink-2); margin-top: 6px; max-width: 88ch; }
+  .ctl { margin-left: auto; display: flex; gap: 8px; flex: none; align-items: center; }
+  h2 { font-size: 16px; font-weight: 600; margin: 44px 0 4px; display: flex; align-items: baseline; gap: 10px; }
+  h2 small { font-size: 12.5px; font-weight: 400; color: var(--ink-3); }
+  .sub { color: var(--ink-2); max-width: 88ch; margin-bottom: 16px; }
+  ul.tight { padding-left: 20px; color: var(--ink-2); max-width: 90ch; margin-bottom: 16px; }
+  ul.tight li + li { margin-top: 3px; }
+  ul.tight b { color: var(--ink-1); font-weight: 600; }
+  .variant { margin-top: 18px; }
+  .vh { display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px; }
+  .vh b { font-size: 14px; font-weight: 600; }
+  .vh .rec { font-size: 11.5px; color: var(--accent-text); background: var(--accent-soft); padding: 1px 7px; border-radius: 6px; font-weight: 500; }
+  .vh span { font-size: 12.5px; color: var(--ink-2); }
+  /* 桌面背景示意：小窗浮在别的应用上 */
+  .desk { border-radius: 16px; padding: 30px 28px 26px; display: flex; flex-wrap: wrap; gap: 30px 34px; align-items: flex-start;
+    background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--ink-1) 4%, transparent) 0 1px, transparent 1px 22px), var(--bg-sunken); }
+  [data-theme="cocoa"] .desk { background: repeating-linear-gradient(0deg, rgba(255,255,255,.03) 0 1px, transparent 1px 22px), #15110c; }
+  .cell { display: flex; flex-direction: column; gap: 9px; }
+  .cell .lab { font-size: 11.5px; color: var(--ink-2); }
+  [data-theme="cocoa"] .desk .cell .lab { color: var(--ink-3); }
+  .cell .lab.live { color: var(--accent-text); font-weight: 500; }
+  .frame { border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 1px var(--line-1), var(--shadow-card); }
+  .frame.big { width: 640px; height: 400px; }
+  .frame.sm { width: 400px; height: 250px; }
+  .grid { display: flex; flex-wrap: wrap; gap: 22px 22px; align-items: flex-start; }
+  .note { font-size: 12.5px; color: var(--ink-2); max-width: 86ch; margin-top: 10px; }
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-card); font-size: 13px; margin-top: 8px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--bg-hover); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line-2); }
+  td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+</style>
+</head>
+<body>
+<header>
+  <div><h1>小窗与沉浸窗 · 二轮（配方案 C）</h1>
+  <p>裁决：小窗和沉浸窗都保留，均为 Electron 独立窗口（Web 端不渲染入口）。沉浸窗全屏、盖在最上层，和主页面共享同一个主进程会话。二轮用方案 C 控制条的语言重画：底边进度线、accent 圆形主控，状态靠文字表达，不做色块。每款先给一个实时实例（可以点，鼠标移上去看悬停态），下面是四种状态的静态矩阵。</p></div>
+  <div class="ctl"><div class="seg" id="st"><button data-d="running">专注中</button><button data-d="paused">已暂停</button><button data-d="ending">剩 8 秒</button></div>
+    <button class="btn btn-secondary" id="spd">×30 快进</button><button class="ibtn" id="th" title="切换明暗"></button></div>
+</header>
+
+<h2>legacy 的问题</h2>
+<ul class="tight">
+  <li><b>小窗</b>（240×130 无边框置顶）：左边 64px 进度环，环心挂三个 antd 图标（暂停圆、播放圆、停止圆），右边是时间和预设名，右上角有常驻的关闭 ×。控制图标和环叠在一起，视觉很乱，也没有完成态：到点后窗口直接空掉；</li>
+  <li><b>沉浸</b>：翻页钟加底部控件，偏装饰。完成后窗口直接关闭，用户看不到结果；不足 5 分钟结束时弹 antd modal，在全屏里很突兀。</li>
+</ul>
+<h2>二轮共用规则</h2>
+<ul class="tight">
+  <li><b>四个状态都有样子</b>：专注中、已暂停（数字退成次级墨色，控件常显，进度线变 warn）、不足 5 分钟（窗口内原位确认，不弹 modal）、完成（原位显示结果，可以「再来一个」）；</li>
+  <li><b>平时只显示时间</b>：控件悬停才出现，暂停时常显（要让人找得到「继续」）；</li>
+  <li><b>拖动整个窗体就能移动</b>，不画标题栏。「回到主窗口」会打开番茄专注页（首页、统计页的入口也一并改成跳这个页面，不再开新窗口）。</li>
+</ul>
+
+<h2>小窗 <small>always-on-top · 三款</small></h2>
+<div class="variant">
+  <div class="vh"><b>A · 控制条缩影</b><span class="rec">推荐</span><span>288 × 68 · 方案 C 顶部控制条的缩小版</span></div>
+  <div class="desk" data-row="mA"></div>
+</div>
+<div class="variant">
+  <div class="vh"><b>B · 药丸</b><span>212 × 40 · 最省地方，贴在屏幕边缘</span></div>
+  <div class="desk" data-row="mB"></div>
+</div>
+<div class="variant">
+  <div class="vh"><b>C · 卡片</b><span>224 × 128 · 接近 legacy 的尺寸，数字最大</span></div>
+  <div class="desk" data-row="mC"></div>
+</div>
+
+<h2>沉浸 <small>全屏 · 盖在最上层 · 三款</small></h2>
+<p class="sub">三款都用容器查询单位排版，任何屏幕尺寸下比例一致。鼠标静止 2.2 秒后，退出提示和控件淡出，只剩时间；暂停、确认、完成三种状态下控件常显。Esc 退出，空格暂停 / 继续。</p>
+<div class="variant">
+  <div class="vh"><b>C · 纯黑翻牌</b><span class="rec">推荐 · 二轮追加</span><span>纯黑底，不跟随明暗主题；四张翻牌占约七成屏宽，只翻变化的那一位</span>
+    <span class="spacer"></span><button class="btn btn-soft" data-full="iF">${expand}全屏预览</button></div>
+  <div class="grid" data-row="iF"></div>
+  <p class="note">翻页是两段式：上半片以牌缝为轴翻下（280ms，加速），下半片接着翻上落定（320ms，减速），翻动的半片带明暗渐变；牌缝是纯黑细缝，两侧有铰链缺口。牌面是暖黑（#1b1916 → #141210），数字是暖白，不用纯白，避免在纯黑上刺眼。除时间外只留两行暗色信息：上方是预设名和状态，下方是细进度线、已专注和预计结束。暂停时牌面数字压暗，控件常显。</p>
+</div>
+<div class="variant">
+  <div class="vh"><b>A · 时间带</b><span>左对齐大字 + 今日时间带，和方案 C 的账本同一种语言</span>
+    <span class="spacer"></span><button class="btn btn-soft" data-full="iA">${expand}全屏预览</button></div>
+  <div class="grid" data-row="iA"></div>
+</div>
+<div class="variant">
+  <div class="vh"><b>B · 居中大字</b><span>一轮 I1 的重做：居中数字 + 细进度线</span>
+    <span class="spacer"></span><button class="btn btn-soft" data-full="iB">${expand}全屏预览</button></div>
+  <div class="grid" data-row="iB"></div>
+</div>
+
+<h2>对照</h2>
+<table>
+  <thead><tr><th>款式</th><th>尺寸</th><th>平时显示</th><th>悬停 / 暂停</th><th>完成</th><th>取舍</th></tr></thead>
+  <tbody>
+    <tr><td>小窗 A 控制条缩影</td><td>288×68</td><td>预设名 · 状态、26px 时间、结束时刻、底边进度</td><td>右侧换成 暂停 / 结束 / 回主窗</td><td>「✓ 完成」+ 再来一个</td><td>信息最全，和页面控制条同构</td></tr>
+    <tr><td>小窗 B 药丸</td><td>212×40</td><td>小环、15px 时间、预设名</td><td>环心成为暂停键，名称换成 结束 / 回主窗</td><td>一行文字 + 再来</td><td>最小，但看不到结束时刻</td></tr>
+    <tr><td>小窗 C 卡片</td><td>224×128</td><td>预设名、38px 时间、状态 · 结束时刻、底边进度</td><td>底部换成 暂停 / 结束 / 背景音</td><td>两行结果 + 再来一个</td><td>数字最醒目，占地最多</td></tr>
+    <tr><td>沉浸 C 纯黑翻牌</td><td>全屏</td><td>纯黑底、四张翻牌（约 50% 屏高）、预设 · 状态、细进度线</td><td>底部居中出现 背景音 / 暂停 / 结束 / 退出</td><td>牌面停在 00:00，上方变「✓ 完成」+ 再来一个</td><td>最沉浸，推荐；不跟随主题</td></tr>
+    <tr><td>沉浸 A 时间带</td><td>全屏</td><td>预设 · 状态、27% 屏高的数字、已专注 · 预计结束、今日时间带</td><td>数字右侧出现 背景音 / 结束 / 暂停</td><td>「✓ 完成」+ 今日第几个 + 再来一个</td><td>有上下文（今天的节奏）</td></tr>
+    <tr><td>沉浸 B 居中大字</td><td>全屏</td><td>预设、30% 屏高的数字、细进度线</td><td>底部居中出现控件</td><td>同上</td><td>最纯粹，没有上下文</td></tr>
+  </tbody>
+</table>
+
+<script src="shared.js"></script>
+<script src="windows.js"></script>
+<script>
+(function () {
+  document.documentElement.dataset.theme = localStorage.getItem("pomo-mock-theme") || "cream";
+  P.injectSprite();
+  const { icon } = P;
+  document.body.innerHTML = document.body.innerHTML.replace(/\$\{(expand)\}/g, (_, n) => icon(n));
+
+  // 静态状态矩阵用的样本
+  const base = { pid: 3, name: "论文写作", progress: 0.46 };
+  const S = {
+    run: { ...base, mode: "run", time: "27:02", status: "剩余", ends: "15:10 结束", sub: "已专注 22:58 · 预计 15:10 结束", elapsedText: "已专注 22:58", endsText: "预计 15:10 结束" },
+    hov: { ...base, mode: "run", time: "27:02", status: "剩余", ends: "15:10 结束", sub: "已专注 22:58 · 预计 15:10 结束" },
+    paused: { ...base, mode: "paused", time: "27:02", status: "已暂停", ends: "结束时间顺延", sub: "已专注 22:58 · 空格继续", elapsedText: "已专注 22:58 · 暂停 1 次", endsText: "已暂停 · 空格继续" },
+    confirm: { ...base, mode: "confirm", time: "46:40", status: "剩余", progress: 0.07, elapsedText: "已专注 3:20", endsText: "预计 15:10 结束" },
+    done: { mode: "done", pid: 3, name: "论文写作", mins: "50 分钟", early: false, progress: 1, sub: "专注 50 分钟 · 今天第 5 个，共 3h 30m", final: "00:00" },
+  };
+  const LAB = { run: "专注中", hov: "悬停", paused: "已暂停", confirm: "不足 5 分钟结束", done: "完成" };
+  function cell(kind, key, live) {
+    const c = document.createElement("div");
+    c.className = "cell";
+    c.innerHTML = `<span class="lab${live ? " live" : ""}">${live ? "● 实时（可交互）" : LAB[key]}</span>`;
+    const box = document.createElement("div");
+    const isImm = kind[0] === "i";
+    const target = isImm ? Object.assign(document.createElement("div"), { className: `frame ${live ? "big" : "sm"}` }) : box;
+    if (isImm) target.appendChild(box);
+    c.appendChild(target);
+    if (live) {
+      W.mountLive(box, kind, { onClose: w => P.toast(w === "back" ? "回到番茄专注页" : w === "discarded" ? "不足 5 分钟，本次未记录" : "关闭窗口（演示页里不关）"), onEmpty: () => {} });
+      if (isImm) box.classList.add("awake");
+    } else W.paint(box, kind, S[key], key === "hov" ? "hov" : "");
+    return c;
+  }
+  document.querySelectorAll("[data-row]").forEach(row => {
+    const kind = row.dataset.row;
+    row.appendChild(cell(kind, null, true));
+    const keys = kind[0] === "m" ? ["run", "hov", "paused", "confirm", "done"] : ["paused", "confirm", "done"];
+    keys.forEach(k => row.appendChild(cell(kind, k, false)));
+  });
+  document.querySelectorAll("[data-full]").forEach(b => (b.onclick = () => W.openImmersive(b.dataset.full)));
+
+  const th = document.getElementById("th");
+  const setTh = () => (th.innerHTML = icon(document.documentElement.dataset.theme === "cream" ? "moon" : "sun"));
+  th.onclick = () => { const n = document.documentElement.dataset.theme === "cream" ? "cocoa" : "cream"; document.documentElement.dataset.theme = n; localStorage.setItem("pomo-mock-theme", n); setTh(); };
+  setTh();
+  document.getElementById("st").onclick = e => { const b = e.target.closest("[data-d]"); if (b) P.demo(b.dataset.d); };
+  document.getElementById("spd").onclick = () => P.setSpeed(P.getSpeed() === 1 ? 30 : 1);
+  P.on(() => {
+    const t = P.timing();
+    document.querySelectorAll("#st button").forEach(b => b.classList.toggle("on", !!t && b.dataset.d === (t.paused ? "paused" : t.remain !== undefined && t.remain < 10000 ? "ending" : "running")));
+    document.getElementById("spd").classList.toggle("btn-soft", P.getSpeed() !== 1);
+  });
+  // 实时实例在会话结束后停在「完成」；点「再来一个」或上方「专注中」重新开始
+  P.demo("running");
+})();
+</script>
+</body>
+</html>

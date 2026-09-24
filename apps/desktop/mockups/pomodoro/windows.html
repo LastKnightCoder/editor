@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>番茄专注 · 小窗与沉浸窗</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  body { overflow: auto; min-width: 0; padding: 36px 6vw 80px; }
+  header { display: flex; align-items: flex-start; gap: 16px; }
+  header h1 { font-size: 22px; font-weight: 600; }
+  header p { color: var(--ink-2); margin-top: 6px; max-width: 86ch; }
+  .ctl { margin-left: auto; display: flex; gap: 8px; flex: none; }
+  h2 { font-size: 16px; font-weight: 600; margin: 40px 0 4px; }
+  .sub { color: var(--ink-2); max-width: 86ch; margin-bottom: 16px; }
+  .row { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+  .spec { display: flex; flex-direction: column; gap: 10px; }
+  .spec .cap { font-size: 13px; font-weight: 600; }
+  .spec .cap span { font-weight: 400; color: var(--ink-3); font-size: 12px; margin-left: 6px; }
+  .spec .note { font-size: 12.5px; color: var(--ink-2); max-width: 40ch; }
+  /* 桌面背景示意：小窗浮在别的应用之上 */
+  .desk { border-radius: 14px; padding: 26px; background:
+    repeating-linear-gradient(0deg, color-mix(in srgb, var(--ink-1) 4%, transparent) 0 1px, transparent 1px 22px), var(--bg-sunken); }
+  [data-theme="cocoa"] .desk { background: repeating-linear-gradient(0deg, rgba(255,255,255,.03) 0 1px, transparent 1px 22px), #15110c; }
+  .win { background: var(--bg-surface); box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink-1) 8%, transparent), var(--shadow-float); color: var(--ink-1); position: relative; }
+  .hov { position: absolute; opacity: 0; transition: opacity 200ms; }
+  .win:hover .hov { opacity: 1; }
+  .tb { display: grid; place-items: center; border-radius: 50%; color: var(--ink-1); }
+  .tb:hover { background: var(--bg-hover); }
+  .tb .icon { width: 14px; height: 14px; }
+
+  /* M1 胶囊 */
+  .m1 { width: 300px; border-radius: 16px; display: flex; align-items: center; gap: 10px; padding: 12px 10px 12px 12px; }
+  .m1 .rw { position: relative; width: 40px; height: 40px; }
+  .m1 .rw .tb { position: absolute; inset: 0; }
+  .m1 .rw .tb .icon { opacity: 0; transition: opacity 160ms; }
+  .m1:hover .rw .tb .icon, .m1.paused .rw .tb .icon { opacity: 1; }
+  .m1 .t { font-size: 21px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.15; }
+  .m1 .n { font-size: 11.5px; color: var(--ink-2); }
+  /* M2 方块 */
+  .m2 { width: 184px; height: 184px; border-radius: 22px; display: grid; place-items: center; }
+  .m2 .ring { position: absolute; inset: 14px; }
+  .m2 .c { position: relative; text-align: center; }
+  .m2 .t { font-size: 30px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.1; }
+  .m2 .n { font-size: 11.5px; color: var(--ink-2); }
+  .m2 .hov { left: 0; right: 0; bottom: 12px; display: flex; justify-content: center; gap: 6px; }
+  .m2 .hov .tb { width: 28px; height: 28px; background: var(--bg-hover); }
+  /* M3 细条 */
+  .m3 { width: 380px; height: 38px; border-radius: 12px; display: flex; align-items: center; gap: 10px; padding: 0 6px 0 14px; overflow: hidden; }
+  .m3 .t { font-size: 14px; font-weight: 600; min-width: 48px; }
+  .m3 .n { font-size: 12px; color: var(--ink-2); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m3 .tb { width: 26px; height: 26px; }
+  .m3 .bar { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--accent); transition: width 1s linear; }
+  .paused .m3 .bar, .m3.paused .bar { background: var(--warn); }
+
+  /* 沉浸三款（按 16:10 缩放） */
+  .imm-frame { width: 560px; height: 350px; border-radius: 14px; overflow: hidden; position: relative; background: var(--bg-page); box-shadow: 0 0 0 1px var(--line-1); }
+  .imm-frame .esc { position: absolute; top: 12px; left: 16px; font-size: 10.5px; color: var(--ink-3); }
+  .i1 { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 4px; }
+  .i1 .n { font-size: 12px; color: var(--ink-2); }
+  .i1 .t { font-size: 84px; font-weight: 400; letter-spacing: -0.035em; line-height: 1; }
+  .paused .i1 .t, .paused .i3 .t { color: var(--ink-3); }
+  .i1 .ln { width: 180px; height: 2px; border-radius: 1px; background: var(--bg-track); margin-top: 16px; overflow: hidden; }
+  .i1 .ln i { display: block; height: 100%; background: var(--accent); transition: width 1s linear; }
+  .i1 .s { font-size: 11px; color: var(--ink-3); margin-top: 8px; }
+  .i2 { display: grid; place-items: center; height: 100%; }
+  .i2 .glow { position: absolute; width: 240px; height: 240px; border-radius: 50%; background: radial-gradient(circle, var(--accent-soft), transparent 70%); animation: br 8s ease-in-out infinite; }
+  .paused .i2 .glow { animation: none; opacity: 0.3; }
+  @keyframes br { 0%, 100% { transform: scale(0.86); opacity: 0.6; } 50% { transform: scale(1.08); opacity: 1; } }
+  .i2 .ring { position: absolute; }
+  .i2 .c { position: relative; text-align: center; }
+  .i2 .t { font-size: 46px; font-weight: 500; letter-spacing: -0.03em; }
+  .i2 .n { font-size: 12px; color: var(--ink-2); }
+  .i3 { display: flex; flex-direction: column; height: 100%; padding: 40px 44px 30px; }
+  .i3 .n { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; }
+  .i3 .t { font-size: 96px; font-weight: 400; letter-spacing: -0.035em; line-height: 1; margin-top: 10px; }
+  .i3 .foot { margin-top: auto; }
+  .i3 .ribbon { height: 18px; }
+  .i3 .ribbon-axis { font-size: 9.5px; }
+  .i3 .s { font-size: 11px; color: var(--ink-3); margin-bottom: 8px; display: flex; justify-content: space-between; }
+  .ctrlrow { position: absolute; left: 0; right: 0; bottom: 14px; display: flex; justify-content: center; gap: 8px; }
+  .ctrlrow .tb { width: 30px; height: 30px; background: var(--bg-hover); }
+  .ctrlrow .tb.main { width: 36px; height: 36px; background: var(--accent); color: var(--ink-inverse); }
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow-card); font-size: 13px; margin-top: 8px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--bg-hover); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line-2); }
+  td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+</style>
+</head>
+<body>
+<header>
+  <div><h1>小窗与沉浸窗 · 形态候选</h1>
+  <p>两者都是 Electron 独立窗口（Web 端不渲染入口），与主页面共享同一个主进程会话。每种形态都接了实时计时：用右上角按钮切换专注 / 暂停 / 快进，鼠标悬停小窗可看到隐藏的控件。三个页面方案都可以搭配任意一款，页面 mockup 里点「小窗」「沉浸」弹出的是默认款（M1 / I1）的示意。</p></div>
+  <div class="ctl"><div class="seg" id="st"><button data-d="running">专注中</button><button data-d="paused">已暂停</button></div><button class="btn btn-secondary" id="spd">×30 快进</button><button class="ibtn" id="th" title="切换明暗"></button></div>
+</header>
+
+<h2>小窗 · always-on-top</h2>
+<p class="sub">legacy 是 240×130 的无边框置顶窗：左边进度环（悬停出暂停 / 结束），右边时间和预设名，右上角是关闭按钮。小窗的目的是在别的应用上面扫一眼剩余时间，所以信息只留时间和预设名，控制收进悬停态，窗口越小越好。拖动整个窗体就能移动，不单独画标题栏。</p>
+<div class="desk"><div class="row">
+  <div class="spec"><div class="cap">M1 胶囊<span>300 × 64 · 推荐默认</span></div>
+    <div class="win m1" data-w="m1"><div class="rw"><span data-ring="40,3.5"></span><button class="tb" data-a="toggle"></button></div>
+      <div style="flex:1;min-width:0"><div class="t num" data-k="time"></div><div class="n" data-k="name"></div></div>
+      <button class="tb" style="width:28px;height:28px" data-a="stop" title="结束">${stop}</button><button class="tb" style="width:28px;height:28px" title="回到主窗口">${expand}</button></div>
+    <div class="note">环本身就是暂停 / 继续按钮，悬停时环心出现图标。信息和 legacy 一样，高度只有它的一半。</div></div>
+  <div class="spec"><div class="cap">M2 方块<span>184 × 184</span></div>
+    <div class="win m2" data-w="m2"><span data-ring="156,5"></span><div class="c"><div class="t num" data-k="time"></div><div class="n" data-k="name"></div></div>
+      <div class="hov"><button class="tb" data-a="toggle"></button><button class="tb" data-a="stop">${stop}</button></div></div>
+    <div class="note">最接近 legacy 的形态，适合副屏一角。控件悬停时才出现，平时只有圆环和数字。</div></div>
+  <div class="spec"><div class="cap">M3 细条<span>380 × 38</span></div>
+    <div class="win m3" data-w="m3"><span class="pdot" data-k="dot"></span><span class="t num" data-k="time"></span><span class="n" data-k="name"></span>
+      <button class="tb" data-a="toggle"></button><button class="tb" data-a="stop">${stop}</button><i class="bar" data-k="bar"></i></div>
+    <div class="note">最省地方，可以贴在屏幕顶边或菜单栏下面。进度用底边一条 2px 细线表示，和方案 C 的控制条同一种语言。</div></div>
+</div></div>
+
+<h2>沉浸 · 全屏</h2>
+<p class="sub">legacy 用的是翻页钟（FlipClock），视觉上偏装饰。三款都取纸底加一个锚点：Esc 退出，空格暂停 / 继续，鼠标静止 2 秒后控件自动隐去。</p>
+<div class="row">
+  <div class="spec"><div class="cap">I1 大字钟<span>推荐默认 · 页面 mockup 里点「沉浸」即此款</span></div>
+    <div class="imm-frame" data-w="i1"><span class="esc">Esc 退出</span><div class="i1"><div class="n" data-k="name"></div><div class="t num" data-k="time"></div><div class="ln"><i data-k="bar"></i></div><div class="s num" data-k="sub"></div></div>
+      <div class="ctrlrow"><button class="tb">${music}</button><button class="tb main" data-a="toggle"></button><button class="tb" data-a="stop">${stop}</button></div></div>
+    <div class="note">数字占据视觉中心，只保留一条细进度线。暂停时数字退成 ink-3，不闪、不变红。</div></div>
+  <div class="spec"><div class="cap">I2 呼吸环</div>
+    <div class="imm-frame" data-w="i2"><span class="esc">Esc 退出</span><div class="i2"><div class="glow"></div><span data-ring="220,4"></span><div class="c"><div class="t num" data-k="time"></div><div class="n" data-k="name"></div></div></div></div>
+    <div class="note">accent-soft 光晕按 8 秒一个周期缓慢缩放，可以当作呼吸节拍来用；和方案 A 的圆环同构。遵循 reduced-motion 时静止。</div></div>
+  <div class="spec"><div class="cap">I3 今日时间带</div>
+    <div class="imm-frame" data-w="i3"><span class="esc">Esc 退出</span><div class="i3"><div class="n" data-k="namedot"></div><div class="t num" data-k="time"></div>
+      <div class="foot"><div class="s num"><span data-k="sub"></span><span data-k="today"></span></div><div class="ribbon" data-k="rib"></div><div data-k="axis"></div></div></div></div>
+    <div class="note">底部放今天的时间带，当前这一段会跟着增长，让人看到这一段落在一天中的位置。和方案 C 的账本同构。</div></div>
+</div>
+
+<h2>对照</h2>
+<table>
+  <thead><tr><th>款式</th><th>尺寸</th><th>常显信息</th><th>控制</th><th>与页面方案的亲和</th></tr></thead>
+  <tbody>
+    <tr><td>M1 胶囊</td><td>300×64</td><td>剩余时间、预设名、进度环</td><td>环心暂停 / 继续、结束、回主窗</td><td>A / B / C 通用</td></tr>
+    <tr><td>M2 方块</td><td>184×184</td><td>剩余时间、预设名、进度环</td><td>悬停出现</td><td>A（圆环语言）</td></tr>
+    <tr><td>M3 细条</td><td>380×38</td><td>剩余时间、预设名、底边进度</td><td>常显</td><td>C（控制条语言）</td></tr>
+    <tr><td>I1 大字钟</td><td>全屏</td><td>数字、细进度线、预计结束</td><td>静止 2 秒隐去</td><td>A / B / C 通用</td></tr>
+    <tr><td>I2 呼吸环</td><td>全屏</td><td>圆环、数字</td><td>同上</td><td>A</td></tr>
+    <tr><td>I3 时间带</td><td>全屏</td><td>数字、今日时间带</td><td>同上</td><td>C</td></tr>
+  </tbody>
+</table>
+
+<script src="shared.js"></script>
+<script>
+(function () {
+  document.documentElement.dataset.theme = localStorage.getItem("pomo-mock-theme") || "cream";
+  P.injectSprite();
+  const { icon } = P;
+  // 标记里的 ${stop} 等占位替换为图标
+  document.body.innerHTML = document.body.innerHTML.replace(/\$\{(stop|expand|music)\}/g, (_, n) => icon(n));
+  document.querySelectorAll("[data-ring]").forEach(el => { const [s, w] = el.dataset.ring.split(",").map(Number); el.outerHTML = P.ringSVG(s, w, 0, false); });
+  const th = document.getElementById("th");
+  const setTh = () => (th.innerHTML = icon(document.documentElement.dataset.theme === "cream" ? "moon" : "sun"));
+  th.onclick = () => { const n = document.documentElement.dataset.theme === "cream" ? "cocoa" : "cream"; document.documentElement.dataset.theme = n; localStorage.setItem("pomo-mock-theme", n); setTh(); };
+  setTh();
+  document.getElementById("st").onclick = e => { const b = e.target.closest("[data-d]"); if (b) P.demo(b.dataset.d); };
+  document.getElementById("spd").onclick = () => P.setSpeed(P.getSpeed() === 1 ? 30 : 1);
+  document.body.addEventListener("click", e => {
+    const a = e.target.closest("[data-a]")?.dataset.a;
+    if (a === "toggle") P.toggle();
+    if (a === "stop") { P.toast("演示页：结束后自动重新开始"); P.demo("running"); }
+  });
+  function sync() {
+    const t = P.timing();
+    if (!t) return P.demo("running");
+    document.querySelectorAll("#st button").forEach(b => b.classList.toggle("on", b.dataset.d === (t.paused ? "paused" : "running")));
+    document.getElementById("spd").classList.toggle("btn-soft", P.getSpeed() !== 1);
+    document.querySelectorAll("[data-w]").forEach(w => {
+      w.classList.toggle("paused", t.paused);
+      const q = k => w.querySelectorAll(`[data-k="${k}"]`);
+      q("time").forEach(x => (x.textContent = P.fmtClock(t.display)));
+      q("name").forEach(x => (x.textContent = t.paused ? `${t.preset.name} · 已暂停` : t.preset.name));
+      q("namedot").forEach(x => (x.innerHTML = `<span class="pdot" style="--c:${P.colorOf(t.preset.id)}"></span>${t.preset.name}${t.paused ? " · 已暂停" : ""}`));
+      q("dot").forEach(x => x.style.setProperty("--c", P.colorOf(t.preset.id)));
+      q("bar").forEach(x => (x.style.width = t.progress * 100 + "%"));
+      q("sub").forEach(x => (x.textContent = t.paused ? "已暂停 · 空格继续" : t.endsAt ? `预计 ${P.hm(t.endsAt)} 结束` : "正计时"));
+      q("today").forEach(x => { const s = P.todaySummary(); x.textContent = `今天 ${s.count} 个 · ${P.fmtDur(s.focusMs + t.elapsed)}`; });
+      q("rib").forEach(x => (x.innerHTML = P.ribbonHTML(P.sessions)));
+      q("axis").forEach(x => { if (!x.firstChild) x.innerHTML = P.ribbonAxis(); });
+      w.querySelectorAll(".ring").forEach(r => P.setRing(r, t.progress, t.paused));
+      w.querySelectorAll('[data-a="toggle"]').forEach(b => { const want = t.paused ? "play" : "pause"; if (b.dataset.i !== want) { b.innerHTML = P.icon(want, "fill"); b.dataset.i = want; } });
+    });
+  }
+  P.on(sync);
+  P.demo("running");
+})();
+</script>
+</body>
+</html>

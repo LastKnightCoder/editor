@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>番茄专注页设计探索 · 总览</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-hover: rgba(67, 57, 44, 0.05); --bg-track: #e0d6c3;
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55); --ok: #61795f; --warn: #a38c4d; --danger: #b0564d; --info: #5c7d99;
+    --tag-2: #5c7d99; --tag-3: #8a7aa6; --tag-4: #a38c4d;
+    --shadow: 0 1px 2px rgba(120,100,70,0.05), 0 10px 24px -14px rgba(120,100,70,0.18);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 14px/1.75 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 40px 8vw 80px; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { color: var(--ink-2); margin-top: 6px; max-width: 84ch; }
+  header .meta { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+  h2 { font-size: 16px; margin: 42px 0 14px; font-weight: 600; }
+  .sub2 { color: var(--ink-2); max-width: 84ch; margin-bottom: 14px; }
+  ul.tight { padding-left: 20px; color: var(--ink-2); max-width: 92ch; }
+  ul.tight li + li { margin-top: 4px; }
+  ul.tight b { color: var(--ink-1); font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .card { background: var(--bg-surface); border-radius: 16px; padding: 20px 22px; box-shadow: var(--shadow); text-decoration: none; color: inherit; display: flex; flex-direction: column;
+    outline: 1px solid transparent; transition: box-shadow 200ms, outline-color 200ms; }
+  .card:hover { outline-color: var(--line-1); box-shadow: 0 16px 40px -12px rgba(120,100,70,0.3); }
+  .card .no { font: 600 12px/1 ui-monospace, Consolas, monospace; color: var(--accent-text); }
+  .card h3 { font-size: 15.5px; margin: 6px 0 2px; font-weight: 600; }
+  .card .who { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+  .card p { font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  .card .wire { margin-top: 14px; height: 104px; border-radius: 10px; background: var(--bg-page); padding: 8px; display: grid; gap: 6px; }
+  .wire div { border-radius: 6px; background: var(--bg-surface); box-shadow: var(--shadow); position: relative; }
+  .wire .ring { position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%; border: 3px solid var(--bg-track); border-right-color: var(--accent); border-top-color: var(--accent); }
+  .wire .bar { position: absolute; left: 8px; right: 8px; height: 5px; border-radius: 3px; background: var(--bg-track); }
+  .wire .blk { position: absolute; height: 5px; border-radius: 2px; }
+  .card .verdict { margin-top: 12px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .verdict .good { color: var(--ok); } .verdict .bad { color: var(--danger); }
+  .card .open { margin-top: auto; padding-top: 12px; font-size: 12.5px; color: var(--accent-text); font-weight: 500; }
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--bg-hover); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line-2); }
+  td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  .callout { background: var(--bg-surface); border-radius: 14px; padding: 18px 22px; margin-top: 14px; box-shadow: var(--shadow); border-left: 3px solid var(--accent); }
+  .callout p { color: var(--ink-2); font-size: 13.5px; }
+  .callout p + p { margin-top: 8px; }
+  .callout b { color: var(--ink-1); }
+  code { font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--bg-surface); border: 1px solid var(--line-1); padding: 1px 6px; border-radius: 5px; color: var(--accent-text); }
+  a.inline { color: var(--accent-text); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>番茄专注页设计探索 · 三方案</h1>
+  <p class="sub">现状：legacy <code>pages/PomodoroWindow</code> 是一个「预设列表 + 底部计时条 + 可拖宽的右侧记录栏」的独立窗口，新壳层侧栏里的「番茄专注」目前还是占位页。antd Dropdown / Modal / Popover / Slider 与旧 <code>--th-*</code>、硬编码灰混用，另有新建预设、改记录时长、批量管理三个弹窗。三个方案共用同一套 mock 数据（6 个进行中预设 + 2 个归档，约 75 天的历史记录，今天 4 条，其中 1 条是提前结束），也共用同一个模拟主进程的计时引擎，用的是 cream / cocoa 两个主题的真实 token 值。浏览器打开就能交互：开始、暂停、结束、不足 5 分钟的确认、到点完成、背景音、改时长、删除后撤销、批量删除、拖动排序、归档恢复，这些都是真的能用的。标题栏的虚线框是 mockup 专用的演示开关，可以直接切到专注中 / 已暂停 / 剩 8 秒，也可以 ×30 快进。</p>
+  <p class="meta">2026-09-24 · 演示时钟从 9月24日 周四 14:20 开始走 · mockup 只作视觉参考，不作为导出源（D-001）</p>
+</header>
+
+<h2>领域判断 · 番茄钟页和待办 / 日程页有什么不同</h2>
+<ul class="tight">
+  <li><b>一页两种注意力</b>：空闲时要回答「接下来专注什么」，专注时只需要回答「还剩多久」。legacy 两种状态共用一个布局，专注中的计时只是列表底部一条 22px 字号的横条，存在感太弱。三个方案的分歧就在于怎么安排这两种状态；</li>
+  <li><b>开始是一次点击</b>：预设数量是个位数到十几个，本质上是一排「开始按钮」，不需要详情页；</li>
+  <li><b>记录是日志，不是任务</b>：大部分时间只看，偶尔改一下时长或删掉。按天看「时间的形状」（几点做了什么、中间暂停了几次）比逐条列表信息量更大，而 <code>pauses[]</code> 一直有数据，只是没画出来；</li>
+  <li><b>计时在主进程</b>：页面、小窗、沉浸窗是同一个会话的三个视图，离开页面后计时照样继续，所以壳层上必须能看到它（见下面的共用基线）。</li>
+</ul>
+
+<h2>三个方案都修掉的 legacy 问题</h2>
+<ul class="tight">
+  <li><b>提前结束被记成「完成」</b>：UI 调用 <code>stopPomodoroSession</code> 时永远传 <code>asComplete=true</code>，倒计时没到点手动结束也会存成 <code>completed</code>。改成未到点时传 <code>false</code>；界面上的「提前结束」标签则一律按 <code>focusMs &lt; expectedMs</code> 推导，历史数据不用回填也能正确显示；</li>
+  <li><b>不足 5 分钟的确认改成行内</b>：主进程本来就会直接丢弃不足 5 分钟的会话。legacy 为此弹一个 modal，现在改成在结束按钮原位出现「不足 5 分钟，结束后不会留下记录 · 继续专注 / 仍然结束」；超过 5 分钟直接结束，不再打断；</li>
+  <li><b>删除不再二次确认</b>：删记录、删预设都是立即生效，Toast 里可以撤销（同 D-040 待办口径）。批量管理不再是大弹窗，改成记录区的「选择」模式，底部出选择条；</li>
+  <li><b>「加载更多」按钮改为无限滚动</b>，触底自动加载（PREFERENCES）；</li>
+  <li><b>预设编辑不再用弹窗</b>：A / C 用 Popover，B 在行内展开。表单只保留真实的三个字段（名称 / 倒计时或正计时 / 分钟），加上 10–90 分钟的快捷档；</li>
+  <li><b>删除预设后的历史记录</b>：legacy 显示「未知预设」，现在显示「已删除的预设」（ink-3），统计照样计入；</li>
+  <li><b>跨午夜</b>：「今天」的统计照旧在零点刷新（legacy 已有 <code>scheduleNextRefresh</code>，保留）。</li>
+</ul>
+
+<h2>三个方案的共用基线</h2>
+<ul class="tight">
+  <li><b>侧栏实时计时</b>：专注中，侧栏「番茄专注」一项的右侧显示剩余时间和呼吸点，暂停时变成 warn 色的「已暂停」。在任何页面都能看到，页面本身不注册状态栏（同 D-040）；</li>
+  <li><b>预设色是设计数据色</b>：按 id 从 accent / tag-1…5 派生，不加字段、不进主题词表（同文章封面派生色口径），只用在色点、时间带和图例这类数据位；</li>
+  <li><b>时间带</b>：06–24 点的横条，一段记录一个色块，暂停处留出缺口，另有「现在」刻度线和进行中的斜纹段，全部由已有的 <code>startTime / endTime / pauses</code> 推导；</li>
+  <li><b>键盘</b>：空格暂停 / 继续，数字键 1–9 开始第 N 个预设（仅空闲时），<code>I</code> 进入沉浸。输入框聚焦或浮层打开时不接管；</li>
+  <li><b>平台分层</b>：小窗和沉浸只在 Electron 渲染（Web 端不渲染入口）。页面里点这两个入口弹出的是示意，形态候选另见 <a class="inline" href="windows.html">小窗与沉浸窗 →</a>；</li>
+  <li>视觉铁律照旧：纸色加 surface 两层，分组靠留白、不画横线，数字统一 tabular-nums，颜色只给 accent、语义状态和数据图例，字重不超过 600，零 <code>bg-group</code>（D-034）。</li>
+</ul>
+
+<h2>三个方案</h2>
+<div class="cards">
+  <a class="card" href="plan-a-stage.html">
+    <div class="no">方案 A</div>
+    <h3>专注舞台 <span class="who">· 一张纸：舞台随状态变形 + 今日右栏</span></h3>
+    <p>左边是舞台，三种状态原位切换。空闲时是一面预设卡片墙（每张卡带近 7 天的小柱和今日时长，拖动排序、右键编辑）；点一下，舞台变成 296px 的大圆环加三颗圆形控制；到点或结束后原地显示结果和今日时间带，可以「再来一个」。右栏是今天：时间带、按预设的图例、今日记录、本周七天柱。全部记录从右侧抽屉滑出，正好盖住右栏，不压暗舞台。</p>
+    <div class="wire" style="grid-template-columns: 1.7fr 1fr;"><div><span class="ring"></span></div><div><span class="bar" style="top:14px"></span><span class="blk" style="top:14px;left:18px;width:10px;background:var(--tag-4)"></span><span class="blk" style="top:14px;left:34px;width:14px;background:var(--tag-3)"></span></div></div>
+    <div class="verdict">
+      <span class="good">✓ 专注态存在感最强，「开始 → 专注 → 完成」整条链路最有仪式感；个性最强</span>
+      <span class="bad">✗ 专注时舞台只放一件事，预设和记录都看不到（右栏只有今天）；卡片墙在预设多了以后会变长</span>
+    </div>
+    <span class="open">打开方案 A →</span>
+  </a>
+  <a class="card" href="plan-b-boards.html">
+    <div class="no">方案 B</div>
+    <h3>两块板 <span class="who">· 预设板（顶部钉住专注卡）+ 记录板，主从联动</span></h3>
+    <p>和待办定稿 B3 同构。左板是预设行：色点、名称、近 7 天小柱、今日时长、开始按钮；双击在行内展开编辑，拖动排序，底部是近 30 天按预设堆叠的节律柱。专注时，左板顶部展开一张 accent-soft 的「正在专注」卡（44px 时间、进度条和刻度、控制）。右板是专注记录：按天分组，每天一条细时间带，今天那条加粗；<b>单击左边某个预设，右板就只显示它的记录</b>，同时给出它的累计、平均每次和近 7 天。「坚持中 / 已归档」用分段切换。</p>
+    <div class="wire" style="grid-template-columns: 1fr 1fr;"><div><span class="bar" style="top:10px;height:22px;background:var(--accent-soft)"></span></div><div><span class="bar" style="top:12px"></span><span class="bar" style="top:30px"></span><span class="bar" style="top:48px"></span></div></div>
+    <div class="verdict">
+      <span class="good">✓ 预设、计时、记录一屏全在；与待办 / 发布页骨架同构，学习成本最低；主从筛选让单个预设的历史有地方看</span>
+      <span class="bad">✗ 专注态最「工具」，没有仪式感（需要仪式感时进沉浸）；两块板信息密度高</span>
+    </div>
+    <span class="open">打开方案 B →</span>
+  </a>
+  <a class="card" href="plan-c-ledger.html">
+    <div class="no">方案 C</div>
+    <h3>时间账本 <span class="who">· 常驻控制条 + 日 × 时的账本面板</span></h3>
+    <p>顶部是一条常驻控制条：空闲时是预设快速开始的 chips（带数字键提示，右键编辑），专注时变成「播放器」（34px 时间、状态、底边进度线、背景音 / 结束 / 小窗 / 沉浸）。下面是一整块账本：每行一天、横轴 6–24 点，色块就是每一段专注，暂停处留出缺口，可以切近 7 / 14 / 30 天；点色块弹出这段记录的详情（暂停分布、改时长、在日程中查看、删除），点图例高亮某个预设。右栏是选中那天的明细和按预设的分布。</p>
+    <div class="wire" style="grid-template-rows: 22px 1fr;"><div></div><div><span class="blk" style="top:10px;left:30px;width:16px;background:var(--tag-4)"></span><span class="blk" style="top:10px;left:56px;width:24px;background:var(--tag-3)"></span><span class="blk" style="top:22px;left:40px;width:12px;background:var(--accent)"></span><span class="blk" style="top:34px;left:26px;width:30px;background:var(--tag-2)"></span><span class="blk" style="top:46px;left:70px;width:14px;background:var(--tag-4)"></span></div></div>
+    <div class="verdict">
+      <span class="good">✓ 回顾能力最强，一眼看出几点最专注、哪天断了档；开始只要一次点击；控制条在任何状态下都不占主区</span>
+      <span class="bad">✗ 和统计页的「专注节律」有部分重叠；预设管理只剩 chips 和右键，最弱；需要精确点小色块</span>
+    </div>
+    <span class="open">打开方案 C →</span>
+  </a>
+</div>
+
+<h2>对比</h2>
+<table>
+  <thead><tr><th>维度</th><th>A 专注舞台</th><th>B 两块板</th><th>C 时间账本</th></tr></thead>
+  <tbody>
+    <tr><td>主轴</td><td>状态（空闲 / 专注 / 完成）</td><td>预设 ⇄ 记录（主从）</td><td>时间（日 × 时）</td></tr>
+    <tr><td>开始</td><td>点卡片 / 数字键</td><td>行尾播放钮 / 数字键</td><td>控制条 chip / 数字键</td></tr>
+    <tr><td>专注态</td><td>296px 圆环占满舞台</td><td>左板顶部钉住的专注卡</td><td>顶部控制条变成播放器</td></tr>
+    <tr><td>完成反馈</td><td>原位结果页（安静的勾 + 今日时间带）</td><td>Toast</td><td>Toast + 账本里的新色块</td></tr>
+    <tr><td>预设管理</td><td>卡片墙：右键 / Popover / 拖动</td><td>行内展开编辑 / 拖动 / 分段看归档</td><td>chips 右键 + Popover，归档走菜单</td></tr>
+    <tr><td>记录浏览</td><td>右栏只放今天，全部记录在抽屉里</td><td>右板常驻，可按预设筛选</td><td>账本色块 + 选中日明细</td></tr>
+    <tr><td>专注时还能看什么</td><td>只有今天</td><td>全部</td><td>全部</td></tr>
+    <tr><td>与已定稿页同构度</td><td>中（一张纸 + 抽屉，同待办抽屉口径）</td><td>高（待办 B3 两块板）</td><td>中（月历整块面板语言）</td></tr>
+    <tr><td>个性</td><td>最强</td><td>最弱</td><td>中</td></tr>
+  </tbody>
+</table>
+
+<h2>可以混搭的部件</h2>
+<ul class="tight">
+  <li>A 的<b>完成结果页</b>可以放进 B 的专注卡：到点后专注卡原位显示「完成 · 再来一个」，停几秒再收起，替代 Toast；</li>
+  <li>B 的<b>主从筛选</b>（点预设看它的历史）可以接到 A 的卡片墙，或者接到 C 的图例上（C 里点图例已经是高亮，改成筛选右栏即可）；</li>
+  <li>C 的<b>账本</b>可以作为 A / B「全部记录」的另一种视图，用分段在「列表 / 账本」之间切换；</li>
+  <li>C 的<b>控制条</b>可以做成跨页面的全局组件（标题栏岛），专注时在任何页面都能暂停，比侧栏徽标更进一步。这件事要单独评估壳层；</li>
+  <li>小窗和沉浸的形态与页面方案互相独立，任意组合，见 <a class="inline" href="windows.html">小窗与沉浸窗</a>。</li>
+</ul>
+
+<h2>裁决记录（2026-09-24 一轮评审）</h2>
+<div class="callout">
+  <p><b>① 方向：选 C 时间账本。</b></p>
+  <p><b>② 首页、统计页的入口改为跳转番茄专注页</b>（<code>openPage("pomodoro")</code>），不再用 <code>openPomodoroWindow()</code> 新开窗口；独立主窗口随迁移退役。</p>
+  <p><b>③ 小窗和沉浸窗都保留</b>：沉浸窗全屏、盖在最上层计时。两者都要重新设计 → <a class="inline" href="windows-v2.html">小窗与沉浸窗 · 二轮</a>（小窗 3 款、沉浸 2 款，含四种状态矩阵；一轮 <a class="inline" href="windows.html">windows.html</a> 留档）。方案 C 页面里点「小窗 / 沉浸」弹出的已经是二轮推荐款。</p>
+  <p><b>③′ 沉浸窗改为纯黑翻牌</b>（二轮追加，用户：「不够沉浸，背景纯黑，很大的翻牌时钟」）：新增沉浸 C，纯黑底、不跟随明暗主题，四张翻牌约占七成屏宽，两段式真实翻页，只翻变化的那一位，四种状态齐全，设为推荐。方案 C 页面里点「沉浸」或按 <code>I</code> 弹出的已经是这一款。</p>
+  <p><b>④ 选 7 天时账本下方大片留白</b> → 两处改动：<b>行高随面板伸缩</b>（7 天时每行 70–100px，色块加粗，日期列补上当天的番茄个数；30 天时退回 32px 紧凑行并滚动），以及底部新增与账本共用时间轴的<b>「时段分布」合计行</b>（按半小时统计所选区间的专注分钟，标出峰值时段，右格是区间合计 / 日均）。试过在 7 天色块里写预设名，但 25 分钟的番茄在当前宽度下只有 15px，写不下，已放弃。</p>
+  <p><b>⑤ 控制条预设 chip 悬停时宽度跳变</b> → 数字键和播放图标改为共用 18px 的固定槽位，原位交叉淡入，悬停前后宽度一致（实测 143.68px → 143.68px）。</p>
+</div>
+
+<div class="callout">
+  <p><b>⑥ 查看 30 天以前（二轮追加）</b>：不另开数据页，在番茄页内补两件——① <b>时间导航</b>：账本标题旁 <code>‹ 日期范围 ›</code> 按当前区间长度前后翻页，点日期范围开月历（带点 = 有记录）直接跳到某天，离开当前窗口时出现「回到今天」；标题由「近 N 天」变为具体日期范围，时段分布、图例、右栏明细都跟随窗口。② 区间分段新增 <b>「全部」</b>：累计数字（总时长 / 有专注的天 / 最长连续 / 专注日日均 / 最投入的月份）+ 按自然年的热力格（新年在上，年内滚动）+ 首条记录以来的单色月度柱；点格子下钻到那天所在的账本，点年份 / 月份标签或月度柱打开那段时间的账本；图例高亮对热力格和月度柱同样生效。mock 历史数据延长到约 400 天以演示。</p>
+  <p><b>⑦ 快捷时间范围（三轮追加）</b>：日期范围按钮打开「快捷项 + 月历」面板——左列 近 7 / 14 / 30 / 90 天、本月、上个月、今年、过去一年，以及有数据的往年（如 2025年），右侧月历点两次选任意起止（点同一天两次 = 跳到那天前后）。标题显示快捷项名称（「今年」）或具体日期范围；顶部分段只保留 7 / 14 / 30 天与「全部」，长区间的账本按 40px 紧凑行滚动。</p>
+</div>
+
+<h2>需要你裁决的几件事</h2>
+<div class="callout">
+  <p><s><b>① 独立番茄钟主窗口是否退役</b></s>（已裁决，见上方 ②）：首页 hero「已专注」和统计页的入口，现在调用的是 <code>openPomodoroWindow()</code>，会打开一个独立的 Electron 窗口（legacy 整页）。新页面落地后，建议把这两个入口改成 <code>openPage("pomodoro")</code>，退役独立主窗口，只保留小窗和沉浸两个辅助窗（同待办裁决 ③ 的思路）。蓝图 §5.3 写的是「番茄钟独立窗口保留」，这一点需要你拍板。</p>
+  <p><b>② 删除预设的入口</b>：三个方案都把删除放在「已归档」里（先归档、再删除，Toast 可撤销），进行中的预设不能直接删。legacy 在任何预设的右键菜单里都能删。</p>
+  <p><b>③ 不在本轮范围</b>：休息计时（短休 / 长休循环）、关联待办（「专注于某条待办」）、每日目标。这三项都需要新字段或新的主进程能力，mockup 里没有做，也没有造假数据。如果想要，可以另开一轮。</p>
+</div>
+
+</body>
+</html>
