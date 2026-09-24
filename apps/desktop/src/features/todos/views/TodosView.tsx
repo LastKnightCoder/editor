@@ -113,11 +113,10 @@ export function TodosView() {
     });
   };
 
-  /* ⌘/Ctrl+N 聚焦快速添加（仅本页在栈顶时生效） */
+  /* ⌘/Ctrl+/ 聚焦快速添加（仅本页在栈顶时生效） */
   useEffect(() => {
     const onKeydown = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "n" || e.shiftKey || e.altKey)
-        return;
+      if (!(e.metaKey || e.ctrlKey) || e.key !== "/" || e.altKey) return;
       if (navigator.current()?.key !== "todos") return;
       e.preventDefault();
       quickAddRef.current?.focus();
