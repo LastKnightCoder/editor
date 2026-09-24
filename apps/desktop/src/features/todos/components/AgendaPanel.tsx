@@ -188,8 +188,8 @@ export function AgendaPanel({
     <motion.div
       ref={setScrollEl}
       layoutScroll
-      // 滚动条离卡片边缘留隙：右 = 透明右边框（滚动条画在边框内侧），上下 = 轨道透明边框
-      className="edge-fade-scroll relative min-h-0 flex-1 overflow-y-auto border-r-[6px] border-transparent pb-7 pl-[18px] pr-2.5 [&::-webkit-scrollbar-track]:[border-bottom:12px_solid_transparent] [&::-webkit-scrollbar-track]:[border-top:12px_solid_transparent]"
+      // 滚动容器自身离卡片边缘留隙（上下 10px、右 6px），滚动条贴容器画，不贴卡片圆角
+      className="edge-fade-scroll relative my-2.5 mr-1.5 min-h-0 flex-1 overflow-y-auto pb-[18px] pl-[18px] pr-2.5"
     >
       {sections.length === 0 && (
         <div className="text-ink-3 flex flex-col items-center gap-1.5 py-20 text-center text-[12.5px]">
@@ -216,7 +216,8 @@ export function AgendaPanel({
             data-bucket={section.bucket}
             className="relative mb-[18px]"
           >
-            <header className="sticky top-0 z-[2] flex items-baseline gap-2.5 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_10px),transparent)] px-1 pb-2.5 pt-1.5">
+            {/* 段头与行同宽（-mx-1.5）：吸顶时完整盖住下面行的 hover 底色 */}
+            <header className="sticky top-0 z-[2] -mx-1.5 flex items-baseline gap-2.5 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_10px),transparent)] px-2.5 pb-2.5 pt-1.5">
               <span
                 className={cn(
                   "text-[16px] font-semibold tracking-[-0.01em]",

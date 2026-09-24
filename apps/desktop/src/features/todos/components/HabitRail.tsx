@@ -72,7 +72,7 @@ export function HabitRail({
   const frac = today.length ? doneCount / today.length : 0;
 
   return (
-    <div className="flex flex-col pb-2 pl-[18px] pr-3 pt-[18px]">
+    <div className="flex flex-col pl-[18px] pr-3 pt-2">
       <Block
         title={
           <>

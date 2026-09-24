@@ -412,16 +412,19 @@ export function TodosView() {
                   renderMenu={renderMenu}
                 />
               </div>
-              <div className="bg-surface shadow-card min-h-0 overflow-y-auto rounded-[16px] border-r-[6px] border-transparent [&::-webkit-scrollbar-track]:[border-bottom:12px_solid_transparent] [&::-webkit-scrollbar-track]:[border-top:12px_solid_transparent]">
-                <HabitRail
-                  roots={derived.timed}
-                  completed={derived.completed}
-                  now={now}
-                  selectedId={selectedId}
-                  onOpen={entry => setSelectedId(entry.id)}
-                  onToggleHabit={toggle}
-                  onJump={jumpTo}
-                />
+              {/* 卡片不滚动，内层滚动容器离边缘留隙：滚动条不贴卡片圆角（同议程板） */}
+              <div className="bg-surface shadow-card flex min-h-0 flex-col overflow-hidden rounded-[16px]">
+                <div className="my-2.5 mr-1.5 min-h-0 flex-1 overflow-y-auto">
+                  <HabitRail
+                    roots={derived.timed}
+                    completed={derived.completed}
+                    now={now}
+                    selectedId={selectedId}
+                    onOpen={entry => setSelectedId(entry.id)}
+                    onToggleHabit={toggle}
+                    onJump={jumpTo}
+                  />
+                </div>
               </div>
               <TodoDrawer
                 entry={selected}
