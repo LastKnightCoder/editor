@@ -274,7 +274,7 @@
 - ~~articles 文章~~ ✅ 2026-09-19 A3 月刊落地（D-015）
 - feed 订阅/稍后读
 - ~~projects 项目~~ ✅ 2026-09-23 C 学习驾驶舱落地（D-031；project-detail 占位，三型工作台待迁移）
-- ~~todos 待办~~ ✅ 2026-09-24 B3 议程流「两块板」落地（D-039；独立页，不并入 schedule）
+- ~~todos 待办~~ ✅ 2026-09-24 B3 议程流「两块板」落地（D-040；独立页，不并入 schedule）
 - learning（vibe-learning + flashcard 合并）
 - schedule 日程 · 第一版 ✅ 2026-09-24 方案 C 月刊落地（mockups/calendar：月历大面板 + 当日时间线 + 快速添加，底层 legacy 逻辑复用）；时间记录不并入（legacy 已无入口，孤儿页面进 04 清单）
 - diary 日记
