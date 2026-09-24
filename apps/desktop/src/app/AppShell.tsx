@@ -16,7 +16,7 @@ import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageHost } from "@/page/PageHost";
 import { PageNavigationBridge } from "./PageNavigationBridge";
 import { initThemeRuntime } from "@tau/ui/theme/runtime";
-import { Loading, ToastHost, initScrollbarAutoHide } from "@tau/ui";
+import { Loading, NotificationHost, ToastHost, initScrollbarAutoHide } from "@tau/ui";
 import { SearchPalette } from "@/features/search/SearchPalette";
 import { SettingsDialog } from "@/features/settings/SettingsDialog";
 import { useSearchStore } from "@/features/search/searchStore";
@@ -169,7 +169,9 @@ function ShellLayout() {
       <SearchPalette />
       {/* 全局设置弹窗（Ctrl+,，D-028）：壳层浮层，同命令面板挂载模式 */}
       <SettingsDialog />
-      {/* 全局 toast（z 高于命令面板，面板打开时反馈仍可见） */}
+      {/* 全局通知卡栈（右上角，D-038）：协作申请 / 应用更新 / 发布结果等后台事件 */}
+      <NotificationHost />
+      {/* 全局 toast（z 高于命令面板与通知卡栈，面板打开时反馈仍可见） */}
       <ToastHost />
     </div>
   );

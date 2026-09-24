@@ -5,7 +5,8 @@ const mocks = vi.hoisted(() => ({
   handlers: new Map<string, (data: unknown) => void>(),
   resolvePublish: (_: unknown) => {},
   executePublish: vi.fn(),
-  toast: { success: vi.fn(), warning: vi.fn(), error: vi.fn() },
+  notify: vi.fn(),
+  openPage: vi.fn(),
 }));
 
 vi.mock("@/stores/useBackendWebsocketStore", () => {
@@ -21,7 +22,17 @@ vi.mock("@/commands", () => ({
   executePublish: mocks.executePublish,
 }));
 vi.mock("@/commands/publish", () => ({ exportPublishOutput: vi.fn() }));
-vi.mock("@tau/ui", () => ({ toast: mocks.toast }));
+vi.mock("@tau/ui", () => ({ notify: mocks.notify }));
+vi.mock("@/services/page-navigation", () => ({ openPage: mocks.openPage }));
+
+type Notice = {
+  title: string;
+  body?: string;
+  tone?: string;
+  sticky?: boolean;
+  actions?: { label: string; onClick?: () => unknown }[];
+};
+const lastNotice = () => mocks.notify.mock.calls.at(-1)?.[0] as Notice;
 
 const { usePublishRunStore } = await import("../publishRunStore");
 
@@ -38,7 +49,8 @@ beforeEach(() => {
   mocks.executePublish.mockImplementation(
     () => new Promise(resolve => (mocks.resolvePublish = resolve))
   );
-  Object.values(mocks.toast).forEach(fn => fn.mockReset());
+  mocks.notify.mockReset();
+  mocks.openPage.mockReset();
 });
 
 it("发布中再次 start 被忽略，进度经常驻 handler 写入", async () => {
@@ -60,10 +72,11 @@ it("发布中再次 start 被忽略，进度经常驻 handler 写入", async () 
   await first;
   expect(usePublishRunStore.getState().run.kind).toBe("done");
   expect(usePublishRunStore.getState().finishSeq).toBe(1);
-  expect(mocks.toast.success).toHaveBeenCalled();
+  expect(lastNotice()).toMatchObject({ title: "站点已发布", tone: "ok" });
+  expect(lastNotice().sticky).toBeFalsy();
 });
 
-it("部分失败 toast 警告，异常转 error 态", async () => {
+it("部分失败与异常：常驻 danger 通知，异常转 error 态", async () => {
   mocks.executePublish.mockResolvedValueOnce({
     success: false,
     uploaded: [],
@@ -72,10 +85,43 @@ it("部分失败 toast 警告，异常转 error 态", async () => {
     skipped: [],
   });
   await usePublishRunStore.getState().start(params);
-  expect(mocks.toast.warning).toHaveBeenCalled();
+  expect(lastNotice()).toMatchObject({
+    title: "发布完成，部分文件失败",
+    tone: "danger",
+    sticky: true,
+  });
 
   mocks.executePublish.mockRejectedValueOnce(new Error("boom"));
   await usePublishRunStore.getState().start(params);
   expect(usePublishRunStore.getState().run).toEqual({ kind: "error", message: "boom" });
-  expect(mocks.toast.error).toHaveBeenCalledWith("发布失败：boom");
+  expect(lastNotice()).toMatchObject({
+    title: "发布失败",
+    body: "boom",
+    tone: "danger",
+    sticky: true,
+  });
+});
+
+it("失败通知：重试按上次参数重跑，查看详情打开发布页", async () => {
+  mocks.executePublish.mockRejectedValueOnce(new Error("boom"));
+  await usePublishRunStore.getState().start(params);
+  const actions = lastNotice().actions ?? [];
+  const click = (label: string) => actions.find(a => a.label === label)?.onClick?.();
+
+  click("查看详情");
+  expect(mocks.openPage).toHaveBeenCalledWith("publish");
+
+  mocks.executePublish.mockResolvedValueOnce({
+    success: true,
+    uploaded: ["a"],
+    failed: [],
+    deleted: [],
+    skipped: [],
+  });
+  click("重试");
+  await vi.waitFor(() => expect(usePublishRunStore.getState().run.kind).toBe("done"));
+  expect(mocks.executePublish).toHaveBeenLastCalledWith(
+    expect.objectContaining({ providerType: params.active })
+  );
+  expect(lastNotice().title).toBe("站点已发布");
 });
