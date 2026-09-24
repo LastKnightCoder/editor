@@ -88,7 +88,7 @@ export function SettingsDialog() {
     }
   };
 
-  // 两栏滚动区三件套（§5 滚动区标准接法）；滚动条 -mr/pr 借位画进右留白，不贴栏缘
+  // 两栏分别接入边缘渐隐，滚动视口由外层留白避开弹窗边缘。
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
   const [navEl, setNavEl] = useState<HTMLDivElement | null>(null);
@@ -174,16 +174,16 @@ export function SettingsDialog() {
             </div>
           </nav>
 
-          {/* 右栏：页头 + 当前子页（内容列撑满右栏，宽度上限由弹窗封顶控制；独立滚动 + edge fade） */}
-          <div
-            ref={setScrollEl}
-            className="edge-fade-scroll -mr-[5px] min-h-0 overflow-y-auto pb-14 pl-8 pr-[37px] pt-7"
-          >
-            <div>
-              <header className="mb-6 mt-0.5">
-                <h2 className="text-tau-title-lg text-ink-1 font-semibold">{activeDef.label}</h2>
-                <p className="text-tau-meta text-ink-2 mt-0.5">{activeDef.description}</p>
-              </header>
+          {/* 右栏页头固定，正文视口独立滚动并向内留白。 */}
+          <div className="flex min-h-0 min-w-0 flex-col pb-4 pl-8 pr-4 pt-7">
+            <header className="mb-6 mt-0.5 shrink-0 pr-8">
+              <h2 className="text-tau-title-lg text-ink-1 font-semibold">{activeDef.label}</h2>
+              <p className="text-tau-meta text-ink-2 mt-0.5">{activeDef.description}</p>
+            </header>
+            <div
+              ref={setScrollEl}
+              className="edge-fade-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-4 [scrollbar-gutter:stable]"
+            >
               <ActiveSection key={activeDef.key} />
             </div>
           </div>
