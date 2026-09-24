@@ -74,7 +74,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       // 项目即学习容器（文档树/数据表格/Vibe Learning 三型皆学习导向），归学习组
       { key: "projects", label: "项目", icon: FolderKanban }, // legacy: ProjectListView（VibeLearning 详情即学习工作台）
-      { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // legacy: FlashcardCenter（与 VibeLearning 同归 learning 域，蓝图 §5.3）
+      { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // features/flashcards（复习台，D-041）
       { key: "questions", label: "问题管理", icon: CircleHelp }, // legacy: QuestionWindowPage
       { key: "weread", label: "微信读书", icon: BookOpen }, // legacy: WeRead
       { key: "feed", label: "订阅", icon: Inbox }, // legacy: FeedView（RSS / 稍后读）
