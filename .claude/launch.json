@@ -18,6 +18,12 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8794", "-d", "apps/desktop/mockups/publish"],
       "port": 8794
+    },
+    {
+      "name": "settings-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8795", "-d", "apps/desktop/mockups/settings"],
+      "port": 8795
     }
   ]
 }

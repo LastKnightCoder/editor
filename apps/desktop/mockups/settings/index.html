@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设置 · 方案 A 第三版（主题语言）</title>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+  /* 取值与 packages/ui/src/theme（cream / cocoa）同源 */
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-surface-hover: #f6f3ef; --bg-sunken: #e7dbc8; --bg-track: #e0d6c3;
+    --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09); --bg-selected: rgba(217, 119, 87, 0.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.75);
+    --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%); --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --ok: #61795f; --ok-soft: #e5ede2; --warn: #a38c4d; --warn-soft: #f6efd6; --danger: #b0564d; --danger-soft: #f6e3e0; --info: #5c7d99;
+    --tag-2: #5c7d99; --tag-1: #61795f; --tag-3: #8a7aa6;
+    --overlay: rgba(67, 57, 44, 0.35);
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+    --r-sm: 8px; --r-md: 12px; --r-lg: 16px;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --stage: #e8e1d1;
+  }
+  [data-theme="dark"] {
+    --bg-page: #221d16; --bg-surface: #2e2820; --bg-surface-hover: #39332b; --bg-sunken: #100d08; --bg-track: #463d31;
+    --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11); --bg-selected: hsla(22, 62%, 65%, 0.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+    --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+    --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%); --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+    --ok: #8cab87; --ok-soft: #243023; --warn: #c4a458; --warn-soft: #302917; --danger: #d97e66; --danger-soft: #34201a; --info: #83aecf;
+    --tag-2: #83aecf; --tag-1: #8cab87; --tag-3: #a596c8;
+    --overlay: rgba(10, 8, 5, 0.55);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+    --stage: #15110c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--stage); color: var(--ink-1); overflow-x: auto;
+    font: 13px/1.65 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 36px 3vw 80px; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  svg.lucide { width: 1em; height: 1em; stroke-width: 1.75; flex: none; }
+  .num { font-variant-numeric: tabular-nums; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+
+  /* ---------- 说明区 ---------- */
+  .intro { max-width: 1180px; font-size: 13.5px; }
+  .intro h1 { font-size: 20px; font-weight: 600; }
+  .intro p { color: var(--ink-2); margin-top: 6px; max-width: 96ch; }
+  .intro h3 { font-size: 14.5px; font-weight: 600; margin: 20px 0 6px; }
+  .intro ul { color: var(--ink-2); margin-left: 18px; max-width: 100ch; font-size: 13px; }
+  .intro li { margin-top: 3px; } .intro b { color: var(--ink-1); font-weight: 600; }
+  .toolbar { display: flex; gap: 18px; align-items: center; margin: 26px 0 14px; font-size: 12.5px; color: var(--ink-2); }
+  .pills { display: flex; gap: 4px; align-items: center; }
+  .pills button { padding: 4px 12px; border-radius: 99px; background: var(--bg-hover); }
+  .pills button.on { background: var(--ink-1); color: var(--ink-inverse); }
+
+  /* ---------- 应用窗口（弹窗背后） ---------- */
+  .win { height: 880px; max-width: 1400px; min-width: 1240px; border-radius: 14px; overflow: hidden; background: var(--bg-page); position: relative;
+    box-shadow: 0 2px 6px rgba(67,57,44,.08), 0 20px 50px rgba(67,57,44,.14); display: flex; flex-direction: column; }
+  .titlebar { height: 40px; flex: none; display: flex; align-items: center; padding: 0 16px; }
+  .dots { display: flex; gap: 7px; } .dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--bg-track); }
+  .app { flex: 1; display: flex; min-height: 0; }
+  .app .side { width: 200px; padding: 4px 10px; color: var(--ink-2); font-size: 12.5px; }
+  .app .side .it { padding: 5px 8px; border-radius: 7px; display: flex; gap: 9px; align-items: center; }
+  .app .side .it.on { background: var(--bg-selected); color: var(--accent-text); }
+  .app .main { flex: 1; padding: 20px 28px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; align-content: start; }
+  .ghost-card { height: 140px; border-radius: 14px; background: var(--bg-surface); box-shadow: var(--shadow-card); }
+  .scrim { position: absolute; inset: 0; background: var(--overlay); backdrop-filter: blur(4px); display: grid; place-items: center; padding: 28px; }
+
+  /* ---------- 弹窗（浮起物：唯一使用 shadow-float 的层） ---------- */
+  .dlg { width: 1080px; height: min(780px, 100%); border-radius: var(--r-lg); background: var(--bg-page); box-shadow: var(--shadow-float);
+    display: grid; grid-template-columns: 228px minmax(0, 1fr); overflow: hidden; position: relative; }
+  .close { position: absolute; right: 14px; top: 14px; width: 30px; height: 30px; border-radius: var(--r-sm); display: grid; place-items: center; color: var(--ink-2); font-size: 15px; z-index: 2; }
+  .close:hover { background: var(--bg-hover); color: var(--ink-1); }
+
+  /* 左栏：与应用侧栏同一套语言（中性图标 + bg-selected 轻染） */
+  .snav { display: flex; flex-direction: column; min-height: 0; padding: 18px 12px 14px 14px; }
+  .snav .ttl { font-size: 14.5px; font-weight: 600; padding: 0 10px 12px; }
+  .search { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: var(--r-sm); background: var(--bg-surface);
+    box-shadow: 0 0 0 1px var(--line-1) inset; color: var(--ink-3); font-size: 12.5px; margin-bottom: 4px; }
+  .search kbd { margin-left: auto; font-family: var(--mono); font-size: 11px; }
+  .snav .list { overflow-y: auto; flex: 1; margin-right: -6px; padding-right: 6px; }
+  .snav .grp { font-size: 11px; color: var(--ink-3); padding: 14px 10px 4px; }
+  .snav .it { width: 100%; display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: var(--r-sm); color: var(--ink-2); font-size: 13px; text-align: left; margin-bottom: 2px; transition: background .16s, color .16s; }
+  .snav .it svg { font-size: 15px; }
+  .snav .it:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .snav .it.on { background: var(--bg-selected); color: var(--accent-text); font-weight: 500; }
+  .snav .it .dot { margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
+
+  /* 右栏 */
+  .scontent { overflow-y: auto; min-height: 0; padding: 28px 44px 56px 28px; }
+  .col { max-width: 720px; }
+  .phead { margin: 2px 0 24px; }
+  .phead h2 { font-size: 20px; font-weight: 600; line-height: 1.35; }
+  .phead p { color: var(--ink-2); font-size: 12.5px; margin-top: 3px; }
+  .phead .sums { display: flex; gap: 6px; margin-top: 10px; }
+  .tabs { display: flex; gap: 22px; margin: -8px 0 24px; }
+  .tabs button { padding: 4px 0 7px; color: var(--ink-2); font-size: 13px; position: relative; display: inline-flex; gap: 6px; align-items: center; }
+  .tabs button:hover { color: var(--ink-1); }
+  .tabs button.on { color: var(--ink-1); font-weight: 600; }
+  .tabs button.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: var(--accent); }
+  .tabs .n { font-size: 11px; font-weight: 500; padding: 0 6px; border-radius: 99px; background: var(--warn-soft); color: var(--warn); }
+
+  .group { margin-bottom: 28px; }
+  .gt { padding: 0 4px 8px; display: flex; align-items: flex-end; gap: 12px; }
+  .gt h3 { font-size: 13.5px; font-weight: 600; }
+  .gt p { font-size: 12.5px; color: var(--ink-2); }
+  .gt .ga { margin-left: auto; display: flex; gap: 6px; }
+  /* 面板：surface + shadow-card（发布页 panel 同款），不描边 */
+  .panel { background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow-card); padding: 6px; }
+  .row { display: flex; align-items: center; gap: 16px; padding: 11px 12px; min-height: 56px; border-radius: 10px; }
+  .row .rt { flex: 1; min-width: 0; }
+  .row .rt b { display: block; font-weight: 500; font-size: 13.5px; }
+  .row .rt small { display: block; color: var(--ink-2); font-size: 12.5px; margin-top: 1px; }
+  .row .rc { display: flex; align-items: center; gap: 8px; flex: none; }
+  .panel > .row + .row, .panel > .li + .li { box-shadow: 0 -1px 0 var(--line-2); border-top-left-radius: 0; border-top-right-radius: 0; }
+  .note { display: flex; gap: 8px; align-items: center; color: var(--ink-2); font-size: 12.5px; padding: 0 4px; }
+  .note svg { color: var(--ink-3); }
+
+  /* 控件（@tau/ui 定稿皮） */
+  .sw { width: 34px; height: 20px; border-radius: 99px; background: var(--bg-track); position: relative; cursor: pointer; transition: background .16s; display: inline-block; flex: none; }
+  .sw i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: left .16s; }
+  .sw.on { background: var(--accent); } .sw.on i { left: 16px; }
+  .sel, .inp { height: 32px; border-radius: var(--r-sm); box-shadow: 0 0 0 1px var(--line-1) inset; background: var(--bg-surface); display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; font-size: 12.5px; }
+  .sel { justify-content: space-between; cursor: pointer; } .sel svg { color: var(--ink-3); }
+  .inp.ph { color: var(--ink-3); }
+  .seg { display: inline-flex; box-shadow: 0 0 0 1px var(--line-1) inset; border-radius: var(--r-sm); overflow: hidden; background: var(--bg-surface); }
+  .seg b { font-weight: 400; font-size: 12.5px; padding: 0 12px; height: 30px; display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); cursor: pointer; }
+  .seg b + b { box-shadow: -1px 0 0 var(--line-1); }
+  .seg b:hover:not(.on) { background: var(--bg-hover); }
+  .seg b.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+  .btn { height: 30px; padding: 0 12px; border-radius: var(--r-sm); background: var(--bg-surface); box-shadow: 0 0 0 1px var(--line-1) inset; font-size: 12.5px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .btn:hover { background: var(--bg-surface-hover); }
+  .btn.pri { background: var(--accent); color: var(--ink-inverse); box-shadow: 0 1px 2px rgba(120,60,30,.2); }
+  .btn.pri:hover { background: var(--accent-hover); }
+  .btn.ghost { box-shadow: none; background: none; color: var(--ink-2); } .btn.ghost:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .btn.danger { color: var(--danger); }
+  .btn.icon { width: 28px; padding: 0; justify-content: center; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 1px 9px; border-radius: 99px; background: var(--bg-hover); color: var(--ink-2); white-space: nowrap; }
+  .chip i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); }
+  .chip.ok i { background: var(--ok); } .chip.warn i { background: var(--warn); } .chip.danger i { background: var(--danger); } .chip.acc i { background: var(--accent); }
+  .chip.plain i { display: none; }
+  .link { color: var(--accent-text); cursor: pointer; font-size: 12.5px; display: inline-flex; gap: 4px; align-items: center; }
+  .muted { color: var(--ink-2); font-size: 12.5px; }
+  .prog { height: 6px; border-radius: 99px; background: var(--bg-sunken); overflow: hidden; }
+  .prog i { display: block; height: 100%; background: var(--accent); border-radius: inherit; }
+
+  /* 外观 */
+  .themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 10px 8px 6px; }
+  .tcard { border-radius: var(--r-md); padding: 7px; text-align: left; background: var(--bg-surface); box-shadow: 0 0 0 1px var(--line-1) inset; transition: box-shadow .16s; }
+  .tcard:hover { box-shadow: 0 0 0 1px var(--ink-3) inset; }
+  .tcard.on { box-shadow: 0 0 0 1.5px var(--accent) inset; }
+  .tprev { height: 88px; border-radius: 8px; overflow: hidden; display: flex; }
+  .tprev .half { flex: 1; position: relative; overflow: hidden; }
+  .mini { position: absolute; inset: 0; display: flex; }
+  .tprev > .mini { position: relative; flex: 1; }
+  .mini .ms { width: 32%; padding: 10px 7px; }
+  .mini .ms i { display: block; height: 5px; border-radius: 9px; margin-bottom: 6px; }
+  .mini .mm { flex: 1; padding: 10px 9px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; align-content: start; }
+  .mini .mm i { height: 26px; border-radius: 5px; }
+  .mini .mm i:first-child { grid-column: 1 / -1; height: 6px; width: 55%; border-radius: 9px; }
+  .tcap { display: flex; align-items: center; gap: 7px; padding: 8px 4px 2px; font-size: 13px; }
+  .tcap .rd { width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 0 1.5px var(--bg-track) inset; flex: none; }
+  .tcard.on .rd { box-shadow: 0 0 0 4.5px var(--accent) inset; }
+  .tcard.on .tcap { font-weight: 500; }
+  .tcap small { color: var(--ink-3); font-size: 11.5px; margin-left: auto; }
+  .resolved { padding: 6px 12px 8px; }
+  .preview { margin: 4px 6px 6px; border-radius: 10px; padding: 12px 14px; box-shadow: 0 0 0 1px var(--line-1) inset; }
+  .preview .cn { font-size: 16px; } .preview .en { color: var(--ink-2); } .preview .cd { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+  .preview .lb { font-size: 11px; color: var(--ink-3); margin-bottom: 4px; }
+
+  /* 统计块（同步） */
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stat { background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow-card); padding: 16px 16px 14px; display: flex; flex-direction: column; min-width: 0; }
+  .stat h4 { font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .stat h4 svg { color: var(--ink-2); font-size: 15px; }
+  .stat h4 .chip { margin-left: auto; font-weight: 400; }
+  .stat .sub { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+  .vers { display: flex; gap: 28px; margin: 14px 0 2px; }
+  .vers small { display: block; font-size: 12px; color: var(--ink-2); }
+  .vers b { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.3; }
+  .vers b.lead { color: var(--accent-text); }
+  .kv { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 10px; }
+  .kv div small { display: block; font-size: 12px; color: var(--ink-2); }
+  .kv div b { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kv .bad b { color: var(--danger); }
+  .stat .acts { display: flex; gap: 8px; margin-top: auto; padding-top: 14px; }
+  .stat .pline { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-2); margin: 14px 0 6px; }
+
+  /* 列表行（文件/模型/账号/缓存） */
+  .li { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 9px 12px; min-height: 52px; border-radius: 10px; }
+  .lic { width: 32px; height: 32px; border-radius: var(--r-sm); display: grid; place-items: center; background: var(--bg-hover); color: var(--ink-2); font-size: 15px; font-weight: 600; font-size: 13px; }
+  .lic svg { font-size: 15px; }
+  .li b { font-weight: 500; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .li small { color: var(--ink-2); font-size: 12.5px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .li .acts { display: flex; gap: 4px; }
+  .ltools { display: flex; gap: 8px; align-items: center; padding: 8px 8px 8px; }
+  .ltools .sp { margin-left: auto; }
+  .bl { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 8px 10px; }
+  .bl .chip { padding: 2px 4px 2px 10px; font-size: 12px; }
+  .bl .chip button { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-3); }
+  .bl .chip button:hover { background: var(--bg-press); color: var(--ink-1); }
+
+  /* 主从（服务商） */
+  .md { display: grid; grid-template-columns: 196px minmax(0, 1fr); }
+  .md .ml { display: flex; flex-direction: column; gap: 2px; padding: 2px; box-shadow: 1px 0 0 var(--line-2); padding-right: 8px; }
+  .md .ml .pv { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: var(--r-sm); cursor: pointer; }
+  .md .ml .pv:hover { background: var(--bg-hover); }
+  .md .ml .pv.on { background: var(--bg-selected); }
+  .md .ml .pv.on b { color: var(--accent-text); }
+  .md .ml .pv b { font-weight: 500; flex: 1; } .md .ml .pv small { color: var(--ink-3); font-size: 11.5px; }
+  .md .ml .add { color: var(--ink-2); margin-top: 6px; }
+  .md .mr { padding: 10px 12px 10px 20px; min-width: 0; }
+  .fields { display: grid; grid-template-columns: 80px 1fr; gap: 10px 14px; align-items: center; font-size: 12.5px; }
+  .fields label { color: var(--ink-2); } .fields .inp { width: 100%; }
+  .mh { display: flex; align-items: center; font-size: 12.5px; color: var(--ink-2); padding: 18px 0 6px; } .mh b { color: var(--ink-1); font-weight: 600; margin-right: 6px; } .mh .link { margin-left: auto; }
+  .mrow { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--r-sm); box-shadow: 0 0 0 1px var(--line-1) inset; margin-bottom: 6px; }
+  .mrow .mn { font-family: var(--mono); font-size: 12px; flex: 1; }
+  .cap { font-size: 11px; padding: 0 7px; border-radius: 99px; background: var(--bg-hover); color: var(--ink-2); }
+
+  /* 模块 */
+  .mods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 8px; }
+  .mod { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 10px; }
+  .mod svg { color: var(--ink-2); font-size: 16px; }
+  .mod b { flex: 1; font-weight: 500; }
+  .mod.off svg, .mod.off b { color: var(--ink-3); }
+
+  /* 缓存 */
+  .usage { padding: 12px 12px 6px; }
+  .usage .ut { display: flex; align-items: baseline; gap: 10px; }
+  .usage .ut b { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .ubar { height: 8px; border-radius: 99px; background: var(--bg-sunken); display: flex; gap: 2px; overflow: hidden; margin: 12px 0 10px; }
+  .ubar i { display: block; height: 100%; }
+  .legend { display: flex; gap: 18px; font-size: 12.5px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend span::before { content: ""; width: 8px; height: 8px; border-radius: 3px; background: var(--c); }
+  .legend b { color: var(--ink-1); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+  /* 关于 */
+  .about { display: flex; gap: 16px; align-items: center; padding: 14px 12px; }
+  .appicon { width: 52px; height: 52px; border-radius: 14px; background: var(--accent); color: var(--ink-inverse); display: grid; place-items: center; font-size: 24px; font-weight: 600; flex: none; }
+  .about h3 { font-size: 14.5px; font-weight: 600; } .about .mono { color: var(--ink-2); }
+  .about .rc { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+</style>
+</head>
+<body>
+
+<section class="intro">
+  <h1>设置 · 方案 A 第三版</h1>
+  <p>第二版的粉彩和渐变已撤回。这一版只用我们的主题语言，骨架还是方案 A：1080 宽弹窗加左侧导航。</p>
+  <h3>对照 02 规范与已定稿的「发布」页</h3>
+  <ul>
+    <li><b>表面中性</b>：只有纸色（弹窗底）和 surface（面板）两层。面板沿用发布页的 surface + shadow-card，不描边；弹窗是唯一用 shadow-float 的浮起物。</li>
+    <li><b>色彩表意</b>：accent 只用在选中项、主按钮、焦点和分段选中段；ok / warn / danger 只作状态点和失败数字。图标一律中性墨色，没有品牌色，也不按分区上色。</li>
+    <li><b>层级</b>：页标题 20 / 600，分组标题 13.5 / 600，行标题 13.5 / 500，说明文字 12.5 / ink-2（符合规范的说明性正文下限），字重只用 400 / 500 / 600。</li>
+    <li><b>不拥挤</b>：行高 56，分组间距 28。同一面板内的行之间用 line-2 弱分隔（规范「列表行间」的专用 token），分组靠面板和留白区分。</li>
+    <li><b>控件</b>：全部是 @tau/ui 定稿的样式——连体描边分段、描边输入框和下拉框、accent 开关，没有新造控件。</li>
+    <li><b>资源同步</b>：放在「同步」页的第二个 Tab 里，包括文件列表、需重传项和黑名单。</li>
+  </ul>
+</section>
+
+<div class="toolbar">
+  <div class="pills" id="themePills">主题
+    <button data-theme="light" class="on">暖纸 · 晨</button><button data-theme="dark">暖纸 · 夜</button>
+  </div>
+  <span>左侧导航可点；同步 / 大语言模型 / 嵌入 / 语音 页顶部有 Tab</span>
+</div>
+
+<div class="win" id="win"></div>
+
+<script>
+const NAV = [
+  { g: "通用", items: [["appearance", "外观", "palette"], ["modules", "功能模块", "layout-grid"]] },
+  { g: "数据", items: [["sync", "同步", "refresh-cw"], ["storage", "资源存储", "hard-drive"], ["cache", "剪藏与缓存", "archive"]] },
+  { g: "连接", items: [["accounts", "账号与连接", "plug"]] },
+  { g: "AI 服务", items: [["llm", "大语言模型", "sparkles"], ["embedding", "嵌入与检索", "layers"], ["imagegen", "图片生成", "image"], ["voice", "语音", "audio-lines"]] },
+  { g: "创作工具", items: [["whiteboard", "白板录制", "video"]] },
+  { g: "系统", items: [["about", "关于与更新", "info"]] },
+];
+const LABEL = {}; NAV.forEach(g => g.items.forEach(([k, l]) => (LABEL[k] = l)));
+const ATTN = { sync: 1, accounts: 1 };
+
+const ic = n => `<i data-lucide="${n}"></i>`;
+const sw = on => `<span class="sw ${on ? "on" : ""}" data-toggle><i></i></span>`;
+const sel = (t, w = 200) => `<span class="sel" style="width:${w}px"><span>${t}</span>${ic("chevrons-up-down")}</span>`;
+const seg = (items, on = 0) => `<span class="seg" data-seg>${items.map((t, i) => `<b class="${i === on ? "on" : ""}">${t}</b>`).join("")}</span>`;
+const inp = (v, w = 260, cls = "") => `<span class="inp ${cls}" style="width:${w === "" ? "100%" : w + "px"}">${v}</span>`;
+const btn = (t, k = "", icon) => `<button class="btn ${k}">${icon ? ic(icon) : ""}${t}</button>`;
+const ibtn = (icon, k = "ghost") => `<button class="btn icon ${k}">${ic(icon)}</button>`;
+const chip = (t, tone = "") => `<span class="chip ${tone}"><i></i>${t}</span>`;
+const row = (t, d, c) => `<div class="row"><div class="rt"><b>${t}</b>${d ? `<small>${d}</small>` : ""}</div>${c ? `<div class="rc">${c}</div>` : ""}</div>`;
+const li = (lead, t, d, mid = "", acts = "") => `<div class="li"><span class="lic">${lead}</span><div><b>${t}</b>${d ? `<small>${d}</small>` : ""}</div><span>${mid}</span><span class="acts">${acts}</span></div>`;
+const panel = inner => `<div class="panel">${inner}</div>`;
+const note = (icon, t) => `<div class="note">${ic(icon)}<span>${t}</span></div>`;
+
+/* 主题预览：取两套主题的真实表面色，只在预览窗里出现 */
+const PREV = {
+  light: { page: "#f3eee2", side: "#f3eee2", bar: "#e7dbc8", card: "#fffdf9", acc: "hsl(22 58% 42%)" },
+  dark: { page: "#221d16", side: "#221d16", bar: "#463d31", card: "#2e2820", acc: "hsl(22 62% 65%)" },
+};
+const mini = k => { const p = PREV[k]; return `<div class="mini" style="background:${p.page}"><div class="ms"><i style="background:${p.acc};opacity:.5;width:70%"></i><i style="background:${p.bar};width:55%"></i><i style="background:${p.bar};width:80%"></i></div><div class="mm"><i style="background:${p.bar}"></i><i style="background:${p.card}"></i><i style="background:${p.card}"></i></div></div>`; };
+
+const state = { page: "sync", tabs: {}, themeMode: "system", llmSel: 0 };
+
+const PAGES = {
+  appearance: {
+    desc: "主题、字体与内容图片的默认呈现，改动即刻生效",
+    body: () => [
+      { t: "主题", d: "跟随系统时，按系统明暗切换两套主题", h: panel(`
+        <div class="themes">${[["system", "跟随系统", ""], ["light", "暖纸 · 晨", "浅色"], ["dark", "暖纸 · 夜", "深色"]].map(([k, n, s]) => `
+          <button class="tcard ${state.themeMode === k ? "on" : ""}" data-mode="${k}">
+            <div class="tprev">${k === "system" ? `<div class="half">${mini("light")}</div><div class="half">${mini("dark")}</div>` : mini(k)}</div>
+            <div class="tcap"><span class="rd"></span>${n}<small>${s}</small></div></button>`).join("")}</div>
+        <div class="resolved muted">当前生效：<b style="color:var(--ink-1);font-weight:500">${state.themeMode === "dark" ? "暖纸 · 夜" : "暖纸 · 晨"}</b>${state.themeMode === "system" ? "（系统为浅色）" : ""}</div>`) },
+      { t: "字体", d: "界面与编辑器内容统一生效", h: panel(`
+        ${row("中文字体", "", sel("霞鹜文楷", 240))}${row("英文字体", "", sel("Inter", 240))}
+        ${row("代码字体", "代码块与界面中的等宽文本", sel("JetBrains Mono", 240))}
+        ${row("字号", "编辑器正文 1:1 跟随，界面半速跟随", `<span class="seg"><b>${ic("minus")}</b><b class="num" style="width:44px;justify-content:center;color:var(--ink-1)">16</b><b>${ic("plus")}</b></span>`)}
+        <div class="preview"><div class="lb">预览</div><div class="cn">春风又绿江南岸，明月何时照我还</div><div class="en">Sphinx of black quartz, judge my vow.</div><div class="cd">const f = (s) =&gt; s;</div></div>`) },
+      { t: "内容图片", d: "单图与图库未单独指定时的默认外观", h: panel(`${row("圆角", "", seg(["无", "小", "中", "大"], 2))}${row("阴影", "", seg(["无", "小", "中", "大"], 0))}`) },
+    ],
+  },
+  modules: {
+    desc: "关闭的模块从侧栏和命令面板中隐藏，数据保留",
+    sums: [chip("已启用 17 / 23", "plain")],
+    body: () => {
+      const M = [
+        ["内容创作", [["卡片", "file-text", 1], ["文章", "newspaper", 1], ["白板", "presentation", 1], ["项目", "folder-kanban", 1]]],
+        ["知识管理", [["知识库", "library", 1], ["PDF", "file", 1], ["微信读书", "book-open", 1], ["信息流", "rss", 0], ["索引数据库", "database", 1], ["RSS 订阅", "radio", 0], ["稍后读", "bookmark", 1], ["网页浏览", "globe", 1]]],
+        ["个人管理", [["日记", "notebook-pen", 1], ["番茄专注", "timer", 0], ["任务列表", "list-todo", 1], ["问题管理", "circle-help", 0], ["日历", "calendar", 1], ["聊天管理", "messages-square", 1]]],
+        ["学习与工具", [["闪卡中心", "layers-3", 1], ["Skill 管理", "wand-2", 0], ["资源管理", "folder-open", 1], ["协作", "users", 0]]],
+      ];
+      return M.map(([t, list]) => ({ t, d: `${list.filter(x => x[2]).length} / ${list.length} 已启用`,
+        h: panel(`<div class="mods">${list.map(([n, i, on]) => `<div class="mod ${on ? "" : "off"}" data-mod>${ic(i)}<b>${n}</b>${sw(on)}</div>`).join("")}</div>`) }))
+        .concat([{ h: note("info", "「设置」是系统模块，始终启用；侧栏顺序在侧栏里直接拖拽调整。") }]);
+    },
+  },
+  sync: {
+    desc: "把数据库和本地资源文件同步到远端，全部手动触发",
+    tabs: ["概览", ["资源文件", 3], "本地数据库"],
+    sums: [chip("WebDAV · 已连接", "ok")],
+    body: tab => {
+      if (tab === 0) return [
+        { h: `<div class="duo">
+          <div class="stat"><h4>${ic("database")}数据库${chip("远程有更新", "warn")}</h4><div class="sub">上次检查 3 分钟前</div>
+            <div class="vers"><div><small>本地版本</small><b>1284</b></div><div><small>远程版本</small><b class="lead">1291</b></div></div>
+            <div class="acts">${btn("拉取远程", "pri", "download")}${btn("上传本地", "", "upload")}${btn("检查", "ghost", "search")}</div></div>
+          <div class="stat"><h4>${ic("folder-sync")}资源文件${chip("同步中", "acc")}</h4><div class="sub">resources/ · 共 549 个文件</div>
+            <div class="pline"><span>已处理 373 / 549</span><span class="num">68%</span></div><div class="prog"><i style="width:68%"></i></div>
+            <div class="kv"><div><small>上传</small><b>126</b></div><div><small>下载</small><b>18</b></div><div><small>跳过</small><b>229</b></div><div class="bad"><small>失败</small><b>3</b></div></div>
+            <div class="acts">${btn("停止", "", "square")}${btn("查看失败项", "ghost", "arrow-right")}</div></div></div>` },
+        { t: "同步目标", d: "数据库与资源文件共用同一个远端", h: panel(`${row("存储类型", "", seg(["WebDAV", "S3", "阿里云 OSS", "GitHub"], 0))}${row("路径前缀", "远端存放数据的目录", inp("/tau/sync/", 260, "mono"))}${row("账号凭据", "dav.example.com · tau", `${chip("已连接", "ok")}<span class="link">在「账号与连接」管理${ic("arrow-right")}</span>`)}`) },
+      ];
+      if (tab === 1) return [
+        { t: "资源文件", d: "本地 resources 文件夹与远端逐个比对", h: panel(`
+          <div class="ltools">${seg(["全部 549", "待上传 126", "待下载 18", "需重传 3"], 3)}<span class="sp"></span>${btn("重试全部", "", "rotate-cw")}</div>
+          ${[["image", "screenshot-0912.png", "2.1 MB · 上传超时"], ["film", "lecture-07.mp4", "240 MB · 远端空间不足"], ["music", "podcast-ep3.mp3", "38 MB · 连接被重置"]].map(([i, n, d]) => li(ic(i), n, d, chip("需重传", "danger"), ibtn("rotate-cw") + ibtn("ban"))).join("")}`) },
+        { t: "黑名单", d: "这些文件不参与同步", h: panel(`<div class="ltools"><span class="muted">4 个文件</span><span class="sp"></span>${btn("添加文件", "", "plus")}</div><div class="bl">${["raw-footage-01.mov", "dataset.zip", "tmp-recording.webm", "old-backup.epub"].map(n => `<span class="chip plain"><i></i>${n}<button title="移出黑名单">${ic("x")}</button></span>`).join("")}</div>`) },
+      ];
+      return [
+        { t: "当前数据库", d: "切换后应用会重新加载", h: panel(`${row("数据库", "~/tau/data/notes.db · 186 MB", sel("notes.db", 200))}${row("新建数据库", "在数据目录下创建一个空库", btn("新建", "", "plus"))}`) },
+        { h: note("info", "拉取远程数据库前，原文件会自动备份到 backup 文件夹。") },
+      ];
+    },
+  },
+  storage: {
+    desc: "笔记里插入的图片和附件上传到哪里",
+    body: () => [
+      { t: "存储位置", h: panel(`${row("上传到", "", seg(["本地", "WebDAV", "S3", "阿里云 OSS", "GitHub"], 0))}${row("本地目录", "默认在数据目录下的 resources", `${inp("~/tau/resources", 220, "mono")}${btn("选择")}`)}`) },
+      { h: note("info", "远端类型只需填路径，凭据统一在「账号与连接」维护。") },
+    ],
+  },
+  cache: {
+    desc: "网页剪藏行为、远程媒体的自动缓存与空间占用",
+    body: () => [
+      { t: "空间占用", h: panel(`<div class="usage"><div class="ut"><b>2.4 GB</b><span class="muted">共 186 项</span></div>
+          <div class="ubar"><i style="width:62%;background:var(--tag-2)"></i><i style="width:24%;background:var(--tag-1)"></i><i style="width:9%;background:var(--tag-3)"></i></div>
+          <div class="legend"><span style="--c:var(--tag-2)">视频 <b>1.5 GB</b></span><span style="--c:var(--tag-1)">音频 <b>580 MB</b></span><span style="--c:var(--tag-3)">图片 <b>220 MB</b></span></div></div>
+        <div class="ltools">${seg(["视频", "音频", "图片"], 0)}${seg(["全部来源", "远程", "YouTube", "Bilibili"], 0)}<span class="sp"></span>${btn("清除全部", "ghost danger", "trash-2")}</div>
+        ${[["Transformer 架构精讲 · 第 3 集", "Bilibili", "412 MB"], ["Designing Data-Intensive Apps talk", "YouTube", "388 MB"], ["lecture-07.mp4", "远程", "240 MB"]].map(([n, s, z]) => li(ic("film"), n, `<span class="num">${z}</span>`, chip(s, "plain"), ibtn("play") + ibtn("trash-2"))).join("")}`) },
+      { t: "自动缓存", d: "离线也能打开，会占用本地空间", h: panel(`${row("远程视频", "包括 YouTube 和 Bilibili", sw(1))}${row("远程音频", "", sw(1))}${row("远程图片", "", sw(0))}`) },
+      { t: "网页剪藏", h: panel(row("解析时翻译为中文", "剪藏外文网页时自动翻译正文", sw(0))) },
+    ],
+  },
+  accounts: {
+    desc: "第三方服务的账号与凭据，其它设置页从这里读取连接",
+    sums: [chip("4 / 8 已连接", "ok"), chip("1 项需处理", "warn")],
+    body: () => {
+      const on = chip("已连接", "ok"), off = chip("未连接");
+      return [
+        { t: "存储服务", d: "同步与资源存储使用", h: panel(`
+          ${li("W", "WebDAV", "dav.example.com · tau", on, btn("管理"))}
+          ${li("G", "GitHub", "@lastknightcoder", on, btn("管理"))}
+          ${li("S3", "S3", "Access Key、Secret 与 Endpoint", off, btn("连接"))}
+          ${li("O", "阿里云 OSS", "Access Key 与 Secret", off, btn("连接"))}`) },
+        { t: "内容平台", d: "视频导入与读书同步", h: panel(`
+          ${li("B", "Bilibili", "扫码登录 · 大会员", on, btn("管理"))}
+          ${li("读", "微信读书", "API Key 校验失败，可能已过期", chip("已失效", "warn"), btn("重新校验"))}
+          ${li("Y", "YouTube", "通过代理访问", off, inp("http://127.0.0.1:7890", 190, "mono ph"))}`) },
+        { t: "AI 平台", d: "语音合成使用", h: panel(li("M", "Minimax", "API Key", off, btn("连接"))) },
+      ];
+    },
+  },
+  llm: {
+    desc: "接入服务商与模型，再为各项功能指定模型",
+    tabs: ["服务商与模型", "功能分配"],
+    body: tab => tab === 0 ? [
+      { h: panel(`<div class="md">
+        <div class="ml">${[["OpenAI", "5"], ["DeepSeek", "3"], ["Ollama", "4"]].map(([n, s], i) => `<div class="pv ${state.llmSel === i ? "on" : ""}" data-llm="${i}"><b>${n}</b><small>${s} 个模型</small></div>`).join("")}<div class="pv add">${ic("plus")}添加服务商</div></div>
+        <div class="mr">
+          <div class="fields"><label>名称</label>${inp(["OpenAI", "DeepSeek", "Ollama"][state.llmSel], "")}<label>API Key</label><span class="inp mono" style="width:100%">sk-••••••••••••3f9a<span style="margin-left:auto;color:var(--ink-3)">${ic("eye")}</span></span><label>Base URL</label>${inp("https://api.openai.com/v1", "", "mono")}</div>
+          <div class="mh"><b>模型</b>5 个<span class="link">${ic("plus")}添加模型</span></div>
+          ${[["gpt-5", ["思考", "图片", "文件"], "对话、标题总结"], ["gpt-5-mini", ["图片"], "闪卡生成"], ["gpt-4.1", ["联网"], ""]].map(([n, caps, u]) => `<div class="mrow"><span class="mn">${n}</span>${caps.map(c => `<span class="cap">${c}</span>`).join("")}<span class="muted" style="width:120px;text-align:right;font-size:12px">${u ? "用于" + u : "未使用"}</span>${ibtn("pencil")}</div>`).join("")}
+        </div></div>`) },
+    ] : [
+      ["对话与写作", [["对话功能", "聊天与写作助手的主力模型", "OpenAI · gpt-5"]]],
+      ["内容处理", [["标题总结", "笔记与文档的命名摘要", "OpenAI · gpt-5"], ["网页剪藏", "剪藏页面的正文抽取与清洗", "DeepSeek · chat"]]],
+      ["多媒体", [["播客生成", "长文转播客脚本", ""], ["视频总结", "视频转写稿的摘要与要点", "DeepSeek · chat"], ["转录断句优化", "语音转录文本的断句与顺滑", ""]]],
+      ["学习辅助", [["闪卡生成", "笔记内容转复习闪卡", "OpenAI · gpt-5-mini"], ["答案评判", "复习答案的打分与讲评", ""]]],
+    ].map(([t, rows]) => ({ t, h: panel(rows.map(([n, d, v]) => row(n, d, sel(v || `<span style="color:var(--ink-3)">未分配</span>`, 230))).join("")) })),
+  },
+  embedding: {
+    desc: "知识库检索用的向量模型与检索增强，切换后会在后台重建索引",
+    tabs: ["向量模型", "检索增强"],
+    body: tab => tab === 0 ? [
+      { t: "模型来源", h: panel(row("来源", "本地离线运行，或调用 API 服务", seg([`${ic("hard-drive")}本地`, `${ic("cloud")}API`], 0))) },
+      { t: "本地模型", h: panel(`
+        ${li(ic("box"), "bge-m3", "1024 维 · 多语言 · 2.2 GB", chip("当前使用", "acc"), btn("健康检查", "ghost"))}
+        ${li(ic("box"), "bge-small-zh-v1.5", `<span style="display:flex;align-items:center;gap:8px">下载中 46%<span class="prog" style="width:140px;height:4px"><i style="width:46%"></i></span></span>`, "", btn("取消", "ghost"))}
+        ${li(ic("box"), "multilingual-e5-large", "1024 维 · 多语言 · 2.1 GB", "", btn("下载", "", "download"))}`) },
+      { t: "运行环境", h: panel(`${row("下载源", "", seg(["ModelScope", "HuggingFace"], 0))}${row("设备", "", sel("自动（优先 GPU）", 200))}${row("批大小", "越大越快，内存占用也越多", sel("32", 110))}`) },
+    ] : [
+      { t: "查询扩展", d: "用小模型改写查询，召回更多相关内容", h: panel(`${row("启用 Query Expander", "", sw(1))}${row("扩展模型", "", sel("qwen2.5-0.5b", 200))}`) },
+      { t: "重排序", d: "对召回结果做二次打分", h: panel(`${row("启用 Reranker", "", sw(0))}${row("重排模型", "", sel("bge-reranker-v2-m3", 200))}`) },
+    ],
+  },
+  imagegen: {
+    desc: "文生图服务，兼容 OpenAI Images 接口",
+    body: () => [
+      { h: panel(`<div class="md"><div class="ml"><div class="pv on"><b>OpenAI 兼容 1</b><small>当前</small></div><div class="pv"><b>本地 SD</b></div><div class="pv add">${ic("plus")}添加服务商</div></div>
+        <div class="mr"><div class="fields"><label>名称</label>${inp("OpenAI 兼容 1", "")}<label>模型地址</label>${inp("https://api.openai.com/v1", "", "mono")}<label>API Key</label>${inp("sk-••••••••••••81c2", "", "mono")}<label>模型名称</label>${inp("gpt-image-2", "", "mono")}</div>
+          <div style="display:flex;gap:8px;margin-top:16px;justify-content:flex-end">${btn("删除", "ghost danger", "trash-2")}${btn("设为当前", "", "check")}</div></div></div>`) },
+    ],
+  },
+  voice: {
+    desc: "音视频转录与语音合成",
+    tabs: ["语音转录", "语音合成"],
+    body: tab => tab === 0 ? [
+      { t: "转录行为", h: panel(`${row("断句粒度", "词级别支持 AI 优化断句", seg(["句子级", "词级别"], 1))}${row("AI 优化断句", "使用「功能分配 · 转录断句优化」指定的模型", sw(1))}${row("长视频分段转录", "超过 30 分钟的视频分段处理", sw(1))}`) },
+      { t: "转录模型", d: "在本地运行 faster-whisper", h: panel(`
+        ${li(ic("audio-lines"), "large-v3", "3.1 GB · 推荐", chip("当前使用", "acc"), "")}
+        ${li(ic("audio-lines"), "medium", "1.5 GB · 已下载", "", btn("使用"))}
+        ${li(ic("audio-lines"), "small", "466 MB", "", btn("下载", "", "download"))}
+        ${row("下载源", "", seg(["ModelScope · 国内", "HuggingFace · 国际"], 0))}${row("模型目录", "~/tau/models/whisper", ibtn("folder-open") + ibtn("rotate-cw"))}`) },
+    ] : [
+      { t: "服务", h: panel(row("Minimax", "语音合成需要 Minimax 的 API Key", `${chip("未连接")}<span class="link">去「账号与连接」连接${ic("arrow-right")}</span>`)) },
+      { t: "合成参数", h: panel(row("语音模型", "生成播客时使用", sel("speech-02-hd", 220))) },
+    ],
+  },
+  whiteboard: {
+    desc: "白板演示录制的默认行为与导出",
+    body: () => [
+      { t: "录制默认值", h: panel(`${row("进入演示后自动开始录制", "", sw(0))}${row("默认录制麦克风", "", sw(1))}${row("默认开启摄像头画中画", "", sw(0))}`) },
+      { t: "导出", h: panel(`${row("格式", "", seg(["WebM", "MP4", "MOV", "MKV"], 1))}${row("保存位置", "~/Movies/tau", `${btn("选择")}${btn("恢复默认", "ghost")}`)}`) },
+    ],
+  },
+  about: {
+    desc: "版本、更新与命令行工具",
+    body: () => [
+      { h: panel(`<div class="about"><div class="appicon">τ</div><div><h3>Tau</h3><div class="mono">v3.8.2 · arm64</div></div><div class="rc">${chip("v3.9.0 可更新", "acc")}${btn("更新说明", "ghost")}${btn("下载更新", "pri", "download")}</div></div>`) },
+      { t: "更新", h: panel(row("自动检查更新", "启动时检查，有新版本在这里提示", sw(1))) },
+      { t: "命令行工具", h: panel(row("tau 命令", "已安装到 /usr/local/bin/tau", btn("卸载", "ghost danger"))) },
+    ],
+  },
+};
+
+function render() {
+  const p = PAGES[state.page], tab = state.tabs[state.page] ?? 0;
+  const navHtml = NAV.map(g => `<div class="grp">${g.g}</div>${g.items.map(([k, l, i]) => `<button class="it ${k === state.page ? "on" : ""}" data-page="${k}">${ic(i)}<span>${l}</span>${ATTN[k] ? `<span class="dot"></span>` : ""}</button>`).join("")}`).join("");
+  const tabs = p.tabs ? `<div class="tabs">${p.tabs.map((t, i) => { const [label, n] = Array.isArray(t) ? t : [t]; return `<button class="${i === tab ? "on" : ""}" data-tab="${i}">${label}${n ? `<span class="n">${n}</span>` : ""}</button>`; }).join("")}</div>` : "";
+  const groups = p.body(tab).map(g => `<div class="group">${g.t ? `<div class="gt"><div><h3>${g.t}</h3>${g.d ? `<p>${g.d}</p>` : ""}</div></div>` : ""}${g.h}</div>`).join("");
+  document.getElementById("win").innerHTML = `
+    <div class="titlebar"><div class="dots"><i></i><i></i><i></i></div></div>
+    <div class="app"><div class="side">${["首页", "卡片", "文章", "项目"].map((t, i) => `<div class="it ${i === 1 ? "on" : ""}">${ic(["house", "file-text", "newspaper", "folder-kanban"][i])}${t}</div>`).join("")}</div><div class="main">${"<div class='ghost-card'></div>".repeat(6)}</div></div>
+    <div class="scrim"><div class="dlg">
+      <button class="close" title="关闭">${ic("x")}</button>
+      <nav class="snav"><div class="ttl">设置</div><div class="search">${ic("search")}搜索设置<kbd>⌘F</kbd></div><div class="list">${navHtml}</div></nav>
+      <div class="scontent"><div class="col">
+        <div class="phead"><h2>${LABEL[state.page]}</h2><p>${p.desc}</p>${p.sums ? `<div class="sums">${p.sums.join("")}</div>` : ""}</div>
+        ${tabs}${groups}
+      </div></div>
+    </div></div>`;
+  lucide?.createIcons?.();
+}
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-page],[data-tab],[data-mode],[data-toggle],[data-seg] b,[data-theme],[data-llm]");
+  if (!t) return;
+  if (t.dataset.theme) { document.documentElement.dataset.theme = t.dataset.theme; document.querySelectorAll("#themePills button").forEach(b => b.classList.toggle("on", b === t)); return; }
+  if (t.hasAttribute("data-toggle")) { t.classList.toggle("on"); t.closest("[data-mod]")?.classList.toggle("off", !t.classList.contains("on")); return; }
+  if (t.matches("[data-seg] b")) { t.parentNode.querySelectorAll("b").forEach(b => b.classList.toggle("on", b === t)); return; }
+  if (t.dataset.page) state.page = t.dataset.page;
+  else if (t.dataset.tab) state.tabs[state.page] = +t.dataset.tab;
+  else if (t.dataset.mode) state.themeMode = t.dataset.mode;
+  else if (t.dataset.llm) state.llmSel = +t.dataset.llm;
+  render();
+});
+render();
+</script>
+</body>
+</html>

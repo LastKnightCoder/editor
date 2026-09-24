@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>设置 · 服务商页布局对比</title>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+  /* 取值与 packages/ui/src/theme（cream / cocoa）同源，组件皮同 index.html 第三版 */
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-surface-hover: #f6f3ef; --bg-track: #e0d6c3; --bg-sunken: #e7dbc8;
+    --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09); --bg-selected: rgba(217, 119, 87, 0.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.75);
+    --accent: hsl(22 58% 42%); --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --ok: #61795f; --danger: #b0564d;
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --mono: ui-monospace, "SF Mono", Menlo, monospace; --stage: #e8e1d1;
+  }
+  [data-theme="dark"] {
+    --bg-page: #221d16; --bg-surface: #2e2820; --bg-surface-hover: #39332b; --bg-track: #463d31; --bg-sunken: #100d08;
+    --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11); --bg-selected: hsla(22, 62%, 65%, 0.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+    --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+    --accent: hsl(22 62% 65%); --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+    --ok: #8cab87; --danger: #d97e66;
+    --shadow-card: 0 1px 2px rgba(0,0,0,.24), 0 10px 24px -14px rgba(0,0,0,.5); --stage: #15110c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--stage); color: var(--ink-1); font: 13px/1.65 -apple-system, "PingFang SC", sans-serif; -webkit-font-smoothing: antialiased; padding: 32px 3vw 80px; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  svg.lucide { width: 1em; height: 1em; stroke-width: 1.75; flex: none; }
+  .intro { max-width: 1100px; font-size: 13.5px; color: var(--ink-2); }
+  .intro h1 { font-size: 20px; font-weight: 600; color: var(--ink-1); }
+  .intro p { margin-top: 6px; } .intro b { color: var(--ink-1); font-weight: 600; }
+  .bar { display: flex; gap: 18px; margin: 22px 0 16px; font-size: 12.5px; color: var(--ink-2); align-items: center; }
+  .pills { display: flex; gap: 4px; align-items: center; }
+  .pills button { padding: 4px 12px; border-radius: 99px; background: var(--bg-hover); }
+  .pills button.on { background: var(--ink-1); color: var(--ink-inverse); }
+
+  .cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; align-items: start; }
+  .frame { background: var(--bg-page); border-radius: 16px; padding: 28px 32px 36px; box-shadow: 0 2px 6px rgba(67,57,44,.08), 0 20px 50px rgba(67,57,44,.12); }
+  .frame > .cap { font-size: 12px; color: var(--ink-3); margin-bottom: 14px; }
+  .frame > .cap b { color: var(--accent-text); font-weight: 600; }
+  h2 { font-size: 20px; font-weight: 600; } .sub { color: var(--ink-2); font-size: 12.5px; margin-top: 2px; }
+  .tabs { display: flex; gap: 22px; margin: 18px 0 22px; }
+  .tabs span { padding-bottom: 7px; color: var(--ink-2); } .tabs span.on { color: var(--ink-1); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+
+  .group { margin-bottom: 26px; }
+  .gt { display: flex; align-items: flex-end; padding: 0 4px 8px; gap: 12px; }
+  .gt h3 { font-size: 13.5px; font-weight: 600; } .gt p { font-size: 12.5px; color: var(--ink-2); }
+  .gt .ga { margin-left: auto; }
+  .panel { background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow-card); padding: 6px; }
+  .row { display: flex; align-items: center; gap: 16px; padding: 11px 12px; min-height: 56px; position: relative; }
+  .row + .row::before, .mrow + .mrow::before, .prow + .prow::before, .prow + .pbody::before { content: ""; position: absolute; left: 12px; right: 12px; top: 0; border-top: 1px solid var(--line-2); }
+  .row .rt { flex: 1; min-width: 0; } .row .rt b { display: block; font-weight: 500; font-size: 13.5px; } .row .rt small { color: var(--ink-2); font-size: 12.5px; }
+  .inp { height: 32px; width: 280px; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--line-1); background: var(--bg-surface); display: flex; align-items: center; padding: 0 6px 0 10px; font-size: 12.5px; gap: 4px; }
+  .inp.mono { font-family: var(--mono); font-size: 12px; } .inp .sp { flex: 1; }
+  .ib { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); font-size: 14px; }
+  .ib:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .btn { height: 28px; padding: 0 10px; border-radius: 8px; font-size: 12px; font-weight: 500; display: inline-flex; gap: 6px; align-items: center; color: var(--ink-2); }
+  .btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .btn.sec { background: var(--bg-surface); box-shadow: inset 0 0 0 1px var(--line-1); color: var(--ink-1); }
+  .chip { font-size: 11px; padding: 0 7px; border-radius: 99px; background: var(--bg-hover); color: var(--ink-2); }
+  .dot { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 1px 9px; border-radius: 99px; background: var(--bg-hover); color: var(--ink-2); white-space: nowrap; }
+  .dot i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); } .dot.acc i { background: var(--accent); } .dot.off i { background: var(--ink-3); }
+
+  /* 模型行 */
+  .mrow { display: flex; align-items: center; gap: 10px; padding: 10px 12px; min-height: 50px; position: relative; }
+  .mrow .mn { font-family: var(--mono); font-size: 12.5px; font-weight: 500; }
+  .mrow .use { margin-left: auto; font-size: 12px; color: var(--ink-2); display: inline-flex; gap: 4px; align-items: center; }
+  .mrow .use.no { color: var(--ink-3); }
+
+  /* 方案 A：顶部切换栏 */
+  .switch { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin: 0 0 22px; padding: 4px; border-radius: 12px; background: var(--bg-surface); box-shadow: var(--shadow-card); }
+  .switch button { height: 30px; padding: 0 12px; border-radius: 8px; display: inline-flex; gap: 7px; align-items: center; color: var(--ink-2); }
+  .switch button:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .switch button.on { background: var(--bg-selected); color: var(--accent-text); font-weight: 500; }
+  .switch button small { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .switch .add { color: var(--ink-3); margin-left: auto; }
+
+  /* 方案 B：折叠列表 */
+  .prow { display: flex; align-items: center; gap: 12px; padding: 10px 12px; min-height: 56px; position: relative; cursor: pointer; border-radius: 10px; }
+  .prow:hover { background: var(--bg-hover); }
+  .prow .chev { color: var(--ink-3); transition: transform .16s; font-size: 14px; }
+  .prow.open .chev { transform: rotate(90deg); }
+  .prow .pn { font-weight: 500; font-size: 13.5px; }
+  .prow .pm { font-size: 12.5px; color: var(--ink-2); font-family: var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .prow .pc { margin-left: auto; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+  .pbody { position: relative; margin: 0 6px 6px; padding: 4px 0 6px; }
+  .pbody .inner { border-radius: 10px; box-shadow: inset 0 0 0 1px var(--line-1); padding: 4px; }
+  .pbody .row { min-height: 50px; } .pbody .sh { display: flex; align-items: center; padding: 12px 12px 4px; font-size: 12.5px; color: var(--ink-2); }
+  .pbody .sh b { color: var(--ink-1); font-weight: 600; margin-right: 6px; } .pbody .sh .btn { margin-left: auto; }
+</style>
+</head>
+<body>
+<section class="intro">
+  <h1>大语言模型 · 服务商页布局对比</h1>
+  <p>两个方案都去掉了左右主从，改成<b>自上而下的整宽分组</b>，和其他设置页保持同一种节奏。字段用标准设置行，模型用面板内分隔行，编辑和删除按钮常驻显示。图片生成页采用同一种结构。</p>
+</section>
+<div class="bar">
+  <div class="pills">主题 <button data-theme="light" class="on">暖纸 · 晨</button><button data-theme="dark">暖纸 · 夜</button></div>
+</div>
+
+<div class="cols">
+  <!-- 方案 A -->
+  <div class="frame">
+    <div class="cap"><b>A · 顶部切换栏（推荐）</b>：服务商横排切换，下面是当前服务商的「连接」和「模型」两个分组</div>
+    <h2>大语言模型</h2><div class="sub">接入服务商与模型，再为各项功能指定模型</div>
+    <div class="tabs"><span class="on">服务商与模型</span><span>功能分配</span></div>
+
+    <div class="switch" id="sw">
+      <button class="on">DeepSeek <small>2</small></button><button>TabCode <small>3</small></button><button>Codex 中转 <small>4</small></button><button>OpenCode Go <small>1</small></button><button>cctq <small>1</small></button>
+      <button class="add"><i data-lucide="plus"></i>添加</button>
+    </div>
+
+    <div class="group">
+      <div class="gt"><div><h3>连接</h3><p>DeepSeek 的名称与凭据</p></div><div class="ga"><button class="btn"><i data-lucide="trash-2"></i>删除服务商</button></div></div>
+      <div class="panel">
+        <div class="row"><div class="rt"><b>名称</b></div><span class="inp">DeepSeek</span></div>
+        <div class="row"><div class="rt"><b>API Key</b></div><span class="inp mono">••••••••••••••••••••<span class="sp"></span><span class="ib"><i data-lucide="eye"></i></span><span class="ib"><i data-lucide="copy"></i></span></span></div>
+        <div class="row"><div class="rt"><b>Base URL</b><small>OpenAI 兼容的接口地址</small></div><span class="inp mono">https://api.deepseek.com</span></div>
+      </div>
+    </div>
+    <div class="group">
+      <div class="gt"><div><h3>模型</h3><p>2 个 · 在「功能分配」中指定给各项功能</p></div><div class="ga"><button class="btn"><i data-lucide="plus"></i>添加模型</button></div></div>
+      <div class="panel">
+        <div class="mrow"><span class="mn">deepseek-v4-pro</span><span class="chip">思考</span><span class="use no"><i data-lucide="link-2"></i>未使用</span><span class="ib"><i data-lucide="pencil"></i></span><span class="ib"><i data-lucide="trash-2"></i></span></div>
+        <div class="mrow"><span class="mn">deepseek-v4-flash</span><span class="chip">思考</span><span class="use"><i data-lucide="link-2"></i>1 项功能在用</span><span class="ib"><i data-lucide="pencil"></i></span><span class="ib"><i data-lucide="trash-2"></i></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 方案 B -->
+  <div class="frame">
+    <div class="cap"><b>B · 服务商折叠列表</b>：每家一行显示概要，点开在行内编辑。一次能看到全部服务商的概况</div>
+    <h2>大语言模型</h2><div class="sub">接入服务商与模型，再为各项功能指定模型</div>
+    <div class="tabs"><span class="on">服务商与模型</span><span>功能分配</span></div>
+
+    <div class="group">
+      <div class="gt"><div><h3>服务商</h3><p>5 家 · 点开编辑凭据与模型</p></div><div class="ga"><button class="btn"><i data-lucide="plus"></i>添加服务商</button></div></div>
+      <div class="panel">
+        <div class="prow open"><i data-lucide="chevron-right" class="chev"></i><span class="pn">DeepSeek</span><span class="pm">api.deepseek.com</span><span class="pc">2 个模型</span></div>
+        <div class="pbody"><div class="inner">
+          <div class="row"><div class="rt"><b>名称</b></div><span class="inp" style="width:240px">DeepSeek</span></div>
+          <div class="row"><div class="rt"><b>API Key</b></div><span class="inp mono" style="width:240px">••••••••••••••••<span class="sp"></span><span class="ib"><i data-lucide="eye"></i></span><span class="ib"><i data-lucide="copy"></i></span></span></div>
+          <div class="row"><div class="rt"><b>Base URL</b></div><span class="inp mono" style="width:240px">https://api.deepseek.com</span></div>
+          <div class="sh"><b>模型</b>2 个<button class="btn"><i data-lucide="plus"></i>添加模型</button></div>
+          <div class="mrow"><span class="mn">deepseek-v4-pro</span><span class="chip">思考</span><span class="use no">未使用</span><span class="ib"><i data-lucide="pencil"></i></span><span class="ib"><i data-lucide="trash-2"></i></span></div>
+          <div class="mrow"><span class="mn">deepseek-v4-flash</span><span class="chip">思考</span><span class="use">1 项功能在用</span><span class="ib"><i data-lucide="pencil"></i></span><span class="ib"><i data-lucide="trash-2"></i></span></div>
+        </div></div>
+        <div class="prow"><i data-lucide="chevron-right" class="chev"></i><span class="pn">TabCode</span><span class="pm">api2.tabcode.cc</span><span class="pc">3 个模型</span></div>
+        <div class="prow"><i data-lucide="chevron-right" class="chev"></i><span class="pn">Codex 中转</span><span class="pm">codex.example.com</span><span class="pc">4 个模型</span></div>
+        <div class="prow"><i data-lucide="chevron-right" class="chev"></i><span class="pn">OpenCode Go</span><span class="pm">opencode.ai</span><span class="pc">1 个模型</span></div>
+        <div class="prow"><i data-lucide="chevron-right" class="chev"></i><span class="pn">cctq</span><span class="pm">cctq.example.com</span><span class="pc">1 个模型</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+lucide.createIcons();
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-theme],#sw button:not(.add)");
+  if (!t) return;
+  if (t.dataset.theme) { document.documentElement.dataset.theme = t.dataset.theme; document.querySelectorAll(".pills button").forEach(b => b.classList.toggle("on", b === t)); return; }
+  t.parentNode.querySelectorAll("button").forEach(b => b.classList.toggle("on", b === t));
+});
+</script>
+</body>
+</html>
