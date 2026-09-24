@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sbtest",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8791", "-d", "/tmp/sbtest"],
+      "port": 8791
+    },
+    {
+      "name": "db-toolbar-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8793", "-d", "apps/desktop/mockups/database-toolbar"],
+      "port": 8793
+    },
+    {
+      "name": "publish-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8794", "-d", "apps/desktop/mockups/publish"],
+      "port": 8794
+    }
+  ]
+}
