@@ -5,8 +5,10 @@
  * 模型来源（embeddingProvider.currentConfigId 单选，本地 ⇄ API 互斥）；本地态是
  * 下载管理器（下载源 / 设备策略 / 批大小 + 模型下载与启用），API 态是 Provider
  * 配置 + 模型登记。三类切换（本地 ⇄ API / Provider 激活 / 模型启用）都触发后台
- * 重建向量索引，一律 ConfirmDialog 确认；即时保存（无应答区）。检索模型独立于
- * 来源，常驻切换区之外。命令族全量复用 legacy（embedding-model / search-model）。
+ * 重建向量索引，一律 ConfirmDialog 确认；即时保存（无应答区）。命令族全量复用 legacy
+ * （embedding-model / search-model）。
+ * 2026-09-24 第三版重排：页内「向量模型 / 检索增强」两个 Tab——检索模型独立于来源，
+ * 单独成屏；各节为 SettingsGroup 面板，模型行挂 ROW_DIVIDER 与设置行衔接。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -43,8 +45,11 @@ import {
   type SearchModelInfo,
 } from "@/commands";
 import { DEFAULT_LOCAL_EMBEDDING_DISTANCE } from "@/constants/embedding";
+import { ROW_DIVIDER } from "../components/rowDivider";
 import { SettingRow } from "../components/SettingRow";
-import { SectionTitle } from "../components/SectionTitle";
+import { SettingsGroup, SettingsNote } from "../components/SettingsGroup";
+import { SettingsTabs } from "../components/SettingsTabs";
+import { StatusChip } from "../components/StatusChip";
 
 /** 本地嵌入的唯一配置 id（API 配置之外常驻，legacy 同名常量对齐） */
 const LOCAL_CONFIG_ID = "embedding-default-local";
@@ -145,6 +150,7 @@ export function EmbeddingSection() {
   const currentConfig = source === "local" ? localConfig : currentApiConfig;
 
   /* ── 确认弹窗（索引重建类切换共用一扇） ── */
+  const [tab, setTab] = useState<"vector" | "search">("vector");
   const [confirmSpec, setConfirmSpec] = useState<ConfirmSpec | null>(null);
   const runConfirmed = (spec: ConfirmSpec) => setConfirmSpec(spec);
 
@@ -498,229 +504,251 @@ export function EmbeddingSection() {
   };
 
   return (
-    <section>
-      <h3 className="text-tau-body-lg font-semibold">嵌入模型</h3>
-      <div className="text-tau-tiny text-ink-3 mt-0.5">
-        本地模型直接下载；API 模型按 Provider 进行配置与管理
-      </div>
+    <>
+      <SettingsTabs
+        label="嵌入与检索视图"
+        value={tab}
+        onChange={setTab}
+        items={[
+          { key: "vector", label: "向量模型" },
+          { key: "search", label: "检索增强" },
+        ]}
+      />
 
-      <div className="pt-3.5">
-        <Segmented
-          label="模型来源"
-          value={source}
-          onValueChange={v => switchSource(v as "local" | "api")}
-        >
-          <Segmented.Item value="local" icon={HardDrive} label="本地模型" />
-          <Segmented.Item value="api" icon={Globe} label="API 模型" />
-        </Segmented>
-      </div>
-
-      {source === "local" ? (
-        <>
-          <SectionTitle title="运行环境" />
-          <SettingRow title="下载源" description="模型下载镜像，影响下载地址与速度">
-            <Select
-              aria-label="本地模型下载源"
-              className="w-[168px]"
-              value={localConfig?.source || "modelscope"}
-              options={DOWNLOAD_SOURCE_OPTIONS}
-              disabled={Boolean(downloadingModel)}
-              onValueChange={v => updateLocalSource(v as EmbeddingDownloadSource)}
-            />
-          </SettingRow>
-          <SettingRow title="设备策略" description="预热与健康检查的推理设备">
-            <Select
-              aria-label="本地模型设备策略"
-              className="w-[168px]"
-              value={localConfig?.devicePolicy || "auto"}
-              options={DEVICE_OPTIONS}
-              onValueChange={v => updateLocalDevice(v as DevicePolicy)}
-            />
-          </SettingRow>
-          <SettingRow title="批处理大小" description="单次向量化并入库的文档批数">
-            <Input
-              className="w-[168px] tabular-nums"
-              value={String(localConfig?.batchSize ?? 8)}
-              onChange={e => updateLocalBatchSize(e.target.value)}
-            />
-          </SettingRow>
-
-          <SectionTitle
-            title={`本地模型 · 已下载 ${localModels.filter(m => m.downloaded).length} / ${localModels.length}`}
-          />
-          <SettingRow title="健康检查" description="检查当前启用模型的加载状态与向量维度">
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={Activity}
-              onClick={() => void handleHealthCheck()}
-            >
-              健康检查
-            </Button>
-          </SettingRow>
-          {localLoadError ? (
-            <div className="text-tau-tiny text-ink-3 flex items-center gap-2 py-3">
-              <span className="text-warn">本地模型列表加载失败：{localLoadError}</span>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={RefreshCw}
-                onClick={() => void loadLocalModels()}
-              >
-                重试加载
-              </Button>
-            </div>
-          ) : localModels.length === 0 ? (
-            <div className="text-tau-tiny text-ink-3 py-3">
-              暂未获取到本地模型列表，可点击「重试加载」或重启应用后再试。
-            </div>
-          ) : (
-            localModels.map(model => (
-              <LocalModelRow
-                key={model.name}
-                model={model}
-                active={localConfig?.currentModel === model.name}
-                downloading={downloadingModel === model.name}
-                downloadProgress={downloadProgress}
-                downloadMessage={downloadMessage}
-                onActivate={() => activateLocalModel(model)}
-                onDelete={() => deleteLocalModel(model)}
-                onDownload={() => void downloadLocalModel(model)}
-                onCancel={() => void cancelLocalDownload(model.name)}
-              />
-            ))
-          )}
-        </>
+      {tab === "search" ? (
+        <SearchModelsSection />
       ) : (
         <>
-          <SectionTitle title={`Provider 配置 · ${apiConfigs.length}`} />
-          {apiConfigs.length === 0 && (
-            <div className="text-tau-tiny text-ink-3 py-3">
-              还没有 API Provider，添加一个即可接入任意 OpenAI 兼容嵌入端点。
-            </div>
-          )}
-          {apiConfigs.map(config => (
-            <SettingRow
-              key={config.id}
-              title={config.name}
-              description={`${config.baseUrl || "未配置 Base URL"} · ${config.models.length} 个模型`}
-            >
-              {config.id === provider.currentConfigId ? (
-                <span className="bg-ok-soft text-ok rounded-full px-2 py-px text-[11px] font-semibold">
-                  当前使用
-                </span>
-              ) : (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={Zap}
-                  onClick={() => activateProvider(config)}
-                >
-                  启用
-                </Button>
-              )}
-              <Button
-                variant="secondary"
+          <SettingsGroup>
+            <SettingRow title="模型来源" description="本地离线运行，或调用 OpenAI 兼容的 API 服务">
+              <Segmented
+                label="模型来源"
                 size="sm"
-                icon={Pencil}
-                onClick={() => setProviderEditor({ action: "edit", config })}
+                value={source}
+                onValueChange={v => switchSource(v as "local" | "api")}
               >
-                编辑
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                icon={Trash2}
-                onClick={() => deleteProvider(config)}
-              >
-                删除
-              </Button>
+                <Segmented.Item value="local" icon={HardDrive} label="本地" />
+                <Segmented.Item value="api" icon={Globe} label="API" />
+              </Segmented>
             </SettingRow>
-          ))}
-          <SettingRow title="新增 Provider" description="接入任意 OpenAI 兼容嵌入端点">
-            <Button
-              variant="secondary"
-              size="sm"
-              icon={Plus}
-              onClick={() => setProviderEditor({ action: "create" })}
-            >
-              新增
-            </Button>
-          </SettingRow>
+          </SettingsGroup>
 
-          <SectionTitle title={`模型列表 · ${currentApiConfig?.name ?? "—"}`} />
-          {currentApiConfig ? (
+          {source === "local" ? (
             <>
-              {currentApiConfig.models.length === 0 && (
-                <div className="text-tau-tiny text-ink-3 py-3">
-                  当前 Provider 还没有登记模型，添加模型的名称与向量维度后即可启用。
-                </div>
-              )}
-              {currentApiConfig.models.map(model => (
-                <SettingRow
-                  key={model.name}
-                  title={model.name}
-                  description={`${model.contextLength} 维${model.features.multimodal ? " · 多模态" : ""}`}
-                >
-                  {currentApiConfig.currentModel === model.name ? (
-                    <span className="bg-ok-soft text-ok rounded-full px-2 py-px text-[11px] font-semibold">
-                      使用中
-                    </span>
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={Zap}
-                      onClick={() => activateApiModel(model)}
-                    >
-                      启用
-                    </Button>
-                  )}
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    icon={Pencil}
-                    onClick={() => setModelEditor({ action: "edit", model })}
-                  >
-                    编辑
-                  </Button>
+              <SettingsGroup title="运行环境">
+                <SettingRow title="下载源" description="模型下载镜像，影响下载地址与速度">
+                  <Select
+                    aria-label="本地模型下载源"
+                    className="w-[168px]"
+                    value={localConfig?.source || "modelscope"}
+                    options={DOWNLOAD_SOURCE_OPTIONS}
+                    disabled={Boolean(downloadingModel)}
+                    onValueChange={v => updateLocalSource(v as EmbeddingDownloadSource)}
+                  />
+                </SettingRow>
+                <SettingRow title="设备策略" description="预热与健康检查的推理设备">
+                  <Select
+                    aria-label="本地模型设备策略"
+                    className="w-[168px]"
+                    value={localConfig?.devicePolicy || "auto"}
+                    options={DEVICE_OPTIONS}
+                    onValueChange={v => updateLocalDevice(v as DevicePolicy)}
+                  />
+                </SettingRow>
+                <SettingRow title="批处理大小" description="单次向量化并入库的文档批数">
+                  <Input
+                    className="w-[168px] tabular-nums"
+                    value={String(localConfig?.batchSize ?? 8)}
+                    onChange={e => updateLocalBatchSize(e.target.value)}
+                  />
+                </SettingRow>
+              </SettingsGroup>
+
+              <SettingsGroup
+                title="本地模型"
+                description={`已下载 ${localModels.filter(m => m.downloaded).length} / ${localModels.length}`}
+                action={
                   <Button
                     variant="ghost"
                     size="sm"
-                    icon={Trash2}
-                    onClick={() => deleteApiModel(model)}
+                    icon={Activity}
+                    onClick={() => void handleHealthCheck()}
                   >
-                    删除
+                    健康检查
                   </Button>
-                </SettingRow>
-              ))}
-              <SettingRow
-                title="新增模型"
-                description="手工登记模型名与向量维度，维度变更自动重建索引"
+                }
               >
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={Plus}
-                  onClick={() => setModelEditor({ action: "create" })}
-                >
-                  新增
-                </Button>
-              </SettingRow>
+                {localLoadError ? (
+                  <div className="text-tau-meta text-ink-2 flex items-center gap-2 px-3 py-3">
+                    <span className="text-danger">本地模型列表加载失败：{localLoadError}</span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={RefreshCw}
+                      onClick={() => void loadLocalModels()}
+                    >
+                      重试加载
+                    </Button>
+                  </div>
+                ) : localModels.length === 0 ? (
+                  <div className="text-tau-meta text-ink-2 px-3 py-3">
+                    暂未获取到本地模型列表，可点击「重试加载」或重启应用后再试。
+                  </div>
+                ) : (
+                  localModels.map(model => (
+                    <LocalModelRow
+                      key={model.name}
+                      model={model}
+                      active={localConfig?.currentModel === model.name}
+                      downloading={downloadingModel === model.name}
+                      downloadProgress={downloadProgress}
+                      downloadMessage={downloadMessage}
+                      onActivate={() => activateLocalModel(model)}
+                      onDelete={() => deleteLocalModel(model)}
+                      onDownload={() => void downloadLocalModel(model)}
+                      onCancel={() => void cancelLocalDownload(model.name)}
+                    />
+                  ))
+                )}
+              </SettingsGroup>
             </>
           ) : (
-            <div className="text-tau-tiny text-ink-3 py-3">请先添加并启用一个 Provider。</div>
+            <>
+              <SettingsGroup
+                title="Provider"
+                description="接入任意 OpenAI 兼容的嵌入端点"
+                action={
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Plus}
+                    onClick={() => setProviderEditor({ action: "create" })}
+                  >
+                    新增 Provider
+                  </Button>
+                }
+              >
+                {apiConfigs.length === 0 && (
+                  <div className="text-tau-meta text-ink-2 px-3 py-3">
+                    还没有 API Provider，添加一个即可接入任意 OpenAI 兼容嵌入端点。
+                  </div>
+                )}
+                {apiConfigs.map(config => (
+                  <SettingRow
+                    key={config.id}
+                    title={config.name}
+                    description={`${config.baseUrl || "未配置 Base URL"} · ${config.models.length} 个模型`}
+                  >
+                    {config.id === provider.currentConfigId ? (
+                      <StatusChip tone="accent">当前使用</StatusChip>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={Zap}
+                        onClick={() => activateProvider(config)}
+                      >
+                        启用
+                      </Button>
+                    )}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={Pencil}
+                      onClick={() => setProviderEditor({ action: "edit", config })}
+                    >
+                      编辑
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={Trash2}
+                      onClick={() => deleteProvider(config)}
+                    >
+                      删除
+                    </Button>
+                  </SettingRow>
+                ))}
+              </SettingsGroup>
+
+              <SettingsGroup
+                title="模型"
+                description={
+                  currentApiConfig
+                    ? `${currentApiConfig.name} · 维度变更会自动重建索引`
+                    : "请先添加并启用一个 Provider"
+                }
+                action={
+                  currentApiConfig && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      icon={Plus}
+                      onClick={() => setModelEditor({ action: "create" })}
+                    >
+                      登记模型
+                    </Button>
+                  )
+                }
+              >
+                {currentApiConfig ? (
+                  <>
+                    {currentApiConfig.models.length === 0 && (
+                      <div className="text-tau-meta text-ink-2 px-3 py-3">
+                        当前 Provider 还没有登记模型，添加模型的名称与向量维度后即可启用。
+                      </div>
+                    )}
+                    {currentApiConfig.models.map(model => (
+                      <SettingRow
+                        key={model.name}
+                        title={model.name}
+                        description={`${model.contextLength} 维${model.features.multimodal ? " · 多模态" : ""}`}
+                      >
+                        {currentApiConfig.currentModel === model.name ? (
+                          <StatusChip tone="accent">使用中</StatusChip>
+                        ) : (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={Zap}
+                            onClick={() => activateApiModel(model)}
+                          >
+                            启用
+                          </Button>
+                        )}
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={Pencil}
+                          onClick={() => setModelEditor({ action: "edit", model })}
+                        >
+                          编辑
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={Trash2}
+                          onClick={() => deleteApiModel(model)}
+                        >
+                          删除
+                        </Button>
+                      </SettingRow>
+                    ))}
+                  </>
+                ) : (
+                  <div className="text-tau-meta text-ink-2 px-3 py-3">
+                    请先添加并启用一个 Provider。
+                  </div>
+                )}
+              </SettingsGroup>
+            </>
           )}
+
+          <SettingsNote icon={<Zap size={14} strokeWidth={1.75} />}>
+            切换模型来源、启用模型或切换 Provider 都会在后台重建向量索引，切换前会先确认。
+          </SettingsNote>
         </>
       )}
-
-      <SearchModelsSection />
-
-      <div className="text-tau-tiny text-ink-3 flex items-center gap-2 px-0.5 pt-2.5">
-        <Zap size={13} strokeWidth={1.75} className="flex-none" />
-        嵌入模型切换（本地 ↔ API、启用模型、切换
-        Provider）都会触发后台自动重建向量索引，切换前弹确认。
-      </div>
 
       <ConfirmDialog
         open={confirmSpec !== null}
@@ -775,7 +803,7 @@ export function EmbeddingSection() {
           </span>
         </div>
       </Dialog>
-    </section>
+    </>
   );
 }
 
@@ -802,29 +830,19 @@ function LocalModelRow({
   onCancel: () => void;
 }) {
   return (
-    <div className="border-line-2 border-b py-3 last:border-b-0">
+    <div className={clsx("rounded-tau-sm px-3 py-3", ROW_DIVIDER)}>
       <div className="flex items-center gap-4">
         <div className="min-w-0 flex-1">
           <div className="text-ink-1 flex items-center gap-2">
             <span className="font-tau-mono text-tau-body truncate font-medium">{model.label}</span>
-            {active && (
-              <span className="bg-ok-soft text-ok flex-none rounded-full px-2 py-px text-[11px] font-semibold">
-                使用中
-              </span>
+            {active ? (
+              <StatusChip tone="accent">使用中</StatusChip>
+            ) : (
+              model.downloaded && <StatusChip tone="ok">已下载</StatusChip>
             )}
-            <span
-              className={clsx(
-                "flex-none rounded-full px-2 py-px text-[11px] font-medium",
-                model.downloaded ? "bg-hover text-ink-3" : "border-line-1 text-ink-3 border"
-              )}
-            >
-              {model.downloaded ? "已下载" : "未下载"}
-            </span>
           </div>
-          <div className="text-tau-meta text-ink-3 mt-0.5 truncate">{model.description}</div>
-          <div className="text-tau-tiny text-ink-3 mt-0.5 flex gap-3 tabular-nums">
-            <span>大小 {model.size}</span>
-            <span>向量维度 {model.dimensions}</span>
+          <div className="text-tau-meta text-ink-2 mt-0.5 truncate">
+            {model.description} · {model.dimensions} 维 · {model.size}
           </div>
         </div>
         <div className="flex flex-none items-center gap-2">
@@ -852,14 +870,14 @@ function LocalModelRow({
       </div>
       {downloading && (
         <div className="mt-1">
-          <div className="bg-sunken h-[5px] overflow-hidden rounded-full">
+          <div className="bg-sunken h-1.5 overflow-hidden rounded-full">
             <div
               className="bg-accent h-full rounded-full transition-[width] duration-200"
               style={{ width: `${downloadProgress}%` }}
             />
           </div>
-          <div className="text-tau-tiny text-ink-3 mt-1">
-            {downloadMessage || `下载中... ${downloadProgress}%`}
+          <div className="text-tau-sm text-ink-2 mt-1 tabular-nums">
+            {downloadMessage || `下载中… ${downloadProgress}%`}
           </div>
         </div>
       )}
@@ -1188,174 +1206,175 @@ function SearchModelsSection() {
 
   return (
     <>
-      <SectionTitle
-        title="检索模型 · 查询扩展 · 重排序"
-        desc="本地优先：模型缺失自动降级，不中断搜索流程"
-      />
-      <SettingRow
-        title="启用 Query Expander"
-        description="检索前扩展查询词，关闭后仅使用原始 query"
-      >
-        <Switch
-          checked={searchConfig.enableExpander !== false}
-          onCheckedChange={checked =>
-            persistConfig(draft => {
-              draft.enableExpander = checked;
-            })
-          }
-        />
-      </SettingRow>
-      <SettingRow title="启用 Reranker" description="对候选结果重排序，关闭后使用 RRF 结果">
-        <Switch
-          checked={searchConfig.enableReranker !== false}
-          onCheckedChange={checked =>
-            persistConfig(draft => {
-              draft.enableReranker = checked;
-            })
-          }
-        />
-      </SettingRow>
-      <SettingRow title="下载源 · 设备策略" description="仅作用于本节模型的下载与推理">
-        <Select
-          aria-label="检索模型下载源"
-          className="w-[130px]"
-          value={searchConfig.source || "modelscope"}
-          options={DOWNLOAD_SOURCE_OPTIONS}
-          disabled={Boolean(downloadingModel)}
-          onValueChange={v =>
-            persistConfig(draft => {
-              draft.source = v as EmbeddingDownloadSource;
-            })
-          }
-        />
-        <Select
-          aria-label="检索模型设备策略"
-          className="w-[96px]"
-          value={searchConfig.devicePolicy || "auto"}
-          options={DEVICE_OPTIONS}
-          onValueChange={v =>
-            persistConfig(draft => {
-              draft.devicePolicy = v as DevicePolicy;
-            })
-          }
-        />
-      </SettingRow>
-      <SettingRow title="批处理大小（rerank）" description="重排序单批参与的候选数">
-        <Input
-          className="w-[96px] tabular-nums"
-          value={String(searchConfig.batchSize || 8)}
-          onChange={e => {
-            const next = Number.parseInt(e.target.value || "8", 10);
-            persistConfig(draft => {
-              draft.batchSize = Number.isFinite(next) && next > 0 ? next : 8;
-            });
-          }}
-        />
-      </SettingRow>
+      <SettingsGroup title="开关" description="本地优先：模型缺失时自动降级，不中断搜索">
+        <SettingRow
+          title="启用 Query Expander"
+          description="检索前扩展查询词，关闭后仅使用原始 query"
+        >
+          <Switch
+            checked={searchConfig.enableExpander !== false}
+            onCheckedChange={checked =>
+              persistConfig(draft => {
+                draft.enableExpander = checked;
+              })
+            }
+          />
+        </SettingRow>
+        <SettingRow title="启用 Reranker" description="对候选结果重排序，关闭后使用 RRF 结果">
+          <Switch
+            checked={searchConfig.enableReranker !== false}
+            onCheckedChange={checked =>
+              persistConfig(draft => {
+                draft.enableReranker = checked;
+              })
+            }
+          />
+        </SettingRow>
+      </SettingsGroup>
 
-      {loadError ? (
-        <div className="text-tau-tiny text-ink-3 flex items-center gap-2 py-3">
-          <span className="text-warn">检索模型列表加载失败：{loadError}</span>
-          <Button variant="secondary" size="sm" icon={RefreshCw} onClick={() => void loadModels()}>
-            重试加载
-          </Button>
-        </div>
-      ) : models.length === 0 ? (
-        <div className="text-tau-tiny text-ink-3 py-3">
-          暂未获取到检索模型列表，可点击「重试加载」或重启应用后再试。
-        </div>
-      ) : (
-        models.map(model => {
-          const downloading = downloadingModel === model.name;
-          return (
-            <div key={model.name} className="border-line-2 border-b py-3 last:border-b-0">
-              <div className="flex items-center gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="text-ink-1 flex items-center gap-2">
-                    <span className="font-tau-mono text-tau-body truncate font-medium">
-                      {model.label}
-                    </span>
-                    <span className="bg-accent-soft text-accent-text flex-none rounded-full px-2 py-px text-[11px] font-semibold">
-                      {kindLabel(model.kind)}
-                    </span>
-                    {isActive(model) && (
-                      <span className="bg-ok-soft text-ok flex-none rounded-full px-2 py-px text-[11px] font-semibold">
-                        当前{kindLabel(model.kind)}
+      <SettingsGroup title="运行环境" description="只作用于检索增强模型的下载与推理">
+        <SettingRow title="下载源" description="模型下载镜像，影响下载地址与速度">
+          <Select
+            aria-label="检索模型下载源"
+            className="w-[168px]"
+            value={searchConfig.source || "modelscope"}
+            options={DOWNLOAD_SOURCE_OPTIONS}
+            disabled={Boolean(downloadingModel)}
+            onValueChange={v =>
+              persistConfig(draft => {
+                draft.source = v as EmbeddingDownloadSource;
+              })
+            }
+          />
+        </SettingRow>
+        <SettingRow title="设备策略" description="推理设备">
+          <Select
+            aria-label="检索模型设备策略"
+            className="w-[168px]"
+            value={searchConfig.devicePolicy || "auto"}
+            options={DEVICE_OPTIONS}
+            onValueChange={v =>
+              persistConfig(draft => {
+                draft.devicePolicy = v as DevicePolicy;
+              })
+            }
+          />
+        </SettingRow>
+        <SettingRow title="重排批大小" description="重排序单批参与的候选数">
+          <Input
+            className="w-[168px] tabular-nums"
+            value={String(searchConfig.batchSize || 8)}
+            onChange={e => {
+              const next = Number.parseInt(e.target.value || "8", 10);
+              persistConfig(draft => {
+                draft.batchSize = Number.isFinite(next) && next > 0 ? next : 8;
+              });
+            }}
+          />
+        </SettingRow>
+      </SettingsGroup>
+
+      <SettingsGroup title="模型" description="查询扩展与重排序各启用一个">
+        {loadError ? (
+          <div className="text-tau-meta text-ink-2 flex items-center gap-2 px-3 py-3">
+            <span className="text-danger">检索模型列表加载失败：{loadError}</span>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={RefreshCw}
+              onClick={() => void loadModels()}
+            >
+              重试加载
+            </Button>
+          </div>
+        ) : models.length === 0 ? (
+          <div className="text-tau-meta text-ink-2 px-3 py-3">
+            暂未获取到检索模型列表，可点击「重试加载」或重启应用后再试。
+          </div>
+        ) : (
+          models.map(model => {
+            const downloading = downloadingModel === model.name;
+            return (
+              <div key={model.name} className={clsx("rounded-tau-sm px-3 py-3", ROW_DIVIDER)}>
+                <div className="flex items-center gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-ink-1 flex items-center gap-2">
+                      <span className="font-tau-mono text-tau-body truncate font-medium">
+                        {model.label}
                       </span>
-                    )}
-                    {kindDisabled(model) && (
-                      <span className="bg-hover text-ink-3 flex-none rounded-full px-2 py-px text-[11px] font-medium">
-                        已关闭
+                      <span className="bg-hover text-ink-2 text-tau-micro flex-none rounded-full px-2 py-px">
+                        {kindLabel(model.kind)}
                       </span>
-                    )}
-                  </div>
-                  <div className="text-tau-meta text-ink-3 mt-0.5 truncate">
-                    {model.description}
-                  </div>
-                  <div className="text-tau-tiny text-ink-3 mt-0.5 flex gap-3">
-                    <span>大小 {model.size}</span>
-                    <span className="font-tau-mono">{model.name}</span>
-                  </div>
-                </div>
-                <div className="flex flex-none items-center gap-2">
-                  {model.downloaded ? (
-                    <>
-                      {!isActive(model) && (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          icon={Zap}
-                          onClick={() => activateModel(model)}
-                        >
-                          启用
-                        </Button>
+                      {isActive(model) && (
+                        <StatusChip tone={kindDisabled(model) ? "neutral" : "accent"}>
+                          {kindDisabled(model) ? "已关闭" : `当前${kindLabel(model.kind)}`}
+                        </StatusChip>
                       )}
+                    </div>
+                    <div className="text-tau-meta text-ink-2 mt-0.5 truncate">
+                      {model.description} · {model.size}
+                    </div>
+                  </div>
+                  <div className="flex flex-none items-center gap-2">
+                    {model.downloaded ? (
+                      <>
+                        {!isActive(model) && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={Zap}
+                            onClick={() => activateModel(model)}
+                          >
+                            启用
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          icon={Trash2}
+                          onClick={() => setDeleteTarget(model)}
+                        >
+                          删除
+                        </Button>
+                      </>
+                    ) : downloading ? (
                       <Button
-                        variant="ghost"
+                        variant="secondary"
                         size="sm"
-                        icon={Trash2}
-                        onClick={() => setDeleteTarget(model)}
+                        onClick={() => void cancelDownload(model.name)}
                       >
-                        删除
+                        取消
                       </Button>
-                    </>
-                  ) : downloading ? (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => void cancelDownload(model.name)}
-                    >
-                      取消
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={Download}
-                      onClick={() => void downloadModel(model)}
-                    >
-                      下载
-                    </Button>
-                  )}
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={Download}
+                        onClick={() => void downloadModel(model)}
+                      >
+                        下载
+                      </Button>
+                    )}
+                  </div>
                 </div>
+                {downloading && (
+                  <div className="mt-1">
+                    <div className="bg-sunken h-1.5 overflow-hidden rounded-full">
+                      <div
+                        className="bg-accent h-full rounded-full transition-[width] duration-200"
+                        style={{ width: `${downloadProgress}%` }}
+                      />
+                    </div>
+                    <div className="text-tau-sm text-ink-2 mt-1 tabular-nums">
+                      {downloadMessage || `下载中… ${downloadProgress}%`}
+                    </div>
+                  </div>
+                )}
               </div>
-              {downloading && (
-                <div className="mt-1">
-                  <div className="bg-sunken h-[5px] overflow-hidden rounded-full">
-                    <div
-                      className="bg-accent h-full rounded-full transition-[width] duration-200"
-                      style={{ width: `${downloadProgress}%` }}
-                    />
-                  </div>
-                  <div className="text-tau-tiny text-ink-3 mt-1">
-                    {downloadMessage || `下载中... ${downloadProgress}%`}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })
-      )}
+            );
+          })
+        )}
+      </SettingsGroup>
 
       <ConfirmDialog
         open={deleteTarget !== null}
