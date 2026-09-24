@@ -34,7 +34,7 @@ export const buildTodoNoteTools = (): ToolDefinition[] => [
       required: ["todoId"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       const todoId = args.todoId as number;
       return toJson({
         success: true,
@@ -46,7 +46,7 @@ export const buildTodoNoteTools = (): ToolDefinition[] => [
   {
     name: "attach_todo_note",
     description:
-      "为任务关联一个已有内容。适用于把卡片、文章、项目文档、知识库文档或日记关联到任务，便于执行时参考。",
+      "为任务关联一个已有内容。适用于把卡片、文章、项目文档或日记关联到任务，便于执行时参考。",
     parameters: {
       type: "object",
       properties: {
@@ -58,7 +58,7 @@ export const buildTodoNoteTools = (): ToolDefinition[] => [
       required: ["todoId", "contentId"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       const link = await attachExistingNote({
         todoId: args.todoId as number,
         contentId: args.contentId as number,
@@ -82,8 +82,7 @@ export const buildTodoNoteTools = (): ToolDefinition[] => [
   },
   {
     name: "create_and_attach_todo_note",
-    description:
-      "为任务新建一条笔记并立即关联。适用于用户想围绕当前任务补充说明、步骤或执行记录。",
+    description: "为任务新建一条笔记并立即关联。适用于用户想围绕当前任务补充说明、步骤或执行记录。",
     parameters: {
       type: "object",
       properties: {
@@ -93,10 +92,10 @@ export const buildTodoNoteTools = (): ToolDefinition[] => [
       required: ["todoId"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       const data = await createAndAttachNote(
         args.todoId as number,
-        args.initialTitle as string | undefined,
+        args.initialTitle as string | undefined
       );
       return toMutationResult({
         source: "todo-mcp",
@@ -115,8 +114,7 @@ export const buildTodoNoteTools = (): ToolDefinition[] => [
   },
   {
     name: "detach_todo_note",
-    description:
-      "解除任务与某条笔记的关联。不会删除笔记本身，只移除任务到该内容的引用关系。",
+    description: "解除任务与某条笔记的关联。不会删除笔记本身，只移除任务到该内容的引用关系。",
     parameters: {
       type: "object",
       properties: {
@@ -126,7 +124,7 @@ export const buildTodoNoteTools = (): ToolDefinition[] => [
       required: ["linkId"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       const link = await getTodoNoteLinkById(args.linkId as number);
       await detachNote(args.linkId as number);
       return toMutationResult({
@@ -139,8 +137,7 @@ export const buildTodoNoteTools = (): ToolDefinition[] => [
             : args.todoId !== undefined && args.todoId !== null
               ? ((await getTodoGroupId(args.todoId as number))?.groupId ?? null)
               : null,
-        relatedItemId:
-          link?.todoId ?? (args.todoId as number | null | undefined) ?? null,
+        relatedItemId: link?.todoId ?? (args.todoId as number | null | undefined) ?? null,
         action: "detach-note",
         data: {
           id: link?.todoId ?? (args.todoId as number | null | undefined),
@@ -162,8 +159,7 @@ export const buildTodoNoteTools = (): ToolDefinition[] => [
   },
   {
     name: "reorder_todo_notes",
-    description:
-      "重排任务关联笔记的显示顺序。适用于用户希望把更重要或更常用的参考资料排在前面。",
+    description: "重排任务关联笔记的显示顺序。适用于用户希望把更重要或更常用的参考资料排在前面。",
     parameters: {
       type: "object",
       properties: {
@@ -173,11 +169,8 @@ export const buildTodoNoteTools = (): ToolDefinition[] => [
       required: ["todoId", "orderedLinkIds"],
       additionalProperties: false,
     },
-    executor: async (args) => {
-      await reorderNotes(
-        args.todoId as number,
-        args.orderedLinkIds as number[],
-      );
+    executor: async args => {
+      await reorderNotes(args.todoId as number, args.orderedLinkIds as number[]);
       const todoContext = await getTodoGroupId(args.todoId as number);
       return toMutationResult({
         source: "todo-mcp",
@@ -196,8 +189,7 @@ export const buildTodoNoteTools = (): ToolDefinition[] => [
   },
   {
     name: "update_todo_note_title_snapshot",
-    description:
-      "更新任务关联笔记上的标题快照。适用于关联关系中展示名称需要同步或手动修正的场景。",
+    description: "更新任务关联笔记上的标题快照。适用于关联关系中展示名称需要同步或手动修正的场景。",
     parameters: {
       type: "object",
       properties: {
@@ -208,12 +200,9 @@ export const buildTodoNoteTools = (): ToolDefinition[] => [
       required: ["linkId", "title"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       const link = await getTodoNoteLinkById(args.linkId as number);
-      await updateNoteTitleSnapshot(
-        args.linkId as number,
-        args.title as string,
-      );
+      await updateNoteTitleSnapshot(args.linkId as number, args.title as string);
       const todoContext =
         link?.todoId != null
           ? await getTodoGroupId(link.todoId)
@@ -225,8 +214,7 @@ export const buildTodoNoteTools = (): ToolDefinition[] => [
         entityType: "note-link",
         entityId: args.linkId as number,
         groupId: todoContext?.groupId ?? null,
-        relatedItemId:
-          link?.todoId ?? (args.todoId as number | null | undefined) ?? null,
+        relatedItemId: link?.todoId ?? (args.todoId as number | null | undefined) ?? null,
         action: "update-note-title-snapshot",
         changedFields: ["title"],
         data: {

@@ -4,7 +4,7 @@ import type { MenuProps } from "antd";
 /** 推理强度 */
 export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
 
-export type MentionEntityType = "card" | "article" | "project-item" | "document-item";
+export type MentionEntityType = "card" | "article" | "project-item";
 
 /** 聊天 mention 引用 */
 export interface MentionRef {

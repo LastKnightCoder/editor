@@ -18,7 +18,6 @@ type EditorType =
   | "card"
   | "article"
   | "project-item"
-  | "document-item"
   | "markdown"
   | "todo"
   | "question"
@@ -59,7 +58,6 @@ export class WindowManager {
     this.windowsMap.set("card", new Map<string, BrowserWindow>());
     this.windowsMap.set("article", new Map<string, BrowserWindow>());
     this.windowsMap.set("project-item", new Map<string, BrowserWindow>());
-    this.windowsMap.set("document-item", new Map<string, BrowserWindow>());
     this.windowsMap.set("markdown", new Map<string, BrowserWindow>());
     this.windowsMap.set("todo", new Map<string, BrowserWindow>());
     this.windowsMap.set("question", new Map<string, BrowserWindow>());
@@ -173,23 +171,6 @@ export class WindowManager {
         this.createEditorWindow("project-item", {
           databaseName,
           itemId: projectItemId,
-          ...options,
-        });
-      }
-    );
-
-    ipcMain.handle(
-      "open-document-item-in-new-window",
-      (
-        _event,
-        databaseName,
-        documentItemId,
-        options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">
-      ) => {
-        log.info(`打开文档编辑器窗口: ${databaseName}, ${documentItemId}`);
-        this.createEditorWindow("document-item", {
-          databaseName,
-          itemId: documentItemId,
           ...options,
         });
       }
@@ -510,7 +491,6 @@ export class WindowManager {
       card: "single-card-editor",
       article: "single-article-editor",
       "project-item": "single-project-item-editor",
-      "document-item": "single-document-item-editor",
       markdown: "single-markdown-editor",
       todo: "todo",
       question: "questions",
@@ -526,7 +506,6 @@ export class WindowManager {
       card: "cardId",
       article: "articleId",
       "project-item": "projectItemId",
-      "document-item": "documentItemId",
       markdown: "filePath",
       todo: "noop",
       question: "noop",
@@ -542,7 +521,6 @@ export class WindowManager {
       card: "卡片",
       article: "文章",
       "project-item": "项目",
-      "document-item": "知识库",
       markdown: "Markdown",
       todo: "TODO",
       question: "问题管理",
@@ -970,19 +948,6 @@ export class WindowManager {
     return this.createEditorWindow("project-item", {
       databaseName,
       itemId: projectItemId,
-      ...options,
-    });
-  }
-
-  // 为向后兼容而保留的方法
-  public createDocumentItemEditorWindow(
-    databaseName: string,
-    documentItemId: number,
-    options: Pick<EditorParams, "showTitlebar" | "isDefaultTop">
-  ) {
-    return this.createEditorWindow("document-item", {
-      databaseName,
-      itemId: documentItemId,
       ...options,
     });
   }

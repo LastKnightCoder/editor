@@ -21,7 +21,6 @@ const getTypeLabel = (type: IndexType): string => {
     card: "卡片",
     article: "文章",
     "project-item": "项目",
-    "document-item": "知识库",
     "diary-daily": "日记",
   };
   return labels[type] || type;
@@ -33,7 +32,6 @@ const getTypeColor = (type: IndexType): string => {
     card: "pink",
     article: "blue",
     "project-item": "green",
-    "document-item": "orange",
     "diary-daily": "purple",
   };
   return colors[type] || "default";

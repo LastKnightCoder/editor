@@ -8,6 +8,7 @@ import useEdit from "./useEdit";
 import { formatDate, defaultProjectItemEventBus } from "@/utils";
 import { EditorRef } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
+import AddTag from "@/components/AddTag";
 import ContentCollaborationControl, {
   type ContentCollaborationControlHandle,
 } from "@/components/ContentCollaborationControl";
@@ -247,6 +248,47 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                 />
               </ErrorBoundary>
             </EditCardContext.Provider>
+            <AddTag
+              className="mt-6"
+              tags={projectItem.tags ?? []}
+              addTag={tag =>
+                setProjectItem(current =>
+                  current
+                    ? {
+                        ...current,
+                        tags: [...new Set([...(current.tags ?? []), tag])],
+                      }
+                    : current
+                )
+              }
+              removeTag={tag =>
+                setProjectItem(current =>
+                  current
+                    ? {
+                        ...current,
+                        tags: (current.tags ?? []).filter(value => value !== tag),
+                      }
+                    : current
+                )
+              }
+              editTag={(before, after) =>
+                setProjectItem(current =>
+                  current
+                    ? {
+                        ...current,
+                        tags: [
+                          ...new Set(
+                            (current.tags ?? []).map(value => (value === before ? after : value))
+                          ),
+                        ],
+                      }
+                    : current
+                )
+              }
+              onReorder={tags =>
+                setProjectItem(current => (current ? { ...current, tags } : current))
+              }
+            />
           </article>
           {headers.length > 0 && (
             <div

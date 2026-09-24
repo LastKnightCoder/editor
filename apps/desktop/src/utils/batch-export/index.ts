@@ -1,5 +1,5 @@
 import type { Descendant } from "slate";
-import { getDocument, getProjectById } from "@/commands";
+import { getProjectById } from "@/commands";
 import {
   EProjectItemType,
   type BatchExportChapter,
@@ -11,11 +11,6 @@ import {
   type EpubNavItem,
   type PdfExportPayload,
 } from "@/types";
-import {
-  buildDocumentTreeData,
-  loadDocumentItemMap,
-  type DocumentTreeNode,
-} from "@/pages/DocumentView/DocumentList/documentTree";
 import {
   buildProjectTreeData,
   loadProjectItemMap,
@@ -104,34 +99,14 @@ const convertProjectNode = (node: ProjectTreeNode, depth: number): BatchExportTr
   };
 };
 
-const convertDocumentNode = (node: DocumentTreeNode, depth: number): BatchExportTreeNode => {
-  const hasContent = hasMeaningfulContent(node.item.content);
-  return {
-    id: node.item.id,
-    title: node.item.title || `未命名条目 #${node.item.id}`,
-    depth,
-    exportable: hasContent,
-    disabledReason: hasContent ? undefined : "无正文，不参与导出",
-    content: node.item.content || [],
-    children: node.children.map(child => convertDocumentNode(child, depth + 1)),
-  };
-};
-
 /**
  * 加载作用范围内的条目树（顺序 = 应用内展示的 DFS 顺序）
  */
 export const loadScopeTree = async (scope: BatchExportScope): Promise<BatchExportTreeNode[]> => {
-  if (scope.type === "project") {
-    const project = await getProjectById(scope.id);
-    const itemMap = await loadProjectItemMap(project.children || []);
-    const treeData = buildProjectTreeData(project, itemMap);
-    return treeData.nodes.map(node => convertProjectNode(node, 0));
-  }
-
-  const document = await getDocument(scope.id);
-  const itemMap = await loadDocumentItemMap(document.children || []);
-  const treeData = buildDocumentTreeData(document, itemMap);
-  return treeData.nodes.map(node => convertDocumentNode(node, 0));
+  const project = await getProjectById(scope.id);
+  const itemMap = await loadProjectItemMap(project.children || []);
+  const treeData = buildProjectTreeData(project, itemMap);
+  return treeData.nodes.map(node => convertProjectNode(node, 0));
 };
 
 /** 收集树中所有可导出条目的 id（DFS 顺序） */

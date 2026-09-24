@@ -5,6 +5,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use serde_json::{json, Value};
 use tauri::AppHandle;
 
+use crate::database::DATA_MODEL_VERSION;
 use crate::models::{SyncActionResponse, SyncVersionResponse};
 use crate::setting::{resolve_app_dir, save_setting_value, set_database_version};
 
@@ -27,6 +28,14 @@ async fn read_remote_version(
             format!("远端版本文件 JSON 解析失败: {e}"),
         )
     })?;
+    if let Some(version) = parsed.get("dataModelVersion") {
+        if version.as_u64().is_none_or(|v| v > DATA_MODEL_VERSION) {
+            return Err(AppError::new(
+                "DB_MODEL_INCOMPATIBLE",
+                "远端数据库模型不受支持，请升级全部客户端",
+            ));
+        }
+    }
     parsed
         .get("version")
         .and_then(|v| v.as_u64())
@@ -39,8 +48,11 @@ async fn read_remote_version(
 }
 
 fn version_payload(version: u64) -> Vec<u8> {
-    serde_json::to_vec(&json!({ "version": version }))
-        .unwrap_or_else(|_| b"{\"version\":0}".to_vec())
+    serde_json::to_vec(&json!({ "version": version, "dataModelVersion": DATA_MODEL_VERSION }))
+        .unwrap_or_else(|_| {
+            format!("{{\"version\":{version},\"dataModelVersion\":{DATA_MODEL_VERSION}}}")
+                .into_bytes()
+        })
 }
 
 /// WebView IPC（JavaBridge）线程栈很小，同步命令的 async 状态机会捕获
@@ -504,6 +516,10 @@ async fn sync_download_database_impl(app: AppHandle) -> SyncActionResponse {
     }
     // 替换后的文件与缓存连接指向不同内容，必须丢弃；同名库的名字比对无法感知
     crate::database::invalidate_cached_connection();
+    // 主库已被远端内容替换，本地索引的 ID 空间整体失效，重置后按需全量重建
+    if let Err(err) = crate::database::reset_index_database(&app, &ctx.database_name) {
+        eprintln!("[sync] reset index database failed: {}", err);
+    }
     remove_wal_shm_files(&ctx.database_path);
 
     set_database_version(&mut ctx.setting, &ctx.database_name, remote_version);

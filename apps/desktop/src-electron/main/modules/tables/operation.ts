@@ -1,16 +1,9 @@
 import Database from "better-sqlite3";
-import {
-  IArticle,
-  ICard,
-  IDocumentItem,
-  Operation,
-  ProjectItem,
-} from "@/types";
+import { IArticle, ICard, Operation, ProjectItem } from "@/types";
 import dayjs from "dayjs";
 import CardTable from "./card.ts";
 import ArticleTable from "./article.ts";
 import ProjectTable from "./project.ts";
-import DocumentTable from "./document.ts";
 
 export default class OperationTable {
   static upgradeTable(_db: Database.Database) {
@@ -20,8 +13,7 @@ export default class OperationTable {
   static getListenEvents() {
     return {
       "create-operation": this.createOperation.bind(this),
-      "get-operation-records-by-year":
-        this.getOperationRecordsByYear.bind(this),
+      "get-operation-records-by-year": this.getOperationRecordsByYear.bind(this),
       "delete-invalid-operations": this.deleteInValidOperations.bind(this),
       "get-latest-operations": this.getLatestOperations.bind(this),
       "get-operations-by-dates": this.getOperationsByDates.bind(this),
@@ -40,26 +32,13 @@ export default class OperationTable {
     };
   }
 
-  static createOperation(
-    db: Database.Database,
-    operation: Omit<Operation, "id">,
-  ): Operation {
-    const {
-      operation_time,
-      operation_id,
-      operation_content_type,
-      operation_action,
-    } = operation;
+  static createOperation(db: Database.Database, operation: Omit<Operation, "id">): Operation {
+    const { operation_time, operation_id, operation_content_type, operation_action } = operation;
     const stmt = db.prepare(`
       INSERT INTO operation (operation_time, operation_id, operation_content_type, operation_action)
       VALUES (?, ?, ?, ?)
     `);
-    const res = stmt.run(
-      operation_time,
-      operation_id,
-      operation_content_type,
-      operation_action,
-    );
+    const res = stmt.run(operation_time, operation_id, operation_content_type, operation_action);
     return this.getOperationById(db, Number(res.lastInsertRowid));
   }
 
@@ -71,7 +50,7 @@ export default class OperationTable {
 
   static getOperationRecordsByYear(
     db: Database.Database,
-    year: number,
+    year: number
   ): Array<{
     time: string;
     operation_list: Operation[];
@@ -83,25 +62,19 @@ export default class OperationTable {
     `);
     const startOfYear = new Date(year, 0, 1);
     const endOfYear = new Date(year, 11, 31, 23, 59, 59);
-    const res = stmt
-      .all(startOfYear.getTime(), endOfYear.getTime())
-      .map(this.parseOperation);
+    const res = stmt.all(startOfYear.getTime(), endOfYear.getTime()).map(this.parseOperation);
 
     const returnValue = [];
     for (const item of res) {
       const date = dayjs(item.operation_time).format("YYYY-MM-DD");
-      const index = returnValue.findIndex((item) => item.time === date);
+      const index = returnValue.findIndex(item => item.time === date);
       if (index === -1) {
         returnValue.push({
           time: date,
           operation_list: [item],
         });
       } else {
-        if (
-          returnValue[index].operation_list.every(
-            (op) => op.operation_id !== item.operation_id,
-          )
-        ) {
+        if (returnValue[index].operation_list.every(op => op.operation_id !== item.operation_id)) {
           returnValue[index].operation_list.push(item);
         }
       }
@@ -115,10 +88,10 @@ export default class OperationTable {
     operationContentType: string,
     operationAction: string,
     operationId: number | bigint,
-    operationTime: number,
+    operationTime: number
   ) {
     const stmt = db.prepare(
-      `INSERT INTO operation (operation_content_type, operation_action, operation_id, operation_time) VALUES (?, ?, ?, ?)`,
+      `INSERT INTO operation (operation_content_type, operation_action, operation_id, operation_time) VALUES (?, ?, ?, ?)`
     );
     stmt.run(operationContentType, operationAction, operationId, operationTime);
   }
@@ -129,9 +102,7 @@ export default class OperationTable {
   }
 
   static deleteInValidOperations(db: Database.Database) {
-    const operations = db
-      .prepare(`SELECT * FROM operation`)
-      .all() as Operation[];
+    const operations = db.prepare(`SELECT * FROM operation`).all() as Operation[];
     const operationMap = new Map<string, Operation[]>();
     // 按照时间分组，在一天的为一组
     for (const operation of operations) {
@@ -163,13 +134,11 @@ export default class OperationTable {
       } else {
         const lastOperation = operations[i - 1];
         if (
-          lastOperation.operation_content_type ===
-            operation.operation_content_type &&
+          lastOperation.operation_content_type === operation.operation_content_type &&
           lastOperation.operation_action === operation.operation_action &&
           lastOperation.operation_id === operation.operation_id &&
           // 三分钟以内认为是连续编辑
-          operation.operation_time - lastOperation.operation_time <
-            3 * 60 * 1000
+          operation.operation_time - lastOperation.operation_time < 3 * 60 * 1000
         ) {
           operationsGroup[operationsGroup.length - 1].push(operation);
         } else {
@@ -181,7 +150,7 @@ export default class OperationTable {
     const deleteIds: number[] = [];
     for (const ops of operationsGroup) {
       // 只保留第一个和最后一个 op，其他的合并
-      deleteIds.push(...ops.slice(1, -1).map((op) => op.id));
+      deleteIds.push(...ops.slice(1, -1).map(op => op.id));
     }
 
     return deleteIds;
@@ -190,14 +159,14 @@ export default class OperationTable {
   static getLatestOperationByContentType(
     db: Database.Database,
     contentType: string,
-    number: number,
+    number: number
   ): number[] {
     const deleteOperationIds = db
       .prepare(
         `
       SELECT DISTINCT operation_id FROM operation
       WHERE operation_action = 'delete' AND operation_content_type = ?
-    `,
+    `
       )
       .all(contentType)
       .map((item: any) => item.operation_id) as number[];
@@ -210,52 +179,30 @@ export default class OperationTable {
       ORDER BY operation_time DESC
       LIMIT ?
     `);
-    return stmt
-      .all(contentType, deleteOperationIds, number)
-      .map((item: any) => item.operation_id);
+    return stmt.all(contentType, deleteOperationIds, number).map((item: any) => item.operation_id);
   }
 
   static getLatestOperations(
     db: Database.Database,
-    number: number,
+    number: number
   ): {
     cards: ICard[];
     articles: IArticle[];
     projectItems: ProjectItem[];
-    documentItems: IDocumentItem[];
   } {
     const cardIds = this.getLatestOperationByContentType(db, "card", number);
     const cards = CardTable.getCardByIds(db, cardIds);
 
-    const articleIds = this.getLatestOperationByContentType(
-      db,
-      "article",
-      number,
-    );
+    const articleIds = this.getLatestOperationByContentType(db, "article", number);
     const articles = ArticleTable.getArticleByIds(db, articleIds);
 
-    const projectItemIds = this.getLatestOperationByContentType(
-      db,
-      "project-item",
-      number,
-    );
+    const projectItemIds = this.getLatestOperationByContentType(db, "project-item", number);
     const projectItems = ProjectTable.getProjectItemsByIds(db, projectItemIds);
-
-    const documentItemIds = this.getLatestOperationByContentType(
-      db,
-      "document-item",
-      number,
-    );
-    const documentItems = DocumentTable.getDocumentItemsByIds(
-      db,
-      documentItemIds,
-    );
 
     return {
       cards: cards.sort((a, b) => b.update_time - a.update_time),
       articles: articles.sort((a, b) => b.update_time - a.update_time),
       projectItems: projectItems.sort((a, b) => b.updateTime - a.updateTime),
-      documentItems: documentItems.sort((a, b) => b.updateTime - a.updateTime),
     };
   }
 
@@ -263,7 +210,7 @@ export default class OperationTable {
   static getOperationsByDates(
     db: Database.Database,
     dates: string[],
-    contentType: string,
+    contentType: string
   ): Record<string, Operation[]> {
     if (dates.length === 0) return {};
 
@@ -278,7 +225,7 @@ export default class OperationTable {
     const operations = stmt.all(contentType, ...dates) as any[];
     const result: Record<string, Operation[]> = {};
 
-    operations.forEach((op) => {
+    operations.forEach(op => {
       const parsed = this.parseOperation(op);
       const date = dayjs(parsed.operationTime).format("YYYY-MM-DD");
       if (!result[date]) {
@@ -295,7 +242,7 @@ export default class OperationTable {
     db: Database.Database,
     startDate: string,
     endDate: string,
-    contentType: string,
+    contentType: string
   ): Record<string, Operation[]> {
     const startTimestamp = dayjs(startDate).valueOf();
     const endTimestamp = dayjs(endDate).endOf("day").valueOf();
@@ -308,14 +255,10 @@ export default class OperationTable {
       ORDER BY operation_time ASC
     `);
 
-    const operations = stmt.all(
-      contentType,
-      startTimestamp,
-      endTimestamp,
-    ) as any[];
+    const operations = stmt.all(contentType, startTimestamp, endTimestamp) as any[];
     const result: Record<string, Operation[]> = {};
 
-    operations.forEach((op) => {
+    operations.forEach(op => {
       const parsed = this.parseOperation(op);
       const date = dayjs(parsed.operationTime).format("YYYY-MM-DD");
       if (!result[date]) {
@@ -335,22 +278,18 @@ export default class OperationTable {
       startDate?: string;
       endDate?: string;
       contentType: string;
-    },
+    }
   ): Record<string, any> {
     let operationsByDate: Record<string, Operation[]>;
 
     if (params.dates && params.dates.length > 0) {
-      operationsByDate = this.getOperationsByDates(
-        db,
-        params.dates,
-        params.contentType,
-      );
+      operationsByDate = this.getOperationsByDates(db, params.dates, params.contentType);
     } else if (params.startDate && params.endDate) {
       operationsByDate = this.getOperationsByDateRange(
         db,
         params.startDate,
         params.endDate,
-        params.contentType,
+        params.contentType
       );
     } else {
       return {};
@@ -358,13 +297,13 @@ export default class OperationTable {
 
     const result: Record<string, any> = {};
 
-    Object.keys(operationsByDate).forEach((date) => {
+    Object.keys(operationsByDate).forEach(date => {
       const operations = operationsByDate[date];
       const created: number[] = [];
       const deleted: number[] = [];
       const updateOps: Operation[] = [];
 
-      operations.forEach((op) => {
+      operations.forEach(op => {
         if (op.operation_action === "insert") {
           created.push(op.operation_id);
         } else if (op.operation_action === "delete") {
@@ -401,7 +340,7 @@ export default class OperationTable {
 
     // 按 operation_id 分组
     const grouped = new Map<number, Operation[]>();
-    operations.forEach((op) => {
+    operations.forEach(op => {
       if (!grouped.has(op.operation_id)) {
         grouped.set(op.operation_id, []);
       }
@@ -429,7 +368,7 @@ export default class OperationTable {
       let currentSession: { start: number; end: number } | null = null;
       const threshold = 3 * 60 * 1000; // 3 分钟
 
-      ops.forEach((op) => {
+      ops.forEach(op => {
         if (!currentSession) {
           currentSession = { start: op.operation_time, end: op.operation_time };
         } else if (op.operation_time - currentSession.end < threshold) {
@@ -438,13 +377,9 @@ export default class OperationTable {
         } else {
           // 保存当前会话，开始新会话
           periods.push({
-            startTime: dayjs(currentSession.start).format(
-              "YYYY-MM-DD HH:mm:ss",
-            ),
+            startTime: dayjs(currentSession.start).format("YYYY-MM-DD HH:mm:ss"),
             endTime: dayjs(currentSession.end).format("YYYY-MM-DD HH:mm:ss"),
-            durationSeconds: Math.floor(
-              (currentSession.end - currentSession.start) / 1000,
-            ),
+            durationSeconds: Math.floor((currentSession.end - currentSession.start) / 1000),
           });
           currentSession = { start: op.operation_time, end: op.operation_time };
         }

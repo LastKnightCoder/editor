@@ -46,16 +46,13 @@ export interface RemoteSourceMeta {
 
 export interface NoteSourceMeta {
   contentId: number; // 原笔记内容 ID
-  type: string; // 笔记类型 (card/article/document-item 等)
+  type: string; // 笔记类型 (card/article/project-item 等)
   title: string; // 原笔记标题
   originalId: number; // 原笔记 ID
 }
 
 export type VLResourceSourceMeta =
-  | BilibiliSourceMeta
-  | YoutubeSourceMeta
-  | RemoteSourceMeta
-  | NoteSourceMeta;
+  BilibiliSourceMeta | YoutubeSourceMeta | RemoteSourceMeta | NoteSourceMeta;
 
 /**
  * 任务进度（chunk 拆分 / embedding 批次）
@@ -129,12 +126,7 @@ export type VLIndexTaskType =
   | "index_only"; // 仅索引：已有 Markdown，只需索引
 
 export type VLIndexTaskStatus =
-  | "pending"
-  | "converting"
-  | "optimizing_transcript"
-  | "indexing"
-  | "completed"
-  | "failed";
+  "pending" | "converting" | "optimizing_transcript" | "indexing" | "completed" | "failed";
 
 export interface VLIndexTask {
   resourceId: number;
@@ -218,14 +210,7 @@ export interface UpdateVLChat {
 }
 
 export type VLNoteType =
-  | "note"
-  | "outline"
-  | "highlights"
-  | "article"
-  | "mindmap"
-  | "ppt"
-  | "report"
-  | "podcast";
+  "note" | "outline" | "highlights" | "article" | "mindmap" | "ppt" | "report" | "podcast";
 
 export interface VLNote {
   id: number;

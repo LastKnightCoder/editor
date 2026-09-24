@@ -25,7 +25,7 @@ describe("publish-content-link-targets", () => {
     });
   });
 
-  it("应合并 project-item/document-item 并保留既有目标", () => {
+  it("应合并 project-item/project-item 并保留既有目标", () => {
     const baseTargets = buildSelectionContentLinkTargets({
       cardIds: [1],
       articleIds: [],
@@ -40,9 +40,9 @@ describe("publish-content-link-targets", () => {
       },
       {
         id: 401,
-        kind: "document",
-        href: "/docs/document/9/401.html",
-        title: "知识库文档 401",
+        kind: "project",
+        href: "/docs/project/9/401.html",
+        title: "项目文档 401",
       },
     ]);
 
@@ -58,11 +58,11 @@ describe("publish-content-link-targets", () => {
         href: "/docs/project/7/301.html",
         title: "项目文档 301",
       },
-      "document-item:401": {
-        contentType: "document-item",
+      "project-item:401": {
+        contentType: "project-item",
         refId: 401,
-        href: "/docs/document/9/401.html",
-        title: "知识库文档 401",
+        href: "/docs/project/9/401.html",
+        title: "项目文档 401",
       },
     });
   });

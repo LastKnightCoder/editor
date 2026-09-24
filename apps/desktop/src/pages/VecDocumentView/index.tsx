@@ -11,7 +11,6 @@ const INDEX_OPTIONS: { value: IndexType | "diary"; label: string }[] = [
   { value: "card", label: "卡片" },
   { value: "article", label: "文章" },
   { value: "project-item", label: "项目" },
-  { value: "document-item", label: "知识库" },
   { value: "diary", label: "日记" },
 ];
 
@@ -23,22 +22,15 @@ const VecDocumentView = memo(() => {
 
   if (!tableConfig) return null;
 
-  const {
-    dataSource,
-    columns,
-    pagination,
-    onChange,
-    rowSelection,
-    rightExtraNode,
-    leftExtraNode,
-  } = tableConfig;
+  const { dataSource, columns, pagination, onChange, rowSelection, rightExtraNode, leftExtraNode } =
+    tableConfig;
 
-  const currentOption = INDEX_OPTIONS.find((opt) => opt.value === indexType);
+  const currentOption = INDEX_OPTIONS.find(opt => opt.value === indexType);
 
   return (
-    <div className="w-full h-full flex flex-col overflow-hidden">
-      <div className="w-full flex-1 p-6 box-border overflow-hidden">
-        <div className="w-full h-full max-w-full flex flex-col gap-3">
+    <div className="flex h-full w-full flex-col overflow-hidden">
+      <div className="box-border w-full flex-1 overflow-hidden p-6">
+        <div className="flex h-full w-full max-w-full flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               {/* 自定义 Select */}
@@ -46,34 +38,28 @@ const VecDocumentView = memo(() => {
                 <button
                   onClick={() => setSelectOpen(!selectOpen)}
                   className={classNames(
-                    "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer border",
+                    "flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium transition-all",
                     themeColors.cardBorderClass,
                     themeColors.hoverClass,
-                    themeColors.activeTextClass,
+                    themeColors.activeTextClass
                   )}
                 >
                   {currentOption?.label}
                   <HiOutlineChevronDown
-                    className={classNames(
-                      "transition-transform",
-                      selectOpen && "rotate-180",
-                    )}
+                    className={classNames("transition-transform", selectOpen && "rotate-180")}
                   />
                 </button>
                 {selectOpen && (
                   <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setSelectOpen(false)}
-                    />
+                    <div className="fixed inset-0 z-10" onClick={() => setSelectOpen(false)} />
                     <div
                       className={classNames(
-                        "absolute top-full left-0 mt-1 py-1 rounded-lg border shadow-lg z-20 min-w-[120px]",
+                        "absolute left-0 top-full z-20 mt-1 min-w-[120px] rounded-lg border py-1 shadow-lg",
                         themeColors.cardBorderClass,
-                        themeColors.glassPanelBg,
+                        themeColors.glassPanelBg
                       )}
                     >
-                      {INDEX_OPTIONS.map((option) => (
+                      {INDEX_OPTIONS.map(option => (
                         <button
                           key={option.value}
                           onClick={() => {
@@ -81,11 +67,11 @@ const VecDocumentView = memo(() => {
                             setSelectOpen(false);
                           }}
                           className={classNames(
-                            "w-full px-3 py-1.5 text-left text-sm transition-colors cursor-pointer",
+                            "w-full cursor-pointer px-3 py-1.5 text-left text-sm transition-colors",
                             themeColors.hoverClass,
                             option.value === indexType
                               ? themeColors.activeTextClass
-                              : themeColors.textClass,
+                              : themeColors.textClass
                           )}
                         >
                           {option.label}

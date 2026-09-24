@@ -3,13 +3,7 @@ export const DEFAULT_COLLABORATION_URL = "https://collab.xiongtao.life";
 export const ASSET_PREFIX = "tau-collab-asset:";
 
 // 共享来源类型：与桌面端 projectContentTitle 的表名映射保持一致，拼错会在编译期报错。
-export const SOURCE_TYPES = [
-  "article",
-  "card",
-  "document-item",
-  "project-item",
-  "content",
-] as const;
+export const SOURCE_TYPES = ["article", "card", "project-item", "content"] as const;
 export type SourceType = (typeof SOURCE_TYPES)[number];
 
 export interface ContentNode {

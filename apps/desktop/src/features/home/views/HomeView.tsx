@@ -32,14 +32,12 @@ const KIND_LABEL = {
   card: "卡片",
   article: "文章",
   diary: "日记",
-  document: "知识库",
   project: "项目",
 } as const;
 const KIND_TARGET = {
   card: "cards",
   article: "articles",
   diary: "diary",
-  document: "library",
   project: "projects",
 } as const;
 
@@ -200,11 +198,11 @@ export function HomeView() {
           </Panel>
         </div>
 
-        {/* ⑤ 最近编辑：全宽三栏（卡片/文章/日记/知识库/项目） */}
+        {/* ⑤ 最近编辑：全宽三栏（卡片/文章/日记/项目） */}
         <Panel pad="compact">
           <PanelTitle className="mb-2.5">
             最近编辑
-            <PanelNote>卡片 · 文章 · 日记 · 知识库 · 项目</PanelNote>
+            <PanelNote>卡片 · 文章 · 日记 · 项目</PanelNote>
           </PanelTitle>
           <div className="@max-[1180px]:grid-cols-2 @max-[860px]:grid-cols-1 grid grid-cols-3 gap-x-6 gap-y-0">
             {data.recentEdits.length > 0 ? (

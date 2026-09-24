@@ -16,9 +16,9 @@ const paragraph = (text: string) => [
 ];
 
 describe("publish-search-index", () => {
-  it("应区分项目文档和知识库文档", () => {
+  it("应将迁入文档统一标记为项目文档", () => {
     expect(getDocSearchType("project")).toBe("project-doc");
-    expect(getDocSearchType("document")).toBe("knowledge-doc");
+    expect(getDocSearchType("project")).toBe("project-doc");
 
     const items = buildPublishSearchItems({
       cards: [],
@@ -38,14 +38,14 @@ describe("publish-search-index", () => {
         },
         {
           id: 2,
-          title: "知识库发布手册",
-          summary: "知识库说明",
-          href: "/docs/document/20/2.html",
+          title: "项目发布手册",
+          summary: "项目说明",
+          href: "/docs/project/20/2.html",
           createTime: 1,
           updateTime: 3,
           tags: [],
-          kind: "document",
-          content: paragraph("知识库文档正文") as any,
+          kind: "project",
+          content: paragraph("项目文档正文") as any,
         },
       ],
     });
@@ -57,10 +57,10 @@ describe("publish-search-index", () => {
           typeLabel: "项目文档",
         }),
         expect.objectContaining({
-          type: "knowledge-doc",
-          typeLabel: "知识库文档",
+          type: "project-doc",
+          typeLabel: "项目文档",
         }),
-      ]),
+      ])
     );
   });
 
@@ -109,7 +109,7 @@ describe("publish-search-index", () => {
     const fuse = new Fuse(
       payload.items,
       PUBLISH_SEARCH_OPTIONS,
-      Fuse.parseIndex(payload.index as any),
+      Fuse.parseIndex(payload.index as any)
     );
 
     const results = fuse.search("indexedKeyword");

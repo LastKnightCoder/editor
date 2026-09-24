@@ -2,7 +2,6 @@ import { getActiveTab } from "@/mcp/tab-content/utils";
 import { TabType } from "@/types/tab";
 import { getCardById } from "@/commands/card";
 import { findOneArticle } from "@/commands/article";
-import { getDocumentItem } from "@/commands/document";
 import { getProjectItemById } from "@/commands/project";
 import { getContentById } from "@/commands/content";
 import { getActiveEditingSessionByContentId } from "./active-editor-session";
@@ -56,26 +55,6 @@ export const resolveContentTarget = async (payload?: {
       tabId: activeTab.id,
       paneId: active.paneId,
       tabType: TabType.ArticleDetail,
-      source: "active-tab",
-    };
-  }
-
-  if (activeTab.type === "document-detail") {
-    const itemId = Number((activeTab.params as { itemId?: number } | undefined)?.itemId);
-    if (!itemId) {
-      throw new Error("UNSUPPORTED_TAB: 文档总览没有可编辑 contentId，请进入具体文档项");
-    }
-    const item = await getDocumentItem(itemId);
-    if (!item) {
-      throw new Error(`TARGET_NOT_FOUND: 未找到 document-item ${itemId}`);
-    }
-    return {
-      contentId: item.contentId,
-      entityType: "document-item",
-      entityId: item.id,
-      tabId: activeTab.id,
-      paneId: active.paneId,
-      tabType: TabType.DocumentDetail,
       source: "active-tab",
     };
   }

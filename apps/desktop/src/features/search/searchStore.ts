@@ -49,10 +49,21 @@ export const useSearchStore = create<SearchStore>()(
     }),
     {
       name: "tau-search-history",
-      version: 1,
+      version: 2,
       migrate: persisted => {
         const state = persisted as { visits?: VisitRecord[] } | undefined;
-        return { visits: (state?.visits ?? []).filter(visit => visit.key !== "resources") };
+        const visits = new Map<string, VisitRecord>();
+        for (const visit of state?.visits ?? []) {
+          if (visit.key === "resources") continue;
+          const key = visit.key === "library" ? "projects" : visit.key;
+          const previous = visits.get(key);
+          visits.set(key, {
+            key,
+            ts: Math.max(previous?.ts ?? 0, visit.ts),
+            count: (previous?.count ?? 0) + visit.count,
+          });
+        }
+        return { visits: [...visits.values()].sort((a, b) => b.ts - a.ts).slice(0, MAX_VISITS) };
       },
       partialize: s => ({ visits: s.visits }),
     }

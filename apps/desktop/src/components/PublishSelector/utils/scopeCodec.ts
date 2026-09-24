@@ -14,7 +14,9 @@ export function encodeScope(scope: EntityScope): string {
 }
 
 /**
- * 解码字符串为作用域
+ * 解码字符串为作用域。
+ * 空串表示从未设置过范围（全量）；存在记录但无法解析出合法结构时按空范围处理并打上
+ * corrupted 标记，由界面提示重新选择，绝不静默升级为全量发布。
  */
 export function decodeScope(raw: string): EntityScope {
   if (!raw) {
@@ -26,12 +28,10 @@ export function decodeScope(raw: string): EntityScope {
       const nodeIds = new Set(
         parsed.nodes.filter((value: unknown) => typeof value === "number") as number[]
       );
-      if (nodeIds.size > 0) {
-        return { mode: "partial", nodeIds };
-      }
+      return { mode: "partial", nodeIds };
     }
   } catch {
-    return { mode: "all" };
+    return { mode: "partial", nodeIds: new Set(), corrupted: true };
   }
-  return { mode: "all" };
+  return { mode: "partial", nodeIds: new Set(), corrupted: true };
 }

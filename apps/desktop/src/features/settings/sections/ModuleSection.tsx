@@ -21,7 +21,6 @@ import {
   FolderKanban,
   Globe,
   Layers3,
-  Library,
   ListTodo,
   MessagesSquare,
   Newspaper,
@@ -56,7 +55,6 @@ const CATEGORIES: Array<{ label: string; modules: Array<[key: string, icon: Luci
   {
     label: "知识管理",
     modules: [
-      ["document", Library],
       ["pdf", FileIcon],
       ["weread", BookOpen],
       ["feed", Rss],

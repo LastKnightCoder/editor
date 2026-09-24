@@ -14,7 +14,7 @@ const DEFAULT_TIMEOUT = 5000;
 export async function rpcRequest<T = unknown>(
   method: string,
   params: unknown[] = [],
-  options?: { timeoutMs?: number },
+  options?: { timeoutMs?: number }
 ): Promise<T> {
   const timeoutMs = options?.timeoutMs ?? DEFAULT_TIMEOUT;
   const id = randomUUID();
@@ -25,13 +25,11 @@ export async function rpcRequest<T = unknown>(
 
     const timeout = setTimeout(() => {
       ws.close();
-      reject(
-        new Error(`RPC timeout after ${timeoutMs}ms for method: ${method}`),
-      );
+      reject(new Error(`RPC timeout after ${timeoutMs}ms for method: ${method}`));
     }, timeoutMs);
 
     ws.on("open", () => {
-      const request: RpcRequestMessage = {
+      const request: RpcRequestMessage<unknown[]> = {
         id,
         type: RpcMessageType.Request,
         method,

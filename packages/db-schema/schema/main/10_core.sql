@@ -49,15 +49,6 @@ CREATE TABLE IF NOT EXISTS articles (
             update_time INTEGER NOT NULL,
             tags TEXT,
             links TEXT, banner_bg TEXT DEFAULT '', is_top INTEGER DEFAULT 0, is_delete INTEGER DEFAULT 0, banner_position TEXT DEFAULT 'center', content_id INTEGER, podcast_id INTEGER DEFAULT NULL);
-CREATE TABLE IF NOT EXISTS documents (
-            id INTEGER PRIMARY KEY NOT NULL,
-            create_time INTEGER NOT NULL,
-            update_time INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            desc TEXT,
-            children TEXT,
-            content TEXT,
-            is_top INTEGER DEFAULT 0);
 CREATE TABLE IF NOT EXISTS collaboration_bindings (
             content_id INTEGER PRIMARY KEY,
             content_created_at INTEGER NOT NULL,
@@ -67,20 +58,6 @@ CREATE TABLE IF NOT EXISTS collaboration_bindings (
             source_id INTEGER,
             source_title TEXT,
             FOREIGN KEY(content_id) REFERENCES contents(id));
-CREATE TABLE IF NOT EXISTS document_items (
-            id INTEGER PRIMARY KEY NOT NULL,
-            create_time INTEGER NOT NULL,
-            update_time INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            tags TEXT,
-            children TEXT,
-            is_article INTEGER DEFAULT 0,
-            article_id INTEGER DEFAULT 0,
-            is_card INTEGER DEFAULT 0,
-            card_id INTEGER DEFAULT 0,
-            ref_type TEXT DEFAULT '',
-            ref_id INTEGER DEFAULT 0,
-            parents TEXT DEFAULT '[]', content_id INTEGER, documents TEXT DEFAULT '[]');
 CREATE TABLE IF NOT EXISTS pdfs (
             id INTEGER PRIMARY KEY,
             create_time INTEGER NOT NULL,

@@ -7,7 +7,6 @@ import localInference from "../local-inference";
 import CardTable from "./card";
 import ArticleTable from "./article";
 import ProjectTable from "./project";
-import DocumentTable from "./document";
 import DiaryTable from "./diary";
 import { smartChunk } from "../../utils/smart-chunk";
 
@@ -400,9 +399,6 @@ export default class VecDocumentTable {
             case "project-item":
               details = ProjectTable.getProjectItem(mainDb, doc.id);
               break;
-            case "document-item":
-              details = DocumentTable.getDocumentItem(mainDb, doc.id);
-              break;
             case "diary-daily": {
               const diaryEntry = DiaryTable.getDiaryEntryById(mainDb, doc.id);
               if (diaryEntry) {
@@ -502,9 +498,6 @@ export default class VecDocumentTable {
           break;
         case "project-item":
           details = ProjectTable.getProjectItem(mainDb, doc.id);
-          break;
-        case "document-item":
-          details = DocumentTable.getDocumentItem(mainDb, doc.id);
           break;
         case "diary-daily": {
           const diaryEntry = DiaryTable.getDiaryEntryById(mainDb, doc.id);

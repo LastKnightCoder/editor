@@ -4,7 +4,6 @@ import { Dialog, Button, Spinner } from "@tau/ui";
 import { Editor } from "@tau/editor/src";
 import { FileText, Folder } from "lucide-react";
 import { Project } from "@/types/project";
-import { IDocument } from "@/types/document";
 import { DocTreeNode, EntityScope } from "../../types";
 import { collectDocNodeIds, findDocTreeNode } from "../../utils";
 import { SelectionCheckbox } from "../SelectionCheckbox";
@@ -15,8 +14,8 @@ import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 interface EntityTreeModalProps {
   open: boolean;
   loading: boolean;
-  type: "project" | "document";
-  entity: Project | IDocument;
+  type: "project";
+  entity: Project;
   nodes: DocTreeNode[];
   currentScope?: EntityScope;
   onCancel: () => void;
@@ -24,9 +23,9 @@ interface EntityTreeModalProps {
 }
 
 export const EntityTreeModal = memo<EntityTreeModalProps>(
-  ({ open, loading, type, entity, nodes, currentScope, onCancel, onConfirm }) => {
+  ({ open, loading, entity, nodes, currentScope, onCancel, onConfirm }) => {
     const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
-    const typeLabel = type === "project" ? "项目" : "知识库";
+    const typeLabel = "项目";
 
     // 初始化选中的 ID
     const totalIds = useMemo(() => collectDocNodeIds(nodes), [nodes]);

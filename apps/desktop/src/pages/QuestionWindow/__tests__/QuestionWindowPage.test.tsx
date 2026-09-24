@@ -1,23 +1,14 @@
 import { App } from "antd";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import {
-  forwardRef,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { forwardRef, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Descendant } from "slate";
 import type { IQuestion } from "@/types/question";
 
 import QuestionWindowPage from "../index";
 
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const createParagraph = (text: string): Descendant[] => [
   { type: "paragraph", children: [{ type: "formatted", text }] },
@@ -28,9 +19,7 @@ const extractNodeText = (node: Descendant) => {
     return "";
   }
 
-  return node.children
-    .map((child) => ("text" in child ? child.text : ""))
-    .join("");
+  return node.children.map(child => ("text" in child ? child.text : "")).join("");
 };
 
 const extractText = (nodes?: Descendant[]) => {
@@ -38,8 +27,7 @@ const extractText = (nodes?: Descendant[]) => {
   return nodes.map(extractNodeText).join("\n");
 };
 
-const editorTextToDescendants = (text: string): Descendant[] =>
-  createParagraph(text);
+const editorTextToDescendants = (text: string): Descendant[] => createParagraph(text);
 
 const {
   createQuestionMock,
@@ -100,8 +88,7 @@ vi.mock("@/hooks/useDatabaseChangeEffect", () => ({
 }));
 
 vi.mock("@/stores/useDynamicExtensionsStore", () => ({
-  default: (selector: (state: { extensions: [] }) => unknown) =>
-    selector({ extensions: [] }),
+  default: (selector: (state: { extensions: [] }) => unknown) => selector({ extensions: [] }),
 }));
 
 vi.mock("@/hooks/useThemeColors", () => ({
@@ -124,7 +111,6 @@ vi.mock("@/utils/answer-content", () => ({
     isCard: false,
     isArticle: false,
     projectMountCount: 0,
-    documentMountCount: 0,
   })),
 }));
 
@@ -133,9 +119,8 @@ vi.mock("@/commands", () => ({
 }));
 
 vi.mock("@/stores/useQuestionStore", () => {
-  const useQuestionStore = (
-    selector?: (state: typeof questionStoreState) => unknown,
-  ) => (selector ? selector(questionStoreState) : questionStoreState);
+  const useQuestionStore = (selector?: (state: typeof questionStoreState) => unknown) =>
+    selector ? selector(questionStoreState) : questionStoreState;
   useQuestionStore.getState = () => ({
     ...questionStoreState,
     reorderQuestions: vi.fn(async () => undefined),
@@ -162,12 +147,8 @@ vi.mock("../components/QuestionList", () => ({
     onViewDetails: (id: number) => void;
   }) => (
     <div data-testid="question-list">
-      {questions.map((question) => (
-        <button
-          key={question.id}
-          type="button"
-          onClick={() => onViewDetails(question.id)}
-        >
+      {questions.map(question => (
+        <button key={question.id} type="button" onClick={() => onViewDetails(question.id)}>
           查看详情：{question.questionContent}
         </button>
       ))}
@@ -247,7 +228,7 @@ vi.mock("@tau/editor/src", () => {
       <textarea
         data-testid="question-description-editor"
         value={value}
-        onChange={(event) => {
+        onChange={event => {
           const nextValue = event.target.value;
           setValue(nextValue);
           onChange?.(editorTextToDescendants(nextValue));
@@ -263,10 +244,7 @@ let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
 const setTextareaValue = (element: HTMLTextAreaElement, value: string) => {
-  const descriptor = Object.getOwnPropertyDescriptor(
-    window.HTMLTextAreaElement.prototype,
-    "value",
-  );
+  const descriptor = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value");
   descriptor?.set?.call(element, value);
   element.dispatchEvent(new Event("input", { bubbles: true }));
 };
@@ -306,12 +284,12 @@ describe("QuestionWindowPage", () => {
       root?.render(
         <App>
           <QuestionWindowPage />
-        </App>,
+        </App>
       );
     });
 
-    const openButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("新建问题"),
+    const openButton = Array.from(container.querySelectorAll("button")).find(button =>
+      button.textContent?.includes("新建问题")
     );
     expect(openButton).toBeTruthy();
 
@@ -320,10 +298,10 @@ describe("QuestionWindowPage", () => {
     });
 
     const titleTextarea = container.querySelector(
-      'textarea[placeholder="请输入问题内容"]',
+      'textarea[placeholder="请输入问题内容"]'
     ) as HTMLTextAreaElement | null;
     const descriptionEditor = container.querySelector(
-      '[data-testid="question-description-editor"]',
+      '[data-testid="question-description-editor"]'
     ) as HTMLTextAreaElement | null;
 
     expect(titleTextarea).toBeTruthy();
@@ -334,8 +312,8 @@ describe("QuestionWindowPage", () => {
       setTextareaValue(descriptionEditor as HTMLTextAreaElement, "第一次描述");
     });
 
-    const confirmButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("确定"),
+    const confirmButton = Array.from(container.querySelectorAll("button")).find(button =>
+      button.textContent?.includes("确定")
     );
     expect(confirmButton).toBeTruthy();
 
@@ -350,7 +328,7 @@ describe("QuestionWindowPage", () => {
     });
 
     const reopenedDescriptionEditor = container.querySelector(
-      '[data-testid="question-description-editor"]',
+      '[data-testid="question-description-editor"]'
     ) as HTMLTextAreaElement | null;
 
     expect(reopenedDescriptionEditor?.value).toBe("");
@@ -365,12 +343,12 @@ describe("QuestionWindowPage", () => {
       root?.render(
         <App>
           <QuestionWindowPage />
-        </App>,
+        </App>
       );
     });
 
-    const openButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("新建问题"),
+    const openButton = Array.from(container.querySelectorAll("button")).find(button =>
+      button.textContent?.includes("新建问题")
     );
     expect(openButton).toBeTruthy();
 
@@ -379,7 +357,7 @@ describe("QuestionWindowPage", () => {
     });
 
     const descriptionEditor = container.querySelector(
-      '[data-testid="question-description-editor"]',
+      '[data-testid="question-description-editor"]'
     ) as HTMLTextAreaElement | null;
     expect(descriptionEditor).toBeTruthy();
 
@@ -387,8 +365,8 @@ describe("QuestionWindowPage", () => {
       setTextareaValue(descriptionEditor as HTMLTextAreaElement, "取消前描述");
     });
 
-    const cancelButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("取消"),
+    const cancelButton = Array.from(container.querySelectorAll("button")).find(button =>
+      button.textContent?.includes("取消")
     );
     expect(cancelButton).toBeTruthy();
 
@@ -401,7 +379,7 @@ describe("QuestionWindowPage", () => {
     });
 
     const reopenedDescriptionEditor = container.querySelector(
-      '[data-testid="question-description-editor"]',
+      '[data-testid="question-description-editor"]'
     ) as HTMLTextAreaElement | null;
 
     expect(reopenedDescriptionEditor?.value).toBe("");
@@ -432,13 +410,13 @@ describe("QuestionWindowPage", () => {
       root?.render(
         <App>
           <QuestionWindowPage />
-        </App>,
+        </App>
       );
     });
 
-    const openDetailButton = Array.from(
-      container.querySelectorAll("button"),
-    ).find((button) => button.textContent?.includes("查看详情：测试问题"));
+    const openDetailButton = Array.from(container.querySelectorAll("button")).find(button =>
+      button.textContent?.includes("查看详情：测试问题")
+    );
     expect(openDetailButton).toBeTruthy();
 
     await act(async () => {
@@ -446,12 +424,12 @@ describe("QuestionWindowPage", () => {
     });
 
     const descriptionEditor = container.querySelector(
-      '[data-testid="question-description-editor"]',
+      '[data-testid="question-description-editor"]'
     ) as HTMLTextAreaElement | null;
     expect(descriptionEditor?.value).toBe("原描述");
 
-    const cancelButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("取消"),
+    const cancelButton = Array.from(container.querySelectorAll("button")).find(button =>
+      button.textContent?.includes("取消")
     );
     expect(cancelButton).toBeTruthy();
 
@@ -472,13 +450,13 @@ describe("QuestionWindowPage", () => {
       root?.render(
         <App>
           <QuestionWindowPage />
-        </App>,
+        </App>
       );
     });
 
-    const reopenDetailButton = Array.from(
-      container.querySelectorAll("button"),
-    ).find((button) => button.textContent?.includes("查看详情：测试问题"));
+    const reopenDetailButton = Array.from(container.querySelectorAll("button")).find(button =>
+      button.textContent?.includes("查看详情：测试问题")
+    );
     expect(reopenDetailButton).toBeTruthy();
 
     await act(async () => {
@@ -486,7 +464,7 @@ describe("QuestionWindowPage", () => {
     });
 
     const reopenedDescriptionEditor = container.querySelector(
-      '[data-testid="question-description-editor"]',
+      '[data-testid="question-description-editor"]'
     ) as HTMLTextAreaElement | null;
 
     expect(reopenedDescriptionEditor?.value).toBe("外部更新描述");

@@ -64,9 +64,7 @@ export function readRecentSearchQueries(): string[] {
   }
 
   try {
-    const parsed = JSON.parse(
-      storage.getItem(SEARCH_RECENT_QUERIES_KEY) || "[]",
-    );
+    const parsed = JSON.parse(storage.getItem(SEARCH_RECENT_QUERIES_KEY) || "[]");
     if (!Array.isArray(parsed)) {
       return [];
     }
@@ -89,7 +87,7 @@ export function saveRecentSearchQuery(query: string): string[] {
 
   const nextQueries = [
     normalized,
-    ...readRecentSearchQueries().filter((item) => item !== normalized),
+    ...readRecentSearchQueries().filter(item => item !== normalized),
   ].slice(0, SEARCH_RECENT_QUERIES_LIMIT);
 
   const storage = getStorage();
@@ -130,7 +128,7 @@ function createItem(item: SearchItem): SearchItem {
     title: item.title.trim(),
     summary: item.summary.trim(),
     content: item.content.trim(),
-    tags: item.tags.map((tag) => tag.trim()).filter(Boolean),
+    tags: item.tags.map(tag => tag.trim()).filter(Boolean),
   };
 }
 
@@ -139,7 +137,7 @@ function buildDevSearchPayload(): SearchIndexPayload {
   const seen = new Set<string>();
   const items: SearchItem[] = [];
 
-  initDataList.forEach((initData) => {
+  initDataList.forEach(initData => {
     const content = initData.content;
 
     if (isCardData(content)) {
@@ -156,7 +154,7 @@ function buildDevSearchPayload(): SearchIndexPayload {
           href: `/cards/${content.id}`,
           createTime: content.createTime,
           updateTime: content.updateTime,
-        }),
+        })
       );
       return;
     }
@@ -175,19 +173,18 @@ function buildDevSearchPayload(): SearchIndexPayload {
           href: `/articles/${content.id}`,
           createTime: content.createTime,
           updateTime: content.updateTime,
-        }),
+        })
       );
       return;
     }
 
     if (isDocData(content)) {
       const body = getPlainText(content.content || []);
-      const docKind = inferDevDocKind(initData);
       items.push(
         createItem({
           id: content.id,
-          type: docKind === "project" ? "project-doc" : "knowledge-doc",
-          typeLabel: docKind === "project" ? "项目文档" : "知识库文档",
+          type: "project-doc",
+          typeLabel: "项目文档",
           title: content.title,
           summary: truncate(body, 120),
           content: body,
@@ -195,7 +192,7 @@ function buildDevSearchPayload(): SearchIndexPayload {
           href: content.currentPath || `/docs/${content.id}`,
           createTime: content.createTime,
           updateTime: content.updateTime,
-        }),
+        })
       );
       return;
     }
@@ -204,7 +201,7 @@ function buildDevSearchPayload(): SearchIndexPayload {
       const body = [
         content.summary,
         getPlainText(content.description || []),
-        ...content.answers.map((answer) => getPlainText(answer.content || [])),
+        ...content.answers.map(answer => getPlainText(answer.content || [])),
       ].join(" ");
       items.push(
         createItem({
@@ -218,17 +215,14 @@ function buildDevSearchPayload(): SearchIndexPayload {
           href: content.href,
           createTime: content.createTime,
           updateTime: content.updateTime,
-        }),
+        })
       );
       return;
     }
 
     if (isListData(content)) {
-      content.items.forEach((listItem) => {
-        const type =
-          content.type === "doc"
-            ? inferListDocSearchType(listItem.title)
-            : content.type;
+      content.items.forEach(listItem => {
+        const type = content.type === "doc" ? ("project-doc" as const) : content.type;
         const typeLabel = getTypeLabel(type);
         items.push(
           createItem({
@@ -242,13 +236,13 @@ function buildDevSearchPayload(): SearchIndexPayload {
             href: listItem.href,
             createTime: listItem.createTime,
             updateTime: listItem.updateTime || listItem.createTime,
-          }),
+          })
         );
       });
     }
   });
 
-  const uniqueItems = items.filter((item) => {
+  const uniqueItems = items.filter(item => {
     const key = `${item.type}:${item.id}:${item.href}`;
     if (seen.has(key)) {
       return false;
@@ -262,9 +256,7 @@ function buildDevSearchPayload(): SearchIndexPayload {
 
 async function loadDevSearchIndex(): Promise<BlogSearchIndex> {
   const payload = buildDevSearchPayload();
-  const index = Fuse.parseIndex<SearchItem>(
-    payload.index as SerializedFuseIndex,
-  );
+  const index = Fuse.parseIndex<SearchItem>(payload.index as SerializedFuseIndex);
   const fuse = new Fuse(payload.items, BLOG_SEARCH_OPTIONS, index);
 
   return {
@@ -276,9 +268,7 @@ async function loadDevSearchIndex(): Promise<BlogSearchIndex> {
   };
 }
 
-export async function loadBlogSearchIndex(
-  href: string,
-): Promise<BlogSearchIndex> {
+export async function loadBlogSearchIndex(href: string): Promise<BlogSearchIndex> {
   // @ts-ignore - import.meta.env.DEV 是 Vite 提供的
   if (import.meta.env.DEV && href.endsWith(BLOG_DEV_SEARCH_INDEX_HREF)) {
     return loadDevSearchIndex();
@@ -314,17 +304,13 @@ function firstLine(text: string): string {
   return (
     text
       .split(/\r?\n/)
-      .map((line) => line.trim())
+      .map(line => line.trim())
       .find(Boolean) || ""
   );
 }
 
 function isCardData(content: InitData["content"]): content is CardData {
-  return (
-    "category" in content &&
-    "content" in content &&
-    Array.isArray(content.content)
-  );
+  return "category" in content && "content" in content && Array.isArray(content.content);
 }
 
 function isArticleData(content: InitData["content"]): content is ArticleData {
@@ -340,9 +326,7 @@ function isQuestData(content: InitData["content"]): content is QuestData {
 }
 
 function isListData(content: InitData["content"]): content is ListData {
-  return (
-    "items" in content && Array.isArray(content.items) && "type" in content
-  );
+  return "items" in content && Array.isArray(content.items) && "type" in content;
 }
 
 function getTypeLabel(type: SearchItem["type"]): string {
@@ -350,24 +334,9 @@ function getTypeLabel(type: SearchItem["type"]): string {
     card: "卡片",
     article: "文章",
     "project-doc": "项目文档",
-    "knowledge-doc": "知识库文档",
     quest: "求索录",
   };
   return labels[type];
-}
-
-function inferDevDocKind(initData: InitData): "project" | "document" {
-  const activeCollection = initData.docCollections
-    ?.flatMap((collection) =>
-      collection.items.filter((item) => item.active).map((item) => item.kind),
-    )
-    .at(0);
-
-  return activeCollection || "document";
-}
-
-function inferListDocSearchType(title?: string): SearchItem["type"] {
-  return title?.includes("项目") ? "project-doc" : "knowledge-doc";
 }
 
 function collectDevInitData(): InitData[] {

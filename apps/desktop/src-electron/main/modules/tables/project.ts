@@ -37,6 +37,7 @@ import PathUtil from "../../utils/PathUtil";
 import { rmSync, existsSync } from "node:fs";
 
 import log from "electron-log";
+import { readKnowledgeMapping } from "@tau/db-schema/src/knowledge-migration";
 
 const LEGACY_WEB_LINK_MIGRATION_KEY = "project:legacy-web-links";
 const PROJECT_ID_SEQ_KEY = "project:id-seq";
@@ -123,6 +124,9 @@ export default class ProjectTable {
       name: string;
     }>;
     const hasPodcastId = projectItemTableInfo.some(column => column.name === "podcast_id");
+    if (!projectItemTableInfo.some(column => column.name === "tags")) {
+      db.exec("ALTER TABLE project_item ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'");
+    }
 
     if (!hasPodcastId) {
       db.exec(`ALTER TABLE project_item ADD COLUMN podcast_id INTEGER DEFAULT NULL;`);
@@ -236,6 +240,7 @@ export default class ProjectTable {
 
   static getListenEvents() {
     return {
+      "get-project-migration-map": readKnowledgeMapping,
       "create-project": this.createProject.bind(this),
       "update-project": this.updateProject.bind(this),
       "delete-project": this.deleteProject.bind(this),
@@ -354,6 +359,7 @@ export default class ProjectTable {
       count: count,
       contentId: contentId,
       podcast: podcast as ProjectItem["podcast"],
+      tags: JSON.parse(item.tags || "[]"),
     };
   }
 
@@ -564,19 +570,21 @@ export default class ProjectTable {
         projects = ?,
         ref_type = ?,
         ref_id = ?,
-        project_item_type = ?
+        project_item_type = ?,
+        tags = COALESCE(?, tags)
       WHERE id = ?
     `);
     const now = Date.now();
     stmt.run(
       now,
       canonicalContentTitle(db, item.contentId) ?? item.title,
-      JSON.stringify(item.children || item.children),
-      JSON.stringify(item.parents || item.parents),
-      JSON.stringify(item.projects || item.projects),
-      item.refType ?? item.refType,
-      item.refId ?? item.refId,
+      JSON.stringify(item.children ?? []),
+      JSON.stringify(item.parents ?? []),
+      JSON.stringify(item.projects ?? []),
+      item.refType,
+      item.refId,
       item.projectItemType || item.projectItemType,
+      item.tags === undefined ? null : JSON.stringify(item.tags),
       item.id
     );
 
@@ -773,7 +781,7 @@ export default class ProjectTable {
       WHERE pi.projects = '[]'
     `);
     const items = stmt.all();
-    log.info(`获取不在任何项目中的条目: ${JSON.stringify(items)}`);
+    log.info(`获取不在任何项目中的条目: count=${items.length}`);
     return items.map(item => this.parseProjectItem(item));
   }
 
@@ -867,8 +875,8 @@ export default class ProjectTable {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO project_item
-      (create_time, update_time, title, content_id, children, parents, projects, ref_type, ref_id, white_board_content_id, project_item_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (create_time, update_time, title, content_id, children, parents, projects, ref_type, ref_id, white_board_content_id, project_item_type, tags)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const res = stmt.run(
@@ -882,7 +890,8 @@ export default class ProjectTable {
       projectItem.refType,
       projectItem.refId || 0,
       projectItem.whiteBoardContentId || 0,
-      projectItem.projectItemType || EProjectItemType.Document
+      projectItem.projectItemType || EProjectItemType.Document,
+      JSON.stringify(projectItem.tags ?? [])
     );
 
     const createdItemId = Number(res.lastInsertRowid);
@@ -917,8 +926,8 @@ export default class ProjectTable {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO project_item
-      (create_time, update_time, title, content_id, children, parents, projects, ref_type, ref_id, white_board_content_id, project_item_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (create_time, update_time, title, content_id, children, parents, projects, ref_type, ref_id, white_board_content_id, project_item_type, tags)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const res = stmt.run(
@@ -932,7 +941,8 @@ export default class ProjectTable {
       projectItem.refType,
       projectItem.refId || 0,
       projectItem.whiteBoardContentId || 0,
-      projectItem.projectItemType || EProjectItemType.Document
+      projectItem.projectItemType || EProjectItemType.Document,
+      JSON.stringify(projectItem.tags ?? [])
     );
 
     const createdItemId = Number(res.lastInsertRowid);

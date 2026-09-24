@@ -18,14 +18,9 @@ const commandMocks = vi.hoisted(() => ({
   addRootProjectItem: vi.fn(),
   addChildProjectItem: vi.fn(),
   createSharedProjectItemFromContent: vi.fn(),
-  getAllDocuments: vi.fn(),
-  addRootDocumentItem: vi.fn(),
-  addChildDocumentItem: vi.fn(),
-  createSharedDocumentItemFromContent: vi.fn(),
   createWebLink: vi.fn(),
   createEmptyVideoNote: vi.fn(),
   getProjectItemsByIds: vi.fn(),
-  getDocumentItemsByIds: vi.fn(),
   getContentById: vi.fn(),
 }));
 
@@ -35,14 +30,6 @@ vi.mock("@/commands/project", () => ({
   addChildProjectItem: commandMocks.addChildProjectItem,
   createSharedProjectItemFromContent: commandMocks.createSharedProjectItemFromContent,
   getProjectItemsByIds: commandMocks.getProjectItemsByIds,
-}));
-
-vi.mock("@/commands/document", () => ({
-  getAllDocuments: commandMocks.getAllDocuments,
-  addRootDocumentItem: commandMocks.addRootDocumentItem,
-  addChildDocumentItem: commandMocks.addChildDocumentItem,
-  createSharedDocumentItemFromContent: commandMocks.createSharedDocumentItemFromContent,
-  getDocumentItemsByIds: commandMocks.getDocumentItemsByIds,
 }));
 
 vi.mock("@/commands/web-link", () => ({
@@ -106,9 +93,7 @@ describe("InsertNoteToTreeModal", () => {
         pinned: false,
       },
     ]);
-    commandMocks.getAllDocuments.mockResolvedValue([]);
     commandMocks.getProjectItemsByIds.mockResolvedValue([]);
-    commandMocks.getDocumentItemsByIds.mockResolvedValue([]);
     commandMocks.createEmptyVideoNote.mockResolvedValue({
       id: 9,
       createTime: 1,

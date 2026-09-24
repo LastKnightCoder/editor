@@ -57,7 +57,6 @@ export const DEFAULT_MODULE_ORDER = [
   "article",
   "whiteBoard",
   "project",
-  "document",
   "dailyNote",
   "pdf",
   "vecDocuments",
@@ -296,10 +295,6 @@ export interface ISetting {
     project: {
       enable: boolean;
       name: "项目";
-    };
-    document: {
-      enable: boolean;
-      name: "知识库";
     };
     dailyNote: {
       enable: boolean;
@@ -794,10 +789,6 @@ const initialState: IState = {
       project: {
         enable: true,
         name: "项目",
-      },
-      document: {
-        enable: true,
-        name: "知识库",
       },
       dailyNote: {
         enable: true,

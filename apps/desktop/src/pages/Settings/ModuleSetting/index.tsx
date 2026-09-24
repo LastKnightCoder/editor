@@ -214,11 +214,6 @@ const MODULE_CONFIG: Record<
     description: "项目计划与任务管理",
     category: "content",
   },
-  document: {
-    icon: "Database",
-    description: "构建个人知识体系",
-    category: "knowledge",
-  },
   pdf: {
     icon: "FilePdf",
     description: "阅读和标注 PDF 文档",

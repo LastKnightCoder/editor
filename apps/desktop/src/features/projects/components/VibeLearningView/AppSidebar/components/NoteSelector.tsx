@@ -20,7 +20,6 @@ const getTypeLabel = (type: IndexType): string => {
     card: "卡片",
     article: "文章",
     "project-item": "项目",
-    "document-item": "知识库",
     "diary-daily": "日记",
   };
   return labels[type] || type;
@@ -32,19 +31,12 @@ const getTypeColor = (type: IndexType): string => {
     card: "pink",
     article: "blue",
     "project-item": "green",
-    "document-item": "orange",
     "diary-daily": "purple",
   };
   return colors[type] || "default";
 };
 
-const SEARCH_TYPES: IndexType[] = [
-  "card",
-  "article",
-  "document-item",
-  "project-item",
-  "diary-daily",
-];
+const SEARCH_TYPES: IndexType[] = ["card", "article", "project-item", "diary-daily"];
 
 export interface NoteSelectorProps {
   onSelect: (item: SearchResult) => void;
@@ -55,7 +47,7 @@ export interface NoteSelectorProps {
 const NoteSelector: React.FC<NoteSelectorProps> = ({
   onSelect,
   extensions,
-  emptyDescription = "搜索卡片、文章、知识库等内容",
+  emptyDescription = "搜索卡片、文章、项目文档等内容",
 }) => {
   const { theme } = useTheme();
   const modelInfo = useEmbeddingConfig();

@@ -5,25 +5,18 @@ export type TrendMode = "increment" | "cumulative";
 export type TrendMetric = "count" | "wordsCount";
 export type TrendCategory = "all" | HomeTrendType;
 
-export const TREND_TYPES: HomeTrendType[] = [
-  "card",
-  "article",
-  "project-item",
-  "document-item",
-];
+export const TREND_TYPES: HomeTrendType[] = ["card", "article", "project-item"];
 
 export const TYPE_LABELS: Record<HomeTrendType, string> = {
   card: "卡片",
   article: "文章",
   "project-item": "项目文档",
-  "document-item": "知识库文档",
 };
 
 export const TYPE_COLORS: Record<HomeTrendType, string> = {
   card: "#3b82f6",
   article: "#22c55e",
   "project-item": "#f59e0b",
-  "document-item": "#a855f7",
 };
 
 export const RANGES: { key: TrendRange; label: string }[] = [
@@ -48,5 +41,4 @@ export const CATEGORIES: { key: TrendCategory; label: string }[] = [
   { key: "card", label: "卡片" },
   { key: "article", label: "文章" },
   { key: "project-item", label: "项目文档" },
-  { key: "document-item", label: "知识库文档" },
 ];

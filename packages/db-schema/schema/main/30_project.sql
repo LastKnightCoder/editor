@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS project_item (
             projects TEXT,
             ref_type TEXT,
             ref_id INTEGER
-        , project_item_type TEXT DEFAULT 'document', content_id INTEGER, white_board_content_id INTEGER, podcast_id INTEGER DEFAULT NULL);
+        , project_item_type TEXT DEFAULT 'document', content_id INTEGER, white_board_content_id INTEGER, podcast_id INTEGER DEFAULT NULL, tags TEXT NOT NULL DEFAULT '[]');
 CREATE TABLE IF NOT EXISTS migration_meta (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL

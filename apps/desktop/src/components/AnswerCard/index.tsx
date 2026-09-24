@@ -7,7 +7,6 @@ import {
   MoreOutlined,
   FileTextOutlined,
   FolderOpenOutlined,
-  BookOutlined,
 } from "@ant-design/icons";
 import { BsCardText } from "react-icons/bs";
 import { IAnswer } from "@/types";
@@ -45,9 +44,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
   const editorRef = useRef<EditorRef>(null);
   const [isCard, setIsCard] = useState(false);
   const [isArticle, setIsArticle] = useState(false);
-  const [titleModalTarget, setTitleModalTarget] = useState<
-    "article" | "project" | "document" | null
-  >(null);
+  const [titleModalTarget, setTitleModalTarget] = useState<"article" | "project" | null>(null);
 
   useEffect(() => {
     if (contentId) {
@@ -106,7 +103,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     });
   });
 
-  const handleCreateTreeItem = useMemoizedFn((mode: "project" | "document", title: string) => {
+  const handleCreateTreeItem = useMemoizedFn((mode: "project", title: string) => {
     if (!contentId) return;
     throttleHandleEditorContentChange.flush();
     useExtNoteInsertStore.getState().openModal({
@@ -120,7 +117,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
     });
   });
 
-  const handleOpenTitleModal = useMemoizedFn((target: "article" | "project" | "document") => {
+  const handleOpenTitleModal = useMemoizedFn((target: "article" | "project") => {
     setTitleModalTarget(target);
   });
 
@@ -152,7 +149,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
       return;
     }
 
-    handleCreateTreeItem(target === "project" ? "project" : "document", title);
+    handleCreateTreeItem("project", title);
   });
 
   const items = useMemo(() => {
@@ -186,12 +183,6 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
         label: "创建项目文档",
         icon: <FolderOpenOutlined />,
         onClick: () => handleOpenTitleModal("project"),
-      },
-      {
-        key: "build-document-item",
-        label: "创建知识库文档",
-        icon: <BookOutlined />,
-        onClick: () => handleOpenTitleModal("document"),
       },
     ].filter(val => val !== null);
   }, [
@@ -244,27 +235,9 @@ const AnswerCard: React.FC<AnswerCardProps> = ({
         onCancel={() => setTitleModalTarget(null)}
         onConfirm={handleConfirmTitle}
         initialTitle={defaultProjectionTitle()}
-        modalTitle={
-          titleModalTarget === "article"
-            ? "创建文章"
-            : titleModalTarget === "project"
-              ? "创建项目文档"
-              : "创建知识库文档"
-        }
-        modalDescription={
-          titleModalTarget === "article"
-            ? "请输入文章标题"
-            : titleModalTarget === "project"
-              ? "请输入项目文档标题"
-              : "请输入知识库文档标题"
-        }
-        placeholder={
-          titleModalTarget === "article"
-            ? "请输入文章标题"
-            : titleModalTarget === "project"
-              ? "请输入项目文档标题"
-              : "请输入知识库文档标题"
-        }
+        modalTitle={titleModalTarget === "article" ? "创建文章" : "创建项目文档"}
+        modalDescription={titleModalTarget === "article" ? "请输入文章标题" : "请输入项目文档标题"}
+        placeholder={titleModalTarget === "article" ? "请输入文章标题" : "请输入项目文档标题"}
       />
     </Card>
   );

@@ -1,7 +1,6 @@
 import type { ToolParameterSchema } from "@/types";
 import { createCard, getCardById } from "@/commands/card";
 import { createArticle, findOneArticle } from "@/commands/article";
-import { getDocumentItem } from "@/commands/document";
 import { getProjectItemById } from "@/commands/project";
 import { getContentById } from "@/commands/content";
 import { openPage } from "@/services/page-navigation";
@@ -263,7 +262,7 @@ const executeOperationsWithReviewPolicy = async (payload: {
 const contentTargetSchema = {
   type: "object",
   description:
-    "可选编辑目标。仅接受 contents 表的 contentId（不是 cardId/articleId/documentItemId/projectItemId）。缺省时会自动使用当前激活编辑上下文",
+    "可选编辑目标。仅接受 contents 表的 contentId（不是 cardId/articleId/projectItemId）。缺省时会自动使用当前激活编辑上下文",
   properties: {
     contentId: {
       type: "number",
@@ -336,14 +335,13 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
     {
       name: "get_content_markdown",
       description:
-        "根据 contentId 获取 Markdown 全文（可选 range 截断）。注意：仅支持 contents.contentId，不支持 cardId/articleId/documentItemId/projectItemId。",
+        "根据 contentId 获取 Markdown 全文（可选 range 截断）。注意：仅支持 contents.contentId，不支持 cardId/articleId/projectItemId。",
       parameters: {
         type: "object",
         properties: {
           contentId: {
             type: "number",
-            description:
-              "contents 表中的 contentId。不是 cardId/articleId/documentItemId/projectItemId。",
+            description: "contents 表中的 contentId。不是 cardId/articleId/projectItemId。",
           },
           range: {
             type: "array",
@@ -379,7 +377,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
             content: JSON.stringify(
               toToolError("GET_MARKDOWN_FAILED", message, {
                 suggestion:
-                  "请确认传入的是 contentId（contents 表主键），而不是 cardId/articleId/documentItemId/projectItemId。若你只有实体 ID，请先调用 resolve_entity_content_id。",
+                  "请确认传入的是 contentId（contents 表主键），而不是 cardId/articleId/projectItemId。若你只有实体 ID，请先调用 resolve_entity_content_id。",
               }),
               null,
               2
@@ -391,15 +389,15 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
     {
       name: "resolve_entity_content_id",
       description:
-        "将实体 ID 转换为 contentId。支持 card/article/project-item/document-item 四种实体，用于后续编辑工具。",
+        "将实体 ID 转换为 contentId。支持 card/article/project-item 三种实体，用于后续编辑工具。",
       parameters: {
         type: "object",
         properties: {
           entityType: {
             type: "string",
-            enum: ["card", "article", "project-item", "document-item", "question-answer"],
+            enum: ["card", "article", "project-item", "question-answer"],
             description:
-              "实体类型：card(卡片)、article(文章)、project-item(项目文档项)、document-item(知识库文档项)、question-answer(问题答案，entityId 即 contentId)",
+              "实体类型：card(卡片)、article(文章)、project-item(项目文档项)、question-answer(问题答案，entityId 即 contentId)",
           },
           entityId: {
             type: "number",
@@ -411,7 +409,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
       },
       executor: async args => {
         const entityType = args.entityType as
-          "card" | "article" | "project-item" | "document-item" | "question-answer";
+          "card" | "article" | "project-item" | "question-answer";
         const entityId = args.entityId as number;
 
         try {
@@ -498,29 +496,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
             };
           }
 
-          const item = await getDocumentItem(entityId);
-          if (!item) {
-            return {
-              content: JSON.stringify(
-                toToolError("ENTITY_NOT_FOUND", `未找到 document-item ${entityId}`),
-                null,
-                2
-              ),
-            };
-          }
-
-          return {
-            content: JSON.stringify(
-              {
-                success: true,
-                entityType,
-                entityId,
-                contentId: item.contentId,
-              },
-              null,
-              2
-            ),
-          };
+          throw new Error(`不支持的实体类型：${entityType}`);
         } catch (error) {
           return {
             content: JSON.stringify(
@@ -906,8 +882,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
         properties: {
           contentId: {
             type: "number",
-            description:
-              "必填。contents 表中的 contentId。不是 cardId/articleId/documentItemId/projectItemId。",
+            description: "必填。contents 表中的 contentId。不是 cardId/articleId/projectItemId。",
           },
           markdown: {
             type: "string",

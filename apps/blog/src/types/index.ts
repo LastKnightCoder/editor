@@ -86,7 +86,7 @@ export interface ArticleData {
   updateTime: number;
 }
 
-// 文档数据（项目/知识库）
+// 文档数据（项目）
 export interface DocData {
   id: number;
   title: string;
@@ -105,7 +105,7 @@ export interface QuestAnswerData {
   updateTime: number;
   content?: Descendant[];
   source?: {
-    type: "card" | "article" | "project-item" | "document-item" | "custom";
+    type: "card" | "article" | "project-item" | "custom";
     id?: number;
     contentId: number;
     href?: string;
@@ -134,12 +134,12 @@ export interface DocCollectionItem {
   id: number;
   title: string;
   href: string;
-  kind: "project" | "document";
+  kind: "project";
   active?: boolean;
 }
 
 export interface DocCollection {
-  type: "project" | "document";
+  type: "project";
   label: string;
   items: DocCollectionItem[];
 }
@@ -151,12 +151,7 @@ export interface ContentLinkTarget {
   title?: string;
 }
 
-export type SearchItemType =
-  | "card"
-  | "article"
-  | "project-doc"
-  | "knowledge-doc"
-  | "quest";
+export type SearchItemType = "card" | "article" | "project-doc" | "quest";
 
 export interface SearchItem {
   id: number;
@@ -194,7 +189,6 @@ export interface HomeData {
   };
   docStats?: {
     projects: number;
-    documents: number;
   };
 }
 
@@ -253,7 +247,7 @@ export interface InitData {
   cardList?: CardListItem[]; // 卡片列表（用于卡片页面左侧导航）
   cardTagTree?: CardTagTree[]; // 卡片标签树（用于标签筛选）
   activeTag?: string; // 当前激活的标签（用于筛选）
-  docCollections?: DocCollection[]; // 项目/知识库集合
+  docCollections?: DocCollection[]; // 项目集合
   contentLinkTargets?: Record<string, ContentLinkTarget>;
   rss?: {
     href: string;

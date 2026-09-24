@@ -172,7 +172,6 @@ const QuestionWindowPage = () => {
               isCard: false,
               isArticle: false,
               projectMountCount: 0,
-              documentMountCount: 0,
             };
           }
         })
@@ -627,7 +626,7 @@ const QuestionWindowPage = () => {
           open={contentSelectorVisible}
           onCancel={() => setContentSelectorVisible(false)}
           onSelect={onSelectExistingAnswer}
-          contentType={["card", "article", "project-item", "document-item", "diary-daily"]}
+          contentType={["card", "article", "project-item", "diary-daily"]}
           extensions={dynamicExtensions}
         />
         <AnswerModal

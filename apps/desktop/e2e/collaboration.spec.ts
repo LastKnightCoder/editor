@@ -38,7 +38,10 @@ test.beforeAll(async () => {
     platform: "node",
     format: "cjs",
     external: ["electron", "better-sqlite3", "@node-rs/jieba"],
-    alias: { "@": resolve(root, "src") },
+    alias: {
+      "@": resolve(root, "src"),
+      "@tau/db-schema": resolve(root, "../../packages/db-schema"),
+    },
     plugins: [
       {
         // src-electron 内任何位置对真实 database / tables/content / PathUtil 的引用
@@ -159,10 +162,22 @@ test.beforeAll(async () => {
     },
   });
   page = await electron.firstWindow();
-  page.on("pageerror", error => errors.push(error.message));
-  await expect(page.getByTestId("first-view").locator('[data-slate-editor="true"]')).toBeVisible({
-    timeout: 45000,
+  page.on("pageerror", error => {
+    errors.push(error.message);
+    console.error("协作测试页面错误", error.message);
   });
+  page.on("console", message => {
+    if (message.type() === "error") console.error("协作测试控制台", message.text());
+  });
+  await page.goto(`${url}/e2e/collaboration/index.html?databaseName=primary`);
+  try {
+    await expect(page.getByTestId("first-view").locator('[data-slate-editor="true"]')).toBeVisible({
+      timeout: 45000,
+    });
+  } catch (error) {
+    console.error("协作测试启动状态", page.url(), await page.locator("body").innerText(), errors);
+    throw error;
+  }
 });
 
 test.afterAll(async () => {

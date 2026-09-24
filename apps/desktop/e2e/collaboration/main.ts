@@ -39,8 +39,13 @@ async function boot() {
       content: ContentTable.getContentById(db, 7),
       sessionTitle: contentSession(db, 7)?.doc.getText("title").toString(),
       frozen: contentSession(db, 7)?.info.frozen,
-      titles: ["articles", "project_item", "document_items"].map(
-        table => (db.prepare(`SELECT title FROM ${table} LIMIT 1`).get() as { title: string }).title
+      titles: [
+        ["articles", 1],
+        ["project_item", 2],
+        ["project_item", 3],
+      ].map(
+        ([table, id]) =>
+          (db.prepare(`SELECT title FROM ${table} WHERE id=?`).get(id) as { title: string }).title
       ),
     };
   });

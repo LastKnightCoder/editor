@@ -218,7 +218,7 @@ fn load_indexable_rows(main_conn: &Connection) -> Result<Vec<IndexableRow>, Stri
 
     let mut stmt = main_conn
         .prepare(
-            "SELECT pi.id, pi.title, pi.update_time, c.update_time, c.content
+            "SELECT pi.id, pi.title, pi.update_time, c.update_time, c.content, pi.tags
              FROM project_item pi LEFT JOIN contents c ON pi.content_id = c.id
              WHERE COALESCE(pi.ref_type, '') = ''",
         )
@@ -231,48 +231,17 @@ fn load_indexable_rows(main_conn: &Connection) -> Result<Vec<IndexableRow>, Stri
                 row.get::<_, i64>(2)?,
                 row.get::<_, Option<i64>>(3)?,
                 row.get::<_, Option<String>>(4)?,
+                row.get::<_, Option<String>>(5)?,
             ))
         })
         .map_err(|e| format!("DB_OPEN_FAILED: Failed to query project items for index: {e}"))?;
     for row in project_rows {
-        let (id, title, update_time, content_time, content) =
+        let (id, title, update_time, content_time, content, tags) =
             row.map_err(|e| format!("DB_OPEN_FAILED: Failed to read project index row: {e}"))?;
         rows.push(make_indexable_row(
             format!("project-item:{id}"),
             max_update_time(update_time, content_time),
             "project-item",
-            title,
-            content,
-            String::new(),
-        ));
-    }
-
-    let mut stmt = main_conn
-        .prepare(
-            "SELECT di.id, di.title, di.tags, di.update_time, c.update_time, c.content
-             FROM document_items di LEFT JOIN contents c ON di.content_id = c.id
-             WHERE COALESCE(di.ref_type, '') = ''",
-        )
-        .map_err(|e| format!("DB_OPEN_FAILED: Failed to prepare document index query: {e}"))?;
-    let document_rows = stmt
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, i64>(3)?,
-                row.get::<_, Option<i64>>(4)?,
-                row.get::<_, Option<String>>(5)?,
-            ))
-        })
-        .map_err(|e| format!("DB_OPEN_FAILED: Failed to query document items for index: {e}"))?;
-    for row in document_rows {
-        let (id, title, tags, update_time, content_time, content) =
-            row.map_err(|e| format!("DB_OPEN_FAILED: Failed to read document index row: {e}"))?;
-        rows.push(make_indexable_row(
-            format!("document-item:{id}"),
-            max_update_time(update_time, content_time),
-            "document-item",
             title,
             content,
             parse_tags_text(tags),

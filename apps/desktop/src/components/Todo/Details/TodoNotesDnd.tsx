@@ -9,18 +9,10 @@ import { useMemoizedFn } from "ahooks";
 import NoteCard from "./NoteCard";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
-const selectNotes = [
-  "card",
-  "article",
-  "project-item",
-  "document-item",
-  "diary-daily",
-] satisfies IndexType[];
+const selectNotes = ["card", "article", "project-item", "diary-daily"] satisfies IndexType[];
 
 const TodoNotesDnd = ({ todoId }: { todoId: number }) => {
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const {
     notesByTodoId,
     loadNotes,
@@ -30,10 +22,7 @@ const TodoNotesDnd = ({ todoId }: { todoId: number }) => {
     reorderNotes,
     updateNoteTitleSnapshot,
   } = useTodoStore();
-  const notes = useMemo(
-    () => notesByTodoId[todoId] || [],
-    [notesByTodoId, todoId],
-  );
+  const notes = useMemo(() => notesByTodoId[todoId] || [], [notesByTodoId, todoId]);
   const { message } = App.useApp();
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -56,7 +45,7 @@ const TodoNotesDnd = ({ todoId }: { todoId: number }) => {
     newNotes.splice(hoverIndex, 0, removed);
     setLocalNotes(newNotes);
 
-    const ids = newNotes.map((n) => n.id);
+    const ids = newNotes.map(n => n.id);
     reorderNotes(todoId, ids);
   });
 
@@ -68,30 +57,23 @@ const TodoNotesDnd = ({ todoId }: { todoId: number }) => {
 
   const handleTitleChange = useMemoizedFn((newTitle: string) => {
     if (editingContentId) {
-      const note = notes.find((n) => n.contentId === editingContentId);
+      const note = notes.find(n => n.contentId === editingContentId);
       if (note) {
         updateNoteTitleSnapshot(note.id, newTitle);
       }
     }
   });
 
-  const handleSelectNote = useMemoizedFn(
-    async (item: SearchResult | SearchResult[]) => {
-      const first = Array.isArray(item) ? item[0] : item;
-      if (!first) return;
-      await attachExistingNote(
-        todoId,
-        first.contentId,
-        first.title || "",
-        first.type,
-      );
-      message.success("已关联笔记");
-      setSelectorOpen(false);
-    },
-  );
+  const handleSelectNote = useMemoizedFn(async (item: SearchResult | SearchResult[]) => {
+    const first = Array.isArray(item) ? item[0] : item;
+    if (!first) return;
+    await attachExistingNote(todoId, first.contentId, first.title || "", first.type);
+    message.success("已关联笔记");
+    setSelectorOpen(false);
+  });
 
   const excludeContentIds = useMemo(() => {
-    return notes.map((n) => n.contentId);
+    return notes.map(n => n.contentId);
   }, [notes]);
 
   const handleCancelCreateAndAttachNote = useMemoizedFn(() => {
@@ -142,7 +124,7 @@ const TodoNotesDnd = ({ todoId }: { todoId: number }) => {
       <div className="flex items-center justify-between">
         <div className="text-xs opacity-60">关联笔记</div>
         <Dropdown menu={{ items }} trigger={["click"]}>
-          <div className="px-1 py-1 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800">
+          <div className="rounded-full px-1 py-1 hover:bg-gray-100 dark:hover:bg-zinc-800">
             <MdAdd />
           </div>
         </Dropdown>

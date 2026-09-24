@@ -1,8 +1,4 @@
-export type ContentLinkSourceType =
-  | "project_item"
-  | "card"
-  | "article"
-  | "document";
+export type ContentLinkSourceType = "project_item" | "card" | "article";
 export type ContentLinkTargetType = "web_clip";
 
 export interface ContentLink {

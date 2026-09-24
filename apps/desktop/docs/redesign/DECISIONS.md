@@ -373,3 +373,12 @@
 - 排除：B 与 C 承载（本轮只做基础件，接入另议）；V2 悬停才出按钮（紧迫感弱）；V3 纯文字（卡片最高，来源辨识度弱）。
 - 影响：`packages/ui/src/primitives/Notification.tsx`（`notify` / `NotificationHost` / `NotificationCard`）、`__tests__/notification.test.tsx`（8 例）、样板间「Notification」档案（ShowcaseApp 根挂载 NotificationHost）。业务接入见下方追记。
 - 追记（同日，业务接入）：壳层 AppShell 挂载 NotificationHost（`/legacy` 已无入口，不挂；QuickOpen 小窗不弹通知）。接入三处：① 应用更新（`hooks/useAutoUpdateCheck`）：antd `notification` 改 `notify`（id `app-update-available`，sticky）；「前往更新」打开新设置弹窗的「关于与更新」分区，消解 D-036 遗留的「仍打开旧设置弹窗」。② 协作加入申请（`components/JoinRequestNotifications`）：删除自研 motion 卡栈，只保留监听逻辑。新申请经 `notify` 弹出（头像取昵称首字，按 deviceId 派生色），同意 / 拒绝托管给作答流程（结果行或卡内报错）。别处处理后同步关闭，作答中的不打断。存量申请静默、手动关闭后不再弹，这两条保持原行为。③ 发布结果（`features/publish/publishRunStore`）：结束回报由 toast 改 `notify`（后台任务结果归 Notification，修订 D-035 追记），固定 id `publish-run`，同 id 原位替换。成功类纯告知自动关；部分失败与异常常驻，带「查看详情」（openPage publish）与「重试」（按上次参数重跑）。Electron 系统通知（待办提醒、番茄钟）属 OS 层，窗口不在前台也要可见，不在本组件范围。
+
+## D-039 知识库全面合并到项目
+
+- 选择：每个知识库转为一个普通 document-tree 项目，不增加子类型、不按名称合并；保留时间、置顶、标签、正文 ID 和共享图关系，简介与历史根正文并入项目描述。
+- 跨端：桌面和 CLI 共享 TypeScript 迁移，移动端 Rust 独立执行同一规则；ID 映射和完成标记保存在主库，共享 SQL/引用样本约束两端一致。主库迁移前创建包含 WAL 的备份，循环、悬空节点和冲突引用失败回滚；不调用普通 CRUD，不生成新建操作或改动正文引用计数。
+- 边界：不兼容旧客户端、旧知识库接口和旧博客链接。旧数据解析仅保留在升级边界；协作服务器的 documents 房间表和通用 RAG 检索保留。
+- 发布：局部选择映射到新节点，空或无效范围不回退为全选；未选祖先只保留目录结构。新文件全部上传成功后才清理旧文件，失败保留发布历史以便重试。
+- 同步：继续使用原目录，不自动上传迁移结果；切换前停用全部旧桌面、移动端和 CLI。新协议携带模型版本，只能约束新版，无法拦截旧端覆盖原路径。
+- 实现与验收记录见 `docs/knowledge-to-project-migration.md`；此次切换整体交付，不发布消费者与数据库处于不同模型的中间版本。

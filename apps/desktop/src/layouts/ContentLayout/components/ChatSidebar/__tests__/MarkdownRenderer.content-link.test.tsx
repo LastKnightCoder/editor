@@ -7,7 +7,6 @@ import { MarkdownProvider } from "../MarkdownContext";
 
 vi.mock("@/commands", () => ({
   getProjectItemById: vi.fn(),
-  getRootDocumentsByDocumentItemId: vi.fn(),
 }));
 
 vi.mock("@/commands/diary", () => ({

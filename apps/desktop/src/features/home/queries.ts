@@ -11,7 +11,6 @@ import { getEventsForDay } from "@/commands/calendar";
 import { getCardsByDateRange } from "@/commands/card";
 import { getArticlesByDateRange } from "@/commands/article";
 import { getAllDiaryEntries } from "@/commands/diary";
-import { getAllDocumentItems } from "@/commands/document";
 import { getAllProjectItems } from "@/commands/project";
 import { summaryPomodoroToday, listPomodoroSessions } from "@/commands/pomodoro";
 import { getCalendarHeatmap, getAllStatistic } from "@/commands/statistic";
@@ -151,11 +150,8 @@ const RECENT_EDIT_TARGET = 12;
 
 async function fetchRecentEdits(diaries: DiaryEntry[]): Promise<RecentEdit[]> {
   const now = Date.now();
-  // 知识库/项目文档为全量轻表（无正文），一次拉取后按窗口过滤
-  const [documentItems, projectItems] = await Promise.all([
-    getAllDocumentItems().catch(() => []),
-    getAllProjectItems().catch(() => []),
-  ]);
+  // 项目文档为全量轻表（无正文），一次拉取后按窗口过滤
+  const projectItems = await getAllProjectItems().catch(() => []);
 
   const edits: (RecentEdit & { updateTs: number })[] = [];
   const seen = new Set<string>();
@@ -207,22 +203,6 @@ async function fetchRecentEdits(diaries: DiaryEntry[]): Promise<RecentEdit[]> {
           updateTs: article.update_time,
         });
       }
-    }
-    for (const item of documentItems as {
-      id: number;
-      title: string;
-      updateTime: number;
-      count: number;
-    }[]) {
-      if (item.updateTime < since) continue;
-      add({
-        id: `document-${item.id}`,
-        kind: "document",
-        title: shortTitle(item.title || "文档"),
-        updatedText: relativeDays(item.updateTime),
-        wordsCount: item.count ?? 0,
-        updateTs: item.updateTime,
-      });
     }
     for (const item of projectItems as {
       id: number;

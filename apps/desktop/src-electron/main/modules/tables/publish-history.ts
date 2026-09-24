@@ -25,7 +25,8 @@ export default class PublishHistoryTable {
       filePath: row.file_path as string,
       contentHash: row.content_hash as string,
       sourceType: row.source_type as PublishContentType,
-      sourceId: row.source_id as number,
+      // 迁移把无映射的历史来源置空（保留行供远端旧文件清理），不可再当作有效 ID 使用
+      sourceId: (row.source_id ?? null) as number | null,
       publishTime: row.publish_time as number,
     };
   }
@@ -36,13 +37,10 @@ export default class PublishHistoryTable {
       ORDER BY publish_time DESC
     `);
     const rows = stmt.all() as Record<string, unknown>[];
-    return rows.map((row) => this.parseRow(row));
+    return rows.map(row => this.parseRow(row));
   }
 
-  static getByPath(
-    db: Database.Database,
-    filePath: string,
-  ): IPublishHistory | null {
+  static getByPath(db: Database.Database, filePath: string): IPublishHistory | null {
     const stmt = db.prepare(`
       SELECT * FROM publish_history 
       WHERE file_path = ?
@@ -59,7 +57,7 @@ export default class PublishHistoryTable {
       contentHash: string;
       sourceType?: PublishContentType;
       sourceId?: number;
-    },
+    }
   ): IPublishHistory {
     const { filePath, contentHash, sourceType, sourceId } = data;
     const now = Date.now();
@@ -90,7 +88,7 @@ export default class PublishHistoryTable {
       contentHash: string;
       sourceType?: PublishContentType;
       sourceId?: number;
-    }>,
+    }>
   ): void {
     const now = Date.now();
     const stmt = db.prepare(`
@@ -106,13 +104,7 @@ export default class PublishHistoryTable {
     const transaction = db.transaction(() => {
       for (const item of items) {
         const { filePath, contentHash, sourceType, sourceId } = item;
-        stmt.run(
-          filePath,
-          contentHash,
-          sourceType || null,
-          sourceId || null,
-          now,
-        );
+        stmt.run(filePath, contentHash, sourceType || null, sourceId || null, now);
       }
     });
 

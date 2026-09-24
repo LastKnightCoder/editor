@@ -11,9 +11,12 @@
 import { connectDatabaseByName } from "@/commands";
 import useSettingStore from "@/stores/useSettingStore";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
+import { invoke } from "@/electron";
+import { migrateKnowledgeTabs } from "@/stores/useTabStore";
+import type { KnowledgeMapping } from "@tau/db-schema/src/knowledge-references";
 
-/** 本地 SQLite 正常毫秒级完成；超过视为挂起，不能让壳层永远停在启动屏 */
-const CONNECT_TIMEOUT_MS = 10_000;
+/** 首次开库可能需要备份和历史数据迁移，给升级预留时间。 */
+const CONNECT_TIMEOUT_MS = 120_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -31,7 +34,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-export async function ensureDatabaseReady(): Promise<boolean> {
+export async function ensureDatabaseReady(onError?: (message: string) => void): Promise<boolean> {
   const { inited } = useSettingStore.getState();
   const active = useSettingStore.getState().setting.database.active;
   if (!inited || !active) {
@@ -43,11 +46,16 @@ export async function ensureDatabaseReady(): Promise<boolean> {
       databaseStatus: { ...state.databaseStatus, [active]: "connecting" },
     }));
     await withTimeout(connectDatabaseByName(active), CONNECT_TIMEOUT_MS);
+    const mapping = await invoke<KnowledgeMapping | null>("get-project-migration-map");
+    if (useSettingStore.getState().setting.database.active !== active) return false;
+    // 无映射时也执行降级，防止持久化的旧 document Tab 渲染成未知页面类型
+    migrateKnowledgeTabs(mapping);
     useGlobalStateStore.setState(state => ({
       databaseStatus: { ...state.databaseStatus, [active]: "ready" },
     }));
     return true;
   } catch (e) {
+    onError?.(e instanceof Error ? e.message : String(e));
     useGlobalStateStore.setState(state => ({
       databaseStatus: { ...state.databaseStatus, [active]: "error" },
     }));

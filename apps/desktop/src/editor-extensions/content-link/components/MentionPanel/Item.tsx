@@ -17,7 +17,6 @@ const typeMap: Record<string, string> = {
   card: "卡片",
   article: "文章",
   "project-item": "项目",
-  "document-item": "文档",
 };
 
 const Item = memo((props: IItemProps) => {

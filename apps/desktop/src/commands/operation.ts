@@ -1,26 +1,19 @@
 import { invoke } from "@/electron";
-import {
-  IArticle,
-  ICard,
-  IDocumentItem,
-  ProjectItem,
-  Operation,
-} from "@/types";
+import { IArticle, ICard, ProjectItem, Operation } from "@/types";
 
 export const getLatestOperations = async (
-  number: number,
+  number: number
 ): Promise<{
   cards: ICard[];
   articles: IArticle[];
   projectItems: ProjectItem[];
-  documentItems: IDocumentItem[];
 }> => {
   return invoke("get-latest-operations", number);
 };
 
 export const getOperationsByDates = async (
   dates: string[],
-  contentType: string,
+  contentType: string
 ): Promise<Record<string, Operation[]>> => {
   return invoke("get-operations-by-dates", dates, contentType);
 };
@@ -28,14 +21,9 @@ export const getOperationsByDates = async (
 export const getOperationsByDateRange = async (
   startDate: string,
   endDate: string,
-  contentType: string,
+  contentType: string
 ): Promise<Record<string, Operation[]>> => {
-  return invoke(
-    "get-operations-by-date-range",
-    startDate,
-    endDate,
-    contentType,
-  );
+  return invoke("get-operations-by-date-range", startDate, endDate, contentType);
 };
 
 export const analyzeOperations = async (params: {

@@ -10,8 +10,8 @@ export function extractUserQuery(lastUserMessage: RequestMessage): string {
     return lastUserMessage.content;
   } else if (Array.isArray(lastUserMessage.content)) {
     return lastUserMessage.content
-      .filter((item) => item.type === "text")
-      .map((item) => item.text)
+      .filter(item => item.type === "text")
+      .map(item => item.text)
       .join(" ");
   }
   return "";
@@ -25,7 +25,6 @@ export function getTypeDisplayName(type: string): string {
     card: "卡片",
     article: "文章",
     "project-item": "项目条目",
-    "document-item": "文档条目",
     "diary-daily": "日记",
   };
   return typeMap[type] || type;
@@ -36,7 +35,7 @@ export function getTypeDisplayName(type: string): string {
  */
 export function buildKnowledgeContext(searchResults: any[]): string {
   return searchResults
-    .map((result) => {
+    .map(result => {
       const content =
         typeof result.snippet === "string" && result.snippet.trim()
           ? result.snippet
@@ -60,12 +59,10 @@ export function buildKnowledgeContext(searchResults: any[]): string {
 export function createEnhancedSystemMessage(
   knowledgeContext: string,
   userQuery: string,
-  lastUserMessage: RequestMessage,
+  lastUserMessage: RequestMessage
 ): RequestMessage {
   const nonTextContent = Array.isArray(lastUserMessage.content)
-    ? lastUserMessage.content
-        .filter((item) => item.type !== "text")
-        .filter(Boolean)
+    ? lastUserMessage.content.filter(item => item.type !== "text").filter(Boolean)
     : [];
   return {
     role: "system" as any,
@@ -90,16 +87,14 @@ ${userQuery}
 例如：
 - :ref[这个卡片]{id=123 type=card} 提到了相关概念
 - 根据 :ref[项目文档]{id=456 type=project-item} 的说明
-- 如 :ref[知识库条目]{id=789 type=document-item} 所述
 
 支持的类型：
 
 - card
 - article
 - project-item
-- document-item
 
-type 必须是这四种值之一，不可自己造出新的类型。
+type 必须是这三种值之一，不可自己造出新的类型。
 
 请在回答中适当使用这种引用格式，让用户能够快速定位到相关内容。`,
       },
@@ -112,12 +107,10 @@ type 必须是这四种值之一，不可自己造出新的类型。
  */
 export async function performRAGEnhancement(
   messages: RequestMessage[],
-  knowledgeOptions: KnowledgeOptions,
+  knowledgeOptions: KnowledgeOptions
 ): Promise<RequestMessage[]> {
   // 获取最后一条用户消息作为查询
-  const lastUserMessage = [...messages]
-    .reverse()
-    .find((msg) => msg.role === "user");
+  const lastUserMessage = [...messages].reverse().find(msg => msg.role === "user");
 
   if (!lastUserMessage) {
     return messages;
@@ -132,12 +125,7 @@ export async function performRAGEnhancement(
   // 执行搜索
   const searchParams = {
     query: userQuery,
-    types: ["card", "article", "project-item", "document-item"] as (
-      | "card"
-      | "article"
-      | "project-item"
-      | "document-item"
-    )[],
+    types: ["card", "article", "project-item"] as ("card" | "article" | "project-item")[],
     limit: knowledgeOptions.limit || 5,
     modelInfo: knowledgeOptions.modelInfo,
   };
@@ -155,18 +143,18 @@ export async function performRAGEnhancement(
   const enhancedSystemMessage = createEnhancedSystemMessage(
     knowledgeContext,
     userQuery,
-    lastUserMessage,
+    lastUserMessage
   );
 
   // 将增强后的系统消息插入到消息列表中
   const finalMessages = [...messages];
-  const hasSystemMessage = finalMessages.some((msg) => msg.role === "system");
+  const hasSystemMessage = finalMessages.some(msg => msg.role === "system");
 
   if (!hasSystemMessage) {
     finalMessages.unshift(enhancedSystemMessage);
   } else {
     // 如果已有系统消息，替换第一条系统消息
-    const systemIndex = finalMessages.findIndex((msg) => msg.role === "system");
+    const systemIndex = finalMessages.findIndex(msg => msg.role === "system");
     finalMessages[systemIndex] = enhancedSystemMessage;
   }
 

@@ -68,7 +68,6 @@ const QUICK_ACCESS_MODULE_TAB_MAP = {
   article: TabType.ArticleList,
   whiteBoard: TabType.WhiteBoardList,
   project: TabType.ProjectList,
-  document: TabType.DocumentList,
   dailyNote: TabType.DailyNote,
   pdf: TabType.PdfList,
   vecDocuments: TabType.VecDocument,

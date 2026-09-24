@@ -2,15 +2,9 @@ import { memo, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Spinner } from "@tau/ui";
 import { PublishContentType } from "@/types/publish";
 import { Project } from "@/types/project";
-import { IDocument } from "@/types/document";
 import { CardTagNode, DocTreeNode, EntityScope } from "./types";
 import { TABS } from "./constants";
-import {
-  buildCardTagTree,
-  collectCardsFromTagNode,
-  buildProjectTree,
-  buildDocumentTree,
-} from "./utils";
+import { buildCardTagTree, collectCardsFromTagNode, buildProjectTree } from "./utils";
 import { usePublishSelections, useContentLoader } from "./hooks";
 import {
   TypeRail,
@@ -38,7 +32,6 @@ const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
     getTotalSelectedCount,
     getTypeSelectedCount,
     projectScopes,
-    documentScopes,
     questScopes,
   } = usePublishSelections();
 
@@ -73,20 +66,11 @@ const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
   );
 
   // 加载内容
-  const {
-    cards,
-    articles,
-    projects,
-    documents,
-    questionGroups,
-    questions,
-    isLoading,
-    loadContent,
-  } = useContentLoader();
+  const { cards, articles, projects, questionGroups, questions, isLoading, loadContent } =
+    useContentLoader();
 
-  // 项目/知识库树缓存
+  // 项目树缓存
   const [projectTrees, setProjectTrees] = useState<Map<number, DocTreeNode[]>>(new Map());
-  const [documentTrees, setDocumentTrees] = useState<Map<number, DocTreeNode[]>>(new Map());
 
   // 初始化加载
   useEffect(() => {
@@ -106,13 +90,11 @@ const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
           return questionGroups.length;
         case "project":
           return projects.length;
-        case "document":
-          return documents.length;
         default:
           return 0;
       }
     },
-    [cards, articles, questionGroups, projects, documents]
+    [cards, articles, questionGroups, projects]
   );
 
   // 构建卡片标签树
@@ -155,39 +137,17 @@ const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
   );
 
   // 加载项目树
-  const handleLoadProjectTree = useCallback(
-    async (entity: Project | IDocument): Promise<DocTreeNode[]> => {
-      const project = entity as Project;
-      const nodes = await buildProjectTree(project);
-      setProjectTrees(prev => new Map(prev).set(project.id, nodes));
-      return nodes;
-    },
-    []
-  );
-
-  // 加载知识库树
-  const handleLoadDocumentTree = useCallback(
-    async (entity: Project | IDocument): Promise<DocTreeNode[]> => {
-      const document = entity as IDocument;
-      const nodes = await buildDocumentTree(document);
-      setDocumentTrees(prev => new Map(prev).set(document.id, nodes));
-      return nodes;
-    },
-    []
-  );
+  const handleLoadProjectTree = useCallback(async (entity: Project): Promise<DocTreeNode[]> => {
+    const project = entity as Project;
+    const nodes = await buildProjectTree(project);
+    setProjectTrees(prev => new Map(prev).set(project.id, nodes));
+    return nodes;
+  }, []);
 
   // 更新项目作用域
   const handleUpdateProjectScope = useCallback(
     async (entityId: number, scope: EntityScope) => {
       await updateEntityScope("project", entityId, scope);
-    },
-    [updateEntityScope]
-  );
-
-  // 更新知识库作用域
-  const handleUpdateDocumentScope = useCallback(
-    async (entityId: number, scope: EntityScope) => {
-      await updateEntityScope("document", entityId, scope);
     },
     [updateEntityScope]
   );
@@ -255,19 +215,6 @@ const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
             onToggleEntity={(id, enabled) => handleEntityToggle("project", id, enabled)}
             onUpdateScope={handleUpdateProjectScope}
             onLoadTree={handleLoadProjectTree}
-          />
-        );
-      case "document":
-        return (
-          <EntitySelector
-            type="document"
-            entities={documents}
-            isItemSelected={isItemSelected}
-            scopes={documentScopes}
-            treeCache={documentTrees}
-            onToggleEntity={(id, enabled) => handleEntityToggle("document", id, enabled)}
-            onUpdateScope={handleUpdateDocumentScope}
-            onLoadTree={handleLoadDocumentTree}
           />
         );
       default:

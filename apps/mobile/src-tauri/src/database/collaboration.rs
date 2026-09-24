@@ -183,13 +183,16 @@ pub struct ProjectContentPayload {
 #[tauri::command]
 pub fn collab_project_content(
     app: AppHandle,
-    payload: ProjectContentPayload,
+    mut payload: ProjectContentPayload,
 ) -> Result<Value, String> {
     let mut conn = open_active_database(&app)?;
     let Some(binding) = read_binding(&conn, payload.content_id)? else {
         // 已解绑（结束共享/退出）后迟到的投影：幂等跳过
         return Ok(json!({ "projected": false, "reason": "unbound" }));
     };
+    if let Some(mapping) = super::knowledge_migration::read_mapping(&conn)? {
+        super::knowledge_migration::references(&mut payload.content, &mapping)?;
+    }
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_millis() as i64)
@@ -233,4 +236,22 @@ pub fn collab_project_content(
     let db_name = crate::setting::get_active_database_name(&setting);
     super::reconcile::trigger_reconcile(&app, &db_name);
     Ok(json!({ "projected": true, "changed": changed > 0 }))
+}
+
+/// 仅向本库绑定的房间提供映射，避免将其他数据库的实体 ID 错误转换。
+#[tauri::command]
+pub fn collab_knowledge_mapping(app: AppHandle, document_id: String) -> Result<Value, String> {
+    let conn = open_active_database(&app)?;
+    let bound: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM collaboration_bindings WHERE document_id=?1)",
+            [document_id],
+            |r| r.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    if !bound {
+        return Ok(Value::Null);
+    }
+    serde_json::to_value(super::knowledge_migration::read_mapping(&conn)?)
+        .map_err(|e| e.to_string())
 }

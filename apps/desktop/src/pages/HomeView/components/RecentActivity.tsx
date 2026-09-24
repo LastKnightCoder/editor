@@ -3,9 +3,8 @@ import classNames from "classnames";
 import useThemeColors from "@/hooks/useThemeColors";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
-import { getRootDocumentsByDocumentItemId } from "@/commands";
-import { FileText, BookOpen, FolderOpen, File } from "lucide-react";
-import type { ICard, IArticle, IDocumentItem, ProjectItem } from "@/types";
+import { FileText, BookOpen, FolderOpen } from "lucide-react";
+import type { ICard, IArticle, ProjectItem } from "@/types";
 import type { Descendant } from "slate";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -43,14 +42,13 @@ interface RecentActivityProps {
     cards: ICard[];
     articles: IArticle[];
     projectItems: ProjectItem[];
-    documentItems: IDocumentItem[];
   };
 }
 
 interface ActivityItem {
   id: string;
   title: string;
-  type: "card" | "article" | "project" | "document";
+  type: "card" | "article" | "project";
   updateTime: number;
   onClick: () => void;
 }
@@ -73,12 +71,6 @@ const TYPE_CONFIG = {
     label: "项目文档",
     color: "text-amber-500",
     bg: "bg-amber-500/10",
-  },
-  document: {
-    icon: File,
-    label: "知识库文档",
-    color: "text-[var(--th-accent)]",
-    bg: "bg-purple-500/10",
   },
 };
 
@@ -122,24 +114,6 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ recentActivity }) => {
           createTab(TabType.ProjectDetail, {
             id: projectId,
             itemId: project.id,
-          });
-        },
-      });
-    });
-
-    recentActivity.documentItems.forEach(doc => {
-      items.push({
-        id: `doc-${doc.id}`,
-        title: doc.title || "无标题文档",
-        type: "document",
-        updateTime: doc.updateTime,
-        onClick: async () => {
-          const documents = await getRootDocumentsByDocumentItemId(doc.id);
-          const rootDocument = documents[0];
-          if (!rootDocument) return createTab(TabType.DocumentList);
-          createTab(TabType.DocumentDetail, {
-            id: rootDocument.id,
-            itemId: doc.id,
           });
         },
       });

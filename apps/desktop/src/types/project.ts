@@ -50,6 +50,7 @@ export interface ProjectItem {
   contentId: number;
   whiteBoardContentId: number;
   podcast?: IPodcast;
+  tags?: string[];
 }
 
 export type CreateProjectItem = Omit<

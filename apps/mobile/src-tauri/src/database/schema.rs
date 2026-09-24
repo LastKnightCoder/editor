@@ -13,6 +13,25 @@ fn backup_before_migration(
     conn: &Connection,
     database_path: &std::path::Path,
 ) -> Result<(), String> {
+    let file_prefix = format!(
+        "{}.db.pre-schema-v{}-",
+        database_path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .unwrap_or_default(),
+        migrator::MAIN_SCHEMA_VERSION
+    );
+    // 迁移失败重试时库内容与首份备份一致，已存在备份则复用，避免全量备份反复膨胀
+    if let Some(parent) = database_path.parent() {
+        if let Ok(entries) = fs::read_dir(parent) {
+            let exists = entries
+                .filter_map(|entry| entry.ok())
+                .any(|entry| entry.file_name().to_string_lossy().starts_with(&file_prefix));
+            if exists {
+                return Ok(());
+            }
+        }
+    }
     let backup_path = database_path.with_extension(format!(
         "db.pre-schema-v{}-{}.bak",
         migrator::MAIN_SCHEMA_VERSION,
@@ -173,6 +192,7 @@ pub fn invalidate_cached_connection() {
         Err(poisoned) => poisoned.into_inner(),
     };
     *guard = None;
+    super::knowledge_migration::clear_mapping_cache();
 }
 
 /// 当前激活数据库文件大小（字节）：主库 + WAL/SHM 附属文件一并计入
@@ -197,6 +217,51 @@ mod tests {
     use super::*;
 
     #[test]
+    fn backup_before_migration_snapshots_wal_and_reuses_first() {
+        let dir = std::env::temp_dir().join(format!("tau-backup-{}", uuid::Uuid::new_v4()));
+        fs::create_dir(&dir).unwrap();
+        let path = dir.join("main.db");
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(
+            "PRAGMA journal_mode=WAL;
+             CREATE TABLE t(id INTEGER PRIMARY KEY, v TEXT);
+             INSERT INTO t(v) VALUES('in-wal');",
+        )
+        .unwrap();
+        backup_before_migration(&conn, &path).unwrap();
+        let backups: Vec<String> = fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .map(|entry| entry.file_name().to_string_lossy().to_string())
+            .filter(|name| name.starts_with("main.db.pre-schema-v3-"))
+            .collect();
+        assert_eq!(backups.len(), 1, "首份备份应存在且唯一");
+        assert!(backups[0].ends_with(".bak"));
+        // WAL 中已提交的数据必须进入快照，直接复制 db 文件会遗漏
+        let snapshot = Connection::open(dir.join(&backups[0])).unwrap();
+        let in_wal: i64 = snapshot
+            .query_row("SELECT COUNT(*) FROM t WHERE v='in-wal'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(in_wal, 1);
+        drop(snapshot);
+        // 迁移失败重试复用首份，不反复膨胀
+        backup_before_migration(&conn, &path).unwrap();
+        let count = fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("main.db.pre-schema-v3-")
+            })
+            .count();
+        assert_eq!(count, 1);
+        drop(conn);
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn downloaded_file_is_validated_and_migrated_before_use() {
         let dir = std::env::temp_dir().join(format!("tau-download-{}", uuid::Uuid::new_v4()));
         fs::create_dir(&dir).unwrap();
@@ -217,7 +282,7 @@ mod tests {
         let conn = Connection::open(&path).unwrap();
         assert_eq!(
             migrator::get_meta(&conn, "main_schema_version").unwrap(),
-            Some("2".into())
+            Some("3".into())
         );
         let mode: String = conn
             .query_row("PRAGMA journal_mode", [], |r| r.get(0))

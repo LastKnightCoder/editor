@@ -116,6 +116,11 @@ function ProjectDocEditorScreen() {
         }}
         titleEditable
         contentType="项目文档"
+        tags={item.tags ?? []}
+        onTagsCommit={async tags => {
+          await tauri.projectItemUpdate({ id: params.itemId, tags });
+          invalidate();
+        }}
         contentTypeBadge={{
           icon: FolderKanban,
           className: "bg-butter-soft text-butter",

@@ -17,8 +17,6 @@ const PAGE_HEADER_FILES = [
   "src/features/articles/ArticlesPage.tsx",
   "src/features/projects/ProjectsPage.tsx",
   "src/features/projects/ProjectDetailPage.tsx",
-  "src/features/knowledge/KnowledgePage.tsx",
-  "src/features/knowledge/KnowledgeDetailPage.tsx",
   "src/features/cards/ContentDetailPage.tsx",
 ];
 

@@ -2,23 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Box, Text, useInput } from "ink";
 import { closeDataAccess } from "../../../data-access/index.js";
 import { IndexType } from "../../../data-access/index-db.js";
-import {
-  executeSearch,
-  getTypeBadge,
-  SearchResult,
-} from "../../../utils/search-service.js";
-import {
-  formatRelativeTime,
-  truncateToWidth,
-  padEnd,
-} from "../../../utils/text.js";
+import { executeSearch, getTypeBadge, SearchResult } from "../../../utils/search-service.js";
+import { formatRelativeTime, truncateToWidth, padEnd } from "../../../utils/text.js";
 
 const TYPE_FILTERS: Array<{ label: string; types: IndexType[] | undefined }> = [
   { label: "全部", types: undefined },
   { label: "Card", types: ["card"] },
   { label: "Article", types: ["article"] },
   { label: "Project", types: ["project-item"] },
-  { label: "Document", types: ["document-item"] },
 ];
 
 export function SearchView({
@@ -37,28 +28,25 @@ export function SearchView({
   const [inputMode, setInputMode] = useState(true);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const doSearch = useCallback(
-    async (q: string, types: IndexType[] | undefined) => {
-      if (!q.trim()) {
-        setResults([]);
-        setSource("");
-        return;
-      }
+  const doSearch = useCallback(async (q: string, types: IndexType[] | undefined) => {
+    if (!q.trim()) {
+      setResults([]);
+      setSource("");
+      return;
+    }
 
-      setSearching(true);
-      const { results, source } = await executeSearch({
-        query: q,
-        types,
-        limit: 20,
-        snippetWidth: 40,
-      });
-      setResults(results);
-      setSource(source);
-      setCursor(0);
-      setSearching(false);
-    },
-    [],
-  );
+    setSearching(true);
+    const { results, source } = await executeSearch({
+      query: q,
+      types,
+      limit: 20,
+      snippetWidth: 40,
+    });
+    setResults(results);
+    setSource(source);
+    setCursor(0);
+    setSearching(false);
+  }, []);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -94,15 +82,15 @@ export function SearchView({
         return;
       }
       if (key.tab) {
-        setFilterIndex((i) => (i + 1) % TYPE_FILTERS.length);
+        setFilterIndex(i => (i + 1) % TYPE_FILTERS.length);
         return;
       }
       if (key.backspace || key.delete) {
-        setQuery((s) => s.slice(0, -1));
+        setQuery(s => s.slice(0, -1));
         return;
       }
       if (input && !key.ctrl) {
-        setQuery((s) => s + input);
+        setQuery(s => s + input);
       }
       return;
     }
@@ -117,11 +105,11 @@ export function SearchView({
       return;
     }
     if (key.upArrow || input === "k") {
-      setCursor((c) => (c > 0 ? c - 1 : results.length - 1));
+      setCursor(c => (c > 0 ? c - 1 : results.length - 1));
     } else if (key.downArrow || input === "j") {
-      setCursor((c) => (c < results.length - 1 ? c + 1 : 0));
+      setCursor(c => (c < results.length - 1 ? c + 1 : 0));
     } else if (key.tab) {
-      setFilterIndex((i) => (i + 1) % TYPE_FILTERS.length);
+      setFilterIndex(i => (i + 1) % TYPE_FILTERS.length);
     } else if (key.return) {
       const result = results[cursor];
       if (result) {
@@ -141,10 +129,7 @@ export function SearchView({
         {TYPE_FILTERS.map((f, i) => (
           <React.Fragment key={f.label}>
             {i > 0 && <Text dimColor> | </Text>}
-            <Text
-              color={i === filterIndex ? "cyan" : undefined}
-              bold={i === filterIndex}
-            >
+            <Text color={i === filterIndex ? "cyan" : undefined} bold={i === filterIndex}>
               {f.label}
             </Text>
           </React.Fragment>
@@ -155,9 +140,7 @@ export function SearchView({
       <Text dimColor>{"─".repeat(76)}</Text>
 
       <Box>
-        <Text color={inputMode ? "yellow" : "white"}>
-          {inputMode ? "❯ " : "  "}
-        </Text>
+        <Text color={inputMode ? "yellow" : "white"}>{inputMode ? "❯ " : "  "}</Text>
         <Text>{query}</Text>
         {inputMode && <Text dimColor>█</Text>}
         {searching && <Text dimColor> (searching...)</Text>}
@@ -182,9 +165,7 @@ export function SearchView({
                   {isSelected ? "❯" : " "} {padEnd(`${i + 1}.`, 4)}
                 </Text>
                 <Text color={badge.color}>{padEnd(`[${badge.text}]`, 12)}</Text>
-                <Text color={isSelected ? "white" : undefined}>
-                  {padEnd(title, 29)}
-                </Text>
+                <Text color={isSelected ? "white" : undefined}>{padEnd(title, 29)}</Text>
                 <Text dimColor>{padEnd(result.snippet, 0)}</Text>
                 <Text dimColor> {time}</Text>
               </Box>
@@ -195,13 +176,10 @@ export function SearchView({
 
       <Text dimColor>{"─".repeat(76)}</Text>
       {inputMode ? (
-        <Text dimColor>
-          Type to search · Tab filter · Enter navigate results · Esc back
-        </Text>
+        <Text dimColor>Type to search · Tab filter · Enter navigate results · Esc back</Text>
       ) : (
         <Text dimColor>
-          ↑↓/jk navigate · Enter open · / edit query · Tab filter · Esc back to
-          input
+          ↑↓/jk navigate · Enter open · / edit query · Tab filter · Esc back to input
         </Text>
       )}
     </Box>

@@ -1,10 +1,10 @@
 import type { Descendant } from "slate";
 
 /**
- * 整体导出的作用范围：某个项目或某个知识库文档
+ * 整体导出的作用范围：某个项目
  */
 export interface BatchExportScope {
-  type: "project" | "document";
+  type: "project";
   id: number;
   title: string;
 }

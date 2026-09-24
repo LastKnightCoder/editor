@@ -3,30 +3,31 @@ import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
 
 import { connectDatabaseByName } from "@/commands";
+import { invoke } from "@/electron";
 import useSettingStore from "@/stores/useSettingStore";
-import useGlobalStateStore, {
-  DatabaseConnectionStatus,
-} from "@/stores/useGlobalStateStore";
+import { migrateKnowledgeTabs } from "@/stores/useTabStore";
+import type { KnowledgeMapping } from "@tau/db-schema/src/knowledge-references";
+import useGlobalStateStore, { DatabaseConnectionStatus } from "@/stores/useGlobalStateStore";
 
 const useInitDatabase = () => {
   const { message } = App.useApp();
 
-  const databaseStatus = useGlobalStateStore((state) => state.databaseStatus);
+  const databaseStatus = useGlobalStateStore(state => state.databaseStatus);
 
-  const inited = useSettingStore((state) => state.inited);
-  const database = useSettingStore((state) => state.setting.database);
+  const inited = useSettingStore(state => state.inited);
+  const database = useSettingStore(state => state.setting.database);
 
   const { active } = database;
 
   const handleDatabaseStatus = useMemoizedFn(
     (databaseName: string, status: DatabaseConnectionStatus) => {
-      useGlobalStateStore.setState((state) => ({
+      useGlobalStateStore.setState(state => ({
         databaseStatus: {
           ...state.databaseStatus,
           [databaseName]: status,
         },
       }));
-    },
+    }
   );
 
   useEffect(() => {
@@ -39,11 +40,14 @@ const useInitDatabase = () => {
     });
     handleDatabaseStatus(active, "connecting");
     connectDatabaseByName(active)
-      .then(() => {
+      .then(async () => {
+        // 旧知识库 Tab 的迁移与壳层 databaseReady 同源：无映射时同样降级，避免渲染成未知页面类型
+        const mapping = await invoke<KnowledgeMapping | null>("get-project-migration-map");
+        migrateKnowledgeTabs(mapping);
         message.destroy("initDatabase");
         handleDatabaseStatus(active, "ready");
       })
-      .catch((e) => {
+      .catch(e => {
         handleDatabaseStatus(active, "error");
         message.error({
           key: "initDatabase",

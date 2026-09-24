@@ -17,16 +17,36 @@ fn resource_retirement_preserves_attachments_and_repeats() {
         INSERT INTO operation(operation_content_type,operation_time) VALUES('resource',1),('content',1);").unwrap();
     ensure_main_schema(&conn).unwrap();
     ensure_main_schema(&conn).unwrap();
-    let retired: i64 = conn.query_row("SELECT COUNT(*) FROM sqlite_master WHERE name IN
-        ('resources','resource_group','resource_scan_version','idx_resources_path')", [], |r| r.get(0)).unwrap();
+    let retired: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE name IN
+        ('resources','resource_group','resource_scan_version','idx_resources_path')",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
     assert_eq!(retired, 0);
-    let content: String = conn.query_row("SELECT content FROM contents WHERE id=1", [], |r| r.get(0)).unwrap();
+    let content: String = conn
+        .query_row("SELECT content FROM contents WHERE id=1", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(content, "[{\"url\":\"/saved.png\"}]");
-    let messages: String = conn.query_row("SELECT messages FROM chat_message WHERE id=1", [], |r| r.get(0)).unwrap();
+    let messages: String = conn
+        .query_row("SELECT messages FROM chat_message WHERE id=1", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
     assert!(messages.contains("/saved.png"));
-    let operation: String = conn.query_row("SELECT operation_content_type FROM operation", [], |r| r.get(0)).unwrap();
+    let operation: String = conn
+        .query_row("SELECT operation_content_type FROM operation", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
     assert_eq!(operation, "content");
-    let blacklist: String = conn.query_row("SELECT file_name FROM resource_sync_blacklist", [], |r| r.get(0)).unwrap();
+    let blacklist: String = conn
+        .query_row("SELECT file_name FROM resource_sync_blacklist", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
     assert_eq!(blacklist, "saved.png");
 }
 
@@ -34,13 +54,22 @@ fn resource_retirement_preserves_attachments_and_repeats() {
 fn resource_retirement_failure_rolls_back() {
     let conn = Connection::open_in_memory().unwrap();
     conn.execute_batch(MAIN_SCHEMA_SQL).unwrap();
-    conn.execute_batch("CREATE TABLE resources(id INTEGER); INSERT INTO resources VALUES(42);
+    conn.execute_batch(
+        "CREATE TABLE resources(id INTEGER); INSERT INTO resources VALUES(42);
         CREATE VIEW resource_scan_version AS SELECT 1;
-        INSERT INTO operation(operation_content_type,operation_time) VALUES('resource',1);").unwrap();
+        INSERT INTO operation(operation_content_type,operation_time) VALUES('resource',1);",
+    )
+    .unwrap();
     assert!(ensure_main_schema(&conn).is_err());
-    let id: i64 = conn.query_row("SELECT id FROM resources", [], |r| r.get(0)).unwrap();
+    let id: i64 = conn
+        .query_row("SELECT id FROM resources", [], |r| r.get(0))
+        .unwrap();
     assert_eq!(id, 42);
-    let operation: String = conn.query_row("SELECT operation_content_type FROM operation", [], |r| r.get(0)).unwrap();
+    let operation: String = conn
+        .query_row("SELECT operation_content_type FROM operation", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
     assert_eq!(operation, "resource");
 }
 
@@ -69,7 +98,7 @@ fn historical_schemas_upgrade_and_repeat_without_missing_columns() {
         assert!(!needs_main_upgrade(&conn).unwrap());
         assert_eq!(
             get_meta(&conn, "main_schema_version").unwrap(),
-            Some("2".into())
+            Some("3".into())
         );
         conn.prepare("SELECT tags FROM diary_entries").unwrap();
         conn.prepare("SELECT agent_type,agent_session_id,message_schema_version,title_dirty FROM chat_message").unwrap();
@@ -82,8 +111,7 @@ fn legacy_data_keeps_ids_references_and_message_version() {
     conn.execute_batch("INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(100,11,12,'[]',8,1),(101,21,22,'[]',9,1);
         INSERT INTO daily_notes(id,date,content_id) VALUES(1,'2026-02-20',100);
         INSERT INTO diary_entries(id,type,date,content_id,word_count,create_time,update_time) VALUES(2,'weekly','2026-W08',101,9,21,22);
-        INSERT INTO chat_message(id,create_time,update_time,messages) VALUES(3,1,1,'[]');
-        INSERT INTO document_items(id,create_time,update_time,title,is_card,card_id) VALUES(4,1,1,'ref',1,90);").unwrap();
+        INSERT INTO chat_message(id,create_time,update_time,messages) VALUES(3,1,1,'[]');").unwrap();
     ensure_main_schema(&conn).unwrap();
     ensure_main_schema(&conn).unwrap();
     assert_eq!(
@@ -110,7 +138,7 @@ fn legacy_data_keeps_ids_references_and_message_version() {
     assert_eq!(
         conn.query_row("SELECT tags FROM diary_entries WHERE id=2", [], |r| r
             .get::<_, String>(0))
-        .unwrap(),
+            .unwrap(),
         "[\"周记\"]"
     );
     // 旧 entry 级标签迁移后应回填到片段上（标签绑 segment）
@@ -131,15 +159,6 @@ fn legacy_data_keeps_ids_references_and_message_version() {
         )
         .unwrap(),
         1
-    );
-    assert_eq!(
-        conn.query_row(
-            "SELECT ref_type||':'||ref_id FROM document_items WHERE id=4",
-            [],
-            |r| r.get::<_, String>(0)
-        )
-        .unwrap(),
-        "card:90"
     );
 }
 

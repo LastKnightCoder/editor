@@ -3,6 +3,8 @@ import { persist } from "zustand/middleware";
 import { produce } from "immer";
 import { v4 as uuidv4 } from "uuid";
 import type { ProjectColorName } from "@/constants/project-colors";
+import { migrateKnowledgeTab } from "@tau/db-schema/src/knowledge-navigation";
+import type { KnowledgeMapping } from "@tau/db-schema/src/knowledge-references";
 import { ITab, IPane, ITabGroup, TabType, TabParams, TAB_TITLES, PaneDirection } from "@/types/tab";
 
 interface IState {
@@ -1090,5 +1092,14 @@ const useTabStore = create<IState & IActions>()(
     }
   )
 );
+
+export function migrateKnowledgeTabs(mapping: KnowledgeMapping | null) {
+  const state = useTabStore.getState();
+  const panes = state.panes.map(pane => ({
+    ...pane,
+    tabs: pane.tabs.map(tab => migrateKnowledgeTab(tab, mapping)),
+  }));
+  useTabStore.setState(migrateTabStoreState({ ...state, panes }));
+}
 
 export default useTabStore;

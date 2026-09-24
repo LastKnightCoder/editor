@@ -5,7 +5,6 @@ export * from "./daily-note";
 export * from "./diary";
 export * from "./setting";
 export * from "./fonts";
-export * from "./document";
 export * from "./ali-oss";
 export * from "./s3";
 export * from "./webdav";

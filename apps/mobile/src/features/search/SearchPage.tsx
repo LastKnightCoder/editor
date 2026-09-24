@@ -29,7 +29,6 @@ const RESULT_TYPE_LABEL: Record<string, string> = {
   card: "卡片",
   article: "文章",
   "project-item": "项目文档",
-  "document-item": "知识库",
   "diary-daily": "日记",
 };
 

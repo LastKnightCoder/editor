@@ -22,7 +22,7 @@ import remarkPdfCitation from "@/utils/remark-pdf-citation";
 import { getRefTypeLabel, getRefTypeColor } from "@/utils";
 import useTabStore from "@/stores/useTabStore";
 import { TabType } from "@/types/tab";
-import { getProjectItemById, getRootDocumentsByDocumentItemId } from "@/commands";
+import { getProjectItemById } from "@/commands";
 import { getDiaryEntryById } from "@/commands/diary";
 import LocalImage from "@/components/LocalImage";
 import LocalImagePreviewPortal from "@/components/LocalImagePreviewPortal";
@@ -110,23 +110,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
           } catch (error) {
             console.error("Failed to get project item:", error);
             openInNewTab(TabType.ProjectList);
-          }
-        } else if (type === "document-item") {
-          // 获取知识库项所属的知识库
-          try {
-            const documents = await getRootDocumentsByDocumentItemId(id);
-            if (documents && documents.length > 0) {
-              const documentId = documents[0].id;
-              openInNewTab(TabType.DocumentDetail, {
-                id: documentId,
-                itemId: id,
-              });
-            } else {
-              openInNewTab(TabType.DocumentList);
-            }
-          } catch (error) {
-            console.error("Failed to get document:", error);
-            openInNewTab(TabType.DocumentList);
           }
         } else if (type === "diary-daily") {
           try {

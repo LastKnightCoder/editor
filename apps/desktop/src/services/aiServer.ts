@@ -718,11 +718,14 @@ const handleArticleIsContentIsArticle = async (request: RpcRequestMessage) => {
 
 const handleNoteShowInsertModal = async (request: RpcRequestMessage) => {
   const params = request.params as unknown as {
-    mode: "project" | "document";
+    mode: "project";
     sourceContentId: number;
     title?: string;
     insertMode?: "copy" | "shared-content";
   };
+  if (params.mode !== "project") {
+    throw new Error("此版本仅支持插入项目，请升级浏览器插件");
+  }
   // 确保桌面端窗口可见并聚焦
   await showAndFocusWindow();
   useExtNoteInsertStore.getState().openModal({

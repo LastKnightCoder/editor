@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { getChatContentDragReference } from "../chat-content-dnd";
 
 const reference = {
-  entityType: "document-item" as const,
+  entityType: "project-item" as const,
   entityId: 12,
   contentId: 34,
   title: "测试文档",
@@ -20,7 +20,7 @@ describe("聊天内容拖拽载荷", () => {
       getChatContentDragReference({
         itemId: 12,
         chatContentReference: reference,
-      }),
+      })
     ).toEqual(reference);
   });
 
@@ -29,7 +29,7 @@ describe("聊天内容拖拽载荷", () => {
       getChatContentDragReference({
         ...reference,
         contentId: 0,
-      }),
+      })
     ).toBeNull();
     expect(getChatContentDragReference({ itemId: 12 })).toBeNull();
   });

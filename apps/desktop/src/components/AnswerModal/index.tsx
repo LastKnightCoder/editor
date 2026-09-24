@@ -18,7 +18,6 @@ import {
   RightOutlined,
   FileTextOutlined,
   FolderOpenOutlined,
-  BookOutlined,
 } from "@ant-design/icons";
 import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import { getAnswerContentStatus } from "@/utils/answer-content";
@@ -90,9 +89,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
   const [isArticle, setIsArticle] = useState(false);
   const [direction, setDirection] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [titleModalTarget, setTitleModalTarget] = useState<
-    "article" | "project" | "document" | null
-  >(null);
+  const [titleModalTarget, setTitleModalTarget] = useState<"article" | "project" | null>(null);
 
   useEffect(() => {
     if (selectedAnswer?.id && visible) {
@@ -159,7 +156,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
     });
   });
 
-  const handleCreateTreeItem = useMemoizedFn((mode: "project" | "document", title: string) => {
+  const handleCreateTreeItem = useMemoizedFn((mode: "project", title: string) => {
     if (!selectedAnswer?.id) return;
     throttleHandleEditorContentChange.flush();
     setDropdownOpen(false);
@@ -190,7 +187,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
   const showNavigation =
     typeof currentIndex === "number" && currentIndex >= 0 && typeof total === "number" && total > 1;
 
-  const handleOpenTitleModal = useMemoizedFn((target: "article" | "project" | "document") => {
+  const handleOpenTitleModal = useMemoizedFn((target: "article" | "project") => {
     setDropdownOpen(false);
     setTitleModalTarget(target);
   });
@@ -205,7 +202,7 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
       return;
     }
 
-    handleCreateTreeItem(target === "project" ? "project" : "document", title);
+    handleCreateTreeItem("project", title);
   });
 
   // 当没有选中的答案时，不渲染 Modal 内容
@@ -303,13 +300,6 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
                       <FolderOpenOutlined className="h-4 w-4" />
                       创建项目文档
                     </button>
-                    <button
-                      onClick={() => handleOpenTitleModal("document")}
-                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-slate-300 dark:hover:bg-zinc-800"
-                    >
-                      <BookOutlined className="h-4 w-4" />
-                      创建知识库文档
-                    </button>
                   </div>
                 </>
               )}
@@ -371,27 +361,9 @@ const AnswerModal: React.FC<AnswerModalProps> = ({
         onCancel={() => setTitleModalTarget(null)}
         onConfirm={handleConfirmTitle}
         initialTitle={defaultProjectionTitle()}
-        modalTitle={
-          titleModalTarget === "article"
-            ? "创建文章"
-            : titleModalTarget === "project"
-              ? "创建项目文档"
-              : "创建知识库文档"
-        }
-        modalDescription={
-          titleModalTarget === "article"
-            ? "请输入文章标题"
-            : titleModalTarget === "project"
-              ? "请输入项目文档标题"
-              : "请输入知识库文档标题"
-        }
-        placeholder={
-          titleModalTarget === "article"
-            ? "请输入文章标题"
-            : titleModalTarget === "project"
-              ? "请输入项目文档标题"
-              : "请输入知识库文档标题"
-        }
+        modalTitle={titleModalTarget === "article" ? "创建文章" : "创建项目文档"}
+        modalDescription={titleModalTarget === "article" ? "请输入文章标题" : "请输入项目文档标题"}
+        placeholder={titleModalTarget === "article" ? "请输入文章标题" : "请输入项目文档标题"}
       />
     </CustomModal>
   );

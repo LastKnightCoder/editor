@@ -16,18 +16,16 @@ export interface StatsTotals {
   cards: number;
   articles: number;
   diaries: number;
-  /** 知识库文档条目数 / 项目文档条目数（轻表计数） */
-  documents: number;
+  /** 项目文档条目数（轻表计数） */
   projects: number;
   todoPending: number;
   focusMinutesTotal: number;
   focusSessions: number;
   wordsTotal: number;
-  /** 构成五分量（卡片/文章/项目/知识库/日记字数，wordsTotal = 五者之和） */
+  /** 构成四分量（卡片/文章/项目/日记字数，wordsTotal = 四者之和） */
   cardWords: number;
   articleWords: number;
   projectWords: number;
-  documentWords: number;
   diaryWords: number;
 }
 

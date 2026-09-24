@@ -501,7 +501,7 @@ const PublishSetting = () => {
         </div>
       </SettingSection>
 
-      <SettingSection title="发布内容" description="选择要发布的卡片、文章、项目和知识库">
+      <SettingSection title="发布内容" description="选择要发布的卡片、文章和项目">
         <PublishSelector />
       </SettingSection>
 

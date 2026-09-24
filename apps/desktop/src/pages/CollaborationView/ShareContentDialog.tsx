@@ -7,13 +7,7 @@ import useCollaborationStore from "@/stores/useCollaborationStore";
 import { getAllIndexResults } from "@/utils/search";
 import { IndexType, SearchResult } from "@/types/search";
 
-const CONTENT_TYPES: IndexType[] = [
-  "card",
-  "article",
-  "project-item",
-  "document-item",
-  "diary-daily",
-];
+const CONTENT_TYPES: IndexType[] = ["card", "article", "project-item", "diary-daily"];
 
 export default function ShareContentDialog({
   open,

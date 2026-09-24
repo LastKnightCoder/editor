@@ -1,12 +1,7 @@
 import { Descendant } from "slate";
 import type { EmbeddingProviderType } from "./embedding";
 
-export type IndexType =
-  | "card"
-  | "article"
-  | "project-item"
-  | "document-item"
-  | "diary-daily";
+export type IndexType = "card" | "article" | "project-item" | "diary-daily";
 
 export interface SearchResult {
   id: number;

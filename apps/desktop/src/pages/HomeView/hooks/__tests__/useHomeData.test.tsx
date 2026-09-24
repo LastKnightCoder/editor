@@ -5,9 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import useHomeData, { type HomeData } from "../useHomeData";
 
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock("@/commands/components-workbench", () => ({
   listTodoPreview: vi.fn(),
@@ -125,7 +123,7 @@ const mountHook = (queryClient: QueryClient) => {
       render(
         <QueryClientProvider client={queryClient}>
           <Harness />
-        </QueryClientProvider>,
+        </QueryClientProvider>
       ),
     unmount: async () => {
       await act(async () => {
@@ -169,17 +167,12 @@ const setupSuccessfulCommands = () => {
   ]);
   vi.mocked(pomodoroCommands.listPomodoroSessions).mockResolvedValue([]);
   vi.mocked(rssCommands.countUnreadRssEntries).mockResolvedValue(4);
-  vi.mocked(rssCommands.listUnreadRssEntries).mockResolvedValue([
-    { id: 1, title: "rss" } as any,
-  ]);
-  vi.mocked(rssCommands.listRssFeeds).mockResolvedValue([
-    { id: 1, title: "feed" } as any,
-  ]);
+  vi.mocked(rssCommands.listUnreadRssEntries).mockResolvedValue([{ id: 1, title: "rss" } as any]);
+  vi.mocked(rssCommands.listRssFeeds).mockResolvedValue([{ id: 1, title: "feed" } as any]);
   vi.mocked(operationCommands.getLatestOperations).mockResolvedValue({
     cards: [{ id: 1 }] as any,
     articles: [],
     projectItems: [],
-    documentItems: [],
   });
   vi.mocked(statisticCommands.getCalendarHeatmap).mockResolvedValue([
     { time: "2026-06-21", operation_list: [{ id: 1 }] } as any,
@@ -204,7 +197,7 @@ const createPomodoroSession = (
     status: "running" | "paused" | "completed" | "stopped";
     createTime: number;
     updateTime: number;
-  }> = {},
+  }> = {}
 ) => {
   const now = Date.now();
   return {
@@ -226,7 +219,7 @@ const createPomodoroSession = (
 
 const getRegisteredNotificationHandler = (method: string) => {
   const call = mockWebsocketClient.registerNotificationHandler.mock.calls.find(
-    ([registeredMethod]) => registeredMethod === method,
+    ([registeredMethod]) => registeredMethod === method
   );
   if (!call) {
     throw new Error(`Notification handler not registered: ${method}`);
@@ -247,7 +240,7 @@ const waitForLoaded = async (hook: { current: HookValue }) => {
       pendingTodos: hook.current.data.summary.pendingTodos,
       todoCalls: vi.mocked(workbenchCommands.listTodoPreview).mock.calls.length,
       rssError: hook.current.data.errors.rss?.message,
-    })}`,
+    })}`
   );
 };
 
@@ -389,9 +382,7 @@ describe("useHomeData", () => {
 
   it("收到番茄钟主进程事件时实时同步首页活动会话和统计", async () => {
     const runningSession = createPomodoroSession();
-    vi.mocked(pomodoroCommands.getActivePomodoroSession).mockResolvedValue(
-      runningSession,
-    );
+    vi.mocked(pomodoroCommands.getActivePomodoroSession).mockResolvedValue(runningSession);
 
     const queryClient = createQueryClient();
     const hook = mountHook(queryClient);
@@ -400,7 +391,7 @@ describe("useHomeData", () => {
     await waitForLoaded(hook);
 
     const handleActiveSessionChanged = getRegisteredNotificationHandler(
-      "pomodoro:active-session-changed",
+      "pomodoro:active-session-changed"
     );
     const pausedSession = createPomodoroSession({
       status: "paused",
@@ -421,9 +412,7 @@ describe("useHomeData", () => {
       count: 2,
       focusMs: 20 * 60_000,
     });
-    vi.mocked(pomodoroCommands.getActivePomodoroSession).mockResolvedValue(
-      null,
-    );
+    vi.mocked(pomodoroCommands.getActivePomodoroSession).mockResolvedValue(null);
     vi.mocked(pomodoroCommands.listPomodoroSessions).mockResolvedValue([
       createPomodoroSession({
         id: 2,
@@ -449,9 +438,7 @@ describe("useHomeData", () => {
   });
 
   it("某个 query 失败时保留其他分组数据并暴露错误", async () => {
-    vi.mocked(rssCommands.countUnreadRssEntries).mockRejectedValue(
-      new Error("rss failed"),
-    );
+    vi.mocked(rssCommands.countUnreadRssEntries).mockRejectedValue(new Error("rss failed"));
     const queryClient = createQueryClient();
     const hook = mountHook(queryClient);
 
@@ -500,9 +487,7 @@ describe("useHomeData", () => {
       content: [],
     };
 
-    vi.mocked(diaryCommands.getDiaryEntriesByDateRange).mockResolvedValue([
-      diaryEntry as any,
-    ]);
+    vi.mocked(diaryCommands.getDiaryEntriesByDateRange).mockResolvedValue([diaryEntry as any]);
     vi.mocked(diaryCommands.getAllDiarySegmentsFlat).mockResolvedValue([
       {
         ...newerSegment,
@@ -528,9 +513,7 @@ describe("useHomeData", () => {
     await hook.render();
     await waitForLoaded(hook);
 
-    expect(
-      hook.current.data.recentSegments.map((item) => item.segment.id),
-    ).toEqual([11, 10]);
+    expect(hook.current.data.recentSegments.map(item => item.segment.id)).toEqual([11, 10]);
 
     await hook.unmount();
   });

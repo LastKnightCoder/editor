@@ -37,15 +37,11 @@ vi.mock("@/utils/answer-content", () => ({
     isCard: false,
     isArticle: true,
     projectMountCount: 0,
-    documentMountCount: 0,
   })),
   getAnswerPrimaryContentType: vi.fn(() => "article"),
 }));
 
-import {
-  loadContentMarkdownPayload,
-  loadReferencedContentBase,
-} from "../content-read-utils";
+import { loadContentMarkdownPayload, loadReferencedContentBase } from "../content-read-utils";
 
 describe("content-read-utils", () => {
   it("应返回统一的 markdown 读取结果，并支持 range 截断", async () => {

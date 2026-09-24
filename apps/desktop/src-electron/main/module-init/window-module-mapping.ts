@@ -10,7 +10,6 @@ export type WindowType =
   | "card"
   | "article"
   | "project-item"
-  | "document-item"
   | "todo"
   | "question"
   | "pomodoro"
@@ -70,16 +69,6 @@ export const WINDOW_MODULE_GROUPS: Record<WindowType, ModuleGroup[]> = {
     ModuleGroup.AI,
   ],
 
-  // 文档编辑器
-  "document-item": [
-    ModuleGroup.ESSENTIAL,
-    ModuleGroup.CORE,
-    ModuleGroup.DATABASE,
-    ModuleGroup.SERVER,
-    ModuleGroup.RENDER,
-    ModuleGroup.AI,
-  ],
-
   // 任务清单窗口
   todo: [
     ModuleGroup.ESSENTIAL,
@@ -90,12 +79,7 @@ export const WINDOW_MODULE_GROUPS: Record<WindowType, ModuleGroup[]> = {
   ],
 
   // 问题管理窗口
-  question: [
-    ModuleGroup.ESSENTIAL,
-    ModuleGroup.CORE,
-    ModuleGroup.DATABASE,
-    ModuleGroup.SERVER,
-  ],
+  question: [ModuleGroup.ESSENTIAL, ModuleGroup.CORE, ModuleGroup.DATABASE, ModuleGroup.SERVER],
 
   // 番茄专注窗口
   pomodoro: [
@@ -107,34 +91,19 @@ export const WINDOW_MODULE_GROUPS: Record<WindowType, ModuleGroup[]> = {
   ],
 
   // 番茄小窗
-  "pomodoro-mini": [
-    ModuleGroup.ESSENTIAL,
-    ModuleGroup.CORE,
-    ModuleGroup.SERVER,
-  ],
+  "pomodoro-mini": [ModuleGroup.ESSENTIAL, ModuleGroup.CORE, ModuleGroup.SERVER],
 
   // 番茄沉浸模式
-  "pomodoro-immersive": [
-    ModuleGroup.ESSENTIAL,
-    ModuleGroup.CORE,
-    ModuleGroup.SERVER,
-  ],
+  "pomodoro-immersive": [ModuleGroup.ESSENTIAL, ModuleGroup.CORE, ModuleGroup.SERVER],
 
   // 快速卡片窗口
-  "quick-card": [
-    ModuleGroup.ESSENTIAL,
-    ModuleGroup.CORE,
-    ModuleGroup.DATABASE,
-    ModuleGroup.SERVER,
-  ],
+  "quick-card": [ModuleGroup.ESSENTIAL, ModuleGroup.CORE, ModuleGroup.DATABASE, ModuleGroup.SERVER],
 };
 
 /**
  * 获取窗口类型需要的模块组列表
  */
-export function getRequiredGroupsForWindow(
-  windowType: WindowType,
-): ModuleGroup[] {
+export function getRequiredGroupsForWindow(windowType: WindowType): ModuleGroup[] {
   return WINDOW_MODULE_GROUPS[windowType] || WINDOW_MODULE_GROUPS.main;
 }
 
@@ -144,9 +113,9 @@ export function getRequiredGroupsForWindow(
 export function getRequiredModulesForWindow(windowType: WindowType): string[] {
   const requiredGroups = getRequiredGroupsForWindow(windowType);
 
-  return MODULE_CONFIGS.filter((config) =>
-    requiredGroups.includes(config.group),
-  ).map((config) => config.name);
+  return MODULE_CONFIGS.filter(config => requiredGroups.includes(config.group)).map(
+    config => config.name
+  );
 }
 
 /**

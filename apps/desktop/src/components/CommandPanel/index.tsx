@@ -18,7 +18,6 @@ const ALL_PAGES = [
   { type: TabType.CardList, category: "内容", module: "card" },
   { type: TabType.ArticleList, category: "内容", module: "article" },
   { type: TabType.ProjectList, category: "内容", module: "project" },
-  { type: TabType.DocumentList, category: "内容", module: "document" },
   { type: TabType.WhiteBoardList, category: "内容", module: "whiteBoard" },
   { type: TabType.PdfList, category: "内容", module: "pdf" },
   { type: TabType.DailyNote, category: "内容", module: "dailyNote" },

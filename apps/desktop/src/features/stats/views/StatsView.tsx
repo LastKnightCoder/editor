@@ -52,9 +52,8 @@ export function StatsView() {
   const dailyAvg = trend.length > 0 ? Math.round(words / trend.length) : 0;
   const dueToday = decks.reduce((s, d) => s + d.dueCount, 0);
   const due7 = review ? review.dueBuckets.reduce((s, n) => s + n, 0) : 0;
-  // 累计条数 = 五类内容条目全口径（卡片/文章/项目文档/知识库文档/日记）
-  const totalEntries =
-    totals.cards + totals.articles + totals.projects + totals.documents + totals.diaries;
+  // 累计条数 = 四类内容条目全口径（卡片/文章/项目文档/日记）
+  const totalEntries = totals.cards + totals.articles + totals.projects + totals.diaries;
 
   return (
     <div className="@container pt-6.5 mx-auto flex h-full max-w-[1680px] flex-col gap-3 px-[34px]">
@@ -184,8 +183,7 @@ export function StatsView() {
                 <p className="text-tau-micro text-ink-3 mt-auto px-2 pt-2">
                   {totals.cards.toLocaleString("zh-CN")} 张卡片 ·{" "}
                   {totals.articles.toLocaleString("zh-CN")} 篇文章 ·{" "}
-                  {totals.projects.toLocaleString("zh-CN")} 篇项目文档 ·{" "}
-                  {totals.documents.toLocaleString("zh-CN")} 篇知识库文档 · {totals.diaries} 篇日记
+                  {totals.projects.toLocaleString("zh-CN")} 篇项目文档 · {totals.diaries} 篇日记
                 </p>
               </>
             ) : (
@@ -477,7 +475,7 @@ function RhythmNum({ value, label }: { value: string; label: string }) {
 
 /* ---------- 小工具 ---------- */
 
-/** 构成五分类（顺序即展示顺序）：卡片 → 文章 → 项目 → 知识库 → 日记 */
+/** 构成四分类（顺序即展示顺序）：卡片 → 文章 → 项目 → 日记 */
 const COMP_ROWS = [
   {
     name: "卡片",
@@ -496,12 +494,6 @@ const COMP_ROWS = [
     barClass: "bg-tag-2",
     dotClass: "bg-tag-2",
     pick: (t: StatsTotals) => t.projectWords,
-  },
-  {
-    name: "知识库",
-    barClass: "bg-tag-3",
-    dotClass: "bg-tag-3",
-    pick: (t: StatsTotals) => t.documentWords,
   },
   {
     name: "日记",
