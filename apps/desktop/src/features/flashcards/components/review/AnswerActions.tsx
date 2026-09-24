@@ -1,0 +1,32 @@
+import type { Flashcard } from "@/types";
+import { Button } from "@tau/ui";
+import { Check } from "lucide-react";
+
+import { LETTERS } from "../../reviewStyles";
+
+export function AnswerActions({ card, onSubmit }: { card: Flashcard; onSubmit(): void }) {
+  if (card.type === "single-choice" || card.type === "boolean") {
+    const last =
+      card.type === "boolean" ? "B" : LETTERS[Math.max(0, (card.data.options?.length ?? 1) - 1)];
+    return (
+      <p className="text-ink-3 text-center text-[12px]">
+        选择一项即提交 · 按 A–{last} · Space 直接看答案
+      </p>
+    );
+  }
+  return (
+    <div className="flex items-center justify-center gap-2.5">
+      {card.type !== "qa" && (
+        <Button variant="ghost" onClick={onSubmit}>
+          不会，看答案
+        </Button>
+      )}
+      <Button variant="primary" icon={card.type === "qa" ? undefined : Check} onClick={onSubmit}>
+        {card.type === "qa" ? "显示答案" : "提交"}
+        <kbd className="ml-1 rounded-[5px] bg-white/20 px-1.5 font-mono text-[11px] leading-[18px]">
+          {card.type === "qa" ? "Space" : "↵"}
+        </kbd>
+      </Button>
+    </div>
+  );
+}
