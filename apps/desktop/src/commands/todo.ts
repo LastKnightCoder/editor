@@ -27,6 +27,10 @@ export const listTodoGroups = async (): Promise<TodoGroup[]> => {
   return invoke("todo:list-groups");
 };
 
+export const listArchivedTodoGroups = async (): Promise<TodoGroup[]> => {
+  return invoke("todo:list-archived-groups");
+};
+
 export const getSystemGroups = async (): Promise<TodoGroup[]> => {
   return invoke("todo:get-system-groups");
 };

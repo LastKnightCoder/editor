@@ -61,11 +61,16 @@ export function initScrollbarAutoHide(owner: Document = document): () => void {
     }, HIDE_DELAY_MS);
   };
 
-  /** 从事件目标向上找最近的可滚祖先（含自身） */
+  /** 从事件目标向上找最近的可滚祖先（含自身）：纵向或横向可滚都算——横向滚动条同样
+   *  hover 才显形，不识别横向会让无触控板的用户找不到可拖的滚动条 */
   const findScrollable = (from: Element | null): Element | null => {
+    const scrolls = (overflow: string) => overflow === "auto" || overflow === "scroll";
     for (let el = from; el && el !== document.documentElement; el = el.parentElement) {
-      const { overflowY } = getComputedStyle(el);
-      if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight) {
+      const { overflowX, overflowY } = getComputedStyle(el);
+      if (
+        (scrolls(overflowY) && el.scrollHeight > el.clientHeight) ||
+        (scrolls(overflowX) && el.scrollWidth > el.clientWidth)
+      ) {
         return el;
       }
     }

@@ -42,6 +42,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--dir", "apps/desktop", "showcase"],
       "port": 6199
+    },
+    {
+      "name": "mockups",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["-y", "serve", "apps/desktop/mockups", "-l", "6211"],
+      "port": 6211
     }
   ]
 }
