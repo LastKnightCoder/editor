@@ -255,7 +255,7 @@ function RecurrenceEditor({
                 max={99}
                 value={recurrence.interval || 1}
                 onValueChange={v => v != null && v >= 1 && save({ interval: v })}
-                className="w-[64px]"
+                wrapperClassName="w-[64px] flex-none"
               />
             )}
             <Segmented
@@ -315,7 +315,7 @@ function RecurrenceEditor({
                 max={31}
                 value={recurrence.monthDay ?? start.getDate()}
                 onValueChange={v => v != null && v >= 1 && v <= 31 && save({ monthDay: v })}
-                className="w-[64px]"
+                wrapperClassName="w-[64px] flex-none"
               />
               <span className="text-ink-3">号</span>
             </div>
