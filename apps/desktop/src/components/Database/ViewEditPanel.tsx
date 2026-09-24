@@ -253,10 +253,9 @@ const ViewEditPanel: React.FC<ViewEditPanelProps> = memo(
     return (
       <div
         style={{
-          width: "min(380px, calc(100vw - 32px))",
           maxHeight: "min(85vh, 780px)",
         }}
-        className="flex flex-col gap-4 overflow-hidden p-5 pt-4"
+        className="flex w-full min-w-0 flex-col gap-4 overflow-hidden p-5 pt-4"
       >
         <div className="min-h-0 space-y-4 overflow-y-auto pr-1">
           {/* Title */}

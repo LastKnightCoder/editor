@@ -90,7 +90,7 @@ const TableProjectItemView = memo((props: { projectItemId: number }) => {
         />
       </div>
 
-      <div className="min-h-0 flex-1 px-4">
+      <div className="min-h-0 flex-1 px-4 pb-4">
         <Database
           key={`${table.id}-${activeView.id}`}
           columns={table.columns as ColumnDef[]}

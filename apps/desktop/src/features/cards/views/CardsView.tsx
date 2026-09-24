@@ -192,7 +192,7 @@ export function CardsView() {
           tags: [],
           links: [],
           category:
-            filter.category === "all"
+            view === "database" || filter.category === "all"
               ? ECardCategory.Temporary
               : (filter.category as ECardCategory),
           count: getContentLength(content),
@@ -252,49 +252,49 @@ export function CardsView() {
         </Button>
       </div>
 
-      {/* 筛选行：树收起切换 + 分类 chips（视图切换在标题栏面包屑） */}
-      <div className="flex h-[36px] flex-none items-center gap-1.5 pb-1.5">
-        {view !== "database" && (
+      {/* 卡片墙与图谱的筛选行；数据库使用内置筛选。 */}
+      {view !== "database" && (
+        <div className="flex h-[36px] flex-none items-center gap-1.5 pb-1.5">
           <IconButton
             title={treeCollapsed ? "展开标签树" : "收起标签树"}
             onClick={() => updatePreferences(databaseName, { treeCollapsed: !treeCollapsed })}
           >
             <PanelLeft className="size-[15px]" strokeWidth={1.75} />
           </IconButton>
-        )}
-        {CATEGORY_ORDER.map(key => {
-          const active = filter.category === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setFilter(prev => ({ ...prev, category: key }))}
-              className={cn(
-                "shadow-card ease-tau-out flex h-7 items-center gap-1.5 rounded-full px-3 text-[12.5px] transition-[background,color] duration-150",
-                active
-                  ? "bg-selected text-ink-1 font-semibold"
-                  : "bg-surface text-ink-2 hover:text-ink-1"
-              )}
-            >
-              {key !== "all" && (
-                <span
-                  className="size-2 shrink-0 rounded-full"
-                  style={{ background: CATEGORY_COLORS[key].text }}
-                />
-              )}
-              {key === "all" ? "全部" : cardCategoryName[key].slice(0, 2)}
-              <span
+          {CATEGORY_ORDER.map(key => {
+            const active = filter.category === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFilter(prev => ({ ...prev, category: key }))}
                 className={cn(
-                  "text-[11px] tabular-nums",
-                  active ? "text-accent-text" : "text-ink-3"
+                  "shadow-card ease-tau-out flex h-7 items-center gap-1.5 rounded-full px-3 text-[12.5px] transition-[background,color] duration-150",
+                  active
+                    ? "bg-selected text-ink-1 font-semibold"
+                    : "bg-surface text-ink-2 hover:text-ink-1"
                 )}
               >
-                {key === "all" ? feed.cards.length : (categoryCount.get(key) ?? 0)}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+                {key !== "all" && (
+                  <span
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ background: CATEGORY_COLORS[key].text }}
+                  />
+                )}
+                {key === "all" ? "全部" : cardCategoryName[key].slice(0, 2)}
+                <span
+                  className={cn(
+                    "text-[11px] tabular-nums",
+                    active ? "text-accent-text" : "text-ink-3"
+                  )}
+                >
+                  {key === "all" ? feed.cards.length : (categoryCount.get(key) ?? 0)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* 主体三视图 */}
       {view === "wall" && (
@@ -338,8 +338,7 @@ export function CardsView() {
         <div className="flex min-h-0 flex-1 flex-col">
           <CardDatabaseView
             cards={sorted}
-            tag={filter.tag}
-            selectCategory={filter.category}
+            selectCategory="all"
             onCardClick={card => setPreviewCardId(card.id)}
             onOpenCreateCard={defaultCategory => {
               setCreateDefaultCategory(defaultCategory);
@@ -366,7 +365,9 @@ export function CardsView() {
         open={creating}
         defaultCategory={
           createDefaultCategory ??
-          (filter.category === "all" ? ECardCategory.Temporary : (filter.category as ECardCategory))
+          (view === "database" || filter.category === "all"
+            ? ECardCategory.Temporary
+            : (filter.category as ECardCategory))
         }
         onClose={() => {
           setCreating(false);

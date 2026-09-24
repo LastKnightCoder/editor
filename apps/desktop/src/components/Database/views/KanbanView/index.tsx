@@ -6,7 +6,7 @@ import { RowData, ColumnDef, CellValue, SelectOption, DatabaseConfig } from "../
 import KanbanColumn from "./KanbanColumn";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
-import { ConfirmDialog } from "@tau/ui";
+import { cn, ConfirmDialog } from "@tau/ui";
 import { v4 as uuidv4 } from "uuid";
 import { resolveKanbanCardDisplay } from "./cardDisplayConfig";
 interface KanbanViewProps {
@@ -238,8 +238,18 @@ const KanbanView: React.FC<KanbanViewProps> = memo(
     return (
       <div className="flex h-full w-full flex-col">
         {/* 看板列容器 */}
-        <div className="flex-1 overflow-x-auto overflow-y-hidden" ref={scrollParentRef}>
-          <div className="flex h-full gap-4 p-4">
+        {/* 横向滚动条常显：全局滚动条样式（@tau/ui styles.css）未分层且滑块默认透明，只在纵向
+            可滚容器上自动显形，横向看板永远不显形，故用 important 覆盖。轨道左右让出卡片内边距，
+            容器底部留白让滚动条不贴卡片底边 */}
+        <div
+          className={cn(
+            "mb-2.5 min-h-0 flex-1 overflow-x-auto overflow-y-hidden",
+            "[&::-webkit-scrollbar]:h-1! [&::-webkit-scrollbar-track]:mx-4",
+            "[&::-webkit-scrollbar-thumb]:bg-track! [&::-webkit-scrollbar-thumb:hover]:bg-sunken! [&::-webkit-scrollbar-thumb]:rounded-full!"
+          )}
+          ref={scrollParentRef}
+        >
+          <div className="flex h-full w-max gap-2 px-2 pb-2 pt-3">
             {groupedData.map((group, index) => (
               <KanbanColumn
                 key={group.value == null ? "__uncategorized__" : String(group.value)}
