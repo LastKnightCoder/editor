@@ -35,13 +35,17 @@ export function GroupPills({
   onRestore(group: TodoGroup): void;
 }) {
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const [overflowing, setOverflowing] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
-  /* 右缘渐隐条件：还有未滚到的内容（初始测一次 + 滚动/尺寸变化重测） */
+  /* 是否溢出 + 右缘渐隐条件：还有未滚到的内容（初始测一次 + 滚动/尺寸变化重测） */
   useLayoutEffect(() => {
     const el = scrollEl;
     if (!el) return;
-    const measure = () => setCanScrollRight(el.scrollWidth - el.scrollLeft - el.clientWidth > 8);
+    const measure = () => {
+      setOverflowing(el.scrollWidth > el.clientWidth);
+      setCanScrollRight(el.scrollWidth - el.scrollLeft - el.clientWidth > 8);
+    };
     measure();
     el.addEventListener("scroll", measure, { passive: true });
     const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
@@ -62,10 +66,15 @@ export function GroupPills({
 
   return (
     <div className="flex h-9 flex-none items-center gap-1.5 pb-1">
-      {/* py-1：给 pill 的 shadow-card 留出不被横向滚动裁掉的空间 */}
+      {/* py-1：给 pill 的 shadow-card 留出不被横向滚动裁掉的空间；
+          溢出时出现的横向滚动条（全局 6px，占位）压在底部：顶部补等高留白，pills 仍与「＋」对齐居中
+          （多出的高度上溢进快速添加栏的 mb-3、下溢进看板的 pt-1，行高不变） */}
       <div
         ref={setScrollEl}
-        className="flex min-w-0 items-center gap-1.5 overflow-x-auto py-1"
+        className={cn(
+          "flex min-w-0 items-center gap-1.5 overflow-x-auto pb-1",
+          overflowing ? "pt-2.5" : "pt-1"
+        )}
         style={fadeMask}
       >
         <Pill active={value === 0} onClick={() => onChange(0)} label="全部" count={totalOpen} />
