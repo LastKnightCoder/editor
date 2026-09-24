@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>通知 · Notification 三方案</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-surface-hover: #f6f3ef; --bg-sunken: #e7dbc8; --bg-track: #e0d6c3;
+    --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09); --bg-selected: rgba(217, 119, 87, 0.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+    --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%); --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+    --ok: #61795f; --danger: #b0564d; --danger-soft: #f6e3e0;
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --shadow-lift: 0 1px 2px rgba(120, 100, 70, 0.06), 0 6px 16px -10px rgba(120, 100, 70, 0.22);
+    --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .dark {
+    --bg-page: #221d16; --bg-surface: #2e2820; --bg-surface-hover: #39332b; --bg-sunken: #100d08; --bg-track: #463d31;
+    --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11); --bg-selected: hsla(22, 62%, 65%, 0.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+    --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+    --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%); --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+    --focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+    --ok: #8cab87; --danger: #d97e66; --danger-soft: #34201a;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+    --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #e8e1d1; color: #43392c;
+    font: 14px/1.6 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 36px 3vw 80px;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  svg.i { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* ---------- 说明区 ---------- */
+  .intro { max-width: 1180px; }
+  .intro h1 { font-size: 22px; font-weight: 600; }
+  .intro .lead { color: #6a5c49; margin-top: 6px; font-size: 13.5px; max-width: 100ch; }
+  .intro h3 { font-size: 14.5px; font-weight: 600; margin: 22px 0 6px; display: flex; gap: 8px; align-items: baseline; }
+  .intro h3 small { font: 400 11.5px var(--mono); color: #a89a85; }
+  .intro ul { color: #6a5c49; font-size: 13px; margin: 4px 0 0 18px; max-width: 110ch; }
+  .intro li { margin-top: 3px; } .intro b { color: #43392c; font-weight: 600; }
+  .intro code { font: 12px var(--mono); background: rgba(255,253,249,.7); border-radius: 5px; padding: 0 5px; }
+  .note-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 10px; }
+  .note { background: #fffdf9; border-radius: 14px; box-shadow: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18); padding: 14px 16px; font-size: 12.5px; color: #6a5c49; }
+  .note h4 { font-size: 13.5px; font-weight: 600; color: #43392c; margin-bottom: 6px; display: flex; gap: 8px; align-items: center; }
+  .note .rec { font-size: 11px; font-weight: 500; color: #a05236; background: hsla(22,58%,42%,.12); border-radius: 99px; padding: 0 8px; }
+  .note dl { margin-top: 8px; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; }
+  .note dt { color: #a89a85; } .note dd { color: #43392c; }
+
+  .switch { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 26px 0 10px; font-size: 12.5px; color: #6a5c49; }
+  .switch + .switch { margin-top: 0; }
+  .switch .lab { margin-right: 2px; min-width: 30px; }
+  .switch .sep { width: 14px; }
+  .switch button { padding: 4px 12px; border-radius: 99px; background: rgba(255,253,249,.6); }
+  .switch button:hover { background: rgba(255,253,249,.95); }
+  .switch button.on { background: #43392c; color: #fff8ef; }
+  .plan-note { font-size: 12.5px; color: #6a5c49; margin: 4px 0 12px; min-height: 20px; }
+  .plan-note b { color: #43392c; font-weight: 600; }
+
+  /* ---------- 窗口骨架（融合壳层） ---------- */
+  .win { height: 700px; border-radius: 14px; overflow: hidden; background: var(--bg-page); color: var(--ink-1); position: relative;
+    box-shadow: 0 2px 6px rgba(67,57,44,.08), 0 20px 50px rgba(67,57,44,.12); display: flex; font-size: 13px; }
+  .appnav { width: 184px; flex: none; padding: 12px 10px; color: var(--ink-2); font-size: 12.5px; display: flex; flex-direction: column; }
+  .appnav .dots { display: flex; gap: 7px; padding: 4px 6px 14px; } .appnav .dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--bg-track); }
+  .appnav .grp { font-size: 11px; color: var(--ink-3); margin: 12px 8px 3px; }
+  .appnav .it { padding: 5px 8px; border-radius: 7px; display: flex; gap: 9px; align-items: center; position: relative; }
+  .appnav .it.on { background: var(--bg-selected); color: var(--ink-1); font-weight: 500; }
+  .appnav .it.on::before { content: ""; position: absolute; left: -10px; top: 7px; bottom: 7px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); }
+  .right { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .titlebar { height: 42px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 12px 0 8px; color: var(--ink-3); position: relative; }
+  .titlebar .nb { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; }
+  .titlebar .crumb { font-size: 12.5px; margin-left: 4px; } .titlebar .crumb b { color: var(--ink-1); font-weight: 500; }
+  .titlebar .search { margin-left: auto; height: 26px; width: 220px; border-radius: 8px; background: var(--bg-hover); display: flex; align-items: center; gap: 7px; padding: 0 9px; font-size: 12px; }
+  .titlebar .search kbd { margin-left: auto; }
+  .page { flex: 1; min-height: 0; display: flex; padding: 2px 20px 16px 8px; gap: 16px; }
+  .panel { background: var(--bg-surface); border-radius: 16px; box-shadow: var(--shadow-card); min-height: 0; }
+  kbd { font: 10.5px var(--mono); color: var(--ink-3); background: var(--bg-hover); border-radius: 4px; padding: 0 4px; }
+
+  /* 背景页：骨架行（不造假数据，只给通知一个真实的"压在内容上"的环境） */
+  .bgpage { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+  .bgpage h2 { font-size: 20px; font-weight: 600; padding: 6px 2px 0; }
+  .bgpage .row2 { flex: 1; display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; min-height: 0; }
+  .bgpage .panel { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .sk { height: 10px; border-radius: 99px; background: var(--bg-hover); }
+  .sk.t { height: 13px; width: 38%; background: var(--bg-press); }
+  .skrow { display: flex; gap: 12px; align-items: center; } .skrow .sq { width: 30px; height: 30px; border-radius: 9px; background: var(--bg-hover); flex: none; }
+  .skrow .col { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+
+  /* ---------- 通用控件 ---------- */
+  .btn { height: 26px; padding: 0 11px; border-radius: 8px; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; transition: background .16s; }
+  .btn.sec { background: var(--bg-surface); box-shadow: 0 0 0 1px var(--line-1) inset; }
+  .btn.sec:hover { background: var(--bg-surface-hover); }
+  .btn.pri { background: var(--accent); color: var(--ink-inverse); }
+  .btn.pri:hover { background: var(--accent-hover); }
+  .btn.ghost { color: var(--ink-2); padding: 0 8px; } .btn.ghost:hover { background: var(--bg-hover); }
+  .btn[aria-busy="true"] { pointer-events: none; opacity: .85; }
+  .btn:focus-visible, .ib:focus-visible, .bell:focus-visible, .island:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+  .ib { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: var(--ink-3); transition: background .16s, opacity .16s; flex: none; }
+  .ib:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .ib svg.i { width: 13px; height: 13px; }
+  .spin { animation: spin .8s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- 通知卡（三案共用内容结构） ---------- */
+  .nc { width: 340px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 14px; box-shadow: var(--shadow-float);
+    padding: 10px 12px 12px 14px; font-size: 12.5px; color: var(--ink-1); }
+  .nh { display: flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 11.5px; height: 22px; }
+  .nh .src { display: flex; gap: 6px; align-items: center; }
+  .nh .src svg.i { width: 13px; height: 13px; }
+  .tone-ok .nh .src svg.i { color: var(--ok); } .tone-danger .nh .src svg.i { color: var(--danger); }
+  .nh .tm { margin-left: auto; font: 11px var(--mono); }
+  .nh .x { opacity: 0; } .nc:hover .x, .nc:focus-within .x, .row:hover .x, .row:focus-within .x { opacity: 1; }
+  .nt { font-size: 13.5px; font-weight: 600; margin-top: 2px; line-height: 1.45; }
+  .nbd { color: var(--ink-2); margin-top: 2px; line-height: 1.55; }
+  .na { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
+  .resolved { display: flex; align-items: center; gap: 8px; color: var(--ink-2); min-height: 22px; }
+  .resolved svg.i { color: var(--ok); width: 14px; height: 14px; }
+
+  /* 进退场（三案共用口径：浮层同一语言，200ms ease-out） */
+  .fx { transition: transform .24s var(--ease), opacity .2s var(--ease); }
+
+  /* ---------- 方案 A：通知卡栈 ---------- */
+  .stackA { position: absolute; top: 48px; right: 14px; width: 340px; bottom: 14px; pointer-events: none; z-index: 20; }
+  .stackA .nc { position: absolute; left: 0; top: 0; pointer-events: auto; transform-origin: 50% 0; }
+  .stackA .nc.layer { cursor: pointer; }
+  .stackA .nc.layer > * { visibility: hidden; }
+  .stackA .more { position: absolute; left: 50%; pointer-events: auto; transform: translateX(-50%); font-size: 11.5px; color: var(--ink-2);
+    background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 99px; padding: 2px 10px; box-shadow: var(--shadow-lift);
+    display: flex; gap: 10px; transition: opacity .16s, top .24s var(--ease); white-space: nowrap; }
+  .stackA .more button:hover { color: var(--ink-1); }
+
+  /* ---------- 方案 B：铃铛 + 收件箱 ---------- */
+  .bell { position: relative; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); transition: background .16s; }
+  .bell:hover, .bell.open { background: var(--bg-hover); color: var(--ink-1); }
+  .bell .badge { position: absolute; top: 1px; right: 0; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 99px; background: var(--accent);
+    color: var(--ink-inverse); font: 600 9.5px/15px var(--mono); text-align: center; box-shadow: 0 0 0 2px var(--bg-page); transition: transform .2s var(--ease); }
+  .bell .badge.bump { transform: scale(1.3); }
+  .popB { position: absolute; top: 46px; right: 12px; z-index: 20; }
+  .popB .nc { transform-origin: calc(100% - 22px) -10px; }
+  .inbox { position: absolute; top: 46px; right: 12px; width: 372px; max-height: 520px; z-index: 30; display: flex; flex-direction: column;
+    background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 16px; box-shadow: var(--shadow-float);
+    transform-origin: calc(100% - 22px) 0; }
+  .inbox .hd { display: flex; align-items: center; gap: 8px; padding: 12px 12px 6px 16px; }
+  .inbox .hd b { font-size: 14px; font-weight: 600; } .inbox .hd small { font: 11px var(--mono); color: var(--ink-3); }
+  .inbox .hd .btn { margin-left: auto; }
+  .inbox .bd { overflow: auto; padding: 2px 6px 8px; scrollbar-width: none; }
+  .inbox .gl { font-size: 11.5px; color: var(--ink-3); padding: 10px 10px 4px; display: flex; gap: 6px; }
+  .row { position: relative; padding: 8px 10px 9px; border-radius: 10px; transition: background .16s; }
+  .row:hover { background: var(--bg-hover); }
+  .row .nt { font-size: 13px; }
+  .row .na { margin-top: 8px; }
+  .row .ud { position: absolute; left: -1px; top: 16px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+  .empty { color: var(--ink-3); font-size: 12.5px; text-align: center; padding: 34px 0 30px; }
+
+  /* ---------- 方案 C：标题栏岛 ---------- */
+  .islandSlot { position: absolute; left: 50%; top: 7px; transform: translateX(-50%); z-index: 25; display: flex; flex-direction: column; align-items: center; }
+  .island { height: 28px; max-width: 0; opacity: 0; overflow: hidden; display: flex; align-items: center; gap: 7px; padding: 0 10px 0 10px; border-radius: 99px;
+    background: var(--bg-surface); box-shadow: 0 0 0 1px var(--line-1) inset, var(--shadow-lift); color: var(--ink-1); font-size: 12.5px; white-space: nowrap;
+    transition: max-width .32s var(--ease), opacity .2s var(--ease), background .16s; }
+  .island.show { max-width: 320px; opacity: 1; }
+  .island:hover, .island.pinned { background: var(--bg-surface-hover); }
+  .island .src { display: flex; align-items: center; color: var(--ink-3); } .island .src svg.i { width: 13px; height: 13px; }
+  .island.tone-ok .src { color: var(--ok); } .island.tone-danger .src { color: var(--danger); }
+  .island .pd { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
+  .island .tt { overflow: hidden; text-overflow: ellipsis; max-width: 220px; font-weight: 500; }
+  .island .cnt { font: 10.5px var(--mono); color: var(--ink-2); background: var(--bg-hover); border-radius: 99px; padding: 0 6px; }
+  .panelC { position: absolute; top: 40px; width: 380px; max-height: 520px; overflow: auto; scrollbar-width: none; padding: 6px;
+    background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 16px; box-shadow: var(--shadow-float); transform-origin: 50% 0; }
+  .panelC .ft { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px 2px 10px; font-size: 11.5px; color: var(--ink-3); }
+
+  /* 对照：Toast 胶囊（已定稿形制） */
+  .toast { position: absolute; left: 50%; z-index: 40; display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 15px; border-radius: 99px;
+    background: var(--bg-surface); border: 1px solid var(--line-1); box-shadow: var(--shadow-float); font-size: 12px; color: var(--ink-1); white-space: nowrap; }
+  .toast svg.i { color: var(--ok); }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>通知 · Notification 三方案</h1>
+  <p class="lead">
+    Toast 和 Notification 的分工：<b>Toast 是「你刚做了什么」的回执</b>，一句话、自动消失、不需要作答（已保存 / 已删除 · 撤销）。
+    <b>Notification 是「不是你当下操作引发的事」</b>，来自协作者、应用更新或后台任务，要有来源、标题、说明，常常需要你<b>作答</b>。
+    三个方案共用同一套内容和作答行为，差别在<b>承载模型</b>：通知出现在哪、停留多久、没来得及处理的通知去了哪里。
+  </p>
+
+  <h3>三案共用契约 <small>content · behavior</small></h3>
+  <ul>
+    <li><b>内容结构</b>：来源行（中性图标 + 来源 + 相对时间 + 悬停才出现的 ×）→ 标题 13.5/600 → 说明 ink-2 → 最多 2 个动作，主按钮在最右。无图标头，不用色块。</li>
+    <li><b>色彩只表意</b>：语义色只落在来源图标上（发布成功 ok、发布失败 danger），卡片本体一律 surface + line-1 + shadow-float，与 Toast / Popover / Dialog 是同一浮层语言。</li>
+    <li><b>停留</b>：需作答的通知（加入申请、新版本、发布失败）常驻到有答案为止；纯告知的通知（发布完成）8 秒后消失，悬停时暂停计时。</li>
+    <li><b>作答</b>：点主按钮后转圈（aria-busy），完成后卡片收成一行结果（例如「已同意…」），1.6 秒后退场；失败时在卡内显示错误，不另弹 Toast。</li>
+    <li><b>不抢焦点</b>：<code>role="status"</code> + <code>aria-live="polite"</code>，出现时不移走输入焦点；通知不处理 Esc（它不阻断操作），只有展开的面板响应 Esc。</li>
+    <li><b>API 草案</b>：<code>notify({ source, title, body, tone, actions, sticky })</code> 返回 <code>{ update, resolve, dismiss }</code>；异步作答可以直接写 <code>actions: [{ label, onClick: () =&gt; promise }]</code>，busy 和结果行由组件托管。</li>
+  </ul>
+
+  <div class="note-grid">
+    <div class="note">
+      <h4>A · 通知卡栈</h4>
+      沿用现有「加入申请」卡片的做法，推广成全局组件：右上角直接弹出完整卡片，新的在上，最多展开 3 张，更多的层叠在后面。
+      <dl><dt>位置</dt><dd>内容区右上，标题栏下方</dd><dt>多条</dt><dd>3 张展开 + 最多 2 层叠影，点击叠影展开全部</dd>
+      <dt>错过</dt><dd>需作答的一直留在栈里，没有历史记录</dd><dt>代价</dt><dd>常驻卡片长期压住右上角内容，打扰最大</dd></dl>
+    </div>
+    <div class="note">
+      <h4>B · 弹出一次 + 通知中心 <span class="rec">推荐</span></h4>
+      通知从标题栏的铃铛下方弹出，停留 5 秒后缩回铃铛，未读数挂在铃铛上。点击铃铛打开通知中心，按「待处理 / 其他」两组列出，可以直接作答。
+      <dl><dt>位置</dt><dd>标题栏右侧铃铛（全局唯一入口）</dd><dt>多条</dt><dd>只弹一张，新的来了旧的先缩回</dd>
+      <dt>错过</dt><dd>都在通知中心里，待处理的一直保留</dd><dt>代价</dt><dd>标题栏多一个常驻按钮，实现需要一个持久化的收件箱 store</dd></dl>
+    </div>
+    <div class="note">
+      <h4>C · 标题栏岛</h4>
+      不在内容区上方浮卡片。通知以胶囊形式长在标题栏正中，显示最新一条和计数；悬停或点击后，从胶囊下方展开完整卡片列表。
+      <dl><dt>位置</dt><dd>标题栏正中（和壳层融为一体）</dd><dt>多条</dt><dd>胶囊显示最新一条和「+N」，展开后看全部</dd>
+      <dt>错过</dt><dd>待处理的一直留在胶囊里；纯告知的消失后找不回</dd><dt>代价</dt><dd>最安静但最容易被忽略；Toast 要从顶部中间移到底部中间，给胶囊让位</dd></dl>
+    </div>
+  </div>
+</div>
+
+<div class="switch" id="swPlan"><span class="lab">方案</span></div>
+<div class="switch" id="swFire"><span class="lab">触发</span></div>
+<div class="plan-note" id="planNote"></div>
+
+<div class="win" id="win">
+  <nav class="appnav" id="appnav"></nav>
+  <div class="right">
+    <div class="titlebar" id="titlebar">
+      <button class="nb"><svg class="i"><use href="#i-l"/></svg></button>
+      <button class="nb"><svg class="i"><use href="#i-r"/></svg></button>
+      <span class="crumb"><b>今日</b></span>
+      <div class="search"><svg class="i" style="width:13px;height:13px"><use href="#i-search"/></svg>搜索或输入命令<kbd>⌘K</kbd></div>
+      <span id="bellSlot"></span>
+    </div>
+    <div class="page">
+      <div class="bgpage">
+        <h2>今日</h2>
+        <div class="row2">
+          <div class="panel" id="skA"></div>
+          <div class="panel" id="skB"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="layer"></div>
+</div>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m8.5 12 2.5 2.5 4.5-5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+    <symbol id="i-loader" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></symbol>
+    <symbol id="i-dot" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></symbol>
+  </defs>
+</svg>
+
+<script>
+const ic = (n, style = "") => `<svg class="i" style="${style}"><use href="#i-${n}"/></svg>`;
+const $ = s => document.querySelector(s);
+const win = $("#win"), layer = $("#layer");
+
+/* =============== 场景（来自现有真实通知来源） =============== */
+const KINDS = {
+  join: { src: "协作", icon: "users", title: "林然申请加入协作", body: "「设计周刊 · 第 12 期」· 请求编辑权限", sticky: true,
+    actions: [["拒绝", "sec", "reject"], ["同意", "pri", "approve"]] },
+  update: { src: "应用更新", icon: "down", title: "发现新版本 v3.3.0", body: "Tau v3.3.0 已发布，建议更新到最新版本。", sticky: true,
+    actions: [["稍后", "ghost", "dismiss"], ["前往更新", "pri", "goto"]] },
+  pubok: { src: "发布", icon: "check", tone: "ok", title: "站点已发布", body: "128 篇文章 · 用时 42 秒", sticky: false,
+    actions: [["查看站点", "sec", "dismiss"]] },
+  pubfail: { src: "发布", icon: "alert", tone: "danger", title: "发布失败", body: "3 篇文章的图片上传超时，其余内容未改动。", sticky: true,
+    actions: [["查看详情", "ghost", "dismiss"], ["重试", "pri", "retry"]] },
+};
+const AUTO_MS = 8000;
+
+/* =============== 状态 =============== */
+const S = { plan: "B", seq: 0, list: [] }; // list：新的在前
+const now = () => Date.now();
+const ago = t => { const m = Math.floor((now() - t) / 60000); return m < 1 ? "刚刚" : m < 60 ? `${m} 分钟前` : m < 1440 ? `${Math.floor(m / 60)} 小时前` : "昨天"; };
+const byId = id => S.list.find(n => n.id === id);
+
+function makeN(kind, at = now(), extra = {}) {
+  return { id: ++S.seq, kind, at, read: false, busy: null, resolved: null, ...extra };
+}
+
+/* =============== 卡片内容（三案共用） =============== */
+function inner(n, { row = false } = {}) {
+  const k = KINDS[n.kind];
+  if (n.resolved) return `<div class="resolved">${ic("check")}${n.resolved}</div>`;
+  const acts = k.actions.map(([l, v, a]) =>
+    `<button class="btn ${v}" data-act="${a}" ${n.busy === a ? 'aria-busy="true"' : ""}>${n.busy === a ? ic("loader", "width:12px;height:12px", ) .replace('class="i"', 'class="i spin"') : ""}${l}</button>`).join("");
+  return `<div class="nh"><span class="src">${ic(k.icon)}${k.src}</span><span class="tm">${ago(n.at)}</span>
+      <button class="ib x" data-act="dismiss" aria-label="关闭">${ic("x")}</button></div>
+    <div class="nt">${k.title}</div><div class="nbd">${k.body}</div>
+    ${row && !k.sticky ? "" : `<div class="na">${acts}</div>`}`;
+}
+const toneCls = n => (KINDS[n.kind].tone ? `tone-${KINDS[n.kind].tone}` : "");
+
+/* =============== 作答（三案共用） =============== */
+function act(id, a) {
+  const n = byId(id); if (!n || n.busy) return;
+  if (a === "dismiss") return remove(id);
+  if (a === "goto") { flash("（演示）打开设置 · 应用更新"); return remove(id); }
+  if (a === "reject") return resolve(id, "已拒绝林然的加入申请");
+  if (a === "approve") { n.busy = a; P().refresh(id); setTimeout(() => { n.busy = null; resolve(id, "已同意林然加入协作"); }, 900); return; }
+  if (a === "retry") { n.busy = a; P().refresh(id);
+    setTimeout(() => { n.busy = null; n.kind = "pubok"; n.at = now(); n.read = false; P().refresh(id); P().retimer?.(id); }, 1300); }
+}
+function resolve(id, text) {
+  const n = byId(id); if (!n) return;
+  n.resolved = text; P().refresh(id);
+  setTimeout(() => remove(id), 1600);
+}
+function remove(id) {
+  const i = S.list.findIndex(n => n.id === id); if (i < 0) return;
+  S.list.splice(i, 1); P().removed(id);
+}
+function push(kind) {
+  const n = makeN(kind); S.list.unshift(n); P().added(n);
+}
+let flashT;
+function flash(t) { const el = $("#planNote"); el.innerHTML = `<b>${t}</b>`; clearTimeout(flashT); flashT = setTimeout(renderNote, 1800); }
+
+/* 自动消失 + 悬停冻结（纯告知类） */
+function autoTimer(el, n, ms, onDone) {
+  if (KINDS[n.kind].sticky) return;
+  let remain = ms, t0 = now(), t = setTimeout(onDone, remain);
+  el.addEventListener("mouseenter", () => { clearTimeout(t); remain -= now() - t0; });
+  el.addEventListener("mouseleave", () => { t0 = now(); t = setTimeout(onDone, Math.max(remain, 600)); });
+  el._stop = () => clearTimeout(t);
+}
+function bindActs(root, id) {
+  root.querySelectorAll("[data-act]").forEach(b => b.onclick = e => { e.stopPropagation(); act(id, b.dataset.act); });
+}
+
+/* =============== 方案 A：通知卡栈 =============== */
+const PlanA = {
+  el: null, els: new Map(), expanded: false,
+  mount() {
+    layer.innerHTML = `<div class="stackA" id="stackA" role="region" aria-label="通知"></div>`;
+    this.el = $("#stackA"); this.els.clear(); this.expanded = false;
+    this.el.onmouseleave = () => { if (this.expanded) { this.expanded = false; this.layout(); } };
+    [...S.list].reverse().forEach(n => this.added(n, true));
+  },
+  card(n) {
+    const el = document.createElement("div");
+    el.className = `nc fx ${toneCls(n)}`; el.setAttribute("role", "status"); el.setAttribute("aria-live", "polite");
+    el.innerHTML = inner(n); bindActs(el, n.id);
+    el.onclick = () => { if (el.classList.contains("layer")) { this.expanded = true; this.layout(); } };
+    return el;
+  },
+  added(n, instant) {
+    const el = this.card(n); this.els.set(n.id, el);
+    el.style.opacity = 0; el.style.transform = "translateY(-10px) scale(.98)";
+    this.el.appendChild(el);
+    autoTimer(el, n, AUTO_MS, () => remove(n.id));
+    requestAnimationFrame(() => requestAnimationFrame(() => this.layout()));
+    if (instant) this.layout();
+  },
+  refresh(id) { const n = byId(id), el = this.els.get(id); if (!el) return; el.className = `nc fx ${toneCls(n)}`; el.innerHTML = inner(n); bindActs(el, id); this.layout(); },
+  retimer(id) { const el = this.els.get(id); autoTimer(el, byId(id), AUTO_MS, () => remove(id)); },
+  removed(id) {
+    const el = this.els.get(id); if (!el) return; this.els.delete(id); el._stop?.();
+    el.style.opacity = 0; el.style.transform += " translateX(24px)"; el.style.pointerEvents = "none";
+    setTimeout(() => el.remove(), 240); this.layout();
+  },
+  layout() {
+    const ids = S.list.map(n => n.id).filter(id => this.els.has(id));
+    const MAX = 3, LAYERS = 2, GAP = 10, EDGE = 9;
+    let y = 0, lastTop = 0, lastH = 0;
+    ids.forEach((id, i) => {
+      const el = this.els.get(id); const h = el.offsetHeight;
+      el.classList.remove("layer");
+      if (this.expanded || i < MAX) {
+        el.style.transform = `translateY(${y}px)`; el.style.opacity = 1; el.style.zIndex = 100 - i;
+        lastTop = y; lastH = h; y += h + GAP;
+      } else {
+        const d = i - MAX + 1; const hidden = d > LAYERS;
+        el.classList.add("layer");
+        el.style.transform = `translateY(${lastTop + lastH - h + d * EDGE}px) scale(${1 - d * 0.045})`;
+        el.style.opacity = hidden ? 0 : 1 - d * 0.18; el.style.zIndex = 100 - i;
+        el.style.pointerEvents = hidden ? "none" : "auto";
+      }
+    });
+    let more = this.el.querySelector(".more");
+    const extra = ids.length - MAX;
+    if (ids.length > 1 && (extra > 0 || this.expanded)) {
+      if (!more) { more = document.createElement("div"); more.className = "more"; this.el.appendChild(more); }
+      const bottom = this.expanded ? y + 2 : lastTop + lastH + Math.min(extra, LAYERS) * EDGE + 12;
+      more.style.top = bottom + "px";
+      more.innerHTML = this.expanded
+        ? `<button data-m="fold">收起</button><button data-m="clear">全部清除</button>`
+        : `<button data-m="open">还有 ${extra} 条</button><button data-m="clear">全部清除</button>`;
+      more.querySelectorAll("button").forEach(b => b.onclick = () => {
+        if (b.dataset.m === "clear") [...S.list].forEach(n => remove(n.id));
+        else { this.expanded = b.dataset.m === "open"; this.layout(); }
+      });
+    } else more?.remove();
+  },
+  unmount() { this.els.forEach(el => el._stop?.()); },
+};
+
+/* =============== 方案 B：弹出一次 + 通知中心 =============== */
+const PlanB = {
+  cur: null, curId: null, open: false,
+  mount() {
+    $("#bellSlot").innerHTML = `<button class="bell" id="bell" aria-label="通知" aria-haspopup="dialog">${ic("bell")}<span class="badge" id="badge" hidden></span></button>`;
+    layer.innerHTML = `<div class="popB" id="popB" role="region" aria-label="通知"></div><div id="inboxSlot"></div>`;
+    $("#bell").onclick = e => { e.stopPropagation(); this.toggle(); };
+    this.cur = null; this.curId = null; this.open = false;
+    this.docClick = e => { if (this.open && !e.target.closest(".inbox")) this.toggle(false); };
+    this.docKey = e => { if (e.key === "Escape" && this.open) { this.toggle(false); $("#bell").focus(); } };
+    document.addEventListener("click", this.docClick); document.addEventListener("keydown", this.docKey);
+    this.badge();
+  },
+  unread() { return S.list.filter(n => !n.read || (KINDS[n.kind].sticky && !n.resolved)).length; },
+  badge(bump) {
+    const b = $("#badge"); if (!b) return; const c = this.unread();
+    b.hidden = c === 0; b.textContent = c > 9 ? "9+" : c;
+    if (bump) { b.classList.add("bump"); setTimeout(() => b.classList.remove("bump"), 220); }
+  },
+  added(n) {
+    this.badge(true);
+    if (this.open) return this.renderInbox();
+    this.retract(true); this.show(n);
+  },
+  show(n) {
+    const el = document.createElement("div");
+    el.className = `nc fx ${toneCls(n)}`; el.setAttribute("role", "status"); el.setAttribute("aria-live", "polite");
+    el.innerHTML = inner(n); bindActs(el, n.id);
+    el.style.opacity = 0; el.style.transform = "translateY(-8px) scale(.96)";
+    $("#popB").appendChild(el); this.cur = el; this.curId = n.id;
+    requestAnimationFrame(() => requestAnimationFrame(() => { el.style.opacity = 1; el.style.transform = "none"; }));
+    autoTimer(el, { kind: "pubok" }, 5000, () => this.retract()); // 弹出卡统一 5s 后收进铃铛（需作答的留在通知中心）
+  },
+  retract(fast) {
+    const el = this.cur; if (!el) return; el._stop?.(); this.cur = null;
+    const n = byId(this.curId); this.curId = null;
+    el.style.pointerEvents = "none";
+    el.style.transform = "translate(0, -30px) scale(.12)"; el.style.opacity = 0;
+    setTimeout(() => el.remove(), fast ? 160 : 260);
+    if (n && !KINDS[n.kind].sticky) n.read = false;
+    setTimeout(() => this.badge(true), 200);
+  },
+  toggle(v = !this.open) {
+    this.open = v; $("#bell").classList.toggle("open", v); $("#bell").setAttribute("aria-expanded", v);
+    if (v) { this.retract(true); this.renderInbox(true); }
+    else {
+      const box = $(".inbox"); if (box) { box.style.opacity = 0; box.style.transform = "translateY(-4px) scale(.98)"; setTimeout(() => box.remove(), 180); }
+      S.list.forEach(n => { if (!KINDS[n.kind].sticky) n.read = true; }); this.badge();
+    }
+  },
+  renderInbox(enter) {
+    const slot = $("#inboxSlot");
+    const pend = S.list.filter(n => KINDS[n.kind].sticky || n.resolved);
+    const rest = S.list.filter(n => !(KINDS[n.kind].sticky || n.resolved));
+    const rows = arr => arr.map(n => `<div class="row ${toneCls(n)}" data-id="${n.id}">${!n.read && !KINDS[n.kind].sticky ? '<i class="ud"></i>' : ""}${inner(n, { row: true })}</div>`).join("");
+    let box = slot.querySelector(".inbox");
+    if (!box) {
+      box = document.createElement("div"); box.className = "inbox fx"; box.setAttribute("role", "dialog"); box.setAttribute("aria-label", "通知中心");
+      slot.appendChild(box);
+      if (enter) { box.style.opacity = 0; box.style.transform = "translateY(-4px) scale(.98)"; requestAnimationFrame(() => requestAnimationFrame(() => { box.style.opacity = 1; box.style.transform = "none"; })); }
+    }
+    box.innerHTML = `<div class="hd"><b>通知</b><small>${S.list.length || ""}</small>
+        ${rest.length ? `<button class="btn ghost" data-all>清除已读</button>` : ""}</div>
+      <div class="bd">
+        ${S.list.length === 0 ? `<div class="empty">没有通知</div>` : ""}
+        ${pend.length ? `<div class="gl">待处理 <span class="mono">${pend.length}</span></div>${rows(pend)}` : ""}
+        ${rest.length ? `<div class="gl">其他</div>${rows(rest)}` : ""}
+      </div>`;
+    box.querySelectorAll(".row").forEach(r => bindActs(r, +r.dataset.id));
+    const all = box.querySelector("[data-all]"); if (all) all.onclick = e => { e.stopPropagation(); rest.forEach(n => remove(n.id)); };
+  },
+  refresh(id) {
+    if (this.open) return this.renderInbox();
+    if (this.curId === id && this.cur) { const n = byId(id); this.cur.className = `nc fx ${toneCls(n)}`; this.cur.innerHTML = inner(n); bindActs(this.cur, id); }
+    this.badge();
+  },
+  removed(id) {
+    if (this.curId === id && this.cur) { const el = this.cur; el._stop?.(); this.cur = null; this.curId = null; el.style.opacity = 0; el.style.transform = "translateX(20px)"; setTimeout(() => el.remove(), 220); }
+    if (this.open) this.renderInbox(); this.badge();
+  },
+  unmount() { this.cur?._stop?.(); document.removeEventListener("click", this.docClick); document.removeEventListener("keydown", this.docKey); $("#bellSlot").innerHTML = ""; },
+};
+
+/* =============== 方案 C：标题栏岛 =============== */
+const PlanC = {
+  isl: null, panel: null, pinned: false, hover: false, closeT: 0, timers: new Map(),
+  mount() {
+    const slot = document.createElement("div"); slot.className = "islandSlot"; slot.id = "islandSlot";
+    slot.innerHTML = `<button class="island" id="island" aria-haspopup="dialog" aria-live="polite"></button>`;
+    $("#titlebar").appendChild(slot);
+    layer.innerHTML = "";
+    this.isl = $("#island"); this.panel = null; this.pinned = false; this.timers.clear();
+    slot.onmouseenter = () => { this.hover = true; clearTimeout(this.closeT); this.openPanel(); };
+    slot.onmouseleave = () => { this.hover = false; this.closeT = setTimeout(() => { if (!this.pinned) this.closePanel(); }, 280); };
+    this.isl.onclick = () => { this.pinned = !this.pinned; this.isl.classList.toggle("pinned", this.pinned); this.pinned ? this.openPanel() : this.closePanel(); };
+    this.docKey = e => { if (e.key === "Escape" && this.panel) { this.pinned = false; this.isl.classList.remove("pinned"); this.closePanel(); } };
+    this.docClick = e => { if (this.pinned && !e.target.closest("#islandSlot")) { this.pinned = false; this.isl.classList.remove("pinned"); this.closePanel(); } };
+    document.addEventListener("keydown", this.docKey); document.addEventListener("click", this.docClick);
+    S.list.forEach(n => this.arm(n));
+    this.renderIsland();
+  },
+  arm(n) { // 纯告知类：6s 后自岛上消失（展开面板时冻结）
+    if (KINDS[n.kind].sticky) return;
+    const t = setTimeout(() => { if (this.panel) { this.timers.delete(n.id); return this.arm(n); } remove(n.id); }, 6000);
+    this.timers.set(n.id, t);
+  },
+  renderIsland() {
+    const live = S.list; const n = live[0];
+    if (!n) { this.isl.classList.remove("show"); return; }
+    const k = KINDS[n.kind]; const pend = live.some(x => KINDS[x.kind].sticky && !x.resolved);
+    this.isl.className = `island show ${toneCls(n)} ${this.pinned ? "pinned" : ""}`;
+    this.isl.innerHTML = `${pend ? '<i class="pd"></i>' : ""}<span class="src">${ic(n.resolved ? "check" : k.icon)}</span>
+      <span class="tt">${n.resolved || k.title}</span>${live.length > 1 ? `<span class="cnt">+${live.length - 1}</span>` : ""}`;
+  },
+  openPanel() {
+    if (!S.list.length) return;
+    if (!this.panel) {
+      this.panel = document.createElement("div"); this.panel.className = "panelC fx"; this.panel.setAttribute("role", "dialog"); this.panel.setAttribute("aria-label", "通知");
+      $("#islandSlot").appendChild(this.panel);
+      this.panel.style.opacity = 0; this.panel.style.transform = "translateY(-6px) scale(.97)";
+      requestAnimationFrame(() => requestAnimationFrame(() => { if (this.panel) { this.panel.style.opacity = 1; this.panel.style.transform = "none"; } }));
+    }
+    this.renderPanel();
+  },
+  renderPanel() {
+    if (!this.panel) return;
+    if (!S.list.length) return this.closePanel();
+    this.panel.innerHTML = S.list.map(n => `<div class="row ${toneCls(n)}" data-id="${n.id}">${inner(n, { row: true })}</div>`).join("") +
+      `<div class="ft"><span>${S.list.length} 条</span><button class="btn ghost" data-clear>全部清除</button></div>`;
+    this.panel.querySelectorAll(".row").forEach(r => bindActs(r, +r.dataset.id));
+    this.panel.querySelector("[data-clear]").onclick = e => { e.stopPropagation(); [...S.list].forEach(n => remove(n.id)); };
+  },
+  closePanel() {
+    const p = this.panel; if (!p) return; this.panel = null;
+    p.style.opacity = 0; p.style.transform = "translateY(-6px) scale(.97)"; setTimeout(() => p.remove(), 200);
+  },
+  added(n) { this.arm(n); this.renderIsland(); this.renderPanel();
+    this.isl.animate([{ transform: "scale(.94)" }, { transform: "scale(1.03)" }, { transform: "scale(1)" }], { duration: 320, easing: "cubic-bezier(.22,1,.36,1)" }); },
+  refresh(id) { this.renderIsland(); this.renderPanel(); },
+  retimer(id) { this.arm(byId(id)); },
+  removed(id) { clearTimeout(this.timers.get(id)); this.timers.delete(id); this.renderIsland(); this.renderPanel(); },
+  unmount() { this.timers.forEach(clearTimeout); document.removeEventListener("keydown", this.docKey); document.removeEventListener("click", this.docClick); $("#islandSlot")?.remove(); },
+};
+
+const PLANS = { A: PlanA, B: PlanB, C: PlanC };
+const P = () => PLANS[S.plan];
+
+/* =============== 对照：Toast =============== */
+function fireToast() {
+  const t = document.createElement("div"); t.className = "toast fx"; t.setAttribute("role", "status");
+  const bottom = S.plan === "C";
+  t.innerHTML = `${ic("check")}已保存<span style="color:var(--accent-text);font-weight:600">撤销</span>`;
+  t.style.top = bottom ? "auto" : "54px"; if (bottom) t.style.bottom = "22px";
+  t.style.opacity = 0; t.style.transform = `translate(-50%, ${bottom ? 8 : -8}px)`;
+  win.appendChild(t);
+  requestAnimationFrame(() => requestAnimationFrame(() => { t.style.opacity = 1; t.style.transform = "translate(-50%, 0)"; }));
+  setTimeout(() => { t.style.opacity = 0; setTimeout(() => t.remove(), 220); }, 2400);
+}
+
+/* =============== 装配 =============== */
+const NOTES = {
+  A: "<b>A · 通知卡栈</b>：需作答的卡片会一直留在右上角。连发 4 条可以看到叠影，点叠影展开，鼠标移出后收起。「发布完成」8 秒后自动消失，悬停时暂停计时。",
+  B: "<b>B · 弹出一次 + 通知中心</b>：卡片从铃铛下方弹出，5 秒后缩回铃铛，未读数随之增加。点铃铛打开通知中心，「待处理」组可以直接作答；Esc 或点击外部关闭。",
+  C: "<b>C · 标题栏岛</b>：通知以胶囊形式出现在标题栏正中，悬停展开，点击固定展开。有待处理项时胶囊左侧显示 accent 点。触发 Toast 可以看到它挪到了底部中间。",
+};
+function renderNote() { $("#planNote").innerHTML = NOTES[S.plan]; }
+
+function seed() {
+  S.list = [];
+  const m = 60000;
+  if (S.plan === "B") { // 通知中心里已有一些历史
+    S.list.push(makeN("update", now() - 40 * m), makeN("pubok", now() - 22 * 60 * m, { read: true }));
+  } else {
+    S.list.push(makeN("join", now() - 2 * m), makeN("update", now() - 40 * m));
+  }
+}
+function setPlan(p) {
+  P().unmount?.(); S.plan = p;
+  document.querySelectorAll("#swPlan button").forEach(b => b.classList.toggle("on", b.dataset.p === p));
+  seed(); P().mount(); renderNote();
+}
+
+function build() {
+  const g = (t, items) => `<div class="grp">${t}</div>` + items.map(([n, on]) => `<div class="it ${on ? "on" : ""}">${ic("dot", "width:14px;height:14px;opacity:.5")}${n}</div>`).join("");
+  $("#appnav").innerHTML = `<div class="dots"><i></i><i></i><i></i></div>` + g("工作台", [["今日", 1], ["日程"], ["待办"], ["番茄专注"], ["协作"]]) + g("知识", [["卡片库"], ["文章"], ["知识库"]]) + g("工具", [["统计"], ["发布"]]);
+  const sk = n => `<div class="sk t"></div>` + Array.from({ length: n }, (_, i) => `<div class="skrow"><span class="sq"></span><div class="col"><div class="sk" style="width:${70 - (i * 13) % 30}%"></div><div class="sk" style="width:${40 - (i * 7) % 18}%"></div></div></div>`).join("");
+  $("#skA").innerHTML = sk(7); $("#skB").innerHTML = sk(5);
+
+  const sp = $("#swPlan");
+  [["A", "A · 通知卡栈"], ["B", "B · 弹出 + 通知中心"], ["C", "C · 标题栏岛"]].forEach(([p, l]) => {
+    const b = document.createElement("button"); b.dataset.p = p; b.textContent = l; b.onclick = () => setPlan(p); sp.appendChild(b);
+  });
+  const sep = document.createElement("span"); sep.className = "sep"; sp.appendChild(sep);
+  const dk = document.createElement("button"); dk.textContent = "深色"; dk.onclick = () => { win.classList.toggle("dark"); dk.classList.toggle("on"); }; sp.appendChild(dk);
+
+  const sf = $("#swFire");
+  [["加入申请", () => push("join")], ["发现新版本", () => push("update")], ["发布完成", () => push("pubok")], ["发布失败", () => push("pubfail")],
+   ["连发 4 条", () => ["pubok", "join", "pubfail", "update"].forEach((k, i) => setTimeout(() => push(k), i * 420))],
+   ["Toast 对照", fireToast], ["重置", () => setPlan(S.plan)]].forEach(([l, f]) => {
+    const b = document.createElement("button"); b.textContent = l; b.onclick = f; sf.appendChild(b);
+  });
+}
+build(); setPlan("B");
+</script>
+</body>
+</html>
