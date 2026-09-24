@@ -62,9 +62,8 @@ import useWebClip from "@/hooks/useWebClip";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import { attachPodcastToProjectItem, detachPodcastFromProjectItem } from "@/commands/podcast";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
-import useTabStore from "@/stores/useTabStore";
+import { usePage } from "@/page/PageProvider";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
-import { TabType } from "@/types/tab";
 import { useProjectContext } from "../ProjectContext";
 import { ReactEditor } from "slate-react";
 import type { CommentElement, CustomEditor } from "@tau/editor/src";
@@ -167,7 +166,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     action: () => void | Promise<void>;
   }>(null);
   useProjectContext(); // Keep context active
-  const openInNewTab = useTabStore(state => state.openInNewTab);
+  const { navigator } = usePage();
 
   // 视图模式
   const [viewMode, setViewMode] = useState<ViewMode>("webview");
@@ -913,10 +912,10 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     }
   });
 
-  // 新 Tab 打开 - 参考 LinkPlugin/Renderer.tsx
+  // 在独立网页页面中打开当前地址。
   const handleOpenInNewTab = useMemoizedFn(() => {
     if (!currentUrl) return;
-    openInNewTab(TabType.WebView, { url: currentUrl });
+    navigator.push("webview", { url: currentUrl });
   });
 
   // 编辑标题
@@ -1014,7 +1013,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       icon: <RotateCw className="size-[15px]" strokeWidth={1.75} />,
     },
     { key: "browser", label: "在浏览器中打开", icon: <ExternalLinkIcon /> },
-    { key: "new-tab", label: "在新标签页打开", icon: <NewTabIcon /> },
+    { key: "new-tab", label: "在应用内打开", icon: <NewTabIcon /> },
   ];
 
   if (notes.length > 0) {
@@ -1219,7 +1218,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
           <h1 className="m-0 truncate text-lg font-semibold leading-snug">{title}</h1>
           <Tooltip content="编辑标题" delay={500}>
             <button
-              className="text-ink-3 hover:bg-group hover:text-ink-2 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all"
+              className="text-ink-3 hover:bg-hover hover:text-ink-2 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all"
               onClick={handleEditTitle}
             >
               <Pencil className="size-4" strokeWidth={1.75} />
@@ -1286,7 +1285,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${
                   isAnyClipping
                     ? `${"bg-accent-soft text-accent-text"}`
-                    : "text-ink-2 hover:bg-group bg-transparent"
+                    : "text-ink-2 hover:bg-hover bg-transparent"
                 }`}
                 onClick={() => {
                   closeClipMenu();
@@ -1358,7 +1357,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 type="button"
                 title="更多操作"
                 aria-label="更多操作"
-                className="text-ink-2 hover:bg-group flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all"
+                className="text-ink-2 hover:bg-hover flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all"
               >
                 <MoreHorizontal className="size-4" strokeWidth={1.75} />
               </button>

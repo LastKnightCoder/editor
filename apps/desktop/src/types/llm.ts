@@ -13,24 +13,18 @@ export interface ImageContent {
   type: "image";
   image: string; // base64 或 url
   path?: string; // 原始本地路径，供 Codex 等本地代理直接读取
-  resourceId?: number;
+  resourceId?: number; // 仅兼容历史消息，不再用于资源查询
 }
 
 export interface FileContent {
   type: "file";
   file: string;
-  resourceId?: number;
+  resourceId?: number; // 仅兼容历史消息，不再用于资源查询
   fileName?: string;
 }
 
 export type MessageContent = TextContent | ImageContent | FileContent;
-export type ReasoningEffort =
-  | "none"
-  | "low"
-  | "medium"
-  | "high"
-  | "xhigh"
-  | "max";
+export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
 
 export type ProviderMetadata = Record<string, unknown>;
 
@@ -48,13 +42,7 @@ export interface RequestMessage {
 export interface ToolCallExecutionState {
   toolCallId: string;
   toolName: string;
-  status:
-    | "pending"
-    | "executing"
-    | "success"
-    | "failed"
-    | "retrying"
-    | "cancelled";
+  status: "pending" | "executing" | "success" | "failed" | "retrying" | "cancelled";
   input: string;
   output?: string;
   error?: string;
@@ -97,10 +85,7 @@ export interface AssistantToolCallBlock {
   execution?: ToolCallExecutionState;
 }
 
-export type AssistantBlock =
-  | AssistantTextBlock
-  | AssistantReasoningBlock
-  | AssistantToolCallBlock;
+export type AssistantBlock = AssistantTextBlock | AssistantReasoningBlock | AssistantToolCallBlock;
 
 // 内容块类型：支持文本、思考、工具调用按顺序交替出现
 export type ResponseContentBlock =

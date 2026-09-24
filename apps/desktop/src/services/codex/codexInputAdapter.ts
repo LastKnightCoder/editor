@@ -1,4 +1,4 @@
-import { getHomeDir, getResourceById } from "@/commands";
+import { getHomeDir } from "@/commands";
 import type { MessageContent } from "@/types";
 import { remoteResourceToLocal } from "@/utils";
 
@@ -32,23 +32,13 @@ const resolveHomePath = async (path: string) => {
   return `${homeDir}${path.slice(1)}`;
 };
 
-const resolveLocalImagePath = async (
-  item: Extract<MessageContent, { type: "image" }>,
-) => {
+const resolveLocalImagePath = async (item: Extract<MessageContent, { type: "image" }>) => {
   if (item.path && isLocalPath(item.path)) {
     return await resolveHomePath(item.path);
   }
 
-  if (item.resourceId) {
-    const resource = await getResourceById(item.resourceId);
-    if (resource?.path && isLocalPath(resource.path)) {
-      return await resolveHomePath(resource.path);
-    }
-    if (resource?.path && isRemotePath(resource.path)) {
-      return await resolveHomePath(
-        await remoteResourceToLocal(resource.path, resource.name),
-      );
-    }
+  if (item.path && isRemotePath(item.path)) {
+    return await resolveHomePath(await remoteResourceToLocal(item.path));
   }
 
   if (item.image && isLocalPath(item.image)) {
@@ -62,7 +52,7 @@ const resolveLocalImagePath = async (
 };
 
 export const buildCodexInputFromMessageContent = async (
-  content: MessageContent[] | string,
+  content: MessageContent[] | string
 ): Promise<CodexInputItem[]> => {
   if (typeof content === "string") {
     const text = content.trim();
@@ -85,7 +75,7 @@ export const buildCodexInputFromMessageContent = async (
       const localPath = await resolveLocalImagePath(item);
       if (!localPath) {
         throw new Error(
-          "Codex 需要本地图片文件路径。请使用本地上传的图片，或先把远程图片保存为本地资源。",
+          "Codex 需要本地图片文件路径。请使用本地上传的图片，或先把远程图片保存为本地资源。"
         );
       }
       images.push({
@@ -96,9 +86,7 @@ export const buildCodexInputFromMessageContent = async (
   }
 
   return [
-    ...(textParts.length > 0
-      ? [{ type: "text" as const, text: textParts.join("\n\n") }]
-      : []),
+    ...(textParts.length > 0 ? [{ type: "text" as const, text: textParts.join("\n\n") }] : []),
     ...images,
   ];
 };

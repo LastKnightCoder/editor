@@ -3,10 +3,11 @@
  * 否决移除——大摘要也填不满横向空间，见 DECISIONS.md D-015 追记）。
  * 封面三态：bannerBg → 本地图；无 banner → id 派生色渐变叠首段文字（同篇同色、
  * 相邻错色，2026-09-19 裁决，mockups/articles/plan-a3-journal.html）；无摘录 →
- * 派生色纯色块。派生色板是设计定稿的数据色（与热力图色阶同性质），不进主题词表。
+ * 派生色纯色块。banner 加载失败按「无 banner」处理（不露裂图）。派生色板是设计定稿的数据色（与热力图色阶同性质），不进主题词表。
  */
 
 import type { LucideIcon } from "lucide-react";
+import { useState } from "react";
 import { Download, ImagePlus, MonitorUp, MoreHorizontal, Play, Star, Trash2 } from "lucide-react";
 import LocalImage from "@/components/LocalImage";
 import { IconButton, Menu, cn } from "@tau/ui";
@@ -104,6 +105,9 @@ export function ArticleCard(props: ArticleCardProps) {
   const { article } = props;
   const excerpt = articleExcerpt(article.excerpt);
   const gradient = coverGradientOf(article.id);
+  // 记失败的 url 而非布尔：换封面后自动重试新图
+  const [failedBanner, setFailedBanner] = useState<string>();
+  const banner = article.bannerBg && article.bannerBg !== failedBanner ? article.bannerBg : "";
 
   return (
     <article
@@ -120,11 +124,12 @@ export function ArticleCard(props: ArticleCardProps) {
     >
       {/* 封面 */}
       <div className="relative aspect-[13/8] w-full overflow-hidden">
-        {article.bannerBg ? (
+        {banner ? (
           <LocalImage
-            url={article.bannerBg}
+            url={banner}
             className="absolute inset-0 h-full w-full object-cover"
             style={{ objectPosition: article.bannerPosition === "top" ? "top" : "center" }}
+            onLoadError={() => setFailedBanner(banner)}
           />
         ) : excerpt ? (
           <div
@@ -169,7 +174,7 @@ export function ArticleCard(props: ArticleCardProps) {
             {article.tags.map(tag => (
               <span
                 key={tag}
-                className="bg-group text-ink-2 whitespace-nowrap rounded-[5px] px-[7px] py-px text-[11px]"
+                className="bg-hover text-ink-2 whitespace-nowrap rounded-[5px] px-[7px] py-px text-[11px]"
               >
                 {tag}
               </span>

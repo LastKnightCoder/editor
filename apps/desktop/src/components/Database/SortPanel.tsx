@@ -178,7 +178,7 @@ const SortPanel: React.FC<SortPanelProps> = memo(
                   onDragEnd={handleDragEnd}
                 >
                   <span
-                    className="bg-group text-ink-2 grid size-4 shrink-0 place-items-center rounded-full text-[10px] font-bold tabular-nums"
+                    className="bg-hover text-ink-2 grid size-4 shrink-0 place-items-center rounded-full text-[10px] font-bold tabular-nums"
                     title={`第 ${index + 1} 优先级，拖动调整顺序`}
                   >
                     {index + 1}

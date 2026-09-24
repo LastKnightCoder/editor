@@ -68,7 +68,7 @@ const TemplateCard = memo((props: TemplateCardProps) => {
       )}
     >
       {/* 预览区域 */}
-      <div className="bg-group relative w-full" style={{ aspectRatio: "16 / 10" }}>
+      <div className="bg-hover relative w-full" style={{ aspectRatio: "16 / 10" }}>
         {isElectron ? (
           // Electron 环境使用 webview
           <webview

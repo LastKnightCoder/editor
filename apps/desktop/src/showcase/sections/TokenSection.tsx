@@ -20,7 +20,6 @@ const GROUPS: { title: string; en: string; tokens: Token[] }[] = [
     tokens: [
       ["bg-page", "页面底"],
       ["bg-surface", "表面/白卡"],
-      ["bg-group", "分组底"],
       ["bg-sunken", "沉底/轨道"],
       ["bg-hover", "悬停", "fill"],
       ["bg-press", "按下"],

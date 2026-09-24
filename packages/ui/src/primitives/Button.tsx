@@ -89,7 +89,7 @@ export function Button({
       {...props}
     >
       {loading && <Spinner className="border-current/30 size-[13px] border-t-current" />}
-      {Icon && <Icon size={16} strokeWidth={1.75} className="shrink-0" />}
+      {!loading && Icon && <Icon size={16} strokeWidth={1.75} className="shrink-0" />}
       {loading && loadingText !== undefined ? loadingText : children}
     </button>
   );

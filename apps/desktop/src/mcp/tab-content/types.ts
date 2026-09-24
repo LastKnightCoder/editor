@@ -5,7 +5,7 @@ import type { ITab, TabType, TabParams } from "@/types/tab";
  */
 export interface TabContentMetadata {
   id: string;
-  type: TabType;
+  type: string;
   title: string;
   params?: any;
   closable?: boolean;
@@ -42,10 +42,7 @@ export interface ITabContentProvider<T extends TabType = TabType> {
    * @param tab - Tab 对象
    * @param options - 可选配置
    */
-  getContent(
-    tab: ITab<T>,
-    options?: TabContentOptions,
-  ): Promise<TabContentResponse>;
+  getContent(tab: ITab<T>, options?: TabContentOptions): Promise<TabContentResponse>;
 
   /**
    * 验证 Tab 参数是否有效
@@ -80,7 +77,7 @@ export interface PaneContentResponse {
   }>;
   tabs: Array<{
     id: string;
-    type: TabType;
+    type: string;
     title: string;
     isActive: boolean;
     hasParams: boolean;

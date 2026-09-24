@@ -7,15 +7,7 @@ import React, {
   useMemo,
 } from "react";
 import { useMemoizedFn } from "ahooks";
-import {
-  Button,
-  Upload,
-  message,
-  Dropdown,
-  Tooltip,
-  Input,
-  Popover,
-} from "antd";
+import { Button, Upload, message, Dropdown, Tooltip, Input, Popover } from "antd";
 import type { TextAreaRef } from "antd/es/input/TextArea";
 import {
   PictureOutlined,
@@ -47,7 +39,6 @@ import type {
   ChatInputAreaHandle,
   ChatInputAreaProps,
   ReasoningEffort,
-  IResource,
   MessageContentItem,
   MentionRef,
 } from "./types";
@@ -57,9 +48,6 @@ export type {
   ChatInputAreaProps,
   ChatInputAreaServices,
   ReasoningEffort,
-  IResource,
-  IResourceSource,
-  CreateResourceParams,
   MessageContentItem,
   MentionEntityType,
   MentionRef,
@@ -119,7 +107,6 @@ const DEFAULT_REASONING_EFFORT_OPTIONS: readonly ReasoningEffort[] = [
 interface ChatImageItem {
   id: string;
   previewUrl: string;
-  resourceId: number;
   path: string;
 }
 
@@ -127,7 +114,6 @@ interface ChatFileItem {
   id: string;
   name: string;
   path: string;
-  resourceId: number;
 }
 
 interface NewChatTooltipStateOptions {
@@ -154,18 +140,13 @@ export const resolveNewChatTooltipOpen = ({
   contentEditable,
   reopenLocked,
 }: NewChatTooltipOpenOptions) =>
-  requestedOpen &&
-  !createMessageLoading &&
-  !sendLoading &&
-  contentEditable &&
-  !reopenLocked;
+  requestedOpen && !createMessageLoading && !sendLoading && contentEditable && !reopenLocked;
 
 export const shouldCloseNewChatTooltip = ({
   createMessageLoading,
   sendLoading,
   contentEditable,
-}: NewChatTooltipStateOptions) =>
-  createMessageLoading || sendLoading || !contentEditable;
+}: NewChatTooltipStateOptions) => createMessageLoading || sendLoading || !contentEditable;
 
 const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
   (
@@ -188,7 +169,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       contextUsage,
       isSupportImage = false,
       isSupportFile = false,
-      resourceSource = null,
       reasoningEffort,
       reasoningEffortOptions,
       onReasoningEffortChange,
@@ -196,20 +176,13 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       onMcpManagerClick,
       extraToolbarButtons,
     },
-    ref,
+    ref
   ) => {
     const resolvedPlaceholder = useMemo(
       () => resolveChatInputPlaceholder(placeholder),
-      [placeholder],
+      [placeholder]
     );
-    const {
-      uploadFile,
-      convertFileSrc,
-      getHomeDir,
-      createOrUpdateResource,
-      incrementResourceRef,
-      decrementResourceRef,
-    } = services;
+    const { uploadFile, convertFileSrc, getHomeDir } = services;
 
     const [textContent, setTextContent] = useState("");
     const [images, setImages] = useState<ChatImageItem[]>([]);
@@ -217,91 +190,44 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
-    const [mentionCandidates, setMentionCandidates] = useState<MentionRef[]>(
-      [],
-    );
+    const [mentionCandidates, setMentionCandidates] = useState<MentionRef[]>([]);
     const [mentionPanelOpen, setMentionPanelOpen] = useState(false);
     const [mentionPanelLoading, setMentionPanelLoading] = useState(false);
     const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
-    const [mentionQueryState, setMentionQueryState] =
-      useState<MentionQueryState | null>(null);
+    const [mentionQueryState, setMentionQueryState] = useState<MentionQueryState | null>(null);
     const [isNewChatTooltipOpen, setIsNewChatTooltipOpen] = useState(false);
-    const [isNewChatTooltipReopenLocked, setIsNewChatTooltipReopenLocked] =
-      useState(false);
-    const imagesRef = useRef<ChatImageItem[]>([]);
-    const filesRef = useRef<ChatFileItem[]>([]);
+    const [isNewChatTooltipReopenLocked, setIsNewChatTooltipReopenLocked] = useState(false);
     const mentionRequestSeqRef = useRef(0);
-    const composerMentions = useMemo(
-      () => extractMentionRefsFromText(textContent),
-      [textContent],
-    );
+    const composerMentions = useMemo(() => extractMentionRefsFromText(textContent), [textContent]);
     const showReasoningEffortControl =
-      typeof reasoningEffort !== "undefined" &&
-      typeof onReasoningEffortChange === "function";
-    const availableReasoningEffortOptions = REASONING_EFFORT_OPTIONS.filter(
-      (option) =>
-        (reasoningEffortOptions ?? DEFAULT_REASONING_EFFORT_OPTIONS).includes(
-          option.value,
-        ),
+      typeof reasoningEffort !== "undefined" && typeof onReasoningEffortChange === "function";
+    const availableReasoningEffortOptions = REASONING_EFFORT_OPTIONS.filter(option =>
+      (reasoningEffortOptions ?? DEFAULT_REASONING_EFFORT_OPTIONS).includes(option.value)
     );
     const currentReasoningOption = availableReasoningEffortOptions.find(
-      (option) => option.value === reasoningEffort,
+      option => option.value === reasoningEffort
     );
     const reasoningEffortMenuItems = useMemo(
       () =>
-        availableReasoningEffortOptions.map((option) => ({
+        availableReasoningEffortOptions.map(option => ({
           key: option.value,
           label: (
             <div
-              className={classnames(
-                "flex items-center justify-between gap-3 min-w-[180px]",
-                {
-                  "text-blue-600": option.value === reasoningEffort,
-                },
-              )}
+              className={classnames("flex min-w-[180px] items-center justify-between gap-3", {
+                "text-blue-600": option.value === reasoningEffort,
+              })}
             >
               <div className="flex flex-col">
                 <span className="text-sm font-medium">{option.label}</span>
-                <span className="text-xs text-gray-500">
-                  {option.description}
-                </span>
+                <span className="text-xs text-gray-500">{option.description}</span>
               </div>
-              {option.value === reasoningEffort && (
-                <CheckOutlined className="text-blue-500" />
-              )}
+              {option.value === reasoningEffort && <CheckOutlined className="text-blue-500" />}
             </div>
           ),
         })),
-      [availableReasoningEffortOptions, reasoningEffort],
+      [availableReasoningEffortOptions, reasoningEffort]
     );
-    const reasoningControlDisabled =
-      reasoningEffortDisabled || sendLoading || !contentEditable;
-
-    const releaseResources = useMemoizedFn((items: Array<{ path: string }>) => {
-      if (!decrementResourceRef) return;
-      items.forEach((item) => {
-        decrementResourceRef(item.path).catch((error) => {
-          console.error("减少资源引用失败:", error);
-        });
-      });
-    });
-
-    const trackResourceUsage = useMemoizedFn(async (resource: IResource) => {
-      if (!incrementResourceRef) return;
-      try {
-        await incrementResourceRef(resource.path, resourceSource ?? undefined);
-      } catch (error) {
-        console.error("增加资源引用失败:", error);
-      }
-    });
-
-    useEffect(() => {
-      imagesRef.current = images;
-    }, [images]);
-
-    useEffect(() => {
-      filesRef.current = files;
-    }, [files]);
+    const reasoningControlDisabled = reasoningEffortDisabled || sendLoading || !contentEditable;
 
     useEffect(() => {
       if (
@@ -316,22 +242,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     }, [contentEditable, createMessageLoading, sendLoading]);
 
     useEffect(() => {
-      return () => {
-        if (imagesRef.current.length > 0) {
-          releaseResources(imagesRef.current);
-        }
-        if (filesRef.current.length > 0) {
-          releaseResources(filesRef.current);
-        }
-      };
-    }, [releaseResources]);
-
-    useEffect(() => {
-      if (
-        !contentEditable ||
-        !services.searchMentionRefs ||
-        !mentionQueryState
-      ) {
+      if (!contentEditable || !services.searchMentionRefs || !mentionQueryState) {
         setMentionPanelOpen(false);
         setMentionPanelLoading(false);
         setMentionCandidates([]);
@@ -342,9 +253,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       const timer = window.setTimeout(async () => {
         setMentionPanelLoading(true);
         try {
-          const results = await services.searchMentionRefs!(
-            mentionQueryState.query,
-          );
+          const results = await services.searchMentionRefs!(mentionQueryState.query);
           if (mentionRequestSeqRef.current !== requestSeq) {
             return;
           }
@@ -385,32 +294,30 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       return await convertFileSrc(absolutePath);
     });
 
-    const appendResourceImage = useMemoizedFn(async (resource: IResource) => {
-      let previewUrl = resource.path;
-      try {
-        previewUrl = await getPreviewUrlFromPath(resource.path);
-      } catch (error) {
-        console.error("生成图片预览失败:", error);
+    const appendImageAttachment = useMemoizedFn(
+      async (attachment: { name: string; path: string }) => {
+        let previewUrl = attachment.path;
+        try {
+          previewUrl = await getPreviewUrlFromPath(attachment.path);
+        } catch (error) {
+          console.error("生成图片预览失败:", error);
+        }
+        const imageItem: ChatImageItem = {
+          id: uuid(),
+          previewUrl,
+          path: attachment.path,
+        };
+        setImages(prev => [...prev, imageItem]);
       }
-      const imageItem: ChatImageItem = {
-        id: `${resource.id}-${uuid()}`,
-        previewUrl,
-        resourceId: resource.id,
-        path: resource.path,
-      };
-      setImages((prev) => [...prev, imageItem]);
-      void trackResourceUsage(resource);
-    });
+    );
 
-    const appendResourceFile = useMemoizedFn((resource: IResource) => {
+    const appendFileAttachment = useMemoizedFn((attachment: { name: string; path: string }) => {
       const fileItem: ChatFileItem = {
-        id: `${resource.id}-${uuid()}`,
-        name: resource.name,
-        path: resource.path,
-        resourceId: resource.id,
+        id: uuid(),
+        name: attachment.name,
+        path: attachment.path,
       };
-      setFiles((prev) => [...prev, fileItem]);
-      void trackResourceUsage(resource);
+      setFiles(prev => [...prev, fileItem]);
     });
 
     const textAreaRef = useRef<TextAreaRef>(null);
@@ -424,26 +331,19 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
     const syncMentionStateFromText = useMemoizedFn(
       (nextText: string, selectionStart: number | null | undefined) => {
-        if (
-          !contentEditable ||
-          !services.searchMentionRefs ||
-          typeof selectionStart !== "number"
-        ) {
+        if (!contentEditable || !services.searchMentionRefs || typeof selectionStart !== "number") {
           closeMentionPanel();
           return;
         }
 
-        const nextMentionQueryState = findActiveMentionQuery(
-          nextText,
-          selectionStart,
-        );
+        const nextMentionQueryState = findActiveMentionQuery(nextText, selectionStart);
         if (!nextMentionQueryState) {
           closeMentionPanel();
           return;
         }
 
         setMentionQueryState(nextMentionQueryState);
-      },
+      }
     );
 
     const insertMentionAtCursor = useMemoizedFn((mention: MentionRef) => {
@@ -459,8 +359,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
       setTimeout(() => {
         const textArea = textAreaRef.current?.resizableTextArea?.textArea as
-          | HTMLTextAreaElement
-          | undefined;
+          HTMLTextAreaElement | undefined;
         if (!textArea) {
           return;
         }
@@ -471,16 +370,15 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
     const removeMentionMarkup = useMemoizedFn((mention: MentionRef) => {
       const markup = serializeMentionRef(mention);
-      setTextContent((prev) => {
+      setTextContent(prev => {
         const index = prev.indexOf(markup);
         if (index < 0) {
           return prev;
         }
 
-        const nextText =
-          `${prev.slice(0, index)}${prev.slice(index + markup.length)}`
-            .replace(/[ \t]{2,}/g, " ")
-            .replace(/\n{3,}/g, "\n\n");
+        const nextText = `${prev.slice(0, index)}${prev.slice(index + markup.length)}`
+          .replace(/[ \t]{2,}/g, " ")
+          .replace(/\n{3,}/g, "\n\n");
         return nextText.trimStart();
       });
     });
@@ -489,20 +387,18 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       getValue: (): MessageContentItem[] => {
         const content: MessageContentItem[] = [];
 
-        images.forEach((image) => {
+        images.forEach(image => {
           content.push({
             type: "image",
             image: image.previewUrl,
             path: image.path,
-            resourceId: image.resourceId,
           });
         });
 
-        files.forEach((file) => {
+        files.forEach(file => {
           content.push({
             type: "file",
             file: file.path,
-            resourceId: file.resourceId,
             fileName: file.name,
           });
         });
@@ -517,15 +413,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
         return content;
       },
-      clear: (options) => {
-        if (options?.releaseResources) {
-          if (images.length > 0) {
-            releaseResources(images);
-          }
-          if (files.length > 0) {
-            releaseResources(files);
-          }
-        }
+      clear: () => {
         setTextContent("");
         setImages([]);
         setFiles([]);
@@ -537,8 +425,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       },
       focusEnd: () => {
         if (textAreaRef.current?.resizableTextArea?.textArea) {
-          const textArea = textAreaRef.current.resizableTextArea
-            .textArea as HTMLTextAreaElement;
+          const textArea = textAreaRef.current.resizableTextArea.textArea as HTMLTextAreaElement;
           textArea.focus();
           const length = textContent.length;
           textArea.setSelectionRange(length, length);
@@ -554,13 +441,8 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           message.error("图片上传失败");
           return false;
         }
-        const resource = await createOrUpdateResource({
-          name: file.name,
-          path: uploadedPath,
-          type: "image",
-          source: resourceSource ?? undefined,
-        });
-        await appendResourceImage(resource);
+        const attachment = { name: file.name, path: uploadedPath };
+        await appendImageAttachment(attachment);
         message.success("图片上传成功");
       } catch (error) {
         console.error("图片上传失败:", error);
@@ -588,13 +470,8 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           message.error("PDF 上传失败");
           return false;
         }
-        const resource = await createOrUpdateResource({
-          name: file.name,
-          path: uploadedPath,
-          type: "pdf",
-          source: resourceSource ?? undefined,
-        });
-        appendResourceFile(resource);
+        const attachment = { name: file.name, path: uploadedPath };
+        appendFileAttachment(attachment);
         message.success("PDF 上传成功");
       } catch (error) {
         console.error("PDF 上传失败:", error);
@@ -605,64 +482,52 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       return false;
     };
 
-    const handlePaste = useMemoizedFn(
-      (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
-        if (sendLoading) return;
-        const clipboardData = event.clipboardData;
-        if (!clipboardData) return;
+    const handlePaste = useMemoizedFn((event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      if (sendLoading) return;
+      const clipboardData = event.clipboardData;
+      if (!clipboardData) return;
 
-        const imageItems = isSupportImage
-          ? Array.from(clipboardData.items).filter(
-              (item) => item.kind === "file" && item.type.startsWith("image/"),
-            )
-          : [];
-        const pdfItems = isSupportFile
-          ? Array.from(clipboardData.items).filter(
-              (item) =>
-                item.kind === "file" &&
-                item.type.toLowerCase() === "application/pdf",
-            )
-          : [];
+      const imageItems = isSupportImage
+        ? Array.from(clipboardData.items).filter(
+            item => item.kind === "file" && item.type.startsWith("image/")
+          )
+        : [];
+      const pdfItems = isSupportFile
+        ? Array.from(clipboardData.items).filter(
+            item => item.kind === "file" && item.type.toLowerCase() === "application/pdf"
+          )
+        : [];
 
-        if (imageItems.length === 0 && pdfItems.length === 0) return;
+      if (imageItems.length === 0 && pdfItems.length === 0) return;
 
-        void (async () => {
-          if (isSupportImage) {
-            for (const item of imageItems) {
-              const file = item.getAsFile();
-              if (!file) continue;
-              await handleImageUpload(file);
-            }
+      void (async () => {
+        if (isSupportImage) {
+          for (const item of imageItems) {
+            const file = item.getAsFile();
+            if (!file) continue;
+            await handleImageUpload(file);
           }
+        }
 
-          if (isSupportFile) {
-            for (const item of pdfItems) {
-              const file = item.getAsFile();
-              if (!file) continue;
-              await handlePdfUpload(file);
-            }
+        if (isSupportFile) {
+          for (const item of pdfItems) {
+            const file = item.getAsFile();
+            if (!file) continue;
+            await handlePdfUpload(file);
           }
-        })();
-      },
-    );
+        }
+      })();
+    });
 
     const removeImage = useMemoizedFn((imageId: string) => {
-      setImages((prev) => {
-        const target = prev.find((image) => image.id === imageId);
-        if (target) {
-          releaseResources([target]);
-        }
-        return prev.filter((image) => image.id !== imageId);
+      setImages(prev => {
+        return prev.filter(image => image.id !== imageId);
       });
     });
 
     const removeFile = useMemoizedFn((fileId: string) => {
-      setFiles((prev) => {
-        const target = prev.find((file) => file.id === fileId);
-        if (target) {
-          releaseResources([target]);
-        }
-        return prev.filter((file) => file.id !== fileId);
+      setFiles(prev => {
+        return prev.filter(file => file.id !== fileId);
       });
     });
 
@@ -670,21 +535,18 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       if (mentionPanelOpen) {
         if (e.key === "ArrowDown") {
           e.preventDefault();
-          setMentionActiveIndex((prev) =>
-            mentionCandidates.length === 0
-              ? 0
-              : (prev + 1) % mentionCandidates.length,
+          setMentionActiveIndex(prev =>
+            mentionCandidates.length === 0 ? 0 : (prev + 1) % mentionCandidates.length
           );
           return;
         }
 
         if (e.key === "ArrowUp") {
           e.preventDefault();
-          setMentionActiveIndex((prev) =>
+          setMentionActiveIndex(prev =>
             mentionCandidates.length === 0
               ? 0
-              : (prev + mentionCandidates.length - 1) %
-                mentionCandidates.length,
+              : (prev + mentionCandidates.length - 1) % mentionCandidates.length
           );
           return;
         }
@@ -722,17 +584,17 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     return (
       <div className={classnames("flex flex-col p-2", className)}>
         {images.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-2">
+          <div className="mb-2 flex flex-wrap gap-2">
             {images.map((image, index) => (
-              <div key={image.id} className="relative w-12 h-12 group/image">
+              <div key={image.id} className="group/image relative h-12 w-12">
                 <img
                   src={image.previewUrl}
                   alt={`预览 ${index + 1}`}
-                  className="w-12 h-12 object-cover rounded-lg border border-gray-200 cursor-zoom-in"
+                  className="h-12 w-12 cursor-zoom-in rounded-lg border border-gray-200 object-cover"
                   onClick={() => setPreviewImage(image.previewUrl)}
                 />
                 <CloseOutlined
-                  className="w-4 h-4 absolute top-1 right-1 opacity-0 group-hover/image:opacity-100 transition-opacity duration-200 rounded-full p-1 text-white! hover:bg-gray-500! cursor-pointer"
+                  className="text-white! hover:bg-gray-500! absolute right-1 top-1 h-4 w-4 cursor-pointer rounded-full p-1 opacity-0 transition-opacity duration-200 group-hover/image:opacity-100"
                   onClick={() => removeImage(image.id)}
                 />
               </div>
@@ -741,20 +603,20 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         )}
 
         {files.length > 0 && (
-          <div className="flex flex-col gap-2 mb-2">
-            {files.map((file) => (
+          <div className="mb-2 flex flex-col gap-2">
+            {files.map(file => (
               <div
                 key={file.id}
-                className="flex items-center justify-between px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-zinc-800"
+                className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-zinc-800"
               >
                 <div className="flex items-center gap-2 overflow-hidden">
-                  <FilePdfOutlined className="text-red-500 shrink-0" />
-                  <span className="text-sm text-gray-800 dark:text-gray-100 truncate">
+                  <FilePdfOutlined className="shrink-0 text-red-500" />
+                  <span className="truncate text-sm text-gray-800 dark:text-gray-100">
                     {file.name}
                   </span>
                 </div>
                 <CloseOutlined
-                  className="w-4 h-4 text-gray-400 hover:text-gray-700 cursor-pointer"
+                  className="h-4 w-4 cursor-pointer text-gray-400 hover:text-gray-700"
                   onClick={() => removeFile(file.id)}
                 />
               </div>
@@ -771,9 +633,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 placement="topLeft"
                 content={
                   <div className="max-w-[320px] text-sm leading-6">
-                    <div className="font-medium text-gray-900">
-                      {mention.title}
-                    </div>
+                    <div className="font-medium text-gray-900">{mention.title}</div>
                     <div className="mt-1 whitespace-pre-wrap text-gray-600">
                       {mention.previewText || "暂无摘要"}
                     </div>
@@ -791,7 +651,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                   </div>
                   <CloseOutlined
                     className="mt-0.5 text-xs text-blue-500/70 opacity-0 transition-opacity group-hover:opacity-100 dark:text-blue-200/70"
-                    onClick={(event) => {
+                    onClick={event => {
                       event.stopPropagation();
                       removeMentionMarkup(mention);
                     }}
@@ -806,11 +666,11 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           <TextArea
             ref={textAreaRef}
             value={textContent}
-            onChange={(e) => {
+            onChange={e => {
               setTextContent(e.target.value);
               syncMentionStateFromText(
                 e.target.value,
-                e.target.selectionStart ?? e.target.value.length,
+                e.target.selectionStart ?? e.target.value.length
               );
             }}
             onKeyDown={handleKeyDown}
@@ -823,7 +683,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             placeholder={resolvedPlaceholder}
             autoSize={{ minRows: 1, maxRows: 6 }}
             disabled={!contentEditable}
-            className="w-full resize-none border-none focus:ring-0 focus:border-blue-400 bg-transparent text-base px-0! dark:text-[#e6edf3]!"
+            className="px-0! dark:text-[#e6edf3]! w-full resize-none border-none bg-transparent text-base focus:border-blue-400 focus:ring-0"
             classNames={{
               textarea: "shared-chat-input-textarea",
             }}
@@ -844,9 +704,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                       "flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left transition-colors",
                       index === mentionActiveIndex
                         ? "bg-blue-50 dark:bg-blue-500/10"
-                        : "hover:bg-gray-50 dark:hover:bg-white/5",
+                        : "hover:bg-gray-50 dark:hover:bg-white/5"
                     )}
-                    onMouseDown={(event) => {
+                    onMouseDown={event => {
                       event.preventDefault();
                       insertMentionAtCursor(mention);
                     }}
@@ -873,7 +733,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           )}
         </div>
 
-        <div className="flex items-center justify-between mt-1">
+        <div className="mt-1 flex items-center justify-between">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             {onCreateNewMessage && (
               <Tooltip
@@ -881,7 +741,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 trigger={["hover"]}
                 open={isNewChatTooltipOpen}
                 destroyOnHidden
-                onOpenChange={(open) => {
+                onOpenChange={open => {
                   setIsNewChatTooltipOpen(
                     resolveNewChatTooltipOpen({
                       requestedOpen: open,
@@ -889,7 +749,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                       sendLoading,
                       contentEditable,
                       reopenLocked: isNewChatTooltipReopenLocked,
-                    }),
+                    })
                   );
                 }}
               >
@@ -934,8 +794,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               <Dropdown
                 menu={{
                   items: reasoningEffortMenuItems,
-                  onClick: ({ key }) =>
-                    onReasoningEffortChange?.(key as ReasoningEffort),
+                  onClick: ({ key }) => onReasoningEffortChange?.(key as ReasoningEffort),
                 }}
                 trigger={["click"]}
                 disabled={reasoningControlDisabled}
@@ -943,9 +802,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 <span
                   style={{
                     display: "inline-block",
-                    cursor: reasoningControlDisabled
-                      ? "not-allowed"
-                      : "pointer",
+                    cursor: reasoningControlDisabled ? "not-allowed" : "pointer",
                   }}
                 >
                   <Button
@@ -977,10 +834,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 />
               </Tooltip>
             )}
-            <ContextUsageIndicator
-              contextWindowK={contextWindowK}
-              usage={contextUsage}
-            />
+            <ContextUsageIndicator contextWindowK={contextWindowK} usage={contextUsage} />
             {isSupportImage && (
               <Tooltip title="上传图片">
                 <Upload
@@ -1029,7 +883,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 size="small"
                 onClick={onStop}
                 icon={<StopOutlined />}
-                className="p-1 rounded border-none! bg-none! text-gray-600! dark:text-gray-400! hover:text-red-500! hover:bg-red-50! dark:hover:bg-red-900/20! shadow-none!"
+                className="border-none! bg-none! text-gray-600! dark:text-gray-400! hover:text-red-500! hover:bg-red-50! dark:hover:bg-red-900/20! shadow-none! rounded p-1"
                 title="停止生成"
               />
             )}
@@ -1040,7 +894,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                   size="small"
                   onClick={onPressEnter}
                   icon={<SendOutlined />}
-                  className="p-1 rounded border-none! bg-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! shadow-none!"
+                  className="border-none! bg-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! shadow-none! rounded p-1"
                   title={sendLoading ? "加入发送队列" : "发送"}
                 />
                 {queuedMessageCount > 0 && (
@@ -1055,18 +909,14 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         <PortalToBody>
           {previewImage && (
             <div
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center cursor-zoom-out"
+              className="fixed inset-0 flex cursor-zoom-out items-center justify-center bg-black bg-opacity-50"
               style={{ zIndex: 9999 }}
               onClick={() => setPreviewImage(null)}
             >
-              <div className="absolute inset-0 bg-black bg-opacity-50 -z-1" />
-              <img
-                src={previewImage}
-                alt="预览"
-                className="max-w-full max-h-full"
-              />
+              <div className="-z-1 absolute inset-0 bg-black bg-opacity-50" />
+              <img src={previewImage} alt="预览" className="max-h-full max-w-full" />
               <CloseOutlined
-                className="w-5 h-5 absolute top-4 right-4 duration-200 rounded-full p-1 cursor-pointer text-white! hover:bg-gray-500!"
+                className="text-white! hover:bg-gray-500! absolute right-4 top-4 h-5 w-5 cursor-pointer rounded-full p-1 duration-200"
                 onClick={() => setPreviewImage(null)}
               />
             </div>
@@ -1074,7 +924,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         </PortalToBody>
       </div>
     );
-  },
+  }
 );
 
 ChatInputArea.displayName = "ChatInputArea";

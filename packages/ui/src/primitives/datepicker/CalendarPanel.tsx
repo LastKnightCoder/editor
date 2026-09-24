@@ -192,11 +192,12 @@ export function CalendarPanel({
                   className={cn(
                     "rounded-tau-sm relative flex h-8 cursor-pointer items-center justify-center text-[12.5px] tabular-nums",
                     "transition-[background,color] duration-[130ms]",
-                    "hover:bg-hover data-[hl=true]:bg-hover",
+                    !selected && "hover:bg-hover data-[hl=true]:bg-hover",
                     !inMonth && "text-ink-3",
                     inMonth && !selected && "text-ink-1",
                     isToday && !selected && "text-accent-text font-[600]",
-                    selected && "bg-accent text-ink-inverse hover:bg-accent-hover font-[600]",
+                    selected &&
+                      "bg-accent text-ink-inverse hover:bg-accent-hover data-[hl=true]:bg-accent-hover font-[600]",
                     isInRange?.(date) &&
                       !selected &&
                       "bg-accent-soft text-accent-text hover:bg-accent-soft rounded-none",

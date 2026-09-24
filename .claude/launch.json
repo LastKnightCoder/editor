@@ -1,0 +1,47 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sbtest",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8791", "-d", "/tmp/sbtest"],
+      "port": 8791
+    },
+    {
+      "name": "db-toolbar-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8793", "-d", "apps/desktop/mockups/database-toolbar"],
+      "port": 8793
+    },
+    {
+      "name": "publish-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8794", "-d", "apps/desktop/mockups/publish"],
+      "port": 8794
+    },
+    {
+      "name": "settings-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8795", "-d", "apps/desktop/mockups/settings"],
+      "port": 8795
+    },
+    {
+      "name": "calendar-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8796", "-d", "apps/desktop/mockups/calendar"],
+      "port": 8796
+    },
+    {
+      "name": "notification-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8797", "-d", "apps/desktop/mockups/notification"],
+      "port": 8797
+    },
+    {
+      "name": "showcase",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "apps/desktop", "showcase"],
+      "port": 6199
+    }
+  ]
+}

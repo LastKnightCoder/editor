@@ -1,12 +1,4 @@
-import {
-  Image,
-  Copy,
-  Link,
-  Download,
-  Sparkles,
-  Upload,
-  FolderOpen,
-} from "lucide-react";
+import { Image, Copy, Link, Download, Sparkles, Upload } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
 import { uploadResource } from "@/hooks/useUploadResource";
@@ -62,7 +54,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
         asContainer: ContainmentBehavior.None,
         canBeContained: true,
         // 58f0660e53ef5165 ColumnFf0851c651654e0e542675315b5065b958f0660e53cd8f6c51b35b9aFf0c89c1 CapabilityService.canContainFf09
-        canBeContainedBy: (container) => container.type === "column",
+        canBeContainedBy: container => container.type === "column",
       },
       movement: { behavior: MovementBehavior.Normal },
       render: {
@@ -76,7 +68,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
           return DOMSizeMeasurer.measureMediaHeight(
             image.naturalWidth || image.width || targetWidth,
             image.naturalHeight || image.height || targetWidth * 0.75,
-            targetWidth,
+            targetWidth
           );
         },
       },
@@ -104,18 +96,6 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
               ctx.board.emit("context-menu:open-modal", {
                 type: "image",
                 action: "local",
-              });
-            },
-          },
-          {
-            key: "image-resource",
-            label: "资源库",
-            icon: <FolderOpen size={14} />,
-            priority: 1,
-            onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
-                type: "image",
-                action: "resource",
               });
             },
           },
@@ -149,9 +129,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
     }
 
     // 右键图片元素 → 添加图片操作菜单
-    const imageElements = targetElements.filter(
-      (el) => el.type === "image",
-    ) as ImageElement[];
+    const imageElements = targetElements.filter(el => el.type === "image") as ImageElement[];
     if (imageElements.length === 1) {
       const imageElement = imageElements[0];
 
@@ -235,19 +213,12 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
     const startPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!startPoint) return;
 
-    const hitElements = BoardUtil.getHitElements(
-      board,
-      startPoint.x,
-      startPoint.y,
-    );
+    const hitElements = BoardUtil.getHitElements(board, startPoint.x, startPoint.y);
     const clickedElement = hitElements[hitElements.length - 1];
     if (!clickedElement || clickedElement.type !== "image") return;
 
-    const selectedElements = expandSelectionByGroup(
-      board,
-      board.selection.selectedElements,
-    );
-    const selectedIds = new Set(selectedElements.map((element) => element.id));
+    const selectedElements = expandSelectionByGroup(board, board.selection.selectedElements);
+    const selectedIds = new Set(selectedElements.map(element => element.id));
     if (!selectedIds.has(clickedElement.id)) return;
 
     this.previewStartPoint = startPoint;
@@ -255,25 +226,17 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
   }
 
   onGlobalPointerMove(e: PointerEvent, board: Board) {
-    if (
-      !this.previewStartPoint ||
-      !this.previewCandidateImage ||
-      this.previewMoved
-    ) {
+    if (!this.previewStartPoint || !this.previewCandidateImage || this.previewMoved) {
       return;
     }
 
-    const currentPoint = PointUtil.screenToViewPort(
-      board,
-      e.clientX,
-      e.clientY,
-    );
+    const currentPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
     if (!currentPoint) return;
 
     if (
       Math.hypot(
         currentPoint.x - this.previewStartPoint.x,
-        currentPoint.y - this.previewStartPoint.y,
+        currentPoint.y - this.previewStartPoint.y
       ) > 5
     ) {
       this.previewMoved = true;
@@ -287,11 +250,7 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
     }
 
     const shouldPreview =
-      !this.previewMoved &&
-      !e.ctrlKey &&
-      !e.metaKey &&
-      !e.shiftKey &&
-      !e.altKey;
+      !this.previewMoved && !e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey;
     const previewImage = this.previewCandidateImage;
     this.resetPreviewState();
 
@@ -324,10 +283,8 @@ export class ImagePlugin extends CommonPlugin implements IBoardPlugin {
     if (imageFiles.length === 0) return;
 
     Promise.all(
-      imageFiles.map((file) =>
-        Promise.all([getImageInfo(file), Promise.resolve(file)]),
-      ),
-    ).then(async (images) => {
+      imageFiles.map(file => Promise.all([getImageInfo(file), Promise.resolve(file)]))
+    ).then(async images => {
       message.loading({
         key: "uploading-image",
         content: "正在处理图片，请稍候...",

@@ -17,6 +17,7 @@ import {
   UpdateTodoRecurrence,
   TodoRecurrenceCompletion,
   TodoCalendarMapping,
+  TodoCalendarEventSource,
   TodoCalendarSyncType,
 } from "@/types";
 
@@ -210,6 +211,12 @@ export const getCalendarMappingByEvent = async (
   calendarEventId: number
 ): Promise<TodoCalendarMapping | null> => {
   return invoke("todo:get-calendar-mapping-by-event", { calendarEventId });
+};
+
+export const getCalendarEventSources = async (
+  calendarEventIds: number[]
+): Promise<Record<number, TodoCalendarEventSource>> => {
+  return invoke("todo:get-calendar-event-sources", { calendarEventIds });
 };
 
 export const getCalendarMappingById = async (id: number): Promise<TodoCalendarMapping | null> => {

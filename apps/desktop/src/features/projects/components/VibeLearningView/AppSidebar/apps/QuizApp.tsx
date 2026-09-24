@@ -245,7 +245,7 @@ const QuizApp = memo((props: QuizAppProps) => {
                       <span
                         className={classNames(
                           "rounded-md px-2 py-0.5 text-xs font-medium",
-                          "bg-group",
+                          "bg-hover",
                           "text-ink-2"
                         )}
                       >

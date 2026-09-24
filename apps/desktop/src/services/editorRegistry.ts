@@ -10,7 +10,6 @@ import {
   IFileService,
   IMediaActions,
   IMediaInsertSources,
-  IMediaSelectors,
   IResourceService,
   IVideoContentProviders,
   type ServiceRegistry,
@@ -21,10 +20,6 @@ import {
 } from "@/editor-providers/videoProviders";
 import { ttsInsertSource } from "@/editor-providers/TtsPanel";
 import { aiImageEditAction, aiImageInsertSource } from "@/editor-providers/AIImagePanel";
-import {
-  resourceLibraryInsertSource,
-  resourceLibrarySelector,
-} from "@/editor-providers/ResourceLibraryPicker";
 
 import {
   desktopCompilerService,
@@ -48,12 +43,10 @@ export function createEditorRegistry(): ServiceRegistry {
     // 媒体内容源（bilibili / youtube / remote 解析渲染与插入入口）
     register(IVideoContentProviders, desktopVideoContentProviders);
     register(IMediaInsertSources, [
-      resourceLibraryInsertSource,
       ...desktopVideoInsertSources,
       ttsInsertSource,
       aiImageInsertSource,
     ]);
     register(IMediaActions, [aiImageEditAction]);
-    register(IMediaSelectors, [resourceLibrarySelector]);
   });
 }

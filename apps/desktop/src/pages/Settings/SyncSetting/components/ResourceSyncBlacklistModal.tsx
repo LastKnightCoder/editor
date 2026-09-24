@@ -11,8 +11,10 @@ import CustomCheckbox from "@/components/CustomCheckbox";
 import LocalImage from "@/components/LocalImage";
 import LocalVideo from "@/components/LocalVideo";
 import LocalAudio from "@/components/LocalAudio";
-import { getAllResources } from "@/commands";
-import { IResource, ResourceType } from "@/types";
+import { listLocalResourceSyncFiles } from "@/commands";
+import { inferResourceFileType } from "../utils";
+import type { ResourcePreviewItem } from "./ResourceThumbnail";
+import { ResourceFileType } from "@/types";
 import TypeSelect from "./TypeSelect";
 import ResourceThumbnail from "./ResourceThumbnail";
 
@@ -26,7 +28,7 @@ interface ResourceSyncBlacklistModalProps {
 
 const RESOURCE_TYPE_OPTIONS: Array<{
   label: string;
-  value: ResourceType | "all";
+  value: ResourceFileType | "all";
 }> = [
   { label: "全部类型", value: "all" },
   { label: "图片", value: "image" },
@@ -45,9 +47,9 @@ const ResourceSyncBlacklistModal = ({
 }: ResourceSyncBlacklistModalProps) => {
   const listRef = useRef<HTMLDivElement>(null);
 
-  const [resources, setResources] = useState<IResource[]>([]);
+  const [resources, setResources] = useState<ResourcePreviewItem[]>([]);
   const [searchKeyword, setSearchKeyword] = useState("");
-  const [typeFilter, setTypeFilter] = useState<ResourceType | "all">("all");
+  const [typeFilter, setTypeFilter] = useState<ResourceFileType | "all">("all");
   const [selectedNames, setSelectedNames] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
@@ -77,8 +79,10 @@ const ResourceSyncBlacklistModal = ({
     if (!open) return;
     setLoading(true);
     try {
-      const list = await getAllResources();
-      setResources(list);
+      const list = await listLocalResourceSyncFiles();
+      setResources(
+        list.map(file => ({ ...file, type: inferResourceFileType(file.name) ?? "attachment" }))
+      );
     } finally {
       setLoading(false);
     }
@@ -115,7 +119,7 @@ const ResourceSyncBlacklistModal = ({
     overscan: 5,
   });
 
-  const toggleSelection = useMemoizedFn((resource: IResource) => {
+  const toggleSelection = useMemoizedFn((resource: ResourcePreviewItem) => {
     if (blacklistSet.has(resource.name)) {
       return;
     }
@@ -233,7 +237,7 @@ const ResourceSyncBlacklistModal = ({
 
                   return (
                     <div
-                      key={resource.id}
+                      key={resource.path}
                       className={classNames(
                         "flex cursor-pointer items-center gap-3 px-4 py-3 transition-all",
                         // 选中状态

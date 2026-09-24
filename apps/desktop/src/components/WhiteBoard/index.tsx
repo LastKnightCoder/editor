@@ -122,7 +122,6 @@ interface WhiteBoardProps {
     selection: Selection;
     presentationSequences?: PresentationSequence[];
   }) => void;
-  whiteboardContentId?: number;
   showSidebar?: boolean;
   showToolbar?: boolean;
   showAttributeSetter?: boolean;
@@ -193,7 +192,6 @@ const WhiteBoard = memo(
       initPresentationSequences = DEFAULT_PRESENTATION_SEQUENCES,
       readonly,
       onChange,
-      whiteboardContentId,
       showSidebar = true,
       showToolbar,
       showAttributeSetter,
@@ -788,17 +786,6 @@ const WhiteBoard = memo(
         window.removeEventListener("blur", handleWindowBlur);
       };
     }, [clearPointerViewport]);
-
-    useEffect(() => {
-      if (whiteboardContentId != null) {
-        board.setResourceSource({
-          type: "whiteboard",
-          id: whiteboardContentId,
-        });
-      } else {
-        board.setResourceSource(undefined);
-      }
-    }, [board, whiteboardContentId]);
 
     // 监听打开笔记事件
     useEffect(() => {

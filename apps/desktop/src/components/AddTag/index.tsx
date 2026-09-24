@@ -1,15 +1,9 @@
-import React, {
-  useEffect,
-  useState,
-  useRef,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import isHotKey from "is-hotkey";
+import { Plus } from "lucide-react";
 
-import { PlusOutlined } from "@ant-design/icons";
+import { Tag as TauTag } from "@tau/ui";
 import Tags from "@/components/Tags";
-import Tag from "@/components/Tags/Tag";
 
 interface AddTagProps {
   tags: string[];
@@ -24,16 +18,7 @@ interface AddTagProps {
 }
 
 const AddTag = (props: AddTagProps) => {
-  const {
-    tags,
-    addTag,
-    removeTag,
-    editTag,
-    readonly = false,
-    className,
-    style,
-    onReorder,
-  } = props;
+  const { tags, addTag, removeTag, editTag, readonly = false, className, style, onReorder } = props;
   const [addTagVisible, setAddTagVisible] = useState(false);
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -46,7 +31,7 @@ const AddTag = (props: AddTagProps) => {
       }
       setAddTagVisible(false);
     },
-    [addTag],
+    [addTag]
   );
 
   const handleBlur = useCallback(() => {
@@ -63,7 +48,7 @@ const AddTag = (props: AddTagProps) => {
       }
       setEditingTag(null);
     },
-    [editTag],
+    [editTag]
   );
 
   const handleEditBlur = useCallback(() => {
@@ -74,24 +59,30 @@ const AddTag = (props: AddTagProps) => {
   }, [editingTag, handleEditTag]);
 
   const handleTagClick = useCallback(
-    (tag: string) => {
-      if (readonly || !editTag) return;
+    (tag: string, event: React.MouseEvent) => {
+      if (readonly || !editTag || editingTag === tag) return;
+      const { clientX, clientY } = event;
       setEditingTag(tag);
 
       setTimeout(() => {
         if (editRef.current) {
           editRef.current.textContent = tag;
           editRef.current.focus();
-          // 选中所有文本
+          const clickedRange = document.caretRangeFromPoint(clientX, clientY);
           const range = document.createRange();
-          range.selectNodeContents(editRef.current);
+          if (clickedRange && editRef.current.contains(clickedRange.startContainer)) {
+            range.setStart(clickedRange.startContainer, clickedRange.startOffset);
+          } else {
+            range.selectNodeContents(editRef.current);
+          }
+          range.collapse(false);
           const selection = window.getSelection();
           selection?.removeAllRanges();
           selection?.addRange(range);
         }
       });
     },
-    [readonly, editTag],
+    [readonly, editTag, editingTag]
   );
 
   useEffect(() => {
@@ -120,7 +111,7 @@ const AddTag = (props: AddTagProps) => {
   }, [addTagVisible, editingTag, handleAddTag, handleEditTag]);
 
   const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
+    (e: React.MouseEvent) => {
       if (addTagVisible) return;
       e.stopPropagation();
       setAddTagVisible(true);
@@ -128,33 +119,35 @@ const AddTag = (props: AddTagProps) => {
         ref.current?.focus();
       });
     },
-    [addTagVisible],
+    [addTagVisible]
   );
-
-  const tag = useMemo(() => {
-    return addTagVisible ? (
-      <div
-        style={{ paddingLeft: 4 }}
-        ref={ref}
-        contentEditable={addTagVisible}
-        suppressContentEditableWarning
-        onBlur={handleBlur}
-      />
-    ) : (
-      "添加标签"
-    );
-  }, [addTagVisible, handleBlur]);
 
   const renderAddTagBtn = () => {
     if (readonly) return undefined;
     return (
-      <Tag
+      <TauTag
         onClick={handleClick}
-        showIcon
-        hoverAble={!readonly}
-        icon={<PlusOutlined />}
-        tag={tag}
-      />
+        className="hover:bg-surface-hover hover:text-ink-1 cursor-pointer"
+      >
+        <span className="flex items-center gap-0.5 whitespace-nowrap">
+          <Plus aria-hidden className="size-3 shrink-0" strokeWidth={2} />
+          {addTagVisible ? (
+            <div
+              ref={ref}
+              contentEditable={addTagVisible}
+              suppressContentEditableWarning
+              onBlur={handleBlur}
+              style={{
+                outline: "none",
+                minWidth: "2ch",
+                display: "inline-block",
+              }}
+            />
+          ) : (
+            "添加标签"
+          )}
+        </span>
+      </TauTag>
     );
   };
 
@@ -169,7 +162,6 @@ const AddTag = (props: AddTagProps) => {
       onClick={!readonly && editTag ? handleTagClick : undefined}
       lastChild={<>{renderAddTagBtn()}</>}
       noWrap
-      showIcon
       editingTag={editingTag}
       editRef={editRef}
       onEditBlur={handleEditBlur}

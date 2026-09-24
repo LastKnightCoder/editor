@@ -44,6 +44,14 @@ pub(super) fn upgrade(conn: &Connection, baseline: &Connection, now: i64) -> Res
 }
 
 fn upgrade_inner(conn: &Connection, baseline: &Connection, now: i64) -> rusqlite::Result<()> {
+    // 只删除主库资源索引，附件文件与协作缓存保持原样。
+    if !columns(conn, "operation")?.is_empty() {
+        conn.execute("DELETE FROM operation WHERE operation_content_type = ?1", ["resource"])?;
+    }
+    conn.execute_batch("DROP TABLE IF EXISTS resources;
+        DROP TABLE IF EXISTS resource_scan_version;
+        DROP TABLE IF EXISTS resource_group;")?;
+
     let add_diary_tags = !has_column(conn, "diary_entries", "tags")?;
     // 首次补 diary_segments.tags 列时，把旧 entry 级标签回填到该天全部片段，
     // 保证「标签绑 segment」模型迁移后老数据不丢

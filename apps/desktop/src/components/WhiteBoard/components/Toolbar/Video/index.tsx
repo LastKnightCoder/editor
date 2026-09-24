@@ -2,9 +2,8 @@ import { useRef, useState } from "react";
 import SVG from "react-inlinesvg";
 import { App, Popover, Tooltip } from "antd";
 import { useMemoizedFn } from "ahooks";
-import { Upload, FolderOpen, Link, MonitorPlay, Youtube } from "lucide-react";
+import { Upload, Link, MonitorPlay, Youtube } from "lucide-react";
 import videoIcon from "@/assets/white-board/video.svg";
-import ResourcePickerModal from "@/components/ResourcePickerModal";
 import YoutubeVideoSelectModal, {
   type YoutubeVideoSelectResult,
 } from "@/components/YoutubeVideoSelectModal";
@@ -15,7 +14,6 @@ import RemoteVideoSelectModal, {
   type RemoteVideoSelectResult,
 } from "@/components/RemoteVideoSelectModal";
 import ToolbarMenu, { ToolbarMenuItem } from "../ToolbarMenu";
-import type { IResource } from "@/types";
 
 import { useBoard } from "../../../hooks";
 import { VideoUtil } from "../../../utils";
@@ -32,93 +30,62 @@ const Video = (props: VideoProps) => {
   const videoInputRef = useRef<HTMLInputElement>(null);
   const { message } = App.useApp();
 
-  const handleAddVideo = useMemoizedFn(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (file) {
-        message.loading({
-          key: "uploading-video",
-          content: "正在处理视频，请稍候...",
-          duration: 0,
-        });
-        await VideoUtil.insertVideo(file, board);
-        message.destroy("uploading-video");
-      }
-      event.target.value = "";
-    },
-  );
-
-  const handleInsertFromResource = useMemoizedFn(
-    async (resources: IResource[]) => {
-      if (!resources.length) {
-        setResourcePickerOpen(false);
-        return;
-      }
+  const handleAddVideo = useMemoizedFn(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
       message.loading({
         key: "uploading-video",
-        content: "正在插入视频，请稍候...",
+        content: "正在处理视频，请稍候...",
         duration: 0,
       });
-      try {
-        for (const resource of resources) {
-          await VideoUtil.insertVideoFromPath(resource.path, board);
-        }
-      } finally {
-        message.destroy("uploading-video");
-        setResourcePickerOpen(false);
-      }
-    },
-  );
+      await VideoUtil.insertVideo(file, board);
+      message.destroy("uploading-video");
+    }
+    event.target.value = "";
+  });
 
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const [resourcePickerOpen, setResourcePickerOpen] = useState(false);
   const [remoteModalOpen, setRemoteModalOpen] = useState(false);
   const [biliModalOpen, setBiliModalOpen] = useState(false);
   const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
 
-  const handleRemoteConfirm = useMemoizedFn(
-    async (result: RemoteVideoSelectResult) => {
-      try {
-        await VideoUtil.insertVideoFromUrl(result.url, board);
-        setRemoteModalOpen(false);
-        setPopoverOpen(false);
-      } catch (error) {
-        console.error("添加远程视频失败:", error);
-        message.error("添加远程视频失败");
-      }
-    },
-  );
+  const handleRemoteConfirm = useMemoizedFn(async (result: RemoteVideoSelectResult) => {
+    try {
+      await VideoUtil.insertVideoFromUrl(result.url, board);
+      setRemoteModalOpen(false);
+      setPopoverOpen(false);
+    } catch (error) {
+      console.error("添加远程视频失败:", error);
+      message.error("添加远程视频失败");
+    }
+  });
 
-  const handleBilibiliConfirm = useMemoizedFn(
-    async (result: BilibiliVideoSelectResult) => {
-      try {
-        await VideoUtil.insertVideoFromMeta(board, result.metaInfo);
-        setBiliModalOpen(false);
-        setPopoverOpen(false);
-      } catch (error) {
-        console.error("添加 Bilibili 视频失败:", error);
-        message.error("添加 Bilibili 视频失败");
-      }
-    },
-  );
+  const handleBilibiliConfirm = useMemoizedFn(async (result: BilibiliVideoSelectResult) => {
+    try {
+      await VideoUtil.insertVideoFromMeta(board, result.metaInfo);
+      setBiliModalOpen(false);
+      setPopoverOpen(false);
+    } catch (error) {
+      console.error("添加 Bilibili 视频失败:", error);
+      message.error("添加 Bilibili 视频失败");
+    }
+  });
 
-  const handleYoutubeConfirm = useMemoizedFn(
-    async (result: YoutubeVideoSelectResult) => {
-      try {
-        await VideoUtil.insertVideoFromMeta(board, {
-          type: "youtube",
-          url: result.url,
-          videoStream: result.videoStream,
-          audioStream: result.audioStream,
-        });
-        setYoutubeModalOpen(false);
-        setPopoverOpen(false);
-      } catch (error) {
-        console.error("添加 YouTube 视频失败:", error);
-        message.error("添加 YouTube 视频失败");
-      }
-    },
-  );
+  const handleYoutubeConfirm = useMemoizedFn(async (result: YoutubeVideoSelectResult) => {
+    try {
+      await VideoUtil.insertVideoFromMeta(board, {
+        type: "youtube",
+        url: result.url,
+        videoStream: result.videoStream,
+        audioStream: result.audioStream,
+      });
+      setYoutubeModalOpen(false);
+      setPopoverOpen(false);
+    } catch (error) {
+      console.error("添加 YouTube 视频失败:", error);
+      message.error("添加 YouTube 视频失败");
+    }
+  });
 
   const menuItems: ToolbarMenuItem[] = [
     {
@@ -129,16 +96,6 @@ const Video = (props: VideoProps) => {
       onSelect: () => {
         setPopoverOpen(false);
         videoInputRef.current?.click();
-      },
-    },
-    {
-      key: "library",
-      label: "资源库",
-      icon: <FolderOpen size={16} />,
-      description: "从资源库选择",
-      onSelect: () => {
-        setPopoverOpen(false);
-        setResourcePickerOpen(true);
       },
     },
     {
@@ -191,11 +148,7 @@ const Video = (props: VideoProps) => {
             },
           }}
         >
-          <div
-            className={className}
-            style={style}
-            onClick={() => setPopoverOpen(true)}
-          >
+          <div className={className} style={style} onClick={() => setPopoverOpen(true)}>
             <input
               ref={videoInputRef}
               type="file"
@@ -207,14 +160,6 @@ const Video = (props: VideoProps) => {
           </div>
         </Popover>
       </Tooltip>
-      <ResourcePickerModal
-        open={resourcePickerOpen}
-        onCancel={() => setResourcePickerOpen(false)}
-        allowedTypes={["video"]}
-        multiple
-        title="选择视频"
-        onConfirm={handleInsertFromResource}
-      />
       <RemoteVideoSelectModal
         open={remoteModalOpen}
         onCancel={() => setRemoteModalOpen(false)}

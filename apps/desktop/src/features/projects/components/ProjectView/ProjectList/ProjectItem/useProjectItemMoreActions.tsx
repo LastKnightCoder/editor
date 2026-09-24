@@ -17,7 +17,7 @@ import useFlashcardCreation from "@/hooks/useFlashcardCreation";
 import usePodcastAttachment from "@/hooks/usePodcastAttachment";
 import useProjectWebLinkMeta from "@/hooks/useProjectWebLinkMeta";
 import useSettingStore from "@/stores/useSettingStore";
-import useTabStore from "@/stores/useTabStore";
+import { usePage } from "@/page/PageProvider";
 import { attachPodcastToProjectItem, detachPodcastFromProjectItem } from "@/commands/podcast";
 import {
   getProjectItemById,
@@ -36,7 +36,6 @@ import {
   getMarkdown,
 } from "@/utils";
 import { EProjectItemType, ProjectItem, WhiteBoardContent } from "@/types";
-import { TabType } from "@/types/tab";
 import { useMemoizedFn } from "ahooks";
 import { getProjectItemMoreMenuItems } from "./projectItemMoreMenuItems";
 import { toast } from "@tau/ui";
@@ -86,10 +85,7 @@ export const useProjectItemMoreActions = (
   const [isPresentation, setIsPresentation] = useState(false);
 
   const darkMode = useSettingStore(state => state.setting.darkMode);
-  const navigateTo = useTabStore(state => state.navigateTo);
-  const openInNewTab = useTabStore(state => state.openInNewTab);
-  const panes = useTabStore(state => state.panes);
-  const activePaneId = useTabStore(state => state.activePaneId);
+  const { navigator } = usePage();
   const projectItemEventBus = useMemo(() => defaultProjectItemEventBus.createEditor(), []);
   const { createWhiteBoard } = useWhiteBoardStore(state => ({
     createWhiteBoard: state.createWhiteBoard,
@@ -157,7 +153,7 @@ export const useProjectItemMoreActions = (
         }
         await reloadTree?.({ silent: true });
         if (activeItemId === projectItem.id) {
-          navigateTo(TabType.ProjectDetail, {
+          navigator.push("project-detail", {
             id: projectId,
             itemId: undefined,
           });
@@ -305,25 +301,14 @@ export const useProjectItemMoreActions = (
       const databaseName = useSettingStore.getState().setting.database.active;
       openProjectItemInNewWindow(databaseName, projectItem.id);
     } else if (key === "open-in-new-tab") {
-      let targetPaneId: string | undefined;
-      if (panes.length > 1) {
-        const otherPane = panes.find(p => p.id !== activePaneId);
-        targetPaneId = otherPane?.id;
-      }
-
       if (projectItem.projectItemType === EProjectItemType.WebView) {
         if (displayWebviewUrl) {
-          openInNewTab(TabType.WebView, { url: displayWebviewUrl }, targetPaneId);
+          navigator.push("webview", { url: displayWebviewUrl });
         } else {
           toast.error("无法提取 URL");
         }
       } else {
-        openInNewTab(
-          TabType.ProjectDetail,
-          { id: projectId, itemId: projectItem.id },
-          targetPaneId,
-          projectItem.title || "项目"
-        );
+        navigator.push("project-detail", { id: projectId, itemId: projectItem.id });
       }
     } else if (key === "manual-flashcard") {
       flashcard.openManualFlashcard();

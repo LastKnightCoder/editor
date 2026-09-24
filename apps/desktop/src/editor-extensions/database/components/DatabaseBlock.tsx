@@ -74,7 +74,7 @@ const DatabaseBlock = memo((props: DatabaseBlockProps) => {
     if (loading) {
       return (
         <div
-          className="bg-group rounded-tau-lg animate-pulse"
+          className="bg-hover rounded-tau-lg animate-pulse"
           style={{ minHeight: `${height}em`, margin: "3em 0" }}
         />
       );

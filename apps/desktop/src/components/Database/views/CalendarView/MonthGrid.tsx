@@ -114,6 +114,11 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
         grid.push(day);
       }
 
+      // 补齐最后一周的空白，末行才有完整网格线
+      while (grid.length % 7 !== 0) {
+        grid.push(null);
+      }
+
       return grid;
     }, [year, month]);
 
@@ -424,9 +429,9 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
             <div
               key={day}
               className={classnames(
-                "border-line-2 text-ink-2 text-tau-sm border-r py-3 text-center font-medium",
+                "border-line-2 text-ink-2 text-tau-sm py-3 text-center font-medium",
                 {
-                  "border-l": index === 0,
+                  "border-r": index < 6,
                 }
               )}
             >
@@ -445,14 +450,17 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
           {dateGrid.map((day, index) => {
             const col = index % 7;
             const row = Math.floor(index / 7);
-            const isFirstCol = col === 0;
+            // 外框交给 Database 卡片：末列不画右边、末行不画下边
+            const isLastCol = col === 6;
+            const isLastRow = row === totalRows - 1;
 
             if (day === null) {
               return (
                 <div
                   key={`empty-${index}`}
-                  className={classnames("border-line-2 border-b border-r", {
-                    "border-l": isFirstCol,
+                  className={classnames("border-line-2", {
+                    "border-r": !isLastCol,
+                    "border-b": !isLastRow,
                   })}
                 />
               );
@@ -501,10 +509,11 @@ const MonthGrid: React.FC<MonthGridProps> = memo(
                 onMouseDown={e => handleMouseDown(validDayIndex, e)}
                 onMouseEnter={() => handleMouseEnter(validDayIndex)}
                 className={classnames(
-                  "border-line-2 hover:bg-hover group relative flex cursor-pointer select-none flex-col border-b border-r p-2",
+                  "border-line-2 hover:bg-hover group relative flex cursor-pointer select-none flex-col p-2",
                   {
                     "bg-accent-soft": inDragRange,
-                    "border-l": isFirstCol,
+                    "border-r": !isLastCol,
+                    "border-b": !isLastRow,
                   }
                 )}
               >

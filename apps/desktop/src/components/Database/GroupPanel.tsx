@@ -128,7 +128,7 @@ const GroupPanel: React.FC<GroupPanelProps> = ({
                 )}
               </button>
               {active && column.type === "date" && (
-                <div className="bg-group rounded-tau-sm ml-7 flex w-[176px] p-0.5">
+                <div className="bg-hover rounded-tau-sm ml-7 flex w-[176px] p-0.5">
                   {GRANULARITY_OPTIONS.map(option => (
                     <button
                       key={option.value}

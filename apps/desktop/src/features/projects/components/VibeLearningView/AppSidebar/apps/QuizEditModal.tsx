@@ -173,7 +173,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
                 autoFocus
                 className={classNames(
                   "flex-1 rounded-xl px-4 py-2.5 text-sm outline-none transition-all",
-                  "border-line-1 bg-group border",
+                  "border-line-1 border",
                   "text-ink-1",
                   "focus:ring-accent/20 focus:border-accent focus:ring-2"
                 )}
@@ -201,7 +201,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
               <button
                 type="button"
                 onClick={handleCancelEditName}
-                className="bg-group text-ink-2 hover:bg-sunken rounded-lg p-2.5 transition-all"
+                className="bg-hover text-ink-2 hover:bg-press rounded-lg p-2.5 transition-all"
               >
                 <X className="h-4 w-4" strokeWidth={1.75} />
               </button>
@@ -211,7 +211,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
               onClick={() => setIsEditingName(true)}
               className={classNames(
                 "flex cursor-pointer items-center justify-between rounded-xl px-4 py-2.5 transition-all",
-                "border-line-1 bg-group border",
+                "border-line-1 border",
                 "hover:border-line-1"
               )}
             >
@@ -241,7 +241,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
               <p className="text-ink-2 text-sm">暂无题目</p>
             </div>
           ) : (
-            <div className="border-line-1 bg-group max-h-[400px] overflow-auto rounded-xl border">
+            <div className="border-line-1 max-h-[400px] overflow-auto rounded-xl border">
               <AnimatePresence>
                 {items.map((item, index) => (
                   <QuizItemCard
@@ -347,7 +347,7 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
         className={classNames(
           "flex cursor-pointer items-start gap-3 px-4 py-3 transition-all",
           "hover:bg-hover/50",
-          isExpanded && "bg-group"
+          isExpanded && "bg-hover"
         )}
         onClick={onToggleExpand}
       >
@@ -360,7 +360,7 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
             <span
               className={classNames(
                 "rounded-md px-2 py-0.5 text-[10px] font-semibold",
-                difficultyColors[item.difficulty] || "bg-group text-ink-2"
+                difficultyColors[item.difficulty] || "bg-hover text-ink-2"
               )}
             >
               {difficultyLabels[item.difficulty] || item.difficulty}
@@ -447,7 +447,7 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
                   "flex items-center gap-2 rounded-lg px-3 py-2 text-sm",
                   opt.isCorrect
                     ? "border-ok/30 bg-ok/10 text-status-success border"
-                    : "bg-group text-ink-2"
+                    : "bg-hover text-ink-2"
                 )}
               >
                 <span className="font-medium">{String.fromCharCode(65 + idx)}.</span>
@@ -480,7 +480,7 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
         return (
           <div>
             <p className="text-ink-2 mb-1 text-xs font-medium">参考答案：</p>
-            <p className="bg-group text-ink-2 whitespace-pre-wrap rounded-lg px-3 py-2 text-sm">
+            <p className="bg-hover text-ink-2 whitespace-pre-wrap rounded-lg px-3 py-2 text-sm">
               {item.data.answer || "暂无答案"}
             </p>
           </div>
@@ -705,7 +705,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
                       ? opt.value
                         ? "border-ok/40 bg-ok/10 text-status-success"
                         : "border-red-500 bg-red-50 text-red-600"
-                      : "border-line-1 bg-group text-ink-2 hover:border-line-1"
+                      : "border-line-1 text-ink-2 hover:border-line-1"
                   )}
                 >
                   {opt.label}
@@ -776,7 +776,7 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
           onClick={onCancel}
           className={classNames(
             "rounded-lg px-4 py-2 text-sm font-medium transition-all",
-            "bg-group text-ink-2",
+            "bg-hover text-ink-2",
             "hover:bg-hover"
           )}
         >

@@ -45,3 +45,10 @@ html {
   --tau-statusbar-h: 30px;
   --tau-content-pad: 34px;
 }
+
+/* 纸面卡片（项目详情等）内的滚动条：轨道上下让出圆角半径，thumb 不贴卡片上下缘。
+   必须用 track margin——track 透明边框在当前 Chromium 不缩短 thumb 活动区（实测无效） */
+/* .tau-sheet-scroll：视口已自行内缩（如项目正文 py-4），轨道不再叠加让位 */
+.app .tau-sheet *:not(.tau-sheet-scroll)::-webkit-scrollbar-track {
+  margin-block: var(--tau-radius-lg);
+}

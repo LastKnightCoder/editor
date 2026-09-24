@@ -1,7 +1,8 @@
 /**
  * 文章详情视图（mockups/article-detail/plan-a4-quiet.html 定稿落地）。
  * 版心 = hero + 正文列（720）恒居中（grid 三列），目录贴正文右缘 sticky；
- * 面包屑（含速切器）与底部状态栏经 usePageBreadcrumb/usePageStatusBar 注入壳层。
+ * 面包屑（含速切器）经 usePageBreadcrumb 注入壳层；无底部状态栏：标题/元信息在封面之上，
+ * ⋯ 菜单（含「发起协作」）贴元信息行右侧；不展示保存态与阅读进度。
  *
  * 保存分工（对齐 legacy EditArticle 的双链路设计）：正文持久化走 useEditContent
  * （1s 节流写 content 表 + content:updated 广播，多实例/多 tab 同步），元数据
@@ -23,7 +24,6 @@ import { Transforms } from "slate";
 import { ReactEditor } from "slate-react";
 import {
   BookOpen,
-  ChevronUp,
   ClipboardCopy,
   CreditCard,
   Download,
@@ -33,12 +33,18 @@ import {
   Image as ImageIcon,
   Maximize2,
   MessageSquare,
+  Copy,
+  ExternalLink,
+  Trash2,
+  Wand2,
+  MoreHorizontal,
   Play,
   Presentation,
+  Share2,
   Sparkles,
 } from "lucide-react";
 import type { EditorRef } from "@tau/editor/src";
-import { usePage, usePageBreadcrumb, usePageParams, usePageStatusBar } from "@/page/PageProvider";
+import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { isElectron } from "@/electron";
 import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -47,7 +53,9 @@ import ImmersiveEditorMode from "@/components/ImmersiveEditorMode";
 import ContentExportModal from "@/components/ContentExportModal";
 import EpubExportModal from "@/components/EpubExportModal";
 import { PdfExportModal } from "@/components/PdfExportModal";
-import ContentCollaborationControl from "@/components/ContentCollaborationControl";
+import ContentCollaborationControl, {
+  type ContentCollaborationControlHandle,
+} from "@/components/ContentCollaborationControl";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
@@ -69,8 +77,9 @@ import {
   getMarkdown,
 } from "@/utils";
 import type { IArticle } from "@/types";
-import { Loading, Menu, toast, cn, useEdgeFade } from "@tau/ui";
+import { ConfirmDialog, Loading, Menu, toast, useEdgeFade } from "@tau/ui";
 
+import { useArticleMutations } from "../queries";
 import { ArticlePodcast } from "../components/ArticlePodcast";
 import { ArticleHero } from "../components/ArticleHero";
 import { ArticleTags } from "../components/ArticleTags";
@@ -114,6 +123,10 @@ export function ArticleDetailView() {
   } = useEditArticle(id);
 
   const editorRef = useRef<EditorRef>(null);
+  const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
+  const [pendingDelete, setPendingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const { remove } = useArticleMutations();
   const extensions = useDynamicExtensionsStore(store => store.extensions);
   const uploadResource = useUploadResource();
   const databaseName = useSettingStore(state => state.setting.database.active);
@@ -123,8 +136,6 @@ export function ArticleDetailView() {
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
 
-  const [readPercent, setReadPercent] = useState(0);
-  const [saved, setSaved] = useState(true);
   const [podcastModalOpen, setPodcastModalOpen] = useState(false);
   const [presenting, setPresenting] = useState<Descendant[] | null>(null);
   const [immersive, setImmersive] = useState(false);
@@ -148,7 +159,6 @@ export function ArticleDetailView() {
     if (!id) return;
     return articleEventBus.subscribeToArticleWithId("article:updated", id, data => {
       setEditingArticle(data.article);
-      setSaved(true);
     });
   }, [id, articleEventBus, setEditingArticle]);
 
@@ -167,7 +177,6 @@ export function ArticleDetailView() {
   const persistAndBroadcast = async () => {
     const updated = await saveArticle();
     if (updated) {
-      setSaved(true);
       articleEventBus.publishArticleEvent("article:updated", updated);
     }
   };
@@ -206,12 +215,6 @@ export function ArticleDetailView() {
     return () => window.clearTimeout(timer);
   }, [editorRemountKey, immersive]);
 
-  const handleScroll = useCallback(() => {
-    if (!scrollEl) return;
-    const max = scrollEl.scrollHeight - scrollEl.clientHeight;
-    setReadPercent(max > 0 ? Math.round((scrollEl.scrollTop / max) * 100) : 0);
-  }, [scrollEl]);
-
   /* 目录锚点解析：编辑器 onChange 输出经 normalize 重建（props 里的节点引用与
      editor.children 脱钩，直接 toDOMNode 会抛错）——按序索引编辑器实时
      children 再定位 DOM（口径同编辑器自带 scrollHeaderIntoView 的实现） */
@@ -239,7 +242,6 @@ export function ArticleDetailView() {
       }
       await updateArticleBannerBg(editingArticle.id, url);
       setEditingArticle({ ...editingArticle, bannerBg: url });
-      setSaved(false);
       toast.success("封面已更新");
     } finally {
       setChangingCover(false);
@@ -256,7 +258,6 @@ export function ArticleDetailView() {
 
   const handlePodcastUpdated = (updated: IArticle) => {
     setEditingArticle(updated);
-    setSaved(true);
   };
 
   /* 标题栏面包屑（usePageBreadcrumb）：「文章 / [速切器]」——须 useMemo 稳定化
@@ -287,114 +288,35 @@ export function ArticleDetailView() {
   }, [editingArticle, navigator]);
   usePageBreadcrumb("article-detail", breadcrumbNode);
 
-  /* 全局状态栏（usePageStatusBar）：协作/字数/保存态 | 阅读%/「更多」菜单。
-     须 useMemo 稳定化，协议同面包屑 */
-  const statusBarNode = useMemo(() => {
+  /* 元信息行右侧 ⋯ 菜单（结构对齐卡片详情）：场景（高频）与协作在前，复制/导出居中，
+     生成类（制卡/播客，低频）收二级垫底，删除殿后 */
+  const moreMenuNode = useMemo(() => {
     if (!editingArticle) return null;
     return (
-      <div className="text-tau-sm text-ink-3 flex min-w-0 flex-1 items-center gap-3.5">
-        <ContentCollaborationControl
-          contentId={editingArticle.contentId}
-          source={{
-            sourceType: "article",
-            sourceId: editingArticle.id,
-            sourceTitle: editingArticle.title,
-          }}
-        />
-        <span className="text-ink-2 tabular-nums">
-          {getContentLength(editingArticle.content)} 字
-        </span>
-        <span className={cn("transition-colors", saved && "text-ink-3")}>
-          {saved ? "已保存" : "编辑中…"}
-        </span>
-
-        <span className="flex-1" />
-
-        <span className="tabular-nums">阅读 {readPercent}%</span>
-        <Menu
-          align="end"
-          trigger={
-            <button
-              type="button"
-              title="提取 / 导出 / 生成 / 场景"
-              className="text-ink-3 hover:bg-hover hover:text-ink-1 rounded-tau-sm flex items-center gap-1 px-1.5 py-0.5 transition-colors"
-            >
-              更多
-              <ChevronUp className="size-3" strokeWidth={1.75} />
-            </button>
-          }
+      <Menu
+        align="end"
+        trigger={
+          <button
+            type="button"
+            title="更多操作"
+            className="text-ink-3 hover:bg-hover hover:text-ink-1 rounded-tau-sm grid size-[26px] place-items-center transition-colors"
+          >
+            <MoreHorizontal className="size-4" strokeWidth={1.75} />
+          </button>
+        }
+      >
+        <Menu.Submenu
+          label="场景"
+          icon={<Presentation className="size-[15px] shrink-0" strokeWidth={1.75} />}
         >
-          <Menu.Group>提取</Menu.Group>
           <Menu.Item
-            icon={<ClipboardCopy className="size-[15px]" strokeWidth={1.75} />}
-            onSelect={() => void copyMarkdownToClipboard(editingArticle.content, toastAdapter)}
-          >
-            复制 Markdown
-          </Menu.Item>
-          <Menu.Item
-            icon={<MessageSquare className="size-[15px]" strokeWidth={1.75} />}
-            onSelect={() => void copyWechatHtmlToClipboard(editingArticle.content, toastAdapter)}
-          >
-            复制公众号格式
-          </Menu.Item>
-          <Menu.Group>导出</Menu.Group>
-          <Menu.Submenu
-            label="导出文章"
-            icon={<Download className="size-[15px]" strokeWidth={1.75} />}
-          >
-            <Menu.Item
-              onSelect={handleExportMarkdownFile}
-              icon={<FileText className="size-[15px]" strokeWidth={1.75} />}
-            >
-              Markdown 文件
-            </Menu.Item>
-            <Menu.Item
-              onSelect={() => setExportKind("image")}
-              icon={<ImageIcon className="size-[15px]" strokeWidth={1.75} />}
-            >
-              图片
-            </Menu.Item>
-            <Menu.Item
-              onSelect={() => setExportKind("epub")}
-              icon={<BookOpen className="size-[15px]" strokeWidth={1.75} />}
-            >
-              EPUB
-            </Menu.Item>
-            <Menu.Item
-              onSelect={() => setExportKind("pdf")}
-              icon={<FileType className="size-[15px]" strokeWidth={1.75} />}
-            >
-              PDF
-            </Menu.Item>
-          </Menu.Submenu>
-          <Menu.Group>生成</Menu.Group>
-          <Menu.Item
-            icon={<FileAudio className="size-[15px]" strokeWidth={1.75} />}
-            onSelect={() => setPodcastModalOpen(true)}
-          >
-            {editingArticle.podcast ? "编辑播客" : "生成播客"}
-          </Menu.Item>
-          <Menu.Item
-            icon={<Sparkles className="size-[15px]" strokeWidth={1.75} />}
-            onSelect={() => flashcard.openAiFlashcard()}
-          >
-            AI 制卡
-          </Menu.Item>
-          <Menu.Item
-            icon={<CreditCard className="size-[15px]" strokeWidth={1.75} />}
-            onSelect={() => flashcard.openManualFlashcard()}
-          >
-            手动制卡
-          </Menu.Item>
-          <Menu.Group>场景</Menu.Group>
-          <Menu.Item
-            icon={<Presentation className="size-[15px]" strokeWidth={1.75} />}
+            icon={<Play className="size-[15px] shrink-0" strokeWidth={1.75} />}
             onSelect={() => setPresenting(editingArticle.content)}
           >
             演示模式
           </Menu.Item>
           <Menu.Item
-            icon={<Maximize2 className="size-[15px]" strokeWidth={1.75} />}
+            icon={<Maximize2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
             onSelect={() => {
               immersiveEntrySelectionRef.current = cloneRange(
                 editorRef.current?.getEditor().selection ?? null
@@ -406,19 +328,101 @@ export function ArticleDetailView() {
           </Menu.Item>
           {isElectron && databaseName && (
             <Menu.Item
-              icon={<Play className="size-[15px]" strokeWidth={1.75} />}
+              icon={<ExternalLink className="size-[15px] shrink-0" strokeWidth={1.75} />}
               onSelect={() => void openArticleInNewWindow(databaseName, editingArticle.id)}
             >
               在新窗口打开
             </Menu.Item>
           )}
-        </Menu>
-      </div>
+        </Menu.Submenu>
+        <Menu.Item
+          icon={<Share2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
+          onSelect={() => collaborationRef.current?.open()}
+        >
+          发起协作
+        </Menu.Item>
+        <Menu.Submenu
+          label="复制"
+          icon={<Copy className="size-[15px] shrink-0" strokeWidth={1.75} />}
+        >
+          <Menu.Item
+            icon={<ClipboardCopy className="size-[15px] shrink-0" strokeWidth={1.75} />}
+            onSelect={() => void copyMarkdownToClipboard(editingArticle.content, toastAdapter)}
+          >
+            复制 Markdown
+          </Menu.Item>
+          <Menu.Item
+            icon={<MessageSquare className="size-[15px] shrink-0" strokeWidth={1.75} />}
+            onSelect={() => void copyWechatHtmlToClipboard(editingArticle.content, toastAdapter)}
+          >
+            复制公众号格式
+          </Menu.Item>
+        </Menu.Submenu>
+        <Menu.Submenu
+          label="导出"
+          icon={<Download className="size-[15px] shrink-0" strokeWidth={1.75} />}
+        >
+          <Menu.Item
+            icon={<FileText className="size-[15px] shrink-0" strokeWidth={1.75} />}
+            onSelect={handleExportMarkdownFile}
+          >
+            Markdown 文件
+          </Menu.Item>
+          <Menu.Item
+            icon={<ImageIcon className="size-[15px] shrink-0" strokeWidth={1.75} />}
+            onSelect={() => setExportKind("image")}
+          >
+            图片
+          </Menu.Item>
+          <Menu.Item
+            icon={<BookOpen className="size-[15px] shrink-0" strokeWidth={1.75} />}
+            onSelect={() => setExportKind("epub")}
+          >
+            EPUB
+          </Menu.Item>
+          <Menu.Item
+            icon={<FileType className="size-[15px] shrink-0" strokeWidth={1.75} />}
+            onSelect={() => setExportKind("pdf")}
+          >
+            PDF
+          </Menu.Item>
+        </Menu.Submenu>
+        <Menu.Submenu
+          label="生成"
+          icon={<Wand2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
+        >
+          <Menu.Item
+            icon={<Sparkles className="size-[15px] shrink-0" strokeWidth={1.75} />}
+            onSelect={() => flashcard.openAiFlashcard()}
+          >
+            AI 制卡（闪卡）
+          </Menu.Item>
+          <Menu.Item
+            icon={<CreditCard className="size-[15px] shrink-0" strokeWidth={1.75} />}
+            onSelect={() => flashcard.openManualFlashcard()}
+          >
+            手动制卡（闪卡）
+          </Menu.Item>
+          <Menu.Item
+            icon={<FileAudio className="size-[15px] shrink-0" strokeWidth={1.75} />}
+            onSelect={() => setPodcastModalOpen(true)}
+          >
+            {editingArticle.podcast ? "编辑播客" : "生成播客"}
+          </Menu.Item>
+        </Menu.Submenu>
+        <Menu.Separator />
+        <Menu.Item
+          danger
+          icon={<Trash2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
+          onSelect={() => setPendingDelete(true)}
+        >
+          删除文章
+        </Menu.Item>
+      </Menu>
     );
-    // 菜单回调闭包随 editingArticle/数据库名更新；saved/readPercent 为显示态
+    // 菜单回调闭包随 editingArticle/数据库名更新
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingArticle, saved, readPercent, databaseName]);
-  usePageStatusBar("article-detail", statusBarNode);
+  }, [editingArticle, databaseName]);
 
   if (!editingArticle) {
     return <Loading />;
@@ -427,24 +431,20 @@ export function ArticleDetailView() {
   const headers = extractContentHeaders(editingArticle.content);
 
   return (
-    <div className="h-full pr-4">
-      {/* 滚动区：版心恒居中（hero 与正文列同轴）；状态栏与面包屑由壳层槽位渲染 */}
-      <div
-        ref={setScrollEl}
-        onScroll={handleScroll}
-        className="edge-fade-scroll h-full overflow-y-auto"
-      >
+    <div className="flex h-full flex-col pb-4">
+      {/* 滚动区：版心恒居中（hero 与正文列同轴）；面包屑由壳层槽位渲染 */}
+      <div ref={setScrollEl} className="edge-fade-scroll mr-4 min-h-0 flex-1 overflow-y-auto">
         <ArticleHero
           article={editingArticle}
           onTitleChange={title => {
             onTitleChange(title);
-            setSaved(false);
           }}
           onChangeCover={() => void handleChangeCover()}
           changingCover={changingCover}
+          actions={moreMenuNode}
         />
 
-        <div className="grid grid-cols-[1fr_minmax(0,720px)_1fr] items-start px-[26px] pb-[60px] pt-8">
+        <div className="grid grid-cols-[1fr_minmax(0,720px)_1fr] items-start px-[26px] pb-2 pt-8">
           <article className="col-start-2 min-w-0">
             <ArticlePodcast
               article={editingArticle}
@@ -466,7 +466,6 @@ export function ArticleDetailView() {
                     // 正文持久化 + 广播走 useEditContent（content 表），本地态供字数/目录
                     throttleHandleEditorContentChange(content);
                     onContentChange(content);
-                    setSaved(false);
                   }}
                   readonly={false}
                 />
@@ -477,11 +476,9 @@ export function ArticleDetailView() {
               tags={editingArticle.tags}
               onAdd={tag => {
                 onAddTag(tag);
-                setSaved(false);
               }}
               onDelete={tag => {
                 onDeleteTag(tag);
-                setSaved(false);
               }}
             />
           </article>
@@ -555,6 +552,44 @@ export function ArticleDetailView() {
         isDark={darkMode}
       />
 
+      {/* 删除确认：确认后返回上一页 */}
+      <ConfirmDialog
+        open={pendingDelete}
+        onOpenChange={setPendingDelete}
+        title="删除文章"
+        context={editingArticle.title || `文章 #${editingArticle.id}`}
+        description="文章将移入回收语义删除，列表立即移除。"
+        impact="该文章的正文与关联卡片链接将不再可访问"
+        danger
+        confirmText="删除"
+        loading={deleting}
+        onConfirm={async () => {
+          setDeleting(true);
+          try {
+            await remove(editingArticle.id);
+            toast.success("已删除");
+            navigator.back();
+          } catch {
+            toast.error("删除失败");
+          } finally {
+            setDeleting(false);
+            setPendingDelete(false);
+          }
+        }}
+      />
+
+      {/* 协作：触发器隐藏，由 ⋯ 菜单「发起协作」经 ref 打开弹窗 */}
+      <ContentCollaborationControl
+        ref={collaborationRef}
+        hideTrigger
+        contentId={editingArticle.contentId}
+        source={{
+          sourceType: "article",
+          sourceId: editingArticle.id,
+          sourceTitle: editingArticle.title,
+        }}
+      />
+
       {/* 演示模式（legacy 搬用） */}
       {presenting && <PresentationMode content={presenting} onExit={() => setPresenting(null)} />}
 
@@ -567,7 +602,6 @@ export function ArticleDetailView() {
           onChange={content => {
             throttleHandleEditorContentChange(content);
             onContentChange(content);
-            setSaved(false);
           }}
           onInit={onInit}
           onExit={payload => {

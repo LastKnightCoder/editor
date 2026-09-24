@@ -1,12 +1,15 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownUp,
-  ChevronDown,
+  CalendarDays,
   Filter,
   Layers,
+  LayoutGrid,
   MoreHorizontal,
   Plus,
   Search,
+  SquareKanban,
+  Table2,
   X,
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
@@ -24,6 +27,13 @@ import ViewTypeSelectModal from "./ViewTypeSelectModal";
 import ViewEditPanel from "./ViewEditPanel";
 import { DataTableViewType } from "@/types";
 import type { GalleryViewConfig, CalendarViewConfig, KanbanViewConfig } from "./types";
+
+const VIEW_TYPE_ICON: Record<DataTableViewType, typeof Table2> = {
+  table: Table2,
+  gallery: LayoutGrid,
+  calendar: CalendarDays,
+  kanban: SquareKanban,
+};
 
 interface DragItem {
   type: "view-tab";
@@ -97,6 +107,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
     const editRef = useRef<EditTextHandle | null>(null);
     const [showEditPopover, setShowEditPopover] = useState(false);
     const moreButtonRef = useRef<HTMLButtonElement>(null);
+    const ViewIcon = VIEW_TYPE_ICON[view.type] ?? Table2;
 
     useEffect(() => {
       if (isEditing) {
@@ -169,11 +180,9 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
         ref={setContainerRef}
         style={{ opacity: isDragging ? 0.6 : 1 }}
         className={cn(
-          "inline-flex h-7 cursor-pointer items-center gap-0.5 rounded-full pl-3 pr-1.5",
-          "ease-tau-out transition-[background-color,opacity] duration-[160ms]",
-          isActive
-            ? "bg-selected text-ink-1 font-medium"
-            : "text-ink-2 opacity-60 hover:opacity-100"
+          "group/tab relative inline-flex h-full shrink-0 cursor-pointer items-center gap-1.5",
+          "ease-tau-out transition-colors duration-[160ms]",
+          isActive ? "text-ink-1 font-medium" : "text-ink-3 hover:text-ink-2"
         )}
         onClick={() => onActivate(view.id)}
         onDoubleClick={event => {
@@ -183,13 +192,14 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
           }
         }}
       >
+        <ViewIcon className="size-[14px] shrink-0 opacity-80" strokeWidth={1.75} />
         <EditText
           ref={editRef}
           key={`${view.id}-${view.name}`}
           defaultValue={view.name}
           contentEditable={isEditing}
           className={cn(
-            "text-tau-meta flex h-7 max-w-[140px] cursor-pointer items-center truncate px-0 outline-none",
+            "text-tau-body flex h-7 max-w-[140px] cursor-pointer items-center truncate px-0 outline-none",
             { "cursor-default select-none": !isEditing }
           )}
           onBlur={commitChange}
@@ -202,7 +212,10 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
               ref={moreButtonRef}
               type="button"
               title="视图操作"
-              className="text-ink-2 grid size-[22px] place-items-center rounded-[7px] opacity-60 transition-opacity hover:opacity-100 active:opacity-80 aria-expanded:opacity-100"
+              className={cn(
+                "text-ink-3 hover:bg-hover hover:text-ink-1 -mr-1 grid size-[22px] place-items-center rounded-[6px] opacity-0 transition-opacity",
+                "focus-visible:opacity-100 group-hover/tab:opacity-100 aria-expanded:opacity-100"
+              )}
               onClick={e => e.stopPropagation()}
             >
               <MoreHorizontal className="size-4" strokeWidth={1.75} />
@@ -227,6 +240,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
           onOpenChange={setShowEditPopover}
           placement="bottom-end"
           arrow={false}
+          className="w-[380px] min-w-0 max-w-[calc(100vw-32px)]"
         >
           <ViewEditPanel
             view={view}
@@ -235,6 +249,10 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
             onClose={() => setShowEditPopover(false)}
           />
         </Popover>
+        {/* 选中指示线压在卡片头部分隔线上（bottom -1px），把头部与内容缝成一块 */}
+        {isActive && (
+          <span className="bg-ink-1 pointer-events-none absolute inset-x-0 -bottom-px h-0.5 rounded-full" />
+        )}
       </div>
     );
   }
@@ -242,7 +260,7 @@ const ViewTabItem: React.FC<ViewTabItemProps> = memo(
 
 ViewTabItem.displayName = "ViewTabItem";
 
-/** 工具栏胶囊钮：图标 + 文字 + 激活计数；静止幽灵态（透明度梯度），激活 = bg-selected */
+/** 工具栏按钮：图标 + 文字 + 激活计数；静止幽灵态，激活 = accent 浅底 + accent 字 */
 const ToolbarPill = ({
   active,
   count,
@@ -266,18 +284,17 @@ const ToolbarPill = ({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "ease-tau-out flex h-7 items-center gap-1.5 rounded-full px-2.5 transition-[background-color,opacity] duration-[160ms]",
+        "ease-tau-out flex h-7 items-center gap-1.5 rounded-[8px] px-2.5 transition-[background-color,color] duration-[160ms]",
         active
-          ? "bg-selected text-ink-1"
-          : "text-ink-2 opacity-60 hover:opacity-100 active:opacity-80"
+          ? "bg-accent-soft text-accent-text"
+          : "text-ink-3 hover:bg-hover hover:text-ink-1 active:bg-press"
       )}
     >
       <Icon className="size-[13px]" strokeWidth={1.75} />
       <span className="text-tau-meta">{label}</span>
       {active && count ? (
-        <span className="text-accent-text text-[10.5px] font-bold tabular-nums">{count}</span>
+        <span className="text-[10.5px] font-bold tabular-nums">{count}</span>
       ) : null}
-      <ChevronDown className="size-[11px] opacity-50" strokeWidth={2.25} />
     </button>
   </Tooltip>
 );
@@ -308,7 +325,7 @@ const CollapsibleSearch = ({
             setExpanded(true);
             requestAnimationFrame(() => inputRef.current?.focus());
           }}
-          className="text-ink-2 ease-tau-out grid size-7 cursor-pointer place-items-center rounded-full opacity-60 transition-opacity duration-[160ms] hover:opacity-100 active:opacity-80"
+          className="text-ink-3 hover:bg-hover hover:text-ink-1 ease-tau-out grid size-7 cursor-pointer place-items-center rounded-[8px] transition-colors duration-[160ms]"
         >
           <Search className="size-[15px]" strokeWidth={1.75} />
         </button>
@@ -317,7 +334,7 @@ const CollapsibleSearch = ({
   }
 
   return (
-    <div className="border-line-1 bg-surface flex h-7 w-52 items-center gap-1.5 rounded-full border px-2.5">
+    <div className="border-line-1 bg-page flex h-7 w-52 items-center gap-1.5 rounded-full border px-2.5">
       <Search className="text-ink-3 size-[15px] shrink-0" strokeWidth={1.75} />
       <input
         ref={inputRef}
@@ -503,8 +520,8 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     );
 
     return (
-      <div className="flex items-center gap-2 pb-2">
-        <div className="flex items-center gap-1 overflow-x-auto">
+      <div className="border-line-1 flex h-[46px] items-center gap-2 border-b pl-4 pr-3">
+        <div className="flex h-full items-center gap-5 overflow-x-auto overflow-y-hidden">
           {views.map((view, index) => (
             <ViewTabItem
               key={view.id}
@@ -526,14 +543,14 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
           <Tooltip content="新视图">
             <button
               type="button"
-              className="text-ink-2 ease-tau-out grid size-7 place-items-center rounded-full opacity-60 transition-opacity duration-[160ms] hover:opacity-100 active:opacity-80"
+              className="text-ink-3 hover:bg-hover hover:text-ink-1 ease-tau-out -ml-2 grid size-6 shrink-0 place-items-center rounded-[6px] transition-colors duration-[160ms]"
               onClick={() => setShowViewTypeSelect(true)}
             >
               <Plus className="size-4" strokeWidth={1.75} />
             </button>
           </Tooltip>
         </div>
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-0.5">
           <CollapsibleSearch value={searchKeyword} onChange={text => setQuery({ text })} />
           <ToolbarPill
             active={filterCount > 0}

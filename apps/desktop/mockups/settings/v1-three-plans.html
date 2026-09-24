@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设置 · 整体重设计方案</title>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-surface-hover: #f6f3ef; --bg-sunken: #e7dbc8; --bg-track: #e0d6c3;
+    --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09); --bg-selected: rgba(217, 119, 87, 0.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.75);
+    --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%); --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --ok: #61795f; --ok-soft: #e5ede2; --warn: #a38c4d; --warn-soft: #f6efd6; --danger: #b0564d; --danger-soft: #f6e3e0; --info: #5c7d99; --info-soft: #e2ebf3;
+    --t3: #8a7aa6; --t3s: #ebe6f3;
+    --overlay: rgba(67, 57, 44, 0.35);
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --shadow-float: 0 24px 60px -16px rgba(120, 100, 70, 0.45);
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --stage: #e8e1d1;
+  }
+  [data-theme="dark"] {
+    --bg-page: #221d16; --bg-surface: #2e2820; --bg-surface-hover: #39332b; --bg-sunken: #100d08; --bg-track: #463d31;
+    --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11); --bg-selected: hsla(22, 62%, 65%, 0.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+    --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+    --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%); --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+    --ok: #8cab87; --ok-soft: #243023; --warn: #c4a458; --warn-soft: #302917; --danger: #d97e66; --danger-soft: #34201a; --info: #83aecf; --info-soft: #1e2a35;
+    --t3: #a596c8; --t3s: #292335;
+    --overlay: rgba(10, 8, 5, 0.55);
+    --shadow-card: 0 1px 2px rgba(0,0,0,.25), 0 10px 24px -14px rgba(0,0,0,.5);
+    --shadow-float: 0 24px 60px -16px rgba(0,0,0,.7);
+    --stage: #15110c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--stage); color: var(--ink-1);
+    font: 14px/1.6 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 36px 3vw 80px; transition: background .2s; overflow-x: auto; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  svg.lucide { width: 1em; height: 1em; stroke-width: 1.75; flex: none; }
+
+  /* ---------- 说明区 ---------- */
+  .intro { max-width: 1180px; }
+  .intro h1 { font-size: 22px; font-weight: 650; }
+  .intro .lead { color: var(--ink-2); margin-top: 6px; font-size: 13.5px; max-width: 92ch; }
+  .intro h3 { font-size: 14.5px; font-weight: 650; margin: 22px 0 8px; }
+  .intro ul { color: var(--ink-2); font-size: 13px; margin-left: 18px; max-width: 100ch; }
+  .intro li { margin-top: 3px; } .intro b { color: var(--ink-1); font-weight: 600; }
+  .note-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 4px; }
+  .note { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px; padding: 14px 16px; font-size: 12.5px; color: var(--ink-2); }
+  .note h4 { font-size: 13.5px; color: var(--ink-1); font-weight: 650; display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
+  .note .rec { font-size: 10.5px; color: var(--accent-text); background: var(--accent-soft); border-radius: 99px; padding: 0 7px; font-weight: 600; }
+  .note dl { display: grid; grid-template-columns: 38px 1fr; gap: 2px 6px; margin-top: 6px; }
+  .note dt { color: var(--ink-3); } .note dd { color: var(--ink-2); }
+  table.ia { border-collapse: separate; border-spacing: 0; font-size: 12.5px; margin-top: 4px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px; overflow: hidden; width: 100%; max-width: 1180px; }
+  table.ia th { text-align: left; font-weight: 600; color: var(--ink-3); font-size: 11.5px; padding: 9px 14px 6px; }
+  table.ia td { padding: 7px 14px; color: var(--ink-2); vertical-align: top; border-top: 1px solid var(--line-2); }
+  table.ia td:first-child { color: var(--ink-1); font-weight: 600; white-space: nowrap; }
+  table.ia td:nth-child(2) { white-space: nowrap; }
+  .tag-new { font-size: 10.5px; color: var(--accent-text); background: var(--accent-soft); border-radius: 99px; padding: 0 6px; margin-left: 4px; }
+
+  .toolbar { display: flex; gap: 18px; align-items: center; margin: 30px 0 14px; font-size: 12.5px; color: var(--ink-2); flex-wrap: wrap; }
+  .pills { display: flex; gap: 4px; align-items: center; }
+  .pills button { padding: 4px 12px; border-radius: 99px; background: var(--bg-hover); }
+  .pills button.on { background: var(--ink-1); color: var(--ink-inverse); }
+
+  /* ---------- 应用窗口 ---------- */
+  .win { height: 860px; max-width: 1400px; min-width: 1240px; border-radius: 14px; overflow: hidden; background: var(--bg-page); position: relative;
+    box-shadow: 0 2px 6px rgba(67,57,44,.08), 0 20px 50px rgba(67,57,44,.14); display: flex; flex-direction: column; font-size: 13px; }
+  .titlebar { height: 40px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 16px; color: var(--ink-2); }
+  .dots { display: flex; gap: 7px; } .dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--bg-track); }
+  .crumb { color: var(--ink-3); font-size: 12.5px; } .crumb b { color: var(--ink-1); font-weight: 500; }
+  .app { flex: 1; display: flex; min-height: 0; }
+  .app .side { width: 200px; padding: 4px 10px; color: var(--ink-2); font-size: 12.5px; }
+  .app .side .it { padding: 5px 8px; border-radius: 7px; display: flex; gap: 9px; align-items: center; }
+  .app .side .it.on { background: var(--bg-selected); color: var(--accent-text); font-weight: 500; }
+  .app .side .grp { font-size: 11px; color: var(--ink-3); margin: 12px 8px 3px; }
+  .app .main { flex: 1; padding: 20px 28px; }
+  .ghost-line { height: 10px; border-radius: 99px; background: var(--bg-sunken); opacity: .55; margin: 12px 0; }
+  .ghost-card { height: 120px; border-radius: 12px; background: var(--bg-surface); box-shadow: var(--shadow-card); }
+
+  .scrim { position: absolute; inset: 0; background: var(--overlay); backdrop-filter: blur(4px); display: grid; place-items: center; padding: 28px; }
+
+  /* ---------- 方案 A/C 弹窗壳 ---------- */
+  .dlg { width: 1080px; max-width: 100%; height: min(760px, 100%); background: var(--bg-page); border-radius: 16px; box-shadow: var(--shadow-float);
+    display: grid; grid-template-columns: 236px minmax(0, 1fr); overflow: hidden; position: relative; border: 1px solid var(--line-1); }
+  .dlg.single { grid-template-columns: minmax(0, 1fr); }
+  .close { position: absolute; right: 14px; top: 12px; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); z-index: 2; font-size: 15px; }
+  .close:hover { background: var(--bg-hover); color: var(--ink-1); }
+
+  .snav { display: flex; flex-direction: column; min-height: 0; padding: 18px 12px 14px 14px; }
+  .snav .ttl { font-size: 15px; font-weight: 650; padding: 0 8px 10px; }
+  .search { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 8px; background: var(--bg-surface);
+    border: 1px solid var(--line-1); color: var(--ink-3); font-size: 12.5px; margin-bottom: 8px; }
+  .search kbd { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+  .snav .list { overflow-y: auto; flex: 1; margin-right: -4px; padding-right: 4px; }
+  .snav .grp { font-size: 11.5px; color: var(--ink-3); padding: 14px 10px 4px; }
+  .snav .it { width: 100%; display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: 8px; color: var(--ink-2); font-size: 13px; text-align: left; margin-bottom: 2px; transition: background .16s, color .16s; }
+  .snav .it:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .snav .it.on { background: var(--bg-selected); color: var(--accent-text); font-weight: 550; }
+  .snav .it svg { font-size: 15px; }
+  .snav .it .dot { margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
+  .snav .foot { font-size: 11.5px; color: var(--ink-3); padding: 10px 10px 0; }
+
+  .scontent { overflow-y: auto; min-height: 0; padding: 30px 44px 48px 36px; }
+  .col { max-width: 720px; }
+
+  /* ---------- 页面内容件（三案共用） ---------- */
+  .phead { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 22px; }
+  .picon { width: 42px; height: 42px; border-radius: 12px; background: var(--accent-soft); color: var(--accent-text); display: grid; place-items: center; font-size: 20px; flex: none; }
+  .phead h2 { font-size: 20px; font-weight: 650; line-height: 1.35; }
+  .phead p { color: var(--ink-2); font-size: 13px; margin-top: 2px; }
+  .tabs { display: flex; gap: 22px; margin: -6px 0 22px; padding-left: 2px; }
+  .tabs button { padding: 4px 0 8px; color: var(--ink-3); font-size: 13.5px; position: relative; }
+  .tabs button.on { color: var(--ink-1); font-weight: 600; }
+  .tabs button.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px; background: var(--accent); }
+
+  .group { margin-bottom: 26px; scroll-margin-top: 20px; }
+  .gt { display: flex; align-items: baseline; gap: 10px; padding: 0 4px 8px; }
+  .gt h3 { font-size: 13.5px; font-weight: 650; }
+  .gt span { font-size: 12px; color: var(--ink-3); }
+  .gt .gact { margin-left: auto; }
+  .card { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px; }
+  .row { display: flex; align-items: center; gap: 16px; padding: 13px 18px; min-height: 56px; position: relative; }
+  .row + .row::before { content: ""; position: absolute; top: 0; left: 18px; right: 18px; border-top: 1px solid var(--line-2); }
+  .row .rt { flex: 1; min-width: 0; }
+  .row .rt b { display: block; font-weight: 550; font-size: 13.5px; }
+  .row .rt small { display: block; color: var(--ink-3); font-size: 12px; margin-top: 1px; }
+  .row .rc { display: flex; align-items: center; gap: 8px; flex: none; }
+  .row.col-stack { flex-direction: column; align-items: stretch; gap: 10px; }
+
+  /* 控件 */
+  .sw { width: 34px; height: 20px; border-radius: 99px; background: var(--bg-track); position: relative; cursor: pointer; transition: background .16s; display: inline-block; flex: none; }
+  .sw i { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: left .16s; }
+  .sw.on { background: var(--accent); } .sw.on i { left: 16px; }
+  .sel, .inp { height: 32px; border-radius: 8px; border: 1px solid var(--line-1); background: var(--bg-surface); display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; font-size: 12.5px; color: var(--ink-1); }
+  .sel { justify-content: space-between; cursor: pointer; } .sel svg { color: var(--ink-3); }
+  .inp.ph { color: var(--ink-3); } .inp.mono { font-family: var(--mono); font-size: 12px; }
+  .seg { display: inline-flex; border: 1px solid var(--line-1); border-radius: 8px; overflow: hidden; background: var(--bg-surface); }
+  .seg b { font-weight: 500; font-size: 12.5px; padding: 0 12px; height: 30px; display: inline-flex; align-items: center; gap: 6px; color: var(--ink-2); cursor: pointer; }
+  .seg b + b { border-left: 1px solid var(--line-1); }
+  .seg b.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+  .btn { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line-1); background: var(--bg-surface); font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .btn:hover { background: var(--bg-surface-hover); }
+  .btn.pri { background: var(--accent); color: var(--ink-inverse); border-color: transparent; font-weight: 550; }
+  .btn.ghost { border-color: transparent; background: none; color: var(--ink-2); } .btn.ghost:hover { background: var(--bg-hover); }
+  .btn.danger { color: var(--danger); }
+  .btn.sm { height: 28px; padding: 0 10px; font-size: 12px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 1px 9px; border-radius: 99px; background: var(--bg-hover); color: var(--ink-2); white-space: nowrap; }
+  .chip i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); }
+  .chip.ok { background: var(--ok-soft); color: var(--ok); } .chip.ok i { background: var(--ok); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); } .chip.warn i { background: var(--warn); }
+  .chip.acc { background: var(--accent-soft); color: var(--accent-text); }
+  .link { color: var(--accent-text); cursor: pointer; font-size: 12.5px; display: inline-flex; gap: 4px; align-items: center; }
+  .muted { color: var(--ink-3); font-size: 12px; }
+  .mono { font-family: var(--mono); }
+  .prog { height: 4px; border-radius: 99px; background: var(--bg-track); overflow: hidden; width: 120px; }
+  .prog i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+
+  /* 外观：主题卡 */
+  .themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px 18px 6px; }
+  .tcard { border: 1.5px solid var(--line-1); border-radius: 12px; padding: 8px; text-align: left; transition: border-color .16s, transform .16s, box-shadow .16s; background: var(--bg-surface); }
+  .tcard:hover { border-color: var(--ink-3); }
+  .tcard.on { border-color: var(--accent); box-shadow: var(--shadow-card); transform: translateY(-2px); }
+  .tprev { height: 92px; border-radius: 8px; overflow: hidden; position: relative; border: 1px solid rgba(0,0,0,.06); display: flex; }
+  .tprev .half { flex: 1; position: relative; overflow: hidden; }
+  .mini { position: absolute; inset: 0; display: flex; }
+  .mini .ms { width: 34%; border-right: 1px solid; padding: 10px 6px; }
+  .mini .ms i { display: block; height: 5px; border-radius: 9px; margin-bottom: 6px; }
+  .mini .mm { flex: 1; padding: 10px 8px; }
+  .mini .mm i { display: block; height: 6px; border-radius: 9px; margin-bottom: 7px; }
+  .mini .mm .mc { height: 26px; border-radius: 5px; margin-top: 4px; }
+  .tcap { display: flex; align-items: center; gap: 8px; padding: 8px 4px 2px; }
+  .tcap b { font-weight: 600; font-size: 13px; }
+  .tcap small { color: var(--ink-3); font-size: 11.5px; margin-left: auto; }
+  .tcap .ck { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: var(--ink-inverse); display: grid; place-items: center; font-size: 10px; opacity: 0; }
+  .tcard.on .ck { opacity: 1; }
+  .resolved { margin: 8px 18px 14px; padding: 8px 12px; border-radius: 8px; background: var(--bg-hover); font-size: 12px; color: var(--ink-2); display: flex; gap: 8px; align-items: center; }
+  .preview-box { margin: 0 18px 16px; border-radius: 10px; border: 1px dashed var(--line-1); padding: 14px 16px; }
+  .preview-box .cn { font-size: 16px; } .preview-box .en { font-size: 14px; color: var(--ink-2); } .preview-box .cd { font-family: var(--mono); font-size: 12.5px; color: var(--accent-text); margin-top: 4px; }
+  .imgopts { display: flex; gap: 10px; }
+  .imgopt { width: 64px; text-align: center; font-size: 11.5px; color: var(--ink-2); cursor: pointer; }
+  .imgopt .pic { height: 42px; background: linear-gradient(135deg, #e4c9a8, #b98e70); margin-bottom: 4px; border: 1.5px solid transparent; outline: 1.5px solid transparent; outline-offset: 2px; }
+  .imgopt.on .pic { outline-color: var(--accent); } .imgopt.on { color: var(--accent-text); font-weight: 600; }
+
+  /* 模块 */
+  .mods { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; }
+  .mod { display: flex; align-items: center; gap: 12px; padding: 12px 18px; position: relative; }
+  .mod .mi { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--bg-hover); color: var(--ink-2); font-size: 15px; flex: none; }
+  .mod .mt { flex: 1; min-width: 0; } .mod .mt b { font-weight: 550; display: block; } .mod .mt small { color: var(--ink-3); font-size: 11.5px; }
+  .mod.off .mi, .mod.off .mt { opacity: .55; }
+
+  /* 状态卡 */
+  .status { display: flex; align-items: center; gap: 14px; padding: 16px 18px; }
+  .sicon { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; font-size: 19px; flex: none; }
+  .sicon.ok { background: var(--ok-soft); color: var(--ok); } .sicon.warn { background: var(--warn-soft); color: var(--warn); } .sicon.acc { background: var(--accent-soft); color: var(--accent-text); }
+  .status .st { flex: 1; } .status .st b { font-size: 14.5px; font-weight: 600; display: block; } .status .st small { color: var(--ink-3); font-size: 12px; }
+  .kv { display: flex; gap: 22px; padding: 0 18px 16px 72px; font-size: 12px; color: var(--ink-3); }
+  .kv b { color: var(--ink-1); font-weight: 600; font-variant-numeric: tabular-nums; margin-left: 6px; }
+  .kv .lead { color: var(--accent-text); }
+
+  /* 账号卡 */
+  .acc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .acc { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .acc .ah { display: flex; align-items: center; gap: 10px; }
+  .logo { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: #fff; flex: none; }
+  .acc .ah > div { min-width: 0; } .acc .ah b { font-weight: 600; font-size: 13.5px; display: block; white-space: nowrap; } .acc .ah small { color: var(--ink-3); font-size: 11.5px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .acc .ah .chip { margin-left: auto; }
+  .acc .af { display: flex; gap: 6px; align-items: center; }
+  .acc .af .muted { margin-right: auto; }
+
+  /* 主从布局 */
+  .md { display: grid; grid-template-columns: 200px minmax(0, 1fr); min-height: 300px; }
+  .md .ml { border-right: 1px solid var(--line-2); padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+  .md .ml .li { display: flex; align-items: center; gap: 9px; padding: 7px 10px; border-radius: 8px; cursor: pointer; }
+  .md .ml .li:hover { background: var(--bg-hover); }
+  .md .ml .li.on { background: var(--bg-selected); }
+  .md .ml .li b { font-weight: 550; font-size: 13px; flex: 1; } .md .ml .li small { color: var(--ink-3); font-size: 11px; }
+  .md .ml .add { color: var(--ink-3); margin-top: auto; }
+  .md .mr { padding: 14px 18px; min-width: 0; }
+  .fields { display: grid; grid-template-columns: 92px 1fr; gap: 10px 14px; align-items: center; font-size: 12.5px; }
+  .fields label { color: var(--ink-2); }
+  .fields .inp { width: 100%; }
+  .models { display: flex; flex-direction: column; margin-top: 14px; }
+  .models .mh { display: flex; align-items: center; font-size: 12px; color: var(--ink-3); padding: 0 2px 6px; }
+  .models .mh .link { margin-left: auto; }
+  .mrow { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; }
+  .mrow:hover { background: var(--bg-hover); }
+  .mrow .mn { font-family: var(--mono); font-size: 12.5px; flex: 1; }
+  .cap { font-size: 10.5px; padding: 0 6px; border-radius: 5px; background: var(--bg-hover); color: var(--ink-2); }
+  .assign { display: grid; grid-template-columns: 1fr 260px; }
+
+  /* 缓存 */
+  .usage { padding: 16px 18px; }
+  .usage .ut { display: flex; align-items: baseline; gap: 10px; }
+  .usage .ut b { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .usage .ut .btn { margin-left: auto; }
+  .bar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; margin: 12px 0 10px; background: var(--bg-track); }
+  .bar i { display: block; height: 100%; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend span::before { content: ""; width: 8px; height: 8px; border-radius: 3px; background: var(--c); }
+  .ctable .cr { display: grid; grid-template-columns: 22px 1fr 110px 80px 64px; align-items: center; gap: 10px; padding: 9px 18px; font-size: 12.5px; position: relative; }
+  .ctable .cr + .cr::before { content: ""; position: absolute; top: 0; left: 18px; right: 18px; border-top: 1px solid var(--line-2); }
+  .ctable .cr.h { color: var(--ink-3); font-size: 11.5px; padding-top: 12px; }
+  .ctable .cr .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .ck-box { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid var(--line-1); background: var(--bg-surface); }
+  .ctools { display: flex; gap: 8px; align-items: center; padding: 12px 18px 4px; }
+  .ctools .muted { margin-left: auto; }
+
+  /* 关于 */
+  .hero { display: flex; gap: 18px; align-items: center; padding: 22px 20px; }
+  .appicon { width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(145deg, hsl(22 58% 52%), hsl(22 58% 36%)); color: #fff8ef; display: grid; place-items: center; font-size: 28px; font-weight: 700; box-shadow: var(--shadow-card); }
+  .hero h3 { font-size: 18px; font-weight: 650; } .hero .ver { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+  .hero .hs { margin-left: auto; text-align: right; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+
+  /* ---------- 方案 B：全窗口设置页 ---------- */
+  .pageB { flex: 1; display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 0; }
+  .pageB .snav { padding-top: 6px; }
+  .back { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; color: var(--ink-2); font-size: 12.5px; margin-bottom: 8px; }
+  .back:hover { background: var(--bg-hover); }
+  .pageB .body { display: grid; grid-template-columns: minmax(0, 1fr) 200px; gap: 28px; overflow-y: auto; min-height: 0; padding: 18px 36px 60px 28px; }
+  .pageB .col { max-width: 780px; margin: 0 auto; width: 100%; }
+  .toc { position: sticky; top: 0; align-self: start; padding-top: 70px; font-size: 12.5px; }
+  .toc .th { color: var(--ink-3); font-size: 11.5px; padding: 0 10px 6px; }
+  .toc a { display: block; padding: 4px 10px; border-left: 2px solid var(--line-1); color: var(--ink-2); cursor: pointer; }
+  .toc a.on { border-color: var(--accent); color: var(--ink-1); font-weight: 550; }
+
+  /* ---------- 方案 C：概览入口 ---------- */
+  .ov { overflow-y: auto; padding: 30px 40px 40px; }
+  .ov .oh { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+  .ov .oh h2 { font-size: 20px; font-weight: 650; }
+  .ov .oh .search { width: 320px; margin: 0 40px 0 auto; background: var(--bg-surface); }
+  .ov .og { font-size: 12px; color: var(--ink-3); margin: 18px 2px 8px; }
+  .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .tile { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px; padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start; text-align: left; transition: box-shadow .16s, transform .16s; }
+  .tile:hover { box-shadow: var(--shadow-card); transform: translateY(-1px); }
+  .tile .picon { width: 36px; height: 36px; font-size: 17px; border-radius: 10px; }
+  .tile b { font-size: 13.5px; font-weight: 600; display: block; }
+  .tile small { display: block; color: var(--ink-3); font-size: 12px; line-height: 1.5; margin-top: 2px; }
+  .tile .sum { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .cdetail { display: flex; flex-direction: column; min-height: 0; }
+  .cbar { display: flex; align-items: center; gap: 8px; padding: 14px 20px 0; font-size: 12.5px; color: var(--ink-3); }
+  .cbar .back { margin: 0; }
+  .cbar b { color: var(--ink-1); font-weight: 550; }
+  .cdetail .scontent { flex: 1; }
+  .cdetail .col { margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<section class="intro">
+  <h1>设置 · 整体重设计方案</h1>
+  <p class="lead">同一份新信息架构（13 → 12 个分区，全部有真实归属），放进三种容器里对比。页面内容三个方案共用，差别只在壳层。下方窗口可切换方案、分区与深浅色，所有分区都能点。</p>
+
+  <h3>现状诊断</h3>
+  <ul>
+    <li><b>容器小</b>：860×560 弹窗，扣掉 198px 导航和内边距，右栏正文只剩约 600px；LLM / 嵌入这种三节重页被压成一条长滚动。</li>
+    <li><b>没有「块」</b>：层级只有 11px 灰色节题 + 行间细线，整页是一条连续的行流，读不出这一页讲什么、分几块——「主题不明确」的根源。</li>
+    <li><b>页头弱</b>：子页标题 15px + 一行 meta，和节题、行标题的字号差距小，跳进一页时没有落脚点。</li>
+    <li><b>分区名不达意</b>：「杂项」九成是缓存列表、「关于软件」里藏着数据库管理、「文字转语音」整页只有一个下拉、「集成」其实是账号凭据；另外「模块功能」允许关掉「设置」自身（bug）。</li>
+  </ul>
+
+  <h3>新信息架构（三方案共用）</h3>
+  <table class="ia">
+    <tr><th>分组</th><th>分区</th><th>内容来源与变化</th></tr>
+    <tr><td>通用</td><td>外观</td><td>主题三卡改用真实主题色绘制 + 「当前生效」解析行；字体组附实时预览；图片圆角/阴影改可视化选项。</td></tr>
+    <tr><td></td><td>功能模块</td><td>legacy 23 张卡 → 按四类分组的开关网格；「设置」模块不可关闭。</td></tr>
+    <tr><td>数据</td><td>数据库与同步 <span class="tag-new">合并</span></td><td>同步页 + 「关于」里的数据库管理（当前库 / 新建库）——库和同步本是一回事。</td></tr>
+    <tr><td></td><td>资源存储</td><td>不变。</td></tr>
+    <tr><td></td><td>剪藏与缓存 <span class="tag-new">正名</span></td><td>拆自「杂项」：剪藏翻译 + 三类自动缓存开关 + 7 个缓存列表合成一张可筛选的表（顶部占用条）。</td></tr>
+    <tr><td>连接</td><td>账号与连接 <span class="tag-new">正名</span></td><td>原「集成」。8 个服务按用途分三组：存储服务 / 内容平台 / AI 平台。</td></tr>
+    <tr><td>AI 服务</td><td>大语言模型</td><td>页内分两个 Tab：「服务商与模型」（主从布局）/「功能分配」。</td></tr>
+    <tr><td></td><td>嵌入与检索</td><td>页内分两个 Tab：「向量模型」/「检索增强」。</td></tr>
+    <tr><td></td><td>图片生成</td><td>多服务商 → 与 LLM 同构的主从布局。</td></tr>
+    <tr><td></td><td>语音 <span class="tag-new">合并</span></td><td>语音转录 + 文字转语音（后者只有一个下拉，单独成页太空）。</td></tr>
+    <tr><td>创作工具</td><td>白板录制</td><td>分「录制默认值」/「导出」两块。</td></tr>
+    <tr><td>系统</td><td>关于与更新 <span class="tag-new">正名</span></td><td>版本 + 更新流程 + 自动检查（数据从 misc 移来展示）+ 命令行工具。</td></tr>
+  </table>
+
+  <h3>三个容器方案</h3>
+  <div class="note-grid">
+    <div class="note">
+      <h4>A · 宽弹窗 + 分组卡片 <span class="rec">推荐</span></h4>
+      保留浮层（Ctrl+, 随手改完即走），尺寸放到 1080×min(760, 90vh)。弹窗底改为纸色，设置项装进 surface 卡片，分组靠「纸 + 卡」两层拉开，不靠细线；页头加图标块与说明，重页用页内 Tab。
+      <dl><dt>优点</dt><dd>改动最小、延续 D-028 骨架；层次一眼可辨</dd><dt>代价</dt><dd>小窗口（&lt;1100px）下要收窄导航</dd></dl>
+    </div>
+    <div class="note">
+      <h4>B · 全窗口设置页</h4>
+      像「发布」一样变成独立页面：左侧设置导航替换应用侧栏，正文居中 780px，右侧「本页目录」锚点。
+      <dl><dt>优点</dt><dd>空间最大，重页最舒展</dd><dt>代价</dt><dd>失去浮层的轻；进出要切走当前工作区，与导航栈纠缠</dd></dl>
+    </div>
+    <div class="note">
+      <h4>C · 概览入口 + 详情</h4>
+      同尺寸弹窗，打开先看所有分区的卡片墙（每张带状态摘要：已连接 / 3 家服务商…），点进去是详情页，面包屑返回。
+      <dl><dt>优点</dt><dd>每个分区是做什么的最明确；配置状态一览</dd><dt>代价</dt><dd>多一次点击；分区间横跳要回概览</dd></dl>
+    </div>
+  </div>
+</section>
+
+<div class="toolbar">
+  <div class="pills" id="planPills">方案
+    <button data-plan="A" class="on">A 宽弹窗</button><button data-plan="B">B 全窗口页</button><button data-plan="C">C 概览入口</button>
+  </div>
+  <div class="pills" id="themePills">主题
+    <button data-theme="light" class="on">浅色 · 暖纸晨</button><button data-theme="dark">深色 · 暖纸夜</button>
+  </div>
+</div>
+
+<div class="win" id="win"></div>
+
+<script>
+/* ============ 数据：导航 ============ */
+const NAV = [
+  { g: "通用", items: [["appearance", "外观", "palette"], ["modules", "功能模块", "layout-grid"]] },
+  { g: "数据", items: [["sync", "数据库与同步", "refresh-cw"], ["storage", "资源存储", "hard-drive"], ["cache", "剪藏与缓存", "archive"]] },
+  { g: "连接", items: [["accounts", "账号与连接", "plug"]] },
+  { g: "AI 服务", items: [["llm", "大语言模型", "sparkles"], ["embedding", "嵌入与检索", "layers"], ["imagegen", "图片生成", "image"], ["voice", "语音", "audio-lines"]] },
+  { g: "创作工具", items: [["whiteboard", "白板录制", "video"]] },
+  { g: "系统", items: [["about", "关于与更新", "info"]] },
+];
+const ICON = Object.fromEntries(NAV.flatMap(g => g.items.map(i => [i[0], i[2]])));
+const LABEL = Object.fromEntries(NAV.flatMap(g => g.items.map(i => [i[0], i[1]])));
+
+/* ============ 控件 ============ */
+const ic = (n) => `<i data-lucide="${n}"></i>`;
+const sw = (on) => `<span class="sw ${on ? "on" : ""}" data-toggle><i></i></span>`;
+const sel = (t, w = 200) => `<span class="sel" style="width:${w}px"><span>${t}</span>${ic("chevrons-up-down")}</span>`;
+const seg = (items, on = 0) => `<span class="seg" data-seg>${items.map((t, i) => `<b class="${i === on ? "on" : ""}">${t}</b>`).join("")}</span>`;
+const inp = (v, w = 260, cls = "") => `<span class="inp ${cls}" style="width:${w}px">${v}</span>`;
+const btn = (t, k = "", icon) => `<button class="btn ${k}">${icon ? ic(icon) : ""}${t}</button>`;
+const chip = (t, tone = "") => `<span class="chip ${tone}"><i></i>${t}</span>`;
+const row = (t, d, c) => `<div class="row"><div class="rt"><b>${t}</b>${d ? `<small>${d}</small>` : ""}</div>${c ? `<div class="rc">${c}</div>` : ""}</div>`;
+const card = (inner) => `<div class="card">${inner}</div>`;
+
+/* ============ 页面定义（三方案共用） ============ */
+const THEME_PREV = {
+  light: { page: "#f3eee2", side: "#fffdf9", line: "#e9e1d2", bar: "#e7dbc8", card: "#fffdf9", acc: "hsl(22 58% 42%)" },
+  dark: { page: "#221d16", side: "#2e2820", line: "#3a3227", bar: "#463d31", card: "#2e2820", acc: "hsl(22 62% 65%)" },
+};
+const mini = (k) => { const p = THEME_PREV[k]; return `<div class="mini" style="background:${p.page}"><div class="ms" style="background:${p.side};border-color:${p.line}"><i style="background:${p.acc};width:70%"></i><i style="background:${p.bar};width:55%"></i><i style="background:${p.bar};width:80%"></i></div><div class="mm"><i style="background:${p.bar};width:60%"></i><i style="background:${p.bar};width:85%"></i><div class="mc" style="background:${p.card};border:1px solid ${p.line}"></div></div></div>`; };
+
+const state = { plan: "A", page: "appearance", theme: "light", tabs: {}, themeMode: "system", cView: "overview", llmSel: 0 };
+
+const PAGES = {
+  appearance: {
+    desc: "主题、字体与内容图片的默认呈现，改动即刻生效",
+    sum: () => [chip("跟随系统"), chip("霞鹜文楷 · 16")],
+    groups: () => [
+      { t: "主题", d: "跟随系统时，按系统明暗在两套主题间切换", body: card(`
+        <div class="themes">
+          ${[["system", "跟随系统", "自动"], ["light", "暖纸 · 晨", "浅色"], ["dark", "暖纸 · 夜", "深色"]].map(([k, n, s]) => `
+          <button class="tcard ${state.themeMode === k ? "on" : ""}" data-mode="${k}">
+            <div class="tprev">${k === "system" ? `<div class="half">${mini("light")}</div><div class="half">${mini("dark")}</div>` : mini(k)}</div>
+            <div class="tcap"><span class="ck">${ic("check")}</span><b>${n}</b><small>${s}</small></div>
+          </button>`).join("")}
+        </div>
+        <div class="resolved">${ic("sun-moon")} 当前生效：<b>${state.themeMode === "dark" ? "暖纸 · 夜" : "暖纸 · 晨"}</b>${state.themeMode === "system" ? "（系统为浅色）" : ""}</div>`) },
+      { t: "字体", d: "界面与编辑器内容统一生效", body: card(`
+        ${row("中文字体", "", sel("霞鹜文楷", 240))}
+        ${row("英文字体", "", sel("Inter", 240))}
+        ${row("代码字体", "代码块与界面中的等宽文本", sel("JetBrains Mono", 240))}
+        ${row("字号", "编辑器正文 1:1 跟随，界面半速跟随", `<span class="seg"><b>${ic("minus")}</b><b class="on" style="width:44px;justify-content:center">16</b><b>${ic("plus")}</b></span>`)}
+        <div class="preview-box"><div class="muted" style="margin-bottom:4px">预览</div><div class="cn">春风又绿江南岸，明月何时照我还</div><div class="en">Sphinx of black quartz, judge my vow.</div><div class="cd">const f = (s) =&gt; s;</div></div>`) },
+      { t: "内容图片", d: "单图与图库未单独指定时的默认外观", body: card(`
+        ${row("圆角", "", `<div class="imgopts">${[["无", 0], ["小", 4], ["中", 8], ["大", 14]].map(([n, r], i) => `<div class="imgopt ${i === 2 ? "on" : ""}"><div class="pic" style="border-radius:${r}px"></div>${n}</div>`).join("")}</div>`)}
+        ${row("阴影", "", `<div class="imgopts">${[["无", "none"], ["小", "0 1px 3px rgba(0,0,0,.18)"], ["中", "0 4px 10px rgba(0,0,0,.2)"], ["大", "0 10px 20px rgba(0,0,0,.25)"]].map(([n, s], i) => `<div class="imgopt ${i === 0 ? "on" : ""}"><div class="pic" style="border-radius:6px;box-shadow:${s}"></div>${n}</div>`).join("")}</div>`)}`) },
+    ],
+  },
+  modules: {
+    desc: "关闭的模块从侧栏与命令面板中隐藏，数据保留",
+    sum: () => [chip("已启用 17 / 23")],
+    groups: () => {
+      const M = {
+        "内容创作": [["卡片", "file-text", 1], ["文章", "newspaper", 1], ["白板", "presentation", 1], ["项目", "folder-kanban", 1]],
+        "知识管理": [["知识库", "library", 1], ["PDF", "file", 1], ["微信读书", "book-open", 1], ["信息流", "rss", 0], ["索引数据库", "database", 1], ["RSS 订阅", "rss", 0], ["稍后读", "bookmark", 1], ["网页浏览", "globe", 1]],
+        "个人管理": [["日记", "notebook-pen", 1], ["番茄专注", "timer", 0], ["任务列表", "list-todo", 1], ["问题管理", "circle-help", 0], ["日历", "calendar", 1], ["聊天管理", "messages-square", 1]],
+        "学习与工具": [["闪卡中心", "layers-3", 1], ["Skill 管理", "wand-2", 0], ["资源管理", "folder-open", 1], ["协作", "users", 0]],
+      };
+      return Object.entries(M).map(([t, list]) => ({ t, d: `${list.filter(x => x[2]).length} / ${list.length} 已启用`, body: card(`<div class="mods">${list.map(([n, i, on]) => `<div class="mod ${on ? "" : "off"}"><span class="mi">${ic(i)}</span><div class="mt"><b>${n}</b></div>${sw(on)}</div>`).join("")}</div>`) }))
+        .concat([{ t: "", body: `<div class="muted" style="padding:0 4px">「设置」为系统模块，始终启用。侧栏顺序直接在侧栏拖拽调整。</div>` }]);
+    },
+  },
+  sync: {
+    desc: "当前数据库与远端同步，同步为手动触发",
+    sum: () => [chip("WebDAV · 已连接", "ok")],
+    groups: () => [
+      { t: "", body: card(`<div class="status"><span class="sicon acc">${ic("cloud")}</span><div class="st"><b>远程有新版本</b><small>WebDAV · 上次检查 3 分钟前</small></div>${btn("检查", "", "search")}${btn("同步", "pri", "refresh-cw")}</div><div class="kv"><span>本地版本<b>1284</b></span><span>远程版本<b class="lead">1291</b></span><span>数据库<b>notes.db</b></span></div>`) },
+      { t: "数据库", d: "切换后应用重新加载", body: card(`${row("当前数据库", "", sel("notes.db", 220))}${row("新建数据库", "在数据目录下创建空库", btn("新建", "", "plus"))}`) },
+      { t: "同步目标", body: card(`${row("存储类型", "", seg(["WebDAV", "S3", "阿里云 OSS", "GitHub"], 0))}${row("路径前缀", "远端存放数据库的目录", inp("/tau/sync/", 260, "mono"))}${row("账号凭据", "WebDAV 地址、用户名与密码", `${chip("已连接", "ok")}<span class="link">在「账号与连接」管理 ${ic("arrow-right")}</span>`)}`) },
+    ],
+  },
+  storage: {
+    desc: "笔记中插入的图片、附件上传到哪里",
+    sum: () => [chip("本地")],
+    groups: () => [
+      { t: "存储位置", body: card(`${row("上传到", "", seg(["本地", "WebDAV", "S3", "阿里云 OSS", "GitHub"], 0))}${row("本地目录", "默认在数据目录下的 resources", `${inp("~/Library/Application Support/tau/resources", 280, "mono")}${btn("选择", "")}`)}`) },
+      { t: "", body: `<div class="muted" style="padding:0 4px">远端类型只需配置路径；凭据统一在「账号与连接」维护。</div>` },
+    ],
+  },
+  cache: {
+    desc: "网页剪藏行为、远程媒体的自动缓存与缓存占用",
+    sum: () => [chip("缓存 2.4 GB")],
+    groups: () => [
+      { t: "网页剪藏", body: card(row("解析时翻译为中文", "剪藏外文网页时，正文自动翻译", sw(0))) },
+      { t: "自动缓存", d: "离线也能打开，占用本地空间", body: card(`${row("远程视频", "含 YouTube / Bilibili", sw(1))}${row("远程音频", "", sw(1))}${row("远程图片", "", sw(0))}`) },
+      { t: "缓存占用", body: card(`
+        <div class="usage"><div class="ut"><b>2.4 GB</b><span class="muted">共 186 项</span>${btn("清除全部", "danger ghost", "trash-2")}</div>
+          <div class="bar"><i style="width:62%;background:var(--info)"></i><i style="width:24%;background:var(--ok)"></i><i style="width:9%;background:var(--t3)"></i></div>
+          <div class="legend"><span style="--c:var(--info)">视频 1.5 GB</span><span style="--c:var(--ok)">音频 580 MB</span><span style="--c:var(--t3)">图片 220 MB</span></div></div>
+        <div class="ctools">${seg(["全部", "视频", "音频", "图片"], 1)}${seg(["全部来源", "远程", "YouTube", "Bilibili"], 0)}<span class="muted">已选 0 项</span></div>
+        <div class="ctable">
+          <div class="cr h"><span class="ck-box"></span><span>名称</span><span>来源</span><span class="num">大小</span><span></span></div>
+          ${[["Transformer 架构精讲 · 第 3 集", "Bilibili", "412 MB"], ["Designing Data-Intensive Apps talk", "YouTube", "388 MB"], ["lecture-07.mp4", "远程", "240 MB"], ["Rust async 深入浅出", "Bilibili", "196 MB"]].map(([n, s, z]) => `<div class="cr"><span class="ck-box"></span><span>${n}</span><span>${chip(s)}</span><span class="num">${z}</span><span>${btn("", "ghost sm", "play")}</span></div>`).join("")}
+        </div>`) },
+    ],
+  },
+  accounts: {
+    desc: "第三方服务的账号与凭据，其它设置页从这里读取连接",
+    sum: () => [chip("4 / 8 已连接", "ok")],
+    groups: () => {
+      const acc = (n, c, l, sub, st, act) => `<div class="acc"><div class="ah"><span class="logo" style="background:${c}">${l}</span><div><b>${n}</b><small>${sub}</small></div>${st}</div><div class="af">${act}</div></div>`;
+      const on = chip("已连接", "ok"), off = chip("未连接");
+      return [
+        { t: "存储服务", d: "同步与资源存储使用", body: `<div class="acc-grid">
+          ${acc("WebDAV", "#5c7d99", "W", "dav.example.com · tau", on, `<span class="muted">用于同步</span>${btn("管理", "sm")}`)}
+          ${acc("GitHub", "#2d2a26", "G", "@lastknightcoder", on, `<span class="muted">用于资源存储</span>${btn("管理", "sm")}`)}
+          ${acc("S3", "#b06a5e", "S3", "Access Key 与 Endpoint", off, `<span class="muted"></span>${btn("连接", "sm pri")}`)}
+          ${acc("阿里云 OSS", "#c98a3b", "O", "Access Key", off, `<span class="muted"></span>${btn("连接", "sm pri")}`)}</div>` },
+        { t: "内容平台", d: "视频导入与读书同步", body: `<div class="acc-grid">
+          ${acc("Bilibili", "#d77a9a", "B", "扫码或 SESSDATA 登录", on, `<span class="muted">大会员</span>${btn("管理", "sm")}`)}
+          ${acc("微信读书", "#4f8a6b", "读", "API Key", chip("已失效", "warn"), `<span class="muted">上次校验失败</span>${btn("重新校验", "sm")}`)}
+          ${acc("YouTube", "#c0463c", "▶", "代理设置", off, `${inp("http://127.0.0.1:7890", 200, "mono ph")}`)}</div>` },
+        { t: "AI 平台", d: "语音合成使用", body: `<div class="acc-grid">${acc("Minimax", "#8a7aa6", "M", "API Key", off, `<span class="muted"></span>${btn("连接", "sm pri")}`)}</div>` },
+      ];
+    },
+  },
+  llm: {
+    desc: "接入服务商与模型，并为各项功能分配模型",
+    tabs: ["服务商与模型", "功能分配"],
+    sum: () => [chip("3 家服务商"), chip("12 个模型")],
+    groups: (tab) => tab === 0 ? [
+      { t: "服务商", d: "左侧选择要编辑的服务商", body: card(`<div class="md">
+        <div class="ml">${[["OpenAI", "5 模型"], ["DeepSeek", "3 模型"], ["本地 Ollama", "4 模型"]].map(([n, s], i) => `<div class="li ${state.llmSel === i ? "on" : ""}" data-llm="${i}"><b>${n}</b><small>${s}</small></div>`).join("")}<div class="li add">${ic("plus")}<b style="font-weight:400">添加服务商</b></div></div>
+        <div class="mr">
+          <div class="fields"><label>名称</label>${inp(["OpenAI", "DeepSeek", "本地 Ollama"][state.llmSel], "")}<label>API Key</label><span class="inp mono" style="width:100%">sk-••••••••••••3f9a <span style="margin-left:auto;color:var(--ink-3)">${ic("eye")}</span></span><label>Base URL</label>${inp("https://api.openai.com/v1", "", "mono")}</div>
+          <div class="models"><div class="mh">模型 · 5<span class="link">${ic("plus")} 添加模型</span></div>
+            ${[["gpt-5", ["思考", "图片", "文件"], "对话 · 标题总结"], ["gpt-5-mini", ["图片"], "闪卡生成"], ["gpt-4.1", ["联网"], ""]].map(([n, caps, used]) => `<div class="mrow"><span class="mn">${n}</span>${caps.map(c => `<span class="cap">${c}</span>`).join("")}<span class="muted" style="width:110px;text-align:right">${used ? "用于 " + used : ""}</span>${btn("", "ghost sm", "pencil")}</div>`).join("")}
+          </div>
+        </div></div>`) },
+    ] : [
+      ["对话与写作", [["对话功能", "聊天与写作助手的主力模型", "OpenAI · gpt-5"]]],
+      ["内容处理", [["标题总结", "笔记与文档的命名摘要", "OpenAI · gpt-5"], ["网页剪藏", "剪藏页面的正文抽取与清洗", "DeepSeek · deepseek-chat"]]],
+      ["多媒体", [["播客生成", "长文转播客脚本", "未分配"], ["视频总结", "视频转写稿的摘要与要点", "DeepSeek · deepseek-chat"], ["转录断句优化", "语音转录文本的断句与顺滑", "未分配"]]],
+      ["学习辅助", [["闪卡生成", "笔记内容转复习闪卡", "OpenAI · gpt-5-mini"], ["答案评判", "复习答案的打分与讲评", "未分配"]]],
+    ].map(([t, rows]) => ({ t, body: card(rows.map(([n, d, v]) => row(n, d, sel(v === "未分配" ? `<span style="color:var(--ink-3)">未分配</span>` : v, 240))).join("")) })),
+  },
+  embedding: {
+    desc: "知识库检索用的向量模型与检索增强，切换后会后台重建索引",
+    tabs: ["向量模型", "检索增强"],
+    sum: () => [chip("本地 · bge-m3")],
+    groups: (tab) => tab === 0 ? [
+      { t: "模型来源", body: card(`${row("来源", "本地离线运行，或调用 API 服务", seg([`${ic("hard-drive")}本地`, `${ic("cloud")}API`], 0))}`) },
+      { t: "运行环境", body: card(`${row("下载源", "", seg(["ModelScope", "HuggingFace"], 0))}${row("设备", "", sel("自动（优先 GPU）", 200))}${row("批大小", "越大越快，占用内存越多", sel("32", 120))}`) },
+      { t: "本地模型", body: card(`${row("bge-m3", "1024 维 · 多语言 · 2.2 GB", `${chip("当前使用", "acc")}${btn("检查", "sm ghost", "activity")}`)}${row("bge-small-zh-v1.5", "512 维 · 中文 · 95 MB", `<div class="prog"><i style="width:46%"></i></div><span class="muted">46%</span>${btn("取消", "sm ghost")}`)}${row("multilingual-e5-large", "1024 维 · 多语言 · 2.1 GB", btn("下载", "sm", "download"))}`) },
+    ] : [
+      { t: "查询扩展", d: "用小模型改写查询，召回更多相关内容", body: card(`${row("启用 Query Expander", "", sw(1))}${row("扩展模型", "", sel("qwen2.5-0.5b", 200))}`) },
+      { t: "重排序", d: "对召回结果二次打分", body: card(`${row("启用 Reranker", "", sw(0))}${row("重排模型", "", sel("bge-reranker-v2-m3", 200))}`) },
+    ],
+  },
+  imagegen: {
+    desc: "文生图服务，兼容 OpenAI Images 接口",
+    sum: () => [chip("1 家服务商")],
+    groups: () => [
+      { t: "服务商", body: card(`<div class="md" style="min-height:220px">
+        <div class="ml"><div class="li on"><b>OpenAI 兼容 1</b><small>当前</small></div><div class="li"><b>本地 SD</b></div><div class="li add">${ic("plus")}<b style="font-weight:400">添加服务商</b></div></div>
+        <div class="mr"><div class="fields"><label>名称</label>${inp("OpenAI 兼容 1", "")}<label>模型地址</label>${inp("https://api.openai.com/v1", "", "mono")}<label>API Key</label>${inp("sk-••••••••••••81c2", "", "mono")}<label>模型名称</label>${inp("gpt-image-2", "", "mono")}</div>
+          <div style="display:flex;gap:8px;margin-top:16px">${btn("设为当前", "", "check")}${btn("删除", "ghost danger", "trash-2")}</div></div></div>`) },
+    ],
+  },
+  voice: {
+    desc: "音视频转录与语音合成",
+    tabs: ["语音转录", "语音合成"],
+    sum: () => [chip("whisper-large-v3"), chip("Minimax 未连接", "warn")],
+    groups: (tab) => tab === 0 ? [
+      { t: "转录行为", body: card(`${row("断句粒度", "词级别支持 AI 优化断句", seg(["句子级 · 更快", "词级别"], 1))}${row("AI 优化断句", "使用「功能分配 · 转录断句优化」的模型", sw(1))}${row("长视频分段转录", "超过 30 分钟的视频分段处理", sw(1))}`) },
+      { t: "转录模型", d: "离线运行 faster-whisper", body: card(`${row("当前模型", "", sel("large-v3", 200))}${row("下载源", "", seg(["ModelScope · 国内", "HuggingFace · 国际"], 0))}${row("模型目录", "", `<span class="muted mono">~/tau/models/whisper</span>${btn("", "ghost sm", "folder-open")}${btn("", "ghost sm", "rotate-cw")}`)}
+        ${row("large-v3", "3.1 GB · 推荐", chip("当前使用", "acc"))}${row("medium", "1.5 GB", btn("使用", "sm"))}${row("small", "466 MB", btn("下载", "sm", "download"))}`) },
+    ] : [
+      { t: "", body: card(`<div class="status"><span class="sicon warn">${ic("plug-zap")}</span><div class="st"><b>Minimax 未连接</b><small>语音合成需要 Minimax API Key</small></div>${btn("前往连接", "pri", "arrow-right")}</div>`) },
+      { t: "合成参数", body: card(`${row("语音模型", "播客生成使用", sel("speech-02-hd", 220))}`) },
+    ],
+  },
+  whiteboard: {
+    desc: "白板演示录制的默认行为与导出",
+    sum: () => [chip("MP4")],
+    groups: () => [
+      { t: "录制默认值", body: card(`${row("进入演示后自动开始录制", "", sw(0))}${row("默认录制麦克风", "", sw(1))}${row("默认开启摄像头画中画", "", sw(0))}`) },
+      { t: "导出", body: card(`${row("格式", "", seg(["WebM", "MP4", "MOV", "MKV"], 1))}${row("保存位置", "未设置时保存到系统「影片」目录", `<span class="muted mono">~/Movies/tau</span>${btn("选择", "")}${btn("恢复默认", "ghost")}`)}`) },
+    ],
+  },
+  about: {
+    desc: "版本、更新与命令行工具",
+    sum: () => [chip("v3.8.2"), chip("有新版本", "acc")],
+    groups: () => [
+      { t: "", body: card(`<div class="hero"><div class="appicon">τ</div><div><h3>Tau</h3><div class="ver">v3.8.2 · arm64</div></div><div class="hs">${chip("v3.9.0 可用", "acc")}<div style="display:flex;gap:8px">${btn("更新说明", "ghost")}${btn("下载更新", "pri", "download")}</div></div></div>`) },
+      { t: "更新", body: card(row("自动检查更新", "启动时检查，发现新版本在此提示", sw(1))) },
+      { t: "命令行工具", body: card(row("tau 命令", "已安装 · /usr/local/bin/tau", btn("卸载", "ghost danger"))) },
+    ],
+  },
+};
+
+/* ============ 渲染 ============ */
+function pageBody(key, withAnchors) {
+  const p = PAGES[key];
+  const tab = state.tabs[key] ?? 0;
+  const groups = p.groups(tab);
+  return `<div class="col">
+    <div class="phead"><span class="picon">${ic(ICON[key])}</span><div><h2>${LABEL[key]}</h2><p>${p.desc}</p></div></div>
+    ${p.tabs ? `<div class="tabs">${p.tabs.map((t, i) => `<button class="${i === tab ? "on" : ""}" data-tab="${i}">${t}</button>`).join("")}</div>` : ""}
+    ${groups.map((g, i) => `<div class="group" ${withAnchors ? `id="g-${i}"` : ""}>${g.t ? `<div class="gt"><h3>${g.t}</h3>${g.d ? `<span>${g.d}</span>` : ""}</div>` : ""}${g.body}</div>`).join("")}
+  </div>`;
+}
+function nav(extraTop = "") {
+  return `<nav class="snav">${extraTop}
+    <div class="search">${ic("search")}搜索设置<kbd>⌘F</kbd></div>
+    <div class="list">${NAV.map(g => `<div class="grp">${g.g}</div>${g.items.map(([k, l, i]) => `<button class="it ${k === state.page ? "on" : ""}" data-page="${k}">${ic(i)}<span>${l}</span>${k === "accounts" || k === "voice" ? `<span class="dot" title="有需要处理的项"></span>` : ""}</button>`).join("")}`).join("")}</div>
+    <div class="foot">改动即时保存 · Esc 关闭</div></nav>`;
+}
+const appBehind = () => `<div class="app"><div class="side">${["首页", "卡片", "文章", "项目"].map((t, i) => `<div class="it ${i === 1 ? "on" : ""}">${ic(["house", "file-text", "newspaper", "folder-kanban"][i])}${t}</div>`).join("")}<div class="grp">工具</div><div class="it">${ic("send")}发布</div></div><div class="main"><div class="ghost-line" style="width:30%"></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px">${"<div class='ghost-card'></div>".repeat(6)}</div></div></div>`;
+const titlebar = (crumb) => `<div class="titlebar"><div class="dots"><i></i><i></i><i></i></div><span class="crumb">${crumb}</span></div>`;
+
+function render() {
+  const win = document.getElementById("win");
+  if (state.plan === "A") {
+    win.innerHTML = `${titlebar("<b>卡片</b>")}${appBehind()}<div class="scrim"><div class="dlg">
+      <button class="close" title="关闭">${ic("x")}</button>
+      ${nav(`<div class="ttl">设置</div>`)}
+      <div class="scontent">${pageBody(state.page)}</div></div></div>`;
+  } else if (state.plan === "B") {
+    const tab = state.tabs[state.page] ?? 0;
+    const gs = PAGES[state.page].groups(tab).map((g, i) => [g.t, i]).filter(x => x[0]);
+    win.innerHTML = `${titlebar(`设置 / <b>${LABEL[state.page]}</b>`)}<div class="pageB">
+      ${nav(`<button class="back">${ic("arrow-left")}返回工作区</button>`)}
+      <div class="body"><div>${pageBody(state.page, true)}</div>
+        <aside class="toc"><div class="th">本页</div>${gs.map(([t, i], j) => `<a class="${j === 0 ? "on" : ""}" data-anchor="g-${i}">${t}</a>`).join("")}</aside></div></div>`;
+  } else {
+    let inner;
+    if (state.cView === "overview") {
+      inner = `<div class="ov"><div class="oh"><h2>设置</h2><div class="search">${ic("search")}搜索设置<kbd>⌘F</kbd></div></div>
+        ${NAV.map(g => `<div class="og">${g.g}</div><div class="tiles">${g.items.map(([k, l, i]) => `<button class="tile" data-open="${k}"><span class="picon">${ic(i)}</span><div><b>${l}</b><small>${PAGES[k].desc}</small><div class="sum">${PAGES[k].sum().join("")}</div></div></button>`).join("")}</div>`).join("")}</div>`;
+    } else {
+      inner = `<div class="cdetail"><div class="cbar"><button class="back" data-overview>${ic("layout-grid")}全部设置</button>${ic("chevron-right")}<b>${LABEL[state.page]}</b></div><div class="scontent">${pageBody(state.page)}</div></div>`;
+    }
+    win.innerHTML = `${titlebar("<b>卡片</b>")}${appBehind()}<div class="scrim"><div class="dlg single"><button class="close">${ic("x")}</button>${inner}</div></div>`;
+  }
+  lucide?.createIcons?.();
+}
+
+/* ============ 交互 ============ */
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-page],[data-tab],[data-mode],[data-toggle],[data-seg] b,[data-plan],[data-theme],[data-open],[data-overview],[data-llm],[data-anchor],.imgopt");
+  if (!t) return;
+  if (t.dataset.plan) { state.plan = t.dataset.plan; state.cView = "overview"; document.querySelectorAll("#planPills button").forEach(b => b.classList.toggle("on", b === t)); }
+  else if (t.dataset.theme) { state.theme = t.dataset.theme; document.documentElement.dataset.theme = t.dataset.theme; document.querySelectorAll("#themePills button").forEach(b => b.classList.toggle("on", b === t)); return; }
+  else if (t.dataset.page) state.page = t.dataset.page;
+  else if (t.dataset.open) { state.page = t.dataset.open; state.cView = "detail"; }
+  else if (t.hasAttribute("data-overview")) state.cView = "overview";
+  else if (t.dataset.tab) state.tabs[state.page] = +t.dataset.tab;
+  else if (t.dataset.mode) state.themeMode = t.dataset.mode;
+  else if (t.dataset.llm) state.llmSel = +t.dataset.llm;
+  else if (t.dataset.anchor) { document.getElementById(t.dataset.anchor)?.scrollIntoView({ behavior: "smooth" }); t.parentNode.querySelectorAll("a").forEach(a => a.classList.toggle("on", a === t)); return; }
+  else if (t.hasAttribute("data-toggle")) { t.classList.toggle("on"); return; }
+  else if (t.classList.contains("imgopt")) { t.parentNode.querySelectorAll(".imgopt").forEach(x => x.classList.toggle("on", x === t)); return; }
+  else { t.parentNode.querySelectorAll("b").forEach(b => b.classList.toggle("on", b === t)); return; }
+  render();
+});
+render();
+</script>
+</body>
+</html>

@@ -9,15 +9,7 @@ export const getDateStart = (date: Date | number): number => {
 // 获取日期的结束时间戳（23:59:59.999）
 export const getDateEnd = (date: Date | number): number => {
   const d = typeof date === "number" ? new Date(date) : date;
-  return new Date(
-    d.getFullYear(),
-    d.getMonth(),
-    d.getDate(),
-    23,
-    59,
-    59,
-    999,
-  ).getTime();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).getTime();
 };
 
 // 将时间转换为分钟数（用于 start_time/end_time）
@@ -26,9 +18,7 @@ export const timeToMinutes = (hours: number, minutes: number): number => {
 };
 
 // 将分钟数转换为时间
-export const minutesToTime = (
-  minutes: number,
-): { hours: number; minutes: number } => {
+export const minutesToTime = (minutes: number): { hours: number; minutes: number } => {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return { hours, minutes: mins };
@@ -70,10 +60,7 @@ export const getMonthEnd = (year: number, month: number): number => {
 };
 
 // 检测事件是否重叠
-export const eventsOverlap = (
-  event1: CalendarEvent,
-  event2: CalendarEvent,
-): boolean => {
+export const eventsOverlap = (event1: CalendarEvent, event2: CalendarEvent): boolean => {
   // 如果都是全天事件，只比较日期
   if (event1.allDay && event2.allDay) {
     const end1 = event1.endDate || event1.startDate;
@@ -95,8 +82,7 @@ export const eventsOverlap = (
   // 首先检查日期是否重叠
   const date1End = event1.endDate || event1.startDate;
   const date2End = event2.endDate || event2.startDate;
-  const datesOverlap =
-    event1.startDate <= date2End && date1End >= event2.startDate;
+  const datesOverlap = event1.startDate <= date2End && date1End >= event2.startDate;
 
   if (!datesOverlap) {
     return false;
@@ -116,17 +102,14 @@ export const getEventGridPosition = (
   event: CalendarEvent,
   gridStartTime: number, // 网格开始时间（分钟）
   gridEndTime: number, // 网格结束时间（分钟）
-  cellHeight: number, // 每个时间单元格高度（px）
+  cellHeight: number // 每个时间单元格高度（px）
 ): { top: number; height: number } => {
   const startTime = event.startTime || gridStartTime;
   const endTime = event.endTime || gridEndTime;
 
   // 计算相对于网格开始的分钟数
   const startMinutes = Math.max(startTime - gridStartTime, 0);
-  const endMinutes = Math.min(
-    endTime - gridStartTime,
-    gridEndTime - gridStartTime,
-  );
+  const endMinutes = Math.min(endTime - gridStartTime, gridEndTime - gridStartTime);
 
   // 计算像素位置（假设每个单元格代表 15 分钟）
   const minutesPerCell = 15;
@@ -168,4 +151,17 @@ export const isToday = (timestamp: number): boolean => {
 // 判断是否是同一天
 export const isSameDay = (date1: number, date2: number): boolean => {
   return getDateStart(date1) === getDateStart(date2);
+};
+
+// 月视图网格范围：首周周一 00:00 → 末周周日 23:59:59.999（含邻月日期，周一起始）
+export const getMonthGridRange = (
+  year: number,
+  month: number
+): { start: number; end: number; rows: number } => {
+  const first = new Date(year, month - 1, 1);
+  const lead = (first.getDay() + 6) % 7;
+  const rows = Math.ceil((lead + getDaysInMonth(year, month)) / 7);
+  const start = new Date(year, month - 1, 1 - lead).getTime();
+  const end = new Date(year, month - 1, 1 - lead + rows * 7 - 1, 23, 59, 59, 999).getTime();
+  return { start, end, rows };
 };

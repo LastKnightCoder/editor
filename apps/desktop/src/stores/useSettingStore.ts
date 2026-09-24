@@ -64,7 +64,6 @@ export const DEFAULT_MODULE_ORDER = [
   "calendar",
   "chatManagement",
   "skillManagement",
-  "resourceManagement",
   "pomodoro",
   "todo",
   "question",
@@ -325,10 +324,6 @@ export interface ISetting {
     skillManagement: {
       enable: boolean;
       name: "Skill 管理";
-    };
-    resourceManagement: {
-      enable: boolean;
-      name: "资源管理";
     };
     pomodoro: {
       enable: boolean;
@@ -658,6 +653,7 @@ const loadCachedSetting = (): Partial<ISetting> | null => {
 
   try {
     const cached = window.localStorage.getItem(SETTING_CACHE_KEY);
+    window.localStorage.removeItem("resource-store");
     if (!cached) {
       return null;
     }
@@ -814,10 +810,6 @@ const initialState: IState = {
       vecDocuments: {
         enable: true,
         name: "索引数据库",
-      },
-      resourceManagement: {
-        enable: true,
-        name: "资源管理",
       },
       weread: {
         enable: true,

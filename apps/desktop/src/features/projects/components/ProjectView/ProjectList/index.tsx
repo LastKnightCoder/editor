@@ -8,7 +8,6 @@ import ProjectItem from "./ProjectItem";
 import If from "@/components/If";
 import For from "@/components/For";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
-import SidebarToggleButton from "@/components/SidebarToggleButton";
 
 import {
   CreateProjectItem,
@@ -73,6 +72,7 @@ import ProjectMindMapView from "./ProjectMindMapView";
 import { useProjectTreeData } from "./useProjectTreeData";
 import { useProjectContext } from "../ProjectContext";
 import { usePage } from "@/page/PageProvider";
+import { useProjectTreeStore } from "@/features/projects/projectTreeStore";
 import { toast, Tooltip, Menu } from "@tau/ui";
 
 const Project = () => {
@@ -82,7 +82,8 @@ const Project = () => {
   const { navigator } = usePage();
   const { setting } = useSettingStore(state => ({ setting: state.setting }));
   const databaseName = setting.database.active;
-  const [hideSidebar, setHideSidebar] = useState(false);
+  // 收起/展开入口在标题栏面包屑（ProjectDetailView），此处只读
+  const hideSidebar = useProjectTreeStore(s => s.collapsed);
   const [sidebarWidth, setSidebarWidth] = useLocalStorageState("project-list-sidebar-width", {
     defaultValue: 300,
   });
@@ -131,10 +132,6 @@ const Project = () => {
   const { modalStates, openModal, closeModal } = useProjectItemModalStates();
   const { createWebLinkRecord, handleSelectWebviewFile } = useWebLinkHandlers({
     uploadResource,
-  });
-
-  const onFoldSidebar = useMemoizedFn(() => {
-    setHideSidebar(!hideSidebar);
   });
 
   const handleSwitchProject = useMemoizedFn((proj: IProject) => {
@@ -748,10 +745,10 @@ const Project = () => {
         width={sidebarWidth ?? 300}
         onWidthChange={setSidebarWidth}
         open={!hideSidebar}
-        onToggle={onFoldSidebar}
         sidebarPosition="left"
         maxWidth={sidebarMaxWidth}
-        disableResize={false}
+        disableResize={hideSidebar}
+        showDivider
         className="h-full"
       >
         <div className="border-b-16 box-border flex h-full flex-col border-transparent px-4 pb-0">
@@ -977,7 +974,6 @@ const Project = () => {
           />
         </div>
       </ResizeableAndHideableSidebar>
-      <SidebarToggleButton.Expand isHidden={hideSidebar} onToggle={onFoldSidebar} side="left" />
     </>
   );
 };

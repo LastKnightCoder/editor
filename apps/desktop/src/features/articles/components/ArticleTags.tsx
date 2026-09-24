@@ -37,7 +37,7 @@ export function ArticleTags({ tags, onAdd, onDelete, className }: ArticleTagsPro
       {tags.map(tag => (
         <span
           key={tag}
-          className="rounded-tau-sm bg-group text-tau-micro text-ink-2 flex h-6 items-center gap-1 px-2.5"
+          className="rounded-tau-sm bg-hover text-tau-micro text-ink-2 flex h-6 items-center gap-1 px-2.5"
         >
           {tag}
           <button

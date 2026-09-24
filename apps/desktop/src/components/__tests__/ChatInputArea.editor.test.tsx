@@ -6,21 +6,17 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import type { Descendant } from "slate";
 
 import ChatInputArea, { type ChatInputAreaHandle } from "../ChatInputArea";
+import { ChatInputArea as SharedChatInputArea } from "@tau/shared";
 
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-vi.mock("@/hooks/useUploadResource", () => ({
-  default: () => vi.fn(),
-}));
+const uploadFileMock = vi.hoisted(() => vi.fn(async (file: File) => `/saved/${file.name}`));
+
+vi.mock("@/hooks/useUploadResource", () => ({ default: () => uploadFileMock }));
 
 vi.mock("@/commands", () => ({
-  convertFileSrc: vi.fn(),
-  createOrUpdateResource: vi.fn(),
-  getHomeDir: vi.fn(),
-  decrementResourceRefCount: vi.fn(),
-  incrementResourceRefCount: vi.fn(),
+  convertFileSrc: vi.fn(async (path: string) => `file://${path}`),
+  getHomeDir: vi.fn(async () => "/home/test"),
 }));
 
 vi.mock("@/stores/useMCPManagerModalStore", () => ({
@@ -56,9 +52,7 @@ vi.mock("@/utils/markdown", () => ({
   getMarkdown: (value: Descendant[]) =>
     value
       .map((node: any) =>
-        (node.children || [])
-          .map((child: any) => child.text || child.contentTitle || "")
-          .join(""),
+        (node.children || []).map((child: any) => child.text || child.contentTitle || "").join("")
       )
       .join("\n"),
   importFromMarkdown: (markdown: string) =>
@@ -119,10 +113,7 @@ vi.mock("@tau/editor/src", () => {
       className?: string;
       hotkeyConfigs?: Array<{
         hotKey: string | string[];
-        action: (
-          editor: unknown,
-          event: React.KeyboardEvent<HTMLDivElement>,
-        ) => void;
+        action: (editor: unknown, event: React.KeyboardEvent<HTMLDivElement>) => void;
       }>;
     }
   >(({ initValue = [], onChange, className, hotkeyConfigs = [] }, ref) => {
@@ -148,9 +139,7 @@ vi.mock("@tau/editor/src", () => {
 
     const renderedText = value
       .map((node: any) =>
-        (node.children || [])
-          .map((child: any) => child.contentTitle || child.text || "")
-          .join(""),
+        (node.children || []).map((child: any) => child.contentTitle || child.text || "").join("")
       )
       .join("\n");
 
@@ -169,9 +158,7 @@ vi.mock("@tau/editor/src", () => {
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
-const renderChatInputArea = async (
-  ref: React.RefObject<ChatInputAreaHandle | null>,
-) => {
+const renderChatInputArea = async (ref: React.RefObject<ChatInputAreaHandle | null>) => {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -179,13 +166,14 @@ const renderChatInputArea = async (
     root?.render(
       <App>
         <ChatInputArea ref={ref} />
-      </App>,
+      </App>
     );
   });
 };
 
 describe("桌面端 ChatInputArea Editor 输入", () => {
   afterEach(async () => {
+    uploadFileMock.mockClear();
     capturedHotkeyConfigs = [];
     wrapContentLinkMock.mockReset();
     insertTextMock.mockReset();
@@ -197,7 +185,79 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
     root = null;
     container?.remove();
     container = null;
+    vi.unstubAllGlobals();
   });
+
+  it.each(["desktop", "shared"])(
+    "%s 上传图片和 PDF 不依赖资源登记，清空只移除输入附件",
+    async variant => {
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          observe() {}
+          unobserve() {}
+          disconnect() {}
+        }
+      );
+      const ref = { current: null } as React.RefObject<ChatInputAreaHandle | null>;
+      container = document.createElement("div");
+      document.body.appendChild(container);
+      root = createRoot(container);
+      await act(async () => {
+        root?.render(
+          <App>
+            {variant === "desktop" ? (
+              <ChatInputArea ref={ref} isSupportImage isSupportFile />
+            ) : (
+              <SharedChatInputArea
+                ref={ref}
+                isSupportImage
+                isSupportFile
+                services={{
+                  uploadFile: uploadFileMock,
+                  convertFileSrc: async path => `file://${path}`,
+                  getHomeDir: async () => "/home/test",
+                }}
+              />
+            )}
+          </App>
+        );
+      });
+      for (const [accept, name, type] of [
+        ["image/png, image/jpeg, image/webp", "image.png", "image/png"],
+        ["application/pdf", "document.pdf", "application/pdf"],
+      ]) {
+        const input = container.querySelector<HTMLInputElement>(
+          `input[type="file"][accept="${accept}"]`
+        );
+        expect(input).toBeTruthy();
+        Object.defineProperty(input, "files", {
+          configurable: true,
+          value: [new File(["附件"], name, { type })],
+        });
+        await act(async () => {
+          input?.dispatchEvent(new Event("change", { bubbles: true }));
+        });
+        await vi.waitFor(async () => {
+          await act(async () => {});
+          expect(ref.current?.getValue()).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining(
+                type === "image/png" ? { path: `/saved/${name}` } : { file: `/saved/${name}` }
+              ),
+            ])
+          );
+        });
+      }
+      expect(ref.current?.getValue()).toEqual([
+        { type: "image", image: "file:///saved/image.png", path: "/saved/image.png" },
+        { type: "file", file: "/saved/document.pdf", fileName: "document.pdf" },
+      ]);
+      expect(uploadFileMock).toHaveBeenCalledTimes(2);
+      await act(async () => ref.current?.clear());
+      expect(ref.current?.getValue()).toEqual([]);
+    }
+  );
 
   it("应使用 Editor 承载正文输入，并避免向用户展示 raw content-link markup", async () => {
     const ref = {
@@ -207,13 +267,11 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
 
     await act(async () => {
       ref.current?.setValue(
-        '请看 :content-link[测试卡片]{refId=42 contentId=301 contentType=card title="测试卡片"}',
+        '请看 :content-link[测试卡片]{refId=42 contentId=301 contentType=card title="测试卡片"}'
       );
     });
 
-    const editor = container?.querySelector(
-      '[data-testid="chat-editor"]',
-    ) as HTMLElement | null;
+    const editor = container?.querySelector('[data-testid="chat-editor"]') as HTMLElement | null;
 
     expect(editor).toBeTruthy();
     expect(editor?.textContent).toContain("测试卡片");
@@ -226,9 +284,7 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
     } as React.RefObject<ChatInputAreaHandle | null>;
     await renderChatInputArea(ref);
 
-    const editor = container?.querySelector(
-      '[data-testid="chat-editor"]',
-    ) as HTMLElement | null;
+    const editor = container?.querySelector('[data-testid="chat-editor"]') as HTMLElement | null;
 
     expect(editor?.className).toContain("editorInput");
     expect(editor?.parentElement?.className).toContain("editorScrollContainer");
@@ -247,16 +303,12 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
       root?.render(
         <App>
           <ChatInputArea ref={ref} onPressEnter={onPressEnter} />
-        </App>,
+        </App>
       );
     });
 
-    const plainEnterHotkey = capturedHotkeyConfigs.find(
-      (config) => config.hotKey === "enter",
-    );
-    const modEnterHotkey = capturedHotkeyConfigs.find(
-      (config) => config.hotKey === "mod+enter",
-    );
+    const plainEnterHotkey = capturedHotkeyConfigs.find(config => config.hotKey === "enter");
+    const modEnterHotkey = capturedHotkeyConfigs.find(config => config.hotKey === "mod+enter");
 
     expect(plainEnterHotkey).toBeUndefined();
     expect(modEnterHotkey).toBeTruthy();
@@ -292,7 +344,7 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
       "project-item",
       "项目文档",
       42,
-      "项目文档",
+      "项目文档"
     );
     expect(insertTextMock).toHaveBeenCalledWith(" ");
   });

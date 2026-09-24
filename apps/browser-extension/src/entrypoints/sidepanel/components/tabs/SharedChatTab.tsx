@@ -1,11 +1,4 @@
-import {
-  useState,
-  useCallback,
-  useMemo,
-  useEffect,
-  useRef,
-  type Ref,
-} from "react";
+import { useState, useCallback, useMemo, useEffect, useRef, type Ref } from "react";
 import { App, Button, Dropdown, Tooltip } from "antd";
 import type { MenuProps } from "antd";
 import { Bot, Check, Cpu } from "lucide-react";
@@ -21,10 +14,7 @@ import {
   type MessageContentItem,
   type ReasoningEffort,
 } from "@tau/shared";
-import {
-  fetchCodexAvailabilityViaRpc,
-  useAiChat,
-} from "../../../../hooks/useAiChat";
+import { fetchCodexAvailabilityViaRpc, useAiChat } from "../../../../hooks/useAiChat";
 import type {
   AiChatRequestMessage,
   ChatAgentType,
@@ -44,11 +34,7 @@ import ChatMessage from "../../../../components/ChatMessage";
 import ChatDropdownSelector from "../../../../components/ChatDropdownSelector";
 import { useTheme } from "../../../../hooks/useTheme";
 import { useThemeStore } from "../../../../stores/useThemeStore";
-import type {
-  ChatMessageType,
-  ToolCallExecutionState,
-  ToolCallPayload,
-} from "@tau/shared";
+import type { ChatMessageType, ToolCallExecutionState, ToolCallPayload } from "@tau/shared";
 import classNames from "classnames";
 
 export interface ChatTabProps {
@@ -68,7 +54,7 @@ const normalizeAskQuestionExecutionInput = (input: string) => {
 const isMatchedAskQuestionExecution = (
   execution: ToolCallExecutionState,
   toolCallId: string,
-  expectedInput: string,
+  expectedInput: string
 ) =>
   execution.toolCallId === toolCallId &&
   execution.toolName === ASK_QUESTION_TOOL_NAME &&
@@ -79,25 +65,23 @@ const markAskQuestionExecutionResolved = (
   targetMessages: ChatMessageType[],
   toolCallId: string,
   expectedInput: string,
-  output: string,
+  output: string
 ) => {
   const now = Date.now();
-  return targetMessages.map((message) => {
+  return targetMessages.map(message => {
     if (message.role !== "assistant" || !message.contentBlocks?.length) {
       return message;
     }
 
     let changed = false;
-    const nextBlocks = message.contentBlocks.map((block) => {
+    const nextBlocks = message.contentBlocks.map(block => {
       if (block.type !== "tool_calls") {
         return block;
       }
 
       let blockChanged = false;
-      const nextExecutions = block.executions.map((execution) => {
-        if (
-          !isMatchedAskQuestionExecution(execution, toolCallId, expectedInput)
-        ) {
+      const nextExecutions = block.executions.map(execution => {
+        if (!isMatchedAskQuestionExecution(execution, toolCallId, expectedInput)) {
           return execution;
         }
         blockChanged = true;
@@ -106,8 +90,7 @@ const markAskQuestionExecutionResolved = (
           status: "success" as const,
           output,
           duration:
-            execution.duration ||
-            (execution.timestamp ? now - execution.timestamp : undefined),
+            execution.duration || (execution.timestamp ? now - execution.timestamp : undefined),
         };
       });
 
@@ -131,20 +114,13 @@ const markAskQuestionExecutionResolved = (
   });
 };
 
-export default function SharedChatTab({
-  wsClient,
-  url,
-  additionalSystemPrompt,
-}: ChatTabProps) {
-  const [reasoningEffort, setReasoningEffort] =
-    useState<ReasoningEffort>("none");
+export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }: ChatTabProps) {
+  const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>("none");
   const { message: antdMessage, modal } = App.useApp();
-  const [codexAvailability, setCodexAvailability] = useState<CodexAvailability>(
-    {
-      available: false,
-      reason: null,
-    },
-  );
+  const [codexAvailability, setCodexAvailability] = useState<CodexAvailability>({
+    available: false,
+    reason: null,
+  });
 
   const { themeMode } = useThemeStore();
   const resolvedTheme = useTheme(themeMode);
@@ -161,12 +137,8 @@ export default function SharedChatTab({
     currentModelConfig,
   } = useLlmConfigs(aiWsClient);
   const { skills } = useSkills(aiWsClient);
-  const askQuestionRecords = useAskQuestionSessionStore(
-    (state) => state.records,
-  );
-  const completeAskQuestionSession = useAskQuestionSessionStore(
-    (state) => state.completeSession,
-  );
+  const askQuestionRecords = useAskQuestionSessionStore(state => state.records);
+  const completeAskQuestionSession = useAskQuestionSessionStore(state => state.completeSession);
   const resumingAskQuestionRef = useRef<Set<string>>(new Set());
   const coreRef = useRef<ChatContainerCoreHandle>(null);
   const {
@@ -205,12 +177,10 @@ export default function SharedChatTab({
 
   const conversationKey = useMemo(
     () => `${url || "unknown-url"}::${currentSession?.id || "no-session"}`,
-    [url, currentSession?.id],
+    [url, currentSession?.id]
   );
   const selectedAgentType: ChatAgentType =
-    codexAvailability.available && currentSession.agentType === "codex"
-      ? "codex"
-      : "local";
+    codexAvailability.available && currentSession.agentType === "codex" ? "codex" : "local";
   const isCodexAgent = selectedAgentType === "codex";
 
   const defaultSystemPrompt = `你是一个智能助手，可以帮助用户理解和分析当前网页内容。
@@ -223,11 +193,11 @@ export default function SharedChatTab({
     }
     const skillsList = skills
       .map(
-        (skill) =>
+        skill =>
           `${skill.folderName} metadata:
   - Name: ${skill.name}
   - Description: ${skill.description || "无描述"}
-  - Path: ${skill.path}`,
+  - Path: ${skill.path}`
       )
       .join("\n\n");
     return `\n以下是可用 Skills，当用户需求匹配对应场景时请优先调用相关工具：\n\n${skillsList}`;
@@ -246,8 +216,7 @@ export default function SharedChatTab({
 
   const sessionSystemPrompt = useMemo(() => {
     return (
-      currentSession.systemPromptSnapshot ||
-      buildSessionAwareSystemPrompt(effectiveSystemPrompt)
+      currentSession.systemPromptSnapshot || buildSessionAwareSystemPrompt(effectiveSystemPrompt)
     );
   }, [currentSession.systemPromptSnapshot, effectiveSystemPrompt]);
 
@@ -261,7 +230,7 @@ export default function SharedChatTab({
 
     void ensureSessionSystemPrompt(
       currentSession.id,
-      buildSessionAwareSystemPrompt(effectiveSystemPrompt),
+      buildSessionAwareSystemPrompt(effectiveSystemPrompt)
     );
   }, [
     currentSession?.id,
@@ -279,12 +248,12 @@ export default function SharedChatTab({
     }
 
     void fetchCodexAvailabilityViaRpc(aiWsClient)
-      .then((availability) => {
+      .then(availability => {
         if (!cancelled) {
           setCodexAvailability(availability);
         }
       })
-      .catch((error) => {
+      .catch(error => {
         console.warn("查询 Codex 可用性失败:", error);
         if (!cancelled) {
           setCodexAvailability({
@@ -306,7 +275,7 @@ export default function SharedChatTab({
       }
       void updateCurrentSessionAgentSessionId(agentSessionId);
     },
-    [selectedAgentType, updateCurrentSessionAgentSessionId],
+    [selectedAgentType, updateCurrentSessionAgentSessionId]
   );
 
   const {
@@ -320,9 +289,7 @@ export default function SharedChatTab({
   } = useAiChat({
     enableTools: true,
     agentType: selectedAgentType,
-    agentSessionId: isCodexAgent
-      ? (currentSession.agentSessionId ?? null)
-      : null,
+    agentSessionId: isCodexAgent ? (currentSession.agentSessionId ?? null) : null,
     onAgentSessionIdChange: handleAgentSessionIdChange,
     conversationKey,
     systemPrompt: sessionSystemPrompt,
@@ -336,13 +303,13 @@ export default function SharedChatTab({
     if (isCodexAgent) {
       return [];
     }
-    return llmConfigs.flatMap((provider) => [
+    return llmConfigs.flatMap(provider => [
       {
         key: `provider-${provider.id}`,
         label: provider.name,
         type: "group" as const,
       },
-      ...(provider.models || []).map((model) => ({
+      ...(provider.models || []).map(model => ({
         key: `${provider.id}:${model.name}`,
         label: model.name,
       })),
@@ -360,7 +327,7 @@ export default function SharedChatTab({
         antdMessage.error("设置模型失败");
       }
     },
-    [setLlmUsage, antdMessage],
+    [setLlmUsage, antdMessage]
   );
 
   const handleMcpManagerClick = useCallback(async () => {
@@ -387,12 +354,7 @@ export default function SharedChatTab({
       }
       await updateCurrentSessionAgentType(agentType);
     },
-    [
-      codexAvailability.available,
-      isLoading,
-      messages.length,
-      updateCurrentSessionAgentType,
-    ],
+    [codexAvailability.available, isLoading, messages.length, updateCurrentSessionAgentType]
   );
 
   const agentTypeToolbar = useMemo(() => {
@@ -468,7 +430,7 @@ export default function SharedChatTab({
     (messageIndex: number) => {
       deleteMessage(messageIndex);
     },
-    [deleteMessage],
+    [deleteMessage]
   );
 
   const handleRegenerateMessage = useCallback(
@@ -487,18 +449,18 @@ export default function SharedChatTab({
         });
       });
     },
-    [regenerateMessage, sendMessage, sendRequestMessage],
+    [regenerateMessage, sendMessage, sendRequestMessage]
   );
 
   const handleCreateBranch = useCallback(
     (messageIndex: number) => {
       void createBranch(messageIndex);
     },
-    [createBranch],
+    [createBranch]
   );
 
   const handleDeleteConfirm = useCallback((): Promise<boolean> => {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       modal.confirm({
         title: "确定删除该消息吗？",
         content: "删除后无法恢复",
@@ -527,10 +489,7 @@ export default function SharedChatTab({
         }
         const buffer = await file.arrayBuffer();
         const base64 = btoa(
-          new Uint8Array(buffer).reduce(
-            (data, byte) => data + String.fromCharCode(byte),
-            "",
-          ),
+          new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
         );
         const result = (await aiWsClient.sendRequest("resource.upload", {
           data: base64,
@@ -552,30 +511,11 @@ export default function SharedChatTab({
         if (!aiWsClient?.isConnected) {
           return "";
         }
-        const result = (await aiWsClient.sendRequest(
-          "file.getHomeDir",
-          {},
-        )) as { homeDir: string };
+        const result = (await aiWsClient.sendRequest("file.getHomeDir", {})) as { homeDir: string };
         return result.homeDir;
       },
-      createOrUpdateResource: async (params) => {
-        return {
-          id: Date.now(),
-          name: params.name,
-          path: params.path,
-          type: params.type,
-        };
-      },
-      incrementResourceRef: async (path, source) => {
-        if (!aiWsClient?.isConnected) return;
-        await aiWsClient.sendRequest("resource.incrementRef", { path, source });
-      },
-      decrementResourceRef: async (path) => {
-        if (!aiWsClient?.isConnected) return;
-        await aiWsClient.sendRequest("resource.decrementRef", { path });
-      },
     }),
-    [aiWsClient],
+    [aiWsClient]
   );
 
   const handleSendMessageContent = useCallback(
@@ -587,7 +527,7 @@ export default function SharedChatTab({
         },
       });
     },
-    [sendRequestMessage],
+    [sendRequestMessage]
   );
 
   const handleUserSend = useCallback(() => {
@@ -598,10 +538,10 @@ export default function SharedChatTab({
   const submittedAskQuestionSessions = useMemo(() => {
     return Object.values(askQuestionRecords)
       .filter(
-        (record) =>
+        record =>
           record.conversationKey === conversationKey &&
           record.status === "submitted" &&
-          Boolean(record.submittedAnswers),
+          Boolean(record.submittedAnswers)
       )
       .sort((a, b) => a.updatedAt - b.updatedAt);
   }, [askQuestionRecords, conversationKey]);
@@ -612,7 +552,7 @@ export default function SharedChatTab({
     }
 
     const pendingSession = submittedAskQuestionSessions.find(
-      (session) => !resumingAskQuestionRef.current.has(session.sessionId),
+      session => !resumingAskQuestionRef.current.has(session.sessionId)
     );
     if (!pendingSession || !pendingSession.submittedAnswers) {
       return;
@@ -622,7 +562,7 @@ export default function SharedChatTab({
 
     const askQuestionResult = buildAskQuestionToolResult(
       pendingSession.payload,
-      pendingSession.submittedAnswers,
+      pendingSession.submittedAnswers
     );
     const answerJson = JSON.stringify(askQuestionResult, null, 2);
 
@@ -630,11 +570,11 @@ export default function SharedChatTab({
       messages,
       pendingSession.toolCallId,
       pendingSession.rawInput,
-      answerJson,
+      answerJson
     );
     saveMessages(resolvedMessages);
 
-    const hasAssistantToolCallMessage = resolvedMessages.some((message) => {
+    const hasAssistantToolCallMessage = resolvedMessages.some(message => {
       const withToolContext = message as ChatMessageType & {
         tool_calls?: ToolCallPayload[];
       };
@@ -642,9 +582,8 @@ export default function SharedChatTab({
         return false;
       }
       return withToolContext.tool_calls.some(
-        (call) =>
-          call.id === pendingSession.toolCallId &&
-          call.function.name === ASK_QUESTION_TOOL_NAME,
+        call =>
+          call.id === pendingSession.toolCallId && call.function.name === ASK_QUESTION_TOOL_NAME
       );
     });
 
@@ -673,9 +612,7 @@ export default function SharedChatTab({
             name: ASK_QUESTION_TOOL_NAME,
           },
           baseMessages: resolvedMessages,
-          extraHistoryMessages: hasAssistantToolCallMessage
-            ? []
-            : [bridgeAssistantToolCallMessage],
+          extraHistoryMessages: hasAssistantToolCallMessage ? [] : [bridgeAssistantToolCallMessage],
         });
 
         if (resumed) {
@@ -706,7 +643,7 @@ export default function SharedChatTab({
         chats={sessions}
         currentChat={currentSession}
         onChatSelect={selectSession}
-        onTitleChange={(title) => updateSessionTitle(currentSession.id, title)}
+        onTitleChange={title => updateSessionTitle(currentSession.id, title)}
         onCreateNewChat={() => createSession(undefined, selectedAgentType)}
         onChatDelete={deleteSession}
         getChildBranchesCount={getChildBranchesCount}
@@ -753,10 +690,7 @@ export default function SharedChatTab({
       isSupportFile={!isCodexAgent && isSupportFile}
       createMessageLoading={false}
       onCreateNewMessage={() => {
-        void createSession(
-          buildSessionAwareSystemPrompt(effectiveSystemPrompt),
-          selectedAgentType,
-        );
+        void createSession(buildSessionAwareSystemPrompt(effectiveSystemPrompt), selectedAgentType);
       }}
       onMcpManagerClick={handleMcpManagerClick}
       currentPageUrl={url}
@@ -774,10 +708,10 @@ export default function SharedChatTab({
       chatHeader={chatHeader}
       messagesContainerRef={messagesContainerRef}
       messagesContainerClassName="tau-scrollbar border-t-12 border-b-12 border-transparent px-6 py-3 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"
-      renderInputWrapper={(inputNode) => (
+      renderInputWrapper={inputNode => (
         <div
           className={classNames(
-            "m-1 mt-3 flex-none px-3 py-3 box-border shadow-sm rounded-3xl border bg-(--th-chat-input) border-(--th-chat-input-border)",
+            "bg-(--th-chat-input) border-(--th-chat-input-border) m-1 mt-3 box-border flex-none rounded-3xl border px-3 py-3 shadow-sm"
           )}
         >
           {inputNode}
@@ -787,10 +721,10 @@ export default function SharedChatTab({
         const resolvedProps = inputProps as ChatInputAreaProps;
         return (
           <div className="flex items-end gap-2">
-            <div className="flex-1 min-w-0">
+            <div className="min-w-0 flex-1">
               <ChatInputArea
                 ref={chatInputRef as Ref<ChatInputAreaHandle>}
-                className="flex-1 min-w-0"
+                className="min-w-0 flex-1"
                 {...resolvedProps}
                 services={chatInputServices}
               />

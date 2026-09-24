@@ -18,7 +18,6 @@ import pdf from "@/assets/icons/pdf.svg";
 import vecDatabase from "@/assets/icons/vec-database.svg";
 import calendar from "@/assets/icons/calendar.svg";
 import chat from "@/assets/icons/chat.svg";
-import resource from "@/assets/icons/resource.svg";
 import task from "@/assets/icons/task.svg";
 import question from "@/assets/icons/question.svg";
 import pomodoro from "@/assets/icons/pomodoro.svg";
@@ -214,13 +213,6 @@ const SidebarNavItems = memo((props: SidebarNavItemsProps) => {
         desc: "日记",
         type: TabType.DailyNote,
         enable: module.dailyNote.enable,
-      },
-      {
-        key: "resource",
-        icon: resource,
-        desc: "资源管理",
-        type: TabType.ResourceManagement,
-        enable: module.resourceManagement.enable,
       },
       {
         key: "feed",

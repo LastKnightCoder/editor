@@ -133,7 +133,8 @@ const KanbanCard: React.FC<KanbanCardProps> = memo(
             <Trash2 className="h-4 w-4" strokeWidth={1.75} />
           </div>
         )}
-        <div className="space-y-2">
+        {/* 渲染器按表格单元格设计（单行不换行），卡片内改为：标题折行、多选标签换行、超长标签截断 */}
+        <div className="space-y-2 [&_.flex-nowrap>*]:max-w-full [&_.flex-nowrap]:flex-wrap [&_.whitespace-nowrap]:whitespace-normal [&_.whitespace-nowrap]:[overflow-wrap:anywhere]">
           {primaryColumn &&
             (() => {
               const plugin = pluginManager.getPlugin(primaryColumn.type);

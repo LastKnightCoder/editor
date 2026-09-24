@@ -16,6 +16,8 @@
  *  - 初始焦点落卡片内 [data-autofocus] 元素（无则卡片自身）；表单场景把
  *    data-autofocus 放首输入框，danger 场景放取消按钮
  *  - 打开锁定底层滚动；body 区独立滚动（上限 78vh，头尾钉住）
+ *  - fill：工作台型弹窗（双栏树 + 预览等）——卡片定高、body 不滚动不留白，
+ *    由内容自行分栏滚动；避免内容定高与卡片上限打架导致整窗滚动
  *
  * 尺寸档是预设不是牢笼（D-011）：sm 380 / md 440（默认）/ lg 560，width 任意值覆盖。
  * 层级：遮罩容器 z-[340]（Toast 200 < Select/Menu 250 < Tooltip 300 之上）。
@@ -63,6 +65,8 @@ export interface DialogProps {
   size?: "sm" | "md" | "lg";
   /** 任意宽度（px）覆盖 size——业务特殊版式不必硬凑档位 */
   width?: number;
+  /** 填充布局：卡片定高 min(82vh,760px)，body 为 flex 列且不滚动、无内边距（内容自管滚动） */
+  fill?: boolean;
   /** 应答区按钮序列（主按钮恒在最右；组件自身不渲染按钮） */
   footer?: ReactNode;
   children?: ReactNode;
@@ -110,6 +114,7 @@ export function Dialog({
   locked = false,
   size = "md",
   width,
+  fill = false,
   footer,
   children,
   onKeyDown,
@@ -252,7 +257,8 @@ export function Dialog({
           style={width ? { width } : undefined}
           className={clsx(
             "bg-surface border-line-1 shadow-float relative",
-            "rounded-tau-lg flex max-h-[min(78vh,660px)] max-w-full flex-col border",
+            "rounded-tau-lg flex max-w-full flex-col border",
+            fill ? "h-[min(82vh,760px)]" : "max-h-[min(78vh,660px)]",
             size === "sm" ? "w-[380px]" : size === "lg" ? "w-[560px]" : "w-[440px]",
             "ease-tau-out transition-[opacity,transform] duration-[200ms]",
             visible && shown ? "opacity-100" : "translate-y-[8px] scale-[0.97] opacity-0",
@@ -292,10 +298,12 @@ export function Dialog({
           </div>
           {subtitle && <p className="text-ink-3 text-tau-meta mt-[3px] pl-6 pr-12">{subtitle}</p>}
           <div
-            ref={setBodyEl}
+            ref={fill ? undefined : setBodyEl}
             className={clsx(
-              "edge-fade-scroll scrollbar-inset text-ink-2 text-tau-body min-h-0 overflow-y-auto border-r-4 border-r-transparent px-6 pt-[8px]",
-              footer || impact ? "pb-[22px]" : "mb-4 pb-[6px]"
+              fill
+                ? "border-line-2 text-ink-2 text-tau-body mt-[14px] flex min-h-0 flex-1 flex-col overflow-hidden border-t"
+                : "edge-fade-scroll scrollbar-inset text-ink-2 text-tau-body min-h-0 overflow-y-auto border-r-4 border-r-transparent px-6 pt-[8px]",
+              !fill && (footer || impact ? "pb-[22px]" : "mb-4 pb-[6px]")
             )}
           >
             {children}

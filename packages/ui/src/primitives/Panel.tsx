@@ -40,12 +40,12 @@ export function PanelNote({ className, ...props }: ComponentProps<"small">) {
   return <small className={cn("text-tau-micro text-ink-3 font-normal", className)} {...props} />;
 }
 
-/** 板内空态注记（灰底行，替代原 board-note 空态用法） */
+/** 板内空态注记（描边行，替代原 board-note 空态用法） */
 export function EmptyNote({ className, ...props }: ComponentProps<"p">) {
   return (
     <p
       className={cn(
-        "rounded-tau-sm bg-group text-tau-sm text-ink-2 mt-2.5 px-3 py-2.5 leading-[1.6]",
+        "rounded-tau-sm border-line-1 text-tau-sm text-ink-2 mt-2.5 border px-3 py-2.5 leading-[1.6]",
         className
       )}
       {...props}

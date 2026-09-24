@@ -200,8 +200,8 @@ export function SearchPalette() {
     icon: c.icon,
     title: c.label,
     sub: c.section,
-    // 分组标签走 group 底（同页脚 bg-group/60 的次级填充语言），sunken 专供进度轨道/凹陷画布
-    tag: { label: c.section, cls: "bg-group text-ink-2" },
+    // 分组标签走 bg-hover 淡墨（随父底色，不带色相），sunken 专供进度轨道/凹陷画布
+    tag: { label: c.section, cls: "bg-hover text-ink-2" },
     run: () => runCommand(c),
   });
 
@@ -639,7 +639,7 @@ export function SearchPalette() {
           </div>
 
           {/* 底栏快捷键提示 */}
-          <div className="bg-group/60 text-ink-2 text-tau-tiny flex flex-none select-none flex-wrap items-center gap-3.5 px-3.5 py-2">
+          <div className="text-ink-2 text-tau-tiny flex flex-none select-none flex-wrap items-center gap-3.5 px-3.5 py-2">
             <span>
               <Kbd>↑↓</Kbd> 选择
             </span>
@@ -686,7 +686,7 @@ function ScopeChip({
         "text-tau-micro inline-flex h-[25px] items-center gap-1.5 rounded-full border px-2.5",
         active
           ? "bg-accent-soft text-accent-text border-transparent font-medium"
-          : "bg-group border-line-1 text-ink-2 hover:border-ink-3 hover:text-ink-1"
+          : "border-line-1 text-ink-2 hover:border-ink-3 hover:text-ink-1"
       )}
     >
       {Icon && <Icon size={12} strokeWidth={1.75} />}

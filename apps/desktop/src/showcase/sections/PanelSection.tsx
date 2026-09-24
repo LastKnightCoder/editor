@@ -90,7 +90,7 @@ export default function PanelSection() {
         name="EmptyNote"
         desc={
           <>
-            <code>bg-group</code> 灰底空态行 · mt-2.5 px-3 py-2.5
+            <code>line-1</code> 描边空态行 · mt-2.5 px-3 py-2.5
           </>
         }
         trayClassName=""

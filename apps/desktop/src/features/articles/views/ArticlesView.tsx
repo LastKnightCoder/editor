@@ -213,7 +213,7 @@ export function ArticlesView() {
   if (feed.loading) return <Loading />;
 
   return (
-    <div className="@container mx-auto flex h-full max-w-[1720px] flex-col px-[26px]">
+    <div className="@container mx-auto flex h-full max-w-[1720px] flex-col px-[26px] pb-4">
       {/* 工具栏（滚动区外固定）：新建/导入在右上角 */}
       <div className="flex h-[44px] flex-none items-center gap-3.5">
         <h1 className="text-[19px] font-semibold tracking-[-0.01em]">文章</h1>
@@ -263,7 +263,7 @@ export function ArticlesView() {
       {/* 滚动区：边缘渐隐（顶部渐隐带 12px 恰在 sticky 月头上方）；-mr/pr 借位让细滚动条落进右留白 */}
       <div
         ref={setScrollEl}
-        className="edge-fade-scroll -mr-[18px] mt-1 min-h-0 flex-1 overflow-y-auto pb-6 pr-[18px]"
+        className="edge-fade-scroll -mr-[18px] mt-1 min-h-0 flex-1 overflow-y-auto pb-2 pr-[18px]"
       >
         {/* 置顶段 */}
         {tops.length > 0 && (

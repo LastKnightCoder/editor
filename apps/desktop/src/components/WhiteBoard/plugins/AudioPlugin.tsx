@@ -1,4 +1,4 @@
-import { Music2, Link, Download, Upload, FolderOpen, Mic } from "lucide-react";
+import { Music2, Link, Download, Upload, Mic } from "lucide-react";
 import { v4 as getUuid } from "uuid";
 import { message } from "antd";
 import { uploadResource } from "@/hooks/useUploadResource";
@@ -39,7 +39,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
         asContainer: ContainmentBehavior.None,
         canBeContained: true,
         // 58f0660e53ef5165 ColumnFf0851c651654e0e542675315b5065b958f0660e53cd8f6c51b35b9aFf0c89c1 CapabilityService.canContainFf09
-        canBeContainedBy: (container) => container.type === "column",
+        canBeContainedBy: container => container.type === "column",
       },
       movement: { behavior: MovementBehavior.Normal },
       render: {
@@ -81,18 +81,6 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
             },
           },
           {
-            key: "audio-resource",
-            label: "资源库",
-            icon: <FolderOpen size={14} />,
-            priority: 1,
-            onSelect: (ctx: ContextMenuContext) => {
-              ctx.board.emit("context-menu:open-modal", {
-                type: "audio",
-                action: "resource",
-              });
-            },
-          },
-          {
             key: "audio-url",
             label: "网络地址",
             icon: <Link size={14} />,
@@ -122,9 +110,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
     }
 
     // 右键音频元素 → 添加音频操作菜单
-    const audioElements = targetElements.filter(
-      (el) => el.type === "audio",
-    ) as AudioElement[];
+    const audioElements = targetElements.filter(el => el.type === "audio") as AudioElement[];
     if (audioElements.length === 1) {
       const audioElement = audioElements[0];
 
@@ -184,53 +170,51 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
 
     if (audioFiles.length === 0) return;
 
-    Promise.all(audioFiles.map((file) => Promise.resolve(file))).then(
-      async (files) => {
-        message.loading({
-          key: "uploading-audio",
-          content: "正在处理音频，请稍候...",
-          duration: 0,
-        });
+    Promise.all(audioFiles.map(file => Promise.resolve(file))).then(async files => {
+      message.loading({
+        key: "uploading-audio",
+        content: "正在处理音频，请稍候...",
+        duration: 0,
+      });
 
-        let insertPath = board.children.length;
-        const { minX, minY, width, height } = board.viewPort;
-        const center = {
-          x: minX + width / 2,
-          y: minY + height / 2,
-        };
+      let insertPath = board.children.length;
+      const { minX, minY, width, height } = board.viewPort;
+      const center = {
+        x: minX + width / 2,
+        y: minY + height / 2,
+      };
 
-        const ops: Operation[] = [];
-        let offsetY = 0;
+      const ops: Operation[] = [];
+      let offsetY = 0;
 
-        for (const file of files) {
-          const audioPath = await uploadResource(file);
-          if (audioPath) {
-            ops.push({
-              type: "insert_node",
-              path: [insertPath],
-              node: {
-                id: getUuid(),
-                type: "audio",
-                src: audioPath,
-                x: center.x - AUDIO_DEFAULT_WIDTH / 2,
-                y: center.y + offsetY - AUDIO_CARD_HEIGHT / 2,
-                width: AUDIO_DEFAULT_WIDTH,
-                height: AUDIO_CARD_HEIGHT,
-                title: file.name.replace(/\.[^/.]+$/, ""),
-              },
-            });
-            offsetY += AUDIO_CARD_HEIGHT + 20;
-          }
-          insertPath++;
+      for (const file of files) {
+        const audioPath = await uploadResource(file);
+        if (audioPath) {
+          ops.push({
+            type: "insert_node",
+            path: [insertPath],
+            node: {
+              id: getUuid(),
+              type: "audio",
+              src: audioPath,
+              x: center.x - AUDIO_DEFAULT_WIDTH / 2,
+              y: center.y + offsetY - AUDIO_CARD_HEIGHT / 2,
+              width: AUDIO_DEFAULT_WIDTH,
+              height: AUDIO_CARD_HEIGHT,
+              title: file.name.replace(/\.[^/.]+$/, ""),
+            },
+          });
+          offsetY += AUDIO_CARD_HEIGHT + 20;
         }
+        insertPath++;
+      }
 
-        if (ops.length > 0) {
-          board.apply(ops);
-          message.success("音频粘贴成功");
-        }
-        message.destroy("uploading-audio");
-      },
-    );
+      if (ops.length > 0) {
+        board.apply(ops);
+        message.success("音频粘贴成功");
+      }
+      message.destroy("uploading-audio");
+    });
   }
 
   // Override onResize to keep height constant (only allow horizontal resizing)
@@ -241,13 +225,10 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
     _startPoint: Point,
     endPoint: Point,
     _isPreserveRatio?: boolean,
-    _isAdsorb?: boolean,
+    _isAdsorb?: boolean
   ) => {
     // Only handle left and right resize handles
-    if (
-      position !== EHandlerPosition.Left &&
-      position !== EHandlerPosition.Right
-    ) {
+    if (position !== EHandlerPosition.Left && position !== EHandlerPosition.Right) {
       return;
     }
 
@@ -285,7 +266,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
         },
         newProperties: { x: newX, width: newWidth, height: AUDIO_CARD_HEIGHT }, // Always keep height constant
       },
-      false,
+      false
     );
   };
 

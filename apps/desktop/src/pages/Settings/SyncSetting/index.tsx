@@ -19,7 +19,6 @@ import type { ResourcePreviewItem } from "./components/ResourceThumbnail";
 import useSettingStore, { ESync } from "@/stores/useSettingStore";
 import {
   download,
-  getAllResources,
   getOriginDatabaseInfo,
   upload,
   getEditorDir,
@@ -40,14 +39,9 @@ import {
 import useThemeColors from "@/hooks/useThemeColors";
 import useResourceSync from "@/hooks/useResourceSync";
 import useResourceSyncBlacklist from "@/hooks/useResourceSyncBlacklist";
-import { IResource, ResourceSyncStatus } from "@/types";
+import { ResourceSyncStatus } from "@/types";
 import { isSyncConfigured } from "@/utils/sync";
-import {
-  matchResourceByName,
-  inferPreviewType,
-  LOCAL_RESOURCE_DIR,
-  inferResourceType,
-} from "./utils";
+import { inferPreviewType, LOCAL_RESOURCE_DIR, inferResourceFileType } from "./utils";
 
 const normalizeResourceRelativePath = (fileName: string) => {
   const normalized = fileName.replace(/\\/g, "/").replace(/^\/+/, "");
@@ -100,8 +94,6 @@ const SyncSetting = () => {
   } = useResourceSyncBlacklist();
   const [issueModalOpen, setIssueModalOpen] = useState(false);
   const [blacklistModalOpen, setBlacklistModalOpen] = useState(false);
-  const [resources, setResources] = useState<IResource[]>([]);
-  const [resourceLoading, setResourceLoading] = useState(false);
   const [resourceDirPath, setResourceDirPath] = useState("");
   const [imagePreview, setImagePreview] = useState<{
     open: boolean;
@@ -155,19 +147,8 @@ const SyncSetting = () => {
   });
 
   const getPreviewResource = useMemoizedFn((fileName: string): ResourcePreviewItem | null => {
-    const matched = matchResourceByName(resources, fileName);
-    // resources 表记录的是文章引用的图床 URL，而资源同步的对象是本地 resources
-    // 目录的文件；命中远程 URL 时视为未匹配、走本地路径构造，避免缩略图触发
-    // 大批远程图片下载（含 jsdelivr 回源 raw.githubusercontent.com 的不可达链路）
-    if (matched && !/^https?:\/\//i.test(matched.path)) {
-      return {
-        name: matched.name,
-        path: matched.path,
-        type: matched.type,
-      };
-    }
     if (!resourceDirPath) return null;
-    const inferredType = inferResourceType(fileName);
+    const inferredType = inferResourceFileType(fileName);
     if (!inferredType) return null;
     const trimmed = normalizeResourceRelativePath(fileName);
     return {
@@ -184,28 +165,9 @@ const SyncSetting = () => {
     ([, status]) => status.syncStatus === ResourceSyncStatus.Error
   );
 
-  const loadResources = useMemoizedFn(async (): Promise<IResource[]> => {
-    setResourceLoading(true);
-    try {
-      const list = await getAllResources();
-      setResources(list);
-      return list;
-    } catch (error) {
-      console.error("获取资源列表失败", error);
-      message.error("获取资源列表失败");
-      return [];
-    } finally {
-      setResourceLoading(false);
-    }
-  });
-
   useAsyncEffect(async () => {
     await ensureResourceDirPath();
   }, [ensureResourceDirPath]);
-
-  useAsyncEffect(async () => {
-    await loadResources();
-  }, [loadResources]);
 
   useAsyncEffect(async () => {
     if (!isConfigured) return;
@@ -299,23 +261,7 @@ const SyncSetting = () => {
 
   const handlePreviewResource = useMemoizedFn(async (fileName: string) => {
     if (!fileName) return;
-    let previewMeta = getPreviewResource(fileName);
-    if (!previewMeta) {
-      if (resourceLoading) {
-        message.info("资源列表加载中，请稍候");
-        return;
-      }
-      const latest = await loadResources();
-      const matched = matchResourceByName(latest, fileName);
-      // 与 getPreviewResource 同规：远程图床 URL 不作为预览源，落到本地路径解析
-      if (matched && !/^https?:\/\//i.test(matched.path)) {
-        previewMeta = {
-          name: matched.name,
-          path: matched.path,
-          type: matched.type,
-        };
-      }
-    }
+    const previewMeta = getPreviewResource(fileName);
     if (previewMeta) {
       if (
         previewMeta.type === "image" ||

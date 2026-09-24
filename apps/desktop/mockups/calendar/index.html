@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日程 · 日历页重设计方案</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-surface-hover: #f6f3ef; --bg-sunken: #e7dbc8; --bg-track: #e0d6c3;
+    --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09); --bg-selected: rgba(217, 119, 87, 0.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+    --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%); --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+    --danger: #b0564d; --danger-soft: #f6e3e0;
+    --t1: #61795f; --t1s: #e5ede2; --t2: #5c7d99; --t2s: #e2ebf3; --t3: #8a7aa6; --t3s: #ebe6f3; --t4: #a38c4d; --t4s: #f6efd6; --t5: #b06a5e; --t5s: #f6e3e0;
+    --overlay: rgba(67, 57, 44, 0.35);
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --shadow-lift: 0 1px 2px rgba(120, 100, 70, 0.06), 0 6px 16px -10px rgba(120, 100, 70, 0.22);
+    --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --win-bg: #e8e1d1;
+  }
+  .dark {
+    --bg-page: #221d16; --bg-surface: #2e2820; --bg-surface-hover: #39332b; --bg-sunken: #100d08; --bg-track: #463d31;
+    --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11); --bg-selected: hsla(22, 62%, 65%, 0.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+    --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.55);
+    --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%); --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+    --focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+    --danger: #d97e66; --danger-soft: #34201a;
+    --t1: #8cab87; --t1s: #243023; --t2: #83aecf; --t2s: #1e2a35; --t3: #a596c8; --t3s: #292335; --t4: #c4a458; --t4s: #302917; --t5: #d0806a; --t5s: #30211b;
+    --overlay: rgba(10, 8, 5, 0.55);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+    --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #e8e1d1; color: #43392c;
+    font: 14px/1.6 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 36px 3vw 80px;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  input, textarea { font: inherit; color: inherit; }
+  svg.i { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---------- 说明区 ---------- */
+  .intro { max-width: 1180px; }
+  .intro h1 { font-size: 22px; font-weight: 600; }
+  .intro .lead { color: #6a5c49; margin-top: 6px; font-size: 13.5px; max-width: 96ch; }
+  .intro h3 { font-size: 14.5px; font-weight: 600; margin: 22px 0 6px; display: flex; gap: 8px; align-items: baseline; }
+  .intro h3 small { font: 400 11.5px var(--mono); color: #a89a85; }
+  .intro ul { color: #6a5c49; font-size: 13px; margin: 4px 0 0 18px; max-width: 100ch; }
+  .intro li { margin-top: 3px; } .intro b { color: #43392c; font-weight: 600; }
+  .intro code { font: 12px var(--mono); background: rgba(255,253,249,.7); border-radius: 5px; padding: 0 5px; }
+  .note-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 10px; }
+  .note { background: #fffdf9; border-radius: 14px; box-shadow: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18); padding: 14px 16px; font-size: 12.5px; color: #6a5c49; }
+  .note h4 { font-size: 13.5px; font-weight: 600; color: #43392c; margin-bottom: 6px; display: flex; gap: 8px; align-items: center; }
+  .note .rec { font-size: 11px; font-weight: 500; color: #a05236; background: hsla(22,58%,42%,.12); border-radius: 99px; padding: 0 8px; }
+  .note dl { margin-top: 8px; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; }
+  .note dt { color: #a89a85; } .note dd { color: #43392c; }
+
+  .switch { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 26px 0 14px; font-size: 12.5px; color: #6a5c49; }
+  .switch .lab { margin-right: 2px; }
+  .switch .sep { width: 14px; }
+  .switch button { padding: 4px 12px; border-radius: 99px; background: rgba(255,253,249,.6); }
+  .switch button.on { background: #43392c; color: #fff8ef; }
+  .switch button[disabled] { opacity: .35; cursor: not-allowed; }
+  .plan-note { font-size: 12.5px; color: #6a5c49; margin: -4px 0 12px; min-height: 20px; }
+  .plan-note b { color: #43392c; font-weight: 600; }
+
+  /* ---------- 窗口骨架（融合壳层） ---------- */
+  .win { height: 800px; border-radius: 14px; overflow: hidden; background: var(--bg-page); color: var(--ink-1); position: relative;
+    box-shadow: 0 2px 6px rgba(67,57,44,.08), 0 20px 50px rgba(67,57,44,.12); display: flex; font-size: 13px; }
+  .appnav { width: 184px; flex: none; padding: 12px 10px; color: var(--ink-2); font-size: 12.5px; display: flex; flex-direction: column; }
+  .appnav .dots { display: flex; gap: 7px; padding: 4px 6px 14px; } .appnav .dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--bg-track); }
+  .appnav .grp { font-size: 11px; color: var(--ink-3); margin: 12px 8px 3px; }
+  .appnav .it { padding: 5px 8px; border-radius: 7px; display: flex; gap: 9px; align-items: center; position: relative; }
+  .appnav .it.on { background: var(--bg-selected); color: var(--ink-1); font-weight: 500; }
+  .appnav .it.on::before { content: ""; position: absolute; left: -10px; top: 7px; bottom: 7px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); }
+  .right { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .titlebar { height: 42px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 16px 0 8px; color: var(--ink-3); }
+  .titlebar .nb { width: 26px; height: 26px; border-radius: 7px; display: grid; place-items: center; }
+  .titlebar .crumb { font-size: 12.5px; margin-left: 4px; } .titlebar .crumb b { color: var(--ink-1); font-weight: 500; }
+  .titlebar .search { margin-left: auto; height: 26px; width: 220px; border-radius: 8px; background: var(--bg-hover); display: flex; align-items: center; gap: 7px; padding: 0 9px; font-size: 12px; }
+  .titlebar .search kbd { margin-left: auto; font: 10.5px var(--mono); }
+  .page { flex: 1; min-height: 0; display: flex; padding: 2px 20px 16px 8px; gap: 16px; }
+
+  /* ---------- 通用控件 ---------- */
+  .btn { height: 30px; padding: 0 13px; border-radius: 9px; font-size: 12.5px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; transition: background .16s; }
+  .btn.sec { background: var(--bg-surface); box-shadow: 0 0 0 1px var(--line-1) inset; }
+  .btn.sec:hover { background: var(--bg-surface-hover); }
+  .btn.pri { background: var(--accent); color: var(--ink-inverse); }
+  .btn.pri:hover { background: var(--accent-hover); }
+  .btn.ghost { color: var(--ink-2); padding: 0 9px; } .btn.ghost:hover { background: var(--bg-hover); }
+  .btn.dsoft { background: var(--danger-soft); color: var(--danger); }
+  .ib { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-2); transition: background .16s; flex: none; }
+  .ib:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .ib.sm { width: 24px; height: 24px; border-radius: 7px; }
+  /* Segmented：连体描边（D-029） */
+  .seg { display: inline-flex; border-radius: 8px; box-shadow: 0 0 0 1px var(--line-1) inset; background: var(--bg-surface); overflow: hidden; height: 30px; }
+  .seg button { padding: 0 12px; font-size: 12.5px; color: var(--ink-2); }
+  .seg button + button { box-shadow: -1px 0 0 var(--line-1); }
+  .seg button:hover:not(.on) { background: var(--bg-hover); }
+  .seg button.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+  kbd { font: 10.5px var(--mono); color: var(--ink-3); background: var(--bg-hover); border-radius: 4px; padding: 0 4px; }
+  .panel { background: var(--bg-surface); border-radius: 16px; box-shadow: var(--shadow-card); min-height: 0; }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .scroll { overflow: auto; scrollbar-width: none; } .scroll::-webkit-scrollbar { display: none; }
+
+  /* 色板：日历色 = 数据色（tag 1–5） */
+  .c1 { --c: var(--t1); --cs: var(--t1s); } .c2 { --c: var(--t2); --cs: var(--t2s); } .c3 { --c: var(--t3); --cs: var(--t3s); }
+  .c4 { --c: var(--t4); --cs: var(--t4s); } .c5 { --c: var(--t5); --cs: var(--t5s); } .c0 { --c: var(--ink-3); --cs: var(--bg-hover); }
+
+  /* ---------- 页头 ---------- */
+  .phead { display: flex; align-items: center; gap: 10px; padding: 6px 2px 14px; }
+  .phead h2 { font-size: 20px; font-weight: 600; display: flex; align-items: baseline; gap: 8px; letter-spacing: .01em; }
+  .phead h2 small { font: 400 12px var(--mono); color: var(--ink-3); }
+  .phead .navs { display: flex; gap: 2px; margin-left: 6px; }
+  .phead .acts { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+  /* ---------- 左列：迷你月历 + 日历清单 ---------- */
+  .side { width: 220px; flex: none; display: flex; flex-direction: column; gap: 18px; padding-top: 8px; min-height: 0; }
+  .mini .mh { display: flex; align-items: center; padding: 0 2px 6px 6px; font-weight: 600; font-size: 13px; }
+  .mini .mh span { flex: 1; }
+  .mini .g { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 1px; }
+  .mini .wd { text-align: center; font-size: 11px; color: var(--ink-3); padding-bottom: 3px; }
+  .mini .wk { display: contents; }
+  .mini .d { height: 27px; display: grid; place-items: center; font: 11.5px var(--mono); color: var(--ink-2); border-radius: 7px; position: relative; cursor: pointer; }
+  .mini .d:hover { background: var(--bg-hover); }
+  .mini .d.out { color: var(--ink-3); opacity: .6; }
+  .mini .d.has::after { content: ""; position: absolute; bottom: 3px; width: 3px; height: 3px; border-radius: 50%; background: var(--ink-3); }
+  .mini .d.today { color: var(--ink-inverse); font-weight: 600; }
+  .mini .d.today::before { content: ""; position: absolute; inset: 3px 5px; border-radius: 7px; background: var(--accent); z-index: -1; }
+  .mini .d.today { z-index: 0; }
+  .mini .d.today.has::after { background: var(--ink-inverse); }
+  .mini .d.inrange { background: var(--bg-selected); border-radius: 0; }
+  .mini .d.inrange.rs { border-radius: 7px 0 0 7px; } .mini .d.inrange.re { border-radius: 0 7px 7px 0; }
+
+  .cals { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 14px; scrollbar-width: none; }
+  .cg .gh { display: flex; align-items: center; gap: 8px; padding: 0 6px 4px; font-size: 12.5px; font-weight: 600; }
+  .cg .gh small { font: 400 11px var(--mono); color: var(--ink-3); }
+  .cg .gh .caret { color: var(--ink-3); font-size: 10px; }
+  .cr { display: flex; align-items: center; gap: 9px; padding: 5px 6px; border-radius: 8px; cursor: pointer; font-size: 12.5px; }
+  .cr:hover { background: var(--bg-hover); }
+  .cr .sw { width: 14px; height: 14px; border-radius: 4px; background: var(--c); flex: none; display: grid; place-items: center; }
+  .cr .sw::after { content: ""; width: 7px; height: 4px; border: 1.6px solid var(--bg-surface); border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); }
+  .cr.off .sw { background: transparent; box-shadow: 0 0 0 1.5px var(--c) inset; } .cr.off .sw::after { display: none; }
+  .cr.off .nm { color: var(--ink-3); }
+  .cr .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cr .pin { color: var(--ink-3); }
+  .cr .more { opacity: 0; } .cr:hover .more { opacity: 1; }
+  .cr .n { font: 11px var(--mono); color: var(--ink-3); }
+  .side .foot { display: flex; gap: 2px; }
+
+  /* ---------- 主面板 ---------- */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+  .viewport { flex: 1; min-height: 0; display: flex; gap: 16px; }
+  .vpanel { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* 月视图 */
+  .month { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 4px 6px 6px; }
+  .month .wds { display: grid; grid-template-columns: repeat(7, 1fr); padding: 8px 0 6px; }
+  .month .wds span { font-size: 12px; color: var(--ink-3); padding-left: 10px; }
+  .month .rows { flex: 1; display: grid; min-height: 0; }
+  .wrow { position: relative; min-height: 0; }
+  .wrow .bgs, .wrow .fg { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .wrow .fg { grid-auto-rows: min-content; align-content: start; pointer-events: none; }
+  .wrow .fg > * { pointer-events: auto; }
+  .cell { cursor: pointer; transition: background .16s; }
+  .cell:hover { background: var(--bg-hover); }
+  .cell.sel { background: var(--bg-selected); }
+  .cell.blank { pointer-events: none; }
+  /* A：细格线（格内结构线，line-2）  C：纸上瓷砖（无线，间隙透出纸色） */
+  .lines .wrow + .wrow .bgs { box-shadow: 0 -1px 0 var(--line-2); }
+  .lines .cell + .cell { box-shadow: -1px 0 0 var(--line-2); }
+  .tiles .month { padding: 0; }
+  .tiles .month .rows { gap: 6px; }
+  .tiles .wrow .bgs, .tiles .wrow .fg { column-gap: 6px; }
+  .tiles .cell { background: var(--bg-surface); border-radius: 12px; box-shadow: var(--shadow-card); }
+  .tiles .cell:hover { background: var(--bg-surface-hover); }
+  .tiles .cell.out { background: transparent; box-shadow: 0 0 0 1px var(--line-1) inset; }
+  .tiles .cell.sel { box-shadow: 0 0 0 1.5px var(--accent) inset, var(--shadow-card); background: var(--bg-surface); }
+  .dn { grid-row: 1; padding: 6px 8px 2px; display: flex; align-items: center; gap: 6px; font: 12px var(--mono); color: var(--ink-2); height: 30px; }
+  .dn.out { color: var(--ink-3); opacity: .7; }
+  .dn .num { min-width: 22px; height: 22px; border-radius: 11px; display: grid; place-items: center; padding: 0 5px; }
+  .dn.today .num { background: var(--accent); color: var(--ink-inverse); font-weight: 600; }
+  .dn .lunar { font: 11px -apple-system, "PingFang SC", sans-serif; color: var(--ink-3); }
+  .dn .lunar.fest { color: var(--accent-text); }
+  .bar { height: 20px; margin: 1px 3px; border-radius: 6px; background: var(--cs); color: var(--c); font-size: 11.5px; font-weight: 500; display: flex; align-items: center; gap: 5px; padding: 0 7px; white-space: nowrap; overflow: hidden; cursor: pointer; }
+  .bar.cont-l { border-top-left-radius: 0; border-bottom-left-radius: 0; margin-left: 0; }
+  .bar.cont-r { border-top-right-radius: 0; border-bottom-right-radius: 0; margin-right: 0; }
+  .bar b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+  .ev { display: flex; align-items: center; gap: 6px; height: 21px; padding: 0 8px; margin: 0 3px; border-radius: 6px; font-size: 12px; cursor: pointer; white-space: nowrap; overflow: hidden; }
+  .ev:hover { background: var(--bg-hover); }
+  .ev i { width: 6px; height: 6px; border-radius: 50%; background: var(--c); flex: none; }
+  .ev .t { font: 11px var(--mono); color: var(--ink-3); flex: none; }
+  .ev .ti { overflow: hidden; text-overflow: ellipsis; }
+  .ev.selected { background: var(--cs); }
+  .todo-ring { display: inline-block; width: 11px; height: 11px; border-radius: 50%; box-shadow: 0 0 0 1.5px var(--c) inset; vertical-align: -1.5px; margin-right: 5px; flex: none; }
+  .moreln { font-size: 11.5px; color: var(--ink-2); padding: 0 11px; height: 20px; display: flex; align-items: center; cursor: pointer; }
+  .moreln:hover { color: var(--ink-1); }
+
+  /* 周 / 日时间网格 */
+  .tg { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .tg .hdr { display: grid; padding: 10px 8px 6px 0; flex: none; }
+  .tg .hdr .h { display: flex; align-items: baseline; gap: 6px; padding-left: 10px; font-size: 12px; color: var(--ink-3); }
+  .tg .hdr .h b { font: 500 17px var(--mono); color: var(--ink-1); }
+  .tg .hdr .h.today b { color: var(--accent-text); font-weight: 600; }
+  .tg .hdr .h.today span { color: var(--accent-text); }
+  .tg .allday { display: grid; padding: 0 8px 6px 0; flex: none; position: relative; }
+  .tg .allday .lab { font-size: 11px; color: var(--ink-3); text-align: right; padding: 3px 8px 0 0; }
+  .tg .allday .lanes { display: grid; grid-auto-rows: 22px; row-gap: 2px; }
+  .tg .body { flex: 1; min-height: 0; position: relative; }
+  .tg .grid { display: grid; position: relative; padding-right: 8px; }
+  .tg .gut { position: relative; }
+  .tg .gut span { position: absolute; right: 8px; transform: translateY(-50%); font: 10.5px var(--mono); color: var(--ink-3); }
+  .tg .col { position: relative; }
+  .tg .col.today { background: linear-gradient(var(--accent-soft), var(--accent-soft)); background-size: 100% 100%; }
+  .tg .col.today { background: color-mix(in srgb, var(--accent) 4%, transparent); }
+  .tg .hl { position: absolute; left: 0; right: 0; height: 1px; background: var(--line-2); }
+  .tg .col + .col { box-shadow: -1px 0 0 var(--line-2); }
+  .blk { position: absolute; border-radius: 7px; background: var(--cs); padding: 4px 7px 4px 9px; overflow: hidden; cursor: pointer; font-size: 12px; line-height: 1.35; transition: box-shadow .16s; }
+  .blk::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--c); }
+  .blk b { font-weight: 500; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .blk .t { font: 10.5px var(--mono); color: var(--ink-2); }
+  .blk:hover { box-shadow: var(--shadow-lift); }
+  .blk.selected { box-shadow: 0 0 0 1.5px var(--c), var(--shadow-lift); z-index: 3; }
+  .blk.ghost { background: var(--accent-soft); border: 1.5px dashed var(--accent); z-index: 4; }
+  .blk.ghost::before { display: none; }
+  .blk.ghost .t { color: var(--accent-text); font-weight: 600; }
+  .blk.past { opacity: .62; }
+  .now { position: absolute; left: -4px; right: 0; height: 2px; background: var(--accent); z-index: 5; }
+  .now::before { content: ""; position: absolute; left: -3px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .nowlab { position: absolute; right: 6px; transform: translateY(-50%); font: 600 10.5px var(--mono); color: var(--accent-text); background: var(--bg-surface); padding: 0 2px; z-index: 5; }
+
+  /* 议程 */
+  .agenda { flex: 1; padding: 8px 22px 20px; }
+  .ag-day { display: grid; grid-template-columns: 112px 1fr; gap: 16px; padding: 12px 0; }
+  .ag-day + .ag-day { box-shadow: 0 -1px 0 var(--line-2); }
+  .ag-day .dl { display: flex; flex-direction: column; }
+  .ag-day .dl b { font: 500 22px var(--mono); line-height: 1.1; }
+  .ag-day .dl span { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+  .ag-day.today .dl b { color: var(--accent-text); }
+  .ag-day.today .dl span { color: var(--accent-text); }
+  .ag-rows { display: flex; flex-direction: column; gap: 2px; }
+  .ag-row { display: grid; grid-template-columns: 104px 10px 1fr auto; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 9px; cursor: pointer; }
+  .ag-row:hover { background: var(--bg-hover); }
+  .ag-row .t { font: 11.5px var(--mono); color: var(--ink-2); }
+  .ag-row i { width: 8px; height: 8px; border-radius: 3px; background: var(--c); }
+  .ag-row .ti { font-weight: 500; }
+  .ag-row .ti .ex { display: block; font-weight: 400; font-size: 12px; color: var(--ink-3); margin-top: 1px; }
+  .ag-row .cal { font-size: 12px; color: var(--ink-3); }
+  .ag-row.allday .t { color: var(--ink-3); }
+
+  /* ---------- 方案 B：检查器 ---------- */
+  .insp { width: 320px; flex: none; display: flex; flex-direction: column; overflow: hidden; }
+  .insp .ih { padding: 16px 18px 10px; }
+  .insp .ih .k { font-size: 12px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+  .insp .ih h3 { font-size: 16px; font-weight: 600; margin-top: 4px; line-height: 1.35; }
+  .insp .ib-row { display: flex; gap: 2px; margin-left: auto; }
+  .insp .ibody { flex: 1; overflow: auto; padding: 0 18px 16px; scrollbar-width: none; }
+  .field { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; padding: 7px 0; font-size: 12.5px; }
+  .field > svg { margin-top: 3px; color: var(--ink-3); }
+  .field .v { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .pill { height: 26px; padding: 0 9px; border-radius: 7px; background: var(--bg-surface); box-shadow: 0 0 0 1px var(--line-1) inset; display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; cursor: pointer; }
+  .pill:hover { background: var(--bg-surface-hover); }
+  .pill.mono { font-family: var(--mono); font-size: 12px; }
+  .pill i { width: 8px; height: 8px; border-radius: 3px; background: var(--c); }
+  .notes { margin-top: 8px; border-radius: 10px; box-shadow: 0 0 0 1px var(--line-1) inset; padding: 10px 12px; min-height: 120px; font-size: 13px; line-height: 1.65; color: var(--ink-1); }
+  .notes .ph { color: var(--ink-3); }
+  .notes ul { margin-left: 16px; }
+  .insp .sec-t { font-size: 12.5px; font-weight: 600; margin: 14px 0 6px; display: flex; gap: 8px; align-items: baseline; }
+  .insp .sec-t small { font: 400 11px var(--mono); color: var(--ink-3); }
+  .mini-ag { display: flex; flex-direction: column; gap: 1px; }
+  .mini-ag .r { display: grid; grid-template-columns: 44px 8px 1fr; gap: 9px; align-items: center; padding: 5px 6px; border-radius: 8px; font-size: 12.5px; cursor: pointer; }
+  .mini-ag .r:hover { background: var(--bg-hover); }
+  .mini-ag .r .t { font: 11px var(--mono); color: var(--ink-3); }
+  .mini-ag .r i { width: 8px; height: 8px; border-radius: 3px; background: var(--c); }
+  .mini-ag .r.past { opacity: .55; }
+  .mini-ag .r.nowr .t { color: var(--accent-text); font-weight: 600; }
+  .insp .ifoot { padding: 10px 14px; display: flex; align-items: center; gap: 8px; box-shadow: 0 -1px 0 var(--line-2); font-size: 11.5px; color: var(--ink-3); }
+  .insp .ifoot .sp { flex: 1; }
+
+  /* ---------- 方案 C：当日栏 ---------- */
+  .dayc { width: 340px; flex: none; display: flex; flex-direction: column; overflow: hidden; }
+  .dayc .hero { padding: 18px 20px 8px; display: flex; align-items: flex-end; gap: 12px; }
+  .dayc .hero .big { font: 500 44px var(--mono); line-height: .95; color: var(--ink-1); letter-spacing: -.02em; }
+  .dayc .hero .big.today { color: var(--accent-text); }
+  .dayc .hero .meta { display: flex; flex-direction: column; font-size: 12.5px; color: var(--ink-2); padding-bottom: 2px; }
+  .dayc .hero .meta b { color: var(--ink-1); font-weight: 600; font-size: 14.5px; }
+  .dayc .sum { padding: 0 20px 10px; font-size: 12px; color: var(--ink-3); }
+  .tl { flex: 1; overflow: auto; padding: 4px 16px 12px 20px; scrollbar-width: none; }
+  .tl .it { display: grid; grid-template-columns: 46px 14px 1fr; gap: 10px; min-height: 40px; position: relative; }
+  .tl .it .t { font: 11.5px var(--mono); color: var(--ink-2); padding-top: 9px; text-align: right; }
+  .tl .it .rail { position: relative; display: flex; justify-content: center; }
+  .tl .it .rail::before { content: ""; position: absolute; top: 0; bottom: 0; width: 2px; background: var(--bg-sunken); border-radius: 2px; }
+  .tl .it:first-child .rail::before { top: 14px; } .tl .it:last-child .rail::before { bottom: calc(100% - 14px); }
+  .tl .it .rail i { position: relative; margin-top: 11px; width: 10px; height: 10px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 3px var(--bg-surface); }
+  .tl .it .card { margin: 3px 0; padding: 6px 10px 7px; border-radius: 10px; background: var(--cs); cursor: pointer; }
+  .tl .it .card b { display: block; font-weight: 500; font-size: 13px; }
+  .tl .it .card span { font: 11px var(--mono); color: var(--ink-2); }
+  .tl .it.gap .t { color: var(--ink-3); }
+  .tl .it.gap .card { background: transparent; border: 1px dashed var(--bg-track); color: var(--ink-3); font-size: 12px; padding: 5px 10px; }
+  .tl .it.gap .rail i { background: var(--bg-surface); box-shadow: 0 0 0 1.5px var(--bg-track) inset, 0 0 0 3px var(--bg-surface); }
+  .tl .it.nowi .t { color: var(--accent-text); font-weight: 600; }
+  .tl .it.nowi .rail i { background: var(--accent); width: 12px; height: 12px; margin-top: 10px; box-shadow: 0 0 0 3px var(--bg-surface), 0 0 0 5px var(--accent-soft); }
+  .tl .it.nowi .card { background: transparent; padding: 7px 0; color: var(--accent-text); font: 600 11.5px var(--mono); }
+  .tl .it.past { opacity: .55; }
+  .tl .ad { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0 10px 70px; }
+  .tl .ad .bar { margin: 0; }
+  .quick { margin: 0 14px 14px; height: 38px; border-radius: 10px; box-shadow: 0 0 0 1px var(--line-1) inset; display: flex; align-items: center; gap: 8px; padding: 0 10px 0 12px; color: var(--ink-3); font-size: 12.5px; }
+  .quick .parsed { margin-left: auto; display: flex; gap: 4px; }
+  .quick.typing { box-shadow: 0 0 0 1px var(--accent) inset, var(--focus-ring); color: var(--ink-1); }
+  .qtag { white-space: nowrap; flex: none; height: 20px; padding: 0 7px; border-radius: 99px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; background: var(--accent-soft); color: var(--accent-text); }
+  .qtag.cal { background: var(--cs); color: var(--c); }
+
+  .chips { display: flex; gap: 6px; align-items: center; padding: 0 2px 12px; flex-wrap: wrap; }
+  .chip { height: 26px; padding: 0 10px 0 8px; border-radius: 99px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; background: var(--bg-surface); box-shadow: 0 0 0 1px var(--line-1) inset; color: var(--ink-1); }
+  .chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+  .chip.off { background: transparent; color: var(--ink-3); }
+  .chip.off i { background: transparent; box-shadow: 0 0 0 1.5px var(--c) inset; }
+  .chip .n { font: 10.5px var(--mono); color: var(--ink-3); }
+  .chips .sp { flex: 1; }
+
+  /* ---------- 浮层：Dialog / Popover ---------- */
+  .scrim { position: absolute; inset: 0; background: var(--overlay); backdrop-filter: blur(4px); display: grid; place-items: center; z-index: 20; }
+  .dlg { width: 520px; background: var(--bg-surface); border-radius: 16px; box-shadow: var(--shadow-float); overflow: hidden; }
+  .dlg .dh { padding: 18px 20px 6px; display: flex; align-items: center; gap: 10px; }
+  .dlg .dh .ctx { font-size: 11.5px; padding: 1px 9px; border-radius: 99px; box-shadow: 0 0 0 1px var(--line-1) inset; color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; }
+  .dlg .dh .ctx i { width: 7px; height: 7px; border-radius: 2px; background: var(--c); }
+  .dlg .title-in { margin: 4px 20px 6px; font-size: 18px; font-weight: 600; padding: 4px 0; border: 0; outline: 0; background: transparent; width: calc(100% - 40px); }
+  .dlg .db { padding: 0 20px 8px; }
+  .dlg .df { display: flex; gap: 8px; padding: 12px 16px 14px; box-shadow: 0 -1px 0 var(--line-2); }
+  .dlg .df .sp { flex: 1; }
+  .sw-row { display: flex; gap: 6px; }
+  .sw-row span { width: 18px; height: 18px; border-radius: 6px; background: var(--c); cursor: pointer; }
+  .sw-row span.on { box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 3.5px var(--c); }
+  .sw-row span.auto { background: transparent; box-shadow: 0 0 0 1.5px var(--line-1) inset; display: grid; place-items: center; font-size: 9px; color: var(--ink-3); }
+  .tgl { width: 30px; height: 18px; border-radius: 99px; background: var(--bg-track); position: relative; }
+  .tgl::after { content: ""; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--bg-surface); box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+  .tgl.on { background: var(--accent); } .tgl.on::after { left: 14px; }
+
+  .pop { position: absolute; width: 300px; background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow-float), 0 0 0 1px var(--line-1); z-index: 20; padding: 14px 16px 12px; }
+  .pop .ph { display: flex; align-items: flex-start; gap: 8px; }
+  .pop .ph i { width: 10px; height: 10px; border-radius: 3px; background: var(--c); margin-top: 6px; flex: none; }
+  .pop .ph h4 { font-size: 14.5px; font-weight: 600; flex: 1; line-height: 1.4; }
+  .pop .meta { margin: 6px 0 0 18px; font-size: 12.5px; color: var(--ink-2); display: flex; flex-direction: column; gap: 2px; }
+  .pop .meta .mono { font-size: 12px; }
+  .pop .ex { margin: 10px 0 0 18px; font-size: 12.5px; color: var(--ink-2); line-height: 1.6; }
+  .pop .pf { display: flex; gap: 6px; margin-top: 12px; align-items: center; }
+  .pop .pf .sp { flex: 1; }
+  .ctxm { position: absolute; width: 196px; background: var(--bg-surface); border-radius: 12px; box-shadow: var(--shadow-float), 0 0 0 1px var(--line-1); z-index: 20; padding: 6px; font-size: 12.5px; }
+  .ctxm .mi { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 7px; }
+  .ctxm .mi:hover, .ctxm .mi.hl { background: var(--bg-hover); }
+  .ctxm .mi kbd { margin-left: auto; }
+  .ctxm .mi.danger { color: var(--danger); }
+  .ctxm .sep { height: 1px; background: var(--line-2); margin: 4px 6px; }
+
+  /* 空态 */
+  .empty { flex: 1; display: grid; place-items: center; text-align: center; color: var(--ink-2); }
+  .empty .ic { width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; margin: 0 auto 12px; background: var(--bg-hover); color: var(--ink-2); }
+  .empty .ic svg { width: 24px; height: 24px; }
+  .empty h4 { font-size: 14.5px; font-weight: 600; color: var(--ink-1); }
+  .empty p { font-size: 12.5px; margin: 4px 0 14px; }
+  .side-empty { font-size: 12.5px; color: var(--ink-3); padding: 8px 6px; line-height: 1.7; }
+
+  /* 对比表 */
+  table.cmp { border-collapse: collapse; margin-top: 10px; font-size: 12.5px; width: 100%; max-width: 1180px; background: #fffdf9; border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18); }
+  table.cmp th, table.cmp td { text-align: left; padding: 8px 12px; vertical-align: top; color: #6a5c49; }
+  table.cmp th { color: #43392c; font-weight: 600; background: rgba(67,57,44,.03); }
+  table.cmp tr + tr td { box-shadow: 0 -1px 0 #efe8db; }
+  table.cmp td:first-child { color: #43392c; font-weight: 500; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<section class="intro">
+  <h1>日程 · 日历页重设计方案</h1>
+  <p class="lead">legacy 日历（<code>src/pages/Calendar</code>，约 5k 行）迁入新壳层的 <code>schedule</code> 入口。三个方案共用同一份数据模型（日历分组 / 日历 / 日程，无重复规则）和同一套主题语言：纸底 + surface 面板两层、面板靠 shadow-card 不描边、accent 只给「今天 / 现在 / 选中 / 主按钮」，日历色是数据色走 tag 1–5。下方窗口可切换方案、视图、交互状态与深浅色。</p>
+
+  <h3>现状诊断 <small>legacy</small></h3>
+  <ul id="diagnosis">
+    <li><b>通用后台脸</b>：「今天」按钮带阴影、hover 阴影加深，头部整条 border-b 切开，侧栏和视图之间再加一条竖线——三处都是 PREFERENCES 的反例。</li>
+    <li><b>双侧栏</b>：新壳层已有全局侧栏，日历再套一个 240–400px 可拖宽侧栏，左边两列导航，视图只剩一半宽度。</li>
+    <li><b>颜色没有语义纪律</b>：17 色高饱和项目色板，月视图里所有日程都是<b>实心色条 + 白字</b>，深色模式另取更艳的值，和纸感主题正面冲突。</li>
+    <li><b>表现与逻辑缠在一起</b>：MonthView 单文件 1016 行；取色逻辑复制 8 处，跨行条的 span 计算复制 3 处；WeekView 在 map 里调 hook。</li>
+    <li><b>既有缺陷</b>：月视图行高写死 5 行（6 行月份错位）、议程丢掉全天与跨天日程、周标题是估算的「第 N 周」、新建默认日期用 UTC 可能差一天。</li>
+    <li><b>交互只有「拖拽新建 + 点击编辑」</b>：不能拖动改时间、不能拉伸、没有右键菜单与键盘；番茄钟与待办同步来的日程和普通日程长得一样。</li>
+  </ul>
+
+  <h3>三个方案</h3>
+  <div class="note-grid">
+    <div class="note">
+      <h4>A · 纸 + 卡 · 经典三件套 <span class="rec">第一版</span></h4>
+      信息架构与 legacy 一一对应：左列迷你月历 + 日历清单，右侧页头工具条 + 视图面板，点日程开 Dialog 编辑。只换皮不改交互模型，所有旧组件都有明确落点。
+      <dl><dt>改动</dt><dd>侧栏去拖宽、去竖线，融进纸底；头部去横线；视图装进 surface 面板；Dialog 换 tau 家族</dd><dt>代价</dt><dd>仍是「双侧栏」，视图宽度受限</dd></dl>
+    </div>
+    <div class="note">
+      <h4>B · 周为主轴 · 右侧检查器</h4>
+      默认周视图。点日程不弹窗，右栏检查器就地编辑（标题 / 时间 / 日历 / 备注编辑器）；未选中时右栏是「今天 + 接下来」速览。拖拽建日程后直接在检查器里写标题。
+      <dl><dt>收益</dt><dd>编辑不遮挡上下文，连续整理多条日程成本低；键盘可走完全流程</dd><dt>代价</dt><dd>需要 1280px 以上才舒展，窄窗检查器转抽屉</dd></dl>
+    </div>
+    <div class="note">
+      <h4>C · 月刊 · 月历 + 当日时间线 <span class="rec">第二版 · 已选</span></h4>
+      去掉内层侧栏，日历筛选收成工具条 chips（管理进 Popover）。月历沿用 A 的整块大面板（格内细线，含邻月日期），右栏是选中日的时间线（含空档提示）+ 自然语言快速添加。
+      <dl><dt>收益</dt><dd>最有个人特色、宽度利用最好，月视图和当日安排一屏可见</dd><dt>代价</dt><dd>日历多（&gt;8 个）时 chips 会折行；快速添加需要写解析器</dd></dl>
+    </div>
+  </div>
+</section>
+
+<div class="switch" id="sw-plan"><span class="lab">方案</span>
+  <button data-plan="A" class="on">A · 经典三件套</button>
+  <button data-plan="B">B · 周 + 检查器</button>
+  <button data-plan="C">C · 月刊 + 时间线</button>
+  <span class="sep"></span><span class="lab">视图</span>
+  <button data-view="month" class="on">月</button>
+  <button data-view="week">周</button>
+  <button data-view="day">日</button>
+  <button data-view="agenda">议程</button>
+  <span class="sep"></span><span class="lab">状态</span>
+  <button data-state="normal" class="on">常态</button>
+  <button data-state="selected">选中日程</button>
+  <button data-state="create">拖拽新建</button>
+  <button data-state="menu">右键菜单</button>
+  <button data-state="empty">首次使用</button>
+  <span class="sep"></span>
+  <button id="themeBtn">深色</button>
+</div>
+<p class="plan-note" id="planNote"></p>
+
+<div class="win" id="win">
+  <nav class="appnav" id="appnav"></nav>
+  <div class="right">
+    <div class="titlebar">
+      <span class="nb"><svg class="i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></span>
+      <span class="nb" style="opacity:.4"><svg class="i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>
+      <span class="crumb"><b>日程</b></span>
+      <span class="search"><svg class="i" viewBox="0 0 24 24" style="width:13px;height:13px"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>搜索或跳转<kbd>⌘K</kbd></span>
+    </div>
+    <div class="page" id="page"></div>
+  </div>
+  <div id="layer"></div>
+</div>
+
+<section class="intro" style="margin-top:34px">
+  <h3>三方案对比</h3>
+  <table class="cmp">
+    <tr><th></th><th>A · 经典三件套</th><th>B · 周 + 检查器</th><th>C · 月刊 + 时间线</th></tr>
+    <tr><td>日历清单</td><td>左列常驻（分组 / 置顶 / 显隐 / ⋯ 菜单）</td><td>左列常驻，可折叠为只剩迷你月历</td><td>工具条 chips 切显隐；增删改、分组、合并进「管理日历」Popover</td></tr>
+    <tr><td>日程编辑</td><td>Dialog（legacy EventDialog 换皮）</td><td>右栏检查器就地编辑，Dialog 退役</td><td>Popover 速览 + 「展开」进 Dialog</td></tr>
+    <tr><td>新建</td><td>主按钮 / 双击格子 / 时间网格拖拽</td><td>同左 + 拖拽后检查器聚焦标题</td><td>同左 + 右栏自然语言快速添加</td></tr>
+    <tr><td>月视图格子</td><td>整块面板 + 格内细线（line-2），邻月空白</td><td>同 A，显示邻月日期</td><td>同 B</td></tr>
+    <tr><td>默认视图</td><td>沿用上次（legacy 行为）</td><td>周</td><td>月</td></tr>
+    <tr><td>旧组件复用度</td><td>高：视图与弹窗全部换皮复用</td><td>中：视图换皮复用，EventDialog 拆成表单体复用进检查器</td><td>低：月视图、侧栏重写，时间网格复用</td></tr>
+  </table>
+</section>
+
+<script>
+/* =============== 数据（样板间演示用） =============== */
+const TODAY = "2026-09-24", NOW_MIN = 10 * 60 + 42;
+// sec：sys 系统日历 / mine 我的日历 / arch 归档；sub：分组（系统侧为「待办清单」子组）
+const CALS = [
+  { id: 1, name: "工作", c: 2, sec: "mine", sub: "职业" },
+  { id: 2, name: "学习", c: 1, sec: "mine", sub: "职业" },
+  { id: 5, name: "读书会", c: 3, sec: "mine", sub: "兴趣小组" },
+  { id: 3, name: "生活", c: 5, sec: "mine" },
+  { id: 4, name: "健身", c: 4, sec: "mine" },
+  { id: 7, name: "番茄钟", c: 4, sec: "sys" },
+  { id: 8, name: "截止任务", c: 5, sec: "sys", sub: "待办清单" },
+  { id: 9, name: "计划任务", c: 2, sec: "sys", sub: "待办清单" },
+  { id: 10, name: "周期任务", c: 1, sec: "sys", sub: "待办清单", off: true },
+  { id: 11, name: "2025 考研", c: 3, sec: "arch" },
+];
+const E = [];
+let eid = 0;
+const ev = (d, s, e, title, cal, extra = {}) => E.push({ id: ++eid, d, s, e, title, cal, ...extra });
+const ad = (d, d2, title, cal) => E.push({ id: ++eid, d, d2, allDay: true, title, cal });
+// 本周
+ev("2026-09-21", 570, 600, "周会", 1); ev("2026-09-21", 840, 960, "专题：Rust 所有权", 2); ev("2026-09-21", 1140, 1200, "力量训练", 4);
+ev("2026-09-22", 600, 690, "设计评审 · 设置页", 1); ev("2026-09-22", 1230, 1290, "读《置身事内》", 5);
+ad("2026-09-23", null, "秋分", 3); ev("2026-09-23", 480, 540, "晨跑 5km", 4); ev("2026-09-23", 810, 900, "1:1 与产品", 1); ev("2026-09-23", 930, 1020, "设置页收尾", 1);
+ev("2026-09-24", 600, 720, "日历页重设计", 1, { note: true }); ev("2026-09-24", 750, 810, "午餐 · 小林", 3); ev("2026-09-24", 840, 885, "闪卡复习 × 2 番茄", 2); ev("2026-09-24", 870, 930, "需求同步", 1); ev("2026-09-24", 1170, 1260, "读书会 · 第 7 章", 5);
+ev("2026-09-25", 540, 600, "写周报", 1); ev("2026-09-25", 960, 1050, "羽毛球", 4);
+ad("2026-09-26", null, "搬家整理", 3); ev("2026-09-26", 600, 690, "英语口语", 2);
+ev("2026-09-27", 900, 1020, "家庭聚餐", 3);
+ad("2026-09-28", "2026-09-30", "杭州出差", 1);
+ad("2026-10-01", "2026-10-07", "国庆假期", 3);
+// 月内其它
+ev("2026-09-02", 600, 660, "牙医复诊", 3); ad("2026-09-05", null, "妈妈生日", 3); ev("2026-09-08", 840, 960, "季度规划", 1);
+ad("2026-09-10", null, "教师节", 3); ev("2026-09-11", 480, 570, "体检", 3); ev("2026-09-11", 1170, 1230, "读书会 · 第 5 章", 5);
+ad("2026-09-14", "2026-09-16", "开源大会", 2); ev("2026-09-15", 1200, 1260, "力量训练", 4); ev("2026-09-17", 1170, 1260, "读书会 · 第 6 章", 5);
+ad("2026-09-18", null, "v3.2 发布", 1); ev("2026-09-18", 1200, 1260, "发布复盘", 1); ev("2026-09-18", 600, 630, "站会", 1); ev("2026-09-18", 900, 960, "回归测试", 1);
+ad("2026-09-19", null, "爬山 · 凤凰岭", 4); ev("2026-09-03", 1140, 1200, "力量训练", 4); ev("2026-09-09", 1140, 1200, "力量训练", 4);
+ev("2026-09-01", 570, 600, "周会", 1); ev("2026-09-07", 570, 600, "周会", 1); ev("2026-09-14", 570, 600, "周会", 1); ev("2026-09-28", 570, 600, "周会", 1);
+ev("2026-09-04", 840, 960, "专题：所有权与借用", 2); ev("2026-09-12", 600, 690, "英语口语", 2); ev("2026-09-19", 600, 690, "英语口语", 2);
+// 系统日历来源：番茄钟会话（主进程写入）与待办同步（截止 / 计划 / 周期）
+ev("2026-09-24", 510, 560, "深度工作", 7, { kind: "pomo" }); ev("2026-09-23", 1260, 1310, "背单词", 7, { kind: "pomo" });
+ev("2026-09-22", 540, 590, "深度工作", 7, { kind: "pomo" });
+ad("2026-09-25", null, "提交报销单", 8); E[E.length - 1].kind = "todo";
+ev("2026-09-24", 1020, 1080, "整理迁移清单", 9, { kind: "todo" }); ev("2026-09-26", 900, 960, "给绿植换盆", 9, { kind: "todo" });
+const LUNAR = {};
+
+/* =============== 工具 =============== */
+const pad = n => String(n).padStart(2, "0");
+const ds = dt => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+const pd = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const addD = (s, n) => { const d = pd(s); d.setDate(d.getDate() + n); return ds(d); };
+const hm = m => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+const WD = ["一", "二", "三", "四", "五", "六", "日"];
+const wdOf = s => (pd(s).getDay() + 6) % 7;
+const cal = id => CALS.find(c => c.id === id);
+const cls = e => "c" + cal(e.cal).c;
+// 系统来源日程（第一版起）：番茄钟 = 计时图标，待办 = 勾选圈（可直接勾选完成）
+const tt = e => {
+  if (e.kind === "todo") return `<span class="todo-ring"></span>${e.title}`;
+  if (e.kind === "pomo") return `${ic("timer", "width:12px;height:12px;vertical-align:-2px;margin-right:3px;opacity:.75")}${e.title}`;
+  return e.title;
+};
+const visible = e => !cal(e.cal).off;
+const endOf = e => e.d2 || e.d;
+const onDay = (e, d) => e.d <= d && endOf(e) >= d;
+const I = {
+  l: '<path d="m15 18-6-6 6-6"/>', r: '<path d="m9 18 6-6-6-6"/>', plus: '<path d="M12 5v14M5 12h14"/>',
+  more: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', cal: '<rect x="3" y="4.5" width="18" height="16" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/>',
+  note: '<path d="M5 4h10l4 4v12H5z"/><path d="M9 12h6M9 16h4"/>', trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>', pin: '<path d="M12 17v5M8 3h8l-1 6 3 3v2H6v-2l3-3z"/>', copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
+  palette: '<circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="16" cy="10" r="1"/>',
+  sliders: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+  expand: '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>', merge: '<path d="M6 3v6a6 6 0 0 0 6 6h6M15 12l3 3-3 3M6 21v-6"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  hash: '<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>', eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  sparkle: '<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>', edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
+  timer: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/>',
+  arch: '<rect x="3" y="4" width="18" height="5" rx="1.5"/><path d="M5 9v10h14V9M10 13h4"/>',
+};
+const ic = (k, st = "") => `<svg class="i" viewBox="0 0 24 24" style="${st}">${I[k]}</svg>`;
+
+/* =============== 状态 =============== */
+const S = { plan: "A", view: "month", state: "normal", dark: false, sel: TODAY };
+const PLAN_DEFAULT_VIEW = { A: "month", B: "week", C: "month" };
+const NOTES = {
+  A: "<b>A</b>：第一版目标形态。结构与 legacy 同构，只换皮。选中日程 = legacy EventDialog 的 tau Dialog 版；右键菜单对应 legacy 的复制 / 删除 / 改日历。",
+  B: "<b>B</b>：点日程不再弹窗，右栏检查器就地编辑；未选中时右栏是今天与接下来。键盘：J/K 切周、↑↓ 切日程、Enter 聚焦标题、⌫ 删除、N 新建。",
+  C: "<b>C</b>（第二版）：月历与 A 同为整块大面板；没有内层侧栏；日历显隐是工具条 chips，管理收进 Popover。点月历格子切换右栏当日时间线，时间线里显示空档；点日程出 Popover 速览。",
+};
+
+/* =============== 片段：侧栏 =============== */
+function appNav() {
+  const g = (t, items) => `<div class="grp">${t}</div>` + items.map(([n, on]) => `<div class="it ${on ? "on" : ""}">${ic(on ? "cal" : "folder", "width:14px;height:14px;opacity:.7")}${n}</div>`).join("");
+  return `<div class="dots"><i></i><i></i><i></i></div>` + g("工作台", [["今日"], ["日程", 1], ["待办"], ["番茄专注"]]) + g("知识", [["卡片"], ["文章"], ["知识库"]]) + g("学习", [["项目"], ["闪卡"]]);
+}
+function miniMonth(opt = {}) {
+  const first = "2026-09-01"; const start = addD(first, -wdOf(first));
+  let h = `<div class="mini"><div class="mh"><span>2026 年 9 月</span><button class="ib sm">${ic("l")}</button><button class="ib sm">${ic("r")}</button></div><div class="g">`;
+  h += WD.map(w => `<div class="wd">${w}</div>`).join("");
+  const wkStart = addD(S.sel, -wdOf(S.sel));
+  for (let i = 0; i < 35; i++) {
+    const d = addD(start, i); const out = d.slice(5, 7) !== "09";
+    const has = E.some(e => visible(e) && onDay(e, d));
+    let c = "d" + (out ? " out" : "") + (has && !opt.empty ? " has" : "") + (d === TODAY ? " today" : "");
+    if (opt.range && d >= wkStart && d <= addD(wkStart, 6)) c += " inrange" + (d === wkStart ? " rs" : "") + (d === addD(wkStart, 6) ? " re" : "");
+    h += `<div class="${c}">${+d.slice(8)}</div>`;
+  }
+  return h + "</div></div>";
+}
+function calList(empty) {
+  const tools = `<button class="ib sm" title="新建">${ic("plus")}</button><button class="ib sm" title="合并日历">${ic("merge")}</button>`;
+  if (empty) return `<div class="cals"><div class="cg"><div class="gh">我的日历 <small>0</small><span style="margin-left:auto;display:flex">${tools}</span></div><div class="side-empty">还没有日历。日历用来给日程分类，比如「工作」「学习」。</div></div></div>`;
+  const count = id => E.filter(e => e.cal === id && e.d.startsWith("2026-09")).length;
+  const row = (c, indent) => `<div class="cr c${c.c} ${c.off ? "off" : ""}" style="${indent ? "padding-left:22px" : ""}"><span class="sw"></span><span class="nm">${c.name}</span><span class="n">${count(c.id) || ""}</span><button class="ib sm more">${ic("more")}</button></div>`;
+  const block = (list) => {
+    let h = ""; const subs = [...new Set(list.filter(c => c.sub).map(c => c.sub))];
+    subs.forEach(g => { h += `<div class="cr sub"><span class="caret" style="width:14px;text-align:center;color:var(--ink-3);font-size:10px">▾</span><span class="nm" style="color:var(--ink-2)">${g}</span><button class="ib sm more">${ic("more")}</button></div>` + list.filter(c => c.sub === g).map(c => row(c, true)).join(""); });
+    return h + list.filter(c => !c.sub).map(c => row(c)).join("");
+  };
+  const sec = (key, title, extra = "", collapsed) => {
+    const list = CALS.filter(c => c.sec === key);
+    return `<div class="cg"><div class="gh"><span class="caret">${collapsed ? "▸" : "▾"}</span>${title} <small>${list.length}</small>${extra}</div>${collapsed ? "" : block(list)}</div>`;
+  };
+  return `<div class="cals">` + sec("mine", "我的日历", `<span style="margin-left:auto;display:flex">${tools}</span>`) + sec("sys", "系统日历") + sec("arch", "归档", "", true) + `</div>`;
+}
+
+/* =============== 片段：页头 =============== */
+function titleFor() {
+  const d = pd(S.sel);
+  if (S.view === "day") return `9 月 ${d.getDate()} 日 <small>周${WD[wdOf(S.sel)]} · 2026</small>`;
+  if (S.view === "week") { const s = addD(S.sel, -wdOf(S.sel)); return `9 月 ${+s.slice(8)} – ${+addD(s, 6).slice(8)} 日 <small>2026 · W39</small>`; }
+  if (S.view === "agenda") return `接下来 <small>9/24 起 · 14 天</small>`;
+  return `2026 年 9 月 <small>SEP</small>`;
+}
+const viewSeg = views => `<div class="seg">${views.map(([k, n]) => `<button class="${S.view === k ? "on" : ""}" data-v="${k}">${n}</button>`).join("")}</div>`;
+function phead(opt = {}) {
+  const views = opt.views || [["day", "日"], ["week", "周"], ["month", "月"], ["agenda", "议程"]];
+  return `<div class="phead"><h2>${opt.bigTitle || titleFor()}</h2><div class="navs"><button class="ib">${ic("l")}</button><button class="ib">${ic("r")}</button></div><button class="btn sec">今天</button>
+    <div class="acts">${opt.extra || ""}${viewSeg(views)}<button class="btn pri">${ic("plus")}新建日程</button></div></div>`;
+}
+
+/* =============== 视图：月 =============== */
+function monthView(variant) {
+  const first = "2026-09-01"; const start = addD(first, -wdOf(first));
+  const weeks = 5; const MAX_LINES = S.plan === "C" ? 3 : 4; // C 多一行 chips，格子矮一档
+  let h = `<div class="month"><div class="wds">${WD.map((w, i) => `<span>周${w}</span>`).join("")}</div><div class="rows" style="grid-template-rows:repeat(${weeks},minmax(0,1fr))">`;
+  for (let w = 0; w < weeks; w++) {
+    const ws = addD(start, w * 7), we = addD(ws, 6);
+    let bgs = "", fg = "";
+    // 多日 / 全天条：分配车道
+    const spans = E.filter(e => visible(e) && e.allDay && e.d <= we && endOf(e) >= ws).sort((a, b) => a.d.localeCompare(b.d) || (endOf(b) > endOf(a) ? 1 : -1));
+    const lanes = [];
+    const placed = spans.map(e => {
+      const s = e.d < ws ? 0 : wdOf(e.d), en = endOf(e) > we ? 6 : wdOf(endOf(e));
+      let l = 0; while ((lanes[l] || []).some(([a, b]) => !(en < a || s > b))) l++;
+      (lanes[l] = lanes[l] || []).push([s, en]);
+      return { e, s, en, l, cl: e.d < ws, cr: endOf(e) > we };
+    });
+    for (let i = 0; i < 7; i++) {
+      const d = addD(ws, i); const out = d.slice(5, 7) !== "09";
+      const lun = LUNAR[d];
+      const blank = out && S.plan === "A";
+      bgs += `<div class="cell ${out ? "out" : ""} ${blank ? "blank" : ""} ${S.plan === "C" && d === S.sel && S.state !== "empty" ? "sel" : ""}"></div>`;
+      if (blank) continue;
+      fg += `<div class="dn ${out ? "out" : ""} ${d === TODAY ? "today" : ""}" style="grid-column:${i + 1}"><span class="num">${+d.slice(8)}</span>${lun ? `<span class="lunar ${/节|秋|庆/.test(lun) ? "fest" : ""}">${lun}</span>` : ""}</div>`;
+    }
+    if (S.state !== "empty") {
+      placed.forEach(p => {
+        if (p.l >= 2) return;
+        if (S.plan === "A") { const ms = "2026-09-01", me = "2026-09-30"; const s0 = addD(ws, p.s), e0 = addD(ws, p.en); if (e0 < ms || s0 > me) return; if (s0 < ms) { p.s = wdOf(ms); } if (e0 > me) { p.en = wdOf(me); p.cr = true; } }
+        fg += `<div class="bar c${cal(p.e.cal).c} ${p.cl ? "cont-l" : ""} ${p.cr ? "cont-r" : ""}" style="grid-column:${p.s + 1}/${p.en + 2};grid-row:${2 + p.l}"><b>${tt(p.e)}</b></div>`;
+      });
+      const nl = Math.min(lanes.length, 2);
+      for (let i = 0; i < 7; i++) {
+        const d = addD(ws, i);
+        if (S.plan === "A" && d.slice(5, 7) !== "09") continue;
+        const timed = E.filter(e => visible(e) && !e.allDay && e.d === d).sort((a, b) => a.s - b.s);
+        const used = placed.filter(p => p.l < 2 && p.s <= i && p.en >= i).length;
+        const room = Math.max(0, MAX_LINES - used);
+        const show = timed.length > room ? timed.slice(0, Math.max(0, room - 1)) : timed;
+        const rest = timed.length - show.length;
+        let inner = show.map(e => `<div class="ev ${cls(e)} ${S.state === "selected" && e.id === 10 ? "selected" : ""}" data-eid="${e.id}"><i></i><span class="t">${hm(e.s)}</span><span class="ti">${tt(e)}</span></div>`).join("");
+        if (rest > 0) inner += `<div class="moreln">还有 ${rest} 项</div>`;
+        fg += `<div style="grid-column:${i + 1};grid-row:${2 + nl};min-width:0">${inner}</div>`;
+      }
+    }
+    h += `<div class="wrow"><div class="bgs">${bgs}</div><div class="fg" style="grid-template-rows:30px repeat(${Math.min(lanes.length, 2)},22px) auto">${fg}</div></div>`;
+  }
+  return h + `</div></div>`;
+}
+
+/* =============== 视图：周 / 日 时间网格 =============== */
+const HOUR = 46, FROM = 7;
+function layoutCols(evs) {
+  // 簇内贪心分列（对应 utils/eventLayoutAlgorithm 的思路）
+  const sorted = [...evs].sort((a, b) => a.s - b.s || b.e - a.e);
+  const out = []; let cluster = [], colsEnd = [], clusterEnd = -1;
+  const flush = () => { const n = colsEnd.length; cluster.forEach(o => (o.n = n)); out.push(...cluster); cluster = []; colsEnd = []; };
+  sorted.forEach(e => {
+    if (e.s >= clusterEnd && cluster.length) flush();
+    let c = colsEnd.findIndex(end => end <= e.s); if (c < 0) { c = colsEnd.length; colsEnd.push(0); }
+    colsEnd[c] = e.e; cluster.push({ e, c }); clusterEnd = Math.max(clusterEnd, e.e);
+  });
+  if (cluster.length) flush();
+  return out;
+}
+function timeGrid(days) {
+  const cols = `52px repeat(${days.length},minmax(0,1fr))`;
+  let h = `<div class="tg"><div class="hdr" style="grid-template-columns:${cols}"><div></div>`;
+  days.forEach(d => { h += `<div class="h ${d === TODAY ? "today" : ""}"><b>${+d.slice(8)}</b><span>周${WD[wdOf(d)]}${LUNAR[d] ? " · " + LUNAR[d] : ""}</span></div>`; });
+  h += `</div>`;
+  // 全天车道
+  const empty = S.state === "empty";
+  const ads = empty ? [] : E.filter(e => visible(e) && e.allDay && e.d <= days[days.length - 1] && endOf(e) >= days[0]);
+  h += `<div class="allday" style="grid-template-columns:52px 1fr"><div class="lab">全天</div><div class="lanes" style="grid-template-columns:repeat(${days.length},minmax(0,1fr));min-height:22px">`;
+  ads.forEach(e => {
+    const s = Math.max(0, days.indexOf(e.d) < 0 ? 0 : days.indexOf(e.d));
+    const en = days.indexOf(endOf(e)) < 0 ? days.length - 1 : days.indexOf(endOf(e));
+    h += `<div class="bar ${cls(e)} ${e.d < days[0] ? "cont-l" : ""} ${endOf(e) > days[days.length - 1] ? "cont-r" : ""}" style="grid-column:${s + 1}/${en + 2}"><b>${e.title}</b></div>`;
+  });
+  h += `</div></div>`;
+  // 网格
+  h += `<div class="body scroll" data-scroll="${(8.5 - FROM) * HOUR}"><div class="grid" style="grid-template-columns:${cols};height:${(24 - FROM) * HOUR}px"><div class="gut">`;
+  for (let hr = FROM + 1; hr < 24; hr++) h += `<span style="top:${(hr - FROM) * HOUR}px">${pad(hr)}:00</span>`;
+  h += `</div>`;
+  days.forEach((d, di) => {
+    h += `<div class="col ${d === TODAY ? "today" : ""}">`;
+    for (let hr = FROM + 1; hr < 24; hr++) h += `<div class="hl" style="top:${(hr - FROM) * HOUR}px"></div>`;
+    if (!empty) layoutCols(E.filter(e => visible(e) && !e.allDay && e.d === d)).forEach(({ e, c, n }) => {
+      const top = (e.s / 60 - FROM) * HOUR, ht = Math.max(22, (e.e - e.s) / 60 * HOUR - 2);
+      const w = 100 / n; const past = d < TODAY || (d === TODAY && e.e < NOW_MIN);
+      const short = ht < 40;
+      h += `<div class="blk ${cls(e)} ${past ? "past" : ""} ${S.state === "selected" && e.id === 10 ? "selected" : ""}" data-eid="${e.id}" style="top:${top}px;height:${ht}px;left:calc(${c * w}% + 2px);width:calc(${w}% - 5px)">` +
+        (short ? `<b>${tt(e)} <span class="t">${hm(e.s)}</span></b>` : `<b>${tt(e)}</b><span class="t">${hm(e.s)} – ${hm(e.e)}</span>`) + `</div>`;
+    });
+    if (S.state === "create" && di === Math.min(days.length - 1, days.indexOf("2026-09-25") < 0 ? 0 : days.indexOf("2026-09-25")))
+      h += `<div class="blk ghost" style="top:${(11 - FROM) * HOUR}px;height:${1.5 * HOUR - 2}px;left:2px;right:3px"><span class="t">11:00 – 12:30</span><b style="color:var(--ink-2);font-weight:400;margin-top:2px">松开后填写标题</b></div>`;
+    if (d === TODAY) h += `<div class="now" style="top:${(NOW_MIN / 60 - FROM) * HOUR}px"></div>`;
+    h += `</div>`;
+  });
+  h += `</div></div></div>`;
+  return h;
+}
+
+/* =============== 视图：议程 =============== */
+function agendaView() {
+  let h = `<div class="agenda scroll">`;
+  for (let i = 0; i < 10; i++) {
+    const d = addD(TODAY, i);
+    const evs = E.filter(e => visible(e) && onDay(e, d)).sort((a, b) => (a.allDay ? -1 : a.s) - (b.allDay ? -1 : b.s));
+    if (!evs.length) continue;
+    h += `<div class="ag-day ${d === TODAY ? "today" : ""}"><div class="dl"><b>${+d.slice(5, 7)}/${+d.slice(8)}</b><span>周${WD[wdOf(d)]}${d === TODAY ? " · 今天" : i === 1 ? " · 明天" : ""}</span></div><div class="ag-rows">` +
+      evs.map(e => `<div class="ag-row ${cls(e)} ${e.allDay ? "allday" : ""}"><span class="t">${e.allDay ? (e.d2 ? `全天 · ${+onDayIdx(e, d)}/${spanLen(e)}` : "全天") : hm(e.s) + " – " + hm(e.e)}</span><i></i><span class="ti">${tt(e)}${e.note ? `<span class="ex">三套 mockup：经典 / 检查器 / 月刊；旧组件复用清单…</span>` : ""}</span><span class="cal">${cal(e.cal).name}</span></div>`).join("") + `</div></div>`;
+  }
+  return h + `</div>`;
+}
+const spanLen = e => Math.round((pd(endOf(e)) - pd(e.d)) / 864e5) + 1;
+const onDayIdx = (e, d) => Math.round((pd(d) - pd(e.d)) / 864e5) + 1;
+
+function renderView(variant) {
+  if (S.state === "empty" && S.plan !== "C") return emptyPanel();
+  if (S.view === "month") return monthView(variant);
+  if (S.view === "week") { const s = addD(S.sel, -wdOf(S.sel)); return timeGrid([0, 1, 2, 3, 4, 5, 6].map(i => addD(s, i))); }
+  if (S.view === "day") return timeGrid([S.sel]);
+  return agendaView();
+}
+function emptyPanel() {
+  return `<div class="empty"><div><div class="ic">${ic("cal")}</div><h4>先建一个日历</h4><p>日程需要归到某个日历下，颜色也跟随日历。</p><button class="btn pri">${ic("plus")}新建日历</button></div></div>`;
+}
+
+/* =============== 浮层 =============== */
+const selEv = () => E.find(e => e.id === 10);
+function eventForm(compact) {
+  const e = selEv();
+  return `
+    <div class="field">${ic("clock")}<div class="v"><span class="pill mono">9月24日 周四</span><span class="pill mono">10:00</span><span style="color:var(--ink-3)">→</span><span class="pill mono">12:00</span><span style="font-size:12px;color:var(--ink-3)">2 小时</span></div></div>
+    <div class="field">${ic("sun")}<div class="v"><span class="tgl"></span><span style="color:var(--ink-2)">全天</span></div></div>
+    <div class="field">${ic("cal")}<div class="v"><span class="pill c2"><i></i>工作 <span style="color:var(--ink-3);font-size:10px">▾</span></span></div></div>
+    <div class="field">${ic("palette")}<div class="v sw-row"><span class="auto">跟</span><span class="c1"></span><span class="c2 on"></span><span class="c3"></span><span class="c4"></span><span class="c5"></span></div></div>
+    <div class="field">${ic("hash")}<div class="v"><span class="pill mono" style="min-width:88px;color:var(--ink-3)">数值（可选）</span></div></div>
+    <div class="field">${ic("note")}<div><div class="notes" style="${compact ? "min-height:150px" : ""}"><b style="font-weight:600">目标</b><ul><li>三套 mockup：经典 / 检查器 / 月刊</li><li>旧组件复用清单：换皮 vs 重写</li><li>V1 平稳迁移，V2 样式升级</li></ul><span class="ph">/ 输入命令…</span></div></div></div>`;
+}
+function dialog() {
+  return `<div class="scrim"><div class="dlg c2"><div class="dh"><span class="ctx"><i></i>工作</span><span style="margin-left:auto"></span><button class="ib sm">${ic("x")}</button></div>
+    <input class="title-in" value="日历页重设计"><div class="db">${eventForm()}</div>
+    <div class="df"><button class="btn dsoft">${ic("trash")}删除</button><span class="sp"></span><button class="btn sec">取消</button><button class="btn pri">保存<kbd style="background:rgba(255,248,239,.2);color:inherit">⌘↵</kbd></button></div></div></div>`;
+}
+function popover(x, y) {
+  const e = selEv();
+  return `<div class="pop c2" style="left:${x}px;top:${y}px"><div class="ph"><i></i><h4>${e.title}</h4><button class="ib sm">${ic("edit")}</button><button class="ib sm">${ic("more")}</button></div>
+    <div class="meta"><span class="mono">9月24日 周四 · 10:00 – 12:00</span><span>工作</span></div>
+    <div class="ex">目标：三套 mockup；旧组件复用清单；V1 平稳迁移、V2 样式升级…</div>
+    <div class="pf"><button class="btn ghost" style="height:26px;color:var(--danger)">${ic("trash")}删除</button><span class="sp"></span><button class="btn sec" style="height:26px">${ic("expand")}展开编辑</button></div></div>`;
+}
+function ctxMenu(x, y) {
+  return `<div class="ctxm" style="left:${x}px;top:${y}px">
+    <div class="mi hl">${ic("edit")}编辑<kbd>↵</kbd></div><div class="mi">${ic("copy")}复制一份<kbd>⌘D</kbd></div>
+    <div class="mi">${ic("cal")}移到日历 <span style="margin-left:auto;color:var(--ink-3)">›</span></div><div class="mi">${ic("palette")}颜色 <span style="margin-left:auto;color:var(--ink-3)">›</span></div>
+    <div class="sep"></div><div class="mi danger">${ic("trash")}删除<kbd>⌫</kbd></div></div>`;
+}
+function calMgrPopover() {
+  return `<div class="ctxm" style="left:auto;right:28px;top:128px;width:280px;padding:10px">
+    <div style="display:flex;align-items:center;padding:2px 6px 8px;font-weight:600">管理日历<span style="margin-left:auto;font:400 11px var(--mono);color:var(--ink-3)">${CALS.length} 个</span></div>
+    ${calList(false).replace('class="cals"', 'class="cals" style="max-height:300px"')}</div>`;
+}
+
+/* =============== 方案骨架 =============== */
+function planA() {
+  return `<aside class="side">${miniMonth({ range: S.view === "week", empty: S.state === "empty" })}${calList(S.state === "empty")}</aside>
+    <section class="main">${phead()}<div class="viewport"><div class="panel vpanel lines">${renderView("lines")}</div></div></section>`;
+}
+function planB() {
+  const insp = S.state === "selected" ? inspEvent() : S.state === "create" ? inspCreate() : inspToday();
+  return `<aside class="side" style="width:204px">${miniMonth({ range: S.view === "week", empty: S.state === "empty" })}${calList(S.state === "empty")}</aside>
+    <section class="main">${phead()}<div class="viewport"><div class="panel vpanel lines">${renderView("lines")}</div><div class="panel insp">${S.state === "empty" ? inspEmpty() : insp}</div></div></section>`;
+}
+function inspToday() {
+  const today = E.filter(e => visible(e) && onDay(e, TODAY)).sort((a, b) => (a.s || 0) - (b.s || 0));
+  const tmr = E.filter(e => visible(e) && onDay(e, addD(TODAY, 1))).sort((a, b) => (a.s || 0) - (b.s || 0));
+  const row = e => { const past = !e.allDay && e.e < NOW_MIN && e.d === TODAY; const nowr = !e.allDay && e.s <= NOW_MIN && e.e >= NOW_MIN && e.d === TODAY;
+    return `<div class="r ${cls(e)} ${past ? "past" : ""} ${nowr ? "nowr" : ""}"><span class="t">${e.allDay ? "全天" : hm(e.s)}</span><i></i><span>${tt(e)}</span></div>`; };
+  return `<div class="ih"><div class="k">今天 · 周四<span class="ib-row"><button class="ib sm">${ic("more")}</button></span></div><h3>9 月 24 日</h3><div style="font-size:12px;color:var(--ink-3);margin-top:2px">5 项日程 · 已排 5.8 小时 · 下一项 12:30 午餐</div></div>
+    <div class="ibody"><div class="sec-t">今天 <small>${today.length}</small></div><div class="mini-ag">${today.map(row).join("")}</div>
+    <div class="sec-t">明天 · 周五 <small>${tmr.length}</small></div><div class="mini-ag">${tmr.map(row).join("")}</div>
+    <div class="sec-t">本周剩余 <small>3</small></div><div class="mini-ag">${E.filter(e => visible(e) && (e.d === "2026-09-26" || e.d === "2026-09-27")).map(row).join("")}</div></div>
+    <div class="ifoot"><kbd>N</kbd>新建<kbd>J</kbd><kbd>K</kbd>切周<span class="sp"></span>点选日程查看详情</div>`;
+}
+function inspEvent() {
+  return `<div class="ih c2"><div class="k"><span class="pill c2" style="height:22px;font-size:11.5px"><i></i>工作</span><span class="ib-row"><button class="ib sm">${ic("copy")}</button><button class="ib sm">${ic("trash")}</button><button class="ib sm">${ic("x")}</button></span></div><h3 contenteditable>日历页重设计</h3></div>
+    <div class="ibody">${eventForm(true)}</div>
+    <div class="ifoot">已自动保存<span class="sp"></span><kbd>Esc</kbd>关闭<kbd>⌫</kbd>删除</div>`;
+}
+function inspCreate() {
+  return `<div class="ih"><div class="k">新建日程 · 周五</div><h3 style="color:var(--ink-3);box-shadow:0 2px 0 var(--accent);display:inline-block;padding-bottom:1px">输入标题…</h3></div>
+    <div class="ibody">
+      <div class="field">${ic("clock")}<div class="v"><span class="pill mono">9月25日 周五</span><span class="pill mono">11:00</span><span style="color:var(--ink-3)">→</span><span class="pill mono">12:30</span></div></div>
+      <div class="field">${ic("cal")}<div class="v"><span class="pill c2"><i></i>工作 <span style="color:var(--ink-3);font-size:10px">▾</span></span><span style="font-size:11.5px;color:var(--ink-3)">上次使用</span></div></div>
+      <div class="field">${ic("note")}<div><div class="notes"><span class="ph">备注（可选）</span></div></div></div>
+    </div>
+    <div class="ifoot"><kbd>↵</kbd>创建<kbd>Esc</kbd>放弃<span class="sp"></span>标题为空不落库</div>`;
+}
+function inspEmpty() {
+  return `<div class="empty"><div><div class="ic">${ic("cal")}</div><h4>这里显示今天的安排</h4><p>先在左侧新建日历</p></div></div>`;
+}
+function planC() {
+  const chips = S.state === "empty" ? `<span style="font-size:12.5px;color:var(--ink-3)">还没有日历</span><button class="btn ghost">${ic("plus")}新建日历</button>` :
+    CALS.filter(c => c.sec !== "arch").map(c => `<span class="chip c${c.c} ${c.off ? "off" : ""}"><i></i>${c.name}</span>`).join("") + `<button class="ib" title="管理日历">${ic("sliders")}</button>`;
+  const bigTitle = S.view === "month" ? `九月 <small>2026 · SEP</small>` : titleFor();
+  const views = [["month", "月"], ["week", "周"], ["agenda", "议程"]];
+  const body = `<div class="panel vpanel lines">${renderView("lines")}</div>`;
+  return `<section class="main">${phead({ bigTitle, views })}<div class="chips">${chips}</div>
+    <div class="viewport">${body}<div class="panel dayc">${dayColumn()}</div></div></section>`;
+}
+function dayColumn() {
+  const d = S.sel; const empty = S.state === "empty";
+  const evs = empty ? [] : E.filter(e => visible(e) && !e.allDay && e.d === d).sort((a, b) => a.s - b.s);
+  const ads = empty ? [] : E.filter(e => visible(e) && e.allDay && onDay(e, d));
+  let items = []; let cur = 8 * 60;
+  evs.forEach(e => {
+    if (e.s - cur >= 60) items.push({ gap: true, s: cur, e: e.s });
+    if (d === TODAY && NOW_MIN >= cur && NOW_MIN < e.s) items.push({ now: true });
+    items.push({ ev: e }); cur = Math.max(cur, e.e);
+  });
+  if (!evs.length && !empty) items.push({ gap: true, s: 480, e: 1320 });
+  const hrs = evs.reduce((a, e) => a + (e.e - e.s), 0) / 60;
+  let tl = items.map(it => {
+    if (it.now) return `<div class="it nowi"><span class="t">${hm(NOW_MIN)}</span><span class="rail"><i></i></span><div class="card">现在</div></div>`;
+    if (it.gap) return `<div class="it gap"><span class="t">${hm(it.s)}</span><span class="rail"><i></i></span><div class="card">空档 ${((it.e - it.s) / 60).toFixed(1).replace(".0", "")} 小时 · 点击安排</div></div>`;
+    const e = it.ev; const past = d < TODAY || (d === TODAY && e.e < NOW_MIN);
+    return `<div class="it ${cls(e)} ${past ? "past" : ""}" data-eid="${e.id}"><span class="t">${hm(e.s)}</span><span class="rail"><i></i></span><div class="card"><b>${tt(e)}</b><span>${hm(e.s)} – ${hm(e.e)} · ${cal(e.cal).name}</span></div></div>`;
+  }).join("");
+  if (empty) tl = `<div class="side-empty" style="padding:30px 10px;text-align:center">没有日历，也就没有日程。<br>先在上方新建一个日历。</div>`;
+  return `<div class="hero"><span class="big ${d === TODAY ? "today" : ""}">${+d.slice(8)}</span><div class="meta"><b>周${WD[wdOf(d)]}${d === TODAY ? " · 今天" : ""}</b><span>2026 年 9 月</span></div><span style="margin-left:auto"></span><button class="ib">${ic("more")}</button></div>
+    <div class="sum">${empty ? "" : `${evs.length + ads.length} 项 · 已排 ${hrs.toFixed(1)} 小时`}</div>
+    <div class="tl">${ads.length ? `<div class="ad">${ads.map(e => `<span class="bar ${cls(e)}"><b>${e.title}</b></span>`).join("")}</div>` : ""}${tl}</div>
+    <div class="quick ${S.state === "create" ? "typing" : ""}">${S.state === "create" ? `<span style="white-space:nowrap">明天 3 点评审 #工作</span><span class="parsed"><span class="qtag">${ic("clock", "width:11px;height:11px")}9/25 15:00</span><span class="qtag cal c2">工作</span></span>` : `${ic("plus")}快速添加：明天 15 点 评审 #工作<kbd style="margin-left:auto">⌘L</kbd>`}</div>`;
+}
+
+/* =============== 渲染 =============== */
+function render() {
+  document.getElementById("win").classList.toggle("dark", S.dark);
+  document.getElementById("appnav").innerHTML = appNav();
+  const page = document.getElementById("page");
+  page.innerHTML = S.plan === "A" ? planA() : S.plan === "B" ? planB() : planC();
+  document.getElementById("planNote").innerHTML = NOTES[S.plan];
+  page.querySelectorAll("[data-scroll]").forEach(el => (el.scrollTop = +el.dataset.scroll));
+  // 浮层
+  const layer = document.getElementById("layer"); layer.innerHTML = "";
+  const win = document.getElementById("win").getBoundingClientRect();
+  const anchor = page.querySelector('[data-eid="10"]');
+  const pos = () => { const r = anchor.getBoundingClientRect(); return [r.right - win.left + 8, r.top - win.top]; };
+  if (S.state === "selected" && S.plan === "A") layer.innerHTML = dialog();
+  if (S.state === "selected" && S.plan === "C" && anchor) { let [x, y] = pos(); if (x + 310 > win.width) { const r = anchor.getBoundingClientRect(); x = r.left - win.left - 308; } layer.innerHTML = popover(x, Math.min(y, win.height - 220)); }
+  if (S.state === "selected" && S.plan === "C" && !anchor) layer.innerHTML = popover(560, 260);
+  if (S.state === "menu" && anchor) { const [x, y] = pos(); layer.innerHTML = ctxMenu(Math.min(x, win.width - 210), Math.min(y + 10, win.height - 220)); }
+  if (S.state === "menu" && S.plan === "C" && !anchor) layer.innerHTML = calMgrPopover();
+  // 交互：视图分段、C 方案选日
+  page.querySelectorAll("[data-v]").forEach(b => (b.onclick = () => { S.view = b.dataset.v; sync(); }));
+  syncButtons();
+}
+function syncButtons() {
+  document.querySelectorAll("#sw-plan [data-plan]").forEach(b => b.classList.toggle("on", b.dataset.plan === S.plan));
+  document.querySelectorAll("#sw-plan [data-view]").forEach(b => { b.classList.toggle("on", b.dataset.view === S.view); b.disabled = S.plan === "C" && b.dataset.view === "day"; });
+  document.querySelectorAll("#sw-plan [data-state]").forEach(b => b.classList.toggle("on", b.dataset.state === S.state));
+  document.getElementById("themeBtn").classList.toggle("on", S.dark);
+}
+function sync() { render(); }
+document.querySelectorAll("#sw-plan [data-plan]").forEach(b => (b.onclick = () => { S.plan = b.dataset.plan; S.view = PLAN_DEFAULT_VIEW[S.plan]; S.sel = TODAY; sync(); }));
+document.querySelectorAll("#sw-plan [data-view]").forEach(b => (b.onclick = () => { S.view = b.dataset.view; sync(); }));
+document.querySelectorAll("#sw-plan [data-state]").forEach(b => (b.onclick = () => { S.state = b.dataset.state; sync(); }));
+document.getElementById("themeBtn").onclick = () => { S.dark = !S.dark; sync(); };
+document.getElementById("page").addEventListener("click", ev => {
+  if (S.plan !== "C" || S.view !== "month") return;
+  const cell = ev.target.closest(".wrow"); if (!cell || ev.target.closest(".ev,.bar")) return;
+  const rowIdx = [...cell.parentNode.children].indexOf(cell);
+  const r = cell.getBoundingClientRect(); const col = Math.min(6, Math.floor((ev.clientX - r.left) / (r.width / 7)));
+  S.sel = addD(addD("2026-09-01", -wdOf("2026-09-01")), rowIdx * 7 + col); sync();
+});
+render();
+</script>
+</body>
+</html>

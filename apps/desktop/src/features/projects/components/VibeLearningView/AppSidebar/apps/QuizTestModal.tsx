@@ -254,7 +254,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
           const isCorrect = option.isCorrect;
           const showResult = showAnswer;
 
-          let cardStyle = "border-line-1 hover:border-line-1 hover:bg-group";
+          let cardStyle = "border-line-1 hover:border-line-1 hover:bg-hover";
           let iconColor = "text-ink-3 group-hover:text-accent";
 
           if (!showResult) {
@@ -359,7 +359,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
               textClass = option.value === true ? "text-status-success" : "text-status-error";
               iconClass = option.value === true ? "text-status-success" : "text-status-error";
             } else {
-              btnClass += " hover:bg-group";
+              btnClass += " hover:bg-hover";
             }
           } else {
             if (isCorrect) {
@@ -537,14 +537,24 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
 
         {/* 统计卡片 */}
         <div className="mb-8 grid w-full max-w-md grid-cols-3 gap-4">
-          <div className={classNames("flex flex-col items-center rounded-xl p-4", "bg-group")}>
+          <div
+            className={classNames(
+              "flex flex-col items-center rounded-xl p-4",
+              "border-line-1 border"
+            )}
+          >
             <Target className="text-accent mb-2 h-5 w-5" strokeWidth={1.75} />
             <div className="text-ink-1 text-lg font-bold">
               {quizRecord.correctCount}/{quizRecord.totalCount}
             </div>
             <div className="text-ink-2 text-xs">正确率</div>
           </div>
-          <div className={classNames("flex flex-col items-center rounded-xl p-4", "bg-group")}>
+          <div
+            className={classNames(
+              "flex flex-col items-center rounded-xl p-4",
+              "border-line-1 border"
+            )}
+          >
             <Clock className="mb-2 h-5 w-5 text-amber-500" strokeWidth={1.75} />
             <div className="text-ink-1 text-lg font-bold">
               {Math.floor(quizRecord.duration / 60)}:
@@ -552,7 +562,12 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
             </div>
             <div className="text-ink-2 text-xs">用时</div>
           </div>
-          <div className={classNames("flex flex-col items-center rounded-xl p-4", "bg-group")}>
+          <div
+            className={classNames(
+              "flex flex-col items-center rounded-xl p-4",
+              "border-line-1 border"
+            )}
+          >
             <Trophy className="text-accent mb-2 h-5 w-5" strokeWidth={1.75} />
             <div className="text-ink-1 text-lg font-bold">{quizRecord.totalCount}</div>
             <div className="text-ink-2 text-xs">总题数</div>
@@ -597,7 +612,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                 <div className="flex items-center gap-3">
                   {quizSet && <span className="text-xl">{quizSet.emoji}</span>}
                   <div className="flex items-center gap-2">
-                    <span className="bg-group text-ink-2 rounded-md px-2 py-0.5 text-xs font-bold">
+                    <span className="bg-hover text-ink-2 rounded-md px-2 py-0.5 text-xs font-bold">
                       {progress.current} / {progress.total}
                     </span>
                     <span className="text-ink-3 text-sm font-medium">
@@ -609,7 +624,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                   {Math.round(progressPercent)}%
                 </span>
               </div>
-              <div className="bg-group h-1.5 overflow-hidden rounded-full">
+              <div className="bg-track h-1.5 overflow-hidden rounded-full">
                 <motion.div
                   className="bg-accent h-full rounded-full"
                   initial={{ width: 0 }}
@@ -651,7 +666,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                     {currentItem.tags.map(tag => (
                       <span
                         key={tag}
-                        className="border-line-1 bg-group text-ink-2 rounded-md border px-2.5 py-1 text-xs font-medium"
+                        className="border-line-1 text-ink-2 rounded-md border px-2.5 py-1 text-xs font-medium"
                       >
                         #{tag}
                       </span>
@@ -722,7 +737,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
             </div>
 
             {/* Footer Actions */}
-            <div className="border-line-1 bg-group/50 border-t p-6">
+            <div className="border-line-1 border-t p-6">
               <div className="flex items-center">
                 {/* 上一题按钮 */}
                 <div className="flex-1">
@@ -733,7 +748,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                       "flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium transition-all",
                       progress.current <= 1
                         ? "text-ink-3 cursor-not-allowed"
-                        : "text-ink-2 hover:bg-group"
+                        : "text-ink-2 hover:bg-hover"
                     )}
                   >
                     <ChevronLeft className="h-5 w-5" strokeWidth={1.75} />

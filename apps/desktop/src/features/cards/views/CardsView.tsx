@@ -10,8 +10,8 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePage, usePageBreadcrumb, usePageStatusBar } from "@/page/PageProvider";
-import { Download, Layers, PanelLeftClose, PanelLeftOpen, Plus } from "lucide-react";
+import { usePage, usePageBreadcrumb } from "@/page/PageProvider";
+import { Download, Layers, PanelLeft, Plus } from "lucide-react";
 import type { Descendant } from "slate";
 import "../cards.css";
 import { ECardCategory, type ICard } from "@/types";
@@ -44,7 +44,7 @@ import { CardViewSwitcher } from "../components/CardViewSwitcher";
 import { CreateCardDialog } from "../components/CreateCardDialog";
 import { CardGraphSection } from "../components/CardGraphSection";
 import { CATEGORY_COLORS } from "../categoryColors";
-import type { CardFilter, CardItemActions, CardTagNode } from "../types";
+import type { CardFilter, CardItemActions } from "../types";
 import {
   DEFAULT_CARDS_PREFERENCES,
   useCardsPreferencesStore,
@@ -91,17 +91,8 @@ export function CardsView() {
   /** 数据库视图删除确认桥：其 onDeleteCard 约定 Promise resolve 即删行、reject 即取消 */
   const deleteBridge = useRef<{ resolve(): void; reject(error: Error): void } | null>(null);
 
-  /* 标签树只派生一次：左树与状态栏读数（组数/链接数）共用 */
+  /* 标签树只派生一次（左树） */
   const tagTree = useMemo(() => buildTagTree(feed.cards), [feed.cards]);
-  const tagNodeCount = useMemo(
-    () => tagTree.reduce((sum, node) => sum + countTreeNodes(node), 0),
-    [tagTree]
-  );
-  const linkCount = useMemo(
-    () => feed.cards.reduce((sum, card) => sum + card.links.length, 0),
-    [feed.cards]
-  );
-
   /* sorted = 排序全集（图谱全集 / 表格 allCards），filtered = 分类 / 标签过滤结果 */
   const sorted = useMemo(() => sortCards(feed.cards), [feed.cards]);
   const filtered = useMemo(() => filterCards(feed.cards, filter), [feed.cards, filter]);
@@ -118,20 +109,6 @@ export function CardsView() {
   /* 弹窗基准卡 = 单卡全量按需拉取（列表缓存只有预览块，弹窗可编辑需全文） */
   const previewCardQuery = useCardDetail(previewCardId);
   const previewCard = previewCardId == null ? null : (previewCardQuery.data ?? null);
-
-  /* 全局状态栏（usePageStatusBar，仅栈顶显示；node 须 useMemo 稳定化）：右侧展示知识库读数 */
-  const statusBarNode = useMemo(
-    () => (
-      <div className="text-tau-sm text-ink-3 flex min-w-0 flex-1 items-center gap-3.5 tabular-nums">
-        <span className="flex-1" />
-        <span>
-          {tagNodeCount} 组标签 · {linkCount} 条连接
-        </span>
-      </div>
-    ),
-    [tagNodeCount, linkCount]
-  );
-  usePageStatusBar("cards", statusBarNode);
 
   /* 标题栏面包屑（usePageBreadcrumb）：「卡片库 / [视图速切器]」——node 须 useMemo 稳定化 */
   const breadcrumbNode = useMemo(
@@ -215,7 +192,7 @@ export function CardsView() {
           tags: [],
           links: [],
           category:
-            filter.category === "all"
+            view === "database" || filter.category === "all"
               ? ECardCategory.Temporary
               : (filter.category as ECardCategory),
           count: getContentLength(content),
@@ -258,7 +235,7 @@ export function CardsView() {
     card ? getEditorText(card.content, 20) || `卡片 #${card.id}` : "";
 
   return (
-    <div className="mx-auto flex h-full min-w-0 max-w-[1760px] flex-col px-[26px]">
+    <div className="mx-auto flex h-full min-w-0 max-w-[1760px] flex-col px-[26px] pb-4">
       {/* 工具栏：标题与读数 + 导入 / 新建（右上角） */}
       <div className="flex h-[44px] flex-none items-center gap-3.5">
         <h1 className="text-[19px] font-semibold tracking-[-0.01em]">卡片库</h1>
@@ -275,53 +252,49 @@ export function CardsView() {
         </Button>
       </div>
 
-      {/* 筛选行：树收起切换 + 分类 chips（视图切换在标题栏面包屑） */}
-      <div className="flex h-[36px] flex-none items-center gap-1.5 pb-1.5">
-        {view !== "database" && (
+      {/* 卡片墙与图谱的筛选行；数据库使用内置筛选。 */}
+      {view !== "database" && (
+        <div className="flex h-[36px] flex-none items-center gap-1.5 pb-1.5">
           <IconButton
             title={treeCollapsed ? "展开标签树" : "收起标签树"}
             onClick={() => updatePreferences(databaseName, { treeCollapsed: !treeCollapsed })}
           >
-            {treeCollapsed ? (
-              <PanelLeftOpen className="size-[15px]" strokeWidth={1.75} />
-            ) : (
-              <PanelLeftClose className="size-[15px]" strokeWidth={1.75} />
-            )}
+            <PanelLeft className="size-[15px]" strokeWidth={1.75} />
           </IconButton>
-        )}
-        {CATEGORY_ORDER.map(key => {
-          const active = filter.category === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setFilter(prev => ({ ...prev, category: key }))}
-              className={cn(
-                "shadow-card ease-tau-out flex h-7 items-center gap-1.5 rounded-full px-3 text-[12.5px] transition-[background,color] duration-150",
-                active
-                  ? "bg-selected text-ink-1 font-semibold"
-                  : "bg-surface text-ink-2 hover:text-ink-1"
-              )}
-            >
-              {key !== "all" && (
-                <span
-                  className="size-2 shrink-0 rounded-full"
-                  style={{ background: CATEGORY_COLORS[key].text }}
-                />
-              )}
-              {key === "all" ? "全部" : cardCategoryName[key].slice(0, 2)}
-              <span
+          {CATEGORY_ORDER.map(key => {
+            const active = filter.category === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFilter(prev => ({ ...prev, category: key }))}
                 className={cn(
-                  "text-[11px] tabular-nums",
-                  active ? "text-accent-text" : "text-ink-3"
+                  "shadow-card ease-tau-out flex h-7 items-center gap-1.5 rounded-full px-3 text-[12.5px] transition-[background,color] duration-150",
+                  active
+                    ? "bg-selected text-ink-1 font-semibold"
+                    : "bg-surface text-ink-2 hover:text-ink-1"
                 )}
               >
-                {key === "all" ? feed.cards.length : (categoryCount.get(key) ?? 0)}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+                {key !== "all" && (
+                  <span
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ background: CATEGORY_COLORS[key].text }}
+                  />
+                )}
+                {key === "all" ? "全部" : cardCategoryName[key].slice(0, 2)}
+                <span
+                  className={cn(
+                    "text-[11px] tabular-nums",
+                    active ? "text-accent-text" : "text-ink-3"
+                  )}
+                >
+                  {key === "all" ? feed.cards.length : (categoryCount.get(key) ?? 0)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* 主体三视图 */}
       {view === "wall" && (
@@ -365,8 +338,7 @@ export function CardsView() {
         <div className="flex min-h-0 flex-1 flex-col">
           <CardDatabaseView
             cards={sorted}
-            tag={filter.tag}
-            selectCategory={filter.category}
+            selectCategory="all"
             onCardClick={card => setPreviewCardId(card.id)}
             onOpenCreateCard={defaultCategory => {
               setCreateDefaultCategory(defaultCategory);
@@ -393,7 +365,9 @@ export function CardsView() {
         open={creating}
         defaultCategory={
           createDefaultCategory ??
-          (filter.category === "all" ? ECardCategory.Temporary : (filter.category as ECardCategory))
+          (view === "database" || filter.category === "all"
+            ? ECardCategory.Temporary
+            : (filter.category as ECardCategory))
         }
         onClose={() => {
           setCreating(false);
@@ -454,8 +428,4 @@ export function CardsView() {
       />
     </div>
   );
-}
-
-function countTreeNodes(node: CardTagNode): number {
-  return 1 + node.children.reduce((sum, child) => sum + countTreeNodes(child), 0);
 }
