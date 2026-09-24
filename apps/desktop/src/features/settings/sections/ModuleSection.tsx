@@ -3,15 +3,13 @@
  *
  * 移植 legacy ModuleSetting：每类一个分组面板（说明 = 已启用 x / y），面板内两列网格，
  * 每项 = 图标 + 模块名 + 开关；开关写 module.<key>.enable（与 legacy 同为 produce 整体替换，
- * 无其他副作用）。legacy MODULE_CONFIG 缺失的模块（闪卡中心 / Skill 管理 / RSS 订阅 / 稍后读 /
- * 网页浏览）按 mockup 归类；未知模块兜底进「其他」。
+ * 无其他副作用）。legacy MODULE_CONFIG 缺失的模块（闪卡中心 / Skill 管理 / 网页浏览）按 mockup 归类；未知模块兜底进「其他」。
  * 修 legacy bug：「设置」模块（key settings）可以被关掉——这里不渲染它的开关。
  */
 
 import clsx from "clsx";
 import { produce } from "immer";
 import {
-  Bookmark,
   BookOpen,
   Calendar,
   CircleHelp,
@@ -26,8 +24,6 @@ import {
   Newspaper,
   NotebookPen,
   Presentation,
-  Radio,
-  Rss,
   Timer,
   Users,
   Wand2,
@@ -57,10 +53,7 @@ const CATEGORIES: Array<{ label: string; modules: Array<[key: string, icon: Luci
     modules: [
       ["pdf", FileIcon],
       ["weread", BookOpen],
-      ["feed", Rss],
       ["vecDocuments", Database],
-      ["rssSubscription", Radio],
-      ["readLater", Bookmark],
       ["webview", Globe],
     ],
   },

@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { getDbPath } from "../utils/path.js";
 import { notifyApp } from "./notify.js";
 import { upgradeKnowledgeDatabase } from "@tau/db-schema/src/knowledge-migration-node";
+import { retireSubscriptions } from "@tau/db-schema/src/subscription-retirement";
 import { migrateKnowledgeIndex } from "@tau/db-schema/src/knowledge-index-migration";
 import { existsSync } from "node:fs";
 import sqliteVec from "sqlite-vec";
@@ -22,6 +23,7 @@ export class DataAccess {
     this.db.pragma("foreign_keys = ON");
     try {
       this.db.loadExtension(sqliteVec.getLoadablePath());
+      retireSubscriptions(this.db, dbPath);
       upgradeKnowledgeDatabase(this.db, dbPath, { skipBackup: options.skipMigrationBackup });
       const indexPath = getIndexDbPath(dbName);
       if (existsSync(indexPath)) {

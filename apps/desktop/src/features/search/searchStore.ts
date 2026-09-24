@@ -49,12 +49,12 @@ export const useSearchStore = create<SearchStore>()(
     }),
     {
       name: "tau-search-history",
-      version: 2,
+      version: 3,
       migrate: persisted => {
         const state = persisted as { visits?: VisitRecord[] } | undefined;
         const visits = new Map<string, VisitRecord>();
         for (const visit of state?.visits ?? []) {
-          if (visit.key === "resources") continue;
+          if (["resources", "feed", "rssSubscription", "readLater"].includes(visit.key)) continue;
           const key = visit.key === "library" ? "projects" : visit.key;
           const previous = visits.get(key);
           visits.set(key, {

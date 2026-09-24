@@ -7,8 +7,7 @@ import Header from "./Header";
 describe("blog/Header", () => {
   let container: HTMLDivElement;
   let root: Root;
-  const originalActEnvironment = (globalThis as Record<string, unknown>)
-    .IS_REACT_ACT_ENVIRONMENT;
+  const originalActEnvironment = (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT;
   const originalMatchMedia = window.matchMedia;
   const originalFetch = globalThis.fetch;
 
@@ -33,8 +32,7 @@ describe("blog/Header", () => {
     });
     container.remove();
     document.body.innerHTML = "";
-    (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT =
-      originalActEnvironment;
+    (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = originalActEnvironment;
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
       value: originalMatchMedia,
@@ -46,42 +44,7 @@ describe("blog/Header", () => {
     vi.restoreAllMocks();
   });
 
-  it("提供 RSS 地址时应显示复制入口并写入剪贴板", async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText },
-    });
-
-    await act(async () => {
-      root.render(
-        <Header
-          title="站点"
-          basePath="/blog"
-          navigation={[]}
-          rssHref="/blog/rss.xml"
-        />,
-      );
-    });
-
-    const rssButton = container.querySelector(
-      'button[aria-label="复制 RSS 链接"]',
-    ) as HTMLButtonElement | null;
-    expect(rssButton).not.toBeNull();
-
-    await act(async () => {
-      rssButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-
-    expect(writeText).toHaveBeenCalledWith(
-      "http://localhost:3000/blog/rss.xml",
-    );
-    expect(
-      container.querySelector('button[aria-label="RSS 链接已复制"]'),
-    ).not.toBeNull();
-  });
-
-  it("未提供 RSS 地址时不显示 RSS 入口", async () => {
+  it("退役后不显示 RSS 入口", async () => {
     await act(async () => {
       root.render(<Header title="站点" basePath="/" navigation={[]} />);
     });
@@ -92,12 +55,7 @@ describe("blog/Header", () => {
   it("提供搜索地址时应显示搜索入口，未提供时不显示", async () => {
     await act(async () => {
       root.render(
-        <Header
-          title="站点"
-          basePath="/blog"
-          navigation={[]}
-          searchHref="/search-index.json"
-        />,
+        <Header title="站点" basePath="/blog" navigation={[]} searchHref="/search-index.json" />
       );
     });
 
@@ -118,12 +76,7 @@ describe("blog/Header", () => {
 
     await act(async () => {
       root.render(
-        <Header
-          title="站点"
-          basePath="/blog"
-          navigation={[]}
-          searchHref="/search-index.json"
-        />,
+        <Header title="站点" basePath="/blog" navigation={[]} searchHref="/search-index.json" />
       );
     });
 
@@ -133,13 +86,11 @@ describe("blog/Header", () => {
           key: "k",
           ctrlKey: true,
           bubbles: true,
-        }),
+        })
       );
     });
 
     expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
-    expect(
-      document.body.querySelector('input[aria-label="搜索关键词"]'),
-    ).not.toBeNull();
+    expect(document.body.querySelector('input[aria-label="搜索关键词"]')).not.toBeNull();
   });
 });

@@ -22,7 +22,6 @@ import {
   listPomodoroPresets,
   listPomodoroSessions,
 } from "@/commands/pomodoro";
-import { countUnreadRssEntries, listUnreadRssEntries, listRssFeeds } from "@/commands/rss";
 import { getCalendarHeatmap, getAllStatistic } from "@/commands/statistic";
 import {
   createDiaryEntry,
@@ -39,7 +38,6 @@ import {
 import { createEmptyDiaryContent } from "@/pages/DiaryView/constants/content";
 import type { ICard, IArticle, ProjectItem } from "@/types";
 import type { DiaryEntry, DiarySegment, DiaryTagSetting } from "@/types/diary";
-import type { RssEntry, RssFeed } from "@/types/rss";
 import type { IItem } from "@/components/CalendarHeatmap";
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 
@@ -47,12 +45,10 @@ const HOME_QUERY_KEY = ["home"] as const;
 const TODO_QUERY_KEY = [...HOME_QUERY_KEY, "todo"] as const;
 const QUESTION_QUERY_KEY = [...HOME_QUERY_KEY, "question"] as const;
 const FLASHCARD_QUERY_KEY = [...HOME_QUERY_KEY, "flashcard"] as const;
-const RSS_QUERY_KEY = [...HOME_QUERY_KEY, "rss"] as const;
 const POMODORO_QUERY_KEY = [...HOME_QUERY_KEY, "pomodoro"] as const;
 const ACTIVITY_QUERY_KEY = [...HOME_QUERY_KEY, "activity"] as const;
 const DIARY_QUERY_KEY = [...HOME_QUERY_KEY, "diary"] as const;
 
-const RSS_PREVIEW_LIMIT = 5;
 const SEGMENT_LIMIT = 3;
 const DIARY_FETCH_WINDOW_DAYS = 365;
 const POMODORO_RECENT_SESSION_LIMIT = 30;
@@ -82,7 +78,6 @@ export interface HomeData {
     pendingTodos: number;
     overdueTodos: number;
     flashcardsDue: number;
-    rssUnread: number;
     pomodoroToday: { count: number; focusMs: number };
   };
   todoItems: TodoItem[];
@@ -91,8 +86,6 @@ export interface HomeData {
   flashcardDecks: FlashcardDeck[];
   questionItems: IQuestion[];
   questionGroups: WorkbenchQuestionGroupStat[];
-  rssItems: RssEntry[];
-  rssFeeds: RssFeed[];
   activeSession: PomodoroSession | null;
   pomodoroPresets: PomodoroPreset[];
   pomodoroRecentSessions: PomodoroSession[];
@@ -109,7 +102,6 @@ export interface HomeData {
   tagUsageCounts: Map<string, number>;
   loading: boolean;
   flashcardsLoading: boolean;
-  rssLoading: boolean;
   errors: Record<string, Error | null>;
 }
 
@@ -129,12 +121,6 @@ interface HomeFlashcardData {
   flashcardsDue: number;
   flashcardItems: Flashcard[];
   flashcardDecks: FlashcardDeck[];
-}
-
-interface HomeRssData {
-  rssUnread: number;
-  rssItems: RssEntry[];
-  rssFeeds: RssFeed[];
 }
 
 interface HomePomodoroData {
@@ -168,7 +154,6 @@ const INITIAL_DATA: HomeData = {
     pendingTodos: 0,
     overdueTodos: 0,
     flashcardsDue: 0,
-    rssUnread: 0,
     pomodoroToday: { count: 0, focusMs: 0 },
   },
   todoItems: [],
@@ -177,8 +162,6 @@ const INITIAL_DATA: HomeData = {
   flashcardDecks: [],
   questionItems: [],
   questionGroups: [],
-  rssItems: [],
-  rssFeeds: [],
   activeSession: null,
   pomodoroPresets: [],
   pomodoroRecentSessions: [],
@@ -191,7 +174,6 @@ const INITIAL_DATA: HomeData = {
   tagUsageCounts: new Map(),
   loading: true,
   flashcardsLoading: false,
-  rssLoading: false,
   errors: {},
 };
 
@@ -277,20 +259,6 @@ const fetchHomeFlashcardData = async (): Promise<HomeFlashcardData> => {
     flashcardsDue: totalDueFromDecks || flashcardItems.length,
     flashcardItems,
     flashcardDecks,
-  };
-};
-
-const fetchHomeRssData = async (): Promise<HomeRssData> => {
-  const [rssItems, rssFeeds, rssUnread] = await Promise.all([
-    listUnreadRssEntries(RSS_PREVIEW_LIMIT, 0, ""),
-    listRssFeeds(),
-    countUnreadRssEntries(),
-  ]);
-
-  return {
-    rssUnread,
-    rssItems,
-    rssFeeds,
   };
 };
 
@@ -392,32 +360,27 @@ const buildHomeData = ({
   todo,
   question,
   flashcard,
-  rss,
   pomodoro,
   activity,
   diary,
   loading,
   flashcardsLoading,
-  rssLoading,
   errors,
 }: {
   todo?: HomeTodoData;
   question?: HomeQuestionData;
   flashcard?: HomeFlashcardData;
-  rss?: HomeRssData;
   pomodoro?: HomePomodoroData;
   activity?: HomeActivityData;
   diary?: HomeDiaryData;
   loading: boolean;
   flashcardsLoading: boolean;
-  rssLoading: boolean;
   errors: Record<string, Error | null>;
 }): HomeData => ({
   summary: {
     pendingTodos: todo?.pendingTodos ?? INITIAL_DATA.summary.pendingTodos,
     overdueTodos: todo?.overdueTodos ?? INITIAL_DATA.summary.overdueTodos,
     flashcardsDue: flashcard?.flashcardsDue ?? INITIAL_DATA.summary.flashcardsDue,
-    rssUnread: rss?.rssUnread ?? INITIAL_DATA.summary.rssUnread,
     pomodoroToday: pomodoro?.pomodoroToday ?? INITIAL_DATA.summary.pomodoroToday,
   },
   todoItems: todo?.todoItems ?? INITIAL_DATA.todoItems,
@@ -426,8 +389,6 @@ const buildHomeData = ({
   flashcardDecks: flashcard?.flashcardDecks ?? INITIAL_DATA.flashcardDecks,
   questionItems: question?.questionItems ?? INITIAL_DATA.questionItems,
   questionGroups: question?.questionGroups ?? INITIAL_DATA.questionGroups,
-  rssItems: rss?.rssItems ?? INITIAL_DATA.rssItems,
-  rssFeeds: rss?.rssFeeds ?? INITIAL_DATA.rssFeeds,
   activeSession: pomodoro?.activeSession ?? INITIAL_DATA.activeSession,
   pomodoroPresets: pomodoro?.pomodoroPresets ?? INITIAL_DATA.pomodoroPresets,
   pomodoroRecentSessions: pomodoro?.pomodoroRecentSessions ?? INITIAL_DATA.pomodoroRecentSessions,
@@ -440,7 +401,6 @@ const buildHomeData = ({
   tagUsageCounts: diary?.tagUsageCounts ?? INITIAL_DATA.tagUsageCounts,
   loading,
   flashcardsLoading,
-  rssLoading,
   errors,
 });
 
@@ -448,7 +408,6 @@ const buildErrors = (results: {
   todo: UseQueryResult<HomeTodoData>;
   question: UseQueryResult<HomeQuestionData>;
   flashcard: UseQueryResult<HomeFlashcardData>;
-  rss: UseQueryResult<HomeRssData>;
   pomodoro: UseQueryResult<HomePomodoroData>;
   activity: UseQueryResult<HomeActivityData>;
   diary: UseQueryResult<HomeDiaryData>;
@@ -456,7 +415,6 @@ const buildErrors = (results: {
   todo: toError(results.todo.error),
   question: toError(results.question.error),
   flashcard: toError(results.flashcard.error),
-  rss: toError(results.rss.error),
   pomodoro: toError(results.pomodoro.error),
   activity: toError(results.activity.error),
   diary: toError(results.diary.error),
@@ -477,37 +435,28 @@ const updateDiaryCache = (
 const useHomeData = () => {
   const queryClient = useQueryClient();
   const websocketClient = useBackendWebsocketStore(state => state.client);
-  const [
-    todoQuery,
-    questionQuery,
-    flashcardQuery,
-    rssQuery,
-    pomodoroQuery,
-    activityQuery,
-    diaryQuery,
-  ] = useQueries({
-    queries: [
-      { queryKey: TODO_QUERY_KEY, queryFn: fetchHomeTodoData },
-      { queryKey: QUESTION_QUERY_KEY, queryFn: fetchHomeQuestionData },
-      { queryKey: FLASHCARD_QUERY_KEY, queryFn: fetchHomeFlashcardData },
-      { queryKey: RSS_QUERY_KEY, queryFn: fetchHomeRssData },
-      { queryKey: POMODORO_QUERY_KEY, queryFn: fetchHomePomodoroData },
-      { queryKey: ACTIVITY_QUERY_KEY, queryFn: fetchHomeActivityData },
-      { queryKey: DIARY_QUERY_KEY, queryFn: fetchHomeDiaryData },
-    ],
-  });
+  const [todoQuery, questionQuery, flashcardQuery, pomodoroQuery, activityQuery, diaryQuery] =
+    useQueries({
+      queries: [
+        { queryKey: TODO_QUERY_KEY, queryFn: fetchHomeTodoData },
+        { queryKey: QUESTION_QUERY_KEY, queryFn: fetchHomeQuestionData },
+        { queryKey: FLASHCARD_QUERY_KEY, queryFn: fetchHomeFlashcardData },
+        { queryKey: POMODORO_QUERY_KEY, queryFn: fetchHomePomodoroData },
+        { queryKey: ACTIVITY_QUERY_KEY, queryFn: fetchHomeActivityData },
+        { queryKey: DIARY_QUERY_KEY, queryFn: fetchHomeDiaryData },
+      ],
+    });
 
   const queries = useMemo(
     () => ({
       todo: todoQuery,
       question: questionQuery,
       flashcard: flashcardQuery,
-      rss: rssQuery,
       pomodoro: pomodoroQuery,
       activity: activityQuery,
       diary: diaryQuery,
     }),
-    [todoQuery, questionQuery, flashcardQuery, rssQuery, pomodoroQuery, activityQuery, diaryQuery]
+    [todoQuery, questionQuery, flashcardQuery, pomodoroQuery, activityQuery, diaryQuery]
   );
 
   const hasAnyData = Object.values(queries).some(query => !!query.data);
@@ -518,26 +467,22 @@ const useHomeData = () => {
         todo: todoQuery.data,
         question: questionQuery.data,
         flashcard: flashcardQuery.data,
-        rss: rssQuery.data,
         pomodoro: pomodoroQuery.data,
         activity: activityQuery.data,
         diary: diaryQuery.data,
         loading,
         flashcardsLoading: flashcardQuery.isFetching && !!flashcardQuery.data,
-        rssLoading: rssQuery.isFetching && !!rssQuery.data,
         errors: buildErrors(queries),
       }),
     [
       todoQuery.data,
       questionQuery.data,
       flashcardQuery.data,
-      rssQuery.data,
       pomodoroQuery.data,
       activityQuery.data,
       diaryQuery.data,
       loading,
       flashcardQuery.isFetching,
-      rssQuery.isFetching,
       queries,
     ]
   );
@@ -548,10 +493,6 @@ const useHomeData = () => {
 
   const refreshFlashcards = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: FLASHCARD_QUERY_KEY });
-  }, [queryClient]);
-
-  const refreshRss = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: RSS_QUERY_KEY });
   }, [queryClient]);
 
   const refreshPomodoro = useCallback(async () => {
@@ -774,7 +715,6 @@ const useHomeData = () => {
     data,
     refresh,
     refreshFlashcards,
-    refreshRss,
     refreshPomodoro,
     setActiveSession,
     createSegmentNow,

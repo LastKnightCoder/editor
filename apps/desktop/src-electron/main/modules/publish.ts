@@ -60,12 +60,6 @@ import {
 import { attachPublishAppearanceSettings } from "./publish-appearance-settings";
 import { resolvePublishFaviconOutput } from "./publish-favicon";
 import {
-  buildFeedUrl,
-  generateRssXml,
-  injectPublishRssLink,
-  type IPublishFeedItem,
-} from "./publish-rss";
-import {
   buildPublishSearchIndexPayload,
   PUBLISH_SEARCH_INDEX_HREF,
   PUBLISH_SEARCH_INDEX_PATH,
@@ -432,12 +426,6 @@ class PublishModule implements Module {
     };
   }
 
-  private buildRssInitMeta(site: ISiteMeta): NonNullable<IPublishInitData["rss"]> {
-    return {
-      href: buildFeedUrl(site, "/rss.xml"),
-    };
-  }
-
   private buildSearchInitMeta(): NonNullable<IPublishInitData["search"]> {
     return {
       href: PUBLISH_SEARCH_INDEX_HREF,
@@ -768,21 +756,6 @@ class PublishModule implements Module {
       hash: this.computeHash(homeHtml),
     });
 
-    const rssXml = generateRssXml(
-      site,
-      this.buildPublishFeedItems(
-        cards,
-        articles,
-        docPublishResult.listEntries,
-        questPublishResult.entries
-      )
-    );
-    files.push({
-      path: "rss.xml",
-      content: Buffer.from(rssXml),
-      hash: this.computeHash(rssXml),
-    });
-
     const searchIndexJson = JSON.stringify(
       buildPublishSearchIndexPayload({
         cards,
@@ -874,19 +847,6 @@ class PublishModule implements Module {
       );
     }
 
-    html = injectPublishRssLink(
-      html,
-      buildFeedUrl(
-        {
-          title: initData.site.title,
-          description: initData.site.description,
-          basePath: initData.site.basePath,
-          publicUrl: initData.site.publicUrl,
-        },
-        "/rss.xml"
-      )
-    );
-
     const inlineStyle = options?.inlineStyle?.trim();
     if (inlineStyle) {
       const scopedStyle = scopeRuntimeTailwindCss(inlineStyle);
@@ -928,7 +888,6 @@ class PublishModule implements Module {
       {
         site: this.buildSiteInitMeta(site),
         navigation,
-        rss: this.buildRssInitMeta(site),
         search: this.buildSearchInitMeta(),
         docCollections,
         contentLinkTargets,
@@ -970,7 +929,6 @@ class PublishModule implements Module {
       {
         site: this.buildSiteInitMeta(site),
         navigation,
-        rss: this.buildRssInitMeta(site),
         search: this.buildSearchInitMeta(),
         docCollections,
         contentLinkTargets,
@@ -1009,7 +967,6 @@ class PublishModule implements Module {
       {
         site: this.buildSiteInitMeta(site),
         navigation,
-        rss: this.buildRssInitMeta(site),
         search: this.buildSearchInitMeta(),
         docCollections,
         contentLinkTargets,
@@ -1067,7 +1024,6 @@ class PublishModule implements Module {
       {
         site: this.buildSiteInitMeta(site),
         navigation,
-        rss: this.buildRssInitMeta(site),
         search: this.buildSearchInitMeta(),
         docCollections,
         contentLinkTargets,
@@ -1387,7 +1343,6 @@ class PublishModule implements Module {
       {
         site: this.buildSiteInitMeta(site),
         navigation,
-        rss: this.buildRssInitMeta(site),
         search: this.buildSearchInitMeta(),
         sidebar: entry.sidebar,
         docCollections: activeCollections,
@@ -1490,7 +1445,6 @@ class PublishModule implements Module {
       {
         site: this.buildSiteInitMeta(site),
         navigation,
-        rss: this.buildRssInitMeta(site),
         search: this.buildSearchInitMeta(),
         docCollections,
         contentLinkTargets,
@@ -1713,7 +1667,6 @@ class PublishModule implements Module {
       {
         site: this.buildSiteInitMeta(site),
         navigation,
-        rss: this.buildRssInitMeta(site),
         search: this.buildSearchInitMeta(),
         docCollections,
         contentLinkTargets,
@@ -1753,7 +1706,6 @@ class PublishModule implements Module {
       {
         site: this.buildSiteInitMeta(site),
         navigation,
-        rss: this.buildRssInitMeta(site),
         search: this.buildSearchInitMeta(),
         docCollections,
         contentLinkTargets,
@@ -2218,62 +2170,6 @@ class PublishModule implements Module {
     };
   }
 
-  private buildCardFeedTitle(card: ICard): string {
-    const summary = this.buildSummary(card.content || [], 40);
-    return summary || `卡片 #${card.id}`;
-  }
-
-  private buildPublishFeedItems(
-    cards: ICard[],
-    articles: IArticle[],
-    docs: IDocEntry[],
-    quests: IQuestEntry[] = []
-  ): IPublishFeedItem[] {
-    return [
-      ...articles.map(article => ({
-        type: "article" as const,
-        id: article.id,
-        title: article.title || `文章 #${article.id}`,
-        summary: this.buildSummary(article.content || []),
-        href: `/articles/${article.id}.html`,
-        tags: article.tags || [],
-        publishTime: article.create_time,
-        updateTime: article.update_time,
-        author: article.author,
-      })),
-      ...cards.map(card => ({
-        type: "card" as const,
-        id: card.id,
-        title: this.buildCardFeedTitle(card),
-        summary: this.buildSummary(card.content || []),
-        href: `/cards/${card.id}.html`,
-        tags: card.tags || [],
-        publishTime: card.create_time,
-        updateTime: card.update_time,
-      })),
-      ...docs.map(doc => ({
-        type: "doc" as const,
-        id: doc.id,
-        title: doc.title || `文档 #${doc.id}`,
-        summary: doc.summary,
-        href: doc.href,
-        tags: doc.tags || [],
-        publishTime: doc.createTime,
-        updateTime: doc.updateTime,
-      })),
-      ...quests.map(quest => ({
-        type: "quest" as const,
-        id: quest.id,
-        title: quest.title,
-        summary: quest.summary,
-        href: quest.href,
-        tags: [quest.groupTitle],
-        publishTime: resolveQuestActivityTime(quest),
-        updateTime: resolveQuestActivityTime(quest),
-      })),
-    ];
-  }
-
   /**
    * 执行发布
    */
@@ -2496,10 +2392,11 @@ class PublishModule implements Module {
           await repoGit.commit(commitMessage, undefined, {
             "--author": `${committerName} <${committerEmail}>`,
           });
-          await repoGit.push("origin", providerConfig.branch, ["--force"]);
         } else {
-          log.info("No content changes detected, skip git push.");
+          log.info("No content changes detected, retry publishing the current commit.");
         }
+        // 上次提交可能已成功但推送失败，必须确认远端更新后才能清理发布历史。
+        await repoGit.push("origin", providerConfig.branch, ["--force"]);
         current++;
         sendProgress("pushing");
       }

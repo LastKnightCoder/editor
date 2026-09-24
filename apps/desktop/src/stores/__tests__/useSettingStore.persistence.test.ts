@@ -5,17 +5,20 @@ import useSettingStore, {
 } from "../useSettingStore";
 
 describe("useSettingStore persistence snapshot", () => {
-  it("移除旧资源管理配置与排序，保留上传和同步设置", () => {
-    const setting = structuredClone(useSettingStore.getState().setting);
-    Object.assign(setting.module, { resourceManagement: { enable: true, name: "资源管理" } });
-    setting.moduleOrder = ["card", "resourceManagement", "settings"];
-    const merged = mergeSettingWithDefaults(setting);
-    expect(merged.module).not.toHaveProperty("resourceManagement");
-    expect(merged.moduleOrder).not.toContain("resourceManagement");
-    expect(merged.moduleOrder.slice(0, 2)).toEqual(["card", "settings"]);
-    expect(merged.imageBed).toEqual(setting.imageBed);
-    expect(merged.sync).toEqual(setting.sync);
-  });
+  it.each(["resourceManagement", "feed", "rssSubscription", "readLater"])(
+    "移除旧 %s 配置与排序，保留上传和同步设置",
+    key => {
+      const setting = structuredClone(useSettingStore.getState().setting);
+      Object.assign(setting.module, { [key]: { enable: true, name: "退役模块" } });
+      setting.moduleOrder = ["card", key, "settings"];
+      const merged = mergeSettingWithDefaults(setting);
+      expect(merged.module).not.toHaveProperty(key);
+      expect(merged.moduleOrder).not.toContain(key);
+      expect(merged.moduleOrder.slice(0, 2)).toEqual(["card", "settings"]);
+      expect(merged.imageBed).toEqual(setting.imageBed);
+      expect(merged.sync).toEqual(setting.sync);
+    }
+  );
   it("应保留 WeRead API Key，并在未配置时重置运行时连接状态", () => {
     const setting = structuredClone(useSettingStore.getState().setting);
     setting.integration.weread = {

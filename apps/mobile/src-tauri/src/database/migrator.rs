@@ -165,6 +165,17 @@ pub(super) fn needs_main_upgrade(conn: &Connection) -> Result<bool, String> {
 }
 
 pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
+    let retired_tables_exist: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name IN ('read_later','rss_entry','rss_subscription','rss_feed'))",
+        [], |row| row.get(0),
+    ).map_err(|e| format!("SUBSCRIPTION_RETIREMENT_FAILED: {e}"))?;
+    if retired_tables_exist {
+        if let Some(path) = conn.path().filter(|path| !path.is_empty() && *path != ":memory:") {
+            let backup = format!("{path}.pre-subscription-retirement-v1-{}.bak", uuid::Uuid::new_v4());
+            conn.execute("VACUUM INTO ?1", [&backup])
+                .map_err(|e| format!("SUBSCRIPTION_RETIREMENT_FAILED: 备份数据库失败: {e}"))?;
+        }
+    }
     conn.execute_batch(
         "
         PRAGMA journal_mode = WAL;
@@ -194,6 +205,11 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     {
         super::main_upgrade::upgrade(&tx, &baseline, now_millis())?;
     }
+    tx.execute_batch("DROP TABLE IF EXISTS read_later;
+        DROP TABLE IF EXISTS rss_entry;
+        DROP TABLE IF EXISTS rss_subscription;
+        DROP TABLE IF EXISTS rss_feed;")
+        .map_err(|e| format!("SUBSCRIPTION_RETIREMENT_FAILED: {e}"))?;
     super::knowledge_migration::migrate(&tx)?;
     super::main_upgrade::validate(&tx, &baseline)?;
     let broken_reference = tx

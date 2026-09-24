@@ -25,23 +25,15 @@ const HomePage = memo(() => {
 
   const desktopDocNav =
     docCollections.length > 0 ? (
-      <DocCollectionsMenu
-        collections={docCollections}
-        basePath={site.basePath}
-        variant="desktop"
-      />
+      <DocCollectionsMenu collections={docCollections} basePath={site.basePath} variant="desktop" />
     ) : undefined;
   const mobileDocNav =
     docCollections.length > 0 ? (
-      <DocCollectionsMenu
-        collections={docCollections}
-        basePath={site.basePath}
-        variant="mobile"
-      />
+      <DocCollectionsMenu collections={docCollections} basePath={site.basePath} variant="mobile" />
     ) : undefined;
   const docEntryLinks = docCollections
-    .filter((collection) => collection.items && collection.items.length > 0)
-    .map((collection) => ({
+    .filter(collection => collection.items && collection.items.length > 0)
+    .map(collection => ({
       label: collection.label,
       href: collection.items[0].href,
     }));
@@ -57,12 +49,11 @@ const HomePage = memo(() => {
         navigation={navigation}
         customNav={desktopDocNav}
         mobileCustomNav={mobileDocNav}
-        rssHref={initData.rss?.href}
         searchHref={initData.search?.href}
       />
 
       <main className="flex min-h-0 flex-1 items-stretch px-6 sm:px-8 lg:px-12">
-        <div className="mx-auto flex w-full max-w-6xl min-h-0 flex-1 items-center gap-12 lg:gap-20">
+        <div className="mx-auto flex min-h-0 w-full max-w-6xl flex-1 items-center gap-12 lg:gap-20">
           {/* 左栏：Hero + 逐字揭幕 */}
           {content.hero && (
             <div className="flex min-w-0 flex-1 flex-col justify-center py-12">
@@ -70,7 +61,7 @@ const HomePage = memo(() => {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ ...heroTransition, duration: 0.5 }}
-                className="mb-5 text-xs font-medium tracking-[0.25em] uppercase text-[var(--color-text-tertiary)]"
+                className="mb-5 text-xs font-medium uppercase tracking-[0.25em] text-[var(--color-text-tertiary)]"
               >
                 Welcome to my digital garden
               </motion.p>
@@ -142,7 +133,7 @@ const HomePage = memo(() => {
                   卡片
                 </a>
                 {docEntryLinks.length > 0
-                  ? docEntryLinks.map((entry) => (
+                  ? docEntryLinks.map(entry => (
                       <a
                         key={entry.label}
                         href={joinPath(site.basePath, entry.href)}
@@ -176,28 +167,25 @@ const HomePage = memo(() => {
               <motion.p
                 variants={fadeUp}
                 transition={defaultTransition}
-                className="mb-6 text-xs font-medium tracking-[0.2em] text-[var(--color-text-tertiary)] uppercase"
+                className="mb-6 text-xs font-medium uppercase tracking-[0.2em] text-[var(--color-text-tertiary)]"
               >
                 最近更新
               </motion.p>
 
               <div>
-                {recentItems.map((item) => (
+                {recentItems.map(item => (
                   <motion.a
                     key={`${item.type}-${item.id}`}
                     href={joinPath(site.basePath, item.href)}
                     variants={fadeUp}
                     transition={defaultTransition}
-                    className="group grid grid-cols-[5rem_1fr] items-baseline gap-4 rounded-lg py-3 transition-colors sm:px-3 sm:-mx-3 hover:bg-[var(--color-bg-canvas)]"
+                    className="group grid grid-cols-[5rem_1fr] items-baseline gap-4 rounded-lg py-3 transition-colors hover:bg-[var(--color-bg-canvas)] sm:-mx-3 sm:px-3"
                   >
                     <span className="text-xs tabular-nums text-[var(--color-text-tertiary)]">
                       {formatDate(item.publishTime, "short")}
                     </span>
-                    <span className="text-sm font-medium text-[var(--color-text-primary)] transition-colors group-hover:text-[var(--color-accent)] truncate">
-                      {truncate(
-                        item.title || item.summary,
-                        HOME_RECENT_ITEM_MAX_LENGTH,
-                      )}
+                    <span className="truncate text-sm font-medium text-[var(--color-text-primary)] transition-colors group-hover:text-[var(--color-accent)]">
+                      {truncate(item.title || item.summary, HOME_RECENT_ITEM_MAX_LENGTH)}
                     </span>
                   </motion.a>
                 ))}

@@ -70,3 +70,14 @@ CREATE TABLE IF NOT EXISTS read_later (
     tags TEXT,
     reading_progress REAL DEFAULT 0
 );
+
+CREATE INDEX idx_rss_entry_read ON rss_entry(is_read);
+INSERT INTO rss_feed(id,create_time,update_time,title,url) VALUES(1,1,1,'订阅','https://example.test/feed');
+INSERT INTO rss_subscription(id,create_time,update_time,feed_id) VALUES(1,1,1,1);
+INSERT INTO rss_entry(id,create_time,update_time,feed_id,guid,content,is_starred) VALUES(1,1,1,1,'entry','抓取正文',1);
+INSERT INTO read_later(id,create_time,update_time,source_type,source_id,title,content) VALUES(1,1,1,'rss_entry',1,'稍后读','稍后读正文');
+INSERT INTO contents(id,create_time,update_time,content,count,ref_count) VALUES(900,1,1,'[]',0,2);
+INSERT INTO articles(id,title,create_time,update_time,content_id) VALUES(900,'已另存文章',1,1,900);
+INSERT INTO project(id,create_time,update_time,title,children) VALUES(900,1,1,'项目','[900]');
+INSERT INTO project_item(id,create_time,update_time,title,content_id,projects) VALUES(900,1,1,'已另存文档',900,'[900]');
+INSERT INTO video_notes(id,create_time,update_time,meta_info) VALUES(900,1,1,'{}');

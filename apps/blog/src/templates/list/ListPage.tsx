@@ -5,11 +5,7 @@ import DocCollectionsMenu from "@blog/components/Layout/DocCollectionsMenu";
 import { Tag, Pagination, ScrollToTop } from "@blog/components/Common";
 import { getInitData, formatDate, joinPath } from "@blog/utils";
 import { CardTagTree, ListData, ListItem } from "@blog/types";
-import {
-  fadeUp,
-  staggerContainer,
-  defaultTransition,
-} from "@blog/utils/motion";
+import { fadeUp, staggerContainer, defaultTransition } from "@blog/utils/motion";
 import "@tau/themes/light.less";
 import "@tau/themes/dark.less";
 
@@ -30,11 +26,7 @@ function matchesTag(tag: string, activeTag: string): boolean {
   return tag === activeTag || tag.startsWith(`${activeTag}/`);
 }
 
-function buildListBasePath(
-  basePath: string,
-  type: ListData["type"],
-  activeTag?: string,
-): string {
+function buildListBasePath(basePath: string, type: ListData["type"], activeTag?: string): string {
   const listHref = joinPath(basePath, `/${type}s`);
 
   if (!activeTag) {
@@ -58,10 +50,7 @@ function buildCardTagTree(items: ListItem[]): CardTagTree[] {
 
   const root = new Map<string, MutableCardTagTreeNode>();
 
-  const getOrCreateNode = (
-    parent: Map<string, MutableCardTagTreeNode>,
-    tag: string,
-  ) => {
+  const getOrCreateNode = (parent: Map<string, MutableCardTagTreeNode>, tag: string) => {
     const existing = parent.get(tag);
 
     if (existing) {
@@ -78,19 +67,19 @@ function buildCardTagTree(items: ListItem[]): CardTagTree[] {
     return node;
   };
 
-  items.forEach((item) => {
+  items.forEach(item => {
     const countedPaths = new Set<string>();
 
-    item.tags.forEach((rawTag) => {
+    item.tags.forEach(rawTag => {
       const segments = rawTag
         .split("/")
-        .map((segment) => segment.trim())
+        .map(segment => segment.trim())
         .filter(Boolean);
 
       let parent = root;
       let fullTag = "";
 
-      segments.forEach((segment) => {
+      segments.forEach(segment => {
         fullTag = fullTag ? `${fullTag}/${segment}` : segment;
         const node = getOrCreateNode(parent, segment);
 
@@ -104,12 +93,10 @@ function buildCardTagTree(items: ListItem[]): CardTagTree[] {
     });
   });
 
-  const toTree = (
-    nodeMap: Map<string, MutableCardTagTreeNode>,
-  ): CardTagTree[] =>
+  const toTree = (nodeMap: Map<string, MutableCardTagTreeNode>): CardTagTree[] =>
     [...nodeMap.values()]
       .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, "zh-CN"))
-      .map((node) => ({
+      .map(node => ({
         tag: node.tag,
         count: node.count,
         cards: [],
@@ -119,96 +106,88 @@ function buildCardTagTree(items: ListItem[]): CardTagTree[] {
   return toTree(root);
 }
 
-const ArticleListRow = memo(
-  ({ item, basePath }: { item: ListItem; basePath: string }) => (
-    <a
-      href={joinPath(basePath, item.href)}
-      className="group grid grid-cols-1 gap-2 rounded-xl py-8 transition-colors hover:bg-[var(--color-bg-canvas)] md:grid-cols-[7rem_1fr] md:gap-8 md:px-4 md:-mx-4"
-    >
-      <div className="shrink-0 text-sm tabular-nums text-[var(--color-text-tertiary)] md:pt-1.5">
-        {formatDate(item.createTime)}
-      </div>
-      <div className="min-w-0 flex-1">
-        {item.title && (
-          <h3 className="text-xl font-semibold leading-tight text-[var(--color-text-primary)] transition-colors group-hover:text-[var(--color-accent)]">
-            {item.title}
-          </h3>
-        )}
-        <p className="mt-2 line-clamp-2 text-sm leading-[1.8] text-[var(--color-text-secondary)]">
-          {item.summary}
-        </p>
-        {item.tags.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {item.tags.map((tag) => (
-              <Tag key={tag} name={tag} size="sm" />
-            ))}
-          </div>
-        )}
-      </div>
-    </a>
-  ),
-);
+const ArticleListRow = memo(({ item, basePath }: { item: ListItem; basePath: string }) => (
+  <a
+    href={joinPath(basePath, item.href)}
+    className="group grid grid-cols-1 gap-2 rounded-xl py-8 transition-colors hover:bg-[var(--color-bg-canvas)] md:-mx-4 md:grid-cols-[7rem_1fr] md:gap-8 md:px-4"
+  >
+    <div className="shrink-0 text-sm tabular-nums text-[var(--color-text-tertiary)] md:pt-1.5">
+      {formatDate(item.createTime)}
+    </div>
+    <div className="min-w-0 flex-1">
+      {item.title && (
+        <h3 className="text-xl font-semibold leading-tight text-[var(--color-text-primary)] transition-colors group-hover:text-[var(--color-accent)]">
+          {item.title}
+        </h3>
+      )}
+      <p className="mt-2 line-clamp-2 text-sm leading-[1.8] text-[var(--color-text-secondary)]">
+        {item.summary}
+      </p>
+      {item.tags.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {item.tags.map(tag => (
+            <Tag key={tag} name={tag} size="sm" />
+          ))}
+        </div>
+      )}
+    </div>
+  </a>
+));
 
 ArticleListRow.displayName = "ArticleListRow";
 
-const CardListRow = memo(
-  ({ item, basePath }: { item: ListItem; basePath: string }) => (
-    <a
-      href={joinPath(basePath, item.href)}
-      className="group grid grid-cols-1 gap-2 rounded-xl py-6 transition-colors hover:bg-[var(--color-bg-canvas)] md:grid-cols-[7rem_1fr] md:gap-8 md:px-4 md:-mx-4"
-    >
-      <div className="shrink-0 text-sm tabular-nums text-[var(--color-text-tertiary)] md:pt-0.5">
-        {formatDate(item.createTime)}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="line-clamp-3 text-sm leading-[1.9] text-[var(--color-text-secondary)] transition-colors group-hover:text-[var(--color-text-primary)]">
-          {item.summary}
-        </p>
-        {item.tags.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {item.tags.map((tag) => (
-              <Tag key={tag} name={tag} size="sm" />
-            ))}
-          </div>
-        )}
-      </div>
-    </a>
-  ),
-);
+const CardListRow = memo(({ item, basePath }: { item: ListItem; basePath: string }) => (
+  <a
+    href={joinPath(basePath, item.href)}
+    className="group grid grid-cols-1 gap-2 rounded-xl py-6 transition-colors hover:bg-[var(--color-bg-canvas)] md:-mx-4 md:grid-cols-[7rem_1fr] md:gap-8 md:px-4"
+  >
+    <div className="shrink-0 text-sm tabular-nums text-[var(--color-text-tertiary)] md:pt-0.5">
+      {formatDate(item.createTime)}
+    </div>
+    <div className="min-w-0 flex-1">
+      <p className="line-clamp-3 text-sm leading-[1.9] text-[var(--color-text-secondary)] transition-colors group-hover:text-[var(--color-text-primary)]">
+        {item.summary}
+      </p>
+      {item.tags.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {item.tags.map(tag => (
+            <Tag key={tag} name={tag} size="sm" />
+          ))}
+        </div>
+      )}
+    </div>
+  </a>
+));
 
 CardListRow.displayName = "CardListRow";
 
-const QuestListRow = memo(
-  ({ item, basePath }: { item: ListItem; basePath: string }) => (
-    <a
-      href={joinPath(basePath, item.href)}
-      className="group grid grid-cols-1 gap-2 rounded-xl py-7 transition-colors hover:bg-[var(--color-bg-canvas)] md:grid-cols-[7rem_1fr] md:gap-8 md:px-4 md:-mx-4"
-    >
-      <div className="shrink-0 text-sm tabular-nums text-[var(--color-text-tertiary)] md:pt-1">
-        {formatDate(item.updateTime || item.createTime)}
+const QuestListRow = memo(({ item, basePath }: { item: ListItem; basePath: string }) => (
+  <a
+    href={joinPath(basePath, item.href)}
+    className="group grid grid-cols-1 gap-2 rounded-xl py-7 transition-colors hover:bg-[var(--color-bg-canvas)] md:-mx-4 md:grid-cols-[7rem_1fr] md:gap-8 md:px-4"
+  >
+    <div className="shrink-0 text-sm tabular-nums text-[var(--color-text-tertiary)] md:pt-1">
+      {formatDate(item.updateTime || item.createTime)}
+    </div>
+    <div className="min-w-0 flex-1">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        {item.groupTitle && <Tag name={item.groupTitle} size="sm" />}
+        {item.status && (
+          <span className="tag">{questStatusLabels[item.status] || item.status}</span>
+        )}
+        <span className="text-xs text-[var(--color-text-tertiary)]">
+          {item.answerCount || 0} 答案
+        </span>
       </div>
-      <div className="min-w-0 flex-1">
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          {item.groupTitle && <Tag name={item.groupTitle} size="sm" />}
-          {item.status && (
-            <span className="tag">
-              {questStatusLabels[item.status] || item.status}
-            </span>
-          )}
-          <span className="text-xs text-[var(--color-text-tertiary)]">
-            {item.answerCount || 0} 答案
-          </span>
-        </div>
-        <h3 className="line-clamp-2 text-xl font-semibold leading-tight text-[var(--color-text-primary)] transition-colors group-hover:text-[var(--color-accent)]">
-          {item.title || item.summary}
-        </h3>
-        <p className="mt-2 line-clamp-2 text-sm leading-[1.8] text-[var(--color-text-secondary)]">
-          {item.summary}
-        </p>
-      </div>
-    </a>
-  ),
-);
+      <h3 className="line-clamp-2 text-xl font-semibold leading-tight text-[var(--color-text-primary)] transition-colors group-hover:text-[var(--color-accent)]">
+        {item.title || item.summary}
+      </h3>
+      <p className="mt-2 line-clamp-2 text-sm leading-[1.8] text-[var(--color-text-secondary)]">
+        {item.summary}
+      </p>
+    </div>
+  </a>
+));
 
 QuestListRow.displayName = "QuestListRow";
 
@@ -220,19 +199,11 @@ const ListPage = memo(() => {
 
   const desktopDocNav =
     docCollections.length > 0 ? (
-      <DocCollectionsMenu
-        collections={docCollections}
-        basePath={site.basePath}
-        variant="desktop"
-      />
+      <DocCollectionsMenu collections={docCollections} basePath={site.basePath} variant="desktop" />
     ) : undefined;
   const mobileDocNav =
     docCollections.length > 0 ? (
-      <DocCollectionsMenu
-        collections={docCollections}
-        basePath={site.basePath}
-        variant="mobile"
-      />
+      <DocCollectionsMenu collections={docCollections} basePath={site.basePath} variant="mobile" />
     ) : undefined;
 
   const listTitle = list.title || `全部${typeLabels[list.type] || "内容"}`;
@@ -243,19 +214,12 @@ const ListPage = memo(() => {
     typeof window !== "undefined"
       ? new URLSearchParams(window.location.search).get("tag") || ""
       : "";
-  const initialActiveTag = (
-    getLocationTag() ||
-    initData.activeTag ||
-    list.activeTag ||
-    ""
-  ).trim();
+  const initialActiveTag = (getLocationTag() || initData.activeTag || list.activeTag || "").trim();
   const [activeTag, setActiveTag] = useState(initialActiveTag);
 
   useEffect(() => {
     const syncActiveTag = () => {
-      setActiveTag(
-        (getLocationTag() || initData.activeTag || list.activeTag || "").trim(),
-      );
+      setActiveTag((getLocationTag() || initData.activeTag || list.activeTag || "").trim());
     };
 
     window.addEventListener("popstate", syncActiveTag);
@@ -278,22 +242,18 @@ const ListPage = memo(() => {
           ? initData.cardTagTree
           : buildCardTagTree(list.items)
         : [],
-    [initData.cardTagTree, isCardList, list.items],
+    [initData.cardTagTree, isCardList, list.items]
   );
 
   const filteredItems = useMemo(
     () =>
       isCardList && activeTag
-        ? list.items.filter((item) =>
-            item.tags.some((tag) => matchesTag(tag, activeTag)),
-          )
+        ? list.items.filter(item => item.tags.some(tag => matchesTag(tag, activeTag)))
         : list.items,
-    [activeTag, isCardList, list.items],
+    [activeTag, isCardList, list.items]
   );
 
-  const serverFilteredByTag = Boolean(
-    activeTag && (initData.activeTag || list.activeTag),
-  );
+  const serverFilteredByTag = Boolean(activeTag && (initData.activeTag || list.activeTag));
   const totalCount = activeTag
     ? serverFilteredByTag
       ? list.pagination?.total || filteredItems.length
@@ -302,7 +262,7 @@ const ListPage = memo(() => {
   const paginationBasePath = buildListBasePath(
     site.basePath,
     list.type,
-    isCardList ? activeTag : undefined,
+    isCardList ? activeTag : undefined
   );
 
   return (
@@ -313,7 +273,6 @@ const ListPage = memo(() => {
         navigation={navigation}
         customNav={desktopDocNav}
         mobileCustomNav={mobileDocNav}
-        rssHref={initData.rss?.href}
         searchHref={initData.search?.href}
       />
 
@@ -333,10 +292,7 @@ const ListPage = memo(() => {
               </div>
 
               <section className="min-h-0 min-w-0">
-                <div
-                  className="panel-scroll-area"
-                  data-primary-scroll-container
-                >
+                <div className="panel-scroll-area" data-primary-scroll-container>
                   <div className="mx-auto max-w-4xl">
                     <motion.div
                       className="mb-10"
@@ -363,7 +319,7 @@ const ListPage = memo(() => {
                         initial="hidden"
                         animate="visible"
                       >
-                        {filteredItems.map((item) => (
+                        {filteredItems.map(item => (
                           <motion.div
                             key={item.id}
                             variants={fadeUp}
@@ -375,12 +331,8 @@ const ListPage = memo(() => {
                       </motion.div>
                     ) : (
                       <div className="empty-state content-panel">
-                        <p className="text-base font-medium">
-                          当前标签下暂无卡片
-                        </p>
-                        <p className="mt-1 text-sm">
-                          可以切换左侧标签，或返回全部卡片查看完整内容
-                        </p>
+                        <p className="text-base font-medium">当前标签下暂无卡片</p>
+                        <p className="mt-1 text-sm">可以切换左侧标签，或返回全部卡片查看完整内容</p>
                       </div>
                     )}
                   </div>
@@ -416,17 +368,10 @@ const ListPage = memo(() => {
                     initial="hidden"
                     animate="visible"
                   >
-                    {filteredItems.map((item) => (
-                      <motion.div
-                        key={item.id}
-                        variants={fadeUp}
-                        transition={defaultTransition}
-                      >
+                    {filteredItems.map(item => (
+                      <motion.div key={item.id} variants={fadeUp} transition={defaultTransition}>
                         {isArticleList ? (
-                          <ArticleListRow
-                            item={item}
-                            basePath={site.basePath}
-                          />
+                          <ArticleListRow item={item} basePath={site.basePath} />
                         ) : isQuestList ? (
                           <QuestListRow item={item} basePath={site.basePath} />
                         ) : (
@@ -443,17 +388,16 @@ const ListPage = memo(() => {
                 )}
 
                 {/* 分页 */}
-                {list.pagination &&
-                  list.pagination.total > list.pagination.pageSize && (
-                    <div className="mt-16">
-                      <Pagination
-                        current={list.pagination.current}
-                        total={list.pagination.total}
-                        pageSize={list.pagination.pageSize}
-                        basePath={paginationBasePath}
-                      />
-                    </div>
-                  )}
+                {list.pagination && list.pagination.total > list.pagination.pageSize && (
+                  <div className="mt-16">
+                    <Pagination
+                      current={list.pagination.current}
+                      total={list.pagination.total}
+                      pageSize={list.pagination.pageSize}
+                      basePath={paginationBasePath}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -296,7 +296,7 @@ export function SiteSettingsDrawer({
             </>
           )}
 
-          <SectionHead title="站点信息" hint="写入首页、RSS 与页面 meta" />
+          <SectionHead title="站点信息" hint="写入首页与页面 meta" />
           <div className="grid grid-cols-2 gap-3">
             <Field label="站点标题">
               <Input
@@ -305,7 +305,7 @@ export function SiteSettingsDrawer({
                 onChange={e => config.setSiteField("title", e.target.value)}
               />
             </Field>
-            <Field label="公开 URL" hint="RSS 用">
+            <Field label="公开 URL" hint="用于打开已发布站点">
               <Input
                 className="font-tau-mono"
                 value={publish.site.publicUrl}

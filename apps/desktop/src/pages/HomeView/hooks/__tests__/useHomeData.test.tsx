@@ -24,12 +24,6 @@ vi.mock("@/commands/pomodoro", () => ({
   listPomodoroSessions: vi.fn(),
 }));
 
-vi.mock("@/commands/rss", () => ({
-  countUnreadRssEntries: vi.fn(),
-  listUnreadRssEntries: vi.fn(),
-  listRssFeeds: vi.fn(),
-}));
-
 vi.mock("@/commands/operation", () => ({
   getLatestOperations: vi.fn(),
 }));
@@ -68,7 +62,6 @@ vi.mock("@/stores/useBackendWebsocketStore", () => ({
 const workbenchCommands = await import("@/commands/components-workbench");
 const flashcardCommands = await import("@/commands/flashcard");
 const pomodoroCommands = await import("@/commands/pomodoro");
-const rssCommands = await import("@/commands/rss");
 const operationCommands = await import("@/commands/operation");
 const statisticCommands = await import("@/commands/statistic");
 const diaryCommands = await import("@/commands/diary");
@@ -166,9 +159,6 @@ const setupSuccessfulCommands = () => {
     { id: 1, name: "专注" } as any,
   ]);
   vi.mocked(pomodoroCommands.listPomodoroSessions).mockResolvedValue([]);
-  vi.mocked(rssCommands.countUnreadRssEntries).mockResolvedValue(4);
-  vi.mocked(rssCommands.listUnreadRssEntries).mockResolvedValue([{ id: 1, title: "rss" } as any]);
-  vi.mocked(rssCommands.listRssFeeds).mockResolvedValue([{ id: 1, title: "feed" } as any]);
   vi.mocked(operationCommands.getLatestOperations).mockResolvedValue({
     cards: [{ id: 1 }] as any,
     articles: [],
@@ -239,7 +229,6 @@ const waitForLoaded = async (hook: { current: HookValue }) => {
       loading: hook.current.data.loading,
       pendingTodos: hook.current.data.summary.pendingTodos,
       todoCalls: vi.mocked(workbenchCommands.listTodoPreview).mock.calls.length,
-      rssError: hook.current.data.errors.rss?.message,
     })}`
   );
 };
@@ -272,7 +261,6 @@ describe("useHomeData", () => {
     expect(hook.current.data.loading).toBe(false);
     expect(hook.current.data.summary.pendingTodos).toBe(2);
     expect(hook.current.data.summary.flashcardsDue).toBe(3);
-    expect(hook.current.data.summary.rssUnread).toBe(4);
     expect(pomodoroCommands.listPomodoroSessions).toHaveBeenCalledWith({
       start: new Date(2026, 5, 21, 0, 0, 0, 0).getTime(),
       end: new Date(2026, 5, 21, 23, 59, 59, 999).getTime(),
@@ -334,28 +322,6 @@ describe("useHomeData", () => {
     await secondHook.unmount();
   });
 
-  it("局部刷新 RSS 时只刷新 RSS query", async () => {
-    const queryClient = createQueryClient();
-    const hook = mountHook(queryClient);
-
-    await hook.render();
-    await waitForLoaded(hook);
-
-    vi.mocked(rssCommands.countUnreadRssEntries).mockResolvedValue(7);
-
-    await act(async () => {
-      await hook.current.refreshRss();
-    });
-    await flushPromises();
-
-    expect(hook.current.data.summary.rssUnread).toBe(7);
-    expect(rssCommands.countUnreadRssEntries).toHaveBeenCalledTimes(2);
-    expect(workbenchCommands.listTodoPreview).toHaveBeenCalledTimes(1);
-    expect(flashcardCommands.getFlashcardReviewQueue).toHaveBeenCalledTimes(1);
-
-    await hook.unmount();
-  });
-
   it("局部刷新闪卡时只刷新 flashcard query", async () => {
     const queryClient = createQueryClient();
     const hook = mountHook(queryClient);
@@ -375,7 +341,6 @@ describe("useHomeData", () => {
     expect(hook.current.data.summary.flashcardsDue).toBe(8);
     expect(flashcardCommands.getFlashcardReviewQueue).toHaveBeenCalledTimes(2);
     expect(workbenchCommands.listTodoPreview).toHaveBeenCalledTimes(1);
-    expect(rssCommands.countUnreadRssEntries).toHaveBeenCalledTimes(1);
 
     await hook.unmount();
   });
@@ -438,7 +403,9 @@ describe("useHomeData", () => {
   });
 
   it("某个 query 失败时保留其他分组数据并暴露错误", async () => {
-    vi.mocked(rssCommands.countUnreadRssEntries).mockRejectedValue(new Error("rss failed"));
+    vi.mocked(workbenchCommands.listQuestionPreview).mockRejectedValue(
+      new Error("question failed")
+    );
     const queryClient = createQueryClient();
     const hook = mountHook(queryClient);
 
@@ -448,7 +415,7 @@ describe("useHomeData", () => {
     const data: HomeData = hook.current.data;
     expect(data.summary.pendingTodos).toBe(2);
     expect(data.summary.flashcardsDue).toBe(3);
-    expect(data.errors.rss?.message).toBe("rss failed");
+    expect(data.errors.question?.message).toBe("question failed");
 
     await hook.unmount();
   });

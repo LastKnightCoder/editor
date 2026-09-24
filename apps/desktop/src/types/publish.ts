@@ -202,9 +202,6 @@ export interface IPublishInitData {
     };
   };
   navigation: Array<{ label: string; href: string }>;
-  rss?: {
-    href: string;
-  };
   cardTagTree?: IPublishCardTagTree[];
   activeTag?: string;
   articleList?: IPublishArticleListItem[];

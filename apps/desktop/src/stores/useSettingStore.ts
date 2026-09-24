@@ -66,9 +66,6 @@ export const DEFAULT_MODULE_ORDER = [
   "pomodoro",
   "todo",
   "question",
-  "rssSubscription",
-  "readLater",
-  "feed",
   "collaboration",
   "weread",
   "webview",
@@ -335,18 +332,6 @@ export interface ISetting {
     weread: {
       enable: boolean;
       name: "微信读书";
-    };
-    rssSubscription: {
-      enable: boolean;
-      name: "RSS 订阅";
-    };
-    readLater: {
-      enable: boolean;
-      name: "稍后读";
-    };
-    feed: {
-      enable: boolean;
-      name: "信息流";
     };
     collaboration: {
       enable: boolean;
@@ -649,6 +634,8 @@ const loadCachedSetting = (): Partial<ISetting> | null => {
   try {
     const cached = window.localStorage.getItem(SETTING_CACHE_KEY);
     window.localStorage.removeItem("resource-store");
+    window.localStorage.removeItem("rss-store");
+    window.localStorage.removeItem("read-later-store");
     if (!cached) {
       return null;
     }
@@ -805,18 +792,6 @@ const initialState: IState = {
       weread: {
         enable: true,
         name: "微信读书",
-      },
-      rssSubscription: {
-        enable: true,
-        name: "RSS 订阅",
-      },
-      readLater: {
-        enable: true,
-        name: "稍后读",
-      },
-      feed: {
-        enable: true,
-        name: "信息流",
       },
       collaboration: {
         enable: true,

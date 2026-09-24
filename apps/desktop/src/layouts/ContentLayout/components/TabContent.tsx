@@ -27,7 +27,6 @@ const WeReadPage = lazy(() => import("@/pages/WeRead"));
 const WebViewPage = lazy(() => import("@/pages/WebViewPage"));
 const FlashcardCenterPage = lazy(() => import("@/pages/FlashcardCenter"));
 const BlockPreviewPage = lazy(() => import("@/pages/BlockPreviewPage"));
-const FeedViewPage = lazy(() => import("@/pages/FeedView"));
 
 interface TabContentProps {
   tab: ITab;
@@ -124,15 +123,6 @@ const TabContent = memo((props: TabContentProps) => {
 
       case TabType.BlockPreview:
         return <BlockPreviewPage />;
-
-      case TabType.RssSubscription:
-        return <FeedViewPage />;
-
-      case TabType.ReadLater:
-        return <FeedViewPage />;
-
-      case TabType.Feed:
-        return <FeedViewPage />;
 
       default:
         return (

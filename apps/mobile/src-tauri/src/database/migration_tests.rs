@@ -1,6 +1,85 @@
 use super::*;
 
 #[test]
+fn subscription_retirement_preserves_saved_content_and_repeats() {
+    let conn = Connection::open_in_memory().unwrap();
+    ensure_main_schema(&conn).unwrap();
+    conn.execute_batch(include_str!("../../../../../packages/db-schema/fixtures/subscription-retirement.sql")).unwrap();
+    ensure_main_schema(&conn).unwrap();
+    ensure_main_schema(&conn).unwrap();
+    let retired: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE name IN ('rss_feed','rss_subscription','rss_entry','read_later','idx_rss_entry_read')",
+        [], |r| r.get(0),
+    ).unwrap();
+    assert_eq!(retired, 0);
+    for table in ["contents", "articles", "project", "project_item", "video_notes"] {
+        let count: i64 = conn.query_row(&format!("SELECT COUNT(*) FROM {table} WHERE id=900"), [], |r| r.get(0)).unwrap();
+        assert_eq!(count, 1, "{table} 不得删除");
+    }
+}
+
+#[test]
+fn subscription_retirement_failure_rolls_back() {
+    let conn = Connection::open_in_memory().unwrap();
+    ensure_main_schema(&conn).unwrap();
+    conn.execute_batch("CREATE TABLE read_later(id INTEGER); INSERT INTO read_later VALUES(42);
+        CREATE VIEW rss_entry AS SELECT 1;").unwrap();
+    assert!(ensure_main_schema(&conn).is_err());
+    let id: i64 = conn.query_row("SELECT id FROM read_later", [], |r| r.get(0)).unwrap();
+    assert_eq!(id, 42);
+}
+
+#[test]
+fn subscription_retirement_snapshots_wal_and_restored_databases() {
+    let dir = std::env::temp_dir().join(format!("tau-retirement-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("data.db");
+    {
+        let conn = Connection::open(&path).unwrap();
+        ensure_main_schema(&conn).unwrap();
+        conn.execute_batch("PRAGMA wal_autocheckpoint=0;").unwrap();
+        conn.execute_batch(include_str!("../../../../../packages/db-schema/fixtures/subscription-retirement.sql")).unwrap();
+        ensure_main_schema(&conn).unwrap();
+        ensure_main_schema(&conn).unwrap();
+    }
+    let backups: Vec<_> = std::fs::read_dir(&dir).unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.to_string_lossy().contains(".pre-subscription-retirement-v1-"))
+        .collect();
+    assert_eq!(backups.len(), 1);
+    {
+        let snapshot = Connection::open(&backups[0]).unwrap();
+        let content: String = snapshot.query_row("SELECT content FROM rss_entry", [], |r| r.get(0)).unwrap();
+        assert_eq!(content, "抓取正文");
+    }
+    std::fs::copy(&backups[0], &path).unwrap();
+    {
+        let restored = Connection::open(&path).unwrap();
+        ensure_main_schema(&restored).unwrap();
+        let remaining: i64 = restored.query_row("SELECT count(*) FROM sqlite_master WHERE name='rss_entry'", [], |r| r.get(0)).unwrap();
+        assert_eq!(remaining, 0);
+    }
+    assert_eq!(std::fs::read_dir(&dir).unwrap().filter_map(Result::ok)
+        .filter(|entry| entry.file_name().to_string_lossy().contains(".pre-subscription-retirement-v1-")).count(), 2);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn subscription_retirement_backup_failure_preserves_data() {
+    let dir = std::env::temp_dir().join(format!("tau-retirement-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+    {
+        let conn = Connection::open(dir.join("data.db")).unwrap();
+        conn.execute_batch("CREATE TABLE read_later(id INTEGER); INSERT INTO read_later VALUES(42); BEGIN;").unwrap();
+        assert!(ensure_main_schema(&conn).unwrap_err().contains("备份数据库失败"));
+        let id: i64 = conn.query_row("SELECT id FROM read_later", [], |r| r.get(0)).unwrap();
+        assert_eq!(id, 42);
+        conn.execute_batch("ROLLBACK;").unwrap();
+    }
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
 fn resource_retirement_preserves_attachments_and_repeats() {
     let conn = Connection::open_in_memory().unwrap();
     conn.execute_batch(MAIN_SCHEMA_SQL).unwrap();
