@@ -1,6 +1,6 @@
 /**
  * 今日页数据契约 v3（行式布局：行动三卡 / 继续编辑三栏 / 热力图 / 统计四卡）。
- * 注意：番茄钟与日程是两个独立模块——专注数据走 pomodoro 命令、打开走 openPomodoroWindow；
+ * 注意：番茄钟与日程是两个独立模块——专注数据走 pomodoro 命令、入口跳 pomodoro 页；
  * 日程走 calendar 命令与 schedule page。
  */
 
