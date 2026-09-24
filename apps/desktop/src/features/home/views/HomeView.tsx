@@ -3,7 +3,7 @@
  * hero 条 → 行动三卡（复习/待办/日程，内容等量）→ 继续编辑（全宽三栏）→
  * 热力图（直接复用旧 CalendarHeatmap）→ 统计四卡（sparkline）。
  *
- * 模块分工：专注 = 番茄钟（openPomodoroWindow 独立窗口 / pomodoro 命令）；
+ * 模块分工：专注 = 番茄钟（pomodoro 页 / pomodoro 命令）；
  * 日程 = calendar 命令 + schedule page。两者独立，勿混用。
  *
  * 容器查询响应式（@container 在根、@max-[…] 断点在行容器）：1400/1180/860 三档。
@@ -12,7 +12,6 @@
 import { useState } from "react";
 import clsx from "clsx";
 import { ChevronRight } from "lucide-react";
-import { openPomodoroWindow } from "@/commands";
 import { usePage } from "@/page/PageProvider";
 import {
   useEdgeFade,
@@ -64,8 +63,8 @@ export function HomeView() {
         <span className="text-tau-sm text-ink-2 ml-auto flex items-baseline gap-2">
           <button
             type="button"
-            title="打开番茄钟"
-            onClick={() => openPomodoroWindow()}
+            title="前往番茄专注"
+            onClick={() => navigator.push("pomodoro")}
             className="text-inherit"
           >
             已专注{" "}
