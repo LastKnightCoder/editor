@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<title>闪卡 · B 卡组工作台 — Tau 桌面端</title>
+<!--
+  【视觉参考，非导出源】（D-001）
+  B · 卡组工作台 —— 「整理卡片」优先（Anki 浏览器 / Things 三栏谱系）：
+  左列卡组导航（融在纸面上，不成卡）→ 中板卡片列表（一整块 surface）→ 右板常驻检查器（一整块 surface）。
+  设计要点：
+  ① 选中即看：检查器默认「预览」，Space 翻面看答案；E 或双击切「编辑」，就地改、⌘↵ 保存——编辑全程不开弹窗；
+  ② 新建闪卡也在检查器里完成，保存后自动开始下一张（连续录入）；
+  ③ 复习 = 居中 Dialog：压暗工作台但不离开，复习完回到原选中位置；
+  ④ 键盘：↑↓ 选卡、Space 翻面、E 编辑、⌫ 删除（可撤销）、R 复习当前范围、N 新建。
+-->
+<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="flashcard.css">
+<style>
+.page { padding: 0 22px 0 18px; }
+.body { flex: 1; min-height: 0; display: grid; grid-template-columns: 192px minmax(0, 1fr) clamp(320px, 29vw, 420px); gap: 18px; padding: 2px 0 20px; }
+.board { background: var(--bg-surface); border-radius: 16px; box-shadow: var(--shadow-card); min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+/* 左列：卡组导航（透明底，融于纸面） */
+.decknav { min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 2px 0 12px; display: flex; flex-direction: column; }
+.dn-label { display: flex; align-items: center; font-size: 11px; color: var(--ink-3); padding: 12px 10px 5px; }
+.dn-label .icon-btn { margin-left: auto; width: 20px; height: 20px; }
+.dn-item { display: flex; align-items: center; gap: 9px; width: 100%; height: 32px; padding: 0 8px 0 10px; border-radius: 9px; font-size: 13px; color: var(--ink-2); text-align: left; }
+.dn-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.dn-item.active { background: var(--bg-selected); color: var(--accent-text); font-weight: 500; }
+.dn-item .icon { width: 15px; height: 15px; }
+.dn-item .deck-mark.sm { width: 18px; height: 18px; font-size: 10px; }
+.dn-item .n { margin-left: auto; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.dn-item .n.due { color: var(--accent-text); font-weight: 600; }
+.dn-item span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dn-foot { margin-top: auto; padding: 14px 10px 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.7; }
+.dn-foot b { color: var(--ink-2); font-weight: 600; }
+
+/* 中板：卡片列表 */
+.lh { display: flex; align-items: center; gap: 12px; padding: 16px 18px 6px 20px; flex: none; }
+.lh h2 { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
+.lh .meta { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.lf { display: flex; align-items: center; gap: 8px; padding: 4px 18px 8px 20px; flex: none; }
+.list { flex: 1; padding: 2px 10px 18px; }
+.row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; column-gap: 12px; padding: 8px 10px; border-radius: 10px; cursor: default; }
+.row:hover { background: var(--bg-hover); }
+.row.sel { background: var(--bg-selected); }
+.row .ti { width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; background: var(--bg-hover); color: var(--ink-2); }
+.row.sel .ti { background: var(--bg-surface); color: var(--accent-text); }
+.row .ti .icon { width: 12px; height: 12px; }
+.row .q { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .q code { font: 0.9em var(--mono); }
+.row .sub { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.row .sub .dk { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; }
+.row .sub .deck-mark.sm { width: 14px; height: 14px; font-size: 8px; border-radius: 4px; }
+.row .end { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.row.susp .q { color: var(--ink-3); }
+.grp { font-size: 11.5px; color: var(--ink-3); padding: 12px 10px 4px; display: flex; gap: 6px; position: sticky; top: 0; z-index: 2;
+  background: linear-gradient(180deg, var(--bg-surface) calc(100% - 6px), transparent); }
+.grp b { color: var(--ink-2); font-weight: 600; }
+
+/* 右板：检查器 */
+.ih { display: flex; align-items: center; gap: 8px; padding: 12px 14px 4px 18px; flex: none; }
+.ih .spacer { flex: 1; }
+.ib { flex: 1; padding: 8px 18px 18px; }
+.if { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 14px 14px 18px; }
+.if .hint { font-size: 11.5px; color: var(--ink-3); display: flex; gap: 5px; align-items: center; }
+.face { border: 1px solid var(--line-1); border-radius: 14px; padding: 16px 18px 18px; position: relative; min-height: 150px; }
+.face .side-tag { position: absolute; top: 10px; right: 12px; font-size: 11px; color: var(--ink-3); }
+.face .fq { font-size: 15px; line-height: 1.75; font-weight: 500; padding-right: 32px; }
+.face .fq code, .face .fa code { font: 0.88em var(--mono); background: var(--bg-hover); padding: 1px 5px; border-radius: 5px; }
+.face .opts { margin-top: 12px; display: flex; flex-direction: column; gap: 5px; }
+.face .opts div { display: flex; gap: 9px; align-items: center; font-size: 13px; color: var(--ink-2); padding: 5px 9px; border-radius: 8px; }
+.face .opts div .k { font: 600 10.5px/1 var(--mono); width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; background: var(--bg-hover); flex: none; }
+.face.back .opts div.ok { background: var(--ok-soft); color: var(--ink-1); }
+.face.back .opts div.ok .k { background: var(--ok); color: var(--ink-inverse); }
+.face .fa { margin-top: 12px; font-size: 13px; line-height: 1.7; }
+.face .fa h4 { font-size: 11.5px; color: var(--ink-3); font-weight: 500; margin: 10px 0 2px; }
+.face .fa h4:first-child { margin-top: 0; }
+.flipbtn { margin-top: 10px; display: flex; justify-content: center; }
+.props { display: grid; grid-template-columns: 64px 1fr; gap: 8px 12px; margin-top: 18px; font-size: 12.5px; align-items: center; }
+.props .k { color: var(--ink-3); }
+.props .v { color: var(--ink-1); min-width: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.lvl { display: flex; gap: 2px; }
+.lvl i { width: 10px; height: 5px; border-radius: 2px; background: var(--bg-track); }
+.lvl i.on { background: var(--ok); }
+.hist { display: flex; gap: 3px; }
+.hist i { width: 8px; height: 8px; border-radius: 50%; }
+.empty-i { height: 100%; display: grid; place-items: center; text-align: center; color: var(--ink-3); font-size: 12.5px; }
+
+/* 复习 Dialog */
+.rv-dlg-head { display: flex; align-items: center; gap: 12px; padding: 14px 14px 4px 22px; }
+.rv-dlg-head .scope { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
+.rv-dlg-head .progress { flex: 1; }
+.rv-dlg-head .count { font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rv-dlg-body { padding: 14px 34px 26px; overflow-y: auto; min-height: 420px; }
+.rv-dlg-foot { display: flex; gap: 12px; padding: 0 22px 14px; font-size: 11px; color: var(--ink-3); justify-content: center; }
+.rv-dlg-foot span { display: inline-flex; gap: 4px; align-items: center; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+(function () {
+  const F = FC;
+  const { icon, esc } = F;
+  const shell = F.mountShell();
+  const S = { view: "due", deck: null, status: "all", type: "all", sort: "due", sel: null, flipped: false, mode: "preview", editor: null, newDraft: false };
+  const colorOf = { hard: "var(--danger)", struggle: "var(--warn)", normal: "var(--ok)", easy: "var(--info)" };
+
+  function scopeCards() {
+    let list = S.view === "due" ? F.cards.filter(F.isDue) : S.view === "susp" ? F.cards.filter(c => c.status === "suspended") : F.cardsOf(S.deck);
+    if (S.status !== "all") list = list.filter(c => c.status === S.status);
+    if (S.type !== "all") list = list.filter(c => c.type === S.type);
+    const key = { due: (a, b) => (a.status === "new") - (b.status === "new") || a.due - b.due, created: (a, b) => b.createTime - a.createTime, level: (a, b) => a.level - b.level || a.ease - b.ease };
+    return list.slice().sort(key[S.sort]);
+  }
+  function scopeTitle() {
+    if (S.view === "due") return ["今日待复习", "所有卡组中现在需要复习的卡片"];
+    if (S.view === "all") return ["全部卡片", ""];
+    if (S.view === "susp") return ["已暂停", "暂停的卡片不会进入复习"];
+    const d = F.deckById(S.deck);
+    return [d.name, d.description];
+  }
+  function reviewScope() {
+    return S.view === "deck" ? S.deck : null;
+  }
+
+  function render() {
+    const list = scopeCards();
+    if (S.sel && !list.some(c => c.id === S.sel) && !S.newDraft) S.sel = list[0]?.id ?? null;
+    if (S.sel == null && list.length && !S.newDraft) S.sel = list[0].id;
+    const dueAll = F.queue(null).length;
+    const [title] = scopeTitle();
+    shell.crumb.innerHTML = `闪卡 / <b>${esc(title)}</b>`;
+    const rq = F.queue(reviewScope()).length;
+    shell.page.innerHTML = `
+      <div class="page">
+        <div class="toolbar">
+          <h1>闪卡</h1>
+          <span class="sum">今天 <b class="num">${dueAll}</b> 张待复习 · ${F.cards.length} 张 · ${F.decks.length} 个卡组</span>
+          <span class="spacer"></span>
+          <button class="btn btn-soft" id="review" ${rq ? "" : "disabled style='opacity:.5'"}>${icon("play")}复习${S.view === "deck" ? "此卡组" : ""} ${rq} 张<kbd>R</kbd></button>
+          <button class="btn btn-primary" id="new-card">${icon("plus")}新建闪卡</button>
+        </div>
+        <div class="body">
+          <nav class="decknav">${navHTML()}</nav>
+          <section class="board">${listHTML(list)}</section>
+          <aside class="board" id="insp">${inspectorHTML()}</aside>
+        </div>
+      </div>`;
+    shell.status.innerHTML = `<span class="hint"><kbd>↑</kbd><kbd>↓</kbd> 选卡</span><span class="hint"><kbd>Space</kbd> 翻面</span><span class="hint"><kbd>E</kbd> 编辑</span><span class="hint"><kbd>⌫</kbd> 删除</span><span class="grow"></span><span class="hint"><kbd>N</kbd> 新建</span><span class="hint"><kbd>R</kbd> 复习</span>`;
+    F.setNavBadge();
+    wire();
+  }
+
+  function navHTML() {
+    const n = (v, cls = "") => `<span class="n ${cls}">${v || ""}</span>`;
+    const due = F.queue(null).length;
+    const r7 = F.retention(7);
+    return `
+      <button class="dn-item${S.view === "due" ? " active" : ""}" data-view="due">${icon("sunrise")}<span class="t">今日待复习</span>${n(due, "due")}</button>
+      <button class="dn-item${S.view === "all" ? " active" : ""}" data-view="all">${icon("layers")}<span class="t">全部卡片</span>${n(F.cards.length)}</button>
+      <button class="dn-item${S.view === "susp" ? " active" : ""}" data-view="susp">${icon("pause")}<span class="t">已暂停</span>${n(F.cards.filter(c => c.status === "suspended").length)}</button>
+      <div class="dn-label">卡组<button class="icon-btn sm" id="new-deck" title="新建卡组">${icon("plus")}</button></div>
+      ${F.decks.map(d => {
+        const s = F.deckStats(d.id);
+        return `<button class="dn-item${S.view === "deck" && S.deck === d.id ? " active" : ""}" data-deck="${d.id}">${F.deckMark(d, "sm")}<span class="t">${esc(d.name)}</span>${s.todo ? n(s.todo, "due") : n(s.total || "")}</button>`;
+      }).join("")}
+      <div class="dn-foot">连续复习 <b>${F.streak()}</b> 天<br>近 7 天记住 <b>${Math.round(r7.rate * 100)}%</b></div>`;
+  }
+
+  function listHTML(list) {
+    const [title, desc] = scopeTitle();
+    const d = S.view === "deck" ? F.deckById(S.deck) : null;
+    const showDeck = S.view !== "deck";
+    const statusSeg = [["all", "全部"], ["new", "新卡"], ["learning", "学习中"], ["review", "巩固"]];
+    let body;
+    if (!list.length) {
+      body = `<div class="empty-note" style="padding-top:60px">${S.view === "due" ? "今天的复习都完成了" : S.view === "deck" && !F.cardsOf(S.deck).length ? `这个卡组还没有闪卡<br><button class="btn btn-soft" style="margin-top:10px" data-newhere>${icon("plus")}添加第一张</button>` : "没有符合筛选的闪卡"}</div>`;
+    } else {
+      const groups = S.sort !== "due" ? [["", list]] : [
+        ["现在", list.filter(F.isDue)],
+        ["今天稍后", list.filter(c => !F.isDue(c) && c.status !== "suspended" && F.dayDiff(c.due) === 0)],
+        ["之后", list.filter(c => !F.isDue(c) && c.status !== "suspended" && F.dayDiff(c.due) > 0)],
+        ["已暂停", list.filter(c => c.status === "suspended")],
+      ].filter(g => g[1].length);
+      body = groups.map(([g, arr]) => `${g ? `<div class="grp"><b>${g}</b><span class="num">${arr.length}</span></div>` : ""}${arr.map(c => row(c, showDeck)).join("")}`).join("");
+    }
+    return `
+      <div class="lh">${d ? F.deckMark(d) : ""}<div style="min-width:0;flex:1"><h2>${esc(title)}</h2>${desc ? `<div class="meta" style="overflow:hidden;text-overflow:ellipsis">${esc(desc)}</div>` : ""}</div>
+        ${d ? `<button class="icon-btn" id="deck-more" title="卡组操作">${icon("more")}</button>` : ""}</div>
+      <div class="lf">
+        <div class="seg sm">${statusSeg.map(([k, l]) => `<button class="${S.status === k ? "on" : ""}" data-st="${k}">${l}</button>`).join("")}</div>
+        <span class="spacer"></span>
+        <button class="btn btn-ghost" id="type-filter" style="height:26px">${S.type === "all" ? "全部题型" : F.TYPE_META[S.type].label}${icon("chev-down")}</button>
+        <button class="icon-btn" id="sort" title="排序：${{ due: "按到期", created: "按创建时间", level: "按熟练度" }[S.sort]}">${icon("list")}</button>
+      </div>
+      <div class="list scroller fade-y" id="list">${body}</div>`;
+  }
+  function row(c, showDeck) {
+    const d = F.deckOf(c);
+    const tags = c.tags.map(t => "#" + esc(t)).join(" ");
+    return `<div class="row${S.sel === c.id && !S.newDraft ? " sel" : ""}${c.status === "suspended" ? " susp" : ""}" data-id="${c.id}">
+      <span class="ti" title="${F.TYPE_META[c.type].label}">${icon(F.TYPE_META[c.type].icon)}</span>
+      <div style="min-width:0"><div class="q">${F.promptText(c)}</div>
+        <div class="sub">${showDeck ? `<span class="dk">${F.deckMark(d, "sm")}${esc(d.name)}</span>` : ""}${tags}</div></div>
+      <div class="end">${F.dueSpan(c)}${F.statusDot(c)}</div>
+    </div>`;
+  }
+
+  /* ---------- 检查器 ---------- */
+  function inspectorHTML() {
+    if (S.mode === "edit" || S.newDraft) {
+      const c = S.newDraft ? null : F.byId(S.sel);
+      return `<div class="ih"><div class="seg sm">${S.newDraft ? '<button class="on">新建闪卡</button>' : `<button data-mode="preview">预览</button><button class="on">编辑</button>`}</div><span class="spacer"></span><button class="icon-btn" data-cancel title="取消 (Esc)">${icon("x")}</button></div>
+        <div class="ib scroller" id="ed"></div>
+        <div class="if"><span class="hint"><kbd>⌘</kbd><kbd>↵</kbd> ${S.newDraft ? "保存并继续" : "保存"}</span><span style="flex:1"></span><button class="btn btn-ghost" data-cancel>取消</button><button class="btn btn-primary" data-save>${S.newDraft ? "保存并继续" : "保存"}</button></div>`;
+    }
+    const c = F.byId(S.sel);
+    if (!c) return `<div class="empty-i">选中一张卡片查看<br>或按 N 新建</div>`;
+    const d = F.deckOf(c);
+    const back = S.flipped;
+    let front = `<div class="fq">${F.promptText(c, { reveal: back })}</div>`;
+    if (c.type === "single-choice" || c.type === "multiple-choice")
+      front += `<div class="opts">${c.options.map((o, i) => `<div class="${back && o.isCorrect ? "ok" : ""}"><span class="k">${"ABCDEF"[i]}</span>${o.label}</div>`).join("")}</div>`;
+    let ans = "";
+    if (back) {
+      const std = c.type === "qa" ? c.answer : c.type === "boolean" ? (c.booleanAnswer ? "正确" : "错误") : "";
+      ans = `<div class="fa">${std ? `<h4>答案</h4><div style="font-weight:500">${std}</div>` : ""}${c.detail ? `<h4>解析</h4><div style="color:var(--ink-2)">${c.detail}</div>` : ""}${c.refs.length ? `<h4>参考资料</h4><div class="rv-refs">${c.refs.map(r => `<button class="rv-ref">${icon(r.kind === "卡片" ? "card" : "file-text")}${r.title}</button>`).join("")}</div>` : ""}</div>`;
+    }
+    const hist = Array.from({ length: Math.min(8, c.reviewCount) }, (_, i) => ["normal", "easy", "normal", "struggle", "normal", "hard", "normal", "easy"][(c.id + i) % 8]);
+    return `<div class="ih"><div class="seg sm"><button class="on">预览</button><button data-mode="edit">编辑</button></div><span class="spacer"></span>
+        <button class="icon-btn" id="card-more" title="更多">${icon("more")}</button></div>
+      <div class="ib scroller">
+        <div class="face${back ? " back" : ""}"><span class="side-tag">${back ? "背面" : "正面"}</span>${front}${ans}</div>
+        <div class="flipbtn"><button class="btn btn-ghost" data-flip>${icon("flip")}${back ? "看正面" : "翻面"}<kbd>Space</kbd></button></div>
+        <div class="props">
+          <span class="k">卡组</span><span class="v">${F.deckMark(d, "sm")}${esc(d.name)}</span>
+          <span class="k">题型</span><span class="v">${F.typeChip(c)}<span class="muted">· ${F.DIFF_LABEL[c.difficulty]}</span></span>
+          <span class="k">标签</span><span class="v">${c.tags.length ? c.tags.map(t => `<span class="type-chip">#${esc(t)}</span>`).join("") : '<span class="muted">—</span>'}</span>
+          <span class="k">状态</span><span class="v">${F.statusDot(c)}</span>
+          <span class="k">下次复习</span><span class="v">${F.dueSpan(c)}</span>
+          <span class="k">熟练度</span><span class="v"><span class="lvl">${Array.from({ length: 9 }, (_, i) => `<i class="${i < c.level ? "on" : ""}"></i>`).join("")}</span><span class="muted num">${c.level}/9</span></span>
+          <span class="k">评分记录</span><span class="v">${hist.length ? `<span class="hist">${hist.map(r => `<i style="background:${colorOf[r]}" title="${F.RATINGS.find(x => x.value === r).label}"></i>`).join("")}</span><span class="muted">${c.reviewCount} 次</span>` : '<span class="muted">还没复习过</span>'}</span>
+        </div>
+      </div>`;
+  }
+  function mountEditor() {
+    const host = document.getElementById("ed");
+    if (!host) return;
+    const c = S.newDraft ? null : F.byId(S.sel);
+    S.editor = F.renderEditor(host, c, { deckId: S.view === "deck" ? S.deck : S.lastDeck || F.decks[0].id, type: S.lastType, layout: "inline" });
+    setTimeout(() => host.querySelector('[data-f="prompt"]')?.focus(), 30);
+  }
+  function save() {
+    const err = S.editor.validate();
+    if (err) return F.toast(err);
+    const draft = S.editor.getDraft();
+    const saved = F.commitDraft(draft, S.newDraft ? null : F.byId(S.sel));
+    S.lastDeck = saved.deckId;
+    S.lastType = saved.type;
+    if (S.newDraft) {
+      F.toast("已新建，继续下一张", () => { F.cards.splice(F.cards.indexOf(saved), 1); render(); });
+      render();
+    } else {
+      S.mode = "preview";
+      render();
+      F.toast("已保存修改");
+    }
+  }
+
+  function wire() {
+    const p = shell.page;
+    p.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => { S.view = b.dataset.view; S.deck = null; S.sel = null; S.status = "all"; leaveEdit(); render(); }));
+    p.querySelectorAll("[data-deck]").forEach(b => {
+      b.addEventListener("click", () => { S.view = "deck"; S.deck = +b.dataset.deck; S.sel = null; S.status = "all"; leaveEdit(); render(); });
+      b.addEventListener("contextmenu", e => { e.preventDefault(); deckMenu(F.deckById(+b.dataset.deck), { x: e.clientX, y: e.clientY }); });
+    });
+    p.querySelector("#new-deck").addEventListener("click", () => F.openDeckDialog(null, d => { S.view = "deck"; S.deck = d.id; render(); }));
+    p.querySelector("#deck-more")?.addEventListener("click", e => deckMenu(F.deckById(S.deck), e.currentTarget));
+    p.querySelectorAll("[data-st]").forEach(b => b.addEventListener("click", () => { S.status = b.dataset.st; render(); }));
+    p.querySelector("#type-filter").addEventListener("click", e =>
+      F.openMenu(e.currentTarget, [{ label: "全部题型", v: "all", checked: S.type === "all" }, "-", ...F.TYPE_ORDER.map(t => ({ icon: F.TYPE_META[t].icon, label: F.TYPE_META[t].label, v: t, checked: S.type === t }))], x => { S.type = x.v; render(); }, { alignRight: true }));
+    p.querySelector("#sort").addEventListener("click", e =>
+      F.openMenu(e.currentTarget, [["due", "按到期"], ["created", "按创建时间"], ["level", "按熟练度（低在前）"]].map(([v, l]) => ({ label: l, v, checked: S.sort === v })), x => { S.sort = x.v; render(); }, { alignRight: true }));
+    p.querySelectorAll(".row").forEach(r => {
+      r.addEventListener("click", () => { if (S.newDraft || S.mode === "edit") leaveEdit(); S.sel = +r.dataset.id; S.flipped = false; render(); });
+      r.addEventListener("dblclick", () => { S.sel = +r.dataset.id; enterEdit(); });
+      r.addEventListener("contextmenu", e => { e.preventDefault(); S.sel = +r.dataset.id; render(); cardMenu(F.byId(S.sel), { x: e.clientX, y: e.clientY }); });
+    });
+    p.querySelector("[data-newhere]")?.addEventListener("click", () => startNew());
+    p.querySelector("#new-card").addEventListener("click", () => startNew());
+    p.querySelector("#review").addEventListener("click", () => openReview());
+    p.querySelector("[data-flip]")?.addEventListener("click", () => { S.flipped = !S.flipped; render(); });
+    p.querySelector('[data-mode="edit"]')?.addEventListener("click", () => enterEdit());
+    p.querySelector('[data-mode="preview"]')?.addEventListener("click", () => { leaveEdit(); render(); });
+    p.querySelectorAll("[data-cancel]").forEach(b => b.addEventListener("click", () => { leaveEdit(); render(); }));
+    p.querySelector("[data-save]")?.addEventListener("click", save);
+    p.querySelector("#card-more")?.addEventListener("click", e => cardMenu(F.byId(S.sel), e.currentTarget));
+    if (S.mode === "edit" || S.newDraft) mountEditor();
+    const selEl = p.querySelector(".row.sel");
+    selEl && selEl.scrollIntoView({ block: "nearest" });
+  }
+  function enterEdit() { S.mode = "edit"; S.newDraft = false; render(); }
+  function leaveEdit() { S.mode = "preview"; S.newDraft = false; S.editor = null; }
+  function startNew() { S.newDraft = true; S.mode = "edit"; render(); }
+  function deckMenu(d, at) {
+    F.openMenu(at, [{ icon: "edit", label: "编辑卡组", v: "e" }, { icon: "wand", label: "从笔记生成闪卡…", v: "g" }, "-", { icon: "trash", label: "删除卡组", danger: true, v: "d" }], x => {
+      if (x.v === "g") return F.toast("复用现有「AI 生成闪卡」弹窗：选择笔记 → 生成 → 挑选入组");
+      F.openDeckDialog(d, saved => { if (!saved) { S.view = "due"; S.deck = null; } render(); });
+    }, { alignRight: true });
+  }
+  function cardMenu(c, at) {
+    F.openMenu(at, [
+      { icon: "edit", label: "编辑", k: "E", v: "e" },
+      { icon: "pause", label: c.status === "suspended" ? "恢复复习" : "暂停复习", v: "p" },
+      { icon: "move", label: "移动到卡组…", v: "m" },
+      { icon: "undo", label: "重置复习进度", v: "r" },
+      "-",
+      { icon: "trash", label: "删除", k: "⌫", danger: true, v: "d" },
+    ], x => {
+      if (x.v === "e") enterEdit();
+      if (x.v === "p") { c.status = c.status === "suspended" ? "review" : "suspended"; render(); }
+      if (x.v === "r") { Object.assign(c, { status: "new", level: 0, ease: 2.5, reviewCount: 0, due: F.NOW }); render(); F.toast("已重置为新卡"); }
+      if (x.v === "m") F.openMenu(at, F.decks.filter(d => d.id !== c.deckId).map(d => ({ deck: d, label: d.name, id: d.id })), y => { const from = c.deckId; c.deckId = y.id; render(); F.toast(`已移到「${y.label}」`, () => { c.deckId = from; render(); }); });
+      if (x.v === "d") del(c);
+    }, { alignRight: true });
+  }
+  function del(c) {
+    const i = F.cards.indexOf(c);
+    const list = scopeCards();
+    const next = list[list.indexOf(c) + 1] || list[list.indexOf(c) - 1];
+    F.cards.splice(i, 1);
+    S.sel = next ? next.id : null;
+    render();
+    F.toast("已删除闪卡", () => { F.cards.splice(i, 0, c); S.sel = c.id; render(); });
+  }
+
+  /* ---------- 复习 Dialog ---------- */
+  function openReview() {
+    const scopeId = reviewScope();
+    const q = F.queue(scopeId);
+    if (!q.length) return F.toast("这里没有需要复习的卡片");
+    const d = scopeId ? F.deckById(scopeId) : null;
+    let eng;
+    F.openDialog({
+      width: 780,
+      html: `<div class="rv-dlg-head"><span class="scope">${d ? F.deckMark(d, "sm") + esc(d.name) : icon("layers") + "全部卡组"}</span><div class="progress"><i id="rp" style="width:0"></i></div><span class="count" id="rc"></span><button class="icon-btn" data-close title="结束 (Esc)">${icon("x")}</button></div>
+        <div class="rv-dlg-body" id="rv"></div>
+        <div class="rv-dlg-foot"><span><kbd>A</kbd>–<kbd>D</kbd> 选择</span><span><kbd>Space</kbd> 显示答案</span><span><kbd>1</kbd>–<kbd>4</kbd> 评分</span><span><kbd>E</kbd> 编辑</span><span><kbd>⌘Z</kbd> 撤销</span><span><kbd>Esc</kbd> 结束</span></div>`,
+      onMount(api) {
+        eng = F.mountReview(api.el.querySelector("#rv"), {
+          queue: q, flat: true, flatRates: true,
+          onProgress({ index, total }) {
+            api.el.querySelector("#rp").style.width = (Math.min(index, total) / total) * 100 + "%";
+            api.el.querySelector("#rc").textContent = `${Math.min(index + 1, total)} / ${total}`;
+          },
+          onEdit(c, rerender) { F.openEditorDialog(c, { onSaved: () => rerender(), layout: "dialog" }); },
+          onExit() { api.close(); },
+        });
+      },
+      onClose() { eng && eng.destroy(); render(); },
+    });
+  }
+
+  document.addEventListener("keydown", e => {
+    if (F.dialogOpen() || F.menuOpen()) return;
+    const typing = /INPUT|TEXTAREA/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable;
+    if (S.mode === "edit" || S.newDraft) {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save(); }
+      if (e.key === "Escape") { if (typing) document.activeElement.blur(); leaveEdit(); render(); }
+      return;
+    }
+    if (typing || e.metaKey || e.ctrlKey || e.altKey) return;
+    const list = scopeCards();
+    const i = list.findIndex(c => c.id === S.sel);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const n = list[Math.max(0, Math.min(list.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)))];
+      if (n) { S.sel = n.id; S.flipped = false; render(); }
+    }
+    if (e.key === " ") { e.preventDefault(); S.flipped = !S.flipped; render(); }
+    const k = e.key.toLowerCase();
+    if (k === "e" || e.key === "Enter") { e.preventDefault(); if (S.sel) enterEdit(); }
+    if (k === "n") { e.preventDefault(); startNew(); }
+    if (k === "r") { e.preventDefault(); openReview(); }
+    if ((e.key === "Backspace" || e.key === "Delete") && S.sel) { e.preventDefault(); del(F.byId(S.sel)); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

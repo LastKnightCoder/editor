@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<title>闪卡 · C 卡组书架 — Tau 桌面端</title>
+<!--
+  【视觉参考，非导出源】（D-001）
+  C · 卡组书架 —— 「卡组是一叠实体卡片」的物件隐喻（与项目页 C 学习驾驶舱同谱系）：
+  总览 = 今日条（一块 surface：待复习 + 按卡组分流 + 开始）→ 卡组封面网格（卡组色派生渐变 + 叠放的卡片轮廓）；
+  卡组页 = 卡组头 → 状态 pills → 卡片墙（一整块 surface 大面板，格内描边小卡，点击原地翻面）；
+  复习 = 页内「卡堆」：身后叠着剩余卡片的轮廓，翻面有 3D 转动，顶部一排圆点随评分着色记录这一轮。
+-->
+<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="flashcard.css">
+<style>
+.page { padding: 0 26px; }
+.pg-scroll { flex: 1; min-height: 0; padding: 4px 4px 28px 0; margin-right: -4px; }
+
+/* 今日条 */
+.today { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 22px; padding: 18px 20px 18px 24px;
+  background: var(--bg-surface); border-radius: 18px; box-shadow: var(--shadow-card); }
+.today .num-line { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
+.today .num-line b { color: var(--accent-text); font-variant-numeric: tabular-nums; }
+.today .meta { font-size: 12px; color: var(--ink-2); margin-top: 2px; white-space: nowrap; }
+.today .split { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.dchip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px 0 5px; border-radius: 10px; border: 1px solid var(--line-1); font-size: 12.5px; color: var(--ink-2); }
+.dchip:hover { background: var(--bg-hover); color: var(--ink-1); }
+.dchip b { color: var(--ink-1); font-variant-numeric: tabular-nums; }
+.dchip .deck-mark.sm { width: 20px; height: 20px; }
+.btn.lg { height: 38px; padding: 0 18px; font-size: 13.5px; border-radius: 12px; }
+.btn.lg kbd { background: rgba(255, 255, 255, 0.2); color: inherit; }
+
+.sec-head { display: flex; align-items: baseline; gap: 10px; padding: 24px 2px 12px; }
+.sec-head .label { font-size: 15px; font-weight: 600; }
+.sec-head .meta { font-size: 12px; color: var(--ink-3); }
+
+/* 卡组封面 */
+.shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(236px, 1fr)); gap: 16px; }
+.cover { background: var(--bg-surface); border-radius: 18px; box-shadow: var(--shadow-card); overflow: hidden; cursor: pointer; text-align: left; display: flex; flex-direction: column;
+  transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out); }
+.cover:hover { box-shadow: var(--shadow-float); transform: translateY(-2px); }
+.cover .art { position: relative; height: 112px; background: linear-gradient(140deg, color-mix(in srgb, var(--c) 30%, var(--bg-surface)), color-mix(in srgb, var(--c) 10%, var(--bg-surface))); }
+.cover .art .sheet { position: absolute; left: 22px; bottom: -14px; width: 92px; height: 70px; border-radius: 10px; background: var(--bg-surface); box-shadow: var(--shadow-lift); display: grid; place-items: center; font-size: 28px; transition: transform 260ms var(--ease-out); }
+.cover .art .sheet .icon { width: 30px; height: 30px; color: var(--c); stroke-width: 1.6; }
+.cover .art .sheet.s2 { transform: rotate(-7deg) translate(-6px, 2px); opacity: 0.7; }
+.cover .art .sheet.s3 { transform: rotate(6deg) translate(8px, 0); opacity: 0.85; }
+.cover:hover .art .sheet.s2 { transform: rotate(-11deg) translate(-12px, 0); }
+.cover:hover .art .sheet.s3 { transform: rotate(10deg) translate(14px, -2px); }
+.cover .art .badge { position: absolute; top: 12px; right: 12px; height: 24px; padding: 0 10px; border-radius: 99px; background: var(--bg-surface); color: var(--accent-text); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; box-shadow: var(--shadow-card); }
+.cover .art .badge.done { color: var(--ok); font-weight: 500; }
+.cover .art .badge.idle { color: var(--ink-3); font-weight: 400; }
+.cover .art .badge .icon { width: 12px; height: 12px; }
+.cover .txt { padding: 24px 16px 14px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+.cover .nm { font-size: 14.5px; font-weight: 600; }
+.cover .ds { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 18px; }
+.cover .ft { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 11.5px; color: var(--ink-3); }
+.cover .ft .mixbar { flex: 1; }
+
+/* 卡组页 */
+.dhead { display: flex; align-items: center; gap: 16px; padding: 14px 0 12px; }
+.dhead .deck-mark.lg { width: 52px; height: 52px; font-size: 27px; border-radius: 15px; }
+.dhead h2 { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+.dhead .ds { font-size: 12.5px; color: var(--ink-2); margin-top: 1px; }
+.dhead .st-line { font-size: 12px; color: var(--ink-3); margin-top: 3px; display: flex; gap: 12px; }
+.dhead .st-line span::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--c); margin-right: 5px; vertical-align: 1px; }
+.pillrow { display: flex; align-items: center; gap: 6px; padding: 4px 0 12px; }
+
+.wall-board { background: var(--bg-surface); border-radius: 18px; box-shadow: var(--shadow-card); padding: 16px; }
+.wall { columns: 250px; column-gap: 12px; }
+.fc { break-inside: avoid; margin-bottom: 12px; perspective: 1000px; cursor: pointer; }
+.fc .inner { position: relative; transition: transform 420ms var(--ease-out); transform-style: preserve-3d; }
+.fc.flipped .inner { transform: rotateY(180deg); }
+.fc .fside { border: 1px solid var(--line-1); border-radius: 14px; padding: 12px 14px 12px; backface-visibility: hidden; background: var(--bg-surface); min-height: 112px; display: flex; flex-direction: column; }
+.fc .fside.back { position: absolute; inset: 0; transform: rotateY(180deg); background: color-mix(in srgb, var(--ok) 5%, var(--bg-surface)); overflow: hidden; }
+.fc:hover .fside { border-color: color-mix(in srgb, var(--ink-3) 45%, var(--line-1)); }
+.fc .top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.fc .top .grow { flex: 1; }
+.fc .top .icon-btn { opacity: 0; }
+.fc:hover .top .icon-btn { opacity: 1; }
+.fc .q { font-size: 13.5px; line-height: 1.65; font-weight: 500; }
+.fc .q code, .fc .a code { font: 0.88em var(--mono); background: var(--bg-hover); padding: 0 4px; border-radius: 4px; }
+.fc .opts { margin-top: 8px; font-size: 12px; color: var(--ink-2); display: flex; flex-direction: column; gap: 2px; }
+.fc .bot { margin-top: auto; padding-top: 10px; display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink-3); }
+.fc .bot .grow { flex: 1; }
+.fc .a { font-size: 13px; line-height: 1.65; }
+.fc .a .lab { font-size: 11px; color: var(--ink-3); margin-bottom: 2px; }
+.fc .a .ans { font-weight: 600; color: var(--ok); }
+.fc .a .det { color: var(--ink-2); margin-top: 6px; font-size: 12px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.fc.susp .q { color: var(--ink-3); }
+.fc.add .fside { border-style: dashed; align-items: center; justify-content: center; color: var(--ink-3); gap: 6px; font-size: 12.5px; }
+.fc.add:hover .fside { color: var(--ink-1); background: var(--bg-hover); }
+
+/* 卡堆复习 */
+.rv { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.rv-top { flex: none; display: flex; align-items: center; gap: 14px; height: 48px; }
+.rv-top .ttl { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+.trail { flex: 1; display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; align-items: center; min-width: 0; }
+.trail i { width: 9px; height: 9px; border-radius: 50%; background: var(--bg-track); transition: background 200ms var(--ease-out), transform 200ms var(--ease-out); }
+.trail i.cur { background: transparent; box-shadow: 0 0 0 2px var(--accent) inset; transform: scale(1.25); }
+.rv-top .count { font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; min-width: 60px; text-align: right; }
+.rv-stage { flex: 1; min-height: 0; padding: 26px 20px 40px; }
+.pile { max-width: 700px; margin: 0 auto; position: relative; }
+.pile .ghost { position: absolute; left: 0; right: 0; top: 0; height: 200px; border-radius: 20px; background: var(--bg-surface); box-shadow: var(--shadow-card); }
+.pile .ghost.g1 { transform: translateY(-9px) scale(0.965); opacity: 0.75; }
+.pile .ghost.g2 { transform: translateY(-18px) scale(0.93); opacity: 0.5; }
+#stage { position: relative; }
+#stage .rv-card { perspective: 1200px; }
+#stage .rv-card.phase-revealed .rv-answer { animation: turnIn 360ms var(--ease-out); transform-origin: top center; }
+@keyframes turnIn { from { opacity: 0; transform: rotateX(-18deg) translateY(-6px); } to { opacity: 1; transform: none; } }
+#stage .rv-card.enter { animation: dealIn 360ms var(--ease-out); }
+@keyframes dealIn { from { opacity: 0; transform: translateY(-16px) scale(0.97); } to { opacity: 1; transform: none; } }
+.rv-keys { display: flex; justify-content: center; gap: 12px; margin-top: 16px; font-size: 11px; color: var(--ink-3); }
+.rv-keys span { display: inline-flex; gap: 4px; align-items: center; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+(function () {
+  const F = FC;
+  const { icon, esc } = F;
+  const shell = F.mountShell();
+  const S = { deck: null, filter: "all", flipped: new Set(), mode: "browse", review: null };
+  const colorOf = { hard: "var(--danger)", struggle: "var(--warn)", normal: "var(--ok)", easy: "var(--info)" };
+
+  function render() {
+    if (S.mode === "review") return;
+    shell.back.disabled = !S.deck;
+    shell.back.onclick = () => { S.deck = null; render(); };
+    shell.crumb.innerHTML = S.deck ? `闪卡复习 / <b>${esc(F.deckById(S.deck).name)}</b>` : "<b>闪卡复习</b>";
+    shell.page.innerHTML = `<div class="page">${S.deck ? deckPage() : shelfPage()}</div>`;
+    shell.status.innerHTML = "";
+    F.setNavBadge();
+    wire();
+  }
+
+  /* ---------- 总览：今日条 + 书架 ---------- */
+  function shelfPage() {
+    const all = F.queue(null);
+    const fresh = all.filter(c => c.status === "new").length;
+    const tomorrow = F.cards.filter(c => c.status !== "suspended" && F.dayDiff(c.due) === 1).length;
+    const r7 = F.retention(7);
+    const dueDecks = F.decks.map(d => [d, F.deckStats(d.id).todo]).filter(x => x[1]);
+    const today = all.length
+      ? `<div class="today">
+          <div><div class="num-line">今天 <b>${all.length}</b> 张待复习</div>
+            <div class="meta">到期 ${all.length - fresh} · 新卡 ${fresh} · 约 ${F.estMinutes(all)} 分钟 · 连续 ${F.streak()} 天 · 近 7 天记住 ${Math.round(r7.rate * 100)}%</div></div>
+          <div class="split">${dueDecks.map(([d, n]) => `<button class="dchip" data-review="${d.id}" title="只复习「${esc(d.name)}」">${F.deckMark(d, "sm")}${esc(d.name)}<b>${n}</b></button>`).join("")}</div>
+          <button class="btn btn-primary lg" data-review="">${icon("play")}开始复习<kbd>R</kbd></button>
+        </div>`
+      : `<div class="today"><div><div class="num-line">今天的复习完成了</div><div class="meta">明天 ${tomorrow} 张到期 · 连续 ${F.streak()} 天</div></div><span></span><span></span></div>`;
+    return `
+      <div class="toolbar">
+        <h1>闪卡复习</h1>
+        <span class="spacer"></span>
+        <button class="btn btn-soft" id="new-card">${icon("plus")}新建闪卡</button>
+        <button class="btn btn-soft" id="new-deck">${icon("folder")}新建卡组</button>
+      </div>
+      <div class="pg-scroll scroller">
+        ${today}
+        <div class="sec-head"><span class="label">卡组</span><span class="meta">${F.decks.length} 个 · ${F.cards.length} 张</span></div>
+        <div class="shelf">${F.decks.map(cover).join("")}</div>
+      </div>`;
+  }
+  function cover(d) {
+    const s = F.deckStats(d.id);
+    let badge;
+    if (!s.total) badge = `<span class="badge idle">空卡组</span>`;
+    else if (s.todo) badge = `<span class="badge">${icon("repeat")}${s.todo} 待复习</span>`;
+    else badge = `<span class="badge done">${icon("check")}今天已完成</span>`;
+    const next = F.cards.filter(c => c.deckId === d.id && c.status !== "suspended" && !F.isDue(c)).sort((a, b) => a.due - b.due)[0];
+    return `<div class="cover" data-open="${d.id}" style="--c:var(--${d.color})">
+      <div class="art">
+        ${s.total > 2 ? `<span class="sheet s2"></span>` : ""}${s.total > 1 ? `<span class="sheet s3"></span>` : ""}<span class="sheet">${F.deckGlyph(d)}</span>
+        ${badge}
+      </div>
+      <div class="txt">
+        <div class="nm">${esc(d.name)}</div>
+        <div class="ds">${esc(d.description)}</div>
+        <div class="ft">${s.total ? `${F.mixBar(s)}<span class="num">${s.total} 张</span>${!s.todo && next ? `<span>· ${F.dueInfo(next).text}</span>` : ""}` : `<span>还没有卡片 · 点击添加</span>`}</div>
+      </div>
+    </div>`;
+  }
+
+  /* ---------- 卡组页：头 + pills + 卡片墙 ---------- */
+  function deckPage() {
+    const d = F.deckById(S.deck);
+    const s = F.deckStats(d.id);
+    const all = F.cardsOf(d.id);
+    const pills = [["all", "全部", s.total], ["due", "待复习", s.todo], ["new", "新卡", s.fresh], ["learning", "学习中", s.learning], ["review", "巩固", s.review], ["suspended", "已暂停", s.suspended]].filter(p => p[0] === "all" || p[2]);
+    const list = all.filter(c => (S.filter === "all" ? true : S.filter === "due" ? F.isDue(c) : c.status === S.filter)).sort((a, b) => F.isDue(b) - F.isDue(a) || a.due - b.due);
+    return `
+      <div class="dhead" style="--c:var(--${d.color})">
+        ${F.deckMark(d, "lg")}
+        <div style="flex:1;min-width:0"><h2>${esc(d.name)}</h2><div class="ds">${esc(d.description || "没有描述")}</div>
+          <div class="st-line"><span style="--c:var(--info)">新卡 ${s.fresh}</span><span style="--c:var(--warn)">学习中 ${s.learning}</span><span style="--c:var(--ok)">巩固 ${s.review}</span></div></div>
+        <button class="icon-btn" id="deck-more" title="卡组操作">${icon("more")}</button>
+        <button class="btn btn-soft" data-add>${icon("plus")}新建闪卡</button>
+        ${s.todo ? `<button class="btn btn-primary lg" data-review="${d.id}">${icon("play")}复习 ${s.todo} 张<kbd>R</kbd></button>` : ""}
+      </div>
+      <div class="pillrow">${pills.map(([k, l, n]) => `<button class="pill${S.filter === k ? " active" : ""}" data-f="${k}">${l}<span class="count num">${n}</span></button>`).join("")}
+        <span class="spacer"></span><span class="small muted" style="font-size:11.5px">点击卡片翻面 · 双击编辑</span></div>
+      <div class="pg-scroll scroller">
+        <div class="wall-board"><div class="wall">${list.map(tile).join("")}<div class="fc add" data-add><div class="fside">${icon("plus")}添加闪卡</div></div></div></div>
+      </div>`;
+  }
+  function tile(c) {
+    const flipped = S.flipped.has(c.id);
+    const opts = c.options.length ? `<div class="opts">${c.options.map((o, i) => `<span>${"ABCDEF"[i]}. ${o.label}</span>`).join("")}</div>` : "";
+    return `<div class="fc${flipped ? " flipped" : ""}${c.status === "suspended" ? " susp" : ""}" data-card="${c.id}">
+      <div class="inner">
+        <div class="fside">
+          <div class="top">${F.typeChip(c)}${F.statusDot(c)}<span class="grow"></span><button class="icon-btn sm" data-edit="${c.id}" title="编辑">${icon("edit")}</button></div>
+          <div class="q">${F.promptText(c)}</div>${opts}
+          <div class="bot">${F.dueSpan(c)}<span class="grow"></span>${c.tags.map(t => "#" + esc(t)).join(" ")}</div>
+        </div>
+        <div class="fside back">
+          <div class="top"><span class="type-chip">${icon("flip")}背面</span><span class="grow"></span><button class="icon-btn sm" data-edit="${c.id}" title="编辑">${icon("edit")}</button></div>
+          <div class="a"><div class="lab">答案</div><div class="ans">${F.answerText(c)}</div>${c.detail ? `<div class="det">${c.detail}</div>` : ""}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function wire() {
+    const p = shell.page;
+    p.querySelectorAll("[data-open]").forEach(el => {
+      el.addEventListener("click", () => { S.deck = +el.dataset.open; S.filter = "all"; S.flipped.clear(); render(); });
+      el.addEventListener("contextmenu", e => { e.preventDefault(); deckMenu(F.deckById(+el.dataset.open), { x: e.clientX, y: e.clientY }); });
+    });
+    p.querySelectorAll("[data-review]").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); startReview(b.dataset.review ? +b.dataset.review : null); }));
+    p.querySelectorAll("[data-f]").forEach(b => b.addEventListener("click", () => { S.filter = b.dataset.f; render(); }));
+    p.querySelectorAll("[data-add]").forEach(b => b.addEventListener("click", () => F.openEditorDialog(null, { deckId: S.deck, onSaved: render })));
+    p.querySelector("#new-card")?.addEventListener("click", () => F.openEditorDialog(null, { deckId: F.decks[0].id, onSaved: render }));
+    p.querySelector("#new-deck")?.addEventListener("click", () => F.openDeckDialog(null, d => { S.deck = d.id; render(); }));
+    p.querySelector("#deck-more")?.addEventListener("click", e => deckMenu(F.deckById(S.deck), e.currentTarget));
+    p.querySelectorAll("[data-card]").forEach(el => {
+      let t = null;
+      el.addEventListener("click", e => {
+        if (e.target.closest("[data-edit]")) return;
+        clearTimeout(t);
+        t = setTimeout(() => { const id = +el.dataset.card; S.flipped.has(id) ? S.flipped.delete(id) : S.flipped.add(id); el.classList.toggle("flipped"); }, 180);
+      });
+      el.addEventListener("dblclick", () => { clearTimeout(t); F.openEditorDialog(F.byId(+el.dataset.card), { onSaved: render }); });
+      el.addEventListener("contextmenu", e => { e.preventDefault(); cardMenu(F.byId(+el.dataset.card), { x: e.clientX, y: e.clientY }); });
+    });
+    p.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); F.openEditorDialog(F.byId(+b.dataset.edit), { onSaved: render }); }));
+  }
+  function deckMenu(d, at) {
+    F.openMenu(at, [{ icon: "edit", label: "编辑卡组", v: "e" }, { icon: "wand", label: "从笔记生成闪卡…", v: "g" }, "-", { icon: "trash", label: "删除卡组", danger: true, v: "d" }], x => {
+      if (x.v === "g") return F.toast("复用现有「AI 生成闪卡」弹窗：选择笔记 → 生成 → 挑选入组");
+      F.openDeckDialog(d, saved => { if (!saved) S.deck = null; render(); });
+    }, { alignRight: true });
+  }
+  function cardMenu(c, at) {
+    F.openMenu(at, [
+      { icon: "edit", label: "编辑", v: "e" },
+      { icon: "pause", label: c.status === "suspended" ? "恢复复习" : "暂停复习", v: "p" },
+      { icon: "move", label: "移动到卡组…", v: "m" },
+      "-",
+      { icon: "trash", label: "删除", danger: true, v: "d" },
+    ], x => {
+      if (x.v === "e") F.openEditorDialog(c, { onSaved: render });
+      if (x.v === "p") { c.status = c.status === "suspended" ? "review" : "suspended"; render(); }
+      if (x.v === "m") F.openMenu(at, F.decks.filter(d => d.id !== c.deckId).map(d => ({ deck: d, label: d.name, id: d.id })), y => { const from = c.deckId; c.deckId = y.id; render(); F.toast(`已移到「${y.label}」`, () => { c.deckId = from; render(); }); });
+      if (x.v === "d") { const i = F.cards.indexOf(c); F.cards.splice(i, 1); render(); F.toast("已删除闪卡", () => { F.cards.splice(i, 0, c); render(); }); }
+    });
+  }
+
+  /* ---------- 卡堆复习（页内） ---------- */
+  function startReview(deckId) {
+    const q = F.queue(deckId);
+    if (!q.length) return F.toast("这里没有需要复习的卡片");
+    S.mode = "review";
+    const from = S.deck;
+    const d = deckId ? F.deckById(deckId) : null;
+    shell.crumb.innerHTML = `闪卡复习 / <b>${d ? esc(d.name) : "今日复习"}</b>`;
+    shell.back.disabled = false;
+    shell.back.onclick = () => exit();
+    const marks = q.map(() => "");
+    shell.page.innerHTML = `<div class="page"><div class="rv">
+        <div class="rv-top">
+          <button class="btn btn-ghost" id="rv-exit">${icon("chev-left")}${d ? esc(d.name) : "闪卡复习"}</button>
+          <div class="trail" id="trail"></div>
+          <span class="count" id="rv-count"></span>
+        </div>
+        <div class="rv-stage scroller"><div class="pile"><div class="ghost g2" id="g2"></div><div class="ghost g1" id="g1"></div><div id="stage"></div></div>
+          <div class="rv-keys"><span><kbd>A</kbd>–<kbd>D</kbd> 选择</span><span><kbd>Space</kbd> 翻面</span><span><kbd>1</kbd>–<kbd>4</kbd> 评分</span><span><kbd>E</kbd> 编辑</span><span><kbd>⌘Z</kbd> 撤销</span><span><kbd>Esc</kbd> 返回</span></div>
+        </div>
+      </div></div>`;
+    let lastDist = { hard: 0, struggle: 0, normal: 0, easy: 0 };
+    let reviewed = 0;
+    S.review = F.mountReview(document.getElementById("stage"), {
+      queue: q,
+      onProgress({ index, total, dist }) {
+        // 新增的那一档评分落到上一张的圆点上
+        const k = Object.keys(dist).find(r => dist[r] > lastDist[r]);
+        if (k && index > 0) marks[index - 1] = k;
+        const undone = Object.keys(dist).find(r => dist[r] < lastDist[r]);
+        if (undone) marks[index] = "";
+        lastDist = { ...dist };
+        reviewed = dist.hard + dist.struggle + dist.normal + dist.easy;
+        document.getElementById("trail").innerHTML = Array.from({ length: total }, (_, i) => `<i class="${i === index ? "cur" : ""}" style="${marks[i] ? `background:${colorOf[marks[i]]}` : ""}"></i>`).join("");
+        document.getElementById("rv-count").textContent = index < total ? `${index + 1} / ${total}` : "完成";
+        const left = total - index - 1;
+        document.getElementById("g1").style.display = left >= 1 ? "" : "none";
+        document.getElementById("g2").style.display = left >= 2 ? "" : "none";
+        // 叠放轮廓跟随当前卡片高度（翻面后卡片会变高）
+        requestAnimationFrame(() => {
+          const card = document.querySelector("#stage .rv-card");
+          if (card) ["g1", "g2"].forEach(id => (document.getElementById(id).style.height = card.offsetHeight + "px"));
+        });
+      },
+      onEdit(c, rerender) { F.openEditorDialog(c, { onSaved: () => rerender() }); },
+      onExit() { exit(); },
+    });
+    document.getElementById("rv-exit").onclick = () => exit();
+    function exit() {
+      S.review && S.review.destroy();
+      S.review = null;
+      S.mode = "browse";
+      S.deck = from;
+      render();
+      const left = F.queue(deckId).length;
+      if (reviewed) F.toast(left ? `已复习 ${reviewed} 张，剩下 ${left} 张留在队列里` : `已复习 ${reviewed} 张，队列清空了`);
+    }
+  }
+
+  document.addEventListener("keydown", e => {
+    if (S.mode !== "browse" || F.dialogOpen() || F.menuOpen()) return;
+    if (/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) return;
+    if (e.key.toLowerCase() === "r" && !e.metaKey && !e.ctrlKey) { e.preventDefault(); startReview(S.deck); }
+    if (e.key === "Escape" && S.deck) { S.deck = null; render(); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

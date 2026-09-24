@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<title>闪卡 · A 复习台 — Tau 桌面端</title>
+<!--
+  【视觉参考，非导出源】（D-001）
+  A · 复习台 —— 「今天要复习什么」优先；页面骨架与待办 B3「两块板」同构：
+  工具栏 → 卡组 pills → 左板（今日队列 / 卡组的卡片列表）+ 右板（记忆节律 / 卡组概况）。
+  复习 = 沉浸模式：导航侧栏平滑收起，题卡 + 评分条在主区水平垂直居中，键盘全程可操作，Esc 退出并恢复原布局。
+  编辑 = 居中双栏 Dialog（左题面、右属性），复习中按 E 就地编辑。
+-->
+<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="flashcard.css">
+<style>
+.app { transition: grid-template-columns 320ms var(--ease-out); }
+.app.focus-mode { grid-template-columns: 0 0 minmax(0, 1fr); }
+.app.focus-mode .sidebar { opacity: 0; pointer-events: none; }
+.sidebar { transition: opacity 200ms var(--ease-out); }
+
+.page { padding: 0 26px; }
+.toolbar .sum { margin-left: 2px; }
+.pills { display: flex; align-items: center; gap: 6px; height: 36px; padding-bottom: 4px; overflow-x: auto; scrollbar-width: none; flex: none; }
+.pill .deck-mark.sm { width: 16px; height: 16px; font-size: 9.5px; border-radius: 5px; margin-left: -4px; }
+
+.body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) clamp(260px, 24vw, 320px); gap: 20px; padding: 6px 0 20px; }
+.board { background: var(--bg-surface); border-radius: 16px; box-shadow: var(--shadow-card); min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.board > .scroller { flex: 1; padding: 0 22px 22px; }
+
+/* 今日块 */
+.today { display: flex; align-items: center; gap: 18px; padding: 22px 2px 20px; }
+.today .t-main { flex: 1; min-width: 0; }
+.today .t-num { font-size: 21px; font-weight: 600; letter-spacing: -0.01em; }
+.today .t-num b { font-variant-numeric: tabular-nums; color: var(--accent-text); font-weight: 650; }
+.today .t-meta { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+.today .t-meta .sep { color: var(--ink-3); margin: 0 6px; }
+.btn.lg { height: 36px; padding: 0 16px; font-size: 13px; border-radius: 11px; }
+.btn.lg kbd { background: rgba(255, 255, 255, 0.2); color: inherit; }
+
+/* 段头（sticky，与待办议程同构） */
+.sec { margin-top: 6px; }
+.sec-head { position: sticky; top: 0; z-index: 3; display: flex; align-items: baseline; gap: 10px; padding: 12px 2px 8px;
+  background: linear-gradient(180deg, var(--bg-surface) calc(100% - 8px), transparent); }
+.sec-head .label { font-size: 14px; font-weight: 600; }
+.sec-head .meta { font-size: 11.5px; color: var(--ink-3); }
+.sec-head .right { margin-left: auto; font-size: 11.5px; color: var(--ink-3); }
+
+/* 卡组行 */
+.cols { display: grid; grid-template-columns: 28px minmax(140px, 1fr) 108px minmax(72px, 120px) 58px; align-items: center; column-gap: 16px; position: relative; }
+.cols-head { font-size: 11px; color: var(--ink-3); padding: 0 10px 4px; }
+.deck-row { padding: 9px 10px; border-radius: 12px; cursor: pointer; transition: background 140ms var(--ease-out); }
+.deck-row:hover { background: var(--bg-hover); }
+.deck-row .name { font-weight: 500; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.deck-row .desc { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.deck-row .cnt { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
+.deck-row .cnt b { color: var(--ink-1); font-weight: 600; }
+.deck-row .cnt.done { color: var(--ink-3); font-size: 12px; }
+.deck-row .go { opacity: 0; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: var(--bg-surface); box-shadow: var(--shadow-lift); }
+.deck-row .go:hover { background: var(--bg-surface-hover); }
+.deck-row:hover .go { opacity: 1; }
+.deck-row.empty .cnt { color: var(--ink-3); }
+
+/* 卡片行（卡组视图） */
+.deck-head { display: flex; align-items: center; gap: 14px; padding: 20px 2px 10px; }
+.deck-head h2 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.deck-head .desc { font-size: 12.5px; color: var(--ink-2); margin-top: 1px; }
+.filters { display: flex; align-items: center; gap: 8px; padding: 4px 2px 6px; }
+.ccols { display: grid; grid-template-columns: 58px minmax(0, 1fr) minmax(0, 0.55fr) 64px 78px; align-items: center; column-gap: 14px; }
+.card-row { padding: 8px 10px; border-radius: 10px; cursor: pointer; transition: background 140ms var(--ease-out); }
+.card-row:hover { background: var(--bg-hover); }
+.card-row .q { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
+.card-row .q .blank-src { padding: 0 3px; }
+.card-row .a { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; color: var(--ink-3); }
+.card-row .q code { font: 0.9em var(--mono); }
+.card-row.susp .q { color: var(--ink-3); }
+
+/* 右板 */
+.side { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 22px; }
+.side .blk .sec-h { margin-bottom: 10px; }
+.big-line { font-size: 13px; color: var(--ink-2); }
+.big-line b { font-size: 18px; color: var(--ink-1); font-weight: 600; margin-right: 3px; font-variant-numeric: tabular-nums; }
+.dots { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 4px; margin-top: 10px; }
+.dots i { height: 13px; border-radius: 4px; background: var(--bg-track); }
+.dots i.on { background: var(--ok); }
+.dots i.lo { background: color-mix(in srgb, var(--ok) 45%, var(--bg-track)); }
+.dots i.cur { box-shadow: 0 0 0 1.5px var(--accent) inset; }
+.bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; align-items: end; height: 76px; margin-top: 6px; }
+.bars .col { display: flex; flex-direction: column; justify-content: flex-end; gap: 1.5px; height: 100%; }
+.bars .col i { display: block; border-radius: 2px; }
+.bars-x { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 5px; font-size: 10.5px; color: var(--ink-3); text-align: center; }
+.bars-x .t { color: var(--accent-text); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--ink-2); margin-top: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { width: 8px; height: 8px; border-radius: 2.5px; }
+.fc-bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; align-items: end; height: 64px; }
+.fc-bars div { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 3px; font-size: 10.5px; color: var(--ink-2); }
+.fc-bars i { width: 100%; max-width: 22px; border-radius: 4px 4px 2px 2px; background: var(--bg-track); }
+.fc-bars div:first-child i { background: var(--accent); }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 12.5px; }
+.kv .k { color: var(--ink-3); }
+.kv .v { color: var(--ink-1); text-align: right; font-variant-numeric: tabular-nums; }
+.type-rows { display: flex; flex-direction: column; gap: 6px; }
+.type-rows div { display: grid; grid-template-columns: 56px 1fr 24px; align-items: center; gap: 10px; font-size: 12px; color: var(--ink-2); }
+.type-rows .trk { height: 6px; border-radius: 3px; background: var(--bg-track); overflow: hidden; }
+.type-rows .trk i { display: block; height: 100%; background: var(--ink-3); border-radius: 3px; }
+.type-rows b { font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* 沉浸复习 */
+.focus { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.f-top { flex: none; display: flex; align-items: center; gap: 14px; height: 44px; padding: 0 26px; max-width: 772px; width: 100%; margin: 0 auto; }
+.f-top .scope { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-2); }
+.f-top .progress { flex: 1; }
+.f-top .count { font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.f-top .count b { color: var(--ink-1); }
+.f-top .mini-dist { display: flex; gap: 8px; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.f-top .mini-dist span::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--c); margin-right: 4px; vertical-align: 1px; }
+/* 题卡在剩余空间里水平 + 垂直居中；margin:auto 居中在内容超高时退化为顶对齐，不会被裁 */
+.f-stage { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 16px 26px 44px; }
+.f-stage > .inner { max-width: 720px; width: 100%; margin: auto; }
+.empty-board { padding: 40px 0; text-align: center; color: var(--ink-3); font-size: 12.5px; }
+.empty-board .btn { margin-top: 10px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+(function () {
+  const F = FC;
+  const { icon, esc } = F;
+  const shell = F.mountShell();
+  const S = { deck: null, status: "all", type: "all", mode: "browse", review: null };
+
+  const colorOf = { hard: "var(--danger)", struggle: "var(--warn)", normal: "var(--ok)", easy: "var(--info)" };
+
+  function render() {
+    if (S.mode === "review") return;
+    const all = F.queue(null);
+    shell.crumb.innerHTML = S.deck ? `闪卡复习 / <b>${esc(F.deckById(S.deck).name)}</b>` : "<b>闪卡复习</b>";
+    shell.back.disabled = !S.deck;
+    shell.back.onclick = () => { S.deck = null; render(); };
+    const fresh = all.filter(c => c.status === "new").length;
+    shell.page.innerHTML = `
+      <div class="page">
+        <div class="toolbar">
+          <h1>闪卡复习</h1>
+          <span class="sum">今天 <b class="num">${all.length}</b> 张待复习 · 连续 <b class="num">${F.streak()}</b> 天</span>
+          <span class="spacer"></span>
+          <button class="icon-btn" id="new-deck" title="新建卡组">${icon("folder")}</button>
+          <button class="btn btn-soft" id="new-card">${icon("plus")}新建闪卡${icon("chev-down")}</button>
+        </div>
+        <div class="pills">
+          <button class="pill${S.deck ? "" : " active"}" data-deck="">今日总览<span class="count num">${all.length}</span></button>
+          ${F.decks.map(d => {
+            const s = F.deckStats(d.id);
+            return `<button class="pill${S.deck === d.id ? " active" : ""}" data-deck="${d.id}">${F.deckMark(d, "sm")}${esc(d.name)}${s.todo ? `<span class="count num">${s.todo}</span>` : ""}</button>`;
+          }).join("")}
+        </div>
+        <div class="body">
+          <section class="board"><div class="scroller fade-y" id="left">${S.deck ? deckView() : overview(all, fresh)}</div></section>
+          <aside class="board"><div class="scroller" style="padding:0">${S.deck ? deckSide() : overviewSide()}</div></aside>
+        </div>
+      </div>`;
+    shell.status.innerHTML = `<span>${F.decks.length} 个卡组</span><span class="dot"></span><span>${F.cards.length} 张闪卡</span><span class="dot"></span><span>已暂停 ${F.cards.filter(c => c.status === "suspended").length}</span><span class="grow"></span><span class="hint"><kbd>R</kbd> 开始复习</span>`;
+    F.setNavBadge();
+    wire();
+  }
+
+  function overview(all, fresh) {
+    const late = F.cards.filter(c => c.status !== "suspended" && c.status !== "new" && c.due > F.NOW && F.dayDiff(c.due) === 0).length;
+    const hero = all.length
+      ? `<div class="today">
+          <div class="t-main"><div class="t-num"><b>${all.length}</b> 张待复习</div>
+            <div class="t-meta">到期 ${all.length - fresh}<span class="sep">·</span>新卡 ${fresh}<span class="sep">·</span>约 ${F.estMinutes(all)} 分钟${late ? `<span class="sep">·</span>今天稍后还有 ${late} 张` : ""}</div></div>
+          <button class="btn btn-primary lg" data-review="">${icon("play")}开始复习<kbd>R</kbd></button>
+        </div>`
+      : `<div class="today"><div class="t-main"><div class="t-num">今天的复习都完成了</div><div class="t-meta">明天有 ${F.cards.filter(c => F.dayDiff(c.due) === 1).length} 张到期${late ? ` · 今天稍后还有 ${late} 张` : ""}</div></div></div>`;
+    const rows = F.decks.map(d => deckRow(d)).join("");
+    return `${hero}
+      <div class="sec"><div class="sec-head"><span class="label">卡组</span><span class="meta">${F.decks.length} 个 · ${F.cards.length} 张</span><span class="right">按待复习数排序</span></div>
+        <div class="cols cols-head"><span></span><span>名称</span><span>待复习</span><span>新 · 学习中 · 巩固</span><span>7 日到期</span></div>
+        ${F.decks.slice().sort((a, b) => F.deckStats(b.id).todo - F.deckStats(a.id).todo).map(deckRow).join("")}
+      </div>`;
+  }
+  function deckRow(d) {
+    const s = F.deckStats(d.id);
+    let cnt;
+    if (!s.total) cnt = `<span class="cnt done">还没有卡片</span>`;
+    else if (!s.todo) {
+      const next = F.cards.filter(c => c.deckId === d.id && c.status !== "suspended").sort((a, b) => a.due - b.due)[0];
+      cnt = `<span class="cnt done">已完成 · 下次${next ? F.dueInfo(next).text.replace(/^(\d)/, " $1") : "—"}</span>`;
+    } else cnt = `<span class="cnt"><b class="num">${s.due}</b> 到期${s.fresh ? ` · <b class="num">${s.fresh}</b> 新` : ""}</span>`;
+    return `<div class="cols deck-row${s.total ? "" : " empty"}" data-open="${d.id}">
+      ${F.deckMark(d)}
+      <div style="min-width:0"><div class="name">${esc(d.name)}</div><div class="desc">${esc(d.description || `${s.total} 张`)}</div></div>
+      ${cnt}
+      ${s.total ? F.mixBar(s) : "<span></span>"}
+      ${s.total ? F.forecastBars(s.forecast) : "<span></span>"}
+      ${s.todo ? `<button class="btn btn-ghost go" data-review="${d.id}">${icon("play")}复习</button>` : s.total ? "" : `<button class="btn btn-ghost go" data-add="${d.id}">${icon("plus")}添加</button>`}
+    </div>`;
+  }
+
+  function filtered(deckId) {
+    return F.cardsOf(deckId).filter(c => {
+      if (S.type !== "all" && c.type !== S.type) return false;
+      if (S.status === "all") return true;
+      if (S.status === "due") return F.isDue(c);
+      return c.status === S.status;
+    });
+  }
+  function deckView() {
+    const d = F.deckById(S.deck);
+    const s = F.deckStats(d.id);
+    const list = filtered(d.id);
+    const secs = [
+      ["待复习", list.filter(F.isDue).sort((a, b) => (a.status === "new") - (b.status === "new") || a.due - b.due)],
+      ["今天稍后", list.filter(c => !F.isDue(c) && c.status !== "suspended" && F.dayDiff(c.due) === 0)],
+      ["未来 7 天", list.filter(c => !F.isDue(c) && c.status !== "suspended" && F.dayDiff(c.due) >= 1 && F.dayDiff(c.due) < 7).sort((a, b) => a.due - b.due)],
+      ["更晚", list.filter(c => !F.isDue(c) && c.status !== "suspended" && F.dayDiff(c.due) >= 7).sort((a, b) => a.due - b.due)],
+      ["已暂停", list.filter(c => c.status === "suspended")],
+    ].filter(x => x[1].length);
+    const seg = [["all", "全部", s.total], ["due", "待复习", s.todo], ["new", "新卡", s.fresh], ["learning", "学习中", s.learning], ["review", "巩固", s.review], ["suspended", "已暂停", s.suspended]];
+    return `
+      <div class="deck-head">${F.deckMark(d, "lg")}
+        <div style="flex:1;min-width:0"><h2>${esc(d.name)}</h2><div class="desc">${esc(d.description || "没有描述")}</div></div>
+        <button class="icon-btn" id="deck-more" title="卡组操作">${icon("more")}</button>
+        ${s.todo ? `<button class="btn btn-primary lg" data-review="${d.id}">${icon("play")}复习 ${s.todo} 张<kbd>R</kbd></button>` : ""}
+      </div>
+      <div class="filters">
+        <div class="seg sm">${seg.map(([k, l, n]) => `<button class="${S.status === k ? "on" : ""}" data-st="${k}">${l}<span class="num" style="opacity:.6">${n}</span></button>`).join("")}</div>
+        <span class="spacer"></span>
+        <button class="btn btn-ghost" id="type-filter">${icon("sliders")}${S.type === "all" ? "全部题型" : F.TYPE_META[S.type].label}${icon("chev-down")}</button>
+      </div>
+      ${s.total === 0
+        ? `<div class="empty-board">这个卡组还没有闪卡<br><button class="btn btn-soft" data-add="${d.id}">${icon("plus")}添加第一张</button></div>`
+        : secs.length === 0
+          ? `<div class="empty-board">没有符合筛选的闪卡</div>`
+          : secs.map(([label, arr]) => `<div class="sec"><div class="sec-head"><span class="label">${label}</span><span class="meta num">${arr.length}</span></div>${arr.map(cardRow).join("")}</div>`).join("")}`;
+  }
+  function cardRow(c) {
+    return `<div class="ccols card-row${c.status === "suspended" ? " susp" : ""}" data-card="${c.id}">
+      ${F.typeChip(c)}
+      <span class="q">${F.promptText(c)}</span>
+      <span class="a">${F.plain(F.answerText(c))}</span>
+      ${F.statusDot(c)}
+      ${F.dueSpan(c)}
+    </div>`;
+  }
+
+  function overviewSide() {
+    const h = F.history;
+    const last15 = h.slice(-15);
+    const r7 = F.retention(7);
+    const week = h.slice(-7);
+    const maxDay = Math.max(1, ...week.map(F.sumDay));
+    const fc = Array.from({ length: 7 }, (_, i) => F.cards.filter(c => c.status !== "suspended" && c.status !== "new" && (i === 0 ? c.due <= F.TODAY0 + F.DAY : F.dayDiff(c.due) === i)).length);
+    const fcMax = Math.max(1, ...fc);
+    const today = h[h.length - 1];
+    const todayN = F.sumDay(today);
+    const lbl = i => (i === 0 ? "今" : F.WEEK_CN[new Date(F.NOW + i * F.DAY).getDay()].slice(1));
+    return `<div class="side">
+      <div class="blk"><div class="sec-h">连续复习<span class="right">近 15 天</span></div>
+        <div class="big-line"><b>${F.streak()}</b>天${todayN ? ` · 今天已复习 ${todayN} 张` : " · 今天还没开始"}</div>
+        <div class="dots">${last15.map((d, i) => `<i class="${F.sumDay(d) > 20 ? "on" : F.sumDay(d) ? "lo" : ""}${i === 14 ? " cur" : ""}" title="${F.sumDay(d)} 张"></i>`).join("")}</div>
+      </div>
+      <div class="blk"><div class="sec-h">近 7 天<span class="right">${r7.total} 次评分</span></div>
+        <div class="big-line"><b>${Math.round(r7.rate * 100)}%</b>记住（记得 + 轻松）</div>
+        <div class="bars">${week.map(d => `<div class="col">${["easy", "normal", "struggle", "hard"].map(k => `<i style="height:${(d[k] / maxDay) * 76}px;background:${colorOf[k]}"></i>`).join("")}</div>`).join("")}</div>
+        <div class="bars-x">${week.map((_, i) => `<span class="${i === 6 ? "t" : ""}">${i === 6 ? "今" : F.WEEK_CN[new Date(F.NOW - (6 - i) * F.DAY).getDay()].slice(1)}</span>`).join("")}</div>
+        <div class="legend">${F.RATINGS.slice().reverse().map(r => `<span><i style="background:${colorOf[r.value]}"></i>${r.label}</span>`).join("")}</div>
+      </div>
+      <div class="blk"><div class="sec-h">未来 7 天到期</div>
+        <div class="fc-bars">${fc.map((v, i) => `<div><span class="num">${v}</span><i style="height:${Math.max(3, (v / fcMax) * 44)}px"></i></div>`).join("")}</div>
+        <div class="bars-x">${fc.map((_, i) => `<span class="${i === 0 ? "t" : ""}">${lbl(i)}</span>`).join("")}</div>
+      </div>
+    </div>`;
+  }
+  function deckSide() {
+    const d = F.deckById(S.deck);
+    const s = F.deckStats(d.id);
+    const list = F.cardsOf(d.id);
+    const fcMax = Math.max(1, ...s.forecast);
+    const byType = F.TYPE_ORDER.map(t => [t, list.filter(c => c.type === t).length]);
+    const maxT = Math.max(1, ...byType.map(x => x[1]));
+    const lbl = i => (i === 0 ? "今" : F.WEEK_CN[new Date(F.NOW + i * F.DAY).getDay()].slice(1));
+    return `<div class="side">
+      <div class="blk"><div class="sec-h">卡片构成<span class="right">${s.total} 张</span></div>
+        ${s.total ? F.mixBar(s) : ""}
+        <div class="legend" style="margin-top:9px"><span><i style="background:var(--info)"></i>新卡 ${s.fresh}</span><span><i style="background:var(--warn)"></i>学习中 ${s.learning}</span><span><i style="background:var(--ok)"></i>巩固 ${s.review}</span>${s.suspended ? `<span><i style="background:var(--ink-3)"></i>已暂停 ${s.suspended}</span>` : ""}</div>
+      </div>
+      <div class="blk"><div class="sec-h">题型</div>
+        <div class="type-rows">${byType.map(([t, n]) => `<div><span>${F.TYPE_META[t].label}</span><span class="trk"><i style="width:${(n / maxT) * 100}%"></i></span><b>${n}</b></div>`).join("")}</div>
+      </div>
+      <div class="blk"><div class="sec-h">未来 7 天到期</div>
+        <div class="fc-bars">${s.forecast.map(v => `<div><span class="num">${v}</span><i style="height:${Math.max(3, (v / fcMax) * 44)}px"></i></div>`).join("")}</div>
+        <div class="bars-x">${s.forecast.map((_, i) => `<span class="${i === 0 ? "t" : ""}">${lbl(i)}</span>`).join("")}</div>
+      </div>
+      <div class="blk"><div class="sec-h">记录</div>
+        <div class="kv"><span class="k">上次复习</span><span class="v">${s.lastReview ? (F.dayDiff(s.lastReview) === 0 ? "今天" : -F.dayDiff(s.lastReview) + " 天前") : "—"}</span>
+        <span class="k">累计复习</span><span class="v">${list.reduce((a, c) => a + c.reviewCount, 0)} 次</span>
+        <span class="k">创建于</span><span class="v">8月15日</span></div>
+      </div>
+    </div>`;
+  }
+
+  function wire() {
+    const p = shell.page;
+    p.querySelectorAll("[data-deck]").forEach(b => b.addEventListener("click", () => { S.deck = b.dataset.deck ? +b.dataset.deck : null; S.status = "all"; S.type = "all"; render(); }));
+    p.querySelectorAll("[data-open]").forEach(r => r.addEventListener("click", e => { if (e.target.closest("button")) return; S.deck = +r.dataset.open; render(); }));
+    p.querySelectorAll("[data-review]").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); startReview(b.dataset.review ? +b.dataset.review : null); }));
+    p.querySelectorAll("[data-add]").forEach(b => b.addEventListener("click", e => { e.stopPropagation(); F.openEditorDialog(null, { deckId: +b.dataset.add, onSaved: render }); }));
+    p.querySelectorAll("[data-st]").forEach(b => b.addEventListener("click", () => { S.status = b.dataset.st; render(); }));
+    p.querySelectorAll("[data-card]").forEach(r => {
+      r.addEventListener("click", () => F.openEditorDialog(F.byId(+r.dataset.card), { onSaved: render }));
+      r.addEventListener("contextmenu", e => { e.preventDefault(); cardMenu(F.byId(+r.dataset.card), { x: e.clientX, y: e.clientY }); });
+    });
+    p.querySelector("#type-filter")?.addEventListener("click", e =>
+      F.openMenu(e.currentTarget, [{ label: "全部题型", v: "all", checked: S.type === "all" }, "-", ...F.TYPE_ORDER.map(t => ({ icon: F.TYPE_META[t].icon, label: F.TYPE_META[t].label, v: t, checked: S.type === t }))], x => { S.type = x.v; render(); }, { alignRight: true })
+    );
+    p.querySelector("#deck-more")?.addEventListener("click", e => {
+      const d = F.deckById(S.deck);
+      F.openMenu(e.currentTarget, [{ icon: "edit", label: "编辑卡组", v: "e" }, { icon: "plus", label: "在此卡组新建闪卡", v: "n" }, { icon: "wand", label: "从笔记生成闪卡…", v: "g" }, "-", { icon: "trash", label: "删除卡组", danger: true, v: "d" }], x => {
+        if (x.v === "e" || x.v === "d") F.openDeckDialog(d, saved => { if (!saved) S.deck = null; render(); });
+        if (x.v === "n") F.openEditorDialog(null, { deckId: d.id, onSaved: render });
+        if (x.v === "g") F.toast("复用现有「AI 生成闪卡」弹窗：选择笔记 → 生成 → 挑选入组");
+      }, { alignRight: true });
+    });
+    p.querySelector("#new-deck").addEventListener("click", () => F.openDeckDialog(null, d => { S.deck = d.id; render(); }));
+    p.querySelector("#new-card").addEventListener("click", e =>
+      F.openMenu(e.currentTarget, [{ icon: "edit", label: "手动新建", k: "N", v: "m" }, { icon: "wand", label: "从笔记生成（AI）…", v: "g" }], x => {
+        if (x.v === "m") F.openEditorDialog(null, { deckId: S.deck || F.decks[0].id, onSaved: render });
+        else F.toast("复用现有「AI 生成闪卡」弹窗：选择笔记 → 生成 → 挑选入组");
+      }, { alignRight: true })
+    );
+  }
+  function cardMenu(c, at) {
+    F.openMenu(at, [
+      { icon: "edit", label: "编辑", v: "e" },
+      { icon: "pause", label: c.status === "suspended" ? "恢复复习" : "暂停复习", v: "p" },
+      { icon: "move", label: "移动到卡组…", v: "m" },
+      "-",
+      { icon: "trash", label: "删除", danger: true, v: "d" },
+    ], x => {
+      if (x.v === "e") F.openEditorDialog(c, { onSaved: render });
+      if (x.v === "p") { c.status = c.status === "suspended" ? "review" : "suspended"; render(); }
+      if (x.v === "m") F.openMenu(at, F.decks.filter(d => d.id !== c.deckId).map(d => ({ deck: d, label: d.name, id: d.id })), y => { const from = c.deckId; c.deckId = y.id; render(); F.toast(`已移到「${y.label}」`, () => { c.deckId = from; render(); }); });
+      if (x.v === "d") { const i = F.cards.indexOf(c); F.cards.splice(i, 1); render(); F.toast("已删除闪卡", () => { F.cards.splice(i, 0, c); render(); }); }
+    });
+  }
+
+  /* ---------- 沉浸复习 ---------- */
+  function startReview(deckId) {
+    const q = F.queue(deckId);
+    if (!q.length) return F.toast("这里没有需要复习的卡片");
+    S.mode = "review";
+    const grid = document.getElementById("app-grid");
+    grid.classList.add("focus-mode");
+    const scope = deckId ? F.deckById(deckId) : null;
+    shell.crumb.innerHTML = `闪卡复习 / <b>${scope ? esc(scope.name) : "全部卡组"}</b>`;
+    shell.back.disabled = false;
+    shell.back.onclick = () => exit();
+    shell.page.innerHTML = `<div class="focus">
+      <div class="f-top">
+        <button class="btn btn-ghost" id="f-exit">${icon("x")}结束</button>
+        <span class="scope">${scope ? F.deckMark(scope, "sm") + esc(scope.name) : icon("layers") + "全部卡组"}</span>
+        <div class="progress"><i id="f-prog" style="width:0"></i></div>
+        <span class="count" id="f-count"></span>
+        <span class="mini-dist" id="f-dist"></span>
+        <button class="icon-btn" id="f-side" title="显示导航栏">${icon("panel-right")}</button>
+      </div>
+      <div class="f-stage scroller"><div class="inner" id="stage"></div></div>
+    </div>`;
+    shell.status.innerHTML = `<span class="hint"><kbd>A</kbd>–<kbd>D</kbd> 选择</span><span class="hint"><kbd>↵</kbd> 提交</span><span class="hint"><kbd>Space</kbd> 显示答案</span><span class="dot"></span><span class="hint"><kbd>1</kbd>–<kbd>4</kbd> 评分</span><span class="dot"></span><span class="hint"><kbd>E</kbd> 编辑</span><span class="hint"><kbd>S</kbd> 暂停此卡</span><span class="hint"><kbd>⌘Z</kbd> 撤销上一张</span><span class="grow"></span><span class="hint"><kbd>Esc</kbd> 结束</span>`;
+    let reviewed = 0;
+    S.review = F.mountReview(document.getElementById("stage"), {
+      queue: q,
+      onProgress({ index, total, dist }) {
+        reviewed = dist.hard + dist.struggle + dist.normal + dist.easy;
+        document.getElementById("f-prog").style.width = (Math.min(index, total) / total) * 100 + "%";
+        document.getElementById("f-count").innerHTML = index < total ? `<b>${index + 1}</b> / ${total}` : `${total} / ${total}`;
+        document.getElementById("f-dist").innerHTML = F.RATINGS.map(r => `<span style="--c:${colorOf[r.value]}" title="${r.label}">${dist[r.value]}</span>`).join("");
+      },
+      onEdit(c, rerender) { F.openEditorDialog(c, { onSaved: () => rerender() }); },
+      onExit() { exit(); },
+    });
+    document.getElementById("f-exit").onclick = () => exit();
+    document.getElementById("f-side").onclick = () => grid.classList.toggle("focus-mode");
+    function exit() {
+      S.review && S.review.destroy();
+      S.review = null;
+      S.mode = "browse";
+      grid.classList.remove("focus-mode");
+      const left = F.queue(deckId).length;
+      render();
+      if (reviewed) F.toast(left ? `已复习 ${reviewed} 张，剩下 ${left} 张留在队列里` : `已复习 ${reviewed} 张，队列清空了`);
+    }
+  }
+
+  document.addEventListener("keydown", e => {
+    if (S.mode !== "browse" || F.dialogOpen() || F.menuOpen()) return;
+    if (/INPUT|TEXTAREA/.test(document.activeElement?.tagName)) return;
+    if (e.key.toLowerCase() === "r" && !e.metaKey && !e.ctrlKey) { e.preventDefault(); startReview(S.deck); }
+    if (e.key.toLowerCase() === "n" && !e.metaKey && !e.ctrlKey) { e.preventDefault(); F.openEditorDialog(null, { deckId: S.deck || F.decks[0].id, onSaved: render }); }
+    if (e.key === "Escape" && S.deck) { S.deck = null; render(); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
