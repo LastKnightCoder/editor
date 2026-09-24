@@ -24,6 +24,24 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8795", "-d", "apps/desktop/mockups/settings"],
       "port": 8795
+    },
+    {
+      "name": "calendar-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8796", "-d", "apps/desktop/mockups/calendar"],
+      "port": 8796
+    },
+    {
+      "name": "notification-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8797", "-d", "apps/desktop/mockups/notification"],
+      "port": 8797
+    },
+    {
+      "name": "showcase",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "apps/desktop", "showcase"],
+      "port": 6199
     }
   ]
 }
