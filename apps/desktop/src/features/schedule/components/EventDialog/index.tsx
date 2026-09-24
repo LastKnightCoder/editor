@@ -363,7 +363,7 @@ const EventDialog = () => {
           <FieldRow icon={Hash} label="数值">
             <NumberInput
               size="sm"
-              className="w-[220px]"
+              wrapperClassName="w-[220px]"
               value={value}
               onValueChange={setValue}
               placeholder="可选，如时间成本、金额"
