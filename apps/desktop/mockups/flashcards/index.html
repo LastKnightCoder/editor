@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>闪卡复习设计探索 · 总览</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-hover: rgba(67, 57, 44, 0.05); --bg-track: #e0d6c3;
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --line: #e9e1d2; --ok: #61795f; --warn: #a38c4d; --danger: #b0564d; --info: #5c7d99;
+    --shadow: 0 1px 2px rgba(120,100,70,0.05), 0 10px 24px -14px rgba(120,100,70,0.18);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 14px/1.75 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 40px 8vw 80px; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { color: var(--ink-2); margin-top: 6px; max-width: 82ch; }
+  header .meta { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+  h2 { font-size: 16px; margin: 42px 0 14px; font-weight: 600; }
+  .sub2 { color: var(--ink-2); max-width: 82ch; margin-bottom: 14px; }
+  ul.tight { padding-left: 20px; color: var(--ink-2); max-width: 92ch; }
+  ul.tight li + li { margin-top: 4px; }
+  ul.tight b { color: var(--ink-1); font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .card { background: var(--bg-surface); border-radius: 16px; padding: 20px 22px; box-shadow: var(--shadow); text-decoration: none; color: inherit; display: flex; flex-direction: column;
+    outline: 1px solid transparent; transition: box-shadow 200ms, outline-color 200ms; }
+  .card:hover { outline-color: var(--line); box-shadow: 0 16px 40px -12px rgba(120,100,70,0.3); }
+  .card .no { font: 600 12px/1 ui-monospace, Consolas, monospace; color: var(--accent-text); }
+  .card h3 { font-size: 15.5px; margin: 6px 0 2px; font-weight: 600; }
+  .card .who { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+  .card p { font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  .card .wire { margin-top: 14px; height: 96px; border-radius: 10px; background: var(--bg-page); padding: 8px; display: grid; gap: 5px; }
+  .wire div { border-radius: 5px; }
+  .card .verdict { margin-top: 12px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .verdict .good { color: var(--ok); } .verdict .bad { color: var(--danger); }
+  .card .open { margin-top: auto; padding-top: 12px; font-size: 12.5px; color: var(--accent-text); font-weight: 500; }
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line); }
+  td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  .callout { background: var(--bg-surface); border-radius: 14px; padding: 18px 22px; margin-top: 14px; box-shadow: var(--shadow); border-left: 3px solid var(--accent); }
+  .callout p { color: var(--ink-2); font-size: 13.5px; }
+  .callout p + p { margin-top: 8px; }
+  .callout b { color: var(--ink-1); }
+  code { font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--bg-surface); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; color: var(--accent-text); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12.5px; color: var(--ink-2); margin-top: 6px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  ol.q { padding-left: 22px; color: var(--ink-2); max-width: 92ch; }
+  ol.q li + li { margin-top: 6px; }
+  ol.q b { color: var(--ink-1); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>闪卡复习设计探索 · 三方案</h1>
+  <p class="sub">现状：legacy <code>pages/FlashcardCenter</code> 是「可拖宽的卡组侧栏 + 主区瀑布 / 表格 + 居中复习大弹窗 + 编辑大弹窗」，样式靠 <code>useThemeColors</code> 拼 class 串，混着 antd <code>modal.confirm</code>、旧 <code>--th-*</code> 和 slate / white 硬编码。三个方案共用同一套 mock 数据（6 个卡组，其中 1 个空卡组、1 个今天已复习完；32 张卡片，五种题型都有，含填空备选答案、选项解析、参考资料），也共用同一个复习引擎和编辑器，用的是 cream / cocoa 两套主题的真实 token 值。浏览器打开就能操作：作答、翻面、评分、撤销、暂停、编辑、新建、筛选、右键菜单都能用，右上角可以切换明暗。</p>
+  <p class="meta">2026-09-24 · 演示时间固定为 9月24日 周四 14:20 · mockup 只作视觉参考，不作为导出源（D-001）</p>
+</header>
+
+<h2>领域判断：闪卡和待办、卡片库有什么不同</h2>
+<p class="sub2">导航里这一项叫「闪卡复习」，说明页面的主要任务是复习，其次才是整理卡片。三个方案的分歧来自下面四点：</p>
+<ul class="tight">
+  <li><b>一天里的两种状态</b>：复习是每天一次、一次 5～20 分钟的连续作业，需要专注、需要键盘、不能被别的东西打断；整理（新建、改错、挪卡组）是零碎的，常常在复习过程中顺手发生；</li>
+  <li><b>队列由排期决定</b>：什么时候复习哪张卡由主进程 <code>calculateSchedule</code> 算出来，用户的决定只有「现在复习不复习」「这张记得怎样」。所以首屏最重要的信息是「现在有几张、分别在哪些卡组、大概多久」；</li>
+  <li><b>五种题型的作答方式不一样</b>：单选 / 判断选完就能判对错，多选和填空要提交，问答只能自评（配置模型后可以让 AI 评判）。评分和判对错是两件事：答对了也可以评「模糊」；</li>
+  <li><b>卡组是轻量容器</b>：只有名称、图标、颜色、描述，数量一般是个位数到十几个。</li>
+</ul>
+
+<h2>三个方案都修掉的 legacy 问题</h2>
+<ul class="tight">
+  <li><b>复习全程可以只用键盘</b>：legacy 复习弹窗没有快捷键。现在是 A–D 选选项、↵ 提交、Space 显示答案、1–4 评分、E 编辑本卡、S 暂停本卡、⌘Z 撤销上一张、Esc 结束；</li>
+  <li><b>评分按钮显示下次间隔</b>：「忘记 · 15 小时后」「记得 · 5 天后」，算法和主进程 <code>calculateSchedule</code> 完全一致（纯函数，前端可以直接算，不用新 IPC）；答题后会按对错描边推荐一个评分（答错推荐「忘记」，答对推荐「记得」），按 Space 直接采用；</li>
+  <li><b>评分文案统一</b>：legacy 复习弹窗是「困难 / 较难 / 一般 / 轻松」，统计页定稿是「忘记 / 模糊 / 记得 / 轻松」，这次统一用后者，按键顺序从忘记到轻松；</li>
+  <li><b>可以跨卡组复习</b>：legacy 只能复习当前选中的卡组。现在有「全部卡组」队列（同主进程 <code>get-review-queue</code> 的排序），提交评分时 deckId 用卡片自己的 <code>card.deckId</code>，不用当前页面选中的卡组；</li>
+  <li><b>「暂停」接上界面</b>：后端有 <code>suspended</code> 状态，但 legacy 没有设置和查看的入口。现在复习中按 S、右键菜单、编辑器里都能暂停和恢复，卡组视图里有「已暂停」分组；</li>
+  <li><b>删除不再二次确认</b>：卡片删除立即生效，Toast 里可以撤销，和待办的做法一致（D-040）。卡组删除会连带卡片，所以保留确认，确认文案写明会删几张；</li>
+  <li><b>连续录入</b>：新建闪卡时可以「保存并新建」（⌘⇧↵），卡组和题型沿用上一张；填空题在题干里选中文字、按「设为填空」或 ⌘⇧C 挖空，每个空可以填备选答案；</li>
+  <li><b>清理</b>：<code>ReviewDock.tsx</code> 已经没有引用，迁移时和 <code>FlashcardGrid</code>、<code>DeckSidebar</code> 一起登记进 04 删除清单。</li>
+</ul>
+
+<h2>三个方案的共用基线</h2>
+<ul class="tight">
+  <li><b>复习卡内容三方案完全一致</b>，只是承载方式不同：卡组 · 题型 · 状态 → 题干 → 作答区 → 翻面（判定 → 答案 → AI 评判 → 解析 → 参考资料）→ 评分条。翻面用一段 accent 短刻度分开，不画横线；</li>
+  <li><b>编辑器内容三方案一致</b>：题型分段 → 题干 → 按题型变化的答案区（选项点字母标正确答案 / 填空列表 + 备选答案 / 参考答案 / 正确错误）→ 提示 → 解析 → 卡组 · 难度 → 标签 → 参考资料（关联笔记沿用 ContentSelector）→ 复习信息（编辑时显示）；</li>
+  <li><b>卡组身份 = legacy 图标键 + 卡组色</b>：图标沿用 <code>flashcardDeckIcons</code> 的 10 个线性图标（旧 emoji 由 <code>DeckIcon</code> 兼容），legacy 10 个 coverColor 收敛到 tag-1…5 和 accent，只用来区分卡组，不新增 token；</li>
+  <li><b>状态和评分用语义色</b>：新卡 = info、学习中 = warn、巩固 = ok、暂停 = ink-3；忘记 = danger、模糊 = warn、记得 = ok、轻松 = info。现在到期用 accent-text，逾期用 danger；</li>
+  <li>视觉规则照旧：分组不画横线、数字用 tabular-nums、滚动区边缘渐隐、4px 细滚动条、页内不做搜索（统一走全局 ⌘K）、新建放在工具栏右上。</li>
+</ul>
+<div class="legend">
+  <span><i style="background:var(--info)"></i>新卡 / 轻松</span><span><i style="background:var(--warn)"></i>学习中 / 模糊</span><span><i style="background:var(--ok)"></i>巩固 / 记得</span><span><i style="background:var(--danger)"></i>逾期 / 忘记</span><span><i style="background:var(--accent)"></i>现在到期 / 主操作</span>
+</div>
+
+<h2>三个方案</h2>
+<div class="cards">
+  <a class="card" href="plan-a-desk.html">
+    <div class="no">方案 A</div>
+    <h3>复习台 <span class="who">· 两块板 + 沉浸复习</span></h3>
+    <p>骨架和待办 B3 的「两块板」一样：工具栏 → 卡组 pills → 左板 + 右板。左板顶部是「今天 21 张待复习 · 约 9 分钟」和「开始复习」，下面每个卡组一行（待复习数、构成条、7 日到期柱）；点 pill 或卡组行，左板换成这个卡组的卡片列表，按「待复习 / 今天稍后 / 未来 7 天 / 更晚 / 已暂停」分段。右板放连续天数、近 7 天评分分布、未来 7 天到期。开始复习后导航侧栏平滑收起，页面只剩一张题卡和评分条，Esc 退出后恢复原布局。</p>
+    <div class="wire" style="grid-template-columns: 3fr 1.1fr; grid-template-rows: 12px 1fr;">
+      <div style="grid-column:1/3;display:flex;gap:4px"><div style="width:44px;background:var(--accent-soft)"></div><div style="width:36px;background:var(--bg-surface)"></div><div style="width:36px;background:var(--bg-surface)"></div></div>
+      <div style="background:var(--bg-surface);box-shadow:var(--shadow)"></div><div style="background:var(--bg-surface);box-shadow:var(--shadow)"></div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 最直接回答「今天复习什么」；和待办 / 文章 / 项目页骨架一样；复习时最专注</span>
+      <span class="bad">✗ 批量整理卡片不方便（每张都要打开 Dialog）；右板的统计和统计页有一部分重复</span>
+    </div>
+    <span class="open">打开方案 A →</span>
+  </a>
+  <a class="card" href="plan-b-workbench.html">
+    <div class="no">方案 B</div>
+    <h3>卡组工作台 <span class="who">· 三栏 + 常驻检查器</span></h3>
+    <p>Anki 卡片浏览器的思路。左列是融在纸面上的卡组导航（今日待复习 / 全部卡片 / 已暂停 + 各卡组）；中板是卡片列表；右板是常驻检查器，选中就能看卡面，Space 翻面，E 或双击直接在检查器里编辑，⌘↵ 保存，编辑和新建都不开弹窗。复习用居中的 Dialog，结束后回到原来选中的位置。全键盘：↑↓ 选卡、⌫ 删除（可撤销）、N 新建、R 复习。</p>
+    <div class="wire" style="grid-template-columns: 0.8fr 2fr 1.5fr;">
+      <div style="display:grid;gap:4px;align-content:start"><div style="height:10px;background:var(--accent-soft)"></div><div style="height:10px;background:var(--bg-surface)"></div><div style="height:10px;background:var(--bg-surface)"></div></div>
+      <div style="background:var(--bg-surface);box-shadow:var(--shadow)"></div><div style="background:var(--bg-surface);box-shadow:var(--shadow)"></div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 整理和批量录入最快；编辑不遮挡列表；键盘效率最高</span>
+      <span class="bad">✗ 三栏加导航侧栏共四列，1200px 宽时列表偏窄；首屏像管理工具，「今天复习」只是一个按钮和一个计数</span>
+    </div>
+    <span class="open">打开方案 B →</span>
+  </a>
+  <a class="card" href="plan-c-shelf.html">
+    <div class="no">方案 C</div>
+    <h3>卡组书架 <span class="who">· 封面网格 + 翻面卡片墙 + 页内卡堆</span></h3>
+    <p>把卡组当成一叠实体卡片。总览顶部是一块「今日条」：待复习数、按卡组分流的小按钮（只复习这一组）、开始复习；下面是卡组封面网格，封面用卡组色派生渐变，上面叠着几张卡片的轮廓，hover 时轮廓散开。进入卡组是卡片墙，放在一整块大面板里，点击卡片原地 3D 翻面看答案，双击编辑。复习在页内进行，题卡身后叠着剩余卡片的轮廓，顶部一排圆点随评分着色。</p>
+    <div class="wire" style="grid-template-columns: repeat(3, 1fr); grid-template-rows: 22px 1fr;">
+      <div style="grid-column:1/4;background:var(--bg-surface);box-shadow:var(--shadow)"></div>
+      <div style="background:linear-gradient(160deg,#c9d6e3,var(--bg-surface) 70%);box-shadow:var(--shadow)"></div><div style="background:linear-gradient(160deg,#ddd5e8,var(--bg-surface) 70%);box-shadow:var(--shadow)"></div><div style="background:linear-gradient(160deg,#d3dfd0,var(--bg-surface) 70%);box-shadow:var(--shadow)"></div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 个性最强，最有「闪卡」的感觉；卡片墙浏览和自测很直观；和项目页 C 的封面语言一致</span>
+      <span class="bad">✗ 封面网格是多张卡片并排，有「碎卡漏底」的风险；看卡组状态要逐张看；卡片墙的信息密度最低</span>
+    </div>
+    <span class="open">打开方案 C →</span>
+  </a>
+</div>
+
+<h2>对比</h2>
+<table>
+  <thead><tr><th>维度</th><th>A 复习台</th><th>B 卡组工作台</th><th>C 卡组书架</th></tr></thead>
+  <tbody>
+    <tr><td>主轴</td><td>今天的复习队列</td><td>卡片整理</td><td>卡组（物件）</td></tr>
+    <tr><td>首屏回答</td><td>「今天几张、在哪些卡组、多久」+ 卡组行</td><td>今日待复习的卡片列表</td><td>今日条 + 卡组封面</td></tr>
+    <tr><td>复习承载</td><td>沉浸模式（导航侧栏收起、页面只剩题卡）</td><td>居中 Dialog（压暗工作台）</td><td>页内卡堆（叠放轮廓 + 评分圆点）</td></tr>
+    <tr><td>编辑承载</td><td>居中双栏 Dialog</td><td>检查器里就地编辑，不开弹窗</td><td>居中双栏 Dialog</td></tr>
+    <tr><td>浏览卡片</td><td>按到期分段的列表</td><td>列表 + 检查器预览 / 翻面</td><td>卡片墙，原地翻面</td></tr>
+    <tr><td>跨卡组复习</td><td>「开始复习」= 全部；卡组行 / 卡组页 = 单组</td><td>范围 = 当前左列选中的视图</td><td>今日条主按钮 = 全部；卡组小按钮 = 单组</td></tr>
+    <tr><td>键盘效率</td><td>高（复习全键盘，R / N 直达）</td><td>最高（浏览、编辑、复习都能用键盘）</td><td>中（复习全键盘，浏览主要用鼠标）</td></tr>
+    <tr><td>与已定稿页面同构度</td><td>高（待办 B3 两块板）</td><td>低（独有三栏）</td><td>中（项目页封面 / 卡片库卡片墙）</td></tr>
+    <tr><td>卡片多时</td><td>好（分段 + sticky 段头）</td><td>好（列表 + 排序）</td><td>一般（卡片墙很长）</td></tr>
+  </tbody>
+</table>
+
+<h2>可以混搭的部件</h2>
+<ul class="tight">
+  <li>三种<b>复习承载</b>（沉浸模式 / Dialog / 页内卡堆）可以互换，复习卡内容是同一份；C 的<b>评分圆点</b>可以替换 A 的进度条；</li>
+  <li>B 的<b>检查器</b>可以作为 A 卡组视图的右板（选中卡片时右板从卡组概况切换成卡片预览 / 编辑），这样 A 也能不开弹窗整理卡片；</li>
+  <li>C 的<b>今日条分流按钮</b>（只复习某一组）可以放进 A 的今日块；C 的<b>卡片墙原地翻面</b>可以作为 A 卡组视图的另一种显示方式（列表 / 卡片墙切换）；</li>
+  <li>A 右板的<b>记忆节律</b>（连续天数、近 7 天评分、未来 7 天到期）和统计页有部分重复，如果选 A，可以只保留「未来 7 天到期」，其余点进统计页看。</li>
+</ul>
+
+<h2>裁决记录（2026-09-24 一轮评审）</h2>
+<div class="callout">
+  <p><b>① 方向</b>：选 A 复习台。</p>
+  <p><b>② 复习承载 = 沉浸模式，题卡在剩余空间里水平 + 垂直居中</b>：初版题卡贴顶，已改为居中；卡片内容超过一屏时退化为从顶部开始、整体可滚动，不裁切。</p>
+  <p><b>③ 主按钮给「开始复习」</b>：总览与卡组视图各一枚，新建闪卡 / 新建卡组为次级按钮。</p>
+  <p><b>④ 推荐评分保留</b>：客观题按对错推荐（错 → 忘记，对 → 记得）；问答题<b>只在已配置模型、且用户写了答案时</b>调用 AI 评判，按分数推荐（≥9 轻松 / ≥6 记得 / ≥4 模糊 / 其余忘记）；未配置模型时问答题不评判、不推荐，由用户自评。</p>
+  <p><b>⑤ 不做表格视图</b>：legacy 的表格视图不迁移，卡组视图只保留按到期分段的列表。</p>
+  <p><b>⑥ 已落地</b>：<code>features/flashcards</code>（page key <code>review</code>，D-041）。</p>
+</div>
+
+</body>
+</html>
