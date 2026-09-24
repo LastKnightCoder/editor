@@ -291,9 +291,13 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
     return (
       <DatabaseContext.Provider value={store}>
         <div
-          className={classnames("relative flex h-full w-full flex-col", className, {
-            "cursor-col-resize select-none": isResizing,
-          })}
+          className={classnames(
+            "bg-surface border-line-1 shadow-card rounded-tau-md relative flex h-full w-full flex-col overflow-hidden border",
+            className,
+            {
+              "cursor-col-resize select-none": isResizing,
+            }
+          )}
         >
           <div className="shrink-0">
             <ViewTabs

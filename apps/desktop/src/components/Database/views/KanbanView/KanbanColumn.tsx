@@ -133,14 +133,12 @@ const KanbanColumn: React.FC<KanbanColumnProps> = memo(
           width: "308px",
           opacity: isDragging ? 0.5 : 1,
         }}
-        className="bg-group rounded-tau-lg flex h-full shrink-0 flex-col p-2"
+        className="flex h-full shrink-0 flex-col px-2"
       >
         {/* 列头 */}
         <div className="mb-1 flex items-center justify-between px-2 py-2">
           <div className="text-ink-1 flex items-center gap-2 font-medium">{renderHeader()}</div>
-          <span className="bg-page text-ink-3 text-tau-sm rounded-full px-2 py-0.5 tabular-nums">
-            {rows.length}
-          </span>
+          <span className="text-ink-3 text-tau-sm px-1 tabular-nums">{rows.length}</span>
         </div>
 
         {/* 卡片列表 */}

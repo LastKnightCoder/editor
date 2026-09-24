@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>看板列样式对比</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-group: #f0e9d8; --bg-track: #e0d6c3;
+    --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55);
+    --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --star: #e9a21b; --tag-mix: 13%; --tag-ink: 0%; --tint: 5%;
+    --shadow-card: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18);
+    --shadow-db: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18);
+    --font: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+    --mono: ui-monospace, Menlo, monospace;
+  }
+  [data-theme="cocoa"] {
+    --bg-page: #221d16; --bg-surface: #2e2820; --bg-group: #1e1912; --bg-track: #463d31;
+    --bg-hover: rgba(236,226,208,.06); --bg-press: rgba(236,226,208,.11);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768;
+    --line-1: #3a3227; --line-2: rgba(58,50,39,.55);
+    --accent-soft: hsla(22,62%,65%,.16); --accent-text: hsl(22 66% 70%);
+    --star: #e0a33a; --tag-mix: 20%; --tag-ink: 38%; --tint: 8%;
+    --shadow-card: 0 1px 2px rgba(0,0,0,.24), 0 10px 24px -14px rgba(0,0,0,.5);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 13px/1.6 var(--font); -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  svg.i { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  .ctrl { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 14px; padding: 12px 28px; background: color-mix(in srgb, var(--bg-page) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line-1); }
+  .ctrl h1 { white-space: nowrap; font-size: 13.5px; font-weight: 600; }
+  .seg { display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: var(--bg-hover); }
+  .seg button { white-space: nowrap; height: 26px; padding: 0 12px; border-radius: 7px; font-size: 12.5px; color: var(--ink-2); }
+  .seg button.on { background: var(--bg-surface); color: var(--ink-1); font-weight: 500; box-shadow: 0 1px 2px rgba(67,57,44,.1); }
+  .seg kbd { font: 10px var(--mono); opacity: .45; margin-left: 5px; }
+  .sp { flex: 1; }
+  .desc { margin: 18px 44px 0; color: var(--ink-2); font-size: 12.5px; max-width: 90ch; }
+  .desc b { color: var(--ink-1); }
+
+  .db { margin: 16px 44px 40px; height: 600px; background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px; box-shadow: var(--shadow-db); overflow: hidden; display: flex; flex-direction: column; }
+  .tb { height: 46px; flex: none; display: flex; align-items: center; gap: 20px; padding: 0 12px 0 16px; border-bottom: 1px solid var(--line-1); }
+  .tab { position: relative; height: 100%; display: inline-flex; align-items: center; gap: 6px; color: var(--ink-3); }
+  .tab.on { color: var(--ink-1); font-weight: 500; }
+  .tab.on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; border-radius: 2px; background: var(--ink-1); }
+  .tools { margin-left: auto; display: flex; gap: 2px; }
+  .tool { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 8px; color: var(--ink-3); font-size: 12.5px; }
+  .tool.on { background: var(--accent-soft); color: var(--accent-text); }
+
+  .board { flex: 1; min-height: 0; overflow-x: auto; }
+  .board::-webkit-scrollbar { height: 8px; }
+  .board::-webkit-scrollbar-track { margin: 0 16px 4px; background: transparent; }
+  .board::-webkit-scrollbar-thumb { background: var(--bg-track); border-radius: 99px; }
+  .cols { display: flex; gap: 12px; padding: 16px; height: 100%; width: max-content; }
+  .col { width: 292px; flex: none; display: flex; flex-direction: column; border-radius: 14px; padding: 8px; }
+  .ch { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px 8px; }
+  .ch .n { color: var(--ink-3); font: 12px var(--mono); }
+  .ch .plain { color: var(--ink-2); font-weight: 500; }
+  .list { flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 0 2px; }
+  .card { background: var(--bg-surface); border: 1px solid var(--line-1); border-radius: 12px; padding: 12px; box-shadow: var(--shadow-card); cursor: pointer; transition: box-shadow .16s, border-color .16s; }
+  .card:hover { box-shadow: 0 2px 4px rgba(120,100,70,.06), 0 14px 28px -12px rgba(120,100,70,.28); }
+  .card .t { font-weight: 500; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--line-2); }
+  .card .tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px; }
+  .stars { display: flex; gap: 2px; color: var(--star); } .stars svg { width: 14px; height: 14px; }
+  .tag { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: 99px; font-size: 12px;
+    background: color-mix(in srgb, var(--c) var(--tag-mix), transparent); color: color-mix(in srgb, var(--c), #fff var(--tag-ink)); }
+  .tag::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .tag.yr { font-family: var(--mono); }
+  .add { margin-top: 8px; height: 34px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 10px; color: var(--ink-3); font-size: 12.5px; transition: all .16s; }
+  .add:hover { background: var(--bg-hover); color: var(--ink-1); }
+
+  /* 1 无底色 + 分隔线 */
+  .s-line .cols { gap: 0; padding: 12px 8px; }
+  .s-line .col { border-radius: 0; padding: 4px 12px; border-right: 1px solid var(--line-2); }
+  .s-line .col:last-child { border-right: 0; }
+  /* 2 分组色淡染 */
+  .s-tint .col { background: color-mix(in srgb, var(--gc, var(--ink-3)) var(--tint), transparent); }
+  .s-tint .card { box-shadow: 0 1px 2px rgba(120,100,70,.06); border-color: color-mix(in srgb, var(--gc, var(--ink-3)) 14%, var(--line-1)); }
+  /* 3 描边列 */
+  .s-outline .col { border: 1px dashed transparent; box-shadow: inset 0 0 0 1px var(--line-1); }
+  .s-outline .card { box-shadow: none; }
+  .s-outline .card:hover { box-shadow: var(--shadow-card); }
+  /* 4 纯留白：列头下一条分组色短线 */
+  .s-open .cols { gap: 20px; padding: 16px 20px; }
+  .s-open .col { padding: 0; }
+  .s-open .ch { padding: 4px 2px 10px; margin-bottom: 10px; border-bottom: 2px solid color-mix(in srgb, var(--gc, var(--ink-3)) 55%, transparent); }
+  .s-open .list { padding: 0; }
+  /* 5 下沉面（原 bg-group 对照） */
+  .s-group .col { background: var(--bg-group); }
+</style>
+</head>
+<body>
+<div class="ctrl">
+  <h1>看板列样式</h1>
+  <div class="seg" id="styles"></div>
+  <div class="sp"></div>
+  <div class="seg" id="theme"><button data-t="cream" class="on">浅色</button><button data-t="cocoa">深色</button></div>
+</div>
+<p class="desc" id="desc"></p>
+<div class="db" id="db">
+  <div class="tb">
+    <span class="tab"><svg class="i" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1.5"/><rect width="7" height="7" x="14" y="3" rx="1.5"/><rect width="7" height="7" x="3" y="14" rx="1.5"/><rect width="7" height="7" x="14" y="14" rx="1.5"/></svg>画廊</span>
+    <span class="tab"><svg class="i" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18M3 15h18M12 3v18"/></svg>表格</span>
+    <span class="tab on"><svg class="i" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 7v7M12 7v4M16 7v9"/></svg>看板</span>
+    <div class="tools">
+      <span class="tool"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+      <span class="tool"><svg class="i" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>筛选</span>
+      <span class="tool on"><svg class="i" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4M7 20V4M21 8l-4-4-4 4M17 4v16"/></svg>排序 1</span>
+      <span class="tool"><svg class="i" viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65M22 12.65l-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/></svg>分组</span>
+    </div>
+  </div>
+  <div class="board"><div class="cols" id="cols"></div></div>
+</div>
+<script>
+const C = { 动作:'#c0623e', 悬疑:'#a8892f', 治愈:'#5f8a5a', 剧情:'#4f7bb5', 犯罪:'#b8532f', 科幻:'#b0923a', 历史:'#8a6bb0', 战争:'#b0483f',
+  2025:'#c0623e', 2020:'#a8892f', 2014:'#5f8a5a', 2023:'#b0483f', 2016:'#8a6bb0', 1988:'#4f7bb5', 2010:'#8a7a66' };
+const GROUPS = [
+  [null, [['菊次郎的夏天', ['治愈'], 5]]],
+  ['2025', [['捕风追影', ['动作'], 5], ['南京照相馆', ['剧情','历史','战争'], 0]]],
+  ['2020', [['狩猎', ['动作'], 4.5]]],
+  ['2014', [['消失的爱人', ['悬疑'], 4.5]]],
+  ['2023', [['流浪地球2', ['科幻'], 5]]],
+  ['2010', [['盗梦空间', ['悬疑'], 5], ['让子弹飞', ['剧情'], 5]]],
+];
+const STYLES = [
+  ['line', '无底色 + 分隔线', '<b>列不填色</b>，只靠竖向 hairline 分隔。整张卡片里只有白底和卡片描边，最接近表格的气质，也最干净。'],
+  ['tint', '分组色淡染', '列底色取<b>分组标签自己的颜色</b>，5% 淡染（类似 Notion 彩色分组）。颜色有意义，但列多时整体会比较花。'],
+  ['outline', '描边列', '列无填色，用一圈 hairline 描出范围；卡片静止无阴影，悬停才浮起。结构清楚但线条偏多。'],
+  ['open', '纯留白 + 色标', '<b>彻底去掉列容器</b>，列头下方一条分组色短线作为锚点，列间靠留白分开。最轻、最有“杂志感”。'],
+  ['group', '对照：原 bg-group', '当前实现前的米色下沉面，作对照用。'],
+];
+let cur = 'line';
+const stars = r => '<div class="stars">' + [1,2,3,4,5].map(i => `<svg class="i" viewBox="0 0 24 24" style="fill:${r >= i ? 'currentColor' : 'none'}"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`).join('') + '</div>';
+const tag = (t, yr) => `<span class="tag ${yr ? 'yr' : ''}" style="--c:${C[t]}">${t}</span>`;
+function render() {
+  document.getElementById('db').className = `db s-${cur}`;
+  document.getElementById('cols').innerHTML = GROUPS.map(([g, cards]) => `
+    <div class="col" style="${g ? `--gc:${C[g]}` : ''}">
+      <div class="ch">${g ? tag(g, true) : '<span class="plain">未分类</span>'}<span class="n">${cards.length}</span></div>
+      <div class="list">${cards.map(([t, tags, r]) => `<div class="card"><div class="t">${t}</div><div class="tags">${tags.map(x => tag(x)).join('')}</div>${r ? stars(r) : ''}</div>`).join('')}
+        <button class="add"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></svg>添加卡片</button></div>
+    </div>`).join('');
+  document.getElementById('styles').innerHTML = STYLES.map(([k, l], i) => `<button data-s="${k}" class="${cur === k ? 'on' : ''}">${l}<kbd>${i + 1}</kbd></button>`).join('');
+  document.getElementById('desc').innerHTML = STYLES.find(s => s[0] === cur)[2];
+}
+document.addEventListener('click', e => {
+  const s = e.target.closest('[data-s]'); if (s) { cur = s.dataset.s; render(); }
+  const t = e.target.closest('[data-t]');
+  if (t) { document.documentElement.dataset.theme = t.dataset.t; document.querySelectorAll('#theme button').forEach(b => b.classList.toggle('on', b === t)); }
+});
+document.addEventListener('keydown', e => { const i = +e.key - 1; if (STYLES[i]) { cur = STYLES[i][0]; render(); } });
+render();
+</script>
+</body>
+</html>

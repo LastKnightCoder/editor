@@ -480,7 +480,7 @@ const CardDatabaseView = forwardRef<CardDatabaseViewRef, CardDatabaseViewProps>(
   }
 
   return (
-    <div className="border-x-40 h-full w-full border border-transparent py-5">
+    <div className="h-full w-full border border-transparent">
       <Database
         ref={databaseRef}
         columns={columns}
