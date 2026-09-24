@@ -15,8 +15,11 @@ import type { Calendar, CalendarEvent, CalendarGroup } from "@/types";
 
 /** 按 .dark 选明暗色值到 --cal（配合 toneStyle 注入的两档变量） */
 export const TONE = "[--cal:var(--cal-l)] dark:[--cal:var(--cal-d)]";
-/** 数据色软底：色值 14% 混入 surface */
-export const TONE_SOFT_BG = "bg-[color-mix(in_srgb,var(--cal)_14%,var(--tau-bg-surface))]";
+/** 数据色软底：亮色 = 色值 14% 混入 surface；
+    暗色改为 oklab 16% 混入 surface-hover——暖棕 surface 上按 sRGB 低比例混色会发灰发泥，
+    抬亮底色 + 感知均匀空间混合让色相更干净 */
+export const TONE_SOFT_BG =
+  "bg-[color-mix(in_srgb,var(--cal)_14%,var(--tau-bg-surface))] dark:bg-[color-mix(in_oklab,var(--cal)_16%,var(--tau-bg-surface-hover))]";
 
 export function toneStyle(color: ProjectColorName): CSSProperties {
   return {
