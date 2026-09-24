@@ -7,6 +7,8 @@ import {
   CreateFlashcardInput,
   UpdateFlashcardInput,
   FlashcardReviewPayload,
+  FlashcardReviewResult,
+  FlashcardUndoReviewPayload,
   FlashcardQueueRequest,
   FlashcardReviewStats,
 } from "@/types";
@@ -63,8 +65,16 @@ export function getFlashcardReviewQueue(params?: FlashcardQueueRequest): Promise
   return invoke("flashcard:get-review-queue", params ?? {});
 }
 
-export function submitFlashcardReview(payload: FlashcardReviewPayload): Promise<Flashcard | null> {
+export function submitFlashcardReview(
+  payload: FlashcardReviewPayload
+): Promise<FlashcardReviewResult | null> {
   return invoke("flashcard:submit-review", payload);
+}
+
+export function undoFlashcardReview(
+  payload: FlashcardUndoReviewPayload
+): Promise<Flashcard | null> {
+  return invoke("flashcard:undo-review", payload);
 }
 
 /** 统计页聚合：since（毫秒时间戳）以来的评分分布 + 未来 7 天到期分桶 */

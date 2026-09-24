@@ -160,6 +160,20 @@ export interface FlashcardReviewPayload {
   notes?: string;
 }
 
+/** 撤销凭据由主进程评分事务返回，只能撤销仍为最新的那条记录。 */
+export interface FlashcardUndoReviewPayload {
+  cardId: number;
+  reviewId: number;
+  previous: Pick<
+    Flashcard,
+    "reviewLevel" | "easeFactor" | "dueTime" | "lastReviewTime" | "reviewCount" | "status"
+  >;
+}
+
+export interface FlashcardReviewResult extends Flashcard {
+  undo: FlashcardUndoReviewPayload;
+}
+
 export interface FlashcardQueueRequest {
   deckId?: number | null;
   limit?: number;
