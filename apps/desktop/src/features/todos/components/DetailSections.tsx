@@ -236,19 +236,12 @@ export function SubtaskSection({
 
 /* ---------- 关联笔记 ---------- */
 
-const NOTE_TYPES = [
-  "card",
-  "article",
-  "project-item",
-  "document-item",
-  "diary-daily",
-] satisfies IndexType[];
+const NOTE_TYPES = ["card", "article", "project-item", "diary-daily"] satisfies IndexType[];
 
 const NOTE_KIND: Record<string, { label: string; icon: LucideIcon }> = {
   card: { label: "卡片", icon: SquarePen },
   article: { label: "文章", icon: FileText },
   "project-item": { label: "项目", icon: FolderKanban },
-  "document-item": { label: "文档", icon: BookOpen },
   "diary-daily": { label: "日记", icon: CalendarDays },
 };
 
