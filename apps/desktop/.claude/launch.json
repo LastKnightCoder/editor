@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sbtest",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8765", "-d", "/tmp/sbtest"],
+      "port": 8765
+    },
+    {
+      "name": "mockups",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8766",
+        "-d",
+        "/Users/t.xiong/Desktop/projects/editor/apps/desktop/mockups"
+      ],
+      "port": 8766
+    }
+  ]
+}
