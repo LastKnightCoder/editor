@@ -61,7 +61,7 @@ const TemplateCard = memo((props: TemplateCardProps) => {
           : "border-line-1 hover:border-line-1"
       )}
     >
-      <div className="bg-group relative w-full" style={{ aspectRatio: "16 / 10" }}>
+      <div className="bg-hover relative w-full" style={{ aspectRatio: "16 / 10" }}>
         {isElectron ? (
           <webview
             src={previewUrl}

@@ -181,7 +181,7 @@ export function Segmented<T extends string>({
   // 专档（D-009），落在分段控件上是一片比 page 深一档的重色块；group 同属暖纸系的分组底，
   // 既在 page 与 surface 上都显形，又不抢展品的注意力
   return (
-    <div className="bg-group inline-flex items-center gap-0.5 rounded-[10px] p-0.5">
+    <div className="bg-hover inline-flex items-center gap-0.5 rounded-[10px] p-0.5">
       {options.map(option => (
         <button
           key={option.value}

@@ -357,7 +357,7 @@ const ProjectMindMapNodeActions = memo(
             title={isProject ? "添加根节点" : "添加子节点"}
             aria-label={isProject ? "添加根节点" : "添加子节点"}
             className={classnames(
-              "bg-group hover:bg-hover absolute top-1/2 z-10 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-[11px] text-black/65 opacity-0 transition-opacity hover:text-black/90 group-hover/mindmap-node:opacity-100",
+              "bg-hover hover:bg-press absolute top-1/2 z-10 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-[11px] text-black/65 opacity-0 transition-opacity hover:text-black/90 group-hover/mindmap-node:opacity-100",
               open && "opacity-100",
               sideClass
             )}

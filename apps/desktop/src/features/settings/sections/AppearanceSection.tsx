@@ -192,7 +192,7 @@ function ThemeModeCard({
             <div className="absolute inset-y-0 left-0 w-1/2 bg-[#f3eee2]">
               <div className="absolute inset-y-0 left-0 w-[18px] border-r border-[#e9e1d2] bg-[#fffdf9]" />
               <div className="absolute left-[24px] top-[22px] h-[6px] w-[26px] rounded-full bg-[#e7dbc8]" />
-              <div className="absolute left-[24px] top-[34px] h-[6px] w-[34px] rounded-full bg-[#ece4d4]" />
+              <div className="absolute left-[24px] top-[34px] h-[6px] w-[34px] rounded-full bg-[#e7dbc8]" />
             </div>
             <div className="absolute inset-y-0 right-0 w-1/2 bg-[#221d16]">
               <div className="absolute inset-y-0 right-0 w-[18px] border-l border-[#3a3227] bg-[#2e2820]" />
@@ -205,7 +205,7 @@ function ThemeModeCard({
           <div className="absolute inset-0 bg-[#f3eee2]">
             <div className="absolute inset-y-0 left-0 w-10 border-r border-[#e9e1d2] bg-[#fffdf9]" />
             <div className="absolute left-[52px] top-3 h-[7px] w-[58px] rounded-full bg-[#e7dbc8]" />
-            <div className="absolute left-[52px] top-[26px] h-[7px] w-[80px] rounded-full bg-[#ece4d4]" />
+            <div className="absolute left-[52px] top-[26px] h-[7px] w-[80px] rounded-full bg-[#e7dbc8]" />
             <div
               className={clsx(
                 "absolute left-[52px] top-10 h-[10px] w-[42px] rounded-[4px] transition-colors duration-[160ms]",
@@ -232,7 +232,7 @@ function ThemeModeCard({
         <span
           className={clsx(
             "grid size-4 shrink-0 place-items-center rounded-full transition-[background,opacity] duration-[160ms]",
-            active ? "bg-accent opacity-100" : "bg-group opacity-0"
+            active ? "bg-accent opacity-100" : "bg-transparent opacity-0"
           )}
         >
           <Check size={10} strokeWidth={2.5} className="text-ink-inverse" />

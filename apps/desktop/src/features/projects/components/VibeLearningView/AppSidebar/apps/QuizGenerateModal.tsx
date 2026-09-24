@@ -276,7 +276,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
           placeholder="输入测验名称"
           className={classNames(
             "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
-            "border-line-1 bg-group border",
+            "border-line-1 border",
             "text-ink-1 placeholder:text-ink-3",
             "focus:ring-accent/20 focus:border-accent focus:ring-2"
           )}
@@ -312,7 +312,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
           </div>
         </div>
 
-        <div className="border-line-1 bg-group max-h-80 overflow-auto rounded-xl border">
+        <div className="border-line-1 max-h-80 overflow-auto rounded-xl border">
           <AnimatePresence>
             {generatedItems.map((item, index) => (
               <QuizItemPreview
@@ -348,7 +348,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
 
   const secondaryButtonClass = classNames(
     "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-group text-ink-2",
+    "bg-hover text-ink-2",
     "hover:bg-hover",
     "border border-line-1"
   );
@@ -542,7 +542,7 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
           <span
             className={classNames(
               "rounded-md px-2 py-0.5 text-[10px] font-semibold",
-              difficultyColors[item.difficulty] || "bg-group text-ink-2"
+              difficultyColors[item.difficulty] || "bg-hover text-ink-2"
             )}
           >
             {difficultyLabels[item.difficulty] || item.difficulty}

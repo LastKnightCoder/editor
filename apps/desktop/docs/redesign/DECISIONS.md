@@ -320,6 +320,12 @@
 - 违规随迁清单（换皮阶段处理）：antd 约 51 文件 / @ant-design/icons 19 文件（棘轮只减不增）；4 个 `.module.less`；A2 视觉违反（antd 皮、硬编码边框色、横线）；`DataTableProjectView` 与 `TableProjectItemView` 同构重复（合并）；`batch-export`（utils）仍依赖 `@/pages/DocumentView` 的 documentTree（知识库域迁移时收编）；`hooks/useDynamicExtensions`、`editor-extensions/ProjectListSlate` 引 features 域的 ProjectContext（hooks→features 无明文红线但方向倒挂，项目域 editor-extensions 归位时处理）。
 - 实现：薄壳 `views/ProjectDetailView.tsx`（判存在 + usePageBreadcrumb 项目标题 + 渲染 ProjectView）；文档同步 04 清单 §projects（ProjectDetail 分支删除登记 + 提升件消费者表）与 03 指南 §1/§2。验证：tsc 全绿（含 src-electron）、搬入目录 eslint 0 error（存量 warning 随迁不修保 rename）、vitest 36 例全过（含随迁的 InsertNoteToTreeModal / VideoNotePanel / projectTree 测试）。
 
+## D-034 退役 bg-group（分组底）token
+
+- 缺陷：`bg-group` 经 D-006 下沉、2026-09-20 收敛后仍在 Tag、Panel 空态、分段控件轨道、工具条、次级按钮等 60+ 处复现为米灰色块，用户观感「不好看」「特别想将其删掉」（2026-09-24）；它与 page 的对比仅 ~1.045，介于"看不出"与"显脏"之间，没有正确取值。
+- 选择：**词汇表删除 `bg-group`**（tokenContract / tokens.css `--tau-bg-group` 与 `--color-group` / cream·cocoa palette.group），不设替代档。消费方按语义分流：① `hover:bg-group` → `hover:bg-hover`；② 实底小件（徽章、kbd、次级按钮、分段轨道）→ `bg-hover`，其 hover 态 `bg-sunken/bg-hover` → `bg-press`；③ 与 `border-line-1` 同用的容器（空态行、统计框、描边卡）→ 删底色只留描边；④ 进度/比例轨道 → `bg-track`；⑤ 表头、命令面板页脚的 `bg-group/60` 叠层直接删除。
+- 影响：apps/desktop、packages/ui、packages/editor 源码 65 文件（仅 class 名替换）；theme-parity 删除两条 group 对比度条目；新增 `packages/ui/src/theme/__tests__/retired-tokens.test.ts` 扫三处源码禁止 `bg-group` 回流；showcase TokenSection / PanelSection 文案；02 §2.3、03 §颜色消费、PREFERENCES 同步。
+
 ## D-035 发布从设置弹窗抽为独立页面
 
 - 背景：设置弹窗 860px 双栏里塞「目标 + 站点 + 内容选择器 + 进度」四节，选择器被压扁、操作埋在滚动底部（用户：「放在设置的弹窗里面太小了」，2026-09-24）；按 `mockups/publish/index.html` 落地。

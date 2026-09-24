@@ -111,7 +111,7 @@ function ShellBody() {
               <button
                 type="button"
                 onClick={() => setBoot("ready")}
-                className="rounded-tau-md bg-group text-ink-2 px-4 py-1.5"
+                className="rounded-tau-md bg-hover text-ink-2 px-4 py-1.5"
               >
                 仍要进入
               </button>

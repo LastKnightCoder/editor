@@ -228,7 +228,7 @@ const AudioPlayer = (props: AudioPlayerProps) => {
         : null;
 
   return (
-    <div className="border-line-1 bg-group flex flex-col gap-4 rounded-2xl border p-5">
+    <div className="border-line-1 flex flex-col gap-4 rounded-2xl border p-5">
       <audio ref={audioRef} src={audioSrc} preload="metadata" />
 
       {/* Header: cover + title */}
@@ -318,7 +318,7 @@ const AudioPlayer = (props: AudioPlayerProps) => {
         {/* Speed dropdown */}
         <div className="relative" ref={speedMenuRef}>
           <button
-            className="border-line-1 text-ink-2 hover:bg-group flex items-center gap-0.5 rounded-md border px-2 py-1 text-xs font-semibold transition-colors"
+            className="border-line-1 text-ink-2 hover:bg-hover flex items-center gap-0.5 rounded-md border px-2 py-1 text-xs font-semibold transition-colors"
             onClick={() => setShowSpeedMenu(!showSpeedMenu)}
           >
             {playbackRate}x
@@ -333,7 +333,7 @@ const AudioPlayer = (props: AudioPlayerProps) => {
                     "block w-full whitespace-nowrap px-4 py-1.5 text-left text-xs transition-colors",
                     speed === playbackRate
                       ? "bg-accent-soft text-accent-text font-semibold"
-                      : "text-ink-2 hover:bg-group"
+                      : "text-ink-2 hover:bg-hover"
                   )}
                   onClick={() => selectSpeed(speed)}
                 >

@@ -15,7 +15,7 @@ const SWATCH_STYLES: Record<TagColor, string> = {
   orange: "bg-accent-soft",
   yellow: "bg-warn-soft",
   green: "bg-ok-soft",
-  gray: "bg-group",
+  gray: "bg-surface border border-line-1",
   blue: "bg-info-soft",
   purple: "bg-tag-3-soft",
 };
@@ -78,7 +78,7 @@ export function ProgressBar({
       aria-valuenow={value}
       aria-valuemin={0}
       aria-valuemax={max}
-      className="bg-group h-2 w-full overflow-hidden rounded-full"
+      className="bg-track h-2 w-full overflow-hidden rounded-full"
     >
       <div className="bg-accent h-full rounded-full" style={{ width: `${ratio * 100}%` }} />
     </div>

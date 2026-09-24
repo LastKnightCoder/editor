@@ -317,7 +317,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
       <div className="flex items-center justify-end gap-3 pt-2">
         <button
           onClick={handleClose}
-          className="text-ink-2 hover:bg-group rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+          className="text-ink-2 hover:bg-hover rounded-lg px-4 py-2 text-sm font-medium transition-colors"
         >
           取消
         </button>
@@ -360,7 +360,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
             onClick={() => setViewMode("preview")}
             className={classNames(
               "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-              viewMode === "preview" ? "bg-accent text-white" : "text-ink-2 hover:bg-group"
+              viewMode === "preview" ? "bg-accent text-white" : "text-ink-2 hover:bg-hover"
             )}
           >
             <Eye className="h-4 w-4" strokeWidth={1.75} />
@@ -370,7 +370,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
             onClick={() => setViewMode("source")}
             className={classNames(
               "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
-              viewMode === "source" ? "bg-accent text-white" : "text-ink-2 hover:bg-group"
+              viewMode === "source" ? "bg-accent text-white" : "text-ink-2 hover:bg-hover"
             )}
           >
             <Code className="h-4 w-4" strokeWidth={1.75} />
@@ -380,14 +380,14 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
 
         <button
           onClick={() => setShowPreview(!showPreview)}
-          className="text-ink-2 hover:bg-group rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
+          className="text-ink-2 hover:bg-hover rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
         >
           {showPreview ? "隐藏预览" : "显示预览"}
         </button>
       </div>
 
       {showPreview && (
-        <div className="border-line-1 bg-group relative w-full overflow-hidden rounded-lg border">
+        <div className="border-line-1 relative w-full overflow-hidden rounded-lg border">
           <div style={{ height: 400 }} className="w-full">
             {viewMode === "preview" ? (
               htmlPreviewUrl ? (
@@ -429,7 +429,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
       <div className="flex items-center justify-between pt-2">
         <button
           onClick={handleReEdit}
-          className="text-ink-2 hover:bg-group flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+          className="text-ink-2 hover:bg-hover flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
         >
           <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
           重新编辑
@@ -439,7 +439,7 @@ const ReportEditModal = memo((props: ReportEditModalProps) => {
           {cleanedHtml && (
             <button
               onClick={handleDiscard}
-              className="text-ink-2 hover:bg-group rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+              className="text-ink-2 hover:bg-hover rounded-lg px-4 py-2 text-sm font-medium transition-colors"
             >
               放弃修改
             </button>

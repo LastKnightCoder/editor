@@ -314,7 +314,7 @@ const FilterPanel: React.FC<FilterPanelProps> = memo(
             </div>
           ) : (
             <>
-              <div className="bg-group rounded-tau-sm flex p-0.5">
+              <div className="bg-hover rounded-tau-sm flex p-0.5">
                 {(Object.keys(LOGIC_SEGMENT_LABEL) as FilterLogicOperator[]).map(logic => (
                   <button
                     key={logic}
