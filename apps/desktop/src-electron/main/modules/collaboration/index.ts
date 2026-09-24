@@ -31,7 +31,6 @@ import ContentTable from "../tables/content";
 import {
   restoreContentBinding,
   restorePrivateNodes,
-  registerLocalizedResource,
   writeContentProjection,
 } from "./content-repository";
 import { CollaborationAssetService } from "./asset-service";
@@ -761,8 +760,7 @@ class CollaborationManager {
         : await this.assets.localize(
             session.info.serverUrl,
             session.info.id,
-            readSharedContent(session.doc, session.privateNodes, viewActiveTabs),
-            file => registerLocalizedResource(database, source.contentId, file)
+            readSharedContent(session.doc, session.privateNodes, viewActiveTabs)
           );
       if (
         databaseModule.getDatabase(source.databaseName) !== database ||

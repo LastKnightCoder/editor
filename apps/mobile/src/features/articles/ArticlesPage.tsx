@@ -124,7 +124,7 @@ export function ArticlesPage(props: ArticlesPageProps) {
     }
   };
 
-  // 更换封面：从相册选图 → 预压缩上传资源库 → 写回 banner_bg（编辑页不再承载该操作）
+  // 更换封面：从相册选图 → 预压缩上传文件 → 写回 banner_bg（编辑页不再承载该操作）
   const handleCoverFile = async (file: File) => {
     if (!coverTarget) return;
     setCoverUploading(true);

@@ -37,14 +37,7 @@ import {
 } from "@tau/shared";
 
 import useUploadResource from "@/hooks/useUploadResource";
-import {
-  convertFileSrc,
-  createOrUpdateResource,
-  getHomeDir,
-  decrementResourceRefCount,
-  incrementResourceRefCount,
-} from "@/commands";
-import type { IResourceSource } from "@/types";
+import { convertFileSrc, getHomeDir } from "@/commands";
 import type { ChatAgentType } from "@/types";
 import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
 import useTheme from "@/hooks/useTheme";
@@ -73,7 +66,6 @@ interface ChatInputAreaProps {
   contextUsage?: ChatContextUsage | null;
   isSupportImage?: boolean;
   isSupportFile?: boolean;
-  resourceSource?: IResourceSource | null;
   reasoningEffort?: ReasoningEffort;
   reasoningEffortOptions?: readonly ReasoningEffort[];
   onReasoningEffortChange?: (level: ReasoningEffort) => void;
@@ -90,7 +82,6 @@ interface ChatInputAreaProps {
 interface ChatImageItem {
   id: string;
   previewUrl: string;
-  resourceId: number;
   path: string;
 }
 
@@ -98,14 +89,6 @@ interface ChatFileItem {
   id: string;
   name: string;
   path: string;
-  resourceId: number;
-}
-
-interface IResource {
-  id: number;
-  name: string;
-  path: string;
-  type?: string;
 }
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -222,7 +205,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       contextUsage,
       isSupportImage = false,
       isSupportFile = false,
-      resourceSource = null,
       reasoningEffort,
       reasoningEffortOptions,
       onReasoningEffortChange,
@@ -246,21 +228,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         uploadFile: uploadResourceFn,
         convertFileSrc,
         getHomeDir,
-        createOrUpdateResource: async params => {
-          const result = await createOrUpdateResource({
-            name: params.name,
-            path: params.path,
-            type: params.type as "image" | "video" | "audio" | "pdf" | "epub" | "attachment",
-            source: params.source as IResourceSource | undefined,
-          });
-          return result;
-        },
-        incrementResourceRef: async (path, source) => {
-          await incrementResourceRefCount(path, source as IResourceSource | undefined);
-        },
-        decrementResourceRef: async path => {
-          await decrementResourceRefCount(path);
-        },
       }),
       [uploadResourceFn]
     );
@@ -269,17 +236,9 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       [placeholder]
     );
 
-    const {
-      uploadFile,
-      createOrUpdateResource: createOrUpdateChatResource,
-      getHomeDir: getChatHomeDir,
-      incrementResourceRef,
-      decrementResourceRef,
-    } = services;
+    const { uploadFile, getHomeDir: getChatHomeDir } = services;
 
     const editorRef = useRef<EditorRef>(null);
-    const imagesRef = useRef<ChatImageItem[]>([]);
-    const filesRef = useRef<ChatFileItem[]>([]);
 
     const [editorContent, setEditorContent] = useState<Descendant[]>(createEmptyEditorContent);
     const [images, setImages] = useState<ChatImageItem[]>([]);
@@ -289,23 +248,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const [uploadingPdf, setUploadingPdf] = useState(false);
     const [isNewChatTooltipOpen, setIsNewChatTooltipOpen] = useState(false);
     const [isNewChatTooltipReopenLocked, setIsNewChatTooltipReopenLocked] = useState(false);
-
-    useEffect(() => {
-      imagesRef.current = images;
-    }, [images]);
-
-    useEffect(() => {
-      filesRef.current = files;
-    }, [files]);
-
-    const releaseResources = useMemoizedFn((items: Array<{ path: string }>) => {
-      if (!decrementResourceRef) return;
-      items.forEach(item => {
-        decrementResourceRef(item.path).catch(error => {
-          console.error("减少资源引用失败:", error);
-        });
-      });
-    });
 
     useEffect(() => {
       if (
@@ -318,17 +260,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         setIsNewChatTooltipOpen(false);
       }
     }, [contentEditable, createMessageLoading, sendLoading]);
-
-    useEffect(() => {
-      return () => {
-        if (imagesRef.current.length > 0) {
-          releaseResources(imagesRef.current);
-        }
-        if (filesRef.current.length > 0) {
-          releaseResources(filesRef.current);
-        }
-      };
-    }, [releaseResources]);
 
     const resolveAbsolutePath = useMemoizedFn(async (path: string) => {
       if (path.startsWith("~")) {
@@ -346,41 +277,30 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       return await convertFileSrc(absolutePath);
     });
 
-    const trackResourceUsage = useMemoizedFn(async (resource: IResource) => {
-      if (!incrementResourceRef) return;
-      try {
-        await incrementResourceRef(resource.path, resourceSource ?? undefined);
-      } catch (error) {
-        console.error("增加资源引用失败:", error);
+    const appendImageAttachment = useMemoizedFn(
+      async (attachment: { name: string; path: string }) => {
+        let previewUrl = attachment.path;
+        try {
+          previewUrl = await getPreviewUrlFromPath(attachment.path);
+        } catch (error) {
+          console.error("生成图片预览失败:", error);
+        }
+        const imageItem: ChatImageItem = {
+          id: uuid(),
+          previewUrl,
+          path: attachment.path,
+        };
+        setImages(prev => [...prev, imageItem]);
       }
-    });
+    );
 
-    const appendResourceImage = useMemoizedFn(async (resource: IResource) => {
-      let previewUrl = resource.path;
-      try {
-        previewUrl = await getPreviewUrlFromPath(resource.path);
-      } catch (error) {
-        console.error("生成图片预览失败:", error);
-      }
-      const imageItem: ChatImageItem = {
-        id: `${resource.id}-${uuid()}`,
-        previewUrl,
-        resourceId: resource.id,
-        path: resource.path,
-      };
-      setImages(prev => [...prev, imageItem]);
-      void trackResourceUsage(resource);
-    });
-
-    const appendResourceFile = useMemoizedFn((resource: IResource) => {
+    const appendFileAttachment = useMemoizedFn((attachment: { name: string; path: string }) => {
       const fileItem: ChatFileItem = {
-        id: `${resource.id}-${uuid()}`,
-        name: resource.name,
-        path: resource.path,
-        resourceId: resource.id,
+        id: uuid(),
+        name: attachment.name,
+        path: attachment.path,
       };
       setFiles(prev => [...prev, fileItem]);
-      void trackResourceUsage(resource);
     });
 
     const handleImageUpload = async (file: File) => {
@@ -391,13 +311,8 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           message.error("图片上传失败");
           return false;
         }
-        const resource = await createOrUpdateChatResource({
-          name: file.name,
-          path: uploadedPath,
-          type: "image",
-          source: resourceSource ?? undefined,
-        });
-        await appendResourceImage(resource);
+        const attachment = { name: file.name, path: uploadedPath };
+        await appendImageAttachment(attachment);
         message.success("图片上传成功");
       } catch (error) {
         console.error("图片上传失败:", error);
@@ -425,13 +340,8 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           message.error("PDF 上传失败");
           return false;
         }
-        const resource = await createOrUpdateChatResource({
-          name: file.name,
-          path: uploadedPath,
-          type: "pdf",
-          source: resourceSource ?? undefined,
-        });
-        appendResourceFile(resource);
+        const attachment = { name: file.name, path: uploadedPath };
+        appendFileAttachment(attachment);
         message.success("PDF 上传成功");
       } catch (error) {
         console.error("PDF 上传失败:", error);
@@ -482,20 +392,12 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
     const removeImage = useMemoizedFn((imageId: string) => {
       setImages(prev => {
-        const target = prev.find(image => image.id === imageId);
-        if (target) {
-          releaseResources([target]);
-        }
         return prev.filter(image => image.id !== imageId);
       });
     });
 
     const removeFile = useMemoizedFn((fileId: string) => {
       setFiles(prev => {
-        const target = prev.find(file => file.id === fileId);
-        if (target) {
-          releaseResources([target]);
-        }
         return prev.filter(file => file.id !== fileId);
       });
     });
@@ -527,7 +429,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             type: "image",
             image: image.previewUrl,
             path: image.path,
-            resourceId: image.resourceId,
           });
         });
 
@@ -535,7 +436,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
           content.push({
             type: "file",
             file: file.path,
-            resourceId: file.resourceId,
             fileName: file.name,
           });
         });
@@ -551,15 +451,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
         return content;
       },
-      clear: options => {
-        if (options?.releaseResources) {
-          if (images.length > 0) {
-            releaseResources(images);
-          }
-          if (files.length > 0) {
-            releaseResources(files);
-          }
-        }
+      clear: () => {
         applyEditorContent(createEmptyEditorContent());
         setImages([]);
         setFiles([]);

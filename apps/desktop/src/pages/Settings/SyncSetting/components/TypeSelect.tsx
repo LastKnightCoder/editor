@@ -2,12 +2,12 @@ import { FC, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { useMemoizedFn } from "ahooks";
-import { ResourceType } from "@/types";
+import { ResourceFileType } from "@/types";
 
 interface TypeSelectProps {
-  value: ResourceType | "all";
-  onChange: (value: ResourceType | "all") => void;
-  options: Array<{ label: string; value: ResourceType | "all" }>;
+  value: ResourceFileType | "all";
+  onChange: (value: ResourceFileType | "all") => void;
+  options: Array<{ label: string; value: ResourceFileType | "all" }>;
 }
 
 interface Position {
@@ -89,7 +89,7 @@ const TypeSelect: FC<TypeSelectProps> = ({ value, onChange, options }) => {
     };
   }, [isOpen, calculatePosition]);
 
-  const handleSelect = useMemoizedFn((val: ResourceType | "all") => {
+  const handleSelect = useMemoizedFn((val: ResourceFileType | "all") => {
     onChange(val);
     setIsOpen(false);
   });

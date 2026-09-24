@@ -56,7 +56,6 @@ export * from "./pomodoro";
 export * from "./calendar";
 export * from "./file-tree";
 export * from "./podcast";
-export * from "./resource";
 export * from "./web-link";
 export * from "./web-clip";
 export * from "./content-link";

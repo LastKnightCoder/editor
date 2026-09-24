@@ -342,30 +342,6 @@ CREATE TABLE IF NOT EXISTS migration_meta (
       );
 
 -- 资源域表
-CREATE TABLE IF NOT EXISTS resource_group (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        parent_id INTEGER,
-        order_index INTEGER DEFAULT 0,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL,
-        FOREIGN KEY (parent_id) REFERENCES resource_group(id) ON DELETE CASCADE
-      );
-CREATE TABLE IF NOT EXISTS resources (
-        id INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        path TEXT NOT NULL,
-        type TEXT NOT NULL,
-        sources TEXT NOT NULL,
-        ref_count INTEGER DEFAULT 0,
-        create_time INTEGER NOT NULL,
-        update_time INTEGER NOT NULL
-      , group_id INTEGER);
-CREATE TABLE IF NOT EXISTS resource_scan_version (
-        id INTEGER PRIMARY KEY,
-        version INTEGER NOT NULL,
-        last_scan_time INTEGER NOT NULL
-      );
 CREATE TABLE IF NOT EXISTS web_link (
         id INTEGER PRIMARY KEY,
         create_time INTEGER NOT NULL,
@@ -901,12 +877,6 @@ CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status);
 CREATE INDEX IF NOT EXISTS idx_data_table_views_table_id
       ON data_table_views(table_id);
 CREATE INDEX IF NOT EXISTS idx_project_item_podcast_id ON project_item(podcast_id);
-CREATE INDEX IF NOT EXISTS idx_resource_group_parent_id ON resource_group(parent_id);
-CREATE INDEX IF NOT EXISTS idx_resource_group_order_index ON resource_group(order_index);
-CREATE INDEX IF NOT EXISTS idx_resources_path ON resources(path);
-CREATE INDEX IF NOT EXISTS idx_resources_type ON resources(type);
-CREATE INDEX IF NOT EXISTS idx_resources_name ON resources(name);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_resources_path_unique ON resources(path);
 CREATE INDEX IF NOT EXISTS idx_web_link_source ON web_link(source_type);
 CREATE INDEX IF NOT EXISTS idx_web_clip_content_id ON web_clip(content_id);
 CREATE INDEX IF NOT EXISTS idx_web_note_project ON web_note(project_item_id);

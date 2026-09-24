@@ -2236,10 +2236,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             onStopGeneration={stopStreaming}
             createMessageLoading={createMessageLoading}
             onCreateNewMessage={onCreateNewMessage}
-            resourceSource={{
-              type: "chat",
-              id: actualChatRef.current.id,
-            }}
             inputRef={editTextRef}
             messagesContainerRef={setMessagesContainerRef}
             messagesContainerClassName="px-6 flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]"

@@ -151,7 +151,6 @@ fn default_setting_value() -> Value {
         "pdf": { "enable": true, "name": "PDF" },
         "slides": { "enable": true, "name": "幻灯片" },
         "vecDocuments": { "enable": true, "name": "索引数据库" },
-        "resourceManagement": { "enable": true, "name": "资源管理" },
         "weread": { "enable": true, "name": "微信读书" },
         "webview": { "enable": true, "name": "网页浏览" },
         "dataView": { "enable": true, "name": "数据" },
@@ -177,7 +176,6 @@ fn default_setting_value() -> Value {
         "calendar",
         "chatManagement",
         "skillManagement",
-        "resourceManagement",
         "pomodoro",
         "todo",
         "question",
@@ -402,6 +400,12 @@ pub fn ensure_setting_compat(raw: Value) -> Value {
     let mut setting = if raw.is_object() { raw } else { json!({}) };
     let defaults = default_setting_value();
     merge_defaults(&mut setting, &defaults);
+    if let Some(modules) = setting.get_mut("module").and_then(Value::as_object_mut) {
+        modules.remove("resourceManagement");
+    }
+    if let Some(order) = setting.get_mut("moduleOrder").and_then(Value::as_array_mut) {
+        order.retain(|key| key.as_str() != Some("resourceManagement"));
+    }
     normalize_database_section(&mut setting);
     setting
 }

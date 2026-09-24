@@ -29,12 +29,6 @@ CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status);
 CREATE INDEX IF NOT EXISTS idx_data_table_views_table_id
       ON data_table_views(table_id);
 CREATE INDEX IF NOT EXISTS idx_project_item_podcast_id ON project_item(podcast_id);
-CREATE INDEX IF NOT EXISTS idx_resource_group_parent_id ON resource_group(parent_id);
-CREATE INDEX IF NOT EXISTS idx_resource_group_order_index ON resource_group(order_index);
-CREATE INDEX IF NOT EXISTS idx_resources_path ON resources(path);
-CREATE INDEX IF NOT EXISTS idx_resources_type ON resources(type);
-CREATE INDEX IF NOT EXISTS idx_resources_name ON resources(name);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_resources_path_unique ON resources(path);
 CREATE INDEX IF NOT EXISTS idx_web_link_source ON web_link(source_type);
 CREATE INDEX IF NOT EXISTS idx_web_clip_content_id ON web_clip(content_id);
 CREATE INDEX IF NOT EXISTS idx_web_note_project ON web_note(project_item_id);

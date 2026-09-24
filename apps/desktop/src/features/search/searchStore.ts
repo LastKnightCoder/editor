@@ -49,6 +49,11 @@ export const useSearchStore = create<SearchStore>()(
     }),
     {
       name: "tau-search-history",
+      version: 1,
+      migrate: persisted => {
+        const state = persisted as { visits?: VisitRecord[] } | undefined;
+        return { visits: (state?.visits ?? []).filter(visit => visit.key !== "resources") };
+      },
       partialize: s => ({ visits: s.visits }),
     }
   )

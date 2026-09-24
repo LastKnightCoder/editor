@@ -5,11 +5,12 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createSharedDocument, type CollaborationSession } from "@tau/collaboration";
 
-// content-repository → tables/resource 会传递加载桌面大部分表模块；其中
-// video-note-index-queue → database.ts 会在顶层实例化 DatabaseModule（依赖
-// Electron 运行时）。此处与 modules/__tests__ 既有测试的 mock 方式保持一致。
+// 隔离 Electron 运行时，使用临时目录验证协作缓存和本地副本。
 vi.mock("electron", () => ({
-  app: { getPath: (name: string) => join(tmpdir(), `tau-desktop-test-${name}`), isReady: () => true },
+  app: {
+    getPath: (name: string) => join(tmpdir(), `tau-desktop-test-${name}`),
+    isReady: () => true,
+  },
   safeStorage: {
     isEncryptionAvailable: () => false,
     encryptString: (value: string) => Buffer.from(value, "utf8"),
@@ -28,12 +29,6 @@ vi.mock("electron", () => ({
 }));
 vi.mock("../../video-note-index-queue", () => ({
   default: { push: () => {}, remove: () => {}, destroy: () => {} },
-}));
-vi.mock("../../tables/resource", () => ({
-  default: {
-    createOrUpdateResource: () => {},
-    getResourceType: () => "attachment",
-  },
 }));
 
 import {

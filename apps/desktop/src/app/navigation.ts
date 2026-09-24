@@ -26,7 +26,6 @@ import {
   Timer,
   CircleHelp,
   Inbox,
-  Folder,
   FolderKanban,
   BarChart3,
   Send,
@@ -95,7 +94,6 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "工具",
     items: [
-      { key: "resources", label: "资源管理", icon: Folder }, // legacy: ResourceManagement
       { key: "stats", label: "统计", icon: BarChart3 }, // 新架构：数据回顾页
       { key: "publish", label: "发布", icon: Send }, // 新架构：静态站点发布（自设置弹窗抽出，D-035）
     ],

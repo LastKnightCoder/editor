@@ -1,9 +1,10 @@
 import type { MessageContent, RequestMessage } from "@/types";
-import { getResourceById, getHomeDir, readBinaryFile } from "@/commands";
+import { getHomeDir, readBinaryFile } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 import type { MentionRef } from "@tau/shared";
 
 const FILE_MIME_TYPES: Record<string, string> = {
+  pdf: "application/pdf",
   png: "image/png",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
@@ -89,29 +90,19 @@ const resolveResourceAbsolutePath = async (resourcePath: string) => {
 };
 
 const buildResourceDataUrl = async (
-  resourceId?: number,
   fallbackPath?: string,
-  fallbackName?: string,
+  fallbackName?: string
 ): Promise<string | null> => {
-  const convertFromPath = async (
-    path: string,
-    nameHint?: string,
-    forcedMime?: string,
-  ) => {
+  const convertFromPath = async (path: string, nameHint?: string, forcedMime?: string) => {
+    if (path.startsWith("data:")) return path;
     try {
       const absolutePath = await resolveResourceAbsolutePath(path);
       if (absolutePath) {
         const binary = await readBinaryFile(absolutePath);
-        let mimeType =
-          forcedMime ||
-          guessMimeTypeFromPath(path) ||
-          "application/octet-stream";
+        let mimeType = forcedMime || guessMimeTypeFromPath(path) || "application/octet-stream";
         if (mimeType === "application/octet-stream" && nameHint) {
           const guessedFromName = guessMimeTypeFromPath(nameHint);
-          if (
-            guessedFromName &&
-            guessedFromName !== "application/octet-stream"
-          ) {
+          if (guessedFromName && guessedFromName !== "application/octet-stream") {
             mimeType = guessedFromName;
           }
         }
@@ -124,50 +115,24 @@ const buildResourceDataUrl = async (
     }
   };
 
-  if (resourceId) {
-    try {
-      const resource = await getResourceById(resourceId);
-      if (resource) {
-        const forcedMime =
-          resource.type === "pdf" ? "application/pdf" : undefined;
-        const result = await convertFromPath(
-          resource.path,
-          resource.name,
-          forcedMime,
-        );
-        if (result) {
-          return result;
-        }
-      }
-    } catch (error) {
-      console.error("获取资源失败:", error);
-    }
-  }
-
   if (fallbackPath) {
     const fallbackMime =
-      fallbackName && fallbackName.toLowerCase().endsWith(".pdf")
-        ? "application/pdf"
-        : undefined;
+      fallbackName && fallbackName.toLowerCase().endsWith(".pdf") ? "application/pdf" : undefined;
     return await convertFromPath(fallbackPath, fallbackName, fallbackMime);
   }
 
   return null;
 };
 
-const buildImageBase64 = async (
-  resourceId?: number,
-  fallbackUrl?: string,
-): Promise<string | null> => {
-  return await buildResourceDataUrl(resourceId, fallbackUrl);
+const buildImageBase64 = async (fallbackUrl?: string): Promise<string | null> => {
+  return await buildResourceDataUrl(fallbackUrl);
 };
 
 const buildFileBase64 = async (
-  resourceId?: number,
   fallbackPath?: string,
-  fallbackName?: string,
+  fallbackName?: string
 ): Promise<string | null> => {
-  return await buildResourceDataUrl(resourceId, fallbackPath, fallbackName);
+  return await buildResourceDataUrl(fallbackPath, fallbackName);
 };
 
 const buildMentionContextPrefix = (mentions?: MentionRef[]) => {
@@ -183,7 +148,7 @@ const buildMentionContextPrefix = (mentions?: MentionRef[]) => {
       `contentId=${mention.contentId}`,
       `title=${mention.title}`,
       `previewText=${mention.previewText}`,
-    ].join("\n"),
+    ].join("\n")
   );
 
   return [
@@ -196,9 +161,7 @@ const buildMentionContextPrefix = (mentions?: MentionRef[]) => {
   ].join("\n");
 };
 
-const normalizeMessageContent = async (
-  message: RequestMessage,
-): Promise<RequestMessage> => {
+const normalizeMessageContent = async (message: RequestMessage): Promise<RequestMessage> => {
   if (!Array.isArray(message.content)) {
     return message;
   }
@@ -206,28 +169,24 @@ const normalizeMessageContent = async (
   const normalized: MessageContent[] = [];
   for (const item of message.content) {
     if (item.type === "image") {
-      const imageData = await buildImageBase64(item.resourceId, item.image);
+      const imageData = await buildImageBase64(item.path || item.image);
       normalized.push(
         imageData
           ? {
               ...item,
               image: imageData,
             }
-          : item,
+          : item
       );
     } else if (item.type === "file") {
-      const fileData = await buildFileBase64(
-        item.resourceId,
-        item.file,
-        item.fileName,
-      );
+      const fileData = await buildFileBase64(item.file, item.fileName);
       normalized.push(
         fileData
           ? {
               ...item,
               file: fileData,
             }
-          : item,
+          : item
       );
     } else {
       const mentionContextPrefix = buildMentionContextPrefix(item.mentions);
@@ -237,7 +196,7 @@ const normalizeMessageContent = async (
               ...item,
               text: `${mentionContextPrefix}\n${item.text}`,
             }
-          : item,
+          : item
       );
     }
   }
@@ -249,7 +208,7 @@ const normalizeMessageContent = async (
 };
 
 export const normalizeRequestMessages = async (
-  messages: RequestMessage[],
+  messages: RequestMessage[]
 ): Promise<RequestMessage[]> => {
   const normalized: RequestMessage[] = [];
   for (const message of messages) {

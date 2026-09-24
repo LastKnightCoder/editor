@@ -75,7 +75,6 @@ const QUICK_ACCESS_MODULE_TAB_MAP = {
   calendar: TabType.Calendar,
   chatManagement: TabType.ChatManagement,
   skillManagement: TabType.SkillManagement,
-  resourceManagement: TabType.ResourceManagement,
   pomodoro: TabType.Pomodoro,
   todo: TabType.Todo,
   question: TabType.Questions,

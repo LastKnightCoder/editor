@@ -2,19 +2,9 @@ import type { ReactNode } from "react";
 import type { MenuProps } from "antd";
 
 /** 推理强度 */
-export type ReasoningEffort =
-  | "none"
-  | "low"
-  | "medium"
-  | "high"
-  | "xhigh"
-  | "max";
+export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
 
-export type MentionEntityType =
-  | "card"
-  | "article"
-  | "project-item"
-  | "document-item";
+export type MentionEntityType = "card" | "article" | "project-item" | "document-item";
 
 /** 聊天 mention 引用 */
 export interface MentionRef {
@@ -25,33 +15,11 @@ export interface MentionRef {
   previewText: string;
 }
 
-/** 消息内容类型 */
+/** 消息内容类型；resourceId 仅兼容历史数据，新附件只写入路径。 */
 export type MessageContentItem =
   | { type: "text"; text: string; mentions?: MentionRef[] }
   | { type: "image"; image: string; path?: string; resourceId?: number }
   | { type: "file"; file: string; resourceId?: number; fileName?: string };
-
-/** 资源来源 */
-export interface IResourceSource {
-  type: "content" | "whiteboard" | "podcast" | "chat" | "ebook";
-  id: number;
-}
-
-/** 资源 */
-export interface IResource {
-  id: number;
-  name: string;
-  path: string;
-  type?: string;
-}
-
-/** 创建资源的参数 */
-export interface CreateResourceParams {
-  name: string;
-  path: string;
-  type: string;
-  source?: IResourceSource;
-}
 
 /** ChatInputArea 需要的服务函数 */
 export interface ChatInputAreaServices {
@@ -61,23 +29,14 @@ export interface ChatInputAreaServices {
   convertFileSrc: (path: string) => Promise<string>;
   /** 获取用户主目录 */
   getHomeDir: () => Promise<string>;
-  /** 创建或更新资源记录 */
-  createOrUpdateResource: (params: CreateResourceParams) => Promise<IResource>;
   /** 搜索可提及的内部内容 */
   searchMentionRefs?: (query: string) => Promise<MentionRef[]>;
-  /** 增加资源引用计数 */
-  incrementResourceRef?: (
-    path: string,
-    source?: IResourceSource,
-  ) => Promise<void>;
-  /** 减少资源引用计数 */
-  decrementResourceRef?: (path: string) => Promise<void>;
 }
 
 /** ChatInputArea 的 ref handle */
 export interface ChatInputAreaHandle {
   getValue: () => MessageContentItem[];
-  clear: (options?: { releaseResources?: boolean }) => void;
+  clear: () => void;
   setValue: (content: string) => void;
   appendMention?: (mention: MentionRef) => void;
   focusEnd: () => void;
@@ -128,8 +87,6 @@ export interface ChatInputAreaProps {
   isSupportImage?: boolean;
   /** 是否支持文件上传 */
   isSupportFile?: boolean;
-  /** 资源来源 */
-  resourceSource?: IResourceSource | null;
   /** 推理强度 */
   reasoningEffort?: ReasoningEffort;
   /** 当前模型可用的推理强度 */

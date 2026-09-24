@@ -27,11 +27,6 @@ const ALL_PAGES = [
   { type: TabType.VecDocument, category: "工具", module: "vecDocuments" },
   { type: TabType.Calendar, category: "工具" },
   { type: TabType.ChatManagement, category: "工具" },
-  {
-    type: TabType.ResourceManagement,
-    category: "工具",
-    module: "resourceManagement",
-  },
   { type: TabType.Todo, category: "效率", module: "todo" },
   { type: TabType.Questions, category: "效率", module: "question" },
   { type: TabType.Pomodoro, category: "效率", module: "pomodoro" },

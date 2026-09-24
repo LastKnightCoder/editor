@@ -30,7 +30,6 @@ import {
   getFileExtension,
   showInFolder,
 } from "@/commands/file";
-import { incrementResourceRefCount, decrementResourceRefCount } from "@/commands/resource";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { createContent, getContentById, updateContent } from "@/commands/content";
 import { buildCardFromContent, isContentIsCard } from "@/commands/card";
@@ -578,21 +577,6 @@ const handleResourceUpload = async (request: RpcRequestMessage) => {
   return { url };
 };
 
-const handleResourceIncrementRef = async (request: RpcRequestMessage) => {
-  const params = request.params as unknown as {
-    path: string;
-    source?: { type: string; id: number };
-  };
-  await incrementResourceRefCount(params.path, params.source);
-  return { success: true };
-};
-
-const handleResourceDecrementRef = async (request: RpcRequestMessage) => {
-  const params = request.params as unknown as { path: string };
-  await decrementResourceRefCount(params.path);
-  return { success: true };
-};
-
 // ==================== 设置相关 RPC 处理器 ====================
 
 const handleSettingsGetLlmConfigs = async () => {
@@ -827,8 +811,6 @@ export const initAiServer = () => {
   aiServer.addRequestHandler("file.remoteResourceToLocal", handleFileRemoteResourceToLocal);
   aiServer.addRequestHandler("file.showInFolder", handleFileShowInFolder);
   aiServer.addRequestHandler("resource.upload", handleResourceUpload);
-  aiServer.addRequestHandler("resource.incrementRef", handleResourceIncrementRef);
-  aiServer.addRequestHandler("resource.decrementRef", handleResourceDecrementRef);
 
   // 注册设置相关 RPC 处理器
   aiServer.addRequestHandler("settings.getLlmConfigs", handleSettingsGetLlmConfigs);

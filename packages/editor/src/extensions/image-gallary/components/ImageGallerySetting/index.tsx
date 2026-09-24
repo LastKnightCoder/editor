@@ -197,7 +197,7 @@ const ImageGallerySetting = (props: IImageGallerySettingProps) => {
   const [successCount, setSuccessCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
 
-  // 宿主注册的图片选择入口（如资源库）；未注册则不显示对应按钮
+  // 宿主注册的图片选择入口；未注册则不显示对应按钮
   const imageSelectors = (useOptionalService(IMediaSelectors) ?? []).filter(
     selector => selector.mediaTypes.includes("image") && (selector.isAvailable?.() ?? true)
   );

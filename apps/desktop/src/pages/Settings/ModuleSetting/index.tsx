@@ -269,11 +269,6 @@ const MODULE_CONFIG: Record<
     description: "日程安排与提醒",
     category: "personal",
   },
-  resourceManagement: {
-    icon: "FolderOpen",
-    description: "文件与资源管理",
-    category: "tools",
-  },
   collaboration: {
     icon: "Users",
     description: "多人实时协作与内容共享",
