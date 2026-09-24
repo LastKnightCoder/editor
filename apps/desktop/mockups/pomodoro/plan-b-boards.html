@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>番茄专注 · 方案 B 两块板</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  .boards { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(430px, 1fr) minmax(430px, 1fr); gap: 14px; }
+  .board { background: var(--bg-surface); border-radius: 18px; box-shadow: var(--shadow-card); min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .b-head { display: flex; align-items: center; gap: 8px; padding: 16px 16px 6px 20px; min-height: 50px; flex: none; }
+  .b-head h3 { font-size: 14.5px; font-weight: 600; }
+  .b-head .muted { font-size: 12px; font-variant-numeric: tabular-nums; }
+
+  /* ---------- 正在专注（左板顶部，钉在列表之上） ---------- */
+  .now-slot { flex: none; padding: 0 12px; display: grid; grid-template-rows: 0fr; transition: grid-template-rows 360ms var(--ease-out); }
+  .now-slot.on { grid-template-rows: 1fr; }
+  .now-slot > div { overflow: hidden; }
+  .nowcard { margin: 4px 0 10px; padding: 16px 16px 14px 20px; border-radius: 14px; background: var(--accent-soft); transition: background 400ms; }
+  .nowcard.paused { background: var(--warn-soft); }
+  .nc-row { display: flex; align-items: center; gap: 16px; }
+  .nc-time { font-size: 44px; font-weight: 500; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .nc-info { min-width: 0; }
+  .nc-name { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 13.5px; }
+  .nc-sub { font-size: 12px; color: var(--ink-2); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .nc-sub .st { color: var(--accent-text); font-weight: 500; }
+  .paused .nc-sub .st { color: var(--warn); }
+  .nc-ctrl { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+  .cbtn { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--ink-1); transition: background 160ms; }
+  .cbtn:hover { background: color-mix(in srgb, var(--ink-1) 7%, transparent); }
+  .cbtn .icon { width: 16px; height: 16px; }
+  .cbtn.on { color: var(--accent-text); }
+  .cbtn.main { width: 40px; height: 40px; border-radius: 12px; background: var(--accent); color: var(--ink-inverse); margin-left: 4px; }
+  .cbtn.main:hover { background: var(--accent-hover); }
+  .paused .cbtn.main { background: var(--warn); }
+  .nc-bar { position: relative; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--ink-1) 8%, transparent); margin-top: 14px; overflow: hidden; }
+  .nc-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); transition: width 1s linear; }
+  .paused .nc-bar i { background: var(--warn); }
+  .nc-scale { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-3); margin-top: 5px; font-variant-numeric: tabular-nums; }
+  .nowcard .confirm-strip { margin-top: 12px; background: var(--bg-surface); }
+
+  /* ---------- 预设列表 ---------- */
+  .plist { flex: 1; padding: 0 10px 10px; }
+  .hint { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-3); padding: 0 10px 8px; }
+  .prow { display: grid; grid-template-columns: 14px 10px minmax(0, 1fr) 96px 64px 34px; align-items: center; gap: 10px; height: 58px; padding: 0 8px 0 4px;
+    border-radius: 12px; cursor: default; position: relative; }
+  .prow:hover { background: var(--bg-hover); }
+  .prow.sel { background: var(--bg-selected); }
+  .prow.drop-before::before, .prow.drop-after::after { content: ""; position: absolute; left: 10px; right: 10px; height: 2px; border-radius: 1px; background: var(--accent); }
+  .prow.drop-before::before { top: -1px; } .prow.drop-after::after { bottom: -1px; }
+  .prow.dragging { opacity: 0.4; }
+  .grip { color: var(--ink-3); opacity: 0; cursor: grab; display: grid; place-items: center; }
+  .grip .icon { width: 13px; height: 13px; }
+  .prow:hover .grip { opacity: 1; }
+  .p-name { font-weight: 500; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px; }
+  .p-meta { font-size: 12px; color: var(--ink-3); margin-top: 1px; }
+  .spark { display: flex; align-items: flex-end; gap: 3px; height: 22px; }
+  .spark i { width: 8px; border-radius: 2px; background: var(--c); opacity: 0.35; min-height: 2px; }
+  .spark i.z { background: var(--bg-track); opacity: 1; }
+  .spark i.t { opacity: 1; }
+  .p-stat { text-align: right; font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; line-height: 1.35; }
+  .p-stat b { display: block; color: var(--ink-1); font-weight: 500; font-size: 12.5px; }
+  .play { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: var(--ink-2); background: var(--bg-hover); transition: background 160ms, color 160ms, transform 160ms var(--ease-out); }
+  .play .icon { width: 12px; height: 12px; margin-left: 1px; }
+  .prow:hover .play:not(:disabled) { background: var(--accent); color: var(--ink-inverse); }
+  .play:disabled { opacity: 0.35; }
+  .live-dot { width: 32px; height: 32px; display: grid; place-items: center; }
+  .live-dot i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: breathe 2.4s ease-in-out infinite; }
+  .live-dot.paused i { background: var(--warn); animation: none; }
+
+  /* 行内编辑（新建 / 编辑都在原位展开，不弹窗） */
+  .pedit { margin: 4px 0; padding: 14px 16px 12px; border-radius: 14px; border: 1px solid var(--line-1); animation: enter 260ms var(--ease-out); }
+  .pedit .grid { display: grid; grid-template-columns: 1fr auto; gap: 12px 16px; align-items: end; }
+  .pedit .field + .field { margin-top: 0; }
+  .pedit .foot { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  .pedit .foot .muted { font-size: 12px; }
+  @keyframes enter { from { opacity: 0; transform: translateY(6px); } }
+  .arch-empty { padding: 30px 10px; }
+  .arch-row .acts { display: flex; gap: 4px; }
+
+  /* ---------- 右板：记录 ---------- */
+  .filter { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 4px 0 9px; border-radius: 7px; background: var(--bg-selected); color: var(--accent-text); font-size: 12px; font-weight: 500; }
+  .filter button { width: 18px; height: 18px; border-radius: 5px; display: grid; place-items: center; }
+  .filter button:hover { background: var(--accent-soft); }
+  .filter .icon { width: 11px; height: 11px; }
+  .pstats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; padding: 4px 20px 8px; flex: none; }
+  .pstats div { font-size: 12px; color: var(--ink-3); }
+  .pstats b { display: block; font-size: 17px; font-weight: 600; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .hist { flex: 1; padding: 0 10px; }
+  .b-foot { padding: 0 12px 12px; flex: none; }
+  .rhythm { flex: none; padding: 12px 20px 18px; }
+  .r-h { display: flex; align-items: baseline; gap: 8px; font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .r-h b { font-size: 13px; font-weight: 600; color: var(--ink-1); }
+  .r-bars { display: flex; align-items: flex-end; gap: 3px; height: 64px; margin-top: 10px; }
+  .r-bars .col { flex: 1; display: flex; flex-direction: column-reverse; gap: 1px; height: 100%; justify-content: flex-start; border-radius: 3px; }
+  .r-bars .col i { display: block; background: var(--c); border-radius: 2px; }
+  .r-bars .col.z::before { content: ""; height: 3px; border-radius: 2px; background: var(--bg-track); }
+  .r-bars .col.we { opacity: 0.9; }
+  .r-bars .col:hover { background: var(--bg-hover); }
+  .r-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-3); margin-top: 5px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script src="records.js"></script>
+<script>
+(function () {
+  const { icon, fmtClock, fmtDur, fmtDurCN, hm } = P;
+  const { page } = P.mountShell();
+  page.style.height = "100%";
+  page.innerHTML = `
+  <div class="page">
+    <div class="toolbar"><h1>番茄专注</h1><div class="sum" id="sum"></div><span class="spacer"></span>
+      <div class="seg" id="tab"></div>
+      <button class="btn btn-primary" id="new-btn">${icon("plus")}新建预设</button></div>
+    <div class="boards">
+      <section class="board" id="left">
+        <div class="b-head"><h3 id="l-title">预设</h3><span class="muted" id="l-sub"></span><span class="spacer"></span>
+          <button class="ibtn" id="aux-btn" title="小窗 / 沉浸">${icon("more")}</button></div>
+        <div class="now-slot" id="now-slot"><div><div class="nowcard" id="nowcard"></div></div></div>
+        <div class="plist fade-scroll" id="plist"></div>
+        <div class="rhythm" id="rhythm"></div>
+      </section>
+      <section class="board" id="right">
+        <div class="b-head"><h3>专注记录</h3><span id="filter"></span><span class="muted" id="r-sub"></span><span class="spacer"></span>
+          <button class="btn btn-ghost" id="sel-btn">${icon("list-checks")}选择</button></div>
+        <div id="r-top"></div>
+        <div class="hist fade-scroll" id="hist"></div>
+        <div class="b-foot" id="r-foot"></div>
+      </section>
+    </div>
+  </div>`;
+  const $ = s => page.querySelector(s);
+  let tab = "active", selPid = null, editing = null; // editing: preset id | "new" | null
+
+  /* ---------- 工具栏 ---------- */
+  function renderTop() {
+    const t = P.todaySummary();
+    $("#sum").innerHTML = `今天 <b class="num">${t.count}</b> 个 <span class="sep">·</span> <b class="num">${fmtDur(t.focusMs)}</b> <span class="sep">·</span> 连续 <b class="num">${P.streak()}</b> 天`;
+    $("#tab").innerHTML = `<button data-t="active" class="${tab === "active" ? "on" : ""}">坚持中 <span class="n num">${P.activePresets().length}</span></button><button data-t="archived" class="${tab === "archived" ? "on" : ""}">已归档 <span class="n num">${P.archivedPresets().length}</span></button>`;
+  }
+  $("#tab").onclick = e => { const b = e.target.closest("[data-t]"); if (!b) return; tab = b.dataset.t; editing = null; renderTop(); renderList(); };
+  $("#new-btn").onclick = () => { tab = "active"; editing = "new"; renderTop(); renderList(); $("#plist").scrollTop = 1e6; };
+  $("#aux-btn").onclick = e => P.openMenu(e.currentTarget, [
+    { icon: "pip", label: "打开小窗", act: "mini", disabled: !P.timer.session },
+    { icon: "expand", label: "进入沉浸", act: "imm", k: "I", disabled: !P.timer.session },
+    "-", { header: "小窗与沉浸仅 Electron 渲染" }
+  ], x => (x.act === "mini" ? P.openMini() : P.openImmersive()), { placement: "bottom-end" });
+
+  /* ---------- 正在专注 ---------- */
+  let confirming = false;
+  function renderNow(force) {
+    const t = P.timing(), slot = $("#now-slot"), card = $("#nowcard");
+    slot.classList.toggle("on", !!t);
+    if (!t) { confirming = false; return; }
+    if (force || !card.firstChild) {
+      card.innerHTML = `<div class="nc-row"><div class="nc-time" data-k="time"></div>
+        <div class="nc-info"><div class="nc-name"><span class="pdot" style="--c:${P.colorOf(t.preset.id)}"></span><span data-k="name"></span></div><div class="nc-sub" data-k="sub"></div></div>
+        <div class="nc-ctrl"><button class="cbtn" data-a="sound" title="背景音">${icon("music")}</button>
+          <button class="cbtn" data-a="stop" title="结束">${icon("stop")}</button><button class="cbtn main" data-a="toggle" title="暂停 / 继续（空格）"></button></div></div>
+        <div class="nc-bar"><i data-k="bar"></i></div><div class="nc-scale" data-k="scale"></div><div data-k="confirm"></div>`;
+    }
+    const q = k => card.querySelector(`[data-k="${k}"]`), s = P.timer.session, cd = t.remain !== undefined;
+    card.classList.toggle("paused", t.paused);
+    q("time").textContent = fmtClock(t.display);
+    q("name").textContent = t.preset.name;
+    q("sub").innerHTML = `<span class="st">${t.paused ? "已暂停" : cd ? "剩余" : "已专注"}</span> · ${cd ? `已专注 ${fmtClock(t.elapsed)}` : "正计时"}${s.pauseCount ? ` · 暂停 ${s.pauseCount} 次` : ""}${P.timer.sound ? ` · ${P.soundName(P.timer.sound)}` : ""}`;
+    q("bar").style.width = t.progress * 100 + "%";
+    q("scale").innerHTML = cd ? `<span>${hm(s.startTime)} 开始</span><span>${t.paused ? "暂停中，结束时间顺延" : `预计 ${hm(t.endsAt)} 结束`}</span>` : `<span>${hm(s.startTime)} 开始</span><span>第 ${Math.floor(t.elapsed / P.H) + 1} 小时</span>`;
+    card.querySelector('[data-a="sound"]').classList.toggle("on", !!P.timer.sound);
+    const tg = card.querySelector('[data-a="toggle"]'), want = t.paused ? "play" : "pause";
+    if (tg.dataset.i !== want) { tg.innerHTML = icon(want, "fill"); tg.dataset.i = want; }
+    if (confirming && !t.willDiscard) confirming = false;
+    const c = q("confirm");
+    if (c.dataset.s !== String(confirming)) {
+      c.dataset.s = String(confirming);
+      c.innerHTML = confirming ? `<div class="confirm-strip">${icon("alert")}不足 5 分钟，结束后不会留下记录<span class="spacer"></span><button class="btn btn-ghost" data-a="keep">继续专注</button><button class="btn btn-secondary" data-a="discard">仍然结束</button></div>` : "";
+    }
+  }
+  $("#nowcard").addEventListener("click", e => {
+    const a = e.target.closest("[data-a]")?.dataset.a; if (!a) return;
+    if (a === "toggle") P.toggle();
+    if (a === "sound") P.openSound(e.target.closest("[data-a]"), { placement: "bottom-end" });
+    if (a === "stop") { if (P.timing().willDiscard) { confirming = true; renderNow(); } else report(P.stopByUser()); }
+    if (a === "keep") { confirming = false; renderNow(); }
+    if (a === "discard") report(P.stopByUser());
+  });
+  function report(r, auto) {
+    if (!r) return;
+    if (r.discarded) return P.toast("不足 5 分钟，本次未记录");
+    const s = r.saved, p = P.presetById(s.presetId);
+    P.toast(auto ? `完成「${p.name}」· ${fmtDurCN(s.focusMs)}` : P.isEarly(s) ? `「${p.name}」提前结束 · 记录 ${fmtDurCN(s.focusMs)}` : `已记录「${p.name}」· ${fmtDurCN(s.focusMs)}`);
+  }
+
+  /* ---------- 预设列表 ---------- */
+  function sparkHTML(st, pid) {
+    const max = Math.max(...st.days, 30 * P.MIN);
+    return `<div class="spark" style="--c:${P.colorOf(pid)}" title="近 7 天">${st.days.map((ms, i) => `<i class="${ms ? "" : "z"}${i === 6 ? " t" : ""}" style="height:${ms ? Math.max(14, (ms / max) * 100) : 9}%"></i>`).join("")}</div>`;
+  }
+  function rowHTML(p, i) {
+    if (editing === p.id) return editHTML(p);
+    const st = P.presetStats(p.id), t = P.timing(), live = t && t.preset.id === p.id;
+    return `<div class="prow${selPid === p.id ? " sel" : ""}" draggable="true" data-pid="${p.id}" title="单击查看记录 · 双击编辑 · 右键更多">
+      <span class="grip">${icon("grip")}</span><span class="pdot" style="--c:${P.colorOf(p.id)}"></span>
+      <div style="min-width:0"><div class="p-name">${p.name}${i < 9 && !t ? `<kbd>${i + 1}</kbd>` : ""}</div><div class="p-meta">${P.presetMeta(p)}</div></div>
+      ${sparkHTML(st, p.id)}
+      <div class="p-stat"><b>${st.todayMs ? fmtDur(st.todayMs) : "—"}</b>今天</div>
+      ${live ? `<span class="live-dot${t.paused ? " paused" : ""}" title="专注中"><i></i></span>` : `<button class="play" data-play="${p.id}" ${t ? "disabled" : ""} title="${t ? "正在专注其他预设" : `开始「${p.name}」`}">${icon("play", "fill")}</button>`}</div>`;
+  }
+  function editHTML(p) {
+    return `<div class="pedit" data-edit="${p ? p.id : "new"}"><div class="pop-title" style="margin-bottom:8px">${icon(p ? "edit" : "plus")}${p ? "编辑预设" : "新建预设"}</div>${P.presetFormHTML(p)}
+      <div class="foot">${p ? `<button class="btn btn-ghost" data-arch>${icon("archive")}归档</button>` : `<span class="muted">回车保存 · Esc 取消</span>`}<span class="spacer"></span>
+      <button class="btn btn-ghost" data-cancel>取消</button><button class="btn btn-primary" data-save>${p ? "保存" : "创建"}</button></div></div>`;
+  }
+  function renderList() {
+    const el = $("#plist"), t = P.timing();
+    if (tab === "archived") {
+      $("#l-title").textContent = "已归档";
+      $("#l-sub").textContent = "归档的预设不出现在开始列表，记录仍计入统计";
+      const list = P.archivedPresets();
+      el.innerHTML = list.length ? list.map(p => { const st = P.presetStats(p.id); return `<div class="prow${selPid === p.id ? " sel" : ""}" data-pid="${p.id}" style="grid-template-columns:10px minmax(0,1fr) auto">
+          <span class="pdot" style="--c:${P.colorOf(p.id)}"></span><div style="min-width:0"><div class="p-name">${p.name}</div><div class="p-meta">${P.presetMeta(p)} · 共 ${st.totalCount} 个 · ${fmtDur(st.totalMs)}${st.lastTs ? ` · 最后 ${P.dateCN(st.lastTs).split(" ")[0]}` : ""}</div></div>
+          <div class="arch-row" style="background:none"><div class="acts"><button class="btn btn-secondary" data-restore="${p.id}">${icon("undo")}恢复</button><button class="ibtn" data-del="${p.id}" title="删除（历史记录保留）">${icon("trash")}</button></div></div></div>`; }).join("")
+        : `<div class="empty arch-empty">${icon("archive")}没有归档的预设</div>`;
+      return;
+    }
+    $("#l-title").textContent = "预设";
+    $("#l-sub").textContent = t ? "" : "";
+    const list = P.activePresets();
+    el.innerHTML = (t ? "" : `<div class="hint">${icon("play")}点右侧按钮开始 · 数字键 1–${Math.min(9, list.length)} · 拖动排序</div>`) +
+      list.map(rowHTML).join("") + (editing === "new" ? editHTML(null) : "");
+    const ed = el.querySelector(".pedit");
+    if (ed) {
+      const p = editing === "new" ? null : P.presetById(editing);
+      const submit = P.bindPresetForm(ed, p, v => {
+        if (p) { P.updatePreset(p.id, v); P.toast("预设已保存"); } else { P.createPreset(v); P.toast(`已创建「${v.name}」`); }
+        editing = null; renderAll();
+      });
+      ed.querySelector("[data-save]").onclick = submit;
+      ed.querySelector("[data-cancel]").onclick = () => { editing = null; renderList(); };
+      const ar = ed.querySelector("[data-arch]");
+      if (ar) ar.onclick = () => { editing = null; P.archivePreset(p.id, true); P.toast(`已归档「${p.name}」`, () => P.archivePreset(p.id, false)); };
+      ed.addEventListener("keydown", e => { if (e.key === "Escape") { e.stopPropagation(); editing = null; renderList(); } });
+    }
+  }
+  const plist = $("#plist");
+  plist.addEventListener("click", e => {
+    const play = e.target.closest("[data-play]");
+    if (play) { e.stopPropagation(); return P.start(+play.dataset.play); }
+    const rs = e.target.closest("[data-restore]"), dl = e.target.closest("[data-del]");
+    if (rs) { const p = P.presetById(+rs.dataset.restore); P.archivePreset(p.id, false); P.toast(`已恢复「${p.name}」`); return; }
+    if (dl) { const p = P.presetById(+dl.dataset.del); const undo = P.deletePreset(p.id); if (selPid === p.id) selPid = null; P.toast(`已删除「${p.name}」，历史记录保留`, undo); return; }
+    const row = e.target.closest(".prow[data-pid]");
+    if (row) { const id = +row.dataset.pid; selPid = selPid === id ? null : id; renderList(); renderRight(); }
+  });
+  plist.addEventListener("dblclick", e => {
+    const row = e.target.closest(".prow[data-pid]");
+    if (row && tab === "active") { editing = +row.dataset.pid; renderList(); }
+  });
+  plist.addEventListener("contextmenu", e => {
+    const row = e.target.closest(".prow[data-pid]"); if (!row) return;
+    e.preventDefault();
+    P.presetMenu({ x: e.clientX, y: e.clientY }, P.presetById(+row.dataset.pid), { onEdit: p => { editing = p.id; renderList(); } });
+  });
+  let dragId = null;
+  plist.addEventListener("dragstart", e => { const r = e.target.closest(".prow[data-pid]"); if (!r) return; dragId = +r.dataset.pid; r.classList.add("dragging"); });
+  plist.addEventListener("dragend", () => plist.querySelectorAll(".prow").forEach(x => x.classList.remove("dragging", "drop-before", "drop-after")));
+  plist.addEventListener("dragover", e => {
+    const r = e.target.closest(".prow[data-pid]"); if (!r || dragId == null) return; e.preventDefault();
+    const b = r.getBoundingClientRect(), before = e.clientY < b.top + b.height / 2;
+    plist.querySelectorAll(".prow").forEach(x => x.classList.remove("drop-before", "drop-after"));
+    if (+r.dataset.pid !== dragId) r.classList.add(before ? "drop-before" : "drop-after");
+  });
+  plist.addEventListener("drop", e => {
+    const r = e.target.closest(".prow[data-pid]"); if (!r || dragId == null) return; e.preventDefault();
+    const target = +r.dataset.pid; if (target === dragId) return;
+    const b = r.getBoundingClientRect(), before = e.clientY < b.top + b.height / 2;
+    const ids = P.activePresets().map(p => p.id).filter(id => id !== dragId);
+    ids.splice(ids.indexOf(target) + (before ? 0 : 1), 0, dragId);
+    P.reorderPresets(ids); dragId = null;
+  });
+
+  /* ---------- 右板：记录（选中预设即筛选 = 主从） ---------- */
+  const hist = R.mountHistory($("#hist"), { filter: s => selPid == null || s.presetId === selPid, onSelChange: renderFoot, });
+  function renderRight() {
+    const p = selPid != null ? P.presetById(selPid) : null;
+    $("#filter").innerHTML = p ? `<span class="filter"><span class="pdot" style="--c:${P.colorOf(p.id)}"></span>${p.name}<button data-clear title="清除筛选">${icon("x")}</button></span>` : "";
+    const tot = P.totalSummary();
+    $("#r-sub").textContent = p ? "" : `累计 ${tot.count} 个 · ${Math.round(tot.focusMs / P.H)} 小时`;
+    if (p) {
+      const st = P.presetStats(p.id);
+      $("#r-top").innerHTML = `<div class="pstats"><div><b>${st.totalCount}</b>个番茄</div><div><b>${fmtDur(st.totalMs)}</b>累计专注</div><div><b>${st.totalCount ? fmtDur(st.totalMs / st.totalCount) : "—"}</b>平均每次</div><div><b>${fmtDur(st.weekMs)}</b>近 7 天</div></div>`;
+    } else $("#r-top").innerHTML = "";
+    hist.render();
+  }
+  $("#filter").onclick = e => { if (e.target.closest("[data-clear]")) { selPid = null; renderList(); renderRight(); } };
+  function renderFoot(n = 0) {
+    $("#sel-btn").innerHTML = hist.selecting() ? "完成" : `${icon("list-checks")}选择`;
+    $("#r-foot").innerHTML = hist.selecting() ? `<div class="sel-bar"><span>已选 <b class="num">${n}</b> 条</span><button class="btn btn-ghost" data-today>全选今天</button><span class="spacer"></span>
+      <button class="btn btn-danger-soft" data-del ${n ? "" : "disabled"}>${icon("trash")}删除</button></div>` : "";
+    const d = $("#r-foot [data-del]"); if (d) d.onclick = () => hist.deleteSelected();
+    const td = $("#r-foot [data-today]"); if (td) td.onclick = () => hist.selectDay(0);
+  }
+  $("#sel-btn").onclick = () => { hist.setSelecting(!hist.selecting()); renderFoot(); };
+
+  /* 近 30 天节律：按天堆叠、按预设着色（全部由 sessions 推导） */
+  function renderRhythm() {
+    const days = P.dayTotals(30), max = Math.max(...days.map(d => d.ms), 2 * P.H);
+    const active = days.filter(d => d.ms), best = days.reduce((a, d) => (d.ms > a.ms ? d : a), days[0]);
+    $("#rhythm").innerHTML = `<div class="r-h"><b>近 30 天</b><span>${active.length} 天有专注 · 日均 ${fmtDur(active.reduce((a, d) => a + d.ms, 0) / Math.max(1, active.length))} · 最多 ${P.dateCN(best.ts).split(" ")[0]} ${fmtDur(best.ms)}</span></div>
+      <div class="r-bars">${days.map(d => {
+        if (!d.ms) return `<div class="col z" title="${P.dateCN(d.ts)} · 无记录"></div>`;
+        const by = new Map(); P.sessionsOn(d.off).forEach(s => by.set(s.presetId, (by.get(s.presetId) || 0) + s.focusMs));
+        return `<div class="col" title="${P.dateCN(d.ts)} · ${d.count} 个 · ${fmtDur(d.ms)}">${[...by].map(([pid, ms]) => `<i style="--c:${P.colorOf(pid)};height:${(ms / max) * 100}%"></i>`).join("")}</div>`;
+      }).join("")}</div><div class="r-axis"><span>${P.dateCN(days[0].ts).split(" ")[0]}</span><span>今天</span></div>`;
+  }
+  function renderAll() { renderTop(); renderNow(true); renderList(); renderRight(); renderRhythm(); }
+  let wasRunning = !!P.timing();
+  P.on((type, payload) => {
+    if (type === "completed") report({ saved: payload }, true);
+    if (type === "timer") {
+      const r = !!P.timing();
+      if (r !== wasRunning) { wasRunning = r; renderNow(true); renderList(); } else renderNow();
+      renderTop(); renderRight();
+    }
+    if (type === "data") { if (editing == null) renderList(); renderTop(); renderRight(); renderRhythm(); }
+    if (type === "sound") renderNow();
+    if (type === "tick") {
+      renderNow();
+      const rib = $("#hist .day-rib.big"); if (rib && P.timer.session) rib.innerHTML = P.ribbonHTML(P.sessions);
+    }
+  });
+  P.bindKeys();
+  renderAll(); renderFoot();
+})();
+</script>
+</body>
+</html>

@@ -44,6 +44,12 @@
       "port": 6199
     },
     {
+      "name": "pomodoro-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8798", "-d", "apps/desktop/mockups/pomodoro"],
+      "port": 8798
+    },
+    {
       "name": "mockups",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["-y", "serve", "apps/desktop/mockups", "-l", "6211"],
