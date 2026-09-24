@@ -57,8 +57,8 @@ export function HomeView() {
   if (!data) return null;
 
   return (
-    // @container：容器查询锚点（原 .wide.home-view：宽容器 + 视图内滚动，末尾留白由滚动容器自持）
-    <div className="@container pt-6.5 mx-auto flex h-full max-w-[1680px] flex-col gap-3 px-[34px]">
+    // @container：容器查询锚点；外层底部留白让滚动条避开窗口底边
+    <div className="@container pt-6.5 mx-auto flex h-full max-w-[1680px] flex-col gap-3 px-[34px] pb-4">
       {/* ① hero 紧凑条（专注摘要可点击打开番茄钟） */}
       <header className="flex items-baseline gap-4">
         <h1 className="text-[19px] font-semibold tracking-[-0.01em]">{greeting()}</h1>
