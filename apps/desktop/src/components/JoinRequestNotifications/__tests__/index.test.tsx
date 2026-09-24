@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { notify, NotificationHost } from "@tau/ui";
 import JoinRequestNotifications from "../index";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import type { CollaborationSession, JoinRequest } from "@tau/collaboration";
@@ -55,206 +56,162 @@ const makeSession = (id: string, title: string): CollaborationSession => ({
   leaving: false,
 });
 
-/** 等待 AnimatePresence 的退出动画在 jsdom 的 rAF 实现下走完。 */
-const waitForExitAnimation = () =>
-  act(async () => {
-    await new Promise(resolve => setTimeout(resolve, 400));
-  });
+const LEAVE_BUFFER = 260;
+const RESOLVED_STAY = 1600;
 
-/** stacked 省略时返回全部通知卡，否则按完整/堆叠状态过滤。 */
-const queryCards = (stacked?: boolean) =>
-  document.querySelectorAll(
-    stacked === undefined
-      ? '[data-testid="join-request-notification"]'
-      : stacked
-        ? '[data-testid="join-request-notification"][data-stacked]'
-        : '[data-testid="join-request-notification"]:not([data-stacked])'
-  );
+const cards = () => Array.from(document.querySelectorAll<HTMLElement>('[role="status"]'));
+const button = (card: HTMLElement, text: string) =>
+  Array.from(card.querySelectorAll("button")).find(
+    b => b.textContent === text
+  ) as HTMLButtonElement;
+const advance = (ms: number) =>
+  act(() => {
+    vi.advanceTimersByTime(ms);
+  });
+/** 让 decide 的 promise 链（bridge → invoke → then）落地 */
+const flush = () =>
+  act(async () => {
+    for (let i = 0; i < 6; i++) await Promise.resolve();
+  });
+const setStore = (patch: Parameters<typeof useCollaborationStore.setState>[0]) =>
+  act(() => {
+    useCollaborationStore.setState(patch);
+  });
 
 describe("JoinRequestNotifications", () => {
   let container: HTMLDivElement;
   let root: Root;
 
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
     invokeMock.mockImplementation(() => Promise.resolve());
     useCollaborationStore.setState({ requests: [], sessions: [], synced: false });
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
     act(() => {
-      root.render(<JoinRequestNotifications />);
+      root.render(
+        <>
+          <JoinRequestNotifications />
+          <NotificationHost />
+        </>
+      );
     });
   });
 
-  afterEach(async () => {
-    await act(async () => {
-      root.unmount();
-    });
+  afterEach(() => {
+    act(() => notify.dismiss());
+    advance(LEAVE_BUFFER);
+    act(() => root.unmount());
     container.remove();
+    vi.useRealTimers();
   });
 
   it("启动同步时已存在的待审批申请不弹通知", () => {
-    act(() => {
-      useCollaborationStore.setState({
-        requests: [makeRequest("req-existing", "存量用户")],
-        sessions: [makeSession("doc-1", "产品需求文档")],
-        synced: true,
-      });
+    setStore({
+      requests: [makeRequest("req-existing", "存量用户")],
+      sessions: [makeSession("doc-1", "产品需求文档")],
+      synced: true,
     });
     // 后续 refresh 推送同样的存量申请同样不弹
-    act(() => {
-      useCollaborationStore.setState({ requests: [makeRequest("req-existing", "存量用户")] });
-    });
-    expect(document.querySelector('[data-testid="join-request-notification"]')).toBeNull();
+    setStore({ requests: [makeRequest("req-existing", "存量用户")] });
+    expect(cards()).toHaveLength(0);
   });
 
-  it("运行期新到达的申请弹出通知，展示昵称与文档标题", () => {
-    act(() => {
-      useCollaborationStore.setState({
-        sessions: [makeSession("doc-1", "产品需求文档")],
-        synced: true,
-      });
-    });
-    expect(document.querySelector('[data-testid="join-request-notification"]')).toBeNull();
+  it("运行期新到达的申请弹出通知，展示昵称、文档标题与头像", () => {
+    setStore({ sessions: [makeSession("doc-1", "产品需求文档")], synced: true });
+    expect(cards()).toHaveLength(0);
 
-    act(() => {
-      useCollaborationStore.setState({ requests: [makeRequest("req-new", "李四")] });
-    });
-
-    const card = document.querySelector('[data-testid="join-request-notification"]');
-    expect(card?.textContent).toContain("李四");
-    expect(card?.textContent).toContain("请求加入协作 · 产品需求文档");
+    setStore({ requests: [makeRequest("req-new", "李四")] });
+    const text = cards()[0].textContent;
+    expect(text).toContain("李四请求加入协作");
+    expect(text).toContain("「产品需求文档」");
+    expect(text).toContain("李"); // 头像取昵称首字
   });
 
-  it("点击同意调用 collaboration:decide 且通知消失", async () => {
-    act(() => {
-      useCollaborationStore.setState({ synced: true });
-    });
-    act(() => {
-      useCollaborationStore.setState({ requests: [makeRequest("req-approve", "李四")] });
-    });
-    const card = document.querySelector('[data-testid="join-request-notification"]');
-    const approve = Array.from(card!.querySelectorAll("button")).find(
-      button => button.textContent === "同意"
-    );
+  it("点击同意调用 collaboration:decide，收成结果行后退场", async () => {
+    setStore({ synced: true });
+    setStore({ requests: [makeRequest("req-approve", "李四")] });
 
-    await act(async () => {
-      approve?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await Promise.resolve();
-    });
-
+    act(() => button(cards()[0], "同意").click());
+    await flush();
     expect(invokeMock).toHaveBeenCalledWith("collaboration:decide", "req-approve", true);
-    await waitForExitAnimation();
-    expect(document.querySelector('[data-testid="join-request-notification"]')).toBeNull();
+    expect(cards()[0].textContent).toBe("已同意李四加入协作");
+
+    advance(RESOLVED_STAY + LEAVE_BUFFER);
+    expect(cards()).toHaveLength(0);
   });
 
-  it("点击拒绝调用 collaboration:decide 且通知消失", async () => {
-    act(() => {
-      useCollaborationStore.setState({ synced: true });
-    });
-    act(() => {
-      useCollaborationStore.setState({ requests: [makeRequest("req-reject", "王五")] });
-    });
-    const card = document.querySelector('[data-testid="join-request-notification"]');
-    const reject = Array.from(card!.querySelectorAll("button")).find(
-      button => button.textContent === "拒绝"
-    );
+  it("点击拒绝调用 collaboration:decide，收成结果行后退场", async () => {
+    setStore({ synced: true });
+    setStore({ requests: [makeRequest("req-reject", "王五")] });
 
-    await act(async () => {
-      reject?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await Promise.resolve();
-    });
-
+    act(() => button(cards()[0], "拒绝").click());
+    await flush();
     expect(invokeMock).toHaveBeenCalledWith("collaboration:decide", "req-reject", false);
-    await waitForExitAnimation();
-    expect(document.querySelector('[data-testid="join-request-notification"]')).toBeNull();
+    expect(cards()[0].textContent).toBe("已拒绝王五的申请");
+
+    advance(RESOLVED_STAY + LEAVE_BUFFER);
+    expect(cards()).toHaveLength(0);
   });
 
-  it("申请在别处被处理后（不再 pending）通知自动消失", async () => {
-    act(() => {
-      useCollaborationStore.setState({ synced: true });
-    });
-    act(() => {
-      useCollaborationStore.setState({ requests: [makeRequest("req-gone", "赵六")] });
-    });
-    expect(document.querySelector('[data-testid="join-request-notification"]')).toBeTruthy();
+  it("作答失败：卡内显示错误并解锁，通知保留", async () => {
+    invokeMock.mockImplementation(() => Promise.reject(new Error("申请已过期")));
+    setStore({ synced: true });
+    setStore({ requests: [makeRequest("req-fail", "赵六")] });
 
-    act(() => {
-      useCollaborationStore.setState({ requests: [] });
-    });
-    await waitForExitAnimation();
-    expect(document.querySelector('[data-testid="join-request-notification"]')).toBeNull();
+    act(() => button(cards()[0], "同意").click());
+    await flush();
+    expect(cards()[0].textContent).toContain("申请已过期");
+    expect(button(cards()[0], "同意").disabled).toBe(false);
   });
 
-  it("新通知插入最上方，超过 3 张时其余以真实卡片层叠呈现", () => {
-    act(() => {
-      useCollaborationStore.setState({ synced: true });
-    });
-    act(() => {
-      useCollaborationStore.setState({
-        requests: Array.from({ length: 4 }, (_, i) => makeRequest(`req-${i + 1}`, `用户${i + 1}`)),
-      });
-    });
+  it("申请在别处被处理后（不再 pending）通知自动关闭", () => {
+    setStore({ synced: true });
+    setStore({ requests: [makeRequest("req-gone", "赵六")] });
+    expect(cards()).toHaveLength(1);
 
-    // 4 张申请：3 张完整卡 + 1 张堆叠卡（真实卡片收拢露出顶部边缘）
-    expect(queryCards(false)).toHaveLength(3);
-    expect(queryCards(true)).toHaveLength(1);
-    // 服务端按申请时间升序返回，最新申请（后到的）排在最上方
-    expect(queryCards(false)[0].textContent).toContain("用户4");
-
-    act(() => {
-      useCollaborationStore.setState({
-        requests: [
-          ...Array.from({ length: 4 }, (_, i) => makeRequest(`req-${i + 1}`, `用户${i + 1}`)),
-          makeRequest("req-5", "用户5"),
-        ],
-      });
-    });
-    // 后到达的第 5 条插入最上方，堆叠至多两层
-    expect(queryCards(false)).toHaveLength(3);
-    expect(queryCards(true)).toHaveLength(2);
-    expect(queryCards(false)[0].textContent).toContain("用户5");
+    setStore({ requests: [] });
+    advance(LEAVE_BUFFER);
+    expect(cards()).toHaveLength(0);
   });
 
-  it("堆叠层数最多两层，无论积压多少", () => {
-    act(() => {
-      useCollaborationStore.setState({ synced: true });
-    });
-    act(() => {
-      useCollaborationStore.setState({
-        requests: Array.from({ length: 6 }, (_, i) => makeRequest(`req-${i + 1}`, `用户${i + 1}`)),
-      });
-    });
+  it("作答中申请从 store 消失，不打断结果行", async () => {
+    let settle!: () => void;
+    invokeMock.mockImplementation(() => new Promise<void>(resolve => (settle = resolve)));
+    setStore({ synced: true });
+    setStore({ requests: [makeRequest("req-busy", "李四")] });
 
-    expect(queryCards(false)).toHaveLength(3);
-    expect(queryCards(true)).toHaveLength(2);
+    act(() => button(cards()[0], "同意").click());
+    await flush();
+    // 作者同意后服务端刷新：申请不再 pending
+    setStore({ requests: [] });
+    advance(LEAVE_BUFFER);
+    expect(cards()).toHaveLength(1);
+
+    act(() => settle());
+    await flush();
+    expect(cards()[0].textContent).toBe("已同意李四加入协作");
   });
 
-  it("处理最上方通知后，堆叠的申请升格为完整卡片", async () => {
-    act(() => {
-      useCollaborationStore.setState({ synced: true });
-    });
-    act(() => {
-      useCollaborationStore.setState({
-        requests: Array.from({ length: 4 }, (_, i) => makeRequest(`req-${i + 1}`, `用户${i + 1}`)),
-      });
+  it("手动关闭后同一申请不再弹出", () => {
+    setStore({ synced: true });
+    setStore({ requests: [makeRequest("req-closed", "李四")] });
+    act(() => button(cards()[0], "").click()); // 关闭钮只有图标
+    advance(LEAVE_BUFFER);
+    setStore({ requests: [makeRequest("req-closed", "李四")] });
+    expect(cards()).toHaveLength(0);
+  });
+
+  it("多条申请：最新的在最上方，超过 3 张的进入叠层", () => {
+    setStore({ synced: true });
+    setStore({
+      requests: Array.from({ length: 4 }, (_, i) => makeRequest(`req-${i + 1}`, `用户${i + 1}`)),
     });
 
-    const approve = Array.from(
-      document.querySelectorAll<HTMLButtonElement>(
-        '[data-testid="join-request-notification"]:not([data-stacked]) button'
-      )
-    ).find(button => button.textContent === "同意");
-    await act(async () => {
-      approve?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await Promise.resolve();
-    });
-    await waitForExitAnimation();
-
-    // 最上方（用户 4）被处理后仍满 3 张完整卡：最旧的用户 1 从堆叠区升格
-    expect(queryCards(false)).toHaveLength(3);
-    expect(queryCards(true)).toHaveLength(0);
-    expect(queryCards(false)[0].textContent).not.toContain("用户4");
-    expect(queryCards(false)[2].textContent).toContain("用户1");
+    expect(cards()).toHaveLength(4);
+    // 服务端按申请时间升序返回，最新申请排在最上方
+    expect(cards()[0].textContent).toContain("用户4");
+    expect(cards().filter(c => c.hasAttribute("inert"))).toHaveLength(1);
   });
 });
