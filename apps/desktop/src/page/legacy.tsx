@@ -17,7 +17,6 @@ export const LEGACY_PAGES: Record<string, string> = {
   whiteboard: "白板",
   review: "闪卡复习",
   pomodoro: "番茄专注",
-  feed: "订阅",
   weread: "微信读书",
   questions: "问题管理",
   skills: "Skill 管理",

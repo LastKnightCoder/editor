@@ -14,16 +14,11 @@ const mainSegments = [
   "main/20_content.sql",
   "main/30_project.sql",
   "main/40_resource.sql",
-  "main/45_rss.sql",
   "main/50_learning.sql",
   "main/90_indexes.sql",
 ];
 
-const indexSegments = [
-  "index/00_pragmas.sql",
-  "index/10_fts.sql",
-  "index/30_meta.sql",
-];
+const indexSegments = ["index/00_pragmas.sql", "index/10_fts.sql", "index/30_meta.sql"];
 
 function readSegment(relativePath) {
   const absolutePath = path.join(schemaDir, relativePath);
@@ -50,18 +45,18 @@ function writeBundle(relativeOutputPath, content) {
 function main() {
   const mainBundle = buildBundle(
     "-- 统一数据库主库 schema（按域拆分后汇总）\n-- 请优先修改 schema/main/*.sql",
-    mainSegments,
+    mainSegments
   );
   const indexBundle = buildBundle(
     "-- 统一数据库索引库 schema（不包含 vec_documents，运行时动态创建）\n-- 请优先修改 schema/index/*.sql",
-    indexSegments,
+    indexSegments
   );
 
   writeBundle("main.sql", mainBundle);
   writeBundle("index.sql", indexBundle);
 
   console.log(
-    `[schema-build] OK mainSegments=${mainSegments.length} indexSegments=${indexSegments.length}`,
+    `[schema-build] OK mainSegments=${mainSegments.length} indexSegments=${indexSegments.length}`
   );
 }
 

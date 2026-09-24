@@ -46,10 +46,6 @@ import terminalModule from "../modules/terminal";
 import updaterModule from "../modules/updater";
 import pdfIndexQueue from "../modules/pdf-index-queue";
 import pdfIndexOrchestrator from "../modules/pdf-index-orchestrator";
-import rssFetcherModule from "../modules/rss-fetcher";
-import rssDiscoveryModule from "../modules/rss-discovery";
-import rssReadabilityModule from "../modules/rss-readability";
-import rssOpmlModule from "../modules/rss-opml";
 import whiteboardRecordingModule from "../modules/whiteboard-recording";
 
 /**
@@ -413,36 +409,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger", "database", "pdf-index-queue"],
     init: () => pdfIndexOrchestrator.init(),
-  },
-
-  // RSS 订阅模块
-  {
-    name: "rss-fetcher",
-    group: ModuleGroup.FEATURE,
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "database"],
-    init: () => rssFetcherModule.init(),
-  },
-  {
-    name: "rss-discovery",
-    group: ModuleGroup.FEATURE,
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger"],
-    init: () => rssDiscoveryModule.init(),
-  },
-  {
-    name: "rss-readability",
-    group: ModuleGroup.FEATURE,
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger"],
-    init: () => rssReadabilityModule.init(),
-  },
-  {
-    name: "rss-opml",
-    group: ModuleGroup.FEATURE,
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger", "database"],
-    init: () => rssOpmlModule.init(),
   },
 ];
 

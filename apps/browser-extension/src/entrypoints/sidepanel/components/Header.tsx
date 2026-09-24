@@ -1,82 +1,15 @@
-import { useState } from "react";
-import { App } from "antd";
-import type WebSocketClient from "../../../utils/WebSocketClient";
-
 interface HeaderProps {
   onSettingsClick: () => void;
   onReloadClick: () => void;
-  wsClient: WebSocketClient | null;
 }
 
-export default function Header({
-  onSettingsClick,
-  onReloadClick,
-  wsClient,
-}: HeaderProps) {
-  const { message } = App.useApp();
-  const [saving, setSaving] = useState(false);
-
-  const handleReadLater = async () => {
-    if (saving) return;
-    if (!wsClient?.isConnected) {
-      message.warning("桌面端未连接，无法加入稍后读");
-      return;
-    }
-    setSaving(true);
-    try {
-      const [tab] = await chrome.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-      if (!tab?.url) {
-        message.warning("当前页面无法加入稍后读");
-        return;
-      }
-      const result = (await wsClient.sendRequest(
-        "read-later:add-from-extension",
-        {
-          title: tab.title || tab.url,
-          url: tab.url,
-        },
-      )) as { duplicate?: boolean } | null;
-      if (result?.duplicate) {
-        message.info("已在稍后读中");
-        return;
-      }
-      message.success("已加入稍后读");
-    } catch (e) {
-      console.error("[Tau] Failed to save to read later:", e);
-      message.error("保存稍后读失败");
-    } finally {
-      setSaving(false);
-    }
-  };
-
+export default function Header({ onSettingsClick, onReloadClick }: HeaderProps) {
   return (
     <header className="flex h-12 flex-shrink-0 items-center justify-between px-4">
       <div className="flex items-center gap-2">
         <img src="/icon/32.png" alt="Tau Logo" className="h-6 w-6 rounded-md" />
       </div>
       <div className="flex items-center gap-1">
-        <HeaderButton
-          onClick={handleReadLater}
-          title="稍后读"
-          disabled={!wsClient?.isConnected || saving}
-        >
-          <svg
-            viewBox="0 0 24 24"
-            className="h-4 w-4"
-            fill="none"
-            strokeWidth={1.5}
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z"
-            />
-          </svg>
-        </HeaderButton>
         <HeaderButton onClick={onSettingsClick} title="设置">
           <svg
             viewBox="0 0 24 24"
@@ -122,18 +55,15 @@ function HeaderButton({
   onClick,
   title,
   children,
-  disabled,
 }: {
   onClick: () => void;
   title: string;
   children: React.ReactNode;
-  disabled?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
-      disabled={disabled}
-      className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-black/5 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-[#e6edf3]"
+      className="rounded-md p-1.5 text-gray-500 transition-colors hover:bg-black/5 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-[#e6edf3]"
       title={title}
     >
       {children}

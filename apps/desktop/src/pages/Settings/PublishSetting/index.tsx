@@ -433,7 +433,7 @@ const PublishSetting = () => {
             value={publish.site.publicUrl}
             onChange={e => onSiteConfigChange("publicUrl", e.target.value)}
             placeholder="https://example.com"
-            description="用于生成 RSS 订阅中的绝对链接；留空时会降级为站内路径"
+            description="用于打开已发布站点"
           />
           <div className="flex flex-col gap-2">
             <div>

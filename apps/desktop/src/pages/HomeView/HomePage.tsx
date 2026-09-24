@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import classNames from "classnames";
 import dayjs from "dayjs";
 import { App as AntApp } from "antd";
@@ -16,12 +16,9 @@ import TodoPanel from "./components/TodoPanel";
 import FlashcardPanel from "./components/FlashcardPanel";
 import QuestionPanel from "./components/QuestionPanel";
 import PomodoroPanel from "./components/PomodoroPanel";
-import RssPanel from "./components/RssPanel";
 import RecentActivity from "./components/RecentActivity";
 import ActivityDashboard from "./components/activity/ActivityDashboard";
 import DiaryTimelineSection from "./components/DiaryTimelineSection";
-import { useTabContext } from "@/contexts/TabContext";
-import useTabStore from "@/stores/useTabStore";
 import type { PomodoroSession } from "@/types/pomodoro";
 
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
@@ -41,16 +38,10 @@ const computeElapsedMs = (session: PomodoroSession): number => {
 const HomePage: React.FC = () => {
   const themeColors = useThemeColors();
   const { modal } = AntApp.useApp();
-  const { tab: homeTab, paneId: homePaneId } = useTabContext();
-  const isActiveTab = useTabStore(
-    s => s.panes.find(p => p.id === homePaneId)?.activeTabId === homeTab.id
-  );
-  const isFirstActivation = useRef(true);
   const {
     data,
     refresh,
     refreshFlashcards,
-    refreshRss,
     refreshPomodoro,
     setActiveSession,
     createSegmentNow,
@@ -100,16 +91,6 @@ const HomePage: React.FC = () => {
       void doStop();
     }
   };
-
-  // 切回首页 Tab 时刷新 RSS 未读列表，反映在 Feed Tab 中标记的已读状态
-  useEffect(() => {
-    if (!isActiveTab) return;
-    if (isFirstActivation.current) {
-      isFirstActivation.current = false;
-      return;
-    }
-    void refreshRss();
-  }, [isActiveTab, refreshRss]);
 
   return (
     <div className="h-full w-full overflow-auto">
@@ -162,13 +143,6 @@ const HomePage: React.FC = () => {
               {/* 侧栏：操作型工作台（常驻堆叠，窄屏降级为 2 列网格） */}
               <aside className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:flex lg:flex-col">
                 <QuestionPanel items={data.questionItems} groups={data.questionGroups} />
-                <RssPanel
-                  items={data.rssItems}
-                  feeds={data.rssFeeds}
-                  unreadTotal={data.summary.rssUnread}
-                  loading={data.rssLoading}
-                  onRefresh={refreshRss}
-                />
                 <TodoPanel
                   items={data.todoItems}
                   groups={data.todoGroups}

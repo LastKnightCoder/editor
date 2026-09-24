@@ -351,55 +351,6 @@ if (!gotTheLock) {
             };
             return response;
           });
-          backendServer.addMessageHandler(
-            "read-later:add-from-extension",
-            async (message: RpcRequestMessage) => {
-              const params = message.params as unknown as {
-                title: string;
-                url: string;
-                excerpt?: string;
-              };
-              const db = databaseModule.getCurrentDatabase();
-              if (!db || !params?.url) {
-                const response: RpcResponseMessage = {
-                  id: message.id,
-                  type: RpcMessageType.Response,
-                  method: message.method,
-                  result: null,
-                  error: { code: 1, message: "数据库未就绪或参数缺失" },
-                };
-                return response;
-              }
-              const now = Date.now();
-              const existing = db
-                .prepare(`SELECT id FROM read_later WHERE url = ?`)
-                .get(params.url) as { id: number } | undefined;
-              if (existing) {
-                const response: RpcResponseMessage = {
-                  id: message.id,
-                  type: RpcMessageType.Response,
-                  method: message.method,
-                  result: { ok: true, id: existing.id, duplicate: true },
-                  error: null,
-                };
-                return response;
-              }
-              const res = db
-                .prepare(
-                  `INSERT INTO read_later (create_time, update_time, source_type, title, url, excerpt)
-                   VALUES (?, ?, 'url', ?, ?, ?)`
-                )
-                .run(now, now, params.title || params.url, params.url, params.excerpt || null);
-              const response: RpcResponseMessage = {
-                id: message.id,
-                type: RpcMessageType.Response,
-                method: message.method,
-                result: { ok: true, id: Number(res.lastInsertRowid) },
-                error: null,
-              };
-              return response;
-            }
-          );
           moduleInitManager.setBackendServer(backendServer);
           await moduleInitManager.initWebSocketDependentModules();
 

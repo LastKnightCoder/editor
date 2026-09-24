@@ -28,9 +28,6 @@ export enum TabType {
   WebView = "webview",
   FlashcardCenter = "flashcardCenter",
   BlockPreview = "blockPreview",
-  RssSubscription = "rssSubscription",
-  ReadLater = "readLater",
-  Feed = "feed",
 }
 
 export type TabParams = {
@@ -62,9 +59,6 @@ export type TabParams = {
   [TabType.WebView]: { url: string };
   [TabType.FlashcardCenter]: undefined;
   [TabType.BlockPreview]: { block: BlockData };
-  [TabType.RssSubscription]: undefined;
-  [TabType.ReadLater]: undefined;
-  [TabType.Feed]: { entryId?: number }; // 可选的 RSS 条目 ID，用于跳转后自动选中并打开指定文章
 };
 
 export interface ITab<T extends TabType = TabType> {
@@ -124,7 +118,4 @@ export const TAB_TITLES: Record<TabType, string> = {
   [TabType.WebView]: "网页",
   [TabType.FlashcardCenter]: "闪卡中心",
   [TabType.BlockPreview]: "块预览",
-  [TabType.RssSubscription]: "RSS 订阅",
-  [TabType.ReadLater]: "稍后读",
-  [TabType.Feed]: "信息流",
 };

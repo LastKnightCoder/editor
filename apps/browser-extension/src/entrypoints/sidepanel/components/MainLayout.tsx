@@ -1,11 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type WebSocketClient from "../../../utils/WebSocketClient";
-import type {
-  ThemeMode,
-  ResolvedTheme,
-  TabType,
-  PageType,
-} from "../../../utils/types";
+import type { ThemeMode, ResolvedTheme, TabType, PageType } from "../../../utils/types";
 import { useActiveTabUrl } from "../../../hooks/useActiveTabUrl";
 import Header from "./Header";
 import SettingsPage from "./SettingsPage";
@@ -98,7 +93,7 @@ export default function MainLayout({
       setCurrentTab("notes");
       navigateBack();
     },
-    [navigateBack],
+    [navigateBack]
   );
 
   const renderTabContent = () => {
@@ -117,13 +112,7 @@ export default function MainLayout({
           />
         );
       case "highlights":
-        return (
-          <HighlightsTab
-            key={url}
-            url={url}
-            onCountChange={handleHighlightCountChange}
-          />
-        );
+        return <HighlightsTab key={url} url={url} onCountChange={handleHighlightCountChange} />;
     }
   };
 
@@ -139,9 +128,7 @@ export default function MainLayout({
           />
         );
       case "allNotes":
-        return (
-          <AllNotesPage onBack={navigateBack} onNoteClick={handleNoteClick} />
-        );
+        return <AllNotesPage onBack={navigateBack} onNoteClick={handleNoteClick} />;
       default:
         return null;
     }
@@ -164,11 +151,7 @@ export default function MainLayout({
           display: isOverlayVisible && !pageAnimating ? "none" : "flex",
         }}
       >
-        <Header
-          onSettingsClick={() => navigateTo("settings")}
-          onReloadClick={reconnect}
-          wsClient={wsClient}
-        />
+        <Header onSettingsClick={() => navigateTo("settings")} onReloadClick={reconnect} />
         <div className="flex min-h-0 flex-1 flex-col">{renderTabContent()}</div>
         <TabBar
           currentTab={currentTab}
@@ -182,9 +165,7 @@ export default function MainLayout({
       {isOverlayVisible && (
         <div
           className={`absolute inset-0 flex flex-col bg-white dark:bg-[#161b22] ${
-            pageDirection === "in"
-              ? "animate-slide-in-right"
-              : "animate-slide-out-right"
+            pageDirection === "in" ? "animate-slide-in-right" : "animate-slide-out-right"
           }`}
           onAnimationEnd={handleAnimationEnd}
         >

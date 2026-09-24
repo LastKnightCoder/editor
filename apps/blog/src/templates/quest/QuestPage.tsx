@@ -262,7 +262,6 @@ const QuestPage = memo(() => {
         navigation={navigation}
         customNav={desktopDocNav}
         mobileCustomNav={mobileDocNav}
-        rssHref={initData.rss?.href}
         searchHref={initData.search?.href}
       />
 

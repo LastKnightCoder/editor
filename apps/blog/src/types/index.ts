@@ -249,9 +249,6 @@ export interface InitData {
   activeTag?: string; // 当前激活的标签（用于筛选）
   docCollections?: DocCollection[]; // 项目集合
   contentLinkTargets?: Record<string, ContentLinkTarget>;
-  rss?: {
-    href: string;
-  };
   search?: {
     href: string;
   };

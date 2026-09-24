@@ -70,7 +70,6 @@ export * from "./components-workbench";
 export * from "./resource-sync";
 export * from "./vibe-learning";
 export * from "./vl-quiz";
-export * from "./rss";
 
 export type DeepPartial<T> = {
   [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K];

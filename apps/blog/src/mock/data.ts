@@ -660,10 +660,6 @@ const baseNavigation = [
   { label: "求索录", href: "/quests", active: false },
 ];
 
-const mockRss = {
-  href: "/rss.xml",
-};
-
 const mockDocCollections: DocCollection[] = [
   {
     type: "project",
@@ -898,7 +894,6 @@ export const mockCardPageData: InitData = {
     ...n,
     active: n.href === "/cards",
   })),
-  rss: mockRss,
   docCollections: mockDocCollections,
   contentLinkTargets: mockContentLinkTargets,
   cardTagTree: mockCardTagTree,
@@ -949,7 +944,6 @@ export const mockArticlePageData: InitData = {
     ...n,
     active: n.href === "/articles",
   })),
-  rss: mockRss,
   docCollections: mockDocCollections,
   articleList: mockArticleList,
   content: {
@@ -975,7 +969,6 @@ export const mockDocPageData: InitData = {
     ...n,
     active: n.href === "/docs",
   })),
-  rss: mockRss,
   contentLinkTargets: mockContentLinkTargets,
   sidebar: [
     {
@@ -1126,7 +1119,6 @@ export const mockQuestPageData: InitData = {
     ...n,
     active: n.href === "/quests",
   })),
-  rss: mockRss,
   docCollections: mockDocCollections,
   contentLinkTargets: mockContentLinkTargets,
   content: {
@@ -1308,7 +1300,7 @@ export const mockQuestMultiAnswerPageData: InitData = {
             children: [
               {
                 type: "formatted",
-                text: "真正需要统一的是发布后的语言：导航、列表、详情页、空状态、RSS 标题都应该使用求索录。这样不会把内部的问题管理感暴露出去，也能让页面读起来像一组持续整理的探索记录。",
+                text: "真正需要统一的是发布后的语言：导航、列表、详情页、空状态都应该使用求索录。这样不会把内部的问题管理感暴露出去，也能让页面读起来像一组持续整理的探索记录。",
               },
             ],
           },
@@ -1343,7 +1335,6 @@ export const mockDocPageSidebarDemoData: InitData = {
     ...n,
     active: n.href === "/docs",
   })),
-  rss: mockRss,
   contentLinkTargets: mockContentLinkTargets,
   sidebar: buildDocSidebarValidationDemo(),
   docCollections: mockDocCollections.map(collection => ({
@@ -1382,7 +1373,6 @@ export const mockHomePageData: InitData = {
     ...n,
     active: n.href === "/",
   })),
-  rss: mockRss,
   docCollections: mockDocCollections,
   content: {
     hero: {
@@ -1453,7 +1443,6 @@ export const mockCardListPageData: InitData = {
     ...n,
     active: n.href === "/cards",
   })),
-  rss: mockRss,
   docCollections: mockDocCollections,
   cardTagTree: mockCardTagTree,
   activeTag: "",
@@ -1642,7 +1631,6 @@ export const mockArticleListPageData: InitData = {
     ...n,
     active: n.href === "/articles",
   })),
-  rss: mockRss,
   docCollections: mockDocCollections,
   content: {
     title: "全部文章",
@@ -1696,7 +1684,6 @@ export const mockDocListPageData: InitData = {
     ...n,
     active: n.href === "/docs",
   })),
-  rss: mockRss,
   docCollections: mockDocCollections,
   content: {
     title: "全部文档",
@@ -1737,7 +1724,6 @@ export const mockQuestListPageData: InitData = {
     ...n,
     active: n.href === "/quests",
   })),
-  rss: mockRss,
   docCollections: mockDocCollections,
   content: {
     title: "求索录",

@@ -22,7 +22,6 @@ import {
   ListTodo,
   Timer,
   CircleHelp,
-  Inbox,
   FolderKanban,
   BarChart3,
   Send,
@@ -92,7 +91,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // features/flashcards（复习台，D-041）
       { key: "questions", label: "问题管理", icon: CircleHelp }, // legacy: QuestionWindowPage
       { key: "weread", label: "微信读书", icon: BookOpen }, // legacy: WeRead
-      { key: "feed", label: "订阅", icon: Inbox }, // legacy: FeedView（RSS / 稍后读）
     ],
   },
   {
