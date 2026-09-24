@@ -1,10 +1,5 @@
 import Database from "better-sqlite3";
-import {
-  TodoGroup,
-  CreateTodoGroup,
-  UpdateTodoGroup,
-  TodoSystemGroupType,
-} from "@/types";
+import { TodoGroup, CreateTodoGroup, UpdateTodoGroup, TodoSystemGroupType } from "@/types";
 
 // 系统组配置
 const SYSTEM_GROUPS: Array<{
@@ -24,19 +19,13 @@ export default class TodoGroupTable {
     const tableInfo = db.pragma("table_info(todo_group)") as Array<{
       name: string;
     }>;
-    const hasIsSystem = tableInfo.some((col) => col.name === "is_system");
+    const hasIsSystem = tableInfo.some(col => col.name === "is_system");
 
     if (!hasIsSystem) {
-      db.exec(
-        `ALTER TABLE todo_group ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0;`,
-      );
+      db.exec(`ALTER TABLE todo_group ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0;`);
       db.exec(`ALTER TABLE todo_group ADD COLUMN system_type TEXT;`);
-      db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_todo_group_system ON todo_group(is_system);`,
-      );
-      db.exec(
-        `CREATE INDEX IF NOT EXISTS idx_todo_group_system_type ON todo_group(system_type);`,
-      );
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_todo_group_system ON todo_group(is_system);`);
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_todo_group_system_type ON todo_group(system_type);`);
     }
 
     // 确保系统组存在
@@ -49,14 +38,14 @@ export default class TodoGroupTable {
     const existingSystemTypes = db
       .prepare(`SELECT system_type FROM todo_group WHERE is_system = 1`)
       .all() as Array<{ system_type: string }>;
-    const existingSet = new Set(existingSystemTypes.map((r) => r.system_type));
+    const existingSet = new Set(existingSystemTypes.map(r => r.system_type));
 
     for (let i = 0; i < SYSTEM_GROUPS.length; i++) {
       const { systemType, title } = SYSTEM_GROUPS[i];
       if (!existingSet.has(systemType!)) {
         db.prepare(
           `INSERT INTO todo_group (title, is_system, system_type, sort_index, is_archived, create_time, update_time)
-           VALUES (?, 1, ?, ?, 0, ?, ?)`,
+           VALUES (?, 1, ?, ?, 0, ?, ?)`
         ).run(title, systemType, i * 1024, now, now);
       }
     }
@@ -65,6 +54,7 @@ export default class TodoGroupTable {
   static getListenEvents() {
     return {
       "todo:list-groups": this.listGroups.bind(this),
+      "todo:list-archived-groups": this.listArchivedGroups.bind(this),
       "todo:create-group": this.createGroup.bind(this),
       "todo:update-group": this.updateGroup.bind(this),
       "todo:archive-group": this.archiveGroup.bind(this),
@@ -91,23 +81,29 @@ export default class TodoGroupTable {
 
   // 获取系统组列表
   static getSystemGroups(db: Database.Database): TodoGroup[] {
-    const stmt = db.prepare(
-      `SELECT * FROM todo_group WHERE is_system = 1 ORDER BY sort_index ASC`,
-    );
+    const stmt = db.prepare(`SELECT * FROM todo_group WHERE is_system = 1 ORDER BY sort_index ASC`);
     return (stmt.all() as any[]).map(this.parse);
   }
 
   static listGroups(db: Database.Database): TodoGroup[] {
     const stmt = db.prepare(
-      `SELECT * FROM todo_group WHERE is_archived = 0 AND is_system = 0 ORDER BY sort_index ASC, create_time ASC`,
+      `SELECT * FROM todo_group WHERE is_archived = 0 AND is_system = 0 ORDER BY sort_index ASC, create_time ASC`
+    );
+    return (stmt.all() as any[]).map(this.parse);
+  }
+
+  // 已归档的用户分组（新版待办页的「已归档」恢复入口；系统组不参与归档）
+  static listArchivedGroups(db: Database.Database): TodoGroup[] {
+    const stmt = db.prepare(
+      `SELECT * FROM todo_group WHERE is_archived = 1 AND is_system = 0 ORDER BY update_time DESC`
     );
     return (stmt.all() as any[]).map(this.parse);
   }
 
   static getMaxSortIndex(db: Database.Database): number {
-    const row = db
-      .prepare(`SELECT MAX(sort_index) AS max_idx FROM todo_group`)
-      .get() as { max_idx: number | null };
+    const row = db.prepare(`SELECT MAX(sort_index) AS max_idx FROM todo_group`).get() as {
+      max_idx: number | null;
+    };
     return row?.max_idx ?? 0;
   }
 
@@ -116,15 +112,12 @@ export default class TodoGroupTable {
     return row ? this.parse(row) : null;
   }
 
-  static createGroup(
-    db: Database.Database,
-    payload: CreateTodoGroup,
-  ): TodoGroup | null {
+  static createGroup(db: Database.Database, payload: CreateTodoGroup): TodoGroup | null {
     const now = Date.now();
     const sortIndex = this.getMaxSortIndex(db) + 1024;
     const insert = db.prepare(
       `INSERT INTO todo_group (title, color, sort_index, is_archived, is_system, system_type, create_time, update_time)
-       VALUES (?, ?, ?, 0, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, 0, ?, ?, ?, ?)`
     );
     const res = insert.run(
       payload.title,
@@ -133,20 +126,15 @@ export default class TodoGroupTable {
       payload.isSystem ? 1 : 0,
       payload.systemType ?? null,
       now,
-      now,
+      now
     );
     const id = Number(res.lastInsertRowid);
     return this.getGroupById(db, id);
   }
 
-  static updateGroup(
-    db: Database.Database,
-    payload: UpdateTodoGroup,
-  ): TodoGroup {
+  static updateGroup(db: Database.Database, payload: UpdateTodoGroup): TodoGroup {
     const now = Date.now();
-    const cur = db
-      .prepare(`SELECT * FROM todo_group WHERE id = ?`)
-      .get(payload.id) as
+    const cur = db.prepare(`SELECT * FROM todo_group WHERE id = ?`).get(payload.id) as
       | {
           title: string;
           color: string | null;
@@ -159,32 +147,27 @@ export default class TodoGroupTable {
 
     // 系统组只能修改颜色
     if (cur.is_system) {
-      const color =
-        (payload.color === undefined ? cur.color : payload.color) ?? null;
-      db.prepare(
-        `UPDATE todo_group SET color = ?, update_time = ? WHERE id = ?`,
-      ).run(color, now, payload.id);
+      const color = (payload.color === undefined ? cur.color : payload.color) ?? null;
+      db.prepare(`UPDATE todo_group SET color = ?, update_time = ? WHERE id = ?`).run(
+        color,
+        now,
+        payload.id
+      );
     } else {
       const title = payload.title ?? cur.title;
-      const color =
-        (payload.color === undefined ? cur.color : payload.color) ?? null;
+      const color = (payload.color === undefined ? cur.color : payload.color) ?? null;
       const sortIndex = payload.sortIndex ?? cur.sort_index;
       const isArchived = payload.isArchived ?? Boolean(cur.is_archived);
       db.prepare(
-        `UPDATE todo_group SET title = ?, color = ?, sort_index = ?, is_archived = ?, update_time = ? WHERE id = ?`,
+        `UPDATE todo_group SET title = ?, color = ?, sort_index = ?, is_archived = ?, update_time = ? WHERE id = ?`
       ).run(title, color, sortIndex, isArchived ? 1 : 0, now, payload.id);
     }
 
-    const row = db
-      .prepare(`SELECT * FROM todo_group WHERE id = ?`)
-      .get(payload.id);
+    const row = db.prepare(`SELECT * FROM todo_group WHERE id = ?`).get(payload.id);
     return this.parse(row);
   }
 
-  static archiveGroup(
-    db: Database.Database,
-    params: { id: string; isArchived: boolean },
-  ): number {
+  static archiveGroup(db: Database.Database, params: { id: string; isArchived: boolean }): number {
     // 检查是否为系统组
     const group = this.getGroupById(db, Number(params.id));
     if (group?.isSystem) {
@@ -193,22 +176,15 @@ export default class TodoGroupTable {
 
     const now = Date.now();
     const res = db
-      .prepare(
-        `UPDATE todo_group SET is_archived = ?, update_time = ? WHERE id = ?`,
-      )
+      .prepare(`UPDATE todo_group SET is_archived = ?, update_time = ? WHERE id = ?`)
       .run(params.isArchived ? 1 : 0, now, params.id);
     return res.changes;
   }
 
-  static reorderGroups(
-    db: Database.Database,
-    params: { orderedIds: number[] },
-  ): number {
+  static reorderGroups(db: Database.Database, params: { orderedIds: number[] }): number {
     const ids = params.orderedIds;
     const step = 1024;
-    const upd = db.prepare(
-      `UPDATE todo_group SET sort_index = ?, update_time = ? WHERE id = ?`,
-    );
+    const upd = db.prepare(`UPDATE todo_group SET sort_index = ?, update_time = ? WHERE id = ?`);
     const now = Date.now();
     ids.forEach((id, idx) => {
       upd.run((idx + 1) * step, now, id);
@@ -231,10 +207,10 @@ export default class TodoGroupTable {
          SUM(CASE WHEN is_completed = 0 AND due_at IS NOT NULL AND due_at < ? THEN 1 ELSE 0 END) as overdue
        FROM todo_item
        WHERE is_archived = 0
-       GROUP BY group_id`,
+       GROUP BY group_id`
     );
     const rows = stmt.all(now) as any[];
-    return rows.map((r) => ({
+    return rows.map(r => ({
       groupId: Number(r.groupId),
       total: Number(r.total || 0),
       uncompleted: Number(r.uncompleted || 0),
@@ -253,9 +229,7 @@ export default class TodoGroupTable {
 
     // 获取所有系统组
     const systemGroups = this.getSystemGroups(db);
-    const typeToGroupId = new Map(
-      systemGroups.map((g) => [g.systemType, g.id]),
-    );
+    const typeToGroupId = new Map(systemGroups.map(g => [g.systemType, g.id]));
 
     // 全部任务统计
     const allStats = db
@@ -265,7 +239,7 @@ export default class TodoGroupTable {
            SUM(CASE WHEN is_completed = 0 THEN 1 ELSE 0 END) as uncompleted,
            SUM(CASE WHEN is_completed = 0 AND due_at IS NOT NULL AND due_at < ? THEN 1 ELSE 0 END) as overdue
          FROM todo_item
-         WHERE is_archived = 0`,
+         WHERE is_archived = 0`
       )
       .get(now) as any;
 
@@ -279,19 +253,19 @@ export default class TodoGroupTable {
            SUM(CASE WHEN is_completed = 0 AND due_at IS NOT NULL AND due_at < ? THEN 1 ELSE 0 END) as overdue
          FROM todo_item
          WHERE is_archived = 0
-         GROUP BY type`,
+         GROUP BY type`
       )
       .all(now) as any[];
 
     const typeMap = new Map(
-      typeStats.map((r) => [
+      typeStats.map(r => [
         r.type,
         {
           total: Number(r.total || 0),
           uncompleted: Number(r.uncompleted || 0),
           overdue: Number(r.overdue || 0),
         },
-      ]),
+      ])
     );
 
     const result: {
@@ -313,12 +287,7 @@ export default class TodoGroupTable {
     }
 
     // 各类型任务
-    const types: TodoSystemGroupType[] = [
-      "normal",
-      "deadline",
-      "planned",
-      "recurring",
-    ];
+    const types: TodoSystemGroupType[] = ["normal", "deadline", "planned", "recurring"];
     for (const type of types) {
       const groupId = typeToGroupId.get(type);
       if (groupId) {

@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<title>待办 · B 议程流 — Tau 桌面端</title>
+<!--
+  【视觉参考，非导出源】（D-001）
+  B · 议程流 —— 「时间」叙事（Todoist Upcoming / 日程本谱系），与文章月刊 / 项目驾驶舱的页面骨架同构：
+  工具栏 → 自然语言快速添加 → 项目 pills → 滚动区（sticky 日期段头）+ 右侧栏（今日打卡 / 本周负荷 / 最近完成）。
+  设计要点：
+  ① 不设二级侧栏：项目降为 pills 筛选（与文章标签 pills、项目类型 pills 同构），主轴是时间——
+     已逾期 / 今天 / 明天 / 本周稍后 / 以后 / 无日期，段内按时刻排序；可切「按项目」分段；
+  ② 行左侧「时间槽」列：截止显示时刻 + 截止，计划显示起止，周期显示打卡时刻——一眼读出今天的节奏；
+     每个日期段是一张 surface 卡（分组靠底色容器与留白，零横线）；
+  ③ 自然语言快速添加：输入「明天 17:00 交周报 #生活」实时解析出 类型 / 时间 / 项目 chips，回车创建——
+     legacy「先选类型 → 回车 → 再弹 TaskDialog 填时间」三步合一步；
+  ④ 周期任务从列表中独立出来：右侧「今日打卡」栏，每项带本周 7 日打卡点，点圈即打卡；
+  ⑤ 详情 = 右侧抽屉（Drawer，覆盖右栏，不压暗列表；Esc 关闭），内容与 A/C 共用。
+  交互均为真实现：自然语言解析、pills 筛选、日期/项目分段切换、勾选（撤销）、打卡、抽屉详情、右键菜单、明暗切换。
+-->
+<link rel="stylesheet" href="shared.css">
+<style>
+.page { padding: 0 26px; --sec-bg: var(--bg-page); }
+.pb-frame { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.pb-top { flex: none; }
+.pb-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) 312px; gap: 22px; position: relative; }
+.pane { min-height: 0; display: flex; flex-direction: column; }
+.pane > .scroller { flex: 1; }
+
+/* 自然语言快速添加 */
+.nl { display: flex; flex-direction: column; background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow-card); margin: 2px 0 12px;
+  outline: 1px solid transparent; transition: box-shadow 160ms var(--ease-out), outline-color 160ms; }
+.nl:focus-within { box-shadow: var(--shadow-lift); outline-color: var(--line-1); }
+.nl-row { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 8px 0 14px; }
+.nl-row > .icon { color: var(--accent); }
+.nl input { flex: 1; font-size: 13.5px; min-width: 0; }
+.nl input::placeholder { color: var(--ink-3); }
+.nl-parse { display: flex; align-items: center; gap: 6px; padding: 0 14px 10px 40px; font-size: 11.5px; color: var(--ink-3); min-height: 0; }
+.nl-parse:empty { display: none; }
+.tok { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 6px; font-size: 11.5px; background: var(--bg-group); color: var(--ink-1); }
+.tok .icon { width: 12px; height: 12px; }
+.tok.deadline { background: var(--warn-soft); color: var(--ink-1); } .tok.deadline .icon { color: var(--warn); }
+.tok.planned { background: var(--info-soft); } .tok.planned .icon { color: var(--info); }
+.tok.recurring { background: var(--ok-soft); } .tok.recurring .icon { color: var(--ok); }
+.tok .pdot { width: 7px; height: 7px; }
+.nl .hint-keys { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-3); }
+
+.pb-pills { display: flex; align-items: center; gap: 6px; height: 36px; padding-bottom: 4px; }
+.pb-pills .pill .pdot { width: 7px; height: 7px; border-radius: 2.5px; }
+
+/* 议程 */
+.agenda { min-height: 0; padding: 0 4px 30px 0;
+  mask-image: linear-gradient(180deg, #000 calc(100% - 20px), transparent); -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 20px), transparent); }
+.day { margin-bottom: 18px; }
+.day-head { position: sticky; top: 0; z-index: 3; display: flex; align-items: baseline; gap: 10px; padding: 6px 4px 10px;
+  background: linear-gradient(180deg, var(--sec-bg) calc(100% - 10px), transparent); }
+.day-head .label { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; display: flex; align-items: center; gap: 8px; }
+.day-head .label .pdot { width: 10px; height: 10px; border-radius: 3.5px; }
+.day-head .meta { font-size: 11.5px; color: var(--ink-3); }
+.day-head .right { margin-left: auto; font-size: 11.5px; color: var(--ink-3); }
+.day-head.danger .label { color: var(--danger); }
+.day-card { background: var(--bg-surface); border-radius: var(--radius-md); box-shadow: var(--shadow-card); padding: 5px; }
+.day.overdue .day-card { box-shadow: var(--shadow-card), inset 3px 0 0 var(--danger); }
+.ag-row { display: grid; grid-template-columns: 74px 22px minmax(0,1fr) auto; align-items: center; gap: 8px; min-height: 42px; padding: 3px 10px 3px 8px; border-radius: 9px; cursor: pointer; }
+.ag-row:hover { background: var(--bg-hover); }
+.ag-row.sel { background: var(--bg-selected); }
+.slot { display: flex; flex-direction: column; line-height: 1.25; }
+.slot b { font-size: 12.5px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--ink-1); }
+.slot span { font-size: 10.5px; color: var(--ink-3); }
+.slot.overdue b { color: var(--danger); }
+.slot.now b { color: var(--accent-text); }
+.slot.muted b { color: var(--ink-3); font-weight: 400; }
+.ag-main { min-width: 0; display: flex; flex-direction: column; }
+.ag-main .t { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ag-main .sub { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: var(--ink-3); }
+.ag-main .sub:empty { display: none; }
+.ag-main .sub .icon { width: 11px; height: 11px; }
+.ag-main .sub > span { display: inline-flex; align-items: center; gap: 3px; }
+.ag-row .right { display: flex; align-items: center; gap: 10px; }
+.ag-row.is-done .t { color: var(--ink-3); text-decoration: line-through; }
+.ag-row.is-done .slot b { color: var(--ink-3); }
+.now-line { display: flex; align-items: center; gap: 6px; margin: 1px 10px; font-size: 10.5px; color: var(--accent-text); font-variant-numeric: tabular-nums; }
+.now-line::after { content: ""; flex: 1; height: 1.5px; border-radius: 1px; background: var(--accent); opacity: 0.55; }
+.day-empty { padding: 10px 14px; font-size: 12.5px; color: var(--ink-3); }
+.done-fold { display: flex; align-items: center; gap: 6px; padding: 6px 12px 4px; font-size: 11.5px; color: var(--ink-3); cursor: pointer; }
+.done-fold:hover { color: var(--ink-2); }
+
+/* 右栏 */
+.rail { min-height: 0; padding: 4px 0 30px 0; display: flex; flex-direction: column; gap: 14px; }
+.rcard { background: var(--bg-surface); border-radius: var(--radius-md); box-shadow: var(--shadow-card); padding: 14px 14px 10px; }
+.rcard-h { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.rcard-h .t { font-size: 13.5px; font-weight: 600; }
+.rcard-h .m { font-size: 11.5px; color: var(--ink-3); margin-left: auto; font-variant-numeric: tabular-nums; }
+.ring { width: 22px; height: 22px; flex: none; }
+.ring circle { fill: none; stroke-width: 3; }
+.ring .bg { stroke: var(--bg-sunken); }
+.ring .fg { stroke: var(--ok); stroke-linecap: round; transition: stroke-dashoffset 300ms var(--ease-out); }
+.habit { display: grid; grid-template-columns: 20px minmax(0,1fr) auto; align-items: center; gap: 9px; padding: 6px 6px; margin: 0 -6px; border-radius: 9px; cursor: pointer; }
+.habit:hover { background: var(--bg-hover); }
+.habit.sel { background: var(--bg-selected); }
+.habit .hn { min-width: 0; }
+.habit .hn .t { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.habit .hn .s { font-size: 11px; color: var(--ink-3); }
+.week7 { display: flex; gap: 3px; }
+.week7 i { width: 9px; height: 9px; border-radius: 3px; background: var(--bg-sunken); }
+.week7 i.done { background: var(--ok); }
+.week7 i.miss { background: var(--danger-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 35%, transparent); }
+.week7 i.off { background: transparent; box-shadow: inset 0 0 0 1px var(--line-1); }
+.week7 i.today { outline: 1.5px solid var(--accent); outline-offset: 1px; }
+.week7 i.future { background: transparent; box-shadow: inset 0 0 0 1px var(--line-1); opacity: 0.5; }
+.week7 i.skip { background: var(--bg-track); }
+.habit-other { font-size: 11.5px; color: var(--ink-3); padding-top: 6px; }
+.load { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; height: 92px; padding-top: 4px; }
+.load button { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; border-radius: 8px; padding: 2px 0; }
+.load button:hover { background: var(--bg-hover); }
+.load .bar { width: 16px; border-radius: 5px; background: var(--bg-track); display: flex; flex-direction: column-reverse; overflow: hidden; }
+.load .bar i { display: block; }
+.load .bar .d { background: var(--warn); } .load .bar .p { background: var(--info); } .load .bar .r { background: var(--ok); opacity: 0.8; }
+.load .w { font-size: 11px; color: var(--ink-3); }
+.load .n { font-size: 11px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.load .today .w { color: var(--accent-text); font-weight: 600; }
+.legend { display: flex; gap: 12px; font-size: 11px; color: var(--ink-3); margin-top: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend i { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
+.recent { display: flex; align-items: center; gap: 8px; min-height: 28px; font-size: 12.5px; }
+.recent .icon { width: 13px; height: 13px; color: var(--ok); }
+.recent .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-2); }
+.recent .m { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* 抽屉详情（覆盖右栏，不压暗列表） */
+.drawer { position: absolute; top: 0; right: 0; bottom: 16px; width: 440px; background: var(--bg-surface); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-float), 0 0 0 1px var(--line-1); display: flex; flex-direction: column; z-index: 20;
+  transform: translateX(24px); opacity: 0; pointer-events: none; transition: transform 240ms var(--ease-out), opacity 200ms var(--ease-out); }
+.drawer.open { transform: none; opacity: 1; pointer-events: auto; }
+.drawer .dh { flex: none; display: flex; align-items: flex-start; gap: 10px; padding: 16px 14px 4px 18px; }
+.drawer .dh .check { margin-top: 4px; }
+.drawer .dt { flex: 1; font-size: 16px; font-weight: 600; line-height: 1.5; outline: none; border-radius: 7px; padding: 0 4px; margin: 0 -4px; }
+.drawer .dt:hover { background: var(--bg-hover); }
+.drawer .dt:focus { background: var(--bg-page); }
+.drawer .dc { flex: none; padding: 0 18px 6px 45px; font-size: 11.5px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+.drawer .dc .pdot { width: 7px; height: 7px; }
+.drawer .db { flex: 1; padding: 8px 18px 20px; }
+.drawer .habit-box { background: var(--bg-page); border-color: transparent; }
+
+/* ================= 变体（评审对照：?v=cards | sheet | flat | panels） ================= */
+.vswitch { display: inline-flex; margin-left: 8px; vertical-align: middle; }
+.vswitch button { font-size: 11.5px; padding: 1px 8px; border-radius: 6px; color: var(--ink-2); }
+.vswitch button:hover { background: var(--bg-hover); color: var(--ink-1); }
+.vswitch button.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 600; }
+
+/* 容器剥离：日期段 / 右栏块不再各自成卡 */
+html:not([data-v="cards"]) .day-card { background: none; box-shadow: none; padding: 0; margin: 0 -6px; }
+html:not([data-v="cards"]) .day.overdue .day-card { box-shadow: none; }
+html:not([data-v="cards"]) .rcard { background: none; box-shadow: none; padding: 0 0 26px; }
+html:not([data-v="cards"]) .rail { gap: 0; }
+html:not([data-v="cards"]) .done-fold { padding-left: 14px; }
+
+/* B1 一张纸：工具栏以下整块 surface 纸面（输入 / pills / 议程 / 右栏同在一张纸上），底边贴状态栏 */
+html[data-v="sheet"] .pb-frame { --sec-bg: var(--bg-surface); background: var(--bg-surface); border-radius: 18px 18px 0 0; box-shadow: var(--shadow-card); padding: 16px 24px 0; margin: 0 -8px; }
+html[data-v="sheet"] .nl { box-shadow: none; outline: 1px solid var(--line-1); }
+html[data-v="sheet"] .nl:focus-within { outline-color: var(--ink-3); box-shadow: var(--focus-ring); }
+html[data-v="sheet"] .pill { background: var(--bg-group); box-shadow: none; }
+html[data-v="sheet"] .pill.active { background: var(--bg-selected); }
+html[data-v="sheet"] .pb-body { gap: 44px; }
+html[data-v="sheet"] .drawer { bottom: 16px; }
+
+/* B2 落纸：零容器，行直接落在页面底色上，只靠留白与字重分组 */
+html[data-v="flat"] .nl { box-shadow: none; outline: 1px solid var(--line-1); background: var(--bg-surface); }
+html[data-v="flat"] .nl:focus-within { outline-color: var(--ink-3); box-shadow: var(--focus-ring); }
+html[data-v="flat"] .pb-body { gap: 48px; }
+html[data-v="flat"] .day { margin-bottom: 22px; }
+html[data-v="flat"] .day-head .label { font-size: 17px; }
+
+/* B3 两块板：议程一整块、右栏一整块（两个大平面代替 8 张小卡）；抽屉恰好盖住右板 */
+html[data-v="panels"] .pane { background: var(--bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); overflow: hidden; }
+html[data-v="panels"] .drawer { bottom: 0; }
+html[data-v="panels"] .pb-body { --sec-bg: var(--bg-surface); gap: 16px; }
+html[data-v="panels"] .agenda { padding: 6px 16px 28px 18px; }
+html[data-v="panels"] .rail { padding: 18px 18px 8px; }
+html[data-v="panels"] .drawer { box-shadow: var(--shadow-float); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="note-tag">方案 B · 变体 <span class="vswitch" id="vswitch"><button data-v="cards">原版碎卡</button><button data-v="sheet">B1 一张纸</button><button data-v="flat">B2 落纸</button><button data-v="panels">B3 两块板</button></span> · <a href="index.html">返回总览</a></div>
+<script src="shared.js"></script>
+<script>
+const T = Todo, { icon } = T;
+const shell = T.mountShell();
+shell.crumb.innerHTML = "<b>待办</b>";
+shell.page.innerHTML = `
+  <div class="page">
+      <div class="toolbar"><h1>待办</h1><span class="sum" id="sum"></span><span class="spacer"></span>
+        <div class="seg" id="mode-seg"><button data-m="date" class="on">${icon("calendar-days")}按日期</button><button data-m="group">${icon("folder")}按项目</button></div>
+        <button class="icon-btn" id="more-btn" title="更多">${icon("more")}</button>
+      </div>
+    <div class="pb-frame">
+    <div class="pb-top">
+      <div class="nl" id="nl">
+        <div class="nl-row">${icon("sparkles")}<input id="nl-input" placeholder="添加任务：试试「明天 17:00 交周报 #编辑器重构」或「每天 22:00 拉伸」" autocomplete="off">
+          <span class="hint-keys" id="nl-hint"><kbd>⌘N</kbd></span></div>
+        <div class="nl-parse" id="nl-parse"></div>
+      </div>
+      <div class="pb-pills" id="pills"></div>
+    </div>
+    <div class="pb-body">
+      <div class="pane pane-l"><div class="agenda scroller" id="agenda"></div></div>
+      <div class="pane pane-r"><aside class="rail scroller" id="rail"></aside></div>
+      <div class="drawer" id="drawer"></div>
+    </div>
+    </div>
+  </div>`;
+
+/* 变体切换（URL ?v= 记忆，便于直接分享某一变体） */
+const V = ["cards", "sheet", "flat", "panels"];
+function setVariant(v) {
+  document.documentElement.dataset.v = v;
+  document.querySelectorAll("#vswitch button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  history.replaceState(null, "", "?v=" + v);
+}
+setVariant(V.includes(new URLSearchParams(location.search).get("v")) ? new URLSearchParams(location.search).get("v") : "panels");
+document.getElementById("vswitch").onclick = e => { const b = e.target.closest("[data-v]"); if (b) setVariant(b.dataset.v); };
+
+const state = { mode: "date", group: 0, sel: null, doneOpen: new Set() };
+
+/* ---------- pills ---------- */
+function renderPills() {
+  const roots = T.liveItems().filter(i => !i.p);
+  const openOf = g => roots.filter(i => (!g || i.g === g) && !i.done).length;
+  const arch = T.groups.filter(g => g.archived).length;
+  document.getElementById("pills").innerHTML =
+    `<button class="pill${!state.group ? " active" : ""}" data-g="0">全部<span class="count num">${openOf(0)}</span></button>` +
+    T.activeGroups().map(g => `<button class="pill${state.group === g.id ? " active" : ""}" data-g="${g.id}"><span class="pdot" style="--c:var(--pc-${g.color})"></span>${g.title}<span class="count num">${openOf(g.id)}</span></button>`).join("") +
+    `<button class="pill" id="new-group" title="新建项目" style="padding:0 7px">${icon("plus", "")}</button><span class="spacer"></span>` +
+    `<button class="btn btn-ghost" id="arch-btn">${icon("archive")}已归档 ${arch}</button>`;
+}
+document.getElementById("pills").addEventListener("click", e => {
+  const p = e.target.closest("[data-g]");
+  if (p) { state.group = +p.dataset.g; renderAll(); return; }
+  if (e.target.closest("#arch-btn")) T.openMenu(e.target.closest("#arch-btn"), [{ header: "已归档项目" }, ...T.groups.filter(g => g.archived).map(g => ({ label: g.title + " · 恢复", dot: g.color, g }))], en => { if (en.g) { en.g.archived = false; renderAll(); T.toast(`已恢复「${en.g.title}」`); } }, { alignRight: true });
+  if (e.target.closest("#new-group")) T.openMenu(e.target.closest("#new-group"), [{ header: "新建项目（名称 + 颜色 Dialog）" }, { label: "新建项目…", icon: "plus" }], null);
+});
+document.getElementById("pills").addEventListener("contextmenu", e => {
+  const p = e.target.closest("[data-g]"); if (!p || p.dataset.g === "0") return; e.preventDefault();
+  const g = T.groups.find(x => x.id === +p.dataset.g);
+  T.openMenu({ x: e.clientX, y: e.clientY }, [{ label: "编辑项目", icon: "edit" }, "-", { label: "归档项目", icon: "archive", run: () => { g.archived = true; state.group = 0; renderAll(); T.toast(`已归档「${g.title}」`, () => { g.archived = false; renderAll(); }); } }, { label: "删除项目…", icon: "trash", danger: true }], en => en.run && en.run());
+});
+
+/* ---------- 议程 ---------- */
+function slotHTML(it, bucket) {
+  const info = T.dueInfo(it);
+  if (it.type === "deadline") {
+    const allDay = ["00:00", "23:59"].includes(T.hm(it.due));
+    if (bucket === "overdue") return `<div class="slot overdue"><b>${T.md(it.due)}</b><span>逾期 ${-T.dayDiff(it.due)} 天</span></div>`;
+    if (state.mode === "group" || ["week", "later"].includes(bucket)) return `<div class="slot"><b>${T.dayWord(it.due)}</b><span>${allDay ? "截止" : T.hm(it.due) + " 截止"}</span></div>`;
+    return `<div class="slot${bucket === "today" && !it.done ? " now" : ""}"><b>${allDay ? "全天" : T.hm(it.due)}</b><span>截止</span></div>`;
+  }
+  if (it.type === "planned") {
+    if (state.mode === "group" || ["week", "later"].includes(bucket)) return `<div class="slot"><b>${T.dayWord(it.start)}</b><span>${T.hm(it.start)} 开始</span></div>`;
+    const same = T.startOfDay(it.start) === T.startOfDay(it.due);
+    return `<div class="slot${info.running && !it.done ? " now" : ""}"><b>${T.dayDiff(it.start) < 0 ? "进行中" : T.hm(it.start)}</b><span>${same ? "至 " + T.hm(it.due) : "至" + T.dayWord(it.due)}</span></div>`;
+  }
+  if (it.type === "recurring") {
+    if (state.mode === "group") return `<div class="slot"><b>${it.rec.time}</b><span>${T.recText(it.rec).replace(" " + it.rec.time, "")}</span></div>`;
+    return `<div class="slot"><b>${it.rec.time}</b><span>打卡</span></div>`;
+  }
+  return `<div class="slot muted"><b>—</b></div>`;
+}
+function rowHTML(it, bucket) {
+  const g = T.groupOf(it), sp = T.subProgress(it);
+  const recur = it.type === "recurring";
+  const subs = [];
+  if (sp) subs.push(`<span>${icon("sub")}${sp.done}/${sp.total}</span>`);
+  if (it.notes.length) subs.push(`<span>${icon("link")}${it.notes.length}</span>`);
+  if (it.remind != null && !it.done) subs.push(`<span>${icon("bell")}${T.remindText(it.remind).replace("提前 ", "")}</span>`);
+  if (recur && it.streak) subs.push(`<span>${icon("flame")}连续 ${it.streak}</span>`);
+  return `<div class="ag-row${state.sel === it.id ? " sel" : ""}${!recur && it.done ? " is-done" : ""}" data-id="${it.id}">
+    ${slotHTML(it, bucket)}
+    <button class="check${it.done ? " on" : ""}${recur ? " recurring" : ""}${T.isOverdue(it) ? " danger" : ""}" data-act="check">${icon("check")}</button>
+    <div class="ag-main"><span class="t">${it.t}</span><span class="sub">${subs.join("")}</span></div>
+    <div class="right">${state.mode === "date" && !state.group ? `<span class="proj-chip"><span class="pdot" style="--c:var(--pc-${g.color})"></span>${g.title}</span>` : ""}${it.type !== "normal" ? icon(T.TYPES[it.type].icon, "type-ico " + it.type) : ""}</div>
+  </div>`;
+}
+function renderAgenda() {
+  const roots = T.liveItems().filter(i => !i.p && (!state.group || i.g === state.group));
+  let html = "";
+  if (state.mode === "date") {
+    T.BUCKETS.forEach(b => {
+      const its = roots.filter(i => T.bucketOf(i) === b.key).sort((x, y) => T.sortKey(x) - T.sortKey(y) || x.order - y.order);
+      const open = its.filter(i => !(i.type !== "recurring" && i.done) && !(i.type === "recurring" && i.done && b.key === "today"));
+      const done = its.filter(i => !open.includes(i));
+      if (!its.length && b.key !== "today") return;
+      const foldOpen = state.doneOpen.has(b.key);
+      let rows = "";
+      if (b.key === "today") {
+        let nowPlaced = false;
+        open.forEach(i => {
+          const k = T.sortKey(i);
+          if (!nowPlaced && k > T.at("09-24", "14:20")) { rows += `<div class="now-line">现在 14:20</div>`; nowPlaced = true; }
+          rows += rowHTML(i, b.key);
+        });
+        if (!nowPlaced && open.length) rows += `<div class="now-line">现在 14:20</div>`;
+      } else rows = open.map(i => rowHTML(i, b.key)).join("");
+      if (!open.length) rows = `<div class="day-empty">${b.key === "today" ? "今天的任务都完成了" : "无"}</div>`;
+      if (done.length) rows += `<div class="done-fold" data-fold="${b.key}">${icon("chev-down", "chev" + (foldOpen ? " open" : ""))}已完成 ${done.length}</div>
+        <div class="collapse-wrap${foldOpen ? " open" : ""}"><div class="collapse-inner">${done.map(i => rowHTML(i, b.key)).join("")}</div></div>`;
+      html += `<section class="day ${b.key}" id="sec-${b.key}"><div class="day-head${b.key === "overdue" ? " danger" : ""}"><span class="label">${b.label}</span>${b.sub ? `<span class="meta">${b.sub()}</span>` : ""}<span class="right num">${open.length} 项${done.length ? ` · ${done.length} 已完成` : ""}</span></div>
+        <div class="day-card">${rows}</div></section>`;
+    });
+  } else {
+    T.activeGroups().filter(g => !state.group || g.id === state.group).forEach(g => {
+      const its = roots.filter(i => i.g === g.id).sort((x, y) => T.sortKey(x) - T.sortKey(y));
+      const open = its.filter(i => !(i.type !== "recurring" && i.done)), done = its.filter(i => !open.includes(i));
+      const foldOpen = state.doneOpen.has("g" + g.id);
+      html += `<section class="day" id="sec-g${g.id}"><div class="day-head"><span class="label"><span class="pdot" style="--c:var(--pc-${g.color})"></span>${g.title}</span><span class="right num">${open.length} 项${done.length ? ` · ${done.length} 已完成` : ""}</span></div>
+        <div class="day-card">${open.map(i => rowHTML(i, T.bucketOf(i))).join("") || '<div class="day-empty">无待办</div>'}
+        ${done.length ? `<div class="done-fold" data-fold="g${g.id}">${icon("chev-down", "chev" + (foldOpen ? " open" : ""))}已完成 ${done.length}</div><div class="collapse-wrap${foldOpen ? " open" : ""}"><div class="collapse-inner">${done.map(i => rowHTML(i, "none")).join("")}</div></div>` : ""}</div></section>`;
+    });
+  }
+  const ag = document.getElementById("agenda"); const st = ag.scrollTop;
+  ag.innerHTML = html; ag.scrollTop = st;
+}
+const agenda = document.getElementById("agenda");
+agenda.addEventListener("click", e => {
+  const f = e.target.closest("[data-fold]");
+  if (f) { const k = f.dataset.fold; state.doneOpen.has(k) ? state.doneOpen.delete(k) : state.doneOpen.add(k); renderAgenda(); return; }
+  const row = e.target.closest("[data-id]"); if (!row) return;
+  const it = T.byId(+row.dataset.id);
+  if (e.target.closest("[data-act='check']")) { complete(it, row.querySelector(".check")); return; }
+  openDrawer(it.id);
+});
+agenda.addEventListener("contextmenu", e => {
+  const row = e.target.closest("[data-id]"); if (!row) return; e.preventDefault();
+  const it = T.byId(+row.dataset.id);
+  T.openMenu({ x: e.clientX, y: e.clientY }, [
+    { label: it.type === "recurring" ? "今日打卡" : "完成", icon: "check", k: "Space", run: () => complete(it) },
+    { label: "打开详情", icon: "panel-right", k: "⏎", run: () => openDrawer(it.id) },
+    "-", { header: "改期" }, { label: "今天", icon: "sun" }, { label: "明天", icon: "sunrise" }, { label: "下周一", icon: "calendar" },
+    "-", { label: "移动到…", icon: "move" }, { label: "删除", icon: "trash", danger: true, k: "⌫", run: () => del(it) }], en => en.run && en.run());
+});
+function del(it) {
+  const snap = T.items.slice(); const ids = new Set([it.id, ...T.children(it).map(c => c.id)]);
+  for (let i = T.items.length - 1; i >= 0; i--) if (ids.has(T.items[i].id)) T.items.splice(i, 1);
+  closeDrawer(); renderAll(); T.toast(`已删除「${it.t}」`, () => { T.items.splice(0, T.items.length, ...snap); renderAll(); });
+}
+function complete(it, el) {
+  const was = it.done; if (!T.toggleDone(it)) return;
+  if (el) el.classList.add("on", "pop");
+  if (!was) T.toast(it.type === "recurring" ? `已打卡「${it.t}」· 连续 ${it.streak}` : `已完成「${it.t}」`, () => { T.toggleDone(it); renderAll(); });
+  setTimeout(renderAll, was ? 0 : 420);
+}
+
+/* ---------- 右栏 ---------- */
+function renderRail() {
+  const roots = T.liveItems().filter(i => !i.p && (!state.group || i.g === state.group));
+  const habits = roots.filter(i => i.type === "recurring");
+  const today = habits.filter(T.scheduledToday), other = habits.filter(i => !T.scheduledToday(i));
+  const done = today.filter(i => i.done).length;
+  const C = 2 * Math.PI * 9, frac = today.length ? done / today.length : 0;
+  const weekCells = it => {
+    const h = T.history(it, 1); // 本周（周日起）
+    const order = [1, 2, 3, 4, 5, 6, 0].map(wd => h.find(c => new Date(c.t).getDay() === wd));
+    return `<span class="week7" title="本周 一 → 日">${order.map(c => `<i class="${c.s === "pending" ? "done" : c.s}"></i>`).join("")}</span>`;
+  };
+  // 本周负荷（周一 → 周日）
+  const days = [];
+  for (let d = -3; d <= 3; d++) {
+    const t = T.TODAY.getTime() + d * T.DAY;
+    const dl = roots.filter(i => i.type === "deadline" && T.dayDiff(i.due) === d).length;
+    const pl = roots.filter(i => i.type === "planned" && T.dayDiff(i.start) <= d && T.dayDiff(i.due) >= d).length;
+    const rc = roots.filter(i => i.type === "recurring" && T.isScheduledOn(i.rec, t)).length;
+    days.push({ d, t, dl, pl, rc });
+  }
+  const max = Math.max(...days.map(x => x.dl + x.pl + x.rc), 1);
+  const recent = T.liveItems().filter(i => i.done && i.doneAt && (!state.group || i.g === state.group)).sort((a, b) => b.doneAt - a.doneAt).slice(0, 4);
+  document.getElementById("rail").innerHTML = `
+    <div class="rcard">
+      <div class="rcard-h"><svg class="ring" viewBox="0 0 22 22"><circle class="bg" cx="11" cy="11" r="9"/><circle class="fg" cx="11" cy="11" r="9" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - frac)}" transform="rotate(-90 11 11)"/></svg>
+        <span class="t">今日打卡</span><span class="m">${done}/${today.length}</span></div>
+      ${today.map(i => `<div class="habit${state.sel === i.id ? " sel" : ""}" data-id="${i.id}"><button class="check recurring${i.done ? " on" : ""}" data-act="check">${icon("check")}</button>
+        <span class="hn"><span class="t">${i.t}</span><span class="s num">${i.rec.time} · 连续 ${i.streak}</span></span>${weekCells(i)}</div>`).join("") || '<div class="habit-other">今天没有计划中的打卡</div>'}
+      ${other.length ? `<div class="habit-other">今日休息：${other.map(i => i.t).join("、")}</div>` : ""}
+    </div>
+    <div class="rcard">
+      <div class="rcard-h"><span class="t">本周负荷</span><span class="m">9月21日 – 27日</span></div>
+      <div class="load">${days.map(x => { const n = x.dl + x.pl + x.rc; const h = 58 * n / max; return `<button class="${x.d === 0 ? "today" : ""}" data-jump="${x.d}" title="${T.md(x.t)}：截止 ${x.dl} · 计划 ${x.pl} · 打卡 ${x.rc}"><span class="n">${n || ""}</span>
+        <span class="bar" style="height:${Math.max(h, 4)}px">${x.dl ? `<i class="d" style="height:${58 * x.dl / max}px"></i>` : ""}${x.pl ? `<i class="p" style="height:${58 * x.pl / max}px"></i>` : ""}${x.rc ? `<i class="r" style="height:${58 * x.rc / max}px"></i>` : ""}</span>
+        <span class="w">${x.d === 0 ? "今" : T.WEEK_CN[new Date(x.t).getDay()].slice(1)}</span></button>`; }).join("")}</div>
+      <div class="legend"><span><i style="background:var(--warn)"></i>截止</span><span><i style="background:var(--info)"></i>计划</span><span><i style="background:var(--ok)"></i>打卡</span></div>
+    </div>
+    <div class="rcard">
+      <div class="rcard-h"><span class="t">最近完成</span></div>
+      ${recent.map(i => `<div class="recent">${icon("check-circle")}<span class="t">${i.t}</span><span class="m">${T.dayWord(i.doneAt)} ${T.hm(i.doneAt)}</span></div>`).join("")}
+    </div>`;
+}
+document.getElementById("rail").addEventListener("click", e => {
+  const h = e.target.closest(".habit[data-id]");
+  if (h) { const it = T.byId(+h.dataset.id); if (e.target.closest("[data-act='check']")) complete(it, h.querySelector(".check")); else openDrawer(it.id); return; }
+  const j = e.target.closest("[data-jump]");
+  if (j) { const d = +j.dataset.jump; const key = d < 0 ? "overdue" : d === 0 ? "today" : d === 1 ? "tomorrow" : "week"; document.getElementById("sec-" + key)?.scrollIntoView({ behavior: "smooth", block: "start" }); }
+});
+
+/* ---------- 抽屉 ---------- */
+function openDrawer(id) { state.sel = id; renderDrawer(); document.getElementById("drawer").classList.add("open"); renderAgenda(); renderRail(); }
+function closeDrawer() { state.sel = null; document.getElementById("drawer").classList.remove("open"); renderAgenda(); renderRail(); }
+function renderDrawer() {
+  const it = state.sel && T.byId(state.sel); const el = document.getElementById("drawer");
+  if (!it) return;
+  const g = T.groupOf(it); const sc = el.querySelector(".db")?.scrollTop || 0;
+  el.innerHTML = `<div class="dh"><button class="check${it.done ? " on" : ""}${it.type === "recurring" ? " recurring" : ""}" data-act="d-check">${icon("check")}</button>
+      <div class="dt" contenteditable="true" spellcheck="false">${it.t}</div>
+      <button class="icon-btn" data-act="d-del" title="删除">${icon("trash")}</button><button class="icon-btn" data-act="d-close" title="关闭 (Esc)">${icon("x")}</button></div>
+    <div class="dc"><span class="pdot" style="--c:var(--pc-${g.color})"></span>${g.title}</div>
+    <div class="db scroller fade-y">${T.detailBodyHTML(it, "stack")}</div>`;
+  el.querySelector(".db").scrollTop = sc;
+  T.bindDetail(el.querySelector(".db"), it, (why, focusAdd) => { renderDrawer(); renderAgenda(); renderRail(); renderSum(); if (focusAdd) el.querySelector('[data-act="sub-add"]').focus(); });
+  el.querySelector(".dt").addEventListener("input", e => { it.t = e.target.textContent; renderAgenda(); });
+}
+document.getElementById("drawer").addEventListener("click", e => {
+  const a = e.target.closest("[data-act]")?.dataset.act; const it = T.byId(state.sel);
+  if (a === "d-close") closeDrawer();
+  if (a === "d-check") { complete(it); setTimeout(renderDrawer, 440); }
+  if (a === "d-del") del(it);
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && !T.menuOpen() && state.sel) closeDrawer();
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") { e.preventDefault(); document.getElementById("nl-input").focus(); }
+});
+
+/* ---------- 自然语言快速添加 ---------- */
+const WD = { 日: 0, 天: 0, 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6 };
+function parse(text) {
+  let s = " " + text + " ";
+  const r = { type: "normal", g: state.group || 3, tokens: [] };
+  const take = re => { const m = s.match(re); if (m) s = s.replace(m[0], " "); return m; };
+  let m;
+  if ((m = take(/#(\S+)/))) { const g = T.activeGroups().find(x => x.title.includes(m[1]) || m[1].includes(x.title)); if (g) r.g = g.id; }
+  if ((m = take(/每天|每日/))) r.rec = { type: "daily" };
+  else if ((m = take(/工作日/))) r.rec = { type: "weekdays" };
+  else if ((m = take(/每周([一二三四五六日天、]+)/))) r.rec = { type: "weekly", weekdays: [...m[1].replace(/、/g, "")].map(c => WD[c]) };
+  else if ((m = take(/每月\s?(\d{1,2})\s?[号日]/))) r.rec = { type: "monthly", monthDay: +m[1] };
+  let day = null;
+  if ((m = take(/今天|今晚/))) day = 0; else if ((m = take(/明天|明晚/))) day = 1; else if ((m = take(/后天/))) day = 2;
+  else if ((m = take(/(下)?周([一二三四五六日天])/))) { const target = WD[m[2]]; let d = (target - T.TODAY.getDay() + 7) % 7; if (m[1] || d === 0) d += 7; day = d; }
+  let t1 = null, t2 = null;
+  if ((m = take(/(\d{1,2})[:：](\d{2})\s?[-–~到至]\s?(\d{1,2})[:：](\d{2})/))) { t1 = [+m[1], +m[2]]; t2 = [+m[3], +m[4]]; }
+  else if ((m = take(/(\d{1,2})[:：](\d{2})/))) t1 = [+m[1], +m[2]];
+  else if ((m = take(/(\d{1,2})\s?点(半)?/))) t1 = [+m[1] + (/晚/.test(text) && +m[1] < 12 ? 12 : 0), m[2] ? 30 : 0];
+  const g = T.groups.find(x => x.id === r.g);
+  const pad = n => String(n).padStart(2, "0");
+  if (r.rec) {
+    r.type = "recurring"; r.rec.time = t1 ? `${pad(t1[0])}:${pad(t1[1])}` : "09:00"; r.rec.start = T.TODAY.getTime();
+    r.tokens.push(`<span class="tok recurring">${icon("repeat")}周期 · ${T.recText(r.rec)}</span>`);
+  } else if (t2 || day != null || t1) {
+    const base = T.TODAY.getTime() + (day ?? 0) * T.DAY;
+    if (t2) {
+      r.type = "planned"; r.start = base + (t1[0] * 60 + t1[1]) * 60000; r.due = base + (t2[0] * 60 + t2[1]) * 60000;
+      r.tokens.push(`<span class="tok planned">${icon("clock")}计划 · ${T.dayWord(r.start)} ${T.hm(r.start)}–${T.hm(r.due)}</span>`);
+    } else {
+      r.type = "deadline"; r.due = base + (t1 ? (t1[0] * 60 + t1[1]) * 60000 : (23 * 60 + 59) * 60000);
+      r.tokens.push(`<span class="tok deadline">${icon("flag")}截止 · ${T.dayWord(r.due)}${t1 ? " " + T.hm(r.due) : ""}</span>`);
+    }
+  } else r.tokens.push(`<span class="tok">${icon("list")}普通任务</span>`);
+  r.tokens.push(`<span class="tok"><span class="pdot" style="--c:var(--pc-${g.color})"></span>${g.title}</span>`);
+  r.title = s.replace(/\s+/g, " ").trim();
+  return r;
+}
+const nlIn = document.getElementById("nl-input");
+nlIn.addEventListener("input", () => {
+  const v = nlIn.value.trim();
+  const out = document.getElementById("nl-parse");
+  if (!v) { out.innerHTML = ""; document.getElementById("nl-hint").innerHTML = "<kbd>⌘N</kbd>"; return; }
+  const r = parse(v);
+  out.innerHTML = `识别为 ${r.tokens.join("")}<span style="margin-left:6px">标题：<b style="color:var(--ink-1);font-weight:500">${r.title || "（空）"}</b></span>`;
+  document.getElementById("nl-hint").innerHTML = `<span>回车添加</span><kbd>⏎</kbd><span style="margin-left:6px">Tab 调整</span>`;
+});
+nlIn.addEventListener("keydown", e => {
+  if (e.key === "Escape") { nlIn.value = ""; nlIn.dispatchEvent(new Event("input")); nlIn.blur(); return; }
+  if (e.key !== "Enter" || e.isComposing) return;
+  const r = parse(nlIn.value.trim()); if (!r.title) return;
+  const it = { id: Date.now(), g: r.g, p: null, t: r.title, type: r.type, due: r.due, start: r.start, rec: r.rec, streak: 0, done: false, order: -1, notes: [], created: Date.now() };
+  T.items.unshift(it); nlIn.value = ""; nlIn.dispatchEvent(new Event("input"));
+  renderAll(); T.toast(`已添加「${it.t}」`, () => { T.items.splice(T.items.indexOf(it), 1); renderAll(); });
+  const key = T.bucketOf(it); document.getElementById("sec-" + key)?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+/* ---------- 工具栏 ---------- */
+document.getElementById("mode-seg").onclick = e => { const b = e.target.closest("button"); if (!b) return; state.mode = b.dataset.m;
+  document.querySelectorAll("#mode-seg button").forEach(x => x.classList.toggle("on", x === b)); renderAgenda(); };
+document.getElementById("more-btn").onclick = e => T.openMenu(e.currentTarget, [{ label: "显示已完成", icon: "eye" }, { label: "按类型筛选…", icon: "sliders" }, "-", { label: "导出到日程", icon: "calendar-days" }], null, { alignRight: true });
+function renderSum() {
+  const c = T.counts();
+  document.getElementById("sum").innerHTML = `今天 <b class="num">${c.today}</b> 项${c.overdue ? ` · <span class="danger num">${c.overdue} 项逾期</span>` : ""} · 打卡 <b class="num">${c.habitsDone}/${c.habitsToday}</b>`;
+  T.setNavBadge(c.today + c.overdue);
+  // 待办页不注册状态栏（2026-09-24 裁决）：计数已在工具栏摘要与 pills，识别提示在输入框占位；壳层状态栏行保持空壳
+
+}
+function renderAll() { renderPills(); renderAgenda(); renderRail(); renderSum(); if (state.sel) renderDrawer(); }
+renderAll();
+</script>
+</body>
+</html>

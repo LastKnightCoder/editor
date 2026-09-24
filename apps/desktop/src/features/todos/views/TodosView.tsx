@@ -1,0 +1,500 @@
+/**
+ * 待办页视图 · 议程流 B3「两块板」（mockups/todos/plan-b-agenda.html?v=panels 定稿）：
+ * 工具栏（标题 + 今日摘要 + 按日期/按项目分段切换）→ 自然语言快速添加 → 项目 pills →
+ * 左板议程（时间分段）+ 右板（今日打卡 / 本周负荷 / 最近完成）；详情为右侧抽屉，恰好盖住右板。
+ *
+ * 裁决（DECISIONS D-034）：不并入日程页、不注册状态栏（计数在工具栏摘要与 pills）、删除不二次
+ * 确认（立即从列表消失 + Toast 撤销，5 秒后才真正落库）、不保留独立 /todo 小窗口。
+ *
+ * 带日期的子任务按自己的日期进议程（行尾标父任务），不再只藏在父任务抽屉里。
+ */
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArchiveRestore,
+  ArrowRightLeft,
+  CalendarClock,
+  CalendarDays,
+  Check,
+  Folder,
+  PanelRightOpen,
+  Plus,
+  Sunrise,
+  Sun,
+  Trash2,
+} from "lucide-react";
+import { MotionConfig } from "motion/react";
+import { Button, Loading, Menu, Segmented, toast } from "@tau/ui";
+import { usePage } from "@/page/PageProvider";
+import type { TodoGroup } from "@/types";
+import {
+  DAY_MS,
+  bucketOf,
+  doneToday,
+  isOpen,
+  isOverdue,
+  scheduledToday,
+  startOfDay,
+} from "../model";
+import { useNow, useTodoMutations, useTodoSnapshot } from "../queries";
+import type { QuickAddResult } from "../quickAdd";
+import type { TodoEntry } from "../types";
+import { AgendaPanel, type AgendaMode } from "../components/AgendaPanel";
+import { GroupDialog } from "../components/GroupDialog";
+import { GroupPills } from "../components/GroupPills";
+import { HabitRail } from "../components/HabitRail";
+import { QuickAddBar } from "../components/QuickAddBar";
+import { TodoDrawer } from "../components/TodoDrawer";
+import { GroupDot } from "../components/TodoBits";
+
+const UNDO_MS = 5000;
+
+export function TodosView() {
+  const { navigator } = usePage();
+  const { snapshot, loading } = useTodoSnapshot();
+  const mutations = useTodoMutations();
+  const now = useNow();
+
+  const [mode, setMode] = useState<AgendaMode>("date");
+  const [groupFilter, setGroupFilter] = useState(0);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [groupDialog, setGroupDialog] = useState<{ group: TodoGroup | null } | null>(null);
+  const quickAddRef = useRef<HTMLInputElement>(null);
+  const agendaAnchor = useRef<HTMLDivElement>(null);
+
+  /* 删除暂存：立即从视图消失，UNDO_MS 后真正落库；撤销即取消；离开页面时立刻落库 */
+  const [pendingDelete, setPendingDelete] = useState<ReadonlySet<number>>(() => new Set());
+  const deleteTimers = useRef(new Map<number, number>());
+  const commitDelete = (id: number) => {
+    window.clearTimeout(deleteTimers.current.get(id));
+    deleteTimers.current.delete(id);
+    mutations
+      .remove(id)
+      .catch(() => toast.error("删除失败"))
+      .finally(() =>
+        setPendingDelete(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        })
+      );
+  };
+  const commitRef = useRef(commitDelete);
+  commitRef.current = commitDelete;
+  useEffect(
+    () => () => {
+      for (const id of [...deleteTimers.current.keys()]) commitRef.current(id);
+    },
+    []
+  );
+
+  const scheduleDelete = (entry: TodoEntry) => {
+    if (selectedId === entry.id || entry.childIds.includes(selectedId ?? -1)) setSelectedId(null);
+    setPendingDelete(prev => new Set(prev).add(entry.id));
+    deleteTimers.current.set(
+      entry.id,
+      window.setTimeout(() => commitRef.current(entry.id), UNDO_MS)
+    );
+    const children = entry.childIds.length;
+    toast.info(`已删除「${entry.title}」${children ? `及 ${children} 个子任务` : ""}`, {
+      duration: UNDO_MS,
+      action: {
+        label: "撤销",
+        onClick: () => {
+          window.clearTimeout(deleteTimers.current.get(entry.id));
+          deleteTimers.current.delete(entry.id);
+          setPendingDelete(prev => {
+            const next = new Set(prev);
+            next.delete(entry.id);
+            return next;
+          });
+        },
+      },
+    });
+  };
+
+  /* ⌘/Ctrl+N 聚焦快速添加（仅本页在栈顶时生效） */
+  useEffect(() => {
+    const onKeydown = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "n" || e.shiftKey || e.altKey)
+        return;
+      if (navigator.current()?.key !== "todos") return;
+      e.preventDefault();
+      quickAddRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKeydown);
+    return () => window.removeEventListener("keydown", onKeydown);
+  }, [navigator]);
+
+  /* ---------- 派生 ---------- */
+
+  const derived = useMemo(() => {
+    if (!snapshot) return null;
+    const activeIds = new Set(snapshot.groups.map(g => g.id));
+    // 已删除暂存的子孙一并隐藏
+    const hidden = new Set<number>();
+    const hide = (id: number) => {
+      hidden.add(id);
+      snapshot.byId.get(id)?.childIds.forEach(hide);
+    };
+    pendingDelete.forEach(hide);
+    const live = snapshot.entries.filter(e => activeIds.has(e.groupId) && !hidden.has(e.id));
+    const allRoots = live.filter(e => e.parentId == null);
+    const roots = groupFilter ? allRoots.filter(e => e.groupId === groupFilter) : allRoots;
+    // 带日期的子任务按自己的日期进议程（按日期模式）
+    const datedChildren = live.filter(
+      e =>
+        e.parentId != null &&
+        (e.type === "deadline" || e.type === "planned") &&
+        (e.dueAt ?? e.startAt) != null &&
+        (!groupFilter || e.groupId === groupFilter)
+    );
+    const timed = [...roots, ...datedChildren];
+    const openCounts = new Map<number, number>();
+    for (const e of allRoots)
+      if (isOpen(e, now)) openCounts.set(e.groupId, (openCounts.get(e.groupId) ?? 0) + 1);
+    return {
+      live,
+      allRoots,
+      roots,
+      timed,
+      openCounts,
+      totalOpen: allRoots.filter(e => isOpen(e, now)).length,
+      completed: live.filter(
+        e => e.type !== "recurring" && e.isCompleted && (!groupFilter || e.groupId === groupFilter)
+      ),
+      todayCount: timed.filter(e => bucketOf(e, now) === "today" && isOpen(e, now)).length,
+      overdueCount: timed.filter(e => isOverdue(e, now)).length,
+      habitsToday: roots.filter(e => scheduledToday(e, now)),
+    };
+  }, [snapshot, pendingDelete, groupFilter, now]);
+
+  /* 过滤掉的项目被归档 / 删除后回到「全部」 */
+  useEffect(() => {
+    if (snapshot && groupFilter && !snapshot.groups.some(g => g.id === groupFilter))
+      setGroupFilter(0);
+  }, [snapshot, groupFilter]);
+
+  if (loading || !snapshot || !derived) return <Loading />;
+
+  const selected = selectedId != null ? (snapshot.byId.get(selectedId) ?? null) : null;
+  const groups = snapshot.groups;
+
+  /* ---------- 操作 ---------- */
+
+  const toggle = (entry: TodoEntry) => {
+    if (entry.type === "recurring") {
+      if (!scheduledToday(entry, now)) {
+        toast.info("今天不是计划打卡日——可在详情的打卡格里补打过去的日子");
+        return;
+      }
+      const done = doneToday(entry, now);
+      void mutations.setOccurrence(entry, now, done ? null : "done");
+      if (!done)
+        toast.success(`已打卡「${entry.title}」`, {
+          action: { label: "撤销", onClick: () => void mutations.setOccurrence(entry, now, null) },
+        });
+      return;
+    }
+    const next = !entry.isCompleted;
+    void mutations.setCompleted(entry, next);
+    if (next)
+      toast.success(`已完成「${entry.title}」`, {
+        action: { label: "撤销", onClick: () => void mutations.setCompleted(entry, false) },
+      });
+  };
+
+  const reschedule = (entry: TodoEntry, day: number) => {
+    const base = entry.type === "planned" ? entry.startAt : entry.dueAt;
+    const timeOfDay = base != null ? base - startOfDay(base) : 0;
+    if (entry.type === "planned" && entry.startAt != null) {
+      const length = (entry.dueAt ?? entry.startAt) - entry.startAt;
+      const startAt = day + timeOfDay;
+      void mutations.updateItem(entry, { startAt, dueAt: startAt + length });
+    } else if (entry.type === "deadline") {
+      void mutations.updateItem(entry, { dueAt: day + timeOfDay });
+    } else {
+      // 普通任务改期 = 转为截止任务（全天）
+      void mutations.updateItem(entry, { type: "deadline", dueAt: day });
+    }
+  };
+
+  const createFromQuickAdd = async (parsed: QuickAddResult, groupId: number) => {
+    try {
+      const item = await mutations.createFromQuickAdd(parsed, groupId);
+      toast.success(`已添加「${item.title}」`);
+    } catch {
+      toast.error("添加失败");
+      throw new Error("create failed");
+    }
+  };
+
+  const renderMenu = (entry: TodoEntry) => {
+    const today = startOfDay(now);
+    const nextMonday = today + ((8 - new Date(now).getDay()) % 7 || 7) * DAY_MS;
+    return (
+      <>
+        <Menu.Item
+          icon={<Check className="size-[15px]" strokeWidth={1.75} />}
+          kbd="Space"
+          onSelect={() => toggle(entry)}
+        >
+          {entry.type === "recurring"
+            ? doneToday(entry, now)
+              ? "撤销今日打卡"
+              : "今日打卡"
+            : entry.isCompleted
+              ? "标记未完成"
+              : "完成"}
+        </Menu.Item>
+        <Menu.Item
+          icon={<PanelRightOpen className="size-[15px]" strokeWidth={1.75} />}
+          kbd="⏎"
+          onSelect={() => setSelectedId(entry.id)}
+        >
+          打开详情
+        </Menu.Item>
+        {entry.type !== "recurring" && (
+          <Menu.Submenu
+            label="改期"
+            icon={<CalendarClock className="size-[15px]" strokeWidth={1.75} />}
+          >
+            <Menu.Item
+              icon={<Sun className="size-[15px]" strokeWidth={1.75} />}
+              onSelect={() => reschedule(entry, today)}
+            >
+              今天
+            </Menu.Item>
+            <Menu.Item
+              icon={<Sunrise className="size-[15px]" strokeWidth={1.75} />}
+              onSelect={() => reschedule(entry, today + DAY_MS)}
+            >
+              明天
+            </Menu.Item>
+            <Menu.Item
+              icon={<CalendarDays className="size-[15px]" strokeWidth={1.75} />}
+              onSelect={() => reschedule(entry, nextMonday)}
+            >
+              下周一
+            </Menu.Item>
+          </Menu.Submenu>
+        )}
+        {groups.length > 1 && (
+          <Menu.Submenu
+            label="移动到"
+            icon={<ArrowRightLeft className="size-[15px]" strokeWidth={1.75} />}
+          >
+            {groups
+              .filter(g => g.id !== entry.groupId)
+              .map(g => (
+                <Menu.Item
+                  key={g.id}
+                  icon={<GroupDot color={g.color} className="size-[7px]" />}
+                  onSelect={() => void mutations.moveToGroup(entry, g.id)}
+                >
+                  {g.title}
+                </Menu.Item>
+              ))}
+          </Menu.Submenu>
+        )}
+        <Menu.Separator />
+        <Menu.Item
+          danger
+          icon={<Trash2 className="size-[15px]" strokeWidth={1.75} />}
+          onSelect={() => scheduleDelete(entry)}
+        >
+          删除
+        </Menu.Item>
+      </>
+    );
+  };
+
+  const jumpTo = (offset: number) => {
+    const key =
+      offset < 0 ? "overdue" : offset === 0 ? "today" : offset === 1 ? "tomorrow" : "week";
+    setMode("date");
+    requestAnimationFrame(() =>
+      agendaAnchor.current
+        ?.querySelector(`[data-bucket="${key}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" })
+    );
+  };
+
+  const habitsDone = derived.habitsToday.filter(e => doneToday(e, now)).length;
+
+  return (
+    <MotionConfig reducedMotion="user">
+      <div className="mx-auto flex h-full max-w-[1720px] flex-col px-[26px]">
+        {/* 工具栏：计数摘要在此（不注册状态栏）；分段方式切换 */}
+        <div className="flex h-[44px] flex-none items-center gap-3">
+          <h1 className="text-[19px] font-semibold tracking-[-0.01em]">待办</h1>
+          <span className="text-ink-2 text-tau-meta tabular-nums">
+            今天 <b className="text-ink-1 font-semibold">{derived.todayCount}</b> 项
+            {derived.overdueCount > 0 && (
+              <>
+                {" · "}
+                <span className="text-danger font-medium">{derived.overdueCount} 项逾期</span>
+              </>
+            )}
+            {derived.habitsToday.length > 0 && (
+              <>
+                {" · "}打卡{" "}
+                <b className="text-ink-1 font-semibold">
+                  {habitsDone}/{derived.habitsToday.length}
+                </b>
+              </>
+            )}
+          </span>
+          <span className="flex-1" />
+          <Segmented label="分段方式" value={mode} onValueChange={(v: AgendaMode) => setMode(v)}>
+            <Segmented.Item value="date" icon={CalendarDays} label="按日期" />
+            <Segmented.Item value="group" icon={Folder} label="按项目" />
+          </Segmented>
+        </div>
+
+        {groups.length === 0 ? (
+          <EmptyGroups
+            archivedGroups={snapshot.archivedGroups}
+            onCreate={() => setGroupDialog({ group: null })}
+            onRestore={group => void mutations.setGroupArchived(group.id, false)}
+          />
+        ) : (
+          <>
+            <QuickAddBar
+              groups={groups}
+              fallbackGroupId={groupFilter || groups[0].id}
+              now={now}
+              onSubmit={createFromQuickAdd}
+              inputRef={quickAddRef}
+            />
+            <GroupPills
+              groups={groups}
+              archivedGroups={snapshot.archivedGroups}
+              openCounts={derived.openCounts}
+              totalOpen={derived.totalOpen}
+              value={groupFilter}
+              onChange={setGroupFilter}
+              onCreate={() => setGroupDialog({ group: null })}
+              onEdit={group => setGroupDialog({ group })}
+              onArchive={group => {
+                void mutations.setGroupArchived(group.id, true).then(() =>
+                  toast.success(`已归档「${group.title}」`, {
+                    action: {
+                      label: "撤销",
+                      onClick: () => void mutations.setGroupArchived(group.id, false),
+                    },
+                  })
+                );
+              }}
+              onRestore={group =>
+                void mutations
+                  .setGroupArchived(group.id, false)
+                  .then(() => toast.success(`已恢复「${group.title}」`))
+              }
+            />
+
+            {/* 两块板：议程一整块 + 右板一整块（B3）；抽屉在 body 内绝对定位盖住右板 */}
+            <div className="relative grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_312px] gap-4 pt-1">
+              <div
+                ref={agendaAnchor}
+                className="bg-surface shadow-card flex min-h-0 flex-col overflow-hidden rounded-[16px]"
+              >
+                <AgendaPanel
+                  entries={mode === "date" ? derived.timed : derived.roots}
+                  snapshot={snapshot}
+                  groups={groupFilter ? groups.filter(g => g.id === groupFilter) : groups}
+                  mode={mode}
+                  now={now}
+                  showGroup={mode === "date" && groupFilter === 0}
+                  selectedId={selectedId}
+                  onOpen={entry => setSelectedId(entry.id)}
+                  onToggle={toggle}
+                  renderMenu={renderMenu}
+                />
+              </div>
+              <div className="bg-surface shadow-card min-h-0 overflow-y-auto rounded-[16px] border-r-[6px] border-transparent [&::-webkit-scrollbar-track]:[border-bottom:12px_solid_transparent] [&::-webkit-scrollbar-track]:[border-top:12px_solid_transparent]">
+                <HabitRail
+                  roots={derived.timed}
+                  completed={derived.completed}
+                  now={now}
+                  selectedId={selectedId}
+                  onOpen={entry => setSelectedId(entry.id)}
+                  onToggleHabit={toggle}
+                  onJump={jumpTo}
+                />
+              </div>
+              <TodoDrawer
+                entry={selected}
+                snapshot={snapshot}
+                groups={groups}
+                now={now}
+                mutations={mutations}
+                onClose={() => setSelectedId(null)}
+                onOpen={entry => setSelectedId(entry.id)}
+                onToggle={toggle}
+                onDelete={scheduleDelete}
+              />
+            </div>
+          </>
+        )}
+
+        <GroupDialog
+          open={groupDialog !== null}
+          group={groupDialog?.group ?? null}
+          onClose={() => setGroupDialog(null)}
+          onSubmit={async (title, color) => {
+            if (groupDialog?.group) {
+              await mutations.updateGroup(groupDialog.group.id, title, color);
+              toast.success("项目已更新");
+            } else {
+              const created = await mutations.createGroup(title, color);
+              setGroupFilter(created.id);
+              toast.success(`已创建项目「${title}」`);
+            }
+          }}
+        />
+      </div>
+    </MotionConfig>
+  );
+}
+
+function EmptyGroups({
+  archivedGroups,
+  onCreate,
+  onRestore,
+}: {
+  archivedGroups: TodoGroup[];
+  onCreate(): void;
+  onRestore(group: TodoGroup): void;
+}) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 pb-16 text-center">
+      <p className="text-ink-2 text-[15px] font-medium">还没有进行中的项目</p>
+      <p className="text-ink-3 text-[12.5px]">任务归属于项目——先建一个，比如「工作」「生活」</p>
+      <div className="mt-3 flex gap-2">
+        <Button variant="primary" size="sm" icon={Plus} onClick={onCreate}>
+          新建项目
+        </Button>
+        {archivedGroups.length > 0 && (
+          <Menu
+            trigger={
+              <Button variant="secondary" size="sm" icon={ArchiveRestore}>
+                恢复已归档（{archivedGroups.length}）
+              </Button>
+            }
+          >
+            {archivedGroups.map(group => (
+              <Menu.Item
+                key={group.id}
+                icon={<GroupDot color={group.color} className="size-[7px]" />}
+                onSelect={() => onRestore(group)}
+              >
+                {group.title}
+              </Menu.Item>
+            ))}
+          </Menu>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="UTF-8">
+<title>待办 · A 三栏清单 — Tau 桌面端</title>
+<!--
+  【视觉参考，非导出源】（D-001）
+  A · 三栏清单 —— 「清单工具」叙事（Things / TickTick 谱系）：
+  视图列（智能视图 + 项目）→ 任务列表 → 常驻详情面板，三栏同屏，键盘全程可达。
+  设计要点：
+  ① 视图列替代 legacy「系统分组」：legacy 的 全部/普通/截止/计划/周期 五个系统组本质是「类型筛选」，
+     降级为列表头的类型筛选；视图列换成按时间派生的 今天 / 即将到来 / 全部 / 已完成（全部由 dueAt/startAt/周期规则派生，不引入新字段）；
+  ② 列表行：圆形复选（周期任务虚线圈 = 今日打卡）+ 标题 + 子任务进度 + 右对齐元信息（日期 / 提醒 / 笔记 / 所属项目）；
+     子任务可折叠（legacy expandedIds 未接线的缺陷）；已完成收进段尾折叠区；
+  ③ 详情从 legacy 居中大弹窗改为右侧常驻面板：选中即看、即改，不遮挡列表；
+     周期规则可在详情里改（legacy 创建后只读），打卡热力格 + 今日打卡/跳过；关联笔记接线（legacy TodoNotesDnd 写好未挂载）；
+  ④ 新建 = 列表顶部快速添加行（⌘N 聚焦），按当前视图预填：今天视图 → 截止今天、项目视图 → 该项目；
+  ⑤ Delete 仅在列表焦点下生效且可撤销（legacy 全局 Delete 监听会在编辑文字时误删整条任务）。
+  交互均为真实现：视图切换、选中 / 键盘上下、勾选完成（撤销）、子任务折叠、类型切换、右键菜单、快速添加、明暗切换。
+-->
+<link rel="stylesheet" href="shared.css">
+<style>
+.pa { display: grid; grid-template-columns: 212px minmax(0,1fr) 404px; height: 100%; min-height: 0; }
+.pa.no-detail { grid-template-columns: 212px minmax(0,1fr) 0; }
+
+/* ---------- 视图列（与壳层侧栏同底融合，靠留白分组） ---------- */
+.pa-nav { padding: 6px 12px 16px 10px; display: flex; flex-direction: column; }
+.vn-label { display: flex; align-items: center; font-size: 11px; color: var(--ink-3); padding: 14px 10px 6px; }
+.vn-label .spacer { flex: 1; }
+.vn-label .icon-btn { margin: -4px -6px -4px 0; }
+.vn-item { display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 10px; border-radius: 9px; color: var(--ink-2); font-size: 13px; width: 100%; text-align: left; }
+.vn-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.vn-item.active { background: var(--bg-selected); color: var(--accent-text); font-weight: 500; }
+.vn-item .icon { width: 15px; height: 15px; }
+.vn-item .pdot { margin: 0 3.5px; }
+.vn-item .n { margin-left: auto; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.vn-item.active .n { color: var(--accent-text); }
+.vn-item .od { font-size: 10.5px; color: var(--danger); background: var(--danger-soft); border-radius: 99px; padding: 0 6px; line-height: 17px; margin-left: auto; }
+.vn-item .od + .n { margin-left: 6px; }
+.vn-item.archived { color: var(--ink-3); }
+.vn-item .grip { width: 12px; height: 12px; color: var(--ink-3); opacity: 0; margin-left: -8px; margin-right: -4px; cursor: grab; }
+.vn-item:hover .grip { opacity: 1; }
+
+/* ---------- 列表栏 ---------- */
+.pa-list { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 0 20px 0 14px; }
+.pa-list .toolbar h1 { display: flex; align-items: center; gap: 9px; }
+.pa-list .toolbar h1 .pdot { width: 11px; height: 11px; border-radius: 4px; }
+.quick-add { flex: none; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 8px 0 12px; border-radius: 11px;
+  background: var(--bg-surface); box-shadow: var(--shadow-card); margin: 2px 0 10px; outline: 1px solid transparent; transition: outline-color 150ms, box-shadow 150ms; }
+.quick-add:focus-within { outline-color: var(--line-1); box-shadow: var(--shadow-lift); }
+.quick-add > .icon { color: var(--accent); }
+.quick-add input { flex: 1; font-size: 13px; min-width: 0; }
+.quick-add input::placeholder { color: var(--ink-3); }
+.quick-add .qa-chips { display: flex; gap: 4px; opacity: 0.55; transition: opacity 150ms; }
+.quick-add:focus-within .qa-chips { opacity: 1; }
+.qa-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 7px; font-size: 11.5px; color: var(--ink-2); background: var(--bg-group); }
+.qa-chip:hover { color: var(--ink-1); background: var(--bg-press); }
+.qa-chip .icon { width: 12px; height: 12px; }
+.qa-chip .pdot { width: 7px; height: 7px; }
+
+.list-scroll { flex: 1; margin-right: -12px; padding: 0 12px 28px 0; }
+.sec { margin-bottom: 14px; }
+.sec-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 8px;
+  background: linear-gradient(180deg, var(--bg-page) 80%, transparent); font-size: 13px; font-weight: 600; }
+.sec-head .meta { font-size: 11.5px; color: var(--ink-3); font-weight: 400; }
+.sec-head.danger { color: var(--danger); }
+.sec-head .pdot { width: 9px; height: 9px; }
+.sec-head.toggle { cursor: pointer; user-select: none; color: var(--ink-2); font-weight: 500; font-size: 12.5px; }
+.sec-head.toggle:hover { color: var(--ink-1); }
+
+.row { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border-radius: 10px; position: relative; cursor: default; outline: none; }
+.row:hover { background: var(--bg-hover); }
+.row.sel { background: var(--bg-selected); }
+.row:focus-visible { box-shadow: var(--focus-ring); }
+.row .grip { position: absolute; left: -14px; width: 14px; height: 14px; color: var(--ink-3); opacity: 0; cursor: grab; }
+.row:hover .grip { opacity: 1; }
+.row .twisty { width: 16px; height: 16px; margin: 0 -6px 0 -4px; display: grid; place-items: center; border-radius: 5px; color: var(--ink-3); }
+.row .twisty:hover { background: var(--bg-press); color: var(--ink-1); }
+.row .twisty .icon { width: 12px; height: 12px; transition: transform 180ms var(--ease-out); }
+.row .twisty.closed .icon { transform: rotate(-90deg); }
+.row .twisty.none { visibility: hidden; }
+.row .title { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.row .title .t { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: color 200ms; }
+.row .sub-p { font-size: 11px; color: var(--ink-3); display: inline-flex; align-items: center; gap: 3px; flex: none; }
+.row .sub-p .icon { width: 11px; height: 11px; }
+.row .metas { display: flex; align-items: center; gap: 12px; flex: none; }
+.row .metas .quiet { color: var(--ink-3); display: inline-flex; }
+.row .metas .quiet .icon { width: 12px; height: 12px; }
+.row.done-anim .t { color: var(--ink-3); text-decoration: line-through; }
+.row.child .t { font-size: 12.5px; }
+.row.is-done .t { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--ink-3); }
+.row.is-done .metas { opacity: 0.6; }
+.running-tag { font-size: 10.5px; color: var(--info); background: var(--info-soft); border-radius: 99px; padding: 0 7px; line-height: 17px; flex: none; }
+.empty-view { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 80px 0; color: var(--ink-3); font-size: 12.5px; }
+.empty-view .icon { width: 28px; height: 28px; color: var(--ink-3); stroke-width: 1.5; margin-bottom: 6px; }
+.empty-view b { color: var(--ink-2); font-size: 14px; font-weight: 500; }
+
+/* ---------- 详情面板（surface 浮起卡；不是模态） ---------- */
+.pa-detail { min-width: 0; min-height: 0; padding: 4px 18px 16px 0; transition: opacity 180ms; overflow: hidden; }
+.pa.no-detail .pa-detail { opacity: 0; pointer-events: none; }
+.detail-card { height: 100%; display: flex; flex-direction: column; background: var(--bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); min-height: 0; }
+.detail-head { flex: none; display: flex; align-items: flex-start; gap: 10px; padding: 16px 14px 6px 18px; }
+.detail-head .check { margin-top: 4px; }
+.detail-head .dt { flex: 1; font-size: 16px; font-weight: 600; line-height: 1.5; letter-spacing: -0.005em; border-radius: 7px; padding: 0 4px; margin: 0 -4px; outline: none; }
+.detail-head .dt:hover { background: var(--bg-hover); }
+.detail-head .dt:focus { background: var(--bg-page); }
+.detail-crumb { flex: none; padding: 0 18px 4px 45px; font-size: 11.5px; color: var(--ink-3); display: flex; align-items: center; gap: 6px; }
+.detail-crumb .pdot { width: 7px; height: 7px; }
+.detail-crumb a { color: var(--ink-2); text-decoration: none; cursor: pointer; }
+.detail-crumb a:hover { color: var(--accent-text); }
+.detail-body { flex: 1; padding: 8px 18px 20px; }
+.detail-body .habit-box { background: var(--bg-page); border-color: transparent; }
+.detail-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--ink-3); font-size: 12.5px; text-align: center; }
+.detail-empty .icon { width: 26px; height: 26px; stroke-width: 1.5; }
+.detail-empty .keys { display: grid; grid-template-columns: auto auto; gap: 6px 10px; margin-top: 10px; font-size: 11.5px; text-align: left; }
+.detail-empty .keys span:nth-child(odd) { text-align: right; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="note-tag">方案 A · 三栏清单 · <a href="index.html">返回总览</a></div>
+<script src="shared.js"></script>
+<script>
+const T = Todo, { icon } = T;
+const shell = T.mountShell();
+shell.page.innerHTML = `
+  <div class="pa" id="pa">
+    <aside class="pa-nav scroller" id="vnav"></aside>
+    <section class="pa-list">
+      <div class="toolbar"><h1 id="view-title"></h1><span class="sum" id="view-sum"></span><span class="spacer"></span>
+        <div class="seg sm" id="status-seg"><button data-s="open" class="on">未完成</button><button data-s="done">已完成</button><button data-s="all">全部</button></div>
+        <button class="icon-btn" id="type-filter" title="按类型筛选">${icon("sliders")}</button>
+        <button class="icon-btn" id="toggle-detail" title="详情面板 (⌘I)">${icon("panel-right")}</button>
+      </div>
+      <label class="quick-add"><svg class="icon"><use href="#i-plus"/></svg><input id="qa-input" placeholder="添加任务，回车创建">
+        <span class="qa-chips" id="qa-chips"></span><kbd>⌘N</kbd></label>
+      <div class="list-scroll scroller fade-y" id="list" tabindex="0"></div>
+    </section>
+    <aside class="pa-detail"><div class="detail-card" id="detail"></div></aside>
+  </div>`;
+
+const state = { view: "today", status: "open", type: "all", sel: 1, collapsed: new Set(), doneOpen: false, archOpen: false,
+  qaType: "deadline", qaGroup: 1 };
+const VIEWS = { today: { label: "今天", icon: "sun" }, upcoming: { label: "即将到来", icon: "calendar-days" }, all: { label: "全部", icon: "list" }, done: { label: "已完成", icon: "check-circle" } };
+
+/* ---------- 视图列 ---------- */
+function renderNav() {
+  const roots = T.liveItems().filter(i => !i.p);
+  const c = T.counts();
+  const upcoming = roots.filter(i => ["tomorrow", "week"].includes(T.bucketOf(i)) && !(i.type !== "recurring" && i.done)).length;
+  const n = { today: c.today + c.overdue, upcoming, all: c.open, done: T.liveItems().filter(i => i.done && i.type !== "recurring").length };
+  T.setNavBadge(c.today + c.overdue);
+  const vitem = k => `<button class="vn-item${state.view === k ? " active" : ""}" data-view="${k}">${icon(VIEWS[k].icon)}${VIEWS[k].label}${k === "today" && c.overdue ? `<span class="od num">${c.overdue}</span>` : ""}<span class="n">${n[k] || ""}</span></button>`;
+  const gitem = g => {
+    const gr = roots.filter(i => i.g === g.id);
+    const open = gr.filter(i => !i.done).length;
+    const od = gr.filter(T.isOverdue).length;
+    return `<button class="vn-item${state.view === "g" + g.id ? " active" : ""}${g.archived ? " archived" : ""}" data-view="g${g.id}">${g.archived ? "" : icon("grip", "grip")}<span class="pdot" style="--c:var(--pc-${g.color})"></span>${g.title}${od ? `<span class="od num">${od}</span>` : ""}<span class="n">${g.archived ? "" : open}</span></button>`;
+  };
+  const arch = T.groups.filter(g => g.archived);
+  document.getElementById("vnav").innerHTML = `
+    <div class="vn-label">视图</div>${["today", "upcoming", "all", "done"].map(vitem).join("")}
+    <div class="vn-label">项目<span class="spacer"></span><button class="icon-btn sm" id="new-group" title="新建项目">${icon("plus")}</button></div>
+    ${T.activeGroups().map(gitem).join("")}
+    <div class="vn-label" style="cursor:pointer" id="arch-toggle"><span>已归档 ${arch.length}</span><span class="spacer"></span>${icon("chev-down", "chev" + (state.archOpen ? " open" : ""))}</div>
+    <div class="collapse-wrap${state.archOpen ? " open" : ""}"><div class="collapse-inner">${arch.map(gitem).join("")}</div></div>`;
+}
+document.getElementById("vnav").addEventListener("click", e => {
+  const v = e.target.closest("[data-view]");
+  if (v) { state.view = v.dataset.view; state.status = "open"; syncSeg(); const first = visibleRows()[0]; state.sel = first ? first.id : null; renderAll(); return; }
+  if (e.target.closest("#arch-toggle")) { state.archOpen = !state.archOpen; renderNav(); return; }
+  const ng = e.target.closest("#new-group");
+  if (ng) T.openMenu(ng, [{ header: "新建项目（名称 + 颜色，Dialog 承载）" }, ...["blue", "green", "orange", "purple", "teal", "yellow", "rose", "gray"].map(c => ({ label: "选择颜色 · " + c, dot: c }))], null);
+});
+document.getElementById("vnav").addEventListener("contextmenu", e => {
+  const v = e.target.closest("[data-view^='g']"); if (!v) return; e.preventDefault();
+  const g = T.groups.find(x => "g" + x.id === v.dataset.view);
+  T.openMenu({ x: e.clientX, y: e.clientY }, g.archived
+    ? [{ label: "取消归档", icon: "undo" }, "-", { label: "永久删除项目…", icon: "trash", danger: true }]
+    : [{ label: "编辑项目", icon: "edit" }, { label: "置顶", icon: "pin" }, "-", { label: "归档项目", icon: "archive" }, { label: "删除项目…", icon: "trash", danger: true }], en => {
+      if (en.label === "归档项目") { g.archived = true; if (state.view === "g" + g.id) state.view = "today"; renderAll(); T.toast(`已归档「${g.title}」`, () => { g.archived = false; renderAll(); }); }
+      if (en.label === "取消归档") { g.archived = false; renderAll(); T.toast(`已恢复「${g.title}」`); }
+    });
+});
+
+/* ---------- 列表数据 ---------- */
+function typeOk(i) { return state.type === "all" || i.type === state.type; }
+function statusOk(i) {
+  if (state.status === "all") return true;
+  const done = i.type === "recurring" ? i.done && T.scheduledToday(i) : i.done;
+  return state.status === "done" ? done : !done;
+}
+function sections() {
+  const roots = T.liveItems().filter(i => !i.p && typeOk(i));
+  const v = state.view;
+  const bySort = (a, b) => T.sortKey(a) - T.sortKey(b);
+  if (v === "today") {
+    const inToday = roots.filter(i => ["overdue", "today"].includes(T.bucketOf(i)));
+    const open = inToday.filter(i => !i.done), done = inToday.filter(i => i.done);
+    const secs = [];
+    if (state.status !== "done") {
+      secs.push({ key: "overdue", label: "已逾期", danger: true, items: open.filter(i => T.bucketOf(i) === "overdue").sort(bySort) });
+      secs.push({ key: "today", label: "今天", meta: T.BUCKETS[1].sub(), items: open.filter(i => T.bucketOf(i) === "today" && i.type !== "recurring").sort(bySort) });
+      secs.push({ key: "habit", label: "今日打卡", meta: `${done.filter(i => i.type === "recurring").length}/${inToday.filter(i => i.type === "recurring").length} 已打卡`, items: open.filter(i => i.type === "recurring").sort(bySort) });
+    }
+    if (state.status !== "open") secs.push({ key: "done", label: "今日已完成", items: done, fold: state.status === "all" });
+    return secs;
+  }
+  if (v === "upcoming") {
+    const secs = [];
+    for (let d = 1; d <= 7; d++) {
+      const t = T.TODAY.getTime() + d * T.DAY;
+      const its = roots.filter(i => statusOk(i) && (
+        i.type === "deadline" && T.dayDiff(i.due) === d ||
+        i.type === "planned" && T.dayDiff(i.start) === d ||
+        i.type === "recurring" && T.isScheduledOn(i.rec, t))).sort((a, b) => (a.type === "recurring") - (b.type === "recurring") || T.sortKey(a) - T.sortKey(b));
+      secs.push({ key: "d" + d, label: T.dayWord(t), meta: T.md(t) + (d > 2 ? "" : " · " + T.WEEK_CN[new Date(t).getDay()]), items: its, keepEmpty: d <= 2, occ: t });
+    }
+    return secs;
+  }
+  if (v === "all") {
+    return T.activeGroups().map(g => ({ key: "g" + g.id, label: g.title, dot: g.color, items: roots.filter(i => i.g === g.id && statusOk(i)).sort((a, b) => a.order - b.order) }));
+  }
+  if (v === "done") {
+    const done = T.liveItems().filter(i => !i.p && i.done && i.type !== "recurring" && typeOk(i)).sort((a, b) => b.doneAt - a.doneAt);
+    const byDay = {};
+    done.forEach(i => { const k = T.dayWord(i.doneAt); (byDay[k] = byDay[k] || []).push(i); });
+    return Object.entries(byDay).map(([k, its]) => ({ key: k, label: k, meta: `${its.length} 项`, items: its, flatDone: true }));
+  }
+  // 项目视图：手动序树 + 已完成折叠
+  const gid = +v.slice(1);
+  const its = roots.filter(i => i.g === gid).sort((a, b) => a.order - b.order);
+  const open = its.filter(i => !(i.type !== "recurring" && i.done)), done = its.filter(i => i.type !== "recurring" && i.done);
+  const secs = [];
+  if (state.status !== "done") secs.push({ key: "open", items: open, manual: true });
+  if (state.status !== "open") secs.push({ key: "done", label: "已完成", items: done, fold: state.status === "all" });
+  return secs;
+}
+function visibleRows() {
+  const out = [];
+  sections().forEach(s => {
+    if (s.fold && !state.doneOpen) return;
+    s.items.forEach(i => {
+      out.push(i);
+      if (state.view.startsWith("g") || state.view === "all") if (!state.collapsed.has(i.id)) T.children(i).forEach(c => out.push(c));
+    });
+  });
+  return out;
+}
+
+/* ---------- 列表渲染 ---------- */
+function rowHTML(it, { depth = 0, showGroup = false, manual = false } = {}) {
+  const info = T.dueInfo(it), sp = T.subProgress(it), g = T.groupOf(it);
+  const kids = T.children(it).length;
+  const showTree = state.view.startsWith("g") || state.view === "all";
+  const recur = it.type === "recurring";
+  const doneLook = recur ? false : it.done;
+  const metas = [];
+  if (it.notes.length) metas.push(`<span class="quiet" title="${it.notes.length} 条关联笔记">${icon("link")}</span>`);
+  if (it.remind != null && !it.done) metas.push(`<span class="quiet" title="${T.remindText(it.remind)}">${icon("bell")}</span>`);
+  if (info) {
+    let text = info.text;
+    if (recur && info.today) text = (it.done ? "已打卡 · " : "") + it.rec.time + (it.streak ? ` · 连续 ${it.streak}` : "");
+    if (recur && !info.today && state.view !== "upcoming") text = T.recText(it.rec);
+    if (recur && state.view === "upcoming") text = it.rec.time;
+    metas.push(`<span class="meta-chip ${it.done && recur ? "ok" : info.cls}">${icon(info.icon, "type-ico " + it.type)}${text}</span>`);
+  }
+  if (showGroup) metas.push(`<span class="proj-chip"><span class="pdot" style="--c:var(--pc-${g.color})"></span>${g.title}</span>`);
+  return `<div class="row${state.sel === it.id ? " sel" : ""}${depth ? " child" : ""}${doneLook ? " is-done" : ""}" data-id="${it.id}" style="margin-left:${depth * 26}px">
+    ${manual && !depth ? icon("grip", "grip") : ""}
+    ${showTree && !depth ? `<button class="twisty${kids ? "" : " none"}${state.collapsed.has(it.id) ? " closed" : ""}" data-act="twisty">${icon("chev-down")}</button>` : ""}
+    <button class="check${it.done ? " on" : ""}${recur ? " recurring" : ""}${T.isOverdue(it) ? " danger" : ""}" data-act="check" title="${recur ? "今日打卡" : "完成"}">${icon("check")}</button>
+    <span class="title"><span class="t">${it.t}</span>${sp && !depth ? `<span class="sub-p num">${icon("sub")}${sp.done}/${sp.total}</span>` : ""}${info && info.running && !it.done ? '<span class="running-tag">进行中</span>' : ""}</span>
+    <span class="metas">${metas.join("")}</span></div>`;
+}
+function renderList() {
+  const v = state.view;
+  const g = v.startsWith("g") ? T.groups.find(x => x.id === +v.slice(1)) : null;
+  document.getElementById("view-title").innerHTML = g ? `<span class="pdot" style="--c:var(--pc-${g.color})"></span>${g.title}` : VIEWS[v].label;
+  shell.crumb.innerHTML = `待办 <span style="color:var(--ink-3)">/</span> <b>${g ? g.title : VIEWS[v].label}</b>`;
+  const secs = sections();
+  const openCount = secs.filter(s => !s.fold && s.key !== "done").reduce((n, s) => n + s.items.filter(i => !i.done).length, 0);
+  const od = secs.find(s => s.key === "overdue");
+  document.getElementById("view-sum").innerHTML = v === "done" ? `<b class="num">${secs.reduce((n, s) => n + s.items.length, 0)}</b> 项已完成`
+    : `<b class="num">${openCount}</b> 项待办${od && od.items.length ? ` · <span class="danger num">${od.items.length} 项逾期</span>` : ""}`;
+  const showGroup = !v.startsWith("g");
+  const showTree = v.startsWith("g") || v === "all";
+  let html = "";
+  secs.forEach(s => {
+    if (!s.items.length && !s.keepEmpty && !s.fold) return;
+    if (s.fold) {
+      if (!s.items.length) return;
+      html += `<div class="sec"><div class="sec-head toggle${state.doneOpen ? " open" : ""}" data-act="fold">${icon("chev-down", "chev")}${s.label}<span class="meta num">${s.items.length}</span></div>
+        <div class="collapse-wrap${state.doneOpen ? " open" : ""}"><div class="collapse-inner">${s.items.map(i => rowHTML(i, { showGroup })).join("")}</div></div></div>`;
+      return;
+    }
+    html += `<div class="sec">${s.label ? `<div class="sec-head${s.danger ? " danger" : ""}">${s.dot ? `<span class="pdot" style="--c:var(--pc-${s.dot})"></span>` : ""}${s.label}${s.meta ? `<span class="meta">${s.meta}</span>` : ""}${!s.meta ? `<span class="meta num">${s.items.length}</span>` : ""}</div>` : ""}`;
+    if (!s.items.length) html += `<div class="row" style="color:var(--ink-3);font-size:12.5px;pointer-events:none">无安排</div>`;
+    s.items.forEach(i => {
+      html += rowHTML(i, { showGroup: showGroup && v !== "all", manual: s.manual });
+      if (showTree && !state.collapsed.has(i.id)) T.children(i).forEach(c => html += rowHTML(c, { depth: 1 }));
+    });
+    html += "</div>";
+  });
+  if (!html) html = `<div class="empty-view">${icon(v === "done" ? "check-circle" : "sun")}<b>${state.status === "done" ? "还没有完成的任务" : "这里很清爽"}</b><span>${v === "today" ? "今天没有到期或计划中的任务" : "用上方输入框添加一条任务"}</span></div>`;
+  document.getElementById("list").innerHTML = html;
+  renderQA();
+}
+
+/* ---------- 快速添加（按视图预填） ---------- */
+function renderQA() {
+  const v = state.view;
+  if (v.startsWith("g")) state.qaGroup = +v.slice(1);
+  if (state.qaTypeAuto !== false) state.qaType = v === "today" || v === "upcoming" ? "deadline" : "normal";
+  const g = T.groups.find(x => x.id === state.qaGroup);
+  const tp = T.TYPES[state.qaType];
+  const dateLabel = state.qaType === "deadline" ? (v === "upcoming" ? "明天" : "今天") : state.qaType === "planned" ? "明天 09:00" : state.qaType === "recurring" ? "每天" : "";
+  document.getElementById("qa-chips").innerHTML = `
+    <button class="qa-chip" data-qa="type">${tp.icon ? icon(tp.icon) : icon("list")}${tp.label}</button>
+    ${dateLabel ? `<button class="qa-chip" data-qa="date">${icon("calendar")}${dateLabel}</button>` : ""}
+    <button class="qa-chip" data-qa="group"><span class="pdot" style="--c:var(--pc-${g.color})"></span>${g.title}</button>`;
+  document.getElementById("qa-input").placeholder = `添加任务到「${v.startsWith("g") ? g.title : VIEWS[v].label}」，回车创建`;
+}
+document.getElementById("qa-chips").addEventListener("click", e => {
+  const b = e.target.closest("[data-qa]"); if (!b) return; e.preventDefault();
+  if (b.dataset.qa === "type") T.openMenu(b, Object.entries(T.TYPES).map(([k, v]) => ({ label: v.label + "任务", icon: v.icon || "list", checked: state.qaType === k, k: { normal: "⌥1", deadline: "⌥2", planned: "⌥3", recurring: "⌥4" }[k], t: k })), en => { state.qaType = en.t; state.qaTypeAuto = false; renderQA(); document.getElementById("qa-input").focus(); });
+  if (b.dataset.qa === "group") T.openMenu(b, T.activeGroups().map(g => ({ label: g.title, dot: g.color, checked: g.id === state.qaGroup, g })), en => { state.qaGroup = en.g.id; renderQA(); });
+  if (b.dataset.qa === "date") T.openMenu(b, [{ label: "今天", icon: "sun" }, { label: "明天", icon: "sunrise" }, { label: "本周六", icon: "calendar" }, "-", { label: "选择日期与时间…", icon: "calendar-days" }], null);
+});
+document.getElementById("qa-input").addEventListener("keydown", e => {
+  const inp = e.currentTarget;
+  if (e.key === "Escape") { inp.blur(); return; }
+  if (e.key !== "Enter" || e.isComposing || !inp.value.trim()) return;
+  const it = { id: Date.now(), g: state.qaGroup, p: null, t: inp.value.trim(), type: state.qaType, done: false, order: -1, notes: [], created: Date.now() };
+  if (it.type === "deadline") it.due = state.view === "upcoming" ? T.at("09-25", "23:59") : T.at("09-24", "23:59");
+  if (it.type === "planned") { it.start = T.at("09-25", "09:00"); it.due = T.at("09-25", "11:00"); }
+  if (it.type === "recurring") { it.rec = { type: "daily", time: "09:00", start: T.TODAY.getTime() }; it.streak = 0; }
+  T.items.unshift(it);
+  inp.value = ""; state.sel = it.id; renderAll();
+  T.toast(`已添加到「${T.groupOf(it).title}」`);
+});
+
+/* ---------- 详情 ---------- */
+function renderDetail() {
+  const el = document.getElementById("detail");
+  const it = state.sel && T.byId(state.sel);
+  if (!it) {
+    el.innerHTML = `<div class="detail-empty">${icon("panel-right")}<div>选择一个任务查看详情</div>
+      <div class="keys"><kbd>↑ ↓</kbd><span>切换任务</span><kbd>Space</kbd><span>完成 / 打卡</span><kbd>Enter</kbd><span>编辑标题</span><kbd>Tab</kbd><span>缩进为子任务</span><kbd>⌫</kbd><span>删除（可撤销）</span></div></div>`;
+    return;
+  }
+  const g = T.groupOf(it), parent = it.p && T.byId(it.p);
+  const scroll = el.querySelector(".detail-body")?.scrollTop || 0;
+  el.innerHTML = `
+    <div class="detail-head">
+      <button class="check${it.done ? " on" : ""}${it.type === "recurring" ? " recurring" : ""}" data-act="d-check">${icon("check")}</button>
+      <div class="dt" contenteditable="true" spellcheck="false">${it.t}</div>
+      <button class="icon-btn" data-act="d-more" title="更多">${icon("more")}</button>
+      <button class="icon-btn" data-act="d-close" title="关闭面板 (Esc)">${icon("x")}</button>
+    </div>
+    <div class="detail-crumb"><span class="pdot" style="--c:var(--pc-${g.color})"></span><a data-act="d-goto">${g.title}</a>${parent ? `<span>/</span><a data-sel="${parent.id}">${parent.t}</a>` : ""}</div>
+    <div class="detail-body scroller fade-y">${T.detailBodyHTML(it, "stack")}</div>`;
+  el.querySelector(".detail-body").scrollTop = scroll;
+  const body = el.querySelector(".detail-body");
+  T.bindDetail(body, it, (why, focusAdd) => { renderAll(); if (focusAdd) document.querySelector('#detail [data-act="sub-add"]').focus(); });
+  el.querySelector(".dt").addEventListener("input", e => { it.t = e.target.textContent; renderList(); });
+  el.querySelector(".dt").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } });
+}
+document.getElementById("detail").addEventListener("click", e => {
+  const b = e.target.closest("[data-act], [data-sel]"); if (!b) return;
+  const it = T.byId(state.sel);
+  if (b.dataset.sel) { state.sel = +b.dataset.sel; renderAll(); return; }
+  if (b.dataset.act === "d-check") complete(it);
+  if (b.dataset.act === "d-close") { document.getElementById("pa").classList.add("no-detail"); }
+  if (b.dataset.act === "d-goto") { state.view = "g" + it.g; renderAll(); }
+  if (b.dataset.act === "d-more") T.openMenu(b, rowMenu(it), en => en.run && en.run(), { alignRight: true });
+});
+document.getElementById("toggle-detail").onclick = () => document.getElementById("pa").classList.toggle("no-detail");
+
+/* ---------- 行交互 ---------- */
+function complete(it) {
+  const wasDone = it.done;
+  if (!T.toggleDone(it)) return;
+  const row = document.querySelector(`.row[data-id="${it.id}"] .check`);
+  if (row) { row.classList.add("on", "pop"); if (!wasDone && it.type !== "recurring") row.closest(".row").classList.add("done-anim"); }
+  if (!wasDone) T.toast(it.type === "recurring" ? `已打卡「${it.t}」· 连续 ${it.streak}` : `已完成「${it.t}」`, () => { T.toggleDone(it); renderAll(); });
+  setTimeout(renderAll, wasDone ? 0 : 520);
+}
+function rowMenu(it) {
+  const del = () => {
+    const snapshot = T.items.slice();
+    const ids = new Set([it.id, ...T.children(it).map(c => c.id)]);
+    for (let i = T.items.length - 1; i >= 0; i--) if (ids.has(T.items[i].id)) T.items.splice(i, 1);
+    state.sel = null; renderAll();
+    T.toast(`已删除「${it.t}」${ids.size > 1 ? `及 ${ids.size - 1} 个子任务` : ""}`, () => { T.items.splice(0, T.items.length, ...snapshot); state.sel = it.id; renderAll(); });
+  };
+  return [
+    { label: it.type === "recurring" ? "今日打卡" : it.done ? "标记未完成" : "完成", icon: "check", k: "Space", run: () => complete(it) },
+    { label: "添加子任务", icon: "sub", k: "⇧⏎", run: () => { state.sel = it.id; renderAll(); setTimeout(() => document.querySelector('#detail [data-act="sub-add"]')?.focus(), 0); } },
+    "-",
+    { header: "移动到" }, ...T.activeGroups().filter(g => g.id !== it.g).map(g => ({ label: g.title, dot: g.color, run: () => { it.g = g.id; T.children(it).forEach(c => c.g = g.id); renderAll(); T.toast(`已移动到「${g.title}」`); } })),
+    "-",
+    { label: "归档任务", icon: "archive", run: () => T.toast("已归档（legacy archiveItem 能力接线）") },
+    { label: "删除", icon: "trash", danger: true, k: "⌫", run: del },
+  ];
+}
+const list = document.getElementById("list");
+list.addEventListener("click", e => {
+  const row = e.target.closest(".row[data-id]");
+  if (e.target.closest("[data-act='fold']")) { state.doneOpen = !state.doneOpen; renderList(); return; }
+  if (!row) return;
+  const it = T.byId(+row.dataset.id);
+  const act = e.target.closest("[data-act]")?.dataset.act;
+  if (act === "check") { complete(it); return; }
+  if (act === "twisty") { state.collapsed.has(it.id) ? state.collapsed.delete(it.id) : state.collapsed.add(it.id); renderList(); return; }
+  state.sel = it.id; document.getElementById("pa").classList.remove("no-detail"); renderList(); renderDetail();
+  list.focus({ preventScroll: true });
+});
+list.addEventListener("dblclick", e => { if (e.target.closest(".row[data-id]")) document.querySelector("#detail .dt")?.focus(); });
+list.addEventListener("contextmenu", e => {
+  const row = e.target.closest(".row[data-id]"); if (!row) return; e.preventDefault();
+  const it = T.byId(+row.dataset.id); state.sel = it.id; renderList(); renderDetail();
+  T.openMenu({ x: e.clientX, y: e.clientY }, rowMenu(it), en => en.run && en.run());
+});
+list.addEventListener("keydown", e => {
+  if (T.menuOpen()) return;
+  const rows = visibleRows(); const idx = rows.findIndex(r => r.id === state.sel);
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    const n = rows[Math.min(rows.length - 1, Math.max(0, idx + (e.key === "ArrowDown" ? 1 : -1)))];
+    if (n) { state.sel = n.id; renderList(); renderDetail(); document.querySelector(`.row[data-id="${n.id}"]`)?.scrollIntoView({ block: "nearest" }); }
+  }
+  const it = T.byId(state.sel); if (!it) return;
+  if (e.key === " ") { e.preventDefault(); complete(it); }
+  if (e.key === "Enter") { e.preventDefault(); document.querySelector("#detail .dt")?.focus(); }
+  if (e.key === "Tab") { e.preventDefault(); T.toast(e.shiftKey ? "已提升为上级任务" : "已缩进为上一任务的子任务"); }
+  if (e.key === "Backspace" || e.key === "Delete") { e.preventDefault(); rowMenu(it).find(m => m.label === "删除").run(); }
+  if (e.key === "Escape") { state.sel = null; renderList(); renderDetail(); }
+});
+document.addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n") { e.preventDefault(); document.getElementById("qa-input").focus(); }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "i") { e.preventDefault(); document.getElementById("pa").classList.toggle("no-detail"); }
+});
+
+/* ---------- 工具栏筛选 ---------- */
+function syncSeg() { document.querySelectorAll("#status-seg button").forEach(b => b.classList.toggle("on", b.dataset.s === state.status)); }
+document.getElementById("status-seg").onclick = e => { const b = e.target.closest("button"); if (!b) return; state.status = b.dataset.s; state.doneOpen = state.status === "done"; syncSeg(); renderList(); };
+document.getElementById("type-filter").onclick = e => T.openMenu(e.currentTarget, [{ header: "任务类型（原 legacy 系统分组）" }, { label: "全部类型", t: "all", checked: state.type === "all", icon: "list" },
+  ...Object.entries(T.TYPES).map(([k, v]) => ({ label: v.label, t: k, icon: v.icon || "list", checked: state.type === k }))], en => { state.type = en.t; renderList(); }, { alignRight: true });
+
+/* ---------- 状态栏 ---------- */
+function renderStatus() {
+  const c = T.counts();
+  shell.status.innerHTML = `<span class="num">${c.open} 项待办</span><span class="dot"></span><span class="num" style="${c.overdue ? "color:var(--danger)" : ""}">${c.overdue} 项逾期</span><span class="dot"></span><span class="num">今日打卡 ${c.habitsDone}/${c.habitsToday}</span><span class="dot"></span><span class="num">今天已完成 ${c.doneToday}</span>
+    <span class="grow"></span><span class="hint"><kbd>↑↓</kbd>切换</span><span class="hint"><kbd>Space</kbd>完成</span><span class="hint"><kbd>Tab</kbd>缩进</span><span class="hint"><kbd>⌘N</kbd>新建</span>`;
+}
+function renderAll() { renderNav(); renderList(); renderDetail(); renderStatus(); }
+renderAll();
+</script>
+</body>
+</html>
