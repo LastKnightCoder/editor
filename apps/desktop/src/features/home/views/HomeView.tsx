@@ -137,7 +137,7 @@ export function HomeView() {
             <PanelTitle className="mb-2.5">
               待办
               <PanelNote>{data.todoRemainingCount} 项未完成</PanelNote>
-              <PanelAction onClick={() => navigator.push("schedule")} title="前往待办">
+              <PanelAction onClick={() => navigator.push("todos")} title="前往待办">
                 前往待办
                 <ChevronRight size={13} strokeWidth={1.75} />
               </PanelAction>
@@ -148,7 +148,7 @@ export function HomeView() {
                   key={todo.id}
                   type="button"
                   className="rounded-tau-sm ease-tau-out hover:bg-hover group flex w-full items-center gap-2.5 px-2 py-[5px] text-left transition-[background] duration-[160ms]"
-                  onClick={() => navigator.push("schedule")}
+                  onClick={() => navigator.push("todos")}
                 >
                   <span
                     className={clsx(

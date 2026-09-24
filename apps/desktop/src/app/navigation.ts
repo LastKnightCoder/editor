@@ -58,7 +58,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: "home", label: "今日", icon: Flame },
       { key: "schedule", label: "日程", icon: Calendar }, // legacy: Calendar + TimeRecordView
-      { key: "todos", label: "待办", icon: ListTodo }, // legacy: Todo（蓝图 §5.3 未裁决归属，M1 映射时定是否并入 schedule）
+      { key: "todos", label: "待办", icon: ListTodo }, // features/todos（独立页，不并入 schedule，D-034）
       { key: "pomodoro", label: "番茄专注", icon: Timer }, // legacy: Pomodoro（域归 schedule，独立小窗口保留，蓝图 §5.3）
       { key: "collaboration", label: "协作", icon: Users }, // legacy: CollaborationView（实时协作会话）
     ],
