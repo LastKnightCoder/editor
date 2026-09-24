@@ -23,7 +23,7 @@ import { useState } from "react";
 import clsx from "clsx";
 import { Monitor, Moon, Sun } from "lucide-react";
 import logo from "@/assets/logo.png";
-import { useEdgeFade, ToastHost } from "@tau/ui";
+import { useEdgeFade, NotificationHost, ToastHost } from "@tau/ui";
 import { useThemeStore, type ThemeMode } from "@tau/ui/theme/runtime";
 import { PAGE_COL, Segmented } from "./kit";
 import { SECTIONS, SECTION_GROUPS, type SectionKey } from "./sections/registry";
@@ -152,6 +152,7 @@ export function ShowcaseApp() {
         <footer className="h-[var(--tau-statusbar-h)] shrink-0" />
       </div>
 
+      <NotificationHost />
       <ToastHost />
     </div>
   );

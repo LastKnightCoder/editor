@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>通知 · 卡片样式三款（方案 A 卡栈）</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-surface-hover: #f6f3ef; --bg-track: #e0d6c3;
+    --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09); --bg-selected: rgba(217, 119, 87, 0.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.7);
+    --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%); --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --focus-ring: 0 0 0 3px rgba(217, 119, 87, 0.28);
+    --ok: #61795f; --ok-soft: #e5ede2; --danger: #b0564d; --danger-soft: #f6e3e0;
+    --t2: #5c7d99; --t2s: #e2ebf3;
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --shadow-lift: 0 1px 2px rgba(120, 100, 70, 0.06), 0 6px 16px -10px rgba(120, 100, 70, 0.22);
+    --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+    /* 通知专用：比 float 更贴纸——近处一层轻影 + 远处一层柔影，不描边 */
+    --shadow-note: 0 0 0 1px rgba(120, 100, 70, 0.06), 0 2px 4px -1px rgba(120, 100, 70, 0.08), 0 14px 32px -12px rgba(120, 100, 70, 0.32);
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  .dark {
+    --bg-page: #221d16; --bg-surface: #2e2820; --bg-surface-hover: #39332b; --bg-track: #463d31;
+    --bg-hover: rgba(236, 226, 208, 0.06); --bg-press: rgba(236, 226, 208, 0.11); --bg-selected: hsla(22, 62%, 65%, 0.2);
+    --ink-1: #ece2d0; --ink-2: #a89a85; --ink-3: #857768; --ink-inverse: #241a10;
+    --line-1: #3a3227; --line-2: rgba(58, 50, 39, 0.7);
+    --accent: hsl(22 62% 65%); --accent-hover: hsl(22 62% 72%); --accent-soft: hsla(22, 62%, 65%, 0.16); --accent-text: hsl(22 66% 70%);
+    --focus-ring: 0 0 0 3px hsla(22, 62%, 65%, 0.4);
+    --ok: #8cab87; --ok-soft: #243023; --danger: #d97e66; --danger-soft: #34201a;
+    --t2: #83aecf; --t2s: #1e2a35;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+    --shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+    --shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+    --shadow-note: 0 0 0 1px rgba(236, 226, 208, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.3), 0 16px 36px -12px rgba(0, 0, 0, 0.7);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #e8e1d1; color: #43392c;
+    font: 14px/1.6 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 36px 3vw 80px;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  svg.i { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ---------- 说明区 ---------- */
+  .intro { max-width: 1180px; }
+  .intro h1 { font-size: 22px; font-weight: 600; }
+  .intro .lead { color: #6a5c49; margin-top: 6px; font-size: 13.5px; max-width: 100ch; }
+  .intro b { color: #43392c; font-weight: 600; }
+  .note-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+  .note { background: #fffdf9; border-radius: 14px; box-shadow: 0 1px 2px rgba(120,100,70,.05), 0 10px 24px -14px rgba(120,100,70,.18); padding: 14px 16px; font-size: 12.5px; color: #6a5c49; }
+  .note h4 { font-size: 13.5px; font-weight: 600; color: #43392c; margin-bottom: 6px; display: flex; gap: 8px; align-items: center; }
+  .note .rec { font-size: 11px; font-weight: 500; color: #a05236; background: hsla(22,58%,42%,.12); border-radius: 99px; padding: 0 8px; }
+  .note ul { margin: 6px 0 0 16px; } .note li { margin-top: 2px; }
+
+  .switch { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 26px 0 10px; font-size: 12.5px; color: #6a5c49; }
+  .switch + .switch { margin-top: 0; }
+  .switch .lab { margin-right: 2px; min-width: 30px; }
+  .switch .sep { width: 14px; }
+  .switch button { padding: 4px 12px; border-radius: 99px; background: rgba(255,253,249,.6); }
+  .switch button:hover { background: rgba(255,253,249,.95); }
+  .switch button.on { background: #43392c; color: #fff8ef; }
+
+  /* ---------- 窗口骨架 ---------- */
+  .win { height: 640px; border-radius: 14px; overflow: hidden; background: var(--bg-page); color: var(--ink-1); position: relative;
+    box-shadow: 0 2px 6px rgba(67,57,44,.08), 0 20px 50px rgba(67,57,44,.12); display: flex; font-size: 13px; margin-top: 12px; }
+  .appnav { width: 184px; flex: none; padding: 12px 10px; color: var(--ink-2); font-size: 12.5px; }
+  .appnav .dots { display: flex; gap: 7px; padding: 4px 6px 14px; } .appnav .dots i { width: 11px; height: 11px; border-radius: 50%; background: var(--bg-track); }
+  .appnav .grp { font-size: 11px; color: var(--ink-3); margin: 12px 8px 3px; }
+  .appnav .it { padding: 5px 8px; border-radius: 7px; position: relative; }
+  .appnav .it.on { background: var(--bg-selected); color: var(--ink-1); font-weight: 500; }
+  .right { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .titlebar { height: 42px; flex: none; display: flex; align-items: center; padding: 0 16px 0 12px; color: var(--ink-3); font-size: 12.5px; }
+  .titlebar b { color: var(--ink-1); font-weight: 500; }
+  .titlebar .search { margin-left: auto; height: 26px; width: 220px; border-radius: 8px; background: var(--bg-hover); display: flex; align-items: center; padding: 0 10px; font-size: 12px; }
+  .page { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; padding: 8px 20px 16px 8px; }
+  .panel { background: var(--bg-surface); border-radius: 16px; box-shadow: var(--shadow-card); padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .sk { height: 10px; border-radius: 99px; background: var(--bg-hover); } .sk.t { height: 13px; width: 38%; background: var(--bg-press); }
+
+  /* ---------- 标本区（上下排布：标签+说明在上，标本在下） ---------- */
+  .specs { margin-top: 30px; max-width: 1180px; }
+  .specs h3 { font-size: 14.5px; font-weight: 600; margin-bottom: 4px; }
+  .specs .sub { font-size: 12.5px; color: #6a5c49; margin-bottom: 14px; }
+  .mrow { margin-top: 18px; }
+  .mrow .ml { font-size: 13px; font-weight: 600; } .mrow .ml small { font-weight: 400; color: #6a5c49; margin-left: 8px; font-size: 12px; }
+  .tray { margin-top: 10px; padding: 22px 26px; border-radius: 16px; background: var(--bg-page); display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
+  .tray .nc { position: relative; }
+
+  /* ========== 通知卡：共用底 ========== */
+  .nc { --w: 356px; width: var(--w); position: relative; color: var(--ink-1); font-size: 12.5px; background: var(--bg-surface);
+    border-radius: 16px; box-shadow: var(--shadow-note); }
+  .nc .bd { color: var(--ink-2); line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .nc .tt { font-size: 13.5px; font-weight: 600; line-height: 1.4; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nc .meta { font: 11px var(--mono); color: var(--ink-3); white-space: nowrap; flex: none; }
+  /* 关闭：悬停时出现在左上角外沿的小圆钮（不占内容区，不和时间抢右上角） */
+  .nc .close { position: absolute; left: -7px; top: -7px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--bg-surface); color: var(--ink-2); box-shadow: 0 0 0 1px var(--line-1), var(--shadow-lift);
+    opacity: 0; transform: scale(.8); transition: opacity .16s, transform .16s var(--ease), color .16s; z-index: 2; }
+  .nc .close svg.i { width: 11px; height: 11px; stroke-width: 2.2; }
+  .nc .close:hover { color: var(--ink-1); }
+  .nc:hover .close, .nc:focus-within .close, .nc.hov .close { opacity: 1; transform: none; }
+
+  .b { height: 28px; padding: 0 12px; border-radius: 9px; font-size: 12.5px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; transition: background .16s, box-shadow .16s; }
+  .b.pri { background: var(--accent); color: var(--ink-inverse); } .b.pri:hover { background: var(--accent-hover); }
+  .b.sec { background: var(--bg-surface); box-shadow: 0 0 0 1px var(--line-1) inset; color: var(--ink-1); } .b.sec:hover { background: var(--bg-surface-hover); }
+  .b.gh { color: var(--ink-2); } .b.gh:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .b[aria-busy="true"] { pointer-events: none; }
+  .b:focus-visible, .close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+  .spin { animation: spin .8s linear infinite; } @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 身份位：34px 圆角方块。系统来源 = 透明叠层 + 中性墨；语义态 = soft 底 + 语义墨；人 = 派生色头像 */
+  .idn { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; flex: none; background: var(--bg-hover); color: var(--ink-2); }
+  .idn svg.i { width: 16px; height: 16px; }
+  .idn.ok { background: var(--ok-soft); color: var(--ok); } .idn.danger { background: var(--danger-soft); color: var(--danger); }
+  .idn.av { background: var(--t2s); color: var(--t2); font-size: 14px; font-weight: 600; border-radius: 50%; }
+
+  /* ===== V1 签条：身份位 + 文字列，动作跟在文字列下 ===== */
+  .v1 .nc { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; padding: 14px 16px 14px 14px; }
+  .v1 .top { display: flex; align-items: baseline; gap: 10px; min-height: 19px; }
+  .v1 .top .meta { margin-left: auto; }
+  .v1 .bd { margin-top: 1px; }
+  .v1 .acts { display: flex; gap: 6px; margin-top: 11px; }
+  .v1 .nc.res { align-items: center; }
+
+  /* ===== V2 静候：同 V1 骨架，动作悬停/聚焦才展开；待处理项挂 accent 点 ===== */
+  .v2 .nc { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; padding: 13px 16px 13px 13px; }
+  .v2 .top { display: flex; align-items: baseline; gap: 8px; min-height: 19px; }
+  .v2 .top .meta { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+  .v2 .pend { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); align-self: center; }
+  .v2 .fold { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .24s var(--ease), opacity .2s; opacity: 0; }
+  .v2 .fold > div { overflow: hidden; }
+  .v2 .nc:hover .fold, .v2 .nc:focus-within .fold, .v2 .nc.hov .fold, .v2 .nc.busy .fold { grid-template-rows: 1fr; opacity: 1; }
+  .v2 .acts { display: flex; gap: 6px; padding-top: 10px; }
+  .v2 .nc.res { align-items: center; }
+
+  /* ===== V3 纯文字：无身份位，来源作眉题，等宽动作条 ===== */
+  .v3 .nc { padding: 13px 16px 14px; }
+  .v3 .eyebrow { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-3); }
+  .v3 .eyebrow svg.i { width: 13px; height: 13px; }
+  .v3 .eyebrow.ok svg.i { color: var(--ok); } .v3 .eyebrow.danger svg.i { color: var(--danger); }
+  .v3 .eyebrow .meta { margin-left: auto; }
+  .v3 .tt { margin-top: 5px; white-space: normal; }
+  .v3 .bd { margin-top: 2px; }
+  .v3 .acts { display: flex; gap: 8px; margin-top: 13px; }
+  .v3 .acts .b { flex: 1; height: 30px; }
+  .v3 .res { display: flex; align-items: center; gap: 8px; }
+  .v3 .res svg.i { color: var(--ok); }
+
+  /* ===== V4 签条 + 大按钮：V1 的身份位与文字列，动作换成 V3 的等宽按钮条，横跨整卡 ===== */
+  .v4 .nc { display: grid; grid-template-columns: 34px minmax(0, 1fr); column-gap: 12px; padding: 14px 14px 14px 14px; }
+  .v4 .top { display: flex; align-items: baseline; gap: 10px; min-height: 19px; }
+  .v4 .top .meta { margin-left: auto; }
+  .v4 .bd { margin-top: 1px; }
+  .v4 .acts { grid-column: 1 / -1; display: flex; gap: 8px; margin-top: 13px; }
+  .v4 .acts .b { flex: 1; height: 30px; }
+  /* 等宽按钮条里每一格都要看得出是按钮：次要动作统一描边，轻重只靠「主实心 / 次描边」区分 */
+  .v4 .acts .b.gh { background: var(--bg-surface); box-shadow: 0 0 0 1px var(--line-1) inset; color: var(--ink-1); }
+  .v4 .acts .b.gh:hover { background: var(--bg-surface-hover); }
+  .v4 .nc.res { align-items: center; }
+
+  /* 结果行（V1/V2/V4 共用） */
+  .rtxt { font-weight: 500; color: var(--ink-1); }
+
+  /* ---------- 卡栈（方案 A 行为） ---------- */
+  .stack { position: absolute; top: 50px; right: 18px; width: 356px; bottom: 14px; pointer-events: none; z-index: 20; }
+  .stack .nc { position: absolute; left: 0; top: 0; pointer-events: auto; transform-origin: 50% 100%;
+    transition: transform .3s var(--ease), opacity .24s var(--ease), box-shadow .2s; }
+  .stack .nc.layer { cursor: pointer; }
+  .stack .nc.layer > * { opacity: 0; transition: opacity .12s; }
+  .stack .nc > * { transition: opacity .2s .06s; }
+  .stack .more { position: absolute; right: 2px; pointer-events: auto; display: flex; gap: 2px; font-size: 12px; color: var(--ink-2);
+    transition: top .3s var(--ease), opacity .2s; }
+  .stack .more button { padding: 2px 9px; border-radius: 99px; background: var(--bg-surface); box-shadow: var(--shadow-lift); }
+  .stack .more button:hover { color: var(--ink-1); }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>通知 · 卡片样式三款</h1>
+  <p class="lead">
+    承载方式按方案 A（右上角卡栈），这一页只比较<b>卡片本身长什么样</b>。三款共用这些做法：<b>去掉描边</b>，改用一层贴纸感的双层阴影；
+    来源和时间不再挤成一条灰字；<b>关闭钮悬停时出现在左上角外沿</b>，不和时间抢位置；进场改成从右侧滑入。卡栈里新卡在上，最多展开 3 张，其余露边叠在下面。
+  </p>
+  <div class="note-grid">
+    <div class="note">
+      <h4>V1 · 签条</h4>
+      左侧 34px 身份位，右侧文字列：标题和时间同一行，说明最多 2 行，动作跟在文字列下面、靠左排列。
+      <ul><li>来源靠身份位表达（人用头像，系统用中性图标，成败用 soft 色底）</li><li>动作常显，一眼能看出这张卡要你做什么</li></ul>
+    </div>
+    <div class="note">
+      <h4>V2 · 静候</h4>
+      骨架同 V1，但动作平时收起，<b>悬停或键盘聚焦时才展开</b>（macOS 的做法），卡栈更矮更安静；待处理的卡在时间旁挂一个 accent 点。
+      <ul><li>代价：不悬停就看不到按钮，需要作答的卡少了一点紧迫感</li></ul>
+    </div>
+    <div class="note">
+      <h4>V3 · 纯文字</h4>
+      没有身份位，来源作为小眉题，标题允许换行，动作是一条等宽按钮。和 Dialog B「纯文字头部」是同一种语言。
+      <ul><li>代价：卡片最高，多条堆叠时占地方；来源辨识度最弱</li></ul>
+    </div>
+    <div class="note">
+      <h4>V4 · 签条 + 大按钮 <span class="rec">新</span></h4>
+      上半部分同 V1：身份位加文字列，标题和时间同一行。动作换成 V3 的等宽按钮条（30px 高），<b>横跨整张卡片</b>，左边从身份位下方开始。
+      <ul><li>按钮的点击区域和分量最大，需要作答的卡一眼可辨</li><li>只有一个动作时，按钮占满整行</li></ul>
+    </div>
+  </div>
+</div>
+
+<div class="switch" id="swV"><span class="lab">样式</span></div>
+<div class="switch" id="swF"><span class="lab">触发</span></div>
+
+<div class="win v4" id="win">
+  <nav class="appnav"><div class="dots"><i></i><i></i><i></i></div><div class="grp">工作台</div><div class="it on">今日</div><div class="it">日程</div><div class="it">待办</div><div class="it">协作</div><div class="grp">工具</div><div class="it">统计</div><div class="it">发布</div></nav>
+  <div class="right">
+    <div class="titlebar"><b>今日</b><div class="search">搜索或输入命令</div></div>
+    <div class="page"><div class="panel" id="skA"></div><div class="panel" id="skB"></div></div>
+  </div>
+  <div class="stack" id="stack" role="region" aria-label="通知"></div>
+</div>
+
+<div class="specs v1" id="specs">
+  <h3>状态标本</h3>
+  <div class="sub">切换上方「样式」时同步切换；「深色」只作用于窗口和标本托盘。</div>
+  <div id="specRows"></div>
+</div>
+
+<svg width="0" height="0" style="position:absolute"><defs>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-loader" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></symbol>
+</defs></svg>
+
+<script>
+const ic = (n, cls = "") => `<svg class="i ${cls}"><use href="#i-${n}"/></svg>`;
+const $ = s => document.querySelector(s);
+const win = $("#win"), stackEl = $("#stack");
+
+/* 场景：来自现有真实通知来源 */
+const KINDS = {
+  join: { src: "协作", avatar: "林", title: "林然申请加入协作", body: "「设计周刊 · 第 12 期」· 请求编辑权限", sticky: true,
+    actions: [["拒绝", "sec", "reject"], ["同意", "pri", "approve"]] },
+  update: { src: "应用更新", icon: "down", title: "发现新版本 v3.3.0", body: "Tau v3.3.0 已发布，建议更新到最新版本。", sticky: true,
+    actions: [["稍后", "gh", "dismiss"], ["前往更新", "pri", "dismiss"]] },
+  pubok: { src: "发布", icon: "check", tone: "ok", title: "站点已发布", body: "128 篇文章 · 用时 42 秒", sticky: false,
+    actions: [["查看站点", "sec", "dismiss"]] },
+  pubfail: { src: "发布", icon: "alert", tone: "danger", title: "发布失败", body: "3 篇文章的图片上传超时，其余内容未改动。", sticky: true,
+    actions: [["查看详情", "gh", "dismiss"], ["重试", "pri", "retry"]] },
+  pubfailLong: { src: "发布", icon: "alert", tone: "danger", title: "发布失败：图片上传超时，部分文章未能同步到站点",
+    body: "《Rust 所有权笔记》《置身事内读后》等 12 篇文章的图片上传超时（OSS 返回 504），其余内容未改动，可以稍后重试或查看完整日志。", sticky: true,
+    actions: [["查看详情", "gh", "dismiss"], ["重试", "pri", "retry"]] },
+  plain: { src: "发布", icon: "check", tone: "ok", title: "站点已发布", body: "128 篇文章 · 用时 42 秒", sticky: false, actions: [] },
+};
+
+let V = "v1", seq = 0;
+const list = [];
+const now = () => Date.now();
+const ago = t => { const m = Math.floor((now() - t) / 60000); return m < 1 ? "刚刚" : m < 60 ? `${m} 分钟前` : `${Math.floor(m / 60)} 小时前`; };
+
+function leadHtml(n, k) {
+  if (n.resolved) return `<span class="idn ok">${ic("check")}</span>`;
+  if (k.avatar) return `<span class="idn av">${k.avatar}</span>`;
+  return `<span class="idn ${k.tone || ""}">${ic(k.icon)}</span>`;
+}
+function actsHtml(n, k) {
+  return k.actions.map(([l, s, a]) => {
+    const busy = n.busy === a;
+    return `<button class="b ${s}" data-act="${a}" ${busy ? 'aria-busy="true"' : ""}>${busy ? ic("loader", "spin") : ""}${l}</button>`;
+  }).join("");
+}
+function inner(n, v = V) {
+  const k = KINDS[n.kind];
+  const close = `<button class="close" data-act="dismiss" aria-label="关闭">${ic("x")}</button>`;
+  const meta = `${k.src} · ${ago(n.at)}`;
+  if (v === "v3") {
+    if (n.resolved) return close + `<div class="res">${ic("check")}<span class="rtxt">${n.resolved}</span></div>`;
+    return close + `<div class="eyebrow ${k.tone || ""}">${ic(k.avatar ? "users" : k.icon)}<span>${k.src}</span><span class="meta">${ago(n.at)}</span></div>
+      <div class="tt">${k.title}</div><div class="bd">${k.body}</div>${k.actions.length ? `<div class="acts">${actsHtml(n, k)}</div>` : ""}`;
+  }
+  if (n.resolved) return close + leadHtml(n, k) + `<div class="top"><span class="rtxt">${n.resolved}</span></div>`;
+  const pend = v === "v2" && k.sticky ? '<i class="pend"></i>' : "";
+  const acts = k.actions.length ? (v === "v2" ? `<div class="fold"><div><div class="acts">${actsHtml(n, k)}</div></div></div>` : `<div class="acts">${actsHtml(n, k)}</div>`) : "";
+  // V4：按钮条是卡片的直接子项，横跨身份位与文字列
+  return close + leadHtml(n, k) + `<div class="main"><div class="top"><span class="tt">${k.title}</span><span class="meta">${pend}${meta}</span></div>
+    <div class="bd">${k.body}</div>${v === "v4" ? "" : acts}</div>${v === "v4" ? acts : ""}`;
+}
+function cardEl(n, extraCls = "") {
+  const el = document.createElement("div");
+  el.className = `nc ${n.resolved ? "res" : ""} ${n.busy ? "busy" : ""} ${extraCls}`;
+  el.setAttribute("role", "status"); el.setAttribute("aria-live", "polite");
+  el.innerHTML = inner(n);
+  return el;
+}
+
+/* ---------- 卡栈 ---------- */
+const els = new Map(); let expanded = false;
+function bind(el, n) {
+  el.querySelectorAll("[data-act]").forEach(b => b.onclick = e => { e.stopPropagation(); act(n, b.dataset.act); });
+  el.onclick = () => { if (el.classList.contains("layer")) { expanded = true; layout(); } };
+}
+function paint(n) {
+  const el = els.get(n.id); if (!el) return;
+  el.classList.toggle("res", !!n.resolved); el.classList.toggle("busy", !!n.busy);
+  el.innerHTML = inner(n); bind(el, n); requestAnimationFrame(layout);
+}
+function act(n, a) {
+  if (n.busy) return;
+  if (a === "dismiss") return remove(n);
+  if (a === "reject") return resolve(n, "已拒绝林然的加入申请");
+  if (a === "approve" || a === "retry") {
+    n.busy = a; paint(n);
+    setTimeout(() => {
+      n.busy = null;
+      if (a === "approve") resolve(n, "已同意林然加入协作");
+      else { n.kind = "pubok"; n.at = now(); paint(n); arm(n); }
+    }, 1000);
+  }
+}
+function resolve(n, text) { n.resolved = text; paint(n); setTimeout(() => remove(n), 1600); }
+function arm(n) {
+  const el = els.get(n.id); if (!el || KINDS[n.kind].sticky) return;
+  let remain = 8000, t0 = now(), t = setTimeout(() => remove(n), remain);
+  el.onmouseenter = () => { clearTimeout(t); remain -= now() - t0; };
+  el.onmouseleave = () => { t0 = now(); t = setTimeout(() => remove(n), Math.max(remain, 600)); };
+  el._stop = () => clearTimeout(t);
+}
+function push(kind, at = now()) {
+  const n = { id: ++seq, kind, at }; list.unshift(n);
+  const el = cardEl(n); bind(el, n); els.set(n.id, el);
+  el.style.opacity = 0; el.style.transform = "translate(28px, 0)";
+  stackEl.appendChild(el); arm(n);
+  requestAnimationFrame(() => requestAnimationFrame(layout));
+}
+function remove(n) {
+  const i = list.indexOf(n); if (i < 0) return; list.splice(i, 1);
+  const el = els.get(n.id); els.delete(n.id); el._stop?.();
+  el.style.pointerEvents = "none"; el.style.opacity = 0;
+  el.style.transform += " translateX(32px)";
+  setTimeout(() => el.remove(), 280); layout();
+}
+function layout() {
+  const MAX = 3, LAYERS = 2, GAP = 10, EDGE = 8;
+  let y = 0, lastTop = 0, lastH = 0; const shown = [];
+  list.forEach((n, i) => {
+    const el = els.get(n.id); if (!el) return;
+    const h = el.offsetHeight; el.classList.remove("layer"); el.style.pointerEvents = "auto";
+    if (expanded || i < MAX) {
+      el.style.transform = `translateY(${y}px)`; el.style.opacity = 1; el.style.zIndex = 100 - i;
+      lastTop = y; lastH = h; y += h + GAP;
+    } else {
+      const d = i - MAX + 1, hide = d > LAYERS;
+      el.classList.add("layer");
+      // 叠层与上一张底边对齐后下探 EDGE，按底边缩放，只露出一条纸边
+      el.style.transform = `translateY(${lastTop + lastH - h + d * EDGE}px) scale(${1 - d * 0.05})`;
+      el.style.opacity = hide ? 0 : 1 - d * 0.25; el.style.zIndex = 100 - i;
+      if (hide) el.style.pointerEvents = "none";
+    }
+  });
+  let more = stackEl.querySelector(".more"); const extra = list.length - MAX;
+  if (extra > 0 || (expanded && list.length > 1)) {
+    if (!more) { more = document.createElement("div"); more.className = "more"; stackEl.appendChild(more); }
+    more.style.top = (expanded ? y + 2 : lastTop + lastH + Math.min(extra, LAYERS) * EDGE + 12) + "px";
+    more.innerHTML = expanded ? `<button data-m="fold">收起</button><button data-m="clear">全部清除</button>`
+                              : `<button data-m="open">还有 ${extra} 条</button><button data-m="clear">全部清除</button>`;
+    more.querySelectorAll("button").forEach(b => b.onclick = () => {
+      if (b.dataset.m === "clear") [...list].forEach(remove); else { expanded = b.dataset.m === "open"; layout(); }
+    });
+  } else more?.remove();
+}
+stackEl.onmouseleave = () => { if (expanded) { expanded = false; layout(); } };
+function repaintAll() { list.forEach(paint); }
+
+/* ---------- 标本 ---------- */
+const SPECS = [
+  ["需作答", "常驻到有答案；主按钮在最右", [{ kind: "update", at: now() - 40 * 60000 }]],
+  ["来自他人", "身份位用派生色头像（人），系统来源用中性图标", [{ kind: "join", at: now() - 2 * 60000 }]],
+  ["语义态", "成功 / 失败只染身份位；纯告知 8 秒后消失", [{ kind: "pubok", at: now() }, { kind: "pubfail", at: now() }]],
+  ["作答中 → 结果行", "主按钮转圈并锁定；完成后收成一行结果，1.6 秒后退场", [{ kind: "join", at: now(), busy: "approve" }, { kind: "join", at: now(), resolved: "已同意林然加入协作" }]],
+  ["长文本 · 无动作", "标题单行省略（V3 换行），说明最多 2 行", [{ kind: "pubfailLong", at: now() }, { kind: "plain", at: now() }]],
+  ["悬停态", "关闭钮出现在左上角外沿；V2 在这里展开动作", [{ kind: "pubfail", at: now(), hov: true }]],
+];
+function renderSpecs() {
+  $("#specs").className = `specs ${V} ${win.classList.contains("dark") ? "dark" : ""}`;
+  $("#specRows").innerHTML = "";
+  SPECS.forEach(([label, desc, items]) => {
+    const row = document.createElement("div"); row.className = "mrow";
+    row.innerHTML = `<div class="ml">${label}<small>${desc}</small></div><div class="tray"></div>`;
+    items.forEach(it => row.querySelector(".tray").appendChild(cardEl({ id: 0, ...it }, it.hov ? "hov" : "")));
+    $("#specRows").appendChild(row);
+  });
+}
+
+/* ---------- 装配 ---------- */
+function setV(v) {
+  win.classList.remove(V); V = v; win.classList.add(V);
+  document.querySelectorAll("#swV button[data-v]").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  repaintAll(); renderSpecs();
+}
+const sk = n => `<div class="sk t"></div>` + Array.from({ length: n }, (_, i) => `<div class="sk" style="width:${78 - (i * 17) % 40}%"></div>`).join("");
+$("#skA").innerHTML = sk(12); $("#skB").innerHTML = sk(8);
+const sv = $("#swV");
+[["v1", "V1 · 签条"], ["v2", "V2 · 静候"], ["v3", "V3 · 纯文字"], ["v4", "V4 · 签条 + 大按钮"]].forEach(([v, l]) => {
+  const b = document.createElement("button"); b.dataset.v = v; b.textContent = l; b.onclick = () => setV(v); sv.appendChild(b);
+});
+sv.insertAdjacentHTML("beforeend", `<span class="sep"></span>`);
+const dk = document.createElement("button"); dk.textContent = "深色";
+dk.onclick = () => { win.classList.toggle("dark"); dk.classList.toggle("on"); renderSpecs(); }; sv.appendChild(dk);
+const sf = $("#swF");
+[["加入申请", () => push("join")], ["发现新版本", () => push("update")], ["发布完成", () => push("pubok")], ["发布失败", () => push("pubfail")],
+ ["连发 4 条", () => ["pubok", "join", "pubfail", "update"].forEach((k, i) => setTimeout(() => push(k), i * 380))],
+ ["重置", () => { [...list].forEach(remove); setTimeout(seed, 300); }]].forEach(([l, f]) => {
+  const b = document.createElement("button"); b.textContent = l; b.onclick = f; sf.appendChild(b);
+});
+function seed() { push("update", now() - 40 * 60000); push("join", now() - 2 * 60000); }
+setV("v4"); seed();
+</script>
+</body>
+</html>

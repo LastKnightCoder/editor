@@ -364,3 +364,11 @@
 - 主库升级以事务删除 resources、resource_group、resource_scan_version 三表六索引及 resource 操作记录；桌面与移动端同步落地，失败回滚并向调用方报告。该元数据删除不可逆，回退需要升级前数据库备份。
 - 实际文件、正文、历史聊天、资源同步黑名单、Vibe Learning 资源、协作缓存库 resources 和通用 resource 文件服务保持独立。协作本地化仍落盘，仅撤销主库登记回调；旧同步黑名单改从本地目录读取。
 - 兼容清理：Tab 持久化升级至 7、旧导航历史至 4、新搜索历史至 1；移除旧模块配置与资源视图缓存。退役接口不为旧客户端保留空实现，桌面、移动端及扩展应同步升级。
+
+## D-038 Notification 基础件：右上角卡栈 + 签条大按钮卡片
+
+- 背景：非当下操作引发的事件（协作加入申请、应用更新、后台发布完成/失败）此前散落在 antd `notification`（`useAutoUpdateCheck`）与自研卡片（`JoinRequestNotifications`）中。设计稿 `mockups/notification/`：承载三方案（`index.html`：A 通知卡栈 / B 弹出一次 + 通知中心 / C 标题栏岛）与卡片样式四款（`card-styles.html`：V1 签条 / V2 静候 / V3 纯文字 / V4 签条 + 大按钮）。
+- 选择：① **承载 = 方案 A**：右上角卡栈，新的在上，展开 3 张，更多的按底边缩放、露 8px 纸边叠 2 层；点击叠层展开，鼠标移出后收起。② **卡片 = V4**：34px 身份位（人用派生色头像，系统用中性图标，成败用 soft 底加语义墨）+ 文字列（标题与「来源 · 相对时间」同行，说明至多 2 行）+ 横跨整卡的等宽按钮条。③ **按钮条里的次要动作统一描边**：用户实机追问「稍后」这类 ghost 按钮无底是否合适；裁决是等分格里每一格都要看得出是按钮，轻重只靠「主按钮实心、次要按钮描边」区分。④ 卡片不描边，阴影由 ink-1 7% 的 ring、lift、float 三层组成，不新增 token。关闭钮在悬停或聚焦时出现在左上外沿。
+- 行为：sticky（需作答）常驻；纯告知 8s 自动关，悬停和作答中暂停计时。onClick 返回 promise 时由组件托管 loading 和整条锁定：兑现后收成 resolvedText 结果行，1.6s 后退场；拒绝则在说明位显示错误并解锁按钮。同 id 再次 notify 原位更新。role=status 不抢焦点，不接 Esc；z-[190] 放在 Toast（200）之下。与 Toast 分工：Toast 是操作回执，Notification 是事件与作答。
+- 排除：B 与 C 承载（本轮只做基础件，接入另议）；V2 悬停才出按钮（紧迫感弱）；V3 纯文字（卡片最高，来源辨识度弱）。
+- 影响：`packages/ui/src/primitives/Notification.tsx`（`notify` / `NotificationHost` / `NotificationCard`）、`__tests__/notification.test.tsx`（8 例）、样板间「Notification」档案（ShowcaseApp 根挂载 NotificationHost）。业务接入（替换 antd notification 与 JoinRequestNotifications）未做。

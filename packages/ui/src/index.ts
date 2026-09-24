@@ -6,6 +6,7 @@ export * from "./primitives/IconButton";
 export * from "./primitives/Loading";
 export * from "./primitives/Panel";
 export * from "./primitives/Toast";
+export * from "./primitives/Notification";
 export * from "./primitives/Tooltip";
 export * from "./primitives/Select";
 export * from "./primitives/Menu";
