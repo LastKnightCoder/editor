@@ -65,6 +65,15 @@ describe("Input（方案 A）", () => {
     expect(h.box().className).toContain("bg-surface");
   });
 
+  it("wrapperClassName 落外框（覆盖默认 w-full），className 落 input", () => {
+    const h = render(<Input wrapperClassName="w-[72px]" className="text-center" />);
+    cleanups.push(h.cleanup);
+    expect(h.box().className).toContain("w-[72px]");
+    expect(h.box().className).not.toContain("w-full");
+    expect(h.input().className).toContain("text-center");
+    expect(h.input().className).not.toContain("w-[72px]");
+  });
+
   it("lead 前缀 icon 渲染；size 两档高度", () => {
     const h = render(
       <>
