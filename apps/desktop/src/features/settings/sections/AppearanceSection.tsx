@@ -10,7 +10,7 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { Check, Minus, Plus } from "lucide-react";
+import { Minus, Plus } from "lucide-react";
 import clsx from "clsx";
 import { produce } from "immer";
 import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
@@ -21,7 +21,7 @@ import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import { getAllFonts } from "@/commands";
 import { SettingRow } from "../components/SettingRow";
 import { FontSelect } from "../components/FontSelect";
-import { SectionTitle } from "../components/SectionTitle";
+import { SettingsGroup } from "../components/SettingsGroup";
 
 const FONT_SIZE_MIN = 12;
 const FONT_SIZE_MAX = 24;
@@ -41,8 +41,8 @@ const SHADOW_OPTIONS: Array<{ value: ImageShadowPreset; label: string }> = [
 ];
 
 const THEME_NAMES: Record<string, string> = {
-  [DEFAULT_LIGHT_KEY]: "浅色 · Cream",
-  [DEFAULT_DARK_KEY]: "深色 · Cocoa",
+  [DEFAULT_LIGHT_KEY]: "暖纸 · 晨",
+  [DEFAULT_DARK_KEY]: "暖纸 · 夜",
 };
 
 export function AppearanceSection() {
@@ -52,6 +52,7 @@ export function AppearanceSection() {
 
   const mode = useThemeStore(s => s.mode);
   const setMode = useThemeStore(s => s.setMode);
+  const resolvedKey = useThemeStore(s => s.resolved);
 
   /* 系统字体清单：一次性查询（staleTime Infinity，不随窗口聚焦重拉） */
   const { data: fonts } = useQuery({
@@ -76,102 +77,110 @@ export function AppearanceSection() {
     rawShadow === true ? "md" : rawShadow === false || !rawShadow ? "none" : rawShadow;
 
   return (
-    <section>
-      <h3 className="text-tau-body-lg font-semibold">外观</h3>
-      <p className="text-tau-meta text-ink-3 mt-0.5">主题与编辑器呈现——更改即刻生效</p>
+    <>
+      <SettingsGroup title="主题" description="跟随系统时，按系统明暗在两套主题间切换">
+        <div className="grid grid-cols-3 gap-3 px-1.5 pb-1 pt-2.5">
+          <ThemeModeCard
+            active={mode === "system"}
+            onSelect={() => setMode("system")}
+            caption="跟随系统"
+            preview="system"
+          />
+          <ThemeModeCard
+            active={mode === DEFAULT_LIGHT_KEY}
+            onSelect={() => setMode(DEFAULT_LIGHT_KEY)}
+            caption={THEME_NAMES[DEFAULT_LIGHT_KEY]}
+            hint="浅色"
+            preview="light"
+          />
+          <ThemeModeCard
+            active={mode === DEFAULT_DARK_KEY}
+            onSelect={() => setMode(DEFAULT_DARK_KEY)}
+            caption={THEME_NAMES[DEFAULT_DARK_KEY]}
+            hint="深色"
+            preview="dark"
+          />
+        </div>
+        <div className="text-tau-meta text-ink-2 px-3 pb-2 pt-1.5">
+          当前生效：<span className="text-ink-1 font-medium">{THEME_NAMES[resolvedKey]}</span>
+          {mode === "system" && `（系统为${resolvedKey === DEFAULT_DARK_KEY ? "深色" : "浅色"}）`}
+        </div>
+      </SettingsGroup>
 
-      <SectionTitle title="界面 · 主题" />
-      <div className="flex gap-3 py-2 pb-1.5">
-        <ThemeModeCard
-          active={mode === "system"}
-          onSelect={() => setMode("system")}
-          caption="跟随系统"
-          preview="system"
-        />
-        <ThemeModeCard
-          active={mode === DEFAULT_LIGHT_KEY}
-          onSelect={() => setMode(DEFAULT_LIGHT_KEY)}
-          caption={THEME_NAMES[DEFAULT_LIGHT_KEY]}
-          preview="light"
-        />
-        <ThemeModeCard
-          active={mode === DEFAULT_DARK_KEY}
-          onSelect={() => setMode(DEFAULT_DARK_KEY)}
-          caption={THEME_NAMES[DEFAULT_DARK_KEY]}
-          preview="dark"
-        />
-      </div>
+      <SettingsGroup title="字体" description="界面与编辑器内容统一生效">
+        <SettingRow title="中文字体">
+          <FontSelect
+            kind="chinese"
+            aria-label="中文字体"
+            value={fontSetting.chineseFont}
+            fonts={fonts}
+            onChange={chineseFont => onFontSettingChange({ ...fontSetting, chineseFont })}
+          />
+        </SettingRow>
+        <SettingRow title="英文字体">
+          <FontSelect
+            kind="english"
+            aria-label="英文字体"
+            value={fontSetting.englishFont}
+            fonts={fonts}
+            onChange={englishFont => onFontSettingChange({ ...fontSetting, englishFont })}
+          />
+        </SettingRow>
+        <SettingRow title="代码字体" description="代码块与界面中的等宽文本">
+          <FontSelect
+            kind="code"
+            aria-label="代码字体"
+            value={fontSetting.codeFont}
+            fonts={fonts}
+            onChange={codeFont => onFontSettingChange({ ...fontSetting, codeFont })}
+          />
+        </SettingRow>
+        <SettingRow title="字号" description="编辑器正文 1:1 跟随，界面半速跟随">
+          <FontSizeStepper
+            value={fontSetting.fontSize}
+            onChange={fontSize => onFontSettingChange({ ...fontSetting, fontSize })}
+          />
+        </SettingRow>
+      </SettingsGroup>
 
-      <SectionTitle title="界面 · 字体" desc="应用默认字体与字号——界面与编辑器内容统一生效" />
-      <SettingRow title="中文字体">
-        <FontSelect
-          kind="chinese"
-          aria-label="中文字体"
-          value={fontSetting.chineseFont}
-          fonts={fonts}
-          onChange={chineseFont => onFontSettingChange({ ...fontSetting, chineseFont })}
-        />
-      </SettingRow>
-      <SettingRow title="英文字体">
-        <FontSelect
-          kind="english"
-          aria-label="英文字体"
-          value={fontSetting.englishFont}
-          fonts={fonts}
-          onChange={englishFont => onFontSettingChange({ ...fontSetting, englishFont })}
-        />
-      </SettingRow>
-      <SettingRow title="字号">
-        <FontSizeStepper
-          value={fontSetting.fontSize}
-          onChange={fontSize => onFontSettingChange({ ...fontSetting, fontSize })}
-        />
-      </SettingRow>
-      <SettingRow title="代码字体" description="代码块与界面等宽文本">
-        <FontSelect
-          kind="code"
-          aria-label="代码字体"
-          value={fontSetting.codeFont}
-          fonts={fonts}
-          onChange={codeFont => onFontSettingChange({ ...fontSetting, codeFont })}
-        />
-      </SettingRow>
-
-      <SectionTitle title="内容 · 图片" desc="单图与图库未单独指定时使用的默认外观" />
-      <SettingRow title="图片圆角">
-        <Select
-          aria-label="图片圆角"
-          className="w-[150px]"
-          value={appearance?.image?.borderRadius ?? "none"}
-          options={RADIUS_OPTIONS}
-          onValueChange={v => updateImage({ borderRadius: v as ImageBorderRadiusPreset })}
-        />
-      </SettingRow>
-      <SettingRow title="图片阴影">
-        <Select
-          aria-label="图片阴影"
-          className="w-[150px]"
-          value={imageShadow}
-          options={SHADOW_OPTIONS}
-          onValueChange={v => updateImage({ shadow: v as ImageShadowPreset })}
-        />
-      </SettingRow>
-    </section>
+      <SettingsGroup title="内容图片" description="单图与图库未单独指定时的默认外观">
+        <SettingRow title="圆角">
+          <Select
+            aria-label="图片圆角"
+            className="w-[150px]"
+            value={appearance?.image?.borderRadius ?? "none"}
+            options={RADIUS_OPTIONS}
+            onValueChange={v => updateImage({ borderRadius: v as ImageBorderRadiusPreset })}
+          />
+        </SettingRow>
+        <SettingRow title="阴影">
+          <Select
+            aria-label="图片阴影"
+            className="w-[150px]"
+            value={imageShadow}
+            options={SHADOW_OPTIONS}
+            onValueChange={v => updateImage({ shadow: v as ImageShadowPreset })}
+          />
+        </SettingRow>
+      </SettingsGroup>
+    </>
   );
 }
 
-/** 主题模式卡：选中态由主题自己的语言表达——预览窗口里的 accent 按钮点亮
- *  （用该主题固有 accent 色），卡片托起 + 圆形徽标；跟随系统卡 = 左右两半
- *  各自完整的迷你窗口（两个主题都可能是它，不另造符号）。 */
+/** 主题模式卡：描边卡 + 单选圆点（选中 = accent 描边 + 圆点，不托起）；预览窗口里的
+ *  accent 按钮用该主题固有 accent 色点亮；跟随系统卡 = 左右两半各自完整的迷你窗口
+ *  （两个主题都可能是它，不另造符号）。 */
 function ThemeModeCard({
   active,
   onSelect,
   caption,
+  hint,
   preview,
 }: {
   active: boolean;
   onSelect: () => void;
   caption: string;
+  hint?: string;
   preview: "system" | "light" | "dark";
 }) {
   return (
@@ -180,12 +189,14 @@ function ThemeModeCard({
       onClick={onSelect}
       aria-pressed={active}
       className={clsx(
-        "border-line-1 bg-surface rounded-tau-md flex-1 cursor-pointer border-[1.5px] p-[7px] text-left",
-        "ease-tau-out transition-[border-color,box-shadow,transform] duration-[160ms]",
-        active ? "border-accent shadow-card -translate-y-0.5" : "hover:border-ink-3/60"
+        "bg-surface rounded-tau-md cursor-pointer p-[7px] text-left",
+        "ease-tau-out transition-shadow duration-[160ms]",
+        active
+          ? "shadow-[inset_0_0_0_1.5px_var(--color-accent)]"
+          : "shadow-[inset_0_0_0_1px_var(--color-line-1)] hover:shadow-[inset_0_0_0_1px_var(--color-ink-3)]"
       )}
     >
-      <div className="relative h-[72px] overflow-hidden rounded-[7px] border border-black/5">
+      <div className="relative h-[84px] overflow-hidden rounded-[8px]">
         {preview === "system" && (
           /* 左右两半各画一个完整迷你窗口（浅/深各半），分屏即「随系统而定」 */
           <>
@@ -228,16 +239,22 @@ function ThemeModeCard({
           </div>
         )}
       </div>
-      <div className="text-tau-sm text-ink-1 mt-[7px] flex items-center gap-1.5 pl-0.5 font-medium">
+      <div
+        className={clsx(
+          "text-tau-body text-ink-1 flex items-center gap-[7px] px-1 pb-0.5 pt-2",
+          active && "font-medium"
+        )}
+      >
         <span
           className={clsx(
-            "grid size-4 shrink-0 place-items-center rounded-full transition-[background,opacity] duration-[160ms]",
-            active ? "bg-accent opacity-100" : "bg-transparent opacity-0"
+            "size-3.5 shrink-0 rounded-full transition-shadow duration-[160ms]",
+            active
+              ? "shadow-[inset_0_0_0_4.5px_var(--color-accent)]"
+              : "shadow-[inset_0_0_0_1.5px_var(--color-track)]"
           )}
-        >
-          <Check size={10} strokeWidth={2.5} className="text-ink-inverse" />
-        </span>
+        />
         {caption}
+        {hint && <span className="text-tau-micro text-ink-3 ml-auto font-normal">{hint}</span>}
       </div>
     </button>
   );
