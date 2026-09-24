@@ -13,6 +13,7 @@ import logo from "@/assets/logo.png";
 import { useShellStore } from "./shellStore";
 import { useSettingsStore } from "./settingsStore";
 import { NAV_FOOTER, NAV_SECTIONS, type NavItem } from "./navigation";
+import { PomodoroNavBadge } from "@/features/pomodoro/components/PomodoroNavBadge";
 import { MacTrafficLights } from "./WindowControls";
 import { useFullScreen } from "./useFullScreen";
 
@@ -187,7 +188,7 @@ function NavItemButton({
       type="button"
       className={clsx(
         // 行高随字号档位折算（行盒 + 8px 余量）：固定 34px 在大字号下文字会撑满行高
-        "text-tau-body flex h-[calc(1.65em+8px)] w-full items-center rounded-[10px] text-left",
+        "text-tau-body relative flex h-[calc(1.65em+8px)] w-full items-center rounded-[10px] text-left",
         "ease-tau-out transition-[background,color] duration-[160ms]",
         collapsed ? "justify-center px-0" : "gap-2.5 px-2.5",
         active
@@ -206,6 +207,7 @@ function NavItemButton({
       <ItemIcon className="shrink-0" size="1.06em" strokeWidth={1.75} />
       {/* 窄态（最小 120px）下长标签溢出省略，悬停 title 可见全名 */}
       {!collapsed && <span className="min-w-0 truncate">{item.label}</span>}
+      {item.badge === "pomodoro-live" && <PomodoroNavBadge collapsed={collapsed} />}
     </button>
   );
   return (

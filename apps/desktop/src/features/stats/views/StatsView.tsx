@@ -10,7 +10,6 @@ import clsx from "clsx";
 import { useState, type ReactNode } from "react";
 import { Flame, PenLine, Repeat, Timer, type LucideIcon } from "lucide-react";
 import { usePage } from "@/page/PageProvider";
-import { openPomodoroWindow } from "@/commands";
 import {
   useEdgeFade,
   EmptyNote,
@@ -273,8 +272,8 @@ export function StatsView() {
               <PanelNote>
                 {RANGE_LABEL[range]} · {rhythm ? rhythm.sessionCount : 0} 个番茄
               </PanelNote>
-              <PanelAction onClick={() => openPomodoroWindow()} title="打开番茄钟">
-                打开番茄钟
+              <PanelAction onClick={() => navigator.push("pomodoro")} title="前往番茄专注">
+                前往番茄专注
               </PanelAction>
             </PanelTitle>
             {rhythm && rhythm.sessionCount > 0 ? (

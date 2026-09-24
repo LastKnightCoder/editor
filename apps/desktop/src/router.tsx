@@ -13,8 +13,8 @@ const QuickOpenLayout = loadable(() => import("@/layouts/QuickOpenLayout"));
 const TodoWindowPage = loadable(() => import("@/pages/TodoWindow"));
 const QuestionWindowPage = loadable(() => import("@/pages/QuestionWindow"));
 const PomodoroWindowPage = loadable(() => import("@/pages/PomodoroWindow"));
-const PomodoroMiniPage = loadable(() => import("@/pages/PomodoroWindow/Mini"));
-const PomodoroImmersivePage = loadable(() => import("@/pages/PomodoroWindow/Immersive"));
+const PomodoroMiniPage = loadable(() => import("@/features/pomodoro/windows/MiniWindow"));
+const PomodoroImmersivePage = loadable(() => import("@/features/pomodoro/windows/ImmersiveWindow"));
 const BackgroundAudioPage = loadable(() => import("@/pages/BackgroundAudio"));
 
 // 新架构壳层预览入口（docs/redesign/03-架构实现指南.md）
@@ -115,13 +115,7 @@ const routes = [
   },
   {
     path: "/pomodoro/mini",
-    element: <QuickOpenLayout />,
-    children: [
-      {
-        index: true,
-        element: <PomodoroMiniPage />,
-      },
-    ],
+    element: <PomodoroMiniPage />,
   },
   {
     path: "/pomodoro/immersive",

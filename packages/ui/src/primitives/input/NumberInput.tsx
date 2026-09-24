@@ -29,6 +29,8 @@ export interface NumberInputProps extends Omit<
   size?: "sm" | "md";
   /** 形态透传 Input：bare 为无皮行内形态（无边框背景与 focus 反馈，归宿主） */
   variant?: "outlined" | "bare";
+  /** 透传 Input：外框容器类名（定宽写这里；className 落到内部 <input>） */
+  wrapperClassName?: string;
 }
 
 export function NumberInput({

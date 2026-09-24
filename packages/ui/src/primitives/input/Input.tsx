@@ -33,6 +33,9 @@ export interface InputProps extends Omit<ComponentProps<"input">, "size"> {
   /** 形态：outlined（默认，亮底描边浮起物）| bare（无皮行内形态——无边框背景与
    *  focus 反馈，高度与选中表现归宿主，如行内编辑单元格） */
   variant?: "outlined" | "bare";
+  /** 外框容器的类名（默认 w-full 撑满）：定宽 / flex 伸缩等布局写这里；
+   *  className 落到内部 <input>（文字对齐、字号等） */
+  wrapperClassName?: string;
 }
 
 /** 受控清空：走原生 setter + input 事件，受控 onChange 自然触发（焦点留在输入框） */
@@ -49,6 +52,7 @@ export function Input({
   size = "md",
   variant = "outlined",
   className,
+  wrapperClassName,
   onChange,
   defaultValue,
   ref,
@@ -79,7 +83,8 @@ export function Input({
             "has-[input:read-only]:border-line-1 has-[input:read-only]:hover:border-line-1",
             "has-[input:read-only]:focus-within:border-line-1 has-[input:read-only]:focus-within:shadow-none",
             size === "sm" ? "h-[28px] pl-2.5 pr-[3px]" : "h-[34px] pl-3 pr-1"
-          )
+          ),
+        wrapperClassName
       )}
     >
       {Lead && (

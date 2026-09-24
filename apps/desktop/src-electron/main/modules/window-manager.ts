@@ -547,8 +547,8 @@ export class WindowManager {
     log.info("初始化番茄小窗（隐藏状态）");
 
     const miniConfig: BrowserWindowConstructorOptions = {
-      width: 240,
-      height: 130,
+      width: 360,
+      height: 84,
       alwaysOnTop: true,
       frame: false,
       resizable: false,
@@ -621,6 +621,7 @@ export class WindowManager {
       frame: false,
       alwaysOnTop: true,
       autoHideMenuBar: true,
+      backgroundColor: "#000000", // 沉浸页纯黑底：首帧与页面切换不闪白
       show: false, // 初始不显示
       fullscreen: !isMac, // Mac 上不使用全屏
       enableLargerThanScreen: isMac, // Mac 上允许窗口大于屏幕

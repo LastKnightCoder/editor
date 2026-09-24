@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>番茄专注 · 方案 C 时间账本</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* ---------- 控制条（常驻顶部：空闲 = 快速开始，专注中 = 播放器） ---------- */
+  .strip { flex: none; position: relative; height: 76px; background: var(--bg-surface); border-radius: 18px; box-shadow: var(--shadow-card);
+    display: flex; align-items: center; gap: 14px; padding: 0 16px 0 22px; overflow: hidden; margin-bottom: 14px; }
+  .strip .lead { font-size: 14.5px; font-weight: 600; white-space: nowrap; }
+  .strip .lead small { display: block; font-size: 12px; font-weight: 400; color: var(--ink-3); }
+  .qchips { flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 4px 0;
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+  .qchip { flex: none; display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px 0 11px; border-radius: 11px; border: 1px solid var(--line-1);
+    font-size: 13px; font-weight: 500; transition: background 160ms, border-color 160ms; }
+  .qchip:hover { background: var(--bg-hover); border-color: transparent; }
+  .qchip .m { font-weight: 400; color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+  /* 数字键与播放图标共用固定槽位、原位交叉淡入：悬停不改 chip 宽度 */
+  .qchip .slot { position: relative; width: 18px; height: 18px; margin-left: 1px; flex: none; }
+  .qchip .slot > * { position: absolute; inset: 0; display: grid; place-items: center; transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out); }
+  .qchip .slot kbd { padding: 0; }
+  .qchip .slot .pl { color: var(--ink-inverse); background: var(--accent); border-radius: 50%; opacity: 0; transform: scale(0.7); }
+  .qchip .slot .pl .icon { width: 8px; height: 8px; margin-left: 1px; }
+  .qchip:hover .slot kbd { opacity: 0; transform: scale(0.7); }
+  .qchip:hover .slot .pl { opacity: 1; transform: none; }
+  .qchip.add { border-style: dashed; color: var(--ink-2); font-weight: 400; }
+  .qchip.add .icon { width: 14px; height: 14px; }
+
+  .s-time { font-size: 34px; font-weight: 500; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; line-height: 1; min-width: 118px; }
+  .s-info { min-width: 0; }
+  .s-name { display: flex; align-items: center; gap: 7px; font-weight: 600; }
+  .s-sub { font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; margin-top: 2px; white-space: nowrap; }
+  .s-sub .st { color: var(--accent-text); font-weight: 500; }
+  .strip.paused .s-sub .st { color: var(--warn); }
+  .s-ctrl { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+  .s-ctrl .sep { width: 1px; height: 18px; background: var(--line-1); margin: 0 6px; }
+  .pbtn { width: 42px; height: 42px; border-radius: 50%; background: var(--accent); color: var(--ink-inverse); display: grid; place-items: center; margin-left: 6px; }
+  .pbtn:hover { background: var(--accent-hover); }
+  .strip.paused .pbtn { background: var(--warn); }
+  .pbtn .icon { width: 15px; height: 15px; }
+  .s-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--bg-track); }
+  .s-prog i { display: block; height: 100%; background: var(--accent); transition: width 1s linear; }
+  .strip.paused .s-prog i { background: var(--warn); }
+  .strip .confirm-strip { margin-left: 8px; padding: 6px 6px 6px 12px; }
+  .strip > .enter { animation: enter 320ms var(--ease-out); }
+  @keyframes enter { from { opacity: 0; transform: translateY(6px); } }
+
+  /* ---------- 账本（整块大面板，格内细线） ---------- */
+  .ledger { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 340px; background: var(--bg-surface); border-radius: 18px; box-shadow: var(--shadow-card); overflow: hidden; }
+  .lg { min-height: 0; display: flex; flex-direction: column; padding: 16px 8px 12px 20px; }
+  .lg-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; min-height: 30px; }
+  .lg-head .spacer + .muted { text-align: right; }
+  /* 时间导航：‹ 日期范围 › + 回到今天 */
+  .tnav { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; }
+  .tnav .ibtn { width: 26px; height: 26px; }
+  .tnav .ibtn:disabled { opacity: 0.35; pointer-events: none; }
+  .tnav .when { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border-radius: 8px; font-size: 12.5px; font-weight: 500; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .tnav .when:hover { background: var(--bg-hover); }
+  .tnav .when .icon { width: 13px; height: 13px; color: var(--ink-2); }
+  .tnav .today { height: 26px; padding: 0 9px; border-radius: 8px; font-size: 12px; color: var(--accent-text); font-weight: 500; }
+  .tnav .today:hover { background: var(--accent-soft); }
+  /* 日期选择：月历 + 有记录的日子带浓淡点 */
+  .dp-head { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+  .dp-head b { flex: 1; text-align: center; font-size: 13px; font-weight: 600; }
+  .dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .dp-grid .wk { font-size: 11px; color: var(--ink-3); text-align: center; height: 22px; line-height: 22px; }
+  .dp-day { position: relative; height: 32px; border-radius: 8px; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink-1); }
+  .dp-day:hover:not(:disabled) { background: var(--bg-hover); }
+  .dp-day.out { color: var(--ink-3); }
+  .dp-day.in { background: var(--bg-selected); border-radius: 0; }
+  .dp-day.sel { background: var(--accent); color: var(--ink-inverse); border-radius: 8px; font-weight: 600; }
+  .dp-day:disabled { color: var(--ink-3); opacity: 0.45; }
+  .dp-day i { position: absolute; left: 50%; bottom: 4px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--accent); }
+  .dp-day.sel i { background: var(--ink-inverse); }
+  .dp-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 12px; color: var(--ink-3); }
+
+  /* 时间范围选择：左列快捷项 + 右侧月历 */
+  .rp { display: grid; grid-template-columns: 148px minmax(0, 1fr); gap: 12px; }
+  .rp-quick { display: flex; flex-direction: column; gap: 1px; border-right: 1px solid var(--line-2); padding-right: 10px; margin: -2px 0; }
+  .qr { display: flex; align-items: center; justify-content: space-between; height: 30px; padding: 0 9px; border-radius: 8px; font-size: 12.5px; color: var(--ink-1); text-align: left; }
+  .qr:hover { background: var(--bg-hover); }
+  .qr .d { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .qr.on { background: var(--bg-selected); color: var(--accent-text); font-weight: 500; }
+  .qr.on .d { color: var(--accent-text); }
+  .rp .menu-sep { margin: 4px 4px; }
+  .tnav .when .icon:last-child { width: 12px; height: 12px; margin-left: -2px; }
+
+  /* ---------- 全部：年度热力格 + 月度柱 ---------- */
+  .yrs { flex: 0 1 auto; min-height: 0; overflow-y: auto; margin-top: 12px; padding-right: 2px; }
+  .yr + .yr { margin-top: 14px; }
+  .yr-h { display: inline-flex; align-items: baseline; gap: 8px; height: 24px; padding: 0 6px; margin-left: -6px; border-radius: 7px; }
+  .yr-h:hover { background: var(--bg-hover); }
+  .yr-h b { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .yr-h span { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .hm-m { text-align: left; font-size: 11px; color: var(--ink-3); white-space: nowrap; border-radius: 4px; padding: 0 2px; margin-left: -2px; }
+  .hm-m:hover { color: var(--accent-text); background: var(--accent-soft); }
+  .mbar .m em { font-style: normal; color: var(--ink-3); font-size: 10px; margin-right: 1px; }
+
+  .year { flex: 1; min-height: 0; display: none; flex-direction: column; padding-right: 12px; }
+  .lg.is-year .year { display: flex; }
+  .lg.is-year .axis, .lg.is-year .rows, .lg.is-year .dist { display: none; }
+  .hm { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 0 6px; margin-top: 4px; }
+  .hm-months { grid-column: 2; display: grid; grid-template-columns: repeat(53, minmax(0, 1fr)); gap: 3px; height: 18px; font-size: 11px; color: var(--ink-3); }
+  .hm-months span { white-space: nowrap; }
+  .hm-wd { display: grid; grid-template-rows: repeat(7, 1fr); gap: 3px; font-size: 10.5px; color: var(--ink-3); }
+  .hm-wd span { display: flex; align-items: center; }
+  .hm-grid { display: grid; grid-template-columns: repeat(53, minmax(0, 1fr)); grid-template-rows: repeat(7, auto); grid-auto-flow: column; gap: 3px; }
+  .hm-cell { aspect-ratio: 1; border-radius: 3px; background: var(--bg-track); cursor: pointer; transition: transform 120ms var(--ease-out); }
+  [data-theme="cocoa"] .hm-cell { background: var(--bg-page); }
+  .hm-cell:hover { transform: scale(1.25); }
+  .hm-cell.l1 { background: color-mix(in srgb, var(--accent) 28%, var(--bg-track)); }
+  .hm-cell.l2 { background: color-mix(in srgb, var(--accent) 50%, var(--bg-track)); }
+  .hm-cell.l3 { background: color-mix(in srgb, var(--accent) 74%, var(--bg-track)); }
+  .hm-cell.l4 { background: var(--accent); }
+  .hm-cell.future { visibility: hidden; }
+  .hm-cell.sel { box-shadow: 0 0 0 2px var(--bg-surface), 0 0 0 3.5px var(--ink-1); }
+  .hm-cell.today { box-shadow: inset 0 0 0 1.5px var(--ink-1); }
+  .hm-legend { display: flex; align-items: center; gap: 4px; justify-content: flex-end; margin-top: 8px; font-size: 11px; color: var(--ink-3); }
+  .hm-legend .hm-cell { width: 11px; cursor: default; }
+  .hm-legend .hm-cell:hover { transform: none; }
+  .ys { display: flex; gap: 30px; margin-top: 4px; flex: none; }
+  .ys div { font-size: 12px; color: var(--ink-3); }
+  .ys b { display: block; font-size: 17px; font-weight: 600; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .mb-h { display: flex; align-items: baseline; gap: 8px; margin-top: 14px; flex: none; font-size: 12px; color: var(--ink-3); }
+  .mb-h b { font-size: 13px; font-weight: 600; color: var(--ink-1); }
+  .mbars { flex: 1; min-height: 110px; gap: 4px !important; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; align-items: end; margin-top: 8px; }
+  .mbar { height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; gap: 5px; cursor: pointer; border-radius: 8px; padding: 4px 4px 0; }
+  .mbar:hover { background: var(--bg-hover); }
+  .mbar .stack { border-radius: 4px; background: color-mix(in srgb, var(--accent) 42%, var(--bg-track)); min-height: 2px; }
+  .mbar.cur .stack, .mbar:hover .stack { background: var(--accent); }
+  .mbar .v { text-align: center; font-size: 11px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .mbar .m { text-align: center; font-size: 11.5px; color: var(--ink-3); padding-bottom: 4px; }
+  .mbar.cur .m { color: var(--accent-text); font-weight: 600; }
+  .lg-head h3 { font-size: 14.5px; font-weight: 600; }
+  .lg-head .muted { font-size: 12px; font-variant-numeric: tabular-nums; }
+  .axis, .row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 62px; align-items: center; }
+  .axis { height: 24px; font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; padding-right: 12px; }
+  .axis .ticks { position: relative; height: 100%; }
+  .axis .ticks span { position: absolute; top: 5px; transform: translateX(-50%); }
+  /* 行高随面板伸缩：7 天时每行 70–100px（周视图，色块内显示名称与时长），30 天时压到 32px 并滚动（密度概览） */
+  .rows { flex: 1; min-height: 0; overflow-y: auto; padding-right: 12px; display: flex; flex-direction: column; }
+  .row { flex: 1 0 32px; max-height: 104px; border-radius: 8px; cursor: pointer; transition: background 160ms; }
+  .row:hover { background: var(--bg-hover); }
+  .row.sel { background: var(--bg-selected); }
+  .row .dl { font-size: 12.5px; color: var(--ink-2); padding-left: 8px; white-space: nowrap; }
+  .row .dl b { color: var(--ink-1); font-weight: 600; }
+  .row .dl .we { color: var(--ink-3); }
+  .row.sel .dl b { color: var(--accent-text); }
+  .row .tot { text-align: right; font-size: 12.5px; font-weight: 500; font-variant-numeric: tabular-nums; padding-right: 6px; }
+  .row .tot.z { color: var(--ink-3); font-weight: 400; }
+  .track { position: relative; height: 100%; }
+  .track .grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--line-2); }
+  [data-theme="cocoa"] .track .grid { background: var(--line-1); opacity: 0.6; }
+  .track .blk { position: absolute; top: 8px; bottom: 8px; border-radius: 4px; background: var(--c); min-width: 4px; transition: opacity 200ms, transform 160ms var(--ease-out); }
+  .track .blk:hover { transform: scaleY(1.25); }
+  .track .blk.live { background: repeating-linear-gradient(-45deg, var(--c) 0 5px, color-mix(in srgb, var(--c) 65%, transparent) 5px 10px); }
+  .track .gp { position: absolute; top: 8px; bottom: 8px; background: var(--bg-surface); opacity: 0.85; pointer-events: none; }
+  .row:hover .track .gp { background: color-mix(in srgb, var(--bg-surface) 94%, var(--ink-1)); }
+  .row.sel .track .gp { background: color-mix(in srgb, var(--bg-surface) 88%, var(--accent)); }
+  .track .nowl { position: absolute; top: 3px; bottom: 3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink-1); }
+  .dim .blk:not(.hl) { opacity: 0.18; }
+  .rows.tall .track .blk { top: 24%; bottom: 24%; border-radius: 6px; }
+  .rows.tall .track .blk:hover { transform: scaleY(1.12); }
+  .rows.tall .track .gp { top: 24%; bottom: 24%; }
+  .rows.tall .track .nowl { top: 12%; bottom: 12%; }
+  .rows.tall .row .dl { display: flex; flex-direction: column; line-height: 1.35; }
+  .rows.tall .row .dl b { font-size: 13px; }
+  .rows.tall .row .dl > span { font-size: 12px; }
+  .row .dl .cnt { display: none; }
+  .rows.tall .row .dl .cnt { display: block; color: var(--ink-3); font-size: 11.5px; }
+
+  /* 时段分布：与账本共用时间轴的合计行 */
+  .dist { display: grid; grid-template-columns: 92px minmax(0, 1fr) 62px; align-items: end; height: 58px; margin: 6px 12px 0 0; padding-top: 6px; border-radius: 8px; flex: none; }
+  .dist .dl { font-size: 12.5px; color: var(--ink-2); padding-left: 8px; align-self: center; line-height: 1.35; }
+  .dist .dl b { display: block; color: var(--ink-1); font-weight: 600; }
+  .dist .dl span { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
+  .dist .dl .pk { color: var(--accent-text); font-variant-numeric: tabular-nums; }
+  .dist .tot { align-self: center; text-align: right; padding-right: 6px; font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.35; }
+  .dist .tot { white-space: nowrap; }
+  .dist .tot span { display: block; font-size: 11px; font-weight: 400; color: var(--ink-3); }
+  .dtrack { position: relative; height: 100%; }
+  .dtrack i { position: absolute; bottom: 0; border-radius: 3px 3px 1px 1px; background: color-mix(in srgb, var(--accent) 32%, var(--bg-track)); min-height: 2px; }
+  .dtrack i.pk { background: var(--accent); }
+  .dtrack i.z { background: var(--bg-track); height: 2px; }
+  .lg-foot { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 10px 12px 0 8px; }
+  .lchip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border-radius: 8px; font-size: 12px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .lchip:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .lchip.on { background: var(--bg-selected); color: var(--accent-text); font-weight: 500; }
+  .lchip b { font-weight: 500; color: var(--ink-1); }
+  .lg-foot .spacer + span { font-size: 12px; color: var(--ink-3); }
+
+  /* ---------- 当天明细（同一面板的右栏） ---------- */
+  .dd { min-height: 0; display: flex; flex-direction: column; padding: 16px 14px 12px 12px; }
+  .dd-h { padding: 0 6px 0 10px; }
+  .dd-h h3 { font-size: 14.5px; font-weight: 600; display: flex; align-items: baseline; gap: 8px; }
+  .dd-h h3 .muted { font-size: 12px; font-weight: 400; }
+  .dd-h p { font-size: 12.5px; color: var(--ink-2); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .dd-h p b { color: var(--ink-1); font-weight: 600; }
+  .dd-list { flex: 1; margin-top: 10px; padding: 4px 0; }
+  .mix { padding: 14px 10px 4px; }
+  .mix h4 { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .mix-row { display: grid; grid-template-columns: 76px minmax(0, 1fr) 54px; align-items: center; gap: 8px; height: 24px; font-size: 12px; color: var(--ink-2); }
+  .mix-row .n { display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; }
+  .mix-row .bar { height: 6px; border-radius: 3px; background: var(--bg-track); overflow: hidden; }
+  .mix-row .bar i { display: block; height: 100%; background: var(--c); border-radius: 3px; }
+  .mix-row .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-1); }
+
+  /* 记录详情 Popover */
+  .sd-row { display: flex; justify-content: space-between; font-size: 12.5px; padding: 3px 0; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .sd-row b { color: var(--ink-1); font-weight: 500; }
+  .sd-rib { position: relative; height: 10px; border-radius: 5px; background: var(--c); margin: 10px 0 4px; overflow: hidden; }
+  .sd-rib i { position: absolute; top: 0; bottom: 0; background: var(--bg-surface); opacity: 0.85; }
+  .sd-foot { display: flex; gap: 6px; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script src="records.js"></script>
+<script src="windows.js"></script>
+<script>
+(function () {
+  const { icon, fmtClock, fmtDur, fmtDurCN, hm, MIN, H, D } = P;
+  const { page } = P.mountShell();
+  page.style.height = "100%";
+  page.innerHTML = `
+  <div class="page">
+    <div class="toolbar"><h1>番茄专注</h1><div class="sum" id="sum"></div><span class="spacer"></span>
+      <div class="seg" id="range"></div>
+      <button class="ibtn" id="arch-btn" title="已归档的预设">${icon("archive")}</button>
+      <button class="btn btn-primary" id="new-btn">${icon("plus")}新建预设</button></div>
+    <div class="strip" id="strip"></div>
+    <div class="ledger">
+      <section class="lg">
+        <div class="lg-head"><h3 id="lg-title">时间账本</h3><div class="tnav" id="tnav"></div><span class="spacer"></span><span class="muted" id="lg-sub"></span></div>
+        <div class="axis" id="axis"></div>
+        <div class="rows fade-scroll" id="rows"></div>
+        <div class="dist" id="dist"></div>
+        <div class="year" id="year"></div>
+        <div class="lg-foot" id="legend"></div>
+      </section>
+      <aside class="dd" id="dd"></aside>
+    </div>
+  </div>`;
+  const $ = s => page.querySelector(s);
+  const FROM = 6, TO = 24;
+  /*
+    窗口 = [from, to]（相对今天的日偏移，含两端，to ≤ 0）；view = "days" 账本 / "all" 全部概览。
+    preset：当前窗口来自哪个快捷项（用于标题显示「今年」「近 90 天」等），前后翻页或手选日期后清空。
+  */
+  let view = "days", from = -13, to = 0, preset = "last14", selDay = 0, hlPid = null;
+  const len = () => to - from + 1;
+  const winDays = () => { const out = []; for (let o = to; o >= from; o--) out.push(o); return out; };
+  const inWindow = s => { const o = P.dayOffset(s.startTime); return o <= to && o >= from; };
+  const TODAY = () => P.startOfDay(P.now());
+  const offOf = date => P.dayOffset(date.getTime());
+  const md = off => { const d = new Date(TODAY() + off * D); return `${d.getMonth() + 1}月${d.getDate()}日`; };
+  const ymd = off => { const d = new Date(TODAY() + off * D); return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`; };
+  const firstOff = () => Math.min(0, ...P.sessions.map(s => P.dayOffset(s.startTime)));
+
+  /* 快捷区间：返回 [from, to]；label 用于标题 */
+  function quickRanges() {
+    const now = new Date(P.now()), y = now.getFullYear(), m = now.getMonth();
+    const list = [
+      { key: "last7", label: "近 7 天", r: [-6, 0] },
+      { key: "last14", label: "近 14 天", r: [-13, 0] },
+      { key: "last30", label: "近 30 天", r: [-29, 0] },
+      { key: "last90", label: "近 90 天", r: [-89, 0] },
+      "-",
+      { key: "thisMonth", label: "本月", r: [offOf(new Date(y, m, 1)), 0] },
+      { key: "lastMonth", label: "上个月", r: [offOf(new Date(y, m - 1, 1)), offOf(new Date(y, m, 0))] },
+      { key: "thisYear", label: "今年", r: [offOf(new Date(y, 0, 1)), 0] },
+      { key: "pastYear", label: "过去一年", r: [-364, 0] },
+    ];
+    const firstYear = new Date(TODAY() + firstOff() * D).getFullYear();
+    const years = [];
+    for (let yy = y - 1; yy >= firstYear; yy--) years.push({ key: `y${yy}`, label: `${yy}年`, r: [Math.max(firstOff(), offOf(new Date(yy, 0, 1))), offOf(new Date(yy, 11, 31))] });
+    if (years.length) list.push("-", ...years);
+    return list;
+  }
+  const findQuick = key => quickRanges().find(q => q !== "-" && q.key === key);
+
+  function setWindow(f, t, key = null) {
+    view = "days"; from = Math.max(f, firstOff() - 6); to = Math.min(0, t); preset = key;
+    if (selDay > to || selDay < from) selDay = to;
+    renderTop(); renderLedger();
+  }
+  /** 跳到某天：保持当前窗口长度，尽量让它居中（不越过今天） */
+  function jumpTo(off) {
+    const L = view === "all" ? 14 : Math.min(len(), 30);
+    const t = Math.min(0, off + Math.floor((L - 1) / 2));
+    selDay = off;
+    setWindow(t - L + 1, t, t === 0 ? { 7: "last7", 14: "last14", 30: "last30" }[L] ?? null : null);
+  }
+
+  /* ---------- 工具栏 ---------- */
+  function renderTop() {
+    const t = P.todaySummary();
+    $("#sum").innerHTML = `今天 <b class="num">${t.count}</b> 个 <span class="sep">·</span> <b class="num">${fmtDur(t.focusMs)}</b> <span class="sep">·</span> 连续 <b class="num">${P.streak()}</b> 天`;
+    const on = k => (view === "days" && preset === k) || (view === "all" && k === "all") ? "on" : "";
+    $("#range").innerHTML = [["last7", "7 天"], ["last14", "14 天"], ["last30", "30 天"], ["all", "全部"]]
+      .map(([k, l]) => `<button data-r="${k}" class="${on(k)}">${l}</button>`).join("");
+  }
+  $("#range").onclick = e => {
+    const b = e.target.closest("[data-r]"); if (!b) return;
+    if (b.dataset.r === "all") { view = "all"; renderTop(); renderLedger(); return; }
+    const q = findQuick(b.dataset.r); setWindow(q.r[0], q.r[1], q.key);
+  };
+  $("#new-btn").onclick = e => P.openPresetEditor(e.currentTarget, null);
+  $("#arch-btn").onclick = e => {
+    const list = P.archivedPresets();
+    P.openMenu(e.currentTarget, list.length ? [{ header: "已归档 · 点击恢复" }, ...list.map(p => ({ dot: P.colorOf(p.id), label: p.name, k: P.presetShort(p), pid: p.id }))] : [{ header: "没有归档的预设" }],
+      x => { P.archivePreset(x.pid, false); P.toast(`已恢复「${P.presetById(x.pid).name}」`); }, { placement: "bottom-end" });
+  };
+
+  /* ---------- 控制条 ---------- */
+  let stripMode = null, confirming = false;
+  function renderStrip(force) {
+    const t = P.timing(), el = $("#strip"), mode = t ? "run" : "idle";
+    if (mode !== stripMode || force) {
+      stripMode = mode; confirming = false;
+      el.classList.remove("paused");
+      if (!t) {
+        const list = P.activePresets();
+        el.innerHTML = `<div class="lead enter">开始专注<small>点预设立即开始</small></div>
+          <div class="qchips enter">${list.map((p, i) => `<button class="qchip" data-pid="${p.id}" title="开始「${p.name}」· 右键编辑"><span class="pdot" style="--c:${P.colorOf(p.id)}"></span>${p.name}<span class="m">${P.presetShort(p)}</span><span class="slot">${i < 9 ? `<kbd>${i + 1}</kbd>` : ""}<span class="pl">${icon("play", "fill")}</span></span></button>`).join("")}
+          <button class="qchip add" id="add-chip">${icon("plus")}预设</button></div>`;
+      } else {
+        el.innerHTML = `<div class="s-time enter" data-k="time"></div>
+          <div class="s-info enter"><div class="s-name"><span class="pdot" style="--c:${P.colorOf(t.preset.id)}"></span>${t.preset.name}</div><div class="s-sub" data-k="sub"></div></div>
+          <div data-k="confirm"></div>
+          <div class="s-ctrl enter"><button class="ibtn" data-a="mini" title="小窗（仅 Electron）">${icon("pip")}</button><button class="ibtn" data-a="imm" title="沉浸 (I)（仅 Electron）">${icon("expand")}</button>
+            <i class="sep"></i><button class="ibtn" data-a="sound" title="背景音">${icon("music")}</button><button class="ibtn" data-a="stop" title="结束">${icon("stop")}</button>
+            <button class="pbtn" data-a="toggle" title="暂停 / 继续（空格）"></button></div>
+          <div class="s-prog"><i data-k="prog"></i></div>`;
+      }
+    }
+    if (!t) return;
+    const q = k => el.querySelector(`[data-k="${k}"]`), s = P.timer.session, cd = t.remain !== undefined;
+    el.classList.toggle("paused", t.paused);
+    q("time").textContent = fmtClock(t.display);
+    q("sub").innerHTML = `<span class="st">${t.paused ? "已暂停" : cd ? "剩余" : "已专注"}</span> · ${hm(s.startTime)} 开始${cd && !t.paused ? ` · 预计 ${hm(t.endsAt)} 结束` : ""}${s.pauseCount ? ` · 暂停 ${s.pauseCount} 次` : ""}${P.timer.sound ? ` · ${P.soundName(P.timer.sound)}` : ""}`;
+    q("prog").style.width = t.progress * 100 + "%";
+    el.querySelector('[data-a="sound"]').classList.toggle("on", !!P.timer.sound);
+    const tg = el.querySelector('[data-a="toggle"]'), want = t.paused ? "play" : "pause";
+    if (tg.dataset.i !== want) { tg.innerHTML = icon(want, "fill"); tg.dataset.i = want; }
+    if (confirming && !t.willDiscard) confirming = false;
+    const c = q("confirm");
+    if (c.dataset.s !== String(confirming)) {
+      c.dataset.s = String(confirming);
+      c.innerHTML = confirming ? `<div class="confirm-strip enter">${icon("alert")}不足 5 分钟，结束后不留记录<button class="btn btn-ghost" data-a="keep">继续</button><button class="btn btn-secondary" data-a="discard">仍然结束</button></div>` : "";
+    }
+  }
+  $("#strip").addEventListener("click", e => {
+    const chip = e.target.closest(".qchip[data-pid]");
+    if (chip) return P.start(+chip.dataset.pid);
+    if (e.target.closest("#add-chip")) return P.openPresetEditor(e.target.closest("#add-chip"), null, { placement: "bottom-start" });
+    const a = e.target.closest("[data-a]")?.dataset.a; if (!a) return;
+    if (a === "toggle") P.toggle();
+    if (a === "sound") P.openSound(e.target.closest("[data-a]"));
+    if (a === "mini") P.openMini();
+    if (a === "imm") P.openImmersive();
+    if (a === "stop") { if (P.timing().willDiscard) { confirming = true; renderStrip(); } else report(P.stopByUser()); }
+    if (a === "keep") { confirming = false; renderStrip(); }
+    if (a === "discard") report(P.stopByUser());
+  });
+  $("#strip").addEventListener("contextmenu", e => {
+    const chip = e.target.closest(".qchip[data-pid]"); if (!chip) return;
+    e.preventDefault(); P.presetMenu({ x: e.clientX, y: e.clientY }, P.presetById(+chip.dataset.pid), { editAnchor: chip });
+  });
+  function report(r, auto) {
+    if (!r) return;
+    if (r.discarded) return P.toast("不足 5 分钟，本次未记录");
+    const s = r.saved, p = P.presetById(s.presetId);
+    selDay = 0; if (view === "all" || to !== 0) { view = "days"; const t = len(); from = -(Math.min(t, 30) - 1); to = 0; preset = null; }
+    P.toast(auto ? `完成「${p.name}」· ${fmtDurCN(s.focusMs)}` : P.isEarly(s) ? `「${p.name}」提前结束 · 记录 ${fmtDurCN(s.focusMs)}` : `已记录「${p.name}」· ${fmtDurCN(s.focusMs)}`);
+    flash = s.id;
+  }
+  let flash = null;
+
+  /* ---------- 账本 ---------- */
+  const x = (ts, off) => ((((ts - (P.startOfDay(P.now()) + off * D)) / H) - FROM) / (TO - FROM)) * 100;
+  const cl = v => Math.max(0, Math.min(100, v));
+  function trackHTML(off) {
+    let h = "";
+    for (let i = FROM + 3; i < TO; i += 3) h += `<i class="grid" style="left:${((i - FROM) / (TO - FROM)) * 100}%"></i>`;
+    const one = (s, live) => {
+      const end = s.endTime ?? P.now(), l = cl(x(s.startTime, off)), r = cl(x(end, off));
+      h += `<div class="blk${live ? " live" : ""}${hlPid === s.presetId ? " hl" : ""}" data-sid="${live ? "" : s.id}" style="left:${l}%;width:${Math.max(0.5, r - l)}%;--c:${P.colorOf(s.presetId)}${flash === s.id ? ";animation:enter 600ms var(--ease-out)" : ""}"
+        title="${P.presetById(s.presetId)?.name ?? "已删除的预设"} · ${hm(s.startTime)}–${live ? "进行中" : hm(end)} · ${fmtDur(live ? P.timing().elapsed : s.focusMs)}"></div>`;
+      for (const p of s.pauses) { const pl = cl(x(p.start, off)), pr = cl(x(p.end ?? P.now(), off)); if (pr - pl > 0.05) h += `<i class="gp" style="left:${pl}%;width:${pr - pl}%"></i>`; }
+    };
+    P.sessionsOn(off).forEach(s => one(s, false));
+    if (off === 0 && P.timer.session) one(P.timer.session, true);
+    if (off === 0) h += `<i class="nowl" style="left:${cl(x(P.now(), 0))}%"></i>`;
+    return h;
+  }
+  function rowHTML(off) {
+    const ts = P.startOfDay(P.now()) + off * D, d = new Date(ts), ms = P.sessionsOn(off).reduce((a, s) => a + s.focusMs, 0);
+    const we = d.getDay() === 0 || d.getDay() === 6;
+    const label = off === 0 ? "<b>今天</b>" : off === -1 ? "<b>昨天</b>" : `<b>${d.getMonth() + 1}/${d.getDate()}</b>`;
+    const n = P.sessionsOn(off).length;
+    return `<div class="row${selDay === off ? " sel" : ""}" data-off="${off}"><span class="dl">${label} <span class="${we ? "we" : ""}">周${P.WEEK[d.getDay()]}</span><span class="cnt">${n ? `${n} 个番茄` : "无记录"}</span></span>
+      <div class="track">${trackHTML(off)}</div><span class="tot${ms ? "" : " z"}">${ms ? fmtDur(ms) : "—"}</span></div>`;
+  }
+  function windowLabel() {
+    const q = preset && findQuick(preset);
+    if (q) return q.label;
+    if (from === to) return ymd(from).replace(`${new Date(P.now()).getFullYear()}年`, "");
+    const sameYear = new Date(TODAY() + from * D).getFullYear() === new Date(TODAY() + to * D).getFullYear() && new Date(TODAY() + to * D).getFullYear() === new Date(P.now()).getFullYear();
+    return sameYear ? `${md(from)} – ${md(to)}` : `${ymd(from)} – ${ymd(to)}`;
+  }
+  function renderNav() {
+    $(".lg").classList.toggle("is-year", view === "all");
+    if (view === "all") { $("#lg-title").textContent = "全部记录"; $("#tnav").innerHTML = ""; return; }
+    $("#lg-title").textContent = "时间账本";
+    $("#tnav").innerHTML = `<button class="ibtn" data-nav="prev" title="往前 ${len()} 天" ${from <= firstOff() ? "disabled" : ""}>${icon("back")}</button>
+      <button class="when" data-nav="pick" title="选择时间范围">${icon("calendar")}${windowLabel()}${icon("chev-down")}</button>
+      <button class="ibtn" data-nav="next" title="往后 ${len()} 天" ${to === 0 ? "disabled" : ""}>${icon("fwd")}</button>
+      ${to < 0 ? `<button class="today" data-nav="today">回到今天</button>` : ""}`;
+  }
+  $("#tnav").onclick = e => {
+    const b = e.target.closest("[data-nav]"); if (!b) return;
+    const act = b.dataset.nav, L = len();
+    if (act === "prev") { selDay = from - 1; setWindow(from - L, from - 1); }
+    if (act === "next") { const t = Math.min(0, to + L); selDay = t; setWindow(t - L + 1, t, t === 0 ? { 7: "last7", 14: "last14", 30: "last30" }[L] ?? null : null); }
+    if (act === "today") { selDay = 0; setWindow(-(Math.min(L, 30) - 1), 0, { 7: "last7", 14: "last14", 30: "last30" }[Math.min(L, 30)] ?? null); }
+    if (act === "pick") openRangePicker(b);
+  };
+  function renderLedger() {
+    renderNav();
+    if (view === "all") { renderAll(); renderLegend(P.sessions, "点格子跳到那几天 · 点年份 / 月份看那段时间 · 点图例高亮"); renderDay(); return; }
+    let t = ""; for (let i = FROM; i <= TO; i += 3) t += `<span style="left:${((i - FROM) / (TO - FROM)) * 100}%">${i}:00</span>`;
+    $("#axis").innerHTML = `<span></span><div class="ticks">${t}</div><span></span>`;
+    const rows = $("#rows"); rows.classList.toggle("dim", hlPid != null);
+    rows.innerHTML = winDays().map(rowHTML).join("");
+    rows.scrollTop = 0;
+    fitRows();
+    renderDist();
+    const inRange = P.sessions.filter(inWindow);
+    const total = inRange.reduce((a, s) => a + s.focusMs, 0);
+    $("#lg-sub").textContent = `${len()} 天 · ${inRange.length} 个 · ${fmtDur(total)} · 日均 ${fmtDur(total / len())}`;
+    renderLegend(inRange, "点色块看详情 · 点图例高亮");
+    renderDay();
+  }
+  function renderLegend(list, hint) {
+    const by = new Map(); list.forEach(s => by.set(s.presetId, (by.get(s.presetId) || 0) + s.focusMs));
+    $("#legend").innerHTML = [...by].sort((a, b) => b[1] - a[1]).map(([pid, ms]) => `<button class="lchip${hlPid === pid ? " on" : ""}" data-hl="${pid}"><span class="pdot" style="--c:${P.colorOf(pid)}"></span>${P.presetById(pid)?.name ?? "已删除"} <b>${fmtDur(ms)}</b></button>`).join("") +
+      `<span class="spacer"></span><span>${hint}</span>`;
+  }
+
+  /*
+    时间范围选择：左列快捷项，右侧月历。月历点两次选起止（第二次点同一天 = 只看那天前后），
+    有记录的日子带点，当前窗口淡染，未来日禁用。
+  */
+  function openRangePicker(anchor) {
+    const base = new Date(TODAY() + to * D);
+    let month = new Date(base.getFullYear(), base.getMonth(), 1), pending = null, hover = null;
+    const quick = () => quickRanges().map(q => q === "-" ? `<div class="menu-sep"></div>` :
+      `<button class="qr${view === "days" && preset === q.key ? " on" : ""}" data-q="${q.key}"><span>${q.label}</span><span class="d">${q.r[1] - q.r[0] + 1} 天</span></button>`).join("");
+    const cal = () => {
+      const y = month.getFullYear(), m = month.getMonth(), startDow = (new Date(y, m, 1).getDay() + 6) % 7;
+      const lo = pending != null ? Math.min(pending, hover ?? pending) : from, hi = pending != null ? Math.max(pending, hover ?? pending) : to;
+      let cells = "";
+      for (let i = 0; i < 42; i++) {
+        const d = new Date(y, m, 1 - startDow + i), off = offOf(d), has = P.sessionsOn(off).length;
+        const edge = off === lo || off === hi, inside = off >= lo && off <= hi;
+        cells += `<button class="dp-day ${d.getMonth() !== m ? "out" : ""} ${edge ? "sel" : inside ? "in" : ""}" data-off="${off}" ${off > 0 ? "disabled" : ""}>${d.getDate()}${has ? "<i></i>" : ""}</button>`;
+      }
+      const nextDisabled = new Date(y, m + 1, 1).getTime() > P.now();
+      return `<div class="dp-head"><button class="ibtn" data-m="-1">${icon("back")}</button><b>${y}年${m + 1}月</b><button class="ibtn" data-m="1" ${nextDisabled ? "disabled" : ""}>${icon("fwd")}</button></div>
+        <div class="dp-grid">${"一二三四五六日".split("").map(w => `<span class="wk">${w}</span>`).join("")}${cells}</div>
+        <div class="dp-foot"><span>${pending != null ? `起点 ${md(pending)}，再点选终点` : "点两次选起止 · 带点 = 有记录"}</span></div>`;
+    };
+    const html = () => `<div class="rp"><div class="rp-quick">${quick()}</div><div class="rp-cal">${cal()}</div></div>`;
+    P.openPop(anchor, html(), { width: 470, placement: "bottom-start", onMount(el, close, rerender) {
+      const redrawCal = () => (el.querySelector(".rp-cal").innerHTML = cal());
+      el.addEventListener("click", e => {
+        const q = e.target.closest("[data-q]");
+        if (q) { const r = findQuick(q.dataset.q); close(); selDay = r.r[1]; return setWindow(r.r[0], r.r[1], r.key); }
+        const mb = e.target.closest("[data-m]");
+        if (mb) { month = new Date(month.getFullYear(), month.getMonth() + +mb.dataset.m, 1); return redrawCal(); }
+        const day = e.target.closest(".dp-day"); if (!day || day.disabled) return;
+        const off = +day.dataset.off;
+        if (pending == null) { pending = off; hover = off; return redrawCal(); }
+        close();
+        if (off === pending) return jumpTo(off);
+        selDay = Math.max(off, pending);
+        setWindow(Math.min(off, pending), Math.max(off, pending));
+      });
+      el.addEventListener("mouseover", e => {
+        const day = e.target.closest(".dp-day");
+        if (pending == null || !day || day.disabled || +day.dataset.off === hover) return;
+        hover = +day.dataset.off; redrawCal();
+      });
+    } });
+  }
+
+  /* 全部：总数字 + 按年热力格（新年在上）+ 全部月份的月度柱 */
+  function renderAll() {
+    const level = ms => (ms <= 0 ? "" : ms < 30 * MIN ? "l1" : ms < 60 * MIN ? "l2" : ms < 120 * MIN ? "l3" : "l4");
+    const list = P.sessions.filter(s => hlPid == null || s.presetId === hlPid);
+    const byDay = new Map();
+    for (const s of list) { const o = P.dayOffset(s.startTime); const v = byDay.get(o) || { ms: 0, n: 0 }; v.ms += s.focusMs; v.n++; byDay.set(o, v); }
+    const total = list.reduce((a, s) => a + s.focusMs, 0);
+    let best = 0, run = 0;
+    for (let o = firstOff(); o <= 0; o++) { run = byDay.has(o) ? run + 1 : 0; best = Math.max(best, run); }
+    const nowY = new Date(P.now()).getFullYear(), firstY = new Date(TODAY() + firstOff() * D).getFullYear();
+
+    let years = "";
+    for (let y = nowY; y >= firstY; y--) {
+      const jan1 = new Date(y, 0, 1), startOff = offOf(jan1) - ((jan1.getDay() + 6) % 7);
+      let cells = "", months = "", lastMonth = -1, yMs = 0, yDays = 0;
+      for (let c = 0; c < 53; c++) {
+        const colDate = new Date(TODAY() + (startOff + c * 7) * D);
+        const monthOfCol = colDate.getFullYear() < y ? 0 : colDate.getMonth();
+        if (colDate.getFullYear() <= y && monthOfCol !== lastMonth) { months += `<button class="hm-m" style="grid-column:${c + 1}" data-ym="${y}-${monthOfCol}">${monthOfCol + 1}月</button>`; lastMonth = monthOfCol; }
+        for (let r = 0; r < 7; r++) {
+          const off = startOff + c * 7 + r, d = new Date(TODAY() + off * D), v = byDay.get(off);
+          const outside = d.getFullYear() !== y || off > 0;
+          if (!outside && v) { yMs += v.ms; yDays++; }
+          cells += `<i class="hm-cell ${outside ? "future" : level(v?.ms ?? 0)}${off === selDay ? " sel" : ""}${off === 0 ? " today" : ""}" data-off="${off}"
+            title="${d.getMonth() + 1}月${d.getDate()}日 周${P.WEEK[d.getDay()]} · ${v ? `${v.n} 个 · ${fmtDur(v.ms)}` : "无记录"}"></i>`;
+        }
+      }
+      years += `<section class="yr"><button class="yr-h" data-year="${y}"><b>${y}</b><span>${yDays} 天 · ${Math.round(yMs / H)} 小时</span></button>
+        <div class="hm"><div class="hm-months">${months}</div>
+          <div class="hm-wd">${"一 . 三 . 五 . 日".split(" ").map(w => `<span>${w === "." ? "" : w}</span>`).join("")}</div>
+          <div class="hm-grid">${cells}</div></div></section>`;
+    }
+
+    // 全部月份（首条记录所在月 → 本月）
+    const monthsData = [];
+    const first = new Date(TODAY() + firstOff() * D);
+    for (let d = new Date(first.getFullYear(), first.getMonth(), 1); d.getTime() <= P.now(); d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      monthsData.push({ start: d, end, ms: list.filter(s => s.startTime >= d.getTime() && s.startTime < end.getTime()).reduce((a, s) => a + s.focusMs, 0) });
+    }
+    const mmax = Math.max(...monthsData.map(m => m.ms), H);
+    const bestMonth = monthsData.reduce((a, m) => (m.ms > a.ms ? m : a), monthsData[0]);
+    $("#lg-sub").textContent = `${list.length} 个 · ${Math.round(total / H)} 小时`;
+    $("#year").innerHTML = `
+      <div class="ys"><div><b>${Math.round(total / H)} 小时</b>累计专注</div><div><b>${byDay.size}</b>有专注的天</div><div><b>${best}</b>最长连续（天）</div><div><b>${fmtDur(total / Math.max(1, byDay.size))}</b>专注日日均</div><div><b>${bestMonth.start.getFullYear() !== nowY ? `${bestMonth.start.getFullYear()}.` : ""}${bestMonth.start.getMonth() + 1}月</b>最投入的月份 · ${fmtDur(bestMonth.ms)}</div></div>
+      <div class="yrs fade-scroll">${years}
+        <div class="hm-legend">少 <i class="hm-cell"></i><i class="hm-cell l1"></i><i class="hm-cell l2"></i><i class="hm-cell l3"></i><i class="hm-cell l4"></i> 多（30 分 / 1 时 / 2 时）</div></div>
+      <div class="mb-h"><b>按月</b>${hlPid != null ? `只看「${P.presetById(hlPid)?.name ?? "已删除"}」 · ` : ""}点月份看那个月</div>
+      <div class="mbars" style="grid-template-columns:repeat(${monthsData.length}, minmax(0, 1fr))">${monthsData.map((m, i) => `<div class="mbar${i === monthsData.length - 1 ? " cur" : ""}" data-mi="${i}" title="${m.start.getFullYear()}年${m.start.getMonth() + 1}月 · ${fmtDur(m.ms)}">
+        <span class="v">${m.ms ? Math.round(m.ms / H) + "h" : "—"}</span>
+        <div class="stack" style="height:${m.ms ? Math.max(3, (m.ms / mmax) * 74) : 0}%"></div>
+        <span class="m">${m.start.getMonth() === 0 || i === 0 ? `<em>${String(m.start.getFullYear()).slice(2)}</em>` : ""}${m.start.getMonth() + 1}月</span></div>`).join("")}</div>`;
+    const openMonth = (y, mo) => { const s0 = offOf(new Date(y, mo, 1)), e0 = Math.min(0, offOf(new Date(y, mo + 1, 0))); selDay = e0; setWindow(s0, e0); };
+    $("#year").querySelectorAll(".mbar").forEach(el => (el.onclick = () => { const m = monthsData[+el.dataset.mi]; openMonth(m.start.getFullYear(), m.start.getMonth()); }));
+    $("#year").onclick = e => {
+      const c = e.target.closest(".hm-cell[data-off]"); if (c && !c.classList.contains("future")) return jumpTo(+c.dataset.off);
+      const ym = e.target.closest("[data-ym]"); if (ym) { const [y, mo] = ym.dataset.ym.split("-").map(Number); return openMonth(y, mo); }
+      const yr = e.target.closest("[data-year]");
+      if (yr) { const y = +yr.dataset.year, q = y === nowY ? findQuick("thisYear") : findQuick(`y${y}`); selDay = q.r[1]; setWindow(q.r[0], q.r[1], q.key); }
+    };
+  }
+  /* 行高够（≥52px）就切到「周视图」：色块加粗、日期两行（日期 + 个数） */
+  function fitRows() {
+    const rows = $("#rows"), first = rows.querySelector(".row");
+    if (first) rows.classList.toggle("tall", first.offsetHeight >= 52);
+  }
+  addEventListener("resize", fitRows);
+
+  /* 时段分布：所选区间内每半小时的专注分钟（专注段按分钟摊入桶，扣除暂停） */
+  function renderDist() {
+    const N = (TO - FROM) * 2, buckets = new Array(N).fill(0);
+    const inRange = P.sessions.filter(inWindow);
+    for (const s of inRange) {
+      const d0 = P.startOfDay(s.startTime);
+      for (let t = s.startTime; t < s.endTime; t += MIN) {
+        if (s.pauses.some(p => t >= p.start && t < p.end)) continue;
+        const k = Math.floor(((t - d0) / H - FROM) * 2);
+        if (k >= 0 && k < N) buckets[k]++;
+      }
+    }
+    const max = Math.max(...buckets, 1), pk = buckets.indexOf(max), w = 100 / N;
+    const total = inRange.reduce((a, s) => a + s.focusMs, 0);
+    const pkH = FROM + pk / 2, lab = `${Math.floor(pkH)}:${pkH % 1 ? "30" : "00"}`;
+    const pkE = pkH + 0.5, labE = `${Math.floor(pkE)}:${pkE % 1 ? "30" : "00"}`;
+    $("#dist").innerHTML = `<span class="dl"><b>时段分布</b><span class="pk">${inRange.length ? `峰值 ${lab}–${labE}` : "暂无数据"}</span></span>
+      <div class="dtrack">${buckets.map((m, i) => `<i class="${m ? (i === pk ? "pk" : "") : "z"}" style="left:calc(${i * w}% + 1px);width:calc(${w}% - 2px);${m ? `height:${Math.max(6, (m / max) * 78)}%` : ""}" title="${Math.floor(FROM + i / 2)}:${i % 2 ? "30" : "00"} 起 · ${m} 分钟"></i>`).join("")}</div>
+      <span class="tot">${fmtDur(total)}<span>日均 ${fmtDur(total / len())}</span></span>`;
+  }
+
+  $("#legend").onclick = e => { const b = e.target.closest("[data-hl]"); if (!b) return; hlPid = hlPid === +b.dataset.hl ? null : +b.dataset.hl; renderLedger(); };
+  $("#rows").addEventListener("click", e => {
+    const blk = e.target.closest(".blk[data-sid]");
+    if (blk && blk.dataset.sid) return openSession(blk, P.sessions.find(s => s.id === +blk.dataset.sid));
+    const row = e.target.closest(".row"); if (!row) return;
+    selDay = +row.dataset.off; renderLedger();
+  });
+
+  function openSession(anchor, s) {
+    const p = P.presetById(s.presetId), span = s.endTime - s.startTime;
+    P.openPop(anchor, `<div class="pop-title"><span class="pdot" style="--c:${P.colorOf(s.presetId)}"></span>${p ? p.name : "已删除的预设"}<span class="spacer"></span>${P.isEarly(s) ? '<span class="tag warn">提前结束</span>' : ""}</div>
+      <div class="sd-rib" style="--c:${P.colorOf(s.presetId)}">${s.pauses.map(q => `<i style="left:${((q.start - s.startTime) / span) * 100}%;width:${((q.end - q.start) / span) * 100}%"></i>`).join("")}</div>
+      <div class="sd-row"><span>${P.dayLabel(s.startTime)} ${hm(s.startTime)}–${hm(s.endTime)}</span><span>${fmtDur(span)} 跨度</span></div>
+      <div class="sd-row"><span>专注</span><b>${fmtDurCN(s.focusMs)}${s.expectedMs ? ` / ${Math.round(s.expectedMs / MIN)} 分钟` : ""}</b></div>
+      <div class="sd-row"><span>暂停</span><b>${s.pauseCount ? `${s.pauseCount} 次 · ${fmtDurCN(s.pauseTotalMs)}` : "无"}</b></div>
+      <div class="sd-foot"><button class="btn btn-secondary" data-e>${icon("clock")}修改时长</button><button class="btn btn-ghost" data-c>${icon("calendar")}在日程中查看</button><span class="spacer"></span><button class="ibtn" data-d title="删除记录">${icon("trash")}</button></div>`,
+      { width: 320, placement: "bottom", onMount(el, close) {
+        el.querySelector("[data-e]").onclick = () => { close(); R.openFocusEditor(anchor, s); };
+        el.querySelector("[data-c]").onclick = () => { close(); P.toast("跳转日程页并定位到当天（日历映射已存在）"); };
+        el.querySelector("[data-d]").onclick = () => { close(); P.toast("已删除 1 条记录", P.deleteSessions([s.id])); };
+      } });
+  }
+
+  /* ---------- 当天明细 ---------- */
+  function renderDay() {
+    const list = P.sessionsOn(selDay), ms = list.reduce((a, s) => a + s.focusMs, 0);
+    const ts = P.startOfDay(P.now()) + selDay * D;
+    const by = new Map(); list.forEach(s => by.set(s.presetId, (by.get(s.presetId) || 0) + s.focusMs));
+    const pauses = list.reduce((a, s) => a + s.pauseCount, 0);
+    const span = list.length ? `${hm(list[list.length - 1].startTime)}–${hm(list[0].endTime)}` : "";
+    $("#dd").innerHTML = `<div class="dd-h"><h3>${selDay > -3 ? P.dayLabel(ts) : md(selDay)}<span class="muted">${selDay > -3 ? P.dateCN(ts) : `周${P.WEEK[new Date(ts).getDay()]}${new Date(ts).getFullYear() !== new Date(P.now()).getFullYear() ? ` · ${new Date(ts).getFullYear()}` : ""}`}</span></h3>
+        <p>${list.length ? `<b>${list.length}</b> 个 · <b>${fmtDurCN(ms)}</b> · ${span}${pauses ? ` · 暂停 ${pauses} 次` : ""}` : "这一天没有专注记录"}</p></div>
+      <div class="dd-list fade-scroll">${selDay === 0 ? R.liveRowHTML() : ""}${list.map(s => R.recRowHTML(s, { tags: "early" })).join("")}</div>
+      ${by.size ? `<div class="mix"><h4>按预设</h4>${[...by].sort((a, b) => b[1] - a[1]).map(([pid, v]) => `<div class="mix-row"><span class="n"><i class="pdot" style="--c:${P.colorOf(pid)}"></i>${P.presetById(pid)?.name ?? "已删除"}</span><span class="bar"><i style="--c:${P.colorOf(pid)};width:${(v / ms) * 100}%"></i></span><span class="v">${fmtDur(v)}</span></div>`).join("")}</div>` : ""}`;
+  }
+  R.bindRows($("#dd"));
+
+  let wasRun = !!P.timing(), lastTick = 0;
+  P.on((type, payload) => {
+    if (type === "completed") report({ saved: payload }, true);
+    if (type === "timer") { const r = !!P.timing(); renderStrip(r !== wasRun); wasRun = r; renderTop(); renderLedger(); }
+    if (type === "data") { if (!P.timing()) renderStrip(true); renderTop(); renderLedger(); }
+    if (type === "sound") renderStrip();
+    if (type === "tick") {
+      renderStrip();
+      if (P.timer.session && performance.now() - lastTick > 5000) {
+        lastTick = performance.now();
+        const row = $('#rows .row[data-off="0"] .track'); if (row) row.innerHTML = trackHTML(0);
+        const l = $("#dd [data-live]"), t = P.timing(); if (l && t) l.textContent = fmtDur(t.elapsed);
+      }
+    }
+  });
+  P.bindKeys();
+  renderTop(); renderStrip(true); renderLedger();
+})();
+</script>
+</body>
+</html>
