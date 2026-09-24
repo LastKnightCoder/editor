@@ -60,8 +60,9 @@ export function TodoDrawer({
       aria-hidden={!open}
       inert={!open}
       className={cn(
-        "bg-surface shadow-float ease-tau-out absolute inset-y-0 right-0 z-10 flex w-[440px] flex-col rounded-[16px] outline outline-1 outline-[var(--tau-line-1)] transition-[transform,opacity] duration-[240ms]",
-        open ? "translate-x-0 opacity-100" : "pointer-events-none translate-x-6 opacity-0"
+        "bg-surface shadow-float ease-tau-out absolute inset-y-0 right-0 z-10 flex w-[440px] origin-right flex-col rounded-[16px] outline outline-1 outline-[var(--tau-line-1)] transition-[transform,opacity] duration-[240ms]",
+        // 贴 right-0 无右移余量：以右缘为原点微缩退场，外框始终在容器内，不越界撑出滚动条
+        open ? "scale-100 opacity-100" : "pointer-events-none scale-[0.98] opacity-0"
       )}
     >
       {current && (
