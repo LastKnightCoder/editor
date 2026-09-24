@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState, useCallback } from "react";
+import { memo, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Spinner } from "@tau/ui";
 import { PublishContentType } from "@/types/publish";
 import { Project } from "@/types/project";
@@ -13,30 +13,64 @@ import {
 } from "./utils";
 import { usePublishSelections, useContentLoader } from "./hooks";
 import {
-  Header,
-  TabBar,
+  TypeRail,
   CardSelector,
   ArticleSelector,
   EntitySelector,
   QuestSelector,
 } from "./components";
 
-const PublishSelector = memo(() => {
+interface PublishSelectorProps {
+  /** 任意选择变更（勾选 / 批量 / 作用域）完成后回调，便于上层重算发布计划 */
+  onSelectionsChange?: () => void;
+}
+
+const PublishSelector = memo<PublishSelectorProps>(({ onSelectionsChange }) => {
   const [activeTab, setActiveTab] = useState<PublishContentType>("card");
 
   // 加载选择状态
   const {
     isItemSelected,
-    batchToggle,
+    batchToggle: rawBatchToggle,
     loadSelections,
-    handleEntityToggle,
-    updateEntityScope,
+    handleEntityToggle: rawHandleEntityToggle,
+    updateEntityScope: rawUpdateEntityScope,
     getTotalSelectedCount,
     getTypeSelectedCount,
     projectScopes,
     documentScopes,
     questScopes,
   } = usePublishSelections();
+
+  // 选择变更后通知上层（用 ref 保持回调稳定，避免下游 memo 失效）
+  const onChangeRef = useRef(onSelectionsChange);
+  useEffect(() => {
+    onChangeRef.current = onSelectionsChange;
+  }, [onSelectionsChange]);
+
+  const batchToggle = useCallback<typeof rawBatchToggle>(
+    async (...args) => {
+      await rawBatchToggle(...args);
+      onChangeRef.current?.();
+    },
+    [rawBatchToggle]
+  );
+
+  const handleEntityToggle = useCallback<typeof rawHandleEntityToggle>(
+    async (...args) => {
+      await rawHandleEntityToggle(...args);
+      onChangeRef.current?.();
+    },
+    [rawHandleEntityToggle]
+  );
+
+  const updateEntityScope = useCallback<typeof rawUpdateEntityScope>(
+    async (...args) => {
+      await rawUpdateEntityScope(...args);
+      onChangeRef.current?.();
+    },
+    [rawUpdateEntityScope]
+  );
 
   // 加载内容
   const {
@@ -59,6 +93,27 @@ const PublishSelector = memo(() => {
     loadSelections();
     loadContent();
   }, [loadSelections, loadContent]);
+
+  // 各类型内容总数（问题管理按分组计）
+  const getTypeTotalCount = useCallback(
+    (type: PublishContentType) => {
+      switch (type) {
+        case "card":
+          return cards.length;
+        case "article":
+          return articles.length;
+        case "quest":
+          return questionGroups.length;
+        case "project":
+          return projects.length;
+        case "document":
+          return documents.length;
+        default:
+          return 0;
+      }
+    },
+    [cards, articles, questionGroups, projects, documents]
+  );
 
   // 构建卡片标签树
   const cardTree = useMemo(() => buildCardTagTree(cards), [cards]);
@@ -153,7 +208,7 @@ const PublishSelector = memo(() => {
   const renderContent = () => {
     if (isLoading) {
       return (
-        <div className="flex h-64 items-center justify-center">
+        <div className="flex h-full items-center justify-center">
           <Spinner className="size-7" />
         </div>
       );
@@ -221,17 +276,17 @@ const PublishSelector = memo(() => {
   };
 
   return (
-    <div className="pt-1">
-      <Header totalSelected={getTotalSelectedCount()} />
-
-      <TabBar
+    <div className="flex h-full min-h-0">
+      <TypeRail
         tabs={TABS}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        totalSelected={getTotalSelectedCount()}
         getSelectedCount={getTypeSelectedCount}
+        getTotalCount={getTypeTotalCount}
       />
 
-      <div className="min-h-[24rem]">{renderContent()}</div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">{renderContent()}</div>
     </div>
   );
 });

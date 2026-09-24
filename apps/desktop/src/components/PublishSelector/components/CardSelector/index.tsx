@@ -2,11 +2,12 @@ import { memo, useState, useMemo, useCallback, useEffect, useRef } from "react";
 import clsx from "clsx";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Eye, Layers } from "lucide-react";
-import { CardTagNode, CardListItem, PublishContentType } from "../../types";
+import { CardTagNode, CardListItem, PublishContentType, SelectionFilter } from "../../types";
 import { CARD_CATEGORY_LABEL } from "../../constants";
-import { collectCardsFromTagNode } from "../../utils";
+import { collectCardsFromTagNode, matchesSelectionFilter, selectionFilterLabel } from "../../utils";
 import { SelectionCheckbox } from "../SelectionCheckbox";
 import { SearchToolbar } from "../SearchToolbar";
+import { FadeScroll } from "../FadeScroll";
 import { EmptyPlaceholder } from "../EmptyPlaceholder";
 import { ContentPreviewModal } from "../ContentPreviewModal";
 import { useSearch } from "../../hooks";
@@ -22,7 +23,7 @@ export const CardSelector = memo<CardSelectorProps>(
   ({ tree, isItemSelected, onToggleCard, onToggleTagCards }) => {
     const [activeTagId, setActiveTagId] = useState<string>("");
     const [previewCard, setPreviewCard] = useState<CardListItem | null>(null);
-    const [onlySelected, setOnlySelected] = useState(false);
+    const [selectionFilter, setSelectionFilter] = useState<SelectionFilter>("all");
 
     // 获取当前选中标签节点
     const activeNode = useMemo(() => {
@@ -57,12 +58,11 @@ export const CardSelector = memo<CardSelectorProps>(
 
     // 根据过滤条件显示卡片
     const displayCards = useMemo(() => {
-      let cards = filteredItems;
-      if (onlySelected) {
-        cards = cards.filter(card => isItemSelected("card", card.id));
-      }
-      return cards;
-    }, [filteredItems, onlySelected, isItemSelected]);
+      if (selectionFilter === "all") return filteredItems;
+      return filteredItems.filter(card =>
+        matchesSelectionFilter(selectionFilter, isItemSelected("card", card.id))
+      );
+    }, [filteredItems, selectionFilter, isItemSelected]);
 
     // 检查是否全选
     const allSelected = useMemo(() => {
@@ -82,13 +82,11 @@ export const CardSelector = memo<CardSelectorProps>(
 
     return (
       <>
-        <div className="border-line-1 rounded-tau-md flex max-h-[520px] overflow-hidden border">
+        <div className="flex h-full min-h-0">
           {/* 左侧：标签树（窄） */}
-          <div className="border-line-1 flex w-56 shrink-0 flex-col border-r">
-            <div className="border-line-1 text-ink-1 flex shrink-0 items-center justify-between border-b px-4 py-3 text-[13px] font-medium">
-              <span>标签树</span>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto py-2">
+          <div className="flex w-48 shrink-0 flex-col pl-1 pt-3.5">
+            <div className="text-ink-3 shrink-0 px-3 pb-1.5 text-[11.5px] font-medium">标签</div>
+            <FadeScroll className="mb-3 min-h-0 flex-1 pb-1">
               {tree.length === 0 ? (
                 <div className="text-ink-3 p-4 text-center text-[13px]">暂无标签</div>
               ) : (
@@ -102,30 +100,33 @@ export const CardSelector = memo<CardSelectorProps>(
                   />
                 ))
               )}
-            </div>
+            </FadeScroll>
           </div>
 
           {/* 右侧：卡片列表（宽） */}
-          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-            <div className="shrink-0 px-3 py-2">
-              <SearchToolbar
-                query={query}
-                onQueryChange={setQuery}
-                placeholder="搜索卡片标题或标签…"
-                showSelectAll={displayCards.length > 0}
-                allSelected={allSelected}
-                onSelectAll={handleSelectAll}
-                showOnlySelected
-                onlySelected={onlySelected}
-                onOnlySelectedChange={setOnlySelected}
-                isFiltering={isFiltering}
-              />
-            </div>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <SearchToolbar
+              query={query}
+              onQueryChange={setQuery}
+              placeholder="搜索卡片标题或标签…"
+              showSelectAll={displayCards.length > 0}
+              allSelected={allSelected}
+              onSelectAll={handleSelectAll}
+              selectionFilter={selectionFilter}
+              onSelectionFilterChange={setSelectionFilter}
+              isFiltering={isFiltering}
+            />
 
-            <div className="min-h-0 flex-1 overflow-hidden">
+            <div className="mb-3 min-h-0 flex-1 overflow-hidden">
               {displayCards.length === 0 ? (
                 <EmptyPlaceholder
-                  text={onlySelected ? "暂无已选卡片" : query ? "无匹配结果" : "此标签下暂无卡片"}
+                  text={
+                    query
+                      ? "无匹配结果"
+                      : selectionFilter !== "all"
+                        ? `暂无${selectionFilterLabel(selectionFilter)}卡片`
+                        : "此标签下暂无卡片"
+                  }
                 />
               ) : (
                 <CardList
@@ -184,20 +185,21 @@ const TagTreeNode = memo<{
         type="button"
         onClick={() => onSelect(node.id)}
         className={clsx(
-          "mx-1 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-[13px] transition-colors",
-          isActive ? "bg-selected text-ink-1 font-medium" : "text-ink-2 hover:bg-hover"
+          "flex w-full items-center gap-2 rounded-[8px] py-1.5 pr-2 text-left text-[13px] transition-colors",
+          isActive ? "bg-selected text-accent-text font-medium" : "text-ink-2 hover:bg-hover"
         )}
-        style={{ paddingLeft: depth * 12 + 12, width: "calc(100% - 8px)" }}
+        style={{ paddingLeft: depth * 12 + 10 }}
       >
         <span className="flex-1 truncate">{node.label}</span>
-        {selectedCount > 0 && (
-          <span className="bg-group text-ink-2 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums">
-            {selectedCount}/{node.count}
-          </span>
-        )}
-        {selectedCount === 0 && (
-          <span className="text-ink-3 text-[11px] tabular-nums">{node.count}</span>
-        )}
+        <span className="text-ink-3 shrink-0 font-mono text-[11px] tabular-nums">
+          {selectedCount > 0 ? (
+            <>
+              <span className="text-ink-2">{selectedCount}</span>/{node.count}
+            </>
+          ) : (
+            node.count
+          )}
+        </span>
       </button>
       {node.children.map(child => (
         <TagTreeNode
@@ -228,7 +230,7 @@ const CardList = memo<{
   const virtualizer = useVirtualizer({
     count: cards.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 68,
+    estimateSize: () => 52,
     overscan: 5,
   });
 
@@ -238,7 +240,7 @@ const CardList = memo<{
   }, [activeTagId, virtualizer]);
 
   return (
-    <div ref={parentRef} className="h-full overflow-y-auto">
+    <FadeScroll scrollRef={parentRef} className="h-full px-2.5 pb-1">
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -261,34 +263,21 @@ const CardList = memo<{
                 height: `${virtualItem.size}px`,
                 transform: `translateY(${virtualItem.start}px)`,
               }}
-              className="px-3 py-1"
             >
-              <div
-                className={clsx(
-                  "rounded-tau-sm flex min-h-[56px] items-center gap-3 px-4 py-3 transition-colors",
-                  selected ? "bg-selected" : "hover:bg-hover"
-                )}
-              >
+              <div className="hover:bg-hover flex h-full items-center gap-2.5 rounded-[8px] px-2 py-1.5 transition-colors">
                 <SelectionCheckbox
                   checked={selected}
                   onChange={() => onToggleCard(card.id)}
                   size="sm"
                 />
                 <div className="min-w-0 flex-1 cursor-pointer" onClick={() => onPreview(card)}>
-                  <div
-                    className={clsx(
-                      "truncate text-[13px]",
-                      selected ? "text-ink-1 font-medium" : "text-ink-1"
-                    )}
-                  >
-                    {card.title}
-                  </div>
+                  <div className="text-ink-1 truncate text-[13px]">{card.title}</div>
                   <div className="text-tau-tiny text-ink-3 mt-0.5 truncate">{card.summary}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => onPreview(card)}
-                  className="text-ink-3 hover:bg-hover hover:text-ink-1 shrink-0 rounded-md p-1.5 transition-colors"
+                  className="text-ink-3 hover:bg-press hover:text-ink-1 shrink-0 rounded-[6px] p-1.5 transition-colors"
                   title="预览"
                 >
                   <Eye size={15} strokeWidth={1.75} />
@@ -298,7 +287,7 @@ const CardList = memo<{
           );
         })}
       </div>
-    </div>
+    </FadeScroll>
   );
 });
 
