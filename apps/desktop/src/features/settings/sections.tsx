@@ -1,7 +1,7 @@
 /**
  * 设置分区清单 —— 单一信息架构（数据驱动，SettingsDialog 只负责渲染）。
  *
- * 对齐 legacy 设置弹窗全部 14 个子页（不遗漏），分组与排序按桌面设置惯例重排
+ * 对齐 legacy 设置弹窗全部子页（「发布」已抽为独立页面，D-035），分组与排序按桌面设置惯例重排
  * （D-028，mockups/settings/ 方案 A 经典双栏）：通用 → 数据 → AI 服务 → 扩展 → 支持，
  * 使用频率递减、关于殿后；AI 服务按生成管线排序（对话 → 检索 → 生图 → 语音）。
  * 逐页重设计时替换对应条目的 component 即可，本文件即设置导航的唯一修改点。
@@ -12,7 +12,6 @@ import {
   Palette,
   RefreshCw,
   Database,
-  Upload,
   Sparkles,
   Layers,
   ImageIcon,
@@ -29,7 +28,6 @@ import { PendingSection } from "./components/PendingSection";
 import { AppearanceSection } from "./sections/AppearanceSection";
 import { SyncSection } from "./sections/SyncSection";
 import { ResourceSection } from "./sections/ResourceSection";
-import { PublishSection } from "./sections/PublishSection";
 import { LLMSection } from "./sections/LLMSection";
 import { EmbeddingSection } from "./sections/EmbeddingSection";
 
@@ -37,7 +35,6 @@ export type SettingsSectionKey =
   | "appearance"
   | "sync"
   | "imageBed"
-  | "publish"
   | "llm"
   | "embedding"
   | "imageGeneration"
@@ -82,7 +79,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         icon: Database,
         component: ResourceSection,
       },
-      { key: "publish", label: "发布", icon: Upload, component: PublishSection },
     ],
   },
   {

@@ -38,7 +38,7 @@ export const ContentPreviewModal = memo<ContentPreviewModalProps>(
           {meta && (
             <div className="border-line-2 text-ink-3 mb-4 flex items-center gap-3 border-b pb-3 text-[11.5px]">
               {meta.category && (
-                <span className="bg-group text-ink-2 rounded-full px-2 py-0.5">
+                <span className="bg-hover text-ink-2 rounded-full px-2 py-0.5">
                   {meta.category}
                 </span>
               )}

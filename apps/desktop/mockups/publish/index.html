@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>发布 · 独立页面方案</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-surface-hover: #f6f3ef; --bg-sunken: #e7dbc8; --bg-track: #e0d6c3;
+    --bg-hover: rgba(67, 57, 44, 0.05); --bg-press: rgba(67, 57, 44, 0.09); --bg-selected: rgba(217, 119, 87, 0.12);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85; --ink-inverse: #fff8ef;
+    --line-1: #e9e1d2;
+    --accent: hsl(22 58% 42%); --accent-hover: hsl(22 58% 35%); --accent-soft: hsla(22, 58%, 42%, 0.12); --accent-text: #a05236;
+    --ok: #61795f; --ok-soft: #e5ede2; --warn: #a38c4d; --warn-soft: #f6efd6; --danger: #b0564d; --danger-soft: #f6e3e0; --info: #5c7d99; --info-soft: #e2ebf3;
+    --t1: #61795f; --t1s: #e5ede2; --t2: #5c7d99; --t2s: #e2ebf3; --t3: #8a7aa6; --t3s: #ebe6f3; --t4: #a38c4d; --t4s: #f6efd6; --t5: #b06a5e; --t5s: #f6e3e0;
+    --overlay: rgba(67, 57, 44, 0.35);
+    --shadow-card: 0 1px 2px rgba(120, 100, 70, 0.05), 0 10px 24px -14px rgba(120, 100, 70, 0.18);
+    --shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #e8e1d1; color: var(--ink-1);
+    font: 14px/1.6 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 36px 3vw 80px;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  input { font: inherit; color: inherit; }
+
+  /* ---------- 说明区 ---------- */
+  .intro h1 { font-size: 22px; font-weight: 650; }
+  .intro p { color: var(--ink-2); max-width: 92ch; margin-top: 6px; font-size: 13.5px; }
+  .intro ul { color: var(--ink-2); font-size: 13px; margin: 10px 0 0 18px; max-width: 92ch; }
+  .intro li { margin-top: 3px; } .intro b { color: var(--ink-1); font-weight: 600; }
+  .switch { display: flex; gap: 6px; align-items: center; margin: 22px 0 14px; font-size: 12.5px; color: var(--ink-2); }
+  .switch button { padding: 4px 12px; border-radius: 99px; background: rgba(255,253,249,.6); }
+  .switch button.on { background: var(--ink-1); color: var(--ink-inverse); }
+
+  /* ---------- 窗口骨架 ---------- */
+  .win { height: 780px; border-radius: 14px; overflow: hidden; background: var(--bg-page); position: relative;
+    box-shadow: 0 2px 6px rgba(67,57,44,.08), 0 20px 50px rgba(67,57,44,.12); display: flex; flex-direction: column; font-size: 13px; }
+  .titlebar { height: 40px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 16px; color: var(--ink-2); }
+  .dots { display: flex; gap: 7px; } .dots i { width: 11px; height: 11px; border-radius: 50%; background: #e0d6c4; }
+  .crumb { color: var(--ink-3); font-size: 12.5px; } .crumb b { color: var(--ink-1); font-weight: 500; }
+  .body { flex: 1; display: flex; min-height: 0; }
+  .nav { width: 184px; flex: none; padding: 4px 10px; color: var(--ink-2); font-size: 12.5px; }
+  .nav .grp { font-size: 11px; color: var(--ink-3); margin: 12px 8px 3px; }
+  .nav .it { padding: 4px 8px; border-radius: 7px; display: flex; gap: 9px; align-items: center; }
+  .nav .it::before { content: ""; width: 12px; height: 12px; border: 1.5px solid currentColor; border-radius: 3.5px; opacity: .55; flex: none; }
+  .nav .it.on { background: var(--bg-hover); color: var(--ink-1); font-weight: 500; }
+  .nav .it.new::after { content: "新"; margin-left: auto; font-size: 10px; color: var(--accent-text); background: var(--accent-soft); border-radius: 99px; padding: 0 6px; }
+
+  .page { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 6px 22px 0 12px; }
+
+  /* ---------- 页头：站点身份 ---------- */
+  .head { display: flex; align-items: center; gap: 14px; padding: 10px 4px 18px; }
+  .fav { width: 44px; height: 44px; border-radius: 12px; background: var(--bg-surface); box-shadow: var(--shadow-card); display: grid; place-items: center; flex: none; }
+  .fav svg { width: 24px; height: 24px; }
+  .site { min-width: 0; }
+  .site h2 { font-size: 19px; font-weight: 650; letter-spacing: .01em; display: flex; align-items: center; gap: 10px; }
+  .site .sub { display: flex; align-items: center; gap: 10px; margin-top: 2px; color: var(--ink-3); font-size: 12px; flex-wrap: wrap; }
+  .site .url { font-family: var(--mono); font-size: 11.5px; color: var(--accent-text); }
+  .site .url:hover { text-decoration: underline; cursor: pointer; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 1px 9px; border-radius: 99px; background: var(--bg-hover); color: var(--ink-2); }
+  .chip i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+  .chip.warn { background: var(--warn-soft); color: #7d6a36; } .chip.warn i { background: var(--warn); }
+  .head .acts { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .btn { height: 32px; padding: 0 14px; border-radius: 9px; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; transition: background .15s; }
+  .btn.sec { background: var(--bg-surface); box-shadow: 0 0 0 1px var(--line-1) inset; }
+  .btn.sec:hover { background: var(--bg-surface-hover); }
+  .btn.pri { background: var(--accent); color: var(--ink-inverse); box-shadow: 0 1px 2px rgba(120,60,30,.2); }
+  .btn.pri:hover { background: var(--accent-hover); }
+  .btn.pri[disabled] { background: var(--bg-sunken); color: var(--ink-3); box-shadow: none; cursor: not-allowed; }
+  .btn.ghost { color: var(--ink-2); padding: 0 10px; } .btn.ghost:hover { background: var(--bg-hover); }
+  .btn.sm { height: 28px; padding: 0 11px; font-size: 12.5px; border-radius: 8px; }
+  .btn svg { width: 15px; height: 15px; flex: none; }
+  .btn .n { font-family: var(--mono); font-size: 11.5px; background: rgba(255,248,239,.22); border-radius: 99px; padding: 0 7px; }
+
+  /* ---------- 主体网格 ---------- */
+  .grid { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; padding-bottom: 16px; }
+  .panel { background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow-card); min-height: 0; }
+
+  /* 内容选择器 */
+  .picker { display: flex; overflow: hidden; }
+  .types { width: 204px; flex: none; padding: 14px 6px 14px 12px; display: flex; flex-direction: column; gap: 2px; }
+  .types .ttl { font-size: 13px; font-weight: 600; padding: 2px 8px 10px; display: flex; align-items: baseline; gap: 8px; }
+  .types .ttl small { font: 400 11px var(--mono); color: var(--ink-3); }
+  .ty { display: flex; align-items: center; gap: 10px; padding: 8px 9px; border-radius: 10px; text-align: left; transition: background .15s; }
+  .ty:hover { background: var(--bg-hover); }
+  .ty.on { background: var(--bg-selected); } .ty.on .tx b { color: var(--accent-text); font-weight: 600; }
+  .ty .ic { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; flex: none; }
+  .ty .ic svg { width: 14px; height: 14px; }
+  .ty .tx { min-width: 0; flex: 1; }
+  .ty .tx b { display: block; font-weight: 500; font-size: 13px; }
+  .ty .tx span { display: block; font-size: 11px; color: var(--ink-3); }
+  .ty .cnt { font: 500 11.5px var(--mono); color: var(--ink-2); }
+  .ty .cnt em { font-style: normal; color: var(--ink-3); }
+  .types .foot { margin-top: auto; padding: 10px 8px 2px; font-size: 11.5px; color: var(--ink-3); line-height: 1.7; }
+
+  .list { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .tools { display: flex; align-items: center; gap: 10px; padding: 14px 16px 8px; }
+  .search { flex: 1; max-width: 320px; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 8px; box-shadow: 0 0 0 1px var(--line-1) inset; color: var(--ink-3); font-size: 12.5px; }
+  .search svg { width: 14px; height: 14px; }
+  .seg { display: flex; background: var(--bg-hover); border-radius: 8px; padding: 2px; font-size: 12px; }
+  .seg button { padding: 3px 11px; border-radius: 6px; color: var(--ink-2); }
+  .seg button.on { background: var(--bg-surface); color: var(--ink-1); font-weight: 500; box-shadow: 0 1px 2px rgba(120,100,70,.12); }
+  .tools .right { margin-left: auto; display: flex; gap: 4px; }
+  .rows { flex: 1; overflow: auto; padding: 4px 10px 14px; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; cursor: pointer; }
+  .row:hover { background: var(--bg-hover); }
+  .row .car { width: 14px; color: var(--ink-3); font-size: 10px; text-align: center; flex: none; transition: transform .15s; }
+  .row.open .car { transform: rotate(90deg); }
+  .row .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .nm small { color: var(--ink-3); margin-left: 8px; font-size: 11.5px; }
+  .row .meta { font: 11px var(--mono); color: var(--ink-3); }
+  .row.l1 { padding-left: 32px; } .row.l2 { padding-left: 56px; }
+  .row.grp .nm { font-weight: 500; }
+  .row .st { font-size: 10.5px; border-radius: 99px; padding: 0 7px; }
+  .st.chg { background: var(--accent-soft); color: var(--accent-text); }
+  .st.new { background: var(--ok-soft); color: var(--ok); }
+  .cb { width: 16px; height: 16px; border-radius: 5px; box-shadow: 0 0 0 1.5px var(--bg-track) inset; flex: none; display: grid; place-items: center; background: var(--bg-surface); transition: background .12s; }
+  .cb.on { background: var(--accent); box-shadow: none; }
+  .cb.on::after { content: ""; width: 8px; height: 4.5px; border: 1.8px solid var(--ink-inverse); border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg); }
+  .cb.mix { background: var(--accent); box-shadow: none; }
+  .cb.mix::after { content: ""; width: 8px; height: 1.8px; background: var(--ink-inverse); border-radius: 1px; }
+
+  /* 右栏 */
+  .rail { display: flex; flex-direction: column; gap: 14px; min-height: 0; overflow: auto; }
+  .card { padding: 16px 16px 14px; }
+  .card h3 { font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card h3 small { font-weight: 400; font-size: 11.5px; color: var(--ink-3); }
+  .card h3 .x { margin-left: auto; }
+  .card .hint { font-size: 12px; color: var(--ink-3); margin-top: 3px; }
+  .bar { height: 8px; border-radius: 99px; background: var(--bg-sunken); display: flex; overflow: hidden; margin: 14px 0 12px; gap: 2px; }
+  .bar i { display: block; height: 100%; }
+  .kv { display: flex; flex-direction: column; gap: 2px; }
+  .kv .r { display: flex; align-items: center; gap: 10px; padding: 5px 6px; border-radius: 7px; font-size: 12.5px; }
+  .kv .r.clk { cursor: pointer; } .kv .r.clk:hover { background: var(--bg-hover); }
+  .kv .r i { width: 8px; height: 8px; border-radius: 3px; flex: none; }
+  .kv .r b { margin-left: auto; font: 600 12.5px var(--mono); }
+  .kv .r .chev { color: var(--ink-3); font-size: 10px; width: 10px; }
+  .files { margin: 2px 0 4px 24px; font: 11px/1.9 var(--mono); color: var(--ink-2); }
+  .files div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .files .more { color: var(--ink-3); font-family: inherit; }
+
+  .act .big { width: 100%; height: 40px; justify-content: center; font-size: 14px; border-radius: 11px; margin-top: 14px; }
+  .act .aux { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 11.5px; color: var(--ink-3); }
+  .act .aux button { color: var(--ink-2); } .act .aux button:hover { color: var(--accent-text); }
+
+  .steps { display: flex; margin: 16px 0 12px; }
+  .step { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-3); position: relative; }
+  .step::before { content: ""; position: absolute; top: 5px; left: -50%; right: 50%; height: 2px; background: var(--bg-sunken); }
+  .step:first-child::before { display: none; }
+  .step .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--bg-sunken); position: relative; z-index: 1; }
+  .step.done { color: var(--ink-2); } .step.done .dot, .step.done::before, .step.cur::before { background: var(--accent); }
+  .step.cur { color: var(--accent-text); font-weight: 500; }
+  .step.cur .dot { background: var(--bg-surface); box-shadow: 0 0 0 2.5px var(--accent) inset; animation: pulse 1.4s infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 2.5px var(--accent) inset, 0 0 0 5px var(--accent-soft); } }
+  .prog { height: 6px; border-radius: 99px; background: var(--bg-sunken); overflow: hidden; }
+  .prog i { display: block; height: 100%; background: var(--accent); border-radius: inherit; transition: width .3s; }
+  .pline { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11.5px; color: var(--ink-3); gap: 12px; }
+  .pline .f { font-family: var(--mono); color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .res { display: flex; gap: 12px; align-items: flex-start; margin-top: 12px; padding: 12px; border-radius: 11px; background: var(--ok-soft); }
+  .res.bad { background: var(--warn-soft); }
+  .res .ico { width: 26px; height: 26px; border-radius: 50%; background: var(--ok); color: #fff; display: grid; place-items: center; flex: none; font-size: 13px; }
+  .res.bad .ico { background: var(--warn); }
+  .res b { font-weight: 600; font-size: 13px; } .res p { font-size: 12px; color: var(--ink-2); margin-top: 2px; }
+  .fail { margin-top: 10px; font: 11px/1.8 var(--mono); }
+  .fail div { display: flex; gap: 8px; } .fail span { color: var(--danger); margin-left: auto; font-family: -apple-system, sans-serif; }
+
+  .guide { text-align: left; }
+  .guide ol { list-style: none; margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .guide li { display: flex; gap: 10px; align-items: center; font-size: 12.5px; padding: 10px 12px; border-radius: 10px; box-shadow: 0 0 0 1px var(--line-1) inset; }
+  .guide li .no { width: 20px; height: 20px; border-radius: 50%; background: var(--bg-hover); display: grid; place-items: center; font: 600 11px var(--mono); color: var(--ink-2); flex: none; }
+  .guide li.done { background: var(--ok-soft); box-shadow: none; } .guide li.done .no { background: var(--ok); color: #fff; }
+  .guide li button { margin-left: auto; color: var(--accent-text); font-weight: 500; font-size: 12px; }
+
+  /* ---------- 站点设置抽屉 ---------- */
+  .scrim { position: absolute; inset: 0; z-index: 10; background: var(--overlay); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .drawer { position: absolute; z-index: 11; top: 8px; right: 8px; bottom: 8px; width: 460px; background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow-float);
+    transform: translateX(calc(100% + 16px)); transition: transform .28s cubic-bezier(.2,.8,.2,1); display: flex; flex-direction: column; }
+  .win.drawer-open .scrim { opacity: 1; pointer-events: auto; }
+  .win.drawer-open .drawer { transform: none; }
+  .dh { padding: 18px 20px 6px; display: flex; align-items: center; }
+  .dh h3 { font-size: 16px; font-weight: 650; } .dh .btn { margin-left: auto; }
+  .db { flex: 1; overflow: auto; padding: 6px 20px 20px; }
+  .db h4 { font-size: 13px; font-weight: 600; margin: 16px 0 10px; display: flex; gap: 8px; align-items: baseline; }
+  .db h4 small { font-weight: 400; font-size: 11.5px; color: var(--ink-3); }
+  .prov { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .pv { padding: 11px 11px 10px; border-radius: 11px; background: var(--bg-surface); box-shadow: 0 0 0 1px var(--line-1) inset; text-align: left; transition: background .15s, box-shadow .15s; }
+  .pv:hover { background: var(--bg-surface-hover); }
+  .pv.on { background: var(--bg-surface); box-shadow: 0 0 0 1.5px var(--accent) inset, var(--shadow-card); }
+  .pv b { display: block; font-size: 12.5px; font-weight: 600; } .pv span { display: block; font-size: 11px; color: var(--ink-3); margin-top: 2px; line-height: 1.45; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .fd { display: flex; flex-direction: column; gap: 5px; min-width: 0; } .fd.full { grid-column: span 2; }
+  .fd label { font-size: 12px; color: var(--ink-2); font-weight: 500; }
+  .fd .in { height: 32px; border-radius: 8px; box-shadow: 0 0 0 1px var(--line-1) inset; background: var(--bg-surface); padding: 0 10px; display: flex; align-items: center; font-size: 12.5px; gap: 8px; }
+  .fd .in.mono { font-family: var(--mono); font-size: 12px; }
+  .fd .in.ro { color: var(--ink-2); box-shadow: 0 0 0 1px var(--line-1) inset; cursor: default; }
+  .fd .in.ro::after { content: "自动"; margin-left: auto; font: 11px -apple-system, sans-serif; color: var(--ink-3); }
+  .fd .in .caret { margin-left: auto; color: var(--ink-3); font-size: 10px; }
+  .fd .ph { color: var(--ink-3); }
+  .tgl { display: flex; align-items: center; gap: 10px; height: 32px; font-size: 12.5px; color: var(--ink-2); }
+  .sw { width: 30px; height: 18px; border-radius: 99px; background: var(--accent); position: relative; flex: none; }
+  .sw::after { content: ""; position: absolute; right: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--bg-surface); }
+  .conn { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding: 10px 12px; border-radius: 10px; box-shadow: 0 0 0 1px var(--line-1) inset; font-size: 12px; color: var(--ink-2); }
+  .conn .btn { margin-left: auto; }
+  .conn .okt { color: var(--ok); font-weight: 500; }
+  .note { font-size: 11.5px; color: var(--ink-3); margin-top: 10px; }
+  .note a { color: var(--accent-text); font-weight: 500; cursor: pointer; }
+  .favrow { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 10px 12px; border-radius: 10px; box-shadow: 0 0 0 1px var(--line-1) inset; }
+  .favrow .fav { width: 36px; height: 36px; border-radius: 10px; box-shadow: none; background: var(--bg-hover); }
+  .favrow .fav svg { width: 20px; height: 20px; }
+  .favrow .fn { flex: 1; font-size: 12.5px; } .favrow small { display: block; font-size: 11px; color: var(--ink-3); }
+  .df { padding: 12px 20px; display: flex; gap: 8px; justify-content: flex-end; border-radius: 0 0 14px 14px; font-size: 11.5px; color: var(--ink-3); align-items: center; }
+  .df span { margin-right: auto; }
+</style>
+</head>
+<body>
+
+<header class="intro">
+  <h1>发布 · 从设置弹窗抽成独立页面</h1>
+  <p>发布的高频动作是「勾内容 → 看变更 → 发布」，站点与目标配置基本只配一次。设置弹窗里这几件事平铺成一长列，高频的内容选择被夹在中间、只有一小块树可操作。独立页面按使用频率重新分区：</p>
+  <ul>
+    <li><b>页头 = 站点身份</b>：favicon + 标题 + 访问地址 + 目标徽标，一眼确认「发到哪」；配置收进右侧抽屉（低频）。主按钮全页只有一个，放在右栏流程末端。</li>
+    <li><b>主区 = 内容选择</b>：左侧五类内容竖排（粉彩色标 + 已选/总数），右侧搜索 + 「全部/已选/未选」筛选 + 三态勾选树，吃满桌面宽度。</li>
+    <li><b>右栏 = 变更与动作</b>：接入已有但未暴露的 <code>previewPublishPlan</code>（上传/删除/未变），发布中显示五阶段进度 + 当前文件 + 取消，结束后失败文件可一键 <code>retryPublishFiles</code>。</li>
+    <li><b>配色</b>：纸底 + 白面板两档拉开，<b>不使用 bg-group</b>（容器靠留白/描边，小件用 bg-hover 淡墨）；accent 只用于主按钮、勾选与进度；五类内容用 tag-1~5 粉彩区分；变更语义用 accent / danger / ink-3，不另造色。</li>
+    <li><b>入口</b>：侧栏「工具」组新增「发布」；设置弹窗删除该节，凭据仍留在「集成」。</li>
+  </ul>
+</header>
+
+<div class="switch">状态演示：
+  <button data-s="first">首次使用</button>
+  <button data-s="ready" class="on">就绪</button>
+  <button data-s="running">发布中</button>
+  <button data-s="done">完成（含失败）</button>
+  <span style="margin-left:14px">·</span>
+  <button id="openDrawer">打开站点设置</button>
+</div>
+
+<div class="win" id="win">
+  <div class="titlebar"><div class="dots"><i></i><i></i><i></i></div><span class="crumb">工具 / <b>发布</b></span></div>
+  <div class="body">
+    <nav class="nav">
+      <div class="grp">工作台</div><div class="it">今日</div><div class="it">日程</div><div class="it">待办</div>
+      <div class="grp">知识</div><div class="it">卡片库</div><div class="it">文章</div><div class="it">知识库</div>
+      <div class="grp">学习</div><div class="it">项目</div><div class="it">问题管理</div>
+      <div class="grp">工具</div><div class="it">资源管理</div><div class="it">统计</div><div class="it on new">发布</div>
+    </nav>
+
+    <main class="page">
+      <div class="head">
+        <div class="fav" id="fav"></div>
+        <div class="site">
+          <h2 id="siteTitle">Tau 的数字花园</h2>
+          <div class="sub" id="siteSub"></div>
+        </div>
+        <div class="acts">
+          <button class="btn sec" data-drawer>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>站点设置
+          </button>
+          <button class="btn ghost" id="visit">访问站点 ↗</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <section class="panel picker">
+          <div class="types" id="types"></div>
+          <div class="list">
+            <div class="tools">
+              <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span id="searchPh">搜索卡片</span></div>
+              <div class="seg" id="seg"><button class="on">全部</button><button>已选</button><button>未选</button></div>
+              <div class="right"><button class="btn ghost sm">全选</button><button class="btn ghost sm">清空</button></div>
+            </div>
+            <div class="rows" id="rows"></div>
+          </div>
+        </section>
+
+        <aside class="rail" id="rail"></aside>
+      </div>
+    </main>
+  </div>
+
+  <div class="scrim" data-close></div>
+  <div class="drawer">
+    <div class="dh"><h3>站点设置</h3><button class="btn ghost sm" data-close>完成</button></div>
+    <div class="db">
+      <h4>发布目标</h4>
+      <div class="prov" id="prov">
+        <button class="pv on" data-p="gh"><b>GitHub Pages</b><span>推送到仓库分支</span></button>
+        <button class="pv" data-p="s3"><b>S3 静态托管</b><span>兼容 S3 的对象存储</span></button>
+        <button class="pv" data-p="local"><b>本地导出</b><span>生成文件夹自行部署</span></button>
+      </div>
+      <div id="provFields"></div>
+
+      <h4>站点信息 <small>写入首页、RSS 与页面 meta</small></h4>
+      <div class="fields">
+        <div class="fd"><label>站点标题</label><div class="in">Tau 的数字花园</div></div>
+        <div class="fd"><label>公开 URL <small style="color:var(--ink-3);font-weight:400">RSS 用</small></label><div class="in mono">https://garden.tau.dev</div></div>
+        <div class="fd full"><label>站点描述</label><div class="in">记录学习与思考</div></div>
+      </div>
+      <div class="favrow">
+        <div class="fav" id="fav2"></div>
+        <div class="fn">favicon.svg<small>SVG / PNG / ICO，缓存到本地自动复用</small></div>
+        <button class="btn sec sm">重新选择</button><button class="btn ghost sm">清除</button>
+      </div>
+    </div>
+    <div class="df"><span>修改即时保存</span></div>
+  </div>
+</div>
+
+<script>
+const ICON = {
+  card: '<path d="M12 3 3 8l9 5 9-5-9-5Z"/><path d="m3 13 9 5 9-5"/>',
+  article: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/>',
+  quest: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7M12 17h.01"/>',
+  project: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 9v6M12 9v3M16 9v8"/>',
+  document: '<path d="M4 19.5V5a2 2 0 0 1 2-2h14v16H6.5A2.5 2.5 0 0 0 4 21.5v0A2.5 2.5 0 0 1 6.5 19H20"/>',
+};
+const svg = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const FAV = '<svg viewBox="0 0 24 24"><path d="M12 3c4 3 6 6 6 9a6 6 0 0 1-12 0c0-3 2-6 6-9Z" fill="hsl(22 58% 42%)"/><path d="M12 10v9" stroke="#fff8ef" stroke-width="1.8" stroke-linecap="round"/></svg>';
+document.getElementById('fav').innerHTML = FAV;
+document.getElementById('fav2').innerHTML = FAV;
+
+const TYPES = [
+  { k: 'card', label: '卡片', desc: '按标签选择', c: 't1', sel: 128, total: 342 },
+  { k: 'article', label: '文章', desc: '逐篇选择', c: 't2', sel: 24, total: 31 },
+  { k: 'quest', label: '问题管理', desc: '按分类选择', c: 't3', sel: 9, total: 46 },
+  { k: 'project', label: '项目', desc: '整项目或子树', c: 't4', sel: 3, total: 8 },
+  { k: 'document', label: '知识库', desc: '整库或子树', c: 't5', sel: 2, total: 5 },
+];
+const ROWS = {
+  card: [
+    ['grp open', 'mix', '编程', '86 张 · 已选 52'],
+    ['l1 grp open', 'on', '前端 / React', '31'],
+    ['l2', 'on', 'useEffect 的依赖数组只比较引用', '', 'chg'],
+    ['l2', 'on', 'Suspense 边界应该放在数据获取的最近公共祖先', ''],
+    ['l2', 'on', '并发渲染下 state 快照是不可变的', '', 'new'],
+    ['l1 grp', 'mix', '前端 / CSS', '22 · 已选 9'],
+    ['l1 grp', '', '后端 / Node', '33'],
+    ['grp', 'on', '写作', '41'],
+    ['grp', 'mix', '阅读笔记', '129 · 已选 67'],
+    ['grp', '', '未分类', '86'],
+  ],
+  article: [
+    ['', 'on', '重写桌面端的三个月：从 antd 到自有设计系统', '09-21', 'chg'],
+    ['', 'on', '为什么我用声明式 definePage 管页面', '09-12'],
+    ['', 'on', '暖纸主题的色彩调试笔记', '09-03', 'new'],
+    ['', '', '（草稿）Electron 多窗口状态同步', '08-29'],
+    ['', 'on', '卡片笔记三年回顾', '08-10'],
+    ['', 'on', '一个人的知识管理工具链', '07-22'],
+  ],
+  quest: [['grp open', 'mix', '前端架构', '18 · 已选 6'], ['l1', 'on', '状态管理应该按域拆还是按页拆？', '3 个回答'], ['l1', '', '编辑器插件如何做沙箱？', '未解决'], ['grp', 'on', '写作方法', '3']],
+  project: [['grp open', 'on', 'Rust 学习路线', '整项目 · 42 篇'], ['grp', 'mix', 'CS61A 笔记', '子树 · 12/30'], ['grp', 'on', '设计系统重构', '整项目 · 19 篇', 'chg'], ['grp', '', 'SICP 精读', '27 篇']],
+  document: [['grp open', 'on', '工程手册', '整库 · 64 篇'], ['grp', 'mix', '读书摘录', '子树 · 18/90']],
+};
+let cur = 'card', state = 'ready';
+
+function renderTypes() {
+  const tot = TYPES.reduce((a, t) => a + t.sel, 0);
+  document.getElementById('types').innerHTML =
+    `<div class="ttl">发布内容 <small>${tot} 项</small></div>` +
+    TYPES.map(t => `<button class="ty ${t.k === cur ? 'on' : ''}" data-k="${t.k}">
+      <span class="ic" style="background:var(--${t.c}s);color:var(--${t.c})">${svg(ICON[t.k])}</span>
+      <span class="tx"><b>${t.label}</b><span>${t.desc}</span></span>
+      <span class="cnt">${t.sel}<em>/${t.total}</em></span></button>`).join('') +
+    `<div class="foot">勾选即保存，下次打开保持</div>`;
+  document.querySelectorAll('.ty').forEach(b => b.onclick = () => { cur = b.dataset.k; renderTypes(); renderRows(); });
+}
+function renderRows() {
+  document.getElementById('searchPh').textContent = '搜索' + TYPES.find(t => t.k === cur).label;
+  document.getElementById('rows').innerHTML = ROWS[cur].map(([cls, cb, nm, meta, st]) => `
+    <div class="row ${cls}">
+      <span class="car">${cls.includes('grp') ? '▶' : ''}</span>
+      <span class="cb ${cb}"></span>
+      <span class="nm">${nm}</span>
+      ${st ? `<span class="st ${st}">${st === 'chg' ? '有改动' : '新加入'}</span>` : ''}
+      <span class="meta">${meta}</span>
+    </div>`).join('');
+  document.querySelectorAll('.row').forEach(r => r.onclick = () => {
+    const c = r.querySelector('.cb'); const on = !c.classList.contains('on');
+    c.className = 'cb' + (on ? ' on' : '');
+  });
+}
+
+const SUB = {
+  ok: `<span class="url">tau.github.io/garden/</span><span class="chip"><i></i>GitHub Pages · gh-pages</span><span>上次发布 3 天前</span>`,
+  first: `<span class="chip warn"><i></i>尚未配置发布目标</span><span>从未发布</span>`,
+};
+const RAIL = {
+  first: `
+    <div class="panel card guide">
+      <h3>开始之前</h3>
+      <div class="hint">三步完成首次发布，之后只需勾选内容再点发布。</div>
+      <ol>
+        <li class="done"><span class="no">✓</span>在「集成」中配置 GitHub Token</li>
+        <li><span class="no">2</span>选择发布目标与仓库<button data-drawer>去设置</button></li>
+        <li><span class="no">3</span>在左侧勾选要公开的内容</li>
+      </ol>
+    </div>`,
+  plan: `
+    <div class="panel card">
+      <h3>本次变更 <small>按内容哈希比对</small><button class="btn ghost sm x">重新计算</button></h3>
+      <div class="bar"><i style="flex:37;background:var(--accent)"></i><i style="flex:4;background:var(--danger)"></i><i style="flex:420;background:var(--bg-track)"></i></div>
+      <div class="kv">
+        <div class="r clk" data-exp="up"><span class="chev">▾</span><i style="background:var(--accent)"></i>上传（新增或改动）<b>37</b></div>
+        <div class="files" id="fup"><div>cards/useeffect-deps.html</div><div>articles/desktop-rewrite.html</div><div>projects/design-system/index.html</div><div class="more">… 另外 34 个文件</div></div>
+        <div class="r clk"><span class="chev">▸</span><i style="background:var(--danger)"></i>删除（已取消勾选）<b>4</b></div>
+        <div class="r"><span class="chev"></span><i style="background:var(--bg-track)"></i>未变，跳过<b style="color:var(--ink-3)">420</b></div>
+      </div>
+    </div>`,
+  ready: `
+    <div class="panel card act">
+      <h3>发布到 GitHub Pages</h3>
+      <div class="hint">tau/garden · gh-pages · Git Push</div>
+      <button class="btn pri big">${svg('<path d="M12 16V4M6 10l6-6 6 6M4 20h16"/>')}发布 41 项变更</button>
+      <div class="aux"><span>预计只推送变更文件</span><button data-drawer>测试连接</button></div>
+    </div>`,
+  running: `
+    <div class="panel card act">
+      <h3>正在发布 <small>tau/garden · gh-pages</small></h3>
+      <div class="steps">
+        <div class="step done"><span class="dot"></span>准备</div>
+        <div class="step cur"><span class="dot"></span>上传</div>
+        <div class="step"><span class="dot"></span>推送</div>
+        <div class="step"><span class="dot"></span>清理</div>
+        <div class="step"><span class="dot"></span>完成</div>
+      </div>
+      <div class="prog"><i style="width:58%"></i></div>
+      <div class="pline"><span class="f">cards/suspense-boundary.html</span><span>22 / 37</span></div>
+      <button class="btn sec big" style="margin-top:14px">取消发布</button>
+    </div>`,
+  done: `
+    <div class="panel card act">
+      <h3>发布完成 <small>刚刚 · 用时 18 秒</small></h3>
+      <div class="res bad"><span class="ico">!</span><div><b>35 个上传成功，2 个失败</b><p>4 个文件已删除，420 个未变跳过</p></div></div>
+      <div class="fail">
+        <div>cards/rust-lifetime.html<span>GitHub API 限速</span></div>
+        <div>assets/cover-19.webp<span>超时</span></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn pri sm" style="flex:1;justify-content:center">重试 2 个失败文件</button>
+        <button class="btn sec sm" style="flex:1;justify-content:center">访问站点 ↗</button>
+      </div>
+    </div>`,
+};
+
+function render() {
+  document.querySelectorAll('.switch [data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === state));
+  const first = state === 'first';
+  document.getElementById('siteTitle').textContent = first ? '未命名站点' : 'Tau 的数字花园';
+  document.getElementById('siteSub').innerHTML = first ? SUB.first : SUB.ok;
+  document.getElementById('visit').style.display = first ? 'none' : '';
+  document.getElementById('rail').innerHTML = first ? RAIL.first : RAIL.plan + RAIL[state];
+  document.querySelectorAll('[data-drawer]').forEach(b => b.onclick = () => win.classList.add('drawer-open'));
+}
+
+const PROV = {
+  gh: `<div class="fields">
+      <div class="fd"><label>仓库</label><div class="in mono">tau/garden<span class="caret">▾</span></div></div>
+      <div class="fd"><label>部署分支</label><div class="in mono">gh-pages<span class="caret">▾</span></div></div>
+      <div class="fd"><label>访问路径 <small style="color:var(--ink-3);font-weight:400">按仓库名推导</small></label><div class="in mono ro">/garden/</div></div>
+      <div class="fd"><label>发布方式</label><div class="tgl"><span class="sw"></span>Git Push（快，避开限速）</div></div>
+      <div class="fd full"><label>Git 工作目录 <small style="color:var(--ink-3);font-weight:400">可选，缓存克隆加速</small></label><div class="in mono"><span class="ph">留空则使用应用缓存目录</span><span class="caret" style="font-size:12px;color:var(--accent-text)">选择</span></div></div>
+    </div>
+    <div class="conn"><span class="okt">● 连接正常</span>Token、仓库与分支可访问<button class="btn sec sm">重新测试</button></div>
+    <div class="note">Token 在 <a>设置 · 集成 · GitHub</a> 中配置</div>`,
+  s3: `<div class="fields">
+      <div class="fd"><label>Bucket</label><div class="in mono"><span class="ph">my-blog-bucket</span></div></div>
+      <div class="fd"><label>Region</label><div class="in mono"><span class="ph">us-east-1</span></div></div>
+      <div class="fd"><label>路径前缀</label><div class="in mono"><span class="ph">blog/（可选）</span></div></div>
+      <div class="fd"><label>访问路径</label><div class="in mono">/</div></div>
+    </div>
+    <div class="conn">尚未测试<button class="btn sec sm">测试连接</button></div>
+    <div class="note">AccessKey / Secret / Endpoint 在 <a>设置 · 集成 · S3</a> 中配置</div>`,
+  local: `<div class="fields"><div class="fd full"><label>访问路径</label><div class="in mono">/</div></div></div>
+    <div class="note">无需凭据：点击发布时选择输出文件夹，生成完整静态站点。主按钮文案变为「导出」。</div>`,
+};
+function renderProv(p) {
+  document.querySelectorAll('.pv').forEach(b => b.classList.toggle('on', b.dataset.p === p));
+  document.getElementById('provFields').innerHTML = PROV[p];
+}
+document.querySelectorAll('.pv').forEach(b => b.onclick = () => renderProv(b.dataset.p));
+document.querySelectorAll('.switch [data-s]').forEach(b => b.onclick = () => { state = b.dataset.s; render(); });
+document.querySelectorAll('#seg button').forEach(b => b.onclick = () => { document.querySelectorAll('#seg button').forEach(x => x.classList.toggle('on', x === b)); });
+const win = document.getElementById('win');
+document.getElementById('openDrawer').onclick = () => win.classList.add('drawer-open');
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => win.classList.remove('drawer-open'));
+renderTypes(); renderRows(); renderProv('gh'); render();
+</script>
+</body>
+</html>

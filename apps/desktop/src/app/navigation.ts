@@ -29,6 +29,7 @@ import {
   Folder,
   FolderKanban,
   BarChart3,
+  Send,
   MessageCircle,
   Sparkles,
   Users,
@@ -96,6 +97,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: "resources", label: "资源管理", icon: Folder }, // legacy: ResourceManagement
       { key: "stats", label: "统计", icon: BarChart3 }, // 新架构：数据回顾页
+      { key: "publish", label: "发布", icon: Send }, // 新架构：静态站点发布（自设置弹窗抽出，D-035）
     ],
   },
 ];

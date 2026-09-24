@@ -8,8 +8,8 @@ interface EmptyPlaceholderProps {
 
 export const EmptyPlaceholder = memo<EmptyPlaceholderProps>(({ text, icon }) => {
   return (
-    <div className="border-line-1 text-ink-3 rounded-tau-md flex flex-col items-center justify-center border border-dashed p-8">
-      {icon || <Inbox size={40} strokeWidth={1.25} className="mb-3" />}
+    <div className="text-ink-3 flex flex-col items-center justify-center px-8 py-16">
+      {icon || <Inbox size={36} strokeWidth={1.25} className="mb-3" />}
       <p className="text-tau-meta">{text}</p>
     </div>
   );
