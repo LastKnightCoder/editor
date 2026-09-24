@@ -81,7 +81,7 @@ export function HabitRail({
                 cx="11"
                 cy="11"
                 r="9"
-                className="fill-none stroke-[var(--tau-bg-sunken)]"
+                className="fill-none stroke-[var(--tau-bg-track)]"
                 strokeWidth={3}
               />
               <circle
