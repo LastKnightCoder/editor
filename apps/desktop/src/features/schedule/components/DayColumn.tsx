@@ -225,7 +225,7 @@ function TimelineRow({
     <span className="relative flex justify-center">
       <span
         className={cn(
-          "bg-sunken absolute w-0.5 rounded-full",
+          "bg-track absolute w-0.5 rounded-full",
           first ? "top-3.5" : "top-0",
           last ? "h-3.5" : "bottom-0"
         )}
