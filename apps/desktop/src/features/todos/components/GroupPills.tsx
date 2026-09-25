@@ -1,11 +1,11 @@
 /**
  * 项目 pills（与文章标签 / 项目类型 pills 同构）：全部 + 各项目（色点 + 未完成数），
- * 右键菜单编辑与归档；行尾「＋」新建项目、「已归档 N」菜单恢复。
+ * 右键菜单编辑 / 归档 / 删除；行尾「＋」新建项目、「已归档 N」菜单恢复。
  * 项目多时 pills 横向滚动（右缘还有内容时渐隐，同文章标签 pills），「＋」与「已归档」在滚动区外不压缩。
  */
 
 import { useLayoutEffect, useState, type ReactNode } from "react";
-import { Archive, ArchiveRestore, Pencil, Plus } from "lucide-react";
+import { Archive, ArchiveRestore, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button, ContextMenu, IconButton, Menu, cn } from "@tau/ui";
 import type { TodoGroup } from "@/types";
 import { GroupDot } from "./TodoBits";
@@ -21,6 +21,7 @@ export function GroupPills({
   onEdit,
   onArchive,
   onRestore,
+  onDelete,
 }: {
   groups: TodoGroup[];
   archivedGroups: TodoGroup[];
@@ -33,6 +34,8 @@ export function GroupPills({
   onEdit(group: TodoGroup): void;
   onArchive(group: TodoGroup): void;
   onRestore(group: TodoGroup): void;
+  /** 删除（调用方负责二次确认） */
+  onDelete(group: TodoGroup): void;
 }) {
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const [overflowing, setOverflowing] = useState(false);
@@ -95,6 +98,13 @@ export function GroupPills({
                   onSelect={() => onArchive(group)}
                 >
                   归档项目
+                </Menu.Item>
+                <Menu.Item
+                  danger
+                  icon={<Trash2 className="size-[15px]" strokeWidth={1.75} />}
+                  onSelect={() => onDelete(group)}
+                >
+                  删除项目
                 </Menu.Item>
               </>
             }

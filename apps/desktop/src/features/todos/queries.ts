@@ -20,6 +20,7 @@ import {
   createRecurrence,
   createTodoGroup,
   createTodoItem,
+  deleteTodoGroup,
   deleteTodoItemCascade,
   detachNote,
   getRecurrenceCompletionsByRecurrenceIds,
@@ -348,6 +349,12 @@ export function useTodoMutations() {
         archived ? TODO_MUTATION_ACTIONS.ARCHIVE_GROUP : TODO_MUTATION_ACTIONS.UNARCHIVE_GROUP,
         { groupId: id }
       );
+    },
+
+    async deleteGroup(id: number) {
+      const removed = await deleteTodoGroup(id);
+      emit("group", TODO_MUTATION_ACTIONS.DELETE_GROUP, { groupId: id });
+      return removed;
     },
 
     /* ----- 关联笔记 ----- */

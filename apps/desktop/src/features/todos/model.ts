@@ -219,6 +219,18 @@ export function liveEntries(snapshot: TodoSnapshot, hidden?: ReadonlySet<number>
   return snapshot.entries.filter(e => activeIds.has(e.groupId) && !hidden?.has(e.id));
 }
 
+/** 删除项目的影响范围：本项目全部任务 + 它们的子孙（跨项目挂着的子孙也算，与主进程 deleteGroup 同口径） */
+export function groupDeletionIds(snapshot: TodoSnapshot, groupId: number): Set<number> {
+  const ids = new Set<number>();
+  const visit = (id: number) => {
+    if (ids.has(id)) return; // 去重兼防环
+    ids.add(id);
+    snapshot.byId.get(id)?.childIds.forEach(visit);
+  };
+  snapshot.entries.filter(e => e.groupId === groupId).forEach(e => visit(e.id));
+  return ids;
+}
+
 /** 未完成的顶层任务（= 待办页「全部」计数口径），按议程段 + 段内时间排序 */
 export function openRoots(entries: TodoEntry[], now: number): TodoEntry[] {
   return entries
