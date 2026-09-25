@@ -287,3 +287,13 @@ export const upsertDiaryTagSetting = async (setting: {
 export const deleteDiaryTagSetting = async (name: string): Promise<number> => {
   return invoke("delete-diary-tag-setting", name);
 };
+
+/** 碎碎念一步发布（D-044）：主进程确保 date 当天 entry → 建段 → 写段级标签，返回扁平条目 */
+export const createDiaryMoment = async (params: {
+  date: string;
+  content: Descendant[];
+  tags?: string[];
+}): Promise<DiarySegmentItem> => {
+  const result = await invoke<RawDiarySegmentItem>("create-diary-moment", params);
+  return deserializeDiarySegmentItem(result);
+};

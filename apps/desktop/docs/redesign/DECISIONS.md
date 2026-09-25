@@ -279,7 +279,7 @@
 - ~~collaboration 协作~~ ✅ 2026-09-25 A3「协作台 · 侧栏嵌套」落地（D-042；legacy 工作台与右侧「协作共享」小组件已删除）
 - learning（vibe-learning + flashcard 合并）
 - schedule 日程 · 第一版 ✅ 2026-09-24 方案 C 月刊落地（mockups/calendar：月历大面板 + 当日时间线 + 快速添加，底层 legacy 逻辑复用）；时间记录不并入（legacy 已无入口，孤儿页面进 04 清单）
-- diary 日记
+- ~~diary 日记~~ ✅ 2026-09-25 D「一整张纸」落地（D-044；标签频道嵌侧栏，legacy DiaryView 待 G1/G2 随首页旧版一并删除）
 - whiteboard 白板
 - weread 微信读书
 - resources 资源管理：已退役，管理页、资源库选择及主库资源索引整体移除；保留上传、同步、协作文件与学习资源。
@@ -435,3 +435,18 @@
 - 增量口径：新增域附属 = 域内写组件 + navigation.ts 声明 + navSlots.tsx 注册（含 useNavChildrenContent 加一行），Sidebar / Titlebar 不再改动。app 层引 feature 组件经此单点收口（与 AppShell 挂命令面板 / 设置弹窗同口径：壳层编排、声明集中）。
 - **追记（同日，review-due 落地）**：注册表迎来的首个按设计扩张用例——`features/flashcards/components/ReviewDueBadge`（react-query 拉卡组 `stats.dueCount` 求和，口径同首页「待复习」：due_time 已到且未暂停；queryKey 挂 `["flashcards", ...]` 前缀以被 `invalidateFlashcardViews` 联动失效，窗口聚焦刷新兜底——主进程无闪卡变更广播）。全表无 null 占位后 `Record` 仍保持全键强制，新增 badge key 不注册依旧编译不过。
 - **追记（同日，flashcards:changed 广播落地，消灭上一条的聚焦兜底主依赖）**：闪卡表层（`tables/flashcard.ts`）全部 8 个写命令（卡 / 卡组 CRUD、submitReview、undoReview）照 `content:updated` 先例收 `ctx: CommandContext`，写成功后 `broadcastOthers("flashcards:changed", { databaseName })`——表层单点天然覆盖文章 / 卡片 / AI 对话等所有生成入口。渲染端 `features/flashcards/queries.ts` 模块级常驻订阅（按库过滤后失效 `["flashcards"]` 前缀；接线随侧栏徽标 → useNavDueCount → queries.ts 的依赖链常驻）；为此把 `QueryClient` 从 main.tsx 抽为 `src/queryClient.ts` 单例。窗口聚焦刷新保留作兜底（同步等绕过表层的写入路径无广播）。
+
+## D-044 日记页定稿（方案 D「一整张纸」：A 的 Feed 排版 + C 的聊天式输入 + 那年今日输入条上方一行）
+
+- 背景：legacy `pages/DiaryView` = 800px 窄列时间线（左相对时间 + 中竖线圆点 + 每条一张描边卡），卡内常驻 Slate 编辑器（误触即改），12 色 antd 预设标签色、天气 / 心情图标；顶部筛选条塞日期预设 + 两个日期输入 + 标签多选 + 搜索；「新建」只插一张空卡片再点进去写；antd `Dropdown` / `modal.confirm` / `message` 与 `--th-*` 混用。产品定位（用户原话）：「像朋友圈，不是一天一条，一天可以多条碎碎念，可以打标签」。mockup（`mockups/diary/`，共用 35 条 mock + 7 标签，数据形状同 `types/diary.ts`）：一轮 A 时间流（倒序 Feed + 纸面右栏：热力日历 / 标签 / 那年今日）/ B 手账（整块月历 + 当天阅读列）/ C 对话流（顺序对话 + 底部输入条 + 标签嵌侧栏）。
+- 二轮（2026-09-25）：用户要「A + C 结合——C 的 Chat 输入、A 的 Feed 排版」，并否决 A 的「左边卡片、右边不是」（不够沉浸），要**一整张大纸**；那年今日保留但「不想做成右边一个列表」→ 出 D（`plan-d-sheet.html`）。
+- 三轮（同日）：D 初版把那年今日作为今天这一段的第一条「回声」织进流顶，用户否决「不应该放到最上面，只是一个入口」，但「还是要一些简略信息，否则没有点开的欲望」→ 改为一句预告 + 右侧抽屉；两个预告位（输入条上方一行 / 今天日期下）对照后，**用户选输入条上方**。
+- 选择（骨架）：① 页面 = 工具栏 + **一整张 surface 纸**撑满内容区，页内无任何外部栏；② 纸内沿用 A 的排版：按天倒序，左侧粘性日期列（相对日 / 大号日 / 月·周 / N 条·M 字）+ 右侧条目（时间 · 正文 · 标签），条目悬停淡墨底、操作占固定槽位原位淡入；③ **A 右栏拆散**——标签作为「日记」入口的侧栏子项（D-042 A3 同款：标签即频道，点进只看该标签，在频道里发的自动带上该标签；右键改色 / 清理），日历收为工具栏图标按钮打开的热力月历 Popover（点一天只看那天、Shift 连选、近 7 天 / 近 30 天 / 本月 / 今年预设），纸右缘一列按月时间刻度（滚动高亮当前月、点击跳转、跨年插年份）；④ 输入沿用 C：纸底停靠输入条，左侧与日期列对齐「此刻 HH:mm」，**↵ 发送、⇧↵ 换行**、`#` 联想标签（按使用次数排、没有则创建）、页面上直接打字即进输入条；最新在顶，发出后回到顶部并闪一下新条目。
+- 选择（那年今日）：不进流。输入条正上方一行预告「↺ 一年前的今天 · 首句 · 还有 N 条 ×」（× = 今天不再提示，工具栏常驻历史图标仍可打开）；点击从纸右侧滑出抽屉（盖在纸上不挤压，Esc / 点空白关），按年份列出当天全部条目，**点一条 = 关抽屉并跳到流里那一条**（居中并闪一下）。2026-09-25 用户校准：原每条悬停「接着写」（引用块带进输入条）遮挡正文且非必需、年份旁「在流里看」与点条目重复，二者连同输入条引用能力一并删除。
+- 选择（行为，修 legacy）：① 发布一步到位（legacy 先插空卡片）；② **阅读态 / 编辑态分离**——默认只读渲染，点正文进就地编辑（完整编辑器、协作会话照旧），失焦 / ⌘↵ 退出；③ 删除不二次确认：立即消失 + Toast 撤销，5 秒后才真正落库（D-040 同口径）；④ 标签色改 Tag 七色板（D-021），旧库 hex 色读时就近映射、改色后写七色键；⑤ 补记可见——createTime 与归属日期不同天时标「补记于 …」；⑥ 列表无限滚动渐进渲染（PREFERENCES），不再整表挂载编辑器。
+- 默认取舍（用户未明示，按「先简后繁」定，可推翻）：① 天气 / 心情是 entry 级旧字段，legacy 已无编辑入口 → 新页不展示、数据保留；② 输入条是纯文本快写，富文本（列表 / 图片 / 引用）在发出后点正文用完整编辑器补；③ 搜索沿用 FTS + 向量混合召回（日粒度命中），命中日内有字面匹配的条目时只显示这些。
+- 主进程：新增 `create-diary-moment`（{date, content, tags} 单事务：确保当天 entry → 建段并写段级标签，替代「建 entry / 建段 / 再改标签」三次往返）；日记表层全部写命令广播 `diary:changed`（`flashcards:changed` 同款，覆盖 AI 工具 / MCP 等其它窗口写入口）。
+- 结构：`features/diary/`——`model.ts`（纯函数：日期归一 / 分组 / 筛选含日粒度搜索的字面收窄 / 那年今日 / 连续天数 / 旧 hex 标签色就近映射七色 / 纯文本↔Slate 构造 / `#` 联想定位 / 快捷范围）、`queries.ts`（全量快照 react-query + 乐观更新的 mutations〔引用稳定，条目 memo 依赖〕+ 混合召回搜索 + `diary:changed` 模块级订阅）、components（Composer / MomentItem / DaySection / TagPicker〔含改色、清理确认〕/ CalendarPopover / MonthRail / OnThisDay〔预告 + 抽屉〕/ DiaryNav〔侧栏子项〕/ bits）、views/DiaryView、pages/diary.page.tsx（single；参数 id = 标签频道、date = 外部定位）。`page/legacy.tsx` 删 diary 占位；navigation.ts 日记入口 `children: "diary-tags"`。
+- 侧栏扩展槽（D-043 增量）：`NAV_CHILDREN_SLOTS` 由「key → 组件」改为描述对象 `{ Component, selected(params), parentResets? }`——协作页恒有子项选中（`selected: () => true`，行为不变）；日记的标签频道是可选收窄，`id` 为空时父项保持常规选中，已在日记页再点父项清空频道回到全部（`parentResets`）。Sidebar 只按描述对象判定，仍不感知具体域。
+- 渲染：条目默认只读 `Editor`（不建内容会话，同卡片墙预览），点正文才挂会话化 `ContentEditor`（会话就绪前以只读渲染占位、就绪后光标落回点击处，切换不闪不跳；实时保存，不设「完成」按钮与「更多 → 编辑」），节流 800ms 落 `update-diary-segment`、退出 flush；流按 60 条一批渐进挂载（IntersectionObserver 预加载 800px，月份跳转 / 外部定位会先放大批量再滚动），条目 `content-visibility: auto`。
+- 验证：tsc 0 错误；eslint 新增代码 0 error（余 `*.page.tsx` 匿名默认导出警告，同全部页面定义）；vitest 新增 12 例（日记 model 10、主进程 create-diary-moment + 广播 2），全量 1356 通过，失败项仅 `tool-call-renderers` 2 例与 2 个 Playwright e2e 文件（均为既有失败，同 D-042 记录）。浏览器走查（无 IPC，向查询缓存注入 mock）：填充态、侧栏频道与父项降级、那年今日预告→抽屉→接着写引用、`#` 联想转标签、日历范围筛选、cocoa 主题；写入路径需在 Electron 内由用户走查。

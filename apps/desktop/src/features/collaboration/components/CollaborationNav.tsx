@@ -76,26 +76,31 @@ function SessionItem({
   const status = useStableSessionStatus(session) ?? sessionStatus(session);
   const title = session.title || "未命名内容";
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-current={active ? "page" : undefined}
-      title={`${title} · ${status.label}`}
-      className={cn(
-        "text-tau-meta ease-tau-out flex h-[calc(1.5em+10px)] w-full items-center gap-2.5 rounded-[9px] px-2.5 text-left transition-[background,color] duration-[160ms]",
-        // 子项选中 = 当前内容：accent 淡底（父项此时降为「所在区」样式，不抢选中态）
-        active ? "bg-selected text-ink-1 font-medium" : "text-ink-2 hover:bg-hover hover:text-ink-1"
-      )}
-    >
-      {/* 让出父项图标列（按 body 字号折算）：状态点落在父项文字列、与分组标题对齐，标题再缩一级 */}
+    // 让出父项图标列（按 body 字号折算）放在按钮外：高亮只盖状态点起的一段；
+    // 状态点落在父项文字列、与分组标题对齐，标题再缩一级
+    <div className="flex gap-2.5">
       <span aria-hidden className="text-tau-body w-[1.06em] shrink-0" />
-      <StatusDot tone={status.tone} className="size-1.5 shrink-0" />
-      <span className="min-w-0 flex-1 truncate">{title}</span>
-      {requests > 0 && (
-        <span className="bg-accent text-ink-inverse min-w-4 shrink-0 rounded-full px-1 text-center text-[10.5px] font-[600] tabular-nums leading-4">
-          {requests}
-        </span>
-      )}
-    </button>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-current={active ? "page" : undefined}
+        title={`${title} · ${status.label}`}
+        className={cn(
+          "text-tau-meta ease-tau-out flex h-[calc(1.5em+10px)] min-w-0 flex-1 items-center gap-2.5 rounded-[9px] px-2.5 text-left transition-[background,color] duration-[160ms]",
+          // 子项选中 = 当前内容：accent 淡底（父项此时降为「所在区」样式，不抢选中态）
+          active
+            ? "bg-selected text-ink-1 font-medium"
+            : "text-ink-2 hover:bg-hover hover:text-ink-1"
+        )}
+      >
+        <StatusDot tone={status.tone} className="size-1.5 shrink-0" />
+        <span className="min-w-0 flex-1 truncate">{title}</span>
+        {requests > 0 && (
+          <span className="bg-accent text-ink-inverse min-w-4 shrink-0 rounded-full px-1 text-center text-[10.5px] font-[600] tabular-nums leading-4">
+            {requests}
+          </span>
+        )}
+      </button>
+    </div>
   );
 }

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日记页设计探索 · 总览</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-hover: rgba(67, 57, 44, 0.05); --bg-track: #e0d6c3;
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55); --ok: #61795f; --danger: #b0564d;
+    --tag-2: #5c7d99; --tag-3: #8a7aa6; --tag-4: #a38c4d;
+    --shadow: 0 1px 2px rgba(120,100,70,0.05), 0 10px 24px -14px rgba(120,100,70,0.18);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 14px/1.75 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 40px 8vw 80px; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { color: var(--ink-2); margin-top: 6px; max-width: 84ch; }
+  header .meta { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+  h2 { font-size: 16px; margin: 42px 0 14px; font-weight: 600; }
+  .sub2 { color: var(--ink-2); max-width: 84ch; margin-bottom: 14px; }
+  ul.tight { padding-left: 20px; color: var(--ink-2); max-width: 92ch; }
+  ul.tight li + li { margin-top: 4px; }
+  ul.tight b { color: var(--ink-1); font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .card { background: var(--bg-surface); border-radius: 16px; padding: 20px 22px; box-shadow: var(--shadow); text-decoration: none; color: inherit; display: flex; flex-direction: column;
+    outline: 1px solid transparent; transition: box-shadow 200ms, outline-color 200ms; }
+  .card:hover { outline-color: var(--line-1); box-shadow: 0 16px 40px -12px rgba(120,100,70,0.3); }
+  .card .no { font: 600 12px/1 ui-monospace, Consolas, monospace; color: var(--accent-text); }
+  .card h3 { font-size: 15.5px; margin: 6px 0 2px; font-weight: 600; }
+  .card .who { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+  .card p { font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  .card .wire { margin-top: 14px; height: 110px; border-radius: 10px; background: var(--bg-page); padding: 8px; display: grid; gap: 6px; }
+  .wire > div { border-radius: 6px; background: var(--bg-surface); box-shadow: var(--shadow); position: relative; overflow: hidden; }
+  .wire .paper { background: transparent; box-shadow: none; }
+  .wire .row { position: absolute; left: 8px; right: 8px; height: 6px; border-radius: 3px; background: var(--bg-hover); }
+  .wire .dot { position: absolute; width: 6px; height: 6px; border-radius: 50%; }
+  .card .verdict { margin-top: 12px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .verdict .good { color: var(--ok); } .verdict .bad { color: var(--danger); }
+  .card .open { margin-top: auto; padding-top: 12px; font-size: 12.5px; color: var(--accent-text); font-weight: 500; }
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--bg-hover); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line-2); }
+  td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  code { font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--bg-surface); border: 1px solid var(--line-1); padding: 1px 6px; border-radius: 5px; color: var(--accent-text); }
+  kbd { font: 11px/1 ui-monospace, monospace; background: var(--bg-hover); border-radius: 4px; padding: 2px 5px; color: var(--ink-2); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>日记页设计探索 · 三方案 + 结合版 D</h1>
+  <p class="sub">现状：legacy <code>pages/DiaryView</code> 是一条 800px 窄列时间线——左列「相对时间 + 日期」、中间竖线圆点、右边每条一张描边卡片，卡片里是常驻的 Slate 编辑器（误触即改）、12 色 antd 预设色标签 chip、天气 / 心情图标；顶部筛选条塞了日期预设、两个日期输入、标签多选和搜索框。新建一条只插入一张空卡片，要再点进去写。混用 <code>--th-*</code>、antd <code>Dropdown</code> / <code>modal.confirm</code> / <code>message</code>。</p>
+  <p class="sub">三个方案共用同一份 mock：35 条碎碎念（跨 2025 / 2026，今天 4 条），7 个标签，数据形状与 <code>types/diary.ts</code> 一致——一条 = 一个 <code>DiarySegment</code>（富文本 + 段级 tags + createTime），归属某天的 <code>DiaryEntry</code>，标签色来自 <code>DiaryTagSetting</code>。都能真的写：发布、<kbd>#</kbd> 联想打标签、点正文就地编辑、改标签 / 改色 / 清理标签、删除后撤销、筛选、搜索。标题栏虚线框是演示开关（正常 / 空态 / 外部定位到某天），右上角切 cream / cocoa。</p>
+  <p class="meta">2026-09-25 · mockup 只作视觉参考，不作为导出源（D-001）</p>
+</header>
+
+<h2>二轮 · 方案 D（A 的流 + C 的输入）· ✅ 定稿（D-044，那年今日取「输入条上方」）</h2>
+<p class="sub2">反馈：要 A 的 Feed 排版 + C 的 Chat 输入；做成一整张大纸，A 左边是卡片、右边不是，不够沉浸；那年今日不错，但不想做成右边一个列表。</p>
+<div class="cards"><a class="card" href="plan-d-sheet.html">
+  <div class="no">方案 D</div>
+  <h3>一整张纸 <span class="who">· 倒序 Feed + 纸内停靠输入条 + 那年今日织进今天</span></h3>
+  <p>纸面撑满整个内容区，外面没有任何栏：A 的右栏拆掉了，标签按 C 的做法挂到全局侧栏「日记」下面；日历缩成工具栏的一个按钮，点开是热力月历浮层；纸的右边缘有一条按月的时间刻度，滚动时标出当前月，点一下就跳过去。输入条停在纸底部，与日期列对齐（左边「此刻 15:20」），<kbd>↵</kbd> 发送，在页面上直接打字就进输入条，发出后回到顶部看到新的一条。那年今日（三轮）：不进流，只露一句预告——默认在输入条正上方一行（「一年前的今天 · 首句 · 还有 N 条」，可今天关掉），备选挂在今天日期下（演示开关切换）；点开从纸右侧滑出抽屉，按年份列出当天所有条目，「接着写」把某条引用进输入框，「在流里看」跳到那天；工具栏的历史图标是常驻入口。</p>
+  <div class="verdict">
+    <span class="good">✓ 沉浸：只有一张纸和一列内容；那年今日在写字的地方露一句，点开瞥一眼，还能直接回应</span>
+    <span class="bad">✗ 输入在底部、最新在顶部，发出后要跳回顶部（演示开关里能切成输入条在顶部对比）</span>
+  </div>
+  <span class="open">打开方案 D →</span>
+</a></div>
+
+<h2>三个方案都修掉的 legacy 问题</h2>
+<ul class="tight">
+  <li><b>写一条要两步</b>：legacy 点「新建」先插一张空卡片再点进去写。改为常驻输入框，写完 <kbd>⌘</kbd><kbd>↵</kbd>（C 是 <kbd>↵</kbd>）直接发出；</li>
+  <li><b>标签在写的时候打</b>：输入 <kbd>#</kbd> 弹出联想（按使用次数排序，↑↓ 选、↵ 确认，没有就「创建」），也可以点「# 标签」按钮多选。发出后单条的标签照样能改；</li>
+  <li><b>阅读态 / 编辑态分开</b>：legacy 每条都是常驻编辑器。改为默认只读渲染，点正文进入就地编辑，失焦保存、<kbd>Esc</kbd> 放弃；</li>
+  <li><b>删除不弹确认</b>：立即消失 + Toast「撤销」（和待办页 D-040 一个口径），替换 antd <code>modal.confirm</code>；</li>
+  <li><b>标签色</b>：12 色 antd 预设（<code>#1890ff</code>…）→ Tag 七色板（D-021「点 + 软底」，与 ColorSwatch 同源），明暗主题各自跟随；标签管理（改色 / 清理）收进同一个浮层；</li>
+  <li><b>补记</b>：在过去的某天写下的条目会标注「补记于 …」（createTime 与归属日期不同天时），legacy 看不出来；</li>
+  <li><b>视觉</b>：去掉每条一张描边卡和贯穿竖线；分组靠留白和日期标题；悬停操作占固定槽位，原位淡入。</li>
+</ul>
+
+<h2>三个方案</h2>
+<div class="cards">
+  <a class="card" href="plan-a-feed.html">
+    <div class="no">方案 A</div>
+    <h3>时间流 <span class="who">· 朋友圈式倒序流 + 纸面右栏</span></h3>
+    <p>最接近「朋友圈」。一整块面板，顶部常驻「此刻」输入框（聚焦才展开工具条），下面按天倒序：左边是粘性的大号日期（今天 / 昨天 · 25 · 9月周五 · 4 条 149 字），右边是当天的条目，每条只有时间、正文、标签。右栏不加面板：本月热力日历（点一天只看那天，Shift 连选一段）、标签列表（按次数排序，点击多选筛选）、那年今日。</p>
+    <div class="wire" style="grid-template-columns: 2.4fr 0.9fr;">
+      <div><span class="row" style="top:8px;width:60%;left:30%"></span><span class="row" style="top:26px;left:30%;height:5px;background:var(--line-1)"></span><span class="row" style="top:36px;left:30%;height:5px"></span><span class="row" style="top:56px;left:30%;height:5px;background:var(--line-1)"></span><span class="row" style="top:66px;left:30%;height:5px"></span><span class="row" style="top:22px;left:8px;width:16%;height:16px;border-radius:4px"></span><span class="row" style="top:52px;left:8px;width:16%;height:16px;border-radius:4px"></span></div>
+      <div class="paper"><span class="row" style="top:4px;height:40px;background:linear-gradient(90deg,var(--accent-soft),var(--bg-hover))"></span><span class="row" style="top:52px"></span><span class="row" style="top:62px"></span><span class="row" style="top:72px"></span></div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 最符合「朋友圈 / 碎碎念」心智，打开就能写、往下刷就是回顾；右栏把日历、标签、那年今日一次摆全</span>
+      <span class="bad">✗ 回顾很久以前要一直往下滚（靠日历 / 时间筛选跳）；结构最常规</span>
+    </div>
+    <span class="open">打开方案 A →</span>
+  </a>
+  <a class="card" href="plan-b-almanac.html">
+    <div class="no">方案 B</div>
+    <h3>手账 <span class="who">· 整块月历 + 当天阅读列（主从）</span></h3>
+    <p>以「日子」为主轴。左边是撑满的月历大面板（格内细线，不是瓷砖）：每格直接露出当天前三条的首行，前面的圆点是第一个标签的颜色；顶部一排标签 pill，点一个整个月历只剩这个标签。右边 430px 阅读列：大号日期 + 当天条目 + 输入框；选过去的某天写就是补记。搜索或 Shift 连选时右列变成结果列表，月历上匹配的字高亮。</p>
+    <div class="wire" style="grid-template-columns: 2fr 1fr;">
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(4,1fr);gap:0;padding:8px 6px 6px"><script>document.write(Array.from({length:28},(_, i)=>`<span style="border-right:1px solid var(--line-2);border-bottom:1px solid var(--line-2);position:relative">${[1,4,8,10,13,14,15,16,17,18,20,21,22,23,24].includes(i)?`<i style="position:absolute;left:3px;right:3px;top:9px;height:3px;border-radius:2px;background:${['var(--tag-2)','var(--tag-3)','var(--ok)','var(--accent)','var(--tag-4)'][i%5]};opacity:.55"></i>`:''}${i===24?'<i style="position:absolute;inset:1px;border:1.5px solid var(--accent);border-radius:3px"></i>':''}</span>`).join(''))</script></div>
+      <div><span class="row" style="top:8px;width:30%;height:14px;border-radius:4px"></span><span class="row" style="top:30px;height:14px;background:transparent;border:1px solid var(--line-1)"></span><span class="row" style="top:54px"></span><span class="row" style="top:66px;width:70%"></span><span class="row" style="top:82px"></span></div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 桌面宽度用得最满；一眼看到哪天写了、写了什么，按标签看「这个月都在健身吗」最直观；补记最自然</span>
+      <span class="bad">✗ 不像朋友圈，连续往下刷的阅读感弱（一次只读一天）；月历格里的首行在窄窗口下会很短</span>
+    </div>
+    <span class="open">打开方案 B →</span>
+  </a>
+  <a class="card" href="plan-c-chat.html">
+    <div class="no">方案 C</div>
+    <h3>对话流 <span class="who">· 给自己发消息 + 标签嵌进全局侧栏</span></h3>
+    <p>写得最快。像聊天一样：最早在上、最新在下，输入条停靠在面板底部，<kbd>↵</kbd> 就发（<kbd>⇧</kbd><kbd>↵</kbd> 换行），页面上随手打字会直接进输入条。日期是居中的粘性分隔胶囊，同一小时内的连续条目收紧、时间只在悬停时出现。标签不在页内做目录，而是像协作页 A3 那样嵌进全局侧栏「日记」下面（那年今日 / 各标签 / 无标签），点进去就是这个标签的频道，在里面发的自动带上这个标签。</p>
+    <div class="wire" style="grid-template-columns: 0.55fr 2fr;">
+      <div class="paper"><span class="row" style="top:4px;background:var(--accent-soft)"></span><span class="dot" style="top:18px;left:14px;background:var(--tag-2)"></span><span class="row" style="top:18px;left:24px"></span><span class="dot" style="top:30px;left:14px;background:var(--tag-3)"></span><span class="row" style="top:30px;left:24px"></span><span class="dot" style="top:42px;left:14px;background:var(--ok)"></span><span class="row" style="top:42px;left:24px"></span></div>
+      <div><span class="row" style="top:8px;left:40%;right:40%;height:8px;border-radius:4px;background:var(--line-1)"></span><span class="row" style="top:24px;left:18%"></span><span class="row" style="top:36px;left:18%;right:30%"></span><span class="row" style="top:52px;left:18%;right:20%"></span><span class="row" style="bottom:8px;top:auto;height:16px;border-radius:5px;background:var(--bg-page);box-shadow:inset 0 0 0 1px var(--line-1)"></span></div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 记录成本最低（打字 → 回车）；标签即频道，按主题回看顺手；没有第二条侧栏</span>
+      <span class="bad">✗ 倒着读回顾（向上滚），一天的全貌不如 A / B 清楚；标签多了侧栏会变长（需要折叠或只显示常用）</span>
+    </div>
+    <span class="open">打开方案 C →</span>
+  </a>
+</div>
+
+<h2>对比</h2>
+<table>
+  <thead><tr><th>维度</th><th>A 时间流</th><th>B 手账</th><th>C 对话流</th></tr></thead>
+  <tbody>
+    <tr><td>主轴</td><td>时间（倒序刷）</td><td>日子（月历 → 当天）</td><td>输入（顺序对话）</td></tr>
+    <tr><td>写一条</td><td>顶部输入框，<kbd>⌘</kbd><kbd>↵</kbd></td><td>右列输入框，<kbd>⌘</kbd><kbd>↵</kbd>；选别的日子即补记</td><td>底部输入条，<kbd>↵</kbd>；页面上直接打字即可</td></tr>
+    <tr><td>标签筛选</td><td>右栏标签列表（多选）+ 点条目上的标签</td><td>月历顶部 pill（单选，<kbd>⌘</kbd> 多选）</td><td>全局侧栏子项（标签频道）</td></tr>
+    <tr><td>时间定位</td><td>右栏热力日历 + 时间预设菜单</td><td>月历本身，<kbd>←</kbd><kbd>→</kbd> 切日</td><td>时间预设菜单</td></tr>
+    <tr><td>回顾</td><td>往下刷 + 那年今日卡</td><td>翻月</td><td>往上滚 + 侧栏「那年今日」</td></tr>
+    <tr><td>宽度利用</td><td>中（860 主列 + 280 右栏）</td><td>最满</td><td>窄（760 阅读列）</td></tr>
+    <tr><td>与已定稿页同构度</td><td>高（今日 / 番茄：面板 + 纸面右栏）</td><td>高（日程：整块月历）</td><td>高（协作 A3：侧栏嵌套）</td></tr>
+  </tbody>
+</table>
+
+<h2>可以混搭的部件</h2>
+<ul class="tight">
+  <li><b>C 的侧栏标签频道</b>可以装到 A 上，替换 A 右栏的标签列表（右栏只留日历和那年今日）；</li>
+  <li><b>B 的月历</b>可以做成 A 的第二种视图（工具栏 列表 / 月历 切换），两种阅读方式并存；</li>
+  <li><b>C 的 <kbd>↵</kbd> 直接发送</b>和「页面上打字直接进输入框」可以用在任何方案——代价是多行内容要 <kbd>⇧</kbd><kbd>↵</kbd>；</li>
+  <li><b>A 的「那年今日」卡</b>在三个方案里都能放（B 可放在阅读列空态里）。</li>
+</ul>
+
+<h2>待你拍板的几件事</h2>
+<ul class="tight">
+  <li><b>天气 / 心情</b>：是 <code>DiaryEntry</code>（整天）级的旧字段，现在的 UI 已经没有编辑入口了，三个方案都没展示。要保留的话更适合放在「某一天」上（B 的日期头最自然），还是直接退役？</li>
+  <li><b>图片</b>：mock 里的图片块是占位色块，正文仍是 Slate 富文本（列表、引用、图片都支持）。碎碎念要不要限制成更轻的格式（纯文本 + 图片九宫格），还是保留完整编辑器？</li>
+  <li><b>Enter 行为</b>：<kbd>⌘</kbd><kbd>↵</kbd> 发送（A / B）还是 <kbd>↵</kbd> 发送（C）？</li>
+</ul>
+
+</body>
+</html>

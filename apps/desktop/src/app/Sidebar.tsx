@@ -145,27 +145,30 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
                 {/* space-y 行距：选中/hover 色块不再相贴（同菜单 2px 行距口径） */}
                 <div className="min-h-0 space-y-0.5 overflow-hidden">
                   {section.items.map(item => {
-                    const ChildrenSlot = item.children
-                      ? NAV_CHILDREN_SLOTS[item.children]
-                      : undefined;
+                    const slot = item.children ? NAV_CHILDREN_SLOTS[item.children] : undefined;
+                    const ChildrenSlot = slot?.Component;
+                    const expanded = shouldExpandChildren(item);
                     return (
                       <div key={item.key}>
                         <NavItemButton
                           item={item}
                           collapsed={collapsed}
                           active={item.key === currentKey}
-                          hasActiveChild={shouldExpandChildren(item)}
-                          // 带子项的入口回到该页时沿用已有参数（停留在上次看的内容），不重置
+                          hasActiveChild={
+                            expanded && Boolean(slot?.selected(current?.params ?? {}))
+                          }
+                          // 带子项的入口回到该页时沿用已有参数（停留在上次看的子项）；
+                          // 已在该页且槽声明 parentResets 时清空参数回到总览
                           onClick={() =>
                             navigator.push(
                               item.key,
-                              item.children
+                              slot && !(slot.parentResets && item.key === currentKey)
                                 ? state.back.find(entry => entry.key === item.key)?.params
                                 : undefined
                             )
                           }
                         />
-                        {ChildrenSlot && shouldExpandChildren(item) && (
+                        {ChildrenSlot && expanded && (
                           <ChildrenSlot
                             selectedId={current?.params.id as string | undefined}
                             onSelect={id => navigator.push(item.key, { id })}

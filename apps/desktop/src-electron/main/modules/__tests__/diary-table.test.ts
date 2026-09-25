@@ -456,4 +456,38 @@ describe("DiaryTable", () => {
     expect(JSON.parse(rows[0].tags)).toEqual(["读书"]);
     expect(JSON.parse(rows[1].tags)).toEqual([]);
   });
+
+  it("create-diary-moment 当天无 entry 时建 entry，再次发布复用同一 entry 并写段级标签", () => {
+    const first = DiaryTable.createDiaryMoment(db, {
+      date: "2026-09-25",
+      content: paragraph("第一条"),
+      tags: ["工作", " 工作 ", ""],
+    });
+    const second = DiaryTable.createDiaryMoment(db, {
+      date: "2026-09-25",
+      content: paragraph("第二条"),
+    });
+
+    expect(first.entryDate).toBe("2026-09-25");
+    expect(first.tags).toBe(JSON.stringify(["工作"]));
+    expect(second.diaryId).toBe(first.diaryId);
+    expect(second.tags).toBe("[]");
+    expect(DiaryTable.getAllDiaryEntries(db)).toHaveLength(1);
+    expect(DiaryTable.getDiaryEntryById(db, first.diaryId).segments).toHaveLength(2);
+  });
+
+  it("写命令经派发层调用时广播 diary:changed，读命令与无 ctx 调用不广播", () => {
+    const broadcastOthers = vi.fn();
+    const ctx = { broadcastOthers } as unknown as Parameters<
+      typeof DiaryTable.updateDiarySegment
+    >[2];
+    const events = DiaryTable.getListenEvents() as Record<string, (...args: unknown[]) => unknown>;
+
+    events["create-diary-moment"](db, { date: "2026-09-25", content: paragraph("x") }, ctx);
+    events["get-all-diary-segments-flat"](db, ctx);
+    events["create-diary-moment"](db, { date: "2026-09-25", content: paragraph("y") });
+
+    expect(broadcastOthers).toHaveBeenCalledTimes(1);
+    expect(broadcastOthers).toHaveBeenCalledWith("diary:changed", { databaseName: ":memory:" });
+  });
 });
