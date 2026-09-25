@@ -96,12 +96,6 @@ export function relativeDay(ts: number, now: number): string {
   return `${sameYear ? "" : `${d.getFullYear()}年`}${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
-export function fullDate(ts: number): string {
-  const d = new Date(ts);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
 export function clock(ts: number): string {
   const d = new Date(ts);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
@@ -115,6 +109,13 @@ export function daySpan(from: number, to: number): number {
 export function formatWords(words: number): string {
   if (words <= 0) return "";
   return words >= 1000 ? `${(words / 1000).toFixed(1)}k 字` : `${words} 字`;
+}
+
+const PREVIEWABLE = new Set<QuestionMaterial["targetType"]>(["card", "article", "project_item"]);
+
+/** 背后有 content 的材料（卡片 / 文章 / 项目文档）可弹窗预览 */
+export function canPreview(material: QuestionMaterial): boolean {
+  return !material.missing && material.contentId != null && PREVIEWABLE.has(material.targetType);
 }
 
 export function materialMeta(material: QuestionMaterial): string {

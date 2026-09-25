@@ -75,6 +75,7 @@ export function AnswerDialog({
       subtitle={state?.questionTitle}
       locked={saving}
       width={760}
+      fill
       footer={
         state?.mode === "edit" ? (
           <Button variant="primary" size="sm" onClick={onClose}>
@@ -96,21 +97,23 @@ export function AnswerDialog({
       }
     >
       {open && (
-        <ErrorBoundary>
-          <ContentEditor
-            key={editing ?? "new"}
-            ref={editorRef}
-            contentId={editing}
-            initValue={EMPTY}
-            readonly={false}
-            onChange={value => {
-              if (editing != null) throttleHandleEditorContentChange(value);
-              else setContent(value);
-            }}
-            placeHolder="用自己的话回答这个问题…"
-            className="text-tau-body min-h-[260px]"
-          />
-        </ErrorBoundary>
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          <ErrorBoundary>
+            <ContentEditor
+              key={editing ?? "new"}
+              ref={editorRef}
+              contentId={editing}
+              initValue={EMPTY}
+              readonly={false}
+              onChange={value => {
+                if (editing != null) throttleHandleEditorContentChange(value);
+                else setContent(value);
+              }}
+              placeHolder="用自己的话回答这个问题…"
+              className="text-tau-body min-h-full"
+            />
+          </ErrorBoundary>
+        </div>
       )}
     </Dialog>
   );
