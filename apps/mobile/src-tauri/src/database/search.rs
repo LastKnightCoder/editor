@@ -367,7 +367,6 @@ const SEARCH_TYPES: &[&str] = &[
     "card",
     "article",
     "project-item",
-    "document-item",
     "diary-daily",
     "flashcard",
 ];
@@ -769,8 +768,8 @@ mod tests {
 
         let (mode, total, items) = query_unified_search(&conn, "统一搜索", None, 1, 20).unwrap();
         assert_eq!(mode, "like");
-        assert_eq!(total, 6);
-        assert_eq!(items.len(), 6);
+        assert_eq!(total, 5);
+        assert_eq!(items.len(), 5);
         assert!(items.iter().any(|item| item.result_type == "card"));
         assert!(items.iter().any(|item| item.result_type == "article"));
         assert!(items.iter().any(|item| item.result_type == "project-item"));
