@@ -11,7 +11,6 @@ export type WindowType =
   | "article"
   | "project-item"
   | "todo"
-  | "question"
   | "pomodoro"
   | "pomodoro-mini"
   | "pomodoro-immersive"
@@ -77,9 +76,6 @@ export const WINDOW_MODULE_GROUPS: Record<WindowType, ModuleGroup[]> = {
     ModuleGroup.SERVER,
     ModuleGroup.FEATURE,
   ],
-
-  // 问题管理窗口
-  question: [ModuleGroup.ESSENTIAL, ModuleGroup.CORE, ModuleGroup.DATABASE, ModuleGroup.SERVER],
 
   // 番茄专注窗口
   pomodoro: [
