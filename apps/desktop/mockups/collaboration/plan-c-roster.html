@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>协作 · 方案 C 协作名册</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  .body-c { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 22px; }
+
+  /* 名册：一整块大面板，组间靠段头与留白（不画横线、不拆卡） */
+  .roster { overflow-y: auto; padding: 8px 10px 16px; }
+  .grp { padding: 14px 10px 4px; display: flex; align-items: baseline; gap: 8px; }
+  .cols { display: grid; grid-template-columns: minmax(170px, 1fr) 140px minmax(96px, 150px) 146px 60px; align-items: center; gap: 12px; }
+  .colhead { padding: 4px 12px 6px; font-size: 11.5px; color: var(--ink-3); }
+  .item { border-radius: 12px; transition: background 160ms var(--ease-out); }
+  .item > .cols { padding: 0 12px; min-height: 54px; cursor: pointer; border-radius: 12px; }
+  .item:hover > .cols { background: var(--bg-hover); }
+  .item.open { background: color-mix(in srgb, var(--bg-hover) 60%, transparent); }
+  .item.open > .cols:hover { background: transparent; }
+  .item .tt { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+  .item .tt b { font-size: 13.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+  .item .tt b .chev { color: var(--ink-3); transition: transform 200ms var(--ease-out); display: inline-flex; }
+  .item.open .tt b .chev { transform: rotate(90deg); }
+  .item .who { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+  .item .st { overflow: hidden; text-overflow: ellipsis; }
+  .item .codecell { display: flex; align-items: center; gap: 2px; }
+  .item .codecell .code { font-size: 12px; letter-spacing: 0.03em; color: var(--ink-2); white-space: nowrap; }
+  .item .when { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+  .item .acts { display: flex; justify-content: flex-end; gap: 2px; }
+  .item.closed .tt b { color: var(--ink-2); }
+  .item .reqdot { min-width: 18px; height: 18px; border-radius: 9px; background: var(--accent); color: var(--ink-inverse); font: 600 11px/18px var(--font); text-align: center; padding: 0 5px; }
+  /* 行内展开：成员 | 协作码 + 申请，两列 */
+  .expand { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; padding: 4px 22px 18px 42px; }
+  .expand > div > div:first-child { margin-top: 0 !important; }
+
+  /* 右栏：纸面上的三段（加入 / 待审批 / 本机身份），不成卡 */
+  .side { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 26px; padding: 4px 2px 20px; scrollbar-width: none; }
+  .side .req { background: var(--bg-surface); box-shadow: var(--shadow-lift); }
+  .side .blk > .sec { margin-bottom: 10px; }
+  .me { display: flex; align-items: center; gap: 12px; }
+  .me .nick { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .me .nick input { font: inherit; width: 140px; height: 26px; padding: 0 6px; margin-left: -7px; border-radius: 6px; border: 1px solid var(--accent); box-shadow: var(--focus-ring); }
+  .me .nick .ibtn { opacity: 0; }
+  .me:hover .nick .ibtn { opacity: 1; }
+  .srv { margin-top: 12px; display: flex; flex-direction: column; gap: 2px; }
+  .srv .kv { min-height: 30px; }
+  .srv .kv > span:first-child { width: 56px; }
+  .srv .val { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+
+  /* 协作副本（参与者无本地原内容时）：整页编辑 */
+  .copy-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .copy-head { height: 46px; display: flex; align-items: center; gap: 10px; flex: none; }
+  .copy-panel { flex: 1; min-height: 0; overflow-y: auto; padding: 36px 44px 120px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+(function () {
+  const C = window.Collab;
+  const { icon, esc } = C;
+  const { page } = C.mountShell();
+  let openId = "s1", view = null, editingNick = false, joinBusy = false, joinErr = "";
+
+  function row(s) {
+    const reqs = C.reqsOf(s).length;
+    const ownerActive = s.role === "owner" && s.status === "active";
+    const open = openId === s.id;
+    const primary = s.status === "closed"
+      ? `<button class="ibtn" data-leave="${s.id}" title="清理协作缓存">${icon("trash")}</button>`
+      : s.source
+        ? `<button class="ibtn" data-src="${s.id}" title="在${C.SRC[s.source.sourceType][1]}中打开">${icon("external")}</button>`
+        : `<button class="ibtn" data-copyview="${s.id}" title="打开协作副本">${icon("arrow-right")}</button>`;
+    return `<div class="item${open ? " open" : ""}${s.status === "closed" ? " closed" : ""}" data-id="${s.id}">
+      <div class="cols" data-toggle="${s.id}">
+        <span class="tt"><b><span class="chev">${icon("chev-right")}</span>${esc(s.title)}${reqs ? `<span class="reqdot" title="${reqs} 个待审批">${reqs}</span>` : ""}</b>
+          <span style="padding-left:24px;display:flex;gap:6px;align-items:center;min-width:0">${C.srcHTML(s)}<span class="muted" style="font-size:12px">· ${C.rel(s.updatedAt)}</span></span></span>
+        <span class="who">${C.stack(s.members, 3, "xs")}<span>${s.status === "active" ? C.liveSummary(s) : `${s.members.length} 位成员`}</span></span>
+        ${C.statusHTML(s)}
+        <span class="codecell hover-host">${ownerActive ? `<span class="code num">${esc(s.code)}</span><button class="ibtn sm hover-act" data-copy="${s.id}" title="复制协作码">${icon("copy")}</button>` : `<span class="muted" style="font-size:12px">${s.role === "owner" ? "—" : "由作者管理"}</span>`}</span>
+        <span class="acts">${primary}<button class="ibtn" data-more="${s.id}" title="更多">${icon("more")}</button></span>
+      </div>
+      ${open ? `<div class="expand fade-in" data-panel="${s.id}">${expandHTML(s)}</div>` : ""}
+    </div>`;
+  }
+  function expandHTML(s) {
+    const html = C.sharePanelHTML(s, { gap: 16 });
+    if (s.role !== "owner" || s.status !== "active") {
+      return `<div>${html}</div><div><div class="sec">说明</div><p class="hint" style="font-size:12.5px;color:var(--ink-2);margin-top:8px">${
+        s.status === "closed"
+          ? "作者已结束共享，服务器上的副本已清理。本机保留最后一次同步的只读缓存，清理后不可恢复。"
+          : `这是 ${esc(C.owner(s)?.nickname)} 共享给你的内容，只存在于协作缓存里。成员与协作码由作者管理；退出前请等待改动同步完成。`
+      }</p></div>`;
+    }
+    // owner：左成员，右协作码 + 申请
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    const blocks = [...tmp.children];
+    const [code1, code2, ...rest] = blocks;
+    const members = rest.pop();
+    return `<div>${members.outerHTML}</div><div><div class="sec" style="margin-bottom:8px">协作码</div>${code1.outerHTML}${code2.outerHTML}${rest.map(b => b.outerHTML).join("")}</div>`;
+  }
+
+  function sideHTML() {
+    const S = C.S;
+    const ME = C.ME;
+    const allConnected = S.sessions.some(s => s.connection === "connected");
+    const srvState = S.error ? ["error", "连接失败"] : C.demoMode === "offline" ? ["offline", "离线"] : ["live", "已连接"];
+    return `<aside class="side">
+      <div class="blk">
+        <div class="sec">加入协作 <small>join</small></div>
+        <div data-join-box>${C.codeInputHTML("compact")}</div>
+        ${joinErr ? `<div class="err" style="margin-top:8px">${esc(joinErr)}</div>` : `<p class="hint">向作者要 12 位协作码，可直接粘贴整段。</p>`}
+        <button class="btn btn-secondary" data-join style="margin-top:10px;width:100%" disabled>${joinBusy ? "正在提交…" : "申请加入"}</button>
+      </div>
+      <div class="blk">
+        <div class="sec">待审批 <small>requests</small><span class="spacer"></span><span class="n">${S.requests.length || ""}</span></div>
+        ${
+          S.requests.length
+            ? `<div style="display:flex;flex-direction:column;gap:8px">${S.requests
+                .map(r => {
+                  const s = C.byId(r.documentId);
+                  return `<div class="req">${C.avatar(r, "", false)}<div class="who"><b>${esc(r.nickname)}</b><p>申请加入「${esc(s?.title)}」</p></div>
+                    <div class="acts"><button class="ibtn sm danger" data-rej="${r.id}" title="拒绝">${icon("x")}</button><button class="ibtn sm ok" style="color:var(--ok)" data-ok="${r.id}" title="同意">${icon("check")}</button></div></div>`;
+                })
+                .join("")}</div>`
+            : `<p class="hint" style="margin-top:0">暂无申请。别人用你的协作码申请后会出现在这里，同时弹出通知。</p>`
+        }
+      </div>
+      <div class="blk">
+        <div class="sec">本机身份 <small>identity</small></div>
+        <div class="me">${C.avatar({ ...ME, online: undefined }, "lg", false)}
+          <div style="min-width:0"><div class="nick">${editingNick ? `<input data-nick value="${esc(ME.nickname)}" maxlength="40">` : `${esc(ME.nickname)}<button class="ibtn sm" data-edit-nick title="修改昵称">${icon("pen")}</button>`}</div>
+          <div class="muted" style="font:11.5px var(--mono)">${ME.deviceId.slice(0, 8)}…${ME.deviceId.slice(-4)}</div></div></div>
+        <div class="srv">
+          <div class="kv"><span>服务器</span><span class="val" title="${esc(ME.serverUrl)}" style="font-family:var(--mono);font-size:12px">${esc(ME.serverUrl.replace(/^https?:\/\//, ""))}</span><span class="spacer"></span><button class="link" data-srv>修改</button></div>
+          <div class="kv"><span>连接</span><span class="st ${srvState[0]}"><i></i>${srvState[1]}</span></div>
+          <div class="kv"><span>身份</span><button class="link" data-export>${icon("download")}导出</button><button class="link" data-import style="margin-left:6px">${icon("upload")}恢复</button></div>
+        </div>
+        <p class="hint">昵称只用于展示，授权以设备身份为准；导出文件含访问凭据，换机时用来恢复同一身份。</p>
+      </div>
+    </aside>`;
+  }
+
+  function render() {
+    if (view) return renderCopy();
+    C.setCrumb("协作");
+    const S = C.S;
+    const groups = [
+      ["我发起的", "owned", S.sessions.filter(s => s.role === "owner" && s.status === "active")],
+      ["我加入的", "joined", S.sessions.filter(s => s.role === "editor" && s.status === "active")],
+      ["已结束", "closed", S.sessions.filter(s => s.status === "closed")],
+    ];
+    const people = new Set(S.sessions.filter(s => s.status === "active").flatMap(s => s.members.filter(x => !C.isMe(x)).map(x => x.deviceId)));
+    page.innerHTML = `<div class="page">
+      <div class="toolbar">
+        <h1>协作</h1>
+        <div class="sum">${S.sessions.length ? `<span><b>${S.sessions.filter(s => s.status === "active").length}</b> 份共享</span><span class="sep">·</span><span>和 <b>${people.size}</b> 位协作者</span>` : ""}</div>
+        <span class="spacer"></span>
+        <button class="btn btn-primary" data-share>${icon("share")}共享本地内容</button>
+      </div>
+      <div class="body-c">
+        <section class="panel roster">
+          ${S.error ? `<div class="banner danger" style="margin:6px 4px 4px">${icon("alert")}<span style="flex:1">${esc(S.error)}</span></div>` : ""}
+          ${
+            !S.sessions.length
+              ? `<div class="empty" style="height:100%"><div class="glyph">${icon("users")}</div><h3>还没有协作内容</h3><p>共享一段本地内容，或在右侧输入别人给你的协作码。任意内容页底部的「发起协作」也能直接共享。</p>
+                  <div class="acts"><button class="btn btn-primary md" data-share>${icon("share")}共享本地内容</button></div></div>`
+              : `<div class="cols colhead"><span>内容</span><span>成员</span><span>状态</span><span>协作码</span><span></span></div>` +
+                groups
+                  .filter(g => g[2].length)
+                  .map(([l, en, list]) => `<div class="grp"><div class="sec">${l} <small>${en}</small> <span class="n">${list.length}</span></div></div>${list.map(row).join("")}`)
+                  .join("")
+          }
+        </section>
+        ${sideHTML()}
+      </div></div>`;
+    bind();
+  }
+
+  function bind() {
+    page.querySelectorAll("[data-toggle]").forEach(
+      el =>
+        (el.onclick = e => {
+          if (e.target.closest("button")) return;
+          openId = openId === el.dataset.toggle ? null : el.dataset.toggle;
+          render();
+        })
+    );
+    page.querySelectorAll("[data-panel]").forEach(el => C.bindSharePanel(el, C.byId(el.dataset.panel)));
+    page.querySelectorAll("[data-copy]").forEach(b => (b.onclick = () => C.copyCode(C.byId(b.dataset.copy), b)));
+    page.querySelectorAll("[data-src]").forEach(b => {
+      const s = C.byId(b.dataset.src);
+      b.onclick = () => C.toast(`mockup：跳转到${C.SRC[s.source.sourceType][1]}「${esc(s.source.sourceTitle)}」`);
+    });
+    page.querySelectorAll("[data-copyview]").forEach(b => (b.onclick = () => ((view = b.dataset.copyview), render())));
+    page.querySelectorAll("[data-leave]").forEach(b => (b.onclick = () => C.leaveDialog(b.dataset.leave)));
+    page.querySelectorAll("[data-more]").forEach(b => {
+      const s = C.byId(b.dataset.more);
+      b.onclick = () => {
+        const entries = [];
+        if (s.source) entries.push({ icon: "external", label: `在${C.SRC[s.source.sourceType][1]}中打开`, run: () => C.toast("mockup：跳转到原内容") });
+        entries.push({ icon: "eye", label: "打开协作副本", run: () => ((view = s.id), render()) });
+        if (s.role === "owner" && s.status === "active") {
+          entries.push("-", { icon: "copy", label: "复制协作码", run: () => C.copyCode(s) }, { icon: "refresh", label: "轮换协作码", run: () => C.rotateCode(s.id) });
+        }
+        entries.push("-", {
+          icon: C.stale(s) ? "trash" : "logout",
+          label: C.stale(s) ? "清理本地协作记录" : s.status === "closed" ? "清理协作缓存" : s.role === "owner" ? "结束共享" : "退出协作",
+          danger: true,
+          run: () => C.leaveDialog(s.id),
+        });
+        C.openMenu(b, entries);
+      };
+    });
+    page.querySelectorAll("[data-share]").forEach(b => (b.onclick = () => C.shareLocalDialog(id => ((openId = id), render()))));
+    page.querySelectorAll(".side [data-ok]").forEach(b => (b.onclick = () => C.approve(b.dataset.ok, true)));
+    page.querySelectorAll(".side [data-rej]").forEach(b => (b.onclick = () => C.approve(b.dataset.rej, false)));
+    // 加入：就地输入
+    const jb = page.querySelector("[data-join]");
+    const submit = async code => {
+      if (code.length !== 12 || joinBusy) return;
+      joinBusy = true;
+      joinErr = "";
+      render();
+      try {
+        await C.submitJoin(code);
+        C.toast("申请已发出，对方同意后会出现在「我加入的」");
+      } catch (e) {
+        joinErr = e.message;
+      }
+      joinBusy = false;
+      render();
+    };
+    const ci = C.bindCodeInput(page.querySelector("[data-join-box]"), v => (jb.disabled = v.length !== 12), submit);
+    jb.onclick = () => submit(ci.value());
+    // 身份：昵称就地改，服务器地址走小 Popover
+    const en = page.querySelector("[data-edit-nick]");
+    if (en) en.onclick = () => ((editingNick = true), render(), page.querySelector("[data-nick]").select());
+    const ni = page.querySelector("[data-nick]");
+    if (ni) {
+      const commit = () => {
+        C.ME.nickname = ni.value.trim() || C.ME.nickname;
+        editingNick = false;
+        C.emit();
+      };
+      ni.onkeydown = e => (e.key === "Enter" ? commit() : e.key === "Escape" ? ((editingNick = false), render()) : 0);
+      ni.onblur = commit;
+    }
+    const srv = page.querySelector("[data-srv]");
+    srv.onclick = () =>
+      C.openPop(
+        srv,
+        () => `<div class="pop-title">协作服务器</div><input class="input" data-url value="${esc(C.ME.serverUrl)}" style="font-family:var(--mono);font-size:12.5px">
+          <p class="hint">支持自托管 HTTPS；本机调试可用 localhost HTTP。更换后，现有共享需要在原服务器上结束。</p>
+          <div class="pop-foot"><button class="btn btn-ghost" data-x>取消</button><button class="btn btn-primary" data-save>保存并重连</button></div>`,
+        {
+          width: 320,
+          placement: "bottom-end",
+          bind(el, close) {
+            el.querySelector("[data-x]").onclick = close;
+            el.querySelector("[data-save]").onclick = () => {
+              C.ME.serverUrl = el.querySelector("[data-url]").value.trim() || C.ME.serverUrl;
+              close();
+              C.emit();
+              C.toast("已保存，正在重新连接");
+            };
+          },
+        }
+      );
+    page.querySelector("[data-export]").onclick = () => C.toast("已导出到 tau-collab-identity.json");
+    page.querySelector("[data-import]").onclick = () => C.toast("mockup：此处打开系统文件选择");
+  }
+
+  function renderCopy() {
+    const s = C.byId(view);
+    if (!s) return ((view = null), render());
+    const back = () => ((view = null), render());
+    C.setCrumb(`<span style="color:var(--ink-3)">协作</span> <span style="color:var(--ink-3);margin:0 4px">›</span> ${esc(s.title)}`, back);
+    page.innerHTML = `<div class="page"><div class="copy-view">
+      <div class="copy-head">${C.srcHTML(s)}<span class="muted">·</span>${C.statusHTML(s)}<span class="spacer"></span>
+        <button class="btn btn-ghost" data-people>${C.stack(s.members, 4, "xs")}<span style="margin-left:4px">${C.liveSummary(s)}</span></button>
+        <button class="btn btn-ghost" data-leave>${icon("logout")}${s.role === "owner" ? "结束共享" : "退出协作"}</button></div>
+      <section class="panel copy-panel">${
+        s.connection === "offline" && s.status === "active"
+          ? `<div class="banner warn" style="max-width:720px;margin:0 auto 22px">${icon("wifi-off")}<span>${s.pending ? "离线中，改动已保存在本机，恢复连接后自动合并。" : "离线中，暂时看不到其他成员的改动。"}</span></div>`
+          : ""
+      }${C.docHTML(s)}</section></div></div>`;
+    page.querySelector("[data-leave]").onclick = () => C.leaveDialog(s.id, back);
+    const ppl = page.querySelector("[data-people]");
+    ppl.onclick = () =>
+      C.openPop(ppl, () => `<div class="pop-title">成员<span class="spacer"></span>${C.statusHTML(s)}</div>${C.sharePanelHTML(s, { gap: 12 })}`, {
+        width: 320,
+        placement: "bottom-end",
+        live: true,
+        bind: el => C.bindSharePanel(el, s),
+      });
+  }
+
+  C.on(() => !editingNick && render());
+  render();
+})();
+</script>
+</body>
+</html>

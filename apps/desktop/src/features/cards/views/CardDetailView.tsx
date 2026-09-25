@@ -4,7 +4,7 @@
  * 分类切换与编号语言 2026-09-21 裁决：切换收进 ⋯ 菜单「编辑分类」，#id 与置顶操作移除），
  * 标签行在正文末，连接区仅在有连接时渲染（空卡不堆区块）。
  * 面包屑静态（无速切器）经槽位注入壳层；无底部状态栏——字数并入卡头 meta，
- * 协作入口收进 ⋯ 菜单「发起协作」（控件隐藏触发器，经 ref 打开弹窗）。
+ * 协作：未共享时入口在 ⋯ 菜单「发起协作」；已共享时 meta 行常驻成员条，菜单项改「协作成员」。
  *
  * 保存分工（对齐预览弹窗/文章详情的双链路）：正文走 useEditContent
  * （content 表节流 + content:updated 广播，缓存由 queries 按 contentId 并入），
@@ -42,6 +42,7 @@ import {
   Play,
   Presentation,
   Share2,
+  Users,
   Sparkles,
   Trash2,
   Wand2,
@@ -60,6 +61,7 @@ import { PdfExportModal } from "@/components/PdfExportModal";
 import ContentCollaborationControl, {
   type ContentCollaborationControlHandle,
 } from "@/components/ContentCollaborationControl";
+import useContentShared from "@/hooks/useContentShared";
 import PodcastPlayer from "@/components/PodcastPlayer";
 import PodcastGenerationModal from "@/components/PodcastGenerationModal";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
@@ -128,6 +130,7 @@ export function CardDetailView() {
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const editorRef = useRef<EditorRef>(null);
   const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
+  const shared = useContentShared(card?.contentId);
 
   const [presenting, setPresenting] = useState<Descendant[] | null>(null);
   const [immersive, setImmersive] = useState(false);
@@ -304,7 +307,15 @@ export function CardDetailView() {
               {/* ⋯ 更多（时间右侧）：按频率排布——场景（演示/沉浸，高频）与连接在前，
                   复制/导出居中，生成类（制卡/播客，低频）收二级垫底，删除殿后。
                   图标全局同动作同 icon 且菜单内互不重复（02 规范 §6） */}
-              <span className="ml-auto">
+              <span className="ml-auto flex items-center gap-1">
+                {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
+                <ContentCollaborationControl
+                  ref={collaborationRef}
+                  hideTrigger
+                  presence
+                  contentId={card.contentId}
+                  source={{ sourceType: "card", sourceId: card.id, sourceTitle: cardTitle }}
+                />
                 <Menu
                   align="end"
                   trigger={
@@ -354,10 +365,16 @@ export function CardDetailView() {
                     添加连接
                   </Menu.Item>
                   <Menu.Item
-                    icon={<Share2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
+                    icon={
+                      shared ? (
+                        <Users className="size-[15px] shrink-0" strokeWidth={1.75} />
+                      ) : (
+                        <Share2 className="size-[15px] shrink-0" strokeWidth={1.75} />
+                      )
+                    }
                     onSelect={() => collaborationRef.current?.open()}
                   >
-                    发起协作
+                    {shared ? "协作成员" : "发起协作"}
                   </Menu.Item>
                   <Menu.Submenu
                     label="编辑分类"
@@ -628,14 +645,6 @@ export function CardDetailView() {
         onSave={flashcard.handleSaveGeneratedCard}
         onCancel={flashcard.closeGeneratedCardEditModal}
         isDark={darkMode}
-      />
-
-      {/* 协作：触发器隐藏，由 ⋯ 菜单「发起协作」经 ref 打开弹窗 */}
-      <ContentCollaborationControl
-        ref={collaborationRef}
-        hideTrigger
-        contentId={card.contentId}
-        source={{ sourceType: "card", sourceId: card.id, sourceTitle: cardTitle }}
       />
 
       {/* 演示模式（legacy 搬用） */}

@@ -1,10 +1,13 @@
-import { BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent } from "electron";
-import { readFileSync, writeFileSync, statSync } from "node:fs";
+import { BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
 import * as Y from "yjs";
 import { applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protocols/awareness";
-import { normalizeServerUrl, memberColor, SOURCE_TYPES, type SourceType, type ContentSessionTarget } from "@tau/collaboration";
+import {
+  memberColor,
+  SOURCE_TYPES,
+  type SourceType,
+  type ContentSessionTarget,
+} from "@tau/collaboration";
 import type { CollaborationIpcContext } from "./types";
-import { getDevelopmentServerUrl } from "./dev-server";
 
 export function registerCollaborationIpc(context: CollaborationIpcContext) {
   const handle = <Args extends unknown[]>(
@@ -23,14 +26,11 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
   handle("set-tab-active", (_event, id: string, blockId: string, tabKey: string) => {
     context.noteActiveTab(context.requireSession(id), blockId, tabKey);
   });
-  handle("configure", async (_event, options: { serverUrl: string; nickname: string }) => {
-    const url = normalizeServerUrl(options.serverUrl);
-    const developmentUrl = getDevelopmentServerUrl();
-    if (developmentUrl && url !== developmentUrl)
-      throw new Error("协作开发模式使用启动命令指定的本地服务；切换服务请退出后使用 pnpm dev。");
-    const nickname = options.nickname.trim();
+  // 服务器地址不对用户开放（固定默认服务，开发模式为启动命令指定的本地服务）；本机只改昵称
+  handle("set-nickname", async (_event, value: unknown) => {
+    const nickname = typeof value === "string" ? value.trim() : "";
     if (!nickname || nickname.length > 40) throw new Error("昵称长度应为 1 至 40 个字符");
-    if (!developmentUrl) context.store.set("serverUrl", url);
+    const url = context.serverUrl();
     context.store.set("nickname", nickname);
     const identity = await context.client.identity(url);
     await context.client.request(url, "/v1/devices/me", "PATCH", { nickname });
@@ -77,15 +77,7 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
   });
   handle("invitation", async (_event, id: string) => {
     const session = context.requireSession(id);
-    const invitation = await context.client.request<{ code: string; expiresAt: number }>(
-      session.info.serverUrl,
-      `/v1/documents/${encodeURIComponent(id)}/invitation`,
-      "POST",
-      {}
-    );
-    // 服务器只存码的哈希，明文仅此一次返回；缓存到本机供作者随时重新复制。
-    context.store.set(`invitation:${id}`, invitation);
-    return invitation;
+    return context.issueInvitation(session.info.serverUrl, id);
   });
   handle("invitation-current", (_event, id: string) => {
     context.requireSession(id);
@@ -199,7 +191,8 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
     if (!view.clientIds.includes(clientId)) view.clientIds.push(clientId);
     applyAwarenessUpdate(session.awareness, new Uint8Array(update), "renderer");
   });
-  handle("leave", async (_event, id: string, discard: boolean = false) => {
+  handle("leave", async (_event, id: string, discardArg?: boolean) => {
+    const discard = discardArg ?? false;
     const session = context.requireSession(id);
     if (session.info.status === "closed") {
       if (session.info.pending && !discard)
@@ -234,46 +227,5 @@ export function registerCollaborationIpc(context: CollaborationIpcContext) {
   handle("resource", (_event, id: string, assetId: string) => {
     const session = context.requireSession(id);
     return context.assets.resolve(session.info.serverUrl, id, assetId);
-  });
-  handle("export-identity", async () => {
-    const identity = await context.client.identity(context.serverUrl());
-    const result = await dialog.showSaveDialog({
-      defaultPath: "tau-collaboration-identity.json",
-      filters: [{ name: "协作身份", extensions: ["json"] }],
-    });
-    if (result.canceled || !result.filePath) return;
-    writeFileSync(
-      result.filePath,
-      JSON.stringify({ version: 1, serverUrl: context.serverUrl(), identity }, null, 2),
-      { mode: 0o600 }
-    );
-    return true;
-  });
-  handle("import-identity", async () => {
-    const result = await dialog.showOpenDialog({
-      properties: ["openFile"],
-      filters: [{ name: "协作身份", extensions: ["json"] }],
-    });
-    if (result.canceled) return;
-    const file = result.filePaths[0];
-    if (statSync(file).size > 16384) throw new Error("身份文件过大");
-    const data = JSON.parse(readFileSync(file, "utf8"));
-    const url = normalizeServerUrl(data.serverUrl);
-    if (
-      data.version !== 1 ||
-      typeof data.identity?.secret !== "string" ||
-      typeof data.identity?.id !== "string" ||
-      typeof data.identity?.nickname !== "string" ||
-      !data.identity.nickname ||
-      data.identity.nickname.length > 40
-    )
-      throw new Error("身份文件无效");
-    if ([...context.sessions.values()].some(session => session.info.serverUrl === url))
-      throw new Error("请先退出当前身份的协作内容，再导入身份");
-    context.client.saveIdentity(url, data.identity);
-    context.store.set("serverUrl", url);
-    context.store.set("nickname", data.identity.nickname);
-    await context.refresh();
-    return true;
   });
 }

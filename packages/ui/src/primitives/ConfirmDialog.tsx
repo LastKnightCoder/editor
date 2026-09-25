@@ -46,6 +46,8 @@ export interface ConfirmDialogProps {
   loading?: boolean;
   loadingText?: string;
   onConfirm?: () => void | Promise<unknown>;
+  /** 条件未满足时禁用确认位（如仍在同步），取消照常可用 */
+  confirmDisabled?: boolean;
   size?: "sm" | "md" | "lg";
   width?: number;
   className?: string;
@@ -66,6 +68,7 @@ export function ConfirmDialog({
   loading = false,
   loadingText = "处理中…",
   onConfirm,
+  confirmDisabled = false,
   size = "md",
   width,
   className,
@@ -81,7 +84,7 @@ export function ConfirmDialog({
 
   const confirmed = !typeToConfirm || confirmInput.trim() === typeToConfirm;
   const busy = loading || pending;
-  const canConfirm = confirmed && !busy;
+  const canConfirm = confirmed && !confirmDisabled && !busy;
 
   const handleConfirm = () => {
     if (!canConfirm) return;
@@ -136,7 +139,7 @@ export function ConfirmDialog({
           <Button
             ref={confirmRef}
             variant={danger ? "danger" : "primary"}
-            disabled={!confirmed}
+            disabled={!confirmed || confirmDisabled}
             loading={busy}
             loadingText={loadingText}
             data-autofocus={!danger || undefined}

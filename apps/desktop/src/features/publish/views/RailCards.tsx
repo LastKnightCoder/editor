@@ -15,7 +15,8 @@ import { EPublishProvider } from "@/stores/useSettingStore";
 import type { IPublishProgress } from "@/types/publish";
 import { PROVIDER_LABELS, type PublishConfig } from "../usePublishConfig";
 import type { PlanSummary, RunState } from "../usePublishRun";
-import { formatAgo, formatDuration } from "./format";
+import { formatAgo } from "@/utils/formatAgo";
+import { formatDuration } from "./format";
 
 /* ─────────────── 首次引导 ─────────────── */
 

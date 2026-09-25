@@ -33,6 +33,8 @@ import { readKnowledgeMapping } from "@tau/db-schema/src/knowledge-migration";
 import { migrateKnowledgeReferences } from "@tau/db-schema/src/knowledge-references";
 import ContentTable from "../tables/content";
 import {
+  bindingMatches,
+  planClosedReshare,
   restoreContentBinding,
   restorePrivateNodes,
   writeContentProjection,
@@ -81,7 +83,7 @@ class CollaborationManager {
   private quitting = false;
 
   private get serverUrl() {
-    return getDevelopmentServerUrl() || this.store.get("serverUrl", DEFAULT_COLLABORATION_URL);
+    return getDevelopmentServerUrl() || DEFAULT_COLLABORATION_URL;
   }
   private get nickname() {
     return this.store.get("nickname", "Tau 用户");
@@ -585,15 +587,19 @@ class CollaborationManager {
     let operation = this.pendingCreates.get(key);
     if (!operation) {
       operation = (async () => {
-        const snapshot = this.openContent(event, { contentId, sourceType, sourceId, sourceTitle });
-        const local = this.requireSession(snapshot.documentId);
+        let snapshot = this.openContent(event, { contentId, sourceType, sourceId, sourceTitle });
+        let local = this.requireSession(snapshot.documentId);
+        // 命中结束共享的残留会话：先写回本地并拆除（同「清理本地记录」），再重走创建，
+        // 否则会按「恢复共享」对已删的服务器文档重新签码
+        const reshare = snapshot.mode !== "local" ? planClosedReshare(local.info) : null;
+        if (reshare) {
+          if (reshare.action === "reject") throw new Error(reshare.reason);
+          await this.discardLocal(local);
+          snapshot = this.openContent(event, { contentId, sourceType, sourceId, sourceTitle });
+          local = this.requireSession(snapshot.documentId);
+        }
         if (snapshot.mode !== "local") {
-          const invitation = await this.client.request<{ code: string }>(
-            local.info.serverUrl,
-            `/v1/documents/${local.info.id}/invitation`,
-            "POST",
-            {}
-          );
+          const invitation = await this.issueInvitation(local.info.serverUrl, local.info.id);
           return { documentId: local.info.id, code: invitation.code };
         }
         try {
@@ -709,15 +715,19 @@ class CollaborationManager {
     registerContentSession(db, contentId, session);
     this.changed();
     void this.refresh();
-    return {
-      documentId: info.id,
-      ...(await this.client.request<{ code: string }>(
-        url,
-        `/v1/documents/${info.id}/invitation`,
-        "POST",
-        {}
-      )),
-    };
+    return { documentId: info.id, code: (await this.issueInvitation(url, info.id)).code };
+  }
+
+  /** 服务器只存码的哈希，明文仅签发时返回一次：缓存到本机供作者随时重新复制 */
+  private async issueInvitation(serverUrl: string, documentId: string) {
+    const invitation = await this.client.request<{ code: string; expiresAt: number }>(
+      serverUrl,
+      `/v1/documents/${encodeURIComponent(documentId)}/invitation`,
+      "POST",
+      {}
+    );
+    this.store.set(`invitation:${documentId}`, invitation);
+    return invitation;
   }
 
   private async flushResources() {
@@ -845,7 +855,10 @@ class CollaborationManager {
     if (!db?.open) throw new Error("请打开原内容所在数据库以完成退出");
     if (!discard && this.projecting.has(session.info.id))
       throw new Error("内容正在保存，请稍后再重试");
-    if (!discard) await this.project(session);
+    // 原内容已不再由这份共享绑定（被删除重建 / 改绑其它共享）：没有可写回的对象，
+    // 直接解除本共享的残留记录——否则写回必然失败，清理永远卡住
+    const bound = bindingMatches(db, source, session.info.id, session.info.serverUrl);
+    if (!discard && bound) await this.project(session);
     db.prepare("DELETE FROM collaboration_bindings WHERE content_id=? AND document_id=?").run(
       source.contentId,
       session.info.id
@@ -962,6 +975,7 @@ class CollaborationManager {
       acknowledgeFreeze: this.acknowledgeFreeze.bind(this),
       prepareLeave: this.prepareLeave.bind(this),
       createContent: this.createContent.bind(this),
+      issueInvitation: this.issueInvitation.bind(this),
       removeView: this.removeView.bind(this),
       clearBinding: this.clearBinding.bind(this),
       discardLocal: this.discardLocal.bind(this),

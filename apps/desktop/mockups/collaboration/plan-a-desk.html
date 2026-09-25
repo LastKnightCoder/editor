@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>协作 · 方案 A 协作台（二轮：去掉第二侧栏）</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  .page-a { display: flex; flex-direction: column; min-height: 0; height: 100%; padding: 0 26px 18px; }
+  .toolbar .sum button { color: var(--accent-text); font-size: 12.5px; }
+  .toolbar .sum button:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  /* 昵称：就地改（唯一的本机协作设置）；铅笔占固定槽位，悬停不改宽度 */
+  .me-chip { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 4px 0 4px; border-radius: 10px; font-size: 12.5px; color: var(--ink-2); }
+  .me-chip:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .me-chip .pen { width: 16px; display: inline-grid; place-items: center; opacity: 0; transition: opacity 160ms var(--ease-out); color: var(--ink-3); }
+  .me-chip:hover .pen { opacity: 1; }
+  .me-chip .pen .icon { width: 12px; height: 12px; }
+  .me-edit { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 4px; }
+  .me-edit input { width: 120px; height: 26px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--accent); box-shadow: var(--focus-ring); background: var(--bg-surface); font-size: 12.5px; }
+
+  /* ── A1 会话条：页内一行，不占侧向空间 ── */
+  .strip { display: flex; align-items: center; gap: 6px; padding: 0 0 12px; overflow-x: auto; scrollbar-width: none; flex: none; }
+  .strip .glabel { font-size: 11.5px; color: var(--ink-3); padding: 0 4px 0 10px; white-space: nowrap; }
+  .strip .glabel:first-child { padding-left: 0; }
+  .tab { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 10px; border-radius: 11px; font-size: 13px; color: var(--ink-2); white-space: nowrap; flex: none; position: relative; }
+  .tab:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .tab.on { background: var(--bg-surface); color: var(--ink-1); font-weight: 500; box-shadow: var(--shadow-lift); }
+  .tab .st i { width: 6px; height: 6px; }
+  .tab .nav-badge { margin-left: 0; }
+
+  /* ── A2 标题切换器：面包屑式 “协作 / 当前内容 ▾” ── */
+  .crumb-sw { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px 0 10px; margin-left: -4px; border-radius: 10px; font-size: 15px; font-weight: 600; color: var(--ink-1); max-width: 420px; }
+  .crumb-sw:hover { background: var(--bg-hover); }
+  .crumb-sw .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .crumb-sw .icon { width: 14px; height: 14px; color: var(--ink-3); }
+  .crumb-sep { color: var(--ink-3); font-size: 17px; font-weight: 400; margin: 0 2px; }
+  .sw-list { display: flex; flex-direction: column; gap: 2px; }
+  .sw-item { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 10px; text-align: left; width: 100%; }
+  .sw-item:hover { background: var(--bg-hover); }
+  .sw-item.on { background: var(--bg-selected); }
+  .sw-item .tx { min-width: 0; flex: 1; }
+  .sw-item .tt { display: block; font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sw-item .st { font-size: 11.5px; }
+  .sw-item > .av-stack { width: 46px; flex: none; }
+  .sw-label { font-size: 11.5px; color: var(--ink-3); padding: 8px 8px 3px; }
+  .sw-label:first-child { padding-top: 0; }
+
+  /* ── A3 侧栏嵌套：会话挂在全局侧栏「协作」之下 ── */
+  #nav-sub { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 4px; }
+  #nav-sub:empty { display: none; }
+  .nav-sub-label { font-size: 11px; color: var(--ink-3); padding: 6px 10px 2px 35px; }
+  .nav-sub-item { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px 0 35px; border-radius: 9px; font-size: 12.5px; color: var(--ink-2); text-align: left; width: 100%; }
+  .nav-sub-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .nav-sub-item.on { color: var(--ink-1); font-weight: 500; background: var(--bg-hover); }
+  .nav-sub-item .tt { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav-sub-item .st i { width: 6px; height: 6px; }
+  .nav-sub-item .nav-badge { min-width: 16px; height: 16px; line-height: 16px; font-size: 10.5px; }
+  /* 选中子项时父项降为“所在区” —— 不和子项抢选中态 */
+  .sidebar.has-sub .nav-item.active { background: transparent; color: var(--accent-text); }
+  .sidebar.has-sub .nav-item.active::before { display: none; }
+
+  /* ── 共用：协作副本面板（整宽） ── */
+  .room { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .room-head { display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 12px 0 20px; flex: none; }
+  .presence { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px 0 6px; border-radius: 10px; font-size: 12.5px; color: var(--ink-2); }
+  .presence:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .code-chip { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 9px; border-radius: 8px; border: 1px solid var(--line-1); color: var(--ink-2); font-size: 12px; }
+  .code-chip .code { font-size: 12.5px; }
+  .code-chip:hover { border-color: var(--ink-3); color: var(--ink-1); }
+  .code-chip .icon { width: 13px; height: 13px; }
+  .room-notes { padding: 0 20px; flex: none; display: flex; flex-direction: column; gap: 6px; }
+  .room-notes .req { background: var(--bg-hover); }
+  .room-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 26px 40px 120px; }
+  .room-foot { height: 34px; flex: none; display: flex; align-items: center; gap: 14px; padding: 0 20px; font-size: 12px; color: var(--ink-3); }
+  .kb { display: inline-flex; gap: 4px; align-items: center; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+(function () {
+  const C = window.Collab;
+  const { icon, esc } = C;
+  const { page } = C.mountShell();
+
+  // mockup 演示：会话导航三种形态
+  const VARIANTS = [["strip", "A1 会话条"], ["switch", "A2 标题切换"], ["nest", "A3 侧栏嵌套"]];
+  let variant = localStorage.getItem("collab-a-variant") || "strip";
+  const vdemo = document.createElement("div");
+  vdemo.className = "demo";
+  vdemo.title = "mockup 演示控制，非产品 UI";
+  vdemo.innerHTML = `<span>会话导航</span>${VARIANTS.map(([k, l]) => `<button data-v="${k}">${l}</button>`).join("")}`;
+  document.querySelector(".titlebar .demo").before(vdemo);
+  vdemo.querySelectorAll("[data-v]").forEach(b => (b.onclick = () => ((variant = b.dataset.v), localStorage.setItem("collab-a-variant", variant), C.closePop(), render())));
+
+  let sel = "s1", editingNick = false;
+  const ordered = () => [...C.S.sessions.filter(s => s.role === "owner"), ...C.S.sessions.filter(s => s.role === "editor")];
+  const groups = () => [["我发起的", C.S.sessions.filter(s => s.role === "owner")], ["我加入的", C.S.sessions.filter(s => s.role === "editor")]].filter(g => g[1].length);
+  const dot = s => `<span class="st ${C.status(s).tone}" title="${esc(C.status(s).label)}"><i></i></span>`;
+  const badge = s => (C.reqsOf(s).length ? `<span class="nav-badge" title="${C.reqsOf(s).length} 个待审批">${C.reqsOf(s).length}</span>` : "");
+
+  function meChip() {
+    return editingNick
+      ? `<span class="me-edit">${C.avatar({ ...C.ME, online: undefined }, "sm", false)}<input data-nick value="${esc(C.ME.nickname)}" maxlength="40" aria-label="协作昵称"></span>`
+      : `<button class="me-chip" data-me title="你在协作中显示的名字，点击修改">${C.avatar({ ...C.ME, online: undefined }, "sm", false)}<span>${esc(C.ME.nickname)}</span><span class="pen">${icon("pen")}</span></button>`;
+  }
+
+  function toolbar(cur) {
+    const S = C.S;
+    const nReq = S.requests.length;
+    const head =
+      variant === "switch" && cur
+        ? `<h1>协作</h1><span class="crumb-sep">/</span><button class="crumb-sw" data-sw title="切换共享内容（⌥↑ / ⌥↓）"><span class="t">${esc(cur.title)}</span>${icon("chev-down")}${
+            S.sessions.some(s => s.id !== cur.id && C.reqsOf(s).length) ? `<span class="nav-badge" style="margin-left:0">${S.requests.filter(r => r.documentId !== cur.id).length}</span>` : ""
+          }</button>`
+        : `<h1>协作</h1><div class="sum">${S.sessions.length ? `<span><b>${S.sessions.length}</b> 份共享</span>${nReq ? `<span class="sep">·</span><button data-reqs>${nReq} 个申请待处理</button>` : ""}` : ""}</div>`;
+    return `<div class="toolbar">${head}<span class="spacer"></span>${meChip()}
+      <button class="btn btn-secondary" data-join>${icon("key")}输入协作码</button>
+      <button class="btn btn-primary" data-share>${icon("share")}共享本地内容</button></div>`;
+  }
+
+  function strip() {
+    return `<div class="strip">${groups()
+      .map(([l, list]) => `<span class="glabel">${l}</span>${list.map(s => `<button class="tab${s.id === sel ? " on" : ""}" data-sel="${s.id}" style="--av-ring:${s.id === sel ? "var(--bg-surface)" : "var(--bg-page)"}">${dot(s)}${esc(s.title)}${badge(s)}</button>`).join("")}`)
+      .join("")}</div>`;
+  }
+
+  function renderNest() {
+    const sub = document.getElementById("nav-sub");
+    const sb = document.querySelector(".sidebar");
+    if (variant !== "nest" || !C.S.sessions.length) {
+      sub.innerHTML = "";
+      sb.classList.remove("has-sub");
+      return;
+    }
+    sb.classList.add("has-sub");
+    sub.innerHTML = groups()
+      .map(([l, list]) => `<div class="nav-sub-label">${l}</div>${list.map(s => `<button class="nav-sub-item${s.id === sel ? " on" : ""}" data-sel="${s.id}">${dot(s)}<span class="tt">${esc(s.title)}</span>${badge(s)}</button>`).join("")}`)
+      .join("");
+    sub.querySelectorAll("[data-sel]").forEach(b => (b.onclick = () => ((sel = b.dataset.sel), render())));
+  }
+
+  function roomHTML(s) {
+    const st = C.status(s);
+    const ownerActive = s.role === "owner";
+    const reqs = C.reqsOf(s);
+    const notes = [];
+    if (st.tone === "error") notes.push(`<div class="banner danger">${icon("alert")}<span style="flex:1">${esc(st.label)}</span><button class="btn btn-secondary">重试</button></div>`);
+    else if (s.connection === "offline")
+      notes.push(`<div class="banner warn">${icon("wifi-off")}<span style="flex:1">${s.pending ? "离线中，改动已保存在本机，恢复连接后自动合并。" : "离线中，暂时看不到其他成员的改动。"}</span></div>`);
+    // 本条内容的申请：就地处理，不用打开成员面板
+    reqs.forEach(r =>
+      notes.push(`<div class="req">${C.avatar(r, "", false)}<div class="who"><b>${esc(r.nickname)}</b> <span class="muted" style="font-size:12.5px">申请加入这份内容 · ${C.daysLeft(r.expiresAt)} 天内有效</span></div>
+        <div class="acts"><button class="btn btn-ghost" data-rej="${r.id}">拒绝</button><button class="btn btn-primary" data-ok="${r.id}">同意</button></div></div>`)
+    );
+    return `<section class="panel room">
+      <div class="room-head">
+        ${C.srcHTML(s, variant !== "switch")}
+        <span class="spacer"></span>
+        <button class="presence" data-people title="成员${ownerActive ? "与协作码" : ""}">${C.stack(s.members, 4, "sm")}<span>${C.liveSummary(s)}</span></button>
+        ${ownerActive ? `<button class="code-chip" data-copy-chip title="复制协作码">${icon("key")}<span class="code num">${esc(s.code)}</span></button>` : ""}
+        ${s.source ? `<button class="btn btn-ghost" data-open title="回到原内容所在页面">${icon("external")}在${C.SRC[s.source.sourceType][1]}中打开</button>` : ""}
+        <button class="ibtn" data-more title="更多">${icon("more")}</button>
+      </div>
+      ${notes.length ? `<div class="room-notes">${notes.join("")}</div>` : ""}
+      <div class="room-scroll">${C.docHTML(s)}</div>
+      <div class="room-foot">${C.statusHTML(s)}<span class="spacer"></span><span>更新于 ${C.rel(s.updatedAt)}</span>${C.S.sessions.length > 1 ? '<span class="kb"><kbd>⌥</kbd><kbd>↑</kbd><kbd>↓</kbd> 切换内容</span>' : ""}</div>
+    </section>`;
+  }
+
+  function render() {
+    const S = C.S;
+    if (!S.sessions.find(s => s.id === sel)) sel = ordered()[0]?.id;
+    const cur = C.byId(sel);
+    vdemo.querySelectorAll("[data-v]").forEach(b => b.classList.toggle("on", b.dataset.v === variant));
+    page.innerHTML = `<div class="page-a">${toolbar(cur)}
+      ${
+        !S.sessions.length
+          ? `<div class="panel" style="flex:1;display:grid;place-items:center"><div class="empty"><div class="glyph">${icon("users")}</div>
+              <h3>还没有协作内容</h3><p>把一段本地内容共享出去，或输入别人给你的协作码加入。任意内容页底部的「发起协作」也能直接共享。</p>
+              <div class="acts"><button class="btn btn-secondary md" data-join>${icon("key")}输入协作码</button><button class="btn btn-primary md" data-share>${icon("share")}共享本地内容</button></div></div></div>`
+          : `${S.error ? `<div class="banner danger" style="margin-bottom:12px">${icon("alert")}<span>${esc(S.error)}</span></div>` : ""}${variant === "strip" ? strip() : ""}${roomHTML(cur)}`
+      }</div>`;
+    renderNest();
+    bind(cur);
+  }
+
+  function bind(s) {
+    page.querySelectorAll("[data-sel]").forEach(b => (b.onclick = () => ((sel = b.dataset.sel), render())));
+    page.querySelectorAll("[data-join]").forEach(b => (b.onclick = () => C.joinDialog()));
+    page.querySelectorAll("[data-share]").forEach(b => (b.onclick = () => C.shareLocalDialog(id => ((sel = id), render()))));
+    page.querySelectorAll(".room-notes [data-ok]").forEach(b => (b.onclick = () => C.approve(b.dataset.ok, true)));
+    page.querySelectorAll(".room-notes [data-rej]").forEach(b => (b.onclick = () => C.approve(b.dataset.rej, false)));
+    // 昵称就地改：Enter / 失焦保存，Esc 取消
+    const me = page.querySelector("[data-me]");
+    if (me) me.onclick = () => ((editingNick = true), render(), page.querySelector("[data-nick]").select());
+    const ni = page.querySelector("[data-nick]");
+    if (ni) {
+      let done = false;
+      const finish = save => {
+        if (done) return;
+        done = true;
+        const v = ni.value.trim();
+        editingNick = false;
+        if (save && v && v !== C.ME.nickname) {
+          C.ME.nickname = v;
+          C.toast("昵称已更新，协作者会看到新名字");
+        }
+        C.emit();
+      };
+      ni.onkeydown = e => (e.key === "Enter" ? finish(true) : e.key === "Escape" ? (e.stopPropagation(), finish(false)) : 0);
+      ni.onblur = () => finish(true);
+    }
+    // 全部申请（会话条 / 侧栏嵌套时从摘要打开）
+    const rq = page.querySelector("[data-reqs]");
+    if (rq)
+      rq.onclick = () =>
+        C.openPop(
+          rq,
+          () => `<div class="pop-title">待审批 <span class="muted" style="font-weight:400">${C.S.requests.length}</span></div>${
+            C.S.requests.length
+              ? `<div style="display:flex;flex-direction:column;gap:6px">${C.S.requests
+                  .map(r => `<div class="req" style="background:var(--bg-hover)">${C.avatar(r, "", false)}<div class="who"><b>${esc(r.nickname)}</b><p><button class="link" style="font-weight:400" data-goto="${r.documentId}">${esc(C.byId(r.documentId)?.title)}</button></p></div>
+                    <div class="acts"><button class="ibtn sm danger" data-rej="${r.id}" title="拒绝">${icon("x")}</button><button class="ibtn sm ok" style="color:var(--ok)" data-ok="${r.id}" title="同意">${icon("check")}</button></div></div>`)
+                  .join("")}</div>`
+              : '<p class="hint">都处理完了。</p>'
+          }`,
+          {
+            width: 320,
+            live: true,
+            bind(el, close) {
+              el.querySelectorAll("[data-ok]").forEach(b => (b.onclick = () => C.approve(b.dataset.ok, true)));
+              el.querySelectorAll("[data-rej]").forEach(b => (b.onclick = () => C.approve(b.dataset.rej, false)));
+              el.querySelectorAll("[data-goto]").forEach(b => (b.onclick = () => ((sel = b.dataset.goto), close(), render())));
+            },
+          }
+        );
+    // A2 切换器
+    const sw = page.querySelector("[data-sw]");
+    if (sw)
+      sw.onclick = () =>
+        C.openPop(
+          sw,
+          () => `<div class="sw-list">${groups()
+            .map(([l, list]) => `<div class="sw-label">${l}</div>${list
+              .map(x => `<button class="sw-item${x.id === sel ? " on" : ""}" data-pick="${x.id}" style="--av-ring:var(--bg-surface)">${C.stack(x.members, 2, "sm")}<span class="tx"><span class="tt">${esc(x.title)}</span>${C.statusHTML(x, x.status === "active" && C.status(x).tone === "live" ? " · " + C.liveSummary(x) : "")}</span>${badge(x)}</button>`)
+              .join("")}`)
+            .join("")}</div>`,
+          {
+            width: 340,
+            pad: "8px",
+            bind(el, close) {
+              el.querySelectorAll("[data-pick]").forEach(b => (b.onclick = () => ((sel = b.dataset.pick), close(), render())));
+            },
+          }
+        );
+    if (!s) return;
+    page.querySelectorAll("[data-open]").forEach(b => (b.onclick = () => C.toast(`mockup：跳转到${C.SRC[s.source.sourceType][1]}「${esc(s.source.sourceTitle)}」`)));
+    const chip = page.querySelector("[data-copy-chip]");
+    if (chip) chip.onclick = () => C.copyCode(s);
+    const ppl = page.querySelector("[data-people]");
+    ppl.onclick = () =>
+      C.openPop(ppl, () => `<div class="pop-title">${s.role === "owner" ? "成员与邀请" : "成员"}<span class="spacer"></span>${C.statusHTML(s)}</div>${C.sharePanelHTML(s, { gap: 14 })}`, {
+        width: 340,
+        placement: "bottom-end",
+        live: true,
+        bind: el => C.bindSharePanel(el, s),
+      });
+    page.querySelector("[data-more]").onclick = e => {
+      const entries = [];
+      if (s.role === "owner") entries.push({ icon: "copy", label: "复制协作码", run: () => C.copyCode(s) }, { icon: "refresh", label: "轮换协作码", run: () => C.rotateCode(s.id) }, "-");
+      entries.push({ icon: C.stale(s) ? "trash" : "logout", label: C.stale(s) ? "清理本地协作记录" : s.role === "owner" ? "结束共享" : "退出协作", danger: true, run: () => C.leaveDialog(s.id) });
+      C.openMenu(e.currentTarget, entries);
+    };
+  }
+
+  document.addEventListener("keydown", e => {
+    if (!e.altKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+    const ids = ordered().map(s => s.id);
+    const i = ids.indexOf(sel);
+    sel = ids[Math.max(0, Math.min(ids.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)))];
+    e.preventDefault();
+    C.closePop();
+    render();
+  });
+  C.on(() => !editingNick && render());
+  render();
+})();
+</script>
+</body>
+</html>

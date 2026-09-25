@@ -70,6 +70,14 @@ describe("activateExisting 单实例去重", () => {
     expect(s2.forward).toHaveLength(0);
   });
 
+  it("命中栈中条目且参数不同：移到栈顶并更新参数", () => {
+    const s0 = stackOf("collaboration", "b");
+    const s1 = activateExisting(s0, e => e.key === "collaboration", { id: "doc-2" })!;
+    expect(s1.back.map(e => e.key)).toEqual(["b", "collaboration"]);
+    expect(s1.back[1].params).toEqual({ id: "doc-2" });
+    expect(s1.back[1].id).toBe(s0.back[0].id);
+  });
+
   it("命中栈顶且参数相同：返回原引用（派发即无操作，不产生假历史）", () => {
     const s0 = stackOf("a", "b");
     const hit = activateExisting(s0, e => e.key === "b", {});

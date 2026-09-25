@@ -18,6 +18,7 @@ import {
   Presentation,
   Sparkles,
   Trash2,
+  Users,
   Wand2,
   type LucideIcon,
 } from "lucide-react";
@@ -41,7 +42,9 @@ function menuIcon(Icon: LucideIcon) {
 }
 
 export const getProjectItemMoreMenuItems = (
-  projectItem?: ProjectItemMenuSource | null
+  projectItem?: ProjectItemMenuSource | null,
+  /** 文档已共享：协作项改「协作成员」（打开成员 Popover） */
+  shared = false
 ): MenuEntryList => {
   if (projectItem?.projectItemType === EProjectItemType.Document) {
     return [
@@ -62,7 +65,9 @@ export const getProjectItemMoreMenuItems = (
             : undefined,
         ]),
       },
-      { key: "collaboration", label: "发起协作", icon: menuIcon(Share2) },
+      shared
+        ? { key: "collaboration", label: "协作成员", icon: menuIcon(Users) }
+        : { key: "collaboration", label: "发起协作", icon: menuIcon(Share2) },
       {
         key: "copy",
         label: "复制",

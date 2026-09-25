@@ -159,6 +159,8 @@ test.beforeAll(async () => {
       TAU_COLLAB_E2E_SCHEMA: resolve(root, "../../packages/db-schema/schema/main.sql"),
       TAU_COLLAB_E2E_PRELOAD: resolve(root, "e2e/collaboration/preload.cjs"),
       TAU_COLLAB_E2E_URL: url,
+      // 服务地址不对用户开放，测试经开发模式变量指向本地服务
+      TAU_COLLAB_DEV_SERVER_URL: serverUrl,
     },
   });
   page = await electron.firstWindow();
@@ -239,16 +241,14 @@ test("本机多视图、跨窗口光标、标题和原地共享", async () => {
   const isolated = await isolatedWindow;
   await expect(isolated.getByTestId("first-view")).toContainText("另一个数据库");
   await expect(isolated.getByTestId("first-view")).not.toContainText("窗口编辑");
-  await page.evaluate(
-    url =>
-      window.electron.invoke("collaboration:configure", { serverUrl: url, nickname: "测试作者" }),
-    serverUrl
-  );
+  await page.evaluate(() => window.electron.invoke("collaboration:set-nickname", "测试作者"));
   await page.getByRole("button", { name: "发起协作", exact: true }).click();
+  // 先说明再确认：打开对话框不会静默共享
+  await page.getByRole("button", { name: "发起共享", exact: true }).click();
   const codeField = page.getByTestId("collaboration-code");
   await expect(codeField).not.toHaveText(/^—/);
   const code = (await codeField.textContent())?.trim() || "";
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
   await expect(first).toContainText("窗口编辑");
   await first.click();
   await page.keyboard.press("End");
@@ -274,11 +274,14 @@ test("本机多视图、跨窗口光标、标题和原地共享", async () => {
     return response.json();
   };
   await request("/v1/join-requests", "POST", { code });
-  await page.locator("footer button").click();
-  await expect(page.getByText("测试协作者 申请加入", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "批准", exact: true }).click();
-  await expect(page.getByText("测试协作者", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: /^协作：/ }).click();
+  const shareDialog = page.getByRole("dialog", { name: "内容协作", exact: true });
+  await expect(shareDialog.getByText("测试协作者", { exact: true })).toBeVisible();
+  await shareDialog.getByRole("button", { name: "同意", exact: true }).click();
+  // 同意后申请行消失，成员列表出现对方
+  await expect(shareDialog.getByRole("button", { name: "同意", exact: true })).toHaveCount(0);
+  await expect(shareDialog.getByText("测试协作者", { exact: true })).toBeVisible();
+  await shareDialog.getByRole("button", { name: "关闭", exact: true }).click();
   const { documents } = await request("/v1/documents");
   const guestDoc = new Y.Doc();
   const transport = new HocuspocusProviderWebsocket({
@@ -301,7 +304,10 @@ test("本机多视图、跨窗口光标、标题和原地共享", async () => {
     await expect(title).toHaveText("远端实时统一标题");
     await page.bringToFront();
     await first.click();
-    await expect(page.locator("footer")).toContainText("2 人正在编辑");
+    // 在线摘要只数他人
+    await expect(
+      page.getByRole("button", { name: "协作：1 人正在编辑", exact: true })
+    ).toBeVisible();
   } finally {
     guest.destroy();
     transport.destroy();
@@ -322,8 +328,11 @@ test("本机多视图、跨窗口光标、标题和原地共享", async () => {
     .toBe(false);
   await other.reload();
   await expect(other.getByTestId("first-view")).toContainText("共享之后");
-  await page.locator("footer button").click();
-  await page.getByRole("button", { name: "结束共享", exact: true }).click();
+  await page.getByRole("button", { name: /^协作：/ }).click();
+  await page
+    .getByRole("dialog", { name: "内容协作", exact: true })
+    .getByRole("button", { name: "结束共享", exact: true })
+    .click();
   await page
     .getByRole("dialog", { name: "结束共享？", exact: true })
     .getByRole("button", { name: "结束共享", exact: true })
@@ -343,8 +352,10 @@ test("本机多视图、跨窗口光标、标题和原地共享", async () => {
 
 test("活跃协作不会阻止退出应用", async () => {
   await page.getByRole("button", { name: "发起协作", exact: true }).click();
+  // 先说明再确认：打开对话框不会静默共享
+  await page.getByRole("button", { name: "发起共享", exact: true }).click();
   await expect(page.getByTestId("collaboration-code")).not.toHaveText(/^—/);
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
   const sessionId = await page.evaluate(
     async () => (await window.electron.invoke("collaboration:state")).sessions[0].id
   );

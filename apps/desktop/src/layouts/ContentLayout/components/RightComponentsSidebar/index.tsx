@@ -7,7 +7,6 @@ import { useShallow } from "zustand/react/shallow";
 import type { Descendant } from "slate";
 
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
-import CollaborationPanel from "@/components/CollaborationPanel";
 import FlashcardReviewDeckList, { slateToPlainText } from "@/components/FlashcardReviewDeckList";
 import CardPreview from "@/pages/card-list-view/CardPreview";
 import ReviewModal from "@/pages/FlashcardCenter/ReviewModal";
@@ -579,9 +578,6 @@ const RightComponentsSidebar = memo(() => {
             </div>
 
             <div className="components-workbench-scroll min-h-0 flex-1 space-y-4 overflow-y-auto pl-1 pr-4">
-              <Section title="协作共享">
-                <CollaborationPanel />
-              </Section>
               <Section
                 title="临期闪念"
                 count={data.cards.data?.total ?? 0}

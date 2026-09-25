@@ -1,5 +1,7 @@
+import { basename } from "node:path";
 import Database from "better-sqlite3";
 import log from "electron-log";
+import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import {
   FlashcardDeck,
   FlashcardDeckStats,
@@ -94,6 +96,12 @@ const EASE_RANGE = { min: 1.3, max: 3.5 };
 
 class FlashcardTable {
   private static readonly reviewIdHighWater = new WeakMap<Database.Database, number>();
+
+  /** 写命令成功后通知其它窗口（渲染端据此失效 ["flashcards"] 查询，见 features/flashcards/queries.ts） */
+  private static changed(db: Database.Database, ctx: CommandContext) {
+    ctx.broadcastOthers("flashcards:changed", { databaseName: basename(db.name) });
+  }
+
   static getListenEvents() {
     return {
       "flashcard:list-decks": this.listDecks.bind(this),
@@ -661,7 +669,11 @@ class FlashcardTable {
     return this.mapDeckRow(row, stats);
   }
 
-  static createDeck(db: Database.Database, payload: CreateFlashcardDeckInput): FlashcardDeck {
+  static createDeck(
+    db: Database.Database,
+    payload: CreateFlashcardDeckInput,
+    ctx: CommandContext = fallbackCommandContext
+  ): FlashcardDeck {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO flashcard_decks (name, description, cover_color, emoji, sort_order, meta, create_time, update_time)
@@ -678,12 +690,14 @@ class FlashcardTable {
       now
     );
     const createdId = Number(res.lastInsertRowid);
+    this.changed(db, ctx);
     return this.getDeck(db, createdId) as FlashcardDeck;
   }
 
   static updateDeck(
     db: Database.Database,
-    payload: UpdateFlashcardDeckInput
+    payload: UpdateFlashcardDeckInput,
+    ctx: CommandContext = fallbackCommandContext
   ): FlashcardDeck | null {
     const existing = this.getDeck(db, payload.id);
     if (!existing) return null;
@@ -706,10 +720,15 @@ class FlashcardTable {
       now,
       payload.id
     );
+    this.changed(db, ctx);
     return this.getDeck(db, payload.id);
   }
 
-  static deleteDeck(db: Database.Database, deckId: number): boolean {
+  static deleteDeck(
+    db: Database.Database,
+    deckId: number,
+    ctx: CommandContext = fallbackCommandContext
+  ): boolean {
     const cardRows = db.prepare(`SELECT id FROM flashcards WHERE deck_id = ?`).all(deckId) as {
       id: number;
     }[];
@@ -725,7 +744,9 @@ class FlashcardTable {
     }
     db.prepare(`DELETE FROM flashcards WHERE deck_id = ?`).run(deckId);
     const result = db.prepare(`DELETE FROM flashcard_decks WHERE id = ?`).run(deckId);
-    return result.changes > 0;
+    const deleted = result.changes > 0;
+    if (deleted) this.changed(db, ctx);
+    return deleted;
   }
 
   static listFlashcards(
@@ -784,7 +805,11 @@ class FlashcardTable {
     return this.mapCardRow(row, references);
   }
 
-  static createFlashcard(db: Database.Database, payload: CreateFlashcardInput): Flashcard {
+  static createFlashcard(
+    db: Database.Database,
+    payload: CreateFlashcardInput,
+    ctx: CommandContext = fallbackCommandContext
+  ): Flashcard {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO flashcards (
@@ -825,10 +850,15 @@ class FlashcardTable {
     const cardId = Number(res.lastInsertRowid);
     this.replaceReferences(db, cardId, payload.references);
     this.updateReferenceSummary(db, cardId);
+    this.changed(db, ctx);
     return this.getFlashcard(db, cardId) as Flashcard;
   }
 
-  static updateFlashcard(db: Database.Database, payload: UpdateFlashcardInput): Flashcard | null {
+  static updateFlashcard(
+    db: Database.Database,
+    payload: UpdateFlashcardInput,
+    ctx: CommandContext = fallbackCommandContext
+  ): Flashcard | null {
     const existingRow = db.prepare(`SELECT * FROM flashcards WHERE id = ?`).get(payload.id) as
       CardRow | undefined;
     if (!existingRow) return null;
@@ -868,14 +898,21 @@ class FlashcardTable {
       this.updateReferenceSummary(db, payload.id);
     }
 
+    this.changed(db, ctx);
     return this.getFlashcard(db, payload.id);
   }
 
-  static deleteFlashcard(db: Database.Database, cardId: number): boolean {
+  static deleteFlashcard(
+    db: Database.Database,
+    cardId: number,
+    ctx: CommandContext = fallbackCommandContext
+  ): boolean {
     db.prepare(`DELETE FROM flashcard_references WHERE card_id = ?`).run(cardId);
     db.prepare(`DELETE FROM flashcard_reviews WHERE card_id = ?`).run(cardId);
     const result = db.prepare(`DELETE FROM flashcards WHERE id = ?`).run(cardId);
-    return result.changes > 0;
+    const deleted = result.changes > 0;
+    if (deleted) this.changed(db, ctx);
+    return deleted;
   }
 
   static getReviewQueue(db: Database.Database, params: FlashcardQueueRequest = {}): Flashcard[] {
@@ -947,9 +984,10 @@ class FlashcardTable {
 
   static submitReview(
     db: Database.Database,
-    payload: FlashcardReviewPayload
+    payload: FlashcardReviewPayload,
+    ctx: CommandContext = fallbackCommandContext
   ): FlashcardReviewResult | null {
-    return db.transaction(() => {
+    const result = db.transaction(() => {
       const row = db.prepare(`SELECT * FROM flashcards WHERE id = ?`).get(payload.cardId) as
         CardRow | undefined;
       if (!row) return null;
@@ -1010,12 +1048,18 @@ class FlashcardTable {
         },
       };
     })();
+    if (result) this.changed(db, ctx);
+    return result;
   }
 
   /**
    * 仅撤销凭据指向的最新评分；校验、删除记录与恢复排期在同一事务中完成。
    */
-  static undoReview(db: Database.Database, payload: FlashcardUndoReviewPayload): Flashcard | null {
+  static undoReview(
+    db: Database.Database,
+    payload: FlashcardUndoReviewPayload,
+    ctx: CommandContext = fallbackCommandContext
+  ): Flashcard | null {
     const { previous } = payload;
     const undo = db.transaction(() => {
       const row = db.prepare(`SELECT * FROM flashcards WHERE id = ?`).get(payload.cardId) as
@@ -1065,7 +1109,9 @@ class FlashcardTable {
       );
       return this.getFlashcard(db, payload.cardId);
     });
-    return undo();
+    const result = undo();
+    if (result) this.changed(db, ctx);
+    return result;
   }
 }
 

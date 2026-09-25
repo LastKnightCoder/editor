@@ -68,7 +68,7 @@ export function replace(
 
 /**
  * 单实例去重：命中谓词的条目激活之，不新建。
- *  - 命中条目在栈中：移到栈顶（视作新导航，清空 forward）；
+ *  - 命中条目在栈中：移到栈顶（视作新导航，清空 forward），参数有变化则一并更新；
  *  - 命中条目已在栈顶：参数相同则原样返回（同引用，调用方派发即无操作），
  *    参数有变化则原位更新（replace 语义，清空 forward）——否则 push 会重复入栈，
  *    出现"点当前页 → 后退按钮亮起但按了没反应"的假历史。
@@ -89,8 +89,10 @@ export function activateExisting(
   }
   const back = [...state.back];
   const [entry] = back.splice(index, 1);
+  // 带参激活（如协作页指定当前内容）：参数随激活更新，否则会停在旧参数上
+  const moved = sameParams(entry.params, params) ? entry : { ...entry, params };
   return {
-    back: touchAll([...back, entry]),
+    back: touchAll([...back, moved]),
     forward: [], // 激活历史条目视作新导航
   };
 }

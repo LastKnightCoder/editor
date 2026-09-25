@@ -4,7 +4,7 @@
 // });
 import { useBackendWebsocketStore } from "@/stores/useBackendWebsocketStore";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import ReactDOM from "react-dom/client";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
@@ -21,17 +21,7 @@ import { initBlockRenderers } from "@/renderers";
 import { initToolCallRenderers } from "@/tool-call-renderers";
 import { initializeTabContentProviders } from "@/mcp/tab-content/providers";
 import { useContentEditReviewSessionStore } from "@/services/content-editing";
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000,
-      gcTime: 30 * 60 * 1000,
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
-});
+import { queryClient } from "./queryClient";
 
 dayjs.locale("zh-cn");
 useBackendWebsocketStore.getState().initClient();

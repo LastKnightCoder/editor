@@ -22,6 +22,19 @@ function isNoHandlerError(error: unknown): boolean {
   return error instanceof Error && error.message.includes("No handler registered");
 }
 
+/**
+ * Electron 把主进程抛出的错误包成 "Error invoking remote method '<channel>': Error: <message>"，
+ * 界面直接展示会漏出通道名。在 IPC 边界统一还原为主进程的原始文案（调用方按 message
+ * 子串判定的错误码如 CONTENT_VERSION_CONFLICT 不受影响）。
+ */
+const REMOTE_ERROR_PREFIX = /^Error invoking remote method '[^']*': (?:[A-Za-z]*Error: )?/;
+function unwrapRemoteError(error: unknown): unknown {
+  if (!(error instanceof Error) || !REMOTE_ERROR_PREFIX.test(error.message)) return error;
+  const unwrapped = new Error(error.message.replace(REMOTE_ERROR_PREFIX, ""));
+  unwrapped.stack = error.stack;
+  return unwrapped;
+}
+
 async function invokeWithRetry<T>(channel: string, args: unknown[]): Promise<T> {
   const startedAt = Date.now();
   let lastError: unknown;
@@ -32,7 +45,7 @@ async function invokeWithRetry<T>(channel: string, args: unknown[]): Promise<T> 
       return result;
     } catch (error) {
       if (!isNoHandlerError(error) || ipcReady) {
-        throw error;
+        throw unwrapRemoteError(error);
       }
       lastError = error;
     }

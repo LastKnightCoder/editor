@@ -41,6 +41,7 @@ import {
   Play,
   Presentation,
   Share2,
+  Users,
   Sparkles,
 } from "lucide-react";
 import type { EditorRef } from "@tau/editor/src";
@@ -56,6 +57,7 @@ import { PdfExportModal } from "@/components/PdfExportModal";
 import ContentCollaborationControl, {
   type ContentCollaborationControlHandle,
 } from "@/components/ContentCollaborationControl";
+import useContentShared from "@/hooks/useContentShared";
 import DeckSelectorModal from "@/components/DeckSelectorModal";
 import FlashcardGenerationModal from "@/components/FlashcardGenerationModal";
 import GeneratedFlashcardEditModal from "@/components/GeneratedFlashcardEditModal";
@@ -124,6 +126,7 @@ export function ArticleDetailView() {
 
   const editorRef = useRef<EditorRef>(null);
   const collaborationRef = useRef<ContentCollaborationControlHandle>(null);
+  const shared = useContentShared(editingArticle?.contentId);
   const [pendingDelete, setPendingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const { remove } = useArticleMutations();
@@ -336,10 +339,16 @@ export function ArticleDetailView() {
           )}
         </Menu.Submenu>
         <Menu.Item
-          icon={<Share2 className="size-[15px] shrink-0" strokeWidth={1.75} />}
+          icon={
+            shared ? (
+              <Users className="size-[15px] shrink-0" strokeWidth={1.75} />
+            ) : (
+              <Share2 className="size-[15px] shrink-0" strokeWidth={1.75} />
+            )
+          }
           onSelect={() => collaborationRef.current?.open()}
         >
-          发起协作
+          {shared ? "协作成员" : "发起协作"}
         </Menu.Item>
         <Menu.Submenu
           label="复制"
@@ -422,7 +431,7 @@ export function ArticleDetailView() {
     );
     // 菜单回调闭包随 editingArticle/数据库名更新
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingArticle, databaseName]);
+  }, [editingArticle, databaseName, shared]);
 
   if (!editingArticle) {
     return <Loading />;
@@ -441,7 +450,23 @@ export function ArticleDetailView() {
           }}
           onChangeCover={() => void handleChangeCover()}
           changingCover={changingCover}
-          actions={moreMenuNode}
+          actions={
+            <span className="flex items-center gap-1">
+              {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由 ⋯「发起协作」打开对话框 */}
+              <ContentCollaborationControl
+                ref={collaborationRef}
+                hideTrigger
+                presence
+                contentId={editingArticle.contentId}
+                source={{
+                  sourceType: "article",
+                  sourceId: editingArticle.id,
+                  sourceTitle: editingArticle.title,
+                }}
+              />
+              {moreMenuNode}
+            </span>
+          }
         />
 
         <div className="grid grid-cols-[1fr_minmax(0,720px)_1fr] items-start px-[26px] pb-2 pt-8">
@@ -575,18 +600,6 @@ export function ArticleDetailView() {
             setDeleting(false);
             setPendingDelete(false);
           }
-        }}
-      />
-
-      {/* 协作：触发器隐藏，由 ⋯ 菜单「发起协作」经 ref 打开弹窗 */}
-      <ContentCollaborationControl
-        ref={collaborationRef}
-        hideTrigger
-        contentId={editingArticle.contentId}
-        source={{
-          sourceType: "article",
-          sourceId: editingArticle.id,
-          sourceTitle: editingArticle.title,
         }}
       />
 
