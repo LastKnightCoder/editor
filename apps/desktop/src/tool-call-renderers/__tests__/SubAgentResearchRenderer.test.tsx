@@ -7,8 +7,6 @@ import type { ToolCallExecutionState } from "@/types";
 
 import SubAgentResearchRenderer from "../SubAgentResearchRenderer";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const createExecution = (
   overrides: Partial<ToolCallExecutionState> = {}
 ): ToolCallExecutionState => ({

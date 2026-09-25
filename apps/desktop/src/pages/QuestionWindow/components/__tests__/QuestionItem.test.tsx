@@ -7,10 +7,6 @@ import type { Descendant } from "slate";
 import type { IQuestion } from "@/types/question";
 import QuestionItem from "../QuestionItem";
 
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
-
 vi.mock("react-dnd", () => ({
   useDrag: () => [null, (node: unknown) => node],
   useDrop: () => [null, (node: unknown) => node],
@@ -57,7 +53,7 @@ vi.mock("@/components/EditText", async () => {
       }));
 
       return <div data-testid="question-title">{text}</div>;
-    }),
+    })
   );
 
   return { default: MockEditText };
@@ -66,12 +62,10 @@ vi.mock("@/components/EditText", async () => {
 vi.mock("@/utils/editor", () => ({
   getEditorText: (nodes?: Descendant[]) =>
     nodes
-      ?.map((node) =>
+      ?.map(node =>
         "children" in node
-          ? node.children
-              .map((child) => ("text" in child ? child.text : ""))
-              .join("")
-          : "",
+          ? node.children.map(child => ("text" in child ? child.text : "")).join("")
+          : ""
       )
       .join("\n") ?? "",
 }));

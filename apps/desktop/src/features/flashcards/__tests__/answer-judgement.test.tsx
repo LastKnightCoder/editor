@@ -9,7 +9,6 @@ vi.mock("@/hooks/useChatLLM", () => ({ chatLLM: vi.fn() }));
 vi.mock("@/hooks/useLLMConfig", () => ({
   default: () => ({ providerConfig: {}, modelConfig: {} }),
 }));
-Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 let root: Root;
 let host: HTMLDivElement;

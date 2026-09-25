@@ -7,16 +7,12 @@ import type { Descendant } from "slate";
 import FlashcardReviewDeckList, { buildFlashcardReviewDeckSummaries } from ".";
 import type { Flashcard, FlashcardDeck } from "@/types";
 
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
-
 const BASE_TIME = new Date("2026-06-21T08:00:00.000Z").getTime();
 
 const createDeck = (
   id: number,
   name: string,
-  overrides: Partial<FlashcardDeck> = {},
+  overrides: Partial<FlashcardDeck> = {}
 ): FlashcardDeck => ({
   id,
   name,
@@ -34,14 +30,12 @@ const createCard = (
   id: number,
   deckId: number,
   promptText: string,
-  overrides: Partial<Flashcard> = {},
+  overrides: Partial<Flashcard> = {}
 ): Flashcard => ({
   id,
   deckId,
   type: "qa",
-  prompt: [
-    { type: "paragraph", children: [{ text: promptText }] },
-  ] as Descendant[],
+  prompt: [{ type: "paragraph", children: [{ text: promptText }] }] as Descendant[],
   detail: [{ type: "paragraph", children: [{ text: "" }] }] as Descendant[],
   data: {},
   tags: [],
@@ -92,23 +86,15 @@ describe("FlashcardReviewDeckList", () => {
 
     const summaries = buildFlashcardReviewDeckSummaries(queue, decks);
 
-    expect(summaries.map((item) => item.deckName)).toEqual([
-      "英语",
-      "算法",
-      "卡组 #99",
-    ]);
-    expect(summaries.map((item) => item.cards.length)).toEqual([2, 1, 1]);
+    expect(summaries.map(item => item.deckName)).toEqual(["英语", "算法", "卡组 #99"]);
+    expect(summaries.map(item => item.cards.length)).toEqual([2, 1, 1]);
   });
 
   it("空队列返回空摘要并展示空状态", async () => {
     expect(buildFlashcardReviewDeckSummaries([], [])).toEqual([]);
 
     const { root, container } = await mount(
-      <FlashcardReviewDeckList
-        reviewQueue={[]}
-        decks={[]}
-        onStartDeckReview={vi.fn()}
-      />,
+      <FlashcardReviewDeckList reviewQueue={[]} decks={[]} onStartDeckReview={vi.fn()} />
     );
 
     expect(container.textContent).toContain("暂无待复习");
@@ -131,7 +117,7 @@ describe("FlashcardReviewDeckList", () => {
         reviewQueue={queue}
         decks={decks}
         onStartDeckReview={onStartDeckReview}
-      />,
+      />
     );
 
     expect(container.textContent).not.toContain("3 张待复习，来自 2 个卡组");
@@ -140,7 +126,7 @@ describe("FlashcardReviewDeckList", () => {
     expect(container.textContent).toContain("算法");
 
     const reviewButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent === "复习",
+      button => button.textContent === "复习"
     );
     expect(reviewButton).toBeTruthy();
 

@@ -4,8 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import useWeReadSessionBootstrap from "../useWeReadSessionBootstrap";
 import useSettingStore from "@/stores/useSettingStore";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const { validateSessionMock, ensureModuleMock } = vi.hoisted(() => ({
   validateSessionMock: vi.fn(),
   ensureModuleMock: vi.fn(),

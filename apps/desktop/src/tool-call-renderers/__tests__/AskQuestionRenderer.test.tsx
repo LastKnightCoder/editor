@@ -7,8 +7,6 @@ import type { ToolCallExecutionState } from "@/types";
 import { getAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
 import { buildAskQuestionToolResult } from "@/tools/askQuestionTypes";
 
-Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-
 const resetAskQuestionStore = () => {
   const store = getAskQuestionSessionStore();
   Object.keys(store.records).forEach(sessionId => {

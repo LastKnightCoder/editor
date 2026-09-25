@@ -13,12 +13,7 @@ const electronMocks = vi.hoisted(() => ({
 vi.mock("@/electron", () => electronMocks);
 
 import type { ISetting } from "@/stores/useSettingStore";
-import {
-  useWhiteboardRecording,
-  type CameraOverlayState,
-} from "../useWhiteboardRecording";
-
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+import { useWhiteboardRecording, type CameraOverlayState } from "../useWhiteboardRecording";
 
 const setting: ISetting["whiteboardRecording"] = {
   outputFormat: "webm",
@@ -97,9 +92,7 @@ describe("useWhiteboardRecording", () => {
 
     expect(getApi().state.cameraEnabled).toBe(false);
     expect(getApi().cameraOverlay).toBeNull();
-    expect(onError).toHaveBeenCalledWith(
-      expect.stringContaining("摄像头没有返回视频画面"),
-    );
+    expect(onError).toHaveBeenCalledWith(expect.stringContaining("摄像头没有返回视频画面"));
 
     await act(async () => {
       root.unmount();

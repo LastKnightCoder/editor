@@ -14,7 +14,6 @@ const caretRangeFromPoint = vi.fn();
 const originalCaret = Object.getOwnPropertyDescriptor(document, "caretRangeFromPoint");
 
 beforeEach(() => {
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   vi.useFakeTimers();
   caretRangeFromPoint.mockReset();
   Object.defineProperty(document, "caretRangeFromPoint", {

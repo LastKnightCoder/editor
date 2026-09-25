@@ -8,8 +8,6 @@ import { createPageSchema, paramNumber, paramOptional } from "@/page/core/params
 import { ProjectContext } from "@/features/projects/components/ProjectView/ProjectContext";
 import ProjectListSlate from "..";
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
 vi.mock("@/services/aiServer", () => ({ initAiServer: vi.fn(), closeAiServer: vi.fn() }));
 vi.mock("@/commands/project", () => ({ getProjectItemById: async () => ({ projects: [7] }) }));
 vi.mock("@/stores/useSettingStore", () => ({

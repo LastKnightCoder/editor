@@ -4,8 +4,6 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import CameraOverlay from "../index";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const createStream = () =>
   ({
     getTracks: () => [],
@@ -23,19 +21,14 @@ const renderCameraOverlay = async () => {
   const root = createRoot(container);
 
   await act(async () => {
-    root.render(
-      <CameraOverlay camera={{ stream: createStream(), enabled: true }} />,
-    );
+    root.render(<CameraOverlay camera={{ stream: createStream(), enabled: true }} />);
   });
 
   const overlay = container.firstElementChild as HTMLElement;
   return { container, overlay, root };
 };
 
-const createPointerLikeEvent = (
-  type: string,
-  options: MouseEventInit,
-): MouseEvent => {
+const createPointerLikeEvent = (type: string, options: MouseEventInit): MouseEvent => {
   return new MouseEvent(type, options);
 };
 
@@ -78,18 +71,16 @@ describe("CameraOverlay", () => {
           bubbles: true,
           clientX: box.rightEdgeX,
           clientY: box.centerY,
-        }),
+        })
       );
       window.dispatchEvent(
         createPointerLikeEvent("pointermove", {
           bubbles: true,
           clientX: box.rightEdgeX + 40,
           clientY: box.centerY,
-        }),
+        })
       );
-      window.dispatchEvent(
-        createPointerLikeEvent("pointerup", { bubbles: true }),
-      );
+      window.dispatchEvent(createPointerLikeEvent("pointerup", { bubbles: true }));
     });
 
     expect(overlay.style.width).toBe("248px");
@@ -111,18 +102,16 @@ describe("CameraOverlay", () => {
           bubbles: true,
           clientX: box.leftEdgeX,
           clientY: box.centerY,
-        }),
+        })
       );
       window.dispatchEvent(
         createPointerLikeEvent("pointermove", {
           bubbles: true,
           clientX: box.leftEdgeX - 40,
           clientY: box.centerY,
-        }),
+        })
       );
-      window.dispatchEvent(
-        createPointerLikeEvent("pointerup", { bubbles: true }),
-      );
+      window.dispatchEvent(createPointerLikeEvent("pointerup", { bubbles: true }));
     });
 
     expect(overlay.style.width).toBe("248px");
@@ -143,18 +132,16 @@ describe("CameraOverlay", () => {
           bubbles: true,
           clientX: box.centerX,
           clientY: box.centerY,
-        }),
+        })
       );
       window.dispatchEvent(
         createPointerLikeEvent("pointermove", {
           bubbles: true,
           clientX: box.centerX + 30,
           clientY: box.centerY + 20,
-        }),
+        })
       );
-      window.dispatchEvent(
-        createPointerLikeEvent("pointerup", { bubbles: true }),
-      );
+      window.dispatchEvent(createPointerLikeEvent("pointerup", { bubbles: true }));
     });
 
     expect(overlay.style.width).toBe("168px");

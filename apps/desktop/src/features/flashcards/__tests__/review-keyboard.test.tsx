@@ -13,7 +13,6 @@ vi.mock("@/editor-extensions/flashcard-blank", () => ({ default: class {} }));
 vi.mock("@/hooks/useTheme", () => ({ default: () => ({ isDark: false }) }));
 vi.mock("../overlay", () => ({ overlayOpen: () => false, MOD: "Ctrl+" }));
 
-Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const actions = {
   submit: vi.fn(),
   rate: vi.fn().mockResolvedValue(undefined),

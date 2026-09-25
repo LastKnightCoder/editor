@@ -47,7 +47,6 @@ const button = (label: string) =>
   [...container.querySelectorAll("button")].find(b => b.textContent?.includes(label))!;
 
 beforeEach(() => {
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   mocks.model = {
     progress: { status: "completed", totalFiles: 3, processedFiles: 3, currentFile: null },
     statusFile: { lastSyncTime: Date.now() },

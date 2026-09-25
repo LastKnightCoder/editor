@@ -7,10 +7,8 @@ import type { ToolCallExecutionState } from "@/types";
 import * as calendarQueryModule from "@/mcp/calendar/query";
 import { emitCalendarMutationEvent } from "@/mcp/calendar/events";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const createExecution = (
-  overrides: Partial<ToolCallExecutionState> = {},
+  overrides: Partial<ToolCallExecutionState> = {}
 ): ToolCallExecutionState => ({
   toolCallId: "calendar-query-call-1",
   toolName: "query_calendar_events",
@@ -92,7 +90,7 @@ describe("CalendarQueryRenderer", () => {
           endDate: "2026-03-31",
         }}
         renderDefault={() => <div>fallback</div>}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("日历事件查询结果");
@@ -143,14 +141,14 @@ describe("CalendarQueryRenderer", () => {
           endDate: "2026-03-31",
         }}
         renderDefault={() => <div>fallback</div>}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("展开剩余 1 条事件");
     expect(container.textContent).not.toContain("事件 6");
 
-    const button = Array.from(container.querySelectorAll("button")).find(
-      (item) => item.textContent?.includes("展开剩余"),
+    const button = Array.from(container.querySelectorAll("button")).find(item =>
+      item.textContent?.includes("展开剩余")
     );
 
     await act(async () => {
@@ -185,9 +183,7 @@ describe("CalendarQueryRenderer", () => {
       }),
     });
 
-    vi.spyOn(calendarQueryModule, "getCalendarDetail").mockRejectedValue(
-      new Error("NOT_FOUND"),
-    );
+    vi.spyOn(calendarQueryModule, "getCalendarDetail").mockRejectedValue(new Error("NOT_FOUND"));
 
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -197,7 +193,7 @@ describe("CalendarQueryRenderer", () => {
         isDark={false}
         parsedInput={{ id: 2 }}
         renderDefault={() => <div>fallback</div>}
-      />,
+      />
     );
 
     await act(async () => {

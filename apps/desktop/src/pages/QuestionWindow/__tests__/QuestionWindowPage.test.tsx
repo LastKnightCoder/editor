@@ -8,8 +8,6 @@ import type { IQuestion } from "@/types/question";
 
 import QuestionWindowPage from "../index";
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
 const createParagraph = (text: string): Descendant[] => [
   { type: "paragraph", children: [{ type: "formatted", text }] },
 ];

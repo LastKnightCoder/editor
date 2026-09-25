@@ -22,8 +22,6 @@ import { MindPlugin } from "../../../../plugins";
 import { ECreateBoardElementType } from "../../../../types";
 import MindMap from "../index";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const createBoard = () =>
   new Board(
     [],

@@ -52,7 +52,6 @@ vi.mock("@/stores/useDynamicExtensionsStore", () => ({ default: () => [] }));
 vi.mock("@tau/editor/src", () => ({ Editor: () => null }));
 vi.mock("@/components/Loading", () => ({ default: () => <span>加载中</span> }));
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root;
 let host: HTMLDivElement;
 const cards = (count: number): ICard[] =>
