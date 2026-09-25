@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日记 · 方案 B 手账</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  .page-b { display: flex; flex-direction: column; height: 100%; min-height: 0; padding: 0 26px 18px; }
+  .body-b { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 430px; gap: 16px; }
+
+  .mnav { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; }
+  .mnav .ym { font-size: 14px; font-weight: 600; padding: 0 6px; min-width: 92px; text-align: center; font-variant-numeric: tabular-nums; }
+
+  /* ── 左：整块月历面板（格内细线，不做瓷砖） ── */
+  .calp { display: flex; flex-direction: column; overflow: hidden; }
+  .calp-head { display: flex; align-items: center; gap: 6px; padding: 12px 14px 10px; flex: none; flex-wrap: wrap; }
+  .calp-head .lbl { font-size: 12px; color: var(--ink-3); margin-right: 2px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; color: var(--ink-2); }
+  .pill:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .pill .n { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .pill.on { background: var(--cs); color: var(--ct); font-weight: 500; }
+  .pill.on .n { color: inherit; opacity: 0.7; }
+  .pill.all.on { background: var(--accent-soft); color: var(--accent-text); }
+  .wkrow { display: grid; grid-template-columns: repeat(7, 1fr); flex: none; padding: 0 6px; }
+  .wkrow span { font-size: 11.5px; color: var(--ink-3); padding: 0 10px 6px; }
+  .grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, 1fr); grid-auto-rows: 1fr; padding: 0 6px 6px; }
+  .cell { position: relative; min-width: 0; min-height: 0; overflow: hidden; padding: 7px 8px 6px 10px; text-align: left; display: flex; flex-direction: column; gap: 3px;
+    border-radius: 10px; transition: background 140ms var(--ease-out); }
+  /* 细线：格与格之间 1px line-2，用 box-shadow 画在内侧，不参与布局 */
+  .cell::after { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: 0; box-shadow: inset -1px -1px 0 var(--line-2); }
+  .cell:nth-child(7n)::after { box-shadow: inset 0 -1px 0 var(--line-2); }
+  .cell.lastrow::after { box-shadow: inset -1px 0 0 var(--line-2); }
+  .cell.lastrow:nth-child(7n)::after { box-shadow: none; }
+  .cell:hover { background: var(--bg-hover); }
+  .cell.sel, .cell.inr { background: var(--bg-selected); }
+  .cell.sel::before { content: ""; position: absolute; inset: 1px; border-radius: 9px; box-shadow: inset 0 0 0 1.5px var(--accent); pointer-events: none; }
+  .cell .top { display: flex; align-items: center; gap: 6px; height: 22px; flex: none; }
+  .cell .dn { font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; min-width: 22px; height: 22px; border-radius: 11px; display: inline-grid; place-items: center; margin-left: -4px; }
+  .cell.today .dn { background: var(--accent); color: var(--ink-inverse); font-weight: 600; }
+  .cell .cnt { margin-left: auto; font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .cell.out { opacity: 0.4; }
+  .cell.future .dn { color: var(--ink-3); }
+  .cell .ln { display: flex; align-items: center; gap: 6px; font-size: 12px; line-height: 18px; color: var(--ink-2); min-width: 0; }
+  .cell .ln .cdot { width: 6px; height: 6px; }
+  .cell .ln span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .cell .ln mark { background: var(--warn-soft); color: inherit; border-radius: 3px; }
+  .cell .more { font-size: 11px; color: var(--ink-3); padding-left: 12px; white-space: nowrap; }
+  .cell.dim .ln, .cell.dim .cnt { opacity: 0.35; }
+
+  /* ── 右：当天 / 范围 / 搜索 的阅读列 ── */
+  .dayp { display: flex; flex-direction: column; overflow: hidden; }
+  .dhead { display: flex; align-items: flex-start; gap: 14px; padding: 18px 16px 12px 22px; flex: none; }
+  .dhead .big { font-size: 40px; line-height: 0.95; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .dhead .meta { padding-top: 2px; min-width: 0; }
+  .dhead .meta b { display: block; font-size: 13.5px; font-weight: 600; }
+  .dhead .meta span { display: block; font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+  .dhead .meta .rel { color: var(--accent-text); font-weight: 500; }
+  .dhead .nav { margin-left: auto; display: flex; gap: 2px; }
+  .dhead.range { align-items: center; padding-bottom: 8px; }
+  .dhead.range .t { font-size: 15px; font-weight: 600; }
+  .dhead.range .s { font-size: 12px; color: var(--ink-3); }
+
+  .dcmp { margin: 0 16px 6px 16px; padding: 10px 12px 8px; border-radius: 12px; border: 1px solid var(--line-1); transition: border-color 160ms, box-shadow 160ms; flex: none; }
+  .dcmp:focus-within { border-color: var(--accent); box-shadow: var(--focus-ring); }
+  .dcmp .cmp-bar { margin-top: 6px; }
+  .dcmp .cmp-input { max-height: 180px; }
+  .dcmp .bfnote { font-size: 11.5px; color: var(--ink-3); display: flex; align-items: center; gap: 5px; margin-bottom: 4px; }
+  .dcmp .bfnote .icon { width: 12px; height: 12px; }
+
+  .dlist { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 16px 20px 16px; }
+  .ent { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 8px; padding: 10px 10px 12px 6px; border-radius: 12px; position: relative; }
+  .ent:hover { background: var(--bg-hover); }
+  .ent .m-time { padding-top: 5px; text-align: right; }
+  .ent .m-tags { margin-top: 7px; }
+  .ent .acts { position: absolute; right: 8px; top: 8px; display: flex; gap: 2px; background: var(--bg-surface); border-radius: 8px; box-shadow: var(--shadow-lift); padding: 2px; }
+  .ent .bf { font-size: 11px; color: var(--ink-3); margin-top: 6px; }
+  .ent.fresh { animation: flash 1600ms var(--ease-out); }
+  .dsub { display: flex; align-items: baseline; gap: 8px; padding: 14px 6px 4px 6px; font-size: 12.5px; font-weight: 600; }
+  .dsub:first-child { padding-top: 4px; }
+  .dsub button:hover { color: var(--accent-text); }
+  .dsub small { font-weight: 400; color: var(--ink-3); font-size: 11.5px; }
+  .dempty { text-align: center; padding: 28px 12px; color: var(--ink-3); font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+(() => {
+  const X = Diary, { icon, esc } = X;
+  const { page } = X.mountShell({
+    crumb: "日记",
+    demos: [{ label: "外部定位 9月21日", run: () => selectDay("2026-09-21") }],
+  });
+  page.style.height = "100%";
+
+  let sel = X.TODAY;          // 选中的日子
+  let calYM = X.TODAY.slice(0, 7);
+  let freshId = null;
+
+  page.innerHTML = `
+    <div class="page-b">
+      <div class="toolbar">
+        <h1>日记</h1>
+        <div class="mnav">
+          <button class="ibtn" id="m-prev" title="上个月">${icon("chev-left")}</button>
+          <span class="ym" id="ym"></span>
+          <button class="ibtn" id="m-next" title="下个月">${icon("chev-right")}</button>
+          <button class="btn btn-secondary" id="m-today" style="margin-left:6px">今天</button>
+        </div>
+        <span class="sum" id="sum" style="margin-left:8px"></span>
+        <span class="spacer"></span>
+        <label class="search">${icon("search")}<input id="q" placeholder="搜索碎碎念…" autocomplete="off"><span id="q-state"></span></label>
+      </div>
+      <div class="body-b">
+        <div class="panel calp" id="calp"></div>
+        <div class="panel dayp" id="dayp">
+          <div id="dhead"></div>
+          <div class="dcmp cmp" id="dcmp">
+            <div class="bfnote" id="bfnote"></div>
+            <div class="cmp-input" data-cinput contenteditable="true" data-ph="写点什么…"></div>
+            <div class="cmp-bar">
+              <div class="m-tags" data-ctags></div>
+              <button class="cmp-add" data-cadd>${icon("hash")}标签</button>
+              <span class="spacer"></span>
+              <span class="cmp-hint" data-ccount></span>
+              <span class="cmp-hint"><kbd>⌘</kbd><kbd>↵</kbd></span>
+              <button class="btn btn-primary" data-csend disabled>记下</button>
+            </div>
+          </div>
+          <div class="dlist" id="dlist"></div>
+        </div>
+      </div>
+    </div>`;
+
+  const dcmp = document.getElementById("dcmp");
+  // 补记：在过去的某天写下的碎碎念归属那一天（entry.date），createTime 仍是此刻
+  X.bindComposer(dcmp, {
+    getDay: () => sel,
+    onPosted: m => { freshId = m.id; X.toast(sel === X.TODAY ? "已记下" : `已补记到 ${X.dayLabel(sel, { week: false })}`); },
+  });
+
+  const q = document.getElementById("q");
+  q.addEventListener("input", () => X.setQuery(q.value));
+  q.addEventListener("keydown", e => e.key === "Escape" && ((q.value = ""), X.setQuery("")));
+
+  const shiftMonth = n => {
+    const [y, m] = calYM.split("-").map(Number);
+    const d = new Date(y, m - 1 + n, 1);
+    calYM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    X.emit();
+  };
+  document.getElementById("m-prev").onclick = () => shiftMonth(-1);
+  document.getElementById("m-next").onclick = () => shiftMonth(1);
+  document.getElementById("m-today").onclick = () => selectDay(X.TODAY);
+
+  function selectDay(k, { keepRange = false } = {}) {
+    sel = k;
+    calYM = k.slice(0, 7);
+    if (!keepRange) X.F.range = null;
+    if (X.F.query) { q.value = ""; X.F.query = ""; X.F.pending = ""; }
+    X.emit();
+  }
+
+  /* ── 月历 ── */
+  function renderCal() {
+    const [y, mo] = calYM.split("-").map(Number);
+    document.getElementById("ym").textContent = `${y}年${mo}月`;
+    document.getElementById("m-next").disabled = calYM >= X.TODAY.slice(0, 7);
+    document.getElementById("m-next").style.opacity = calYM >= X.TODAY.slice(0, 7) ? 0.35 : 1;
+    const calp = document.getElementById("calp");
+    if (!X.S.moments.length && X.demoMode === "empty") {
+      calp.innerHTML = `<div class="empty" style="flex:1"><div class="glyph">${icon("calendar-days")}</div><h3>这本手账还是空的</h3><p>在右边写下第一条。每一天都可以写很多条，月历会替你记住哪天写过什么。</p></div>`;
+      return;
+    }
+    const tags = X.tagsSorted();
+    const list = X.filtered({ ignoreRange: true });
+    const byDay = new Map();
+    list.forEach(m => (byDay.get(m.day) || byDay.set(m.day, []).get(m.day)).push(m));
+    const first = new Date(y, mo - 1, 1);
+    const lead = (first.getDay() + 6) % 7;
+    const start = X.addDays(`${calYM}-01`, -lead);
+    const rows = Math.ceil((lead + new Date(y, mo, 0).getDate()) / 7);
+    let cells = "";
+    for (let i = 0; i < rows * 7; i++) {
+      const k = X.addDays(start, i);
+      const items = (byDay.get(k) || []).slice().sort((a, b) => a.ts - b.ts);
+      const d = X.keyDate(k);
+      const cls = [
+        "cell",
+        k.slice(0, 7) !== calYM && "out",
+        k === X.TODAY && "today",
+        k > X.TODAY && "future",
+        !X.F.range && !X.F.query && k === sel && "sel",
+        X.F.range && k >= X.F.range[0] && k <= X.F.range[1] && "inr",
+        i >= (rows - 1) * 7 && "lastrow",
+      ].filter(Boolean).join(" ");
+      const lines = items.slice(0, 3).map(m => {
+        let t = esc(X.textOf(m.html).split("\n")[0]);
+        if (X.F.query) t = t.replace(new RegExp(X.F.query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"), s => `<mark>${s}</mark>`);
+        return `<div class="ln"><span class="cdot" data-c="${m.tags[0] ? X.tagColor(m.tags[0]) : "gray"}"></span><span>${t}</span></div>`;
+      }).join("");
+      cells += `<button class="${cls}" data-k="${k}" title="${X.dayLabel(k, { week: true })}">
+        <div class="top"><span class="dn">${d.getDate()}</span>${items.length ? `<span class="cnt">${items.length} 条</span>` : ""}</div>
+        ${lines}${items.length > 3 ? `<div class="more">还有 ${items.length - 3} 条</div>` : ""}
+      </button>`;
+    }
+    calp.innerHTML = `
+      <div class="calp-head">
+        <button class="pill all${X.F.tags.length ? "" : " on"}" data-pill="">全部<span class="n">${X.S.moments.length}</span></button>
+        ${tags.map(t => `<button class="pill${X.F.tags.includes(t.name) ? " on" : ""}" data-c="${t.color}" data-pill="${esc(t.name)}"><span class="cdot"></span>${esc(t.name)}<span class="n">${X.tagCount(t.name)}</span></button>`).join("")}
+      </div>
+      <div class="wkrow">${["一", "二", "三", "四", "五", "六", "日"].map((w, i) => `<span class="${i > 4 ? "we" : ""}">周${w}</span>`).join("")}</div>
+      <div class="grid" style="grid-template-rows:repeat(${rows},1fr)">${cells}</div>`;
+    let anchor = sel;
+    calp.querySelectorAll(".cell").forEach(c => (c.onclick = e => {
+      const k = c.dataset.k;
+      if (e.shiftKey) {
+        const r = [anchor, k].sort();
+        X.setFilter({ range: r });
+        return;
+      }
+      anchor = k;
+      selectDay(k);
+    }));
+    calp.querySelectorAll("[data-pill]").forEach(p => {
+      p.onclick = e => {
+        const t = p.dataset.pill;
+        if (!t) return X.setFilter({ tags: [] });
+        // 单击 = 只看这个；⌘ / Shift 单击 = 多选
+        if (e.metaKey || e.shiftKey) X.setFilter({ tags: X.F.tags.includes(t) ? X.F.tags.filter(x => x !== t) : [...X.F.tags, t] });
+        else X.setFilter({ tags: X.F.tags.length === 1 && X.F.tags[0] === t ? [] : [t] });
+      };
+      p.oncontextmenu = e => { if (!p.dataset.pill) return; e.preventDefault(); X.tagManage(p, p.dataset.pill); };
+    });
+  }
+
+  /* ── 右侧阅读列 ── */
+  function entHTML(m) {
+    return `<article class="ent hover-host${m.id === freshId ? " fresh" : ""}" data-mid="${m.id}">
+      <span class="m-time">${X.fmtTime(m.ts)}</span>
+      <div>
+        <div class="m-body" data-id="${m.id}">${m.html}</div>
+        ${m.tags.length ? `<div class="m-tags">${X.tagsHTML(m)}</div>` : ""}
+        ${X.backfill(m) ? `<div class="bf">补记于 ${X.dayLabel(X.dayKey(m.ts), { week: false })} ${X.fmtTime(m.ts)}</div>` : ""}
+      </div>
+      <div class="acts hover-act"><button class="ibtn sm" data-tagbtn title="标签">${icon("hash")}</button><button class="ibtn sm" data-more title="更多">${icon("more")}</button></div>
+    </article>`;
+  }
+  function renderDay() {
+    const head = document.getElementById("dhead");
+    const listEl = document.getElementById("dlist");
+    const bf = document.getElementById("bfnote");
+    const searching = !!(X.F.query || X.F.searching);
+    const ranging = !!X.F.range;
+    dcmp.style.display = searching || ranging ? "none" : "";
+    let html = "";
+    if (searching || ranging) {
+      const list = X.filtered();
+      const title = searching ? `搜索「${esc(X.F.pending)}」` : `${X.dayLabel(X.F.range[0], { week: false })} – ${X.dayLabel(X.F.range[1], { week: false })}`;
+      head.innerHTML = `<div class="dhead range"><div><div class="t">${title}</div><div class="s">${X.F.searching ? "搜索中…" : `${list.length} 条${X.F.tags.length ? ` · 仅 ${X.F.tags.map(esc).join("、")}` : ""}`}</div></div>
+        <div class="nav"><button class="btn btn-ghost" data-back>${icon("x")}回到 ${X.dayLabel(sel, { week: false })}</button></div></div>`;
+      head.querySelector("[data-back]").onclick = () => { q.value = ""; X.F.query = ""; X.F.pending = ""; X.F.range = null; X.emit(); };
+      html = list.length
+        ? X.byDay(list).map(([day, items]) => `<div class="dsub"><button data-go="${day}">${X.dayLabel(day)}</button><small>${items.length} 条</small></div>${items.slice().sort((a, b) => a.ts - b.ts).map(entHTML).join("")}`).join("")
+        : `<div class="dempty">${X.F.searching ? "" : "没有找到匹配的碎碎念"}</div>`;
+    } else {
+      const d = X.keyDate(sel);
+      const off = X.diffDays(X.TODAY, sel);
+      const items = X.filtered({ ignoreRange: true }).filter(m => m.day === sel).sort((a, b) => a.ts - b.ts);
+      const all = X.S.moments.filter(m => m.day === sel);
+      const words = all.reduce((s, m) => s + m.words, 0);
+      const rel = off === 0 ? "今天" : off === 1 ? "昨天" : off > 0 ? `${off} 天前` : "";
+      head.innerHTML = `<div class="dhead"><span class="big">${d.getDate()}</span>
+        <div class="meta"><b>${d.getFullYear() !== X.keyDate(X.TODAY).getFullYear() ? d.getFullYear() + "年" : ""}${d.getMonth() + 1}月 · 周${X.WEEK[d.getDay()]}${rel ? ` · <span class="rel">${rel}</span>` : ""}</b>
+        <span>${all.length ? `${all.length} 条 · ${words} 字` : "这天还没有记录"}</span></div>
+        <div class="nav"><button class="ibtn" data-step="-1" title="前一天 (←)">${icon("chev-left")}</button><button class="ibtn" data-step="1" title="后一天 (→)" ${sel >= X.TODAY ? "disabled style='opacity:.35'" : ""}>${icon("chev-right")}</button></div></div>`;
+      head.querySelectorAll("[data-step]").forEach(b => (b.onclick = () => selectDay(X.addDays(sel, +b.dataset.step))));
+      const inp = dcmp.querySelector("[data-cinput]");
+      if (sel > X.TODAY) {
+        dcmp.style.display = "none";
+      } else if (sel === X.TODAY) {
+        bf.style.display = "none";
+        inp.dataset.ph = "此刻在想什么？输入 # 添加标签";
+      } else {
+        bf.style.display = "";
+        bf.innerHTML = `${icon("history")}补记到 ${X.dayLabel(sel, { week: false })}，会标注实际写下的时间`;
+        inp.dataset.ph = `那天发生了什么？`;
+      }
+      html = items.length
+        ? items.map(entHTML).join("")
+        : `<div class="dempty">${sel > X.TODAY ? "还没到这一天" : all.length ? "这天没有符合标签筛选的记录" : "空白的一天"}</div>`;
+    }
+    listEl.innerHTML = html;
+    X.highlight(listEl, X.F.query);
+    X.bindEditable(listEl);
+    listEl.querySelectorAll("[data-mid]").forEach(el => {
+      const m = X.findM(+el.dataset.mid);
+      el.querySelector("[data-more]").onclick = e => X.momentMenu(e.currentTarget, m, listEl);
+      el.querySelector("[data-tagbtn]").onclick = e => X.tagPicker(e.currentTarget, m.tags, next => X.setTags(m.id, next), { placement: "bottom-end" });
+    });
+    listEl.querySelectorAll("[data-go]").forEach(b => (b.onclick = () => selectDay(b.dataset.go)));
+    const fresh = listEl.querySelector(".fresh");
+    if (fresh) fresh.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    freshId = null;
+  }
+
+  function render() {
+    if (X.isEditing()) return;
+    const total = X.S.moments.length;
+    document.getElementById("sum").innerHTML = total
+      ? `<span>本月 <b class="num">${X.monthCount(calYM)}</b> 条</span><span class="sep">·</span><span>写了 <b class="num">${new Set(X.S.moments.filter(m => m.day.startsWith(calYM)).map(m => m.day)).size}</b> 天</span>`
+      : "";
+    document.getElementById("q-state").innerHTML = X.F.searching ? icon("loader", "spin") : "";
+    renderCal();
+    renderDay();
+  }
+
+  document.addEventListener("keydown", e => {
+    const t = e.target;
+    if (t.isContentEditable || /INPUT|TEXTAREA/.test(t.tagName)) return;
+    if (e.key === "ArrowLeft") selectDay(X.addDays(sel, -1));
+    if (e.key === "ArrowRight" && sel < X.TODAY) selectDay(X.addDays(sel, 1));
+    if (e.key === "t") selectDay(X.TODAY);
+    if (e.key === "/") { e.preventDefault(); q.focus(); }
+  });
+
+  X.on(render);
+  render();
+})();
+</script>
+</body>
+</html>

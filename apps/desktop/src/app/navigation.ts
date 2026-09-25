@@ -36,7 +36,7 @@ import {
 /** 徽标槽 key（渲染组件注册于 navSlots.tsx） */
 export type NavItemBadge = "review-due" | "pomodoro-live" | "collab-requests";
 /** 子项槽 key：所属页在栈顶时于条目下方展开的列表（渲染组件注册于 navSlots.tsx） */
-export type NavItemChildren = "collaboration-sessions";
+export type NavItemChildren = "collaboration-sessions" | "diary-tags";
 
 export interface NavItem {
   key: string;
@@ -45,7 +45,8 @@ export interface NavItem {
   /** 徽标数据源标识（review-due = 待复习闪卡数；pomodoro-live = 专注中的实时计时；
    *  collab-requests = 待审批的加入申请数） */
   badge?: NavItemBadge;
-  /** 该页在栈顶时于条目下方展开的子项（collaboration-sessions = 共享内容列表，协作页 A3） */
+  /** 该页在栈顶时于条目下方展开的子项（collaboration-sessions = 共享内容列表，协作页 A3；
+   *  diary-tags = 日记标签频道，D-044） */
   children?: NavItemChildren;
   /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
   opensOverlay?: "settings";
@@ -79,7 +80,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: "cards", label: "卡片库", icon: Layers }, // features/cards
       { key: "articles", label: "文章", icon: FileText }, // legacy: ArticleListView
-      { key: "diary", label: "日记", icon: PenLine }, // legacy: DiaryView（TabType.DailyNote）
+      { key: "diary", label: "日记", icon: PenLine, children: "diary-tags" }, // features/diary（一整张纸，标签频道嵌在此入口下，D-044）
       { key: "whiteboard", label: "白板", icon: Presentation }, // legacy: WhiteBoardView
     ],
   },

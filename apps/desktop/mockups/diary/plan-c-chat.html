@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日记 · 方案 C 对话流</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  .page-c { height: 100%; min-height: 0; padding: 0 26px 18px; display: flex; flex-direction: column; }
+  .toolbar .scope { display: inline-flex; align-items: center; gap: 8px; }
+  .toolbar .scope .tg { height: 22px; font-size: 12.5px; }
+
+  /* 一整块面板：上面是流（最早在上、最新在下），下面是停靠的输入条 */
+  .chat { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .stream { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 0 12px; scrollbar-gutter: stable; }
+  .col { max-width: 760px; margin: 0 auto; padding: 0 32px; }
+
+  .top-tail { text-align: center; font-size: 12px; color: var(--ink-3); padding: 18px 0 6px; }
+  .sep { position: sticky; top: 0; z-index: 2; display: flex; justify-content: center; padding: 14px 0 8px; pointer-events: none; }
+  .sep span { pointer-events: auto; display: inline-flex; align-items: center; gap: 8px; height: 26px; padding: 0 12px; border-radius: 13px; font-size: 12px; color: var(--ink-2);
+    background: color-mix(in srgb, var(--bg-surface) 88%, transparent); backdrop-filter: blur(8px); box-shadow: 0 0 0 1px var(--line-1); }
+  .sep span b { font-weight: 600; color: var(--ink-1); }
+  .sep span small { color: var(--ink-3); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+
+  /* 条目：左对齐的“便签”，同一小时内的连续条目收紧、合并时间 */
+  .msg { position: relative; display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; padding: 8px 12px 8px 4px; margin: 0 -12px 0 -4px; border-radius: 12px; }
+  .msg:hover { background: var(--bg-hover); }
+  .msg .m-time { padding-top: 5px; text-align: right; opacity: 1; transition: opacity 160ms var(--ease-out); }
+  .msg.cont { padding-top: 2px; }
+  .msg.cont .m-time { opacity: 0; }
+  .msg.cont:hover .m-time { opacity: 1; }
+  .msg + .msg:not(.cont) { margin-top: 6px; }
+  .msg .m-tags { margin-top: 6px; }
+  .msg .m-tags .tg { cursor: pointer; }
+  .msg .acts { position: absolute; right: 8px; top: -12px; display: flex; gap: 2px; background: var(--bg-surface); border-radius: 9px; box-shadow: var(--shadow-lift), 0 0 0 1px var(--line-1); padding: 2px; z-index: 3; }
+  .msg .bf { font-size: 11px; color: var(--ink-3); margin-top: 5px; }
+  .msg.fresh { animation: flash 1600ms var(--ease-out); }
+
+  /* 输入条：停靠在面板底部，同底色，不加横线；Enter 发送 */
+  .dock { flex: none; padding: 6px 0 14px; }
+  .dock .col { }
+  .bar { border-radius: 14px; padding: 10px 12px 8px 14px; background: var(--bg-page); transition: box-shadow 160ms var(--ease-out), background 160ms var(--ease-out); }
+  .bar:focus-within { background: var(--bg-surface); box-shadow: 0 0 0 1px var(--accent), var(--focus-ring); }
+  .bar .cmp-input { max-height: 200px; font-size: 14px; }
+  .bar .cmp-bar { margin-top: 6px; }
+  .bar .cmp-bar .btn { padding: 0 10px; }
+  .dock .under { display: flex; justify-content: space-between; padding: 6px 4px 0; font-size: 11.5px; color: var(--ink-3); }
+  .dock .under kbd { font-size: 10.5px; padding: 1px 4px; }
+
+  .jump { position: absolute; right: 24px; bottom: 16px; }
+  .jump .btn { box-shadow: var(--shadow-float); }
+  .chat { position: relative; }
+  .jump-wrap { position: relative; height: 0; }
+  .jump-wrap .btn { position: absolute; right: 32px; bottom: 12px; z-index: 4; box-shadow: var(--shadow-lift); opacity: 0; pointer-events: none; transform: translateY(4px); transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out); }
+  .jump-wrap.show .btn { opacity: 1; pointer-events: auto; transform: none; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+(() => {
+  const X = Diary, { icon, esc } = X;
+  const { page } = X.mountShell({
+    crumb: "日记",
+    demos: [{ label: "外部定位 9月21日", run: () => locate("2026-09-21") }],
+  });
+  page.style.height = "100%";
+
+  // 视图：all / tag:<name> / untagged / otd（那年今日）
+  let view = "all";
+  let pinBottom = true;
+  let locateDay = null;
+
+  page.innerHTML = `
+    <div class="page-c">
+      <div class="toolbar">
+        <h1 id="title">日记</h1>
+        <span class="sum" id="sum"></span>
+        <span class="spacer"></span>
+        <button class="ibtn" id="range-btn" title="按时间筛选">${icon("calendar")}</button>
+        <label class="search">${icon("search")}<input id="q" placeholder="搜索碎碎念…" autocomplete="off"><span id="q-state"></span></label>
+      </div>
+      <div class="panel chat">
+        <div class="stream" id="stream"><div class="col" id="list"></div></div>
+        <div class="jump-wrap" id="jump"><button class="btn btn-secondary">${icon("arrow-down")}回到最新</button></div>
+        <div class="dock"><div class="col">
+          <div class="bar cmp" id="bar">
+            <div class="cmp-input" data-cinput contenteditable="true" data-ph="记一笔…  # 添加标签"></div>
+            <div class="cmp-bar">
+              <div class="m-tags" data-ctags></div>
+              <button class="cmp-add" data-cadd data-place="top-start">${icon("hash")}标签</button>
+              <span class="spacer"></span>
+              <span class="cmp-hint" data-ccount></span>
+              <button class="btn btn-primary" data-csend disabled>${icon("send")}</button>
+            </div>
+          </div>
+          <div class="under"><span><kbd>↵</kbd> 发送 · <kbd>⇧</kbd><kbd>↵</kbd> 换行 · <kbd>#</kbd> 标签</span><span id="under-r"></span></div>
+        </div></div>
+      </div>
+    </div>`;
+
+  const stream = document.getElementById("stream");
+  const listEl = document.getElementById("list");
+  const bar = document.getElementById("bar");
+  const cmp = X.bindComposer(bar, {
+    enterSend: true,
+    onPosted: m => {
+      // 在标签视图里发出的，自动带上该标签（在「工作」里记的就是工作）
+      pinBottom = true;
+      if (X.F.query) { q.value = ""; X.setQuery(""); }
+      if (X.F.range) X.setFilter({ range: null });
+    },
+  });
+  // 在标签视图里发送：预置该标签
+  const presetTag = () => { if (view.startsWith("tag:")) cmp.addTag(view.slice(4)); };
+
+  const q = document.getElementById("q");
+  q.addEventListener("input", () => { pinBottom = true; X.setQuery(q.value); });
+  q.addEventListener("keydown", e => e.key === "Escape" && ((q.value = ""), X.setQuery("")));
+
+  const jump = document.getElementById("jump");
+  stream.addEventListener("scroll", () => {
+    const d = stream.scrollHeight - stream.scrollTop - stream.clientHeight;
+    pinBottom = d < 40;
+    jump.classList.toggle("show", d > 400);
+  });
+  jump.querySelector("button").onclick = () => stream.scrollTo({ top: stream.scrollHeight, behavior: "smooth" });
+
+  document.getElementById("range-btn").onclick = e => {
+    const t = X.TODAY;
+    const ps = [["今天", [t, t]], ["近 7 天", [X.addDays(t, -6), t]], ["近 30 天", [X.addDays(t, -29), t]], ["本月", [t.slice(0, 8) + "01", t]]];
+    X.openMenu(e.currentTarget, [
+      { label: "全部时间", icon: X.F.range ? "" : "check", run: () => X.setFilter({ range: null }) },
+      "-",
+      ...ps.map(([label, r]) => ({ label, icon: X.F.range && X.F.range[0] === r[0] && X.F.range[1] === r[1] ? "check" : "", run: () => { pinBottom = true; X.setFilter({ range: r }); } })),
+    ]);
+  };
+
+  /* ── 侧栏嵌套：标签作为「日记」的子项 ── */
+  function renderNav() {
+    const sub = document.getElementById("nav-sub");
+    const sb = document.querySelector(".sidebar");
+    if (!X.S.moments.length) { sub.innerHTML = ""; sb.classList.remove("has-sub"); return; }
+    sb.classList.toggle("has-sub", view !== "all");
+    const otd = X.onThisDay();
+    const untagged = X.S.moments.filter(m => !m.tags.length).length;
+    const tags = X.tagsSorted();
+    sub.innerHTML =
+      (otd.length ? `<button class="nav-sub-item${view === "otd" ? " on" : ""}" data-v="otd"><span class="glyph">${icon("history")}</span><span class="tt">那年今日</span><span class="ct">${otd.length}</span></button>` : "") +
+      tags.map(t => `<button class="nav-sub-item${view === "tag:" + t.name ? " on" : ""}" data-v="tag:${esc(t.name)}"><span class="glyph"><span class="cdot" data-c="${t.color}"></span></span><span class="tt">${esc(t.name)}</span><span class="ct">${X.tagCount(t.name)}</span></button>`).join("") +
+      (untagged ? `<button class="nav-sub-item${view === "untagged" ? " on" : ""}" data-v="untagged"><span class="glyph">${icon("hash")}</span><span class="tt">无标签</span><span class="ct">${untagged}</span></button>` : "");
+    sub.querySelectorAll("[data-v]").forEach(b => {
+      b.onclick = () => setView(view === b.dataset.v ? "all" : b.dataset.v);
+      if (b.dataset.v.startsWith("tag:")) b.oncontextmenu = e => { e.preventDefault(); X.tagManage(b, b.dataset.v.slice(4), { placement: "bottom-start" }); };
+    });
+  }
+  document.getElementById("nav-self").onclick = () => setView("all");
+  function setView(v) {
+    view = v;
+    pinBottom = true;
+    X.F.tags = v.startsWith("tag:") ? [v.slice(4)] : [];
+    X.emit();
+    presetTag();
+  }
+
+  function scoped() {
+    let list = X.filtered();
+    if (view === "untagged") list = list.filter(m => !m.tags.length);
+    if (view === "otd") list = X.onThisDay().filter(m => X.filtered().includes(m));
+    return list.slice().reverse(); // 最早在上，最新在下
+  }
+
+  function msgHTML(m, prev) {
+    const cont = prev && prev.day === m.day && m.ts - prev.ts < 60 * 60 * 1000 && !X.backfill(m);
+    return `<article class="msg hover-host${cont ? " cont" : ""}${m.fresh ? " fresh" : ""}" data-mid="${m.id}">
+      <span class="m-time">${X.fmtTime(m.ts)}</span>
+      <div>
+        <div class="m-body" data-id="${m.id}">${m.html}</div>
+        ${m.tags.length ? `<div class="m-tags">${X.tagsHTML(m, { btn: true })}</div>` : ""}
+        ${X.backfill(m) ? `<div class="bf">补记于 ${X.dayLabel(X.dayKey(m.ts), { week: false })}</div>` : ""}
+      </div>
+      <div class="acts hover-act"><button class="ibtn sm" data-tagbtn title="标签">${icon("hash")}</button><button class="ibtn sm" data-edit title="编辑">${icon("pen")}</button><button class="ibtn sm" data-more title="更多">${icon("more")}</button></div>
+    </article>`;
+  }
+
+  function render() {
+    if (X.isEditing()) return;
+    renderNav();
+    const title = view === "all" ? "日记" : view === "otd" ? "那年今日" : view === "untagged" ? "无标签" : "";
+    const tEl = document.getElementById("title");
+    tEl.innerHTML = view.startsWith("tag:") ? `<span class="scope">日记 <span class="muted" style="font-weight:400">/</span> ${X.tagHTML(view.slice(4))}</span>` : title;
+    X.setCrumb(view === "all" ? "日记" : `日记 / ${esc(view.startsWith("tag:") ? view.slice(4) : title)}`);
+    const list = scoped();
+    const total = X.S.moments.length;
+    const sum = [];
+    if (total) {
+      if (view === "all" && !X.hasFilter()) sum.push(`<span>今天 <b class="num">${X.S.moments.filter(m => m.day === X.TODAY).length}</b> 条</span><span class="sep">·</span><span>连续 <b class="num">${X.streak()}</b> 天</span>`);
+      else sum.push(`<span><b class="num">${list.length}</b> 条</span>`);
+      if (X.F.range) sum.push(`<span class="sep">·</span><span class="fchip" style="height:24px">${icon("calendar", "lead")}${X.dayLabel(X.F.range[0], { week: false })}${X.F.range[0] !== X.F.range[1] ? " – " + X.dayLabel(X.F.range[1], { week: false }) : ""}<button class="x" data-clr-range>${icon("x")}</button></span>`);
+    }
+    document.getElementById("sum").innerHTML = sum.join("");
+    const cr = document.querySelector("[data-clr-range]");
+    if (cr) cr.onclick = () => X.setFilter({ range: null });
+    document.getElementById("range-btn").classList.toggle("on", !!X.F.range);
+    document.getElementById("q-state").innerHTML = X.F.searching ? icon("loader", "spin") : "";
+    document.getElementById("under-r").textContent = view.startsWith("tag:") ? `发在这里会自动带上「${view.slice(4)}」` : "";
+
+    let html;
+    if (!total) {
+      html = `<div class="empty" style="min-height:60vh"><div class="glyph">${icon("chat")}</div><h3>像给自己发消息一样记日记</h3><p>在下面输入，回车就记下了。一天写几条都行，# 可以随手打标签。</p></div>`;
+    } else if (!list.length) {
+      html = `<div class="empty" style="min-height:50vh"><div class="glyph">${icon(X.F.query ? "search" : "hash")}</div><h3>${X.F.searching ? "搜索中…" : X.F.query ? "没有匹配的碎碎念" : "这里还没有记录"}</h3><p>${X.F.query ? "换个关键词试试。" : view.startsWith("tag:") ? "在下面写一条，会自动带上这个标签。" : ""}</p></div>`;
+    } else {
+      let out = `<div class="top-tail">${X.hasFilter() || view !== "all" ? `共 ${list.length} 条` : "这是最早的一条"}</div>`;
+      let prev = null;
+      for (const m of list) {
+        if (!prev || prev.day !== m.day) {
+          const n = list.filter(x => x.day === m.day).length;
+          out += `<div class="sep" data-day="${m.day}"><span><b>${X.dayLabel(m.day, { year: view === "otd" ? true : "auto" }).replace(" · ", "</b> · ").replace(/^(?!.*<\/b>)(.*)$/, "$1</b>")}<small>${n} 条</small></span></div>`;
+        }
+        out += msgHTML(m, prev);
+        prev = m;
+      }
+      html = out;
+    }
+    listEl.innerHTML = html;
+    X.S.moments.forEach(m => delete m.fresh);
+    X.highlight(listEl, X.F.query);
+    X.bindEditable(listEl);
+    listEl.querySelectorAll("[data-mid]").forEach(el => {
+      const m = X.findM(+el.dataset.mid);
+      el.querySelector("[data-more]").onclick = e => X.momentMenu(e.currentTarget, m, listEl);
+      el.querySelector("[data-edit]").onclick = () => X.startEdit(m.id, listEl);
+      el.querySelector("[data-tagbtn]").onclick = e => X.tagPicker(e.currentTarget, m.tags, next => X.setTags(m.id, next), { placement: "bottom-end" });
+      el.querySelectorAll(".m-tags [data-tag]").forEach(t => (t.onclick = () => setView("tag:" + t.dataset.tag)));
+    });
+    if (locateDay) {
+      const s = listEl.querySelector(`[data-day="${locateDay}"]`);
+      if (s) {
+        stream.scrollTop = s.offsetTop - 8;
+        let n = s.nextElementSibling;
+        while (n && n.classList.contains("msg")) { n.classList.add("fresh"); n = n.nextElementSibling; }
+      }
+      locateDay = null;
+      pinBottom = false;
+    } else if (pinBottom) {
+      stream.scrollTop = stream.scrollHeight;
+    }
+  }
+
+  function locate(day) {
+    view = "all";
+    q.value = "";
+    Object.assign(X.F, { tags: [], range: null, query: "", pending: "" });
+    locateDay = day;
+    X.emit();
+  }
+
+  document.addEventListener("keydown", e => {
+    const t = e.target;
+    if (t.isContentEditable || /INPUT|TEXTAREA/.test(t.tagName)) return;
+    if (e.key === "/") { e.preventDefault(); q.focus(); }
+    else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) cmp.focus(); // 直接打字就进输入条
+  });
+
+  X.on(render);
+  render();
+  setTimeout(() => cmp.focus(), 50);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日记 · 方案 D 一整张纸（A 的流 + C 的输入）</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  .page-d { height: 100%; min-height: 0; padding: 0 26px 18px; display: flex; flex-direction: column; }
+  .toolbar .scope { display: inline-flex; align-items: center; gap: 8px; }
+  .toolbar .scope .tg { height: 22px; font-size: 12.5px; }
+  #cal-btn.on { color: var(--accent-text); background: var(--accent-soft); }
+
+  /* ── 一整张大纸：撑满内容区，页内没有任何外部栏 ── */
+  .sheet { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+  .stream { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; position: relative; }
+  .stream::-webkit-scrollbar { display: none; }
+  .col { max-width: 860px; margin: 0 auto; padding: 0 56px; }
+
+  /* A 的排版：左侧粘性日期 + 右侧条目 */
+  .day { display: grid; grid-template-columns: 92px minmax(0, 1fr); column-gap: 22px; padding: 26px 0 4px; }
+  .gutter { position: sticky; top: 18px; align-self: start; padding-top: 8px; }
+  .gutter .rl { font-size: 12px; color: var(--accent-text); font-weight: 500; margin-bottom: 6px; }
+  .gutter .yr { font: 11px/1 var(--mono); color: var(--ink-3); margin-bottom: 6px; }
+  .gutter .dd { font-size: 32px; line-height: 1; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .gutter .dm { margin-top: 6px; font-size: 12px; color: var(--ink-2); }
+  .gutter .dn { margin-top: 3px; font: 11px/1.4 var(--mono); color: var(--ink-3); }
+
+  .mo { position: relative; padding: 10px 14px 12px; margin: 0 -14px; border-radius: 12px; transition: background 160ms var(--ease-out); }
+  .mo:hover { background: var(--bg-hover); }
+  .mo + .mo { margin-top: 2px; }
+  .mo-head { display: flex; align-items: center; gap: 8px; height: 22px; margin-bottom: 3px; }
+  .mo-head .bf { font-size: 11.5px; color: var(--ink-3); }
+  .mo-acts { margin-left: auto; display: flex; gap: 2px; }
+  .mo .m-tags { margin-top: 8px; }
+  .mo .m-tags .tg { cursor: pointer; }
+  .mo.fresh { animation: flash 1600ms var(--ease-out); }
+  .m-body blockquote.ref { font-size: 13px; }
+  .m-body blockquote.ref small { display: block; font: 11px/1.6 var(--mono); color: var(--ink-3); }
+
+  /* ── 那年今日：一句预告（输入条上方 / 今天日期下）+ 右侧抽屉瞥一眼 ── */
+  .tease { display: flex; align-items: center; gap: 8px; width: calc(100% + 28px); height: 30px; margin: 0 -14px 6px; padding: 0 6px 0 12px; border-radius: 9px; font-size: 12.5px; color: var(--ink-2); text-align: left; }
+  .tease:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .tease > .icon { width: 13px; height: 13px; color: var(--accent-text); }
+  .tease b { color: var(--accent-text); font-weight: 500; white-space: nowrap; }
+  .tease .tx { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tease .more { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
+  .tease .x { width: 22px; height: 22px; border-radius: 6px; display: inline-grid; place-items: center; color: var(--ink-3); }
+  .tease .x:hover { background: var(--bg-press); color: var(--ink-1); }
+  .tease .x .icon { width: 12px; height: 12px; }
+  .tease.fade-in { animation: fadeIn 260ms var(--ease-out); }
+
+  .g-tease { display: block; margin-top: 14px; padding: 8px 0 0; text-align: left; width: 100%; position: relative; }
+  .g-tease::before { content: ""; position: absolute; left: 0; top: 0; width: 18px; height: 2px; border-radius: 1px; background: color-mix(in srgb, var(--accent) 50%, transparent); }
+  .g-tease .h { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--accent-text); font-weight: 500; }
+  .g-tease .h .icon { width: 12px; height: 12px; }
+  .g-tease p { margin-top: 4px; font-size: 12px; line-height: 1.6; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .g-tease:hover p { color: var(--ink-1); }
+
+  #otd-btn.on { color: var(--accent-text); background: var(--accent-soft); }
+  .drawer-scrim { position: absolute; inset: 0; z-index: 8; background: color-mix(in srgb, var(--bg-surface) 40%, transparent); opacity: 0; pointer-events: none; transition: opacity 220ms var(--ease-out); }
+  .drawer { position: absolute; top: 10px; right: 10px; bottom: 10px; width: 380px; z-index: 9; display: flex; flex-direction: column; background: var(--bg-surface); border-radius: 14px;
+    box-shadow: var(--shadow-float), 0 0 0 1px var(--line-1); transform: translateX(calc(100% + 24px)); transition: transform 260ms var(--ease-out); }
+  .sheet.drawer-open .drawer { transform: none; }
+  .sheet.drawer-open .drawer-scrim { opacity: 1; pointer-events: auto; }
+  .dr-head { display: flex; align-items: center; gap: 8px; height: 52px; padding: 0 10px 0 18px; flex: none; }
+  .dr-head b { font-size: 14px; font-weight: 600; }
+  .dr-head .icon.lead { width: 15px; height: 15px; color: var(--accent-text); }
+  .dr-head small { font-size: 12px; color: var(--ink-3); }
+  .dr-body { flex: 1; min-height: 0; overflow-y: auto; padding: 0 18px 18px; }
+  .yr-block + .yr-block { margin-top: 22px; }
+  .yr-title { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .yr-title b { font: 600 15px/1 var(--mono); }
+  .yr-title span { font-size: 12px; color: var(--ink-3); }
+  .yr-title .link { margin-left: auto; font-weight: 400; }
+  .dr-item { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 8px; padding: 8px 10px 10px 4px; margin: 0 -10px 0 -4px; border-radius: 10px; position: relative; }
+  .dr-item:hover { background: var(--bg-hover); }
+  .dr-item .m-time { padding-top: 4px; }
+  .dr-item .m-body { font-size: 13.5px; }
+  .dr-item .m-tags { margin-top: 6px; }
+  .dr-item .reply { position: absolute; right: 6px; top: 6px; }
+  .dr-foot { flex: none; padding: 10px 18px 14px; font-size: 11.5px; color: var(--ink-3); }
+
+  .tail { text-align: center; padding: 26px 0 30px; font-size: 12px; color: var(--ink-3); }
+
+  /* ── 时间刻度：贴在纸的右缘，滚动时标出当前月，点一下跳过去（取代右栏日历） ── */
+  .scrub { position: absolute; right: 10px; top: 14px; bottom: 14px; width: 56px; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; z-index: 3; pointer-events: none; }
+  .scrub button { pointer-events: auto; height: 22px; padding: 0 8px; border-radius: 7px; font: 11.5px/1 var(--font); color: var(--ink-3); font-variant-numeric: tabular-nums; white-space: nowrap; opacity: 0.55; transition: opacity 160ms, color 160ms, background 160ms; }
+  .sheet:hover .scrub button { opacity: 1; }
+  .scrub button:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .scrub button.on { color: var(--accent-text); font-weight: 600; opacity: 1; }
+  .scrub .y { font: 10.5px/1 var(--mono); color: var(--ink-3); padding: 8px 8px 2px; opacity: 0.7; }
+
+  /* ── C 的输入条：停靠在纸内，同底色、不加横线；↵ 发送 ── */
+  .dock { flex: none; padding: 8px 0 14px; position: relative; z-index: 4; }
+  .sheet.top .dock { order: -1; padding: 14px 0 6px; }
+  .dock::before { content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: 28px; pointer-events: none; background: linear-gradient(to top, var(--bg-surface), transparent); }
+  .sheet.top .dock::before { top: 100%; bottom: auto; background: linear-gradient(to bottom, var(--bg-surface), transparent); }
+  .bar { display: grid; grid-template-columns: 92px minmax(0, 1fr); column-gap: 22px; }
+  .bar .who { padding-top: 10px; text-align: left; }
+  .bar .who b { display: block; font-size: 13px; font-weight: 600; }
+  .bar .who span { font: 12px/1.5 var(--mono); color: var(--ink-3); }
+  .box { margin: 0 -14px; border-radius: 14px; padding: 10px 12px 8px 14px; background: var(--bg-page); transition: box-shadow 160ms var(--ease-out), background 160ms var(--ease-out); }
+  .box:focus-within { background: var(--bg-surface); box-shadow: 0 0 0 1px var(--accent), var(--focus-ring); }
+  .box .cmp-input { max-height: 200px; font-size: 14px; }
+  .box .cmp-bar { margin-top: 6px; }
+  .box .cmp-bar .btn { padding: 0 10px; }
+  .quote { display: flex; align-items: center; gap: 8px; margin: -2px 0 6px; padding: 5px 6px 5px 10px; border-radius: 8px; font-size: 12px; color: var(--ink-2); background: var(--accent-soft); }
+  .quote .icon { width: 12px; height: 12px; color: var(--accent-text); flex: none; }
+  .quote span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+  .quote b { color: var(--accent-text); font-weight: 500; font-family: var(--mono); font-size: 11.5px; }
+  .under { display: flex; justify-content: space-between; padding: 6px 0 0; margin: 0 -14px; font-size: 11.5px; color: var(--ink-3); }
+  .under kbd { font-size: 10.5px; padding: 1px 4px; }
+
+  /* 日历浮层（工具栏）：热力月历 */
+  .cal-head { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+  .cal-head b { font-size: 13px; font-weight: 600; }
+  .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .cal .wk { font-size: 11px; color: var(--ink-3); text-align: center; }
+  .cal .c { aspect-ratio: 1; border-radius: 8px; display: grid; place-items: center; font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; position: relative;
+    background: color-mix(in srgb, var(--accent) calc(var(--h, 0) * 1%), transparent); }
+  .cal .c.has { color: var(--ink-1); font-weight: 500; }
+  .cal .c.hot { color: var(--ink-inverse); }
+  .cal .c:hover { box-shadow: inset 0 0 0 1.5px var(--ink-3); }
+  .cal .c.out { visibility: hidden; }
+  .cal .c.today::after { content: ""; position: absolute; bottom: 3px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+  .cal .c.today.hot::after { background: var(--ink-inverse); }
+  .cal .c.sel { box-shadow: inset 0 0 0 2px var(--accent-text); }
+  .cal .c.future { opacity: 0.4; pointer-events: none; }
+  .cal-presets { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+(() => {
+  const X = Diary, { icon, esc } = X;
+  let dockTop = false;
+  const { page } = X.mountShell({
+    crumb: "日记",
+    demos: [
+      { label: "输入条 顶 / 底", run: () => { dockTop = !dockTop; sheet.classList.toggle("top", dockTop); pinTop(); } },
+      { label: "预告 输入条上 / 日期下", run: () => { teaseAt = teaseAt === "dock" ? "gutter" : "dock"; teaseClosed = false; render(); } },
+      { label: "外部定位 9月21日", run: () => locate("2026-09-21") },
+    ],
+  });
+  page.style.height = "100%";
+
+  let view = "all";            // all / tag:<name> / untagged
+  let teaseAt = "dock";        // 那年今日预告的位置：dock 输入条上方 / gutter 今天日期下
+  let teaseClosed = false;     // 今天关掉预告（入口仍在工具栏）
+  let quoteRef = null;         // 「接着写」引用的那条
+  let locateDay = null;
+  let freshId = null;
+
+  page.innerHTML = `
+    <div class="page-d">
+      <div class="toolbar">
+        <h1 id="title">日记</h1>
+        <span class="sum" id="sum"></span>
+        <span class="spacer"></span>
+        <button class="ibtn" id="otd-btn" title="那年今日">${icon("history")}</button>
+        <button class="ibtn" id="cal-btn" title="按日期查看">${icon("calendar")}</button>
+        <label class="search">${icon("search")}<input id="q" placeholder="搜索碎碎念…" autocomplete="off"><span id="q-state"></span></label>
+      </div>
+      <div class="panel sheet" id="sheet">
+        <div class="stream" id="stream"><div class="col" id="list"></div></div>
+        <nav class="scrub" id="scrub"></nav>
+        <div class="drawer-scrim" id="scrim"></div>
+        <aside class="drawer" id="drawer" aria-label="那年今日"></aside>
+        <div class="dock"><div class="col">
+          <div class="bar">
+            <div class="who"><b>此刻</b><span id="clock"></span></div>
+            <div>
+              <div id="tease-dock"></div>
+              <div class="box cmp" id="box">
+                <div id="quote"></div>
+                <div class="cmp-input" data-cinput contenteditable="true" data-ph="此刻在想什么？"></div>
+                <div class="cmp-bar">
+                  <div class="m-tags" data-ctags></div>
+                  <button class="cmp-add" data-cadd data-place="top-start">${icon("hash")}标签</button>
+                  <span class="spacer"></span>
+                  <span class="cmp-hint" data-ccount></span>
+                  <button class="btn btn-primary" data-csend disabled>${icon("send")}</button>
+                </div>
+              </div>
+              <div class="under"><span><kbd>↵</kbd> 发送 · <kbd>⇧</kbd><kbd>↵</kbd> 换行 · <kbd>#</kbd> 标签</span><span id="under-r"></span></div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+    </div>`;
+
+  const sheet = document.getElementById("sheet");
+  const stream = document.getElementById("stream");
+  const listEl = document.getElementById("list");
+  const box = document.getElementById("box");
+  const tick = () => (document.getElementById("clock").textContent = X.fmtTime(X.now()));
+  tick();
+  setInterval(tick, 15000);
+
+  const pinTop = () => stream.scrollTo({ top: 0, behavior: "smooth" });
+  const cmp = X.bindComposer(box, {
+    enterSend: true,
+    onPosted: m => {
+      if (quoteRef) {
+        const r = X.findM(quoteRef);
+        if (r) X.update(m.id, `<blockquote class="ref"><small>${X.keyDate(r.day).getFullYear()}年的今天 ${X.fmtTime(r.ts)}</small>${esc(X.textOf(r.html))}</blockquote>` + m.html);
+        setQuote(null);
+        setTimeout(render);
+      }
+      freshId = m.id;
+      if (X.F.query) { q.value = ""; X.setQuery(""); }
+      if (X.F.range) X.setFilter({ range: null });
+      presetTag();
+      pinTop(); // 最新在上：发出去后回到顶部看到它
+    },
+  });
+  const presetTag = () => { if (view.startsWith("tag:")) cmp.addTag(view.slice(4)); };
+
+  function setQuote(id) {
+    quoteRef = id;
+    const el = document.getElementById("quote");
+    const r = id && X.findM(id);
+    el.innerHTML = r ? `<div class="quote">${icon("history")}<b>${r.day.slice(0, 4)}</b><span>${esc(X.textOf(r.html))}</span><button class="ibtn sm" data-unquote title="取消引用">${icon("x")}</button></div>` : "";
+    const u = el.querySelector("[data-unquote]");
+    if (u) u.onclick = () => { setQuote(null); render(); };
+    box.querySelector("[data-cinput]").dataset.ph = r ? "那时候的你，现在会怎么说？" : "此刻在想什么？";
+  }
+
+  const q = document.getElementById("q");
+  q.addEventListener("input", () => X.setQuery(q.value));
+  q.addEventListener("keydown", e => e.key === "Escape" && ((q.value = ""), X.setQuery("")));
+
+  /* ── 侧栏嵌套：标签 = 频道（C） ── */
+  function renderNav() {
+    const sub = document.getElementById("nav-sub");
+    const sb = document.querySelector(".sidebar");
+    if (!X.S.moments.length) { sub.innerHTML = ""; sb.classList.remove("has-sub"); return; }
+    sb.classList.toggle("has-sub", view !== "all");
+    const untagged = X.S.moments.filter(m => !m.tags.length).length;
+    sub.innerHTML =
+      X.tagsSorted().map(t => `<button class="nav-sub-item${view === "tag:" + t.name ? " on" : ""}" data-v="tag:${esc(t.name)}"><span class="glyph"><span class="cdot" data-c="${t.color}"></span></span><span class="tt">${esc(t.name)}</span><span class="ct">${X.tagCount(t.name)}</span></button>`).join("") +
+      (untagged ? `<button class="nav-sub-item${view === "untagged" ? " on" : ""}" data-v="untagged"><span class="glyph">${icon("hash")}</span><span class="tt">无标签</span><span class="ct">${untagged}</span></button>` : "");
+    sub.querySelectorAll("[data-v]").forEach(b => {
+      b.onclick = () => setView(view === b.dataset.v ? "all" : b.dataset.v);
+      if (b.dataset.v.startsWith("tag:")) b.oncontextmenu = e => { e.preventDefault(); X.tagManage(b, b.dataset.v.slice(4)); };
+    });
+  }
+  document.getElementById("nav-self").onclick = () => setView("all");
+  function setView(v) {
+    view = v;
+    X.F.tags = v.startsWith("tag:") ? [v.slice(4)] : [];
+    X.emit();
+    presetTag();
+    stream.scrollTop = 0;
+  }
+
+  /* ── 日历浮层：替代 A 的右栏日历 ── */
+  let calYM = X.TODAY.slice(0, 7);
+  document.getElementById("cal-btn").onclick = e => {
+    let anchorK = null;
+    X.openPop(e.currentTarget, () => {
+      const stats = X.dayStats();
+      const [y, mo] = calYM.split("-").map(Number);
+      const lead = (new Date(y, mo - 1, 1).getDay() + 6) % 7;
+      const days = new Date(y, mo, 0).getDate();
+      const maxW = Math.max(...[...stats.values()].map(s => s.words), 1);
+      let cells = "";
+      for (let i = 0; i < lead; i++) cells += `<span class="c out"></span>`;
+      for (let d = 1; d <= days; d++) {
+        const k = `${calYM}-${String(d).padStart(2, "0")}`;
+        const s = stats.get(k);
+        const h = s ? Math.round(18 + (s.words / maxW) * 62) : 0;
+        const inR = X.F.range && k >= X.F.range[0] && k <= X.F.range[1];
+        cells += `<button class="c${s ? " has" : ""}${h > 55 ? " hot" : ""}${k === X.TODAY ? " today" : ""}${inR ? " sel" : ""}${k > X.TODAY ? " future" : ""}" style="--h:${h}" data-k="${k}" title="${s ? `${s.n} 条 · ${s.words} 字` : "没有记录"}">${d}</button>`;
+      }
+      const t = X.TODAY;
+      const ps = [["近 7 天", [X.addDays(t, -6), t]], ["近 30 天", [X.addDays(t, -29), t]], ["本月", [t.slice(0, 8) + "01", t]], ["今年", [t.slice(0, 5) + "01-01", t]]];
+      return `<div class="cal-head"><b>${y}年${mo}月</b><span class="spacer"></span>
+          <button class="ibtn sm" data-m="-1">${icon("chev-left")}</button><button class="ibtn sm" data-m="1" ${calYM >= t.slice(0, 7) ? "disabled style='opacity:.35'" : ""}>${icon("chev-right")}</button></div>
+        <div class="cal">${["一", "二", "三", "四", "五", "六", "日"].map(w => `<span class="wk">${w}</span>`).join("")}${cells}</div>
+        <div class="cal-presets">${ps.map(([l, r], i) => `<button class="chip${X.F.range && X.F.range[0] === r[0] && X.F.range[1] === r[1] ? " on" : ""}" data-p="${i}">${l}</button>`).join("")}${X.F.range ? `<button class="chip" data-p="x">全部时间</button>` : ""}</div>
+        <div class="hint" style="margin-top:8px;font-size:11.5px;color:var(--ink-3)">点一天只看那天，Shift 连选一段</div>`;
+    }, {
+      width: 272, placement: "bottom-end",
+      bind: (el, close, draw) => {
+        el.querySelectorAll("[data-m]").forEach(b => (b.onclick = () => {
+          const [y, mo] = calYM.split("-").map(Number);
+          const d = new Date(y, mo - 1 + +b.dataset.m, 1);
+          calYM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          draw();
+        }));
+        el.querySelectorAll(".c[data-k]").forEach(c => (c.onclick = ev => {
+          const k = c.dataset.k;
+          if (ev.shiftKey && anchorK) X.setFilter({ range: [anchorK, k].sort() });
+          else { anchorK = k; X.setFilter({ range: [k, k] }); }
+          stream.scrollTop = 0;
+          draw();
+        }));
+        el.querySelectorAll("[data-p]").forEach(b => (b.onclick = () => {
+          const t = X.TODAY;
+          const ps = [[X.addDays(t, -6), t], [X.addDays(t, -29), t], [t.slice(0, 8) + "01", t], [t.slice(0, 5) + "01-01", t]];
+          X.setFilter({ range: b.dataset.p === "x" ? null : ps[+b.dataset.p] });
+          draw();
+        }));
+      },
+    });
+  };
+
+  /* ── 渲染 ── */
+  function momentHTML(m) {
+    return `<article class="mo hover-host${m.id === freshId ? " fresh" : ""}" data-mid="${m.id}">
+      <div class="mo-head">
+        <span class="m-time">${X.fmtTime(m.ts)}</span>
+        ${X.backfill(m) ? `<span class="bf">· 补记于 ${X.dayLabel(X.dayKey(m.ts), { week: false })}</span>` : ""}
+        <div class="mo-acts">
+          <button class="ibtn sm hover-act" data-tagbtn title="标签">${icon("hash")}</button>
+          <button class="ibtn sm hover-act" data-more title="更多">${icon("more")}</button>
+        </div>
+      </div>
+      <div class="m-body" data-id="${m.id}">${m.html}</div>
+      ${m.tags.length ? `<div class="m-tags">${X.tagsHTML(m, { btn: true })}</div>` : ""}
+    </article>`;
+  }
+
+  /* ── 那年今日 ── */
+  const otdYears = () => {
+    const otd = X.onThisDay();
+    return [...new Set(otd.map(m => m.day.slice(0, 4)))].sort().reverse().map(y => ({
+      y, ago: +X.TODAY.slice(0, 4) - +y, items: otd.filter(m => m.day.startsWith(y)).sort((a, b) => a.ts - b.ts),
+    }));
+  };
+  const agoText = n => (n === 1 ? "一年前的今天" : `${n} 年前的今天`);
+  // 预告：挑最近一年的第一条露一句；只在「全部」、无筛选、未写引用时出现
+  function teaseData() {
+    if (view !== "all" || X.hasFilter() || teaseClosed || quoteRef) return null;
+    const ys = otdYears();
+    if (!ys.length) return null;
+    const total = ys.reduce((s, y) => s + y.items.length, 0);
+    return { first: ys[0], total };
+  }
+  function renderTease() {
+    const el = document.getElementById("tease-dock");
+    const t = teaseAt === "dock" && teaseData();
+    el.innerHTML = t ? `<button class="tease fade-in" data-open-otd>${icon("history")}<b>${agoText(t.first.ago)}</b><span class="tx">${esc(X.textOf(t.first.items[0].html))}</span>${t.total > 1 ? `<span class="more">还有 ${t.total - 1} 条</span>` : ""}<span class="x" data-close-tease title="今天不再提示" role="button">${icon("x")}</span></button>` : "";
+    bindTease(el);
+  }
+  function gutterTeaseHTML() {
+    const t = teaseAt === "gutter" && teaseData();
+    if (!t) return "";
+    return `<button class="g-tease" data-open-otd><span class="h">${icon("history")}${t.first.ago === 1 ? "一年前" : t.first.ago + " 年前"}</span><p>${esc(X.textOf(t.first.items[0].html))}</p></button>`;
+  }
+  function bindTease(root) {
+    root.querySelectorAll("[data-open-otd]").forEach(b => (b.onclick = e => {
+      if (e.target.closest("[data-close-tease]")) { teaseClosed = true; render(); X.toast("今天不再提示，工具栏里还能打开"); return; }
+      openDrawer();
+    }));
+  }
+
+  const drawer = document.getElementById("drawer");
+  function drawDrawer() {
+    const ys = otdYears();
+    const d = X.keyDate(X.TODAY);
+    drawer.innerHTML = `<div class="dr-head">${icon("history", "lead")}<b>那年今日</b><small>${d.getMonth() + 1}月${d.getDate()}日</small><span class="spacer"></span><button class="ibtn" data-close title="关闭 (Esc)">${icon("x")}</button></div>
+      <div class="dr-body">${ys.length ? ys.map(({ y, ago, items }) => `<section class="yr-block">
+        <div class="yr-title"><b>${y}</b><span>${agoText(ago).replace("的今天", "")} · 周${X.WEEK[X.keyDate(items[0].day).getDay()]}</span><button class="link" data-goday="${items[0].day}">在流里看${icon("chev-right")}</button></div>
+        ${items.map(m => `<div class="dr-item hover-host"><span class="m-time">${X.fmtTime(m.ts)}</span><div><div class="m-body">${m.html}</div>${m.tags.length ? `<div class="m-tags">${X.tagsHTML(m)}</div>` : ""}</div>
+          <button class="btn btn-soft reply hover-act" data-reply="${m.id}">${icon("pen")}接着写</button></div>`).join("")}
+      </section>`).join("") : `<div class="empty"><div class="glyph">${icon("history")}</div><h3>往年的今天还是空白</h3><p>今天写下的，明年这一天会出现在这里。</p></div>`}</div>
+      <div class="dr-foot">点「接着写」会把那一条引用进输入框</div>`;
+    drawer.querySelector("[data-close]").onclick = closeDrawer;
+    drawer.querySelectorAll("[data-reply]").forEach(b => (b.onclick = () => { closeDrawer(); setQuote(+b.dataset.reply); render(); cmp.focus(); }));
+    drawer.querySelectorAll("[data-goday]").forEach(b => (b.onclick = () => { closeDrawer(); locate(b.dataset.goday); }));
+  }
+  function openDrawer() { drawDrawer(); sheet.classList.add("drawer-open"); document.getElementById("otd-btn").classList.add("on"); }
+  function closeDrawer() { sheet.classList.remove("drawer-open"); document.getElementById("otd-btn").classList.remove("on"); }
+  document.getElementById("otd-btn").onclick = () => (sheet.classList.contains("drawer-open") ? closeDrawer() : openDrawer());
+  document.getElementById("scrim").onclick = closeDrawer;
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && sheet.classList.contains("drawer-open") && !document.querySelector(".menu,.pop")) closeDrawer(); });
+
+  function dayHTML([day, items]) {
+    const d = X.keyDate(day);
+    const off = X.diffDays(X.TODAY, day);
+    const rel = off === 0 ? "今天" : off === 1 ? "昨天" : off > 1 && off < 7 ? `${off} 天前` : "";
+    const words = items.reduce((s, m) => s + m.words, 0);
+    const y = d.getFullYear() !== X.keyDate(X.TODAY).getFullYear();
+    return `<section class="day" data-day="${day}">
+      <div class="gutter">
+        ${y ? `<div class="yr">${d.getFullYear()}</div>` : ""}
+        ${rel ? `<div class="rl">${rel}</div>` : ""}
+        <div class="dd">${d.getDate()}</div>
+        <div class="dm">${d.getMonth() + 1}月 · 周${X.WEEK[d.getDay()]}</div>
+        ${items.length ? `<div class="dn">${items.length} 条 · ${words} 字</div>` : ""}
+        ${day === X.TODAY ? gutterTeaseHTML() : ""}
+      </div>
+      <div class="items">${items.map(momentHTML).join("")}</div>
+    </section>`;
+  }
+
+  function scoped() {
+    let list = X.filtered();
+    if (view === "untagged") list = list.filter(m => !m.tags.length);
+    return list;
+  }
+
+  let months = [];
+  function render() {
+    if (X.isEditing()) return;
+    renderNav();
+    const tEl = document.getElementById("title");
+    tEl.innerHTML = view.startsWith("tag:") ? `<span class="scope">日记 <span class="muted" style="font-weight:400">/</span> ${X.tagHTML(view.slice(4))}</span>` : view === "untagged" ? "无标签" : "日记";
+    X.setCrumb(view === "all" ? "日记" : `日记 / ${esc(view.startsWith("tag:") ? view.slice(4) : "无标签")}`);
+    const list = scoped();
+    const total = X.S.moments.length;
+    const sum = [];
+    if (total) {
+      if (!X.hasFilter() && view === "all") sum.push(`<span>本月 <b class="num">${X.monthCount()}</b> 条</span><span class="sep">·</span><span>连续记录 <b class="num">${X.streak()}</b> 天</span>`);
+      else sum.push(`<span><b class="num">${list.length}</b> 条</span>`);
+      if (X.F.query) sum.push(`<span class="fchip" style="height:24px">${icon("search", "lead")}「${esc(X.F.query)}」<button class="x" data-clr="q">${icon("x")}</button></span>`);
+      if (X.F.range) sum.push(`<span class="fchip" style="height:24px">${icon("calendar", "lead")}${X.dayLabel(X.F.range[0], { week: false })}${X.F.range[0] !== X.F.range[1] ? " – " + X.dayLabel(X.F.range[1], { week: false }) : ""}<button class="x" data-clr="range">${icon("x")}</button></span>`);
+    }
+    const sumEl = document.getElementById("sum");
+    sumEl.innerHTML = sum.join("");
+    sumEl.querySelectorAll("[data-clr]").forEach(b => (b.onclick = () => {
+      if (b.dataset.clr === "q") { q.value = ""; X.setQuery(""); } else X.setFilter({ range: null });
+    }));
+    document.getElementById("cal-btn").classList.toggle("on", !!X.F.range);
+    document.getElementById("q-state").innerHTML = X.F.searching ? icon("loader", "spin") : "";
+    document.getElementById("under-r").textContent = view.startsWith("tag:") ? `在这里发的会自动带上「${view.slice(4)}」` : "";
+
+    let html;
+    if (!total) {
+      html = `<div class="empty" style="min-height:60vh"><div class="glyph">${icon("pen")}</div><h3>写下第一条碎碎念</h3><p>不用凑成一篇日记。想到什么就在下面写一句，回车就记下了，一天写几条都行。</p></div>`;
+    } else if (!list.length) {
+      html = `<div class="empty" style="min-height:60vh"><div class="glyph">${icon(X.F.query ? "search" : "hash")}</div><h3>${X.F.searching ? "搜索中…" : X.F.query ? "没有匹配的碎碎念" : "这里还没有记录"}</h3><p>${X.F.query ? "换个关键词试试。" : view.startsWith("tag:") ? "在下面写一条，会自动带上这个标签。" : "清除筛选再看看。"}</p></div>`;
+    } else {
+      const groups = X.byDay(list);
+      html = groups.map(dayHTML).join("") +
+        `<div class="tail">${X.hasFilter() || view !== "all" ? `共 ${list.length} 条` : `已经到最早的一条了 · 共 ${list.length} 条`}</div>`;
+    }
+    listEl.innerHTML = html;
+    freshId = null;
+    X.highlight(listEl, X.F.query);
+    X.bindEditable(listEl);
+    listEl.querySelectorAll("[data-mid]").forEach(el => {
+      const m = X.findM(+el.dataset.mid);
+      el.querySelector("[data-more]").onclick = e => X.momentMenu(e.currentTarget, m, listEl);
+      el.querySelector("[data-tagbtn]").onclick = e => X.tagPicker(e.currentTarget, m.tags, next => X.setTags(m.id, next), { placement: "bottom-end" });
+      el.querySelectorAll(".m-tags [data-tag]").forEach(t => (t.onclick = () => setView("tag:" + t.dataset.tag)));
+    });
+    bindTease(listEl);
+    renderTease();
+    document.getElementById("otd-btn").style.display = X.onThisDay().length ? "" : "none";
+
+    // 时间刻度：按月列出（跨年插年份）
+    months = [...new Set(list.map(m => m.day.slice(0, 7)))];
+    let lastY = X.TODAY.slice(0, 4);
+    document.getElementById("scrub").innerHTML = months.length > 1 ? months.map(ym => {
+      const [y, mo] = ym.split("-");
+      let pre = "";
+      if (y !== lastY) { pre = `<span class="y">${y}</span>`; lastY = y; }
+      return `${pre}<button data-ym="${ym}">${+mo}月</button>`;
+    }).join("") : "";
+    document.querySelectorAll("#scrub [data-ym]").forEach(b => (b.onclick = () => {
+      const sec = listEl.querySelector(`[data-day^="${b.dataset.ym}"]`);
+      if (sec) stream.scrollTo({ top: sec.offsetTop - 6, behavior: "smooth" });
+    }));
+    syncScrub();
+
+    if (locateDay) {
+      const sec = listEl.querySelector(`[data-day="${locateDay}"]`);
+      if (sec) {
+        stream.scrollTo({ top: sec.offsetTop - 6, behavior: "smooth" });
+        sec.querySelectorAll(".mo").forEach(mo => { mo.classList.remove("fresh"); void mo.offsetWidth; mo.classList.add("fresh"); });
+      }
+      locateDay = null;
+    }
+  }
+  function syncScrub() {
+    const secs = [...listEl.querySelectorAll(".day")];
+    const top = stream.scrollTop + 40;
+    let cur = secs[0];
+    for (const s of secs) { if (s.offsetTop <= top) cur = s; else break; }
+    const ym = cur && cur.dataset.day.slice(0, 7);
+    document.querySelectorAll("#scrub [data-ym]").forEach(b => b.classList.toggle("on", b.dataset.ym === ym));
+  }
+  stream.addEventListener("scroll", syncScrub);
+
+  function locate(day) {
+    view = "all";
+    q.value = "";
+    Object.assign(X.F, { tags: [], range: null, query: "", pending: "" });
+    locateDay = day;
+    X.emit();
+  }
+
+  document.addEventListener("keydown", e => {
+    const t = e.target;
+    if (t.isContentEditable || /INPUT|TEXTAREA/.test(t.tagName)) return;
+    if (e.key === "/") { e.preventDefault(); q.focus(); }
+    else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) cmp.focus(); // 直接打字进输入条
+  });
+
+  X.on(render);
+  render();
+})();
+</script>
+</body>
+</html>

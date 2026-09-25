@@ -1,3 +1,4 @@
+import { basename } from "node:path";
 import { fallbackCommandContext, type CommandContext } from "@tau/rpc";
 import Database from "better-sqlite3";
 import type { Descendant } from "slate";
@@ -439,11 +440,30 @@ export default class DiaryTable {
     );
   }
 
+  /**
+   * 写命令包一层：成功后广播 diary:changed 通知其它窗口（渲染端据此失效 ["diary"] 查询，
+   * 见 features/diary/queries.ts；flashcards:changed 同款）。派发层把 CommandContext
+   * 追加在实参末尾，故取最后一个参数；直接调用（测试 / 内部复用）时没有 ctx 则不广播。
+   */
+  private static broadcasting<A extends unknown[], R>(
+    fn: (db: Database.Database, ...args: A) => R
+  ): (db: Database.Database, ...args: A) => R {
+    return (db, ...args) => {
+      const result = fn(db, ...args);
+      const ctx = args[args.length - 1] as Partial<CommandContext> | undefined;
+      if (ctx && typeof ctx.broadcastOthers === "function")
+        ctx.broadcastOthers("diary:changed", { databaseName: basename(db.name) });
+      return result;
+    };
+  }
+
   static getListenEvents() {
+    const write = <A extends unknown[], R>(fn: (db: Database.Database, ...args: A) => R) =>
+      this.broadcasting(fn.bind(this));
     return {
-      "create-diary-entry": this.createDiaryEntry.bind(this),
-      "update-diary-entry": this.updateDiaryEntry.bind(this),
-      "delete-diary-entry": this.deleteDiaryEntry.bind(this),
+      "create-diary-entry": write(this.createDiaryEntry),
+      "update-diary-entry": write(this.updateDiaryEntry),
+      "delete-diary-entry": write(this.deleteDiaryEntry),
       "get-diary-entry-by-id": this.getDiaryEntryById.bind(this),
       "get-diary-entry-by-date": this.getDiaryEntryByDate.bind(this),
       "get-diary-entries-by-type": this.getDiaryEntriesByType.bind(this),
@@ -454,14 +474,16 @@ export default class DiaryTable {
       "get-diaries-with-content": this.getDiariesWithContent.bind(this),
       // Segment-level CRUD
       "get-diary-segments": this.getDiarySegments.bind(this),
-      "create-diary-segment": this.createDiarySegment.bind(this),
-      "update-diary-segment": this.updateDiarySegment.bind(this),
-      "delete-diary-segment": this.deleteDiarySegment.bind(this),
+      "create-diary-segment": write(this.createDiarySegment),
+      "update-diary-segment": write(this.updateDiarySegment),
+      "delete-diary-segment": write(this.deleteDiarySegment),
+      // 碎碎念一步发布：确保当天 entry + 建段 + 段级标签（D-044）
+      "create-diary-moment": write(this.createDiaryMoment),
       // 朋友圈流 + 标签设置
       "get-all-diary-segments-flat": this.getAllDiarySegmentsFlat.bind(this),
       "get-all-diary-tag-settings": this.getAllDiaryTagSettings.bind(this),
-      "upsert-diary-tag-setting": this.upsertDiaryTagSetting.bind(this),
-      "delete-diary-tag-setting": this.deleteDiaryTagSetting.bind(this),
+      "upsert-diary-tag-setting": write(this.upsertDiaryTagSetting),
+      "delete-diary-tag-setting": write(this.deleteDiaryTagSetting),
     };
   }
 
@@ -973,6 +995,45 @@ export default class DiaryTable {
     return created;
   }
 
+  /**
+   * 碎碎念一步发布（D-044）：单事务内确保 date 当天的 daily entry 存在 → 建段 → 写段级标签，
+   * 替代渲染端「建 entry / 建段 / 再改标签」三次往返。标签去空去重，与 updateDiarySegment 同口径。
+   */
+  static createDiaryMoment(
+    db: Database.Database,
+    params: { date: string; content: Descendant[]; tags?: string[] }
+  ): DiarySegmentItem {
+    const run = db.transaction(() => {
+      const existing = db
+        .prepare(
+          `SELECT id FROM diary_entries WHERE type = 'daily' AND date = ? ORDER BY id LIMIT 1`
+        )
+        .get(params.date) as { id: number } | undefined;
+      const diaryId =
+        existing?.id ??
+        this.createDiaryEntry(db, {
+          type: "daily",
+          date: params.date,
+          weather: null,
+          mood: null,
+          tags: "[]",
+          segments: [],
+        }).id;
+      const segment = this.createDiarySegment(db, { diaryId, content: params.content });
+      const tags = [...new Set((params.tags ?? []).map(tag => tag.trim()).filter(Boolean))];
+      if (tags.length)
+        db.prepare(`UPDATE diary_segments SET tags = ? WHERE id = ?`).run(
+          JSON.stringify(tags),
+          segment.id
+        );
+      return segment.id;
+    });
+    const segmentId = run();
+    const [item] = this.querySegmentsFlat(db, "WHERE s.id = ?", [segmentId]);
+    if (!item) throw new Error(`Failed to load created diary moment ${segmentId}`);
+    return item;
+  }
+
   static updateDiarySegment(
     db: Database.Database,
     params: { segmentId: number; content?: Descendant[]; tags?: string[] },
@@ -1076,6 +1137,14 @@ export default class DiaryTable {
   // 扁平化返回所有 segment（带父 entry 摘要），按日记归属日期降序
   // 标签取 s.tags（与片段绑定），不再从父 entry 借
   static getAllDiarySegmentsFlat(db: Database.Database): DiarySegmentItem[] {
+    return this.querySegmentsFlat(db, "", []);
+  }
+
+  private static querySegmentsFlat(
+    db: Database.Database,
+    where: string,
+    params: unknown[]
+  ): DiarySegmentItem[] {
     const stmt = db.prepare(`
       SELECT s.id, s.diary_id, s.content_id, s.create_time, s.update_time,
              c.content, c.count as word_count, s.tags,
@@ -1083,6 +1152,7 @@ export default class DiaryTable {
       FROM diary_segments s
       LEFT JOIN contents c ON s.content_id = c.id
       LEFT JOIN diary_entries d ON s.diary_id = d.id
+      ${where}
       ORDER BY
         CASE
           WHEN d.type = 'daily' AND d.date GLOB '????-??-??' THEN strftime('%s', d.date) * 1000
@@ -1091,7 +1161,7 @@ export default class DiaryTable {
         s.create_time DESC,
         s.id DESC
     `);
-    const rows = stmt.all() as Array<{
+    const rows = stmt.all(...params) as Array<{
       id: number;
       diary_id: number;
       content_id: number;

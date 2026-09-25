@@ -11,6 +11,8 @@ import {
   CollaborationNavSessions,
 } from "@/features/collaboration/components/CollaborationNav";
 import { ReviewDueBadge } from "@/features/flashcards/components/ReviewDueBadge";
+import { DiaryNavTags } from "@/features/diary/components/DiaryNav";
+import { useDiaryNavHasContent } from "@/features/diary/queries";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import type { NavItemBadge, NavItemChildren } from "./navigation";
 
@@ -27,13 +29,32 @@ export interface NavChildrenSlotProps {
   onSelect: (id: string) => void;
 }
 
+export interface NavChildrenSlot {
+  Component: ComponentType<NavChildrenSlotProps>;
+  /**
+   * 选中态是否落在子项上（由页面参数判定）：true 时父项降为「所在区」样式；
+   * false 时父项保持常规选中（子项是可选的收窄视图，如日记的标签频道——「全部」无子项）。
+   */
+  selected: (params: Record<string, unknown>) => boolean;
+  /** 已在该页时再点父项：true = 清空子项参数回到总览；缺省 = 沿用已有参数（停在上次的子项） */
+  parentResets?: boolean;
+}
+
 /** 子项槽：所属页在栈顶时于条目下方展开的子项列表 */
-export const NAV_CHILDREN_SLOTS: Record<NavItemChildren, ComponentType<NavChildrenSlotProps>> = {
-  "collaboration-sessions": CollaborationNavSessions,
+export const NAV_CHILDREN_SLOTS: Record<NavItemChildren, NavChildrenSlot> = {
+  // 协作：当前内容缺省时落到第一份，恒有子项选中
+  "collaboration-sessions": { Component: CollaborationNavSessions, selected: () => true },
+  // 日记：标签频道是收窄视图，参数 id 为空 = 全部（D-044）
+  "diary-tags": {
+    Component: DiaryNavTags,
+    selected: params => Boolean(params.id),
+    parentResets: true,
+  },
 };
 
 /** 各子项槽是否有内容可展开（空内容不展开，父项保持常规选中态） */
 export function useNavChildrenContent(): Record<NavItemChildren, boolean> {
   const hasSessions = useCollaborationStore(s => s.sessions.length > 0);
-  return { "collaboration-sessions": hasSessions };
+  const hasDiary = useDiaryNavHasContent();
+  return { "collaboration-sessions": hasSessions, "diary-tags": hasDiary };
 }
