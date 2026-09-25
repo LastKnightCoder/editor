@@ -285,3 +285,27 @@ describe("Popover", () => {
     expect(h2.card.querySelector("span[aria-hidden]")).toBeNull();
   });
 });
+
+describe("Popover 触发器 ref 稳定性", () => {
+  it("父级重渲染不反复 detach/attach 触发器 ref（防 setAnchorEl 死循环）", () => {
+    const outerRef = vi.fn();
+    let bump: () => void = () => {};
+    function Parent() {
+      const [n, setN] = useState(0);
+      bump = () => setN(v => v + 1);
+      return (
+        <Popover trigger={<button ref={outerRef}>t{n}</button>}>
+          <Popover.Body>内容</Popover.Body>
+        </Popover>
+      );
+    }
+    const h = render(<Parent />);
+    act(() => bump());
+    act(() => bump());
+    act(() => bump());
+    expect(outerRef.mock.calls.filter(([el]) => el === null)).toHaveLength(0);
+    expect(outerRef).toHaveBeenCalledTimes(1);
+    h.cleanup();
+    expect(outerRef).toHaveBeenLastCalledWith(null);
+  });
+});

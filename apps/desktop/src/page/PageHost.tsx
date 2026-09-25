@@ -4,13 +4,15 @@
  * React 19.2 `<Activity mode="visible|hidden">`：非激活实例 state+DOM 保留、
  * effect 自动停驻——切页零丢失的核心。LRU 超限条目卸载（上限 MAX_LIVE_PAGES）。
  * 页面切换无转场（桌面即时感，蓝图 §3.7 取舍清单）。
+ * 每页一个错误边界：单页渲染崩溃只替换该页内容区，侧栏 / 标题栏 / 其它保活页不受影响。
  */
 
 import { Activity, useMemo } from "react";
 import * as sm from "./core/stackMachine";
 import { getPageDefinition } from "./registry";
 import { LegacyPendingPage } from "./LegacyPendingPage";
-import { PageParamsProvider } from "./PageProvider";
+import { PageParamsProvider, usePage } from "./PageProvider";
+import { ErrorState, RecoverableBoundary } from "@/components/ErrorState";
 
 export function PageHost({ state }: { state: sm.StackMachineState }) {
   const activeId = sm.current(state)?.id;
@@ -41,12 +43,38 @@ export function PageHost({ state }: { state: sm.StackMachineState }) {
           >
             <PageParamsProvider value={entry.params}>
               <Activity mode={isActive ? "visible" : "hidden"}>
-                {definition ? <definition.component /> : <LegacyPendingPage pageKey={entry.key} />}
+                <RecoverableBoundary
+                  resetKeys={[entry.params]}
+                  fallback={({ error, reset }) => <PageErrorFallback error={error} reset={reset} />}
+                >
+                  {definition ? (
+                    <definition.component />
+                  ) : (
+                    <LegacyPendingPage pageKey={entry.key} />
+                  )}
+                </RecoverableBoundary>
               </Activity>
             </PageParamsProvider>
           </div>
         );
       })}
     </>
+  );
+}
+
+function PageErrorFallback({ error, reset }: { error: unknown; reset: () => void }) {
+  const { navigator } = usePage();
+  return (
+    <ErrorState
+      error={error}
+      title="这个页面出错了"
+      description="页面渲染时发生了意外错误，其它页面不受影响。可以重试，或先去别处继续工作。"
+      actions={[
+        { label: "重试", onClick: reset },
+        navigator.canBack()
+          ? { label: "返回上一页", onClick: () => navigator.back() }
+          : { label: "回到今日", onClick: () => navigator.push("home") },
+      ]}
+    />
   );
 }

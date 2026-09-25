@@ -141,21 +141,16 @@ const ResizablePanel = ({
   const leftContent = left ?? leftPanel;
   const rightContent = right ?? rightPanel;
 
-  // 如果右侧面板为空，只渲染左侧面板
-  if (rightContent == null) {
-    return (
-      <div ref={containerRef} className={cn("flex h-full w-full overflow-hidden", className)}>
-        <div className={cn("h-full w-full", leftClassName)}>{leftContent}</div>
-      </div>
-    );
-  }
+  const hasRight = rightContent != null;
 
-  if (leftContent == null) {
+  if (hasRight && leftContent == null) {
     console.warn("[ResizablePanel] Missing left content for panel:", id);
     return null;
   }
 
-  const leftStyle = { flexBasis: `${leftRatio * 100}%` };
+  // 单栏 / 双栏共用同一棵树（左栏始终是容器首子）：右栏开合时左侧内容不被卸载重挂
+  // （否则对话页点开块预览会整棵重建 ChatArea——丢滚动位置、浮层 ref 抖动）
+  const leftStyle = hasRight ? { flexBasis: `${leftRatio * 100}%` } : undefined;
   const rightStyle = { flexBasis: `${(1 - leftRatio) * 100}%` };
 
   return (
@@ -164,32 +159,41 @@ const ResizablePanel = ({
       className={cn("flex h-full w-full overflow-hidden", isDragging && "select-none", className)}
     >
       <div
-        className={cn("h-full min-w-0", isDragging && "pointer-events-none", leftClassName)}
+        className={cn(
+          "h-full min-w-0",
+          !hasRight && "w-full",
+          isDragging && "pointer-events-none",
+          leftClassName
+        )}
         style={leftStyle}
       >
         {leftContent}
       </div>
-      <div
-        className={cn(
-          "group/split flex h-full w-[10px] shrink-0 cursor-col-resize items-center justify-center",
-          handleClassName
-        )}
-        onMouseDown={handleMouseDown}
-      >
-        {/* 拖动柄：常态 line-1 短条，hover / 拖动时 accent（不画整高分隔线） */}
-        <div
-          className={cn(
-            "ease-tau-out h-10 w-[2px] rounded-full transition-colors duration-[160ms]",
-            isDragging ? "bg-accent" : "bg-line-1 group-hover/split:bg-accent"
-          )}
-        />
-      </div>
-      <div
-        className={cn("h-full min-w-0", isDragging && "pointer-events-none", rightClassName)}
-        style={rightStyle}
-      >
-        {rightContent}
-      </div>
+      {hasRight && (
+        <>
+          <div
+            className={cn(
+              "group/split flex h-full w-[10px] shrink-0 cursor-col-resize items-center justify-center",
+              handleClassName
+            )}
+            onMouseDown={handleMouseDown}
+          >
+            {/* 拖动柄：常态 line-1 短条，hover / 拖动时 accent（不画整高分隔线） */}
+            <div
+              className={cn(
+                "ease-tau-out h-10 w-[2px] rounded-full transition-colors duration-[160ms]",
+                isDragging ? "bg-accent" : "bg-line-1 group-hover/split:bg-accent"
+              )}
+            />
+          </div>
+          <div
+            className={cn("h-full min-w-0", isDragging && "pointer-events-none", rightClassName)}
+            style={rightStyle}
+          >
+            {rightContent}
+          </div>
+        </>
+      )}
     </div>
   );
 };
