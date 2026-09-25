@@ -1,44 +1,16 @@
-import { useEffect, useMemo } from "react";
-import { useMemoizedFn } from "ahooks";
-import { debounce } from "lodash";
-import { Loading } from "@tau/ui";
-import WhiteBoard from "@/components/WhiteBoard";
+/**
+ * 单页画布页（whiteboard-content，参数为页 id）：独立白板、画布里嵌套的白板、问题材料等入口打开的单页。
+ * 只有这一页，不显示页签栏；属于某个多页白板的页从白板列表进来时走 whiteboard-detail。
+ */
+
+import { useMemo, useState } from "react";
 import { usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
-import type { WhiteBoardContent } from "@/types";
-import { useWhiteBoardContent } from "../queries";
+import { BoardCanvas } from "../components/BoardCanvas";
 
 export function WhiteBoardContentView() {
   const { id } = usePageParams<{ id: number }>();
-  return <Content key={id} id={id} />;
-}
-
-function Content({ id }: { id: number }) {
-  const { data: content, isPending, isError, save } = useWhiteBoardContent(id);
-  const title = useMemo(() => <span>{content?.name || "白板"}</span>, [content?.name]);
+  const [name, setName] = useState("");
+  const title = useMemo(() => <span>{name || "白板"}</span>, [name]);
   usePageBreadcrumb("whiteboard-content", title);
-  const persist = useMemoizedFn((data: WhiteBoardContent["data"]) => {
-    if (!content) return;
-    save.mutate({ ...content, data });
-  });
-  const onChange = useMemo(() => debounce(persist, 400), [persist]);
-  useEffect(
-    () => () => {
-      onChange.flush();
-    },
-    [onChange]
-  );
-
-  if (isPending) return <Loading />;
-  if (isError || !content) return <div className="text-ink-2 p-6">白板不存在或读取失败</div>;
-  return (
-    <WhiteBoard
-      key={content.id}
-      className="h-full w-full"
-      initData={content.data.children}
-      initSelection={content.data.selection}
-      initViewPort={content.data.viewPort}
-      initPresentationSequences={content.data.presentationSequences}
-      onChange={onChange}
-    />
-  );
+  return <BoardCanvas key={id} id={id} onLoaded={content => setName(content.name)} />;
 }

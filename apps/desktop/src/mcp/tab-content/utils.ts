@@ -17,6 +17,7 @@ const CONTENT_PROVIDERS: Record<string, TabType> = {
   "project-detail": TabType.ProjectDetail,
   webview: TabType.WebView,
   "whiteboard-content": TabType.WhiteBoardDetail,
+  "whiteboard-detail": TabType.WhiteBoardDetail,
 };
 
 export function getCurrentPanels(): PaneContentResponse[] {
@@ -88,7 +89,9 @@ export async function getTabContent(
   const params =
     entry.key === "whiteboard-content"
       ? { type: "content", whiteBoardContentId: entry.params.id }
-      : entry.params;
+      : entry.key === "whiteboard-detail"
+        ? { type: "whiteboard", id: entry.params.id }
+        : entry.params;
   const content = await provider.getContent(
     {
       id: entry.id,
