@@ -1,9 +1,7 @@
 import { useRef, useState } from "react";
-import SVG from "react-inlinesvg";
-import { App, Popover, Tooltip } from "antd";
 import { useMemoizedFn } from "ahooks";
-import { Upload, Link, MonitorPlay, Youtube } from "lucide-react";
-import videoIcon from "@/assets/white-board/video.svg";
+import { Upload, Link, MonitorPlay, Youtube, Video as VideoIcon } from "lucide-react";
+import { toast } from "@tau/ui";
 import YoutubeVideoSelectModal, {
   type YoutubeVideoSelectResult,
 } from "@/components/YoutubeVideoSelectModal";
@@ -13,38 +11,29 @@ import BilibiliVideoSelectModal, {
 import RemoteVideoSelectModal, {
   type RemoteVideoSelectResult,
 } from "@/components/RemoteVideoSelectModal";
-import ToolbarMenu, { ToolbarMenuItem } from "../ToolbarMenu";
+import { ToolMenu, type ToolMenuItem } from "../ToolMenu";
 
 import { useBoard } from "../../../hooks";
 import { VideoUtil } from "../../../utils";
 
-interface VideoProps {
-  className?: string;
-  style?: React.CSSProperties;
-}
-
-const Video = (props: VideoProps) => {
-  const { className, style } = props;
+const Video = () => {
   const board = useBoard();
 
   const videoInputRef = useRef<HTMLInputElement>(null);
-  const { message } = App.useApp();
 
   const handleAddVideo = useMemoizedFn(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      message.loading({
-        key: "uploading-video",
-        content: "正在处理视频，请稍候...",
-        duration: 0,
-      });
-      await VideoUtil.insertVideo(file, board);
-      message.destroy("uploading-video");
+      const t = toast.loading("正在处理视频，请稍候…");
+      try {
+        await VideoUtil.insertVideo(file, board);
+      } finally {
+        toast.dismiss(t);
+      }
     }
     event.target.value = "";
   });
 
-  const [popoverOpen, setPopoverOpen] = useState(false);
   const [remoteModalOpen, setRemoteModalOpen] = useState(false);
   const [biliModalOpen, setBiliModalOpen] = useState(false);
   const [youtubeModalOpen, setYoutubeModalOpen] = useState(false);
@@ -53,10 +42,9 @@ const Video = (props: VideoProps) => {
     try {
       await VideoUtil.insertVideoFromUrl(result.url, board);
       setRemoteModalOpen(false);
-      setPopoverOpen(false);
     } catch (error) {
       console.error("添加远程视频失败:", error);
-      message.error("添加远程视频失败");
+      toast.error("添加远程视频失败");
     }
   });
 
@@ -64,10 +52,9 @@ const Video = (props: VideoProps) => {
     try {
       await VideoUtil.insertVideoFromMeta(board, result.metaInfo);
       setBiliModalOpen(false);
-      setPopoverOpen(false);
     } catch (error) {
       console.error("添加 Bilibili 视频失败:", error);
-      message.error("添加 Bilibili 视频失败");
+      toast.error("添加 Bilibili 视频失败");
     }
   });
 
@@ -80,51 +67,42 @@ const Video = (props: VideoProps) => {
         audioStream: result.audioStream,
       });
       setYoutubeModalOpen(false);
-      setPopoverOpen(false);
     } catch (error) {
       console.error("添加 YouTube 视频失败:", error);
-      message.error("添加 YouTube 视频失败");
+      toast.error("添加 YouTube 视频失败");
     }
   });
 
-  const menuItems: ToolbarMenuItem[] = [
+  const menuItems: ToolMenuItem[] = [
     {
       key: "local",
       label: "本地上传",
-      icon: <Upload size={16} />,
-      description: "选择本地视频文件",
+      icon: Upload,
       onSelect: () => {
-        setPopoverOpen(false);
         videoInputRef.current?.click();
       },
     },
     {
       key: "url",
       label: "网络地址",
-      icon: <Link size={16} />,
-      description: "输入视频直链地址",
+      icon: Link,
       onSelect: () => {
-        setPopoverOpen(false);
         setRemoteModalOpen(true);
       },
     },
     {
       key: "bilibili",
       label: "Bilibili",
-      icon: <MonitorPlay size={16} />,
-      description: "从 B 站解析视频",
+      icon: MonitorPlay,
       onSelect: () => {
-        setPopoverOpen(false);
         setBiliModalOpen(true);
       },
     },
     {
       key: "youtube",
       label: "YouTube",
-      icon: <Youtube size={16} />,
-      description: "从 YouTube 解析",
+      icon: Youtube,
       onSelect: () => {
-        setPopoverOpen(false);
         setYoutubeModalOpen(true);
       },
     },
@@ -132,34 +110,8 @@ const Video = (props: VideoProps) => {
 
   return (
     <>
-      <Tooltip title="视频">
-        <Popover
-          open={popoverOpen}
-          onOpenChange={setPopoverOpen}
-          trigger={"click"}
-          arrow={false}
-          placement="bottom"
-          content={<ToolbarMenu items={menuItems} />}
-          styles={{
-            container: {
-              background: "transparent",
-              boxShadow: "none",
-              padding: 0,
-            },
-          }}
-        >
-          <div className={className} style={style} onClick={() => setPopoverOpen(true)}>
-            <input
-              ref={videoInputRef}
-              type="file"
-              accept="video/*"
-              hidden
-              onChange={handleAddVideo}
-            />
-            <SVG src={videoIcon} />
-          </div>
-        </Popover>
-      </Tooltip>
+      <input ref={videoInputRef} type="file" accept="video/*" hidden onChange={handleAddVideo} />
+      <ToolMenu label="视频" icon={<VideoIcon strokeWidth={1.75} />} items={menuItems} />
       <RemoteVideoSelectModal
         open={remoteModalOpen}
         onCancel={() => setRemoteModalOpen(false)}

@@ -1,44 +1,30 @@
 import { memo } from "react";
-import classnames from "classnames";
-import { useMemoizedFn } from "ahooks";
 import { Columns3 } from "lucide-react";
-import { Tooltip } from "antd";
 
 import { ECreateBoardElementType } from "../../../types";
 import { useBoard, useCreateElementType } from "../../../hooks";
+import { ChromeButton } from "../../../chrome";
 import useCreateColumn from "./useCreateColumn";
 
-import styles from "../index.module.less";
-
-interface ColumnProps {
-  className?: string;
-}
-
-const Column = memo(({ className }: ColumnProps) => {
+const Column = memo(() => {
   const board = useBoard();
-  const createBoardElementType = useCreateElementType();
+  const createType = useCreateElementType();
+  const active = createType === ECreateBoardElementType.Column;
 
   useCreateColumn();
 
-  const onClickCreateColumn = useMemoizedFn(() => {
-    board.currentCreateType =
-      createBoardElementType === ECreateBoardElementType.Column
-        ? ECreateBoardElementType.None
-        : ECreateBoardElementType.Column;
-  });
-
   return (
-    <Tooltip title="Column">
-      <div
-        className={classnames(className, styles.toolBarItem, {
-          [styles.active]:
-            createBoardElementType === ECreateBoardElementType.Column,
-        })}
-        onClick={onClickCreateColumn}
-      >
-        <Columns3 size={18} style={{ transform: "rotate(90deg)" }} />
-      </div>
-    </Tooltip>
+    <ChromeButton
+      label="分栏"
+      active={active}
+      onClick={() => {
+        board.currentCreateType = active
+          ? ECreateBoardElementType.None
+          : ECreateBoardElementType.Column;
+      }}
+    >
+      <Columns3 strokeWidth={1.75} className="rotate-90" />
+    </ChromeButton>
   );
 });
 

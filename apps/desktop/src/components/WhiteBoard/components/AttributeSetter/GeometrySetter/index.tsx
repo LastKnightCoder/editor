@@ -1,10 +1,7 @@
 import React from "react";
 import { GeometryElement } from "../../../plugins";
 import { geometrySetterManager } from "./GeometrySetterManager";
-import styles from "./index.module.less";
 import { registerGeometrySetters } from "./registerGeometrySetters";
-import useTheme from "@/hooks/useTheme";
-import classnames from "classnames";
 
 interface GeometrySettersProps {
   element: GeometryElement;
@@ -14,38 +11,17 @@ interface GeometrySettersProps {
 registerGeometrySetters();
 
 /**
- * 几何图形设置器组件
- * 根据当前选中的几何图形类型，显示对应的设置器
+ * 几何图形设置器：按当前图形类型收集已注册的设置器，平铺进属性浮动条
  */
-const GeometrySetters: React.FC<GeometrySettersProps> = ({
-  element,
-  onChange,
-}) => {
-  const { isDark } = useTheme();
-  // 获取适用于当前几何图形的所有设置器组件
+const GeometrySetters: React.FC<GeometrySettersProps> = ({ element, onChange }) => {
   const setterComponents = geometrySetterManager.getSettersForElement(element);
-
-  // 如果没有可用的设置器，则不显示
-  if (setterComponents.length === 0) {
-    return null;
-  }
-
+  if (setterComponents.length === 0) return null;
   return (
-    <div
-      className={classnames(styles.container, {
-        [styles.dark]: isDark,
-      })}
-      onPointerDown={(e) => {
-        e.stopPropagation();
-      }}
-      onDoubleClick={(e) => {
-        e.stopPropagation();
-      }}
-    >
+    <>
       {setterComponents.map((SetterComponent, index) => (
         <SetterComponent key={index} element={element} onChange={onChange} />
       ))}
-    </div>
+    </>
   );
 };
 

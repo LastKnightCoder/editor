@@ -55,6 +55,7 @@ const WhiteBoardProjectView = memo((props: { projectItemId: number }) => {
 
   return (
     <WhiteBoard
+      showSidebar={false}
       initData={data.children}
       initSelection={data.selection}
       initViewPort={data.viewPort}

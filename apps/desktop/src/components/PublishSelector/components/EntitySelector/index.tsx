@@ -5,7 +5,7 @@ import { EntityScope, DocTreeNode, SelectionFilter } from "../../types";
 import { collectDocNodeIds, matchesSelectionFilter, selectionFilterLabel } from "../../utils";
 import { SelectionCheckbox } from "../SelectionCheckbox";
 import { SearchToolbar } from "../SearchToolbar";
-import { FadeScroll } from "../FadeScroll";
+import { FadeScroll } from "@/components/FadeScroll";
 import { EmptyPlaceholder } from "../EmptyPlaceholder";
 import { EntityTreeModal } from "./EntityTreeModal";
 import { useSearch } from "../../hooks";

@@ -1,9 +1,6 @@
 import { memo, useRef, useEffect } from "react";
 import gsap from "gsap";
-import {
-  ARROW_CONNECT_POINT_FILL,
-  ARROW_CONNECT_POINT_RADIUS,
-} from "../../constants";
+import { ARROW_CONNECT_POINT_FILL, ARROW_CONNECT_POINT_RADIUS } from "../../constants";
 
 interface ArrowDropConnectPointProps {
   cx: number;
@@ -41,18 +38,13 @@ const ArrowDropConnectPoint = memo((props: ArrowDropConnectPointProps) => {
 
   return (
     <>
-      <circle
-        cx={cx}
-        cy={cy}
-        r={ARROW_CONNECT_POINT_RADIUS + 2}
-        fill={ARROW_CONNECT_POINT_FILL}
-      />
+      <circle cx={cx} cy={cy} r={ARROW_CONNECT_POINT_RADIUS + 2} fill={ARROW_CONNECT_POINT_FILL} />
       <circle
         ref={ref}
         cx={cx}
         cy={cy}
         r={ARROW_CONNECT_POINT_RADIUS}
-        fill={"white"}
+        fill={"var(--tau-bg-surface)"}
       />
     </>
   );

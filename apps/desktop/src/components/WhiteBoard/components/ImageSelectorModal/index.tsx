@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from "react";
-import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
+import { toast } from "@tau/ui";
 
 import Board from "../../Board";
 import { ImageUtil } from "../../utils";
@@ -20,8 +20,6 @@ const ImageSelectorModal = ({ open, onClose, board, action }: ImageSelectorModal
   const [urlModalOpen, setUrlModalOpen] = useState(false);
   const [aiGenerateOpen, setAiGenerateOpen] = useState(false);
 
-  const { message } = App.useApp();
-
   // 根据 action 自动触发对应操作
   useEffect(() => {
     if (!open) return;
@@ -39,13 +37,12 @@ const ImageSelectorModal = ({ open, onClose, board, action }: ImageSelectorModal
   const handleAddImage = useMemoizedFn(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      message.loading({
-        key: "uploading-image",
-        content: "正在处理图片，请稍候...",
-        duration: 0,
-      });
-      await ImageUtil.insertImage(file, board);
-      message.destroy("uploading-image");
+      const toastId = toast.loading("正在处理图片，请稍候…");
+      try {
+        await ImageUtil.insertImage(file, board);
+      } finally {
+        toast.dismiss(toastId);
+      }
     }
     event.target.value = "";
     onClose();
@@ -63,7 +60,7 @@ const ImageSelectorModal = ({ open, onClose, board, action }: ImageSelectorModal
 
   const handleInsertFromUrl = useMemoizedFn(async (url: string) => {
     await ImageUtil.insertImageFromPath(url, board);
-    message.success("图片已插入");
+    toast.success("图片已插入");
     setUrlModalOpen(false);
     onClose();
   });
@@ -71,7 +68,7 @@ const ImageSelectorModal = ({ open, onClose, board, action }: ImageSelectorModal
   const handleGenerateAIImage = useMemoizedFn(async (prompt: string) => {
     const result = await generateWhiteboardImage(prompt);
     await ImageUtil.insertImageFromPath(result.url, board);
-    message.success("图片已生成并插入");
+    toast.success("图片已生成并插入");
     setAiGenerateOpen(false);
     onClose();
   });

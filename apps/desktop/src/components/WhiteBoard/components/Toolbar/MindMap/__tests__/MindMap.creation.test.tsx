@@ -29,7 +29,7 @@ const createBoard = () =>
     [],
     { minX: 0, minY: 0, width: 1000, height: 1000, zoom: 1 },
     { selectedElements: [], selectArea: null },
-    [new MindPlugin()],
+    [new MindPlugin()]
   );
 
 const renderMindMapToolbar = async () => {
@@ -45,16 +45,13 @@ const renderMindMapToolbar = async () => {
   await act(async () => {
     root.render(
       <BoardContext.Provider value={board}>
-        <div onClick={(event) => board.onClick(event.nativeEvent)}>
-          <div
-            data-testid="toolbar"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <MindMap className="mind-map-button" />
+        <div onClick={event => board.onClick(event.nativeEvent)}>
+          <div data-testid="toolbar" onClick={event => event.stopPropagation()}>
+            <MindMap />
           </div>
           <svg data-whiteboard-canvas="true" />
         </div>
-      </BoardContext.Provider>,
+      </BoardContext.Provider>
     );
   });
 
@@ -68,7 +65,7 @@ afterEach(() => {
 describe("思维导图工具创建", () => {
   it("点击工具栏按钮时不应在白板上创建思维导图节点", async () => {
     const { board, container, root } = await renderMindMapToolbar();
-    const button = container.querySelector(".mind-map-button");
+    const button = container.querySelector('button[aria-label="思维导图"]');
     expect(button).toBeTruthy();
     if (!button) return;
 
@@ -78,7 +75,7 @@ describe("思维导图工具创建", () => {
           bubbles: true,
           clientX: 20,
           clientY: 20,
-        }),
+        })
       );
     });
 
@@ -92,10 +89,8 @@ describe("思维导图工具创建", () => {
 
   it("点击白板画布时应创建思维导图节点", async () => {
     const { board, container, root } = await renderMindMapToolbar();
-    const button = container.querySelector(".mind-map-button");
-    const canvas = container.querySelector(
-      'svg[data-whiteboard-canvas="true"]',
-    );
+    const button = container.querySelector('button[aria-label="思维导图"]');
+    const canvas = container.querySelector('svg[data-whiteboard-canvas="true"]');
     expect(button).toBeTruthy();
     expect(canvas).toBeTruthy();
     if (!button || !canvas) return;
@@ -109,7 +104,7 @@ describe("思维导图工具创建", () => {
           bubbles: true,
           clientX: 120,
           clientY: 80,
-        }),
+        })
       );
     });
 

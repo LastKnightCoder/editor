@@ -1,6 +1,6 @@
 import { Video, Link, Download, Upload, MonitorPlay, Youtube, FileText } from "lucide-react";
 import { v4 as getUuid } from "uuid";
-import { message } from "antd";
+import { toast } from "@tau/ui";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { getVideoInfo } from "@/utils";
 import { downloadFile } from "@/utils/download";
@@ -146,10 +146,10 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
         onSelect: async () => {
           try {
             await navigator.clipboard.writeText(videoElement.src);
-            message.success("链接已复制到剪贴板");
+            toast.success("链接已复制到剪贴板");
           } catch (error) {
             console.error("复制链接失败:", error);
-            message.error("复制链接失败");
+            toast.error("复制链接失败");
           }
         },
       });
@@ -162,12 +162,12 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
         onSelect: async () => {
           try {
             await downloadFile(videoElement.src);
-            message.success("视频下载成功");
+            toast.success("视频下载成功");
           } catch (error: any) {
             // 用户取消下载不显示错误
             if (error?.message !== "用户取消了下载") {
               console.error("下载视频失败:", error);
-              message.error("下载视频失败");
+              toast.error("下载视频失败");
             }
           }
         },
@@ -198,11 +198,7 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
     Promise.all(
       videoFiles.map(file => Promise.all([getVideoInfo(file), Promise.resolve(file)]))
     ).then(async videos => {
-      message.loading({
-        key: "uploading-video",
-        content: "正在处理视频，请稍候...",
-        duration: 0,
-      });
+      const uploadingToast = toast.loading("正在处理视频，请稍候…");
       let insertPath = board.children.length;
       const { minX, minY, width, height } = board.viewPort;
       const center = {
@@ -251,9 +247,9 @@ export class VideoPlugin extends CommonPlugin implements IBoardPlugin {
       }
       if (ops.length > 0) {
         board.apply(ops);
-        message.success("视频粘贴成功");
+        toast.success("视频粘贴成功");
       }
-      message.destroy("uploading-video");
+      toast.dismiss(uploadingToast);
     });
   }
 

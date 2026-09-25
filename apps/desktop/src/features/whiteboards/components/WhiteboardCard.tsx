@@ -28,7 +28,7 @@ import {
   type WhiteboardItem,
   type WhiteboardPage,
 } from "../model";
-import { PageSchematic } from "./PageSchematic";
+import { PageSchematic } from "@/components/WhiteBoard/schematic/PageSchematic";
 
 function MenuIcon({ icon: Icon }: { icon: LucideIcon }) {
   return <Icon className="size-[15px] shrink-0" strokeWidth={1.75} />;

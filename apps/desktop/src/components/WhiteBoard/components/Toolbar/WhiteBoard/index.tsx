@@ -1,31 +1,18 @@
 import { useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import SVG from "react-inlinesvg";
-import whiteBoardIcon from "@/assets/icons/white-board.svg";
-import { Tooltip, Popover } from "antd";
-import { Plus, Link2 } from "lucide-react";
+import { Plus, Link2, Presentation } from "lucide-react";
 import { useBoard } from "../../../hooks";
 import { ECreateBoardElementType } from "../../../types";
 import WhiteBoardSelectorModal from "../../WhiteBoardSelectorModal";
-import ToolbarMenu, { ToolbarMenuItem } from "../ToolbarMenu";
+import { ToolMenu, type ToolMenuItem } from "../ToolMenu";
 
-interface WhiteBoardProps {
-  className?: string;
-  style?: React.CSSProperties;
-}
-
-const WhiteBoard = (props: WhiteBoardProps) => {
-  const { className, style } = props;
+const WhiteBoard = () => {
   const board = useBoard();
 
-  const [popoverOpen, setPopoverOpen] = useState(false);
   const [selectorModalOpen, setSelectorModalOpen] = useState(false);
-  const [selectorAction, setSelectorAction] = useState<"create" | "reference">(
-    "create",
-  );
+  const [selectorAction, setSelectorAction] = useState<"create" | "reference">("create");
 
   const openSelectorModal = useMemoizedFn((action: "create" | "reference") => {
-    setPopoverOpen(false);
     setSelectorAction(action);
     setSelectorModalOpen(true);
     board.currentCreateType = ECreateBoardElementType.WhiteBoard;
@@ -36,46 +23,26 @@ const WhiteBoard = (props: WhiteBoardProps) => {
     board.currentCreateType = ECreateBoardElementType.None;
   });
 
-  const menuItems: ToolbarMenuItem[] = [
+  const menuItems: ToolMenuItem[] = [
     {
       key: "create",
       label: "创建新白板",
-      icon: <Plus size={16} />,
+      icon: Plus,
       onSelect: () => openSelectorModal("create"),
     },
     {
       key: "reference",
       label: "引用已有白板",
-      icon: <Link2 size={16} />,
+      icon: Link2,
       onSelect: () => openSelectorModal("reference"),
     },
   ];
 
   return (
-    <div>
-      <Popover
-        open={popoverOpen}
-        onOpenChange={setPopoverOpen}
-        trigger={["click"]}
-        placement="bottom"
-        arrow={false}
-        content={<ToolbarMenu items={menuItems} />}
-        styles={{
-          container: {
-            background: "transparent",
-            boxShadow: "none",
-            padding: 0,
-          },
-        }}
-      >
-        <Tooltip title="白板">
-          <div className={className} style={style}>
-            <SVG src={whiteBoardIcon} />
-          </div>
-        </Tooltip>
-      </Popover>
+    <>
+      <ToolMenu label="白板" icon={<Presentation strokeWidth={1.75} />} items={menuItems} />
 
-      <div onClick={(e) => e.stopPropagation()}>
+      <div className="contents" onClick={e => e.stopPropagation()}>
         <WhiteBoardSelectorModal
           open={selectorModalOpen}
           onClose={handleCancel}
@@ -83,7 +50,7 @@ const WhiteBoard = (props: WhiteBoardProps) => {
           action={selectorAction}
         />
       </div>
-    </div>
+    </>
   );
 };
 

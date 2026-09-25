@@ -7,7 +7,7 @@ import { buildPlainText, matchesSelectionFilter, selectionFilterLabel } from "..
 import { SelectionFilter } from "../../types";
 import { SelectionCheckbox } from "../SelectionCheckbox";
 import { SearchToolbar } from "../SearchToolbar";
-import { FadeScroll } from "../FadeScroll";
+import { FadeScroll } from "@/components/FadeScroll";
 import { EmptyPlaceholder } from "../EmptyPlaceholder";
 import { ContentPreviewModal } from "../ContentPreviewModal";
 import { useSearch } from "../../hooks";

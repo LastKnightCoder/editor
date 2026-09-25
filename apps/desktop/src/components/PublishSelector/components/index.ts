@@ -1,7 +1,6 @@
 export { TypeRail } from "./TypeRail";
 export { SearchToolbar, SearchInput, SelectionSegment, SelectAllButton } from "./SearchToolbar";
 export { SelectionCheckbox } from "./SelectionCheckbox";
-export { FadeScroll } from "./FadeScroll";
 export { PreviewPanel } from "./PreviewPanel";
 export { EmptyPlaceholder } from "./EmptyPlaceholder";
 export { ContentPreviewModal } from "./ContentPreviewModal";

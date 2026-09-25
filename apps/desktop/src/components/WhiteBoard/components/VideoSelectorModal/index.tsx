@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
-import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
+import { toast } from "@tau/ui";
 import YoutubeVideoSelectModal, {
   type YoutubeVideoSelectResult,
 } from "@/components/YoutubeVideoSelectModal";
@@ -22,7 +22,6 @@ interface VideoSelectorModalProps {
 
 const VideoSelectorModal = ({ open, onClose, board, action }: VideoSelectorModalProps) => {
   const videoInputRef = useRef<HTMLInputElement>(null);
-  const { message } = App.useApp();
 
   // Modal states for different actions
   const [urlModalOpen, setUrlModalOpen] = useState(false);
@@ -63,13 +62,12 @@ const VideoSelectorModal = ({ open, onClose, board, action }: VideoSelectorModal
   const handleAddVideo = useMemoizedFn(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      message.loading({
-        key: "uploading-video",
-        content: "正在处理视频，请稍候...",
-        duration: 0,
-      });
-      await VideoUtil.insertVideo(file, board);
-      message.destroy("uploading-video");
+      const toastId = toast.loading("正在处理视频，请稍候…");
+      try {
+        await VideoUtil.insertVideo(file, board);
+      } finally {
+        toast.dismiss(toastId);
+      }
     }
     event.target.value = "";
     handleClose();
@@ -82,7 +80,7 @@ const VideoSelectorModal = ({ open, onClose, board, action }: VideoSelectorModal
       handleClose();
     } catch (error) {
       console.error("添加远程视频失败:", error);
-      message.error("添加远程视频失败");
+      toast.error("添加远程视频失败");
     }
   });
 
@@ -93,7 +91,7 @@ const VideoSelectorModal = ({ open, onClose, board, action }: VideoSelectorModal
       handleClose();
     } catch (error) {
       console.error("添加 Bilibili 视频失败:", error);
-      message.error("添加 Bilibili 视频失败");
+      toast.error("添加 Bilibili 视频失败");
     }
   });
 
@@ -109,7 +107,7 @@ const VideoSelectorModal = ({ open, onClose, board, action }: VideoSelectorModal
       handleClose();
     } catch (error) {
       console.error("添加 YouTube 视频失败:", error);
-      message.error("添加 YouTube 视频失败");
+      toast.error("添加 YouTube 视频失败");
     }
   });
 

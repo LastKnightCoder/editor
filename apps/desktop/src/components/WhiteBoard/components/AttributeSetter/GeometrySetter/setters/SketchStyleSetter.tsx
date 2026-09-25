@@ -1,7 +1,7 @@
 import React from "react";
 import { GeometrySetterComponentProps } from "../IGeometrySetter";
 import { BaseGeometrySetter } from "../BaseGeometrySetter";
-import { PiPencilLineDuotone } from "react-icons/pi";
+import { ScribbleIcon } from "@/components/WhiteBoard/chrome/icons";
 
 import SketchStyleSetterComponent from "./SketchStyleSetterComponent";
 
@@ -13,7 +13,7 @@ export class SketchStyleSetter extends BaseGeometrySetter {
   }
 
   getIcon(): React.ReactNode {
-    return <PiPencilLineDuotone />;
+    return <ScribbleIcon />;
   }
 
   getComponent(): React.ComponentType<GeometrySetterComponentProps> {

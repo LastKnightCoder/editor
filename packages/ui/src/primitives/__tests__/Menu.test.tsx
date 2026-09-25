@@ -424,6 +424,30 @@ describe("Menu（方案 B）", () => {
     expect(menusInDoc()).toHaveLength(1); // 只剩常驻主层
   });
 
+  it("fit：主层与子层高度上限都放到视口高度；默认仍是 300px", () => {
+    const h = render(
+      <Menu trigger={<button>画布</button>} fit>
+        <Menu.Submenu label="形状">
+          <Menu.Item>矩形</Menu.Item>
+        </Menu.Submenu>
+      </Menu>
+    );
+    cleanups.push(h.cleanup);
+    click(h.trigger);
+    key(h.menu, "ArrowRight");
+    const [main, sub] = menusInDoc();
+    for (const el of [main, sub]) {
+      expect(el.className).toContain("max-h-[calc(100vh-16px)]");
+      expect(el.className).not.toContain("max-h-[300px]");
+    }
+    h.cleanup();
+    cleanups = [];
+
+    const d = render(<Menu trigger={<button>文件</button>}>{FILE_MENU}</Menu>);
+    cleanups.push(d.cleanup);
+    expect(d.menu.className).toContain("max-h-[300px]");
+  });
+
   it("外点关闭：pointerdown 落在组件外时收起", () => {
     const h = render(<Menu trigger={<button>文件</button>}>{FILE_MENU}</Menu>);
     cleanups.push(h.cleanup);

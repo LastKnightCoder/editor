@@ -42,6 +42,9 @@ export interface MenuRootContextValue {
 }
 const MenuRootContext = createContext<MenuRootContextValue | null>(null);
 
+/** fit：本菜单树（主层 + 各级子层）高度上限放到视口高度，不再卡 300px */
+const MenuFitContext = createContext(false);
+
 /** 层级：本层导航高亮 + 子菜单开合（每层 MenuSurface 各持一份） */
 interface MenuLevelContextValue {
   hlId: string | null;
@@ -120,6 +123,7 @@ function MenuSurface({
   children,
 }: MenuSurfaceProps) {
   const root = useContext(MenuRootContext);
+  const fit = useContext(MenuFitContext);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const surfaceId = useId();
   const [activeSubId, setActiveSubId] = useState<string | null>(null);
@@ -260,7 +264,8 @@ function MenuSurface({
         onKeyDown={onKeyDown}
         className={cn(
           "bg-surface border-line-1 shadow-float rounded-tau-lg border p-[6px]",
-          "fixed left-0 top-0 z-[250] flex max-h-[300px] w-max min-w-[160px] max-w-[min(320px,calc(100vw-16px))] flex-col overflow-hidden",
+          "fixed left-0 top-0 z-[250] flex w-max min-w-[160px] max-w-[min(320px,calc(100vw-16px))] flex-col overflow-hidden",
+          fit ? "max-h-[calc(100vh-16px)]" : "max-h-[300px]",
           "ease-tau-out transition-[opacity,transform,visibility] duration-[160ms]",
           "outline-none",
           open ? "opacity-100" : "invisible translate-y-[4px] opacity-0",
@@ -613,6 +618,8 @@ export interface MenuProps {
   onOpenChange?: (open: boolean) => void;
   /** 透传浮层（宽度控制如 w-[280px]） */
   className?: string;
+  /** 尽量展开：主层与子层高度上限放到视口高度（默认 300px），只有视口放不下才滚动 */
+  fit?: boolean;
 }
 
 export function Menu({
@@ -622,6 +629,7 @@ export function Menu({
   open: openProp,
   onOpenChange,
   className,
+  fit = false,
 }: MenuProps) {
   const portalContainer = usePortalContainer();
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -664,22 +672,24 @@ export function Menu({
 
   return (
     <MenuRootContext.Provider value={rootValue}>
-      {cloneTrigger(triggerEl, injected)}
-      {createPortal(
-        <MenuSurface
-          open={open}
-          onClose={closeMenu}
-          focusReturn={() => triggerRef.current?.focus()}
-          getAnchor={() => triggerRef.current?.getBoundingClientRect() ?? null}
-          placement={align === "end" ? "bottom-end" : "bottom-start"}
-          isAnchor={target => triggerRef.current?.contains(target) ?? false}
-          getAnchorEl={() => triggerRef.current}
-          className={className}
-        >
-          {children}
-        </MenuSurface>,
-        portalContainer
-      )}
+      <MenuFitContext.Provider value={fit}>
+        {cloneTrigger(triggerEl, injected)}
+        {createPortal(
+          <MenuSurface
+            open={open}
+            onClose={closeMenu}
+            focusReturn={() => triggerRef.current?.focus()}
+            getAnchor={() => triggerRef.current?.getBoundingClientRect() ?? null}
+            placement={align === "end" ? "bottom-end" : "bottom-start"}
+            isAnchor={target => triggerRef.current?.contains(target) ?? false}
+            getAnchorEl={() => triggerRef.current}
+            className={className}
+          >
+            {children}
+          </MenuSurface>,
+          portalContainer
+        )}
+      </MenuFitContext.Provider>
     </MenuRootContext.Provider>
   );
 }

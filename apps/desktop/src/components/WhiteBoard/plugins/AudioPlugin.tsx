@@ -1,6 +1,6 @@
 import { Music2, Link, Download, Upload, Mic } from "lucide-react";
 import { v4 as getUuid } from "uuid";
-import { message } from "antd";
+import { toast } from "@tau/ui";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { downloadFile } from "@/utils/download";
 import CommonPlugin from "./CommonPlugin";
@@ -122,10 +122,10 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
         onSelect: async () => {
           try {
             await navigator.clipboard.writeText(audioElement.src);
-            message.success("链接已复制到剪贴板");
+            toast.success("链接已复制到剪贴板");
           } catch (error) {
             console.error("复制链接失败:", error);
-            message.error("复制链接失败");
+            toast.error("复制链接失败");
           }
         },
       });
@@ -138,12 +138,12 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
         onSelect: async () => {
           try {
             await downloadFile(audioElement.src);
-            message.success("音频下载成功");
+            toast.success("音频下载成功");
           } catch (error: any) {
             // 用户取消下载不显示错误
             if (error?.message !== "用户取消了下载") {
               console.error("下载音频失败:", error);
-              message.error("下载音频失败");
+              toast.error("下载音频失败");
             }
           }
         },
@@ -171,11 +171,7 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
     if (audioFiles.length === 0) return;
 
     Promise.all(audioFiles.map(file => Promise.resolve(file))).then(async files => {
-      message.loading({
-        key: "uploading-audio",
-        content: "正在处理音频，请稍候...",
-        duration: 0,
-      });
+      const uploadingToast = toast.loading("正在处理音频，请稍候…");
 
       let insertPath = board.children.length;
       const { minX, minY, width, height } = board.viewPort;
@@ -211,9 +207,9 @@ export class AudioPlugin extends CommonPlugin implements IBoardPlugin {
 
       if (ops.length > 0) {
         board.apply(ops);
-        message.success("音频粘贴成功");
+        toast.success("音频粘贴成功");
       }
-      message.destroy("uploading-audio");
+      toast.dismiss(uploadingToast);
     });
   }
 

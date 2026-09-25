@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板元素树重设计 · 总览</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-hover: rgba(67, 57, 44, 0.05);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55); --ok: #61795f; --danger: #b0564d;
+    --canvas: #fbf7ef; --canvas-dot: rgba(67, 57, 44, 0.13);
+    --shadow: 0 1px 2px rgba(120,100,70,0.05), 0 10px 24px -14px rgba(120,100,70,0.18);
+    --lift: 0 1px 2px rgba(120,100,70,0.08), 0 4px 10px -6px rgba(120,100,70,0.3);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 14px/1.75 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 40px 8vw 80px; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { color: var(--ink-2); margin-top: 6px; max-width: 92ch; }
+  header .meta { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+  h2 { font-size: 16px; margin: 42px 0 14px; font-weight: 600; }
+  ul.tight { padding-left: 20px; color: var(--ink-2); max-width: 96ch; }
+  ul.tight li + li { margin-top: 4px; }
+  ul.tight b { color: var(--ink-1); font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+  .card { background: var(--bg-surface); border-radius: 16px; padding: 20px 22px; box-shadow: var(--shadow); text-decoration: none; color: inherit; display: flex; flex-direction: column;
+    outline: 1px solid transparent; transition: box-shadow 200ms, outline-color 200ms; }
+  .card:hover { outline-color: var(--line-1); box-shadow: 0 16px 40px -12px rgba(120,100,70,0.3); }
+  .card .no { font: 600 12px/1 ui-monospace, Consolas, monospace; color: var(--accent-text); }
+  .card h3 { font-size: 15.5px; margin: 6px 0 2px; font-weight: 600; }
+  .card .who { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+  .card p { font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  /* 线框：一张纸 + 画布点阵 + 浮动件 */
+  .wire { margin-top: 14px; height: 150px; border-radius: 12px; background-color: var(--canvas); background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px); background-size: 8px 8px;
+    position: relative; overflow: hidden; box-shadow: inset 0 0 0 1px var(--line-2); }
+  .wire i { position: absolute; background: var(--bg-surface); border-radius: 5px; box-shadow: var(--lift); }
+  .wire i.acc { background: var(--accent-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); }
+  .wire i.el { background: #dbe8fb; box-shadow: none; border-radius: 3px; }
+  .wire i.el.sel { box-shadow: 0 0 0 1.5px var(--accent); }
+  .wire i.el2 { background: #e4f1ea; box-shadow: none; border-radius: 3px; }
+  .wire i.bar { background: var(--line-1); box-shadow: none; }
+  .card .verdict { margin-top: 12px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .verdict .good { color: var(--ok); } .verdict .bad { color: var(--danger); }
+  .card .open { margin-top: auto; padding-top: 12px; font-size: 12.5px; color: var(--accent-text); font-weight: 500; }
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--bg-hover); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line-2); }
+  td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  code { font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--bg-surface); border: 1px solid var(--line-1); padding: 1px 6px; border-radius: 5px; color: var(--accent-text); }
+  kbd { font: 11px/1 ui-monospace, monospace; background: var(--bg-hover); border-radius: 4px; padding: 2px 5px; color: var(--ink-2); }
+  .ask { background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow); padding: 16px 20px; max-width: 100ch; }
+  .ask + .ask { margin-top: 10px; }
+  .ask b { display: block; font-weight: 600; margin-bottom: 4px; }
+  .ask p { color: var(--ink-2); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>白板元素树重设计</h1>
+  <p class="sub">元素树从「左上角按钮 + 浮层」改成<b>画布纸面内的左栏</b>：和项目文档树同构（同一张纸、右缘一条淡线、可拖宽），开关钉在标题栏面包屑最前面，收起 / 展开只换状态不跳位。三个方案共用这套骨架，只在<b>行怎么长</b>上不同。画布是上一轮的同一张可操作 mock：点行 = 选中并把元素带进视野，画布上选中也会同步到树。</p>
+  <p class="meta">可以试：面包屑 ▯ 开关 · 拖左栏右缘改宽 · 点行 / 右键行 / 双击改名 · 查找 · 右上「主题化元素」看缩略色跟着变</p>
+</header>
+
+<h2>现状的问题</h2>
+<ul class="tight">
+  <li><b>全叫「文本」</b>：元素没手动命名时，行名退回类型名——同一类元素一整屏同名同图标，树等于没有。三个方案都改成<b>取内容当名字</b>（文本首行、卡片标题、图形里的字、图片说明、箭头「起点 → 终点」），命名过的优先用名字。</li>
+  <li><b>浮层盖画布</b>：浮层压住画布左侧，开着就没法在那一块操作；入口是画布里的一颗悬浮按钮。</li>
+  <li><b>信息太少</b>：没有子元素数，看不出画框 / 导图里装了多少东西。</li>
+</ul>
+
+<h2>三个方案</h2>
+<div class="cards">
+  <a class="card" href="plan-a.html"><span class="no">A</span><h3>中性图标 + 内容命名</h3>
+    <p>行首保持中性墨色线性图标（比现在大一号、深一档），名字取内容，容器右侧挂子元素数。最克制，完全是「主题语言」那一路。</p>
+    <div class="verdict"><span class="good">+ 最安静，和项目文档树一个样子</span><span class="bad">− 区分只靠图标形状，扫一眼时类型感弱</span></div>
+    <span class="open">打开方案 A →</span></a>
+  <a class="card" href="plan-b.html"><span class="no">B</span><h3>类型色块图标</h3>
+    <p>图标放进 22px 圆角色块，按类型取主题的 tag 粉彩（图形蓝、文本赭、卡片紫、图片绿、导图陶土）；箭头 / 手写这类连线不上色、文字降一档，自动退到背景里；画框只描边。</p>
+    <div class="verdict"><span class="good">+ 一眼分出类型，连线不再和内容抢</span><span class="bad">− 多了一层颜色，色是「类型」而不是元素自己的色</span></div>
+    <span class="open">打开方案 B →</span></a>
+  <a class="card" href="plan-c.html"><span class="no">C</span><h3>缩略预览（图层面板）</h3>
+    <p>行首是元素<b>自己的样子</b>：图形按自己的形状和填充色画、图片用缩略图、卡片用自己的底色、箭头用自己的线色；两行式，第二行是类型 · 细节（卡片是正文首句，画框是「13 个元素」）。</p>
+    <div class="verdict"><span class="good">+ 和画布一一对得上，颜色是用户数据不是装饰</span><span class="bad">− 行高 40px，一屏装得少；实现要为每种元素写一个缩略画法</span></div>
+    <span class="open">打开方案 C →</span></a>
+</div>
+
+<h2>需要你定的</h2>
+<div class="ask"><b>1. 选 A / B / C（或组合）</b><p>我倾向 <b>C</b>：你说「颜色没啥意思」——按类型配色确实是装饰，但元素自己的颜色是信息（蓝色的 Q、绿色的 K），C 用的是后者；图片也能直接认出是哪张。嫌行太高可以做「C 的缩略 + A 的单行」。</p></div>
+<div class="ask"><b>2. 展开元素树时全局侧栏要不要自动收成图标列？</b><p>项目详情进入时会收（文档树接替侧栏位置）。白板我倾向<b>不自动收</b>：元素树默认收起，打开是临时查找，不该连带改掉全局侧栏。</p></div>
+<div class="ask"><b>3. 默认展开还是收起，要不要记住？</b><p>倾向：默认收起，开关状态全局记住（同项目文档树，跨白板、跨重启）；宽度也记住。</p></div>
+<div class="ask"><b>4. 「按类型筛选」要不要做？</b><p>头部留了一个筛选按钮位（mock 未实现），元素多时可以只看「图片」或「卡片」。不需要就去掉。</p></div>
+</body>
+</html>

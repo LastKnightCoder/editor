@@ -1,44 +1,29 @@
 import { memo } from "react";
-import classnames from "classnames";
-import SVG from "react-inlinesvg";
-import { useMemoizedFn } from "ahooks";
+import { Frame as FrameIcon } from "lucide-react";
 import { ECreateBoardElementType } from "../../../types";
 import { useBoard, useCreateElementType } from "../../../hooks";
-import frameIcon from "@/assets/white-board/frame.svg";
+import { ChromeButton } from "../../../chrome";
 import useCreateFrame from "./useCreateFrame";
 
-import styles from "../index.module.less";
-import { Tooltip } from "antd";
-
-interface FrameProps {
-  className?: string;
-}
-
-const Frame = memo(({ className }: FrameProps) => {
+const Frame = memo(() => {
   const board = useBoard();
-  const createBoardElementType = useCreateElementType();
+  const createType = useCreateElementType();
+  const active = createType === ECreateBoardElementType.Frame;
 
   useCreateFrame();
 
-  const onClickCreateFrame = useMemoizedFn(() => {
-    board.currentCreateType =
-      createBoardElementType === ECreateBoardElementType.Frame
-        ? ECreateBoardElementType.None
-        : ECreateBoardElementType.Frame;
-  });
-
   return (
-    <Tooltip title="Frame">
-      <div
-        className={classnames(className, styles.toolBarItem, {
-          [styles.active]:
-            createBoardElementType === ECreateBoardElementType.Frame,
-        })}
-        onClick={onClickCreateFrame}
-      >
-        <SVG src={frameIcon} />
-      </div>
-    </Tooltip>
+    <ChromeButton
+      label="画框"
+      active={active}
+      onClick={() => {
+        board.currentCreateType = active
+          ? ECreateBoardElementType.None
+          : ECreateBoardElementType.Frame;
+      }}
+    >
+      <FrameIcon strokeWidth={1.75} />
+    </ChromeButton>
   );
 });
 

@@ -6,11 +6,20 @@
 import { useMemo, useState } from "react";
 import { usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { BoardCanvas } from "../components/BoardCanvas";
+import { OutlineToggle } from "../components/OutlineToggle";
 
 export function WhiteBoardContentView() {
   const { id } = usePageParams<{ id: number }>();
   const [name, setName] = useState("");
-  const title = useMemo(() => <span>{name || "白板"}</span>, [name]);
+  const title = useMemo(
+    () => (
+      <span className="flex min-w-0 items-center gap-1">
+        <OutlineToggle />
+        <span className="text-tau-meta text-ink-2 min-w-0 truncate px-1.5">{name || "白板"}</span>
+      </span>
+    ),
+    [name]
+  );
   usePageBreadcrumb("whiteboard-content", title);
   return <BoardCanvas key={id} id={id} onLoaded={content => setName(content.name)} />;
 }

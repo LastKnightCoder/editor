@@ -37,17 +37,11 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
         // 这里只需排除 frame 以防止嵌套
         canContain: (child: BoardElement) => child.type !== "frame",
 
-        buildDragFeedbackOps: (
-          board: Board,
-          container: BoardElement,
-          feedback,
-        ) => {
+        buildDragFeedbackOps: (board: Board, container: BoardElement, feedback) => {
           const frame = container as FrameElement;
           const path = PathUtil.getPathByElement(board, frame);
           if (!path) return [];
-          const isChildMoveIn = feedback
-            ? feedback.isTarget && !feedback.isCurrent
-            : false;
+          const isChildMoveIn = feedback ? feedback.isTarget && !feedback.isCurrent : false;
           if (frame.isChildMoveIn === isChildMoveIn) return [];
           return [
             {
@@ -66,28 +60,16 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
           FrameUtil.calculateFrameBounds(board, container as FrameElement),
 
         // 容器协议实现
-        isElementInContainer: (
-          _board: Board,
-          container: BoardElement,
-          element: BoardElement,
-        ) => {
+        isElementInContainer: (_board: Board, container: BoardElement, element: BoardElement) => {
           const frame = container as FrameElement;
-          return FrameUtil.isElementInFrame(
-            element,
-            frame,
-            frame.containmentPolicy,
-          );
+          return FrameUtil.isElementInFrame(element, frame, frame.containmentPolicy);
         },
 
         isChildInContainer: (container: BoardElement, child: BoardElement) => {
           return FrameUtil.isChildInFrame(container as FrameElement, child);
         },
 
-        getDropIndex: (
-          _board: Board,
-          container: BoardElement,
-          _dropY: number,
-        ) => {
+        getDropIndex: (_board: Board, container: BoardElement, _dropY: number) => {
           // Frame 不关心插入顺序，始终添加到末尾
           return (container as FrameElement).children?.length ?? 0;
         },
@@ -95,7 +77,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
         prepareElementForInsertion: async (
           _board: Board,
           _container: BoardElement,
-          element: BoardElement,
+          element: BoardElement
         ) => {
           // Frame 不调整元素尺寸，保持原样
           return element;
@@ -124,7 +106,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
                     height: newBounds.height,
                   },
                 },
-                true,
+                true
               );
             }
           }
@@ -153,7 +135,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
                     height: newBounds.height,
                   },
                 },
-                true,
+                true
               );
             }
           }
@@ -161,8 +143,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
       },
       movement: {
         behavior: MovementBehavior.MoveWithChildren,
-        collectMoveSubtree: (element) =>
-          FrameUtil.getAllChildren(element as FrameElement),
+        collectMoveSubtree: element => FrameUtil.getAllChildren(element as FrameElement),
       },
       render: {
         childrenOrder: ChildrenRenderOrder.Reversed,
@@ -182,7 +163,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
     if (targetElements.length === 0) {
       items.push({
         key: "create-frame",
-        label: "Frame",
+        label: "画框",
         icon: <FrameIcon size={14} />,
         priority: 180,
         onSelect: (ctx: ContextMenuContext) => {
@@ -192,19 +173,15 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
     }
 
     // 右键点击 Frame → 添加「解散 Frame」和「自适应内容」菜单
-    const frameElement = targetElements.find((el) => el.type === "frame") as
-      | FrameElement
-      | undefined;
+    const frameElement = targetElements.find(el => el.type === "frame") as FrameElement | undefined;
     if (frameElement) {
       items.push({
         key: "dissolve-frame",
-        label: "解散 Frame",
+        label: "解散画框",
         icon: <Ungroup size={14} />,
         priority: 200,
         onSelect: (ctx: ContextMenuContext) => {
-          const frame = ctx.targetElements.find(
-            (el) => el.type === "frame",
-          ) as FrameElement;
+          const frame = ctx.targetElements.find(el => el.type === "frame") as FrameElement;
           if (!frame) return;
 
           const framePath = PathUtil.getPathByElement(ctx.board, frame);
@@ -248,9 +225,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
         icon: <Maximize size={14} />,
         priority: 201,
         onSelect: (ctx: ContextMenuContext) => {
-          const frame = ctx.targetElements.find(
-            (el) => el.type === "frame",
-          ) as FrameElement;
+          const frame = ctx.targetElements.find(el => el.type === "frame") as FrameElement;
           if (!frame) return;
 
           const newBounds = FrameUtil.calculateFrameFitBounds(ctx.board, frame);
@@ -282,12 +257,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
     return items;
   }
 
-  moveElement(
-    _board: Board,
-    element: FrameElement,
-    dx: number,
-    dy: number,
-  ): BoardElement | null {
+  moveElement(_board: Board, element: FrameElement, dx: number, dy: number): BoardElement | null {
     return FrameUtil.moveAll(element, dx, dy);
   }
 
@@ -298,19 +268,11 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
     startPoint: Point,
     endPoint: Point,
     isPreserveRatio = false,
-    isAdsorb = false,
+    isAdsorb = false
   ) {
     const updatedFrame = Object.assign(
       {},
-      super.onResize(
-        board,
-        element,
-        position,
-        startPoint,
-        endPoint,
-        isPreserveRatio,
-        isAdsorb,
-      ),
+      super.onResize(board, element, position, startPoint, endPoint, isPreserveRatio, isAdsorb)
     );
 
     if (Object.keys(updatedFrame).length === 0) return;
@@ -318,29 +280,24 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
     const ops: Operation[] = [];
 
     const capService = board.capabilityService;
-    const newElementsInArea = board.children.filter(
-      (boardElement: BoardElement) => {
-        // 使用能力查询：跳过容器和不可被包含的元素
-        if (
-          capService.isContainer(boardElement) ||
-          !capService.canBeContained(boardElement)
-        )
-          return false;
+    const newElementsInArea = board.children.filter((boardElement: BoardElement) => {
+      // 使用能力查询：跳过容器和不可被包含的元素
+      if (capService.isContainer(boardElement) || !capService.canBeContained(boardElement))
+        return false;
 
-        // 跳过已经被其他容器包含的元素
-        const parent = BoardUtil.getParent(board, boardElement);
-        if (parent && capService.isContainer(parent)) return false;
+      // 跳过已经被其他容器包含的元素
+      const parent = BoardUtil.getParent(board, boardElement);
+      if (parent && capService.isContainer(parent)) return false;
 
-        return FrameUtil.isElementInFrame(boardElement, updatedFrame);
-      },
-    );
+      return FrameUtil.isElementInFrame(boardElement, updatedFrame);
+    });
 
     // 处理移出 frame 的元素 - 使用 move_node 从 frame.children 移动到 board.children
-    const outChildren = element.children.filter((child) => {
+    const outChildren = element.children.filter(child => {
       return !FrameUtil.isElementInFrame(child, updatedFrame);
     });
 
-    outChildren.forEach((child) => {
+    outChildren.forEach(child => {
       const oldPath = PathUtil.getPathByElement(board, child);
       if (!oldPath) return;
 
@@ -358,7 +315,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
     if (!framePath) return;
 
     // 处理新进入 frame 的元素 - 使用 move_node 从 board.children 移动到 frame.children
-    newElementsInArea.forEach((boardElement) => {
+    newElementsInArea.forEach(boardElement => {
       const oldPath = PathUtil.getPathByElement(board, boardElement);
       if (!oldPath) return;
 
@@ -382,10 +339,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
       const newestFrame = BoardUtil.getElementById(board, frame.id);
 
       if (newestFrame && newestFrame.autoResize) {
-        const newBounds = FrameUtil.calculateFrameBounds(
-          board,
-          newestFrame as FrameElement,
-        );
+        const newBounds = FrameUtil.calculateFrameBounds(board, newestFrame as FrameElement);
         const framePath = PathUtil.getPathByElement(board, frame);
         const newFrame = {
           ...newestFrame,
@@ -433,10 +387,7 @@ export class FramePlugin extends CommonPlugin implements IBoardPlugin {
     });
   }
 
-  render(
-    _board: Board,
-    { element, children }: { element: FrameElement; children?: any },
-  ) {
+  render(_board: Board, { element, children }: { element: FrameElement; children?: any }) {
     return (
       <g key={element.id}>
         <Frame

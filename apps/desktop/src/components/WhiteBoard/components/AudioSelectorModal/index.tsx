@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from "react";
-import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
+import { toast } from "@tau/ui";
 import RemoteAudioSelectModal from "@/components/RemoteAudioSelectModal";
 import TTSGenerateModal from "@/components/TTSGenerateModal";
 import Board from "../../Board";
@@ -15,7 +15,6 @@ interface AudioSelectorModalProps {
 
 const AudioSelectorModal = ({ open, onClose, board, action }: AudioSelectorModalProps) => {
   const audioInputRef = useRef<HTMLInputElement>(null);
-  const { message } = App.useApp();
 
   // Modal states for different actions
   const [urlModalOpen, setUrlModalOpen] = useState(false);
@@ -51,13 +50,12 @@ const AudioSelectorModal = ({ open, onClose, board, action }: AudioSelectorModal
   const handleAddAudio = useMemoizedFn(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      message.loading({
-        key: "uploading-audio",
-        content: "正在处理音频，请稍候...",
-        duration: 0,
-      });
-      await AudioUtil.insertAudio(file, board);
-      message.destroy("uploading-audio");
+      const toastId = toast.loading("正在处理音频，请稍候…");
+      try {
+        await AudioUtil.insertAudio(file, board);
+      } finally {
+        toast.dismiss(toastId);
+      }
     }
     event.target.value = "";
     handleClose();
@@ -70,26 +68,22 @@ const AudioSelectorModal = ({ open, onClose, board, action }: AudioSelectorModal
       handleClose();
     } catch (error) {
       console.error("添加远程音频失败:", error);
-      message.error("添加远程音频失败");
+      toast.error("添加远程音频失败");
     }
   });
 
   const handleTTSConfirm = useMemoizedFn(async (audioBlob: Blob, text: string) => {
+    const toastId = toast.loading("正在保存音频…");
     try {
-      message.loading({
-        key: "uploading-tts-audio",
-        content: "正在保存音频...",
-        duration: 0,
-      });
       await AudioUtil.insertAudioFromTTS(audioBlob, text, board);
       setTTSModalOpen(false);
       handleClose();
-      message.success("音频添加成功");
+      toast.success("音频添加成功");
     } catch (error) {
       console.error("添加 TTS 音频失败:", error);
-      message.error("添加音频失败");
+      toast.error("添加音频失败");
     } finally {
-      message.destroy("uploading-tts-audio");
+      toast.dismiss(toastId);
     }
   });
 

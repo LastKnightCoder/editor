@@ -16,7 +16,7 @@ const SelectArea = memo(() => {
       width={Math.abs(anchor.x - focus.x)}
       height={Math.abs(anchor.y - focus.y)}
       fill={SELECT_AREA_COLOR}
-      fillOpacity={0.2}
+      fillOpacity={0.12}
       stroke={SELECT_AREA_COLOR}
       strokeWidth={1}
     />

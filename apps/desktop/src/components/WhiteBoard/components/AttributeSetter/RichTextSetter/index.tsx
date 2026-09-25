@@ -1,14 +1,8 @@
 import { RichTextElement } from "@/components/WhiteBoard/plugins";
-import { MdOutlineColorLens } from "react-icons/md";
-import { CgArrowsShrinkH, CgArrowsShrinkV } from "react-icons/cg";
-import { MdOutlinePadding } from "react-icons/md";
-import { TbShadow } from "react-icons/tb";
 import { produce } from "immer";
-
-import styles from "./index.module.less";
-import { Popover, Tooltip, Slider, ConfigProvider, theme } from "antd";
 import { useMemoizedFn } from "ahooks";
-import { useState } from "react";
+import { FoldHorizontal, FoldVertical } from "lucide-react";
+
 import { CardUtil, RichTextUtil } from "@/components/WhiteBoard/utils";
 import {
   EShadowSize,
@@ -17,7 +11,17 @@ import {
 } from "@/components/WhiteBoard/constants";
 import { DOMSizeMeasurer } from "@/components/WhiteBoard/services/DOMSizeMeasurer";
 import useTheme from "@/hooks/useTheme";
-import classnames from "classnames";
+import {
+  AttrAction,
+  AttrPopover,
+  Field,
+  OptionGrid,
+  Slider,
+  SwatchRow,
+  type SwatchOption,
+} from "@/components/WhiteBoard/chrome";
+import { PaddingIcon, ShadowIcon } from "@/components/WhiteBoard/chrome/icons";
+
 interface RichTextSetterProps {
   element: RichTextElement;
   onChange: (element: RichTextElement) => void;
@@ -116,8 +120,7 @@ const gradientColors: ColorConfig[] = [
     theme: "light",
   },
   {
-    background:
-      "linear-gradient(310.93deg, #D6EBFF 6.86%, #E7FBF9 100%, #E4FFFF 100%)",
+    background: "linear-gradient(310.93deg, #D6EBFF 6.86%, #E7FBF9 100%, #E4FFFF 100%)",
     topColor: "transparent",
     color: "rgb(38, 38, 40)",
     theme: "light",
@@ -169,16 +172,42 @@ const topColors: ColorConfig[] = [
   },
 ];
 
+const keyOf = (c: { background?: string; topColor?: string }) =>
+  `${c.background ?? "transparent"}|${c.topColor ?? "transparent"}`;
+/** 顶部色条的样例：上 38% 为色条 */
+const swatchFill = (c: Pick<ColorConfig, "background" | "topColor">) =>
+  c.topColor && c.topColor !== "transparent"
+    ? `linear-gradient(${c.topColor} 0 38%, ${c.background} 38%)`
+    : c.background;
+const toSwatches = (colors: ColorConfig[], names: string[]): SwatchOption[] =>
+  colors.map((c, i) => ({
+    key: keyOf(c),
+    label: names[i] ?? "",
+    fill: swatchFill(c),
+    stroke: "var(--tau-line-1)",
+    kind: c.background === "transparent" ? "none" : undefined,
+  }));
+const ALL_COLORS = [...noBackgroundColors, ...pureColors, ...gradientColors, ...topColors];
+/** 数据色：四组保留现状全部色值，外壳用主题语言 */
+const COLOR_GROUPS = [
+  { label: "透明", options: toSwatches(noBackgroundColors, ["透明"]) },
+  {
+    label: "纯色",
+    options: toSwatches(pureColors, ["白", "黑", "红", "橙", "黄", "绿", "紫", "蓝"]),
+  },
+  {
+    label: "渐变",
+    options: toSwatches(gradientColors, ["石墨", "樱粉", "柠黄", "薄荷", "天青", "雾紫", "灰紫"]),
+  },
+  { label: "顶部色条", options: toSwatches(topColors, ["金", "玫红", "青绿", "紫", "墨"]) },
+];
+
 const RichTextSetter = (props: RichTextSetterProps) => {
   const { element, onChange } = props;
-
-  const [selectColorOpen, setSelectColorOpen] = useState(false);
-  const [selectPaddingOpen, setSelectPaddingOpen] = useState(false);
-  const [selectShadowOpen, setSelectShadowOpen] = useState(false);
   const { isDark } = useTheme();
 
   const handleOnSelectColor = useMemoizedFn((color: ColorConfig) => {
-    const newElement = produce(element, (draft) => {
+    const newElement = produce(element, draft => {
       draft.background = color.background;
       draft.topColor = color.topColor;
       draft.color = color.color;
@@ -200,21 +229,21 @@ const RichTextSetter = (props: RichTextSetterProps) => {
   });
 
   const handlePaddingWidthChange = useMemoizedFn((value: number) => {
-    const newElement = produce(element, (draft) => {
+    const newElement = produce(element, draft => {
       draft.paddingWidth = value;
     });
     onChange(newElement);
   });
 
   const handlePaddingHeightChange = useMemoizedFn((value: number) => {
-    const newElement = produce(element, (draft) => {
+    const newElement = produce(element, draft => {
       draft.paddingHeight = value;
     });
     onChange(newElement);
   });
 
   const handleShadowSizeChange = useMemoizedFn((size: EShadowSize) => {
-    const newElement = produce(element, (draft) => {
+    const newElement = produce(element, draft => {
       draft.shadowSize = size;
     });
     // @ts-ignore
@@ -224,16 +253,13 @@ const RichTextSetter = (props: RichTextSetterProps) => {
       RichTextUtil.setLocalStorage("shadowSize", size);
     }
     onChange(newElement);
-    setSelectShadowOpen(false);
   });
 
   const handleFitHeight = useMemoizedFn(() => {
-    const richTextContainer = document.getElementById(
-      `rich-text-container-${element.id}`,
-    );
+    const richTextContainer = document.getElementById(`rich-text-container-${element.id}`);
     if (!richTextContainer) return;
     const editor = richTextContainer.querySelector(
-      ":scope > [data-slate-editor]",
+      ":scope > [data-slate-editor]"
     ) as HTMLDivElement;
     if (!editor) return;
 
@@ -241,12 +267,11 @@ const RichTextSetter = (props: RichTextSetterProps) => {
 
     // 获取滚动高度
     const scrollHeight = editor.scrollHeight;
-    const newElement = produce(element, (draft) => {
+    const newElement = produce(element, draft => {
       draft.height = Math.ceil(scrollHeight);
       draft.maxHeight = Math.max(Math.ceil(scrollHeight), 3000);
       // 如果宽度大于300，则不进行调整
-      draft.resized =
-        Math.round(element.width) !== richTextContainer.scrollWidth;
+      draft.resized = Math.round(element.width) !== richTextContainer.scrollWidth;
     });
     onChange(newElement);
   });
@@ -257,10 +282,10 @@ const RichTextSetter = (props: RichTextSetterProps) => {
       element.id,
       element.content,
       element.paddingWidth || 16,
-      element.paddingHeight || 16,
+      element.paddingHeight || 16
     );
 
-    const newElement = produce(element, (draft) => {
+    const newElement = produce(element, draft => {
       // 测量端已 Math.ceil，仅 +2 防亚像素/fit-content 收缩抖动，不设 300 下限以真正收缩；
       // width 与 maxWidth 取相同值，使聚焦/非聚焦 foreignObject 宽度一致，
       // 消除非聚焦时 fit-content 被父容器恰好封顶在文字自然宽度而导致的换行
@@ -273,243 +298,84 @@ const RichTextSetter = (props: RichTextSetterProps) => {
     onChange(newElement);
   });
 
+  const value = keyOf(element);
+  const bgSwatch =
+    !element.background || element.background === "transparent"
+      ? ({ fill: "", kind: "none" } as const)
+      : {
+          fill: swatchFill({
+            background: element.background,
+            topColor: element.topColor ?? "transparent",
+          }),
+          stroke: "var(--tau-line-1)",
+        };
+
   return (
-    <div
-      onPointerDown={(e) => {
-        e.stopPropagation();
-      }}
-      onDoubleClick={(e) => {
-        e.stopPropagation();
-      }}
-      className={classnames(styles.container, {
-        [styles.dark]: isDark,
-      })}
-    >
-      <Popover
-        open={selectColorOpen}
-        onOpenChange={setSelectColorOpen}
-        styles={{
-          container: {
-            background: "transparent",
-            boxShadow: "none",
-            padding: 0,
-            marginLeft: 12,
-          },
-        }}
-        trigger={"click"}
-        content={
-          <div
-            className={classnames(styles.colorPickerPopover, {
-              [styles.dark]: isDark,
-            })}
-          >
-            <div className={styles.colorSection}>
-              <div className={styles.sectionTitle}>透明背景</div>
-              <div className={styles.colorGrid}>
-                {noBackgroundColors.map((color) => (
-                  <div
-                    key={`${color.background}-${color.topColor}-${color.color}`}
-                    className={styles.colorItem}
-                    style={{ background: color.background }}
-                    onClick={() => handleOnSelectColor(color)}
-                  >
-                    <div
-                      className={styles.colorItemTopBar}
-                      style={{ background: color.topColor }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className={styles.colorSection}>
-              <div className={styles.sectionTitle}>纯色背景</div>
-              <div className={styles.colorGrid}>
-                {pureColors.map((color) => (
-                  <div
-                    key={`${color.background}-${color.topColor}-${color.color}`}
-                    className={styles.colorItem}
-                    style={{ background: color.background }}
-                    onClick={() => handleOnSelectColor(color)}
-                  >
-                    <div
-                      className={styles.colorItemTopBar}
-                      style={{ background: color.topColor }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className={styles.colorSection}>
-              <div className={styles.sectionTitle}>渐变背景</div>
-              <div className={styles.colorGrid}>
-                {gradientColors.map((color) => (
-                  <div
-                    key={`${color.background}-${color.topColor}-${color.color}`}
-                    className={styles.colorItem}
-                    style={{ background: color.background }}
-                    onClick={() => handleOnSelectColor(color)}
-                  >
-                    <div
-                      className={styles.colorItemTopBar}
-                      style={{ background: color.topColor }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className={styles.colorSection}>
-              <div className={styles.sectionTitle}>顶部背景</div>
-              <div className={styles.colorGrid}>
-                {topColors.map((color) => (
-                  <div
-                    key={`${color.background}-${color.topColor}-${color.color}`}
-                    className={styles.colorItem}
-                    style={{ background: color.background }}
-                    onClick={() => handleOnSelectColor(color)}
-                  >
-                    <div
-                      className={styles.colorItemTopBar}
-                      style={{ background: color.topColor }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        }
-        placement={"right"}
-        arrow={false}
-      >
-        <Tooltip title={"背景颜色"} trigger={"hover"} placement={"left"}>
-          <div className={styles.item}>
-            <MdOutlineColorLens />
-          </div>
-        </Tooltip>
-      </Popover>
-      <Popover
-        open={selectPaddingOpen}
-        onOpenChange={setSelectPaddingOpen}
-        styles={{
-          container: {
-            background: "transparent",
-            boxShadow: "none",
-            padding: 0,
-            marginLeft: 12,
-          },
-        }}
-        trigger={"click"}
-        content={
-          <div
-            className={classnames(styles.paddingPopover, {
-              [styles.dark]: isDark,
-            })}
-          >
-            <div className={styles.sliderGroup}>
-              <div className={styles.sliderLabel}>水平内边距</div>
-              <ConfigProvider
-                theme={{
-                  algorithm: isDark
-                    ? theme.darkAlgorithm
-                    : theme.defaultAlgorithm,
-                }}
-              >
-                <Slider
-                  min={0}
-                  max={40}
-                  step={1}
-                  value={element.paddingWidth || 16}
-                  onChange={handlePaddingWidthChange}
-                  tooltip={{ formatter: (value) => `${value}px` }}
-                />
-              </ConfigProvider>
-            </div>
-            <div className={styles.sliderGroup}>
-              <div className={styles.sliderLabel}>垂直内边距</div>
-              <ConfigProvider
-                theme={{
-                  algorithm: isDark
-                    ? theme.darkAlgorithm
-                    : theme.defaultAlgorithm,
-                }}
-              >
-                <Slider
-                  min={0}
-                  max={40}
-                  step={1}
-                  value={element.paddingHeight || 16}
-                  onChange={handlePaddingHeightChange}
-                  tooltip={{ formatter: (value) => `${value}px` }}
-                />
-              </ConfigProvider>
-            </div>
-          </div>
-        }
-        placement={"right"}
-        arrow={false}
-      >
-        <Tooltip title={"内边距"} placement={"left"}>
-          <div className={styles.item}>
-            <MdOutlinePadding />
-          </div>
-        </Tooltip>
-      </Popover>
-      <Popover
-        open={selectShadowOpen}
-        onOpenChange={setSelectShadowOpen}
-        styles={{
-          container: {
-            background: "transparent",
-            boxShadow: "none",
-            padding: 0,
-            marginLeft: 12,
-          },
-        }}
-        trigger={"click"}
-        content={
-          <div
-            className={classnames(styles.shadowPopover, {
-              [styles.dark]: isDark,
-            })}
-          >
-            {SHADOW_SIZE_OPTIONS.map((option) => (
-              <div
-                key={option.value}
-                className={classnames(styles.shadowOptionItem, {
-                  [styles.active]:
-                    (element.shadowSize ?? EShadowSize.None) === option.value,
-                })}
-                onClick={() => handleShadowSizeChange(option.value)}
-              >
-                <div
-                  className={styles.shadowPreview}
-                  style={{ boxShadow: getShadowStyle(option.value, false) }}
-                />
-                <span>{option.label}</span>
-              </div>
-            ))}
-          </div>
-        }
-        placement={"right"}
-        arrow={false}
-      >
-        <Tooltip title={"阴影大小"} placement={"left"}>
-          <div className={styles.item}>
-            <TbShadow />
-          </div>
-        </Tooltip>
-      </Popover>
-      <Tooltip title={"适应高度"} placement={"left"}>
-        <div className={styles.item} onClick={handleFitHeight}>
-          <CgArrowsShrinkV />
-        </div>
-      </Tooltip>
-      <Tooltip title={"适应宽度"} placement={"left"}>
-        <div className={styles.item} onClick={handleFitWidth}>
-          <CgArrowsShrinkH />
-        </div>
-      </Tooltip>
-    </div>
+    <>
+      <AttrPopover label="背景" swatch={bgSwatch}>
+        {COLOR_GROUPS.map(g => (
+          <Field key={g.label} label={g.label}>
+            <SwatchRow options={g.options} value={value} onChange={pick} />
+          </Field>
+        ))}
+      </AttrPopover>
+      <AttrPopover label="内边距" icon={<PaddingIcon />} width={248}>
+        <Field label="水平">
+          <Slider
+            label="水平内边距"
+            min={0}
+            max={40}
+            unit="px"
+            value={element.paddingWidth || 16}
+            onChange={handlePaddingWidthChange}
+          />
+        </Field>
+        <Field label="垂直">
+          <Slider
+            label="垂直内边距"
+            min={0}
+            max={40}
+            unit="px"
+            value={element.paddingHeight || 16}
+            onChange={handlePaddingHeightChange}
+          />
+        </Field>
+      </AttrPopover>
+      <AttrPopover label="阴影" icon={<ShadowIcon />} width={220}>
+        <OptionGrid
+          options={SHADOW_SIZE_OPTIONS.map(o => ({
+            value: o.value,
+            label: o.label,
+            showLabel: true,
+            glyph: (
+              <span
+                aria-hidden
+                className="bg-surface ring-line-1 block size-[18px] flex-none rounded-[4px] ring-1"
+                style={{ boxShadow: getShadowStyle(o.value, isDark) }}
+              />
+            ),
+          }))}
+          value={element.shadowSize ?? EShadowSize.None}
+          onChange={handleShadowSizeChange}
+        />
+      </AttrPopover>
+      <AttrAction
+        label="适应高度"
+        icon={<FoldVertical strokeWidth={1.75} />}
+        onClick={handleFitHeight}
+      />
+      <AttrAction
+        label="适应宽度"
+        icon={<FoldHorizontal strokeWidth={1.75} />}
+        onClick={handleFitWidth}
+      />
+    </>
   );
+
+  function pick(key: string) {
+    const c = ALL_COLORS.find(o => keyOf(o) === key);
+    if (c) handleOnSelectColor(c);
+  }
 };
 
 export default RichTextSetter;

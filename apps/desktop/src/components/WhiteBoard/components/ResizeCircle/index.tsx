@@ -19,13 +19,9 @@ interface ResizeCircleProps {
     startPoint: Point,
     endPoint: Point,
     isPreserveRatio?: boolean,
-    isAdsorb?: boolean,
+    isAdsorb?: boolean
   ) => void;
-  onResizeEnd?: (
-    position: EHandlerPosition,
-    startPoint: Point,
-    endPoint: Point,
-  ) => void;
+  onResizeEnd?: (position: EHandlerPosition, startPoint: Point, endPoint: Point) => void;
 }
 
 const ResizeCircle = memo((props: ResizeCircleProps) => {
@@ -36,7 +32,7 @@ const ResizeCircle = memo((props: ResizeCircleProps) => {
     r,
     innerRadius = r - 2,
     fill,
-    innerFill = "white",
+    innerFill = "var(--tau-bg-surface)",
     onResizeStart,
     onResize,
     onResizeEnd,
@@ -45,22 +41,15 @@ const ResizeCircle = memo((props: ResizeCircleProps) => {
   const ref = useRef<SVGGElement>(null);
 
   const { run: handleOnResize } = useThrottleFn(
-    (
-      startPoint: Point,
-      endPoint: Point,
-      isPreserveRatio?: boolean,
-      isAdsorb?: boolean,
-    ) => {
+    (startPoint: Point, endPoint: Point, isPreserveRatio?: boolean, isAdsorb?: boolean) => {
       onResize(position, startPoint, endPoint, isPreserveRatio, isAdsorb);
     },
-    { wait: 25 },
+    { wait: 25 }
   );
 
-  const handleOnResizeEnd = useMemoizedFn(
-    (startPoint: Point, endPoint: Point) => {
-      onResizeEnd?.(position, startPoint, endPoint);
-    },
-  );
+  const handleOnResizeEnd = useMemoizedFn((startPoint: Point, endPoint: Point) => {
+    onResizeEnd?.(position, startPoint, endPoint);
+  });
 
   useResize({
     ref,

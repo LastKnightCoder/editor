@@ -1,36 +1,26 @@
-import React from "react";
-import { RiMindMap } from "react-icons/ri";
-import { useMemoizedFn } from "ahooks";
-import { Tooltip } from "antd";
+import { Network } from "lucide-react";
 
 import { useBoard, useCreateElementType } from "../../../hooks";
 import { ECreateBoardElementType } from "../../../types";
+import { ChromeButton } from "../../../chrome";
 
-interface MindMapProps {
-  className?: string;
-  style?: React.CSSProperties;
-}
-
-const MindMap = (props: MindMapProps) => {
-  const { className, style } = props;
-
+const MindMap = () => {
   const board = useBoard();
-
-  const createElementType = useCreateElementType();
-
-  const onClickCreateElement = useMemoizedFn(() => {
-    board.currentCreateType =
-      ECreateBoardElementType.MindMap === createElementType
-        ? ECreateBoardElementType.None
-        : ECreateBoardElementType.MindMap;
-  });
+  const createType = useCreateElementType();
+  const active = createType === ECreateBoardElementType.MindMap;
 
   return (
-    <Tooltip title="思维导图">
-      <div className={className} style={style} onClick={onClickCreateElement}>
-        <RiMindMap />
-      </div>
-    </Tooltip>
+    <ChromeButton
+      label="思维导图"
+      active={active}
+      onClick={() => {
+        board.currentCreateType = active
+          ? ECreateBoardElementType.None
+          : ECreateBoardElementType.MindMap;
+      }}
+    >
+      <Network strokeWidth={1.75} />
+    </ChromeButton>
   );
 };
 

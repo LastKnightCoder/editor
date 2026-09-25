@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { message } from "antd";
+import { toast } from "@tau/ui";
 import { v4 as getUuid } from "uuid";
 
 import ContentSelectorModal from "@/components/ContentSelectorModal";
@@ -20,36 +20,30 @@ interface CardSelectorModalProps {
   board: Board;
 }
 
-const CardSelectorModal = ({
-  open,
-  onClose,
-  board,
-}: CardSelectorModalProps) => {
-  const dynamicExtensions = useDynamicExtensionsStore(
-    (state) => state.extensions,
-  );
+const CardSelectorModal = ({ open, onClose, board }: CardSelectorModalProps) => {
+  const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const [cards, setCards] = useState<ICard[]>([]);
   const [excludeCardIds, setExcludeCardIds] = useState<number[]>([]);
 
   useEffect(() => {
     if (open) {
-      getAllCards().then((cards) => {
+      getAllCards().then(cards => {
         setCards(cards);
       });
 
       // 获取已存在的卡片 ID
       const existCards: BoardElement[] = [];
-      BoardUtil.dfs(board, (element) => {
+      BoardUtil.dfs(board, element => {
         if (element.type === "card") {
           existCards.push(element);
         }
       });
-      setExcludeCardIds(existCards.map((item) => (item as any).cardId));
+      setExcludeCardIds(existCards.map(item => (item as any).cardId));
     }
   }, [open, board]);
 
   const initialContents = useMemo(() => {
-    return cards.map((card) => ({
+    return cards.map(card => ({
       id: card.id,
       contentId: card.contentId,
       type: "card" as IndexType,
@@ -60,67 +54,63 @@ const CardSelectorModal = ({
     }));
   }, [cards]);
 
-  const onSelectOk = useMemoizedFn(
-    async (selectedResult: SearchResult | SearchResult[]) => {
-      const results = Array.isArray(selectedResult)
-        ? selectedResult
-        : [selectedResult];
-      if (results.length === 0) {
-        message.error("没有可选择的卡片");
-        return;
-      }
+  const onSelectOk = useMemoizedFn(async (selectedResult: SearchResult | SearchResult[]) => {
+    const results = Array.isArray(selectedResult) ? selectedResult : [selectedResult];
+    if (results.length === 0) {
+      toast.error("没有可选择的卡片");
+      return;
+    }
 
-      const result = results[0];
-      const { minX, minY, width, height } = board.viewPort;
-      const center = {
-        x: minX + width / 2,
-        y: minY + height / 2,
-      };
-      const cardWidth = 300;
-      const cardHeight = 300;
-      const element: CardElement = {
-        id: getUuid(),
-        type: "card",
-        cardId: result.id,
-        x: center.x - cardWidth / 2,
-        y: center.y - cardHeight / 2,
-        width: cardWidth,
-        height: cardHeight,
-        resized: true,
-        maxWidth: 300,
-        maxHeight: 300,
-        paddingHeight: 20,
-        paddingWidth: 20,
-        readonly: false,
-        ...CardUtil.getPrevCardStyle(),
-      };
+    const result = results[0];
+    const { minX, minY, width, height } = board.viewPort;
+    const center = {
+      x: minX + width / 2,
+      y: minY + height / 2,
+    };
+    const cardWidth = 300;
+    const cardHeight = 300;
+    const element: CardElement = {
+      id: getUuid(),
+      type: "card",
+      cardId: result.id,
+      x: center.x - cardWidth / 2,
+      y: center.y - cardHeight / 2,
+      width: cardWidth,
+      height: cardHeight,
+      resized: true,
+      maxWidth: 300,
+      maxHeight: 300,
+      paddingHeight: 20,
+      paddingWidth: 20,
+      readonly: false,
+      ...CardUtil.getPrevCardStyle(),
+    };
 
-      board.apply([
-        {
-          type: "insert_node",
-          path: [board.children.length],
-          node: element,
+    board.apply([
+      {
+        type: "insert_node",
+        path: [board.children.length],
+        node: element,
+      },
+      {
+        type: "set_selection",
+        properties: board.selection,
+        newProperties: {
+          selectArea: null,
+          selectedElements: [element],
         },
-        {
-          type: "set_selection",
-          properties: board.selection,
-          newProperties: {
-            selectArea: null,
-            selectedElements: [element],
-          },
-        },
-      ]);
-      board.currentCreateType = ECreateBoardElementType.None;
-      onClose();
-    },
-  );
+      },
+    ]);
+    board.currentCreateType = ECreateBoardElementType.None;
+    onClose();
+  });
 
   const handleCancel = useMemoizedFn(() => {
     onClose();
   });
 
   return (
-    <div onClick={(e) => e.stopPropagation()}>
+    <div onClick={e => e.stopPropagation()}>
       <ContentSelectorModal
         title="选择卡片"
         open={open}

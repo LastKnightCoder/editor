@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { Globe } from "lucide-react";
 import { Panel } from "@tau/ui";
 import PublishSelector from "@/components/PublishSelector";
-import { FadeScroll } from "@/components/PublishSelector/components";
+import { FadeScroll } from "@/components/FadeScroll";
 import LocalImage from "@/components/LocalImage";
 import { openExternal } from "@/commands/extra";
 import { useSettingsStore } from "@/app/settingsStore";

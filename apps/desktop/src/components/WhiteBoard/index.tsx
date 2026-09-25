@@ -9,9 +9,8 @@ import React, {
   useImperativeHandle,
 } from "react";
 import { useMemoizedFn, useCreation, useThrottleFn, useLocalStorageState } from "ahooks";
-import classnames from "classnames";
-import { App } from "antd";
-import { CloseOutlined } from "@ant-design/icons";
+import { X } from "lucide-react";
+import { ConfirmDialog, IconButton, cn, toast } from "@tau/ui";
 import { AnimatePresence, motion } from "motion/react";
 
 import Board from "./Board";
@@ -83,9 +82,6 @@ import ContextMenuLayer, {
 import { ViewPortTransforms } from "./transforms";
 import { BoardUtil, PathUtil, PointUtil } from "./utils";
 
-import SidebarToggleButton from "@/components/SidebarToggleButton";
-
-import styles from "./index.module.less";
 import ResizeableAndHideableSidebar from "../ResizableAndHideableSidebar";
 import NotePanel from "./components/NotePanel";
 import CardSelectorModal from "./components/CardSelectorModal";
@@ -192,7 +188,7 @@ const WhiteBoard = memo(
       initPresentationSequences = DEFAULT_PRESENTATION_SEQUENCES,
       readonly,
       onChange,
-      showSidebar = true,
+      showSidebar = false,
       showToolbar,
       showAttributeSetter,
       showStatusBar = true,
@@ -200,13 +196,6 @@ const WhiteBoard = memo(
 
     const toolbarVisible = showToolbar ?? !readonly;
     const attributeSetterVisible = showAttributeSetter ?? !readonly;
-
-    const [sidebarWidth, setSidebarWidth] = useLocalStorageState("whiteboard-sidebar-width", {
-      defaultValue: 300,
-    });
-    const [sidebarOpen, setSidebarOpen] = useLocalStorageState("whiteboard-sidebar-open", {
-      defaultValue: true,
-    });
 
     const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
     const [activeNoteTitle, setActiveNoteTitle] = useState<string | null>(null);
@@ -334,7 +323,8 @@ const WhiteBoard = memo(
         }
       >()
     );
-    const { message, modal } = App.useApp();
+    // 取消关联笔记的二次确认（ConfirmDialog；原 antd modal.confirm）
+    const [unlinkNodeId, setUnlinkNodeId] = useState<string | null>(null);
 
     // 监听右键菜单弹窗事件
     useEffect(() => {
@@ -421,7 +411,7 @@ const WhiteBoard = memo(
                 }
               }
             }
-            message.success("创建卡片成功");
+            toast.success("创建卡片成功");
             return;
           }
           if (payload.mode === "article") {
@@ -439,7 +429,7 @@ const WhiteBoard = memo(
                 }
               }
             }
-            message.success("创建文章成功");
+            toast.success("创建文章成功");
             return;
           }
           setPendingRichTextTitlePrompt({
@@ -449,7 +439,7 @@ const WhiteBoard = memo(
           });
         } catch (error) {
           console.error("Failed to create content from rich text:", error);
-          message.error("创建失败");
+          toast.error("创建失败");
         }
       };
 
@@ -457,7 +447,7 @@ const WhiteBoard = memo(
       return () => {
         board.off("richtext:create-as", handleRichTextCreateAs);
       };
-    }, [board, ensureRichTextContentId, message]);
+    }, [board, ensureRichTextContentId]);
 
     const buildContextMenuItems = useMemoizedFn(
       ({
@@ -787,28 +777,16 @@ const WhiteBoard = memo(
       };
     }, [clearPointerViewport]);
 
-    // 监听打开笔记事件
+    // 监听打开笔记事件（入口在元素树右键与思维导图属性条 / 右键菜单，只开不关，关闭走抽屉自身）
     useEffect(() => {
       const handleOpenNote = (contentId: number, contentTitle: string) => {
         setActiveNoteId(contentId);
         setActiveVideoNote(null);
         setActiveNoteTitle(contentTitle);
       };
-      const handleToggleNote = (contentId: number, contentTitle: string) => {
-        if (activeNoteIdRef.current === contentId) {
-          setActiveNoteId(null);
-          setActiveNoteTitle(null);
-        } else {
-          setActiveVideoNote(null);
-          setActiveNoteId(contentId);
-          setActiveNoteTitle(contentTitle);
-        }
-      };
       board.on("open-note", handleOpenNote);
-      board.on("toggle-note", handleToggleNote);
       return () => {
         board.off("open-note", handleOpenNote);
-        board.off("toggle-note", handleToggleNote);
       };
     }, [board]);
 
@@ -884,7 +862,7 @@ const WhiteBoard = memo(
 
             const createdVideoNoteId = await creating;
             if (!createdVideoNoteId) {
-              message.error("创建视频笔记失败");
+              toast.error("创建视频笔记失败");
               return;
             }
             videoNoteId = createdVideoNoteId;
@@ -899,7 +877,7 @@ const WhiteBoard = memo(
           setActiveVideoElement(videoElementRefs.current.get(element.id) ?? null);
         } catch (error) {
           console.error("Open whiteboard video note failed:", error);
-          message.error("打开视频笔记失败");
+          toast.error("打开视频笔记失败");
         }
       };
 
@@ -941,49 +919,43 @@ const WhiteBoard = memo(
         board.off("element:remove", handleElementRemove);
         board.off("video-note:element-ref", handleVideoElementRef);
       };
-    }, [board, message]);
+    }, [board]);
 
     // 监听取消关联笔记的二次确认
     useEffect(() => {
       const handleConfirmUnlinkNote = (nodeId: string) => {
         const node = BoardUtil.getElementById(board, nodeId) as MindNodeElement | null;
         if (!node?.contentId) return;
-        modal.confirm({
-          title: "取消关联笔记",
-          content: "确定取消该节点与笔记的关联吗？笔记内容不会被删除，可稍后重新关联。",
-          okText: "取消关联",
-          okButtonProps: { danger: true },
-          cancelText: "再想想",
-          onOk: async () => {
-            const unlinkContentId = node.contentId!;
-            await decrementContentRefCount(unlinkContentId);
-            const nodePath = PathUtil.getPathByElement(board, node);
-            if (!nodePath) return;
-            board.apply({
-              type: "set_node",
-              path: nodePath,
-              properties: {
-                contentId: node.contentId,
-                contentTitle: node.contentTitle,
-              },
-              newProperties: {
-                contentId: undefined,
-                contentTitle: undefined,
-              },
-            });
-            // 若侧边栏正打开该笔记，则一并关闭
-            if (activeNoteIdRef.current === unlinkContentId) {
-              setActiveNoteId(null);
-              setActiveNoteTitle(null);
-            }
-          },
-        });
+        setUnlinkNodeId(nodeId);
       };
       board.on("mind:confirm-unlink-note", handleConfirmUnlinkNote);
       return () => {
         board.off("mind:confirm-unlink-note", handleConfirmUnlinkNote);
       };
-    }, [board, modal]);
+    }, [board]);
+
+    const confirmUnlinkNote = useMemoizedFn(async () => {
+      const node = unlinkNodeId
+        ? (BoardUtil.getElementById(board, unlinkNodeId) as MindNodeElement | null)
+        : null;
+      setUnlinkNodeId(null);
+      if (!node?.contentId) return;
+      const unlinkContentId = node.contentId;
+      await decrementContentRefCount(unlinkContentId);
+      const nodePath = PathUtil.getPathByElement(board, node);
+      if (!nodePath) return;
+      board.apply({
+        type: "set_node",
+        path: nodePath,
+        properties: { contentId: node.contentId, contentTitle: node.contentTitle },
+        newProperties: { contentId: undefined, contentTitle: undefined },
+      });
+      // 若侧边栏正打开该笔记，则一并关闭
+      if (activeNoteIdRef.current === unlinkContentId) {
+        setActiveNoteId(null);
+        setActiveNoteTitle(null);
+      }
+    });
 
     useEffect(() => {
       const handleRefLineChange = () => {
@@ -1099,7 +1071,7 @@ const WhiteBoard = memo(
     });
 
     // 全览功能
-    const handleFitAll = useMemoizedFn((e: React.MouseEvent<HTMLDivElement>) => {
+    const handleFitAll = useMemoizedFn((e: React.MouseEvent<HTMLElement>) => {
       return handleFitElements(FIT_VIEW_PADDING, true)(e);
     });
 
@@ -1126,29 +1098,14 @@ const WhiteBoard = memo(
                 <ArrowConnectPointOverlayContext.Provider value={connectPointOverlayRef}>
                   <PointerViewportStoreContext.Provider value={pointerViewportStore}>
                     <div className="relative flex h-full">
-                      {showSidebar && !isPresentationMode && (
-                        <>
-                          <ResizeableAndHideableSidebar
-                            className="relative h-full flex-none shrink-0 overflow-hidden border-r border-[#f0f0f0] dark:border-[#2a2a2a]"
-                            width={sidebarWidth ?? 300}
-                            onWidthChange={setSidebarWidth}
-                            open={!!sidebarOpen}
-                            onToggle={() => setSidebarOpen(!sidebarOpen)}
-                            sidebarPosition="left"
-                            disableResize={!sidebarOpen}
-                          >
-                            <Sidebar />
-                          </ResizeableAndHideableSidebar>
-                          <SidebarToggleButton.Expand
-                            isHidden={!sidebarOpen}
-                            onToggle={() => setSidebarOpen(!sidebarOpen)}
-                            side="left"
-                          />
-                        </>
-                      )}
+                      {/* 元素树停靠栏：纸面内左栏，开关在宿主页面的面包屑 */}
+                      {showSidebar && !isPresentationMode && <Sidebar />}
                       <div
                         ref={containerRef}
-                        className={classnames("min-w-0 flex-1", styles.boardContainer, className)}
+                        className={cn(
+                          "[:fullscreen]:w-screen [:fullscreen]:h-screen [:fullscreen]:bg-surface relative h-full min-w-0 flex-1",
+                          className
+                        )}
                         style={style}
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
@@ -1185,9 +1142,7 @@ const WhiteBoard = memo(
                             connectPointOverlayRef={connectPointOverlayRef}
                           />
 
-                          <div className={styles.verticalBar}>
-                            {attributeSetterVisible && <AttributeSetter />}
-                          </div>
+                          {attributeSetterVisible && <AttributeSetter />}
                         </div>
 
                         <PresentationCreator />
@@ -1223,7 +1178,7 @@ const WhiteBoard = memo(
                         {activeNoteId != null && (
                           <motion.div
                             key="note-panel"
-                            className="absolute bottom-0 right-0 top-0 z-50"
+                            className="absolute bottom-3 right-3 top-3 z-50"
                             initial={{ x: "100%", opacity: 0.6 }}
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: "100%", opacity: 0.6 }}
@@ -1245,7 +1200,7 @@ const WhiteBoard = memo(
                         {activeVideoNote != null && (
                           <motion.div
                             key="video-note-panel"
-                            className="absolute bottom-0 right-0 top-0 z-50"
+                            className="absolute bottom-3 right-3 top-3 z-50"
                             initial={{ x: "100%", opacity: 0.6 }}
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: "100%", opacity: 0.6 }}
@@ -1263,7 +1218,7 @@ const WhiteBoard = memo(
                               maxWidth={720}
                               resizeHandleSide="left"
                               sidebarPosition="right"
-                              className="z-50 flex h-full flex-col overflow-hidden border-l border-[#f0f0f0] bg-white dark:border-[#2a2a2a] dark:bg-[#1e1e1e]"
+                              className="bg-surface shadow-float ring-line-1 z-50 flex h-full flex-col overflow-hidden rounded-[14px] ring-1"
                             >
                               <div
                                 className="relative h-full"
@@ -1272,17 +1227,16 @@ const WhiteBoard = memo(
                                 onKeyDownCapture={event => event.stopPropagation()}
                                 onKeyUpCapture={event => event.stopPropagation()}
                               >
-                                <button
-                                  type="button"
-                                  className="absolute right-3 top-3 z-20 flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
+                                <IconButton
+                                  className="absolute right-2.5 top-2.5 z-20 size-7"
                                   onClick={() => {
                                     setActiveVideoNote(null);
                                     setActiveVideoElement(null);
                                   }}
                                   aria-label="关闭视频笔记"
                                 >
-                                  <CloseOutlined />
-                                </button>
+                                  <X size={15} strokeWidth={1.75} />
+                                </IconButton>
                                 <VideoNotePanel
                                   videoNoteId={activeVideoNote.videoNoteId}
                                   externalVideoElement={activeVideoElement}
@@ -1341,6 +1295,16 @@ const WhiteBoard = memo(
                         action={contextMenuModal?.action}
                         selectedElementIds={contextMenuModal?.selectedElementIds}
                       />
+                      <ConfirmDialog
+                        open={unlinkNodeId !== null}
+                        onOpenChange={open => !open && setUnlinkNodeId(null)}
+                        danger
+                        title="取消关联笔记？"
+                        description="笔记内容不会被删除，之后可以重新关联。"
+                        confirmText="取消关联"
+                        cancelText="再想想"
+                        onConfirm={confirmUnlinkNote}
+                      />
                       <ImagePreviewModal
                         open={imagePreview.open}
                         src={imagePreview.src}
@@ -1384,7 +1348,7 @@ const WhiteBoard = memo(
                         onCancel={() => setPendingRichTextCreateTarget(null)}
                         onSuccess={() => {
                           setPendingRichTextCreateTarget(null);
-                          message.success("创建成功");
+                          toast.success("创建成功");
                         }}
                       />
                     </div>

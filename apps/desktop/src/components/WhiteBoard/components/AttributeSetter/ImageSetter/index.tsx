@@ -1,26 +1,19 @@
-import { memo, useState } from "react";
+import { memo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Popover, Tooltip } from "antd";
-import { MdOutlineColorLens, MdOutlineTextFields } from "react-icons/md";
-import { CgAlignLeft, CgAlignCenter, CgAlignRight } from "react-icons/cg";
-import { BiSolidUpArrow, BiSolidDownArrow } from "react-icons/bi";
-import { TbShadow } from "react-icons/tb";
+import { Captions } from "lucide-react";
 import { produce } from "immer";
 import { ImageElement } from "../../../types";
 import {
+  DEFAULT_DESCRIPTION_ALIGNMENT,
+  DEFAULT_DESCRIPTION_POSITION,
   EDescriptionPosition,
   EDescriptionAlignment,
 } from "../../../constants/image";
-import {
-  EShadowSize,
-  SHADOW_SIZE_OPTIONS,
-  getShadowStyle,
-} from "../../../constants";
+import { EShadowSize, SHADOW_SIZE_OPTIONS, getShadowStyle } from "../../../constants";
 import { ImageUtil } from "../../../utils";
-
-import styles from "./index.module.less";
 import useTheme from "@/hooks/useTheme";
-import classnames from "classnames";
+import { AttrPopover, Field, OptionGrid, Seg, SwatchRow } from "../../../chrome";
+import { ShadowIcon } from "../../../chrome/icons";
 
 interface ImageSetterProps {
   element: ImageElement;
@@ -76,304 +69,99 @@ const DESCRIPTION_COLORS: DescriptionColor[] = [
   },
 ];
 
+const COLOR_NAMES = ["无", "蓝", "绿", "黄", "橙", "红", "紫", "灰"];
+const colorKey = (c: { backgroundColor?: string; borderColor?: string }) =>
+  `${c.backgroundColor ?? "transparent"}|${c.borderColor ?? "transparent"}`;
+
 const ImageSetter = memo((props: ImageSetterProps) => {
   const { element, onChange } = props;
   const { isDark } = useTheme();
   const { showDescription = false } = element;
-  const [colorPickerVisible, setColorPickerVisible] = useState(false);
-  const [positionPopoverVisible, setPositionPopoverVisible] = useState(false);
-  const [alignmentPopoverVisible, setAlignmentPopoverVisible] = useState(false);
-  const [shadowPopoverVisible, setShadowPopoverVisible] = useState(false);
+  const set = (recipe: (draft: ImageElement) => void) => onChange(produce(element, recipe));
 
-  const handlePositionChange = useMemoizedFn(
-    (position: EDescriptionPosition) => {
-      const newElement = produce(element, (draft) => {
-        draft.descriptionPosition = position;
-      });
-      onChange(newElement);
-      setPositionPopoverVisible(false);
-    },
-  );
-
-  const handleAlignmentChange = useMemoizedFn(
-    (alignment: EDescriptionAlignment) => {
-      const newElement = produce(element, (draft) => {
-        draft.descriptionAlignment = alignment;
-      });
-      onChange(newElement);
-      setAlignmentPopoverVisible(false);
-    },
-  );
-
-  const handleOnSelectColor = useMemoizedFn((color: DescriptionColor) => {
-    const newElement = produce(element, (draft) => {
-      if (!draft.descriptionStyle) {
-        draft.descriptionStyle = {};
-      }
+  const handleShadowSizeChange = useMemoizedFn((size: EShadowSize) => {
+    set(draft => void (draft.shadowSize = size));
+    ImageUtil.setLocalStorage("shadowSize", size);
+  });
+  const handleOnSelectColor = useMemoizedFn((key: string) => {
+    const color = DESCRIPTION_COLORS.find(c => colorKey(c) === key);
+    if (!color) return;
+    set(draft => {
+      if (!draft.descriptionStyle) draft.descriptionStyle = {};
       draft.descriptionStyle.backgroundColor = color.backgroundColor;
       draft.descriptionStyle.borderColor = color.borderColor;
       draft.descriptionStyle.color = color.color;
     });
-    onChange(newElement);
-    setColorPickerVisible(false);
   });
-
-  const handleToggleDescriptionChange = useMemoizedFn(() => {
-    const newElement = produce(element, (draft) => {
-      draft.showDescription = !draft.showDescription;
-    });
-    onChange(newElement);
-  });
-
-  const handleShadowSizeChange = useMemoizedFn((size: EShadowSize) => {
-    const newElement = produce(element, (draft) => {
-      draft.shadowSize = size;
-    });
-    ImageUtil.setLocalStorage("shadowSize", size);
-    onChange(newElement);
-    setShadowPopoverVisible(false);
-  });
-
-  const stopPropagation = useMemoizedFn((e: React.UIEvent) => {
-    e.stopPropagation();
-    e.nativeEvent.stopImmediatePropagation();
-  });
-
-  const positionContent = (
-    <div
-      className={classnames(styles.popoverContent, {
-        [styles.dark]: isDark,
-      })}
-      onClick={stopPropagation}
-      onPointerDown={stopPropagation}
-      onPointerUp={stopPropagation}
-      onWheel={stopPropagation}
-    >
-      <div
-        className={styles.positionItem}
-        onClick={() => handlePositionChange(EDescriptionPosition.TOP)}
-      >
-        <BiSolidUpArrow />
-        <span>上方</span>
-      </div>
-      <div
-        className={classnames(styles.positionItem)}
-        onClick={() => handlePositionChange(EDescriptionPosition.BOTTOM)}
-      >
-        <BiSolidDownArrow />
-        <span>下方</span>
-      </div>
-    </div>
-  );
-
-  const alignmentContent = (
-    <div
-      className={classnames(styles.popoverContent, {
-        [styles.dark]: isDark,
-      })}
-      onClick={stopPropagation}
-      onPointerDown={stopPropagation}
-      onPointerUp={stopPropagation}
-      onWheel={stopPropagation}
-    >
-      <div
-        className={classnames(styles.alignItem)}
-        onClick={() => handleAlignmentChange(EDescriptionAlignment.LEFT)}
-      >
-        <CgAlignLeft />
-        <span>左对齐</span>
-      </div>
-      <div
-        className={classnames(styles.alignItem)}
-        onClick={() => handleAlignmentChange(EDescriptionAlignment.CENTER)}
-      >
-        <CgAlignCenter />
-        <span>居中</span>
-      </div>
-      <div
-        className={classnames(styles.alignItem)}
-        onClick={() => handleAlignmentChange(EDescriptionAlignment.RIGHT)}
-      >
-        <CgAlignRight />
-        <span>右对齐</span>
-      </div>
-    </div>
-  );
-
-  const colorContent = (
-    <div
-      onClick={stopPropagation}
-      onPointerDown={stopPropagation}
-      onPointerUp={stopPropagation}
-      onWheel={stopPropagation}
-      className={classnames(styles.colorPickerContent, {
-        [styles.dark]: isDark,
-      })}
-    >
-      {DESCRIPTION_COLORS.map((color) => (
-        <div
-          key={`${color.backgroundColor}`}
-          className={styles.colorItem}
-          style={{
-            background: color.backgroundColor,
-            borderColor:
-              color.borderColor !== "transparent" ? color.borderColor : "gray",
-          }}
-          onClick={() => handleOnSelectColor(color)}
-        ></div>
-      ))}
-    </div>
-  );
 
   return (
-    <div
-      onPointerDown={stopPropagation}
-      onDoubleClick={stopPropagation}
-      onWheel={stopPropagation}
-      className={classnames(styles.container, {
-        [styles.dark]: isDark,
-      })}
-    >
-      <Popover
-        open={shadowPopoverVisible}
-        onOpenChange={setShadowPopoverVisible}
-        styles={{
-          container: {
-            background: "transparent",
-            boxShadow: "none",
-            padding: 0,
-            marginLeft: 12,
-          },
-        }}
-        trigger={"click"}
-        content={
-          <div
-            onClick={stopPropagation}
-            onPointerDown={stopPropagation}
-            onPointerUp={stopPropagation}
-            onWheel={stopPropagation}
-            className={classnames(styles.shadowPopover, {
-              [styles.dark]: isDark,
-            })}
-          >
-            {SHADOW_SIZE_OPTIONS.map((option) => (
-              <div
-                key={option.value}
-                className={classnames(styles.shadowOptionItem, {
-                  [styles.active]:
-                    (element.shadowSize ?? EShadowSize.None) === option.value,
-                })}
-                onClick={() => handleShadowSizeChange(option.value)}
-              >
-                <div
-                  className={styles.shadowPreview}
-                  style={{ boxShadow: getShadowStyle(option.value, false) }}
-                />
-                <span>{option.label}</span>
-              </div>
-            ))}
-          </div>
-        }
-        placement={"right"}
-        arrow={false}
+    <>
+      <AttrPopover label="阴影" icon={<ShadowIcon />} width={220}>
+        <OptionGrid
+          options={SHADOW_SIZE_OPTIONS.map(o => ({
+            value: o.value,
+            label: o.label,
+            showLabel: true,
+            glyph: (
+              <span
+                aria-hidden
+                className="bg-surface ring-line-1 block size-[18px] flex-none rounded-[4px] ring-1"
+                style={{ boxShadow: getShadowStyle(o.value, isDark) }}
+              />
+            ),
+          }))}
+          value={element.shadowSize ?? EShadowSize.None}
+          onChange={handleShadowSizeChange}
+        />
+      </AttrPopover>
+      <AttrPopover
+        label="描述"
+        icon={<Captions strokeWidth={1.75} />}
+        width={260}
+        toggle={{ checked: showDescription, onChange: v => set(d => void (d.showDescription = v)) }}
       >
-        <Tooltip title={"阴影大小"} placement={"left"}>
-          <div className={styles.item}>
-            <TbShadow />
-          </div>
-        </Tooltip>
-      </Popover>
-      <Tooltip
-        title={!showDescription ? "显示描述" : "隐藏描述"}
-        trigger={"hover"}
-        placement={"left"}
-      >
-        <div className={styles.item} onClick={handleToggleDescriptionChange}>
-          <MdOutlineTextFields />
-        </div>
-      </Tooltip>
-      {showDescription && (
-        <>
-          <Popover
-            open={positionPopoverVisible}
-            onOpenChange={setPositionPopoverVisible}
-            styles={{
-              container: {
-                background: "transparent",
-                boxShadow: "none",
-                padding: 0,
-                marginLeft: 12,
-              },
-            }}
-            trigger={"click"}
-            content={positionContent}
-            placement={"right"}
-            arrow={false}
-          >
-            <Tooltip title={"描述位置"} trigger={"hover"} placement={"left"}>
-              <div className={styles.item}>
-                {element.descriptionPosition === EDescriptionPosition.TOP ? (
-                  <BiSolidUpArrow />
-                ) : (
-                  <BiSolidDownArrow />
-                )}
-              </div>
-            </Tooltip>
-          </Popover>
-
-          <Popover
-            open={alignmentPopoverVisible}
-            onOpenChange={setAlignmentPopoverVisible}
-            styles={{
-              container: {
-                background: "transparent",
-                boxShadow: "none",
-                padding: 0,
-                marginLeft: 12,
-              },
-            }}
-            trigger={"click"}
-            content={alignmentContent}
-            placement={"right"}
-            arrow={false}
-          >
-            <Tooltip title={"文本对齐"} trigger={"hover"} placement={"left"}>
-              <div className={styles.item}>
-                {element.descriptionAlignment ===
-                  EDescriptionAlignment.LEFT && <CgAlignLeft />}
-                {element.descriptionAlignment ===
-                  EDescriptionAlignment.CENTER && <CgAlignCenter />}
-                {element.descriptionAlignment ===
-                  EDescriptionAlignment.RIGHT && <CgAlignRight />}
-              </div>
-            </Tooltip>
-          </Popover>
-
-          <Popover
-            open={colorPickerVisible}
-            onOpenChange={setColorPickerVisible}
-            styles={{
-              container: {
-                background: "transparent",
-                boxShadow: "none",
-                padding: 0,
-                marginLeft: 12,
-              },
-            }}
-            trigger={"click"}
-            content={colorContent}
-            placement={"right"}
-            arrow={false}
-          >
-            <Tooltip title={"背景颜色"} trigger={"hover"} placement={"left"}>
-              <div className={styles.item}>
-                <MdOutlineColorLens />
-              </div>
-            </Tooltip>
-          </Popover>
-        </>
-      )}
-    </div>
+        {showDescription && (
+          <>
+            <Field label="位置">
+              <Seg<EDescriptionPosition>
+                label="描述位置"
+                value={element.descriptionPosition ?? DEFAULT_DESCRIPTION_POSITION}
+                onChange={v => set(d => void (d.descriptionPosition = v))}
+                options={[
+                  { value: EDescriptionPosition.TOP, label: "上方" },
+                  { value: EDescriptionPosition.BOTTOM, label: "下方" },
+                ]}
+              />
+            </Field>
+            <Field label="对齐">
+              <Seg<EDescriptionAlignment>
+                label="描述对齐"
+                value={element.descriptionAlignment ?? DEFAULT_DESCRIPTION_ALIGNMENT}
+                onChange={v => set(d => void (d.descriptionAlignment = v))}
+                options={[
+                  { value: EDescriptionAlignment.LEFT, label: "左对齐" },
+                  { value: EDescriptionAlignment.CENTER, label: "居中" },
+                  { value: EDescriptionAlignment.RIGHT, label: "右对齐" },
+                ]}
+              />
+            </Field>
+            <Field label="背景">
+              <SwatchRow
+                options={DESCRIPTION_COLORS.map((c, i) => ({
+                  key: colorKey(c),
+                  label: COLOR_NAMES[i] ?? "",
+                  fill: c.backgroundColor,
+                  stroke: c.borderColor,
+                  kind: c.backgroundColor === "transparent" ? "none" : undefined,
+                }))}
+                value={colorKey(element.descriptionStyle ?? {})}
+                onChange={handleOnSelectColor}
+              />
+            </Field>
+          </>
+        )}
+      </AttrPopover>
+    </>
   );
 });
 

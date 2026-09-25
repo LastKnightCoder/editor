@@ -1,8 +1,6 @@
 import { memo } from "react";
-import classnames from "classnames";
-import { useMemoizedFn } from "ahooks";
-import SVG from "react-inlinesvg";
-import { App } from "antd";
+import { Type } from "lucide-react";
+
 import Geometry from "./Geometry";
 import Arrow from "./Arrow";
 import Handwrite from "./Handwrite";
@@ -15,133 +13,59 @@ import Webview from "./Webview";
 import Frame from "./Frame";
 import Column from "./Column";
 import WhiteBoard from "./WhiteBoard";
-import { Tooltip } from "antd";
-import { PlayCircle } from "lucide-react";
 
-import textIcon from "@/assets/white-board/text.svg";
-
+import { ChromeBar, ChromeButton, ChromeGap } from "../../chrome";
 import { ECreateBoardElementType } from "../../types";
 import { useBoard, useCreateElementType } from "../../hooks";
-
-import styles from "./index.module.less";
 import usePresentationState from "../../hooks/usePresentationState";
-import useTheme from "@/hooks/useTheme";
 
+/**
+ * 顶部居中工具条（D-049）：绘制 / 媒体 / 引用 / 容器四组，组间留白分隔。
+ * 演示序列的创建入口已并入右下状态栏「演示」。
+ */
 const Toolbar = memo(() => {
-  const board = useBoard();
-  const { modal } = App.useApp();
-  const { isDark } = useTheme();
-
-  const createBoardElementType = useCreateElementType();
-
-  const { isCreatingSequence, isPresentationMode } = usePresentationState();
-
-  const onClickCreateElement = useMemoizedFn(
-    (type: ECreateBoardElementType) => {
-      board.currentCreateType =
-        type === createBoardElementType ? ECreateBoardElementType.None : type;
-    },
-  );
-
-  const onCreatePresentation = useMemoizedFn(() => {
-    if (isCreatingSequence) {
-      modal.confirm({
-        title: "确定停止创建演示序列吗？",
-        onOk: () => {
-          board.presentationManager.stopCreatingSequence();
-        },
-        okButtonProps: {
-          danger: true,
-        },
-      });
-    } else {
-      // 清空视口选择的元素
-      board.apply({
-        type: "set_selection",
-        properties: board.selection,
-        newProperties: {
-          selectedElements: [],
-          selectArea: null,
-        },
-      });
-      board.presentationManager.startCreatingSequence();
-    }
-  });
-
-  const stopPropagation = useMemoizedFn((e: React.MouseEvent) => {
-    e.stopPropagation();
-  });
-
+  const { isPresentationMode } = usePresentationState();
   if (isPresentationMode) return null;
 
   return (
-    <div
-      className={classnames(styles.toolBar, {
-        [styles.dark]: isDark,
-      })}
-      onClick={stopPropagation}
-      onPointerDown={stopPropagation}
-      onMouseDown={stopPropagation}
-      onWheel={stopPropagation}
-      onDoubleClick={stopPropagation}
-    >
-      <Geometry
-        className={classnames(styles.toolBarItem, {
-          [styles.active]:
-            createBoardElementType === ECreateBoardElementType.Geometry,
-        })}
-      />
-      <Arrow
-        className={classnames(styles.toolBarItem, {
-          [styles.active]:
-            createBoardElementType === ECreateBoardElementType.StraightArrow,
-        })}
-      />
-      <Handwrite
-        className={classnames(styles.toolBarItem, {
-          [styles.active]:
-            createBoardElementType === ECreateBoardElementType.Handwrite,
-        })}
-      />
-      <Tooltip title="富文本">
-        <div
-          className={classnames(styles.toolBarItem, {
-            [styles.active]:
-              createBoardElementType === ECreateBoardElementType.Text,
-          })}
-          onClick={() => {
-            onClickCreateElement(ECreateBoardElementType.Text);
-          }}
-        >
-          <SVG src={textIcon} />
-        </div>
-      </Tooltip>
-      <MindMap
-        className={classnames(styles.toolBarItem, {
-          [styles.active]:
-            createBoardElementType === ECreateBoardElementType.MindMap,
-        })}
-      />
-      <Image className={styles.toolBarItem} />
-      <Video className={styles.toolBarItem} />
-      <Audio className={styles.toolBarItem} />
-      <Webview className={styles.toolBarItem} />
-      <Card className={styles.toolBarItem} />
-      <WhiteBoard className={styles.toolBarItem} />
-      <Frame className={styles.toolBarItem} />
-      <Column className={styles.toolBarItem} />
-      <Tooltip title="演示序列">
-        <div
-          className={classnames(styles.toolBarItem, {
-            [styles.active]: isCreatingSequence,
-          })}
-          onClick={onCreatePresentation}
-        >
-          <PlayCircle size={18} />
-        </div>
-      </Tooltip>
-    </div>
+    <ChromeBar className="left-1/2 top-3 -translate-x-1/2">
+      <Geometry />
+      <Arrow />
+      <Handwrite />
+      <TextTool />
+      <MindMap />
+      <ChromeGap />
+      <Image />
+      <Video />
+      <Audio />
+      <Webview />
+      <ChromeGap />
+      <Card />
+      <WhiteBoard />
+      <ChromeGap />
+      <Frame />
+      <Column />
+    </ChromeBar>
   );
 });
+
+function TextTool() {
+  const board = useBoard();
+  const createType = useCreateElementType();
+  const active = createType === ECreateBoardElementType.Text;
+  return (
+    <ChromeButton
+      label="文本"
+      active={active}
+      onClick={() => {
+        board.currentCreateType = active
+          ? ECreateBoardElementType.None
+          : ECreateBoardElementType.Text;
+      }}
+    >
+      <Type strokeWidth={1.75} />
+    </ChromeButton>
+  );
+}
 
 export default Toolbar;

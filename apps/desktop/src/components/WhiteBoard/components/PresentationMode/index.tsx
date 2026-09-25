@@ -1,14 +1,15 @@
+/**
+ * 放映模式外壳（D-049 画布 chrome 换皮）：
+ * 底部居中一条 ChromeBar（上一帧 · 页码 · 下一帧 · 激光笔 · 退出），顶部墨底小提示；
+ * 激光笔轨迹用 accent。只换外壳，翻页、激光笔轨迹计算、全屏、录制逻辑保持原样。
+ */
+
 import React, { useState, useRef, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
-import { App, Flex, Button, Tooltip } from "antd";
-import {
-  LeftOutlined,
-  RightOutlined,
-  CloseOutlined,
-  AimOutlined,
-} from "@ant-design/icons";
+import { Button, cn, toast } from "@tau/ui";
+import { ChevronLeft, ChevronRight, Crosshair, X } from "lucide-react";
 import { useBoard } from "../../hooks/useBoard";
-import styles from "./index.module.less";
+import { ChromeBar, ChromeButton, ChromeGap } from "../../chrome";
 import usePresentationState from "../../hooks/usePresentationState";
 import useSettingStore from "@/stores/useSettingStore";
 import { useWhiteboardRecording } from "../../hooks/useWhiteboardRecording";
@@ -49,8 +50,7 @@ type LaserEdgePoint = LaserPathPoint & {
   radius: number;
 };
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, value));
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
 const getLaserLife = (point: LaserSample, now: number) =>
   clamp(1 - (now - point.createdAt) / LASER_TRAIL_DURATION, 0, 1);
@@ -66,7 +66,7 @@ const getCatmullRomValue = (
   current: number,
   next: number,
   afterNext: number,
-  progress: number,
+  progress: number
 ) => {
   const squaredProgress = progress * progress;
   const cubedProgress = squaredProgress * progress;
@@ -89,29 +89,14 @@ const getSmoothLaserSamples = (points: LaserPoint[]): LaserSample[] => {
     const next = points[index + 1];
     const afterNext = points[Math.min(index + 2, points.length - 1)];
     const distance = getDistance(current, next);
-    const steps = Math.round(
-      clamp(distance / LASER_SAMPLE_SPACING, 2, LASER_SAMPLE_MAX_STEPS),
-    );
+    const steps = Math.round(clamp(distance / LASER_SAMPLE_SPACING, 2, LASER_SAMPLE_MAX_STEPS));
 
     for (let step = 0; step < steps; step += 1) {
       const progress = step / steps;
       samples.push({
-        x: getCatmullRomValue(
-          previous.x,
-          current.x,
-          next.x,
-          afterNext.x,
-          progress,
-        ),
-        y: getCatmullRomValue(
-          previous.y,
-          current.y,
-          next.y,
-          afterNext.y,
-          progress,
-        ),
-        createdAt:
-          current.createdAt + (next.createdAt - current.createdAt) * progress,
+        x: getCatmullRomValue(previous.x, current.x, next.x, afterNext.x, progress),
+        y: getCatmullRomValue(previous.y, current.y, next.y, afterNext.y, progress),
+        createdAt: current.createdAt + (next.createdAt - current.createdAt) * progress,
       });
     }
   }
@@ -140,9 +125,7 @@ const buildSmoothLinePath = (points: LaserPathPoint[]) => {
 };
 
 const buildLaserRibbonPath = (points: LaserPoint[], now: number) => {
-  const alivePoints = points.filter(
-    (point) => now - point.createdAt < LASER_TRAIL_DURATION,
-  );
+  const alivePoints = points.filter(point => now - point.createdAt < LASER_TRAIL_DURATION);
   const smoothPoints = getSmoothLaserSamples(alivePoints);
 
   if (smoothPoints.length < 2) return "";
@@ -186,30 +169,12 @@ const buildLaserRibbonPath = (points: LaserPoint[], now: number) => {
   const headLeft = leftPoints[leftPoints.length - 1];
   const headRight = rightPoints[rightPoints.length - 1];
   const tailLeft = leftPoints[0];
-  const headCapX =
-    headLeft.sourceX +
-    headLeft.tangentX * headLeft.radius * LASER_CAP_ROUNDNESS;
-  const headCapY =
-    headLeft.sourceY +
-    headLeft.tangentY * headLeft.radius * LASER_CAP_ROUNDNESS;
-  const tailCapX =
-    tailLeft.sourceX -
-    tailLeft.tangentX * tailLeft.radius * LASER_CAP_ROUNDNESS;
-  const tailCapY =
-    tailLeft.sourceY -
-    tailLeft.tangentY * tailLeft.radius * LASER_CAP_ROUNDNESS;
-  const headCurve = [
-    `Q ${headCapX}`,
-    `${headCapY}`,
-    `${headRight.x}`,
-    `${headRight.y}`,
-  ].join(" ");
-  const tailCurve = [
-    `Q ${tailCapX}`,
-    `${tailCapY}`,
-    `${tailLeft.x}`,
-    `${tailLeft.y}`,
-  ].join(" ");
+  const headCapX = headLeft.sourceX + headLeft.tangentX * headLeft.radius * LASER_CAP_ROUNDNESS;
+  const headCapY = headLeft.sourceY + headLeft.tangentY * headLeft.radius * LASER_CAP_ROUNDNESS;
+  const tailCapX = tailLeft.sourceX - tailLeft.tangentX * tailLeft.radius * LASER_CAP_ROUNDNESS;
+  const tailCapY = tailLeft.sourceY - tailLeft.tangentY * tailLeft.radius * LASER_CAP_ROUNDNESS;
+  const headCurve = [`Q ${headCapX}`, `${headCapY}`, `${headRight.x}`, `${headRight.y}`].join(" ");
+  const tailCurve = [`Q ${tailCapX}`, `${tailCapY}`, `${tailLeft.x}`, `${tailLeft.y}`].join(" ");
 
   return `${leftPath} ${headCurve} ${rightPath.replace(/^M/, "L")} ${tailCurve} Z`;
 };
@@ -223,33 +188,26 @@ const getLaserOpacity = (points: LaserPoint[], now: number) => {
 
 const PresentationMode: React.FC = () => {
   const [showTip, setShowTip] = useState(true);
+  // 提示淡出阶段（原 CSS：2s 后用 1s 淡出，3s 时移除）
+  const [tipFading, setTipFading] = useState(false);
   const [pointerMode, setPointerMode] = useState<PointerMode>("cursor");
   const [laserPoints, setLaserPoints] = useState<LaserPoint[]>([]);
   const didEnterRef = useRef(false);
   const laserPointIdRef = useRef(0);
-  const recordingStateRef = useRef<
-    ReturnType<typeof useWhiteboardRecording>["state"] | null
-  >(null);
+  const recordingStateRef = useRef<ReturnType<typeof useWhiteboardRecording>["state"] | null>(null);
   const board = useBoard();
-  const { message } = App.useApp();
-  const recordingSetting = useSettingStore(
-    (state) => state.setting.whiteboardRecording,
-  );
-  const {
-    isPresentationMode,
-    isCreatingSequence,
-    currentSequence,
-    currentFrameIndex,
-  } = usePresentationState();
+  const recordingSetting = useSettingStore(state => state.setting.whiteboardRecording);
+  const { isPresentationMode, isCreatingSequence, currentSequence, currentFrameIndex } =
+    usePresentationState();
 
   const totalFrames = currentSequence?.frames.length || 0;
   const recording = useWhiteboardRecording({
     setting: recordingSetting,
-    onSaved: (outputPath) => {
-      message.success(`录制已保存：${outputPath}`);
+    onSaved: outputPath => {
+      toast.success(`录制已保存：${outputPath}`);
     },
-    onError: (errorMessage) => {
-      message.error(errorMessage);
+    onError: errorMessage => {
+      toast.error(errorMessage);
     },
   });
   const {
@@ -266,13 +224,17 @@ const PresentationMode: React.FC = () => {
     recordingStateRef.current = recordingState;
   }, [recordingState]);
 
-  // 3秒后隐藏提示
+  // 2 秒后开始淡出，3 秒后隐藏提示
   useEffect(() => {
+    const fadeTimer = setTimeout(() => {
+      setTipFading(true);
+    }, 2000);
     const tipTimer = setTimeout(() => {
       setShowTip(false);
     }, 3000);
 
     return () => {
+      clearTimeout(fadeTimer);
       clearTimeout(tipTimer);
     };
   }, []);
@@ -286,28 +248,24 @@ const PresentationMode: React.FC = () => {
   });
 
   const handleTogglePointerMode = useMemoizedFn(() => {
-    setPointerMode((mode) => (mode === "laser" ? "cursor" : "laser"));
+    setPointerMode(mode => (mode === "laser" ? "cursor" : "laser"));
     setLaserPoints([]);
   });
 
-  const blockLaserBoardInteraction = useMemoizedFn(
-    (event: React.SyntheticEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-    },
-  );
+  const blockLaserBoardInteraction = useMemoizedFn((event: React.SyntheticEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+  });
 
-  const handleLaserWheel = useMemoizedFn(
-    (event: React.WheelEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (event.deltaY > 0) {
-        board.presentationManager.nextFrame();
-      } else if (event.deltaY < 0) {
-        board.presentationManager.prevFrame();
-      }
-    },
-  );
+  const handleLaserWheel = useMemoizedFn((event: React.WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.deltaY > 0) {
+      board.presentationManager.nextFrame();
+    } else if (event.deltaY < 0) {
+      board.presentationManager.prevFrame();
+    }
+  });
 
   const handleNext = useMemoizedFn(() => {
     if (board) {
@@ -348,9 +306,9 @@ const PresentationMode: React.FC = () => {
         y: event.clientY,
         createdAt: now,
       };
-      setLaserPoints((points) => [
+      setLaserPoints(points => [
         ...points
-          .filter((point) => now - point.createdAt < LASER_TRAIL_DURATION)
+          .filter(point => now - point.createdAt < LASER_TRAIL_DURATION)
           .slice(-(LASER_TRAIL_LENGTH - 1)),
         nextPoint,
       ]);
@@ -367,10 +325,8 @@ const PresentationMode: React.FC = () => {
     let animationFrame = 0;
     const removeExpiredPoints = () => {
       const now = Date.now();
-      setLaserPoints((points) => {
-        const nextPoints = points.filter(
-          (point) => now - point.createdAt < LASER_TRAIL_DURATION,
-        );
+      setLaserPoints(points => {
+        const nextPoints = points.filter(point => now - point.createdAt < LASER_TRAIL_DURATION);
         if (nextPoints.length === 0 && points.length === 0) {
           return points;
         }
@@ -413,8 +369,7 @@ const PresentationMode: React.FC = () => {
     return () => {
       didEnterRef.current = false;
       const currentStatus = recordingStateRef.current?.status;
-      const shouldStop =
-        currentStatus === "recording" || currentStatus === "paused";
+      const shouldStop = currentStatus === "recording" || currentStatus === "paused";
       if (shouldStop) {
         stopRecording();
       }
@@ -451,44 +406,60 @@ const PresentationMode: React.FC = () => {
   const laserCorePath = buildLaserRibbonPath(laserPoints, laserNow);
   const laserOpacity = getLaserOpacity(laserPoints, laserNow);
 
-  return (
-    <div className={styles.presentationContainer}>
-      <div className={styles.presentationFooter}>
-        <Flex align="center" gap={12} justify="space-between">
-          <LeftOutlined onClick={handlePrev} />
-          <span>
-            {currentFrameIndex !== null ? currentFrameIndex + 1 : 0} /{" "}
-            {totalFrames}
-          </span>
-          <RightOutlined onClick={handleNext} />
-        </Flex>
-      </div>
+  const displayIndex = currentFrameIndex !== null ? currentFrameIndex + 1 : 0;
 
-      <div className={styles.presentationControls}>
-        <Tooltip
-          title={pointerMode === "laser" ? "切换为普通鼠标" : "切换为激光笔"}
+  return (
+    <div className="pointer-events-none absolute inset-0 z-[1000] overflow-hidden">
+      {/* 放映控件：底部居中浮动条 */}
+      <ChromeBar className="pointer-events-auto bottom-[22px] left-1/2 z-[1001] -translate-x-1/2 select-none gap-0.5 text-[12.5px]">
+        <ChromeButton
+          label="上一帧"
+          tooltipPlacement="top"
+          onClick={handlePrev}
+          disabled={displayIndex <= 1}
         >
-          <Button
-            type="text"
-            className={pointerMode === "laser" ? styles.activeTool : undefined}
-            icon={<AimOutlined />}
-            onClick={handleTogglePointerMode}
-          />
-        </Tooltip>
-        <Tooltip title="退出演示">
-          <Button type="text" icon={<CloseOutlined />} onClick={handleExit} />
-        </Tooltip>
-      </div>
+          <ChevronLeft strokeWidth={1.75} />
+        </ChromeButton>
+        <span className="text-ink-2 min-w-[56px] text-center tabular-nums">
+          <b className="text-ink-1 font-semibold">{displayIndex}</b> / {totalFrames}
+        </span>
+        <ChromeButton
+          label="下一帧"
+          tooltipPlacement="top"
+          onClick={handleNext}
+          disabled={displayIndex >= totalFrames}
+        >
+          <ChevronRight strokeWidth={1.75} />
+        </ChromeButton>
+        <ChromeGap />
+        <ChromeButton
+          label={pointerMode === "laser" ? "切换为普通鼠标" : "切换为激光笔"}
+          tooltipPlacement="top"
+          active={pointerMode === "laser"}
+          onClick={handleTogglePointerMode}
+        >
+          <Crosshair strokeWidth={1.75} />
+        </ChromeButton>
+        <Button variant="ghost" size="sm" icon={X} onClick={handleExit}>
+          退出
+        </Button>
+      </ChromeBar>
 
       {showTip && (
-        <div className={styles.tipMessage}>
+        <div
+          className={cn(
+            "bg-ink-1 text-ink-inverse shadow-float absolute left-1/2 top-[22px] z-[1001] -translate-x-1/2 whitespace-nowrap rounded-[10px] px-3.5 py-[7px] text-[12.5px]",
+            "ease-tau-out transition-opacity duration-1000",
+            tipFading && "opacity-0"
+          )}
+        >
           使用方向键或滚轮导航，按 ESC 退出演示模式
         </div>
       )}
 
       {pointerMode === "laser" && (
         <div
-          className={styles.laserLayer}
+          className="pointer-events-auto fixed inset-0 z-[1000] cursor-none overflow-hidden"
           onClick={blockLaserBoardInteraction}
           onDoubleClick={blockLaserBoardInteraction}
           onContextMenu={blockLaserBoardInteraction}
@@ -496,12 +467,14 @@ const PresentationMode: React.FC = () => {
           onPointerUp={blockLaserBoardInteraction}
           onWheel={handleLaserWheel}
         >
-          <svg className={styles.laserSvg}>
+          <svg className="pointer-events-none h-full w-full overflow-visible">
             {laserCorePath && (
               <path
-                className={styles.laserCore}
                 d={laserCorePath}
                 opacity={laserOpacity}
+                stroke="none"
+                fill="var(--tau-accent)"
+                style={{ willChange: "opacity" }}
               />
             )}
           </svg>

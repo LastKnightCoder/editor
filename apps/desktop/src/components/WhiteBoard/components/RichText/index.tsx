@@ -8,7 +8,6 @@ import React, {
 } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
-import { App } from "antd";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { EditorRef } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
@@ -45,6 +44,7 @@ import {
 import { useBoardState } from "../../hooks/useBoardState";
 import { useViewPort } from "../../hooks/useViewPort";
 import useTheme from "@/hooks/useTheme";
+import { cn, toast } from "@tau/ui";
 
 import styles from "./index.module.less";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
@@ -128,7 +128,6 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
     resizable = true,
     autoHeight = false,
   } = element;
-  const { message } = App.useApp();
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const textColor = color || "#1f1f1f";
   const { isDark } = useTheme();
@@ -256,7 +255,7 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
     setFocus(true);
     void ensureContentId().catch(error => {
       console.error("Failed to ensure content id for rich text:", error);
-      message.error("初始化富文本内容失败");
+      toast.error("初始化富文本内容失败");
     });
     board.isEditingElements = [
       ...board.isEditingElements.filter(eid => eid !== elementId),
@@ -399,7 +398,11 @@ const Richtext = forwardRef<RichtextRef, RichTextProps>((props: RichTextProps, r
       >
         <div
           id={`rich-text-container-${elementId}`}
-          className={styles.richTextContainer}
+          className={cn(
+            styles.richTextContainer,
+            // 元素自带明暗（浅色/深色底）时局部重算 --th-*，不随全局主题走
+            theme && `th-scope-${theme}`
+          )}
           ref={containerRef}
           style={containerStyle}
           onDoubleClick={e => {

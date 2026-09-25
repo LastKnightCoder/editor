@@ -1,101 +1,44 @@
 import React from "react";
-import { GeometrySetterComponentProps } from "../IGeometrySetter";
-import { BaseGeometrySetter } from "../BaseGeometrySetter";
-import { Popover, Tooltip } from "antd";
+import { AlignCenter, AlignLeft, AlignRight } from "lucide-react";
 import { produce } from "immer";
 import { useMemoizedFn } from "ahooks";
-import classnames from "classnames";
-import styles from "./setters.module.less";
-import {
-  MdOutlineFormatAlignJustify,
-  MdOutlineFormatAlignLeft,
-  MdOutlineFormatAlignRight,
-  MdOutlineFormatAlignCenter,
-} from "react-icons/md";
-import useTheme from "@/hooks/useTheme";
-import { GeometryUtil } from "@/components/WhiteBoard/utils";
 
-const alignOptions = [
-  {
-    value: "left",
-    icon: <MdOutlineFormatAlignLeft />,
-  },
-  {
-    value: "center",
-    icon: <MdOutlineFormatAlignCenter />,
-  },
-  {
-    value: "right",
-    icon: <MdOutlineFormatAlignRight />,
-  },
-] as const;
+import { GeometrySetterComponentProps } from "../IGeometrySetter";
+import { BaseGeometrySetter } from "../BaseGeometrySetter";
+import { GeometryUtil } from "@/components/WhiteBoard/utils";
+import { AttrPopover, Seg } from "@/components/WhiteBoard/chrome";
+
+type Align = "left" | "center" | "right";
+const ALIGN_ICON = { left: AlignLeft, center: AlignCenter, right: AlignRight } as const;
 
 // 文本对齐设置器组件
-const AlignSetterComponent: React.FC<GeometrySetterComponentProps> = ({
-  element,
-  onChange,
-}) => {
-  const { isDark } = useTheme();
-  const handleOnSelectAlign = useMemoizedFn(
-    (value: "left" | "center" | "right") => {
-      const newElement = produce(element, (draft) => {
-        if (draft.text) {
-          draft.text.align = value;
-        }
-      });
-      GeometryUtil.setLocalStorage("textAlign", value);
-      onChange(newElement);
-    },
-  );
+const AlignSetterComponent: React.FC<GeometrySetterComponentProps> = ({ element, onChange }) => {
+  const handleSelect = useMemoizedFn((value: Align) => {
+    const newElement = produce(element, draft => {
+      if (draft.text) draft.text.align = value;
+    });
+    GeometryUtil.setLocalStorage("textAlign", value);
+    onChange(newElement);
+  });
 
   // 如果元素没有文本属性，不显示对齐设置
-  if (!element.text) {
-    return null;
-  }
+  if (!element.text) return null;
+  const current = (element.text.align as Align) || "center";
+  const Icon = ALIGN_ICON[current] ?? AlignCenter;
 
   return (
-    <Popover
-      arrow={false}
-      trigger={"click"}
-      placement={"right"}
-      styles={{
-        container: {
-          background: "transparent",
-          boxShadow: "none",
-          padding: 0,
-          marginLeft: 12,
-        },
-      }}
-      content={
-        <div
-          className={classnames(styles.alignSelect, {
-            [styles.dark]: isDark,
-          })}
-        >
-          {alignOptions.map((align) => (
-            <div
-              key={align.value}
-              className={classnames(styles.item, {
-                [styles.active]: align.value === element.text?.align,
-              })}
-              onClick={() => handleOnSelectAlign(align.value)}
-            >
-              {align.icon}
-            </div>
-          ))}
-        </div>
-      }
-    >
-      <Tooltip title={"文字对齐"} placement={"left"}>
-        <div
-          className={classnames(styles.item, {
-            [styles.dark]: isDark,
-          })}
-        >
-          <MdOutlineFormatAlignJustify />
-        </div>
-      </Tooltip>
-    </Popover>
+    <AttrPopover label="文字对齐" icon={<Icon strokeWidth={1.75} />} width={220}>
+      <Seg<Align>
+        label="文字对齐"
+        value={current}
+        onChange={handleSelect}
+        options={[
+          { value: "left", label: "左对齐" },
+          { value: "center", label: "居中" },
+          { value: "right", label: "右对齐" },
+        ]}
+      />
+    </AttrPopover>
   );
 };
 
@@ -107,7 +50,7 @@ export class AlignSetter extends BaseGeometrySetter {
   }
 
   getIcon(): React.ReactNode {
-    return <MdOutlineFormatAlignJustify />;
+    return <AlignCenter size={16} />;
   }
 
   getComponent(): React.ComponentType<GeometrySetterComponentProps> {

@@ -24,7 +24,7 @@ const ReferenceLines = memo((props: ReferenceLinesProps) => {
 
   return (
     <g>
-      {lines.map((line) => (
+      {lines.map(line => (
         <GradientLine
           key={line.key}
           gradientId={line.key}
@@ -32,8 +32,8 @@ const ReferenceLines = memo((props: ReferenceLinesProps) => {
           y1={line.y1}
           x2={line.x2}
           y2={line.y2}
-          startColor="#43CBFF"
-          stopColor="#9708CC"
+          startColor="var(--tau-accent)"
+          stopColor="var(--tau-accent)"
           strokeWidth={2 / zoom}
           strokeDasharray={`${5 / zoom}, ${5 / zoom}`}
         />

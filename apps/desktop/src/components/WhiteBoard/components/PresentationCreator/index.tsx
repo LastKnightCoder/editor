@@ -1,46 +1,53 @@
+/**
+ * 演示序列创建面板（D-049 画布 chrome 换皮）：
+ * 画布右上浮层——头部即序列名称输入框 + 关闭；工具行 添加帧 / 调整视口 / 预览；
+ * 行式帧列表；底部 取消 / 保存。只换外壳，帧增删、视口调整、预览逻辑保持原样。
+ */
+
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useMemoizedFn } from "ahooks";
-import { Button, Input, Tooltip, List, Slider, App } from "antd";
+import { Button, ConfirmDialog, IconButton, Tooltip, cn, toast, useEdgeFade } from "@tau/ui";
 import {
-  Plus,
-  Save,
-  X,
-  Eye,
-  Maximize2,
-  Square,
+  Check,
   ChevronLeft,
   ChevronRight,
-  Trash2,
-  Clapperboard,
+  Eye,
   Film,
+  MoveDiagonal2,
+  Plus,
+  ScanEye,
+  Trash2,
+  X,
 } from "lucide-react";
-import styles from "./index.module.less";
 import usePresentationState from "../../hooks/usePresentationState";
 import { useBoard } from "../../hooks";
 import { ViewPort, PresentationFrame } from "../../types";
 import { ViewPortTransforms } from "../../transforms/ViewPortTransforms";
-import useTheme from "@/hooks/useTheme";
+import { ChromeBar, ChromeButton, ChromeGap, Slider, stopCanvasEvents } from "../../chrome";
 
 const PresentationCreator: React.FC = () => {
   const board = useBoard();
-  const { message, modal } = App.useApp();
-  const { isDark } = useTheme();
   const [frames, setFrames] = useState<PresentationFrame[]>([]);
-  const [currentFrame, setCurrentFrame] = useState<PresentationFrame | null>(
-    null,
-  );
+  const [currentFrame, setCurrentFrame] = useState<PresentationFrame | null>(null);
   const { isPresentationMode, isCreatingSequence } = usePresentationState();
 
   const [sequenceName, setSequenceName] = useState("");
-  const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [isAdjustingViewport, setIsAdjustingViewport] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [currentSequenceId, setCurrentSequenceId] = useState<
-    string | undefined
-  >(undefined);
+  const [currentSequenceId, setCurrentSequenceId] = useState<string | undefined>(undefined);
+  // 待确认删除的帧：开合单独受控，关闭退场期间保留文案
+  const [pendingRemove, setPendingRemove] = useState<{
+    id: string;
+    index: number;
+  } | null>(null);
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  // 帧列表滚动区：边缘渐隐（callback ref 接线）
+  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
+  useEdgeFade(listEl);
 
   // 视口调整相关状态
   const [viewportPadding, setViewportPadding] = useState(50);
@@ -53,8 +60,7 @@ const PresentationCreator: React.FC = () => {
   useEffect(() => {
     if (isCreatingSequence) {
       // 检查是否有当前序列（编辑模式）
-      const currentSequenceData =
-        board.presentationManager.getCurrentSequenceFrames();
+      const currentSequenceData = board.presentationManager.getCurrentSequenceFrames();
 
       if (currentSequenceData) {
         // 编辑模式：使用现有序列的数据
@@ -93,18 +99,17 @@ const PresentationCreator: React.FC = () => {
     if (!board) return;
 
     // 创建一个新的帧
-    const newFrame =
-      board.presentationManager.createFrameFromSelectedElements(board);
+    const newFrame = board.presentationManager.createFrameFromSelectedElements(board);
 
     if (!newFrame) {
-      message.warning("请先选择元素");
+      toast.warning("请先选择元素");
       return;
     }
 
-    setFrames((prev) => [...prev, newFrame]);
+    setFrames(prev => [...prev, newFrame]);
     setCurrentFrame(newFrame);
 
-    message.success("已添加当前选中元素为一帧");
+    toast.success("已添加当前选中元素为一帧");
 
     board.apply(
       {
@@ -115,67 +120,58 @@ const PresentationCreator: React.FC = () => {
           selectArea: null,
         },
       },
-      false,
+      false
     );
   });
 
   // 删除一帧
   const removeFrame = useMemoizedFn((frameId: string, index: number) => {
-    modal.confirm({
-      title: "删除帧",
-      content: `确定要删除第 ${index + 1} 帧吗？该操作无法撤销。`,
-      okText: "删除",
-      okButtonProps: { danger: true },
-      cancelText: "取消",
-      onOk: () => {
-        setFrames((prev) => prev.filter((frame) => frame.id !== frameId));
-        if (currentFrame?.id === frameId) {
-          setCurrentFrame(null);
-        }
-      },
-    });
+    setPendingRemove({ id: frameId, index });
+    setRemoveConfirmOpen(true);
+  });
+
+  // 确认删除（原 Modal.confirm 的 onOk）
+  const confirmRemoveFrame = useMemoizedFn(() => {
+    if (!pendingRemove) return;
+    const frameId = pendingRemove.id;
+    setFrames(prev => prev.filter(frame => frame.id !== frameId));
+    if (currentFrame?.id === frameId) {
+      setCurrentFrame(null);
+    }
   });
 
   // 预览一帧
-  const previewFrame = useMemoizedFn(
-    async (frame: PresentationFrame, animate = true) => {
-      if (!board) return;
+  const previewFrame = useMemoizedFn(async (frame: PresentationFrame, animate = true) => {
+    if (!board) return;
 
-      // 根据帧内元素动态计算视口
-      const elementIdSet = new Set(frame.elements);
-      const elements = board.presentationManager.getElementsByIds(elementIdSet);
-      const computed =
-        board.presentationManager.fitElementsInViewport(elements);
-      if (!computed) return;
+    // 根据帧内元素动态计算视口
+    const elementIdSet = new Set(frame.elements);
+    const elements = board.presentationManager.getElementsByIds(elementIdSet);
+    const computed = board.presentationManager.fitElementsInViewport(elements);
+    if (!computed) return;
 
-      if (animate) {
-        // 使用动画过渡
-        await ViewPortTransforms.animateToViewport(
-          board,
-          board.viewPort,
-          computed,
-          500,
-        );
-      } else {
-        // 直接更新视口
-        board.apply({
-          type: "set_viewport",
-          properties: board.viewPort,
-          newProperties: computed,
-        });
-      }
+    if (animate) {
+      // 使用动画过渡
+      await ViewPortTransforms.animateToViewport(board, board.viewPort, computed, 500);
+    } else {
+      // 直接更新视口
+      board.apply({
+        type: "set_viewport",
+        properties: board.viewPort,
+        newProperties: computed,
+      });
+    }
 
-      setCurrentFrame(frame);
+    setCurrentFrame(frame);
 
-      // 更新当前视口引用
-      currentViewportRef.current = { ...computed };
-    },
-  );
+    // 更新当前视口引用
+    currentViewportRef.current = { ...computed };
+  });
 
   // 开始预览所有帧
   const startPreview = useMemoizedFn(() => {
     if (frames.length === 0) {
-      message.warning("请先添加帧");
+      toast.warning("请先添加帧");
       return;
     }
 
@@ -210,44 +206,32 @@ const PresentationCreator: React.FC = () => {
   // 保存演示序列
   const saveSequence = useMemoizedFn(() => {
     if (frames.length === 0) {
-      message.warning("请先添加帧");
+      toast.warning("请先添加帧");
       return;
     }
 
-    if (isEditMode && sequenceName) {
-      // 如果是编辑模式且已有名称，直接保存
-      handleSave();
-    } else {
-      // 否则显示保存对话框
-      setShowSaveDialog(true);
-    }
+    // 名称已并入面板头部的输入框：直接走确认保存（空名称由 handleSave 提示并聚焦输入框）
+    handleSave();
   });
 
   // 确认保存
   const handleSave = useMemoizedFn(() => {
     if (!sequenceName.trim()) {
-      message.warning("请输入演示序列名称");
+      toast.warning("请输入演示序列名称");
+      nameInputRef.current?.focus();
       return;
     }
 
-    board.presentationManager.saveSequence(
-      sequenceName,
-      frames,
-      currentSequenceId,
-    );
-    setShowSaveDialog(false);
-
+    board.presentationManager.saveSequence(sequenceName, frames, currentSequenceId);
     // 保存后自动退出序列制作模式
     board.presentationManager.stopCreatingSequence();
-    message.success(
-      `演示序列 "${sequenceName}" 已${isEditMode ? "更新" : "保存"}`,
-    );
+    toast.success(`演示序列 "${sequenceName}" 已${isEditMode ? "更新" : "保存"}`);
   });
 
   // 开始调整视口
   const startAdjustViewport = useMemoizedFn(() => {
     if (!currentFrame) {
-      message.warning("请先选择一帧");
+      toast.warning("请先选择一帧");
       return;
     }
 
@@ -271,10 +255,7 @@ const PresentationCreator: React.FC = () => {
       // 使用当前帧的元素计算合适的视口，并仅应用到当前视图
       const elementIdSet = new Set(currentFrame.elements);
       const elements = board.presentationManager.getElementsByIds(elementIdSet);
-      const newViewport = board.presentationManager.fitElementsInViewport(
-        elements,
-        value,
-      );
+      const newViewport = board.presentationManager.fitElementsInViewport(elements, value);
 
       if (newViewport) {
         // 更新视口
@@ -362,14 +343,7 @@ const PresentationCreator: React.FC = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [
-    previewMode,
-    previewNext,
-    previewPrev,
-    stopPreview,
-    isAdjustingViewport,
-    stopAdjustViewport,
-  ]);
+  }, [previewMode, previewNext, previewPrev, stopPreview, isAdjustingViewport, stopAdjustViewport]);
 
   // 清理拖拽事件
   useEffect(() => {
@@ -379,243 +353,239 @@ const PresentationCreator: React.FC = () => {
     };
   }, [handleResizeMove, handleResizeEnd]);
 
-  const stopPropagation = useMemoizedFn((e: React.MouseEvent) => {
-    e.stopPropagation();
-  });
-
   if (!isCreatingSequence || isPresentationMode) return null;
+
+  const frameActionsDisabled = previewMode || isAdjustingViewport;
 
   return (
     <div
-      className={`${styles.creatorContainer} ${isDark ? styles.dark : ""}`}
-      onClick={stopPropagation}
-      onPointerDown={stopPropagation}
-      onMouseDown={stopPropagation}
-      onWheel={stopPropagation}
-      onDoubleClick={stopPropagation}
+      {...stopCanvasEvents}
+      className="bg-surface shadow-float ring-line-1 absolute right-3 top-3 z-[1000] flex max-h-[calc(100%-78px)] w-[300px] select-none flex-col rounded-[14px] ring-1"
     >
-      <div className={styles.header}>
-        <div className={styles.headerTop}>
-          <div className={styles.titleWrap}>
-            <Clapperboard size={18} className={styles.titleIcon} />
-            <h3 className={styles.title}>
-              {isEditMode ? "编辑" : "创建"}演示序列
-            </h3>
-          </div>
-          <Tooltip title="关闭">
-            <Button
-              type="text"
-              icon={<X size={18} />}
-              onClick={onCancel}
-              disabled={isAdjustingViewport}
-              className={styles.closeButton}
-            />
-          </Tooltip>
-        </div>
-        <div className={styles.toolbarButtons}>
-          <Tooltip title="将选中元素添加为一帧">
-            <Button
-              icon={<Plus size={16} />}
-              onClick={addCurrentFrame}
-              disabled={previewMode || isAdjustingViewport}
-            >
-              添加帧
-            </Button>
-          </Tooltip>
-          <Tooltip
-            title={isAdjustingViewport ? "完成视口调整" : "调整当前帧视口"}
-          >
-            <Button
-              icon={
-                isAdjustingViewport ? (
-                  <Square size={16} />
-                ) : (
-                  <Maximize2 size={16} />
-                )
-              }
-              onClick={
-                isAdjustingViewport ? stopAdjustViewport : startAdjustViewport
-              }
-              disabled={!currentFrame || previewMode}
-            >
-              {isAdjustingViewport ? "完成" : "调整视口"}
-            </Button>
-          </Tooltip>
-          <Tooltip title="预览演示序列">
-            <Button
-              icon={<Eye size={16} />}
-              onClick={startPreview}
-              disabled={
-                frames.length === 0 || previewMode || isAdjustingViewport
-              }
-            >
-              预览
-            </Button>
-          </Tooltip>
-        </div>
+      {/* 头部：序列名称就地编辑 + 关闭 */}
+      <div className="flex flex-none items-center gap-1.5 pb-1 pl-2.5 pr-2 pt-2.5">
+        <input
+          ref={nameInputRef}
+          value={sequenceName}
+          placeholder="演示序列名称"
+          aria-label="演示序列名称"
+          onChange={e => setSequenceName(e.target.value)}
+          onKeyDown={e => {
+            // 输入时的按键不落到画布快捷键（Backspace 删元素等）
+            e.stopPropagation();
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+              e.currentTarget.blur();
+            }
+          }}
+          className={cn(
+            "text-ink-1 h-8 min-w-0 flex-1 rounded-[8px] bg-transparent px-1.5 text-[14px] font-semibold outline-none",
+            "placeholder:text-ink-3 placeholder:font-medium",
+            "ease-tau-out transition-[background-color,box-shadow] duration-150",
+            "hover:bg-hover focus:bg-surface focus:shadow-[inset_0_0_0_1px_var(--tau-accent),var(--tau-focus-ring)]"
+          )}
+        />
+        <Tooltip content="关闭" placement="bottom" arrow={false}>
+          <IconButton aria-label="关闭" onClick={onCancel} disabled={isAdjustingViewport}>
+            <X size={16} strokeWidth={1.75} />
+          </IconButton>
+        </Tooltip>
       </div>
 
-      {previewMode &&
-        createPortal(
-          <div className={styles.previewControls}>
-            <Button
-              type="text"
-              icon={<ChevronLeft size={20} />}
-              onClick={previewPrev}
-              disabled={previewIndex === 0}
-              className={styles.previewBtn}
-            />
-            <span className={styles.previewCounter}>
-              {previewIndex + 1} / {frames.length}
-            </span>
-            <Button
-              type="text"
-              icon={<ChevronRight size={20} />}
-              onClick={previewNext}
-              disabled={previewIndex === frames.length - 1}
-              className={styles.previewBtn}
-            />
-            <div className={styles.previewDivider} />
-            <Button
-              type="text"
-              icon={<X size={18} />}
-              onClick={stopPreview}
-              className={styles.previewBtn}
-            >
-              退出预览
-            </Button>
-          </div>,
-          document.body,
-        )}
+      {/* 工具行 */}
+      <div className="flex flex-none gap-1.5 px-3.5 pb-2.5 pt-1">
+        <Tooltip content="把画布上选中的元素加为一帧" placement="bottom" arrow={false}>
+          <Button
+            variant="soft"
+            size="sm"
+            icon={Plus}
+            onClick={addCurrentFrame}
+            disabled={previewMode || isAdjustingViewport}
+          >
+            添加帧
+          </Button>
+        </Tooltip>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={isAdjustingViewport ? Check : ScanEye}
+          onClick={isAdjustingViewport ? stopAdjustViewport : startAdjustViewport}
+          disabled={!currentFrame || previewMode}
+          className={cn(isAdjustingViewport && "bg-press text-ink-1")}
+        >
+          {isAdjustingViewport ? "完成" : "调整视口"}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          icon={Eye}
+          onClick={startPreview}
+          disabled={frames.length === 0 || previewMode || isAdjustingViewport}
+        >
+          预览
+        </Button>
+      </div>
 
+      {/* 调整视口：留白滑杆 + 拖拽改尺寸 */}
       {isAdjustingViewport && (
-        <div className={styles.viewportControls}>
-          <div className={styles.paddingControl}>
-            <span className={styles.paddingLabel}>视口填充</span>
-            <Slider
-              min={0}
-              max={200}
-              value={viewportPadding}
-              onChange={handlePaddingChange}
-              className={styles.paddingSlider}
-            />
-            <span className={styles.paddingValue}>{viewportPadding}px</span>
-          </div>
+        <div className="mx-3.5 mb-2.5 flex-none">
+          <div className="text-ink-3 mb-1.5 text-[11.5px]">视口留白</div>
+          <Slider
+            label="视口留白"
+            min={0}
+            max={200}
+            value={viewportPadding}
+            unit="px"
+            onChange={handlePaddingChange}
+          />
           <div
-            className={styles.resizeHandle}
             ref={resizeHandleRef}
             onMouseDown={handleResizeStart}
+            className="text-ink-3 hover:bg-hover hover:text-ink-2 ease-tau-out mt-2 flex h-7 cursor-nwse-resize items-center gap-1.5 rounded-[8px] px-1.5 text-[11.5px] transition-[background-color,color] duration-150"
           >
+            <MoveDiagonal2 size={14} strokeWidth={1.75} />
             拖拽此处调整视口大小
           </div>
         </div>
       )}
 
-      <div className={styles.framesList}>
-        <List
-          dataSource={frames}
-          size="small"
-          bordered={false}
-          split={false}
-          locale={{
-            emptyText: (
-              <div className={styles.emptyState}>
-                <Film size={28} className={styles.emptyIcon} />
-                <p className={styles.emptyTitle}>暂无帧</p>
-                <span className={styles.emptyHint}>
-                  选中画板元素后点击「添加帧」
-                </span>
-              </div>
-            ),
-          }}
-          renderItem={(frame, index) => (
-            <List.Item
-              className={`${styles.frameItem} ${currentFrame?.id === frame.id ? styles.activeFrame : ""}`}
-              actions={[
-                <Tooltip key="preview" title="预览此帧">
-                  <Button
-                    type="text"
-                    icon={<Eye size={15} />}
-                    onClick={() => previewFrame(frame)}
-                    disabled={previewMode || isAdjustingViewport}
-                    className={styles.frameActionButton}
-                  />
-                </Tooltip>,
-                <Tooltip key="delete" title="删除此帧">
-                  <Button
-                    type="text"
-                    icon={<Trash2 size={15} />}
-                    onClick={() => removeFrame(frame.id, index)}
-                    disabled={previewMode || isAdjustingViewport}
-                    className={`${styles.frameActionButton} ${styles.deleteButton}`}
-                  />
-                </Tooltip>,
-              ]}
-            >
+      {/* 帧列表 */}
+      <div
+        ref={setListEl}
+        className="edge-fade-scroll flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2"
+      >
+        {frames.length === 0 ? (
+          <div className="text-ink-3 px-3 pb-[26px] pt-[22px] text-center text-[12.5px]">
+            <Film size={22} strokeWidth={1.5} className="mx-auto mb-2" />
+            选中画布上的元素，点「添加帧」
+          </div>
+        ) : (
+          frames.map((frame, index) => {
+            const active = currentFrame?.id === frame.id;
+            return (
               <div
-                className={styles.frameContent}
+                key={frame.id}
+                role="button"
+                tabIndex={0}
+                aria-current={active || undefined}
                 onClick={() => previewFrame(frame, false)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && e.target === e.currentTarget) {
+                    previewFrame(frame, false);
+                  }
+                }}
+                className={cn(
+                  "ease-tau-out group flex h-[46px] flex-none cursor-pointer items-center gap-2.5 rounded-[10px] pl-1.5 pr-1 outline-none transition-[background-color] duration-150",
+                  "focus-visible:shadow-[var(--tau-focus-ring)]",
+                  active ? "bg-selected" : "hover:bg-hover"
+                )}
               >
-                <span className={styles.frameIndex}>{index + 1}</span>
-                <div className={styles.frameInfo}>
-                  <span className={styles.frameLabel}>帧 {index + 1}</span>
-                  <span className={styles.frameMeta}>
+                <span
+                  className={cn(
+                    "w-[18px] flex-none text-center text-[12px] tabular-nums",
+                    active ? "text-accent-text font-semibold" : "text-ink-3"
+                  )}
+                >
+                  {index + 1}
+                </span>
+                <span className="min-w-0 flex-1 text-[12.5px] leading-[1.3]">
+                  <span className="text-ink-1 block truncate">第 {index + 1} 帧</span>
+                  <span className="text-ink-3 block text-[11.5px]">
                     {frame.elements.length} 个元素
                   </span>
-                </div>
+                </span>
+                {/* 固定槽位：悬停 / 聚焦只改透明度，不改尺寸 */}
+                <span className="ease-tau-out flex flex-none opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100">
+                  <Tooltip content="预览此帧" placement="top" arrow={false}>
+                    <IconButton
+                      aria-label="预览此帧"
+                      className="size-[26px]"
+                      disabled={frameActionsDisabled}
+                      onClick={e => {
+                        e.stopPropagation();
+                        previewFrame(frame);
+                      }}
+                    >
+                      <Eye size={15} strokeWidth={1.75} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip content="删除此帧" placement="top" arrow={false}>
+                    <IconButton
+                      aria-label="删除此帧"
+                      className="enabled:hover:text-danger size-[26px]"
+                      disabled={frameActionsDisabled}
+                      onClick={e => {
+                        e.stopPropagation();
+                        removeFrame(frame.id, index);
+                      }}
+                    >
+                      <Trash2 size={15} strokeWidth={1.75} />
+                    </IconButton>
+                  </Tooltip>
+                </span>
               </div>
-            </List.Item>
-          )}
-        />
+            );
+          })
+        )}
       </div>
 
-      <div className={styles.footer}>
-        <Button
-          onClick={onCancel}
-          disabled={isAdjustingViewport}
-          className={styles.cancelButton}
-        >
+      {/* 应答区 */}
+      <div className="flex flex-none justify-end gap-2 px-3.5 pb-3.5 pt-2.5">
+        <Button variant="secondary" onClick={onCancel} disabled={isAdjustingViewport}>
           取消
         </Button>
         <Button
-          type="primary"
-          icon={<Save size={16} />}
+          variant="primary"
           onClick={saveSequence}
           disabled={frames.length === 0 || isAdjustingViewport}
-          className={styles.saveButton}
         >
-          保存序列
+          {isEditMode ? "更新" : "保存"}
         </Button>
       </div>
 
-      {showSaveDialog &&
+      {/* 预览控件：与放映控件同形的底部居中浮动条 */}
+      {previewMode &&
         createPortal(
-          <div className={styles.saveDialogOverlay}>
-            <div className={styles.saveDialog}>
-              <h3 className={styles.saveDialogTitle}>
-                {isEditMode ? "更新" : "保存"}演示序列
-              </h3>
-              <p className={styles.saveDialogSubtitle}>
-                为此演示序列命名，共 {frames.length} 帧
-              </p>
-              <Input
-                placeholder="请输入演示序列名称"
-                value={sequenceName}
-                onChange={(e) => setSequenceName(e.target.value)}
-                onPressEnter={handleSave}
-                autoFocus
-                className={styles.saveDialogInput}
-              />
-              <div className={styles.saveDialogButtons}>
-                <Button onClick={() => setShowSaveDialog(false)}>取消</Button>
-                <Button type="primary" onClick={handleSave}>
-                  {isEditMode ? "更新" : "保存"}
-                </Button>
-              </div>
-            </div>
-          </div>,
-          document.body,
+          <ChromeBar className="fixed bottom-[22px] left-1/2 z-[1001] -translate-x-1/2 gap-0.5 text-[12.5px]">
+            <ChromeButton
+              label="上一帧"
+              tooltipPlacement="top"
+              onClick={previewPrev}
+              disabled={previewIndex === 0}
+            >
+              <ChevronLeft strokeWidth={1.75} />
+            </ChromeButton>
+            <span className="text-ink-2 min-w-[56px] text-center tabular-nums">
+              <b className="text-ink-1 font-semibold">{previewIndex + 1}</b> / {frames.length}
+            </span>
+            <ChromeButton
+              label="下一帧"
+              tooltipPlacement="top"
+              onClick={previewNext}
+              disabled={previewIndex === frames.length - 1}
+            >
+              <ChevronRight strokeWidth={1.75} />
+            </ChromeButton>
+            <ChromeGap />
+            <Button variant="ghost" size="sm" icon={X} onClick={stopPreview}>
+              退出预览
+            </Button>
+          </ChromeBar>,
+          document.body
         )}
+
+      <ConfirmDialog
+        open={removeConfirmOpen}
+        onOpenChange={setRemoveConfirmOpen}
+        title="删除帧"
+        description={
+          pendingRemove
+            ? `确定要删除第 ${pendingRemove.index + 1} 帧吗？该操作无法撤销。`
+            : undefined
+        }
+        confirmText="删除"
+        danger
+        onConfirm={confirmRemoveFrame}
+      />
     </div>
   );
 };

@@ -132,6 +132,7 @@ const WhiteBoardContent = (props: WhiteBoardContentProps) => {
         <WhiteBoard
           key={activeSubWhiteBoard.id}
           className="h-full w-full"
+          showSidebar={false}
           initData={activeSubWhiteBoard.data.children}
           initViewPort={activeSubWhiteBoard.data.viewPort}
           initSelection={activeSubWhiteBoard.data.selection}

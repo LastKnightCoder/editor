@@ -5,10 +5,7 @@ import { useMemoizedFn } from "ahooks";
 import { useBoard, useSelection } from "../../hooks";
 import { ArrowConnectPointOverlayContext } from "../../context";
 import { BoardUtil } from "../../utils";
-import {
-  ARROW_CONNECT_ID,
-  ARROW_CUSTOM_BIND_MARKER_RADIUS,
-} from "../../constants";
+import { ARROW_CONNECT_ID, ARROW_CUSTOM_BIND_MARKER_RADIUS } from "../../constants";
 import type { ArrowElement, Point } from "../../types";
 import ArrowDropConnectPoint from "../ArrowDropConnectPoint";
 
@@ -32,12 +29,8 @@ const ArrowCustomSnapOverlay = memo(() => {
   if (!overlayContainer || !snap) return null;
 
   return createPortal(
-    <ArrowDropConnectPoint
-      cx={snap.point.x}
-      cy={snap.point.y}
-      isActive={true}
-    />,
-    overlayContainer,
+    <ArrowDropConnectPoint cx={snap.point.x} cy={snap.point.y} isActive={true} />,
+    overlayContainer
   );
 });
 
@@ -56,15 +49,12 @@ const ArrowCustomBindMarkers = memo(() => {
 
   const selectedArrowIds = new Set(
     (selection?.selectedElements ?? [])
-      .filter((element) => element.type === "arrow")
-      .map((element) => element.id),
+      .filter(element => element.type === "arrow")
+      .map(element => element.id)
   );
 
   const collectMarker = useMemoizedFn(
-    (
-      arrow: ArrowElement,
-      bound: ArrowElement["source"],
-    ): CustomMarker | null => {
+    (arrow: ArrowElement, bound: ArrowElement["source"]): CustomMarker | null => {
       if (bound.connectId !== ARROW_CONNECT_ID.CUSTOM) return null;
       if (!bound.bindId || !bound.customOffset) return null;
       // 仅在所属箭头被选中时显示常驻标记，避免未选中时散落蓝点破坏画面
@@ -74,7 +64,7 @@ const ArrowCustomBindMarkers = memo(() => {
       const point = board.getArrowBindPoint(
         bindElement,
         ARROW_CONNECT_ID.CUSTOM,
-        bound.customOffset,
+        bound.customOffset
       );
       if (!point) return null;
       return {
@@ -82,7 +72,7 @@ const ArrowCustomBindMarkers = memo(() => {
         x: point.x,
         y: point.y,
       };
-    },
+    }
   );
 
   const markers: CustomMarker[] = [];
@@ -99,17 +89,18 @@ const ArrowCustomBindMarkers = memo(() => {
   if (!overlayContainer || markers.length === 0) return null;
 
   return createPortal(
-    markers.map((marker) => (
+    markers.map(marker => (
       <circle
         key={marker.key}
         cx={marker.x}
         cy={marker.y}
         r={ARROW_CUSTOM_BIND_MARKER_RADIUS + 1}
-        fill="#A3C1FF"
+        fill="var(--tau-accent)"
+        fillOpacity={0.45}
         style={{ pointerEvents: "none" }}
       />
     )),
-    overlayContainer,
+    overlayContainer
   );
 });
 

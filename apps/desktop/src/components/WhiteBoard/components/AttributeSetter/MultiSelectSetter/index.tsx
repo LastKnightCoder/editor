@@ -1,15 +1,16 @@
 import { memo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Tooltip, message } from "antd";
-import { Link2, Ungroup } from "lucide-react";
 import {
-  MdAlignHorizontalLeft,
-  MdAlignHorizontalRight,
-  MdAlignVerticalTop,
-  MdAlignVerticalBottom,
-  MdSpaceBar,
-  MdHeight,
-} from "react-icons/md";
+  AlignEndHorizontal,
+  AlignEndVertical,
+  AlignHorizontalDistributeCenter,
+  AlignStartHorizontal,
+  AlignStartVertical,
+  AlignVerticalDistributeCenter,
+  Link2,
+  Ungroup,
+} from "lucide-react";
+import { toast } from "@tau/ui";
 import { v4 as getUuid } from "uuid";
 import { BoardElement } from "@/components/WhiteBoard";
 import { useViewPort, useBoard } from "@/components/WhiteBoard/hooks";
@@ -20,10 +21,7 @@ import {
   isMergeableHandwriteSelection,
   isValid,
 } from "@/components/WhiteBoard/utils";
-
-import styles from "./index.module.less";
-import useTheme from "@/hooks/useTheme";
-import classnames from "classnames";
+import { AttrAction, ChromeGap } from "@/components/WhiteBoard/chrome";
 
 interface MultiSelectSetterProps {
   elements: BoardElement[];
@@ -35,46 +33,38 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
 
   const { zoom } = useViewPort();
   const board = useBoard();
-  const { isDark } = useTheme();
   const canMergeHandwrite = isMergeableHandwriteSelection(elements);
   const sharedHandwriteGroupId = getSharedHandwriteGroupId(elements);
   const canSplitHandwrite =
-    elements.length > 1 &&
-    elements.every(isHandwriteElement) &&
-    !!sharedHandwriteGroupId;
-
-  const stopPropagation = useMemoizedFn((e: React.UIEvent) => {
-    e.stopPropagation();
-    e.nativeEvent.stopImmediatePropagation();
-  });
+    elements.length > 1 && elements.every(isHandwriteElement) && !!sharedHandwriteGroupId;
 
   const handleMergeHandwrite = useMemoizedFn(() => {
     if (!canMergeHandwrite) {
-      message.warning("仅支持对两个及以上手写元素进行合并");
+      toast.warning("仅支持对两个及以上手写元素进行合并");
       return;
     }
     const mergedElements = applyHandwriteGroupIdPatch(elements, getUuid());
     onChange(mergedElements);
-    message.success(`已合并 ${mergedElements.length} 条手写`);
+    toast.success(`已合并 ${mergedElements.length} 条手写`);
   });
 
   const handleSplitHandwriteGroup = useMemoizedFn(() => {
     if (!canSplitHandwrite) {
-      message.warning("当前选择不满足拆分手写组条件");
+      toast.warning("当前选择不满足拆分手写组条件");
       return;
     }
     const splitElements = applyHandwriteGroupIdPatch(elements, null);
     onChange(splitElements);
-    message.success(`已拆分 ${splitElements.length} 条手写`);
+    toast.success(`已拆分 ${splitElements.length} 条手写`);
   });
 
   // 左对齐，按照最左边的元素，设置相同的 x
   const handleAlignLeft = useMemoizedFn(() => {
     if (elements.length <= 1) return;
 
-    const minX = Math.min(...elements.map((el) => el.x));
+    const minX = Math.min(...elements.map(el => el.x));
     const newElements = elements
-      .map((el) => {
+      .map(el => {
         const diffX = minX - el.x;
         const newElement = board.moveElement(el, diffX, 0);
         return newElement;
@@ -88,9 +78,9 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const handleAlignRight = useMemoizedFn(() => {
     if (elements.length <= 1) return;
 
-    const maxRight = Math.max(...elements.map((el) => el.x + el.width));
+    const maxRight = Math.max(...elements.map(el => el.x + el.width));
     const newElements = elements
-      .map((el) => {
+      .map(el => {
         const diffX = maxRight - el.x - el.width;
         const newElement = board.moveElement(el, diffX, 0);
         return newElement;
@@ -104,9 +94,9 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const handleAlignTop = useMemoizedFn(() => {
     if (elements.length <= 1) return;
 
-    const minY = Math.min(...elements.map((el) => el.y));
+    const minY = Math.min(...elements.map(el => el.y));
     const newElements = elements
-      .map((el) => {
+      .map(el => {
         const diffY = minY - el.y;
         const newElement = board.moveElement(el, 0, diffY);
         return newElement;
@@ -120,9 +110,9 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   const handleAlignBottom = useMemoizedFn(() => {
     if (elements.length <= 1) return;
 
-    const maxBottom = Math.max(...elements.map((el) => el.y + el.height));
+    const maxBottom = Math.max(...elements.map(el => el.y + el.height));
     const newElements = elements
-      .map((el) => {
+      .map(el => {
         const diffY = maxBottom - el.y - el.height;
         const newElement = board.moveElement(el, 0, diffY);
         return newElement;
@@ -207,72 +197,54 @@ const MultiSelectSetter = memo((props: MultiSelectSetterProps) => {
   });
 
   return (
-    <div
-      onPointerDown={stopPropagation}
-      onDoubleClick={stopPropagation}
-      onWheel={stopPropagation}
-      className={classnames(styles.container, {
-        [styles.dark]: isDark,
-      })}
-    >
-      <Tooltip title="合并手写" trigger="hover" placement="left">
-        <div
-          className={classnames(styles.item, {
-            [styles.disabledItem]: !canMergeHandwrite,
-          })}
+    <>
+      <AttrAction
+        label="左对齐"
+        icon={<AlignStartVertical strokeWidth={1.75} />}
+        onClick={handleAlignLeft}
+      />
+      <AttrAction
+        label="右对齐"
+        icon={<AlignEndVertical strokeWidth={1.75} />}
+        onClick={handleAlignRight}
+      />
+      <AttrAction
+        label="顶部对齐"
+        icon={<AlignStartHorizontal strokeWidth={1.75} />}
+        onClick={handleAlignTop}
+      />
+      <AttrAction
+        label="底部对齐"
+        icon={<AlignEndHorizontal strokeWidth={1.75} />}
+        onClick={handleAlignBottom}
+      />
+      <AttrAction
+        label="横向均分"
+        icon={<AlignHorizontalDistributeCenter strokeWidth={1.75} />}
+        onClick={handleDistributeHorizontal}
+      />
+      <AttrAction
+        label="纵向均分"
+        icon={<AlignVerticalDistributeCenter strokeWidth={1.75} />}
+        onClick={handleDistributeVertical}
+      />
+      {/* 手写合并 / 拆分只在选区满足条件时出现，不摆禁用态 */}
+      {(canMergeHandwrite || canSplitHandwrite) && <ChromeGap />}
+      {canMergeHandwrite && (
+        <AttrAction
+          label="合并手写"
+          icon={<Link2 strokeWidth={1.75} />}
           onClick={handleMergeHandwrite}
-        >
-          <Link2 size={16} />
-        </div>
-      </Tooltip>
-
-      <Tooltip title="拆分手写组" trigger="hover" placement="left">
-        <div
-          className={classnames(styles.item, {
-            [styles.disabledItem]: !canSplitHandwrite,
-          })}
+        />
+      )}
+      {canSplitHandwrite && (
+        <AttrAction
+          label="拆分手写组"
+          icon={<Ungroup strokeWidth={1.75} />}
           onClick={handleSplitHandwriteGroup}
-        >
-          <Ungroup size={16} />
-        </div>
-      </Tooltip>
-
-      <Tooltip title="左对齐" trigger="hover" placement="left">
-        <div className={styles.item} onClick={handleAlignLeft}>
-          <MdAlignHorizontalLeft />
-        </div>
-      </Tooltip>
-
-      <Tooltip title="右对齐" trigger="hover" placement="left">
-        <div className={styles.item} onClick={handleAlignRight}>
-          <MdAlignHorizontalRight />
-        </div>
-      </Tooltip>
-
-      <Tooltip title="顶部对齐" trigger="hover" placement="left">
-        <div className={styles.item} onClick={handleAlignTop}>
-          <MdAlignVerticalTop />
-        </div>
-      </Tooltip>
-
-      <Tooltip title="底部对齐" trigger="hover" placement="left">
-        <div className={styles.item} onClick={handleAlignBottom}>
-          <MdAlignVerticalBottom />
-        </div>
-      </Tooltip>
-
-      <Tooltip title="横向均分" trigger="hover" placement="left">
-        <div className={styles.item} onClick={handleDistributeHorizontal}>
-          <MdSpaceBar />
-        </div>
-      </Tooltip>
-
-      <Tooltip title="纵向均分" trigger="hover" placement="left">
-        <div className={styles.item} onClick={handleDistributeVertical}>
-          <MdHeight />
-        </div>
-      </Tooltip>
-    </div>
+        />
+      )}
+    </>
   );
 });
 
