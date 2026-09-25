@@ -8,9 +8,8 @@ import { useLayoutEffect, useState, type DragEvent, type ReactNode } from "react
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { ContextMenu, IconButton, Menu, cn } from "@tau/ui";
 import type { QuestionGroupDTO } from "@/commands/question-group";
+import { QUESTION_DRAG_TYPE } from "../model";
 import { GroupDot } from "./QuestionBits";
-
-export const QUESTION_DRAG_TYPE = "application/x-tau-question";
 
 export function GroupChips({
   groups,

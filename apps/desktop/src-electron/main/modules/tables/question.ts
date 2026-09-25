@@ -190,16 +190,24 @@ export default class QuestionTable {
     }
   }
 
+  /** description 省略（undefined）时保留原背景，只改标题；传 null 才清空 */
   static updateQuestion(
     db: Database.Database,
     questionId: number,
     question: string,
-    description: Descendant[]
+    description?: Descendant[] | null
   ): IQuestion {
-    const stmt = db.prepare(
-      "UPDATE questions SET update_time = ?, question_content = ?, description = ? WHERE id = ?"
-    );
-    stmt.run(Date.now(), question, description ? JSON.stringify(description) : null, questionId);
+    if (description === undefined) {
+      db.prepare("UPDATE questions SET update_time = ?, question_content = ? WHERE id = ?").run(
+        Date.now(),
+        question,
+        questionId
+      );
+    } else {
+      db.prepare(
+        "UPDATE questions SET update_time = ?, question_content = ?, description = ? WHERE id = ?"
+      ).run(Date.now(), question, description ? JSON.stringify(description) : null, questionId);
+    }
     return this.getQuestionById(db, questionId) as IQuestion;
   }
 

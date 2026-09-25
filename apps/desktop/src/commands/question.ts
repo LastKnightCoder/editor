@@ -46,7 +46,11 @@ export async function updateQuestion(
   description?: Descendant[],
   options?: QuestionMutationOptions
 ): Promise<IQuestion> {
-  const updated = await invoke<IQuestion>("question:update", questionId, question, description);
+  // description 省略即保留原背景；不传末尾 undefined，避免 JSON 传输把它变成 null 而清空
+  const updated =
+    description === undefined
+      ? await invoke<IQuestion>("question:update", questionId, question)
+      : await invoke<IQuestion>("question:update", questionId, question, description);
   if (!options?.suppressMutationEvent) {
     emitQuestionMutation({
       source: options?.mutationSource || "question-command",

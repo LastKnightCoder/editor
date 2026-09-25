@@ -60,10 +60,23 @@ export function QuestionsView() {
   const deferred = useDeferredActions();
   const queryClient = useQueryClient();
 
-  /* 从首页等入口带 selectedId 进入（或再次进入）时选中该问题 */
+  /* 从首页 / 命令面板带 selectedId 进入（或再次进入）时定位：清掉分组筛选、展开所在分段 */
+  const located = useRef<number | null>(null);
   useEffect(() => {
-    if (params.selectedId != null) setSelectedId(params.selectedId);
-  }, [params.selectedId]);
+    const id = params.selectedId;
+    if (id == null || !snapshot || located.current === id) return;
+    located.current = id;
+    const target = snapshot.questions.find(q => q.id === id);
+    if (!target) return;
+    setGroupFilter(null);
+    setSelectedId(id);
+    setCollapsed(prev => {
+      if (!prev.has(target.status)) return prev;
+      const next = new Set(prev);
+      next.delete(target.status);
+      return next;
+    });
+  }, [params.selectedId, snapshot]);
 
   const detailQuery = useQuestionDetail(selectedId);
   const detail = detailQuery.data?.question.id === selectedId ? detailQuery.data : null;

@@ -21,6 +21,9 @@ import type {
 
 export const DAY_MS = 86_400_000;
 
+/** 问题行拖到分组 chip 上移动分组的拖拽数据类型 */
+export const QUESTION_DRAG_TYPE = "application/x-tau-question";
+
 export const STATUS_META: Record<QuestionStatus, { label: string; hint: string }> = {
   in_progress: { label: "探究中", hint: "正在积累材料" },
   not_started: { label: "待探究", hint: "收集来还没动" },
@@ -161,7 +164,7 @@ export function describeEvent(event: QuestionEvent): EventView {
         tone: "plain",
         verb: p.auto
           ? "挂上第一份材料，进入探究中"
-          : `改为「${STATUS_META[p.to!]?.label ?? p.to}」`,
+          : `改为「${p.to ? STATUS_META[p.to].label : "未知状态"}」`,
         estimated,
       };
     case "link": {

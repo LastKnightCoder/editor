@@ -9,8 +9,7 @@ import { ChevronDown, MoreHorizontal } from "lucide-react";
 import { ContextMenu, IconButton, Menu, cn, useEdgeFade } from "@tau/ui";
 import type { QuestionGroupDTO } from "@/commands/question-group";
 import type { QuestionStatus, QuestionSummary } from "@/types";
-import { STATUS_META, relativeDay, type QuestionSection } from "../model";
-import { QUESTION_DRAG_TYPE } from "./GroupChips";
+import { QUESTION_DRAG_TYPE, STATUS_META, relativeDay, type QuestionSection } from "../model";
 import { Composition, GroupDot, StatusRing } from "./QuestionBits";
 
 export function QuestionList({
