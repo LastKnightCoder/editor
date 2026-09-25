@@ -199,6 +199,7 @@ export const RightChatPanel = memo(
       isDark,
       onOpenBlock: handleOpenInTab,
       idPrefix: "dock-block",
+      liveChat: true,
     });
 
     return (

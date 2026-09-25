@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>C · 覆盖式大预览</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="bp.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>.main { padding-left: 6px; }</style>
+</head>
+<body>
+<div class="mock-note">
+  <h3>C · 覆盖式大预览（Quick Look）</h3>
+  点击块卡片弹出一张大卡片盖在整个窗口上（遮罩 + 居中），对话页和停靠栏同一个形态。← → 切换本会话里的其它块，Esc 关闭回到原处。
+  <ul>
+    <li class="pro">＋ 最简单：不动布局、不动页面栈；画面最大，看演示页 / 导图最舒服。</li>
+    <li class="con">－ 模态：看着预览就不能继续聊，改一版要「关 → 问 → 再开」，生成中的实时预览体验最差。</li>
+    <li class="con">－ 和「高频辅助要能并排」的偏好相悖，适合当 A / B 的「全屏」补充，而不是主形态。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, chatPaper, dockPaper, docPaper, frame, icons } from "./bp.js?v=1";
+mockBar("plan-c-quicklook.html", `<span class="seg"><button class="on" data-m="page">对话页</button><button data-m="dock">停靠栏</button></span>`);
+
+const win = document.getElementById("win");
+function render(m) {
+  const base = m === "page"
+    ? `${sidebar("chat")}<div class="col">${titlebar(`AI 对话 <i data-lucide="chevron-right" style="width:13px"></i><b>煤气灯效应思维导图</b>`)}<div class="main">${chatPaper({ active: "mind-map" })}</div></div>`
+    : `${sidebar("articles")}<div class="col">${titlebar(`文章 <i data-lucide="chevron-right" style="width:13px"></i><b>认知偏差与自我觉察</b>`, `<button class="ib on"><i data-lucide="message-circle"></i></button>`)}<div class="main">${docPaper()}${dockPaper({ active: "mind-map" })}</div></div>`;
+  win.innerHTML = `${base}<div class="scrim"></div>
+    <div class="ql">${frame({ type: "mind-map", versions: [2, 2], expand: false })}
+      <div class="ql-foot"><span class="kbd">←</span><span class="kbd">→</span>本会话的其它块（2 / 2）<span style="flex:1"></span><span class="kbd">Esc</span>关闭</div>
+    </div>`;
+  icons();
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+}
+document.querySelectorAll(".seg button").forEach(b => (b.onclick = () => render(b.dataset.m)));
+render("page");
+</script>
+</body>
+</html>

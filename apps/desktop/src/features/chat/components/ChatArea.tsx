@@ -185,6 +185,7 @@ const ChatArea = memo(
         isDark,
         onOpenBlock,
         idPrefix: "page-block",
+        liveChat: true,
       });
 
       useImperativeHandle(ref, () => ({
