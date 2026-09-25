@@ -33,3 +33,12 @@ export function matchGroup<G extends { title: string }>(
     null
   );
 }
+
+/**
+ * 输入是否像一个问题（命令面板据此决定「记为问题」置顶还是垫底）：
+ * 以问号结尾（允许尾随 #分组）或带 #分组 记号。
+ */
+export function looksLikeQuestion(raw: string): boolean {
+  const text = raw.trim();
+  return /[?？]\s*(#\S+)?$/.test(text) || GROUP_TOKEN.test(text);
+}

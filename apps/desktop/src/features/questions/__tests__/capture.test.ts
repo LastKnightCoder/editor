@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchGroup, parseCapture } from "../capture";
+import { looksLikeQuestion, matchGroup, parseCapture } from "../capture";
 
 describe("快速收集解析", () => {
   it("取第一个 #分组 作为分组提示，其余为问题", () => {
@@ -25,5 +25,11 @@ describe("快速收集解析", () => {
     expect(matchGroup(groups, "编辑器")?.title).toBe("编辑器");
     expect(matchGroup(groups, "前端")?.title).toBe("前端工程");
     expect(matchGroup(groups, "数学")).toBeNull();
+  });
+  it("像问题的输入：问号结尾或带 #分组", () => {
+    expect(looksLikeQuestion("B+ 树为什么适合索引？")).toBe(true);
+    expect(looksLikeQuestion("为什么要 2MSL? #网络")).toBe(true);
+    expect(looksLikeQuestion("TIME_WAIT #网络")).toBe(true);
+    expect(looksLikeQuestion("slate normalize")).toBe(false);
   });
 });
