@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>B · 预览上正文，对话退到停靠栏</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="bp.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .main { padding-left: 6px; }
+  .stage-paper { flex: 1; min-width: 0; }
+  .crumb-sub { color: var(--ink-3); }
+</style>
+</head>
+<body>
+<div class="mock-note">
+  <h3>B · 预览上正文，对话退到停靠栏（推荐）</h3>
+  只有一条规则：<b>预览永远占正文，对话永远在右边</b>。块预览是页面栈里的一页（已有 <code>block-preview</code> 页）：从对话页点开时，对话用现成的形变过渡收进右侧停靠栏，预览占满正文纸；从任意页面的停靠栏点开时，同样推入预览页、停靠栏不动。后退 / Esc 关闭预览，回到原页面（从对话页来的会把对话还原成整页）。
+  <ul>
+    <li><b>实时</b>：预览页不再拿冻结的快照，而是按「会话 + 消息 + 第几个块」从对话仓库实时取内容，停靠栏里继续追问生成的新版本直接出现在版本切换里。</li>
+    <li class="pro">＋ 对话页和停靠栏一套形态、一个组件；演示页 / 导图拿到最大画面（1440 下约 900px）。</li>
+    <li class="pro">＋ 复用已有机制：页面栈（后退 / 历史）、停靠栏、对话页 ⇄ 停靠栏形变；预览页能单独被 MCP / 命令面板打开。</li>
+    <li class="con">－ 从对话页点开会发生一次「对话收进侧栏」的形态变化，需要形变过渡做得顺；对话只剩 400px 宽。</li>
+    <li class="con">－ 窄窗口（1280）下停靠栏 + 预览要先自动收起左栏（沿用停靠栏已有的空间裁决）。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, chatPaper, dockPaper, frame, icons } from "./bp.js?v=1";
+mockBar("plan-b-stage.html", `<span class="seg"><button data-m="before">① 对话页</button><button class="on" data-m="page">② 点开块：预览上正文</button><button data-m="gen">③ 继续追问 · 生成新版</button><button data-m="html">④ HTML 演示</button></span>`);
+
+const win = document.getElementById("win");
+const crumb = t => `AI 对话 <i data-lucide="chevron-right" style="width:13px"></i><span>煤气灯效应思维导图</span><i data-lucide="chevron-right" style="width:13px"></i><b>${t}</b>`;
+function render(m) {
+  const collapsed = m !== "before";
+  if (m === "before") {
+    win.innerHTML = `${sidebar("chat")}<div class="col">${titlebar(`AI 对话 <i data-lucide="chevron-right" style="width:13px"></i><b>煤气灯效应思维导图</b>`)}<div class="main">${chatPaper({})}</div></div>`;
+  } else {
+    const type = m === "html" ? "html" : "mind-map";
+    const state = m === "gen" ? "generating" : "ready";
+    win.innerHTML = `
+      ${sidebar("chat")}
+      <div class="col">
+        ${titlebar(crumb(type === "html" ? "电影感全屏演示超级模板" : "煤气灯效应（Gaslighting）"), `<button class="ib on" title="AI 对话 Ctrl J"><i data-lucide="message-circle"></i></button>`)}
+        <div class="main">
+          <section class="paper stage-paper">${frame({ type, state, versions: type === "html" ? [3, 3] : m === "gen" ? [3, 3] : [2, 2], closeIcon: "x" })}</section>
+          ${dockPaper({ active: type, generating: m === "gen" })}
+        </div>
+      </div>`;
+  }
+  win.classList.toggle("sb-c", collapsed && +(localStorage.getItem("chat-mock-width") || 1440) < 1440);
+  icons();
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+  document.querySelectorAll(".bc").forEach(el => (el.onclick = () => render(el.dataset.block === "html" ? "html" : "page")));
+  document.querySelectorAll(".pv-close").forEach(el => (el.onclick = () => render("before")));
+}
+document.querySelectorAll(".seg button").forEach(b => (b.onclick = () => render(b.dataset.m)));
+window.addEventListener("mock-width", () => render(document.querySelector(".seg button.on")?.dataset.m || "page"));
+render("page");
+</script>
+</body>
+</html>

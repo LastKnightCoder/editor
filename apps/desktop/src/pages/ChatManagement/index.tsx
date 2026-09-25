@@ -2,9 +2,6 @@ import { memo, useEffect, useRef, useState } from "react";
 import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import SidebarToggleButton from "@/components/SidebarToggleButton";
-import ResizablePanel from "@/components/ResizablePanel";
-import { BlockPreviewProvider, useBlockPreview } from "@/contexts/BlockPreviewContext";
-import BlockPreviewSidebar from "@/components/BlockPreviewSidebar";
 import ChatManagementSidebar from "@/features/chat/components/ChatManagementSidebar";
 import ChatArea from "@/features/chat/components/ChatArea";
 import type { ChatAreaHandle } from "@/features/chat/components/ChatArea";
@@ -12,7 +9,6 @@ import useChatMessageStore from "@/stores/useChatMessageStore";
 
 const ChatManagementContent = memo(() => {
   const chatAreaRef = useRef<ChatAreaHandle>(null);
-  const { state: previewState } = useBlockPreview();
   const chats = useChatMessageStore(state => state.chats);
   const [selectedChatId, setSelectedChatId] = useState<number | null>(
     () => useChatMessageStore.getState().currentChatId
@@ -56,36 +52,19 @@ const ChatManagementContent = memo(() => {
         <ChatManagementSidebar selectedChatId={selectedChatId} onChatSelect={handleChatSelect} />
       </ResizableAndHideableSidebar>
       <SidebarToggleButton.Expand isHidden={!!hideSidebar} onToggle={onFoldSidebar} side="left" />
-      {/* 始终使用 ResizablePanel，右侧面板根据 isOpen 状态显示 */}
-      <ResizablePanel
-        id="chat-preview-panel"
-        className="flex h-full min-w-0 flex-1"
-        left={
-          <div className="flex h-full flex-col overflow-hidden">
-            <ChatArea
-              ref={chatAreaRef}
-              selectedChatId={selectedChatId}
-              onSelectChat={setSelectedChatId}
-              sendLoading={sendLoading}
-              setSendLoading={setSendLoading}
-            />
-          </div>
-        }
-        right={previewState.isOpen ? <BlockPreviewSidebar /> : null}
-        initialLeftRatio={0.5}
-        minLeft={400}
-        minRight={400}
-      />
+      <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+        <ChatArea
+          ref={chatAreaRef}
+          selectedChatId={selectedChatId}
+          onSelectChat={setSelectedChatId}
+          sendLoading={sendLoading}
+          setSendLoading={setSendLoading}
+        />
+      </div>
     </div>
   );
 });
 
-const ChatManagement = memo(() => {
-  return (
-    <BlockPreviewProvider>
-      <ChatManagementContent />
-    </BlockPreviewProvider>
-  );
-});
+const ChatManagement = memo(() => <ChatManagementContent />);
 
 export default ChatManagement;

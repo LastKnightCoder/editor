@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>块预览 · 设计方案总览</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="bp.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  [data-theme] body { background: var(--page); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 24px 60px; }
+  h1 { font-size: 25px; font-weight: 600; margin: 0 0 6px; }
+  .lead { color: var(--ink-2); margin: 0 0 22px; max-width: 900px; }
+  h2 { font-size: 16px; font-weight: 600; margin: 32px 0 4px; }
+  h2 + p { color: var(--ink-2); margin: 0 0 14px; max-width: 900px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card { display: block; text-decoration: none; color: inherit; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 18px; transition: box-shadow var(--fast); }
+  .card:hover { box-shadow: var(--shadow-lift); }
+  .card h3 { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card p { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+  .rec { font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); }
+  .wf { height: 110px; border-radius: 10px; background: var(--page); display: flex; gap: 4px; padding: 6px; margin-bottom: 12px; position: relative; }
+  .wf i { display: block; border-radius: 5px; }
+  .wf .s { width: 22px; } .wf .c { flex: 1; background: var(--surface); box-shadow: var(--shadow-card); }
+  .wf .p { background: var(--tag-3-soft); }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); overflow: hidden; font-size: 12.5px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { color: var(--ink-3); font-weight: 500; white-space: nowrap; }
+  tr + tr td { border-top: 1px solid var(--line-2); }
+  td b { font-weight: 600; }
+  .ph { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 20px; }
+  .ph ol, .ph ul { margin: 0; padding-left: 20px; } .ph li { margin: 6px 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  code { font: 12px var(--mono); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--line-1); background: var(--surface); }
+  pre.snip { margin: 0; background: var(--code-bg); border-radius: var(--r-md); padding: 12px 14px; font: 12px/1.7 var(--mono); overflow: auto; color: var(--ink-1); }
+  pre.snip .c { color: var(--ink-3); } pre.snip .k { color: var(--accent-text); } pre.snip .s { color: var(--ok); }
+  .bad { color: var(--danger); } .q { counter-increment: q; } .qs { counter-reset: q; }
+  .q::before { content: counter(q); display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-text); font-size: 11px; font-weight: 600; margin-right: 8px; }
+  .qs > div { padding: 8px 0; } .qs > div + div { border-top: 1px solid var(--line-2); }
+  .qs small { display: block; color: var(--ink-2); margin: 2px 0 0 26px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>块预览 · 设计方案</h1>
+  <p class="lead">对话里模型产出的 HTML、思维导图、白板、图表等「块」如何打开、在哪里看、怎么边看边改。分两层裁决：<b>① 容器</b>——预览放在哪（三选一）；<b>② 预览框 + 底层</b>——不论选哪个容器都要做的统一 chrome、实时数据、渲染器协议与安全收口。</p>
+
+  <h2>现状</h2>
+  <p>新壳层里这块整体沿用 legacy，没有设计过。</p>
+  <table>
+    <tr><th>入口</th><th>现在怎么打开</th><th>问题</th></tr>
+    <tr><td>对话页</td><td>纸内 ResizablePanel 分栏 + BlockPreviewSidebar</td><td>刚修掉「一点就崩」；预览框里仍是各渲染器自带的 antd 工具栏、英文文案、写死的灰色</td></tr>
+    <tr><td>停靠栏</td><td>推入 <code>block-preview</code> 页，参数里塞整段 JSON</td><td class="bad">拿的是冻结快照：生成中不更新；深色模式永远是浅色；没有标题行、没有错误边界</td></tr>
+    <tr><td>行内 AI / 视频笔记对话</td><td>—</td><td class="bad">点击卡片没有任何反应</td></tr>
+    <tr><td>块识别</td><td>按代码围栏语言；id 用「消息分段序号」</td><td class="bad">同一段里两个同语言的块 id 相同，会被当成同一个块</td></tr>
+    <tr><td>HTML 安全</td><td>Electron webview 共用 <code>persist:html-preview</code> 分区；浏览器 iframe <code>allow-scripts allow-same-origin</code></td><td class="bad">所有生成页共享一份 localStorage / Cookie；浏览器端生成页脚本可以直接访问应用本身</td></tr>
+    <tr><td>PlantUML</td><td>图的源码发到 plantuml.com 渲染</td><td>离线不可用，内容外发</td></tr>
+  </table>
+
+  <h2>① 容器：预览放在哪</h2>
+  <p>每个方案都给了「对话页」与「停靠栏」两种入口的样子（样板间顶部切换）。</p>
+  <div class="grid">
+    <a class="card" href="plan-a-split.html">
+      <div class="wf"><i class="s"></i><i class="c" style="flex:.8"></i><i class="c p" style="flex:1;margin-left:-4px;border-radius:0 5px 5px 0"></i></div>
+      <h3>A · 纸内分栏</h3>
+      <p>现状形态 tau 化：对话页同一张纸左右分；停靠栏放不下，预览作为第二张纸从左侧伸出盖在正文上。</p>
+    </a>
+    <a class="card" href="plan-b-stage.html">
+      <div class="wf"><i class="s"></i><i class="c p" style="flex:1.6"></i><i class="c" style="flex:.7"></i></div>
+      <h3>B · 预览上正文，对话退到停靠栏 <span class="rec">推荐</span></h3>
+      <p>一条规则：预览永远占正文、对话永远在右边。对话页点开时对话形变收进停靠栏；后退回到原处。</p>
+    </a>
+    <a class="card" href="plan-c-quicklook.html">
+      <div class="wf"><i class="s"></i><i class="c"></i><i style="position:absolute;inset:14px 30px;background:var(--surface);box-shadow:var(--shadow-float);border-radius:8px"></i></div>
+      <h3>C · 覆盖式大预览</h3>
+      <p>Quick Look：遮罩上居中大卡片，← → 切换本会话的块。最简单，但看预览时不能继续聊。</p>
+    </a>
+  </div>
+  <div style="height:14px"></div>
+  <table>
+    <tr><th></th><th>A 纸内分栏</th><th>B 预览上正文</th><th>C 覆盖大预览</th></tr>
+    <tr><td>边看边改</td><td><b>可以</b>（同纸并排）</td><td><b>可以</b>（停靠栏里继续问）</td><td>不行，要关掉再问</td></tr>
+    <tr><td>预览画面（1440）</td><td>约 640px</td><td><b>约 900px</b></td><td><b>约 1100px</b>（遮住一切）</td></tr>
+    <tr><td>对话页 / 停靠栏一致</td><td>两套形态</td><td><b>一套</b></td><td><b>一套</b></td></tr>
+    <tr><td>后退 / 历史</td><td>不进栈</td><td><b>进页面栈</b>，后退即关</td><td>不进栈，Esc 关</td></tr>
+    <tr><td>实现</td><td>换 chrome 即可</td><td>复用 block-preview 页 + 停靠栏 + 形变</td><td>一个 Dialog</td></tr>
+    <tr><td>风险</td><td>两边都挤；伸出的纸遮正文</td><td>对话页点开时有一次形态变化</td><td>与「高频辅助要能并排」相悖</td></tr>
+  </table>
+
+  <h2>② 统一预览框</h2>
+  <p>三个容器共用一个预览框，详见 <a href="frame.html">统一预览框</a>（各类型 × 就绪 / 源码 / 生成中 / 出错 / 移动端）。要点：</p>
+  <div class="ph"><ul>
+    <li><b>头部一行固定骨架</b>：图标 · 标题（类型 · 大小） · 版本 ‹ v2 / 3 › · 预览⇄源码 · 类型专属工具 · 复制 · 全屏 · 更多 · 关闭。渲染器只声明专属工具与更多菜单项，chrome 由框统一画。</li>
+    <li><b>画布类</b>（导图 / 白板 / Mermaid / PlantUML / TikZ / Typst）的缩放浮在右下角，不占头部。</li>
+    <li><b>生成中</b>：HTML 先看源码流式写入，写完自动切预览（不再半截 HTML 反复重载）；画布类保留上一次成功的渲染，头部显示进度。</li>
+    <li><b>出错</b>：接前面做的 ErrorState——保留上次成功渲染，给出行号与「查看源码 / 让 AI 修复」。</li>
+    <li><b>版本</b>：同一会话里同名同类型的块视为同一产物的多个版本（如「演示模板」v1→v3），卡片标 v3，预览里可前后翻。</li>
+  </ul></div>
+
+  <h2>③ 底层（与容器无关，都要做）</h2>
+  <div class="two">
+    <div class="ph">
+      <b>实时数据 + 稳定身份</b>
+      <ul>
+        <li>块身份改为 <code>会话 id + 消息 id + 第几个围栏</code>，修掉同段同语言撞 id。</li>
+        <li>预览不再复制内容：<code>useBlockPreviewStore</code>（zustand，替掉只在对话页有的 Context）只记「打开的是哪个块」，内容从对话仓库实时派生——停靠栏、对话页、预览页看到的是同一份，生成中自动更新。</li>
+        <li>任何对话面（停靠栏 / 行内 AI / 视频笔记）点击卡片都走同一个 <code>openBlock()</code>。</li>
+        <li>预览页读 tau 主题（修掉 isDark 恒为浅色）。</li>
+      </ul>
+    </div>
+    <div class="ph">
+      <b>安全收口</b>
+      <ul>
+        <li>HTML 统一用 iframe <code>srcdoc</code> + <code>sandbox="allow-scripts"</code>（不给 same-origin，页面是不透明源，碰不到应用）；需要 Electron webview 时每个预览用<b>非持久</b>分区。</li>
+        <li>生成页里的链接一律交给系统浏览器打开，禁止页内跳转与弹窗。</li>
+        <li>合并掉 <code>utils/html-preview.ts</code> 与 11 处复制粘贴的 webview（VibeLearning 的 PPT / 报告预览一起受益）。</li>
+        <li>PlantUML 外发：先在更多菜单 / 首次渲染时说明「由 plantuml.com 渲染」，本地渲染另议。</li>
+      </ul>
+    </div>
+  </div>
+  <div style="height:14px"></div>
+  <div class="two">
+    <div class="ph">
+      <b>渲染器协议：声明式、文件即注册</b>
+      <p style="margin:6px 0 10px;color:var(--ink-2);font-size:12.5px">替掉 <code>renderers/index.ts</code> 中心登记表与 7 个渲染器各自的工具栏；<code>renderers/*.block.tsx</code> 由 glob 收集。</p>
+<pre class="snip"><span class="k">export default</span> defineBlockRenderer({
+  type: <span class="s">"mind-map"</span>,
+  label: <span class="s">"思维导图"</span>, icon: Network,
+  display: <span class="s">"card"</span>,        <span class="c">// card | inline（Mermaid / 白板在对话里直出 + 放大）</span>
+  canvas: <span class="k">true</span>,           <span class="c">// 右下缩放浮控、点阵底</span>
+  streaming: <span class="s">"keep-last"</span>,  <span class="c">// source-first（HTML）| keep-last | live（白板）</span>
+  legacy: <span class="k">false</span>,          <span class="c">// true：旧数据可看，不在任何提示词 / 技能里出现</span>
+  meta: content =&gt; ({ title: firstLine(content) }),
+  Preview: MindMapPreview,
+  more: [copyToWhiteboard, exportPng],
+});</pre>
+    </div>
+    <div class="ph">
+      <b>TikZ / Typst</b>
+      <ul>
+        <li>渲染器保留，标 <code>legacy: true</code>：老对话里的卡片照常可点、可看、可导出。</li>
+        <li>新对话已无入口：生成它们的内置技能在 af766986b 已删；对话侧没有其它提示词再引导模型输出。</li>
+        <li><code>markdown</code> 技能与「内容润色」提示词里仍列着 <code>tikz</code> / <code>typst</code>——那是<b>编辑器文档</b>的语法说明（文档里这两种代码块仍受支持），不属于对话块，保持不动。</li>
+        <li>模型若自发输出 <code>```tikz</code> 仍会出卡片（可渲染），不额外拦截。</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>需要你裁决的点</h2>
+  <div class="ph qs">
+    <div class="q">容器选 A / B / C？<small>推荐 B；C 可作为 A / B 头部「全屏」按钮的实现。</small></div>
+    <div class="q">要不要「版本」？<small>同名同类型合并为版本，卡片标 v3、预览里前后翻。不要的话每个块各自独立。</small></div>
+    <div class="q">Mermaid 与白板保持「对话里直接画出来」吗？<small>现状如此；方案是保持直出，右上角加「放大」进统一预览框。也可以统一成卡片。</small></div>
+    <div class="q">HTML 生成中先看源码、写完再切预览，可以吗？<small>另一种是生成中每隔一段刷新一次预览（现状，会闪）。</small></div>
+    <div class="q">PlantUML 外发渲染：只加说明，还是改为本地渲染 / 下线？</div>
+  </div>
+
+  <h2>落地顺序（选定后）</h2>
+  <div class="ph"><ol>
+    <li>底层：块身份 + <code>useBlockPreviewStore</code> 实时派生 + 全部对话面统一 <code>openBlock()</code>；HTML 沙箱收口。</li>
+    <li>统一预览框（tau 组件，零 antd）+ <code>defineBlockRenderer</code> 协议；7 个渲染器迁到新协议，删各自工具栏。</li>
+    <li>按裁决的容器接线（B：block-preview 页改为读 store + 标题行 + 形变；A：换 chrome；C：Dialog）。</li>
+    <li>版本、让 AI 修复等增量能力；删掉 legacy BlockPreviewContext / BlockPreviewPage / TabType.BlockPreview，登记 04 删除清单。</li>
+  </ol></div>
+</div>
+<script type="module">
+import { mockBar, icons } from "./bp.js?v=1";
+mockBar("index.html");
+icons();
+</script>
+</body>
+</html>

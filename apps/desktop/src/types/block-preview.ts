@@ -1,97 +1,84 @@
-import React from "react";
-
 /**
- * 块类型标识符
+ * 对话块（D-057）：模型在对话里产出的 HTML / 思维导图 / 白板 / 图表等可预览内容。
+ *
+ * 渲染器声明式注册：`renderers/<Name>/index.tsx` 默认导出 defineBlockRenderer(...)，
+ * 由 blockRegistry 以 glob 收集（文件即注册，无中心登记表）。渲染器只画内容本体与
+ * 声明专属动作（usePreviewActions），预览框 chrome（标题 / 版本 / 预览⇄源码 / 复制 /
+ * 全屏 / 更多 / 关闭）由 BlockPreviewFrame 统一绘制。
  */
-export type BlockType = "html" | "pdf" | "video" | string;
 
-/**
- * 块元数据
- */
+import type { ComponentType } from "react";
+import type { LucideIcon } from "lucide-react";
+
+export type BlockType = string;
+
+/** 块元数据：只放可序列化字段（快照模式整块经页面参数 JSON 传递） */
 export interface BlockMetadata {
-  title?: string; // 块标题
-  type: BlockType; // 块类型
-  language?: string; // 代码语言（对应 markdown 的 language-xxx）
-  icon?: React.ReactNode; // 类型图标
-  description?: string; // 描述
-  size?: string; // 大小信息
-  timestamp?: number; // 创建/更新时间
-  isGenerating?: boolean; // 是否正在生成中
-  // 用于区分同一对话中的不同轮次/块，避免流式更新串台
+  title?: string;
+  type: BlockType;
+  language?: string;
+  isGenerating?: boolean;
+  /** 来源会话；有 blockKey 时预览页据此从对话仓库实时取内容 */
   sourceChatId?: number;
-  sourceMessageIndex?: number;
-  blockIndex?: number;
+  /** 会话内稳定身份（features/previews/model/chatBlocks） */
+  blockKey?: string;
+  version?: number;
+  versionCount?: number;
 }
 
-/**
- * 块数据
- */
 export interface BlockData {
-  id: string; // 唯一标识符
-  type: BlockType; // 块类型
-  content: string; // 原始内容（代码字符串）
-  metadata: BlockMetadata; // 元数据
+  id: string;
+  type: BlockType;
+  content: string;
+  metadata: BlockMetadata;
 }
 
-/**
- * 块卡片渲染器 Props
- */
-export interface BlockCardRendererProps {
+export interface BlockPreviewProps {
   block: BlockData;
-  isSelected: boolean;
-  onClick: () => void;
-  isLoading?: boolean;
+  /** 仍在流式生成（内容会继续变化） */
+  generating: boolean;
 }
 
-/**
- * 块预览渲染器 Props
- */
-export interface BlockPreviewRendererProps {
+export interface BlockInlineProps {
   block: BlockData;
-  onClose: () => void;
+  generating: boolean;
+  /** 放大：进统一预览框 */
+  onExpand?: () => void;
 }
 
-/**
- * 块行内渲染器 Props
- */
-export interface BlockInlineRendererProps {
-  block: BlockData;
-  onPreview?: () => void;
-}
-
-/**
- * 块渲染器接口
- */
 export interface BlockRenderer {
-  type: BlockType; // 渲染器类型
-
-  // 判断是否可以渲染该块
-  canRender: (block: BlockData) => boolean;
-
-  // 渲染卡片模式（在消息流中显示）- 可选，如果不提供则使用默认卡片
-  renderCard?: (props: BlockCardRendererProps) => React.ReactNode;
-
-  // 渲染行内模式（直接在消息流中展开显示）- 可选
-  renderInline?: (props: BlockInlineRendererProps) => React.ReactNode;
-
-  // 渲染预览模式（在右侧面板中显示）
-  renderPreview: (props: BlockPreviewRendererProps) => React.ReactNode;
-
-  // 可选：提取元数据
-  extractMetadata?: (content: string) => Partial<BlockMetadata>;
-
-  // 行内展示模式，默认 card
-  inlineMode?: "expanded" | "card";
-
-  // 是否适合流式更新
-  supportsStreaming?: boolean;
+  type: BlockType;
+  /** 等价的围栏语言（如 latex-tikz） */
+  aliases?: string[];
+  /** 类型名（界面显示） */
+  label: string;
+  icon: LucideIcon;
+  /** 源码视图的高亮语言（Prism），默认 text */
+  sourceLanguage?: string;
+  /**
+   * 对话里的展示：card = 块卡片，点击进预览；inline = 直接在对话里画出来，角上「放大」进预览。
+   * 默认 card。
+   */
+  display?: "card" | "inline";
+  /**
+   * 生成中的预览策略：source-first = 先看源码流式写入、写完切预览（HTML，避免半截页面反复重载）；
+   * keep-last = 渲染器自行保留上次成功结果；live = 边写边画。默认 keep-last。
+   */
+  streaming?: "source-first" | "keep-last" | "live";
+  /** 旧格式：旧数据照常可看，不在任何提示词 / 技能里出现（TikZ / Typst） */
+  legacy?: boolean;
+  /** 预览底：white = 白纸（网页）；canvas = 点阵画布；默认 plain（纸色） */
+  surface?: "white" | "canvas" | "plain";
+  /** 头部类型行的补充说明（如「由 plantuml.com 渲染」） */
+  note?: string;
+  /** 内容是否构成该类型的块（如 HTML 须是完整文档）；默认都算 */
+  accept?: (content: string) => boolean;
+  /** 从内容取标题（版本分组也用它）；取不到返回 undefined */
+  title?: (content: string) => string | undefined;
+  Preview: ComponentType<BlockPreviewProps>;
+  Inline?: ComponentType<BlockInlineProps>;
 }
 
-/**
- * 块预览状态
- */
-export interface BlockPreviewState {
-  currentBlock: BlockData | null;
-  isOpen: boolean;
-  isLoading: boolean;
+export function defineBlockRenderer(renderer: BlockRenderer): BlockRenderer {
+  return renderer;
 }

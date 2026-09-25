@@ -1,7 +1,7 @@
 /**
  * AI 对话停靠栏内容（D-047 一期）：外壳新写，主体原样复用 legacy 右侧栏的
  * RightChatPanel（会话下拉 + ChatContainer），会话与对话页同源 useChatMessageStore。
- * 可预览块在新壳层的「内容预览」页打开，取代 legacy 的标签页。
+ * 可预览块推入块预览页（D-057：预览占正文，停靠栏里的对话继续可问）。
  */
 
 import { lazy, Suspense } from "react";
@@ -11,6 +11,7 @@ import { usePage } from "@/page/PageProvider";
 import { morphAssist } from "@/app/assistMorph";
 import useRightChatSidebarStore from "@/stores/useRightChatSidebarStore";
 import type { BlockData } from "@/types/block-preview";
+import { openBlockPreview } from "@/features/previews/openBlock";
 import { useChatLibraryStore } from "../libraryStore";
 
 const RightChatPanel = lazy(() =>
@@ -23,8 +24,7 @@ export function ChatDock({ open, onClose }: { open: boolean; onClose: () => void
   const { navigator } = usePage();
   const currentChatId = useRightChatSidebarStore(s => s.currentChatId);
 
-  const openBlock = (block: BlockData) =>
-    navigator.push("block-preview", { id: block.id, block: JSON.stringify(block) });
+  const openBlock = (block: BlockData) => openBlockPreview(navigator, block);
 
   const headerActions = (
     <>

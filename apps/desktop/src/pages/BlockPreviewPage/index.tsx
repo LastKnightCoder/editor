@@ -3,39 +3,19 @@ import { useTabContext } from "@/contexts/TabContext";
 import { blockRegistry } from "@/utils/blockRegistry";
 import { TabType } from "@/types/tab";
 import type { BlockData } from "@/types/block-preview";
+import { BlockPreviewFrame } from "@/features/previews/components/BlockPreviewFrame";
 
+/** legacy 标签页里的块预览（/legacy 路由）：同一个统一预览框，快照内容 */
 const BlockPreviewPage = memo(() => {
   const { tab } = useTabContext();
+  const block =
+    tab.type === TabType.BlockPreview ? (tab.params as { block?: BlockData })?.block : undefined;
+  const renderer = block ? blockRegistry.find(block) : undefined;
 
-  if (tab.type !== TabType.BlockPreview || !tab.params) {
-    return (
-      <div className="flex items-center justify-center h-full text-text-secondary">
-        无效的预览参数
-      </div>
-    );
+  if (!block || !renderer) {
+    return <div className="text-ink-3 flex h-full items-center justify-center">无法预览此内容</div>;
   }
-
-  const block = (tab.params as { block: BlockData }).block;
-  const renderer = blockRegistry.findRenderer(block);
-
-  if (!renderer) {
-    return (
-      <div className="flex items-center justify-center h-full text-text-secondary">
-        不支持的预览类型: {block.type}
-      </div>
-    );
-  }
-
-  return (
-    <div className="h-full w-full overflow-auto">
-      {renderer.renderPreview({
-        block,
-        onClose: () => {
-          // Tab 模式下不需要关闭回调，用户可以直接关闭标签页
-        },
-      })}
-    </div>
-  );
+  return <BlockPreviewFrame block={block} renderer={renderer} generating={false} />;
 });
 
 BlockPreviewPage.displayName = "BlockPreviewPage";

@@ -49,6 +49,20 @@ function loadHighlighter() {
   return highlighterPromise;
 }
 
+/** 懒加载的 Prism 高亮器（首次调用触发加载；块预览源码视图共用） */
+export function usePrismHighlighter(): Highlighter | null {
+  const [Prism, setPrism] = useState<Highlighter | null>(() => highlighter);
+  useEffect(() => {
+    if (Prism) return;
+    let alive = true;
+    void loadHighlighter().then(h => alive && setPrism(() => h));
+    return () => {
+      alive = false;
+    };
+  }, [Prism]);
+  return Prism;
+}
+
 export function CodeBlock({
   code,
   language = "text",
@@ -58,18 +72,9 @@ export function CodeBlock({
   language?: string;
   className?: string;
 }) {
-  const [Prism, setPrism] = useState<Highlighter | null>(() => highlighter);
+  const Prism = usePrismHighlighter();
   const [copied, setCopied] = useState(false);
   const lang = normalizeCodeLanguage(language || "text");
-
-  useEffect(() => {
-    if (Prism) return;
-    let alive = true;
-    void loadHighlighter().then(h => alive && setPrism(() => h));
-    return () => {
-      alive = false;
-    };
-  }, [Prism]);
 
   useEffect(() => {
     if (!copied) return;

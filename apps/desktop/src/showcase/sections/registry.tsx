@@ -25,6 +25,8 @@ import {
   Tag as TagIcon,
   ToggleLeft,
   MessagesSquare,
+  TriangleAlert,
+  PanelsTopLeft,
   Wrench,
 } from "lucide-react";
 
@@ -40,6 +42,7 @@ import DatePickerSection from "./DatePickerSection";
 import MenuSection from "./MenuSection";
 import DialogSection from "./DialogSection";
 import PopoverSection from "./PopoverSection";
+import ErrorStateSection from "./ErrorStateSection";
 import PanelSection from "./PanelSection";
 import ToastSection from "./ToastSection";
 import NotificationSection from "./NotificationSection";
@@ -50,6 +53,7 @@ import TokenSection from "./TokenSection";
 import ScaleSection from "./ScaleSection";
 import TagSection from "./TagSection";
 import ToolCallSection from "./ToolCallSection";
+import BlockPreviewSection from "./BlockPreviewSection";
 
 export interface SectionMeta {
   key: string;
@@ -138,6 +142,13 @@ export const SECTIONS: SectionMeta[] = [
     component: TooltipSection,
   },
   {
+    key: "error-state",
+    label: "ErrorState",
+    group: "反馈",
+    icon: TriangleAlert,
+    component: ErrorStateSection,
+  },
+  {
     key: "loading",
     label: "Spinner · Loading",
     group: "反馈",
@@ -157,6 +168,13 @@ export const SECTIONS: SectionMeta[] = [
     group: "对话",
     icon: Wrench,
     component: ToolCallSection,
+  },
+  {
+    key: "block-preview",
+    label: "块预览",
+    group: "对话",
+    icon: PanelsTopLeft,
+    component: BlockPreviewSection,
   },
   { key: "token", label: "Token 色板", group: "设计基底", icon: Palette, component: TokenSection },
   { key: "scale", label: "尺度与动效", group: "设计基底", icon: Ruler, component: ScaleSection },
