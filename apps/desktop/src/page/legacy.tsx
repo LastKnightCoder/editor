@@ -18,7 +18,6 @@ export const LEGACY_PAGES: Record<string, string> = {
   review: "闪卡复习",
   pomodoro: "番茄专注",
   weread: "微信读书",
-  questions: "问题管理",
   skills: "Skill 管理",
   chat: "AI 对话",
   settings: "设置",

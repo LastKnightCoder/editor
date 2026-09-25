@@ -246,4 +246,21 @@ describe("问题材料关联与探究轨迹", () => {
     expect(preview.id).toBe(question.id);
     expect(preview.lastEventTitle).toBe("数据少时差别不大");
   });
+  it("材料选择器：按关键字检索卡片并标出已关联", () => {
+    const question = QuestionTable.createQuestion(db, "q", groupId, doc(""));
+    const hit = insertCard("B+ 树扇出");
+    insertCard("TCP 握手");
+    QuestionLinkTable.linkTargets(db, question.id, [{ targetType: "card", targetId: hit.cardId }], {
+      incRef: true,
+    });
+    const found = QuestionLinkTable.searchTargets(db, {
+      questionId: question.id,
+      targetType: "card",
+      keyword: "扇出",
+    });
+    expect(found.map(c => [c.title, c.linked])).toEqual([["B+ 树扇出", true]]);
+    expect(
+      QuestionLinkTable.searchTargets(db, { questionId: question.id, targetType: "card" })
+    ).toHaveLength(2);
+  });
 });
