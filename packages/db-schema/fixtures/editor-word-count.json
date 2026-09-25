@@ -1,0 +1,46 @@
+[
+  {
+    "text": "hello world 中文123",
+    "count": 5
+  },
+  {
+    "text": "hello,world",
+    "count": 1
+  },
+  {
+    "text": "E=mc^2",
+    "count": 3
+  },
+  {
+    "text": "const a = 1",
+    "count": 4
+  },
+  {
+    "text": "déjà vu",
+    "count": 2
+  },
+  {
+    "text": "🙂🙂",
+    "count": 1
+  },
+  {
+    "text": "a\nb\nc",
+    "count": 3
+  },
+  {
+    "text": "a  b\n🙂🙂",
+    "count": 2
+  },
+  {
+    "text": "ＡＢＣ１２３",
+    "count": 0
+  },
+  {
+    "text": "한국어 日本語",
+    "count": 6
+  },
+  {
+    "text": "",
+    "count": 0
+  }
+]

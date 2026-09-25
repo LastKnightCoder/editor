@@ -1,16 +1,19 @@
-import { memo, useMemo, useState, useRef } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
+  Check,
   ChevronDown,
   GitBranch,
-  LoaderCircle,
+  Library,
   MoreHorizontal,
-  Plus,
+  Pencil,
+  Pin,
+  Search,
+  SquarePen,
+  Trash2,
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import { App, Dropdown } from "antd";
-import type { MenuProps } from "antd";
-import { SelectDropDown } from "@tau/shared";
+import { ConfirmDialog, IconButton, Menu, Popover, Spinner, cn, toast } from "@tau/ui";
 
 import EditText from "@/components/EditText";
 import type { EditTextHandle } from "@/components/EditText";
@@ -30,25 +33,17 @@ interface ChatDropdownSelectorProps {
   disabled?: boolean;
   titleRef?: React.RefObject<EditTextHandle | null>;
   chatSource?: ChatSource;
+  /** 列表末行「全部会话…」（有全量管理入口的宿主才传） */
+  onOpenLibrary?: () => void;
 }
 
-interface MenuItem {
-  key: string;
-  type: "new" | "chat";
-  chatId?: number;
-  title: string;
-  isCurrentChat?: boolean;
-  hasBranches?: boolean;
-  runStatus?: ChatRunStatus;
-}
+const ACTIVE_RUN: ChatRunStatus[] = ["queued", "running", "retrying", "waiting_input"];
 
-interface BranchItem {
-  key: string;
-  chatId: number;
-  title: string;
-  isCurrentChat: boolean;
-}
-
+/**
+ * 对话标题行（D-048 tau 化，停靠栏 / 项目 / PDF / 视频笔记对话共用）：
+ * 标题 ▾ = 会话切换 Popover（搜索 + 新对话 + 置顶在前的会话列表）；分支 chip = 分支切换 Menu；
+ * ⋯ = 重命名 / 删除（删除走 ConfirmDialog，含子分支数）。
+ */
 const ChatDropdownSelector = memo(
   ({
     chats,
@@ -61,319 +56,312 @@ const ChatDropdownSelector = memo(
     disabled,
     titleRef,
     chatSource = "main-chat",
+    onOpenLibrary,
   }: ChatDropdownSelectorProps) => {
-    const [showDropdown, setShowDropdown] = useState(false);
-    const triggerRef = useRef<HTMLDivElement>(null);
-    const { modal, message } = App.useApp();
     const chatRuns = useChatRunStore(state => state.runs);
+    const [listOpen, setListOpen] = useState(false);
+    const [query, setQuery] = useState("");
+    const [renaming, setRenaming] = useState(false);
+    const draftTitle = useRef("");
+    const [pendingDelete, setPendingDelete] = useState<{ id: number; branches: number } | null>(
+      null
+    );
+    const hasChat = currentChat.id !== 0;
 
-    // 获取相关分支
+    // 相关分支：主干 + 兄弟分支 + 子分支
     const siblingBranches = useMemo(() => {
-      if (!currentChat || currentChat.id === 0) return [];
-
-      const result: typeof chats = [];
-
-      const findRoot = (chat: typeof currentChat): typeof currentChat => {
+      if (!hasChat) return [];
+      const result: ChatMessage[] = [];
+      const findRoot = (chat: ChatMessage): ChatMessage => {
         if (!chat.parentChatId) return chat;
         const parent = chats.find(c => c.id === chat.parentChatId);
         return parent ? findRoot(parent) : chat;
       };
-
       const root = findRoot(currentChat);
-
-      if (root.id !== currentChat.id) {
-        result.push(root);
-      }
-
+      if (root.id !== currentChat.id) result.push(root);
       if (currentChat.parentChatId) {
-        const siblings = chats
-          .filter(c => c.parentChatId === currentChat.parentChatId)
-          .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0));
-        result.push(...siblings);
+        result.push(
+          ...chats
+            .filter(c => c.parentChatId === currentChat.parentChatId)
+            .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0))
+        );
       } else {
         result.push(currentChat);
       }
-
-      const children = chats
-        .filter(c => c.parentChatId === currentChat.id)
-        .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0));
-      result.push(...children);
-
-      if (result.length <= 1) {
-        return [];
-      }
-
-      return result;
-    }, [currentChat, chats]);
-
-    const currentBranchIndex = useMemo(() => {
-      if (!currentChat || currentChat.id === 0) return 0;
-      return siblingBranches.findIndex(c => c.id === currentChat.id);
-    }, [siblingBranches, currentChat]);
-
-    // 构建菜单项
-    const menuItems: MenuItem[] = useMemo(() => {
-      const items: MenuItem[] = [];
-
-      // 新建对话选项
-      items.push({
-        key: "new",
-        type: "new",
-        title: "新建对话",
-      });
-
-      // 按更新时间排序的对话列表
-      const sortedChats = [...chats]
-        .filter(c => !c.archived)
-        .sort((a, b) => b.updateTime - a.updateTime);
-
-      // 只显示根对话（不显示分支，分支通过右侧切换器访问）
-      const rootChats = sortedChats.filter(c => !c.parentChatId);
-
-      rootChats.forEach(root => {
-        const branches = sortedChats.filter(c => c.parentChatId === root.id);
-        const isCurrentChat = currentChat.id === root.id;
-
-        items.push({
-          key: `chat-${root.id}`,
-          type: "chat",
-          chatId: root.id,
-          title: root.title,
-          isCurrentChat,
-          hasBranches: branches.length > 0,
-          runStatus: Object.values(chatRuns)
-            .filter(run => run.sessionKey === `${chatSource}:${root.id}`)
-            .sort((a, b) => b.updatedAt - a.updatedAt)[0]?.status,
-        });
-      });
-
-      return items;
-    }, [chatRuns, chatSource, chats, currentChat]);
-
-    const handleSelect = useMemoizedFn((item: MenuItem) => {
-      if (item.type === "new") {
-        onCreateNewChat();
-      } else if (item.chatId) {
-        onChatSelect(item.chatId);
-      }
-    });
-
-    const handleDeleteClick = useMemoizedFn(async (chatId: number) => {
-      if (!onChatDelete) return;
-
-      // 检查是否有子分支
-      let childBranchesCount = 0;
-      if (getChildBranchesCount) {
-        try {
-          childBranchesCount = await getChildBranchesCount(chatId);
-        } catch (error) {
-          console.error("Failed to get child branches count:", error);
-        }
-      }
-
-      // 构建确认对话框的标题和内容
-      const title = "确定删除这个对话吗？";
-      const content =
-        childBranchesCount > 0
-          ? `此对话包含 ${childBranchesCount} 个子分支，删除后将同时删除所有子分支。`
-          : undefined;
-
-      modal.confirm({
-        title,
-        content,
-        okButtonProps: { danger: true },
-        onOk: async () => {
-          try {
-            await onChatDelete(chatId);
-            message.success("对话删除成功");
-          } catch (error) {
-            message.error("删除对话失败");
-            console.error(error);
-          }
-        },
-      });
-    });
-
-    const headerMenuItems: MenuProps["items"] = useMemo(() => {
-      if (!onChatDelete || currentChat.id === 0) {
-        return [];
-      }
-
-      return [
-        {
-          key: "delete",
-          danger: true,
-          label: "删除对话",
-        },
-      ];
-    }, [currentChat.id, onChatDelete]);
-
-    const handleHeaderMenuClick: MenuProps["onClick"] = useMemoizedFn(({ key, domEvent }) => {
-      domEvent.stopPropagation();
-      if (key === "delete" && currentChat.id !== 0) {
-        void handleDeleteClick(currentChat.id);
-      }
-    });
-
-    const renderMenuItem = useMemoizedFn((item: MenuItem) => {
-      if (item.type === "new") {
-        return (
-          <div className="flex items-center gap-2">
-            <Plus size={14} />
-            <span>{item.title}</span>
-          </div>
-        );
-      }
-
-      return (
-        <div className="group flex w-full items-center justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            {item.hasBranches && <GitBranch size={14} className="shrink-0 opacity-60" />}
-            {item.runStatus &&
-              ["queued", "running", "retrying", "waiting_input"].includes(item.runStatus) && (
-                <LoaderCircle size={13} className="shrink-0 animate-spin text-[var(--th-accent)]" />
-              )}
-            {item.runStatus === "failed" && (
-              <AlertCircle size={13} className="shrink-0 text-red-500" />
-            )}
-            <span
-              className={`truncate ${item.isCurrentChat ? "font-medium text-[var(--th-accent)]" : ""}`}
-            >
-              {item.title}
-            </span>
-          </div>
-        </div>
+      result.push(
+        ...chats
+          .filter(c => c.parentChatId === currentChat.id)
+          .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0))
       );
-    });
+      return result.length > 1 ? result : [];
+    }, [chats, currentChat, hasChat]);
+    const currentBranchIndex = siblingBranches.findIndex(c => c.id === currentChat.id);
 
-    // 分支切换下拉
-    const [showBranchDropdown, setShowBranchDropdown] = useState(false);
-    const branchTriggerRef = useRef<HTMLDivElement>(null);
+    // 会话列表：未归档主干，置顶（orderNum）在前，其余按更新时间
+    const rows = useMemo(() => {
+      const q = query.trim().toLowerCase();
+      const roots = chats.filter(c => !c.archived && !c.parentChatId);
+      const pinned = roots
+        .filter(c => c.orderNum != null)
+        .sort((a, b) => (a.orderNum ?? 0) - (b.orderNum ?? 0));
+      const rest = roots
+        .filter(c => c.orderNum == null)
+        .sort((a, b) => b.updateTime - a.updateTime);
+      return [...pinned, ...rest]
+        .filter(c => !q || (c.title || "").toLowerCase().includes(q))
+        .map(chat => ({
+          chat,
+          pinned: chat.orderNum != null,
+          hasBranches: chats.some(c => c.parentChatId === chat.id),
+          runStatus: Object.values(chatRuns)
+            .filter(run => run.sessionKey === `${chatSource}:${chat.id}`)
+            .sort((a, b) => b.updatedAt - a.updatedAt)[0]?.status,
+        }));
+    }, [chatRuns, chatSource, chats, query]);
 
-    const branchItems: BranchItem[] = useMemo(() => {
-      return siblingBranches.map(chat => {
-        let prefix = "";
-        if (!chat.parentChatId) {
-          prefix = "主干: ";
-        } else if (chat.parentChatId === currentChat.id) {
-          prefix = "↳ ";
-        }
+    const select = (chatId: number) => {
+      setListOpen(false);
+      setQuery("");
+      if (chatId !== currentChat.id) onChatSelect(chatId);
+    };
 
-        return {
-          key: chat.id.toString(),
-          chatId: chat.id,
-          title: prefix + chat.title,
-          isCurrentChat: chat.id === currentChat.id,
-        };
-      });
-    }, [siblingBranches, currentChat]);
-
-    const handleBranchSelect = useMemoizedFn((item: BranchItem) => {
-      if (item.chatId !== currentChat.id) {
-        onChatSelect(item.chatId);
+    const askDelete = useMemoizedFn(async () => {
+      if (!onChatDelete || !hasChat) return;
+      let branches = 0;
+      try {
+        branches = (await getChildBranchesCount?.(currentChat.id)) ?? 0;
+      } catch (error) {
+        console.error("Failed to get child branches count:", error);
       }
+      setPendingDelete({ id: currentChat.id, branches });
     });
+
+    const title = hasChat ? currentChat.title || "新对话" : "新对话";
 
     return (
-      <div className="flex w-full items-center justify-between gap-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <div
-            ref={triggerRef}
-            className="flex cursor-pointer items-center gap-1 rounded px-2 py-1 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700"
-            onClick={() => setShowDropdown(!showDropdown)}
-          >
-            <ChevronDown size={16} className="shrink-0 opacity-60" />
-          </div>
-
-          <SelectDropDown<MenuItem>
-            items={menuItems}
-            selectedKey={`chat-${currentChat.id}`}
-            show={showDropdown}
-            onClose={() => setShowDropdown(false)}
-            onSelect={handleSelect}
-            triggerElement={triggerRef.current}
-            getKey={(item: MenuItem) => item.key}
-            renderItem={renderMenuItem}
-            width={220}
-            maxHeight={360}
-            preferredPlacement="bottom"
-          />
-
-          <div className="min-w-0 flex-1 font-bold">
-            {currentChat.id !== 0 ? (
-              <EditText
-                key={currentChat.id}
-                ref={titleRef}
-                defaultValue={currentChat.title}
-                value={currentChat.title}
-                onChange={onTitleChange}
-                contentEditable={!disabled}
-              />
-            ) : (
-              <span className="text-text-secondary">新对话</span>
-            )}
-          </div>
-
-          {onChatDelete && currentChat.id !== 0 && (
-            <Dropdown
-              menu={{
-                items: headerMenuItems,
-                onClick: handleHeaderMenuClick,
+      <div className="flex w-full min-w-0 items-center gap-0.5">
+        {renaming && hasChat ? (
+          <div className="text-tau-body text-ink-1 min-w-0 flex-1 px-1.5 font-semibold">
+            <EditText
+              key={currentChat.id}
+              ref={titleRef}
+              defaultValue={currentChat.title}
+              value={currentChat.title}
+              // 逐字变化只记草稿，失焦 / 回车才落库（legacy 每个字都写一次库）
+              onChange={value => {
+                draftTitle.current = value;
               }}
-              trigger={["click"]}
-              placement="bottomRight"
-            >
-              <button
-                className="text-text-secondary hover:text-text-primary shrink-0 rounded p-1 transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700 dark:hover:text-white"
-                title="更多操作"
-                onClick={e => e.stopPropagation()}
-              >
-                <MoreHorizontal size={14} />
-              </button>
-            </Dropdown>
-          )}
-        </div>
-
-        {/* 分支切换器 - 右侧 */}
-        {siblingBranches.length > 1 && (
-          <>
-            <div
-              ref={branchTriggerRef}
-              className="text-text-secondary flex shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-sm transition-colors hover:bg-gray-100 dark:hover:bg-zinc-700"
-              onClick={() => setShowBranchDropdown(true)}
-            >
-              <GitBranch size={14} />
-              <span>
-                {currentBranchIndex === 0 && !currentChat?.parentChatId
-                  ? "主干"
-                  : `分支 ${currentBranchIndex}`}
-              </span>
-              <span className="text-xs opacity-60">
-                ({currentBranchIndex + 1}/{siblingBranches.length})
-              </span>
-              <ChevronDown size={14} />
-            </div>
-
-            <SelectDropDown<BranchItem>
-              items={branchItems}
-              selectedKey={currentChat.id.toString()}
-              show={showBranchDropdown}
-              onClose={() => setShowBranchDropdown(false)}
-              onSelect={handleBranchSelect}
-              triggerElement={branchTriggerRef.current}
-              getKey={(item: BranchItem) => item.key}
-              renderItem={(item: BranchItem) => (
-                <span
-                  className={`truncate ${item.isCurrentChat ? "font-medium text-[var(--th-accent)]" : ""}`}
-                >
-                  {item.title}
-                </span>
-              )}
-              width={200}
-              maxHeight={300}
+              onBlur={() => {
+                const next = draftTitle.current.trim();
+                if (next && next !== currentChat.title) onTitleChange(next);
+                setRenaming(false);
+              }}
+              contentEditable={!disabled}
+              defaultFocus
             />
-          </>
+          </div>
+        ) : (
+          <Popover
+            open={listOpen}
+            onOpenChange={open => {
+              setListOpen(open);
+              if (!open) setQuery("");
+            }}
+            placement="bottom-start"
+            arrow={false}
+            className="w-[300px] p-1.5"
+            trigger={
+              <button
+                type="button"
+                disabled={disabled}
+                title="切换对话"
+                className="hover:bg-hover aria-expanded:bg-hover text-tau-body text-ink-1 ease-tau-out -ml-1 flex min-w-0 max-w-full items-center gap-1 rounded-[8px] px-1.5 py-1 font-semibold transition-colors duration-[160ms]"
+              >
+                <span className="min-w-0 truncate">{title}</span>
+                <ChevronDown size={14} strokeWidth={1.75} className="text-ink-3 shrink-0" />
+              </button>
+            }
+          >
+            <div className="border-line-1 bg-surface mb-1 flex h-8 items-center gap-2 rounded-[8px] border px-2.5">
+              <Search size={13} strokeWidth={1.75} className="text-ink-3 shrink-0" />
+              <input
+                autoFocus
+                value={query}
+                onChange={event => setQuery(event.target.value)}
+                placeholder="搜索对话"
+                className="text-tau-meta text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setListOpen(false);
+                onCreateNewChat();
+              }}
+              className="hover:bg-hover text-tau-meta text-ink-1 flex h-8 w-full items-center gap-2 rounded-[7px] px-2.5"
+            >
+              <SquarePen size={14} strokeWidth={1.75} className="text-ink-2" />
+              新对话
+            </button>
+            <div className="max-h-[320px] overflow-y-auto">
+              {rows.length === 0 ? (
+                <p className="text-tau-sm text-ink-3 px-2.5 py-3">没有匹配的对话</p>
+              ) : (
+                rows.map(({ chat, pinned, hasBranches, runStatus }) => {
+                  const active = chat.id === currentChat.id || chat.id === currentChat.parentChatId;
+                  return (
+                    <button
+                      type="button"
+                      key={chat.id}
+                      onClick={() => select(chat.id)}
+                      className={cn(
+                        "text-tau-meta flex h-8 w-full items-center gap-2 rounded-[7px] px-2.5 text-left",
+                        active
+                          ? "bg-selected text-ink-1 font-medium"
+                          : "text-ink-2 hover:bg-hover hover:text-ink-1"
+                      )}
+                    >
+                      <span className="flex size-3.5 shrink-0 items-center justify-center">
+                        {runStatus && ACTIVE_RUN.includes(runStatus) ? (
+                          <Spinner className="size-3 border-[1.5px]" />
+                        ) : runStatus === "failed" ? (
+                          <AlertCircle size={13} strokeWidth={1.75} className="text-danger" />
+                        ) : pinned ? (
+                          <Pin size={12} strokeWidth={1.75} className="text-ink-3" />
+                        ) : null}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">{chat.title || "新对话"}</span>
+                      {hasBranches && (
+                        <GitBranch size={12} strokeWidth={1.75} className="text-ink-3 shrink-0" />
+                      )}
+                      {active && (
+                        <Check size={13} strokeWidth={2} className="text-accent-text shrink-0" />
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+            {onOpenLibrary && (
+              <button
+                type="button"
+                onClick={() => {
+                  setListOpen(false);
+                  onOpenLibrary();
+                }}
+                className="hover:bg-hover text-tau-meta text-ink-2 mt-1 flex h-8 w-full items-center gap-2 rounded-[7px] px-2.5"
+              >
+                <Library size={14} strokeWidth={1.75} className="text-ink-3" />
+                全部会话…
+                <span className="text-tau-tiny text-ink-3 ml-auto">分组与归档</span>
+              </button>
+            )}
+          </Popover>
         )}
+
+        <span className="min-w-0 flex-1" />
+
+        {siblingBranches.length > 1 && (
+          <Menu
+            align="end"
+            className="w-[220px]"
+            trigger={
+              <button
+                type="button"
+                title="切换分支"
+                className="hover:bg-hover aria-expanded:bg-hover text-tau-sm text-ink-2 flex h-7 shrink-0 items-center gap-1 rounded-[8px] px-2"
+              >
+                <GitBranch size={13} strokeWidth={1.75} />
+                <span className="tabular-nums">
+                  {currentBranchIndex + 1}/{siblingBranches.length}
+                </span>
+                <ChevronDown size={12} strokeWidth={1.75} className="text-ink-3" />
+              </button>
+            }
+          >
+            <Menu.Group>分支</Menu.Group>
+            <Menu.RadioGroup
+              value={String(currentChat.id)}
+              onValueChange={value => {
+                const id = Number(value);
+                if (id !== currentChat.id) onChatSelect(id);
+              }}
+            >
+              {siblingBranches.map(chat => (
+                <Menu.RadioItem key={chat.id} value={String(chat.id)}>
+                  {!chat.parentChatId
+                    ? "主干 · "
+                    : chat.parentChatId === currentChat.id
+                      ? "↳ "
+                      : ""}
+                  {chat.title}
+                </Menu.RadioItem>
+              ))}
+            </Menu.RadioGroup>
+          </Menu>
+        )}
+
+        {hasChat && (
+          <Menu
+            align="end"
+            className="w-[168px]"
+            trigger={
+              <IconButton
+                aria-label="更多操作"
+                title="更多操作"
+                className="size-7"
+                disabled={disabled}
+              >
+                <MoreHorizontal size={16} strokeWidth={1.75} />
+              </IconButton>
+            }
+          >
+            <Menu.Item
+              icon={<Pencil />}
+              onSelect={() => {
+                draftTitle.current = currentChat.title;
+                setRenaming(true);
+              }}
+            >
+              重命名
+            </Menu.Item>
+            {onChatDelete && (
+              <>
+                <Menu.Separator />
+                <Menu.Item danger icon={<Trash2 />} onSelect={() => void askDelete()}>
+                  删除对话
+                </Menu.Item>
+              </>
+            )}
+          </Menu>
+        )}
+
+        <ConfirmDialog
+          open={pendingDelete !== null}
+          onOpenChange={open => !open && setPendingDelete(null)}
+          title="删除这个对话？"
+          context={currentChat.title}
+          description={
+            pendingDelete?.branches
+              ? `此对话包含 ${pendingDelete.branches} 个子分支，删除后将同时删除所有子分支。`
+              : "删除后无法恢复。"
+          }
+          confirmText="删除"
+          danger
+          size="sm"
+          onConfirm={async () => {
+            if (!pendingDelete || !onChatDelete) return;
+            try {
+              await onChatDelete(pendingDelete.id);
+              toast.success("对话已删除");
+            } catch (error) {
+              toast.error("删除对话失败");
+              console.error(error);
+            } finally {
+              setPendingDelete(null);
+            }
+          }}
+        />
       </div>
     );
   }

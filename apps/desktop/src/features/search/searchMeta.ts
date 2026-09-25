@@ -12,6 +12,7 @@ import {
   PenLine,
   FolderKanban,
   SunMoon,
+  MessageCircle,
   CircleHelp,
   Command,
   type LucideIcon,
@@ -66,7 +67,7 @@ export interface PaletteCommand {
   keywords?: string;
   kind: "page" | "action";
   pageKey?: string;
-  action?: "cycle-theme" | "open-settings" | "capture-question";
+  action?: "cycle-theme" | "open-settings" | "capture-question" | "toggle-assist";
 }
 
 let cached: PaletteCommand[] | null = null;
@@ -115,6 +116,15 @@ export function paletteCommands(): PaletteCommand[] {
       keywords: "theme dark light 外观",
       kind: "action",
       action: "cycle-theme",
+    },
+    {
+      id: "action:toggle-assist",
+      label: "开合 AI 对话栏",
+      section: "动作",
+      icon: MessageCircle,
+      keywords: "ai chat assistant dock 对话 助手 停靠 ctrl+j",
+      kind: "action",
+      action: "toggle-assist",
     },
     {
       id: "action:capture-question",

@@ -33,7 +33,7 @@ const unmount = async (root: Root, container: HTMLElement) => {
 };
 
 describe("ChatSidebar MarkdownRenderer blockquote", () => {
-  it("应复用 Editor 的 blockquote 视觉结构", async () => {
+  it("引用块使用 tau 引线样式", async () => {
     const { root, container } = await mount(
       <MarkdownProvider isDark={false} isVisible={true}>
         <MarkdownRenderer
@@ -46,14 +46,9 @@ describe("ChatSidebar MarkdownRenderer blockquote", () => {
 
     const blockquote = container.querySelector("blockquote");
     expect(blockquote).toBeTruthy();
-    expect(blockquote?.className).toContain("pl-[1.5em]");
-    expect(blockquote?.className).toContain("italic");
-    expect(blockquote?.className).toContain("leading-relaxed");
-    const accentBar = blockquote?.querySelector(
-      ".absolute.left-0.top-1.bottom-1.w-1.rounded-full.select-none"
-    ) as HTMLElement | null;
-    expect(accentBar).toBeTruthy();
-    expect(accentBar?.style.backgroundColor).toBeTruthy();
+    // 引用 = 2px 引线 + 淡墨正文（D-048），不再用斜体与绝对定位 accent 竖条
+    expect(blockquote?.className).toContain("border-l-2");
+    expect(blockquote?.className).toContain("text-ink-2");
     expect(blockquote?.textContent).toContain("第一行引用");
     expect(blockquote?.textContent).toContain("第二行引用");
 

@@ -1,15 +1,6 @@
 import { useEffect } from "react";
 import toolRegistry from "@/tools";
-import {
-  createBatchReadSearchHitsTool,
-  createBatchSearchProjectKnowledgeTool,
-  createGrepResourceContentTool,
-  createVibeLearningSearchTool,
-  createListResourcesTool,
-  createReadResourceContentTool,
-  createReadResourceLinesTool,
-  createReadResourceRangeTool,
-} from "@/tools/vibeLearningSearchTool";
+import { createUnifiedVibeLearningTool } from "@/tools/vibeLearningSearchTool";
 
 export interface UseVLToolsOptions {
   /** 项目 ID */
@@ -26,14 +17,7 @@ export interface UseVLToolsOptions {
  * VibeLearning 工具注册 Hook
  *
  * 自动注册和清理 VibeLearning 专属工具：
- * - list_project_resources: 列出项目资源
- * - read_resource_content: 读取资源完整内容
- * - search_resource_content: 语义搜索资源内容
- * - grep_resource_content: 精确搜索资源内容
- * - read_resource_lines: 按行范围读取资源内容
- * - read_resource_range: 按字符范围读取资源内容
- * - batch_search_project_knowledge: 批量执行多个搜索角度
- * - batch_read_search_hits: 批量补读命中上下文
+ * - vibe_learning_query: 统一执行项目资源列出、搜索和范围补读
  *
  * @example
  * ```tsx
@@ -54,16 +38,7 @@ const useVLTools = (options: UseVLToolsOptions): void => {
     }
 
     // 注册 VibeLearning 专属工具
-    const tools = [
-      createVibeLearningSearchTool(projectId, mainDbName),
-      createGrepResourceContentTool(projectId, mainDbName),
-      createBatchSearchProjectKnowledgeTool(projectId, mainDbName),
-      createListResourcesTool(projectId),
-      createReadResourceContentTool(projectId, mainDbName),
-      createReadResourceLinesTool(projectId, mainDbName),
-      createReadResourceRangeTool(projectId, mainDbName),
-      createBatchReadSearchHitsTool(projectId, mainDbName),
-    ];
+    const tools = [createUnifiedVibeLearningTool(projectId, mainDbName)];
 
     toolRegistry.registerTools(sourceId, tools, true);
 

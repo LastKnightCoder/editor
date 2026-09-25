@@ -5,3 +5,4 @@ export * from "./tabs-normalize";
 export * from "./encoding";
 export * from "./content-length";
 export * from "./knowledge-migration";
+export { stripRetiredEditorBlocks, isRetiredEditorBlock } from "@tau/db-schema";

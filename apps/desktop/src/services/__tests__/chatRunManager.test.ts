@@ -22,20 +22,15 @@ import { ChatRunManager } from "../chatRunManager";
 import useChatRunStore from "@/stores/useChatRunStore";
 import type { ChatRunRecord } from "@/types/chat-run";
 
-const createRun = (
-  runId: string,
-  sessionKey: ChatRunRecord["sessionKey"],
-): ChatRunRecord => ({
+const createRun = (runId: string, sessionKey: ChatRunRecord["sessionKey"]): ChatRunRecord => ({
   runId,
   sessionKey,
   source: sessionKey.split(":")[0] as ChatRunRecord["source"],
   chatId: Number(sessionKey.split(":")[1]),
-  agentType: "local",
   status: "running",
   requestPayload: [],
   userMessageClientId: `${runId}-user`,
   assistantMessageClientId: `${runId}-assistant`,
-  agentSessionId: null,
   attempt: 0,
   assistantSnapshot: "",
   reasoningSnapshot: "",
@@ -50,7 +45,7 @@ describe("ChatRunManager", () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     useChatRunStore.getState().setRuns([]);
-    commandMocks.create.mockImplementation(async (record) => ({
+    commandMocks.create.mockImplementation(async record => ({
       ...record,
       createdAt: 1,
       updatedAt: 1,
@@ -91,7 +86,7 @@ describe("ChatRunManager", () => {
           runId: "waiting-run",
           status: "waiting_input",
         }),
-      ]),
+      ])
     );
     expect(commandMocks.update).toHaveBeenCalledTimes(3);
   });
@@ -101,9 +96,7 @@ describe("ChatRunManager", () => {
     const first = await manager.start(createRun("main-run", "main-chat:1"));
     const second = await manager.start(createRun("pdf-run", "pdf-chat:1"));
     const updates: string[] = [];
-    manager.subscribe("main-chat:1", (run) =>
-      updates.push(run.assistantSnapshot),
-    );
+    manager.subscribe("main-chat:1", run => updates.push(run.assistantSnapshot));
 
     manager.update(first.runId, { assistantSnapshot: "主会话内容" });
     manager.update(second.runId, { assistantSnapshot: "PDF 会话内容" });
@@ -151,11 +144,9 @@ describe("ChatRunManager", () => {
     manager.update(run.runId, { assistantSnapshot: "完整内容" });
     await vi.advanceTimersByTimeAsync(250);
 
-    expect(manager.getSnapshot("main-chat:3")?.assistantSnapshot).toBe(
-      "完整内容",
-    );
+    expect(manager.getSnapshot("main-chat:3")?.assistantSnapshot).toBe("完整内容");
     expect(commandMocks.update).toHaveBeenLastCalledWith(
-      expect.objectContaining({ assistantSnapshot: "完整内容" }),
+      expect.objectContaining({ assistantSnapshot: "完整内容" })
     );
   });
 
@@ -169,19 +160,15 @@ describe("ChatRunManager", () => {
     await vi.waitFor(() => expect(commandMocks.finalize).toHaveBeenCalled());
 
     expect(commandMocks.update).toHaveBeenCalledWith(
-      expect.objectContaining({ assistantSnapshot: "完整回答" }),
+      expect.objectContaining({ assistantSnapshot: "完整回答" })
     );
     expect(commandMocks.update).toHaveBeenLastCalledWith(
-      expect.objectContaining({ status: "completed" }),
+      expect.objectContaining({ status: "completed" })
     );
-    expect(
-      commandMocks.update.mock.invocationCallOrder.at(-1) ?? Infinity,
-    ).toBeLessThan(commandMocks.finalize.mock.invocationCallOrder[0]);
-    expect(commandMocks.finalize).toHaveBeenCalledWith(
-      "final-run",
-      "completed",
-      null,
+    expect(commandMocks.update.mock.invocationCallOrder.at(-1) ?? Infinity).toBeLessThan(
+      commandMocks.finalize.mock.invocationCallOrder[0]
     );
+    expect(commandMocks.finalize).toHaveBeenCalledWith("final-run", "completed", null);
     expect(manager.getSnapshot("main-chat:8")).toMatchObject({
       status: "completed",
       assistantSnapshot: "完整回答",
@@ -193,9 +180,9 @@ describe("ChatRunManager", () => {
     let resolveCreate: ((record: ChatRunRecord) => void) | undefined;
     commandMocks.create.mockImplementation(
       () =>
-        new Promise<ChatRunRecord>((resolve) => {
+        new Promise<ChatRunRecord>(resolve => {
           resolveCreate = resolve;
-        }),
+        })
     );
     const pendingStart = manager.start(createRun("late-run", "main-chat:4"));
 
@@ -215,11 +202,11 @@ describe("ChatRunManager", () => {
     commandMocks.create
       .mockImplementationOnce(
         () =>
-          new Promise<ChatRunRecord>((resolve) => {
+          new Promise<ChatRunRecord>(resolve => {
             resolveFirstCreate = resolve;
-          }),
+          })
       )
-      .mockImplementationOnce(async (record) => ({
+      .mockImplementationOnce(async record => ({
         ...record,
         createdAt: 2,
         updatedAt: 2,
@@ -227,9 +214,7 @@ describe("ChatRunManager", () => {
     const staleStart = manager.start(createRun("stale-run", "main-chat:5"));
 
     await manager.discardSession("main-chat:5");
-    const currentRun = await manager.start(
-      createRun("current-run", "main-chat:5"),
-    );
+    const currentRun = await manager.start(createRun("current-run", "main-chat:5"));
     resolveFirstCreate?.(createRun("stale-run", "main-chat:5"));
 
     await expect(staleStart).rejects.toMatchObject({ name: "AbortError" });

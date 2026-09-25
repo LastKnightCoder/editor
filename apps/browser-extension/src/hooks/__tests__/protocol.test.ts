@@ -1,10 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import type { ChatMessageType } from "@tau/shared";
-import {
-  buildAiChatRpcPayload,
-  fetchCodexAvailabilityViaRpc,
-  mapChatMessageToAiRequestMessage,
-} from "../useAiChat";
+import { buildAiChatRpcPayload, mapChatMessageToAiRequestMessage } from "../useAiChat";
 import { fetchSkillsViaRpc } from "../useSkills";
 
 describe("ai.chat 协议映射", () => {
@@ -22,7 +18,7 @@ describe("ai.chat 协议映射", () => {
     expect(payload.browserTools?.length).toBeGreaterThan(0);
   });
 
-  it("透传 Codex 代理类型和会话 ID", () => {
+  it("忽略旧调用方传入的代理类型和线程 ID", () => {
     const payload = buildAiChatRpcPayload({
       requestId: "req-codex",
       messages: [{ role: "user", content: "hello codex" }],
@@ -31,23 +27,8 @@ describe("ai.chat 协议映射", () => {
       agentSessionId: "codex-thread-1",
     } as any);
 
-    expect(payload.agentType).toBe("codex");
-    expect(payload.agentSessionId).toBe("codex-thread-1");
-  });
-
-  it("通过 codex.getAvailability 查询 Codex 可用性", async () => {
-    const sendRequest = vi.fn().mockResolvedValue({
-      available: true,
-      reason: null,
-    });
-    const wsClient = {
-      sendRequest,
-    } as unknown as import("@/utils/WebSocketClient").default;
-
-    const availability = await fetchCodexAvailabilityViaRpc(wsClient);
-
-    expect(sendRequest).toHaveBeenCalledWith("codex.getAvailability", {});
-    expect(availability).toEqual({ available: true, reason: null });
+    expect(payload).not.toHaveProperty("agentType");
+    expect(payload).not.toHaveProperty("agentSessionId");
   });
 
   it("支持 user/assistant/tool 历史消息映射", () => {
@@ -87,9 +68,7 @@ describe("ai.chat 协议映射", () => {
       timestamp: 900,
     } as ChatMessageType;
 
-    const mappedUser = mapChatMessageToAiRequestMessage(
-      userMessageWithRequestContent,
-    );
+    const mappedUser = mapChatMessageToAiRequestMessage(userMessageWithRequestContent);
     const mappedAssistant = mapChatMessageToAiRequestMessage(assistantMessage);
     const mappedTool = mapChatMessageToAiRequestMessage(toolMessage);
 
@@ -115,5 +94,38 @@ describe("settings.getSkills 协议", () => {
 
     expect(sendRequest).toHaveBeenCalledWith("settings.getSkills", {});
     expect(skills).toEqual([{ folderName: "demo", name: "Demo" }]);
+  });
+});
+
+describe("退役代理历史上下文", () => {
+  it("将历史工具输出转为助手正文，保留原消息", () => {
+    const message: ChatMessageType = {
+      id: "legacy",
+      role: "assistant",
+      content: "已查询",
+      timestamp: 1,
+      contentBlocks: [
+        {
+          type: "tool_calls",
+          executions: [
+            {
+              toolCallId: "old-call",
+              toolName: "legacy-tool",
+              status: "success",
+              input: "{}",
+              output: "历史结果",
+              timestamp: 1,
+              metadata: { codexItemType: "mcp_tool_call" },
+            },
+          ],
+        },
+      ],
+    };
+    const snapshot = JSON.stringify(message);
+    const request = mapChatMessageToAiRequestMessage(message);
+    expect(request.tool_calls).toBeUndefined();
+    expect(request.content).toContain("历史结果");
+    expect(request.content).toContain("已查询");
+    expect(JSON.stringify(message)).toBe(snapshot);
   });
 });

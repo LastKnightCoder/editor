@@ -5,7 +5,6 @@ import {
   ChatGroup,
   CreateChatGroup,
   UpdateChatGroup,
-  ChatAgentType,
 } from "@/types";
 
 export const createChatMessage = (
@@ -15,9 +14,7 @@ export const createChatMessage = (
   parentChatId?: number | null,
   branchIndex?: number,
   orderNum?: number | null,
-  titleDirty?: boolean,
-  agentType?: ChatAgentType,
-  agentSessionId?: string | null,
+  titleDirty?: boolean
 ): Promise<ChatMessage> => {
   return invoke(
     "create-chat-message",
@@ -27,9 +24,7 @@ export const createChatMessage = (
     parentChatId,
     branchIndex,
     orderNum,
-    titleDirty,
-    agentType,
-    agentSessionId,
+    titleDirty
   );
 };
 
@@ -38,7 +33,7 @@ export const getChatMessageById = (id: number): Promise<ChatMessage> => {
 };
 
 export const updateChatMessage = (
-  chatMessage: Omit<ChatMessage, "updateTime">,
+  chatMessage: Omit<ChatMessage, "updateTime">
 ): Promise<ChatMessage> => {
   return invoke("update-chat-message", chatMessage);
 };
@@ -51,9 +46,7 @@ export const getAllChatMessages = (): Promise<ChatMessage[]> => {
   return invoke("get-all-chat-messages");
 };
 
-export const getChatBranches = (
-  parentChatId: number,
-): Promise<ChatMessage[]> => {
+export const getChatBranches = (parentChatId: number): Promise<ChatMessage[]> => {
   return invoke("get-chat-branches", parentChatId);
 };
 
@@ -61,9 +54,7 @@ export const getNextBranchIndex = (parentChatId: number): Promise<number> => {
   return invoke("get-next-branch-index", parentChatId);
 };
 
-export const getChildBranchesCount = (
-  parentChatId: number,
-): Promise<number> => {
+export const getChildBranchesCount = (parentChatId: number): Promise<number> => {
   return invoke("get-child-branches-count", parentChatId);
 };
 
@@ -95,9 +86,6 @@ export const unpinChatMessage = (id: number): Promise<ChatMessage> => {
   return invoke("unpin-chat-message", id);
 };
 
-export const reorderChatMessage = (
-  id: number,
-  newOrder: number,
-): Promise<ChatMessage> => {
+export const reorderChatMessage = (id: number, newOrder: number): Promise<ChatMessage> => {
   return invoke("reorder-chat-message", id, newOrder);
 };

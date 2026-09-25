@@ -5,18 +5,16 @@ import type { ChatRunRecord, ChatSessionKey } from "@/types/chat-run";
 const createRun = (
   runId: string,
   sessionKey: ChatSessionKey,
-  updatedAt: number,
+  updatedAt: number
 ): ChatRunRecord => ({
   runId,
   sessionKey,
   source: sessionKey.split(":")[0] as ChatRunRecord["source"],
   chatId: Number(sessionKey.split(":")[1]),
-  agentType: "local",
   status: "running",
   requestPayload: [],
   userMessageClientId: `${runId}-user`,
   assistantMessageClientId: `${runId}-assistant`,
-  agentSessionId: null,
   attempt: 0,
   assistantSnapshot: "",
   reasoningSnapshot: "",
@@ -38,11 +36,7 @@ describe("useChatRunStore", () => {
         createRun("pdf", "pdf-chat:1", 3),
       ]);
 
-    expect(useChatRunStore.getState().getForSession("main-chat:1")?.runId).toBe(
-      "main-new",
-    );
-    expect(useChatRunStore.getState().getForSession("pdf-chat:1")?.runId).toBe(
-      "pdf",
-    );
+    expect(useChatRunStore.getState().getForSession("main-chat:1")?.runId).toBe("main-new");
+    expect(useChatRunStore.getState().getForSession("pdf-chat:1")?.runId).toBe("pdf");
   });
 });

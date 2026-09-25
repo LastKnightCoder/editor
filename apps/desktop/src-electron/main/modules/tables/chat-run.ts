@@ -7,12 +7,10 @@ const parse = (row: ChatRunRow): ChatRunRecord => ({
   sessionKey: row.session_key,
   source: row.source,
   chatId: Number(row.chat_id),
-  agentType: row.agent_type === "codex" ? "codex" : "local",
-  status: row.status,
+  status: row.agent_type === "codex" && row.status === "waiting_input" ? "interrupted" : row.status,
   requestPayload: JSON.parse(row.request_payload || "[]"),
   userMessageClientId: row.user_message_client_id,
   assistantMessageClientId: row.assistant_message_client_id,
-  agentSessionId: row.agent_session_id,
   attempt: row.attempt,
   assistantSnapshot: row.assistant_snapshot || "",
   reasoningSnapshot: row.reasoning_snapshot || "",
@@ -43,9 +41,7 @@ export default class ChatRunTable {
 
   static compactReconciledTerminalRuns(db: Database.Database) {
     const hasChatMessageTable = db
-      .prepare(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='chat_message'",
-      )
+      .prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='chat_message'")
       .get();
     if (!hasChatMessageTable) return 0;
 
@@ -84,7 +80,7 @@ export default class ChatRunTable {
                    AND json_extract(message.value,'$.content')=run.assistant_snapshot
                )
              ))
-           )`,
+           )`
       )
       .run().changes;
   }
@@ -101,69 +97,62 @@ export default class ChatRunTable {
     };
   }
 
-  static create(
-    db: Database.Database,
-    record: Omit<ChatRunRecord, "createdAt" | "updatedAt">,
-  ) {
+  static create(db: Database.Database, record: Omit<ChatRunRecord, "createdAt" | "updatedAt">) {
     const now = Date.now();
     db.prepare(
       `INSERT INTO chat_run
-      (run_id,session_key,source,chat_id,agent_type,status,request_payload,user_message_client_id,
-       assistant_message_client_id,agent_session_id,attempt,assistant_snapshot,reasoning_snapshot,
+      (run_id,session_key,source,chat_id,status,request_payload,user_message_client_id,
+       assistant_message_client_id,attempt,assistant_snapshot,reasoning_snapshot,
        tool_snapshot,error_message,created_at,updated_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).run(
       record.runId,
       record.sessionKey,
       record.source,
       record.chatId,
-      record.agentType,
       record.status,
       JSON.stringify(record.requestPayload),
       record.userMessageClientId,
       record.assistantMessageClientId,
-      record.agentSessionId,
       record.attempt,
       record.assistantSnapshot,
       record.reasoningSnapshot,
       JSON.stringify(record.toolSnapshot),
       record.errorMessage,
       now,
-      now,
+      now
     );
     return this.get(db, record.runId);
   }
 
   static update(db: Database.Database, record: ChatRunRecord) {
     db.prepare(
-      `UPDATE chat_run SET status=?,request_payload=?,agent_session_id=?,attempt=?,
-      assistant_snapshot=?,reasoning_snapshot=?,tool_snapshot=?,error_message=?,updated_at=? WHERE run_id=?`,
+      `UPDATE chat_run SET status=?,request_payload=?,attempt=?,
+      assistant_snapshot=?,reasoning_snapshot=?,tool_snapshot=?,error_message=?,updated_at=? WHERE run_id=?`
     ).run(
       record.status,
       JSON.stringify(record.requestPayload),
-      record.agentSessionId,
       record.attempt,
       record.assistantSnapshot,
       record.reasoningSnapshot,
       JSON.stringify(record.toolSnapshot),
       record.errorMessage,
       Date.now(),
-      record.runId,
+      record.runId
     );
     return this.get(db, record.runId);
   }
 
   static get(db: Database.Database, runId: string) {
-    const row = db
-      .prepare("SELECT * FROM chat_run WHERE run_id=?")
-      .get(runId) as ChatRunRow | undefined;
+    const row = db.prepare("SELECT * FROM chat_run WHERE run_id=?").get(runId) as
+      ChatRunRow | undefined;
     return row ? parse(row) : null;
   }
 
   static getActive(db: Database.Database) {
     const rows = db
       .prepare(
-        "SELECT * FROM chat_run WHERE status IN ('queued','running','retrying','waiting_input','interrupted') ORDER BY updated_at ASC",
+        "SELECT * FROM chat_run WHERE status IN ('queued','running','retrying','waiting_input','interrupted') ORDER BY updated_at ASC"
       )
       .all() as ChatRunRow[];
     return rows.map(parse);
@@ -173,11 +162,11 @@ export default class ChatRunTable {
     db: Database.Database,
     runId: string,
     status: Extract<ChatRunStatus, "completed" | "cancelled">,
-    errorMessage?: string | null,
+    errorMessage?: string | null
   ) {
     db.prepare(
       `UPDATE chat_run SET status=?,request_payload='[]',assistant_snapshot='',
-       reasoning_snapshot='',tool_snapshot='[]',error_message=?,updated_at=? WHERE run_id=?`,
+       reasoning_snapshot='',tool_snapshot='[]',error_message=?,updated_at=? WHERE run_id=?`
     ).run(status, errorMessage ?? null, Date.now(), runId);
     return this.get(db, runId);
   }
@@ -187,8 +176,6 @@ export default class ChatRunTable {
   }
 
   static deleteForSession(db: Database.Database, sessionKey: string) {
-    return db
-      .prepare("DELETE FROM chat_run WHERE session_key=?")
-      .run(sessionKey).changes;
+    return db.prepare("DELETE FROM chat_run WHERE session_key=?").run(sessionKey).changes;
   }
 }

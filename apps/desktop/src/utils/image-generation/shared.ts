@@ -23,9 +23,7 @@ export interface ResolvedImageInputFile extends File {
 }
 
 export interface ImageInputFileDependencies {
-  fetchBinary?: (
-    url: string,
-  ) => Promise<{ data: Uint8Array; mimeType: string }>;
+  fetchBinary?: (url: string) => Promise<{ data: Uint8Array; mimeType: string }>;
   readBinaryFile?: typeof readBinaryFile;
   resolveLocalMediaPath?: typeof resolveLocalMediaPath;
   getFileExtension?: typeof getFileExtension;
@@ -67,27 +65,19 @@ export const bananaLog = (event: string, payload: Record<string, unknown>) => {
   try {
     console.log(`🍌 ${event} ${JSON.stringify(payload)}`);
   } catch (error) {
-    console.log(
-      `🍌 ${event} ${JSON.stringify({ logError: (error as Error).message })}`,
-    );
+    console.log(`🍌 ${event} ${JSON.stringify({ logError: (error as Error).message })}`);
   }
 };
 
-export const isProviderConfigValid = (
-  config?: Partial<ImageProviderConfig> | null,
-) =>
-  Boolean(
-    config?.baseUrl?.trim() &&
-    config.apiKey?.trim() &&
-    config.modelName?.trim(),
-  );
+export const isProviderConfigValid = (config?: Partial<ImageProviderConfig> | null) =>
+  Boolean(config?.baseUrl?.trim() && config.apiKey?.trim() && config.modelName?.trim());
 
 export const normalizeOpenAIImageBaseUrl = (baseUrl: string) =>
   (baseUrl || DEFAULT_OPENAI_IMAGE_BASE_URL).trim().replace(/\/+$/, "");
 
 export const compactImageOptions = (options?: OpenAIImageOptions) => {
   const compacted: Record<string, string | number> = {};
-  IMAGE_OPTION_KEYS.forEach((key) => {
+  IMAGE_OPTION_KEYS.forEach(key => {
     const value = options?.[key];
     if (value === undefined || value === null || value === "") {
       return;
@@ -98,9 +88,7 @@ export const compactImageOptions = (options?: OpenAIImageOptions) => {
 };
 
 export const parseDataUrl = (value: string) => {
-  const match = value.match(
-    /^data:(image\/(?:png|jpeg|jpg|webp));base64,(.+)$/i,
-  );
+  const match = value.match(/^data:(image\/(?:png|jpeg|jpg|webp));base64,(.+)$/i);
   if (!match) {
     throw new Error("仅支持 png、jpeg、webp 格式的 data URL 图片");
   }
@@ -116,15 +104,20 @@ export const parseDataUrl = (value: string) => {
 export const createImageFile = (
   bytes: Uint8Array,
   mimeType: string,
-  prefix = "input-image",
+  prefix = "input-image"
 ): ResolvedImageInputFile => {
   const extension = extensionFromMimeType(mimeType);
   if (!extension) {
     throw new Error("仅支持 png、jpeg、webp 格式的图片");
   }
-  const file = new File([bytes], `${prefix}-${Date.now()}.${extension}`, {
-    type: mimeType,
-  });
+  // 入参字节均来自 IPC 或新构造的 Uint8Array，必为 ArrayBuffer 背景
+  const file = new File(
+    [bytes as Uint8Array<ArrayBuffer>],
+    `${prefix}-${Date.now()}.${extension}`,
+    {
+      type: mimeType,
+    }
+  );
   if (typeof file.arrayBuffer !== "function") {
     Object.defineProperty(file, "arrayBuffer", {
       value: async () => bytes.buffer.slice(0),
@@ -142,9 +135,7 @@ export const fetchRemoteImage = async (url: string) => {
   const data = response.data ?? (response as unknown as ArrayBuffer);
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
   const contentType =
-    response.headers?.["content-type"] ||
-    response.headers?.["Content-Type"] ||
-    "";
+    response.headers?.["content-type"] || response.headers?.["Content-Type"] || "";
   const mimeType = contentType.split(";")[0].trim().toLowerCase();
   if (!extensionFromMimeType(mimeType)) {
     throw new Error("远程图片格式不受支持，仅支持 png、jpeg、webp");
@@ -154,7 +145,7 @@ export const fetchRemoteImage = async (url: string) => {
 
 export const resolveImageInputFile = async (
   rawValue: string,
-  dependencies: ImageInputFileDependencies = {},
+  dependencies: ImageInputFileDependencies = {}
 ): Promise<ResolvedImageInputFile> => {
   const value = rawValue.trim();
   if (!value) {
@@ -167,26 +158,18 @@ export const resolveImageInputFile = async (
   }
 
   if (/^https?:\/\//i.test(value)) {
-    const { data, mimeType } = await (
-      dependencies.fetchBinary ?? fetchRemoteImage
-    )(value);
+    const { data, mimeType } = await (dependencies.fetchBinary ?? fetchRemoteImage)(value);
     return createImageFile(data, mimeType);
   }
 
-  const localPath = await (
-    dependencies.resolveLocalMediaPath ?? resolveLocalMediaPath
-  )(value);
-  const extension = await (dependencies.getFileExtension ?? getFileExtension)(
-    localPath,
-  );
+  const localPath = await (dependencies.resolveLocalMediaPath ?? resolveLocalMediaPath)(value);
+  const extension = await (dependencies.getFileExtension ?? getFileExtension)(localPath);
   const mimeType = mimeTypeFromExtension(extension);
   if (!mimeType) {
     throw new Error("本地图片格式不受支持，仅支持 png、jpeg、webp");
   }
 
-  const bytes = await (dependencies.readBinaryFile ?? readBinaryFile)(
-    localPath,
-  );
+  const bytes = await (dependencies.readBinaryFile ?? readBinaryFile)(localPath);
   const file = createImageFile(bytes, mimeType);
   file.resolvedPath = localPath;
   return file;
@@ -195,7 +178,7 @@ export const resolveImageInputFile = async (
 export const createImageFileFromBase64 = (
   b64Json: string,
   mimeType = "image/png",
-  prefix = "openai-image",
+  prefix = "openai-image"
 ) => {
   const binary = atob(b64Json);
   const bytes = new Uint8Array(binary.length);
@@ -241,12 +224,9 @@ const mimeTypeFromExtensionStr = (extension: string) =>
 export const parseOpenAIImageResponse = (payload: unknown): ImageResult[] => {
   bananaLog("openai-image.parse-response", {
     payloadType: typeof payload,
-    topLevelKeys:
-      payload && typeof payload === "object" ? Object.keys(payload) : null,
+    topLevelKeys: payload && typeof payload === "object" ? Object.keys(payload) : null,
     dataLength:
-      payload &&
-      typeof payload === "object" &&
-      Array.isArray((payload as any).data)
+      payload && typeof payload === "object" && Array.isArray((payload as any).data)
         ? (payload as any).data.length
         : null,
     dataItemKeys:
@@ -258,9 +238,7 @@ export const parseOpenAIImageResponse = (payload: unknown): ImageResult[] => {
         ? Object.keys((payload as any).data[0])
         : null,
     outputTypes:
-      payload &&
-      typeof payload === "object" &&
-      Array.isArray((payload as any).data)
+      payload && typeof payload === "object" && Array.isArray((payload as any).data)
         ? (payload as any).data.map((item: unknown) =>
             item && typeof item === "object"
               ? {
@@ -269,28 +247,22 @@ export const parseOpenAIImageResponse = (payload: unknown): ImageResult[] => {
                   hasUrl: typeof (item as any).url === "string",
                   type: (item as any).type,
                 }
-              : { itemType: typeof item },
+              : { itemType: typeof item }
           )
         : null,
   });
   const data =
-    payload &&
-    typeof payload === "object" &&
-    Array.isArray((payload as any).data)
+    payload && typeof payload === "object" && Array.isArray((payload as any).data)
       ? ((payload as any).data as Array<Record<string, unknown>>)
       : [];
   const results: ImageResult[] = data
     .map((item): ImageResult | null => {
       const b64Json = item.b64_json;
       const url = item.url;
-      if (
-        (typeof b64Json !== "string" || !b64Json) &&
-        (typeof url !== "string" || !url)
-      ) {
+      if ((typeof b64Json !== "string" || !b64Json) && (typeof url !== "string" || !url)) {
         return null;
       }
-      const outputFormat =
-        typeof item.output_format === "string" ? item.output_format : "png";
+      const outputFormat = typeof item.output_format === "string" ? item.output_format : "png";
       const result: ImageResult = {};
       if (typeof b64Json === "string" && b64Json) {
         result.b64Json = b64Json;
@@ -307,15 +279,13 @@ export const parseOpenAIImageResponse = (payload: unknown): ImageResult[] => {
     .filter((item): item is ImageResult => Boolean(item));
 
   if (results.length === 0) {
-    throw new Error(
-      "图片接口未返回 b64_json 或 url 图片数据，请复制 🍌 日志排查响应结构",
-    );
+    throw new Error("图片接口未返回 b64_json 或 url 图片数据，请复制 🍌 日志排查响应结构");
   }
   return results;
 };
 
 export const parseImageHttpResponse = async (
-  response: Response,
+  response: Response
 ): Promise<ParsedImageHttpResponse> => {
   const contentType = response.headers.get("content-type") || "";
   const normalizedContentType = contentType.split(";")[0].trim().toLowerCase();

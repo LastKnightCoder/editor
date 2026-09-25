@@ -1,11 +1,8 @@
 import { create } from "zustand";
 import { produce } from "immer";
 import { chatRunManager } from "@/services/chatRunManager";
-import type { ChatAgentType, ChatSessionMessage } from "@/types";
-import type {
-  CreateVideoNoteChat,
-  VideoNoteChatMessage,
-} from "@/types/video-note";
+import type { ChatSessionMessage } from "@/types";
+import type { CreateVideoNoteChat, VideoNoteChatMessage } from "@/types/video-note";
 import {
   createVideoNoteChat,
   updateVideoNoteChat,
@@ -32,22 +29,14 @@ interface IState {
 interface IAction {
   initChats: (videoNoteId: number) => Promise<void>;
   reset: () => void;
-  createChat: (
-    messages: ChatSessionMessage[],
-    title?: string,
-    agentType?: ChatAgentType,
-    agentSessionId?: string | null,
-  ) => Promise<VideoNoteChatMessage>;
-  updateChat: (
-    chat: Omit<VideoNoteChatMessage, "updateTime">,
-  ) => Promise<VideoNoteChatMessage>;
+  createChat: (messages: ChatSessionMessage[], title?: string) => Promise<VideoNoteChatMessage>;
+  updateChat: (chat: Omit<VideoNoteChatMessage, "updateTime">) => Promise<VideoNoteChatMessage>;
   updateCurrentChat: (chat: VideoNoteChatMessage) => void;
   deleteChat: (id: number) => Promise<void>;
   createChatBranch: (
     parentChatId: number,
     messages: ChatSessionMessage[],
-    title?: string,
-    agentType?: ChatAgentType,
+    title?: string
   ) => Promise<VideoNoteChatMessage>;
   getChildBranchesCount: (parentChatId: number) => Promise<number>;
 }
@@ -82,7 +71,7 @@ const useVideoNoteChatStore = create<IState & IAction>()((set, get) => ({
     });
   },
 
-  createChat: async (messages, title, agentType, agentSessionId) => {
+  createChat: async (messages, title) => {
     const { videoNoteId, chats } = get();
     if (!videoNoteId) {
       throw new Error("Video note ID is not set");
@@ -92,18 +81,16 @@ const useVideoNoteChatStore = create<IState & IAction>()((set, get) => ({
       videoNoteId,
       messages,
       title: title || "新对话",
-      agentType: agentType ?? "local",
-      agentSessionId: agentSessionId ?? null,
     };
     const createdChat = await createVideoNoteChat(params);
-    const newChats = produce(chats, (draft) => {
+    const newChats = produce(chats, draft => {
       draft.unshift(createdChat);
     });
     set({ chats: newChats, currentChatId: createdChat.id });
     return createdChat;
   },
 
-  updateChat: async (chat) => {
+  updateChat: async chat => {
     const { chats } = get();
     const updatedChat = await updateVideoNoteChat({
       id: chat.id,
@@ -112,15 +99,13 @@ const useVideoNoteChatStore = create<IState & IAction>()((set, get) => ({
       archived: chat.archived,
       parentChatId: chat.parentChatId,
       branchIndex: chat.branchIndex,
-      agentType: chat.agentType ?? "local",
-      agentSessionId: chat.agentSessionId ?? null,
     });
     if (!updatedChat) {
       throw new Error("Failed to update chat");
     }
 
-    const newChats = produce(chats, (draft) => {
-      const index = draft.findIndex((item) => item.id === updatedChat.id);
+    const newChats = produce(chats, draft => {
+      const index = draft.findIndex(item => item.id === updatedChat.id);
       if (index !== -1) {
         draft[index] = updatedChat;
       }
@@ -129,10 +114,10 @@ const useVideoNoteChatStore = create<IState & IAction>()((set, get) => ({
     return updatedChat;
   },
 
-  updateCurrentChat: (chat) => {
+  updateCurrentChat: chat => {
     const { chats } = get();
-    const newChats = produce(chats, (draft) => {
-      const index = draft.findIndex((item) => item.id === chat.id);
+    const newChats = produce(chats, draft => {
+      const index = draft.findIndex(item => item.id === chat.id);
       if (index !== -1) {
         draft[index] = chat;
       }
@@ -140,11 +125,11 @@ const useVideoNoteChatStore = create<IState & IAction>()((set, get) => ({
     set({ chats: newChats });
   },
 
-  deleteChat: async (id) => {
+  deleteChat: async id => {
     const { chats, currentChatId } = get();
     const allIdsToDelete = new Set<number>([id]);
     const findChildren = (parentId: number) => {
-      chats.forEach((chat) => {
+      chats.forEach(chat => {
         if (chat.parentChatId === parentId) {
           allIdsToDelete.add(chat.id);
           findChildren(chat.id);
@@ -154,15 +139,13 @@ const useVideoNoteChatStore = create<IState & IAction>()((set, get) => ({
     findChildren(id);
 
     await Promise.all(
-      Array.from(allIdsToDelete, (chatId) =>
-        chatRunManager.discardSession(`video-note-chat:${chatId}`),
-      ),
+      Array.from(allIdsToDelete, chatId =>
+        chatRunManager.discardSession(`video-note-chat:${chatId}`)
+      )
     );
     await deleteVideoNoteChat(id);
 
-    const newChats = produce(chats, (draft) =>
-      draft.filter((chat) => !allIdsToDelete.has(chat.id)),
-    );
+    const newChats = produce(chats, draft => draft.filter(chat => !allIdsToDelete.has(chat.id)));
 
     let newCurrentChatId = currentChatId;
     if (currentChatId && allIdsToDelete.has(currentChatId)) {
@@ -172,38 +155,35 @@ const useVideoNoteChatStore = create<IState & IAction>()((set, get) => ({
     set({ chats: newChats, currentChatId: newCurrentChatId });
   },
 
-  createChatBranch: async (parentChatId, messages, title, agentType) => {
+  createChatBranch: async (parentChatId, messages, title) => {
     const { videoNoteId, chats } = get();
     if (!videoNoteId) {
       throw new Error("Video note ID is not set");
     }
 
-    const parentChat = chats.find((chat) => chat.id === parentChatId);
+    const parentChat = chats.find(chat => chat.id === parentChatId);
     if (!parentChat) {
       throw new Error("Parent chat not found");
     }
 
     const branchIndex = await getVideoNoteNextBranchIndex(parentChatId);
-    const branchTitle =
-      title || `${parentChat.title} - 分支 ${branchIndex + 1}`;
+    const branchTitle = title || `${parentChat.title} - 分支 ${branchIndex + 1}`;
     const createdChat = await createVideoNoteChat({
       videoNoteId,
       messages,
       title: branchTitle,
       parentChatId,
       branchIndex,
-      agentType: agentType ?? parentChat.agentType ?? "local",
-      agentSessionId: null,
     });
 
-    const newChats = produce(chats, (draft) => {
+    const newChats = produce(chats, draft => {
       draft.unshift(createdChat);
     });
     set({ chats: newChats, currentChatId: createdChat.id });
     return createdChat;
   },
 
-  getChildBranchesCount: async (parentChatId) => {
+  getChildBranchesCount: async parentChatId => {
     return await getVideoNoteChildBranchesCount(parentChatId);
   },
 }));

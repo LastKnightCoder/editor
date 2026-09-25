@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn } from "ahooks";
 import { EditorRef } from "@tau/editor/src";
+import { Dialog, Spinner } from "@tau/ui";
 import Editor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import CustomModal from "@/components/CustomModal";
 import useEditContent from "@/hooks/useEditContent";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { getContentById } from "@/commands/content";
@@ -50,32 +50,23 @@ const ContentDetailModal = ({
     throttleHandleEditorContentChange(content);
   });
 
-  const headerTitle = (
-    <div className="flex min-w-0 items-center gap-2">
-      <span className="truncate text-base font-bold">{title}</span>
-      <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-        {typeName}
-      </span>
-    </div>
-  );
-
   return (
-    <CustomModal
-      title={headerTitle}
+    <Dialog
       open={visible && !!contentId}
-      onCancel={onClose}
-      footer={null}
+      onOpenChange={open => {
+        if (!open) onClose();
+      }}
+      title={title}
+      context={typeName || undefined}
       width={800}
-      destroyOnClose
-      closeOnEscape
-      bodyClassName="max-h-[70vh] overflow-auto"
     >
       {loading || !initValue ? (
-        <div className="flex h-48 items-center justify-center text-sm text-slate-400">
-          加载中...
+        <div className="text-ink-3 text-tau-meta flex h-48 items-center justify-center gap-2">
+          <Spinner />
+          加载中…
         </div>
       ) : (
-        <div className="min-h-50">
+        <div className="text-ink-1 min-h-50 pb-2">
           <ErrorBoundary>
             <Editor
               contentId={contentId}
@@ -89,7 +80,7 @@ const ContentDetailModal = ({
           </ErrorBoundary>
         </div>
       )}
-    </CustomModal>
+    </Dialog>
   );
 };
 

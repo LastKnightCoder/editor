@@ -78,6 +78,12 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["-y", "serve", "apps/desktop/mockups", "-l", "6211"],
       "port": 6211
+    },
+    {
+      "name": "chat-mock",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8800", "-d", "apps/desktop/mockups/chat"],
+      "port": 8800
     }
   ]
 }

@@ -1,4 +1,6 @@
 import { writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { it, vi } from "vitest";
@@ -16,5 +18,5 @@ it("dumps markup", () => {
   flushSync(() => {
     root.render(<AddTag tags={["a"]} addTag={() => {}} removeTag={() => {}} />);
   });
-  writeFileSync("/tmp/addtag-dump.html", host.innerHTML);
+  writeFileSync(path.join(os.tmpdir(), "addtag-dump.html"), host.innerHTML);
 });

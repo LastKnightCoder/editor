@@ -633,6 +633,8 @@ const loadCachedSetting = (): Partial<ISetting> | null => {
 
   try {
     const cached = window.localStorage.getItem(SETTING_CACHE_KEY);
+    window.localStorage.removeItem("chat-agent-type");
+    window.localStorage.removeItem("chat-agent-working-directory");
     window.localStorage.removeItem("resource-store");
     window.localStorage.removeItem("rss-store");
     window.localStorage.removeItem("read-later-store");

@@ -1,4 +1,5 @@
 import type { Descendant } from "slate";
+import { stripRetiredEditorBlocks } from "@tau/collaboration";
 
 const createEmptyEditorContent = (): Descendant[] => [
   {
@@ -12,5 +13,5 @@ export const normalizeEditorContent = (content: unknown): Descendant[] => {
     return createEmptyEditorContent();
   }
 
-  return content as Descendant[];
+  return stripRetiredEditorBlocks(content).value as Descendant[];
 };

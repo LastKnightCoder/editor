@@ -1,7 +1,6 @@
 import { act } from "react";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { App } from "antd";
 import { describe, expect, it, vi } from "vitest";
 import MessageItem from "../index";
 import { Role } from "@/constants";
@@ -19,7 +18,7 @@ const mount = async (node: ReactNode) => {
   document.body.appendChild(container);
   const root = createRoot(container);
   await act(async () => {
-    root.render(<App>{node}</App>);
+    root.render(node);
   });
   return { root, container };
 };
@@ -48,7 +47,9 @@ describe("MessageItem 编辑按钮", () => {
       />
     );
 
-    const editButton = container.querySelector('button[title="编辑"]') as HTMLButtonElement | null;
+    const editButton = container.querySelector(
+      'button[aria-label="编辑"]'
+    ) as HTMLButtonElement | null;
     expect(editButton).toBeTruthy();
 
     await act(async () => {
@@ -71,7 +72,7 @@ describe("MessageItem 编辑按钮", () => {
       />
     );
 
-    expect(container.querySelector('button[title="编辑"]')).toBeNull();
+    expect(container.querySelector('button[aria-label="编辑"]')).toBeNull();
 
     await unmount(root, container);
   });

@@ -3,38 +3,29 @@ import { useMemoizedFn, useLocalStorageState } from "ahooks";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import SidebarToggleButton from "@/components/SidebarToggleButton";
 import ResizablePanel from "@/components/ResizablePanel";
-import {
-  BlockPreviewProvider,
-  useBlockPreview,
-} from "@/contexts/BlockPreviewContext";
+import { BlockPreviewProvider, useBlockPreview } from "@/contexts/BlockPreviewContext";
 import BlockPreviewSidebar from "@/components/BlockPreviewSidebar";
-import ChatManagementSidebar from "./components/ChatManagementSidebar";
-import ChatArea from "./components/ChatArea";
-import type { ChatAreaHandle } from "./components/ChatArea";
+import ChatManagementSidebar from "@/features/chat/components/ChatManagementSidebar";
+import ChatArea from "@/features/chat/components/ChatArea";
+import type { ChatAreaHandle } from "@/features/chat/components/ChatArea";
 import useChatMessageStore from "@/stores/useChatMessageStore";
 
 const ChatManagementContent = memo(() => {
   const chatAreaRef = useRef<ChatAreaHandle>(null);
   const { state: previewState } = useBlockPreview();
-  const chats = useChatMessageStore((state) => state.chats);
+  const chats = useChatMessageStore(state => state.chats);
   const [selectedChatId, setSelectedChatId] = useState<number | null>(
-    () => useChatMessageStore.getState().currentChatId,
+    () => useChatMessageStore.getState().currentChatId
   );
   const [sendLoading, setSendLoading] = useState(false);
 
-  const [hideSidebar, setHideSidebar] = useLocalStorageState(
-    "chat-management-hide-sidebar",
-    {
-      defaultValue: false,
-    },
-  );
+  const [hideSidebar, setHideSidebar] = useLocalStorageState("chat-management-hide-sidebar", {
+    defaultValue: false,
+  });
 
-  const [sidebarWidth, setSidebarWidth] = useLocalStorageState(
-    "chat-management-sidebar-width",
-    {
-      defaultValue: 300,
-    },
-  );
+  const [sidebarWidth, setSidebarWidth] = useLocalStorageState("chat-management-sidebar-width", {
+    defaultValue: 300,
+  });
 
   const onFoldSidebar = useMemoizedFn(() => {
     setHideSidebar(!hideSidebar);
@@ -46,16 +37,13 @@ const ChatManagementContent = memo(() => {
   });
 
   useEffect(() => {
-    if (
-      selectedChatId !== null &&
-      !chats.some((chat) => chat.id === selectedChatId)
-    ) {
+    if (selectedChatId !== null && !chats.some(chat => chat.id === selectedChatId)) {
       setSelectedChatId(null);
     }
   }, [chats, selectedChatId]);
 
   return (
-    <div className="flex w-full h-full overflow-hidden relative">
+    <div className="relative flex h-full w-full overflow-hidden">
       <ResizableAndHideableSidebar
         width={sidebarWidth ?? 300}
         onWidthChange={setSidebarWidth}
@@ -65,22 +53,15 @@ const ChatManagementContent = memo(() => {
         disableResize={false}
         className="h-full overflow-hidden"
       >
-        <ChatManagementSidebar
-          selectedChatId={selectedChatId}
-          onChatSelect={handleChatSelect}
-        />
+        <ChatManagementSidebar selectedChatId={selectedChatId} onChatSelect={handleChatSelect} />
       </ResizableAndHideableSidebar>
-      <SidebarToggleButton.Expand
-        isHidden={!!hideSidebar}
-        onToggle={onFoldSidebar}
-        side="left"
-      />
+      <SidebarToggleButton.Expand isHidden={!!hideSidebar} onToggle={onFoldSidebar} side="left" />
       {/* 始终使用 ResizablePanel，右侧面板根据 isOpen 状态显示 */}
       <ResizablePanel
         id="chat-preview-panel"
-        className="flex h-full flex-1 min-w-0"
+        className="flex h-full min-w-0 flex-1"
         left={
-          <div className="flex flex-col h-full overflow-hidden">
+          <div className="flex h-full flex-col overflow-hidden">
             <ChatArea
               ref={chatAreaRef}
               selectedChatId={selectedChatId}

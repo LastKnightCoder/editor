@@ -28,7 +28,7 @@ const ensureAssistantBlocks = (message: ResponseMessage) => {
 
 const createSyntheticExecution = (
   toolCall: ToolCallPayload,
-  execution?: ToolCallExecutionState,
+  execution?: ToolCallExecutionState
 ): ToolCallExecutionState =>
   execution || {
     toolCallId: toolCall.id,
@@ -41,13 +41,11 @@ const createSyntheticExecution = (
 const buildTextMessage = (
   text: string,
   reasoningContent?: string,
-  providerMetadata?: ProviderMetadata,
+  providerMetadata?: ProviderMetadata
 ): RequestMessage => ({
   role: Role.Assistant,
   content: [{ type: "text", text }],
-  ...(typeof reasoningContent === "string"
-    ? { reasoning_content: reasoningContent }
-    : {}),
+  ...(typeof reasoningContent === "string" ? { reasoning_content: reasoningContent } : {}),
   ...(providerMetadata ? { provider_metadata: providerMetadata } : {}),
 });
 
@@ -68,10 +66,7 @@ const buildToolResultText = (execution: ToolCallExecutionState) => {
     metadata.render && typeof metadata.render === "object"
       ? (metadata.render as Record<string, unknown>)
       : null;
-  const payload =
-    render?.payload && typeof render.payload === "object"
-      ? render.payload
-      : null;
+  const payload = render?.payload && typeof render.payload === "object" ? render.payload : null;
   if (!payload) {
     return "";
   }
@@ -84,9 +79,7 @@ const buildToolResultText = (execution: ToolCallExecutionState) => {
 };
 
 const getTurnBlockIndices = (blocks: AssistantBlock[], turnId: string) =>
-  blocks
-    .map((block, index) => ({ block, index }))
-    .filter(({ block }) => block.turnId === turnId);
+  blocks.map((block, index) => ({ block, index })).filter(({ block }) => block.turnId === turnId);
 
 const getLastTurnBlockIndex = (blocks: AssistantBlock[], turnId: string) => {
   for (let index = blocks.length - 1; index >= 0; index -= 1) {
@@ -99,22 +92,21 @@ const getLastTurnBlockIndex = (blocks: AssistantBlock[], turnId: string) => {
 
 const getTextBlocksForTurn = (blocks: AssistantBlock[], turnId: string) =>
   blocks.filter(
-    (block): block is AssistantTextBlock =>
-      block.turnId === turnId && block.type === "text",
+    (block): block is AssistantTextBlock => block.turnId === turnId && block.type === "text"
   );
 
 const getReasoningBlocksForTurn = (blocks: AssistantBlock[], turnId: string) =>
   blocks.filter(
     (block): block is AssistantReasoningBlock =>
-      block.turnId === turnId && block.type === "reasoning",
+      block.turnId === turnId && block.type === "reasoning"
   );
 
 const closeReasoningBlocksForTurn = (
   blocks: AssistantBlock[],
   turnId: string,
-  now = Date.now(),
+  now = Date.now()
 ) => {
-  getReasoningBlocksForTurn(blocks, turnId).forEach((block) => {
+  getReasoningBlocksForTurn(blocks, turnId).forEach(block => {
     if (!block.startTime || block.endTime) {
       return;
     }
@@ -127,14 +119,10 @@ const closeReasoningBlocksForTurn = (
 const getToolBlocksForTurn = (blocks: AssistantBlock[], turnId: string) =>
   blocks.filter(
     (block): block is AssistantToolCallBlock =>
-      block.turnId === turnId && block.type === "tool_call",
+      block.turnId === turnId && block.type === "tool_call"
   );
 
-const insertBlockForTurn = (
-  blocks: AssistantBlock[],
-  turnId: string,
-  block: AssistantBlock,
-) => {
+const insertBlockForTurn = (blocks: AssistantBlock[], turnId: string, block: AssistantBlock) => {
   const lastTurnBlockIndex = getLastTurnBlockIndex(blocks, turnId);
   if (lastTurnBlockIndex === -1) {
     blocks.push(block);
@@ -144,10 +132,8 @@ const insertBlockForTurn = (
   blocks.splice(lastTurnBlockIndex + 1, 0, block);
 };
 
-const mapAssistantBlocksToContentBlocks = (
-  blocks: AssistantBlock[],
-): ResponseContentBlock[] =>
-  blocks.map((block) => {
+const mapAssistantBlocksToContentBlocks = (blocks: AssistantBlock[]): ResponseContentBlock[] =>
+  blocks.map(block => {
     if (block.type === "text") {
       return {
         type: "text",
@@ -172,27 +158,21 @@ const mapAssistantBlocksToContentBlocks = (
   });
 
 const deriveAssistantMessageFields = (blocks: AssistantBlock[]) => {
-  const textBlocks = blocks.filter(
-    (block): block is AssistantTextBlock => block.type === "text",
-  );
+  const textBlocks = blocks.filter((block): block is AssistantTextBlock => block.type === "text");
   const reasoningBlocks = blocks.filter(
-    (block): block is AssistantReasoningBlock => block.type === "reasoning",
+    (block): block is AssistantReasoningBlock => block.type === "reasoning"
   );
   const toolBlocks = blocks.filter(
-    (block): block is AssistantToolCallBlock => block.type === "tool_call",
+    (block): block is AssistantToolCallBlock => block.type === "tool_call"
   );
 
   const lastToolTurnId = toolBlocks[toolBlocks.length - 1]?.turnId;
 
   return {
-    content: textBlocks.map((block) => block.content).join("\n\n"),
-    reasoning_content: reasoningBlocks
-      .map((block) => block.content)
-      .join("\n\n"),
+    content: textBlocks.map(block => block.content).join("\n\n"),
+    reasoning_content: reasoningBlocks.map(block => block.content).join("\n\n"),
     tool_calls: lastToolTurnId
-      ? toolBlocks
-          .filter((block) => block.turnId === lastToolTurnId)
-          .map((block) => block.toolCall)
+      ? toolBlocks.filter(block => block.turnId === lastToolTurnId).map(block => block.toolCall)
       : undefined,
   };
 };
@@ -206,26 +186,18 @@ export const syncAssistantDerivedFields = (message: ResponseMessage) => {
   return message;
 };
 
-export const ensureAssistantMessage = (
-  message: ResponseMessage,
-): ResponseMessage => {
+export const ensureAssistantMessage = (message: ResponseMessage): ResponseMessage => {
   ensureAssistantBlocks(message);
   return syncAssistantDerivedFields(message);
 };
 
-export const getAssistantToolExecutions = (
-  message: ResponseMessage,
-): ToolCallExecutionState[] =>
+export const getAssistantToolExecutions = (message: ResponseMessage): ToolCallExecutionState[] =>
   getAssistantToolExecutionsFromBlocks(message.assistant_blocks || []);
 
-export const getAssistantContentBlocks = (
-  message: ResponseMessage,
-): ResponseContentBlock[] =>
+export const getAssistantContentBlocks = (message: ResponseMessage): ResponseContentBlock[] =>
   mapAssistantBlocksToContentBlocks(message.assistant_blocks || []);
 
-export const createAssistantMessage = (
-  initial?: Partial<ResponseMessage>,
-): ResponseMessage => {
+export const createAssistantMessage = (initial?: Partial<ResponseMessage>): ResponseMessage => {
   const message: ResponseMessage = {
     role: Role.Assistant,
     content: "",
@@ -241,7 +213,7 @@ export const createAssistantMessage = (
 export const applyAssistantTextSnapshot = (
   message: ResponseMessage,
   turnId: string,
-  fullText: string,
+  fullText: string
 ) => {
   const blocks = ensureAssistantBlocks(message);
   const textBlocks = getTextBlocksForTurn(blocks, turnId);
@@ -282,7 +254,7 @@ export const applyAssistantReasoningSnapshot = (
   message: ResponseMessage,
   turnId: string,
   fullReasoning: string,
-  now = Date.now(),
+  now = Date.now()
 ) => {
   const blocks = ensureAssistantBlocks(message);
   const reasoningBlocks = getReasoningBlocksForTurn(blocks, turnId);
@@ -315,9 +287,7 @@ export const applyAssistantReasoningSnapshot = (
   };
 
   const turnBlockIndices = getTurnBlockIndices(blocks, turnId);
-  const firstTextIndex = turnBlockIndices.find(
-    ({ block }) => block.type === "text",
-  )?.index;
+  const firstTextIndex = turnBlockIndices.find(({ block }) => block.type === "text")?.index;
   if (typeof firstTextIndex === "number") {
     blocks.splice(firstTextIndex, 0, nextBlock);
   } else {
@@ -330,18 +300,16 @@ export const applyAssistantToolCallsSnapshot = (
   message: ResponseMessage,
   turnId: string,
   executions: ToolCallExecutionState[],
-  toolCalls?: ToolCallPayload[],
+  toolCalls?: ToolCallPayload[]
 ) => {
   const blocks = ensureAssistantBlocks(message);
   const toolCallIds = new Set<string>();
 
-  toolCalls?.forEach((toolCall) => {
+  toolCalls?.forEach(toolCall => {
     toolCallIds.add(toolCall.id);
     const existingBlock = blocks.find(
       (block): block is AssistantToolCallBlock =>
-        block.type === "tool_call" &&
-        block.turnId === turnId &&
-        block.toolCall.id === toolCall.id,
+        block.type === "tool_call" && block.turnId === turnId && block.toolCall.id === toolCall.id
     );
     if (existingBlock) {
       existingBlock.toolCall = toolCall;
@@ -358,13 +326,13 @@ export const applyAssistantToolCallsSnapshot = (
     });
   });
 
-  executions.forEach((execution) => {
+  executions.forEach(execution => {
     toolCallIds.add(execution.toolCallId);
     const existingBlock = blocks.find(
       (block): block is AssistantToolCallBlock =>
         block.type === "tool_call" &&
         block.turnId === turnId &&
-        block.toolCall.id === execution.toolCallId,
+        block.toolCall.id === execution.toolCallId
     );
     if (existingBlock) {
       existingBlock.execution = execution;
@@ -398,12 +366,9 @@ export const applyAssistantToolCallsSnapshot = (
   syncAssistantDerivedFields(message);
 };
 
-export const finalizeAssistantTurn = (
-  message: ResponseMessage,
-  turnId: string,
-) => {
+export const finalizeAssistantTurn = (message: ResponseMessage, turnId: string) => {
   const blocks = ensureAssistantBlocks(message);
-  blocks.forEach((block) => {
+  blocks.forEach(block => {
     if (block.turnId === turnId) {
       block.state = "final";
     }
@@ -415,7 +380,7 @@ export const finalizeAssistantTurn = (
 export const applyAssistantProviderMetadataSnapshot = (
   message: ResponseMessage,
   turnId: string,
-  providerMetadata?: ProviderMetadata,
+  providerMetadata?: ProviderMetadata
 ) => {
   if (!providerMetadata) {
     return;
@@ -426,42 +391,44 @@ export const applyAssistantProviderMetadataSnapshot = (
   };
 };
 
-export const buildAssistantHistoryMessages = (
-  message: ResponseMessage,
-): RequestMessage[] => {
+export const buildAssistantHistoryMessages = (message: ResponseMessage): RequestMessage[] => {
   const assistantBlocks = message.assistant_blocks || [];
 
   const turnIds: string[] = [];
-  assistantBlocks.forEach((block) => {
+  assistantBlocks.forEach(block => {
     if (!turnIds.includes(block.turnId)) {
       turnIds.push(block.turnId);
     }
   });
 
   return turnIds.flatMap((turnId): RequestMessage[] => {
-    const turnBlocks = assistantBlocks.filter(
-      (block) => block.turnId === turnId,
-    );
+    const turnBlocks = assistantBlocks.filter(block => block.turnId === turnId);
     const text = turnBlocks
       .filter((block): block is AssistantTextBlock => block.type === "text")
-      .map((block) => block.content)
+      .map(block => block.content)
       .join("\n\n");
     const reasoning = turnBlocks
-      .filter(
-        (block): block is AssistantReasoningBlock => block.type === "reasoning",
-      )
-      .map((block) => block.content)
+      .filter((block): block is AssistantReasoningBlock => block.type === "reasoning")
+      .map(block => block.content)
       .join("\n\n");
     const toolBlocks = turnBlocks.filter(
-      (block): block is AssistantToolCallBlock => block.type === "tool_call",
+      (block): block is AssistantToolCallBlock => block.type === "tool_call"
     );
     const providerMetadata = message.provider_metadata_by_turn?.[turnId];
+
+    if (toolBlocks.some(block => typeof block.execution?.metadata?.codexItemType === "string")) {
+      const historicalTools = toolBlocks.map(
+        block =>
+          `历史工具 ${block.toolCall.function.name}\n${block.execution ? buildToolResultText(block.execution) : "[无输出]"}`
+      );
+      return [buildTextMessage([text, ...historicalTools].filter(Boolean).join("\n\n"))];
+    }
 
     if (toolBlocks.length > 0) {
       const assistantToolMessage: RequestMessage = {
         role: Role.Assistant,
         content: text ? [{ type: "text", text }] : "",
-        tool_calls: toolBlocks.map((block) => block.toolCall),
+        tool_calls: toolBlocks.map(block => block.toolCall),
         reasoning_content: reasoning,
         ...(providerMetadata ? { provider_metadata: providerMetadata } : {}),
       };
@@ -488,9 +455,7 @@ export const buildAssistantHistoryMessages = (
   });
 };
 
-export const sanitizeToolMessages = (
-  messages: RequestMessage[],
-): RequestMessage[] => {
+export const sanitizeToolMessages = (messages: RequestMessage[]): RequestMessage[] => {
   const result: RequestMessage[] = [];
   let i = 0;
 
@@ -498,9 +463,7 @@ export const sanitizeToolMessages = (
     const msg = messages[i];
 
     if (msg.role === Role.Assistant && msg.tool_calls?.length) {
-      const expectedCalls = new Map(
-        msg.tool_calls.map((call) => [call.id, call.function.name]),
-      );
+      const expectedCalls = new Map(msg.tool_calls.map(call => [call.id, call.function.name]));
 
       let j = i + 1;
       while (j < messages.length && messages[j].role === Role.Tool) {
@@ -541,13 +504,9 @@ export const sanitizeToolMessages = (
         });
       }
 
-      const callOrder = new Map(
-        msg.tool_calls.map((call, idx) => [call.id, idx]),
-      );
+      const callOrder = new Map(msg.tool_calls.map((call, idx) => [call.id, idx]));
       validResults.sort(
-        (a, b) =>
-          (callOrder.get(a.tool_call_id!) ?? 999) -
-          (callOrder.get(b.tool_call_id!) ?? 999),
+        (a, b) => (callOrder.get(a.tool_call_id!) ?? 999) - (callOrder.get(b.tool_call_id!) ?? 999)
       );
 
       result.push(msg, ...validResults);

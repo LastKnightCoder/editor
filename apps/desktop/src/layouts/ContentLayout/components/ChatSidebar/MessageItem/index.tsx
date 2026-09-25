@@ -1,22 +1,21 @@
-import React, { memo, useCallback, useMemo } from "react";
-import { App } from "antd";
-import {
-  ChatMessageView,
-  type ChatMessageViewFile,
-  type ChatMessageViewImage,
-  type ChatMessageViewMarkdownRenderParams,
-  type ContentBlock,
-} from "@tau/shared";
+import React, { memo, useCallback, useMemo, useState } from "react";
+import type { ContentBlock } from "@tau/shared";
+import { ConfirmDialog, toast } from "@tau/ui";
 import { ChatSessionMessage, RequestMessage, ResponseMessage } from "@/types";
 import { Role } from "@/constants";
 import MarkdownRenderer from "../MarkdownRenderer";
 import { MarkdownMessageMeta } from "../MarkdownContext";
-import ToolCallDisplay from "./ToolCallDisplay";
 import { showInFolder, getHomeDir } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 import LocalImage from "@/components/LocalImage";
+import {
+  MessageView,
+  ToolCallBlock,
+  type MessageMarkdownParams,
+  type MessageViewFile,
+  type MessageViewImage,
+} from "@/components/ChatUI";
 import { getAssistantContentBlocks } from "@/services/assistantMessageBlocks";
-import styles from "./index.module.less";
 
 interface MessageItemProps {
   message: ChatSessionMessage;
@@ -42,7 +41,7 @@ const getTextContent = (message: RequestMessage): string => {
     .join("\n");
 };
 
-const getImageContent = (message: RequestMessage): ChatMessageViewImage[] => {
+const getImageContent = (message: RequestMessage): MessageViewImage[] => {
   if (typeof message.content === "string") {
     return [];
   }
@@ -69,7 +68,7 @@ const parseFileName = (path: string, fileName?: string) => {
   }
 };
 
-const getFileContent = (message: RequestMessage): ChatMessageViewFile[] => {
+const getFileContent = (message: RequestMessage): MessageViewFile[] => {
   if (typeof message.content === "string") {
     return [];
   }
@@ -85,6 +84,10 @@ const getFileContent = (message: RequestMessage): ChatMessageViewFile[] => {
     }));
 };
 
+/**
+ * 消息适配层：把会话消息拆成 MessageView 需要的文本 / 附件 / 内容块，并接上
+ * markdown、本地图片、工具调用渲染与删除确认（D-048 起全部走 @tau/ui，不再依赖 antd）。
+ */
 const MessageItem: React.FC<MessageItemProps> = memo(
   ({
     message,
@@ -98,8 +101,8 @@ const MessageItem: React.FC<MessageItemProps> = memo(
     messageIndex,
     messageMeta,
   }) => {
-    const { message: antdMessage, modal } = App.useApp();
     const isUser = message.role === Role.User;
+    const [pendingDelete, setPendingDelete] = useState<number | null>(null);
 
     const userMessage = isUser ? (message as RequestMessage) : undefined;
     const userText = userMessage ? getTextContent(userMessage) : "";
@@ -111,63 +114,32 @@ const MessageItem: React.FC<MessageItemProps> = memo(
       [isUser, message]
     );
 
-    const openFileInExplorer = useCallback(
-      async (file: ChatMessageViewFile) => {
-        try {
-          let targetPath = file.path;
-          if (/^https?:/i.test(file.path)) {
-            targetPath = await remoteResourceToLocal(file.path);
-          } else if (file.path.startsWith("~")) {
-            const homeDir = await getHomeDir();
-            targetPath = `${homeDir}${file.path.slice(1)}`;
-          }
-          await showInFolder(targetPath);
-        } catch (error) {
-          console.error("打开文件失败:", error);
-          antdMessage.error("无法打开文件");
+    const openFileInExplorer = useCallback(async (file: MessageViewFile) => {
+      try {
+        let targetPath = file.path;
+        if (/^https?:/i.test(file.path)) {
+          targetPath = await remoteResourceToLocal(file.path);
+        } else if (file.path.startsWith("~")) {
+          const homeDir = await getHomeDir();
+          targetPath = `${homeDir}${file.path.slice(1)}`;
         }
-      },
-      [antdMessage]
-    );
-
-    const handleDelete = useCallback(
-      (index: number) => {
-        modal.confirm({
-          title: "确定删除该消息吗？",
-          okText: "确定",
-          cancelText: "取消",
-          okButtonProps: {
-            danger: true,
-          },
-          onOk: () => {
-            onDeleteMessage?.(index);
-          },
-        });
-      },
-      [modal, onDeleteMessage]
-    );
+        await showInFolder(targetPath);
+      } catch (error) {
+        console.error("打开文件失败:", error);
+        toast.error("无法打开文件");
+      }
+    }, []);
 
     const renderMarkdown = useCallback(
-      ({
-        content,
-        blockIndex,
-        isLastTextBlock,
-        textContent,
-      }: ChatMessageViewMarkdownRenderParams) => {
+      ({ content, blockIndex, isLastTextBlock, textContent }: MessageMarkdownParams) => {
         const blockMeta =
           messageMeta && blockIndex !== undefined
-            ? {
-                ...messageMeta,
-                blockIndex,
-                isLastTextBlock,
-                textContent,
-              }
+            ? { ...messageMeta, blockIndex, isLastTextBlock, textContent }
             : messageMeta;
 
         return (
           <MarkdownRenderer
             content={content}
-            className={styles.markdown}
             markdownComponents={markdownComponents}
             shouldRender={isVisible}
             messageMeta={blockMeta}
@@ -177,40 +149,53 @@ const MessageItem: React.FC<MessageItemProps> = memo(
       [isVisible, markdownComponents, messageMeta]
     );
 
+    const rendererContext = useMemo(() => ({ markdownComponents }), [markdownComponents]);
+
     return (
-      <ChatMessageView
-        role={isUser ? "user" : "assistant"}
-        messageIndex={messageIndex}
-        isDark={isDark}
-        userText={userText}
-        images={images}
-        files={files}
-        assistantBlocks={assistantBlocks}
-        onDelete={handleDelete}
-        onRegenerate={onRegenerateMessage}
-        onEditUserMessage={onEditMessage}
-        onCreateBranch={onCreateBranch}
-        onOpenFile={openFileInExplorer}
-        onCopySuccess={() => antdMessage.success("已复制到剪贴板")}
-        onCopyError={() => antdMessage.error("复制失败")}
-        renderMarkdown={renderMarkdown}
-        renderImage={(image, index, className) => (
-          <LocalImage
-            key={`${image.url}-${index}`}
-            url={image.url}
-            alt={image.alt}
-            className={className}
-          />
-        )}
-        renderToolCall={(execution, index) => (
-          <ToolCallDisplay
-            key={execution.toolCallId || index}
-            execution={execution}
-            isDark={isDark}
-            markdownComponents={markdownComponents}
-          />
-        )}
-      />
+      <>
+        <MessageView
+          role={isUser ? "user" : "assistant"}
+          messageIndex={messageIndex}
+          userText={userText}
+          images={images}
+          files={files}
+          assistantBlocks={assistantBlocks}
+          onDelete={onDeleteMessage ? setPendingDelete : undefined}
+          onRegenerate={onRegenerateMessage}
+          onEditUserMessage={onEditMessage}
+          onCreateBranch={onCreateBranch}
+          onOpenFile={file => void openFileInExplorer(file)}
+          renderMarkdown={renderMarkdown}
+          renderImage={(image, index, className) => (
+            <LocalImage
+              key={`${image.url}-${index}`}
+              url={image.url}
+              alt={image.alt}
+              className={className}
+            />
+          )}
+          renderToolCall={execution => (
+            <ToolCallBlock
+              execution={execution}
+              isDark={isDark}
+              rendererContext={rendererContext}
+            />
+          )}
+        />
+        <ConfirmDialog
+          open={pendingDelete !== null}
+          onOpenChange={open => !open && setPendingDelete(null)}
+          title="删除这条消息？"
+          description="删除后无法恢复。"
+          confirmText="删除"
+          danger
+          size="sm"
+          onConfirm={() => {
+            if (pendingDelete !== null) onDeleteMessage?.(pendingDelete);
+            setPendingDelete(null);
+          }}
+        />
+      </>
     );
   }
 );

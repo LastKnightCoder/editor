@@ -38,6 +38,12 @@ const mount = async (node: ReactNode) => {
   return { root, container };
 };
 
+// 选项是 tau Radio / Checkbox：按选项文案找到所在 label 里的原生 input
+const findOptionInput = (container: HTMLElement, label: string) =>
+  Array.from(container.querySelectorAll("label"))
+    .find(item => item.textContent?.includes(label))
+    ?.querySelector("input") ?? null;
+
 const unmount = async (root: Root, container: HTMLElement) => {
   await act(async () => {
     root.unmount();
@@ -126,12 +132,10 @@ describe("AskQuestionRenderer", () => {
       />
     );
 
-    const optionButton = Array.from(container.querySelectorAll("button")).find(button =>
-      button.textContent?.includes("方案 A")
-    );
-    expect(optionButton).toBeTruthy();
+    const optionInput = findOptionInput(container, "方案 A");
+    expect(optionInput).toBeTruthy();
     await act(async () => {
-      optionButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      optionInput?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     const submitButton = Array.from(container.querySelectorAll("button")).find(button =>
@@ -327,12 +331,10 @@ describe("AskQuestionRenderer", () => {
       );
     });
 
-    const firstOptionButton = Array.from(container.querySelectorAll("button")).find(button =>
-      button.textContent?.includes("方案 A")
-    );
-    expect(firstOptionButton).toBeTruthy();
+    const firstOptionInput = findOptionInput(container, "方案 A");
+    expect(firstOptionInput).toBeTruthy();
     await act(async () => {
-      firstOptionButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      firstOptionInput?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(container.textContent).toContain("问题一");
@@ -348,10 +350,8 @@ describe("AskQuestionRenderer", () => {
       );
     });
 
-    const secondOptionButton = Array.from(container.querySelectorAll("button")).find(button =>
-      button.textContent?.includes("方案 A")
-    );
-    expect(secondOptionButton).toBeTruthy();
+    const secondOptionInput = findOptionInput(container, "方案 A");
+    expect(secondOptionInput).toBeTruthy();
     expect(container.textContent).toContain("问题二");
     expect(container.textContent).toContain("新的问题");
 

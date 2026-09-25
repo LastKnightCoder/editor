@@ -1,11 +1,25 @@
-import { memo, useEffect, useLayoutEffect, useState, useRef } from "react";
+/**
+ * @ 引用面板（D-048 二轮换皮，外观与输入框 ＋ 面板同一套 ComposerPanel）：
+ *  - 编辑器在对话输入框里（祖先带 COMPOSER_ANCHOR_ATTR）→ 从输入框上沿向上展开、与外框同宽；
+ *  - 其它编辑器（文档正文等）→ 仍跟随光标，320px 宽，优先右下、空间不够翻转。
+ * 搜索 / 键盘（↑↓ Enter Esc Backspace 在 hotkeys/mentionCommand）/ 选中逻辑不变。
+ */
+
+import { memo, useEffect, useLayoutEffect, useState, useRef, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { useDebounceFn } from "ahooks";
 import { Editor } from "slate";
-import { Loader2, Search } from "lucide-react";
+import { ReactEditor } from "slate-react";
+import { Search } from "lucide-react";
+import { Spinner } from "@tau/ui";
 import { IExtension } from "@tau/editor/src";
 import { searchContent, getAllIndexResults } from "@/utils/search";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
+import {
+  COMPOSER_ANCHOR_ATTR,
+  ComposerPanel,
+  ComposerPanelFooter,
+} from "@/components/ChatInputArea/ComposerPanel";
 import useMentionPanelStore from "../../stores/useMentionPanelStore";
 import { cleanupMentionPanel } from "../../plugins/withMentionCommands";
 import List from "./List";
@@ -15,11 +29,24 @@ interface IMentionPanelProps {
   editor: Editor;
 }
 
+const GAP = 8;
+const CARET_PANEL_WIDTH = 320;
+
+/** 编辑器所在的对话输入框外框（不在输入框里返回 null） */
+const findComposerAnchor = (editor: Editor): HTMLElement | null => {
+  try {
+    const el = ReactEditor.toDOMNode(editor as ReactEditor, editor);
+    return el.closest<HTMLElement>(`[${COMPOSER_ANCHOR_ATTR}]`);
+  } catch {
+    return null;
+  }
+};
+
 const MentionPanel = memo((props: IMentionPanelProps) => {
   const { extensions, editor } = props;
   const modelInfo = useEmbeddingConfig();
   const panelRef = useRef<HTMLDivElement>(null);
-  const [panelPosition, setPanelPosition] = useState({ left: 0, top: 0 });
+  const [panelStyle, setPanelStyle] = useState<CSSProperties>({ left: 0, top: 0 });
 
   // 从 context store 获取状态
   const {
@@ -109,71 +136,80 @@ const MentionPanel = memo((props: IMentionPanelProps) => {
     }
   }, [inputValue, mentionPanelVisible, debouncedSearch, setSearchResults, setLoading]);
 
-  // 动态计算弹窗位置（参考 BlockPanel 的实现）
+  // 定位：对话输入框里贴外框上沿，否则跟随光标
   useLayoutEffect(() => {
     if (!panelRef.current || !mentionPanelVisible) return;
+
+    const composer = findComposerAnchor(editor);
+    if (composer) {
+      const rect = composer.getBoundingClientRect();
+      setPanelStyle({
+        left: rect.left,
+        width: rect.width,
+        bottom: window.innerHeight - rect.top + GAP,
+        maxHeight: Math.max(160, rect.top - GAP * 2),
+      });
+      return;
+    }
 
     const panelRect = panelRef.current.getBoundingClientRect();
     const pageHeight = window.innerHeight;
     const pageWidth = window.innerWidth;
-    const gap = 8;
 
-    // 计算右侧剩余空间
-    const rightSpace = pageWidth - position.x;
-    // 计算下方剩余空间
-    const bottomSpace = pageHeight - position.y;
-
-    // 优先放在右下角
+    // 优先放在右下角，右侧 / 下方空间不够时翻转
     let finalLeft = position.x + 10;
-    let finalTop = position.y;
-
-    // 如果右侧空间不够，放在左侧
-    if (rightSpace < panelRect.width + 10) {
+    let finalTop = position.y + 4;
+    if (pageWidth - position.x < panelRect.width + 10) {
       finalLeft = position.x - panelRect.width - 10;
     }
-
-    // 如果下方空间不够，放在上方
-    if (bottomSpace < panelRect.height + gap) {
-      finalTop = position.y - panelRect.height;
-      if (finalTop < gap) {
-        finalTop = pageHeight - panelRect.height - gap;
+    if (pageHeight - position.y < panelRect.height + GAP) {
+      finalTop = position.y - panelRect.height - 24;
+      if (finalTop < GAP) {
+        finalTop = pageHeight - panelRect.height - GAP;
       }
     }
+    finalLeft = Math.max(GAP, Math.min(finalLeft, pageWidth - panelRect.width - GAP));
+    finalTop = Math.max(GAP, finalTop);
 
-    // 确保不超出屏幕边界
-    finalLeft = Math.max(gap, Math.min(finalLeft, pageWidth - panelRect.width - gap));
-    finalTop = Math.max(gap, finalTop);
-
-    setPanelPosition({ left: finalLeft, top: finalTop });
-  }, [position, mentionPanelVisible, searchResults, loading]);
+    setPanelStyle({ left: finalLeft, top: finalTop, width: CARET_PANEL_WIDTH });
+  }, [position, mentionPanelVisible, searchResults, loading, editor]);
 
   if (!mentionPanelVisible) return null;
 
+  const query = inputValue.slice(1);
+
   return createPortal(
-    <div
+    <ComposerPanel
       ref={panelRef}
-      className="dark:border-white/12 animate-fadeIn fixed z-[9999] m-0 flex max-h-[400px] w-[360px] min-w-[180px] max-w-[90vw] flex-col rounded-[18px] border border-white/45 bg-[rgba(248,250,255,0.92)] p-2 text-[rgba(15,23,42,0.95)] shadow-[0_18px_45px_rgba(15,23,42,0.25)] saturate-[180%] backdrop-blur-[18px] dark:bg-[rgba(10,15,28,0.85)] dark:text-[rgba(241,245,249,0.95)] dark:shadow-[0_22px_60px_rgba(2,6,23,0.7)]"
-      style={{
-        left: panelPosition.left,
-        top: panelPosition.top,
-      }}
+      className="fixed z-[250] max-w-[calc(100vw-16px)]"
+      style={panelStyle}
     >
-      {loading && (
-        <div className="text-[var(--th-accent)]/80 py-10/80 flex flex-col items-center justify-center gap-3 px-5">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="text-[13px] font-medium text-slate-800/70 dark:text-slate-300/70">
-            正在搜索...
-          </span>
-        </div>
+      <div className="text-tau-body text-ink-1 flex items-center gap-2 px-3.5 pb-1 pt-3">
+        <Search size={15} strokeWidth={1.75} className="text-ink-3 shrink-0" />
+        <span className="min-w-0 truncate">
+          {query ? (
+            <>
+              @<span className="text-accent-text">{query}</span>
+            </>
+          ) : (
+            <span className="text-ink-3">最近内容</span>
+          )}
+        </span>
+        {loading && <Spinner className="ml-auto size-3.5 border-[1.5px]" />}
+      </div>
+      {!loading && searchResults.length === 0 ? (
+        <div className="text-tau-sm text-ink-3 px-3.5 pb-4 pt-3">没有找到相关内容</div>
+      ) : (
+        <List extensions={extensions} query={query} />
       )}
-      {!loading && searchResults.length === 0 && (
-        <div className="flex flex-col items-center justify-center gap-3 px-5 py-10 text-center text-slate-800/45 dark:text-slate-300/60">
-          <Search className="h-12 w-12 stroke-[1.5] opacity-50" />
-          <div className="text-[13px] font-medium">没有找到相关内容</div>
-        </div>
-      )}
-      {!loading && searchResults.length > 0 && <List extensions={extensions} />}
-    </div>,
+      <ComposerPanelFooter
+        hints={[
+          ["↑↓", "选择"],
+          ["Enter", "引用"],
+          ["Esc", "关闭"],
+        ]}
+      />
+    </ComposerPanel>,
     document.body
   );
 });

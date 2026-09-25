@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import { createRequire } from "node:module";
 import path from "path";
 
@@ -13,6 +13,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test-setup.ts"],
+    // e2e spec 由 Playwright 独立执行（test:collaboration:e2e），vitest 不收集
+    exclude: [...configDefaults.exclude, "e2e/**"],
     deps: {
       optimizer: {
         web: {

@@ -28,12 +28,10 @@ describe.skipIf(!nativeAvailable)("ChatRunTable", () => {
       sessionKey,
       source: "main-chat",
       chatId: Number(sessionKey.split(":")[1]),
-      agentType: "local",
       status: "running",
       requestPayload: [],
       userMessageClientId: `${runId}-user`,
       assistantMessageClientId: `${runId}-assistant`,
-      agentSessionId: null,
       attempt: 0,
       assistantSnapshot: "",
       reasoningSnapshot: "",
@@ -55,6 +53,21 @@ describe.skipIf(!nativeAvailable)("ChatRunTable", () => {
     expect(active).toHaveLength(1);
     expect(active[0].sessionKey).toBe("main-chat:2");
     expect(ChatRunTable.get(db, "run-1")?.assistantSnapshot).toBe("第一会话");
+  });
+
+  it("旧代理等待输入的任务恢复为可重试状态，代理列保留原值不再改写", () => {
+    createRecord("legacy-run", "main-chat:4");
+    db.prepare(
+      "UPDATE chat_run SET agent_type='codex',agent_session_id='old-thread',status='waiting_input' WHERE run_id=?"
+    ).run("legacy-run");
+    const recovered = ChatRunTable.get(db, "legacy-run")!;
+    expect(recovered.status).toBe("interrupted");
+    ChatRunTable.update(db, recovered);
+    expect(
+      db
+        .prepare("SELECT agent_type,agent_session_id FROM chat_run WHERE run_id=?")
+        .get("legacy-run")
+    ).toEqual({ agent_type: "codex", agent_session_id: "old-thread" });
   });
 
   it("删除会话任务不会影响其他会话", () => {
@@ -90,9 +103,7 @@ describe.skipIf(!nativeAvailable)("ChatRunTable", () => {
   });
 
   it("仅压缩能够与已持久化消息可靠关联的历史终态任务", () => {
-    db.exec(
-      "CREATE TABLE chat_message (id INTEGER PRIMARY KEY, messages TEXT)",
-    );
+    db.exec("CREATE TABLE chat_message (id INTEGER PRIMARY KEY, messages TEXT)");
     const reconciled = createRecord("reconciled", "main-chat:4");
     const unresolved = createRecord("unresolved", "main-chat:5");
     const malformed = createRecord("malformed", "main-chat:6");
@@ -124,18 +135,13 @@ describe.skipIf(!nativeAvailable)("ChatRunTable", () => {
           clientId: "reconciled-assistant",
           content: "已保存的回答",
         },
-      ]),
+      ])
     );
     db.prepare("INSERT INTO chat_message (id,messages) VALUES (?,?)").run(
       5,
-      JSON.stringify([
-        { role: "user", clientId: "unresolved-user", content: "未确认的问题" },
-      ]),
+      JSON.stringify([{ role: "user", clientId: "unresolved-user", content: "未确认的问题" }])
     );
-    db.prepare("INSERT INTO chat_message (id,messages) VALUES (?,?)").run(
-      6,
-      "not-json",
-    );
+    db.prepare("INSERT INTO chat_message (id,messages) VALUES (?,?)").run(6, "not-json");
 
     expect(ChatRunTable.compactReconciledTerminalRuns(db)).toBe(1);
     expect(ChatRunTable.get(db, "reconciled")?.requestPayload).toEqual([]);

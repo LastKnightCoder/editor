@@ -1,13 +1,22 @@
 import Database from "better-sqlite3";
 import { createHash, randomBytes, randomUUID, timingSafeEqual, createHmac } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync, statfsSync, unlinkSync } from "node:fs";
-import { join } from "node:path";
+import {
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  statfsSync,
+  unlinkSync,
+  readdirSync,
+} from "node:fs";
+import { basename, dirname, join } from "node:path";
 import * as Y from "yjs";
 import {
   ASSET_PREFIX,
   CollaborationError,
   readSharedContent,
   validateDocument,
+  retireEditorBlocksInDoc,
+  guardRetiredEditorBlocks,
   type DeviceIdentity,
   type JoinRequest,
   type JoinRequestResult,
@@ -239,6 +248,8 @@ export class CollaborationStore {
     const doc = new Y.Doc();
     try {
       Y.applyUpdate(doc, state);
+      retireEditorBlocksInDoc(doc);
+      state = Y.encodeStateAsUpdate(doc);
       const article = validateDocument(doc, this.config.maxDocumentBytes);
       this.validateAssets(id, article);
       return this.db.transaction(() => {
@@ -427,6 +438,22 @@ export class CollaborationStore {
     this.cachedStorageBytes = -1;
   }
 
+  /** 退役备份只保留最新一份，避免反复恢复旧备份时无限累积 .json.bak 文件。 */
+  private removeStaleRetirementBackups(keepPath: string) {
+    const directory = dirname(this.db.name);
+    const prefix = `${basename(this.db.name)}.pre-editor-block-retirement-v1-`;
+    for (const name of readdirSync(directory)) {
+      const candidate = join(directory, name);
+      if (name.startsWith(prefix) && name.endsWith(".json.bak") && candidate !== keepPath) {
+        try {
+          unlinkSync(candidate);
+        } catch {
+          // 清理失败不影响加载流程，下一轮退役备份时会再次尝试
+        }
+      }
+    }
+  }
+
   loadDocument(id: string): Y.Doc {
     const doc = new Y.Doc();
     const snapshot = this.db.prepare("SELECT state FROM snapshots WHERE document_id=?").get(id) as
@@ -441,6 +468,29 @@ export class CollaborationStore {
         .prepare("SELECT state FROM updates WHERE document_id=? ORDER BY seq")
         .all(id) as { state: Buffer }[])
         Y.applyUpdate(doc, row.state);
+      if (
+        retireEditorBlocksInDoc(doc, undefined, () => {
+          const backupPath = `${this.db.name}.pre-editor-block-retirement-v1-${randomUUID()}.json.bak`;
+          writeFileSync(
+            backupPath,
+            JSON.stringify({
+              documentId: id,
+              state: Buffer.from(Y.encodeStateAsUpdate(doc)).toString("base64"),
+            }),
+            { mode: 0o600 }
+          );
+          this.removeStaleRetirementBackups(backupPath);
+        })
+      ) {
+        this.db.transaction(() => {
+          this.db
+            .prepare("UPDATE snapshots SET state=? WHERE document_id=?")
+            .run(Buffer.from(Y.encodeStateAsUpdate(doc)), id);
+          this.db.prepare("DELETE FROM updates WHERE document_id=?").run(id);
+        })();
+        this.cachedStorageBytes = -1;
+      }
+      guardRetiredEditorBlocks(doc);
       return doc;
     } catch (error) {
       doc.destroy();
@@ -457,6 +507,8 @@ export class CollaborationStore {
     try {
       Y.applyUpdate(candidate, Y.encodeStateAsUpdate(current));
       Y.applyUpdate(candidate, update);
+      retireEditorBlocksInDoc(candidate);
+      update = Y.encodeStateAsUpdate(candidate, Y.encodeStateVector(current));
       const article = validateDocument(candidate, this.config.maxDocumentBytes);
       this.validateAssets(id, article);
       this.db.transaction(() => {

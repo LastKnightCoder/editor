@@ -116,7 +116,6 @@ describe("ChatContainer 编辑辅助逻辑", () => {
       updateTime: 2,
       title: "新对话",
       titleDirty: false,
-      agentType: "codex",
       messages: [
         { role: Role.System, content: "system" },
         createUserMessage([{ type: "text", text: "旧问题" }]),

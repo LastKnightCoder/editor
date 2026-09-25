@@ -4,9 +4,11 @@ import rateLimit from "@fastify/rate-limit";
 import websocket from "@fastify/websocket";
 import { Hocuspocus, type WebSocketLike } from "@hocuspocus/server";
 import { WebSocket } from "ws";
+import * as Y from "yjs";
 import {
   CollaborationError,
   COLLABORATION_VERSION,
+  guardRetiredEditorBlocks,
   type CollaborationEvent,
   type Member,
 } from "@tau/collaboration";
@@ -133,8 +135,12 @@ export async function createServer(overrides: Partial<ServerConfig> = {}) {
         throw new CollaborationError("CAPACITY", "服务器活动文章数量已满", 429);
       return { deviceId: identity.id, nickname: identity.nickname };
     },
-    async onLoadDocument({ documentName }) {
-      return store.loadDocument(documentName);
+    async onLoadDocument({ documentName, document }) {
+      const loaded = store.loadDocument(documentName);
+      Y.applyUpdate(document, Y.encodeStateAsUpdate(loaded));
+      loaded.destroy();
+      guardRetiredEditorBlocks(document);
+      return document;
     },
     async beforeHandleMessage({ documentName, context, update, socketId }) {
       store.authorize(documentName, context.deviceId);

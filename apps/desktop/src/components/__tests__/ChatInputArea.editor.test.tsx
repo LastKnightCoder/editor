@@ -278,6 +278,31 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
     expect(editor?.textContent).not.toContain(":content-link[");
   });
 
+  it.each([false, true])("紧凑模式 %s 只展示模型选择，不展示代理或工作目录", async compact => {
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(
+        <ChatInputArea
+          compact={compact}
+          currentModelName="测试模型"
+          modelGroups={[
+            {
+              key: "provider",
+              label: "服务商",
+              children: [{ key: "provider::model", label: "测试模型" }],
+            },
+          ]}
+          onModelSelect={vi.fn()}
+        />
+      );
+    });
+    expect(container?.textContent).toContain("测试模型");
+    expect(container?.textContent).not.toMatch(/本地代理|Codex|临时目录|工作区/);
+    expect(container?.querySelector('[aria-label^="代理："]')).toBeNull();
+  });
+
   it("应限制编辑器区域高度，并允许长内容在输入区内部滚动", async () => {
     const ref = {
       current: null,
@@ -286,8 +311,10 @@ describe("桌面端 ChatInputArea Editor 输入", () => {
 
     const editor = container?.querySelector('[data-testid="chat-editor"]') as HTMLElement | null;
 
-    expect(editor?.className).toContain("editorInput");
-    expect(editor?.parentElement?.className).toContain("editorScrollContainer");
+    // 编辑器裁剪拖拽手柄溢出；外层限高并内部滚动（D-048 Tailwind 化）
+    expect(editor?.className).toContain("overflow-hidden");
+    expect(editor?.parentElement?.className).toContain("max-h-[min(240px,34vh)]");
+    expect(editor?.parentElement?.className).toContain("overflow-y-auto");
   });
 
   it("应使用 mod+enter 发送，并保留 Enter 用于编辑器换行", async () => {

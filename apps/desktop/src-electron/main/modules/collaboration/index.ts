@@ -12,6 +12,7 @@ import {
   SOURCE_TYPES,
   createSharedDocument,
   migrateTabsBlocksInDoc,
+  guardRetiredEditorBlocks,
   migrateKnowledgeDocument,
   readSharedContent,
   replaceText,
@@ -202,6 +203,7 @@ class CollaborationManager {
     // 存量缓存（旧块字段 tabs 结构）惰性转换为 tab-pane 树内形态，幂等；
     // 转换结果随初始投影（projectionDirty）与 compact 全量快照持久化并同步到服务器
     migrateTabsBlocksInDoc(doc, privateNodes);
+    guardRetiredEditorBlocks(doc, privateNodes);
     if (info.source && !Number.isSafeInteger(info.source.contentCreatedAt))
       info.source = this.findLocalSource(info.id, info.serverUrl);
     const session: RuntimeSession = {

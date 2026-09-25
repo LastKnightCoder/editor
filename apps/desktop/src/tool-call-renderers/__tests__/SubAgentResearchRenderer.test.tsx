@@ -1,4 +1,3 @@
-import { App } from "antd";
 import { act } from "react";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -11,7 +10,7 @@ import SubAgentResearchRenderer from "../SubAgentResearchRenderer";
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 const createExecution = (
-  overrides: Partial<ToolCallExecutionState> = {},
+  overrides: Partial<ToolCallExecutionState> = {}
 ): ToolCallExecutionState => ({
   toolCallId: "subagent-call-1",
   toolName: "subagent_research",
@@ -89,7 +88,7 @@ const mount = async (node: ReactNode) => {
   document.body.appendChild(container);
   const root = createRoot(container);
   await act(async () => {
-    root.render(<App>{node}</App>);
+    root.render(node);
   });
   return { root, container };
 };
@@ -117,15 +116,15 @@ describe("SubAgentResearchRenderer", () => {
         isDark={false}
         parsedInput={null}
         renderDefault={() => <div>fallback</div>}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("SubAgent 调研");
     expect(container.textContent).toContain("检查工具接口");
     expect(container.textContent).toContain("2s");
 
-    const openButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("查看详情"),
+    const openButton = Array.from(container.querySelectorAll("button")).find(button =>
+      button.textContent?.includes("查看详情")
     );
     expect(openButton).toBeTruthy();
     await act(async () => {
@@ -133,26 +132,21 @@ describe("SubAgentResearchRenderer", () => {
     });
 
     expect(document.body.textContent).toContain("SubAgent 执行详情");
-    expect(
-      document.body.querySelector("[data-testid='subagent-tabs']"),
-    ).toBeTruthy();
-    expect(
-      document.body.querySelector("[data-testid='subagent-scroll-body']"),
-    ).toBeTruthy();
-    expect(document.body.textContent).toContain("已思考");
-    expect(
-      document.body.querySelector("[data-testid='subagent-prompt']")
-        ?.textContent,
-    ).toBe("查看工具接口\n确认注册链路");
+    expect(document.body.querySelector("[data-testid='subagent-tabs']")).toBeTruthy();
+    expect(document.body.querySelector("[data-testid='subagent-scroll-body']")).toBeTruthy();
+    expect(document.body.textContent).toContain("思考过程");
+    expect(document.body.querySelector("[data-testid='subagent-prompt']")?.textContent).toBe(
+      "查看工具接口\n确认注册链路"
+    );
     expect(document.body.textContent).not.toContain("不应显示的开始事件");
     expect(document.body.textContent).not.toContain("不应显示的工具事件");
     expect(document.body.textContent).toContain("query_files");
     expect(document.body.textContent).toContain("工具通过 registry 注册。");
     expect(document.body.textContent).not.toContain("不应显示的流式 token");
 
-    const rendererTab = Array.from(
-      document.body.querySelectorAll('[role="tab"]'),
-    ).find((tab) => tab.textContent?.includes("检查渲染器"));
+    const rendererTab = Array.from(document.body.querySelectorAll('[role="tab"]')).find(tab =>
+      tab.textContent?.includes("检查渲染器")
+    );
     expect(rendererTab).toBeTruthy();
 
     await act(async () => {
@@ -177,11 +171,11 @@ describe("SubAgentResearchRenderer", () => {
         isDark={false}
         parsedInput={null}
         renderDefault={() => <div>fallback</div>}
-      />,
+      />
     );
 
-    const openButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("查看详情"),
+    const openButton = Array.from(container.querySelectorAll("button")).find(button =>
+      button.textContent?.includes("查看详情")
     );
     await act(async () => {
       openButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));

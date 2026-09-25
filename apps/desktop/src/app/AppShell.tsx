@@ -3,7 +3,7 @@
  *
  *   ┌──────────┬──────────────────────────┐
  *   │ sidebar-head │ titlebar（右列专属）    │ ← 46px 对齐
- *   │ 导航图标      │ content（page 栈）     │
+ *   │ 导航图标      │ content（page 栈）| 辅助栏 │
  *   │ （整高贯通）  │ statusbar（右列专属）   │
  *   └──────────┴──────────────────────────┘
  *
@@ -25,6 +25,7 @@ import useSettingStore from "@/stores/useSettingStore";
 import useSyncFont from "@/hooks/useSyncFont";
 import { Sidebar } from "./Sidebar";
 import { Titlebar } from "./Titlebar";
+import { AssistDock } from "./AssistDock";
 import {
   useShellStore,
   SIDEBAR_COLLAPSED_W,
@@ -40,7 +41,7 @@ import "../pages";
 // 行必须显式 100vh：grid 隐式 auto 行会让右列随内容撑高，滚动链整条失效。
 // app 类 = base.css 的 .app 作用域锚点（button cursor / focus-ring / 滚动条等 reset）
 const shellRootClass =
-  "app relative grid h-screen min-w-[1080px] grid-cols-[auto_4px_minmax(0,1fr)] grid-rows-[100vh] " +
+  "app relative grid h-screen min-w-0 grid-cols-[auto_4px_minmax(0,1fr)] grid-rows-[100vh] " +
   "overflow-hidden bg-page font-tau text-tau-body text-ink-1 antialiased";
 
 // legacy 模块占位注册（真实 page 注册后自动让位）
@@ -172,9 +173,13 @@ function ShellLayout() {
           壳层不提供全局状态栏：需要的页面自带 PageStatusBar，避免无内容页底部留空条 */}
       <div className="grid min-w-0 grid-rows-[var(--tau-titlebar-h)_minmax(0,1fr)]">
         <Titlebar />
-        <main className="min-h-0 overflow-y-auto">
-          <PageHost state={state} />
-        </main>
+        {/* 正文 + 右侧辅助栏（AI 对话停靠栏，D-047）；覆盖浮层模式以本行为定位上下文 */}
+        <div className="relative flex min-h-0">
+          <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+            <PageHost state={state} />
+          </main>
+          <AssistDock />
+        </div>
       </div>
       {/* 全局命令面板浮层（Ctrl+K，D-003）：fixed 定位，须在 PageProvider 内使用导航 */}
       <SearchPalette />

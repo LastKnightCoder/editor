@@ -25,6 +25,7 @@ import {
   Tag as TagIcon,
   ToggleLeft,
   MessagesSquare,
+  Wrench,
 } from "lucide-react";
 
 import ButtonSection from "./ButtonSection";
@@ -48,6 +49,7 @@ import HeatmapSection from "./HeatmapSection";
 import TokenSection from "./TokenSection";
 import ScaleSection from "./ScaleSection";
 import TagSection from "./TagSection";
+import ToolCallSection from "./ToolCallSection";
 
 export interface SectionMeta {
   key: string;
@@ -149,6 +151,13 @@ export const SECTIONS: SectionMeta[] = [
     icon: CalendarDays,
     component: HeatmapSection,
   },
+  {
+    key: "toolcall",
+    label: "对话工具渲染",
+    group: "对话",
+    icon: Wrench,
+    component: ToolCallSection,
+  },
   { key: "token", label: "Token 色板", group: "设计基底", icon: Palette, component: TokenSection },
   { key: "scale", label: "尺度与动效", group: "设计基底", icon: Ruler, component: ScaleSection },
 ];
@@ -159,5 +168,6 @@ export const SECTION_GROUPS: { label: string; items: SectionMeta[] }[] = [
   { label: "基础件", items: SECTIONS.filter(s => s.group === "基础件") },
   { label: "反馈", items: SECTIONS.filter(s => s.group === "反馈") },
   { label: "数据展示", items: SECTIONS.filter(s => s.group === "数据展示") },
+  { label: "对话", items: SECTIONS.filter(s => s.group === "对话") },
   { label: "设计基底", items: SECTIONS.filter(s => s.group === "设计基底") },
 ];

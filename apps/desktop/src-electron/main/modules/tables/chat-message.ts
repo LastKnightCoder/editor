@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { ChatSessionMessage, ChatMessage, ChatAgentType } from "@/types";
+import { ChatSessionMessage, ChatMessage } from "@/types";
 import {
   CHAT_MESSAGE_SCHEMA_VERSION,
   migrateChatSessionMessages,
@@ -7,24 +7,18 @@ import {
 
 export default class ChatMessageTable {
   static upgradeTable(db: Database.Database) {
-    const tableInfo = db
-      .prepare("PRAGMA table_info(chat_message)")
-      .all() as Array<{ name: string }>;
-    const hasGroupId = tableInfo.some((col) => col.name === "group_id");
-    const hasArchived = tableInfo.some((col) => col.name === "archived");
-    const hasParentChatId = tableInfo.some(
-      (col) => col.name === "parent_chat_id",
-    );
-    const hasBranchIndex = tableInfo.some((col) => col.name === "branch_index");
-    const hasOrderNum = tableInfo.some((col) => col.name === "order_num");
-    const hasMessageSchemaVersion = tableInfo.some(
-      (col) => col.name === "message_schema_version",
-    );
-    const hasTitleDirty = tableInfo.some((col) => col.name === "title_dirty");
-    const hasAgentType = tableInfo.some((col) => col.name === "agent_type");
-    const hasAgentSessionId = tableInfo.some(
-      (col) => col.name === "agent_session_id",
-    );
+    const tableInfo = db.prepare("PRAGMA table_info(chat_message)").all() as Array<{
+      name: string;
+    }>;
+    const hasGroupId = tableInfo.some(col => col.name === "group_id");
+    const hasArchived = tableInfo.some(col => col.name === "archived");
+    const hasParentChatId = tableInfo.some(col => col.name === "parent_chat_id");
+    const hasBranchIndex = tableInfo.some(col => col.name === "branch_index");
+    const hasOrderNum = tableInfo.some(col => col.name === "order_num");
+    const hasMessageSchemaVersion = tableInfo.some(col => col.name === "message_schema_version");
+    const hasTitleDirty = tableInfo.some(col => col.name === "title_dirty");
+    const hasAgentType = tableInfo.some(col => col.name === "agent_type");
+    const hasAgentSessionId = tableInfo.some(col => col.name === "agent_session_id");
 
     if (!hasGroupId) {
       db.exec("ALTER TABLE chat_message ADD COLUMN group_id INTEGER");
@@ -39,9 +33,7 @@ export default class ChatMessageTable {
     }
 
     if (!hasBranchIndex) {
-      db.exec(
-        "ALTER TABLE chat_message ADD COLUMN branch_index INTEGER DEFAULT 0",
-      );
+      db.exec("ALTER TABLE chat_message ADD COLUMN branch_index INTEGER DEFAULT 0");
     }
 
     if (!hasOrderNum) {
@@ -49,27 +41,17 @@ export default class ChatMessageTable {
     }
 
     if (!hasMessageSchemaVersion) {
-      db.exec(
-        "ALTER TABLE chat_message ADD COLUMN message_schema_version INTEGER DEFAULT 1",
-      );
+      db.exec("ALTER TABLE chat_message ADD COLUMN message_schema_version INTEGER DEFAULT 1");
     }
 
     if (!hasTitleDirty) {
-      db.exec(
-        "ALTER TABLE chat_message ADD COLUMN title_dirty INTEGER DEFAULT 1",
-      );
-      db.exec(
-        "UPDATE chat_message SET title_dirty = 1 WHERE title_dirty IS NULL",
-      );
+      db.exec("ALTER TABLE chat_message ADD COLUMN title_dirty INTEGER DEFAULT 1");
+      db.exec("UPDATE chat_message SET title_dirty = 1 WHERE title_dirty IS NULL");
     }
 
     if (!hasAgentType) {
-      db.exec(
-        "ALTER TABLE chat_message ADD COLUMN agent_type TEXT DEFAULT 'local'",
-      );
-      db.exec(
-        "UPDATE chat_message SET agent_type = 'local' WHERE agent_type IS NULL",
-      );
+      db.exec("ALTER TABLE chat_message ADD COLUMN agent_type TEXT DEFAULT 'local'");
+      db.exec("UPDATE chat_message SET agent_type = 'local' WHERE agent_type IS NULL");
     }
 
     if (!hasAgentSessionId) {
@@ -77,23 +59,17 @@ export default class ChatMessageTable {
     }
 
     db.exec(
-      "UPDATE chat_message SET message_schema_version = 1 WHERE message_schema_version IS NULL",
+      "UPDATE chat_message SET message_schema_version = 1 WHERE message_schema_version IS NULL"
     );
 
     // 添加索引
     try {
+      db.exec("CREATE INDEX IF NOT EXISTS idx_chat_message_group_id ON chat_message(group_id)");
+      db.exec("CREATE INDEX IF NOT EXISTS idx_chat_message_archived ON chat_message(archived)");
       db.exec(
-        "CREATE INDEX IF NOT EXISTS idx_chat_message_group_id ON chat_message(group_id)",
+        "CREATE INDEX IF NOT EXISTS idx_chat_message_parent_chat_id ON chat_message(parent_chat_id)"
       );
-      db.exec(
-        "CREATE INDEX IF NOT EXISTS idx_chat_message_archived ON chat_message(archived)",
-      );
-      db.exec(
-        "CREATE INDEX IF NOT EXISTS idx_chat_message_parent_chat_id ON chat_message(parent_chat_id)",
-      );
-      db.exec(
-        "CREATE INDEX IF NOT EXISTS idx_chat_message_order_num ON chat_message(order_num)",
-      );
+      db.exec("CREATE INDEX IF NOT EXISTS idx_chat_message_order_num ON chat_message(order_num)");
     } catch (e) {
       // 索引可能已存在
     }
@@ -135,9 +111,7 @@ export default class ChatMessageTable {
       typeof chatMessage.message_schema_version === "number"
         ? chatMessage.message_schema_version
         : CHAT_MESSAGE_SCHEMA_VERSION;
-    const migration = migrateChatSessionMessages(
-      JSON.parse(chatMessage.messages || "[]"),
-    );
+    const migration = migrateChatSessionMessages(JSON.parse(chatMessage.messages || "[]"));
     return {
       chat: {
         id: Number(chatMessage.id),
@@ -150,28 +124,24 @@ export default class ChatMessageTable {
         groupId: chatMessage.group_id,
         archived: Boolean(chatMessage.archived),
         parentChatId:
-          chatMessage.parent_chat_id !== null
-            ? Number(chatMessage.parent_chat_id)
-            : null,
+          chatMessage.parent_chat_id !== null ? Number(chatMessage.parent_chat_id) : null,
         branchIndex: chatMessage.branch_index ?? 0,
         orderNum: chatMessage.order_num ?? null,
-        agentType: chatMessage.agent_type === "codex" ? "codex" : "local",
-        agentSessionId: chatMessage.agent_session_id ?? null,
       },
-      migrated:
-        migration.changed ||
-        storedSchemaVersion !== CHAT_MESSAGE_SCHEMA_VERSION,
+      migrated: migration.changed || storedSchemaVersion !== CHAT_MESSAGE_SCHEMA_VERSION,
     };
   }
 
   static persistMigratedMessages(
     db: Database.Database,
     id: number | bigint,
-    messages: ChatSessionMessage[],
+    messages: ChatSessionMessage[]
   ) {
-    db.prepare(
-      "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?",
-    ).run(JSON.stringify(messages), CHAT_MESSAGE_SCHEMA_VERSION, id);
+    db.prepare("UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?").run(
+      JSON.stringify(messages),
+      CHAT_MESSAGE_SCHEMA_VERSION,
+      id
+    );
   }
 
   static createChatMessage(
@@ -182,12 +152,10 @@ export default class ChatMessageTable {
     parentChatId: number | null | undefined,
     branchIndex: number | undefined,
     orderNum: number | null | undefined,
-    titleDirty = false,
-    agentType: ChatAgentType = "local",
-    agentSessionId: string | null = null,
+    titleDirty = false
   ): ChatMessage {
     const stmt = db.prepare(
-      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, archived, parent_chat_id, branch_index, order_num, message_schema_version, title_dirty, agent_type, agent_session_id) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, archived, parent_chat_id, branch_index, order_num, message_schema_version, title_dirty) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
     const migration = migrateChatSessionMessages(messages);
@@ -201,18 +169,13 @@ export default class ChatMessageTable {
       branchIndex ?? 0,
       orderNum ?? null,
       CHAT_MESSAGE_SCHEMA_VERSION,
-      titleDirty ? 1 : 0,
-      agentType,
-      agentSessionId,
+      titleDirty ? 1 : 0
     );
     const createdId = res.lastInsertRowid;
     return this.getChatMessageById(db, createdId);
   }
 
-  static getChatMessageById(
-    db: Database.Database,
-    id: number | bigint,
-  ): ChatMessage {
+  static getChatMessageById(db: Database.Database, id: number | bigint): ChatMessage {
     const stmt = db.prepare("SELECT * FROM chat_message WHERE id = ?");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const parsed = this.parseChatMessage(stmt.get(id) as any);
@@ -222,10 +185,7 @@ export default class ChatMessageTable {
     return parsed.chat;
   }
 
-  static getChatMessageByIdOrNull(
-    db: Database.Database,
-    id: number | bigint,
-  ): ChatMessage | null {
+  static getChatMessageByIdOrNull(db: Database.Database, id: number | bigint): ChatMessage | null {
     const stmt = db.prepare("SELECT * FROM chat_message WHERE id = ?");
     const row = stmt.get(id);
     if (!row) {
@@ -241,7 +201,7 @@ export default class ChatMessageTable {
 
   static updateChatMessage(
     db: Database.Database,
-    chatMessage: Omit<ChatMessage, "updateTime">,
+    chatMessage: Omit<ChatMessage, "updateTime">
   ): ChatMessage {
     const {
       id,
@@ -253,11 +213,9 @@ export default class ChatMessageTable {
       branchIndex,
       orderNum,
       titleDirty,
-      agentType,
-      agentSessionId,
     } = chatMessage;
     const stmt = db.prepare(
-      "UPDATE chat_message SET update_time = ?, title = ?, messages = ?, group_id = ?, archived = ?, parent_chat_id = ?, branch_index = ?, order_num = ?, message_schema_version = ?, title_dirty = ?, agent_type = ?, agent_session_id = ? WHERE id = ?",
+      "UPDATE chat_message SET update_time = ?, title = ?, messages = ?, group_id = ?, archived = ?, parent_chat_id = ?, branch_index = ?, order_num = ?, message_schema_version = ?, title_dirty = ? WHERE id = ?"
     );
     const now = Date.now();
     const migration = migrateChatSessionMessages(messages);
@@ -272,9 +230,7 @@ export default class ChatMessageTable {
       orderNum ?? null,
       CHAT_MESSAGE_SCHEMA_VERSION,
       titleDirty === false ? 0 : 1,
-      agentType ?? "local",
-      agentSessionId ?? null,
-      id,
+      id
     );
     return this.getChatMessageById(db, id);
   }
@@ -282,10 +238,7 @@ export default class ChatMessageTable {
   /**
    * 获取所有子分支的 ID（递归）
    */
-  static getAllChildBranches(
-    db: Database.Database,
-    parentChatId: number,
-  ): number[] {
+  static getAllChildBranches(db: Database.Database, parentChatId: number): number[] {
     const stmt = db.prepare(`
       WITH RECURSIVE child_branches(id) AS (
         SELECT id FROM chat_message WHERE parent_chat_id = ?
@@ -296,16 +249,13 @@ export default class ChatMessageTable {
       SELECT id FROM child_branches
     `);
     const result = stmt.all(parentChatId) as Array<{ id: number }>;
-    return result.map((row) => Number(row.id));
+    return result.map(row => Number(row.id));
   }
 
   /**
    * 获取子分支数量（包括所有层级的子分支）
    */
-  static getChildBranchesCount(
-    db: Database.Database,
-    parentChatId: number,
-  ): number {
+  static getChildBranchesCount(db: Database.Database, parentChatId: number): number {
     const childIds = this.getAllChildBranches(db, parentChatId);
     return childIds.length;
   }
@@ -321,7 +271,7 @@ export default class ChatMessageTable {
     if (childIds.length > 0) {
       const placeholders = childIds.map(() => "?").join(",");
       const deleteChildrenStmt = db.prepare(
-        `DELETE FROM chat_message WHERE id IN (${placeholders})`,
+        `DELETE FROM chat_message WHERE id IN (${placeholders})`
       );
       deleteChildrenStmt.run(...childIds);
     }
@@ -335,52 +285,38 @@ export default class ChatMessageTable {
   static getAllChatMessages(db: Database.Database): ChatMessage[] {
     const stmt = db.prepare("SELECT * FROM chat_message");
     const chatMessages = stmt.all();
-    return chatMessages.map((chatMessage) =>
+    return chatMessages.map(chatMessage =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       {
         const parsed = this.parseChatMessage(chatMessage as any);
         if (parsed.migrated) {
-          this.persistMigratedMessages(
-            db,
-            parsed.chat.id,
-            parsed.chat.messages,
-          );
+          this.persistMigratedMessages(db, parsed.chat.id, parsed.chat.messages);
         }
         return parsed.chat;
-      },
+      }
     );
   }
 
-  static getBranchesByParentId(
-    db: Database.Database,
-    parentChatId: number,
-  ): ChatMessage[] {
+  static getBranchesByParentId(db: Database.Database, parentChatId: number): ChatMessage[] {
     const stmt = db.prepare(
-      "SELECT * FROM chat_message WHERE parent_chat_id = ? ORDER BY branch_index ASC",
+      "SELECT * FROM chat_message WHERE parent_chat_id = ? ORDER BY branch_index ASC"
     );
     const chatMessages = stmt.all(parentChatId);
-    return chatMessages.map((chatMessage) =>
+    return chatMessages.map(chatMessage =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       {
         const parsed = this.parseChatMessage(chatMessage as any);
         if (parsed.migrated) {
-          this.persistMigratedMessages(
-            db,
-            parsed.chat.id,
-            parsed.chat.messages,
-          );
+          this.persistMigratedMessages(db, parsed.chat.id, parsed.chat.messages);
         }
         return parsed.chat;
-      },
+      }
     );
   }
 
-  static getNextBranchIndex(
-    db: Database.Database,
-    parentChatId: number,
-  ): number {
+  static getNextBranchIndex(db: Database.Database, parentChatId: number): number {
     const stmt = db.prepare(
-      "SELECT MAX(branch_index) as max_index FROM chat_message WHERE parent_chat_id = ?",
+      "SELECT MAX(branch_index) as max_index FROM chat_message WHERE parent_chat_id = ?"
     );
     const result = stmt.get(parentChatId) as { max_index: number | null };
     return (result?.max_index ?? -1) + 1;
@@ -391,35 +327,25 @@ export default class ChatMessageTable {
     const groupId = chat.groupId;
 
     const nextOrderStmt = db.prepare(
-      "SELECT MAX(order_num) as max_order FROM chat_message WHERE group_id IS ? AND order_num IS NOT NULL",
+      "SELECT MAX(order_num) as max_order FROM chat_message WHERE group_id IS ? AND order_num IS NOT NULL"
     );
     const result = nextOrderStmt.get(groupId) as { max_order: number | null };
     const nextOrder = (result?.max_order ?? -1) + 1;
 
-    const stmt = db.prepare(
-      "UPDATE chat_message SET order_num = ? WHERE id = ?",
-    );
+    const stmt = db.prepare("UPDATE chat_message SET order_num = ? WHERE id = ?");
     stmt.run(nextOrder, chatId);
 
     return this.getChatMessageById(db, chatId);
   }
 
   static unpinChatMessage(db: Database.Database, chatId: number): ChatMessage {
-    const stmt = db.prepare(
-      "UPDATE chat_message SET order_num = NULL WHERE id = ?",
-    );
+    const stmt = db.prepare("UPDATE chat_message SET order_num = NULL WHERE id = ?");
     stmt.run(chatId);
     return this.getChatMessageById(db, chatId);
   }
 
-  static reorderChatMessage(
-    db: Database.Database,
-    chatId: number,
-    newOrder: number,
-  ): ChatMessage {
-    const stmt = db.prepare(
-      "UPDATE chat_message SET order_num = ? WHERE id = ?",
-    );
+  static reorderChatMessage(db: Database.Database, chatId: number, newOrder: number): ChatMessage {
+    const stmt = db.prepare("UPDATE chat_message SET order_num = ? WHERE id = ?");
     stmt.run(newOrder, chatId);
     return this.getChatMessageById(db, chatId);
   }

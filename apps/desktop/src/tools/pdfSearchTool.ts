@@ -1,28 +1,16 @@
 import { PdfActionType } from "@embedpdf/models";
-import type {
-  PdfAnnotationContext,
-  PdfAnnotation,
-  PdfBookmark,
-  ToolDefinition,
-} from "@/types";
+import type { PdfAnnotationContext, PdfAnnotation, PdfBookmark, ToolDefinition } from "@/types";
 import { buildPdfCitationMarkdown } from "@/pages/PdfView/pdfCitation";
 import {
   getPdfAnnotations,
   getPdfBookmarks,
-  getPdfDocumentMap,
   getPdfDocumentInfo,
   getPdfOutline,
-  getPdfPageContent,
   getPdfPageRangeContent,
-  readPdfSection,
   searchPdfContent,
 } from "@/commands";
 
-const tryParseLimit = (
-  value: unknown,
-  fallback: number,
-  max: number,
-): number => {
+const tryParseLimit = (value: unknown, fallback: number, max: number): number => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) {
     return fallback;
@@ -32,14 +20,10 @@ const tryParseLimit = (
 
 const normalizeQuery = (value: unknown): string => String(value || "").trim();
 
-const annotationToContext = (
-  annotation: PdfAnnotation,
-): PdfAnnotationContext => ({
+const annotationToContext = (annotation: PdfAnnotation): PdfAnnotationContext => ({
   id: annotation.id,
   pdfId: annotation.pdfId,
-  pageNumber:
-    (annotation.annotation.pageIndex ?? annotation.areaData?.pageIndex ?? 0) +
-    1,
+  pageNumber: (annotation.annotation.pageIndex ?? annotation.areaData?.pageIndex ?? 0) + 1,
   type: annotation.type || "text-markup",
   color: annotation.color,
   snippet: annotation.annotation.contents || "",
@@ -58,8 +42,7 @@ const getBookmarkPageNumber = (bookmark: PdfBookmark): number | null => {
   if (target.type === "action") {
     const action = target.action;
     if (
-      (action.type === PdfActionType.Goto ||
-        action.type === PdfActionType.RemoteGoto) &&
+      (action.type === PdfActionType.Goto || action.type === PdfActionType.RemoteGoto) &&
       "destination" in action &&
       action.destination
     ) {
@@ -70,13 +53,9 @@ const getBookmarkPageNumber = (bookmark: PdfBookmark): number | null => {
   return null;
 };
 
-export const createPdfSearchTool = (
-  pdfId: number,
-  mainDbName: string,
-): ToolDefinition => ({
+export const createPdfSearchTool = (pdfId: number, mainDbName: string): ToolDefinition => ({
   name: "search_pdf_knowledge",
-  description:
-    "搜索当前 PDF 的原文索引，返回最相关的片段、所在页码和相关性分数。",
+  description: "搜索当前 PDF 的原文索引，返回最相关的片段、所在页码和相关性分数。",
   parameters: {
     type: "object",
     properties: {
@@ -91,7 +70,7 @@ export const createPdfSearchTool = (
     },
     required: ["query"],
   },
-  executor: async (args) => {
+  executor: async args => {
     const query = normalizeQuery(args.query);
     const limit = tryParseLimit(args.limit, 5, 10);
     if (!query) {
@@ -128,7 +107,7 @@ export const createPdfSearchTool = (
         success: results.length > 0 || info.indexStatus.state === "ready",
         message: `找到 ${results.length} 条相关片段`,
         indexStatus: info.indexStatus,
-        results: results.map((item) => ({
+        results: results.map(item => ({
           pageNumber: item.pageNumber,
           chunkIndex: item.chunkIndex,
           snippet: item.snippet,
@@ -152,7 +131,7 @@ export const createPdfSearchTool = (
 
 export const createGetPdfDocumentInfoTool = (
   pdfId: number,
-  mainDbName: string,
+  mainDbName: string
 ): ToolDefinition => ({
   name: "get_pdf_document_info",
   description: "读取当前 PDF 的文件名、总页数和索引状态。",
@@ -178,10 +157,7 @@ export const createGetPdfDocumentInfoTool = (
   },
 });
 
-export const createGetPdfOutlineTool = (
-  pdfId: number,
-  mainDbName: string,
-): ToolDefinition => ({
+export const createGetPdfOutlineTool = (pdfId: number, mainDbName: string): ToolDefinition => ({
   name: "get_pdf_outline",
   description: "读取当前 PDF 的目录结构和对应页码。",
   parameters: {
@@ -199,144 +175,7 @@ export const createGetPdfOutlineTool = (
   },
 });
 
-export const createGetPdfDocumentMapTool = (
-  pdfId: number,
-  mainDbName: string,
-): ToolDefinition => ({
-  name: "get_pdf_document_map",
-  description: "读取当前 PDF 的目录/章节结构和页码范围。",
-  parameters: {
-    type: "object",
-    properties: {
-      depth: {
-        type: "number",
-        description: "返回的章节树深度，默认 2，最大 6",
-      },
-    },
-  },
-  executor: async (args) => {
-    const depth = tryParseLimit(args.depth, 2, 6);
-    const map = await getPdfDocumentMap({ pdfId, mainDbName, depth });
-    return {
-      content: JSON.stringify({
-        success: map.indexStatus.state !== "failed",
-        pdfId: map.pdfId,
-        fileName: map.fileName,
-        pageCount: map.pageCount,
-        indexStatus: map.indexStatus,
-        sections: map.sections,
-      }),
-    };
-  },
-});
-
-export const createReadPdfSectionTool = (
-  pdfId: number,
-  mainDbName: string,
-): ToolDefinition => ({
-  name: "read_pdf_section",
-  description: "按章节读取当前 PDF 的页范围和完整文本。",
-  parameters: {
-    type: "object",
-    properties: {
-      sectionId: {
-        type: "string",
-        description: "章节 ID，可通过 get_pdf_document_map 获取",
-      },
-    },
-    required: ["sectionId"],
-  },
-  executor: async (args) => {
-    const sectionId = normalizeQuery(args.sectionId);
-    if (!sectionId) {
-      return {
-        content: JSON.stringify({
-          success: false,
-          error: "sectionId 不能为空",
-        }),
-      };
-    }
-    const detail = await readPdfSection({
-      pdfId,
-      mainDbName,
-      sectionId,
-    });
-    return {
-      content: JSON.stringify({
-        success: Boolean(detail),
-        detail,
-        citations:
-          detail?.pages.map((page) =>
-            buildPdfCitationMarkdown({
-              pageNumber: page.pageNumber,
-              previewText: page.content,
-            }),
-          ) || [],
-        error: detail ? undefined : `未找到章节 ${sectionId}`,
-      }),
-    };
-  },
-});
-
-export const createReadPdfPageTool = (
-  pdfId: number,
-  mainDbName: string,
-): ToolDefinition => ({
-  name: "read_pdf_page",
-  description: "读取当前 PDF 指定页的完整文本内容。",
-  parameters: {
-    type: "object",
-    properties: {
-      pageNumber: {
-        type: "number",
-        description: "页码，从 1 开始",
-      },
-    },
-    required: ["pageNumber"],
-  },
-  executor: async (args) => {
-    const pageNumber = Number(args.pageNumber);
-    if (!Number.isFinite(pageNumber) || pageNumber <= 0) {
-      return {
-        content: JSON.stringify({
-          success: false,
-          error: "pageNumber 必须是大于 0 的数字",
-        }),
-      };
-    }
-    const info = await getPdfDocumentInfo({ pdfId, mainDbName });
-    if (info.indexStatus.state === "failed") {
-      return {
-        content: JSON.stringify({
-          success: false,
-          page: null,
-          error: info.indexStatus.error || "PDF 索引构建失败，无法读取页内容",
-          indexStatus: info.indexStatus,
-        }),
-      };
-    }
-    const page = await getPdfPageContent({ pdfId, mainDbName, pageNumber });
-    return {
-      content: JSON.stringify({
-        success: Boolean(page),
-        page,
-        citation: page
-          ? buildPdfCitationMarkdown({
-              pageNumber: page.pageNumber,
-              previewText: page.content,
-            })
-          : undefined,
-        indexStatus: info.indexStatus,
-        error: page ? undefined : `未找到第 ${pageNumber} 页内容`,
-      }),
-    };
-  },
-});
-
-export const createReadPdfPageRangeTool = (
-  pdfId: number,
-  mainDbName: string,
-): ToolDefinition => ({
+export const createReadPdfPageRangeTool = (pdfId: number, mainDbName: string): ToolDefinition => ({
   name: "read_pdf_page_range",
   description: "按页范围读取当前 PDF 的文本内容。",
   parameters: {
@@ -353,7 +192,7 @@ export const createReadPdfPageRangeTool = (
     },
     required: ["startPage", "endPage"],
   },
-  executor: async (args) => {
+  executor: async args => {
     const startPage = Number(args.startPage);
     const endPage = Number(args.endPage);
     if (
@@ -380,8 +219,7 @@ export const createReadPdfPageRangeTool = (
           count: 0,
           pages: [],
           citations: [],
-          error:
-            info.indexStatus.error || "PDF 索引构建失败，无法读取页范围内容",
+          error: info.indexStatus.error || "PDF 索引构建失败，无法读取页范围内容",
           indexStatus: info.indexStatus,
         }),
       };
@@ -400,17 +238,14 @@ export const createReadPdfPageRangeTool = (
         endPage,
         count: pages.length,
         pages,
-        citations: pages.map((page) =>
+        citations: pages.map(page =>
           buildPdfCitationMarkdown({
             pageNumber: page.pageNumber,
             previewText: page.content,
-          }),
+          })
         ),
         indexStatus: info.indexStatus,
-        error:
-          pages.length > 0
-            ? undefined
-            : `未找到第 ${startPage} 到 ${endPage} 页的索引内容`,
+        error: pages.length > 0 ? undefined : `未找到第 ${startPage} 到 ${endPage} 页的索引内容`,
       }),
     };
   },
@@ -428,7 +263,7 @@ export const createGetPdfAnnotationsTool = (pdfId: number): ToolDefinition => ({
       },
     },
   },
-  executor: async (args) => {
+  executor: async args => {
     const limit = tryParseLimit(args.limit, 20, 100);
     const annotations = await getPdfAnnotations(pdfId);
     return {
@@ -454,7 +289,7 @@ export const createGetPdfBookmarksTool = (pdfId: number): ToolDefinition => ({
       content: JSON.stringify({
         success: true,
         total: bookmarks.length,
-        bookmarks: bookmarks.map((bookmark) => ({
+        bookmarks: bookmarks.map(bookmark => ({
           id: bookmark.id,
           pdfId: bookmark.pdfId,
           title: bookmark.bookmark.title || "未命名书签",

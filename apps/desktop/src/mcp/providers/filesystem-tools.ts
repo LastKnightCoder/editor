@@ -1,10 +1,5 @@
 import type { ToolParameterSchema } from "@/types";
-import {
-  getFileExtension,
-  readBinaryFile,
-  readTextFile,
-  getHomeDir,
-} from "@/commands/file";
+import { getFileExtension, readBinaryFile, readTextFile, getHomeDir } from "@/commands/file";
 import { nodeFetch } from "@/commands/extra";
 import { resolveLocalMediaPath } from "@/utils/localMediaPath";
 import type { MCPProviderDefinition } from "./types";
@@ -17,9 +12,7 @@ const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
   gif: "image/gif",
 };
 
-const SUPPORTED_IMAGE_MIME_TYPES = new Set(
-  Object.values(IMAGE_MIME_BY_EXTENSION),
-);
+const SUPPORTED_IMAGE_MIME_TYPES = new Set(Object.values(IMAGE_MIME_BY_EXTENSION));
 
 const parseImageDataUrl = (value: string) => {
   const match = value.match(/^data:([^;]+);base64,(.+)$/i);
@@ -56,9 +49,7 @@ const readRemoteImage = async (url: string) => {
   const data = response.data ?? (response as unknown as ArrayBuffer);
   const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
   const contentType =
-    response.headers?.["content-type"] ||
-    response.headers?.["Content-Type"] ||
-    "";
+    response.headers?.["content-type"] || response.headers?.["Content-Type"] || "";
   const mimeType = contentType
     .split(";")[0]
     .trim()
@@ -77,9 +68,7 @@ const readRemoteImage = async (url: string) => {
 };
 
 const readLocalImage = async (path: string) => {
-  const extension = (await getFileExtension(path))
-    .toLowerCase()
-    .replace(/^\./, "");
+  const extension = (await getFileExtension(path)).toLowerCase().replace(/^\./, "");
   const mimeType = IMAGE_MIME_BY_EXTENSION[extension];
   if (!mimeType) {
     throw new Error("本地图片格式不受支持，仅支持 png、jpeg、webp、gif");
@@ -97,8 +86,7 @@ const readLocalImage = async (path: string) => {
 export const filesystemToolsProvider: MCPProviderDefinition = {
   id: "filesystem-tools",
   name: "文件系统工具",
-  description:
-    "提供文件与图片读取工具，支持读取纯文本文件，并可读取本地或远程图片供模型视觉分析。",
+  description: "提供文件与图片读取工具，支持读取纯文本文件，并可读取本地或远程图片供模型视觉分析。",
   defaultEnabled: true,
   tools: () => [
     {
@@ -116,14 +104,13 @@ export const filesystemToolsProvider: MCPProviderDefinition = {
           },
           maxLength: {
             type: "number",
-            description:
-              "可选，最大读取字符数。默认无限制，建议设置为 50000 避免内容过长",
+            description: "可选，最大读取字符数。默认无限制，建议设置为 50000 避免内容过长",
           },
         } as Record<string, ToolParameterSchema>,
         required: ["path"],
         additionalProperties: false,
       },
-      executor: async (args) => {
+      executor: async args => {
         const path = args.path as string;
         const maxLength = args.maxLength as number | undefined;
 
@@ -136,7 +123,7 @@ export const filesystemToolsProvider: MCPProviderDefinition = {
                 error: "必须提供有效的文件路径",
               },
               null,
-              2,
+              2
             ),
           };
         }
@@ -173,7 +160,7 @@ export const filesystemToolsProvider: MCPProviderDefinition = {
                   : {}),
               },
               null,
-              2,
+              2
             ),
           };
         } catch (error) {
@@ -185,43 +172,7 @@ export const filesystemToolsProvider: MCPProviderDefinition = {
                 error: `读取文件失败: ${(error as Error).message}`,
               },
               null,
-              2,
-            ),
-          };
-        }
-      },
-    },
-    {
-      name: "get_home_dir",
-      description: "获取用户的家目录路径。",
-      parameters: {
-        type: "object",
-        properties: {},
-        required: [],
-        additionalProperties: false,
-      },
-      executor: async () => {
-        try {
-          const homeDir = await getHomeDir();
-          return {
-            content: JSON.stringify(
-              {
-                success: true,
-                homeDir,
-              },
-              null,
-              2,
-            ),
-          };
-        } catch (error) {
-          return {
-            content: JSON.stringify(
-              {
-                success: false,
-                error: `获取家目录失败: ${(error as Error).message}`,
-              },
-              null,
-              2,
+              2
             ),
           };
         }
@@ -243,7 +194,7 @@ export const filesystemToolsProvider: MCPProviderDefinition = {
         required: ["path"],
         additionalProperties: false,
       },
-      executor: async (args) => {
+      executor: async args => {
         const rawPath = args.path;
         if (typeof rawPath !== "string" || !rawPath.trim()) {
           return {
@@ -253,7 +204,7 @@ export const filesystemToolsProvider: MCPProviderDefinition = {
                 error: "必须提供有效的图片路径",
               },
               null,
-              2,
+              2
             ),
             isParameterError: true,
           };
@@ -293,7 +244,7 @@ export const filesystemToolsProvider: MCPProviderDefinition = {
                 error: `读取图片失败: ${(error as Error).message}`,
               },
               null,
-              2,
+              2
             ),
             isParameterError: true,
           };

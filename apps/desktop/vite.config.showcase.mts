@@ -17,6 +17,16 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
+      // 与主 dev 配置同源的 workspace 包别名：档案组件 import 真实渲染器，
+      // 依赖链会拉到 db-schema / shared 等包的深路径子模块（如 model-version），
+      // pnpm 符号链接 + 无 exports 声明的包必须走源码别名才能解析
+      "@tau/agent": path.resolve(__dirname, "../../packages/agent"),
+      "@tau/editor": path.resolve(__dirname, "../../packages/editor"),
+      "@tau/db-schema": path.resolve(__dirname, "../../packages/db-schema"),
+      "@tau/rpc": path.resolve(__dirname, "../../packages/rpc"),
+      "@tau/platform": path.resolve(__dirname, "../../packages/platform"),
+      "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
+      "@tau/themes": path.resolve(__dirname, "../../packages/themes"),
     },
   },
   plugins: [{ name: "tau-theme-bootstrap", transformIndexHtml: () => [{ tag: "script", children: createThemeBootstrapScript(), injectTo: "head-prepend" }] }, react(), tailwindcss()],

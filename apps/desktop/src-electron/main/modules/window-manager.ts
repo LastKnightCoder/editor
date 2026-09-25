@@ -8,8 +8,8 @@ let VITE_DEV_SERVER_URL: string;
 let indexHtml: string;
 let preload: string;
 
-// 主窗口内容下限（CSS px）：与渲染壳层 .app 的 min-w-[1080px] 对齐，
-// 实际 minWidth 按页面 zoomFactor 在此基准上放大
+// 主窗口内容下限（CSS px）：由主进程维护，实际 minWidth 按页面 zoomFactor 放大；
+// 渲染壳层按视口收缩，避免缩放后固定 min-width 造成内容被裁
 const CONTENT_MIN_WIDTH = 1080;
 const CONTENT_MIN_HEIGHT = 600;
 
@@ -351,8 +351,7 @@ export class WindowManager {
     const win = new BrowserWindow({
       width: 1200,
       height: 800,
-      // 与渲染壳层 .app 的 min-w-[1080px] 对齐：窗口不可小于内容下限，杜绝整树右侧被裁。
-      // 页面缩放下由渲染端经 refresh-window-min-size 按 zoomFactor 放大此下限
+      // 窗口不可小于内容下限，页面缩放下由渲染端经 refresh-window-min-size 按 zoomFactor 放大此下限
       minWidth: CONTENT_MIN_WIDTH,
       minHeight: CONTENT_MIN_HEIGHT,
       autoHideMenuBar: true,

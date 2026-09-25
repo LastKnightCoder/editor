@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
 import type { ChatSession } from "../types/chat-session";
-import type { ChatAgentType } from "../types/chat-session";
 import type { ChatMessageType, MessageContentItem } from "@tau/shared";
 
 interface UseChatSessionsReturn {
@@ -9,18 +8,8 @@ interface UseChatSessionsReturn {
   currentSession: ChatSession;
   messages: ChatMessageType[];
   isLoading: boolean;
-  createSession: (
-    systemPromptSnapshot?: string,
-    agentType?: ChatAgentType,
-  ) => Promise<void>;
-  ensureSessionSystemPrompt: (
-    sessionId: string,
-    systemPromptSnapshot: string,
-  ) => Promise<void>;
-  updateCurrentSessionAgentType: (agentType: ChatAgentType) => Promise<void>;
-  updateCurrentSessionAgentSessionId: (
-    agentSessionId: string | null,
-  ) => Promise<void>;
+  createSession: (systemPromptSnapshot?: string) => Promise<void>;
+  ensureSessionSystemPrompt: (sessionId: string, systemPromptSnapshot: string) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
   updateSessionTitle: (sessionId: string, title: string) => Promise<void>;
   selectSession: (sessionId: string) => Promise<void>;
@@ -29,10 +18,7 @@ interface UseChatSessionsReturn {
   deleteMessage: (messageIndex: number) => void;
   regenerateMessage: (
     messageIndex: number,
-    sendCallback: (
-      content: string | MessageContentItem[],
-      baseMessages: ChatMessageType[],
-    ) => void,
+    sendCallback: (content: string | MessageContentItem[], baseMessages: ChatMessageType[]) => void
   ) => void;
   createBranch: (messageIndex: number) => Promise<void>;
 }
@@ -48,9 +34,8 @@ interface StoredSessionMessages {
 
 const normalizeSessionMeta = (session: ChatSession): ChatSession => ({
   ...session,
-  agentType: session.agentType === "codex" ? "codex" : "local",
-  agentSessionId:
-    typeof session.agentSessionId === "string" ? session.agentSessionId : null,
+  agentType: "local",
+  agentSessionId: null,
   schemaVersion: STORAGE_SCHEMA_VERSION,
 });
 
@@ -69,15 +54,13 @@ const extractTextContent = (content: unknown): string => {
         "type" in item &&
         (item as { type?: string }).type === "text" &&
         "text" in item &&
-        typeof (item as { text?: unknown }).text === "string",
+        typeof (item as { text?: unknown }).text === "string"
     )
-    .map((item) => item.text)
+    .map(item => item.text)
     .join("\n");
 };
 
-const normalizeRequestContent = (
-  value: unknown,
-): MessageContentItem[] | undefined => {
+const normalizeRequestContent = (value: unknown): MessageContentItem[] | undefined => {
   if (!Array.isArray(value)) {
     return undefined;
   }
@@ -96,21 +79,15 @@ const normalizeRequestContent = (
         return {
           type: "image",
           image: record.image,
-          ...(typeof record.resourceId === "number"
-            ? { resourceId: record.resourceId }
-            : {}),
+          ...(typeof record.resourceId === "number" ? { resourceId: record.resourceId } : {}),
         };
       }
       if (record.type === "file" && typeof record.file === "string") {
         return {
           type: "file",
           file: record.file,
-          ...(typeof record.resourceId === "number"
-            ? { resourceId: record.resourceId }
-            : {}),
-          ...(typeof record.fileName === "string"
-            ? { fileName: record.fileName }
-            : {}),
+          ...(typeof record.resourceId === "number" ? { resourceId: record.resourceId } : {}),
+          ...(typeof record.fileName === "string" ? { fileName: record.fileName } : {}),
         };
       }
       return null;
@@ -138,14 +115,9 @@ const normalizeStoredMessages = (messages: unknown[]): ChatMessageType[] => {
           : "assistant";
 
       const id =
-        typeof source.id === "string" && source.id
-          ? source.id
-          : `migrated-${now}-${index}`;
+        typeof source.id === "string" && source.id ? source.id : `migrated-${now}-${index}`;
 
-      const timestamp =
-        typeof source.timestamp === "number"
-          ? source.timestamp
-          : now + index * 10;
+      const timestamp = typeof source.timestamp === "number" ? source.timestamp : now + index * 10;
 
       const normalizedMessage: ChatMessageType = {
         id,
@@ -159,28 +131,21 @@ const normalizeStoredMessages = (messages: unknown[]): ChatMessageType[] => {
       }
 
       if (Array.isArray(source.contentBlocks)) {
-        normalizedMessage.contentBlocks =
-          source.contentBlocks as ChatMessageType["contentBlocks"];
+        normalizedMessage.contentBlocks = source.contentBlocks as ChatMessageType["contentBlocks"];
       }
 
       if (typeof source.name === "string" && source.name.length > 0) {
-        (normalizedMessage as ChatMessageType & { name?: string }).name =
-          source.name;
+        (normalizedMessage as ChatMessageType & { name?: string }).name = source.name;
       }
 
-      if (
-        typeof source.tool_call_id === "string" &&
-        source.tool_call_id.length > 0
-      ) {
-        (
-          normalizedMessage as ChatMessageType & { tool_call_id?: string }
-        ).tool_call_id = source.tool_call_id;
+      if (typeof source.tool_call_id === "string" && source.tool_call_id.length > 0) {
+        (normalizedMessage as ChatMessageType & { tool_call_id?: string }).tool_call_id =
+          source.tool_call_id;
       }
 
       if (Array.isArray(source.tool_calls)) {
-        (
-          normalizedMessage as ChatMessageType & { tool_calls?: unknown[] }
-        ).tool_calls = source.tool_calls;
+        (normalizedMessage as ChatMessageType & { tool_calls?: unknown[] }).tool_calls =
+          source.tool_calls;
       }
 
       const requestContent = normalizeRequestContent(source.requestContent);
@@ -209,8 +174,7 @@ const parseStoredMessages = (raw: unknown): StoredSessionMessages => {
     const source = raw as Partial<StoredSessionMessages>;
     if (Array.isArray(source.messages)) {
       return {
-        schemaVersion:
-          typeof source.schemaVersion === "number" ? source.schemaVersion : 1,
+        schemaVersion: typeof source.schemaVersion === "number" ? source.schemaVersion : 1,
         messages: normalizeStoredMessages(source.messages),
       };
     }
@@ -222,9 +186,7 @@ const parseStoredMessages = (raw: unknown): StoredSessionMessages => {
   };
 };
 
-const buildStoredMessages = (
-  messages: ChatMessageType[],
-): StoredSessionMessages => ({
+const buildStoredMessages = (messages: ChatMessageType[]): StoredSessionMessages => ({
   schemaVersion: STORAGE_SCHEMA_VERSION,
   messages,
 });
@@ -250,8 +212,7 @@ const DEFAULT_SESSION: ChatSession = {
 
 export function useChatSessions(url: string | null): UseChatSessionsReturn {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [currentSession, setCurrentSession] =
-    useState<ChatSession>(DEFAULT_SESSION);
+  const [currentSession, setCurrentSession] = useState<ChatSession>(DEFAULT_SESSION);
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -271,7 +232,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
 
       const normalized = sessionsMeta.map(normalizeSessionMeta);
       const needsMigration = sessionsMeta.some(
-        (session) => session.schemaVersion !== STORAGE_SCHEMA_VERSION,
+        session => session.schemaVersion !== STORAGE_SCHEMA_VERSION
       );
       if (needsMigration) {
         await chrome.storage.local.set({ [key]: normalized });
@@ -304,17 +265,14 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
   }, []);
 
   // 保存会话元数据列表
-  const saveSessionsMeta = useCallback(
-    async (url: string, sessionsMeta: ChatSession[]) => {
-      try {
-        const key = `${STORAGE_PREFIX_META}${url}`;
-        await chrome.storage.local.set({ [key]: sessionsMeta });
-      } catch (error) {
-        console.error("Failed to save sessions meta:", error);
-      }
-    },
-    [],
-  );
+  const saveSessionsMeta = useCallback(async (url: string, sessionsMeta: ChatSession[]) => {
+    try {
+      const key = `${STORAGE_PREFIX_META}${url}`;
+      await chrome.storage.local.set({ [key]: sessionsMeta });
+    } catch (error) {
+      console.error("Failed to save sessions meta:", error);
+    }
+  }, []);
 
   // 保存会话消息（带 debounce）
   const saveMessages = useCallback((newMessages: ChatMessageType[]) => {
@@ -337,18 +295,16 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
         // 更新元数据的 updateTime
         const metaKey = `${STORAGE_PREFIX_META}${currentUrlRef.current}`;
         const result = await chrome.storage.local.get(metaKey);
-        const sessionsMeta = ((result[metaKey] || []) as ChatSession[]).map(
-          normalizeSessionMeta,
-        );
+        const sessionsMeta = ((result[metaKey] || []) as ChatSession[]).map(normalizeSessionMeta);
 
-        const updatedMeta = sessionsMeta.map((session) =>
+        const updatedMeta = sessionsMeta.map(session =>
           session.id === sessionId
             ? {
                 ...session,
                 updateTime: Date.now(),
                 schemaVersion: STORAGE_SCHEMA_VERSION,
               }
-            : session,
+            : session
         );
 
         await chrome.storage.local.set({ [metaKey]: updatedMeta });
@@ -364,10 +320,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
 
   // 创建新会话
   const createSession = useCallback(
-    async (
-      systemPromptSnapshot?: string,
-      agentType: ChatAgentType = "local",
-    ) => {
+    async (systemPromptSnapshot?: string) => {
       if (!currentUrlRef.current) return;
 
       const nextIndex = sessions.length + 1;
@@ -378,7 +331,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
         updateTime: Date.now(),
         schemaVersion: STORAGE_SCHEMA_VERSION,
         systemPromptSnapshot,
-        agentType,
+        agentType: "local",
         agentSessionId: null,
       };
 
@@ -397,78 +350,14 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
         [messagesKey]: buildStoredMessages([]),
       });
     },
-    [sessions, saveSessionsMeta],
-  );
-
-  const updateCurrentSessionAgentType = useCallback(
-    async (agentType: ChatAgentType) => {
-      if (!currentUrlRef.current) return;
-      const sessionId = currentSessionIdRef.current;
-      if (!sessionId) return;
-
-      const updatedSessions = sessions.map((session) =>
-        session.id === sessionId
-          ? {
-              ...session,
-              agentType,
-              agentSessionId:
-                agentType === session.agentType
-                  ? (session.agentSessionId ?? null)
-                  : null,
-              schemaVersion: STORAGE_SCHEMA_VERSION,
-            }
-          : session,
-      );
-
-      setSessions(updatedSessions);
-      await saveSessionsMeta(currentUrlRef.current, updatedSessions);
-
-      const updatedCurrentSession = updatedSessions.find(
-        (session) => session.id === sessionId,
-      );
-      if (updatedCurrentSession) {
-        setCurrentSession(updatedCurrentSession);
-      }
-    },
-    [saveSessionsMeta, sessions],
-  );
-
-  const updateCurrentSessionAgentSessionId = useCallback(
-    async (agentSessionId: string | null) => {
-      if (!currentUrlRef.current) return;
-      const sessionId = currentSessionIdRef.current;
-      if (!sessionId) return;
-
-      const updatedSessions = sessions.map((session) =>
-        session.id === sessionId
-          ? {
-              ...session,
-              agentSessionId,
-              schemaVersion: STORAGE_SCHEMA_VERSION,
-            }
-          : session,
-      );
-
-      setSessions(updatedSessions);
-      await saveSessionsMeta(currentUrlRef.current, updatedSessions);
-
-      const updatedCurrentSession = updatedSessions.find(
-        (session) => session.id === sessionId,
-      );
-      if (updatedCurrentSession) {
-        setCurrentSession(updatedCurrentSession);
-      }
-    },
-    [saveSessionsMeta, sessions],
+    [sessions, saveSessionsMeta]
   );
 
   const ensureSessionSystemPrompt = useCallback(
     async (sessionId: string, systemPromptSnapshot: string) => {
       if (!currentUrlRef.current) return;
 
-      const targetSession = sessions.find(
-        (session) => session.id === sessionId,
-      );
+      const targetSession = sessions.find(session => session.id === sessionId);
       if (!targetSession) return;
 
       if (targetSession.systemPromptSnapshot === systemPromptSnapshot) {
@@ -481,8 +370,8 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
         updateTime: targetSession.updateTime,
       } satisfies ChatSession;
 
-      const updatedSessions = sessions.map((session) =>
-        session.id === sessionId ? nextSession : session,
+      const updatedSessions = sessions.map(session =>
+        session.id === sessionId ? nextSession : session
       );
       setSessions(updatedSessions);
       await saveSessionsMeta(currentUrlRef.current, updatedSessions);
@@ -491,7 +380,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
         setCurrentSession(nextSession);
       }
     },
-    [saveSessionsMeta, sessions],
+    [saveSessionsMeta, sessions]
   );
 
   // 获取子分支数量
@@ -499,16 +388,13 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
     async (sessionId: string): Promise<number> => {
       // 递归计算所有子分支（包括子分支的子分支）
       const countChildren = (parentId: string): number => {
-        const children = sessions.filter((s) => s.parentChatId === parentId);
-        return children.reduce(
-          (total, child) => total + 1 + countChildren(child.id),
-          0,
-        );
+        const children = sessions.filter(s => s.parentChatId === parentId);
+        return children.reduce((total, child) => total + 1 + countChildren(child.id), 0);
       };
 
       return countChildren(sessionId);
     },
-    [sessions],
+    [sessions]
   );
 
   // 删除会话及其所有子分支
@@ -520,22 +406,20 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       const idsToDelete: string[] = [];
       const collectIds = (id: string) => {
         idsToDelete.push(id);
-        const children = sessions.filter((s) => s.parentChatId === id);
-        children.forEach((child) => collectIds(child.id));
+        const children = sessions.filter(s => s.parentChatId === id);
+        children.forEach(child => collectIds(child.id));
       };
       collectIds(sessionId);
 
       // 删除所有消息数据
-      const deletePromises = idsToDelete.map((id) => {
+      const deletePromises = idsToDelete.map(id => {
         const messagesKey = `${STORAGE_PREFIX_MESSAGES}${id}`;
         return chrome.storage.local.remove(messagesKey);
       });
       await Promise.all(deletePromises);
 
       // 更新会话列表
-      const updatedSessions = sessions.filter(
-        (session) => !idsToDelete.includes(session.id),
-      );
+      const updatedSessions = sessions.filter(session => !idsToDelete.includes(session.id));
       setSessions(updatedSessions);
       await saveSessionsMeta(currentUrlRef.current, updatedSessions);
 
@@ -574,7 +458,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
         }
       }
     },
-    [sessions, loadSessionMessages, saveSessionsMeta],
+    [sessions, loadSessionMessages, saveSessionsMeta]
   );
 
   // 更新会话标题
@@ -582,7 +466,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
     async (sessionId: string, newTitle: string) => {
       if (!currentUrlRef.current) return;
 
-      const updatedSessions = sessions.map((session) =>
+      const updatedSessions = sessions.map(session =>
         session.id === sessionId
           ? {
               ...session,
@@ -590,7 +474,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
               updateTime: Date.now(),
               schemaVersion: STORAGE_SCHEMA_VERSION,
             }
-          : session,
+          : session
       );
 
       setSessions(updatedSessions);
@@ -606,7 +490,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
         });
       }
     },
-    [sessions, currentSession, saveSessionsMeta],
+    [sessions, currentSession, saveSessionsMeta]
   );
 
   // 切换会话
@@ -614,7 +498,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
     async (sessionId: string) => {
       if (sessionId === currentSessionIdRef.current) return;
 
-      const session = sessions.find((s) => s.id === sessionId);
+      const session = sessions.find(s => s.id === sessionId);
       if (!session) return;
 
       setCurrentSession(session);
@@ -625,7 +509,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       setMessages(newMessages);
       setIsLoading(false);
     },
-    [sessions, loadSessionMessages],
+    [sessions, loadSessionMessages]
   );
 
   // 删除单条消息
@@ -647,7 +531,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       setMessages(updatedMessages);
       saveMessages(updatedMessages);
     },
-    [messages, saveMessages],
+    [messages, saveMessages]
   );
 
   // 重新生成消息（删除当前消息及之后的所有消息，然后重新发送）
@@ -656,8 +540,8 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       messageIndex: number,
       sendCallback: (
         content: string | MessageContentItem[],
-        baseMessages: ChatMessageType[],
-      ) => void,
+        baseMessages: ChatMessageType[]
+      ) => void
     ) => {
       if (messageIndex < 0 || messageIndex >= messages.length) return;
 
@@ -681,7 +565,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       // 重新发送用户消息，传递截断后的消息避免闭包过期
       sendCallback(userContent, updatedMessages);
     },
-    [messages, saveMessages],
+    [messages, saveMessages]
   );
 
   // 创建分支（从某条消息处创建新会话）
@@ -695,9 +579,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
 
       // 计算同一父会话下的分支序号
       const parentId = currentSessionIdRef.current;
-      const siblingBranches = sessions.filter(
-        (s) => s.parentChatId === parentId,
-      );
+      const siblingBranches = sessions.filter(s => s.parentChatId === parentId);
       const branchIndex = siblingBranches.length + 1;
 
       const newSession: ChatSession = {
@@ -709,7 +591,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
         branchIndex,
         schemaVersion: STORAGE_SCHEMA_VERSION,
         systemPromptSnapshot: currentSession.systemPromptSnapshot,
-        agentType: currentSession.agentType ?? "local",
+        agentType: "local",
         agentSessionId: null,
       };
 
@@ -728,7 +610,7 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
       currentSessionIdRef.current = newSession.id;
       setMessages(branchMessages);
     },
-    [currentSession, messages, sessions, saveSessionsMeta],
+    [currentSession, messages, sessions, saveSessionsMeta]
   );
 
   // URL 变化时重新加载会话列表
@@ -800,8 +682,6 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
     isLoading,
     createSession,
     ensureSessionSystemPrompt,
-    updateCurrentSessionAgentType,
-    updateCurrentSessionAgentSessionId,
     deleteSession,
     updateSessionTitle,
     selectSession,

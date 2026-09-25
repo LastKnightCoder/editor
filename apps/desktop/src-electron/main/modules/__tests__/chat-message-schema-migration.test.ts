@@ -32,11 +32,23 @@ vi.mock("electron-log", () => ({
 
 import { Role } from "@/constants";
 import { CHAT_MESSAGE_SCHEMA_VERSION } from "@/services/chatMessageSchema";
-import type { ChatSessionMessage } from "@/types";
+import type {
+  ChatSessionMessage,
+  CreatePdfChat,
+  CreateVideoNoteChat,
+  UpdatePdfChat,
+  UpdateVideoNoteChat,
+} from "@/types";
+import type { CreateVLChat, UpdateVLChat } from "@/types/vibe-learning";
 import ChatMessageTable from "../tables/chat-message";
 import PdfChatTable from "../tables/pdf-chat";
 import VibeLearningChatTable from "../tables/vibe-learning-chat";
 import VideoNoteChatTable from "../tables/video-note-chat";
+
+const expectNoAgentFields = (chat: object) => {
+  expect("agentType" in chat).toBe(false);
+  expect("agentSessionId" in chat).toBe(false);
+};
 
 const buildLegacyMessages = (): ChatSessionMessage[] =>
   [
@@ -181,8 +193,7 @@ describe("chat message schema migration", () => {
         }
 
         if (
-          sql ===
-          "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
+          sql === "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
         ) {
           return {
             run: (...args: unknown[]) => {
@@ -207,7 +218,7 @@ describe("chat message schema migration", () => {
     expect(updateRuns[0]?.[1]).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
   });
 
-  it("读取旧 chat_message 记录时默认使用本地代理", () => {
+  it("读取旧 chat_message 记录时不再暴露代理字段", () => {
     const db = {
       prepare: vi.fn((sql: string) => {
         if (sql === "SELECT * FROM chat_message WHERE id = ?") {
@@ -230,8 +241,7 @@ describe("chat message schema migration", () => {
         }
 
         if (
-          sql ===
-          "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
+          sql === "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
         ) {
           return {
             run: vi.fn(),
@@ -244,11 +254,10 @@ describe("chat message schema migration", () => {
 
     const chat = ChatMessageTable.getChatMessageById(db, 1);
 
-    expect(chat.agentType).toBe("local");
-    expect(chat.agentSessionId).toBeNull();
+    expectNoAgentFields(chat);
   });
 
-  it("新建和更新 chat_message 时保存 Codex 代理会话信息", () => {
+  it("新建和更新 chat_message 时不再写入代理字段", () => {
     const now = 1234;
     vi.spyOn(Date, "now").mockReturnValue(now);
     let storedRow: any = null;
@@ -270,8 +279,6 @@ describe("chat message schema migration", () => {
                 order_num: args[7],
                 message_schema_version: args[8],
                 title_dirty: args[9],
-                agent_type: args[10],
-                agent_session_id: args[11],
               };
               return { lastInsertRowid: 1 };
             },
@@ -299,16 +306,13 @@ describe("chat message schema migration", () => {
                 order_num: args[7],
                 message_schema_version: args[8],
                 title_dirty: args[9],
-                agent_type: args[10],
-                agent_session_id: args[11],
               };
             },
           };
         }
 
         if (
-          sql ===
-          "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
+          sql === "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
         ) {
           return {
             run: vi.fn(),
@@ -327,31 +331,26 @@ describe("chat message schema migration", () => {
       null,
       0,
       null,
-      false,
-      "codex",
-      "codex-thread-1",
+      false
     );
 
-    expect(created.agentType).toBe("codex");
-    expect(created.agentSessionId).toBe("codex-thread-1");
+    expectNoAgentFields(created);
 
     const updated = ChatMessageTable.updateChatMessage(db, {
       ...created,
-      agentSessionId: "codex-thread-2",
     });
 
-    expect(updated.agentType).toBe("codex");
-    expect(updated.agentSessionId).toBe("codex-thread-2");
+    expectNoAgentFields(updated);
   });
 
-  it("新建和更新外部聊天记录时保存 Codex 代理会话信息", () => {
+  it("新建和更新外部聊天记录时不再写入代理字段", () => {
     const now = 2345;
     vi.spyOn(Date, "now").mockReturnValue(now);
 
     const buildExternalDb = (
       tableName: "pdf_chats" | "video_note_chats" | "vibe_learning_chats",
       ownerColumn: "pdf_id" | "video_note_id" | "project_id",
-      ownerId: number,
+      ownerId: number
     ) => {
       let storedRow: any = null;
       return {
@@ -370,8 +369,6 @@ describe("chat message schema migration", () => {
                   parent_chat_id: args[5],
                   branch_index: args[6],
                   message_schema_version: args[7],
-                  agent_type: args[8],
-                  agent_session_id: args[9],
                 };
                 return { lastInsertRowid: ownerId };
               },
@@ -402,16 +399,13 @@ describe("chat message schema migration", () => {
                   parent_chat_id: args[4],
                   branch_index: args[5],
                   message_schema_version: args[6],
-                  agent_type: args[7],
-                  agent_session_id: args[8],
                 };
               },
             };
           }
 
           if (
-            sql ===
-            `UPDATE ${tableName} SET messages = ?, message_schema_version = ? WHERE id = ?`
+            sql === `UPDATE ${tableName} SET messages = ?, message_schema_version = ? WHERE id = ?`
           ) {
             return {
               run: vi.fn(),
@@ -431,11 +425,11 @@ describe("chat message schema migration", () => {
       title: "PDF Codex",
       agentType: "codex",
       agentSessionId: "pdf-thread-1",
-    });
+    } as CreatePdfChat);
     const updatedPdfChat = PdfChatTable.updateChat(pdfDb, {
       ...pdfChat,
       agentSessionId: "pdf-thread-2",
-    });
+    } as UpdatePdfChat);
 
     const videoDb = buildExternalDb("video_note_chats", "video_note_id", 20);
     const videoChat = VideoNoteChatTable.createChat(videoDb, {
@@ -444,11 +438,11 @@ describe("chat message schema migration", () => {
       title: "视频 Codex",
       agentType: "codex",
       agentSessionId: "video-thread-1",
-    });
+    } as CreateVideoNoteChat);
     const updatedVideoChat = VideoNoteChatTable.updateChat(videoDb, {
       ...videoChat,
       agentSessionId: "video-thread-2",
-    });
+    } as UpdateVideoNoteChat);
 
     const vibeDb = buildExternalDb("vibe_learning_chats", "project_id", 30);
     const vibeChat = VibeLearningChatTable.createChat(vibeDb, {
@@ -457,33 +451,30 @@ describe("chat message schema migration", () => {
       title: "学习 Codex",
       agentType: "codex",
       agentSessionId: "vibe-thread-1",
-    });
+    } as CreateVLChat);
     const updatedVibeChat = VibeLearningChatTable.updateChat(vibeDb, {
       ...vibeChat,
       agentSessionId: "vibe-thread-2",
-    });
+    } as UpdateVLChat);
 
-    expect(pdfChat.agentType).toBe("codex");
-    expect(pdfChat.agentSessionId).toBe("pdf-thread-1");
-    expect(updatedPdfChat?.agentSessionId).toBe("pdf-thread-2");
-    expect(videoChat.agentType).toBe("codex");
-    expect(videoChat.agentSessionId).toBe("video-thread-1");
-    expect(updatedVideoChat?.agentSessionId).toBe("video-thread-2");
-    expect(vibeChat.agentType).toBe("codex");
-    expect(vibeChat.agentSessionId).toBe("vibe-thread-1");
-    expect(updatedVibeChat?.agentSessionId).toBe("vibe-thread-2");
+    expectNoAgentFields(pdfChat);
+    expectNoAgentFields(updatedPdfChat ?? {});
+    expectNoAgentFields(videoChat);
+    expectNoAgentFields(updatedVideoChat ?? {});
+    expectNoAgentFields(vibeChat);
+    expectNoAgentFields(updatedVibeChat ?? {});
 
     vi.restoreAllMocks();
   });
 
-  it("更新外部聊天记录时支持显式清空 Codex 会话 ID", () => {
+  it("更新存量 Codex 外部聊天记录后不再返回代理字段", () => {
     const now = 3456;
     vi.spyOn(Date, "now").mockReturnValue(now);
 
     const buildExternalDb = (
       tableName: "pdf_chats" | "video_note_chats" | "vibe_learning_chats",
       ownerColumn: "pdf_id" | "video_note_id" | "project_id",
-      ownerId: number,
+      ownerId: number
     ) => {
       let storedRow: any = {
         id: ownerId,
@@ -520,16 +511,13 @@ describe("chat message schema migration", () => {
                   parent_chat_id: args[4],
                   branch_index: args[5],
                   message_schema_version: args[6],
-                  agent_type: args[7],
-                  agent_session_id: args[8],
                 };
               },
             };
           }
 
           if (
-            sql ===
-            `UPDATE ${tableName} SET messages = ?, message_schema_version = ? WHERE id = ?`
+            sql === `UPDATE ${tableName} SET messages = ?, message_schema_version = ? WHERE id = ?`
           ) {
             return {
               run: vi.fn(),
@@ -541,31 +529,28 @@ describe("chat message schema migration", () => {
       } as any;
     };
 
-    const pdfChat = PdfChatTable.updateChat(
-      buildExternalDb("pdf_chats", "pdf_id", 10),
-      {
-        id: 10,
-        agentSessionId: null,
-      },
-    );
+    const pdfChat = PdfChatTable.updateChat(buildExternalDb("pdf_chats", "pdf_id", 10), {
+      id: 10,
+      agentSessionId: null,
+    } as UpdatePdfChat);
     const videoChat = VideoNoteChatTable.updateChat(
       buildExternalDb("video_note_chats", "video_note_id", 20),
       {
         id: 20,
         agentSessionId: null,
-      },
+      } as UpdateVideoNoteChat
     );
     const vibeChat = VibeLearningChatTable.updateChat(
       buildExternalDb("vibe_learning_chats", "project_id", 30),
       {
         id: 30,
         agentSessionId: null,
-      },
+      } as UpdateVLChat
     );
 
-    expect(pdfChat?.agentSessionId).toBeNull();
-    expect(videoChat?.agentSessionId).toBeNull();
-    expect(vibeChat?.agentSessionId).toBeNull();
+    expectNoAgentFields(pdfChat ?? {});
+    expectNoAgentFields(videoChat ?? {});
+    expectNoAgentFields(vibeChat ?? {});
 
     vi.restoreAllMocks();
   });
@@ -606,8 +591,7 @@ describe("chat message schema migration", () => {
         }
 
         if (
-          sql ===
-          "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
+          sql === "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
         ) {
           return {
             run: vi.fn(),
@@ -653,10 +637,7 @@ describe("chat message schema migration", () => {
           };
         }
 
-        if (
-          sql ===
-          "UPDATE pdf_chats SET messages = ?, message_schema_version = ? WHERE id = ?"
-        ) {
+        if (sql === "UPDATE pdf_chats SET messages = ?, message_schema_version = ? WHERE id = ?") {
           return {
             run: vi.fn(),
           };
@@ -758,7 +739,7 @@ describe("chat message schema migration", () => {
       null,
       null,
       0,
-      null,
+      null
     );
     const pdfChat = PdfChatTable.createChat(pdfDb, {
       pdfId: 10,
@@ -779,12 +760,8 @@ describe("chat message schema migration", () => {
     expect(rootChat.messageSchemaVersion).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
     expect(rootChat.titleDirty).toBe(false);
     expect(pdfChat.messageSchemaVersion).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
-    expect(videoNoteChat.messageSchemaVersion).toBe(
-      CHAT_MESSAGE_SCHEMA_VERSION,
-    );
-    expect(vibeLearningChat.messageSchemaVersion).toBe(
-      CHAT_MESSAGE_SCHEMA_VERSION,
-    );
+    expect(videoNoteChat.messageSchemaVersion).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
+    expect(vibeLearningChat.messageSchemaVersion).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
     expect(rootChatInsertRuns[0]?.[8]).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
     expect(rootChatInsertRuns[0]?.[9]).toBe(0);
     expect(pdfInsertRuns[0]?.[7]).toBe(CHAT_MESSAGE_SCHEMA_VERSION);
@@ -817,8 +794,7 @@ describe("chat message schema migration", () => {
         }
 
         if (
-          sql ===
-          "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
+          sql === "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
         ) {
           return {
             run: vi.fn(),
@@ -834,12 +810,8 @@ describe("chat message schema migration", () => {
 
     ChatMessageTable.upgradeTable(db);
 
-    expect(execSql).toContain(
-      "ALTER TABLE chat_message ADD COLUMN title_dirty INTEGER DEFAULT 1",
-    );
-    expect(execSql).toContain(
-      "UPDATE chat_message SET title_dirty = 1 WHERE title_dirty IS NULL",
-    );
+    expect(execSql).toContain("ALTER TABLE chat_message ADD COLUMN title_dirty INTEGER DEFAULT 1");
+    expect(execSql).toContain("UPDATE chat_message SET title_dirty = 1 WHERE title_dirty IS NULL");
   });
 
   it("更新 chat_message 时保留传入的 titleDirty 状态", () => {
@@ -876,8 +848,7 @@ describe("chat message schema migration", () => {
         }
 
         if (
-          sql ===
-          "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
+          sql === "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
         ) {
           return {
             run: vi.fn(),
@@ -906,4 +877,50 @@ describe("chat message schema migration", () => {
 
     vi.restoreAllMocks();
   });
+});
+
+describe("退役 Codex 会话读取兼容", () => {
+  it.each(["main", "pdf", "video", "vibe"])(
+    "%s 保留历史消息和分支关系，只归一本地代理元数据",
+    kind => {
+      const messages = buildCurrentMessages();
+      const row = {
+        id: 7,
+        pdf_id: 3,
+        video_note_id: 4,
+        project_id: 5,
+        create_time: 10,
+        update_time: 20,
+        title: "旧会话",
+        messages: JSON.stringify(messages),
+        group_id: null,
+        archived: 0,
+        parent_chat_id: 6,
+        branch_index: 2,
+        order_num: null,
+        message_schema_version: CHAT_MESSAGE_SCHEMA_VERSION,
+        title_dirty: 1,
+        agent_type: "codex",
+        agent_session_id: "old-thread",
+      };
+      const parsed =
+        kind === "main"
+          ? ChatMessageTable.parseChatMessage(row)
+          : kind === "pdf"
+            ? PdfChatTable.parseChat(row)
+            : kind === "video"
+              ? VideoNoteChatTable.parseChat(row)
+              : VibeLearningChatTable.parseChat(row);
+      expect(parsed.chat).toMatchObject({
+        id: 7,
+        title: "旧会话",
+        parentChatId: 6,
+        branchIndex: 2,
+      });
+      expect(parsed.chat.messages).toMatchObject(messages);
+      expect(parsed.chat.messages).toHaveLength(messages.length);
+      expect(row.messages).toBe(JSON.stringify(messages));
+      expect(row.agent_type).toBe("codex");
+    }
+  );
 });

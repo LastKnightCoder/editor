@@ -250,7 +250,8 @@ pub fn ensure_main_schema(conn: &Connection) -> Result<(), String> {
     set_meta(&tx, "main_schema_version", &MAIN_SCHEMA_VERSION.to_string())?;
     set_meta(&tx, "main_schema_hash", &compute_hash(MAIN_SCHEMA_SQL))?;
     tx.commit()
-        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: {e}"))
+        .map_err(|e| format!("DB_SCHEMA_MIGRATION_FAILED: {e}"))?;
+    super::editor_block_retirement::retire(conn)
 }
 
 pub fn ensure_index_schema(conn: &Connection, vec_dimension: i64) -> Result<bool, String> {

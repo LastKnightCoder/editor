@@ -55,7 +55,8 @@ describe("模块分层守护", () => {
   );
 
   it("能完整解析模块配置（字段顺序变更会在这里暴露）", () => {
-    expect(modules.length).toBeGreaterThanOrEqual(46);
+    expect(modules.length).toBeGreaterThanOrEqual(45);
+    expect(modules.some(m => m.name === "codex-agent")).toBe(false);
     expect(modules.filter(m => m.layer === "IMMEDIATE").length).toBeGreaterThan(0);
   });
 

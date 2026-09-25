@@ -1,5 +1,12 @@
 import type { ToolCallCustomRendererProps } from "./types";
-import { ToolBadge, ToolCard, ToolCardBody, ToolCardHeader } from "./ui";
+import {
+  ToolBadge,
+  ToolCard,
+  ToolCardBody,
+  ToolCardHeader,
+  ToolMutedText,
+  ToolValuePill,
+} from "./ui";
 
 type OperationPayload = {
   success?: boolean;
@@ -50,8 +57,7 @@ const getDisplayTitle = (payload: OperationPayload) => {
 const getDisplayGroupTitle = (payload: OperationPayload) => {
   const data = payload.data;
   if (!data || typeof data !== "object") return null;
-  const groupTitle =
-    typeof data.groupTitle === "string" ? data.groupTitle : null;
+  const groupTitle = typeof data.groupTitle === "string" ? data.groupTitle : null;
   return groupTitle && groupTitle.trim() ? groupTitle.trim() : null;
 };
 
@@ -128,19 +134,12 @@ const getPrimaryText = (payload: OperationPayload) => {
 const renderDataSummary = (payload: OperationPayload, isDark: boolean) => {
   if (Array.isArray(payload.notes)) {
     return (
-      <div className="space-y-2">
-        {payload.notes.slice(0, 6).map((note) => (
-          <div
-            key={note.id}
-            className={`rounded-md px-3 py-2 text-xs ${
-              isDark
-                ? "bg-zinc-950/50 text-slate-300"
-                : "bg-slate-50 text-slate-600"
-            }`}
-          >
+      <div className="space-y-1.5">
+        {payload.notes.slice(0, 6).map(note => (
+          <ToolValuePill key={note.id} isDark={isDark}>
             {note.title || `内容 ${note.contentId}`}
             {note.type ? ` · ${note.type}` : ""}
-          </div>
+          </ToolValuePill>
         ))}
       </div>
     );
@@ -148,18 +147,12 @@ const renderDataSummary = (payload: OperationPayload, isDark: boolean) => {
 
   if (Array.isArray(payload.mappings)) {
     return (
-      <div className="space-y-2">
-        {payload.mappings.slice(0, 6).map((mapping) => (
-          <div
-            key={mapping.id}
-            className={`rounded-md px-3 py-2 text-xs ${
-              isDark
-                ? "bg-zinc-950/50 text-slate-300"
-                : "bg-slate-50 text-slate-600"
-            }`}
-          >
-            事件 #{mapping.calendarEventId} · {mapping.syncType}
-          </div>
+      <div className="space-y-1.5">
+        {payload.mappings.slice(0, 6).map(mapping => (
+          <ToolValuePill key={mapping.id} isDark={isDark}>
+            <span className="tabular-nums">事件 #{mapping.calendarEventId}</span> ·{" "}
+            {mapping.syncType}
+          </ToolValuePill>
         ))}
       </div>
     );
@@ -167,15 +160,9 @@ const renderDataSummary = (payload: OperationPayload, isDark: boolean) => {
 
   if (payload.recurrence) {
     return (
-      <div
-        className={`rounded-md px-3 py-2 text-xs ${
-          isDark
-            ? "bg-zinc-950/50 text-slate-300"
-            : "bg-slate-50 text-slate-600"
-        }`}
-      >
+      <ToolValuePill isDark={isDark}>
         类型：{payload.recurrence.type} · 间隔：{payload.recurrence.interval}
-      </div>
+      </ToolValuePill>
     );
   }
 
@@ -183,17 +170,7 @@ const renderDataSummary = (payload: OperationPayload, isDark: boolean) => {
   if (data && typeof data === "object") {
     const title = typeof data.title === "string" ? data.title : null;
     if (title) {
-      return (
-        <div
-          className={`rounded-md px-3 py-2 text-xs ${
-            isDark
-              ? "bg-zinc-950/50 text-slate-300"
-              : "bg-slate-50 text-slate-600"
-          }`}
-        >
-          标题：{title}
-        </div>
-      );
+      return <ToolValuePill isDark={isDark}>标题：{title}</ToolValuePill>;
     }
   }
 
@@ -217,38 +194,33 @@ const TodoOperationRenderer = ({
   const entityLabel = payload.event?.entityType
     ? entityTypeLabelMap[payload.event.entityType] || null
     : null;
-  const hasSecondaryContent = Boolean(
-    displayTitle || displayGroupTitle || dataSummary,
-  );
+  const hasSecondaryContent = Boolean(displayTitle || displayGroupTitle || dataSummary);
+  const failed = payload.success === false;
 
   return (
     <ToolCard isDark={isDark}>
-      <ToolCardHeader isDark={isDark} divided={hasSecondaryContent}>
-        <div className="flex items-center gap-2">
-          <div
-            className={`text-sm font-medium ${isDark ? "text-slate-100" : "text-slate-800"}`}
-          >
+      <ToolCardHeader isDark={isDark}>
+        <div
+          className={
+            hasSecondaryContent ? "flex items-center gap-2" : "flex items-center gap-2 pb-2"
+          }
+        >
+          <div className={`text-tau-body font-medium ${failed ? "text-danger" : "text-ink-1"}`}>
             {primaryText}
           </div>
-          {entityLabel ? (
-            <ToolBadge isDark={isDark}>{entityLabel}</ToolBadge>
-          ) : null}
+          {entityLabel ? <ToolBadge isDark={isDark}>{entityLabel}</ToolBadge> : null}
         </div>
       </ToolCardHeader>
       {hasSecondaryContent ? (
         <ToolCardBody>
-          {displayTitle ? (
-            <div
-              className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}
-            >
-              关联对象：{displayTitle}
-            </div>
-          ) : null}
-          {displayGroupTitle ? (
-            <div
-              className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}
-            >
-              所属分组：{displayGroupTitle}
+          {displayTitle || displayGroupTitle ? (
+            <div className="space-y-0.5">
+              {displayTitle ? (
+                <ToolMutedText isDark={isDark}>关联对象：{displayTitle}</ToolMutedText>
+              ) : null}
+              {displayGroupTitle ? (
+                <ToolMutedText isDark={isDark}>所属分组：{displayGroupTitle}</ToolMutedText>
+              ) : null}
             </div>
           ) : null}
           {dataSummary}

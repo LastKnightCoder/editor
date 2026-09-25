@@ -3,11 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import {
-  buildMcpSpawnEnv,
-  findExecutableInPath,
-  resolveMcpCommand,
-} from "../mcpCommandResolver";
+import { buildMcpSpawnEnv, findExecutableInPath, resolveMcpCommand } from "../mcpCommandResolver";
 
 describe("mcpCommandResolver", () => {
   const originalPath = process.env.PATH;
@@ -62,7 +58,8 @@ describe("mcpCommandResolver", () => {
     expect(resolved).toBe(commandPath);
   });
 
-  it("PATH 未命中时应回退到登录 shell 解析命令", () => {
+  // 登录 shell 回退依赖 $SHELL / /bin/zsh / /bin/bash，Windows 上不存在这些机制
+  it.skipIf(process.platform === "win32")("PATH 未命中时应回退到登录 shell 解析命令", () => {
     const env = buildMcpSpawnEnv({
       PATH: "/usr/bin:/bin",
     });
@@ -75,7 +72,7 @@ describe("mcpCommandResolver", () => {
   it("绝对路径命令应直接返回", () => {
     const resolved = resolveMcpCommand(
       "/Users/test/.nvm/versions/node/v24.1.0/bin/npx",
-      buildMcpSpawnEnv(),
+      buildMcpSpawnEnv()
     );
 
     expect(resolved).toBe("/Users/test/.nvm/versions/node/v24.1.0/bin/npx");
@@ -87,8 +84,8 @@ describe("mcpCommandResolver", () => {
         "__mcp_command_that_should_not_exist__",
         buildMcpSpawnEnv({
           PATH: "/usr/bin:/bin",
-        }),
-      ),
+        })
+      )
     ).toThrow(/未找到可执行命令 "__mcp_command_that_should_not_exist__"/);
   });
 });

@@ -1,34 +1,30 @@
-import React, {
-  useMemo,
-  memo,
-  useCallback,
-  useRef,
-  Children,
-  cloneElement,
-  isValidElement,
-} from "react";
+import React, { useMemo, memo, useRef, Children, cloneElement, isValidElement } from "react";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import classnames from "classnames";
+import { cn } from "@tau/ui";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkCjkFriendly from "remark-cjk-friendly/parseOnly";
 import remarkCjkFriendlyGfmStrikethrough from "remark-cjk-friendly-gfm-strikethrough/parseOnly";
-import { Tooltip } from "antd";
+import { FileText, FolderKanban, Layers, PenLine, type LucideIcon } from "lucide-react";
+import { Tooltip, toast } from "@tau/ui";
 import MarkdownContext, { useMarkdownContext, MarkdownMessageMeta } from "./MarkdownContext";
 import { remarkDocumentReference } from "@tau/shared";
 import remarkPdfCitation from "@/utils/remark-pdf-citation";
-import { getRefTypeLabel, getRefTypeColor } from "@/utils";
-import useTabStore from "@/stores/useTabStore";
-import { TabType } from "@/types/tab";
-import { getProjectItemById } from "@/commands";
+import { getRefTypeLabel } from "@/utils";
 import { getDiaryEntryById } from "@/commands/diary";
+import { openContent } from "@/services/open-content";
+import { openPage } from "@/services/page-navigation";
 import LocalImage from "@/components/LocalImage";
 import LocalImagePreviewPortal from "@/components/LocalImagePreviewPortal";
-import useThemeColors from "@/hooks/useThemeColors";
-import styles from "./MarkdownRenderer.module.less";
 import { MARKDOWN_BLOCK_CODE_ATTRIBUTE, MARKDOWN_BLOCK_CODE_VALUE } from "./codeBlockUtils";
+
+/*
+ * 对话正文排版（D-048）：Tailwind 语义类，段距 0.5em，列表用原生 marker（ink-3），
+ * 引用 = 2px 引线 + 淡墨，表格 = line-1 描边圆角内框，文档引用 = accent 轻染行内 chip。
+ * 颜色全部走 --tau-*，深浅主题无需 isDark 分支。
+ */
 
 const remarkPlugins = [
   remarkMath,
@@ -39,6 +35,27 @@ const remarkPlugins = [
   remarkPdfCitation,
 ];
 const rehypePlugins = [rehypeKatex];
+
+const REF_ICONS: Record<string, LucideIcon> = {
+  card: Layers,
+  article: FileText,
+  "project-item": FolderKanban,
+  "diary-daily": PenLine,
+};
+
+/** 文档引用在新壳层内打开（卡片 / 文章 / 项目文档 / 日记）；未就绪或不支持时 toast 说明 */
+async function openReference(id: number, type: string) {
+  try {
+    if (type === "diary-daily") {
+      const entry = await getDiaryEntryById(id);
+      openPage("diary", { date: entry.date });
+      return;
+    }
+    await openContent(type, id);
+  } catch (error) {
+    toast.error(error instanceof Error ? error.message : "无法打开引用内容");
+  }
+}
 
 const MarkdownImage = ({
   src,
@@ -52,17 +69,21 @@ const MarkdownImage = ({
   props: Record<string, unknown>;
 }) => {
   const [previewOpen, setPreviewOpen] = useState(false);
-  const imageClassName = className ? `block ${className}` : "block";
 
   return (
-    <span className="my-4 block">
+    <span className="my-3 block">
       <button
         type="button"
         className="block cursor-zoom-in text-left"
         onClick={() => setPreviewOpen(true)}
         aria-label="点击放大图片"
       >
-        <LocalImage url={src} alt={alt} className={imageClassName} {...props} />
+        <LocalImage
+          url={src}
+          alt={alt}
+          className={cn("rounded-tau-md block max-h-[420px] max-w-full", className)}
+          {...props}
+        />
       </button>
       {previewOpen ? (
         <LocalImagePreviewPortal url={src} alt={alt} onClose={() => setPreviewOpen(false)} />
@@ -83,50 +104,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
   ({ content, className, markdownComponents, shouldRender, messageMeta }) => {
     const baseContext = useMarkdownContext();
     const { cache, isVisible } = baseContext;
-    const openInNewTab = useTabStore(state => state.openInNewTab);
-    const { accentColor, secondaryTextClass } = useThemeColors();
 
-    // 处理文档引用点击
-    const handleReferenceClick = useCallback(
-      async (id: number, type: string) => {
-        if (type === "card") {
-          openInNewTab(TabType.CardDetail, { id });
-        } else if (type === "article") {
-          openInNewTab(TabType.ArticleDetail, { id });
-        } else if (type === "project-item") {
-          // 获取项目项所属的项目
-          try {
-            const projectItem = await getProjectItemById(id);
-            if (projectItem && projectItem.projects.length > 0) {
-              const projectId = projectItem.projects[0];
-              openInNewTab(TabType.ProjectDetail, {
-                id: projectId,
-                itemId: id,
-              });
-            } else {
-              // 如果没有找到项目，回退到项目列表
-              openInNewTab(TabType.ProjectList);
-            }
-          } catch (error) {
-            console.error("Failed to get project item:", error);
-            openInNewTab(TabType.ProjectList);
-          }
-        } else if (type === "diary-daily") {
-          try {
-            const entry = await getDiaryEntryById(id);
-            openInNewTab(TabType.DailyNote, {
-              date: entry.date,
-            });
-          } catch (error) {
-            console.error("Failed to get diary entry:", error);
-            openInNewTab(TabType.DailyNote);
-          }
-        }
-      },
-      [openInNewTab]
-    );
-
-    // 自定义组件，用于渲染文档引用
     const customComponents = useMemo(() => {
       const CustomSpanComponent = markdownComponents?.span;
       return {
@@ -146,39 +124,31 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
             <div
               {...props}
               data-markdown-pre="true"
-              className={classnames(styles.markdownPre, className)}
+              className={cn("my-3 first:mt-0 last:mb-0 [&>*]:m-0", className)}
             >
               {childrenWithBlockCodeMarker}
             </div>
           );
         },
         span: ({ className, children, ...props }: any) => {
-          // 检查是否是文档引用
           if (className === "document-reference") {
             const id = parseInt(props["data-id"], 10);
             const type = props["data-type"];
             const text = props["data-text"];
-
-            const refColor = getRefTypeColor(type);
-            const refLabel = getRefTypeLabel(type);
+            const Icon = REF_ICONS[type] ?? FileText;
 
             return (
-              <Tooltip title={`${refLabel}: ${text}`} placement="top">
+              <Tooltip content={`${getRefTypeLabel(type)}：${text}`} placement="top">
                 <span
-                  className="document-reference inline-block cursor-pointer rounded px-1 py-0.5 text-sm font-medium transition-all duration-200 hover:scale-105"
-                  style={{
-                    color: refColor,
-                    backgroundColor: `${refColor}15`,
-                    border: `1px solid ${refColor}30`,
-                  }}
-                  onClick={() => handleReferenceClick(id, type)}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.backgroundColor = `${refColor}25`;
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.backgroundColor = `${refColor}15`;
+                  role="link"
+                  tabIndex={0}
+                  className="document-reference bg-accent-soft text-accent-text hover:bg-accent/20 ease-tau-out mx-px inline-flex cursor-pointer items-center gap-[3px] rounded-[6px] px-1.5 align-baseline text-[0.92em] font-medium leading-[1.55] transition-colors duration-[160ms]"
+                  onClick={() => void openReference(id, type)}
+                  onKeyDown={event => {
+                    if (event.key === "Enter") void openReference(id, type);
                   }}
                 >
+                  <Icon aria-hidden size="0.95em" strokeWidth={1.9} className="shrink-0" />
                   {children}
                 </span>
               </Tooltip>
@@ -193,57 +163,102 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
             );
           }
 
-          // 其他 span 元素使用默认处理
           return (
             <span className={className} {...props}>
               {children}
             </span>
           );
         },
-        hr: ({ ...props }: any) => {
-          return <hr {...props} className={styles.markdownHr} />;
-        },
-        ul: ({ className, children, ...props }: any) => {
-          return (
-            <ul {...props} className={classnames(styles.bulletedList, className)}>
+        p: ({ node: _node, className, ...props }: any) => (
+          <p {...props} className={cn("my-2 first:mt-0 last:mb-0", className)} />
+        ),
+        h1: ({ node: _node, className, ...props }: any) => (
+          <h1
+            {...props}
+            className={cn("text-tau-title-lg mb-2 mt-5 font-semibold first:mt-0", className)}
+          />
+        ),
+        h2: ({ node: _node, className, ...props }: any) => (
+          <h2
+            {...props}
+            className={cn("mb-2 mt-5 text-[16px] font-semibold first:mt-0", className)}
+          />
+        ),
+        h3: ({ node: _node, className, ...props }: any) => (
+          <h3
+            {...props}
+            className={cn("text-tau-title mb-1.5 mt-4 font-semibold first:mt-0", className)}
+          />
+        ),
+        h4: ({ node: _node, className, ...props }: any) => (
+          <h4
+            {...props}
+            className={cn("text-tau-body-lg mb-1.5 mt-3 font-semibold first:mt-0", className)}
+          />
+        ),
+        strong: ({ node: _node, className, ...props }: any) => (
+          <strong {...props} className={cn("text-ink-1 font-semibold", className)} />
+        ),
+        hr: ({ node: _node, ...props }: any) => (
+          <hr {...props} className="bg-line-1 my-4 h-px border-0" />
+        ),
+        ul: ({ node: _node, className, children, ...props }: any) => (
+          <ul
+            {...props}
+            className={cn(
+              "marker:text-ink-3 my-2 list-disc pl-5 first:mt-0 last:mb-0 [&_ol]:my-1 [&_ul]:my-1",
+              className
+            )}
+          >
+            {children}
+          </ul>
+        ),
+        ol: ({ node: _node, className, children, ...props }: any) => (
+          <ol
+            {...props}
+            className={cn(
+              "marker:text-ink-3 my-2 list-decimal pl-5 first:mt-0 last:mb-0 [&_ol]:my-1 [&_ul]:my-1",
+              className
+            )}
+          >
+            {children}
+          </ol>
+        ),
+        li: ({ node: _node, className, children, ...props }: any) => (
+          <li {...props} className={cn("my-1 pl-0.5 [&>p]:my-0.5 [&_input]:mr-1.5", className)}>
+            {children}
+          </li>
+        ),
+        blockquote: ({ node: _node, children, className, ...props }: any) => (
+          <blockquote
+            {...props}
+            className={cn("border-line-1 text-ink-2 my-3 border-l-2 pl-3.5 [&_p]:my-1", className)}
+          >
+            {children}
+          </blockquote>
+        ),
+        table: ({ node: _node, className, children, ...props }: any) => (
+          <div className="border-line-1 rounded-tau-sm my-3 max-w-full overflow-x-auto border">
+            <table {...props} className={cn("text-tau-meta w-full border-collapse", className)}>
               {children}
-            </ul>
-          );
-        },
-        ol: ({ className, children, ...props }: any) => {
-          return (
-            <ol {...props} className={classnames(styles.numberedList, className)}>
-              {children}
-            </ol>
-          );
-        },
-        li: ({ className, children, ...props }: any) => {
-          return (
-            <li {...props} className={classnames(styles.listItem, className)}>
-              {children}
-            </li>
-          );
-        },
-        blockquote: ({ children, className, ...props }: any) => {
-          return (
-            <blockquote
-              {...props}
-              className={classnames(
-                "relative my-4 py-[0.75em] pl-[1.5em] italic leading-relaxed transition-colors duration-200",
-                secondaryTextClass,
-                "[&_p+p]:mt-2 [&_p]:my-0",
-                className
-              )}
-            >
-              <div
-                aria-hidden="true"
-                className="absolute bottom-1 left-0 top-1 w-1 select-none rounded-full"
-                style={{ backgroundColor: accentColor }}
-              />
-              {children}
-            </blockquote>
-          );
-        },
+            </table>
+          </div>
+        ),
+        th: ({ node: _node, className, ...props }: any) => (
+          <th
+            {...props}
+            className={cn(
+              "bg-hover text-ink-1 whitespace-nowrap px-3 py-1.5 text-left font-semibold",
+              className
+            )}
+          />
+        ),
+        td: ({ node: _node, className, ...props }: any) => (
+          <td
+            {...props}
+            className={cn("border-line-2 border-t px-3 py-1.5 align-top", className)}
+          />
+        ),
         img: ({ src, alt, node: _node, className, ...props }: any) => {
           if (typeof src !== "string" || !src) {
             return null;
@@ -251,7 +266,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
           return <MarkdownImage src={src} alt={alt} className={className} props={props} />;
         },
       };
-    }, [markdownComponents, handleReferenceClick]);
+    }, [markdownComponents]);
 
     const componentsVersionRef = useRef(0);
     const componentsVersion = useMemo(() => {
@@ -269,7 +284,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
         return cache.get(cacheKey);
       }
 
-      // 渲染新内容并缓存
       const contextValue = {
         ...baseContext,
         messageMeta: messageMeta ?? baseContext.messageMeta,
@@ -290,17 +304,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
 
       cache.set(cacheKey, newRenderedContent);
       return newRenderedContent;
-    }, [
-      content,
-      className,
-      customComponents,
-      cacheKey,
-      cache,
-      baseContext,
-      messageMeta,
-      accentColor,
-      secondaryTextClass,
-    ]);
+    }, [content, className, customComponents, cacheKey, cache, baseContext, messageMeta]);
 
     // 如果侧边栏关闭或不应该渲染，则直接返回null
     if (!isVisible || !shouldRender) return null;

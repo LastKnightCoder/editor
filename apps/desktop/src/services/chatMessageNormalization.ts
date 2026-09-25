@@ -162,6 +162,19 @@ const buildMentionContextPrefix = (mentions?: MentionRef[]) => {
 };
 
 const normalizeMessageContent = async (message: RequestMessage): Promise<RequestMessage> => {
+  if (message.role === "system") {
+    const stripRetiredContext = (text: string) =>
+      text.replace(/<TAU_CODEX_CONTEXT>[\s\S]*?<\/TAU_CODEX_CONTEXT>\r?\n?/g, "").trimEnd();
+    return {
+      ...message,
+      content:
+        typeof message.content === "string"
+          ? stripRetiredContext(message.content)
+          : message.content.map(item =>
+              item.type === "text" ? { ...item, text: stripRetiredContext(item.text) } : item
+            ),
+    };
+  }
   if (!Array.isArray(message.content)) {
     return message;
   }

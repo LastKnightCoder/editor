@@ -4,7 +4,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 import MarkdownRenderer from "../MarkdownRenderer";
 import { MarkdownProvider } from "../MarkdownContext";
-import styles from "../MarkdownRenderer.module.less";
 
 vi.mock("@/commands", () => ({
   getProjectItemById: vi.fn(),
@@ -59,7 +58,7 @@ describe("ChatSidebar MarkdownRenderer code block spacing", () => {
     expect(codeBlock).toBeTruthy();
     expect(container.querySelector("pre")).toBeNull();
     expect(spacingWrapper).toBeTruthy();
-    expect(spacingWrapper?.className).toContain(styles.markdownPre);
+    expect(spacingWrapper?.className).toContain("my-3");
     expect(container.textContent).toContain("const a = 1;");
     expect(container.textContent).toContain("你怎么了");
 

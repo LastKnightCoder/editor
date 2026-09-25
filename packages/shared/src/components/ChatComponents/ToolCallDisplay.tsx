@@ -22,9 +22,7 @@ export interface ToolCallDisplayProps {
   /** 自定义渲染工具名称 */
   renderToolName?: (toolName: string) => React.ReactNode;
   /** 覆盖默认单项渲染（用于宿主自定义外观，仍复用 shared 的自定义渲染链路） */
-  renderDefaultItem?: (
-    params: ToolCallDefaultItemRenderParams,
-  ) => React.ReactNode;
+  renderDefaultItem?: (params: ToolCallDefaultItemRenderParams) => React.ReactNode;
   rendererContext?: Record<string, unknown>;
   className?: string;
 }
@@ -66,16 +64,14 @@ function formatJson(str: string): string {
 }
 
 const getRendererKeyFromMetadata = (
-  metadata: Record<string, unknown> | undefined,
+  metadata: Record<string, unknown> | undefined
 ): string | null => {
   if (!metadata || typeof metadata !== "object") {
     return null;
   }
 
   const render =
-    "render" in metadata &&
-    metadata.render &&
-    typeof metadata.render === "object"
+    "render" in metadata && metadata.render && typeof metadata.render === "object"
       ? (metadata.render as Record<string, unknown>)
       : null;
   if (!render) {
@@ -89,7 +85,7 @@ const getRendererKeyFromMetadata = (
 };
 
 const parseToolInput = (
-  input: string,
+  input: string
 ): { parsedInput: unknown | null; inputParseError?: string } => {
   if (!input.trim()) {
     return { parsedInput: null };
@@ -111,50 +107,31 @@ const ToolCallItem: React.FC<{
   isDark: boolean;
   ToolIcon: React.ComponentType<{ className?: string }>;
   renderToolName?: (toolName: string) => React.ReactNode;
-}> = memo(function ToolCallItem({
-  execution,
-  isDark,
-  ToolIcon,
-  renderToolName,
-}) {
+}> = memo(function ToolCallItem({ execution, isDark, ToolIcon, renderToolName }) {
   // 智能折叠：失败或重试时展开
   const [isExpanded, setIsExpanded] = useState(
-    execution.status === "failed" || execution.status === "retrying",
+    execution.status === "failed" || execution.status === "retrying"
   );
 
-  const toggle = useCallback(() => setIsExpanded((prev) => !prev), []);
+  const toggle = useCallback(() => setIsExpanded(prev => !prev), []);
 
   return (
     <div
       className={classNames(
         "rounded-lg border p-3",
-        isDark
-          ? "bg-zinc-800/50 border-gray-700"
-          : "bg-gray-50 border-gray-200",
+        isDark ? "border-gray-700 bg-zinc-800/50" : "border-gray-200 bg-gray-50"
       )}
     >
-      <div
-        className="flex items-center justify-between cursor-pointer"
-        onClick={toggle}
-      >
+      <div className="flex cursor-pointer items-center justify-between" onClick={toggle}>
         <div className="flex items-center gap-2">
-          <ToolIcon
-            className={classNames(
-              "text-sm",
-              statusIconColors[execution.status],
-            )}
-          />
-          <span className="font-medium text-sm">
-            {renderToolName
-              ? renderToolName(execution.toolName)
-              : execution.toolName}
+          <ToolIcon className={classNames("text-sm", statusIconColors[execution.status])} />
+          <span className="text-sm font-medium">
+            {renderToolName ? renderToolName(execution.toolName) : execution.toolName}
           </span>
           <StatusBadge status={execution.status} />
         </div>
         {execution.duration && (
-          <span className="text-xs text-gray-400">
-            {(execution.duration / 1000).toFixed(2)}s
-          </span>
+          <span className="text-xs text-gray-400">{(execution.duration / 1000).toFixed(2)}s</span>
         )}
       </div>
 
@@ -166,8 +143,8 @@ const ToolCallItem: React.FC<{
               <span className="text-gray-400">输入：</span>
               <pre
                 className={classNames(
-                  "mt-1 p-2 rounded overflow-auto max-h-32 font-mono text-xs",
-                  isDark ? "bg-zinc-900" : "bg-gray-100",
+                  "mt-1 max-h-32 overflow-auto rounded p-2 font-mono text-xs",
+                  isDark ? "bg-zinc-900" : "bg-gray-100"
                 )}
               >
                 {formatJson(execution.input)}
@@ -180,8 +157,8 @@ const ToolCallItem: React.FC<{
               <span className="text-gray-400">输出：</span>
               <pre
                 className={classNames(
-                  "mt-1 p-2 rounded overflow-auto font-mono text-xs max-h-[200px] overflow-y-auto",
-                  isDark ? "bg-zinc-900" : "bg-gray-100",
+                  "mt-1 max-h-[200px] overflow-auto overflow-y-auto rounded p-2 font-mono text-xs",
+                  isDark ? "bg-zinc-900" : "bg-gray-100"
                 )}
               >
                 {execution.output}
@@ -193,7 +170,7 @@ const ToolCallItem: React.FC<{
           {execution.error && (
             <div>
               <span className="text-red-400">错误：</span>
-              <pre className="mt-1 p-2 rounded bg-red-900/20 text-red-300 overflow-auto max-h-32">
+              <pre className="mt-1 max-h-32 overflow-auto rounded bg-red-900/20 p-2 text-red-300">
                 {execution.error}
               </pre>
             </div>
@@ -209,9 +186,7 @@ const ToolCallRendererItem: React.FC<{
   isDark: boolean;
   ToolIcon: React.ComponentType<{ className?: string }>;
   renderToolName?: (toolName: string) => React.ReactNode;
-  renderDefaultItem?: (
-    params: ToolCallDefaultItemRenderParams,
-  ) => React.ReactNode;
+  renderDefaultItem?: (params: ToolCallDefaultItemRenderParams) => React.ReactNode;
   rendererContext?: Record<string, unknown>;
 }> = memo(function ToolCallRendererItem({
   execution,
@@ -238,9 +213,12 @@ const ToolCallRendererItem: React.FC<{
       />
     );
 
-  const customRenderer =
-    getToolCallRenderer(getRendererKeyFromMetadata(execution.metadata) || "") ||
-    getToolCallRenderer(execution.toolName);
+  const rendererKey = getRendererKeyFromMetadata(execution.metadata) || "";
+  // 退役代理的所有工具统一展示历史输入输出，不再挂载专用渲染器。
+  const isRetiredExecution = typeof execution.metadata?.codexItemType === "string";
+  const customRenderer = isRetiredExecution
+    ? undefined
+    : getToolCallRenderer(rendererKey) || getToolCallRenderer(execution.toolName);
   if (!customRenderer) {
     return renderDefault();
   }
@@ -249,10 +227,7 @@ const ToolCallRendererItem: React.FC<{
   const CustomRenderer = customRenderer;
 
   return (
-    <ToolCallRendererErrorBoundary
-      toolName={execution.toolName}
-      fallback={renderDefault()}
-    >
+    <ToolCallRendererErrorBoundary toolName={execution.toolName} fallback={renderDefault()}>
       <CustomRenderer
         execution={execution}
         isDark={isDark}
@@ -265,34 +240,32 @@ const ToolCallRendererItem: React.FC<{
   );
 });
 
-export const ToolCallDisplay: React.FC<ToolCallDisplayProps> = memo(
-  function ToolCallDisplay({
-    executions,
-    isDark = false,
-    ToolIcon = DefaultToolIcon,
-    renderToolName,
-    renderDefaultItem,
-    rendererContext,
-    className,
-  }) {
-    if (!executions || executions.length === 0) return null;
+export const ToolCallDisplay: React.FC<ToolCallDisplayProps> = memo(function ToolCallDisplay({
+  executions,
+  isDark = false,
+  ToolIcon = DefaultToolIcon,
+  renderToolName,
+  renderDefaultItem,
+  rendererContext,
+  className,
+}) {
+  if (!executions || executions.length === 0) return null;
 
-    return (
-      <div className={classNames("my-2 space-y-2", className)}>
-        {executions.map((exec) => (
-          <ToolCallRendererItem
-            key={exec.toolCallId}
-            execution={exec}
-            isDark={isDark}
-            ToolIcon={ToolIcon}
-            renderToolName={renderToolName}
-            renderDefaultItem={renderDefaultItem}
-            rendererContext={rendererContext}
-          />
-        ))}
-      </div>
-    );
-  },
-);
+  return (
+    <div className={classNames("my-2 space-y-2", className)}>
+      {executions.map(exec => (
+        <ToolCallRendererItem
+          key={exec.toolCallId}
+          execution={exec}
+          isDark={isDark}
+          ToolIcon={ToolIcon}
+          renderToolName={renderToolName}
+          renderDefaultItem={renderDefaultItem}
+          rendererContext={rendererContext}
+        />
+      ))}
+    </div>
+  );
+});
 
 export default ToolCallDisplay;

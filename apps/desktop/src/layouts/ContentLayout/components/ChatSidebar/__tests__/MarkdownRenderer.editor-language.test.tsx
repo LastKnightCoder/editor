@@ -49,10 +49,10 @@ describe("ChatSidebar MarkdownRenderer editor language", () => {
     const items = container.querySelectorAll("li");
     const hr = container.querySelector("hr");
 
-    expect(unorderedList?.className).toContain("bulletedList");
-    expect(orderedList?.className).toContain("numberedList");
-    expect(items[0]?.className).toContain("listItem");
-    expect(hr?.className).toContain("markdownHr");
+    expect(unorderedList?.className).toContain("list-disc");
+    expect(orderedList?.className).toContain("list-decimal");
+    expect(items[0]?.className).toContain("my-1");
+    expect(hr?.className).toContain("bg-line-1");
     expect(container.textContent).toContain("第一项");
     expect(container.textContent).toContain("第二条");
 

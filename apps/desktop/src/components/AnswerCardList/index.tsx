@@ -1,9 +1,7 @@
 import React from "react";
+import { Inbox } from "lucide-react";
 import { IAnswer } from "@/types";
 import AnswerCard from "../AnswerCard";
-import { Empty } from "antd";
-
-import styles from "./index.module.less";
 
 interface AnswerCardListProps {
   answers: IAnswer[];
@@ -20,15 +18,16 @@ const AnswerCardList: React.FC<AnswerCardListProps> = ({
 }) => {
   if (answers.length === 0) {
     return (
-      <div className={styles.empty}>
-        <Empty description="暂无答案" />
+      <div className="text-tau-sm text-ink-3 flex flex-col items-center justify-center gap-2 p-6">
+        <Inbox size={20} strokeWidth={1.75} aria-hidden />
+        暂无答案
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
-      {answers.map((answer) => (
+    <div className="flex max-h-[600px] flex-col gap-3 overflow-y-auto p-6">
+      {answers.map(answer => (
         <AnswerCard
           key={answer.id}
           answer={answer}

@@ -1,7 +1,7 @@
-import { App } from "antd";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
-import { Sparkles } from "lucide-react";
+import { CircleCheck, CircleX, MessageSquareText, type LucideIcon } from "lucide-react";
+import { Button, ConfirmDialog, Segmented, Textarea, cn, toast } from "@tau/ui";
 import type { ToolCallCustomRendererProps } from "./types";
 import { ToolBadge, ToolCard, ToolCardBody, ToolCardHeader, ToolMutedText } from "./ui";
 import { Editor } from "@tau/editor/src";
@@ -46,6 +46,13 @@ const actionLabelMap: Record<string, string> = {
   feedback: "已提交修改意见",
 };
 
+/** 完成态结果：小图标 + 语义色（不用彩色实底徽章） */
+const resultToneMap: Record<string, { Icon: LucideIcon; className: string }> = {
+  applied: { Icon: CircleCheck, className: "text-ok" },
+  feedback: { Icon: MessageSquareText, className: "text-warn" },
+  rejected: { Icon: CircleX, className: "text-ink-3" },
+};
+
 const parseOutputResult = (output?: string): ReviewResultPayload | null => {
   if (!output) return null;
   try {
@@ -83,89 +90,35 @@ const getMetadataResult = (
   return null;
 };
 
-const SecondaryButton = ({
-  children,
-  onClick,
-  disabled,
-  isDark,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  isDark: boolean;
-}) => (
-  <button
-    type="button"
-    disabled={disabled}
-    onClick={onClick}
-    className={`rounded-xl border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
-      isDark
-        ? "border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
-        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-    }`}
-  >
-    {children}
-  </button>
-);
-
-const PrimaryButton = ({
-  children,
-  onClick,
-  disabled,
-  tone = "sky",
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  tone?: "sky" | "rose";
-}) => (
-  <button
-    type="button"
-    disabled={disabled}
-    onClick={onClick}
-    className={`rounded-xl border px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
-      tone === "rose"
-        ? "border-[var(--th-danger)]/30 bg-[var(--th-danger)]/10 text-status-error hover:bg-[var(--th-danger)]/15"
-        : "border-[var(--th-success)]/30 bg-[var(--th-success)]/10 text-status-success hover:bg-[var(--th-success)]/15"
-    }`}
-  >
-    {children}
-  </button>
-);
-
+/** 卡内分组：小标题行 + 内容，区块之间靠留白分组（零横线） */
 const SectionShell = ({
-  isDark,
   title,
   children,
 }: {
-  isDark: boolean;
   title: string | React.ReactNode;
   children: React.ReactNode;
 }) => (
-  <div
-    className={`rounded-2xl border ${
-      isDark ? "border-white/10 bg-zinc-950/40" : "border-slate-200 bg-slate-50/80"
-    }`}
-  >
-    <div
-      className={`border-b px-4 py-3 text-sm font-medium ${
-        isDark ? "border-white/10 text-slate-100" : "border-slate-200 text-slate-800"
-      }`}
-    >
+  <div className="space-y-2">
+    <div className="text-tau-body text-ink-1 flex min-h-[26px] items-center font-medium">
       {title}
     </div>
-    <div className="px-4 py-3">{children}</div>
+    {children}
   </div>
 );
 
+type PreviewMode = "diff" | "full";
+
 const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRendererProps) => {
-  const { message, modal } = App.useApp();
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const [busyAction, setBusyAction] = useState("");
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackText, setFeedbackText] = useState("");
   const [showDiffView, setShowDiffView] = useState(true);
   const [expandedPreview, setExpandedPreview] = useState(false);
+  const [restoreConflict, setRestoreConflict] = useState<{
+    checkpointId: string;
+    message?: string;
+  } | null>(null);
   const feedbackSectionRef = useRef<HTMLDivElement | null>(null);
   const feedbackTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const outputResult = getMetadataResult(execution) || parseOutputResult(execution.output);
@@ -296,11 +249,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
         <ToolCard isDark={isDark}>
           <ToolCardHeader isDark={isDark}>
             <div className="flex items-center gap-2">
-              <div
-                className={`min-w-0 flex-1 text-sm font-medium ${
-                  isDark ? "text-slate-100" : "text-slate-800"
-                }`}
-              >
+              <div className="text-tau-body text-ink-1 min-w-0 flex-1 font-medium">
                 {actionLabelMap[outputResult.action] || "已处理"}
               </div>
               <ToolBadge isDark={isDark}>{outputResult.message}</ToolBadge>
@@ -312,7 +261,9 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
                 已记录的修改意见：{outputResult.feedback}
               </ToolMutedText>
             </ToolCardBody>
-          ) : null}
+          ) : (
+            <div className="pb-2" />
+          )}
         </ToolCard>
       );
     }
@@ -320,10 +271,8 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
     return (
       <ToolCard isDark={isDark}>
         <ToolCardHeader isDark={isDark}>
-          <div className={`text-sm font-medium ${isDark ? "text-slate-100" : "text-slate-800"}`}>
-            内容修改处理中
-          </div>
-          <ToolMutedText isDark={isDark} className="mt-2">
+          <div className="text-tau-body text-ink-1 font-medium">内容修改处理中</div>
+          <ToolMutedText isDark={isDark} className="mb-2 mt-1">
             正在准备审阅结果，请稍候。
           </ToolMutedText>
         </ToolCardHeader>
@@ -335,6 +284,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
   const canUndo =
     Boolean(liveProposal?.checkpointId) &&
     (liveProposal?.status === "applied" || liveProposal?.status === "apply_conflicted");
+  const busy = busyAction.length > 0;
 
   const handleDecision = (action: "apply" | "reject" | "feedback") =>
     withBusy(action, async () => {
@@ -351,22 +301,22 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
         }
       );
       if (submitResult === "missing") {
-        message.error("当前审阅会话已失效，请重新发起修改。");
+        toast.error("当前审阅会话已失效，请重新发起修改。");
         return;
       }
       if (action === "feedback") {
         setFeedbackOpen(false);
         setFeedbackText("");
-        message.success("修改意见已提交，AI 将基于这条意见继续调整。");
+        toast.success("修改意见已提交，AI 将基于这条意见继续调整。");
         return;
       }
-      message.success(action === "apply" ? "已确认应用这次修改。" : "已拒绝这次修改。");
+      toast.success(action === "apply" ? "已确认应用这次修改。" : "已拒绝这次修改。");
     });
 
   const handleUndo = () =>
     withBusy("undo", async () => {
       if (!liveProposal?.checkpointId) {
-        message.error("当前没有可恢复的修改记录");
+        toast.error("当前没有可恢复的修改记录");
         return;
       }
       const result = await restoreContentCheckpoint({
@@ -374,86 +324,81 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
       });
       if (!result.success) {
         if (result.errorCode === "RESTORE_CONFLICT") {
-          modal.confirm({
-            title: "恢复会覆盖后续编辑",
-            content: result.message,
-            okText: "继续恢复",
-            cancelText: "取消",
-            okButtonProps: { danger: true },
-            onOk: async () => {
-              await restoreContentCheckpoint({
-                checkpointId: liveProposal.checkpointId!,
-                force: true,
-              });
-            },
-          });
+          setRestoreConflict({ checkpointId: liveProposal.checkpointId, message: result.message });
           return;
         }
-        message.error(result.message || "恢复失败");
+        toast.error(result.message || "恢复失败");
         return;
       }
-      message.success("已恢复到本次 AI 修改前。");
+      toast.success("已恢复到本次 AI 修改前。");
     });
 
+  const handleForceRestore = async () => {
+    if (!restoreConflict) return;
+    await restoreContentCheckpoint({
+      checkpointId: restoreConflict.checkpointId,
+      force: true,
+    });
+  };
+
   const title = canReview ? "请确认这次修改" : outputResult?.message || "内容修改结果";
+  const resultTone = resultToneMap[outputResult?.action || ""] || resultToneMap.rejected;
+  const ResultIcon = resultTone.Icon;
 
   return (
     <ToolCard isDark={isDark}>
-      <ToolCardHeader isDark={isDark} divided>
-        <div className="space-y-4">
-          <div
-            className={`text-base font-semibold ${isDark ? "text-slate-100" : "text-slate-900"}`}
-          >
-            {title}
-          </div>
+      <ToolCardHeader isDark={isDark}>
+        <div className="space-y-3">
+          <div className="text-tau-title text-ink-1 font-semibold">{title}</div>
           {canReview ? (
             <div className="flex flex-wrap gap-2">
-              <PrimaryButton
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={() => void handleDecision("apply")}
-                disabled={busyAction.length > 0}
+                disabled={busy}
+                loading={busyAction === "apply"}
               >
                 确认应用
-              </PrimaryButton>
-              <SecondaryButton
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => setFeedbackOpen(prev => !prev)}
-                disabled={busyAction.length > 0}
-                isDark={isDark}
+                disabled={busy}
               >
                 提修改意见
-              </SecondaryButton>
-              <PrimaryButton
+              </Button>
+              <Button
+                variant="danger-soft"
+                size="sm"
                 onClick={() => void handleDecision("reject")}
-                disabled={busyAction.length > 0}
-                tone="rose"
+                disabled={busy}
+                loading={busyAction === "reject"}
               >
                 拒绝
-              </PrimaryButton>
+              </Button>
             </div>
-          ) : null}
-          {canReview ? null : (
-            <div
-              className={`flex items-start gap-3 rounded-2xl border px-4 py-3 ${
-                outputResult?.action === "applied"
-                  ? "border-[var(--th-success)]/30 bg-[var(--th-success)]/10 text-status-success"
-                  : outputResult?.action === "feedback"
-                    ? "border-[var(--th-warning)]/30 bg-[var(--th-warning)]/10 text-status-warning"
-                    : isDark
-                      ? "border-slate-400/20 bg-slate-500/10 text-slate-200"
-                      : "border-slate-200 bg-slate-50 text-slate-700"
-              }`}
-            >
-              <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
-              <div className="min-w-0 space-y-1">
-                <div className="text-sm font-medium">
+          ) : (
+            <div className="bg-hover rounded-tau-sm flex items-start gap-2.5 px-3 py-2.5">
+              <ResultIcon
+                size={15}
+                strokeWidth={1.75}
+                className={cn("mt-[2px] shrink-0", resultTone.className)}
+              />
+              <div className="min-w-0 space-y-0.5">
+                <div className="text-tau-body text-ink-1 font-medium">
                   {actionLabelMap[outputResult?.action || ""] || "已处理"}
                 </div>
-                <div className="text-sm leading-6">{outputResult?.message || title}</div>
+                <div className="text-tau-meta text-ink-2 break-words leading-[1.6]">
+                  {outputResult?.message || title}
+                </div>
               </div>
             </div>
           )}
         </div>
         {liveProposal?.lastError ? (
-          <ToolMutedText isDark={isDark} className="mt-2 text-rose-500">
+          <ToolMutedText isDark={isDark} className="text-danger mt-2">
             {liveProposal.lastError}
           </ToolMutedText>
         ) : null}
@@ -469,7 +414,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
           expanded={expandedPreview}
           onToggle={() => setExpandedPreview(prev => !prev)}
           canUndo={canUndo}
-          undoDisabled={busyAction.length > 0}
+          undoDisabled={busy}
           onUndo={() => void handleUndo()}
         />
 
@@ -482,48 +427,22 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
           </div>
         )}
 
-        {/* 内容预览区域 + Tab 切换 */}
+        {/* 内容预览区域 + 视图切换 */}
         {proposal.proposedMarkdown ? (
           <SectionShell
-            isDark={isDark}
             title={
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowDiffView(true)}
-                  className={`text-sm font-medium transition ${
-                    showDiffView
-                      ? isDark
-                        ? "text-slate-100"
-                        : "text-slate-900"
-                      : isDark
-                        ? "text-slate-500 hover:text-slate-300"
-                        : "text-slate-400 hover:text-slate-600"
-                  }`}
-                >
-                  改动高亮
-                </button>
-                <button
-                  onClick={() => setShowDiffView(false)}
-                  className={`text-sm font-medium transition ${
-                    !showDiffView
-                      ? isDark
-                        ? "text-slate-100"
-                        : "text-slate-900"
-                      : isDark
-                        ? "text-slate-500 hover:text-slate-300"
-                        : "text-slate-400 hover:text-slate-600"
-                  }`}
-                >
-                  完整内容
-                </button>
-              </div>
+              <Segmented<PreviewMode>
+                label="预览视图"
+                size="sm"
+                value={showDiffView ? "diff" : "full"}
+                onValueChange={value => setShowDiffView(value === "diff")}
+              >
+                <Segmented.Item value="diff" label="改动高亮" />
+                <Segmented.Item value="full" label="完整内容" />
+              </Segmented>
             }
           >
-            <div
-              className={`max-h-[420px] overflow-y-auto rounded-2xl border p-3 ${
-                isDark ? "border-white/10 bg-zinc-950/70" : "border-slate-200 bg-white"
-              }`}
-            >
+            <div className="border-line-1 bg-surface rounded-tau-sm max-h-[420px] overflow-y-auto border px-3 py-2.5">
               {showDiffView && mergedReviewContent ? (
                 <DiffHighlightedEditor
                   content={mergedReviewContent}
@@ -535,7 +454,7 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
                   initValue={previewContent}
                   readonly
                   extensions={dynamicExtensions}
-                  className={isDark ? "text-slate-100" : "text-slate-900"}
+                  className="text-ink-1"
                   style={{ padding: "0 4px" }}
                 />
               )}
@@ -545,49 +464,62 @@ const ContentEditProposalRenderer = ({ execution, isDark }: ToolCallCustomRender
 
         {canReview && feedbackOpen ? (
           <div ref={feedbackSectionRef}>
-            <SectionShell isDark={isDark} title="告诉 AI 你想怎么改">
-              <div className="space-y-3">
+            <SectionShell title="告诉 AI 你想怎么改">
+              <div className="space-y-2.5">
                 <FeedbackTemplates
                   isDark={isDark}
                   onSelect={template =>
                     setFeedbackText(prev => (prev ? `${prev}；${template}` : template))
                   }
                 />
-                <textarea
+                <Textarea
                   ref={feedbackTextareaRef}
                   value={feedbackText}
                   onChange={event => setFeedbackText(event.target.value)}
                   placeholder="例如：语气更自然一些；第二段保留原意但更精炼；不要改标题。"
                   rows={4}
-                  className={`min-h-28 w-full resize-y rounded-2xl border px-4 py-3 text-sm outline-none transition [field-sizing:content] ${
-                    isDark
-                      ? "focus:border-[var(--th-border-focus)]/60 border-white/10 bg-zinc-950/70 text-slate-100 placeholder:text-slate-500"
-                      : "border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-[var(--th-border-focus)]"
-                  }`}
+                  className="min-h-28 resize-y [field-sizing:content]"
                 />
                 <div className="flex flex-wrap gap-2">
-                  <PrimaryButton
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={() => void handleDecision("feedback")}
-                    disabled={!feedbackText.trim() || busyAction.length > 0}
+                    disabled={!feedbackText.trim() || busy}
+                    loading={busyAction === "feedback"}
                   >
                     提交修改意见
-                  </PrimaryButton>
-                  <SecondaryButton
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                       setFeedbackOpen(false);
                       setFeedbackText("");
                     }}
-                    disabled={busyAction.length > 0}
-                    isDark={isDark}
+                    disabled={busy}
                   >
                     取消
-                  </SecondaryButton>
+                  </Button>
                 </div>
               </div>
             </SectionShell>
           </div>
         ) : null}
       </ToolCardBody>
+
+      <ConfirmDialog
+        open={restoreConflict !== null}
+        onOpenChange={open => {
+          if (!open) setRestoreConflict(null);
+        }}
+        title="恢复会覆盖后续编辑"
+        description={restoreConflict?.message}
+        confirmText="继续恢复"
+        cancelText="取消"
+        danger
+        onConfirm={handleForceRestore}
+      />
     </ToolCard>
   );
 };

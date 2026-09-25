@@ -1,11 +1,11 @@
-import { Modal } from "antd";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Ban, Check, CircleAlert, Clock, X } from "lucide-react";
+import { Button, Dialog, Spinner, cn } from "@tau/ui";
 import type { ToolCallExecutionState } from "@/types";
+import { ReasoningBlock } from "@/components/ChatUI";
 import ToolCallDisplay from "@/layouts/ContentLayout/components/ChatSidebar/MessageItem/ToolCallDisplay";
-import ReasoningDisplay from "@/layouts/ContentLayout/components/ChatSidebar/MessageItem/ReasoningDisplay";
 import MarkdownRenderer from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownRenderer";
 import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
-import messageItemStyles from "@/layouts/ContentLayout/components/ChatSidebar/MessageItem/index.module.less";
 import {
   SUBAGENT_RESEARCH_RENDERER_KEY,
   type SubAgentResearchPayload,
@@ -14,10 +14,11 @@ import {
 import { subAgentResearchStore } from "@/agent/subagentResearchStore";
 import type { ToolCallCustomRendererProps } from "./types";
 import {
-  ToolBadge,
   ToolCard,
   ToolCardBody,
   ToolCardHeader,
+  ToolDividerList,
+  ToolDividerListItem,
   ToolMutedText,
   ToolSectionTitle,
   ToolValuePill,
@@ -50,6 +51,39 @@ const statusLabel: Record<string, string> = {
   cancelled: "已取消",
 };
 
+/** 状态 = 小图标 + 语义色文字（不上彩色实底徽章） */
+const statusVisual = (status: string): { icon: ReactNode; className: string } => {
+  switch (status) {
+    case "running":
+      return { icon: <Spinner className="size-3 border-[1.5px]" />, className: "text-ink-2" };
+    case "success":
+      return { icon: <Check strokeWidth={2} />, className: "text-ok" };
+    case "partial_success":
+      return { icon: <CircleAlert strokeWidth={1.75} />, className: "text-warn" };
+    case "failed":
+      return { icon: <X strokeWidth={2} />, className: "text-danger" };
+    case "cancelled":
+      return { icon: <Ban strokeWidth={1.75} />, className: "text-ink-3" };
+    default:
+      return { icon: <Clock strokeWidth={1.75} />, className: "text-ink-3" };
+  }
+};
+
+const StatusIcon = ({ status }: { status: string }) => {
+  const visual = statusVisual(status);
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "flex size-3.5 shrink-0 items-center justify-center [&_svg]:size-3.5",
+        visual.className
+      )}
+    >
+      {visual.icon}
+    </span>
+  );
+};
+
 const getSessionId = (payload: SubAgentResearchPayload | null) => payload?.sessionId || "";
 
 const useLivePayload = (payload: SubAgentResearchPayload | null) => {
@@ -80,8 +114,18 @@ const getTaskDuration = (task: SubAgentTaskView, now: number) => {
   return undefined;
 };
 
-const StatusBadge = ({ status, isDark }: { status: string; isDark: boolean }) => (
-  <ToolBadge isDark={isDark}>{statusLabel[status] || status}</ToolBadge>
+const StatusBadge = ({ status }: { status: string; isDark: boolean }) => {
+  const visual = statusVisual(status);
+  return (
+    <span className={cn("text-tau-sm inline-flex shrink-0 items-center gap-1", visual.className)}>
+      <StatusIcon status={status} />
+      {statusLabel[status] || status}
+    </span>
+  );
+};
+
+const DurationText = ({ duration }: { duration?: number }) => (
+  <span className="text-tau-sm text-ink-3 shrink-0 tabular-nums">{formatDuration(duration)}</span>
 );
 
 const ToolExecutionList = ({
@@ -98,7 +142,7 @@ const ToolExecutionList = ({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-0.5">
       {executions.map(execution => (
         <ToolCallDisplay
           key={execution.toolCallId}
@@ -115,7 +159,6 @@ const TaskTabs = ({
   tasks,
   activeTaskId,
   onChange,
-  isDark,
 }: {
   tasks: SubAgentTaskView[];
   activeTaskId: string;
@@ -126,9 +169,7 @@ const TaskTabs = ({
     role="tablist"
     data-testid="subagent-tabs"
     aria-label="SubAgent 任务"
-    className={`flex max-h-28 shrink-0 flex-wrap gap-2 overflow-y-auto rounded-2xl p-2 ${
-      isDark ? "bg-zinc-950/70" : "bg-slate-100"
-    }`}
+    className="flex max-h-28 shrink-0 flex-wrap gap-1 overflow-y-auto"
   >
     {tasks.map(task => {
       const active = task.id === activeTaskId;
@@ -138,28 +179,13 @@ const TaskTabs = ({
           type="button"
           role="tab"
           aria-selected={active}
-          className={`inline-flex max-w-[220px] shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium transition-colors ${
-            active
-              ? isDark
-                ? "bg-slate-100 text-slate-950 shadow"
-                : "bg-white text-slate-900 shadow-sm"
-              : isDark
-                ? "text-slate-400 hover:bg-white/5 hover:text-slate-200"
-                : "text-slate-500 hover:bg-white/60 hover:text-slate-800"
-          }`}
+          className={cn(
+            "text-tau-sm rounded-tau-sm ease-tau-out inline-flex max-w-[220px] shrink-0 items-center gap-1.5 px-2.5 py-1 transition-colors duration-150",
+            active ? "bg-selected text-ink-1" : "text-ink-2 hover:bg-hover hover:text-ink-1"
+          )}
           onClick={() => onChange(task.id)}
         >
-          <span
-            className={`h-2 w-2 shrink-0 rounded-full ${
-              task.status === "success"
-                ? "bg-status-success"
-                : task.status === "failed"
-                  ? "bg-status-error"
-                  : task.status === "cancelled"
-                    ? "bg-gray-400"
-                    : "bg-status-info"
-            }`}
-          />
+          <StatusIcon status={task.status} />
           <span className="truncate">{task.title}</span>
         </button>
       );
@@ -185,48 +211,43 @@ const TaskOutputBlocks = ({
     reasoning.trim().length > 0 || textContent.trim().length > 0 || task.toolExecutions.length > 0;
 
   return (
-    <div
-      className={`space-y-3 rounded-xl border p-4 ${
-        isDark ? "border-white/10 bg-zinc-950/40" : "border-slate-200 bg-white"
-      }`}
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <div
-          className={`min-w-0 flex-1 text-sm font-semibold ${
-            isDark ? "text-slate-100" : "text-slate-800"
-          }`}
-        >
-          {task.title}
-        </div>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <div className="text-tau-title text-ink-1 min-w-0 flex-1 font-semibold">{task.title}</div>
         <StatusBadge status={task.status} isDark={isDark} />
-        <ToolBadge isDark={isDark}>耗时 {formatDuration(duration)}</ToolBadge>
+        <span className="text-tau-sm text-ink-3 shrink-0 tabular-nums">
+          耗时 {formatDuration(duration)}
+        </span>
       </div>
 
       <div>
-        <ToolMutedText isDark={isDark}>任务 Prompt</ToolMutedText>
+        <ToolMutedText isDark={isDark} className="mb-1">
+          任务 Prompt
+        </ToolMutedText>
         <pre
           data-testid="subagent-prompt"
-          className={`mt-1 max-h-48 whitespace-pre-wrap break-words rounded p-3 text-xs ${
-            isDark ? "bg-zinc-900 text-slate-300" : "bg-slate-50 text-slate-600"
-          }`}
+          className="bg-hover text-ink-2 text-tau-sm rounded-tau-sm m-0 max-h-48 overflow-auto whitespace-pre-wrap break-words px-3 py-2.5 font-[inherit] leading-[1.65]"
         >
           {task.prompt}
         </pre>
       </div>
 
       {task.error ? (
-        <div className="rounded bg-red-500/10 p-3 text-sm text-red-500">{task.error}</div>
+        <div className="bg-danger-soft text-danger text-tau-sm rounded-tau-sm px-3 py-2.5">
+          {task.error}
+        </div>
       ) : null}
 
       {hasOutput ? (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {reasoning.trim() ? (
-            <ReasoningDisplay
-              content={reasoning}
-              isDark={isDark}
-              markdownComponents={markdownComponents}
-              isVisible
-            />
+            <ReasoningBlock>
+              <MarkdownRenderer
+                content={reasoning}
+                markdownComponents={markdownComponents}
+                shouldRender
+              />
+            </ReasoningBlock>
           ) : null}
 
           <ToolExecutionList
@@ -236,12 +257,13 @@ const TaskOutputBlocks = ({
           />
 
           {textContent.trim() ? (
-            <MarkdownRenderer
-              content={textContent}
-              className={messageItemStyles.markdown}
-              markdownComponents={markdownComponents}
-              shouldRender
-            />
+            <div className="text-tau-body-lg text-ink-1 min-w-0 pt-1 [overflow-wrap:anywhere]">
+              <MarkdownRenderer
+                content={textContent}
+                markdownComponents={markdownComponents}
+                shouldRender
+              />
+            </div>
           ) : null}
         </div>
       ) : (
@@ -299,67 +321,54 @@ const SubAgentResearchRenderer = ({
   return (
     <>
       <ToolCard isDark={isDark}>
-        <ToolCardHeader isDark={isDark} divided>
+        <ToolCardHeader isDark={isDark}>
           <ToolSectionTitle
             isDark={isDark}
             action={<StatusBadge status={payload.status} isDark={isDark} />}
           >
             SubAgent 调研
           </ToolSectionTitle>
-          <ToolMutedText isDark={isDark} className="mt-1">
+          <ToolMutedText isDark={isDark} className="mt-0.5 tabular-nums">
             {payload.tasks.length} 个子任务，{runningCount} 个进行中。
           </ToolMutedText>
         </ToolCardHeader>
         <ToolCardBody>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5 tabular-nums">
             <ToolValuePill isDark={isDark}>完成：{successCount}</ToolValuePill>
             <ToolValuePill isDark={isDark}>失败：{failedCount}</ToolValuePill>
             <ToolValuePill isDark={isDark}>取消：{cancelledCount}</ToolValuePill>
           </div>
-          <div className="space-y-2">
+          <ToolDividerList isDark={isDark}>
             {payload.tasks.map(task => (
-              <div
-                key={task.id}
-                className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 ${
-                  isDark ? "border-white/10 bg-zinc-950/40" : "border-slate-200 bg-slate-50"
-                }`}
-              >
-                <div
-                  className={`min-w-0 flex-1 truncate text-sm ${
-                    isDark ? "text-slate-200" : "text-slate-700"
-                  }`}
-                >
-                  {task.title}
+              <ToolDividerListItem key={task.id} isDark={isDark}>
+                <div className="flex items-center gap-2">
+                  <StatusIcon status={task.status} />
+                  <div className="text-tau-body text-ink-1 min-w-0 flex-1 truncate">
+                    {task.title}
+                  </div>
+                  <DurationText duration={getTaskDuration(task, now)} />
+                  <span className="text-tau-sm text-ink-3 w-14 shrink-0 text-right">
+                    {statusLabel[task.status] || task.status}
+                  </span>
                 </div>
-                <ToolBadge isDark={isDark}>{formatDuration(getTaskDuration(task, now))}</ToolBadge>
-                <StatusBadge status={task.status} isDark={isDark} />
-              </div>
+              </ToolDividerListItem>
             ))}
-          </div>
-          <button
-            type="button"
-            className={`inline-flex rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
-              isDark
-                ? "border-[var(--th-info)]/40 bg-[var(--th-info)]/10 hover:bg-[var(--th-info)]/15"
-                : "border-[var(--th-info)]/30 bg-[var(--th-info)]/10 text-status-info hover:bg-[var(--th-info)]/15"
-            }`}
-            onClick={() => setDetailOpen(true)}
-          >
+          </ToolDividerList>
+          <Button size="sm" variant="soft" onClick={() => setDetailOpen(true)}>
             查看详情
-          </button>
+          </Button>
         </ToolCardBody>
       </ToolCard>
 
-      <Modal
+      <Dialog
         title="SubAgent 执行详情"
         open={detailOpen}
-        onCancel={() => setDetailOpen(false)}
-        footer={null}
+        onOpenChange={setDetailOpen}
         width={860}
-        destroyOnHidden
+        fill
       >
         <MarkdownProvider isDark={isDark} isVisible>
-          <div className="flex max-h-[70vh] flex-col gap-4">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 pb-5 pt-3">
             <TaskTabs
               tasks={payload.tasks}
               activeTaskId={activeTask?.id || ""}
@@ -367,7 +376,10 @@ const SubAgentResearchRenderer = ({
               isDark={isDark}
             />
 
-            <div data-testid="subagent-scroll-body" className="min-h-0 flex-1 overflow-auto pr-1">
+            <div
+              data-testid="subagent-scroll-body"
+              className="scrollbar-inset min-h-0 flex-1 overflow-auto pr-1"
+            >
               {activeTask ? (
                 <TaskOutputBlocks
                   task={activeTask}
@@ -381,7 +393,7 @@ const SubAgentResearchRenderer = ({
             </div>
           </div>
         </MarkdownProvider>
-      </Modal>
+      </Dialog>
     </>
   );
 };

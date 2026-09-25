@@ -1,0 +1,538 @@
+[
+  {
+    "name": "对象属性里的单个块",
+    "input": { "data": { "node": { "type": "question", "children": [] }, "label": "保留" } },
+    "expected": { "data": { "label": "保留" } },
+    "removed": 1
+  },
+  {
+    "name": "表格单元格恢复内联空叶子",
+    "input": [{ "type": "table-cell", "children": [{ "type": "question", "children": [] }] }],
+    "expected": [{ "type": "table-cell", "children": [{ "type": "formatted", "text": "" }] }],
+    "removed": 1
+  },
+  {
+    "name": "连续根节点",
+    "input": [
+      {
+        "type": "question",
+        "questionId": 7,
+        "children": [
+          {
+            "type": "formatted",
+            "text": ""
+          }
+        ]
+      },
+      {
+        "type": "chat-reference",
+        "chatId": 8,
+        "children": [
+          {
+            "type": "formatted",
+            "text": ""
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "formatted",
+            "text": "保留"
+          }
+        ]
+      }
+    ],
+    "expected": [
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "formatted",
+            "text": "保留"
+          }
+        ]
+      }
+    ],
+    "removed": 2
+  },
+  {
+    "name": "全部删除",
+    "input": [
+      {
+        "type": "question",
+        "questionId": 7,
+        "children": [
+          {
+            "type": "formatted",
+            "text": ""
+          }
+        ]
+      },
+      {
+        "type": "chat-reference",
+        "chatId": 8,
+        "children": [
+          {
+            "type": "formatted",
+            "text": ""
+          }
+        ]
+      }
+    ],
+    "expected": [
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "formatted",
+            "text": ""
+          }
+        ]
+      }
+    ],
+    "removed": 2
+  },
+  {
+    "name": "深层与旧标签页",
+    "input": [
+      {
+        "type": "tabs",
+        "tabsContent": [
+          {
+            "key": "a",
+            "content": [
+              {
+                "type": "question",
+                "questionId": 7,
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": ""
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": "保留"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "b",
+            "content": [
+              {
+                "type": "chat-reference",
+                "chatId": 8,
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": ""
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "children": [
+          {
+            "type": "tab-pane",
+            "children": [
+              {
+                "type": "chat-reference",
+                "chatId": 8,
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": ""
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": "保留"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "expected": [
+      {
+        "type": "tabs",
+        "tabsContent": [
+          {
+            "key": "a",
+            "content": [
+              {
+                "type": "paragraph",
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": "保留"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "key": "b",
+            "content": [
+              {
+                "type": "paragraph",
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": ""
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "children": [
+          {
+            "type": "tab-pane",
+            "children": [
+              {
+                "type": "paragraph",
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": "保留"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "removed": 3
+  },
+  {
+    "name": "业务字段和普通文本保留",
+    "input": {
+      "type": "question",
+      "question": "question",
+      "content": [
+        {
+          "type": "paragraph",
+          "children": [
+            {
+              "type": "formatted",
+              "text": "保留"
+            }
+          ]
+        }
+      ],
+      "text": "{\"type\":\"chat-reference\"}"
+    },
+    "expected": {
+      "type": "question",
+      "question": "question",
+      "content": [
+        {
+          "type": "paragraph",
+          "children": [
+            {
+              "type": "formatted",
+              "text": "保留"
+            }
+          ]
+        }
+      ],
+      "text": "{\"type\":\"chat-reference\"}"
+    },
+    "removed": 0
+  },
+  {
+    "name": "协作占位与历史类型",
+    "input": [
+      {
+        "type": "collaboration-placeholder",
+        "label": "question",
+        "children": []
+      },
+      {
+        "type": "question-card",
+        "children": []
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "formatted",
+            "text": "保留"
+          }
+        ]
+      }
+    ],
+    "expected": [
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "formatted",
+            "text": "保留"
+          }
+        ]
+      }
+    ],
+    "removed": 2
+  },
+  {
+    "name": "白板和单元格",
+    "input": {
+      "nodes": [
+        {
+          "data": {
+            "content": [
+              {
+                "type": "question",
+                "questionId": 7,
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": ""
+                  }
+                ]
+              },
+              {
+                "type": "paragraph",
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": "保留"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "rows": [
+        {
+          "cell": [
+            {
+              "type": "chat-reference",
+              "chatId": 8,
+              "children": [
+                {
+                  "type": "formatted",
+                  "text": ""
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "type": "formatted",
+                  "text": "保留"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "expected": {
+      "nodes": [
+        {
+          "data": {
+            "content": [
+              {
+                "type": "paragraph",
+                "children": [
+                  {
+                    "type": "formatted",
+                    "text": "保留"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "rows": [
+        {
+          "cell": [
+            {
+              "type": "paragraph",
+              "children": [
+                {
+                  "type": "formatted",
+                  "text": "保留"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "removed": 2
+  },
+  {
+    "name": "匹配父节点整个删除",
+    "input": [
+      {
+        "type": "question",
+        "questionId": 7,
+        "children": [
+          {
+            "type": "chat-reference",
+            "chatId": 8,
+            "children": [
+              {
+                "type": "formatted",
+                "text": ""
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "保留"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "formatted",
+            "text": "保留"
+          }
+        ]
+      }
+    ],
+    "expected": [
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "formatted",
+            "text": "保留"
+          }
+        ]
+      }
+    ],
+    "removed": 2
+  },
+  {
+    "name": "文字容器空子节点",
+    "input": [
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "question",
+            "questionId": 7,
+            "children": [
+              {
+                "type": "formatted",
+                "text": ""
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "expected": [
+      {
+        "type": "paragraph",
+        "children": [
+          {
+            "type": "formatted",
+            "text": ""
+          }
+        ]
+      }
+    ],
+    "removed": 1
+  },
+  {
+    "name": "折叠内容",
+    "input": [
+      {
+        "type": "list-item",
+        "allContent": [
+          {
+            "type": "question",
+            "questionId": 7,
+            "children": [
+              {
+                "type": "formatted",
+                "text": ""
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "保留"
+              }
+            ]
+          }
+        ],
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "保留"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "expected": [
+      {
+        "type": "list-item",
+        "allContent": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "保留"
+              }
+            ]
+          }
+        ],
+        "children": [
+          {
+            "type": "paragraph",
+            "children": [
+              {
+                "type": "formatted",
+                "text": "保留"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "removed": 1
+  }
+]

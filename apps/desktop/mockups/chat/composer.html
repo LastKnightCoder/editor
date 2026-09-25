@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>输入框重设计 · 二轮（＋ 面板）</title>
+<link rel="stylesheet" href="shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  body { background: var(--page); overflow: auto; }
+  [data-theme="cream"] body, [data-theme="cocoa"] body { background: var(--page); }
+  .top { position: sticky; top: 0; z-index: 30; display: flex; gap: 12px; align-items: center; padding: 10px 24px; background: rgba(20,17,13,.92); color: #e8dfcf; font-size: 12.5px; }
+  .top b { color: #fff; }
+  .top .sp { flex: 1; }
+  .top button { background: #2f2920; color: #e8dfcf; border: 1px solid #4a4034; border-radius: 6px; padding: 3px 10px; }
+  .top button.on { background: #e8b598; color: #241a10; border-color: #e8b598; }
+  .top a { color: #e8b598; text-decoration: none; }
+
+  main { max-width: 1400px; margin: 0 auto; padding: 24px 24px 80px; }
+  .intro { background: var(--surface); border-radius: 14px; padding: 16px 20px; line-height: 1.8; font-size: 13px; box-shadow: var(--shadow-card); max-width: 1100px; }
+  .intro h2 { margin: 0 0 4px; font-size: 16px; }
+  .intro ul { margin: 4px 0 0; padding-left: 20px; }
+  .intro b { font-weight: 600; }
+  h3.sec { margin: 30px 4px 12px; font-size: 15px; font-weight: 600; }
+  .row { display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; }
+  .cap { font-size: 12px; color: var(--ink-3); margin: 0 2px 6px; }
+
+  /* 宿主纸面（停靠栏 / 对话页），与真实应用同层 */
+  .host { position: relative; background: var(--surface); border-radius: 16px; box-shadow: var(--shadow-card); display: flex; flex-direction: column; justify-content: flex-end; }
+  .host.dock { width: 400px; min-height: 250px; }
+  .host.page { width: 800px; min-height: 250px; }
+  .host.tall { min-height: 560px; }
+  .host .tail { padding: 16px 18px 6px; font-size: 14px; line-height: 1.8; }
+  .host .tail .acts { display: flex; gap: 12px; margin-top: 6px; color: var(--ink-3); }
+  .host .tail .acts svg { width: 14px; height: 14px; }
+  .wrap { position: relative; padding: 8px 12px 12px; }
+  .host.page .wrap { width: 100%; max-width: 736px; margin: 0 auto; }
+
+  /* ── 输入框 ── */
+  .cmp { border: 1px solid var(--line-1); border-radius: 16px; background: var(--surface); padding: 12px 10px 10px 14px; transition: border-color var(--fast), box-shadow var(--fast); }
+  .cmp.focus { border-color: var(--accent); box-shadow: var(--focus); }
+  .txt { font-size: 14.5px; line-height: 1.6; color: var(--ink-1); white-space: pre-wrap; min-height: 23px; padding-right: 4px; }
+  .ph { color: var(--ink-3); }
+  .caret { display: inline-block; width: 1.5px; height: 1.1em; background: var(--ink-1); vertical-align: -3px; margin-left: 1px; animation: blink 1.1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .mention { color: var(--accent-text); background: var(--accent-soft); border-radius: 5px; padding: 0 4px; }
+  .atts { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .att { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 6px 0 8px; border-radius: 8px; border: 1px solid var(--line-1); font-size: 12.5px; }
+  .att svg { width: 14px; height: 14px; color: var(--ink-2); }
+  .att .x svg { color: var(--ink-3); width: 13px; height: 13px; }
+  .att.img { padding: 0; width: 44px; height: 44px; border-radius: 9px; background: linear-gradient(135deg, #e9d6c2, #cdb8a0); }
+
+  .bar { display: flex; align-items: center; gap: 4px; margin: 12px 0 0 -4px; }
+  .bar .sp { flex: 1; min-width: 4px; }
+
+  /* ＋：细线方钮（参考图同形），面板打开时转 45° 成 × */
+  .plus { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; border: 1px solid var(--line-1); color: var(--ink-2); flex: none; transition: background var(--fast), color var(--fast), border-color var(--fast); }
+  .plus:hover { background: var(--hover); color: var(--ink-1); }
+  .plus svg { width: 16px; height: 16px; transition: transform var(--normal) var(--ease); }
+  .plus.open { background: var(--selected); border-color: transparent; color: var(--accent-text); }
+  .plus.open svg { transform: rotate(45deg); }
+
+  /* 右侧：用量环 · 模型 · 强度 · 发送（参考图同序），全部无底，hover 淡墨 */
+  .opt { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 6px 0 8px; border-radius: 9px; font-size: 13px; color: var(--ink-1); white-space: nowrap; min-width: 0; flex: none; }
+  .opt:hover { background: var(--hover); }
+  .opt .lb { overflow: hidden; text-overflow: ellipsis; }
+  .opt.model { flex: 0 1 auto; max-width: 150px; }
+  .opt.model .lb { font-weight: 500; }
+  .opt svg { width: 15px; height: 15px; color: var(--ink-2); flex: none; }
+  .opt svg.cv { width: 13px; height: 13px; color: var(--ink-3); }
+  .usage { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; flex: none; }
+  .usage:hover { background: var(--hover); }
+  .usage svg { width: 16px; height: 16px; transform: rotate(-90deg); }
+  .usage circle { fill: none; stroke-width: 2.4; }
+  .usage .bg { stroke: var(--line-1); }
+  .usage .fg { stroke: var(--ok); stroke-linecap: round; }
+  .usage .fg.warn { stroke: var(--warn); }
+
+  .send { position: relative; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; flex: none; margin-left: 4px; color: var(--ink-inv); background: var(--accent); }
+  .send:hover { background: var(--accent-hover); }
+  .send svg { width: 16px; height: 16px; stroke-width: 2.2; }
+  .send.off { background: var(--hover); color: var(--ink-3); }
+  .send.stop { background: var(--ink-1); color: var(--surface); }
+  .send.stop svg { width: 11px; height: 11px; fill: currentColor; stroke-width: 0; }
+  .send .q { position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; border-radius: 8px; padding: 0 4px; background: var(--ink-1); color: var(--surface); font-size: 10px; font-weight: 600; line-height: 16px; text-align: center; }
+
+  /* ── ＋ / @ 面板：从输入框上沿向上展开，与输入框同宽 ── */
+  .panel { position: absolute; left: 12px; right: 12px; bottom: calc(100% - 8px + 8px); background: var(--surface); border: 1px solid var(--line-1); border-radius: 16px; box-shadow: var(--shadow-float); display: flex; flex-direction: column; overflow: hidden; }
+  .host.page .panel { left: 50%; right: auto; width: calc(100% - 24px); max-width: 712px; transform: translateX(-50%); }
+  .panel .list { padding: 6px; max-height: 360px; overflow: auto; }
+  .panel .g { font-size: 12px; font-weight: 600; color: var(--ink-3); padding: 8px 10px 4px; }
+  .panel .it { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px; border-radius: 10px; font-size: 13.5px; color: var(--ink-1); }
+  .panel .it:hover, .panel .it.hl { background: var(--hover); }
+  .panel .it .ti { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: var(--surface); border: 1px solid var(--line-1); flex: none; }
+  .panel .it .ti svg { width: 14px; height: 14px; color: var(--ink-2); }
+  .panel .it .nm { flex: none; }
+  .panel .it .ds { color: var(--ink-3); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .panel .it .kb { margin-left: auto; flex: none; }
+  .kb { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 6px; border: 1px solid var(--line-1); font: 11.5px/1 var(--mono); color: var(--ink-2); background: var(--surface); }
+  .panel .it.hl .kb { background: var(--surface); }
+  .panel .foot { display: flex; align-items: center; gap: 14px; padding: 9px 14px 10px; font-size: 12px; color: var(--ink-3); background: color-mix(in srgb, var(--page) 45%, var(--surface)); flex-wrap: wrap; }
+  .panel .foot span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .panel .search { display: flex; align-items: center; gap: 8px; padding: 12px 14px 4px; font-size: 13.5px; color: var(--ink-1); }
+  .panel .search svg { width: 15px; height: 15px; color: var(--ink-3); }
+  .panel .search .q { color: var(--accent-text); }
+  .hit { color: var(--accent-text); }
+
+  /* 变体 2：面板与输入框连成一张纸（上圆角给面板、下圆角给输入框） */
+  .joined .panel { bottom: calc(100% - 8px - 1px + 8px - 8px); border-bottom: 0; border-radius: 16px 16px 0 0; box-shadow: 0 -12px 32px -18px rgba(120,100,70,.35); }
+  .joined .cmp.withpanel { border-top-left-radius: 0; border-top-right-radius: 0; border-top-color: transparent; box-shadow: none; }
+  .joined .wrap:has(.cmp.focus) .panel { border-color: var(--accent); }
+  .joined .panel .foot { background: transparent; border-top: 0; }
+
+  .note { font-size: 12.5px; color: var(--ink-2); line-height: 1.75; margin: 10px 4px 0; max-width: 800px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <b>AI 对话 · 输入框重设计 · 二轮</b>
+  <a href="index.html">← 原型总览</a>
+  <span class="sp"></span>
+  面板形态：
+  <button id="v1" class="on">浮起卡片</button>
+  <button id="v2">与输入框连成一张纸</button>
+  <button id="theme">切换深色 / 浅色</button>
+</div>
+<main id="main"></main>
+
+<script>
+const ic = n => `<i data-lucide="${n}"></i>`;
+const tail = `<div class="tail">它的作用是让用户尽快看到文字，避免因为字体加载慢导致页面出现不可读的空白内容。<div class="acts">${ic("copy")}${ic("git-branch")}${ic("trash-2")}</div></div>`;
+
+const ring = (pct, warn) => { const r = 6.5, c = 2 * Math.PI * r; return `<button class="usage" title="上下文 ${Math.round(pct*100)}% · 48K / 128K">
+  <svg viewBox="0 0 16 16"><circle class="bg" cx="8" cy="8" r="${r}"/><circle class="fg ${warn?"warn":""}" cx="8" cy="8" r="${r}" stroke-dasharray="${c*pct} ${c}"/></svg></button>`; };
+
+const bar = ({ w, open, st = "off", q = 0, pct = .38 }) => `
+  <div class="bar">
+    <button class="plus ${open ? "open" : ""}" title="添加（图片 / PDF / 引用 / MCP）">${ic("plus")}</button>
+    <span class="sp"></span>
+    ${ring(pct, pct > .75)}
+    <button class="opt model" title="切换模型"><span class="lb">${w === "dock" ? "GPT-5.6" : "GPT-5.6 Terminal"}</span>${ic("chevron-down")}</button>
+    <button class="opt" title="思考强度">${ic("brain")}<span>${w === "dock" ? "立答" : "立答如流"}</span>${ic("chevron-down")}</button>
+    ${st === "stop"
+      ? `<button class="send stop" title="停止生成">${ic("square")}</button>`
+      : `<button class="send ${st}" title="发送 · Ctrl + Enter">${ic("arrow-up")}${q ? `<span class="q">${q}</span>` : ""}</button>`}
+  </div>`;
+bar.fix = h => h.replaceAll('<i data-lucide="chevron-down"></i>', '<i data-lucide="chevron-down" class="cv"></i>');
+
+const cmp = ({ w, body, focus, atts, open, st, q, withpanel }) => bar.fix(`
+  <div class="cmp ${focus ? "focus" : ""} ${withpanel ? "withpanel" : ""}">
+    ${atts ? `<div class="atts"><span class="att img"></span><span class="att">${ic("file-text")}字体加载.pdf<span class="x">${ic("x")}</span></span></div>` : ""}
+    <div class="txt">${body}</div>
+    ${bar({ w, open, st, q })}
+  </div>`);
+
+const PH = `<span class="ph">输入消息，@ 引用内容，Ctrl + Enter 发送</span>`;
+const TYPED = `帮我对比一下 <span class="mention">@CSS 字体加载笔记</span> 里的 swap 和 optional，哪个更适合博客正文？<span class="caret"></span>`;
+
+const item = (icon, nm, ds, kb, hl) => `<div class="it ${hl ? "hl" : ""}"><span class="ti">${ic(icon)}</span><span class="nm">${nm}</span>${ds ? `<span class="ds">${ds}</span>` : ""}${kb ? `<span class="kb">${kb}</span>` : ""}</div>`;
+const foot = w => `<div class="foot"><span><span class="kb">@</span>引用内容</span><span><span class="kb">↑↓</span>选择</span><span><span class="kb">Enter</span>确认</span>${w === "page" ? `<span><span class="kb">Esc</span>关闭</span>` : ""}</div>`;
+
+const plusPanel = w => `<div class="panel">
+  <div class="list">
+    <div class="g">添加</div>
+    ${item("image-plus", "图片", w === "page" ? "PNG / JPG，可多选，也可直接粘贴" : "可多选、可粘贴", "", true)}
+    ${item("file-text", "PDF", w === "page" ? "作为上下文随消息发送" : "随消息发送")}
+    ${item("at-sign", "引用内容", w === "page" ? "卡片、文章、项目文档、日记" : "卡片、文章、文档", "@")}
+    <div class="g">对话</div>
+    ${item("square-pen", "新建对话", w === "page" ? "当前对话保留在会话列表里" : "")}
+    <div class="g">工具</div>
+    ${item("plug", "MCP 管理中心", w === "page" ? "接入与开关外部工具服务" : "接入外部工具")}
+  </div>
+  ${foot(w)}
+</div>`;
+
+const atPanel = w => `<div class="panel">
+  <div class="search">${ic("search")}<span>@<span class="q">字体</span></span></div>
+  <div class="list">
+    <div class="g">文章</div>
+    ${item("newspaper", `CSS <span class="hit">字体</span>加载笔记`, w === "page" ? "font-display 五个取值的对比与选择" : "", "", true)}
+    ${item("newspaper", `博客排版与<span class="hit">字体</span>栈`, w === "page" ? "中西文混排的回退顺序" : "")}
+    <div class="g">卡片</div>
+    ${item("sticky-note", `可变<span class="hit">字体</span>的轴`, w === "page" ? "wght / wdth / opsz" : "")}
+    <div class="g">项目文档</div>
+    ${item("folder-open", `个人站 · <span class="hit">字体</span>子集化`, w === "page" ? "pyftsubset 流程" : "")}
+  </div>
+  ${foot(w)}
+</div>`;
+
+const scene = ({ w, cap, tall, panel, ...c }) => `<div><div class="cap">${cap}</div>
+  <div class="host ${w} ${tall ? "tall" : ""}">${tail}<div class="wrap">${panel || ""}${cmp({ w, withpanel: !!panel, ...c })}</div></div></div>`;
+
+function render() {
+  document.getElementById("main").innerHTML = `
+  <div class="intro">
+    <h2>输入框 · 参考图结构 × 我们的主题语言</h2>
+    <ul>
+      <li><b>布局照参考图</b>：左下只留一个 <b>＋</b>；右下依次是 上下文用量环 · 模型 · 思考强度 · 发送。工具行在 400px 停靠栏里也永远一行（窄时模型取短名、强度取两字）。</li>
+      <li><b>＋ 打开的面板</b>从输入框上沿向上展开、与输入框同宽：分组小标题 + 「图标 · 名称 · 淡墨说明」行，底部一行键位提示。<b>@ 引用</b>用同一个面板外观，顶部显示正在搜的词、命中字 accent 标出。</li>
+      <li><b>换成我们的语言</b>：参考图的彩色图标、深灰实底都不要——图标一律中性墨色放在细线小方块里；颜色只给 accent（发送、命中字、＋ 打开态）和语义状态（用量环：正常 ok 绿，≥75% warn）；面板 surface + 细线 + 浮起阴影，不用分隔横线，页脚靠一层很淡的纸色托底。</li>
+      <li><b>现状问题一并去掉</b>：模型名改界面字体；用量环有颜色、有进度，不再是空心圈；不可发送时发送钮是淡墨方钮，不是一大块淡橙。</li>
+    </ul>
+  </div>
+
+  <h3 class="sec">停靠栏 400px</h3>
+  <div class="row">
+    ${scene({ w: "dock", cap: "空态", body: PH })}
+    ${scene({ w: "dock", cap: "输入中（附件 + 引用）", body: TYPED, focus: true, atts: true, st: "" })}
+    ${scene({ w: "dock", cap: "生成中（可继续输入排队）", body: `再补充一下移动端的情况<span class="caret"></span>`, focus: true, st: "stop" })}
+  </div>
+  <div class="row" style="margin-top:20px">
+    ${scene({ w: "dock", cap: "点 ＋", body: PH, focus: true, open: true, tall: true, panel: plusPanel("dock") })}
+    ${scene({ w: "dock", cap: "输入 @ 字体", body: `帮我看看 <span class="mention">@字体</span><span class="caret"></span>`, focus: true, st: "", tall: true, panel: atPanel("dock") })}
+  </div>
+
+  <h3 class="sec">对话页（736px 列）</h3>
+  <div class="row">
+    ${scene({ w: "page", cap: "点 ＋", body: PH, focus: true, open: true, tall: true, panel: plusPanel("page") })}
+  </div>
+  <div class="row" style="margin-top:20px">
+    ${scene({ w: "page", cap: "输入中 · 排队 1 条", body: TYPED, focus: true, atts: true, st: "", q: 1 })}
+  </div>
+  <p class="note">模型、思考强度两个 chip 点开仍是向上弹的小菜单（现有 Menu，样式同上面板）；用量环点开是用量明细。＋ 面板和 @ 面板都支持 ↑↓ / Enter / Esc，Esc 只关面板不清空输入。</p>
+  `;
+  lucide.createIcons();
+}
+render();
+
+const setV = j => { document.body.classList.toggle("joined", j); v1.classList.toggle("on", !j); v2.classList.toggle("on", j); };
+v1.onclick = () => setV(false); v2.onclick = () => setV(true);
+theme.onclick = () => { const h = document.documentElement; h.dataset.theme = h.dataset.theme === "cream" ? "cocoa" : "cream"; };
+</script>
+</body>
+</html>

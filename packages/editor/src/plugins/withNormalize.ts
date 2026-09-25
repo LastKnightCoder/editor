@@ -1,17 +1,29 @@
 import { Editor, Node, Path, Transforms, Text } from "slate";
+import { isRetiredEditorBlock } from "@tau/collaboration";
 
 export const withNormalize = (editor: Editor) => {
   const { normalizeNode } = editor;
 
-  editor.normalizeNode = (entry) => {
+  editor.normalizeNode = entry => {
     const zeroWidthChar = "\uFEFF";
     const [node, path] = entry;
+    if (Editor.isEditor(node) && node.children.length === 0) {
+      Transforms.insertNodes(
+        editor,
+        { type: "paragraph", children: [{ type: "formatted", text: "" }] },
+        { at: [0] }
+      );
+      return;
+    }
+    if (path.length && isRetiredEditorBlock(node)) {
+      Transforms.removeNodes(editor, { at: path });
+      return;
+    }
 
     if (node.type === "inline-math") {
       const parentNode = Node.parent(editor, path);
       const isFirstChild = !Path.hasPrevious(path);
-      const isLastChild =
-        path[path.length - 1] === parentNode.children.length - 1;
+      const isLastChild = path[path.length - 1] === parentNode.children.length - 1;
 
       // If the inlineVoid is at the end of a line, must get path after the inlineVoid
       // at which to insert a zero width character
@@ -27,15 +39,11 @@ export const withNormalize = (editor: Editor) => {
         Transforms.insertNodes(
           editor,
           { type: "formatted", text: zeroWidthChar },
-          { at: nextPath },
+          { at: nextPath }
         );
       }
       if (isFirstChild || hasPreviousAdjacentInlineVoid) {
-        Transforms.insertNodes(
-          editor,
-          { type: "formatted", text: zeroWidthChar },
-          { at: path },
-        );
+        Transforms.insertNodes(editor, { type: "formatted", text: zeroWidthChar }, { at: path });
       }
     }
 

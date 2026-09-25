@@ -1,7 +1,6 @@
 import { act } from "react";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { App as AntdApp } from "antd";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import TodoOperationRenderer from "../TodoOperationRenderer";
 import type { ToolCallExecutionState } from "@/types";
@@ -9,7 +8,7 @@ import type { ToolCallExecutionState } from "@/types";
 (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 const createExecution = (
-  overrides: Partial<ToolCallExecutionState> = {},
+  overrides: Partial<ToolCallExecutionState> = {}
 ): ToolCallExecutionState => ({
   toolCallId: "todo-op-call-1",
   toolName: "toggle_todo_complete",
@@ -39,7 +38,7 @@ const mount = async (node: ReactNode) => {
   document.body.appendChild(container);
   const root = createRoot(container);
   await act(async () => {
-    root.render(<AntdApp>{node}</AntdApp>);
+    root.render(node);
   });
   return { root, container };
 };
@@ -63,7 +62,7 @@ describe("TodoOperationRenderer", () => {
         isDark={false}
         parsedInput={{}}
         renderDefault={() => <div>fallback</div>}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("已标记完成");

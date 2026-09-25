@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { ChatMessage, ChatGroup, ChatAgentType } from "@/types";
+import { ChatMessage, ChatGroup } from "@/types";
 import {
   createChatMessage,
   deleteChatMessage,
@@ -43,33 +43,22 @@ interface IAction {
     messages: ChatMessage["messages"],
     title?: string,
     groupId?: number | null,
-    titleDirty?: boolean,
-    agentType?: ChatAgentType,
-    agentSessionId?: string | null,
+    titleDirty?: boolean
   ) => Promise<ChatMessage>;
   // 以下二者的区别在于，一个存数据库了，一个没存
   updateCurrentChat: (chatMessage: ChatMessage) => void;
-  updateChatMessage: (
-    chatMessage: Omit<ChatMessage, "updateTime">,
-  ) => Promise<ChatMessage>;
+  updateChatMessage: (chatMessage: Omit<ChatMessage, "updateTime">) => Promise<ChatMessage>;
   deleteChatMessage: (id: number) => Promise<number>;
   archiveChatMessage: (id: number, archived: boolean) => Promise<ChatMessage>;
-  moveChatToGroup: (
-    chatId: number,
-    groupId: number | null,
-  ) => Promise<ChatMessage>;
-  createChatGroup: (
-    name: string,
-    parentId?: number | null,
-  ) => Promise<ChatGroup>;
+  moveChatToGroup: (chatId: number, groupId: number | null) => Promise<ChatMessage>;
+  createChatGroup: (name: string, parentId?: number | null) => Promise<ChatGroup>;
   updateChatGroup: (id: number, name: string) => Promise<ChatGroup>;
   deleteChatGroup: (id: number) => Promise<number>;
   // 分支相关
   createChatBranch: (
     parentChatId: number,
     messages: ChatMessage["messages"],
-    title?: string,
-    agentType?: ChatAgentType,
+    title?: string
   ) => Promise<ChatMessage>;
   getChatBranches: (parentChatId: number) => Promise<ChatMessage[]>;
   getChildBranchesCount: (parentChatId: number) => Promise<number>;
@@ -97,14 +86,7 @@ const useChatMessageStore = create<IState & IAction>()(
         const groups = await getAllChatGroups();
         set({ groups });
       },
-      createChatMessage: async (
-        messages,
-        title,
-        groupId,
-        titleDirty,
-        agentType,
-        agentSessionId,
-      ) => {
+      createChatMessage: async (messages, title, groupId, titleDirty) => {
         const { chats } = get();
         const createdChatMessage = await createChatMessage(
           messages,
@@ -113,34 +95,30 @@ const useChatMessageStore = create<IState & IAction>()(
           null, // parentChatId
           undefined, // branchIndex
           null, // orderNum
-          titleDirty ?? false,
-          agentType ?? "local",
-          agentSessionId ?? null,
+          titleDirty ?? false
         );
-        const newChats = produce(chats, (draft) => {
+        const newChats = produce(chats, draft => {
           draft.push(createdChatMessage);
         });
         set({ chats: newChats, currentChatId: createdChatMessage.id });
 
         return createdChatMessage;
       },
-      updateCurrentChat: (chatMessage) => {
+      updateCurrentChat: chatMessage => {
         const { chats } = get();
-        const newChats = produce(chats, (draft) => {
-          const index = draft.findIndex((chat) => chat.id === chatMessage.id);
+        const newChats = produce(chats, draft => {
+          const index = draft.findIndex(chat => chat.id === chatMessage.id);
           if (index !== -1) {
             draft[index] = chatMessage;
           }
         });
         set({ chats: newChats });
       },
-      updateChatMessage: async (chatMessage) => {
+      updateChatMessage: async chatMessage => {
         const { chats } = get();
         const updatedChatMessage = await updateChatMessage(chatMessage);
-        const newChats = produce(chats, (draft) => {
-          const index = draft.findIndex(
-            (chat) => chat.id === updatedChatMessage.id,
-          );
+        const newChats = produce(chats, draft => {
+          const index = draft.findIndex(chat => chat.id === updatedChatMessage.id);
           if (index !== -1) {
             draft[index] = updatedChatMessage;
           }
@@ -149,14 +127,14 @@ const useChatMessageStore = create<IState & IAction>()(
 
         return updatedChatMessage;
       },
-      deleteChatMessage: async (id) => {
+      deleteChatMessage: async id => {
         const { chats } = get();
-        const chatToDelete = chats.find((c) => c.id === id);
+        const chatToDelete = chats.find(c => c.id === id);
         const allIdsToDelete = new Set<number>([id]);
         if (chatToDelete) {
           // 递归查找所有子分支
           const findChildren = (parentId: number) => {
-            chats.forEach((chat) => {
+            chats.forEach(chat => {
               if (chat.parentChatId === parentId) {
                 allIdsToDelete.add(chat.id);
                 findChildren(chat.id);
@@ -167,36 +145,32 @@ const useChatMessageStore = create<IState & IAction>()(
         }
 
         await Promise.all(
-          Array.from(allIdsToDelete, (chatId) =>
-            chatRunManager.discardSession(`main-chat:${chatId}`),
-          ),
+          Array.from(allIdsToDelete, chatId => chatRunManager.discardSession(`main-chat:${chatId}`))
         );
         const deletedCount = await deleteChatMessage(id);
 
-        const newChats = produce(chats, (draft) => {
+        const newChats = produce(chats, draft => {
           // 删除所有相关的对话（包括子分支）
-          return draft.filter((c) => !allIdsToDelete.has(c.id));
+          return draft.filter(c => !allIdsToDelete.has(c.id));
         });
 
         // 如果删除的是当前选中的对话，清空选中
         const { currentChatId } = get();
-        const newCurrentChatId = allIdsToDelete.has(currentChatId!)
-          ? null
-          : currentChatId;
+        const newCurrentChatId = allIdsToDelete.has(currentChatId!) ? null : currentChatId;
 
         set({ chats: newChats, currentChatId: newCurrentChatId });
         return deletedCount;
       },
       archiveChatMessage: async (id, archived) => {
         const { chats } = get();
-        const chat = chats.find((c) => c.id === id);
+        const chat = chats.find(c => c.id === id);
         if (!chat) throw new Error("Chat not found");
 
         const updatedChat = { ...chat, archived };
         const result = await updateChatMessage(updatedChat);
 
-        const newChats = produce(chats, (draft) => {
-          const index = draft.findIndex((c) => c.id === id);
+        const newChats = produce(chats, draft => {
+          const index = draft.findIndex(c => c.id === id);
           if (index !== -1) {
             draft[index] = result;
           }
@@ -206,14 +180,14 @@ const useChatMessageStore = create<IState & IAction>()(
       },
       moveChatToGroup: async (chatId, groupId) => {
         const { chats } = get();
-        const chat = chats.find((c) => c.id === chatId);
+        const chat = chats.find(c => c.id === chatId);
         if (!chat) throw new Error("Chat not found");
 
         const updatedChat = { ...chat, groupId };
         const result = await updateChatMessage(updatedChat);
 
-        const newChats = produce(chats, (draft) => {
-          const index = draft.findIndex((c) => c.id === chatId);
+        const newChats = produce(chats, draft => {
+          const index = draft.findIndex(c => c.id === chatId);
           if (index !== -1) {
             draft[index] = result;
           }
@@ -224,7 +198,7 @@ const useChatMessageStore = create<IState & IAction>()(
       createChatGroup: async (name, parentId) => {
         const { groups } = get();
         const createdGroup = await createChatGroup({ name, parentId });
-        const newGroups = produce(groups, (draft) => {
+        const newGroups = produce(groups, draft => {
           draft.push(createdGroup);
         });
         set({ groups: newGroups });
@@ -233,8 +207,8 @@ const useChatMessageStore = create<IState & IAction>()(
       updateChatGroup: async (id, name) => {
         const { groups } = get();
         const updatedGroup = await updateChatGroup({ id, name });
-        const newGroups = produce(groups, (draft) => {
-          const index = draft.findIndex((g) => g.id === id);
+        const newGroups = produce(groups, draft => {
+          const index = draft.findIndex(g => g.id === id);
           if (index !== -1) {
             draft[index] = updatedGroup;
           }
@@ -242,11 +216,11 @@ const useChatMessageStore = create<IState & IAction>()(
         set({ groups: newGroups });
         return updatedGroup;
       },
-      deleteChatGroup: async (id) => {
+      deleteChatGroup: async id => {
         const { groups } = get();
         const res = await deleteChatGroup(id);
-        const newGroups = produce(groups, (draft) => {
-          const index = draft.findIndex((g) => g.id === id);
+        const newGroups = produce(groups, draft => {
+          const index = draft.findIndex(g => g.id === id);
           if (index !== -1) {
             draft.splice(index, 1);
           }
@@ -254,15 +228,14 @@ const useChatMessageStore = create<IState & IAction>()(
         set({ groups: newGroups });
         return res;
       },
-      createChatBranch: async (parentChatId, messages, title, agentType) => {
+      createChatBranch: async (parentChatId, messages, title) => {
         const { chats } = get();
-        const parentChat = chats.find((c) => c.id === parentChatId);
+        const parentChat = chats.find(c => c.id === parentChatId);
         if (!parentChat) throw new Error("Parent chat not found");
 
         // 获取下一个分支序号
         const branchIndex = await getNextBranchIndex(parentChatId);
-        const branchTitle =
-          title || `${parentChat.title} - 分支 ${branchIndex + 1}`;
+        const branchTitle = title || `${parentChat.title} - 分支 ${branchIndex + 1}`;
 
         // 创建分支对话（直接传入 parentChatId 和 branchIndex）
         const createdBranchChat = await createChatMessage(
@@ -272,30 +245,28 @@ const useChatMessageStore = create<IState & IAction>()(
           parentChatId,
           branchIndex,
           undefined,
-          true,
-          agentType ?? parentChat.agentType ?? "local",
-          null,
+          true
         );
 
-        const newChats = produce(chats, (draft) => {
+        const newChats = produce(chats, draft => {
           draft.push(createdBranchChat);
         });
         set({ chats: newChats, currentChatId: createdBranchChat.id });
 
         return createdBranchChat;
       },
-      getChatBranches: async (parentChatId) => {
+      getChatBranches: async parentChatId => {
         return getChatBranches(parentChatId);
       },
 
-      getChildBranchesCount: async (parentChatId) => {
+      getChildBranchesCount: async parentChatId => {
         return getChildBranchesCount(parentChatId);
       },
-      pinChatMessage: async (id) => {
+      pinChatMessage: async id => {
         const { chats } = get();
         const result = await pinChatMessage(id);
-        const newChats = produce(chats, (draft) => {
-          const index = draft.findIndex((c) => c.id === id);
+        const newChats = produce(chats, draft => {
+          const index = draft.findIndex(c => c.id === id);
           if (index !== -1) {
             draft[index] = result;
           }
@@ -303,11 +274,11 @@ const useChatMessageStore = create<IState & IAction>()(
         set({ chats: newChats });
         return result;
       },
-      unpinChatMessage: async (id) => {
+      unpinChatMessage: async id => {
         const { chats } = get();
         const result = await unpinChatMessage(id);
-        const newChats = produce(chats, (draft) => {
-          const index = draft.findIndex((c) => c.id === id);
+        const newChats = produce(chats, draft => {
+          const index = draft.findIndex(c => c.id === id);
           if (index !== -1) {
             draft[index] = result;
           }
@@ -318,8 +289,8 @@ const useChatMessageStore = create<IState & IAction>()(
       reorderChatMessage: async (id, newOrder) => {
         const { chats } = get();
         const result = await reorderChatMessage(id, newOrder);
-        const newChats = produce(chats, (draft) => {
-          const index = draft.findIndex((c) => c.id === id);
+        const newChats = produce(chats, draft => {
+          const index = draft.findIndex(c => c.id === id);
           if (index !== -1) {
             draft[index] = result;
           }
@@ -330,13 +301,13 @@ const useChatMessageStore = create<IState & IAction>()(
     }),
     {
       name: "chat-message",
-      partialize: (state) => ({
+      partialize: state => ({
         open: state.open,
         width: state.width,
         currentChatId: state.currentChatId,
       }),
-    },
-  ),
+    }
+  )
 );
 
 export default useChatMessageStore;

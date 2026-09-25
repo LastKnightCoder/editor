@@ -1,6 +1,5 @@
 import { Descendant } from "slate";
 import type { PdfAnnotationObject, PdfBookmarkObject } from "@embedpdf/models";
-import type { ChatAgentType } from "./chat-message";
 import type { ChatSessionMessage } from "./llm";
 
 export enum EHighlightColor {
@@ -46,10 +45,7 @@ export interface PdfBookmark {
   bookmark: PdfBookmarkObject;
 }
 
-export type CreatePdfBookmark = Omit<
-  PdfBookmark,
-  "id" | "createTime" | "updateTime"
->;
+export type CreatePdfBookmark = Omit<PdfBookmark, "id" | "createTime" | "updateTime">;
 
 export interface PdfAnnotation {
   id: number;
@@ -65,10 +61,7 @@ export interface PdfAnnotation {
   areaData?: AreaAnnotationData;
 }
 
-export type CreatePdfAnnotation = Omit<
-  PdfAnnotation,
-  "id" | "createTime" | "updateTime"
->;
+export type CreatePdfAnnotation = Omit<PdfAnnotation, "id" | "createTime" | "updateTime">;
 
 export interface PdfIndexStatus {
   pdfId: number;
@@ -181,8 +174,6 @@ export interface PdfChatMessage {
   archived?: boolean;
   parentChatId?: number | null;
   branchIndex?: number;
-  agentType?: ChatAgentType;
-  agentSessionId?: string | null;
 }
 
 export interface CreatePdfChat {
@@ -191,8 +182,6 @@ export interface CreatePdfChat {
   title?: string;
   parentChatId?: number | null;
   branchIndex?: number;
-  agentType?: ChatAgentType;
-  agentSessionId?: string | null;
 }
 
 export interface UpdatePdfChat {
@@ -202,6 +191,4 @@ export interface UpdatePdfChat {
   archived?: boolean;
   parentChatId?: number | null;
   branchIndex?: number;
-  agentType?: ChatAgentType;
-  agentSessionId?: string | null;
 }

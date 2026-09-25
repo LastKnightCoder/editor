@@ -1,9 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Database from "better-sqlite3";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+  existsSync,
+  mkdirSync,
+} from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { createSharedDocument, type CollaborationSession } from "@tau/collaboration";
+import { createSharedDocument, getBody, type CollaborationSession } from "@tau/collaboration";
+import * as Y from "yjs";
 
 // 隔离 Electron 运行时，使用临时目录验证协作缓存和本地副本。
 vi.mock("electron", () => ({
@@ -60,6 +69,34 @@ function database() {
 }
 
 describe("通用内容和本地恢复", () => {
+  it("恢复缓存时备份并同时删除问题占位符与私有节点", () => {
+    const directory = temporary();
+    const store = new CollaborationLocalStore(directory);
+    cleanup.push(() => store.db.close());
+    const doc = new Y.Doc();
+    const block = new Y.XmlText();
+    block.setAttribute("type", "collaboration-placeholder");
+    block.setAttribute("label", "question");
+    block.setAttribute("collabId", "q");
+    getBody(doc).applyDelta([{ insert: block }]);
+    const privateNodes = JSON.stringify([
+      ["q", { type: "question", questionId: 123, children: [] }],
+    ]);
+    store.db
+      .prepare("INSERT INTO sessions VALUES('retired','{}',?,?)")
+      .run(Buffer.from(Y.encodeStateAsUpdate(doc)), privateNodes);
+    const loaded = store.load("retired");
+    expect(getBody(loaded.doc).length).toBe(0);
+    expect(loaded.privateNodes.size).toBe(0);
+    expect(store.db.prepare("SELECT private_nodes FROM sessions").get()).toEqual({
+      private_nodes: "[]",
+    });
+    const again = store.load("retired");
+    expect(readdirSync(directory).filter(name => name.endsWith(".bak"))).toHaveLength(1);
+    doc.destroy();
+    loaded.doc.destroy();
+    again.doc.destroy();
+  });
   it("恢复跨设备私有组件标识，并阻止不可识别的旧组件被占位符覆盖", () => {
     const db = database();
     const original = {

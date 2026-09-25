@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>页面 1 · 会话嵌入全局侧栏</title>
+<link rel="stylesheet" href="shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .main { padding-left: 6px; }
+  .empty { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0 20px 60px; }
+  .empty h2 { font-size: 20px; font-weight: 600; margin: 0 0 18px; }
+  .empty .composer-wrap { width: 100%; }
+  .cont { width: 100%; max-width: 760px; margin-top: 18px; }
+  .cont .gh { font-size: 12px; color: var(--ink-3); padding: 0 8px 4px; }
+  .seg { display: inline-flex; border: 1px solid #4a4034; border-radius: 6px; overflow: hidden; }
+  .seg button { padding: 3px 10px; color: #e8dfcf; }
+  .seg button.on { background: #d97757; color: #fff; }
+</style>
+</head>
+<body>
+<div class="mock-note">
+  <h3>页面 1 · 会话嵌入全局侧栏（沿用协作页 A3 / 日记标签频道的做法）</h3>
+  对话页只留一整张纸：对话列 760 居中、输入框落在纸底。会话导航拆成两层——<b>高频</b>（置顶 + 最近 3 条）作为侧栏「AI 对话」的子项；<b>全量管理</b>（分组 / 子分组 / 拖拽排序 / 归档 / 移动）收进「全部会话」弹窗，<span class="kbd">Ctrl O</span> 直达。
+  <ul>
+    <li>标题栏面包屑「AI 对话 / 标题 ▾」= 就地重命名 + 快速切换；纸面右上角是分支切换、块预览（纸内抽屉，取代 legacy 的 ResizablePanel 分栏）和更多菜单。</li>
+    <li><b>一期</b>：页面壳 + 侧栏子项（navSlots 注册 <code>chat-sessions</code>）+ 会话库弹窗（可先整体复用 legacy <code>ChatManagementSidebar</code> 放进 Dialog）；纸面里直接挂 <code>ChatContainer</code>。</li>
+    <li class="pro">＋ 与已定稿的协作页、日记页同一套导航语言；对话页沉浸，不出现第二条侧栏。</li>
+    <li class="con">－ 侧栏只露 5 条，常在分组间切换的人要多开一次弹窗；侧栏在 AI 组下会变长（可折叠）。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, chatPaper, paperTools, composer, library, anno, icons, SESSIONS } from "./shared.js?v=3";
+mockBar("page-1-nested.html", `<span class="seg"><button class="on" data-m="chat">对话中</button><button data-m="empty">新对话空态</button><button data-m="lib">全部会话</button><button data-m="bp">块预览</button></span>`);
+
+const children = `
+  ${SESSIONS.pinned.map(s => `<div class="sb-subitem ${s.on ? "on" : ""}"><i data-lucide="pin" style="width:12px;height:12px;color:var(--ink-3)"></i><span class="t">${s.t}</span></div>`).join("")}
+  ${SESSIONS.recent.slice(0, 3).map(s => `<div class="sb-subitem"><span class="t">${s.t}</span><span class="meta">${s.time}</span></div>`).join("")}
+  <div class="sb-subitem more" id="all"><i data-lucide="library" style="width:13px;height:13px"></i><span class="t">全部会话</span><span class="meta num">58</span></div>`;
+
+const win = document.getElementById("win");
+function render(m) {
+  const head = m === "empty" ? "" : paperTools();
+  const empty = `
+    <section class="paper" style="flex:1;display:flex;flex-direction:column">
+      <div class="empty">
+        <h2>想聊点什么？</h2>
+        ${composer({ ctx: false, focus: true })}
+        <div class="cont">
+          <div class="gh">继续最近的对话</div>
+          ${SESSIONS.recent.slice(0, 3).map(s => `<div class="lr"><i data-lucide="message-circle" style="width:14px;color:var(--ink-3)"></i><div class="lr-main"><div class="lr-t">${s.t}</div></div><span class="lr-m">${s.time}</span></div>`).join("")}
+        </div>
+      </div>
+    </section>`;
+  const bp = `<div class="bp"><div class="bp-head"><i data-lucide="layers"></i>遗忘曲线与间隔效应<span style="flex:1"></span><button class="ib"><i data-lucide="external-link"></i></button><button class="ib" id="bp-close"><i data-lucide="x"></i></button></div>
+    <div class="bp-body"><p>艾宾浩斯发现，无意义音节在学习后 20 分钟即遗忘约 42%，1 天后约 66%。</p><p>间隔效应：同样的学习总时长，分散在多次间隔复习中比集中一次学习保持得更久。间隔重复算法正是利用这一点，在「快要忘记」时安排复习。</p></div></div>`;
+  win.innerHTML = `
+    ${sidebar("chat", { chatChildren: children })}
+    <div class="col">
+      ${titlebar(m === "empty" ? `<b>AI 对话</b>` : `AI 对话 <i data-lucide="chevron-right" style="width:13px"></i><b>SM-2 与 FSRS 复习策略对比</b><i data-lucide="chevron-down" style="width:13px"></i>`,
+        `<button class="ib" title="新对话 Ctrl N"><i data-lucide="square-pen"></i></button>`)}
+      <div class="main">${m === "empty" ? empty : chatPaper({ head, extra: m === "bp" ? bp : "" })}</div>
+    </div>
+    ${m === "lib" ? `<div class="scrim"></div>${library()}` : ""}
+    ${m === "chat" ? anno(1, "高频：置顶 + 最近 3 条作侧栏子项", "left:228px;top:440px") + anno(2, "全量管理：分组 / 拖拽 / 归档 → 弹窗", "left:228px;top:660px") + anno(3, "分支切换 / 块预览 / 更多", "right:30px;top:96px") : ""}`;
+  icons();
+  document.querySelector(".sb-scroll").scrollTop = 9999; // 模拟：侧栏滚到 AI 组
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+  const all = document.getElementById("all"); if (all) all.onclick = () => render("lib");
+  document.querySelectorAll(".lib-close,.scrim,#bp-close").forEach(el => (el.onclick = () => render("chat")));
+}
+document.querySelectorAll(".seg button").forEach(b => (b.onclick = () => render(b.dataset.m)));
+render("chat");
+</script>
+</body>
+</html>

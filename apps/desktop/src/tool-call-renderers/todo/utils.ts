@@ -22,12 +22,12 @@ export const parseTodoRendererOutput = (output?: string): TodoRendererData => {
 
 export const statusColorClass = (item: TodoItem) => {
   if (item.isCompleted) {
-    return "text-status-success";
+    return "text-ok";
   }
   if (item.dueAt && item.dueAt < Date.now()) {
-    return "text-status-error";
+    return "text-danger";
   }
-  return "text-slate-500";
+  return "text-ink-3";
 };
 
 export const formatTime = (value?: number | null) =>
@@ -44,25 +44,27 @@ export const isOverdue = (item: TodoItem) => {
   return !item.isCompleted && item.dueAt && item.dueAt < Date.now();
 };
 
+export type SecondaryInfoKind = "notes" | "calendar" | "recurrence";
+
 export const getSecondaryInfoItems = (item: TodoQueryItem) => {
-  const items: Array<{ icon: string; text: string; tooltip: string }> = [];
+  const items: Array<{ kind: SecondaryInfoKind; text: string; tooltip: string }> = [];
   if (item.noteCount) {
     items.push({
-      icon: "📝",
+      kind: "notes",
       text: String(item.noteCount),
       tooltip: `${item.noteCount} 条笔记`,
     });
   }
   if (item.calendarMappings?.length) {
     items.push({
-      icon: "📅",
+      kind: "calendar",
       text: String(item.calendarMappings.length),
       tooltip: `${item.calendarMappings.length} 个日历映射`,
     });
   }
   if (item.recurrence) {
     items.push({
-      icon: "🔄",
+      kind: "recurrence",
       text: "",
       tooltip: "有周期规则",
     });

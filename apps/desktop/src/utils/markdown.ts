@@ -6,6 +6,7 @@ import remarkCjkFriendlyGfmStrikethrough from "remark-cjk-friendly-gfm-strikethr
 import remarkMath from "remark-math";
 import remarkDirective from "remark-directive";
 import remarkRehype from "remark-rehype";
+import { RETIRED_TYPES } from "@tau/db-schema/src/retired-editor-blocks";
 import remarkFrontmatter from "remark-frontmatter";
 import { Descendant } from "slate";
 import { v4 as uuid } from "uuid";
@@ -337,6 +338,7 @@ const markdownToDescendant = (
   parentAstNode: unknown = null,
   astChildrenOfParent: unknown[] = []
 ): Descendant | Descendant[] | null => {
+  if (node.type.endsWith("Directive") && RETIRED_TYPES.has(node.name)) return null;
   const parentNode = isMarkdownAstNode(parentAstNode) ? (parentAstNode as MarkdownAstNode) : null;
   const siblingNodes = astChildrenOfParent as MarkdownAstNode[];
 
@@ -696,21 +698,6 @@ const markdownToDescendant = (
       text: node.value,
     };
   } else if (node.type === "leafDirective") {
-    const attributes = node.attributes || {};
-    if (node.name === "chat-reference") {
-      return {
-        type: "chat-reference",
-        chatId: parseInt(attributes.chatId || "0") || 0,
-        title: attributes.title || "未命名对话",
-        height: attributes.height ? parseInt(attributes.height || "0") : 400,
-        children: [
-          {
-            type: "formatted",
-            text: "",
-          },
-        ],
-      };
-    }
     return {
       type: "formatted",
       text: `::${node.name}`,

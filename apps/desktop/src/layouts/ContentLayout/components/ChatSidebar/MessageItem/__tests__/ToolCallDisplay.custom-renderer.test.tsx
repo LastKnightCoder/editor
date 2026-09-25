@@ -50,7 +50,7 @@ describe("MessageItem/ToolCallDisplay custom renderer", () => {
     );
 
     expect(container.textContent).toContain(execution.toolName);
-    expect(container.textContent).toContain("Completed");
+    expect(container.textContent).toContain("完成");
 
     await unmount(root, container);
   });
@@ -123,7 +123,7 @@ describe("MessageItem/ToolCallDisplay custom renderer", () => {
     );
 
     expect(container.textContent).toContain(execution.toolName);
-    expect(container.textContent).toContain("Completed");
+    expect(container.textContent).toContain("完成");
 
     await unmount(root, container);
     consoleSpy.mockRestore();
@@ -159,4 +159,34 @@ describe("MessageItem/ToolCallDisplay custom renderer", () => {
     unregisterToolCallRenderer(execution.toolName);
     unregisterToolCallRenderer("renderer_key_renderer");
   });
+});
+
+describe("退役代理工具只读展示", () => {
+  it.each(["mcp_tool_call", "command_execution"])(
+    "%s 统一走通用展示且保留历史输入输出",
+    async itemType => {
+      const execution = createExecution({
+        toolName: itemType === "command_execution" ? "codex.command_execution" : "retired_write",
+        status: "failed",
+        output: "历史输出",
+        metadata: {
+          codexItemType: itemType,
+          render: {
+            rendererKey:
+              itemType === "command_execution" ? "codex.command_execution" : "retired_write",
+          },
+        },
+      });
+      const renderer = vi.fn(() => <button>执行修改</button>);
+      registerToolCallRenderer(execution.toolName, renderer);
+      const { root, container } = await mount(
+        <ToolCallDisplay execution={execution} isDark={false} />
+      );
+      expect(renderer).not.toHaveBeenCalled();
+      expect(container.textContent).toContain("历史输出");
+      expect(container.textContent).not.toContain("执行修改");
+      await unmount(root, container);
+      unregisterToolCallRenderer(execution.toolName);
+    }
+  );
 });

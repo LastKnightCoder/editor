@@ -61,7 +61,7 @@ interface MCPStoreState {
       name?: string;
       description?: string;
       transport?: TransportConfig;
-    },
+    }
   ) => void;
   removeCustomServer: (id: string) => void;
   setCustomServerEnabled: (id: string, enabled: boolean) => void;
@@ -78,25 +78,19 @@ const createDefaultStates = (): Record<string, ProviderToggleState> => {
       };
       return acc;
     },
-    {} as Record<string, ProviderToggleState>,
+    {} as Record<string, ProviderToggleState>
   );
 };
 
 // 迁移旧的 provider 状态
 const migrateProviderStates = (
-  states: Record<string, ProviderToggleState>,
+  states: Record<string, ProviderToggleState>
 ): Record<string, ProviderToggleState> => {
   const migrated = { ...states };
 
-  // 如果存在旧的 card-statistics，迁移到 card-tools
-  if ("card-statistics" in migrated) {
-    migrated["card-tools"] = migrated["card-statistics"];
-    delete migrated["card-statistics"];
-  }
-
   // 确保所有新的 providers 都有默认状态
   const defaultStates = createDefaultStates();
-  Object.keys(defaultStates).forEach((id) => {
+  Object.keys(defaultStates).forEach(id => {
     if (!(id in migrated)) {
       migrated[id] = defaultStates[id];
     }
@@ -118,7 +112,7 @@ const isLegacyServer = (server: unknown): server is LegacyCustomMCPServer => {
 
 // 迁移旧版自定义服务器到新格式
 const migrateCustomServers = (servers: unknown[]): CustomMCPServer[] => {
-  return servers.map((server) => {
+  return servers.map(server => {
     if (isLegacyServer(server)) {
       // 将旧的 baseUrl + apiKey 格式转换为 streamable-http 传输
       const headers: Record<string, string> = {};
@@ -151,7 +145,7 @@ const useMCPStore = create<MCPStoreState>()(
       connectionStatus: {},
       connectionErrors: {},
       setProviderEnabled: (id, enabled) =>
-        set((state) => ({
+        set(state => ({
           providerStates: {
             ...state.providerStates,
             [id]: { enabled },
@@ -162,10 +156,10 @@ const useMCPStore = create<MCPStoreState>()(
         if (typeof local?.enabled === "boolean") {
           return local.enabled;
         }
-        const definition = MCP_PROVIDERS.find((provider) => provider.id === id);
+        const definition = MCP_PROVIDERS.find(provider => provider.id === id);
         return definition?.defaultEnabled ?? false;
       },
-      addCustomServer: (payload) => {
+      addCustomServer: payload => {
         const server: CustomMCPServer = {
           id: uuid(),
           name: payload.name.trim(),
@@ -173,56 +167,48 @@ const useMCPStore = create<MCPStoreState>()(
           enabled: true,
           transport: payload.transport,
         };
-        set((state) => ({
+        set(state => ({
           customServers: [...state.customServers, server],
         }));
         return server;
       },
       updateCustomServer: (id, payload) =>
-        set((state) => ({
-          customServers: state.customServers.map((server) =>
+        set(state => ({
+          customServers: state.customServers.map(server =>
             server.id === id
               ? {
                   ...server,
-                  name:
-                    payload.name !== undefined
-                      ? payload.name.trim()
-                      : server.name,
+                  name: payload.name !== undefined ? payload.name.trim() : server.name,
                   description:
                     payload.description !== undefined
                       ? payload.description?.trim()
                       : server.description,
-                  transport:
-                    payload.transport !== undefined
-                      ? payload.transport
-                      : server.transport,
+                  transport: payload.transport !== undefined ? payload.transport : server.transport,
                 }
-              : server,
+              : server
           ),
         })),
-      removeCustomServer: (id) =>
-        set((state) => ({
-          customServers: state.customServers.filter(
-            (server) => server.id !== id,
-          ),
+      removeCustomServer: id =>
+        set(state => ({
+          customServers: state.customServers.filter(server => server.id !== id),
           connectionStatus: Object.fromEntries(
-            Object.entries(state.connectionStatus).filter(([key]) => key !== id),
+            Object.entries(state.connectionStatus).filter(([key]) => key !== id)
           ),
           connectionErrors: Object.fromEntries(
-            Object.entries(state.connectionErrors).filter(([key]) => key !== id),
+            Object.entries(state.connectionErrors).filter(([key]) => key !== id)
           ),
         })),
       setCustomServerEnabled: (id, enabled) =>
-        set((state) => ({
-          customServers: state.customServers.map((server) =>
-            server.id === id ? { ...server, enabled } : server,
+        set(state => ({
+          customServers: state.customServers.map(server =>
+            server.id === id ? { ...server, enabled } : server
           ),
         })),
       getCustomServer: (id: string) => {
-        return get().customServers.find((server) => server.id === id);
+        return get().customServers.find(server => server.id === id);
       },
       setConnectionStatus: (id, status, error) =>
-        set((state) => ({
+        set(state => ({
           connectionStatus: {
             ...state.connectionStatus,
             [id]: status,
@@ -230,26 +216,26 @@ const useMCPStore = create<MCPStoreState>()(
           connectionErrors: error
             ? { ...state.connectionErrors, [id]: error }
             : Object.fromEntries(
-                Object.entries(state.connectionErrors).filter(([key]) => key !== id),
+                Object.entries(state.connectionErrors).filter(([key]) => key !== id)
               ),
         })),
-      clearConnectionStatus: (id) =>
-        set((state) => ({
+      clearConnectionStatus: id =>
+        set(state => ({
           connectionStatus: Object.fromEntries(
-            Object.entries(state.connectionStatus).filter(([key]) => key !== id),
+            Object.entries(state.connectionStatus).filter(([key]) => key !== id)
           ),
           connectionErrors: Object.fromEntries(
-            Object.entries(state.connectionErrors).filter(([key]) => key !== id),
+            Object.entries(state.connectionErrors).filter(([key]) => key !== id)
           ),
         })),
     }),
     {
       name: "mcp-store",
-      partialize: (state) => ({
+      partialize: state => ({
         providerStates: state.providerStates,
         customServers: state.customServers,
       }),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => state => {
         if (state) {
           // 执行 provider 状态迁移
           state.providerStates = migrateProviderStates(state.providerStates);
@@ -257,8 +243,8 @@ const useMCPStore = create<MCPStoreState>()(
           state.customServers = migrateCustomServers(state.customServers);
         }
       },
-    },
-  ),
+    }
+  )
 );
 
 export default useMCPStore;

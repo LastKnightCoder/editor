@@ -22,7 +22,6 @@ import { DailyNoteProvider } from "./daily-note-provider";
 import { VecDocumentProvider } from "./vec-document-provider";
 import { SettingsProvider } from "./settings-provider";
 import { CalendarProvider } from "./calendar-provider";
-import { ChatManagementProvider } from "./chat-management-provider";
 import { TodoProvider } from "./todo-provider";
 import { QuestionsProvider } from "./questions-provider";
 import { PomodoroProvider } from "./pomodoro-provider";
@@ -56,7 +55,6 @@ export function initializeTabContentProviders(): void {
     new VecDocumentProvider(),
     new SettingsProvider(),
     new CalendarProvider(),
-    new ChatManagementProvider(),
     new TodoProvider(),
     new QuestionsProvider(),
     new PomodoroProvider(),

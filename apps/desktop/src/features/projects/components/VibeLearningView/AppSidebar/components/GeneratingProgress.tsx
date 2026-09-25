@@ -28,6 +28,7 @@ interface GeneratingProgressProps {
 
 /** 工具名称到中文描述的映射 */
 const TOOL_NAME_MAP: Record<string, string> = {
+  vibe_learning_query: "查询项目资料",
   list_project_resources: "获取资源列表",
   read_resource_content: "读取资源内容",
   read_resource_lines: "按行补读内容",
@@ -38,9 +39,31 @@ const TOOL_NAME_MAP: Record<string, string> = {
   batch_read_search_hits: "批量补读上下文",
 };
 
+const getToolLabel = (execution: ToolCallExecutionState) => {
+  if (execution.toolName !== "vibe_learning_query")
+    return TOOL_NAME_MAP[execution.toolName] || execution.toolName;
+  try {
+    const input = JSON.parse(execution.input || "{}") as { operation?: string };
+    const operationLabels: Record<string, string> = {
+      list: "获取资源列表",
+      search: "语义搜索资料",
+      grep: "精确搜索资料",
+      read: "读取资源内容",
+      read_lines: "按行补读内容",
+      read_range: "按字符补读内容",
+      batch_search: "批量搜索资料",
+      batch_read: "批量补读上下文",
+    };
+    return operationLabels[input.operation ?? ""] || TOOL_NAME_MAP[execution.toolName];
+  } catch {
+    return TOOL_NAME_MAP[execution.toolName];
+  }
+};
+
 /** 根据工具名称获取对应图标 */
 const getToolIcon = (toolName: string) => {
   switch (toolName) {
+    case "vibe_learning_query":
     case "search_resource_content":
     case "grep_resource_content":
       return <Search className="mr-1 inline h-3 w-3" strokeWidth={1.75} />;
@@ -175,7 +198,7 @@ const GeneratingProgress = memo((props: GeneratingProgressProps) => {
                   )}
                 >
                   {getToolIcon(execution.toolName)}
-                  {TOOL_NAME_MAP[execution.toolName] || execution.toolName}
+                  {getToolLabel(execution)}
                 </span>
               </motion.div>
             ))}

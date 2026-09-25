@@ -9,19 +9,11 @@ const useDynamicExtensions = () => {
 
   useEffect(() => {
     import("@/editor-extensions").then(
-      ({
-        contentLinkExtension,
-        fileAttachmentExtension,
-        questionCardExtension,
-        createProjectCardListExtension,
-        chatReferenceExtension,
-      }) => {
+      ({ contentLinkExtension, fileAttachmentExtension, createProjectCardListExtension }) => {
         setExtensions([
           contentLinkExtension,
           fileAttachmentExtension,
-          questionCardExtension,
           createProjectCardListExtension(projectItemId),
-          chatReferenceExtension,
         ]);
       }
     );
