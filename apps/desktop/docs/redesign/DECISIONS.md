@@ -283,9 +283,9 @@
 - feed 订阅/稍后读
 - ~~projects 项目~~ ✅ 2026-09-23 C 学习驾驶舱落地（D-031；project-detail 占位，三型工作台待迁移）
 - ~~todos 待办~~ ✅ 2026-09-24 B3 议程流「两块板」落地（D-040；独立页，不并入 schedule）
-- ~~questions 问题~~ ✅ 2026-09-25 A2 三栏清单「顶部切换」落地（D-043；question_link / question_event 两表，命令面板输入即记录，首页探究中整行，独立问题窗口已删）
-- ~~pomodoro 番茄专注~~ ✅ 2026-09-24 C 时间账本落地（D-041；独立页，不并入 schedule；小窗 / 沉浸窗重做，独立主窗口待 P-pomodoro 退役）
-- ~~collaboration 协作~~ ✅ 2026-09-25 A3「协作台 · 侧栏嵌套」落地（D-042；legacy 工作台与右侧「协作共享」小组件已删除）
+- ~~questions 问题~~ ✅ 2026-09-25 A2 三栏清单「顶部切换」落地（D-044；question_link / question_event 两表，命令面板输入即记录，首页探究中整行，独立问题窗口已删）
+- ~~pomodoro 番茄专注~~ ✅ 2026-09-24 C 时间账本落地（D-045；独立页，不并入 schedule；小窗 / 沉浸窗重做，独立主窗口待 P-pomodoro 退役）
+- ~~collaboration 协作~~ ✅ 2026-09-25 A3「协作台 · 侧栏嵌套」落地（D-046；legacy 工作台与右侧「协作共享」小组件已删除）
 - learning（vibe-learning + flashcard 合并）
 - schedule 日程 · 第一版 ✅ 2026-09-24 方案 C 月刊落地（mockups/calendar：月历大面板 + 当日时间线 + 快速添加，底层 legacy 逻辑复用）；时间记录不并入（legacy 已无入口，孤儿页面进 04 清单）
 - ~~diary 日记~~ ✅ 2026-09-25 D「一整张纸」落地（D-044；标签频道嵌侧栏，legacy DiaryView 待 G1/G2 随首页旧版一并删除）
@@ -410,7 +410,7 @@
 - 新页面 `features/flashcards/` 接管 `review` 入口，采用沉浸式复习台、跨卡组队列、推荐评分与 1–4 评分快捷键；题卡在剩余空间居中，删除卡片使用 Toast 撤销。
 - 评分与撤销由主进程事务保证最新记录约束，复习队列默认排除 `suspended`；旧页面消费者按 P-flashcards 清单迁移后删除。
 
-## D-041 番茄专注页定稿（方案 C「时间账本」）+ 小窗 / 沉浸窗重做 + 独立主窗口退役
+## D-045 番茄专注页定稿（方案 C「时间账本」）+ 小窗 / 沉浸窗重做 + 独立主窗口退役
 
 - 背景：legacy `pages/PomodoroWindow` 是独立 Electron 窗口里的「预设列表 + 底部计时条 + 右侧记录栏」，新壳层侧栏只有占位；antd 与 `--th-*` 混用，另有预设 / 改时长 / 批量管理三个弹窗。三案 mockup（`mockups/pomodoro/`：A 专注舞台 / B 两块板 / C 时间账本，共用模拟主进程的计时引擎）；2026-09-24 用户选 C。二轮校准：① 选「近 7 天」时账本下方大片留白 → 行高随面板伸缩 + 底部「时段分布」合计行（PREFERENCES「切换视图后不能留大片空白」）；② 控制条 chip 悬停时数字键换播放图标导致宽度跳变 → 共用固定槽位原位交叉淡入（PREFERENCES「悬停不能改变元素尺寸」）；③ 小窗 / 沉浸窗保留并重做（`windows-v2.html`）：小窗取 A「控制条缩影」，沉浸窗按用户要求改为「纯黑底 + 大号翻牌时钟」。
 - 用户裁决：① 首页「已专注」与统计页「专注节律」的入口改为跳转番茄专注页，不再调 `openPomodoroWindow()` 新开窗口——独立主窗口随 P-pomodoro 退役；② 小窗与沉浸窗保留，沉浸窗全屏、盖在最上层计时；③ 页面不注册状态栏（同 D-040），计时的全局存在感由侧栏入口的实时计时承担。
@@ -425,7 +425,7 @@
 - **追记（同日，去掉区间分段）**：用户认为工具栏 7 / 14 / 30 天 / 全部 分段与时间选择面板重复。分段删除，「全部」并入选择面板快捷项末尾（显示有记录以来的天数）；「全部」时标题仍为「时间账本」、范围按钮显示「全部」，隐藏 ‹ › 与「回到今天」，月历不标当前窗口。
 - **追记（同日，实机走查一轮）**：① **小窗**：用户嫌小，A 款等比放大 1.25 倍到 360×84（字号 / 控件改字面像素）；主窗口 Cmd± 的页面缩放按 origin 共享会连带放大小窗、内容撑破，`useCancelPageZoom` 以内容层 CSS `zoom: 1/zoomFactor` 抵消（Electron 无按窗隔离缩放的接口）；小窗常驻隐藏复用、主题只在启动时读一次，改为监听 `storage` 事件跟随主窗口换主题；悬停控件组位占 min-w，不再压住预设名。② **沉浸窗**：翻牌改中性黑牌面（#1f1f1f / #141414）+ 纯白数字，不取主题色；去掉底部进度线与「已专注 / 预计结束」行，只留上方预设名 · 状态。③ **页面不足 5 分钟确认改为 ConfirmDialog**（覆盖上文「原位二段确认」的页面部分）：行内确认在窄屏下挤压变形、warn-soft 底色在白卡上违和；小窗与沉浸窗仍原位确认（放不下 / 全屏弹窗突兀）；番茄页全局快捷键在焦点处于对话框内时让路。④ 时段分布每桶、账本色块改用 Tooltip（替换原生 title）：时段分布整列为热区、受控 Tooltip 锚柱顶；色块点开详情后静音其 Tooltip。⑤ 窄屏：账本标题与范围导航不压缩只让摘要省略；当天明细行去掉「更多」按钮（右键菜单与点时长保留），名字随空间截断以保证时长右对齐；「按预设」列宽按内容分配；控制条预设 chips 出现滚动条时顶部补等高留白。⑥ 组件库：浮层正文滚动轨道上下让位（不画进圆角）；Input / NumberInput 新增 `wrapperClassName` 控制外框宽度（className 仍落内部 input，此前各处写在 className 上的定宽一并改正）。
 
-## D-042 协作页定稿（方案 A3「协作台 · 侧栏嵌套」）+ 协作 UI 共享层 + 本机设置收敛为昵称
+## D-046 协作页定稿（方案 A3「协作台 · 侧栏嵌套」）+ 协作 UI 共享层 + 本机设置收敛为昵称
 
 - 背景：legacy 协作分散四处——`pages/CollaborationView` 工作台（288px 左栏会话目录 + 内嵌协作编辑器）、右侧小组件 `CollaborationPanel`、内容页分享弹窗 `ContentCollaborationControl`（CustomModal）、协作设置弹窗（昵称 / 服务器地址 / 身份导出恢复）；antd message、`--th-*`、uppercase 小节题与 border 横线混用。mockup（`mockups/collaboration/`）：一轮 A 协作台 / B 共享墙 / C 协作名册 + 内容页入口稿；2026-09-25 用户选 A。二轮：A 的页内会话目录与全局侧栏并排「像两条侧栏」→ 去掉页内目录，给出 A1 会话条 / A2 标题切换 / A3 侧栏嵌套三种导航，用户选 A3。
 - 用户裁决：① 骨架 A3；② 我发起的内容在协作页也能直接编辑（「在原内容中打开」只是跳转）；③ 协作设置在协作页就地改，只保留昵称——**服务器地址不暴露、不可改；身份导入导出去掉**；④ 右侧「协作共享」小组件去掉；⑤ 已结束的共享不单列（不设「已结束」分组）。
@@ -439,7 +439,7 @@
 
 ## D-043 侧栏条目扩展槽注册表（navSlots）
 
-- 背景：D-042 引入侧栏子项（`children: "collaboration-sessions"`）后，Sidebar 虽仍满足「条目声明在 navigation.ts」，但渲染端回到了硬编码——`item.badge === "pomodoro-live" && <PomodoroNavBadge/>`、`item.children === "collaboration-sessions"` 判断 + 直接 import 域组件与域 store（`useCollaborationStore`），且与 PomodoroNavBadge 是两处同型判断。原计划「出现第二个带子项的页再收口」，用户裁决提前收口（已有扩展计划）。
+- 背景：D-046 引入侧栏子项（`children: "collaboration-sessions"`）后，Sidebar 虽仍满足「条目声明在 navigation.ts」，但渲染端回到了硬编码——`item.badge === "pomodoro-live" && <PomodoroNavBadge/>`、`item.children === "collaboration-sessions"` 判断 + 直接 import 域组件与域 store（`useCollaborationStore`），且与 PomodoroNavBadge 是两处同型判断。原计划「出现第二个带子项的页再收口」，用户裁决提前收口（已有扩展计划）。
 - 方案：`app/navSlots.tsx` 注册表——navigation.ts 只声明 key（`NavItemBadge` / `NavItemChildren` 类型导出于此），渲染组件集中注册：`NAV_BADGE_SLOTS`（Record 全键，value 组件或 null——null = 已声明未实现，如 `review-due` 闪卡到期数待接 query，保持「声明先行、实现渐进」语义且编译期强制新 key 显式登记）；`NAV_CHILDREN_SLOTS`（全键组件）；`useNavChildrenContent()` 聚合各子项槽「是否有内容」的响应式判定（hook 集中在一个文件顶层调用，Sidebar 单点调用，避免 map 内条件 hook）。Sidebar 查表渲染，`shouldExpandChildren` 只剩壳层知识（栈顶 + 声明 + 槽有内容）。
 - 增量口径：新增域附属 = 域内写组件 + navigation.ts 声明 + navSlots.tsx 注册（含 useNavChildrenContent 加一行），Sidebar / Titlebar 不再改动。app 层引 feature 组件经此单点收口（与 AppShell 挂命令面板 / 设置弹窗同口径：壳层编排、声明集中）。
 - **追记（同日，review-due 落地）**：注册表迎来的首个按设计扩张用例——`features/flashcards/components/ReviewDueBadge`（react-query 拉卡组 `stats.dueCount` 求和，口径同首页「待复习」：due_time 已到且未暂停；queryKey 挂 `["flashcards", ...]` 前缀以被 `invalidateFlashcardViews` 联动失效，窗口聚焦刷新兜底——主进程无闪卡变更广播）。全表无 null 占位后 `Record` 仍保持全键强制，新增 badge key 不注册依旧编译不过。
