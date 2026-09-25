@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板详情 · 方案 A2 底部页签栏（XMind 式）</title>
+<link rel="stylesheet" href="../whiteboards/base.css">
+<link rel="stylesheet" href="../whiteboards/shared.css">
+<link rel="stylesheet" href="detail.css">
+<style>
+  /* 纸面分两段：上画布（点阵纸）+ 下页签栏（surface）；两段靠底色区分，不画横线 */
+  .sheet { display: flex; flex-direction: column; }
+  .stage { position: relative; flex: 1; min-height: 0; }
+  .stage .canvas { position: absolute; inset: 0; }
+  .sheet .canvas .thumb-svg { inset: 60px 40px 30px; height: calc(100% - 90px); }
+  .sheet > .status { display: none; } /* 状态件并入页签栏右侧 */
+  .outline { bottom: 52px; }
+
+  .sheetbar { flex: none; height: 40px; display: flex; align-items: stretch; gap: 0; padding: 0 8px 0 6px; background: var(--bg-surface); }
+  .sb-left { display: flex; align-items: center; gap: 2px; padding-right: 4px; }
+  .sb-tabs { display: flex; align-items: stretch; min-width: 0; overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth; }
+  .sb-tabs::-webkit-scrollbar { display: none; }
+  /* 页签：当前页与上方画布同色、上缘相连，像一张从画布垂下来的签条 */
+  .stab { position: relative; flex: none; display: inline-flex; align-items: center; gap: 7px; max-width: 200px; padding: 0 14px; margin-top: 0; font-size: 12.5px; color: var(--ink-2); white-space: nowrap; border-radius: 0 0 10px 10px; transition: background 140ms var(--ease-out), color 140ms var(--ease-out); }
+  .stab .nm { overflow: hidden; text-overflow: ellipsis; }
+  .stab:hover { color: var(--ink-1); background: var(--bg-hover); }
+  .stab.on { background: var(--canvas); color: var(--ink-1); font-weight: 500; box-shadow: 0 1px 2px rgba(120, 100, 70, 0.08); }
+  .stab.on::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 7px; height: 2px; border-radius: 2px; background: var(--accent); }
+  .stab + .stab::before { content: ""; position: absolute; left: 0; top: 13px; bottom: 13px; width: 1px; background: var(--line-1); }
+  .stab.on::before, .stab.on + .stab::before, .stab:hover::before, .stab:hover + .stab::before { opacity: 0; }
+  .stab .rename { width: 120px; }
+  .sb-right { margin-left: auto; display: flex; align-items: center; gap: 2px; padding-left: 12px; font-size: 12px; color: var(--ink-2); }
+  .sb-right .zoom { min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+  .sb-right .vsep, .sb-left .vsep { width: 1px; height: 16px; background: var(--line-1); margin: 0 5px; }
+  .sb-right .btn { height: 28px; }
+  .ibtn.sm28 { width: 28px; height: 28px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="../whiteboards/shared.js"></script>
+<script src="detail.js"></script>
+<script>
+(() => {
+  const X = WB, D = WBD, { icon, esc } = X;
+  const { page } = X.mountShell({ demos: [{ label: "页很多", run: () => { for (let i = 0; i < 8; i++) D.board.pages.push({ id: 9000 + i, name: `附录 ${i + 1}`, elements: [] }); D.emit(); } }] });
+  D.injectExtra();
+  page.style.height = "100%";
+  page.innerHTML = `<div class="page-detail">${D.sheetHTML(`
+    <div class="sheetbar" id="sheetbar">
+      <div class="sb-left">
+        <button class="ibtn sm28" id="add" title="新建页">${icon("plus")}</button>
+        <button class="ibtn sm28" id="all" title="所有页">${icon("files")}</button>
+        <span class="vsep"></span>
+      </div>
+      <div class="sb-tabs" id="tabs"></div>
+      <div class="sb-right">
+        <button class="ibtn sm28" title="网格">${icon("hash")}</button><span class="vsep"></span>
+        <button class="ibtn sm28" title="缩小">${icon("minus")}</button><span class="zoom">100%</span><button class="ibtn sm28" title="放大">${icon("plus")}</button><span class="vsep"></span>
+        <button class="btn btn-ghost" id="present2">${icon("play")}演示</button>
+      </div>
+    </div>`)}</div>`;
+  // 画布区（画布 + 浮动件）/ 页签栏上下两段
+  const sheet = document.getElementById("sheet");
+  const stage = document.createElement("div");
+  stage.className = "stage";
+  stage.append(document.getElementById("canvas"), ...sheet.querySelectorAll(".float.tl, .float.tools, .outline"));
+  sheet.prepend(stage);
+  D.bindSheet();
+  document.getElementById("present2").onclick = () => X.toast(`从头演示「${esc(D.board.title)}」（mock）`);
+  document.getElementById("add").onclick = () => D.addPage();
+  document.getElementById("all").onclick = e =>
+    X.openMenu(e.currentTarget, D.board.pages.map((p, i) => ({ label: `${i + 1}  ${esc(p.name)}`, icon: i === D.D.active ? "check" : "", run: () => D.go(i) })), { placement: "top-start" });
+
+  function renderTabs() {
+    const el = document.getElementById("tabs");
+    el.innerHTML = D.board.pages
+      .map((p, i) => `<button class="stab${i === D.D.active ? " on" : ""}" data-i="${i}" title="双击改名，右键更多，拖动排序"><span class="nm">${esc(p.name)}</span></button>`)
+      .join("");
+    el.querySelectorAll(".stab").forEach(t => {
+      const i = +t.dataset.i;
+      t.onclick = () => D.go(i);
+      t.ondblclick = () => D.inlineRename(t.querySelector(".nm"), i);
+      t.oncontextmenu = e => { e.preventDefault(); D.pageMenu({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }, i, { onRename: j => D.inlineRename(el.querySelector(`[data-i="${j}"] .nm`), j) }); };
+    });
+    D.sortable(el, "x");
+    el.querySelector(".stab.on")?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  }
+  let last = -1;
+  function render() {
+    D.setCrumb(true);
+    renderTabs();
+    D.renderCanvas(last !== -1 && last !== D.D.active);
+    last = D.D.active;
+  }
+  D.on(render);
+  X.on(render);
+  render();
+})();
+</script>
+</body>
+</html>

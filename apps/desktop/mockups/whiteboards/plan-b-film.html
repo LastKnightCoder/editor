@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板 · 方案 B 胶片</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .page-b { display: flex; flex-direction: column; height: 100%; padding: 0 26px 18px; }
+  .sheet { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .sheet .scroll { padding: 10px 0 14px; }
+
+  /* 一个白板 = 一条：左信息 + 右页带；条与条之间只靠留白，不画线 */
+  .band { display: grid; grid-template-columns: 250px minmax(0, 1fr); column-gap: 22px; padding: 16px 22px 16px 26px; margin: 0 8px; border-radius: 14px;
+    transition: background 160ms var(--ease-out); }
+  .band:hover { background: var(--bg-hover); }
+  .band.fresh { animation: bandFresh 1600ms var(--ease-out); }
+  @keyframes bandFresh { 0%, 35% { background: var(--accent-soft); } }
+
+  .info { display: flex; flex-direction: column; min-width: 0; padding-top: 4px; }
+  .info h2 { font-size: 15px; font-weight: 600; line-height: 1.45; cursor: pointer; }
+  .info h2:hover { color: var(--accent-text); }
+  .info .desc { margin-top: 4px; font-size: 12.5px; color: var(--ink-2); line-height: 1.6; }
+  .info .meta { margin-top: 8px; flex-wrap: wrap; row-gap: 2px; }
+  .info .acts { margin-top: auto; padding-top: 10px; display: flex; gap: 4px; }
+  .info .acts .btn { height: 26px; padding: 0 9px; font-size: 12px; }
+
+  /* 页带：横向滚动，左右渐隐 + 悬停出现翻页钮（固定槽位） */
+  .strip-wrap { position: relative; min-width: 0; }
+  .strip { display: flex; gap: 14px; overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth; padding: 2px 2px 2px; }
+  .strip::-webkit-scrollbar { display: none; }
+  .strip-wrap.ol::after, .strip-wrap.or::before { content: ""; position: absolute; top: 0; bottom: 0; width: 40px; z-index: 1; pointer-events: none; }
+  .strip-wrap.or::before { right: 0; background: linear-gradient(90deg, transparent, var(--bg-surface)); }
+  .strip-wrap.ol::after { left: 0; background: linear-gradient(-90deg, transparent, var(--bg-surface)); }
+  .band:hover .strip-wrap.or::before { background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--bg-surface) 95%, var(--ink-1))); }
+  .band:hover .strip-wrap.ol::after { background: linear-gradient(-90deg, transparent, color-mix(in srgb, var(--bg-surface) 95%, var(--ink-1))); }
+  .nav-l, .nav-r { position: absolute; top: 44px; z-index: 2; }
+  .nav-l { left: -10px; } .nav-r { right: -10px; }
+  .strip-wrap:not(.ol) .nav-l, .strip-wrap:not(.or) .nav-r { visibility: hidden; }
+
+  .pg { flex: none; width: 196px; text-align: left; border-radius: 12px; }
+  .pg .thumb { transition: box-shadow 160ms var(--ease-out), transform 160ms var(--ease-out); }
+  .pg:hover .thumb { box-shadow: inset 0 0 0 1px var(--line-1), var(--shadow-lift); transform: translateY(-1px); }
+  .pg:focus-visible { box-shadow: none; }
+  .pg:focus-visible .thumb { box-shadow: var(--focus-ring); }
+  .pg-name { display: flex; align-items: baseline; gap: 6px; margin-top: 7px; padding: 0 2px; font-size: 12.5px; }
+  .pg-name b { font: 500 11px/1 var(--mono); color: var(--ink-3); }
+  .pg-name span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pg-name small { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .pg.last .pg-name span::after { content: " · 上次停留"; color: var(--accent-text); font-size: 11px; }
+
+  .pg-add { flex: none; width: 120px; height: 122.5px; border-radius: 12px; border: 1.5px dashed var(--line-1); color: var(--ink-3); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 6px; font-size: 12px; transition: border-color 160ms, color 160ms, background 160ms, opacity 150ms var(--ease-out); }
+  .pg-add:hover { border-color: var(--accent); color: var(--accent-text); background: var(--accent-soft); }
+  .pg-add .icon { width: 16px; height: 16px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+(() => {
+  const X = WB, { icon, esc } = X;
+  const { page } = X.mountShell();
+  page.style.height = "100%";
+  page.innerHTML = `
+    <div class="page-b">
+      <div class="toolbar">
+        <h1>白板</h1><span class="sum" id="sum"></span>
+        <span class="spacer"></span>
+        <div class="actions"><span id="sort-slot"></span><button class="btn btn-primary" id="new">${icon("plus")}新建白板</button></div>
+      </div>
+      <div class="panel sheet"><div class="scroll" id="scroll"></div></div>
+    </div>`;
+  document.getElementById("new").onclick = () => X.editDialog();
+  const scroll = document.getElementById("scroll");
+
+  // 上次停留页（activeWhiteBoardContentId，真实字段）——mock 里给多页白板随便指一页
+  const lastPage = b => (b.pages.length > 1 ? (b.id % b.pages.length) : -1);
+
+  function bandHTML(b) {
+    const n = b.pages.length, lp = lastPage(b);
+    return `
+      <section class="band hover-host" data-id="${b.id}">
+        <div class="info">
+          <h2 class="clamp2" data-open>${esc(b.title)}</h2>
+          ${b.description ? `<p class="desc clamp2">${esc(b.description)}</p>` : ""}
+          <div class="meta"><span>${n} 页</span><i class="dot"></i><span>${X.elementCount(b)} 个元素</span><i class="dot"></i><span title="${X.fullDate(b.updateTime)}">${X.rel(b.updateTime)}更新</span></div>
+          <div class="acts hover-act">
+            ${b.sequences ? `<button class="btn btn-ghost" data-present>${icon("play")}演示</button>` : ""}
+            <button class="ibtn" data-more title="更多">${icon("more")}</button>
+          </div>
+        </div>
+        <div class="strip-wrap">
+          <button class="float-btn nav-l hover-act" data-nav="-1" title="向左">${icon("chev-left")}</button>
+          <div class="strip">
+            ${b.pages.map((p, i) => `
+              <button class="pg${i === lp ? " last" : ""}" data-pg="${i}" title="打开「${esc(p.name)}」">
+                <div class="thumb">${X.pageSVG(p)}</div>
+                <div class="pg-name"><b>${i + 1}</b><span>${esc(p.name)}</span><small>${p.elements.length}</small></div>
+              </button>`).join("")}
+            <button class="pg-add hover-act" data-add>${icon("plus")}新页</button>
+          </div>
+          <button class="float-btn nav-r hover-act" data-nav="1" title="向右">${icon("chev-right")}</button>
+        </div>
+      </section>`;
+  }
+
+  function render() {
+    document.getElementById("sum").innerHTML = X.summary();
+    document.getElementById("sort-slot").innerHTML = X.S.empty ? "" : X.sortSeg();
+    X.bindSort(document);
+    const list = X.sorted();
+    if (!list.length) {
+      scroll.innerHTML = `<div style="height:100%;display:grid;place-items:center">${X.emptyHTML()}</div>`;
+      scroll.querySelector("[data-new]").onclick = () => X.editDialog();
+      return;
+    }
+    scroll.innerHTML = list.map(bandHTML).join("");
+    scroll.querySelectorAll(".band").forEach(bind);
+    if (X.S.lastCreated) {
+      const el = scroll.querySelector(`[data-id="${X.S.lastCreated}"]`);
+      el && (el.classList.add("fresh"), el.scrollIntoView({ block: "nearest" }));
+      X.S.lastCreated = null;
+    }
+  }
+
+  function bind(band) {
+    const b = X.findB(+band.dataset.id);
+    const wrap = band.querySelector(".strip-wrap"), strip = band.querySelector(".strip");
+    const edges = () => {
+      wrap.classList.toggle("ol", strip.scrollLeft > 4);
+      wrap.classList.toggle("or", strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 4);
+    };
+    strip.addEventListener("scroll", edges);
+    requestAnimationFrame(edges);
+    band.querySelectorAll("[data-nav]").forEach(n => (n.onclick = () => strip.scrollBy({ left: +n.dataset.nav * strip.clientWidth * 0.8 })));
+    band.querySelectorAll("[data-pg]").forEach(p => (p.onclick = () => X.open(b, +p.dataset.pg)));
+    band.querySelector("[data-open]").onclick = () => X.open(b, Math.max(lastPage(b), 0));
+    band.querySelector("[data-add]").onclick = () => X.addPage(b);
+    const pr = band.querySelector("[data-present]");
+    if (pr) pr.onclick = () => X.present(b);
+    band.querySelector("[data-more]").onclick = e => X.boardMenu(e.currentTarget, b, { placement: "bottom-start" });
+    band.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      X.boardMenu({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }, b, { placement: "bottom-start" });
+    });
+  }
+  addEventListener("resize", () => scroll.querySelectorAll(".strip").forEach(s => s.dispatchEvent(new Event("scroll"))));
+
+  X.on(render);
+  render();
+})();
+</script>
+</body>
+</html>

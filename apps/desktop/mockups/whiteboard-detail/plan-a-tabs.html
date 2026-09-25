@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板详情 · 方案 A 底部页签</title>
+<link rel="stylesheet" href="../whiteboards/base.css">
+<link rel="stylesheet" href="../whiteboards/shared.css">
+<link rel="stylesheet" href="detail.css">
+<style>
+  /* 页签条：画布左下浮起，与右下状态栏同一水平线；页多时横向滚动 */
+  .tabs { bottom: 12px; left: 12px; max-width: calc(100% - 340px); gap: 2px; }
+  .tabs-scroll { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+  .tabs-scroll::-webkit-scrollbar { display: none; }
+  .tab { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px 0 9px; border-radius: 8px; font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
+  .tab b { font: 500 11px/1 var(--mono); color: var(--ink-3); }
+  .tab:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .tab.on { background: var(--accent-soft); color: var(--accent-text); font-weight: 500; }
+  .tab.on b { color: var(--accent-text); opacity: .7; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="../whiteboards/shared.js"></script>
+<script src="detail.js"></script>
+<script>
+(() => {
+  const X = WB, D = WBD, { icon, esc } = X;
+  const { page } = X.mountShell({ demos: [{ label: "页很多", run: () => { for (let i = 0; i < 8; i++) D.board.pages.push({ id: 9000 + i, name: `附录 ${i + 1}`, elements: [] }); D.emit(); } }] });
+  D.injectExtra();
+  page.style.height = "100%";
+  page.innerHTML = `<div class="page-detail">${D.sheetHTML('<div class="float tabs" id="tabs"></div>')}</div>`;
+  D.bindSheet();
+
+  function renderTabs() {
+    const el = document.getElementById("tabs");
+    el.innerHTML = `<div class="tabs-scroll" id="tabs-scroll">${D.board.pages
+      .map((p, i) => `<button class="tab${i === D.D.active ? " on" : ""}" data-i="${i}" title="双击改名，右键更多，拖动排序"><b>${i + 1}</b><span class="nm">${esc(p.name)}</span></button>`)
+      .join("")}</div><span class="vsep"></span><button class="ibtn" id="add" title="新建页">${icon("plus")}</button>`;
+    el.querySelectorAll(".tab").forEach(t => {
+      const i = +t.dataset.i;
+      t.onclick = () => D.go(i);
+      t.ondblclick = () => D.inlineRename(t.querySelector(".nm"), i, 110);
+      t.oncontextmenu = e => { e.preventDefault(); D.pageMenu(t, i, { onRename: j => D.inlineRename(t.querySelector(".nm"), j, 110) }); };
+    });
+    D.sortable(document.getElementById("tabs-scroll"), "x");
+    document.getElementById("add").onclick = () => D.addPage();
+    el.querySelector(".tab.on")?.scrollIntoView({ inline: "nearest", block: "nearest" });
+  }
+  let last = -1;
+  function render() {
+    D.setCrumb(true);
+    renderTabs();
+    D.renderCanvas(last !== -1 && last !== D.D.active);
+    last = D.D.active;
+  }
+  D.on(render);
+  X.on(render);
+  render();
+})();
+</script>
+</body>
+</html>

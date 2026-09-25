@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板 · 方案 A 画廊</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .page-a { display: flex; flex-direction: column; height: 100%; padding: 0 0 0 26px; }
+  .page-a .toolbar { padding-right: 26px; }
+  .gallery-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 26px 28px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 20px 18px; }
+
+  .card { background: var(--bg-surface); border-radius: 16px; box-shadow: var(--shadow-card); padding: 6px; cursor: pointer; position: relative;
+    transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out); }
+  .card:hover { box-shadow: var(--shadow-float); transform: translateY(-1px); }
+  .card:focus-visible { box-shadow: var(--focus-ring), var(--shadow-card); }
+  .card .thumb { border-radius: 11px; }
+  .card-body { padding: 10px 8px 6px; }
+  .card-title { font-size: 14px; font-weight: 600; line-height: 1.45; }
+  .card-desc { font-size: 12.5px; color: var(--ink-2); height: 20px; margin-top: 1px; }
+  .card .meta { margin-top: 6px; }
+
+  /* 缩略图上的悬停件：右上「更多」、左上页名、底部页码刻度（都在固定槽位淡入） */
+  .ops { position: absolute; top: 14px; right: 14px; z-index: 2; display: flex; gap: 4px; }
+  .page-chip { position: absolute; top: 8px; left: 8px; z-index: 2; max-width: calc(100% - 60px); height: 22px; padding: 0 8px; border-radius: 7px;
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; background: color-mix(in srgb, var(--bg-surface) 92%, transparent); color: var(--ink-2); box-shadow: var(--shadow-lift); }
+  .page-chip b { font: 500 11px/1 var(--mono); color: var(--ink-3); }
+  .page-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ticks { position: absolute; left: 10px; right: 10px; bottom: 8px; z-index: 2; display: flex; gap: 4px; }
+  .ticks i { flex: 1; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--ink-1) 16%, transparent); transition: background 120ms; }
+  .ticks i.on { background: var(--accent); }
+  .pages-badge { position: absolute; right: 8px; bottom: 8px; z-index: 1; height: 20px; padding: 0 7px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-variant-numeric: tabular-nums; color: var(--ink-2); background: color-mix(in srgb, var(--bg-surface) 88%, transparent); transition: opacity 150ms var(--ease-out); }
+  .pages-badge .icon { width: 11px; height: 11px; }
+  .hover-host:hover .pages-badge { opacity: 0; }
+
+  .new-tile { border-radius: 16px; border: 1.5px dashed var(--line-1); color: var(--ink-3); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    font-size: 12.5px; min-height: 180px; transition: border-color 160ms, color 160ms, background 160ms; }
+  .new-tile:hover { border-color: var(--accent); color: var(--accent-text); background: var(--accent-soft); }
+  .new-tile .icon { width: 20px; height: 20px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+(() => {
+  const X = WB, { icon, esc } = X;
+  let showTile = false;
+  const { page } = X.mountShell({
+    demos: [{ label: "末尾新建格", run: b => { showTile = !showTile; b.classList.toggle("on", showTile); render(); } }],
+  });
+  page.style.height = "100%";
+  page.innerHTML = `
+    <div class="page-a">
+      <div class="toolbar">
+        <h1>白板</h1><span class="sum" id="sum"></span>
+        <span class="spacer"></span>
+        <div class="actions"><span id="sort-slot"></span><button class="btn btn-primary" id="new">${icon("plus")}新建白板</button></div>
+      </div>
+      <div class="gallery-scroll" id="scroll"></div>
+    </div>`;
+  document.getElementById("new").onclick = () => X.editDialog();
+  const scroll = document.getElementById("scroll");
+
+  function cardHTML(b) {
+    const n = b.pages.length;
+    return `
+      <div class="card hover-host" tabindex="0" data-id="${b.id}">
+        <div class="thumb" data-thumb>${X.coverHTML(b)}
+          ${n > 1 ? `<span class="pages-badge">${icon("files")}${n} 页</span>
+            <span class="page-chip hover-act" data-chip><b>1/${n}</b><span>${esc(b.pages[0].name)}</span></span>
+            <div class="ticks hover-act">${b.pages.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div>` : ""}
+        </div>
+        <div class="ops hover-act"><button class="float-btn" data-more title="更多">${icon("more")}</button></div>
+        <div class="card-body">
+          <div class="card-title clamp1">${esc(b.title)}</div>
+          <div class="card-desc clamp1">${esc(b.description)}</div>
+          <div class="meta"><span>${n} 页</span><i class="dot"></i><span>${X.elementCount(b)} 个元素</span><i class="dot"></i><span title="${X.fullDate(b.updateTime)}">${X.rel(b.updateTime)}更新</span>
+            ${b.sequences ? `<span class="spacer"></span><span class="pres" title="有 ${b.sequences} 个演示序列">${icon("play")}可演示</span>` : ""}</div>
+        </div>
+      </div>`;
+  }
+
+  function render() {
+    document.getElementById("sum").innerHTML = X.summary();
+    document.getElementById("sort-slot").innerHTML = X.S.empty ? "" : X.sortSeg();
+    X.bindSort(document);
+    const list = X.sorted();
+    if (!list.length) {
+      scroll.innerHTML = X.emptyHTML();
+      scroll.querySelector("[data-new]").onclick = () => X.editDialog();
+      return;
+    }
+    scroll.innerHTML = `<div class="grid">${list.map(cardHTML).join("")}${showTile ? `<button class="new-tile" data-new>${icon("plus")}新建白板</button>` : ""}</div>`;
+    const tile = scroll.querySelector(".new-tile");
+    if (tile) tile.onclick = () => X.editDialog();
+    scroll.querySelectorAll(".card").forEach(bind);
+    if (X.S.lastCreated) {
+      const el = scroll.querySelector(`[data-id="${X.S.lastCreated}"]`);
+      el && (el.classList.add("fresh"), el.scrollIntoView({ block: "nearest" }));
+      X.S.lastCreated = null;
+    }
+  }
+
+  function bind(card) {
+    const b = X.findB(+card.dataset.id);
+    const thumb = card.querySelector("[data-thumb]");
+    let cur = 0;
+    // 悬停扫页：鼠标在缩略图上横向移动即切页，点击打开的就是看到的那页
+    const setPage = i => {
+      if (i === cur) return;
+      cur = i;
+      const svgHost = thumb.querySelector(".thumb-svg, .thumb-empty, .thumb-cover");
+      const tmp = document.createElement("div");
+      tmp.innerHTML = i < 0 ? X.coverHTML(b) : X.pageSVG(b.pages[i]);
+      svgHost.replaceWith(tmp.firstElementChild);
+      const chip = card.querySelector("[data-chip]");
+      if (chip) chip.innerHTML = `<b>${Math.max(i, 0) + 1}/${b.pages.length}</b><span>${esc(b.pages[Math.max(i, 0)].name)}</span>`;
+      card.querySelectorAll(".ticks i").forEach((t, k) => t.classList.toggle("on", k === Math.max(i, 0)));
+    };
+    if (b.pages.length > 1) {
+      thumb.addEventListener("mousemove", e => {
+        const r = thumb.getBoundingClientRect();
+        setPage(Math.min(b.pages.length - 1, Math.floor(((e.clientX - r.left) / r.width) * b.pages.length)));
+      });
+      thumb.addEventListener("mouseleave", () => setPage(b.snapshot ? -1 : 0));
+      if (b.snapshot) cur = -1;
+    }
+    card.addEventListener("click", e => {
+      if (e.target.closest("[data-more]")) return;
+      X.open(b, Math.max(cur, 0));
+    });
+    card.addEventListener("keydown", e => e.key === "Enter" && X.open(b));
+    card.querySelector("[data-more]").onclick = e => { e.stopPropagation(); X.boardMenu(e.currentTarget, b); };
+    card.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      X.boardMenu({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }, b, { placement: "bottom-start" });
+    });
+  }
+
+  X.on(render);
+  render();
+})();
+</script>
+</body>
+</html>

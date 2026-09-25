@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板 · 方案 A 二轮（标题过滤 + 侧栏标签 + 引用提示）</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .page-a { display: flex; flex-direction: column; height: 100%; padding: 0 0 0 26px; }
+  .page-a .toolbar { padding-right: 26px; }
+  .toolbar .scope { display: inline-flex; align-items: center; gap: 8px; }
+  .toolbar .scope .tg { height: 22px; font-size: 12.5px; }
+  .toolbar .scope .tg .x { display: inline-grid; }
+  .gallery-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 26px 28px 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 20px 18px; }
+
+  .search { width: 200px; }
+  .search:focus-within, .search.has { width: 260px; }
+  .search .q-state { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .search .clr { width: 18px; height: 18px; border-radius: 5px; display: inline-grid; place-items: center; color: var(--ink-3); }
+  .search .clr:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .search .clr .icon { width: 11px; height: 11px; }
+
+  .card { background: var(--bg-surface); border-radius: 16px; box-shadow: var(--shadow-card); padding: 6px; cursor: pointer; position: relative; display: flex; flex-direction: column;
+    transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out); }
+  .card:hover { box-shadow: var(--shadow-float); transform: translateY(-1px); }
+  .card:focus-visible { box-shadow: var(--focus-ring), var(--shadow-card); }
+  .card .thumb { border-radius: 11px; }
+  .card-body { padding: 10px 8px 6px; flex: 1; display: flex; flex-direction: column; }
+  .card-title { font-size: 14px; font-weight: 600; line-height: 1.45; }
+  .card-desc { font-size: 12.5px; color: var(--ink-2); height: 20px; margin-top: 1px; }
+  .card-tags { display: flex; gap: 4px; margin-top: 8px; overflow: hidden; }
+  .card-tags .tg { cursor: pointer; }
+  .card .meta { margin-top: auto; padding-top: 8px; }
+  body.no-card-tags .card-tags { display: none; }
+
+  .ops { position: absolute; top: 14px; right: 14px; z-index: 2; display: flex; gap: 4px; }
+  .page-chip { position: absolute; top: 8px; left: 8px; z-index: 2; max-width: calc(100% - 60px); height: 22px; padding: 0 8px; border-radius: 7px;
+    display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; background: color-mix(in srgb, var(--bg-surface) 92%, transparent); color: var(--ink-2); box-shadow: var(--shadow-lift); }
+  .page-chip b { font: 500 11px/1 var(--mono); color: var(--ink-3); }
+  .page-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ticks { position: absolute; left: 10px; right: 10px; bottom: 8px; z-index: 2; display: flex; gap: 4px; }
+  .ticks i { flex: 1; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--ink-1) 16%, transparent); transition: background 120ms; }
+  .ticks i.on { background: var(--accent); }
+  .pages-badge { position: absolute; right: 8px; bottom: 8px; z-index: 1; height: 20px; padding: 0 7px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-variant-numeric: tabular-nums; color: var(--ink-2); background: color-mix(in srgb, var(--bg-surface) 88%, transparent); transition: opacity 150ms var(--ease-out); }
+  .pages-badge .icon { width: 11px; height: 11px; }
+  .hover-host:hover .pages-badge { opacity: 0; }
+
+  .no-hit { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 80px 20px; color: var(--ink-2); font-size: 13px; }
+  .no-hit b { color: var(--ink-1); }
+
+  /* 标签选择器（与日记同款）*/
+  .tp-row .cdot { width: 8px; height: 8px; }
+  .tp-empty { padding: 10px 8px; font-size: 12.5px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+(() => {
+  const X = WB, { icon, esc, S } = X;
+  let view = "all";        // all / tag:<name> / untagged
+  let q = "";
+  const { page } = X.mountShell({
+    demos: [
+      { label: "卡片标签 显示 / 隐藏", run: () => document.body.classList.toggle("no-card-tags") },
+      { label: "删除确认（有引用）", run: () => X.remove(X.findB(101)) },
+    ],
+  });
+  page.style.height = "100%";
+  page.innerHTML = `
+    <div class="page-a">
+      <div class="toolbar">
+        <span class="scope" id="scope"></span><span class="sum" id="sum"></span>
+        <span class="spacer"></span>
+        <div class="actions">
+          <label class="search" id="search">${icon("search")}<input id="q" placeholder="过滤标题…" autocomplete="off"><span class="q-state" id="q-state"></span></label>
+          <span id="sort-slot"></span><button class="btn btn-primary" id="new">${icon("plus")}新建白板</button>
+        </div>
+      </div>
+      <div class="gallery-scroll" id="scroll"></div>
+    </div>`;
+  const scroll = document.getElementById("scroll");
+  const qEl = document.getElementById("q");
+  document.getElementById("new").onclick = () => X.editDialog();
+  // 在某个标签下新建，自动带上这个标签
+  S.newTags = () => (view.startsWith("tag:") ? [view.slice(4)] : []);
+
+  qEl.addEventListener("input", () => { q = qEl.value.trim(); render(); });
+  qEl.addEventListener("keydown", e => { if (e.key === "Escape" && qEl.value) { e.stopPropagation(); qEl.value = ""; q = ""; render(); } });
+  addEventListener("keydown", e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "f") { e.preventDefault(); qEl.focus(); qEl.select(); }
+  });
+
+  const tagColor = n => (S.tags.find(t => t.name === n) || { color: "gray" }).color;
+  const tagChip = (n, attrs = "") => `<span class="tg" data-c="${tagColor(n)}" ${attrs}>${esc(n)}</span>`;
+  const hl = s => {
+    const t = esc(s);
+    if (!q) return t;
+    const i = s.toLowerCase().indexOf(q.toLowerCase());
+    return i < 0 ? t : esc(s.slice(0, i)) + "<mark>" + esc(s.slice(i, i + q.length)) + "</mark>" + esc(s.slice(i + q.length));
+  };
+
+  function inView(b) {
+    if (view === "untagged") return !b.tags.length;
+    if (view.startsWith("tag:")) return b.tags.includes(view.slice(4));
+    return true;
+  }
+  const hit = b => !q || b.title.toLowerCase().includes(q.toLowerCase());
+
+  function cardHTML(b) {
+    const n = b.pages.length;
+    return `
+      <div class="card hover-host" tabindex="0" data-id="${b.id}">
+        <div class="thumb" data-thumb>${X.coverHTML(b)}
+          ${n > 1 ? `<span class="pages-badge">${icon("files")}${n} 页</span>
+            <span class="page-chip hover-act" data-chip><b>1/${n}</b><span>${esc(b.pages[0].name)}</span></span>
+            <div class="ticks hover-act">${b.pages.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}</div>` : ""}
+        </div>
+        <div class="ops hover-act"><button class="float-btn" data-more title="更多">${icon("more")}</button></div>
+        <div class="card-body">
+          <div class="card-title clamp1">${hl(b.title)}</div>
+          <div class="card-desc clamp1">${esc(b.description)}</div>
+          ${b.tags.length ? `<div class="card-tags">${b.tags.map(t => tagChip(t, `data-tag="${esc(t)}" title="只看「${esc(t)}」"`)).join("")}</div>` : ""}
+          <div class="meta"><span>${n} 页</span><i class="dot"></i><span>${X.elementCount(b)} 个元素</span><i class="dot"></i><span title="${X.fullDate(b.updateTime)}">${X.rel(b.updateTime)}更新</span>
+            ${b.sequences ? `<span class="spacer"></span><span class="pres" title="有 ${b.sequences} 个演示序列">${icon("play")}可演示</span>` : ""}</div>
+        </div>
+      </div>`;
+  }
+
+  /* 侧栏子项：标签挂在全局侧栏「白板」下面（日记 D-044 / 协作 A3 同款），不在页内另起目录 */
+  function renderNav() {
+    const sub = document.getElementById("nav-sub"), sb = document.querySelector(".sidebar");
+    const boards = S.empty ? [] : S.boards;
+    const used = S.tags.filter(t => boards.some(b => b.tags.includes(t.name)));
+    if (!used.length) { sub.innerHTML = ""; sb.classList.remove("has-sub"); return; }
+    const untagged = boards.filter(b => !b.tags.length).length;
+    sb.classList.toggle("has-sub", view !== "all");
+    sub.innerHTML =
+      used.map(t => `<button class="nav-sub-item${view === "tag:" + t.name ? " on" : ""}" data-v="tag:${esc(t.name)}"><span class="glyph"><span class="cdot" data-c="${t.color}"></span></span><span class="tt">${esc(t.name)}</span><span class="ct">${boards.filter(b => b.tags.includes(t.name)).length}</span></button>`).join("") +
+      (untagged ? `<button class="nav-sub-item${view === "untagged" ? " on" : ""}" data-v="untagged"><span class="glyph">${icon("hash")}</span><span class="tt">无标签</span><span class="ct">${untagged}</span></button>` : "");
+    sub.querySelectorAll("[data-v]").forEach(b => (b.onclick = () => setView(view === b.dataset.v ? "all" : b.dataset.v)));
+  }
+  document.getElementById("nav-self").onclick = () => setView("all");
+  function setView(v) { view = v; scroll.scrollTop = 0; render(); }
+
+  function render() {
+    renderNav();
+    const scope = document.getElementById("scope");
+    scope.innerHTML = view === "all" ? "<h1>白板</h1>"
+      : `<h1>白板</h1>${view === "untagged" ? `<span class="tg" data-c="gray">无标签<button class="x" data-clear title="回到全部">${icon("x")}</button></span>`
+        : `<span class="tg" data-c="${tagColor(view.slice(4))}">${esc(view.slice(4))}<button class="x" data-clear title="回到全部">${icon("x")}</button></span>`}`;
+    const clr = scope.querySelector("[data-clear]");
+    if (clr) clr.onclick = () => setView("all");
+
+    document.getElementById("sort-slot").innerHTML = S.empty ? "" : X.sortSeg();
+    X.bindSort(document);
+    document.getElementById("search").style.display = S.empty ? "none" : "";
+    const inScope = X.sorted().filter(inView);
+    const list = inScope.filter(hit);
+    document.getElementById("sum").innerHTML = view === "all" ? X.summary() : S.empty ? "" : `<b>${inScope.length}</b> 个白板`;
+    const qs = document.getElementById("q-state");
+    document.getElementById("search").classList.toggle("has", !!q);
+    qs.innerHTML = q ? `${list.length} / ${inScope.length}<button class="clr" title="清除 (Esc)">${icon("x")}</button>` : "<kbd>⌘F</kbd>";
+    const c = qs.querySelector(".clr");
+    if (c) c.onclick = e => { e.preventDefault(); qEl.value = ""; q = ""; render(); qEl.focus(); };
+
+    if (S.empty) {
+      scroll.innerHTML = X.emptyHTML();
+      scroll.querySelector("[data-new]").onclick = () => X.editDialog();
+      return;
+    }
+    if (!list.length) {
+      scroll.innerHTML = q
+        ? `<div class="no-hit fade-in"><span>没有标题包含「<b>${esc(q)}</b>」的白板${view === "all" ? "" : "（当前标签内）"}</span><button class="btn btn-ghost" data-clr>清除过滤</button></div>`
+        : `<div class="no-hit fade-in"><span>这个标签下还没有白板</span><button class="btn btn-soft" data-new>${icon("plus")}在这里新建</button></div>`;
+      const a = scroll.querySelector("[data-clr]"), n = scroll.querySelector("[data-new]");
+      if (a) a.onclick = () => { qEl.value = ""; q = ""; render(); };
+      if (n) n.onclick = () => X.editDialog();
+      return;
+    }
+    scroll.innerHTML = `<div class="grid">${list.map(cardHTML).join("")}</div>`;
+    scroll.querySelectorAll(".card").forEach(bind);
+    if (S.lastCreated) {
+      const el = scroll.querySelector(`[data-id="${S.lastCreated}"]`);
+      el && (el.classList.add("fresh"), el.scrollIntoView({ block: "nearest" }));
+      S.lastCreated = null;
+    }
+  }
+
+  /* 标签选择器：勾选即生效，输入可新建（与日记同款） */
+  const COLORS = ["blue", "orange", "green", "purple", "yellow", "red"];
+  function tagPicker(anchor, b) {
+    let f = "";
+    X.openPop(anchor, () => {
+      const rows = S.tags.filter(t => !f || t.name.includes(f));
+      const exact = S.tags.some(t => t.name === f);
+      return `
+        <div class="tp-search">${icon("tag")}<input id="tp-q" placeholder="搜索或新建标签" value="${esc(f)}" autocomplete="off"></div>
+        <div class="tp-list">
+          ${rows.map(t => `<button class="tp-row" data-t="${esc(t.name)}"><span class="cdot" data-c="${t.color}"></span><span class="nm">${esc(t.name)}</span><span class="ct">${S.boards.filter(x => x.tags.includes(t.name)).length}</span><span class="ck">${b.tags.includes(t.name) ? icon("check") : ""}</span></button>`).join("")}
+          ${f && !exact ? `<button class="tp-row" data-create><span class="ck" style="color:var(--accent-text)">${icon("plus")}</span><span class="nm create">创建「${esc(f)}」</span></button>` : ""}
+          ${!rows.length && !f ? '<div class="tp-empty">还没有标签</div>' : ""}
+        </div>`;
+    }, {
+      width: 260,
+      bind(el, close, draw) {
+        const inp = el.querySelector("#tp-q");
+        inp.focus(); inp.setSelectionRange(f.length, f.length);
+        inp.oninput = () => { f = inp.value.trim(); draw(); };
+        inp.onkeydown = e => { if (e.key === "Enter" && f) { toggle(f, true); f = ""; draw(); } };
+        el.querySelectorAll("[data-t]").forEach(r => (r.onclick = () => { toggle(r.dataset.t); draw(); }));
+        const cr = el.querySelector("[data-create]");
+        if (cr) cr.onclick = () => { toggle(f, true); f = ""; draw(); };
+      },
+      onClose: () => render(),
+    });
+    function toggle(name, create) {
+      if (create && !S.tags.some(t => t.name === name)) S.tags.push({ name, color: COLORS[S.tags.length % COLORS.length] });
+      b.tags = b.tags.includes(name) && !create ? b.tags.filter(t => t !== name) : [...new Set([...b.tags, name])];
+      renderNav();
+    }
+  }
+
+  function bind(card) {
+    const b = X.findB(+card.dataset.id);
+    const thumb = card.querySelector("[data-thumb]");
+    let cur = b.snapshot && b.pages.length > 1 ? -1 : 0;
+    const setPage = i => {
+      if (i === cur) return;
+      cur = i;
+      const host = thumb.querySelector(".thumb-svg, .thumb-empty, .thumb-cover");
+      const tmp = document.createElement("div");
+      tmp.innerHTML = i < 0 ? X.coverHTML(b) : X.pageSVG(b.pages[i]);
+      host.replaceWith(tmp.firstElementChild);
+      const k = Math.max(i, 0);
+      const chip = card.querySelector("[data-chip]");
+      if (chip) chip.innerHTML = `<b>${k + 1}/${b.pages.length}</b><span>${esc(b.pages[k].name)}</span>`;
+      card.querySelectorAll(".ticks i").forEach((t, j) => t.classList.toggle("on", j === k));
+    };
+    if (b.pages.length > 1) {
+      thumb.addEventListener("mousemove", e => {
+        const r = thumb.getBoundingClientRect();
+        setPage(Math.min(b.pages.length - 1, Math.floor(((e.clientX - r.left) / r.width) * b.pages.length)));
+      });
+      thumb.addEventListener("mouseleave", () => setPage(b.snapshot ? -1 : 0));
+    }
+    const menu = (anchor, opts = {}) => X.boardMenu(anchor, b, { ...opts, extra: [{ label: "标签…", icon: "tag", run: () => tagPicker(card.querySelector(".card-title"), b) }] });
+    card.addEventListener("click", e => {
+      const t = e.target.closest("[data-tag]");
+      if (t) { setView("tag:" + t.dataset.tag); return; }
+      if (e.target.closest("[data-more]")) return;
+      X.open(b, Math.max(cur, 0));
+    });
+    card.addEventListener("keydown", e => e.key === "Enter" && e.target === card && X.open(b));
+    card.querySelector("[data-more]").onclick = e => { e.stopPropagation(); menu(e.currentTarget); };
+    card.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      menu({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }, { placement: "bottom-start" });
+    });
+  }
+
+  X.on(render);
+  render();
+})();
+</script>
+</body>
+</html>

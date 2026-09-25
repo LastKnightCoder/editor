@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板详情页设计探索 · 总览</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-hover: rgba(67, 57, 44, 0.05);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55); --ok: #61795f; --danger: #b0564d;
+    --tag-2: #5c7d99; --tag-2-soft: #e2ebf3; --tag-3: #8a7aa6; --tag-4-soft: #f6efd6; --tag-1-soft: #e5ede2;
+    --canvas: #fbf7ef; --canvas-dot: rgba(67, 57, 44, 0.13);
+    --shadow: 0 1px 2px rgba(120,100,70,0.05), 0 10px 24px -14px rgba(120,100,70,0.18);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 14px/1.75 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 40px 8vw 80px; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { color: var(--ink-2); margin-top: 6px; max-width: 88ch; }
+  header .meta { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+  h2 { font-size: 16px; margin: 42px 0 14px; font-weight: 600; }
+  ul.tight { padding-left: 20px; color: var(--ink-2); max-width: 92ch; }
+  ul.tight li + li { margin-top: 4px; }
+  ul.tight b { color: var(--ink-1); font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .card { background: var(--bg-surface); border-radius: 16px; padding: 20px 22px; box-shadow: var(--shadow); text-decoration: none; color: inherit; display: flex; flex-direction: column;
+    outline: 1px solid transparent; transition: box-shadow 200ms, outline-color 200ms; }
+  .card:hover { outline-color: var(--line-1); box-shadow: 0 16px 40px -12px rgba(120,100,70,0.3); }
+  .card .no { font: 600 12px/1 ui-monospace, Consolas, monospace; color: var(--accent-text); }
+  .card h3 { font-size: 15.5px; margin: 6px 0 2px; font-weight: 600; }
+  .card .who { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+  .card p { font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  .card .wire { margin-top: 14px; height: 116px; border-radius: 10px; background: var(--bg-page); padding: 8px; display: grid; gap: 6px; }
+  .wire > div { border-radius: 6px; position: relative; overflow: hidden; }
+  .wire .t { background-color: var(--canvas); background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px); background-size: 6px 6px; border-radius: 4px; }
+  .wire .sheet { background: var(--bg-surface); box-shadow: var(--shadow); }
+  .wire .bar { position: absolute; height: 5px; border-radius: 3px; background: var(--bg-hover); }
+  .card .verdict { margin-top: 12px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .verdict .good { color: var(--ok); } .verdict .bad { color: var(--danger); }
+  .card .open { margin-top: auto; padding-top: 12px; font-size: 12.5px; color: var(--accent-text); font-weight: 500; }
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--bg-hover); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line-2); }
+  td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  code { font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--bg-surface); border: 1px solid var(--line-1); padding: 1px 6px; border-radius: 5px; color: var(--accent-text); }
+  kbd { font: 11px/1 ui-monospace, monospace; background: var(--bg-hover); border-radius: 4px; padding: 2px 5px; color: var(--ink-2); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>白板详情页设计探索 · 三方案</h1>
+  <p class="sub">现状：legacy <code>pages/WhiteboardDetailView</code> 有两种形态。一种是多页白板：画布下方是一条通栏的子白板页签（毛玻璃底 + 上边框横线），页签悬停出现编辑 / 删除图标，拖动排序，「＋」弹窗输入名字新建，删除走 <code>modal.confirm</code>，每 3 秒整页保存一次。另一种是单页（独立或嵌套白板）：顶部一条 antd 面包屑（带上边框线）+ 画布。画布本身自带四件东西：<b>左侧 300px 的元素树侧栏</b>、顶部居中的工具条、右侧属性栏、右下角状态栏（网格 / 缩放 / 演示），都是蓝调毛玻璃风格。</p>
+  <p class="sub">新壳层里已经有 <code>whiteboard-content</code> 画布页（列表页和嵌套白板都跳它），但只能看一页。三个方案都在这一页上补多页能力，共用同一份 mock（「Transformer 结构拆解」4 页）。都能操作：切页、新建页、双击改名、右键 / 更多菜单（重命名 / 复制 / 删除）、拖动排序、元素树浮层、<kbd>⌃PageUp</kbd> / <kbd>⌃PageDown</kbd> 切页。点标题栏里的白板名会打开编辑信息。画布里的浮动件只是示意位置，按主题语言重画过。</p>
+  <p class="meta">2026-09-25 · mockup 只作视觉参考，不作为导出源（D-001）</p>
+</header>
+
+<h2>二轮 · 方案 A2 底部页签栏（XMind 式）· ✅ 定稿（D-048：只有一页时隐藏、悬停浮出；只迁外壳）</h2>
+<p class="sub2" style="color:var(--ink-2);max-width:84ch;margin-bottom:14px">反馈：要 XMind 那种底部标签页。</p>
+<div class="cards"><a class="card" href="plan-a2-xmind.html">
+  <div class="no">方案 A2</div>
+  <h3>底部页签栏 <span class="who">· 纸面底部一整条，左页签、右状态</span></h3>
+  <p>画布纸面分上下两段：上面是画布，下面一条 40px 的页签栏（surface 底，两段靠底色区分，不画横线）。左侧「＋ 新建页」和「所有页」列表，接着是各页签，当前页与上方画布同色、底部一道 accent 短线；页多时横向滚动。右键页签：重命名 / 复制 / 删除，双击改名，拖动排序。网格、缩放、演示从画布右下的浮层并进页签栏右侧。</p>
+  <div class="verdict"><span class="good">✓ 与 XMind 一致；页名常驻；画布上少一块浮层</span><span class="bad">✗ 纸面底部固定占 40px（包括只有一页的白板）</span></div>
+  <span class="open">打开方案 A2 →</span>
+</a></div>
+
+<h2>一轮 · 三个方案</h2>
+<div class="cards">
+  <a class="card" href="plan-a-tabs.html">
+    <div class="no">方案 A</div>
+    <h3>底部页签 <span class="who">· 画布左下一条浮起的页签</span></h3>
+    <p>最接近 legacy 和表格软件的「工作表」。页签不再是贯穿底部的通栏，而是画布左下角一块浮起的小条，与右下状态栏在同一水平线上；当前页用 accent 淡底。页很多时页签条横向滚动（演示开关「页很多」）。画布占满整个内容区。</p>
+    <div class="wire" style="grid-template-columns:1fr"><div class="sheet" style="position:relative"><div class="t" style="position:absolute;inset:4px"></div><span class="bar" style="left:10px;bottom:8px;width:44%;height:9px;background:var(--bg-surface);box-shadow:var(--shadow)"></span><span class="bar" style="left:12px;bottom:10px;width:10%;height:5px;background:var(--accent-soft)"></span><span class="bar" style="right:10px;bottom:8px;width:20%;height:9px;background:var(--bg-surface);box-shadow:var(--shadow)"></span></div></div>
+    <div class="verdict">
+      <span class="good">✓ 熟悉、直接；页名一眼全在，切页一次点击；不占任何额外空间</span>
+      <span class="bad">✗ 页签只有名字，看不到每页的内容；页多了要横向滚</span>
+    </div>
+    <span class="open">打开方案 A →</span>
+  </a>
+  <a class="card" href="plan-b-nav.html">
+    <div class="no">方案 B</div>
+    <h3>侧栏嵌套页 <span class="who">· 页挂在全局侧栏「白板」下面</span></h3>
+    <p>和协作页 A3、日记标签同一套做法：打开一块白板时，全局侧栏「白板」入口下展开这块白板的名字和各页（页码 + 页名，悬停显示元素数和「更多」），末尾「＋ 新页」，上下拖动排序。页面里只剩一整张画布。</p>
+    <div class="wire" style="grid-template-columns:0.5fr 2fr"><div class="paper"><span class="bar" style="top:6px;left:4px;right:10px;background:var(--accent-soft)"></span><span class="bar" style="top:18px;left:16px;right:10px"></span><span class="bar" style="top:28px;left:16px;right:10px;background:var(--line-1)"></span><span class="bar" style="top:38px;left:16px;right:10px"></span><span class="bar" style="top:48px;left:16px;right:10px"></span></div><div class="sheet" style="position:relative"><div class="t" style="position:absolute;inset:4px"></div></div></div>
+    <div class="verdict">
+      <span class="good">✓ 最沉浸，画布上没有页的控件；和已定稿页的侧栏嵌套一致；页名竖排不怕长</span>
+      <span class="bad">✗ 侧栏收起成图标列时看不到页（要靠快捷键或展开侧栏）；看不到每页的内容</span>
+    </div>
+    <span class="open">打开方案 B →</span>
+  </a>
+  <a class="card" href="plan-c-overview.html">
+    <div class="no">方案 C</div>
+    <h3>翻页器 + 页总览 <span class="who">· 平时只露当前页，要时展开缩略图网格</span></h3>
+    <p>像 Keynote 的看片台。画布左下只有一个紧凑翻页器「‹ 2/4 注意力机制 ›」；点页名或网格按钮，同一张纸上展开「所有页」：每页一张画布缩略图（列表页那套缓存），拖动排序、双击改名、悬停「更多」、末尾「＋ 新页」，点一页跳过去并收起，<kbd>Esc</kbd> 关闭。</p>
+    <div class="wire" style="grid-template-columns:repeat(4,1fr);grid-template-rows:1fr 1fr"><script>document.write(Array.from({length:5},(_,i)=>`<div class="t" style="${i===1?'box-shadow:0 0 0 1.5px var(--accent)':''}"></div>`).join(''))</script></div>
+    <div class="verdict">
+      <span class="good">✓ 平时画布最干净；总览里每页长什么样一目了然，排序最直观</span>
+      <span class="bad">✗ 切到不相邻的页要多一步（打开总览）；页名不常驻</span>
+    </div>
+    <span class="open">打开方案 C →</span>
+  </a>
+</div>
+
+<h2>三个方案都做的事</h2>
+<ul class="tight">
+  <li><b>元素树不再占一列</b>：画布自带的 300px 元素树侧栏和全局侧栏并排就是「两条侧栏」（PREFERENCES 反例）。改为画布左上一个按钮，点开是盖在画布上的浮层，不挤压画布；</li>
+  <li><b>一整张纸</b>：画布是内容区里的一张 surface 大纸，四周不再有通栏横线（legacy 页签条和面包屑都带边框线）；</li>
+  <li><b>标题栏面包屑</b>：「白板 / 白板名 / 当前页」，点白板名打开编辑信息（与列表页同一个弹窗）；嵌套白板（画布里的白板元素）继续新开一页，逐层返回靠后退；</li>
+  <li><b>切页不进历史</b>：同一块白板内切页只原位换参数，后退直接回到列表或上一个地方，不是一页一页倒回去；</li>
+  <li><b>新建页不弹窗</b>：直接建「第 N 页」并切过去，名字之后双击改；删除页仍然确认（这一页的元素会一起删掉，不可撤销）；</li>
+  <li><b>保存</b>：沿用现在的实时保存（改动停 400ms 落库），替代 legacy 每 3 秒轮询保存；缩略图照列表页的机制后台生成。</li>
+</ul>
+
+<h2>对比</h2>
+<table>
+  <thead><tr><th>维度</th><th>A 底部页签</th><th>B 侧栏嵌套页</th><th>C 翻页器 + 总览</th></tr></thead>
+  <tbody>
+    <tr><td>页名常驻</td><td>是（画布左下）</td><td>是（侧栏）</td><td>只露当前页</td></tr>
+    <tr><td>看到页内容</td><td>否</td><td>否</td><td>总览里看缩略图</td></tr>
+    <tr><td>切到任意页</td><td>1 次点击</td><td>1 次点击</td><td>相邻 1 次；其他 2 次</td></tr>
+    <tr><td>画布上的额外控件</td><td>一条页签</td><td>无</td><td>一个小翻页器</td></tr>
+    <tr><td>侧栏收起时</td><td>不受影响</td><td>页不可见</td><td>不受影响</td></tr>
+    <tr><td>与已定稿页同构</td><td>中（legacy 延续）</td><td>高（协作 A3 / 日记）</td><td>中（列表页缩略图）</td></tr>
+  </tbody>
+</table>
+
+<h2>可以混搭的部件</h2>
+<ul class="tight">
+  <li><b>C 的页总览</b>可以加到 A 或 B 上，作为「看所有页长什么样 / 大量排序」的补充入口；</li>
+  <li><b>A 的页签</b>可以只在侧栏收起时出现，给 B 兜底。</li>
+</ul>
+
+<h2>待你拍板的几件事</h2>
+<ul class="tight">
+  <li><b>画布自带的浮动件要不要这次一起换皮</b>：工具条、属性栏、状态栏、右键菜单、各种插入弹窗现在都是蓝调毛玻璃 + antd。只迁页面壳层的话，打开画布会是新旧两种风格混在一起；一起换皮的话，这次的改动范围会大很多（画布组件内部十几个文件）。建议先迁壳层，换皮单独做一轮 mockup；</li>
+  <li><b>独立白板</b>（画布里「新建白板」嵌进去的那种，不属于任何白板，只有一页）：打开时不显示任何页控件，面包屑只有「白板 / 页名」。可以吗？</li>
+</ul>
+
+</body>
+</html>
