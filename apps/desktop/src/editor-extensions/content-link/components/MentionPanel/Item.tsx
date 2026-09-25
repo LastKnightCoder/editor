@@ -1,67 +1,66 @@
-import { memo, useEffect, useRef } from "react";
-import classnames from "classnames";
-import { Editor } from "@tau/editor";
-import ErrorBoundary from "@/components/ErrorBoundary";
-import { IExtension } from "@tau/editor/src";
+import { memo, useEffect, useMemo, useRef, type ReactNode } from "react";
+import { FileText, FolderOpen, Newspaper, StickyNote } from "lucide-react";
 import { SearchResult } from "@/types";
-import useTheme from "@/hooks/useTheme";
+import { richTextPlainText } from "@/utils/richTextText";
+import { ComposerPanelItem } from "@/components/ChatInputArea/ComposerPanel";
 
 interface IItemProps {
   item: SearchResult;
+  query: string;
   active: boolean;
-  extensions: IExtension[];
+  onHover?: () => void;
   onClick?: () => void;
 }
 
-const typeMap: Record<string, string> = {
-  card: "卡片",
-  article: "文章",
-  "project-item": "项目",
+const TYPE_META: Record<string, { label: string; icon: ReactNode }> = {
+  card: { label: "卡片", icon: <StickyNote /> },
+  article: { label: "文章", icon: <Newspaper /> },
+  "project-item": { label: "项目文档", icon: <FolderOpen /> },
 };
 
+/** 命中字 accent 标出（大小写不敏感，只标第一处） */
+function highlight(text: string, query: string): ReactNode {
+  const q = query.trim();
+  if (!q) return text;
+  const at = text.toLowerCase().indexOf(q.toLowerCase());
+  if (at < 0) return text;
+  return (
+    <>
+      {text.slice(0, at)}
+      <span className="text-accent-text">{text.slice(at, at + q.length)}</span>
+      {text.slice(at + q.length)}
+    </>
+  );
+}
+
 const Item = memo((props: IItemProps) => {
-  const { item, active, extensions, onClick } = props;
+  const { item, query, active, onHover, onClick } = props;
   const ref = useRef<HTMLDivElement>(null);
-  const { theme } = useTheme();
+  const meta = TYPE_META[item.type] ?? { label: item.type, icon: <FileText /> };
+
+  const plain = useMemo(() => richTextPlainText(item.content), [item.content]);
+  const title = item.title?.trim() || plain.slice(0, 40) || "无标题";
+  const snippet = item.title?.trim() ? plain.slice(0, 80) : "";
 
   useEffect(() => {
-    if (active) {
-      // 滚动到可视区域
-      ref.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "start",
-      });
-    }
+    if (active) ref.current?.scrollIntoView({ block: "nearest" });
   }, [active]);
 
   return (
-    <div
-      onClick={onClick}
+    <ComposerPanelItem
       ref={ref}
-      className={classnames(
-        "relative mx-1 mb-0.5 flex min-h-[48px] cursor-pointer items-center rounded-[14px] px-3 py-2.5 transition-all duration-150",
-        "hover:bg-white/60 dark:hover:bg-slate-400/15",
-        "active:scale-[0.98]",
-        {
-          "bg-[var(--th-accent)]/10": active,
-        }
-      )}
-    >
-      <div className="bg-[var(--th-accent)]/12 border-[var(--th-accent)]/20 absolute right-3 top-2.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--th-accent)] backdrop-blur-sm">
-        {typeMap[item.type] || item.type}
-      </div>
-      <ErrorBoundary>
-        <div className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap pr-[100px] text-[13px]">
-          <Editor
-            readonly={true}
-            initValue={item.content.slice(0, 1)}
-            extensions={extensions}
-            theme={theme}
-          />
-        </div>
-      </ErrorBoundary>
-    </div>
+      icon={meta.icon}
+      label={highlight(title, query)}
+      description={
+        <>
+          <span className="text-ink-2">{meta.label}</span>
+          {snippet && <span> · {snippet}</span>}
+        </>
+      }
+      active={active}
+      onHover={onHover}
+      onSelect={onClick}
+    />
   );
 });
 

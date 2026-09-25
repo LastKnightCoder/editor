@@ -11,19 +11,9 @@ import type {
 } from "@tau/shared";
 
 const WS_PORT = 24678;
-export type ChatAgentType = "local" | "codex";
-
-export interface CodexAvailability {
-  available: boolean;
-  reason: string | null;
-}
 
 // 重新导出共享类型
-export type {
-  ChatMessageType as ChatMessage,
-  ContentBlock,
-  ToolCallExecutionState,
-};
+export type { ChatMessageType as ChatMessage, ContentBlock, ToolCallExecutionState };
 
 // 消息角色（扩展支持 tool 角色）
 export type Role = "user" | "assistant" | "system" | "tool";
@@ -34,16 +24,12 @@ interface StreamNotificationData {
   content?: string;
   reasoning?: string;
   executions?: ToolCallExecutionState[];
-  agentSessionId?: string | null;
   error?: string;
 }
 
 // AI 聊天选项
 interface UseAiChatOptions {
   enableTools?: boolean;
-  agentType?: ChatAgentType;
-  agentSessionId?: string | null;
-  onAgentSessionIdChange?: (agentSessionId: string | null) => void;
   conversationKey?: string;
   systemPrompt?: string;
   initialMessages?: ChatMessageType[];
@@ -82,8 +68,6 @@ interface BuildAiChatRpcPayloadOptions {
   messages: AiChatRequestMessage[];
   systemPrompt?: string;
   enableTools: boolean;
-  agentType?: ChatAgentType;
-  agentSessionId?: string | null;
   conversationKey?: string;
   pageContext?: {
     url: string;
@@ -93,7 +77,7 @@ interface BuildAiChatRpcPayloadOptions {
 }
 
 export const mapChatMessageToAiRequestMessage = (
-  message: ChatMessageType,
+  message: ChatMessageType
 ): AiChatRequestMessage => {
   const source = message as ChatMessageWithToolContext;
   if (source.role === "user") {
@@ -117,13 +101,33 @@ export const mapChatMessageToAiRequestMessage = (
     };
   }
 
+  const retiredExecutions =
+    source.contentBlocks?.flatMap(block =>
+      block.type === "tool_calls"
+        ? block.executions.filter(
+            execution => typeof execution.metadata?.codexItemType === "string"
+          )
+        : []
+    ) ?? [];
+  if (source.role === "assistant" && retiredExecutions.length > 0) {
+    return {
+      role: "assistant",
+      content: [
+        source.content,
+        ...retiredExecutions.map(
+          execution =>
+            `历史工具 ${execution.toolName}\n${execution.output || execution.error || "[无输出]"}`
+        ),
+      ]
+        .filter(Boolean)
+        .join("\n\n"),
+    };
+  }
   if (source.role === "assistant" && source.tool_calls?.length) {
     return {
       role: "assistant",
       content: source.content || "",
-      ...(typeof source.reasoning === "string"
-        ? { reasoning_content: source.reasoning }
-        : {}),
+      ...(typeof source.reasoning === "string" ? { reasoning_content: source.reasoning } : {}),
       tool_calls: source.tool_calls,
     };
   }
@@ -142,8 +146,6 @@ export const buildAiChatRpcPayload = ({
   messages,
   systemPrompt,
   enableTools,
-  agentType = "local",
-  agentSessionId = null,
   conversationKey,
   pageContext,
 }: BuildAiChatRpcPayloadOptions) => ({
@@ -151,24 +153,10 @@ export const buildAiChatRpcPayload = ({
   messages,
   systemPrompt,
   enableTools,
-  agentType,
-  agentSessionId,
   conversationKey,
   browserTools: enableTools ? BROWSER_TOOLS : undefined,
   pageContext,
 });
-
-export const fetchCodexAvailabilityViaRpc = async (
-  wsClient: WebSocketClient,
-): Promise<CodexAvailability> => {
-  const result = await wsClient.sendRequest("codex.getAvailability", {});
-  const availability = result as Partial<CodexAvailability>;
-  return {
-    available: availability.available === true,
-    reason:
-      typeof availability.reason === "string" ? availability.reason : null,
-  };
-};
 
 const buildMessagePreview = (content: AiChatRequestContent): string => {
   if (typeof content === "string") {
@@ -176,7 +164,7 @@ const buildMessagePreview = (content: AiChatRequestContent): string => {
   }
 
   return content
-    .map((item) => {
+    .map(item => {
       if (item.type === "text") {
         return item.text;
       }
@@ -198,9 +186,6 @@ const buildMessagePreview = (content: AiChatRequestContent): string => {
 export function useAiChat(options: UseAiChatOptions = {}) {
   const {
     enableTools = true,
-    agentType = "local",
-    agentSessionId = null,
-    onAgentSessionIdChange,
     conversationKey,
     systemPrompt,
     initialMessages = [],
@@ -232,12 +217,12 @@ export function useAiChat(options: UseAiChatOptions = {}) {
         onMessagesChange(newMessages);
       }
     },
-    [onMessagesChange],
+    [onMessagesChange]
   );
 
   // 更新当前响应消息
   const updateCurrentResponse = useCallback(() => {
-    setMessages((prev) => {
+    setMessages(prev => {
       const lastMsg = prev[prev.length - 1];
       if (lastMsg?.role === "assistant") {
         const newMessages = [
@@ -272,9 +257,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
   // 初始化/绑定 WebSocket 客户端（支持复用外部连接）
   useEffect(() => {
     const useExternalClient = Boolean(externalWsClient);
-    const client =
-      externalWsClient ||
-      new WebSocketClient(`ws://localhost:${WS_PORT}/aiServer`);
+    const client = externalWsClient || new WebSocketClient(`ws://localhost:${WS_PORT}/aiServer`);
 
     if (!useExternalClient) {
       client.onOpenHandler = () => {
@@ -352,22 +335,9 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       }
     };
 
-    const handleAgentSessionStream = (data: unknown) => {
-      const notification = data as StreamNotificationData;
-      if (notification.requestId !== requestIdRef.current) return;
-
-      if (notification.agentSessionId) {
-        onAgentSessionIdChange?.(notification.agentSessionId);
-      }
-    };
-
     const handleFinishStream = (data: unknown) => {
       const notification = data as StreamNotificationData;
       if (notification.requestId !== requestIdRef.current) return;
-
-      if (notification.agentSessionId) {
-        onAgentSessionIdChange?.(notification.agentSessionId);
-      }
 
       if (notification.error) {
         setError(notification.error);
@@ -387,33 +357,16 @@ export function useAiChat(options: UseAiChatOptions = {}) {
     };
 
     client.registerNotificationHandler("ai.stream.text", handleTextStream);
-    client.registerNotificationHandler(
-      "ai.stream.reasoning",
-      handleReasoningStream,
-    );
+    client.registerNotificationHandler("ai.stream.reasoning", handleReasoningStream);
     client.registerNotificationHandler("ai.stream.tool", handleToolStream);
-    client.registerNotificationHandler(
-      "ai.stream.agentSession",
-      handleAgentSessionStream,
-    );
     client.registerNotificationHandler("ai.stream.finish", handleFinishStream);
     wsClientRef.current = client;
 
     return () => {
       client.unregisterNotificationHandler("ai.stream.text", handleTextStream);
-      client.unregisterNotificationHandler(
-        "ai.stream.reasoning",
-        handleReasoningStream,
-      );
+      client.unregisterNotificationHandler("ai.stream.reasoning", handleReasoningStream);
       client.unregisterNotificationHandler("ai.stream.tool", handleToolStream);
-      client.unregisterNotificationHandler(
-        "ai.stream.agentSession",
-        handleAgentSessionStream,
-      );
-      client.unregisterNotificationHandler(
-        "ai.stream.finish",
-        handleFinishStream,
-      );
+      client.unregisterNotificationHandler("ai.stream.finish", handleFinishStream);
 
       if (!useExternalClient) {
         client.onOpenHandler = null;
@@ -425,17 +378,11 @@ export function useAiChat(options: UseAiChatOptions = {}) {
         wsClientRef.current = null;
       }
     };
-  }, [
-    externalWsClient,
-    wsConnected,
-    updateCurrentResponse,
-    onAgentSessionIdChange,
-  ]);
+  }, [externalWsClient, wsConnected, updateCurrentResponse]);
 
   const mapMessageToRequest = useCallback(
-    (message: ChatMessageType): AiChatRequestMessage =>
-      mapChatMessageToAiRequestMessage(message),
-    [],
+    (message: ChatMessageType): AiChatRequestMessage => mapChatMessageToAiRequestMessage(message),
+    []
   );
 
   const sendRequestMessage = useCallback(
@@ -475,26 +422,20 @@ export function useAiChat(options: UseAiChatOptions = {}) {
         contentBlocks: [],
       };
 
-      const persistedRequestMessage: ChatMessageType | null =
-        persistRequestMessage
-          ? ({
-              id: uuidv4(),
-              role: requestMessage.role,
-              content: buildMessagePreview(requestMessage.content),
-              timestamp: Date.now(),
-              ...(requestMessage.name ? { name: requestMessage.name } : {}),
-              ...(requestMessage.tool_call_id
-                ? { tool_call_id: requestMessage.tool_call_id }
-                : {}),
-              ...(requestMessage.tool_calls?.length
-                ? { tool_calls: requestMessage.tool_calls }
-                : {}),
-              ...(requestMessage.role === "user" &&
-              Array.isArray(requestMessage.content)
-                ? { requestContent: requestMessage.content }
-                : {}),
-            } as ChatMessageType)
-          : null;
+      const persistedRequestMessage: ChatMessageType | null = persistRequestMessage
+        ? ({
+            id: uuidv4(),
+            role: requestMessage.role,
+            content: buildMessagePreview(requestMessage.content),
+            timestamp: Date.now(),
+            ...(requestMessage.name ? { name: requestMessage.name } : {}),
+            ...(requestMessage.tool_call_id ? { tool_call_id: requestMessage.tool_call_id } : {}),
+            ...(requestMessage.tool_calls?.length ? { tool_calls: requestMessage.tool_calls } : {}),
+            ...(requestMessage.role === "user" && Array.isArray(requestMessage.content)
+              ? { requestContent: requestMessage.content }
+              : {}),
+          } as ChatMessageType)
+        : null;
 
       const newMessages = persistedRequestMessage
         ? [...currentMessages, persistedRequestMessage, assistantMessage]
@@ -518,12 +459,10 @@ export function useAiChat(options: UseAiChatOptions = {}) {
             messages: requestMessages,
             systemPrompt,
             enableTools,
-            agentType,
-            agentSessionId,
             conversationKey,
             pageContext,
           }),
-          600 * 1000,
+          600 * 1000
         );
         return true;
       } catch (error) {
@@ -539,11 +478,9 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       isLoading,
       systemPrompt,
       enableTools,
-      agentType,
-      agentSessionId,
       conversationKey,
       updateMessages,
-    ],
+    ]
   );
 
   // 发送用户文本消息
@@ -557,7 +494,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
         baseMessages,
       });
     },
-    [sendRequestMessage],
+    [sendRequestMessage]
   );
 
   // 清空消息

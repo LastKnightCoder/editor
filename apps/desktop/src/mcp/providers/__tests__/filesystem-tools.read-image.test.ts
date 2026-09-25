@@ -17,9 +17,7 @@ vi.mock("@/commands/extra", () => ({
 }));
 
 const getReadImageTool = () => {
-  const tool = filesystemToolsProvider
-    .tools()
-    .find((item) => item.name === "read_image");
+  const tool = filesystemToolsProvider.tools().find(item => item.name === "read_image");
   if (!tool) {
     throw new Error("read_image tool not found");
   }

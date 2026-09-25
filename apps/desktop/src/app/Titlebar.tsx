@@ -3,7 +3,7 @@
  */
 
 import { useEffect } from "react";
-import { ArrowLeft, ArrowRight, Monitor, Moon, Search, Sun } from "lucide-react";
+import { ArrowLeft, ArrowRight, MessageCircle, Monitor, Moon, Search, Sun } from "lucide-react";
 import { isWinOrLinux } from "@/platform";
 import { usePage } from "@/page/PageProvider";
 import { getPageMeta } from "@/page/core/pageMeta";
@@ -13,6 +13,7 @@ import { getTheme } from "@tau/ui/theme";
 import { nextMode, useThemeStore } from "@tau/ui/theme/runtime";
 import { useSearchStore } from "@/features/search/searchStore";
 import { WindowControls } from "./WindowControls";
+import { useShellStore } from "./shellStore";
 
 export function Titlebar() {
   const { navigator, state, breadcrumbs } = usePage();
@@ -34,6 +35,19 @@ export function Titlebar() {
     window.addEventListener("keydown", onKeydown);
     return () => window.removeEventListener("keydown", onKeydown);
   }, [navigator]);
+
+  // Ctrl/⌘+J 开合 AI 对话停靠栏（D-047）；输入框里同样生效——对话输入框本身就在栏内，
+  // 收起不应要求先移走焦点。输入法组合期间不抢键
+  useEffect(() => {
+    const onKeydown = (e: KeyboardEvent) => {
+      if (e.isComposing || e.altKey || e.shiftKey || !(e.ctrlKey || e.metaKey)) return;
+      if (e.key.toLowerCase() !== "j") return;
+      e.preventDefault();
+      useShellStore.getState().toggleAssist();
+    };
+    window.addEventListener("keydown", onKeydown);
+    return () => window.removeEventListener("keydown", onKeydown);
+  }, []);
 
   const currentKey = state.back[state.back.length - 1]?.key;
   const crumb = currentKey ? (getPageMeta(currentKey)?.label ?? currentKey) : "";
@@ -84,11 +98,32 @@ export function Titlebar() {
           Ctrl K
         </kbd>
       </button>
+      {/* AI 对话停靠栏开关（对话页本身在栈顶时不显示） */}
+      {currentKey !== "chat" && <AssistToggle />}
       {/* 主题切换：浅色 → 深色 → 跟随系统 循环（完整外观设置在 M5 设置中心） */}
       <ThemeToggle />
       {/* Windows/Linux 三键（Mac：自绘信号灯见 Sidebar 头部）；拖拽区行为见 header 类 */}
       <div className="app-region-no-drag">{isWinOrLinux && <WindowControls />}</div>
     </header>
+  );
+}
+
+/** AI 对话停靠栏开关：打开时 accent 轻染（同侧栏选中语言） */
+function AssistToggle() {
+  const open = useShellStore(s => s.assistOpen);
+  const toggle = useShellStore(s => s.toggleAssist);
+  return (
+    <div className="app-region-no-drag">
+      <IconButton
+        onClick={toggle}
+        title={open ? "收起 AI 对话 (Ctrl+J)" : "AI 对话 (Ctrl+J)"}
+        aria-label="AI 对话"
+        aria-pressed={open}
+        className={open ? "bg-selected text-accent-text hover:bg-selected" : undefined}
+      >
+        <MessageCircle size={17} strokeWidth={1.75} />
+      </IconButton>
+    </div>
   );
 }
 

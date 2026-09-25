@@ -4,6 +4,7 @@ import { join } from "node:path";
 import * as Y from "yjs";
 import { randomUUID } from "node:crypto";
 import type { CollaborationSession, ContentNode } from "@tau/collaboration";
+import { retireEditorBlocksInDoc } from "@tau/collaboration";
 
 export class CollaborationLocalStore {
   readonly db: Database.Database;
@@ -67,7 +68,20 @@ export class CollaborationLocalStore {
       .prepare("SELECT state FROM updates WHERE document_id=? ORDER BY id")
       .all(id) as { state: Buffer }[])
       Y.applyUpdate(doc, update.state);
-    return { doc, privateNodes: new Map(JSON.parse(row.private_nodes)) };
+    const privateNodes = new Map<string, ContentNode>(JSON.parse(row.private_nodes));
+    if (
+      retireEditorBlocksInDoc(doc, privateNodes, () => {
+        this.db
+          .prepare("VACUUM INTO ?")
+          .run(`${this.db.name}.pre-editor-block-retirement-v1-${randomUUID()}.bak`);
+      })
+    ) {
+      this.db.transaction(() => {
+        this.compact(id, doc);
+        this.privateNodes(id, privateNodes);
+      })();
+    }
+    return { doc, privateNodes };
   }
   create(session: CollaborationSession, doc: Y.Doc, privateNodes = new Map()) {
     this.db

@@ -93,6 +93,7 @@ pub fn open_database_by_name(app: &AppHandle, db_name: &str) -> Result<Connectio
     let conn = Connection::open(path).map_err(|e| format!("DB_OPEN_FAILED: {e}"))?;
     conn.execute_batch("PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;")
         .map_err(|e| e.to_string())?;
+    super::editor_block_retirement::install_guards(&conn)?;
     Ok(conn)
 }
 

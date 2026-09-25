@@ -12,20 +12,6 @@ type FileAttachmentElement = {
   children: unknown[];
 };
 
-type QuestionElement = {
-  type: "question";
-  title?: string;
-  questionId?: number;
-  children: unknown[];
-};
-
-type ChatReferenceElement = {
-  type: "chat-reference";
-  title?: string;
-  chatId?: number;
-  children: unknown[];
-};
-
 function readText(value: unknown, fallback: string): string {
   if (typeof value === "string" && value.trim()) {
     return value.trim();
@@ -66,60 +52,6 @@ export class MobileFileAttachmentExtension extends Base implements IExtension {
         <p className="text-ink font-bold">{name}</p>
         <p className="text-ink-3 mt-1 text-[11px]">{`类型: ${fileType} · 大小: ${sizeText}`}</p>
         <p className="text-ink-3 mt-1 break-all text-[11px]">{urlText}</p>
-        {children}
-      </div>
-    );
-  }
-}
-
-export class MobileQuestionExtension extends Base implements IExtension {
-  type = "question";
-
-  override getPlugins() {
-    return [createBlockElementPlugin("question"), createVoidElementPlugin("question")];
-  }
-
-  render(props: any): ReactElement {
-    const { attributes, children, element } = props;
-    const current = element as unknown as QuestionElement;
-    const title = readText(current.title, "问题卡片");
-    const questionId = readText(current.questionId, "-");
-
-    return (
-      <div
-        {...attributes}
-        contentEditable={false}
-        className="bg-butter-soft/70 text-butter my-2 rounded-xl px-3 py-2 text-sm"
-      >
-        <p className="text-butter text-xs font-bold">{`问题 #${questionId}`}</p>
-        <p className="mt-1">{title}</p>
-        {children}
-      </div>
-    );
-  }
-}
-
-export class MobileChatReferenceExtension extends Base implements IExtension {
-  type = "chat-reference";
-
-  override getPlugins() {
-    return [createBlockElementPlugin("chat-reference"), createVoidElementPlugin("chat-reference")];
-  }
-
-  render(props: any): ReactElement {
-    const { attributes, children, element } = props;
-    const current = element as unknown as ChatReferenceElement;
-    const title = readText(current.title, "对话引用");
-    const chatId = readText(current.chatId, "-");
-
-    return (
-      <div
-        {...attributes}
-        contentEditable={false}
-        className="bg-sky-soft/70 text-sky my-2 rounded-xl px-3 py-2 text-sm"
-      >
-        <p className="text-sky text-xs font-bold">{`Chat #${chatId}`}</p>
-        <p className="mt-1">{title}</p>
         {children}
       </div>
     );

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>AI 对话 · 样板间总览</title>
+<link rel="stylesheet" href="shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  [data-theme] body { background: var(--page); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 24px 60px; }
+  h1 { font-size: 25px; font-weight: 600; margin: 0 0 6px; }
+  .lead { color: var(--ink-2); margin: 0 0 26px; max-width: 860px; }
+  h2 { font-size: 16px; font-weight: 600; margin: 30px 0 4px; }
+  h2 + p { color: var(--ink-2); margin: 0 0 14px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card { display: block; text-decoration: none; color: inherit; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 18px; transition: box-shadow var(--fast); }
+  .card:hover { box-shadow: var(--shadow-lift); }
+  .card h3 { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card p { margin: 0 0 10px; color: var(--ink-2); font-size: 12.5px; }
+  .rec { font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); }
+  .wf { height: 110px; border-radius: 10px; background: var(--page); display: flex; gap: 4px; padding: 6px; margin-bottom: 12px; }
+  .wf i { display: block; border-radius: 5px; }
+  .wf .s { width: 26px; } .wf .c { flex: 1; background: var(--surface); box-shadow: var(--shadow-card); }
+  .wf .a { background: var(--accent-soft); }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); overflow: hidden; font-size: 12.5px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { color: var(--ink-3); font-weight: 500; }
+  tr + tr td { border-top: 1px solid var(--line-2); }
+  td b { font-weight: 600; }
+  .ph { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 20px; }
+  .ph ol { margin: 0; padding-left: 20px; } .ph li { margin: 6px 0; }
+  code { font: 12px var(--mono); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--line-1); background: var(--surface); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>AI 对话 · 布局方案</h1>
+  <p class="lead">两个问题分开裁决：<b>① 快捷入口怎么放</b>（在其他页面里随手问），<b>② 对话页本身怎么排</b>（会话多了怎么管）。两者可以自由组合。所有方案一期都只换容器，里面原样挂 legacy <code>ChatContainer</code>（消息流 / 输入框 / 工具调用 / 分支都不动），样式替换留到二期以后。</p>
+
+  <h2>① 快捷入口</h2>
+  <p>先回答「右边空间够不够」：左栏 218 + 对话 400 之后，1440 窗口的正文还有 788px，1680 有 1028px，都够用。1280 只剩约 630px，这时自动收起左栏（→ 58px 图标栏）就能回到 788px。所以右侧停靠栏在空间上是成立的，前提是做好这条自适应规则。</p>
+  <div class="grid">
+    <a class="card" href="entry-a-dock.html">
+      <div class="wf"><i class="s"></i><i class="c"></i><i class="c a" style="flex:.55"></i></div>
+      <h3>A · 右侧停靠栏 <span class="rec">推荐</span></h3>
+      <p>壳层新增辅助栏槽位，Ctrl J 开合，并排不遮挡；空间不够时依次「收左栏 → 覆盖浮层」。</p>
+    </a>
+    <a class="card" href="entry-b-float.html">
+      <div class="wf"><i class="s"></i><i class="c" style="position:relative"></i><i class="a" style="position:relative;width:34%;margin-left:-38%;margin-top:4px;height:78%;box-shadow:var(--shadow-float);background:var(--surface)"></i></div>
+      <h3>B · 锚定浮窗 + 命令面板直问</h3>
+      <p>不改壳层布局，非模态浮窗可钉住成 A；Ctrl K 输入问题可直接得到速答。</p>
+    </a>
+    <a class="card" href="entry-c-split.html">
+      <div class="wf"><i class="s"></i><i class="c"></i><i class="c a" style="flex:.8"></i></div>
+      <h3>C · 分屏 pane</h3>
+      <p>对话页用 openInSplit 在右侧开成第二个 pane；概念统一，但要先改导航框架。</p>
+    </a>
+  </div>
+
+  <h2>② 对话页布局</h2>
+  <p>legacy 的会话管理能力都要保留：分组 / 子分组、置顶、拖拽排序、归档、移动、分支。差异在于会话导航放在哪里。</p>
+  <div class="grid">
+    <a class="card" href="page-1-nested.html">
+      <div class="wf"><i class="s a"></i><i class="c"></i></div>
+      <h3>1 · 侧栏嵌套 <span class="rec">推荐</span></h3>
+      <p>置顶和最近会话作为侧栏子项，全量管理放进「全部会话」弹窗；对话页就是一整张纸。</p>
+    </a>
+    <a class="card" href="page-2-switcher.html">
+      <div class="wf"><i class="s"></i><i class="c" style="position:relative"></i></div>
+      <h3>2 · 顶部切换器</h3>
+      <p>面包屑 ▾ 展开会话面板，和停靠栏的会话下拉是同一个组件；另有一行可选的最近标签。</p>
+    </a>
+    <a class="card" href="page-3-board.html">
+      <div class="wf"><i class="s"></i><i class="c" style="display:flex"><i style="width:30%;background:var(--hover);border-radius:5px 0 0 5px"></i></i></div>
+      <h3>3 · 板内会话列</h3>
+      <p>接近 legacy：同一张纸左侧放淡墨底会话列，可折叠。迁移最省事，但有「两条侧栏」的风险。</p>
+    </a>
+  </div>
+
+  <h2>对比</h2>
+  <table>
+    <tr><th></th><th>A 停靠栏</th><th>B 浮窗</th><th>C 分屏</th></tr>
+    <tr><td>边读边问</td><td><b>并排</b>，不遮挡</td><td>遮挡右侧 440px</td><td><b>并排</b>，宽度最大</td></tr>
+    <tr><td>1280 小窗</td><td>自动收左栏</td><td><b>无影响</b></td><td>两栏各约 500，偏挤</td></tr>
+    <tr><td>开合成本</td><td>Ctrl J</td><td>Ctrl J / Ctrl K 直问</td><td>Ctrl J，但要先建 pane</td></tr>
+    <tr><td>一期改动</td><td>AppShell 加一列槽位</td><td>浮层壳，壳层零改动</td><td>PageHost 双栈，改动最大</td></tr>
+    <tr><td>后续扩展</td><td>槽位还能放大纲 / 反链等</td><td>可叠加 A（钉住）</td><td>顺带解决内容对照</td></tr>
+  </table>
+
+  <h2>一期接入路径（以 A + 1 为例）</h2>
+  <div class="ph"><ol>
+    <li>新建 <code>features/chat/</code>：<code>pages/chat.page.tsx</code>（params: chatId）+ <code>views/ChatView.tsx</code>，纸面内直接 lazy 挂 legacy <code>ChatContainer</code>；替换 <code>page/legacy.tsx</code> 里的 chat 占位。</li>
+    <li>侧栏子项：<code>navSlots.tsx</code> 注册 <code>chat-sessions</code>，数据读 <code>useChatMessageStore</code>（置顶 + 最近 3 条）；「全部会话」弹窗里先原样放 <code>ChatManagementSidebar</code>。</li>
+    <li>停靠栏：AppShell 网格加第三列 <code>assist</code> 槽位 + <code>shellStore</code> 持久化开合与宽度；壳里挂同一个 <code>ChatContainer</code>（沿用 <code>scrollPositionScope="right-chat-sidebar"</code> 与 <code>useRightChatSidebarStore.currentChatId</code>）。</li>
+    <li>Ctrl J / 命令面板「打开 AI 对话」「新对话」；BlockCard 点击改为纸内块预览抽屉（替代 <code>BlockPreviewSidebar</code> 的分栏）。</li>
+    <li>二期：当前页面上下文 chip、选中文字「问 AI」、消息与输入框按 tau 主题重写、antd 组件替换。</li>
+  </ol></div>
+</div>
+<script type="module">
+import { mockBar, icons } from "./shared.js?v=3";
+mockBar("index.html");
+icons();
+</script>
+</body>
+</html>

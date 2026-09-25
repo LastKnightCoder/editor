@@ -1,9 +1,6 @@
 import React from "react";
-import {
-  ChatToolCallDefaultItem,
-  ChatToolCallDisplay,
-  type ToolCallExecutionState,
-} from "@tau/shared";
+import type { ToolCallExecutionState } from "@tau/shared";
+import { ToolCallBlock, ToolCallRow } from "@/components/ChatUI";
 
 interface ToolCallDisplayProps {
   execution: ToolCallExecutionState;
@@ -11,19 +8,14 @@ interface ToolCallDisplayProps {
   markdownComponents?: any;
 }
 
+/** 兼容入口：子代理等渲染器嵌套展示工具调用时沿用本组件，实现已收口到 ChatUI（D-048） */
 const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
   execution,
   isDark,
   markdownComponents,
-}) => {
-  return (
-    <ChatToolCallDisplay
-      execution={execution}
-      isDark={isDark}
-      rendererContext={{ markdownComponents }}
-    />
-  );
-};
+}) => (
+  <ToolCallBlock execution={execution} isDark={isDark} rendererContext={{ markdownComponents }} />
+);
 
-export { ChatToolCallDefaultItem as DefaultToolCallDisplay };
+export { ToolCallRow as DefaultToolCallDisplay };
 export default React.memo(ToolCallDisplay);

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>入口 A · 右侧停靠栏</title>
+<link rel="stylesheet" href="shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .doc { flex: 1; overflow: hidden auto; }
+  .doc-inner { max-width: 720px; margin: 0 auto; padding: 36px 40px; }
+  .doc h1 { font-size: 25px; margin: 0 0 6px; font-weight: 600; }
+  .doc .dm { color: var(--ink-3); font-size: 12.5px; margin-bottom: 22px; }
+  .doc p { margin: 0 0 14px; font-size: 14px; line-height: 1.85; }
+  .doc h2 { font-size: 16px; margin: 26px 0 10px; font-weight: 600; }
+  .doc .sel { background: var(--accent-soft); border-radius: 3px; }
+
+  .dock { position: relative; display: flex; flex-direction: column; flex: none; transition: width var(--normal) var(--ease), opacity var(--fast); }
+  .dock.closed { display: none; }
+  .dock.overlay { position: absolute; right: 16px; top: calc(var(--titlebar-h)); bottom: 16px; z-index: 20; box-shadow: var(--shadow-float); }
+  .dock-head { display: flex; align-items: center; gap: 2px; padding: 8px 8px 4px 12px; flex: none; }
+  .dock-title { display: flex; align-items: center; gap: 4px; min-width: 0; flex: 1; font-weight: 500; font-size: 13px; padding: 4px 6px; margin-left: -6px; border-radius: var(--r-sm); cursor: pointer; }
+  .dock-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dock-title:hover { background: var(--hover); }
+  .dock .thread { flex: 1; }
+  .resizer { position: absolute; left: -8px; top: 16px; bottom: 16px; width: 8px; cursor: col-resize; z-index: 5; }
+  .resizer::after { content: ""; position: absolute; left: 3px; top: 50%; height: 36px; margin-top: -18px; width: 2px; border-radius: 2px; background: transparent; transition: background var(--fast); }
+  .resizer:hover::after { background: var(--accent); }
+  .readout { font-size: 12px; color: #e8dfcf; }
+  .readout b { color: #fff; font-variant-numeric: tabular-nums; }
+  .state-pill { padding: 1px 8px; border-radius: 999px; background: #3b3226; }
+  .sel-pop { position: absolute; display: flex; gap: 2px; padding: 4px; border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-float); border: 1px solid var(--line-1); z-index: 10; }
+</style>
+</head>
+<body>
+<div class="mock-note">
+  <h3>入口 A · 右侧停靠栏（推荐）</h3>
+  AppShell 增加第三列「辅助栏」槽位，AI 对话是它的第一个住户。标题栏右侧按钮 / <span class="kbd">Ctrl J</span> 开合，任何页面都能与对话并排；宽度 360–560 可拖（默认 400），开合状态与宽度持久化。
+  <ul>
+    <li><b>空间自适应</b>（用上方「窗口宽」切换验证）：打开后正文 &lt; 640px → 自动把左侧栏收成 58px 图标栏（关闭对话时还原）；仍 &lt; 560px → 退化为覆盖式浮层，不再挤压正文。</li>
+    <li><b>一期</b>：面板壳 = 新写（标题行 + 会话下拉 + 开页 / 关闭）；主体原样挂 legacy <code>ChatContainer</code>（<code>scrollPositionScope="right-chat-sidebar"</code>），会话与对话页同源 <code>useChatMessageStore</code>。</li>
+    <li><b>二期</b>：输入框里「当前页面」上下文 chip（legacy 没有自动注入，现靠 MCP tab-tools 让 AI 自己读）；选中文字「问 AI」送入面板。</li>
+    <li class="pro">＋ 高频入口零跳转、可边读边问；与 legacy 心智一致，迁移成本最低。</li>
+    <li class="con">－ 1280 宽窗口下正文被压到约 660px，只能靠收起左栏换空间；需要给 AppShell 加一个新槽位。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, thread, composer, anno, icons, SESSIONS } from "./shared.js?v=3";
+
+mockBar("entry-a-dock.html", `<span class="readout">正文 <b id="ro-main">–</b>px · 对话 <b id="ro-dock">–</b>px · <span class="state-pill" id="ro-state">–</span></span>`);
+
+const win = document.getElementById("win");
+win.innerHTML = `
+  ${sidebar("articles")}
+  <div class="col">
+    ${titlebar(`文章 <i data-lucide="chevron-right" style="width:13px"></i><b>SM-2 算法笔记</b>`,
+      `<button class="ib on" id="toggle" title="AI 对话（Ctrl J）"><i data-lucide="message-circle"></i></button>`)}
+    <div class="main" id="main">
+      <div class="paper doc"><div class="doc-inner">
+        <h1>SM-2 算法笔记</h1>
+        <div class="dm num">2026-09-12 · 2,340 字 · 学习 / 算法</div>
+        <p>SuperMemo 2（SM-2）是最早被广泛使用的间隔重复算法之一。它为每张卡片维护一个易度因子 EF，初始值为 2.5，每次复习后根据回忆质量 q（0–5）更新。</p>
+        <p><span class="sel">当 q &lt; 3 时，卡片的重复次数被重置，间隔回到 1 天，但 EF 并不会被重置</span>——这导致一张多次答错的卡片会长期停留在低 EF 区间，间隔增长极其缓慢，这就是常说的「ease hell」。</p>
+        <h2>间隔计算</h2>
+        <p>第一次间隔为 1 天，第二次为 6 天，此后每次间隔 = 上次间隔 × EF。EF 的更新公式为 EF' = EF + (0.1 − (5 − q) × (0.08 + (5 − q) × 0.02))，并以 1.3 为下限。</p>
+        <p>这个公式的问题在于它只看单次评分，没有利用卡片完整的复习历史；FSRS 等新一代算法则从历史日志中拟合记忆模型。</p>
+        <h2>和 FSRS 的差异</h2>
+        <p>FSRS 把记忆状态拆成稳定性 S 与难度 D 两个量，可以根据目标保留率直接求出下一次间隔，也能在参数优化后贴合个人的遗忘曲线。</p>
+      </div>
+      <div class="sel-pop" style="left:180px;top:212px">
+        <button class="btn" style="height:26px;padding:0 8px"><i data-lucide="sparkles"></i>问 AI</button>
+        <button class="btn" style="height:26px;padding:0 8px"><i data-lucide="highlighter"></i>高亮</button>
+      </div>
+      </div>
+
+      <section class="paper dock" id="dock" style="width:400px">
+        <div class="resizer" id="resizer"></div>
+        <div class="dock-head">
+          <div class="dock-title" id="dock-title"><span>SM-2 与 FSRS 复习策略对比</span><i data-lucide="chevron-down" style="width:14px"></i></div>
+          <button class="ib" title="新对话"><i data-lucide="square-pen"></i></button>
+          <button class="ib" title="在对话页打开"><i data-lucide="maximize-2"></i></button>
+          <button class="ib" title="关闭（Ctrl J）" id="close"><i data-lucide="panel-right-close"></i></button>
+        </div>
+        <div class="thread">${thread({ maxW: 9999, compact: true })}</div>
+        ${composer({ compact: true, ctx: true, placeholder: "问点什么，@ 引用内容" })}
+        <div class="menu hidden" id="sess-menu" style="left:10px;top:40px;width:300px">
+          <div class="search-in"><i data-lucide="search"></i>搜索会话</div>
+          <div class="mh">置顶</div>
+          ${SESSIONS.pinned.map(s => `<div class="mi ${s.on ? "on" : ""}"><i data-lucide="pin"></i>${s.t}<span class="meta">${s.time}</span></div>`).join("")}
+          <div class="mh">最近</div>
+          ${SESSIONS.recent.slice(0, 4).map(s => `<div class="mi"><i data-lucide="message-circle"></i>${s.t}<span class="meta">${s.time}</span></div>`).join("")}
+          <div class="msep"></div>
+          <div class="mi"><i data-lucide="library"></i>全部会话…<span class="meta">在对话页管理分组</span></div>
+        </div>
+      </section>
+    </div>
+  </div>
+  ${anno(1, "标题栏开关 + Ctrl J；打开时 accent 轻染", "right:150px;top:52px")}
+  ${anno(2, "会话下拉：置顶 / 最近 / 搜索；分组管理留在对话页", "right:70px;top:120px")}
+  ${anno(3, "二期：当前页面自动作为上下文 chip，可一键移除", "right:40px;bottom:150px")}
+  ${anno(4, "二期：选中文字 → 问 AI，引文送进面板输入框", "left:420px;top:300px")}
+`;
+icons();
+
+const dock = document.getElementById("dock");
+const toggle = document.getElementById("toggle");
+let open = true, dockW = 400, winW = 1440;
+
+function layout() {
+  const SB = 218, SBC = 58, PAD = 22, GAP = 12;
+  let collapsed = false, overlay = false;
+  let main = winW - SB - PAD - (open ? dockW + GAP : 0);
+  if (open && main < 640) { collapsed = true; main = winW - SBC - PAD - dockW - GAP; }
+  if (open && main < 560) { overlay = true; main = winW - SBC - PAD; }
+  win.classList.toggle("sb-c", collapsed);
+  dock.classList.toggle("closed", !open);
+  dock.classList.toggle("overlay", overlay);
+  toggle.classList.toggle("on", open);
+  document.getElementById("ro-main").textContent = Math.round(main);
+  document.getElementById("ro-dock").textContent = open ? dockW : 0;
+  document.getElementById("ro-state").textContent = !open ? "已关闭" : overlay ? "覆盖浮层" : collapsed ? "并排 · 左栏自动收起" : "并排";
+}
+window.addEventListener("mock-width", e => { winW = e.detail; layout(); });
+toggle.onclick = () => { open = !open; layout(); };
+document.getElementById("close").onclick = () => { open = false; layout(); };
+window.addEventListener("keydown", e => { if (e.ctrlKey && e.key.toLowerCase() === "j") { e.preventDefault(); open = !open; layout(); } });
+document.getElementById("dock-title").onclick = e => { e.stopPropagation(); document.getElementById("sess-menu").classList.toggle("hidden"); };
+document.addEventListener("click", () => document.getElementById("sess-menu").classList.add("hidden"));
+
+document.getElementById("resizer").onpointerdown = e => {
+  const x0 = e.clientX, w0 = dockW, z = +win.style.zoom || 1;
+  const move = ev => { dockW = Math.round(Math.max(360, Math.min(560, w0 + (x0 - ev.clientX) / z))); dock.style.width = dockW + "px"; layout(); };
+  const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+  window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+};
+layout();
+</script>
+</body>
+</html>

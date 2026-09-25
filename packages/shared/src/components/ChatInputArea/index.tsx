@@ -52,7 +52,11 @@ export type {
   MentionEntityType,
   MentionRef,
 } from "./types";
-export { ContextUsageIndicator } from "./ContextUsageIndicator";
+export {
+  ContextUsageIndicator,
+  getContextUsageSummary,
+  formatTokenCount,
+} from "./ContextUsageIndicator";
 export type { ChatContextUsage } from "./types";
 
 const { TextArea } = Input;

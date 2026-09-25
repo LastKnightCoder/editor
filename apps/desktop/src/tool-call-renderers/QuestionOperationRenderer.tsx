@@ -1,3 +1,5 @@
+import { Check, X } from "lucide-react";
+import { cn } from "@tau/ui";
 import type { ToolCallCustomRendererProps } from "./types";
 import {
   ToolBadge,
@@ -96,14 +98,12 @@ const renderSummary = (payload: QuestionOperationPayload, isDark: boolean) => {
   const topLevelAnswers = data.answers;
   if (typeof topLevelStatus === "string" || Array.isArray(topLevelAnswers)) {
     return (
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5 tabular-nums">
         {typeof topLevelStatus === "string" ? (
           <ToolValuePill isDark={isDark}>状态：{topLevelStatus}</ToolValuePill>
         ) : null}
         {Array.isArray(topLevelAnswers) ? (
-          <ToolValuePill isDark={isDark}>
-            答案数：{topLevelAnswers.length}
-          </ToolValuePill>
+          <ToolValuePill isDark={isDark}>答案数：{topLevelAnswers.length}</ToolValuePill>
         ) : null}
       </div>
     );
@@ -114,14 +114,12 @@ const renderSummary = (payload: QuestionOperationPayload, isDark: boolean) => {
     const answerCount = (question as Record<string, unknown>).answers;
     const status = (question as Record<string, unknown>).status;
     return (
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5 tabular-nums">
         {typeof status === "string" ? (
           <ToolValuePill isDark={isDark}>状态：{status}</ToolValuePill>
         ) : null}
         {Array.isArray(answerCount) ? (
-          <ToolValuePill isDark={isDark}>
-            答案数：{answerCount.length}
-          </ToolValuePill>
+          <ToolValuePill isDark={isDark}>答案数：{answerCount.length}</ToolValuePill>
         ) : null}
       </div>
     );
@@ -129,11 +127,7 @@ const renderSummary = (payload: QuestionOperationPayload, isDark: boolean) => {
 
   const orderedIds = data.orderedIds;
   if (Array.isArray(orderedIds)) {
-    return (
-      <ToolValuePill isDark={isDark}>
-        已更新 {orderedIds.length} 项顺序
-      </ToolValuePill>
-    );
+    return <ToolValuePill isDark={isDark}>已更新 {orderedIds.length} 项顺序</ToolValuePill>;
   }
 
   const answerId = data.answerId;
@@ -154,20 +148,26 @@ const QuestionOperationRenderer = ({
     return <>{renderDefault()}</>;
   }
 
+  const failed = payload.success === false;
   const title = getTitle(payload);
   const summary = renderSummary(payload, isDark);
+  const StatusIcon = failed ? X : Check;
 
   return (
     <ToolCard isDark={isDark}>
-      <ToolCardHeader
-        isDark={isDark}
-        divided={Boolean(title || payload.message || summary)}
-      >
+      <ToolCardHeader isDark={isDark}>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <StatusIcon
+            aria-hidden
+            size={14}
+            strokeWidth={2}
+            className={cn("shrink-0", failed ? "text-danger" : "text-ok")}
+          />
           <div
-            className={`min-w-0 flex-1 text-sm font-medium ${
-              isDark ? "text-slate-100" : "text-slate-800"
-            }`}
+            className={cn(
+              "text-tau-body min-w-0 flex-1 font-medium",
+              failed ? "text-danger" : "text-ink-1"
+            )}
           >
             {getPrimaryText(payload)}
           </div>
@@ -180,15 +180,17 @@ const QuestionOperationRenderer = ({
       </ToolCardHeader>
       {title || payload.message || summary ? (
         <ToolCardBody>
-          {title ? (
-            <ToolMutedText isDark={isDark} className="break-words">
-              对象：{title}
-            </ToolMutedText>
-          ) : null}
-          {payload.message ? (
-            <ToolMutedText isDark={isDark} className="break-words">
-              {payload.message}
-            </ToolMutedText>
+          {title || payload.message ? (
+            <div className="space-y-0.5">
+              {title ? (
+                <div className="text-tau-body text-ink-1 break-words">对象：{title}</div>
+              ) : null}
+              {payload.message ? (
+                <ToolMutedText isDark={isDark} className="break-words">
+                  {payload.message}
+                </ToolMutedText>
+              ) : null}
+            </div>
           ) : null}
           {summary}
         </ToolCardBody>

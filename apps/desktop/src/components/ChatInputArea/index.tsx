@@ -1,31 +1,32 @@
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { useMemoizedFn } from "ahooks";
-import { Button, Dropdown, Tooltip, Upload, message } from "antd";
-import type { MenuProps } from "antd";
 import {
-  ApiOutlined,
-  CheckOutlined,
-  CloseOutlined,
-  DownOutlined,
-  FilePdfOutlined,
-  FolderOpenOutlined,
-  PictureOutlined,
-  SendOutlined,
-  SettingOutlined,
-  StopOutlined,
-  WechatWorkOutlined,
-} from "@ant-design/icons";
-import classnames from "classnames";
+  forwardRef,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ComponentProps,
+} from "react";
+import { useMemoizedFn } from "ahooks";
+import {
+  ArrowUp,
+  AtSign,
+  Brain,
+  ChevronDown,
+  FileText,
+  ImagePlus,
+  Plug,
+  Square,
+  SquarePen,
+  X,
+} from "lucide-react";
 import { v4 as uuid } from "uuid";
-import { LuBrain } from "react-icons/lu";
 import type { Descendant } from "slate";
 
 import { Editor, type EditorRef, type IHotKeyConfig } from "@tau/editor/src";
 import {
   DEFAULT_CHAT_INPUT_PLACEHOLDER,
-  resolveNewChatTooltipOpen,
   resolveChatInputPlaceholder,
-  shouldCloseNewChatTooltip,
   type ChatInputAreaHandle,
   type ChatInputAreaServices,
   type MentionEntityType,
@@ -33,20 +34,27 @@ import {
   type MessageContentItem,
   type ReasoningEffort,
   type ChatContextUsage,
-  ContextUsageIndicator,
 } from "@tau/shared";
+import { IconButton, ImagePreview, Menu, Tooltip, cn, toast } from "@tau/ui";
 
 import useUploadResource from "@/hooks/useUploadResource";
 import { convertFileSrc, getHomeDir } from "@/commands";
-import type { ChatAgentType } from "@/types";
 import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
 import useTheme from "@/hooks/useTheme";
 import { contentLinkExtension } from "@/editor-extensions";
 import { wrapContentLink } from "@/editor-extensions/content-link/components/utils";
 import { importFromMarkdown, getMarkdown } from "@/utils/markdown";
-import styles from "./index.module.less";
+import { ContextUsageRing } from "./ContextUsageRing";
+import { ComposerAddMenu, type ComposerAddItem } from "./ComposerAddMenu";
 
 export type { ChatInputAreaHandle };
+
+/** 模型菜单：按服务商分组（组头 = 服务商，项 key = `${providerId}::${modelName}`） */
+export interface ChatModelGroup {
+  key: string;
+  label: string;
+  children?: Array<{ key: string; label: string; description?: string }>;
+}
 
 interface ChatInputAreaProps {
   className?: string;
@@ -59,7 +67,9 @@ interface ChatInputAreaProps {
   queuedMessageCount?: number;
   createMessageLoading?: boolean;
   onCreateNewMessage?: () => void;
-  modelSelectItems?: MenuProps["items"];
+  modelGroups?: ChatModelGroup[];
+  /** 当前选中模型的 key（`${providerId}::${modelName}`），用于菜单勾选 */
+  currentModelKey?: string;
   onModelSelect?: ({ key }: { key: string }) => void;
   currentModelName?: string;
   contextWindowK?: number;
@@ -71,12 +81,8 @@ interface ChatInputAreaProps {
   onReasoningEffortChange?: (level: ReasoningEffort) => void;
   reasoningEffortDisabled?: boolean;
   showMcpManager?: boolean;
-  agentType?: ChatAgentType;
-  onAgentTypeChange?: (agentType: ChatAgentType) => void;
-  agentTypeDisabled?: boolean;
-  codexWorkingDirectory?: string | null;
-  onSelectCodexWorkingDirectory?: () => void;
-  onClearCodexWorkingDirectory?: () => void;
+  /** 紧凑档（停靠栏 400px）：模型名限宽、思考强度取两字短名，工具行不折行 */
+  compact?: boolean;
 }
 
 interface ChatImageItem {
@@ -92,42 +98,27 @@ interface ChatFileItem {
 }
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const IMAGE_ACCEPT = "image/png, image/jpeg, image/webp";
+const PDF_ACCEPT = "application/pdf";
 
 const REASONING_EFFORT_OPTIONS: Array<{
   value: ReasoningEffort;
   label: string;
+  /** 紧凑档（停靠栏）工具行上的两字短名 */
+  short: string;
   description: string;
 }> = [
-  {
-    value: "none",
-    label: "立答如流",
-    description: "关闭思考以提升响应速度",
-  },
-  {
-    value: "low",
-    label: "略作沉吟",
-    description: "轻量推理，少量思考即可作答",
-  },
+  { value: "none", label: "立答如流", short: "立答", description: "关闭思考以提升响应速度" },
+  { value: "low", label: "略作沉吟", short: "略思", description: "轻量推理，少量思考即可作答" },
   {
     value: "medium",
     label: "细致推演",
+    short: "细致",
     description: "平衡速度与质量，保持稳健分析",
   },
-  {
-    value: "high",
-    label: "穷尽求索",
-    description: "深度推理，适合复杂任务",
-  },
-  {
-    value: "xhigh",
-    label: "远谋深算",
-    description: "长程推演，适合复杂代理任务",
-  },
-  {
-    value: "max",
-    label: "极尽推演",
-    description: "使用模型允许的最高推理强度",
-  },
+  { value: "high", label: "穷尽求索", short: "穷尽", description: "深度推理，适合复杂任务" },
+  { value: "xhigh", label: "远谋深算", short: "远谋", description: "长程推演，适合复杂代理任务" },
+  { value: "max", label: "极尽推演", short: "极尽", description: "使用模型允许的最高推理强度" },
 ];
 
 const DEFAULT_REASONING_EFFORT_OPTIONS: readonly ReasoningEffort[] = [
@@ -180,6 +171,34 @@ const extractMentionRefsFromEditorContent = (content: Descendant[]): MentionRef[
   return mentions;
 };
 
+/** 工具行右侧 chip（模型 / 思考强度）：无底，hover 淡墨；Menu 触发器（透传 props / ref） */
+function ToolbarChip({ className, children, ...props }: ComponentProps<"button">) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className={cn(
+        "text-tau-body text-ink-1 ease-tau-out flex h-[30px] min-w-0 max-w-[200px] shrink-0 items-center gap-1 rounded-[9px] pl-2 pr-1.5 transition-colors duration-[160ms]",
+        "enabled:hover:bg-hover disabled:cursor-default disabled:opacity-45",
+        "aria-expanded:bg-hover [&_svg]:shrink-0",
+        className
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ChipCaret() {
+  return <ChevronDown aria-hidden size={12} strokeWidth={1.75} className="text-ink-3" />;
+}
+
+/**
+ * 对话输入区（D-048 tau 化 · 二轮 mockups/chat/composer.html）：附件预览 → 编辑器
+ * （⌘/Ctrl+Enter 发送、@ 引用内容）→ 工具行：左 ＋（图片 / PDF / 引用 / 新对话 / MCP 收进
+ * 一个向上展开的面板）｜ 右 上下文用量环 · 模型 · 思考强度 · 停止 / 发送，任何宽度都只占一行。
+ * 外框（surface + line-1，聚焦 accent 线 + 焦点环）由容器负责，本组件只排内容。
+ */
 const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
   (
     {
@@ -193,7 +212,8 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       queuedMessageCount = 0,
       createMessageLoading = false,
       onCreateNewMessage,
-      modelSelectItems = [],
+      modelGroups = [],
+      currentModelKey,
       onModelSelect,
       currentModelName,
       contextWindowK,
@@ -205,12 +225,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       onReasoningEffortChange,
       reasoningEffortDisabled = false,
       showMcpManager = true,
-      agentType = "local",
-      onAgentTypeChange,
-      agentTypeDisabled = false,
-      codexWorkingDirectory = null,
-      onSelectCodexWorkingDirectory,
-      onClearCodexWorkingDirectory,
+      compact = false,
     },
     ref
   ) => {
@@ -234,27 +249,15 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const { uploadFile, getHomeDir: getChatHomeDir } = services;
 
     const editorRef = useRef<EditorRef>(null);
+    const imageInputRef = useRef<HTMLInputElement>(null);
+    const pdfInputRef = useRef<HTMLInputElement>(null);
 
     const [editorContent, setEditorContent] = useState<Descendant[]>(createEmptyEditorContent);
     const [images, setImages] = useState<ChatImageItem[]>([]);
     const [files, setFiles] = useState<ChatFileItem[]>([]);
-    const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [previewIndex, setPreviewIndex] = useState<number | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [uploadingPdf, setUploadingPdf] = useState(false);
-    const [isNewChatTooltipOpen, setIsNewChatTooltipOpen] = useState(false);
-    const [isNewChatTooltipReopenLocked, setIsNewChatTooltipReopenLocked] = useState(false);
-
-    useEffect(() => {
-      if (
-        shouldCloseNewChatTooltip({
-          createMessageLoading,
-          sendLoading,
-          contentEditable,
-        })
-      ) {
-        setIsNewChatTooltipOpen(false);
-      }
-    }, [contentEditable, createMessageLoading, sendLoading]);
 
     const resolveAbsolutePath = useMemoizedFn(async (path: string) => {
       if (path.startsWith("~")) {
@@ -280,22 +283,12 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         } catch (error) {
           console.error("生成图片预览失败:", error);
         }
-        const imageItem: ChatImageItem = {
-          id: uuid(),
-          previewUrl,
-          path: attachment.path,
-        };
-        setImages(prev => [...prev, imageItem]);
+        setImages(prev => [...prev, { id: uuid(), previewUrl, path: attachment.path }]);
       }
     );
 
     const appendFileAttachment = useMemoizedFn((attachment: { name: string; path: string }) => {
-      const fileItem: ChatFileItem = {
-        id: uuid(),
-        name: attachment.name,
-        path: attachment.path,
-      };
-      setFiles(prev => [...prev, fileItem]);
+      setFiles(prev => [...prev, { id: uuid(), name: attachment.name, path: attachment.path }]);
     });
 
     const handleImageUpload = async (file: File) => {
@@ -303,48 +296,52 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
         setUploadingImage(true);
         const uploadedPath = await uploadFile(file);
         if (!uploadedPath) {
-          message.error("图片上传失败");
-          return false;
+          toast.error("图片上传失败");
+          return;
         }
-        const attachment = { name: file.name, path: uploadedPath };
-        await appendImageAttachment(attachment);
-        message.success("图片上传成功");
+        await appendImageAttachment({ name: file.name, path: uploadedPath });
       } catch (error) {
         console.error("图片上传失败:", error);
-        message.error("图片上传失败");
+        toast.error("图片上传失败");
       } finally {
         setUploadingImage(false);
       }
-      return false;
     };
 
     const handlePdfUpload = async (file: File) => {
       if (file.type.toLowerCase() !== "application/pdf") {
-        message.error("仅支持 PDF 文件");
-        return false;
+        toast.error("仅支持 PDF 文件");
+        return;
       }
       if (file.size > MAX_FILE_SIZE) {
-        message.error("PDF 文件需小于 50MB");
-        return false;
+        toast.error("PDF 文件需小于 50MB");
+        return;
       }
 
       try {
         setUploadingPdf(true);
         const uploadedPath = await uploadFile(file);
         if (!uploadedPath) {
-          message.error("PDF 上传失败");
-          return false;
+          toast.error("PDF 上传失败");
+          return;
         }
-        const attachment = { name: file.name, path: uploadedPath };
-        appendFileAttachment(attachment);
-        message.success("PDF 上传成功");
+        appendFileAttachment({ name: file.name, path: uploadedPath });
       } catch (error) {
         console.error("PDF 上传失败:", error);
-        message.error("PDF 上传失败");
+        toast.error("PDF 上传失败");
       } finally {
         setUploadingPdf(false);
       }
-      return false;
+    };
+
+    const onPickFiles = (kind: "image" | "pdf") => (event: ChangeEvent<HTMLInputElement>) => {
+      const picked = Array.from(event.target.files ?? []);
+      event.target.value = "";
+      void (async () => {
+        for (const file of picked) {
+          await (kind === "image" ? handleImageUpload(file) : handlePdfUpload(file));
+        }
+      })();
     };
 
     const handlePasteCapture = useMemoizedFn((event: React.ClipboardEvent<HTMLDivElement>) => {
@@ -367,34 +364,23 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
       event.preventDefault();
       void (async () => {
-        if (isSupportImage) {
-          for (const item of imageItems) {
-            const file = item.getAsFile();
-            if (!file) continue;
-            await handleImageUpload(file);
-          }
+        for (const item of imageItems) {
+          const file = item.getAsFile();
+          if (file) await handleImageUpload(file);
         }
-
-        if (isSupportFile) {
-          for (const item of pdfItems) {
-            const file = item.getAsFile();
-            if (!file) continue;
-            await handlePdfUpload(file);
-          }
+        for (const item of pdfItems) {
+          const file = item.getAsFile();
+          if (file) await handlePdfUpload(file);
         }
       })();
     });
 
     const removeImage = useMemoizedFn((imageId: string) => {
-      setImages(prev => {
-        return prev.filter(image => image.id !== imageId);
-      });
+      setImages(prev => prev.filter(image => image.id !== imageId));
     });
 
     const removeFile = useMemoizedFn((fileId: string) => {
-      setFiles(prev => {
-        return prev.filter(file => file.id !== fileId);
-      });
+      setFiles(prev => prev.filter(file => file.id !== fileId));
     });
 
     const applyEditorContent = useMemoizedFn((nextContent: Descendant[]) => {
@@ -486,141 +472,208 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const currentReasoningOption = availableReasoningEffortOptions.find(
       option => option.value === reasoningEffort
     );
-    const reasoningEffortMenuItems = useMemo(
-      () =>
-        availableReasoningEffortOptions.map(option => ({
-          key: option.value,
-          label: (
-            <div
-              className={classnames("flex min-w-[180px] items-center justify-between gap-3", {
-                "text-[var(--th-active-text)]": option.value === reasoningEffort,
-              })}
-            >
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">{option.label}</span>
-                <span className="text-xs text-gray-500">{option.description}</span>
-              </div>
-              {option.value === reasoningEffort && (
-                <CheckOutlined className="text-[var(--th-accent)]" />
-              )}
-            </div>
-          ),
-        })),
-      [availableReasoningEffortOptions, reasoningEffort]
-    );
     const reasoningControlDisabled = reasoningEffortDisabled || sendLoading || !contentEditable;
-    const agentTypeMenuItems = useMemo(
-      () => [
-        {
-          key: "local",
-          label: (
-            <div className="flex min-w-[160px] items-center justify-between gap-3">
-              <span>本地代理</span>
-              {agentType === "local" && <CheckOutlined />}
-            </div>
-          ),
-        },
-        {
-          key: "codex",
-          label: (
-            <div className="flex min-w-[160px] items-center justify-between gap-3">
-              <span>Codex</span>
-              {agentType === "codex" && <CheckOutlined />}
-            </div>
-          ),
-        },
-      ],
-      [agentType]
-    );
-    const agentTypeControlDisabled = agentTypeDisabled || sendLoading || !contentEditable;
-    const codexWorkspaceControlDisabled = sendLoading || !contentEditable;
-    const codexWorkspaceLabel = useMemo(() => {
-      if (!codexWorkingDirectory) {
-        return "临时目录";
-      }
-      const normalized = codexWorkingDirectory.replace(/\\/g, "/");
-      const parts = normalized.split("/").filter(Boolean);
-      if (parts.length <= 2) {
-        return normalized;
-      }
-      return `.../${parts.slice(-2).join("/")}`;
-    }, [codexWorkingDirectory]);
-    const codexWorkspaceMenuItems = useMemo<MenuProps["items"]>(
-      () => [
-        {
-          key: "select",
-          label: "选择工作区目录",
-        },
-        {
-          key: "temporary",
-          label: "使用临时目录",
-          disabled: !codexWorkingDirectory,
-        },
-      ],
-      [codexWorkingDirectory]
-    );
+    const attachDisabled = !contentEditable || sendLoading;
+    // 序列化成本随草稿增长，避免每次按键/任意状态变化都全量执行
+    const hasText = useMemo(() => getMarkdown(editorContent).trim().length > 0, [editorContent]);
 
-    const handleCreateNewMessageClick = useMemoizedFn(() => {
-      setIsNewChatTooltipOpen(false);
-      setIsNewChatTooltipReopenLocked(true);
-      onCreateNewMessage?.();
-    });
+    // ＋ 面板：只列当前宿主真正支持的能力（停靠栏 / 内联 AI 的能力集不同）
+    const addItems: ComposerAddItem[] = [
+      ...(isSupportImage
+        ? [
+            {
+              key: "image",
+              group: "添加",
+              icon: <ImagePlus />,
+              label: "图片",
+              description: "可多选，也可直接粘贴",
+              disabled: attachDisabled,
+              onSelect: () => imageInputRef.current?.click(),
+            },
+          ]
+        : []),
+      ...(isSupportFile
+        ? [
+            {
+              key: "pdf",
+              group: "添加",
+              icon: <FileText />,
+              label: "PDF",
+              description: "作为上下文随消息发送",
+              disabled: attachDisabled,
+              onSelect: () => pdfInputRef.current?.click(),
+            },
+          ]
+        : []),
+      {
+        key: "mention",
+        group: "添加",
+        icon: <AtSign />,
+        label: "引用内容",
+        description: "卡片、文章、项目文档",
+        kbd: "@",
+        disabled: attachDisabled,
+        // 等同于在光标处输入 @：交给 content-link 的 @ 面板
+        onSelect: () => {
+          const editorHandle = editorRef.current;
+          if (!editorHandle) return;
+          editorHandle.focus();
+          window.requestAnimationFrame(() => editorHandle.getEditor().insertText("@"));
+        },
+      },
+      ...(onCreateNewMessage
+        ? [
+            {
+              key: "new-chat",
+              group: "对话",
+              icon: <SquarePen />,
+              label: "新建对话",
+              description: "当前对话保留在会话列表里",
+              disabled: sendLoading || createMessageLoading,
+              onSelect: onCreateNewMessage,
+            },
+          ]
+        : []),
+      ...(showMcpManager
+        ? [
+            {
+              key: "mcp",
+              group: "工具",
+              icon: <Plug />,
+              label: "MCP 管理中心",
+              description: "接入与开关外部工具服务",
+              disabled: sendLoading,
+              onSelect: openMcpManagerModal,
+            },
+          ]
+        : []),
+    ];
 
-    const handleNewChatTooltipMouseLeave = useMemoizedFn(() => {
-      setIsNewChatTooltipOpen(false);
-      setIsNewChatTooltipReopenLocked(false);
-    });
+    const canSend =
+      (hasText || images.length > 0 || files.length > 0) && (!sendLoading || allowSendWhileLoading);
+
+    const modelMenu =
+      modelGroups.length > 0 && onModelSelect ? (
+        <Menu
+          align="end"
+          className="w-[260px]"
+          trigger={
+            <ToolbarChip
+              disabled={sendLoading}
+              title={currentModelName || "选择模型"}
+              className={compact ? "max-w-[120px] shrink" : "max-w-[200px] shrink"}
+            >
+              <span className="min-w-0 truncate font-medium">{currentModelName || "选择模型"}</span>
+              <ChipCaret />
+            </ToolbarChip>
+          }
+        >
+          <Menu.RadioGroup value={currentModelKey} onValueChange={key => onModelSelect({ key })}>
+            {modelGroups.map((group, index) => (
+              <div key={group.key}>
+                {index > 0 && <Menu.Separator />}
+                <Menu.Group>{group.label}</Menu.Group>
+                {(group.children ?? []).map(model => (
+                  <Menu.RadioItem
+                    key={model.key}
+                    value={model.key}
+                    className={model.description ? "h-auto min-h-[34px] py-1.5" : undefined}
+                  >
+                    <span className="flex min-w-0 flex-col">
+                      <span className="truncate">{model.label}</span>
+                      {model.description && (
+                        <span className="text-tau-tiny text-ink-3 truncate">
+                          {model.description}
+                        </span>
+                      )}
+                    </span>
+                  </Menu.RadioItem>
+                ))}
+              </div>
+            ))}
+          </Menu.RadioGroup>
+        </Menu>
+      ) : null;
+
+    const reasoningMenu = showReasoningEffortControl ? (
+      <Menu
+        align="end"
+        // 双行选项 ×5 超出 Menu 默认 300px 上限；选项数固定，放开高度免出滚动条
+        className="max-h-none w-[240px]"
+        trigger={
+          <ToolbarChip disabled={reasoningControlDisabled} title="思考强度">
+            <Brain size={15} strokeWidth={1.75} className="text-ink-2" />
+            <span className="min-w-0 truncate">
+              {(compact ? currentReasoningOption?.short : currentReasoningOption?.label) ??
+                (compact ? "立答" : "立答如流")}
+            </span>
+            <ChipCaret />
+          </ToolbarChip>
+        }
+      >
+        <Menu.Group>思考强度</Menu.Group>
+        <Menu.RadioGroup
+          value={reasoningEffort}
+          onValueChange={value => onReasoningEffortChange?.(value as ReasoningEffort)}
+        >
+          {availableReasoningEffortOptions.map(option => (
+            <Menu.RadioItem key={option.value} value={option.value} className="h-auto py-1.5">
+              <span className="flex min-w-0 flex-col">
+                <span>{option.label}</span>
+                <span className="text-tau-tiny text-ink-3 truncate">{option.description}</span>
+              </span>
+            </Menu.RadioItem>
+          ))}
+        </Menu.RadioGroup>
+      </Menu>
+    ) : null;
 
     return (
-      <div className={classnames("flex flex-col p-2", className)}>
-        {images.length > 0 && (
+      <div className={cn("flex flex-col", className)}>
+        {(images.length > 0 || files.length > 0) && (
           <div className="mb-2 flex flex-wrap gap-2">
             {images.map((image, index) => (
-              <div key={image.id} className="group/image relative h-12 w-12">
+              <div key={image.id} className="group/att relative size-14">
                 <img
                   src={image.previewUrl}
                   alt={`预览 ${index + 1}`}
-                  className="h-12 w-12 cursor-zoom-in rounded-lg border border-gray-200 object-cover"
-                  onClick={() => setPreviewImage(image.previewUrl)}
+                  className="border-line-1 rounded-tau-sm size-14 cursor-zoom-in border object-cover"
+                  onClick={() => setPreviewIndex(index)}
                 />
-                <CloseOutlined
-                  className="text-white! hover:bg-gray-500! absolute right-1 top-1 h-4 w-4 cursor-pointer rounded-full p-1 opacity-0 transition-opacity duration-200 group-hover/image:opacity-100"
+                <button
+                  type="button"
+                  aria-label="移除图片"
                   onClick={() => removeImage(image.id)}
-                />
+                  className="bg-ink-1/70 text-ink-inverse absolute -right-1.5 -top-1.5 grid size-[18px] place-items-center rounded-full opacity-0 transition-opacity group-hover/att:opacity-100"
+                >
+                  <X size={11} strokeWidth={2.25} />
+                </button>
               </div>
             ))}
-          </div>
-        )}
-
-        {files.length > 0 && (
-          <div className="mb-2 flex flex-col gap-2">
             {files.map(file => (
               <div
                 key={file.id}
-                className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-zinc-800"
+                className="border-line-1 bg-surface group/att rounded-tau-sm flex h-8 max-w-[240px] items-center gap-1.5 border pl-2 pr-1"
               >
-                <div className="flex items-center gap-2 overflow-hidden">
-                  <FilePdfOutlined className="shrink-0 text-red-500" />
-                  <span className="truncate text-sm text-gray-800 dark:text-gray-100">
-                    {file.name}
-                  </span>
-                </div>
-                <CloseOutlined
-                  className="h-4 w-4 cursor-pointer text-gray-400 hover:text-gray-700"
+                <FileText size={14} strokeWidth={1.75} className="text-danger shrink-0" />
+                <span className="text-tau-sm text-ink-1 min-w-0 truncate">{file.name}</span>
+                <IconButton
+                  aria-label="移除文件"
+                  className="size-5 [&_svg]:size-3"
                   onClick={() => removeFile(file.id)}
-                />
+                >
+                  <X strokeWidth={2} />
+                </IconButton>
               </div>
             ))}
           </div>
         )}
 
         <div
-          className={classnames("mb-2 px-1 py-1", {
-            "opacity-60": !contentEditable,
-          })}
+          className={cn("px-0.5", !contentEditable && "opacity-60")}
           onPasteCapture={handlePasteCapture}
         >
-          <div className={styles.editorScrollContainer}>
+          <div className="max-h-[min(240px,34vh)] overflow-y-auto overflow-x-hidden overscroll-contain pr-1">
             <Editor
               ref={editorRef}
               initValue={editorContent}
@@ -632,285 +685,94 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               hotkeyConfigs={hotkeyConfigs}
               placeHolder={resolvedPlaceholder}
               theme={theme}
-              className={classnames("min-h-[24px]", styles.editorInput)}
+              // 段落拖拽手柄绝对定位且高于行高：裁剪溢出，避免未到最大高度就出现滚动条。
+              // 不设 min-height：空态 Slate 以内联 min-height（= 占位符高度）盖过类名，
+              // 一输入占位符消失、类名生效，单行下方凭空多出空白
+              className="text-tau-body-lg overflow-hidden"
             />
           </div>
         </div>
 
-        <div className="mt-1 flex items-center justify-between">
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-            {onCreateNewMessage && (
-              <Tooltip
-                title="新建对话"
-                trigger={["hover"]}
-                open={isNewChatTooltipOpen}
-                destroyOnHidden
-                onOpenChange={open => {
-                  setIsNewChatTooltipOpen(
-                    resolveNewChatTooltipOpen({
-                      requestedOpen: open,
-                      createMessageLoading,
-                      sendLoading,
-                      contentEditable,
-                      reopenLocked: isNewChatTooltipReopenLocked,
-                    })
-                  );
-                }}
-              >
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<WechatWorkOutlined />}
-                  onMouseDown={() => {
-                    setIsNewChatTooltipOpen(false);
-                    setIsNewChatTooltipReopenLocked(true);
-                  }}
-                  onMouseLeave={handleNewChatTooltipMouseLeave}
-                  onClick={handleCreateNewMessageClick}
-                  loading={createMessageLoading}
-                  disabled={sendLoading}
-                  className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
-                />
-              </Tooltip>
-            )}
-
-            {onAgentTypeChange && (
-              <Dropdown
-                menu={{
-                  items: agentTypeMenuItems,
-                  onClick: ({ key }) => onAgentTypeChange(key as ChatAgentType),
-                }}
-                trigger={["click"]}
-                disabled={agentTypeControlDisabled}
-              >
-                <span
-                  style={{
-                    display: "inline-block",
-                    cursor: agentTypeControlDisabled ? "not-allowed" : "pointer",
-                  }}
-                >
-                  <Tooltip
-                    placement="left"
-                    title={agentTypeControlDisabled ? "本次会话已锁定代理" : "选择代理"}
-                  >
-                    <Button
-                      type="text"
-                      size="small"
-                      disabled={agentTypeControlDisabled}
-                      className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! flex items-center gap-1.5"
-                      style={{
-                        pointerEvents: agentTypeControlDisabled ? "none" : "auto",
-                      }}
-                    >
-                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                        {agentType === "codex" ? "Codex" : "本地代理"}
-                      </span>
-                      <DownOutlined className="text-[10px] text-gray-500 dark:text-gray-400" />
-                    </Button>
-                  </Tooltip>
-                </span>
-              </Dropdown>
-            )}
-
-            {agentType === "codex" && onSelectCodexWorkingDirectory && (
-              <Dropdown
-                menu={{
-                  items: codexWorkspaceMenuItems,
-                  onClick: ({ key }) => {
-                    if (key === "temporary") {
-                      onClearCodexWorkingDirectory?.();
-                      return;
-                    }
-                    onSelectCodexWorkingDirectory();
-                  },
-                }}
-                trigger={["click"]}
-                disabled={codexWorkspaceControlDisabled}
-              >
-                <span
-                  style={{
-                    display: "inline-block",
-                    cursor: codexWorkspaceControlDisabled ? "not-allowed" : "pointer",
-                  }}
-                >
-                  <Tooltip
-                    placement="right"
-                    title={codexWorkingDirectory || "未选择工作区，每次请求使用临时目录"}
-                  >
-                    <Button
-                      type="text"
-                      size="small"
-                      disabled={codexWorkspaceControlDisabled}
-                      icon={<FolderOpenOutlined />}
-                      className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! flex max-w-[220px] items-center gap-1.5"
-                      style={{
-                        pointerEvents: codexWorkspaceControlDisabled ? "none" : "auto",
-                      }}
-                    >
-                      <span className="min-w-0 truncate text-xs font-medium text-gray-600 dark:text-gray-400">
-                        工作区: {codexWorkspaceLabel}
-                      </span>
-                      <DownOutlined className="text-[10px] text-gray-500 dark:text-gray-400" />
-                    </Button>
-                  </Tooltip>
-                </span>
-              </Dropdown>
-            )}
-
-            {modelSelectItems.length > 0 && onModelSelect && (
-              <Dropdown
-                menu={{
-                  items: modelSelectItems,
-                  onClick: onModelSelect,
-                }}
-                trigger={["click"]}
-                disabled={sendLoading}
-              >
-                <Tooltip title={currentModelName || "选择模型"}>
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<SettingOutlined />}
-                    disabled={sendLoading}
-                    className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
-                  />
-                </Tooltip>
-              </Dropdown>
-            )}
-
-            {showReasoningEffortControl && (
-              <Dropdown
-                menu={{
-                  items: reasoningEffortMenuItems,
-                  onClick: ({ key }) => onReasoningEffortChange?.(key as ReasoningEffort),
-                }}
-                trigger={["click"]}
-                disabled={reasoningControlDisabled}
-              >
-                <span
-                  style={{
-                    display: "inline-block",
-                    cursor: reasoningControlDisabled ? "not-allowed" : "pointer",
-                  }}
-                >
-                  <Button
-                    type="text"
-                    size="small"
-                    disabled={reasoningControlDisabled}
-                    className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! flex items-center gap-1.5"
-                    style={{
-                      pointerEvents: reasoningControlDisabled ? "none" : "auto",
-                    }}
-                  >
-                    <LuBrain className="text-base" />
-                    <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
-                      {currentReasoningOption?.label ?? "立答如流"}
-                    </span>
-                  </Button>
-                </span>
-              </Dropdown>
-            )}
-
-            {showMcpManager && (
-              <Tooltip title="MCP 管理中心">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<ApiOutlined />}
-                  disabled={sendLoading}
-                  className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
-                  onClick={openMcpManagerModal}
-                />
-              </Tooltip>
-            )}
-
-            <ContextUsageIndicator contextWindowK={contextWindowK} usage={contextUsage} />
-
-            {isSupportImage && (
-              <Tooltip title="上传图片">
-                <Upload
-                  accept="image/png, image/jpeg, image/webp"
-                  showUploadList={false}
-                  beforeUpload={handleImageUpload}
-                  disabled={!contentEditable || sendLoading || uploadingImage}
-                >
-                  <Button
-                    type="text"
-                    icon={<PictureOutlined />}
-                    size="small"
-                    disabled={!contentEditable || sendLoading || uploadingImage}
-                    loading={uploadingImage}
-                    className="p-1! rounded! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
-                  />
-                </Upload>
-              </Tooltip>
-            )}
-
-            {isSupportFile && (
-              <Tooltip title="上传 PDF">
-                <Upload
-                  accept="application/pdf"
-                  showUploadList={false}
-                  beforeUpload={handlePdfUpload}
-                  disabled={!contentEditable || sendLoading || uploadingPdf}
-                >
-                  <Button
-                    type="text"
-                    icon={<FilePdfOutlined />}
-                    size="small"
-                    disabled={!contentEditable || sendLoading || uploadingPdf}
-                    loading={uploadingPdf}
-                    className="p-1! rounded! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
-                  />
-                </Upload>
-              </Tooltip>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1">
-            {sendLoading && (
-              <Button
-                type="text"
-                size="small"
+        <div className="mt-2.5 flex items-center gap-1">
+          <ComposerAddMenu
+            items={addItems}
+            busy={uploadingImage || uploadingPdf}
+            disabled={!contentEditable}
+          />
+          <span className="min-w-1 flex-1" />
+          <ContextUsageRing contextWindowK={contextWindowK} usage={contextUsage} />
+          {modelMenu}
+          {reasoningMenu}
+          {sendLoading && (
+            <Tooltip content="停止生成" placement="top" delay={300}>
+              <button
+                type="button"
+                aria-label="停止生成"
                 onClick={onStop}
-                icon={<StopOutlined />}
-                className="border-none! bg-none! text-gray-600! dark:text-gray-400! hover:text-red-500! hover:bg-red-50! dark:hover:bg-red-900/20! shadow-none! rounded p-1"
-                title="停止生成"
-              />
-            )}
-            {(!sendLoading || allowSendWhileLoading) && (
-              <span className="relative inline-flex">
-                <Button
-                  type="text"
-                  size="small"
-                  onClick={onPressEnter}
-                  icon={<SendOutlined />}
-                  className="border-none! bg-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400! shadow-none! rounded p-1"
-                  title={sendLoading ? "加入发送队列" : "发送"}
-                />
+                className="bg-ink-1 text-surface ml-1 grid size-[30px] shrink-0 place-items-center rounded-[10px] hover:opacity-90"
+              >
+                <Square size={11} strokeWidth={0} fill="currentColor" />
+              </button>
+            </Tooltip>
+          )}
+          {(!sendLoading || allowSendWhileLoading) && (
+            <Tooltip
+              content={sendLoading ? "加入发送队列（⌘/Ctrl + Enter）" : "发送（⌘/Ctrl + Enter）"}
+              placement="top"
+              delay={300}
+            >
+              <button
+                type="button"
+                aria-label={sendLoading ? "加入发送队列" : "发送"}
+                onClick={onPressEnter}
+                disabled={!canSend}
+                className={cn(
+                  "ease-tau-out relative ml-1 grid size-[30px] shrink-0 place-items-center rounded-[10px] transition-[background,color] duration-[160ms]",
+                  // 不可发送 = 淡墨方钮（不用半透明 accent：一大块淡橙比文字还抢眼）
+                  "bg-accent text-ink-inverse enabled:hover:bg-accent-hover disabled:bg-hover disabled:text-ink-3 disabled:cursor-default"
+                )}
+              >
+                <ArrowUp size={16} strokeWidth={2.25} />
                 {queuedMessageCount > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 min-w-4 rounded-full bg-[var(--th-accent)] px-1 text-center text-[10px] leading-4 text-white">
+                  <span className="bg-ink-1 text-ink-inverse absolute -right-1.5 -top-1.5 min-w-4 rounded-full px-1 text-center text-[10px] font-semibold tabular-nums leading-4">
                     {queuedMessageCount}
                   </span>
                 )}
-              </span>
-            )}
-          </div>
+              </button>
+            </Tooltip>
+          )}
         </div>
 
-        {previewImage && (
-          <div
-            className="fixed inset-0 flex cursor-zoom-out items-center justify-center bg-black/60"
-            style={{ zIndex: 9999 }}
-            onClick={() => setPreviewImage(null)}
-          >
-            <img src={previewImage} alt="预览" className="max-h-full max-w-full" />
-            <CloseOutlined
-              className="text-white! hover:bg-gray-500! absolute right-4 top-4 h-5 w-5 cursor-pointer rounded-full p-1 duration-200"
-              onClick={() => setPreviewImage(null)}
-            />
-          </div>
+        {isSupportImage && (
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept={IMAGE_ACCEPT}
+            multiple
+            className="hidden"
+            onChange={onPickFiles("image")}
+          />
         )}
+        {isSupportFile && (
+          <input
+            ref={pdfInputRef}
+            type="file"
+            accept={PDF_ACCEPT}
+            className="hidden"
+            onChange={onPickFiles("pdf")}
+          />
+        )}
+
+        <ImagePreview
+          images={images.map((image, index) => ({
+            src: image.previewUrl,
+            alt: `预览 ${index + 1}`,
+          }))}
+          index={previewIndex ?? 0}
+          onIndexChange={setPreviewIndex}
+          open={previewIndex !== null}
+          onOpenChange={open => !open && setPreviewIndex(null)}
+        />
       </div>
     );
   }

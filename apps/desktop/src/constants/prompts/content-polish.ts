@@ -42,7 +42,6 @@ export const CONTENT_POLISH_PROMPT = `
 | **容器类** | \`:::note\` / \`:::detail\` / \`:::highlight-block\` | 仅润色内部**文字**，保留外壳 |
 | **多媒体/代码** | \`:::video\` / \`:::audio\` / 代码块 / 公式 | **原样复制，由标点都不许动** |
 | **行内修饰** | \`:underline[]\` / \`:color[]\` / \`:highlight[]\` | 仅润色 \`[]\` 内的文字 |
-| **引用** | \`::chat-reference\` | 仅润色 title 属性 |
 | **绘图** | \`\`\`mermaid \`\`\` / \`\`\`plantuml \`\`\` / \`\`\`tikz \`\`\` / \`\`\`typst \`\`\` | 原样复制，由标点都不许动 |
 
 ## 避坑清单

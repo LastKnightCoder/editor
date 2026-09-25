@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import classNames from "classnames";
+import { cn } from "@tau/ui";
 
 interface ResizablePanelProps {
   id?: string;
@@ -19,8 +19,7 @@ interface ResizablePanelProps {
   handleClassName?: string;
 }
 
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), max);
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 const MIN_RATIO = 0.05;
 const MAX_RATIO = 0.95;
 
@@ -49,8 +48,7 @@ const ResizablePanel = ({
     return clamp(value / 100, MIN_RATIO, MAX_RATIO);
   };
   const defaultRatio =
-    percentToRatio(defaultLeftWidth) ??
-    clamp(initialLeftRatio, MIN_RATIO, MAX_RATIO);
+    percentToRatio(defaultLeftWidth) ?? clamp(initialLeftRatio, MIN_RATIO, MAX_RATIO);
   const minRatioPercent = percentToRatio(minLeftWidth);
   const maxRatioPercent = percentToRatio(maxLeftWidth);
 
@@ -83,7 +81,7 @@ const ResizablePanel = ({
       if (typeof window === "undefined" || !storageKey) return;
       localStorage.setItem(storageKey, ratio.toString());
     },
-    [storageKey],
+    [storageKey]
   );
 
   const updateRatioFromClientX = useCallback(
@@ -98,7 +96,7 @@ const ResizablePanel = ({
       setLeftRatio(nextRatio);
       persistRatio(nextRatio);
     },
-    [getBounds, persistRatio],
+    [getBounds, persistRatio]
   );
 
   const handleMouseDown = useCallback(
@@ -108,7 +106,7 @@ const ResizablePanel = ({
       setIsDragging(true);
       updateRatioFromClientX(event.clientX);
     },
-    [updateRatioFromClientX],
+    [updateRatioFromClientX]
   );
 
   useEffect(() => {
@@ -134,7 +132,7 @@ const ResizablePanel = ({
     if (!container) return;
     const observer = new ResizeObserver(() => {
       const { min, max } = getBounds();
-      setLeftRatio((current) => clamp(current, min, max));
+      setLeftRatio(current => clamp(current, min, max));
     });
     observer.observe(container);
     return () => observer.disconnect();
@@ -146,13 +144,8 @@ const ResizablePanel = ({
   // 如果右侧面板为空，只渲染左侧面板
   if (rightContent == null) {
     return (
-      <div
-        ref={containerRef}
-        className={classNames("flex h-full w-full overflow-hidden", className)}
-      >
-        <div className={classNames("h-full w-full", leftClassName)}>
-          {leftContent}
-        </div>
+      <div ref={containerRef} className={cn("flex h-full w-full overflow-hidden", className)}>
+        <div className={cn("h-full w-full", leftClassName)}>{leftContent}</div>
       </div>
     );
   }
@@ -168,37 +161,31 @@ const ResizablePanel = ({
   return (
     <div
       ref={containerRef}
-      className={classNames(
-        "flex h-full w-full overflow-hidden",
-        isDragging && "select-none",
-        className,
-      )}
+      className={cn("flex h-full w-full overflow-hidden", isDragging && "select-none", className)}
     >
       <div
-        className={classNames(
-          "h-full min-w-0",
-          isDragging && "pointer-events-none",
-          leftClassName,
-        )}
+        className={cn("h-full min-w-0", isDragging && "pointer-events-none", leftClassName)}
         style={leftStyle}
       >
         {leftContent}
       </div>
       <div
-        className={classNames(
-          "flex h-full w-[6px] shrink-0 cursor-col-resize items-center justify-center",
-          handleClassName,
+        className={cn(
+          "group/split flex h-full w-[10px] shrink-0 cursor-col-resize items-center justify-center",
+          handleClassName
         )}
         onMouseDown={handleMouseDown}
       >
-        <div className="h-full w-[2px] rounded-full bg-gray-200 dark:bg-zinc-700" />
+        {/* 拖动柄：常态 line-1 短条，hover / 拖动时 accent（不画整高分隔线） */}
+        <div
+          className={cn(
+            "ease-tau-out h-10 w-[2px] rounded-full transition-colors duration-[160ms]",
+            isDragging ? "bg-accent" : "bg-line-1 group-hover/split:bg-accent"
+          )}
+        />
       </div>
       <div
-        className={classNames(
-          "h-full min-w-0",
-          isDragging && "pointer-events-none",
-          rightClassName,
-        )}
+        className={cn("h-full min-w-0", isDragging && "pointer-events-none", rightClassName)}
         style={rightStyle}
       >
         {rightContent}

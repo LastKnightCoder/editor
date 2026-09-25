@@ -42,17 +42,8 @@ import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
 import { showAndFocusWindow } from "@/commands/window";
 import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
 import type { BlockData } from "@/types/block-preview";
-import { streamCodexChat } from "@/services/codex/codexChatStream";
-import type { CodexMcpToolDefinition } from "@/services/codex/codexChatStream";
-import { resolveCodexAvailability } from "@/services/codex/codexAvailability";
-import { buildCodexInputFromMessageContent } from "@/services/codex/codexInputAdapter";
-import {
-  buildCodexSystemPrompt,
-  prependCodexSystemPromptToInput,
-} from "@/services/codex/codexSystemPrompt";
 
 const WS_PORT = 24678;
-type ChatAgentType = "local" | "codex";
 
 interface ToolDefinition {
   type: "function";
@@ -68,9 +59,6 @@ interface AiChatParams {
   messages: RequestMessage[];
   systemPrompt?: string;
   enableTools?: boolean;
-  agentType?: ChatAgentType;
-  agentSessionId?: string | null;
-  workingDirectory?: string | null;
   conversationKey?: string;
   browserTools?: ToolDefinition[];
   pageContext?: {
@@ -93,7 +81,6 @@ interface AiStreamNotificationData {
   content?: string;
   reasoning?: string;
   executions?: ToolCallExecutionState[];
-  agentSessionId?: string | null;
   error?: string;
 }
 
@@ -194,134 +181,6 @@ const executeBrowserTool = async (
   }
 };
 
-const handleCodexGetAvailability = async () => resolveCodexAvailability();
-
-const mapBrowserToolsToCodexMcpTools = (
-  browserTools: ToolDefinition[] = []
-): CodexMcpToolDefinition[] =>
-  browserTools.map(tool => ({
-    name: tool.function.name,
-    description: tool.function.description,
-    parameters: tool.function.parameters,
-  }));
-
-const getLatestCodexMessage = (messages: RequestMessage[]) => {
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index];
-    if (message.role === Role.User || message.role === Role.Tool) {
-      return message;
-    }
-  }
-  return messages[messages.length - 1];
-};
-
-const handleAiCodexChat = async (
-  params: AiChatParams,
-  server: WebSocketServer,
-  finalMessages: RequestMessage[],
-  mergedSystemPrompt: string
-) => {
-  const {
-    requestId,
-    agentSessionId = null,
-    workingDirectory = null,
-    browserTools,
-    conversationKey,
-  } = params;
-  const latestMessage = getLatestCodexMessage(finalMessages);
-  if (!latestMessage) {
-    throw new Error("缺少可发送给 Codex 的消息");
-  }
-
-  const rawCodexInput = await buildCodexInputFromMessageContent(latestMessage.content);
-  const codexInput = agentSessionId
-    ? rawCodexInput
-    : prependCodexSystemPromptToInput(rawCodexInput, buildCodexSystemPrompt(mergedSystemPrompt));
-
-  if (Array.isArray(codexInput) && codexInput.length === 0) {
-    throw new Error("缺少可发送给 Codex 的内容");
-  }
-
-  const externalMcpTools = mapBrowserToolsToCodexMcpTools(browserTools);
-  let fullContent = "";
-  let fullReasoning = "";
-  let currentAgentSessionId = agentSessionId ?? null;
-  let codexStreamError: Error | null = null;
-
-  try {
-    await streamCodexChat({
-      input: codexInput,
-      agentSessionId,
-      workingDirectory,
-      externalMcpTools,
-      executeExternalMcpTool: call => executeBrowserTool(call, requestId, conversationKey),
-      onEvent: event => {
-        if (event.type === "thread-started") {
-          currentAgentSessionId = event.threadId;
-          server.sendNotification<AiStreamNotificationData>("ai.stream.agentSession", {
-            requestId,
-            agentSessionId: event.threadId,
-          });
-          return;
-        }
-
-        if (event.type === "text-delta") {
-          fullContent = event.responseText;
-          server.sendNotification<AiStreamNotificationData>("ai.stream.text", {
-            requestId,
-            content: event.delta,
-          });
-          return;
-        }
-
-        if (event.type === "reasoning-delta") {
-          fullReasoning = event.reasoningText;
-          server.sendNotification<AiStreamNotificationData>("ai.stream.reasoning", {
-            requestId,
-            reasoning: event.delta,
-          });
-          return;
-        }
-
-        if (event.type === "tool-calls-update") {
-          server.sendNotification<AiStreamNotificationData>("ai.stream.tool", {
-            requestId,
-            executions: event.executions,
-          });
-          return;
-        }
-
-        if (event.type === "error") {
-          codexStreamError = event.error;
-        }
-      },
-    });
-
-    if (codexStreamError) {
-      throw codexStreamError;
-    }
-
-    server.sendNotification<AiStreamNotificationData>("ai.stream.finish", {
-      requestId,
-      content: fullContent,
-      reasoning: fullReasoning,
-      agentSessionId: currentAgentSessionId,
-    });
-  } catch (error) {
-    server.sendNotification<AiStreamNotificationData>("ai.stream.finish", {
-      requestId,
-      error: error instanceof Error ? error.message : "Codex 请求失败",
-      agentSessionId: currentAgentSessionId,
-    });
-  }
-
-  return {
-    content: fullContent,
-    reasoning: fullReasoning,
-    agentSessionId: currentAgentSessionId,
-  };
-};
-
 const handleAiChat = async (request: RpcRequestMessage, server: WebSocketServer) => {
   const params = request.params as unknown as AiChatParams;
   const {
@@ -329,8 +188,6 @@ const handleAiChat = async (request: RpcRequestMessage, server: WebSocketServer)
     messages,
     systemPrompt,
     enableTools = true,
-    agentType = "local",
-    agentSessionId,
     conversationKey,
     browserTools,
     pageContext,
@@ -341,8 +198,6 @@ const handleAiChat = async (request: RpcRequestMessage, server: WebSocketServer)
     requestId,
     messageCount: messages.length,
     enableTools,
-    agentType,
-    agentSessionId: agentSessionId ?? null,
     browserToolCount: browserTools?.length || 0,
     hasPageContext: !!pageContext,
     feature: feature || "chat",
@@ -366,10 +221,6 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
 
   if (systemSections.length > 0) {
     finalMessages = [{ role: Role.System, content: systemSections.join("\n\n") }, ...finalMessages];
-  }
-
-  if (agentType === "codex") {
-    return await handleAiCodexChat(params, server, finalMessages, systemSections.join("\n\n"));
   }
 
   // 获取 LLM 配置
@@ -798,7 +649,6 @@ export const initAiServer = () => {
   aiServer.addRequestHandler("ai.chat", async request => {
     return await handleAiChat(request, aiServer!);
   });
-  aiServer.addRequestHandler("codex.getAvailability", handleCodexGetAvailability);
 
   // 注册 ext.clipper.extract 处理器
   aiServer.addRequestHandler("ext.clipper.extract", async request => {
@@ -887,7 +737,6 @@ export const closeAiServer = () => {
 
 export const __aiServerTestUtils = {
   handleAiChat,
-  resolveCodexAvailability,
 };
 
 export default {

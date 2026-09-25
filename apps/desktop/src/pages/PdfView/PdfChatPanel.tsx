@@ -1,5 +1,3 @@
-import { App, Empty, Popover } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
 import {
   forwardRef,
   lazy,
@@ -13,30 +11,26 @@ import {
   useRef,
   useState,
 } from "react";
-import { useLocalStorageState, useMemoizedFn } from "ahooks";
+import { useMemoizedFn } from "ahooks";
 import { useShallow } from "zustand/react/shallow";
 import "katex/dist/katex.min.css";
 
 import type { EditTextHandle } from "@/components/EditText";
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
 import ChatDropdownSelector from "@/layouts/ContentLayout/components/RightChatSidebar/ChatDropdownSelector";
-import {
-  MarkdownProvider,
-  useMarkdownContext,
-} from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
-import { shouldRenderAsBlockCode } from "@/layouts/ContentLayout/components/ChatSidebar/codeBlockUtils";
+import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
+import { useChatMarkdownComponents } from "@/components/ChatUI";
+import { Loading, Spinner, Tooltip, toast } from "@tau/ui";
 import useTheme from "@/hooks/useTheme";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
 import usePdfChatStore, { EPdfChatStatus } from "@/stores/usePdfChatStore";
-import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
 import { buildSessionAwareSystemPrompt, Role } from "@/constants";
-import type { ChatAgentType, ChatMessage, Pdf, PdfIndexStatus, ResponseMessage } from "@/types";
-import { ensurePdfIndex, getPdfIndexStatus, openExternal } from "@/commands";
+import type { ChatMessage, Pdf, PdfIndexStatus, ResponseMessage } from "@/types";
+import { ensurePdfIndex, getPdfIndexStatus } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 import usePdfChat from "./usePdfChat";
 import { buildPdfCitationMarkerLabel, type PdfCitationTarget } from "./pdfCitation";
-import { CHAT_AGENT_TYPE_STORAGE_KEY, normalizeChatAgentType } from "@/constants/chatAgent";
 
 const ChatContainer = lazy(
   () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer")
@@ -82,22 +76,19 @@ const buildPdfSystemPrompt = (pdf: Pdf): string =>
   `你是 PDF 阅读助手，只能基于当前 PDF 回答问题。
 
 ## 可用工具
-- get_pdf_document_map：读取当前 PDF 的目录/章节结构和页码范围
-- read_pdf_section：按章节读取页范围和全文
 - search_pdf_knowledge：搜索当前 PDF 的相关片段，返回页码、chunk 和字符范围
 - get_pdf_document_info：读取当前 PDF 的总页数和索引状态
 - get_pdf_outline：读取当前 PDF 的目录
-- read_pdf_page：读取指定页全文
 - read_pdf_page_range：读取指定页范围全文
 - get_pdf_annotations：读取当前 PDF 的标注、区域截图与笔记
 - get_pdf_bookmarks：读取当前 PDF 的书签
 
 ## 工作流要求
 1. 先理解问题
-2. 如果是结构性问题（例如“整体结构是什么”“有哪些章节”），优先调用 get_pdf_document_map
+2. 如果是结构性问题（例如“整体结构是什么”“有哪些章节”），优先调用 get_pdf_outline 或 get_pdf_document_info
 3. 如果是内容问题，优先调用 search_pdf_knowledge 获取证据片段和字符范围
-4. 根据搜索结果的页码、章节 ID 或字符范围，再用 read_pdf_page / read_pdf_page_range / read_pdf_section 读取完整上下文
-5. 如果需要按目录浏览，再调用 get_pdf_outline 或 get_pdf_document_map
+4. 根据搜索结果的页码或字符范围，再用 read_pdf_page_range 读取完整上下文
+5. 如果需要按目录浏览，再调用 get_pdf_outline
 6. 需要用户上下文时，再调用 get_pdf_annotations / get_pdf_bookmarks
 7. 证据不足时明确说明，不要猜测
 
@@ -135,59 +126,12 @@ const createDefaultChat = (systemPrompt: string): ChatMessage => ({
   branchIndex: 0,
 });
 
-const CodeRenderer: React.FC<{
-  children?: React.ReactNode;
-  className?: string;
-  "data-markdown-block-code"?: string;
-}> = ({ children, className, "data-markdown-block-code": markdownBlockCode, ...rest }) => {
-  const { message } = App.useApp();
-  const { isDark } = useTheme();
-  const { messageMeta } = useMarkdownContext();
-  const match = /language-([\w-]+)/.exec(className || "");
-  const language = match ? match[1] : undefined;
-  const isBlockCode = shouldRenderAsBlockCode({
-    className,
-    "data-markdown-block-code": markdownBlockCode,
-  });
-  const code = String(children).replace(/\n$/, "");
-
-  if (language === "mermaid") {
-    return <MermaidRenderer code={code} isDark={isDark} messageApi={message} />;
-  }
-
-  if (language) {
-    return (
-      <LazySyntaxHighlighter language={language} isDark={isDark} {...rest}>
-        {code}
-      </LazySyntaxHighlighter>
-    );
-  }
-
-  if (isBlockCode) {
-    return (
-      <LazySyntaxHighlighter language="text" isDark={isDark} {...rest}>
-        {code}
-      </LazySyntaxHighlighter>
-    );
-  }
-
-  return (
-    <code {...rest} className={className} data-message={messageMeta?.chatId}>
-      {children}
-    </code>
-  );
-};
-
 const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
   ({ pdf, mainDbName, collapsed, onToggleCollapsed, onCitationNavigate }, ref) => {
-    const { message } = App.useApp();
     const { isDark } = useTheme();
     const editTitleRef = useRef<EditTextHandle>(null);
     const chatContainerRef = useRef<ChatContainerHandle>(null);
     const [chatContainerReady, setChatContainerReady] = useState(false);
-    const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(CHAT_AGENT_TYPE_STORAGE_KEY, {
-      defaultValue: "local",
-    });
     const database = useSettingStore(state => state.setting.database.active);
     const isConnected = useDatabaseConnected();
 
@@ -246,8 +190,6 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
         archived: currentChat.archived,
         parentChatId: currentChat.parentChatId,
         branchIndex: currentChat.branchIndex,
-        agentType: currentChat.agentType,
-        agentSessionId: currentChat.agentSessionId,
       };
     }, [currentChat, systemPrompt]);
 
@@ -263,8 +205,6 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
           archived: chat.archived,
           parentChatId: chat.parentChatId,
           branchIndex: chat.branchIndex,
-          agentType: chat.agentType,
-          agentSessionId: chat.agentSessionId,
         })),
       [chats]
     );
@@ -293,7 +233,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
 
     const ensureIndexReadyBeforeSend = useMemoizedFn(async () => {
       if (!mainDbName) {
-        message.warning("当前数据库未连接，暂时无法使用 PDF 问答");
+        toast.warning("当前数据库未连接，暂时无法使用 PDF 问答");
         return false;
       }
 
@@ -301,7 +241,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
       try {
         const resolvedPath = await resolvePdfPath();
         if (!resolvedPath) {
-          message.warning("无法定位当前 PDF 文件，暂时无法建立索引");
+          toast.warning("无法定位当前 PDF 文件，暂时无法建立索引");
           return false;
         }
 
@@ -313,7 +253,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
         });
         setIndexStatus(nextStatus);
         if (nextStatus.state === "failed") {
-          message.error(nextStatus.error || "PDF 索引构建失败");
+          toast.error(nextStatus.error || "PDF 索引构建失败");
           return false;
         }
         return true;
@@ -326,7 +266,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
           updatedAt: Date.now(),
           error: error instanceof Error ? error.message : String(error),
         });
-        message.error("准备 PDF 索引失败");
+        toast.error("准备 PDF 索引失败");
         return false;
       } finally {
         setIndexPreparing(false);
@@ -395,9 +335,9 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
       ];
       setCreateMessageLoading(true);
       try {
-        await createChat(messages, undefined, normalizeChatAgentType(rememberedAgentType));
+        await createChat(messages);
       } catch (error) {
-        message.error("创建对话失败");
+        toast.error("创建对话失败");
         console.error(error);
       } finally {
         setCreateMessageLoading(false);
@@ -409,7 +349,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
       try {
         await updateChat({ ...currentChat, title });
       } catch (error) {
-        message.error("更新标题失败");
+        toast.error("更新标题失败");
         console.error(error);
       }
     });
@@ -420,13 +360,8 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
     });
 
     const handleExternalCreateChat = useMemoizedFn(
-      async (
-        messages: ChatMessage["messages"],
-        title?: string,
-        agentType?: ChatAgentType,
-        agentSessionId?: string | null
-      ) => {
-        const created = await createChat(messages, title, agentType, agentSessionId);
+      async (messages: ChatMessage["messages"], title?: string) => {
+        const created = await createChat(messages, title);
         return {
           id: created.id,
           createTime: created.createTime,
@@ -437,8 +372,6 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
           archived: created.archived,
           parentChatId: created.parentChatId,
           branchIndex: created.branchIndex,
-          agentType: created.agentType,
-          agentSessionId: created.agentSessionId,
         };
       }
     );
@@ -456,8 +389,6 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
           archived: created.archived,
           parentChatId: created.parentChatId,
           branchIndex: created.branchIndex,
-          agentType: created.agentType,
-          agentSessionId: created.agentSessionId,
         };
       }
     );
@@ -472,8 +403,6 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
         messages: chat.messages,
         title: chat.title,
         archived: chat.archived,
-        agentType: chat.agentType,
-        agentSessionId: chat.agentSessionId,
       });
       return {
         ...chat,
@@ -492,8 +421,6 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
         archived: chat.archived,
         parentChatId: chat.parentChatId,
         branchIndex: chat.branchIndex,
-        agentType: chat.agentType,
-        agentSessionId: chat.agentSessionId,
       });
     });
 
@@ -501,21 +428,13 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
       await deleteChat(chatId);
     });
 
-    const handleLinkClick = useMemoizedFn(
-      (event: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
-        if (!href) return;
-        event.preventDefault();
-        openExternal(href).catch(err => {
-          console.error("打开链接失败:", err);
-        });
-      }
-    );
-
+    // 代码 / 链接渲染与对话页共用（D-048）；PDF 特有的 pdfref 引用 span 在此合并
+    const baseMarkdownComponents = useChatMarkdownComponents({ isDark, idPrefix: "pdf-block" });
     const markdownComponents = useMemo(
       () => ({
-        code: CodeRenderer,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        span: ({ children, className, ...props }: any) => {
+        ...baseMarkdownComponents,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+        span: ({ children, className, node: _node, ...props }: any) => {
           if (className === "pdf-citation") {
             const label = extractTextFromReactNode(children).trim();
             const pageNumber = Number(props["data-page"]);
@@ -538,30 +457,23 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
 
             const markerLabel = buildPdfCitationMarkerLabel(citation);
             return (
-              <Popover
-                trigger={["hover"]}
+              <Tooltip
                 placement="top"
-                overlayInnerStyle={{
-                  background: isDark ? "#18181b" : "#f8fafc",
-                  border: isDark
-                    ? "1px solid rgba(255,255,255,0.12)"
-                    : "1px solid rgba(15,23,42,0.08)",
-                  boxShadow: isDark
-                    ? "0 18px 42px rgba(0,0,0,0.55)"
-                    : "0 18px 42px rgba(15,23,42,0.16)",
-                }}
+                delay={200}
                 content={
-                  <div className="max-w-[320px]">
-                    <div className="mb-1 text-xs font-semibold">第 {citation.pageNumber} 页</div>
-                    <div className="text-xs leading-6 opacity-85">
+                  <span className="block max-w-[260px]">
+                    <span className="mb-0.5 block font-medium tabular-nums">
+                      第 {citation.pageNumber} 页
+                    </span>
+                    <span className="block opacity-85">
                       {citation.previewText || label || "引用位置"}
-                    </div>
-                  </div>
+                    </span>
+                  </span>
                 }
               >
                 <button
                   type="button"
-                  className="border-[var(--th-info)]/30 bg-[var(--th-info)]/10 text-status-info hover:border-[var(--th-info)]/30 hover:bg-[var(--th-info)]/15 hover:text-status-info inline-flex translate-y-[-0.2em] cursor-pointer items-center rounded-md border px-1.5 py-[1px] text-[11px] font-semibold leading-none transition-colors"
+                  className="rounded-tau-sm bg-info-soft text-info ease-tau-out text-tau-tiny hover:bg-info/20 mx-px inline-flex translate-y-[-0.2em] cursor-pointer items-center px-1.5 py-px font-medium tabular-nums leading-none transition-colors duration-[160ms]"
                   aria-label={`跳转到第 ${citation.pageNumber} 页引用`}
                   onMouseDown={event => {
                     event.preventDefault();
@@ -575,7 +487,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
                 >
                   <span className="not-italic no-underline">{markerLabel}</span>
                 </button>
-              </Popover>
+              </Tooltip>
             );
           }
 
@@ -585,20 +497,8 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
             </span>
           );
         },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        a: ({ children, href, ...props }: any) => {
-          return (
-            <a
-              {...props}
-              href={href}
-              onClick={(event: React.MouseEvent<HTMLAnchorElement>) => handleLinkClick(event, href)}
-            >
-              {children}
-            </a>
-          );
-        },
       }),
-      [handleLinkClick, onCitationNavigate]
+      [baseMarkdownComponents, onCitationNavigate]
     );
 
     useImperativeHandle(ref, () => ({
@@ -651,110 +551,94 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
       return () => window.clearTimeout(timer);
     }, [chatContainerReady, collapsed, pendingAskPayload, sendLoading, status]);
 
+    const progressPercent =
+      indexStatus?.progressTotal && typeof indexStatus.progressCurrent === "number"
+        ? Math.max(
+            4,
+            Math.min(100, (indexStatus.progressCurrent / indexStatus.progressTotal) * 100)
+          )
+        : 35;
+
     return (
       <MarkdownProvider isDark={isDark} isVisible={!collapsed}>
-        <div className="border-black/6 dark:border-white/8 flex h-full flex-col overflow-hidden border-l bg-white/70 backdrop-blur-sm dark:bg-zinc-950/40">
+        <div className="bg-page flex h-full flex-col overflow-hidden">
           {collapsed ? null : status === EPdfChatStatus.LOADING ? (
-            <>
-              <div className="flex flex-1 items-center justify-center">
-                <LoadingOutlined />
-              </div>
-            </>
+            <Loading minHeight={0} className="flex-1" />
           ) : (
-            <>
-              <div className="flex min-h-0 flex-1 flex-col p-4">
-                {indexPreparing || indexStatus?.state === "building" ? (
-                  <div className="border-[var(--th-info)]/20 bg-[var(--th-info)]/10 text-status-info mb-3 rounded-lg border px-3 py-2 text-xs">
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <LoadingOutlined />
-                        <span className="truncate">
-                          {indexStatus?.progressLabel || "正在准备 PDF 索引"}
-                        </span>
+            <div className="flex min-h-0 flex-1 flex-col p-4">
+              {indexPreparing || indexStatus?.state === "building" ? (
+                <div className="rounded-tau-md bg-info-soft text-tau-sm text-info mb-3 px-3 py-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <Spinner className="border-info/30 border-t-info size-3" />
+                      <span className="truncate">
+                        {indexStatus?.progressLabel || "正在准备 PDF 索引"}
                       </span>
-                      {indexStatus?.progressTotal ? (
-                        <span className="shrink-0 tabular-nums">
-                          {indexStatus.progressCurrent || 0}/{indexStatus.progressTotal}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="bg-[var(--th-info)]/15 dark:bg-[var(--th-info)]/15 mt-2 h-1 overflow-hidden rounded-full">
-                      <div
-                        className="h-full rounded-full bg-[var(--th-info)] transition-[width] duration-300"
-                        style={{
-                          width:
-                            indexStatus?.progressTotal &&
-                            typeof indexStatus.progressCurrent === "number"
-                              ? `${Math.max(
-                                  4,
-                                  Math.min(
-                                    100,
-                                    (indexStatus.progressCurrent / indexStatus.progressTotal) * 100
-                                  )
-                                )}%`
-                              : "35%",
-                        }}
-                      />
-                    </div>
-                    <div className="mt-1.5 opacity-75">索引完成后即可进行 PDF 问答</div>
+                    </span>
+                    {indexStatus?.progressTotal ? (
+                      <span className="shrink-0 tabular-nums">
+                        {indexStatus.progressCurrent || 0}/{indexStatus.progressTotal}
+                      </span>
+                    ) : null}
                   </div>
-                ) : indexStatus?.state === "failed" ? (
-                  <div className="bg-red-500/6 dark:bg-red-400/8 mb-3 rounded-lg border border-red-500/20 px-3 py-2 text-xs text-red-700 dark:border-red-400/20 dark:text-red-200">
-                    PDF 索引失败：{indexStatus.error || "未知错误"}
-                  </div>
-                ) : null}
-                <div className="mb-2 flex items-center justify-between">
-                  <ChatDropdownSelector
-                    chatSource="pdf-chat"
-                    chats={chatsAsMessages}
-                    currentChat={currentChatAsMessage}
-                    onChatSelect={handleChatSelect}
-                    onTitleChange={onTitleChange}
-                    onCreateNewChat={onCreateNewMessage}
-                    onChatDelete={handleChatDelete}
-                    getChildBranchesCount={getChildBranchesCount}
-                    titleRef={editTitleRef}
-                  />
-                </div>
-
-                {currentChat || (!currentChat && !createMessageLoading) ? (
-                  <Suspense
-                    fallback={
-                      <div className="flex h-full items-center justify-center">
-                        <LoadingOutlined />
-                      </div>
-                    }
-                  >
-                    <ChatContainer
-                      ref={handleChatContainerRef}
-                      currentChat={currentChatAsMessage}
-                      isDark={isDark}
-                      markdownComponents={markdownComponents}
-                      isVisible={!collapsed}
-                      chatScope={`pdf-chat:${pdf.id}`}
-                      updateChatMessage={handleUpdateChatMessage}
-                      updateCurrentChat={handleUpdateCurrentChat}
-                      sendLoading={sendLoading}
-                      setSendLoading={setSendLoading}
-                      titleRef={editTitleRef}
-                      onCreateNewMessage={onCreateNewMessage}
-                      createMessageLoading={createMessageLoading}
-                      onChatCreated={chatId => {
-                        usePdfChatStore.setState({ currentChatId: chatId });
-                      }}
-                      customSystemPrompt={systemPrompt}
-                      onCreateChat={handleExternalCreateChat}
-                      onCreateBranch={handleExternalCreateBranch}
-                      beforeSendUserMessage={ensureIndexReadyBeforeSend}
+                  <div className="bg-info/15 mt-2 h-1 overflow-hidden rounded-full">
+                    <div
+                      className="bg-info ease-tau-out h-full rounded-full transition-[width] duration-300"
+                      style={{ width: `${progressPercent}%` }}
                     />
-                  </Suspense>
-                ) : (
-                  <div className="flex flex-1 items-center justify-center">
-                    <Empty description="暂无对话" />
                   </div>
-                )}
+                  <div className="text-ink-2 mt-1.5">索引完成后即可进行 PDF 问答</div>
+                </div>
+              ) : indexStatus?.state === "failed" ? (
+                <div className="rounded-tau-md bg-danger-soft text-tau-sm text-danger mb-3 px-3 py-2">
+                  PDF 索引失败：{indexStatus.error || "未知错误"}
+                </div>
+              ) : null}
+              <div className="mb-2 flex items-center justify-between">
+                <ChatDropdownSelector
+                  chatSource="pdf-chat"
+                  chats={chatsAsMessages}
+                  currentChat={currentChatAsMessage}
+                  onChatSelect={handleChatSelect}
+                  onTitleChange={onTitleChange}
+                  onCreateNewChat={onCreateNewMessage}
+                  onChatDelete={handleChatDelete}
+                  getChildBranchesCount={getChildBranchesCount}
+                  titleRef={editTitleRef}
+                />
               </div>
-            </>
+
+              {currentChat || (!currentChat && !createMessageLoading) ? (
+                <Suspense fallback={<Loading minHeight={0} />}>
+                  <ChatContainer
+                    ref={handleChatContainerRef}
+                    currentChat={currentChatAsMessage}
+                    isDark={isDark}
+                    markdownComponents={markdownComponents}
+                    isVisible={!collapsed}
+                    chatScope={`pdf-chat:${pdf.id}`}
+                    updateChatMessage={handleUpdateChatMessage}
+                    updateCurrentChat={handleUpdateCurrentChat}
+                    sendLoading={sendLoading}
+                    setSendLoading={setSendLoading}
+                    titleRef={editTitleRef}
+                    onCreateNewMessage={onCreateNewMessage}
+                    createMessageLoading={createMessageLoading}
+                    onChatCreated={chatId => {
+                      usePdfChatStore.setState({ currentChatId: chatId });
+                    }}
+                    customSystemPrompt={systemPrompt}
+                    onCreateChat={handleExternalCreateChat}
+                    onCreateBranch={handleExternalCreateBranch}
+                    beforeSendUserMessage={ensureIndexReadyBeforeSend}
+                  />
+                </Suspense>
+              ) : (
+                <div className="text-tau-body text-ink-3 flex flex-1 items-center justify-center">
+                  暂无对话
+                </div>
+              )}
+            </div>
           )}
         </div>
       </MarkdownProvider>

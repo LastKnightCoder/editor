@@ -82,8 +82,13 @@ import mainContentIndexDBManager, {
 import MAIN_SCHEMA_SQL from "@tau/db-schema/schema/main.sql?raw";
 import { upgradeKnowledgeDatabase } from "@tau/db-schema/src/knowledge-migration-node";
 import { retireSubscriptions } from "@tau/db-schema/src/subscription-retirement";
+import {
+  retireEditorBlocks,
+  installEditorBlockGuards,
+} from "@tau/db-schema/src/editor-block-retirement";
 import { migrateContentBindings } from "./collaboration/content-repository";
 import { loadSqliteVecExtension } from "../utils/sqlite-vec-loader";
+import { executeReadOnlySql, type SqlQueryInput } from "./sql-query";
 
 export type DatabaseConnectMode = "normal" | "maintenance";
 export type DatabaseReconnectSource = "sync_upload_reconnect" | "sync_download_reconnect";
@@ -127,6 +132,11 @@ class DatabaseModule implements Module {
     (dbName: string, reason: DatabaseConnectReason) => void
   > = [];
   private indexEnsurePromises: Map<string, Promise<EnsureIndexReadyResult | null>> = new Map();
+
+  private openReadOnlyDatabase(name: string): Database.Database {
+    const dbPath = join(PathUtil.getAppDir(), `${this.formatDatabaseName(name)}.db`);
+    return new Database(dbPath, { readonly: true, fileMustExist: true });
+  }
 
   getDatabase(name: string): Database.Database | undefined {
     return this.databases.get(name);
@@ -334,6 +344,7 @@ class DatabaseModule implements Module {
       database.exec(MAIN_SCHEMA_SQL);
       upgradeKnowledgeDatabase(database, dbPath);
       migrateContentBindings(database);
+      retireEditorBlocks(database, dbPath);
       log.info(
         `[database] openDatabase main schema done: db=${name}, elapsedMs=${Date.now() - schemaStartAt}`
       );
@@ -343,6 +354,7 @@ class DatabaseModule implements Module {
         for (const table of this.tables) {
           table.upgradeTable(database);
         }
+        installEditorBlockGuards(database);
         log.info(
           `[database] openDatabase maintenance upgrades done: db=${name}, tableCount=${this.tables.length}, elapsedMs=${Date.now() - upgradeStartAt}`
         );
@@ -485,6 +497,7 @@ class DatabaseModule implements Module {
         // 知识库迁移可复用下载副本，订阅退役仍保留专属快照。
         upgradeKnowledgeDatabase(db, path, { skipBackup: true });
         migrateContentBindings(db);
+        retireEditorBlocks(db, path);
         const checkpoint = db.pragma("wal_checkpoint(TRUNCATE)") as { busy: number }[];
         if (checkpoint.some(row => row.busy !== 0)) throw new Error("下载数据库尚未完整落盘");
         return true;
@@ -603,6 +616,35 @@ class DatabaseModule implements Module {
 
     ipcMain.handle("force-checkpoint", async (_event, name) => {
       return this.forceCheckpoint(name);
+    });
+
+    ipcMain.handle("sql-query", async (event, input: SqlQueryInput) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      if (!win) throw new Error("No window found");
+      const dbName = this.windowToDatabase.get(win.id);
+      if (!dbName || !this.getDatabase(dbName)) {
+        return {
+          error: {
+            code: "SQL_EXECUTION_ERROR",
+            message: "当前没有已连接的数据库。",
+            hint: "请先连接一个数据库后重试。",
+          },
+        };
+      }
+      const readOnlyDb = this.openReadOnlyDatabase(dbName);
+      try {
+        return { result: executeReadOnlySql(readOnlyDb, input) };
+      } catch (error) {
+        return {
+          error: {
+            code: (error as { code?: string }).code ?? "SQL_EXECUTION_ERROR",
+            message: error instanceof Error ? error.message : "SQL 查询执行失败。",
+            hint: (error as { hint?: string }).hint,
+          },
+        };
+      } finally {
+        readOnlyDb.close();
+      }
     });
 
     Object.keys(this.eventAndHandlers).forEach(eventName => {

@@ -1,9 +1,5 @@
 import Database from "better-sqlite3";
-import {
-  VLChatMessage,
-  CreateVLChat,
-  UpdateVLChat,
-} from "@/types/vibe-learning";
+import { VLChatMessage, CreateVLChat, UpdateVLChat } from "@/types/vibe-learning";
 import {
   CHAT_MESSAGE_SCHEMA_VERSION,
   migrateChatSessionMessages,
@@ -32,36 +28,26 @@ interface VLChatRecord {
  */
 export default class VibeLearningChatTable {
   static upgradeTable(db: Database.Database) {
-    const tableInfo = db
-      .prepare("PRAGMA table_info(vibe_learning_chats)")
-      .all() as Array<{ name: string }>;
-    const hasMessageSchemaVersion = tableInfo.some(
-      (col) => col.name === "message_schema_version",
-    );
-    const hasAgentType = tableInfo.some((col) => col.name === "agent_type");
-    const hasAgentSessionId = tableInfo.some(
-      (col) => col.name === "agent_session_id",
-    );
+    const tableInfo = db.prepare("PRAGMA table_info(vibe_learning_chats)").all() as Array<{
+      name: string;
+    }>;
+    const hasMessageSchemaVersion = tableInfo.some(col => col.name === "message_schema_version");
+    const hasAgentType = tableInfo.some(col => col.name === "agent_type");
+    const hasAgentSessionId = tableInfo.some(col => col.name === "agent_session_id");
     if (!hasMessageSchemaVersion) {
       db.exec(
-        "ALTER TABLE vibe_learning_chats ADD COLUMN message_schema_version INTEGER DEFAULT 1",
+        "ALTER TABLE vibe_learning_chats ADD COLUMN message_schema_version INTEGER DEFAULT 1"
       );
     }
     if (!hasAgentType) {
-      db.exec(
-        "ALTER TABLE vibe_learning_chats ADD COLUMN agent_type TEXT DEFAULT 'local'",
-      );
-      db.exec(
-        "UPDATE vibe_learning_chats SET agent_type = 'local' WHERE agent_type IS NULL",
-      );
+      db.exec("ALTER TABLE vibe_learning_chats ADD COLUMN agent_type TEXT DEFAULT 'local'");
+      db.exec("UPDATE vibe_learning_chats SET agent_type = 'local' WHERE agent_type IS NULL");
     }
     if (!hasAgentSessionId) {
-      db.exec(
-        "ALTER TABLE vibe_learning_chats ADD COLUMN agent_session_id TEXT",
-      );
+      db.exec("ALTER TABLE vibe_learning_chats ADD COLUMN agent_session_id TEXT");
     }
     db.exec(
-      "UPDATE vibe_learning_chats SET message_schema_version = 1 WHERE message_schema_version IS NULL",
+      "UPDATE vibe_learning_chats SET message_schema_version = 1 WHERE message_schema_version IS NULL"
     );
   }
 
@@ -89,9 +75,7 @@ export default class VibeLearningChatTable {
       typeof record.message_schema_version === "number"
         ? record.message_schema_version
         : CHAT_MESSAGE_SCHEMA_VERSION;
-    const migration = migrateChatSessionMessages(
-      JSON.parse(record.messages || "[]"),
-    );
+    const migration = migrateChatSessionMessages(JSON.parse(record.messages || "[]"));
     return {
       chat: {
         id: record.id,
@@ -104,37 +88,30 @@ export default class VibeLearningChatTable {
         archived: Boolean(record.archived),
         parentChatId: record.parent_chat_id,
         branchIndex: record.branch_index ?? 0,
-        agentType: record.agent_type === "codex" ? "codex" : "local",
-        agentSessionId: record.agent_session_id ?? null,
       },
-      migrated:
-        migration.changed ||
-        storedSchemaVersion !== CHAT_MESSAGE_SCHEMA_VERSION,
+      migrated: migration.changed || storedSchemaVersion !== CHAT_MESSAGE_SCHEMA_VERSION,
     };
   }
 
   static persistMigratedMessages(
     db: Database.Database,
     id: number,
-    messages: CreateVLChat["messages"],
+    messages: CreateVLChat["messages"]
   ) {
     db.prepare(
-      "UPDATE vibe_learning_chats SET messages = ?, message_schema_version = ? WHERE id = ?",
+      "UPDATE vibe_learning_chats SET messages = ?, message_schema_version = ? WHERE id = ?"
     ).run(JSON.stringify(messages), CHAT_MESSAGE_SCHEMA_VERSION, id);
   }
 
   /**
    * 创建对话
    */
-  static createChat(
-    db: Database.Database,
-    params: CreateVLChat,
-  ): VLChatMessage {
+  static createChat(db: Database.Database, params: CreateVLChat): VLChatMessage {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO vibe_learning_chats
-      (project_id, create_time, update_time, messages, title, archived, parent_chat_id, branch_index, message_schema_version, agent_type, agent_session_id)
-      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
+      (project_id, create_time, update_time, messages, title, archived, parent_chat_id, branch_index, message_schema_version)
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)
     `);
 
     const migration = migrateChatSessionMessages(params.messages);
@@ -146,17 +123,13 @@ export default class VibeLearningChatTable {
       params.title || "新对话",
       params.parentChatId ?? null,
       params.branchIndex ?? 0,
-      CHAT_MESSAGE_SCHEMA_VERSION,
-      params.agentType ?? "local",
-      params.agentSessionId ?? null,
+      CHAT_MESSAGE_SCHEMA_VERSION
     );
 
     const chatId = Number(res.lastInsertRowid);
     Operation.insertOperation(db, "vibe-learning-chat", "insert", chatId, now);
 
-    log.info(
-      `[VibeLearningChat] Created chat: ${chatId} for project ${params.projectId}`,
-    );
+    log.info(`[VibeLearningChat] Created chat: ${chatId} for project ${params.projectId}`);
 
     const chat = this.getChatById(db, chatId);
     if (!chat) {
@@ -168,10 +141,7 @@ export default class VibeLearningChatTable {
   /**
    * 更新对话
    */
-  static updateChat(
-    db: Database.Database,
-    params: UpdateVLChat,
-  ): VLChatMessage | null {
+  static updateChat(db: Database.Database, params: UpdateVLChat): VLChatMessage | null {
     const existing = this.getChatById(db, params.id);
     if (!existing) {
       return null;
@@ -186,45 +156,23 @@ export default class VibeLearningChatTable {
         archived = ?,
         parent_chat_id = ?,
         branch_index = ?,
-        message_schema_version = ?,
-        agent_type = ?,
-        agent_session_id = ?
+        message_schema_version = ?
       WHERE id = ?
     `);
 
-    const migration = migrateChatSessionMessages(
-      params.messages ?? existing.messages,
-    );
+    const migration = migrateChatSessionMessages(params.messages ?? existing.messages);
     stmt.run(
       now,
       JSON.stringify(migration.messages),
       params.title ?? existing.title,
-      params.archived !== undefined
-        ? params.archived
-          ? 1
-          : 0
-        : existing.archived
-          ? 1
-          : 0,
-      params.parentChatId !== undefined
-        ? params.parentChatId
-        : existing.parentChatId,
+      params.archived !== undefined ? (params.archived ? 1 : 0) : existing.archived ? 1 : 0,
+      params.parentChatId !== undefined ? params.parentChatId : existing.parentChatId,
       params.branchIndex ?? existing.branchIndex ?? 0,
       CHAT_MESSAGE_SCHEMA_VERSION,
-      params.agentType ?? existing.agentType ?? "local",
-      params.agentSessionId !== undefined
-        ? params.agentSessionId
-        : (existing.agentSessionId ?? null),
-      params.id,
+      params.id
     );
 
-    Operation.insertOperation(
-      db,
-      "vibe-learning-chat",
-      "update",
-      params.id,
-      now,
-    );
+    Operation.insertOperation(db, "vibe-learning-chat", "update", params.id, now);
 
     return this.getChatById(db, params.id);
   }
@@ -232,10 +180,7 @@ export default class VibeLearningChatTable {
   /**
    * 获取所有子分支的 ID（递归）
    */
-  static getAllChildBranches(
-    db: Database.Database,
-    parentChatId: number,
-  ): number[] {
+  static getAllChildBranches(db: Database.Database, parentChatId: number): number[] {
     const stmt = db.prepare(`
       WITH RECURSIVE child_branches(id) AS (
         SELECT id FROM vibe_learning_chats WHERE parent_chat_id = ?
@@ -246,16 +191,13 @@ export default class VibeLearningChatTable {
       SELECT id FROM child_branches
     `);
     const result = stmt.all(parentChatId) as Array<{ id: number }>;
-    return result.map((row) => row.id);
+    return result.map(row => row.id);
   }
 
   /**
    * 获取子分支数量（包括所有层级的子分支）
    */
-  static getChildBranchesCount(
-    db: Database.Database,
-    parentChatId: number,
-  ): number {
+  static getChildBranchesCount(db: Database.Database, parentChatId: number): number {
     const childIds = this.getAllChildBranches(db, parentChatId);
     return childIds.length;
   }
@@ -271,24 +213,16 @@ export default class VibeLearningChatTable {
     if (childIds.length > 0) {
       const placeholders = childIds.map(() => "?").join(",");
       const deleteChildrenStmt = db.prepare(
-        `DELETE FROM vibe_learning_chats WHERE id IN (${placeholders})`,
+        `DELETE FROM vibe_learning_chats WHERE id IN (${placeholders})`
       );
       deleteChildrenStmt.run(...childIds);
 
       // 记录子分支的删除操作
       const now = Date.now();
       for (const childId of childIds) {
-        Operation.insertOperation(
-          db,
-          "vibe-learning-chat",
-          "delete",
-          childId,
-          now,
-        );
+        Operation.insertOperation(db, "vibe-learning-chat", "delete", childId, now);
       }
-      log.info(
-        `[VibeLearningChat] Deleted ${childIds.length} child branches of chat: ${id}`,
-      );
+      log.info(`[VibeLearningChat] Deleted ${childIds.length} child branches of chat: ${id}`);
     }
 
     // 删除父对话本身
@@ -296,13 +230,7 @@ export default class VibeLearningChatTable {
     const res = stmt.run(id);
 
     if (res.changes > 0) {
-      Operation.insertOperation(
-        db,
-        "vibe-learning-chat",
-        "delete",
-        id,
-        Date.now(),
-      );
+      Operation.insertOperation(db, "vibe-learning-chat", "delete", id, Date.now());
       log.info(`[VibeLearningChat] Deleted chat: ${id}`);
       return true;
     }
@@ -313,10 +241,7 @@ export default class VibeLearningChatTable {
   /**
    * 删除项目下的所有对话
    */
-  static deleteChatsByProjectId(
-    db: Database.Database,
-    projectId: number,
-  ): number {
+  static deleteChatsByProjectId(db: Database.Database, projectId: number): number {
     const chats = this.getChatsByProjectId(db, projectId);
     let deletedCount = 0;
 
@@ -326,9 +251,7 @@ export default class VibeLearningChatTable {
       }
     }
 
-    log.info(
-      `[VibeLearningChat] Deleted ${deletedCount} chats for project ${projectId}`,
-    );
+    log.info(`[VibeLearningChat] Deleted ${deletedCount} chats for project ${projectId}`);
     return deletedCount;
   }
 
@@ -353,16 +276,13 @@ export default class VibeLearningChatTable {
   /**
    * 根据项目 ID 获取所有对话
    */
-  static getChatsByProjectId(
-    db: Database.Database,
-    projectId: number,
-  ): VLChatMessage[] {
+  static getChatsByProjectId(db: Database.Database, projectId: number): VLChatMessage[] {
     const stmt = db.prepare(
-      "SELECT * FROM vibe_learning_chats WHERE project_id = ? ORDER BY update_time DESC",
+      "SELECT * FROM vibe_learning_chats WHERE project_id = ? ORDER BY update_time DESC"
     );
     const records = stmt.all(projectId) as VLChatRecord[];
 
-    return records.map((record) => {
+    return records.map(record => {
       const parsed = this.parseChat(record);
       if (parsed.migrated) {
         this.persistMigratedMessages(db, parsed.chat.id, parsed.chat.messages);
@@ -374,16 +294,13 @@ export default class VibeLearningChatTable {
   /**
    * 根据父对话 ID 获取分支
    */
-  static getBranchesByParentId(
-    db: Database.Database,
-    parentChatId: number,
-  ): VLChatMessage[] {
+  static getBranchesByParentId(db: Database.Database, parentChatId: number): VLChatMessage[] {
     const stmt = db.prepare(
-      "SELECT * FROM vibe_learning_chats WHERE parent_chat_id = ? ORDER BY branch_index ASC",
+      "SELECT * FROM vibe_learning_chats WHERE parent_chat_id = ? ORDER BY branch_index ASC"
     );
     const records = stmt.all(parentChatId) as VLChatRecord[];
 
-    return records.map((record) => {
+    return records.map(record => {
       const parsed = this.parseChat(record);
       if (parsed.migrated) {
         this.persistMigratedMessages(db, parsed.chat.id, parsed.chat.messages);
@@ -395,12 +312,9 @@ export default class VibeLearningChatTable {
   /**
    * 获取下一个分支索引
    */
-  static getNextBranchIndex(
-    db: Database.Database,
-    parentChatId: number,
-  ): number {
+  static getNextBranchIndex(db: Database.Database, parentChatId: number): number {
     const stmt = db.prepare(
-      "SELECT MAX(branch_index) as max_index FROM vibe_learning_chats WHERE parent_chat_id = ?",
+      "SELECT MAX(branch_index) as max_index FROM vibe_learning_chats WHERE parent_chat_id = ?"
     );
     const result = stmt.get(parentChatId) as { max_index: number | null };
     return (result?.max_index ?? -1) + 1;

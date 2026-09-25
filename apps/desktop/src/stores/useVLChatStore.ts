@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { produce } from "immer";
 import { chatRunManager } from "@/services/chatRunManager";
 import { VLChatMessage, CreateVLChat } from "@/types/vibe-learning";
-import { ChatAgentType, ChatSessionMessage } from "@/types";
+import { ChatSessionMessage } from "@/types";
 import {
   createVLChat,
   updateVLChat,
@@ -33,15 +33,8 @@ interface IAction {
   reset: () => void;
 
   // CRUD 操作
-  createChat: (
-    messages: ChatSessionMessage[],
-    title?: string,
-    agentType?: ChatAgentType,
-    agentSessionId?: string | null,
-  ) => Promise<VLChatMessage>;
-  updateChat: (
-    chat: Omit<VLChatMessage, "updateTime">,
-  ) => Promise<VLChatMessage>;
+  createChat: (messages: ChatSessionMessage[], title?: string) => Promise<VLChatMessage>;
+  updateChat: (chat: Omit<VLChatMessage, "updateTime">) => Promise<VLChatMessage>;
   updateCurrentChat: (chat: VLChatMessage) => void;
   deleteChat: (id: number) => Promise<void>;
 
@@ -49,8 +42,7 @@ interface IAction {
   createChatBranch: (
     parentChatId: number,
     messages: ChatSessionMessage[],
-    title?: string,
-    agentType?: ChatAgentType,
+    title?: string
   ) => Promise<VLChatMessage>;
   getChatBranches: (parentChatId: number) => Promise<VLChatMessage[]>;
   getChildBranchesCount: (parentChatId: number) => Promise<number>;
@@ -87,7 +79,7 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
     });
   },
 
-  createChat: async (messages, title, agentType, agentSessionId) => {
+  createChat: async (messages, title) => {
     const { projectId, chats } = get();
     if (!projectId) {
       throw new Error("Project ID is not set");
@@ -97,12 +89,10 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
       projectId,
       messages,
       title: title || "新对话",
-      agentType: agentType ?? "local",
-      agentSessionId: agentSessionId ?? null,
     };
 
     const createdChat = await createVLChat(params);
-    const newChats = produce(chats, (draft) => {
+    const newChats = produce(chats, draft => {
       draft.unshift(createdChat);
     });
 
@@ -110,7 +100,7 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
     return createdChat;
   },
 
-  updateChat: async (chat) => {
+  updateChat: async chat => {
     const { chats } = get();
     const updatedChat = await updateVLChat({
       id: chat.id,
@@ -119,16 +109,14 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
       archived: chat.archived,
       parentChatId: chat.parentChatId,
       branchIndex: chat.branchIndex,
-      agentType: chat.agentType ?? "local",
-      agentSessionId: chat.agentSessionId ?? null,
     });
 
     if (!updatedChat) {
       throw new Error("Failed to update chat");
     }
 
-    const newChats = produce(chats, (draft) => {
-      const index = draft.findIndex((c) => c.id === updatedChat.id);
+    const newChats = produce(chats, draft => {
+      const index = draft.findIndex(c => c.id === updatedChat.id);
       if (index !== -1) {
         draft[index] = updatedChat;
       }
@@ -138,10 +126,10 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
     return updatedChat;
   },
 
-  updateCurrentChat: (chat) => {
+  updateCurrentChat: chat => {
     const { chats } = get();
-    const newChats = produce(chats, (draft) => {
-      const index = draft.findIndex((c) => c.id === chat.id);
+    const newChats = produce(chats, draft => {
+      const index = draft.findIndex(c => c.id === chat.id);
       if (index !== -1) {
         draft[index] = chat;
       }
@@ -149,15 +137,15 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
     set({ chats: newChats });
   },
 
-  deleteChat: async (id) => {
+  deleteChat: async id => {
     const { chats, currentChatId } = get();
     // 获取所有需要删除的对话 ID（包括子分支）
-    const chatToDelete = chats.find((c) => c.id === id);
+    const chatToDelete = chats.find(c => c.id === id);
     const allIdsToDelete = new Set<number>([id]);
     if (chatToDelete) {
       // 递归查找所有子分支
       const findChildren = (parentId: number) => {
-        chats.forEach((chat) => {
+        chats.forEach(chat => {
           if (chat.parentChatId === parentId) {
             allIdsToDelete.add(chat.id);
             findChildren(chat.id);
@@ -168,15 +156,15 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
     }
 
     await Promise.all(
-      Array.from(allIdsToDelete, (chatId) =>
-        chatRunManager.discardSession(`vibe-learning-chat:${chatId}`),
-      ),
+      Array.from(allIdsToDelete, chatId =>
+        chatRunManager.discardSession(`vibe-learning-chat:${chatId}`)
+      )
     );
     await deleteVLChat(id);
 
-    const newChats = produce(chats, (draft) => {
+    const newChats = produce(chats, draft => {
       // 删除所有相关的对话（包括子分支）
-      return draft.filter((c) => !allIdsToDelete.has(c.id));
+      return draft.filter(c => !allIdsToDelete.has(c.id));
     });
 
     // 如果删除的是当前选中的对话，选中下一个
@@ -188,21 +176,20 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
     set({ chats: newChats, currentChatId: newCurrentChatId });
   },
 
-  createChatBranch: async (parentChatId, messages, title, agentType) => {
+  createChatBranch: async (parentChatId, messages, title) => {
     const { projectId, chats } = get();
     if (!projectId) {
       throw new Error("Project ID is not set");
     }
 
-    const parentChat = chats.find((c) => c.id === parentChatId);
+    const parentChat = chats.find(c => c.id === parentChatId);
     if (!parentChat) {
       throw new Error("Parent chat not found");
     }
 
     // 获取下一个分支序号
     const branchIndex = await getVLNextBranchIndex(parentChatId);
-    const branchTitle =
-      title || `${parentChat.title} - 分支 ${branchIndex + 1}`;
+    const branchTitle = title || `${parentChat.title} - 分支 ${branchIndex + 1}`;
 
     const params: CreateVLChat = {
       projectId,
@@ -210,12 +197,10 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
       title: branchTitle,
       parentChatId,
       branchIndex,
-      agentType: agentType ?? parentChat.agentType ?? "local",
-      agentSessionId: null,
     };
 
     const createdBranch = await createVLChat(params);
-    const newChats = produce(chats, (draft) => {
+    const newChats = produce(chats, draft => {
       draft.unshift(createdBranch);
     });
 
@@ -223,11 +208,11 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
     return createdBranch;
   },
 
-  getChatBranches: async (parentChatId) => {
+  getChatBranches: async parentChatId => {
     return await getVLChatBranches(parentChatId);
   },
 
-  getChildBranchesCount: async (parentChatId) => {
+  getChildBranchesCount: async parentChatId => {
     return await getVLChildBranchesCount(parentChatId);
   },
 }));

@@ -2,9 +2,8 @@ import { describe, it, expect } from "vitest";
 import { __chatSessionTestUtils } from "../useChatSessions";
 
 describe("useChatSessions migration", () => {
-  it("迁移会话元数据时默认使用 local 代理并保留 Codex 会话", () => {
-    const { normalizeSessionMeta, STORAGE_SCHEMA_VERSION } =
-      __chatSessionTestUtils as any;
+  it("迁移会话元数据时保留历史并统一为本地代理", () => {
+    const { normalizeSessionMeta, STORAGE_SCHEMA_VERSION } = __chatSessionTestUtils as any;
 
     expect(
       normalizeSessionMeta({
@@ -12,7 +11,7 @@ describe("useChatSessions migration", () => {
         title: "旧会话",
         createTime: 1,
         updateTime: 2,
-      }).agentType,
+      }).agentType
     ).toBe("local");
 
     expect(
@@ -23,11 +22,13 @@ describe("useChatSessions migration", () => {
         updateTime: 2,
         agentType: "codex",
         agentSessionId: "thread-1",
-      }),
+      })
     ).toMatchObject({
+      id: "codex",
+      title: "Codex 会话",
       schemaVersion: STORAGE_SCHEMA_VERSION,
-      agentType: "codex",
-      agentSessionId: "thread-1",
+      agentType: "local",
+      agentSessionId: null,
     });
   });
 
@@ -52,8 +53,7 @@ describe("useChatSessions migration", () => {
                 toolCallId: "call-1",
                 toolName: "ask-question",
                 status: "pending",
-                input:
-                  '{"questions":[{"question":"Q1","type":"single","options":["A"]}]}',
+                input: '{"questions":[{"question":"Q1","type":"single","options":["A"]}]}',
                 timestamp: 1100,
               },
             ],
@@ -81,7 +81,7 @@ describe("useChatSessions migration", () => {
           name?: string;
           tool_call_id?: string;
         }
-      ).name,
+      ).name
     ).toBe("ask-question");
     expect(
       (
@@ -89,7 +89,7 @@ describe("useChatSessions migration", () => {
           name?: string;
           tool_call_id?: string;
         }
-      ).tool_call_id,
+      ).tool_call_id
     ).toBe("call-1");
   });
 
@@ -121,7 +121,7 @@ describe("useChatSessions migration", () => {
         parsed.messages[0] as {
           requestContent?: Array<{ type: string }>;
         }
-      ).requestContent?.length,
+      ).requestContent?.length
     ).toBe(2);
   });
 });

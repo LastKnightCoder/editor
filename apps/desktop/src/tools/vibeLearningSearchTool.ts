@@ -604,3 +604,57 @@ export const createBatchReadSearchHitsTool = (
 });
 
 export default createVibeLearningSearchTool;
+
+/** 将项目资料的列出、搜索、定位和补读收敛为一个按 operation 分派的工具。 */
+export const createUnifiedVibeLearningTool = (
+  projectId: number,
+  mainDbName: string
+): ToolDefinition => {
+  const operations = {
+    list: createListResourcesTool(projectId),
+    read: createReadResourceContentTool(projectId, mainDbName),
+    read_lines: createReadResourceLinesTool(projectId, mainDbName),
+    read_range: createReadResourceRangeTool(projectId, mainDbName),
+    search: createVibeLearningSearchTool(projectId, mainDbName),
+    grep: createGrepResourceContentTool(projectId, mainDbName),
+    batch_search: createBatchSearchProjectKnowledgeTool(projectId, mainDbName),
+    batch_read: createBatchReadSearchHitsTool(projectId, mainDbName),
+  } as const;
+
+  return {
+    name: "vibe_learning_query",
+    description:
+      "统一查询当前 Vibe Learning 项目资料。operation 可选 list、search、grep、read、read_lines、read_range、batch_search、batch_read；具体参数放在 input 中，先搜索定位，再按命中范围补读原文。",
+    parameters: {
+      type: "object",
+      properties: {
+        operation: {
+          type: "string",
+          enum: Object.keys(operations),
+          description: "要执行的资料操作。",
+        },
+        input: {
+          type: "object",
+          additionalProperties: true,
+          description: "对应 operation 的参数对象。",
+        },
+      },
+      required: ["operation"],
+      additionalProperties: false,
+    },
+    execution: LONG_RUNNING_TOOL_EXECUTION,
+    executor: async args => {
+      const operation = args.operation as keyof typeof operations;
+      const selected = operations[operation];
+      if (!selected) {
+        return {
+          content: JSON.stringify({
+            success: false,
+            error: `不支持的 operation: ${String(args.operation)}`,
+          }),
+        };
+      }
+      return selected.executor((args.input as Record<string, unknown> | undefined) ?? {});
+    },
+  };
+};

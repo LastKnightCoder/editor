@@ -110,6 +110,7 @@
     "zustand": "^4.3.8"
   },
   "dependencies": {
+    "@tau/db-schema": "workspace:*",
     "@tau/shared": "workspace:*",
     "remark-cjk-friendly": "^2.3.1",
     "remark-cjk-friendly-gfm-strikethrough": "^2.3.1",

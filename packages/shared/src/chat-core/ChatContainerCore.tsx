@@ -181,6 +181,11 @@ export interface ChatContainerCoreProps {
   renderMessage?: (params: ChatContainerCoreMessageRendererParams) => ReactNode;
   renderEmptyState?: (params: ChatContainerCoreEmptyStateRenderParams) => ReactNode;
   renderInputWrapper?: (inputNode: ReactNode) => ReactNode;
+  /** 覆盖默认的重试 / 错误提示条（宿主自定义外观；返回 null 即不显示） */
+  renderStatusBanner?: (params: {
+    retryStatus?: { attempt: number; maxRetries: number } | null;
+    error?: string | null;
+  }) => ReactNode;
   renderChatInputArea?: (params: ChatContainerCoreInputRendererParams) => ReactNode;
 }
 
@@ -243,6 +248,7 @@ export const ChatContainerCore = forwardRef<ChatContainerCoreHandle, ChatContain
       renderMessage,
       renderEmptyState,
       renderInputWrapper,
+      renderStatusBanner,
       renderChatInputArea,
     }: ChatContainerCoreProps,
     ref
@@ -646,7 +652,9 @@ export const ChatContainerCore = forwardRef<ChatContainerCoreHandle, ChatContain
           )}
         </div>
 
-        {retryStatus ? (
+        {renderStatusBanner ? (
+          renderStatusBanner({ retryStatus, error })
+        ) : retryStatus ? (
           <div className="border-t border-yellow-500/20 bg-yellow-500/10 px-4 py-2">
             <div className="flex items-center gap-2 text-xs text-yellow-600 dark:text-yellow-400">
               <LoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin" />

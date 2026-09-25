@@ -4,6 +4,7 @@ import { OPENAI_IMAGE_RENDERER_KEY } from "@/tools/openaiImageTools";
 import LocalImage from "@/components/LocalImage";
 import LocalImagePreviewPortal from "@/components/LocalImagePreviewPortal";
 import { Copy, Pencil, Check, ChevronDown } from "lucide-react";
+import { IconButton, cn } from "@tau/ui";
 import { useToolRendererInteraction } from "./ToolRendererInteractionContext";
 import {
   ToolCard,
@@ -45,8 +46,9 @@ const getPayload = (metadata?: Record<string, unknown>): OpenAIImageRenderPayloa
   return payload;
 };
 
+/** 图上浮层按钮：surface 半透亮底 + line-1 描边（浮起物口径），随主题切换 */
 const overlayBtnClass =
-  "inline-flex h-7 w-7 items-center justify-center rounded-full backdrop-blur transition bg-black/50 text-white/90 hover:bg-black/70 hover:text-white";
+  "border-line-1 bg-surface/90 text-ink-2 hover:bg-surface-hover hover:text-ink-1 ease-tau-out inline-flex size-7 cursor-pointer items-center justify-center rounded-tau-sm border backdrop-blur transition-colors duration-[140ms]";
 
 const CopyButton = ({ url }: { url: string }) => {
   const [copied, setCopied] = useState(false);
@@ -62,10 +64,10 @@ const CopyButton = ({ url }: { url: string }) => {
     <button
       type="button"
       title={copied ? "已复制" : "复制链接"}
-      className={`${overlayBtnClass} ${copied ? "text-status-success" : ""}`}
+      className={cn(overlayBtnClass, copied && "text-ok hover:text-ok")}
       onClick={handleCopy}
     >
-      {copied ? <Check size={14} /> : <Copy size={14} />}
+      {copied ? <Check size={14} strokeWidth={1.75} /> : <Copy size={14} strokeWidth={1.75} />}
     </button>
   );
 };
@@ -73,7 +75,6 @@ const CopyButton = ({ url }: { url: string }) => {
 const ImageCard = ({
   image,
   prompt,
-  isDark,
   single,
   onPreview,
   onEdit,
@@ -86,9 +87,7 @@ const ImageCard = ({
   onEdit: (image: OpenAIImageRenderPayload["images"][number]) => void;
 }) => (
   <div
-    className={`group relative cursor-zoom-in overflow-hidden rounded-lg ${
-      isDark ? "bg-zinc-950/40" : "bg-slate-50"
-    }`}
+    className="bg-hover rounded-tau-sm group relative cursor-zoom-in overflow-hidden"
     onClick={() => onPreview(image)}
   >
     <LocalImage
@@ -97,7 +96,7 @@ const ImageCard = ({
       className="h-auto w-full object-contain"
       style={{ maxHeight: single ? "480px" : "320px" }}
     />
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-end gap-1.5 p-2.5 opacity-0 transition-opacity group-hover:opacity-100">
+    <div className="ease-tau-out pointer-events-none absolute inset-x-0 bottom-0 flex items-end justify-end gap-1.5 p-2.5 opacity-0 transition-opacity duration-[160ms] group-hover:opacity-100">
       <div className="pointer-events-auto flex gap-1.5">
         <button
           type="button"
@@ -108,7 +107,7 @@ const ImageCard = ({
             onEdit(image);
           }}
         >
-          <Pencil size={14} />
+          <Pencil size={14} strokeWidth={1.75} />
         </button>
         <CopyButton url={image.url} />
       </div>
@@ -150,7 +149,7 @@ const OpenAIImageResultRenderer = ({
   return (
     <>
       <ToolCard isDark={isDark}>
-        <ToolCardHeader isDark={isDark} divided>
+        <ToolCardHeader isDark={isDark}>
           <ToolSectionTitle
             isDark={isDark}
             action={
@@ -158,21 +157,22 @@ const OpenAIImageResultRenderer = ({
                 {!single ? (
                   <ToolBadge isDark={isDark}>{payload.images.length} 张图片</ToolBadge>
                 ) : null}
-                <button
-                  type="button"
+                <IconButton
+                  className="size-[26px]"
                   title={expanded ? "收起" : "展开"}
-                  className={`inline-flex h-6 w-6 items-center justify-center rounded-full transition-colors ${
-                    isDark
-                      ? "text-slate-400 hover:bg-white/10 hover:text-slate-200"
-                      : "text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-                  }`}
+                  aria-label={expanded ? "收起" : "展开"}
+                  aria-expanded={expanded}
                   onClick={() => setExpanded(v => !v)}
                 >
                   <ChevronDown
                     size={15}
-                    className={`transition-transform ${expanded ? "rotate-180" : ""}`}
+                    strokeWidth={1.75}
+                    className={cn(
+                      "ease-tau-out transition-transform duration-[160ms]",
+                      expanded && "rotate-180"
+                    )}
                   />
-                </button>
+                </IconButton>
               </div>
             }
           >
@@ -184,7 +184,7 @@ const OpenAIImageResultRenderer = ({
         </ToolCardHeader>
         {expanded ? (
           <ToolCardBody>
-            <div className={single ? "" : "grid grid-cols-1 gap-4 sm:grid-cols-2"}>
+            <div className={single ? "" : "grid grid-cols-1 gap-3 sm:grid-cols-2"}>
               {payload.images.map((image, index) => (
                 <ImageCard
                   key={`${image.url}-${index}`}

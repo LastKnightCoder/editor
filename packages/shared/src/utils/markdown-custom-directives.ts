@@ -1,9 +1,10 @@
 import type { Descendant } from "slate";
 import { v4 as uuid } from "uuid";
+import { RETIRED_TYPES } from "@tau/db-schema/src/retired-editor-blocks";
 
 /**
  * 业务元素的 markdown directive 解析器：
- * 这些元素类型（文件附件、对话引用、内容链接、时间戳）由各端动态扩展提供，
+ * 这些元素类型（文件附件、内容链接、时间戳）由各端动态扩展提供，
  * 编辑器内核的 markdownImport 不感知它们，经 importFromMarkdown 的
  * customDirectives 注入（container / leaf / text 三种 directive 均支持）。
  */
@@ -24,15 +25,7 @@ export const markdownCustomDirectives: Record<
     };
     return element as unknown as Descendant;
   },
-  "chat-reference": attributes => {
-    return {
-      type: "chat-reference",
-      chatId: parseInt(attributes.chatId || "0", 10) || 0,
-      title: attributes.title || "未命名对话",
-      height: attributes.height ? parseInt(attributes.height, 10) : 400,
-      children: [{ type: "formatted", text: "" }],
-    } as unknown as Descendant;
-  },
+  ...Object.fromEntries([...RETIRED_TYPES].map(name => [name, (): Descendant | null => null])),
   "content-link": attributes => {
     const rawTitle = attributes.title || attributes.contentTitle || "";
     const contentTitle = typeof rawTitle === "string" ? rawTitle.replace(/&quot;/g, '"') : "";

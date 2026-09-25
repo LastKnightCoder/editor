@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef, type Ref } from "react";
-import { App, Button, Dropdown, Tooltip } from "antd";
+import { App } from "antd";
 import type { MenuProps } from "antd";
-import { Bot, Check, Cpu } from "lucide-react";
 import type WebSocketClient from "../../../../utils/WebSocketClient";
 import {
   ChatInputArea,
@@ -14,12 +13,8 @@ import {
   type MessageContentItem,
   type ReasoningEffort,
 } from "@tau/shared";
-import { fetchCodexAvailabilityViaRpc, useAiChat } from "../../../../hooks/useAiChat";
-import type {
-  AiChatRequestMessage,
-  ChatAgentType,
-  CodexAvailability,
-} from "../../../../hooks/useAiChat";
+import { useAiChat } from "../../../../hooks/useAiChat";
+import type { AiChatRequestMessage } from "../../../../hooks/useAiChat";
 import { useChatSessions } from "../../../../hooks/useChatSessions";
 import { useLlmConfigs } from "../../../../hooks/useLlmConfigs";
 import { useAiServerWebSocket } from "../../../../hooks/useAiServerWebSocket";
@@ -117,10 +112,6 @@ const markAskQuestionExecutionResolved = (
 export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }: ChatTabProps) {
   const [reasoningEffort, setReasoningEffort] = useState<ReasoningEffort>("none");
   const { message: antdMessage, modal } = App.useApp();
-  const [codexAvailability, setCodexAvailability] = useState<CodexAvailability>({
-    available: false,
-    reason: null,
-  });
 
   const { themeMode } = useThemeStore();
   const resolvedTheme = useTheme(themeMode);
@@ -163,8 +154,6 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     isLoading: isSessionsLoading,
     createSession,
     ensureSessionSystemPrompt,
-    updateCurrentSessionAgentType,
-    updateCurrentSessionAgentSessionId,
     deleteSession,
     updateSessionTitle,
     selectSession,
@@ -179,9 +168,6 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     () => `${url || "unknown-url"}::${currentSession?.id || "no-session"}`,
     [url, currentSession?.id]
   );
-  const selectedAgentType: ChatAgentType =
-    codexAvailability.available && currentSession.agentType === "codex" ? "codex" : "local";
-  const isCodexAgent = selectedAgentType === "codex";
 
   const defaultSystemPrompt = `你是一个智能助手，可以帮助用户理解和分析当前网页内容。
 当前用户正在浏览网页，你可以使用工具获取页面内容来帮助回答问题。
@@ -239,45 +225,6 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     ensureSessionSystemPrompt,
   ]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    if (aiWsStatus !== "connected" || !aiWsClient) {
-      setCodexAvailability({ available: false, reason: null });
-      return;
-    }
-
-    void fetchCodexAvailabilityViaRpc(aiWsClient)
-      .then(availability => {
-        if (!cancelled) {
-          setCodexAvailability(availability);
-        }
-      })
-      .catch(error => {
-        console.warn("查询 Codex 可用性失败:", error);
-        if (!cancelled) {
-          setCodexAvailability({
-            available: false,
-            reason: error instanceof Error ? error.message : "Codex 可用性未知",
-          });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [aiWsClient, aiWsStatus]);
-
-  const handleAgentSessionIdChange = useCallback(
-    (agentSessionId: string | null) => {
-      if (selectedAgentType !== "codex") {
-        return;
-      }
-      void updateCurrentSessionAgentSessionId(agentSessionId);
-    },
-    [selectedAgentType, updateCurrentSessionAgentSessionId]
-  );
-
   const {
     isLoading,
     error,
@@ -288,9 +235,6 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     stopGeneration,
   } = useAiChat({
     enableTools: true,
-    agentType: selectedAgentType,
-    agentSessionId: isCodexAgent ? (currentSession.agentSessionId ?? null) : null,
-    onAgentSessionIdChange: handleAgentSessionIdChange,
     conversationKey,
     systemPrompt: sessionSystemPrompt,
     initialMessages: messages,
@@ -300,9 +244,6 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
   });
 
   const modelSelectItems: MenuProps["items"] = useMemo(() => {
-    if (isCodexAgent) {
-      return [];
-    }
     return llmConfigs.flatMap(provider => [
       {
         key: `provider-${provider.id}`,
@@ -314,7 +255,7 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
         label: model.name,
       })),
     ]);
-  }, [isCodexAgent, llmConfigs]);
+  }, [llmConfigs]);
 
   const handleModelSelect = useCallback(
     async ({ key }: { key: string }) => {
@@ -343,88 +284,6 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
       antdMessage.error("打开 MCP 管理中心失败");
     }
   }, [aiWsClient, antdMessage]);
-
-  const handleAgentTypeChange = useCallback(
-    async (agentType: ChatAgentType) => {
-      if (agentType === "codex" && !codexAvailability.available) {
-        return;
-      }
-      if (messages.length > 0 || isLoading) {
-        return;
-      }
-      await updateCurrentSessionAgentType(agentType);
-    },
-    [codexAvailability.available, isLoading, messages.length, updateCurrentSessionAgentType]
-  );
-
-  const agentTypeToolbar = useMemo(() => {
-    if (!codexAvailability.available) {
-      return null;
-    }
-
-    const disabled = messages.length > 0 || isLoading;
-    const items: MenuProps["items"] = [
-      {
-        key: "local",
-        label: (
-          <span className="flex items-center gap-2">
-            <Cpu className="h-3.5 w-3.5" />
-            <span>本地代理</span>
-            {selectedAgentType === "local" && <Check className="h-3.5 w-3.5" />}
-          </span>
-        ),
-      },
-      {
-        key: "codex",
-        label: (
-          <span className="flex items-center gap-2">
-            <Bot className="h-3.5 w-3.5" />
-            <span>Codex</span>
-            {selectedAgentType === "codex" && <Check className="h-3.5 w-3.5" />}
-          </span>
-        ),
-      },
-    ];
-
-    return (
-      <Dropdown
-        menu={{
-          items,
-          onClick: ({ key }) => {
-            void handleAgentTypeChange(key as ChatAgentType);
-          },
-        }}
-        trigger={["click"]}
-        disabled={disabled}
-      >
-        <Tooltip title={disabled ? "已有消息后不能切换代理" : "选择聊天代理"}>
-          <Button
-            type="text"
-            size="small"
-            disabled={disabled}
-            icon={
-              selectedAgentType === "codex" ? (
-                <Bot className="h-4 w-4" />
-              ) : (
-                <Cpu className="h-4 w-4" />
-              )
-            }
-            className="p-1! bg-none! border-none! hover:!bg-gray-100! dark:hover:!bg-white/10! text-gray-600! dark:text-gray-400!"
-          >
-            <span className="text-xs font-medium">
-              {selectedAgentType === "codex" ? "Codex" : "本地"}
-            </span>
-          </Button>
-        </Tooltip>
-      </Dropdown>
-    );
-  }, [
-    codexAvailability.available,
-    handleAgentTypeChange,
-    isLoading,
-    messages.length,
-    selectedAgentType,
-  ]);
 
   const handleDeleteMessage = useCallback(
     (messageIndex: number) => {
@@ -552,7 +411,19 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     }
 
     const pendingSession = submittedAskQuestionSessions.find(
-      session => !resumingAskQuestionRef.current.has(session.sessionId)
+      session =>
+        !resumingAskQuestionRef.current.has(session.sessionId) &&
+        !messages.some(message =>
+          message.contentBlocks?.some(
+            block =>
+              block.type === "tool_calls" &&
+              block.executions.some(
+                execution =>
+                  execution.toolCallId === session.toolCallId &&
+                  typeof execution.metadata?.codexItemType === "string"
+              )
+          )
+        )
     );
     if (!pendingSession || !pendingSession.submittedAnswers) {
       return;
@@ -644,7 +515,7 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
         currentChat={currentSession}
         onChatSelect={selectSession}
         onTitleChange={title => updateSessionTitle(currentSession.id, title)}
-        onCreateNewChat={() => createSession(undefined, selectedAgentType)}
+        onCreateNewChat={() => createSession()}
         onChatDelete={deleteSession}
         getChildBranchesCount={getChildBranchesCount}
       />
@@ -656,7 +527,6 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     getChildBranchesCount,
     isSessionsLoading,
     selectSession,
-    selectedAgentType,
     sessions,
     updateSessionTitle,
   ]);
@@ -683,14 +553,13 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
       onReasoningEffortChange={setReasoningEffort}
       reasoningEffortDisabled={!currentModelConfig?.features.thinking}
       currentModelName={currentModelName}
-      extraToolbarButtons={agentTypeToolbar}
       modelSelectItems={modelSelectItems}
       onModelSelect={handleModelSelect}
-      isSupportImage={isCodexAgent || isSupportImage}
-      isSupportFile={!isCodexAgent && isSupportFile}
+      isSupportImage={isSupportImage}
+      isSupportFile={isSupportFile}
       createMessageLoading={false}
       onCreateNewMessage={() => {
-        void createSession(buildSessionAwareSystemPrompt(effectiveSystemPrompt), selectedAgentType);
+        void createSession(buildSessionAwareSystemPrompt(effectiveSystemPrompt));
       }}
       onMcpManagerClick={handleMcpManagerClick}
       currentPageUrl={url}

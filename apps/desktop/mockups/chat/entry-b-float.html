@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>入口 B · 锚定浮窗</title>
+<link rel="stylesheet" href="shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .home { flex: 1; overflow: hidden; padding: 26px 30px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; align-content: start; }
+  .home h1 { grid-column: 1 / -1; margin: 0; font-size: 25px; font-weight: 600; }
+  .home .blk { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 18px; min-height: 180px; }
+  .home .blk h3 { margin: 0 0 10px; font-size: 14.5px; font-weight: 600; }
+  .home .row { display: flex; gap: 10px; align-items: center; height: 34px; color: var(--ink-2); }
+  .home .row .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+
+  .float { position: absolute; z-index: 25; right: 14px; top: calc(var(--titlebar-h) + 2px); width: 440px; height: min(680px, calc(100% - 70px));
+    display: flex; flex-direction: column; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-float); border: 1px solid var(--line-1);
+    transform-origin: top right; transition: transform var(--normal) var(--ease), opacity var(--fast); }
+  .float.closed { opacity: 0; transform: scale(.96) translateY(-6px); pointer-events: none; }
+  .float.tall { width: 560px; }
+  .float-head { display: flex; align-items: center; gap: 2px; padding: 8px 8px 2px 14px; }
+  .float-head .t { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; font-weight: 500; }
+  .float .thread { flex: 1; }
+
+  /* 命令面板直问 */
+  .palette-scrim { position: absolute; inset: 0; z-index: 30; background: var(--overlay); display: flex; justify-content: center; padding-top: 90px; }
+  .palette { width: 640px; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-float); overflow: hidden; align-self: flex-start; }
+  .palette .in { display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 16px; font-size: 15px; }
+  .palette .in .q { flex: 1; }
+  .palette .list { padding: 6px; }
+  .palette .it { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px; border-radius: var(--r-sm); color: var(--ink-1); }
+  .palette .it.on { background: var(--selected); }
+  .palette .it .meta { margin-left: auto; font-size: 11.5px; color: var(--ink-3); }
+  .palette .gh { font-size: 11.5px; color: var(--ink-3); padding: 8px 10px 4px; }
+  .palette .ans { padding: 4px 18px 16px; }
+  .palette .foot { display: flex; gap: 14px; justify-content: flex-end; padding: 8px 14px; font-size: 11.5px; color: var(--ink-3); background: var(--surface-hover); }
+  .seg { display: inline-flex; border: 1px solid #4a4034; border-radius: 6px; overflow: hidden; }
+  .seg button { padding: 3px 10px; color: #e8dfcf; }
+  .seg button.on { background: #d97757; color: #fff; }
+</style>
+</head>
+<body>
+<div class="mock-note">
+  <h3>入口 B · 锚定浮窗 + 命令面板直问</h3>
+  不给壳层加列：对话以<b>非模态浮窗</b>挂在标题栏按钮下方（440×最高 680），浮在内容之上、背后页面仍可点、可滚；<span class="kbd">Ctrl J</span> 开合。浮窗头部的「钉住」可把它转成入口 A 的停靠栏（二者可叠加：默认浮、需要并排时钉住）。
+  另一条路是 <span class="kbd">Ctrl K</span> 命令面板直接输入问题 → 首项「问 AI」回车，答案在面板内流式出现，<span class="kbd">Tab</span> 转入浮窗继续追问（沿用「快速收集走命令面板」的偏好）。
+  <ul>
+    <li><b>一期</b>：浮窗壳（Popover 同族定位 + useOverlayDismiss 注册 Esc 退场）＋ legacy <code>ChatContainer</code>；命令面板直问放二期。</li>
+    <li class="pro">＋ 不挤压任何页面，1280 小窗也完整；开合轻、适合「顺手问一句」。</li>
+    <li class="con">－ 会遮住右侧约 440px 内容，边看文章边问时要来回挪；长对话在浮窗里偏局促。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, thread, composer, anno, icons } from "./shared.js?v=3";
+
+mockBar("entry-b-float.html", `<span class="seg"><button class="on" data-m="float">浮窗</button><button data-m="palette">命令面板直问</button><button data-m="none">关闭</button></span>`);
+
+const win = document.getElementById("win");
+win.innerHTML = `
+  ${sidebar("home")}
+  <div class="col">
+    ${titlebar(`<b>今日</b>`, `<button class="ib on" id="toggle" title="AI 对话（Ctrl J）"><i data-lucide="message-circle"></i></button>`)}
+    <div class="main">
+      <div class="home">
+        <h1>早上好，今天有 12 张卡片待复习</h1>
+        <div class="blk"><h3>今日待办</h3>
+          ${["整理 SM-2 与 FSRS 对比结论", "桌面端 AI 对话迁移方案评审", "读完《深度工作》第 3 章", "复习英语词汇卡"].map(t => `<div class="row"><span class="dot"></span>${t}</div>`).join("")}
+        </div>
+        <div class="blk"><h3>最近编辑</h3>
+          ${["SM-2 算法笔记", "Slate IME 问题记录", "周报 · 第 38 周"].map(t => `<div class="row"><i data-lucide="file-text"></i>${t}</div>`).join("")}
+        </div>
+        <div class="blk" style="grid-column:1/-1"><h3>内容流</h3>
+          ${["卡片 · 遗忘曲线与间隔效应", "文章 · 向量检索 rerank 实验", "日记 · 今天把对话迁移方案画完了"].map(t => `<div class="row"><i data-lucide="layers"></i>${t}</div>`).join("")}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="float" id="float">
+    <div class="float-head">
+      <div class="t"><span>SM-2 与 FSRS 复习策略对比</span><i data-lucide="chevron-down" style="width:14px"></i></div>
+      <button class="ib" title="新对话"><i data-lucide="square-pen"></i></button>
+      <button class="ib" title="钉住为停靠栏"><i data-lucide="pin"></i></button>
+      <button class="ib" title="在对话页打开"><i data-lucide="maximize-2"></i></button>
+      <button class="ib" title="关闭" id="close"><i data-lucide="x"></i></button>
+    </div>
+    <div class="thread">${thread({ maxW: 9999, compact: true })}</div>
+    ${composer({ compact: true, ctx: false, placeholder: "问点什么，@ 引用内容" })}
+  </section>
+
+  <div class="palette-scrim hidden" id="palette">
+    <div class="palette">
+      <div class="in"><i data-lucide="search"></i><span class="q">FSRS 的目标保留率一般设多少合适</span><span class="kbd">Esc</span></div>
+      <div class="list">
+        <div class="it on"><i data-lucide="sparkles"></i>问 AI：「FSRS 的目标保留率一般设多少合适」<span class="meta">Enter</span></div>
+        <div class="it"><i data-lucide="message-circle"></i>追加到当前对话「SM-2 与 FSRS 复习策略对比」<span class="meta">Ctrl Enter</span></div>
+        <div class="gh">内容</div>
+        <div class="it"><i data-lucide="file-text"></i>SM-2 算法笔记<span class="meta">文章</span></div>
+        <div class="it"><i data-lucide="layers"></i>FSRS 参数优化记录<span class="meta">卡片</span></div>
+      </div>
+      <div class="ans">
+        <div class="ai-meta"><span class="ai-avatar"><i data-lucide="sparkles"></i></span>Claude Haiku 4.5 · 速答</div>
+        <div class="md"><p>多数人取 <b>0.85–0.9</b>：0.9 是 FSRS 默认值，每提高 0.01 的保留率，日复习量大约增加 5–8%<span class="caret"></span></p></div>
+      </div>
+      <div class="foot"><span><span class="kbd">Tab</span> 转入浮窗继续问</span><span><span class="kbd">Ctrl C</span> 复制答案</span></div>
+    </div>
+  </div>
+  ${anno(1, "非模态：背后的今日页仍可点击、滚动", "left:420px;top:320px")}
+  ${anno(2, "钉住 → 转成入口 A 停靠栏", "right:130px;top:58px")}
+`;
+icons();
+
+const float = document.getElementById("float"), pal = document.getElementById("palette");
+function mode(m) {
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+  float.classList.toggle("closed", m !== "float");
+  pal.classList.toggle("hidden", m !== "palette");
+  document.getElementById("toggle").classList.toggle("on", m === "float");
+  document.querySelectorAll(".anno").forEach(a => (a.style.visibility = m === "float" ? "" : "hidden"));
+}
+document.querySelectorAll(".seg button").forEach(b => (b.onclick = () => mode(b.dataset.m)));
+document.getElementById("toggle").onclick = () => mode(float.classList.contains("closed") ? "float" : "none");
+document.getElementById("close").onclick = () => mode("none");
+</script>
+</body>
+</html>

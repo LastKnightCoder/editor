@@ -6,6 +6,7 @@ import remarkCjkFriendlyGfmStrikethrough from "remark-cjk-friendly-gfm-strikethr
 import remarkMath from "remark-math";
 import remarkDirective from "remark-directive";
 import remarkRehype from "remark-rehype";
+import { RETIRED_TYPES } from "@tau/db-schema/src/retired-editor-blocks";
 import remarkFrontmatter from "remark-frontmatter";
 import { Descendant } from "slate";
 import { v4 as uuid } from "uuid";
@@ -345,6 +346,7 @@ const markdownToDescendant = (
   parentAstNode: unknown = null,
   astChildrenOfParent: unknown[] = []
 ): Descendant | Descendant[] | null => {
+  if (node.type.endsWith("Directive") && RETIRED_TYPES.has(node.name)) return null;
   const parentNode = isMarkdownAstNode(parentAstNode) ? (parentAstNode as MarkdownAstNode) : null;
   const siblingNodes = astChildrenOfParent as MarkdownAstNode[];
 
@@ -926,8 +928,7 @@ const normalizeEditorContent = (
       }
     } else if (element.type === "paragraph") {
       const firstChild = element.children[0] as unknown as
-        | { type?: string; children?: Descendant[] }
-        | undefined;
+        { type?: string; children?: Descendant[] } | undefined;
       if (element.children.length === 1 && firstChild && firstChild.type === "image") {
         const onlyChild = firstChild as ImageElement;
         if (onlyChild && Array.isArray(onlyChild.children)) {

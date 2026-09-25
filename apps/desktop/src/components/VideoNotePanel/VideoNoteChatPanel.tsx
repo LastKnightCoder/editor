@@ -1,7 +1,6 @@
 import { useState, useMemo, memo, lazy, Suspense, useRef, useEffect } from "react";
-import { App } from "antd";
-import { LoadingOutlined } from "@ant-design/icons";
-import { useLocalStorageState, useMemoizedFn } from "ahooks";
+import { Loading, toast } from "@tau/ui";
+import { useMemoizedFn } from "ahooks";
 import { useShallow } from "zustand/react/shallow";
 import "katex/dist/katex.min.css";
 import type { EditTextHandle } from "@/components/EditText";
@@ -9,62 +8,18 @@ import ChatDropdownSelector from "@/layouts/ContentLayout/components/RightChatSi
 import useTheme from "@/hooks/useTheme";
 import useDatabaseConnected from "@/hooks/useDatabaseConnected";
 import useSettingStore from "@/stores/useSettingStore";
-import { openExternal } from "@/commands";
-import { MermaidRenderer, LazySyntaxHighlighter } from "@tau/shared";
-import {
-  MarkdownProvider,
-  useMarkdownContext,
-} from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
-import { shouldRenderAsBlockCode } from "@/layouts/ContentLayout/components/ChatSidebar/codeBlockUtils";
+import { MarkdownProvider } from "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext";
+import { useChatMarkdownComponents } from "@/components/ChatUI";
 import type { ChatContainerHandle } from "@/layouts/ContentLayout/components/ChatSidebar/ChatContainer";
-import { ResponseMessage, ChatAgentType, ChatMessage } from "@/types";
+import { ResponseMessage, ChatMessage } from "@/types";
 import { Role, buildSessionAwareSystemPrompt } from "@/constants";
 import useVideoNoteChatStore, { EVideoNoteChatStatus } from "@/stores/useVideoNoteChatStore";
 import { buildVideoNoteSystemPrompt } from "@/tools/videoNoteSearchTool";
 import { useVideoNoteChat } from "./useVideoNoteChat";
-import { CHAT_AGENT_TYPE_STORAGE_KEY, normalizeChatAgentType } from "@/constants/chatAgent";
 
 const ChatContainer = lazy(
   () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer")
 );
-
-const CodeRenderer: React.FC<{
-  children?: React.ReactNode;
-  className?: string;
-  "data-markdown-block-code"?: string;
-}> = ({ children, className, "data-markdown-block-code": markdownBlockCode, ...rest }) => {
-  const { message } = App.useApp();
-  const { isDark, messageMeta } = useMarkdownContext();
-  const match = /language-([\w-]+)/.exec(className || "");
-  const language = match ? match[1] : undefined;
-  const isBlockCode = shouldRenderAsBlockCode({
-    className,
-    "data-markdown-block-code": markdownBlockCode,
-  });
-  const code = String(children).replace(/\n$/, "");
-  if (language === "mermaid") {
-    return <MermaidRenderer code={code} isDark={isDark} messageApi={message} />;
-  }
-  if (language) {
-    return (
-      <LazySyntaxHighlighter language={language} isDark={isDark} {...rest}>
-        {code}
-      </LazySyntaxHighlighter>
-    );
-  }
-  if (isBlockCode) {
-    return (
-      <LazySyntaxHighlighter language="text" isDark={isDark} {...rest}>
-        {code}
-      </LazySyntaxHighlighter>
-    );
-  }
-  return (
-    <code {...rest} className={className} data-message={messageMeta?.chatId}>
-      {children}
-    </code>
-  );
-};
 
 interface VideoNoteChatPanelProps {
   videoNoteId: number;
@@ -96,12 +51,8 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
   transcript,
 }) => {
   const { isDark } = useTheme();
-  const { message } = App.useApp();
   const editTitleRef = useRef<EditTextHandle>(null);
   const chatContainerRef = useRef<ChatContainerHandle>(null);
-  const [rememberedAgentType] = useLocalStorageState<ChatAgentType>(CHAT_AGENT_TYPE_STORAGE_KEY, {
-    defaultValue: "local",
-  });
 
   const database = useSettingStore(state => state.setting.database.active);
   const isConnected = useDatabaseConnected();
@@ -161,8 +112,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
       archived: currentChat.archived,
       parentChatId: currentChat.parentChatId,
       branchIndex: currentChat.branchIndex,
-      agentType: currentChat.agentType,
-      agentSessionId: currentChat.agentSessionId,
     };
   }, [currentChat, systemPrompt]);
 
@@ -178,8 +127,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
         archived: chat.archived,
         parentChatId: chat.parentChatId,
         branchIndex: chat.branchIndex,
-        agentType: chat.agentType,
-        agentSessionId: chat.agentSessionId,
       })),
     [chats]
   );
@@ -196,9 +143,9 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
     ];
     setCreateMessageLoading(true);
     try {
-      await createChat(messages, undefined, normalizeChatAgentType(rememberedAgentType));
+      await createChat(messages);
     } catch (error) {
-      message.error("创建对话失败");
+      toast.error("创建对话失败");
       console.error(error);
     } finally {
       setCreateMessageLoading(false);
@@ -210,7 +157,7 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
     try {
       await updateChat({ ...currentChat, title });
     } catch (error) {
-      message.error("更新标题失败");
+      toast.error("更新标题失败");
       console.error(error);
     }
   });
@@ -221,18 +168,11 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
   });
 
   const handleExternalCreateChat = useMemoizedFn(
-    async (
-      messages: ChatMessage["messages"],
-      title?: string,
-      agentType?: ChatAgentType,
-      agentSessionId?: string | null
-    ) => {
-      const created = await createChat(messages, title, agentType, agentSessionId);
+    async (messages: ChatMessage["messages"], title?: string) => {
+      const created = await createChat(messages, title);
       return {
         ...currentChatAsMessage,
         ...created,
-        agentType: created.agentType,
-        agentSessionId: created.agentSessionId,
       } as ChatMessage;
     }
   );
@@ -243,8 +183,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
       return {
         ...currentChatAsMessage,
         ...created,
-        agentType: created.agentType,
-        agentSessionId: created.agentSessionId,
       } as ChatMessage;
     }
   );
@@ -259,8 +197,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
       messages: chat.messages,
       title: chat.title,
       archived: chat.archived,
-      agentType: chat.agentType,
-      agentSessionId: chat.agentSessionId,
     });
     return {
       ...chat,
@@ -279,8 +215,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
       archived: chat.archived,
       parentChatId: chat.parentChatId,
       branchIndex: chat.branchIndex,
-      agentType: chat.agentType,
-      agentSessionId: chat.agentSessionId,
     });
   });
 
@@ -288,39 +222,11 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
     await deleteChat(chatId);
   });
 
-  const handleLinkClick = useMemoizedFn(
-    (event: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
-      if (!href) return;
-      event.preventDefault();
-      openExternal(href).catch(err => {
-        console.error("打开链接失败:", err);
-      });
-    }
-  );
-
-  const markdownComponents = useMemo(
-    () => ({
-      code: CodeRenderer,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      a: ({ children, href, ...props }: any) => (
-        <a
-          {...props}
-          href={href}
-          onClick={(event: React.MouseEvent<HTMLAnchorElement>) => handleLinkClick(event, href)}
-        >
-          {children}
-        </a>
-      ),
-    }),
-    [handleLinkClick]
-  );
+  // 代码 / 链接渲染与对话页共用（D-048）
+  const markdownComponents = useChatMarkdownComponents({ isDark, idPrefix: "video-note-block" });
 
   if (status === EVideoNoteChatStatus.LOADING) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <LoadingOutlined />
-      </div>
-    );
+    return <Loading minHeight={0} />;
   }
 
   return (
@@ -341,13 +247,7 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
         </div>
 
         {(currentChat || (!currentChat && !createMessageLoading)) && (
-          <Suspense
-            fallback={
-              <div className="flex h-full items-center justify-center">
-                <LoadingOutlined />
-              </div>
-            }
-          >
+          <Suspense fallback={<Loading minHeight={0} />}>
             <ChatContainer
               ref={chatContainerRef}
               currentChat={currentChatAsMessage}

@@ -17,7 +17,7 @@ import {
 const createTextMessage = (
   role: Role,
   text: string,
-  extra?: Partial<RequestMessage>,
+  extra?: Partial<RequestMessage>
 ): RequestMessage => ({
   role,
   content: [{ type: "text", text }],
@@ -26,11 +26,11 @@ const createTextMessage = (
 
 const getReasoningBlock = (
   message: ReturnType<typeof createAssistantMessage>,
-  turnId: string,
+  turnId: string
 ): AssistantReasoningBlock | undefined =>
   message.assistant_blocks?.find(
     (block): block is AssistantReasoningBlock =>
-      block.turnId === turnId && block.type === "reasoning",
+      block.turnId === turnId && block.type === "reasoning"
   );
 
 afterEach(() => {
@@ -39,13 +39,9 @@ afterEach(() => {
 
 describe("assistant message identity", () => {
   it("调用方未提供有效 clientId 时保留自动生成的消息标识", () => {
-    expect(createAssistantMessage({ clientId: undefined }).clientId).toMatch(
-      /^msg:/,
-    );
+    expect(createAssistantMessage({ clientId: undefined }).clientId).toMatch(/^msg:/);
     expect(createAssistantMessage({ clientId: "" }).clientId).toMatch(/^msg:/);
-    expect(createAssistantMessage({ clientId: "existing-id" }).clientId).toBe(
-      "existing-id",
-    );
+    expect(createAssistantMessage({ clientId: "existing-id" }).clientId).toBe("existing-id");
   });
 });
 
@@ -101,7 +97,7 @@ describe("assistant reasoning timing", () => {
             arguments: '{"q":"reasoning"}',
           },
         },
-      ],
+      ]
     );
 
     const reasoningBlock = getReasoningBlock(message, turnId);
@@ -160,7 +156,7 @@ describe("assistant reasoning timing", () => {
             arguments: '{"q":"followup"}',
           },
         },
-      ],
+      ]
     );
 
     expect(reasoningBlock?.endTime).toBe(2000);
@@ -198,7 +194,7 @@ describe("assistant reasoning timing", () => {
             arguments: '{"q":"tesla"}',
           },
         },
-      ],
+      ]
     );
     finalizeAssistantTurn(message, toolTurnId);
 
@@ -273,7 +269,7 @@ describe("assistant reasoning timing", () => {
             arguments: '{"q":"kimi"}',
           },
         },
-      ],
+      ]
     );
     finalizeAssistantTurn(message, turnId);
 
@@ -385,6 +381,39 @@ describe("assistant reasoning timing", () => {
   });
 });
 
+describe("退役代理历史工具", () => {
+  it("保留正文和工具结果为只读上下文，不产生工具调用或修改原记录", () => {
+    const message = createAssistantMessage();
+    applyAssistantTextSnapshot(message, "legacy:codex", "已读取文档");
+    applyAssistantToolCallsSnapshot(message, "legacy:codex", [
+      {
+        toolCallId: "old-call",
+        toolName: "tau_notes.read",
+        status: "success",
+        input: "{}",
+        output: "历史文档正文",
+        timestamp: 1,
+        metadata: { codexItemType: "mcp_tool_call" },
+      },
+    ]);
+    const snapshot = JSON.stringify(message);
+    const history = buildAssistantHistoryMessages(message);
+    expect(history).toHaveLength(1);
+    expect(history[0].role).toBe(Role.Assistant);
+    expect(JSON.stringify(history[0].content)).toContain("历史文档正文");
+    expect(JSON.stringify(history[0].content)).toContain("已读取文档");
+    expect(history[0].tool_calls).toBeUndefined();
+    expect(JSON.stringify(message)).toBe(snapshot);
+    expect(
+      sanitizeToolMessages([
+        ...history,
+        { role: Role.Tool, content: "旧工具结果", tool_call_id: "old-call" },
+        { role: Role.User, content: "继续" },
+      ])
+    ).toEqual([...history, { role: Role.User, content: "继续" }]);
+  });
+});
+
 describe("sanitizeToolMessages", () => {
   const mkToolCall = (id: string, name: string): RequestMessage => ({
     role: Role.Assistant,
@@ -392,11 +421,7 @@ describe("sanitizeToolMessages", () => {
     tool_calls: [{ id, type: "function", function: { name, arguments: "{}" } }],
   });
 
-  const mkToolResult = (
-    id: string,
-    name: string,
-    text = "ok",
-  ): RequestMessage => ({
+  const mkToolResult = (id: string, name: string, text = "ok"): RequestMessage => ({
     role: Role.Tool,
     content: [{ type: "text", text }],
     tool_call_id: id,
@@ -523,11 +548,6 @@ describe("sanitizeToolMessages", () => {
       mkToolResult("c1", "a", "first"),
     ];
     const result = sanitizeToolMessages(msgs);
-    expect(result.map((m) => m.tool_call_id)).toEqual([
-      undefined,
-      "c1",
-      "c2",
-      "c3",
-    ]);
+    expect(result.map(m => m.tool_call_id)).toEqual([undefined, "c1", "c2", "c3"]);
   });
 });

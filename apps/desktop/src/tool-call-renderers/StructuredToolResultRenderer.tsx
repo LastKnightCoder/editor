@@ -29,7 +29,7 @@ type StructuredToolResultPayload = {
 };
 
 const getStructuredPayload = (
-  metadata?: Record<string, unknown>,
+  metadata?: Record<string, unknown>
 ): StructuredToolResultPayload | null => {
   if (!metadata || typeof metadata !== "object") {
     return null;
@@ -59,27 +59,13 @@ const StructuredToolResultRenderer = ({
 
   return (
     <ToolCard isDark={isDark}>
-      <ToolCardHeader
-        isDark={isDark}
-        divided={Boolean(
-          payload.subtitle ||
-          payload.metrics?.length ||
-          payload.fields?.length ||
-          payload.items?.length,
-        )}
-      >
+      <ToolCardHeader isDark={isDark}>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <div
-            className={`min-w-0 flex-1 text-sm font-medium ${
-              isDark ? "text-slate-100" : "text-slate-800"
-            }`}
-          >
+          <div className="text-tau-body text-ink-1 min-w-0 flex-1 font-medium">
             {payload.title || execution.toolName}
           </div>
-          {payload.status ? (
-            <ToolBadge isDark={isDark}>{payload.status}</ToolBadge>
-          ) : null}
-          {payload.badges?.map((badge) => (
+          {payload.status ? <ToolBadge isDark={isDark}>{payload.status}</ToolBadge> : null}
+          {payload.badges?.map(badge => (
             <ToolBadge key={badge} isDark={isDark}>
               {badge}
             </ToolBadge>
@@ -94,7 +80,7 @@ const StructuredToolResultRenderer = ({
       <ToolCardBody>
         {payload.metrics?.length ? (
           <div className="flex flex-wrap gap-2">
-            {payload.metrics.map((metric) => (
+            {payload.metrics.map(metric => (
               <ToolValuePill key={metric.label} isDark={isDark}>
                 {metric.label}：{metric.value}
               </ToolValuePill>
@@ -104,12 +90,8 @@ const StructuredToolResultRenderer = ({
 
         {payload.fields?.length ? (
           <div className="space-y-2">
-            {payload.fields.map((field) => (
-              <ToolMutedText
-                key={field.label}
-                isDark={isDark}
-                className="break-words"
-              >
+            {payload.fields.map(field => (
+              <ToolMutedText key={field.label} isDark={isDark} className="break-words">
                 {field.label}：{field.value ?? "-"}
               </ToolMutedText>
             ))}
@@ -119,10 +101,7 @@ const StructuredToolResultRenderer = ({
         {payload.items?.length ? (
           <ToolDividerList isDark={isDark}>
             {payload.items.map((item, index) => (
-              <ToolDividerListItem
-                key={`${item.title || "item"}-${index}`}
-                isDark={isDark}
-              >
+              <ToolDividerListItem key={`${item.title || "item"}-${index}`} isDark={isDark}>
                 <ToolSectionTitle isDark={isDark}>
                   {item.title || `项目 ${index + 1}`}
                 </ToolSectionTitle>
@@ -138,7 +117,7 @@ const StructuredToolResultRenderer = ({
                 ) : null}
                 {item.badges?.length ? (
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {item.badges.map((badge) => (
+                    {item.badges.map(badge => (
                       <ToolBadge key={badge} isDark={isDark}>
                         {badge}
                       </ToolBadge>
@@ -150,9 +129,7 @@ const StructuredToolResultRenderer = ({
           </ToolDividerList>
         ) : null}
 
-        {!payload.metrics?.length &&
-        !payload.fields?.length &&
-        !payload.items?.length ? (
+        {!payload.metrics?.length && !payload.fields?.length && !payload.items?.length ? (
           <ToolMutedText isDark={isDark}>
             {payload.emptyText || "没有更多可展示的内容。"}
           </ToolMutedText>

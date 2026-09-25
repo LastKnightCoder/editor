@@ -16,6 +16,7 @@ import { DiaryNavTags } from "@/features/diary/components/DiaryNav";
 import { useDiaryNavHasContent } from "@/features/diary/queries";
 import { WhiteboardNavTags } from "@/features/whiteboards/components/WhiteboardNav";
 import { useWhiteboardNavHasContent } from "@/features/whiteboards/queries";
+import { ChatNavSessions, useChatNavHasContent } from "@/features/chat/components/ChatNav";
 import useCollaborationStore from "@/stores/useCollaborationStore";
 import type { NavItemBadge, NavItemChildren } from "./navigation";
 
@@ -60,6 +61,12 @@ export const NAV_CHILDREN_SLOTS: Record<NavItemChildren, NavChildrenSlot> = {
     selected: params => Boolean(params.id),
     parentResets: true,
   },
+  // AI 对话：id 为空 = 新对话空态；已在对话页再点父项回到新对话（D-047）
+  "chat-sessions": {
+    Component: ChatNavSessions,
+    selected: params => Boolean(params.id),
+    parentResets: true,
+  },
 };
 
 /** 各子项槽是否有内容可展开（空内容不展开，父项保持常规选中态） */
@@ -67,9 +74,11 @@ export function useNavChildrenContent(): Record<NavItemChildren, boolean> {
   const hasSessions = useCollaborationStore(s => s.sessions.length > 0);
   const hasDiary = useDiaryNavHasContent();
   const hasWhiteboardTags = useWhiteboardNavHasContent();
+  const hasChats = useChatNavHasContent();
   return {
     "collaboration-sessions": hasSessions,
     "diary-tags": hasDiary,
     "whiteboard-tags": hasWhiteboardTags,
+    "chat-sessions": hasChats,
   };
 }

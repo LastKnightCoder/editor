@@ -7,9 +7,20 @@ import tikzReadme from "./internal-skills/tikz.md?raw";
 import typstReadme from "./internal-skills/typst.md?raw";
 import knowledgeBaseReadme from "./internal-skills/knowledge-base.md?raw";
 import whiteboardReadme from "./internal-skills/whiteboard.md?raw";
+import databaseSchemaReadme from "./internal-skills/database-schema.md?raw";
 
 // 内部 Skill 注册表
 const internalSkillRegistry = new Map<string, InternalSkill>([
+  [
+    "database-schema",
+    {
+      folderName: "database-schema",
+      name: "主数据库结构与只读 SQL 查询",
+      description: "说明主 SQLite 数据库的表结构、字段关系和安全查询方式，供 sql_query 使用。",
+      readmeContent: databaseSchemaReadme,
+      isInternal: true,
+    },
+  ],
   [
     "markdown",
     {

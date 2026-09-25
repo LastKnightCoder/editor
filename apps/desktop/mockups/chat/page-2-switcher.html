@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>页面 2 · 顶部会话切换器</title>
+<link rel="stylesheet" href="shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .main { padding-left: 6px; }
+  .sw { position: absolute; z-index: 30; left: 0; top: calc(var(--titlebar-h) - 4px); width: 520px; height: 520px; padding: 0; display: flex; flex-direction: column; }
+  .sw-tabs { display: flex; gap: 4px; padding: 10px 12px 6px; }
+  .sw .lib { flex: 1; }
+  .sw .lib-body { grid-template-columns: 150px 1fr; }
+  .sw .lib-head { padding: 12px 12px 8px 14px; }
+  .sw .lib-search { flex: 1; width: auto; }
+  .crumb-btn { display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: var(--r-sm); cursor: pointer; }
+  .crumb-btn:hover { background: var(--hover); }
+  .crumb-btn.open { background: var(--hover); }
+  .tab-strip { display: flex; gap: 4px; padding: 10px 14px 0; }
+  .tab-strip .chip.on { box-shadow: none; }
+</style>
+</head>
+<body>
+<div class="mock-note">
+  <h3>页面 2 · 顶部会话切换器（沿用问题页 A2 / 服务商切换条的做法）</h3>
+  侧栏不加子项、页面也没有会话列：点标题栏面包屑「标题 ▾」或 <span class="kbd">Ctrl O</span>，从标题栏下方展开会话切换面板（搜索 + 分组树 + 列表，全量管理都在这里），选中即关。纸面顶部一行 chips 是「最近打开」的轻量标签条，最多 5 个，可关闭。
+  <ul>
+    <li>与入口 A 的会话下拉是<b>同一个组件</b>的大小两档：停靠栏里是紧凑列表，对话页里是带分组树的完整面板。</li>
+    <li><b>一期</b>：切换面板先用 legacy <code>ChatManagementSidebar</code> 放进 Popover；最近标签条可以晚一点做。</li>
+    <li class="pro">＋ 侧栏干净；对话页、停靠栏复用同一个切换器，心智一致。</li>
+    <li class="con">－ 会话列表默认不可见，换会话多一次点击；最近标签条有「浏览器 Tab」的味道，可按需砍掉。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, chatPaper, paperTools, library, anno, icons, SESSIONS } from "./shared.js?v=3";
+mockBar("page-2-switcher.html");
+
+const win = document.getElementById("win");
+function render(open) {
+  const strip = `<div class="tab-strip">
+    <span class="chip on">SM-2 与 FSRS 复习策略对比</span>
+    ${SESSIONS.recent.slice(0, 3).map(s => `<span class="chip">${s.t}<i data-lucide="x"></i></span>`).join("")}
+    <span class="chip" style="border-style:dashed"><i data-lucide="plus"></i>新对话</span>
+  </div>`;
+  win.innerHTML = `
+    ${sidebar("chat")}
+    <div class="col" style="position:relative">
+      ${titlebar(`AI 对话 <i data-lucide="chevron-right" style="width:13px"></i><span class="crumb-btn ${open ? "open" : ""}" id="crumb"><b>SM-2 与 FSRS 复习策略对比</b><i data-lucide="chevron-down" style="width:13px"></i></span><span class="kbd" style="margin-left:4px">Ctrl O</span>`,
+        `<button class="ib" title="新对话"><i data-lucide="square-pen"></i></button>`)}
+      <div class="main">${chatPaper({ head: strip + paperTools() })}</div>
+      ${open ? `<div class="menu sw" style="left:70px">${library({ asDialog: false })}</div>` : ""}
+    </div>
+    ${!open ? anno(1, "面包屑 = 会话切换器入口", "left:420px;top:50px") + anno(2, "最近打开（可选，可砍）", "left:300px;top:98px") : ""}`;
+  icons();
+  document.getElementById("crumb").onclick = e => { e.stopPropagation(); render(!open); };
+  if (open) document.querySelector(".sw").onclick = e => e.stopPropagation();
+}
+document.addEventListener("click", () => render(false));
+render(true);
+</script>
+</body>
+</html>

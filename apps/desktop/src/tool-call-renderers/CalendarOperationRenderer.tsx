@@ -1,3 +1,5 @@
+import { Check, X } from "lucide-react";
+import { cn } from "@tau/ui";
 import type { ToolCallCustomRendererProps } from "./types";
 import {
   ToolBadge,
@@ -87,33 +89,22 @@ const getTitle = (payload: CalendarOperationPayload) => {
   return null;
 };
 
-const renderDataSummary = (
-  payload: CalendarOperationPayload,
-  isDark: boolean,
-) => {
+const renderDataSummary = (payload: CalendarOperationPayload, isDark: boolean) => {
   const data = payload.data;
   if (!data || typeof data !== "object") {
     return null;
   }
 
-  if (
-    typeof data.targetCalendarId === "number" &&
-    Array.isArray(data.sourceCalendarIds)
-  ) {
+  if (typeof data.targetCalendarId === "number" && Array.isArray(data.sourceCalendarIds)) {
     return (
       <ToolValuePill isDark={isDark}>
-        目标日历 #{data.targetCalendarId} · 来源 {data.sourceCalendarIds.length}{" "}
-        个
+        目标日历 #{data.targetCalendarId} · 来源 {data.sourceCalendarIds.length} 个
       </ToolValuePill>
     );
   }
 
   if (typeof data.calendarTitle === "string" && data.calendarTitle.trim()) {
-    return (
-      <ToolValuePill isDark={isDark}>
-        所属日历：{data.calendarTitle}
-      </ToolValuePill>
-    );
+    return <ToolValuePill isDark={isDark}>所属日历：{data.calendarTitle}</ToolValuePill>;
   }
 
   if (typeof data.title === "string" && data.title.trim()) {
@@ -137,41 +128,47 @@ const CalendarOperationRenderer = ({
     return <>{renderDefault()}</>;
   }
 
+  const failed = payload.success === false;
   const primaryText = getPrimaryText(payload);
   const displayTitle = getTitle(payload);
-  const entityLabel = payload.entityType
-    ? entityTypeLabelMap[payload.entityType]
-    : null;
+  const entityLabel = payload.entityType ? entityTypeLabelMap[payload.entityType] : null;
   const dataSummary = renderDataSummary(payload, isDark);
+  const StatusIcon = failed ? X : Check;
 
   return (
     <ToolCard isDark={isDark}>
-      <ToolCardHeader
-        isDark={isDark}
-        divided={Boolean(displayTitle || payload.message || dataSummary)}
-      >
+      <ToolCardHeader isDark={isDark}>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <StatusIcon
+            aria-hidden
+            size={14}
+            strokeWidth={2}
+            className={cn("shrink-0", failed ? "text-danger" : "text-ok")}
+          />
           <div
-            className={`min-w-0 flex-1 text-sm font-medium ${isDark ? "text-slate-100" : "text-slate-800"}`}
+            className={cn(
+              "text-tau-body min-w-0 flex-1 font-medium",
+              failed ? "text-danger" : "text-ink-1"
+            )}
           >
             {primaryText}
           </div>
-          {entityLabel ? (
-            <ToolBadge isDark={isDark}>{entityLabel}</ToolBadge>
-          ) : null}
+          {entityLabel ? <ToolBadge isDark={isDark}>{entityLabel}</ToolBadge> : null}
         </div>
       </ToolCardHeader>
       {displayTitle || payload.message || dataSummary ? (
         <ToolCardBody>
-          {displayTitle ? (
-            <ToolSectionTitle isDark={isDark}>
-              对象：{displayTitle}
-            </ToolSectionTitle>
-          ) : null}
-          {payload.message ? (
-            <ToolMutedText isDark={isDark} className="break-words">
-              {payload.message}
-            </ToolMutedText>
+          {displayTitle || payload.message ? (
+            <div className="space-y-0.5">
+              {displayTitle ? (
+                <ToolSectionTitle isDark={isDark}>对象：{displayTitle}</ToolSectionTitle>
+              ) : null}
+              {payload.message ? (
+                <ToolMutedText isDark={isDark} className="break-words">
+                  {payload.message}
+                </ToolMutedText>
+              ) : null}
+            </div>
           ) : null}
           {dataSummary}
         </ToolCardBody>

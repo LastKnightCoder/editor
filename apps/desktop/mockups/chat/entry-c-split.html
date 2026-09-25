@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>入口 C · 分屏 pane</title>
+<link rel="stylesheet" href="shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .pane { display: flex; flex-direction: column; min-width: 0; }
+  .pane-head { display: flex; align-items: center; gap: 4px; padding: 8px 8px 0 14px; flex: none; }
+  .pane-head .t { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink-2); }
+  .pane-head .t b { color: var(--ink-1); font-weight: 500; }
+  .pane.focus { outline: 2px solid var(--accent-soft); outline-offset: -2px; }
+  .pane .body { flex: 1; overflow: hidden auto; }
+  .doc-inner { max-width: 680px; margin: 0 auto; padding: 22px 34px; }
+  .doc-inner h1 { font-size: 22px; margin: 0 0 6px; font-weight: 600; }
+  .doc-inner p { margin: 0 0 14px; font-size: 14px; line-height: 1.85; }
+  .divider { width: 12px; margin: 0 -6px; cursor: col-resize; position: relative; z-index: 2; flex: none; }
+  .divider::after { content: ""; position: absolute; left: 5px; top: 50%; width: 2px; height: 40px; margin-top: -20px; border-radius: 2px; background: var(--line-1); }
+  .divider:hover::after { background: var(--accent); }
+  .main { gap: 12px; }
+</style>
+</head>
+<body>
+<div class="mock-note">
+  <h3>入口 C · 分屏 pane（页面协议原生能力）</h3>
+  不做「AI 专用侧栏」：AI 对话就是一个普通页面，快捷入口 = <code>navigator.openInSplit("chat")</code>（蓝图 §3 已预留，上限 2 pane）。<span class="kbd">Ctrl J</span> 在右侧 pane 打开 / 聚焦对话；任何页面都能右键「在右侧打开」，同一机制顺带解决文章对照、卡片对照。
+  <ul>
+    <li>两个 pane 同为 surface 纸面，中间拖动分隔（默认 55 / 45）；标题栏面包屑跟随<b>聚焦的 pane</b>，后退 / 前进作用于聚焦 pane 的栈。</li>
+    <li><b>一期</b>：需要先把 PageHost 扩成双 pane 栈（栈机、保活、槽位注入都要按 pane 区分），然后对话页整体放进去——工作量明显大于 A / B。</li>
+    <li class="pro">＋ 概念统一（没有第三种容器）；对话在 pane 里是完整对话页，宽度够、功能不打折。</li>
+    <li class="con">－ 需要先改导航框架；1280 下两栏各约 500px，读写都偏挤；「顺手问一句」的开合比 A / B 重。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, thread, composer, anno, icons } from "./shared.js?v=3";
+mockBar("entry-c-split.html");
+
+const win = document.getElementById("win");
+win.innerHTML = `
+  ${sidebar("articles")}
+  <div class="col">
+    ${titlebar(`AI 对话 <i data-lucide="chevron-right" style="width:13px"></i><b>SM-2 与 FSRS 复习策略对比</b>`)}
+    <div class="main" id="main">
+      <section class="paper pane" id="left" style="flex:55">
+        <div class="pane-head"><div class="t"><i data-lucide="file-text"></i>文章 / <b>SM-2 算法笔记</b></div>
+          <button class="ib" title="在右侧打开…"><i data-lucide="columns-2"></i></button></div>
+        <div class="body"><div class="doc-inner">
+          <h1>SM-2 算法笔记</h1>
+          <p>SuperMemo 2（SM-2）是最早被广泛使用的间隔重复算法之一。它为每张卡片维护一个易度因子 EF，初始值为 2.5，每次复习后根据回忆质量 q（0–5）更新。</p>
+          <p>当 q &lt; 3 时，卡片的重复次数被重置，间隔回到 1 天，但 EF 并不会被重置——这导致一张多次答错的卡片会长期停留在低 EF 区间，这就是常说的「ease hell」。</p>
+          <p>第一次间隔为 1 天，第二次为 6 天，此后每次间隔 = 上次间隔 × EF。EF 的更新公式以 1.3 为下限。</p>
+          <p>FSRS 把记忆状态拆成稳定性 S 与难度 D 两个量，可以根据目标保留率直接求出下一次间隔。</p>
+        </div></div>
+      </section>
+      <div class="divider" id="divider"></div>
+      <section class="paper pane focus" id="right" style="flex:45">
+        <div class="pane-head"><div class="t"><i data-lucide="message-circle"></i>AI 对话 / <b>SM-2 与 FSRS 复习策略对比</b><i data-lucide="chevron-down" style="width:13px"></i></div>
+          <button class="ib" title="新对话"><i data-lucide="square-pen"></i></button>
+          <button class="ib" title="设为主 pane"><i data-lucide="maximize-2"></i></button>
+          <button class="ib" title="关闭 pane"><i data-lucide="x"></i></button></div>
+        <div class="body">${thread({ maxW: 720, compact: true })}</div>
+        ${composer({ compact: false, ctx: true, maxW: 720 })}
+      </section>
+    </div>
+  </div>
+  ${anno(1, "面包屑 / 后退前进跟随聚焦 pane（右侧 accent 轻框）", "left:360px;top:12px")}
+  ${anno(2, "右 pane 是完整的对话页：模型 / 思考 / Agent / MCP 全都在", "right:40px;bottom:120px")}
+`;
+icons();
+
+const left = document.getElementById("left"), right = document.getElementById("right");
+[left, right].forEach(p => p.addEventListener("pointerdown", () => { left.classList.toggle("focus", p === left); right.classList.toggle("focus", p === right); }));
+document.getElementById("divider").onpointerdown = e => {
+  const main = document.getElementById("main"), r = main.getBoundingClientRect();
+  const move = ev => { const f = Math.max(30, Math.min(70, ((ev.clientX - r.left) / r.width) * 100)); left.style.flex = f; right.style.flex = 100 - f; };
+  const up = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
+  window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+};
+</script>
+</body>
+</html>

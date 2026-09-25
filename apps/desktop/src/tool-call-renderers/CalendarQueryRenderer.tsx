@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ChevronDown, ChevronUp, RotateCw } from "lucide-react";
+import { Button, cn } from "@tau/ui";
 import type { ToolCallCustomRendererProps } from "./types";
 import {
   getCalendarDashboardData,
@@ -24,6 +26,8 @@ import {
   ToolCard,
   ToolCardBody,
   ToolCardHeader,
+  ToolDividerList,
+  ToolDividerListItem,
   ToolMutedText,
   ToolSectionTitle,
   ToolValuePill,
@@ -75,85 +79,77 @@ const formatEventTime = (item: CalendarEventListItem) => {
 };
 
 const QueryRefreshButton = ({
-  isDark,
   loading,
   onRefresh,
 }: {
-  isDark: boolean;
+  isDark?: boolean;
   loading: boolean;
   onRefresh: () => void;
 }) => (
-  <button
-    type="button"
-    className={`rounded-lg px-2.5 py-1.5 text-xs transition-colors ${
-      loading
-        ? isDark
-          ? "cursor-not-allowed bg-zinc-800 text-slate-500"
-          : "cursor-not-allowed bg-slate-100 text-slate-400"
-        : isDark
-          ? "bg-zinc-800 text-slate-200 hover:bg-zinc-700"
-          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-    }`}
-    disabled={loading}
+  <Button
+    variant="ghost"
+    size="sm"
+    icon={RotateCw}
+    loading={loading}
+    loadingText="刷新中..."
     onClick={onRefresh}
+    className="-my-1 -mr-1.5 h-[26px] px-2"
   >
-    {loading ? "刷新中..." : "刷新"}
-  </button>
+    刷新
+  </Button>
 );
 
-const EventList = ({ items, isDark }: { items: CalendarEventListItem[]; isDark: boolean }) => {
+/** 列表行 / 详情的主标题：正文档 + medium 字重 */
+const ItemTitle = ({ children, truncate = false }: { children: ReactNode; truncate?: boolean }) => (
+  <div
+    className={cn(
+      "text-tau-body text-ink-1 min-w-0 font-medium",
+      truncate ? "flex-1 truncate" : "break-words"
+    )}
+  >
+    {children}
+  </div>
+);
+
+const EventList = ({ items }: { items: CalendarEventListItem[]; isDark?: boolean }) => {
   const [expanded, setExpanded] = useState(false);
 
   if (items.length === 0) {
-    return <ToolMutedText isDark={isDark}>当前没有符合条件的日历事件。</ToolMutedText>;
+    return <ToolMutedText>当前没有符合条件的日历事件。</ToolMutedText>;
   }
 
   const visibleItems = expanded ? items : items.slice(0, 5);
 
   return (
-    <div className="space-y-2">
-      {visibleItems.map(item => (
-        <div
-          key={item.id}
-          className={`rounded-xl border p-3 ${
-            isDark ? "border-white/10 bg-zinc-950/40" : "border-slate-200 bg-slate-50/60"
-          }`}
-        >
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <div
-              className={`min-w-0 flex-1 truncate text-sm font-medium ${
-                isDark ? "text-slate-100" : "text-slate-800"
-              }`}
-            >
-              {item.title}
+    <div>
+      <ToolDividerList>
+        {visibleItems.map(item => (
+          <ToolDividerListItem key={item.id}>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <ItemTitle truncate>{item.title}</ItemTitle>
+              {item.calendarTitle ? <ToolBadge>{item.calendarTitle}</ToolBadge> : null}
             </div>
-            {item.calendarTitle ? (
-              <ToolBadge isDark={isDark}>{item.calendarTitle}</ToolBadge>
-            ) : null}
-          </div>
-          <ToolMutedText isDark={isDark} className="mt-1 break-words">
-            {formatEventTime(item)}
-          </ToolMutedText>
-          {item.detailPreview ? (
-            <ToolMutedText isDark={isDark} className="mt-2 break-words">
-              {item.detailPreview}
+            <ToolMutedText className="mt-0.5 break-words tabular-nums">
+              {formatEventTime(item)}
             </ToolMutedText>
-          ) : null}
-        </div>
-      ))}
+            {item.detailPreview ? (
+              <ToolMutedText className="text-ink-2 mt-1 break-words">
+                {item.detailPreview}
+              </ToolMutedText>
+            ) : null}
+          </ToolDividerListItem>
+        ))}
+      </ToolDividerList>
       {items.length > 5 ? (
-        <div className="flex justify-center pt-1">
-          <button
-            type="button"
-            className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
-              isDark
-                ? "border-[var(--th-info)]/40 bg-[var(--th-info)]/10 hover:border-[var(--th-info)]/50 hover:bg-[var(--th-info)]/15 text-status-info hover:text-status-info"
-                : "border-[var(--th-info)]/30 bg-[var(--th-info)]/10 text-status-info hover:border-[var(--th-info)]/30 hover:bg-[var(--th-info)]/15 hover:text-status-info"
-            }`}
+        <div className="mt-2 flex justify-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={expanded ? ChevronUp : ChevronDown}
             onClick={() => setExpanded(value => !value)}
           >
             {expanded ? "收起事件列表" : `展开剩余 ${items.length - 5} 条事件`}
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>
@@ -248,20 +244,15 @@ const CalendarQueryRenderer = ({
     return <>{renderDefault()}</>;
   }
 
+  const refreshAction = (
+    <QueryRefreshButton isDark={isDark} loading={loading} onRefresh={() => void refresh()} />
+  );
+
   if (unavailableMessage) {
     return (
       <ToolCard isDark={isDark}>
-        <ToolCardHeader isDark={isDark} divided>
-          <ToolSectionTitle
-            isDark={isDark}
-            action={
-              <QueryRefreshButton
-                isDark={isDark}
-                loading={loading}
-                onRefresh={() => void refresh()}
-              />
-            }
-          >
+        <ToolCardHeader isDark={isDark}>
+          <ToolSectionTitle isDark={isDark} action={refreshAction}>
             详情已失效
           </ToolSectionTitle>
         </ToolCardHeader>
@@ -281,22 +272,13 @@ const CalendarQueryRenderer = ({
   if (currentData.kind === "calendar-dashboard") {
     return (
       <ToolCard isDark={isDark}>
-        <ToolCardHeader isDark={isDark} divided>
-          <ToolSectionTitle
-            isDark={isDark}
-            action={
-              <QueryRefreshButton
-                isDark={isDark}
-                loading={loading}
-                onRefresh={() => void refresh()}
-              />
-            }
-          >
+        <ToolCardHeader isDark={isDark}>
+          <ToolSectionTitle isDark={isDark} action={refreshAction}>
             日历总览
           </ToolSectionTitle>
         </ToolCardHeader>
         <ToolCardBody>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-1.5 tabular-nums">
             <ToolValuePill isDark={isDark}>
               日历 {currentData.summary.totalCalendars} 个
             </ToolValuePill>
@@ -308,7 +290,7 @@ const CalendarQueryRenderer = ({
               近期事件 {currentData.summary.upcomingEventCount} 条
             </ToolValuePill>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <ToolSectionTitle isDark={isDark}>未来事件</ToolSectionTitle>
             <EventList items={currentData.upcomingEvents} isDark={isDark} />
           </div>
@@ -326,20 +308,11 @@ const CalendarQueryRenderer = ({
 
     return (
       <ToolCard isDark={isDark}>
-        <ToolCardHeader isDark={isDark} divided>
-          <ToolSectionTitle
-            isDark={isDark}
-            action={
-              <QueryRefreshButton
-                isDark={isDark}
-                loading={loading}
-                onRefresh={() => void refresh()}
-              />
-            }
-          >
+        <ToolCardHeader isDark={isDark}>
+          <ToolSectionTitle isDark={isDark} action={refreshAction}>
             {titleMap[currentData.entityType]}
           </ToolSectionTitle>
-          <ToolMutedText isDark={isDark} className="mt-1">
+          <ToolMutedText isDark={isDark} className="mt-0.5 tabular-nums">
             共 {currentData.summary.totalCount} 条，当前第 {currentData.summary.page} 页
           </ToolMutedText>
         </ToolCardHeader>
@@ -347,56 +320,37 @@ const CalendarQueryRenderer = ({
           {currentData.entityType === "calendar-event" ? (
             <EventList items={currentData.items as CalendarEventListItem[]} isDark={isDark} />
           ) : (
-            <div className="space-y-2">
+            <ToolDividerList>
               {(currentData.items as Array<CalendarGroupListItem | CalendarListItem>).map(item => (
-                <div
-                  key={item.id}
-                  className={`rounded-xl border p-3 ${
-                    isDark ? "border-white/10 bg-zinc-950/40" : "border-slate-200 bg-slate-50/60"
-                  }`}
-                >
+                <ToolDividerListItem key={item.id}>
                   {"title" in item ? (
                     <>
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <div
-                          className={`min-w-0 flex-1 truncate text-sm font-medium ${
-                            isDark ? "text-slate-100" : "text-slate-800"
-                          }`}
-                        >
-                          {item.title}
-                        </div>
+                        <ItemTitle truncate>{item.title}</ItemTitle>
                         {"visible" in item ? (
-                          <ToolBadge isDark={isDark}>{item.visible ? "可见" : "隐藏"}</ToolBadge>
+                          <ToolBadge>{item.visible ? "可见" : "隐藏"}</ToolBadge>
                         ) : null}
                       </div>
                       {"groupName" in item && item.groupName ? (
-                        <ToolMutedText isDark={isDark} className="mt-1">
-                          分组：{item.groupName}
-                        </ToolMutedText>
+                        <ToolMutedText className="mt-0.5">分组：{item.groupName}</ToolMutedText>
                       ) : null}
                       {"descriptionPreview" in item && item.descriptionPreview ? (
-                        <ToolMutedText isDark={isDark} className="mt-2 break-words">
+                        <ToolMutedText className="text-ink-2 mt-1 break-words">
                           {item.descriptionPreview}
                         </ToolMutedText>
                       ) : null}
                     </>
                   ) : (
                     <>
-                      <div
-                        className={`text-sm font-medium ${
-                          isDark ? "text-slate-100" : "text-slate-800"
-                        }`}
-                      >
-                        {item.name}
-                      </div>
-                      <ToolMutedText isDark={isDark} className="mt-1">
+                      <ItemTitle>{item.name}</ItemTitle>
+                      <ToolMutedText className="mt-0.5 tabular-nums">
                         {item.isSystem ? "系统分组" : "普通分组"} · 日历 {item.calendarCount} 个
                       </ToolMutedText>
                     </>
                   )}
-                </div>
+                </ToolDividerListItem>
               ))}
-            </div>
+            </ToolDividerList>
           )}
         </ToolCardBody>
       </ToolCard>
@@ -406,33 +360,24 @@ const CalendarQueryRenderer = ({
   if (currentData.kind === "calendar-group-detail") {
     return (
       <ToolCard isDark={isDark}>
-        <ToolCardHeader isDark={isDark} divided>
-          <ToolSectionTitle
-            isDark={isDark}
-            action={
-              <QueryRefreshButton
-                isDark={isDark}
-                loading={loading}
-                onRefresh={() => void refresh()}
-              />
-            }
-          >
+        <ToolCardHeader isDark={isDark}>
+          <ToolSectionTitle isDark={isDark} action={refreshAction}>
             分组详情
           </ToolSectionTitle>
         </ToolCardHeader>
         <ToolCardBody>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className={`text-sm font-medium ${isDark ? "text-slate-100" : "text-slate-800"}`}>
-              {currentData.data.name}
+          <div className="space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <ItemTitle>{currentData.data.name}</ItemTitle>
+              <ToolBadge isDark={isDark}>
+                {currentData.data.isSystem ? "系统分组" : "普通分组"}
+              </ToolBadge>
             </div>
-            <ToolBadge isDark={isDark}>
-              {currentData.data.isSystem ? "系统分组" : "普通分组"}
-            </ToolBadge>
+            <ToolMutedText isDark={isDark} className="tabular-nums">
+              包含日历 {currentData.data.calendars.length} 个
+            </ToolMutedText>
           </div>
-          <ToolMutedText isDark={isDark}>
-            包含日历 {currentData.data.calendars.length} 个
-          </ToolMutedText>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {currentData.data.calendars.map(calendar => (
               <ToolValuePill key={calendar.id} isDark={isDark}>
                 {calendar.title}
@@ -448,37 +393,26 @@ const CalendarQueryRenderer = ({
   if (currentData.kind === "calendar-detail") {
     return (
       <ToolCard isDark={isDark}>
-        <ToolCardHeader isDark={isDark} divided>
-          <ToolSectionTitle
-            isDark={isDark}
-            action={
-              <QueryRefreshButton
-                isDark={isDark}
-                loading={loading}
-                onRefresh={() => void refresh()}
-              />
-            }
-          >
+        <ToolCardHeader isDark={isDark}>
+          <ToolSectionTitle isDark={isDark} action={refreshAction}>
             日历详情
           </ToolSectionTitle>
         </ToolCardHeader>
         <ToolCardBody>
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <div
-              className={`min-w-0 flex-1 truncate text-sm font-medium ${isDark ? "text-slate-100" : "text-slate-800"}`}
-            >
-              {currentData.data.title}
+          <div className="space-y-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <ItemTitle truncate>{currentData.data.title}</ItemTitle>
+              <ToolBadge isDark={isDark}>{currentData.data.visible ? "可见" : "隐藏"}</ToolBadge>
+              {currentData.data.archived ? <ToolBadge isDark={isDark}>已归档</ToolBadge> : null}
             </div>
-            <ToolBadge isDark={isDark}>{currentData.data.visible ? "可见" : "隐藏"}</ToolBadge>
-            {currentData.data.archived ? <ToolBadge isDark={isDark}>已归档</ToolBadge> : null}
+            {currentData.data.groupName ? (
+              <ToolMutedText isDark={isDark}>分组：{currentData.data.groupName}</ToolMutedText>
+            ) : null}
           </div>
-          {currentData.data.groupName ? (
-            <ToolMutedText isDark={isDark}>分组：{currentData.data.groupName}</ToolMutedText>
-          ) : null}
           {currentData.data.preview ? (
             <ToolValuePill isDark={isDark}>{currentData.data.preview}</ToolValuePill>
           ) : null}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <ToolSectionTitle isDark={isDark}>最近事件</ToolSectionTitle>
             <EventList items={currentData.data.recentEvents} isDark={isDark} />
           </div>
@@ -489,28 +423,23 @@ const CalendarQueryRenderer = ({
 
   return (
     <ToolCard isDark={isDark}>
-      <ToolCardHeader isDark={isDark} divided>
-        <ToolSectionTitle
-          isDark={isDark}
-          action={
-            <QueryRefreshButton
-              isDark={isDark}
-              loading={loading}
-              onRefresh={() => void refresh()}
-            />
-          }
-        >
+      <ToolCardHeader isDark={isDark}>
+        <ToolSectionTitle isDark={isDark} action={refreshAction}>
           事件详情
         </ToolSectionTitle>
       </ToolCardHeader>
       <ToolCardBody>
-        <div className={`text-sm font-medium ${isDark ? "text-slate-100" : "text-slate-800"}`}>
-          {currentData.data.title}
+        <div className="space-y-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <ItemTitle truncate>{currentData.data.title}</ItemTitle>
+            {currentData.data.calendarTitle ? (
+              <ToolBadge isDark={isDark}>{currentData.data.calendarTitle}</ToolBadge>
+            ) : null}
+          </div>
+          <ToolMutedText isDark={isDark} className="tabular-nums">
+            {formatEventTime(currentData.data)}
+          </ToolMutedText>
         </div>
-        <ToolMutedText isDark={isDark}>{formatEventTime(currentData.data)}</ToolMutedText>
-        {currentData.data.calendarTitle ? (
-          <ToolBadge isDark={isDark}>{currentData.data.calendarTitle}</ToolBadge>
-        ) : null}
         {currentData.data.preview ? (
           <ToolValuePill isDark={isDark}>{currentData.data.preview}</ToolValuePill>
         ) : null}

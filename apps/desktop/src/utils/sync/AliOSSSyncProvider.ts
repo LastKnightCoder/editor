@@ -64,8 +64,7 @@ export class AliOSSSyncProvider implements ISyncProvider {
         objectName: fullPath,
       });
 
-      const blob = new Blob([result.content]);
-      return new Uint8Array(await blob.arrayBuffer());
+      return new Uint8Array(result.content);
     } catch (e) {
       console.error("AliOSS 下载失败:", e);
       throw e;
@@ -119,10 +118,9 @@ export class AliOSSSyncProvider implements ISyncProvider {
         prefix: combinedPrefix?.replace(/\/+/g, "/"),
       });
 
-      return remoteFiles.map((file) => {
+      return remoteFiles.map(file => {
         const relativePath = this.normalizeRelativePath(file.path || file.name);
-        const name =
-          relativePath.split("/").filter(Boolean).pop() || relativePath;
+        const name = relativePath.split("/").filter(Boolean).pop() || relativePath;
         return {
           ...file,
           name,
@@ -137,9 +135,7 @@ export class AliOSSSyncProvider implements ISyncProvider {
 
   private normalizeRelativePath(remotePath: string) {
     const normalized = remotePath.replace(/^\/+/, "");
-    const base = (this.config.path || "")
-      .replace(/^\/+/, "")
-      .replace(/\/+$/, "");
+    const base = (this.config.path || "").replace(/^\/+/, "").replace(/\/+$/, "");
     if (!base) return normalized;
     if (normalized.startsWith(`${base}/`)) {
       return normalized.slice(base.length + 1);

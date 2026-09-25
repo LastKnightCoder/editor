@@ -1,4 +1,3 @@
-import { App } from "antd";
 import { act } from "react";
 import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -28,7 +27,7 @@ vi.mock("@tau/editor/src", () => ({
 };
 
 const createExecution = (
-  overrides: Partial<ToolCallExecutionState> = {},
+  overrides: Partial<ToolCallExecutionState> = {}
 ): ToolCallExecutionState => ({
   toolCallId: "content-edit-call-1",
   toolName: "replace_content_by_text",
@@ -83,16 +82,8 @@ const createPayload = (): ContentEditRendererPayload => ({
 
 const createLongPayload = (): ContentEditRendererPayload => ({
   ...createPayload(),
-  beforeMarkdown: ["第一段", "第二段", "第三段", "第四段", "第五段"].join(
-    "\n\n",
-  ),
-  proposedMarkdown: [
-    "第一段",
-    "第二段",
-    "第三段（已改）",
-    "第四段",
-    "第五段",
-  ].join("\n\n"),
+  beforeMarkdown: ["第一段", "第二段", "第三段", "第四段", "第五段"].join("\n\n"),
+  proposedMarkdown: ["第一段", "第二段", "第三段（已改）", "第四段", "第五段"].join("\n\n"),
   diffSummary: {
     patchCount: 1,
     insertedChars: 3,
@@ -112,18 +103,9 @@ const createLongPayload = (): ContentEditRendererPayload => ({
       operationId: "rewrite-middle",
       op: "replace",
       start: 0,
-      end: ["第一段", "第二段", "第三段", "第四段", "第五段"].join("\n\n")
-        .length,
-      beforeText: ["第一段", "第二段", "第三段", "第四段", "第五段"].join(
-        "\n\n",
-      ),
-      afterText: [
-        "第一段",
-        "第二段",
-        "第三段（已改）",
-        "第四段",
-        "第五段",
-      ].join("\n\n"),
+      end: ["第一段", "第二段", "第三段", "第四段", "第五段"].join("\n\n").length,
+      beforeText: ["第一段", "第二段", "第三段", "第四段", "第五段"].join("\n\n"),
+      afterText: ["第一段", "第二段", "第三段（已改）", "第四段", "第五段"].join("\n\n"),
       charDelta: 3,
     },
   ],
@@ -154,7 +136,7 @@ const mount = async (node: ReactNode) => {
   document.body.appendChild(container);
   const root = createRoot(container);
   await act(async () => {
-    root.render(<App>{node}</App>);
+    root.render(node);
   });
   return { root, container };
 };
@@ -200,8 +182,7 @@ describe("ContentEditProposalRenderer", () => {
       toolCallId: "content-edit-call-1",
       toolName: "replace_content_by_text",
       conversationKey: proposal.conversationKey,
-      rawInput:
-        '{"toolName":"replace_content_by_text","proposalId":"proposal-1"}',
+      rawInput: '{"toolName":"replace_content_by_text","proposalId":"proposal-1"}',
       proposalId: proposal.proposalId,
       payload,
     });
@@ -212,13 +193,11 @@ describe("ContentEditProposalRenderer", () => {
         isDark={false}
         parsedInput={null}
         renderDefault={() => <div>fallback</div>}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("请确认这次修改");
-    expect(
-      container.querySelector('[data-testid="editor-preview"]'),
-    ).toBeTruthy();
+    expect(container.querySelector('[data-testid="editor-preview"]')).toBeTruthy();
     expect(container.textContent).toContain("确认应用");
     expect(container.textContent).toContain("提修改意见");
     expect(container.textContent).toContain("拒绝");
@@ -241,8 +220,7 @@ describe("ContentEditProposalRenderer", () => {
       toolCallId: "content-edit-call-1",
       toolName: "replace_content_by_text",
       conversationKey: proposal.conversationKey,
-      rawInput:
-        '{"toolName":"replace_content_by_text","proposalId":"proposal-1"}',
+      rawInput: '{"toolName":"replace_content_by_text","proposalId":"proposal-1"}',
       proposalId: proposal.proposalId,
       payload,
     });
@@ -253,42 +231,36 @@ describe("ContentEditProposalRenderer", () => {
         isDark={false}
         parsedInput={null}
         renderDefault={() => <div>fallback</div>}
-      />,
+      />
     );
 
-    const openFeedbackButton = Array.from(
-      container.querySelectorAll("button"),
-    ).find((button) => button.textContent?.includes("提修改意见"));
+    const openFeedbackButton = Array.from(container.querySelectorAll("button")).find(button =>
+      button.textContent?.includes("提修改意见")
+    );
     expect(openFeedbackButton).toBeTruthy();
     await act(async () => {
-      openFeedbackButton?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      openFeedbackButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     const textarea = container.querySelector("textarea") as HTMLTextAreaElement;
     expect(textarea).toBeTruthy();
     expect(textarea.className).toContain("[field-sizing:content]");
     expect(textarea.className).toContain("min-h-28");
-    const setValue = Object.getOwnPropertyDescriptor(
-      HTMLTextAreaElement.prototype,
-      "value",
-    )?.set;
+    const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
     await act(async () => {
       setValue?.call(textarea, "第二段更自然一些");
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
-    const submitButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("提交修改意见"),
+    const submitButton = Array.from(container.querySelectorAll("button")).find(button =>
+      button.textContent?.includes("提交修改意见")
     );
     expect(submitButton).toBeTruthy();
     await act(async () => {
       submitButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
-    const updated =
-      useContentEditReviewSessionStore.getState().records[session.sessionId];
+    const updated = useContentEditReviewSessionStore.getState().records[session.sessionId];
     expect(updated?.status).toBe("submitted");
     expect(updated?.decision?.action).toBe("feedback");
     expect(updated?.decision?.feedback).toBe("第二段更自然一些");
@@ -311,8 +283,7 @@ describe("ContentEditProposalRenderer", () => {
       toolCallId: "content-edit-call-1",
       toolName: "replace_content_by_text",
       conversationKey: proposal.conversationKey,
-      rawInput:
-        '{"toolName":"replace_content_by_text","proposalId":"proposal-1"}',
+      rawInput: '{"toolName":"replace_content_by_text","proposalId":"proposal-1"}',
       proposalId: proposal.proposalId,
       payload,
     });
@@ -327,20 +298,18 @@ describe("ContentEditProposalRenderer", () => {
         isDark={false}
         parsedInput={null}
         renderDefault={() => <div>fallback</div>}
-      />,
+      />
     );
 
-    const openFeedbackButton = Array.from(
-      container.querySelectorAll("button"),
-    ).find((button) => button.textContent?.includes("提修改意见"));
+    const openFeedbackButton = Array.from(container.querySelectorAll("button")).find(button =>
+      button.textContent?.includes("提修改意见")
+    );
     expect(openFeedbackButton).toBeTruthy();
     await act(async () => {
-      openFeedbackButton?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      openFeedbackButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     await act(async () => {
-      await new Promise((resolve) => requestAnimationFrame(resolve));
+      await new Promise(resolve => requestAnimationFrame(resolve));
     });
 
     expect(scrollIntoView).toHaveBeenCalledWith({
@@ -371,8 +340,7 @@ describe("ContentEditProposalRenderer", () => {
       toolCallId: "content-edit-call-1",
       toolName: "replace_content_by_text",
       conversationKey: proposal.conversationKey,
-      rawInput:
-        '{"toolName":"replace_content_by_text","proposalId":"proposal-1"}',
+      rawInput: '{"toolName":"replace_content_by_text","proposalId":"proposal-1"}',
       proposalId: proposal.proposalId,
       payload,
     });
@@ -401,7 +369,7 @@ describe("ContentEditProposalRenderer", () => {
         isDark={false}
         parsedInput={null}
         renderDefault={() => <div>fallback</div>}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("已应用");
@@ -451,12 +419,10 @@ describe("ContentEditProposalRenderer", () => {
         isDark={false}
         parsedInput={null}
         renderDefault={() => <div>fallback</div>}
-      />,
+      />
     );
 
-    expect(
-      container.querySelector('[data-testid="editor-preview"]'),
-    ).toBeTruthy();
+    expect(container.querySelector('[data-testid="editor-preview"]')).toBeTruthy();
     expect(container.querySelector('[aria-label="撤销这次应用"]')).toBeTruthy();
 
     await unmount(root, container);
@@ -496,12 +462,10 @@ describe("ContentEditProposalRenderer", () => {
         isDark={false}
         parsedInput={null}
         renderDefault={() => <div>fallback</div>}
-      />,
+      />
     );
 
-    const preview = container.querySelector(
-      '[data-testid="editor-preview"]',
-    ) as HTMLElement;
+    const preview = container.querySelector('[data-testid="editor-preview"]') as HTMLElement;
     expect(preview.textContent).toContain("world");
     expect(preview.textContent).toContain("tau");
 
@@ -528,8 +492,7 @@ describe("ContentEditProposalRenderer", () => {
       toolCallId: "content-edit-call-1",
       toolName: "replace_content_by_text",
       conversationKey: proposal.conversationKey,
-      rawInput:
-        '{"toolName":"replace_content_by_text","proposalId":"proposal-1"}',
+      rawInput: '{"toolName":"replace_content_by_text","proposalId":"proposal-1"}',
       proposalId: proposal.proposalId,
       payload,
     });
@@ -540,12 +503,10 @@ describe("ContentEditProposalRenderer", () => {
         isDark={false}
         parsedInput={null}
         renderDefault={() => <div>fallback</div>}
-      />,
+      />
     );
 
-    const preview = container.querySelector(
-      '[data-testid="editor-preview"]',
-    ) as HTMLElement;
+    const preview = container.querySelector('[data-testid="editor-preview"]') as HTMLElement;
     expect(preview.textContent).toContain("第二段");
     expect(preview.textContent).toContain("第四段");
     expect(preview.textContent).toContain("已折叠未改动内容");

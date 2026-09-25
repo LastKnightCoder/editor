@@ -216,6 +216,7 @@ const QuizGenerateModal = memo((props: QuizGenerateModalProps) => {
     const executingTool = activeTools.find(t => t.status === "executing");
     if (executingTool) {
       const toolNameMap: Record<string, string> = {
+        vibe_learning_query: "查询项目资料",
         list_project_resources: "获取资源列表",
         read_resource_content: "读取资源内容",
         read_resource_lines: "按行补读内容",

@@ -83,6 +83,8 @@ export {
   type MentionRef,
   type ChatContextUsage,
   ContextUsageIndicator,
+  getContextUsageSummary,
+  formatTokenCount,
   resolveNewChatTooltipOpen,
   shouldCloseNewChatTooltip,
 } from "./components/ChatInputArea";

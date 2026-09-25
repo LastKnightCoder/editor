@@ -1,6 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Descendant } from "slate";
-import { EditorRef } from "@tau/editor/src";
+import { useMemo, useState } from "react";
 import Editor from "@/components/ContentEditor";
 import type { ToolCallCustomRendererProps } from "./types";
 import {
@@ -13,9 +11,9 @@ import {
 } from "./ui";
 import ContentDetailModal from "./knowledge/ContentDetailModal";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import useEditContent from "@/hooks/useEditContent";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
-import { getContentById } from "@/commands/content";
+import { markdownToContent } from "@/services/content-editing";
+import { Button } from "@tau/ui";
 
 interface KnowledgeSearchResultItem {
   id: number;
@@ -78,57 +76,40 @@ const ResultItemPreview = ({
   isDark: boolean;
   onClick: () => void;
 }) => {
-  const editorRef = useRef<EditorRef>(null);
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
-  const [initValue, setInitValue] = useState<Descendant[] | null>(null);
-
-  useEditContent(item.contentId, content => {
-    editorRef.current?.setEditorValue(content.slice(0, PREVIEW_BLOCK_COUNT));
-  });
-
-  useEffect(() => {
-    getContentById(item.contentId).then(data => {
-      if (data?.content) {
-        setInitValue(data.content.slice(0, PREVIEW_BLOCK_COUNT));
-      }
-    });
-  }, [item.contentId]);
+  // 预览是搜索时输出里的快照（纯渲染，不回源拉内容）；点击进详情弹窗才按需取实时内容
+  const previewContent = useMemo(
+    () =>
+      item.content.trim() ? markdownToContent(item.content).slice(0, PREVIEW_BLOCK_COUNT) : [],
+    [item.content]
+  );
 
   return (
     <div
-      className={`cursor-pointer rounded-xl border p-3 transition-colors ${
-        isDark
-          ? "border-white/10 bg-zinc-950/40 hover:bg-zinc-950/60"
-          : "border-slate-200 bg-slate-50/60 hover:bg-slate-100/80"
-      }`}
+      className="border-line-1 rounded-tau-sm hover:bg-hover active:bg-press ease-tau-out cursor-pointer border px-3 py-2.5 transition-colors duration-[140ms]"
       onClick={onClick}
     >
       <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <div
-          className={`min-w-0 flex-1 truncate text-sm font-medium ${
-            isDark ? "text-slate-100" : "text-slate-800"
-          }`}
-        >
+        <div className="text-tau-body text-ink-1 min-w-0 flex-1 truncate font-medium">
           {item.title}
         </div>
         <ToolBadge isDark={isDark}>{item.typeName}</ToolBadge>
       </div>
-      <div className="pointer-events-none mt-1.5 max-h-[120px] overflow-hidden">
-        {initValue ? (
+      <div className="text-ink-2 pointer-events-none mt-1.5 max-h-[120px] overflow-hidden">
+        {previewContent.length > 0 ? (
           <ErrorBoundary>
             <Editor
-              key={item.contentId}
-              ref={editorRef}
-              initValue={initValue}
+              key={item.id}
+              initValue={previewContent}
               readonly
               extensions={dynamicExtensions}
             />
           </ErrorBoundary>
         ) : (
-          <ToolMutedText isDark={isDark}>加载中...</ToolMutedText>
+          <ToolMutedText isDark={isDark}>（无预览内容）</ToolMutedText>
         )}
       </div>
-      <ToolMutedText isDark={isDark} className="mt-1">
+      <ToolMutedText isDark={isDark} className="mt-1 tabular-nums">
         {formatTime(item.updateTime)}
       </ToolMutedText>
     </div>
@@ -168,7 +149,7 @@ const KnowledgeSearchRenderer = ({
   return (
     <>
       <ToolCard isDark={isDark}>
-        <ToolCardHeader isDark={isDark} divided>
+        <ToolCardHeader isDark={isDark}>
           <ToolSectionTitle isDark={isDark}>知识库搜索结果</ToolSectionTitle>
           <ToolMutedText isDark={isDark} className="mt-1">
             {data.message || `共 ${data.count} 条结果`}
@@ -189,17 +170,9 @@ const KnowledgeSearchRenderer = ({
               ))}
               {hasMore && (
                 <div className="flex justify-center pt-1">
-                  <button
-                    type="button"
-                    className={`inline-flex items-center justify-center rounded-full border px-4 py-2 text-xs font-semibold transition-colors ${
-                      isDark
-                        ? "border-[var(--th-info)]/40 bg-[var(--th-info)]/10 hover:border-[var(--th-info)]/50 hover:bg-[var(--th-info)]/15 text-status-info hover:text-status-info"
-                        : "border-[var(--th-info)]/30 bg-[var(--th-info)]/10 text-status-info hover:border-[var(--th-info)]/30 hover:bg-[var(--th-info)]/15 hover:text-status-info"
-                    }`}
-                    onClick={() => setExpanded(v => !v)}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => setExpanded(v => !v)}>
                     {expanded ? "收起列表" : `展开剩余 ${items.length - 5} 条结果`}
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>

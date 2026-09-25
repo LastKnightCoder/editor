@@ -1224,10 +1224,11 @@ const SingleMarkdownEditor = () => {
         let fileName = file.name;
 
         if (imageBed.enableCompression && isCompressibleImage(file)) {
-          const compressedBuffer = await compressImage(
+          // IPC 结构化克隆结果必为 ArrayBuffer 背景，收窄以满足 BlobPart
+          const compressedBuffer = (await compressImage(
             new Uint8Array(await file.arrayBuffer()),
             file.type
-          );
+          )) as Uint8Array<ArrayBuffer>;
 
           fileName = withWebpExtension(file.name);
           processedFile = new File([compressedBuffer], fileName, {

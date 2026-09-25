@@ -41,6 +41,7 @@ import {
 } from "./searchMeta";
 import { useSearchContent, resultDisplay, relativeTime } from "./queries";
 import { useSettingsStore } from "@/app/settingsStore";
+import { useShellStore } from "@/app/shellStore";
 import { useThemeStore } from "@tau/ui/theme/runtime";
 import { DEFAULT_DARK_KEY, DEFAULT_LIGHT_KEY } from "@tau/ui/theme";
 import { Spinner, toast } from "@tau/ui";
@@ -154,6 +155,8 @@ export function SearchPalette() {
       });
     } else if (action === "open-settings") {
       closeAnd(() => useSettingsStore.getState().openSettings());
+    } else if (action === "toggle-assist") {
+      closeAnd(() => useShellStore.getState().toggleAssist());
     } else if (action === "capture-question") {
       setCapturing(true);
       setScopes(new Set());

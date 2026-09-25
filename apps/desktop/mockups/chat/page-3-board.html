@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>页面 3 · 板内会话列</title>
+<link rel="stylesheet" href="shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .main { padding-left: 6px; }
+  .board { flex: 1; display: grid; grid-template-columns: 272px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  .board.hide-list { grid-template-columns: 0 minmax(0, 1fr); }
+  .board.hide-list .blist { padding: 0; }
+  .blist { display: flex; flex-direction: column; min-height: 0; overflow: hidden; padding: 12px 6px 10px 10px; border-radius: var(--r-lg) 0 0 var(--r-lg); background: linear-gradient(90deg, var(--hover), var(--hover)); }
+  .blist-head { display: flex; align-items: center; gap: 6px; padding: 0 4px 8px; }
+  .blist-head .lib-search { flex: 1; width: auto; background: var(--surface); }
+  .chips { display: flex; gap: 4px; flex-wrap: wrap; padding: 0 4px 8px; }
+  .blist .gh { font-size: 11.5px; color: var(--ink-3); padding: 8px 8px 2px; }
+  .blist .scroll { flex: 1; overflow: auto; }
+  .blist .lr.on { background: var(--surface); box-shadow: var(--shadow-card); }
+  .chat-col { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .fold-btn { position: absolute; left: 10px; top: 10px; z-index: 3; }
+  .seg { display: inline-flex; border: 1px solid #4a4034; border-radius: 6px; overflow: hidden; }
+  .seg button { padding: 3px 10px; color: #e8dfcf; }
+  .seg button.on { background: #d97757; color: #fff; }
+</style>
+</head>
+<body>
+<div class="mock-note">
+  <h3>页面 3 · 板内会话列（接近 legacy 布局，隔离做法取问题页 A1）</h3>
+  会话列放进同一张纸的左侧，用一层淡墨底和对话区区分，不落在纸色上，读起来是「板内的列表」，不是第二条侧栏。列表顶部的搜索与分组 chips 取代分组树（子分组在 chip 下拉里选）；列表按「置顶 / 今天 / 本周 / 更早」分段，拖拽排序与右键菜单保留。<span class="kbd">Ctrl \</span> 折叠会话列。
+  <ul>
+    <li><b>一期</b>：最接近 legacy <code>ChatManagementSidebar + ChatArea</code>，几乎可以原样搬进新壳：外面包一张纸，里面左右两块。</li>
+    <li class="pro">＋ 会话一眼可见，切换零额外点击；迁移成本最低、与旧习惯一致。</li>
+    <li class="con">－ 你之前两次否决过「页内第二条列」（协作 A、问题 A 初版），这里靠同纸 + 淡墨底隔离，仍有风险；对话列会被压窄约 280px。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, thread, composer, paperTools, anno, icons, SESSIONS } from "./shared.js?v=3";
+mockBar("page-3-board.html", `<span class="seg"><button class="on" data-m="1">会话列展开</button><button data-m="0">折叠</button></span>`);
+
+const win = document.getElementById("win");
+function render(showList) {
+  const row = (s, on) => `<div class="lr ${on ? "on" : ""}"><i data-lucide="grip-vertical" class="grip"></i><div class="lr-main"><div class="lr-t">${s.pin ? `<i data-lucide="pin" style="width:12px;height:12px;color:var(--accent-text)"></i>` : ""}${s.t}</div><div class="lr-m">${s.m} · ${s.time}</div></div><div class="lr-act"><button class="ib"><i data-lucide="more-horizontal"></i></button></div></div>`;
+  win.innerHTML = `
+    ${sidebar("chat")}
+    <div class="col">
+      ${titlebar(`AI 对话 <i data-lucide="chevron-right" style="width:13px"></i><b>SM-2 与 FSRS 复习策略对比</b>`, `<button class="ib" title="新对话"><i data-lucide="square-pen"></i></button>`)}
+      <div class="main">
+        <section class="paper board ${showList ? "" : "hide-list"}">
+          <div class="blist">
+            <div class="blist-head"><div class="lib-search"><i data-lucide="search"></i>搜索会话</div><button class="ib" title="新建分组"><i data-lucide="folder-plus"></i></button></div>
+            <div class="chips">
+              <span class="chip on">全部</span>
+              ${SESSIONS.groups.map(g => `<span class="chip">${g.name}${g.children ? `<i data-lucide="chevron-down"></i>` : ""}</span>`).join("")}
+              <span class="chip"><i data-lucide="archive"></i>归档</span>
+            </div>
+            <div class="scroll">
+              <div class="gh">置顶</div>
+              ${SESSIONS.pinned.map(s => row({ ...s, pin: true }, s.on)).join("")}
+              <div class="gh">今天</div>${row(SESSIONS.recent[0])}
+              <div class="gh">本周</div>${SESSIONS.recent.slice(1, 4).map(s => row(s)).join("")}
+              <div class="gh">更早</div>${SESSIONS.recent.slice(4).map(s => row(s)).join("")}
+            </div>
+          </div>
+          <div class="chat-col">
+            <button class="ib fold-btn" id="fold" title="折叠会话列 Ctrl \\"><i data-lucide="${showList ? "panel-left-close" : "panel-left-open"}"></i></button>
+            ${paperTools()}
+            <div class="thread" style="flex:1">${thread({ maxW: 720 })}</div>
+            ${composer({ maxW: 720 })}
+          </div>
+        </section>
+      </div>
+    </div>
+    ${showList ? anno(1, "同一张纸内：淡墨底列表 + 纸面对话，无横线", "left:300px;top:130px") + anno(2, "分组 chips 取代分组树", "left:300px;top:96px") : ""}`;
+  icons();
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.m === (showList ? "1" : "0")));
+  document.getElementById("fold").onclick = () => render(!showList);
+}
+document.querySelectorAll(".seg button").forEach(b => (b.onclick = () => render(b.dataset.m === "1")));
+render(true);
+</script>
+</body>
+</html>

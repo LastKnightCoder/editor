@@ -1,4 +1,3 @@
-import { App } from "antd";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { forwardRef, useImperativeHandle } from "react";
@@ -6,9 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import InlineAIComposerPanel from "../components/InlineAIComposerPanel";
 
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const mockLoadSkills = vi.fn(async () => undefined);
 
@@ -22,7 +19,7 @@ vi.mock("@/components/ChatInputArea", () => {
       props: {
         placeholder?: string;
       },
-      ref,
+      ref
     ) => {
       useImperativeHandle(ref, () => ({
         focusEnd: () => undefined,
@@ -36,7 +33,7 @@ vi.mock("@/components/ChatInputArea", () => {
           data-placeholder={props.placeholder ?? "__default__"}
         />
       );
-    },
+    }
   );
 
   return {
@@ -49,17 +46,12 @@ vi.mock("@/layouts/ContentLayout/components/ChatSidebar/MessageItem", () => ({
   default: () => <div data-testid="message-item" />,
 }));
 
-vi.mock(
-  "@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext",
-  () => ({
-    MarkdownProvider: ({ children }: { children: React.ReactNode }) => (
-      <>{children}</>
-    ),
-    useMarkdownContext: () => ({
-      messageMeta: null,
-    }),
+vi.mock("@/layouts/ContentLayout/components/ChatSidebar/MarkdownContext", () => ({
+  MarkdownProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useMarkdownContext: () => ({
+    messageMeta: null,
   }),
-);
+}));
 
 vi.mock("@/hooks/useLLMConfig", () => ({
   default: () => ({
@@ -74,21 +66,8 @@ vi.mock("@/hooks/useTheme", () => ({
   }),
 }));
 
-vi.mock("@/hooks/useThemeColors", () => ({
-  default: () => ({
-    chatInputBg: "chat-input-bg",
-    modalPanelBg: "modal-solid-bg",
-    cardBorderClass: "card-border",
-  }),
-}));
-
 vi.mock("@/stores/useSkillStore", () => ({
-  default: (
-    selector: (state: {
-      skills: never[];
-      loadSkills: typeof mockLoadSkills;
-    }) => unknown,
-  ) =>
+  default: (selector: (state: { skills: never[]; loadSkills: typeof mockLoadSkills }) => unknown) =>
     selector({
       skills: [],
       loadSkills: mockLoadSkills,
@@ -111,9 +90,7 @@ vi.mock("@/utils/blockRegistry", () => ({
 }));
 
 vi.mock("@tau/shared", () => ({
-  LazySyntaxHighlighter: ({ children }: { children?: React.ReactNode }) => (
-    <pre>{children}</pre>
-  ),
+  MermaidRenderer: ({ code }: { code: string }) => <pre>{code}</pre>,
 }));
 
 vi.mock("@/services/content-editing", () => ({
@@ -181,33 +158,28 @@ describe("InlineAIComposerPanel", () => {
     vi.clearAllMocks();
   });
 
-  it("应使用实色面板背景，并复用 ChatInputArea 默认 placeholder", async () => {
+  it("应使用 tau 浮起面板外壳，并复用 ChatInputArea 默认 placeholder", async () => {
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
 
     await act(async () => {
       root?.render(
-        <App>
-          <InlineAIComposerPanel
-            editor={{} as never}
-            source="hovering"
-            onClose={() => undefined}
-          />
-        </App>,
+        <InlineAIComposerPanel editor={{} as never} source="hovering" onClose={() => undefined} />
       );
     });
 
     const panelBody = container.querySelector(
-      '[data-inline-ai-composer="true"] > div',
+      '[data-inline-ai-composer="true"] > div'
     ) as HTMLElement | null;
     const chatInput = container.querySelector(
-      '[data-testid="inline-chat-input"]',
+      '[data-testid="inline-chat-input"]'
     ) as HTMLElement | null;
 
     expect(panelBody).toBeTruthy();
-    expect(panelBody?.className).toContain("modal-solid-bg");
-    expect(panelBody?.className).not.toContain("chat-input-bg");
+    expect(panelBody?.className).toContain("bg-surface");
+    expect(panelBody?.className).toContain("shadow-float");
+    expect(panelBody?.className).toContain("border-line-1");
     expect(chatInput?.dataset.placeholder).toBe("__default__");
   });
 });

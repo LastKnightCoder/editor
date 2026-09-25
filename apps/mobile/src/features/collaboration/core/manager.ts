@@ -10,6 +10,7 @@ import {
   createSharedDocument,
   readSharedContent,
   replaceSharedContent,
+  guardRetiredEditorBlocks,
 } from "@tau/collaboration/src/document";
 import {
   DEFAULT_COLLABORATION_URL,
@@ -629,6 +630,9 @@ class CollaborationManager {
     const knowledgeMapping = await tauri.collabKnowledgeMapping(info.id);
     if (this.stopped) throw new Error("COLLAB_STOPPED: 协作运行时已停止");
     if (knowledgeMapping) migrateKnowledgeDocument(doc, knowledgeMapping);
+    // 与桌面端一致：guard 绑定会话的 privateNodes，使后续事务中退役的私有节点同步清理
+    const privateNodes = new Map<string, ContentNode>();
+    guardRetiredEditorBlocks(doc, privateNodes);
     const session: RuntimeSession = {
       info: {
         ...info,
@@ -641,7 +645,7 @@ class CollaborationManager {
       doc,
       awareness: new Awareness(doc),
       provider: null,
-      privateNodes: new Map(),
+      privateNodes,
     };
     // 标题是 Y.Text：任何一端改名都要即时反映到会话列表与编辑页顶栏；
     // 会话拆除时摘除监听（doc 本体可能仍被挂载中的编辑器持有）

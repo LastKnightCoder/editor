@@ -1,4 +1,5 @@
 import { EventEmitter } from "node:events";
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const spawnMock = vi.fn();
@@ -171,12 +172,11 @@ describe("YtDlpService", () => {
     spawnPlans.push(
       {
         code: 1,
-        stderr:
-          "ERROR: [youtube] DFyc0rFBptE: Requested format is not available",
+        stderr: "ERROR: [youtube] DFyc0rFBptE: Requested format is not available",
       },
       {
         code: 0,
-      },
+      }
     );
 
     const result = await YtDlpService.downloadVideo({
@@ -188,7 +188,7 @@ describe("YtDlpService", () => {
       targetExt: "mp4",
     });
 
-    expect(result.outputPath).toBe("/tmp/yt-cache.mp4");
+    expect(result.outputPath).toBe(path.join("/tmp", "yt-cache.mp4"));
     expect(result.fileSize).toBe(2048);
     expect(spawnMock).toHaveBeenCalledTimes(2);
 
@@ -223,7 +223,7 @@ describe("YtDlpService", () => {
         outputDir: "/tmp",
         basename: "yt-cache",
         targetExt: "mp4",
-      }),
+      })
     ).rejects.toThrow("network timeout");
 
     expect(spawnMock).toHaveBeenCalledTimes(1);

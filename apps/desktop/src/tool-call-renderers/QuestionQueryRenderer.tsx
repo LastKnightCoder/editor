@@ -1,3 +1,5 @@
+import { RotateCw } from "lucide-react";
+import { Button } from "@tau/ui";
 import { useEffect, useMemo, useState } from "react";
 import type { ToolCallCustomRendererProps } from "./types";
 import type { IAnswer } from "@/types";
@@ -25,6 +27,8 @@ import {
   ToolCard,
   ToolCardBody,
   ToolCardHeader,
+  ToolDividerList,
+  ToolDividerListItem,
   ToolMutedText,
   ToolSectionTitle,
   ToolValuePill,
@@ -42,48 +46,36 @@ const parseOutput = (output?: string): QuestionRendererData | null => {
   if (!output) return null;
   try {
     const parsed = JSON.parse(output) as QuestionRendererData;
-    return parsed && typeof parsed === "object" && "kind" in parsed
-      ? parsed
-      : null;
+    return parsed && typeof parsed === "object" && "kind" in parsed ? parsed : null;
   } catch {
     return null;
   }
 };
 
 const QueryRefreshButton = ({
-  isDark,
   loading,
   onRefresh,
 }: {
-  isDark: boolean;
+  isDark?: boolean;
   loading: boolean;
   onRefresh: () => void;
 }) => (
-  <button
-    type="button"
-    className={`rounded-lg px-2.5 py-1.5 text-xs transition-colors ${
-      loading
-        ? isDark
-          ? "cursor-not-allowed bg-zinc-800 text-slate-500"
-          : "cursor-not-allowed bg-slate-100 text-slate-400"
-        : isDark
-          ? "bg-zinc-800 text-slate-200 hover:bg-zinc-700"
-          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-    }`}
-    disabled={loading}
+  <Button
+    variant="ghost"
+    size="sm"
+    icon={RotateCw}
+    loading={loading}
+    loadingText="刷新中..."
     onClick={onRefresh}
+    className="-my-1 -mr-1.5 h-[26px] px-2"
   >
-    {loading ? "刷新中..." : "刷新"}
-  </button>
+    刷新
+  </Button>
 );
 
-const StatusBadge = ({
-  status,
-  isDark,
-}: {
-  status: string;
-  isDark: boolean;
-}) => <ToolBadge isDark={isDark}>{status}</ToolBadge>;
+const StatusBadge = ({ status, isDark }: { status: string; isDark: boolean }) => (
+  <ToolBadge isDark={isDark}>{status}</ToolBadge>
+);
 
 const QuestionQueryRenderer = ({
   execution,
@@ -91,18 +83,13 @@ const QuestionQueryRenderer = ({
   parsedInput,
   renderDefault,
 }: ToolCallCustomRendererProps) => {
-  const initialData = useMemo(
-    () => parseOutput(execution.output),
-    [execution.output],
-  );
+  const initialData = useMemo(() => parseOutput(execution.output), [execution.output]);
   const [data, setData] = useState<QuestionRendererData | null>(initialData);
   const [loading, setLoading] = useState(false);
-  const [unavailableMessage, setUnavailableMessage] = useState<string | null>(
-    null,
-  );
+  const [unavailableMessage, setUnavailableMessage] = useState<string | null>(null);
   const [selectedAnswerId, setSelectedAnswerId] = useState<number | null>(null);
   const queryInput = (parsedInput ?? null) as Record<string, unknown> | null;
-  const extensions = useDynamicExtensionsStore((state) => state.extensions);
+  const extensions = useDynamicExtensionsStore(state => state.extensions);
 
   const refresh = async () => {
     setLoading(true);
@@ -120,7 +107,7 @@ const QuestionQueryRenderer = ({
               includeDefault: queryInput?.includeDefault as boolean | undefined,
               page: queryInput?.page as number | undefined,
               pageSize: queryInput?.pageSize as number | undefined,
-            }),
+            })
           );
           break;
         case "get_question_group_detail": {
@@ -151,9 +138,7 @@ const QuestionQueryRenderer = ({
           break;
         }
         case "get_question_answers": {
-          const next = await getQuestionAnswerList(
-            Number(queryInput?.questionId),
-          );
+          const next = await getQuestionAnswerList(Number(queryInput?.questionId));
           if (!next) {
             setUnavailableMessage("问题已不可用，可能已被删除。");
             setData(null);
@@ -181,7 +166,7 @@ const QuestionQueryRenderer = ({
     }
 
     if (data.kind === "question-detail") {
-      return data.data.answers.map((answer) => ({
+      return data.data.answers.map(answer => ({
         id: answer.id,
         content: answer.content,
         createTime: answer.createTime,
@@ -190,7 +175,7 @@ const QuestionQueryRenderer = ({
     }
 
     if (data.kind === "question-answer-list") {
-      return data.items.map((answer) => ({
+      return data.items.map(answer => ({
         id: answer.id,
         content: answer.content,
         createTime: answer.createTime,
@@ -202,12 +187,12 @@ const QuestionQueryRenderer = ({
   }, [data]);
 
   const selectedAnswer = useMemo(
-    () => answerItems.find((item) => item.id === selectedAnswerId) ?? null,
-    [answerItems, selectedAnswerId],
+    () => answerItems.find(item => item.id === selectedAnswerId) ?? null,
+    [answerItems, selectedAnswerId]
   );
 
   const handleAnswerChange = (nextAnswer: IAnswer) => {
-    setData((prev) => {
+    setData(prev => {
       if (!prev) {
         return prev;
       }
@@ -216,7 +201,7 @@ const QuestionQueryRenderer = ({
           ...prev,
           data: {
             ...prev.data,
-            answers: prev.data.answers.map((answer) =>
+            answers: prev.data.answers.map(answer =>
               answer.id === nextAnswer.id
                 ? {
                     ...answer,
@@ -225,7 +210,7 @@ const QuestionQueryRenderer = ({
                     markdown: answer.markdown,
                     updateTime: nextAnswer.updateTime,
                   }
-                : answer,
+                : answer
             ),
           },
         };
@@ -233,14 +218,14 @@ const QuestionQueryRenderer = ({
       if (prev.kind === "question-answer-list") {
         return {
           ...prev,
-          items: prev.items.map((answer) =>
+          items: prev.items.map(answer =>
             answer.id === nextAnswer.id
               ? {
                   ...answer,
                   content: nextAnswer.content,
                   updateTime: nextAnswer.updateTime,
                 }
-              : answer,
+              : answer
           ),
         };
       }
@@ -252,7 +237,7 @@ const QuestionQueryRenderer = ({
     if (!data) {
       return;
     }
-    return subscribeQuestionMutationEvent((event) => {
+    return subscribeQuestionMutationEvent(event => {
       if (
         shouldRefreshQuestionResult({
           event,
@@ -260,12 +245,7 @@ const QuestionQueryRenderer = ({
           parsedInput: queryInput,
           payloadKind: data.kind,
           payloadEntityType: "entityType" in data ? data.entityType : undefined,
-          payloadId:
-            "id" in data
-              ? data.id
-              : "questionId" in data
-                ? data.questionId
-                : null,
+          payloadId: "id" in data ? data.id : "questionId" in data ? data.questionId : null,
         })
       ) {
         void refresh();
@@ -280,7 +260,7 @@ const QuestionQueryRenderer = ({
   if (unavailableMessage) {
     return (
       <ToolCard isDark={isDark}>
-        <ToolCardHeader isDark={isDark} divided>
+        <ToolCardHeader isDark={isDark}>
           <ToolSectionTitle
             isDark={isDark}
             action={
@@ -306,43 +286,29 @@ const QuestionQueryRenderer = ({
   }
 
   const renderQuestionItem = (
-    item:
-      | QuestionQueryResult["items"][number]
-      | QuestionDashboardResult["recentQuestions"][number],
+    item: QuestionQueryResult["items"][number] | QuestionDashboardResult["recentQuestions"][number]
   ) => (
-    <div
-      key={item.id}
-      className={`rounded-xl border p-3 ${
-        isDark
-          ? "border-white/10 bg-zinc-950/40"
-          : "border-slate-200 bg-slate-50/60"
-      }`}
-    >
+    <ToolDividerListItem key={item.id}>
       <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <div
-          className={`min-w-0 flex-1 text-sm font-medium ${
-            isDark ? "text-slate-100" : "text-slate-800"
-          }`}
-        >
+        <div className="text-tau-body text-ink-1 min-w-0 flex-1 break-words font-medium">
           {item.questionContent}
         </div>
         <StatusBadge status={item.status} isDark={isDark} />
       </div>
-      <ToolMutedText isDark={isDark} className="mt-1 break-words">
-        {item.groupTitle ? `分组：${item.groupTitle}` : "未分组"} · 答案{" "}
-        {item.answerCount}
+      <ToolMutedText isDark={isDark} className="mt-0.5 break-words tabular-nums">
+        {item.groupTitle ? `分组：${item.groupTitle}` : "未分组"} · 答案 {item.answerCount}
       </ToolMutedText>
       {item.descriptionPreview ? (
-        <ToolMutedText isDark={isDark} className="mt-2 break-words">
+        <ToolMutedText isDark={isDark} className="text-ink-2 mt-1 break-words">
           {item.descriptionPreview}
         </ToolMutedText>
       ) : null}
-    </div>
+    </ToolDividerListItem>
   );
 
   return (
     <ToolCard isDark={isDark}>
-      <ToolCardHeader isDark={isDark} divided>
+      <ToolCardHeader isDark={isDark}>
         <ToolSectionTitle
           isDark={isDark}
           action={
@@ -365,14 +331,17 @@ const QuestionQueryRenderer = ({
                     ? "问题详情"
                     : "问题答案"}
         </ToolSectionTitle>
+        {data.kind === "question-query-result" ? (
+          <ToolMutedText isDark={isDark} className="mt-0.5 tabular-nums">
+            共 {data.summary.totalCount} 条，第 {data.summary.page} 页
+          </ToolMutedText>
+        ) : null}
       </ToolCardHeader>
       <ToolCardBody>
         {data.kind === "question-dashboard" ? (
           <>
-            <div className="flex flex-wrap gap-2">
-              <ToolValuePill isDark={isDark}>
-                总数：{data.summary.totalQuestions}
-              </ToolValuePill>
+            <div className="grid grid-cols-2 gap-1.5 tabular-nums">
+              <ToolValuePill isDark={isDark}>总数：{data.summary.totalQuestions}</ToolValuePill>
               <ToolValuePill isDark={isDark}>
                 未回答：{data.summary.unansweredQuestions}
               </ToolValuePill>
@@ -383,100 +352,72 @@ const QuestionQueryRenderer = ({
                 已解决：{data.summary.resolvedQuestions}
               </ToolValuePill>
             </div>
-            <div className="space-y-2">
+            <ToolDividerList isDark={isDark}>
               {data.unresolvedQuestions.slice(0, 5).map(renderQuestionItem)}
-            </div>
+            </ToolDividerList>
           </>
         ) : null}
 
         {data.kind === "question-group-query-result" ? (
-          <div className="space-y-2">
-            {data.items.map((item) => (
-              <div
-                key={item.id}
-                className={`rounded-xl border p-3 ${
-                  isDark
-                    ? "border-white/10 bg-zinc-950/40"
-                    : "border-slate-200 bg-slate-50/60"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`text-sm font-medium ${
-                      isDark ? "text-slate-100" : "text-slate-800"
-                    }`}
-                  >
+          <ToolDividerList isDark={isDark}>
+            {data.items.map(item => (
+              <ToolDividerListItem key={item.id} isDark={isDark}>
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="text-tau-body text-ink-1 min-w-0 truncate font-medium">
                     {item.title}
                   </div>
-                  {item.isDefault ? (
-                    <ToolBadge isDark={isDark}>默认</ToolBadge>
-                  ) : null}
+                  {item.isDefault ? <ToolBadge isDark={isDark}>默认</ToolBadge> : null}
                 </div>
-                <ToolMutedText isDark={isDark} className="mt-1">
+                <ToolMutedText isDark={isDark} className="mt-0.5 tabular-nums">
                   共 {item.totalCount} 题，已回答 {item.answeredCount}，未回答{" "}
                   {item.unansweredCount}
                 </ToolMutedText>
-              </div>
+              </ToolDividerListItem>
             ))}
-          </div>
+          </ToolDividerList>
         ) : null}
 
         {data.kind === "question-query-result" ? (
-          <div className="space-y-2">
-            <ToolMutedText isDark={isDark}>
-              共 {data.summary.totalCount} 条，第 {data.summary.page} 页
-            </ToolMutedText>
-            {data.items.map(renderQuestionItem)}
-          </div>
+          <ToolDividerList isDark={isDark}>{data.items.map(renderQuestionItem)}</ToolDividerList>
         ) : null}
 
         {data.kind === "question-group-detail" ? (
           <>
-            <div className="flex flex-wrap gap-2">
-              <ToolValuePill isDark={isDark}>
-                共 {data.data.totalCount} 题
-              </ToolValuePill>
-              <ToolValuePill isDark={isDark}>
-                已回答 {data.data.answeredCount}
-              </ToolValuePill>
-              <ToolValuePill isDark={isDark}>
-                未回答 {data.data.unansweredCount}
-              </ToolValuePill>
+            <div className="flex flex-wrap gap-1.5 tabular-nums">
+              <ToolValuePill isDark={isDark}>共 {data.data.totalCount} 题</ToolValuePill>
+              <ToolValuePill isDark={isDark}>已回答 {data.data.answeredCount}</ToolValuePill>
+              <ToolValuePill isDark={isDark}>未回答 {data.data.unansweredCount}</ToolValuePill>
             </div>
-            <div className="space-y-2">
+            <ToolDividerList isDark={isDark}>
               {data.data.questions.map(renderQuestionItem)}
-            </div>
+            </ToolDividerList>
           </>
         ) : null}
 
         {data.kind === "question-detail" ? (
           <>
-            <div className="flex flex-wrap gap-2">
-              <StatusBadge status={data.data.status} isDark={isDark} />
-              {data.data.groupTitle ? (
-                <ToolBadge isDark={isDark}>{data.data.groupTitle}</ToolBadge>
+            <div className="space-y-1.5">
+              <div className="text-tau-body text-ink-1 break-words font-medium">
+                {data.data.questionContent}
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <StatusBadge status={data.data.status} isDark={isDark} />
+                {data.data.groupTitle ? (
+                  <ToolBadge isDark={isDark}>{data.data.groupTitle}</ToolBadge>
+                ) : null}
+                <ToolBadge isDark={isDark}>答案 {data.data.answerCount}</ToolBadge>
+              </div>
+              {data.data.descriptionPreview ? (
+                <ToolMutedText isDark={isDark} className="text-ink-2 break-words">
+                  {data.data.descriptionPreview}
+                </ToolMutedText>
               ) : null}
-              <ToolValuePill isDark={isDark}>
-                答案 {data.data.answerCount}
-              </ToolValuePill>
             </div>
-            <div
-              className={`text-sm font-medium ${
-                isDark ? "text-slate-100" : "text-slate-800"
-              }`}
-            >
-              {data.data.questionContent}
-            </div>
-            {data.data.descriptionPreview ? (
-              <ToolMutedText isDark={isDark} className="break-words">
-                {data.data.descriptionPreview}
-              </ToolMutedText>
-            ) : null}
             {data.data.answers.length ? (
               <AnswerCardList
                 answers={answerItems}
                 readOnly
-                onViewAnswer={(answerId) => setSelectedAnswerId(answerId)}
+                onViewAnswer={answerId => setSelectedAnswerId(answerId)}
               />
             ) : (
               <ToolMutedText isDark={isDark}>当前没有关联答案。</ToolMutedText>
@@ -493,7 +434,7 @@ const QuestionQueryRenderer = ({
               <AnswerCardList
                 answers={answerItems}
                 readOnly
-                onViewAnswer={(answerId) => setSelectedAnswerId(answerId)}
+                onViewAnswer={answerId => setSelectedAnswerId(answerId)}
               />
             ) : (
               <ToolMutedText isDark={isDark}>当前没有关联答案。</ToolMutedText>

@@ -107,7 +107,6 @@
     "@fortaine/fetch-event-source": "^3.0.6",
     "@loadable/component": "^5.15.3",
     "@modelcontextprotocol/sdk": "^1.24.3",
-    "@openai/codex-sdk": "0.142.5",
     "@playwright/test": "^1.58.2",
     "@slate-yjs/core": "1.0.2",
     "@tailwindcss/vite": "^4.1.17",

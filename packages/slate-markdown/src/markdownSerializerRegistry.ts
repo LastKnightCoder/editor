@@ -806,18 +806,6 @@ export class MarkdownSerializerRegistry {
         },
       },
       {
-        type: "chat-reference",
-        isBlock: true,
-        toMarkdown: element => {
-          const attributes = [];
-          attributes.push(`chatId=${element.chatId}`);
-          if (element.title) attributes.push(`title="${element.title}"`);
-          if (element.height) attributes.push(`height=${element.height}`);
-          const attributeStr = attributes.join(" ");
-          return `::chat-reference{${attributeStr}}`;
-        },
-      },
-      {
         type: "summary-timestamp",
         isBlock: false,
         toMarkdown: element => {

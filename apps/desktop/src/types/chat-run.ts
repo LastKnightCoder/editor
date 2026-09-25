@@ -1,12 +1,7 @@
-import type { ChatAgentType } from "./chat-message";
 import type { ChatSessionMessage } from "./llm";
 
 export type ChatSource =
-  | "main-chat"
-  | "pdf-chat"
-  | "video-note-chat"
-  | "vibe-learning-chat"
-  | "audio-note-chat";
+  "main-chat" | "pdf-chat" | "video-note-chat" | "vibe-learning-chat" | "audio-note-chat";
 export type ChatSessionKey = `${ChatSource}:${number}`;
 export type ChatRunStatus =
   | "queued"
@@ -23,12 +18,10 @@ export interface ChatRunRecord {
   sessionKey: ChatSessionKey;
   source: ChatSource;
   chatId: number;
-  agentType: ChatAgentType;
   status: ChatRunStatus;
   requestPayload: ChatSessionMessage[];
   userMessageClientId: string;
   assistantMessageClientId: string;
-  agentSessionId: string | null;
   attempt: number;
   assistantSnapshot: string;
   reasoningSnapshot: string;
@@ -38,7 +31,5 @@ export interface ChatRunRecord {
   updatedAt: number;
 }
 
-export const createChatSessionKey = (
-  source: ChatSource,
-  chatId: number,
-): ChatSessionKey => `${source}:${chatId}`;
+export const createChatSessionKey = (source: ChatSource, chatId: number): ChatSessionKey =>
+  `${source}:${chatId}`;

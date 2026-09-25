@@ -23,35 +23,21 @@ interface PdfChatRecord {
 
 export default class PdfChatTable {
   static upgradeTable(db: Database.Database) {
-    const tableInfo = db
-      .prepare("PRAGMA table_info(pdf_chats)")
-      .all() as Array<{ name: string }>;
-    const hasMessageSchemaVersion = tableInfo.some(
-      (col) => col.name === "message_schema_version",
-    );
-    const hasAgentType = tableInfo.some((col) => col.name === "agent_type");
-    const hasAgentSessionId = tableInfo.some(
-      (col) => col.name === "agent_session_id",
-    );
+    const tableInfo = db.prepare("PRAGMA table_info(pdf_chats)").all() as Array<{ name: string }>;
+    const hasMessageSchemaVersion = tableInfo.some(col => col.name === "message_schema_version");
+    const hasAgentType = tableInfo.some(col => col.name === "agent_type");
+    const hasAgentSessionId = tableInfo.some(col => col.name === "agent_session_id");
     if (!hasMessageSchemaVersion) {
-      db.exec(
-        "ALTER TABLE pdf_chats ADD COLUMN message_schema_version INTEGER DEFAULT 1",
-      );
+      db.exec("ALTER TABLE pdf_chats ADD COLUMN message_schema_version INTEGER DEFAULT 1");
     }
     if (!hasAgentType) {
-      db.exec(
-        "ALTER TABLE pdf_chats ADD COLUMN agent_type TEXT DEFAULT 'local'",
-      );
-      db.exec(
-        "UPDATE pdf_chats SET agent_type = 'local' WHERE agent_type IS NULL",
-      );
+      db.exec("ALTER TABLE pdf_chats ADD COLUMN agent_type TEXT DEFAULT 'local'");
+      db.exec("UPDATE pdf_chats SET agent_type = 'local' WHERE agent_type IS NULL");
     }
     if (!hasAgentSessionId) {
       db.exec("ALTER TABLE pdf_chats ADD COLUMN agent_session_id TEXT");
     }
-    db.exec(
-      "UPDATE pdf_chats SET message_schema_version = 1 WHERE message_schema_version IS NULL",
-    );
+    db.exec("UPDATE pdf_chats SET message_schema_version = 1 WHERE message_schema_version IS NULL");
   }
 
   static getListenEvents() {
@@ -63,8 +49,7 @@ export default class PdfChatTable {
       "pdf-chat:list-by-pdf-id": this.getChatsByPdfId.bind(this),
       "pdf-chat:get-branches": this.getBranchesByParentId.bind(this),
       "pdf-chat:get-next-branch-index": this.getNextBranchIndex.bind(this),
-      "pdf-chat:get-child-branches-count":
-        this.getChildBranchesCount.bind(this),
+      "pdf-chat:get-child-branches-count": this.getChildBranchesCount.bind(this),
     };
   }
 
@@ -76,9 +61,7 @@ export default class PdfChatTable {
       typeof record.message_schema_version === "number"
         ? record.message_schema_version
         : CHAT_MESSAGE_SCHEMA_VERSION;
-    const migration = migrateChatSessionMessages(
-      JSON.parse(record.messages || "[]"),
-    );
+    const migration = migrateChatSessionMessages(JSON.parse(record.messages || "[]"));
     return {
       chat: {
         id: record.id,
@@ -91,34 +74,29 @@ export default class PdfChatTable {
         archived: Boolean(record.archived),
         parentChatId: record.parent_chat_id,
         branchIndex: record.branch_index ?? 0,
-        agentType: record.agent_type === "codex" ? "codex" : "local",
-        agentSessionId: record.agent_session_id ?? null,
       },
-      migrated:
-        migration.changed ||
-        storedSchemaVersion !== CHAT_MESSAGE_SCHEMA_VERSION,
+      migrated: migration.changed || storedSchemaVersion !== CHAT_MESSAGE_SCHEMA_VERSION,
     };
   }
 
   static persistMigratedMessages(
     db: Database.Database,
     id: number,
-    messages: CreatePdfChat["messages"],
+    messages: CreatePdfChat["messages"]
   ) {
-    db.prepare(
-      "UPDATE pdf_chats SET messages = ?, message_schema_version = ? WHERE id = ?",
-    ).run(JSON.stringify(messages), CHAT_MESSAGE_SCHEMA_VERSION, id);
+    db.prepare("UPDATE pdf_chats SET messages = ?, message_schema_version = ? WHERE id = ?").run(
+      JSON.stringify(messages),
+      CHAT_MESSAGE_SCHEMA_VERSION,
+      id
+    );
   }
 
-  static createChat(
-    db: Database.Database,
-    params: CreatePdfChat,
-  ): PdfChatMessage {
+  static createChat(db: Database.Database, params: CreatePdfChat): PdfChatMessage {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO pdf_chats
-      (pdf_id, create_time, update_time, messages, title, archived, parent_chat_id, branch_index, message_schema_version, agent_type, agent_session_id)
-      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)
+      (pdf_id, create_time, update_time, messages, title, archived, parent_chat_id, branch_index, message_schema_version)
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)
     `);
     const getNextBranchIndexStmt = db.prepare(`
       SELECT COALESCE(MAX(branch_index), -1) + 1 AS next_index
@@ -134,7 +112,7 @@ export default class PdfChatTable {
                 getNextBranchIndexStmt.get(params.parentChatId) as {
                   next_index?: number | null;
                 }
-              )?.next_index ?? 0,
+              )?.next_index ?? 0
             )
           : (params.branchIndex ?? 0);
 
@@ -147,9 +125,7 @@ export default class PdfChatTable {
         params.title || "新对话",
         params.parentChatId ?? null,
         branchIndex,
-        CHAT_MESSAGE_SCHEMA_VERSION,
-        params.agentType ?? "local",
-        params.agentSessionId ?? null,
+        CHAT_MESSAGE_SCHEMA_VERSION
       );
 
       const chatId = Number(res.lastInsertRowid);
@@ -166,10 +142,7 @@ export default class PdfChatTable {
     return chat;
   }
 
-  static updateChat(
-    db: Database.Database,
-    params: UpdatePdfChat,
-  ): PdfChatMessage | null {
+  static updateChat(db: Database.Database, params: UpdatePdfChat): PdfChatMessage | null {
     const existing = this.getChatById(db, params.id);
     if (!existing) {
       return null;
@@ -184,46 +157,27 @@ export default class PdfChatTable {
         archived = ?,
         parent_chat_id = ?,
         branch_index = ?,
-        message_schema_version = ?,
-        agent_type = ?,
-        agent_session_id = ?
+        message_schema_version = ?
       WHERE id = ?
     `);
 
-    const migration = migrateChatSessionMessages(
-      params.messages ?? existing.messages,
-    );
+    const migration = migrateChatSessionMessages(params.messages ?? existing.messages);
     stmt.run(
       now,
       JSON.stringify(migration.messages),
       params.title ?? existing.title,
-      params.archived !== undefined
-        ? params.archived
-          ? 1
-          : 0
-        : existing.archived
-          ? 1
-          : 0,
-      params.parentChatId !== undefined
-        ? params.parentChatId
-        : existing.parentChatId,
+      params.archived !== undefined ? (params.archived ? 1 : 0) : existing.archived ? 1 : 0,
+      params.parentChatId !== undefined ? params.parentChatId : existing.parentChatId,
       params.branchIndex ?? existing.branchIndex ?? 0,
       CHAT_MESSAGE_SCHEMA_VERSION,
-      params.agentType ?? existing.agentType ?? "local",
-      params.agentSessionId !== undefined
-        ? params.agentSessionId
-        : (existing.agentSessionId ?? null),
-      params.id,
+      params.id
     );
 
     Operation.insertOperation(db, "pdf-chat", "update", params.id, now);
     return this.getChatById(db, params.id);
   }
 
-  static getAllChildBranches(
-    db: Database.Database,
-    parentChatId: number,
-  ): number[] {
+  static getAllChildBranches(db: Database.Database, parentChatId: number): number[] {
     const stmt = db.prepare(`
       WITH RECURSIVE child_branches(id) AS (
         SELECT id FROM pdf_chats WHERE parent_chat_id = ?
@@ -234,13 +188,10 @@ export default class PdfChatTable {
       SELECT id FROM child_branches
     `);
     const result = stmt.all(parentChatId) as Array<{ id: number }>;
-    return result.map((row) => row.id);
+    return result.map(row => row.id);
   }
 
-  static getChildBranchesCount(
-    db: Database.Database,
-    parentChatId: number,
-  ): number {
+  static getChildBranchesCount(db: Database.Database, parentChatId: number): number {
     return this.getAllChildBranches(db, parentChatId).length;
   }
 
@@ -248,9 +199,7 @@ export default class PdfChatTable {
     const childIds = this.getAllChildBranches(db, id);
     if (childIds.length > 0) {
       const placeholders = childIds.map(() => "?").join(",");
-      db.prepare(`DELETE FROM pdf_chats WHERE id IN (${placeholders})`).run(
-        ...childIds,
-      );
+      db.prepare(`DELETE FROM pdf_chats WHERE id IN (${placeholders})`).run(...childIds);
       const now = Date.now();
       for (const childId of childIds) {
         Operation.insertOperation(db, "pdf-chat", "delete", childId, now);
@@ -266,9 +215,8 @@ export default class PdfChatTable {
   }
 
   static getChatById(db: Database.Database, id: number): PdfChatMessage | null {
-    const record = db
-      .prepare("SELECT * FROM pdf_chats WHERE id = ?")
-      .get(id) as PdfChatRecord | undefined;
+    const record = db.prepare("SELECT * FROM pdf_chats WHERE id = ?").get(id) as
+      PdfChatRecord | undefined;
     if (!record) {
       return null;
     }
@@ -279,16 +227,11 @@ export default class PdfChatTable {
     return parsed.chat;
   }
 
-  static getChatsByPdfId(
-    db: Database.Database,
-    pdfId: number,
-  ): PdfChatMessage[] {
+  static getChatsByPdfId(db: Database.Database, pdfId: number): PdfChatMessage[] {
     const records = db
-      .prepare(
-        "SELECT * FROM pdf_chats WHERE pdf_id = ? ORDER BY update_time DESC",
-      )
+      .prepare("SELECT * FROM pdf_chats WHERE pdf_id = ? ORDER BY update_time DESC")
       .all(pdfId) as PdfChatRecord[];
-    return records.map((record) => {
+    return records.map(record => {
       const parsed = this.parseChat(record);
       if (parsed.migrated) {
         this.persistMigratedMessages(db, parsed.chat.id, parsed.chat.messages);
@@ -297,16 +240,11 @@ export default class PdfChatTable {
     });
   }
 
-  static getBranchesByParentId(
-    db: Database.Database,
-    parentChatId: number,
-  ): PdfChatMessage[] {
+  static getBranchesByParentId(db: Database.Database, parentChatId: number): PdfChatMessage[] {
     const records = db
-      .prepare(
-        "SELECT * FROM pdf_chats WHERE parent_chat_id = ? ORDER BY branch_index ASC",
-      )
+      .prepare("SELECT * FROM pdf_chats WHERE parent_chat_id = ? ORDER BY branch_index ASC")
       .all(parentChatId) as PdfChatRecord[];
-    return records.map((record) => {
+    return records.map(record => {
       const parsed = this.parseChat(record);
       if (parsed.migrated) {
         this.persistMigratedMessages(db, parsed.chat.id, parsed.chat.messages);
@@ -315,14 +253,9 @@ export default class PdfChatTable {
     });
   }
 
-  static getNextBranchIndex(
-    db: Database.Database,
-    parentChatId: number,
-  ): number {
+  static getNextBranchIndex(db: Database.Database, parentChatId: number): number {
     const result = db
-      .prepare(
-        "SELECT MAX(branch_index) as max_index FROM pdf_chats WHERE parent_chat_id = ?",
-      )
+      .prepare("SELECT MAX(branch_index) as max_index FROM pdf_chats WHERE parent_chat_id = ?")
       .get(parentChatId) as { max_index: number | null };
     return (result?.max_index ?? -1) + 1;
   }

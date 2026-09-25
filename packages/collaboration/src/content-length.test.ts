@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { getContentLength } from "./content-length";
+import wordCases from "../../db-schema/fixtures/editor-word-count.json";
 
 describe("getContentLength", () => {
+  it.each(wordCases)("跨端字数：$text", ({ text, count }) => {
+    expect(getContentLength([{ type: "formatted", text }])).toBe(count);
+  });
   it("统计 formatted 文本字数（中英文混排）", () => {
-    expect(
-      getContentLength([{ type: "formatted", text: "你好 world" }])
-    ).toBeGreaterThan(0);
+    expect(getContentLength([{ type: "formatted", text: "你好 world" }])).toBeGreaterThan(0);
   });
 
   it("代码块与公式计入字数", () => {

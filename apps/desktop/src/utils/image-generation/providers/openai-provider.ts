@@ -23,17 +23,17 @@ interface NodeFetchRawResponse {
 const IMAGE_REQUEST_TIMEOUT_MS = 300_000;
 
 const toResponseBody = (data: unknown): BodyInit => {
-  if (data instanceof Uint8Array || data instanceof ArrayBuffer) {
+  if (data instanceof Uint8Array) {
+    // IPC 数据必为 ArrayBuffer 背景，收窄以满足 BodyInit
+    return data as Uint8Array<ArrayBuffer>;
+  }
+  if (data instanceof ArrayBuffer) {
     return data;
   }
   if (Array.isArray(data)) {
     return new Uint8Array(data);
   }
-  if (
-    data &&
-    typeof data === "object" &&
-    Array.isArray((data as { data?: unknown }).data)
-  ) {
+  if (data && typeof data === "object" && Array.isArray((data as { data?: unknown }).data)) {
     return new Uint8Array((data as { data: number[] }).data);
   }
   if (typeof data === "string") {
@@ -42,9 +42,7 @@ const toResponseBody = (data: unknown): BodyInit => {
   return JSON.stringify(data ?? "");
 };
 
-const normalizeHeaders = (
-  headers: NodeFetchRawResponse["headers"] = {},
-): Headers => {
+const normalizeHeaders = (headers: NodeFetchRawResponse["headers"] = {}): Headers => {
   const normalized = new Headers();
   Object.entries(headers).forEach(([key, value]) => {
     if (Array.isArray(value)) {
@@ -122,8 +120,7 @@ export class OpenAIImageProvider implements IImageGenerationProvider {
     })) as NodeFetchRawResponse;
     const response = createResponseFromNodeFetch(rawResponse);
 
-    const { payload, rawText, binaryResult } =
-      await parseImageHttpResponse(response);
+    const { payload, rawText, binaryResult } = await parseImageHttpResponse(response);
 
     bananaLog("openai-image.generate.response", {
       status: response.status,
@@ -131,8 +128,7 @@ export class OpenAIImageProvider implements IImageGenerationProvider {
       statusText: response.statusText,
       contentType: response.headers.get("content-type"),
       payloadType: typeof payload,
-      topLevelKeys:
-        payload && typeof payload === "object" ? Object.keys(payload) : null,
+      topLevelKeys: payload && typeof payload === "object" ? Object.keys(payload) : null,
       rawTextLength: rawText?.length ?? null,
       hasBinaryResult: Boolean(binaryResult),
       errorMessage: (payload as any)?.error?.message ?? null,
@@ -142,7 +138,7 @@ export class OpenAIImageProvider implements IImageGenerationProvider {
       throw new Error(
         (payload as any)?.error?.message ||
           rawText?.slice(0, 500) ||
-          `图片生成失败: ${response.status}`,
+          `图片生成失败: ${response.status}`
       );
     }
 
@@ -174,7 +170,7 @@ export class OpenAIImageProvider implements IImageGenerationProvider {
       model: request.body.model,
       optionKeys: Object.keys(options ?? {}),
       body: request.body,
-      imageFiles: imageFiles.map((file) => ({
+      imageFiles: imageFiles.map(file => ({
         name: file.name,
         type: file.type,
         size: file.size,
@@ -189,10 +185,7 @@ export class OpenAIImageProvider implements IImageGenerationProvider {
       },
       multipart: {
         fields: Object.fromEntries(
-          Object.entries(request.body).map(([key, value]) => [
-            key,
-            String(value),
-          ]),
+          Object.entries(request.body).map(([key, value]) => [key, String(value)])
         ),
         files: await Promise.all(imageFiles.map(fileToMultipartPayload)),
       },
@@ -204,8 +197,7 @@ export class OpenAIImageProvider implements IImageGenerationProvider {
     })) as NodeFetchRawResponse;
     const response = createResponseFromNodeFetch(rawResponse);
 
-    const { payload, rawText, binaryResult } =
-      await parseImageHttpResponse(response);
+    const { payload, rawText, binaryResult } = await parseImageHttpResponse(response);
 
     bananaLog("openai-image.edit.response", {
       status: response.status,
@@ -213,8 +205,7 @@ export class OpenAIImageProvider implements IImageGenerationProvider {
       statusText: response.statusText,
       contentType: response.headers.get("content-type"),
       payloadType: typeof payload,
-      topLevelKeys:
-        payload && typeof payload === "object" ? Object.keys(payload) : null,
+      topLevelKeys: payload && typeof payload === "object" ? Object.keys(payload) : null,
       rawTextLength: rawText?.length ?? null,
       hasBinaryResult: Boolean(binaryResult),
       errorMessage: (payload as any)?.error?.message ?? null,
@@ -224,7 +215,7 @@ export class OpenAIImageProvider implements IImageGenerationProvider {
       throw new Error(
         (payload as any)?.error?.message ||
           rawText?.slice(0, 500) ||
-          `图片编辑失败: ${response.status}`,
+          `图片编辑失败: ${response.status}`
       );
     }
 
@@ -237,13 +228,7 @@ export class OpenAIImageProvider implements IImageGenerationProvider {
 }
 
 function assertValidConfig(config: ImageProviderConfig) {
-  if (
-    !config.baseUrl?.trim() ||
-    !config.apiKey?.trim() ||
-    !config.modelName?.trim()
-  ) {
-    throw new Error(
-      "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称",
-    );
+  if (!config.baseUrl?.trim() || !config.apiKey?.trim() || !config.modelName?.trim()) {
+    throw new Error("图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称");
   }
 }

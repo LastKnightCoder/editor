@@ -11,7 +11,6 @@ vi.mock("@/utils", () => ({
 
 import { readBinaryFile } from "@/commands";
 import { normalizeRequestMessages } from "../chatMessageNormalization";
-import { buildCodexInputFromMessageContent } from "../codex/codexInputAdapter";
 
 describe("资源索引移除后的历史附件", () => {
   it("历史 resourceId 不参与读取，图片与 PDF 从消息路径转换", async () => {
@@ -37,18 +36,22 @@ describe("资源索引移除后的历史附件", () => {
     const result = await normalizeRequestMessages([{ role: Role.User, content }]);
     expect(result[0].content).toEqual(content);
   });
+});
 
-  it("Codex 同时支持旧消息路径、本地图片和远程路径", async () => {
-    expect(
-      await buildCodexInputFromMessageContent([
-        { type: "image", resourceId: 42, path: "~/image.png", image: "blob:expired" },
-        { type: "image", path: "https://example.test/image.png", image: "blob:expired" },
-        { type: "image", image: "/local/image.png" },
-      ])
-    ).toEqual([
-      { type: "local_image", path: "/home/test/image.png" },
-      { type: "local_image", path: "/cached/image.png" },
-      { type: "local_image", path: "/local/image.png" },
-    ]);
+describe("退役代理的系统上下文", () => {
+  it("只从系统消息移除专属块，保留自定义提示与用户原文", async () => {
+    const legacy =
+      "自定义规则\n<TAU_CODEX_CONTEXT>旧代理指令\n工具规则</TAU_CODEX_CONTEXT>\n后续规则";
+    const input = [
+      { role: Role.System, content: legacy },
+      { role: Role.System, content: [{ type: "text" as const, text: legacy }] },
+      { role: Role.User, content: legacy },
+    ];
+    const result = await normalizeRequestMessages(input);
+    expect(result[0].content).toBe("自定义规则\n后续规则");
+    expect(result[1].content).toEqual([{ type: "text", text: "自定义规则\n后续规则" }]);
+    expect(result[2].content).toBe(legacy);
+    expect(input[0].content).toBe(legacy);
+    expect(await normalizeRequestMessages(result)).toEqual(result);
   });
 });

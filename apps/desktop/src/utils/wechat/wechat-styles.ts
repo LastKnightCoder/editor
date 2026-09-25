@@ -762,15 +762,6 @@ mark {
   margin: 1em 0;
 }
 
-/* ========== Chat Reference ========== */
-.chat-reference {
-  background: #f5f5f5;
-  padding: 0.75em 1em;
-  border-radius: 6px;
-  border-left: 4px solid #1890ff;
-  margin: 1em 0;
-}
-
 /* ========== AI Element ========== */
 .ai-element {
   background: #f0f5ff;

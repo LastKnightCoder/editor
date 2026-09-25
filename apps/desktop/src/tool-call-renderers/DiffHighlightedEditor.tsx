@@ -5,11 +5,12 @@ import type { Descendant } from "slate";
 import type { FormattedText as FormattedTextType } from "@tau/editor/src/types";
 import FormattedText from "@tau/editor/src/components/FormattedText";
 import type IExtension from "@tau/editor/src/extensions/types";
-import classNames from "classnames";
+import { cn } from "@tau/ui";
 import type { ReviewLeaf } from "@/utils/review-merged-content";
 
 interface DiffHighlightedEditorProps {
   content: Descendant[];
+  /** 兼容保留：diff 取色已走语义 token（随主题切换），不再按主题分支 */
   isDark: boolean;
   extensions?: IExtension[];
 }
@@ -19,53 +20,42 @@ const sanitizeLeaf = (leaf: ReviewLeaf): FormattedTextType => {
   return rest;
 };
 
-export const DiffHighlightedEditor = ({
-  content,
-  isDark,
-  extensions,
-}: DiffHighlightedEditorProps) => {
-  const customRenderLeaf = useCallback(
-    (props: RenderLeafProps) => {
-      const { leaf, children, attributes } = props;
-      const diffLeaf = leaf as ReviewLeaf;
+/** diff 语义色成对：新增 ok、替换 warn、删除 danger（另加删除线） */
+const DIFF_CLASS: Record<string, string> = {
+  insert: "bg-ok-soft text-ok rounded-[3px]",
+  replace: "bg-warn-soft text-warn rounded-[3px]",
+  delete: "bg-danger-soft text-danger rounded-[3px] line-through",
+};
 
-      let highlightClass = "";
-      let syntheticClass = "";
-      if (diffLeaf.diffType === "insert") {
-        highlightClass =
-          "bg-[var(--th-success)]/15 text-status-success border-b-2 border-[var(--th-success)]/50";
-      } else if (diffLeaf.diffType === "replace") {
-        highlightClass =
-          "bg-[var(--th-warning)]/15 text-status-warning border-b-2 border-[var(--th-warning)]/50";
-      } else if (diffLeaf.diffType === "delete") {
-        highlightClass = "bg-[var(--th-danger)]/15 text-status-error line-through rounded-sm";
-      }
+const SYNTHETIC_CLASS: Record<string, string> = {
+  collapsed: "italic text-ink-3",
+  meta: "italic text-info",
+  code: "font-tau-mono whitespace-pre-wrap",
+};
 
-      if (diffLeaf.reviewSyntheticKind === "collapsed") {
-        syntheticClass = isDark ? "italic text-slate-500" : "italic text-slate-400";
-      } else if (diffLeaf.reviewSyntheticKind === "meta") {
-        syntheticClass = "italic text-status-info";
-      } else if (diffLeaf.reviewSyntheticKind === "code") {
-        syntheticClass = isDark ? "font-mono whitespace-pre-wrap" : "font-mono whitespace-pre-wrap";
-      }
+export const DiffHighlightedEditor = ({ content, extensions }: DiffHighlightedEditorProps) => {
+  const customRenderLeaf = useCallback((props: RenderLeafProps) => {
+    const { leaf, children, attributes } = props;
+    const diffLeaf = leaf as ReviewLeaf;
 
-      return (
-        <span
-          {...attributes}
-          className={classNames(highlightClass, syntheticClass)}
-          title={diffLeaf.diffId ? `变更：${diffLeaf.diffId}` : undefined}
+    return (
+      <span
+        {...attributes}
+        className={cn(
+          diffLeaf.diffType && DIFF_CLASS[diffLeaf.diffType],
+          diffLeaf.reviewSyntheticKind && SYNTHETIC_CLASS[diffLeaf.reviewSyntheticKind]
+        )}
+        title={diffLeaf.diffId ? `变更：${diffLeaf.diffId}` : undefined}
+      >
+        <FormattedText
+          leaf={sanitizeLeaf(diffLeaf)}
+          attributes={{} as RenderLeafProps["attributes"]}
         >
-          <FormattedText
-            leaf={sanitizeLeaf(diffLeaf)}
-            attributes={{} as RenderLeafProps["attributes"]}
-          >
-            {children}
-          </FormattedText>
-        </span>
-      );
-    },
-    [isDark]
-  );
+          {children}
+        </FormattedText>
+      </span>
+    );
+  }, []);
 
   return (
     <Editor
@@ -73,7 +63,7 @@ export const DiffHighlightedEditor = ({
       readonly
       extensions={extensions}
       customRenderLeaf={customRenderLeaf}
-      className={isDark ? "text-slate-100" : "text-slate-900"}
+      className="text-ink-1"
       style={{ padding: "0 4px" }}
     />
   );
