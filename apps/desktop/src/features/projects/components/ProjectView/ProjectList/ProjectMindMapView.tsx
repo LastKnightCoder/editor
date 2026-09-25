@@ -403,17 +403,17 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [dropPlacement, setDropPlacement] = useState<MindMapDropPlacement | null>(null);
   const { navigator } = usePage();
-  // 折叠态与树视图共用 projectTreeExpandedStore（旧 key 免迁移），
-  // 订阅 folded 记录驱动导图数据重算
-  const getFolded = useProjectTreeExpandedStore(state => state.getFolded);
-  const setFolded = useProjectTreeExpandedStore(state => state.setFolded);
-  const foldedVersion = useProjectTreeExpandedStore(state => state.folded);
+  // 折叠态与树视图共用 projectTreeExpandedStore（值为「是否展开」，
+  // 订阅 open 记录驱动导图数据重算）
+  const getOpen = useProjectTreeExpandedStore(state => state.getOpen);
+  const setOpen = useProjectTreeExpandedStore(state => state.setOpen);
+  const openVersion = useProjectTreeExpandedStore(state => state.open);
   const mindMapData = useMemo(
     () =>
       buildProjectMindMapData(project, treeData, (itemId, path) => {
-        return getFolded(databaseName, itemId) ?? path.length === 1;
+        return getOpen(databaseName, itemId) ?? path.length === 1;
       }),
-    [databaseName, foldedVersion, project, treeData, getFolded]
+    [databaseName, openVersion, project, treeData, getOpen]
   );
   const projectItemEventBus = useMemo(() => defaultProjectItemEventBus.createEditor(), []);
   const { moveProjectItem } = useProjectTreeOperations({
@@ -530,7 +530,7 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
         onNodeFoldChange={(nodeId, _direction, folded) => {
           const projectItemId = parseProjectMindMapItemId(nodeId);
           if (!projectItemId) return;
-          setFolded(databaseName, projectItemId, !folded);
+          setOpen(databaseName, projectItemId, !folded);
         }}
         className="group"
         onNodeClick={nodeId => {
