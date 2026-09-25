@@ -3,10 +3,7 @@ import type { InternalSkill } from "@/types";
 // 通过 raw 导入 markdown 文件
 import markdownReadme from "./internal-skills/markdown.md?raw";
 import mindmapReadme from "./internal-skills/mindmap.md?raw";
-import tikzReadme from "./internal-skills/tikz.md?raw";
-import typstReadme from "./internal-skills/typst.md?raw";
 import knowledgeBaseReadme from "./internal-skills/knowledge-base.md?raw";
-import whiteboardReadme from "./internal-skills/whiteboard.md?raw";
 import databaseSchemaReadme from "./internal-skills/database-schema.md?raw";
 
 // 内部 Skill 注册表
@@ -38,36 +35,6 @@ const internalSkillRegistry = new Map<string, InternalSkill>([
       name: "思维导图",
       description: "创建思维导图、脑图、知识图谱或组织结构图",
       readmeContent: mindmapReadme,
-      isInternal: true,
-    },
-  ],
-  [
-    "whiteboard",
-    {
-      folderName: "whiteboard",
-      name: "白板",
-      description: "在聊天中生成可缩放、可复制到白板的流程图、结构图和关系图",
-      readmeContent: whiteboardReadme,
-      isInternal: true,
-    },
-  ],
-  [
-    "tikz",
-    {
-      folderName: "tikz",
-      name: "TikZ 绘图",
-      description: "渲染 LaTeX 和 TikZ 图表，包括函数图、电路图、化学结构图、交换图等",
-      readmeContent: tikzReadme,
-      isInternal: true,
-    },
-  ],
-  [
-    "typst",
-    {
-      folderName: "typst",
-      name: "Typst 绘图",
-      description: "使用 Typst 语法渲染图表，包括函数图、电路图、流程图、甘特图等",
-      readmeContent: typstReadme,
       isInternal: true,
     },
   ],
