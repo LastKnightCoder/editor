@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>问题 · 方案 B 探究看板</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  .pillbar { margin-bottom: 12px; flex-wrap: wrap; }
+  .pill .pdot { width: 7px; height: 7px; border-radius: 2.5px; }
+
+  /* 整块大面板：三条泳道靠留白分隔，不各自成卡 */
+  .kanban { flex: 1; min-height: 0; margin-bottom: 18px; background: var(--bg-surface); border-radius: 18px; box-shadow: var(--shadow-card);
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 14px 10px 10px; }
+  .lane { min-height: 0; display: flex; flex-direction: column; border-radius: 14px; transition: background 160ms var(--ease-out); }
+  .lane.drop { background: var(--bg-hover); }
+  .lane-head { display: flex; align-items: center; gap: 8px; padding: 2px 10px 0; }
+  .lane-head b { font-size: 13.5px; font-weight: 600; }
+  .lane-head .n { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .lane-sub { font-size: 12px; color: var(--ink-3); padding: 2px 10px 10px 34px; }
+  .lane-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 2px 8px 12px; }
+  .lane .capture { flex: none; height: 38px; }
+
+  .qcard { flex: none; border: 1px solid var(--line-1); border-radius: 13px; padding: 11px 13px 10px; background: var(--bg-surface); cursor: grab;
+    transition: border-color 150ms var(--ease-out), box-shadow 150ms var(--ease-out), opacity 150ms; }
+  .qcard:hover { border-color: transparent; box-shadow: var(--shadow-lift); }
+  .qcard.sel { border-color: var(--accent); box-shadow: var(--focus-ring); }
+  .qcard.dragging { opacity: 0.35; }
+  .qc-top { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink-3); }
+  .qc-top .proj-chip { color: var(--ink-3); font-size: 11.5px; }
+  .qc-top .icon-btn { margin-left: auto; opacity: 0; margin-right: -5px; }
+  .qcard:hover .qc-top .icon-btn { opacity: 1; }
+  .qc-t { font-size: 13.5px; line-height: 1.55; margin-top: 4px; font-weight: 500; }
+  .qc-mats { margin-top: 8px; display: flex; flex-direction: column; gap: 3px; }
+  .qc-mat { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink-2); min-width: 0; }
+  .qc-mat .icon { width: 12px; height: 12px; color: var(--ink-3); flex: none; }
+  .qc-mat span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .qc-mat.more { color: var(--ink-3); padding-left: 19px; }
+  .qc-answer { margin-top: 8px; font-size: 12.5px; line-height: 1.65; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .qc-answer b { color: var(--ok); font-weight: 600; margin-right: 4px; }
+  .qc-foot { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 11.5px; color: var(--ink-3); }
+  .qc-foot .spacer { flex: 1; }
+  .qc-foot .stale { color: var(--warn); }
+  .qc-go { display: inline-flex; align-items: center; gap: 4px; color: var(--accent-text); font-weight: 500; opacity: 0; transition: opacity 140ms; }
+  .qcard:hover .qc-go { opacity: 1; }
+  .qc-go .icon { width: 12px; height: 12px; }
+  .lane-more { flex: none; font-size: 12px; color: var(--ink-3); padding: 6px 4px; text-align: left; border-radius: 8px; }
+  .lane-more:hover { color: var(--ink-1); background: var(--bg-hover); }
+
+  /* 抽屉详情 */
+  .drawer-mask { position: fixed; inset: 0; z-index: 200; background: transparent; pointer-events: none; }
+  .drawer { position: fixed; top: 10px; right: 10px; bottom: 10px; width: 480px; z-index: 210; background: var(--bg-page); border-radius: 18px; box-shadow: var(--shadow-float);
+    display: flex; flex-direction: column; padding: 16px 12px 16px 24px; transform: translateX(calc(100% + 20px)); transition: transform 280ms var(--ease-out); }
+  .drawer.open { transform: none; }
+  .drawer .scroller { flex: 1; padding-right: 12px; }
+  .drawer .close { position: absolute; top: 14px; right: 14px; z-index: 1; }
+  .drawer .dt-head { padding-right: 36px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script src="detail.js"></script>
+<script>
+(() => {
+  const QM = window.QM;
+  const { icon, esc, STATUS, statusRing, groups, questions, groupById, counts, sortQuestions, relDate, daysBetween, NOW, KIND } = QM;
+  const { page } = QM.mountShell({ crumb: "问题" });
+
+  let groupId = null;
+  let selId = null;
+  let showAllResolved = false;
+  const LANES = [
+    { s: "not_started", sub: "收集来的疑问，还没开始查" },
+    { s: "in_progress", sub: "正在读、正在写卡片" },
+    { s: "resolved", sub: "已经能用自己的话讲清楚" },
+  ];
+
+  page.innerHTML = `
+    <div class="page">
+      <div class="toolbar">
+        <h1>问题</h1>
+        <span class="sum" id="sum"></span>
+        <span class="spacer"></span>
+        <button class="btn btn-primary" id="new">${icon("plus")}新建问题</button>
+      </div>
+      <div class="pillbar" id="pills"></div>
+      <div class="kanban" id="board"></div>
+    </div>
+    <div class="drawer-mask" id="mask"></div>
+    <aside class="drawer" id="drawer"><button class="icon-btn close" id="close" title="关闭 (Esc)">${icon("x")}</button><div class="scroller fade-y" id="dbody"></div></aside>`;
+
+  const board = page.querySelector("#board");
+  const drawer = page.querySelector("#drawer");
+  const dbody = page.querySelector("#dbody");
+  QD.bindDetail(dbody, () => QM.qById(selId));
+
+  function renderTop() {
+    const c = counts(QM.byGroup(groupId));
+    page.querySelector("#sum").innerHTML = `${c.all} 个问题 · 本月解答 <b class="num">${questions.filter(q => q.resolvedTime && q.resolvedTime > NOW - 30 * QM.D).length}</b>`;
+    page.querySelector("#pills").innerHTML =
+      `<button class="pill${groupId == null ? " active" : ""}" data-g="">全部<span class="count">${counts().all}</span></button>` +
+      groups
+        .map(g => `<button class="pill${groupId === g.id ? " active" : ""}" data-g="${g.id}"><i class="pdot" style="--c:var(--pc-${g.color})"></i>${esc(g.title)}<span class="count">${QM.byGroup(g.id).length}</span></button>`)
+        .join("");
+  }
+
+  function cardHTML(q) {
+    const g = groupById(q.groupId);
+    const mats = QM.questionMaterials(q);
+    const refs = mats.filter(m => m.kind !== "answer");
+    const ans = mats.find(m => m.kind === "answer");
+    let body = "";
+    if (q.status === "resolved" && ans) body = `<div class="qc-answer"><b>答</b>${esc(ans.excerpt)}</div>`;
+    else if (refs.length)
+      body = `<div class="qc-mats">${refs
+        .slice(-2)
+        .map(m => `<div class="qc-mat">${icon(KIND[m.kind].icon)}<span>${esc(m.title)}</span></div>`)
+        .join("")}${refs.length > 2 ? `<div class="qc-mat more">还有 ${refs.length - 2} 份材料</div>` : ""}</div>`;
+    const age = daysBetween(q.createTime, NOW);
+    const foot =
+      q.status === "resolved"
+        ? `<span>${relDate(q.resolvedTime)}解答 · 历时 ${daysBetween(q.createTime, q.resolvedTime)} 天</span>`
+        : q.status === "in_progress"
+          ? `<span class="comps">${QM.compositionHTML(q)}</span><span>${relDate(q.updateTime)}更新</span>`
+          : `<span class="${age > 30 ? "stale" : ""}">${age > 30 ? `已搁置 ${age} 天` : relDate(q.createTime) + "收集"}</span>`;
+    const go =
+      q.status === "not_started"
+        ? `<button class="qc-go" data-go="in_progress">开始探究${icon("arrow-right")}</button>`
+        : q.status === "in_progress"
+          ? `<button class="qc-go" data-go="${ans ? "resolved" : "answer"}">${ans ? "标为已解答" : "写答案"}${icon("arrow-right")}</button>`
+          : "";
+    return `<div class="qcard${q.id === selId ? " sel" : ""}" data-id="${q.id}" draggable="true">
+      <div class="qc-top">${groupId == null ? `<span class="proj-chip"><i class="pdot" style="--c:var(--pc-${g.color})"></i>${esc(g.title)}</span>` : ""}<button class="icon-btn sm" data-more>${icon("more")}</button></div>
+      <div class="qc-t">${esc(q.questionContent)}</div>
+      ${body}
+      <div class="qc-foot">${foot}<span class="spacer"></span>${go}</div>
+    </div>`;
+  }
+
+  function renderBoard() {
+    const keep = [...board.querySelectorAll(".lane-body")].map(el => el.scrollTop);
+    board.innerHTML = LANES.map(({ s, sub }) => {
+      let list = sortQuestions(QM.byGroup(groupId).filter(q => q.status === s));
+      const total = list.length;
+      let more = "";
+      if (s === "resolved" && !showAllResolved && total > 4) {
+        more = `<button class="lane-more" data-all>更早解答的 ${total - 4} 个问题…</button>`;
+        list = list.slice(0, 4);
+      }
+      return `<section class="lane" data-lane="${s}">
+        <div class="lane-head">${statusRing(s)}<b>${STATUS[s].label}</b><span class="n">${total}</span></div>
+        <div class="lane-sub">${sub}</div>
+        <div class="lane-body scroller fade-y">
+          ${s === "not_started" ? QM.captureHTML("记下一个问题… #分组") : ""}
+          ${list.map(cardHTML).join("")}${more}
+          ${!total && s !== "not_started" ? `<div class="empty-note">把卡片拖到这里</div>` : ""}
+        </div>
+      </section>`;
+    }).join("");
+    board.querySelectorAll(".lane-body").forEach((el, i) => (el.scrollTop = keep[i] || 0));
+    QM.bindCapture(board.querySelector('[data-lane="not_started"]'), () => groupId ?? 0);
+  }
+
+  function openDrawer(id) {
+    selId = id;
+    renderDetail();
+    drawer.classList.add("open");
+    page.querySelector("#mask").classList.add("open");
+    renderBoard();
+  }
+  function closeDrawer() {
+    selId = null;
+    drawer.classList.remove("open");
+    page.querySelector("#mask").classList.remove("open");
+    renderBoard();
+  }
+  function renderDetail() {
+    const q = QM.qById(selId);
+    if (!q) return closeDrawer();
+    const st = dbody.scrollTop;
+    dbody.innerHTML = QD.detailHTML(q);
+    dbody.scrollTop = st;
+  }
+
+  renderTop();
+  renderBoard();
+  QM.on(() => {
+    renderTop();
+    renderBoard();
+    if (selId) renderDetail();
+  });
+
+  page.querySelector("#new").onclick = () => board.querySelector(".capture-input").focus();
+  page.querySelector("#close").onclick = closeDrawer;
+  page.querySelector("#mask").onclick = closeDrawer;
+  document.addEventListener("keydown", e => e.key === "Escape" && selId && !document.querySelector(".dlg-mask") && closeDrawer());
+  page.querySelector("#pills").onclick = e => {
+    const b = e.target.closest("[data-g]");
+    if (!b) return;
+    groupId = b.dataset.g === "" ? null : +b.dataset.g;
+    renderTop();
+    renderBoard();
+  };
+
+  board.onclick = e => {
+    if (e.target.closest("[data-all]")) return (showAllResolved = true), renderBoard();
+    const card = e.target.closest(".qcard");
+    if (!card) return selId && !e.target.closest(".capture") && closeDrawer();
+    const q = QM.qById(+card.dataset.id);
+    if (e.target.closest("[data-more]")) return QM.questionMenu(e.target.closest("[data-more]"), q, { onOpen: () => openDrawer(q.id) });
+    const go = e.target.closest("[data-go]");
+    if (go) return go.dataset.go === "answer" ? QM.openComposer(q.id, "answer") : QM.setStatus(q.id, go.dataset.go);
+    openDrawer(q.id);
+  };
+  board.oncontextmenu = e => {
+    const card = e.target.closest(".qcard");
+    if (!card) return;
+    e.preventDefault();
+    const q = QM.qById(+card.dataset.id);
+    QM.questionMenu({ x: e.clientX, y: e.clientY }, q, { onOpen: () => openDrawer(q.id) });
+  };
+
+  // 拖拽换泳道 = 改状态
+  board.addEventListener("dragstart", e => {
+    const c = e.target.closest(".qcard");
+    if (!c) return;
+    e.dataTransfer.setData("text/plain", c.dataset.id);
+    requestAnimationFrame(() => c.classList.add("dragging"));
+  });
+  board.addEventListener("dragend", e => e.target.closest(".qcard")?.classList.remove("dragging"));
+  board.addEventListener("dragover", e => {
+    const l = e.target.closest(".lane");
+    if (!l) return;
+    e.preventDefault();
+    board.querySelectorAll(".lane").forEach(x => x.classList.toggle("drop", x === l));
+  });
+  board.addEventListener("dragleave", e => {
+    if (!board.contains(e.relatedTarget)) board.querySelectorAll(".lane").forEach(x => x.classList.remove("drop"));
+  });
+  board.addEventListener("drop", e => {
+    const l = e.target.closest(".lane");
+    board.querySelectorAll(".lane").forEach(x => x.classList.remove("drop"));
+    if (!l) return;
+    e.preventDefault();
+    QM.setStatus(+e.dataTransfer.getData("text/plain"), l.dataset.lane);
+  });
+})();
+</script>
+</body>
+</html>

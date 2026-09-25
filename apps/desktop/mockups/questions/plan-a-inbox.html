@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>问题 · 方案 A 三栏清单</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(400px, 1fr); gap: 14px; padding-bottom: 18px; }
+  .board { background: var(--bg-surface); border-radius: 18px; box-shadow: var(--shadow-card); min-height: 0; display: flex; flex-direction: column; }
+
+  /* 变体切换（mockup 演示控件，非产品 UI） */
+  .variant { display: inline-flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink-3); margin-right: 6px; }
+
+  /* 列表板 */
+  .list-board { padding: 14px 8px 8px 14px; }
+  .list-col { min-width: 0; min-height: 0; display: flex; flex-direction: column; flex: 1; }
+  .list-col .capture { margin-right: 6px; flex: none; }
+  .list { flex: 1; margin-top: 8px; padding-right: 6px; }
+  .sec { display: flex; align-items: center; gap: 8px; padding: 14px 8px 6px; font-size: 12.5px; font-weight: 600; color: var(--ink-2); cursor: pointer; user-select: none; }
+  .sec .n { font-weight: 400; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .sec .hint { font-weight: 400; color: var(--ink-3); font-size: 12px; margin-left: 4px; }
+  .row { display: flex; gap: 11px; padding: 9px 10px; border-radius: 11px; cursor: default; align-items: flex-start; }
+  .row:hover { background: var(--bg-hover); }
+  .row.sel { background: var(--bg-selected); }
+  .row .qs { margin-top: 3px; cursor: pointer; }
+  .row-main { min-width: 0; flex: 1; }
+  .row-t { font-size: 13.5px; line-height: 1.55; }
+  .row.resolved .row-t { color: var(--ink-2); }
+  .row-meta { display: flex; align-items: center; gap: 10px; margin-top: 3px; font-size: 11.5px; color: var(--ink-3); }
+  .row-meta .proj-chip { color: var(--ink-3); }
+  .row .more { opacity: 0; }
+  .row:hover .more, .row.sel .more { opacity: 1; }
+  .row.dragging { opacity: 0.4; }
+  .keys { display: flex; gap: 12px; font-size: 11.5px; color: var(--ink-3); padding: 8px 8px 2px; flex-wrap: wrap; }
+  .keys span { display: inline-flex; gap: 4px; align-items: center; }
+
+  /* 分组项（三个变体共用外观） */
+  .g-item { display: flex; align-items: center; gap: 9px; width: 100%; height: 32px; padding: 0 10px; border-radius: 9px; font-size: 13px; color: var(--ink-2); text-align: left; flex: none; }
+  .g-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .g-item.active { background: var(--bg-selected); color: var(--accent-text); font-weight: 500; }
+  .g-item .n { margin-left: auto; font-size: 11.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .g-item.active .n { color: var(--accent-text); }
+  .g-item.drop { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .g-item .icon { width: 15px; height: 15px; }
+  .g-add { color: var(--ink-3); }
+
+  /* A1 板内分栏：分组进入白色列表板，和纸面上的全局侧栏分属两个层级 */
+  .v-a1 .list-board { flex-direction: row; gap: 10px; padding-left: 10px; }
+  .v-a1 .groups { width: 176px; flex: none; display: flex; flex-direction: column; gap: 2px; padding: 0 2px 8px 0; }
+  .v-a1 .g-head { display: flex; align-items: center; height: 40px; padding: 0 10px; font-size: 12px; font-weight: 600; color: var(--ink-2); }
+  .v-a1 .g-head .icon-btn { margin-left: auto; }
+  .v-a1 .groups .g-item { height: 30px; font-size: 12.5px; }
+  .v-a1 .g-sep { height: 10px; flex: none; }
+
+  /* A2 顶部切换：分组变成列表板里的一行 chips，横向滚动 */
+  .gchips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 10px 6px 0 0; flex: none;
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+  .gchip { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 99px; border: 1px solid var(--line-1); font-size: 12px; color: var(--ink-2); }
+  .gchip:hover { background: var(--bg-hover); color: var(--ink-1); border-color: transparent; }
+  .gchip.active { background: var(--bg-selected); color: var(--accent-text); border-color: transparent; font-weight: 500; }
+  .gchip .n { font-size: 10.5px; color: var(--ink-3); }
+  .gchip.active .n { color: var(--accent-text); opacity: 0.75; }
+  .gchip.drop { border-color: var(--accent); }
+  .gchip .pdot { width: 7px; height: 7px; border-radius: 2.5px; }
+
+  /* A3 侧栏嵌入：分组成为全局侧栏「问题」的子项 */
+  #nav-children { display: flex; flex-direction: column; gap: 1px; padding: 2px 0 4px 20px; position: relative; }
+  #nav-children::before { content: ""; position: absolute; left: 17px; top: 4px; bottom: 8px; width: 1.5px; background: var(--line-1); border-radius: 1px; }
+  #nav-children .g-item { height: 28px; font-size: 12.5px; padding: 0 8px 0 12px; }
+  #nav-children .g-item .icon { width: 13px; height: 13px; }
+  #nav-children .g-item.active { background: var(--bg-hover); color: var(--ink-1); font-weight: 600; }
+  #nav-children .g-item.active .n { color: var(--ink-2); }
+
+  .detail-board { padding: 18px 22px 18px 24px; }
+  .detail-board .scroller { flex: 1; padding-right: 8px; margin-right: -10px; }
+  .empty-detail { flex: 1; display: grid; place-items: center; color: var(--ink-3); font-size: 12.5px; text-align: center; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script src="detail.js"></script>
+<script>
+(() => {
+  const QM = window.QM;
+  const { icon, esc, STATUS, groups, questions, groupById, counts, sortQuestions, relDate } = QM;
+  const variant = localStorage.getItem("q-mock-a-variant") || "a2";
+  const { page, navChildren } = QM.mountShell({ crumb: "问题" });
+
+  // mockup 演示：变体切换
+  const vs = document.createElement("div");
+  vs.className = "variant";
+  vs.innerHTML = `分组位置<div class="seg sm">${[["a1", "A1 板内分栏"], ["a2", "A2 顶部切换（定稿）"], ["a3", "A3 侧栏嵌入"]]
+    .map(([k, l]) => `<button data-v="${k}" class="${k === variant ? "on" : ""}">${l}</button>`)
+    .join("")}</div>`;
+  document.querySelector(".mock-back").before(vs);
+  vs.onclick = e => {
+    const b = e.target.closest("[data-v]");
+    if (b) localStorage.setItem("q-mock-a-variant", b.dataset.v), location.reload();
+  };
+
+  let groupId = null; // null = 全部
+  let selId = questions.find(q => q.status === "in_progress").id;
+  const collapsed = { resolved: true };
+
+  const listCol = `<div class="list-col">
+      ${QM.captureHTML()}
+      ${variant === "a2" ? `<div class="gchips" id="groups"></div>` : ""}
+      <div class="list scroller fade-y" id="list" tabindex="0"></div>
+      <div class="keys"><span><kbd>↑</kbd><kbd>↓</kbd>切换</span><span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd>设状态</span><span><kbd>L</kbd>关联材料</span><span><kbd>⌫</kbd>删除</span></div>
+    </div>`;
+  page.innerHTML = `
+    <div class="page v-${variant}">
+      <div class="toolbar">
+        <h1>问题</h1>
+        <span class="sum" id="sum"></span>
+        <span class="spacer"></span>
+        <button class="btn btn-primary" id="new">${icon("plus")}新建问题</button>
+      </div>
+      <div class="body">
+        <div class="board list-board">
+          ${variant === "a1" ? `<div class="groups scroller" id="groups"></div>` : ""}
+          ${listCol}
+        </div>
+        <div class="board detail-board" id="detail"></div>
+      </div>
+    </div>`;
+  const groupsEl = variant === "a3" ? navChildren : page.querySelector("#groups");
+
+  const cap = QM.bindCapture(page.querySelector(".list-col"), () => groupId ?? 0, q => {
+    selId = q.id;
+    renderAll();
+  });
+  page.querySelector("#new").onclick = () => cap.focus();
+
+  function renderSum() {
+    const c = counts(QM.byGroup(groupId));
+    page.querySelector("#sum").innerHTML = `${groupId == null ? "" : esc(groupById(groupId).title) + " · "}探究中 <b class="num">${c.in_progress}</b> · 待探究 <b class="num">${c.not_started}</b> · 已解答 <b class="num">${c.resolved}</b>`;
+  }
+
+  // 分组计数只数未解答的（探究中 + 待探究），已解答不占注意力
+  const openCount = gid => {
+    const c = counts(QM.byGroup(gid));
+    return c.all - c.resolved;
+  };
+  function renderGroups() {
+    if (variant === "a2") {
+      groupsEl.innerHTML =
+        `<button class="gchip${groupId == null ? " active" : ""}" data-g="">全部<span class="n">${openCount(null)}</span></button>` +
+        groups.map(g => `<button class="gchip${groupId === g.id ? " active" : ""}" data-g="${g.id}"><i class="pdot" style="--c:var(--pc-${g.color})"></i>${esc(g.title)}<span class="n">${openCount(g.id) || ""}</span></button>`).join("") +
+        `<button class="gchip" title="新建分组">${icon("plus")}</button>`;
+      return;
+    }
+    const items = groups
+      .map(g => `<button class="g-item${groupId === g.id ? " active" : ""}" data-g="${g.id}"><i class="pdot" style="--c:var(--pc-${g.color})"></i>${esc(g.title)}<span class="n">${openCount(g.id) || ""}</span></button>`)
+      .join("");
+    groupsEl.innerHTML =
+      variant === "a1"
+        ? `<div class="g-head">分组<button class="icon-btn sm" title="新建分组">${icon("plus")}</button></div>
+           <button class="g-item${groupId == null ? " active" : ""}" data-g="">${icon("help")}全部问题<span class="n">${openCount(null)}</span></button>
+           <div class="g-sep"></div>${items}`
+        : `<button class="g-item${groupId == null ? " active" : ""}" data-g="">全部<span class="n">${openCount(null)}</span></button>${items}<button class="g-item g-add">${icon("plus")}新建分组</button>`;
+  }
+
+  const visible = () => QM.byGroup(groupId);
+  function flatOrder() {
+    return ["in_progress", "not_started", "resolved"].flatMap(s => (collapsed[s] ? [] : sortQuestions(visible().filter(q => q.status === s))));
+  }
+
+  function renderList() {
+    const hints = { in_progress: "正在积累材料", not_started: "收集来还没动", resolved: "已有答案" };
+    const html = ["in_progress", "not_started", "resolved"]
+      .map(s => {
+        const list = sortQuestions(visible().filter(q => q.status === s));
+        if (!list.length) return "";
+        return `<div class="sec" data-sec="${s}">${icon("chev-down", "chev" + (collapsed[s] ? "" : " open"))}${STATUS[s].label}<span class="n">${list.length}</span><span class="hint">${hints[s]}</span></div>
+          <div class="collapse-wrap${collapsed[s] ? "" : " open"}"><div class="collapse-inner">${list.map(rowHTML).join("")}</div></div>`;
+      })
+      .join("");
+    page.querySelector("#list").innerHTML = html || `<div class="empty-note">这个分组还没有问题。在上面记下第一个吧。</div>`;
+  }
+  function rowHTML(q) {
+    const g = groupById(q.groupId);
+    const time = q.status === "resolved" ? `${relDate(q.resolvedTime)}解答` : relDate(q.updateTime);
+    return `<div class="row ${q.status}${q.id === selId ? " sel" : ""}" data-id="${q.id}" draggable="true">
+      <button class="qs qs-${q.status}" data-ring title="设置状态">${q.status === "resolved" ? icon("check") : ""}</button>
+      <div class="row-main">
+        <div class="row-t">${esc(q.questionContent)}</div>
+        <div class="row-meta">
+          ${groupId == null ? `<span class="proj-chip"><i class="pdot" style="--c:var(--pc-${g.color})"></i>${esc(g.title)}</span>` : ""}
+          ${q.answers.length ? `<span class="comps">${QM.compositionHTML(q)}</span>` : ""}
+          <span>${time}</span>
+        </div>
+      </div>
+      <button class="icon-btn sm more" data-more>${icon("more")}</button>
+    </div>`;
+  }
+
+  const detail = page.querySelector("#detail");
+  QD.bindDetail(detail, () => QM.qById(selId));
+  function renderDetail() {
+    const q = QM.qById(selId);
+    const refocusNote = document.activeElement?.matches?.("[data-note]");
+    const keepScroll = detail.querySelector(".scroller")?.scrollTop || 0;
+    detail.innerHTML = q
+      ? `<div class="scroller fade-y">${QD.detailHTML(q)}</div>`
+      : `<div class="empty-detail">选择一个问题<br>查看背景、材料与探究轨迹</div>`;
+    const sc = detail.querySelector(".scroller");
+    if (sc) sc.scrollTop = refocusNote ? sc.scrollHeight : keepScroll;
+    if (refocusNote) detail.querySelector("[data-note]").focus();
+  }
+
+  function renderAll() {
+    renderSum();
+    renderGroups();
+    renderList();
+    renderDetail();
+  }
+  renderAll();
+  QM.on(type => {
+    if (type === "delete" && !QM.qById(selId)) selId = flatOrder()[0]?.id;
+    renderAll();
+  });
+
+  // 分组切换 + 拖拽到分组 = 移动
+  groupsEl.onclick = e => {
+    const b = e.target.closest("[data-g]");
+    if (!b) return;
+    groupId = b.dataset.g === "" ? null : +b.dataset.g;
+    if (!visible().some(q => q.id === selId)) selId = flatOrder()[0]?.id;
+    renderAll();
+  };
+  groupsEl.addEventListener("dragover", e => {
+    const b = e.target.closest("[data-g]");
+    if (b && b.dataset.g !== "") (e.preventDefault(), b.classList.add("drop"));
+  });
+  groupsEl.addEventListener("dragleave", e => e.target.closest("[data-g]")?.classList.remove("drop"));
+  groupsEl.addEventListener("drop", e => {
+    const b = e.target.closest("[data-g]");
+    if (!b) return;
+    b.classList.remove("drop");
+    const id = +e.dataTransfer.getData("text/plain");
+    if (QM.qById(id).groupId !== +b.dataset.g) QM.moveToGroup(id, +b.dataset.g);
+  });
+
+  const list = page.querySelector("#list");
+  list.onclick = e => {
+    const sec = e.target.closest("[data-sec]");
+    if (sec) return (collapsed[sec.dataset.sec] = !collapsed[sec.dataset.sec]), renderList();
+    const row = e.target.closest(".row");
+    if (!row) return;
+    const q = QM.qById(+row.dataset.id);
+    if (e.target.closest("[data-ring]")) return QM.statusMenu(e.target.closest("[data-ring]"), q);
+    if (e.target.closest("[data-more]")) return QM.questionMenu(e.target.closest("[data-more]"), q);
+    selId = q.id;
+    renderList();
+    detail.innerHTML = "";
+    renderDetail();
+  };
+  list.oncontextmenu = e => {
+    const row = e.target.closest(".row");
+    if (!row) return;
+    e.preventDefault();
+    selId = +row.dataset.id;
+    renderList();
+    renderDetail();
+    QM.questionMenu({ x: e.clientX, y: e.clientY }, QM.qById(selId));
+  };
+  list.addEventListener("dragstart", e => {
+    const row = e.target.closest(".row");
+    e.dataTransfer.setData("text/plain", row.dataset.id);
+    row.classList.add("dragging");
+  });
+  list.addEventListener("dragend", e => e.target.closest(".row")?.classList.remove("dragging"));
+
+  // 键盘：编辑文字时不拦截
+  document.addEventListener("keydown", e => {
+    if (e.target.closest("input, textarea, [contenteditable=true]") || document.querySelector(".dlg-mask")) return;
+    const order = flatOrder();
+    const i = order.findIndex(q => q.id === selId);
+    const q = QM.qById(selId);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const n = order[Math.max(0, Math.min(order.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)))];
+      if (n) (selId = n.id), renderList(), (detail.innerHTML = ""), renderDetail(), list.querySelector(".row.sel")?.scrollIntoView({ block: "nearest" });
+    } else if (q && ["1", "2", "3"].includes(e.key)) {
+      QM.setStatus(q.id, ["not_started", "in_progress", "resolved"][+e.key - 1]);
+    } else if (q && e.key.toLowerCase() === "l") {
+      QM.openPicker(q.id);
+    } else if (q && (e.key === "Backspace" || e.key === "Delete")) {
+      selId = (order[i + 1] || order[i - 1])?.id;
+      QM.deleteQuestion(q.id);
+    }
+  });
+})();
+</script>
+</body>
+</html>
