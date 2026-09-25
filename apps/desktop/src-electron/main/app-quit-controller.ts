@@ -3,7 +3,6 @@ import log from "electron-log";
 import type { WindowManager } from "./modules/window-manager";
 import collaborationModule from "./modules/collaboration";
 import mcpModule from "./modules/mcp";
-import whiteboardRecordingModule from "./modules/whiteboard-recording";
 
 // 主进程广播该事件后，渲染进程完成收尾（自动同步等）并通过 app:quitting-ready 回执
 const QUITTING_CHANNEL = "app:quitting";
@@ -61,7 +60,6 @@ async function runControlledQuit(deps: QuitControllerDeps): Promise<void> {
     globalShortcut.unregisterAll();
     deps.getWindowManager()?.destroySingletonWindows();
     deps.getTrayManager()?.destroyTray();
-    whiteboardRecordingModule.destroyControlWindow();
 
     // destroy 绕过 beforeunload 与窗口 close 拦截器，退出流程不会被再次中止
     for (const win of BrowserWindow.getAllWindows()) {

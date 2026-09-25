@@ -276,7 +276,6 @@ const NAV = [
   { g: "数据", items: [["sync", "同步", "refresh-cw"], ["storage", "资源存储", "hard-drive"], ["cache", "剪藏与缓存", "archive"]] },
   { g: "连接", items: [["accounts", "账号与连接", "plug"]] },
   { g: "AI 服务", items: [["llm", "大语言模型", "sparkles"], ["embedding", "嵌入与检索", "layers"], ["imagegen", "图片生成", "image"], ["voice", "语音", "audio-lines"]] },
-  { g: "创作工具", items: [["whiteboard", "白板录制", "video"]] },
   { g: "系统", items: [["about", "关于与更新", "info"]] },
 ];
 const LABEL = {}; NAV.forEach(g => g.items.forEach(([k, l]) => (LABEL[k] = l)));
@@ -457,13 +456,6 @@ const PAGES = {
     ] : [
       { t: "服务", h: panel(row("Minimax", "语音合成需要 Minimax 的 API Key", `${chip("未连接")}<span class="link">去「账号与连接」连接${ic("arrow-right")}</span>`)) },
       { t: "合成参数", h: panel(row("语音模型", "生成播客时使用", sel("speech-02-hd", 220))) },
-    ],
-  },
-  whiteboard: {
-    desc: "白板演示录制的默认行为与导出",
-    body: () => [
-      { t: "录制默认值", h: panel(`${row("进入演示后自动开始录制", "", sw(0))}${row("默认录制麦克风", "", sw(1))}${row("默认开启摄像头画中画", "", sw(0))}`) },
-      { t: "导出", h: panel(`${row("格式", "", seg(["WebM", "MP4", "MOV", "MKV"], 1))}${row("保存位置", "~/Movies/tau", `${btn("选择")}${btn("恢复默认", "ghost")}`)}`) },
     ],
   },
   about: {

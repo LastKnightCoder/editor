@@ -518,3 +518,9 @@
 - 选择：元素树 = 画布纸面内左栏（`ResizeableAndHideableSidebar`，右缘淡线兼拖拽边界，200–420px），与项目文档树同构；开关 `OutlineToggle` 钉在标题栏面包屑最前（多页白板详情与单页画布页都有），状态 `useWhiteboardOutlineStore`（zustand persist `tau-whiteboard-outline`）；头部「元素 N」+ 查找（按行名匹配，结果平铺）；行 32px / 13px，行首中性线性图标 15px（ink-2，选中 accent-text），容器的直接子元素数与「更多」共用固定槽位交叉淡入。
 - 行名 `elementLabel`：手动命名 > 内容（文本首段、图形里的字 / 形状名、导图节点文字、画框 / 分栏标题、图片说明、音频标题、网址、箭头「起点 → 终点」）> 类型名；创建时写入的默认名（「手写」「矩形」等）不算手动命名；超 40 字截断。卡片元素只存 cardId，仍显示「卡片」。
 - 行为变化：`WhiteBoard` 的 `showSidebar` 默认改为 `false`，只有白板页（`BoardCanvas`）打开；项目里的白板条目、文档内嵌白板不再有元素树入口（它们没有面包屑开关位），上述 legacy 挂载点已显式传 `showSidebar={false}`，把默认值收编为声明式意图。
+
+## D-051 完全移除白板演示录屏功能（whiteboard-recording）
+
+- 背景：录屏随演示模式引入（788c2eb98），产品上唯一入口即白板演示模式——进入自动弹独立录制控制浮窗（独立 BrowserWindow），渲染端 MediaRecorder + getDisplayMedia 采集，主进程 desktopCapturer 选源、保存并经 ffmpeg 多策略转码（webm 直写 / mp4·mov·mkv 转码）。功能面窄而链路重（专用控制窗、setDisplayMediaRequestHandler、win32 专用启动开关），裁决整体移除；演示模式本体（翻页、激光笔、全屏）保留。
+- 裁决（2026-09-25）：① 整体移除，含两套设置页（新版「创作工具」分区整组 + legacy 子页）、`ISetting.whiteboardRecording` 字段与 `whiteboardRecording` 设置 tab key（旧持久化 key 回落首分区；旧 localStorage 残留字段无人读、无害）；② macOS `NSCameraUsageDescription` / `NSMicrophoneUsageDescription`（electron-builder.yml + docs/macos-code-signing.md）一并移除，应用内不再有任何摄像头/麦克风访问点，将来新增音视频功能时再加回；③ `MediaUtil` 只删录屏转码专属成员（transcodeVideo 策略体系），`fluent-ffmpeg` 依赖与 FfmpegService 保留（转录、播客音频、markitdown 共用）；④ D-036 的 12 分区信息架构中「创作工具（白板录制）」分组与 WhiteboardRecordingSection 描述随之作废，设置导航回到 11 分区。
+- 结构：删主进程 `modules/whiteboard-recording.ts` 及其模块注册、退出钩子、窗口可见性过滤分支、win32 `disable-features=AllowWgcScreenCapturer` 启动开关；删渲染端 `commands/whiteboard-recording.ts`、`useWhiteboardRecording`、`CameraOverlay`、`pages/WhiteboardRecordingControls` 与 `/whiteboard-recording-controls` 路由；`PresentationMode` 解除全部录制引用。

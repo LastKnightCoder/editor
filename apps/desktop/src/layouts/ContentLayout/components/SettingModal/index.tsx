@@ -9,7 +9,6 @@ import ImageGenerationSetting from "@/pages/Settings/ImageGenerationSetting";
 import EmbeddingProviderSetting from "@/pages/Settings/EmbeddingProviderSetting";
 import TextToSpeechSetting from "@/pages/Settings/TextToSpeechSetting";
 import TranscriptionSetting from "@/pages/Settings/TranscriptionSetting";
-import WhiteboardRecordingSetting from "@/pages/Settings/WhiteboardRecordingSetting";
 import ModuleSetting from "@/pages/Settings/ModuleSetting";
 import IntegrationSetting from "@/pages/Settings/IntegrationSetting";
 import MiscSetting from "@/pages/Settings/MiscSetting";
@@ -92,11 +91,6 @@ const SettingModal = () => {
       key: "transcription",
       label: "语音转录",
       children: <TranscriptionSetting />,
-    },
-    {
-      key: "whiteboardRecording",
-      label: "白板录制",
-      children: <WhiteboardRecordingSetting />,
     },
     {
       key: "module",
