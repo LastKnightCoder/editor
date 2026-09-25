@@ -6,7 +6,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { listFlashcardDecks } from "@/commands/flashcard";
-import { listTodoItemsByType } from "@/commands/todo";
 import { listActiveQuestions } from "@/commands/question";
 import { getEventsForDay } from "@/commands/calendar";
 import { getCardsByDateRange } from "@/commands/card";
@@ -28,7 +27,14 @@ import type { ICard, IArticle } from "@/types";
 import type { DiaryEntry } from "@/types/diary";
 import type { StatisticData } from "@/types/statistic";
 import type { CalendarEvent } from "@/types/calendar";
-import type { TodoItem } from "@/types/todo";
+import { ensureTodoSnapshot } from "@/features/todos/queries";
+import {
+  dateTimeWord,
+  isOverdue,
+  liveEntries,
+  nextOccurrence,
+  openRoots,
+} from "@/features/todos/model";
 import type { HomeSnapshot, RecentEdit, TodoTodayItem, TodayEvent } from "./types";
 
 const DAY_MS = 86_400_000;
@@ -100,31 +106,26 @@ async function fetchReview() {
 }
 
 async function fetchTodos(): Promise<{ todos: TodoTodayItem[]; remaining: number }> {
-  const items = await listTodoItemsByType("all");
-  const pending = items.filter(t => !t.isCompleted);
-  const score = (t: TodoItem): number => {
-    if (t.dueAt == null) return 2;
-    const dueDay = startOfDay(t.dueAt);
-    const today = startOfDay(Date.now());
-    if (dueDay < today) return 0;
-    if (dueDay === today) return 1;
-    return 3;
-  };
-  const sorted = [...pending].sort((a, b) => score(a) - score(b));
+  // 与待办页同一份快照（共享缓存）+ 同一套派生：只看进行中项目的顶层任务，排序同议程
+  const snapshot = await ensureTodoSnapshot();
+  const now = Date.now();
+  const open = openRoots(liveEntries(snapshot), now);
   return {
     // 首页三卡高度对齐：待办只取 3 条（汇总数在卡片标题里），避免撑高整行
-    todos: sorted.slice(0, 3).map(t => ({
-      id: t.id,
-      title: shortTitle(
-        slateToPlain((t as unknown as { content?: unknown }).content) ||
-          (t as unknown as { title?: string }).title ||
-          "待办",
-        32
-      ),
-      overdue: t.dueAt != null && startOfDay(t.dueAt) < startOfDay(Date.now()),
-      dueText: t.dueAt == null ? undefined : relativeDays(t.dueAt),
-    })),
-    remaining: pending.length,
+    todos: open.slice(0, 3).map(t => {
+      // 周期任务无 dueAt：显示下一个计划打卡日
+      const at =
+        t.type === "recurring"
+          ? t.recurrence && nextOccurrence(t.recurrence, now)
+          : (t.dueAt ?? t.startAt);
+      return {
+        id: t.id,
+        title: shortTitle(t.title || "待办", 32),
+        overdue: isOverdue(t, now),
+        dueText: at == null ? undefined : dateTimeWord(at, now),
+      };
+    }),
+    remaining: open.length,
   };
 }
 

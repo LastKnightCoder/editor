@@ -2,13 +2,15 @@
  * 待办页数据源：一次拉全量快照（项目 + 未归档任务 + 周期规则 + 近一年打卡 + 关联笔记），
  * 渲染期纯函数派生（model.ts）。数量级：个人待办通常数百条以内，全量轻表足够，不做分页窗口。
  *
- * 刷新：订阅 todo mutation 事件（本页操作、AI 工具、其他窗口经 websocket 广播）统一失效重拉；
+ * 刷新：模块级订阅 todo mutation 事件（本页操作、AI 工具、其他窗口经 websocket 广播）统一失效重拉
+ * ——页面未挂载时也生效，首页待办卡读同一份缓存（ensureTodoSnapshot）不会读到旧数据；
  * 本页的变更函数只负责「调命令 + 发事件」，失效由订阅兜底——同一条路径，不会漏刷。
  * 勾选 / 打卡走乐观更新（先改缓存再落库），列表手感即时。
  */
 
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { queryClient as globalQueryClient } from "@/queryClient";
 import type { Descendant } from "slate";
 import {
   archiveTodoGroup,
@@ -52,6 +54,13 @@ import type { OccurrenceMark, TodoEntry, TodoSnapshot } from "./types";
 
 const SNAPSHOT_KEY = ["todos", "snapshot"] as const;
 const SOURCE = "todos-page";
+const STALE_MS = 30_000;
+
+/* 任意来源的待办变更 → 失效重拉（首页待办卡同源数据一并失效） */
+subscribeTodoMutationEvent(() => {
+  void globalQueryClient.invalidateQueries({ queryKey: ["todos"] });
+  void globalQueryClient.invalidateQueries({ queryKey: ["home"] });
+});
 
 /* ---------- 快照 ---------- */
 
@@ -62,7 +71,7 @@ async function chunked<T>(ids: number[], fetch: (part: number[]) => Promise<Reco
   return out;
 }
 
-async function fetchSnapshot(): Promise<TodoSnapshot> {
+async function fetchTodoSnapshot(): Promise<TodoSnapshot> {
   const [groups, archivedGroups, items] = await Promise.all([
     listTodoGroups(),
     listArchivedTodoGroups(),
@@ -112,24 +121,22 @@ async function fetchSnapshot(): Promise<TodoSnapshot> {
   };
 }
 
+/** 非 React 场景（首页汇总）取快照：与待办页共享缓存，新鲜则不重复拉取 */
+export function ensureTodoSnapshot(): Promise<TodoSnapshot> {
+  return globalQueryClient.fetchQuery({
+    queryKey: SNAPSHOT_KEY,
+    queryFn: fetchTodoSnapshot,
+    staleTime: STALE_MS,
+  });
+}
+
 export function useTodoSnapshot(): { snapshot: TodoSnapshot | undefined; loading: boolean } {
-  const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: SNAPSHOT_KEY,
-    queryFn: fetchSnapshot,
-    staleTime: 30_000,
+    queryFn: fetchTodoSnapshot,
+    staleTime: STALE_MS,
     refetchOnWindowFocus: true,
   });
-
-  /* 任意来源的待办变更 → 失效重拉（首页待办卡同源数据一并失效） */
-  useEffect(
-    () =>
-      subscribeTodoMutationEvent(() => {
-        void queryClient.invalidateQueries({ queryKey: ["todos"] });
-        void queryClient.invalidateQueries({ queryKey: ["home"] });
-      }),
-    [queryClient]
-  );
 
   return { snapshot: query.data, loading: query.isPending };
 }
