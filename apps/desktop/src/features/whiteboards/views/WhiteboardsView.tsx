@@ -34,7 +34,6 @@ import {
   type WhiteboardSort,
 } from "../model";
 import { useWhiteboardMutations, useWhiteboardRefs, useWhiteboards } from "../queries";
-import { useWhiteboardThumbnails } from "../thumbnails";
 import { WhiteboardCard } from "../components/WhiteboardCard";
 import { WhiteboardInfoDialog } from "../components/WhiteboardInfoDialog";
 
@@ -43,7 +42,6 @@ export function WhiteboardsView() {
   const params = usePageParams<{ id?: string }>();
   const scope = parseScope(params.id);
   const { items, loading } = useWhiteboards();
-  const thumbnails = useWhiteboardThumbnails();
   const mutations = useWhiteboardMutations();
 
   const [sort, setSort] = useState<WhiteboardSort>("updated");
@@ -264,7 +262,6 @@ export function WhiteboardsView() {
               <WhiteboardCard
                 key={item.id}
                 item={item}
-                thumbnails={thumbnails}
                 now={now}
                 query={query}
                 onOpen={open}
