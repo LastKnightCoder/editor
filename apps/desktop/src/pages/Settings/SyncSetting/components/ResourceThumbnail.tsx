@@ -1,5 +1,5 @@
 import classNames from "classnames";
-import { Image, Video, Music, FileText, BookOpen, Paperclip, Play } from "lucide-react";
+import { Image, Video, Music, FileText, Paperclip, Play } from "lucide-react";
 
 import LocalImage from "@/components/LocalImage";
 import { ResourceFileType } from "@/types";
@@ -29,8 +29,6 @@ const getResourceIcon = (type: ResourceFileType) => {
       return <Music className={iconClass} />;
     case "pdf":
       return <FileText className={iconClass} />;
-    case "epub":
-      return <BookOpen className={iconClass} />;
     default:
       return <Paperclip className={iconClass} />;
   }
@@ -41,7 +39,6 @@ const iconColors: Record<ResourceFileType, string> = {
   video: "",
   audio: "",
   pdf: "bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900/40 dark:to-red-800/40 text-red-500 dark:text-red-400",
-  epub: "bg-[var(--th-accent-soft)] text-[var(--th-accent)]",
   attachment:
     "bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800/60 dark:to-gray-700/60 text-gray-500 dark:text-gray-400",
 };

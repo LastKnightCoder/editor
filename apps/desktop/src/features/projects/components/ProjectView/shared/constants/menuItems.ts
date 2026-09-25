@@ -75,15 +75,6 @@ export const ADD_MENU_ITEMS: MenuEntryList = [
     ],
   },
   {
-    key: "add-epub-project-item",
-    label: "添加 EPUB",
-    children: [
-      { key: "add-local-epub-project-item", label: "本地 EPUB" },
-      { key: "add-remote-epub-project-item", label: "远程 EPUB" },
-      { key: "link-epub-project-item", label: "关联已有 EPUB" },
-    ],
-  },
-  {
     key: "link-card-project-item",
     label: "关联卡片",
   },

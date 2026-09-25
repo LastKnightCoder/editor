@@ -12,7 +12,6 @@ import { ArticleDetailProvider } from "./article-detail-provider";
 import { ProjectDetailProvider } from "./project-detail-provider";
 import { WhiteBoardDetailProvider } from "./whiteboard-detail-provider";
 import { PdfDetailProvider } from "./pdf-detail-provider";
-import { EpubDetailProvider } from "./epub-detail-provider";
 import { WebViewProvider } from "./web-view-provider";
 import { BlockPreviewProvider } from "./block-preview-provider";
 
@@ -45,7 +44,6 @@ export function initializeTabContentProviders(): void {
     new ProjectDetailProvider(),
     new WhiteBoardDetailProvider(),
     new PdfDetailProvider(),
-    new EpubDetailProvider(),
     new WebViewProvider(),
     new BlockPreviewProvider(),
 

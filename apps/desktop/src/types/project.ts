@@ -31,7 +31,6 @@ export enum EProjectItemType {
   WebView = "web-view",
   TableView = "table-view",
   Pdf = "pdf",
-  Epub = "epub",
 }
 
 export interface ProjectItem {

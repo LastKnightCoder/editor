@@ -3,7 +3,6 @@ export * from "./article";
 export * from "./time_record";
 export * from "./project";
 export * from "./pdf";
-export * from "./epub";
 export * from "./epub-export";
 export * from "./pdf-export";
 export * from "./batch-export";

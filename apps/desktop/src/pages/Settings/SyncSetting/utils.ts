@@ -22,7 +22,6 @@ export const VIDEO_EXTENSIONS = createExtSet(["mp4", "mov", "mkv", "webm", "avi"
 export const AUDIO_EXTENSIONS = createExtSet(["mp3", "m4a", "aac", "wav", "ogg", "flac"]);
 
 const PDF_EXTENSIONS = createExtSet(["pdf"]);
-const EPUB_EXTENSIONS = createExtSet(["epub"]);
 
 export const inferPreviewType = (
   fileName: string
@@ -40,7 +39,6 @@ export const inferResourceFileType = (fileName: string): ResourceFileType | null
   if (VIDEO_EXTENSIONS.has(ext)) return "video";
   if (AUDIO_EXTENSIONS.has(ext)) return "audio";
   if (PDF_EXTENSIONS.has(ext)) return "pdf";
-  if (EPUB_EXTENSIONS.has(ext)) return "epub";
   if (ext) return "attachment";
   return null;
 };

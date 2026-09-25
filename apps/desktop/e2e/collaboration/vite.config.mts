@@ -16,7 +16,6 @@ export default defineConfig({
       "@tau/agent": resolve(root, "../../packages/agent"),
       "@tau/themes": resolve(root, "../../packages/themes"),
       "@tau/db-schema": resolve(root, "../../packages/db-schema"),
-      "@pdfjs/pdf.mjs": resolve(root, "../../packages/foliate-js/vendor/pdfjs/pdf.mjs"),
     },
   },
   plugins: [react(), tailwindcss()],

@@ -10,7 +10,6 @@ import WhiteBoardProjectView from "../WhiteBoardProjectItemView";
 import WebViewProjectItemView from "../WebViewProjectItemView";
 import TableProjectItemView from "../TableProjectItemView";
 import PdfProjectItemView from "../PdfProjectItemView";
-import EpubProjectItemView from "../EpubProjectItemView";
 import { toast } from "@tau/ui";
 
 const EditProjectView = () => {
@@ -64,14 +63,6 @@ const EditProjectView = () => {
     return (
       <div className="h-full w-full">
         <PdfProjectItemView key={projectItem.id} projectItemId={projectItem.id} />
-      </div>
-    );
-  }
-
-  if (projectItem.projectItemType === EProjectItemType.Epub) {
-    return (
-      <div className="h-full w-full">
-        <EpubProjectItemView key={projectItem.id} projectItemId={projectItem.id} />
       </div>
     );
   }

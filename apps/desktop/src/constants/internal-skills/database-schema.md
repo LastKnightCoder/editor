@@ -835,54 +835,6 @@ SELECT e.id, e.title, e.start_date, c.title AS calendar_title FROM calendar_even
 | `create_time` | `INTEGER NOT NULL`    |
 | `update_time` | `INTEGER NOT NULL`    |
 
-### `epubs`
-
-| 字段                  | SQLite 定义                    |
-| --------------------- | ------------------------------ |
-| `id`                  | `INTEGER PRIMARY KEY NOT NULL` |
-| `create_time`         | `INTEGER NOT NULL`             |
-| `update_time`         | `INTEGER NOT NULL`             |
-| `tags`                | `TEXT`                         |
-| `is_local`            | `INTEGER NOT NULL`             |
-| `category`            | `TEXT DEFAULT 'default'`       |
-| `file_name`           | `TEXT NOT NULL`                |
-| `file_path`           | `TEXT NOT NULL`                |
-| `remote_url`          | `TEXT`                         |
-| `title`               | `TEXT`                         |
-| `author`              | `TEXT`                         |
-| `cover_url`           | `TEXT`                         |
-| `progress_cfi`        | `TEXT`                         |
-| `progress_percentage` | `REAL DEFAULT 0`               |
-
-### `epub_annotations`
-
-| 字段            | SQLite 定义           |
-| --------------- | --------------------- |
-| `id`            | `INTEGER PRIMARY KEY` |
-| `create_time`   | `INTEGER NOT NULL`    |
-| `update_time`   | `INTEGER NOT NULL`    |
-| `epub_id`       | `INTEGER NOT NULL`    |
-| `cfi`           | `TEXT NOT NULL`       |
-| `type`          | `TEXT NOT NULL`       |
-| `text`          | `TEXT`                |
-| `color`         | `TEXT`                |
-| `style`         | `TEXT`                |
-| `notes`         | `TEXT NOT NULL`       |
-| `chapter_title` | `TEXT`                |
-| `chapter_href`  | `TEXT`                |
-
-### `epub_bookmarks`
-
-| 字段            | SQLite 定义           |
-| --------------- | --------------------- |
-| `id`            | `INTEGER PRIMARY KEY` |
-| `create_time`   | `INTEGER NOT NULL`    |
-| `update_time`   | `INTEGER NOT NULL`    |
-| `epub_id`       | `INTEGER NOT NULL`    |
-| `cfi`           | `TEXT NOT NULL`       |
-| `title`         | `TEXT`                |
-| `chapter_title` | `TEXT`                |
-
 ### `vibe_learning_resources`
 
 | 字段            | SQLite 定义                  |

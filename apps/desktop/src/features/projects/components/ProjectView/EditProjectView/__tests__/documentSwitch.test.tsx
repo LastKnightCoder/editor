@@ -19,7 +19,6 @@ vi.mock("../../WhiteBoardProjectItemView", () => ({ default: () => null }));
 vi.mock("../../WebViewProjectItemView", () => ({ default: () => null }));
 vi.mock("../../TableProjectItemView", () => ({ default: () => null }));
 vi.mock("../../PdfProjectItemView", () => ({ default: () => null }));
-vi.mock("../../EpubProjectItemView", () => ({ default: () => null }));
 
 describe("项目文档切换", () => {
   let cleanup: (() => void) | undefined;

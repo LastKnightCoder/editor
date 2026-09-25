@@ -163,7 +163,6 @@ export type ProjectItemType =
   | "web-view"
   | "table-view"
   | "pdf"
-  | "epub"
   | string;
 
 export interface ProjectItem {

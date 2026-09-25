@@ -90,7 +90,6 @@ describe("思维导图文档树导航", () => {
           cards={[]}
           whiteBoards={[]}
           pdfs={[]}
-          epubs={[]}
           addMenuItems={[]}
           onAddMenuClick={vi.fn()}
           refreshProject={vi.fn()}

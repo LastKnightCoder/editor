@@ -4,7 +4,6 @@ import {
   Globe,
   Headphones,
   FileDown,
-  BookOpen,
   Clapperboard,
   Presentation,
   Table2,
@@ -25,7 +24,6 @@ const TYPE_META: Record<string, ProjectItemTypeMeta> = {
   "web-view": { label: "网页", icon: Globe, className: "bg-butter-soft text-butter" },
   "table-view": { label: "表格", icon: Table2, className: "bg-sky-soft text-sky" },
   pdf: { label: "PDF", icon: FileDown, className: "bg-rose-soft text-rose" },
-  epub: { label: "EPUB", icon: BookOpen, className: "bg-sage-soft text-sage" },
 };
 
 export function projectItemTypeMeta(item: ProjectItem): ProjectItemTypeMeta {
@@ -48,5 +46,4 @@ export const ADDABLE_ITEM_TYPES: Array<{ type: string; meta: ProjectItemTypeMeta
     { type: "web-view", meta: TYPE_META["web-view"], soon: true },
     { type: "table-view", meta: TYPE_META["table-view"], soon: true },
     { type: "pdf", meta: TYPE_META.pdf, soon: true },
-    { type: "epub", meta: TYPE_META.epub, soon: true },
   ];

@@ -62,7 +62,7 @@ import WeReadNotebookTable from "./tables/weread-notebook";
 import WeReadViewTable from "./tables/weread-view";
 import WeReadConfigTable from "./tables/weread-config";
 import FlashcardTable from "./tables/flashcard";
-import EpubTable from "./tables/epub";
+import EpubHardCleanupTable from "./tables/epub-hard-cleanup";
 import ResourceSyncBlacklistTable from "./tables/resource-sync-blacklist";
 import PublishSelectionTable from "./tables/publish-selection";
 import PublishHistoryTable from "./tables/publish-history";
@@ -259,7 +259,7 @@ class DatabaseModule implements Module {
       WeReadViewTable,
       WeReadConfigTable,
       FlashcardTable,
-      EpubTable,
+      EpubHardCleanupTable,
       ResourceSyncBlacklistTable,
       PublishSelectionTable,
       PublishHistoryTable,

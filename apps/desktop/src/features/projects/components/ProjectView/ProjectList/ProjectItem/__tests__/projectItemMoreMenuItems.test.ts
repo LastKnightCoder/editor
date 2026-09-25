@@ -88,7 +88,7 @@ describe("getProjectItemMoreMenuItems", () => {
     ]);
   });
 
-  it("为视频、网页、表格、PDF 和 EPUB 返回各自菜单项", () => {
+  it("为视频、网页、表格和 PDF 返回各自菜单项", () => {
     expect(
       getKeys(
         getProjectItemMoreMenuItems({
@@ -117,14 +117,6 @@ describe("getProjectItemMoreMenuItems", () => {
       getKeys(
         getProjectItemMoreMenuItems({
           projectItemType: EProjectItemType.Pdf,
-        })
-      )
-    ).toEqual(["remove", "edit-title"]);
-
-    expect(
-      getKeys(
-        getProjectItemMoreMenuItems({
-          projectItemType: EProjectItemType.Epub,
         })
       )
     ).toEqual(["remove", "edit-title"]);
