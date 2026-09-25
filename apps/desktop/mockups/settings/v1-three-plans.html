@@ -315,7 +315,6 @@
     <tr><td></td><td>嵌入与检索</td><td>页内分两个 Tab：「向量模型」/「检索增强」。</td></tr>
     <tr><td></td><td>图片生成</td><td>多服务商 → 与 LLM 同构的主从布局。</td></tr>
     <tr><td></td><td>语音 <span class="tag-new">合并</span></td><td>语音转录 + 文字转语音（后者只有一个下拉，单独成页太空）。</td></tr>
-    <tr><td>创作工具</td><td>白板录制</td><td>分「录制默认值」/「导出」两块。</td></tr>
     <tr><td>系统</td><td>关于与更新 <span class="tag-new">正名</span></td><td>版本 + 更新流程 + 自动检查（数据从 misc 移来展示）+ 命令行工具。</td></tr>
   </table>
 
@@ -357,7 +356,6 @@ const NAV = [
   { g: "数据", items: [["sync", "数据库与同步", "refresh-cw"], ["storage", "资源存储", "hard-drive"], ["cache", "剪藏与缓存", "archive"]] },
   { g: "连接", items: [["accounts", "账号与连接", "plug"]] },
   { g: "AI 服务", items: [["llm", "大语言模型", "sparkles"], ["embedding", "嵌入与检索", "layers"], ["imagegen", "图片生成", "image"], ["voice", "语音", "audio-lines"]] },
-  { g: "创作工具", items: [["whiteboard", "白板录制", "video"]] },
   { g: "系统", items: [["about", "关于与更新", "info"]] },
 ];
 const ICON = Object.fromEntries(NAV.flatMap(g => g.items.map(i => [i[0], i[2]])));
@@ -530,14 +528,6 @@ const PAGES = {
     ] : [
       { t: "", body: card(`<div class="status"><span class="sicon warn">${ic("plug-zap")}</span><div class="st"><b>Minimax 未连接</b><small>语音合成需要 Minimax API Key</small></div>${btn("前往连接", "pri", "arrow-right")}</div>`) },
       { t: "合成参数", body: card(`${row("语音模型", "播客生成使用", sel("speech-02-hd", 220))}`) },
-    ],
-  },
-  whiteboard: {
-    desc: "白板演示录制的默认行为与导出",
-    sum: () => [chip("MP4")],
-    groups: () => [
-      { t: "录制默认值", body: card(`${row("进入演示后自动开始录制", "", sw(0))}${row("默认录制麦克风", "", sw(1))}${row("默认开启摄像头画中画", "", sw(0))}`) },
-      { t: "导出", body: card(`${row("格式", "", seg(["WebM", "MP4", "MOV", "MKV"], 1))}${row("保存位置", "未设置时保存到系统「影片」目录", `<span class="muted mono">~/Movies/tau</span>${btn("选择", "")}${btn("恢复默认", "ghost")}`)}`) },
     ],
   },
   about: {

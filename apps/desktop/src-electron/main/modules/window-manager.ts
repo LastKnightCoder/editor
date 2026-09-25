@@ -277,14 +277,6 @@ export class WindowManager {
         return false;
       }
 
-      if (
-        (win as BrowserWindow & { __tauHiddenSingleton?: string }).__tauHiddenSingleton ===
-          "whiteboard-recording-controls" &&
-        !win.isVisible()
-      ) {
-        return false;
-      }
-
       return true;
     });
 

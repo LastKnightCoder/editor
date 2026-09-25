@@ -3,10 +3,10 @@
  *
  * 2026-09-24 重排（mockups/settings/index.html 第三版定稿）：分区名按内容正名——
  * 「杂项」→ 剪藏与缓存、「集成」→ 账号与连接、「关于软件」→ 关于与更新；文字转语音与
- * 语音转录并为「语音」。分组：通用 → 数据 → 连接 → AI 服务 → 创作工具 → 系统。
+ * 语音转录并为「语音」。分组：通用 → 数据 → 连接 → AI 服务 → 系统。
  * 页头（标题 + 说明）由 SettingsDialog 按 label / description 统一渲染，子页不再自绘；
  * keywords 供导航搜索命中分区内的设置项名。
- * 12 个分区已全部落地（D-036）；本文件即设置导航的唯一修改点。
+ * 11 个分区已全部落地（D-036）；本文件即设置导航的唯一修改点。
  */
 
 import type { ComponentType } from "react";
@@ -19,7 +19,6 @@ import {
   ImageIcon,
   AudioLines,
   LayoutGrid,
-  Video,
   Plug,
   Archive,
   Info,
@@ -35,7 +34,6 @@ import { CacheSection } from "./sections/CacheSection";
 import { IntegrationSection } from "./sections/IntegrationSection";
 import { ImageGenerationSection } from "./sections/ImageGenerationSection";
 import { VoiceSection } from "./sections/VoiceSection";
-import { WhiteboardRecordingSection } from "./sections/WhiteboardRecordingSection";
 import { AboutSection } from "./sections/AboutSection";
 
 export type SettingsSectionKey =
@@ -49,7 +47,6 @@ export type SettingsSectionKey =
   | "embedding"
   | "imageGeneration"
   | "voice"
-  | "whiteboardRecording"
   | "app";
 
 export interface SettingsSectionDef {
@@ -176,19 +173,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         icon: AudioLines,
         keywords: ["转录", "whisper", "TTS", "文字转语音", "断句"],
         component: VoiceSection,
-      },
-    ],
-  },
-  {
-    label: "创作工具",
-    sections: [
-      {
-        key: "whiteboardRecording",
-        label: "白板录制",
-        description: "白板演示录制的默认行为与导出",
-        icon: Video,
-        keywords: ["录制", "麦克风", "摄像头", "导出格式"],
-        component: WhiteboardRecordingSection,
       },
     ],
   },

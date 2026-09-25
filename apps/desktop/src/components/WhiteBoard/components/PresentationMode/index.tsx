@@ -1,19 +1,16 @@
 /**
  * 放映模式外壳（D-049 画布 chrome 换皮）：
  * 底部居中一条 ChromeBar（上一帧 · 页码 · 下一帧 · 激光笔 · 退出），顶部墨底小提示；
- * 激光笔轨迹用 accent。只换外壳，翻页、激光笔轨迹计算、全屏、录制逻辑保持原样。
+ * 激光笔轨迹用 accent。只换外壳，翻页、激光笔轨迹计算、全屏保持原样。
  */
 
 import React, { useState, useRef, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Button, cn, toast } from "@tau/ui";
+import { Button, cn } from "@tau/ui";
 import { ChevronLeft, ChevronRight, Crosshair, X } from "lucide-react";
 import { useBoard } from "../../hooks/useBoard";
 import { ChromeBar, ChromeButton, ChromeGap } from "../../chrome";
 import usePresentationState from "../../hooks/usePresentationState";
-import useSettingStore from "@/stores/useSettingStore";
-import { useWhiteboardRecording } from "../../hooks/useWhiteboardRecording";
-import CameraOverlay from "../CameraOverlay";
 import { BOARD_TO_CONTAINER } from "../../constants";
 
 type PointerMode = "cursor" | "laser";
@@ -194,35 +191,11 @@ const PresentationMode: React.FC = () => {
   const [laserPoints, setLaserPoints] = useState<LaserPoint[]>([]);
   const didEnterRef = useRef(false);
   const laserPointIdRef = useRef(0);
-  const recordingStateRef = useRef<ReturnType<typeof useWhiteboardRecording>["state"] | null>(null);
   const board = useBoard();
-  const recordingSetting = useSettingStore(state => state.setting.whiteboardRecording);
   const { isPresentationMode, isCreatingSequence, currentSequence, currentFrameIndex } =
     usePresentationState();
 
   const totalFrames = currentSequence?.frames.length || 0;
-  const recording = useWhiteboardRecording({
-    setting: recordingSetting,
-    onSaved: outputPath => {
-      toast.success(`录制已保存：${outputPath}`);
-    },
-    onError: errorMessage => {
-      toast.error(errorMessage);
-    },
-  });
-  const {
-    cameraOverlay,
-    closeControls,
-    openControls,
-    releaseMedia,
-    startRecording,
-    state: recordingState,
-    stopRecording,
-  } = recording;
-
-  useEffect(() => {
-    recordingStateRef.current = recordingState;
-  }, [recordingState]);
 
   // 2 秒后开始淡出，3 秒后隐藏提示
   useEffect(() => {
@@ -279,13 +252,7 @@ const PresentationMode: React.FC = () => {
     }
   });
 
-  const handleExit = useMemoizedFn(async () => {
-    const currentStatus = recordingStateRef.current?.status;
-    if (currentStatus === "recording" || currentStatus === "paused") {
-      await stopRecording();
-    }
-    releaseMedia();
-    await closeControls();
+  const handleExit = useMemoizedFn(() => {
     if (board) {
       board.presentationManager.stopPresentationMode();
     }
@@ -359,39 +326,15 @@ const PresentationMode: React.FC = () => {
     }
     didEnterRef.current = true;
     handleFullscreen();
-    openControls();
-    if (recordingSetting.autoStartRecording) {
-      window.setTimeout(() => {
-        startRecording();
-      }, 350);
-    }
 
     return () => {
       didEnterRef.current = false;
-      const currentStatus = recordingStateRef.current?.status;
-      const shouldStop = currentStatus === "recording" || currentStatus === "paused";
-      if (shouldStop) {
-        stopRecording();
-      }
-      releaseMedia();
-      closeControls();
       const fullscreenTarget = BOARD_TO_CONTAINER.get(board);
       if (document.fullscreenElement === fullscreenTarget) {
         document.exitFullscreen().catch(() => undefined);
       }
     };
-  }, [
-    currentSequence,
-    closeControls,
-    handleFullscreen,
-    isCreatingSequence,
-    isPresentationMode,
-    openControls,
-    releaseMedia,
-    recordingSetting.autoStartRecording,
-    startRecording,
-    stopRecording,
-  ]);
+  }, [currentSequence, handleFullscreen, isCreatingSequence, isPresentationMode]);
 
   // 如果不在演示模式，不渲染组件
   if (!isPresentationMode || isCreatingSequence) {
@@ -480,8 +423,6 @@ const PresentationMode: React.FC = () => {
           </svg>
         </div>
       )}
-
-      {cameraOverlay && <CameraOverlay camera={cameraOverlay} />}
     </div>
   );
 };

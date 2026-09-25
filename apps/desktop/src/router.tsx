@@ -18,9 +18,6 @@ const BackgroundAudioPage = loadable(() => import("@/pages/BackgroundAudio"));
 
 // 新架构壳层预览入口（docs/redesign/03-架构实现指南.md）
 const AppShell = loadable(() => import("@/app/AppShell"));
-const WhiteboardRecordingControlsPage = loadable(
-  () => import("@/pages/WhiteboardRecordingControls")
-);
 
 const routes = [
   {
@@ -117,10 +114,6 @@ const routes = [
   {
     path: "/background-audio",
     element: <BackgroundAudioPage />,
-  },
-  {
-    path: "/whiteboard-recording-controls",
-    element: <WhiteboardRecordingControlsPage />,
   },
 ];
 

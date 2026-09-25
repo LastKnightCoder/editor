@@ -45,7 +45,6 @@ import terminalModule from "../modules/terminal";
 import updaterModule from "../modules/updater";
 import pdfIndexQueue from "../modules/pdf-index-queue";
 import pdfIndexOrchestrator from "../modules/pdf-index-orchestrator";
-import whiteboardRecordingModule from "../modules/whiteboard-recording";
 
 /**
  * 所有模块配置
@@ -81,14 +80,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     dependencies: ["logger"],
     init: () => resourceModule.init(),
   },
-  {
-    name: "whiteboard-recording",
-    group: ModuleGroup.ESSENTIAL,
-    layer: InitLayer.IMMEDIATE,
-    dependencies: ["logger"],
-    init: () => whiteboardRecordingModule.init(),
-  },
-
   // === BACKGROUND 层：后台启动核心服务 ===
   {
     name: "server",

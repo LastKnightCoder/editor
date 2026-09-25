@@ -55,9 +55,6 @@ mac:
   notarize: true # electron-builder 24+ 内置公证流程
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
-  extendInfo:
-    NSCameraUsageDescription: "Tau 需要访问摄像头，用于白板演示录制时显示摄像头画中画。"
-    NSMicrophoneUsageDescription: "Tau 需要访问麦克风，用于白板演示录制时保存讲解声音。"
   fileAssociations:
     - ext: md
       name: Markdown
