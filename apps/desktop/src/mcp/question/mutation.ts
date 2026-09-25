@@ -1,9 +1,6 @@
 import { emitQuestionMutationEvent } from "./events";
 
-export type QuestionMutationEntityType =
-  | "question-group"
-  | "question"
-  | "question-answer";
+export type QuestionMutationEntityType = "question-group" | "question" | "question-answer";
 
 export const QUESTION_MUTATION_ACTIONS = {
   CREATE_GROUP: "create-group",
@@ -19,6 +16,7 @@ export const QUESTION_MUTATION_ACTIONS = {
   CREATE_ANSWER: "create-answer",
   ATTACH_ANSWER: "attach-answer",
   DETACH_ANSWER: "detach-answer",
+  ADD_NOTE: "add-note",
 } as const;
 
 export type QuestionMutationAction =
@@ -64,10 +62,7 @@ export const emitQuestionMutation = (params: {
 const getEventQuestionId = (event: QuestionMutationEvent) =>
   event.entityType === "question" ? event.entityId : event.questionId;
 
-const getNestedField = (
-  source: Record<string, unknown> | null | undefined,
-  key: string,
-) => {
+const getNestedField = (source: Record<string, unknown> | null | undefined, key: string) => {
   if (!source || typeof source !== "object") {
     return undefined;
   }
@@ -82,14 +77,7 @@ export const shouldRefreshQuestionResult = (params: {
   payloadEntityType?: string;
   payloadId?: number | null;
 }) => {
-  const {
-    event,
-    toolName,
-    parsedInput,
-    payloadKind,
-    payloadEntityType,
-    payloadId,
-  } = params;
+  const { event, toolName, parsedInput, payloadKind, payloadEntityType, payloadId } = params;
 
   if (toolName === "get_question_dashboard") {
     return true;
@@ -101,8 +89,7 @@ export const shouldRefreshQuestionResult = (params: {
 
   if (toolName === "get_question_group_detail") {
     return (
-      (payloadEntityType === "question-group" &&
-        event.entityId === payloadId) ||
+      (payloadEntityType === "question-group" && event.entityId === payloadId) ||
       event.groupId === payloadId ||
       event.previousGroupId === payloadId ||
       event.action === QUESTION_MUTATION_ACTIONS.REORDER_GROUPS ||
@@ -110,27 +97,15 @@ export const shouldRefreshQuestionResult = (params: {
     );
   }
 
-  if (
-    toolName === "get_question_detail" ||
-    toolName === "get_question_answers"
-  ) {
+  if (toolName === "get_question_detail" || toolName === "get_question_answers") {
     return getEventQuestionId(event) === payloadId;
   }
 
-  if (
-    toolName === "query_questions" ||
-    payloadKind === "question-query-result"
-  ) {
+  if (toolName === "query_questions" || payloadKind === "question-query-result") {
     const filter =
-      (getNestedField(parsedInput, "filter") as
-        | Record<string, unknown>
-        | undefined) ?? null;
-    const questionIds = Array.isArray(filter?.questionIds)
-      ? (filter?.questionIds as number[])
-      : [];
-    const groupIds = Array.isArray(filter?.groupIds)
-      ? (filter?.groupIds as number[])
-      : [];
+      (getNestedField(parsedInput, "filter") as Record<string, unknown> | undefined) ?? null;
+    const questionIds = Array.isArray(filter?.questionIds) ? (filter?.questionIds as number[]) : [];
+    const groupIds = Array.isArray(filter?.groupIds) ? (filter?.groupIds as number[]) : [];
 
     const eventQuestionId = getEventQuestionId(event);
     if (questionIds.length > 0) {
@@ -140,8 +115,7 @@ export const shouldRefreshQuestionResult = (params: {
     if (groupIds.length > 0) {
       return Boolean(
         (event.groupId != null && groupIds.includes(event.groupId)) ||
-        (event.previousGroupId != null &&
-          groupIds.includes(event.previousGroupId)),
+        (event.previousGroupId != null && groupIds.includes(event.previousGroupId))
       );
     }
 

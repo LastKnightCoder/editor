@@ -49,6 +49,26 @@ CREATE TABLE IF NOT EXISTS questions (
         question_content TEXT,
         answers TEXT DEFAULT '[]'
       , group_id INTEGER, sort_index INTEGER NOT NULL DEFAULT 0, resolved_time INTEGER, status TEXT NOT NULL DEFAULT 'not_started', description TEXT);
+-- 问题的探究材料：多态关联（target_type = card | article | project_item | project | white_board | answer；
+-- answer 的 target_id 为 contents.id，其余为各实体表主键）。content_id = 本关联持有引用计数的 contents.id
+-- （卡片 / 文章 / 项目文档 / 独立答案有值，项目与白板为 NULL），目标实体被删后仍可据此释放引用。
+CREATE TABLE IF NOT EXISTS question_link (
+        id INTEGER PRIMARY KEY,
+        question_id INTEGER NOT NULL,
+        target_type TEXT NOT NULL,
+        target_id INTEGER NOT NULL,
+        content_id INTEGER,
+        sort_index INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL
+      );
+-- 问题的探究轨迹：type = create | status | link | unlink | note，payload 为 JSON
+CREATE TABLE IF NOT EXISTS question_event (
+        id INTEGER PRIMARY KEY,
+        question_id INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        payload TEXT NOT NULL DEFAULT '{}',
+        create_time INTEGER NOT NULL
+      );
 CREATE TABLE IF NOT EXISTS data_tables (
           id INTEGER PRIMARY KEY,
           create_time INTEGER NOT NULL,
