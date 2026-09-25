@@ -1,10 +1,4 @@
-import {
-  ParsedQuery,
-  QueryVariantType,
-  SearchAdapter,
-  SearchCandidate,
-  StrongSignalProbeResult,
-} from "./types";
+import { ParsedQuery, SearchAdapter, SearchCandidate } from "./types";
 import { calculateLexicalScore } from "./retriever";
 import pdfIndexDBManager from "../pdf-index-db";
 import type { PdfSearchResult } from "@/types";
@@ -18,51 +12,26 @@ export interface PdfSearchAdapterContext {
   } | null;
 }
 
-export function createPdfSearchAdapter(): SearchAdapter<
-  PdfSearchResult,
-  PdfSearchAdapterContext
-> {
+export function createPdfSearchAdapter(): SearchAdapter<PdfSearchResult, PdfSearchAdapterContext> {
   return {
     name: "pdf-search-adapter",
     canUseVector(context) {
       return Boolean(context.vector);
     },
-    async probeStrongSignal(
-      query: ParsedQuery,
-      context: PdfSearchAdapterContext,
-      limit: number,
-    ): Promise<StrongSignalProbeResult<PdfSearchResult>> {
-      const ftsResults = pdfIndexDBManager.searchFTS(
-        context.mainDbName,
-        context.pdfId,
-        query.normalized,
-        limit,
-      );
-      const candidates = ftsResults.map((result) =>
-        mapFtsResultToCandidate(result, query, context.pdfId),
-      );
-      return {
-        candidates,
-        topScore: candidates[0]?.retrievalScore,
-        secondScore: candidates[1]?.retrievalScore,
-      };
-    },
     async searchFTS(
       queryText: string,
       context: PdfSearchAdapterContext,
-      limit: number,
-      _variant: QueryVariantType,
+      limit: number
     ): Promise<SearchCandidate<PdfSearchResult>[]> {
       const query = parseQuery(queryText);
       return pdfIndexDBManager
         .searchFTS(context.mainDbName, context.pdfId, queryText, limit)
-        .map((result) => mapFtsResultToCandidate(result, query, context.pdfId));
+        .map(result => mapFtsResultToCandidate(result, query, context.pdfId));
     },
     async searchVec(
       queryText: string,
       context: PdfSearchAdapterContext,
-      limit: number,
-      _variant: QueryVariantType,
+      limit: number
     ): Promise<SearchCandidate<PdfSearchResult>[]> {
       if (!context.vector) {
         return [];
@@ -77,9 +46,9 @@ export function createPdfSearchAdapter(): SearchAdapter<
           context.pdfId,
           queryEmbedding,
           limit,
-          context.vector.distance,
+          context.vector.distance
         )
-        .map((result) => {
+        .map(result => {
           const similarity = distanceToSimilarity(result.distance);
           const payload: PdfSearchResult = {
             pdfId: context.pdfId,
@@ -115,7 +84,6 @@ export function createPdfSearchAdapter(): SearchAdapter<
         content: result.snippet,
         score: result.finalScore,
         rrfScore: result.rrfScore,
-        rerankScore: result.rerankScore,
       };
     },
   };
@@ -127,7 +95,7 @@ const parseQuery = (queryText: string): ParsedQuery => ({
   tokens: queryText
     .toLowerCase()
     .split(/\s+/)
-    .map((token) => token.trim())
+    .map(token => token.trim())
     .filter(Boolean),
   isEmpty: !queryText.trim(),
 });
@@ -147,7 +115,7 @@ const mapFtsResultToCandidate = (
     sectionEndPage?: number;
   },
   query: ParsedQuery,
-  pdfId: number,
+  pdfId: number
 ): SearchCandidate<PdfSearchResult> => {
   const lexicalScore = calculateLexicalScore(query, result.content);
   const payload: PdfSearchResult = {

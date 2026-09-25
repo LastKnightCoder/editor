@@ -14,11 +14,10 @@ export interface VideoNoteSearchResult {
   text: string;
   score: number;
   rrfScore?: number;
-  rerankScore?: number;
 }
 
 export const searchVideoNoteContent = async (
-  params: VideoNoteSearchParams,
+  params: VideoNoteSearchParams
 ): Promise<VideoNoteSearchResult[]> => {
   return await invoke("video-note-search-content", params);
 };

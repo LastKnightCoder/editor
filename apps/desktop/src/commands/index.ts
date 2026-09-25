@@ -99,5 +99,4 @@ export {
 } from "./transcription";
 export * from "./model-downloader";
 export * from "./embedding-model";
-export * from "./search-model";
 export * from "./vibe-learning";

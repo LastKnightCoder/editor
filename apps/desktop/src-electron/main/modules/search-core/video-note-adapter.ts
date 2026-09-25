@@ -1,10 +1,4 @@
-import {
-  ParsedQuery,
-  QueryVariantType,
-  SearchAdapter,
-  SearchCandidate,
-  StrongSignalProbeResult,
-} from "./types";
+import { ParsedQuery, SearchAdapter, SearchCandidate } from "./types";
 import { calculateLexicalScore } from "./retriever";
 import videoNoteIndexDBManager from "../video-note-index-db";
 
@@ -16,7 +10,6 @@ export interface VideoNoteSearchPayload extends Record<string, unknown> {
   text: string;
   score: number;
   rrfScore?: number;
-  rerankScore?: number;
 }
 
 export interface VideoNoteAdapterContext {
@@ -37,26 +30,10 @@ export function createVideoNoteAdapter(): SearchAdapter<
     canUseVector(context) {
       return Boolean(context.vector);
     },
-    async probeStrongSignal(
-      query: ParsedQuery,
-      context: VideoNoteAdapterContext,
-      limit: number,
-    ): Promise<StrongSignalProbeResult<VideoNoteSearchPayload>> {
-      const ftsResults = queryFTS(context, query.normalized, limit);
-      const candidates = ftsResults.map((result) =>
-        mapFTSRowToCandidate(result, query, context.videoNoteId),
-      );
-      return {
-        candidates,
-        topScore: candidates[0]?.retrievalScore,
-        secondScore: candidates[1]?.retrievalScore,
-      };
-    },
     async searchFTS(
       queryText: string,
       context: VideoNoteAdapterContext,
-      limit: number,
-      _variant: QueryVariantType,
+      limit: number
     ): Promise<SearchCandidate<VideoNoteSearchPayload>[]> {
       const query: ParsedQuery = {
         raw: queryText,
@@ -64,20 +41,17 @@ export function createVideoNoteAdapter(): SearchAdapter<
         tokens: queryText
           .toLowerCase()
           .split(/\s+/)
-          .map((token) => token.trim())
+          .map(token => token.trim())
           .filter(Boolean),
         isEmpty: !queryText.trim(),
       };
       const ftsResults = queryFTS(context, queryText, limit);
-      return ftsResults.map((result) =>
-        mapFTSRowToCandidate(result, query, context.videoNoteId),
-      );
+      return ftsResults.map(result => mapFTSRowToCandidate(result, query, context.videoNoteId));
     },
     async searchVec(
       queryText: string,
       context: VideoNoteAdapterContext,
-      limit: number,
-      _variant: QueryVariantType,
+      limit: number
     ): Promise<SearchCandidate<VideoNoteSearchPayload>[]> {
       if (!context.vector) {
         return [];
@@ -91,9 +65,9 @@ export function createVideoNoteAdapter(): SearchAdapter<
         context.videoNoteId,
         queryEmbedding,
         limit,
-        context.vector.distance,
+        context.vector.distance
       );
-      return vecResults.map((result) => {
+      return vecResults.map(result => {
         const payload: VideoNoteSearchPayload = {
           videoNoteId: context.videoNoteId,
           chunkIndex: result.chunkIndex,
@@ -119,7 +93,6 @@ export function createVideoNoteAdapter(): SearchAdapter<
         text: result.snippet,
         score: result.finalScore,
         rrfScore: result.rrfScore,
-        rerankScore: result.rerankScore,
       };
     },
   };
@@ -128,7 +101,7 @@ export function createVideoNoteAdapter(): SearchAdapter<
 function queryFTS(
   context: VideoNoteAdapterContext,
   queryText: string,
-  limit: number,
+  limit: number
 ): Array<{
   chunkIndex: number;
   startMs: number;
@@ -144,7 +117,7 @@ function queryFTS(
     context.mainDbName,
     context.videoNoteId,
     ftsQuery,
-    limit,
+    limit
   );
 }
 
@@ -155,7 +128,7 @@ function buildFTSQuery(queryText: string): string {
   }
   const tokens = normalized
     .split(/[^\p{L}\p{N}\u4e00-\u9fff]+/u)
-    .map((token) => token.trim())
+    .map(token => token.trim())
     .filter(Boolean);
   if (tokens.length === 0) {
     return normalized;
@@ -172,7 +145,7 @@ function mapFTSRowToCandidate(
     rank?: number;
   },
   query: ParsedQuery,
-  videoNoteId: number,
+  videoNoteId: number
 ): SearchCandidate<VideoNoteSearchPayload> {
   const lexicalScore = calculateLexicalScore(query, result.content);
   const payload: VideoNoteSearchPayload = {

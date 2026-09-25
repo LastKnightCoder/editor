@@ -41,7 +41,6 @@ describe("vibeLearningSearchTool", () => {
         evidenceScore: 0.92,
         whyMatched: "命中正文内容，可继续补读上下文。",
         rrfScore: 0.77,
-        rerankScore: 0.88,
       },
     ]);
 

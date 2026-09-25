@@ -1,8 +1,5 @@
 import { useEffect, useRef } from "react";
-import {
-  embeddingModelHealth,
-  isEmbeddingModelDownloaded,
-} from "@/commands/embedding-model";
+import { embeddingModelHealth, isEmbeddingModelDownloaded } from "@/commands/embedding-model";
 import useEmbeddingConfig from "@/hooks/useEmbeddingConfig";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
 import useSettingStore from "@/stores/useSettingStore";
@@ -12,11 +9,9 @@ const SEARCH_WARMUP_QUERY = "__tau_search_warmup__";
 
 const useSearchWarmUp = () => {
   const modelInfo = useEmbeddingConfig();
-  const activeDatabase = useSettingStore(
-    (state) => state.setting.database.active,
-  );
-  const databaseStatus = useGlobalStateStore((state) =>
-    activeDatabase ? state.databaseStatus[activeDatabase] : undefined,
+  const activeDatabase = useSettingStore(state => state.setting.database.active);
+  const databaseStatus = useGlobalStateStore(state =>
+    activeDatabase ? state.databaseStatus[activeDatabase] : undefined
   );
   const warmedKeysRef = useRef<Set<string>>(new Set());
   const warmingKeysRef = useRef<Set<string>>(new Set());
@@ -27,9 +22,7 @@ const useSearchWarmUp = () => {
     }
 
     const canWarmUpLocalEmbedding =
-      !!modelInfo &&
-      modelInfo.providerType === "local_python" &&
-      !!modelInfo.model;
+      !!modelInfo && modelInfo.providerType === "local_python" && !!modelInfo.model;
 
     const warmupKey = [
       activeDatabase,
@@ -40,10 +33,7 @@ const useSearchWarmUp = () => {
       modelInfo?.localModelDir || "",
     ].join("|");
 
-    if (
-      warmedKeysRef.current.has(warmupKey) ||
-      warmingKeysRef.current.has(warmupKey)
-    ) {
+    if (warmedKeysRef.current.has(warmupKey) || warmingKeysRef.current.has(warmupKey)) {
       return;
     }
     warmingKeysRef.current.add(warmupKey);
@@ -52,24 +42,21 @@ const useSearchWarmUp = () => {
 
     const warmup = async () => {
       try {
-        let searchModelInfo: NonNullable<typeof modelInfo> | undefined;
+        let embeddingModelInfo: NonNullable<typeof modelInfo> | undefined;
 
         if (canWarmUpLocalEmbedding) {
           const downloaded = await isEmbeddingModelDownloaded(modelInfo.model);
           if (downloaded && !cancelled) {
             const result = await embeddingModelHealth(
               modelInfo.model,
-              modelInfo.devicePolicy || "auto",
+              modelInfo.devicePolicy || "auto"
             );
 
             if (!cancelled && !result.success) {
-              console.warn(
-                "[SearchWarmUp] embedding 预热失败:",
-                result.error || "unknown",
-              );
+              console.warn("[SearchWarmUp] embedding 预热失败:", result.error || "unknown");
             }
 
-            searchModelInfo = modelInfo;
+            embeddingModelInfo = modelInfo;
           }
         }
 
@@ -80,7 +67,7 @@ const useSearchWarmUp = () => {
         await searchContent({
           query: SEARCH_WARMUP_QUERY,
           limit: 1,
-          ...(searchModelInfo ? { modelInfo: searchModelInfo } : {}),
+          ...(embeddingModelInfo ? { modelInfo: embeddingModelInfo } : {}),
         });
         if (!cancelled) {
           warmedKeysRef.current.add(warmupKey);

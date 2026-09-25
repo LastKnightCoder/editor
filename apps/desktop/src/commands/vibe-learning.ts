@@ -190,7 +190,6 @@ export const searchVLContent = async (params: {
     charCount?: number;
     whyMatched?: string;
     rrfScore?: number;
-    rerankScore?: number;
   }>
 > => {
   return await invoke("vl-search-content", params);

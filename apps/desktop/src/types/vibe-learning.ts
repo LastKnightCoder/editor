@@ -162,7 +162,6 @@ export interface VLSearchResult {
   evidenceScore?: number;
   whyMatched?: string;
   rrfScore?: number;
-  rerankScore?: number;
 }
 
 export interface VLSearchParams {

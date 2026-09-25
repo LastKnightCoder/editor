@@ -1,44 +1,7 @@
-import {
-  ParsedQuery,
-  QueryVariantType,
-  SearchCandidate,
-  TypedExpansionQuery,
-} from "./types";
-
-export interface QueryRun {
-  type: QueryVariantType;
-  text: string;
-}
-
-export function buildQueryRuns(
-  originalQuery: string,
-  expansions: TypedExpansionQuery[],
-): QueryRun[] {
-  const runs: QueryRun[] = [
-    {
-      type: "original",
-      text: originalQuery,
-    },
-  ];
-
-  const seen = new Set<string>([originalQuery.trim().toLowerCase()]);
-  for (const expansion of expansions) {
-    const normalizedText = expansion.text.trim();
-    if (!normalizedText) continue;
-    const key = normalizedText.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    runs.push({
-      type: expansion.type,
-      text: normalizedText,
-    });
-  }
-
-  return runs;
-}
+import { ParsedQuery, SearchCandidate } from "./types";
 
 export function normalizeCandidateList<TPayload extends object>(
-  candidates: SearchCandidate<TPayload>[],
+  candidates: SearchCandidate<TPayload>[]
 ): SearchCandidate<TPayload>[] {
   const orderedUnique = new Map<string, SearchCandidate<TPayload>>();
   for (const candidate of candidates) {
@@ -54,10 +17,7 @@ export function normalizeCandidateList<TPayload extends object>(
   return Array.from(orderedUnique.values());
 }
 
-export function calculateLexicalScore(
-  query: ParsedQuery,
-  text: string,
-): number {
+export function calculateLexicalScore(query: ParsedQuery, text: string): number {
   const normalizedText = text.trim().toLowerCase();
   if (!normalizedText || query.isEmpty) {
     return 0;
@@ -88,9 +48,7 @@ export function calculateLexicalScore(
   return Math.min(0.95, ratio);
 }
 
-export function ensureScoreInRange(
-  score: number | undefined,
-): number | undefined {
+export function ensureScoreInRange(score: number | undefined): number | undefined {
   if (typeof score !== "number" || !Number.isFinite(score)) {
     return undefined;
   }

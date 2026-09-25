@@ -20,7 +20,6 @@ const LONG_RUNNING_TOOL_EXECUTION = {
 
 type SearchToolResult = VLSearchResult & {
   rrfScore?: number;
-  rerankScore?: number;
 };
 
 type BatchSearchQueryInput = {
@@ -58,7 +57,6 @@ const normalizeSearchResults = (results: SearchToolResult[]) =>
     evidenceScore: r.evidenceScore ?? r.score,
     whyMatched: r.whyMatched || "命中正文内容，可继续补读上下文。",
     rrfScore: r.rrfScore,
-    rerankScore: r.rerankScore,
   }));
 
 /**

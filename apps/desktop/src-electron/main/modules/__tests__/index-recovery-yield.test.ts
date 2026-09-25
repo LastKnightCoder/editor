@@ -121,8 +121,6 @@ vi.mock("../video-note-index-db", () => ({
 vi.mock("../local-inference", () => ({
   default: {
     embedTexts: vi.fn(),
-    rerankTexts: vi.fn(),
-    expandQuery: vi.fn(),
     embeddingHealth: vi.fn(),
   },
 }));
@@ -133,20 +131,6 @@ vi.mock("../search-core/pipeline", () => ({
 
 vi.mock("../search-core/video-note-adapter", () => ({
   createVideoNoteAdapter: vi.fn(),
-}));
-
-vi.mock("../search-core/expander", () => ({
-  LocalQueryExpander: vi.fn(),
-  NoopExpander: vi.fn(),
-}));
-
-vi.mock("../search-core/reranker", () => ({
-  LocalReranker: vi.fn(),
-  NoopReranker: vi.fn(),
-}));
-
-vi.mock("../utils/search-model-config", () => ({
-  readSearchModelProviderConfig: vi.fn(),
 }));
 
 vi.mock("@/utils/markdown.ts", () => ({
