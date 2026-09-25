@@ -42,7 +42,6 @@ const typeInto = (input: HTMLInputElement, value: string) =>
   });
 
 beforeEach(() => {
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   useSettingStore.setState({
     setting: produce(structuredClone(initialSetting), draft => {
       draft.integration.webdav = {

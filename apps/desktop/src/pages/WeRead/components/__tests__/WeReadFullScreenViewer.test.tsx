@@ -4,8 +4,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WeReadFullScreenViewer } from "../WeReadFullScreenViewer";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 vi.mock("@tau/editor/src", () => ({
   Editor: ({ initValue }: { initValue: unknown }) => (
     <div data-testid="mock-editor">{JSON.stringify(initValue)}</div>
@@ -62,17 +60,13 @@ describe("WeReadFullScreenViewer", () => {
         row={{ id: "row-1", title: "测试笔记" }}
         content={null}
         onClose={() => {}}
-      />,
+      />
     );
 
-    const viewer = container.querySelector(
-      '[data-testid="weread-fullscreen-viewer"]',
-    );
+    const viewer = container.querySelector('[data-testid="weread-fullscreen-viewer"]');
 
     expect(viewer).not.toBeNull();
-    expect((viewer as HTMLElement | null)?.style.top).toBe(
-      "var(--title-bar-height, 48px)",
-    );
+    expect((viewer as HTMLElement | null)?.style.top).toBe("var(--title-bar-height, 48px)");
     expect(viewer?.className).toContain("bottom-0");
 
     await unmount(root, container);

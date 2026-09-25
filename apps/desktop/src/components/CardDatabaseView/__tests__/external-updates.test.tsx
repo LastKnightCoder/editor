@@ -67,7 +67,6 @@ vi.mock("@/stores/useCardDatabaseViewStore", () => {
   return { default: () => state };
 });
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 let host: HTMLDivElement;
 let root: Root;
 const config = {

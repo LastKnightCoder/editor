@@ -5,8 +5,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import InlineAIComposerPanel from "../components/InlineAIComposerPanel";
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
 const mockLoadSkills = vi.fn(async () => undefined);
 
 vi.mock("@/components/BlockCard", () => ({

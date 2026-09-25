@@ -4,8 +4,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WeReadToolbar } from "../WeReadToolbar";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 vi.mock("dayjs", () => ({
   default: () => ({
     format: () => "2026-03-14 01:12",
@@ -61,7 +59,7 @@ describe("WeReadToolbar", () => {
         onOpenSettings={() => {}}
         onSync={() => {}}
         themeColors={themeColors}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("正在校验微信读书 API Key");
@@ -83,7 +81,7 @@ describe("WeReadToolbar", () => {
         onOpenSettings={() => {}}
         onSync={() => {}}
         themeColors={themeColors}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("当前未连接，可查看本地缓存");
@@ -106,7 +104,7 @@ describe("WeReadToolbar", () => {
         onOpenSettings={() => {}}
         onSync={() => {}}
         themeColors={themeColors}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("7/10 · 70%");

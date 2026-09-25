@@ -78,7 +78,6 @@ vi.mock("@tau/ui", async () => {
   };
 });
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root;
 let host: HTMLDivElement;
 let serverCard: ICard;

@@ -4,8 +4,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import ResizableAndHideableSidebar from "../index";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 vi.mock("gsap", () => ({
   default: {
     to: vi.fn((_target: unknown, vars?: { onUpdate?: () => void }) => {
@@ -40,7 +38,7 @@ describe("ResizableAndHideableSidebar", () => {
     const { root, container } = await mount(
       <ResizableAndHideableSidebar width={420} open={true}>
         <div>content</div>
-      </ResizableAndHideableSidebar>,
+      </ResizableAndHideableSidebar>
     );
 
     const sidebarRoot = container.firstElementChild as HTMLElement;
@@ -55,7 +53,7 @@ describe("ResizableAndHideableSidebar", () => {
     const { root, container } = await mount(
       <ResizableAndHideableSidebar width={420} open={false}>
         <div>content</div>
-      </ResizableAndHideableSidebar>,
+      </ResizableAndHideableSidebar>
     );
 
     const sidebarRoot = container.firstElementChild as HTMLElement;
@@ -77,7 +75,7 @@ describe("ResizableAndHideableSidebar", () => {
         onWidthChange={handleWidthChange}
       >
         <div>content</div>
-      </ResizableAndHideableSidebar>,
+      </ResizableAndHideableSidebar>
     );
 
     const sidebarRoot = container.firstElementChild as HTMLElement;
@@ -98,7 +96,7 @@ describe("ResizableAndHideableSidebar", () => {
           onWidthChange={handleWidthChange}
         >
           <div>content</div>
-        </ResizableAndHideableSidebar>,
+        </ResizableAndHideableSidebar>
       );
     });
 

@@ -19,7 +19,6 @@ vi.mock("@tau/editor/src", () => ({
   ),
 }));
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 (globalThis as any).ResizeObserver = class {
   observe() {}
   unobserve() {}

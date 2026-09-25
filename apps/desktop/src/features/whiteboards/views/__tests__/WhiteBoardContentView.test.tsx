@@ -25,7 +25,6 @@ vi.mock("@/components/WhiteBoard", () => ({
   ),
 }));
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root | undefined;
 let host: HTMLDivElement;
 afterEach(() => {

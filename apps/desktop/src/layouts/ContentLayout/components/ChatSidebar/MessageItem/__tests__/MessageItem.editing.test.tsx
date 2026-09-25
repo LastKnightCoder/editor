@@ -6,8 +6,6 @@ import MessageItem from "../index";
 import { Role } from "@/constants";
 import type { RequestMessage } from "@/types";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const createUserMessage = (content: RequestMessage["content"]): RequestMessage => ({
   role: Role.User,
   content,

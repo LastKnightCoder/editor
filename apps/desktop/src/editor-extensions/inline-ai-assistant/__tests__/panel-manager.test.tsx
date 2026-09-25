@@ -8,8 +8,6 @@ import {
   toggleInlineAIComposer,
 } from "../panel-manager";
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
 vi.mock("@/services/editorRegistry", async () => {
   const { createServiceRegistry } = await import("@tau/editor/src");
 

@@ -6,8 +6,6 @@ import type { MindMapNodeData } from "@/components/MindMap/types";
 import { buildProjectTreeData } from "@/utils/projectTree";
 import ProjectMindMapView from "../ProjectMindMapView";
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
 const { push } = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("@/page/PageProvider", () => ({ usePage: () => ({ navigator: { push } }) }));
 vi.mock("react-dnd", () => ({ useDrop: () => [{}, vi.fn()], useDrag: vi.fn() }));

@@ -6,8 +6,6 @@ import { JoinDialog } from "../components/JoinDialog";
 const mocks = vi.hoisted(() => ({ join: vi.fn() }));
 vi.mock("@/commands", () => ({ joinCollaboration: mocks.join }));
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
 let root: Root;
 let host: HTMLDivElement;
 beforeEach(() => {

@@ -13,8 +13,6 @@ vi.mock("@/commands/diary", () => ({
   getDiaryEntryById: vi.fn(),
 }));
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const mount = async (node: ReactNode) => {
   const container = document.createElement("div");
   document.body.appendChild(container);

@@ -3,8 +3,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import CardPreview from "../CardPreview";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const { navigateToMock } = vi.hoisted(() => ({
   navigateToMock: vi.fn(),
 }));

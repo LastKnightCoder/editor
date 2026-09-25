@@ -6,7 +6,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EProjectItemType, EProjectType } from "@/types/project";
 import InsertNoteToTreeModal from "..";
 
-Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 (globalThis as any).ResizeObserver = class {
   observe() {}
   unobserve() {}

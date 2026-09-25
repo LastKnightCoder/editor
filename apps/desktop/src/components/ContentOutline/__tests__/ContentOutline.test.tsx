@@ -4,7 +4,6 @@ import { afterEach, expect, it, vi } from "vitest";
 import { ContentOutline } from "..";
 
 vi.mock("@/utils", () => ({ getInlineElementText: () => "" }));
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 afterEach(() => vi.unstubAllGlobals());
 
 it("目录同步滚动高亮，触底选中短末节，上滚恢复判定且短文不误选末节", () => {

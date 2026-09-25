@@ -5,8 +5,6 @@ import { EProjectItemType, type ProjectItem } from "@/types";
 import { ProjectContext } from "../../ProjectContext";
 import EditProjectView from "..";
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
 const { loadItem } = vi.hoisted(() => ({ loadItem: vi.fn() }));
 vi.mock("@/commands", () => ({ getProjectItemById: loadItem }));
 vi.mock("@tau/ui", () => ({ toast: { error: vi.fn() } }));
