@@ -67,7 +67,6 @@ import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { useProjectContext } from "../ProjectContext";
 import { ReactEditor } from "slate-react";
 import type { CommentElement, CustomEditor } from "@tau/editor/src";
-import contextMenuStyles from "@/components/WhiteBoard/index.module.less";
 import { toast, Tooltip, ConfirmDialog, Menu } from "@tau/ui";
 
 // Icons
@@ -1102,8 +1101,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   };
 
   const getClipMenuItemClass = (disabled: boolean) =>
-    `${contextMenuStyles.contextMenuItemButton} ${
-      disabled ? contextMenuStyles.contextMenuItemDisabled : ""
+    `text-ink-1 rounded-tau-sm text-tau-body flex h-[34px] w-full items-center gap-[9px] border-none bg-transparent px-2.5 text-left ${
+      disabled ? "cursor-not-allowed opacity-45" : "hover:bg-hover cursor-pointer"
     }`;
 
   const hasAnyDocument = hasClipResult || notes.length > 0;
@@ -1305,11 +1304,11 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
               }`}
             />
             <div
-              className={`${contextMenuStyles.contextMenu} absolute right-0 top-full z-50 mt-2 ${
+              className={`bg-surface border-line-1 shadow-float rounded-tau-lg absolute right-0 top-full z-50 mt-2 min-w-[140px] border p-[6px] ${
                 clipMenuOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
               } transition-opacity`}
             >
-              <div className={contextMenuStyles.contextMenuList}>
+              <div className="flex flex-col gap-[2px]">
                 <button
                   type="button"
                   className={getClipMenuItemClass(isAnyClipping)}
@@ -1319,7 +1318,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                   }}
                   disabled={isAnyClipping}
                 >
-                  <span className={contextMenuStyles.contextMenuItemLabel}>LLM 转录</span>
+                  <span className="truncate">LLM 转录</span>
                 </button>
                 <button
                   type="button"
@@ -1330,7 +1329,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                   }}
                   disabled={isAnyClipping}
                 >
-                  <span className={contextMenuStyles.contextMenuItemLabel}>剪藏网页</span>
+                  <span className="truncate">剪藏网页</span>
                 </button>
               </div>
             </div>
