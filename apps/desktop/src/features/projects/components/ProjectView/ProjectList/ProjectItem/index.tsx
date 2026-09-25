@@ -150,6 +150,8 @@ interface IProjectItemProps {
   whiteBoards: WhiteBoard[];
   pdfs: Pdf[];
   epubs: Epub[];
+  /** 激活文档的祖先文件夹 id 集合（定位跳转时由 ProjectList 下发） */
+  revealAncestorIds?: Set<number>;
   onOpenChange?: (open: boolean) => void;
   refreshProject?: () => void;
 }
@@ -166,6 +168,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     whiteBoards,
     pdfs,
     epubs,
+    revealAncestorIds,
     onOpenChange,
     refreshProject,
   } = props;
@@ -197,6 +200,15 @@ const ProjectItem = memo((props: IProjectItemProps) => {
       },
     }
   );
+
+  // 定位跳转进入：作为激活文档的祖先时展开一次。不监听 folderOpen——
+  // 用户随后手动折叠不该被重新顶开，直到下一次定位（祖先集合内容变化）才再展开
+  useEffect(() => {
+    if (revealAncestorIds?.has(projectItemId) && folderOpen === false) {
+      setFolderOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealAncestorIds, projectItemId]);
 
   const { modalStates, openModal, closeModal } = useProjectItemModalStates();
   const { createWebLinkRecord, handleSelectWebviewFile } = useWebLinkHandlers({
@@ -1019,6 +1031,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   whiteBoards={whiteBoards}
                   pdfs={pdfs}
                   epubs={epubs}
+                  revealAncestorIds={revealAncestorIds}
                   onOpenChange={onChildOpenChange}
                   refreshProject={refreshProject}
                 />

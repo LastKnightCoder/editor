@@ -210,11 +210,14 @@ async function fetchRecentEdits(diaries: DiaryEntry[]): Promise<RecentEdit[]> {
       title: string;
       updateTime: number;
       count: number;
+      projects: number[];
     }[]) {
       if (item.updateTime < since) continue;
       add({
         id: `project-${item.id}`,
         kind: "project",
+        projectId: item.projects[0],
+        itemId: item.id,
         title: shortTitle(item.title || "项目文档"),
         updatedText: relativeDays(item.updateTime),
         wordsCount: item.count ?? 0,
