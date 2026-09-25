@@ -5,7 +5,7 @@
  * 模型文件保存于 <modelsDir>/<name>/<file>
  */
 
-export type LocalModelKind = "embedding" | "reranker" | "query_expander";
+export type LocalModelKind = "embedding";
 
 import path from "node:path";
 
@@ -43,53 +43,8 @@ export const EMBEDDING_MODELS: Record<string, GgufModelEntry> = {
   },
 };
 
-export const SEARCH_MODELS: Record<string, GgufModelEntry> = {
-  "qwen3-0.6b": {
-    name: "qwen3-0.6b",
-    kind: "query_expander",
-    label: "Qwen3-0.6B",
-    description: "本地查询扩展生成模型（GGUF Q8_0，支持非思考模式）",
-    size: "~610MB",
-    recommended: true,
-    file: "Qwen3-0.6B-Q8_0.gguf",
-    modelscope: "Qwen/Qwen3-0.6B-GGUF",
-    modelscopePath: "Qwen3-0.6B-Q8_0.gguf",
-    huggingface: "Qwen/Qwen3-0.6B-GGUF",
-    huggingfacePath: "Qwen3-0.6B-Q8_0.gguf",
-  },
-  "qwen2.5-0.5b-instruct": {
-    name: "qwen2.5-0.5b-instruct",
-    kind: "query_expander",
-    label: "Qwen2.5-0.5B-Instruct",
-    description: "本地查询扩展生成模型（GGUF Q8_0）",
-    size: "~530MB",
-    file: "Qwen2.5-0.5B-Instruct-Q8_0.gguf",
-    modelscope: "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
-    modelscopePath: "Qwen2.5-0.5B-Instruct-Q8_0.gguf",
-    huggingface: "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
-    huggingfacePath: "Qwen2.5-0.5B-Instruct-Q8_0.gguf",
-  },
-  "bge-reranker-v2-m3": {
-    name: "bge-reranker-v2-m3",
-    kind: "reranker",
-    label: "BAAI/bge-reranker-v2-m3",
-    description: "本地相关性重排模型（GGUF Q8_0）",
-    size: "~607MB",
-    recommended: true,
-    file: "bge-reranker-v2-m3-Q8_0.gguf",
-    modelscope: "gpustack/bge-reranker-v2-m3-GGUF",
-    modelscopePath: "bge-reranker-v2-m3-Q8_0.gguf",
-    huggingface: "gpustack/bge-reranker-v2-m3-GGUF",
-    huggingfacePath: "bge-reranker-v2-m3-Q8_0.gguf",
-  },
-};
-
 export function getEmbeddingModelEntry(modelName: string): GgufModelEntry | undefined {
   return EMBEDDING_MODELS[modelName];
-}
-
-export function getSearchModelEntry(modelName: string): GgufModelEntry | undefined {
-  return SEARCH_MODELS[modelName];
 }
 
 /**

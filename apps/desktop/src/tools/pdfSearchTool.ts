@@ -122,7 +122,6 @@ export const createPdfSearchTool = (pdfId: number, mainDbName: string): ToolDefi
           charStart: item.charStart,
           charEnd: item.charEnd,
           rrfScore: item.rrfScore,
-          rerankScore: item.rerankScore,
         })),
       }),
     };

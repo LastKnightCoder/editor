@@ -137,7 +137,6 @@ export interface PdfSearchResult {
   charStart: number;
   charEnd: number;
   rrfScore?: number;
-  rerankScore?: number;
   sectionId?: string;
   sectionTitle?: string;
   sectionPath?: string[];

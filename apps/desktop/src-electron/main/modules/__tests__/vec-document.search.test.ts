@@ -43,8 +43,6 @@ vi.mock("electron", () => ({
 vi.mock("../local-inference", () => ({
   default: {
     embedTexts: vi.fn(),
-    rerankTexts: vi.fn(),
-    expandQuery: vi.fn(),
     embeddingHealth: vi.fn(),
   },
 }));

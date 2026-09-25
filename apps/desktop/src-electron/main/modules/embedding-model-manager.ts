@@ -6,9 +6,7 @@ import localInference from "./local-inference";
 import embeddingIndexOrchestrator from "./embedding-index-orchestrator";
 import {
   EMBEDDING_MODELS,
-  SEARCH_MODELS,
   getEmbeddingModelEntry,
-  getSearchModelEntry,
   GgufModelEntry,
 } from "./local-inference/model-registry";
 import {
@@ -49,21 +47,6 @@ export interface EmbeddingDownloadResult {
   error?: string;
 }
 
-export interface SearchModelInfo {
-  name: string;
-  kind: "query_expander" | "reranker";
-  label: string;
-  description: string;
-  size: string;
-  recommended?: boolean;
-  downloaded: boolean;
-  modelscope: string;
-  huggingface: string;
-}
-
-export type SearchDownloadProgress = EmbeddingDownloadProgress;
-export type SearchDownloadResult = EmbeddingDownloadResult;
-
 interface DownloadContext {
   source: EmbeddingDownloadSource;
   controller: AbortController;
@@ -71,23 +54,15 @@ interface DownloadContext {
 
 class EmbeddingModelManagerService {
   private modelsDir: string;
-  private searchModelsDir: string;
   private activeDownloads: Map<string, DownloadContext>;
-  private activeSearchDownloads: Map<string, DownloadContext>;
 
   constructor() {
     this.modelsDir = path.join(app.getPath("userData"), "embedding-models");
-    this.searchModelsDir = path.join(app.getPath("userData"), "search-models");
     this.activeDownloads = new Map();
-    this.activeSearchDownloads = new Map();
   }
 
   getModelsDir() {
     return this.modelsDir;
-  }
-
-  getSearchModelsDir() {
-    return this.searchModelsDir;
   }
 
   private isEntryDownloaded(modelsDir: string, entry: GgufModelEntry): boolean {
@@ -103,20 +78,6 @@ class EmbeddingModelManagerService {
       dimensions: entry.dimensions || 0,
       recommended: entry.recommended,
       downloaded: this.isEntryDownloaded(this.modelsDir, entry),
-      modelscope: entry.modelscope,
-      huggingface: entry.huggingface,
-    };
-  }
-
-  private toSearchModelInfo(entry: GgufModelEntry): SearchModelInfo {
-    return {
-      name: entry.name,
-      kind: entry.kind === "reranker" ? "reranker" : "query_expander",
-      label: entry.label,
-      description: entry.description,
-      size: entry.size,
-      recommended: entry.recommended,
-      downloaded: this.isEntryDownloaded(this.searchModelsDir, entry),
       modelscope: entry.modelscope,
       huggingface: entry.huggingface,
     };
@@ -274,95 +235,6 @@ class EmbeddingModelManagerService {
   isDownloading(modelName: string): boolean {
     return this.activeDownloads.has(modelName);
   }
-
-  async getSearchModels(): Promise<SearchModelInfo[]> {
-    return Object.values(SEARCH_MODELS).map(entry => this.toSearchModelInfo(entry));
-  }
-
-  async downloadSearchModel(
-    modelName: string,
-    source: EmbeddingDownloadSource,
-    onProgress?: (progress: SearchDownloadProgress) => void
-  ): Promise<SearchDownloadResult> {
-    if (this.activeSearchDownloads.has(modelName)) {
-      return {
-        success: false,
-        error: `Search model ${modelName} is already being downloaded`,
-      };
-    }
-
-    const entry = getSearchModelEntry(modelName);
-    if (!entry) {
-      return { success: false, error: `Unknown search model: ${modelName}` };
-    }
-
-    const controller = new AbortController();
-    this.activeSearchDownloads.set(modelName, { source, controller });
-
-    try {
-      return await this.downloadGgufModel({
-        entry,
-        source,
-        outputDir: this.searchModelsDir,
-        controller,
-        onProgress: progress => {
-          onProgress?.({ modelName, ...progress });
-        },
-      });
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    } finally {
-      this.activeSearchDownloads.delete(modelName);
-    }
-  }
-
-  async cancelSearchDownload(modelName: string): Promise<boolean> {
-    const task = this.activeSearchDownloads.get(modelName);
-    if (!task) {
-      return false;
-    }
-    task.controller.abort();
-    this.activeSearchDownloads.delete(modelName);
-    return true;
-  }
-
-  async deleteSearchModel(modelName: string): Promise<boolean> {
-    const entry = getSearchModelEntry(modelName);
-    if (!entry) {
-      return false;
-    }
-    const modelDir = path.join(this.searchModelsDir, entry.name);
-    if (!(await fs.pathExists(modelDir))) {
-      return false;
-    }
-    await fs.remove(modelDir);
-    return true;
-  }
-
-  async isSearchModelDownloaded(modelName: string): Promise<boolean> {
-    const entry = getSearchModelEntry(modelName);
-    if (!entry) {
-      return false;
-    }
-    return this.isEntryDownloaded(this.searchModelsDir, entry);
-  }
-
-  async getDownloadedSearchModels(): Promise<string[]> {
-    const downloaded: string[] = [];
-    for (const entry of Object.values(SEARCH_MODELS)) {
-      if (this.isEntryDownloaded(this.searchModelsDir, entry)) {
-        downloaded.push(entry.name);
-      }
-    }
-    return downloaded;
-  }
-
-  isSearchDownloading(modelName: string): boolean {
-    return this.activeSearchDownloads.has(modelName);
-  }
 }
 
 class EmbeddingModelManagerModule implements Module {
@@ -457,70 +329,24 @@ class EmbeddingModelManagerModule implements Module {
       return this.service.isDownloading(modelName);
     });
 
-    ipcMain.handle("search-model-get-models", async () => {
-      try {
-        const models = await this.service.getSearchModels();
-        return { success: true, data: models };
-      } catch (error) {
-        return {
-          success: false,
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
-    });
-
-    ipcMain.handle(
-      "search-model-download",
-      async (
-        event,
-        modelName: string,
-        source: EmbeddingDownloadSource
-      ): Promise<SearchDownloadResult> => {
-        try {
-          return await this.service.downloadSearchModel(modelName, source, progress => {
-            event.sender.send("search-model-download-progress", progress);
+    // 检索增强（query expander / reranker）已退役，删除遗留的 search-models 模型目录
+    const legacySearchModelsDir = path.join(app.getPath("userData"), "search-models");
+    fs.pathExists(legacySearchModelsDir)
+      .then(exists => {
+        if (exists) {
+          return fs.remove(legacySearchModelsDir).then(() => {
+            log.info("[EmbeddingModelManager] Removed legacy search-models directory", {
+              dir: legacySearchModelsDir,
+            });
           });
-        } catch (error) {
-          return {
-            success: false,
-            error: error instanceof Error ? error.message : String(error),
-          };
         }
-      }
-    );
-
-    ipcMain.handle("search-model-cancel", async (_event, modelName: string) => {
-      const success = await this.service.cancelSearchDownload(modelName);
-      return { success };
-    });
-
-    ipcMain.handle("search-model-get-dir", async () => {
-      return this.service.getSearchModelsDir();
-    });
-
-    ipcMain.handle("search-model-delete", async (_event, modelName: string) => {
-      try {
-        const success = await this.service.deleteSearchModel(modelName);
-        return { success };
-      } catch (error) {
-        return {
-          success: false,
+      })
+      .catch(error => {
+        log.warn("[EmbeddingModelManager] Failed to remove legacy search-models directory", {
+          dir: legacySearchModelsDir,
           error: error instanceof Error ? error.message : String(error),
-        };
-      }
-    });
-
-    ipcMain.handle("search-model-is-downloaded", async (_event, modelName: string) => {
-      return this.service.isSearchModelDownloaded(modelName);
-    });
-
-    ipcMain.handle("search-model-get-downloaded", async () => {
-      return this.service.getDownloadedSearchModels();
-    });
-
-    ipcMain.handle("search-model-is-downloading", (_event, modelName: string) => {
-      return this.service.isSearchDownloading(modelName);
-    });
+        });
+      });
   }
 }
 

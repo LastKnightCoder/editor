@@ -1,13 +1,7 @@
 import databaseModule from "../database";
 import vibeLearningDBManager from "../vibe-learning-db";
 import VibeLearningResourceTable from "../tables/vibe-learning-resource";
-import {
-  ParsedQuery,
-  QueryVariantType,
-  SearchAdapter,
-  SearchCandidate,
-  StrongSignalProbeResult,
-} from "./types";
+import { ParsedQuery, SearchAdapter, SearchCandidate } from "./types";
 import { calculateLexicalScore } from "./retriever";
 
 type VibeLearningFTSRow = {
@@ -32,7 +26,6 @@ export interface VibeLearningSearchPayload extends Record<string, unknown> {
   endOffset?: number;
   charCount?: number;
   rrfScore?: number;
-  rerankScore?: number;
 }
 
 export interface VibeLearningAdapterContext {
@@ -55,26 +48,10 @@ export function createVibeLearningAdapter(): SearchAdapter<
     canUseVector(context) {
       return Boolean(context.vector);
     },
-    async probeStrongSignal(
-      query: ParsedQuery,
-      context: VibeLearningAdapterContext,
-      limit: number,
-    ): Promise<StrongSignalProbeResult<VibeLearningSearchPayload>> {
-      const ftsResults = queryFTS(context, query.normalized, limit);
-      const candidates = ftsResults.map((result) =>
-        mapFTSRowToCandidate(result, query, context),
-      );
-      return {
-        candidates,
-        topScore: candidates[0]?.retrievalScore,
-        secondScore: candidates[1]?.retrievalScore,
-      };
-    },
     async searchFTS(
       queryText: string,
       context: VibeLearningAdapterContext,
-      limit: number,
-      _variant: QueryVariantType,
+      limit: number
     ): Promise<SearchCandidate<VibeLearningSearchPayload>[]> {
       const query: ParsedQuery = {
         raw: queryText,
@@ -82,20 +59,17 @@ export function createVibeLearningAdapter(): SearchAdapter<
         tokens: queryText
           .toLowerCase()
           .split(/\s+/)
-          .map((token) => token.trim())
+          .map(token => token.trim())
           .filter(Boolean),
         isEmpty: !queryText.trim(),
       };
       const ftsResults = queryFTS(context, queryText, limit);
-      return ftsResults.map((result) =>
-        mapFTSRowToCandidate(result, query, context),
-      );
+      return ftsResults.map(result => mapFTSRowToCandidate(result, query, context));
     },
     async searchVec(
       queryText: string,
       context: VibeLearningAdapterContext,
-      limit: number,
-      _variant: QueryVariantType,
+      limit: number
     ): Promise<SearchCandidate<VibeLearningSearchPayload>[]> {
       if (!context.vector) {
         return [];
@@ -111,15 +85,11 @@ export function createVibeLearningAdapter(): SearchAdapter<
         context.projectId,
         queryEmbedding,
         limit,
-        context.vector.distance,
+        context.vector.distance
       );
 
-      return vecResults.map((result) => {
-        const chunkMetadata = getChunkMetadata(
-          context,
-          result.resourceId,
-          result.chunkIndex,
-        );
+      return vecResults.map(result => {
+        const chunkMetadata = getChunkMetadata(context, result.resourceId, result.chunkIndex);
         const payload: VibeLearningSearchPayload = {
           resourceId: result.resourceId,
           resourceName: "",
@@ -150,7 +120,7 @@ export function createVibeLearningAdapter(): SearchAdapter<
       const resourceName = await resolveResourceName(
         context.mainDbName,
         result.payload.resourceId,
-        resourceNameCache,
+        resourceNameCache
       );
 
       return {
@@ -159,7 +129,6 @@ export function createVibeLearningAdapter(): SearchAdapter<
         content: result.snippet,
         score: result.finalScore,
         rrfScore: result.rrfScore,
-        rerankScore: result.rerankScore,
       };
     },
   };
@@ -168,7 +137,7 @@ export function createVibeLearningAdapter(): SearchAdapter<
 function queryFTS(
   context: VibeLearningAdapterContext,
   queryText: string,
-  limit: number,
+  limit: number
 ): VibeLearningFTSRow[] {
   const ftsQuery = buildFTSQuery(queryText);
   if (!ftsQuery) {
@@ -178,20 +147,20 @@ function queryFTS(
     context.mainDbName,
     context.projectId,
     ftsQuery,
-    limit,
+    limit
   ) as VibeLearningFTSRow[];
 }
 
 function getChunkMetadata(
   context: VibeLearningAdapterContext,
   resourceId: number,
-  chunkIndex: number,
+  chunkIndex: number
 ) {
   return vibeLearningDBManager.getChunkMetadata(
     context.mainDbName,
     context.projectId,
     resourceId,
-    chunkIndex,
+    chunkIndex
   );
 }
 
@@ -202,7 +171,7 @@ function buildFTSQuery(queryText: string): string {
   }
   const tokens = normalized
     .split(/[^\p{L}\p{N}\u4e00-\u9fff]+/u)
-    .map((token) => token.trim())
+    .map(token => token.trim())
     .filter(Boolean);
   if (tokens.length === 0) {
     return normalized;
@@ -213,7 +182,7 @@ function buildFTSQuery(queryText: string): string {
 function mapFTSRowToCandidate(
   result: VibeLearningFTSRow,
   query: ParsedQuery,
-  context?: VibeLearningAdapterContext,
+  context?: VibeLearningAdapterContext
 ): SearchCandidate<VibeLearningSearchPayload> {
   const lexicalScore = calculateLexicalScore(query, result.content);
   const chunkMetadata =
@@ -266,7 +235,7 @@ function distanceToSimilarity(distance: number): number {
 async function resolveResourceName(
   mainDbName: string,
   resourceId: number,
-  cache: Map<number, string>,
+  cache: Map<number, string>
 ): Promise<string> {
   const existing = cache.get(resourceId);
   if (existing) {
@@ -278,9 +247,7 @@ async function resolveResourceName(
     return `资源 ${resourceId}`;
   }
 
-  const resources = VibeLearningResourceTable.getResourcesByIds(db, [
-    resourceId,
-  ]);
+  const resources = VibeLearningResourceTable.getResourcesByIds(db, [resourceId]);
   const resourceName = resources[0]?.name || `资源 ${resourceId}`;
   cache.set(resourceId, resourceName);
   return resourceName;

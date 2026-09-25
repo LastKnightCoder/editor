@@ -2,11 +2,7 @@ import type { ToolDefinition } from "@/types/tool";
 import { searchVideoNoteContent } from "@/commands/video-note-index";
 import { getVideoNoteById } from "@/commands/video-notes";
 
-const tryParseLimit = (
-  value: unknown,
-  fallback: number,
-  max: number,
-): number => {
+const tryParseLimit = (value: unknown, fallback: number, max: number): number => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) {
     return fallback;
@@ -32,9 +28,7 @@ const formatMs = (ms: number): string => {
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 };
 
-export const buildVideoNoteSystemPrompt = (params: {
-  transcript: string;
-}): string => {
+export const buildVideoNoteSystemPrompt = (params: { transcript: string }): string => {
   const { transcript } = params;
   const transcriptLength = transcript.trim().length;
 
@@ -57,11 +51,10 @@ export const buildVideoNoteSystemPrompt = (params: {
 
 export const createVideoNoteSearchTool = (
   videoNoteId: number,
-  mainDbName: string,
+  mainDbName: string
 ): ToolDefinition => ({
   name: "search_video_note_knowledge",
-  description:
-    "搜索当前视频笔记的转录索引内容，返回最相关的时间片段，便于问答时精准引用。",
+  description: "搜索当前视频笔记的转录索引内容，返回最相关的时间片段，便于问答时精准引用。",
   parameters: {
     type: "object",
     properties: {
@@ -76,7 +69,7 @@ export const createVideoNoteSearchTool = (
     },
     required: ["query"],
   },
-  executor: async (args) => {
+  executor: async args => {
     const query = String(args.query || "").trim();
     const limit = Math.min(Number(args.limit || 5), 10);
     if (!query) {
@@ -100,25 +93,21 @@ export const createVideoNoteSearchTool = (
       content: JSON.stringify({
         success: true,
         message: `找到 ${results.length} 条相关片段`,
-        results: results.map((item) => ({
+        results: results.map(item => ({
           start: item.start,
           end: item.end,
           text: item.text,
           score: item.score,
           rrfScore: item.rrfScore,
-          rerankScore: item.rerankScore,
         })),
       }),
     };
   },
 });
 
-export const createGetVideoNoteTranscriptRangeTool = (
-  videoNoteId: number,
-): ToolDefinition => ({
+export const createGetVideoNoteTranscriptRangeTool = (videoNoteId: number): ToolDefinition => ({
   name: "get_video_note_transcript_range",
-  description:
-    "按时间戳范围获取当前视频笔记的一整段转录内容，支持向前或向后扩展若干秒上下文。",
+  description: "按时间戳范围获取当前视频笔记的一整段转录内容，支持向前或向后扩展若干秒上下文。",
   parameters: {
     type: "object",
     properties: {
@@ -145,13 +134,11 @@ export const createGetVideoNoteTranscriptRangeTool = (
     },
     required: ["startTime", "endTime"],
   },
-  executor: async (args) => {
+  executor: async args => {
     const startTime = parseNonNegativeNumber(args.startTime);
     const endTime = parseNonNegativeNumber(args.endTime);
-    const expandBeforeSeconds =
-      parseNonNegativeNumber(args.expandBeforeSeconds) ?? 0;
-    const expandAfterSeconds =
-      parseNonNegativeNumber(args.expandAfterSeconds) ?? 0;
+    const expandBeforeSeconds = parseNonNegativeNumber(args.expandBeforeSeconds) ?? 0;
+    const expandAfterSeconds = parseNonNegativeNumber(args.expandAfterSeconds) ?? 0;
     const maxSegments = tryParseLimit(args.maxSegments, 200, 500);
 
     if (startTime === null || endTime === null) {
@@ -183,10 +170,7 @@ export const createGetVideoNoteTranscriptRangeTool = (
       };
     }
 
-    if (
-      !videoNote.transcriptSegments ||
-      videoNote.transcriptSegments.length === 0
-    ) {
+    if (!videoNote.transcriptSegments || videoNote.transcriptSegments.length === 0) {
       return {
         content: JSON.stringify({
           success: false,
@@ -195,16 +179,12 @@ export const createGetVideoNoteTranscriptRangeTool = (
       };
     }
 
-    const lastSegment =
-      videoNote.transcriptSegments[videoNote.transcriptSegments.length - 1];
+    const lastSegment = videoNote.transcriptSegments[videoNote.transcriptSegments.length - 1];
     const rangeStart = Math.max(0, startTime - expandBeforeSeconds * 1000);
-    const rangeEnd = Math.min(
-      lastSegment.end,
-      endTime + expandAfterSeconds * 1000,
-    );
+    const rangeEnd = Math.min(lastSegment.end, endTime + expandAfterSeconds * 1000);
 
     let matchedSegments = videoNote.transcriptSegments.filter(
-      (segment) => segment.end >= rangeStart && segment.start <= rangeEnd,
+      segment => segment.end >= rangeStart && segment.start <= rangeEnd
     );
 
     const truncated = matchedSegments.length > maxSegments;
@@ -234,8 +214,8 @@ export const createGetVideoNoteTranscriptRangeTool = (
         },
         returnedSegments: matchedSegments.length,
         truncated,
-        transcript: matchedSegments.map((segment) => segment.text).join(" "),
-        segments: matchedSegments.map((segment) => ({
+        transcript: matchedSegments.map(segment => segment.text).join(" "),
+        segments: matchedSegments.map(segment => ({
           text: segment.text,
           start: segment.start,
           end: segment.end,

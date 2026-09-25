@@ -152,10 +152,10 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
       },
       {
         key: "embedding",
-        label: "嵌入与检索",
-        description: "知识库检索用的向量模型与检索增强，切换后会在后台重建索引",
+        label: "嵌入模型",
+        description: "知识库检索用的向量模型，切换后会在后台重建索引",
         icon: Layers,
-        keywords: ["向量", "Embedding", "Reranker", "重排", "查询扩展"],
+        keywords: ["向量", "Embedding"],
         component: EmbeddingSection,
       },
       {

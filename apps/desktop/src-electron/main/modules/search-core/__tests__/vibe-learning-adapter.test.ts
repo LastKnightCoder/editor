@@ -72,8 +72,8 @@ describe("search-core/vibe-learning-adapter", () => {
       },
     };
 
-    const ftsResults = await adapter.searchFTS("test", context, 5, "original");
-    const vecResults = await adapter.searchVec("test", context, 5, "vec");
+    const ftsResults = await adapter.searchFTS("test", context, 5);
+    const vecResults = await adapter.searchVec("test", context, 5);
 
     expect(ftsResults[0]?.dedupeKey).toBe("resource:1:chunk:3");
     expect(vecResults[0]?.dedupeKey).toBe("resource:1:chunk:8");
@@ -106,7 +106,7 @@ describe("search-core/vibe-learning-adapter", () => {
         projectId: 1,
         mainDbName: "work.db",
         vector: null,
-      },
+      }
     );
 
     expect(result.resourceName).toBe("资料 A");
@@ -135,7 +135,7 @@ describe("search-core/vibe-learning-adapter", () => {
       vector: null,
     };
 
-    const results = await adapter.searchFTS("QKV 投影", context, 5, "original");
+    const results = await adapter.searchFTS("QKV 投影", context, 5);
 
     expect(results[0]?.payload.chunkLevel).toBe("passage");
     expect(results[0]?.text).toBe("Q、K、V 分别来自输入向量的不同投影。");
@@ -167,7 +167,7 @@ describe("search-core/vibe-learning-adapter", () => {
       vector: null,
     };
 
-    const results = await adapter.searchFTS("QKV 投影", context, 5, "original");
+    const results = await adapter.searchFTS("QKV 投影", context, 5);
 
     expect(results[0]?.payload.chunkStartLine).toBe(21);
     expect(results[0]?.payload.chunkEndLine).toBe(44);

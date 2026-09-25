@@ -20,8 +20,6 @@ import PdfTable from "./tables/pdf";
 import localInference from "./local-inference";
 import { runSearchPipeline } from "./search-core/pipeline";
 import { createPdfSearchAdapter } from "./search-core/pdf-search-adapter";
-import { NoopExpander } from "./search-core/expander";
-import { NoopReranker } from "./search-core/reranker";
 import { resolveEmbeddingConfig } from "../utils/embedding-config";
 import { shouldReusePdfIndex } from "./pdf-index-reuse";
 
@@ -823,8 +821,6 @@ class PdfIndexQueue implements Module {
     log.info(
       `[PdfSearch] capabilities: pdfId=${params.pdfId}, vectorAvailable=${vectorAvailable}, currentVecDimensions=${currentVecDimensions || 0}`
     );
-    const expander = new NoopExpander("PDF 搜索默认禁用 query expansion 以避免超时");
-    const reranker = new NoopReranker("PDF 搜索默认禁用 reranker 以避免超时");
 
     const { results } = await runSearchPipeline({
       query: params.query,
@@ -844,8 +840,6 @@ class PdfIndexQueue implements Module {
             : null,
       },
       adapter: createPdfSearchAdapter(),
-      expander,
-      reranker,
       logger: pipelineLog => {
         log.info("[SearchCore][pdf]", pipelineLog);
       },

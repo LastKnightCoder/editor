@@ -1,13 +1,7 @@
 import Database from "better-sqlite3";
 import { SearchParams, SearchResult } from "@/types";
 import { getMarkdown } from "@/utils/markdown";
-import {
-  ParsedQuery,
-  QueryVariantType,
-  SearchAdapter,
-  SearchCandidate,
-  StrongSignalProbeResult,
-} from "./types";
+import { ParsedQuery, SearchAdapter, SearchCandidate } from "./types";
 import { calculateLexicalScore, ensureScoreInRange } from "./retriever";
 
 type SearchResultWithRank = SearchResult & {
@@ -23,49 +17,25 @@ export interface MainContentAdapterContext {
   searchFTS: (
     mainDb: Database.Database,
     indexDb: Database.Database,
-    searchParams: SearchParams,
+    searchParams: SearchParams
   ) => SearchResult[];
   searchVec: (
     mainDb: Database.Database,
     indexDb: Database.Database,
-    searchParams: SearchParams,
+    searchParams: SearchParams
   ) => Promise<SearchResult[]>;
 }
 
-export function createMainContentAdapter(): SearchAdapter<
-  SearchResult,
-  MainContentAdapterContext
-> {
+export function createMainContentAdapter(): SearchAdapter<SearchResult, MainContentAdapterContext> {
   return {
     name: "main-content-adapter",
     canUseVector(context) {
       return Boolean(context.searchParams.modelInfo?.model);
     },
-    async probeStrongSignal(
-      query: ParsedQuery,
-      context: MainContentAdapterContext,
-      limit: number,
-    ): Promise<StrongSignalProbeResult<SearchResult>> {
-      const results = context.searchFTS(context.mainDb, context.indexDb, {
-        ...context.searchParams,
-        query: query.normalized,
-        limit,
-      });
-
-      const candidates = results.map((result) =>
-        mapResultToCandidate(result, "fts", query),
-      );
-      return {
-        candidates,
-        topScore: candidates[0]?.retrievalScore,
-        secondScore: candidates[1]?.retrievalScore,
-      };
-    },
     async searchFTS(
       queryText: string,
       context: MainContentAdapterContext,
-      limit: number,
-      _variant: QueryVariantType,
+      limit: number
     ): Promise<SearchCandidate<SearchResult>[]> {
       const parsedQuery: ParsedQuery = {
         raw: queryText,
@@ -73,7 +43,7 @@ export function createMainContentAdapter(): SearchAdapter<
         tokens: queryText
           .toLowerCase()
           .split(/\s+/)
-          .map((token) => token.trim())
+          .map(token => token.trim())
           .filter(Boolean),
         isEmpty: !queryText.trim(),
       };
@@ -82,15 +52,12 @@ export function createMainContentAdapter(): SearchAdapter<
         query: queryText,
         limit,
       });
-      return results.map((result) =>
-        mapResultToCandidate(result, "fts", parsedQuery),
-      );
+      return results.map(result => mapResultToCandidate(result, "fts", parsedQuery));
     },
     async searchVec(
       queryText: string,
       context: MainContentAdapterContext,
-      limit: number,
-      _variant: QueryVariantType,
+      limit: number
     ): Promise<SearchCandidate<SearchResult>[]> {
       const parsedQuery: ParsedQuery = {
         raw: queryText,
@@ -98,7 +65,7 @@ export function createMainContentAdapter(): SearchAdapter<
         tokens: queryText
           .toLowerCase()
           .split(/\s+/)
-          .map((token) => token.trim())
+          .map(token => token.trim())
           .filter(Boolean),
         isEmpty: !queryText.trim(),
       };
@@ -107,9 +74,7 @@ export function createMainContentAdapter(): SearchAdapter<
         query: queryText,
         limit,
       });
-      return results.map((result) =>
-        mapResultToCandidate(result, "vec", parsedQuery),
-      );
+      return results.map(result => mapResultToCandidate(result, "vec", parsedQuery));
     },
     finalize(result) {
       return {
@@ -118,11 +83,6 @@ export function createMainContentAdapter(): SearchAdapter<
         snippet: result.snippet,
         debug: {
           rrfScore: result.rrfScore,
-          rerankScore: result.rerankScore,
-          stage:
-            typeof result.rerankScore === "number"
-              ? "rerank-blend"
-              : "rrf-only",
         },
       };
     },
@@ -132,7 +92,7 @@ export function createMainContentAdapter(): SearchAdapter<
 function mapResultToCandidate(
   result: SearchResult,
   source: "fts" | "vec",
-  query: ParsedQuery,
+  query: ParsedQuery
 ): SearchCandidate<SearchResult> {
   const key = `${result.type}:${result.id}`;
   const text = getMarkdown(result.content || []).trim();
@@ -140,11 +100,8 @@ function mapResultToCandidate(
   const lexicalScore = calculateLexicalScore(query, text);
   const retrievalScore =
     source === "fts"
-      ? (ensureScoreInRange(enriched.score) ??
-        lexicalScore ??
-        rankToScore(enriched.rank))
-      : (ensureScoreInRange(enriched.score) ??
-        distanceToSimilarity(enriched.distance));
+      ? (ensureScoreInRange(enriched.score) ?? lexicalScore ?? rankToScore(enriched.rank))
+      : (ensureScoreInRange(enriched.score) ?? distanceToSimilarity(enriched.distance));
 
   return {
     key,

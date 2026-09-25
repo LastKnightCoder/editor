@@ -389,16 +389,6 @@ export interface ISetting {
       }>;
     }>;
   };
-  searchModelProvider: {
-    source: "modelscope" | "huggingface";
-    localModelDir?: string;
-    queryExpanderModel: string;
-    rerankerModel: string;
-    enableExpander: boolean;
-    enableReranker: boolean;
-    devicePolicy: "auto" | "cpu" | "cuda";
-    batchSize: number;
-  };
   integration: {
     bilibili: {
       enabled: boolean;
@@ -858,16 +848,6 @@ const initialState: IState = {
     embeddingProvider: {
       currentConfigId: "",
       configs: [],
-    },
-    searchModelProvider: {
-      source: "modelscope",
-      localModelDir: "",
-      queryExpanderModel: "qwen3-0.6b",
-      rerankerModel: "bge-reranker-v2-m3",
-      enableExpander: true,
-      enableReranker: true,
-      devicePolicy: "auto",
-      batchSize: 8,
     },
     integration: {
       bilibili: {

@@ -17,7 +17,6 @@ export interface SearchResult {
   snippet?: string;
   debug?: {
     rrfScore?: number;
-    rerankScore?: number;
     stage?: string;
   };
 }

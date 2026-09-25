@@ -44,12 +44,9 @@ import {
 import { DEFAULT_LOCAL_EMBEDDING_DISTANCE, LOCAL_EMBEDDING_CONFIG_ID } from "@/constants/embedding";
 import localInference from "./local-inference";
 import { smartChunk, smartChunkWithRanges } from "../utils/smart-chunk";
-import { readSearchModelProviderConfig } from "../utils/search-model-config";
 import YtDlpService from "../utils/YtDlpService";
 import { runSearchPipeline } from "./search-core/pipeline";
 import { createVibeLearningAdapter } from "./search-core/vibe-learning-adapter";
-import { LocalQueryExpander, NoopExpander } from "./search-core/expander";
-import { LocalReranker, NoopReranker } from "./search-core/reranker";
 import {
   buildVLTranscriptionOptions,
   resolveVLOptimizationLanguage,
@@ -2926,7 +2923,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
 
     try {
       const embeddingConfig = await this.getEmbeddingConfig();
-      const searchModelConfig = await readSearchModelProviderConfig();
       log.info("[SearchCore][vibe-learning][config]", {
         query,
         limit,
@@ -2934,39 +2930,7 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
         mainDbName,
         vectorEnabled: Boolean(embeddingConfig),
         vectorModel: embeddingConfig?.model,
-        searchModelDir: searchModelConfig.localModelDir,
-        enableExpander: searchModelConfig.enableExpander,
-        enableReranker: searchModelConfig.enableReranker,
-        queryExpanderModel: searchModelConfig.queryExpanderModel,
-        rerankerModel: searchModelConfig.rerankerModel,
-        devicePolicy: searchModelConfig.devicePolicy,
-        batchSize: searchModelConfig.batchSize,
       });
-
-      const expander =
-        searchModelConfig.enableExpander && searchModelConfig.queryExpanderModel
-          ? new LocalQueryExpander({
-              modelDir: searchModelConfig.localModelDir,
-              modelName: searchModelConfig.queryExpanderModel,
-              devicePolicy: searchModelConfig.devicePolicy,
-              maxAlternatives: 2,
-            })
-          : new NoopExpander(
-              searchModelConfig.enableExpander
-                ? "未配置本地 query expansion 模型"
-                : "query expansion 已禁用"
-            );
-      const reranker =
-        searchModelConfig.enableReranker && searchModelConfig.rerankerModel
-          ? new LocalReranker({
-              modelDir: searchModelConfig.localModelDir,
-              modelName: searchModelConfig.rerankerModel,
-              batchSize: searchModelConfig.batchSize,
-              devicePolicy: searchModelConfig.devicePolicy,
-            })
-          : new NoopReranker(
-              searchModelConfig.enableReranker ? "未配置本地 reranker 模型" : "reranker 已禁用"
-            );
 
       const adapter = createVibeLearningAdapter();
       const { results, log: pipelineLog } = await runSearchPipeline({
@@ -2991,8 +2955,6 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
             : null,
         },
         adapter,
-        expander,
-        reranker,
         logger: pipelineState => {
           log.info("[SearchCore][vibe-learning]", pipelineState);
         },

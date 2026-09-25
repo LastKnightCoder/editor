@@ -1,12 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { runSearchPipeline } from "../pipeline";
-import type {
-  ParsedQuery,
-  QueryExpander,
-  Reranker,
-  SearchAdapter,
-  SearchCandidate,
-} from "../types";
+import type { SearchAdapter, SearchCandidate } from "../types";
 
 type Payload = {
   id: string;
@@ -18,7 +12,7 @@ type Payload = {
 const toCandidate = (
   id: string,
   source: "fts" | "vec",
-  score: number,
+  score: number
 ): SearchCandidate<Payload> => ({
   key: id,
   dedupeKey: id,
@@ -39,20 +33,7 @@ function createAdapter(): SearchAdapter<Payload, { enableVec: boolean }> {
     canUseVector(context) {
       return context.enableVec;
     },
-    async probeStrongSignal(_query: ParsedQuery) {
-      return {
-        candidates: [
-          toCandidate("a", "fts", 0.7),
-          toCandidate("b", "fts", 0.5),
-        ],
-        topScore: 0.7,
-        secondScore: 0.5,
-      };
-    },
-    async searchFTS(queryText: string) {
-      if (queryText.includes("expand")) {
-        return [toCandidate("c", "fts", 0.4)];
-      }
+    async searchFTS() {
       return [toCandidate("a", "fts", 0.7), toCandidate("b", "fts", 0.5)];
     },
     async searchVec() {
@@ -68,85 +49,32 @@ function createAdapter(): SearchAdapter<Payload, { enableVec: boolean }> {
 }
 
 describe("search-core/pipeline", () => {
-  it("应在 reranker 不可用时降级到 RRF-only", async () => {
-    const expander: QueryExpander = {
-      name: "noop-expander",
-      async expand() {
-        return {
-          available: false,
-          used: false,
-          queries: [],
-          reason: "test noop",
-        };
-      },
-    };
-    const reranker: Reranker = {
-      name: "noop-reranker",
-      async rerank() {
-        return {
-          available: false,
-          used: false,
-          scores: [],
-          reason: "test noop",
-        };
-      },
-    };
-
+  it("应在向量不可用时降级到 FTS-only", async () => {
     const result = await runSearchPipeline({
       query: "test query",
       limit: 5,
-      context: { enableVec: true },
+      context: { enableVec: false },
       adapter: createAdapter(),
-      expander,
-      reranker,
     });
 
     expect(result.results.length).toBeGreaterThan(0);
-    expect(result.log.degradeReason.includes("reranker-unavailable")).toBe(
-      true,
-    );
+    expect(result.log.degradeReason.includes("vector-unavailable")).toBe(true);
   });
 
-  it("强信号时应跳过扩展", async () => {
-    const expander = {
-      name: "local-query-expander" as const,
-      expand: vi.fn(async () => ({
-        available: true,
-        used: true,
-        queries: [{ type: "lex" as const, text: "expand query" }],
-      })),
-    };
-    const reranker: Reranker = {
-      name: "noop-reranker",
-      async rerank() {
-        return {
-          available: false,
-          used: false,
-          scores: [],
-        };
-      },
-    };
-
-    const adapter = createAdapter();
-    adapter.probeStrongSignal = async () => ({
-      candidates: [toCandidate("a", "fts", 0.95), toCandidate("b", "fts", 0.7)],
-      topScore: 0.95,
-      secondScore: 0.7,
-    });
-
+  it("FTS 与向量双路均不可用时应返回空结果", async () => {
     const result = await runSearchPipeline({
-      query: "strong signal",
+      query: "test query",
       limit: 5,
       context: { enableVec: false },
-      adapter,
-      expander,
-      reranker,
+      adapter: {
+        ...createAdapter(),
+        async searchFTS() {
+          return [];
+        },
+      },
     });
 
-    expect(expander.expand).not.toHaveBeenCalled();
-    expect(
-      result.log.degradeReason.includes("strong-signal-skip-expansion"),
-    ).toBe(true);
+    expect(result.results).toEqual([]);
   });
 
   it("应按 dedupeKey 稳定去重", async () => {
@@ -171,21 +99,9 @@ describe("search-core/pipeline", () => {
       limit: 10,
       context: { enableVec: true },
       adapter,
-      expander: {
-        name: "noop-expander",
-        async expand() {
-          return { available: false, used: false, queries: [] };
-        },
-      },
-      reranker: {
-        name: "noop-reranker",
-        async rerank() {
-          return { available: false, used: false, scores: [] };
-        },
-      },
     });
 
-    const ids = result.results.map((item) => item.id);
+    const ids = result.results.map(item => item.id);
     const uniqueIds = new Set(ids);
     expect(ids.length).toBe(uniqueIds.size);
   });

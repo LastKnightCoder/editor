@@ -34,8 +34,6 @@ vi.mock("../user-setting", () => ({
 vi.mock("../local-inference", () => ({
   default: {
     embedTexts: vi.fn(),
-    rerankTexts: vi.fn(),
-    expandQuery: vi.fn(),
     embeddingHealth: vi.fn(),
   },
 }));
@@ -52,14 +50,6 @@ vi.mock("./../search-core/pipeline", () => ({
 
 vi.mock("./../search-core/pdf-search-adapter", () => ({
   createPdfSearchAdapter: vi.fn(),
-}));
-
-vi.mock("./../search-core/expander", () => ({
-  NoopExpander: vi.fn(),
-}));
-
-vi.mock("./../search-core/reranker", () => ({
-  NoopReranker: vi.fn(),
 }));
 
 vi.mock("../tables/pdf", () => ({

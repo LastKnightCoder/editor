@@ -5,19 +5,8 @@ import { v4 as getUuid } from "uuid";
 import type { EmbeddingProviderType } from "@/types/embedding";
 import useSettingStore from "@/stores/useSettingStore";
 import { SettingContainer, SettingSection, SettingTabs } from "../components";
-import {
-  ConfigTable,
-  ConfigModal,
-  ModelModal,
-  ModelTable,
-  SearchModelSection,
-} from "./components";
-import type {
-  ConfigFormData,
-  ConfigItem,
-  ModelFormData,
-  ModelItem,
-} from "./types";
+import { ConfigTable, ConfigModal, ModelModal, ModelTable } from "./components";
+import type { ConfigFormData, ConfigItem, ModelFormData, ModelItem } from "./types";
 
 type ProviderTabKey = EmbeddingProviderType;
 
@@ -41,16 +30,12 @@ const EmbeddingProviderSetting = () => {
   const [activeTab, setActiveTab] = useState<ProviderTabKey>("local_python");
 
   const [action, setAction] = useState<"create" | "edit">();
-  const [initialConfigData, setInitialConfigData] = useState<ConfigItem | null>(
-    null,
-  );
+  const [initialConfigData, setInitialConfigData] = useState<ConfigItem | null>(null);
   const [modelAddOpen, setModelAddOpen] = useState(false);
   const [modelAction, setModelAction] = useState<"create" | "edit">("create");
-  const [initialModelData, setInitialModelData] = useState<ModelItem | null>(
-    null,
-  );
+  const [initialModelData, setInitialModelData] = useState<ModelItem | null>(null);
 
-  const { allConfigs, currentConfigId } = useSettingStore((state) => {
+  const { allConfigs, currentConfigId } = useSettingStore(state => {
     const configs = state.setting.embeddingProvider.configs as ConfigItem[];
     return {
       allConfigs: configs,
@@ -59,38 +44,35 @@ const EmbeddingProviderSetting = () => {
   });
 
   const localConfig = useMemo(
-    () => allConfigs.find((item) => item.id === LOCAL_CONFIG_ID),
-    [allConfigs],
+    () => allConfigs.find(item => item.id === LOCAL_CONFIG_ID),
+    [allConfigs]
   );
 
   const apiConfigs = useMemo(
-    () => allConfigs.filter((item) => item.id !== LOCAL_CONFIG_ID),
-    [allConfigs],
+    () => allConfigs.filter(item => item.id !== LOCAL_CONFIG_ID),
+    [allConfigs]
   );
 
   const currentApiConfig = useMemo(() => {
     if (activeTab !== "remote_openai") {
       return undefined;
     }
-    return (
-      apiConfigs.find((item) => item.id === currentConfigId) || apiConfigs[0]
-    );
+    return apiConfigs.find(item => item.id === currentConfigId) || apiConfigs[0];
   }, [activeTab, apiConfigs, currentConfigId]);
 
-  const currentConfig =
-    activeTab === "local_python" ? localConfig : currentApiConfig;
+  const currentConfig = activeTab === "local_python" ? localConfig : currentApiConfig;
 
   useEffect(() => {
     useSettingStore.setState(
-      produce((draft) => {
+      produce(draft => {
         const provider = draft.setting.embeddingProvider;
         const configs = provider.configs as ConfigItem[];
 
-        if (!configs.find((item) => item.id === LOCAL_CONFIG_ID)) {
+        if (!configs.find(item => item.id === LOCAL_CONFIG_ID)) {
           configs.unshift({ ...LOCAL_DEFAULT_CONFIG });
         }
 
-        const local = configs.find((item) => item.id === LOCAL_CONFIG_ID);
+        const local = configs.find(item => item.id === LOCAL_CONFIG_ID);
         if (local) {
           local.providerType = "local_python";
           local.name = "本地嵌入模型";
@@ -102,27 +84,27 @@ const EmbeddingProviderSetting = () => {
         if (!provider.currentConfigId) {
           provider.currentConfigId = LOCAL_CONFIG_ID;
         }
-      }),
+      })
     );
   }, []);
 
   useEffect(() => {
     if (activeTab === "local_python") {
       useSettingStore.setState(
-        produce((draft) => {
+        produce(draft => {
           draft.setting.embeddingProvider.currentConfigId = LOCAL_CONFIG_ID;
-        }),
+        })
       );
       return;
     }
 
     if (apiConfigs.length > 0) {
-      const exists = apiConfigs.some((item) => item.id === currentConfigId);
+      const exists = apiConfigs.some(item => item.id === currentConfigId);
       if (!exists) {
         useSettingStore.setState(
-          produce((draft) => {
+          produce(draft => {
             draft.setting.embeddingProvider.currentConfigId = apiConfigs[0].id;
-          }),
+          })
         );
       }
     }
@@ -133,7 +115,7 @@ const EmbeddingProviderSetting = () => {
       { key: "local_python", label: "本地模型" },
       { key: "remote_openai", label: "API 模型" },
     ],
-    [],
+    []
   );
 
   const onAddConfig = () => {
@@ -151,7 +133,7 @@ const EmbeddingProviderSetting = () => {
 
     if (action === "create") {
       useSettingStore.setState(
-        produce((draft) => {
+        produce(draft => {
           const id = getUuid();
           draft.setting.embeddingProvider.configs.push({
             id,
@@ -167,13 +149,13 @@ const EmbeddingProviderSetting = () => {
             currentModel: "",
           });
           draft.setting.embeddingProvider.currentConfigId = id;
-        }),
+        })
       );
     } else {
       useSettingStore.setState(
-        produce((draft) => {
+        produce(draft => {
           const index = draft.setting.embeddingProvider.configs.findIndex(
-            (item: ConfigItem) => item.id === data.id,
+            (item: ConfigItem) => item.id === data.id
           );
           if (index === -1) {
             return;
@@ -187,7 +169,7 @@ const EmbeddingProviderSetting = () => {
             batchSize: data.batchSize,
             devicePolicy: data.devicePolicy,
           };
-        }),
+        })
       );
     }
 
@@ -201,7 +183,7 @@ const EmbeddingProviderSetting = () => {
   };
 
   const onActivateConfig = (id: string) => {
-    const config = apiConfigs.find((item) => item.id === id);
+    const config = apiConfigs.find(item => item.id === id);
     if (!config) {
       return;
     }
@@ -218,9 +200,9 @@ const EmbeddingProviderSetting = () => {
       okButtonProps: { danger: true },
       onOk: async () => {
         useSettingStore.setState(
-          produce((draft) => {
+          produce(draft => {
             draft.setting.embeddingProvider.currentConfigId = id;
-          }),
+          })
         );
         message.success("已切换配置，后台正在自动处理索引");
       },
@@ -236,21 +218,19 @@ const EmbeddingProviderSetting = () => {
       okButtonProps: { danger: true },
       onOk: async () => {
         useSettingStore.setState(
-          produce((draft) => {
-            const configs = draft.setting.embeddingProvider
-              .configs as ConfigItem[];
-            const index = configs.findIndex((item) => item.id === id);
+          produce(draft => {
+            const configs = draft.setting.embeddingProvider.configs as ConfigItem[];
+            const index = configs.findIndex(item => item.id === id);
             if (index === -1) {
               return;
             }
             configs.splice(index, 1);
 
             if (draft.setting.embeddingProvider.currentConfigId === id) {
-              const next = configs.find((item) => item.id !== LOCAL_CONFIG_ID);
-              draft.setting.embeddingProvider.currentConfigId =
-                next?.id || LOCAL_CONFIG_ID;
+              const next = configs.find(item => item.id !== LOCAL_CONFIG_ID);
+              draft.setting.embeddingProvider.currentConfigId = next?.id || LOCAL_CONFIG_ID;
             }
-          }),
+          })
         );
       },
     });
@@ -285,9 +265,9 @@ const EmbeddingProviderSetting = () => {
     }
 
     const draft = createDraft(useSettingStore.getState());
-    const config = (
-      draft.setting.embeddingProvider.configs as ConfigItem[]
-    ).find((item) => item.id === currentConfig.id);
+    const config = (draft.setting.embeddingProvider.configs as ConfigItem[]).find(
+      item => item.id === currentConfig.id
+    );
 
     if (!config) {
       return;
@@ -307,7 +287,7 @@ const EmbeddingProviderSetting = () => {
       });
     } else {
       const modelIndex = config.models.findIndex(
-        (item: ModelItem) => item.name === initialModelData?.name,
+        (item: ModelItem) => item.name === initialModelData?.name
       );
       if (modelIndex !== -1) {
         const prevContextLength = config.models[modelIndex].contextLength;
@@ -350,7 +330,7 @@ const EmbeddingProviderSetting = () => {
       >
         <SettingTabs
           activeKey={activeTab}
-          onChange={(key) => setActiveTab(key as ProviderTabKey)}
+          onChange={key => setActiveTab(key as ProviderTabKey)}
           items={tabItems}
         />
       </SettingSection>
@@ -392,13 +372,6 @@ const EmbeddingProviderSetting = () => {
           />
         </SettingSection>
       )}
-
-      <SettingSection
-        title="检索模型"
-        description="用于 Query Expansion 和 Reranker，本地缺失时自动降级"
-      >
-        <SearchModelSection />
-      </SettingSection>
 
       <ConfigModal
         action={action}
