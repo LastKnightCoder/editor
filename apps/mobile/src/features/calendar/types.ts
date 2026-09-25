@@ -36,7 +36,6 @@ export interface CalendarEvent {
   /** 覆盖日历色，null = 继承日历颜色 */
   color: string | null;
   allDay: boolean;
-  value: number | null;
   /** 仅详情查询预加载的 Slate JSON */
   detailContent?: unknown | null;
   calendarTitle: string | null;
@@ -56,7 +55,6 @@ export interface CreateCalendarEventInput {
   endTime?: number | null;
   color?: string | null;
   allDay: boolean;
-  value?: number | null;
 }
 
 export interface UpdateCalendarEventInput extends CreateCalendarEventInput {

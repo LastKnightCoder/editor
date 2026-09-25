@@ -26,7 +26,6 @@ function event(partial: Partial<CalendarEvent>): CalendarEvent {
     endTime: null,
     color: null,
     allDay: true,
-    value: null,
     calendarTitle: "工作",
     calendarColor: "blue",
     isInSystemEvent: false,

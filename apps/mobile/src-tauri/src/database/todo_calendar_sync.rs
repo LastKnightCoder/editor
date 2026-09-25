@@ -410,8 +410,8 @@ fn create_calendar_event(tx: &Transaction<'_>, data: &CalendarEventData) -> Resu
     tx.execute(
         "
         INSERT INTO calendar_event
-        (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day, value)
-        VALUES (?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NULL, ?9, NULL)
+        (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day)
+        VALUES (?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NULL, ?9)
         ",
         params![
             now,
@@ -802,7 +802,7 @@ mod tests {
                 calendar_id INTEGER NOT NULL, title TEXT NOT NULL,
                 detail_content_id INTEGER DEFAULT 0, start_date INTEGER NOT NULL,
                 end_date INTEGER, start_time INTEGER, end_time INTEGER,
-                color TEXT, all_day INTEGER DEFAULT 0, value REAL DEFAULT NULL
+                color TEXT, all_day INTEGER DEFAULT 0
             );
             CREATE TABLE todo_calendar_mapping (
                 id INTEGER PRIMARY KEY, todo_item_id INTEGER NOT NULL,

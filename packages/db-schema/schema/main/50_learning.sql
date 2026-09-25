@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS calendar_event (
         end_time INTEGER,
         color TEXT,
         all_day INTEGER DEFAULT 0
-      , value REAL DEFAULT NULL);
+      );
 CREATE TABLE IF NOT EXISTS weread_notebook (
         book_id TEXT PRIMARY KEY,
         title TEXT NOT NULL,

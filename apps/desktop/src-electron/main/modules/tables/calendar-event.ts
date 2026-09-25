@@ -1,9 +1,5 @@
 import Database from "better-sqlite3";
-import {
-  CalendarEvent,
-  CreateCalendarEvent,
-  UpdateCalendarEvent,
-} from "@/types/calendar";
+import { CalendarEvent, CreateCalendarEvent, UpdateCalendarEvent } from "@/types/calendar";
 import Operation from "./operation";
 import ContentTable from "./content";
 import CalendarGroupTable from "./calendar-group";
@@ -20,36 +16,33 @@ export default class CalendarEventTable {
       "calendar-event:update": this.updateEvent.bind(this),
       "calendar-event:delete": this.deleteEvent.bind(this),
       "calendar-event:get-by-id": this.getEventById.bind(this),
-      "calendar-event:get-by-calendar-id":
-        this.getEventsByCalendarId.bind(this),
+      "calendar-event:get-by-calendar-id": this.getEventsByCalendarId.bind(this),
       "calendar-event:get-by-date-range": this.getEventsByDateRange.bind(this),
       "calendar-event:get-for-day": this.getEventsForDay.bind(this),
       "calendar-event:get-for-week": this.getEventsForWeek.bind(this),
       "calendar-event:get-for-month": this.getEventsForMonth.bind(this),
-      "calendar-event:transfer-between-calendars":
-        this.transferEventsBetweenCalendars.bind(this),
-      "calendar-event:get-events-with-content":
-        this.getEventsWithContent.bind(this),
+      "calendar-event:transfer-between-calendars": this.transferEventsBetweenCalendars.bind(this),
+      "calendar-event:get-events-with-content": this.getEventsWithContent.bind(this),
     };
   }
 
   static upgradeTable(db: Database.Database) {
-    // 检查并添加 value 字段
-    const tableInfo = db
-      .prepare(`PRAGMA table_info(calendar_event)`)
-      .all() as Array<{
-      name: string;
-    }>;
-    const hasValue = tableInfo.some((column) => column.name === "value");
-
-    if (!hasValue) {
-      log.info("Adding value column to calendar_event table");
-      db.exec(`ALTER TABLE calendar_event ADD COLUMN value REAL DEFAULT NULL;`);
+    // value 列已随"数值"字段废弃，尽力清掉存量列；失败不阻塞启动
+    try {
+      const tableInfo = db.prepare(`PRAGMA table_info(calendar_event)`).all() as Array<{
+        name: string;
+      }>;
+      if (tableInfo.some(column => column.name === "value")) {
+        log.info("Dropping deprecated value column from calendar_event table");
+        db.exec(`ALTER TABLE calendar_event DROP COLUMN value;`);
+      }
+    } catch (error) {
+      log.warn("Failed to drop value column from calendar_event:", error);
     }
 
     // 检查是否已经迁移时间记录（通过查询是否存在"时间记录"分组）
     const checkGroupStmt = db.prepare(
-      `SELECT id FROM calendar_group WHERE name = ? AND is_system = 0`,
+      `SELECT id FROM calendar_group WHERE name = ? AND is_system = 0`
     );
     const existingGroup = checkGroupStmt.get("时间记录");
 
@@ -60,7 +53,7 @@ export default class CalendarEventTable {
 
     // 检查 time_records 表是否存在
     const checkTableStmt = db.prepare(
-      `SELECT name FROM sqlite_master WHERE type='table' AND name='time_records'`,
+      `SELECT name FROM sqlite_master WHERE type='table' AND name='time_records'`
     );
     const timeRecordsTableExists = checkTableStmt.get();
 
@@ -90,25 +83,12 @@ export default class CalendarEventTable {
       log.info(`Created time record group with id: ${timeRecordGroup.id}`);
 
       // 2. 获取所有不同的 time_type
-      const timeTypesStmt = db.prepare(
-        "SELECT DISTINCT time_type FROM time_records",
-      );
-      const timeTypes = (timeTypesStmt.all() as { time_type: string }[]).map(
-        (t) => t.time_type,
-      );
+      const timeTypesStmt = db.prepare("SELECT DISTINCT time_type FROM time_records");
+      const timeTypes = (timeTypesStmt.all() as { time_type: string }[]).map(t => t.time_type);
       log.info(`Found ${timeTypes.length} time types: ${timeTypes.join(", ")}`);
 
       // 3. 为每个 time_type 创建一个日历
-      const colors = [
-        "red",
-        "orange",
-        "yellow",
-        "green",
-        "blue",
-        "purple",
-        "pink",
-        "gray",
-      ];
+      const colors = ["red", "orange", "yellow", "green", "blue", "purple", "pink", "gray"];
       const timeTypeToCalendarId: { [key: string]: number } = {};
 
       timeTypes.forEach((timeType, index) => {
@@ -128,13 +108,10 @@ export default class CalendarEventTable {
       });
 
       // 4. 遍历所有时间记录并创建日历事件
-      const recordsStmt = db.prepare(
-        "SELECT * FROM time_records ORDER BY date",
-      );
+      const recordsStmt = db.prepare("SELECT * FROM time_records ORDER BY date");
       const records = recordsStmt.all() as Array<{
         id: number;
         date: string;
-        cost: number;
         content: string;
         event_type: string;
         time_type: string;
@@ -147,7 +124,6 @@ export default class CalendarEventTable {
           const parsedRecord = {
             id: record.id,
             date: record.date,
-            cost: record.cost,
             content: JSON.parse(record.content),
             eventType: record.event_type,
             timeType: record.time_type,
@@ -164,9 +140,7 @@ export default class CalendarEventTable {
           // 创建日历事件
           const calendarId = timeTypeToCalendarId[parsedRecord.timeType];
           if (!calendarId) {
-            log.warn(
-              `No calendar found for time type: ${parsedRecord.timeType}`,
-            );
+            log.warn(`No calendar found for time type: ${parsedRecord.timeType}`);
             continue;
           }
 
@@ -180,7 +154,6 @@ export default class CalendarEventTable {
             endTime: null,
             allDay: true,
             color: null,
-            value: parsedRecord.cost,
           });
 
           migratedCount++;
@@ -189,9 +162,7 @@ export default class CalendarEventTable {
         }
       }
 
-      log.info(
-        `Successfully migrated ${migratedCount} time records to calendar`,
-      );
+      log.info(`Successfully migrated ${migratedCount} time records to calendar`);
 
       // 5. 迁移成功后删除 time_records 表
       try {
@@ -221,8 +192,6 @@ export default class CalendarEventTable {
       endTime: row.end_time !== null ? row.end_time : null,
       color: row.color || null,
       allDay: Boolean(row.all_day),
-      value:
-        row.value !== null && row.value !== undefined ? row.value : undefined,
     };
 
     // 解析预加载的描述内容
@@ -237,15 +206,12 @@ export default class CalendarEventTable {
     return event;
   }
 
-  static createEvent(
-    db: Database.Database,
-    data: CreateCalendarEvent,
-  ): CalendarEvent {
+  static createEvent(db: Database.Database, data: CreateCalendarEvent): CalendarEvent {
     const now = Date.now();
     const stmt = db.prepare(`
       INSERT INTO calendar_event
-      (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day, value)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const res = stmt.run(
@@ -259,25 +225,15 @@ export default class CalendarEventTable {
       data.startTime !== null ? data.startTime : null,
       data.endTime !== null ? data.endTime : null,
       data.color || null,
-      Number(data.allDay || false),
-      data.value !== undefined ? data.value : null,
+      Number(data.allDay || false)
     );
 
-    Operation.insertOperation(
-      db,
-      "calendar_event",
-      "insert",
-      res.lastInsertRowid,
-      now,
-    );
+    Operation.insertOperation(db, "calendar_event", "insert", res.lastInsertRowid, now);
 
     return this.getEventById(db, Number(res.lastInsertRowid));
   }
 
-  static updateEvent(
-    db: Database.Database,
-    data: UpdateCalendarEvent,
-  ): CalendarEvent {
+  static updateEvent(db: Database.Database, data: UpdateCalendarEvent): CalendarEvent {
     const now = Date.now();
     const stmt = db.prepare(`
       UPDATE calendar_event SET
@@ -290,8 +246,7 @@ export default class CalendarEventTable {
         start_time = ?,
         end_time = ?,
         color = ?,
-        all_day = ?,
-        value = ?
+        all_day = ?
       WHERE id = ?
     `);
 
@@ -306,8 +261,7 @@ export default class CalendarEventTable {
       data.endTime !== null ? data.endTime : null,
       data.color || null,
       Number(data.allDay || false),
-      data.value !== undefined ? data.value : null,
-      data.id,
+      data.id
     );
 
     Operation.insertOperation(db, "calendar_event", "update", data.id, now);
@@ -336,22 +290,19 @@ export default class CalendarEventTable {
     return this.parseCalendarEvent(row);
   }
 
-  static getEventsByCalendarId(
-    db: Database.Database,
-    calendarId: number,
-  ): CalendarEvent[] {
+  static getEventsByCalendarId(db: Database.Database, calendarId: number): CalendarEvent[] {
     const stmt = db.prepare(
-      "SELECT * FROM calendar_event WHERE calendar_id = ? ORDER BY start_date ASC, start_time ASC",
+      "SELECT * FROM calendar_event WHERE calendar_id = ? ORDER BY start_date ASC, start_time ASC"
     );
     const rows = stmt.all(calendarId);
-    return rows.map((row) => this.parseCalendarEvent(row));
+    return rows.map(row => this.parseCalendarEvent(row));
   }
 
   static async getEventsByDateRange(
     db: Database.Database,
     startDate: number,
     endDate: number,
-    calendarIds?: number[],
+    calendarIds?: number[]
   ): Promise<CalendarEvent[]> {
     // 获取待办清单日历 ID
     const todoCalendars = TodoCalendarSyncTable.getTodoCalendars(db);
@@ -369,21 +320,12 @@ export default class CalendarEventTable {
         (e.end_date IS NOT NULL AND e.start_date <= ? AND e.end_date >= ?)
       )
     `;
-    const params: any[] = [
-      startDate,
-      endDate,
-      startDate,
-      endDate,
-      startDate,
-      startDate,
-    ];
+    const params: any[] = [startDate, endDate, startDate, endDate, startDate, startDate];
 
     // 如果指定了日历过滤
     if (calendarIds && calendarIds.length > 0) {
       // 从过滤列表中排除周期任务日历（将动态生成）
-      const filteredCalendarIds = calendarIds.filter(
-        (id) => id !== recurringCalendarId,
-      );
+      const filteredCalendarIds = calendarIds.filter(id => id !== recurringCalendarId);
       if (filteredCalendarIds.length > 0) {
         const placeholders = filteredCalendarIds.map(() => "?").join(",");
         query += ` AND e.calendar_id IN (${placeholders})`;
@@ -402,15 +344,13 @@ export default class CalendarEventTable {
 
     const stmt = db.prepare(query);
     const rows = stmt.all(...params);
-    const events = rows.map((row) => this.parseCalendarEvent(row));
+    const events = rows.map(row => this.parseCalendarEvent(row));
 
     // 动态生成周期任务的日历事件
     try {
       // 检查是否需要显示周期任务日历
       const shouldShowRecurring =
-        !calendarIds ||
-        calendarIds.length === 0 ||
-        calendarIds.includes(recurringCalendarId);
+        !calendarIds || calendarIds.length === 0 || calendarIds.includes(recurringCalendarId);
 
       if (shouldShowRecurring) {
         // 获取所有周期任务
@@ -424,12 +364,11 @@ export default class CalendarEventTable {
 
           try {
             // 调用同步方法生成事件
-            const eventIds =
-              await TodoCalendarSyncTable.syncRecurringTasksForRange(db, {
-                todoItemId: todo.id,
-                startDate,
-                endDate,
-              });
+            const eventIds = await TodoCalendarSyncTable.syncRecurringTasksForRange(db, {
+              todoItemId: todo.id,
+              startDate,
+              endDate,
+            });
 
             // 获取生成的事件
             for (const eventId of eventIds) {
@@ -455,7 +394,7 @@ export default class CalendarEventTable {
   static async getEventsForDay(
     db: Database.Database,
     date: number,
-    calendarIds?: number[],
+    calendarIds?: number[]
   ): Promise<CalendarEvent[]> {
     return this.getEventsByDateRange(db, date, date, calendarIds);
   }
@@ -463,7 +402,7 @@ export default class CalendarEventTable {
   static async getEventsForWeek(
     db: Database.Database,
     startDate: number,
-    calendarIds?: number[],
+    calendarIds?: number[]
   ): Promise<CalendarEvent[]> {
     // 假设一周是 7 天
     const endDate = startDate + 6 * 24 * 60 * 60 * 1000;
@@ -474,7 +413,7 @@ export default class CalendarEventTable {
     db: Database.Database,
     year: number,
     month: number,
-    calendarIds?: number[],
+    calendarIds?: number[]
   ): Promise<CalendarEvent[]> {
     // 计算月份的开始和结束日期
     const startDate = new Date(year, month - 1, 1).setHours(0, 0, 0, 0);
@@ -485,7 +424,7 @@ export default class CalendarEventTable {
   static transferEventsBetweenCalendars(
     db: Database.Database,
     sourceCalendarId: number,
-    targetCalendarId: number,
+    targetCalendarId: number
   ): number {
     const now = Date.now();
     const stmt = db.prepare(`
@@ -499,7 +438,7 @@ export default class CalendarEventTable {
     // 记录操作日志
     if (result.changes > 0) {
       log.info(
-        `Transferred ${result.changes} events from calendar ${sourceCalendarId} to ${targetCalendarId}`,
+        `Transferred ${result.changes} events from calendar ${sourceCalendarId} to ${targetCalendarId}`
       );
     }
 
@@ -510,12 +449,12 @@ export default class CalendarEventTable {
   static getEventsByExactDates(
     db: Database.Database,
     dates: string[],
-    calendarIds?: number[],
+    calendarIds?: number[]
   ): CalendarEvent[] {
     if (dates.length === 0) return [];
 
     // 将日期字符串转换为时间戳范围
-    const dateRanges = dates.map((dateStr) => ({
+    const dateRanges = dates.map(dateStr => ({
       start: new Date(dateStr).setHours(0, 0, 0, 0),
       end: new Date(dateStr).setHours(23, 59, 59, 999),
     }));
@@ -535,7 +474,7 @@ export default class CalendarEventTable {
     `;
 
     const queryParams: any[] = [];
-    dateRanges.forEach((range) => {
+    dateRanges.forEach(range => {
       queryParams.push(range.start, range.end);
     });
 
@@ -550,7 +489,7 @@ export default class CalendarEventTable {
 
     const stmt = db.prepare(query);
     const rows = stmt.all(...queryParams);
-    return rows.map((row) => this.parseCalendarEvent(row));
+    return rows.map(row => this.parseCalendarEvent(row));
   }
 
   // 获取带内容的事件（Markdown 格式）
@@ -562,7 +501,7 @@ export default class CalendarEventTable {
       endDate?: string;
       calendarIds?: number[];
       maxLength?: number;
-    },
+    }
   ): Promise<
     Array<{
       id: number;
@@ -574,7 +513,6 @@ export default class CalendarEventTable {
       endTime: number | null;
       allDay: boolean;
       color: string | null;
-      value: number | null;
       detailContent: string;
     }>
   > {
@@ -591,13 +529,13 @@ export default class CalendarEventTable {
         db,
         startTimestamp,
         endTimestamp,
-        params.calendarIds,
+        params.calendarIds
       );
     } else {
       return [];
     }
 
-    return events.map((event) => {
+    return events.map(event => {
       let detailContent = "";
 
       if (event.detailContentId && event.detailContentId > 0) {
@@ -642,7 +580,6 @@ export default class CalendarEventTable {
         endTime: event.endTime,
         allDay: event.allDay,
         color: event.color,
-        value: event.value ?? null,
         detailContent,
       };
     });

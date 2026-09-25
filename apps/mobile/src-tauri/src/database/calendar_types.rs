@@ -51,7 +51,6 @@ pub struct CalendarEventDto {
     /// 覆盖日历色，None = 继承日历颜色
     pub color: Option<String>,
     pub all_day: bool,
-    pub value: Option<f64>,
     /// 仅 get_by_id 预加载；范围查询不返回（列表不渲染富文本）
     pub detail_content: Option<Value>,
     pub calendar_title: Option<String>,
@@ -106,7 +105,6 @@ pub struct CreateCalendarEventPayload {
     pub end_time: Option<i64>,
     pub color: Option<String>,
     pub all_day: bool,
-    pub value: Option<f64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -124,7 +122,6 @@ pub struct UpdateCalendarEventPayload {
     pub end_time: Option<i64>,
     pub color: Option<String>,
     pub all_day: bool,
-    pub value: Option<f64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
