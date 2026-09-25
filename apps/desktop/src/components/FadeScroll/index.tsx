@@ -1,6 +1,7 @@
 import { useState, type ReactNode, type RefObject } from "react";
 import clsx from "clsx";
 import { useEdgeFade } from "@tau/ui";
+import { FADE_SCROLL_CLASS } from "./fadeScrollClass";
 
 interface FadeScrollProps {
   className?: string;
@@ -23,14 +24,7 @@ export function FadeScroll({ className, children, scrollRef }: FadeScrollProps) 
         setEl(node);
         if (scrollRef) scrollRef.current = node;
       }}
-      className={clsx(
-        // 滚动条内缩：4px 细条 + 右侧 6px 透明边 + 轨道上下各 10px，不贴容器边缘。
-        // 不用 .scrollbar-inset：它是未分层 CSS，其 4px 轨道边会压过这里的工具类
-        "edge-fade-scroll overflow-y-auto border-r-[6px] border-r-transparent",
-        "[&::-webkit-scrollbar-thumb]:rounded-[2px] [&::-webkit-scrollbar]:w-1",
-        "[&::-webkit-scrollbar-track]:border-y-[10px] [&::-webkit-scrollbar-track]:border-transparent",
-        className
-      )}
+      className={clsx(FADE_SCROLL_CLASS, className)}
     >
       {children}
     </div>

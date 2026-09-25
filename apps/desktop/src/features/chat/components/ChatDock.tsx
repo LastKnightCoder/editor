@@ -8,6 +8,7 @@ import { lazy, Suspense } from "react";
 import { Maximize2, PanelRightClose } from "lucide-react";
 import { IconButton, Loading } from "@tau/ui";
 import { usePage } from "@/page/PageProvider";
+import { morphAssist } from "@/app/assistMorph";
 import useRightChatSidebarStore from "@/stores/useRightChatSidebarStore";
 import type { BlockData } from "@/types/block-preview";
 import { useChatLibraryStore } from "../libraryStore";
@@ -32,7 +33,9 @@ export function ChatDock({ open, onClose }: { open: boolean; onClose: () => void
         aria-label="在对话页打开"
         className="size-7"
         onClick={() =>
-          navigator.push("chat", currentChatId ? { id: String(currentChatId) } : undefined)
+          morphAssist(() =>
+            navigator.push("chat", currentChatId ? { id: String(currentChatId) } : undefined)
+          )
         }
       >
         <Maximize2 size={15} strokeWidth={1.75} />
