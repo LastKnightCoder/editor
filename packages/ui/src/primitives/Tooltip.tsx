@@ -163,7 +163,7 @@ export function Tooltip({
       ref={popRef}
       id={tipId}
       role="tooltip"
-      aria-hidden={!open}
+      inert={!open}
       className={clsx(
         "bg-ink-1 text-ink-inverse border-ink-inverse/15 shadow-card group/float",
         "pointer-events-none fixed left-0 top-0 z-[300] w-max max-w-[280px]",

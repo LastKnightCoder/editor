@@ -72,7 +72,7 @@ export function HabitRail({
   const frac = today.length ? doneCount / today.length : 0;
 
   return (
-    <div className="flex flex-col pl-[18px] pr-3 pt-2">
+    <div className="flex min-w-0 flex-col pl-[18px] pr-3 pt-2">
       <Block
         title={
           <>
@@ -132,7 +132,7 @@ export function HabitRail({
           </div>
         ))}
         {resting.length > 0 && (
-          <p className="text-ink-3 pt-1.5 text-[11.5px]">
+          <p className="text-ink-3 min-w-0 break-words pt-1.5 text-[11.5px]">
             今日休息：{resting.map(e => e.title).join("、")}
           </p>
         )}
@@ -195,11 +195,11 @@ export function HabitRail({
             key={entry.id}
             type="button"
             onClick={() => onOpen(entry)}
-            className="hover:bg-hover -mx-1.5 flex min-h-7 items-center gap-2 rounded-[8px] px-1.5 text-left"
+            className="hover:bg-hover grid min-h-8 w-full min-w-0 grid-cols-[13px_minmax(0,1fr)_auto] items-center gap-2 rounded-[8px] px-1.5 text-left"
           >
             <CircleCheck className="text-ok size-[13px] shrink-0" strokeWidth={1.75} />
             <span className="text-ink-2 text-tau-meta min-w-0 flex-1 truncate">{entry.title}</span>
-            <span className="text-ink-3 text-[11px] tabular-nums">
+            <span className="text-ink-3 whitespace-nowrap text-[11px] tabular-nums">
               {dayWord(entry.completedAt!, now)} {hm(entry.completedAt!)}
             </span>
           </button>

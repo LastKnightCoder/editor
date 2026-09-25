@@ -395,7 +395,7 @@ export function DateRangePicker({
       id={panelId}
       role="dialog"
       aria-label="选择日期范围"
-      aria-hidden={!open}
+      inert={!open}
       data-open={open}
       onKeyDown={onPanelKeyDown}
       tabIndex={-1}

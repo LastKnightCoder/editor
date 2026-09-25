@@ -78,12 +78,12 @@ describe("Select（数据驱动）", () => {
     vi.restoreAllMocks();
   });
 
-  it("渲染：placeholder 上屏、combobox 语义、弹层 aria-hidden 待命", () => {
+  it("渲染：placeholder 上屏、combobox 语义、弹层 inert 待命", () => {
     const h = render(<Select options={OPTIONS} placeholder="选择笔记本" />);
     cleanups.push(h.cleanup);
     expect(h.trigger.getAttribute("aria-expanded")).toBe("false");
     expect(h.trigger.textContent).toContain("选择笔记本");
-    expect(h.menu.getAttribute("aria-hidden")).toBe("true");
+    expect(h.menu.hasAttribute("inert")).toBe(true);
     expect(options(h.menu)).toHaveLength(4);
   });
 
@@ -99,7 +99,7 @@ describe("Select（数据驱动）", () => {
     cleanups.push(h.cleanup);
     click(h.trigger);
     expect(h.trigger.getAttribute("aria-expanded")).toBe("true");
-    expect(h.menu.getAttribute("aria-hidden")).toBe("false");
+    expect(h.menu.hasAttribute("inert")).toBe(false);
 
     click(options(h.menu)[1]);
     expect(onValueChange).toHaveBeenCalledWith("ideas");

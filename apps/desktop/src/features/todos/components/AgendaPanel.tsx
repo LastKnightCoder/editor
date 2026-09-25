@@ -189,7 +189,7 @@ export function AgendaPanel({
       ref={setScrollEl}
       layoutScroll
       // 滚动容器自身离卡片边缘留隙（上下 10px、右 6px），滚动条贴容器画，不贴卡片圆角
-      className="edge-fade-scroll relative my-2.5 mr-1.5 min-h-0 flex-1 overflow-y-auto pb-[18px] pl-[18px] pr-2.5"
+      className="edge-fade-scroll relative my-2.5 mr-1.5 min-h-0 min-w-0 flex-1 overflow-y-auto pb-[18px] pl-[18px] pr-2.5"
     >
       {sections.length === 0 && (
         <div className="text-ink-3 flex flex-col items-center gap-1.5 py-20 text-center text-[12.5px]">

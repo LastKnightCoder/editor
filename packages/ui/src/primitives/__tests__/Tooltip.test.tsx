@@ -55,7 +55,7 @@ describe("Tooltip 条件禁用", () => {
 
   function expectOpen(open: boolean) {
     const tooltip = document.querySelector('[role="tooltip"]')!;
-    expect(tooltip.getAttribute("aria-hidden")).toBe(String(!open));
+    expect(tooltip.hasAttribute("inert")).toBe(!open);
     expect(container.querySelector("button")!.getAttribute("aria-describedby")).toBe(
       open ? tooltip.id : null
     );

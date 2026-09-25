@@ -97,11 +97,11 @@ describe("Menu（方案 B）", () => {
     expect(hlItem(h.menu)?.textContent).toBe("开关");
     key(h.menu, "Enter");
     expect(changed).toHaveBeenCalledExactlyOnceWith(true);
-    expect(h.menu.getAttribute("aria-hidden")).toBe("false");
+    expect(h.menu.hasAttribute("inert")).toBe(false);
     key(h.menu, "Home");
     expect(hlItem(h.menu)?.textContent).toBe("首项");
     click(h.trigger);
-    expect(h.menu.getAttribute("aria-hidden")).toBe("true");
+    expect(h.menu.hasAttribute("inert")).toBe(true);
   });
 
   it.each([false, true])("子层 Tab 关闭整树且放行默认行为（shift=%s）", shiftKey => {
@@ -128,7 +128,7 @@ describe("Menu（方案 B）", () => {
     expect(event.defaultPrevented).toBe(false);
     expect(changed).toHaveBeenCalledExactlyOnceWith(false);
     expect(document.activeElement).toBe(h.trigger);
-    expect(h.menu.getAttribute("aria-hidden")).toBe("true");
+    expect(h.menu.hasAttribute("inert")).toBe(true);
     expect(menusInDoc()).toHaveLength(1);
   });
 
@@ -200,7 +200,7 @@ describe("Menu（方案 B）", () => {
       cleanups.push(h.cleanup);
       click(h.trigger);
       expect(oldCallback).toHaveBeenCalledWith(true);
-      expect(h.menu.getAttribute("aria-hidden")).toBe("true");
+      expect(h.menu.hasAttribute("inert")).toBe(true);
       act(() => h.root.render(view(true, oldCallback)));
       act(() => h.root.render(view(true, latest)));
       oldCallback.mockClear();
@@ -212,9 +212,9 @@ describe("Menu（方案 B）", () => {
       else click(h.container.querySelectorAll("button")[1]);
       expect(latest).toHaveBeenCalledExactlyOnceWith(false);
       expect(oldCallback).not.toHaveBeenCalled();
-      expect(h.menu.getAttribute("aria-hidden")).toBe("false");
+      expect(h.menu.hasAttribute("inert")).toBe(false);
       act(() => h.root.render(view(false, latest)));
-      expect(h.menu.getAttribute("aria-hidden")).toBe("true");
+      expect(h.menu.hasAttribute("inert")).toBe(true);
     }
   );
 
@@ -235,7 +235,7 @@ describe("Menu（方案 B）", () => {
     act(() => {
       next.trigger.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
     });
-    expect(next.menu.getAttribute("aria-hidden")).toBe("false");
+    expect(next.menu.hasAttribute("inert")).toBe(false);
     expect(next.menu.className).toContain("min-w-[280px]");
     expect(next.menu.className).not.toContain("min-w-[224px]");
     expect(next.container.firstElementChild?.className).toBe("contents");
@@ -245,12 +245,12 @@ describe("Menu（方案 B）", () => {
     expect(changed).not.toHaveBeenCalled();
   });
 
-  it("渲染：trigger aria 接线、浮层 aria-hidden 待命、异构项齐全", () => {
+  it("渲染：trigger aria 接线、浮层 inert 待命、异构项齐全", () => {
     const h = render(<Menu trigger={<button>文件</button>}>{FILE_MENU}</Menu>);
     cleanups.push(h.cleanup);
     expect(h.trigger.getAttribute("aria-haspopup")).toBe("menu");
     expect(h.trigger.getAttribute("aria-expanded")).toBe("false");
-    expect(h.menu.getAttribute("aria-hidden")).toBe("true");
+    expect(h.menu.hasAttribute("inert")).toBe(true);
     expect(h.menu.querySelectorAll('[role="menuitem"]').length).toBeGreaterThanOrEqual(4);
     expect(h.menu.querySelector('[role="separator"]')).not.toBeNull();
     expect(h.menu.querySelector('[data-danger="true"]')?.textContent).toContain("移到废纸篓");
@@ -263,7 +263,7 @@ describe("Menu（方案 B）", () => {
     cleanups.push(h.cleanup);
     click(h.trigger);
     expect(h.trigger.getAttribute("aria-expanded")).toBe("true");
-    expect(h.menu.getAttribute("aria-hidden")).toBe("false");
+    expect(h.menu.hasAttribute("inert")).toBe(false);
     expect(document.activeElement).toBe(h.menu);
     expect(hlItem(h.menu)?.textContent).toContain("新建卡片"); // 首个非 disabled 项
   });
@@ -460,10 +460,10 @@ describe("Menu（方案 B）", () => {
         .querySelector(".card")
         ?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
     });
-    expect(h.menu.getAttribute("aria-hidden")).toBe("false");
+    expect(h.menu.hasAttribute("inert")).toBe(false);
     click(items(h.menu)[0]);
     expect(onSelect).toHaveBeenCalledTimes(1);
-    expect(h.menu.getAttribute("aria-hidden")).toBe("true");
+    expect(h.menu.hasAttribute("inert")).toBe(true);
   });
 
   it("全局单开：打开第二个菜单时第一个自动关闭", () => {

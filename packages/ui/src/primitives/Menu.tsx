@@ -254,7 +254,7 @@ function MenuSurface({
         id={surfaceId}
         role="menu"
         tabIndex={-1}
-        aria-hidden={!open}
+        inert={!open}
         aria-activedescendant={nav.current ?? undefined}
         data-open={open}
         onKeyDown={onKeyDown}
