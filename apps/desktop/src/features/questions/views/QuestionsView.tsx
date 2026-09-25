@@ -4,7 +4,7 @@
  * 分组放进列表板做 chips，不与全局侧栏同层。
  *
  * 删除问题、解除关联不二次确认：立即隐藏 + Toast 撤销，5 秒后落库；改状态可撤销（删除对应轨迹事件）。
- * 键盘（本页在栈顶、焦点不在输入 / 按钮 / 浮层内）：↑↓ 切换、1/2/3 设状态、L 关联材料、⌫ 删除。
+ * 键盘（本页在栈顶、焦点不在输入 / 按钮 / 浮层内）：↑↓ 切换、1/2/3 设状态、L 关联材料。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -293,7 +293,6 @@ export function QuestionsView() {
       <Menu.Separator />
       <Menu.Item
         danger
-        kbd="⌫"
         icon={<Trash2 className="size-[15px]" strokeWidth={1.75} />}
         onSelect={() => remove(question)}
       >
@@ -331,11 +330,6 @@ export function QuestionsView() {
       } else if (current && (e.key === "l" || e.key === "L")) {
         e.preventDefault();
         setPickerOpen(true);
-      } else if (current && (e.key === "Backspace" || e.key === "Delete")) {
-        e.preventDefault();
-        const neighbour = d.order[idx + 1] ?? d.order[idx - 1];
-        remove(current.question);
-        setSelectedId(neighbour?.id ?? null);
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -452,7 +446,6 @@ export function QuestionsView() {
               <KeyHint keys={["↑", "↓"]} label="切换" />
               <KeyHint keys={["1", "2", "3"]} label="设状态" />
               <KeyHint keys={["L"]} label="关联材料" />
-              <KeyHint keys={["⌫"]} label="删除" />
             </div>
           </div>
 
