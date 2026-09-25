@@ -26,7 +26,11 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { useDraggingStore } from "@/stores/useDraggingStore";
 import useSettingStore from "@/stores/useSettingStore";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
-import { useProjectTreeExpandedStore } from "@/features/projects/projectTreeExpandedStore";
+import {
+  useProjectTreeExpandedStore,
+  openEntryKey,
+  readPersistedOpen,
+} from "@/features/projects/projectTreeExpandedStore";
 import useDragAndDrop, { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
 import useAddRefCard from "./useAddRefCard";
 import useAddRefWhiteBoard from "../useAddRefWhiteBoard";
@@ -190,11 +194,16 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const titleAnchorRef = useRef<HTMLDivElement>(null);
   const [titleTruncated, setTitleTruncated] = useState(false);
   const [projectItem, setProjectItem] = useState<ProjectItem>();
-  // 折叠状态受控于域 store（树视图与思维导图共用，历史 key 免迁移）；
-  // 定位脉冲由 ProjectList 的 batchReveal 统一写入，本组件只表达用户意图
-  const getFolded = useProjectTreeExpandedStore(state => state.getFolded);
-  const setFolded = useProjectTreeExpandedStore(state => state.setFolded);
-  const folderOpen = getFolded(databaseName, projectItemId) ?? path.length === 1;
+  // 展开状态受控于域 store（值语义 = 是否展开，与持久层历史格式一致；树视图与
+  // 思维导图共用）。定位脉冲由 ProjectList 的 batchReveal 统一写入，本组件只表达用户意图。
+  // 订阅必须落在 open 值上（方法引用恒定，订阅它 store 更新不会触发重渲染，
+  // 展开态将依赖无关渲染的时序而闪烁）
+  const storedOpen = useProjectTreeExpandedStore(
+    state => state.open[openEntryKey(databaseName, projectItemId)]
+  );
+  const setOpen = useProjectTreeExpandedStore(state => state.setOpen);
+  const folderOpen =
+    storedOpen ?? readPersistedOpen(databaseName, projectItemId) ?? path.length === 1;
 
   const { modalStates, openModal, closeModal } = useProjectItemModalStates();
   const { createWebLinkRecord, handleSelectWebviewFile } = useWebLinkHandlers({
@@ -306,14 +315,14 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   // 激活项是文件夹时展开自身并沿父链联动（itemId 为导航事件源，effect 合法）
   useEffect(() => {
     if (itemId === projectItemId) {
-      setFolded(databaseName, projectItemId, false);
+      setOpen(databaseName, projectItemId, true);
       onOpenChange?.(true);
     }
   }, [itemId]);
 
   const onChildOpenChange = useMemoizedFn((open: boolean) => {
     if (open) {
-      setFolded(databaseName, projectItemId, false);
+      setOpen(databaseName, projectItemId, true);
     }
   });
 
@@ -872,7 +881,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   e.preventDefault();
                   e.stopPropagation();
                   if (projectItem.children.length === 0) return;
-                  setFolded(databaseName, projectItemId, !folderOpen);
+                  setOpen(databaseName, projectItemId, !folderOpen);
                 }}
               >
                 {projectItem.children.length > 0 ? (
