@@ -9,6 +9,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { History, Loader2, PenLine, Search, SearchX, X } from "lucide-react";
 import { Button, IconButton, Loading, Tag, cn, toast, useEdgeFade } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
@@ -21,12 +22,14 @@ import {
   monthsOf,
   onThisDay,
   parseScope,
+  plainText,
   presetRanges,
   rankTags,
   scopeId,
   shortDate,
   streak,
   tagCounts,
+  type DayGroup,
   type DiaryMoment,
   type DiaryScope,
 } from "../model";
@@ -39,8 +42,6 @@ import { OnThisDayDrawer, OnThisDayTease } from "../components/OnThisDay";
 import { ClearTagDialog } from "../components/TagPicker";
 
 const UNDO_MS = 5000;
-/** 渐进挂载：每批条目数（只读编辑器实例有成本，不整表挂载） */
-const BATCH = 60;
 const OTD_DISMISS_KEY = "diary:otd-dismissed";
 
 export function DiaryView() {
@@ -55,20 +56,28 @@ export function DiaryView() {
   const [range, setRange] = useState<[string, string] | null>(null);
   const [query, setQuery] = useState("");
   const { hits, searching } = useDiarySearch(query);
-  const [limit, setLimit] = useState(BATCH);
   const [freshIds, setFreshIds] = useState<ReadonlySet<number>>(() => new Set());
+  // 闪一下只是一次性提示：过了闪烁窗口就清掉，否则条目滚出（虚拟列表卸载）再滚回重挂时又闪一次。
+  // 留 2 秒余量给跳转落定、目标挂上
+  useEffect(() => {
+    if (!freshIds.size) return;
+    const id = window.setTimeout(() => setFreshIds(new Set()), 2000);
+    return () => window.clearTimeout(id);
+  }, [freshIds]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [otdDismissed, setOtdDismissed] = useState(
     () => localStorage.getItem(OTD_DISMISS_KEY) === today
   );
   const [clearing, setClearing] = useState<string | null>(null);
   const [currentMonth, setCurrentMonth] = useState<string | null>(null);
+  /** 发起跳转时强制一轮渲染，让「待滚动目标」effect 执行（目标月可能恰是当前月，其余状态不变） */
+  const [, setJumpTick] = useState(0);
 
   const composerRef = useRef<ComposerHandle>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
-  /** 渲染后要滚到的日 / 月（跳转目标可能尚未挂载，先放大 limit 再滚） */
+  /** 渲染后要滚到的条 / 日 / 月（目标可能不在虚拟窗口里，先滚到它那天的估算位置再精确对齐） */
   const pendingScroll = useRef<string | null>(null);
   // 跳转目标月：跳转引起的滚动不改高亮（目标靠近底部时顶不到视口顶，按顶部推算会错成上一个月），
   // 用户自己动（滚轮 / 按下 / 按键）才解除
@@ -141,13 +150,21 @@ export function DiaryView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [live, params.id, range, hits, query]
   );
-  const groups = useMemo(() => groupByDay(filtered.slice(0, limit)), [filtered, limit]);
-  const months = useMemo(() => monthsOf(groupByDay(filtered)), [filtered]);
+  const groups = useMemo(() => groupByDay(filtered), [filtered]);
+  const months = useMemo(() => monthsOf(groups), [groups]);
   const filtering = scope.kind !== "all" || range != null || query.trim() !== "";
 
-  // 换筛选回到第一批、回顶
+  /* ---------- 按天虚拟化：一天一行（日期列在行内吸顶），只挂视口附近的编辑器 ---------- */
+  const virtualizer = useVirtualizer({
+    count: groups.length,
+    getScrollElement: () => scrollEl,
+    estimateSize: index => estimateDay(groups[index]),
+    getItemKey: index => groups[index].day,
+    overscan: 3,
+  });
+
+  // 换筛选回顶
   useEffect(() => {
-    setLimit(BATCH);
     pinnedMonth.current = null;
     scrollEl?.scrollTo({ top: 0 });
   }, [params.id, range, hits, scrollEl]);
@@ -162,11 +179,9 @@ export function DiaryView() {
     const idx = exact >= 0 ? exact : live.findIndex(m => m.day <= day);
     if (idx >= 0) pinnedMonth.current = live[idx].day.slice(0, 7);
     if (exact >= 0) {
-      setLimit(l => Math.max(l, idx + BATCH));
       pendingScroll.current = `moment:${params.moment}`;
       setFreshIds(new Set([live[idx].id]));
     } else if (idx >= 0) {
-      setLimit(l => Math.max(l, idx + BATCH));
       pendingScroll.current = `day:${live[idx].day}`;
       setFreshIds(new Set(live.filter(m => m.day === live[idx].day).map(m => m.id)));
     }
@@ -188,26 +203,25 @@ export function DiaryView() {
           ? `[data-day="${value}"]`
           : `[data-day^="${value}"]`
     );
-    if (!el) return;
+    if (!el) {
+      // 不在虚拟窗口里：先跳到那天的估算位置让它挂上，下一轮渲染再精确对齐
+      const index = groups.findIndex(g =>
+        kind === "moment"
+          ? g.moments.some(m => String(m.id) === value)
+          : kind === "day"
+            ? g.day === value
+            : g.day.startsWith(value)
+      );
+      const offset = index >= 0 ? virtualizer.getOffsetForIndex(index, "start") : undefined;
+      if (offset) virtualizer.scrollToOffset(offset[0]);
+      return;
+    }
     pendingScroll.current = null;
     // 单条落在视口中部（天的粘性头不会挡住它）；整天 / 整月对齐顶部
     stopSettling.current?.();
     stopSettling.current = scrollSettled(scrollEl, el, kind === "moment" ? "center" : "top");
   });
   useEffect(() => () => stopSettling.current?.(), []);
-
-  /* ---------- 渐进挂载：触底前 800px 加下一批 ---------- */
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || !scrollEl) return;
-    const io = new IntersectionObserver(
-      entries => entries[0].isIntersecting && setLimit(l => l + BATCH),
-      { root: scrollEl, rootMargin: "0px 0px 800px 0px" }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [scrollEl, groups.length]);
 
   /* ---------- 月份刻度：跟随滚动 ---------- */
   useEffect(() => {
@@ -216,20 +230,14 @@ export function DiaryView() {
     const sync = () => {
       frame = 0;
       if (pinnedMonth.current) return setCurrentMonth(pinnedMonth.current);
-      const sections = scrollEl.querySelectorAll<HTMLElement>("[data-day]");
+      // 滚到底时最早的月份已在视口里、只是顶不到顶部 → 取最后一天
       const atBottom =
         scrollEl.scrollTop + scrollEl.clientHeight >= scrollEl.scrollHeight - 2 &&
         scrollEl.scrollTop > 0;
-      let cur: string | null = null;
-      if (atBottom) cur = sections[sections.length - 1]?.dataset.day?.slice(0, 7) ?? null;
-      else {
-        const top = scrollEl.scrollTop + 40;
-        for (const sec of sections) {
-          if (sec.offsetTop > top) break;
-          cur = sec.dataset.day?.slice(0, 7) ?? cur;
-        }
-      }
-      setCurrentMonth(cur ?? months[0] ?? null);
+      const item = atBottom
+        ? { index: groups.length - 1 }
+        : virtualizer.getVirtualItemForOffset(scrollEl.scrollTop + 40);
+      setCurrentMonth(groups[item?.index ?? 0]?.day.slice(0, 7) ?? months[0] ?? null);
     };
     const onScroll = () => (frame ||= requestAnimationFrame(sync));
     const unpin = () => {
@@ -249,15 +257,14 @@ export function DiaryView() {
       scrollEl.removeEventListener("keydown", unpin);
       cancelAnimationFrame(frame);
     };
-  }, [scrollEl, months]);
+  }, [scrollEl, months, groups, virtualizer]);
 
   const jumpToMonth = (month: string) => {
-    const idx = filtered.findIndex(m => m.day.startsWith(month));
-    if (idx < 0) return;
-    setLimit(l => Math.max(l, idx + BATCH));
+    if (!groups.some(g => g.day.startsWith(month))) return;
     pendingScroll.current = `month:${month}`;
     pinnedMonth.current = month;
     setCurrentMonth(month);
+    setJumpTick(t => t + 1);
   };
 
   /* ---------- 键盘：直接打字进输入条，/ 聚焦搜索（仅本页在栈顶） ---------- */
@@ -409,7 +416,7 @@ export function DiaryView() {
                 setQuery("");
               }
             }}
-            placeholder="搜索碎碎念…"
+            placeholder="搜索"
             className="text-tau-meta placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
           />
           {query && (
@@ -432,7 +439,8 @@ export function DiaryView() {
         <div
           ref={setScrollEl}
           data-diary-stream
-          className="edge-fade-scroll relative min-h-0 flex-1 overflow-y-auto"
+          // 行高变化的滚动补偿由虚拟列表负责，关掉浏览器滚动锚定免得补两次
+          className="edge-fade-scroll relative min-h-0 flex-1 overflow-y-auto [overflow-anchor:none]"
         >
           <div className="mx-auto max-w-[860px] px-14 pb-2">
             {live.length === 0 ? (
@@ -470,27 +478,38 @@ export function DiaryView() {
               />
             ) : (
               <>
-                {groups.map(group => (
-                  <DaySection
-                    key={group.day}
-                    group={group}
-                    freshIds={freshIds}
-                    today={today}
-                    tags={tags}
-                    counts={counts}
-                    mutations={mutations}
-                    onOpenTag={openTag}
-                    onDelete={scheduleDelete}
-                    onClearTag={setClearing}
-                  />
-                ))}
-                <div ref={sentinelRef} />
+                <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
+                  {virtualizer.getVirtualItems().map(item => {
+                    const group = groups[item.index];
+                    return (
+                      <div
+                        key={item.key}
+                        ref={virtualizer.measureElement}
+                        data-index={item.index}
+                        // 用 top 不用 transform：sticky 按布局位置算，transform 平移会让每天的
+                        // 日期列都以为自己在内容顶部，被推到该天底部（吸顶失效且错位）
+                        className="absolute inset-x-0"
+                        style={{ top: item.start }}
+                      >
+                        <DaySection
+                          group={group}
+                          freshIds={freshIds}
+                          today={today}
+                          tags={tags}
+                          counts={counts}
+                          mutations={mutations}
+                          onOpenTag={openTag}
+                          onDelete={scheduleDelete}
+                          onClearTag={setClearing}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
                 <p className="text-tau-sm text-ink-3 py-7 text-center">
-                  {limit < filtered.length
-                    ? "继续往下加载…"
-                    : filtering
-                      ? `共 ${filtered.length} 条`
-                      : `已经到最早的一条了 · 共 ${filtered.length} 条`}
+                  {filtering
+                    ? `共 ${filtered.length} 条`
+                    : `已经到最早的一条了 · 共 ${filtered.length} 条`}
                 </p>
               </>
             )}
@@ -581,9 +600,9 @@ function Empty({
 }
 
 /**
- * 滚到目标并等布局落定。流里条目 `content-visibility: auto`（屏外按 120px 估高），编辑器
- * 挂载后还会归一化、图片晚到——按估算位置一次（尤其平滑）滚过去，沿途真实高度出来就偏了。
- * 故瞬时跳转后逐帧校正，连续 6 帧不再移动即止（留出屏外占位换成编辑器的几帧）（上限约 1 秒）；用户一滚动 / 按下立即让出。
+ * 滚到目标并等布局落定。虚拟列表里未测量的天按估算高度占位，编辑器挂载后还会归一化、
+ * 图片晚到——按估算位置一次滚过去，沿途真实高度出来就偏了。
+ * 故瞬时跳转后逐帧校正，连续 6 帧不再移动即止（上限约 1 秒）；用户一滚动 / 按下立即让出。
  */
 function scrollSettled(container: HTMLElement, el: HTMLElement, align: "center" | "top") {
   let frame = 0;
@@ -614,4 +633,19 @@ function scrollSettled(container: HTMLElement, el: HTMLElement, align: "center" 
   container.addEventListener("keydown", stop);
   step();
   return stop;
+}
+
+/**
+ * 一天的估算高度（虚拟列表未测量前的占位，越准跳转越少校正）：
+ * 段落按每行约 42 字、行高约 27px 折算，加条目头 / 内边距 / 标签行与天的上下留白。
+ */
+function estimateDay(group: DayGroup) {
+  let height = 30;
+  for (const moment of group.moments) {
+    const lines = plainText(moment.content)
+      .split("\n")
+      .reduce((n, line) => n + Math.max(1, Math.ceil(line.length / 42)), 0);
+    height += 56 + Math.max(1, lines) * 27 + (moment.tags.length ? 30 : 0);
+  }
+  return Math.max(height, 130);
 }
