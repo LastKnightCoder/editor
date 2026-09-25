@@ -145,6 +145,38 @@ export default class QuestionTable {
     return questions.map(question => this.parseQuestion(question));
   }
 
+  /** 问题列表摘要：只读取列表需要的字段，避免传输并解析正文、答案缓存。 */
+  static getAllQuestionSummaries(db: Database.Database): IQuestion[] {
+    const rows = db
+      .prepare(
+        `SELECT id, create_time, update_time, question_content, group_id,
+                sort_index, resolved_time, status
+         FROM questions`
+      )
+      .all() as {
+      id: number;
+      create_time: number;
+      update_time: number;
+      question_content: string;
+      group_id: number;
+      sort_index: number;
+      resolved_time: number | null;
+      status: string | null;
+    }[];
+
+    return rows.map(row => ({
+      id: row.id,
+      createTime: row.create_time,
+      updateTime: row.update_time,
+      questionContent: row.question_content,
+      answers: [],
+      groupId: row.group_id,
+      sortIndex: row.sort_index,
+      resolvedTime: row.resolved_time,
+      status: (row.status || "not_started") as IQuestion["status"],
+    }));
+  }
+
   static createQuestion(
     db: Database.Database,
     question: string,

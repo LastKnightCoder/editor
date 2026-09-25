@@ -71,6 +71,10 @@ const parseJsonArray = (raw: unknown): unknown[] => {
 
 export default class QuestionLinkTable {
   static upgradeTable(db: Database.Database) {
+    const columns = db.prepare(`PRAGMA table_info(question_link)`).all() as { name: string }[];
+    if (!columns.some(column => column.name === "content_id")) {
+      db.exec(`ALTER TABLE question_link ADD COLUMN content_id INTEGER`);
+    }
     this.backfill(db);
   }
 
@@ -496,7 +500,7 @@ export default class QuestionLinkTable {
   static listSummaries(db: Database.Database): QuestionSummary[] {
     const counts = this.linkCountsByQuestion(db);
     const activity = this.lastActivityByQuestion(db);
-    return QuestionTable.getAllQuestions(db).map(q => ({
+    return QuestionTable.getAllQuestionSummaries(db).map(q => ({
       ...q,
       linkCounts: counts.get(q.id) ?? {},
       lastActivityTime: Math.max(q.updateTime, activity.get(q.id) ?? 0),

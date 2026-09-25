@@ -100,6 +100,27 @@ describe("问题材料关联与探究轨迹", () => {
     ]);
   });
 
+  it("升级旧版 question_link：补齐 content_id 后可执行回填", () => {
+    db.exec(`
+      DROP TABLE question_link;
+      CREATE TABLE question_link (
+        id INTEGER PRIMARY KEY,
+        question_id INTEGER NOT NULL,
+        target_type TEXT NOT NULL,
+        target_id INTEGER NOT NULL,
+        sort_index INTEGER NOT NULL DEFAULT 0,
+        create_time INTEGER NOT NULL
+      );
+    `);
+
+    expect(() => QuestionLinkTable.upgradeTable(db)).not.toThrow();
+    expect(
+      (db.prepare(`PRAGMA table_info(question_link)`).all() as { name: string }[]).some(
+        column => column.name === "content_id"
+      )
+    ).toBe(true);
+  });
+
   it("回填：非已解答问题清空旧的「首个答案时间」", () => {
     const now = Date.now();
     const questionId = Number(
