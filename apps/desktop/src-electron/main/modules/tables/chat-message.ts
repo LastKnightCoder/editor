@@ -155,7 +155,7 @@ export default class ChatMessageTable {
     titleDirty = false
   ): ChatMessage {
     const stmt = db.prepare(
-      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, archived, parent_chat_id, branch_index, order_num, message_schema_version, title_dirty) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)"
+      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, archived, parent_chat_id, branch_index, order_num, message_schema_version, title_dirty) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
     const migration = migrateChatSessionMessages(messages);
