@@ -1,6 +1,6 @@
 /**
  * 日记页数据源（D-044）：一次拉全量扁平条目 + 标签库，渲染期纯函数派生（model.ts）。
- * 数量级：个人碎碎念通常数千条以内、只含正文 JSON，全量轻表足够；渲染侧渐进挂载。
+ * 数量级：个人碎碎念通常数千条以内、只含正文 JSON，全量轻表足够；渲染侧按天虚拟化。
  *
  * 变更联动：主进程日记表层全部写命令广播 diary:changed（含 AI 工具 / MCP 等其它窗口写入口），
  * 本模块常驻订阅并失效 ["diary"]（按库过滤；侧栏标签子项经 navSlots 依赖本模块，监听随壳层
@@ -25,6 +25,7 @@ import { queryClient } from "@/queryClient";
 import useSettingStore from "@/stores/useSettingStore";
 import { searchContent } from "@/utils";
 import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
+import { getContentLength } from "@/utils/helper";
 import {
   nextTagColor,
   sortMoments,
@@ -129,11 +130,13 @@ function createMutations(client: QueryClient) {
     async updateContent(id: number, content: Descendant[]) {
       const seg = await updateDiarySegment({ segmentId: id, content });
       if (!seg) return;
+      // 正文以本端刚发出的为准：挂协作会话时主进程不写正文（会话异步投影落库），
+      // 返回的 seg.content / wordCount 可能还是旧的——拿它回填会让只读渲染显示改前内容
       patch(client, s => ({
         ...s,
         moments: s.moments.map(m =>
           m.id === id
-            ? { ...m, content: seg.content, words: seg.wordCount, updateTime: seg.updateTime }
+            ? { ...m, content, words: getContentLength(content), updateTime: seg.updateTime }
             : m
         ),
       }));

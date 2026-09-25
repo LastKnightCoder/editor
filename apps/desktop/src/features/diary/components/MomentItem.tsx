@@ -4,7 +4,7 @@
  * 阅读态 / 编辑态分离（D-044，修 legacy 常驻编辑器误触即改）：默认用只读 Editor 渲染
  * （不建协作会话，同卡片墙 CardContentPreview）；点正文才挂 ContentEditor（内容会话、
  * 协作照旧）——会话就绪前继续显示只读渲染、就绪后光标落在点击处，切换不闪不跳；
- * 实时保存（节流落库、退出时 flush），⌘↵ / Esc / 点流里别处退出，不设「完成」按钮。
+ * 实时保存（节流落库、退出 / 卸载时补存），⌘↵ / Esc / 点流里别处退出，不设「完成」按钮。
  * 悬停操作（标签 / 更多）占固定槽位原位淡入，不顶开布局。
  */
 
@@ -64,21 +64,33 @@ export const MomentItem = memo(function MomentItem({
   const colorOf = (name: string): TagColor => tags.find(t => t.name === name)?.color ?? "gray";
 
   useEffect(() => {
-    if (!fresh) return;
-    setFlash(true);
+    if (fresh) setFlash(true);
+  }, [fresh]);
+  // 熄灭跟着 flash 走，不跟 fresh：上层清掉 freshIds 时不能把还没到点的熄灭一并取消
+  useEffect(() => {
+    if (!flash) return;
     const id = window.setTimeout(() => setFlash(false), 1200);
     return () => window.clearTimeout(id);
-  }, [fresh]);
+  }, [flash]);
 
-  const { run: save, flush } = useThrottleFn(
-    (content: Descendant[]) => void mutations.updateContent(moment.id, content),
-    { wait: 800 }
-  );
+  // 节流落库；未落的最新正文另记一份，卸载时自己补存——ahooks 的 useThrottleFn 卸载时会先
+  // cancel 掉尾调用（它的清理先于这里注册的），单靠 flush 会丢最后一段改动（虚拟列表滚出即卸载）
+  const unsaved = useRef<Descendant[] | null>(null);
+  const saveNow = () => {
+    if (!unsaved.current) return;
+    void mutations.updateContent(moment.id, unsaved.current);
+    unsaved.current = null;
+  };
+  const { run: throttledSave } = useThrottleFn(saveNow, { wait: 800 });
+  const save = (content: Descendant[]) => {
+    unsaved.current = content;
+    throttledSave();
+  };
   const exit = () => {
-    flush();
+    saveNow();
     setEditing(false);
   };
-  useUnmount(flush);
+  useUnmount(saveNow);
 
   // 点流里别处退出编辑（浮层在流外的 portal 里，点它们不算离开）
   useEffect(() => {
@@ -90,7 +102,7 @@ export const MomentItem = memo(function MomentItem({
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
-    // exit 每次渲染新建但只读 ref 与稳定的 flush，无需进依赖
+    // exit 每次渲染新建但只读 ref，无需进依赖
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing]);
 
@@ -102,7 +114,6 @@ export const MomentItem = memo(function MomentItem({
       data-moment={moment.id}
       className={cn(
         "group/moment ease-tau-out relative -mx-3.5 rounded-[12px] px-3.5 pb-3 pt-2.5 transition-[background] duration-[700ms]",
-        "[contain-intrinsic-size:auto_120px] [content-visibility:auto]",
         flash ? "bg-accent-soft duration-0" : editing ? "bg-transparent" : "hover:bg-hover"
       )}
     >
@@ -176,7 +187,7 @@ export const MomentItem = memo(function MomentItem({
             moment={moment}
             caret={caretRef}
             onChange={save}
-            fallback={<MomentReader eager content={moment.content} revision={moment.updateTime} />}
+            fallback={<MomentReader content={moment.content} revision={moment.updateTime} />}
           />
         </div>
       ) : (
@@ -226,47 +237,24 @@ function readerCaret(reader: EditorRef | null, selection: Selection | null): Bas
   );
 }
 
-/**
- * 只读渲染：不建协作会话；正文变化（updateTime）时重建实例（initValue 只在挂载时生效）。
- * 编辑器实例挂载昂贵：离视口一屏以外先出纯文本占位，靠近才挂、挂上不再卸——
- * 否则跳转到几百条之后（那年今日 / 月份刻度）会一次同步挂几百个编辑器，卡住近一秒。
- */
-const MomentReader = forwardRef<
-  EditorRef,
-  /** eager：直接挂编辑器（编辑态占位用，本就在视口里，不能先闪纯文本） */
-  { content: Descendant[]; revision: number; eager?: boolean }
->(function MomentReader({ content, revision, eager = false }, ref) {
-  const extensions = useDynamicExtensionsStore(state => state.extensions);
-  const [holder, setHolder] = useState<HTMLDivElement | null>(null);
-  const [near, setNear] = useState(eager);
-  useEffect(() => {
-    if (!holder || near) return;
-    const io = new IntersectionObserver(
-      entries => entries.some(e => e.isIntersecting) && setNear(true),
-      { root: holder.closest("[data-diary-stream]"), rootMargin: "100% 0px" }
-    );
-    io.observe(holder);
-    return () => io.disconnect();
-  }, [holder, near]);
-  if (!near)
+/** 只读渲染：不建协作会话；正文变化（updateTime）时重建实例（initValue 只在挂载时生效） */
+const MomentReader = forwardRef<EditorRef, { content: Descendant[]; revision: number }>(
+  function MomentReader({ content, revision }, ref) {
+    const extensions = useDynamicExtensionsStore(state => state.extensions);
     return (
-      <div ref={setHolder} className={cn(EDITOR_CLASS, "whitespace-pre-wrap break-words")}>
-        {plainText(content)}
-      </div>
+      <ErrorBoundary>
+        <Editor
+          ref={ref}
+          key={revision}
+          readonly
+          initValue={content.length ? content : undefined}
+          extensions={extensions}
+          className={EDITOR_CLASS}
+        />
+      </ErrorBoundary>
     );
-  return (
-    <ErrorBoundary>
-      <Editor
-        ref={ref}
-        key={revision}
-        readonly
-        initValue={content.length ? content : undefined}
-        extensions={extensions}
-        className={EDITOR_CLASS}
-      />
-    </ErrorBoundary>
-  );
-});
+  }
+);
 
 function MomentEditor({
   moment,
