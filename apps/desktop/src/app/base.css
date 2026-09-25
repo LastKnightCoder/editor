@@ -52,3 +52,21 @@ html {
 .app .tau-sheet *:not(.tau-sheet-scroll)::-webkit-scrollbar-track {
   margin-block: var(--tau-radius-lg);
 }
+
+/* AI 对话页 ⇄ 停靠栏形变（assistMorph.ts）：容器按左上角对齐不缩放内容，
+   由组裁切成圆角纸面，避免默认的整图拉伸把文字压扁 */
+::view-transition-group(assist-chat) {
+  overflow: clip;
+  border-radius: var(--tau-radius-lg);
+  background: var(--tau-bg-surface);
+  animation-duration: 300ms;
+  animation-timing-function: var(--tau-ease-out);
+}
+::view-transition-old(assist-chat),
+::view-transition-new(assist-chat) {
+  width: 100%;
+  height: 100%;
+  object-fit: none;
+  object-position: left top;
+  animation-duration: 200ms;
+}

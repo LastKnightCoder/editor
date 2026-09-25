@@ -38,7 +38,8 @@ import useLLMConfig from "@/hooks/useLLMConfig";
 import useSettingStore from "@/stores/useSettingStore";
 import useSkillStore from "@/stores/useSkillStore";
 import type { EditTextHandle } from "@/components/EditText";
-import { cn, toast } from "@tau/ui";
+import { cn, toast, useEdgeFade } from "@tau/ui";
+import { FADE_SCROLL_CLASS } from "@/components/FadeScroll/fadeScrollClass";
 import {
   ChatContainerCore,
   type ChatContainerCoreHandle,
@@ -327,6 +328,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         coreRef.current.scrollToBottom();
         return true;
       }),
+    });
+    // 消息滚动区接 FadeScroll 协议（上下渐隐 + 内缩滚动条）：容器由 ChatContainerCore 渲染，
+    // 经 ref 拿到元素后挂 edge fade
+    const [messagesEl, setMessagesEl] = useState<HTMLDivElement | null>(null);
+    useEdgeFade(messagesEl);
+    const setMessagesContainer = useMemoizedFn((node: HTMLDivElement | null) => {
+      setMessagesContainerRef(node);
+      setMessagesEl(node);
     });
     const forceScrollToBottomSoon = useMemoizedFn(() => {
       forceScrollToBottom();
@@ -1877,8 +1886,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     });
 
     // 阅读列：对话页限宽居中，停靠栏撑满（消息、提示条、输入区同一列宽）
-    // 输入区 / 状态条与消息列同一条左右边线：左 = 消息容器 padding，右 = padding + 4px 滚动条槽位
-    const chatGutter = compact ? "pl-4 pr-5" : "pl-7 pr-8";
+    // 输入区 / 状态条与消息列同一条左右边线，且左右留白对称：左 = 消息容器 padding，
+    // 右 = padding + 6px 透明边 + 4px 滚动条槽位，两侧合计相等
+    const chatGutter = compact ? "px-5" : "px-8";
     const column = (node: React.ReactNode) =>
       contentMaxWidth ? (
         <div className="mx-auto w-full" style={{ maxWidth: contentMaxWidth }}>
@@ -1946,12 +1956,13 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             createMessageLoading={createMessageLoading}
             onCreateNewMessage={onCreateNewMessage}
             inputRef={editTextRef}
-            messagesContainerRef={setMessagesContainerRef}
+            messagesContainerRef={setMessagesContainer}
             messagesContainerClassName={cn(
-              "flex-1 min-h-0 box-border overflow-y-auto relative will-change-transform [-webkit-overflow-scrolling:touch]",
-              // 常驻滚动条槽位：消息列宽度不随「内容是否溢出」变化，输入区按 CHAT_GUTTER 同宽对齐
+              FADE_SCROLL_CLASS,
+              "flex-1 min-h-0 box-border relative will-change-transform [-webkit-overflow-scrolling:touch]",
+              // 常驻滚动条槽位：消息列宽度不随「内容是否溢出」变化，输入区按 chatGutter 同宽对齐
               "[scrollbar-gutter:stable]",
-              compact ? "px-4" : "px-7"
+              compact ? "pl-5 pr-2.5" : "pl-8 pr-[22px]"
             )}
             renderEmptyState={() => emptyState ?? null}
             renderStatusBanner={({ retryStatus, error }) =>
