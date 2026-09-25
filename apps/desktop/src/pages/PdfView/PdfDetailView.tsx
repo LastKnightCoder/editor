@@ -11,7 +11,7 @@ import useTabParams from "@/hooks/useTabParams";
 import { TabType } from "@/types/tab";
 import useSettingStore from "@/stores/useSettingStore";
 import type { PdfAskAIContext } from "@/components/PdfEmbed";
-import type { PdfCitationTarget } from "./pdfCitation";
+import type { PdfCitationTarget } from "@/utils/pdfCitation";
 import ResizableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 
 const PdfDetailView = () => {

@@ -30,7 +30,7 @@ import type { ChatMessage, Pdf, PdfIndexStatus, ResponseMessage } from "@/types"
 import { ensurePdfIndex, getPdfIndexStatus } from "@/commands";
 import { remoteResourceToLocal } from "@/utils";
 import usePdfChat from "./usePdfChat";
-import { buildPdfCitationMarkerLabel, type PdfCitationTarget } from "./pdfCitation";
+import { buildPdfCitationMarkerLabel, type PdfCitationTarget } from "@/utils/pdfCitation";
 
 const ChatContainer = lazy(
   () => import("@/layouts/ContentLayout/components/ChatSidebar/ChatContainer")

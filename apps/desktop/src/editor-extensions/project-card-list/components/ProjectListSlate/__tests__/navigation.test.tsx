@@ -5,7 +5,6 @@ import { PageProvider, usePage } from "@/page/PageProvider";
 import { PageNavigationBridge } from "@/app/PageNavigationBridge";
 import { definePage } from "@/page/definePage";
 import { createPageSchema, paramNumber, paramOptional } from "@/page/core/paramsSchema";
-import { ProjectContext } from "@/features/projects/components/ProjectView/ProjectContext";
 import ProjectListSlate from "..";
 
 vi.mock("@/services/aiServer", () => ({ initAiServer: vi.fn(), closeAiServer: vi.fn() }));
@@ -65,18 +64,16 @@ describe("项目文档列表卡片导航", () => {
       root!.render(
         <PageProvider initialKey="project-detail" initialParams={{ id: 7, itemId: 10 }}>
           <PageNavigationBridge />
-          <ProjectContext.Provider value={{ projectId: 7, itemId: 10 }}>
-            <ProjectListSlate
-              element={{
-                type: "project-card-list",
-                projectItemId: 10,
-                children: [{ type: "formatted", text: "" }],
-              }}
-              attributes={{ "data-slate-node": "element", ref: null }}
-            >
-              <span />
-            </ProjectListSlate>
-          </ProjectContext.Provider>
+          <ProjectListSlate
+            element={{
+              type: "project-card-list",
+              projectItemId: 10,
+              children: [{ type: "formatted", text: "" }],
+            }}
+            attributes={{ "data-slate-node": "element", ref: null }}
+          >
+            <span />
+          </ProjectListSlate>
           <NavigationProbe />
         </PageProvider>
       );
