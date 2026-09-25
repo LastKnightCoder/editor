@@ -33,6 +33,7 @@ import {
   doneToday,
   isOpen,
   isOverdue,
+  liveEntries,
   scheduledToday,
   startOfDay,
 } from "../model";
@@ -129,7 +130,6 @@ export function TodosView() {
 
   const derived = useMemo(() => {
     if (!snapshot) return null;
-    const activeIds = new Set(snapshot.groups.map(g => g.id));
     // 已删除暂存的子孙一并隐藏
     const hidden = new Set<number>();
     const hide = (id: number) => {
@@ -137,7 +137,7 @@ export function TodosView() {
       snapshot.byId.get(id)?.childIds.forEach(hide);
     };
     pendingDelete.forEach(hide);
-    const live = snapshot.entries.filter(e => activeIds.has(e.groupId) && !hidden.has(e.id));
+    const live = liveEntries(snapshot, hidden);
     const allRoots = live.filter(e => e.parentId == null);
     const roots = groupFilter ? allRoots.filter(e => e.groupId === groupFilter) : allRoots;
     // 带日期的子任务按自己的日期进议程（按日期模式）
