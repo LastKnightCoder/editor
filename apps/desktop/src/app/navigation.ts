@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 
 /** 徽标槽 key（渲染组件注册于 navSlots.tsx） */
-export type NavItemBadge = "review-due" | "pomodoro-live" | "collab-requests";
+export type NavItemBadge = "review-due" | "pomodoro-live" | "collab-requests" | "questions-active";
 /** 子项槽 key：所属页在栈顶时于条目下方展开的列表（渲染组件注册于 navSlots.tsx） */
 export type NavItemChildren = "collaboration-sessions" | "diary-tags";
 
