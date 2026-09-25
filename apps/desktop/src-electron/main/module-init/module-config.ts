@@ -41,7 +41,6 @@ import videoNoteIndexQueue from "../modules/video-note-index-queue";
 import mainContentFtsIndexQueue from "../modules/main-content-fts-index-queue";
 import mainContentVecIndexQueue from "../modules/main-content-vec-index-queue";
 import embeddingIndexOrchestrator from "../modules/embedding-index-orchestrator";
-import terminalModule from "../modules/terminal";
 import updaterModule from "../modules/updater";
 import pdfIndexQueue from "../modules/pdf-index-queue";
 import pdfIndexOrchestrator from "../modules/pdf-index-orchestrator";
@@ -312,13 +311,6 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     layer: InitLayer.BACKGROUND,
     dependencies: ["logger"],
     init: () => holidayServiceModule.init(),
-  },
-  {
-    name: "terminal",
-    group: ModuleGroup.FEATURE,
-    layer: InitLayer.BACKGROUND,
-    dependencies: ["logger"],
-    init: () => terminalModule.init(),
   },
   {
     name: "updater",

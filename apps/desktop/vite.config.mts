@@ -20,7 +20,6 @@ const runtimeDependencyExternals = [
   "better-sqlite3",
   "electron-updater",
   "font-list",
-  "node-pty",
   "sharp",
   "sqlite-vec",
   "tailwindcss",

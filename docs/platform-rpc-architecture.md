@@ -62,11 +62,11 @@ article、fts、todo、diary、setting、podcast、rss、resource、llm、model-
 
 ### 2.2 平台能力（60~80 个 channel）——packages/platform 接口 + 按环境多实现
 
-窗口控制、本地文件读写/监听、原生对话框、shell、系统字体、自动更新、终端……这些 channel 的语义是"**请本机环境做某事**"。Web 版下它们分成三种去向：
+窗口控制、本地文件读写/监听、原生对话框、shell、系统字体、自动更新……这些 channel 的语义是"**请本机环境做某事**"。Web 版下它们分成三种去向：
 
 1. **有浏览器等价物**：`openExternal` → `window.open()`；保存对话框 → `<a download>` / File System Access API；选文件 → `input[type=file]`。
 2. **改由 Web Server 承接**：`nodeFetch`（绕 CORS 的代理抓取）、本地文件监听（改 WS 推送）。
-3. **无等价物**：托盘、全局快捷键、node-pty 终端、多窗口 → 抛 `UnsupportedError`，UI 依据 `supports()` 隐藏入口。
+3. **无等价物**：托盘、全局快捷键、多窗口 → 抛 `UnsupportedError`，UI 依据 `supports()` 隐藏入口。
 
 `invoke` 不会消失，但角色退化：它是**业务命令的统一管道**，以及 **Electron 平台实现内部的一个传输细节**。业务层不再直接调用它（现有 17 处散落 invoke 一并收拢）。
 
@@ -194,7 +194,6 @@ export class UnsupportedError extends Error {
 | nodeFetch                                         | 主进程 axios + 代理        | Web Server 代理接口（逻辑原样复用）                                            | 绕 CORS 的核心诉求不变                               |
 | 系统字体列表                                      | font-list（native）        | Web Fonts 白名单或 UnsupportedError                                            |                                                      |
 | 自动更新                                          | electron-updater           | UnsupportedError（Web 天然免更新，可换"版本公告"）                             |                                                      |
-| 终端（node-pty）                                  | 主进程 pty + xterm         | UnsupportedError（未来可选 SSH/web 终端扩展）                                  |                                                      |
 | 托盘/全局快捷键/单实例/文件关联                   | Electron 专属              | 无对应，主进程逻辑不进 platform 层                                             | PWA 可部分弥补                                       |
 | webview 标签（10+ 处）                            | `<webview>`                | `<iframe>`（HtmlBlockRenderer 已有 fallback 示范）                             | iframe 受 X-Frame-Options 限制，SPA 抓取需服务端兜底 |
 | 本地媒体 `ltoh://` 协议                           | 自定义协议流式服务         | 服务端资源 URL                                                                 | **URL 已持久化进用户文档，见 §5.3**                  |
