@@ -23,7 +23,7 @@ import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import SelectPdfModal from "@/components/SelectPdfModal";
 import SelectEpubModal from "@/components/SelectEpubModal";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
-import useProjectsStore from "@/stores/useProjectsStore";
+import { useDraggingStore } from "@/stores/useDraggingStore";
 import useSettingStore from "@/stores/useSettingStore";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import useDragAndDrop, { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
@@ -468,7 +468,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     };
 
     try {
-      useProjectsStore.setState({
+      useDraggingStore.setState({
         dragging: true,
       });
       const result = await moveProjectTreeItem(projectId, {
@@ -500,7 +500,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
           .publishProjectItemEvent("project-item:updated", updatedProjectItem);
       });
     } finally {
-      useProjectsStore.setState({
+      useDraggingStore.setState({
         dragging: false,
       });
     }

@@ -5,8 +5,7 @@ import { getCardById, findOneArticle, getProjectItemById, updateProjectItem } fr
 import { getContentLength } from "@/utils";
 import { Descendant, Editor } from "slate";
 import { produce } from "immer";
-import useProjectsStore from "@/stores/useProjectsStore";
-import { useShallow } from "zustand/react/shallow";
+import { useDraggingStore } from "@/stores/useDraggingStore";
 import { defaultCardEventBus, defaultArticleEventBus } from "@/utils";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 
@@ -16,11 +15,7 @@ const useEdit = (projectItemId: number) => {
   const cardEventBus = useCreation(() => defaultCardEventBus.createEditor(), []);
   const articleEventBus = useCreation(() => defaultArticleEventBus.createEditor(), []);
 
-  const { dragging } = useProjectsStore(
-    useShallow(state => ({
-      dragging: state.dragging,
-    }))
-  );
+  const dragging = useDraggingStore(state => state.dragging);
 
   // 在数据库连接或切换时加载项目条目
   useDatabaseChangeEffect(() => {
