@@ -286,7 +286,8 @@ export function Dialog({
             )}
             <h2
               id={titleId}
-              className="text-ink-1 shrink-0 text-[16px] font-[650] leading-[1.45] tracking-[-0.01em]"
+              title={title}
+              className="text-ink-1 min-w-0 truncate text-[16px] font-[650] leading-[1.45] tracking-[-0.01em]"
             >
               {title}
             </h2>
