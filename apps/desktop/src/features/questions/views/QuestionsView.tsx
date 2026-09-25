@@ -8,10 +8,10 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRightLeft, CircleHelp, Layers, Link2, PenLine, Plus, Trash2 } from "lucide-react";
+import { ArrowRightLeft, Layers, Link2, PenLine, Plus, Trash2 } from "lucide-react";
 import { MotionConfig } from "motion/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button, Loading, Menu, toast } from "@tau/ui";
+import { Button, Loading, Menu, toast, cn } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { isEditableTarget } from "@/page/dom";
 import { GroupDialog } from "@/components/GroupDialog";
@@ -27,10 +27,18 @@ import { AnswerDialog, type AnswerDialogState } from "../components/AnswerDialog
 import { CaptureBar } from "../components/CaptureBar";
 import { GroupChips } from "../components/GroupChips";
 import { MaterialPicker } from "../components/MaterialPicker";
+import { MaterialPreviewDialog } from "../components/MaterialPreviewDialog";
 import { GroupDot, StatusRing } from "../components/QuestionBits";
 import { QuestionDetail } from "../components/QuestionDetail";
 import { QuestionList } from "../components/QuestionList";
-import { SECTION_ORDER, STATUS_META, STATUS_STEPS, sectionize, statusCounts } from "../model";
+import {
+  SECTION_ORDER,
+  canPreview,
+  STATUS_META,
+  STATUS_STEPS,
+  sectionize,
+  statusCounts,
+} from "../model";
 import {
   createMaterialFor,
   questionMutations,
@@ -56,6 +64,7 @@ export function QuestionsView() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
   const [answerDialog, setAnswerDialog] = useState<AnswerDialogState | null>(null);
+  const [preview, setPreview] = useState<QuestionMaterial | null>(null);
   const captureRef = useRef<HTMLInputElement>(null);
   const deferred = useDeferredActions();
   const queryClient = useQueryClient();
@@ -101,14 +110,12 @@ export function QuestionsView() {
     };
   }, [snapshot, groupFilter, collapsed, deferred.pending]);
 
-  /* 选中项消失（删除 / 筛走）时落到当前列表第一项；首次进入默认选第一项 */
+  /* 不默认选中；选中项消失（删除 / 筛走）时清空选中 */
   useEffect(() => {
-    if (!derived) return;
-    if (selectedId != null && derived.byId.has(selectedId)) {
-      const q = derived.byId.get(selectedId)!;
-      if (groupFilter == null || q.groupId === groupFilter) return;
-    }
-    setSelectedId(derived.order[0]?.id ?? null);
+    if (!derived || selectedId == null) return;
+    const q = derived.byId.get(selectedId);
+    if (q && (groupFilter == null || q.groupId === groupFilter)) return;
+    setSelectedId(null);
   }, [derived, selectedId, groupFilter]);
 
   /* 分组被删后回到「全部」 */
@@ -370,7 +377,14 @@ export function QuestionsView() {
           </Button>
         </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.25fr)_minmax(400px,1fr)] gap-4 pt-1">
+        <div
+          className={cn(
+            "grid min-h-0 flex-1 gap-4 pt-1",
+            selectedId != null
+              ? "grid-cols-[minmax(0,1.7fr)_minmax(380px,1fr)]"
+              : "grid-cols-[minmax(0,1fr)]"
+          )}
+        >
           <div className="bg-surface shadow-card flex min-h-0 flex-col overflow-hidden rounded-[16px] px-3.5 pb-2 pt-3.5">
             <CaptureBar
               groups={groups}
@@ -423,7 +437,7 @@ export function QuestionsView() {
                   return next;
                 })
               }
-              onSelect={q => setSelectedId(q.id)}
+              onSelect={q => setSelectedId(prev => (prev === q.id ? null : q.id))}
               renderStatusMenu={renderStatusMenu}
               renderMenu={renderMenu}
               empty={
@@ -442,39 +456,40 @@ export function QuestionsView() {
             </div>
           </div>
 
-          <div className="bg-surface shadow-card flex min-h-0 flex-col overflow-hidden rounded-[16px] px-6 pt-[18px]">
-            {detail ? (
-              <QuestionDetail
-                key={detail.question.id}
-                detail={detail}
-                groups={groups}
-                hiddenMaterials={
-                  new Set(
-                    detail.materials.filter(m => deferred.pending.has(`m:${m.id}`)).map(m => m.id)
-                  )
-                }
-                now={now}
-                onSetStatus={status => void setStatus(detail.question, status)}
-                onMove={groupId => move(detail.question, groupId)}
-                onOpenMaterial={openMaterial}
-                onUnlink={unlink}
-                onWriteCard={() => setCardOpen(true)}
-                onWriteAnswer={() =>
-                  setAnswerDialog({ mode: "new", questionTitle: detail.question.questionContent })
-                }
-                onCreate={createMaterial}
-                onLink={() => setPickerOpen(true)}
-                menu={renderMenu(detail.question)}
-              />
-            ) : selectedId != null ? (
-              <Loading />
-            ) : (
-              <div className="text-ink-3 flex flex-1 flex-col items-center justify-center gap-2 pb-12 text-center text-[12.5px]">
-                <CircleHelp className="size-6" strokeWidth={1.5} />
-                选择一个问题，查看背景、材料与探究轨迹
-              </div>
-            )}
-          </div>
+          {selectedId != null && (
+            <div className="bg-surface shadow-card flex min-h-0 flex-col overflow-hidden rounded-[16px] px-6 pb-3 pt-[18px]">
+              {detail ? (
+                <QuestionDetail
+                  key={detail.question.id}
+                  detail={detail}
+                  groups={groups}
+                  hiddenMaterials={
+                    new Set(
+                      detail.materials.filter(m => deferred.pending.has(`m:${m.id}`)).map(m => m.id)
+                    )
+                  }
+                  now={now}
+                  onSetStatus={status => void setStatus(detail.question, status)}
+                  onMove={groupId => move(detail.question, groupId)}
+                  onOpenMaterial={openMaterial}
+                  onClickMaterial={material =>
+                    canPreview(material) ? setPreview(material) : openMaterial(material)
+                  }
+                  onUnlink={unlink}
+                  onWriteCard={() => setCardOpen(true)}
+                  onWriteAnswer={() =>
+                    setAnswerDialog({ mode: "new", questionTitle: detail.question.questionContent })
+                  }
+                  onCreate={createMaterial}
+                  onLink={() => setPickerOpen(true)}
+                  menu={renderMenu(detail.question)}
+                  onClose={() => setSelectedId(null)}
+                />
+              ) : (
+                <Loading />
+              )}
+            </div>
+          )}
         </div>
 
         <GroupDialog
@@ -521,6 +536,12 @@ export function QuestionsView() {
               .link(detail.question.id, [{ targetType: "card", targetId: card.id }], true)
               .catch(() => toast.error("卡片已保存，但挂到问题上失败"));
           }}
+        />
+        <MaterialPreviewDialog
+          material={preview}
+          now={now}
+          onClose={() => setPreview(null)}
+          onOpen={openMaterial}
         />
         <AnswerDialog
           state={answerDialog}

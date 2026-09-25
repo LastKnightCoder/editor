@@ -1,5 +1,5 @@
 /**
- * 常驻详情：分组与提出时间 → 标题（即改即存）→ 状态三段 → 背景（富文本）→ 我的答案 →
+ * 常驻详情：分组与提出时间（固定头部，不随滚动）→ 标题（即改即存）→ 状态三段 → 背景（富文本）→ 我的答案 →
  * 探究材料 → 动作（写卡片 / 新建 ▾ / 关联已有）→ 探究轨迹。
  */
 
@@ -16,6 +16,7 @@ import {
   PenLine,
   Plus,
   Presentation,
+  X,
 } from "lucide-react";
 import { Button, IconButton, Menu, cn, toast, useEdgeFade } from "@tau/ui";
 import type { EditorRef } from "@tau/editor/src";
@@ -41,12 +42,14 @@ export function QuestionDetail({
   onSetStatus,
   onMove,
   onOpenMaterial,
+  onClickMaterial,
   onUnlink,
   onWriteCard,
   onWriteAnswer,
   onCreate,
   onLink,
   menu,
+  onClose,
 }: {
   detail: Detail;
   groups: QuestionGroupDTO[];
@@ -56,12 +59,16 @@ export function QuestionDetail({
   onSetStatus(status: QuestionStatus): void;
   onMove(groupId: number): void;
   onOpenMaterial(material: QuestionMaterial): void;
+  /** 点材料行：可预览的弹窗预览，其余同「打开」 */
+  onClickMaterial(material: QuestionMaterial): void;
   onUnlink(material: QuestionMaterial): void;
   onWriteCard(): void;
   onWriteAnswer(): void;
   onCreate(kind: CreatableKind): void;
   onLink(): void;
   menu: ReactNode;
+  /** 收起详情（无选中） */
+  onClose(): void;
 }) {
   const { question, events } = detail;
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
@@ -74,11 +81,8 @@ export function QuestionDetail({
   refs.forEach(m => (refCounts[m.targetType] = (refCounts[m.targetType] ?? 0) + 1));
 
   return (
-    <div
-      ref={setScrollEl}
-      className="edge-fade-scroll -mr-2.5 min-h-0 flex-1 overflow-y-auto pb-4 pr-2.5"
-    >
-      <div className="mb-2.5 flex items-center gap-2.5">
+    <>
+      <div className="mb-2.5 flex flex-none items-center gap-2.5">
         <Menu
           trigger={
             <button
@@ -114,146 +118,166 @@ export function QuestionDetail({
         >
           {menu}
         </Menu>
+        <IconButton title="收起详情" onClick={onClose}>
+          <X className="size-[15px]" strokeWidth={1.75} />
+        </IconButton>
       </div>
 
-      <TitleEditor key={question.id} questionId={question.id} value={question.questionContent} />
-
-      <div role="radiogroup" aria-label="状态" className="mt-3.5 grid grid-cols-3 gap-1">
-        {STATUS_STEPS.map((status, idx) => {
-          const on = question.status === status;
-          return (
-            <button
-              key={status}
-              type="button"
-              role="radio"
-              aria-checked={on}
-              title={`${STATUS_META[status].label}（${idx + 1}）`}
-              onClick={() => !on && onSetStatus(status)}
-              className={cn(
-                "ease-tau-out flex h-8 items-center gap-[7px] rounded-[9px] border px-2.5 text-[12.5px] outline-none transition-[background,color,border-color] duration-150 focus-visible:shadow-[var(--tau-focus-ring)]",
-                !on && "border-line-1 text-ink-3 hover:bg-hover hover:text-ink-1",
-                on && "border-transparent font-semibold",
-                on && status === "not_started" && "bg-hover text-ink-1",
-                on && status === "in_progress" && "bg-accent-soft text-accent-text",
-                on && status === "resolved" && "bg-ok-soft text-ok"
-              )}
-            >
-              <StatusRing status={status} size="sm" />
-              {STATUS_META[status].label}
-            </button>
-          );
-        })}
-      </div>
-
-      <SectionTitle>背景</SectionTitle>
-      <DescriptionEditor
-        key={question.id}
-        questionId={question.id}
-        title={question.questionContent}
-        value={question.description}
-      />
-
-      <SectionTitle
-        action={
-          answers.length === 0 ? (
-            <Button variant="ghost" size="sm" icon={PenLine} onClick={onWriteAnswer}>
-              写答案
-            </Button>
-          ) : (
-            <Button variant="ghost" size="sm" icon={Plus} onClick={onWriteAnswer}>
-              再写一段
-            </Button>
-          )
-        }
+      <div
+        ref={setScrollEl}
+        className="edge-fade-scroll -ml-1 -mr-2.5 min-h-0 flex-1 overflow-y-auto pb-2 pl-1 pr-2.5"
       >
-        我的答案
-      </SectionTitle>
-      {answers.length ? (
-        <MaterialList materials={answers} now={now} onOpen={onOpenMaterial} onUnlink={onUnlink} />
-      ) : (
-        <Hint>
-          {question.status === "resolved"
-            ? "已标为解答，但还没有用自己的话写下结论。"
-            : refs.length >= 2
-              ? `已经积累了 ${refs.length} 份材料。试着不看材料，用自己的话写下答案——写不出来的地方，就是还没弄懂的地方。`
-              : "材料够了，就用自己的话把答案写下来。"}
-        </Hint>
-      )}
+        <TitleEditor key={question.id} questionId={question.id} value={question.questionContent} />
 
-      <SectionTitle action={<Composition counts={refCounts} />} count={refs.length || undefined}>
-        探究材料
-      </SectionTitle>
-      {refs.length ? (
-        <MaterialList materials={refs} now={now} onOpen={onOpenMaterial} onUnlink={onUnlink} />
-      ) : (
-        <Hint icon>
-          从这里开始探究：读到什么、想到什么，写成一张卡片挂上来；或者关联已有的卡片、文章、项目、白板。
-        </Hint>
-      )}
-      <div className="mt-2.5 flex flex-wrap gap-1.5">
-        <Button variant="secondary" size="sm" icon={Layers} onClick={onWriteCard}>
-          写一张卡片
-        </Button>
-        <Menu
-          trigger={
-            <Button variant="secondary" size="sm" icon={Plus}>
-              新建
-              <ChevronDown className="size-3" strokeWidth={1.75} />
-            </Button>
+        <div role="radiogroup" aria-label="状态" className="mt-3.5 grid grid-cols-3 gap-1">
+          {STATUS_STEPS.map((status, idx) => {
+            const on = question.status === status;
+            return (
+              <button
+                key={status}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                title={`${STATUS_META[status].label}（${idx + 1}）`}
+                onClick={() => !on && onSetStatus(status)}
+                className={cn(
+                  "ease-tau-out flex h-8 items-center gap-[7px] rounded-[9px] border px-2.5 text-[12.5px] outline-none transition-[background,color,border-color] duration-150 focus-visible:shadow-[var(--tau-focus-ring)]",
+                  !on && "border-line-1 text-ink-3 hover:bg-hover hover:text-ink-1",
+                  on && "border-transparent font-semibold",
+                  on && status === "not_started" && "bg-hover text-ink-1",
+                  on && status === "in_progress" && "bg-accent-soft text-accent-text",
+                  on && status === "resolved" && "bg-ok-soft text-ok"
+                )}
+              >
+                <StatusRing status={status} size="sm" />
+                {STATUS_META[status].label}
+              </button>
+            );
+          })}
+        </div>
+
+        <SectionTitle>背景</SectionTitle>
+        <DescriptionEditor
+          key={question.id}
+          questionId={question.id}
+          title={question.questionContent}
+          value={question.description}
+        />
+
+        <SectionTitle
+          action={
+            answers.length === 0 ? (
+              <Button variant="ghost" size="sm" icon={PenLine} onClick={onWriteAnswer}>
+                写答案
+              </Button>
+            ) : (
+              <Button variant="ghost" size="sm" icon={Plus} onClick={onWriteAnswer}>
+                再写一段
+              </Button>
+            )
           }
         >
-          <Menu.Group>新建并挂到这个问题</Menu.Group>
-          <Menu.Item
-            icon={<FileText className="size-[15px]" strokeWidth={1.75} />}
-            onSelect={() => onCreate("article")}
-          >
-            文章
-          </Menu.Item>
-          <Menu.Item
-            icon={<Presentation className="size-[15px]" strokeWidth={1.75} />}
-            onSelect={() => onCreate("white_board")}
-          >
-            白板
-          </Menu.Item>
-          <Menu.Item
-            icon={<FolderKanban className="size-[15px]" strokeWidth={1.75} />}
-            onSelect={() => onCreate("project")}
-          >
-            项目
-          </Menu.Item>
-          <Menu.Separator />
-          <Menu.Item
-            icon={<PenLine className="size-[15px]" strokeWidth={1.75} />}
-            onSelect={onWriteAnswer}
-          >
-            独立答案
-          </Menu.Item>
-        </Menu>
-        <Button variant="secondary" size="sm" icon={Link2} onClick={onLink}>
-          关联已有
-          <kbd className="bg-hover text-ink-2 ml-0.5 rounded-[4px] px-1 font-mono text-[10px]">
-            L
-          </kbd>
-        </Button>
-      </div>
+          我的答案
+        </SectionTitle>
+        {answers.length ? (
+          <MaterialList
+            materials={answers}
+            now={now}
+            onClick={onClickMaterial}
+            onOpen={onOpenMaterial}
+            onUnlink={onUnlink}
+          />
+        ) : (
+          <Hint>
+            {question.status === "resolved"
+              ? "已标为解答，但还没有用自己的话写下结论。"
+              : refs.length >= 2
+                ? `已经积累了 ${refs.length} 份材料。试着不看材料，用自己的话写下答案——写不出来的地方，就是还没弄懂的地方。`
+                : "材料够了，就用自己的话把答案写下来。"}
+          </Hint>
+        )}
 
-      <SectionTitle
-        action={
-          <span className="text-ink-3 text-[11.5px] font-normal">
-            {trajectoryStats(question, materials.length, events, now)}
-          </span>
-        }
-      >
-        探究轨迹
-      </SectionTitle>
-      <Trajectory
-        events={events}
-        now={now}
-        onAddNote={async text => {
-          await questionMutations.addNote(question.id, text);
-        }}
-      />
-    </div>
+        <SectionTitle action={<Composition counts={refCounts} />} count={refs.length || undefined}>
+          探究材料
+        </SectionTitle>
+        {refs.length ? (
+          <MaterialList
+            materials={refs}
+            now={now}
+            onClick={onClickMaterial}
+            onOpen={onOpenMaterial}
+            onUnlink={onUnlink}
+          />
+        ) : (
+          <Hint icon>
+            从这里开始探究：读到什么、想到什么，写成一张卡片挂上来；或者关联已有的卡片、文章、项目、白板。
+          </Hint>
+        )}
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          <Button variant="secondary" size="sm" icon={Layers} onClick={onWriteCard}>
+            写一张卡片
+          </Button>
+          <Menu
+            trigger={
+              <Button variant="secondary" size="sm" icon={Plus}>
+                新建
+                <ChevronDown className="size-3" strokeWidth={1.75} />
+              </Button>
+            }
+          >
+            <Menu.Group>新建并挂到这个问题</Menu.Group>
+            <Menu.Item
+              icon={<FileText className="size-[15px]" strokeWidth={1.75} />}
+              onSelect={() => onCreate("article")}
+            >
+              文章
+            </Menu.Item>
+            <Menu.Item
+              icon={<Presentation className="size-[15px]" strokeWidth={1.75} />}
+              onSelect={() => onCreate("white_board")}
+            >
+              白板
+            </Menu.Item>
+            <Menu.Item
+              icon={<FolderKanban className="size-[15px]" strokeWidth={1.75} />}
+              onSelect={() => onCreate("project")}
+            >
+              项目
+            </Menu.Item>
+            <Menu.Separator />
+            <Menu.Item
+              icon={<PenLine className="size-[15px]" strokeWidth={1.75} />}
+              onSelect={onWriteAnswer}
+            >
+              独立答案
+            </Menu.Item>
+          </Menu>
+          <Button variant="secondary" size="sm" icon={Link2} onClick={onLink}>
+            关联已有
+            <kbd className="bg-hover text-ink-2 ml-0.5 rounded-[4px] px-1 font-mono text-[10px]">
+              L
+            </kbd>
+          </Button>
+        </div>
+
+        <SectionTitle
+          action={
+            <span className="text-ink-3 text-[11.5px] font-normal">
+              {trajectoryStats(question, materials.length, events, now)}
+            </span>
+          }
+        >
+          探究轨迹
+        </SectionTitle>
+        <Trajectory
+          events={events}
+          now={now}
+          onAddNote={async text => {
+            await questionMutations.addNote(question.id, text);
+          }}
+        />
+      </div>
+    </>
   );
 }
 
@@ -327,7 +351,7 @@ function TitleEditor({ questionId, value }: { questionId: number; value: string 
           requestAnimationFrame(() => ref.current?.blur());
         }
       }}
-      className="hover:bg-hover focus:bg-surface -mx-1.5 block w-[calc(100%+12px)] resize-none overflow-hidden rounded-[8px] bg-transparent px-1.5 py-0.5 text-[19px] font-semibold leading-[1.45] tracking-[-0.005em] outline-none focus:shadow-[inset_0_0_0_1px_var(--tau-line-1)]"
+      className="block w-full resize-none overflow-hidden bg-transparent py-0.5 text-[19px] font-semibold leading-[1.45] tracking-[-0.005em] outline-none"
     />
   );
 }
@@ -367,7 +391,7 @@ function DescriptionEditor({
   useEffect(() => () => flushRef.current(), []);
 
   return (
-    <div className="hover:bg-hover focus-within:bg-surface -mx-2.5 min-h-16 rounded-[10px] px-2.5 py-1.5 focus-within:shadow-[inset_0_0_0_1px_var(--tau-line-1)]">
+    <div className="border-line-1 focus-within:border-ink-3 min-h-16 rounded-[10px] border px-3 py-1.5 transition-[border-color] duration-150">
       <ErrorBoundary>
         <ContentEditor
           ref={editorRef}

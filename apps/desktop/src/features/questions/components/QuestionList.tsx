@@ -4,8 +4,9 @@
  * 行可拖到分组 chip 上移动分组。
  */
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, MoreHorizontal } from "lucide-react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ContextMenu, IconButton, Menu, cn, useEdgeFade } from "@tau/ui";
 import type { QuestionGroupDTO } from "@/commands/question-group";
 import type { QuestionStatus, QuestionSummary } from "@/types";
@@ -40,28 +41,55 @@ export function QuestionList({
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
 
+  const rows = useMemo(
+    () =>
+      sections.flatMap(section => {
+        const header = { type: "header" as const, section };
+        return collapsed.has(section.status)
+          ? [header]
+          : [header, ...section.items.map(question => ({ type: "question" as const, question }))];
+      }),
+    [sections, collapsed]
+  );
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollEl,
+    estimateSize: index => (rows[index]?.type === "header" ? 40 : 68),
+    overscan: 8,
+  });
+
   /* 键盘切换选中后滚入视野 */
   useEffect(() => {
-    if (selectedId == null || !scrollEl) return;
-    scrollEl.querySelector(`[data-question="${selectedId}"]`)?.scrollIntoView({ block: "nearest" });
-  }, [selectedId, scrollEl]);
+    if (selectedId == null) return;
+    const index = rows.findIndex(row => row.type === "question" && row.question.id === selectedId);
+    if (index >= 0) virtualizer.scrollToIndex(index, { align: "auto" });
+  }, [selectedId, rows, virtualizer]);
 
   return (
     <div
       ref={setScrollEl}
       className="edge-fade-scroll -mr-1.5 mt-2 min-h-0 flex-1 overflow-y-auto pb-2 pr-1.5"
     >
-      {sections.length === 0
-        ? empty
-        : sections.map(section => {
-            const folded = collapsed.has(section.status);
-            return (
-              <section key={section.status}>
+      {sections.length === 0 ? (
+        empty
+      ) : (
+        <div className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+          {virtualizer.getVirtualItems().map(item => {
+            const row = rows[item.index];
+            if (!row) return null;
+            if (row.type === "header") {
+              const section = row.section;
+              const folded = collapsed.has(section.status);
+              return (
                 <button
+                  key={item.key}
+                  ref={virtualizer.measureElement}
+                  data-index={item.index}
                   type="button"
                   onClick={() => onToggleSection(section.status)}
                   aria-expanded={!folded}
-                  className="text-ink-2 flex w-full items-center gap-2 px-2 pb-1.5 pt-3.5 text-left text-[12.5px] font-semibold"
+                  className="text-ink-2 absolute left-0 top-0 flex w-full items-center gap-2 px-2 pb-1.5 pt-3.5 text-left text-[12.5px] font-semibold"
+                  style={{ transform: `translateY(${item.start}px)` }}
                 >
                   <ChevronDown
                     className={cn(
@@ -78,31 +106,32 @@ export function QuestionList({
                     {STATUS_META[section.status].hint}
                   </span>
                 </button>
-                <div
-                  className={cn(
-                    "ease-tau-out grid transition-[grid-template-rows] duration-[240ms]",
-                    folded ? "grid-rows-[0fr]" : "grid-rows-[1fr]"
-                  )}
-                >
-                  <div className="min-h-0 overflow-hidden">
-                    {section.items.map(question => (
-                      <QuestionRow
-                        key={question.id}
-                        question={question}
-                        group={groups.get(question.groupId)}
-                        showGroup={showGroup}
-                        selected={question.id === selectedId}
-                        now={now}
-                        onSelect={() => onSelect(question)}
-                        statusMenu={renderStatusMenu(question)}
-                        menu={renderMenu(question)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </section>
+              );
+            }
+            const question = row.question;
+            return (
+              <div
+                key={item.key}
+                ref={virtualizer.measureElement}
+                data-index={item.index}
+                className="absolute left-0 top-0 w-full pb-1"
+                style={{ transform: `translateY(${item.start}px)` }}
+              >
+                <QuestionRow
+                  question={question}
+                  group={groups.get(question.groupId)}
+                  showGroup={showGroup}
+                  selected={question.id === selectedId}
+                  now={now}
+                  onSelect={() => onSelect(question)}
+                  statusMenu={renderStatusMenu(question)}
+                  menu={renderMenu(question)}
+                />
+              </div>
             );
           })}
+        </div>
+      )}
     </div>
   );
 }
@@ -144,7 +173,7 @@ function QuestionRow({
         }}
         onClick={onSelect}
         className={cn(
-          "group/row flex cursor-default items-start gap-[11px] rounded-[11px] px-2.5 py-[9px]",
+          "group/row flex cursor-default items-start gap-[11px] rounded-[11px] px-2.5 py-[9px] outline-none",
           selected ? "bg-selected" : "hover:bg-hover"
         )}
       >

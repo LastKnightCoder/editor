@@ -1,6 +1,7 @@
 /**
  * 材料行：中性墨色类型图标 + 真实标题 + 两行摘要 + 元信息。
- * 悬停时右上角叠加「打开 / 解除关联」（绝对定位叠放，不改变行尺寸）；目标已删除的材料灰显，只能解除。
+ * 点行预览（onClick），悬停时右上角叠加「打开 / 解除关联」（绝对定位叠放，不改变行尺寸）；
+ * 目标已删除的材料灰显，只能解除。
  */
 
 import { ExternalLink, PenLine, Unlink } from "lucide-react";
@@ -11,11 +12,13 @@ import { TARGET_META, materialMeta, relativeDay } from "../model";
 export function MaterialList({
   materials,
   now,
+  onClick,
   onOpen,
   onUnlink,
 }: {
   materials: QuestionMaterial[];
   now: number;
+  onClick(material: QuestionMaterial): void;
   onOpen(material: QuestionMaterial): void;
   onUnlink(material: QuestionMaterial): void;
 }) {
@@ -26,6 +29,7 @@ export function MaterialList({
           key={material.id}
           material={material}
           now={now}
+          onClick={() => onClick(material)}
           onOpen={() => onOpen(material)}
           onUnlink={() => onUnlink(material)}
         />
@@ -37,11 +41,13 @@ export function MaterialList({
 function MaterialRow({
   material,
   now,
+  onClick,
   onOpen,
   onUnlink,
 }: {
   material: QuestionMaterial;
   now: number;
+  onClick(): void;
   onOpen(): void;
   onUnlink(): void;
 }) {
@@ -56,16 +62,14 @@ function MaterialRow({
       role="button"
       tabIndex={0}
       aria-disabled={material.missing}
-      onClick={material.missing ? undefined : onOpen}
+      onClick={material.missing ? undefined : onClick}
       onKeyDown={e => {
-        if (e.key === "Enter" && !material.missing) onOpen();
+        if (e.key === "Enter" && !material.missing) onClick();
       }}
       className={cn(
         "bg-surface border-line-1 group/mat relative flex gap-[11px] rounded-[12px] border px-3 py-[11px] outline-none",
-        "ease-tau-out transition-[border-color,box-shadow] duration-150 focus-visible:shadow-[var(--tau-focus-ring)]",
-        material.missing
-          ? "opacity-60"
-          : "hover:shadow-lift cursor-pointer hover:border-transparent"
+        "ease-tau-out transition-[border-color] duration-150 focus-visible:shadow-[var(--tau-focus-ring)]",
+        material.missing ? "opacity-60" : "hover:border-ink-3 cursor-pointer"
       )}
     >
       <span className="text-ink-2 grid size-[26px] shrink-0 place-items-center rounded-[8px] shadow-[inset_0_0_0_1px_var(--tau-line-1)]">

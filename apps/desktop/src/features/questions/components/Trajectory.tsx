@@ -1,6 +1,7 @@
 /**
- * 探究轨迹：按天分组的时间线。自动事件（提出 / 状态 / 关联 / 移除）视觉轻，
- * 手动「记一笔」视觉重（accent 圆点 + 正文字号）；推算出的旧数据时间标「约」。
+ * 探究轨迹：一条连续的时间线，每步「做了什么」在上、「何时 · 第几天」在下。
+ * 自动事件（提出 / 状态 / 关联 / 移除）视觉轻，手动「记一笔」视觉重（accent 圆点 + 正文字号）；
+ * 推算出的旧数据只有日期，标「约」。
  * 末尾输入框回车写入一条记录。
  */
 
@@ -8,7 +9,7 @@ import { useState } from "react";
 import { NotebookPen } from "lucide-react";
 import { cn, toast } from "@tau/ui";
 import type { QuestionEvent } from "@/types";
-import { TARGET_META, clock, describeEvent, fullDate, relativeDay, type EventView } from "../model";
+import { TARGET_META, clock, daySpan, describeEvent, relativeDay, type EventView } from "../model";
 
 const DOT: Record<EventView["tone"], string> = {
   start: "bg-surface shadow-[inset_0_0_0_1.5px_var(--tau-accent)]",
@@ -16,7 +17,7 @@ const DOT: Record<EventView["tone"], string> = {
   plain: "bg-surface shadow-[inset_0_0_0_1.5px_var(--tau-ink-3)]",
   muted: "bg-surface shadow-[inset_0_0_0_1.5px_var(--tau-ink-3)]",
   done: "bg-ok",
-  note: "bg-accent size-[9px] -left-4 top-2 shadow-[0_0_0_3px_var(--tau-bg-surface)]",
+  note: "bg-accent size-[9px] -left-px top-[5.5px] shadow-[0_0_0_3px_var(--tau-bg-surface)]",
 };
 
 export function Trajectory({
@@ -30,7 +31,6 @@ export function Trajectory({
 }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  let lastDay = "";
 
   const submit = async () => {
     const value = text.trim();
@@ -46,55 +46,51 @@ export function Trajectory({
     }
   };
 
+  const origin = events[0]?.createTime;
+
   return (
     <>
-      <ol className="relative flex flex-col gap-0.5 pl-4 before:absolute before:bottom-2.5 before:left-1 before:top-2.5 before:w-[1.5px] before:rounded-[1px] before:bg-[var(--tau-bg-track)]">
+      <ol className="flex flex-col">
         {events.map(event => {
-          const day = fullDate(event.createTime);
-          const showDay = day !== lastDay;
-          lastDay = day;
           const view = describeEvent(event);
           return (
-            <li key={event.id} className="contents">
-              {showDay && (
-                <div className="text-ink-3 bg-surface relative -ml-4 mb-0.5 mt-2.5 pl-4 text-[11.5px] font-medium first:mt-0">
-                  {relativeDay(event.createTime, now) === "今天" ? "今天" : day}
+            <li
+              key={event.id}
+              className="relative pb-4 pl-5 before:absolute before:-bottom-2.5 before:left-[3px] before:top-2.5 before:w-[1.5px] before:bg-[var(--tau-bg-track)] last:pb-0 last:before:hidden"
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  "absolute left-0 top-[6.5px] z-[1] size-[7px] rounded-full",
+                  DOT[view.tone]
+                )}
+              />
+              {view.tone === "note" ? (
+                <div className="text-ink-1 whitespace-pre-wrap text-[13px] leading-[20px]">
+                  {view.text}
+                </div>
+              ) : (
+                <div
+                  className={cn(
+                    "text-[12.5px] leading-[20px]",
+                    view.tone === "muted" ? "text-ink-3" : "text-ink-2",
+                    view.tone === "done" && "text-ok font-semibold"
+                  )}
+                >
+                  {view.verb}
                 </div>
               )}
+              {view.tone !== "note" && view.title && (
+                <EventRef type={view.targetType} title={view.title} muted={view.tone === "muted"} />
+              )}
               <div
-                className={cn(
-                  "relative flex items-start gap-2.5 py-[3px] text-[12.5px] leading-[1.6]",
-                  view.tone === "muted" ? "text-ink-3" : "text-ink-2"
-                )}
+                className="text-ink-3 mt-1 text-[11px] tabular-nums"
+                title={view.estimated ? "由旧数据推算，只精确到日期" : undefined}
               >
-                <span
-                  aria-hidden
-                  className={cn(
-                    "absolute -left-[15px] top-[9px] size-[7px] rounded-full",
-                    DOT[view.tone]
-                  )}
-                />
-                <span className="text-ink-3 w-[34px] shrink-0 pt-px text-[11px] tabular-nums">
-                  {view.estimated ? "约" : clock(event.createTime)}
-                </span>
-                <div className="min-w-0 flex-1">
-                  {view.tone === "note" ? (
-                    <div className="text-ink-1 whitespace-pre-wrap text-[13px] leading-[1.7]">
-                      {view.text}
-                    </div>
-                  ) : (
-                    <span className={cn(view.tone === "done" && "text-ok font-semibold")}>
-                      {view.verb}
-                      {view.title && (
-                        <EventRef
-                          type={view.targetType}
-                          title={view.title}
-                          muted={view.tone === "muted"}
-                        />
-                      )}
-                    </span>
-                  )}
-                </div>
+                {when(event.createTime, view.estimated, now)}
+                {origin != null && event.createTime > origin && (
+                  <> · 第 {daySpan(origin, event.createTime)} 天</>
+                )}
               </div>
             </li>
           );
@@ -122,6 +118,12 @@ export function Trajectory({
   );
 }
 
+/** 「今天 12:15」「7月18日 12:15」；推算时间只到日期：「约 7月18日」 */
+function when(ts: number, estimated: boolean, now: number): string {
+  const day = relativeDay(ts, now);
+  return estimated ? `约 ${day}` : `${day} ${clock(ts)}`;
+}
+
 function EventRef({
   type,
   title,
@@ -135,8 +137,8 @@ function EventRef({
   return (
     <span
       className={cn(
-        "ml-1.5 inline-flex max-w-full items-center gap-1 align-bottom",
-        muted ? "line-through" : "text-ink-1"
+        "text-ink-2 text-tau-meta mt-1 inline-flex max-w-full items-center gap-1",
+        muted ? "text-ink-3 line-through" : undefined
       )}
     >
       {Icon && <Icon className="text-ink-3 size-3 shrink-0" strokeWidth={1.75} />}
