@@ -5,7 +5,7 @@ export enum ResourceSyncStatus {
   Error = "error",
 }
 
-export type ResourceFileType = "image" | "video" | "audio" | "pdf" | "epub" | "attachment";
+export type ResourceFileType = "image" | "video" | "audio" | "pdf" | "attachment";
 
 export interface IFileSyncStatus {
   syncStatus: ResourceSyncStatus;

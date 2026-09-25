@@ -10,21 +10,11 @@ import {
 } from "@/commands";
 import { v4 as uuid } from "uuid";
 
-export type BookType = "pdf" | "epub";
-
-const BOOK_CONFIG: Record<BookType, { extensions: string[]; typeName: string; mimeType: string }> =
-  {
-    pdf: {
-      extensions: ["pdf"],
-      typeName: "PDF",
-      mimeType: "application/pdf",
-    },
-    epub: {
-      extensions: ["epub"],
-      typeName: "EPUB",
-      mimeType: "application/epub+zip",
-    },
-  };
+const PDF_CONFIG = {
+  extensions: ["pdf"],
+  typeName: "PDF",
+  mimeType: "application/pdf",
+};
 
 const copyFileToResources = async (file: File, fileName = file.name) => {
   const editorPath = await getEditorDir();
@@ -49,8 +39,8 @@ export interface ImportLocalBookResult {
   filePath: string;
 }
 
-export const importLocalBook = async (type: BookType): Promise<ImportLocalBookResult | null> => {
-  const config = BOOK_CONFIG[type];
+export const importLocalPdf = async (): Promise<ImportLocalBookResult | null> => {
+  const config = PDF_CONFIG;
   const filePath = await selectFile({
     properties: ["openFile"],
     filters: [{ name: config.typeName, extensions: config.extensions }],

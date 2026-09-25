@@ -50,11 +50,6 @@ export default defineConfig(() => {
         "@tau/platform": path.resolve(__dirname, "../../packages/platform"),
         "@tau/shared": path.resolve(__dirname, "../../packages/shared"),
         "@tau/themes": path.resolve(__dirname, "../../packages/themes"),
-        "foliate-js": path.resolve(__dirname, "../../packages/foliate-js"),
-        "@pdfjs/pdf.mjs": path.resolve(
-          __dirname,
-          "../../packages/foliate-js/vendor/pdfjs/pdf.mjs"
-        ),
       },
     },
     plugins: [

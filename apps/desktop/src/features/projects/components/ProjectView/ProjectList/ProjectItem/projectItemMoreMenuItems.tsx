@@ -223,18 +223,5 @@ export const getProjectItemMoreMenuItems = (
     ];
   }
 
-  if (projectItem?.projectItemType === EProjectItemType.Epub) {
-    return [
-      {
-        key: "remove",
-        label: "删除电子书",
-      },
-      {
-        key: "edit-title",
-        label: "编辑标题",
-      },
-    ];
-  }
-
   return [];
 };

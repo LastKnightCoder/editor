@@ -35,7 +35,6 @@ const RESOURCE_TYPE_OPTIONS: Array<{
   { label: "视频", value: "video" },
   { label: "音频", value: "audio" },
   { label: "PDF", value: "pdf" },
-  { label: "EPUB", value: "epub" },
   { label: "附件", value: "attachment" },
 ];
 

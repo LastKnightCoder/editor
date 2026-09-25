@@ -1,7 +1,7 @@
 import { memo, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { renderMenuEntries, type MenuEntryList } from "../shared/menuEntries";
 import { Menu, ContextMenu } from "@tau/ui";
-import { Book, FileText, FolderOpen, Globe, Plus, Table, Video } from "lucide-react";
+import { FileText, FolderOpen, Globe, Plus, Table, Video } from "lucide-react";
 import { AudioLines } from "lucide-react";
 import { useDrag, useDrop } from "react-dnd";
 import classnames from "classnames";
@@ -9,7 +9,7 @@ import EditText, { EditTextHandle } from "@/components/EditText";
 import MindMap from "@/components/MindMap";
 import type { MindMapNodeActionContext } from "@/components/MindMap";
 import { MindMapNodeData } from "@/components/MindMap/types";
-import { EProjectItemType, Epub, ICard, Pdf, Project, WhiteBoard } from "@/types";
+import { EProjectItemType, ICard, Pdf, Project, WhiteBoard } from "@/types";
 import { EDragPosition, IDragItem, type as sidebarDragType } from "@/hooks/useDragAndDrop";
 import { usePage } from "@/page/PageProvider";
 import { updateProjectItem } from "@/commands";
@@ -38,7 +38,6 @@ interface ProjectMindMapViewProps {
   cards: ICard[];
   whiteBoards: WhiteBoard[];
   pdfs: Pdf[];
-  epubs: Epub[];
   addMenuItems: MenuEntryList;
   onAddMenuClick: (key: string, parentProjectItemId?: number) => void;
   refreshProject: () => void;
@@ -60,7 +59,6 @@ const getItemIcon = (type?: EProjectItemType, hasChildren = false) => {
   if (type === EProjectItemType.TableView) return <Table className="size-4" strokeWidth={1.75} />;
   if (type === EProjectItemType.Pdf)
     return <FileText className="size-4 text-red-500" strokeWidth={1.75} />;
-  if (type === EProjectItemType.Epub) return <Book className="size-4" strokeWidth={1.75} />;
   return <FileText className="size-4" strokeWidth={1.75} />;
 };
 
@@ -386,7 +384,6 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
     cards,
     whiteBoards,
     pdfs,
-    epubs,
     addMenuItems,
     onAddMenuClick,
     refreshProject,
@@ -398,7 +395,6 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
   void cards;
   void whiteBoards;
   void pdfs;
-  void epubs;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [dropPlacement, setDropPlacement] = useState<MindMapDropPlacement | null>(null);
   const [foldStateVersion, setFoldStateVersion] = useState(0);
