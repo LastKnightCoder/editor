@@ -6,7 +6,7 @@
  * 语音转录并为「语音」。分组：通用 → 数据 → 连接 → AI 服务 → 系统。
  * 页头（标题 + 说明）由 SettingsDialog 按 label / description 统一渲染，子页不再自绘；
  * keywords 供导航搜索命中分区内的设置项名。
- * 11 个分区已全部落地（D-036）；本文件即设置导航的唯一修改点。
+ * 10 个分区已落地（D-036；「功能模块」分区随模块开关退役移除）；本文件即设置导航的唯一修改点。
  */
 
 import type { ComponentType } from "react";
@@ -18,7 +18,6 @@ import {
   Layers,
   ImageIcon,
   AudioLines,
-  LayoutGrid,
   Plug,
   Archive,
   Info,
@@ -29,7 +28,6 @@ import { SyncSection } from "./sections/SyncSection";
 import { ResourceSection } from "./sections/ResourceSection";
 import { LLMSection } from "./sections/LLMSection";
 import { EmbeddingSection } from "./sections/EmbeddingSection";
-import { ModuleSection } from "./sections/ModuleSection";
 import { CacheSection } from "./sections/CacheSection";
 import { IntegrationSection } from "./sections/IntegrationSection";
 import { ImageGenerationSection } from "./sections/ImageGenerationSection";
@@ -38,7 +36,6 @@ import { AboutSection } from "./sections/AboutSection";
 
 export type SettingsSectionKey =
   | "appearance"
-  | "module"
   | "sync"
   | "imageBed"
   | "cache"
@@ -76,14 +73,6 @@ export const SETTINGS_GROUPS: SettingsSectionGroup[] = [
         icon: Palette,
         keywords: ["主题", "深色", "浅色", "字体", "字号", "代码字体", "图片圆角", "图片阴影"],
         component: AppearanceSection,
-      },
-      {
-        key: "module",
-        label: "功能模块",
-        description: "关闭的模块从侧栏和命令面板中隐藏，数据保留",
-        icon: LayoutGrid,
-        keywords: ["模块", "侧栏"],
-        component: ModuleSection,
       },
     ],
   },

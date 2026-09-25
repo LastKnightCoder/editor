@@ -7,7 +7,6 @@ import AppearanceSetting from "./AppearanceSetting";
 import ResourceUploadSetting from "./ResourceUploadSetting";
 import SyncSetting from "./SyncSetting";
 import PublishSetting from "./PublishSetting";
-import ModuleSetting from "./ModuleSetting";
 import TextToSpeechSetting from "./TextToSpeechSetting";
 import TranscriptionSetting from "./TranscriptionSetting";
 import LLMProviderSetting from "./LLMProviderSetting";
@@ -178,21 +177,6 @@ const SettingsPage = () => {
         </svg>
       ),
       children: <TranscriptionSetting />,
-    },
-    {
-      key: "module",
-      label: "模块功能",
-      icon: (
-        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"
-          />
-        </svg>
-      ),
-      children: <ModuleSetting />,
     },
     {
       key: "integration",

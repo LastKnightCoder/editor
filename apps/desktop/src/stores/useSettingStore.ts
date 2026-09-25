@@ -49,58 +49,6 @@ import { useBackendWebsocketStore } from "./useBackendWebsocketStore";
 
 export type { ProviderConfig, ModelConfig, LLMUsageConfig };
 
-export const DEFAULT_MODULE_ORDER = [
-  "card",
-  "flashcard",
-  "article",
-  "whiteBoard",
-  "project",
-  "dailyNote",
-  "pdf",
-  "vecDocuments",
-  "calendar",
-  "chatManagement",
-  "skillManagement",
-  "pomodoro",
-  "todo",
-  "question",
-  "collaboration",
-  "weread",
-  "webview",
-  "settings",
-];
-
-const MODULE_KEY_SET = new Set(DEFAULT_MODULE_ORDER);
-
-const sanitizeSettingModules = <T extends Partial<ISetting>>(setting: T): T => {
-  const nextSetting = setting as T & {
-    module?: Record<string, unknown>;
-    moduleOrder?: string[];
-  };
-
-  if (nextSetting.module && typeof nextSetting.module === "object") {
-    Object.keys(nextSetting.module).forEach(key => {
-      if (!MODULE_KEY_SET.has(key)) {
-        delete nextSetting.module?.[key];
-      }
-    });
-  }
-
-  if (Array.isArray(nextSetting.moduleOrder)) {
-    nextSetting.moduleOrder = nextSetting.moduleOrder.filter((key, index, arr) => {
-      return MODULE_KEY_SET.has(key) && arr.indexOf(key) === index;
-    });
-  } else {
-    nextSetting.moduleOrder = [...DEFAULT_MODULE_ORDER];
-  }
-
-  if (nextSetting.moduleOrder.length === 0) {
-    nextSetting.moduleOrder = [...DEFAULT_MODULE_ORDER];
-  }
-
-  return nextSetting;
-};
-
 const sanitizeDeprecatedLLMUsageSettings = <T extends Partial<ISetting>>(setting: T): T => {
   const nextSetting = setting as T & {
     llmUsageSettings?: Record<string, unknown>;
@@ -191,12 +139,15 @@ export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting):
     mergedSetting.imageGeneration = imageGeneration;
   }
   migrateAppearanceSetting(mergedSetting);
-  sanitizeSettingModules(mergedSetting);
   sanitizeDeprecatedLLMUsageSettings(mergedSetting);
   migrateImageGenerationConfig(mergedSetting);
   normalizeTransientSettingState(mergedSetting);
   // mermaid 渲染已改为原生 mermaid，移除旧缓存中的 beautiful-mermaid 配置
   delete (mergedSetting.misc as Record<string, unknown>).mermaid;
+  // 功能模块开关已退役（所有模块恒开启），丢弃旧 setting.json 中的 module / moduleOrder 残留
+  const legacyFields = mergedSetting as unknown as Record<string, unknown>;
+  delete legacyFields.module;
+  delete legacyFields.moduleOrder;
   return mergedSetting;
 };
 
@@ -270,81 +221,6 @@ export interface ISetting {
       version: number;
     }>;
   };
-  module: {
-    card: {
-      enable: boolean;
-      name: "卡片";
-    };
-    flashcard: {
-      enable: boolean;
-      name: "闪卡中心";
-    };
-    article: {
-      enable: boolean;
-      name: "文章";
-    };
-    whiteBoard: {
-      enable: boolean;
-      name: "白板";
-    };
-    project: {
-      enable: boolean;
-      name: "项目";
-    };
-    dailyNote: {
-      enable: boolean;
-      name: "日记";
-    };
-    pdf: {
-      enable: boolean;
-      name: "PDF";
-    };
-    vecDocuments: {
-      enable: boolean;
-      name: "索引数据库";
-    };
-    calendar: {
-      enable: boolean;
-      name: "日历";
-    };
-    chatManagement: {
-      enable: boolean;
-      name: "聊天管理";
-    };
-    skillManagement: {
-      enable: boolean;
-      name: "Skill 管理";
-    };
-    pomodoro: {
-      enable: boolean;
-      name: "番茄专注";
-    };
-    todo: {
-      enable: boolean;
-      name: "任务列表";
-    };
-    question: {
-      enable: boolean;
-      name: "问题管理";
-    };
-    weread: {
-      enable: boolean;
-      name: "微信读书";
-    };
-    collaboration: {
-      enable: boolean;
-      name: "协作";
-    };
-    webview: {
-      enable: boolean;
-      name: "网页浏览";
-    };
-    settings: {
-      enable: boolean;
-      name: "设置";
-    };
-  };
-  moduleOrder: string[];
   darkMode: boolean;
   transcription: {
     currentModel: string;
@@ -516,7 +392,6 @@ interface IActions {
   setSettingModalOpen: (open: boolean) => void;
   onFontSettingChange: (fontSetting: ISetting["fontSetting"]) => void;
   onDarkModeChange: (darkMode: boolean) => void;
-  updateModuleOrder: (moduleOrder: string[]) => void;
   updateLLMUsageSetting: (
     feature: keyof ISetting["llmUsageSettings"],
     config: LLMUsageConfig | null
@@ -623,11 +498,6 @@ const loadCachedSetting = (): Partial<ISetting> | null => {
       return null;
     }
     const cachedSetting = JSON.parse(cached) as Partial<ISetting>;
-    // Migration: Add default moduleOrder if not present
-    if (!cachedSetting.moduleOrder) {
-      cachedSetting.moduleOrder = [...DEFAULT_MODULE_ORDER];
-    }
-    sanitizeSettingModules(cachedSetting);
     const migrated = sanitizeDeprecatedLLMUsageSettings(cachedSetting);
     migrateImageGenerationConfig(migrated);
     return migrated;
@@ -739,81 +609,6 @@ const initialState: IState = {
         },
       ],
     },
-    module: {
-      card: {
-        enable: true,
-        name: "卡片",
-      },
-      flashcard: {
-        enable: true,
-        name: "闪卡中心",
-      },
-      article: {
-        enable: true,
-        name: "文章",
-      },
-      whiteBoard: {
-        enable: true,
-        name: "白板",
-      },
-      project: {
-        enable: true,
-        name: "项目",
-      },
-      dailyNote: {
-        enable: true,
-        name: "日记",
-      },
-      pdf: {
-        enable: true,
-        name: "PDF",
-      },
-      vecDocuments: {
-        enable: true,
-        name: "索引数据库",
-      },
-      weread: {
-        enable: true,
-        name: "微信读书",
-      },
-      collaboration: {
-        enable: true,
-        name: "协作",
-      },
-      webview: {
-        enable: true,
-        name: "网页浏览",
-      },
-      pomodoro: {
-        enable: true,
-        name: "番茄专注",
-      },
-      todo: {
-        enable: true,
-        name: "任务列表",
-      },
-      question: {
-        enable: true,
-        name: "问题管理",
-      },
-      calendar: {
-        enable: true,
-        name: "日历",
-      },
-      chatManagement: {
-        enable: true,
-        name: "聊天管理",
-      },
-      skillManagement: {
-        enable: true,
-        name: "Skill 管理",
-      },
-      settings: {
-        enable: true,
-        name: "设置",
-      },
-    },
-    moduleOrder: DEFAULT_MODULE_ORDER,
     transcription: {
       currentModel: "faster-whisper-base",
       downloadSource: "modelscope",
@@ -1061,18 +856,6 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
     });
     // 旧入口（legacy 侧边栏/演示模式等）转发到主题 runtime，保证 DOM 主题只有一个写者
     useThemeStore.getState().setMode(darkMode ? "cocoa" : "cream");
-  },
-  updateModuleOrder: moduleOrder => {
-    const { setting } = get();
-    const sanitizedModuleOrder = moduleOrder.filter((key, index, arr) => {
-      return MODULE_KEY_SET.has(key) && arr.indexOf(key) === index;
-    });
-    set({
-      setting: produce(setting, draft => {
-        draft.moduleOrder =
-          sanitizedModuleOrder.length > 0 ? sanitizedModuleOrder : [...DEFAULT_MODULE_ORDER];
-      }),
-    });
   },
   updateLLMUsageSetting: (feature, config) => {
     const { setting } = get();

@@ -5,7 +5,6 @@ import { useMemoizedFn } from "ahooks";
 
 import useTabStore from "@/stores/useTabStore";
 import useNavigationHistoryStore from "@/stores/useNavigationHistoryStore";
-import useSettingStore from "@/stores/useSettingStore";
 import { TabType, TAB_TITLES } from "@/types/tab";
 
 import "@tmikeladze/react-cmdk/dist/cmdk.css";
@@ -15,20 +14,20 @@ import useTheme from "@/hooks/useTheme";
 // 所有可导航的页面
 const ALL_PAGES = [
   { type: TabType.Home, category: "通用" },
-  { type: TabType.CardList, category: "内容", module: "card" },
-  { type: TabType.ArticleList, category: "内容", module: "article" },
-  { type: TabType.ProjectList, category: "内容", module: "project" },
-  { type: TabType.WhiteBoardList, category: "内容", module: "whiteBoard" },
-  { type: TabType.PdfList, category: "内容", module: "pdf" },
-  { type: TabType.DailyNote, category: "内容", module: "dailyNote" },
-  { type: TabType.WeRead, category: "内容", module: "weread" },
-  { type: TabType.Collaboration, category: "工具", module: "collaboration" },
-  { type: TabType.VecDocument, category: "工具", module: "vecDocuments" },
+  { type: TabType.CardList, category: "内容" },
+  { type: TabType.ArticleList, category: "内容" },
+  { type: TabType.ProjectList, category: "内容" },
+  { type: TabType.WhiteBoardList, category: "内容" },
+  { type: TabType.PdfList, category: "内容" },
+  { type: TabType.DailyNote, category: "内容" },
+  { type: TabType.WeRead, category: "内容" },
+  { type: TabType.Collaboration, category: "工具" },
+  { type: TabType.VecDocument, category: "工具" },
   { type: TabType.Calendar, category: "工具" },
   { type: TabType.ChatManagement, category: "工具" },
-  { type: TabType.Todo, category: "效率", module: "todo" },
-  { type: TabType.Questions, category: "效率", module: "question" },
-  { type: TabType.Pomodoro, category: "效率", module: "pomodoro" },
+  { type: TabType.Todo, category: "效率" },
+  { type: TabType.Questions, category: "效率" },
+  { type: TabType.Pomodoro, category: "效率" },
   { type: TabType.Settings, category: "设置" },
 ];
 
@@ -41,7 +40,6 @@ const CommandPanel = memo(() => {
   const addToHistory = useNavigationHistoryStore(state => state.addToHistory);
   const getRecentItems = useNavigationHistoryStore(state => state.getRecentItems);
   const getFrequentItems = useNavigationHistoryStore(state => state.getFrequentItems);
-  const moduleSetting = useSettingStore(state => state.setting.module);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -65,15 +63,8 @@ const CommandPanel = memo(() => {
     setSearch("");
   });
 
-  // 过滤启用的页面
-  const enabledPages = ALL_PAGES.filter(page => {
-    if (!page.module) return true;
-    const moduleKey = page.module as keyof typeof moduleSetting;
-    return moduleSetting[moduleKey]?.enable !== false;
-  });
-
   // 按分类分组
-  const pagesByCategory = enabledPages.reduce(
+  const pagesByCategory = ALL_PAGES.reduce(
     (acc, page) => {
       if (!acc[page.category]) {
         acc[page.category] = [];
@@ -81,7 +72,7 @@ const CommandPanel = memo(() => {
       acc[page.category].push(page);
       return acc;
     },
-    {} as Record<string, typeof enabledPages>
+    {} as Record<string, typeof ALL_PAGES>
   );
 
   const recentItems = getRecentItems(5);
