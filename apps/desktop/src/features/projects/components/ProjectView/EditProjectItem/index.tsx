@@ -223,11 +223,27 @@ const EditProjectItem = (props: { projectItemId: number }) => {
                   onPressEnter={onPressEnter}
                 />
               </div>
-              <div className="mb-6 flex gap-2.5 text-[0.9em] opacity-80">
-                <div>创建于 {formatDate(projectItem.createTime, true)}</div>
-                <div>最后修改于 {formatDate(projectItem.updateTime, true)}</div>
-                {/* 字数属于文档本身，随信息行走（项目详情不设底部状态栏） */}
-                <div className="tabular-nums">{projectItem.count.toLocaleString("zh-CN")} 字</div>
+              <div className="mb-6 flex items-center gap-2.5">
+                <div className="flex gap-2.5 text-[0.9em] opacity-80">
+                  <div>创建于 {formatDate(projectItem.createTime, true)}</div>
+                  <div>最后修改于 {formatDate(projectItem.updateTime, true)}</div>
+                  {/* 字数属于文档本身，随信息行走（项目详情不设底部状态栏） */}
+                  <div className="tabular-nums">{projectItem.count.toLocaleString("zh-CN")} 字</div>
+                </div>
+                {/* 协作：已共享时常驻成员条（点开成员 Popover）；未共享不占位，由列表菜单「发起协作」打开对话框 */}
+                <span className="ml-auto">
+                  <ContentCollaborationControl
+                    ref={collaborationRef}
+                    hideTrigger
+                    presence
+                    contentId={projectItem.contentId}
+                    source={{
+                      sourceType: "project-item",
+                      sourceId: projectItem.id,
+                      sourceTitle: projectItem.title,
+                    }}
+                  />
+                </span>
               </div>
             </header>
             <EditCardContext.Provider
@@ -306,16 +322,6 @@ const EditProjectItem = (props: { projectItemId: number }) => {
           )}
         </div>
       </div>
-      <ContentCollaborationControl
-        ref={collaborationRef}
-        hideTrigger
-        contentId={projectItem.contentId}
-        source={{
-          sourceType: "project-item",
-          sourceId: projectItem.id,
-          sourceTitle: projectItem.title,
-        }}
-      />
 
       {/* 沉浸模式 */}
       {immersiveMode && (

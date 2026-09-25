@@ -3,8 +3,10 @@
  * 当前快照包含正文与参考资料；大卡库仍需改为摘要查询与详情按需加载。
  * 复习评分只回写单卡缓存（setQueryData），不整表重拉。
  *
- * 主进程没有闪卡变更广播：本页变更后自行失效；其它入口（文章 / 卡片里生成闪卡、AI 工具）
- * 新建的卡靠窗口聚焦与进入页面时重拉兜底。首页（待复习数）与统计页（评分分布）同源数据一并失效。
+ * 变更联动：主进程表层所有写命令广播 flashcards:changed（含文章 / 卡片 / AI 对话等生成入口），
+ * 本模块常驻订阅并失效 ["flashcards"] 查询（按库过滤；侧栏徽标经 useNavDueCount 依赖本模块，
+ * 故监听随壳层加载即接线）；窗口聚焦刷新仍保留作兜底（同步等绕过表层的写入路径）。
+ * 首页（待复习数）与统计页（评分分布）由 invalidateFlashcardViews 一并失效。
  */
 
 import {
@@ -30,10 +32,22 @@ import type {
   UpdateFlashcardInput,
 } from "@/types";
 import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { on } from "@/electron";
+import useSettingStore from "@/stores/useSettingStore";
+import { queryClient } from "@/queryClient";
 import { DAY_MS, resumedStatus, startOfDay } from "./model";
 
 const SNAPSHOT_KEY = ["flashcards", "snapshot"] as const;
 const STATS_KEY = ["flashcards", "review-stats"] as const;
+
+const hasBridge = typeof window !== "undefined" && Boolean(window.electron);
+if (hasBridge) {
+  on("flashcards:changed", (_event, { databaseName }: { databaseName: string }) => {
+    const active = useSettingStore.getState().setting.database.active;
+    if (databaseName.replace(".db", "") !== active.replace(".db", "")) return;
+    void queryClient.invalidateQueries({ queryKey: ["flashcards"] });
+  });
+}
 
 export interface FlashcardSnapshot {
   decks: FlashcardDeck[];
@@ -69,6 +83,18 @@ export function useReviewStats() {
     staleTime: 60_000,
   });
   return query.data ?? null;
+}
+
+/** 侧栏徽标的待复习总数（口径同首页 fetchReview：卡组 dueCount 求和，due_time 已到且未暂停） */
+export function useNavDueCount() {
+  const query = useQuery({
+    queryKey: ["flashcards", "nav-due-count"],
+    queryFn: async () =>
+      (await listFlashcardDecks()).reduce((sum, deck) => sum + (deck.stats?.dueCount ?? 0), 0),
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  return query.data ?? 0;
 }
 
 function patchCard(queryClient: QueryClient, card: Flashcard) {

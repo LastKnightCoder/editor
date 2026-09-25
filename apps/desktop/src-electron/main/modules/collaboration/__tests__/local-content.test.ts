@@ -32,7 +32,9 @@ vi.mock("../../video-note-index-queue", () => ({
 }));
 
 import {
+  bindingMatches,
   migrateContentBindings,
+  planClosedReshare,
   restoreContentBinding,
   restorePrivateNodes,
   writeContentProjection,
@@ -99,7 +101,12 @@ describe("通用内容和本地恢复", () => {
     expect(
       writeContentProjection(db, source, "doc", "https://collab.example", [{ text: "新内容" }], 3)
     ).toBe(true);
+    expect(bindingMatches(db, source, "doc", "https://collab.example")).toBe(true);
+    // 改绑到其它共享 / 其它服务：不再匹配（清理时据此跳过写回）
+    expect(bindingMatches(db, source, "other", "https://collab.example")).toBe(false);
+    expect(bindingMatches(db, source, "doc", "https://elsewhere.example")).toBe(false);
     db.prepare("UPDATE contents SET create_time=999 WHERE id=7").run();
+    expect(bindingMatches(db, source, "doc", "https://collab.example")).toBe(false);
     expect(() =>
       writeContentProjection(db, source, "doc", "https://collab.example", [], 0)
     ).toThrow("关联已变化");
@@ -170,5 +177,22 @@ describe("通用内容和本地恢复", () => {
     expect(existsSync(localPath)).toBe(true);
     expect(readFileSync(localPath, "utf8")).toBe("PNG-FIXTURE");
     expect(localPath).toContain(join("resources", "collaboration"));
+  });
+});
+
+describe("结束共享残留的重新发起判定", () => {
+  it("closed 且无未同步改动：先写回并拆除残留，再重建共享", () => {
+    expect(planClosedReshare({ status: "closed", pending: false })).toEqual({
+      action: "rebuild",
+    });
+  });
+  it("closed 且有未同步改动：拒绝并引导到协作页清理，不静默丢弃", () => {
+    const plan = planClosedReshare({ status: "closed", pending: true });
+    expect(plan?.action).toBe("reject");
+    if (plan?.action === "reject") expect(plan.reason).toContain("清理");
+  });
+  it("活跃 / 退出中的会话不参与判定（退出中由 refresh 重试自愈）", () => {
+    expect(planClosedReshare({ status: "active", pending: false })).toBeNull();
+    expect(planClosedReshare({ status: "active", pending: true })).toBeNull();
   });
 });

@@ -151,6 +151,8 @@ test.beforeAll(async () => {
       TAU_COLLAB_E2E_SCHEMA: resolve(root, "../../packages/db-schema/schema/main.sql"),
       TAU_COLLAB_E2E_PRELOAD: resolve(root, "e2e/collaboration/preload.cjs"),
       TAU_COLLAB_E2E_URL: url,
+      // 服务地址不对用户开放，测试经开发模式变量指向本地服务
+      TAU_COLLAB_DEV_SERVER_URL: serverUrl,
     },
   });
   page = await electron.firstWindow();
@@ -173,15 +175,16 @@ test.afterAll(async () => {
 // 冒烟：连发 4 个加入申请，验证右上角通知弹出数量与 Mac 式堆叠（3 完整 + 1 层叠）。
 test("多个加入申请弹出通知并以堆叠呈现", async () => {
   await page.evaluate(
-    (url: string) =>
-      window.electron.invoke("collaboration:configure", { serverUrl: url, nickname: "演示作者" }),
-    serverUrl
+    (nickname: string) => window.electron.invoke("collaboration:set-nickname", nickname),
+    "演示作者"
   );
   await page.getByRole("button", { name: "发起协作", exact: true }).click();
+  // 先说明再确认：打开对话框不会静默共享
+  await page.getByRole("button", { name: "发起共享", exact: true }).click();
   const codeField = page.getByTestId("collaboration-code");
   await expect(codeField).not.toHaveText(/^—/);
   const code = (await codeField.textContent())?.trim() || "";
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await page.getByRole("button", { name: "关闭", exact: true }).click();
 
   // /v1/devices 限流 5 次/小时：作者端已注册 1 次，这里最多再注册 4 个协作者
   for (let i = 1; i <= 4; i++) {

@@ -13,7 +13,7 @@ import logo from "@/assets/logo.png";
 import { useShellStore } from "./shellStore";
 import { useSettingsStore } from "./settingsStore";
 import { NAV_FOOTER, NAV_SECTIONS, type NavItem } from "./navigation";
-import { PomodoroNavBadge } from "@/features/pomodoro/components/PomodoroNavBadge";
+import { NAV_BADGE_SLOTS, NAV_CHILDREN_SLOTS, useNavChildrenContent } from "./navSlots";
 import { MacTrafficLights } from "./WindowControls";
 import { useFullScreen } from "./useFullScreen";
 
@@ -32,7 +32,14 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(scrollEl);
 
-  const currentKey = state.back[state.back.length - 1]?.key;
+  const current = state.back[state.back.length - 1];
+  const currentKey = current?.key;
+  // 子项只在所属页位于栈顶、且槽内有内容时展开（侧栏收起为图标列时不展开）
+  const childrenContent = useNavChildrenContent();
+  const shouldExpandChildren = (item: NavItem) =>
+    !collapsed &&
+    item.key === currentKey &&
+    (item.children ? childrenContent[item.children] : false);
 
   return (
     <nav
@@ -137,15 +144,36 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
               >
                 {/* space-y 行距：选中/hover 色块不再相贴（同菜单 2px 行距口径） */}
                 <div className="min-h-0 space-y-0.5 overflow-hidden">
-                  {section.items.map(item => (
-                    <NavItemButton
-                      key={item.key}
-                      item={item}
-                      collapsed={collapsed}
-                      active={item.key === currentKey}
-                      onClick={() => navigator.push(item.key)}
-                    />
-                  ))}
+                  {section.items.map(item => {
+                    const ChildrenSlot = item.children
+                      ? NAV_CHILDREN_SLOTS[item.children]
+                      : undefined;
+                    return (
+                      <div key={item.key}>
+                        <NavItemButton
+                          item={item}
+                          collapsed={collapsed}
+                          active={item.key === currentKey}
+                          hasActiveChild={shouldExpandChildren(item)}
+                          // 带子项的入口回到该页时沿用已有参数（停留在上次看的内容），不重置
+                          onClick={() =>
+                            navigator.push(
+                              item.key,
+                              item.children
+                                ? state.back.find(entry => entry.key === item.key)?.params
+                                : undefined
+                            )
+                          }
+                        />
+                        {ChildrenSlot && shouldExpandChildren(item) && (
+                          <ChildrenSlot
+                            selectedId={current?.params.id as string | undefined}
+                            onSelect={id => navigator.push(item.key, { id })}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -174,15 +202,19 @@ export function Sidebar({ resizing }: { resizing: boolean }) {
 function NavItemButton({
   item,
   active,
+  hasActiveChild = false,
   collapsed,
   onClick,
 }: {
   item: NavItem;
   active: boolean;
+  /** 选中态落在下方子项上：本项降为「所在区」（accent 文字、无底无竖标），不和子项抢选中 */
+  hasActiveChild?: boolean;
   collapsed: boolean;
   onClick: () => void;
 }) {
   const ItemIcon = item.icon;
+  const BadgeSlot = item.badge ? NAV_BADGE_SLOTS[item.badge] : undefined;
   const button = (
     <button
       type="button"
@@ -191,13 +223,15 @@ function NavItemButton({
         "text-tau-body relative flex h-[calc(1.65em+8px)] w-full items-center rounded-[10px] text-left",
         "ease-tau-out transition-[background,color] duration-[160ms]",
         collapsed ? "justify-center px-0" : "gap-2.5 px-2.5",
-        active
-          ? // 选中态：accent 淡底 + 左缘 accent 小竖点（竖点贴列左缘，超出按钮盒 10px）。
-            // 用 bg-selected 而非 bg-hover——后者是 5% 墨的悬停反馈（对 page 1.086），
-            // 承担选中语义太弱；bg-selected 带 accent 色相（对 page 1.174），且
-            // 02 §1 视觉宪法本就允许 accent 用于"选中"（D-006）。
-            "bg-selected text-ink-1 before:bg-accent relative font-medium before:absolute before:-left-2.5 before:bottom-2 before:top-2 before:w-[3px] before:rounded-r-[3px] before:content-['']"
-          : "text-ink-2 hover:bg-hover hover:text-ink-1"
+        active && hasActiveChild
+          ? "text-accent-text hover:bg-hover font-medium"
+          : active
+            ? // 选中态：accent 淡底 + 左缘 accent 小竖点（竖点贴列左缘，超出按钮盒 10px）。
+              // 用 bg-selected 而非 bg-hover——后者是 5% 墨的悬停反馈（对 page 1.086），
+              // 承担选中语义太弱；bg-selected 带 accent 色相（对 page 1.174），且
+              // 02 §1 视觉宪法本就允许 accent 用于"选中"（D-006）。
+              "bg-selected text-ink-1 before:bg-accent relative font-medium before:absolute before:-left-2.5 before:bottom-2 before:top-2 before:w-[3px] before:rounded-r-[3px] before:content-['']"
+            : "text-ink-2 hover:bg-hover hover:text-ink-1"
       )}
       onClick={onClick}
       title={collapsed ? undefined : item.label}
@@ -207,7 +241,7 @@ function NavItemButton({
       <ItemIcon className="shrink-0" size="1.06em" strokeWidth={1.75} />
       {/* 窄态（最小 120px）下长标签溢出省略，悬停 title 可见全名 */}
       {!collapsed && <span className="min-w-0 truncate">{item.label}</span>}
-      {item.badge === "pomodoro-live" && <PomodoroNavBadge collapsed={collapsed} />}
+      {BadgeSlot && <BadgeSlot collapsed={collapsed} />}
     </button>
   );
   return (

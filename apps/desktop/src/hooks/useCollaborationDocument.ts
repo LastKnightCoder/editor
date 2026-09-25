@@ -16,7 +16,6 @@ import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate } from "y-protoc
 import { ASSET_PREFIX, readSharedContent, type SharedContent } from "@tau/collaboration";
 import type { EditorCollaborationBinding } from "@tau/editor/src/collaboration/types";
 import { on, off } from "@/electron";
-import { initializeCollaborationStore } from "@/stores/useCollaborationStore";
 import { publishSessionValue } from "@/stores/useContentSessionStore";
 
 const IPC_ORIGIN = Symbol("main-process");
@@ -27,7 +26,6 @@ export default function useCollaborationDocument(documentId?: string) {
   const [error, setError] = useState<string>();
   const [frozen, setFrozen] = useState(false);
   useEffect(() => {
-    initializeCollaborationStore();
     setBinding(undefined);
     setArticle(undefined);
     setError(undefined);

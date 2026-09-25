@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>协作页设计探索 · 总览</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-hover: rgba(67, 57, 44, 0.05); --bg-track: #e0d6c3;
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55); --ok: #61795f; --warn: #a38c4d; --danger: #b0564d; --info: #5c7d99;
+    --tag-2: #5c7d99; --tag-3: #8a7aa6; --tag-4: #a38c4d;
+    --shadow: 0 1px 2px rgba(120,100,70,0.05), 0 10px 24px -14px rgba(120,100,70,0.18);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 14px/1.75 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 40px 8vw 80px; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { color: var(--ink-2); margin-top: 6px; max-width: 84ch; }
+  header .meta { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+  h2 { font-size: 16px; margin: 42px 0 14px; font-weight: 600; }
+  .sub2 { color: var(--ink-2); max-width: 84ch; margin-bottom: 14px; }
+  ul.tight { padding-left: 20px; color: var(--ink-2); max-width: 92ch; }
+  ul.tight li + li { margin-top: 4px; }
+  ul.tight b { color: var(--ink-1); font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .card { background: var(--bg-surface); border-radius: 16px; padding: 20px 22px; box-shadow: var(--shadow); text-decoration: none; color: inherit; display: flex; flex-direction: column;
+    outline: 1px solid transparent; transition: box-shadow 200ms, outline-color 200ms; }
+  .card:hover { outline-color: var(--line-1); box-shadow: 0 16px 40px -12px rgba(120,100,70,0.3); }
+  .card .no { font: 600 12px/1 ui-monospace, Consolas, monospace; color: var(--accent-text); }
+  .card h3 { font-size: 15.5px; margin: 6px 0 2px; font-weight: 600; }
+  .card .who { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+  .card p { font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  .card .wire { margin-top: 14px; height: 104px; border-radius: 10px; background: var(--bg-page); padding: 8px; display: grid; gap: 6px; }
+  .wire div { border-radius: 6px; background: var(--bg-surface); box-shadow: var(--shadow); position: relative; }
+  .wire .ring { position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%; border: 3px solid var(--bg-track); border-right-color: var(--accent); border-top-color: var(--accent); }
+  .wire .bar { position: absolute; left: 8px; right: 8px; height: 5px; border-radius: 3px; background: var(--bg-track); }
+  .wire .blk { position: absolute; height: 5px; border-radius: 2px; }
+  .card .verdict { margin-top: 12px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .verdict .good { color: var(--ok); } .verdict .bad { color: var(--danger); }
+  .card .open { margin-top: auto; padding-top: 12px; font-size: 12.5px; color: var(--accent-text); font-weight: 500; }
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--bg-hover); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line-2); }
+  td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  .callout { background: var(--bg-surface); border-radius: 14px; padding: 18px 22px; margin-top: 14px; box-shadow: var(--shadow); border-left: 3px solid var(--accent); }
+  .callout p { color: var(--ink-2); font-size: 13.5px; }
+  .callout p + p { margin-top: 8px; }
+  .callout b { color: var(--ink-1); }
+  code { font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--bg-surface); border: 1px solid var(--line-1); padding: 1px 6px; border-radius: 5px; color: var(--accent-text); }
+  a.inline { color: var(--accent-text); font-weight: 500; }
+</style>
+<style>
+  .wire .row { position: absolute; left: 8px; right: 8px; height: 7px; border-radius: 3px; background: var(--bg-hover); }
+  .wire .dot { position: absolute; width: 8px; height: 8px; border-radius: 50%; }
+  .wire .paper { background: transparent; box-shadow: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>协作页设计探索 · 三方案 + 共用入口</h1>
+  <p class="sub">现状：legacy 协作分散在四处——<code>pages/CollaborationView</code> 工作台（288px 左栏：头像 + 协作码输入框 + 「共享本地内容」虚线按钮 + 待审批 + 我发起的 / 我加入的，右边内嵌协作编辑器，成员条在编辑器顶部横排）、右侧小组件 <code>CollaborationPanel</code>、内容页状态栏的分享弹窗 <code>ContentCollaborationControl</code>（CustomModal）、协作设置弹窗。样式混用 <code>--th-*</code>、antd <code>message</code> / <code>LoadingOutlined</code>、uppercase 小节题和 <code>border-b</code> 横线切割。三个方案共用同一份 mock 协作状态（6 份共享：我发起 3 + 加入 2 + 已结束 1，2 个待审批申请，5 位协作者），字段与 <code>@tau/collaboration</code> 协议一致，状态文案逐条移植自 <code>sessionStatus</code>，没有新造的状态或模块。可交互：同意 / 拒绝申请、复制 / 轮换协作码、移除成员（确认）、共享本地内容（选择 → 三步发布 → 出码）、输入协作码加入（粘贴自动分段，输入 <code>AAAA-AAAA-AAAA</code> 可看失败态）、结束共享 / 退出 / 清理。标题栏虚线框是 mockup 演示开关：正常 / 空态 / 断网 / 服务器异常。右上角可切 cream / cocoa。</p>
+  <p class="meta">2026-09-25 · mockup 只作视觉参考，不作为导出源（D-001）</p>
+</header>
+
+<h2>领域判断 · 协作页到底服务什么</h2>
+<ul class="tight">
+  <li><b>编辑大多不发生在协作页</b>：我发起的共享都有本地原内容（文章 / 卡片 / 项目文档），在原页面照常写就是协作；只有<b>我加入的</b>内容只存在于协作缓存里，协作页是它唯一的编辑位置。所以「协作页内嵌编辑器」对一半内容是必需的，对另一半是重复入口——三个方案的分歧主要就在这里；</li>
+  <li><b>最有时效的是审批</b>：申请会过期，对方在等。它已经通过 Notification（D-038）弹出，但协作页和侧栏入口仍然要能一眼看到剩余的待办；</li>
+  <li><b>协作码是「发出去」的东西</b>：作者最常做的是复制它，其次是轮换；它不需要被大字号展示在页面主位；</li>
+  <li><b>数量很少</b>：默认配额每设备 5 份共享、每份 10 人。页面不需要搜索、分页或批量操作，重点是状态清楚（谁在、同步了没、断没断）。</li>
+</ul>
+
+<h2>三个方案都修掉的 legacy 问题</h2>
+<ul class="tight">
+  <li><b>点「发起协作」就立刻共享</b>：legacy 打开弹窗即冻结本地编辑、上传附件、发布并出码，用户还没看清就已经共享了。改为先说明（码 / 本地块不共享 / 随时可结束）再确认「发起共享」，发布过程三步可见；</li>
+  <li><b>移除成员没有确认</b>：工作台成员条上的移除按钮直接执行（分享弹窗里有确认，两处不一致）。统一走确认对话框——移除立即断开对方，不能撤销；</li>
+  <li><b>协作码输入</b>：一个裸输入框 → 三段 4 位，粘贴整段自动分段，回车提交，错误原位显示；</li>
+  <li><b>「N 人正在编辑」把自己也算进去</b>：只有自己时显示「1 人正在编辑」。改为只数他人：「2 人正在编辑 / 3 人在线 / 只有你在」；</li>
+  <li><b>待审批的全局存在感</b>：侧栏「协作」入口挂待审批计数（同番茄入口挂实时计时的口径），离开协作页也看得到；</li>
+  <li><b>视觉</b>：uppercase 小节题 → 中文 semibold + mono 副；横线切割 → 留白与底色；antd message / CustomModal → Toast / Dialog / Popover；成员、申请上的悬停操作占固定槽位原位淡入，不顶开布局；头像按 deviceId 派生色（tag-1…5 / accent，零新 token）。</li>
+</ul>
+
+<h2>三个方案</h2>
+<div class="cards">
+  <a class="card" href="plan-a-desk.html">
+    <div class="no">方案 A</div>
+    <h3>协作台 <span class="who">· 纸面目录 + 协作副本编辑面板（主从）</span></h3>
+    <p>legacy 工作台的重做。左边 276px 是纸面上的会话目录：待审批（行内同意 / 拒绝）、我发起的、我加入的、已结束；每行是头像叠 + 标题 + 状态。右边是一整块协作副本编辑面板：顶栏放来源、在线成员（点开 Popover 管理成员、处理本条申请）、协作码 chip（点击复制）、「在文章中打开」和更多菜单；异常用内联横幅；底栏是状态与 <kbd>⌥</kbd><kbd>↑</kbd><kbd>↓</kbd> 切换提示。</p>
+    <div class="wire" style="grid-template-columns: 0.75fr 2fr;"><div class="paper"><span class="row" style="top:10px"></span><span class="row" style="top:24px;background:var(--bg-surface)"></span><span class="row" style="top:38px"></span><span class="row" style="top:52px"></span></div><div><span class="row" style="top:12px;width:40%"></span><span class="row" style="top:30px"></span><span class="row" style="top:44px"></span><span class="row" style="top:58px;width:70%"></span></div></div>
+    <div class="verdict">
+      <span class="good">✓ 与 legacy 心智最接近，迁移成本最低；在多份内容之间来回切着编辑最快；编辑区最大</span>
+      <span class="bad">✗ 我发起的内容在这里和原页面各有一个编辑入口（重复）；成员与协作码收在 Popover，管理不直观</span>
+    </div>
+    <span class="open">打开方案 A →</span>
+  </a>
+  <a class="card" href="plan-b-wall.html">
+    <div class="no">方案 B</div>
+    <h3>共享墙 <span class="who">· 卡片墙总览 → 详情页（正文 + 信息栏）</span></h3>
+    <p>两层导航。总览是「待你处理」一整块面板（申请行，不拆小卡）加共享卡片墙：派生色封面叠正文首句、「N 人正在编辑」或「N 个申请」角标、头像叠 + 状态 + 更新时间；分段筛选全部 / 我发起的 / 我加入的，已结束的沉到底部虚线卡。点卡片进详情页：左边正文面板，右边 316px 纸面信息栏——状态与来源、协作码、待审批、成员、底部结束共享。</p>
+    <div class="wire" style="grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 22px 1fr;"><div style="grid-column: span 3"></div><div><span class="row" style="top:0;left:0;right:0;height:22px;border-radius:6px 6px 0 0;background:var(--tag-2);opacity:.25"></span></div><div><span class="row" style="top:0;left:0;right:0;height:22px;border-radius:6px 6px 0 0;background:var(--tag-3);opacity:.25"></span></div><div><span class="row" style="top:0;left:0;right:0;height:22px;border-radius:6px 6px 0 0;background:var(--tag-4);opacity:.3"></span></div></div>
+    <div class="verdict">
+      <span class="good">✓ 最有「内容」感，和文章 / 项目列表同一套卡片语言；详情页的信息栏把协作码、成员、申请一次摆全，管理最直观</span>
+      <span class="bad">✗ 多一层跳转，切换内容要回到墙；共享数量少时卡片墙偏空；封面是装饰，占了信息位</span>
+    </div>
+    <span class="open">打开方案 B →</span>
+  </a>
+  <a class="card" href="plan-c-roster.html">
+    <div class="no">方案 C</div>
+    <h3>协作名册 <span class="who">· 管理优先：名册大面板 + 就地加入 / 审批 / 身份</span></h3>
+    <p>协作页不再是编辑器，而是「谁在、同步了没、码是多少」的名册。一整块面板按 我发起的 / 我加入的 / 已结束 分段，每行：标题 + 来源 · 更新、成员、状态、协作码（悬停复制）、「在原处打开」；点行在原位展开成员（可移除）| 协作码与本条申请。右栏纸面三段：加入协作（三段输入就地提交）、待审批、本机身份（昵称就地改、服务器 Popover、导出恢复）——协作设置弹窗随之取消。我加入的内容点 → 进整页协作副本编辑。</p>
+    <div class="wire" style="grid-template-columns: 2.3fr 0.9fr;"><div><span class="row" style="top:10px"></span><span class="row" style="top:22px;height:22px;background:var(--bg-hover)"></span><span class="row" style="top:50px"></span><span class="row" style="top:62px"></span></div><div class="paper"><span class="row" style="top:10px;background:var(--bg-surface)"></span><span class="row" style="top:30px;background:var(--bg-surface)"></span><span class="row" style="top:50px"></span></div></div>
+    <div class="verdict">
+      <span class="good">✓ 编辑入口不重复（我发起的回原页、我加入的进副本）；一屏看全所有状态和协作码；加入与设置零弹窗</span>
+      <span class="bad">✗ 最「工具」、个性最弱；在协作页编辑参与内容要多一次进入；表格列在窄屏下要收</span>
+    </div>
+    <span class="open">打开方案 C →</span>
+  </a>
+</div>
+
+<h2>共用入口 · 内容页「发起协作」</h2>
+<p class="sub2">三个方案都用同一个内容页入口：文章 / 卡片 / 项目文档详情的底栏（纯状态：协作 · 字数）。未共享时是「发起协作」，已共享时是「状态点 + 他人编辑数 + 头像叠 + 申请数」。点开是向上弹的 Popover（替换 legacy 的 480px CustomModal）：未共享 → 说明 + 确认 → 三步发布 → 协作码；已共享 → 协作码 / 待审批 / 成员 / 结束共享，底部可跳到协作页。演示开关里还能直接打开共用的 加入协作 / 协作设置 / 结束共享 对话框。</p>
+<div class="cards"><a class="card" href="content-entry.html"><div class="no">共用</div><h3>内容页入口与共用浮层 <span class="who">· 状态栏 Popover + 三个 Dialog</span></h3><p>未共享 / 我发起 / 我加入 / 离线 四种入口状态。</p><span class="open">打开 →</span></a></div>
+
+<h2>对比</h2>
+<table>
+  <thead><tr><th>维度</th><th>A 协作台</th><th>B 共享墙</th><th>C 协作名册</th></tr></thead>
+  <tbody>
+    <tr><td>主轴</td><td>编辑（会话 ⇄ 正文）</td><td>内容（卡片 → 详情）</td><td>管理（名册 + 就地操作）</td></tr>
+    <tr><td>我发起的内容在哪编辑</td><td>协作页或原页面（两处）</td><td>详情页或原页面（两处）</td><td>只在原页面</td></tr>
+    <tr><td>我加入的内容在哪编辑</td><td>右侧面板，点目录即切</td><td>详情页</td><td>整页协作副本（多一次进入）</td></tr>
+    <tr><td>成员 / 协作码</td><td>顶栏 Popover + 码 chip</td><td>详情右栏常驻</td><td>行内展开 + 码列常驻</td></tr>
+    <tr><td>待审批</td><td>目录顶部行内</td><td>总览顶部面板 + 卡片角标</td><td>右栏 + 行上计数</td></tr>
+    <tr><td>加入协作</td><td>对话框</td><td>对话框</td><td>右栏就地输入</td></tr>
+    <tr><td>协作设置</td><td>齿轮 → 对话框</td><td>齿轮 → 对话框</td><td>右栏「本机身份」就地</td></tr>
+    <tr><td>与已定稿页同构度</td><td>中（设置弹窗式双栏）</td><td>高（文章 / 项目卡片墙 + 详情双栏）</td><td>中（发布页纸面 + 面板）</td></tr>
+    <tr><td>个性</td><td>中</td><td>最强</td><td>最弱</td></tr>
+  </tbody>
+</table>
+
+<h2>可以混搭的部件</h2>
+<ul class="tight">
+  <li>C 的「本机身份」右栏段 / A、B 的设置对话框 / 或者并入全局设置弹窗新增「协作」分区——三选一，与骨架无关；</li>
+  <li>C 的就地加入输入框可以放进 A 的目录顶部或 B 的「待你处理」面板；</li>
+  <li>B 详情页的右信息栏可以替换 A 顶栏的成员 Popover（A 的面板右侧加一栏）；</li>
+  <li>A 的目录「已结束」分组 / B 的底部虚线卡 / C 的名册分段——已结束的展示方式可以单独挑。</li>
+</ul>
+
+<h2>裁决记录（2026-09-25 一轮评审）</h2>
+<div class="callout">
+  <p><b>① 骨架选 A 协作台</b>。但 A 的会话目录和全局侧栏并排，读起来像两条侧栏 → 二轮把目录拿掉，协作副本面板占满整宽，会话导航做成三种形态供对比（<a class="inline" href="plan-a-desk.html">方案 A · 二轮</a>，标题栏「会话导航」切换）：</p>
+  <p>　<b>A1 会话条</b>：页内工具栏下一行，按「我发起的 / 我加入的」排开标签（状态点 + 标题 + 申请数），选中项浮起；共享数少（配额 5 份）时一行放得下，多了横向滚动。<br>
+  　<b>A2 标题切换</b>：不占任何空间，页头是「协作 / 当前内容 ▾」，点开 Popover 列出全部共享（头像、状态、申请数），<kbd>⌥</kbd><kbd>↑</kbd><kbd>↓</kbd> 直接切。<br>
+  　<b>A3 侧栏嵌套</b>：共享内容挂在全局侧栏「协作」下面作为子项（只在协作页展开），全局只剩一条侧栏；选中子项时父项降为「所在区」样式，不抢选中态。</p>
+  <p>三种形态共用：本条内容的加入申请直接显示在面板顶部行内处理；其它内容的申请由标签 / 子项 / 切换器上的计数和工具栏「N 个申请待处理」（Popover 批量处理、可跳转）承担。</p>
+  <p><b>② 我发起的内容在协作页也能直接编辑</b>（保留「在文章中打开」作为跳转，不是唯一入口）。</p>
+  <p><b>③ 协作设置就地改，只剩昵称</b>：工具栏右侧「头像 + 昵称」点击原位变输入框，回车 / 失焦保存、Esc 取消；铅笔图标占固定槽位淡入。<b>服务器地址不暴露、不可改；身份导入 / 导出去掉</b>；协作设置弹窗与齿轮入口取消；错误文案不再出现服务器域名。</p>
+  <p><b>④ 右侧小组件 <code>CollaborationPanel</code> 去掉</b>。</p>
+  <p><b>⑤ 已结束的共享不保留在列表里</b>（结束即消失；mock 数据中已删除该条）。</p>
+  <p class="muted">B 共享墙、C 协作名册为一轮留档，未按本轮裁决更新（C 右栏仍含服务器与身份导入导出）。</p>
+</div>
+
+<h2>决策检查清单</h2>
+<div class="callout">
+  <p><b>① 骨架</b>：A 协作台 / B 共享墙 / C 协作名册，或者混搭（例如「C 的名册 + A 的内嵌编辑」）。</p>
+  <p><b>② 我发起的内容，协作页要不要能直接编辑</b>：要（A / B，两处入口）还是只跳回原页面（C）。</p>
+  <p><b>③ 协作设置放哪</b>：协作页里就地（C）/ 协作页齿轮弹窗（A / B）/ 并入全局设置弹窗「协作」分区。</p>
+  <p><b>④ 右侧小组件 <code>CollaborationPanel</code> 是否退役</b>：新壳层下侧栏入口计数 + Notification 已覆盖它的「一眼看到」职能，建议随本次迁移删除。</p>
+  <p><b>⑤ 内容页入口</b>：底栏 Popover（本稿）还是保留居中对话框；「先说明再确认」的发起流程是否认可。</p>
+  <p><b>⑥ 已结束的共享</b>：保留在列表里（可打开只读缓存 / 清理），还是结束即从列表消失、只在清理失败时出现。</p>
+</div>
+
+</body>
+</html>

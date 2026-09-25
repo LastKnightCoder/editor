@@ -45,6 +45,11 @@ export interface CollaborationIpcContext {
     sourceId?: number,
     sourceTitle?: string
   ): Promise<{ documentId: string; code: string }>;
+  /** 签发协作码并缓存明文（服务器只存哈希） */
+  issueInvitation(
+    serverUrl: string,
+    documentId: string
+  ): Promise<{ code: string; expiresAt: number }>;
   removeView(id: string): void;
   clearBinding(session: RuntimeSession, discard?: boolean): Promise<void>;
   discardLocal(session: RuntimeSession): Promise<void>;

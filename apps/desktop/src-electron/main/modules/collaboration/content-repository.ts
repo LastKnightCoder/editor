@@ -1,5 +1,10 @@
 import type Database from "better-sqlite3";
-import type { ContentNode, SourceBinding, SourceType } from "@tau/collaboration";
+import type {
+  CollaborationSession,
+  ContentNode,
+  SourceBinding,
+  SourceType,
+} from "@tau/collaboration";
 import { PRIVATE_BLOCKS, SOURCE_TYPES } from "@tau/collaboration";
 import { findCollaborationBinding } from "../collaboration-guard";
 
@@ -92,6 +97,26 @@ export function restoreContentBinding(
     : undefined;
 }
 
+/** 原内容仍由这份共享绑定（内容未被删除重建、绑定未改指其它共享 / 服务） */
+export function bindingMatches(
+  db: Database.Database,
+  source: SourceBinding,
+  documentId: string,
+  serverUrl: string
+): boolean {
+  const original = db
+    .prepare("SELECT create_time FROM contents WHERE id=?")
+    .get(source.contentId) as { create_time: number } | undefined;
+  const binding = findCollaborationBinding(db, source.contentId);
+  return Boolean(
+    original &&
+    original.create_time === source.contentCreatedAt &&
+    binding &&
+    binding.document_id === documentId &&
+    binding.server_url === serverUrl
+  );
+}
+
 export function writeContentProjection(
   db: Database.Database,
   source: SourceBinding,
@@ -103,14 +128,7 @@ export function writeContentProjection(
   const original = db
     .prepare("SELECT create_time,content FROM contents WHERE id=?")
     .get(source.contentId) as { create_time: number; content: string } | undefined;
-  const binding = findCollaborationBinding(db, source.contentId);
-  if (
-    !original ||
-    original.create_time !== source.contentCreatedAt ||
-    !binding ||
-    binding.document_id !== documentId ||
-    binding.server_url !== serverUrl
-  ) {
+  if (!original || !bindingMatches(db, source, documentId, serverUrl)) {
     throw new Error("原内容关联已变化，已暂停回写；请重新发起共享");
   }
   const json = JSON.stringify(content);
@@ -128,4 +146,23 @@ export function writeContentProjection(
     ).run(now, source.contentId);
   })();
   return true;
+}
+
+export type ClosedResharePlan = { action: "rebuild" } | { action: "reject"; reason: string };
+
+/**
+ * 结束共享后的残留会话（服务器文档已删、绑定未清）会挡住重新发起：创建流程按
+ * 「恢复共享」处理并对已删文档重新签码，必然失败。pending（本机有未同步改动）时
+ * 不能静默丢弃，仍需用户到协作页清理；否则可先写回本地、拆残留后重建。
+ */
+export function planClosedReshare(
+  session: Pick<CollaborationSession, "status" | "pending">
+): ClosedResharePlan | null {
+  if (session.status !== "closed") return null;
+  return session.pending
+    ? {
+        action: "reject",
+        reason: "这份内容的共享已结束但本机还有未同步改动，请先在协作页清理后再重新发起",
+      }
+    : { action: "rebuild" };
 }

@@ -33,12 +33,20 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+/** 徽标槽 key（渲染组件注册于 navSlots.tsx） */
+export type NavItemBadge = "review-due" | "pomodoro-live" | "collab-requests";
+/** 子项槽 key：所属页在栈顶时于条目下方展开的列表（渲染组件注册于 navSlots.tsx） */
+export type NavItemChildren = "collaboration-sessions";
+
 export interface NavItem {
   key: string;
   label: string;
   icon: LucideIcon;
-  /** 徽标数据源标识（后续接 query：如闪卡到期数）；pomodoro-live = 专注中的实时计时 */
-  badge?: "review-due" | "pomodoro-live";
+  /** 徽标数据源标识（review-due = 待复习闪卡数；pomodoro-live = 专注中的实时计时；
+   *  collab-requests = 待审批的加入申请数） */
+  badge?: NavItemBadge;
+  /** 该页在栈顶时于条目下方展开的子项（collaboration-sessions = 共享内容列表，协作页 A3） */
+  children?: NavItemChildren;
   /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
   opensOverlay?: "settings";
 }
@@ -57,7 +65,13 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: "schedule", label: "日程", icon: Calendar }, // legacy: Calendar + TimeRecordView
       { key: "todos", label: "待办", icon: ListTodo }, // features/todos（独立页，不并入 schedule，D-040）
       { key: "pomodoro", label: "番茄专注", icon: Timer, badge: "pomodoro-live" }, // features/pomodoro（独立页；小窗与沉浸为辅助窗口）
-      { key: "collaboration", label: "协作", icon: Users }, // legacy: CollaborationView（实时协作会话）
+      {
+        key: "collaboration",
+        label: "协作",
+        icon: Users,
+        badge: "collab-requests",
+        children: "collaboration-sessions",
+      }, // features/collaboration（共享内容作为子项嵌套在此入口下）
     ],
   },
   {

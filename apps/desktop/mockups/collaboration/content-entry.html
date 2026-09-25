@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>协作 · 内容页入口与共用浮层</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  .art { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .art-panel { flex: 1; min-height: 0; overflow-y: auto; padding: 40px 44px 80px; }
+  /* 底栏纯状态（协作 · 字数），与文章详情定稿同构 */
+  .statusbar { height: 34px; flex: none; display: flex; align-items: center; gap: 4px; padding: 0 6px; font-size: 12px; color: var(--ink-3); }
+  .sb-btn { display: inline-flex; align-items: center; gap: 7px; height: 24px; padding: 0 8px; border-radius: 7px; color: var(--ink-2); font-size: 12px; }
+  .sb-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .sb-btn .icon { width: 13px; height: 13px; }
+  .sb-btn .st { font-size: 12px; }
+  .intro { font-size: 12.5px; color: var(--ink-2); }
+  .intro li { margin-top: 6px; display: flex; gap: 8px; align-items: flex-start; }
+  .intro li .icon { width: 14px; height: 14px; color: var(--ink-3); margin-top: 3px; }
+  .intro ul { list-style: none; margin-top: 10px; }
+  .steps { display: flex; flex-direction: column; gap: 9px; margin-top: 4px; }
+  .steps div { display: flex; align-items: center; gap: 10px; font-size: 12.5px; }
+  .steps .b { width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; flex: none; }
+  .steps .b .icon { width: 12px; height: 12px; }
+  .pop-foot.split { justify-content: space-between; align-items: center; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+(function () {
+  const C = window.Collab;
+  const { icon, esc } = C;
+  const { page } = C.mountShell({ crumb: '<span style="color:var(--ink-3)">文章</span> <span style="color:var(--ink-3);margin:0 4px">›</span> 分布式系统读书笔记', demos: false });
+  // 自带演示控制：切入口状态 + 直接打开共用对话框
+  const demo = document.createElement("div");
+  demo.className = "demo";
+  demo.title = "mockup 演示控制，非产品 UI";
+  demo.innerHTML = `<span>入口状态</span><button data-m="none">未共享</button><button data-m="owner">我发起</button><button data-m="editor">我加入</button><button data-m="offline">离线</button>
+    <i class="sep"></i><span>浮层</span><button data-d="join">加入协作</button><button data-d="leave">结束共享</button>`;
+  document.querySelector(".titlebar-spacer").after(demo);
+
+  let mode = "none", phase = "intro", step = 0;
+  const STEPS = ["暂停本地编辑，避免共享前后的改动错位", "上传正文引用的 3 个附件", "在协作服务器上创建文档"];
+  const cur = () => (mode === "editor" ? C.byId("s4") : C.byId("s1"));
+
+  function applyMode(m) {
+    mode = m;
+    phase = "intro";
+    C.applyDemo(m === "offline" ? "offline" : "normal");
+    render();
+  }
+
+  function trigger() {
+    if (mode === "none") return `<button class="sb-btn" data-collab>${icon("share")}发起协作</button>`;
+    const s = cur();
+    const st = C.status(s);
+    const reqs = C.reqsOf(s).length;
+    return `<button class="sb-btn" data-collab title="${esc(st.label)}"><span class="st ${st.tone}"><i></i>${st.tone === "live" ? C.liveSummary(s) : esc(st.label)}</span>${C.stack(s.members, 3, "xs")}${reqs ? `<span class="nav-badge" style="margin-left:0">${reqs}</span>` : ""}</button>`;
+  }
+
+  function render() {
+    const s = cur();
+    page.innerHTML = `<div class="page"><div class="art" style="padding-top:6px">
+      <section class="panel art-panel">${C.docHTML(mode === "editor" ? s : { ...s, members: mode === "none" ? [s.members[0]] : s.members })}</section>
+      <div class="statusbar">${trigger()}<span class="spacer"></span><span>2,418 字</span></div>
+    </div></div>`;
+    page.querySelector("[data-collab]").onclick = e => openCollab(e.currentTarget);
+    demo.querySelectorAll("[data-m]").forEach(b => b.classList.toggle("on", b.dataset.m === mode));
+  }
+
+  function popBody(close) {
+    const s = cur();
+    if (mode === "none") {
+      if (phase === "intro")
+        return `<div class="pop-title">发起协作</div>
+          <div class="intro">把这篇文章共享给其他设备实时编辑。共享后它仍在原处，你照常在这里写。
+            <ul>
+              <li>${icon("key")}<span>生成一个 12 位协作码，对方输入后需要你同意</span></li>
+              <li>${icon("whiteboard")}<span>白板、数据库这类本地块不会共享，成员看到占位说明</span></li>
+              <li>${icon("logout")}<span>随时可以结束共享，服务器副本会被清理</span></li>
+            </ul></div>
+          <div class="pop-foot"><button class="btn btn-ghost" data-x>取消</button><button class="btn btn-primary" data-start>${icon("share")}发起共享</button></div>`;
+      if (phase === "run")
+        return `<div class="pop-title">正在共享…</div><div class="steps">${STEPS.map(
+          (t, i) => `<div style="color:${i <= step ? "var(--ink-1)" : "var(--ink-3)"}"><span class="b" style="${i < step ? "background:var(--ok-soft);color:var(--ok)" : i === step ? "color:var(--accent-text)" : "box-shadow:inset 0 0 0 1.5px var(--line-1)"}">${i < step ? icon("check") : i === step ? '<svg class="icon" style="animation:spin 900ms linear infinite"><use href="#i-loader"/></svg>' : ""}</span>${t}</div>`
+        ).join("")}</div>`;
+    }
+    const leave = C.stale(s) ? "清理本地记录" : s.role === "owner" ? "结束共享" : "退出协作";
+    return `<div class="pop-title">内容协作<span class="spacer"></span>${C.statusHTML(s)}</div>
+      ${s.connection === "offline" ? `<div class="banner warn" style="margin-bottom:12px">${icon("wifi-off")}<span>${s.pending ? "离线中，改动已存本机，恢复后自动合并" : "离线中"}</span></div>` : ""}
+      ${C.sharePanelHTML(s, { gap: 14 })}
+      <div class="pop-foot split" style="margin-top:16px"><button class="link" data-center>在协作页查看全部 ${icon("arrow-right")}</button><button class="btn btn-danger-soft" data-leave>${icon("logout")}${leave}</button></div>`;
+  }
+
+  function openCollab(anchor) {
+    C.openPop(anchor, popBody, {
+      width: 344,
+      placement: "top-start",
+      live: true,
+      bind(el, close, draw) {
+        el.querySelector("[data-x]") && (el.querySelector("[data-x]").onclick = close);
+        const st = el.querySelector("[data-start]");
+        if (st)
+          st.onclick = async () => {
+            phase = "run";
+            for (step = 0; step < STEPS.length; step++) {
+              draw();
+              await new Promise(r => setTimeout(r, 650));
+            }
+            mode = "owner";
+            phase = "intro";
+            C.S.requests = C.S.requests.filter(r => r.documentId !== "s1");
+            C.byId("s1").members = [C.byId("s1").members[0]];
+            C.rotateCode("s1");
+            render();
+            openCollab(page.querySelector("[data-collab]"));
+          };
+        if (mode !== "none") C.bindSharePanel(el, cur());
+        const lv = el.querySelector("[data-leave]");
+        if (lv) lv.onclick = () => C.leaveDialog(cur().id, () => applyMode("none"));
+        const ce = el.querySelector("[data-center]");
+        if (ce) ce.onclick = () => (close(), C.toast("mockup：跳转到协作页并选中这份内容"));
+      },
+    });
+  }
+
+  demo.querySelectorAll("[data-m]").forEach(b => (b.onclick = () => applyMode(b.dataset.m)));
+  demo.querySelector('[data-d="join"]').onclick = () => C.joinDialog();
+  demo.querySelector('[data-d="leave"]').onclick = () => C.leaveDialog("s1", () => applyMode("none"));
+  C.on(() => mode !== "none" && render());
+  render();
+})();
+</script>
+</body>
+</html>

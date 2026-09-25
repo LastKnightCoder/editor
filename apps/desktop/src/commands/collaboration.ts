@@ -1,11 +1,7 @@
-import type {
-  ContentSessionTarget,
-  SharedContent,
-} from "@tau/collaboration";
+import type { ContentSessionTarget, SharedContent } from "@tau/collaboration";
 import {
   collaborationCommands,
   type CollaborationInvitation,
-  type CollaborationServerConfig,
   type CollaborationSubscribeSnapshot,
   type CollaborationUploadResourcePayload,
   type SharedContentResult,
@@ -13,7 +9,6 @@ import {
 
 export type {
   CollaborationInvitation,
-  CollaborationServerConfig,
   CollaborationSubscribeSnapshot,
   CollaborationUploadResourcePayload,
   SharedContentResult,
@@ -44,22 +39,11 @@ export const removeCollaborationMember = async (sessionId: string, deviceId: str
   return collaborationCommands.removeMember.call(sessionId, deviceId);
 };
 
-/** 保存协作服务器地址与昵称 */
-export const configureCollaborationServer = async (config: CollaborationServerConfig) => {
-  return collaborationCommands.configureServer.call(config);
+/** 修改本机协作昵称（服务器地址不对用户开放） */
+export const setCollaborationNickname = async (nickname: string) => {
+  return collaborationCommands.setNickname.call(nickname);
 };
 
-/** 导出协作身份到本地文件 */
-export const exportCollaborationIdentity = async () => {
-  return collaborationCommands.exportIdentity.call();
-};
-
-/** 从本地文件恢复协作身份 */
-export const importCollaborationIdentity = async () => {
-  return collaborationCommands.importIdentity.call();
-};
-
-/** 选择本地内容发起共享，返回共享文档 id 与协作码 */
 export const createSharedContent = async (
   contentId: number | string,
   contentType: string,

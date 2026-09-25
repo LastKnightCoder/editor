@@ -37,6 +37,7 @@ import {
 } from "@/utils";
 import { EProjectItemType, ProjectItem, WhiteBoardContent } from "@/types";
 import { useMemoizedFn } from "ahooks";
+import useContentShared from "@/hooks/useContentShared";
 import { getProjectItemMoreMenuItems } from "./projectItemMoreMenuItems";
 import { toast } from "@tau/ui";
 import { useProjectContext } from "../../ProjectContext";
@@ -97,9 +98,10 @@ export const useProjectItemMoreActions = (
     linkId: webLinkId,
   } = useProjectWebLinkMeta(projectItem);
 
+  const shared = useContentShared(projectItem?.contentId);
   const moreMenuItems: MenuEntryList = useMemo(
-    () => getProjectItemMoreMenuItems(projectItem),
-    [projectItem?.projectItemType, projectItem?.refType, projectItem?.podcast]
+    () => getProjectItemMoreMenuItems(projectItem, shared),
+    [projectItem?.projectItemType, projectItem?.refType, projectItem?.podcast, shared]
   );
 
   const publishProjectItemUpdate = useMemoizedFn((nextProjectItem: ProjectItem) => {

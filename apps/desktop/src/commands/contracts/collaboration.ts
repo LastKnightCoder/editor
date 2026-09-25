@@ -33,11 +33,6 @@ export interface CollaborationUploadResourcePayload {
   bytes: Uint8Array;
 }
 
-export interface CollaborationServerConfig {
-  serverUrl: string;
-  nickname: string;
-}
-
 /** 协作域命令契约（主进程注册于 collaboration/ipc-controller，模式 A 直连注册） */
 export const collaborationCommands = {
   join: command<[string], void>("collaboration:join"),
@@ -45,9 +40,7 @@ export const collaborationCommands = {
   leave: command<[string, (boolean | undefined)?], void>("collaboration:leave"),
   discardLocal: command<[string], void>("collaboration:discard-local"),
   removeMember: command<[string, string], void>("collaboration:remove-member"),
-  configureServer: command<[CollaborationServerConfig], void>("collaboration:configure"),
-  exportIdentity: command<[], void>("collaboration:export-identity"),
-  importIdentity: command<[], void>("collaboration:import-identity"),
+  setNickname: command<[string], CollaborationState>("collaboration:set-nickname"),
   createSharedContent: command<
     [number | string, string, number | string, (string | undefined)?],
     SharedContentResult

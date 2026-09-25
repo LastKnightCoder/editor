@@ -257,7 +257,8 @@ export function Dialog({
           style={width ? { width } : undefined}
           className={clsx(
             "bg-surface border-line-1 shadow-float relative",
-            "rounded-tau-lg flex max-w-full flex-col border",
+            // 遮罩是按内容定轨的 grid，max-w-full 限不住宽度：按视口减去遮罩两侧 p-8 限宽
+            "rounded-tau-lg flex max-w-[calc(100vw-4rem)] flex-col border",
             fill ? "h-[min(82vh,760px)]" : "max-h-[min(78vh,660px)]",
             size === "sm" ? "w-[380px]" : size === "lg" ? "w-[560px]" : "w-[440px]",
             "ease-tau-out transition-[opacity,transform] duration-[200ms]",

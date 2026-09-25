@@ -7,7 +7,6 @@ const CardListView = lazy(() => import("@/pages/card-list-view/CardListView"));
 const CardDetailView = lazy(() => import("@/pages/CardDetailView"));
 const ArticleListView = lazy(() => import("@/pages/ArticleListView"));
 const ArticleDetailView = lazy(() => import("@/pages/ArticleDetailView"));
-const CollaborationView = lazy(() => import("@/pages/CollaborationView"));
 const ProjectsView = lazy(() => import("@/pages/ProjectsView"));
 const WhiteBoardView = lazy(() => import("@/pages/WhiteBoardView"));
 const WhiteboardDetailView = lazy(() => import("@/pages/WhiteboardDetailView"));
@@ -68,8 +67,6 @@ const TabContent = memo((props: TabContentProps) => {
 
       case TabType.ArticleDetail:
         return <ArticleDetailView />;
-      case TabType.Collaboration:
-        return <CollaborationView />;
 
       case TabType.ProjectList:
         return <ProjectsView />;

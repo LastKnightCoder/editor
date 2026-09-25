@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useRef, type ComponentProps } from "react";
 import * as Y from "yjs";
-import { replaceText, type ContentSessionTarget } from "@tau/collaboration";
+import { replaceText, type ContentSessionTarget, type SharedContent } from "@tau/collaboration";
+import type { EditorCollaborationBinding } from "@tau/editor/src/collaboration/types";
 import EditText, { type EditTextHandle } from "@/components/EditText";
 import useContentSession from "@/hooks/useContentSession";
 import useCollaborationDocument from "@/hooks/useCollaborationDocument";
@@ -11,10 +12,38 @@ type Props = ComponentProps<typeof EditText> & {
   source: Omit<ContentSessionTarget, "contentId">;
 };
 
+type FieldProps = ComponentProps<typeof EditText> & {
+  binding?: EditorCollaborationBinding;
+  article?: SharedContent;
+  frozen?: boolean;
+  /** 悬停提示的错误文案 */
+  error?: string;
+};
+
+/** 按本地内容接入会话的标题（文章 / 项目文档等编辑页） */
 const CollaborativeTitle = forwardRef<EditTextHandle, Props>(
-  ({ contentId, source, onChange, ...props }, ref) => {
+  ({ contentId, source, ...props }, ref) => {
     const { entry, error: sessionError } = useContentSession(contentId, source);
     const { binding, article, frozen, error } = useCollaborationDocument(entry?.documentId);
+    return (
+      <CollaborativeTitleField
+        {...props}
+        ref={ref}
+        binding={binding}
+        article={article}
+        frozen={frozen}
+        error={error || sessionError}
+      />
+    );
+  }
+);
+
+/**
+ * 协作标题输入：直接消费调用方已建立的会话绑定（协作页同一视图的正文与标题共用一个
+ * binding）。远端改动时按 Y 相对位置恢复本地选区，输入法组合期间不写入共享文本。
+ */
+export const CollaborativeTitleField = forwardRef<EditTextHandle, FieldProps>(
+  ({ binding, article, frozen = false, error, onChange, ...props }, ref) => {
     const title = article?.title;
     const presence = useCollaborationPresence(binding, !props.contentEditable || frozen);
     const container = useRef<HTMLSpanElement>(null);
@@ -121,7 +150,7 @@ const CollaborativeTitle = forwardRef<EditTextHandle, Props>(
       <span
         ref={container}
         style={{ display: "contents" }}
-        title={error || sessionError}
+        title={error}
         onFocusCapture={presence.onFocus}
         onBlurCapture={presence.onBlur}
         onInputCapture={event => {
@@ -152,4 +181,5 @@ const CollaborativeTitle = forwardRef<EditTextHandle, Props>(
 );
 
 CollaborativeTitle.displayName = "CollaborativeTitle";
+CollaborativeTitleField.displayName = "CollaborativeTitleField";
 export default CollaborativeTitle;

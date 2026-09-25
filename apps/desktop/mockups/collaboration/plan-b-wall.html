@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>协作 · 方案 B 共享墙</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  .scroll { flex: 1; min-height: 0; overflow-y: auto; margin: 0 -26px; padding: 2px 26px 24px; }
+
+  /* 待处理：一整块面板里的行，不拆小卡（PREFERENCES：讨厌碎卡片漏底） */
+  .inbox { padding: 14px 16px 12px; margin-bottom: 22px; }
+  .inbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 6px 18px; margin-top: 8px; }
+  .inbox .req { padding: 8px 10px; background: transparent; }
+  .inbox .req:hover { background: var(--bg-hover); }
+
+  .grid-head { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; }
+  .wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); gap: 14px; }
+  .tile { display: flex; flex-direction: column; text-align: left; overflow: hidden; border-radius: 16px; background: var(--bg-surface); box-shadow: var(--shadow-card); transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out); position: relative; }
+  .tile:hover { box-shadow: var(--shadow-float); transform: translateY(-1px); }
+  /* 无图内容：按 id 派生粉彩封面（PREFERENCES：无图内容用派生色兜底），封面上叠正文首句 */
+  .cover { height: 92px; padding: 14px 16px; position: relative; background: linear-gradient(135deg, var(--c-soft) 0%, color-mix(in srgb, var(--c-soft) 55%, var(--c2-soft)) 100%); color: color-mix(in srgb, var(--c) 72%, var(--ink-1)); font-size: 12px; line-height: 1.65; overflow: hidden; }
+  .cover p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; opacity: 0.85; }
+  .cover .live-pill { position: absolute; right: 10px; top: 10px; display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 11px; background: var(--bg-surface); color: var(--ok); font-size: 11.5px; font-weight: 500; box-shadow: var(--shadow-lift); }
+  .cover .live-pill i { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); animation: breathe 2.4s ease-in-out infinite; }
+  .cover .req-pill { position: absolute; right: 10px; top: 10px; height: 22px; padding: 0 8px; border-radius: 11px; background: var(--accent); color: var(--ink-inverse); font-size: 11.5px; font-weight: 500; display: inline-flex; align-items: center; }
+  .tile-body { padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .tile-body h3 { font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile-foot { display: flex; align-items: center; gap: 8px; margin-top: 6px; min-width: 0; }
+  .tile-foot .st { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; }
+  .tile-foot .when { margin-left: auto; font-size: 11.5px; color: var(--ink-3); white-space: nowrap; }
+  .tile.closed { box-shadow: none; background: transparent; outline: 1px dashed var(--line-1); }
+  .tile.closed .cover { filter: grayscale(0.9); opacity: 0.55; }
+  .tile.add { outline: 1px dashed var(--line-1); background: transparent; box-shadow: none; align-items: center; justify-content: center; color: var(--ink-2); gap: 8px; min-height: 198px; font-size: 13px; }
+  .tile.add:hover { background: var(--bg-hover); transform: none; box-shadow: none; }
+  .tile.add .glyph { width: 40px; height: 40px; border-radius: 12px; background: var(--accent-soft); color: var(--accent-text); display: grid; place-items: center; }
+
+  /* 详情：左正文面板 + 右信息栏（纸面，不成卡） */
+  .detail { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 316px; gap: 22px; }
+  .detail .doc-panel { overflow-y: auto; padding: 36px 44px 120px; }
+  .rail { min-height: 0; overflow-y: auto; padding: 6px 2px 20px; scrollbar-width: none; display: flex; flex-direction: column; gap: 22px; }
+  .rail .head { display: flex; flex-direction: column; gap: 6px; }
+  .rail .head .st { font-size: 12.5px; }
+  .rail .danger-zone { margin-top: auto; padding-top: 6px; }
+  .rail .code-box { background: var(--bg-surface); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+(function () {
+  const C = window.Collab;
+  const { icon, esc } = C;
+  const { page } = C.mountShell();
+  let view = { name: "wall" }, filter = "all";
+
+  const FIRST = {
+    s1: "复制的目的有三：让数据在地理上靠近用户、在部分节点故障时继续工作、以及横向扩展读吞吐。",
+    s2: "本季度完成桌面端重构的设计系统与六个页面迁移，协作与同步链路进入治理阶段。",
+    s3: "如果你不能把一件事简单地讲清楚，说明你还没有真正理解它。",
+    s4: "先把所有第三方库升到声明兼容 React 19 的版本，再一次性切换 react 与 react-dom。",
+    s5: "CRDT 把数据结构设计成天然可交换、可结合、幂等，合并时不需要协调。",
+    s6: "本手册描述 1.x 版本的安装、同步与备份方式，已由新版文档取代。",
+  };
+  function tile(s) {
+    const [c, soft] = C.colorOf(s.id + "@@");
+    const [, soft2] = C.colorOf(s.id + "@@2");
+    const reqs = C.reqsOf(s).length;
+    const editingOthers = s.members.filter(x => !C.isMe(x) && x.online && x.activity === "editing").length;
+    return `<button class="tile${s.status === "closed" ? " closed" : ""}" data-open="${s.id}">
+      <div class="cover" style="--c:${c};--c-soft:${soft};--c2-soft:${soft2}"><p>${esc(FIRST[s.id] || "这份内容正在协作中。")}</p>
+        ${reqs ? `<span class="req-pill">${reqs} 个申请</span>` : editingOthers ? `<span class="live-pill"><i></i>${editingOthers} 人正在编辑</span>` : ""}</div>
+      <div class="tile-body">
+        <h3>${esc(s.title)}</h3>
+        ${C.srcHTML(s)}
+        <div class="tile-foot">${C.stack(s.members, 4, "xs")}${C.statusHTML(s)}<span class="when">${C.rel(s.updatedAt)}</span></div>
+      </div></button>`;
+  }
+
+  function renderWall() {
+    const S = C.S;
+    C.setCrumb("协作");
+    const list = S.sessions.filter(s => s.status === "active" && (filter === "all" || (filter === "owner" ? s.role === "owner" : s.role === "editor")));
+    const closed = S.sessions.filter(s => s.status === "closed");
+    const n = k => S.sessions.filter(s => s.status === "active" && (k === "all" || s.role === k)).length;
+    page.innerHTML = `<div class="page">
+      <div class="toolbar">
+        <h1>协作</h1>
+        <div class="sum">${S.sessions.length ? `<span>我发起 <b>${n("owner")}</b></span><span class="sep">·</span><span>我加入 <b>${n("editor")}</b></span>` : ""}</div>
+        <span class="spacer"></span>
+        ${S.sessions.length ? `<div class="seg">${[["all", "全部"], ["owner", "我发起的"], ["editor", "我加入的"]].map(([k, l]) => `<button data-f="${k}" class="${filter === k ? "on" : ""}">${l}<span class="n">${n(k)}</span></button>`).join("")}</div>` : ""}
+        <button class="btn btn-secondary" data-join>${icon("key")}加入协作</button>
+        <button class="btn btn-primary" data-share>${icon("share")}共享本地内容</button>
+        <button class="ibtn" data-settings title="协作设置">${icon("gear")}</button>
+      </div>
+      <div class="scroll">
+        ${S.error ? `<div class="banner danger" style="margin-bottom:14px">${icon("alert")}<span style="flex:1">${esc(S.error)}</span><button class="btn btn-secondary" data-settings2>检查服务器地址</button></div>` : ""}
+        ${
+          S.requests.length
+            ? `<section class="panel inbox"><div class="sec">待你处理 <span class="n">${S.requests.length}</span><span class="spacer"></span><span class="muted" style="font-size:12px;font-weight:400">同意后对方立即取得正文并实时连接</span></div>
+              <div class="inbox-grid">${S.requests
+                .map(r => {
+                  const s = C.byId(r.documentId);
+                  return `<div class="req">${C.avatar(r, "", false)}<div class="who"><b>${esc(r.nickname)}</b><p>申请加入「${esc(s?.title)}」 · ${C.daysLeft(r.expiresAt)} 天内有效</p></div>
+                    <div class="acts"><button class="btn btn-ghost" data-rej="${r.id}">拒绝</button><button class="btn btn-soft" data-ok="${r.id}">${icon("check")}同意</button></div></div>`;
+                })
+                .join("")}</div></section>`
+            : ""
+        }
+        ${
+          !S.sessions.length
+            ? `<div class="panel" style="min-height:460px;display:grid;place-items:center"><div class="empty"><div class="glyph">${icon("users")}</div><h3>还没有协作内容</h3>
+                <p>共享一段本地内容，或输入别人给你的协作码。任意内容页底部的「发起协作」也能直接共享。</p>
+                <div class="acts"><button class="btn btn-secondary md" data-join>${icon("key")}加入协作</button><button class="btn btn-primary md" data-share>${icon("share")}共享本地内容</button></div></div></div>`
+            : `<div class="wall">${list.map(tile).join("")}
+                <button class="tile add" data-share><span class="glyph">${icon("plus")}</span>共享本地内容<span class="muted" style="font-size:12px">文章 · 卡片 · 项目文档 · 日记</span></button></div>
+              ${closed.length ? `<div class="grid-head" style="margin-top:28px"><div class="sec">已结束 <small>closed</small> <span class="n">${closed.length}</span></div><span class="muted" style="font-size:12px">服务器副本已清理，可打开只读缓存或清理</span></div><div class="wall">${closed.map(tile).join("")}</div>` : ""}`
+        }
+      </div></div>`;
+    page.querySelectorAll("[data-f]").forEach(b => (b.onclick = () => ((filter = b.dataset.f), render())));
+    page.querySelectorAll("[data-open]").forEach(b => (b.onclick = () => ((view = { name: "detail", id: b.dataset.open }), render())));
+    page.querySelectorAll("[data-join]").forEach(b => (b.onclick = () => C.joinDialog()));
+    page.querySelectorAll("[data-share]").forEach(b => (b.onclick = () => C.shareLocalDialog()));
+    page.querySelectorAll("[data-settings],[data-settings2]").forEach(b => (b.onclick = () => C.settingsDialog()));
+    page.querySelectorAll(".inbox [data-ok]").forEach(b => (b.onclick = () => C.approve(b.dataset.ok, true)));
+    page.querySelectorAll(".inbox [data-rej]").forEach(b => (b.onclick = () => C.approve(b.dataset.rej, false)));
+  }
+
+  function renderDetail() {
+    const s = C.byId(view.id);
+    if (!s) return ((view = { name: "wall" }), renderWall());
+    const back = () => ((view = { name: "wall" }), render());
+    C.setCrumb(`<span style="color:var(--ink-3)">协作</span> <span style="color:var(--ink-3);margin:0 4px">›</span> ${esc(s.title)}`, back);
+    const st = C.status(s);
+    const leaveLabel = C.stale(s) ? "清理本地协作记录" : s.status === "closed" ? "清理协作缓存" : s.role === "owner" ? "结束共享" : "退出协作";
+    const leaveHint = C.stale(s)
+      ? "服务器不可达时，缓存先保留到本地再删除记录"
+      : s.status === "closed"
+        ? "删除本机的只读缓存"
+        : s.role === "owner"
+          ? "所有成员停止协作，服务器副本被清理，原内容保留"
+          : "从协作中移除，本机已保存的内容不受影响";
+    page.innerHTML = `<div class="page"><div class="detail" style="padding-top:6px">
+      <section class="panel doc-panel">
+        ${
+          st.tone === "error"
+            ? `<div class="banner danger" style="max-width:720px;margin:0 auto 22px">${icon("alert")}<span style="flex:1">${esc(st.label)}</span><button class="btn btn-secondary">重新连接</button></div>`
+            : s.connection === "offline" && s.status === "active"
+              ? `<div class="banner warn" style="max-width:720px;margin:0 auto 22px">${icon("wifi-off")}<span>${s.pending ? "离线中，改动已保存在本机，恢复连接后自动合并。" : "离线中，暂时看不到其他成员的改动。"}</span></div>`
+              : s.status === "closed"
+                ? `<div class="banner" style="max-width:720px;margin:0 auto 22px">${icon("lock")}<span>共享已结束，这是最后一次同步时的只读副本。</span></div>`
+                : ""
+        }
+        ${C.docHTML(s)}
+      </section>
+      <aside class="rail">
+        <div class="head">
+          ${C.statusHTML(s)}
+          ${C.srcHTML(s, true)}
+          <span class="muted" style="font-size:12px">更新于 ${C.rel(s.updatedAt)}</span>
+          ${s.source ? `<div style="margin-top:6px"><button class="btn btn-secondary" data-src>${icon("external")}在${C.SRC[s.source.sourceType][1]}中打开</button></div>` : ""}
+        </div>
+        <div data-panel>${C.sharePanelHTML(s, { gap: 22 })}</div>
+        <div class="danger-zone"><button class="btn btn-danger-soft" data-leave>${icon(C.stale(s) ? "trash" : "logout")}${leaveLabel}</button><p class="hint">${leaveHint}</p></div>
+      </aside></div></div>`;
+    C.bindSharePanel(page.querySelector("[data-panel]"), s);
+    page.querySelector("[data-leave]").onclick = () => C.leaveDialog(s.id, back);
+    const src = page.querySelector("[data-src]");
+    if (src) src.onclick = () => C.toast(`mockup：跳转到${C.SRC[s.source.sourceType][1]}「${esc(s.source.sourceTitle)}」`);
+  }
+
+  function render() {
+    view.name === "wall" ? renderWall() : renderDetail();
+  }
+  C.on(render);
+  render();
+})();
+</script>
+</body>
+</html>

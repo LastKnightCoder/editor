@@ -21,7 +21,7 @@ import { PROVIDER_LABELS, usePublishConfig, type PublishConfig } from "../usePub
 import { usePublishRun } from "../usePublishRun";
 import { ActionCard, GuideCard, PlanCard, SiteCard } from "./RailCards";
 import { SiteSettingsDrawer } from "./SiteSettingsDrawer";
-import { formatAgo } from "./format";
+import { formatAgo } from "@/utils/formatAgo";
 
 function targetChip(config: PublishConfig) {
   const { active, publish } = config;
