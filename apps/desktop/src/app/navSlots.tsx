@@ -11,6 +11,7 @@ import {
   CollaborationNavSessions,
 } from "@/features/collaboration/components/CollaborationNav";
 import { ReviewDueBadge } from "@/features/flashcards/components/ReviewDueBadge";
+import { QuestionsNavBadge } from "@/features/questions/components/QuestionsNavBadge";
 import { DiaryNavTags } from "@/features/diary/components/DiaryNav";
 import { useDiaryNavHasContent } from "@/features/diary/queries";
 import useCollaborationStore from "@/stores/useCollaborationStore";
@@ -21,6 +22,7 @@ export const NAV_BADGE_SLOTS: Record<NavItemBadge, ComponentType<{ collapsed: bo
   "pomodoro-live": PomodoroNavBadge,
   "collab-requests": CollaborationNavBadge,
   "review-due": ReviewDueBadge,
+  "questions-active": QuestionsNavBadge,
 };
 
 export interface NavChildrenSlotProps {
