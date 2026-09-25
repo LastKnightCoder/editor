@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>问题 · 方案 C 研究笔记</title>
+<link rel="stylesheet" href="shared.css">
+<style>
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; padding-bottom: 18px; }
+
+  /* 索引列：落在纸面上 */
+  .index { min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+  .index .seg { align-self: flex-start; }
+  .idx { flex: 1; margin-right: -8px; padding-right: 8px; }
+  .ig-head { display: flex; align-items: center; gap: 8px; padding: 12px 8px 4px; font-size: 12px; color: var(--ink-2); font-weight: 600; cursor: pointer; user-select: none; }
+  .ig-head .n { font-weight: 400; color: var(--ink-3); margin-left: auto; font-size: 11.5px; }
+  .ii { display: flex; gap: 9px; width: 100%; padding: 7px 8px; border-radius: 10px; text-align: left; align-items: flex-start; }
+  .ii:hover { background: var(--bg-hover); }
+  .ii.sel { background: var(--bg-selected); }
+  .ii .qs { margin-top: 4px; }
+  .ii-t { flex: 1; min-width: 0; font-size: 13px; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .ii.resolved .ii-t { color: var(--ink-2); }
+  .ii-n { font-size: 11px; color: var(--ink-3); margin-top: 3px; font-variant-numeric: tabular-nums; }
+
+  /* 笔记面板：正文列 + 信息栏 */
+  .note { background: var(--bg-surface); border-radius: 18px; box-shadow: var(--shadow-card); min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 264px; overflow: hidden; }
+  .doc { min-height: 0; padding: 26px 34px 30px 40px; }
+  .doc-inner { max-width: 760px; }
+  .doc-crumb { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .doc .q-title { font-size: 25px; line-height: 1.4; letter-spacing: -0.015em; }
+  .bg-text { margin-top: 14px; font-size: 14px; line-height: 1.85; color: var(--ink-2); }
+  .bg-text.desc-box { margin: 14px -10px 0; min-height: 0; }
+
+  .h2 { display: flex; align-items: center; gap: 8px; margin: 30px 0 12px; font-size: 14px; font-weight: 600; }
+  .h2 .n { font-weight: 400; color: var(--ink-3); font-size: 12.5px; }
+  .h2 .spacer { flex: 1; }
+
+  .conclusion { position: relative; padding: 4px 0 4px 18px; font-size: 14.5px; line-height: 1.9; }
+  .conclusion::before { content: ""; position: absolute; left: 0; top: 6px; bottom: 6px; width: 3px; border-radius: 3px; background: var(--ok); }
+  .conclusion + .conclusion { margin-top: 14px; }
+  .conclusion .c-t { font-weight: 600; }
+  .conclusion .c-meta { font-size: 11.5px; color: var(--ink-3); margin-top: 4px; display: flex; gap: 10px; align-items: center; }
+  .conclusion .c-meta button { color: var(--ink-3); }
+  .conclusion .c-meta button:hover { color: var(--accent-text); }
+  .slot { border: 1.5px dashed var(--line-1); border-radius: 14px; padding: 18px 20px; display: flex; align-items: center; gap: 14px; }
+  .slot p { flex: 1; font-size: 13px; color: var(--ink-2); line-height: 1.7; }
+  .slot p b { color: var(--ink-1); font-weight: 600; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .tiles .mat { flex-direction: column; gap: 8px; padding: 14px 15px 12px; }
+  .tiles .mat-x { -webkit-line-clamp: 3; }
+  .tiles .mat-head { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink-3); }
+  .tiles .mat-head .icon { width: 13px; height: 13px; }
+  .tile-add { border: 1.5px dashed var(--line-1); border-radius: 12px; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 10px; min-height: 120px; }
+  .tile-add button { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border-radius: 8px; font-size: 12.5px; color: var(--ink-2); }
+  .tile-add button:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .tile-add .icon { width: 14px; height: 14px; }
+
+  /* 信息栏：同一块面板内，靠留白而非分隔线 */
+  .rail { min-height: 0; padding: 26px 22px 22px 6px; display: flex; flex-direction: column; gap: 4px; }
+  .rail .sec-title:first-child { margin-top: 0; }
+  .vsteps { display: flex; flex-direction: column; gap: 3px; }
+  .vsteps button { display: flex; align-items: center; gap: 9px; height: 34px; padding: 0 10px; border-radius: 10px; font-size: 13px; color: var(--ink-3); text-align: left; }
+  .vsteps button:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .vsteps button.on { font-weight: 600; }
+  .vsteps button.on.s-not_started { background: var(--bg-hover); color: var(--ink-1); }
+  .vsteps button.on.s-in_progress { background: var(--accent-soft); color: var(--accent-text); }
+  .vsteps button.on.s-resolved { background: var(--ok-soft); color: var(--ok); }
+  .vsteps kbd { margin-left: auto; }
+
+  .stat-row { display: flex; gap: 22px; }
+  .stat-row div { display: flex; flex-direction: column; }
+  .stat-row b { font-size: 18px; font-weight: 600; line-height: 1.3; font-variant-numeric: tabular-nums; }
+  .stat-row span { font-size: 11.5px; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+(() => {
+  const QM = window.QM;
+  const { icon, esc, STATUS, KIND, statusRing, groups, questions, groupById, counts, sortQuestions, relDate, fullDate, daysBetween, NOW } = QM;
+  const { page } = QM.mountShell({ crumb: "问题" });
+
+  let filter = "open"; // open = 未解答（探究中 + 待探究）
+  let selId = questions.find(q => q.status === "in_progress").id;
+  const folded = new Set();
+
+  page.innerHTML = `
+    <div class="page">
+      <div class="toolbar">
+        <h1>问题</h1>
+        <span class="sum" id="sum"></span>
+        <span class="spacer"></span>
+        <button class="btn btn-primary" id="new">${icon("plus")}新建问题</button>
+      </div>
+      <div class="body">
+        <div class="index">
+          ${QM.captureHTML("记下一个问题… #分组")}
+          <div class="seg sm" id="filter">
+            <button data-f="open" class="on">未解答</button><button data-f="in_progress">探究中</button><button data-f="not_started">待探究</button><button data-f="resolved">已解答</button><button data-f="all">全部</button>
+          </div>
+          <div class="idx scroller fade-y" id="idx"></div>
+        </div>
+        <div class="note">
+          <div class="doc scroller" id="doc"></div>
+          <div class="rail scroller" id="rail"></div>
+        </div>
+      </div>
+    </div>`;
+
+  const cap = QM.bindCapture(page.querySelector(".index"), () => QM.qById(selId)?.groupId ?? 0, q => {
+    selId = q.id;
+    if (filter === "resolved" || filter === "in_progress") setFilter("open");
+    render();
+  });
+  page.querySelector("#new").onclick = () => cap.focus();
+
+  const match = q => (filter === "all" ? true : filter === "open" ? q.status !== "resolved" : q.status === filter);
+  const ordered = () =>
+    groups.flatMap(g =>
+      folded.has(g.id)
+        ? []
+        : sortQuestions(QM.byGroup(g.id).filter(match)).sort((a, b) => QM.STATUS_ORDER.indexOf(a.status) - QM.STATUS_ORDER.indexOf(b.status))
+    );
+
+  function renderSum() {
+    const c = counts();
+    page.querySelector("#sum").innerHTML = `探究中 <b class="num">${c.in_progress}</b> · 待探究 <b class="num">${c.not_started}</b> · 已解答 <b class="num">${c.resolved}</b>`;
+  }
+
+  function renderIndex() {
+    page.querySelector("#idx").innerHTML =
+      groups
+        .map(g => {
+          const list = sortQuestions(QM.byGroup(g.id).filter(match)).sort((a, b) => QM.STATUS_ORDER.indexOf(a.status) - QM.STATUS_ORDER.indexOf(b.status));
+          if (!list.length) return "";
+          const f = folded.has(g.id);
+          return `<div class="ig-head" data-fold="${g.id}">${icon("chev-down", "chev" + (f ? "" : " open"))}<i class="pdot" style="--c:var(--pc-${g.color})"></i>${esc(g.title)}<span class="n">${list.length}</span></div>
+            <div class="collapse-wrap${f ? "" : " open"}"><div class="collapse-inner">${list
+              .map(
+                q => `<button class="ii ${q.status}${q.id === selId ? " sel" : ""}" data-id="${q.id}">${statusRing(q.status, "sm")}<span style="flex:1;min-width:0"><span class="ii-t">${esc(q.questionContent)}</span>${
+                  q.answers.length ? `<span class="ii-n comps">${QM.compositionHTML(q)}</span>` : ""
+                }</span></button>`
+              )
+              .join("")}</div></div>`;
+        })
+        .join("") || `<div class="empty-note">没有符合的问题</div>`;
+  }
+
+  function renderDoc() {
+    const q = QM.qById(selId);
+    const doc = page.querySelector("#doc");
+    if (!q) return (doc.innerHTML = `<div class="empty-note" style="padding-top:30vh">在左侧选择一个问题</div>`), (page.querySelector("#rail").innerHTML = "");
+    const g = groupById(q.groupId);
+    const mats = QM.questionMaterials(q);
+    const answers = mats.filter(m => m.kind === "answer");
+    const refs = mats.filter(m => m.kind !== "answer");
+    const st = doc.scrollTop;
+    doc.innerHTML = `<div class="doc-inner">
+      <div class="doc-crumb">
+        <button class="field-btn" data-act="group"><i class="pdot" style="--c:var(--pc-${g.color})"></i>${esc(g.title)}${icon("chev-down")}</button>
+        <span class="spacer"></span>
+        <button class="icon-btn" data-act="more">${icon("more")}</button>
+      </div>
+      <div class="q-title" contenteditable="true" spellcheck="false" data-title>${esc(q.questionContent)}</div>
+      <div class="bg-text desc-box" contenteditable="true" spellcheck="false">${esc(q.description)}</div>
+
+      <div class="h2">结论<span class="spacer"></span>${answers.length ? `<button class="btn btn-ghost" data-act="answer" style="height:26px">${icon("plus")}再写一段</button>` : ""}</div>
+      ${
+        answers.length
+          ? answers
+              .map(
+                m => `<div class="conclusion" data-mat="${m.id}"><div class="c-t">${esc(m.title)}</div><div>${esc(m.excerpt)}</div>
+                  <div class="c-meta">独立答案 · ${relDate(m.createTime)}<button data-edit>编辑</button><button data-tocard>转为卡片</button><button data-unlink="${m.id}">移除</button></div></div>`
+              )
+              .join("")
+          : `<div class="slot"><p>${
+              refs.length >= 2
+                ? `已经积累了 <b>${refs.length} 份材料</b>。试着不看材料，用自己的话把答案写下来——写不出来的地方，就是还没弄懂的地方。`
+                : refs.length
+                  ? "还只有 1 份材料。可以继续探究，也可以先写下目前的理解。"
+                  : "还没有结论。先去探究，把读到的、想到的写成卡片挂到下面。"
+            }</p><button class="btn ${refs.length >= 2 ? "btn-primary" : "btn-soft"}" data-act="answer">${icon("pen")}写结论</button></div>`
+      }
+
+      <div class="h2">探究材料<span class="n">${refs.length || ""}</span><span class="spacer"></span><span class="comps">${QM.compositionHTML({ answers: refs.map(m => m.id) })}</span></div>
+      <div class="tiles">
+        ${refs
+          .map(
+            m => `<div class="mat" data-mat="${m.id}" tabindex="0">
+              <div class="mat-head">${icon(KIND[m.kind].icon)}${KIND[m.kind].label}${m.source ? ` · ${esc(m.source)}` : ""}<span class="spacer" style="flex:1"></span>${relDate(m.createTime)}</div>
+              <div class="mat-t">${esc(m.title)}</div>
+              <div class="mat-x">${esc(m.excerpt)}</div>
+              <div class="mat-acts"><button class="icon-btn sm" title="打开">${icon("external")}</button><button class="icon-btn sm" data-unlink="${m.id}" title="解除关联">${icon("unlink")}</button></div>
+            </div>`
+          )
+          .join("")}
+        <div class="tile-add">
+          <button data-act="card">${icon("layers")}写一张卡片</button>
+          <button data-act="new">${icon("plus")}新建文章 / 白板 / 项目</button>
+          <button data-act="link">${icon("link")}关联已有材料<kbd style="margin-left:auto">L</kbd></button>
+        </div>
+      </div>
+    </div>`;
+    doc.scrollTop = st;
+    renderRail(q, mats);
+  }
+
+  function renderRail(q, mats) {
+    const words = mats.reduce((s, m) => s + (m.words || 0), 0);
+    const days = daysBetween(q.createTime, q.resolvedTime || NOW);
+    const rail = page.querySelector("#rail");
+    const refocus = document.activeElement?.matches?.("[data-note]");
+    rail.innerHTML = `
+      <div class="sec-title">状态</div>
+      <div class="vsteps">${["not_started", "in_progress", "resolved"]
+        .map((s, i) => `<button class="s-${s}${q.status === s ? " on" : ""}" data-status="${s}">${statusRing(s, "sm")}${STATUS[s].label}<kbd>${i + 1}</kbd></button>`)
+        .join("")}</div>
+      <div class="sec-title" style="margin-top:22px">概览</div>
+      <div class="stat-row"><div><b>${mats.length}</b><span>份材料</span></div><div><b>${words >= 1000 ? (words / 1000).toFixed(1) + "k" : words}</b><span>字</span></div><div><b>${days}</b><span>${q.status === "resolved" ? "天解答" : "天"}</span></div></div>
+      <div class="sec-title" style="margin-top:22px">探究轨迹</div>
+      ${QM.trajectoryHTML(q)}`;
+    if (refocus) rail.querySelector("[data-note]").focus();
+  }
+
+  function render() {
+    renderSum();
+    renderIndex();
+    renderDoc();
+    cap.sync();
+  }
+  function setFilter(f) {
+    filter = f;
+    page.querySelectorAll("#filter button").forEach(b => b.classList.toggle("on", b.dataset.f === f));
+  }
+  render();
+  QM.on(type => {
+    if (type === "delete" && !QM.qById(selId)) selId = ordered()[0]?.id;
+    render();
+  });
+
+  page.querySelector("#filter").onclick = e => {
+    const b = e.target.closest("[data-f]");
+    if (!b) return;
+    setFilter(b.dataset.f);
+    if (!QM.qById(selId) || !match(QM.qById(selId))) selId = ordered()[0]?.id;
+    render();
+  };
+  page.querySelector("#idx").onclick = e => {
+    const f = e.target.closest("[data-fold]");
+    if (f) {
+      const id = +f.dataset.fold;
+      folded.has(id) ? folded.delete(id) : folded.add(id);
+      return renderIndex();
+    }
+    const it = e.target.closest("[data-id]");
+    if (!it) return;
+    selId = +it.dataset.id;
+    page.querySelector("#doc").scrollTop = 0;
+    render();
+  };
+  page.querySelector("#idx").oncontextmenu = e => {
+    const it = e.target.closest("[data-id]");
+    if (!it) return;
+    e.preventDefault();
+    QM.questionMenu({ x: e.clientX, y: e.clientY }, QM.qById(+it.dataset.id));
+  };
+
+  // 正文与信息栏的动作
+  const note = page.querySelector(".note");
+  QM.bindTrajectory(note, () => QM.qById(selId));
+  note.addEventListener("click", e => {
+    const q = QM.qById(selId);
+    if (!q) return;
+    const s = e.target.closest("[data-status]");
+    if (s) return QM.setStatus(q.id, s.dataset.status);
+    const un = e.target.closest("[data-unlink]");
+    if (un) return QM.unlinkMaterial(q.id, +un.dataset.unlink);
+    if (e.target.closest("[data-edit]")) return QM.openComposer(q.id, "answer");
+    if (e.target.closest("[data-tocard]")) return QM.toast("已转为卡片，进入卡片库（仍挂在这个问题上）");
+    const a = e.target.closest("[data-act]");
+    if (a) {
+      const act = a.dataset.act;
+      if (act === "group") QM.groupMenu(a, q);
+      else if (act === "more") QM.questionMenu(a, q);
+      else if (act === "card") QM.openComposer(q.id, "card");
+      else if (act === "answer") QM.openComposer(q.id, "answer");
+      else if (act === "link") QM.openPicker(q.id);
+      else if (act === "new") QM.newMenu(a, q);
+      return;
+    }
+    const m = e.target.closest(".tiles [data-mat]");
+    if (m) QM.toast(`打开「${esc(QM.matById(+m.dataset.mat).title)}」（页内导航到卡片 / 文章详情）`);
+  });
+  note.addEventListener(
+    "blur",
+    e => {
+      const q = QM.qById(selId);
+      if (!q) return;
+      if (e.target.matches("[data-title]")) {
+        const t = e.target.textContent.trim();
+        if (t && t !== q.questionContent) QM.updateQuestion(q.id, { questionContent: t });
+      } else if (e.target.matches(".desc-box")) q.description = e.target.textContent.trim();
+    },
+    true
+  );
+
+  document.addEventListener("keydown", e => {
+    if (e.target.closest("input, textarea, [contenteditable=true]") || document.querySelector(".dlg-mask")) return;
+    const order = ordered();
+    const i = order.findIndex(q => q.id === selId);
+    const q = QM.qById(selId);
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const n = order[Math.max(0, Math.min(order.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)))];
+      if (n) (selId = n.id), renderIndex(), renderDoc(), page.querySelector(".ii.sel")?.scrollIntoView({ block: "nearest" });
+    } else if (q && ["1", "2", "3"].includes(e.key)) QM.setStatus(q.id, ["not_started", "in_progress", "resolved"][+e.key - 1]);
+    else if (q && e.key.toLowerCase() === "l") QM.openPicker(q.id);
+    else if (e.key === "n" && (e.metaKey || e.ctrlKey)) (e.preventDefault(), cap.focus());
+  });
+})();
+</script>
+</body>
+</html>

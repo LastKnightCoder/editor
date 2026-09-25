@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>问题页设计探索 · 总览</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9;
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --line: #e9e1d2; --ok: #61795f; --ok-soft: #e5ede2; --danger: #b0564d;
+    --shadow: 0 1px 2px rgba(120,100,70,0.05), 0 10px 24px -14px rgba(120,100,70,0.18);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 14px/1.75 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 40px 8vw 80px; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { color: var(--ink-2); margin-top: 6px; max-width: 84ch; }
+  header .meta { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+  h2 { font-size: 16px; margin: 42px 0 14px; font-weight: 600; }
+  .sub2 { color: var(--ink-2); max-width: 84ch; margin-bottom: 14px; }
+  ul.tight { padding-left: 20px; color: var(--ink-2); max-width: 92ch; }
+  ul.tight li + li { margin-top: 4px; }
+  ul.tight b { color: var(--ink-1); font-weight: 600; }
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 18px; font-size: 13px; }
+  .flow span { background: var(--bg-surface); box-shadow: var(--shadow); border-radius: 10px; padding: 6px 12px; }
+  .flow i { color: var(--ink-3); font-style: normal; }
+  .flow .ok { color: var(--ok); font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .card { background: var(--bg-surface); border-radius: 16px; padding: 20px 22px; box-shadow: var(--shadow); text-decoration: none; color: inherit; display: flex; flex-direction: column;
+    outline: 1px solid transparent; transition: box-shadow 200ms, outline-color 200ms; }
+  .card:hover { outline-color: var(--line); box-shadow: 0 16px 40px -12px rgba(120,100,70,0.3); }
+  .card .no { font: 600 12px/1 ui-monospace, Consolas, monospace; color: var(--accent-text); }
+  .card h3 { font-size: 15.5px; margin: 6px 0 2px; font-weight: 600; }
+  .card .who { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+  .card p { font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  .card .wire { margin-top: 14px; height: 100px; border-radius: 10px; background: var(--bg-page); padding: 8px; display: grid; gap: 5px; }
+  .wire div { border-radius: 5px; }
+  .wire .s { background: var(--bg-surface); box-shadow: var(--shadow); }
+  .card .verdict { margin-top: 12px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .verdict .good { color: var(--ok); } .verdict .bad { color: var(--danger); }
+  .card .open { margin-top: auto; padding-top: 12px; font-size: 12.5px; color: var(--accent-text); font-weight: 500; }
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); border-bottom: 1px solid var(--line); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line); }
+  td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  code { font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--bg-surface); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; color: var(--accent-text); }
+  ol.q { padding-left: 22px; color: var(--ink-2); max-width: 92ch; }
+  ol.q li + li { margin-top: 8px; }
+  ol.q b { color: var(--ink-1); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>问题页设计探索 · 三方案</h1>
+  <p class="sub">现状：legacy <code>pages/QuestionWindow</code> 是「左侧分组栏 + 问题列表 + 一串弹窗」——新建、编辑详情、写答案、选答案、看答案各自一个 antd Modal，答案在列表里只显示成「答案 #1024」。三个方案共用同一套 mock 数据（6 个分组、22 个问题、33 份材料，四种材料类型都覆盖），用 cream / cocoa 两个主题的真实 token 值。页面可以直接交互：快速收集、改状态、关联材料、写卡片 / 写答案、解除关联（可撤销）、右键菜单、拖拽都是真的能用，右上角切换明暗。</p>
+  <p class="meta">2026-09-25 · 二轮已更新（见页尾：A 的分组隔离三变体 / 探究轨迹 / 材料扩展） · 演示日期固定为 9月25日 周五 · mockup 只作视觉参考，不作为导出源（D-001）</p>
+</header>
+
+<h2>领域判断 · 问题不是待办，也不是文章</h2>
+<p class="sub2">按你的用法，一个问题的完整生命周期是：</p>
+<div class="flow"><span>学习时冒出一个疑问</span><i>→</i><span>随手收集</span><i>→</i><span>带着问题去查资料</span><i>→</i><span>写卡片、写文章</span><i>→</i><span>从这些材料里拼出答案</span><i>→</i><span class="ok">已解答</span></div>
+<ul class="tight">
+  <li><b>问题是学习的「入口」，卡片和文章是「产出」</b>：问题页的价值不在列表本身，而在把一个问题和它催生出来的卡片、文章串起来。legacy 把答案藏在弹窗里，还只显示编号，这条链路几乎看不见；三个方案都把「材料」放到主视野里，并显示真实标题和摘要；</li>
+  <li><b>收集必须零摩擦</b>：冒出疑问的时候，你通常正在读书、写代码。legacy 新建要打开弹窗、填标题、再关弹窗；三个方案都改成一行输入、回车收集，用 <code>#分组</code> 顺手归类（不写就进当前分组）；</li>
+  <li><b>三种状态其实是三个学习阶段</b>：<code>not_started / in_progress / resolved</code> 的枚举不变，只把文案从「未开始 / 进行中 / 已解决」换成「待探究 / 探究中 / 已解答」，更贴近学习的语境；</li>
+  <li><b>「答案」有两种</b>：一种是可复用的材料（卡片、文章、项目文档），它们本来就在库里，问题只是引用它们；另一种是只属于这个问题的独立答案（legacy「写答案」产出的内容，不是卡片也不是文章）。三个方案都把后者叫「我的答案 / 结论」，前者叫「探究材料」，分开展示。</li>
+</ul>
+
+<h2>三个方案都修掉的 legacy 问题</h2>
+<ul class="tight">
+  <li><b>答案有标题了</b>：卡片取首行、文章取标题、项目文档取文档名，并标出类型和摘要（legacy 的 <code>answerTitles</code> 固定写成 <code>答案 #id</code>）；</li>
+  <li><b>弹窗链拆掉</b>：详情、描述、状态、材料都在同一个视图里直接编辑；只有「写卡片 / 写答案」和「关联已有材料」这两个真正需要大编辑区或选择器的动作保留 Dialog；</li>
+  <li><b>写卡片直接挂上去</b>：新增「写一张卡片」动作——保存进卡片库，同时挂成这个问题的材料（组合现有的建卡命令和 <code>addAnswer</code>，不加字段）。这是你最常走的一步，legacy 里要先去卡片库写、再回来「选择答案」；</li>
+  <li><b>挂上第一份材料时自动进入「探究中」</b>（可撤销）；标为「已解答」时写入 <code>resolvedTime</code>，这个字段 legacy 有但界面从来没显示过——现在显示为「历时 N 天」；</li>
+  <li><b>删除不弹确认</b>：和待办页一样，直接删除，Toast 里可以撤销；解除材料关联同理，并明确告诉你「卡片仍保留在库中」；</li>
+  <li><b>页内不做搜索框</b>：统一走全局 <code>⌘K</code>（legacy 工具栏的搜索只过滤当前分组）。</li>
+</ul>
+
+<h2>三个方案的共用基线</h2>
+<ul class="tight">
+  <li><b>状态环</b>：待探究 = 虚线空圈，探究中 = 半满的 accent 圈，已解答 = ok 绿实心勾。颜色只用 accent 和 ok 这两个语义色，不新增 token；</li>
+  <li><b>分组色是数据色</b>：legacy 的颜色名映射到待办页那套 8 色板，只出现在小方点上，不用来给卡片、页头染色；</li>
+  <li><b>材料行</b>：中性墨色的类型图标（卡片 / 文章 / 项目文档 / 独立答案）+ 标题 + 两行摘要 + 「类型 · 字数 · 时间」。悬停时右上角出现「打开 / 解除关联」按钮，按钮是叠加上去的，不改变行的尺寸；</li>
+  <li>视觉铁律照旧：不用横线分隔、面板靠 <code>shadow-card</code> 不描边、滚动区边缘渐隐、数字用 tabular-nums。</li>
+</ul>
+
+<h2>三个方案</h2>
+<div class="cards">
+  <a class="card" href="plan-a-inbox.html">
+    <div class="no">方案 A</div>
+    <h3>三栏清单 <span class="who">· 分组列 + 问题列表 + 常驻详情</span></h3>
+    <p>最接近 legacy 的心智，但把弹窗全部收进右侧常驻详情。列表按「探究中 / 待探究 / 已解答」分三段，已解答默认折叠；顶部是快速收集输入。全键盘操作：↑↓ 切换、1/2/3 改状态、L 关联材料、⌫ 删除（可撤销）。把问题拖到左侧分组上就是移动分组。</p>
+    <div class="wire" style="grid-template-columns: 0.8fr 2fr 1.8fr;">
+      <div style="display:grid;gap:4px;align-content:start"><div style="height:10px;background:var(--accent-soft)"></div><div style="height:6px;background:var(--line)"></div><div style="height:6px;background:var(--line)"></div><div style="height:6px;background:var(--line)"></div></div><div class="s"></div><div class="s"></div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 迁移成本最低；详情不遮挡，边看列表边整理；键盘效率最高</span>
+      <span class="bad">✗ 最「工具」、个性最弱；详情栏宽度有限，材料只能单列排</span>
+    </div>
+    <span class="open">打开方案 A →</span>
+  </a>
+  <a class="card" href="plan-b-board.html">
+    <div class="no">方案 B</div>
+    <h3>探究看板 <span class="who">· 三条泳道 + 抽屉详情</span></h3>
+    <p>把学习流程直接画出来：待探究 → 探究中 → 已解答三条泳道，放在同一块大面板里（不做碎卡片）。卡片上能看到最近的两份材料；已解答的卡片直接显示结论的开头和「历时 N 天」。悬停时出现下一步动作（开始探究 / 写答案 / 标为已解答），拖到另一条泳道就是改状态。分组做成顶部的 pills 筛选，详情从右侧抽屉滑出。</p>
+    <div class="wire" style="grid-template-rows: 12px 1fr;">
+      <div style="display:flex;gap:4px"><div style="width:30px;background:var(--accent-soft)"></div><div style="width:40px" class="s"></div><div style="width:34px" class="s"></div></div>
+      <div class="s" style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:6px">
+        <div style="display:grid;gap:4px;align-content:start"><div style="height:14px;border:1px solid var(--line)"></div><div style="height:14px;border:1px solid var(--line)"></div><div style="height:14px;border:1px solid var(--line)"></div></div>
+        <div style="display:grid;gap:4px;align-content:start"><div style="height:22px;border:1px solid var(--accent)"></div><div style="height:22px;border:1px solid var(--line)"></div></div>
+        <div style="display:grid;gap:4px;align-content:start"><div style="height:18px;border:1px solid var(--line)"></div><div style="height:18px;border:1px solid var(--line)"></div></div>
+      </div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 学习进度一眼可见，「探究中」堆太多时自己就能看出来；下一步动作最明确</span>
+      <span class="bad">✗ 已解答会越积越多（只显示最近 4 个，其余折叠）；看详情要开抽屉，不能边看边改</span>
+    </div>
+    <span class="open">打开方案 B →</span>
+  </a>
+  <a class="card" href="plan-c-notebook.html">
+    <div class="no">方案 C</div>
+    <h3>研究笔记 <span class="who">· 问题索引 + 问题即页面</span></h3>
+    <p>把一个问题当成一篇研究笔记来展开：大标题是问题，下面依次是背景、结论、探究材料（两列卡片格）。右侧信息栏放状态、概览（材料数 / 字数 / 天数）和「探究轨迹」时间线，时间线由已有的时间字段推算。结论还空着时，会根据已有的材料数提示你「试着不看材料写下答案」。左侧索引按分组折叠，默认只显示未解答的问题。</p>
+    <div class="wire" style="grid-template-columns: 1fr 3fr;">
+      <div style="display:grid;gap:4px;align-content:start"><div style="height:10px" class="s"></div><div style="height:6px;background:var(--line)"></div><div style="height:6px;background:var(--line)"></div><div style="height:6px;background:var(--accent-soft)"></div><div style="height:6px;background:var(--line)"></div></div>
+      <div class="s" style="display:grid;grid-template-columns:3fr 1fr;gap:8px;padding:8px">
+        <div style="display:grid;gap:4px;align-content:start"><div style="height:10px;width:70%;background:var(--ink-3);opacity:.5"></div><div style="height:12px;border-left:2px solid var(--ok);background:var(--ok-soft)"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px"><div style="height:18px;border:1px solid var(--line)"></div><div style="height:18px;border:1px solid var(--line)"></div></div></div>
+        <div style="display:grid;gap:4px;align-content:start"><div style="height:8px;background:var(--accent-soft)"></div><div style="height:26px;border-left:1.5px solid var(--line)"></div></div>
+      </div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 最贴合「从材料构建答案」：结论和材料在同一页，材料可以宽排；个性最强</span>
+      <span class="bad">✗ 一次只看一个问题，批量整理不如 A 快；待探究的问题正文区比较空</span>
+    </div>
+    <span class="open">打开方案 C →</span>
+  </a>
+</div>
+
+<h2>对比</h2>
+<table>
+  <thead><tr><th>维度</th><th>A 三栏清单</th><th>B 探究看板</th><th>C 研究笔记</th></tr></thead>
+  <tbody>
+    <tr><td>主轴</td><td>分组</td><td>学习阶段（状态）</td><td>单个问题</td></tr>
+    <tr><td>收集</td><td>列表顶部一行输入</td><td>「待探究」泳道顶部一行输入</td><td>索引列顶部一行输入</td></tr>
+    <tr><td>改状态</td><td>点状态环 / 数字键 / 详情三段条</td><td>拖到另一条泳道 / 卡片悬停出现下一步</td><td>信息栏竖排三段 / 数字键</td></tr>
+    <tr><td>材料展示</td><td>详情里单列材料行</td><td>卡片上显示最近 2 份标题，抽屉里看全部</td><td>正文里两列卡片格，摘要 3 行</td></tr>
+    <tr><td>结论（独立答案）</td><td>「我的答案」区</td><td>已解答卡片直接显示结论开头</td><td>标题下方的「结论」区，ok 色竖条引出</td></tr>
+    <tr><td>详情承载</td><td>常驻右栏</td><td>右侧抽屉（Esc 关闭）</td><td>就是主视图</td></tr>
+    <tr><td>分组整理</td><td>左列，支持拖拽移动</td><td>顶部 pills 筛选，右键移动</td><td>索引按分组折叠，右键移动</td></tr>
+    <tr><td>键盘效率</td><td>最高</td><td>低（以拖拽和鼠标为主）</td><td>中（↑↓ 切换 + 数字键）</td></tr>
+    <tr><td>数量变多以后</td><td>好（已解答段折叠）</td><td>中（已解答泳道要截断）</td><td>好（按分组折叠 + 默认只显示未解答）</td></tr>
+    <tr><td>与已定稿页面的同构度</td><td>中（和待办页 B3「两块板」的语言一致）</td><td>中（pills 和文章 / 项目页一致）</td><td>高（和文章 / 项目详情页的「正文 + 信息栏」双栏一致）</td></tr>
+  </tbody>
+</table>
+
+<h2>可以混搭的部件</h2>
+<ul class="tight">
+  <li>C 的<b>「结论 → 材料」正文布局</b>可以直接替换 A 的常驻详情内容（详情栏放宽即可），也可以做成 B 抽屉的内容；</li>
+  <li>B 的<b>「下一步」悬停动作</b>（开始探究 / 写答案 / 标为已解答）可以放到 A、C 的列表行上；</li>
+  <li>C 的<b>探究轨迹时间线</b>和<b>概览数字</b>可以放进 A 详情的底部；</li>
+  <li>B 的<b>泳道视图</b>可以做成 A 的一个视图切换（列表 ⇄ 看板），数据和详情都不用变。</li>
+</ul>
+
+<h2>裁决记录（2026-09-25 一轮评审）</h2>
+<ul class="tight">
+  <li><b>方向</b>：选 A 三栏清单。分组列和全局侧栏读起来像两条侧栏，二轮给出三个隔离变体（见下），最终定 A2；</li>
+  <li><b>状态文案</b>：改为「待探究 / 探究中 / 已解答」，枚举不变；</li>
+  <li><b>不保留独立问题小窗</b>。快速收集走现有搜索面板（Ctrl+K）里的一条「记一个问题」命令。面板本来就支持动作命令（「切换深浅主题」「打开设置」都是），加一条就行，不占新快捷键，也不和 Ctrl+K 冲突；</li>
+  <li><b>首页放「探究中的问题」速览</b>；</li>
+  <li><b>写卡片不自动加标签</b>；</li>
+  <li><b>喜欢探究轨迹和过程数据</b>，二轮把轨迹接进了 A 的详情；</li>
+  <li><b>材料范围扩大</b>：除了卡片、文章，还有项目文档、整个项目、白板。</li>
+</ul>
+
+<h2>二轮 · A 的分组列怎么和全局侧栏分开</h2>
+<p class="sub2">问题出在层级上：旧版 A 的分组列和全局侧栏都直接落在纸色底上，样式也一样，读起来就是两条并排的侧栏。<a href="plan-a-inbox.html" style="color:var(--accent-text)">方案 A 页</a>右上角可以切换三个变体：</p>
+<table>
+  <thead><tr><th>变体</th><th>做法</th><th>好处</th><th>代价</th></tr></thead>
+  <tbody>
+    <tr><td>A1 板内分栏（推荐）</td><td>分组列收进白色的列表板，成为板内左栏。全局侧栏在纸上，分组在板里</td><td>层级一眼可分；分组仍然常驻，拖问题到分组上就能移动</td><td>列表板变宽，窄窗口下详情栏会被压缩</td></tr>
+    <tr><td>A2 顶部切换</td><td>分组变成列表板里收集框下面的一行 chips（和文章页 pills 同一套语言）</td><td>页面只剩两块板，最干净，详情最宽</td><td>分组多了要横向滚动；拖到分组的目标比较小</td></tr>
+    <tr><td>A3 侧栏嵌入</td><td>分组成为全局侧栏「问题」下的子项</td><td>只有一条侧栏，根本不存在「两条」的问题</td><td>要改壳层导航协议（新增子项能力），而且只有问题页这么做，和其他页不一致</td></tr>
+  </tbody>
+</table>
+
+<h2>二轮 · 探究轨迹怎么记录</h2>
+<p class="sub2">建议两者结合：<b>过程事实由系统自动记，思考由你手动补</b>。</p>
+<ul class="tight">
+  <li><b>自动记录</b>（不需要你操心）：提出问题、状态变化（包括「挂上第一份材料，自动进入探究中」）、关联 / 移除材料、从问题里直接新建材料。其中「写下卡片」「画了白板」和「关联了已有文章」分开记，因为前者才是这次探究真正产出的东西；</li>
+  <li><b>手动「记一笔」</b>：轨迹末尾有一个输入框，回车写入。记的是读到了什么、卡在哪、换了什么思路。这些系统推断不出来，却是回头看时最有价值的部分。视觉上手动记录比自动事件更重（accent 圆点、正文字号），自动事件只是轻量的背景；</li>
+  <li><b>不做</b>：不追踪材料被编辑的每一次（太吵）。以后需要的话，可以聚合成「这张卡片之后又改过 N 次」；</li>
+  <li><b>存储</b>：新增事件表 <code>question_event(id, question_id, type, payload, create_time)</code>。旧数据回填三类：提出（问题的 create_time）、材料（按 content 的创建时间推算，标为「推算」）、解答（resolved_time）。中间的状态变化和想法旧版没有记录，回填不出来。</li>
+</ul>
+
+<h2>二轮 · 材料可以是卡片、文章、项目文档、整个项目、白板</h2>
+<ul class="tight">
+  <li><b>现状的限制</b>：<code>questions.answers</code> 是一个 content id 的 JSON 数组。卡片、文章、项目文档和独立答案都有 content id，但<b>项目和白板没有</b>（<code>project</code>、<code>white_boards</code> 都是自己的主键），所以现在存不进去；</li>
+  <li><b>建议</b>：新增关联表 <code>question_link(id, question_id, target_type, target_id, sort_index, create_time)</code>，target_type 取 <code>card / article / project_item / project / white_board / answer</code>，迁移时把 answers 数组逐条转成关联行。库里已有一张通用关联表 <code>content_link</code>（类型是自由文本，也有 create_time），可以复用，但它没有排序字段，语义上也是「内容引用网页剪藏」。所以更推荐单独建表；</li>
+  <li><b>顺带修掉的 legacy 行为</b>：① 旧版挂上第一个答案就把问题标为「已解决」，和新规则「第一份材料 → 探究中」冲突，要改掉；② 旧版删除答案会调用 <code>deleteContent</code>，新设计里「解除关联」只删关联，不能动卡片本身，迁移时要确认这一点；</li>
+  <li><b>从问题里直接新建</b>：详情里「新建 ▾」可以新建卡片、文章、白板、项目、独立答案，建完自动挂上并记入轨迹。「为了这个问题专门开一个项目」也就是一步操作；</li>
+  <li>mockup 里已经加上项目和白板材料（例如 CRDT 问题挂了一个 Vibe Learning 项目，B+ 树问题挂了一块白板），选择器也增加了「项目」「白板」两个分类。</li>
+</ul>
+
+<h2>裁决记录（2026-09-25 二轮评审）</h2>
+<ul class="tight">
+  <li><b>① 分组位置 = A2 顶部切换</b>：分组做成列表板里的一行 chips，页面只剩列表板和详情板两块（方案 A 页默认显示 A2）；</li>
+  <li><b>② 探究轨迹 = 自动记录 + 手动「记一笔」</b>，存进新表 <code>question_event</code>；</li>
+  <li><b>③ 材料关联 = 新建表 <code>question_link</code></b>，不复用 <code>content_link</code>；</li>
+  <li><b>④ 快速收集 = 命令面板里的动作命令「记一个问题」</b>。</li>
+</ul>
+<p class="sub2" style="margin-top:12px">完整裁决见 DECISIONS.md D-042。</p>
+
+</body>
+</html>
