@@ -24,13 +24,14 @@ import {
   Trash2,
 } from "lucide-react";
 import { MotionConfig } from "motion/react";
-import { Button, Loading, Menu, Segmented, toast } from "@tau/ui";
+import { Button, ConfirmDialog, Loading, Menu, Segmented, toast } from "@tau/ui";
 import { usePage } from "@/page/PageProvider";
 import type { TodoGroup } from "@/types";
 import {
   DAY_MS,
   bucketOf,
   doneToday,
+  groupDeletionIds,
   isOpen,
   isOverdue,
   liveEntries,
@@ -60,6 +61,7 @@ export function TodosView() {
   const [groupFilter, setGroupFilter] = useState(0);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [groupDialog, setGroupDialog] = useState<{ group: TodoGroup | null } | null>(null);
+  const [deletingGroup, setDeletingGroup] = useState<TodoGroup | null>(null);
   const quickAddRef = useRef<HTMLInputElement>(null);
   const agendaAnchor = useRef<HTMLDivElement>(null);
 
@@ -390,6 +392,7 @@ export function TodosView() {
                   .setGroupArchived(group.id, false)
                   .then(() => toast.success(`已恢复「${group.title}」`))
               }
+              onDelete={setDeletingGroup}
             />
 
             {/* 两块板：议程一整块 + 右板一整块（B3）；抽屉在 body 内绝对定位盖住右板 */}
@@ -439,6 +442,33 @@ export function TodosView() {
             </div>
           </>
         )}
+
+        <ConfirmDialog
+          open={deletingGroup !== null}
+          onOpenChange={open => {
+            if (!open) setDeletingGroup(null);
+          }}
+          title="删除项目"
+          context={deletingGroup?.title}
+          danger
+          description="项目下的任务、子任务、打卡记录与关联笔记链接会一起删除。"
+          impact={(() => {
+            const n = deletingGroup ? groupDeletionIds(snapshot, deletingGroup.id).size : 0;
+            return n > 0 ? `${n} 个任务将一起删除` : undefined;
+          })()}
+          confirmText="删除"
+          onConfirm={async () => {
+            if (!deletingGroup) return;
+            try {
+              await mutations.deleteGroup(deletingGroup.id);
+              if (groupFilter === deletingGroup.id) setGroupFilter(0);
+              toast.success(`已删除「${deletingGroup.title}」`);
+            } catch (error) {
+              toast.error(`删除失败：${String(error)}`);
+              throw error;
+            }
+          }}
+        />
 
         <GroupDialog
           open={groupDialog !== null}

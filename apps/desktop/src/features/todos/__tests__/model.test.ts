@@ -3,6 +3,7 @@ import type { TodoRecurrence } from "@/types";
 import {
   bucketOf,
   dayWord,
+  groupDeletionIds,
   habitCells,
   habitStats,
   isOpen,
@@ -211,5 +212,13 @@ describe("liveEntries / openRoots（首页待办卡与待办页同口径）", ()
 
   it("只留未完成的顶层任务，按议程段排序（逾期 → 今天 → 无日期）", () => {
     expect(openRoots(liveEntries(snapshot), NOW).map(e => e.id)).toEqual([2, 3, 1]);
+  });
+
+  it("删除范围含跨项目挂着的子孙，环不死循环", () => {
+    const e = (id: number, groupId: number, childIds: number[] = []) =>
+      entry({ id, groupId, childIds });
+    const list = [e(1, 1, [2]), e(2, 2, [3]), e(3, 2, [2]), e(4, 2)];
+    const snap = { entries: list, byId: new Map(list.map(x => [x.id, x])) } as TodoSnapshot;
+    expect([...groupDeletionIds(snap, 1)].sort()).toEqual([1, 2, 3]);
   });
 });

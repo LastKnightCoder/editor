@@ -47,6 +47,11 @@ export const archiveTodoGroup = async (id: number, isArchived: boolean): Promise
   return invoke("todo:archive-group", { id, isArchived });
 };
 
+/** 删除项目（连同其下全部任务），返回删除的任务数 */
+export const deleteTodoGroup = async (id: number): Promise<number> => {
+  return invoke("todo:delete-group", { id });
+};
+
 export const reorderTodoGroups = async (orderedIds: number[]): Promise<number> => {
   return invoke("todo:reorder-groups", { orderedIds });
 };
