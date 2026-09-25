@@ -4,6 +4,8 @@
  * 日程走 calendar 命令与 schedule page。
  */
 
+import type { ActiveQuestionPreview } from "@/types";
+
 export interface TodayEvent {
   id: string;
   title: string;
@@ -76,6 +78,8 @@ export interface HomeSnapshot {
   todos: TodoTodayItem[]; // 最多 3 条（三卡高度对齐）
   todoRemainingCount: number;
   events: TodayEvent[]; // 最多 5 条
+  /** 探究中的问题（按最近活动，最多 5 条） */
+  activeQuestions: ActiveQuestionPreview[];
   /** 内容 */
   recentEdits: RecentEdit[]; // 最多 12 条（三栏 × 4）
   /** 反馈 */

@@ -7,6 +7,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { listFlashcardDecks } from "@/commands/flashcard";
 import { listTodoItemsByType } from "@/commands/todo";
+import { listActiveQuestions } from "@/commands/question";
 import { getEventsForDay } from "@/commands/calendar";
 import { getCardsByDateRange } from "@/commands/card";
 import { getArticlesByDateRange } from "@/commands/article";
@@ -320,19 +321,31 @@ export async function fetchHomeSnapshot(): Promise<HomeSnapshot> {
   const index = buildSnapshotIndex(stats);
   const diaryWords = buildDiaryWordsByDate(diaries);
 
-  const [review, todos, events, recentEdits, focus, todayStats, weekly, totals, trend, heatmap] =
-    await Promise.allSettled([
-      fetchReview(),
-      fetchTodos(),
-      fetchEvents(),
-      fetchRecentEdits(diaries),
-      summaryPomodoroToday(),
-      fetchTodayStats(index, diaryWords),
-      fetchWeekly(index, diaryWords),
-      fetchTotals(index, diaries),
-      fetchTrend(index, diaryWords),
-      fetchHeatmapItems(),
-    ]);
+  const [
+    review,
+    todos,
+    events,
+    questions,
+    recentEdits,
+    focus,
+    todayStats,
+    weekly,
+    totals,
+    trend,
+    heatmap,
+  ] = await Promise.allSettled([
+    fetchReview(),
+    fetchTodos(),
+    fetchEvents(),
+    listActiveQuestions(5),
+    fetchRecentEdits(diaries),
+    summaryPomodoroToday(),
+    fetchTodayStats(index, diaryWords),
+    fetchWeekly(index, diaryWords),
+    fetchTotals(index, diaries),
+    fetchTrend(index, diaryWords),
+    fetchHeatmapItems(),
+  ]);
 
   const value = <T>(r: PromiseSettledResult<T>, fallback: T, label: string): T => {
     if (r.status === "fulfilled") return r.value;
@@ -350,6 +363,7 @@ export async function fetchHomeSnapshot(): Promise<HomeSnapshot> {
     todos: todoRaw.todos,
     todoRemainingCount: todoRaw.remaining,
     events: value(events, [], "今日日程"),
+    activeQuestions: value(questions, [], "探究中的问题"),
     recentEdits: value(recentEdits, [], "最近编辑"),
     focus: { sessionCount: focusRaw.count, focusMinutes: Math.round(focusRaw.focusMs / 60_000) },
     todayStats: value(
