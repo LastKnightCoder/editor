@@ -518,3 +518,12 @@
 - 选择：元素树 = 画布纸面内左栏（`ResizeableAndHideableSidebar`，右缘淡线兼拖拽边界，200–420px），与项目文档树同构；开关 `OutlineToggle` 钉在标题栏面包屑最前（多页白板详情与单页画布页都有），状态 `useWhiteboardOutlineStore`（zustand persist `tau-whiteboard-outline`）；头部「元素 N」+ 查找（按行名匹配，结果平铺）；行 32px / 13px，行首中性线性图标 15px（ink-2，选中 accent-text），容器的直接子元素数与「更多」共用固定槽位交叉淡入。
 - 行名 `elementLabel`：手动命名 > 内容（文本首段、图形里的字 / 形状名、导图节点文字、画框 / 分栏标题、图片说明、音频标题、网址、箭头「起点 → 终点」）> 类型名；创建时写入的默认名（「手写」「矩形」等）不算手动命名；超 40 字截断。卡片元素只存 cardId，仍显示「卡片」。
 - 行为变化：`WhiteBoard` 的 `showSidebar` 默认改为 `false`，只有白板页（`BoardCanvas`）打开；项目里的白板条目、文档内嵌白板不再有元素树入口（它们没有面包屑开关位），上述 legacy 挂载点已显式传 `showSidebar={false}`，把默认值收编为声明式意图。
+
+## D-051 项目域迁移收尾：queries 收编 + P-projects 锚点执行
+
+- 背景（2026-09-26）：详情换皮已于 2026-09-24 完成（04 清单 §projects 已补记），随迁清单剩余三项（详情域 queries 收编、DataTableProjectView/TableProjectItemView 同构合并、方向倒挂）与 P-projects 删除锚点一并在本日执行；用户裁决全部纳入并追加 folderOpen 受控展开重构。
+- 数据层收编：`useProjectTreeData` 改 react-query（`["projects","tree",id,childrenKey]`，children 指纹编进 key——增删/移动子项后 detail 缓存刷新即自动重拉）；event bus（project-item:updated）保留为跨编辑器/跨窗口实时通道，订阅分支改 `setQueriesData` 就地并入树缓存（cards 域先例），每秒自动保存不打扰结构；ProjectList/ProjectView 的 getProjectById/getProjectList/getAllCards/getAllWhiteBoards 直调全部换 query（`useProjectDetail`/`useProjectsList`/`useProjectRefCards`/`useProjectRefWhiteBoards`）；域入口挂切库整域失效。操作内一次性读（写后校验类）不强行收编。
+- 结构收编：DataTableProjectView / TableProjectItemView 抽共享骨架 `shared/DatabaseWorkspace`（hook 解构 + 守卫 + 布局 + Database JSX + 标题编辑骨架），两视图保留各自实体加载与独有功能（项目切换下拉 / event bus 标题广播）。
+- 方向倒挂归位：`hooks/useDynamicExtensions` 参数化（去 ProjectContext 读取，两处既有消费均不在项目上下文内、行为等价）；ProjectListSlate 测试删历史遗留 Provider；`pdfCitation.ts` 纯函数 git mv 至 `utils/`（5 消费方改引）。
+- P-projects 执行（2026-09-26）：删 `pages/ProjectsView/` 整目录（8 文件）+ TabContent 的 ProjectList 分支与 lazy import + `useProjectsStore` 整文件（dragging 已抽 `useDraggingStore`，CRUD 已有 queries.ts mutations 版，删前 rg 复核全仓消费者清零）；`TabType.ProjectList` enum 成员保留（legacy 侧栏/搜索导航标识 7 处引用，随 G1/G2 整体退役）。
+- 顺手收口：`IS_REACT_ACT_ENVIRONMENT` 声明从 81 个测试文件（4 种写法散落）收口到 `src/test-setup.ts` 单点。

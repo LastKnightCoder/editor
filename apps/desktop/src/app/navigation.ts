@@ -88,7 +88,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "学习",
     items: [
       // 项目即学习容器（文档树/数据表格/Vibe Learning 三型皆学习导向），归学习组
-      { key: "projects", label: "项目", icon: FolderKanban }, // legacy: ProjectListView（VibeLearning 详情即学习工作台）
+      { key: "projects", label: "项目", icon: FolderKanban }, // features/projects（学习驾驶舱 + 三型详情工作台）
       { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // features/flashcards（复习台，D-041）
       {
         key: "questions",
