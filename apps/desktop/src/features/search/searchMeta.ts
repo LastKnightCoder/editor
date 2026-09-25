@@ -12,6 +12,7 @@ import {
   PenLine,
   FolderKanban,
   SunMoon,
+  CircleHelp,
   Command,
   type LucideIcon,
 } from "lucide-react";
@@ -65,7 +66,7 @@ export interface PaletteCommand {
   keywords?: string;
   kind: "page" | "action";
   pageKey?: string;
-  action?: "cycle-theme" | "open-settings";
+  action?: "cycle-theme" | "open-settings" | "capture-question";
 }
 
 let cached: PaletteCommand[] | null = null;
@@ -114,6 +115,15 @@ export function paletteCommands(): PaletteCommand[] {
       keywords: "theme dark light 外观",
       kind: "action",
       action: "cycle-theme",
+    },
+    {
+      id: "action:capture-question",
+      label: "记一个问题",
+      section: "动作",
+      icon: CircleHelp,
+      keywords: "question capture 问题 收集 疑问",
+      kind: "action",
+      action: "capture-question",
     },
   ];
   return cached;

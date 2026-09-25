@@ -8,6 +8,10 @@
  * （card-detail/article-detail）缺 id 不可回跳，既不记录也不展示。
  * 类型筛选（chips 单选/Ctrl+点击多选/Shift+←→、前缀「卡片:」追加、全角冒号、
  * 空输入退格删筛选、Esc 分层退场）与 IME 让位行为见 D-003。
+ *
+ * 输入即记录（D-043）：任何查询都附带一行「记为问题：…」，回车收集进问题页（#分组 指定分组）。
+ * 像问题的输入（以问号结尾或带 #分组）该行置顶；否则放在末尾（↑ 从首项回绕即达），不抢搜索的回车。
+ * 前缀「问题:」或命令「记一个问题」进入收集模式，列表只剩收集行。
  */
 
 import {
@@ -20,7 +24,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
-import { Search, CornerDownLeft, CircleDashed, X } from "lucide-react";
+import { Search, CornerDownLeft, CircleDashed, CircleHelp, X } from "lucide-react";
 import clsx from "clsx";
 import { usePage, useOverlayDismiss } from "@/page/PageProvider";
 import { useSearchStore, type VisitRecord } from "./searchStore";
@@ -41,6 +45,8 @@ import { useThemeStore } from "@tau/ui/theme/runtime";
 import { DEFAULT_DARK_KEY, DEFAULT_LIGHT_KEY } from "@tau/ui/theme";
 import { Spinner, toast } from "@tau/ui";
 import type { IndexType, SearchResult } from "@/types";
+import { captureQuestion } from "@/commands/question";
+import { looksLikeQuestion, parseCapture } from "@/features/questions/capture";
 
 /* ---------- 前缀语法：追加语义，冒号兼容全角 ---------- */
 
@@ -55,6 +61,8 @@ const WORD_TO_SCOPE: Record<string, PaletteScope> = {
 const PREFIX_RE = new RegExp(
   `^(${TYPE_WORDS.join("|")})((?:[,、]\\s*(?:${TYPE_WORDS.join("|")}))*)[:：]\\s*(.*)$`
 );
+/** 收集模式前缀：「问题:」「记问题:」 */
+const CAPTURE_RE = /^记?问题[:：]\s*(.*)$/;
 
 /* ---------- 面板行模型（分组渲染 + 扁平导航共用） ---------- */
 
@@ -109,6 +117,7 @@ export function SearchPalette() {
 
   const [query, setQuery] = useState("");
   const [scopes, setScopes] = useState<Set<PaletteScope>>(() => new Set());
+  const [capturing, setCapturing] = useState(false);
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -145,7 +154,40 @@ export function SearchPalette() {
       });
     } else if (action === "open-settings") {
       closeAnd(() => useSettingsStore.getState().openSettings());
+    } else if (action === "capture-question") {
+      setCapturing(true);
+      setScopes(new Set());
+      setQuery("");
+      if (inputRef.current) inputRef.current.value = "";
+      inputRef.current?.focus();
     }
+  };
+
+  const captureRow = (text: string): Row => {
+    const { title, groupHint } = parseCapture(text);
+    return {
+      key: "capture:question",
+      icon: CircleHelp,
+      title: title ? `记为问题：${title}` : "输入问题，回车收集到问题页",
+      sub: groupHint ? `#${groupHint}` : "#分组 可指定分组",
+      tag: { label: "问题", cls: "bg-accent-soft text-accent-text" },
+      hint: !title,
+      run: () => {
+        if (!title) return;
+        closeAnd(() => {
+          captureQuestion(title, groupHint)
+            .then(({ question, groupTitle }) =>
+              toast.success(`已收集到「${groupTitle}」`, {
+                action: {
+                  label: "查看",
+                  onClick: () => navigator.push("questions", { selectedId: question.id }),
+                },
+              })
+            )
+            .catch(() => toast.error("收集问题失败"));
+        });
+      },
+    };
   };
 
   // 检索失败反馈（isError 翻真时触发一次；重试成功自动复位）
@@ -206,6 +248,8 @@ export function SearchPalette() {
 
   const groups = useMemo<Group[]>(() => {
     const out: Group[] = [];
+
+    if (capturing) return [{ label: "记为问题", rows: [captureRow(trimmedQ)] }];
 
     if (!trimmedQ && scopes.size === 0) {
       // 二级页（card-detail/article-detail 等）只存 key 无法回跳，存量持久化记录同此过滤
@@ -275,6 +319,13 @@ export function SearchPalette() {
       }
     }
 
+    // 输入即记录：像问题的输入置顶，否则垫底（不抢搜索结果的回车）
+    if (scopes.size === 0) {
+      const capture = { label: "记录", rows: [captureRow(trimmedQ)] };
+      if (looksLikeQuestion(trimmedQ)) out.unshift(capture);
+      else out.push(capture);
+    }
+
     if (contentQuery.isFetching && !contentQuery.data?.length && wantContent) {
       out.push({
         label: "",
@@ -294,6 +345,7 @@ export function SearchPalette() {
   }, [
     trimmedQ,
     scopes,
+    capturing,
     commands,
     contentQuery.data,
     contentQuery.isFetching,
@@ -349,6 +401,14 @@ export function SearchPalette() {
   const processInputValue = () => {
     const el = inputRef.current;
     if (!el) return;
+    const capture = el.value.match(CAPTURE_RE);
+    if (capture) {
+      setCapturing(true);
+      setScopes(new Set());
+      setQuery(capture[1]);
+      el.value = capture[1];
+      return;
+    }
     const m = el.value.match(PREFIX_RE);
     if (m) {
       const words = [m[1], ...m[2].split(/[,、]\s*/).filter(Boolean)];
@@ -401,6 +461,9 @@ export function SearchPalette() {
         e.stopPropagation();
         setQuery("");
         if (inputRef.current) inputRef.current.value = "";
+      } else if (capturing) {
+        e.stopPropagation();
+        setCapturing(false);
       } else if (scopes.size) {
         e.stopPropagation();
         setScopes(new Set());
@@ -411,6 +474,8 @@ export function SearchPalette() {
     } else if (e.key === "ArrowRight" && e.shiftKey) {
       e.preventDefault();
       cycleScope(1);
+    } else if (e.key === "Backspace" && !query && capturing) {
+      setCapturing(false);
     } else if (e.key === "Backspace" && !query && scopes.size) {
       // 空输入退格逐个删除筛选（Set 保序，删最近加入的）
       setScopes(prev => {
@@ -465,6 +530,20 @@ export function SearchPalette() {
           {/* 输入行：scope 徽章 + 输入框 + 清空 */}
           <div className="flex items-center gap-2.5 px-4 pb-2.5 pt-3.5">
             <Search size={17} strokeWidth={1.75} className="text-ink-3 flex-none" />
+            {capturing && (
+              <button
+                type="button"
+                title="退出收集"
+                onClick={() => {
+                  setCapturing(false);
+                  inputRef.current?.focus();
+                }}
+                className="bg-accent-soft text-accent-text hover:bg-press text-tau-sm flex h-6 flex-none items-center gap-1.5 rounded-lg px-2.5 font-medium"
+              >
+                记问题
+                <X size={12} strokeWidth={2} />
+              </button>
+            )}
             {[...scopes].map(s => (
               <button
                 key={s}
@@ -487,7 +566,11 @@ export function SearchPalette() {
               ref={inputRef}
               value={undefined}
               className="text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[15px] leading-relaxed outline-none"
-              placeholder="搜索内容，或输入「卡片:」限定类型…"
+              placeholder={
+                capturing
+                  ? "学习时冒出的疑问… #分组 指定分组"
+                  : "搜索内容，或输入「卡片:」限定类型、「问题:」记下一个问题…"
+              }
               autoComplete="off"
               spellCheck={false}
               onInput={e => {
@@ -496,13 +579,14 @@ export function SearchPalette() {
               onCompositionEnd={processInputValue}
               onKeyDown={onInputKeyDown}
             />
-            {(query || scopes.size > 0) && (
+            {(query || scopes.size > 0 || capturing) && (
               <button
                 type="button"
                 title="清空"
                 onClick={() => {
                   setQuery("");
                   setScopes(new Set());
+                  setCapturing(false);
                   if (inputRef.current) inputRef.current.value = "";
                   inputRef.current?.focus();
                 }}
