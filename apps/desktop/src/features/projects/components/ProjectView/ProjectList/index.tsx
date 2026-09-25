@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Network, House, ListTree, Plus } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
@@ -40,8 +41,6 @@ import {
   readTextFile,
   selectFile,
   getProjectById,
-  getAllWhiteBoards,
-  getAllCards,
   getWhiteBoardById,
   createEmptyVideoNote,
   createEmptyAudioNote,
@@ -49,9 +48,14 @@ import {
   addRootProjectItem,
   addChildProjectItem,
   createDataTable,
-  getProjectList,
   getProjectItemById,
 } from "@/commands";
+import {
+  useProjectDetail,
+  useProjectsList,
+  useProjectRefCards,
+  useProjectRefWhiteBoards,
+} from "@/features/projects/queries";
 import { getContentLength, importFromMarkdown } from "@/utils";
 import { collectAncestorItemIds, isSameNumberSet } from "@/utils/projectTree";
 import { importLocalBook } from "../shared/utils/bookImport";
@@ -90,10 +94,11 @@ const Project = () => {
   });
   const { containerWidth } = useProjectContext();
   const sidebarMaxWidth = containerWidth !== undefined ? Math.max(200, containerWidth - 300) : 900;
-  const [project, setProject] = useState<IProject | null>(null);
-  const [allProjects, setAllProjects] = useState<IProject[]>([]);
-  const [cards, setCards] = useState<ICard[]>([]);
-  const [whiteBoards, setWhiteBoards] = useState<WhiteBoard[]>([]);
+  const queryClient = useQueryClient();
+  const { project } = useProjectDetail(Number(id));
+  const { projects: allProjects } = useProjectsList();
+  const { cards } = useProjectRefCards();
+  const { whiteBoards } = useProjectRefWhiteBoards();
   const { pdfs, initPdfs, createPdf } = usePdfsStore(
     useShallow(state => ({
       pdfs: state.pdfs,
@@ -139,18 +144,6 @@ const Project = () => {
     navigator.push("project-detail", { id: proj.id });
   });
 
-  useEffect(() => {
-    getProjectList().then(projects => {
-      setAllProjects(projects);
-    });
-    getAllCards().then(cards => {
-      setCards(cards);
-    });
-    getAllWhiteBoards().then(whiteBoards => {
-      setWhiteBoards(whiteBoards);
-    });
-  }, []);
-
   useDatabaseChangeEffect(() => {
     return (async () => {
       await initPdfs();
@@ -158,19 +151,14 @@ const Project = () => {
     })();
   }, [initPdfs, initEpubs]);
 
-  const refresh = useMemoizedFn(() => {
-    getProjectById(Number(id))
-      .then(res => {
-        setProject(res);
-      })
-      .catch(e => {
-        console.error(e);
-      });
+  // 写缓存而非失效：调用点均已拿到最新 project，同步落缓存并经 children 指纹联动树重拉
+  const applyProject = useMemoizedFn((next: IProject) => {
+    queryClient.setQueryData(["projects", "detail", Number(id)], next);
   });
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const refresh = useMemoizedFn(() => {
+    void queryClient.invalidateQueries({ queryKey: ["projects", "detail", Number(id)] });
+  });
 
   const { treeData, loading: treeLoading, reload: reloadProjectTree } = useProjectTreeData(project);
 
@@ -236,12 +224,12 @@ const Project = () => {
       }
       if (!parentProjectItemId) {
         const result = await addRootProjectItem(project.id, createProjectItem);
-        setProject(result[0]);
+        applyProject(result[0]);
         return result;
       }
       const [, createdItem] = await addChildProjectItem(parentProjectItemId, createProjectItem);
       const newProject = await getProjectById(project.id);
-      setProject(newProject);
+      applyProject(newProject);
       const parentProjectItem = await getProjectItemById(parentProjectItemId);
       if (parentProjectItem) {
         // 让树视图中的父节点立刻刷新 children。
@@ -386,7 +374,7 @@ const Project = () => {
 
     const res = await onCardOk(newSelectedCards);
     if (res && res[0]) {
-      setProject(res[0] as IProject);
+      applyProject(res[0] as IProject);
     }
   };
 
@@ -432,7 +420,7 @@ const Project = () => {
 
     const res = await onWhiteBoardOk(whiteBoards);
     if (res && res[0]) {
-      setProject(res[0] as IProject);
+      applyProject(res[0] as IProject);
     }
   });
 
