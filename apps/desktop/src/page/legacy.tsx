@@ -14,7 +14,6 @@ import { LegacyPendingPage } from "./LegacyPendingPage";
 
 /** key → 展示名（与 app/navigation.ts 一一对应，别处不要重复维护） */
 export const LEGACY_PAGES: Record<string, string> = {
-  whiteboard: "白板",
   review: "闪卡复习",
   pomodoro: "番茄专注",
   weread: "微信读书",

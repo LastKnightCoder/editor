@@ -11,7 +11,12 @@ vi.mock("@/page/PageProvider", () => ({
 vi.mock("../../queries", () => ({
   useWhiteBoardContent: (id: number) => ({
     data: { id, name: `白板 ${id}`, data: { children: [], selection: [], viewPort: {} } },
-    save: { mutate: state.save },
+    save: {
+      mutateAsync: (...args: unknown[]) => {
+        state.save(...args);
+        return Promise.resolve();
+      },
+    },
   }),
 }));
 vi.mock("@/components/WhiteBoard", () => ({

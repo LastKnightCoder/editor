@@ -289,7 +289,8 @@
 - learning（vibe-learning + flashcard 合并）
 - schedule 日程 · 第一版 ✅ 2026-09-24 方案 C 月刊落地（mockups/calendar：月历大面板 + 当日时间线 + 快速添加，底层 legacy 逻辑复用）；时间记录不并入（legacy 已无入口，孤儿页面进 04 清单）
 - ~~diary 日记~~ ✅ 2026-09-25 D「一整张纸」落地（D-044；标签频道嵌侧栏，legacy DiaryView 待 G1/G2 随首页旧版一并删除）
-- whiteboard 白板
+- ~~whiteboard 白板列表~~ ✅ 2026-09-25 A 画廊落地（D-047；标签嵌侧栏，缩略图复用导出图片管线）
+- ~~whiteboard-detail 白板详情（多页）~~ ✅ 2026-09-25 A2 底部页签栏（XMind 式）落地（D-048；只迁页面外壳，画布内部浮动件换皮另起一轮 mockup）
 - weread 微信读书
 - resources 资源管理：已退役，管理页、资源库选择及主库资源索引整体移除；保留上传、同步、协作文件与学习资源。
 - chat 归位 feature
@@ -459,7 +460,9 @@
 - 侧栏扩展槽（D-043 增量）：`NAV_CHILDREN_SLOTS` 由「key → 组件」改为描述对象 `{ Component, selected(params), parentResets? }`——协作页恒有子项选中（`selected: () => true`，行为不变）；日记的标签频道是可选收窄，`id` 为空时父项保持常规选中，已在日记页再点父项清空频道回到全部（`parentResets`）。Sidebar 只按描述对象判定，仍不感知具体域。
 - 渲染：条目默认只读 `Editor`（不建内容会话，同卡片墙预览），点正文才挂会话化 `ContentEditor`（会话就绪前以只读渲染占位、就绪后光标落回点击处，切换不闪不跳；实时保存，不设「完成」按钮与「更多 → 编辑」），节流 800ms 落 `update-diary-segment`、退出 flush；流**按天虚拟化**（`@tanstack/react-virtual`，一天一行、日期列在行内吸顶，按正文字数估高、`measureElement` 实测）；月份跳转 / 外部定位 / 那年今日先滚到目标天的估算位置让它挂上，再逐帧校正对齐（条目居中、天 / 月顶对齐）；2026-09-25 由「60 条一批渐进挂载 + `content-visibility`」改来——跳到几百条前要同步挂几百个编辑器、屏外估高导致落点偏。
 - 验证：tsc 0 错误；eslint 新增代码 0 error（余 `*.page.tsx` 匿名默认导出警告，同全部页面定义）；vitest 新增 12 例（日记 model 10、主进程 create-diary-moment + 广播 2），全量 1356 通过，失败项仅 `tool-call-renderers` 2 例与 2 个 Playwright e2e 文件（均为既有失败，同 D-042 记录）。浏览器走查（无 IPC，向查询缓存注入 mock）：填充态、侧栏频道与父项降级、那年今日预告→抽屉→接着写引用、`#` 联想转标签、日历范围筛选、cocoa 主题；写入路径需在 Electron 内由用户走查。
+
 ## D-042 问题页方向定稿（方案 A2「顶部切换」三栏清单）+ 多态材料关联表 + 探究轨迹事件表
+
 ## D-043 问题页方向定稿（方案 A2「顶部切换」三栏清单）+ 多态材料关联表 + 探究轨迹事件表
 
 - 背景：legacy 问题页（`pages/QuestionWindow`）= 左侧分组栏 + 问题列表 + 一串 antd Modal（新建 / 详情 / 写答案 / 选答案 / 看答案），答案在列表里只显示「答案 #id」，`resolvedTime` 从未上屏。用户的使用场景：学习时收集问题 → 带着问题查资料 → 写卡片 / 文章 → 从材料构建答案。三案 mockup（`mockups/questions/`：A 三栏清单 / B 探究看板 / C 研究笔记，共用 22 个问题 + 39 份材料）；2026-09-25 一轮用户选 A，但指出「分组列和全局侧栏没有隔离开，像两条侧栏」；二轮 A 页内三变体（A1 板内分栏 / A2 顶部切换 / A3 侧栏嵌入）对照后裁决 **A2**。
@@ -476,3 +479,23 @@
   - 首页：「最近编辑」之后一整行「探究中的问题」（按最近活动，最近进展取最后一条轨迹事件），点击带 `selectedId` 定位。
   - 已删：独立问题窗口（window-manager / index.ts `--window-type=question` / window-module-mapping / `/questions` 路由）。旧页面 `pages/QuestionWindow` 与 `useQuestionStore` 等 P-questions 删除（04 §questions）。
   - 未做：发布（`buildQuestPages`）仍只发布 content 类材料，项目与白板材料不进站点。
+
+## D-047 白板列表页定稿（方案 A「画廊」）+ 缩略图复用导出图片管线 + 元信息窄接口
+
+- 背景：legacy `pages/WhiteBoardView` = antd 卡片网格 + 右下悬浮「＋」；无封面时显示 CDN 默认占位图（离线破图、千篇一律）+ 五色随机描边；卡片只有标题 / 「发表于」创建日期 / 两行描述，看不到页数、内容与最近修改；更多菜单悬停弹出，删除走 `modal.confirm`。mockup（`mockups/whiteboards/`，12 个白板 29 页，缩略图按元素几何实时画出）：一轮 A 画廊（缩略图卡片网格 + 悬停扫页）/ B 胶片（一整张纸，每个白板一条页带）/ C 预览台（目录 + 大预览）。
+- 一轮裁决（2026-09-25）：**选 A**；保留自定义封面，没有封面用画布缩略图；缩略图**复用导出图片**；加页内标题过滤；删除提示被几个项目引用；标签待看日记做法。二轮（`plan-a2-gallery.html`）演示日记式侧栏标签后裁决：**标签按侧栏做，卡片上不显示标签**。
+- 选择（页面）：① 工具栏 = 标题（在某个标签下时带可关闭的标签 chip）+ 摘要（N 个白板 · N 页）· 标题过滤（⌘F / Ctrl+F 聚焦、Esc 清空、命中高亮、「命中 / 总数」）· 排序 Segmented（最近更新 / 创建时间 / 名称，默认最近更新）· 主按钮「新建白板」；② 卡片 = 缩略图 + 标题 + 一行描述 + 「N 页 · N 个元素 · 相对更新时间」，有演示序列标「可演示」；多页白板在缩略图上**横向移动即翻页**（左上页名、底部页码刻度），点击打开当前看到的那页，否则打开上次停留页（`activeWhiteBoardContentId`）→ 第一页；③ 「更多」菜单：打开 / 编辑信息 / 设置或更换封面 / 移除封面 / 删除；④ 新建 / 编辑信息 = 标题 + 描述 + 标签（已有标签平铺点选，输入回车加新标签），在某个标签下新建预先带上它，「创建并打开」直接进画布；⑤ 删除确认写明页数与元素数，并列出引用它的项目（`get-project-item-by-ref("white-board", id)` → 所属项目名），说明删除后这些条目解除关联（主进程本就 `resetProjectItemRef`）。
+- 选择（标签）：日记 D-044 同款侧栏嵌套——「白板」入口下展开各标签（按使用次数）+ 无标签，点击经页面参数 id 收窄（`tag:<名>` / `untagged`），再点回到全部，右键「清理这个标签…」。白板标签没有颜色设置（`WhiteBoard.tags` 只是字符串数组），侧栏用中性 `#` 图标，不造色板。navSlots 增 `whiteboard-tags`（有白板带标签才展开）。
+- 选择（缩略图）：导出图片的离屏截图逻辑从 `ExportImageModal` 抽为 `components/WhiteBoard/hooks/useBoardCapture.tsx`（导出与缩略图共用），`WhiteBoardRef` 增 `captureThumbnail`（全部元素、扩成 16:10、按「无选区」渲染但不改动画布选区与视口、WebP、宽 640）。画布页（`WhiteBoardContentView`）在编辑停下 4 秒后、以及打开时缩略图缺失或早于页的更新时间时后台截一张；页面被保活隐藏或窗口在后台时不截，回来再补。**缩略图存渲染端 IndexedDB（按「数据库 + 页 id」），不进主库、不参与同步**——它是可再生缓存；换设备 / 清缓存后显示「打开后生成预览」占位。`imgUrl` 字段不能复用：主进程在建白板 / 加页 / 更新时都会把封面拷进去。
+- 主进程：新增 `update-white-board-meta`（只改白板行的标题 / 描述 / 标签 / 封面；缺省 = 不改、空值 = 清空）——原 `update-white-board` 不带子白板列表会删光所有页，带上又会用列表手里的旧画布数据覆盖正在别处编辑的页，且 `||` 合并使描述清不空、封面移除不掉；`createWhiteboard` 修为写入传入的 tags（原来恒写 `[]`）。单测 `__tests__/whiteboard-meta.test.ts`。
+- 暂不做：白板详情（多页工作台）迁移——点卡片先进已有的 `whiteboard-content` 画布页（单页），多页切换 / 页管理待下一页；「在新窗口打开」无白板窗口能力，不放入口；「从头演示」画布页暂无按参数进入演示的入口，卡片只标「可演示」。
+- 结构：`features/whiteboards/`——`model.ts`（投影 / 排序 / 范围 / 标题过滤 / 标签统计 / 打开目标 / 相对时间，单测）、`thumbnails.ts`（IndexedDB 缓存 + react-query）、`queries.ts`（列表 / 写入 / 引用 / 单页画布，画布保存后失效列表）、components（WhiteboardCard / WhiteboardInfoDialog / WhiteboardNav）、views/WhiteboardsView、pages/whiteboard.page.tsx（single；参数 id = 标签范围）。`page/legacy.tsx` 删 whiteboard 占位；04 清单 §whiteboards。
+
+## D-048 白板详情页定稿（方案 A2「底部页签栏」XMind 式）+ 页操作窄接口
+
+- 背景：legacy `pages/WhiteboardDetailView` 两种形态——多页白板 = 画布 + 下方通栏子白板页签（毛玻璃 + 上边框横线，悬停出编辑 / 删除图标，「＋」弹窗输名新建，删除 `modal.confirm`，每 3 秒轮询整页保存）；单页 = 顶部 antd 面包屑（带边框线）+ 画布。新壳层只有单页的 `whiteboard-content`。mockup（`mockups/whiteboard-detail/`）：一轮 A 底部浮动页签 / B 侧栏嵌套页 / C 翻页器 + 页总览；用户要「类似 XMind 底部的那种标签页」→ 二轮 A2（`plan-a2-xmind.html`）。
+- 裁决（2026-09-25）：① A2；② **只迁页面外壳**，画布自带的工具条 / 属性栏 / 状态栏 / 元素树侧栏 / 右键菜单 / 插入弹窗的换皮单独出一轮 mockup；③ 独立白板（不属于任何白板的单页，画布里嵌套的白板等）只显示那一页，不加页签栏；④ **只有一页时页签栏默认隐藏，鼠标移到底边才浮出**（XMind 同款）。
+- 选择（页面）：新增 page `whiteboard-detail`（params，getId 按白板 id；参数 `id` 白板、`page` 当前页），列表点卡片 / 新建后进它；`whiteboard-content` 保留给独立单页。画布放在一整张 surface 纸里；多页时纸面下缘一条 34px 页签栏（页面底色上），左侧「＋ 新建页」「所有页」菜单，接着各页签，当前页签 surface 底 + 卡片投影、从纸面下缘垂下，底部 accent 短线；点击切页、双击 / F2 改名、右键重命名 / 复制这一页 / 删除这一页（仅一页时禁用删除）、拖动排序（react-dnd，越过中线才换位）、⌃PageUp / ⌃PageDown 切页。单页时栏改为纸面左下的浮层，底边 14px 感应带悬停浮出，改名 / 菜单打开期间保持显示；浮层只占左侧，不挡画布右下自带的状态栏。
+- 选择（行为）：同一白板内切页由栈机原位更新参数，**不进后退历史**；停留页记回主进程，**`set-active-sub-white-board` 不再刷新白板 update_time**（查看状态不算修改，否则翻看就会排到「最近更新」最前）。新建页不弹窗，直接「第 N 页」并切过去。删除页 ConfirmDialog（写明这一页的元素一起删除）；删当前页时先 flush 未落库改动、切到相邻页再删，避免卸载时的保存落在已删除的页上。面包屑「白板名 / 页名」（单页只显示白板名），点白板名打开编辑信息（与列表同一弹窗）。保存沿用实时保存（停 400ms 落库），替代 legacy 3 秒轮询。
+- 主进程：新增 `rename-sub-white-board`（只改页名，不用调用方手里的旧数据覆盖页）、`duplicate-sub-white-board`（副本插在原页后并设为当前页；**先建空页再写数据**，让 updateWhiteboard 按差量为嵌入正文补引用计数——直接带数据创建不加引用，删副本会把原页仍在用的正文一起释放）。单测补在 `__tests__/whiteboard-meta.test.ts`（改名、切页不刷新更新时间、复制含引用计数）。
+- 结构：单页画布逻辑（读取 / 实时保存 / 后台缩略图）抽为 `components/BoardCanvas.tsx`（ref 暴露 `flush()`，复制与删除前调用），`whiteboard-content` 与 `whiteboard-detail` 共用；`components/SheetBar.tsx`（页签栏）；`views/WhiteboardDetailView.tsx`；`pages/whiteboard-detail.page.tsx`；`queries.ts` 增 `useWhiteboardDetail` / `useWhiteboardPageMutations`（写后以主进程返回的白板更新详情缓存、失效列表；改名同步改画布正在用的页缓存，免得下次保存把旧名写回）。MCP tab-content 映射 `whiteboard-detail` → 白板内容提供者。
