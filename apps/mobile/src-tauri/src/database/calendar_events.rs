@@ -18,7 +18,7 @@ use crate::database::todo_calendar_sync::{
 
 const EVENT_JOIN_COLUMNS: &str =
     "e.id, e.calendar_id, e.title, e.detail_content_id, e.start_date, \
-     e.end_date, e.start_time, e.end_time, e.color, e.all_day, e.value, \
+     e.end_date, e.start_time, e.end_time, e.color, e.all_day, \
      c.title AS calendar_title, c.color AS calendar_color, c.group_id AS calendar_group_id";
 
 type EventRow = (
@@ -32,7 +32,6 @@ type EventRow = (
     Option<i64>,
     Option<String>,
     bool,
-    Option<f64>,
     Option<String>,
     Option<String>,
     Option<i64>,
@@ -53,7 +52,6 @@ fn parse_event_row(
         end_time,
         color,
         all_day,
-        value,
         calendar_title,
         calendar_color,
         calendar_group_id,
@@ -71,7 +69,6 @@ fn parse_event_row(
         row.get(10)?,
         row.get(11)?,
         row.get(12)?,
-        row.get(13)?,
     );
     Ok(CalendarEventDto {
         id,
@@ -84,7 +81,6 @@ fn parse_event_row(
         end_time,
         color,
         all_day,
-        value,
         detail_content: None,
         is_in_system_event: is_in_system_group(calendar_group_id, groups),
         calendar_title,
@@ -110,7 +106,6 @@ fn parse_plain_event_row(
         end_time: row.get(7)?,
         color: row.get(8)?,
         all_day: row.get::<_, i64>(9)? != 0,
-        value: row.get(10)?,
         detail_content: None,
         calendar_title: Some(calendar_title.to_string()),
         calendar_color: Some(calendar_color.to_string()),
@@ -119,7 +114,7 @@ fn parse_plain_event_row(
 }
 
 const PLAIN_EVENT_COLUMNS: &str =
-    "e.id, e.calendar_id, e.title, e.detail_content_id, e.start_date, e.end_date, e.start_time, e.end_time, e.color, e.all_day, e.value";
+    "e.id, e.calendar_id, e.title, e.detail_content_id, e.start_date, e.end_date, e.start_time, e.end_time, e.color, e.all_day";
 
 #[tauri::command]
 pub fn calendar_event_get_by_id(
@@ -417,8 +412,8 @@ pub(crate) fn insert_event_in_tx(
     tx.execute(
         "
         INSERT INTO calendar_event
-        (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day, value)
-        VALUES (?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+        (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day)
+        VALUES (?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
         ",
         params![
             now,
@@ -431,7 +426,6 @@ pub(crate) fn insert_event_in_tx(
             payload.end_time,
             payload.color,
             if payload.all_day { 1 } else { 0 },
-            payload.value,
         ],
     )
     .map_err(|e| db_err("CALENDAR_EVENT_CREATE_FAILED", "insert event", e))?;
@@ -480,8 +474,8 @@ pub fn calendar_event_update(
         "
         UPDATE calendar_event
         SET calendar_id = ?1, title = ?2, detail_content_id = ?3, start_date = ?4, end_date = ?5,
-            start_time = ?6, end_time = ?7, color = ?8, all_day = ?9, value = ?10, update_time = ?11
-        WHERE id = ?12
+            start_time = ?6, end_time = ?7, color = ?8, all_day = ?9, update_time = ?10
+        WHERE id = ?11
         ",
         params![
             payload.calendar_id,
@@ -493,7 +487,6 @@ pub fn calendar_event_update(
             payload.end_time,
             payload.color,
             if payload.all_day { 1 } else { 0 },
-            payload.value,
             now,
             payload.id,
         ],

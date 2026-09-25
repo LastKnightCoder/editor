@@ -54,7 +54,6 @@ async function setup() {
     startTime: null,
     endTime: null,
     color: null,
-    value: null,
     detailContentId: 9,
     detailContent: content("原有详情"),
   });

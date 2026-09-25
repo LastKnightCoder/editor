@@ -85,7 +85,6 @@ export interface CalendarEventListItem {
   startTime: number | null;
   endTime: number | null;
   allDay: boolean;
-  value: number | null | undefined;
   detailPreview?: string;
 }
 
@@ -137,7 +136,6 @@ export interface CalendarEventDetailResult {
     startTime: number | null;
     endTime: number | null;
     allDay: boolean;
-    value: number | null | undefined;
     markdown: string;
     preview: string;
   };
@@ -145,10 +143,7 @@ export interface CalendarEventDetailResult {
 
 const normalizeText = (value: string) => value.trim().toLowerCase();
 
-const safeMarkdownFromContent = async (
-  contentId: number,
-  preloaded?: Descendant[] | null,
-) => {
+const safeMarkdownFromContent = async (contentId: number, preloaded?: Descendant[] | null) => {
   if (preloaded?.length) {
     return getMarkdown(preloaded).trim();
   }
@@ -169,22 +164,14 @@ const buildPreview = (markdown: string, maxLength = 140) => {
   if (!markdown.trim()) {
     return "";
   }
-  return truncateMarkdown(markdown.trim(), maxLength)
-    .content.replace(/\n+/g, " ")
-    .trim();
+  return truncateMarkdown(markdown.trim(), maxLength).content.replace(/\n+/g, " ").trim();
 };
 
 const formatDate = (timestamp: number) => dayjs(timestamp).format("YYYY-MM-DD");
 
-const toRangeTimestamps = (params: {
-  startDate?: string;
-  endDate?: string;
-  dates?: string[];
-}) => {
+const toRangeTimestamps = (params: { startDate?: string; endDate?: string; dates?: string[] }) => {
   if (params.dates?.length) {
-    const values = params.dates.map((date) =>
-      dayjs(date).startOf("day").valueOf(),
-    );
+    const values = params.dates.map(date => dayjs(date).startOf("day").valueOf());
     return {
       start: Math.min(...values),
       end: dayjs(Math.max(...values))
@@ -221,13 +208,10 @@ const paginate = <T>(items: T[], page = 1, pageSize = 20) => {
 const buildCalendarItem = async (
   calendar: Calendar,
   groupsById: Map<number, CalendarGroup>,
-  includeDescription = false,
+  includeDescription = false
 ) => {
   const markdown = includeDescription
-    ? await safeMarkdownFromContent(
-        calendar.descriptionContentId,
-        calendar.description,
-      )
+    ? await safeMarkdownFromContent(calendar.descriptionContentId, calendar.description)
     : "";
 
   return {
@@ -238,20 +222,15 @@ const buildCalendarItem = async (
     pinned: calendar.pinned,
     visible: calendar.visible,
     groupId: calendar.groupId,
-    groupName:
-      calendar.groupId != null
-        ? (groupsById.get(calendar.groupId)?.name ?? null)
-        : null,
-    ...(includeDescription
-      ? { descriptionPreview: buildPreview(markdown) }
-      : {}),
+    groupName: calendar.groupId != null ? (groupsById.get(calendar.groupId)?.name ?? null) : null,
+    ...(includeDescription ? { descriptionPreview: buildPreview(markdown) } : {}),
   } satisfies CalendarListItem;
 };
 
 const buildEventListItem = (
   event: CalendarEvent,
   calendarsById: Map<number, Calendar>,
-  detailMarkdown?: string,
+  detailMarkdown?: string
 ) =>
   ({
     id: event.id,
@@ -264,61 +243,49 @@ const buildEventListItem = (
     startTime: event.startTime,
     endTime: event.endTime,
     allDay: event.allDay,
-    value: event.value,
     ...(detailMarkdown ? { detailPreview: buildPreview(detailMarkdown) } : {}),
   }) satisfies CalendarEventListItem;
 
-export const getCalendarDashboardData =
-  async (): Promise<CalendarDashboardResult> => {
-    const [groups, calendars] = await Promise.all([
-      getAllCalendarGroups(),
-      getAllCalendars(),
-    ]);
-    const calendarsById = new Map(
-      calendars.map((calendar) => [calendar.id, calendar]),
-    );
-    const rangeStart = dayjs().startOf("day").valueOf();
-    const rangeEnd = dayjs().add(30, "day").endOf("day").valueOf();
-    const events = await getEventsByDateRange(rangeStart, rangeEnd);
+export const getCalendarDashboardData = async (): Promise<CalendarDashboardResult> => {
+  const [groups, calendars] = await Promise.all([getAllCalendarGroups(), getAllCalendars()]);
+  const calendarsById = new Map(calendars.map(calendar => [calendar.id, calendar]));
+  const rangeStart = dayjs().startOf("day").valueOf();
+  const rangeEnd = dayjs().add(30, "day").endOf("day").valueOf();
+  const events = await getEventsByDateRange(rangeStart, rangeEnd);
 
-    return {
-      kind: "calendar-dashboard",
-      summary: {
-        totalGroups: groups.length,
-        totalCalendars: calendars.length,
-        visibleCalendars: calendars.filter((calendar) => calendar.visible)
-          .length,
-        archivedCalendars: calendars.filter((calendar) => calendar.archived)
-          .length,
-        upcomingEventCount: events.length,
-      },
-      groups: groups.map((group) => ({
-        id: group.id,
-        name: group.name,
-        isSystem: group.isSystem,
-        calendarCount: calendars.filter(
-          (calendar) => calendar.groupId === group.id,
-        ).length,
-      })),
-      calendars: calendars.map((calendar) => ({
-        id: calendar.id,
-        title: calendar.title,
-        color: calendar.color,
-        visible: calendar.visible,
-        archived: calendar.archived,
-        groupId: calendar.groupId,
-        groupName:
-          calendar.groupId != null
-            ? (groups.find((group) => group.id === calendar.groupId)?.name ??
-              null)
-            : null,
-      })),
-      upcomingEvents: events
-        .sort((left, right) => left.startDate - right.startDate)
-        .slice(0, 8)
-        .map((event) => buildEventListItem(event, calendarsById)),
-    };
+  return {
+    kind: "calendar-dashboard",
+    summary: {
+      totalGroups: groups.length,
+      totalCalendars: calendars.length,
+      visibleCalendars: calendars.filter(calendar => calendar.visible).length,
+      archivedCalendars: calendars.filter(calendar => calendar.archived).length,
+      upcomingEventCount: events.length,
+    },
+    groups: groups.map(group => ({
+      id: group.id,
+      name: group.name,
+      isSystem: group.isSystem,
+      calendarCount: calendars.filter(calendar => calendar.groupId === group.id).length,
+    })),
+    calendars: calendars.map(calendar => ({
+      id: calendar.id,
+      title: calendar.title,
+      color: calendar.color,
+      visible: calendar.visible,
+      archived: calendar.archived,
+      groupId: calendar.groupId,
+      groupName:
+        calendar.groupId != null
+          ? (groups.find(group => group.id === calendar.groupId)?.name ?? null)
+          : null,
+    })),
+    upcomingEvents: events
+      .sort((left, right) => left.startDate - right.startDate)
+      .slice(0, 8)
+      .map(event => buildEventListItem(event, calendarsById)),
   };
+};
 
 export const queryCalendarGroups = async (args: {
   ids?: number[];
@@ -327,17 +294,14 @@ export const queryCalendarGroups = async (args: {
   page?: number;
   pageSize?: number;
 }): Promise<CalendarQueryListResult<CalendarGroupListItem>> => {
-  const [groups, calendars] = await Promise.all([
-    getAllCalendarGroups(),
-    getAllCalendars(),
-  ]);
+  const [groups, calendars] = await Promise.all([getAllCalendarGroups(), getAllCalendars()]);
   const ids = Array.isArray(args.ids) ? new Set(args.ids) : null;
   const names = Array.isArray(args.names)
-    ? new Set(args.names.map((item) => normalizeText(item)))
+    ? new Set(args.names.map(item => normalizeText(item)))
     : null;
   const includeSystem = args.includeSystem ?? true;
 
-  const filtered = groups.filter((group) => {
+  const filtered = groups.filter(group => {
     if (!includeSystem && group.isSystem) {
       return false;
     }
@@ -356,32 +320,28 @@ export const queryCalendarGroups = async (args: {
     kind: "calendar-query-result",
     entityType: "calendar-group",
     summary,
-    items: items.map((group) => ({
+    items: items.map(group => ({
       id: group.id,
       name: group.name,
       isSystem: group.isSystem,
       parentGroupId: group.parentGroupId,
       orderIndex: group.orderIndex,
-      calendarCount: calendars.filter(
-        (calendar) => calendar.groupId === group.id,
-      ).length,
+      calendarCount: calendars.filter(calendar => calendar.groupId === group.id).length,
     })),
   };
 };
 
-export const getCalendarGroupDetail = async (
-  id: number,
-): Promise<CalendarGroupDetailResult> => {
+export const getCalendarGroupDetail = async (id: number): Promise<CalendarGroupDetailResult> => {
   const [group, calendars, groups] = await Promise.all([
     getCalendarGroupById(id),
     getAllCalendars(),
     getAllCalendarGroups(),
   ]);
-  const groupsById = new Map(groups.map((item) => [item.id, item]));
+  const groupsById = new Map(groups.map(item => [item.id, item]));
   const groupCalendars = await Promise.all(
     calendars
-      .filter((calendar) => calendar.groupId === id)
-      .map((calendar) => buildCalendarItem(calendar, groupsById)),
+      .filter(calendar => calendar.groupId === id)
+      .map(calendar => buildCalendarItem(calendar, groupsById))
   );
 
   return {
@@ -412,22 +372,19 @@ export const queryCalendars = async (args: {
   page?: number;
   pageSize?: number;
 }): Promise<CalendarQueryListResult<CalendarListItem>> => {
-  const [calendars, groups] = await Promise.all([
-    getAllCalendars(),
-    getAllCalendarGroups(),
-  ]);
+  const [calendars, groups] = await Promise.all([getAllCalendars(), getAllCalendarGroups()]);
   const ids = Array.isArray(args.ids) ? new Set(args.ids) : null;
   const titles = Array.isArray(args.titles)
-    ? new Set(args.titles.map((item) => normalizeText(item)))
+    ? new Set(args.titles.map(item => normalizeText(item)))
     : null;
   const groupIds = Array.isArray(args.groupIds) ? new Set(args.groupIds) : null;
   const groupNames = Array.isArray(args.groupNames)
-    ? new Set(args.groupNames.map((item) => normalizeText(item)))
+    ? new Set(args.groupNames.map(item => normalizeText(item)))
     : null;
   const includeSystem = args.includeSystem ?? true;
-  const groupsById = new Map(groups.map((group) => [group.id, group]));
+  const groupsById = new Map(groups.map(group => [group.id, group]));
 
-  const filtered = calendars.filter((calendar) => {
+  const filtered = calendars.filter(calendar => {
     if (!includeSystem && calendar.isInSystemGroup) {
       return false;
     }
@@ -442,22 +399,14 @@ export const queryCalendars = async (args: {
     }
     if (
       groupNames &&
-      !groupNames.has(
-        normalizeText(groupsById.get(calendar.groupId ?? -1)?.name ?? ""),
-      )
+      !groupNames.has(normalizeText(groupsById.get(calendar.groupId ?? -1)?.name ?? ""))
     ) {
       return false;
     }
-    if (
-      typeof args.visible === "boolean" &&
-      calendar.visible !== args.visible
-    ) {
+    if (typeof args.visible === "boolean" && calendar.visible !== args.visible) {
       return false;
     }
-    if (
-      typeof args.archived === "boolean" &&
-      calendar.archived !== args.archived
-    ) {
+    if (typeof args.archived === "boolean" && calendar.archived !== args.archived) {
       return false;
     }
     if (typeof args.pinned === "boolean" && calendar.pinned !== args.pinned) {
@@ -473,29 +422,25 @@ export const queryCalendars = async (args: {
     entityType: "calendar",
     summary,
     items: await Promise.all(
-      items.map((calendar) =>
-        buildCalendarItem(calendar, groupsById, args.includeDescription),
-      ),
+      items.map(calendar => buildCalendarItem(calendar, groupsById, args.includeDescription))
     ),
   };
 };
 
-export const getCalendarDetail = async (
-  id: number,
-): Promise<CalendarDetailResult> => {
+export const getCalendarDetail = async (id: number): Promise<CalendarDetailResult> => {
   const calendar = await getCalendarById(id);
   const [groups, events] = await Promise.all([
     getAllCalendarGroups(),
     getEventsByDateRange(
       dayjs().subtract(30, "day").startOf("day").valueOf(),
       dayjs().add(30, "day").endOf("day").valueOf(),
-      [id],
+      [id]
     ),
   ]);
   const calendarsById = new Map([[calendar.id, calendar]]);
   const markdown = await safeMarkdownFromContent(
     calendar.descriptionContentId,
-    calendar.description,
+    calendar.description
   );
 
   return {
@@ -512,15 +457,14 @@ export const getCalendarDetail = async (
       groupId: calendar.groupId,
       groupName:
         calendar.groupId != null
-          ? (groups.find((group) => group.id === calendar.groupId)?.name ??
-            null)
+          ? (groups.find(group => group.id === calendar.groupId)?.name ?? null)
           : null,
       markdown,
       preview: buildPreview(markdown, 220),
       recentEvents: events
         .sort((left, right) => right.startDate - left.startDate)
         .slice(0, 8)
-        .map((event) => buildEventListItem(event, calendarsById)),
+        .map(event => buildEventListItem(event, calendarsById)),
     },
   };
 };
@@ -540,41 +484,35 @@ export const queryCalendarEvents = async (args: {
   pageSize?: number;
 }): Promise<CalendarQueryListResult<CalendarEventListItem>> => {
   const calendars = await getAllCalendars();
-  const calendarsById = new Map(
-    calendars.map((calendar) => [calendar.id, calendar]),
-  );
+  const calendarsById = new Map(calendars.map(calendar => [calendar.id, calendar]));
   const ids = Array.isArray(args.ids) ? new Set(args.ids) : null;
-  const calendarIds = Array.isArray(args.calendarIds)
-    ? new Set(args.calendarIds)
-    : null;
+  const calendarIds = Array.isArray(args.calendarIds) ? new Set(args.calendarIds) : null;
   const calendarTitles = Array.isArray(args.calendarTitles)
-    ? new Set(args.calendarTitles.map((item) => normalizeText(item)))
+    ? new Set(args.calendarTitles.map(item => normalizeText(item)))
     : null;
   const explicitDates = Array.isArray(args.dates)
-    ? new Set(args.dates.map((item) => dayjs(item).format("YYYY-MM-DD")))
+    ? new Set(args.dates.map(item => dayjs(item).format("YYYY-MM-DD")))
     : null;
   const includeDetail = args.includeDetail ?? Boolean(args.keyword);
 
-  const hasExplicitRange = Boolean(
-    args.dates?.length || args.startDate || args.endDate,
-  );
+  const hasExplicitRange = Boolean(args.dates?.length || args.startDate || args.endDate);
   const baseEvents =
     ids && ids.size > 0 && !hasExplicitRange
       ? await Promise.all(
-          Array.from(ids).map(async (id) => {
+          Array.from(ids).map(async id => {
             const event = await getCalendarEventById(id);
             if (!includeDetail) {
               return event;
             }
             const detailContent = await safeMarkdownFromContent(
               event.detailContentId,
-              event.detailContent,
+              event.detailContent
             );
             return {
               ...event,
               detailContent,
             };
-          }),
+          })
         )
       : includeDetail
         ? await getEventsWithContent({
@@ -589,7 +527,7 @@ export const queryCalendarEvents = async (args: {
             return getEventsByDateRange(start, end, args.calendarIds);
           })();
 
-  const filtered = baseEvents.filter((event) => {
+  const filtered = baseEvents.filter(event => {
     if (ids && !ids.has(event.id)) {
       return false;
     }
@@ -598,9 +536,7 @@ export const queryCalendarEvents = async (args: {
     }
     if (
       calendarTitles &&
-      !calendarTitles.has(
-        normalizeText(calendarsById.get(event.calendarId)?.title ?? ""),
-      )
+      !calendarTitles.has(normalizeText(calendarsById.get(event.calendarId)?.title ?? ""))
     ) {
       return false;
     }
@@ -633,9 +569,7 @@ export const queryCalendarEvents = async (args: {
   const sorted = filtered.sort((left, right) => {
     const leftValue = dayjs(left.startDate).valueOf();
     const rightValue = dayjs(right.startDate).valueOf();
-    return (
-      leftValue - rightValue || (left.startTime ?? 0) - (right.startTime ?? 0)
-    );
+    return leftValue - rightValue || (left.startTime ?? 0) - (right.startTime ?? 0);
   });
   const { items, summary } = paginate(sorted, args.page, args.pageSize);
 
@@ -643,7 +577,7 @@ export const queryCalendarEvents = async (args: {
     kind: "calendar-query-result",
     entityType: "calendar-event",
     summary,
-    items: items.map((event) =>
+    items: items.map(event =>
       buildEventListItem(
         {
           ...event,
@@ -659,26 +593,16 @@ export const queryCalendarEvents = async (args: {
         calendarsById,
         "detailContent" in event && typeof event.detailContent === "string"
           ? event.detailContent
-          : undefined,
-      ),
+          : undefined
+      )
     ),
   };
 };
 
-export const getCalendarEventDetail = async (
-  id: number,
-): Promise<CalendarEventDetailResult> => {
-  const [event, calendars] = await Promise.all([
-    getCalendarEventById(id),
-    getAllCalendars(),
-  ]);
-  const calendarsById = new Map(
-    calendars.map((calendar) => [calendar.id, calendar]),
-  );
-  const markdown = await safeMarkdownFromContent(
-    event.detailContentId,
-    event.detailContent,
-  );
+export const getCalendarEventDetail = async (id: number): Promise<CalendarEventDetailResult> => {
+  const [event, calendars] = await Promise.all([getCalendarEventById(id), getAllCalendars()]);
+  const calendarsById = new Map(calendars.map(calendar => [calendar.id, calendar]));
+  const markdown = await safeMarkdownFromContent(event.detailContentId, event.detailContent);
 
   return {
     kind: "calendar-event-detail",
@@ -695,7 +619,6 @@ export const getCalendarEventDetail = async (
       startTime: event.startTime,
       endTime: event.endTime,
       allDay: event.allDay,
-      value: event.value,
       markdown,
       preview: buildPreview(markdown, 260),
     },

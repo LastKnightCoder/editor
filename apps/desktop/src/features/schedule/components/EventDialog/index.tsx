@@ -12,14 +12,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import dayjs from "dayjs";
 import type { Descendant } from "slate";
 import { Editor, type EditorRef } from "@tau/editor/src";
-import { AlarmClock, CalendarDays, Hash, NotebookText, Palette, Sun, Trash2 } from "lucide-react";
+import { AlarmClock, CalendarDays, NotebookText, Palette, Sun, Trash2 } from "lucide-react";
 import {
   Button,
   ConfirmDialog,
   DatePicker,
   Dialog,
   Input,
-  NumberInput,
   Select,
   Switch,
   cn,
@@ -61,7 +60,6 @@ const EventDialog = () => {
   const [endTime, setEndTime] = useState("10:00");
   const [allDay, setAllDay] = useState(false);
   const [color, setColor] = useState<ProjectColorName | null>(null);
-  const [value, setValue] = useState<number | null>(null);
   const [description, setDescription] = useState<Descendant[]>(DEFAULT_CONTENT);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -84,7 +82,6 @@ const EventDialog = () => {
     setEndDate(editingEvent.endDate ? dayjs(editingEvent.endDate).format("YYYY-MM-DD") : "");
     setAllDay(editingEvent.allDay);
     setColor(editingEvent.color);
-    setValue(editingEvent.value ?? null);
     setStartTime(editingEvent.startTime !== null ? toHHmm(editingEvent.startTime) : "09:00");
     setEndTime(editingEvent.endTime !== null ? toHHmm(editingEvent.endTime) : "10:00");
 
@@ -171,7 +168,6 @@ const EventDialog = () => {
         endTime: endTimeMinutes,
         allDay,
         color,
-        value: value ?? undefined,
       };
       if (editingEvent && editingEvent.id !== 0) {
         await updateEvent({ ...editingEvent, ...fields } satisfies UpdateCalendarEvent);
@@ -358,16 +354,6 @@ const EventDialog = () => {
                 />
               ))}
             </div>
-          </FieldRow>
-
-          <FieldRow icon={Hash} label="数值">
-            <NumberInput
-              size="sm"
-              wrapperClassName="w-[220px]"
-              value={value}
-              onValueChange={setValue}
-              placeholder="可选，如时间成本、金额"
-            />
           </FieldRow>
 
           <FieldRow icon={NotebookText} label="备注" alignTop>

@@ -79,6 +79,13 @@ fn upgrade_inner(conn: &Connection, baseline: &Connection, now: i64) -> rusqlite
             DROP TABLE collaboration_bindings_legacy;")?;
     }
 
+    // value 列已随日历"数值"字段废弃，尽力清掉存量列；失败不阻塞升级
+    if has_column(conn, "calendar_event", "value")? {
+        if let Err(e) = conn.execute_batch("ALTER TABLE calendar_event DROP COLUMN value;") {
+            eprintln!("CALENDAR_VALUE_COLUMN_DROP_FAILED: {e}");
+        }
+    }
+
     // 从 SQLite 元信息取定义，避免通过拆分 SQL 推断列和默认值。
     for (table, create_sql) in table_definitions(baseline)? {
         let existing = columns(conn, &table)?;

@@ -35,7 +35,6 @@ const createExecution = (
         startTime: 570,
         endTime: 630,
         allDay: false,
-        value: null,
         detailPreview: "确认里程碑和负责人",
       },
       {
@@ -49,7 +48,6 @@ const createExecution = (
         startTime: null,
         endTime: null,
         allDay: true,
-        value: null,
       },
     ],
   }),
@@ -126,7 +124,6 @@ describe("CalendarQueryRenderer", () => {
           startTime: 540 + index * 30,
           endTime: 570 + index * 30,
           allDay: false,
-          value: null,
         })),
       }),
     });

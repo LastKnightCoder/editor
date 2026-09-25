@@ -17,7 +17,6 @@ import {
   ListTodo,
   MoreHorizontal,
   Pencil,
-  Timer,
   Trash2,
 } from "lucide-react";
 import { mobileCardPreviewExtensions } from "../cards/editorExtensions";
@@ -95,7 +94,6 @@ export function CalendarEventDetailPage({
   const isPomodoroEvent = event.isInSystemEvent && calendarTitle === "番茄钟";
   const isTodoEvent =
     event.isInSystemEvent && ["截止任务", "计划任务", "周期任务"].includes(calendarTitle);
-  const hasValue = event.value !== null && event.value !== undefined;
   const hasDetail = !isEditorContentEmpty(event.detailContent);
   const crossDay = event.endDate !== null && event.endDate !== event.startDate;
   const timeMain = crossDay
@@ -172,21 +170,6 @@ export function CalendarEventDetailPage({
                 <span className="text-ink block text-[13.5px] font-bold">{calendarTitle}</span>
               </span>
             </div>
-            {hasValue ? (
-              <div className="flex items-center gap-[13px] py-3.5">
-                <span className="bg-input text-ink-2 grid h-[34px] w-[34px] flex-none place-items-center rounded-[11px]">
-                  <Timer size={17} strokeWidth={2} />
-                </span>
-                <span className="min-w-0">
-                  <span className="text-ink block text-[13.5px] font-bold tabular-nums">
-                    {event.value}
-                  </span>
-                  <span className="text-ink-3 mt-0.5 block text-[11.5px] font-semibold">
-                    数值（时间成本等）
-                  </span>
-                </span>
-              </div>
-            ) : null}
           </div>
 
           {isPomodoroEvent || isTodoEvent ? (

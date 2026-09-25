@@ -64,7 +64,6 @@ export function EventPeek() {
                 {dateLabel(event.startDate, event.endDate)} · {eventTimeLabel(event)}
               </span>
               {calendar && <span>{calendar.title}</span>}
-              {event.value != null && <span className="font-tau-mono">数值 {event.value}</span>}
             </div>
             {excerpt && (
               <p className="text-ink-2 text-tau-meta ml-[18px] mt-2.5 line-clamp-3 leading-[1.6]">

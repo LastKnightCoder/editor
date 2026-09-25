@@ -21,7 +21,7 @@ import {
 
 const ensureEventEditable = async (calendarId: number) => {
   const calendars = await getAllCalendars();
-  const calendar = calendars.find((item) => item.id === calendarId);
+  const calendar = calendars.find(item => item.id === calendarId);
   const errorCode = ensureEditableCalendar(calendar);
   return {
     calendar,
@@ -36,8 +36,7 @@ const ensureEventEditable = async (calendarId: number) => {
 export const buildCalendarEventTools = (): ToolDefinition[] => [
   {
     name: "create_calendar_event",
-    description:
-      "创建日历事件。支持全天事件、时间段事件、颜色、数值和 Markdown 详情。",
+    description: "创建日历事件。支持全天事件、时间段事件、颜色和 Markdown 详情。",
     parameters: {
       type: "object",
       properties: {
@@ -49,16 +48,13 @@ export const buildCalendarEventTools = (): ToolDefinition[] => [
         endTime: timeStringSchema,
         allDay: { type: "boolean" },
         color: { type: "string" },
-        value: { type: "number" },
         markdown: { type: "string" },
       },
       required: ["calendarId", "title", "startDate"],
       additionalProperties: false,
     },
-    executor: async (args) => {
-      const { calendar, errorCode } = await ensureEventEditable(
-        args.calendarId as number,
-      );
+    executor: async args => {
+      const { calendar, errorCode } = await ensureEventEditable(args.calendarId as number);
       if (errorCode) {
         return toFailureResult({
           entityType: "calendar-event",
@@ -70,7 +66,7 @@ export const buildCalendarEventTools = (): ToolDefinition[] => [
 
       const startDate = parseDateStringToTimestamp(args.startDate as string);
       const endDate = parseDateStringToTimestamp(
-        (args.endDate as string | undefined) ?? (args.startDate as string),
+        (args.endDate as string | undefined) ?? (args.startDate as string)
       );
       if (startDate == null || endDate == null) {
         return toFailureResult({
@@ -84,9 +80,7 @@ export const buildCalendarEventTools = (): ToolDefinition[] => [
       const startTime = allDay
         ? null
         : parseTimeStringToMinutes(args.startTime as string | undefined);
-      const endTime = allDay
-        ? null
-        : parseTimeStringToMinutes(args.endTime as string | undefined);
+      const endTime = allDay ? null : parseTimeStringToMinutes(args.endTime as string | undefined);
       if (!allDay && args.startTime && startTime == null) {
         return toFailureResult({
           entityType: "calendar-event",
@@ -102,9 +96,7 @@ export const buildCalendarEventTools = (): ToolDefinition[] => [
         });
       }
 
-      const detailContentId = await persistMarkdownContent(
-        args.markdown as string | undefined,
-      );
+      const detailContentId = await persistMarkdownContent(args.markdown as string | undefined);
       const event = await createCalendarEvent({
         calendarId: args.calendarId as number,
         title: args.title as string,
@@ -115,7 +107,6 @@ export const buildCalendarEventTools = (): ToolDefinition[] => [
         endTime,
         color: (args.color as ProjectColorName | null | undefined) ?? null,
         allDay,
-        value: args.value as number | undefined,
       });
       return toMutationResult({
         source: "calendar-mcp",
@@ -133,7 +124,6 @@ export const buildCalendarEventTools = (): ToolDefinition[] => [
           "endTime",
           "color",
           "allDay",
-          "value",
         ],
         data: {
           id: event.id,
@@ -147,8 +137,7 @@ export const buildCalendarEventTools = (): ToolDefinition[] => [
   },
   {
     name: "update_calendar_event",
-    description:
-      "更新日历事件。支持修改标题、时间、所属日历、颜色、数值和 Markdown 详情。",
+    description: "更新日历事件。支持修改标题、时间、所属日历、颜色和 Markdown 详情。",
     parameters: {
       type: "object",
       properties: {
@@ -161,16 +150,14 @@ export const buildCalendarEventTools = (): ToolDefinition[] => [
         endTime: timeStringSchema,
         allDay: { type: "boolean" },
         color: { type: "string" },
-        value: { type: "number" },
         markdown: { type: "string" },
       },
       required: ["id"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       const current = await getCalendarEventById(args.id as number);
-      const nextCalendarId =
-        (args.calendarId as number | undefined) ?? current.calendarId;
+      const nextCalendarId = (args.calendarId as number | undefined) ?? current.calendarId;
       const { calendar, errorCode } = await ensureEventEditable(nextCalendarId);
       if (errorCode) {
         return toFailureResult({
@@ -186,11 +173,8 @@ export const buildCalendarEventTools = (): ToolDefinition[] => [
       }
 
       const startDate =
-        parseDateStringToTimestamp(args.startDate as string | undefined) ??
-        current.startDate;
-      const parsedEndDate = parseDateStringToTimestamp(
-        args.endDate as string | undefined,
-      );
+        parseDateStringToTimestamp(args.startDate as string | undefined) ?? current.startDate;
+      const parsedEndDate = parseDateStringToTimestamp(args.endDate as string | undefined);
       const endDate = parsedEndDate ?? current.endDate;
       const allDay = (args.allDay as boolean | undefined) ?? current.allDay;
       const startTime = allDay
@@ -220,7 +204,7 @@ export const buildCalendarEventTools = (): ToolDefinition[] => [
 
       const detailContentId = await persistMarkdownContent(
         args.markdown as string | undefined,
-        current.detailContentId,
+        current.detailContentId
       );
       const event = await updateCalendarEvent({
         ...current,
@@ -231,19 +215,15 @@ export const buildCalendarEventTools = (): ToolDefinition[] => [
         endDate,
         startTime,
         endTime,
-        color:
-          (args.color as ProjectColorName | null | undefined) ?? current.color,
+        color: (args.color as ProjectColorName | null | undefined) ?? current.color,
         allDay,
-        value: (args.value as number | undefined) ?? current.value,
       });
       return toMutationResult({
         source: "calendar-mcp",
         entityType: "calendar-event",
         entityId: event.id,
         groupId: calendar?.groupId ?? null,
-        previousGroupId:
-          (await ensureEventEditable(current.calendarId)).calendar?.groupId ??
-          null,
+        previousGroupId: (await ensureEventEditable(current.calendarId)).calendar?.groupId ?? null,
         calendarId: event.calendarId,
         previousCalendarId: current.calendarId,
         action: CALENDAR_MUTATION_ACTIONS.UPDATE_EVENT,
@@ -257,7 +237,6 @@ export const buildCalendarEventTools = (): ToolDefinition[] => [
           "endTime",
           "color",
           "allDay",
-          "value",
         ],
         data: {
           id: event.id,
@@ -280,11 +259,9 @@ export const buildCalendarEventTools = (): ToolDefinition[] => [
       required: ["id"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       const current = await getCalendarEventById(args.id as number);
-      const { calendar, errorCode } = await ensureEventEditable(
-        current.calendarId,
-      );
+      const { calendar, errorCode } = await ensureEventEditable(current.calendarId);
       if (errorCode) {
         return toFailureResult({
           entityType: "calendar-event",

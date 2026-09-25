@@ -109,7 +109,7 @@ fn ensure_pomodoro_calendar(tx: &Transaction<'_>) -> Result<i64, String> {
 }
 
 // 会话完成 → 写事件 + mapping。session_id 由调用方在会话 INSERT 后传入。
-// 事件颜色/数值/详情均空（对齐桌面 createEvent 参数），标题「🍅 预设名」。
+// 事件颜色/详情均空（对齐桌面 createEvent 参数），标题「🍅 预设名」。
 pub fn create_calendar_events_for_session(
     tx: &Transaction<'_>,
     session_id: i64,
@@ -125,8 +125,8 @@ pub fn create_calendar_events_for_session(
         tx.execute(
             "
             INSERT INTO calendar_event
-            (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day, value)
-            VALUES (?1, ?1, ?2, ?3, 0, ?4, ?5, ?6, ?7, NULL, 0, NULL)
+            (create_time, update_time, calendar_id, title, detail_content_id, start_date, end_date, start_time, end_time, color, all_day)
+            VALUES (?1, ?1, ?2, ?3, 0, ?4, ?5, ?6, ?7, NULL, 0)
             ",
             params![
                 now,
@@ -224,7 +224,7 @@ mod tests {
                 calendar_id INTEGER NOT NULL, title TEXT NOT NULL,
                 detail_content_id INTEGER DEFAULT 0, start_date INTEGER NOT NULL,
                 end_date INTEGER, start_time INTEGER, end_time INTEGER,
-                color TEXT, all_day INTEGER DEFAULT 0, value REAL DEFAULT NULL
+                color TEXT, all_day INTEGER DEFAULT 0
             );
             CREATE TABLE pomodoro_calendar_mapping (
                 id INTEGER PRIMARY KEY, pomodoro_session_id INTEGER NOT NULL,

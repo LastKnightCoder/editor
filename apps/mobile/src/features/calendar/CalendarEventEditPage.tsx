@@ -52,7 +52,6 @@ interface EventDraft {
   startTime: number | null;
   endTime: number | null;
   color: string | null;
-  value: string;
   detailContentId: number;
   detailContent: Descendant[];
 }
@@ -91,7 +90,6 @@ export function CalendarEventEditPage({
     startTime: DEFAULT_START_MINUTE,
     endTime: DEFAULT_END_MINUTE,
     color: null,
-    value: "",
     detailContentId: 0,
     detailContent: createEmptyEditorContent(),
   }));
@@ -125,7 +123,6 @@ export function CalendarEventEditPage({
           startTime: event.startTime,
           endTime: event.endTime,
           color: event.color,
-          value: event.value !== null && event.value !== undefined ? String(event.value) : "",
           detailContentId: event.detailContentId,
           detailContent,
         });
@@ -198,7 +195,6 @@ export function CalendarEventEditPage({
     }
     setSaving(true);
     try {
-      const value = draft.value.trim() === "" ? null : Number.parseFloat(draft.value);
       // 同日 endDate 规范化为 null（桌面数据形态：仅跨天事件有 endDate）
       const endDate =
         draft.endDate !== null && draft.endDate !== draft.startDate ? draft.endDate : null;
@@ -218,7 +214,6 @@ export function CalendarEventEditPage({
         endTime: draft.allDay ? null : draft.endTime,
         color: draft.color,
         allDay: draft.allDay,
-        value: value !== null && Number.isFinite(value) ? value : null,
       };
       if (isEdit) {
         await tauri.calendarEventUpdate({ id: eventId, ...payload });
@@ -403,19 +398,6 @@ export function CalendarEventEditPage({
               dotColor={draft.color ? displayColor : undefined}
               placeholder={!draft.color}
               onClick={() => setPicker("color")}
-            />
-          </div>
-
-          <div className="bg-surface shadow-card mx-[18px] mt-3 rounded-[20px] p-[18px]">
-            <div className="text-ink-3 mb-2.5 text-[11.5px] font-extrabold tracking-[1px]">
-              数值（可选）
-            </div>
-            <input
-              value={draft.value}
-              onChange={event => setValue({ value: event.target.value })}
-              placeholder="时间成本 / 金额等数值，如 2.5"
-              inputMode="decimal"
-              className="bg-input text-ink placeholder:text-ink-3 w-full rounded-[13px] border-none px-3.5 py-3 text-[14.5px] font-bold outline-none"
             />
           </div>
 

@@ -277,7 +277,6 @@ describe("日历页面回归", () => {
       endTime: 565,
       allDay: false,
       color: null,
-      value: null,
       calendarTitle: "番茄钟",
       calendarColor: "red",
       isInSystemEvent: true,
@@ -299,8 +298,7 @@ describe("日历页面回归", () => {
     expect(scroller!.style.getPropertyValue("--edge-top-on")).toBe("0");
     expect(scroller!.style.getPropertyValue("--edge-bottom-on")).toBe("0");
 
-    // 番茄钟事件无 value：日历行即末行，分隔线必须收起
-    expect(host.textContent).not.toContain("数值");
+    // 日历行即末行，分隔线必须收起
     const ruledRows = [...host.querySelectorAll<HTMLElement>(".border-b")];
     expect(ruledRows).toHaveLength(2);
     expect(ruledRows[1].className).toContain("last:border-b-0");
@@ -368,7 +366,6 @@ describe("日历页面回归", () => {
       endTime: 625,
       allDay: false,
       color: null,
-      value: null,
       calendarTitle: "番茄钟",
       calendarColor: "red",
       isInSystemEvent: true,
@@ -400,7 +397,6 @@ describe("日历页面回归", () => {
       endTime: 660,
       allDay: false,
       color: null,
-      value: null,
       detailContentId: 0,
     } as CalendarEvent;
     render(
