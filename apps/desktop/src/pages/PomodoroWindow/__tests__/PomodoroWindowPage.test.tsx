@@ -7,8 +7,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PomodoroWindowPage from "../index";
 import type { PomodoroPreset } from "@/types";
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
 const { pomodoroStoreState } = vi.hoisted(() => ({
   pomodoroStoreState: {
     activeSession: null,

@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { TodoGroup, CreateTodoGroup, UpdateTodoGroup, TodoSystemGroupType } from "@/types";
+import TodoItemTable from "./todo-item";
 
 // 系统组配置
 const SYSTEM_GROUPS: Array<{
@@ -58,6 +59,7 @@ export default class TodoGroupTable {
       "todo:create-group": this.createGroup.bind(this),
       "todo:update-group": this.updateGroup.bind(this),
       "todo:archive-group": this.archiveGroup.bind(this),
+      "todo:delete-group": this.deleteGroup.bind(this),
       "todo:reorder-groups": this.reorderGroups.bind(this),
       "todo:get-group-stats": this.getGroupStats.bind(this),
       "todo:get-system-groups": this.getSystemGroups.bind(this),
@@ -179,6 +181,35 @@ export default class TodoGroupTable {
       .prepare(`UPDATE todo_group SET is_archived = ?, update_time = ? WHERE id = ?`)
       .run(params.isArchived ? 1 : 0, now, params.id);
     return res.changes;
+  }
+
+  /**
+   * 删除用户项目（系统组不可删；前端经二次确认）。
+   * 删除范围 = 本项目全部任务 + 它们的子孙（子孙即便挂在别的项目下也一并删，与前端确认弹窗计数同口径）；
+   * 关联表清理走 TodoItemTable.deleteItemsWithRelations，事务由 IPC 层统一包裹。返回删除的任务数。
+   */
+  static deleteGroup(db: Database.Database, params: { id: number }): number {
+    const group = this.getGroupById(db, Number(params.id));
+    if (!group) return 0;
+    if (group.isSystem) throw new Error("Cannot delete system group");
+
+    // UNION 去重：成环 / 断链的脏数据下也能终止，且不会漏掉本项目的任何一行
+    const rows = db
+      .prepare(
+        `WITH RECURSIVE doomed(id) AS (
+           SELECT id FROM todo_item WHERE group_id = ?
+           UNION
+           SELECT ti.id FROM todo_item ti JOIN doomed d ON ti.parent_id = d.id
+         )
+         SELECT id FROM doomed`
+      )
+      .all(group.id) as Array<{ id: number }>;
+    const removed = TodoItemTable.deleteItemsWithRelations(
+      db,
+      rows.map(r => r.id)
+    );
+    db.prepare(`DELETE FROM todo_group WHERE id = ?`).run(group.id);
+    return removed;
   }
 
   static reorderGroups(db: Database.Database, params: { orderedIds: number[] }): number {

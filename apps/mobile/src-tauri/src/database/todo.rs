@@ -428,6 +428,30 @@ fn decrement_or_delete_content(tx: &Transaction<'_>, content_id: i64) -> Result<
 fn cleanup_todo_dependencies_in_tx(tx: &Transaction<'_>, todo_item_id: i64) -> Result<(), String> {
     todo_items::delete_recurrence_by_item_in_tx(tx, todo_item_id)?;
     todo_calendar_sync::remove_all_by_todo(tx, todo_item_id)?;
+    delete_note_links_by_todo_in_tx(tx, todo_item_id)?;
+    Ok(())
+}
+
+/// 关联笔记链接（桌面端建立，与桌面 detach 同口径：删链接 + 笔记内容减引用）
+fn delete_note_links_by_todo_in_tx(tx: &Transaction<'_>, todo_item_id: i64) -> Result<(), String> {
+    let content_ids = {
+        let mut stmt = tx
+            .prepare("SELECT content_id FROM todo_note_link WHERE todo_id = ?1")
+            .map_err(|e| format_db_error("TODO_DELETE_FAILED", "prepare note link query", e))?;
+        let rows = stmt
+            .query_map(params![todo_item_id], |row| row.get::<_, i64>(0))
+            .map_err(|e| format_db_error("TODO_DELETE_FAILED", "query note links", e))?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format_db_error("TODO_DELETE_FAILED", "parse note link row", e))?
+    };
+    tx.execute(
+        "DELETE FROM todo_note_link WHERE todo_id = ?1",
+        params![todo_item_id],
+    )
+    .map_err(|e| format_db_error("TODO_DELETE_FAILED", "delete note links", e))?;
+    for content_id in content_ids {
+        decrement_or_delete_content(tx, content_id)?;
+    }
     Ok(())
 }
 
@@ -458,4 +482,53 @@ pub fn create_content(app: AppHandle, payload: CreateContentPayload) -> Result<i
     tx.commit()
         .map_err(|e| format_db_error("CONTENT_CREATE_FAILED", "commit transaction", e))?;
     Ok(content_id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    #[test]
+    fn delete_note_links_removes_links_and_unreferenced_content() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(include_str!(
+            "../../../../../packages/db-schema/schema/main.sql"
+        ))
+        .unwrap();
+        conn.execute_batch(
+            "
+            INSERT INTO contents (id, create_time, update_time, content, count, ref_count)
+              VALUES (1, 0, 0, '[]', 0, 1), (2, 0, 0, '[]', 0, 2);
+            INSERT INTO todo_note_link (todo_id, content_id, sort_index, create_time, update_time)
+              VALUES (7, 1, 0, 0, 0), (7, 2, 1, 0, 0), (8, 2, 0, 0, 0);
+            ",
+        )
+        .unwrap();
+
+        let tx = conn.transaction().unwrap();
+        delete_note_links_by_todo_in_tx(&tx, 7).unwrap();
+        tx.commit().unwrap();
+
+        let links: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM todo_note_link WHERE todo_id = 7",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(links, 0);
+        let only_ref_gone: i64 = conn
+            .query_row("SELECT COUNT(*) FROM contents WHERE id = 1", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(only_ref_gone, 0);
+        let shared_ref: i64 = conn
+            .query_row("SELECT ref_count FROM contents WHERE id = 2", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(shared_ref, 1);
+    }
 }

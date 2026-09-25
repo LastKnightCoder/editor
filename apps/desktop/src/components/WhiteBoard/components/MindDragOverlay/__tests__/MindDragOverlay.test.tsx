@@ -20,13 +20,8 @@ import { getMindDragSourceId } from "../../../constants/mind";
 import type { MindDragState, MindNodeElement } from "../../../types";
 import MindDragOverlay from "..";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const textStub = [{ type: "paragraph", children: [{ text: "" }] }] as any;
-const createNode = (
-  id: string,
-  overrides: Partial<MindNodeElement> = {},
-): MindNodeElement => ({
+const createNode = (id: string, overrides: Partial<MindNodeElement> = {}): MindNodeElement => ({
   id,
   type: "mind-node",
   x: overrides.x ?? 0,
@@ -97,31 +92,23 @@ describe("MindDragOverlay", () => {
             </foreignObject>
           </g>
           <MindDragOverlay board={board} />
-        </svg>,
+        </svg>
       );
     });
 
-    const overlay = container.querySelector<SVGGElement>(
-      'g[data-layer="mind-drag-overlay"]',
-    );
-    const preview = container.querySelector<SVGGElement>(
-      'g[data-mind-drag-preview="dragged"]',
-    );
+    const overlay = container.querySelector<SVGGElement>('g[data-layer="mind-drag-overlay"]');
+    const preview = container.querySelector<SVGGElement>('g[data-mind-drag-preview="dragged"]');
     const line = container.querySelector<SVGPathElement>("path");
 
     expect(overlay?.getAttribute("pointer-events")).toBe("none");
     expect(overlay?.getAttribute("data-export-ignore")).toBe("true");
     expect(preview?.getAttribute("transform")).toBe("translate(64 80)");
     expect(preview?.getAttribute("opacity")).toBe("0.9");
-    expect(
-      preview?.querySelector('[data-mind-drag-preview-clone="true"]'),
-    ).toBeTruthy();
-    expect(
-      preview?.querySelector('[data-preview-content="true"]')?.textContent,
-    ).toBe("Dragged node");
-    expect(
-      container.querySelectorAll(`#${getMindDragSourceId(dragged.id)}`),
-    ).toHaveLength(1);
+    expect(preview?.querySelector('[data-mind-drag-preview-clone="true"]')).toBeTruthy();
+    expect(preview?.querySelector('[data-preview-content="true"]')?.textContent).toBe(
+      "Dragged node"
+    );
+    expect(container.querySelectorAll(`#${getMindDragSourceId(dragged.id)}`)).toHaveLength(1);
     expect(line?.getAttribute("stroke-width")).toBe("1");
     expect(line?.getAttribute("stroke-dasharray")).toBe("3 2");
 
@@ -171,17 +158,13 @@ describe("MindDragOverlay", () => {
         <svg>
           <g id={getMindDragSourceId(dragged.id)} />
           <MindDragOverlay board={board} />
-        </svg>,
+        </svg>
       );
     });
 
-    expect(
-      container.querySelector('g[data-layer="mind-drag-overlay"] path'),
-    ).toBeTruthy();
+    expect(container.querySelector('g[data-layer="mind-drag-overlay"] path')).toBeTruthy();
     expect(container.querySelector("[data-mind-drag-preview]")).toBeNull();
-    expect(
-      container.querySelector('[data-mind-drag-preview-clone="true"]'),
-    ).toBeNull();
+    expect(container.querySelector('[data-mind-drag-preview-clone="true"]')).toBeNull();
 
     await act(async () => root.unmount());
   });

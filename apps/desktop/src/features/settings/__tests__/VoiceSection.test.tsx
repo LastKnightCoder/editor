@@ -56,7 +56,6 @@ const button = (label: string) =>
   [...container.querySelectorAll("button")].find(b => b.textContent?.includes(label))!;
 
 beforeEach(() => {
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   useSettingStore.setState(s => ({
     setting: {
       ...s.setting,

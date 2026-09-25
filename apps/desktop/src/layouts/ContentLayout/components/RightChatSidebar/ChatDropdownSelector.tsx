@@ -9,13 +9,13 @@ import {
   Pencil,
   Pin,
   Search,
-  SquarePen,
   Trash2,
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import { ConfirmDialog, IconButton, Menu, Popover, Spinner, cn, toast } from "@tau/ui";
 
 import EditText from "@/components/EditText";
+import { FadeScroll } from "@/components/FadeScroll";
 import type { EditTextHandle } from "@/components/EditText";
 import { ChatMessage } from "@/types";
 import type { ChatRunStatus, ChatSource } from "@/types/chat-run";
@@ -27,7 +27,6 @@ interface ChatDropdownSelectorProps {
   currentChat: ChatMessage;
   onChatSelect: (chatId: number) => void;
   onTitleChange: (title: string) => void;
-  onCreateNewChat: () => void;
   onChatDelete?: (chatId: number) => void;
   getChildBranchesCount?: (chatId: number) => Promise<number>;
   disabled?: boolean;
@@ -41,7 +40,7 @@ const ACTIVE_RUN: ChatRunStatus[] = ["queued", "running", "retrying", "waiting_i
 
 /**
  * 对话标题行（D-048 tau 化，停靠栏 / 项目 / PDF / 视频笔记对话共用）：
- * 标题 ▾ = 会话切换 Popover（搜索 + 新对话 + 置顶在前的会话列表）；分支 chip = 分支切换 Menu；
+ * 标题 ▾ = 会话切换 Popover（搜索 + 置顶在前的会话列表；新建对话走输入框 ＋）；分支 chip = 分支切换 Menu；
  * ⋯ = 重命名 / 删除（删除走 ConfirmDialog，含子分支数）。
  */
 const ChatDropdownSelector = memo(
@@ -50,7 +49,6 @@ const ChatDropdownSelector = memo(
     currentChat,
     onChatSelect,
     onTitleChange,
-    onCreateNewChat,
     onChatDelete,
     getChildBranchesCount,
     disabled,
@@ -169,7 +167,7 @@ const ChatDropdownSelector = memo(
             }}
             placement="bottom-start"
             arrow={false}
-            className="w-[300px] p-1.5"
+            className="w-[310px] p-1.5"
             trigger={
               <button
                 type="button"
@@ -182,7 +180,7 @@ const ChatDropdownSelector = memo(
               </button>
             }
           >
-            <div className="border-line-1 bg-surface mb-1 flex h-8 items-center gap-2 rounded-[8px] border px-2.5">
+            <div className="border-line-1 bg-surface mb-1 mr-2.5 flex h-8 items-center gap-2 rounded-[8px] border px-2.5">
               <Search size={13} strokeWidth={1.75} className="text-ink-3 shrink-0" />
               <input
                 autoFocus
@@ -192,18 +190,7 @@ const ChatDropdownSelector = memo(
                 className="text-tau-meta text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
               />
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                setListOpen(false);
-                onCreateNewChat();
-              }}
-              className="hover:bg-hover text-tau-meta text-ink-1 flex h-8 w-full items-center gap-2 rounded-[7px] px-2.5"
-            >
-              <SquarePen size={14} strokeWidth={1.75} className="text-ink-2" />
-              新对话
-            </button>
-            <div className="max-h-[320px] overflow-y-auto">
+            <FadeScroll className="-mr-1.5 max-h-[320px] pr-1.5">
               {rows.length === 0 ? (
                 <p className="text-tau-sm text-ink-3 px-2.5 py-3">没有匹配的对话</p>
               ) : (
@@ -221,16 +208,18 @@ const ChatDropdownSelector = memo(
                           : "text-ink-2 hover:bg-hover hover:text-ink-1"
                       )}
                     >
-                      <span className="flex size-3.5 shrink-0 items-center justify-center">
-                        {runStatus && ACTIVE_RUN.includes(runStatus) ? (
-                          <Spinner className="size-3 border-[1.5px]" />
-                        ) : runStatus === "failed" ? (
-                          <AlertCircle size={13} strokeWidth={1.75} className="text-danger" />
-                        ) : pinned ? (
-                          <Pin size={12} strokeWidth={1.75} className="text-ink-3" />
-                        ) : null}
-                      </span>
                       <span className="min-w-0 flex-1 truncate">{chat.title || "新对话"}</span>
+                      {runStatus && ACTIVE_RUN.includes(runStatus) ? (
+                        <Spinner className="size-3 shrink-0 border-[1.5px]" />
+                      ) : runStatus === "failed" ? (
+                        <AlertCircle
+                          size={13}
+                          strokeWidth={1.75}
+                          className="text-danger shrink-0"
+                        />
+                      ) : pinned ? (
+                        <Pin size={12} strokeWidth={1.75} className="text-ink-3 shrink-0" />
+                      ) : null}
                       {hasBranches && (
                         <GitBranch size={12} strokeWidth={1.75} className="text-ink-3 shrink-0" />
                       )}
@@ -241,7 +230,7 @@ const ChatDropdownSelector = memo(
                   );
                 })
               )}
-            </div>
+            </FadeScroll>
             {onOpenLibrary && (
               <button
                 type="button"
@@ -249,7 +238,7 @@ const ChatDropdownSelector = memo(
                   setListOpen(false);
                   onOpenLibrary();
                 }}
-                className="hover:bg-hover text-tau-meta text-ink-2 mt-1 flex h-8 w-full items-center gap-2 rounded-[7px] px-2.5"
+                className="hover:bg-hover text-tau-meta text-ink-2 mt-1 flex h-8 w-[calc(100%-10px)] items-center gap-2 rounded-[7px] px-2.5"
               >
                 <Library size={14} strokeWidth={1.75} className="text-ink-3" />
                 全部会话…

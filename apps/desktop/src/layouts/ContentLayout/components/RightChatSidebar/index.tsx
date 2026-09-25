@@ -211,7 +211,6 @@ export const RightChatPanel = memo(
                 currentChat={currentChat || DEFAULT_CHAT}
                 onChatSelect={handleChatSelect}
                 onTitleChange={onTitleChange}
-                onCreateNewChat={onCreateNewMessage}
                 onChatDelete={handleChatDelete}
                 getChildBranchesCount={getChildBranchesCount}
                 titleRef={editTitleRef}

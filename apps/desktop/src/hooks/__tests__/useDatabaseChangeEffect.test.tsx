@@ -5,8 +5,6 @@ import { useDatabaseChangeEffect } from "../useDatabaseChangeEffect";
 import useSettingStore from "@/stores/useSettingStore";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const HookHarness = ({ onChange }: { onChange: () => void }) => {
   useDatabaseChangeEffect(onChange);
   return null;
@@ -31,11 +29,11 @@ describe("useDatabaseChangeEffect", () => {
     root = null;
     container = null;
 
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: structuredClone(initialSetting),
     }));
-    useGlobalStateStore.setState((state) => ({
+    useGlobalStateStore.setState(state => ({
       ...state,
       databaseStatus: { ...initialDatabaseStatus },
     }));
@@ -44,7 +42,7 @@ describe("useDatabaseChangeEffect", () => {
   it("数据库首次进入 ready 时触发回调", async () => {
     const callback = vi.fn();
 
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,
@@ -54,7 +52,7 @@ describe("useDatabaseChangeEffect", () => {
         },
       },
     }));
-    useGlobalStateStore.setState((state) => ({
+    useGlobalStateStore.setState(state => ({
       ...state,
       databaseStatus: {
         ...state.databaseStatus,
@@ -73,7 +71,7 @@ describe("useDatabaseChangeEffect", () => {
     expect(callback).not.toHaveBeenCalled();
 
     await act(async () => {
-      useGlobalStateStore.setState((state) => ({
+      useGlobalStateStore.setState(state => ({
         ...state,
         databaseStatus: {
           ...state.databaseStatus,
@@ -88,7 +86,7 @@ describe("useDatabaseChangeEffect", () => {
   it("数据库重连完成后会再次触发回调", async () => {
     const callback = vi.fn();
 
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,
@@ -98,7 +96,7 @@ describe("useDatabaseChangeEffect", () => {
         },
       },
     }));
-    useGlobalStateStore.setState((state) => ({
+    useGlobalStateStore.setState(state => ({
       ...state,
       databaseStatus: {
         ...state.databaseStatus,
@@ -117,7 +115,7 @@ describe("useDatabaseChangeEffect", () => {
     expect(callback).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      useGlobalStateStore.setState((state) => ({
+      useGlobalStateStore.setState(state => ({
         ...state,
         databaseStatus: {
           ...state.databaseStatus,
@@ -129,7 +127,7 @@ describe("useDatabaseChangeEffect", () => {
     expect(callback).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      useGlobalStateStore.setState((state) => ({
+      useGlobalStateStore.setState(state => ({
         ...state,
         databaseStatus: {
           ...state.databaseStatus,

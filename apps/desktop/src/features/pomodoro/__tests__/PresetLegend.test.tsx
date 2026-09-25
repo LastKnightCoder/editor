@@ -37,7 +37,6 @@ const sessions = [...presets.keys()].map((id): PomodoroSession => ({
 let container: HTMLDivElement;
 let root: Root;
 beforeEach(() => {
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   // 模拟一行放下 4 个：图例行内第 5 个起换到第二行
   vi.spyOn(HTMLElement.prototype, "offsetTop", "get").mockImplementation(function (
     this: HTMLElement

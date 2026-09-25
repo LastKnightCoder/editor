@@ -3,17 +3,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import useSearchWarmUp from "../useSearchWarmUp";
-import {
-  embeddingModelHealth,
-  isEmbeddingModelDownloaded,
-} from "@/commands/embedding-model";
+import { embeddingModelHealth, isEmbeddingModelDownloaded } from "@/commands/embedding-model";
 import useGlobalStateStore from "@/stores/useGlobalStateStore";
 import useSettingStore from "@/stores/useSettingStore";
 import { searchContent } from "@/utils/search";
-
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
 
 const modelInfo = {
   configId: "local-python",
@@ -39,7 +32,7 @@ vi.mock("@/utils/search", () => ({
   searchContent: vi.fn(async () => []),
 }));
 
-const flushPromises = () => new Promise((resolve) => setTimeout(resolve, 0));
+const flushPromises = () => new Promise(resolve => setTimeout(resolve, 0));
 
 const HookHarness = () => {
   useSearchWarmUp();
@@ -60,7 +53,7 @@ describe("useSearchWarmUp", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     vi.clearAllMocks();
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,
@@ -70,7 +63,7 @@ describe("useSearchWarmUp", () => {
         },
       },
     }));
-    useGlobalStateStore.setState((state) => ({
+    useGlobalStateStore.setState(state => ({
       ...state,
       databaseStatus: {},
     }));
@@ -81,18 +74,18 @@ describe("useSearchWarmUp", () => {
       root.unmount();
     });
     container.remove();
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: structuredClone(initialSetting),
     }));
-    useGlobalStateStore.setState((state) => ({
+    useGlobalStateStore.setState(state => ({
       ...state,
       databaseStatus: { ...initialDatabaseStatus },
     }));
   });
 
   it("数据库未 ready 时不会提前触发预热搜索", async () => {
-    useGlobalStateStore.setState((state) => ({
+    useGlobalStateStore.setState(state => ({
       ...state,
       databaseStatus: {
         ...state.databaseStatus,
@@ -111,7 +104,7 @@ describe("useSearchWarmUp", () => {
   });
 
   it("数据库 ready 后先预热模型，再执行一次真实搜索", async () => {
-    useGlobalStateStore.setState((state) => ({
+    useGlobalStateStore.setState(state => ({
       ...state,
       databaseStatus: {
         ...state.databaseStatus,
@@ -127,7 +120,7 @@ describe("useSearchWarmUp", () => {
     expect(searchContent).not.toHaveBeenCalled();
 
     await act(async () => {
-      useGlobalStateStore.setState((state) => ({
+      useGlobalStateStore.setState(state => ({
         ...state,
         databaseStatus: {
           ...state.databaseStatus,
@@ -145,8 +138,7 @@ describe("useSearchWarmUp", () => {
       modelInfo,
     });
 
-    const healthOrder =
-      vi.mocked(embeddingModelHealth).mock.invocationCallOrder[0];
+    const healthOrder = vi.mocked(embeddingModelHealth).mock.invocationCallOrder[0];
     const searchOrder = vi.mocked(searchContent).mock.invocationCallOrder[0];
     expect(searchOrder).toBeGreaterThan(healthOrder);
   });
@@ -156,7 +148,7 @@ describe("useSearchWarmUp", () => {
       .mockRejectedValueOnce(new Error("No database name found"))
       .mockResolvedValueOnce([]);
 
-    useGlobalStateStore.setState((state) => ({
+    useGlobalStateStore.setState(state => ({
       ...state,
       databaseStatus: {
         ...state.databaseStatus,
@@ -172,7 +164,7 @@ describe("useSearchWarmUp", () => {
     expect(searchContent).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      useGlobalStateStore.setState((state) => ({
+      useGlobalStateStore.setState(state => ({
         ...state,
         databaseStatus: {
           ...state.databaseStatus,
@@ -182,7 +174,7 @@ describe("useSearchWarmUp", () => {
     });
 
     await act(async () => {
-      useGlobalStateStore.setState((state) => ({
+      useGlobalStateStore.setState(state => ({
         ...state,
         databaseStatus: {
           ...state.databaseStatus,

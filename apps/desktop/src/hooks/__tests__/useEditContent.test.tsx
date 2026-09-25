@@ -5,10 +5,6 @@ import type { Descendant } from "slate";
 
 import useEditContent from "../useEditContent";
 
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
-
 vi.mock("@/commands", () => ({
   getContentById: vi.fn(async () => null),
   updateContent: vi.fn(),
@@ -58,26 +54,20 @@ describe("useEditContent", () => {
     root = createRoot(container);
 
     await act(async () => {
-      root?.render(
-        <HookHarness contentId={undefined} onContentChange={onContentChange} />,
-      );
+      root?.render(<HookHarness contentId={undefined} onContentChange={onContentChange} />);
     });
 
     await act(async () => {
-      root?.render(
-        <HookHarness contentId={1} onContentChange={onContentChange} />,
-      );
+      root?.render(<HookHarness contentId={1} onContentChange={onContentChange} />);
     });
 
     await act(async () => {
-      root?.render(
-        <HookHarness contentId={undefined} onContentChange={onContentChange} />,
-      );
+      root?.render(<HookHarness contentId={undefined} onContentChange={onContentChange} />);
     });
 
     const defaultContents = onContentChange.mock.calls
       .map(([content]) => content as Descendant[])
-      .filter((content) => content[0]?.type === "paragraph");
+      .filter(content => content[0]?.type === "paragraph");
 
     expect(defaultContents.length).toBeGreaterThanOrEqual(2);
     expect(defaultContents.at(0)).not.toBe(defaultContents.at(-1));

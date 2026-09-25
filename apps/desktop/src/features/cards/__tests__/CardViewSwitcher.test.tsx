@@ -4,7 +4,6 @@ import { afterEach, expect, it, vi } from "vitest";
 import { CardViewSwitcher } from "../components/CardViewSwitcher";
 import type { CardsViewMode } from "../preferences";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root | undefined;
 let host: HTMLDivElement;
 

@@ -5,8 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import useHomeData, { type HomeData } from "../useHomeData";
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
 vi.mock("@/commands/components-workbench", () => ({
   listTodoPreview: vi.fn(),
   listQuestionPreview: vi.fn(),

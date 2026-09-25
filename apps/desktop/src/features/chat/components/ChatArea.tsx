@@ -201,7 +201,6 @@ const ChatArea = memo(
                   currentChat={chatToUse}
                   onChatSelect={onSelectChat}
                   onTitleChange={onTitleChange}
-                  onCreateNewChat={onCreateNewMessage}
                   onChatDelete={onChatDelete}
                   getChildBranchesCount={getChildBranchesCount}
                   titleRef={editTitleRef}

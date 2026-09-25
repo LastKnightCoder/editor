@@ -9,6 +9,7 @@ import {
 } from "@/types";
 import ContentTable from "./content";
 import TodoCalendarSyncTable from "./todo-calendar-sync";
+import TodoNoteLinkTable from "./todo-note-link";
 import { Descendant } from "slate";
 
 export default class TodoItemTable {
@@ -505,7 +506,7 @@ export default class TodoItemTable {
     db.exec(
       `WITH RECURSIVE descendants(id) AS (
         SELECT id FROM todo_item WHERE id = ${params.id}
-        UNION ALL
+        UNION
         SELECT ti.id FROM todo_item ti JOIN descendants d ON ti.parent_id = d.id
       )
       UPDATE todo_item
@@ -560,7 +561,7 @@ export default class TodoItemTable {
     db.prepare(
       `WITH RECURSIVE descendants(id) AS (
         SELECT id FROM todo_item WHERE parent_id = ?
-        UNION ALL
+        UNION
         SELECT ti.id FROM todo_item ti JOIN descendants d ON ti.parent_id = d.id
       )
       UPDATE todo_item SET group_id = ?, update_time = ?
@@ -654,49 +655,58 @@ export default class TodoItemTable {
   // 递归删除：删除指定节点及其所有子节点
   static deleteItemCascade(db: Database.Database, params: { id: number }): number {
     const id = typeof params === "object" ? (params as any).id : (params as unknown as number);
-
-    // 先获取所有要删除的节点的 ID 和 description_content_id
-    const descendants = db
+    // UNION（非 UNION ALL）去重：parent_id 成环的脏数据下递归也能终止
+    const rows = db
       .prepare(
         `
       WITH RECURSIVE descendants(id) AS (
         SELECT id FROM todo_item WHERE id = ?
-        UNION ALL
+        UNION
         SELECT ti.id FROM todo_item ti JOIN descendants d ON ti.parent_id = d.id
       )
-      SELECT id, description_content_id FROM todo_item WHERE id IN (SELECT id FROM descendants)
+      SELECT id FROM descendants
     `
       )
-      .all(id) as Array<{ id: number; description_content_id: number | null }>;
+      .all(id) as Array<{ id: number }>;
+    return this.deleteItemsWithRelations(
+      db,
+      rows.map(r => r.id)
+    );
+  }
 
-    // 清理所有关联的日历事件（在删除待办项之前）
-    for (const item of descendants) {
+  /**
+   * 按 id 集合删除任务及其全部关联：日历映射 / 周期规则 + 打卡 / 笔记链接（按 detach 口径减引用）/ 描述内容。
+   * 这些表无外键级联，需显式清理；调用方负责算好集合（含子孙）。返回删除的任务数。
+   */
+  static deleteItemsWithRelations(db: Database.Database, ids: number[]): number {
+    let changes = 0;
+    for (const id of ids) {
+      const row = db
+        .prepare(`SELECT description_content_id FROM todo_item WHERE id = ?`)
+        .get(id) as { description_content_id: number | null } | undefined;
+      if (!row) continue;
+
       try {
-        TodoCalendarSyncTable.removeTodoItem(db, { todoItemId: item.id });
+        TodoCalendarSyncTable.removeTodoItem(db, { todoItemId: id });
       } catch (e) {
         // 忽略清理日历事件时的错误
       }
-    }
+      db.prepare(
+        `DELETE FROM todo_recurrence_completion
+         WHERE recurrence_id IN (SELECT id FROM todo_recurrence WHERE todo_item_id = ?)`
+      ).run(id);
+      db.prepare(`DELETE FROM todo_recurrence WHERE todo_item_id = ?`).run(id);
+      const links = db.prepare(`SELECT id FROM todo_note_link WHERE todo_id = ?`).all(id) as Array<{
+        id: number;
+      }>;
+      for (const link of links) TodoNoteLinkTable.detach(db, { linkId: link.id });
 
-    // 删除待办项
-    const stmt = db.prepare(`
-      WITH RECURSIVE descendants(id) AS (
-        SELECT id FROM todo_item WHERE id = ?
-        UNION ALL
-        SELECT ti.id FROM todo_item ti JOIN descendants d ON ti.parent_id = d.id
-      )
-      DELETE FROM todo_item WHERE id IN (SELECT id FROM descendants)
-    `);
-    const res = stmt.run(id);
-    const changes = (db.prepare(`SELECT changes() AS c`).get() as any)?.c ?? res.changes ?? 0;
-
-    // 删除所有关联的 content（会减少引用计数）
-    for (const item of descendants) {
-      if (item.description_content_id) {
-        ContentTable.deleteContent(db, item.description_content_id);
+      changes += db.prepare(`DELETE FROM todo_item WHERE id = ?`).run(id).changes;
+      // 删除关联的 content（会减少引用计数）
+      if (row.description_content_id) {
+        ContentTable.deleteContent(db, row.description_content_id);
       }
     }
-
     return changes;
   }
 }

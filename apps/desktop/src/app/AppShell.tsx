@@ -173,8 +173,9 @@ function ShellLayout() {
           壳层不提供全局状态栏：需要的页面自带 PageStatusBar，避免无内容页底部留空条 */}
       <div className="grid min-w-0 grid-rows-[var(--tau-titlebar-h)_minmax(0,1fr)]">
         <Titlebar />
-        {/* 正文 + 右侧辅助栏（AI 对话停靠栏，D-047）；覆盖浮层模式以本行为定位上下文 */}
-        <div className="relative flex min-h-0">
+        {/* 正文 + 右侧辅助栏（AI 对话停靠栏，D-047）；覆盖浮层模式以本行为定位上下文。
+            横向 clip：辅助栏收起时滑出右缘，不撑出滚动区（纵向不裁，保留卡片阴影） */}
+        <div className="relative flex min-h-0 overflow-x-clip">
           <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
             <PageHost state={state} />
           </main>

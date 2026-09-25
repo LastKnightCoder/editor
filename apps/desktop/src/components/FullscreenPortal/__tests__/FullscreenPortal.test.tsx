@@ -4,8 +4,6 @@ import { createRoot, type Root } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 import FullscreenPortal from "..";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const mount = async (node: ReactNode) => {
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -29,23 +27,21 @@ describe("FullscreenPortal", () => {
     const { root, container } = await mount(
       <FullscreenPortal title="测试预览" onClose={onClose}>
         <div>content</div>
-      </FullscreenPortal>,
+      </FullscreenPortal>
     );
 
     const overlay = document.querySelector(
-      '[data-testid="fullscreen-portal-overlay"]',
+      '[data-testid="fullscreen-portal-overlay"]'
     ) as HTMLElement | null;
     const portalContainer = document.querySelector(
-      '[data-testid="fullscreen-portal-container"]',
+      '[data-testid="fullscreen-portal-container"]'
     ) as HTMLElement | null;
 
     expect(overlay).not.toBeNull();
     expect(overlay?.style.top).toBe("var(--title-bar-height, 48px)");
     expect(portalContainer).not.toBeNull();
     expect(portalContainer?.style.width).toBe("100vw");
-    expect(portalContainer?.style.height).toBe(
-      "calc(100vh - var(--title-bar-height, 48px))",
-    );
+    expect(portalContainer?.style.height).toBe("calc(100vh - var(--title-bar-height, 48px))");
 
     await unmount(root, container);
   });

@@ -4,13 +4,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { WeReadContent } from "../WeReadContent";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 vi.mock("@/components/Database", () => ({
   default: ({ data }: { data: Array<{ title?: string }> }) => (
     <div data-testid="mock-database">
       {data
-        .map((row) => row.title)
+        .map(row => row.title)
         .filter(Boolean)
         .join(",")}
     </div>
@@ -84,7 +82,7 @@ describe("WeReadContent", () => {
         onActiveViewIdChange={() => {}}
         onRowDetailOpen={() => {}}
         themeColors={themeColors}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("缓存书籍");
@@ -118,7 +116,7 @@ describe("WeReadContent", () => {
         onActiveViewIdChange={() => {}}
         onRowDetailOpen={() => {}}
         themeColors={themeColors}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("正在校验微信读书 API Key");
@@ -154,7 +152,7 @@ describe("WeReadContent", () => {
         onActiveViewIdChange={() => {}}
         onRowDetailOpen={() => {}}
         themeColors={themeColors}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("正在同步 3/8 · 37%");

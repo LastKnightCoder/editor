@@ -4,8 +4,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import WeReadSetting from "../WeReadSetting";
 import useSettingStore from "@/stores/useSettingStore";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const { validateSessionMock } = vi.hoisted(() => ({
   validateSessionMock: vi.fn(),
 }));
@@ -62,14 +60,14 @@ describe("WeReadSetting", () => {
     }
     root = null;
     container = null;
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: structuredClone(initialSetting),
     }));
   });
 
   it("挂载时不应主动触发会话校验", async () => {
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,

@@ -7,8 +7,6 @@ import { registerToolCallRenderer, unregisterToolCallRenderer } from "@/tool-cal
 import type { ToolCallCustomRendererProps } from "@/tool-call-renderers";
 import ToolCallDisplay from "../ToolCallDisplay";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const createExecution = (
   overrides: Partial<ToolCallExecutionState> = {}
 ): ToolCallExecutionState => ({

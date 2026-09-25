@@ -12,7 +12,6 @@ const switchOf = (label: string) =>
   container.querySelector<HTMLButtonElement>(`[aria-label="${label}"]`);
 
 beforeEach(() => {
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);

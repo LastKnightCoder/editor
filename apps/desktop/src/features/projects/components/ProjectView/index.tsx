@@ -5,8 +5,9 @@ import VibeLearningView from "../VibeLearningView";
 import { Button } from "@tau/ui";
 import ProjectContext, { type ProjectDocumentAction } from "./ProjectContext";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Project, EProjectType } from "@/types";
-import { getProjectById } from "@/commands";
+import { useQueryClient } from "@tanstack/react-query";
+import { EProjectType } from "@/types";
+import { useProjectDetail } from "@/features/projects/queries";
 import { Loader2 } from "lucide-react";
 import { usePage } from "@/page/PageProvider";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
@@ -34,8 +35,8 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
     setDocumentAction(action => (action && action.itemId !== itemId ? null : action));
   }, [projectId, itemId]);
 
-  const [project, setProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { project, loading } = useProjectDetail(projectId);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState<number | undefined>(undefined);
 
@@ -58,17 +59,10 @@ const ProjectView = ({ projectId, itemId }: ProjectViewProps) => {
     project.projectType !== EProjectType.VibeLearning;
   useCollapseSidebarOnEnter(hasDocumentTree);
 
-  // 在数据库连接或切换时加载项目
+  // 数据库连接或切换时整域失效（detail/tree/列表/关联源一并按新库重拉）
   useDatabaseChangeEffect(() => {
-    setLoading(true);
-    getProjectById(projectId)
-      .then(project => {
-        setProject(project);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [projectId]);
+    void queryClient.invalidateQueries({ queryKey: ["projects"] });
+  }, []);
 
   if (loading) {
     return (

@@ -30,7 +30,6 @@ const type = (value: string) =>
   });
 
 beforeEach(() => {
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   useSettingsStore.setState({ open: true, section: "appearance" });
   container = document.createElement("div");
   document.body.appendChild(container);

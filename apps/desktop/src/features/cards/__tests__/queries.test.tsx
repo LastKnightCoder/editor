@@ -36,7 +36,6 @@ vi.mock("@/stores/useSettingStore", async () => {
   return { default: create(() => ({ setting: { database: { active: "a" } } })) };
 });
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 const card = (id: number, patch: Partial<ICard> = {}): ICard => ({
   id,
   contentId: id,

@@ -1,7 +1,7 @@
 /**
- * 项目详情 page 定义（占位）：列表页点击 / 新建后跳转的目标。
+ * 项目详情 page：三型工作台（文档树 / 数据表格 / Vibe Learning）的承载入口。
  * params 按 id 去重——同一项目重复进入激活同一实例。
- * 工作台本体（文档树 / 数据表格 / Vibe Learning 三型）后续迁移，见 DECISIONS.md。
+ * 工作台本体为 D-033 整体搬迁件（features/projects/components/，换皮与数据收编另立锚点）。
  */
 
 import { createPageSchema, paramNumber, paramOptional } from "@/page/core/paramsSchema";

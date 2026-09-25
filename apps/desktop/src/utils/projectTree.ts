@@ -118,6 +118,31 @@ export const isDescendantNode = (
   return isDescendantTreeNode(treeData, ancestorId, maybeDescendantId);
 };
 
+/** 条目所有挂载点的祖先文件夹 id 集合（多处挂载时各路径都收集） */
+export const collectAncestorItemIds = (treeData: ProjectTreeData, itemId: number): Set<number> => {
+  const ids = new Set<number>();
+  for (const node of treeData.itemNodeMap.get(itemId) ?? []) {
+    let current = node;
+    while (current.parentNodeId != null) {
+      const parent = treeData.nodeMap.get(current.parentNodeId);
+      if (!parent) break;
+      ids.add(parent.item.id);
+      current = parent;
+    }
+  }
+  return ids;
+};
+
+/** 数值集合内容相等（含双方 undefined）；用于跨数据刷新保持引用稳定 */
+export const isSameNumberSet = (a: Set<number> | undefined, b: Set<number> | undefined) => {
+  if (a === b) return true;
+  if (!a || !b || a.size !== b.size) return false;
+  for (const id of a) {
+    if (!b.has(id)) return false;
+  }
+  return true;
+};
+
 export const canMoveProjectTreeItem = ({
   treeData,
   dragItem,
