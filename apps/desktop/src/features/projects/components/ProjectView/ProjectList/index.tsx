@@ -53,6 +53,7 @@ import {
   getProjectItemById,
 } from "@/commands";
 import { getContentLength, importFromMarkdown } from "@/utils";
+import { collectAncestorItemIds, isSameNumberSet } from "@/utils/projectTree";
 import { importLocalBook } from "../shared/utils/bookImport";
 import useSettingStore from "@/stores/useSettingStore";
 import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
@@ -172,6 +173,23 @@ const Project = () => {
   }, [refresh]);
 
   const { treeData, loading: treeLoading, reload: reloadProjectTree } = useProjectTreeData(project);
+
+  // 激活文档的祖先文件夹集合：随定位跳转（project-detail 带 itemId 进入）下发，
+  // 节点据此一次性展开，深层嵌套也可见。树异步加载期间集合为空，加载完成后内容变化即触发
+  const computedRevealIds = useMemo(() => {
+    if (itemId == null) return undefined;
+    return collectAncestorItemIds(treeData, itemId);
+  }, [itemId, treeData]);
+
+  // 引用稳定化：树数据刷新（reload/条目更新）会重建 treeData 与集合，若引用跟着抖动，
+  // 下游"展开一次"的 effect 会被重触发、顶开用户已手动折叠的祖先。
+  // 内容不变时复用旧引用，使"引用变化"严格等价于"定位目标或其祖先链变化"
+  const revealRef = useRef<Set<number> | undefined>(undefined);
+  const revealAncestorIds =
+    computedRevealIds && revealRef.current && isSameNumberSet(computedRevealIds, revealRef.current)
+      ? revealRef.current
+      : computedRevealIds;
+  revealRef.current = revealAncestorIds;
 
   const saveMindMapViewport = useMemoizedFn(
     (viewport: { pan: { x: number; y: number }; zoom: number }) => {
@@ -868,6 +886,7 @@ const Project = () => {
                       whiteBoards={whiteBoards}
                       pdfs={pdfs}
                       epubs={epubs}
+                      revealAncestorIds={revealAncestorIds}
                       refreshProject={refresh}
                     />
                   )}

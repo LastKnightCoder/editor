@@ -22,6 +22,10 @@ export interface TodoTodayItem {
 export interface RecentEdit {
   id: string;
   kind: "card" | "article" | "diary" | "project";
+  /** 项目条目直达详情页：所属项目取首个；散页未归属项目时缺省，点击退回项目列表 */
+  projectId?: number;
+  /** 项目文档条目 id，进入详情后定位到该文档 */
+  itemId?: number;
   title: string;
   updatedText: string;
   wordsCount: number;
