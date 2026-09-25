@@ -7,6 +7,7 @@
 
 import { useEffect } from "react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "@tau/ui";
 import type { Descendant } from "slate";
 import {
   addQuestionNote,
@@ -131,6 +132,23 @@ export const questionMutations = {
     updateQuestionGroup({ id, title, color }, opts),
   deleteGroup: (id: number) => deleteQuestionGroup(id, opts),
 };
+
+/** 移动分组并给出可撤销提示（问题页右键菜单 / 详情与侧栏分组拖放共用） */
+export function moveQuestion(
+  question: { id: number; groupId: number },
+  groupId: number,
+  groupTitle: string
+) {
+  const prev = question.groupId;
+  questionMutations
+    .move(question.id, groupId)
+    .then(() =>
+      toast.success(`已移动到「${groupTitle}」`, {
+        action: { label: "撤销", onClick: () => void questionMutations.move(question.id, prev) },
+      })
+    )
+    .catch(() => toast.error("移动失败"));
+}
 
 export type CreatableKind = "article" | "white_board" | "project";
 
