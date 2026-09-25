@@ -232,7 +232,15 @@ export function HomeView() {
             </PanelAction>
           </PanelTitle>
           {data.activeQuestions.length > 0 ? (
-            <div className="@max-[860px]:grid-cols-1 grid grid-cols-2 gap-x-6">
+            // 只有 1 条时占满整行，避免右半张卡留空
+            <div
+              className={clsx(
+                "grid gap-x-6",
+                data.activeQuestions.length > 1
+                  ? "@max-[860px]:grid-cols-1 grid-cols-2"
+                  : "grid-cols-1"
+              )}
+            >
               {data.activeQuestions.map(question => (
                 <QuestionRow
                   key={question.id}
