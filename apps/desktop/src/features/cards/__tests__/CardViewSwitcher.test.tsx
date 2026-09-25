@@ -38,7 +38,7 @@ it("面包屑触发器回显当前视图，展开后可切到其余视图并即�
 
   click(trigger);
   const menu = document.querySelector('[role="menu"]') as HTMLElement;
-  expect(menu.getAttribute("aria-hidden")).toBe("false");
+  expect(menu.hasAttribute("inert")).toBe(false);
   const items = menuItems();
   expect(items.map(item => item.textContent)).toEqual(["卡片墙", "图谱", "表格"]);
   // 当前视图靠高亮标记（accent 色接管 ink-1，非 radio 语义）
@@ -50,7 +50,7 @@ it("面包屑触发器回显当前视图，展开后可切到其余视图并即�
   click(items[2]);
   expect(onChange).toHaveBeenCalledExactlyOnceWith("database");
   // 命令项触发即关（不是 radio 的“不关闭”语义），焦点还给触发器
-  expect(menu.getAttribute("aria-hidden")).toBe("true");
+  expect(menu.hasAttribute("inert")).toBe(true);
   expect(document.activeElement).toBe(trigger);
 });
 
@@ -69,8 +69,6 @@ it("选中项跟着 value 走，Esc 关闭浮层", async () => {
       new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })
     );
   });
-  expect((document.querySelector('[role="menu"]') as HTMLElement).getAttribute("aria-hidden")).toBe(
-    "true"
-  );
+  expect((document.querySelector('[role="menu"]') as HTMLElement).hasAttribute("inert")).toBe(true);
   expect(onChange).not.toHaveBeenCalled();
 });

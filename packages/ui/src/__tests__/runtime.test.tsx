@@ -81,7 +81,7 @@ describe("公共 UI 运行时", () => {
         new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true })
       )
     );
-    expect(card.getAttribute("aria-hidden")).toBe("false");
+    expect(card.hasAttribute("inert")).toBe(false);
     act(() =>
       input.dispatchEvent(
         new KeyboardEvent("keydown", {
@@ -92,7 +92,7 @@ describe("公共 UI 运行时", () => {
         })
       )
     );
-    expect(card.getAttribute("aria-hidden")).toBe("false");
+    expect(card.hasAttribute("inert")).toBe(false);
   });
   it("多选可连续切换并保留浮层，表单标签指向触发器", () => {
     const element = document.createElement("div");

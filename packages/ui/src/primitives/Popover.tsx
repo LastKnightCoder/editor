@@ -208,7 +208,7 @@ export function Popover({
         ref={cardRef}
         role="dialog"
         tabIndex={-1}
-        aria-hidden={!open}
+        inert={!open}
         aria-labelledby={hasHeader ? headerId : undefined}
         onKeyDown={onCardKeyDown}
         className={className}

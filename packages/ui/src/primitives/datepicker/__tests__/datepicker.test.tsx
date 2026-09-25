@@ -57,8 +57,7 @@ function render(ui: ReactNode): Harness {
   };
 }
 
-const panel = () =>
-  document.querySelector<HTMLElement>('[role="dialog"]:not([aria-hidden="true"])');
+const panel = () => document.querySelector<HTMLElement>('[role="dialog"]:not([inert])');
 const dayCell = (p: HTMLElement, day: number) =>
   [...p.querySelectorAll<HTMLElement>('[role="gridcell"]')].find(
     c => c.textContent === String(day)
@@ -71,7 +70,7 @@ describe("DatePicker（A+ 单日期）", () => {
     cleanups = [];
   });
 
-  it("渲染：placeholder 上屏、combobox 语义、弹层 aria-hidden 待命", () => {
+  it("渲染：placeholder 上屏、combobox 语义、弹层 inert 待命", () => {
     const h = render(<DatePicker placeholder="选择日期…" />);
     cleanups.push(h.cleanup);
     const trigger = h.container.querySelector<HTMLButtonElement>('[role="combobox"]')!;

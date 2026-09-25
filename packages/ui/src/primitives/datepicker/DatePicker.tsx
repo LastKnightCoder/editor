@@ -356,7 +356,7 @@ export function DatePicker({
       id={panelId}
       role="dialog"
       aria-label="选择日期"
-      aria-hidden={!open}
+      inert={!open}
       data-open={open}
       onKeyDown={onPanelKeyDown}
       tabIndex={-1}

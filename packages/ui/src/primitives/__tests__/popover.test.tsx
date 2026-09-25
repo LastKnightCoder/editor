@@ -74,11 +74,11 @@ describe("Popover", () => {
     cleanups.push(h.cleanup);
     expect(h.trigger.getAttribute("aria-haspopup")).toBe("dialog");
     expect(h.trigger.getAttribute("aria-expanded")).toBe("false");
-    expect(h.card.getAttribute("aria-hidden")).toBe("true");
+    expect(h.card.hasAttribute("inert")).toBe(true);
 
     click(h.trigger);
     expect(h.trigger.getAttribute("aria-expanded")).toBe("true");
-    expect(h.card.getAttribute("aria-hidden")).toBe("false");
+    expect(h.card.hasAttribute("inert")).toBe(false);
     expect(h.card.getAttribute("aria-labelledby")).toBeTruthy();
     expect(document.getElementById(h.card.getAttribute("aria-labelledby")!)?.textContent).toContain(
       "标题"
@@ -86,7 +86,7 @@ describe("Popover", () => {
     expect(document.activeElement).toBe(h.card); // 无 data-autofocus → 卡片自身（Esc 可达）
 
     click(h.trigger);
-    expect(h.card.getAttribute("aria-hidden")).toBe("true");
+    expect(h.card.hasAttribute("inert")).toBe(true);
   });
 
   it("初始焦点落 [data-autofocus]（表单首输入框）", () => {
@@ -130,7 +130,7 @@ describe("Popover", () => {
 
     click(h.trigger);
     key(h.trigger, "Escape"); // 焦点回到触发器时同样能关
-    expect(h.card.getAttribute("aria-hidden")).toBe("true");
+    expect(h.card.hasAttribute("inert")).toBe(true);
   });
 
   it("Tab：关闭还焦触发器且放行默认行为（非模态不圈闭）", () => {
@@ -158,10 +158,10 @@ describe("Popover", () => {
     );
     cleanups.push(h.cleanup);
     key(h.trigger, "Enter");
-    expect(h.card.getAttribute("aria-hidden")).toBe("false");
+    expect(h.card.hasAttribute("inert")).toBe(false);
     key(h.trigger, "Escape");
     key(h.trigger, "ArrowDown");
-    expect(h.card.getAttribute("aria-hidden")).toBe("false");
+    expect(h.card.hasAttribute("inert")).toBe(false);
   });
 
   it("外点关闭；浮层内点击不关；Header × 关闭", () => {
@@ -176,17 +176,17 @@ describe("Popover", () => {
     cleanups.push(h.cleanup);
     click(h.trigger);
     outside(h.card.querySelector("button")!); // 浮层内 pointerdown
-    expect(h.card.getAttribute("aria-hidden")).toBe("false");
+    expect(h.card.hasAttribute("inert")).toBe(false);
 
     const outsider = document.createElement("div");
     document.body.appendChild(outsider);
     outside(outsider);
-    expect(h.card.getAttribute("aria-hidden")).toBe("true");
+    expect(h.card.hasAttribute("inert")).toBe(true);
     outsider.remove();
 
     click(h.trigger);
     click(h.card.querySelector('button[aria-label="关闭"]')!); // Header ×
-    expect(h.card.getAttribute("aria-hidden")).toBe("true");
+    expect(h.card.hasAttribute("inert")).toBe(true);
   });
 
   it("嵌套链：二级 Popover 内点击不误伤一级；Esc LIFO 先关二级", () => {
@@ -219,12 +219,12 @@ describe("Popover", () => {
     act(() => {
       inner.querySelector("input")!.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
     });
-    expect(outer.getAttribute("aria-hidden")).toBe("false"); // 一级不受伤
-    expect(inner.getAttribute("aria-hidden")).toBe("false");
+    expect(outer.hasAttribute("inert")).toBe(false); // 一级不受伤
+    expect(inner.hasAttribute("inert")).toBe(false);
 
     key(inner, "Escape");
-    expect(inner.getAttribute("aria-hidden")).toBe("true");
-    expect(outer.getAttribute("aria-hidden")).toBe("false"); // Esc 只关栈顶
+    expect(inner.hasAttribute("inert")).toBe(true);
+    expect(outer.hasAttribute("inert")).toBe(false); // Esc 只关栈顶
   });
 
   it("顶层互斥：开第二个 Popover 关第一个", () => {
@@ -242,10 +242,10 @@ describe("Popover", () => {
     const [a, b] = [...h.container.querySelectorAll("button")];
     const cards = [...document.querySelectorAll<HTMLElement>('[role="dialog"]')];
     click(a);
-    expect(cards[0].getAttribute("aria-hidden")).toBe("false");
+    expect(cards[0].hasAttribute("inert")).toBe(false);
     click(b);
-    expect(cards[0].getAttribute("aria-hidden")).toBe("true");
-    expect(cards[1].getAttribute("aria-hidden")).toBe("false");
+    expect(cards[0].hasAttribute("inert")).toBe(true);
+    expect(cards[1].hasAttribute("inert")).toBe(false);
   });
 
   it("受控 open：props 为准，外点仍回调（由调用方决定状态）", () => {
@@ -259,12 +259,12 @@ describe("Popover", () => {
     }
     const h = render(<Controlled />);
     cleanups.push(h.cleanup);
-    expect(h.card.getAttribute("aria-hidden")).toBe("false");
+    expect(h.card.hasAttribute("inert")).toBe(false);
     const outsider = document.createElement("div");
     document.body.appendChild(outsider);
     outside(outsider);
     outsider.remove();
-    expect(h.card.getAttribute("aria-hidden")).toBe("true"); // 回调把 state 落了地
+    expect(h.card.hasAttribute("inert")).toBe(true); // 回调把 state 落了地
   });
 
   it("箭头随 arrow prop 出现 / 消失", () => {
