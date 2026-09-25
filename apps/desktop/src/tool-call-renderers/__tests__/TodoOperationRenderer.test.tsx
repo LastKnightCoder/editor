@@ -5,8 +5,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import TodoOperationRenderer from "../TodoOperationRenderer";
 import type { ToolCallExecutionState } from "@/types";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const createExecution = (
   overrides: Partial<ToolCallExecutionState> = {}
 ): ToolCallExecutionState => ({

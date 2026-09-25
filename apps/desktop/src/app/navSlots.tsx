@@ -12,6 +12,8 @@ import {
 } from "@/features/collaboration/components/CollaborationNav";
 import { ReviewDueBadge } from "@/features/flashcards/components/ReviewDueBadge";
 import { QuestionsNavBadge } from "@/features/questions/components/QuestionsNavBadge";
+import { QuestionsNavGroups } from "@/features/questions/components/QuestionsNav";
+import { useQuestionsSnapshot } from "@/features/questions/queries";
 import { DiaryNavTags } from "@/features/diary/components/DiaryNav";
 import { useDiaryNavHasContent } from "@/features/diary/queries";
 import { WhiteboardNavTags } from "@/features/whiteboards/components/WhiteboardNav";
@@ -61,6 +63,12 @@ export const NAV_CHILDREN_SLOTS: Record<NavItemChildren, NavChildrenSlot> = {
     selected: params => Boolean(params.id),
     parentResets: true,
   },
+  // 问题：分组是收窄视图，参数 id 为空 = 全部
+  "question-groups": {
+    Component: QuestionsNavGroups,
+    selected: params => Boolean(params.id),
+    parentResets: true,
+  },
   // AI 对话：id 为空 = 新对话空态；已在对话页再点父项回到新对话（D-047）
   "chat-sessions": {
     Component: ChatNavSessions,
@@ -75,10 +83,13 @@ export function useNavChildrenContent(): Record<NavItemChildren, boolean> {
   const hasDiary = useDiaryNavHasContent();
   const hasWhiteboardTags = useWhiteboardNavHasContent();
   const hasChats = useChatNavHasContent();
+  // 恒有默认分组；快照到位即展开（含「新建分组」入口）
+  const hasQuestionGroups = Boolean(useQuestionsSnapshot().snapshot);
   return {
     "collaboration-sessions": hasSessions,
     "diary-tags": hasDiary,
     "whiteboard-tags": hasWhiteboardTags,
+    "question-groups": hasQuestionGroups,
     "chat-sessions": hasChats,
   };
 }

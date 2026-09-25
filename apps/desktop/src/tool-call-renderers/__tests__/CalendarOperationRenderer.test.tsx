@@ -5,10 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import CalendarOperationRenderer from "../CalendarOperationRenderer";
 import type { ToolCallExecutionState } from "@/types";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const createExecution = (
-  overrides: Partial<ToolCallExecutionState> = {},
+  overrides: Partial<ToolCallExecutionState> = {}
 ): ToolCallExecutionState => ({
   toolCallId: "calendar-op-call-1",
   toolName: "create_calendar_event",
@@ -60,7 +58,7 @@ describe("CalendarOperationRenderer", () => {
         isDark={false}
         parsedInput={{}}
         renderDefault={() => <div>fallback</div>}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("已创建日历事件");

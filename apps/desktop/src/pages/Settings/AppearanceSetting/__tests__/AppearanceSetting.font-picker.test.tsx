@@ -4,15 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AppearanceSetting from "../index";
 import useSettingStore from "@/stores/useSettingStore";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const { getAllFontsMock } = vi.hoisted(() => ({
   getAllFontsMock: vi.fn(),
 }));
 
 vi.mock("@/commands", async () => {
-  const actual =
-    await vi.importActual<typeof import("@/commands")>("@/commands");
+  const actual = await vi.importActual<typeof import("@/commands")>("@/commands");
   return {
     ...actual,
     getAllFonts: getAllFontsMock,
@@ -55,7 +52,7 @@ describe("AppearanceSetting 字体选择器", () => {
       "Fira Code",
     ]);
 
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...structuredClone(initialSetting),
@@ -83,7 +80,7 @@ describe("AppearanceSetting 字体选择器", () => {
     }
     root = null;
     container = null;
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: structuredClone(initialSetting),
     }));
@@ -100,12 +97,8 @@ describe("AppearanceSetting 字体选择器", () => {
     });
 
     expect(container?.textContent).toContain("春风又绿江南岸");
-    expect(container?.textContent).toContain(
-      "Sphinx of black quartz, judge my vow.",
-    );
-    expect(container?.textContent).toContain(
-      "const preview = (font: string) => font;",
-    );
+    expect(container?.textContent).toContain("Sphinx of black quartz, judge my vow.");
+    expect(container?.textContent).toContain("const preview = (font: string) => font;");
   });
 
   it("展开英文字体面板后应支持搜索过滤并写回设置", async () => {
@@ -117,20 +110,18 @@ describe("AppearanceSetting 字体选择器", () => {
       await Promise.resolve();
     });
 
-    const englishTrigger = Array.from(
-      container?.querySelectorAll("button") ?? [],
-    ).find((button) => button.textContent?.includes("Georgia"));
+    const englishTrigger = Array.from(container?.querySelectorAll("button") ?? []).find(button =>
+      button.textContent?.includes("Georgia")
+    );
 
     expect(englishTrigger).toBeTruthy();
 
     await act(async () => {
-      englishTrigger?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true }),
-      );
+      englishTrigger?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     });
 
     const searchInput = document.body.querySelector(
-      'input[placeholder="搜索字体名称..."]',
+      'input[placeholder="搜索字体名称..."]'
     ) as HTMLInputElement | null;
 
     expect(searchInput).toBeTruthy();
@@ -139,7 +130,7 @@ describe("AppearanceSetting 字体选择器", () => {
       if (searchInput) {
         const valueSetter = Object.getOwnPropertyDescriptor(
           window.HTMLInputElement.prototype,
-          "value",
+          "value"
         )?.set;
         valueSetter?.call(searchInput, "helv");
         searchInput.dispatchEvent(new Event("input", { bubbles: true }));
@@ -150,25 +141,21 @@ describe("AppearanceSetting 字体选择器", () => {
     expect(document.body.textContent).toContain("Helvetica");
     expect(document.body.textContent).not.toContain("Fira Code");
 
-    const helveticaItem = Array.from(
-      document.body.querySelectorAll("button"),
-    ).find((button) => button.textContent?.includes("Helvetica"));
+    const helveticaItem = Array.from(document.body.querySelectorAll("button")).find(button =>
+      button.textContent?.includes("Helvetica")
+    );
 
     expect(helveticaItem).toBeTruthy();
 
     await act(async () => {
-      helveticaItem?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true }),
-      );
+      helveticaItem?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     });
 
-    expect(useSettingStore.getState().setting.fontSetting.englishFont).toBe(
-      "Helvetica",
-    );
+    expect(useSettingStore.getState().setting.fontSetting.englishFont).toBe("Helvetica");
   });
 
   it("浅色模式下字体面板应包含浅色主题样式", async () => {
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,
@@ -184,21 +171,17 @@ describe("AppearanceSetting 字体选择器", () => {
       await Promise.resolve();
     });
 
-    const englishTrigger = Array.from(
-      container?.querySelectorAll("button") ?? [],
-    ).find((button) => button.textContent?.includes("Georgia"));
+    const englishTrigger = Array.from(container?.querySelectorAll("button") ?? []).find(button =>
+      button.textContent?.includes("Georgia")
+    );
 
     expect(englishTrigger).toBeTruthy();
 
     await act(async () => {
-      englishTrigger?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true }),
-      );
+      englishTrigger?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     });
 
-    const panel = document.body.querySelector(
-      ".fixed",
-    ) as HTMLDivElement | null;
+    const panel = document.body.querySelector(".fixed") as HTMLDivElement | null;
     expect(panel).toBeTruthy();
     expect(panel?.className).toContain("bg-white/95");
     expect(panel?.className).toContain("dark:bg-zinc-900/96");
@@ -215,9 +198,9 @@ describe("AppearanceSetting 字体选择器", () => {
       await Promise.resolve();
     });
 
-    const codeTrigger = Array.from(
-      container?.querySelectorAll("button") ?? [],
-    ).find((button) => button.textContent?.includes("JetBrains Mono"));
+    const codeTrigger = Array.from(container?.querySelectorAll("button") ?? []).find(button =>
+      button.textContent?.includes("JetBrains Mono")
+    );
 
     expect(codeTrigger).toBeTruthy();
 
@@ -243,13 +226,11 @@ describe("AppearanceSetting 字体选择器", () => {
       });
 
     await act(async () => {
-      codeTrigger?.dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true }),
-      );
+      codeTrigger?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
     });
 
     const codeSearchInput = document.body.querySelector(
-      'input[placeholder="搜索代码字体..."]',
+      'input[placeholder="搜索代码字体..."]'
     ) as HTMLInputElement | null;
     expect(codeSearchInput).toBeTruthy();
 

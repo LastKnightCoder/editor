@@ -3,11 +3,7 @@ import type { ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import TodoToolRenderer from "../TodoToolRenderer";
-import type {
-  ToolCallExecutionState,
-  TodoGroup,
-  TodoQueryResponse,
-} from "@/types";
+import type { ToolCallExecutionState, TodoGroup, TodoQueryResponse } from "@/types";
 
 vi.mock("@/commands/todo", () => ({
   listTodoGroups: vi.fn(),
@@ -36,14 +32,12 @@ vi.mock("@/mcp/todo/mutation", () => ({
     COMPLETE_ITEM: "complete-item",
     UNCOMPLETE_ITEM: "uncomplete-item",
   },
-  emitTodoMutation: vi.fn((payload) => ({ ...payload, timestamp: 123 })),
+  emitTodoMutation: vi.fn(payload => ({ ...payload, timestamp: 123 })),
   shouldRefreshTodoQueryResult: vi.fn(() => false),
 }));
 
 import * as todoCommands from "@/commands/todo";
 import * as todoMutation from "@/mcp/todo/mutation";
-
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 const groups: TodoGroup[] = [
   {
@@ -122,7 +116,7 @@ const queryResult: TodoQueryResponse = {
 };
 
 const createExecution = (
-  overrides: Partial<ToolCallExecutionState> = {},
+  overrides: Partial<ToolCallExecutionState> = {}
 ): ToolCallExecutionState => ({
   toolCallId: "todo-tool-call-1",
   toolName: "query_todos",
@@ -164,7 +158,7 @@ describe("TodoToolRenderer", () => {
         isDark={false}
         parsedInput={queryResult.query}
         renderDefault={() => <div>fallback</div>}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("任务 A");
@@ -176,7 +170,7 @@ describe("TodoToolRenderer", () => {
     expect(container.textContent).not.toContain("删除");
 
     const toggleButton = container.querySelector(
-      "button[aria-label='标记为已完成']",
+      "button[aria-label='标记为已完成']"
     ) as HTMLButtonElement | null;
     expect(toggleButton).toBeTruthy();
     await act(async () => {

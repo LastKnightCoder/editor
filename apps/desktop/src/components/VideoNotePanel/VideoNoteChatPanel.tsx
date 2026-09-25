@@ -239,7 +239,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
             currentChat={currentChatAsMessage}
             onChatSelect={handleChatSelect}
             onTitleChange={onTitleChange}
-            onCreateNewChat={onCreateNewMessage}
             onChatDelete={handleChatDelete}
             getChildBranchesCount={getChildBranchesCount}
             titleRef={editTitleRef}

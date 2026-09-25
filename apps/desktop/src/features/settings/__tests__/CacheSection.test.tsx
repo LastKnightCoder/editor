@@ -66,7 +66,6 @@ const checkbox = (label: string) =>
   container.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
 
 beforeEach(() => {
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   Object.values(cmd).forEach(fn => fn.mockReset());
   cmd.listRemoteVideoCache.mockResolvedValue([
     entry({ id: "r1", url: "https://a.com/v.mp4", fileName: "v.mp4", fileSize: 2 * MB }),

@@ -11,7 +11,6 @@ import { DatabaseContext } from "../DatabaseContext";
 import type { ColumnDef, TableViewConfig } from "../types";
 import type { DataTableView } from "@/types";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 let root: Root | undefined;
 let host: HTMLDivElement;
 

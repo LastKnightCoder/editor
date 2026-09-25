@@ -92,7 +92,7 @@ import { Editor } from "@tau/editor/src";
 import useThemeColors from "@/hooks/useThemeColors";
 import useSettingStore from "@/stores/useSettingStore";
 import { ensurePdfIndex, getPdfIndexStatus, searchPdfContent } from "@/commands";
-import type { PdfCitationTarget } from "@/pages/PdfView/pdfCitation";
+import type { PdfCitationTarget } from "@/utils/pdfCitation";
 import { usePdfFileSource } from "./hooks/usePdfFileSource";
 import { usePdfAnnotations } from "./hooks/usePdfAnnotations";
 import { usePdfBookmarks } from "./hooks/usePdfBookmarks";
@@ -127,7 +127,7 @@ export interface PdfAskAIContext {
   captureUrl?: string;
 }
 
-export type { PdfCitationTarget } from "@/pages/PdfView/pdfCitation";
+export type { PdfCitationTarget } from "@/utils/pdfCitation";
 
 const normalizeCitationLocatorText = (text: string): string =>
   text.replace(/\s+/g, " ").trim().toLowerCase();

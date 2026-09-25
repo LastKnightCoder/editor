@@ -36,10 +36,7 @@ import {
 export type NavItemBadge = "review-due" | "pomodoro-live" | "collab-requests" | "questions-active";
 /** 子项槽 key：所属页在栈顶时于条目下方展开的列表（渲染组件注册于 navSlots.tsx） */
 export type NavItemChildren =
-  | "collaboration-sessions"
-  | "diary-tags"
-  | "whiteboard-tags"
-  | "chat-sessions";
+  "collaboration-sessions" | "diary-tags" | "whiteboard-tags" | "question-groups" | "chat-sessions";
 
 export interface NavItem {
   key: string;
@@ -49,7 +46,7 @@ export interface NavItem {
    *  collab-requests = 待审批的加入申请数） */
   badge?: NavItemBadge;
   /** 该页在栈顶时于条目下方展开的子项（collaboration-sessions = 共享内容列表，协作页 A3；
-   *  diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；chat-sessions = 置顶与最近 AI 会话，D-047） */
+   *  diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；question-groups = 问题分组；chat-sessions = 置顶与最近 AI 会话，D-047） */
   children?: NavItemChildren;
   /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
   opensOverlay?: "settings";
@@ -91,9 +88,15 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "学习",
     items: [
       // 项目即学习容器（文档树/数据表格/Vibe Learning 三型皆学习导向），归学习组
-      { key: "projects", label: "项目", icon: FolderKanban }, // legacy: ProjectListView（VibeLearning 详情即学习工作台）
+      { key: "projects", label: "项目", icon: FolderKanban }, // features/projects（学习驾驶舱 + 三型详情工作台）
       { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // features/flashcards（复习台，D-041）
-      { key: "questions", label: "问题管理", icon: CircleHelp, badge: "questions-active" }, // features/questions（A2 三栏清单，D-044）
+      {
+        key: "questions",
+        label: "问题管理",
+        icon: CircleHelp,
+        badge: "questions-active",
+        children: "question-groups",
+      }, // features/questions（A2 三栏清单，D-044；分组嵌在此入口下）
       { key: "weread", label: "微信读书", icon: BookOpen }, // legacy: WeRead
     ],
   },

@@ -5,8 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PomodoroPanel from "../PomodoroPanel";
 import type { PomodoroPreset, PomodoroSession } from "@/types/pomodoro";
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
 vi.mock("@/hooks/useThemeColors", () => ({
   default: () => ({
     textClass: "text-gray-800",

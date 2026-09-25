@@ -9,7 +9,6 @@ import { getPageNavigation, openPage } from "../page-navigation";
 import { getActiveTab, getCurrentPanels, getTabContent } from "@/mcp/tab-content/utils";
 
 vi.mock("@/services/aiServer", () => ({ initAiServer: vi.fn(), closeAiServer: vi.fn() }));
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 definePage({ key: "nav-home", label: "首页", params: {}, component: () => null });
 definePage({

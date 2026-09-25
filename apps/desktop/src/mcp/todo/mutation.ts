@@ -12,6 +12,7 @@ export const TODO_MUTATION_ACTIONS = {
   UPDATE_GROUP: "update-group",
   ARCHIVE_GROUP: "archive-group",
   UNARCHIVE_GROUP: "unarchive-group",
+  DELETE_GROUP: "delete-group",
   REORDER_GROUPS: "reorder-groups",
   CREATE_ITEM: "create-item",
   CREATE_ITEM_ABOVE: "create-item-above",
@@ -43,8 +44,7 @@ export const TODO_MUTATION_ACTIONS = {
   REMOVE_ITEM_FROM_CALENDAR: "remove-item-from-calendar",
 } as const;
 
-export type TodoMutationAction =
-  (typeof TODO_MUTATION_ACTIONS)[keyof typeof TODO_MUTATION_ACTIONS];
+export type TodoMutationAction = (typeof TODO_MUTATION_ACTIONS)[keyof typeof TODO_MUTATION_ACTIONS];
 
 export const createTodoMutationPayload = (params: {
   source: string;
@@ -75,7 +75,7 @@ const getEventItemId = (event: TodoMutationEvent) =>
 
 export const doesTodoEventAffectTodo = (
   event: TodoMutationEvent,
-  todoId: number | null | undefined,
+  todoId: number | null | undefined
 ) => {
   if (!todoId) {
     return false;
@@ -87,7 +87,7 @@ export const doesTodoEventAffectTodo = (
 export const doesTodoEventAffectGroup = (
   event: TodoMutationEvent,
   groupId: number | null | undefined,
-  activeSystemType?: TodoSystemGroupType,
+  activeSystemType?: TodoSystemGroupType
 ) => {
   if (activeSystemType) {
     return (
@@ -104,10 +104,7 @@ export const doesTodoEventAffectGroup = (
   }
 
   if (event.entityType === "group") {
-    return (
-      event.groupId === groupId ||
-      event.action === TODO_MUTATION_ACTIONS.REORDER_GROUPS
-    );
+    return event.groupId === groupId || event.action === TODO_MUTATION_ACTIONS.REORDER_GROUPS;
   }
 
   return event.groupId === groupId;
@@ -124,10 +121,8 @@ export const shouldRefreshTodoQueryResult = (params: {
   }
 
   const filter = query?.filter;
-  const currentItemIds = new Set(currentResult.items.map((item) => item.id));
-  const currentGroupIds = new Set(
-    currentResult.items.map((item) => item.groupId),
-  );
+  const currentItemIds = new Set(currentResult.items.map(item => item.id));
+  const currentGroupIds = new Set(currentResult.items.map(item => item.groupId));
 
   if (event.entityType === "group") {
     if (event.action === TODO_MUTATION_ACTIONS.REORDER_GROUPS) {
@@ -158,18 +153,11 @@ export const shouldRefreshTodoQueryResult = (params: {
     return Boolean(event.groupId && filter.groupIds.includes(event.groupId));
   }
 
-  if (
-    currentGroupIds.size > 0 &&
-    event.groupId &&
-    currentGroupIds.has(event.groupId)
-  ) {
+  if (currentGroupIds.size > 0 && event.groupId && currentGroupIds.has(event.groupId)) {
     return true;
   }
 
-  if (
-    filter?.systemGroupTypes?.length &&
-    !filter.systemGroupTypes.includes("all")
-  ) {
+  if (filter?.systemGroupTypes?.length && !filter.systemGroupTypes.includes("all")) {
     return true;
   }
 

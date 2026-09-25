@@ -19,8 +19,6 @@ import BoardContent from "../../components/BoardContent";
 import { BoardContext, SelectionContext, ViewPortContext } from "../../context";
 import { BoardElement, Selection, ViewPort } from "../../types";
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
-
 const EMPTY_SELECTION: Selection = {
   selectArea: null,
   selectedElements: [],
@@ -57,7 +55,7 @@ const createBoardStub = () => {
     on: () => {},
     off: () => {},
     renderElements: (elements: BoardElement[]) =>
-      elements.map((element) => <g key={element.id} data-el-id={element.id} />),
+      elements.map(element => <g key={element.id} data-el-id={element.id} />),
   } as unknown as Board;
 };
 
@@ -79,39 +77,33 @@ describe("BoardContent 图层顺序", () => {
                 viewPort={DEFAULT_VIEW_PORT}
                 centerConnectArrows={[createElement("center-arrow")]}
                 noneCenterConnectArrows={[createElement("normal-node")]}
-                centerConnectAndSelectedArrows={[
-                  createElement("selected-arrow"),
-                ]}
+                centerConnectAndSelectedArrows={[createElement("selected-arrow")]}
                 disableViewportFilter={true}
                 showAssistLayers={false}
                 refLines={EMPTY_REF_LINES}
               />
             </ViewPortContext.Provider>
           </SelectionContext.Provider>
-        </BoardContext.Provider>,
+        </BoardContext.Provider>
       );
     });
 
-    const svg = container.querySelector<SVGSVGElement>(
-      'svg[data-whiteboard-canvas="true"]',
-    );
+    const svg = container.querySelector<SVGSVGElement>('svg[data-whiteboard-canvas="true"]');
     expect(svg).toBeTruthy();
     if (!svg) return;
 
     const connectPointLayer = svg.querySelector<SVGGElement>(
-      'g[data-layer="connect-point-overlay"]',
+      'g[data-layer="connect-point-overlay"]'
     );
     const selectedInteractionLayer = svg.querySelector<SVGGElement>(
-      'g[data-layer="selected-interaction-elements"]',
+      'g[data-layer="selected-interaction-elements"]'
     );
 
     expect(connectPointLayer).toBeTruthy();
     expect(selectedInteractionLayer).toBeTruthy();
     if (!connectPointLayer || !selectedInteractionLayer) return;
 
-    const position = connectPointLayer.compareDocumentPosition(
-      selectedInteractionLayer,
-    );
+    const position = connectPointLayer.compareDocumentPosition(selectedInteractionLayer);
     expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     await act(async () => {

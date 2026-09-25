@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Network, House, ListTree, Plus } from "lucide-react";
 import { ChevronDown } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
@@ -38,8 +39,6 @@ import {
   readTextFile,
   selectFile,
   getProjectById,
-  getAllWhiteBoards,
-  getAllCards,
   getWhiteBoardById,
   createEmptyVideoNote,
   createEmptyAudioNote,
@@ -47,10 +46,16 @@ import {
   addRootProjectItem,
   addChildProjectItem,
   createDataTable,
-  getProjectList,
   getProjectItemById,
 } from "@/commands";
+import {
+  useProjectDetail,
+  useProjectsList,
+  useProjectRefCards,
+  useProjectRefWhiteBoards,
+} from "@/features/projects/queries";
 import { getContentLength, importFromMarkdown } from "@/utils";
+import { collectAncestorItemIds, isSameNumberSet } from "@/utils/projectTree";
 import { importLocalPdf } from "../shared/utils/bookImport";
 import useSettingStore from "@/stores/useSettingStore";
 import YoutubeVideoSelectModal from "@/components/YoutubeVideoSelectModal";
@@ -68,6 +73,7 @@ import { useProjectTreeData } from "./useProjectTreeData";
 import { useProjectContext } from "../ProjectContext";
 import { usePage } from "@/page/PageProvider";
 import { useProjectTreeStore } from "@/features/projects/projectTreeStore";
+import { useProjectTreeExpandedStore } from "@/features/projects/projectTreeExpandedStore";
 import { toast, Tooltip, Menu } from "@tau/ui";
 
 const Project = () => {
@@ -84,10 +90,11 @@ const Project = () => {
   });
   const { containerWidth } = useProjectContext();
   const sidebarMaxWidth = containerWidth !== undefined ? Math.max(200, containerWidth - 300) : 900;
-  const [project, setProject] = useState<IProject | null>(null);
-  const [allProjects, setAllProjects] = useState<IProject[]>([]);
-  const [cards, setCards] = useState<ICard[]>([]);
-  const [whiteBoards, setWhiteBoards] = useState<WhiteBoard[]>([]);
+  const queryClient = useQueryClient();
+  const { project } = useProjectDetail(Number(id));
+  const { projects: allProjects } = useProjectsList();
+  const { cards } = useProjectRefCards();
+  const { whiteBoards } = useProjectRefWhiteBoards();
   const { pdfs, initPdfs, createPdf } = usePdfsStore(
     useShallow(state => ({
       pdfs: state.pdfs,
@@ -126,39 +133,42 @@ const Project = () => {
     navigator.push("project-detail", { id: proj.id });
   });
 
-  useEffect(() => {
-    getProjectList().then(projects => {
-      setAllProjects(projects);
-    });
-    getAllCards().then(cards => {
-      setCards(cards);
-    });
-    getAllWhiteBoards().then(whiteBoards => {
-      setWhiteBoards(whiteBoards);
-    });
-  }, []);
-
   useDatabaseChangeEffect(() => {
     return (async () => {
       await initPdfs();
     })();
   }, [initPdfs]);
 
-  const refresh = useMemoizedFn(() => {
-    getProjectById(Number(id))
-      .then(res => {
-        setProject(res);
-      })
-      .catch(e => {
-        console.error(e);
-      });
+  // 写缓存而非失效：调用点均已拿到最新 project，同步落缓存并经 children 指纹联动树重拉
+  const applyProject = useMemoizedFn((next: IProject) => {
+    queryClient.setQueryData(["projects", "detail", Number(id)], next);
   });
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const refresh = useMemoizedFn(() => {
+    void queryClient.invalidateQueries({ queryKey: ["projects", "detail", Number(id)] });
+  });
 
   const { treeData, loading: treeLoading, reload: reloadProjectTree } = useProjectTreeData(project);
+
+  // 定位脉冲：激活文档及其祖先一次性写入展开（覆盖此前的折叠意图）。
+  // 引用稳定化使"集合变化"严格等价于"定位目标或祖先链变化"——
+  // 树数据刷新（reload/条目更新）不重触发，不打扰用户手动折叠的祖先
+  const batchReveal = useProjectTreeExpandedStore(state => state.batchReveal);
+  const computedRevealIds = useMemo(() => {
+    if (itemId == null) return undefined;
+    return collectAncestorItemIds(treeData, itemId);
+  }, [itemId, treeData]);
+  const revealRef = useRef<Set<number> | undefined>(undefined);
+  const revealAncestorIds =
+    computedRevealIds && revealRef.current && isSameNumberSet(computedRevealIds, revealRef.current)
+      ? revealRef.current
+      : computedRevealIds;
+  revealRef.current = revealAncestorIds;
+  useEffect(() => {
+    if (revealAncestorIds && revealAncestorIds.size > 0 && itemId != null) {
+      batchReveal(databaseName, [...revealAncestorIds, itemId]);
+    }
+  }, [revealAncestorIds, itemId, databaseName, batchReveal]);
 
   const saveMindMapViewport = useMemoizedFn(
     (viewport: { pan: { x: number; y: number }; zoom: number }) => {
@@ -205,12 +215,12 @@ const Project = () => {
       }
       if (!parentProjectItemId) {
         const result = await addRootProjectItem(project.id, createProjectItem);
-        setProject(result[0]);
+        applyProject(result[0]);
         return result;
       }
       const [, createdItem] = await addChildProjectItem(parentProjectItemId, createProjectItem);
       const newProject = await getProjectById(project.id);
-      setProject(newProject);
+      applyProject(newProject);
       const parentProjectItem = await getProjectItemById(parentProjectItemId);
       if (parentProjectItem) {
         // 让树视图中的父节点立刻刷新 children。
@@ -350,7 +360,7 @@ const Project = () => {
 
     const res = await onCardOk(newSelectedCards);
     if (res && res[0]) {
-      setProject(res[0] as IProject);
+      applyProject(res[0] as IProject);
     }
   };
 
@@ -396,7 +406,7 @@ const Project = () => {
 
     const res = await onWhiteBoardOk(whiteBoards);
     if (res && res[0]) {
-      setProject(res[0] as IProject);
+      applyProject(res[0] as IProject);
     }
   });
 

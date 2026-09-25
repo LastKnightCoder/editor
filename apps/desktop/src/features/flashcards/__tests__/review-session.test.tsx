@@ -12,8 +12,6 @@ vi.mock("@/hooks/useAnswerJudgement", () => ({
 vi.mock("@/page/PageProvider", () => ({ useOverlayDismiss: vi.fn() }));
 vi.mock("@tau/ui", () => ({ toast: { error: toastError, info: vi.fn() } }));
 
-Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-
 const makeCard = (id: number): Flashcard => ({
   id,
   deckId: 1,

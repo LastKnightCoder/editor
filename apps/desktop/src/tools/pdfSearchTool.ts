@@ -1,6 +1,6 @@
 import { PdfActionType } from "@embedpdf/models";
 import type { PdfAnnotationContext, PdfAnnotation, PdfBookmark, ToolDefinition } from "@/types";
-import { buildPdfCitationMarkdown } from "@/pages/PdfView/pdfCitation";
+import { buildPdfCitationMarkdown } from "@/utils/pdfCitation";
 import {
   getPdfAnnotations,
   getPdfBookmarks,

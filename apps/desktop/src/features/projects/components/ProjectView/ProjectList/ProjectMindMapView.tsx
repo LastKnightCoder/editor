@@ -15,6 +15,7 @@ import { usePage } from "@/page/PageProvider";
 import { updateProjectItem } from "@/commands";
 import { defaultProjectItemEventBus } from "@/utils";
 import { ProjectTreeData, canMoveProjectTreeItem } from "@/utils/projectTree";
+import { useProjectTreeExpandedStore } from "@/features/projects/projectTreeExpandedStore";
 import {
   buildMindMapDropGuide,
   getMindMapDropPlacement,
@@ -397,22 +398,18 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
   void pdfs;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [dropPlacement, setDropPlacement] = useState<MindMapDropPlacement | null>(null);
-  const [foldStateVersion, setFoldStateVersion] = useState(0);
   const { navigator } = usePage();
+  // 折叠态与树视图共用 projectTreeExpandedStore（值为「是否展开」，
+  // 订阅 open 记录驱动导图数据重算）
+  const getOpen = useProjectTreeExpandedStore(state => state.getOpen);
+  const setOpen = useProjectTreeExpandedStore(state => state.setOpen);
+  const openVersion = useProjectTreeExpandedStore(state => state.open);
   const mindMapData = useMemo(
     () =>
       buildProjectMindMapData(project, treeData, (itemId, path) => {
-        const raw = window.localStorage.getItem(`project-item-${databaseName}-${itemId}`);
-        if (raw === null) {
-          return path.length === 1;
-        }
-        try {
-          return Boolean(JSON.parse(raw));
-        } catch {
-          return path.length === 1;
-        }
+        return getOpen(databaseName, itemId) ?? path.length === 1;
       }),
-    [databaseName, foldStateVersion, project, treeData]
+    [databaseName, openVersion, project, treeData, getOpen]
   );
   const projectItemEventBus = useMemo(() => defaultProjectItemEventBus.createEditor(), []);
   const { moveProjectItem } = useProjectTreeOperations({
@@ -529,11 +526,7 @@ const ProjectMindMapView = (props: ProjectMindMapViewProps) => {
         onNodeFoldChange={(nodeId, _direction, folded) => {
           const projectItemId = parseProjectMindMapItemId(nodeId);
           if (!projectItemId) return;
-          window.localStorage.setItem(
-            `project-item-${databaseName}-${projectItemId}`,
-            JSON.stringify(!folded)
-          );
-          setFoldStateVersion(version => version + 1);
+          setOpen(databaseName, projectItemId, !folded);
         }}
         className="group"
         onNodeClick={nodeId => {

@@ -53,7 +53,6 @@ vi.mock("@tanstack/react-virtual", () => ({
   }),
 }));
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 it("置顶与时间分组同现，props 更新跟随渲染，回顶按钮与筛选变更均可回顶", async () => {
   vi.stubGlobal(
     "ResizeObserver",

@@ -20,7 +20,6 @@ const setImageGeneration = (value: ReturnType<typeof imageGeneration>) =>
   }));
 
 beforeEach(() => {
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   setImageGeneration({ providers: [], currentProviderId: "" });
   container = document.createElement("div");
   document.body.appendChild(container);

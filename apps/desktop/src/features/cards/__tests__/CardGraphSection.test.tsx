@@ -13,7 +13,6 @@ vi.mock("@/components/LinkGraph", () => ({
 }));
 vi.mock("@/utils/card", () => ({ getInlineLinks: () => [2, 3] }));
 
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 it("悬停随浮层开关恢复，筛选只改变高亮而不删除图谱节点", async () => {
   const cards: ICard[] = [1, 2, 3].map(id => ({
     id,

@@ -1,5 +1,5 @@
 import { visit } from "unist-util-visit";
-import { parsePdfCitationLabel } from "@/pages/PdfView/pdfCitation";
+import { parsePdfCitationLabel } from "@/utils/pdfCitation";
 
 const PDF_CITATION_PATTERN = /:pdfref\[([^\]]+)\]\{([^}]+)\}/g;
 
@@ -9,7 +9,7 @@ const parsePdfCitationAttributes = (rawAttributes: string) => {
   rawAttributes
     .trim()
     .split(/\s+/)
-    .forEach((item) => {
+    .forEach(item => {
       const [key, ...rest] = item.split("=");
       if (!key || rest.length === 0) {
         return;
@@ -44,7 +44,7 @@ const remarkPdfCitation = () => {
       const newNodes: any[] = [];
       let lastIndex = 0;
 
-      matches.forEach((match) => {
+      matches.forEach(match => {
         const [fullMatch, labelText, rawAttributes] = match;
         const matchStart = match.index || 0;
         const matchEnd = matchStart + fullMatch.length;

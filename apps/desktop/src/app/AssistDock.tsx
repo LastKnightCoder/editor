@@ -5,17 +5,23 @@
  * 空间裁决见 assistLayout.ts：并排 → 正文不足时自动收起侧栏（关闭时还原）→
  * 仍不足则覆盖在正文之上（Esc 退场）。AI 对话页在栈顶时隐藏，避免同一会话出现两份。
  * 首次打开才挂载内容，之后保活（收起只隐藏，保留滚动位置与流式中的回答）。
+ * 开合从右缘滑入滑出（右外边距补间，并排时正文随之让位）；与对话页之间的切换走
+ * assistMorph 形变过渡，期间关掉滑动。
  */
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
-import clsx from "clsx";
+import type { CSSProperties } from "react";
+import { cn } from "@tau/ui";
 import { usePage, useOverlayDismiss } from "@/page/PageProvider";
 import { ChatDock } from "@/features/chat/components/ChatDock";
 import { ASSIST_MAX_W, ASSIST_MIN_W, useShellStore } from "./shellStore";
 import { resolveAssistLayout } from "./assistLayout";
+import { ASSIST_MORPH_CLASS } from "./assistMorph";
 
 /** 停靠栏不渲染的页面：页面本身就是对话 */
 const HIDDEN_ON = new Set(["chat"]);
+/** 滑入滑出时长，与侧栏宽度过渡同档 */
+const SLIDE_MS = 220;
 
 export function AssistDock() {
   const { state } = usePage();
@@ -53,13 +59,21 @@ export function AssistDock() {
     }
   }, [visible, windowWidth, width]);
 
-  const overlay = visible && layout.mode === "overlay";
-  useOverlayDismiss(() => setOpen(false), overlay);
+  // 定位按布局模式、Esc 按可见：退场滑动期间保持原定位，不在覆盖 / 并排间跳变
+  const overlay = layout.mode === "overlay";
+  useOverlayDismiss(() => setOpen(false), visible && overlay);
 
-  // 首次打开才挂载（对话引擎体量大，不拖慢壳层启动），之后保活
+  // 首次打开才挂载（对话引擎体量大，不拖慢壳层启动），之后保活。
+  // 渲染期派生而非 effect：形变过渡在 flushSync 内一次提交就要拿到停靠栏
   const [mounted, setMounted] = useState(visible);
+  if (visible && !mounted) setMounted(true);
+  // 对话流在滑出动画结束后才收起，退场过程中内容不闪空
+  const [contentOpen, setContentOpen] = useState(visible);
+  if (visible && !contentOpen) setContentOpen(true);
   useEffect(() => {
-    if (visible) setMounted(true);
+    if (visible) return;
+    const timer = setTimeout(() => setContentOpen(false), SLIDE_MS);
+    return () => clearTimeout(timer);
   }, [visible]);
   if (!mounted) return null;
 
@@ -67,17 +81,23 @@ export function AssistDock() {
     <aside
       aria-label="AI 对话"
       aria-hidden={!visible}
-      style={{ width }}
-      className={clsx(
+      inert={!visible}
+      style={{ width, ["--assist-w" as string]: `${width}px` } as CSSProperties}
+      className={cn(
         "bg-surface rounded-tau-lg flex min-h-0 flex-none flex-col",
-        !visible && "hidden",
+        "ease-tau-out transition-[margin,opacity,visibility] duration-[220ms]",
+        // 首帧从收起态起滑；形变过渡期间一步到位
+        "starting:mr-[calc(var(--assist-w)*-1)] starting:opacity-0",
+        "[[data-assist-morph]_&]:transition-none",
         overlay
-          ? "shadow-float absolute bottom-[18px] right-[18px] top-0 z-30"
-          : "shadow-card relative mb-[18px] mr-[18px]"
+          ? "shadow-float absolute bottom-[18px] right-[18px] top-0 z-30 mr-0"
+          : "shadow-card relative mb-[18px] mr-[18px]",
+        // 收起：右外边距抵掉自身宽度，并排时不再占位，整体滑出右缘
+        visible ? ASSIST_MORPH_CLASS : "invisible mr-[calc(var(--assist-w)*-1)] opacity-0"
       )}
     >
       <AssistResizer />
-      <ChatDock open={visible} onClose={() => setOpen(false)} />
+      <ChatDock open={contentOpen} onClose={() => setOpen(false)} />
     </aside>
   );
 }
@@ -136,7 +156,7 @@ function AssistResizer() {
     >
       <span
         aria-hidden
-        className={clsx(
+        className={cn(
           "ease-tau-out absolute left-[3px] top-1/2 -mt-[18px] h-9 w-0.5 rounded-full transition-colors duration-[160ms]",
           active ? "bg-accent" : "group-hover:bg-accent bg-transparent"
         )}

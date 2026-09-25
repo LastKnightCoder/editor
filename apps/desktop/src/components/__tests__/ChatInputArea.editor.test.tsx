@@ -8,8 +8,6 @@ import type { Descendant } from "slate";
 import ChatInputArea, { type ChatInputAreaHandle } from "../ChatInputArea";
 import { ChatInputArea as SharedChatInputArea } from "@tau/shared";
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
 const uploadFileMock = vi.hoisted(() => vi.fn(async (file: File) => `/saved/${file.name}`));
 
 vi.mock("@/hooks/useUploadResource", () => ({ default: () => uploadFileMock }));

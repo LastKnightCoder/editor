@@ -1,7 +1,7 @@
 import { useCreation, useMemoizedFn } from "ahooks";
 import { getProjectItemById, moveProjectTreeItem } from "@/commands";
 import { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
-import useProjectsStore from "@/stores/useProjectsStore";
+import { useDraggingStore } from "@/stores/useDraggingStore";
 import { defaultProjectItemEventBus } from "@/utils";
 import { ProjectTreeData, canMoveProjectTreeItem } from "@/utils/projectTree";
 
@@ -86,14 +86,14 @@ export const useProjectTreeOperations = ({
     }
 
     try {
-      useProjectsStore.setState({ dragging: true });
+      useDraggingStore.setState({ dragging: true });
       const result = await moveProjectTreeItem(projectId, params);
       refreshProject?.();
       if (result) {
         await publishUpdates(result.refreshItemIds);
       }
     } finally {
-      useProjectsStore.setState({ dragging: false });
+      useDraggingStore.setState({ dragging: false });
     }
   });
 

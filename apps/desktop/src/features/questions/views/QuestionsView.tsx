@@ -1,7 +1,7 @@
 /**
  * 问题页 · 三栏清单 A2「顶部切换」（mockups/questions/plan-a-inbox.html 定稿，D-043）：
- * 工具栏（标题 + 状态计数 + 新建）→ 左板（快速收集 → 分组 chips → 三段列表）+ 右板常驻详情。
- * 分组放进列表板做 chips，不与全局侧栏同层。
+ * 工具栏（标题 + 状态计数 + 新建）→ 左板（快速收集 → 三段列表）+ 右板常驻详情。
+ * 分组作为子项嵌在全局侧栏「问题管理」入口下（QuestionsNav），经页面参数 id 筛选。
  *
  * 删除问题、解除关联不二次确认：立即隐藏 + Toast 撤销，5 秒后落库；改状态可撤销（删除对应轨迹事件）。
  * 键盘（本页在栈顶、焦点不在输入 / 按钮 / 浮层内）：↑↓ 切换、1/2/3 设状态、L 关联材料。
@@ -14,9 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button, Loading, Menu, toast, cn } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { isEditableTarget } from "@/page/dom";
-import { GroupDialog } from "@/components/GroupDialog";
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
-import type { QuestionGroupDTO } from "@/commands/question-group";
 import {
   ECardCategory,
   type QuestionMaterial,
@@ -25,7 +23,6 @@ import {
 } from "@/types";
 import { AnswerDialog, type AnswerDialogState } from "../components/AnswerDialog";
 import { CaptureBar } from "../components/CaptureBar";
-import { GroupChips } from "../components/GroupChips";
 import { MaterialPicker } from "../components/MaterialPicker";
 import { MaterialPreviewDialog } from "../components/MaterialPreviewDialog";
 import { GroupDot, StatusRing } from "../components/QuestionBits";
@@ -41,6 +38,7 @@ import {
 } from "../model";
 import {
   createMaterialFor,
+  moveQuestion,
   questionMutations,
   useQuestionDetail,
   useQuestionsSnapshot,
@@ -51,16 +49,17 @@ import { useDeferredActions } from "../useDeferredActions";
 
 export function QuestionsView() {
   const { navigator } = usePage();
-  const params = usePageParams<{ selectedId?: number }>();
+  const params = usePageParams<{ id?: string; selectedId?: number }>();
   const { snapshot, loading } = useQuestionsSnapshot();
   const now = useMinuteNow();
 
-  const [groupFilter, setGroupFilter] = useState<number | null>(null);
+  // 分组筛选来自侧栏子项；分组已被删（含其他窗口删除）时视同「全部」
+  const groupFilter =
+    params.id && snapshot?.groups.some(g => g.id === Number(params.id)) ? Number(params.id) : null;
   const [selectedId, setSelectedId] = useState<number | null>(params.selectedId ?? null);
   const [collapsed, setCollapsed] = useState<ReadonlySet<QuestionStatus>>(
     () => new Set<QuestionStatus>(["resolved"])
   );
-  const [groupDialog, setGroupDialog] = useState<{ group: QuestionGroupDTO | null } | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
   const [answerDialog, setAnswerDialog] = useState<AnswerDialogState | null>(null);
@@ -69,7 +68,7 @@ export function QuestionsView() {
   const deferred = useDeferredActions();
   const queryClient = useQueryClient();
 
-  /* 从首页 / 命令面板带 selectedId 进入（或再次进入）时定位：清掉分组筛选、展开所在分段 */
+  /* 从首页 / 命令面板带 selectedId 进入（或再次进入）时定位：展开所在分段（入参不带 id，分组筛选随之清空） */
   const located = useRef<number | null>(null);
   useEffect(() => {
     const id = params.selectedId;
@@ -77,7 +76,6 @@ export function QuestionsView() {
     located.current = id;
     const target = snapshot.questions.find(q => q.id === id);
     if (!target) return;
-    setGroupFilter(null);
     setSelectedId(id);
     setCollapsed(prev => {
       if (!prev.has(target.status)) return prev;
@@ -95,15 +93,9 @@ export function QuestionsView() {
     const live = snapshot.questions.filter(q => !deferred.pending.has(`q:${q.id}`));
     const visible = groupFilter == null ? live : live.filter(q => q.groupId === groupFilter);
     const sections = sectionize(visible);
-    const openCounts = new Map<number, number>();
-    live.forEach(q => {
-      if (q.status !== "resolved") openCounts.set(q.groupId, (openCounts.get(q.groupId) ?? 0) + 1);
-    });
     return {
       sections,
       counts: statusCounts(visible),
-      openCounts,
-      totalOpen: live.filter(q => q.status !== "resolved").length,
       order: sections.filter(s => !collapsed.has(s.status)).flatMap(s => s.items),
       groupMap: new Map(snapshot.groups.map(g => [g.id, g])),
       byId: new Map(live.map(q => [q.id, q])),
@@ -117,12 +109,6 @@ export function QuestionsView() {
     if (q && (groupFilter == null || q.groupId === groupFilter)) return;
     setSelectedId(null);
   }, [derived, selectedId, groupFilter]);
-
-  /* 分组被删后回到「全部」 */
-  useEffect(() => {
-    if (snapshot && groupFilter != null && !snapshot.groups.some(g => g.id === groupFilter))
-      setGroupFilter(null);
-  }, [snapshot, groupFilter]);
 
   /* ---------- 操作 ---------- */
 
@@ -148,18 +134,8 @@ export function QuestionsView() {
     }
   };
 
-  const move = (question: { id: number; groupId: number }, groupId: number) => {
-    const prev = question.groupId;
-    const title = derived?.groupMap.get(groupId)?.title ?? "";
-    questionMutations
-      .move(question.id, groupId)
-      .then(() =>
-        toast.success(`已移动到「${title}」`, {
-          action: { label: "撤销", onClick: () => void questionMutations.move(question.id, prev) },
-        })
-      )
-      .catch(() => toast.error("移动失败"));
-  };
+  const move = (question: { id: number; groupId: number }, groupId: number) =>
+    moveQuestion(question, groupId, derived?.groupMap.get(groupId)?.title ?? "");
 
   const remove = (question: { id: number; questionContent: string }) =>
     deferred.schedule(`q:${question.id}`, "已删除问题（材料本身不受影响）", () =>
@@ -397,25 +373,6 @@ export function QuestionsView() {
                 toast.success(`已收集到「${groupTitle}」`);
               }}
             />
-            <GroupChips
-              groups={groups}
-              openCounts={derived.openCounts}
-              totalOpen={derived.totalOpen}
-              value={groupFilter}
-              onChange={setGroupFilter}
-              onCreate={() => setGroupDialog({ group: null })}
-              onEdit={group => setGroupDialog({ group })}
-              onDelete={group =>
-                void questionMutations
-                  .deleteGroup(group.id)
-                  .then(() => toast.success(`已删除分组「${group.title}」，其中的问题移到默认分组`))
-                  .catch(() => toast.error("删除分组失败"))
-              }
-              onDropQuestion={(id, groupId) => {
-                const q = derived.byId.get(id);
-                if (q && q.groupId !== groupId) move(q, groupId);
-              }}
-            />
             <QuestionList
               sections={derived.sections}
               groups={derived.groupMap}
@@ -485,23 +442,6 @@ export function QuestionsView() {
           )}
         </div>
 
-        <GroupDialog
-          open={groupDialog !== null}
-          group={groupDialog?.group ?? null}
-          noun="分组"
-          placeholder="例如：编辑器原理"
-          onClose={() => setGroupDialog(null)}
-          onSubmit={async (title, color) => {
-            if (groupDialog?.group) {
-              await questionMutations.updateGroup(groupDialog.group.id, title, color);
-              toast.success("分组已更新");
-            } else {
-              const created = await questionMutations.createGroup(title, color);
-              if (created) setGroupFilter(created.id);
-              toast.success(`已创建分组「${title}」`);
-            }
-          }}
-        />
         <MaterialPicker
           open={pickerOpen}
           questionId={detail?.question.id ?? null}

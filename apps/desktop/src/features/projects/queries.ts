@@ -16,6 +16,8 @@ import {
   updateProject,
   deleteProject,
 } from "@/commands/project";
+import { getAllCards, getAllWhiteBoards } from "@/commands";
+import type { ICard, WhiteBoard } from "@/types";
 import { clampText, richTextPlainText } from "@/utils/richTextText";
 import type { CreateProject, Project, UpdateProject } from "@/types/project";
 import type { ProjectPageItem } from "./types";
@@ -64,6 +66,24 @@ export function useProjectItemCounts(): {
   return { counts: query.data ?? EMPTY_COUNTS };
 }
 
+/** 详情域文档树缓存 key 前缀（完整 key 末位拼接 children 指纹，见 useProjectTreeData） */
+export const projectTreeKey = (projectId: number) => ["projects", "tree", projectId] as const;
+
+/** 原始项目列表（详情页项目切换下拉等，不装配计数） */
+const EMPTY_PROJECTS: Project[] = [];
+
+export function useProjectsList(): {
+  projects: Project[];
+} {
+  const query = useQuery({
+    queryKey: ["projects", "list"],
+    queryFn: getProjectList,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  return { projects: query.data ?? EMPTY_PROJECTS };
+}
+
 export function useProjectsSnapshot(): {
   projects: ProjectPageItem[];
   loading: boolean;
@@ -92,7 +112,7 @@ export function useProjectsSnapshot(): {
   };
 }
 
-/** 项目详情（占位页数据源）：按 id 拉单项目 */
+/** 项目详情：按 id 拉单项目（详情工作台/壳层共用） */
 export function useProjectDetail(id: number): {
   project: Project | null;
   loading: boolean;
@@ -104,6 +124,35 @@ export function useProjectDetail(id: number): {
     staleTime: 60_000,
   });
   return { project: query.data ?? null, loading: query.isPending };
+}
+
+/* 详情侧关联数据源：文档树「关联卡片/白板」弹窗的全量轻表。
+ * 空值兜底用模块级常量：?? [] 每次渲染新建引用会击穿下游 useMemo deps 链 */
+const EMPTY_CARDS: ICard[] = [];
+const EMPTY_WHITE_BOARDS: WhiteBoard[] = [];
+
+export function useProjectRefCards(): {
+  cards: ICard[];
+} {
+  const query = useQuery({
+    queryKey: ["projects", "ref-cards"],
+    queryFn: getAllCards,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  return { cards: query.data ?? EMPTY_CARDS };
+}
+
+export function useProjectRefWhiteBoards(): {
+  whiteBoards: WhiteBoard[];
+} {
+  const query = useQuery({
+    queryKey: ["projects", "ref-white-boards"],
+    queryFn: getAllWhiteBoards,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  return { whiteBoards: query.data ?? EMPTY_WHITE_BOARDS };
 }
 
 /* ---------- 变更 ---------- */

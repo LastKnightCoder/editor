@@ -19,15 +19,7 @@ import Board from "../../Board";
 import BoardContent from "../../components/BoardContent";
 import { BoardContext, SelectionContext, ViewPortContext } from "../../context";
 import useElementsSorting from "../../hooks/useElementsSorting";
-import {
-  BoardElement,
-  IBoardPlugin,
-  Point,
-  Selection,
-  ViewPort,
-} from "../../types";
-
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
+import { BoardElement, IBoardPlugin, Point, Selection, ViewPort } from "../../types";
 
 type BenchArrowElement = BoardElement & {
   type: "arrow";
@@ -63,13 +55,7 @@ const mountStats = {
 };
 
 const TrackedResourceView = memo(
-  ({
-    element,
-    resourceType,
-  }: {
-    element: BoardElement;
-    resourceType: "image" | "webview";
-  }) => {
+  ({ element, resourceType }: { element: BoardElement; resourceType: "image" | "webview" }) => {
     useEffect(() => {
       mountStats[resourceType].mount += 1;
       return () => {
@@ -86,7 +72,7 @@ const TrackedResourceView = memo(
         fill={resourceType === "image" ? "#ffd6a5" : "#90e0ef"}
       />
     );
-  },
+  }
 );
 
 const RectView = memo(({ element }: { element: BoardElement }) => {
@@ -106,29 +92,14 @@ const ArrowView = memo(({ element }: { element: BenchArrowElement }) => {
   const end = element.points[element.points.length - 1];
   if (!start || !end) return null;
 
-  return (
-    <line
-      x1={start.x}
-      y1={start.y}
-      x2={end.x}
-      y2={end.y}
-      stroke="#9ca3af"
-      strokeWidth={2}
-    />
-  );
+  return <line x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke="#9ca3af" strokeWidth={2} />;
 });
 
 class BenchImagePlugin implements IBoardPlugin {
   name = "image";
 
   render(_board: Board, { element }: { element: BoardElement }) {
-    return (
-      <TrackedResourceView
-        key={element.id}
-        element={element}
-        resourceType="image"
-      />
-    );
+    return <TrackedResourceView key={element.id} element={element} resourceType="image" />;
   }
 }
 
@@ -136,13 +107,7 @@ class BenchWebviewPlugin implements IBoardPlugin {
   name = "webview";
 
   render(_board: Board, { element }: { element: BoardElement }) {
-    return (
-      <TrackedResourceView
-        key={element.id}
-        element={element}
-        resourceType="webview"
-      />
-    );
+    return <TrackedResourceView key={element.id} element={element} resourceType="webview" />;
   }
 }
 
@@ -158,9 +123,7 @@ class BenchArrowPlugin implements IBoardPlugin {
   name = "arrow";
 
   render(_board: Board, { element }: { element: BoardElement }) {
-    return (
-      <ArrowView key={element.id} element={element as BenchArrowElement} />
-    );
+    return <ArrowView key={element.id} element={element as BenchArrowElement} />;
   }
 }
 
@@ -184,14 +147,14 @@ const RenderHarness = ({
         new BenchWebviewPlugin(),
       ],
       [],
-      false,
+      false
     );
   }
   const board = boardRef.current;
 
   const { children, viewPort, selection } = useSyncExternalStore(
     board.subscribe,
-    board.getSnapshot,
+    board.getSnapshot
   );
   const {
     centerConnectArrows,
@@ -288,10 +251,10 @@ describe("BoardContent 选中变化稳定性", () => {
       root.render(
         <RenderHarness
           initChildren={initChildren}
-          onBoardReady={(instance) => {
+          onBoardReady={instance => {
             board = instance;
           }}
-        />,
+        />
       );
     });
 
@@ -299,12 +262,8 @@ describe("BoardContent 选中变化稳定性", () => {
     if (!board) return;
 
     const boardInstance = board as Board;
-    const rectElement = boardInstance.children.find(
-      (item) => item.id === "rect-1",
-    );
-    const arrowElement = boardInstance.children.find(
-      (item) => item.id === "arrow-1",
-    );
+    const rectElement = boardInstance.children.find(item => item.id === "rect-1");
+    const arrowElement = boardInstance.children.find(item => item.id === "arrow-1");
 
     expect(rectElement).toBeTruthy();
     expect(arrowElement).toBeTruthy();
@@ -324,7 +283,7 @@ describe("BoardContent 选中变化稳定性", () => {
             selectedElements: rectElement ? [rectElement] : [],
           },
         },
-        false,
+        false
       );
     });
 
@@ -338,7 +297,7 @@ describe("BoardContent 选中变化稳定性", () => {
             selectedElements: arrowElement ? [arrowElement] : [],
           },
         },
-        false,
+        false
       );
     });
 
@@ -352,7 +311,7 @@ describe("BoardContent 选中变化稳定性", () => {
             selectedElements: [],
           },
         },
-        false,
+        false
       );
     });
 

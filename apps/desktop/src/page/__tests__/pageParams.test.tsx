@@ -13,8 +13,6 @@ import { PageProvider, usePage, usePageParams, type Navigator } from "../PagePro
 import { PageHost } from "../PageHost";
 import { paramNumber, createPageSchema } from "../core/paramsSchema";
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
 /** 实例探针：显示自己的 params.id（修复前显示全局栈顶的 id，两实例会同值） */
 function ParamsProbe() {
   const { id } = usePageParams<{ id: number }>();

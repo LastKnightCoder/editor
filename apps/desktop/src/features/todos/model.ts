@@ -12,7 +12,7 @@
 import dayjs from "dayjs";
 import type { TodoRecurrence } from "@/types";
 import { isDateScheduledForRecurrence } from "@/utils/recurrence";
-import type { BucketKey, HabitCell, HabitCellState, TodoEntry } from "./types";
+import type { BucketKey, HabitCell, HabitCellState, TodoEntry, TodoSnapshot } from "./types";
 
 export const DAY_MS = 86_400_000;
 export const WEEKDAY_CN = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"] as const;
@@ -199,6 +199,48 @@ export function sortKey(entry: TodoEntry, now: number): number {
     default:
       return Number.MAX_SAFE_INTEGER;
   }
+}
+
+/** 议程段先后（与待办页按日期分段同序） */
+export const BUCKET_RANK: Record<BucketKey, number> = {
+  overdue: 0,
+  today: 1,
+  tomorrow: 2,
+  week: 3,
+  later: 4,
+  none: 5,
+};
+
+/* ---------- 可见范围 ---------- */
+
+/** 进行中项目下的条目：快照含已归档项目的任务，视图一律经此过滤；hidden 为额外隐藏的 id */
+export function liveEntries(snapshot: TodoSnapshot, hidden?: ReadonlySet<number>): TodoEntry[] {
+  const activeIds = new Set(snapshot.groups.map(g => g.id));
+  return snapshot.entries.filter(e => activeIds.has(e.groupId) && !hidden?.has(e.id));
+}
+
+/** 删除项目的影响范围：本项目全部任务 + 它们的子孙（跨项目挂着的子孙也算，与主进程 deleteGroup 同口径） */
+export function groupDeletionIds(snapshot: TodoSnapshot, groupId: number): Set<number> {
+  const ids = new Set<number>();
+  const visit = (id: number) => {
+    if (ids.has(id)) return; // 去重兼防环
+    ids.add(id);
+    snapshot.byId.get(id)?.childIds.forEach(visit);
+  };
+  snapshot.entries.filter(e => e.groupId === groupId).forEach(e => visit(e.id));
+  return ids;
+}
+
+/** 未完成的顶层任务（= 待办页「全部」计数口径），按议程段 + 段内时间排序 */
+export function openRoots(entries: TodoEntry[], now: number): TodoEntry[] {
+  return entries
+    .filter(e => e.parentId == null && isOpen(e, now))
+    .sort(
+      (a, b) =>
+        BUCKET_RANK[bucketOf(a, now)] - BUCKET_RANK[bucketOf(b, now)] ||
+        sortKey(a, now) - sortKey(b, now) ||
+        a.sortIndex - b.sortIndex
+    );
 }
 
 /* ---------- 打卡统计 ---------- */

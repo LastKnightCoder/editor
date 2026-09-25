@@ -102,7 +102,6 @@ const buttonByText = (label: string) =>
   [...container.querySelectorAll("button")].find(b => b.textContent?.includes(label));
 
 beforeEach(() => {
-  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NOW);
   mocks.presets = [preset(1, "具体数学"), preset(2, "英语听力", 30), preset(3, "编程", 0)];

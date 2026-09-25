@@ -46,6 +46,14 @@ const KIND_TARGET = {
 export function HomeView() {
   const { data, loading } = useHomeSnapshot();
   const { navigator } = usePage();
+  // 项目条目直达详情页并定位文档（未归属项目的散页退回列表）
+  const openRecentEdit = (item: RecentEdit) => {
+    if (item.kind === "project" && item.projectId != null) {
+      navigator.push("project-detail", { id: item.projectId, itemId: item.itemId });
+      return;
+    }
+    navigator.push(KIND_TARGET[item.kind]);
+  };
   // callback ref（非 useRef）：loading 早退分支下滚动容器晚于首帧挂载，
   // 经 state 触发 useEdgeFade 在挂载后重新接线
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
@@ -209,11 +217,7 @@ export function HomeView() {
           <div className="@max-[1180px]:grid-cols-2 @max-[860px]:grid-cols-1 grid grid-cols-3 gap-x-6 gap-y-0">
             {data.recentEdits.length > 0 ? (
               data.recentEdits.map(item => (
-                <RecentRow
-                  key={item.id}
-                  item={item}
-                  onClick={() => navigator.push(KIND_TARGET[item.kind])}
-                />
+                <RecentRow key={item.id} item={item} onClick={() => openRecentEdit(item)} />
               ))
             ) : (
               <EmptyNote>还没有编辑记录——从新建一张卡片开始</EmptyNote>
@@ -232,7 +236,15 @@ export function HomeView() {
             </PanelAction>
           </PanelTitle>
           {data.activeQuestions.length > 0 ? (
-            <div className="@max-[860px]:grid-cols-1 grid grid-cols-2 gap-x-6">
+            // 只有 1 条时占满整行，避免右半张卡留空
+            <div
+              className={clsx(
+                "grid gap-x-6",
+                data.activeQuestions.length > 1
+                  ? "@max-[860px]:grid-cols-1 grid-cols-2"
+                  : "grid-cols-1"
+              )}
+            >
               {data.activeQuestions.map(question => (
                 <QuestionRow
                   key={question.id}

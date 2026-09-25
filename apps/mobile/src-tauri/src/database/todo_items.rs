@@ -531,7 +531,7 @@ pub fn todo_toggle_complete_cascade(
             "
             WITH RECURSIVE descendants(id) AS (
               SELECT id FROM todo_item WHERE id = {id}
-              UNION ALL
+              UNION
               SELECT ti.id FROM todo_item ti JOIN descendants d ON ti.parent_id = d.id
             )
             UPDATE todo_item
@@ -641,7 +641,7 @@ pub fn todo_delete_item_cascade(app: AppHandle, payload: TodoIdPayload) -> Resul
                 "
                 WITH RECURSIVE descendants(id) AS (
                   SELECT id FROM todo_item WHERE id = ?1
-                  UNION ALL
+                  UNION
                   SELECT ti.id FROM todo_item ti JOIN descendants d ON ti.parent_id = d.id
                 )
                 SELECT id, description_content_id FROM todo_item WHERE id IN (SELECT id FROM descendants)
@@ -675,7 +675,7 @@ pub fn todo_delete_item_cascade(app: AppHandle, payload: TodoIdPayload) -> Resul
         "
         WITH RECURSIVE descendants(id) AS (
           SELECT id FROM todo_item WHERE id = ?1
-          UNION ALL
+          UNION
           SELECT ti.id FROM todo_item ti JOIN descendants d ON ti.parent_id = d.id
         )
         DELETE FROM todo_item WHERE id IN (SELECT id FROM descendants)

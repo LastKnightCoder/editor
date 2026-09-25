@@ -11,12 +11,10 @@ import { TabType } from "@/types/tab";
 import type { IPane, ITab } from "@/types/tab";
 import type { IArticle } from "@/types";
 
-vi.mock("@/commands/article", async (importOriginal) => ({
+vi.mock("@/commands/article", async importOriginal => ({
   ...(await importOriginal<typeof import("@/commands/article")>()),
   closeArticleWindow: vi.fn().mockResolvedValue(undefined),
 }));
-
-(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
 
 const HookHarness = () => {
   useArticleDeletedCleanup();
@@ -57,14 +55,13 @@ const publishArticleDeleted = (articleId: number) => {
 describe("useArticleDeletedCleanup", () => {
   const initialPanes = structuredClone(useTabStore.getState().panes);
   const initialActivePaneId = useTabStore.getState().activePaneId;
-  const initialDatabaseName =
-    useSettingStore.getState().setting.database.active;
+  const initialDatabaseName = useSettingStore.getState().setting.database.active;
 
   let root: Root | null = null;
   let container: HTMLDivElement | null = null;
 
   beforeEach(async () => {
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,
@@ -95,7 +92,7 @@ describe("useArticleDeletedCleanup", () => {
       panes: structuredClone(initialPanes),
       activePaneId: initialActivePaneId,
     });
-    useSettingStore.setState((state) => ({
+    useSettingStore.setState(state => ({
       ...state,
       setting: {
         ...state.setting,
@@ -110,11 +107,8 @@ describe("useArticleDeletedCleanup", () => {
       panes: [
         createPane(
           "pane-1",
-          [
-            createArticleDetailTab("tab-a1", 1),
-            createArticleDetailTab("tab-a2", 2),
-          ],
-          "tab-a1",
+          [createArticleDetailTab("tab-a1", 1), createArticleDetailTab("tab-a2", 2)],
+          "tab-a1"
         ),
       ],
       activePaneId: "pane-1",
@@ -125,7 +119,7 @@ describe("useArticleDeletedCleanup", () => {
     });
 
     const pane = useTabStore.getState().panes[0];
-    expect(pane.tabs.map((tab) => tab.id)).toEqual(["tab-a2"]);
+    expect(pane.tabs.map(tab => tab.id)).toEqual(["tab-a2"]);
     // 关闭的是激活 Tab，应切换到相邻 Tab
     expect(pane.activeTabId).toBe("tab-a2");
   });
@@ -136,7 +130,7 @@ describe("useArticleDeletedCleanup", () => {
         createPane(
           "pane-1",
           [createHomeTab("tab-home"), createArticleDetailTab("tab-a1", 1)],
-          "tab-a1",
+          "tab-a1"
         ),
         createPane("pane-2", [createArticleDetailTab("tab-b1", 1)], "tab-b1"),
       ],
@@ -149,8 +143,8 @@ describe("useArticleDeletedCleanup", () => {
 
     const { panes } = useTabStore.getState();
     // pane-2 中唯一的 Tab 被关闭后，pane-2 应被移除
-    expect(panes.map((pane) => pane.id)).toEqual(["pane-1"]);
-    expect(panes[0].tabs.map((tab) => tab.id)).toEqual(["tab-home"]);
+    expect(panes.map(pane => pane.id)).toEqual(["pane-1"]);
+    expect(panes[0].tabs.map(tab => tab.id)).toEqual(["tab-home"]);
     expect(panes[0].activeTabId).toBe("tab-home");
   });
 
@@ -160,7 +154,7 @@ describe("useArticleDeletedCleanup", () => {
         createPane(
           "pane-1",
           [createArticleDetailTab("tab-a2", 2), createHomeTab("tab-home")],
-          "tab-a2",
+          "tab-a2"
         ),
       ],
       activePaneId: "pane-1",
@@ -171,7 +165,7 @@ describe("useArticleDeletedCleanup", () => {
     });
 
     const pane = useTabStore.getState().panes[0];
-    expect(pane.tabs.map((tab) => tab.id)).toEqual(["tab-a2", "tab-home"]);
+    expect(pane.tabs.map(tab => tab.id)).toEqual(["tab-a2", "tab-home"]);
     expect(pane.activeTabId).toBe("tab-a2");
   });
 

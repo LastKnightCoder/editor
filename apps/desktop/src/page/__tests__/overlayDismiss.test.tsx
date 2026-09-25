@@ -14,8 +14,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { definePage } from "../definePage";
 import { PageProvider, useOverlayDismiss, usePage, type Navigator } from "../PageProvider";
 
-(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-
 const Noop = () => null;
 definePage({ key: "esc-test-a", params: {}, component: Noop, label: "A" });
 definePage({ key: "esc-test-b", params: {}, component: Noop, label: "B" });
