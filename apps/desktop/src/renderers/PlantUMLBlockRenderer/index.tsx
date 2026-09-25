@@ -1,44 +1,54 @@
-import React, { memo } from "react";
-import { GitBranch } from "lucide-react";
-import { BlockRenderer, BlockData, BlockPreviewRendererProps } from "@/types/block-preview";
-import { PlantUML } from "@tau/shared";
-import useTheme from "@/hooks/useTheme";
+/**
+ * PlantUML 块（D-057）：图源经 plantuml.com 渲染（本地渲染需 Java / 自建服务，不做），
+ * 头部注明外发；离线或服务不可达时给明确错误态。预览可缩放平移。
+ */
 
-// 预览渲染
-const PlantUMLBlockPreview: React.FC<BlockPreviewRendererProps> = memo(({ block }) => {
+import { useState } from "react";
+import { GitFork, WifiOff } from "lucide-react";
+import { buildPlantumlSvgUrl, applyDarkTheme } from "@tau/shared";
+import useTheme from "@/hooks/useTheme";
+import { defineBlockRenderer, type BlockPreviewProps } from "@/types/block-preview";
+import { ZoomSurface } from "@/features/previews/components/ZoomSurface";
+
+function PlantUMLPreview({ block }: BlockPreviewProps) {
   const { isDark } = useTheme();
+  const url = buildPlantumlSvgUrl(
+    isDark ? applyDarkTheme(block.content, "cyborg-outline") : block.content
+  );
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+
+  if (failedUrl === url)
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-1.5 p-6 text-center">
+        <WifiOff size={26} strokeWidth={1.5} className="text-ink-3 mb-2" />
+        <p className="text-ink-1 text-[15px] font-semibold">无法连接 PlantUML 渲染服务</p>
+        <p className="text-tau-sm text-ink-2">
+          图由 plantuml.com 在线渲染，请检查网络后重试，或先查看源码。
+        </p>
+      </div>
+    );
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-lg border border-gray-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-      <PlantUML content={block.content} isDark={isDark} />
-    </div>
+    <ZoomSurface>
+      {url && (
+        <img
+          src={url}
+          alt={block.metadata.title || "PlantUML"}
+          draggable={false}
+          onError={() => setFailedUrl(url)}
+          className="max-w-full select-none"
+        />
+      )}
+    </ZoomSurface>
   );
-});
+}
 
-PlantUMLBlockPreview.displayName = "PlantUMLBlockPreview";
-
-// 导出渲染器
-export const plantumlBlockRenderer: BlockRenderer = {
+export default defineBlockRenderer({
   type: "plantuml",
-
-  canRender: (block: BlockData) => {
-    return block.type === "plantuml" || block.metadata.language === "plantuml";
-  },
-
-  renderPreview: (props: BlockPreviewRendererProps) => {
-    return <PlantUMLBlockPreview {...props} />;
-  },
-
-  extractMetadata: (content: string) => {
-    // 计算大小，保留1位小数
-    const sizeKB = (content.length / 1024).toFixed(1);
-    const size = parseFloat(sizeKB) >= 0.1 ? `${sizeKB} KB` : `${content.length} bytes`;
-
-    return {
-      icon: <GitBranch size={20} />,
-      title: "PlantUML Diagram",
-      size,
-      description: "Click to preview diagram",
-    };
-  },
-};
+  label: "PlantUML",
+  icon: GitFork,
+  surface: "canvas",
+  note: "由 plantuml.com 渲染",
+  title: content => /^\s*title\s+(.+)$/im.exec(content)?.[1]?.trim(),
+  Preview: PlantUMLPreview,
+});

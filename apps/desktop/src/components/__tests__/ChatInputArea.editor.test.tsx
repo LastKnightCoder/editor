@@ -17,8 +17,8 @@ vi.mock("@/commands", () => ({
   getHomeDir: vi.fn(async () => "/home/test"),
 }));
 
-vi.mock("@/stores/useMCPManagerModalStore", () => ({
-  default: () => vi.fn(),
+vi.mock("@/features/mcp/components/McpQuickPanel", () => ({
+  McpQuickPanel: () => null,
 }));
 
 vi.mock("@/hooks/useEmbeddingConfig", () => ({

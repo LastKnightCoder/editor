@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>A · 纸内分栏</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="bp.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .main { padding-left: 6px; }
+  .split-paper { flex: 1; display: flex; min-width: 0; }
+  .split-paper .thread-col { display: flex; flex-direction: column; min-width: 0; }
+  .pv-float { position: absolute; top: calc(var(--titlebar-h)); bottom: 16px; z-index: 20; width: 560px; box-shadow: var(--shadow-float); }
+</style>
+</head>
+<body>
+<div class="mock-note">
+  <h3>A · 纸内分栏（现状形态 tau 化）</h3>
+  对话页：点击块卡片，同一张纸从中间一分为二，左边对话、右边预览，中间是可拖的短柄（不画整高分隔线）；宽度比例持久化。停靠栏：停靠栏只有 400px，放不下分栏，预览作为第二张纸从停靠栏左侧伸出，盖在正文上。
+  <ul>
+    <li class="pro">＋ 最符合现有心智，改动最小：ResizablePanel 已经修好不重挂，只需要换预览框 chrome。</li>
+    <li class="pro">＋ 对话页里边看边聊，流式生成时右侧实时更新。</li>
+    <li class="con">－ 1440 窗口下对话列只剩约 500px，演示页 / 导图这种要大画面的内容两边都挤。</li>
+    <li class="con">－ 对话页和停靠栏是两套形态：一个分栏，一个浮出第二张纸；停靠栏那张会遮住正文。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, chatPaper, dockPaper, docPaper, frame, icons, thread, composer } from "./bp.js?v=1";
+mockBar("plan-a-split.html", `<span class="seg"><button class="on" data-m="page">对话页</button><button data-m="dock">停靠栏</button></span>`);
+
+const win = document.getElementById("win");
+function render(m) {
+  if (m === "page") {
+    win.innerHTML = `
+      ${sidebar("chat")}
+      <div class="col">
+        ${titlebar(`AI 对话 <i data-lucide="chevron-right" style="width:13px"></i><b>煤气灯效应思维导图</b>`)}
+        <div class="main">
+          <section class="paper split-paper">
+            <div class="thread-col" style="flex:0 0 44%">
+              <div style="display:flex;align-items:center;height:48px;padding:0 10px 0 20px;flex:none"><b style="font-weight:500">煤气灯效应思维导图</b><span style="flex:1"></span><button class="ib"><i data-lucide="more-horizontal"></i></button></div>
+              <div class="thread" style="flex:1">${thread({ maxW: 600, active: "mind-map", compact: true })}</div>
+              ${composer({ compact: true, ctx: false, placeholder: "输入消息，Command + Enter 进行发送" })}
+            </div>
+            <div class="split-handle"><i></i></div>
+            <div style="flex:1;min-width:0">${frame({ type: "mind-map", versions: [2, 2] })}</div>
+          </section>
+        </div>
+      </div>`;
+  } else {
+    win.innerHTML = `
+      ${sidebar("articles")}
+      <div class="col" style="position:relative">
+        ${titlebar(`文章 <i data-lucide="chevron-right" style="width:13px"></i><b>认知偏差与自我觉察</b>`, `<button class="ib on"><i data-lucide="message-circle"></i></button>`)}
+        <div class="main">${docPaper()}${dockPaper({ active: "mind-map" })}</div>
+        <section class="paper pv-float" style="right:${16 + 400 + 12}px">${frame({ type: "mind-map", versions: [2, 2] })}</section>
+      </div>`;
+  }
+  icons();
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+}
+document.querySelectorAll(".seg button").forEach(b => (b.onclick = () => render(b.dataset.m)));
+render("page");
+</script>
+</body>
+</html>

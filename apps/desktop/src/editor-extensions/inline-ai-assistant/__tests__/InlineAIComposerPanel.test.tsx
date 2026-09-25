@@ -82,9 +82,10 @@ vi.mock("@/commands", () => ({
 
 vi.mock("@/utils/blockRegistry", () => ({
   blockRegistry: {
-    isPreviewable: () => false,
-    getRenderer: () => null,
+    resolve: () => undefined,
+    get: () => undefined,
   },
+  resolveBlockType: () => null,
 }));
 
 vi.mock("@tau/shared", () => ({

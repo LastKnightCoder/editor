@@ -256,6 +256,11 @@ export function usePage(): PageContextValue {
   return ctx;
 }
 
+/** 可能渲染在壳层之外的共享组件用（legacy 路由 / 独立窗口）：无 PageProvider 时返回 null */
+export function usePageOptional(): PageContextValue | null {
+  return useContext(PageContext);
+}
+
 /**
  * 读本实例的 params（PageHost 按栈条目注入，schema 净化后的原始类型）。
  * 泛型由调用方声明与 page 定义一致的字段形状；single 页 params 为空对象。

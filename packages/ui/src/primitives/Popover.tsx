@@ -24,6 +24,7 @@ import {
   cloneElement,
   createContext,
   isValidElement,
+  useCallback,
   useContext,
   useId,
   useLayoutEffect,
@@ -144,13 +145,20 @@ export function Popover({
   const triggerEl = trigger
     ? (Children.only(trigger) as ReactElement<Record<string, unknown>>)
     : null;
+  // 触发器 ref 必须引用稳定：回调里有 setAnchorEl，若每次渲染现造（mergeRefs 直出），
+  // React 每次提交都会 detach(null)+attach(el) 各 setState 一次 → 重渲染 → 又换新 ref，
+  // 父级重挂时即「Maximum update depth exceeded」。调用方 ref 经 ref 盒转发，取最新值
+  const outerTriggerRef = useRef<Ref<HTMLElement> | undefined>(undefined);
+  outerTriggerRef.current = (triggerEl?.props as { ref?: Ref<HTMLElement> } | undefined)?.ref;
+  const attachTrigger = useCallback((el: HTMLElement | null) => {
+    mergeRefs(outerTriggerRef.current)(el);
+    triggerRef.current = el;
+    setAnchorEl(el);
+  }, []);
   const injected: Record<string, unknown> = {
     "aria-haspopup": "dialog" as const,
     "aria-expanded": open,
-    ref: mergeRefs((triggerEl?.props as { ref?: Ref<HTMLElement> } | undefined)?.ref, el => {
-      triggerRef.current = el;
-      setAnchorEl(el);
-    }),
+    ref: attachTrigger,
     onClick: (e: ReactMouseEvent) => {
       (triggerEl?.props as { onClick?: (e: ReactMouseEvent) => void } | undefined)?.onClick?.(e);
       if (!e.defaultPrevented) setOpen(!open);
