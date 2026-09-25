@@ -40,7 +40,7 @@ import { useNow, useTodoMutations, useTodoSnapshot } from "../queries";
 import type { QuickAddResult } from "../quickAdd";
 import type { TodoEntry } from "../types";
 import { AgendaPanel, type AgendaMode } from "../components/AgendaPanel";
-import { GroupDialog } from "../components/GroupDialog";
+import { GroupDialog } from "@/components/GroupDialog";
 import { GroupPills } from "../components/GroupPills";
 import { HabitRail } from "../components/HabitRail";
 import { QuickAddBar } from "../components/QuickAddBar";

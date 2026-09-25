@@ -1,7 +1,7 @@
 /**
- * 待办项目色：legacy 的 17 个色名（src/constants/project-colors.ts，库里存的是色名）
- * 收敛到 7 色设计板。全部走主题语义类（tag-1…5 / accent / ink-3），浅深两主题自动跟随，
- * 不新增 token；新建 / 编辑项目时只提供这 7 个代表色名。
+ * 分组色（待办项目 / 问题分组共用）：legacy 的 17 个色名（src/constants/project-colors.ts，
+ * 库里存的是色名）收敛到 7 色设计板。全部走主题语义类（tag-1…5 / accent / ink-3），浅深两主题
+ * 自动跟随，不新增 token；新建 / 编辑时只提供这 7 个代表色名。未知值（如旧的十六进制）归灰。
  */
 
 import type { ProjectColorName } from "@/constants/project-colors";
