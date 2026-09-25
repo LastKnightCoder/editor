@@ -601,7 +601,6 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
                   currentChat={currentChatAsMessage}
                   onChatSelect={handleChatSelect}
                   onTitleChange={onTitleChange}
-                  onCreateNewChat={onCreateNewMessage}
                   onChatDelete={handleChatDelete}
                   getChildBranchesCount={getChildBranchesCount}
                   titleRef={editTitleRef}
