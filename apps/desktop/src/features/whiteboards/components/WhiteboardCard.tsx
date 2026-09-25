@@ -1,7 +1,7 @@
 /**
  * 白板卡片（方案 A 画廊，mockups/whiteboards/plan-a2-gallery.html）：
  * 缩略图 + 标题 + 一行描述 + 「N 页 · N 个元素 · 更新时间」。
- * 缩略图：自定义封面优先，否则第一页的画布缩略图（thumbnails.ts）；多页白板在缩略图上横向移动即翻页，
+ * 缩略图：自定义封面优先，否则第一页的结构示意图（schematic.ts，由页数据直接生成）；多页白板在缩略图上横向移动即翻页，
  * 点下去打开的就是看到的那页。悬停件（页名、页码刻度、更多）都占固定槽位原位淡入，不顶开布局。
  */
 
@@ -28,19 +28,18 @@ import {
   type WhiteboardItem,
   type WhiteboardPage,
 } from "../model";
-import type { Thumbnail } from "../thumbnails";
+import { PageSchematic } from "./PageSchematic";
 
 function MenuIcon({ icon: Icon }: { icon: LucideIcon }) {
   return <Icon className="size-[15px] shrink-0" strokeWidth={1.75} />;
 }
 
-/** 画布纸底 + 点阵（缩略图未生成 / 透明处的底） */
+/** 画布纸底 + 点阵（示意图的底） */
 const CANVAS_BG =
   "bg-surface-hover bg-[radial-gradient(color-mix(in_srgb,var(--tau-ink-1)_13%,transparent)_1px,transparent_1.2px)] bg-[length:14px_14px]";
 
 export interface WhiteboardCardProps {
   item: WhiteboardItem;
-  thumbnails: Map<number, Thumbnail> | null;
   now: number;
   /** 标题过滤词（命中处高亮） */
   query: string;
@@ -52,7 +51,7 @@ export interface WhiteboardCardProps {
 }
 
 export function WhiteboardCard(props: WhiteboardCardProps) {
-  const { item, thumbnails, now, query } = props;
+  const { item, now, query } = props;
   const multi = item.pages.length > 1;
   // null = 未在扫页（显示封面或第一页）
   const [scrub, setScrub] = useState<number | null>(null);
@@ -71,7 +70,7 @@ export function WhiteboardCard(props: WhiteboardCardProps) {
       />
     );
   } else {
-    visual = <PageThumb page={shownPage} thumbnail={shownPage && thumbnails?.get(shownPage.id)} />;
+    visual = <PageThumb page={shownPage} />;
   }
 
   const menu = (
@@ -206,21 +205,19 @@ export function WhiteboardCard(props: WhiteboardCardProps) {
   );
 }
 
-function PageThumb({ page, thumbnail }: { page?: WhiteboardPage; thumbnail?: Thumbnail }) {
-  if (thumbnail)
+function PageThumb({ page }: { page?: WhiteboardPage }) {
+  if (page && page.elementCount > 0)
     return (
-      <img
-        src={thumbnail.dataUrl}
-        alt=""
-        draggable={false}
-        className="absolute inset-0 h-full w-full object-cover"
+      <PageSchematic
+        elements={page.elements}
+        aspect={16 / 10}
+        className="absolute inset-0 h-full w-full"
       />
     );
-  const empty = !page || page.elementCount === 0;
   return (
     <div className="text-ink-3 absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-[12px]">
       <Presentation className="size-5" strokeWidth={1.5} />
-      <span>{empty ? "空白画布" : "打开后生成预览"}</span>
+      <span>空白画布</span>
     </div>
   );
 }

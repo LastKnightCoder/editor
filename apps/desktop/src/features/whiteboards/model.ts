@@ -3,6 +3,7 @@
  * 「页」= 子白板（WhiteBoardContent）；列表接口已带回全部页数据，页数 / 元素数 / 演示序列都在这里派生。
  */
 
+import type { BoardElement } from "@/components/WhiteBoard/types";
 import type { WhiteBoard } from "@/types";
 
 export interface WhiteboardPage {
@@ -11,6 +12,8 @@ export interface WhiteboardPage {
   name: string;
   /** 顶层元素数 */
   elementCount: number;
+  /** 顶层元素（缩略示意图据此生成，见 schematic.ts） */
+  elements: BoardElement[];
   updateTime: number;
 }
 
@@ -37,6 +40,7 @@ export function toItem(board: WhiteBoard): WhiteboardItem {
     id: content.id,
     name: content.name,
     elementCount: content.data?.children?.length ?? 0,
+    elements: content.data?.children ?? [],
     updateTime: content.updateTime,
   }));
   const sequences = (board.whiteBoardContentList ?? []).reduce(

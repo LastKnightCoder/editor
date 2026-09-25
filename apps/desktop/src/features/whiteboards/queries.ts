@@ -25,7 +25,9 @@ import useSettingStore from "@/stores/useSettingStore";
 import type { WhiteBoard, WhiteBoardContent } from "@/types";
 import { toast } from "@tau/ui";
 import { normalizeTags, toItem, type WhiteboardItem } from "./model";
-import { deleteThumbnails } from "./thumbnails";
+
+// 旧版缩略图是真实截图、存在 IndexedDB；现改为按页数据生成示意图（schematic.ts），清掉遗留缓存
+if (typeof indexedDB !== "undefined") indexedDB.deleteDatabase("tau-whiteboard-thumbnails");
 
 const hasBridge = typeof window !== "undefined" && Boolean(window.electron);
 const listKey = (database: string) => ["whiteboards", "list", database] as const;
@@ -145,7 +147,6 @@ export function useWhiteboardMutations() {
         client.setQueryData<WhiteboardItem[]>(listKey(database), prev =>
           prev?.filter(x => x.id !== item.id)
         );
-        void deleteThumbnails(item.pages.map(p => p.id));
       },
 
       /** 从所有白板上摘掉这个标签（侧栏子项右键「清理」） */
@@ -225,7 +226,6 @@ export function useWhiteboardPageMutations(boardId: number) {
       async remove(pageId: number) {
         await deleteSubWhiteBoard(boardId, pageId);
         client.removeQueries({ queryKey: contentKey(database, pageId) });
-        void deleteThumbnails([pageId]);
         await refetch();
       },
 

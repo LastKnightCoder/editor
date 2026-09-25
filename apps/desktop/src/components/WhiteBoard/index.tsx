@@ -95,7 +95,6 @@ import WhiteBoardSelectorModal from "./components/WhiteBoardSelectorModal";
 import VideoSelectorModal from "./components/VideoSelectorModal";
 import AudioSelectorModal from "./components/AudioSelectorModal";
 import ExportImageModal from "./components/ExportImageModal";
-import { useBoardCapture } from "./hooks/useBoardCapture";
 import ImagePreviewModal from "./components/ImagePreviewModal";
 import EditTitleModal from "@/components/EditTitleModal";
 import InsertNoteToTreeModal from "@/components/InsertNoteToTreeModal";
@@ -180,15 +179,6 @@ export interface WhiteBoardRef {
   zoomIn: () => void;
   zoomOut: () => void;
   zoomTo: (zoom: number) => void;
-  /**
-   * 后台截一张缩略图（与导出图片同一条截图管线）：全部元素、按宽高比居中、按「无选区」渲染，
-   * 不改动画布选区与视口。空画布或截图进行中返回 null。
-   */
-  captureThumbnail: (options: {
-    width: number;
-    aspect: number;
-    backgroundColor: string | null;
-  }) => Promise<Blob | null>;
 }
 
 const WhiteBoard = memo(
@@ -684,8 +674,6 @@ const WhiteBoard = memo(
     const { handleContainerResize, handleZoomIn, handleZoomOut, handleZoomTo, handleFitElements } =
       useViewPortControls(board, zoom);
 
-    const { capture: captureBoard, layer: captureLayer } = useBoardCapture(board);
-
     // 暴露 ref 方法
     useImperativeHandle(
       ref,
@@ -697,19 +685,8 @@ const WhiteBoard = memo(
         zoomIn: () => handleZoomIn(),
         zoomOut: () => handleZoomOut(),
         zoomTo: (zoomValue: number) => handleZoomTo(zoomValue),
-        captureThumbnail: ({ width, aspect, backgroundColor }) =>
-          captureBoard({
-            elements: board.children,
-            padding: 40,
-            aspect,
-            backgroundColor,
-            dpr: viewPort => Math.min(1, width / viewPort.width),
-            type: "webp",
-            quality: 0.82,
-            isolateSelection: true,
-          }),
       }),
-      [board, handleZoomIn, handleZoomOut, handleZoomTo, captureBoard]
+      [board, handleZoomIn, handleZoomOut, handleZoomTo]
     );
 
     // 事件处理
@@ -1364,7 +1341,6 @@ const WhiteBoard = memo(
                         action={contextMenuModal?.action}
                         selectedElementIds={contextMenuModal?.selectedElementIds}
                       />
-                      {captureLayer}
                       <ImagePreviewModal
                         open={imagePreview.open}
                         src={imagePreview.src}
