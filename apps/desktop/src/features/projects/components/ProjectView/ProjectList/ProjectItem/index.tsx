@@ -1,6 +1,6 @@
 import { useState, useEffect, memo, useRef, useMemo } from "react";
 import classnames from "classnames";
-import { useCreation, useLocalStorageState, useMemoizedFn } from "ahooks";
+import { useCreation, useMemoizedFn } from "ahooks";
 import useUploadResource from "@/hooks/useUploadResource";
 import {
   getFileBaseName,
@@ -26,6 +26,7 @@ import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { useDraggingStore } from "@/stores/useDraggingStore";
 import useSettingStore from "@/stores/useSettingStore";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
+import { useProjectTreeExpandedStore } from "@/features/projects/projectTreeExpandedStore";
 import useDragAndDrop, { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
 import useAddRefCard from "./useAddRefCard";
 import useAddRefWhiteBoard from "../useAddRefWhiteBoard";
@@ -150,8 +151,6 @@ interface IProjectItemProps {
   whiteBoards: WhiteBoard[];
   pdfs: Pdf[];
   epubs: Epub[];
-  /** 激活文档的祖先文件夹 id 集合（定位跳转时由 ProjectList 下发） */
-  revealAncestorIds?: Set<number>;
   onOpenChange?: (open: boolean) => void;
   refreshProject?: () => void;
 }
@@ -168,7 +167,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     whiteBoards,
     pdfs,
     epubs,
-    revealAncestorIds,
     onOpenChange,
     refreshProject,
   } = props;
@@ -192,23 +190,11 @@ const ProjectItem = memo((props: IProjectItemProps) => {
   const titleAnchorRef = useRef<HTMLDivElement>(null);
   const [titleTruncated, setTitleTruncated] = useState(false);
   const [projectItem, setProjectItem] = useState<ProjectItem>();
-  const [folderOpen, setFolderOpen] = useLocalStorageState<boolean>(
-    `project-item-${databaseName}-${projectItemId}`,
-    {
-      defaultValue: () => {
-        return path.length === 1;
-      },
-    }
-  );
-
-  // 定位跳转进入：作为激活文档的祖先时展开一次。不监听 folderOpen——
-  // 用户随后手动折叠不该被重新顶开，直到下一次定位（祖先集合内容变化）才再展开
-  useEffect(() => {
-    if (revealAncestorIds?.has(projectItemId) && folderOpen === false) {
-      setFolderOpen(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealAncestorIds, projectItemId]);
+  // 折叠状态受控于域 store（树视图与思维导图共用，历史 key 免迁移）；
+  // 定位脉冲由 ProjectList 的 batchReveal 统一写入，本组件只表达用户意图
+  const getFolded = useProjectTreeExpandedStore(state => state.getFolded);
+  const setFolded = useProjectTreeExpandedStore(state => state.setFolded);
+  const folderOpen = getFolded(databaseName, projectItemId) ?? path.length === 1;
 
   const { modalStates, openModal, closeModal } = useProjectItemModalStates();
   const { createWebLinkRecord, handleSelectWebviewFile } = useWebLinkHandlers({
@@ -317,16 +303,17 @@ const ProjectItem = memo((props: IProjectItemProps) => {
     };
   }, [projectItem?.id, titleEditable]);
 
+  // 激活项是文件夹时展开自身并沿父链联动（itemId 为导航事件源，effect 合法）
   useEffect(() => {
     if (itemId === projectItemId) {
-      setFolderOpen(true);
+      setFolded(databaseName, projectItemId, false);
       onOpenChange?.(true);
     }
   }, [itemId]);
 
   const onChildOpenChange = useMemoizedFn((open: boolean) => {
     if (open) {
-      setFolderOpen(true);
+      setFolded(databaseName, projectItemId, false);
     }
   });
 
@@ -885,7 +872,7 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   e.preventDefault();
                   e.stopPropagation();
                   if (projectItem.children.length === 0) return;
-                  setFolderOpen(!folderOpen);
+                  setFolded(databaseName, projectItemId, !folderOpen);
                 }}
               >
                 {projectItem.children.length > 0 ? (
@@ -1031,7 +1018,6 @@ const ProjectItem = memo((props: IProjectItemProps) => {
                   whiteBoards={whiteBoards}
                   pdfs={pdfs}
                   epubs={epubs}
-                  revealAncestorIds={revealAncestorIds}
                   onOpenChange={onChildOpenChange}
                   refreshProject={refreshProject}
                 />
