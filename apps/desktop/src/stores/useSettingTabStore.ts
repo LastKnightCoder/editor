@@ -12,7 +12,6 @@ export type SettingsTabKey =
   | "embedding"
   | "textToSpeech"
   | "transcription"
-  | "module"
   | "integration"
   | "misc";
 

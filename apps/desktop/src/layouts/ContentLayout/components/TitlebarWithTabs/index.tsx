@@ -10,7 +10,6 @@ import { motion, AnimatePresence } from "motion/react";
 
 import useTabStore from "@/stores/useTabStore";
 import useRightChatSidebarStore from "@/stores/useRightChatSidebarStore";
-import useSettingStore from "@/stores/useSettingStore";
 import useNavigationHistoryStore from "@/stores/useNavigationHistoryStore";
 
 import DraggableTab from "./DraggableTab";
@@ -82,6 +81,27 @@ const QUICK_ACCESS_MODULE_TAB_MAP = {
   webview: TabType.WebView,
   settings: TabType.Settings,
 } as const;
+
+const QUICK_ACCESS_MODULE_LABELS: Record<QuickAccessModuleKey, string> = {
+  card: "卡片",
+  flashcard: "闪卡中心",
+  article: "文章",
+  whiteBoard: "白板",
+  project: "项目",
+  dailyNote: "日记",
+  pdf: "PDF",
+  vecDocuments: "索引数据库",
+  calendar: "日历",
+  chatManagement: "聊天管理",
+  skillManagement: "Skill 管理",
+  pomodoro: "番茄专注",
+  todo: "任务列表",
+  question: "问题管理",
+  weread: "微信读书",
+  collaboration: "协作",
+  webview: "网页浏览",
+  settings: "设置",
+};
 
 type QuickAccessModuleKey = keyof typeof QUICK_ACCESS_MODULE_TAB_MAP;
 
@@ -265,8 +285,6 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
   const removeTabGroup = useTabStore(state => state.removeTabGroup);
   const setTabGroup = useTabStore(state => state.setTabGroup);
   const reorderTabGroup = useTabStore(state => state.reorderTabGroup);
-  const moduleSetting = useSettingStore(state => state.setting.module);
-  const moduleOrder = useSettingStore(state => state.setting.moduleOrder);
   const addToHistory = useNavigationHistoryStore(state => state.addToHistory);
   const getFrequentItems = useNavigationHistoryStore(state => state.getFrequentItems);
   const activeRightPanel = useRightChatSidebarStore(state => state.activePanel);
@@ -301,19 +319,8 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
   });
 
   const quickAccessModules = useMemo(() => {
-    const orderedKeys = moduleOrder.filter((key): key is QuickAccessModuleKey =>
-      QUICK_ACCESS_MODULE_KEYS.includes(key as QuickAccessModuleKey)
-    );
-    const orderedSet = new Set(orderedKeys);
-
-    const enabledOrderedKeys = orderedKeys.filter(key => moduleSetting[key].enable);
-    const enabledExtraKeys = QUICK_ACCESS_MODULE_KEYS.filter(
-      key => !orderedSet.has(key) && moduleSetting[key].enable
-    );
-
-    const baseKeys = [...enabledOrderedKeys, ...enabledExtraKeys];
     const baseOrderMap = new Map<QuickAccessModuleKey, number>();
-    baseKeys.forEach((key, index) => {
+    QUICK_ACCESS_MODULE_KEYS.forEach((key, index) => {
       baseOrderMap.set(key, index);
     });
 
@@ -325,10 +332,10 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
       }
     }
 
-    const modules = baseKeys.map(key => ({
+    const modules = QUICK_ACCESS_MODULE_KEYS.map(key => ({
       key,
       type: QUICK_ACCESS_MODULE_TAB_MAP[key],
-      label: moduleSetting[key].name,
+      label: QUICK_ACCESS_MODULE_LABELS[key],
     }));
 
     modules.sort((a, b) => {
@@ -354,7 +361,7 @@ const TitlebarWithTabs = memo((props: TitlebarWithTabsProps) => {
     });
 
     return modules;
-  }, [moduleOrder, moduleSetting, getFrequentItems]);
+  }, [getFrequentItems]);
 
   const quickAccessMenuItems = useMemo<MenuProps["items"]>(() => {
     if (quickAccessModules.length === 0) {

@@ -25,7 +25,6 @@ export class SettingsProvider extends BaseTabContentProvider<TabType.Settings> {
         { key: "embedding", label: "嵌入模型" },
         { key: "textToSpeech", label: "文字转语音" },
         { key: "transcription", label: "语音转录" },
-        { key: "module", label: "模块功能" },
         { key: "integration", label: "集成" },
         { key: "misc", label: "杂项" },
       ],

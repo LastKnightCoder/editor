@@ -44,7 +44,6 @@ it("按新信息架构渲染全部分区，页头取分区 label + description",
   render();
   expect(navLabels()).toEqual([
     "外观",
-    "功能模块",
     "同步",
     "资源存储",
     "剪藏与缓存",
