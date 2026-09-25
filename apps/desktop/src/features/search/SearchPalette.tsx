@@ -381,6 +381,7 @@ export function SearchPalette() {
     }
     triggerRef.current?.focus();
     inputRef.current?.blur();
+    setCapturing(false);
   }, [open]);
 
   useEffect(() => {

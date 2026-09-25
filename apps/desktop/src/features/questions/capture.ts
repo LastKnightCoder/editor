@@ -14,7 +14,8 @@ const GROUP_TOKEN = /(^|\s)#(\S+)/;
 export function parseCapture(raw: string): CaptureInput {
   const match = raw.match(GROUP_TOKEN);
   if (!match) return { title: raw.trim(), groupHint: null };
-  const title = (raw.slice(0, match.index) + match[1] + raw.slice(match.index! + match[0].length))
+  const start = match.index ?? 0;
+  const title = (raw.slice(0, start) + match[1] + raw.slice(start + match[0].length))
     .replace(/\s{2,}/g, " ")
     .trim();
   return { title, groupHint: match[2] };

@@ -57,6 +57,8 @@ export function MaterialPicker({
     try {
       await onConfirm([...picked.values()]);
       onClose();
+    } catch {
+      // 失败提示由调用方给出，弹窗保持打开以便重试
     } finally {
       setSaving(false);
     }

@@ -263,4 +263,11 @@ describe("问题材料关联与探究轨迹", () => {
       QuestionLinkTable.searchTargets(db, { questionId: question.id, targetType: "card" })
     ).toHaveLength(2);
   });
+  it("只改标题时保留背景", () => {
+    const question = QuestionTable.createQuestion(db, "旧标题", groupId, doc("背景说明"));
+    QuestionTable.updateQuestion(db, question.id, "新标题");
+    const after = QuestionTable.getQuestionById(db, question.id)!;
+    expect(after.questionContent).toBe("新标题");
+    expect(JSON.stringify(after.description)).toContain("背景说明");
+  });
 });
