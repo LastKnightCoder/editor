@@ -1,14 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
-  EditOutlined,
-  CommentOutlined,
-  SoundOutlined,
-  LoadingOutlined,
-  CloseOutlined,
-  ThunderboltOutlined,
-  BookOutlined,
-} from "@ant-design/icons";
-import {
   Pencil,
   FileText,
   Expand,
@@ -18,9 +9,15 @@ import {
   Trash2,
   StickyNote,
   Subtitles,
+  Volume2,
+  LoaderCircle,
+  X,
+  Zap,
+  BookText,
 } from "lucide-react";
-import { App, Tooltip } from "antd";
+import { ConfirmDialog, Tooltip, toast } from "@tau/ui";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
+import { FadeScroll } from "@/components/FadeScroll";
 import classNames from "classnames";
 import { Descendant, Node } from "slate";
 import { EditorRef } from "@tau/editor/src";
@@ -150,7 +147,6 @@ const VideoNotePanel = ({
   onSubtitleMountedChange,
   reserveCloseButtonSpace = false,
 }: VideoNotePanelProps) => {
-  const { message, modal } = App.useApp();
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const uploadResource = useUploadResource();
   const themeColors = useThemeColors();
@@ -311,7 +307,7 @@ const VideoNotePanel = ({
       try {
         const note = await getVideoNoteById(videoNoteId);
         if (!note) {
-          message.error("视频笔记不存在");
+          toast.error("视频笔记不存在");
           return;
         }
         setVideoNote(note);
@@ -329,14 +325,14 @@ const VideoNotePanel = ({
         setNoteContentMap(nextContentMap);
       } catch (error) {
         console.error("Failed to load video note:", error);
-        message.error("加载失败");
+        toast.error("加载失败");
       } finally {
         setLoading(false);
       }
     };
 
     loadData();
-  }, [videoNoteId, message]);
+  }, [videoNoteId]);
 
   // Throttled summary save
   const { run: throttleSaveSummary } = useThrottleFn(
@@ -359,7 +355,7 @@ const VideoNotePanel = ({
         }
       } catch (error) {
         console.error("Failed to save summary:", error);
-        message.error("保存总结失败");
+        toast.error("保存总结失败");
       }
     },
     { wait: 1000 }
@@ -409,7 +405,7 @@ const VideoNotePanel = ({
       return item;
     } catch (error) {
       console.error("Failed to create note item:", error);
-      message.error("创建笔记失败");
+      toast.error("创建笔记失败");
       return null;
     }
   });
@@ -454,39 +450,40 @@ const VideoNotePanel = ({
     handleUpdateNoteTitle(itemId, title.trim());
   });
 
+  // 受控确认弹窗的待确认项（替代 antd modal.confirm）
+  const [pendingDeleteNoteId, setPendingDeleteNoteId] = useState<number | null>(null);
+  const [llmConfirm, setLlmConfirm] = useState<{ title: string; description: string } | null>(null);
+  const [confirmTranscribeFirst, setConfirmTranscribeFirst] = useState(false);
+
   const handleDeleteNote = useMemoizedFn((itemId: number) => {
-    modal.confirm({
-      title: "删除笔记卡片",
-      content: "确定删除该笔记卡片吗？",
-      okText: "确定",
-      cancelText: "取消",
-      okButtonProps: {
-        danger: true,
-      },
-      onOk: async () => {
-        await deleteVideoNoteItem(itemId);
-        setNoteItems(prev => {
-          const nextItems = prev.filter(item => item.id !== itemId);
-          setActiveNoteItemId(current => {
-            if (current !== itemId) {
-              return current;
-            }
-            const nextActiveItemId = nextItems[0]?.id ?? null;
-            if (!nextActiveItemId) {
-              setNoteViewMode("list");
-            }
-            return nextActiveItemId;
-          });
-          return nextItems;
-        });
-        setNoteContentMap(prev => {
-          const next = { ...prev };
-          delete next[itemId];
-          return next;
-        });
-      },
-    });
+    setPendingDeleteNoteId(itemId);
   });
+
+  const confirmDeleteNote = async () => {
+    const itemId = pendingDeleteNoteId;
+    setPendingDeleteNoteId(null);
+    if (itemId == null) return;
+    await deleteVideoNoteItem(itemId);
+    setNoteItems(prev => {
+      const nextItems = prev.filter(item => item.id !== itemId);
+      setActiveNoteItemId(current => {
+        if (current !== itemId) {
+          return current;
+        }
+        const nextActiveItemId = nextItems[0]?.id ?? null;
+        if (!nextActiveItemId) {
+          setNoteViewMode("list");
+        }
+        return nextActiveItemId;
+      });
+      return nextItems;
+    });
+    setNoteContentMap(prev => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
 
   // Get local video path for transcription
   const getVideoLocalPath = useMemoizedFn(async (): Promise<string | null> => {
@@ -544,7 +541,7 @@ const VideoNotePanel = ({
     const currentModel = transcriptionSettings.currentModel;
 
     if (!currentModel) {
-      message.warning("请先在设置中下载转录模型");
+      toast.warning("请先在设置中下载转录模型");
       return;
     }
 
@@ -554,14 +551,9 @@ const VideoNotePanel = ({
       `[VideoNoteView] LLM requirement check - needsLLM: ${llmRequirement.needsLLM}, isConfigured: ${llmRequirement.isConfigured}`
     );
     if (llmRequirement.needsLLM && !llmRequirement.isConfigured) {
-      modal.confirm({
+      setLlmConfirm({
         title: "LLM 优化配置不完整",
-        content: `${llmRequirement.errorMessage}。是否打开设置页面进行配置？`,
-        okText: "打开设置",
-        cancelText: "取消转录",
-        onOk: () => {
-          openSettingsModal("llm");
-        },
+        description: `${llmRequirement.errorMessage}。是否打开设置页面进行配置？`,
       });
       return;
     }
@@ -572,7 +564,7 @@ const VideoNotePanel = ({
     try {
       const videoPath = await getVideoLocalPath();
       if (!videoPath) {
-        message.warning("视频尚未缓存，请等待视频加载完成后再试");
+        toast.warning("视频尚未缓存，请等待视频加载完成后再试");
         setIsTranscribing(false);
         setTranscriptionProgress("");
         return;
@@ -691,14 +683,14 @@ const VideoNotePanel = ({
           );
           setIsTranscribing(false);
           setTranscriptionProgress("");
-          message.success("转录完成");
+          toast.success("转录完成");
         }
       } else {
         throw new Error(result.error || "转录失败");
       }
     } catch (error) {
       console.error("Transcription error:", error);
-      message.error(`转录失败: ${error}`);
+      toast.error(`转录失败: ${error}`);
       setIsTranscribing(false);
       setTranscriptionProgress("");
     }
@@ -730,13 +722,13 @@ const VideoNotePanel = ({
           );
 
           if (optimizationError) {
-            message.warning("AI 优化出现错误，使用部分结果");
+            toast.warning("AI 优化出现错误，使用部分结果");
           } else {
-            message.success("转录完成（已使用 AI 优化断句）");
+            toast.success("转录完成（已使用 AI 优化断句）");
           }
         } catch (error) {
           console.error("Failed to save optimized transcript:", error);
-          message.error("保存失败");
+          toast.error("保存失败");
         } finally {
           setIsTranscribing(false);
           setTranscriptionProgress("");
@@ -746,14 +738,7 @@ const VideoNotePanel = ({
     };
 
     saveOptimizedResult();
-  }, [
-    optimizedFinalSegments,
-    isOptimizing,
-    pendingWordSegments,
-    videoNoteId,
-    optimizationError,
-    message,
-  ]);
+  }, [optimizedFinalSegments, isOptimizing, pendingWordSegments, videoNoteId, optimizationError]);
 
   // 取消优化
   const handleCancelOptimization = useMemoizedFn(() => {
@@ -761,27 +746,22 @@ const VideoNotePanel = ({
     setIsTranscribing(false);
     setTranscriptionProgress("");
     setPendingWordSegments(null);
-    message.info("优化已取消");
+    toast.info("优化已取消");
   });
 
   // 单独使用 AI 优化（针对已有转录）
   const handleAIOptimize = useMemoizedFn(async () => {
     if (!videoNote?.transcriptWordSegments || videoNote.transcriptWordSegments.length === 0) {
-      message.warning("没有可用于优化的词级时间戳数据");
+      toast.warning("没有可用于优化的词级时间戳数据");
       return;
     }
 
     // 检查 LLM 配置
     const llmRequirement = checkTranscriptionLLMRequirement();
     if (!llmRequirement.isConfigured) {
-      modal.confirm({
+      setLlmConfirm({
         title: "LLM 优化配置不完整",
-        content: `${llmRequirement.errorMessage}。是否打开设置页面进行配置？`,
-        okText: "打开设置",
-        cancelText: "取消",
-        onOk: () => {
-          openSettingsModal("llm");
-        },
+        description: `${llmRequirement.errorMessage}。是否打开设置页面进行配置？`,
       });
       return;
     }
@@ -841,7 +821,7 @@ const VideoNotePanel = ({
       );
     } catch (error) {
       console.error("Failed to save edited segment:", error);
-      message.error("保存失败");
+      toast.error("保存失败");
     }
 
     // 清除编辑状态
@@ -869,19 +849,19 @@ const VideoNotePanel = ({
               : null
           );
           if (summaryError) {
-            message.warning("总结生成出现错误");
+            toast.warning("总结生成出现错误");
           } else {
-            message.success("视频总结完成");
+            toast.success("视频总结完成");
           }
         } catch (error) {
           console.error("Failed to save summary:", error);
-          message.error("保存总结失败");
+          toast.error("保存总结失败");
         }
       }
     };
 
     saveSummaryResult();
-  }, [finalSummary, isSummarizing, videoNoteId, summaryError, summaryModalOpen, message]);
+  }, [finalSummary, isSummarizing, videoNoteId, summaryError, summaryModalOpen]);
 
   // Update summary editor content when summaryContent changes (streaming)
   useEffect(() => {
@@ -901,28 +881,15 @@ const VideoNotePanel = ({
   const handleSummarize = useMemoizedFn(async () => {
     // 检查是否有转录
     if (!videoNote?.transcriptSegments || videoNote.transcriptSegments.length === 0) {
-      modal.confirm({
-        title: "需要先转录",
-        content: "视频尚未转录，是否先进行转录？",
-        okText: "开始转录",
-        cancelText: "取消",
-        onOk: () => {
-          handleTranscribe();
-        },
-      });
+      setConfirmTranscribeFirst(true);
       return;
     }
 
     // 检查 LLM 配置
     if (!summaryProviderConfig || !summaryModelConfig) {
-      modal.confirm({
+      setLlmConfirm({
         title: "未配置总结模型",
-        content: "请先在设置中配置视频总结的 LLM 模型。",
-        okText: "打开设置",
-        cancelText: "取消",
-        onOk: () => {
-          openSettingsModal("llm");
-        },
+        description: "请先在设置中配置视频总结的 LLM 模型。",
       });
       return;
     }
@@ -936,7 +903,7 @@ const VideoNotePanel = ({
   // 取消总结
   const handleCancelSummary = useMemoizedFn(() => {
     stopSummary();
-    message.info("总结已取消");
+    toast.info("总结已取消");
   });
 
   const handleOpenEbookExportModal = useMemoizedFn(() => {
@@ -1132,7 +1099,7 @@ const VideoNotePanel = ({
                   ]
             )}
           >
-            <SoundOutlined className="text-xs" />
+            <Volume2 size={12} />
             转录
           </button>
           <button
@@ -1148,7 +1115,7 @@ const VideoNotePanel = ({
           >
             <FileText size={14} />
             总结
-            {isSummarizing && <LoadingOutlined className="ml-0.5 animate-spin text-xs" />}
+            {isSummarizing && <LoaderCircle size={12} className="ml-0.5 animate-spin" />}
           </button>
           <button
             disabled={!hasTranscriptSegments}
@@ -1162,7 +1129,7 @@ const VideoNotePanel = ({
                   ]
             )}
           >
-            <CommentOutlined className="text-xs" />
+            <MessageCircle size={12} />
             对话
           </button>
           <button
@@ -1176,21 +1143,21 @@ const VideoNotePanel = ({
                   ]
             )}
           >
-            <EditOutlined className="text-xs" />
+            <Pencil size={12} />
             笔记
           </button>
         </div>
 
         <div className="ml-auto flex items-center gap-2">
           {activeTab === "summary" && (videoNote?.summary || summaryContent || isSummarizing) && (
-            <Tooltip title={isSummarizing ? "正在生成总结..." : "重新生成视频总结"}>
+            <Tooltip content={isSummarizing ? "正在生成总结..." : "重新生成视频总结"}>
               <button
                 className="dark:hover: flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--th-accent)] hover:bg-[var(--th-accent-soft)] disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={isSummarizing || isTranscribing || !videoNote?.transcriptSegments?.length}
                 onClick={handleSummarize}
               >
                 {isSummarizing ? (
-                  <LoadingOutlined className="animate-spin" />
+                  <LoaderCircle size={14} className="animate-spin" />
                 ) : (
                   <FileText size={14} />
                 )}
@@ -1199,7 +1166,7 @@ const VideoNotePanel = ({
             </Tooltip>
           )}
           {activeTab === "summary" && (summaryContent || videoNote?.summary) && !isSummarizing && (
-            <Tooltip title="放大查看">
+            <Tooltip content="放大查看">
               <button
                 className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
                 onClick={() => setSummaryModalOpen(true)}
@@ -1213,7 +1180,7 @@ const VideoNotePanel = ({
               className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
               onClick={handleCancelSummary}
             >
-              <CloseOutlined />
+              <X size={14} strokeWidth={1.75} />
               <span>取消</span>
             </button>
           )}
@@ -1222,14 +1189,11 @@ const VideoNotePanel = ({
 
       <div className="min-h-0 flex-1 overflow-hidden">
         {activeTab === "transcript" && (
-          <div
-            ref={transcriptContainerRef}
-            className="border-24 h-full overflow-auto border-transparent pr-2"
-          >
+          <FadeScroll scrollRef={transcriptContainerRef} className="h-full py-5 pl-6 pr-[18px]">
             {isTranscribing ? (
               <div className="flex h-full flex-col">
                 {isOptimizing && streamingSegments.length > 0 ? (
-                  <div className="flex-1 space-y-1 overflow-auto">
+                  <div className="flex-1 space-y-1">
                     {streamingSegments.map((segment, index) => (
                       <div
                         key={`${segment.start}-${index}`}
@@ -1251,14 +1215,14 @@ const VideoNotePanel = ({
                           {segment.text}
                         </span>
                         {segment.status === "pending" && (
-                          <LoadingOutlined className="ml-auto animate-spin text-xs text-gray-400" />
+                          <LoaderCircle size={12} className="text-ink-3 ml-auto animate-spin" />
                         )}
                       </div>
                     ))}
                   </div>
                 ) : (
                   <div className="flex flex-1 flex-col items-center justify-center gap-3 text-gray-500">
-                    <LoadingOutlined className="animate-spin text-2xl" />
+                    <LoaderCircle size={24} className="animate-spin" />
                     <span className="text-sm">{transcriptionProgress}</span>
                   </div>
                 )}
@@ -1268,7 +1232,7 @@ const VideoNotePanel = ({
                       className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
                       onClick={handleCancelOptimization}
                     >
-                      <CloseOutlined />
+                      <X size={14} strokeWidth={1.75} />
                       <span>取消优化</span>
                     </button>
                   </div>
@@ -1325,22 +1289,22 @@ const VideoNotePanel = ({
               </div>
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-2 text-gray-400">
-                <SoundOutlined className="text-2xl" />
+                <Volume2 size={24} />
                 <span className="text-sm">点击"转录"按钮生成视频字幕</span>
               </div>
             )}
-          </div>
+          </FadeScroll>
         )}
 
         {activeTab === "summary" && (
           <div className="flex h-full min-h-0 flex-col">
-            <div className="min-h-0 flex-1 overflow-auto">
+            <FadeScroll className="min-h-0 flex-1">
               {isSummarizing && !summaryContent ? (
                 <div className="flex h-full items-center justify-center">
-                  <LoadingOutlined className="animate-spin text-3xl text-gray-400" />
+                  <LoaderCircle size={30} className="text-ink-3 animate-spin" />
                 </div>
               ) : isSummarizing || summaryContent ? (
-                <div className="p-6">
+                <div className="py-6 pl-6 pr-[18px]">
                   <Editor
                     key={`summary-streaming-${videoNoteId}-${summarySessionId}`}
                     ref={summaryEditorRef}
@@ -1351,7 +1315,7 @@ const VideoNotePanel = ({
                   />
                 </div>
               ) : videoNote.summary ? (
-                <div className="p-6">
+                <div className="py-6 pl-6 pr-[18px]">
                   <Editor
                     ref={summaryEditorRef}
                     key={`summary-saved-${videoNoteId}`}
@@ -1365,7 +1329,7 @@ const VideoNotePanel = ({
                 <div className="flex h-full flex-col items-center justify-center gap-3 text-gray-400">
                   <FileText size={24} />
                   <span className="text-sm">生成当前视频的结构化摘要与重点结论</span>
-                  <Tooltip title={isSummarizing ? "正在生成总结..." : "生成视频总结"}>
+                  <Tooltip content={isSummarizing ? "正在生成总结..." : "生成视频总结"}>
                     <button
                       className="dark:hover: flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-[var(--th-accent)] hover:bg-[var(--th-accent-soft)] disabled:cursor-not-allowed disabled:opacity-50"
                       disabled={
@@ -1374,7 +1338,7 @@ const VideoNotePanel = ({
                       onClick={handleSummarize}
                     >
                       {isSummarizing ? (
-                        <LoadingOutlined className="animate-spin" />
+                        <LoaderCircle size={14} className="animate-spin" />
                       ) : (
                         <FileText size={14} />
                       )}
@@ -1383,7 +1347,7 @@ const VideoNotePanel = ({
                   </Tooltip>
                 </div>
               )}
-            </div>
+            </FadeScroll>
           </div>
         )}
 
@@ -1424,9 +1388,9 @@ const VideoNotePanel = ({
                   onClick={handleTranscribe}
                 >
                   {isTranscribing ? (
-                    <LoadingOutlined className="animate-spin" />
+                    <LoaderCircle size={14} className="animate-spin" />
                   ) : (
-                    <SoundOutlined className="text-xs" />
+                    <Volume2 size={12} />
                   )}
                   <span>{isTranscribing ? "转录中..." : "开始转录"}</span>
                 </button>
@@ -1436,7 +1400,7 @@ const VideoNotePanel = ({
         )}
 
         {activeTab === "note" && (
-          <div className="flex h-full min-h-0 flex-col overflow-auto p-4">
+          <div className="flex h-full min-h-0 flex-col overflow-hidden p-4">
             {noteViewMode === "edit" && activeNoteItem && (
               <div className="mx-auto flex h-full min-h-0 w-full max-w-4xl flex-col">
                 <div
@@ -1479,7 +1443,7 @@ const VideoNotePanel = ({
                     删除
                   </button>
                 </div>
-                <div className="min-h-0 flex-1 overflow-auto px-5">
+                <FadeScroll className="min-h-0 flex-1 pb-2 pl-5 pr-3.5">
                   <Editor
                     key={`video-note-item-${activeNoteItem.id}`}
                     contentId={activeNoteItem.contentId}
@@ -1491,7 +1455,7 @@ const VideoNotePanel = ({
                     placeHolder="开始记录这张笔记卡片..."
                     onInit={handleEditorInit}
                   />
-                </div>
+                </FadeScroll>
               </div>
             )}
 
@@ -1518,7 +1482,7 @@ const VideoNotePanel = ({
                 </div>
 
                 {noteItems.length > 0 ? (
-                  <div className="min-h-0 space-y-1.5 overflow-auto pr-1">
+                  <FadeScroll className="min-h-0 space-y-1.5 pb-1">
                     {noteItems.map((item, index) => {
                       const isActive = item.id === activeNoteItemId;
                       const preview = getNotePreview(noteContentMap[item.id]);
@@ -1603,7 +1567,7 @@ const VideoNotePanel = ({
                         </div>
                       );
                     })}
-                  </div>
+                  </FadeScroll>
                 ) : (
                   <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
                     <div
@@ -1731,7 +1695,7 @@ const VideoNotePanel = ({
           placeholder="转录语言"
         />
         <div className="flex items-center gap-1.5">
-          <Tooltip title={isTranscribing ? transcriptionProgress : "转录视频"}>
+          <Tooltip content={isTranscribing ? transcriptionProgress : "转录视频"}>
             <button
               className={classNames(
                 "flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50",
@@ -1741,15 +1705,15 @@ const VideoNotePanel = ({
               onClick={handleTranscribe}
             >
               {isTranscribing ? (
-                <LoadingOutlined className="animate-spin" />
+                <LoaderCircle size={14} className="animate-spin" />
               ) : (
-                <SoundOutlined className="text-xs" />
+                <Volume2 size={12} />
               )}
               <span>{isTranscribing ? "转录中" : "转录"}</span>
             </button>
           </Tooltip>
           {videoNote?.transcriptWordSegments && videoNote.transcriptWordSegments.length > 0 && (
-            <Tooltip title="AI 优化断句">
+            <Tooltip content="AI 优化断句">
               <button
                 className={classNames(
                   "flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-all disabled:cursor-not-allowed disabled:opacity-50",
@@ -1761,11 +1725,11 @@ const VideoNotePanel = ({
                 disabled={isTranscribing}
                 onClick={handleAIOptimize}
               >
-                <ThunderboltOutlined className="text-xs" />
+                <Zap size={12} />
               </button>
             </Tooltip>
           )}
-          <Tooltip title="AI 导出电子书">
+          <Tooltip content="AI 导出电子书">
             <button
               className={classNames(
                 "flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-all",
@@ -1776,12 +1740,12 @@ const VideoNotePanel = ({
               )}
               onClick={handleOpenEbookExportModal}
             >
-              <BookOutlined className="text-xs" />
+              <BookText size={12} />
             </button>
           </Tooltip>
           {onSubtitleMountedChange && (
             <Tooltip
-              title={
+              content={
                 !hasTranscriptSegments
                   ? "请先转录后再挂载字幕"
                   : subtitleMounted
@@ -1812,6 +1776,37 @@ const VideoNotePanel = ({
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">{videoNotePanel}</div>
       {videoNoteOverlays}
+      <ConfirmDialog
+        open={pendingDeleteNoteId != null}
+        onOpenChange={v => !v && setPendingDeleteNoteId(null)}
+        danger
+        title="删除笔记卡片"
+        description="确定删除该笔记卡片吗？"
+        confirmText="删除"
+        onConfirm={confirmDeleteNote}
+      />
+      <ConfirmDialog
+        open={llmConfirm != null}
+        onOpenChange={v => !v && setLlmConfirm(null)}
+        title={llmConfirm?.title ?? ""}
+        description={llmConfirm?.description ?? ""}
+        confirmText="打开设置"
+        onConfirm={() => {
+          setLlmConfirm(null);
+          openSettingsModal("llm");
+        }}
+      />
+      <ConfirmDialog
+        open={confirmTranscribeFirst}
+        onOpenChange={v => !v && setConfirmTranscribeFirst(false)}
+        title="需要先转录"
+        description="视频尚未转录，是否先进行转录？"
+        confirmText="开始转录"
+        onConfirm={() => {
+          setConfirmTranscribeFirst(false);
+          handleTranscribe();
+        }}
+      />
     </div>
   );
 };

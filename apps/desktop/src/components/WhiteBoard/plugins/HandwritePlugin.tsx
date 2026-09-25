@@ -1,14 +1,6 @@
-import {
-  Gauge,
-  Link2,
-  Minus,
-  PenLine,
-  Plus,
-  Sparkles,
-  Ungroup,
-} from "lucide-react";
+import { Gauge, Link2, Minus, PenLine, Plus, Sparkles, Ungroup } from "lucide-react";
 import { v4 as getUuid } from "uuid";
-import { message } from "antd";
+import { toast } from "@tau/ui";
 import {
   Board,
   BoardElement,
@@ -43,11 +35,7 @@ import {
   rebuildHandwriteGeometry,
   saveHandwriteStyle,
 } from "../utils";
-import type {
-  HandwriteInputPoint,
-  HandwriteOutlinePoint,
-  HandwriteStyle,
-} from "../utils";
+import type { HandwriteInputPoint, HandwriteOutlinePoint, HandwriteStyle } from "../utils";
 
 export interface HandwriteElement extends CommonElement {
   type: "handwrite";
@@ -85,7 +73,7 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
   private updateElementStyle(
     board: Board,
     element: HandwriteElement,
-    updater: (style: HandwriteStyle) => HandwriteStyle,
+    updater: (style: HandwriteStyle) => HandwriteStyle
   ) {
     const nextStyle = updater({
       ...getDefaultHandwriteStyle(),
@@ -100,7 +88,7 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
         width: element.width,
         height: element.height,
       },
-      nextStyle,
+      nextStyle
     );
     if (!rebuilt) return;
 
@@ -123,15 +111,12 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
   private updateHandwriteGroup(
     board: Board,
     targetElements: BoardElement[],
-    nextGroupId: string | null,
+    nextGroupId: string | null
   ): number {
     const handwriteElements = targetElements.filter(isHandwriteElement);
     if (handwriteElements.length === 0) return 0;
 
-    const nextElements = applyHandwriteGroupIdPatch(
-      handwriteElements,
-      nextGroupId,
-    );
+    const nextElements = applyHandwriteGroupIdPatch(handwriteElements, nextGroupId);
 
     const operations: Operation[] = [];
 
@@ -140,9 +125,7 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
       const path = PathUtil.getPathByElement(board, currentElement);
       if (!path) return;
 
-      operations.push(
-        ...BoardUtil.diffNodePatchOnly(currentElement, nextElement, path),
-      );
+      operations.push(...BoardUtil.diffNodePatchOnly(currentElement, nextElement, path));
     });
 
     if (operations.length === 0) return 0;
@@ -183,13 +166,9 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
         icon: <Link2 size={14} />,
         priority: 117,
         onSelect: (ctx: ContextMenuContext) => {
-          const mergedCount = this.updateHandwriteGroup(
-            ctx.board,
-            ctx.targetElements,
-            getUuid(),
-          );
+          const mergedCount = this.updateHandwriteGroup(ctx.board, ctx.targetElements, getUuid());
           if (mergedCount > 0) {
-            message.success(`已合并 ${mergedCount} 条手写`);
+            toast.success(`已合并 ${mergedCount} 条手写`);
           }
         },
       });
@@ -213,18 +192,11 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
         onSelect: (ctx: ContextMenuContext) => {
           const targetGroupId = getSharedHandwriteGroupId(ctx.targetElements);
           if (!targetGroupId) return;
-          const members = collectHandwriteGroupMembers(
-            ctx.board,
-            targetGroupId,
-          );
+          const members = collectHandwriteGroupMembers(ctx.board, targetGroupId);
           if (members.length < 2) return;
-          const splitCount = this.updateHandwriteGroup(
-            ctx.board,
-            members,
-            null,
-          );
+          const splitCount = this.updateHandwriteGroup(ctx.board, members, null);
           if (splitCount > 0) {
-            message.success(`已拆分 ${splitCount} 条手写`);
+            toast.success(`已拆分 ${splitCount} 条手写`);
           }
         },
       });
@@ -244,7 +216,7 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Plus size={14} />,
             priority: 0,
             onSelect: (ctx: ContextMenuContext) => {
-              this.updateElementStyle(ctx.board, handwriteElement, (style) => ({
+              this.updateElementStyle(ctx.board, handwriteElement, style => ({
                 ...style,
                 size: Math.min(64, style.size + 1),
               }));
@@ -256,7 +228,7 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Minus size={14} />,
             priority: 1,
             onSelect: (ctx: ContextMenuContext) => {
-              this.updateElementStyle(ctx.board, handwriteElement, (style) => ({
+              this.updateElementStyle(ctx.board, handwriteElement, style => ({
                 ...style,
                 size: Math.max(1, style.size - 1),
               }));
@@ -268,7 +240,7 @@ export class HandwritePlugin extends CommonPlugin implements IBoardPlugin {
             icon: <Gauge size={14} />,
             priority: 2,
             onSelect: (ctx: ContextMenuContext) => {
-              this.updateElementStyle(ctx.board, handwriteElement, (style) => ({
+              this.updateElementStyle(ctx.board, handwriteElement, style => ({
                 ...style,
                 simulatePressure: !style.simulatePressure,
               }));

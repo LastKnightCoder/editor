@@ -72,6 +72,7 @@ export function BoardCanvas({
         initViewPort={content.data.viewPort}
         initPresentationSequences={content.data.presentationSequences}
         onChange={onChange}
+        showSidebar
       />
     </div>
   );

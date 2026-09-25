@@ -1,5 +1,6 @@
 export const ARROW_SIZE = 6;
-export const ARROW_CONNECT_POINT_FILL = "#A3C1FF";
+// 全不透明：淡弱由消费端 fillOpacity 控制（ArrowConnectPoint 默认 0.8），避免双重透明叠加过淡
+export const ARROW_CONNECT_POINT_FILL = "var(--tau-accent)";
 export const ARROW_CONNECT_POINT_RADIUS = 4;
 export const ARROW_CONNECT_PROXIMITY_RADIUS = 28;
 export const ARROW_CONNECT_PROXIMITY_HIDE_DELAY = 80;

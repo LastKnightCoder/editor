@@ -1,15 +1,8 @@
 import { v4 as getUuid } from "uuid";
-import { message } from "antd";
+import { toast } from "@tau/ui";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { getImageInfo, getVideoInfo } from "@/utils";
-import {
-  Board,
-  IBoardPlugin,
-  Operation,
-  ImageElement,
-  VideoElement,
-  AudioElement,
-} from "../types";
+import { Board, IBoardPlugin, Operation, ImageElement, VideoElement, AudioElement } from "../types";
 import { PointUtil } from "../utils";
 import {
   DEFAULT_DESCRIPTION,
@@ -62,7 +55,7 @@ export class FileDragDropPlugin implements IBoardPlugin {
   private async handleDroppedFiles(
     files: FileList,
     board: Board,
-    dropPoint: { x: number; y: number },
+    dropPoint: { x: number; y: number }
   ) {
     const imageFiles: File[] = [];
     const videoFiles: File[] = [];
@@ -99,20 +92,14 @@ export class FileDragDropPlugin implements IBoardPlugin {
   private async handleImageFiles(
     imageFiles: File[],
     board: Board,
-    dropPoint: { x: number; y: number },
+    dropPoint: { x: number; y: number }
   ) {
     // 获取所有图片信息
     const imageInfos = await Promise.all(
-      imageFiles.map((file) =>
-        Promise.all([getImageInfo(file), Promise.resolve(file)]),
-      ),
+      imageFiles.map(file => Promise.all([getImageInfo(file), Promise.resolve(file)]))
     );
 
-    message.loading({
-      key: "uploading-image-drag",
-      content: "正在处理图片，请稍候...",
-      duration: 0,
-    });
+    const uploadingToast = toast.loading("正在处理图片，请稍候…");
 
     const ops: Operation[] = [];
     let offsetY = 0;
@@ -167,28 +154,22 @@ export class FileDragDropPlugin implements IBoardPlugin {
 
     if (ops.length > 0) {
       board.apply(ops);
-      message.success("图片上传成功");
+      toast.success("图片上传成功");
     }
-    message.destroy("uploading-image-drag");
+    toast.dismiss(uploadingToast);
   }
 
   private async handleVideoFiles(
     videoFiles: File[],
     board: Board,
-    dropPoint: { x: number; y: number },
+    dropPoint: { x: number; y: number }
   ) {
     // 获取所有视频信息
     const videoInfos = await Promise.all(
-      videoFiles.map((file) =>
-        Promise.all([getVideoInfo(file), Promise.resolve(file)]),
-      ),
+      videoFiles.map(file => Promise.all([getVideoInfo(file), Promise.resolve(file)]))
     );
 
-    message.loading({
-      key: "uploading-video-drag",
-      content: "正在处理视频，请稍候...",
-      duration: 0,
-    });
+    const uploadingToast = toast.loading("正在处理视频，请稍候…");
 
     const ops: Operation[] = [];
     let offsetY = 0;
@@ -240,21 +221,17 @@ export class FileDragDropPlugin implements IBoardPlugin {
 
     if (ops.length > 0) {
       board.apply(ops);
-      message.success("视频上传成功");
+      toast.success("视频上传成功");
     }
-    message.destroy("uploading-video-drag");
+    toast.dismiss(uploadingToast);
   }
 
   private async handleAudioFiles(
     audioFiles: File[],
     board: Board,
-    dropPoint: { x: number; y: number },
+    dropPoint: { x: number; y: number }
   ) {
-    message.loading({
-      key: "uploading-audio-drag",
-      content: "正在处理音频，请稍候...",
-      duration: 0,
-    });
+    const uploadingToast = toast.loading("正在处理音频，请稍候…");
 
     const ops: Operation[] = [];
     let offsetY = 0;
@@ -285,8 +262,8 @@ export class FileDragDropPlugin implements IBoardPlugin {
 
     if (ops.length > 0) {
       board.apply(ops);
-      message.success("音频上传成功");
+      toast.success("音频上传成功");
     }
-    message.destroy("uploading-audio-drag");
+    toast.dismiss(uploadingToast);
   }
 }

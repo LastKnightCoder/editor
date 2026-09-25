@@ -1,19 +1,18 @@
 import { useState, useEffect } from "react";
 import { useMemoizedFn } from "ahooks";
 import { v4 as getUuid } from "uuid";
-import { Modal, List, Empty } from "antd";
+import { ChevronRight } from "lucide-react";
+import { Dialog } from "@tau/ui";
 
 import Board from "../../Board";
 import { ECreateBoardElementType } from "../../types";
 import { WhiteBoardElement } from "../../plugins/WhiteBoardPlugin";
 import { WhiteBoard as IWhiteBoard, WhiteBoardContent } from "@/types";
-import {
-  createWhiteBoardContent,
-  getAllWhiteBoards,
-} from "@/commands/white-board";
+import { createWhiteBoardContent, getAllWhiteBoards } from "@/commands/white-board";
 import SelectWhiteBoardModal from "@/components/SelectWhiteBoardModal";
 import WhiteBoardModal from "@/components/WhiteBoardModal";
 import { WHITEBOARD_CARD_HEIGHT } from "../WhiteBoardCard";
+import { PageSchematic } from "../../schematic/PageSchematic";
 
 interface WhiteBoardSelectorModalProps {
   open: boolean;
@@ -30,21 +29,17 @@ const WhiteBoardSelectorModal = ({
 }: WhiteBoardSelectorModalProps) => {
   // Reference modal state
   const [allWhiteBoards, setAllWhiteBoards] = useState<IWhiteBoard[]>([]);
-  const [selectedWhiteBoards, setSelectedWhiteBoards] = useState<IWhiteBoard[]>(
-    [],
+  const [selectedWhiteBoards, setSelectedWhiteBoards] = useState<IWhiteBoard[]>([]);
+  const [selectWhiteBoardModalOpen, setSelectWhiteBoardModalOpen] = useState(false);
+  const [selectSubWhiteBoardModalOpen, setSelectSubWhiteBoardModalOpen] = useState(false);
+  const [currentWhiteBoardContents, setCurrentWhiteBoardContents] = useState<WhiteBoardContent[]>(
+    []
   );
-  const [selectWhiteBoardModalOpen, setSelectWhiteBoardModalOpen] =
-    useState(false);
-  const [selectSubWhiteBoardModalOpen, setSelectSubWhiteBoardModalOpen] =
-    useState(false);
-  const [currentWhiteBoardContents, setCurrentWhiteBoardContents] = useState<
-    WhiteBoardContent[]
-  >([]);
 
   useEffect(() => {
     if (open && action === "reference") {
       setSelectWhiteBoardModalOpen(true);
-      getAllWhiteBoards().then((whiteBoards) => {
+      getAllWhiteBoards().then(whiteBoards => {
         setAllWhiteBoards(whiteBoards);
       });
     }
@@ -92,7 +87,7 @@ const WhiteBoardSelectorModal = ({
           },
         },
       ]);
-    },
+    }
   );
 
   const handleCreateOk = useMemoizedFn(
@@ -129,47 +124,34 @@ const WhiteBoardSelectorModal = ({
       } catch (error) {
         console.error("Create whiteboard failed:", error);
       }
-    },
+    }
   );
 
-  const handleWhiteBoardSelect = useMemoizedFn(
-    async (whiteBoards: IWhiteBoard[]) => {
-      if (whiteBoards.length === 0) return;
+  const handleWhiteBoardSelect = useMemoizedFn(async (whiteBoards: IWhiteBoard[]) => {
+    if (whiteBoards.length === 0) return;
 
-      const whiteBoard = whiteBoards[0];
+    const whiteBoard = whiteBoards[0];
 
-      // 检查是否有多个 SubWhiteBoard
-      if (
-        whiteBoard.whiteBoardContentList &&
-        whiteBoard.whiteBoardContentList.length > 1
-      ) {
-        // 有多个，显示选择弹窗
-        setCurrentWhiteBoardContents(whiteBoard.whiteBoardContentList);
-        setSelectWhiteBoardModalOpen(false);
-        setSelectSubWhiteBoardModalOpen(true);
-        // 保存选中的 whiteBoard 供后续使用
-        setSelectedWhiteBoards([whiteBoard]);
-      } else if (
-        whiteBoard.whiteBoardContentList &&
-        whiteBoard.whiteBoardContentList.length === 1
-      ) {
-        // 只有一个，直接创建
-        createWhiteBoardElement(
-          whiteBoard.whiteBoardContentList[0],
-          whiteBoard,
-        );
-        handleCancel();
-      }
-    },
-  );
-
-  const handleSubWhiteBoardSelect = useMemoizedFn(
-    (content: WhiteBoardContent) => {
-      const whiteBoard = selectedWhiteBoards[0];
-      createWhiteBoardElement(content, whiteBoard);
+    // 检查是否有多个 SubWhiteBoard
+    if (whiteBoard.whiteBoardContentList && whiteBoard.whiteBoardContentList.length > 1) {
+      // 有多个，显示选择弹窗
+      setCurrentWhiteBoardContents(whiteBoard.whiteBoardContentList);
+      setSelectWhiteBoardModalOpen(false);
+      setSelectSubWhiteBoardModalOpen(true);
+      // 保存选中的 whiteBoard 供后续使用
+      setSelectedWhiteBoards([whiteBoard]);
+    } else if (whiteBoard.whiteBoardContentList && whiteBoard.whiteBoardContentList.length === 1) {
+      // 只有一个，直接创建
+      createWhiteBoardElement(whiteBoard.whiteBoardContentList[0], whiteBoard);
       handleCancel();
-    },
-  );
+    }
+  });
+
+  const handleSubWhiteBoardSelect = useMemoizedFn((content: WhiteBoardContent) => {
+    const whiteBoard = selectedWhiteBoards[0];
+    createWhiteBoardElement(content, whiteBoard);
+    handleCancel();
+  });
 
   const handleCancel = useMemoizedFn(() => {
     setSelectWhiteBoardModalOpen(false);
@@ -207,34 +189,52 @@ const WhiteBoardSelectorModal = ({
         allWhiteBoards={allWhiteBoards}
       />
 
-      <Modal
-        title="选择子白板"
+      {/* 多页白板：选择要嵌入的一页（行式列表，点击即插入） */}
+      <Dialog
         open={selectSubWhiteBoardModalOpen}
-        onCancel={handleCancel}
-        footer={null}
-        width={600}
+        onOpenChange={next => !next && handleCancel()}
+        title="选择要嵌入的页"
+        context={selectedWhiteBoards[0]?.title}
+        width={500}
       >
         {currentWhiteBoardContents.length > 0 ? (
-          <List
-            dataSource={currentWhiteBoardContents}
-            renderItem={(item) => (
-              <List.Item
-                className="cursor-pointer hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors px-4"
-                onClick={() => handleSubWhiteBoardSelect(item)}
-              >
-                <div className="flex flex-col gap-1">
-                  <div className="font-medium">{item.name}</div>
-                  <div className="text-sm text-gray-500">
-                    创建时间: {new Date(item.createTime).toLocaleString()}
-                  </div>
-                </div>
-              </List.Item>
-            )}
-          />
+          <div className="-mx-2 flex flex-col gap-px">
+            {currentWhiteBoardContents.map(item => {
+              const count = item.data?.children?.length ?? 0;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleSubWhiteBoardSelect(item)}
+                  className="hover:bg-hover ease-tau-out group flex min-h-[52px] w-full items-center gap-2.5 rounded-[10px] px-2.5 py-1.5 text-left transition-colors duration-150"
+                >
+                  <span className="bg-page ring-line-2 relative h-10 w-16 shrink-0 overflow-hidden rounded-[7px] ring-1 ring-inset">
+                    <PageSchematic
+                      elements={item.data?.children}
+                      aspect={1.6}
+                      className="absolute inset-0 size-full"
+                    />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="text-ink-1 block truncate text-[13px] leading-[1.4]">
+                      {item.name}
+                    </span>
+                    <span className="text-ink-3 block truncate text-[12px]">
+                      {count > 0 ? `${count} 个元素` : "空白页"}
+                    </span>
+                  </span>
+                  <ChevronRight
+                    className="text-ink-3 size-4 shrink-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                    strokeWidth={1.75}
+                  />
+                </button>
+              );
+            })}
+          </div>
         ) : (
-          <Empty description="该白板没有子白板" />
+          <p className="text-ink-3 py-6 text-center text-[12.5px]">该白板没有子白板</p>
         )}
-      </Modal>
+      </Dialog>
     </>
   );
 };

@@ -4,7 +4,6 @@ import { BoardUtil, PathUtil, PointUtil } from "../../utils";
 import { useBoard } from "../../hooks";
 import { BOARD_TO_CONTAINER } from "../../constants";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
-import useTheme from "@/hooks/useTheme";
 
 interface ArrowMidPointHandleProps {
   arrowElement: ArrowElement;
@@ -14,7 +13,6 @@ const ArrowMidPointHandle = memo((props: ArrowMidPointHandleProps) => {
   const { arrowElement } = props;
 
   // 所有 Hooks 必须在条件判断之前调用
-  const { isDark } = useTheme();
   const board = useBoard();
   const ref = useRef<SVGGElement>(null);
   const startPoint = useRef<Point | null>(null);
@@ -27,11 +25,7 @@ const ArrowMidPointHandle = memo((props: ArrowMidPointHandleProps) => {
     (e: PointerEvent) => {
       if (!startPoint.current) return;
 
-      const currentPoint = PointUtil.screenToViewPort(
-        board,
-        e.clientX,
-        e.clientY,
-      );
+      const currentPoint = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
       if (!currentPoint) return;
 
       if (!isMoved.current) {
@@ -39,10 +33,7 @@ const ArrowMidPointHandle = memo((props: ArrowMidPointHandleProps) => {
       }
 
       if (!pathRef.current) {
-        pathRef.current = PathUtil.getPathByElement(
-          board,
-          lastArrowElement.current,
-        );
+        pathRef.current = PathUtil.getPathByElement(board, lastArrowElement.current);
       }
 
       if (pathRef.current) {
@@ -56,7 +47,7 @@ const ArrowMidPointHandle = memo((props: ArrowMidPointHandleProps) => {
             ...BoardUtil.diffNodePatchOnly(
               lastArrowElement.current,
               updateArrowElement,
-              pathRef.current,
+              pathRef.current
             ),
             {
               type: "set_selection",
@@ -67,29 +58,26 @@ const ArrowMidPointHandle = memo((props: ArrowMidPointHandleProps) => {
               },
             },
           ],
-          false,
+          false
         );
 
         lastArrowElement.current = updateArrowElement;
       }
     },
-    { wait: 25 },
+    { wait: 25 }
   );
 
   const handlePointerUp = useMemoizedFn(() => {
     if (startPoint.current && isMoved.current) {
       if (!pathRef.current) {
-        pathRef.current = PathUtil.getPathByElement(
-          board,
-          lastArrowElement.current,
-        );
+        pathRef.current = PathUtil.getPathByElement(board, lastArrowElement.current);
       }
 
       if (pathRef.current) {
         const ops = BoardUtil.diffNodePatchOnly(
           originalArrowElement.current,
           lastArrowElement.current,
-          pathRef.current,
+          pathRef.current
         );
         if (ops.length > 0) {
           board.apply(ops, true);
@@ -116,11 +104,7 @@ const ArrowMidPointHandle = memo((props: ArrowMidPointHandleProps) => {
     const handlePointerDown = (e: PointerEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      startPoint.current = PointUtil.screenToViewPort(
-        board,
-        e.clientX,
-        e.clientY,
-      );
+      startPoint.current = PointUtil.screenToViewPort(board, e.clientX, e.clientY);
       if (!startPoint.current) return;
 
       const boardContainer = BOARD_TO_CONTAINER.get(board);
@@ -130,10 +114,7 @@ const ArrowMidPointHandle = memo((props: ArrowMidPointHandleProps) => {
       if (!path) return;
 
       // 获取最新的箭头元素
-      lastArrowElement.current = PathUtil.getElementByPath(
-        board,
-        path,
-      ) as ArrowElement;
+      lastArrowElement.current = PathUtil.getElementByPath(board, path) as ArrowElement;
       originalArrowElement.current = lastArrowElement.current;
 
       boardContainer.addEventListener("pointermove", handlePointerMove);
@@ -152,10 +133,7 @@ const ArrowMidPointHandle = memo((props: ArrowMidPointHandleProps) => {
   }, [board, handlePointerMove, handlePointerUp]);
 
   // 只对 STRAIGHT 类型且只有两个点的箭头显示中间点手柄
-  if (
-    arrowElement.lineType !== EArrowLineType.STRAIGHT ||
-    arrowElement.points.length !== 2
-  ) {
+  if (arrowElement.lineType !== EArrowLineType.STRAIGHT || arrowElement.points.length !== 2) {
     return null;
   }
 
@@ -174,8 +152,8 @@ const ArrowMidPointHandle = memo((props: ArrowMidPointHandleProps) => {
         cx={midPoint.x}
         cy={midPoint.y}
         r={6}
-        fill={isDark ? "#1f1f1f" : "white"}
-        stroke="#1890ff"
+        fill="var(--tau-bg-surface)"
+        stroke="var(--tau-accent)"
         strokeWidth={2}
       />
     </g>

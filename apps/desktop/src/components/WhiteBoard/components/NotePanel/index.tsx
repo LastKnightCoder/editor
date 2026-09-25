@@ -1,10 +1,12 @@
 import React, { useMemo, useRef } from "react";
-import { CloseOutlined } from "@ant-design/icons";
+import { X } from "lucide-react";
+import { IconButton, Loading } from "@tau/ui";
 import { EditorRef } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
 import useEditContent from "@/hooks/useEditContent";
 import { getEditorText } from "@/utils/editor";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import { FadeScroll } from "@/components/FadeScroll";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
@@ -50,7 +52,7 @@ const NotePanel: React.FC<NotePanelProps> = ({ contentId, onClose, contentTitle 
       minWidth={200}
       maxWidth={600}
       side="left"
-      className="z-50 flex h-full flex-col overflow-hidden border-l border-[#f0f0f0] bg-white dark:border-[#2a2a2a] dark:bg-[#1e1e1e]"
+      className="bg-surface shadow-float ring-line-1 z-50 flex h-full flex-col overflow-hidden rounded-[14px] ring-1"
     >
       <div
         className="flex h-full flex-col"
@@ -59,18 +61,19 @@ const NotePanel: React.FC<NotePanelProps> = ({ contentId, onClose, contentTitle 
         onKeyDownCapture={stopKeyboardPropagation}
         onKeyUpCapture={stopKeyboardPropagation}
       >
-        <div className="flex items-center justify-between gap-3 border-b border-[#f0f0f0] px-4 py-3 dark:border-[#2a2a2a]">
-          <h3 className="min-w-0 flex-1 truncate text-base font-medium" title={title}>
+        {/* 头部与正文靠留白分层，不画分隔线 */}
+        <div className="flex h-12 flex-none items-center gap-3 pl-5 pr-2.5">
+          <h3
+            className="text-ink-1 min-w-0 flex-1 truncate text-[14px] font-semibold"
+            title={title}
+          >
             {title}
           </h3>
-          <div
-            className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[#f0f0f0] dark:hover:bg-[#2a2a2a]"
-            onClick={onClose}
-          >
-            <CloseOutlined className="text-gray-500" />
-          </div>
+          <IconButton aria-label="关闭笔记" className="size-7" onClick={onClose}>
+            <X size={15} strokeWidth={1.75} />
+          </IconButton>
         </div>
-        <div className="flex-1 overflow-y-auto p-4">
+        <FadeScroll className="mb-3 min-h-0 flex-1 pb-2 pl-5 pr-3.5">
           {content ? (
             <Editor
               contentId={contentId}
@@ -82,9 +85,9 @@ const NotePanel: React.FC<NotePanelProps> = ({ contentId, onClose, contentTitle 
               readonly={false}
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-gray-400">加载中...</div>
+            <Loading />
           )}
-        </div>
+        </FadeScroll>
       </div>
     </ResizeableAndHideableSidebar>
   );

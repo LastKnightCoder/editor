@@ -44,7 +44,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
           board: Board,
           container: BoardElement,
           childId: string,
-          position: { x: number; y: number },
+          position: { x: number; y: number }
         ) => {
           const column = container as ColumnElement;
           const path = PathUtil.getPathByElement(board, column);
@@ -56,15 +56,11 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
               draggingChildId: childId,
               draggingPosition: position,
             },
-            path,
+            path
           );
         },
 
-        buildDragFeedbackOps: (
-          board: Board,
-          container: BoardElement,
-          feedback,
-        ) => {
+        buildDragFeedbackOps: (board: Board, container: BoardElement, feedback) => {
           const column = container as ColumnElement;
           const path = PathUtil.getPathByElement(board, column);
           if (!path) return [];
@@ -88,19 +84,14 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
                 draggingChildId: undefined,
                 draggingPosition: undefined,
               },
-              path,
+              path
             );
           }
 
           const { isTarget, draggingElement, pointer } = feedback;
           let dropIndex: number | undefined;
           if (isTarget && pointer) {
-            dropIndex = ColumnUtil.getDropIndex(
-              board,
-              column,
-              pointer.y,
-              draggingElement?.id,
-            );
+            dropIndex = ColumnUtil.getDropIndex(board, column, pointer.y, draggingElement?.id);
           }
           let draggingPosition: { x: number; y: number } | undefined;
           if (draggingElement) {
@@ -115,7 +106,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
               draggingChildId: draggingElement?.id,
               draggingPosition,
             },
-            path,
+            path
           );
         },
 
@@ -127,40 +118,38 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
           board: Board,
           container: BoardElement,
           element: BoardElement,
-          pointerPosition?: Point,
+          pointerPosition?: Point
         ) => {
           return ColumnUtil.isElementInColumn(
             board,
             element,
             container as ColumnElement,
-            pointerPosition,
+            pointerPosition
           );
         },
 
         isChildInContainer: (container: BoardElement, child: BoardElement) => {
-          return (container as ColumnElement).children.some(
-            (c) => c.id === child.id,
-          );
+          return (container as ColumnElement).children.some(c => c.id === child.id);
         },
 
         getDropIndex: (
           board: Board,
           container: BoardElement,
           dropY: number,
-          excludeElementId?: string,
+          excludeElementId?: string
         ) => {
           return ColumnUtil.getDropIndex(
             board,
             container as ColumnElement,
             dropY,
-            excludeElementId,
+            excludeElementId
           );
         },
 
         prepareElementForInsertion: async (
           board: Board,
           container: BoardElement,
-          element: BoardElement,
+          element: BoardElement
         ) => {
           const column = container as ColumnElement;
           const targetWidth = column.width - column.padding * 2;
@@ -168,7 +157,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
           // 使用能力服务测量高度
           const newHeight = await board.capabilityService.measureElementHeight(
             element,
-            targetWidth,
+            targetWidth
           );
 
           return {
@@ -189,20 +178,13 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
           }
 
           // 获取最新的 column 引用
-          const column = PathUtil.getElementByPath(
-            board,
-            columnPath,
-          ) as ColumnElement;
+          const column = PathUtil.getElementByPath(board, columnPath) as ColumnElement;
           if (column) {
             ColumnUtil.relayout(board, column);
           }
         },
 
-        onChildRemoved: (
-          board: Board,
-          container: BoardElement,
-          removedChild?: BoardElement,
-        ) => {
+        onChildRemoved: (board: Board, container: BoardElement, removedChild?: BoardElement) => {
           // 恢复被移除元素的属性
           if (removedChild) {
             // 元素已被移动，需要通过 ID 在 board 中找到它
@@ -232,7 +214,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
                       resized: true,
                     },
                   },
-                  true,
+                  true
                 );
               }
             }
@@ -242,7 +224,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
       },
       movement: {
         behavior: MovementBehavior.MoveWithChildren,
-        collectMoveSubtree: (element) => ColumnUtil.collectDescendants(element),
+        collectMoveSubtree: element => ColumnUtil.collectDescendants(element),
       },
       render: {
         childrenOrder: ChildrenRenderOrder.Normal,
@@ -261,7 +243,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
     if (targetElements.length === 0) {
       items.push({
         key: "create-column",
-        label: "Column",
+        label: "分栏",
         icon: <Columns3 size={14} />,
         priority: 185,
         onSelect: (ctx: ContextMenuContext) => {
@@ -270,19 +252,16 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
       });
     }
 
-    const columnElement = targetElements.find((el) => el.type === "column") as
-      | ColumnElement
-      | undefined;
+    const columnElement = targetElements.find(el => el.type === "column") as
+      ColumnElement | undefined;
     if (columnElement) {
       items.push({
         key: "dissolve-column",
-        label: "Dissolve Column",
+        label: "解散分栏",
         icon: <Ungroup size={14} />,
         priority: 200,
         onSelect: (ctx: ContextMenuContext) => {
-          const column = ctx.targetElements.find(
-            (el) => el.type === "column",
-          ) as ColumnElement;
+          const column = ctx.targetElements.find(el => el.type === "column") as ColumnElement;
           if (!column) return;
 
           ColumnUtil.dissolveColumn(ctx.board, column);
@@ -302,12 +281,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
     return items;
   }
 
-  moveElement(
-    _board: Board,
-    element: ColumnElement,
-    dx: number,
-    dy: number,
-  ): BoardElement | null {
+  moveElement(_board: Board, element: ColumnElement, dx: number, dy: number): BoardElement | null {
     return ColumnUtil.moveAll(element, dx, dy);
   }
 
@@ -343,11 +317,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
     ];
   }
 
-  getArrowConnectExtendPoints(
-    board: Board,
-    element: ColumnElement,
-    extend = 20,
-  ) {
+  getArrowConnectExtendPoints(board: Board, element: ColumnElement, extend = 20) {
     const { x, y, width } = element;
     const height = ColumnUtil.calculateHeight(board, element);
     return [
@@ -374,7 +344,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
     board: Board,
     element: ColumnElement,
     connectId: string,
-    customOffset?: CustomOffset,
+    customOffset?: CustomOffset
   ) {
     const { x, y, width } = element;
     const height = ColumnUtil.calculateHeight(board, element);
@@ -418,14 +388,11 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
     startPoint: Point,
     endPoint: Point,
     _isPreserveRatio = false,
-    isAdsorb = false,
+    isAdsorb = false
   ) {
     if (!this.originResizeElement) return;
 
-    if (
-      position !== EHandlerPosition.Left &&
-      position !== EHandlerPosition.Right
-    ) {
+    if (position !== EHandlerPosition.Left && position !== EHandlerPosition.Right) {
       return;
     }
 
@@ -478,12 +445,10 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
         true,
         5 / board.viewPort.zoom,
         true,
-        position,
+        position
       );
       board.refLine.setCurrent(updateElements);
-      const updateElement = updateElements.rects.find(
-        (el) => el.key === layoutedColumn.id,
-      );
+      const updateElement = updateElements.rects.find(el => el.key === layoutedColumn.id);
       if (updateElement) {
         // 创建新对象避免修改只读对象
         const snappedColumn = {
@@ -505,10 +470,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
     }
 
     const selected =
-      (BoardUtil.getElementById(
-        board,
-        finalColumn.id,
-      ) as ColumnElement | null) ?? finalColumn;
+      (BoardUtil.getElementById(board, finalColumn.id) as ColumnElement | null) ?? finalColumn;
 
     board.apply(
       {
@@ -519,7 +481,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
           selectedElements: [selected],
         },
       },
-      false,
+      false
     );
 
     return selected;
@@ -533,10 +495,7 @@ export class ColumnPlugin extends CommonPlugin implements IBoardPlugin {
     });
   }
 
-  render(
-    board: Board,
-    { element, children }: { element: ColumnElement; children?: any },
-  ) {
+  render(board: Board, { element, children }: { element: ColumnElement; children?: any }) {
     return (
       <Column
         key={element.id}

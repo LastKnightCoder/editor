@@ -1,104 +1,86 @@
 import { memo, useState } from "react";
-import { Popover, Tooltip } from "antd";
-import SVG from "react-inlinesvg";
-import { useMemoizedFn } from "ahooks";
+import { Shapes } from "lucide-react";
+import { Popover } from "@tau/ui";
 
-import geometryIcon from "@/assets/white-board/geometry.svg";
-
-import { geometryItems } from "./config";
+import { geometryItems, type GeometryItemConfig } from "./config";
 import useCreateGeometry from "./useCreateGeometry";
 
 import { ECreateBoardElementType } from "../../../types";
 import { useBoard, useCreateElementType } from "../../../hooks";
 import { transformPath } from "../../../utils";
+import { ChromeButton, stopCanvasEvents } from "../../../chrome";
 
-import ToolbarMenu, { ToolbarMenuItem } from "../ToolbarMenu";
-
-interface GeometryProps {
-  className?: string;
-  style?: React.CSSProperties;
-}
-
-const Geometry = memo((props: GeometryProps) => {
-  const { className, style } = props;
-
+/** 形状：点开是四格图块（矩形 / 圆形 / 心形 / 三角形），选中后在画布上拖出 */
+const Geometry = memo(() => {
   const board = useBoard();
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const createElementType = useCreateElementType();
+  const [open, setOpen] = useState(false);
+  const createType = useCreateElementType();
+  const active = createType === ECreateBoardElementType.Geometry;
 
   useCreateGeometry();
 
-  const handleClickGeometryItem = useMemoizedFn((item) => {
+  const pick = (item: GeometryItemConfig) => {
     board.createOptions = {
       ...item,
       geometryType: item.geometryType,
       defaultExtraInfo: item.defaultExtraInfo || {},
     };
-    setPopoverOpen(false);
-  });
-
-  const menuItems: ToolbarMenuItem[] = geometryItems.map((item) => ({
-    key: item.geometryType,
-    label: item.name,
-    icon: (
-      <svg
-        width={16}
-        height={16}
-        viewBox="0 0 16 16"
-        style={{ overflow: "visible" }}
-      >
-        {item.paths.map((path, index) => {
-          const pathString = transformPath(path, 16, 16);
-          return (
-            <path
-              d={pathString}
-              key={index}
-              fill="none"
-              strokeWidth="2"
-              stroke={"currentColor"}
-            />
-          );
-        })}
-      </svg>
-    ),
-    onSelect: () => handleClickGeometryItem(item),
-  }));
+    board.currentCreateType = ECreateBoardElementType.Geometry;
+    setOpen(false);
+  };
 
   return (
     <Popover
-      open={popoverOpen}
-      onOpenChange={(open) => {
-        setPopoverOpen(open);
+      open={open}
+      onOpenChange={v => {
+        setOpen(v);
+        // 再点一次已激活的形状工具 = 取消
+        if (!v && active && !board.createOptions)
+          board.currentCreateType = ECreateBoardElementType.None;
       }}
-      trigger={"click"}
       placement="bottom"
       arrow={false}
-      content={<ToolbarMenu items={menuItems} />}
-      styles={{
-        container: {
-          background: "transparent",
-          boxShadow: "none",
-          padding: 0,
-        },
-      }}
-    >
-      <Tooltip title="形状">
-        <div
-          className={className}
-          style={style}
-          onClick={() => {
-            if (createElementType === ECreateBoardElementType.Geometry) {
-              setPopoverOpen(false);
+      className="min-w-0"
+      trigger={
+        <ChromeButton
+          label="形状"
+          sub
+          active={active}
+          onClick={e => {
+            if (active) {
+              e.preventDefault();
               board.currentCreateType = ECreateBoardElementType.None;
-            } else {
-              board.currentCreateType = ECreateBoardElementType.Geometry;
-              setPopoverOpen(true);
             }
           }}
         >
-          <SVG src={geometryIcon} />
-        </div>
-      </Tooltip>
+          <Shapes strokeWidth={1.75} />
+        </ChromeButton>
+      }
+    >
+      <div {...stopCanvasEvents} className="grid grid-cols-4 gap-1 p-1.5">
+        {geometryItems.map(item => (
+          <button
+            key={item.geometryType}
+            type="button"
+            onClick={() => pick(item)}
+            className="text-ink-2 hover:bg-hover hover:text-ink-1 flex h-[62px] w-16 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[10px] text-[11.5px]"
+          >
+            <svg width={20} height={20} viewBox="0 0 20 20" className="overflow-visible">
+              {item.paths.map((path, index) => (
+                <path
+                  key={index}
+                  d={transformPath(path, 20, 20)}
+                  fill="none"
+                  strokeWidth={1.75}
+                  strokeLinejoin="round"
+                  stroke="currentColor"
+                />
+              ))}
+            </svg>
+            {item.name}
+          </button>
+        ))}
+      </div>
     </Popover>
   );
 });

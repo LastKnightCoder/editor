@@ -1,14 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "motion/react";
+/**
+ * 导出为图片：预览 + 背景 / 放大倍数 / 边距（D-049）。
+ * 预览是按元素数据生成的结构示意（与白板列表缩略图同源），不做真实截图；
+ * 真正的导出仍走 useBoardCapture 离屏截图。
+ */
+
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Download } from "lucide-react";
-import { App } from "antd";
 import { useMemoizedFn } from "ahooks";
+import { Button, Dialog, cn, toast } from "@tau/ui";
 import useTheme from "@/hooks/useTheme";
+import { PageSchematic } from "../../schematic/PageSchematic";
 import Board from "../../Board";
 import { useBoardCapture } from "../../hooks/useBoardCapture";
-import SegmentedControl, { SegmentedOption } from "./components/SegmentedControl";
-import NumberStepper from "./components/NumberStepper";
+import type { BoardElement } from "../../types";
+import { Field, Seg, Slider } from "../../chrome";
 import {
   ExportImageAction,
   ExportImageBackgroundMode,
@@ -27,15 +32,26 @@ interface ExportImageModalProps {
   selectedElementIds?: string[];
 }
 
-const BACKGROUND_OPTIONS: SegmentedOption<ExportImageBackgroundMode>[] = [
+const BACKGROUND_OPTIONS: { value: ExportImageBackgroundMode; label: string }[] = [
   { value: "light", label: "白色" },
   { value: "dark", label: "深色" },
   { value: "transparent", label: "透明" },
 ];
 
+const PREVIEW_W = 216;
+const PREVIEW_H = 132;
+/** 边距滑杆上限（原数字输入允许到 500；滑杆取常用区间） */
+const PADDING_MAX = 200;
+
+/** 透明背景的棋盘格（取主题细线色，深浅主题自动适配） */
+const CHECKER_STYLE: CSSProperties = {
+  backgroundImage:
+    "conic-gradient(var(--tau-line-1) 25%, transparent 0 50%, var(--tau-line-1) 0 75%, transparent 0)",
+  backgroundSize: "14px 14px",
+};
+
 const ExportImageModal = (props: ExportImageModalProps) => {
   const { open, onClose, board, action, selectedElementIds } = props;
-  const { message } = App.useApp();
   const { isDark } = useTheme();
   const { capture, layer } = useBoardCapture(board);
 
@@ -55,6 +71,19 @@ const ExportImageModal = (props: ExportImageModalProps) => {
     setPadding(30);
   }, [open, isDark]);
 
+  // 预览用的元素快照：打开时取一次（导出时仍重新解析，保持原有逻辑）
+  // 关闭后沿用上一次快照，退场动画期间预览不闪成空态
+  const lastPreviewRef = useRef<BoardElement[]>([]);
+  const previewElements = useMemo(() => {
+    if (!open) return lastPreviewRef.current;
+    lastPreviewRef.current = resolveExportElements({
+      board,
+      action: exportAction,
+      selectedElementIds,
+    });
+    return lastPreviewRef.current;
+  }, [open, board, exportAction, selectedElementIds]);
+
   const modalTitle = useMemo(() => {
     return exportAction === "selection" ? "导出元素为图片" : "导出白板为图片";
   }, [exportAction]);
@@ -70,7 +99,7 @@ const ExportImageModal = (props: ExportImageModalProps) => {
     const elements = sourceElements;
 
     if (elements.length === 0) {
-      message.warning(exportAction === "selection" ? "没有可导出的元素" : "白板中没有可导出的元素");
+      toast.warning(exportAction === "selection" ? "没有可导出的元素" : "白板中没有可导出的元素");
       return;
     }
 
@@ -99,16 +128,16 @@ const ExportImageModal = (props: ExportImageModalProps) => {
         quality: 0.95,
       });
       if (!blob) {
-        message.error("无法计算导出范围，请重试");
+        toast.error("无法计算导出范围，请重试");
         return;
       }
 
       downloadBlobAsFile(blob, createExportFilename(exportAction));
-      message.success("图片导出成功");
+      toast.success("图片导出成功");
       onClose();
     } catch (error) {
       console.error("Export whiteboard image failed:", error);
-      message.error("导出失败，请重试");
+      toast.error("导出失败，请重试");
     } finally {
       board.apply(
         {
@@ -123,138 +152,107 @@ const ExportImageModal = (props: ExportImageModalProps) => {
     }
   });
 
+  const previewBackground = resolveExportBackgroundColor(background);
+  // 预览框 216×132：边距按 1/4 缩进示意，示意图按剩余区域的宽高比生成（不裁切）
+  const previewInset = Math.min(padding / 4, 24);
+  const previewAspect = (PREVIEW_W - previewInset * 2) / (PREVIEW_H - previewInset * 2);
+
   return (
     <>
-      {createPortal(
-        <AnimatePresence>
-          {open && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-              className="z-9999 fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-              onClick={onClose}
+      <Dialog
+        open={open}
+        onOpenChange={next => !next && onClose()}
+        title={modalTitle}
+        subtitle={
+          exportAction === "selection"
+            ? `选中的 ${previewElements.length} 个元素`
+            : "这一页的全部元素"
+        }
+        width={440}
+        locked={exporting}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" disabled={exporting} onClick={onClose}>
+              取消
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Download}
+              loading={exporting}
+              loadingText="导出中…"
+              onClick={handleExport}
             >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="m-4 w-full max-w-[460px]"
-                onClick={e => e.stopPropagation()}
-              >
-                <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
-                  {/* Header */}
-                  <div className="mb-5 flex items-start gap-3">
-                    <div className="border-[var(--th-border-focus)]/30 dark:bg-[var(--th-accent)]/20 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-[var(--th-accent-soft)]">
-                      <Download className="h-5 w-5 text-[var(--th-accent)]" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">
-                        {modalTitle}
-                      </h2>
-                      <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-500">
-                        调整导出参数后点击导出
-                      </p>
-                    </div>
-                    <button
-                      onClick={onClose}
-                      className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700 dark:hover:text-slate-200"
-                    >
-                      <svg
-                        className="h-[18px] w-[18px]"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                      >
-                        <path d="M18 6 6 18M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
+              导出
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          {/* 预览：透明背景用棋盘格示意 */}
+          <div
+            className="bg-page ring-line-1 rounded-tau-md grid h-[170px] place-items-center overflow-hidden ring-1 ring-inset"
+            style={previewBackground ? undefined : CHECKER_STYLE}
+          >
+            <div
+              className={cn(
+                "relative rounded-[6px] transition-[padding] duration-150",
+                previewBackground && "shadow-lift"
+              )}
+              style={{
+                width: PREVIEW_W,
+                height: PREVIEW_H,
+                padding: previewInset,
+                background: previewBackground ?? "transparent",
+              }}
+            >
+              {previewElements.length > 0 ? (
+                <PageSchematic
+                  elements={previewElements}
+                  aspect={previewAspect}
+                  className="size-full"
+                />
+              ) : (
+                <span className="text-ink-3 grid size-full place-items-center text-[12px]">
+                  没有可导出的元素
+                </span>
+              )}
+            </div>
+          </div>
 
-                  {/* Form */}
-                  <div className="flex flex-col gap-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-sm text-gray-700 dark:text-slate-300">背景</span>
-                      <SegmentedControl
-                        options={BACKGROUND_OPTIONS}
-                        value={background}
-                        onChange={value => setBackground(value)}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-sm text-gray-700 dark:text-slate-300">放大倍数</span>
-                      <NumberStepper
-                        value={scale}
-                        onChange={value => setScale(Number(value) || 1)}
-                        min={0.5}
-                        max={4}
-                        step={0.25}
-                        precision={2}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-sm text-gray-700 dark:text-slate-300">边距</span>
-                      <NumberStepper
-                        value={padding}
-                        onChange={value => setPadding(Math.max(0, Number(value) || 0))}
-                        min={0}
-                        max={500}
-                        step={1}
-                        precision={0}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Footer */}
-                  <div className="mt-5 flex gap-3 border-t border-gray-200 pt-4 dark:border-slate-700">
-                    <button
-                      className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-300 dark:hover:bg-zinc-700"
-                      onClick={onClose}
-                      disabled={exporting}
-                    >
-                      取消
-                    </button>
-                    <button
-                      className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-3 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
-                      onClick={handleExport}
-                      disabled={exporting}
-                    >
-                      {exporting && (
-                        <svg
-                          className="h-4 w-4 animate-spin"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <circle
-                            cx="12"
-                            cy="12"
-                            r="9"
-                            stroke="currentColor"
-                            strokeOpacity="0.35"
-                          />
-                          <path
-                            d="M12 3a9 9 0 0 1 9 9"
-                            stroke="currentColor"
-                            strokeLinecap="round"
-                            strokeOpacity="0.85"
-                          />
-                        </svg>
-                      )}
-                      {exporting ? "导出中..." : "导出"}
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
+          <div>
+            <Field label="背景">
+              <Seg
+                label="背景"
+                options={BACKGROUND_OPTIONS}
+                value={background}
+                onChange={value => setBackground(value)}
+              />
+            </Field>
+            <Field label="放大倍数">
+              <Slider
+                label="放大倍数"
+                value={scale}
+                min={0.5}
+                max={4}
+                step={0.25}
+                format={v => `${Number(v.toFixed(2))}×`}
+                onChange={value => setScale(Number(value) || 1)}
+              />
+            </Field>
+            <Field label="边距">
+              <Slider
+                label="边距"
+                value={padding}
+                min={0}
+                max={PADDING_MAX}
+                unit="px"
+                onChange={value => setPadding(Math.max(0, Number(value) || 0))}
+              />
+            </Field>
+          </div>
+        </div>
+      </Dialog>
 
       {layer}
     </>

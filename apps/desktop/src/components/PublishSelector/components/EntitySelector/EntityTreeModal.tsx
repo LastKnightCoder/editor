@@ -8,7 +8,7 @@ import { DocTreeNode, EntityScope } from "../../types";
 import { collectDocNodeIds, findDocTreeNode } from "../../utils";
 import { SelectionCheckbox } from "../SelectionCheckbox";
 import { SelectAllButton } from "../SearchToolbar";
-import { FadeScroll } from "../FadeScroll";
+import { FadeScroll } from "@/components/FadeScroll";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 
 interface EntityTreeModalProps {

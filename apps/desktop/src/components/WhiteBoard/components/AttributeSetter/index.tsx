@@ -1,16 +1,9 @@
 import { useMemoizedFn } from "ahooks";
-import {
-  useBoard,
-  useSelection,
-  usePresentationState,
-} from "@/components/WhiteBoard/hooks";
-import {
-  BoardElement,
-  Operation,
-  FrameElement,
-} from "@/components/WhiteBoard/types";
+import { useBoard, useSelection, usePresentationState } from "@/components/WhiteBoard/hooks";
+import { BoardElement, Operation, FrameElement } from "@/components/WhiteBoard/types";
 import { BoardUtil, FrameUtil, PathUtil } from "@/components/WhiteBoard/utils";
 import setterConfig from "./setter-config.ts";
+import FloatingAttrBar from "./FloatingAttrBar";
 
 const AttributeSetter = () => {
   const selection = useSelection();
@@ -48,12 +41,12 @@ const AttributeSetter = () => {
     const ops: Operation[] = [];
     const selectedElements = selection.selectedElements;
     const notChangedElements = selectedElements.filter(
-      (el) => !newElements.map((el) => el.id).includes(el.id),
+      el => !newElements.map(el => el.id).includes(el.id)
     );
 
     const capService = board.capabilityService;
 
-    newElements.forEach((newElement) => {
+    newElements.forEach(newElement => {
       const path = PathUtil.getPathByElement(board, newElement);
       if (!path) return;
 
@@ -62,9 +55,7 @@ const AttributeSetter = () => {
 
       // 容器（Frame/Column）与 RootOnly 元素（mind-node 根）移动时，
       // 子元素需要随容器一起平移：用子树平移 ops，避免 set_node 写入 children。
-      ops.push(
-        ...capService.buildElementMoveOps(currentElement, newElement, path),
-      );
+      ops.push(...capService.buildElementMoveOps(currentElement, newElement, path));
     });
 
     ops.push({
@@ -84,36 +75,30 @@ const AttributeSetter = () => {
 
   if (!selection) return null;
 
-  const frames = selection.selectedElements.filter((el) => el.type === "frame");
+  const frames = selection.selectedElements.filter(el => el.type === "frame");
 
   const validElements = selection.selectedElements.filter(
-    (el) =>
-      !frames.some((frame) =>
-        FrameUtil.isChildInFrame(frame as FrameElement, el),
-      ),
+    el => !frames.some(frame => FrameUtil.isChildInFrame(frame as FrameElement, el))
   );
 
   if (selection.selectedElements.length > 1 && validElements.length <= 1) {
     return null;
   }
 
-  const noArrowElements = validElements.filter((el) => el.type !== "arrow");
+  const noArrowElements = validElements.filter(el => el.type !== "arrow");
 
   // 多选对齐时剔除任何容器（Frame/Column/MindNode 等）的内部元素，
   // 避免内部元素被独立平移破坏容器布局；容器自身移动已通过子树平移携带子元素。
   const containerDescendantIds = BoardUtil.getContainerDescendantIds(board);
-  const alignElements = noArrowElements.filter(
-    (el) => !containerDescendantIds.has(el.id),
-  );
+  const alignElements = noArrowElements.filter(el => !containerDescendantIds.has(el.id));
 
   // 多选元素的情况
   if (alignElements.length > 1) {
     const MultiSelectComponent = setterConfig.multiselect.component;
     return (
-      <MultiSelectComponent
-        elements={alignElements}
-        onChange={onMultiElementsChange}
-      />
+      <FloatingAttrBar elements={alignElements}>
+        <MultiSelectComponent elements={alignElements} onChange={onMultiElementsChange} />
+      </FloatingAttrBar>
     );
   }
 
@@ -126,7 +111,11 @@ const AttributeSetter = () => {
 
     if (config && config.component) {
       const Component = config.component;
-      return <Component onChange={onElementChange} element={element} />;
+      return (
+        <FloatingAttrBar elements={[element]}>
+          <Component onChange={onElementChange} element={element} />
+        </FloatingAttrBar>
+      );
     }
   }
 

@@ -1,7 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { Sparkles, X } from "lucide-react";
+/**
+ * AI 图片生成：描述画面 → 生成并插入（D-049）。
+ * 生成中主按钮走 Button loading；⌘/Ctrl + Enter 提交。
+ */
+
+import React, { useEffect, useState } from "react";
+import { Sparkles } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
+import { Button, Dialog, Textarea } from "@tau/ui";
 
 interface ImageAIGenerateModalProps {
   open: boolean;
@@ -17,14 +22,13 @@ const ImageAIGenerateModal: React.FC<ImageAIGenerateModalProps> = ({
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // 每次打开都从空白开始
   useEffect(() => {
     if (!open) return;
     setPrompt("");
     setError(null);
     setSubmitting(false);
-    setTimeout(() => inputRef.current?.focus(), 100);
   }, [open]);
 
   const handleSubmit = useMemoizedFn(async () => {
@@ -46,91 +50,64 @@ const ImageAIGenerateModal: React.FC<ImageAIGenerateModalProps> = ({
     }
   });
 
-  const handleKeyDown = useMemoizedFn((e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      onCancel();
-      return;
-    }
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+  const handleKeyDown = useMemoizedFn((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleSubmit();
     }
   });
 
-  if (!open) return null;
-
-  return createPortal(
-    <div
-      className="z-9999 fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={onCancel}
-      onKeyDown={handleKeyDown}
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={next => !next && onCancel()}
+      locked={submitting}
+      title="AI 图片生成"
+      icon={<Sparkles strokeWidth={1.75} />}
+      subtitle="使用设置中的图片模型，生成后插入第一张结果"
+      width={480}
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={onCancel} disabled={submitting}>
+            取消
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            loading={submitting}
+            loadingText="生成中…"
+            disabled={!prompt.trim()}
+            onClick={handleSubmit}
+          >
+            生成并插入
+          </Button>
+        </>
+      }
     >
-      <div className="m-4 w-full max-w-[520px]" onClick={e => e.stopPropagation()}>
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-zinc-900/95">
-          <div className="mb-5 flex items-center gap-3">
-            <div className="border-[var(--th-border-focus)]/30 flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] border bg-[var(--th-accent-soft)] text-[var(--th-accent)]">
-              <Sparkles size={20} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="m-0 text-base font-bold text-gray-800 dark:text-white">AI 图片生成</h2>
-              <p className="mt-0.5 text-xs text-gray-500 dark:text-slate-500">
-                描述画面内容，生成后自动插入白板
-              </p>
-            </div>
-            <button
-              className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-gray-100 text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-700 dark:bg-zinc-800 dark:text-slate-400 dark:hover:bg-zinc-700 dark:hover:text-slate-200"
-              onClick={onCancel}
-              type="button"
-            >
-              <X size={18} />
-            </button>
-          </div>
+      <div className="flex flex-col gap-3">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-ink-2 text-[12px]">生成要求</span>
+          <Textarea
+            data-autofocus
+            rows={4}
+            value={prompt}
+            onChange={e => {
+              setPrompt(e.target.value);
+              setError(null);
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder="例如：一张干净的产品架构示意图，浅色背景，包含数据流、服务层和用户端"
+            aria-invalid={error ? true : undefined}
+          />
+        </label>
 
-          <div className="flex flex-col gap-4">
-            <textarea
-              ref={inputRef}
-              value={prompt}
-              onChange={e => {
-                setPrompt(e.target.value);
-                setError(null);
-              }}
-              placeholder="例如：一张干净的产品架构示意图，浅色背景，包含数据流、服务层和用户端"
-              rows={5}
-              className="w-full resize-y rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-sm text-gray-800 shadow-inner outline-none transition-all placeholder:text-gray-400 focus:border-[var(--th-border-focus)] focus:shadow-[var(--th-focus-ring)] dark:border-slate-700 dark:bg-zinc-950 dark:text-white dark:placeholder:text-slate-500"
-            />
-
-            <div className="rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-3 text-xs leading-5 text-gray-500 dark:border-slate-800 dark:bg-zinc-950 dark:text-slate-400">
-              生成会使用设置中的图片模型配置。确认后插入第一张结果。
-            </div>
-
-            {error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
-                {error}
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                className="flex flex-1 cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 dark:border-slate-700 dark:bg-zinc-800 dark:text-slate-300 dark:hover:bg-zinc-700"
-                onClick={onCancel}
-                type="button"
-              >
-                取消
-              </button>
-              <button
-                className="flex flex-1 cursor-pointer items-center justify-center rounded-xl border-none bg-[var(--th-btn-bg)] px-5 py-3 text-sm font-semibold text-[var(--th-btn-text)] shadow-sm transition-all hover:-translate-y-px hover:bg-[var(--th-btn-hover)] active:translate-y-0 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none dark:disabled:bg-zinc-800 dark:disabled:text-slate-500"
-                onClick={handleSubmit}
-                disabled={!prompt.trim() || submitting}
-                type="button"
-              >
-                {submitting ? "生成中..." : "生成并插入"}
-              </button>
-            </div>
-          </div>
-        </div>
+        {error && (
+          <p className="bg-danger-soft text-danger rounded-tau-sm px-3 py-2 text-[12.5px]">
+            {error}
+          </p>
+        )}
       </div>
-    </div>,
-    document.body
+    </Dialog>
   );
 };
 

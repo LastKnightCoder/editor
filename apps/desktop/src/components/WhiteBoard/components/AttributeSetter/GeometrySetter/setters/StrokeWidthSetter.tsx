@@ -1,74 +1,37 @@
 import React from "react";
-import { GeometrySetterComponentProps } from "../IGeometrySetter";
-import { BaseGeometrySetter } from "../BaseGeometrySetter";
-import { BsBorderWidth } from "react-icons/bs";
-import { Popover, Tooltip, Slider, ConfigProvider, theme } from "antd";
 import { produce } from "immer";
 import { useMemoizedFn } from "ahooks";
-import styles from "./setters.module.less";
-import classnames from "classnames";
-import useTheme from "@/hooks/useTheme";
+
+import { GeometrySetterComponentProps } from "../IGeometrySetter";
+import { BaseGeometrySetter } from "../BaseGeometrySetter";
 import { GeometryUtil } from "@/components/WhiteBoard/utils";
+import { AttrPopover, Slider } from "@/components/WhiteBoard/chrome";
+import { LineWidthIcon } from "@/components/WhiteBoard/chrome/icons";
 
 // 线条粗细设置器组件
 const StrokeWidthSetterComponent: React.FC<GeometrySetterComponentProps> = ({
   element,
   onChange,
 }) => {
-  const { isDark } = useTheme();
-  // 获取当前线条粗细，默认为 1
   const strokeWidth = element.strokeWidth || 1;
-
-  const handleStrokeWidthChange = useMemoizedFn((value: number) => {
-    const newElement = produce(element, (draft) => {
+  const handleChange = useMemoizedFn((value: number) => {
+    const newElement = produce(element, draft => {
       draft.strokeWidth = value;
     });
     GeometryUtil.setLocalStorage("strokeWidth", String(value));
     onChange(newElement);
   });
-
   return (
-    <Popover
-      arrow={false}
-      trigger={"click"}
-      placement={"right"}
-      styles={{
-        container: {
-          background: "transparent",
-          boxShadow: "none",
-          padding: 0,
-          marginLeft: 12,
-        },
-      }}
-      content={
-        <div
-          className={classnames(styles.sliderPopover, {
-            [styles.dark]: isDark,
-          })}
-        >
-          <ConfigProvider
-            theme={{
-              algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm,
-            }}
-          >
-            <Slider
-              min={1}
-              max={20}
-              step={1}
-              value={strokeWidth}
-              onChange={handleStrokeWidthChange}
-              tooltip={{ formatter: (value) => `${value}px` }}
-            />
-          </ConfigProvider>
-        </div>
-      }
-    >
-      <Tooltip title={"边框粗细"} placement={"left"}>
-        <div className={styles.item}>
-          <BsBorderWidth />
-        </div>
-      </Tooltip>
-    </Popover>
+    <AttrPopover label="边框粗细" icon={<LineWidthIcon />}>
+      <Slider
+        label="边框粗细"
+        min={1}
+        max={20}
+        value={strokeWidth}
+        unit="px"
+        onChange={handleChange}
+      />
+    </AttrPopover>
   );
 };
 
@@ -80,7 +43,7 @@ export class StrokeWidthSetter extends BaseGeometrySetter {
   }
 
   getIcon(): React.ReactNode {
-    return <BsBorderWidth />;
+    return <LineWidthIcon />;
   }
 
   getComponent(): React.ComponentType<GeometrySetterComponentProps> {

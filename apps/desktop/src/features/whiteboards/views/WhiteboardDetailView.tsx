@@ -13,6 +13,7 @@ import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { cn } from "@tau/ui";
 import { BoardCanvas, type BoardCanvasHandle } from "../components/BoardCanvas";
 import { SheetBar } from "../components/SheetBar";
+import { OutlineToggle } from "../components/OutlineToggle";
 import { WhiteboardInfoDialog } from "../components/WhiteboardInfoDialog";
 import { rankTags } from "../model";
 import {
@@ -83,6 +84,7 @@ function Detail({ id, page }: { id: number; page?: number }) {
     () =>
       board ? (
         <span className="text-tau-meta flex min-w-0 items-center gap-1.5">
+          <OutlineToggle />
           <button
             type="button"
             title="编辑信息"

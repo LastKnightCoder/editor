@@ -50,7 +50,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
   const { whiteBoardContentId, height } = element;
 
   const [whiteBoardContent, setWhiteBoardContent] = useState<WhiteBoardContent | null>(null);
-  const whiteBoardData = whiteBoardContent?.data ?? null;
+  const whiteboardData = whiteBoardContent?.data ?? null;
 
   useEffect(() => {
     let disposed = false;
@@ -144,8 +144,8 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
   });
 
   const handleFullscreenChange = useMemoizedFn(async (isFullscreen: boolean) => {
-    if (!whiteBoardContent || !whiteBoardData) return;
-    const data = whiteBoardData;
+    if (!whiteBoardContent || !whiteboardData) return;
+    const data = whiteboardData;
     if (isFullscreen) {
       noFullscreenWidthRef.current = data.viewPort.width;
       // 计算当前视口中心
@@ -235,7 +235,7 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
     );
   }
 
-  if (!whiteBoardContent || !whiteBoardData) {
+  if (!whiteBoardContent || !whiteboardData) {
     return (
       <div className={styles.empty} style={{ height }} contentEditable={false}>
         <Empty description="白板不存在或者被删除" />
@@ -266,10 +266,11 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
               contentEditable={false}
             >
               <WhiteBoard
-                initData={whiteBoardData.children || []}
-                initViewPort={whiteBoardData.viewPort}
-                initSelection={whiteBoardData.selection}
-                initPresentationSequences={whiteBoardData.presentationSequences || []}
+                showSidebar={false}
+                initData={whiteboardData.children || []}
+                initViewPort={whiteboardData.viewPort}
+                initSelection={whiteboardData.selection}
+                initPresentationSequences={whiteboardData.presentationSequences || []}
                 style={{ width: "100%", height: "100%" }}
                 readonly={readOnly}
                 onChange={handleWhiteboardChange}
@@ -290,10 +291,11 @@ const Whiteboard: React.FC<React.PropsWithChildren<IWhiteboardProps>> = memo(pro
             <div className={styles.fullscreenOverlay} onClick={() => setIsFullscreen(false)}>
               <div className={styles.fullscreenContent} onClick={e => e.stopPropagation()}>
                 <WhiteBoard
-                  initData={whiteBoardData.children || []}
-                  initViewPort={whiteBoardData.viewPort}
-                  initSelection={whiteBoardData.selection}
-                  initPresentationSequences={whiteBoardData.presentationSequences || []}
+                  showSidebar={false}
+                  initData={whiteboardData.children || []}
+                  initViewPort={whiteboardData.viewPort}
+                  initSelection={whiteboardData.selection}
+                  initPresentationSequences={whiteboardData.presentationSequences || []}
                   style={{ width: "100%", height: "100%" }}
                   readonly={readOnly}
                   onChange={handleWhiteboardChange}

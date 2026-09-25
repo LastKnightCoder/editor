@@ -95,6 +95,7 @@ const EditWhiteBoardContent = (props: EditWhiteBoardContentProps) => {
         <WhiteBoard
           key={whiteBoardContent.id}
           className="h-full w-full"
+          showSidebar={false}
           initData={whiteBoardContent.data.children}
           initViewPort={whiteBoardContent.data.viewPort}
           initSelection={whiteBoardContent.data.selection}

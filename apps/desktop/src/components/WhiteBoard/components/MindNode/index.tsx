@@ -1,9 +1,6 @@
 import React, { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Editor, EditorRef } from "@tau/editor/src";
 import If from "@/components/If";
-import { Dropdown, MenuProps } from "antd";
-import { StickyNote } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 
 import { useMemoizedFn } from "ahooks";
 import { Descendant } from "slate";
@@ -114,24 +111,6 @@ const MindNode = (props: MindNodeProps) => {
   const [isEditing, setIsEditing] = useState(Boolean(defaultFocus));
   const isMoving = useElementMoving(id);
   const [contentSelectorOpen, setContentSelectorOpen] = useState(false);
-  const [isNoteMenuOpen, setIsNoteMenuOpen] = useState(false);
-
-  const [isNodeHovered, setIsNodeHovered] = useState(false);
-  const hoverTimerRef = useRef<number | null>(null);
-  const setNodeHovered = useMemoizedFn((v: boolean) => {
-    if (hoverTimerRef.current) {
-      clearTimeout(hoverTimerRef.current);
-      hoverTimerRef.current = null;
-    }
-    if (v) {
-      setIsNodeHovered(true);
-    } else {
-      hoverTimerRef.current = window.setTimeout(() => {
-        setIsNodeHovered(false);
-        hoverTimerRef.current = null;
-      }, 120);
-    }
-  });
 
   const editorRef = useRef<EditorRef>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -353,10 +332,6 @@ const MindNode = (props: MindNodeProps) => {
     board.emit("open-note", contentId, "");
   });
 
-  const handleSelectNote = useMemoizedFn(() => {
-    setContentSelectorOpen(true);
-  }) satisfies MenuProps["onClick"];
-
   const onSelectContent = useMemoizedFn(async (items: SearchResult | SearchResult[]) => {
     const item = Array.isArray(items) ? items[0] : items;
     if (!item) return;
@@ -390,27 +365,6 @@ const MindNode = (props: MindNodeProps) => {
     setContentSelectorOpen(false);
   });
 
-  const handleOpenNote = useMemoizedFn(() => {
-    if (element.contentId) {
-      board.emit("toggle-note", element.contentId, element.contentTitle);
-    }
-  });
-
-  const noteMenuProps: MenuProps = {
-    items: [
-      {
-        key: "new",
-        label: "新建笔记",
-        onClick: handleCreateNote,
-      },
-      {
-        key: "select",
-        label: "选择笔记",
-        onClick: handleSelectNote,
-      },
-    ],
-  };
-
   const { handleKeyDown } = useMindNodeKeyboardNavigation(
     board,
     element,
@@ -428,18 +382,25 @@ const MindNode = (props: MindNodeProps) => {
     };
   }, [handleKeyDown]);
 
-  // 监听右键菜单触发的「选择笔记」事件，仅当前节点响应
+  // 监听右键菜单 / 属性条触发的「新建笔记」「选择笔记」事件，仅当前节点响应
   useEffect(() => {
     const handleSelectNote = (nodeId: string) => {
       if (nodeId === element.id) {
         setContentSelectorOpen(true);
       }
     };
+    const handleCreateNoteEvent = (nodeId: string) => {
+      if (nodeId === element.id) {
+        handleCreateNote();
+      }
+    };
     board.on("mind:select-note", handleSelectNote);
+    board.on("mind:create-note", handleCreateNoteEvent);
     return () => {
       board.off("mind:select-note", handleSelectNote);
+      board.off("mind:create-note", handleCreateNoteEvent);
     };
-  }, [board, element.id]);
+  }, [board, element.id, handleCreateNote]);
 
   const leftChildPoints = useMemo(() => {
     const leftChildren = element.children.filter(child => child.direction === "left");
@@ -536,8 +497,6 @@ const MindNode = (props: MindNodeProps) => {
             // @ts-ignore
             onDoubleClick={handleDoubleClick}
             onPointerDown={handlePointerDown}
-            onMouseEnter={() => setNodeHovered(true)}
-            onMouseLeave={() => setNodeHovered(false)}
           >
             <div
               className="absolute left-0 top-0 z-[-1] box-border"
@@ -575,72 +534,6 @@ const MindNode = (props: MindNodeProps) => {
             pointerEvents="none"
           />
         </If>
-
-        {/* 笔记操作 icon：hover/选中/菜单打开时浮现于节点右上角外侧（带动画） */}
-        <foreignObject
-          x={x + width - 12}
-          y={y - 24}
-          width={24}
-          height={24}
-          className="overflow-visible border-none"
-          style={{
-            pointerEvents: isNodeHovered || isSelected || isNoteMenuOpen ? "auto" : "none",
-          }}
-        >
-          <AnimatePresence>
-            {(isNodeHovered || isSelected || isNoteMenuOpen) && (
-              <motion.div
-                initial={{ scale: 0.4, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.4, opacity: 0 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-              >
-                {element.contentId ? (
-                  <div
-                    className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-[var(--th-accent)] transition-colors hover:border-[var(--th-border-hover)]"
-                    onClick={handleOpenNote}
-                    onDoubleClick={e => e.stopPropagation()}
-                    onPointerDown={e => e.stopPropagation()}
-                    onMouseDown={e => e.stopPropagation()}
-                    onMouseEnter={() => setNodeHovered(true)}
-                    onMouseLeave={() => setNodeHovered(false)}
-                    title="打开笔记"
-                  >
-                    <StickyNote size={13} strokeWidth={1.75} />
-                  </div>
-                ) : (
-                  <Dropdown
-                    menu={noteMenuProps}
-                    trigger={["click"]}
-                    open={isNoteMenuOpen}
-                    onOpenChange={setIsNoteMenuOpen}
-                    dropdownRender={menu => (
-                      <div
-                        onMouseDown={e => e.stopPropagation()}
-                        onPointerDown={e => e.stopPropagation()}
-                        onMouseEnter={() => setNodeHovered(true)}
-                      >
-                        {menu}
-                      </div>
-                    )}
-                  >
-                    <div
-                      className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-gray-200 bg-white text-gray-400 transition-colors hover:border-[var(--th-border-hover)] hover:text-[var(--th-accent)]"
-                      onDoubleClick={e => e.stopPropagation()}
-                      onPointerDown={e => e.stopPropagation()}
-                      onMouseDown={e => e.stopPropagation()}
-                      onMouseEnter={() => setNodeHovered(true)}
-                      onMouseLeave={() => setNodeHovered(false)}
-                      title="关联笔记"
-                    >
-                      <StickyNote size={13} strokeWidth={1.75} />
-                    </div>
-                  </Dropdown>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </foreignObject>
 
         {/* 左侧子节点连线 */}
         {leftChildPoints.map((point, index) => {

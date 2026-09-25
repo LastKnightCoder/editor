@@ -1,17 +1,12 @@
 import React from "react";
-import { GeometrySetterComponentProps } from "../IGeometrySetter";
-import { BaseGeometrySetter } from "../BaseGeometrySetter";
-import { BiSolidColorFill } from "react-icons/bi";
-import { Popover, Tooltip } from "antd";
+import { Palette } from "lucide-react";
 import { produce } from "immer";
 import { useMemoizedFn } from "ahooks";
 
-import Colors from "./components/Colors";
-
-import styles from "./setters.module.less";
-import classnames from "classnames";
-import useTheme from "@/hooks/useTheme";
+import { GeometrySetterComponentProps } from "../IGeometrySetter";
+import { BaseGeometrySetter } from "../BaseGeometrySetter";
 import { GeometryUtil } from "@/components/WhiteBoard/utils";
+import { AttrPopover, Field, SwatchRow, type SwatchOption } from "@/components/WhiteBoard/chrome";
 
 export interface ColorOption {
   fill: string;
@@ -173,14 +168,21 @@ const transparentFillColors: ColorOption[] = [
   },
 ];
 
-// 颜色设置器组件
-const ColorSetterComponent: React.FC<GeometrySetterComponentProps> = ({
-  element,
-  onChange,
-}) => {
-  const { isDark } = useTheme();
-  const handleOnSelectColor = useMemoizedFn((color: ColorOption) => {
-    const newElement = produce(element, (draft) => {
+const NAMES = ["红", "橙", "黄", "绿", "蓝", "紫", "粉", "灰"];
+const keyOf = (c: Pick<ColorOption, "fill" | "stroke">) => `${c.fill}|${c.stroke}`;
+const toSwatches = (colors: ColorOption[], group: string): SwatchOption[] =>
+  colors.map((c, i) => ({
+    key: keyOf(c),
+    label: `${group}${NAMES[i] ?? ""}`,
+    fill: c.fill === "transparent" ? "var(--tau-bg-surface)" : c.fill,
+    stroke: c.stroke === "transparent" ? c.fill : c.stroke,
+  }));
+const ALL = [...fillWithStrokeColors, ...fillWithoutStrokeColors, ...transparentFillColors];
+
+/** 颜色：数据色，完整保留现状三组色板（浅底 + 描边 / 实心 / 仅描边）+ 自定义 */
+const ColorSetterComponent: React.FC<GeometrySetterComponentProps> = ({ element, onChange }) => {
+  const apply = useMemoizedFn((color: ColorOption) => {
+    const newElement = produce(element, draft => {
       draft.stroke = color.stroke;
       draft.strokeOpacity = 1;
       draft.fill = color.fill;
@@ -196,44 +198,48 @@ const ColorSetterComponent: React.FC<GeometrySetterComponentProps> = ({
     GeometryUtil.setLocalStorage("theme", color.theme);
     onChange(newElement);
   });
+  const pick = (key: string) => {
+    const c = ALL.find(o => keyOf(o) === key);
+    if (c) apply(c);
+  };
+  const fill = element.fill ?? "none";
+  const stroke = element.stroke ?? "currentColor";
+  const value = keyOf({ fill, stroke });
+  const solid = fill !== "none" && fill !== "transparent";
+  const swatch = {
+    fill: solid ? fill : "var(--tau-bg-surface)",
+    stroke:
+      stroke !== "transparent" && stroke !== "currentColor"
+        ? stroke
+        : solid
+          ? fill
+          : "var(--tau-ink-1)",
+  };
 
   return (
-    <Popover
-      arrow={false}
-      trigger={"click"}
-      placement={"right"}
-      styles={{
-        container: {
-          background: "transparent",
-          boxShadow: "none",
-          padding: 0,
-          marginLeft: 12,
-        },
-      }}
-      content={
-        <div
-          className={classnames(styles.colorSelect, {
-            [styles.dark]: isDark,
-          })}
-        >
-          <Colors colors={fillWithStrokeColors} onClick={handleOnSelectColor} />
-          <Colors
-            colors={fillWithoutStrokeColors}
-            onClick={handleOnSelectColor}
-          />
-          <Colors
-            colors={transparentFillColors}
-            onClick={handleOnSelectColor}
-          />
-        </div>
-      }
-    >
-      <Tooltip title={"颜色"} placement={"left"}>
-        <div className={classnames(styles.item)}>
-          <BiSolidColorFill width={20} height={20} />
-        </div>
-      </Tooltip>
-    </Popover>
+    <AttrPopover label="颜色" swatch={swatch}>
+      <Field label="浅底 + 描边">
+        <SwatchRow options={toSwatches(fillWithStrokeColors, "浅")} value={value} onChange={pick} />
+      </Field>
+      <Field label="实心">
+        <SwatchRow
+          options={toSwatches(fillWithoutStrokeColors, "实心")}
+          value={value}
+          onChange={pick}
+        />
+      </Field>
+      <Field label="仅描边">
+        <SwatchRow
+          options={toSwatches(transparentFillColors, "描边")}
+          value={value}
+          onChange={pick}
+          custom={{
+            value: element.stroke,
+            onChange: hex => apply({ fill: "transparent", stroke: hex, color: "currentColor" }),
+          }}
+        />
+      </Field>
+    </AttrPopover>
   );
 };
 
@@ -245,7 +251,7 @@ export class ColorSetter extends BaseGeometrySetter {
   }
 
   getIcon(): React.ReactNode {
-    return <BiSolidColorFill />;
+    return <Palette size={16} />;
   }
 
   getComponent(): React.ComponentType<GeometrySetterComponentProps> {

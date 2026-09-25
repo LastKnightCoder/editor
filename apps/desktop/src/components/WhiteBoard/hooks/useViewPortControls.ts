@@ -28,28 +28,27 @@ const useViewPortControls = (board: Board, zoom: number) => {
   });
 
   // 全览功能（视图适应所有元素或选中元素）
-  const handleFitElements = useMemoizedFn(
-    (padding = 50, selectedOnly = true, elements?: any[]) => {
-      return (e: React.MouseEvent<HTMLDivElement>) => {
-        // 阻止事件冒泡和默认行为
-        e.stopPropagation();
-        e.preventDefault();
+  const handleFitElements = useMemoizedFn((padding = 50, selectedOnly = true, elements?: any[]) => {
+    // 只用到 stopPropagation / preventDefault，与事件源元素类型无关
+    return (e: React.MouseEvent<HTMLElement>) => {
+      // 阻止事件冒泡和默认行为
+      e.stopPropagation();
+      e.preventDefault();
 
-        if (selectedOnly && board.selection.selectedElements.length > 0) {
-          // 如果有选中的元素且需要只关注选中元素，则全览选中的元素
-          ViewPortTransforms.fitAllElements(board, padding, true, [
-            ...board.selection.selectedElements,
-          ]);
-        } else if (elements && elements.length > 0) {
-          // 如果指定了元素且有元素，全览这些指定的元素
-          ViewPortTransforms.fitAllElements(board, padding, true, elements);
-        } else {
-          // 否则全览所有元素
-          ViewPortTransforms.fitAllElements(board, padding, true);
-        }
-      };
-    },
-  );
+      if (selectedOnly && board.selection.selectedElements.length > 0) {
+        // 如果有选中的元素且需要只关注选中元素，则全览选中的元素
+        ViewPortTransforms.fitAllElements(board, padding, true, [
+          ...board.selection.selectedElements,
+        ]);
+      } else if (elements && elements.length > 0) {
+        // 如果指定了元素且有元素，全览这些指定的元素
+        ViewPortTransforms.fitAllElements(board, padding, true, elements);
+      } else {
+        // 否则全览所有元素
+        ViewPortTransforms.fitAllElements(board, padding, true);
+      }
+    };
+  });
 
   return {
     handleContainerResize,

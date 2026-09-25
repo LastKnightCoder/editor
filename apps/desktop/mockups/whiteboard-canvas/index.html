@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板画布换皮 · 总览</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-hover: rgba(67, 57, 44, 0.05);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55); --ok: #61795f; --danger: #b0564d;
+    --canvas: #fbf7ef; --canvas-dot: rgba(67, 57, 44, 0.13);
+    --shadow: 0 1px 2px rgba(120,100,70,0.05), 0 10px 24px -14px rgba(120,100,70,0.18);
+    --lift: 0 1px 2px rgba(120,100,70,0.08), 0 4px 10px -6px rgba(120,100,70,0.3);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 14px/1.75 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 40px 8vw 80px; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { color: var(--ink-2); margin-top: 6px; max-width: 92ch; }
+  header .meta { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+  h2 { font-size: 16px; margin: 42px 0 14px; font-weight: 600; }
+  ul.tight { padding-left: 20px; color: var(--ink-2); max-width: 96ch; }
+  ul.tight li + li { margin-top: 4px; }
+  ul.tight b { color: var(--ink-1); font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+  .card { background: var(--bg-surface); border-radius: 16px; padding: 20px 22px; box-shadow: var(--shadow); text-decoration: none; color: inherit; display: flex; flex-direction: column;
+    outline: 1px solid transparent; transition: box-shadow 200ms, outline-color 200ms; }
+  .card:hover { outline-color: var(--line-1); box-shadow: 0 16px 40px -12px rgba(120,100,70,0.3); }
+  .card .no { font: 600 12px/1 ui-monospace, Consolas, monospace; color: var(--accent-text); }
+  .card h3 { font-size: 15.5px; margin: 6px 0 2px; font-weight: 600; }
+  .card .who { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+  .card p { font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  /* 线框：一张纸 + 画布点阵 + 浮动件 */
+  .wire { margin-top: 14px; height: 150px; border-radius: 12px; background-color: var(--canvas); background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px); background-size: 8px 8px;
+    position: relative; overflow: hidden; box-shadow: inset 0 0 0 1px var(--line-2); }
+  .wire i { position: absolute; background: var(--bg-surface); border-radius: 5px; box-shadow: var(--lift); }
+  .wire i.acc { background: var(--accent-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); }
+  .wire i.el { background: #dbe8fb; box-shadow: none; border-radius: 3px; }
+  .wire i.el.sel { box-shadow: 0 0 0 1.5px var(--accent); }
+  .wire i.el2 { background: #e4f1ea; box-shadow: none; border-radius: 3px; }
+  .wire i.bar { background: var(--line-1); box-shadow: none; }
+  .card .verdict { margin-top: 12px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .verdict .good { color: var(--ok); } .verdict .bad { color: var(--danger); }
+  .card .open { margin-top: auto; padding-top: 12px; font-size: 12.5px; color: var(--accent-text); font-weight: 500; }
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--bg-hover); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line-2); }
+  td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  code { font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--bg-surface); border: 1px solid var(--line-1); padding: 1px 6px; border-radius: 5px; color: var(--accent-text); }
+  kbd { font: 11px/1 ui-monospace, monospace; background: var(--bg-hover); border-radius: 4px; padding: 2px 5px; color: var(--ink-2); }
+  .ask { background: var(--bg-surface); border-radius: 14px; box-shadow: var(--shadow); padding: 16px 20px; max-width: 100ch; }
+  .ask + .ask { margin-top: 10px; }
+  .ask b { display: block; font-weight: 600; margin-bottom: 4px; }
+  .ask p { color: var(--ink-2); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>白板画布内部换皮 · 三方案</h1>
+  <p class="sub">现状：D-047 / D-048 只迁了页面外壳，画布组件 <code>components/WhiteBoard</code> 内部还是旧皮。它有六件「chrome」：<b>顶部居中工具条</b>（14 个按钮：形状 / 箭头 / 手写 / 富文本 / 思维导图 / 图片 / 视频 / 音频 / 网页视图 / 卡片 / 白板 / Frame / Column / 演示序列，其中 6 个带子菜单）、<b>右侧属性竖条</b>（按选中元素类型切换，每一项点开一个 antd Popover，多选时是对齐与均分）、<b>右下状态栏</b>（网格设置 / 全览 / 缩放 / 演示序列列表）、<b>左侧 300px 元素树侧栏</b>（占一整列，带 border-r）、<b>右键菜单</b>、以及十来个<b>插入 / 选择弹窗</b>和<b>演示序列创建面板 / 放映控件</b>。视觉上是一套独立的「蓝调毛玻璃」：<code>rgba(248,250,255,.9)</code> + <code>backdrop-filter</code> + 大投影，激活态靛蓝，选中框蓝色。规模：51 个文件 import antd、27 个 <code>.module.less</code>、13 个文件用旧 <code>--th-*</code>、16 个文件写了 <code>backdrop-filter</code>。</p>
+  <p class="sub">三套方案共用同一张 mock 画布（「Transformer 结构拆解 / 注意力机制」：画框、富文本、手写、图形、连线、卡片、图片、思维导图），元素按真实类型画出，都能操作：<b>点选 / Shift 多选 / 框选 / 拖动</b>（属性随元素类型切换，改颜色、线型、虚线、圆角等会真的改到元素上）、<b>工具子菜单</b>（形状图块、图片 / 视频 / 音频 / 白板菜单；点工具再点画布放置，手写可以直接画）、<b>右键菜单</b>（元素 / 空白处，带「图层」「创建为」子菜单）、<b>元素树浮层</b>（查找、折叠、双击改名、右键）、<b>缩放 / 网格</b>（<kbd>⌘</kbd>+滚轮缩放、滚轮平移、空格拖动）、<b>插入弹窗</b>（图片 URL、AI 生成、网页、选择卡片、引用白板、导出图片）、<b>演示序列</b>（右下「演示」→ 放映 / 编辑 / 新建，创建面板里选元素「添加帧」，放映时 ← → 翻页、激光笔）。标题栏「演示」区：<b>主题化元素</b>（预览元素默认色一起换的样子，见待拍板 1）、<b>多选</b>、<b>单页</b>（页签栏隐藏、底边悬停浮出）。右上角月亮切换 cream / cocoa。</p>
+  <p class="meta">2026-09-25 · mockup 只作视觉参考，不作为导出源（D-001）· 只出方案，不动 src/</p>
+</header>
+
+<h2>三个方案 · ✅ 定稿方案 A（D-049：元素默认样式另议；工具条保持顶部居中；笔记抽屉一起换）</h2>
+<div class="cards">
+  <a class="card" href="plan-a-float.html">
+    <div class="no">方案 A</div>
+    <h3>顶部工具条 + 跟随浮动属性条 <span class="who">· 属性长在选中的元素上</span></h3>
+    <p>工具条留在顶部居中（现状位置，肌肉记忆不变），按「绘制 / 媒体 / 引用 / 容器」四组靠留白分开。属性不再固定在右边，而是选中元素<b>上方 14px</b> 浮出一条横向小条（贴不下时翻到下方），拖动元素时隐去、松手回来；每一项点开是向上弹的小面板。纯开关项（草图、流动、压感）点一下直接切换，不弹面板。</p>
+    <div class="wire">
+      <i style="left:32%;top:8px;width:36%;height:14px"></i>
+      <i style="left:8px;top:8px;width:14px;height:14px"></i>
+      <i class="el sel" style="left:30%;top:66px;width:15%;height:26px"></i>
+      <i class="el2" style="left:58%;top:84px;width:14%;height:24px"></i>
+      <i style="left:28%;top:44px;width:19%;height:13px"></i>
+      <i style="right:8px;bottom:8px;width:24%;height:14px"></i>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 属性离操作对象最近，鼠标移动最少；没选中时画布四周只剩工具条与状态栏</span>
+      <span class="good">✓ 不和右侧的卡片笔记 / 视频笔记抽屉抢位置</span>
+      <span class="bad">✗ 位置随元素变化，找控件要先看元素在哪；会盖住元素上方的内容；项多时（箭头 8 项）横条偏长</span>
+    </div>
+    <span class="open">打开方案 A →</span>
+  </a>
+  <a class="card" href="plan-b-rails.html">
+    <div class="no">方案 B</div>
+    <h3>左侧竖工具条 + 右侧竖属性条 <span class="who">· 现状结构原样换皮</span></h3>
+    <p>工具条改为画布左缘垂直居中的竖条，元素树按钮并入竖条顶端；属性仍是右缘垂直居中的竖条（现状形态），选中时出现，每一项向左弹出小面板。两条都是悬浮的短条，不贯穿纸面、不占列，和全局侧栏之间隔着纸面边缘。</p>
+    <div class="wire">
+      <i style="left:8px;top:22px;width:14px;height:106px"></i>
+      <i class="el sel" style="left:34%;top:56px;width:15%;height:26px"></i>
+      <i class="el2" style="left:58%;top:84px;width:14%;height:24px"></i>
+      <i style="right:8px;top:40px;width:14px;height:64px"></i>
+      <i class="acc" style="right:28px;top:52px;width:22%;height:40px"></i>
+      <i style="right:8px;bottom:8px;width:24%;height:14px"></i>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 与现状结构一一对应，迁移成本最低、老用户零学习；位置固定，闭眼能找</span>
+      <span class="good">✓ 竖向排列最省横向空间，顶部完全空出</span>
+      <span class="bad">✗ 左右各一条竖条，远看仍有「两侧夹着」的感觉（虽然不是侧栏）；属性离元素远；右侧笔记抽屉打开时盖住属性条</span>
+    </div>
+    <span class="open">打开方案 B →</span>
+  </a>
+  <a class="card" href="plan-c-dock.html">
+    <div class="no">方案 C</div>
+    <h3>底部 dock + 检查器面板 <span class="who">· Figma / Freeform 式</span></h3>
+    <p>工具条沉到纸面底部居中，按钮放大到 36px（dock 手感），和右下状态栏同一水平线。选中元素时右上浮出一张 280px 的<b>检查器</b>，把该类型全部属性<b>平铺</b>（色板、线型、滑杆直接可调，不用逐项点开），开关放在分区标题右侧；多选时是「对齐与分布」按钮组。检查器是盖在画布上的浮层，高度随内容，不是一整列。</p>
+    <div class="wire">
+      <i style="left:8px;top:8px;width:14px;height:14px"></i>
+      <i class="el sel" style="left:22%;top:50px;width:15%;height:26px"></i>
+      <i class="el2" style="left:44%;top:78px;width:14%;height:24px"></i>
+      <i style="right:8px;top:8px;width:24%;height:104px"></i>
+      <i class="bar" style="right:14px;top:22px;width:20%;height:4px"></i>
+      <i class="bar" style="right:14px;top:36px;width:15%;height:4px"></i>
+      <i class="bar" style="right:14px;top:50px;width:18%;height:4px"></i>
+      <i style="left:32%;bottom:8px;width:36%;height:18px"></i>
+      <i style="right:8px;bottom:8px;width:20%;height:14px"></i>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 属性一览无余、调参最快（颜色 / 线型 / 粗细一屏改完）；顶部完全空出，最沉浸</span>
+      <span class="good">✓ 检查器与「演示序列创建面板」共用右上同一槽位，形态统一</span>
+      <span class="bad">✗ 选中时右侧约 300px 画布被盖住；底边同时有 dock、状态栏、（单页时）页签浮层，下缘偏挤；检查器与笔记抽屉同在右侧，需要互斥</span>
+    </div>
+    <span class="open">打开方案 C →</span>
+  </a>
+</div>
+
+<h2>三个方案都做的事</h2>
+<ul class="tight">
+  <li><b>浮动件统一主题语言</b>：实底 surface + <code>shadow-lift</code> + 1px 细描边，去掉毛玻璃与靛蓝；激活 = accent-soft 底 + accent 墨，悬停 = bg-hover；组内分隔靠 8px 留白，不画竖线；</li>
+  <li><b>画布自身的 chrome 改 accent</b>：选中框、控制点、框选矩形、演示帧高亮从蓝色改为 accent（这些是界面，不是用户内容）；网格点用 <code>--canvas-dot</code>；</li>
+  <li><b>元素树不再占一列</b>：左上（B 为竖条顶端）一个按钮，点开是盖在画布上的 264px 浮层：查找（命中高亮）、画框 / 导图按层级缩进可折叠、点一行选中并把元素移进视野、双击改名、行尾「更多」占固定槽位（悬停只改透明度，不改尺寸）；</li>
+  <li><b>演示序列入口合一</b>：工具条上的「演示序列」按钮去掉，并进右下「演示」——一个弹层里列出序列（点即放映，悬停出编辑 / 删除），底部「新建演示序列」；创建面板用 surface 浮层：名称直接写在标题位、帧列表带「这一帧在整页的位置」小地图；放映时纸面铺满窗口、chrome 全部让位，底部一个小控件（翻页 / 激光笔 / 退出），提示 2.6 秒后淡出；</li>
+  <li><b>子菜单与右键菜单换成 Menu / ContextMenu 公共件</b>：形状用四格图块；图片 / 视频 / 音频 / 白板菜单项带一行说明；右键「图层」「创建为」「添加节点」为子菜单，快捷键右对齐；</li>
+  <li><b>插入弹窗换成 Dialog</b>（取消 = secondary、确认 = primary，每屏一枚主按钮）：图片 URL 带实时预览、AI 生成带生成中状态、网页（URL 或本地 HTML）、选择卡片（查找 + 多选，按钮写「插入 N 张」）、引用白板（先选白板再选页，缩略图复用列表页）、导出图片（背景 / 倍数 / 边距 + 预览）；</li>
+  <li><b>属性里的颜色是数据色</b>：色板完整保留现状（8 组浅底 + 描边、8 实心、仅描边、自定义色；箭头 11 色主题色；卡片 7 色浅底），只把外壳换成主题语言——圆形色块、选中为 accent 外环；</li>
+  <li><b>不复述看得见的状态</b>：开关型属性的开关放在分区标题右侧（不再在下面写一遍同名开关）；A / B 里纯开关项点一下直接切，按钮本身显示开 / 关；</li>
+  <li><b>中文化</b>：「Frame」→ 画框、「Column」→ 分栏、「富文本」→ 文本；网格设置去掉 antd Switch / InputNumber，改开关 + 档位 chip；</li>
+  <li><b>不动</b>：页签栏（D-048）保持左下，状态栏保持右下；元素本身的画法与默认色不在本轮（见待拍板 1）。</li>
+</ul>
+
+<h2>对比</h2>
+<table>
+  <thead><tr><th>维度</th><th>A 顶部 + 浮动条</th><th>B 左右竖条</th><th>C 底部 dock + 检查器</th></tr></thead>
+  <tbody>
+    <tr><td>改一个属性</td><td>2 次点击（项 → 值）</td><td>2 次点击（项 → 值）</td><td>1 次点击（值已平铺）</td></tr>
+    <tr><td>属性位置</td><td>跟着元素</td><td>固定右缘</td><td>固定右上</td></tr>
+    <tr><td>选中时遮挡</td><td>元素上方一条</td><td>右缘一条 + 弹层</td><td>右侧约 300px</td></tr>
+    <tr><td>没选中时的画布</td><td>顶部一条</td><td>左缘一条</td><td>底部一条（最沉浸）</td></tr>
+    <tr><td>和笔记抽屉（右侧）</td><td>不冲突</td><td>被盖住</td><td>需要互斥</td></tr>
+    <tr><td>和页签栏 / 状态栏</td><td>不冲突</td><td>不冲突</td><td>同在底边，下缘偏挤</td></tr>
+    <tr><td>迁移成本</td><td>中（新增跟随定位）</td><td>低（结构不变）</td><td>中高（每个 setter 要出平铺版）</td></tr>
+    <tr><td>与现状差异</td><td>属性形态变</td><td>工具条方向变</td><td>两者都变</td></tr>
+  </tbody>
+</table>
+
+<h2>可以混搭的部件</h2>
+<ul class="tight">
+  <li><b>工具条形态与属性形态是独立的两个轴</b>：mockup 里三套只是三种组合，实现时可以任意配（例如「A 的顶部工具条 + C 的检查器」、「C 的底部 dock + A 的浮动条」）；</li>
+  <li><b>A 的浮动条 + C 的检查器做「更多」</b>：浮动条只放 4–5 个常用项（颜色 / 粗细 / 线型 …），末尾「更多」展开完整检查器——常用快、全量也有；</li>
+  <li><b>B 的元素树并入工具条顶端</b>可以用在 A / C（省掉左上一个孤立按钮）；</li>
+  <li><b>C 的平铺控件</b>（色板 / 滑杆 / 图示选项）本身就是 A / B 弹层里的内容，三方案共用同一套属性控件，改的只是容器。</li>
+</ul>
+
+<h2>待你拍板</h2>
+<div class="ask"><b>1. 元素默认样式要不要这次一起换？</b><p>现状新建元素的默认色是 legacy 的：图形无填充 + 黑描边、箭头 Tailwind 蓝 <code>#3b82f6</code>、卡片白底 <code>#fff</code>、思维导图蓝色主题。这些属于用户内容，改默认值只影响<b>之后新建</b>的元素；已有元素保存了自己的色值，基本不变（例外：图形描边存的是 <code>currentColor</code>，会跟着墨色走）。点标题栏「主题化元素」可以看到换成墨色 + surface + accent 的效果。建议：本轮不动，单独一轮再议。</p></div>
+<div class="ask"><b>2. 属性栏形态选哪种？</b><p>A 跟随浮动小条 / B 右侧常驻竖条 / C 平铺检查器，或者「浮动条 + 更多展开检查器」的混搭。</p></div>
+<div class="ask"><b>3. 工具条放哪里？</b><p>顶部居中（现状）/ 左侧竖条 / 底部 dock。另：演示序列按钮从工具条移到右下「演示」合并，可以吗？</p></div>
+<div class="ask"><b>4. 卡片笔记 / 视频笔记抽屉</b><p>画布右侧还有两个从右边滑出的抽屉（打开卡片笔记、视频笔记），现在是 antd 白底 + 边框线。它和右侧的属性（B / C）有位置冲突，要不要这轮一起换皮、并定一下与属性的互斥规则？</p></div>
+
+</body>
+</html>

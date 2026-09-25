@@ -1,235 +1,95 @@
-import { memo, useState } from "react";
+import { memo } from "react";
 import { useMemoizedFn } from "ahooks";
-import { Popover, Tooltip } from "antd";
-import { MdOutlineColorLens, MdOutlineFitScreen } from "react-icons/md";
-import { LuPackageOpen, LuPanelTop, LuCheck } from "react-icons/lu";
+import { PanelTop, Scan, Ungroup } from "lucide-react";
 import { produce } from "immer";
 
-import {
-  FrameElement,
-  FRAME_DEFAULT_STYLES,
-  FrameTitlePosition,
-} from "../../../types";
+import { FrameElement, FRAME_DEFAULT_STYLES, FrameTitlePosition } from "../../../types";
 import { useBoard } from "../../../hooks";
 import { FrameUtil } from "../../../utils";
-
-import styles from "./index.module.less";
-import useTheme from "@/hooks/useTheme";
-import classnames from "classnames";
+import { AttrAction, AttrPopover, Seg, SwatchRow } from "../../../chrome";
 
 interface FrameSetterProps {
   element: FrameElement;
   onChange: (element: FrameElement) => void;
 }
 
-const FrameSetter = memo((props: FrameSetterProps) => {
-  const { element, onChange } = props;
-  const { isDark } = useTheme();
-  const [styleOpen, setStyleOpen] = useState(false);
-  const [titlePositionOpen, setTitlePositionOpen] = useState(false);
-  const board = useBoard();
-  const currentTitlePosition: FrameTitlePosition =
-    element.titlePosition ?? "top";
+const STYLE_NAMES = ["蓝", "绿", "黄", "橙", "红", "紫", "粉", "灰", "青", "靛"];
 
-  // 找到当前元素对应的样式索引
+const FrameSetter = memo(({ element, onChange }: FrameSetterProps) => {
+  const board = useBoard();
   const currentStyleIndex = FRAME_DEFAULT_STYLES.findIndex(
-    (style) =>
-      style.backgroundColor === element.backgroundColor &&
-      style.borderColor === element.borderColor,
+    s => s.backgroundColor === element.backgroundColor && s.borderColor === element.borderColor
   );
 
   const handleStyleChange = useMemoizedFn((styleIndex: number) => {
-    const selectedStyle = FRAME_DEFAULT_STYLES[styleIndex];
-    const newElement = produce(element, (draft) => {
-      draft.backgroundColor = selectedStyle.backgroundColor;
-      draft.borderColor = selectedStyle.borderColor;
-      draft.borderWidth = selectedStyle.borderWidth;
-      draft.borderRadius = selectedStyle.borderRadius;
-    });
-
-    // 保存到本地存储
-    FrameUtil.setLocalStorage("backgroundColor", selectedStyle.backgroundColor);
-    FrameUtil.setLocalStorage("borderColor", selectedStyle.borderColor);
-    FrameUtil.setLocalStorage(
-      "borderWidth",
-      selectedStyle.borderWidth.toString(),
+    const s = FRAME_DEFAULT_STYLES[styleIndex];
+    onChange(
+      produce(element, draft => {
+        draft.backgroundColor = s.backgroundColor;
+        draft.borderColor = s.borderColor;
+        draft.borderWidth = s.borderWidth;
+        draft.borderRadius = s.borderRadius;
+      })
     );
-    FrameUtil.setLocalStorage(
-      "borderRadius",
-      selectedStyle.borderRadius.toString(),
-    );
-
-    onChange(newElement);
-    setStyleOpen(false);
+    FrameUtil.setLocalStorage("backgroundColor", s.backgroundColor);
+    FrameUtil.setLocalStorage("borderColor", s.borderColor);
+    FrameUtil.setLocalStorage("borderWidth", s.borderWidth.toString());
+    FrameUtil.setLocalStorage("borderRadius", s.borderRadius.toString());
   });
 
   const handleTitlePositionChange = useMemoizedFn((pos: FrameTitlePosition) => {
-    const newElement = produce(element, (draft) => {
-      draft.titlePosition = pos;
-    });
+    onChange(produce(element, draft => void (draft.titlePosition = pos)));
     FrameUtil.setLocalStorage("titlePosition", pos);
-    onChange(newElement);
-    setTitlePositionOpen(false);
-  });
-
-  const stopPropagation = useMemoizedFn((e: React.UIEvent) => {
-    e.stopPropagation();
-    e.nativeEvent.stopImmediatePropagation();
   });
 
   const handleFitContent = useMemoizedFn(() => {
-    const newBounds = FrameUtil.calculateFrameFitBounds(board, element);
-    const newElement = produce(element, (draft) => {
-      draft.x = newBounds.x;
-      draft.y = newBounds.y;
-      draft.width = newBounds.width;
-      draft.height = newBounds.height;
-    });
-    onChange(newElement);
+    const b = FrameUtil.calculateFrameFitBounds(board, element);
+    onChange(
+      produce(element, draft => {
+        draft.x = b.x;
+        draft.y = b.y;
+        draft.width = b.width;
+        draft.height = b.height;
+      })
+    );
   });
-
-  const handleUnwrapFrame = useMemoizedFn(() => {
-    FrameUtil.unwrapFrame(board, element);
-  });
-
-  const titlePositionContent = (
-    <div
-      className={classnames(styles.popoverContent, styles.positionList, {
-        [styles.dark]: isDark,
-      })}
-      onClick={stopPropagation}
-      onPointerDown={stopPropagation}
-      onPointerUp={stopPropagation}
-      onWheel={stopPropagation}
-    >
-      {(["top", "inline"] as const).map((pos) => (
-        <div
-          key={pos}
-          className={classnames(styles.positionOption, {
-            [styles.dark]: isDark,
-            [styles.positionOptionActive]: currentTitlePosition === pos,
-          })}
-          onClick={() => handleTitlePositionChange(pos)}
-        >
-          <span className={styles.positionPreview}>
-            <span className={styles.previewFrame} />
-            <span
-              className={classnames(
-                styles.previewTitle,
-                pos === "top"
-                  ? styles.previewTitleTop
-                  : styles.previewTitleInline,
-              )}
-            />
-          </span>
-          <span className={styles.positionLabel}>
-            {pos === "top" ? "上方" : "内嵌"}
-          </span>
-          {currentTitlePosition === pos && (
-            <LuCheck className={styles.positionCheck} />
-          )}
-        </div>
-      ))}
-    </div>
-  );
-
-  const styleContent = (
-    <div
-      className={classnames(styles.popoverContent, {
-        [styles.dark]: isDark,
-      })}
-      onClick={stopPropagation}
-      onPointerDown={stopPropagation}
-      onPointerUp={stopPropagation}
-      onWheel={stopPropagation}
-    >
-      <div
-        className={classnames(styles.styleGrid, {
-          [styles.dark]: isDark,
-        })}
-      >
-        {FRAME_DEFAULT_STYLES.map((style, index) => (
-          <div
-            key={index}
-            className={classnames(styles.styleItem, {
-              [styles.dark]: isDark,
-            })}
-            onClick={() => handleStyleChange(index)}
-            style={{
-              backgroundColor: style.backgroundColor,
-              border: `${currentStyleIndex === index ? 3 : 2}px solid ${style.borderColor}`,
-              borderRadius: `${style.borderRadius}px`,
-            }}
-          />
-        ))}
-      </div>
-    </div>
-  );
 
   return (
-    <div
-      onPointerDown={stopPropagation}
-      onDoubleClick={stopPropagation}
-      onWheel={stopPropagation}
-      className={classnames(styles.container, {
-        [styles.dark]: isDark,
-      })}
-    >
-      <Popover
-        open={styleOpen}
-        onOpenChange={setStyleOpen}
-        styles={{
-          container: {
-            background: "transparent",
-            boxShadow: "none",
-            padding: 0,
-            marginLeft: 12,
-          },
-        }}
-        trigger={"click"}
-        content={styleContent}
-        placement={"right"}
-        arrow={false}
+    <>
+      <AttrPopover
+        label="画框样式"
+        swatch={{ fill: element.backgroundColor, stroke: element.borderColor }}
+        width={264}
       >
-        <Tooltip title={"选择样式"} trigger={"hover"} placement={"right"}>
-          <div className={styles.item}>
-            <MdOutlineColorLens />
-          </div>
-        </Tooltip>
-      </Popover>
-      <Popover
-        open={titlePositionOpen}
-        onOpenChange={setTitlePositionOpen}
-        styles={{
-          container: {
-            background: "transparent",
-            boxShadow: "none",
-            padding: 0,
-            marginLeft: 12,
-          },
-        }}
-        trigger={"click"}
-        content={titlePositionContent}
-        placement={"right"}
-        arrow={false}
-      >
-        <Tooltip title={"标题位置"} trigger={"hover"} placement={"right"}>
-          <div className={styles.item}>
-            <LuPanelTop />
-          </div>
-        </Tooltip>
-      </Popover>
-      <Tooltip title={"适应内容"} trigger={"hover"} placement={"right"}>
-        <div className={styles.item} onClick={handleFitContent}>
-          <MdOutlineFitScreen />
-        </div>
-      </Tooltip>
-      <Tooltip title={"解散 Frame"} trigger={"hover"} placement={"right"}>
-        <div className={styles.item} onClick={handleUnwrapFrame}>
-          <LuPackageOpen />
-        </div>
-      </Tooltip>
-    </div>
+        <SwatchRow
+          options={FRAME_DEFAULT_STYLES.map((s, i) => ({
+            key: String(i),
+            label: STYLE_NAMES[i] ?? `样式 ${i + 1}`,
+            fill: s.backgroundColor,
+            stroke: s.borderColor,
+          }))}
+          value={currentStyleIndex >= 0 ? String(currentStyleIndex) : null}
+          onChange={k => handleStyleChange(Number(k))}
+        />
+      </AttrPopover>
+      <AttrPopover label="标题位置" icon={<PanelTop strokeWidth={1.75} />} width={220}>
+        <Seg<FrameTitlePosition>
+          label="标题位置"
+          value={element.titlePosition ?? "top"}
+          onChange={handleTitlePositionChange}
+          options={[
+            { value: "top", label: "上方" },
+            { value: "inline", label: "内嵌" },
+          ]}
+        />
+      </AttrPopover>
+      <AttrAction label="适应内容" icon={<Scan strokeWidth={1.75} />} onClick={handleFitContent} />
+      <AttrAction
+        label="解散画框"
+        icon={<Ungroup strokeWidth={1.75} />}
+        onClick={() => FrameUtil.unwrapFrame(board, element)}
+      />
+    </>
   );
 });
 

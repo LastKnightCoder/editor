@@ -1,19 +1,10 @@
-import {
-  memo,
-  useMemo,
-  RefObject,
-  useEffect,
-  useState,
-  useRef,
-  useLayoutEffect,
-} from "react";
+import { memo, useMemo, RefObject } from "react";
 import type { ReactNode } from "react";
-import classnames from "classnames";
-import { RightOutlined } from "@ant-design/icons";
+import { Menu } from "@tau/ui";
 
 import { Board, BoardContextMenuPayload } from "../../types";
 import { useContextMenu } from "../../hooks/useContextMenu";
-import styles from "../../index.module.less";
+import { stopCanvasEvents } from "../../chrome";
 
 export interface ContextMenuItem {
   key: string;
@@ -41,196 +32,71 @@ interface ContextMenuLayerProps {
   buildMenuItems: (params: BuildMenuItemsParams) => ContextMenuItem[];
 }
 
+function renderItems(items: ContextMenuItem[]): ReactNode {
+  return items.filter(Boolean).map(item =>
+    item.children && item.children.length > 0 ? (
+      <Menu.Submenu key={item.key} label={item.label} icon={item.icon} disabled={item.disabled}>
+        {renderItems(item.children)}
+      </Menu.Submenu>
+    ) : (
+      <Menu.Item
+        key={item.key}
+        icon={item.icon}
+        kbd={item.shortcut}
+        danger={item.danger}
+        disabled={item.disabled}
+        onSelect={item.onSelect}
+      >
+        {item.label}
+      </Menu.Item>
+    )
+  );
+}
+
+/**
+ * 画布右键菜单（D-049）：插件按上下文给出条目，渲染走 Menu 公共件（子菜单、键盘、外点关闭、
+ * 视口内翻转都由公共件承担）。锚点 = 右键命中点处的 0 尺寸占位。
+ * fit：条目多，主层与子层都尽量展开到视口高度，不出滚动条。
+ */
 const ContextMenuLayer = memo(
-  ({
-    board,
-    containerRef,
-    readonly,
-    buildMenuItems,
-  }: ContextMenuLayerProps) => {
-    const { state, hide } = useContextMenu(board, containerRef);
-    const [openKeys, setOpenKeys] = useState<string[]>([]);
-    const menuRef = useRef<HTMLDivElement>(null);
-    const [adjustedPosition, setAdjustedPosition] = useState<{
-      x: number;
-      y: number;
-    } | null>(null);
+  ({ board, containerRef, readonly, buildMenuItems }: ContextMenuLayerProps) => {
+    const { context, hide } = useContextMenu(board);
 
     const menuItems = useMemo(() => {
-      if (!state) return [];
-      return buildMenuItems({
-        context: state.context,
-        board,
-        hide,
-        readonly,
-      });
-    }, [state, buildMenuItems, board, hide, readonly]);
+      if (!context) return [];
+      return buildMenuItems({ context, board, hide, readonly });
+    }, [context, buildMenuItems, board, hide, readonly]);
 
-    useEffect(() => {
-      if (!state) {
-        setOpenKeys([]);
-        setAdjustedPosition(null);
-      }
-    }, [state]);
-
-    // 计算菜单位置，确保不被容器截断
-    useLayoutEffect(() => {
-      if (!state || !menuRef.current || !containerRef.current) return;
-
-      const menuRect = menuRef.current.getBoundingClientRect();
-      const containerRect = containerRef.current.getBoundingClientRect();
-
-      // 底部和右侧的最小安全距离
-      const BOTTOM_SPACING = 16;
-      const RIGHT_SPACING = 16;
-
-      // 计算容器的可用空间
-      const containerWidth = containerRect.width;
-      const containerHeight = containerRect.height;
-
-      let x = state.position.x;
-      let y = state.position.y;
-
-      // 检查右侧是否超出容器
-      if (x + menuRect.width > containerWidth - RIGHT_SPACING) {
-        x = Math.max(
-          RIGHT_SPACING,
-          containerWidth - menuRect.width - RIGHT_SPACING,
-        );
-      }
-
-      // 检查底部是否超出容器
-      if (y + menuRect.height > containerHeight - BOTTOM_SPACING) {
-        y = Math.max(
-          BOTTOM_SPACING,
-          containerHeight - menuRect.height - BOTTOM_SPACING,
-        );
-      }
-
-      setAdjustedPosition({ x, y });
-    }, [state, menuItems.length, containerRef]);
-
-    if (!state) return null;
-
-    const handleItemSelect = (item: ContextMenuItem, hasChildren: boolean) => {
-      if (item.disabled || hasChildren) return;
-      item.onSelect?.();
-      hide();
-    };
-
-    // 鼠标进入菜单项容器（包括子菜单和安全三角区）
-    const handleItemWrapperEnter = (key: string, hasChildren: boolean) => {
-      if (hasChildren) {
-        setOpenKeys([key]);
-      }
-    };
-
-    // 鼠标离开菜单项容器
-    const handleItemWrapperLeave = (key: string, hasChildren: boolean) => {
-      if (hasChildren && openKeys.includes(key)) {
-        setOpenKeys([]);
-      }
-    };
-
-    const renderMenu = (items: ContextMenuItem[], level = 0) => (
-      <div className={styles.contextMenuList}>
-        {items.map((item) => {
-          if (!item) return null;
-          const hasChildren =
-            Array.isArray(item.children) && item.children.length > 0;
-          const itemClass = classnames(styles.contextMenuItemButton, {
-            [styles.contextMenuItemDanger]: item.danger,
-            [styles.contextMenuItemDisabled]: item.disabled,
-            [styles.contextMenuItemWithChildren]: hasChildren,
-          });
-          const isOpen = openKeys.includes(item.key);
-
-          return (
-            <div
-              key={item.key}
-              className={styles.contextMenuItemWrapper}
-              onMouseEnter={() => handleItemWrapperEnter(item.key, hasChildren)}
-              onMouseLeave={() => handleItemWrapperLeave(item.key, hasChildren)}
-            >
-              <button
-                type="button"
-                className={itemClass}
-                onClick={() => handleItemSelect(item, hasChildren)}
-                disabled={item.disabled}
-              >
-                {item.icon && (
-                  <span className={styles.contextMenuItemIcon}>
-                    {item.icon}
-                  </span>
-                )}
-                <span className={styles.contextMenuItemLabel}>
-                  {item.label}
-                </span>
-                {item.shortcut && (
-                  <span className={styles.contextMenuShortcut}>
-                    {item.shortcut}
-                  </span>
-                )}
-                {hasChildren && (
-                  <span className={styles.contextMenuArrow}>
-                    <RightOutlined />
-                  </span>
-                )}
-              </button>
-              {hasChildren && level < 2 && (
-                <>
-                  {/* 安全三角区：覆盖父菜单项到子菜单之间的间隙 */}
-                  <div
-                    className={classnames(styles.contextMenuSafeArea, {
-                      [styles.contextMenuSafeAreaVisible]: isOpen,
-                    })}
-                  />
-                  <div
-                    className={classnames(styles.contextMenuSubMenu, {
-                      [styles.contextMenuSubMenuVisible]: isOpen,
-                    })}
-                  >
-                    {renderMenu(item.children!, level + 1)}
-                  </div>
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-
-    const stopAll = (event: React.SyntheticEvent) => {
-      event.stopPropagation();
-      event.preventDefault();
-    };
-
-    // 使用调整后的位置，如果还没计算则使用原始位置
-    const position = adjustedPosition || state.position;
+    if (!context) return null;
+    const rect = containerRef.current?.getBoundingClientRect();
+    const x = context.clientX - (rect?.left ?? 0);
+    const y = context.clientY - (rect?.top ?? 0);
 
     return (
-      <div
-        ref={menuRef}
-        className={styles.contextMenu}
-        style={{
-          left: `${position.x}px`,
-          top: `${position.y}px`,
-        }}
-        onPointerDown={stopAll}
-        onPointerUp={stopAll}
-        onClick={stopAll}
-        onDoubleClick={stopAll}
-        onContextMenu={stopAll}
-        onWheel={stopAll}
-      >
-        {menuItems.length > 0 ? (
-          renderMenu(menuItems)
-        ) : (
-          <div className={styles.contextMenuEmpty}>暂无可用操作</div>
-        )}
+      // 浮层经 portal 渲染，但 React 事件仍沿组件树冒泡：在这里截住，免得落到画布容器的指针处理
+      <div className="contents" {...stopCanvasEvents}>
+        <Menu
+          open
+          fit
+          onOpenChange={open => !open && hide()}
+          trigger={
+            <span
+              aria-hidden
+              tabIndex={-1}
+              className="pointer-events-none absolute size-0"
+              style={{ left: x, top: y }}
+            />
+          }
+        >
+          {menuItems.length > 0 ? (
+            renderItems(menuItems)
+          ) : (
+            <Menu.Item disabled>暂无可用操作</Menu.Item>
+          )}
+        </Menu>
       </div>
     );
-  },
+  }
 );
 
 ContextMenuLayer.displayName = "ContextMenuLayer";
