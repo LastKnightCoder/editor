@@ -13,5 +13,6 @@ export type {
 export { ReasoningBlock, formatElapsed } from "./ReasoningBlock";
 export { ToolCallBlock, ToolCallRow, toolStatusText, formatToolDuration } from "./ToolCallRow";
 export { FoldRow, FoldBody } from "./FoldRow";
-export { CodeBlock, normalizeCodeLanguage } from "./CodeBlock";
+export { CodeBlock, normalizeCodeLanguage, usePrismHighlighter } from "./CodeBlock";
+export { tauPrismTheme } from "./prismTheme";
 export { useChatMarkdownComponents } from "./useChatMarkdownComponents";

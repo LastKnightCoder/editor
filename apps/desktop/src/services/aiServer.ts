@@ -38,7 +38,6 @@ import { getContentLength, defaultContentEventBus } from "@/utils";
 import { defaultCardEventBus } from "@/utils/event-bus/card-event-bus";
 import { defaultArticleEventBus } from "@/utils/event-bus/article-event-bus";
 import useExtNoteInsertStore from "@/stores/useExtNoteInsertStore";
-import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
 import { showAndFocusWindow } from "@/commands/window";
 import { resolveEmbeddingModelInfoFromSetting } from "@/utils/embedding-model-info";
 import type { BlockData } from "@/types/block-preview";
@@ -590,8 +589,12 @@ const handleNoteShowInsertModal = async (request: RpcRequestMessage) => {
 
 const handleMcpManagerOpen = async () => {
   await showAndFocusWindow();
-  useMCPManagerModalStore.getState().openModal();
-  return { success: true };
+  try {
+    openPage("mcp");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: (error as Error).message };
+  }
 };
 
 const handleBlockPreviewOpen = async (request: RpcRequestMessage) => {

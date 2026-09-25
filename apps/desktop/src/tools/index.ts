@@ -2,11 +2,12 @@ import useMCPStore, { CustomMCPServer } from "@/stores/useMCPStore";
 import { MCP_PROVIDERS } from "@/mcp/providers";
 import toolRegistry, { ToolRegistry } from "./toolRegistry";
 import { registerBuiltinTools } from "./builtinTools";
-import { fetchToolsFromServer, onConnectionStatusChange } from "./customMCP";
+import { disconnectFromServer, fetchToolsFromServer, onConnectionStatusChange } from "./customMCP";
 import useSettingStore from "@/stores/useSettingStore";
 
 let initialized = false;
-let knownCustomServerIds = new Set<string>();
+/** 上次加载时的服务器配置：store 只替换被改动的那一项，按引用比较即可只重载变化的服务器 */
+let loadedCustomServers = new Map<string, CustomMCPServer>();
 let mcpStatusUnsubscribe: (() => void) | null = null;
 
 const isProviderAvailable = (provider: (typeof MCP_PROVIDERS)[number]) =>
@@ -14,7 +15,7 @@ const isProviderAvailable = (provider: (typeof MCP_PROVIDERS)[number]) =>
 
 const registerBuiltinProviders = (registry: ToolRegistry) => {
   const store = useMCPStore.getState();
-  MCP_PROVIDERS.forEach((provider) => {
+  MCP_PROVIDERS.forEach(provider => {
     registry.unregisterSource(provider.id);
     if (!isProviderAvailable(provider)) {
       return;
@@ -37,30 +38,47 @@ const loadCustomServer = async (server: CustomMCPServer) => {
   try {
     const definitions = await fetchToolsFromServer(server);
     toolRegistry.registerTools(server.id, definitions, true);
+    store.setServerTools(
+      server.id,
+      definitions.map(({ name, description, parameters }) => ({ name, description, parameters }))
+    );
     store.setConnectionStatus(server.id, "connected");
   } catch (error) {
     console.error(`[MCP] 加载自定义 MCP 服务 ${server.name} 失败`, error);
     store.setConnectionStatus(
       server.id,
       "error",
-      error instanceof Error ? error.message : "连接失败",
+      error instanceof Error ? error.message : "连接失败"
     );
   }
 };
 
-const syncCustomServers = (servers: CustomMCPServer[]) => {
-  const nextIds = new Set(servers.map((server) => server.id));
+/** 手动重连：断开后按当前配置重新连接并刷新工具列表 */
+export const reloadCustomServer = async (server: CustomMCPServer) => {
+  await disconnectFromServer(server.id).catch(() => undefined);
+  await loadCustomServer(server);
+};
 
-  knownCustomServerIds.forEach((id) => {
-    if (!nextIds.has(id)) {
+const syncDisabledTools = (next: Record<string, string[]>, prev: Record<string, string[]> = {}) => {
+  new Set([...Object.keys(prev), ...Object.keys(next)]).forEach(source => {
+    toolRegistry.setDisabledTools(source, next[source] ?? []);
+  });
+};
+
+const syncCustomServers = (servers: CustomMCPServer[]) => {
+  const next = new Map(servers.map(server => [server.id, server]));
+
+  loadedCustomServers.forEach((_, id) => {
+    if (!next.has(id)) {
       toolRegistry.unregisterSource(id);
     }
   });
-  knownCustomServerIds = nextIds;
 
-  servers.forEach((server) => {
+  servers.forEach(server => {
+    if (loadedCustomServers.get(server.id) === server) return;
     void loadCustomServer(server);
   });
+  loadedCustomServers = next;
 };
 
 export const initializeTooling = () => {
@@ -71,18 +89,19 @@ export const initializeTooling = () => {
 
   if (!mcpStatusUnsubscribe) {
     const store = useMCPStore.getState();
-    mcpStatusUnsubscribe = onConnectionStatusChange((data) => {
+    mcpStatusUnsubscribe = onConnectionStatusChange(data => {
       store.setConnectionStatus(data.serverId, data.status, data.error);
     });
   }
 
+  syncDisabledTools(useMCPStore.getState().disabledTools);
   registerBuiltinTools(toolRegistry);
   registerBuiltinProviders(toolRegistry);
   syncCustomServers(useMCPStore.getState().customServers);
 
   useMCPStore.subscribe((state, prevState) => {
     if (!prevState || state.providerStates !== prevState.providerStates) {
-      MCP_PROVIDERS.forEach((provider) => {
+      MCP_PROVIDERS.forEach(provider => {
         if (!isProviderAvailable(provider)) {
           toolRegistry.unregisterSource(provider.id);
           return;
@@ -92,18 +111,18 @@ export const initializeTooling = () => {
           toolRegistry.registerTools(
             provider.id,
             provider.tools(),
-            state.providerStates[provider.id]?.enabled ??
-              provider.defaultEnabled ??
-              false,
+            state.providerStates[provider.id]?.enabled ?? provider.defaultEnabled ?? false
           );
           return;
         }
         const enabled =
-          state.providerStates[provider.id]?.enabled ??
-          provider.defaultEnabled ??
-          false;
+          state.providerStates[provider.id]?.enabled ?? provider.defaultEnabled ?? false;
         toolRegistry.setSourceEnabled(provider.id, enabled);
       });
+    }
+
+    if (state.disabledTools !== prevState?.disabledTools) {
+      syncDisabledTools(state.disabledTools, prevState?.disabledTools);
     }
 
     if (!prevState || state.customServers !== prevState.customServers) {

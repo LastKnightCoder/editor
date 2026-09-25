@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>MCP 配置页 · 总览与决策</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="mcp.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  [data-theme] body { background: var(--page); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 24px 60px; }
+  h1 { font-size: 25px; font-weight: 600; margin: 0 0 6px; }
+  .lead { color: var(--ink-2); margin: 0 0 26px; max-width: 900px; }
+  h2 { font-size: 16px; font-weight: 600; margin: 30px 0 4px; }
+  h2 + p { color: var(--ink-2); margin: 0 0 14px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card { display: block; text-decoration: none; color: inherit; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 18px; transition: box-shadow var(--fast); }
+  a.card:hover { box-shadow: var(--shadow-lift); }
+  .card h3 { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card p { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+  .rec { font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); }
+  .wf { height: 110px; border-radius: 10px; background: var(--page); display: flex; gap: 4px; padding: 6px; margin-bottom: 12px; }
+  .wf i { display: block; border-radius: 5px; }
+  .wf .s { width: 22px; } .wf .p { flex: 1; background: var(--surface); box-shadow: var(--shadow-card); display: flex; gap: 4px; padding: 5px; }
+  .wf .a { background: var(--accent-soft); } .wf .b { background: var(--sunken); }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); overflow: hidden; font-size: 12.5px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { color: var(--ink-3); font-weight: 500; white-space: nowrap; }
+  tr + tr td { border-top: 1px solid var(--line-2); }
+  td b { font-weight: 600; }
+  td.y { color: var(--ok); } td.n { color: var(--ink-3); }
+  code { font: 12px var(--mono); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--line-1); background: var(--surface); }
+  .dec { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 4px 0; }
+  .dec .q { display: grid; grid-template-columns: 34px 170px 1fr; gap: 12px; padding: 12px 18px; }
+  .dec .q + .q { border-top: 1px solid var(--line-2); }
+  .dec .q .no { width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-text); display: grid; place-items: center; font-weight: 600; font-size: 12px; }
+  .dec .q .t { font-weight: 600; }
+  .dec .opt { display: flex; gap: 8px; flex-wrap: wrap; }
+  .dec .o { padding: 6px 10px; border-radius: var(--r-sm); border: 1px solid var(--line-1); font-size: 12.5px; max-width: 320px; }
+  .dec .o.r { border-color: var(--accent); background: var(--accent-soft); }
+  .dec .o b { display: block; font-weight: 600; margin-bottom: 1px; }
+  .dec .o span { color: var(--ink-2); font-size: 12px; }
+  .ph { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 20px; }
+  .ph ol { margin: 0; padding-left: 20px; } .ph li { margin: 6px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>MCP 配置页 · 方案与决策</h1>
+  <p class="lead">现状：MCP 管理是 <code>MCPManagerModal</code>（838 行老样式弹窗，只能从对话输入框 🔌 打开），分「内置 / 自定义」两个 tab；能力上只有服务器级开关、stdio / streamable-http 两种传输、JSON 导入。目标：和 Skill 管理一样升格为 <b>AI 组下的独立页面</b>，换新壳层样式，并借鉴成熟产品补齐<b>工具级控制、错误诊断、低门槛添加</b>三块短板。</p>
+
+  <h2>① 成熟产品怎么做</h2>
+  <p>挑出与本应用场景（桌面端、本地 + 远程服务器、非开发者也会用）最相关的 5 家。</p>
+  <table>
+    <tr><th></th><th>Claude Desktop</th><th>Cursor</th><th>Cherry Studio</th><th>VS Code</th><th>Windsurf</th></tr>
+    <tr><td><b>入口</b></td><td>设置 → Connectors（+ Extensions 目录）</td><td>设置 → Tools &amp; MCP</td><td>设置 → MCP 服务器</td><td>扩展侧栏 MCP 视图 + 命令面板</td><td>设置 → MCP / Cascade 面板</td></tr>
+    <tr><td><b>布局</b></td><td>卡片 / 列表 + 详情页</td><td>单列行，行内展开工具</td><td>列表 + 详情（标签页）</td><td>树形视图 + 编辑器里改 mcp.json</td><td>卡片市场 + 已安装列表</td></tr>
+    <tr><td><b>添加</b></td><td>目录一键装 / 自定义 URL（OAuth）</td><td>编辑 mcp.json / 一键安装链接</td><td>表单 / 导入 JSON / 内置市场</td><td>命令向导 / 画廊 / JSON</td><td>市场一键装 / 编辑 JSON</td></tr>
+    <tr><td><b>工具级开关</b></td><td class="y">有</td><td class="y">有（点工具芯片）</td><td class="y">有</td><td class="y">有（工具选择器）</td><td class="y">有</td></tr>
+    <tr><td><b>执行确认</b></td><td class="y">每工具：始终允许 / 需确认 / 禁用</td><td class="y">全局自动运行 + 白名单</td><td class="y">每工具自动批准</td><td class="y">每次确认，可记住</td><td class="n">全局</td></tr>
+    <tr><td><b>状态 / 日志</b></td><td>状态 + 错误提示</td><td>状态点 + 输出日志</td><td>状态 + 错误信息</td><td class="y">启动 / 停止 / 重启 / Output 日志</td><td>状态点 + 刷新</td></tr>
+    <tr><td><b>密钥</b></td><td>安装时表单填，存钥匙串</td><td>明文写在 JSON</td><td>明文</td><td class="y"><code>inputs</code> 首次提示、加密存储</td><td>明文</td></tr>
+  </table>
+  <p style="margin-top:10px;color:var(--ink-2);font-size:12.5px">共识：<b>工具级开关</b>与<b>执行确认</b>已是标配；<b>JSON 兼容 <code>mcpServers</code> 格式</b>是跨产品迁移的通行证；<b>密钥不落明文</b>是加分项。</p>
+
+  <h2>② 页面布局：三选一</h2>
+  <p>三套都已做成可点的样板间，添加弹窗、详情内容三者共用，区别只在「怎么排」。</p>
+  <div class="grid3">
+    <a class="card" href="a-split.html">
+      <div class="wf"><i class="s"></i><div class="p"><i class="b" style="width:34%"></i><div style="flex:1;display:flex;flex-direction:column;gap:4px"><i class="a" style="height:22px"></i><i class="b" style="flex:1"></i></div></div></div>
+      <h3>A 列表 + 详情 <span class="rec">推荐</span></h3>
+      <p>左列服务器，右侧工具 / 配置 / 日志三个标签页。和 Skill 管理同一结构，服务器多了也清楚，查错最顺。</p>
+    </a>
+    <a class="card" href="b-gallery.html">
+      <div class="wf"><i class="s"></i><div class="p" style="flex-wrap:wrap;align-content:flex-start"><i class="b" style="width:30%;height:28px"></i><i class="b" style="width:30%;height:28px"></i><i class="b" style="width:30%;height:28px"></i><i class="a" style="width:30%;height:28px"></i><i class="a" style="width:30%;height:28px"></i></div></div>
+      <h3>B 卡片库 + 抽屉</h3>
+      <p>卡片网格 + 内嵌「常用服务器」目录，详情从右侧抽屉滑出。最好看、发现成本最低，但反复查看要开合抽屉。</p>
+    </a>
+    <a class="card" href="c-rows.html">
+      <div class="wf"><i class="s"></i><div class="p" style="flex-direction:column;align-items:center"><i class="b" style="width:70%;height:14px"></i><i class="a" style="width:70%;height:30px"></i><i class="b" style="width:70%;height:14px"></i><i class="b" style="width:70%;height:14px"></i></div></div>
+      <h3>C 单列展开</h3>
+      <p>Cursor 式设置列表，行内展开工具芯片，编辑默认 JSON。实现最轻，但日志 / 确认策略放不下。</p>
+    </a>
+  </div>
+
+  <h2>③ 需要你拍板的点</h2>
+  <p>高亮的是我的推荐。</p>
+  <div class="dec">
+    <div class="q"><span class="no">1</span><div class="t">页面布局</div><div class="opt">
+      <div class="o r"><b>A 列表 + 详情</b><span>结构同 Skill 管理，扩展性最好</span></div>
+      <div class="o"><b>B 卡片库 + 抽屉</b><span>更友好、更好看</span></div>
+      <div class="o"><b>C 单列展开</b><span>最省工</span></div></div></div>
+    <div class="q"><span class="no">2</span><div class="t">导航位置</div><div class="opt">
+      <div class="o r"><b>AI 组新增「MCP 服务器」</b><span>与「Skill 管理」并列，失败数作徽标</span></div>
+      <div class="o"><b>合为「AI 能力」一页</b><span>顶部 Skill / MCP 切换，侧栏少一项（见方案 C「合并导航」）</span></div>
+      <div class="o"><b>放进设置弹窗</b><span>和 Claude / Cursor 一样，但与「Skill 独立成页」不一致</span></div></div></div>
+    <div class="q"><span class="no">3</span><div class="t">输入框 🔌 按钮</div><div class="opt">
+      <div class="o r"><b>快捷浮层 + 跳页</b><span>浮层只放开关，底部「管理 MCP 服务器」跳页（方案 A「输入框快捷」）</span></div>
+      <div class="o"><b>直接跳页</b><span>最简单，但会打断对话</span></div></div></div>
+    <div class="q"><span class="no">4</span><div class="t">工具级控制（新能力）</div><div class="opt">
+      <div class="o r"><b>一期：逐工具开关</b><span>store 加 <code>disabledTools</code>，注册工具时过滤，改动小</span></div>
+      <div class="o r"><b>二期：执行前确认</b><span>写操作默认「每次询问」，需要对话流里加确认卡片，工作量大</span></div>
+      <div class="o"><b>都不做</b><span>只换皮</span></div></div></div>
+    <div class="q"><span class="no">5</span><div class="t">添加方式</div><div class="opt">
+      <div class="o r"><b>常用服务器 + 表单 + 粘贴 JSON</b><span>常用清单内置静态数据，不做在线市场</span></div>
+      <div class="o"><b>表单 + JSON</b><span>保持现有能力，只换样式</span></div></div></div>
+    <div class="q"><span class="no">6</span><div class="t">密钥存储</div><div class="opt">
+      <div class="o r"><b>env / headers 值遮蔽显示</b><span>一期只做 UI 遮蔽，仍存 localStorage</span></div>
+      <div class="o"><b>转存系统钥匙串</b><span>Electron safeStorage，更安全，需迁移老数据</span></div></div></div>
+    <div class="q"><span class="no">7</span><div class="t">日志</div><div class="opt">
+      <div class="o r"><b>做</b><span>主进程已有连接 / 重连事件，补上 stderr 转发即可</span></div>
+      <div class="o"><b>不做</b><span>只显示最后一条错误</span></div></div></div>
+  </div>
+
+  <h2>④ 落地分期（按推荐组合）</h2>
+  <div class="ph"><ol>
+    <li><b>一期 · 换页</b>：<code>features/mcp</code> 新建页面（definePage key <code>mcp</code>），navigation.ts 的 AI 组加条目；复用 <code>useMCPStore</code> / <code>customMCP.ts</code>，表单与 JSON 导入逻辑从 <code>MCPManagerModal</code> 迁出；输入框 🔌 改为快捷浮层；删除老弹窗与 <code>useMCPManagerModalStore</code>（<code>aiServer.ts</code> 里的打开调用改为跳页）。</li>
+    <li><b>一期 · 补能力</b>：逐工具开关、常用服务器清单、参数芯片 / 键值表编辑、密钥遮蔽、日志标签页、侧栏失败徽标。</li>
+    <li><b>二期</b>：执行前确认（对话流内确认卡片 + 「始终允许」记忆）、密钥转存钥匙串、导出 mcp.json。</li>
+  </ol></div>
+</div>
+<script>lucide.createIcons();document.documentElement.dataset.theme = localStorage.getItem("chat-mock-theme") || "cream";</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 import { createHashRouter, Navigate } from "react-router-dom";
 import loadable from "@loadable/component";
 import ContentLayout from "@/layouts/ContentLayout";
+import { RouteErrorPage } from "@/components/ErrorState/RouteErrorPage";
 
 const QuickCard = loadable(() => import("@/pages/QuickCard"));
 const SingleCardEditor = loadable(() => import("@/pages/SingleCardEditor"));
@@ -117,5 +118,8 @@ const routes = [
   },
 ];
 
-export const router = createHashRouter(routes);
+// 每个顶层路由都挂兜底错误页：未被页面 / 局部边界接住的渲染错误不再露出 react-router 默认堆栈页
+export const router = createHashRouter(
+  routes.map(route => ({ ...route, errorElement: <RouteErrorPage /> }))
+);
 export default routes;

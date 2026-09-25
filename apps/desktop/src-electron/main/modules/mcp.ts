@@ -41,6 +41,14 @@ interface MCPToolDefinition {
   };
 }
 
+type MCPLogLevel = "info" | "ok" | "warn" | "error" | "stderr";
+
+interface MCPLogEntry {
+  time: number;
+  level: MCPLogLevel;
+  text: string;
+}
+
 interface MCPToolCallResult {
   content: Array<{
     type: string;
@@ -51,7 +59,38 @@ interface MCPToolCallResult {
   isError?: boolean;
 }
 
+/** 每个服务器保留最近若干行日志（仅本次运行，不落盘），新行实时推送给所有窗口 */
+class MCPLogBuffer {
+  private readonly MAX_LINES = 200;
+  private logs: Map<string, MCPLogEntry[]> = new Map();
+
+  push(serverId: string, level: MCPLogLevel, text: string): void {
+    const entry: MCPLogEntry = { time: Date.now(), level, text };
+    const lines = this.logs.get(serverId) ?? [];
+    lines.push(entry);
+    if (lines.length > this.MAX_LINES) lines.splice(0, lines.length - this.MAX_LINES);
+    this.logs.set(serverId, lines);
+    BrowserWindow.getAllWindows().forEach(win => {
+      win.webContents.send("mcp-log", { serverId, entry });
+    });
+  }
+
+  get(serverId: string): MCPLogEntry[] {
+    return this.logs.get(serverId) ?? [];
+  }
+
+  clear(serverId: string): void {
+    this.logs.delete(serverId);
+  }
+}
+
+const describeTransport = (transport: TransportConfig): string =>
+  transport.type === "stdio"
+    ? `启动进程 ${[transport.command, ...(transport.args ?? [])].join(" ")}`
+    : `连接 ${transport.url}（streamable-http）`;
+
 class MCPConnectionManager {
+  readonly logs = new MCPLogBuffer();
   private clients: Map<string, Client> = new Map();
   private transports: Map<string, Transport> = new Map();
   private serverConfigs: Map<string, CustomMCPServer> = new Map();
@@ -74,6 +113,7 @@ class MCPConnectionManager {
 
     this.serverConfigs.set(server.id, server);
 
+    this.logs.push(server.id, "info", describeTransport(server.transport));
     const transport = this.createTransport(server);
     const client = new Client(
       { name: "tau-desktop", version: app.getVersion() },
@@ -91,9 +131,12 @@ class MCPConnectionManager {
       this.transports.set(server.id, transport);
       this.reconnectAttempts.set(server.id, 0);
       console.log(`[MCP] Connected to server: ${server.name} (${server.id})`);
+      this.logs.push(server.id, "ok", "连接成功");
     } catch (error) {
       console.error(`[MCP] Failed to connect to ${server.name}:`, error);
-      throw this.normalizeConnectionError(error);
+      const normalized = this.normalizeConnectionError(error);
+      this.logs.push(server.id, "error", `连接失败：${normalized.message}`);
+      throw normalized;
     }
   }
 
@@ -122,6 +165,7 @@ class MCPConnectionManager {
     this.serverConfigs.delete(serverId);
     this.reconnectAttempts.delete(serverId);
     this.maxReconnectReached.delete(serverId);
+    if (client) this.logs.push(serverId, "info", "已断开连接");
     console.log(`[MCP] Disconnected from server: ${serverId}`);
   }
 
@@ -137,6 +181,7 @@ class MCPConnectionManager {
     }
 
     const result = await client.listTools();
+    this.logs.push(serverId, "ok", `tools/list → ${result.tools.length} 个工具`);
     return result.tools.map(tool => ({
       name: tool.name,
       description: tool.description,
@@ -154,10 +199,23 @@ class MCPConnectionManager {
       throw new Error(`Server ${serverId} is not connected`);
     }
 
-    const result = await client.callTool({
-      name: toolName,
-      arguments: args ?? {},
-    });
+    const startedAt = Date.now();
+    let result: Awaited<ReturnType<Client["callTool"]>>;
+    try {
+      result = await client.callTool({
+        name: toolName,
+        arguments: args ?? {},
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logs.push(serverId, "error", `tools/call ${toolName} 失败：${message}`);
+      throw error;
+    }
+    this.logs.push(
+      serverId,
+      result.isError ? "warn" : "info",
+      `tools/call ${toolName} · ${Date.now() - startedAt} ms${result.isError ? " · 返回错误" : ""}`
+    );
 
     // 类型断言处理 SDK 返回类型
     const content = result.content as Array<{
@@ -192,12 +250,21 @@ class MCPConnectionManager {
     if (transport.type === "stdio") {
       const env = buildMcpSpawnEnv(transport.env);
       const command = resolveMcpCommand(transport.command, env);
-      return new StdioClientTransport({
+      const stdio = new StdioClientTransport({
         command,
         args: transport.args,
         env,
         cwd: transport.cwd,
+        stderr: "pipe",
       });
+      // 服务器的启动信息与报错大多走 stderr，转进日志供页面查看
+      stdio.stderr?.on("data", (chunk: Buffer | string) => {
+        String(chunk)
+          .split(/\r?\n/)
+          .filter(line => line.trim())
+          .forEach(line => this.logs.push(server.id, "stderr", line));
+      });
+      return stdio;
     } else if (transport.type === "streamable-http") {
       const url = new URL(transport.url);
       return new StreamableHTTPClientTransport(url, {
@@ -281,6 +348,8 @@ class MCPConnectionManager {
   }
 
   private notifyStatusChange(serverId: string, status: string, error?: string): void {
+    if (status === "connecting" && error) this.logs.push(serverId, "warn", error);
+    else if (status === "error" && error) this.logs.push(serverId, "error", error);
     // 向所有窗口广播连接状态变化
     const windows = BrowserWindow.getAllWindows();
     windows.forEach(win => {
@@ -355,6 +424,15 @@ class MCPModule implements Module {
         );
       }
     );
+
+    ipcMain.handle("mcp-get-logs", async (_event, payload: { serverId: string }) => {
+      return this.connectionManager.logs.get(payload.serverId);
+    });
+
+    ipcMain.handle("mcp-clear-logs", async (_event, payload: { serverId: string }) => {
+      this.connectionManager.logs.clear(payload.serverId);
+      return { success: true };
+    });
 
     // 检查连接状态
     ipcMain.handle("mcp-is-connected", async (_event, payload: { serverId: string }) => {

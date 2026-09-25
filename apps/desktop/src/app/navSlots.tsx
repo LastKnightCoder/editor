@@ -13,6 +13,7 @@ import {
 import { ReviewDueBadge } from "@/features/flashcards/components/ReviewDueBadge";
 import { QuestionsNavBadge } from "@/features/questions/components/QuestionsNavBadge";
 import { QuestionsNavGroups } from "@/features/questions/components/QuestionsNav";
+import { McpNavBadge } from "@/features/mcp/components/McpNavBadge";
 import { useQuestionsSnapshot } from "@/features/questions/queries";
 import { DiaryNavTags } from "@/features/diary/components/DiaryNav";
 import { useDiaryNavHasContent } from "@/features/diary/queries";
@@ -28,6 +29,7 @@ export const NAV_BADGE_SLOTS: Record<NavItemBadge, ComponentType<{ collapsed: bo
   "collab-requests": CollaborationNavBadge,
   "review-due": ReviewDueBadge,
   "questions-active": QuestionsNavBadge,
+  "mcp-errors": McpNavBadge,
 };
 
 export interface NavChildrenSlotProps {

@@ -5,8 +5,6 @@ import useSettingStore from "@/stores/useSettingStore";
 import { getProjectById } from "@/commands";
 import { getVLResourcesByProjectId } from "@/commands/vibe-learning";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
-import { BlockPreviewProvider, useBlockPreview } from "@/contexts/BlockPreviewContext";
-import BlockPreviewSidebar from "@/components/BlockPreviewSidebar";
 import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
 import SidebarToggleButton from "@/components/SidebarToggleButton";
 import type { Project } from "@/types";
@@ -23,7 +21,6 @@ interface VibeLearningViewProps {
 
 const VibeLearningViewContent = memo(({ projectId }: VibeLearningViewProps) => {
   const mainDbName = useSettingStore(state => state.setting.database.active);
-  const { state: previewState } = useBlockPreview();
 
   const [project, setProject] = useState<Project | null>(null);
   const [resources, setResources] = useState<VLResource[]>([]);
@@ -132,7 +129,6 @@ const VibeLearningViewContent = memo(({ projectId }: VibeLearningViewProps) => {
         <div className="flex h-full flex-1 flex-col overflow-hidden">
           <ChatPanel projectId={projectId} mainDbName={mainDbName} resources={resources} />
         </div>
-        {previewState.isOpen && <BlockPreviewSidebar />}
       </div>
 
       {/* 右侧应用侧边栏 */}
@@ -163,12 +159,8 @@ const VibeLearningViewContent = memo(({ projectId }: VibeLearningViewProps) => {
   );
 });
 
-const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
-  return (
-    <BlockPreviewProvider>
-      <VibeLearningViewContent projectId={projectId} />
-    </BlockPreviewProvider>
-  );
-});
+const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => (
+  <VibeLearningViewContent projectId={projectId} />
+));
 
 export default VibeLearningView;

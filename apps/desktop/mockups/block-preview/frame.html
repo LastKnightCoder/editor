@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>统一预览框 · 类型与状态</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="bp.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  body { background: var(--page) !important; }
+  .wrap { max-width: 1260px; margin: 0 auto; padding: 24px 24px 60px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  .lead { color: var(--ink-2); margin: 0 0 20px; max-width: 900px; }
+  h2 { font-size: 15px; font-weight: 600; margin: 28px 0 4px; display: flex; gap: 8px; align-items: baseline; }
+  h2 small { font: 11.5px var(--mono); color: var(--ink-3); font-weight: 400; }
+  h2 + p { color: var(--ink-2); margin: 0 0 12px; font-size: 12.5px; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .spec { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); height: 400px; overflow: hidden; }
+  .cap { font-size: 12px; color: var(--ink-3); margin: 8px 2px 0; }
+  .cards { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 18px 20px 6px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 20px; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); overflow: hidden; font-size: 12.5px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { color: var(--ink-3); font-weight: 500; }
+  tr + tr td { border-top: 1px solid var(--line-2); }
+  code { font: 12px var(--mono); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--line-1); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>统一预览框</h1>
+  <p class="lead">不管 A / B / C 选哪种容器，里面都是同一个预览框：<b>头部一行固定骨架</b>（图标 · 标题 / 类型·大小 · 版本 · 预览⇄源码 · 类型专属工具 · 复制 · 全屏 · 更多 · 关闭），<b>画布类</b>的缩放控件浮在右下角，不占头部。渲染器只声明「有哪些专属工具 / 更多菜单项」，chrome 由框统一画——替掉现在每个渲染器各写一套 antd 工具栏。</p>
+
+  <h2>HTML <small>html</small></h2>
+  <p>专属工具：移动端预览、刷新；更多：在浏览器中打开、下载 .html。生成中先看源码流式写入（自动跟随光标），写完自动切到预览，避免半截 HTML 反复重载闪屏。</p>
+  <div class="grid">
+    <div><div class="spec"></div><div class="cap">就绪 · 预览</div></div>
+    <div><div class="spec"></div><div class="cap">移动端预览（430 宽机身，居中）</div></div>
+    <div><div class="spec"></div><div class="cap">生成中 · 源码流式（写完自动切预览）</div></div>
+    <div><div class="spec"></div><div class="cap">源码（语法高亮 + 行号）</div></div>
+  </div>
+
+  <h2>画布类 <small>mind-map · whiteboard · mermaid · plantuml · tikz · typst</small></h2>
+  <p>右下角浮动缩放（− 百分比 + · 适应），滚轮缩放、拖拽平移；更多：复制到白板（导图 / 白板）、导出 PNG / SVG。生成中保留上一次成功的渲染，只在头部显示进度。</p>
+  <div class="grid">
+    <div><div class="spec"></div><div class="cap">思维导图 · 就绪（点阵画布底）</div></div>
+    <div><div class="spec"></div><div class="cap">白板 / Mermaid / PlantUML 同一套画布</div></div>
+    <div><div class="spec"></div><div class="cap">TikZ（旧数据可查看，新对话无入口；Typst 同）</div></div>
+    <div><div class="spec"></div><div class="cap">出错：保留上次成功渲染 + 行号提示 + 查看源码 / 让 AI 修复</div></div>
+  </div>
+
+  <h2>对话里的块卡片 <small>BlockCard</small></h2>
+  <p>沿用 D-048 的描边行，补两件事：同一会话里同名同类型的块视为一个产物的多个版本，卡片显示 <b>v3</b>；预览中的卡片 accent 轻染。</p>
+  <div class="cards" id="cards"></div>
+
+  <h2>各类型的头部组成</h2>
+  <table>
+    <tr><th>类型</th><th>展示方式</th><th>专属工具</th><th>更多菜单</th><th>生成中</th></tr>
+    <tr><td><b>HTML</b></td><td>卡片 → 预览</td><td>移动端预览 · 刷新</td><td>在浏览器中打开 · 下载 .html</td><td>源码流式，写完切预览</td></tr>
+    <tr><td><b>思维导图</b></td><td>卡片 → 预览</td><td>（缩放浮控）</td><td>复制到白板 · 导出 PNG</td><td>保留上次渲染</td></tr>
+    <tr><td><b>白板</b></td><td>对话内展开 + 放大</td><td>（缩放浮控）</td><td>复制到白板 · 导出 PNG</td><td>边写边画（已支持）</td></tr>
+    <tr><td><b>Mermaid</b></td><td>对话内直出 + 放大</td><td>（缩放浮控）</td><td>导出 SVG / PNG</td><td>保留上次渲染</td></tr>
+    <tr><td><b>PlantUML</b></td><td>卡片 → 预览</td><td>（缩放浮控）</td><td>导出 SVG</td><td>保留上次渲染</td></tr>
+    <tr><td><b>TikZ / Typst</b></td><td>卡片 → 预览（仅旧数据）</td><td>（缩放浮控）</td><td>导出 SVG</td><td>—</td></tr>
+  </table>
+</div>
+
+<script type="module">
+import { frame, blockCard, icons } from "./bp.js?v=1";
+const specs = document.querySelectorAll(".spec");
+const cfg = [
+  { type: "html", versions: [3, 3] },
+  { type: "html", state: "mobile", versions: [3, 3] },
+  { type: "html", state: "generating", versions: [3, 3] },
+  { type: "html", state: "source", versions: [3, 3] },
+  { type: "mind-map", versions: [2, 2] },
+  { type: "whiteboard" },
+  { type: "tikz" },
+  { type: "mermaid", state: "error" },
+];
+specs.forEach((el, i) => (el.innerHTML = frame(cfg[i])));
+document.getElementById("cards").innerHTML = [
+  blockCard({ type: "html", ver: "v3" }),
+  blockCard({ type: "html", ver: "v3", on: true }),
+  blockCard({ type: "mind-map", generating: true, meta: "已写入 13 行" }),
+  blockCard({ type: "tikz" }),
+].join("");
+icons();
+</script>
+</body>
+</html>

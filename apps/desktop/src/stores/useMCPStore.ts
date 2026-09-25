@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { MCP_PROVIDERS } from "@/mcp/providers";
 import { v4 as uuid } from "uuid";
+import type { ToolJsonSchema } from "@/types";
 
 interface ProviderToggleState {
   enabled: boolean;
@@ -43,11 +44,23 @@ interface LegacyCustomMCPServer {
   enabled: boolean;
 }
 
+/** 服务器实际提供的工具（连接成功后由 tools/list 得到，仅用于展示） */
+export interface MCPServerToolInfo {
+  name: string;
+  description?: string;
+  parameters?: ToolJsonSchema;
+}
+
 interface MCPStoreState {
   providerStates: Record<string, ProviderToggleState>;
   customServers: CustomMCPServer[];
   connectionStatus: Record<string, ConnectionStatus>;
   connectionErrors: Record<string, string>;
+  /** 逐工具停用：来源 id（内置 provider id 或自定义服务器 id）→ 停用的工具名 */
+  disabledTools: Record<string, string[]>;
+  serverTools: Record<string, MCPServerToolInfo[]>;
+  setToolsEnabled: (sourceId: string, toolNames: string[], enabled: boolean) => void;
+  setServerTools: (serverId: string, tools: MCPServerToolInfo[]) => void;
   setProviderEnabled: (id: string, enabled: boolean) => void;
   isProviderEnabled: (id: string) => boolean;
   addCustomServer: (payload: {
@@ -144,6 +157,19 @@ const useMCPStore = create<MCPStoreState>()(
       customServers: [],
       connectionStatus: {},
       connectionErrors: {},
+      disabledTools: {},
+      serverTools: {},
+      setToolsEnabled: (sourceId, toolNames, enabled) =>
+        set(state => {
+          const current = new Set(state.disabledTools[sourceId] ?? []);
+          toolNames.forEach(name => (enabled ? current.delete(name) : current.add(name)));
+          const next = { ...state.disabledTools };
+          if (current.size > 0) next[sourceId] = [...current];
+          else delete next[sourceId];
+          return { disabledTools: next };
+        }),
+      setServerTools: (serverId, tools) =>
+        set(state => ({ serverTools: { ...state.serverTools, [serverId]: tools } })),
       setProviderEnabled: (id, enabled) =>
         set(state => ({
           providerStates: {
@@ -191,6 +217,12 @@ const useMCPStore = create<MCPStoreState>()(
       removeCustomServer: id =>
         set(state => ({
           customServers: state.customServers.filter(server => server.id !== id),
+          disabledTools: Object.fromEntries(
+            Object.entries(state.disabledTools).filter(([key]) => key !== id)
+          ),
+          serverTools: Object.fromEntries(
+            Object.entries(state.serverTools).filter(([key]) => key !== id)
+          ),
           connectionStatus: Object.fromEntries(
             Object.entries(state.connectionStatus).filter(([key]) => key !== id)
           ),
@@ -234,6 +266,7 @@ const useMCPStore = create<MCPStoreState>()(
       partialize: state => ({
         providerStates: state.providerStates,
         customServers: state.customServers,
+        disabledTools: state.disabledTools,
       }),
       onRehydrateStorage: () => state => {
         if (state) {

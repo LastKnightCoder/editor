@@ -17,6 +17,7 @@ import { ChatDock } from "@/features/chat/components/ChatDock";
 import { ASSIST_MAX_W, ASSIST_MIN_W, useShellStore } from "./shellStore";
 import { resolveAssistLayout } from "./assistLayout";
 import { ASSIST_MORPH_CLASS } from "./assistMorph";
+import { ErrorState, RecoverableBoundary } from "@/components/ErrorState";
 
 /** 停靠栏不渲染的页面：页面本身就是对话 */
 const HIDDEN_ON = new Set(["chat"]);
@@ -97,7 +98,22 @@ export function AssistDock() {
       )}
     >
       <AssistResizer />
-      <ChatDock open={contentOpen} onClose={() => setOpen(false)} />
+      {/* 停靠栏崩溃只替换栏内，不连带正文页 */}
+      <RecoverableBoundary
+        fallback={({ error, reset }) => (
+          <ErrorState
+            error={error}
+            title="AI 对话出错了"
+            description="对话栏渲染时发生了意外错误，会话记录不受影响。"
+            actions={[
+              { label: "重试", onClick: reset },
+              { label: "关闭", onClick: () => setOpen(false) },
+            ]}
+          />
+        )}
+      >
+        <ChatDock open={contentOpen} onClose={() => setOpen(false)} />
+      </RecoverableBoundary>
     </aside>
   );
 }
