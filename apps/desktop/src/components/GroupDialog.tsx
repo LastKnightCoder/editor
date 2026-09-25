@@ -1,22 +1,26 @@
 /**
- * 新建 / 编辑待办项目（字段对齐 legacy ProjectForm：名称 ≤ 120 字 + 颜色），tau Dialog 皮。
- * 颜色只提供 7 色设计板（groupColors.ts）；编辑 legacy 色名的项目时按收敛后的色调回显。
+ * 新建 / 编辑分组（待办项目、问题分组共用；名称 ≤ 120 字 + 颜色），tau Dialog 皮。
+ * 颜色只提供 7 色设计板（utils/groupTone.ts）；编辑 legacy 色名的分组时按收敛后的色调回显。
  */
 
 import { useEffect, useState } from "react";
 import { Button, Dialog, Input, cn, toast } from "@tau/ui";
-import type { TodoGroup } from "@/types";
-import { TONE_DOT, TONE_OPTIONS, groupTone } from "../groupColors";
+import { TONE_DOT, TONE_OPTIONS, groupTone } from "@/utils/groupTone";
 
 export function GroupDialog({
   open,
   group,
+  noun = "项目",
+  placeholder = "例如：编辑器重构",
   onClose,
   onSubmit,
 }: {
   open: boolean;
   /** 编辑态传入；新建为 null */
-  group: TodoGroup | null;
+  group: { title: string; color?: string | null } | null;
+  /** 分组的称呼：待办为「项目」，问题为「分组」 */
+  noun?: string;
+  placeholder?: string;
   onClose(): void;
   onSubmit(title: string, color: string): Promise<void>;
 }) {
@@ -34,13 +38,13 @@ export function GroupDialog({
   const save = () => {
     const name = title.trim();
     if (!name) {
-      toast.warning("请输入项目名称");
+      toast.warning(`请输入${noun}名称`);
       return;
     }
     setSaving(true);
     onSubmit(name, color)
       .then(onClose)
-      .catch(() => toast.error(group ? "保存失败" : "创建项目失败"))
+      .catch(() => toast.error(group ? "保存失败" : `创建${noun}失败`))
       .finally(() => setSaving(false));
   };
 
@@ -52,7 +56,7 @@ export function GroupDialog({
       onOpenChange={next => {
         if (!next) onClose();
       }}
-      title={group ? "编辑项目" : "新建项目"}
+      title={group ? `编辑${noun}` : `新建${noun}`}
       locked={saving}
       width={420}
       footer={
@@ -77,12 +81,12 @@ export function GroupDialog({
             onKeyDown={e => {
               if (e.key === "Enter" && !e.nativeEvent.isComposing) save();
             }}
-            placeholder="例如：编辑器重构"
+            placeholder={placeholder}
           />
         </label>
         <div className="flex flex-col gap-1.5">
           <span className="text-ink-2 text-[12px]">颜色</span>
-          <div role="radiogroup" aria-label="项目颜色" className="flex gap-2">
+          <div role="radiogroup" aria-label={`${noun}颜色`} className="flex gap-2">
             {TONE_OPTIONS.map(option => (
               <button
                 key={option.tone}

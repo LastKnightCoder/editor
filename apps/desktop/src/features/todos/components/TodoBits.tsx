@@ -6,7 +6,7 @@
 import { Check, Clock, Flag, Repeat, type LucideIcon } from "lucide-react";
 import { cn } from "@tau/ui";
 import type { TodoItemType } from "@/types";
-import { groupDotClass } from "../groupColors";
+import { groupDotClass } from "@/utils/groupTone";
 
 export function TodoCheck({
   checked,
