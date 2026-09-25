@@ -83,10 +83,7 @@ export function Trajectory({
               {view.tone !== "note" && view.title && (
                 <EventRef type={view.targetType} title={view.title} muted={view.tone === "muted"} />
               )}
-              <div
-                className="text-ink-3 mt-1 text-[11px] tabular-nums"
-                title={view.estimated ? "由旧数据推算，只精确到日期" : undefined}
-              >
+              <div className="text-ink-3 mt-1 text-[11px] tabular-nums">
                 {when(event.createTime, view.estimated, now)}
                 {origin != null && event.createTime > origin && (
                   <> · 第 {daySpan(origin, event.createTime)} 天</>
