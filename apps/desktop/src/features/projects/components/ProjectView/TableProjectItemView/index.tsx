@@ -1,32 +1,16 @@
-import { memo, useEffect, useRef, useState } from "react";
-import Database, { RowData, ColumnDef } from "@/components/Database";
+import { memo, useEffect, useState } from "react";
 import { ProjectItem, EProjectItemType } from "@/types";
 import { getProjectItemById, updateProjectItem } from "@/commands";
-import EditText, { EditTextHandle } from "@/components/EditText";
 import { defaultProjectItemEventBus } from "@/utils";
 import { useCreation, useMemoizedFn } from "ahooks";
 import { produce } from "immer";
-import { useEditDatabaseWithContext } from "@tau/shared";
+import DatabaseWorkspace from "../shared/DatabaseWorkspace";
 
 const TableProjectItemView = memo((props: { projectItemId: number }) => {
   const { projectItemId } = props;
 
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const [tableId, setTableId] = useState<number>();
-  const {
-    activeViewId,
-    views,
-    table,
-    onDataChange,
-    onViewConfigChange,
-    onCreateView,
-    onDeleteView,
-    onRenameView,
-    onUpdateView,
-    onReorderViews,
-    onActiveViewIdChange,
-  } = useEditDatabaseWithContext(tableId) || {};
-  const titleRef = useRef<EditTextHandle>(null);
   const projectItemEventBus = useCreation(() => defaultProjectItemEventBus.createEditor(), []);
 
   useEffect(() => {
@@ -57,58 +41,26 @@ const TableProjectItemView = memo((props: { projectItemId: number }) => {
     setProjectItem(newProjectItem);
   });
 
-  const onPressEnter = useMemoizedFn(async () => {
-    titleRef.current?.blur();
+  const onTitleCommit = useMemoizedFn(async () => {
     if (!projectItem) return;
     const updated = await updateProjectItem({ ...projectItem });
     if (updated) {
       setProjectItem(updated);
+      // 标题同步回文档树
       projectItemEventBus.publishProjectItemEvent("project-item:updated", updated);
     }
   });
 
-  const handleActiveViewIdChange = useMemoizedFn(async (viewId: number | null) => {
-    if (onActiveViewIdChange) {
-      await onActiveViewIdChange(viewId);
-    }
-  });
-
-  const activeView = views?.find(view => view.id === activeViewId);
-
-  if (!projectItem || !table || !activeView || !views) return null;
+  if (!projectItem) return null;
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-[1080px] flex-col">
-      <div className="mb-2 px-4 pb-1 pt-3">
-        <EditText
-          key={projectItem.id}
-          ref={titleRef}
-          defaultValue={projectItem.title}
-          onChange={onTitleChange}
-          contentEditable={true}
-          onPressEnter={onPressEnter}
-        />
-      </div>
-
-      <div className="min-h-0 flex-1 px-4 pb-4">
-        <Database
-          key={`${table.id}-${activeView.id}`}
-          columns={table.columns as ColumnDef[]}
-          data={table.rows as RowData[]}
-          views={views}
-          activeViewId={activeView.id}
-          viewConfig={activeView.config}
-          onActiveViewIdChange={handleActiveViewIdChange}
-          onViewConfigChange={onViewConfigChange}
-          onDataChange={onDataChange}
-          onCreateView={onCreateView}
-          onDeleteView={onDeleteView}
-          onRenameView={onRenameView}
-          onUpdateView={onUpdateView}
-          onReorderViews={onReorderViews}
-        />
-      </div>
-    </div>
+    <DatabaseWorkspace
+      tableId={tableId}
+      titleKey={projectItem.id}
+      title={projectItem.title}
+      onTitleChange={onTitleChange}
+      onTitleCommit={onTitleCommit}
+    />
   );
 });
 
