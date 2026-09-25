@@ -527,3 +527,4 @@
 - 方向倒挂归位：`hooks/useDynamicExtensions` 参数化（去 ProjectContext 读取，两处既有消费均不在项目上下文内、行为等价）；ProjectListSlate 测试删历史遗留 Provider；`pdfCitation.ts` 纯函数 git mv 至 `utils/`（5 消费方改引）。
 - P-projects 执行（2026-09-26）：删 `pages/ProjectsView/` 整目录（8 文件）+ TabContent 的 ProjectList 分支与 lazy import + `useProjectsStore` 整文件（dragging 已抽 `useDraggingStore`，CRUD 已有 queries.ts mutations 版，删前 rg 复核全仓消费者清零）；`TabType.ProjectList` enum 成员保留（legacy 侧栏/搜索导航标识 7 处引用，随 G1/G2 整体退役）。
 - 顺手收口：`IS_REACT_ACT_ENVIRONMENT` 声明从 81 个测试文件（4 种写法散落）收口到 `src/test-setup.ts` 单点。
+- folderOpen 受控化实现：`projectTreeExpandedStore`（zustand）以历史 key `project-item-${db}-${id}` 为存储后端（旧折叠偏好免迁移），树视图与思维导图裸读写统一收口；定位脉冲 = ProjectList 的 `batchReveal(祖先 ∪ 目标)`（引用稳定化保证仅定位/祖先链变化触发），用户意图与脉冲同层显式覆盖；`revealAncestorIds` 下发 prop 链与思维导图 `foldStateVersion` 重算补丁随迁退役；激活项自身展开 effect 保留（itemId 为导航事件源）。
