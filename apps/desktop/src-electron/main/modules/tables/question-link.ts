@@ -9,6 +9,7 @@ import type {
   QuestionLinkTargetType,
   QuestionMaterial,
   QuestionSummary,
+  QuestionTargetCandidate,
 } from "@/types";
 import ContentTable from "./content";
 import QuestionEventTable from "./question-event";
@@ -82,6 +83,7 @@ export default class QuestionLinkTable {
       "question:unlink-target": this.unlinkTarget.bind(this),
       "question:reorder-links": this.reorderLinks.bind(this),
       "question:list-links-by-target": this.listByTarget.bind(this),
+      "question:search-targets": this.searchTargets.bind(this),
     } as const;
   }
 
@@ -287,6 +289,7 @@ export default class QuestionLinkTable {
         targetCreateTime: row.create_time,
         contentId: row.content_id,
         projectId: null,
+        boardContentId: null,
         missing: false,
       };
       const content = (id: number | null) =>
@@ -367,22 +370,88 @@ export default class QuestionLinkTable {
         }
         case "white_board": {
           const board = get(
-            `SELECT id, title, description, create_time, white_board_content_ids FROM white_boards WHERE id = ?`
+            `SELECT id, title, description, create_time, white_board_content_ids, active_white_board_content_id AS active FROM white_boards WHERE id = ?`
           );
           if (!board) return { ...base, missing: true };
-          const pages = parseJsonArray(board.white_board_content_ids).length;
+          const boardPages = parseJsonArray(board.white_board_content_ids).map(Number);
+          const pages = boardPages.length;
           return {
             ...base,
             title: board.title || "无标题白板",
             excerpt: (board.description || "").slice(0, 160),
             meta: pages > 1 ? `${pages} 页` : "",
             targetCreateTime: board.create_time,
+            boardContentId: board.active ?? boardPages[0] ?? null,
           };
         }
         default:
           return { ...base, missing: true };
       }
     });
+  }
+
+  /**
+   * 材料选择器候选：按类型检索（关键字为空时按最近更新），标出已关联项。
+   * 卡片 / 文章 / 项目文档按正文 JSON 模糊匹配——个人库量级下足够，避免依赖索引库就绪。
+   */
+  static searchTargets(
+    db: Database.Database,
+    params: {
+      questionId: number;
+      targetType: Exclude<QuestionLinkTargetType, "answer">;
+      keyword?: string;
+      limit?: number;
+    }
+  ): QuestionTargetCandidate[] {
+    const limit = Math.min(Math.max(params.limit ?? 40, 1), 100);
+    const kw = params.keyword?.trim() ? `%${params.keyword.trim()}%` : null;
+    const queries: Record<typeof params.targetType, string> = {
+      card: `SELECT c.id, c.update_time AS t FROM cards c LEFT JOIN contents ct ON ct.id = c.content_id
+             ${kw ? "WHERE ct.content LIKE @kw" : ""} ORDER BY c.update_time DESC LIMIT @limit`,
+      article: `SELECT a.id, a.update_time AS t FROM articles a LEFT JOIN contents ct ON ct.id = a.content_id
+                WHERE a.is_delete = 0 ${kw ? "AND (a.title LIKE @kw OR ct.content LIKE @kw)" : ""}
+                ORDER BY a.update_time DESC LIMIT @limit`,
+      project_item: `SELECT p.id, p.update_time AS t FROM project_item p LEFT JOIN contents ct ON ct.id = p.content_id
+                     WHERE p.content_id IS NOT NULL ${kw ? "AND (p.title LIKE @kw OR ct.content LIKE @kw)" : ""}
+                     ORDER BY p.update_time DESC LIMIT @limit`,
+      project: `SELECT id, update_time AS t FROM project WHERE archived = 0 ${kw ? "AND title LIKE @kw" : ""}
+                ORDER BY update_time DESC LIMIT @limit`,
+      white_board: `SELECT id, update_time AS t FROM white_boards
+                    ${kw ? "WHERE title LIKE @kw OR description LIKE @kw" : ""} ORDER BY update_time DESC LIMIT @limit`,
+    };
+    const sql = queries[params.targetType];
+    if (!sql) return [];
+    const rows = db.prepare(sql).all(kw ? { kw, limit } : { limit }) as { id: number; t: number }[];
+    const linked = new Set(
+      this.rows(db, params.questionId)
+        .filter(r => r.target_type === params.targetType)
+        .map(r => r.target_id)
+    );
+    const materials = this.resolveMaterials(
+      db,
+      rows.map(r => ({
+        id: 0,
+        question_id: params.questionId,
+        target_type: params.targetType,
+        target_id: r.id,
+        content_id: null,
+        sort_index: 0,
+        create_time: r.t,
+      }))
+    );
+    return materials
+      .map((m, i) => ({
+        targetType: m.targetType,
+        targetId: m.targetId,
+        title: m.title,
+        excerpt: m.excerpt,
+        meta: m.meta,
+        time: rows[i].t,
+        linked: linked.has(m.targetId),
+        missing: m.missing,
+      }))
+      .filter(c => !c.missing)
+      .map(({ missing: _missing, ...c }) => c);
   }
 
   static getDetail(db: Database.Database, questionId: number): QuestionDetail | null {

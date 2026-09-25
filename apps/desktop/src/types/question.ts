@@ -56,7 +56,18 @@ export interface QuestionMaterial extends QuestionLink {
   contentId: number | null;
   /** 项目文档所属项目，用于页内导航 */
   projectId: number | null;
+  /** 白板当前画板（whiteboard-content 页的参数） */
+  boardContentId: number | null;
   missing: boolean;
+}
+
+/** 材料选择器的候选项 */
+export interface QuestionTargetCandidate extends QuestionLinkTarget {
+  title: string;
+  excerpt: string;
+  meta: string;
+  time: number;
+  linked: boolean;
 }
 
 export type QuestionEventType = "create" | "status" | "link" | "unlink" | "note";
