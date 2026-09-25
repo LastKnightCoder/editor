@@ -26,7 +26,6 @@ onlyBuiltDependencies:
   - esbuild
   - lzma-native
   - node-llama-cpp
-  - node-pty
   - sharp
   - spawn-sync
   - tesseract.js
@@ -37,7 +36,6 @@ allowBuilds:
   electron-winstaller: true
   esbuild: true
   node-llama-cpp: true
-  node-pty: true
   sharp: true
   spawn-sync: true
   tesseract.js: true

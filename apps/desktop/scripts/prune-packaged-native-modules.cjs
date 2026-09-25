@@ -111,20 +111,10 @@ const pruneCommonBuildArtifacts = nodeModulesDir => {
     "better-sqlite3/bin",
     "better-sqlite3/deps",
     "better-sqlite3/src",
-    "node-pty/deps",
-    "node-pty/scripts",
-    "node-pty/src",
   ]);
 
   keepOnly(path.join(nodeModulesDir, "better-sqlite3", "build", "Release"), [
     "better_sqlite3.node",
-  ]);
-  keepOnly(path.join(nodeModulesDir, "node-pty", "build", "Release"), [
-    "conpty.node",
-    "conpty_console_list.node",
-    "pty.node",
-    "winpty-agent.exe",
-    "winpty.dll",
   ]);
 };
 
@@ -356,10 +346,6 @@ exports.default = async context => {
       "sqlite-vec-darwin-x64",
       "7zip-bin/linux",
       "7zip-bin/mac",
-      "node-pty/prebuilds/darwin-arm64",
-      "node-pty/prebuilds/darwin-x64",
-      "node-pty/prebuilds/win32-arm64",
-      "node-pty/third_party/conpty/1.23.251008001/win10-arm64",
     ]);
   } else if (platform === "darwin") {
     removeEntries(nodeModulesDir, [
@@ -371,9 +357,6 @@ exports.default = async context => {
       "sqlite-vec-windows-x64",
       "7zip-bin/win",
       "7zip-bin/linux",
-      "node-pty/prebuilds/win32-arm64",
-      "node-pty/prebuilds/win32-x64",
-      "node-pty/third_party/conpty",
     ]);
   }
 

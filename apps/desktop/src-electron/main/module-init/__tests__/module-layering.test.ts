@@ -55,7 +55,7 @@ describe("模块分层守护", () => {
   );
 
   it("能完整解析模块配置（字段顺序变更会在这里暴露）", () => {
-    expect(modules.length).toBeGreaterThanOrEqual(44);
+    expect(modules.length).toBeGreaterThanOrEqual(43);
     expect(modules.some(m => m.name === "codex-agent")).toBe(false);
     expect(modules.filter(m => m.layer === "IMMEDIATE").length).toBeGreaterThan(0);
   });
@@ -63,7 +63,6 @@ describe("模块分层守护", () => {
   it("能扫到渲染端兜底调用（防路径失效导致下方断言空过）", () => {
     const guarded = collectGuardedModules(collectSources(rendererSrcDir));
     expect(guarded.has("weread")).toBe(true);
-    expect(guarded.has("terminal")).toBe(true);
     expect(guarded.has("embedding-model-manager")).toBe(true);
   });
 

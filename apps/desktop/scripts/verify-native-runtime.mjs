@@ -135,23 +135,6 @@ const checks = [
     `,
   },
   {
-    name: "node-pty",
-    code: `
-      const pty = require(${JSON.stringify(packagePaths?.appAsar ?? "")} + "/node_modules/node-pty");
-      if (typeof pty.spawn !== "function") {
-        throw new Error("node-pty spawn export missing");
-      }
-      const { loadNativeModule } = require(${JSON.stringify(packagePaths?.appAsar ?? "")} + "/node_modules/node-pty/lib/utils");
-      if (process.platform === "win32") {
-        loadNativeModule("conpty");
-        loadNativeModule("pty");
-      } else {
-        loadNativeModule("pty");
-      }
-      console.log("node-pty=ok");
-    `,
-  },
-  {
     name: "@tailwindcss/oxide",
     code: `
       const oxide = require(${JSON.stringify(packagePaths?.appAsar ?? "")} + "/node_modules/@tailwindcss/oxide");
