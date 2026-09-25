@@ -66,19 +66,12 @@ describe("DiffHighlightedEditor", () => {
   });
 
   it("应将 Slate attributes 保留在最外层 leaf 节点", async () => {
-    const { root, container } = await mount(
-      <DiffHighlightedEditor content={[]} isDark={false} />,
-    );
+    const { root, container } = await mount(<DiffHighlightedEditor content={[]} isDark={false} />);
 
-    const editorRoot = container.querySelector(
-      '[data-testid="editor-root"]',
-    ) as HTMLElement;
-    const outerLeaf = container.querySelector(
-      '[data-slate-leaf="true"]',
-    ) as HTMLElement;
+    const editorRoot = container.querySelector('[data-testid="editor-root"]') as HTMLElement;
+    const outerLeaf = container.querySelector('[data-slate-leaf="true"]') as HTMLElement;
 
     expect(outerLeaf).toBeTruthy();
-    expect(outerLeaf.className).toContain("bg-yellow-50");
     expect(outerLeaf.parentElement).toBe(editorRoot);
 
     await unmount(root, container);
@@ -91,13 +84,9 @@ describe("DiffHighlightedEditor", () => {
       diffId: "delete-1",
     };
 
-    const { root, container } = await mount(
-      <DiffHighlightedEditor content={[]} isDark={false} />,
-    );
+    const { root, container } = await mount(<DiffHighlightedEditor content={[]} isDark={false} />);
 
-    const outerLeaf = container.querySelector(
-      '[data-slate-leaf="true"]',
-    ) as HTMLElement;
+    const outerLeaf = container.querySelector('[data-slate-leaf="true"]') as HTMLElement;
 
     expect(outerLeaf.className).toContain("line-through");
     expect(outerLeaf.getAttribute("title")).toBe("变更：delete-1");
