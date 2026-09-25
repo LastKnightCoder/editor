@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 C · 单列展开</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="mcp.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 C · 单列设置式列表 + 行内展开（参考 Cursor「Tools &amp; MCP」、Zed Context Servers）</h3>
+  760~820 居中单列，像设置页：每个服务器一行（图标 / 名称 / 状态 / 开关），点击展开，在行内以芯片形式列出工具（点芯片即停用该工具）；「编辑」打开和添加相同的弹窗，默认是 JSON 视图（Cursor 直接改 mcp.json 的做法），可切表单。
+  <ul>
+    <li>本方案可同时作为「AI 能力」合并页的 MCP 分栏（顶部 Skill / MCP 切换），见控制条「合并导航」。</li>
+    <li class="pro">＋ 实现最轻，最接近现有弹窗的信息结构，迁移成本低；重度用户改 JSON 最快。</li>
+    <li class="con">－ 执行确认策略、日志这类深层信息放不下，只能再开弹窗；工具多（GitHub 30+）时展开区很长。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, anno, icons, ALL, ic, tg, typeBadge, statusPill, addDialog } from "./mcp.js?v=1";
+
+mockBar("c-rows.html", `<span class="seg"><button data-m="list">独立页</button><button data-m="merged">合并导航</button><button data-m="edit">编辑（JSON）</button></span>`);
+
+const win = document.getElementById("win");
+const state = { m: "list", open: new Set(["c-fs", "c-ctx7"]) };
+const OFF = new Set(["move_file", "write_file"]);
+
+function crow(s) {
+  const open = state.open.has(s.id);
+  return `
+  <div class="x-crow ${open ? "open" : ""}" data-id="${s.id}">
+    <div class="rh">
+      <i data-lucide="chevron-right" class="chev"></i>
+      ${ic(s)}
+      <div class="m"><div class="n">${s.name}${typeBadge(s)}</div><div class="s">${s.builtin ? s.desc : s.cmd}</div></div>
+      ${statusPill(s)}
+      ${s.builtin ? "" : `<button class="ib" title="编辑" data-edit><i data-lucide="pencil"></i></button><button class="ib" title="重新连接"><i data-lucide="refresh-cw"></i></button>`}
+      ${tg(s.on)}
+    </div>
+    ${open ? `<div class="rb">
+      ${s.status === "error" ? `<div class="x-banner"><i data-lucide="circle-alert"></i><div class="t"><code>${s.err}</code></div><button class="btn" style="height:26px;background:var(--surface)">查看日志</button></div>` : ""}
+      <div class="x-chips">${s.tools.map(t => `<span class="tc ${OFF.has(t) ? "off" : ""}">${t}</span>`).join("")}</div>
+      <div class="hint">点击工具可单独停用 · ${s.tools.length - s.tools.filter(t => OFF.has(t)).length}/${s.tools.length} 已启用</div>
+    </div>` : ""}
+  </div>`;
+}
+
+function page() {
+  const merged = state.m === "merged";
+  return `
+  <div class="x-wide"><div class="x-narrow">
+    ${merged ? `<div style="display:flex;justify-content:center;margin-bottom:18px"><div class="x-seg"><span><i data-lucide="sparkles"></i>Skill</span><span class="on"><i data-lucide="plug"></i>MCP 服务器</span></div></div>` : ""}
+    <div class="x-wide-head"><h1 style="font-size:18px">MCP 服务器</h1><span class="sp"></span>
+      <button class="btn"><i data-lucide="file-json"></i>打开 mcp.json</button>
+      <button class="btn primary" id="add"><i data-lucide="plus"></i>添加服务器</button></div>
+    <p class="x-lead">启用的服务器会在每次对话中提供给 AI；在输入框 🔌 里可以按会话临时关闭。</p>
+    <div class="x-block"><div class="bh">自定义<span class="num">5</span><span class="sp"></span></div>${ALL.filter(s => !s.builtin).map(crow).join("")}</div>
+    <div class="x-block"><div class="bh">内置<span class="num">7</span><span class="sp"></span>随应用提供</div>${ALL.filter(s => s.builtin).map(crow).join("")}</div>
+  </div></div>`;
+}
+
+function editDialog() {
+  return `
+  <div class="scrim" data-close></div>
+  <div class="x-dialog" style="height:520px">
+    <div class="dh"><b>编辑 filesystem</b><span class="sp"></span><div class="x-seg"><span>表单</span><span class="on">JSON</span></div><button class="ib" data-close><i data-lucide="x"></i></button></div>
+    <div class="db">
+<pre class="x-code">{
+  <span class="k">"command"</span>: <span class="s">"npx"</span>,
+  <span class="k">"args"</span>: [<span class="s">"-y"</span>, <span class="s">"@modelcontextprotocol/server-filesystem"</span>, <span class="s">"~/Notes"</span>],
+  <span class="k">"env"</span>: {
+    <span class="k">"NODE_OPTIONS"</span>: <span class="s">"--max-old-space-size=2048"</span>
+  }
+}</pre>
+      <p style="font-size:11.5px;color:var(--ink-3)">保存时校验格式；敏感值（*_KEY / *_TOKEN / Authorization）自动转存钥匙串，JSON 中显示为 <code>\${secret:…}</code>。</p>
+    </div>
+    <div class="df"><span class="sp"></span><button class="btn" data-close>取消</button><button class="btn primary">保存并重连</button></div>
+  </div>`;
+}
+
+function render() {
+  const { m } = state;
+  win.innerHTML = `
+    ${sidebar(m === "merged" ? "merged" : "own")}
+    <div class="col">
+      ${titlebar(m === "merged" ? `<b>AI 能力</b>` : `<b>MCP 服务器</b>`)}
+      <div class="main"><section class="paper x-paper">${page()}</section></div>
+    </div>
+    ${m === "edit" ? editDialog() : ""}
+    ${m === "add" ? addDialog("dir") : ""}
+    ${m === "list" ? anno(1, "工具以芯片展示，点即停用", "right:260px;top:260px") : ""}
+    ${m === "merged" ? anno(1, "Skill 与 MCP 合为一个「AI 能力」入口", "left:228px;top:640px") : ""}`;
+  icons();
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+  win.querySelectorAll(".x-crow .rh").forEach(r => (r.onclick = e => {
+    const id = r.parentElement.dataset.id;
+    if (e.target.closest("[data-edit]")) { state.m = "edit"; return render(); }
+    if (e.target.closest(".tg,.ib")) return;
+    state.open.has(id) ? state.open.delete(id) : state.open.add(id);
+    render();
+  }));
+  win.querySelectorAll("[data-close]").forEach(t => (t.onclick = () => { state.m = "list"; render(); }));
+  const a = win.querySelector("#add"); if (a) a.onclick = () => { state.m = "add"; render(); };
+}
+document.querySelectorAll(".seg button").forEach(b => (b.onclick = () => { state.m = b.dataset.m; render(); }));
+render();
+</script>
+</body>
+</html>

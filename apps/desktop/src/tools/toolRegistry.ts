@@ -21,19 +21,26 @@ const safeStringify = (payload: unknown) => {
 
 export class ToolRegistry {
   private tools = new Map<string, RegisteredTool>();
+  /** 逐工具停用（按来源分组），与来源级开关叠加生效；独立于注册，重新注册后仍保留 */
+  private disabledTools = new Map<string, Set<string>>();
 
-  registerTools(
-    source: string,
-    definitions: ToolDefinition[],
-    enabled = true,
-  ): void {
+  setDisabledTools(source: string, names: string[]): void {
+    if (names.length > 0) this.disabledTools.set(source, new Set(names));
+    else this.disabledTools.delete(source);
+  }
+
+  private isActive(tool: RegisteredTool): boolean {
+    return tool.enabled && !this.disabledTools.get(tool.source)?.has(tool.name);
+  }
+
+  registerTools(source: string, definitions: ToolDefinition[], enabled = true): void {
     console.debug("[MCP] register tools", {
       source,
       count: definitions.length,
-      toolNames: definitions.map((def) => def.name),
+      toolNames: definitions.map(def => def.name),
       enabled,
     });
-    definitions.forEach((definition) => {
+    definitions.forEach(definition => {
       const existing = this.tools.get(definition.name);
       if (existing && existing.source !== source) {
         console.warn("[MCP] duplicate tool name skipped", {
@@ -53,14 +60,12 @@ export class ToolRegistry {
   }
 
   hasSource(source: string): boolean {
-    return Array.from(this.tools.values()).some(
-      (tool) => tool.source === source,
-    );
+    return Array.from(this.tools.values()).some(tool => tool.source === source);
   }
 
   hasEnabledTool(name: string): boolean {
     const tool = this.tools.get(name);
-    return Boolean(tool?.enabled);
+    return Boolean(tool && this.isActive(tool));
   }
 
   unregisterSource(source: string): void {
@@ -87,8 +92,8 @@ export class ToolRegistry {
 
   getToolSchemas(): ToolFunctionSchema[] {
     return Array.from(this.tools.values())
-      .filter((tool) => tool.enabled)
-      .map((tool) => ({
+      .filter(tool => this.isActive(tool))
+      .map(tool => ({
         type: "function",
         function: {
           name: tool.name,
@@ -99,7 +104,10 @@ export class ToolRegistry {
   }
 
   getRegisteredTools(): RegisteredTool[] {
-    return Array.from(this.tools.values()).map((tool) => ({ ...tool }));
+    return Array.from(this.tools.values()).map(tool => ({
+      ...tool,
+      enabled: this.isActive(tool),
+    }));
   }
 
   async executeToolCall(
@@ -108,7 +116,7 @@ export class ToolRegistry {
       signal?: AbortSignal;
       conversationKey?: string;
       toolContext?: ToolExecutionContext["toolContext"];
-    },
+    }
   ): Promise<ToolExecutionResult | null> {
     const tool = this.tools.get(call.function.name);
     if (!tool) {
@@ -119,7 +127,7 @@ export class ToolRegistry {
       };
     }
 
-    if (!tool.enabled) {
+    if (!this.isActive(tool)) {
       // 工具未启用是不可重试的错误，返回错误信息
       return {
         content: `工具 ${tool.name} 当前未启用`,
@@ -130,9 +138,7 @@ export class ToolRegistry {
     if (call.function.arguments) {
       try {
         parsedArgs =
-          call.function.arguments.trim().length > 0
-            ? JSON.parse(call.function.arguments)
-            : {};
+          call.function.arguments.trim().length > 0 ? JSON.parse(call.function.arguments) : {};
       } catch (error) {
         // 参数解析失败：返回参数错误结果，不抛异常
         // 这样上层可以将错误信息正常反馈给模型，避免非法 JSON 回传导致 API 拒绝
@@ -183,9 +189,7 @@ export class ToolRegistry {
 
       return {
         content:
-          typeof result.content === "string"
-            ? result.content
-            : safeStringify(result.content),
+          typeof result.content === "string" ? result.content : safeStringify(result.content),
         modelContent: result.modelContent,
         reasoning: result.reasoning,
         metadata: result.metadata,

@@ -32,3 +32,19 @@ export async function callMcpTool<T = unknown>(payload: {
 }): Promise<T> {
   return invoke("mcp-call-tool", payload);
 }
+
+export type McpLogLevel = "info" | "ok" | "warn" | "error" | "stderr";
+
+export interface McpLogEntry {
+  time: number;
+  level: McpLogLevel;
+  text: string;
+}
+
+export async function getMcpServerLogs(serverId: string): Promise<McpLogEntry[]> {
+  return invoke("mcp-get-logs", { serverId });
+}
+
+export async function clearMcpServerLogs(serverId: string): Promise<void> {
+  await invoke("mcp-clear-logs", { serverId });
+}

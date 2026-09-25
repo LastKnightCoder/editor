@@ -27,13 +27,15 @@ import {
   Send,
   MessageCircle,
   Sparkles,
+  Plug,
   Users,
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 
 /** 徽标槽 key（渲染组件注册于 navSlots.tsx） */
-export type NavItemBadge = "review-due" | "pomodoro-live" | "collab-requests" | "questions-active";
+export type NavItemBadge =
+  "review-due" | "pomodoro-live" | "collab-requests" | "questions-active" | "mcp-errors";
 /** 子项槽 key：所属页在栈顶时于条目下方展开的列表（渲染组件注册于 navSlots.tsx） */
 export type NavItemChildren =
   "collaboration-sessions" | "diary-tags" | "whiteboard-tags" | "question-groups" | "chat-sessions";
@@ -43,7 +45,7 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
   /** 徽标数据源标识（review-due = 待复习闪卡数；pomodoro-live = 专注中的实时计时；
-   *  collab-requests = 待审批的加入申请数） */
+   *  collab-requests = 待审批的加入申请数；mcp-errors = 连接失败的 MCP 服务器数） */
   badge?: NavItemBadge;
   /** 该页在栈顶时于条目下方展开的子项（collaboration-sessions = 共享内容列表，协作页 A3；
    *  diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；question-groups = 问题分组；chat-sessions = 置顶与最近 AI 会话，D-047） */
@@ -105,6 +107,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: "chat", label: "AI 对话", icon: MessageCircle, children: "chat-sessions" }, // features/chat（会话嵌侧栏 + 右侧停靠栏，D-047）
       { key: "skills", label: "Skill 管理", icon: Sparkles }, // legacy: SkillManagement
+      { key: "mcp", label: "MCP 服务器", icon: Plug, badge: "mcp-errors" }, // features/mcp（连接失败数作徽标）
     ],
   },
   {

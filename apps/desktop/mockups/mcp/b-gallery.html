@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 B · 卡片库 + 抽屉</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="mcp.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 B · 卡片库 + 右侧抽屉（参考 Claude Desktop「Connectors / Extensions」、Windsurf MCP Marketplace）</h3>
+  整页是卡片网格：上半「我的服务器」（自定义 + 内置，筛选：全部 / 自定义 / 内置 / 异常），下半「常用服务器」目录，点「添加」就预填表单。点卡片从右侧滑出抽屉，内容与方案 A 的详情完全一致（工具 / 配置 / 日志）。
+  <ul>
+    <li>卡片上直接给状态、传输方式、工具数和开关，扫一眼就知道哪些在用、哪个坏了。</li>
+    <li class="pro">＋ 好看、对新手友好，「目录」直接摆在页面里，发现新服务器成本最低；服务器少时也不空。</li>
+    <li class="con">－ 改配置要开抽屉，查多个服务器时要反复开关；目录清单需要持续维护（内置静态清单即可，不做在线市场）。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, anno, icons, ALL, byId, ic, tg, typeBadge, statusPill, detailHead, tabs, pane, addDialog } from "./mcp.js?v=1";
+
+mockBar("b-gallery.html", `<span class="seg"><button data-m="grid">卡片库</button><button data-m="drawer">打开详情</button><button data-m="err">异常筛选</button><button data-m="add">添加</button></span>`);
+
+const DIR = [
+  ["monitor", "c2", "Playwright", "驱动浏览器打开网页、截图、填表", "stdio"],
+  ["search", "c1", "Brave Search", "网页搜索（需要 API Key）", "stdio"],
+  ["notebook-pen", "c4", "Notion", "读写 Notion 页面与数据库", "http"],
+  ["map", "c3", "高德地图", "地理编码、路线规划、周边搜索", "http"],
+];
+
+const win = document.getElementById("win");
+const state = { m: "grid", id: "c-gh", tab: "tools", add: null };
+
+function card(s) {
+  const status = s.status === "connected" ? `<span class="dot connected"></span>${s.tools.length} 个工具` : `<span class="dot ${s.status}"></span><span style="${s.status === "error" ? "color:var(--danger)" : ""}">${{ connecting: "连接中…", error: "连接失败", disabled: "已停用" }[s.status]}</span>`;
+  return `
+  <div class="x-card ${state.m === "drawer" && s.id === state.id ? "on" : ""}" data-id="${s.id}">
+    <div class="top">${ic(s)}<div style="flex:1;min-width:0"><div class="n">${s.name}</div><div class="s">${s.builtin ? "内置" : s.type === "stdio" ? "本地进程 · stdio" : "远程 · HTTP"}</div></div>${tg(s.on, true)}</div>
+    <div class="d">${s.desc}</div>
+    <div class="ft">${status}<span class="sp"></span>${s.builtin ? "" : `<i data-lucide="more-horizontal" style="width:14px"></i>`}</div>
+  </div>`;
+}
+
+function page() {
+  const err = state.m === "err";
+  const mine = ALL.filter(s => (err ? s.status === "error" : !s.builtin));
+  return `
+  <div class="x-wide">
+    <div class="x-wide-head"><h1>MCP 服务器</h1><span class="sp"></span>
+      <div class="x-search" style="width:240px"><i data-lucide="search"></i>搜索服务器或工具</div>
+      <button class="btn"><i data-lucide="file-json"></i>导入 / 导出</button>
+      <button class="btn primary" id="add"><i data-lucide="plus"></i>添加服务器</button></div>
+    <p class="x-lead">让 AI 调用本机程序或远程服务。已启用 10 个服务器，共 39 个工具。</p>
+    <div class="x-filter">
+      <span class="chip ${err ? "" : "on"}" data-f="grid">全部 <span class="num">12</span></span>
+      <span class="chip">自定义 <span class="num">5</span></span>
+      <span class="chip">内置 <span class="num">7</span></span>
+      <span class="chip ${err ? "on" : ""}" data-f="err" style="${err ? "" : "color:var(--danger)"}"><span class="dot error"></span>异常 <span class="num">1</span></span>
+    </div>
+    ${err ? `<div class="x-grid">${mine.map(card).join("")}</div>` : `
+    <div class="x-section-t">自定义<span class="h">5</span></div>
+    <div class="x-grid">${mine.map(card).join("")}<div class="x-card add-card" id="add2"><i data-lucide="plus"></i>添加服务器</div></div>
+    <div class="x-section-t">内置<span class="h">随应用提供，可停用不可删除</span></div>
+    <div class="x-grid">${ALL.filter(s => s.builtin).map(card).join("")}</div>
+    <div class="x-section-t">常用服务器<span class="h">一键预填，补上 Key 即可用</span></div>
+    <div class="x-grid">${DIR.map(([i, c, n, d, t]) => `
+      <div class="x-card dir"><div class="top"><span class="x-ic ${c}"><i data-lucide="${i}"></i></span><div style="flex:1"><div class="n">${n}</div><div class="s">${t}</div></div></div>
+      <div class="d">${d}</div><div class="ft"><span class="sp"></span><button class="btn" style="border:1px solid var(--line-1)"><i data-lucide="plus"></i>添加</button></div></div>`).join("")}</div>`}
+  </div>`;
+}
+
+function render() {
+  const { m, id, tab, add } = state;
+  const s = byId(id);
+  win.innerHTML = `
+    ${sidebar("own")}
+    <div class="col">
+      ${titlebar(`<b>MCP 服务器</b>`)}
+      <div class="main"><section class="paper x-paper">${page()}</section></div>
+    </div>
+    ${m === "drawer" ? `<div class="x-drawer">${detailHead(s).replace('<div class="acts">', '<div class="acts"><button class="ib" data-close title="关闭 Esc"><i data-lucide="x"></i></button>')}${tabs(s, tab)}<div class="x-pane">${pane(s, tab)}</div></div>` : ""}
+    ${add ? addDialog(add) : ""}
+    ${m === "grid" && !add ? anno(1, "卡片直接给状态 / 工具数 / 开关", "left:300px;top:200px") + anno(2, "目录内嵌页面，发现成本最低", "left:300px;top:700px") : ""}`;
+  icons();
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.m === (add ? "add" : m)));
+  win.querySelectorAll(".x-card[data-id]").forEach(c => (c.onclick = () => { Object.assign(state, { m: "drawer", id: c.dataset.id, tab: "tools" }); render(); }));
+  win.querySelectorAll("[data-tab]").forEach(t => (t.onclick = () => { state.tab = t.dataset.tab; render(); }));
+  win.querySelectorAll("[data-f]").forEach(t => (t.onclick = () => { state.m = t.dataset.f; render(); }));
+  win.querySelectorAll("[data-add]").forEach(t => (t.onclick = () => { state.add = t.dataset.add; render(); }));
+  win.querySelectorAll("[data-close]").forEach(t => (t.onclick = () => { if (state.add) state.add = null; else state.m = "grid"; render(); }));
+  ["#add", "#add2"].forEach(q => { const a = win.querySelector(q); if (a) a.onclick = () => { state.add = "dir"; render(); }; });
+}
+document.querySelectorAll(".seg button").forEach(b => (b.onclick = () => {
+  const m = b.dataset.m;
+  state.add = m === "add" ? "dir" : null;
+  state.m = m === "add" ? "grid" : m;
+  state.tab = "tools";
+  render();
+}));
+render();
+</script>
+</body>
+</html>

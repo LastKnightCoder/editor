@@ -39,7 +39,7 @@ import { IconButton, ImagePreview, Menu, Tooltip, cn, toast } from "@tau/ui";
 
 import useUploadResource from "@/hooks/useUploadResource";
 import { convertFileSrc, getHomeDir } from "@/commands";
-import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
+import { McpQuickPanel } from "@/features/mcp/components/McpQuickPanel";
 import useTheme from "@/hooks/useTheme";
 import { contentLinkExtension } from "@/editor-extensions";
 import { wrapContentLink } from "@/editor-extensions/content-link/components/utils";
@@ -230,7 +230,6 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     ref
   ) => {
     const uploadResourceFn = useUploadResource();
-    const openMcpManagerModal = useMCPManagerModalStore(state => state.openModal);
     const { theme } = useTheme();
 
     const services: ChatInputAreaServices = useMemo(
@@ -540,10 +539,10 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               key: "mcp",
               group: "工具",
               icon: <Plug />,
-              label: "MCP 管理中心",
-              description: "接入与开关外部工具服务",
+              label: "MCP 服务器",
+              description: "开关外部工具服务",
               disabled: sendLoading,
-              onSelect: openMcpManagerModal,
+              panel: (close: () => void) => <McpQuickPanel onClose={close} />,
             },
           ]
         : []),

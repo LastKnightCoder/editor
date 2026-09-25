@@ -2,6 +2,7 @@
  * 输入框左下的 ＋ 与它的添加面板（D-048 二轮）：面板从输入框外框（COMPOSER_ANCHOR_ATTR，
  * 缺省为本组件所在输入区）上沿向上展开、与外框同宽；Portal 到 body + fixed 定位，
  * 不受对话列 overflow 裁剪。键盘 ↑↓ / Enter / Esc，外点关闭，关闭还焦 ＋。
+ * 带 panel 的项选中后不关闭，而是在同一块面板里展开二级内容（顶部返回，Esc 回到列表）。
  */
 
 import {
@@ -13,7 +14,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Spinner, cn, usePortalContainer } from "@tau/ui";
 import {
   COMPOSER_ANCHOR_ATTR,
@@ -31,7 +32,9 @@ export interface ComposerAddItem {
   description?: string;
   kbd?: string;
   disabled?: boolean;
-  onSelect: () => void;
+  onSelect?: () => void;
+  /** 二级面板：选中后在同一面板内展开；close 关闭整个面板 */
+  panel?: (close: () => void) => ReactNode;
 }
 
 const GAP = 8;
@@ -51,6 +54,8 @@ export function ComposerAddMenu({
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [subKey, setSubKey] = useState<string | null>(null);
+  const subItem = subKey ? items.find(item => item.key === subKey) : undefined;
   const [rect, setRect] = useState<{
     left: number;
     width: number;
@@ -62,6 +67,7 @@ export function ComposerAddMenu({
 
   const close = (refocus = true) => {
     setOpen(false);
+    setSubKey(null);
     if (refocus) buttonRef.current?.focus();
   };
 
@@ -99,6 +105,7 @@ export function ComposerAddMenu({
       const target = event.target as Node;
       if (panelRef.current?.contains(target) || buttonRef.current?.contains(target)) return;
       setOpen(false);
+      setSubKey(null);
     };
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
@@ -117,8 +124,13 @@ export function ComposerAddMenu({
   const select = (index: number) => {
     const item = items[index];
     if (!item || item.disabled) return;
+    if (item.panel) {
+      setSubKey(item.key);
+      panelRef.current?.focus();
+      return;
+    }
     close(false);
-    item.onSelect();
+    item.onSelect?.();
   };
 
   const move = (step: 1 | -1) => {
@@ -129,6 +141,15 @@ export function ComposerAddMenu({
   };
 
   const onKeyDown = (event: KeyboardEvent) => {
+    if (subItem) {
+      // 二级面板内交给原生 Tab / 空格操作控件，只接管 Esc 返回
+      if (event.key !== "Escape") return;
+      setSubKey(null);
+      panelRef.current?.focus();
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     if (event.key === "ArrowDown") move(1);
     else if (event.key === "ArrowUp") move(-1);
     else if (event.key === "Enter") select(active);
@@ -182,33 +203,60 @@ export function ComposerAddMenu({
             className="fixed z-[250]"
             style={rect}
           >
-            <div className="max-h-[360px] min-h-0 overflow-y-auto p-1.5">
-              {items.map((item, index) => (
-                <div key={item.key}>
-                  {item.group !== items[index - 1]?.group && (
-                    <ComposerPanelGroup>{item.group}</ComposerPanelGroup>
-                  )}
-                  <ComposerPanelItem
-                    icon={item.icon}
-                    label={item.label}
-                    description={item.description}
-                    kbd={item.kbd}
-                    disabled={item.disabled}
-                    active={index === active}
-                    onHover={() => !item.disabled && setActive(index)}
-                    onSelect={() => select(index)}
-                  />
+            {subItem ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSubKey(null);
+                    panelRef.current?.focus();
+                  }}
+                  className="text-tau-sm text-ink-2 hover:text-ink-1 flex items-center gap-1 px-3 pb-0.5 pt-2.5 font-semibold"
+                >
+                  <ChevronLeft className="size-3.5" strokeWidth={2} />
+                  {subItem.label}
+                </button>
+                <div className="max-h-[360px] min-h-0 overflow-y-auto p-1.5 pt-1">
+                  {subItem.panel?.(() => close(false))}
                 </div>
-              ))}
-            </div>
-            <ComposerPanelFooter
-              hints={[
-                ...(hasMention ? ([["@", "引用内容"]] as Array<[string, string]>) : []),
-                ["↑↓", "选择"],
-                ["Enter", "确认"],
-                ["Esc", "关闭"],
-              ]}
-            />
+                <ComposerPanelFooter hints={[["Esc", "返回"]]} />
+              </>
+            ) : (
+              <>
+                <div className="max-h-[360px] min-h-0 overflow-y-auto p-1.5">
+                  {items.map((item, index) => (
+                    <div key={item.key}>
+                      {item.group !== items[index - 1]?.group && (
+                        <ComposerPanelGroup>{item.group}</ComposerPanelGroup>
+                      )}
+                      <ComposerPanelItem
+                        icon={item.icon}
+                        label={item.label}
+                        description={item.description}
+                        kbd={item.kbd}
+                        trailing={
+                          item.panel ? (
+                            <ChevronRight className="text-ink-3 ml-auto size-3.5 shrink-0" />
+                          ) : undefined
+                        }
+                        disabled={item.disabled}
+                        active={index === active}
+                        onHover={() => !item.disabled && setActive(index)}
+                        onSelect={() => select(index)}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <ComposerPanelFooter
+                  hints={[
+                    ...(hasMention ? ([["@", "引用内容"]] as Array<[string, string]>) : []),
+                    ["↑↓", "选择"],
+                    ["Enter", "确认"],
+                    ["Esc", "关闭"],
+                  ]}
+                />
+              </>
+            )}
           </ComposerPanel>,
           portalContainer
         )}
