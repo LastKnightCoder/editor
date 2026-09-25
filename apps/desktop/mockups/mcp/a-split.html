@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 A · 列表 + 详情</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="mcp.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 A · 列表 + 详情双栏（参考 Cherry Studio「MCP 设置」、VS Code MCP 视图、macOS 系统设置）</h3>
+  一张纸左右两栏：左侧 300px 是服务器列表（内置 / 自定义两组，每行带状态点和开关），右侧是选中服务器的详情——头部是身份 + 状态 + 启停，下面三个标签页：<b>工具</b>（逐个开关 + 执行前确认策略）、<b>配置</b>（结构化表单，可切 JSON）、<b>日志</b>（stderr 与连接事件）。内置服务器只有「工具」页。
+  <ul>
+    <li>添加入口在列表顶部「＋」，打开共用的添加弹窗（常用服务器 / 手动填写 / 粘贴 JSON）。</li>
+    <li>连接失败的服务器：侧栏条目上挂红色徽标，列表行变红字，详情顶部横幅直接给出原因和「去配置 / 看日志 / 重试」。</li>
+    <li class="pro">＋ 服务器 10 个以上也不乱；查错、改配置、看工具都在一处，不用来回开关弹窗。和 Skill 管理页（左树右详情）是同一种结构。</li>
+    <li class="con">－ 服务器很少（1~3 个）时右侧显得空；信息密度偏工具型，不如卡片好看。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, anno, icons, ALL, byId, ic, tg, subline, detailHead, tabs, pane, addDialog, composerPopover } from "./mcp.js?v=1";
+import { chatPaper, paperTools } from "../chat/shared.js?v=3";
+
+mockBar("a-split.html", `<span class="seg">
+  <button data-m="c-fs">正常</button><button data-m="c-ctx7">连接失败</button><button data-m="config">配置</button><button data-m="logs">日志</button>
+  <button data-m="sql">内置</button><button data-m="add">添加</button><button data-m="empty">空态</button><button data-m="pop">输入框快捷</button></span>`);
+
+const win = document.getElementById("win");
+const state = { id: "c-fs", tab: "tools", add: null };
+
+function list(activeId) {
+  const row = s => `
+    <div class="x-row ${s.id === activeId ? "on" : ""} ${s.on ? "" : "off"}" data-id="${s.id}">
+      ${ic(s)}
+      <div class="main-t"><div class="n">${s.name}</div><div class="s">${subline(s)}</div></div>
+      <span class="dot ${s.status}"></span>
+    </div>`;
+  return `
+  <div class="x-list">
+    <div class="x-list-head">
+      <div class="t">MCP 服务器<span style="flex:1"></span><button class="ib" title="导入 / 导出 mcp.json"><i data-lucide="file-json"></i></button><button class="btn primary" id="add" style="height:28px;padding:0 10px"><i data-lucide="plus"></i>添加</button></div>
+      <div class="x-search"><i data-lucide="search"></i>搜索服务器或工具</div>
+    </div>
+    <div class="x-list-body">
+      <div class="x-gt">自定义<span class="num">5</span><span class="sp"></span></div>
+      ${ALL.filter(s => !s.builtin).map(row).join("")}
+      <div class="x-gt">内置<span class="num">7</span><span class="sp"></span><span title="内置服务器随应用提供，不可删除">随应用提供</span></div>
+      ${ALL.filter(s => s.builtin).map(row).join("")}
+    </div>
+  </div>`;
+}
+
+function empty() {
+  return `
+  <div class="x-list">
+    <div class="x-list-head"><div class="t">MCP 服务器<span style="flex:1"></span><button class="btn primary" style="height:28px;padding:0 10px"><i data-lucide="plus"></i>添加</button></div></div>
+    <div class="x-list-body">
+      <div class="x-gt">自定义</div>
+      <div style="padding:10px 8px;font-size:12px;color:var(--ink-3)">还没有添加</div>
+      <div class="x-gt">内置<span class="num">7</span></div>
+      ${ALL.filter(s => s.builtin).map(s => `<div class="x-row"><span class="x-ic ${s.c}"><i data-lucide="${s.ic}"></i></span><div class="main-t"><div class="n">${s.name}</div><div class="s">${subline(s)}</div></div><span class="dot ${s.status}"></span></div>`).join("")}
+    </div>
+  </div>
+  <div class="x-detail"><div class="x-empty">
+    <span class="x-ic lg c1"><i data-lucide="plug"></i></span>
+    <h3>连接外部工具</h3>
+    <p>MCP（Model Context Protocol）让 AI 调用本机程序或远程服务：读写文件、查 GitHub、操作浏览器……应用自带 7 个内置服务器，也可以添加自己的。</p>
+    <div style="display:flex;gap:8px;margin-top:8px"><button class="btn primary"><i data-lucide="plus"></i>添加服务器</button><button class="btn"><i data-lucide="clipboard-paste"></i>从剪贴板导入 JSON</button></div>
+  </div></div>`;
+}
+
+function render() {
+  const { id, tab, add } = state;
+  let body;
+  if (id === "empty") body = empty();
+  else {
+    const s = byId(id);
+    body = `${list(id)}<div class="x-detail">${detailHead(s)}${tabs(s, tab)}<div class="x-pane">${pane(s, tab)}</div></div>`;
+  }
+  if (id === "pop") {
+    win.innerHTML = `
+      ${sidebar("own", "AI 对话")}
+      <div class="col">${titlebar(`AI 对话 <i data-lucide="chevron-right" style="width:13px"></i><b>把本周日记整理成周报</b>`)}
+      <div class="main">${chatPaper({ head: paperTools() })}</div></div>
+      ${composerPopover("left:430px;bottom:112px")}
+      ${anno(1, "输入框 🔌 只保留快速开关（本会话生效）", "left:760px;bottom:300px")}
+      ${anno(2, "完整管理跳到 MCP 页，替代老弹窗", "left:760px;bottom:130px")}`;
+    icons(); sync(); return;
+  }
+  win.innerHTML = `
+    ${sidebar("own")}
+    <div class="col">
+      ${titlebar(`<b>MCP 服务器</b>`)}
+      <div class="main"><section class="paper x-paper">${body}</section></div>
+    </div>
+    ${add ? addDialog(add) : ""}
+    ${!add && id === "c-fs" && tab === "tools" ? anno(1, "侧栏 AI 组新增入口，失败数作徽标", "left:228px;top:640px") + anno(2, "列表：状态点 + 工具数，停用行变淡", "left:560px;top:140px") + anno(3, "逐工具开关 + 执行确认策略", "right:40px;top:300px") : ""}`;
+  icons(); sync();
+}
+
+function sync() {
+  const m = state.add ? "add" : state.id === "c-ctx7" && state.tab === "tools" ? "c-ctx7" : state.tab === "config" ? "config" : state.tab === "logs" ? "logs" : state.id;
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+  win.querySelectorAll(".x-row[data-id]").forEach(r => (r.onclick = () => { state.id = r.dataset.id; state.tab = "tools"; render(); }));
+  win.querySelectorAll("[data-tab]").forEach(t => (t.onclick = () => { state.tab = t.dataset.tab; render(); }));
+  win.querySelectorAll("[data-add]").forEach(t => (t.onclick = () => { state.add = t.dataset.add; render(); }));
+  win.querySelectorAll("[data-close]").forEach(t => (t.onclick = () => { state.add = null; render(); }));
+  const a = win.querySelector("#add"); if (a) a.onclick = () => { state.add = "dir"; render(); };
+}
+
+document.querySelectorAll(".seg button").forEach(b => (b.onclick = () => {
+  const m = b.dataset.m;
+  Object.assign(state, { add: null, tab: "tools" });
+  if (m === "config") Object.assign(state, { id: "c-fs", tab: "config" });
+  else if (m === "logs") Object.assign(state, { id: "c-fs", tab: "logs" });
+  else if (m === "add") Object.assign(state, { id: "c-fs", add: "dir" });
+  else state.id = m;
+  render();
+}));
+render();
+</script>
+</body>
+</html>

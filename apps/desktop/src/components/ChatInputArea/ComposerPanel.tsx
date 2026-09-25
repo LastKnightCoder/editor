@@ -43,13 +43,15 @@ export const ComposerPanelItem = forwardRef<
     label: ReactNode;
     description?: ReactNode;
     kbd?: string;
+    /** 行尾附加（如进入二级面板的箭头） */
+    trailing?: ReactNode;
     active?: boolean;
     disabled?: boolean;
     onSelect?: () => void;
     onHover?: () => void;
   }
 >(function ComposerPanelItem(
-  { icon, label, description, kbd, active, disabled, onSelect, onHover },
+  { icon, label, description, kbd, trailing, active, disabled, onSelect, onHover },
   ref
 ) {
   return (
@@ -76,6 +78,7 @@ export const ComposerPanelItem = forwardRef<
         <span className="text-tau-sm text-ink-3 min-w-0 flex-1 truncate">{description}</span>
       )}
       {kbd && <Kbd className="ml-auto">{kbd}</Kbd>}
+      {trailing}
     </div>
   );
 });

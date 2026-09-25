@@ -14,10 +14,7 @@ import {
 
 export const OPENAI_IMAGE_TOOLS_SOURCE = "openai-image-tools";
 export const OPENAI_IMAGE_RENDERER_KEY = "openai-image-result";
-export const OPENAI_IMAGE_TOOL_NAMES = new Set([
-  "generate_image",
-  "edit_image",
-]);
+export const OPENAI_IMAGE_TOOL_NAMES = new Set(["generate_image", "edit_image"]);
 
 type ImageToolMode = "generate" | "edit";
 
@@ -45,8 +42,7 @@ export interface ImageToolDependencies {
 const optionSchema = {
   size: {
     type: "string",
-    description:
-      "单次图片尺寸。仅在用户明确要求横图、竖图、头像、封面等尺寸时传入，否则省略。",
+    description: "单次图片尺寸。仅在用户明确要求横图、竖图、头像、封面等尺寸时传入，否则省略。",
   },
   quality: {
     type: "string",
@@ -79,9 +75,7 @@ export const getImageToolsEnabled = (state?: ImageGenerationStoreShape) => {
   return isProviderConfigValid(config);
 };
 
-const pickOptions = (
-  args: Record<string, unknown>,
-): Record<string, unknown> => {
+const pickOptions = (args: Record<string, unknown>): Record<string, unknown> => {
   const options: Record<string, unknown> = {};
   if (typeof args.size === "string" && args.size.trim()) {
     options.size = args.size.trim();
@@ -112,7 +106,7 @@ const getPrompt = (args: Record<string, unknown>) => {
 const uploadImageResults = async (
   results: ImageResult[],
   uploadImage: (file: File) => Promise<string | null>,
-  resolveInputFile: typeof resolveImageInputFile,
+  resolveInputFile: typeof resolveImageInputFile
 ) => {
   const uploaded: UploadedImageResult[] = [];
   for (const [index, result] of results.entries()) {
@@ -120,7 +114,7 @@ const uploadImageResults = async (
       ? createImageFileFromBase64(
           result.b64Json,
           result.mimeType ?? "image/png",
-          `openai-image-${index + 1}`,
+          `openai-image-${index + 1}`
         )
       : result.url
         ? await resolveInputFile(result.url)
@@ -153,12 +147,11 @@ const buildToolResult = (payload: ImageToolResultPayload) => ({
 });
 
 export const createImageToolDefinitions = (
-  dependencies: ImageToolDependencies = {},
+  dependencies: ImageToolDependencies = {}
 ): ToolDefinition[] => {
   const getConfig = dependencies.getConfig ?? getActiveImageGenerationConfig;
   const uploadImage = dependencies.uploadImage ?? uploadImageResource;
-  const resolveInputFile =
-    dependencies.resolveImageInputFile ?? resolveImageInputFile;
+  const resolveInputFile = dependencies.resolveImageInputFile ?? resolveImageInputFile;
 
   return [
     {
@@ -182,7 +175,7 @@ export const createImageToolDefinitions = (
         if (!config || !isProviderConfigValid(config)) {
           return {
             content:
-              "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称，并在 MCP 管理中心启用图片生成工具。",
+              "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称，并在「MCP 服务器」页启用图片生成工具。",
             isParameterError: true,
           };
         }
@@ -195,11 +188,7 @@ export const createImageToolDefinitions = (
           options: parameters,
           signal: context?.signal,
         });
-        const images = await uploadImageResults(
-          results,
-          uploadImage,
-          resolveInputFile,
-        );
+        const images = await uploadImageResults(results, uploadImage, resolveInputFile);
         return buildToolResult({
           success: true,
           mode: "generate",
@@ -236,23 +225,19 @@ export const createImageToolDefinitions = (
         if (!config || !isProviderConfigValid(config)) {
           return {
             content:
-              "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称，并在 MCP 管理中心启用图片生成工具。",
+              "图片生成配置无效，请先在设置中填写模型地址、API Key 和模型名称，并在「MCP 服务器」页启用图片生成工具。",
             isParameterError: true,
           };
         }
         const prompt = getPrompt(args);
         const imagePaths = Array.isArray(args.image_paths)
-          ? args.image_paths.filter(
-              (item): item is string => typeof item === "string",
-            )
+          ? args.image_paths.filter((item): item is string => typeof item === "string")
           : [];
         if (imagePaths.length === 0) {
           throw new Error("image_paths 至少需要包含一张图片");
         }
         const parameters = pickOptions(args);
-        const imageFiles = await Promise.all(
-          imagePaths.map((path) => resolveInputFile(path)),
-        );
+        const imageFiles = await Promise.all(imagePaths.map(path => resolveInputFile(path)));
         const provider = createProviderFromConfig(config);
         const results = await provider.edit({
           config,
@@ -261,11 +246,7 @@ export const createImageToolDefinitions = (
           options: parameters,
           signal: context?.signal,
         });
-        const images = await uploadImageResults(
-          results,
-          uploadImage,
-          resolveInputFile,
-        );
+        const images = await uploadImageResults(results, uploadImage, resolveInputFile);
         return buildToolResult({
           success: true,
           mode: "edit",
@@ -282,5 +263,5 @@ export const resolveImageGenerationSetting = (setting: {
   imageGeneration: ImageGenerationStoreShape;
 }): ImageProviderConfig | null => {
   const { currentProviderId, providers } = setting.imageGeneration;
-  return providers.find((p) => p.id === currentProviderId) ?? null;
+  return providers.find(p => p.id === currentProviderId) ?? null;
 };

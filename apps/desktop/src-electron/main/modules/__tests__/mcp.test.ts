@@ -60,10 +60,8 @@ vi.mock("@modelcontextprotocol/sdk/client/streamableHttp.js", () => ({
 }));
 
 vi.mock("../../utils/mcpCommandResolver", () => ({
-  resolveMcpCommand: (...args: unknown[]) =>
-    mockContext.resolveMcpCommandMock(...args),
-  buildMcpSpawnEnv: (...args: unknown[]) =>
-    mockContext.buildMcpSpawnEnvMock(...args),
+  resolveMcpCommand: (...args: unknown[]) => mockContext.resolveMcpCommandMock(...args),
+  buildMcpSpawnEnv: (...args: unknown[]) => mockContext.buildMcpSpawnEnvMock(...args),
 }));
 
 import mcpModule from "../mcp";
@@ -76,7 +74,7 @@ describe("mcp module", () => {
     mockContext.resolveMcpCommandMock.mockReset();
     mockContext.buildMcpSpawnEnvMock.mockReset();
     mockContext.resolveMcpCommandMock.mockReturnValue(
-      "/Users/test/.nvm/versions/node/v24.1.0/bin/npx",
+      "/Users/test/.nvm/versions/node/v24.1.0/bin/npx"
     );
     mockContext.buildMcpSpawnEnvMock.mockReturnValue({
       PATH: "/custom/bin",
@@ -92,12 +90,9 @@ describe("mcp module", () => {
     await mcpModule.init();
 
     const connectHandler = mockContext.ipcMainHandleMock.mock.calls.find(
-      ([channel]) => channel === "mcp-connect",
+      ([channel]) => channel === "mcp-connect"
     )?.[1] as
-      | ((
-          _event: EventEmitter,
-          payload: { server: Record<string, unknown> },
-        ) => Promise<void>)
+      | ((_event: EventEmitter, payload: { server: Record<string, unknown> }) => Promise<void>)
       | undefined;
 
     expect(connectHandler).toBeTypeOf("function");
@@ -129,21 +124,15 @@ describe("mcp module", () => {
   it("底层 spawn ENOENT 时应抛出可读错误", async () => {
     const clientInstance = new mockContext.MockClient();
     clientInstance.connect.mockRejectedValueOnce(new Error("spawn npx ENOENT"));
-    const clientCtor =
-      await import("@modelcontextprotocol/sdk/client/index.js");
-    vi.mocked(clientCtor.Client).mockImplementationOnce(
-      () => clientInstance as never,
-    );
+    const clientCtor = await import("@modelcontextprotocol/sdk/client/index.js");
+    vi.mocked(clientCtor.Client).mockImplementationOnce(() => clientInstance as never);
 
     await mcpModule.init();
 
     const connectHandler = mockContext.ipcMainHandleMock.mock.calls.find(
-      ([channel]) => channel === "mcp-connect",
+      ([channel]) => channel === "mcp-connect"
     )?.[1] as
-      | ((
-          _event: EventEmitter,
-          payload: { server: Record<string, unknown> },
-        ) => Promise<void>)
+      | ((_event: EventEmitter, payload: { server: Record<string, unknown> }) => Promise<void>)
       | undefined;
 
     await expect(
@@ -158,7 +147,35 @@ describe("mcp module", () => {
             args: ["-y", "@antv/mcp-server-chart"],
           },
         },
-      }),
+      })
     ).rejects.toThrow(/未找到可执行命令 "npx"/);
+  });
+
+  it("连接过程写入日志，可经 mcp-get-logs 读取并清空", async () => {
+    await mcpModule.init();
+    const handler = (channel: string) =>
+      mockContext.ipcMainHandleMock.mock.calls.find(([c]) => c === channel)?.[1] as (
+        _event: EventEmitter,
+        payload: Record<string, unknown>
+      ) => Promise<unknown>;
+
+    await handler("mcp-connect")(new EventEmitter(), {
+      server: {
+        id: "server-log",
+        name: "chart",
+        enabled: true,
+        transport: { type: "stdio", command: "npx", args: ["-y", "pkg"] },
+      },
+    });
+
+    const logs = (await handler("mcp-get-logs")(new EventEmitter(), {
+      serverId: "server-log",
+    })) as Array<{ level: string; text: string }>;
+    expect(logs.map(l => l.text)).toEqual(["启动进程 npx -y pkg", "连接成功"]);
+
+    await handler("mcp-clear-logs")(new EventEmitter(), { serverId: "server-log" });
+    expect(await handler("mcp-get-logs")(new EventEmitter(), { serverId: "server-log" })).toEqual(
+      []
+    );
   });
 });

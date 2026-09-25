@@ -35,11 +35,9 @@ import AutoUpdateChecker from "@/components/AutoUpdateChecker";
 import { MediaModalHost } from "@/editor-providers/mediaModalHost";
 import ConversationFlashcardModal from "@/components/ConversationFlashcardModal";
 import ExtNoteInsertModal from "@/components/ExtNoteInsertModal";
-import MCPManagerModal from "@/components/MCPManagerModal";
 import GlobalFindBar from "@/components/GlobalFindBar";
 import JoinRequestNotifications from "@/components/JoinRequestNotifications";
 import useSettingStore from "@/stores/useSettingStore";
-import useMCPManagerModalStore from "@/stores/useMCPManagerModalStore";
 
 import { on, off } from "@/electron";
 import { platform } from "@/platform";
@@ -78,8 +76,6 @@ const Application = () => {
   useWeReadSessionBootstrap();
 
   const [isFocused, setIsFocused] = useState(true);
-  const isMcpManagerOpen = useMCPManagerModalStore(state => state.isOpen);
-  const closeMcpManagerModal = useMCPManagerModalStore(state => state.closeModal);
 
   const editorRegistry = useMemo(() => createEditorRegistry(), []);
   const editorExtensions = useMemo(() => createDesktopEditorExtensions(), []);
@@ -422,7 +418,6 @@ const Application = () => {
                     <MediaModalHost />
                     <ConversationFlashcardModal />
                     <ExtNoteInsertModal />
-                    <MCPManagerModal open={isMcpManagerOpen} onClose={closeMcpManagerModal} />
                     <DndProvider backend={HTML5Backend}>
                       <GlobalFindBar />
                       <JoinRequestNotifications />
