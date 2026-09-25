@@ -5,7 +5,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, Search } from "lucide-react";
-import { Button, Dialog, Input, Loading, Segmented, cn } from "@tau/ui";
+import { Button, Dialog, Input, Loading, Segmented, cn, useEdgeFade } from "@tau/ui";
 import type { QuestionLinkTarget, QuestionLinkTargetType } from "@/types";
 import { useDebounce } from "ahooks";
 import { useTargetCandidates } from "../queries";
@@ -35,6 +35,8 @@ export function MaterialPicker({
   const [picked, setPicked] = useState<Map<string, QuestionLinkTarget>>(() => new Map());
   const [saving, setSaving] = useState(false);
   const { data, isPending } = useTargetCandidates(questionId, type, debounced, open);
+  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
+  useEdgeFade(listEl);
 
   useEffect(() => {
     if (!open) return;
@@ -115,7 +117,12 @@ export function MaterialPicker({
             ))}
           </Segmented>
         </div>
-        <div className="bg-surface shadow-card h-[400px] overflow-y-auto rounded-[14px] p-1.5">
+        {/* 列表直接铺在弹窗正文上（不套卡片）；-mr/pr 借位把滚动条挪进正文右侧留白，
+            与行内容隔开 8px，行右缘仍与搜索框对齐 */}
+        <div
+          ref={setListEl}
+          className="edge-fade-scroll scrollbar-inset -mr-5 h-[400px] overflow-y-auto border-r-4 border-r-transparent pr-2"
+        >
           {isPending && !data ? (
             <Loading />
           ) : !data?.length ? (
