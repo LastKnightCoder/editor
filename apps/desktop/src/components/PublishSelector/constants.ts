@@ -21,7 +21,7 @@ export const TABS: TabConfig[] = [
   },
   {
     key: "quest",
-    label: "问题管理",
+    label: "问题",
     description: "按分类选择问题",
     icon: MessageSquare,
   },
@@ -49,7 +49,7 @@ export const CARD_CATEGORY_LABEL: Record<ECardCategory, string> = {
 export const CONTENT_TYPE_LABEL: Record<PublishContentType, string> = {
   card: "卡片",
   article: "文章",
-  quest: "问题管理",
+  quest: "问题",
   project: "项目",
 };
 

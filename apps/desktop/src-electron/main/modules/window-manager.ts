@@ -20,7 +20,6 @@ type EditorType =
   | "project-item"
   | "markdown"
   | "todo"
-  | "question"
   | "pomodoro-mini"
   | "pomodoro-immersive";
 
@@ -60,7 +59,6 @@ export class WindowManager {
     this.windowsMap.set("project-item", new Map<string, BrowserWindow>());
     this.windowsMap.set("markdown", new Map<string, BrowserWindow>());
     this.windowsMap.set("todo", new Map<string, BrowserWindow>());
-    this.windowsMap.set("question", new Map<string, BrowserWindow>());
     this.windowsMap.set("pomodoro-mini", new Map<string, BrowserWindow>());
     this.windowsMap.set("pomodoro-immersive", new Map<string, BrowserWindow>());
 
@@ -493,7 +491,6 @@ export class WindowManager {
       "project-item": "single-project-item-editor",
       markdown: "single-markdown-editor",
       todo: "todo",
-      question: "questions",
       "pomodoro-mini": "pomodoro/mini",
       "pomodoro-immersive": "pomodoro/immersive",
     };
@@ -508,7 +505,6 @@ export class WindowManager {
       "project-item": "projectItemId",
       markdown: "filePath",
       todo: "noop",
-      question: "noop",
       "pomodoro-mini": "noop",
       "pomodoro-immersive": "noop",
     };
@@ -523,7 +519,6 @@ export class WindowManager {
       "project-item": "项目",
       markdown: "Markdown",
       todo: "TODO",
-      question: "问题管理",
       "pomodoro-mini": "番茄小窗",
       "pomodoro-immersive": "番茄沉浸",
     };
@@ -762,21 +757,6 @@ export class WindowManager {
       win.loadURL(`${VITE_DEV_SERVER_URL}#/todo`);
     } else {
       win.loadFile(indexHtml, { hash: `/todo` });
-    }
-
-    return win;
-  }
-
-  public createQuestionWindow() {
-    const baseConfig = this.createBaseWindowConfig();
-    const win = new BrowserWindow(baseConfig);
-
-    this.setupWindowEvents(win);
-
-    if (VITE_DEV_SERVER_URL) {
-      win.loadURL(`${VITE_DEV_SERVER_URL}#/questions`);
-    } else {
-      win.loadFile(indexHtml, { hash: `/questions` });
     }
 
     return win;

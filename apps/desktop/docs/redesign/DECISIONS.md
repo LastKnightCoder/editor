@@ -283,6 +283,7 @@
 - feed 订阅/稍后读
 - ~~projects 项目~~ ✅ 2026-09-23 C 学习驾驶舱落地（D-031；project-detail 占位，三型工作台待迁移）
 - ~~todos 待办~~ ✅ 2026-09-24 B3 议程流「两块板」落地（D-040；独立页，不并入 schedule）
+- ~~questions 问题~~ ✅ 2026-09-25 A2 三栏清单「顶部切换」落地（D-043；question_link / question_event 两表，命令面板输入即记录，首页探究中整行，独立问题窗口已删）
 - ~~pomodoro 番茄专注~~ ✅ 2026-09-24 C 时间账本落地（D-041；独立页，不并入 schedule；小窗 / 沉浸窗重做，独立主窗口待 P-pomodoro 退役）
 - ~~collaboration 协作~~ ✅ 2026-09-25 A3「协作台 · 侧栏嵌套」落地（D-042；legacy 工作台与右侧「协作共享」小组件已删除）
 - learning（vibe-learning + flashcard 合并）
@@ -468,4 +469,10 @@
   - **材料关联表** `question_link(id, question_id, target_type, target_id, sort_index, create_time)`，`target_type ∈ card / article / project_item / project / white_board / answer`（answer = 只属于该问题的独立答案 content）。理由：项目（`project`）与白板（`white_boards`）没有 content id，`questions.answers` 的 content id 数组存不下；`content_link` 无排序字段、语义是内容引用剪藏。迁移时 `answers` 逐条转行（按 content 反查 card / article / project_item，否则为 answer）。
   - **轨迹事件表** `question_event(id, question_id, type, payload, create_time)`：自动写入 提出 / 状态变化（含自动进入探究中）/ 关联（区分「从问题里新建」与「关联已有」）/ 解除关联；手动写入 note。不追踪材料的后续编辑。旧数据回填：提出（create_time）、材料（按 content 创建时间推算并标记）、解答（resolved_time）；中间过程不可回填。
   - **修正 legacy 行为**：`addAnswer` 挂第一个答案即置为已解决（与「第一份材料 → 探究中」冲突，去掉）；`deleteAnswer` 连带 `deleteContent`（解除关联只删关联行，卡片 / 文章本体不动；独立答案随问题删除时才清理）。
-- 状态：方向与数据方案定稿，页面迁移未开始（`features/questions` 待建）。
+- 落地（2026-09-25）：
+  - 数据：`question_link` 额外带 `content_id`（关联持有引用的 content，目标被删后仍能释放引用）；`questions.answers` 保留为 content id 缓存（每次关联变化同步），旧消费者（MCP、发布、编辑器问题块、RightComponentsSidebar）读缓存无需改动；回填以 `migration_meta` `question-link:v1` 保证只跑一次，早于提问的材料关联时间按提问时间记、轨迹标「约」。`resolved_time` 语义改为「标为已解答的时刻」（旧语义为首个答案时间，回填时非已解答问题清空）；改状态可撤销（带 `revertEventId` 删除那条事件而非再记一条）。`QuestionTable.upgradeTable` 不再每次维护打开都重写全表 `sort_index / resolved_time`。
+  - 页面：`features/questions`（CaptureBar / GroupChips / QuestionList / QuestionDetail / MaterialList / MaterialPicker / Trajectory / AnswerDialog）；写卡片复用 `features/cards` 的 `CreateCardDialog`（onCreated 后挂上）；新建文章 / 白板 / 项目后挂上并页内打开；背景存 `questions.description`（停笔 800ms 保存）。分组色板与分组弹窗提升为 `utils/groupTone.ts`、`components/GroupDialog.tsx`（待办共用）。侧栏入口改名「问题」并显示探究中数量。
+  - 命令面板：任何查询附带「记为问题」行——问号结尾或带 `#分组` 时置顶，否则垫底（不抢搜索回车）；前缀「问题:」/ 命令「记一个问题」进入收集模式。
+  - 首页：「最近编辑」之后一整行「探究中的问题」（按最近活动，最近进展取最后一条轨迹事件），点击带 `selectedId` 定位。
+  - 已删：独立问题窗口（window-manager / index.ts `--window-type=question` / window-module-mapping / `/questions` 路由）。旧页面 `pages/QuestionWindow` 与 `useQuestionStore` 等 P-questions 删除（04 §questions）。
+  - 未做：发布（`buildQuestPages`）仍只发布 content 类材料，项目与白板材料不进站点。

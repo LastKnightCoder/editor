@@ -11,7 +11,6 @@ const SingleMarkdownEditor = loadable(() => import("@/pages/SingleMarkdownEditor
 const QuickOpenLayout = loadable(() => import("@/layouts/QuickOpenLayout"));
 
 const TodoWindowPage = loadable(() => import("@/pages/TodoWindow"));
-const QuestionWindowPage = loadable(() => import("@/pages/QuestionWindow"));
 const PomodoroWindowPage = loadable(() => import("@/pages/PomodoroWindow"));
 const PomodoroMiniPage = loadable(() => import("@/features/pomodoro/windows/MiniWindow"));
 const PomodoroImmersivePage = loadable(() => import("@/features/pomodoro/windows/ImmersiveWindow"));
@@ -90,16 +89,6 @@ const routes = [
       {
         index: true,
         element: <TodoWindowPage />,
-      },
-    ],
-  },
-  {
-    path: "/questions",
-    element: <QuickOpenLayout />,
-    children: [
-      {
-        index: true,
-        element: <QuestionWindowPage />,
       },
     ],
   },
