@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板详情 · 方案 B 侧栏嵌套页</title>
+<link rel="stylesheet" href="../whiteboards/base.css">
+<link rel="stylesheet" href="../whiteboards/shared.css">
+<link rel="stylesheet" href="detail.css">
+<style>
+  /* 当前白板作为「白板」入口下的一组：白板名一行 + 各页 */
+  .sub-board { display: flex; align-items: center; gap: 6px; padding: 8px 8px 4px 35px; font-size: 11.5px; color: var(--ink-3); }
+  .sub-board span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nav-sub-item .glyph b { font: 500 10.5px/1 var(--mono); color: var(--ink-3); }
+  .nav-sub-item.on .glyph b { color: var(--accent-text); }
+  .nav-sub-item.on { background: var(--bg-selected); color: var(--ink-1); }
+  .nav-sub-item.add { color: var(--ink-3); }
+  .nav-sub-item.add:hover { color: var(--accent-text); }
+  .nav-sub-item .ct { opacity: 0; transition: opacity 150ms; }
+  .nav-sub-item:hover .ct, .nav-sub-item.on .ct { opacity: 1; }
+  .nav-sub-item .more { width: 20px; height: 20px; border-radius: 6px; display: inline-grid; place-items: center; color: var(--ink-3); opacity: 0; }
+  .nav-sub-item:hover .more { opacity: 1; }
+  .nav-sub-item .more:hover { background: var(--bg-press); color: var(--ink-1); }
+  .nav-sub-item .more .icon { width: 13px; height: 13px; }
+  .rename { width: 110px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="../whiteboards/shared.js"></script>
+<script src="detail.js"></script>
+<script>
+(() => {
+  const X = WB, D = WBD, { icon, esc } = X;
+  const { page } = X.mountShell();
+  D.injectExtra();
+  page.style.height = "100%";
+  page.innerHTML = `<div class="page-detail">${D.sheetHTML()}</div>`;
+  D.bindSheet();
+
+  function renderNav() {
+    const sub = document.getElementById("nav-sub");
+    document.querySelector(".sidebar").classList.add("has-sub");
+    sub.innerHTML = `
+      <div class="sub-board"><span title="${esc(D.board.title)}">${esc(D.board.title)}</span></div>
+      <div id="pages">${D.board.pages
+        .map((p, i) => `<div class="nav-sub-item${i === D.D.active ? " on" : ""}" data-i="${i}" role="button" title="双击改名，拖动排序">
+            <span class="glyph"><b>${i + 1}</b></span><span class="tt">${esc(p.name)}</span><span class="ct">${p.elements.length}</span>
+            <button class="more" data-more title="更多">${icon("more")}</button></div>`)
+        .join("")}</div>
+      <button class="nav-sub-item add" id="add"><span class="glyph">${icon("plus")}</span><span class="tt">新页</span></button>`;
+    sub.querySelectorAll("#pages .nav-sub-item").forEach(el => {
+      const i = +el.dataset.i;
+      el.onclick = e => { if (!e.target.closest("[data-more]")) D.go(i); };
+      el.ondblclick = () => D.inlineRename(el.querySelector(".tt"), i);
+      const menu = anchor => D.pageMenu(anchor, i, { placement: "bottom-start", onRename: j => D.inlineRename(el.querySelector(".tt"), j) });
+      el.querySelector("[data-more]").onclick = e => { e.stopPropagation(); menu(e.currentTarget); };
+      el.oncontextmenu = e => { e.preventDefault(); menu({ left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY }); };
+    });
+    D.sortable(document.getElementById("pages"), "y");
+    document.getElementById("add").onclick = () => D.addPage();
+  }
+  let last = -1;
+  function render() {
+    D.setCrumb(true);
+    renderNav();
+    D.renderCanvas(last !== -1 && last !== D.D.active);
+    last = D.D.active;
+  }
+  D.on(render);
+  X.on(render);
+  render();
+})();
+</script>
+</body>
+</html>

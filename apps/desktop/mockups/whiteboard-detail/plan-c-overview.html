@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板详情 · 方案 C 翻页器 + 页总览</title>
+<link rel="stylesheet" href="../whiteboards/base.css">
+<link rel="stylesheet" href="../whiteboards/shared.css">
+<link rel="stylesheet" href="detail.css">
+<style>
+  .pager { bottom: 12px; left: 12px; font-size: 12.5px; }
+  .pager .cur { display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border-radius: 8px; max-width: 220px; }
+  .pager .cur:hover { background: var(--bg-hover); }
+  .pager .cur b { font: 500 11px/1 var(--mono); color: var(--ink-3); }
+  .pager .cur span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pager .ibtn:disabled { opacity: .35; }
+
+  /* 页总览：盖在画布上的同一张纸，缩略图网格；点一页 = 跳过去并收起 */
+  .overview { position: absolute; inset: 0; z-index: 8; background: var(--bg-surface); display: flex; flex-direction: column; opacity: 0; pointer-events: none; transform: scale(1.015);
+    transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out); }
+  .overview.open { opacity: 1; pointer-events: auto; transform: none; }
+  .ov-head { display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 16px 0 22px; flex: none; }
+  .ov-head h2 { font-size: 15px; font-weight: 600; }
+  .ov-head small { color: var(--ink-3); font-size: 12.5px; }
+  .ov-grid { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 22px 22px; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px 16px; align-content: start; }
+  .ov-card { position: relative; text-align: left; cursor: pointer; }
+  .ov-card .thumb { transition: box-shadow 160ms var(--ease-out); }
+  .ov-card:hover .thumb { box-shadow: inset 0 0 0 1px var(--line-1), var(--shadow-lift); }
+  .ov-card.on .thumb { box-shadow: 0 0 0 2px var(--accent); }
+  .ov-name { display: flex; align-items: center; gap: 7px; margin-top: 8px; padding: 0 2px; font-size: 13px; }
+  .ov-name b { font: 500 11px/1 var(--mono); color: var(--ink-3); }
+  .ov-name .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ov-name small { font-size: 11.5px; color: var(--ink-3); }
+  .ov-card .ops { position: absolute; top: 8px; right: 8px; z-index: 2; }
+  .ov-add { aspect-ratio: 16 / 10; border-radius: 12px; border: 1.5px dashed var(--line-1); color: var(--ink-3); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 12.5px; }
+  .ov-add:hover { border-color: var(--accent); color: var(--accent-text); background: var(--accent-soft); }
+  .ov-add .icon { width: 18px; height: 18px; }
+  .drop-before .thumb { box-shadow: -3px 0 0 var(--accent); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="../whiteboards/shared.js"></script>
+<script src="detail.js"></script>
+<script>
+(() => {
+  const X = WB, D = WBD, { icon, esc } = X;
+  const { page } = X.mountShell();
+  D.injectExtra();
+  page.style.height = "100%";
+  page.innerHTML = `<div class="page-detail">${D.sheetHTML('<div class="float pager" id="pager"></div><section class="overview" id="overview"></section>')}</div>`;
+  D.bindSheet();
+  let ovOpen = false;
+
+  function renderPager() {
+    const n = D.board.pages.length, i = D.D.active;
+    document.getElementById("pager").innerHTML = `
+      <button class="ibtn" data-d="-1" ${i ? "" : "disabled"} title="上一页 (⌃PageUp)">${icon("chev-left")}</button>
+      <button class="cur" id="cur" title="所有页"><b>${i + 1}/${n}</b><span>${esc(D.board.pages[i].name)}</span></button>
+      <button class="ibtn" data-d="1" ${i < n - 1 ? "" : "disabled"} title="下一页 (⌃PageDown)">${icon("chev-right")}</button>
+      <span class="vsep"></span>
+      <button class="ibtn${ovOpen ? " on" : ""}" id="ov-btn" title="所有页">${icon("layout")}</button>`;
+    document.querySelectorAll("#pager [data-d]").forEach(b => (b.onclick = () => D.go(i + +b.dataset.d)));
+    document.getElementById("cur").onclick = document.getElementById("ov-btn").onclick = () => toggleOverview();
+  }
+  function renderOverview() {
+    const el = document.getElementById("overview");
+    el.innerHTML = `
+      <div class="ov-head"><h2>所有页</h2><small>${D.board.pages.length} 页 · 拖动排序，双击名称改名</small><span class="spacer"></span>
+        <button class="btn btn-soft" id="ov-add2">${icon("plus")}新页</button><button class="ibtn" id="ov-x" title="收起 (Esc)">${icon("x")}</button></div>
+      <div class="ov-grid" id="ov-grid">${D.board.pages
+        .map((p, i) => `<div class="ov-card hover-host${i === D.D.active ? " on" : ""}" data-i="${i}">
+            <div class="thumb">${X.pageSVG(p)}</div>
+            <div class="ops hover-act"><button class="float-btn" data-more title="更多">${icon("more")}</button></div>
+            <div class="ov-name"><b>${i + 1}</b><span class="nm">${esc(p.name)}</span><small>${p.elements.length} 个元素</small></div></div>`)
+        .join("")}<button class="ov-add" id="ov-add">${icon("plus")}新页</button></div>`;
+    el.querySelectorAll(".ov-card").forEach(c => {
+      const i = +c.dataset.i;
+      c.onclick = e => { if (e.target.closest("[data-more], input")) return; D.go(i); toggleOverview(false); };
+      c.querySelector(".nm").ondblclick = e => { e.stopPropagation(); D.inlineRename(c.querySelector(".nm"), i, 140); };
+      c.querySelector("[data-more]").onclick = e => { e.stopPropagation(); D.pageMenu(e.currentTarget, i, { placement: "bottom-end", onRename: j => D.inlineRename(c.querySelector(".nm"), j, 140) }); };
+    });
+    D.sortable(document.getElementById("ov-grid"), "x");
+    document.getElementById("ov-add").onclick = document.getElementById("ov-add2").onclick = () => D.addPage();
+    document.getElementById("ov-x").onclick = () => toggleOverview(false);
+    el.classList.toggle("open", ovOpen);
+  }
+  function toggleOverview(v) {
+    ovOpen = v ?? !ovOpen;
+    document.getElementById("overview").classList.toggle("open", ovOpen);
+    renderPager();
+  }
+  addEventListener("keydown", e => { if (e.key === "Escape" && ovOpen && !X.dialogOpen()) toggleOverview(false); });
+
+  let last = -1;
+  function render() {
+    D.setCrumb(true);
+    renderPager();
+    renderOverview();
+    D.renderCanvas(last !== -1 && last !== D.D.active);
+    last = D.D.active;
+  }
+  D.on(render);
+  X.on(render);
+  render();
+})();
+</script>
+</body>
+</html>

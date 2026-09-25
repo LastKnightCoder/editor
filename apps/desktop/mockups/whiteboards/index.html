@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>白板列表页设计探索 · 总览</title>
+<style>
+  :root {
+    --bg-page: #f3eee2; --bg-surface: #fffdf9; --bg-hover: rgba(67, 57, 44, 0.05);
+    --ink-1: #43392c; --ink-2: #6a5c49; --ink-3: #a89a85;
+    --accent: hsl(22 58% 42%); --accent-text: #a05236; --accent-soft: hsla(22, 58%, 42%, 0.12);
+    --line-1: #e9e1d2; --line-2: rgba(233, 225, 210, 0.55); --ok: #61795f; --danger: #b0564d;
+    --tag-2: #5c7d99; --tag-2-soft: #e2ebf3; --tag-3: #8a7aa6; --tag-4-soft: #f6efd6; --tag-1-soft: #e5ede2;
+    --canvas: #fbf7ef; --canvas-dot: rgba(67, 57, 44, 0.13);
+    --shadow: 0 1px 2px rgba(120,100,70,0.05), 0 10px 24px -14px rgba(120,100,70,0.18);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg-page); color: var(--ink-1); font: 14px/1.75 -apple-system, "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased; padding: 40px 8vw 80px; }
+  header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  header .sub { color: var(--ink-2); margin-top: 6px; max-width: 88ch; }
+  header .meta { margin-top: 10px; font-size: 12.5px; color: var(--ink-3); }
+  h2 { font-size: 16px; margin: 42px 0 14px; font-weight: 600; }
+  ul.tight { padding-left: 20px; color: var(--ink-2); max-width: 92ch; }
+  ul.tight li + li { margin-top: 4px; }
+  ul.tight b { color: var(--ink-1); font-weight: 600; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .card { background: var(--bg-surface); border-radius: 16px; padding: 20px 22px; box-shadow: var(--shadow); text-decoration: none; color: inherit; display: flex; flex-direction: column;
+    outline: 1px solid transparent; transition: box-shadow 200ms, outline-color 200ms; }
+  .card:hover { outline-color: var(--line-1); box-shadow: 0 16px 40px -12px rgba(120,100,70,0.3); }
+  .card .no { font: 600 12px/1 ui-monospace, Consolas, monospace; color: var(--accent-text); }
+  .card h3 { font-size: 15.5px; margin: 6px 0 2px; font-weight: 600; }
+  .card .who { font-size: 12px; color: var(--ink-3); font-weight: 400; }
+  .card p { font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  .card .wire { margin-top: 14px; height: 116px; border-radius: 10px; background: var(--bg-page); padding: 8px; display: grid; gap: 6px; }
+  .wire > div { border-radius: 6px; position: relative; overflow: hidden; }
+  .wire .t { background-color: var(--canvas); background-image: radial-gradient(var(--canvas-dot) 1px, transparent 1.2px); background-size: 6px 6px; border-radius: 4px; }
+  .wire .sheet { background: var(--bg-surface); box-shadow: var(--shadow); }
+  .wire .bar { position: absolute; height: 5px; border-radius: 3px; background: var(--bg-hover); }
+  .card .verdict { margin-top: 12px; font-size: 12.5px; display: flex; flex-direction: column; gap: 2px; }
+  .verdict .good { color: var(--ok); } .verdict .bad { color: var(--danger); }
+  .card .open { margin-top: auto; padding-top: 12px; font-size: 12.5px; color: var(--accent-text); font-weight: 500; }
+  table { border-collapse: collapse; width: 100%; background: var(--bg-surface); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); font-size: 13px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { font-size: 12px; font-weight: 600; color: var(--ink-2); background: var(--bg-hover); }
+  td { color: var(--ink-2); border-top: 1px solid var(--line-2); }
+  td:first-child { color: var(--ink-1); font-weight: 500; white-space: nowrap; }
+  code { font: 12px/1.5 ui-monospace, Consolas, monospace; background: var(--bg-surface); border: 1px solid var(--line-1); padding: 1px 6px; border-radius: 5px; color: var(--accent-text); }
+  kbd { font: 11px/1 ui-monospace, monospace; background: var(--bg-hover); border-radius: 4px; padding: 2px 5px; color: var(--ink-2); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>白板列表页设计探索 · 三方案</h1>
+  <p class="sub">现状：legacy <code>pages/WhiteBoardView</code> 是 antd 卡片网格加右下角悬浮「＋」。每张卡片上半是封面，没设封面时显示一张 CDN 占位图（离线会破图，所有白板都一样），五种随机主题色描边；下半是标题、「发表于」创建日期和两行描述。更多菜单要悬停才弹出（编辑 / 删除 / 换背景图），删除用 <code>modal.confirm</code>。卡片上看不到白板有几页、画了什么、最近什么时候改过。</p>
+  <p class="sub">三个方案共用同一份 mock：12 个白板，共 29 页，数据形状与 <code>types/white-board.ts</code> 一致。缩略图<b>不是占位图</b>，而是用每页的真实元素几何（图形、连线、卡片、文本、图片、思维导图、画框、手绘、视频）按「适应全部」的视角画出来的。列表接口 <code>get-all-white-boards</code> 本来就返回全部子白板和元素，所以实现时不需要额外取数。都能操作：新建、编辑信息、更换 / 移除封面、删除确认、排序、打开到指定页（mock 里用 Toast 表示跳转）。标题栏虚线框是演示开关（正常 / 空态），右上角切换 cream / cocoa。</p>
+  <p class="meta">2026-09-25 · mockup 只作视觉参考，不作为导出源（D-001）</p>
+</header>
+
+<h2>二轮 · 方案 A 细化 · ✅ 定稿（D-047：标签按侧栏做，卡片上不显示标签）</h2>
+<p class="sub" style="margin-bottom:14px">一轮裁决：选 A；保留自定义封面，没有封面就用画布缩略图（实现时复用画布的「导出图片」离屏渲染并缓存）；加页内标题过滤；删除时提示被几个项目引用；标签的做法待看过日记的样子再定。</p>
+<div class="cards"><a class="card" href="plan-a2-gallery.html">
+  <div class="no">方案 A · 二轮</div>
+  <h3>画廊 <span class="who">· 标题过滤 + 侧栏标签 + 引用提示</span></h3>
+  <p><b>标题过滤</b>：工具栏右侧的过滤框（<kbd>⌘F</kbd> 聚焦，<kbd>Esc</kbd> 清空），边输入边筛，命中的字高亮，右侧显示「命中 / 总数」；没有命中时给出「清除过滤」。<b>标签（日记同款）</b>：标签不在页内另做目录，而是挂到全局侧栏「白板」下面作子项（各标签 + 无标签，带数量），点一下只看这个标签，工具栏标题旁出现可关闭的标签 chip；在某个标签下新建会自动带上它。卡片上以「点 + 软底」小 chip 显示标签，点 chip 也能切过去；「更多 → 标签…」打开和日记一样的勾选 / 新建浮层。演示开关可以隐藏卡片上的标签，对比只靠侧栏的效果。<b>引用提示</b>：删除确认里列出引用它的项目（主进程已有 <code>get-project-item-by-ref</code>，删除时本来就会 <code>resetProjectItemRef</code>），说明这些条目会解除关联。</p>
+  <div class="verdict">
+    <span class="good">✓ 标签复用日记的侧栏子项、Tag 七色和选择器，不新造交互</span>
+    <span class="bad">✗ 待定：卡片上要不要显示标签（侧栏已经能筛选）</span>
+  </div>
+  <span class="open">打开二轮稿 →</span>
+</a></div>
+
+<h2>一轮 · 三个方案</h2>
+<div class="cards">
+  <a class="card" href="plan-a-gallery.html">
+    <div class="no">方案 A</div>
+    <h3>画廊 <span class="who">· 缩略图卡片网格 + 悬停扫页</span></h3>
+    <p>和文章页、项目页的卡片网格是一家：一张卡片 = 画布缩略图 + 标题 + 一行描述 + 「4 页 · 30 个元素 · 2 小时前更新」，有演示序列的标「可演示」。多页白板在缩略图上<b>横向移动鼠标就能翻页</b>（左上角显示页名，底部是页码刻度），点下去打开的就是当前看到的那页。封面是可选的：设了就显示封面，悬停扫页时换成各页画布。右上角是「更多」，右键也能打开同一个菜单。演示开关里可以在网格末尾加一个「新建」格作对比。</p>
+    <div class="wire" style="grid-template-columns: repeat(4, 1fr);">
+      <script>document.write(Array.from({length:8},(_,i)=>`<div class="sheet" style="padding:3px"><div class="t" style="height:62%"></div><span class="bar" style="left:4px;right:30%;bottom:10px;background:var(--line-1)"></span><span class="bar" style="left:4px;right:50%;bottom:3px;height:3px"></span></div>`).join(''))</script>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 最直观，一眼认出哪块板；和文章 / 项目网格同构，迁移成本最低</span>
+      <span class="bad">✗ 页的结构藏在悬停里；白板多了之后描述和时间信息密度偏低</span>
+    </div>
+    <span class="open">打开方案 A →</span>
+  </a>
+  <a class="card" href="plan-b-film.html">
+    <div class="no">方案 B</div>
+    <h3>胶片 <span class="who">· 一整张纸，每个白板一条页带</span></h3>
+    <p>把「一块白板有很多页」直接摆出来。整块内容区是一张纸，每个白板占一条：左边标题、描述和统计，右边是<b>全部页的横向胶片</b>（页码 + 页名 + 元素数），点哪页就直接进哪页；上次停留的页（<code>activeWhiteBoardContentId</code>）会标出来。页多时带子左右渐隐，悬停出现翻页按钮；悬停时末尾出现「＋ 新页」，不用进白板就能加页。条与条之间只用留白分隔，不画线。</p>
+    <div class="wire" style="grid-template-rows: repeat(3, 1fr);">
+      <script>document.write([4,2,3].map(n=>`<div class="sheet" style="display:grid;grid-template-columns:1fr 3fr;gap:6px;padding:4px"><div><span class="bar" style="left:4px;right:20%;top:6px;background:var(--line-1)"></span><span class="bar" style="left:4px;right:40%;top:15px;height:3px"></span></div><div style="display:flex;gap:4px">${Array.from({length:n},()=>'<div class="t" style="width:22%"></div>').join('')}</div></div>`).join(''))</script>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 多页结构一目了然，直达某一页只要一次点击；一张纸，没有碎卡片</span>
+      <span class="bad">✗ 纵向更长（一屏 4–5 个白板）；单页白板那一条右边比较空；不展示封面</span>
+    </div>
+    <span class="open">打开方案 B →</span>
+  </a>
+  <a class="card" href="plan-c-preview.html">
+    <div class="no">方案 C</div>
+    <h3>预览台 <span class="who">· 目录 + 大预览，同一张纸</span></h3>
+    <p>像 Finder 的预览或 Keynote 的文稿选择器。左边是按时间分组的紧凑目录（今天 / 近 7 天 / 近 30 天 / 更早，按名称排序时不分组），右边是选中白板的大预览：16:9 大图、页带、更新 / 创建时间、演示序列数，以及<b>元素构成</b>（卡片 8 · 图形 6 · 手绘 5 …）。全键盘操作：<kbd>↑</kbd><kbd>↓</kbd> 选白板，<kbd>←</kbd><kbd>→</kbd> 翻页，<kbd>↵</kbd> 打开；双击目录行也能直接打开。</p>
+    <div class="wire" style="grid-template-columns: 1fr;">
+      <div class="sheet" style="display:grid;grid-template-columns:1fr 2fr;gap:8px;padding:5px">
+        <div style="display:flex;flex-direction:column;gap:4px"><script>document.write(Array.from({length:6},(_,i)=>`<div style="display:flex;gap:4px;align-items:center;${i===1?'background:var(--accent-soft);border-radius:3px;':''}"><div class="t" style="width:22px;height:13px"></div><span style="flex:1;height:4px;border-radius:2px;background:var(--line-1)"></span></div>`).join(''))</script></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div class="t" style="flex:1"></div><div style="display:flex;gap:3px;height:16px"><div class="t" style="width:20%"></div><div class="t" style="width:20%;box-shadow:0 0 0 1px var(--accent)"></div><div class="t" style="width:20%"></div></div></div>
+      </div>
+    </div>
+    <div class="verdict">
+      <span class="good">✓ 信息最全（元素构成、演示）；键盘效率最高；扫一眼很多白板也不累</span>
+      <span class="bad">✗ 每次只能大看一个；有「左目录右详情」的主从感，和「页内不再放第二条侧栏」的偏好有张力（这里目录与预览在同一张纸上，不另起面板）</span>
+    </div>
+    <span class="open">打开方案 C →</span>
+  </a>
+</div>
+
+<h2>三个方案都修掉的 legacy 问题</h2>
+<ul class="tight">
+  <li><b>悬浮球</b>：新建移到工具栏右上角的主按钮「新建白板」，弹窗只填标题和可选描述，「创建并打开」直接进白板；</li>
+  <li><b>占位图</b>：CDN 默认图和五色随机描边退役。没设封面就用第一页的画布缩略图，空白板显示「空白画布」；</li>
+  <li><b>信息</b>：「发表于 + 创建时间」改为页数、元素数和相对更新时间（悬停看完整时间），有演示序列的标出来，菜单里可以「从头演示」；</li>
+  <li><b>菜单</b>：悬停弹出的 antd Dropdown 改为点「更多」或右键打开的 Menu：打开 / 在新窗口打开（Electron 专属）/ 从头演示 / 编辑信息 / 设置或更换封面 / 移除封面 / 删除；</li>
+  <li><b>删除</b>：确认弹窗里写明影响范围（「4 页、共 30 个元素会一起删除」），不再只问「确定删除该白板？」；</li>
+  <li><b>排序</b>：Segmented「最近更新 / 创建时间 / 名称」，默认最近更新（legacy 按数据库顺序）；</li>
+  <li><b>视觉</b>：tau token，悬停件都占固定槽位、原位淡入，不会顶开布局；缩略图底是点阵画布纸，明暗两套主题都有。</li>
+</ul>
+
+<h2>对比</h2>
+<table>
+  <thead><tr><th>维度</th><th>A 画廊</th><th>B 胶片</th><th>C 预览台</th></tr></thead>
+  <tbody>
+    <tr><td>主角</td><td>白板（封面 / 首页）</td><td>页</td><td>当前选中的白板</td></tr>
+    <tr><td>一屏能看到</td><td>约 12 个白板</td><td>4–5 个白板，每个的所有页</td><td>约 12 行目录 + 1 个大预览</td></tr>
+    <tr><td>直达某一页</td><td>悬停扫到那页后点击</td><td>直接点页（1 次）</td><td>选中 → 点页或 <kbd>←</kbd><kbd>→</kbd> → <kbd>↵</kbd></td></tr>
+    <tr><td>封面</td><td>显示（可选）</td><td>不显示</td><td>目录缩略图显示</td></tr>
+    <tr><td>宽度利用</td><td>满（自适应列数）</td><td>满（页带横向铺开）</td><td>满（大预览撑开）</td></tr>
+    <tr><td>与已定稿页同构度</td><td>高（文章月刊 / 项目网格）</td><td>中（日记「一整张纸」）</td><td>中（设置弹窗双栏）</td></tr>
+  </tbody>
+</table>
+
+<h2>可以混搭的部件</h2>
+<ul class="tight">
+  <li><b>A 的悬停扫页</b>可以放进 C 的目录缩略图，也可以放进项目页里的白板条目；</li>
+  <li><b>B 的「＋ 新页」和「上次停留」</b>可以搬到 C 的预览页带里；</li>
+  <li><b>C 的元素构成</b>可以作为 A 卡片的悬停提示；</li>
+  <li><b>C 的时间分组</b>（今天 / 近 7 天 …）可以给 A 的网格或 B 的纸面加小节题。</li>
+</ul>
+
+<h2>待你拍板的几件事</h2>
+<ul class="tight">
+  <li><b>封面</b>：有了真实画布缩略图后，「自定义封面」还要保留吗？（B 已经不展示封面了。）保留的话，是否改为「选某一页作封面」，而不是上传图片？</li>
+  <li><b>tags</b>：<code>WhiteBoard.tags</code> 字段存在，但 legacy 没有任何 UI。三个方案都没做标签筛选，是直接退役，还是像日记那样挂到侧栏？</li>
+  <li><b>页内搜索</b>：参照项目页 D-024 的口径，三个方案都没放搜索框（语义检索走全局 <kbd>⌘K</kbd>）。白板多了之后要不要加标题过滤？</li>
+  <li><b>被引用</b>：项目条目可以引用白板（<code>white_board_content_id</code>）。删除确认要不要额外提示「被 N 个项目引用」？这需要主进程补一个查询。</li>
+  <li><b>缩略图生成</b>：mock 在渲染层实时画。真实数据里元素多了（图片、网页、视频），更稳的做法是保存时由主进程生成一个轻量摘要，还是直接复用画布的「导出图片」离屏渲染再缓存？</li>
+</ul>
+
+</body>
+</html>

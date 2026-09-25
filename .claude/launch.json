@@ -56,6 +56,18 @@
       "port": 8799
     },
     {
+      "name": "whiteboards-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8801", "-d", "apps/desktop/mockups/whiteboards"],
+      "port": 8801
+    },
+    {
+      "name": "whiteboard-detail-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8802", "-d", "apps/desktop/mockups"],
+      "port": 8802
+    },
+    {
       "name": "mockups",
       "runtimeExecutable": "npx",
       "runtimeArgs": ["-y", "serve", "apps/desktop/mockups", "-l", "6211"],
