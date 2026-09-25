@@ -12,10 +12,7 @@ import {
   updateQuestion,
   updateQuestionStatus,
 } from "@/commands/question";
-import {
-  getDefaultQuestionGroup,
-  listQuestionGroups,
-} from "@/commands/question-group";
+import { getDefaultQuestionGroup, listQuestionGroups } from "@/commands/question-group";
 import { QUESTION_MUTATION_ACTIONS } from "@/mcp/question/mutation";
 import { importFromMarkdown } from "@/utils/markdown";
 import { toFailureResult, toMutationResult } from "./shared";
@@ -31,10 +28,7 @@ const normalizeMarkdownContent = (markdown?: string | null) => {
   return importFromMarkdown(markdown.trim());
 };
 
-const resolveGroupId = async (params: {
-  groupId?: number;
-  groupTitle?: string;
-}) => {
+const resolveGroupId = async (params: { groupId?: number; groupTitle?: string }) => {
   if (typeof params.groupId === "number") {
     return params.groupId;
   }
@@ -42,9 +36,7 @@ const resolveGroupId = async (params: {
   if (params.groupTitle?.trim()) {
     const groups = await listQuestionGroups();
     const matched = groups.find(
-      (group) =>
-        group.title.trim().toLowerCase() ===
-        params.groupTitle!.trim().toLowerCase(),
+      group => group.title.trim().toLowerCase() === params.groupTitle!.trim().toLowerCase()
     );
     if (matched) {
       return matched.id;
@@ -72,7 +64,7 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
       required: ["questionContent"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       try {
         const questionContent = String(args.questionContent ?? "").trim();
         if (!questionContent) {
@@ -85,10 +77,8 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
         const question = await createQuestion(
           questionContent,
           groupId,
-          normalizeMarkdownContent(
-            args.descriptionMarkdown as string | undefined,
-          ),
-          { suppressMutationEvent: true },
+          normalizeMarkdownContent(args.descriptionMarkdown as string | undefined),
+          { suppressMutationEvent: true }
         );
         return toMutationResult({
           source: "question-mcp",
@@ -111,8 +101,7 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
   },
   {
     name: "update_question",
-    description:
-      "更新问题标题或描述。描述使用 Markdown 输入，内部会转换为编辑器富文本结构。",
+    description: "更新问题标题或描述。描述使用 Markdown 输入，内部会转换为编辑器富文本结构。",
     parameters: {
       type: "object",
       properties: {
@@ -123,7 +112,7 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
       required: ["id"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       try {
         const current = await getQuestionById(args.id as number);
         if (!current) {
@@ -142,7 +131,7 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
           typeof args.descriptionMarkdown === "string"
             ? normalizeMarkdownContent(args.descriptionMarkdown)
             : current.description || EMPTY_CONTENT,
-          { suppressMutationEvent: true },
+          { suppressMutationEvent: true }
         );
         return toMutationResult({
           source: "question-mcp",
@@ -174,7 +163,7 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
       required: ["id"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       const id = args.id as number;
       await deleteQuestion(id, { suppressMutationEvent: true });
       return toMutationResult({
@@ -189,8 +178,7 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
   },
   {
     name: "reorder_questions",
-    description:
-      "按给定顺序重排问题。适用于用户明确要求调整同一分组内问题的展示顺序。",
+    description: "按给定顺序重排问题。适用于用户明确要求调整同一分组内问题的展示顺序。",
     parameters: {
       type: "object",
       properties: {
@@ -199,7 +187,7 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
       required: ["orderedIds"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       const orderedIds = args.orderedIds as number[];
       await reorderQuestions(orderedIds, { suppressMutationEvent: true });
       return toMutationResult({
@@ -213,8 +201,7 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
   },
   {
     name: "move_question_to_group",
-    description:
-      "将问题移动到另一个分组。可通过目标分组 ID 或分组标题指定目标。",
+    description: "将问题移动到另一个分组。可通过目标分组 ID 或分组标题指定目标。",
     parameters: {
       type: "object",
       properties: {
@@ -225,19 +212,15 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
       required: ["id"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       try {
         const toGroupId = await resolveGroupId({
           groupId: args.toGroupId as number | undefined,
           groupTitle: args.toGroupTitle as string | undefined,
         });
-        const question = await moveQuestionToGroup(
-          args.id as number,
-          toGroupId,
-          {
-            suppressMutationEvent: true,
-          },
-        );
+        const question = await moveQuestionToGroup(args.id as number, toGroupId, {
+          suppressMutationEvent: true,
+        });
         return toMutationResult({
           source: "question-mcp",
           entityType: "question",
@@ -260,7 +243,7 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
   {
     name: "update_question_status",
     description:
-      "更新问题状态，仅支持 not_started、in_progress、resolved。没有答案时不能标记为 resolved。",
+      "更新问题状态，仅支持 not_started（待探究）、in_progress（探究中）、resolved（已解答）。状态变化会记入问题的探究轨迹。",
     parameters: {
       type: "object",
       properties: {
@@ -273,12 +256,12 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
       required: ["id", "status"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       try {
         const question = await updateQuestionStatus(
           args.id as number,
           args.status as "not_started" | "in_progress" | "resolved",
-          { suppressMutationEvent: true },
+          { suppressMutationEvent: true }
         );
         return toMutationResult({
           source: "question-mcp",
@@ -312,7 +295,7 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
       required: ["questionId", "markdown"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       try {
         const content = normalizeMarkdownContent(args.markdown as string);
         const answer = await createAnswer(content);
@@ -323,7 +306,7 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
             content: answer.content,
           },
           false,
-          { suppressMutationEvent: true },
+          { suppressMutationEvent: true }
         );
         return toMutationResult({
           source: "question-mcp",
@@ -360,7 +343,7 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
       required: ["questionId", "contentId"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       try {
         const question = await addAnswer(
           args.questionId as number,
@@ -369,7 +352,7 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
             content: [],
           },
           true,
-          { suppressMutationEvent: true },
+          { suppressMutationEvent: true }
         );
         return toMutationResult({
           source: "question-mcp",
@@ -405,13 +388,11 @@ export const buildQuestionItemTools = (): ToolDefinition[] => [
       required: ["questionId", "answerId"],
       additionalProperties: false,
     },
-    executor: async (args) => {
+    executor: async args => {
       try {
-        const question = await deleteAnswer(
-          args.questionId as number,
-          args.answerId as number,
-          { suppressMutationEvent: true },
-        );
+        const question = await deleteAnswer(args.questionId as number, args.answerId as number, {
+          suppressMutationEvent: true,
+        });
         return toMutationResult({
           source: "question-mcp",
           entityType: "question-answer",

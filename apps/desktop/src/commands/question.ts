@@ -1,5 +1,15 @@
 import { invoke } from "@/electron";
-import { IQuestion, ICreateAnswer, IAnswer } from "@/types";
+import type {
+  ActiveQuestionPreview,
+  IAnswer,
+  ICreateAnswer,
+  IQuestion,
+  QuestionDetail,
+  QuestionEvent,
+  QuestionLink,
+  QuestionLinkTarget,
+  QuestionSummary,
+} from "@/types";
 import { Descendant } from "slate";
 import { emitQuestionMutation, QUESTION_MUTATION_ACTIONS } from "@/mcp/question/mutation";
 
@@ -211,9 +221,14 @@ export async function moveQuestionToGroup(
 export async function updateQuestionStatus(
   questionId: number,
   status: "not_started" | "in_progress" | "resolved",
-  options?: QuestionMutationOptions
-): Promise<IQuestion> {
-  const updated = await invoke<IQuestion>("question:update-status", questionId, status);
+  options?: QuestionMutationOptions & { revertEventId?: number }
+): Promise<IQuestion & { eventId?: number }> {
+  const updated = await invoke<IQuestion & { eventId?: number }>(
+    "question:update-status",
+    questionId,
+    status,
+    { revertEventId: options?.revertEventId }
+  );
   if (!options?.suppressMutationEvent) {
     emitQuestionMutation({
       source: options?.mutationSource || "question-command",
@@ -226,4 +241,118 @@ export async function updateQuestionStatus(
     });
   }
   return updated;
+}
+
+export async function getQuestionDetail(questionId: number): Promise<QuestionDetail | null> {
+  return invoke("question:get-detail", questionId);
+}
+
+export async function listQuestionSummaries(): Promise<QuestionSummary[]> {
+  return invoke("question:list-summaries");
+}
+
+export async function listActiveQuestions(limit = 5): Promise<ActiveQuestionPreview[]> {
+  return invoke("question:list-active", limit);
+}
+
+export async function listQuestionsByTarget(target: QuestionLinkTarget): Promise<IQuestion[]> {
+  return invoke("question:list-links-by-target", target);
+}
+
+/**
+ * 关联材料。incRef：为已有卡片 / 文章 / 项目文档增加引用（关联已有、从问题里新建卡片都传 true）；
+ * created：轨迹记为「写下 / 新建」而非「关联」。
+ */
+export async function linkQuestionTargets(
+  questionId: number,
+  targets: QuestionLinkTarget[],
+  linkOptions: { incRef?: boolean; created?: boolean } = {},
+  options?: QuestionMutationOptions
+): Promise<QuestionLink[]> {
+  const added = await invoke<QuestionLink[]>(
+    "question:link-targets",
+    questionId,
+    targets,
+    linkOptions
+  );
+  if (!options?.suppressMutationEvent) {
+    emitQuestionMutation({
+      source: options?.mutationSource || "question-command",
+      entityType: "question-answer",
+      questionId,
+      action: QUESTION_MUTATION_ACTIONS.ATTACH_ANSWER,
+      changedFields: ["answers", "status"],
+    });
+  }
+  return added;
+}
+
+export async function unlinkQuestionTarget(
+  questionId: number,
+  target: QuestionLinkTarget,
+  options?: QuestionMutationOptions
+): Promise<number> {
+  const removed = await invoke<number>("question:unlink-target", questionId, target);
+  if (!options?.suppressMutationEvent) {
+    emitQuestionMutation({
+      source: options?.mutationSource || "question-command",
+      entityType: "question-answer",
+      questionId,
+      action: QUESTION_MUTATION_ACTIONS.DETACH_ANSWER,
+      changedFields: ["answers"],
+    });
+  }
+  return removed;
+}
+
+export async function reorderQuestionLinks(questionId: number, linkIds: number[]): Promise<number> {
+  return invoke("question:reorder-links", questionId, linkIds);
+}
+
+export async function addQuestionNote(
+  questionId: number,
+  text: string,
+  options?: QuestionMutationOptions
+): Promise<QuestionEvent> {
+  const event = await invoke<QuestionEvent>("question:add-note", questionId, text);
+  if (!options?.suppressMutationEvent) {
+    emitQuestionMutation({
+      source: options?.mutationSource || "question-command",
+      entityType: "question",
+      entityId: questionId,
+      questionId,
+      action: QUESTION_MUTATION_ACTIONS.ADD_NOTE,
+      changedFields: ["events"],
+    });
+  }
+  return event;
+}
+
+export async function deleteQuestionEvent(eventId: number): Promise<number> {
+  return invoke("question:delete-event", eventId);
+}
+
+/** 快速收集：groupHint 为「#分组」名称（全名或前缀），找不到落默认分组 */
+export async function captureQuestion(
+  title: string,
+  groupHint?: string | null,
+  options?: QuestionMutationOptions
+): Promise<{ question: IQuestion; groupId: number; groupTitle: string }> {
+  const result = await invoke<{ question: IQuestion; groupId: number; groupTitle: string }>(
+    "question:capture",
+    title,
+    groupHint ?? null
+  );
+  if (!options?.suppressMutationEvent) {
+    emitQuestionMutation({
+      source: options?.mutationSource || "question-command",
+      entityType: "question",
+      entityId: result.question.id,
+      questionId: result.question.id,
+      groupId: result.groupId,
+      action: QUESTION_MUTATION_ACTIONS.CREATE_QUESTION,
+      changedFields: ["questionContent", "groupId"],
+    });
+  }
+  return result;
 }

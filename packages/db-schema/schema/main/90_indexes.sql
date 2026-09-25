@@ -26,6 +26,9 @@ CREATE INDEX IF NOT EXISTS idx_questions_sort_index ON questions(sort_index);
 CREATE INDEX IF NOT EXISTS idx_questions_create_time ON questions(create_time);
 CREATE INDEX IF NOT EXISTS idx_questions_resolved_time ON questions(resolved_time);
 CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_question_link_unique ON question_link(question_id, target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_question_link_target ON question_link(target_type, target_id);
+CREATE INDEX IF NOT EXISTS idx_question_event_question ON question_event(question_id, create_time);
 CREATE INDEX IF NOT EXISTS idx_data_table_views_table_id
       ON data_table_views(table_id);
 CREATE INDEX IF NOT EXISTS idx_project_item_podcast_id ON project_item(podcast_id);

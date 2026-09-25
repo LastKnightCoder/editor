@@ -30,6 +30,8 @@ import AudioNoteChatTable from "./tables/audio-note-chat";
 import { getXiaoyuzhouListenEvents } from "./xiaoyuzhou";
 import ContentTable from "./tables/content";
 import QuestionTable from "./tables/question";
+import QuestionLinkTable from "./tables/question-link";
+import QuestionEventTable from "./tables/question-event";
 import WhiteBoardContentTable from "./tables/white-board-content";
 import DataTableTable from "./tables/data-table";
 import DataTableViewTable from "./tables/data-table-view";
@@ -218,6 +220,8 @@ class DatabaseModule implements Module {
       AudioNoteChatTable,
       QuestionGroupTable,
       QuestionTable,
+      QuestionEventTable,
+      QuestionLinkTable,
       GoalHardCleanupTable,
       DataTableTable,
       DataTableViewTable,

@@ -3,13 +3,14 @@ import {
   getAllQuestions,
   getQuestionAnswers,
   getQuestionById,
+  getQuestionDetail as fetchQuestionDetail,
 } from "@/commands/question";
 import {
   getQuestionGroupStats,
   listQuestionGroups,
   type QuestionGroupDTO,
 } from "@/commands/question-group";
-import type { IAnswer, IQuestion } from "@/types";
+import type { IAnswer, IQuestion, QuestionEvent, QuestionMaterial } from "@/types";
 import { getMarkdown } from "@/utils/markdown-helper";
 
 export interface QuestionDashboardResult {
@@ -121,8 +122,42 @@ export interface QuestionDetailResult {
     descriptionMarkdown: string;
     descriptionPreview: string;
     answers: QuestionAnswerListItem[];
+    /** 全部探究材料（含项目、白板等没有 content 的材料） */
+    materials: QuestionMaterialListItem[];
+    /** 探究轨迹，按时间升序 */
+    trajectory: QuestionTrajectoryItem[];
   };
 }
+
+export interface QuestionMaterialListItem {
+  targetType: QuestionMaterial["targetType"];
+  targetId: number;
+  title: string;
+  meta: string;
+  missing: boolean;
+}
+
+export interface QuestionTrajectoryItem {
+  type: QuestionEvent["type"];
+  time: number;
+  text: string;
+}
+
+const describeEvent = (event: QuestionEvent): string => {
+  const payload = event.payload as Record<string, unknown>;
+  switch (event.type) {
+    case "create":
+      return "提出问题";
+    case "status":
+      return `状态变为 ${String(payload.to)}${payload.auto ? "（挂上第一份材料自动推进）" : ""}`;
+    case "link":
+      return `${payload.created ? "新建" : "关联"} ${String(payload.targetType)}：${String(payload.title ?? "")}`;
+    case "unlink":
+      return `移除 ${String(payload.targetType)}：${String(payload.title ?? "")}`;
+    case "note":
+      return String(payload.text ?? "");
+  }
+};
 
 export interface QuestionQueryRequest {
   filter?: {
@@ -152,8 +187,7 @@ const normalizePage = (value: unknown, fallback: number) => {
 
 const normalizeText = (value: string) => value.trim().toLowerCase();
 
-const toMarkdown = (content?: Descendant[]) =>
-  content?.length ? getMarkdown(content).trim() : "";
+const toMarkdown = (content?: Descendant[]) => (content?.length ? getMarkdown(content).trim() : "");
 
 const buildPreview = (markdown: string, maxLength = 120) => {
   const normalized = markdown.replace(/\s+/g, " ").trim();
@@ -168,26 +202,24 @@ const paginateItems = <T>(items: T[], page: number, pageSize: number) => {
   return items.slice(startIndex, startIndex + pageSize);
 };
 
-const buildStatsMap = (
-  stats: Awaited<ReturnType<typeof getQuestionGroupStats>>,
-) =>
+const buildStatsMap = (stats: Awaited<ReturnType<typeof getQuestionGroupStats>>) =>
   new Map(
-    stats.map((item) => [
+    stats.map(item => [
       item.groupId,
       {
         totalCount: item.total,
         answeredCount: item.answered,
         unansweredCount: item.unanswered,
       },
-    ]),
+    ])
   );
 
 const buildGroupMap = (groups: QuestionGroupDTO[]) =>
-  new Map(groups.map((group) => [group.id, group]));
+  new Map(groups.map(group => [group.id, group]));
 
 const toGroupListItem = (
   group: QuestionGroupDTO,
-  statsMap: ReturnType<typeof buildStatsMap>,
+  statsMap: ReturnType<typeof buildStatsMap>
 ): QuestionGroupListItem => {
   const stats = statsMap.get(group.id);
   return {
@@ -203,7 +235,7 @@ const toGroupListItem = (
 
 const toQuestionListItem = (
   question: IQuestion,
-  groupMap: ReturnType<typeof buildGroupMap>,
+  groupMap: ReturnType<typeof buildGroupMap>
 ): QuestionListItem => {
   const descriptionMarkdown = toMarkdown(question.description);
   return {
@@ -236,7 +268,7 @@ const toAnswerListItem = (answer: IAnswer): QuestionAnswerListItem => {
 const sortQuestions = (
   questions: IQuestion[],
   groupMap: ReturnType<typeof buildGroupMap>,
-  sort: QuestionQueryRequest["sort"],
+  sort: QuestionQueryRequest["sort"]
 ) => {
   const next = [...questions];
   next.sort((left, right) => {
@@ -256,8 +288,7 @@ const sortQuestions = (
       case "manual":
       default: {
         const leftSort = groupMap.get(left.groupId)?.sortIndex ?? left.groupId;
-        const rightSort =
-          groupMap.get(right.groupId)?.sortIndex ?? right.groupId;
+        const rightSort = groupMap.get(right.groupId)?.sortIndex ?? right.groupId;
         if (leftSort !== rightSort) {
           return leftSort - rightSort;
         }
@@ -271,49 +302,37 @@ const sortQuestions = (
   return next;
 };
 
-export const getQuestionDashboardData =
-  async (): Promise<QuestionDashboardResult> => {
-    const [groups, stats, questions] = await Promise.all([
-      listQuestionGroups(),
-      getQuestionGroupStats(),
-      getAllQuestions(),
-    ]);
+export const getQuestionDashboardData = async (): Promise<QuestionDashboardResult> => {
+  const [groups, stats, questions] = await Promise.all([
+    listQuestionGroups(),
+    getQuestionGroupStats(),
+    getAllQuestions(),
+  ]);
 
-    const statsMap = buildStatsMap(stats);
-    const groupMap = buildGroupMap(groups);
-    const questionItems = questions.map((question) =>
-      toQuestionListItem(question, groupMap),
-    );
+  const statsMap = buildStatsMap(stats);
+  const groupMap = buildGroupMap(groups);
+  const questionItems = questions.map(question => toQuestionListItem(question, groupMap));
 
-    return {
-      kind: "question-dashboard",
-      summary: {
-        totalQuestions: questions.length,
-        answeredQuestions: questions.filter((item) => item.answers.length > 0)
-          .length,
-        unansweredQuestions: questions.filter(
-          (item) => item.answers.length === 0,
-        ).length,
-        notStartedQuestions: questions.filter(
-          (item) => item.status === "not_started",
-        ).length,
-        inProgressQuestions: questions.filter(
-          (item) => item.status === "in_progress",
-        ).length,
-        resolvedQuestions: questions.filter(
-          (item) => item.status === "resolved",
-        ).length,
-      },
-      groups: groups.map((group) => toGroupListItem(group, statsMap)),
-      recentQuestions: [...questionItems]
-        .sort((left, right) => right.updateTime - left.updateTime)
-        .slice(0, 10),
-      unresolvedQuestions: questionItems
-        .filter((item) => item.status !== "resolved")
-        .sort((left, right) => right.updateTime - left.updateTime)
-        .slice(0, 10),
-    };
+  return {
+    kind: "question-dashboard",
+    summary: {
+      totalQuestions: questions.length,
+      answeredQuestions: questions.filter(item => item.answers.length > 0).length,
+      unansweredQuestions: questions.filter(item => item.answers.length === 0).length,
+      notStartedQuestions: questions.filter(item => item.status === "not_started").length,
+      inProgressQuestions: questions.filter(item => item.status === "in_progress").length,
+      resolvedQuestions: questions.filter(item => item.status === "resolved").length,
+    },
+    groups: groups.map(group => toGroupListItem(group, statsMap)),
+    recentQuestions: [...questionItems]
+      .sort((left, right) => right.updateTime - left.updateTime)
+      .slice(0, 10),
+    unresolvedQuestions: questionItems
+      .filter(item => item.status !== "resolved")
+      .sort((left, right) => right.updateTime - left.updateTime)
+      .slice(0, 10),
   };
+};
 
 export const queryQuestionGroups = async (params: {
   ids?: number[];
@@ -322,20 +341,14 @@ export const queryQuestionGroups = async (params: {
   page?: number;
   pageSize?: number;
 }): Promise<QuestionGroupQueryResult> => {
-  const [groups, stats] = await Promise.all([
-    listQuestionGroups(),
-    getQuestionGroupStats(),
-  ]);
+  const [groups, stats] = await Promise.all([listQuestionGroups(), getQuestionGroupStats()]);
 
   const page = normalizePage(params.page, DEFAULT_PAGE);
-  const pageSize = Math.min(
-    normalizePage(params.pageSize, DEFAULT_PAGE_SIZE),
-    MAX_PAGE_SIZE,
-  );
+  const pageSize = Math.min(normalizePage(params.pageSize, DEFAULT_PAGE_SIZE), MAX_PAGE_SIZE);
   const statsMap = buildStatsMap(stats);
   const nameSet = new Set((params.names || []).map(normalizeText));
 
-  const filtered = groups.filter((group) => {
+  const filtered = groups.filter(group => {
     if (params.ids?.length && !params.ids.includes(group.id)) {
       return false;
     }
@@ -348,8 +361,8 @@ export const queryQuestionGroups = async (params: {
     return true;
   });
 
-  const items = paginateItems(filtered, page, pageSize).map((group) =>
-    toGroupListItem(group, statsMap),
+  const items = paginateItems(filtered, page, pageSize).map(group =>
+    toGroupListItem(group, statsMap)
   );
 
   return {
@@ -366,35 +379,21 @@ export const queryQuestionGroups = async (params: {
 };
 
 export const queryQuestions = async (
-  params: QuestionQueryRequest,
+  params: QuestionQueryRequest
 ): Promise<QuestionQueryResult> => {
-  const [questions, groups] = await Promise.all([
-    getAllQuestions(),
-    listQuestionGroups(),
-  ]);
+  const [questions, groups] = await Promise.all([getAllQuestions(), listQuestionGroups()]);
 
   const groupMap = buildGroupMap(groups);
-  const groupTitleSet = new Set(
-    (params.filter?.groupTitles || []).map(normalizeText),
-  );
+  const groupTitleSet = new Set((params.filter?.groupTitles || []).map(normalizeText));
   const keyword = params.filter?.keyword?.trim().toLowerCase() ?? "";
   const page = normalizePage(params.page, DEFAULT_PAGE);
-  const pageSize = Math.min(
-    normalizePage(params.pageSize, DEFAULT_PAGE_SIZE),
-    MAX_PAGE_SIZE,
-  );
+  const pageSize = Math.min(normalizePage(params.pageSize, DEFAULT_PAGE_SIZE), MAX_PAGE_SIZE);
 
-  const filtered = questions.filter((question) => {
-    if (
-      params.filter?.questionIds?.length &&
-      !params.filter.questionIds.includes(question.id)
-    ) {
+  const filtered = questions.filter(question => {
+    if (params.filter?.questionIds?.length && !params.filter.questionIds.includes(question.id)) {
       return false;
     }
-    if (
-      params.filter?.groupIds?.length &&
-      !params.filter.groupIds.includes(question.groupId)
-    ) {
+    if (params.filter?.groupIds?.length && !params.filter.groupIds.includes(question.groupId)) {
       return false;
     }
     if (groupTitleSet.size > 0) {
@@ -403,10 +402,7 @@ export const queryQuestions = async (
         return false;
       }
     }
-    if (
-      params.filter?.statuses?.length &&
-      !params.filter.statuses.includes(question.status)
-    ) {
+    if (params.filter?.statuses?.length && !params.filter.statuses.includes(question.status)) {
       return false;
     }
     if (
@@ -417,8 +413,7 @@ export const queryQuestions = async (
     }
     if (keyword) {
       const descriptionPreview = buildPreview(toMarkdown(question.description));
-      const groupTitle =
-        groupMap.get(question.groupId)?.title?.toLowerCase() || "";
+      const groupTitle = groupMap.get(question.groupId)?.title?.toLowerCase() || "";
       const haystack = [
         question.questionContent.toLowerCase(),
         descriptionPreview.toLowerCase(),
@@ -432,8 +427,8 @@ export const queryQuestions = async (
   });
 
   const sorted = sortQuestions(filtered, groupMap, params.sort);
-  const items = paginateItems(sorted, page, pageSize).map((question) =>
-    toQuestionListItem(question, groupMap),
+  const items = paginateItems(sorted, page, pageSize).map(question =>
+    toQuestionListItem(question, groupMap)
   );
 
   return {
@@ -460,7 +455,7 @@ export const getQuestionGroupDetail = async (params: {
     getAllQuestions(),
   ]);
 
-  const group = groups.find((item) => item.id === params.groupId);
+  const group = groups.find(item => item.id === params.groupId);
   if (!group) {
     return null;
   }
@@ -468,14 +463,11 @@ export const getQuestionGroupDetail = async (params: {
   const statsMap = buildStatsMap(stats);
   const groupMap = buildGroupMap(groups);
   const page = normalizePage(params.page, DEFAULT_PAGE);
-  const pageSize = Math.min(
-    normalizePage(params.pageSize, DEFAULT_PAGE_SIZE),
-    MAX_PAGE_SIZE,
-  );
+  const pageSize = Math.min(normalizePage(params.pageSize, DEFAULT_PAGE_SIZE), MAX_PAGE_SIZE);
   const sortedQuestions = sortQuestions(
-    questions.filter((item) => item.groupId === params.groupId),
+    questions.filter(item => item.groupId === params.groupId),
     groupMap,
-    "manual",
+    "manual"
   );
 
   return {
@@ -484,26 +476,26 @@ export const getQuestionGroupDetail = async (params: {
     id: group.id,
     data: {
       ...toGroupListItem(group, statsMap),
-      questions: paginateItems(sortedQuestions, page, pageSize).map((item) =>
-        toQuestionListItem(item, groupMap),
+      questions: paginateItems(sortedQuestions, page, pageSize).map(item =>
+        toQuestionListItem(item, groupMap)
       ),
     },
   };
 };
 
 export const getQuestionDetail = async (
-  questionId: number,
+  questionId: number
 ): Promise<QuestionDetailResult | null> => {
-  const [question, groups] = await Promise.all([
-    getQuestionById(questionId),
-    listQuestionGroups(),
-  ]);
+  const [question, groups] = await Promise.all([getQuestionById(questionId), listQuestionGroups()]);
 
   if (!question) {
     return null;
   }
 
-  const answers = await getQuestionAnswers(questionId);
+  const [answers, detail] = await Promise.all([
+    getQuestionAnswers(questionId),
+    fetchQuestionDetail(questionId),
+  ]);
   const groupMap = buildGroupMap(groups);
   const descriptionMarkdown = toMarkdown(question.description);
 
@@ -524,12 +516,24 @@ export const getQuestionDetail = async (
       descriptionMarkdown,
       descriptionPreview: buildPreview(descriptionMarkdown),
       answers: answers.map(toAnswerListItem),
+      materials: (detail?.materials ?? []).map(m => ({
+        targetType: m.targetType,
+        targetId: m.targetId,
+        title: m.title,
+        meta: m.meta,
+        missing: m.missing,
+      })),
+      trajectory: (detail?.events ?? []).map(e => ({
+        type: e.type,
+        time: e.createTime,
+        text: describeEvent(e),
+      })),
     },
   };
 };
 
 export const getQuestionAnswerList = async (
-  questionId: number,
+  questionId: number
 ): Promise<QuestionAnswerListResult | null> => {
   const question = await getQuestionById(questionId);
   if (!question) {

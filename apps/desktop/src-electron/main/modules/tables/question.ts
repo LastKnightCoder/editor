@@ -2,12 +2,19 @@ import {
   IQuestion,
   ICreateAnswer,
   IAnswer,
+  QuestionLinkTargetType,
   WorkbenchQuestionPreviewResponse,
 } from "@/types";
 import Database from "better-sqlite3";
 import ContentTable from "./content";
 import { Descendant } from "slate";
 import QuestionGroupTable from "./question-group";
+import QuestionLinkTable from "./question-link";
+import QuestionEventTable from "./question-event";
+
+const EMPTY_DESCRIPTION: Descendant[] = [
+  { type: "paragraph", children: [{ type: "formatted", text: "" }] } as unknown as Descendant,
+];
 
 export default class QuestionTable {
   static getListenEvents() {
@@ -28,6 +35,7 @@ export default class QuestionTable {
       "question:reorder": this.reorderQuestions.bind(this),
       "question:move-to-group": this.moveToGroup.bind(this),
       "question:update-status": this.updateQuestionStatus.bind(this),
+      "question:capture": this.captureQuestion.bind(this),
       "workbench:list-question-preview": this.listWorkbenchPreview.bind(this),
     };
   }
@@ -37,19 +45,17 @@ export default class QuestionTable {
     const tableInfo = db.prepare(`PRAGMA table_info(questions)`).all() as {
       name: string;
     }[];
-    const hasGroupId = tableInfo.some((c) => c.name === "group_id");
-    const hasSortIndex = tableInfo.some((c) => c.name === "sort_index");
-    const hasResolvedTime = tableInfo.some((c) => c.name === "resolved_time");
-    const hasStatus = tableInfo.some((c) => c.name === "status");
-    const hasDescription = tableInfo.some((c) => c.name === "description");
+    const hasGroupId = tableInfo.some(c => c.name === "group_id");
+    const hasSortIndex = tableInfo.some(c => c.name === "sort_index");
+    const hasResolvedTime = tableInfo.some(c => c.name === "resolved_time");
+    const hasStatus = tableInfo.some(c => c.name === "status");
+    const hasDescription = tableInfo.some(c => c.name === "description");
 
     if (!hasGroupId) {
       db.exec(`ALTER TABLE questions ADD COLUMN group_id INTEGER`);
     }
     if (!hasSortIndex) {
-      db.exec(
-        `ALTER TABLE questions ADD COLUMN sort_index INTEGER NOT NULL DEFAULT 0`,
-      );
+      db.exec(`ALTER TABLE questions ADD COLUMN sort_index INTEGER NOT NULL DEFAULT 0`);
     }
     if (!hasResolvedTime) {
       db.exec(`ALTER TABLE questions ADD COLUMN resolved_time INTEGER`);
@@ -58,23 +64,17 @@ export default class QuestionTable {
       db.exec(`ALTER TABLE questions ADD COLUMN description TEXT`);
     }
     if (!hasStatus) {
-      db.exec(
-        `ALTER TABLE questions ADD COLUMN status TEXT NOT NULL DEFAULT 'not_started'`,
-      );
+      db.exec(`ALTER TABLE questions ADD COLUMN status TEXT NOT NULL DEFAULT 'not_started'`);
 
       // 回填 status（仅在首次添加列时执行一次）
       // 有答案的标记为 resolved，没有答案的保持 not_started
-      const questionsForStatus = db
-        .prepare(`SELECT * FROM questions`)
-        .all() as {
+      const questionsForStatus = db.prepare(`SELECT * FROM questions`).all() as {
         id: number;
         answers: string;
       }[];
-      const updStatus = db.prepare(
-        `UPDATE questions SET status = ?, update_time = ? WHERE id = ?`,
-      );
+      const updStatus = db.prepare(`UPDATE questions SET status = ?, update_time = ? WHERE id = ?`);
       const statusNow = Date.now();
-      questionsForStatus.forEach((q) => {
+      questionsForStatus.forEach(q => {
         try {
           const answers: number[] = JSON.parse(q.answers || "[]");
           if (answers && answers.length > 0) {
@@ -88,73 +88,24 @@ export default class QuestionTable {
     }
 
     // 索引
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_questions_group_id ON questions(group_id);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_questions_sort_index ON questions(sort_index);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_questions_create_time ON questions(create_time);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_questions_resolved_time ON questions(resolved_time);`,
-    );
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status);`,
-    );
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_questions_group_id ON questions(group_id);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_questions_sort_index ON questions(sort_index);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_questions_create_time ON questions(create_time);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_questions_resolved_time ON questions(resolved_time);`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_questions_status ON questions(status);`);
 
     // 保障默认分组与回填 group_id
     const def = QuestionGroupTable.getDefaultGroup(db);
-    db.prepare(`UPDATE questions SET group_id = ? WHERE group_id IS NULL`).run(
-      def.id,
-    );
+    db.prepare(`UPDATE questions SET group_id = ? WHERE group_id IS NULL`).run(def.id);
 
-    // 回填 sort_index（按创建时间）
-    const rows = db
-      .prepare(
-        `SELECT id FROM questions ORDER BY sort_index ASC, create_time ASC, id ASC`,
-      )
-      .all() as { id: number }[];
-    const step = 1024;
-    const now = Date.now();
-    const upd = db.prepare(
-      `UPDATE questions SET sort_index = ?, update_time = ? WHERE id = ?`,
-    );
-    rows.forEach((r, idx) => {
-      upd.run((idx + 1) * step, now, r.id);
-    });
-
-    // 回填 resolved_time（取最早答案内容的 create_time）
-    const allQuestions = db.prepare(`SELECT * FROM questions`).all() as {
-      id: number;
-      answers: string;
-      resolved_time: number | null;
-    }[];
-    const updResolved = db.prepare(
-      `UPDATE questions SET resolved_time = ?, update_time = ? WHERE id = ?`,
-    );
-    allQuestions.forEach((q) => {
-      try {
-        const answers: number[] = JSON.parse(q.answers || "[]");
-        if (answers && answers.length > 0 && q.resolved_time == null) {
-          let minCreate: number | null = null;
-          for (const aid of answers) {
-            const c = ContentTable.getContentById(db, aid);
-            if (c) {
-              if (minCreate == null || c.createTime < minCreate) {
-                minCreate = c.createTime;
-              }
-            }
-          }
-          if (minCreate != null) {
-            updResolved.run(minCreate, Date.now(), q.id);
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
-    });
+    // 回填 sort_index（按创建时间）：仅在首次新增该列时执行，避免每次维护打开都重写全表
+    if (!hasSortIndex) {
+      const rows = db
+        .prepare(`SELECT id FROM questions ORDER BY create_time ASC, id ASC`)
+        .all() as { id: number }[];
+      const upd = db.prepare(`UPDATE questions SET sort_index = ? WHERE id = ?`);
+      rows.forEach((r, idx) => upd.run((idx + 1) * 1024, r.id));
+    }
   }
 
   static parseQuestion(question: any): IQuestion {
@@ -163,9 +114,7 @@ export default class QuestionTable {
       createTime: question.create_time,
       updateTime: question.update_time,
       questionContent: question.question_content,
-      description: question.description
-        ? JSON.parse(question.description)
-        : undefined,
+      description: question.description ? JSON.parse(question.description) : undefined,
       answers: JSON.parse(question.answers),
       groupId: question.group_id,
       sortIndex: question.sort_index,
@@ -185,24 +134,22 @@ export default class QuestionTable {
 
   static getQuestionByIds(db: Database.Database, ids: number[]): IQuestion[] {
     const placeholders = ids.map(() => "?").join(",");
-    const stmt = db.prepare(
-      `SELECT * FROM questions WHERE id IN (${placeholders})`,
-    );
+    const stmt = db.prepare(`SELECT * FROM questions WHERE id IN (${placeholders})`);
     const questions = stmt.all(...ids);
-    return questions.map((question) => this.parseQuestion(question));
+    return questions.map(question => this.parseQuestion(question));
   }
 
   static getAllQuestions(db: Database.Database): IQuestion[] {
     const stmt = db.prepare("SELECT * FROM questions");
     const questions = stmt.all();
-    return questions.map((question) => this.parseQuestion(question));
+    return questions.map(question => this.parseQuestion(question));
   }
 
   static createQuestion(
     db: Database.Database,
     question: string,
     groupId: number,
-    description: Descendant[],
+    description: Descendant[]
   ): IQuestion {
     try {
       const now = Date.now();
@@ -213,13 +160,13 @@ export default class QuestionTable {
         description,
       });
 
-      const maxSort = db
-        .prepare(`SELECT MAX(sort_index) as max_idx FROM questions`)
-        .get() as { max_idx: number | null };
+      const maxSort = db.prepare(`SELECT MAX(sort_index) as max_idx FROM questions`).get() as {
+        max_idx: number | null;
+      };
       const nextSortIndex = (maxSort?.max_idx ?? 0) + 1024;
 
       const stmt = db.prepare(
-        "INSERT INTO questions (create_time, update_time, question_content, description, answers, group_id, sort_index, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO questions (create_time, update_time, question_content, description, answers, group_id, sort_index, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
       );
       const res = stmt.run(
         now,
@@ -229,13 +176,11 @@ export default class QuestionTable {
         JSON.stringify([]),
         groupId,
         nextSortIndex,
-        "not_started",
+        "not_started"
       );
       const createdQuestionId = res.lastInsertRowid;
-      const createdQuestion = this.getQuestionById(
-        db,
-        createdQuestionId as number,
-      ) as IQuestion;
+      QuestionEventTable.log(db, Number(createdQuestionId), "create", {}, now);
+      const createdQuestion = this.getQuestionById(db, createdQuestionId as number) as IQuestion;
 
       console.log("[QuestionTable] 问题创建成功:", createdQuestion);
       return createdQuestion;
@@ -249,17 +194,12 @@ export default class QuestionTable {
     db: Database.Database,
     questionId: number,
     question: string,
-    description: Descendant[],
+    description: Descendant[]
   ): IQuestion {
     const stmt = db.prepare(
-      "UPDATE questions SET update_time = ?, question_content = ?, description = ? WHERE id = ?",
+      "UPDATE questions SET update_time = ?, question_content = ?, description = ? WHERE id = ?"
     );
-    stmt.run(
-      Date.now(),
-      question,
-      description ? JSON.stringify(description) : null,
-      questionId,
-    );
+    stmt.run(Date.now(), question, description ? JSON.stringify(description) : null, questionId);
     return this.getQuestionById(db, questionId) as IQuestion;
   }
 
@@ -270,10 +210,7 @@ export default class QuestionTable {
     }
     const stmt = db.prepare("DELETE FROM questions WHERE id = ?");
     const res = stmt.run(id);
-    const answers = question.answers;
-    answers.forEach((answer) => {
-      ContentTable.deleteContent(db, answer);
-    });
+    QuestionLinkTable.releaseAll(db, id);
     return res.changes;
   }
 
@@ -291,10 +228,10 @@ export default class QuestionTable {
              ELSE 3 
            END,
            sort_index ASC, 
-           create_time ASC`,
+           create_time ASC`
       )
       .all();
-    return questions.map((question) => this.parseQuestion(question));
+    return questions.map(question => this.parseQuestion(question));
   }
 
   static createAnswer(db: Database.Database, content: Descendant[]): IAnswer {
@@ -311,117 +248,72 @@ export default class QuestionTable {
     };
   }
 
+  /**
+   * 旧接口：以 content id 挂材料。内容会被识别为卡片 / 文章 / 项目文档，否则为独立答案。
+   * incRefCount = false 表示新建的独立答案（问题独占首个引用），轨迹记为「写下」。
+   */
   static addAnswer(
     db: Database.Database,
     questionId: number,
     answer: ICreateAnswer,
-    incRefCount = false,
+    incRefCount = false
   ): IQuestion {
-    const question = this.getQuestionById(db, questionId);
-    if (!question) {
+    if (!this.getQuestionById(db, questionId)) {
       throw new Error("Question not found");
     }
-    const wasEmpty = question.answers.length === 0;
-    if (!question.answers.includes(answer.contentId)) {
-      question.answers.push(answer.contentId);
-      if (incRefCount) {
-        ContentTable.incrementRefCount(db, answer.contentId);
-      }
-    }
-
-    const now = Date.now();
-    if (wasEmpty) {
-      // 首次添加答案，写入 resolved_time，并将状态从 not_started 改为 in_progress
-      const newStatus =
-        question.status === "not_started" ? "in_progress" : question.status;
-      db.prepare(
-        "UPDATE questions SET update_time = ?, answers = ?, resolved_time = ?, status = ? WHERE id = ?",
-      ).run(now, JSON.stringify(question.answers), now, newStatus, questionId);
-    } else {
-      db.prepare(
-        "UPDATE questions SET update_time = ?, answers = ? WHERE id = ?",
-      ).run(now, JSON.stringify(question.answers), questionId);
-    }
-    return this.getQuestionById(db, questionId) as IQuestion;
-  }
-
-  static deleteAnswer(
-    db: Database.Database,
-    questionId: number,
-    answerId: number,
-  ): IQuestion {
-    const question = this.getQuestionById(db, questionId);
-    if (!question) {
-      throw new Error("Question not found");
-    }
-    question.answers = question.answers.filter((id) => id !== answerId);
-    ContentTable.deleteContent(db, answerId);
-    const now = Date.now();
-    if (question.answers.length === 0) {
-      // 删除所有答案后，状态自动变为 not_started
-      db.prepare(
-        "UPDATE questions SET update_time = ?, answers = ?, resolved_time = NULL, status = ? WHERE id = ?",
-      ).run(now, JSON.stringify(question.answers), "not_started", questionId);
-    } else {
-      db.prepare(
-        "UPDATE questions SET update_time = ?, answers = ? WHERE id = ?",
-      ).run(now, JSON.stringify(question.answers), questionId);
-    }
-    return this.getQuestionById(db, questionId) as IQuestion;
-  }
-
-  static updateAnswer(
-    db: Database.Database,
-    questionId: number,
-    answers: number[],
-  ): IQuestion {
-    const question = this.getQuestionById(db, questionId);
-    if (!question) {
-      throw new Error("Question not found");
-    }
-    const originalAnswer = question.answers;
-    // 找到不在 answers 中的 answerId
-    const deletedAnswerIds = originalAnswer.filter(
-      (id) => !answers.includes(id),
+    QuestionLinkTable.linkTargets(
+      db,
+      questionId,
+      [QuestionLinkTable.resolveContentTarget(db, answer.contentId)],
+      { incRef: incRefCount, created: !incRefCount }
     );
-    deletedAnswerIds.forEach((id) => {
-      ContentTable.deleteContent(db, id);
-    });
-    question.answers = answers;
-    const now = Date.now();
-    if (answers.length === 0) {
-      // 删除所有答案后，状态自动变为 not_started
-      db.prepare(
-        "UPDATE questions SET update_time = ?, answers = ?, resolved_time = NULL, status = ? WHERE id = ?",
-      ).run(now, JSON.stringify(question.answers), "not_started", questionId);
-    } else {
-      // 若此前没有 resolved_time，这里回填最早答案时间
-      const cur = db
-        .prepare(`SELECT resolved_time FROM questions WHERE id = ?`)
-        .get(questionId) as { resolved_time: number | null };
-      if (!cur.resolved_time) {
-        let minCreate: number | null = null;
-        for (const aid of answers) {
-          const c = ContentTable.getContentById(db, aid);
-          if (c) {
-            if (minCreate == null || c.createTime < minCreate)
-              minCreate = c.createTime;
-          }
-        }
-        db.prepare(
-          "UPDATE questions SET update_time = ?, answers = ?, resolved_time = ? WHERE id = ?",
-        ).run(
-          now,
-          JSON.stringify(question.answers),
-          minCreate ?? now,
-          questionId,
-        );
-      } else {
-        db.prepare(
-          "UPDATE questions SET update_time = ?, answers = ? WHERE id = ?",
-        ).run(now, JSON.stringify(question.answers), questionId);
-      }
+    return this.getQuestionById(db, questionId) as IQuestion;
+  }
+
+  /** 旧接口：按 content id 解除关联（释放引用；材料本体由引用计数决定去留） */
+  static deleteAnswer(db: Database.Database, questionId: number, answerId: number): IQuestion {
+    if (!this.getQuestionById(db, questionId)) {
+      throw new Error("Question not found");
     }
+    const row = db
+      .prepare(
+        `SELECT target_type, target_id FROM question_link WHERE question_id = ? AND content_id = ?`
+      )
+      .get(questionId, answerId) as
+      { target_type: QuestionLinkTargetType; target_id: number } | undefined;
+    if (row) {
+      QuestionLinkTable.unlinkTarget(db, questionId, {
+        targetType: row.target_type,
+        targetId: row.target_id,
+      });
+    }
+    return this.getQuestionById(db, questionId) as IQuestion;
+  }
+
+  /** 旧接口：以 content id 列表整体覆盖（移除不在列表里的内容类材料，并按列表排序） */
+  static updateAnswer(db: Database.Database, questionId: number, answers: number[]): IQuestion {
+    const question = this.getQuestionById(db, questionId);
+    if (!question) {
+      throw new Error("Question not found");
+    }
+    question.answers
+      .filter(id => !answers.includes(id))
+      .forEach(id => this.deleteAnswer(db, questionId, id));
+    const rows = db
+      .prepare(
+        `SELECT id, content_id FROM question_link WHERE question_id = ? ORDER BY sort_index ASC, id ASC`
+      )
+      .all(questionId) as { id: number; content_id: number | null }[];
+    const rank = (r: { content_id: number | null }) =>
+      r.content_id == null ? -1 : answers.indexOf(r.content_id);
+    const contentRows = rows.filter(r => rank(r) >= 0).sort((a, b) => rank(a) - rank(b));
+    let cursor = 0;
+    const ordered = rows.map(r => (rank(r) >= 0 ? contentRows[cursor++] : r));
+    QuestionLinkTable.reorderLinks(
+      db,
+      questionId,
+      ordered.map(r => r.id)
+    );
     return this.getQuestionById(db, questionId) as IQuestion;
   }
 
@@ -430,30 +322,21 @@ export default class QuestionTable {
     return answer;
   }
 
-  static getQuestionAnswers(
-    db: Database.Database,
-    questionId: number,
-  ): IAnswer[] {
+  static getQuestionAnswers(db: Database.Database, questionId: number): IAnswer[] {
     const question = this.getQuestionById(db, questionId);
     if (!question) {
       return [];
     }
     return question.answers
-      .map((id) => this.getAnswerById(db, id))
-      .filter((v) => v !== null) as IAnswer[];
+      .map(id => this.getAnswerById(db, id))
+      .filter(v => v !== null) as IAnswer[];
   }
 
   static listByGroup(
     db: Database.Database,
     groupId: number,
-    filter:
-      | "all"
-      | "answered"
-      | "unanswered"
-      | "not_started"
-      | "in_progress"
-      | "resolved" = "all",
-    search?: string,
+    filter: "all" | "answered" | "unanswered" | "not_started" | "in_progress" | "resolved" = "all",
+    search?: string
   ): IQuestion[] {
     const conditions: string[] = ["group_id = ?"];
     const params: unknown[] = [groupId];
@@ -479,9 +362,7 @@ export default class QuestionTable {
     }
     const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
     const rows = db
-      .prepare(
-        `SELECT * FROM questions ${where} ORDER BY sort_index ASC, create_time ASC`,
-      )
+      .prepare(`SELECT * FROM questions ${where} ORDER BY sort_index ASC, create_time ASC`)
       .all(...params) as {
       id: number;
       create_time: number;
@@ -493,7 +374,7 @@ export default class QuestionTable {
       resolved_time: number | null;
       status: string;
     }[];
-    return rows.map((q) => this.parseQuestion(q));
+    return rows.map(q => this.parseQuestion(q));
   }
 
   static listWorkbenchPreview(
@@ -503,7 +384,7 @@ export default class QuestionTable {
       statuses?: Array<"not_started" | "in_progress" | "resolved">;
       limit?: number;
       cursor?: number | null;
-    } = {},
+    } = {}
   ): WorkbenchQuestionPreviewResponse {
     const limit = Math.min(Math.max(payload.limit ?? 10, 1), 50);
     const offset = Math.max(payload.cursor ?? 0, 0);
@@ -539,7 +420,7 @@ export default class QuestionTable {
            q.update_time DESC,
            q.sort_index ASC,
            q.id DESC
-         LIMIT ? OFFSET ?`,
+         LIMIT ? OFFSET ?`
       )
       .all(...params, limit + 1, offset) as any[];
 
@@ -558,7 +439,7 @@ export default class QuestionTable {
          LEFT JOIN questions q ON q.group_id = qg.id
          GROUP BY qg.id
          HAVING notStarted > 0 OR inProgress > 0
-         ORDER BY inProgress DESC, notStarted DESC, qg.sort_index ASC`,
+         ORDER BY inProgress DESC, notStarted DESC, qg.sort_index ASC`
       )
       .all() as any[];
 
@@ -567,7 +448,7 @@ export default class QuestionTable {
         `SELECT
            SUM(CASE WHEN status = 'not_started' THEN 1 ELSE 0 END) as notStartedTotal,
            SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as inProgressTotal
-         FROM questions`,
+         FROM questions`
       )
       .get() as {
       notStartedTotal: number | null;
@@ -575,8 +456,8 @@ export default class QuestionTable {
     };
 
     return {
-      items: rows.slice(0, limit).map((q) => this.parseQuestion(q)),
-      groups: groupRows.map((row) => ({
+      items: rows.slice(0, limit).map(q => this.parseQuestion(q)),
+      groups: groupRows.map(row => ({
         group: {
           id: row.id,
           title: row.title,
@@ -595,15 +476,10 @@ export default class QuestionTable {
     };
   }
 
-  static reorderQuestions(
-    db: Database.Database,
-    params: { orderedIds: number[] },
-  ): number {
+  static reorderQuestions(db: Database.Database, params: { orderedIds: number[] }): number {
     const ids = params.orderedIds;
     const step = 1024;
-    const upd = db.prepare(
-      `UPDATE questions SET sort_index = ?, update_time = ? WHERE id = ?`,
-    );
+    const upd = db.prepare(`UPDATE questions SET sort_index = ?, update_time = ? WHERE id = ?`);
     const now = Date.now();
     ids.forEach((id, idx) => {
       upd.run((idx + 1) * step, now, id);
@@ -611,38 +487,87 @@ export default class QuestionTable {
     return ids.length;
   }
 
-  static moveToGroup(
-    db: Database.Database,
-    params: { id: number; toGroupId: number },
-  ): IQuestion {
+  static moveToGroup(db: Database.Database, params: { id: number; toGroupId: number }): IQuestion {
     const now = Date.now();
-    db.prepare(
-      `UPDATE questions SET group_id = ?, update_time = ? WHERE id = ?`,
-    ).run(params.toGroupId, now, params.id);
+    db.prepare(`UPDATE questions SET group_id = ?, update_time = ? WHERE id = ?`).run(
+      params.toGroupId,
+      now,
+      params.id
+    );
     return this.getQuestionById(db, params.id) as IQuestion;
   }
 
+  /**
+   * 设置状态并记入轨迹；resolved_time = 标为已解答的时刻，离开已解答时清空。
+   * revertEventId：撤销上一次状态修改——删除那条事件而不是再记一条。
+   */
   static updateQuestionStatus(
     db: Database.Database,
     questionId: number,
     status: string,
-  ): IQuestion {
+    options: { revertEventId?: number } = {}
+  ): IQuestion & { eventId?: number } {
     const question = this.getQuestionById(db, questionId);
     if (!question) {
       throw new Error("Question not found");
     }
-    // 只有有答案时才能标记为 resolved
-    if (status === "resolved" && question.answers.length === 0) {
-      throw new Error("Cannot mark question as resolved without answers");
-    }
-    // 验证状态值
     if (!["not_started", "in_progress", "resolved"].includes(status)) {
       throw new Error("Invalid status value");
     }
+    if (question.status === status) return question;
     const now = Date.now();
+    const resolvedTime = status === "resolved" ? now : null;
     db.prepare(
-      `UPDATE questions SET status = ?, update_time = ? WHERE id = ?`,
-    ).run(status, now, questionId);
-    return this.getQuestionById(db, questionId) as IQuestion;
+      `UPDATE questions SET status = ?, resolved_time = ?, update_time = ? WHERE id = ?`
+    ).run(status, resolvedTime, now, questionId);
+    let eventId: number | undefined;
+    if (options.revertEventId != null) {
+      QuestionEventTable.deleteEvent(db, options.revertEventId);
+      // 撤销回已解答时恢复原解答时刻
+      if (status === "resolved" && question.resolvedTime == null) {
+        const prev = db
+          .prepare(
+            `SELECT create_time FROM question_event WHERE question_id = ? AND type = 'status'
+             AND json_extract(payload, '$.to') = 'resolved' ORDER BY create_time DESC LIMIT 1`
+          )
+          .get(questionId) as { create_time: number } | undefined;
+        if (prev) {
+          db.prepare(`UPDATE questions SET resolved_time = ? WHERE id = ?`).run(
+            prev.create_time,
+            questionId
+          );
+        }
+      }
+    } else {
+      eventId = QuestionEventTable.log(
+        db,
+        questionId,
+        "status",
+        { to: status as IQuestion["status"] },
+        now
+      ).id;
+    }
+    return { ...(this.getQuestionById(db, questionId) as IQuestion), eventId };
+  }
+
+  /**
+   * 快速收集：groupHint 为「#分组」里的名称，按全名、再按前缀匹配，找不到落默认分组。
+   */
+  static captureQuestion(
+    db: Database.Database,
+    title: string,
+    groupHint?: string | null
+  ): { question: IQuestion; groupId: number; groupTitle: string } {
+    const text = title.trim();
+    if (!text) throw new Error("问题内容不能为空");
+    const groups = QuestionGroupTable.listGroups(db);
+    const hint = groupHint?.trim().toLowerCase();
+    const group =
+      (hint &&
+        (groups.find(g => g.title.toLowerCase() === hint) ??
+          groups.find(g => g.title.toLowerCase().startsWith(hint)))) ||
+      QuestionGroupTable.getDefaultGroup(db);
+    const question = this.createQuestion(db, text, group.id, EMPTY_DESCRIPTION);
+    return { question, groupId: group.id, groupTitle: group.title };
   }
 }
