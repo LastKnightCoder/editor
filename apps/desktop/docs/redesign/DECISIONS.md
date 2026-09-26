@@ -482,6 +482,7 @@
   - 首页：「最近编辑」之后一整行「探究中的问题」（按最近活动，最近进展取最后一条轨迹事件），点击带 `selectedId` 定位。
   - 已删：独立问题窗口（window-manager / index.ts `--window-type=question` / window-module-mapping / `/questions` 路由）。旧页面 `pages/QuestionWindow` 与 `useQuestionStore` 等 P-questions 删除（04 §questions）。
   - 未做：发布（`buildQuestPages`）仍只发布 content 类材料，项目与白板材料不进站点。
+- **追记（2026-09-26，一整张纸 + 详情抽屉）**：用户要求问题页同待办改为一整张纸、点问题在右侧出 Drawer。两块板去掉：工具栏（筛选分组时标题即分组名）与快速收集固定在纸顶，三段列表占满宽度；`QuestionDetail` 改为非模态 `QuestionDrawer`（md 560，top-0，Esc 经 `useOverlayDismiss`）——头部 = 可编辑标题 + 分组 Menu / 提出时间 + 更多菜单，正文 = 状态三段起的原有内容；再点同一行或 Esc 关闭，↑↓ 切换时抽屉跟随；打开中切换问题时加载期显示 Loading 而不沿用上一条内容。
 
 ## D-047 白板列表页定稿（方案 A「画廊」）+ 缩略图复用导出图片管线 + 元信息窄接口
 
