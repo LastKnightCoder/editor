@@ -1,6 +1,7 @@
 /**
- * 问题页 · 三栏清单 A2「顶部切换」（mockups/questions/plan-a-inbox.html 定稿，D-043）：
- * 工具栏（标题 + 状态计数 + 新建）→ 左板（快速收集 → 三段列表）+ 右板常驻详情。
+ * 问题页 · 清单 A2（mockups/questions/plan-a-inbox.html 定稿，D-043）：
+ * 一整张纸：纸顶固定工具栏（标题 + 状态计数 + 新建）与快速收集，纸内三段列表占满宽度；
+ * 点问题在右侧打开非模态详情抽屉（同待办），再点同一行或 Esc 关闭。
  * 分组作为子项嵌在全局侧栏「问题管理」入口下（QuestionsNav），经页面参数 id 筛选。
  *
  * 删除问题、解除关联不二次确认：立即隐藏 + Toast 撤销，5 秒后落库；改状态可撤销（删除对应轨迹事件）。
@@ -11,7 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRightLeft, Layers, Link2, PenLine, Plus, Trash2 } from "lucide-react";
 import { MotionConfig } from "motion/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button, Loading, Menu, toast, cn } from "@tau/ui";
+import { Button, Loading, Menu, toast } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { isEditableTarget } from "@/page/dom";
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
@@ -26,7 +27,7 @@ import { CaptureBar } from "../components/CaptureBar";
 import { MaterialPicker } from "../components/MaterialPicker";
 import { MaterialPreviewDialog } from "../components/MaterialPreviewDialog";
 import { GroupDot, StatusRing } from "../components/QuestionBits";
-import { QuestionDetail } from "../components/QuestionDetail";
+import { QuestionDrawer } from "../components/QuestionDetail";
 import { QuestionList } from "../components/QuestionList";
 import {
   SECTION_ORDER,
@@ -323,46 +324,40 @@ export function QuestionsView() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="mx-auto flex h-full max-w-[1720px] flex-col px-4 pb-4">
-        <div className="flex h-[44px] flex-none items-center gap-3">
-          <h1 className="text-[19px] font-semibold tracking-[-0.01em]">问题</h1>
-          <span className="text-ink-2 text-tau-meta tabular-nums">
-            {filterTitle && <>{filterTitle} · </>}
-            {SECTION_ORDER.map((status, i) => (
-              <span key={status}>
-                {i > 0 && " · "}
-                {STATUS_META[status].label}{" "}
-                <b className="text-ink-1 font-semibold">{derived.counts[status]}</b>
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+        {/* 一整张纸：工具栏与快速收集固定在纸顶，列表在纸内滚动，详情抽屉盖在右侧（同待办） */}
+        <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex flex-none flex-col px-8 pt-5">
+            <div className="mb-3 flex h-10 flex-none items-center gap-3">
+              <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+                {filterTitle ?? "问题"}
+              </h1>
+              <span className="text-ink-2 text-tau-meta w-0 flex-1 truncate whitespace-nowrap tabular-nums">
+                {SECTION_ORDER.map((status, i) => (
+                  <span key={status}>
+                    {i > 0 && " · "}
+                    {STATUS_META[status].label}{" "}
+                    <b className="text-ink-1 font-semibold">{derived.counts[status]}</b>
+                  </span>
+                ))}
               </span>
-            ))}
-          </span>
-          <span className="flex-1" />
-          <Button
-            variant="primary"
-            size="sm"
-            icon={Plus}
-            onClick={() => captureRef.current?.focus()}
-          >
-            新建问题
-          </Button>
-        </div>
-
-        <div
-          className={cn(
-            "grid min-h-0 flex-1 gap-4 pt-1",
-            selectedId != null
-              ? "grid-cols-[minmax(0,1.7fr)_minmax(380px,1fr)]"
-              : "grid-cols-[minmax(0,1fr)]"
-          )}
-        >
-          <div className="bg-surface shadow-card flex min-h-0 flex-col overflow-hidden rounded-[16px] px-3.5 pb-2 pt-3.5">
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Plus}
+                className="shrink-0 whitespace-nowrap"
+                onClick={() => captureRef.current?.focus()}
+              >
+                新建问题
+              </Button>
+            </div>
             <CaptureBar
               groups={groups}
               fallbackGroup={fallbackGroup}
               inputRef={captureRef}
               onSubmit={async (title, groupHint) => {
                 const { question, groupTitle } = await questionMutations.capture(title, groupHint);
-                // 等列表重拉后再选中，避免「选中项不在列表」被回落到第一项
+                // 等列表重拉后再选中，避免「选中项不在列表」被清空
                 await queryClient.refetchQueries({ queryKey: ["questions", "snapshot"] });
                 setSelectedId(question.id);
                 setCollapsed(prev => {
@@ -373,73 +368,75 @@ export function QuestionsView() {
                 toast.success(`已收集到「${groupTitle}」`);
               }}
             />
-            <QuestionList
-              sections={derived.sections}
-              groups={derived.groupMap}
-              showGroup={groupFilter == null}
-              selectedId={selectedId}
-              collapsed={collapsed}
-              now={now}
-              onToggleSection={status =>
-                setCollapsed(prev => {
-                  const next = new Set(prev);
-                  if (next.has(status)) next.delete(status);
-                  else next.add(status);
-                  return next;
-                })
-              }
-              onSelect={q => setSelectedId(prev => (prev === q.id ? null : q.id))}
-              renderStatusMenu={renderStatusMenu}
-              renderMenu={renderMenu}
-              empty={
-                <p className="text-ink-3 py-10 text-center text-[12.5px]">
-                  {groupFilter == null
-                    ? "还没有问题。学习时冒出的疑问，在上面记下来。"
-                    : "这个分组还没有问题。"}
-                </p>
-              }
-            />
-            <div className="text-ink-3 flex flex-none flex-wrap gap-3 px-2 pt-2 text-[11.5px]">
-              <KeyHint keys={["↑", "↓"]} label="切换" />
-              <KeyHint keys={["1", "2", "3"]} label="设状态" />
-              <KeyHint keys={["L"]} label="关联材料" />
-            </div>
           </div>
 
-          {selectedId != null && (
-            <div className="bg-surface shadow-card flex min-h-0 flex-col overflow-hidden rounded-[16px] px-6 pb-3 pt-[18px]">
-              {detail ? (
-                <QuestionDetail
-                  key={detail.question.id}
-                  detail={detail}
-                  groups={groups}
-                  hiddenMaterials={
-                    new Set(
-                      detail.materials.filter(m => deferred.pending.has(`m:${m.id}`)).map(m => m.id)
-                    )
-                  }
-                  now={now}
-                  onSetStatus={status => void setStatus(detail.question, status)}
-                  onMove={groupId => move(detail.question, groupId)}
-                  onOpenMaterial={openMaterial}
-                  onClickMaterial={material =>
-                    canPreview(material) ? setPreview(material) : openMaterial(material)
-                  }
-                  onUnlink={unlink}
-                  onWriteCard={() => setCardOpen(true)}
-                  onWriteAnswer={() =>
-                    setAnswerDialog({ mode: "new", questionTitle: detail.question.questionContent })
-                  }
-                  onCreate={createMaterial}
-                  onLink={() => setPickerOpen(true)}
-                  menu={renderMenu(detail.question)}
-                  onClose={() => setSelectedId(null)}
-                />
-              ) : (
-                <Loading />
-              )}
+          {/* 列表占满；详情抽屉在此绝对定位盖在右侧 */}
+          <div className="relative grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)]">
+            <div className="flex min-h-0 flex-col px-[22px] pb-4">
+              <QuestionList
+                sections={derived.sections}
+                groups={derived.groupMap}
+                showGroup={groupFilter == null}
+                selectedId={selectedId}
+                collapsed={collapsed}
+                now={now}
+                onToggleSection={status =>
+                  setCollapsed(prev => {
+                    const next = new Set(prev);
+                    if (next.has(status)) next.delete(status);
+                    else next.add(status);
+                    return next;
+                  })
+                }
+                onSelect={q => setSelectedId(prev => (prev === q.id ? null : q.id))}
+                renderStatusMenu={renderStatusMenu}
+                renderMenu={renderMenu}
+                empty={
+                  <p className="text-ink-3 py-10 text-center text-[12.5px]">
+                    {groupFilter == null
+                      ? "还没有问题。学习时冒出的疑问，在上面记下来。"
+                      : "这个分组还没有问题。"}
+                  </p>
+                }
+              />
+              <div className="text-ink-3 flex flex-none flex-wrap gap-3 px-2.5 pt-2 text-[11.5px]">
+                <KeyHint keys={["↑", "↓"]} label="切换" />
+                <KeyHint keys={["1", "2", "3"]} label="设状态" />
+                <KeyHint keys={["L"]} label="关联材料" />
+                <KeyHint keys={["Esc"]} label="关闭详情" />
+              </div>
             </div>
-          )}
+
+            <QuestionDrawer
+              open={selectedId != null}
+              detail={detail}
+              groups={groups}
+              hiddenMaterials={
+                new Set(
+                  (detail?.materials ?? [])
+                    .filter(m => deferred.pending.has(`m:${m.id}`))
+                    .map(m => m.id)
+                )
+              }
+              now={now}
+              onSetStatus={(question, status) => void setStatus(question, status)}
+              onMove={move}
+              onOpenMaterial={openMaterial}
+              onClickMaterial={material =>
+                canPreview(material) ? setPreview(material) : openMaterial(material)
+              }
+              onUnlink={unlink}
+              onWriteCard={() => setCardOpen(true)}
+              onWriteAnswer={() =>
+                detail &&
+                setAnswerDialog({ mode: "new", questionTitle: detail.question.questionContent })
+              }
+              onCreate={createMaterial}
+              onLink={() => setPickerOpen(true)}
+              renderMenu={renderMenu}
+              onClose={() => setSelectedId(null)}
+            />
+          </div>
         </div>
 
         <MaterialPicker
