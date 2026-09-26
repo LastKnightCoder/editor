@@ -158,4 +158,50 @@ describe("pi-session-host-core", () => {
       rmSync(workDir, { recursive: true, force: true });
     }
   });
+
+  it("无 shellPath 时默认工具切 powershell（bash 不启用，避免落到 WSL 入口）", async () => {
+    const workDir = mkdtempSync(join(tmpdir(), "pi-host-ps-"));
+    const agentDir = join(workDir, ".pi-agent");
+    try {
+      const faux = fauxProvider({});
+      faux.setResponses([
+        fauxAssistantMessage([fauxToolCall("bash", { command: "echo x" })], {
+          stopReason: "toolUse",
+        }),
+        fauxAssistantMessage([fauxToolCall("powershell", { command: "Write-Output ps-兜底-ok" })], {
+          stopReason: "toolUse",
+        }),
+        fauxAssistantMessage([fauxText("完成。")]),
+      ]);
+      const modelRuntime = await createFauxModelRuntime(join(agentDir, "auth.json"), faux);
+      const session = await assembleHostSession({
+        cwd: workDir,
+        agentDir,
+        modelRuntime,
+        modelRef: { providerId: faux.provider.id, modelId: faux.getModel().id },
+      });
+
+      const executions: { name: string; isError: boolean }[] = [];
+      const unsubscribe = session.subscribe(event => {
+        if (event.type === "tool_execution_end") {
+          executions.push({ name: event.toolName, isError: event.isError === true });
+        }
+      });
+      try {
+        await session.prompt("无 shellPath 兜底验证");
+      } finally {
+        unsubscribe();
+        session.dispose();
+      }
+
+      const bashRun = executions.find(e => e.name === "bash");
+      expect(bashRun).toBeTruthy();
+      expect(bashRun?.isError).toBe(true);
+      const psRun = executions.find(e => e.name === "powershell");
+      expect(psRun).toBeTruthy();
+      expect(psRun?.isError).toBe(false);
+    } finally {
+      rmSync(workDir, { recursive: true, force: true });
+    }
+  });
 });
