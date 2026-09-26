@@ -58,7 +58,7 @@ describe("useVideoNoteSource", () => {
     bilibili.mockReturnValue({ ...idle, videoUrl: "blob:bili" });
     youtube.mockReturnValue(idle);
     remote.mockReturnValue(idle);
-    const meta = { type: "bilibili", bvid: "BV1", cid: 1 } as VideoMetaInfo;
+    const meta = { type: "bilibili", bvid: "BV1", cid: "1" } as VideoMetaInfo;
     const r = renderSource(meta);
     unmount = r.unmount;
     expect(bilibili).toHaveBeenCalledWith(meta);

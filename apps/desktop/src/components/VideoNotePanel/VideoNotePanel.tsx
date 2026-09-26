@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Pencil,
   FileText,
-  Expand,
   Plus,
   ArrowLeft,
   MessageCircle,
@@ -22,11 +21,9 @@ import classNames from "classnames";
 import { Descendant, Node } from "slate";
 import { EditorRef } from "@tau/editor/src";
 import Editor from "@/components/ContentEditor";
-import { importFromMarkdown, getMarkdown } from "@/utils/markdown";
 import { formatDate } from "@/utils";
 import type { CustomEditor } from "@tau/editor/src";
 import EditTitleModal from "@/components/EditTitleModal";
-import CustomModal from "@/components/CustomModal";
 import useUploadResource from "@/hooks/useUploadResource.ts";
 import useThemeColors from "@/hooks/useThemeColors";
 import useSettingStore from "@/stores/useSettingStore";
@@ -40,16 +37,13 @@ import {
   getContentById,
   createContent,
   updateVideoNoteTranscript,
-  updateVideoNoteSummary,
 } from "@/commands";
 import { openSettingsModal } from "@/utils/transcription";
 import { useLLMConfig } from "@/hooks/useLLMConfig";
-import { useVideoSummary } from "@/hooks/useVideoSummary";
 import { type VideoNote as IVideoNote, type VideoNoteItem, type TranscriptSegment } from "@/types";
 import {} from "@/editor-extensions";
 import VideoTimestampExtension from "./extensions/VideoTimestamp";
 import VideoScreenshotExtension from "./extensions/VideoScreenshot";
-import SummaryTimestampExtension from "./extensions/SummaryTimestamp";
 import { VideoController } from "./VideoController";
 import VideoNoteChatPanel from "./VideoNoteChatPanel";
 import LanguageSelect from "./LanguageSelect";
@@ -104,20 +98,8 @@ const VideoNotePanel = ({
   const themeColors = useThemeColors();
   const activeDatabase = useSettingStore(state => state.setting.database.active);
 
-  // Video summary LLM hook
-  const { providerConfig: summaryProviderConfig, modelConfig: summaryModelConfig } =
-    useLLMConfig("videoSummary");
   const { providerConfig: ebookRewriteProviderConfig, modelConfig: ebookRewriteModelConfig } =
     useLLMConfig("videoEbookRewrite");
-  const {
-    isSummarizing,
-    summaryContent,
-    finalSummary,
-    startSummary,
-    stopSummary,
-    error: summaryError,
-  } = useVideoSummary(summaryProviderConfig, summaryModelConfig);
-
   // State
   const [videoNote, setVideoNote] = useState<IVideoNote | null>(null);
   const [noteItems, setNoteItems] = useState<VideoNoteItem[]>([]);
@@ -126,11 +108,8 @@ const VideoNotePanel = ({
   const [loading, setLoading] = useState(true);
   const [editingSegmentIndex, setEditingSegmentIndex] = useState<number | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"transcript" | "summary" | "chat" | "note">(
-    "transcript"
-  );
+  const [activeTab, setActiveTab] = useState<"transcript" | "chat" | "note">("transcript");
   const [noteViewMode, setNoteViewMode] = useState<"list" | "edit">("list");
-  const [summaryModalOpen, setSummaryModalOpen] = useState(false);
   const [ebookExportModalOpen, setEbookExportModalOpen] = useState(false);
   const [internalTranscriptionLanguage, setInternalTranscriptionLanguage] =
     useState<string>(VIDEO_NOTE_AUTO_LANGUAGE);
@@ -167,12 +146,7 @@ const VideoNotePanel = ({
   // 存储每个 segment DOM 元素的 ref
   const segmentRefsMap = useRef<Map<number, HTMLDivElement>>(new Map());
   const editorRef = useRef<EditorRef>(null);
-  const summaryEditorRef = useRef<EditorRef>(null);
   const slateEditorRef = useRef<CustomEditor | null>(null);
-  const modalSummaryEditorRef = useRef<EditorRef>(null);
-
-  // Summary session ID to force re-render when starting new summary
-  const [summarySessionId, setSummarySessionId] = useState(0);
 
   const activeNoteItem = useMemo(
     () => noteItems.find(item => item.id === activeNoteItemId) || null,
@@ -244,11 +218,6 @@ const VideoNotePanel = ({
     ];
   }, [videoController, dynamicExtensions]);
 
-  // Extensions for summary editor (only timestamp)
-  const summaryExtensions = useMemo(() => {
-    return [new SummaryTimestampExtension(videoController)];
-  }, [videoController]);
-
   // Load video note data
   useEffect(() => {
     const loadData = async () => {
@@ -283,33 +252,6 @@ const VideoNotePanel = ({
     loadData();
   }, [videoNoteId]);
 
-  // Throttled summary save
-  const { run: throttleSaveSummary } = useThrottleFn(
-    async (summary: string) => {
-      try {
-        await updateVideoNoteSummary(videoNoteId, summary);
-        setVideoNote(prev =>
-          prev
-            ? {
-                ...prev,
-                summary: summary,
-              }
-            : null
-        );
-
-        // 更新主视图的总结编辑器（Editor 是非受控组件，需要手动更新）
-        if (summaryEditorRef.current && summary) {
-          const content = importFromMarkdown(summary);
-          summaryEditorRef.current.setEditorValue(content);
-        }
-      } catch (error) {
-        console.error("Failed to save summary:", error);
-        toast.error("保存总结失败");
-      }
-    },
-    { wait: 1000 }
-  );
-
   // Handle editor content change
   const handleEditorChange = useMemoizedFn((content: Descendant[]) => {
     if (!activeNoteItem) {
@@ -319,12 +261,6 @@ const VideoNotePanel = ({
       ...prev,
       [activeNoteItem.id]: content,
     }));
-  });
-
-  // Handle summary content change
-  const handleSummaryChange = useMemoizedFn((content: Descendant[]) => {
-    const markdown = getMarkdown(content);
-    throttleSaveSummary(markdown);
   });
 
   // Handle editor init
@@ -401,13 +337,6 @@ const VideoNotePanel = ({
 
   // 受控确认弹窗的待确认项（替代 antd modal.confirm）
   const [pendingDeleteNoteId, setPendingDeleteNoteId] = useState<number | null>(null);
-  const [llmConfirm, setLlmConfirm] = useState<{ title: string; description: string } | null>(null);
-  const activeLlmConfirm = llmConfirm ?? transcriptionLlmConfirm;
-  const closeLlmConfirm = () => {
-    setLlmConfirm(null);
-    dismissLlmConfirm();
-  };
-  const [confirmTranscribeFirst, setConfirmTranscribeFirst] = useState(false);
 
   const handleDeleteNote = useMemoizedFn((itemId: number) => {
     setPendingDeleteNoteId(itemId);
@@ -488,83 +417,6 @@ const VideoNotePanel = ({
     // 清除编辑状态
     setEditModalOpen(false);
     setEditingSegmentIndex(null);
-  });
-
-  // 处理总结完成后的保存
-  useEffect(() => {
-    const saveSummaryResult = async () => {
-      if (finalSummary && !isSummarizing) {
-        // 如果模态框打开，不自动保存（让用户编辑）
-        if (summaryModalOpen) {
-          return;
-        }
-
-        try {
-          await updateVideoNoteSummary(videoNoteId, finalSummary);
-          setVideoNote(prev =>
-            prev
-              ? {
-                  ...prev,
-                  summary: finalSummary,
-                }
-              : null
-          );
-          if (summaryError) {
-            toast.warning("总结生成出现错误");
-          } else {
-            toast.success("视频总结完成");
-          }
-        } catch (error) {
-          console.error("Failed to save summary:", error);
-          toast.error("保存总结失败");
-        }
-      }
-    };
-
-    saveSummaryResult();
-  }, [finalSummary, isSummarizing, videoNoteId, summaryError, summaryModalOpen]);
-
-  // Update summary editor content when summaryContent changes (streaming)
-  useEffect(() => {
-    if (summaryContent && summaryEditorRef.current) {
-      summaryEditorRef.current.setEditorValue(summaryContent);
-    }
-  }, [summaryContent]);
-
-  // Update modal summary editor content when summaryContent changes (streaming)
-  useEffect(() => {
-    if (isSummarizing && summaryContent && modalSummaryEditorRef.current && summaryModalOpen) {
-      modalSummaryEditorRef.current.setEditorValue(summaryContent);
-    }
-  }, [summaryContent, isSummarizing, summaryModalOpen]);
-
-  // 处理视频总结
-  const handleSummarize = useMemoizedFn(async () => {
-    // 检查是否有转录
-    if (!videoNote?.transcriptSegments || videoNote.transcriptSegments.length === 0) {
-      setConfirmTranscribeFirst(true);
-      return;
-    }
-
-    // 检查 LLM 配置
-    if (!summaryProviderConfig || !summaryModelConfig) {
-      setLlmConfirm({
-        title: "未配置总结模型",
-        description: "请先在设置中配置视频总结的 LLM 模型。",
-      });
-      return;
-    }
-
-    // 切换到总结 Tab 并开始总结
-    setActiveTab("summary");
-    setSummarySessionId(prev => prev + 1); // Force re-render editor
-    startSummary(videoNote.transcriptSegments);
-  });
-
-  // 取消总结
-  const handleCancelSummary = useMemoizedFn(() => {
-    stopSummary();
-    toast.info("总结已取消");
   });
 
   const handleOpenEbookExportModal = useMemoizedFn(() => {
@@ -742,9 +594,6 @@ const VideoNotePanel = ({
 
   const hasTranscriptSegments = !!videoNote?.transcriptSegments?.length;
 
-  // 计算模态框编辑器是否可编辑
-  const isModalEditable = !isSummarizing && (finalSummary || videoNote?.summary);
-
   const videoNotePanel = (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex h-12 shrink-0 items-center gap-3 border-b border-gray-200 px-4 dark:border-gray-700">
@@ -762,21 +611,6 @@ const VideoNotePanel = ({
           >
             <Volume2 size={12} />
             转录
-          </button>
-          <button
-            onClick={() => setActiveTab("summary")}
-            className={classNames(
-              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200",
-              activeTab === "summary"
-                ? [themeColors.activeClass, themeColors.activeTextClass, "shadow-sm"]
-                : [
-                    "text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200",
-                  ]
-            )}
-          >
-            <FileText size={14} />
-            总结
-            {isSummarizing && <LoaderCircle size={12} className="ml-0.5 animate-spin" />}
           </button>
           <button
             disabled={!hasTranscriptSegments}
@@ -807,44 +641,6 @@ const VideoNotePanel = ({
             <Pencil size={12} />
             笔记
           </button>
-        </div>
-
-        <div className="ml-auto flex items-center gap-2">
-          {activeTab === "summary" && (videoNote?.summary || summaryContent || isSummarizing) && (
-            <Tooltip content={isSummarizing ? "正在生成总结..." : "重新生成视频总结"}>
-              <button
-                className="dark:hover: flex items-center gap-1 rounded-md px-2 py-1 text-xs text-[var(--th-accent)] hover:bg-[var(--th-accent-soft)] disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={isSummarizing || isTranscribing || !videoNote?.transcriptSegments?.length}
-                onClick={handleSummarize}
-              >
-                {isSummarizing ? (
-                  <LoaderCircle size={14} className="animate-spin" />
-                ) : (
-                  <FileText size={14} />
-                )}
-                <span>重新生成</span>
-              </button>
-            </Tooltip>
-          )}
-          {activeTab === "summary" && (summaryContent || videoNote?.summary) && !isSummarizing && (
-            <Tooltip content="放大查看">
-              <button
-                className="flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-zinc-800"
-                onClick={() => setSummaryModalOpen(true)}
-              >
-                <Expand size={16} />
-              </button>
-            </Tooltip>
-          )}
-          {activeTab === "summary" && isSummarizing && (
-            <button
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-              onClick={handleCancelSummary}
-            >
-              <X size={14} strokeWidth={1.75} />
-              <span>取消</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -958,61 +754,6 @@ const VideoNotePanel = ({
               </div>
             )}
           </FadeScroll>
-        )}
-
-        {activeTab === "summary" && (
-          <div className="flex h-full min-h-0 flex-col">
-            <FadeScroll className="mb-4 min-h-0 flex-1">
-              {isSummarizing && !summaryContent ? (
-                <div className="flex h-full items-center justify-center">
-                  <LoaderCircle size={30} className="text-ink-3 animate-spin" />
-                </div>
-              ) : isSummarizing || summaryContent ? (
-                <div className="pb-2 pl-6 pr-[18px] pt-6">
-                  <Editor
-                    key={`summary-streaming-${videoNoteId}-${summarySessionId}`}
-                    ref={summaryEditorRef}
-                    initValue={summaryContent || createEmptyEditorContent()}
-                    extensions={summaryExtensions}
-                    readonly={true}
-                    features={{ disableHeaderCollapse: true }}
-                  />
-                </div>
-              ) : videoNote.summary ? (
-                <div className="pb-2 pl-6 pr-[18px] pt-6">
-                  <Editor
-                    ref={summaryEditorRef}
-                    key={`summary-saved-${videoNoteId}`}
-                    initValue={importFromMarkdown(videoNote.summary)}
-                    extensions={summaryExtensions}
-                    readonly={true}
-                    features={{ disableHeaderCollapse: true }}
-                  />
-                </div>
-              ) : (
-                <div className="flex h-full flex-col items-center justify-center gap-3 text-gray-400">
-                  <FileText size={24} />
-                  <span className="text-sm">生成当前视频的结构化摘要与重点结论</span>
-                  <Tooltip content={isSummarizing ? "正在生成总结..." : "生成视频总结"}>
-                    <button
-                      className="dark:hover: flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-[var(--th-accent)] hover:bg-[var(--th-accent-soft)] disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={
-                        isSummarizing || isTranscribing || !videoNote?.transcriptSegments?.length
-                      }
-                      onClick={handleSummarize}
-                    >
-                      {isSummarizing ? (
-                        <LoaderCircle size={14} className="animate-spin" />
-                      ) : (
-                        <FileText size={14} />
-                      )}
-                      <span>生成总结</span>
-                    </button>
-                  </Tooltip>
-                </div>
-              )}
-            </FadeScroll>
-          </div>
         )}
 
         {activeTab === "chat" && (
@@ -1293,43 +1034,6 @@ const VideoNotePanel = ({
         placeholder="请输入转录文案"
       />
 
-      {/* 总结放大查看弹窗 */}
-      <CustomModal
-        open={summaryModalOpen}
-        onCancel={() => setSummaryModalOpen(false)}
-        width={900}
-        title="视频总结"
-        subtitle={isSummarizing ? "正在生成..." : "查看和编辑总结内容"}
-        icon={<FileText size={20} className="text-[var(--th-accent)]" />}
-        footer={null}
-        bodyClassName="px-5 pb-5 max-h-[70vh] overflow-auto"
-      >
-        {(summaryContent || videoNote?.summary) && (
-          <Editor
-            ref={modalSummaryEditorRef}
-            key={`summary-modal-${videoNoteId}-${summarySessionId}`}
-            initValue={
-              isSummarizing && summaryContent
-                ? summaryContent
-                : finalSummary
-                  ? importFromMarkdown(finalSummary)
-                  : videoNote?.summary
-                    ? importFromMarkdown(videoNote.summary)
-                    : [
-                        {
-                          type: "paragraph",
-                          children: [{ type: "formatted", text: "" }],
-                        },
-                      ]
-            }
-            extensions={summaryExtensions}
-            readonly={!isModalEditable}
-            onChange={isModalEditable ? handleSummaryChange : undefined}
-            features={{ disableHeaderCollapse: true }}
-          />
-        )}
-      </CustomModal>
-
       <VideoNoteEpubExportModal
         open={ebookExportModalOpen}
         onClose={() => setEbookExportModalOpen(false)}
@@ -1451,25 +1155,14 @@ const VideoNotePanel = ({
         onConfirm={confirmDeleteNote}
       />
       <ConfirmDialog
-        open={activeLlmConfirm != null}
-        onOpenChange={v => !v && closeLlmConfirm()}
-        title={activeLlmConfirm?.title ?? ""}
-        description={activeLlmConfirm?.description ?? ""}
+        open={transcriptionLlmConfirm != null}
+        onOpenChange={v => !v && dismissLlmConfirm()}
+        title={transcriptionLlmConfirm?.title ?? ""}
+        description={transcriptionLlmConfirm?.description ?? ""}
         confirmText="打开设置"
         onConfirm={() => {
-          closeLlmConfirm();
+          dismissLlmConfirm();
           openSettingsModal("llm");
-        }}
-      />
-      <ConfirmDialog
-        open={confirmTranscribeFirst}
-        onOpenChange={v => !v && setConfirmTranscribeFirst(false)}
-        title="需要先转录"
-        description="视频尚未转录，是否先进行转录？"
-        confirmText="开始转录"
-        onConfirm={() => {
-          setConfirmTranscribeFirst(false);
-          handleTranscribe();
         }}
       />
     </div>
