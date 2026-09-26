@@ -12,6 +12,7 @@ import {
   createHostModelRuntime,
   detectBashShellPath,
 } from "./pi-session-host-core";
+import { resolveV2Providers } from "./pi-ai-runtime-core";
 import type { LLMProviderSetting } from "@/types/pi-llm";
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import { join } from "node:path";
@@ -41,12 +42,10 @@ class PiSessionHostModule {
     PiSessionHostModule.shellPath = detectBashShellPath();
 
     userSettingModule.onSettingChanged(({ newSetting }) => {
-      const providers = newSetting?.llmProviders;
-      PiSessionHostModule.latestProviders = Array.isArray(providers) ? providers : [];
+      PiSessionHostModule.latestProviders = resolveV2Providers(newSetting);
     });
     void userSettingModule.getSettingSnapshot().then(setting => {
-      const providers = setting?.llmProviders;
-      PiSessionHostModule.latestProviders = Array.isArray(providers) ? providers : [];
+      PiSessionHostModule.latestProviders = resolveV2Providers(setting);
     });
 
     ipcMain.handle("pi-session:create", async (event, request: PiSessionCreateRequest) => {

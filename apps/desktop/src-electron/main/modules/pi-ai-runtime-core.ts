@@ -22,6 +22,25 @@ import type {
   PiApiKind,
   PiSingleShotRequest,
 } from "@/types/pi-llm";
+import { migrateLlmSettingsToV2 } from "@/services/llmSettingsMigration";
+
+/**
+ * 从设置快照解析 v2 provider 列表：v2 字段 llmProviders 上线前，
+ * 现场把旧 llmConfigs 转换兜底（与 pi-dev 面板同源），store 切换后旧分支自然失效
+ */
+export function resolveV2Providers(
+  setting: Record<string, unknown> | undefined | null
+): LLMProviderSetting[] {
+  if (Array.isArray(setting?.llmProviders) && setting.llmProviders.length > 0) {
+    return setting.llmProviders as LLMProviderSetting[];
+  }
+  const legacyConfigs = (setting as { llmConfigs?: unknown } | undefined)?.llmConfigs;
+  if (Array.isArray(legacyConfigs) && legacyConfigs.length > 0) {
+    return migrateLlmSettingsToV2({ llmConfigs: legacyConfigs as never, llmUsageSettings: {} })
+      .providers;
+  }
+  return [];
+}
 
 const API_STREAMS: Record<PiApiKind, ProviderStreams> = {
   "openai-completions": openAICompletionsApi,
