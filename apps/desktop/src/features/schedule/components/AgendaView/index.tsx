@@ -94,7 +94,7 @@ const AgendaView = () => {
                   event={event}
                   calendars={calendars}
                   decor={decorOf(event)}
-                  onClick={anchor => peek(event, anchor)}
+                  onClick={() => peek(event)}
                 />
               ))}
             </div>

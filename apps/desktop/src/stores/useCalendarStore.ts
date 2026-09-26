@@ -133,7 +133,7 @@ const initState: IState = {
   showSystemSection: true,
   showMyCalendarSection: true,
   showArchivedSection: false,
-  showDayPanel: true,
+  showDayPanel: false,
   editingEvent: null,
   mergeModeEnabled: false,
   selectedCalendarsForMerge: [],

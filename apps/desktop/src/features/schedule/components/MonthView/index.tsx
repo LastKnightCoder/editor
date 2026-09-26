@@ -281,7 +281,7 @@ const MonthView = () => {
               event,
               calendars,
               decor: decorOf(event),
-              onClick: (anchor: HTMLElement) => peek(event, anchor),
+              onClick: () => peek(event),
               className: "pointer-events-auto absolute",
               style: { ...barPosition(span, level), zIndex: 10 + level },
             };
@@ -339,7 +339,7 @@ const MonthView = () => {
               decor={decorOf(event)}
               onClick={() => {
                 setMoreDay(null);
-                setEditingEvent(event);
+                peek(event);
               }}
             />
           ))}
