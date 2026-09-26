@@ -16,7 +16,7 @@ import { resolveV2Providers } from "./pi-ai-runtime-core";
 import type { LLMProviderSetting } from "@/types/pi-llm";
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import { join } from "node:path";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readdirSync, rmSync } from "node:fs";
 
 interface HostedSession {
   session: AgentSession;
@@ -40,15 +40,27 @@ class PiSessionHostModule {
   private static readonly sessions = new Map<string, HostedSession>();
   private static latestProviders: LLMProviderSetting[] = [];
   private static shellPath: string | undefined;
-  /** 联调取证：设置环境变量 PI_DUMP_REQUESTS=1 后，出站请求写到 ~/.editor/pi-request-dumps/ */
-  private static readonly requestDumpDir: string | undefined = process.env.PI_DUMP_REQUESTS
-    ? join(PathUtil.getAppDir(), "pi-request-dumps")
-    : undefined;
+  /** 联调取证：出站请求默认写 ~/.editor/pi-request-dumps/（image_url 截断防膨胀，保留最近 40 个）；
+   *  pi 迁移联调期结束（M4 主聊天接入稳定）后改回 PI_DUMP_REQUESTS 环境变量开关 */
+  private static readonly requestDumpDir: string | undefined =
+    process.env.PI_DUMP_REQUESTS === "0"
+      ? undefined
+      : join(PathUtil.getAppDir(), "pi-request-dumps");
 
   public static init() {
     PiSessionHostModule.shellPath = detectBashShellPath();
     if (PiSessionHostModule.requestDumpDir) {
       mkdirSync(PiSessionHostModule.requestDumpDir, { recursive: true });
+      try {
+        const files = readdirSync(PiSessionHostModule.requestDumpDir)
+          .filter(name => name.startsWith("req-"))
+          .sort();
+        for (const stale of files.slice(0, Math.max(0, files.length - 40))) {
+          rmSync(join(PiSessionHostModule.requestDumpDir, stale), { force: true });
+        }
+      } catch {
+        // 清理失败不影响启动
+      }
       console.log(`[PiSessionHost] 请求 dump 已开启：${PiSessionHostModule.requestDumpDir}`);
     }
 
