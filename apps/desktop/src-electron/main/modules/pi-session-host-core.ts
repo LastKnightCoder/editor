@@ -25,56 +25,75 @@ import type { LLMProviderSetting } from "@/types/pi-llm";
  * pi 只认 Program Files 与 Windows PATH 上的 bash；非标准安装位置需 settings shellPath 兜底（D-060 后产品首启检测写入，此处为探测默认值）。
  * 探测失败不设 shellPath 时 pi 走自己的 PATH 搜索——它不排除 System32\bash.exe（WSL 入口），
  * 中文 Windows 上必命中 WSL 并因「无已安装分发版」全部失败，故这里必须穷尽到 git.exe 反推。
+ * 探测结果打印到主进程日志，便于联调定位落到哪一级。
  */
+const logShellProbe = (stage: string, value: string | undefined) => {
+  console.log(`[PiSessionHost] shell 探测 ${stage}: ${value ?? "未命中"}`);
+};
+
+/** WSL 提供的 bash 入口（无发行版必失败，且路径语义与文件工具断裂），一律排除 */
+const isWslBash = (bashPath: string): boolean => {
+  const lower = bashPath.toLowerCase();
+  return (
+    lower.includes("\\system32\\") ||
+    lower.includes("\\syswow64\\") ||
+    lower.includes("\\windowsapps\\")
+  );
+};
+
 export function detectBashShellPath(): string | undefined {
-  if (process.env.PI_SMOKE_SHELL && existsSync(process.env.PI_SMOKE_SHELL))
+  if (process.env.PI_SMOKE_SHELL && existsSync(process.env.PI_SMOKE_SHELL)) {
+    logShellProbe("env", process.env.PI_SMOKE_SHELL);
     return process.env.PI_SMOKE_SHELL;
+  }
   for (const hive of ["HKLM\\SOFTWARE\\GitForWindows", "HKCU\\SOFTWARE\\GitForWindows"]) {
     const reg = spawnSync("reg", ["query", hive, "/v", "InstallPath"], { encoding: "utf8" });
     if (reg.status !== 0 || !reg.stdout) continue;
     const match = reg.stdout.match(/InstallPath\s+REG_SZ\s+(\S+)/);
-    if (match && existsSync(join(match[1], "bin", "bash.exe")))
-      return join(match[1], "bin", "bash.exe");
+    if (match && existsSync(join(match[1], "bin", "bash.exe"))) {
+      const bash = join(match[1], "bin", "bash.exe");
+      logShellProbe("注册表", bash);
+      return bash;
+    }
   }
   const candidates = [
     "C:\\Program Files\\Git\\bin\\bash.exe",
     "C:\\Program Files (x86)\\Git\\bin\\bash.exe",
   ];
   const found = candidates.find(p => existsSync(p));
-  if (found) return found;
-  // git.exe 在 PATH 的概率远高于 bash.exe（System32\bash.exe 是 WSL 入口不可用）：由 git 安装位置反推 Git Bash
+  if (found) {
+    logShellProbe("固定路径", found);
+    return found;
+  }
+  // git.exe 在 PATH 的概率远高于 bash.exe：由 git.exe 位置向上搜索（最多 3 层）找安装根下的 bash
   const where = spawnSync("where", ["git"], { encoding: "utf8" });
   if (where.status === 0 && where.stdout) {
-    const gitPath = where.stdout
-      .split(/\r?\n/)
-      .map(line => line.trim())
-      .find(
-        line =>
-          line.toLowerCase().endsWith("\\cmd\\git.exe") ||
-          line.toLowerCase().endsWith("\\bin\\git.exe")
-      );
-    if (gitPath) {
-      const gitDir = dirname(gitPath);
-      const root = gitDir.toLowerCase().endsWith("\\cmd") ? dirname(gitDir) : gitDir;
-      for (const bash of [join(root, "bin", "bash.exe"), join(root, "usr\\bin\\bash.exe")]) {
-        if (existsSync(bash)) return bash;
+    for (const raw of where.stdout.split(/\r?\n/)) {
+      const gitPath = raw.trim();
+      if (!gitPath.toLowerCase().endsWith("\\git.exe") || !existsSync(gitPath)) continue;
+      for (let dir = dirname(gitPath), depth = 0; depth < 3; dir = dirname(dir), depth += 1) {
+        for (const bash of [join(dir, "bin", "bash.exe"), join(dir, "usr\\bin\\bash.exe")]) {
+          if (existsSync(bash)) {
+            logShellProbe("git 反推", bash);
+            return bash;
+          }
+        }
       }
     }
   }
-  // PATH 上的 bash.exe 也可用，但必须排除 WSL 入口（System32/SysWOW64），避免落回 pi 的不排除搜索
+  // PATH 上的 bash.exe（排除 WSL 入口），避免落回 pi 的不排除搜索
   const whereBash = spawnSync("where", ["bash"], { encoding: "utf8" });
   if (whereBash.status === 0 && whereBash.stdout) {
     const bashPath = whereBash.stdout
       .split(/\r?\n/)
       .map(line => line.trim())
-      .find(
-        line =>
-          line.toLowerCase().endsWith("\\bash.exe") &&
-          !line.toLowerCase().includes("\\system32\\") &&
-          !line.toLowerCase().includes("\\syswow64\\")
-      );
-    if (bashPath && existsSync(bashPath)) return bashPath;
+      .find(line => line.toLowerCase().endsWith("\\bash.exe") && !isWslBash(line));
+    if (bashPath && existsSync(bashPath)) {
+      logShellProbe("PATH", bashPath);
+      return bashPath;
+    }
   }
+  logShellProbe("全部落空", undefined);
   return undefined;
 }
 
@@ -158,8 +177,8 @@ export async function assembleHostSession(
       : SessionManager.inMemory(options.cwd),
     resourceLoader,
     // 无 Git Bash 时不能留默认 bash 工具——pi 的 PATH 搜索会命中 System32\bash.exe（WSL 入口，
-    // 路径语义与文件工具断裂且无发行版时全失败），改为 powershell（Windows 原生路径语义一致）。
-    // WSL 作为带路径翻译层的手动选项在工具管理（M3）提供。
+    // 路径语义与文件工具断裂且无发行版时全失败），改为 powershell（Windows 原生路径语义一致，
+    // pi 实现已自带 [Console]::OutputEncoding=UTF8 输出前缀）。WSL 手动选项在工具管理（M3）提供。
     settingsManager: SettingsManager.inMemory(
       options.shellPath
         ? { shellPath: options.shellPath }
