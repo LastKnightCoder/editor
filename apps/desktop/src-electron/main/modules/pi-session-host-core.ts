@@ -5,7 +5,7 @@
  * systemPrompt 由宿主覆盖、会话存储按调用方传入（持久 sessionDir / 测试 inMemory）。
  * 模块壳（IPC/会话表/设置订阅）在 pi-session-host.ts。
  */
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fauxProvider } from "@earendil-works/pi-ai";
@@ -17,7 +17,12 @@ import {
   SettingsManager,
   createAgentSession,
 } from "@earendil-works/pi-coding-agent";
-import type { AgentSession, ResourceLoader } from "@earendil-works/pi-coding-agent";
+import type {
+  AgentSession,
+  ExtensionAPI,
+  InlineExtension,
+  ResourceLoader,
+} from "@earendil-works/pi-coding-agent";
 import { buildPiProvider } from "./pi-ai-runtime-core";
 import type { LLMProviderSetting } from "@/types/pi-llm";
 
@@ -118,7 +123,41 @@ export interface HostResourceLoaderOptions {
   systemPrompt?: string;
   /** 内联扩展（M3 的工具审批拦截、UA 注入等经此注入） */
   extensionFactories?: ConstructorParameters<typeof DefaultResourceLoader>[0]["extensionFactories"];
+  /** 出站请求 dump 目录（联调取证：每次 provider 请求的 payload 写 JSON，image_url 截断防膨胀） */
+  dumpRequestDir?: string;
 }
+
+/** 压掉 payload 里的巨型 base64，保留前缀与长度便于诊断 */
+const sanitizePayload = (value: unknown): unknown => {
+  if (typeof value === "string" && value.length > 400 && value.startsWith("data:")) {
+    return `${value.slice(0, 80)}...(len=${value.length})`;
+  }
+  if (Array.isArray(value)) return value.map(sanitizePayload);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, sanitizePayload(v)]));
+  }
+  return value;
+};
+
+/** 联调取证扩展：把每次出站请求 payload（含消息序列）写到 dumpRequestDir */
+export const createRequestDumpExtension = (dumpDir: string): InlineExtension => ({
+  name: "request-dump",
+  hidden: true,
+  factory: (pi: ExtensionAPI) => {
+    let counter = 0;
+    pi.on("before_provider_request", event => {
+      counter += 1;
+      try {
+        writeFileSync(
+          join(dumpDir, `req-${Date.now()}-${counter}.json`),
+          JSON.stringify(sanitizePayload(event.payload), null, 2)
+        );
+      } catch (error) {
+        console.error("[PiSessionHost] 请求 dump 写入失败:", error);
+      }
+    });
+  },
+});
 
 /** 零文件系统资源发现的 ResourceLoader（skills/context files 等后续按产品决策渐进启用） */
 export async function createHostResourceLoader(
@@ -132,7 +171,12 @@ export async function createHostResourceLoader(
     noPromptTemplates: true,
     noThemes: true,
     ...(options.systemPrompt ? { systemPrompt: options.systemPrompt } : {}),
-    ...(options.extensionFactories ? { extensionFactories: options.extensionFactories } : {}),
+    ...{
+      extensionFactories: [
+        ...(options.dumpRequestDir ? [createRequestDumpExtension(options.dumpRequestDir)] : []),
+        ...(options.extensionFactories ?? []),
+      ],
+    },
   });
   await loader.reload();
   return loader;
@@ -148,6 +192,8 @@ export interface AssembleHostSessionOptions {
   resourceLoader?: ResourceLoader;
   systemPrompt?: string;
   shellPath?: string;
+  /** 出站请求 dump 目录（联调取证，见 createRequestDumpExtension） */
+  dumpRequestDir?: string;
 }
 
 export async function assembleHostSession(
@@ -166,6 +212,7 @@ export async function assembleHostSession(
       cwd: options.cwd,
       agentDir: options.agentDir,
       systemPrompt: options.systemPrompt,
+      ...(options.dumpRequestDir ? { dumpRequestDir: options.dumpRequestDir } : {}),
     }));
   const { session } = await createAgentSession({
     cwd: options.cwd,
