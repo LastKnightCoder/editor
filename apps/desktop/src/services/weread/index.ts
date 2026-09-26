@@ -10,11 +10,7 @@ import {
   parseReviews,
   getBookWebUrl,
 } from "./parser";
-import {
-  WeReadNotLoggedInError,
-  WeReadRateLimitError,
-  WeReadSessionExpiredError,
-} from "./errors";
+import { WeReadNotLoggedInError, WeReadRateLimitError, WeReadSessionExpiredError } from "./errors";
 import type {
   Metadata,
   Notebook,
@@ -148,6 +144,13 @@ export interface MetadataListResult {
   >;
 }
 
+export interface IncrementalSyncResult extends MetadataListResult {
+  /** 已不在书架与笔记本里的书 */
+  removedBookIds: string[];
+  /** 本次逐本补拉详情的书数 */
+  requested: number;
+}
+
 export interface MetadataSyncProgress {
   completed: number;
   total: number;
@@ -213,8 +216,7 @@ class WeReadService {
       });
       return true;
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "微信读书 API Key 校验失败";
+      const message = error instanceof Error ? error.message : "微信读书 API Key 校验失败";
       useSettingStore.getState().updateWeReadUserInfo({
         isConnected: false,
       });
@@ -233,17 +235,14 @@ class WeReadService {
     let hasMore = true;
 
     while (hasMore) {
-      const response = await this.gatewayRequest<NotebookOverviewResponse>(
-        "/user/notebooks",
-        {
-          count: 100,
-          ...(typeof lastSort === "number" ? { lastSort } : {}),
-        },
-      );
+      const response = await this.gatewayRequest<NotebookOverviewResponse>("/user/notebooks", {
+        count: 100,
+        ...(typeof lastSort === "number" ? { lastSort } : {}),
+      });
 
       const pageBooks = response.books ?? [];
       books.push(
-        ...pageBooks.map((book) => ({
+        ...pageBooks.map(book => ({
           bookId: book.bookId,
           book: {
             title: book.book.title,
@@ -257,7 +256,7 @@ class WeReadService {
           readingProgress: book.readingProgress,
           markedStatus: book.markedStatus,
           lastReadDate: dayjs(book.sort * 1000).format("YYYY-MM-DD"),
-        })),
+        }))
       );
 
       hasMore = response.hasMore === 1 && pageBooks.length > 0;
@@ -269,28 +268,22 @@ class WeReadService {
 
   async fetchMetadataByBookIds(
     bookIds: string[],
-    archiveInfo: Record<
-      string,
-      { archiveId?: number; archiveName?: string }
-    > = {},
-    options: MetadataSyncOptions = {},
+    archiveInfo: Record<string, { archiveId?: number; archiveName?: string }> = {},
+    options: MetadataSyncOptions = {}
   ): Promise<MetadataListResult> {
     const notebookSummaries = await this.getNotebookSummaries();
-    const summaryMap = new Map(
-      notebookSummaries.map((summary) => [summary.bookId, summary]),
-    );
-    const metadataInputs = bookIds.map((bookId) => {
+    const summaryMap = new Map(notebookSummaries.map(summary => [summary.bookId, summary]));
+    const metadataInputs = bookIds.map(bookId => {
       const summary = summaryMap.get(bookId);
       const baseMeta = summary ? parseMetadata(summary) : null;
       return { bookId, baseMeta };
     });
 
-    const { metadataList, failedBookIds } =
-      await this.enrichMetadataInputsWithProgress(
-        metadataInputs,
-        (bookId) => archiveInfo[bookId],
-        options,
-      );
+    const { metadataList, failedBookIds } = await this.enrichMetadataInputsWithProgress(
+      metadataInputs,
+      bookId => archiveInfo[bookId],
+      options
+    );
 
     return {
       metadataList,
@@ -299,31 +292,22 @@ class WeReadService {
     };
   }
 
-  async getMetadataList(
-    options: MetadataSyncOptions = {},
-  ): Promise<MetadataListResult> {
+  async getMetadataList(options: MetadataSyncOptions = {}): Promise<MetadataListResult> {
     const [shelfData, notebookSummaries] = await Promise.all([
       this.getShelfData(),
       this.getNotebookSummaries(),
     ]);
-    const shelfBookMap = new Map(
-      shelfData.books.map((book) => [book.bookId, book]),
-    );
-    const notebookSummaryMap = new Map(
-      notebookSummaries.map((summary) => [summary.bookId, summary]),
-    );
-    const archiveInfo = new Map<
-      string,
-      { archiveId?: number; archiveName?: string }
-    >();
+    const shelfBookMap = new Map(shelfData.books.map(book => [book.bookId, book]));
+    const notebookSummaryMap = new Map(notebookSummaries.map(summary => [summary.bookId, summary]));
+    const archiveInfo = new Map<string, { archiveId?: number; archiveName?: string }>();
     const allBookIds = new Set<string>();
 
-    shelfData.books.forEach((book) => {
+    shelfData.books.forEach(book => {
       allBookIds.add(book.bookId);
     });
 
-    shelfData.archives.forEach((archive) => {
-      archive.bookIds.forEach((bookId) => {
+    shelfData.archives.forEach(archive => {
+      archive.bookIds.forEach(bookId => {
         allBookIds.add(bookId);
         archiveInfo.set(bookId, {
           archiveId: archive.archiveId,
@@ -332,11 +316,11 @@ class WeReadService {
       });
     });
 
-    notebookSummaries.forEach((summary) => {
+    notebookSummaries.forEach(summary => {
       allBookIds.add(summary.bookId);
     });
 
-    const metadataInputs = Array.from(allBookIds).map((bookId) => {
+    const metadataInputs = Array.from(allBookIds).map(bookId => {
       const summary = notebookSummaryMap.get(bookId);
       const shelfBook = shelfBookMap.get(bookId);
       let metadata = summary ? parseMetadata(summary) : null;
@@ -347,17 +331,13 @@ class WeReadService {
       return { bookId, baseMeta: metadata };
     });
 
-    const { metadataList, failedBookIds } =
-      await this.enrichMetadataInputsWithProgress(
-        metadataInputs,
-        (bookId) => archiveInfo.get(bookId),
-        options,
-      );
+    const { metadataList, failedBookIds } = await this.enrichMetadataInputsWithProgress(
+      metadataInputs,
+      bookId => archiveInfo.get(bookId),
+      options
+    );
 
-    const archiveInfoRecord: Record<
-      string,
-      { archiveId?: number; archiveName?: string }
-    > = {};
+    const archiveInfoRecord: Record<string, { archiveId?: number; archiveName?: string }> = {};
     archiveInfo.forEach((value, key) => {
       archiveInfoRecord[key] = value;
     });
@@ -366,6 +346,109 @@ class WeReadService {
       metadataList,
       failedBookIds,
       bookArchiveInfo: archiveInfoRecord,
+    };
+  }
+
+  /**
+   * 增量同步书架元数据。书架与笔记本概览总是整份拉取（1 + ⌈有笔记书数/100⌉ 个请求）；
+   * 逐本补拉（/book/info + /book/getprogress）只对新书、以及最近阅读 / 最近笔记时间比上次补拉时新的书进行。
+   * 其余书沿用缓存的详情，只更新书架上能直接拿到的字段（分类、笔记数、读完状态等）。
+   * full = 全部重新补拉。
+   */
+  async syncMetadata(
+    cached: Metadata[],
+    options: MetadataSyncOptions & { full?: boolean } = {}
+  ): Promise<IncrementalSyncResult> {
+    const [shelfData, summaries] = await Promise.all([
+      this.getShelfData(),
+      this.getNotebookSummaries(),
+    ]);
+    const shelfMap = new Map(shelfData.books.map(book => [book.bookId, book]));
+    const summaryMap = new Map(summaries.map(s => [s.bookId, s]));
+    const cachedMap = new Map(cached.map(meta => [meta.bookId, meta]));
+    const archiveInfo: Record<string, { archiveId?: number; archiveName?: string }> = {};
+    shelfData.archives.forEach(archive => {
+      archive.bookIds.forEach(bookId => {
+        archiveInfo[bookId] = { archiveId: archive.archiveId, archiveName: archive.name };
+      });
+    });
+
+    const bookIds = new Set<string>([
+      ...shelfMap.keys(),
+      ...summaryMap.keys(),
+      ...Object.keys(archiveInfo),
+    ]);
+    const fingerprintOf = (bookId: string) =>
+      Math.max(shelfMap.get(bookId)?.readUpdateTime ?? 0, summaryMap.get(bookId)?.sort ?? 0);
+
+    const toEnrich: Array<{ bookId: string; baseMeta: Metadata | null }> = [];
+    const unchanged: Metadata[] = [];
+    for (const bookId of bookIds) {
+      const shelfBook = shelfMap.get(bookId);
+      const summary = summaryMap.get(bookId);
+      const prev = cachedMap.get(bookId);
+      const fingerprint = fingerprintOf(bookId);
+      const stale =
+        options.full || !prev || !prev.readInfo || (prev.synckeys?.progress ?? 0) !== fingerprint;
+      if (stale) {
+        const baseMeta = summary
+          ? parseMetadata(summary)
+          : shelfBook
+            ? this.buildMetadataFromShelfBook(shelfBook)
+            : null;
+        toEnrich.push({ bookId, baseMeta });
+        continue;
+      }
+      const finished = shelfBook?.markedStatus === 1 || summary?.markedStatus === 1;
+      unchanged.push({
+        ...prev,
+        title: shelfBook?.title || summary?.book.title || prev.title,
+        cover: prev.cover || shelfBook?.cover || "",
+        noteCount: summary?.noteCount ?? 0,
+        reviewCount: summary?.reviewCount ?? 0,
+        bookmarkCount: summary?.bookmarkCount ?? 0,
+        archiveId: archiveInfo[bookId]?.archiveId,
+        archiveName: archiveInfo[bookId]?.archiveName,
+        readInfo: {
+          ...prev.readInfo!,
+          readingProgress: finished ? 100 : (prev.readInfo?.readingProgress ?? 0),
+        },
+      });
+    }
+
+    const { metadataList, failedBookIds, degradedBookIds } =
+      await this.enrichMetadataInputsWithProgress(toEnrich, bookId => archiveInfo[bookId], options);
+    // 补拉失败的书：有缓存就沿用旧详情，没有就用基础元数据；都不记指纹，下次同步再试
+    const retryLater = new Set([...failedBookIds, ...degradedBookIds]);
+    const refreshed = metadataList.map(meta => {
+      const summary = summaryMap.get(meta.bookId);
+      const prev = cachedMap.get(meta.bookId);
+      const base = retryLater.has(meta.bookId) && prev?.readInfo ? prev : meta;
+      return {
+        ...base,
+        noteCount: summary?.noteCount ?? base.noteCount ?? 0,
+        reviewCount: summary?.reviewCount ?? base.reviewCount ?? 0,
+        archiveId: archiveInfo[meta.bookId]?.archiveId,
+        archiveName: archiveInfo[meta.bookId]?.archiveName,
+        synckeys: {
+          ...base.synckeys,
+          progress: retryLater.has(meta.bookId)
+            ? (prev?.synckeys?.progress ?? 0)
+            : fingerprintOf(meta.bookId),
+        },
+      };
+    });
+    const present = new Set([...unchanged, ...refreshed].map(m => m.bookId));
+    const keptOnFailure = failedBookIds
+      .map(bookId => cachedMap.get(bookId))
+      .filter((meta): meta is Metadata => Boolean(meta) && !present.has(meta!.bookId));
+
+    return {
+      metadataList: [...unchanged, ...refreshed, ...keptOnFailure],
+      failedBookIds: [...retryLater],
+      bookArchiveInfo: archiveInfo,
+      removedBookIds: cached.map(m => m.bookId).filter(bookId => !bookIds.has(bookId)),
+      requested: toEnrich.length,
     };
   }
 
@@ -424,17 +507,14 @@ class WeReadService {
 
     while (hasMore) {
       const currentSynckey = synckey;
-      const response = await this.gatewayRequest<MyReviewListResponse>(
-        "/review/list/mine",
-        {
-          bookid: bookId,
-          synckey,
-          count: 100,
-        },
-      );
+      const response = await this.gatewayRequest<MyReviewListResponse>("/review/list/mine", {
+        bookid: bookId,
+        synckey,
+        count: 100,
+      });
 
       reviews.push(
-        ...(response.reviews ?? []).map((item) => ({
+        ...(response.reviews ?? []).map(item => ({
           review: {
             reviewId: item.review.reviewId,
             abstract: item.review.abstract ?? "",
@@ -452,12 +532,11 @@ class WeReadService {
             type: item.review.type ?? 1,
             userVid: 0,
             chapterIdx: 0,
-            chapterTitle:
-              item.review.chapterTitle ?? item.review.chapterName ?? "",
+            chapterTitle: item.review.chapterTitle ?? item.review.chapterName ?? "",
             isLike: 0,
             isReposted: 0,
           },
-        })),
+        }))
       );
 
       hasMore = response.hasMore === 1;
@@ -525,8 +604,7 @@ class WeReadService {
     const readingTime = this.resolveReadingTime(progressBook);
     const updateTime = progressBook.updateTime ?? 0;
     const startReadingTime =
-      progressBook.startReadingTime ??
-      (progressBook.isStartReading === 1 ? updateTime : 0);
+      progressBook.startReadingTime ?? (progressBook.isStartReading === 1 ? updateTime : 0);
 
     return {
       bookId,
@@ -571,7 +649,7 @@ class WeReadService {
           lastReadDate: "",
         },
         detail,
-        progress,
+        progress
       );
     } catch (error) {
       if (error instanceof WeReadRateLimitError) {
@@ -591,15 +669,19 @@ class WeReadService {
 
   private async enrichMetadataInputsWithProgress(
     inputs: Array<{ bookId: string; baseMeta: Metadata | null }>,
-    getArchive: (
-      bookId: string,
-    ) => { archiveId?: number; archiveName?: string } | undefined,
-    options: MetadataSyncOptions,
-  ): Promise<{ metadataList: Metadata[]; failedBookIds: string[] }> {
+    getArchive: (bookId: string) => { archiveId?: number; archiveName?: string } | undefined,
+    options: MetadataSyncOptions
+  ): Promise<{
+    metadataList: Metadata[];
+    failedBookIds: string[];
+    /** 补拉失败、以基础元数据兜底的书 */
+    degradedBookIds: string[];
+  }> {
     const total = inputs.length;
     let completed = 0;
     const metadataList: Metadata[] = [];
     const failedBookIds: string[] = [];
+    const degradedBookIds: string[] = [];
     const concurrency = METADATA_SYNC_CONCURRENCY;
 
     const reportProgress = () => {
@@ -612,11 +694,7 @@ class WeReadService {
       baseMeta: Metadata | null;
     }): Promise<Metadata | null> => {
       let lastError: unknown = null;
-      for (
-        let attempt = 0;
-        attempt < METADATA_SYNC_MAX_ATTEMPTS;
-        attempt += 1
-      ) {
+      for (let attempt = 0; attempt < METADATA_SYNC_MAX_ATTEMPTS; attempt += 1) {
         try {
           const metadata = input.baseMeta
             ? await this.enrichMetadata(input.baseMeta)
@@ -645,6 +723,7 @@ class WeReadService {
           error: lastError,
         });
       }
+      degradedBookIds.push(input.bookId);
       return input.baseMeta;
     };
 
@@ -673,7 +752,7 @@ class WeReadService {
       }
     }
 
-    return { metadataList, failedBookIds };
+    return { metadataList, failedBookIds, degradedBookIds };
   }
 
   private getRetryDelayMs(attempt: number): number {
@@ -692,14 +771,13 @@ class WeReadService {
   }
 
   private async delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   async getShelfData(): Promise<ShelfData> {
-    const response =
-      await this.gatewayRequest<ShelfSyncResponse>("/shelf/sync");
+    const response = await this.gatewayRequest<ShelfSyncResponse>("/shelf/sync");
     const books = [
-      ...(response.books ?? []).map((book) => ({
+      ...(response.books ?? []).map(book => ({
         bookId: book.bookId,
         title: book.title,
         author: book.author,
@@ -710,11 +788,12 @@ class WeReadService {
         readingProgress: book.finishReading === 1 ? 100 : undefined,
         markedStatus: book.finishReading === 1 ? 1 : 0,
         lastReadDate: formatUnixDate(book.readUpdateTime),
+        readUpdateTime: book.readUpdateTime ?? 0,
         intro: book.intro,
         publisher: book.publisher,
         totalWords: book.totalWords,
       })),
-      ...(response.albums ?? []).map((album) => ({
+      ...(response.albums ?? []).map(album => ({
         bookId: album.albumInfo.albumId,
         title: album.albumInfo.name,
         author: album.albumInfo.authorName,
@@ -723,20 +802,21 @@ class WeReadService {
         readingProgress: album.albumInfo.finish === 1 ? 100 : undefined,
         markedStatus: album.albumInfo.finish === 1 ? 1 : 0,
         lastReadDate: formatUnixDate(
-          album.albumInfoExtra?.lectureReadUpdateTime ??
-            album.albumInfo.updateTime,
+          album.albumInfoExtra?.lectureReadUpdateTime ?? album.albumInfo.updateTime
         ),
+        readUpdateTime:
+          album.albumInfoExtra?.lectureReadUpdateTime ?? album.albumInfo.updateTime ?? 0,
         intro: album.albumInfo.intro,
       })),
     ];
-    const archives = (response.archive ?? []).map((archive) => ({
+    const archives = (response.archive ?? []).map(archive => ({
       archiveId: archive.archiveId,
       name: archive.name,
       bookIds: [...(archive.bookIds ?? []), ...(archive.albumIds ?? [])],
     }));
     const bookArchiveMap = new Map<string, string>();
-    archives.forEach((archive) => {
-      archive.bookIds.forEach((bookId) => {
+    archives.forEach(archive => {
+      archive.bookIds.forEach(bookId => {
         bookArchiveMap.set(bookId, archive.name);
       });
     });
@@ -747,32 +827,24 @@ class WeReadService {
     };
   }
 
-  resolveBookWebLink(
-    book: Pick<Metadata, "bookId" | "title" | "webUrl">,
-  ): string | null {
+  resolveBookWebLink(book: Pick<Metadata, "bookId" | "title" | "webUrl">): string | null {
     return book.webUrl ?? getBookWebUrl(book.bookId, book.title);
   }
 
   private async fetchNotebook(metaData: Metadata): Promise<Notebook> {
-    const [detail, progress, highlights, reviews, chapters] = await Promise.all(
-      [
-        this.getBookDetail(metaData.bookId),
-        this.getBookProgress(metaData.bookId),
-        this.getNotebookHighlights(metaData.bookId),
-        this.getNotebookReviews(metaData.bookId),
-        this.getChapters(metaData.bookId),
-      ],
-    );
+    const [detail, progress, highlights, reviews, chapters] = await Promise.all([
+      this.getBookDetail(metaData.bookId),
+      this.getBookProgress(metaData.bookId),
+      this.getNotebookHighlights(metaData.bookId),
+      this.getNotebookReviews(metaData.bookId),
+      this.getChapters(metaData.bookId),
+    ]);
 
     const mergedMeta = this.mergeMetadata(metaData, detail, progress);
     const highlightList = parseHighlights(highlights, reviews);
     const reviewList = parseReviews(reviews);
     const chapterList = parseChapterResp(chapters, highlights);
-    const chapterHighlights = parseChapterHighlightReview(
-      chapterList,
-      highlightList,
-      reviewList,
-    );
+    const chapterHighlights = parseChapterHighlightReview(chapterList, highlightList, reviewList);
 
     return {
       metaData: mergedMeta,
@@ -784,7 +856,7 @@ class WeReadService {
   private mergeMetadata(
     metaData: Metadata,
     detail: WeReadBookDetail | null,
-    progress: BookProgressResponse | null,
+    progress: BookProgressResponse | null
   ): Metadata {
     const readingProgress = progress?.book?.progress ?? 0;
     const lastReadDate =
@@ -803,15 +875,12 @@ class WeReadService {
       isbn: detail?.isbn ?? metaData.isbn,
       category: detail?.category ?? metaData.category,
       publisher: detail?.publisher ?? metaData.publisher,
-      totalWords:
-        detail?.totalWords ?? detail?.wordCount ?? metaData.totalWords,
+      totalWords: detail?.totalWords ?? detail?.wordCount ?? metaData.totalWords,
       rating:
         detail?.newRating && detail.newRating > 0
           ? (detail.newRating / 100).toFixed(1)
           : metaData.rating,
-      webUrl:
-        metaData.webUrl ??
-        getBookWebUrl(metaData.bookId, detail?.title ?? metaData.title),
+      webUrl: metaData.webUrl ?? getBookWebUrl(metaData.bookId, detail?.title ?? metaData.title),
       lastReadDate,
       synckeys: {
         highlights: metaData.synckeys?.highlights ?? 0,
@@ -819,16 +888,11 @@ class WeReadService {
         progress: metaData.synckeys?.progress ?? 0,
       },
       readInfo: {
-        markedStatus:
-          readingProgress >= 100 ? 1 : metaData.readInfo?.markedStatus,
-        readingTime:
-          progress?.book?.readingTime ?? metaData.readInfo?.readingTime ?? 0,
+        markedStatus: readingProgress >= 100 ? 1 : metaData.readInfo?.markedStatus,
+        readingTime: progress?.book?.readingTime ?? metaData.readInfo?.readingTime ?? 0,
         readingBookDate:
-          progress?.book?.startReadingTime ??
-          metaData.readInfo?.readingBookDate ??
-          0,
-        finishedDate:
-          progress?.book?.finishTime ?? metaData.readInfo?.finishedDate ?? 0,
+          progress?.book?.startReadingTime ?? metaData.readInfo?.readingBookDate ?? 0,
+        finishedDate: progress?.book?.finishTime ?? metaData.readInfo?.finishedDate ?? 0,
         readingProgress,
         totalReadDay: metaData.readInfo?.totalReadDay,
         continueReadDays: metaData.readInfo?.continueReadDays,
@@ -836,9 +900,7 @@ class WeReadService {
     };
   }
 
-  private buildMetadataFromShelfBook(
-    book: ShelfData["books"][number],
-  ): Metadata {
+  private buildMetadataFromShelfBook(book: ShelfData["books"][number]): Metadata {
     return {
       bookId: book.bookId,
       author: book.author ?? "",
@@ -873,7 +935,7 @@ class WeReadService {
 
   private async gatewayRequest<T>(
     apiName: string,
-    params: Record<string, unknown> = {},
+    params: Record<string, unknown> = {}
   ): Promise<T> {
     const apiKey = this.getApiKey();
     if (!apiKey) {
@@ -911,7 +973,7 @@ class WeReadService {
     // 避免官方每发布一个 Skill 新版本就中断本地同步
     if (data.upgrade_info?.message) {
       console.warn(
-        `[WeRead] Skill 版本待升级: 当前 ${data.upgrade_info.current_version ?? SKILL_VERSION}，最新 ${data.upgrade_info.latest_version ?? "未知"}（${data.upgrade_info.message}）`,
+        `[WeRead] Skill 版本待升级: 当前 ${data.upgrade_info.current_version ?? SKILL_VERSION}，最新 ${data.upgrade_info.latest_version ?? "未知"}（${data.upgrade_info.message}）`
       );
     }
     if (data.errcode === -10102) {
@@ -919,7 +981,7 @@ class WeReadService {
     }
     if (data.errcode === -2011 || data.errcode === -2012) {
       throw new WeReadSessionExpiredError(
-        data.errmsg || "连接状态已失效，请重新检查微信读书 API Key",
+        data.errmsg || "连接状态已失效，请重新检查微信读书 API Key"
       );
     }
     if (data.errcode && data.errcode !== 0) {

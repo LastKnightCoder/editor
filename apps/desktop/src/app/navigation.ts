@@ -99,7 +99,7 @@ export const NAV_SECTIONS: NavSection[] = [
         badge: "questions-active",
         children: "question-groups",
       }, // features/questions（A2 三栏清单，D-044；分组嵌在此入口下）
-      { key: "weread", label: "微信读书", icon: BookOpen }, // legacy: WeRead
+      { key: "weread", label: "微信读书", icon: BookOpen }, // features/weread（书架 + 整页笔记，D-059）
     ],
   },
   {
