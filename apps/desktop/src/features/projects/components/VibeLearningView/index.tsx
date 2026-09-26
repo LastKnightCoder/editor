@@ -39,8 +39,10 @@ type Opened =
   /** 测验集的生成过程（笔记类任务跟着笔记走） */
   | { kind: "task"; id: string };
 
-const CHAT_MIN = 320;
-const CHAT_MAX = 600;
+// 停靠时输入框工具栏（添加 / 权限 / 模型 / 思考 / 发送）需要约 460px 才不溢出
+const CHAT_MIN = 480;
+const CHAT_MAX = 680;
+const clampChatWidth = (w: number) => Math.min(CHAT_MAX, Math.max(CHAT_MIN, w));
 
 /** 右栏对话宽度拖拽（左缘 6px 热区；对话本身不因拖拽重挂） */
 function useDockResize(width: number, setWidth: (w: number) => void) {
@@ -48,8 +50,7 @@ function useDockResize(width: number, setWidth: (w: number) => void) {
     e.preventDefault();
     const startX = e.clientX;
     const startW = width;
-    const move = (ev: PointerEvent) =>
-      setWidth(Math.min(CHAT_MAX, Math.max(CHAT_MIN, startW + startX - ev.clientX)));
+    const move = (ev: PointerEvent) => setWidth(clampChatWidth(startW + startX - ev.clientX));
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
@@ -85,8 +86,10 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
     defaultValue: 256,
   });
   const [chatWidth, setChatWidth] = useLocalStorageState("vibe-learning-chat-width", {
-    defaultValue: 400,
+    defaultValue: CHAT_MIN,
   });
+  // 旧版本存下的宽度可能低于新下限，读出时统一夹紧
+  const dockWidth = clampChatWidth(chatWidth ?? CHAT_MIN);
   const [chatOpen, setChatOpen] = useLocalStorageState("vibe-learning-chat-open", {
     defaultValue: true,
   });
@@ -98,7 +101,7 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
   const generationRef = useRef<GenerationHostRef>(null);
   const outputRef = useRef<OutputGroupRef>(null);
   const fetchQuizSets = useVLQuizStore(s => s.fetchQuizSets);
-  const startDockResize = useDockResize(chatWidth ?? 400, setChatWidth);
+  const startDockResize = useDockResize(dockWidth, setChatWidth);
 
   const refreshResources = useMemoizedFn(async () => {
     try {
@@ -364,7 +367,7 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
             dockChat ? "shrink-0 shadow-[inset_1px_0_0_var(--tau-line-2)]" : "flex-1",
             dockChat && !chatOpen && "hidden"
           )}
-          style={dockChat ? { width: chatWidth ?? 400 } : undefined}
+          style={dockChat ? { width: dockWidth } : undefined}
         >
           {dockChat && (
             <div
