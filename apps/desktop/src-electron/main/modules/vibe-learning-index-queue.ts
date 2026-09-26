@@ -3029,14 +3029,15 @@ class VibeLearningIndexQueue extends EventEmitter implements Module {
     }>;
     error?: string;
   }> {
-    const query = params.query.trim();
+    const query = typeof params.query === "string" ? params.query.trim() : "";
     const limit = Math.min(Math.max(1, Math.floor(params.limit || 20)), MAX_GREP_RESULTS);
 
     if (!query) {
       return {
-        success: true,
-        query: params.query,
+        success: false,
+        query: typeof params.query === "string" ? params.query : "",
         results: [],
+        error: "缺少必需的 query 参数",
       };
     }
 
