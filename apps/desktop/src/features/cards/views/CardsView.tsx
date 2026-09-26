@@ -1,9 +1,9 @@
 /**
  * 卡片库主视图 · 一整张纸（mockups/cards/plan-sheet.html 方案 B 定稿）：
- * 纸顶工具栏（标题 / 当前标签 + 摘要 + 导入 / 新建）→ 分类分段 → 纸内三视图（卡片墙 / 图谱 / 表格）。
+ * 纸顶工具栏（标题 / 当前标签 + 摘要 + 导入 / 新建）→ 分类胶囊 → 纸内三视图（卡片墙 / 图谱 / 表格）。
  *
  * 筛选：标签在侧栏「卡片库」入口的子项里（CardsNav 层级树，页面参数 id），页内不放标签树；
- * 分类（4 个，常用且少）留在纸顶分段，按库记忆。两者叠加，三视图同一套筛选——
+ * 分类（4 个，常用且少）留在纸顶胶囊组，按库记忆。两者叠加，三视图同一套筛选——
  * 卡片墙只列命中、图谱高亮命中其余淡出、表格经 CardDatabaseView 外部查询收窄。
  *
  * 视图分工：卡片墙 = 等高网格 + 时间分组 + 行级虚拟滚动（本域实现）；
@@ -31,7 +31,7 @@ import { getScopedCard, openCardInNewWindow } from "@/commands/card";
 import { readTextFile, selectFile } from "@/commands";
 import { downloadMarkdown, getContentLength, getMarkdown, importFromMarkdown } from "@/utils";
 import { getEditorText } from "@/utils/editor";
-import { Button, ConfirmDialog, Loading, Segmented, toast } from "@tau/ui";
+import { Button, cn, ConfirmDialog, Loading, toast } from "@tau/ui";
 import {
   cardDetailKey,
   filterCards,
@@ -225,7 +225,7 @@ export function CardsView() {
 
   return (
     <div className="mx-auto flex h-full min-h-0 w-full min-w-0 max-w-[1760px] flex-col px-4 pb-4 pt-1">
-      {/* 一整张纸：工具栏与分类分段固定在纸顶，视图在纸内滚动 */}
+      {/* 一整张纸：工具栏与分类胶囊固定在纸顶，视图在纸内滚动 */}
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* 工具栏：标题 / 当前标签 + 摘要 + 导入 / 新建 */}
         <div className="mb-2 mt-5 flex h-10 flex-none items-center gap-3 px-8">
@@ -270,34 +270,49 @@ export function CardsView() {
           </Button>
         </div>
 
-        {/* 分类分段：三视图共用（表格也跟随） */}
-        <div className="mb-3 flex flex-none items-center px-8">
-          <Segmented
-            label="卡片分类"
-            value={category}
-            onValueChange={value => setCategory(value as CardFilter["category"])}
-          >
-            {CATEGORY_ORDER.map(key => (
-              <Segmented.Item
+        {/* 分类胶囊：三视图共用（表格也跟随）；单选，选中取分类软底 + 同色字，未选描边 */}
+        <div
+          role="radiogroup"
+          aria-label="卡片分类"
+          className="mb-3 flex flex-none flex-wrap items-center gap-2 px-8"
+        >
+          {CATEGORY_ORDER.map(key => {
+            const active = category === key;
+            const color = key === "all" ? null : CATEGORY_COLORS[key];
+            return (
+              <button
                 key={key}
-                value={key}
-                label={
-                  <span className="flex items-center gap-1.5">
-                    {key !== "all" && (
-                      <span
-                        className="size-[7px] shrink-0 rounded-full"
-                        style={{ background: CATEGORY_COLORS[key].text }}
-                      />
-                    )}
-                    {key === "all" ? "全部" : cardCategoryName[key].slice(0, 2)}
-                    <span className="text-ink-3 text-[11px] font-normal tabular-nums">
-                      {key === "all" ? feed.cards.length : (categoryCount.get(key) ?? 0)}
-                    </span>
-                  </span>
-                }
-              />
-            ))}
-          </Segmented>
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setCategory(key)}
+                className={cn(
+                  "text-tau-meta inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-3 outline-none transition-colors",
+                  "focus-visible:shadow-[var(--tau-focus-ring)]",
+                  active
+                    ? cn("border-transparent font-medium", !color && "bg-selected text-accent-text")
+                    : "border-line-1 text-ink-2 hover:bg-hover hover:text-ink-1"
+                )}
+                style={active && color ? { background: color.soft, color: color.text } : undefined}
+              >
+                {color && (
+                  <span
+                    className="size-[7px] shrink-0 rounded-full"
+                    style={{ background: color.text }}
+                  />
+                )}
+                {key === "all" ? "全部" : cardCategoryName[key].slice(0, 2)}
+                <span
+                  className={cn(
+                    "text-[11px] font-normal tabular-nums",
+                    active ? "opacity-70" : "text-ink-3"
+                  )}
+                >
+                  {key === "all" ? feed.cards.length : (categoryCount.get(key) ?? 0)}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* 主体三视图 */}
