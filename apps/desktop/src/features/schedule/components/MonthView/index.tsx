@@ -199,7 +199,7 @@ const MonthView = () => {
       : [];
 
   return (
-    <div className="flex h-full flex-col px-1.5 pb-1.5 pt-1">
+    <div className="flex h-full flex-col pb-4 pl-1.5 pr-[18px] pt-1">
       <div className="grid flex-none grid-cols-7 pb-1.5 pt-2">
         {WEEKDAYS.map(day => (
           <span key={day} className="text-ink-3 pl-2.5 text-[12px]">

@@ -53,6 +53,8 @@ interface IState {
   showSystemSection: boolean;
   showMyCalendarSection: boolean;
   showArchivedSection: boolean;
+  /** 日程页右侧当日面板是否展开 */
+  showDayPanel: boolean;
 
   // 当前编辑的事件
   editingEvent: CalendarEvent | null;
@@ -107,6 +109,7 @@ interface IActions {
   setShowSystemSection: (show: boolean) => void;
   setShowMyCalendarSection: (show: boolean) => void;
   setShowArchivedSection: (show: boolean) => void;
+  setShowDayPanel: (show: boolean) => void;
 
   // 合并功能
   toggleMergeMode: () => void;
@@ -130,6 +133,7 @@ const initState: IState = {
   showSystemSection: true,
   showMyCalendarSection: true,
   showArchivedSection: false,
+  showDayPanel: true,
   editingEvent: null,
   mergeModeEnabled: false,
   selectedCalendarsForMerge: [],
@@ -364,6 +368,10 @@ const useCalendarStore = create<IState & IActions>()(
         set({ showArchivedSection: show });
       },
 
+      setShowDayPanel: (show: boolean) => {
+        set({ showDayPanel: show });
+      },
+
       toggleMergeMode: () => {
         set(
           produce((state: IState) => {
@@ -416,6 +424,7 @@ const useCalendarStore = create<IState & IActions>()(
         showSystemSection: state.showSystemSection,
         showMyCalendarSection: state.showMyCalendarSection,
         showArchivedSection: state.showArchivedSection,
+        showDayPanel: state.showDayPanel,
       }),
     }
   )
