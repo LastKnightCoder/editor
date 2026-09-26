@@ -5,7 +5,7 @@ import { RouteErrorPage } from "@/components/ErrorState/RouteErrorPage";
 
 const QuickCard = loadable(() => import("@/pages/QuickCard"));
 const EditorWindowPage = loadable(() => import("@/features/editor-window/EditorWindowPage"));
-const SingleMarkdownEditor = loadable(() => import("@/pages/SingleMarkdownEditor"));
+const MarkdownWindowPage = loadable(() => import("@/features/markdown-window/MarkdownWindowPage"));
 
 const QuickOpenLayout = loadable(() => import("@/layouts/QuickOpenLayout"));
 
@@ -44,14 +44,9 @@ const routes = [
     element: <EditorWindowPage />,
   },
   {
-    path: "/single-markdown-editor/",
-    element: <QuickOpenLayout />,
-    children: [
-      {
-        index: true,
-        element: <SingleMarkdownEditor />,
-      },
-    ],
+    // 磁盘 Markdown 文件 / 文件夹窗口（自带标题栏与主题，不走 QuickOpenLayout）
+    path: "/markdown-window",
+    element: <MarkdownWindowPage />,
   },
   {
     path: "/todo",

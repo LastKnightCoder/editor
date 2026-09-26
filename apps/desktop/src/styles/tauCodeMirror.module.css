@@ -1,4 +1,4 @@
-/* Skill 文件的源码编辑：高度随内容，滚动交给外层 FadeScroll；语法色全部取主题 token（深浅主题自动跟随） */
+/* CodeMirror 5 主题皮（Skill 源码、Markdown 窗口源码 / 代码文件共用）：高度随内容，滚动交给外层；语法色全部取主题 token（深浅主题自动跟随） */
 .root :global(.CodeMirror) {
   height: auto;
   background: transparent;
@@ -12,7 +12,14 @@
   margin-bottom: 0;
   padding-bottom: 0;
 }
+/* CM5 在 scroller 里放了 50px 的 heightForcer（官方靠 scroller 的 ±50px 边距抵消，上面已清零），
+ * gutters 也按「文档高 + 50px」内联定高：scroller 因此多出 50px 可滚距离，光标到末行时 CM 会把它
+ * 滚上去——overflow:hidden 下没有滚动条，顶部约两行被截断且拉不回来。两者都去掉，scroller 恒不可滚 */
+.root :global(.CodeMirror-sizer) + div {
+  display: none;
+}
 .root :global(.CodeMirror-gutters) {
+  height: auto !important;
   background: transparent;
   border-right: 0;
 }

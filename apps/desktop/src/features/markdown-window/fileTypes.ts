@@ -1,11 +1,5 @@
 export type FileCategory =
-  | "markdown"
-  | "code"
-  | "image"
-  | "video"
-  | "audio"
-  | "external"
-  | "unknown";
+  "markdown" | "code" | "image" | "video" | "audio" | "external" | "unknown";
 
 const IMAGE_EXTENSIONS = [
   ".png",
@@ -19,37 +13,13 @@ const IMAGE_EXTENSIONS = [
   ".ico",
 ];
 
-const VIDEO_EXTENSIONS = [
-  ".mp4",
-  ".mov",
-  ".mkv",
-  ".webm",
-  ".avi",
-  ".flv",
-  ".wmv",
-];
+const VIDEO_EXTENSIONS = [".mp4", ".mov", ".mkv", ".webm", ".avi", ".flv", ".wmv"];
 
-const AUDIO_EXTENSIONS = [
-  ".mp3",
-  ".m4a",
-  ".aac",
-  ".wav",
-  ".ogg",
-  ".flac",
-  ".wma",
-];
+const AUDIO_EXTENSIONS = [".mp3", ".m4a", ".aac", ".wav", ".ogg", ".flac", ".wma"];
 
 const MARKDOWN_EXTENSIONS = [".md", ".markdown"];
 
-const EXTERNAL_EXTENSIONS = [
-  ".pdf",
-  ".doc",
-  ".docx",
-  ".ppt",
-  ".pptx",
-  ".xls",
-  ".xlsx",
-];
+const EXTERNAL_EXTENSIONS = [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"];
 
 const CODE_EXTENSIONS = [
   ".js",

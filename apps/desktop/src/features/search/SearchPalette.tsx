@@ -56,6 +56,7 @@ import { useShellStore } from "@/app/shellStore";
 import { useThemeStore } from "@tau/ui/theme/runtime";
 import { DEFAULT_DARK_KEY, DEFAULT_LIGHT_KEY } from "@tau/ui/theme";
 import { Spinner, toast } from "@tau/ui";
+import { openMarkdownInNewWindow } from "@/commands/file";
 import type { IndexType, SearchResult } from "@/types";
 import { captureQuestion } from "@/commands/question";
 import { looksLikeQuestion, parseCapture } from "@/features/questions/capture";
@@ -216,6 +217,8 @@ export function SearchPalette() {
       enterCapture("todo");
     } else if (action === "capture-event") {
       enterCapture("event");
+    } else if (action === "open-markdown") {
+      closeAnd(() => void openMarkdownInNewWindow());
     }
   };
 

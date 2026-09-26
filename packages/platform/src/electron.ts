@@ -47,8 +47,7 @@ export function createElectronPlatform(rpc: PlatformInvoker, os: PlatformOs): Pl
       setAlwaysOnTop: (flag: boolean) => invoke<void>("set-always-on-top", flag),
       getState: () => invoke<WindowState>("get-window-state"),
       showAndFocus: () => invoke<void>("show-and-focus-window"),
-      openMarkdownWindow: (filePath: string, options) =>
-        invoke<void>("open-markdown-in-new-window", filePath, options),
+      openMarkdownWindow: (path?: string) => invoke<void>("open-markdown-window", path),
       openEditorWindow: (target: EditorWindowTarget) => invoke<void>("open-editor-window", target),
       closeEditorWindow: (target: EditorWindowTarget) =>
         invoke<void>("close-editor-window", target),

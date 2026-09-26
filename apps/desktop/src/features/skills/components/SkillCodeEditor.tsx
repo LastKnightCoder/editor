@@ -20,7 +20,7 @@ import "codemirror/mode/sql/sql.js";
 import "codemirror/mode/toml/toml.js";
 import "codemirror/addon/edit/closebrackets.js";
 import "codemirror/addon/edit/matchbrackets.js";
-import styles from "./SkillCodeEditor.module.css";
+import styles from "@/styles/tauCodeMirror.module.css";
 
 type Mode = string | ModeSpec<ModeSpecOptions & Record<string, unknown>>;
 
