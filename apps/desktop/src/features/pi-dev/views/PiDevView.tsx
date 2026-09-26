@@ -3,7 +3,7 @@
  * 模型源为旧 llmConfigs 现场经 migrateLlmSettingsToV2 转换（store v2 上线后移除该桥接）。
  * M4 主聊天接入 session store 后本面板退役。
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSettingStore from "@/stores/useSettingStore";
 import { usePiSessionStore } from "@/stores/usePiSessionStore";
 import { migrateLlmSettingsToV2 } from "@/services/llmSettingsMigration";
@@ -103,6 +103,7 @@ export const PiDevView = () => {
     usePiSessionStore();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
+  const bootstrappedRef = useRef(false);
 
   const providers = useMemo(
     // dev 面板只消费 providers；usage 槽位迁移与 store v2 上线一起接入
@@ -129,6 +130,14 @@ export const PiDevView = () => {
       persist: false,
     });
   };
+
+  // 有可用模型时进入面板自动建会话，输入框即开即用
+  useEffect(() => {
+    if (bootstrappedRef.current || sessionId || !activeProvider || !activeModel) return;
+    bootstrappedRef.current = true;
+    void handleCreate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProvider?.id, activeModel?.id, sessionId]);
 
   const handleSend = async () => {
     const text = input.trim();
@@ -194,8 +203,18 @@ export const PiDevView = () => {
       </div>
 
       {error && (
-        <div className="rounded-tau-sm border-danger bg-accent-soft text-tau-sm text-danger border px-3 py-2">
-          {error}
+        <div className="rounded-tau-sm border-danger bg-accent-soft text-tau-sm text-danger flex items-center gap-2 border px-3 py-2">
+          <span className="flex-1">{error}</span>
+          <button
+            className="rounded-tau-sm border-line-2 hover:bg-accent-soft border px-2 py-0.5"
+            onClick={() => {
+              if (sessionId) void closeSession(sessionId);
+              setSessionId(null);
+              bootstrappedRef.current = false;
+            }}
+          >
+            重试
+          </button>
         </div>
       )}
       {vm?.retrying && (
@@ -232,7 +251,8 @@ export const PiDevView = () => {
 
       <div className="flex gap-2">
         <input
-          className="rounded-tau-sm border-line-2 bg-surface text-tau-sm flex-1 border px-3 py-2"
+          autoFocus
+          className="rounded-tau-sm border-line-2 bg-surface text-tau-sm flex-1 border px-3 py-2 disabled:cursor-not-allowed disabled:opacity-50"
           placeholder={vm?.status === "streaming" ? "会话进行中：Enter 插话（steer）" : "发送消息"}
           value={input}
           disabled={!sessionId}
