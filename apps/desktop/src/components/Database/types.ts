@@ -120,6 +120,8 @@ export interface DatabaseProps {
   onRowDelete?: (rowId: string) => Promise<void>;
   theme?: "light" | "dark";
   readonly?: boolean;
+  /** 嵌在页面那张纸内：去掉自身卡片外壳（底色 / 描边 / 阴影 / 圆角），页签条与表格直接铺在纸上 */
+  bare?: boolean;
   className?: string;
 }
 

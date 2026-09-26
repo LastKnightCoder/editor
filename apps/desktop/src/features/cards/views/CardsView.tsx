@@ -333,8 +333,9 @@ export function CardsView() {
           />
         )}
         {view === "database" && (
-          <div className="flex min-h-0 flex-1 flex-col px-8 pb-4">
+          <div className="flex min-h-0 flex-1 flex-col">
             <CardDatabaseView
+              bare
               cards={sorted}
               selectCategory={category}
               tag={tag}

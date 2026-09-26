@@ -21,7 +21,7 @@ export interface DatabaseWorkspaceProps {
   headerExtra?: React.ReactNode;
 }
 
-/** 数据表格工作台骨架：标题行 + Database 视图区。
+/** 数据表格工作台骨架：一整张纸，纸顶标题行 + 纸内 Database 视图区。
  *  数据表格型项目（DataTableProjectView）与文档树表格条目（TableProjectItemView）共用，
  *  实体加载与保存差异由两个薄壳各自承担 */
 const DatabaseWorkspace = memo(
@@ -79,23 +79,24 @@ const DatabaseWorkspace = memo(
     if (!table || !activeView || !views) return null;
 
     return (
-      <div className="mx-auto flex h-full w-full max-w-[1080px] flex-col">
-        <div className="mb-2 flex items-center gap-2 px-4 pb-1 pt-3">
-          <div className="flex-1">
+      <div className="mx-auto flex h-full min-h-0 w-full min-w-0 max-w-[1760px] flex-col px-4 pb-4 pt-1">
+        {/* 一整张纸：标题行在纸顶，Database 去掉自身卡片外壳，页签条与视图直接铺在纸上 */}
+        <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="mt-5 flex h-10 flex-none items-center gap-2 pl-8 pr-7">
             <EditText
               key={titleKey}
               ref={titleRef}
+              className="text-tau-title-lg min-w-0 flex-1 truncate font-semibold tracking-[-0.01em] outline-none"
               defaultValue={title}
               onChange={onTitleChange}
               contentEditable={true}
               onPressEnter={handleTitleCommit}
             />
+            {headerExtra}
           </div>
-          {headerExtra}
-        </div>
-
-        <div className="min-h-0 flex-1 px-4 pb-4">
           <Database
+            bare
+            className="min-h-0 flex-1"
             key={`${table.id}-${activeView.id}`}
             columns={table.columns as ColumnDef[]}
             data={table.rows as RowData[]}
