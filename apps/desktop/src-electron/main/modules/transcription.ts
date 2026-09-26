@@ -160,9 +160,8 @@ class TranscriptionService {
 
     const args = ["-m", modelPath, "-f", audioPath, "-osrt", "-of", outputDir, "-pp"];
 
-    if (language) {
-      args.push("-l", language);
-    }
+    // whisper.cpp 不传 -l 时默认按英语识别（不同于 faster-whisper），自动模式须显式传 auto
+    args.push("-l", language ?? "auto");
 
     if (sentenceLevel) {
       // 句子级断句：限制行宽
