@@ -44,14 +44,13 @@ export enum EPublishProvider {
   Local = "local",
 }
 
-import type { ProviderConfig, ModelConfig, LLMUsageConfig } from "@/types/llm";
+import type { LLMProviderSetting, LLMUsageConfigV2 } from "@/types/pi-llm";
+import { migrateLlmSettingsToV2 } from "@/services/llmSettingsMigration";
 import {
   DEFAULT_TOOL_PERMISSION_MODE,
   type ToolPermissionMode,
 } from "@/services/tool-permission/mode";
 import { useBackendWebsocketStore } from "./useBackendWebsocketStore";
-
-export type { ProviderConfig, ModelConfig, LLMUsageConfig };
 
 const sanitizeDeprecatedLLMUsageSettings = <T extends Partial<ISetting>>(setting: T): T => {
   const nextSetting = setting as T & {
@@ -117,6 +116,27 @@ const migrateImageGenerationConfig = <T extends Partial<ISetting>>(setting: T): 
   }
 };
 
+/** LLM 设置一次性转化（见 services/llmSettingsMigration）：llmConfigs → llmProviders、
+ *  llmUsageSettings 的 modelName 主键 → modelId，转化后删除旧字段 */
+const migrateLLMSettings = (
+  setting: Partial<ISetting> & { llmConfigs?: unknown; llmUsageSettings?: unknown }
+) => {
+  const legacy = setting.llmConfigs;
+  if (!Array.isArray(legacy) || legacy.length === 0) return;
+  if (Array.isArray(setting.llmProviders) && setting.llmProviders.length > 0) {
+    delete setting.llmConfigs;
+    return;
+  }
+  const usage = (setting.llmUsageSettings ?? {}) as Record<
+    string,
+    { providerId: string; modelName: string }
+  >;
+  const result = migrateLlmSettingsToV2({ llmConfigs: legacy as never, llmUsageSettings: usage });
+  setting.llmProviders = result.providers;
+  setting.llmUsageSettings = result.usage as Partial<ISetting>["llmUsageSettings"];
+  delete setting.llmConfigs;
+};
+
 /** 旧 backgroundType(gradient1~9/solid)一次性迁移为 accent + 柔光开关 */
 const migrateAppearanceSetting = (setting: ISetting) => {
   const appearance = setting.appearance as
@@ -136,6 +156,9 @@ const migrateAppearanceSetting = (setting: ISetting) => {
 
 export const mergeSettingWithDefaults = (setting: Partial<ISetting> | ISetting): ISetting => {
   migrateImageGenerationConfig(setting);
+  // LLM 设置一次性转化：旧 llmConfigs（messageFormat×apiProtocol 二维适配）→ pi 对齐的
+  // llmProviders，功能槽位 modelName 改主键 modelId，转化后删除旧字段不留兼容层
+  migrateLLMSettings(setting as Partial<ISetting> & { llmConfigs?: unknown });
   const mergedSetting = structuredClone(defaultSetting);
   const imageGeneration = setting.imageGeneration ? structuredClone(setting.imageGeneration) : null;
   merge(mergedSetting, setting);
@@ -231,23 +254,23 @@ export interface ISetting {
     downloadSource: "modelscope" | "huggingface";
     device: "cuda" | "cpu";
   };
-  llmConfigs: ProviderConfig[];
+  llmProviders: LLMProviderSetting[];
   imageGeneration: ImageGenerationStoreShape;
   /** 通用工具权限模式（D-060）：manual 手动确认 / acceptEdits 自动允许编辑 / bypass 跳过确认 */
   agentPermission: {
     mode: ToolPermissionMode;
   };
   llmUsageSettings: {
-    chat: LLMUsageConfig | null;
-    titleSummary: LLMUsageConfig | null;
-    webClip: LLMUsageConfig | null;
-    podcastGeneration: LLMUsageConfig | null;
-    flashcardGeneration: LLMUsageConfig | null;
-    aiJudgement: LLMUsageConfig | null;
-    transcriptionOptimization: LLMUsageConfig | null;
-    videoSummary: LLMUsageConfig | null;
-    videoEbookRewrite: LLMUsageConfig | null;
-    vibeLearningImageDescription: LLMUsageConfig | null;
+    chat: LLMUsageConfigV2 | null;
+    titleSummary: LLMUsageConfigV2 | null;
+    webClip: LLMUsageConfigV2 | null;
+    podcastGeneration: LLMUsageConfigV2 | null;
+    flashcardGeneration: LLMUsageConfigV2 | null;
+    aiJudgement: LLMUsageConfigV2 | null;
+    transcriptionOptimization: LLMUsageConfigV2 | null;
+    videoSummary: LLMUsageConfigV2 | null;
+    videoEbookRewrite: LLMUsageConfigV2 | null;
+    vibeLearningImageDescription: LLMUsageConfigV2 | null;
   };
   embeddingProvider: {
     currentConfigId: string;
@@ -402,7 +425,7 @@ interface IActions {
   onDarkModeChange: (darkMode: boolean) => void;
   updateLLMUsageSetting: (
     feature: keyof ISetting["llmUsageSettings"],
-    config: LLMUsageConfig | null
+    config: LLMUsageConfigV2 | null
   ) => void;
   setToolPermissionMode: (mode: ToolPermissionMode) => void;
   updateBilibiliCredentials: (
@@ -623,7 +646,7 @@ const initialState: IState = {
       downloadSource: "modelscope",
       device: "cuda",
     },
-    llmConfigs: [],
+    llmProviders: [],
     imageGeneration: {
       currentProviderId: "default-openai",
       providers: [

@@ -66,7 +66,7 @@ export const usePodcastGeneration = () => {
   const [voices, setVoices] = useState<TTSVoice[]>([]);
   const [voicesLoading, setVoicesLoading] = useState(false);
 
-  const { providerConfig, modelConfig } = useLLMConfig("podcastGeneration");
+  const { provider, model } = useLLMConfig("podcastGeneration");
   const podcastTTS = useSettingStore(state => state.setting.integration.podcastTTS);
   const uploadResource = useUploadResource();
 
@@ -145,7 +145,7 @@ export const usePodcastGeneration = () => {
         return "请先配置 TTS 服务提供商";
       }
 
-      if (!providerConfig || !modelConfig) {
+      if (!provider || !model) {
         return "请先配置播客生成的 LLM 模型";
       }
 
@@ -191,8 +191,8 @@ export const usePodcastGeneration = () => {
 
         await new Promise<void>((resolve, reject) => {
           runGenerationTask(
-            providerConfig,
-            modelConfig,
+            provider,
+            model,
             {
               taskType: "podcast",
               sourceType: enableTools ? "vibe_learning" : "provided_content",

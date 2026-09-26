@@ -140,24 +140,24 @@ const hasAnySubscriberForContentId = (contentId: number) => {
 };
 
 const getLLMConfig = (feature: keyof ISetting["llmUsageSettings"] = "chat") => {
-  const { llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
+  const { llmProviders: llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
   const usageConfig = llmUsageSettings[feature];
 
   if (!usageConfig) {
-    return { providerConfig: null, modelConfig: null };
+    return { provider: null, model: null };
   }
 
-  const providerConfig = llmConfigs.find(config => config.id === usageConfig.providerId);
+  const provider = llmConfigs.find(config => config.id === usageConfig.providerId);
 
-  if (!providerConfig) {
-    return { providerConfig: null, modelConfig: null };
+  if (!provider) {
+    return { provider: null, model: null };
   }
 
-  const modelConfig = providerConfig.models?.find(model => model.name === usageConfig.modelName);
+  const model = provider.models?.find(m => m.id === usageConfig.modelId);
 
   return {
-    providerConfig,
-    modelConfig: modelConfig || null,
+    provider,
+    model: model || null,
   };
 };
 
@@ -236,9 +236,9 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
   }
 
   // 获取 LLM 配置
-  const { providerConfig, modelConfig } = getLLMConfig(feature || "chat");
+  const { provider, model } = getLLMConfig(feature || "chat");
 
-  if (!providerConfig || !modelConfig) {
+  if (!provider || !model) {
     throw new Error("未配置 LLM，请在设置中配置聊天模型");
   }
 
@@ -277,8 +277,8 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
   // 通知载荷为快照语义（全量文本 + turnId），插件端经 @tau/shared 的
   // applyChatStreamEvent 归约，与桌面本地块组装走同一套逻辑
   await chatStreamCore({
-    providerConfig,
-    modelConfig,
+    provider,
+    model,
     messages: finalMessages,
     enableTools,
     conversationKey,
@@ -456,13 +456,13 @@ const handleResourceUpload = async (request: RpcRequestMessage) => {
 // ==================== 设置相关 RPC 处理器 ====================
 
 const handleSettingsGetLlmConfigs = async () => {
-  const { llmConfigs } = useSettingStore.getState().setting;
+  const { llmProviders: llmConfigs } = useSettingStore.getState().setting;
   return { llmConfigs };
 };
 
 const handleSettingsGetChatModelConfig = async () => {
-  const { providerConfig, modelConfig } = getLLMConfig("chat");
-  return { providerConfig, modelConfig };
+  const { provider, model } = getLLMConfig("chat");
+  return { provider, model };
 };
 
 const handleSettingsSetLlmUsage = async (request: RpcRequestMessage) => {

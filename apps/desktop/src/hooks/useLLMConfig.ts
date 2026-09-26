@@ -1,9 +1,9 @@
 import useSettingStore from "@/stores/useSettingStore";
-import type { ProviderConfig, ModelConfig } from "@/types/llm";
+import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
 
 interface LLMConfigResult {
-  providerConfig: ProviderConfig | null;
-  modelConfig: ModelConfig | null;
+  provider: LLMProviderSetting | null;
+  model: LLMModelSetting | null;
 }
 
 export const useLLMConfig = (
@@ -16,40 +16,34 @@ export const useLLMConfig = (
     | "aiJudgement"
     | "transcriptionOptimization"
     | "videoSummary"
-    | "videoEbookRewrite",
+    | "videoEbookRewrite"
 ): LLMConfigResult => {
-  const llmConfigs = useSettingStore((state) => state.setting.llmConfigs);
-  const llmUsageSettings = useSettingStore(
-    (state) => state.setting.llmUsageSettings,
-  );
+  const llmProviders = useSettingStore(state => state.setting.llmProviders);
+  const llmUsageSettings = useSettingStore(state => state.setting.llmUsageSettings);
 
   const usageConfig = llmUsageSettings[feature];
 
   if (!usageConfig) {
     return {
-      providerConfig: null,
-      modelConfig: null,
+      provider: null,
+      model: null,
     };
   }
 
-  const providerConfig = llmConfigs.find(
-    (config) => config.id === usageConfig.providerId,
-  );
+  const provider = llmProviders.find(config => config.id === usageConfig.providerId);
 
-  if (!providerConfig) {
+  if (!provider) {
     return {
-      providerConfig: null,
-      modelConfig: null,
+      provider: null,
+      model: null,
     };
   }
 
-  const modelConfig = providerConfig.models?.find(
-    (model) => model.name === usageConfig.modelName,
-  );
+  const model = provider.models?.find(model => model.id === usageConfig.modelId);
 
   return {
-    providerConfig,
-    modelConfig: modelConfig || null,
+    provider,
+    model: model || null,
   };
 };
 

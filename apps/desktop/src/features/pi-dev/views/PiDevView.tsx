@@ -3,10 +3,9 @@
  * 模型源为旧 llmConfigs 现场经 migrateLlmSettingsToV2 转换（store v2 上线后移除该桥接）。
  * M4 主聊天接入 session store 后本面板退役。
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useSettingStore from "@/stores/useSettingStore";
 import { usePiSessionStore } from "@/stores/usePiSessionStore";
-import { migrateLlmSettingsToV2 } from "@/services/llmSettingsMigration";
 import type { PiSessionVM, PiTranscriptItem } from "@/services/piSessionModel";
 
 const TRANSCRIPT_ITEM_STYLE =
@@ -100,18 +99,14 @@ const ExecutionsPanel = ({ vm }: { vm: PiSessionVM }) => {
 };
 
 export const PiDevView = () => {
-  const llmConfigs = useSettingStore(state => state.setting.llmConfigs);
+  const llmProviders = useSettingStore(state => state.setting.llmProviders);
   const { sessions, errors, ensureSession, sendText, steerText, abortSession, closeSession } =
     usePiSessionStore();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const bootstrappedRef = useRef(false);
 
-  const providers = useMemo(
-    // dev 面板只消费 providers；usage 槽位迁移与 store v2 上线一起接入
-    () => migrateLlmSettingsToV2({ llmConfigs, llmUsageSettings: {} }).providers,
-    [llmConfigs]
-  );
+  const providers = llmProviders;
   const [providerId, setProviderId] = useState("");
   const [modelId, setModelId] = useState("");
   const [shellPath, setShellPath] = useState("");

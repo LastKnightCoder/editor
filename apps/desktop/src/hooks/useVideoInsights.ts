@@ -5,39 +5,27 @@ import {
   VIDEO_INSIGHTS_SYSTEM_PROMPT,
   buildVideoInsightsUserPrompt,
 } from "@/constants/prompts/video-insights";
-import {
-  computeTranscriptHash,
-  parseVideoInsightsResponse,
-} from "./video-insights-parser";
+import { computeTranscriptHash, parseVideoInsightsResponse } from "./video-insights-parser";
 import { Role } from "@/constants";
-import type {
-  ProviderConfig,
-  ModelConfig,
-  RequestMessage,
-  TranscriptSegment,
-  VideoNoteInsights,
-} from "@/types";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
+import type { RequestMessage, TranscriptSegment, VideoNoteInsights } from "@/types";
 
 interface UseVideoInsightsResult {
   isGenerating: boolean;
   error: Error | null;
-  generateInsights: (
-    transcriptSegments: TranscriptSegment[],
-  ) => Promise<VideoNoteInsights>;
+  generateInsights: (transcriptSegments: TranscriptSegment[]) => Promise<VideoNoteInsights>;
 }
 
 export const useVideoInsights = (
-  providerConfig: ProviderConfig | null,
-  modelConfig: ModelConfig | null,
+  provider: LLMProviderSetting | null,
+  model: LLMModelSetting | null
 ): UseVideoInsightsResult => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   const generateInsights = useMemoizedFn(
-    async (
-      transcriptSegments: TranscriptSegment[],
-    ): Promise<VideoNoteInsights> => {
-      if (!providerConfig || !modelConfig) {
+    async (transcriptSegments: TranscriptSegment[]): Promise<VideoNoteInsights> => {
+      if (!provider || !model) {
         const err = new Error("未配置视频总结模型");
         setError(err);
         throw err;
@@ -66,7 +54,7 @@ export const useVideoInsights = (
           },
         ];
 
-        const response = await chatLLM(providerConfig, modelConfig, messages);
+        const response = await chatLLM(provider, model, messages);
         const transcriptHash = computeTranscriptHash("", transcriptSegments);
 
         return parseVideoInsightsResponse(response || "", {
@@ -74,9 +62,9 @@ export const useVideoInsights = (
           transcriptHash,
           transcriptSegments,
           modelMeta: {
-            providerId: providerConfig.id,
-            providerName: providerConfig.name,
-            modelName: modelConfig.name,
+            providerId: provider.id,
+            providerName: provider.name,
+            modelName: model.name,
           },
         });
       } catch (e) {
@@ -86,7 +74,7 @@ export const useVideoInsights = (
       } finally {
         setIsGenerating(false);
       }
-    },
+    }
   );
 
   return {

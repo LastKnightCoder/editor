@@ -3,18 +3,11 @@ import type { Descendant } from "slate";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import { chatLLMStream } from "./useChatLLM";
 import { getMarkdown } from "@/utils/markdown";
-import {
-  FLASHCARD_GENERATION_PROMPT,
-  FLASHCARD_GENERATION_USER_PROMPT,
-} from "@/constants/prompts";
+import { FLASHCARD_GENERATION_PROMPT, FLASHCARD_GENERATION_USER_PROMPT } from "@/constants/prompts";
 import { Role } from "@/constants";
-import type { ProviderConfig, ModelConfig } from "@/types/llm";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
 import type { RequestMessage } from "@/types";
-import type {
-  FlashcardType,
-  FlashcardData,
-  FlashcardDifficulty,
-} from "@/types/flashcard";
+import type { FlashcardType, FlashcardData, FlashcardDifficulty } from "@/types/flashcard";
 import { textToDescendants, parseTextWithBlanks } from "@/utils/flashcard";
 
 export interface GeneratedFlashcard {
@@ -41,7 +34,7 @@ interface UseFlashcardGenerationResult {
   deselectAll: () => void;
   updateCard: (
     cardId: string,
-    updates: Partial<Omit<GeneratedFlashcard, "id" | "selected">>,
+    updates: Partial<Omit<GeneratedFlashcard, "id" | "selected">>
   ) => void;
   reset: () => void;
 }
@@ -83,7 +76,7 @@ const parseFlashcardResponse = (jsonStr: string): GeneratedFlashcard[] => {
     throw new Error("Response is not an array");
   }
 
-  return parsed.map((card) => {
+  return parsed.map(card => {
     // Parse prompt - use parseTextWithBlanks for cloze type to handle {{blank:xx}} markers
     let promptDescendants: Descendant[];
     if (typeof card.prompt === "string") {
@@ -115,12 +108,10 @@ const parseFlashcardResponse = (jsonStr: string): GeneratedFlashcard[] => {
 };
 
 export const useFlashcardGeneration = (
-  providerConfig: ProviderConfig | null,
-  modelConfig: ModelConfig | null,
+  provider: LLMProviderSetting | null,
+  model: LLMModelSetting | null
 ): UseFlashcardGenerationResult => {
-  const [generatedCards, setGeneratedCards] = useState<GeneratedFlashcard[]>(
-    [],
-  );
+  const [generatedCards, setGeneratedCards] = useState<GeneratedFlashcard[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPending, setIsPending] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -139,11 +130,11 @@ export const useFlashcardGeneration = (
         // Not yet valid JSON, continue accumulating
       }
     },
-    { wait: 200 },
+    { wait: 200 }
   );
 
   const startGeneration = useMemoizedFn((content: Descendant[]) => {
-    if (!providerConfig || !modelConfig) {
+    if (!provider || !model) {
       setError(new Error("未配置闪卡生成模型"));
       return;
     }
@@ -164,13 +155,11 @@ export const useFlashcardGeneration = (
       },
       {
         role: Role.User,
-        content: [
-          { type: "text", text: FLASHCARD_GENERATION_USER_PROMPT(markdown) },
-        ],
+        content: [{ type: "text", text: FLASHCARD_GENERATION_USER_PROMPT(markdown) }],
       },
     ];
 
-    chatLLMStream(providerConfig, modelConfig, messages, {
+    chatLLMStream(provider, model, messages, {
       onUpdate: (responseText: string) => {
         setIsPending(false);
         accumulatedRef.current = responseText;
@@ -186,9 +175,7 @@ export const useFlashcardGeneration = (
           setGeneratedCards(cards);
           setRawOutput(fullContent);
         } catch (err) {
-          setError(
-            new Error(`解析闪卡失败: ${(err as Error).message}`),
-          );
+          setError(new Error(`解析闪卡失败: ${(err as Error).message}`));
           setRawOutput(fullContent);
         }
       },
@@ -213,35 +200,26 @@ export const useFlashcardGeneration = (
   }, []);
 
   const toggleCardSelection = useCallback((cardId: string) => {
-    setGeneratedCards((prev) =>
-      prev.map((card) =>
-        card.id === cardId ? { ...card, selected: !card.selected } : card,
-      ),
+    setGeneratedCards(prev =>
+      prev.map(card => (card.id === cardId ? { ...card, selected: !card.selected } : card))
     );
   }, []);
 
   const selectAll = useCallback(() => {
-    setGeneratedCards((prev) => prev.map((card) => ({ ...card, selected: true })));
+    setGeneratedCards(prev => prev.map(card => ({ ...card, selected: true })));
   }, []);
 
   const deselectAll = useCallback(() => {
-    setGeneratedCards((prev) =>
-      prev.map((card) => ({ ...card, selected: false })),
-    );
+    setGeneratedCards(prev => prev.map(card => ({ ...card, selected: false })));
   }, []);
 
   const updateCard = useCallback(
-    (
-      cardId: string,
-      updates: Partial<Omit<GeneratedFlashcard, "id" | "selected">>,
-    ) => {
-      setGeneratedCards((prev) =>
-        prev.map((card) =>
-          card.id === cardId ? { ...card, ...updates } : card,
-        ),
+    (cardId: string, updates: Partial<Omit<GeneratedFlashcard, "id" | "selected">>) => {
+      setGeneratedCards(prev =>
+        prev.map(card => (card.id === cardId ? { ...card, ...updates } : card))
       );
     },
-    [],
+    []
   );
 
   const reset = useCallback(() => {

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { Role } from "@/constants";
-import type { ProviderConfig, ModelConfig, RequestMessage } from "@/types/llm";
+import type { RequestMessage } from "@/types/llm";
+import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
 
 const {
   chatMock,
@@ -71,11 +72,12 @@ import {
 } from "../useChatLLM";
 
 describe("hooks/useChatLLM headers", () => {
-  const providerConfig: ProviderConfig = {
+  const providerConfig: LLMProviderSetting = {
     id: "provider-1",
     name: "provider-1",
     apiKey: "test-key",
     baseUrl: "https://example.com/v1",
+    api: "openai-completions",
     models: [],
   };
 
@@ -122,24 +124,19 @@ describe("hooks/useChatLLM headers", () => {
 
   it("应使用模型配置中的自定义 User-Agent", async () => {
     const onError = vi.fn();
-    const modelConfig: ModelConfig = {
-      name: "custom-model",
-      description: "Custom model",
-      userAgent: "  CustomClient/2.0  ",
-      temperature: 1,
-      features: {
-        online: true,
-        thinking: true,
-        image: false,
-        video: false,
-        audio: false,
-        file: false,
-      },
+    const modelConfig: LLMModelSetting = {
+      id: "custom-model",
+      reasoning: true,
+      input: ["text"],
+      contextWindow: 128_000,
+      maxTokens: 8_192,
+      samplingParams: { temperature: 1 },
+      headers: { "User-Agent": "CustomClient/2.0" },
     };
 
     await chatStreamCore({
-      providerConfig,
-      modelConfig,
+      provider: providerConfig,
+      model: modelConfig,
       messages,
       enableTools: false,
       onError,
@@ -160,23 +157,18 @@ describe("hooks/useChatLLM headers", () => {
 
   it("K3 不使用特殊参数，temperature 和 reasoning_effort 按通用链路发送", async () => {
     const onError = vi.fn();
-    const modelConfig: ModelConfig = {
-      name: "k3",
-      description: "K3",
-      temperature: 1,
-      features: {
-        online: true,
-        thinking: true,
-        image: false,
-        video: false,
-        audio: false,
-        file: false,
-      },
+    const modelConfig: LLMModelSetting = {
+      id: "k3",
+      reasoning: true,
+      input: ["text"],
+      contextWindow: 128_000,
+      maxTokens: 8_192,
+      samplingParams: { temperature: 1 },
     };
 
     await chatStreamCore({
-      providerConfig,
-      modelConfig,
+      provider: providerConfig,
+      model: modelConfig,
       messages,
       enableTools: false,
       reasoningEffort: "high",
@@ -195,22 +187,17 @@ describe("hooks/useChatLLM headers", () => {
 
   it("未配置 User-Agent 时不应再按模型名称写死请求头", async () => {
     const onError = vi.fn();
-    const modelConfig: ModelConfig = {
-      name: "kimi-for-coding",
-      description: "Kimi",
-      features: {
-        online: true,
-        thinking: true,
-        image: false,
-        video: false,
-        audio: false,
-        file: false,
-      },
+    const modelConfig: LLMModelSetting = {
+      id: "kimi-for-coding",
+      reasoning: true,
+      input: ["text"],
+      contextWindow: 128_000,
+      maxTokens: 8_192,
     };
 
     await chatStreamCore({
-      providerConfig,
-      modelConfig,
+      provider: providerConfig,
+      model: modelConfig,
       messages,
       enableTools: false,
       onError,
@@ -223,23 +210,17 @@ describe("hooks/useChatLLM headers", () => {
 
   it("Responses 模型应请求 /responses 并使用无状态 payload", async () => {
     const onError = vi.fn();
-    const modelConfig: ModelConfig = {
-      name: "gpt-5.1",
-      description: "OpenAI Responses",
-      apiProtocol: "responses",
-      features: {
-        online: true,
-        thinking: true,
-        image: false,
-        video: false,
-        audio: false,
-        file: false,
-      },
+    const modelConfig: LLMModelSetting = {
+      id: "gpt-5.1",
+      reasoning: true,
+      input: ["text"],
+      contextWindow: 400_000,
+      maxTokens: 128_000,
     };
 
     await chatStreamCore({
-      providerConfig,
-      modelConfig,
+      provider: { ...providerConfig, api: "openai-responses" },
+      model: modelConfig,
       messages,
       enableTools: false,
       reasoningEffort: "medium",
@@ -272,18 +253,12 @@ describe("hooks/useChatLLM headers", () => {
   it("Claude native payload 应携带 Anthropic prompt cache 控制字段", async () => {
     const onError = vi.fn();
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
-    const modelConfig: ModelConfig = {
-      name: "claude-opus-4-6-v1",
-      description: "Claude",
-      messageFormat: "claude",
-      features: {
-        online: true,
-        thinking: true,
-        image: false,
-        video: false,
-        audio: false,
-        file: false,
-      },
+    const modelConfig: LLMModelSetting = {
+      id: "claude-opus-4-6-v1",
+      reasoning: true,
+      input: ["text"],
+      contextWindow: 200_000,
+      maxTokens: 8_192,
     };
     const requestMessages: RequestMessage[] = [
       {
@@ -308,8 +283,8 @@ describe("hooks/useChatLLM headers", () => {
     normalizeRequestMessagesMock.mockImplementation(async incoming => incoming);
 
     await chatStreamCore({
-      providerConfig,
-      modelConfig,
+      provider: { ...providerConfig, api: "anthropic-messages" },
+      model: modelConfig,
       messages: requestMessages,
       enableTools: false,
       onError,
@@ -376,25 +351,18 @@ describe("hooks/useChatLLM headers", () => {
   it("Claude native payload 应使用模型配置的最大输出 token", async () => {
     const onError = vi.fn();
     vi.spyOn(console, "info").mockImplementation(() => {});
-    const modelConfig: ModelConfig = {
-      name: "claude-sonnet-4-6",
-      description: "Claude",
-      messageFormat: "claude",
-      maxOutputTokens: 32000,
-      features: {
-        online: true,
-        thinking: true,
-        image: false,
-        video: false,
-        audio: false,
-        file: false,
-      },
+    const modelConfig: LLMModelSetting = {
+      id: "claude-sonnet-4-6",
+      reasoning: true,
+      input: ["text"],
+      contextWindow: 200_000,
+      maxTokens: 32000,
     };
     normalizeRequestMessagesMock.mockImplementation(async incoming => incoming);
 
     await chatStreamCore({
-      providerConfig,
-      modelConfig,
+      provider: { ...providerConfig, api: "anthropic-messages" },
+      model: modelConfig,
       messages,
       enableTools: false,
       onError,
@@ -412,18 +380,12 @@ describe("hooks/useChatLLM headers", () => {
   it("Claude native payload 应给最后一段稳定 assistant 历史添加缓存断点", async () => {
     const onError = vi.fn();
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
-    const modelConfig: ModelConfig = {
-      name: "claude-opus-4-6-v1",
-      description: "Claude",
-      messageFormat: "claude",
-      features: {
-        online: true,
-        thinking: true,
-        image: false,
-        video: false,
-        audio: false,
-        file: false,
-      },
+    const modelConfig: LLMModelSetting = {
+      id: "claude-opus-4-6-v1",
+      reasoning: true,
+      input: ["text"],
+      contextWindow: 200_000,
+      maxTokens: 8_192,
     };
     const requestMessages: RequestMessage[] = [
       {
@@ -446,8 +408,8 @@ describe("hooks/useChatLLM headers", () => {
     normalizeRequestMessagesMock.mockImplementation(async incoming => incoming);
 
     await chatStreamCore({
-      providerConfig,
-      modelConfig,
+      provider: { ...providerConfig, api: "anthropic-messages" },
+      model: modelConfig,
       messages: requestMessages,
       enableTools: false,
       onError,
@@ -506,18 +468,12 @@ describe("hooks/useChatLLM headers", () => {
   it("Claude native payload 应给最新工具结果添加缓存断点", async () => {
     const onError = vi.fn();
     const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
-    const modelConfig: ModelConfig = {
-      name: "claude-opus-4-6-v1",
-      description: "Claude",
-      messageFormat: "claude",
-      features: {
-        online: true,
-        thinking: true,
-        image: false,
-        video: false,
-        audio: false,
-        file: false,
-      },
+    const modelConfig: LLMModelSetting = {
+      id: "claude-opus-4-6-v1",
+      reasoning: true,
+      input: ["text"],
+      contextWindow: 200_000,
+      maxTokens: 8_192,
     };
     const requestMessages: RequestMessage[] = [
       {
@@ -555,8 +511,8 @@ describe("hooks/useChatLLM headers", () => {
     normalizeRequestMessagesMock.mockImplementation(async incoming => incoming);
 
     await chatStreamCore({
-      providerConfig,
-      modelConfig,
+      provider: { ...providerConfig, api: "anthropic-messages" },
+      model: modelConfig,
       messages: requestMessages,
       enableTools: false,
       onError,
@@ -626,23 +582,17 @@ describe("hooks/useChatLLM headers", () => {
 
   it("OpenAI Responses payload 当前不携带缓存优化字段", async () => {
     const onError = vi.fn();
-    const modelConfig: ModelConfig = {
-      name: "gpt-5.5",
-      description: "OpenAI Responses",
-      apiProtocol: "responses",
-      features: {
-        online: true,
-        thinking: true,
-        image: false,
-        video: false,
-        audio: false,
-        file: false,
-      },
+    const modelConfig: LLMModelSetting = {
+      id: "gpt-5.5",
+      reasoning: true,
+      input: ["text"],
+      contextWindow: 400_000,
+      maxTokens: 128_000,
     };
 
     await chatStreamCore({
-      providerConfig,
-      modelConfig,
+      provider: { ...providerConfig, api: "openai-responses" },
+      model: modelConfig,
       messages,
       enableTools: false,
       onError,
@@ -656,17 +606,12 @@ describe("hooks/useChatLLM headers", () => {
   });
 
   it("工具轮次应可直接消费 AgentEvent 并保持旧 callback 语义", async () => {
-    const modelConfig: ModelConfig = {
-      name: "gpt-4.1",
-      description: "OpenAI",
-      features: {
-        online: true,
-        thinking: true,
-        image: false,
-        video: false,
-        audio: false,
-        file: false,
-      },
+    const modelConfig: LLMModelSetting = {
+      id: "gpt-4.1",
+      reasoning: true,
+      input: ["text"],
+      contextWindow: 128_000,
+      maxTokens: 8_192,
     };
 
     const toolCall = {
@@ -731,8 +676,8 @@ describe("hooks/useChatLLM headers", () => {
     const onError = vi.fn();
 
     await chatStreamCore({
-      providerConfig,
-      modelConfig,
+      provider: providerConfig,
+      model: modelConfig,
       messages,
       enableTools: true,
       onFinish,
@@ -765,17 +710,12 @@ describe("hooks/useChatLLM headers", () => {
   });
 
   it("仅在传入 skills 时注入内置 skill 工具，且不会与旧 registry 重复", async () => {
-    const modelConfig: ModelConfig = {
-      name: "gpt-4.1",
-      description: "OpenAI",
-      features: {
-        online: true,
-        thinking: true,
-        image: false,
-        video: false,
-        audio: false,
-        file: false,
-      },
+    const modelConfig: LLMModelSetting = {
+      id: "gpt-4.1",
+      reasoning: true,
+      input: ["text"],
+      contextWindow: 128_000,
+      maxTokens: 8_192,
     };
 
     const registeredTool = {
@@ -807,8 +747,8 @@ describe("hooks/useChatLLM headers", () => {
     ] as any);
 
     await chatStreamCore({
-      providerConfig,
-      modelConfig,
+      provider: providerConfig,
+      model: modelConfig,
       messages,
       enableTools: true,
     });
@@ -822,8 +762,8 @@ describe("hooks/useChatLLM headers", () => {
     streamMock.mockClear();
 
     await chatStreamCore({
-      providerConfig,
-      modelConfig,
+      provider: providerConfig,
+      model: modelConfig,
       messages,
       enableTools: true,
       skills: [
@@ -847,17 +787,12 @@ describe("hooks/useChatLLM headers", () => {
   });
 
   it("传入 skills 时应将多个 system message 合并为一个并保持顺序", async () => {
-    const modelConfig: ModelConfig = {
-      name: "gpt-4.1",
-      description: "OpenAI",
-      features: {
-        online: true,
-        thinking: true,
-        image: false,
-        video: false,
-        audio: false,
-        file: false,
-      },
+    const modelConfig: LLMModelSetting = {
+      id: "gpt-4.1",
+      reasoning: true,
+      input: ["text"],
+      contextWindow: 128_000,
+      maxTokens: 8_192,
     };
 
     const requestMessages: RequestMessage[] = [
@@ -874,8 +809,8 @@ describe("hooks/useChatLLM headers", () => {
     normalizeRequestMessagesMock.mockImplementation(async incoming => incoming);
 
     await chatStreamCore({
-      providerConfig,
-      modelConfig,
+      provider: providerConfig,
+      model: modelConfig,
       messages: requestMessages,
       enableTools: false,
       skills: [
@@ -909,17 +844,12 @@ describe("hooks/useChatLLM headers", () => {
 
   it("同步 chatLLM 应复用 Agent 主链路而不是旧 chat 分支", async () => {
     const onNotice = vi.fn();
-    const modelConfig: ModelConfig = {
-      name: "gpt-4.1",
-      description: "OpenAI",
-      features: {
-        online: true,
-        thinking: true,
-        image: false,
-        video: false,
-        audio: false,
-        file: false,
-      },
+    const modelConfig: LLMModelSetting = {
+      id: "gpt-4.1",
+      reasoning: true,
+      input: ["text"],
+      contextWindow: 128_000,
+      maxTokens: 8_192,
     };
 
     streamMock.mockImplementationOnce(async (...args) => {

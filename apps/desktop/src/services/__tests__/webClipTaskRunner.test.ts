@@ -1,33 +1,26 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ChatStreamCoreOptions } from "@/hooks/useChatLLM";
-import {
-  WebClipTaskRunner,
-  type WebClipTaskRunnerDeps,
-} from "../webClipTaskRunner";
+import { WebClipTaskRunner, type WebClipTaskRunnerDeps } from "../webClipTaskRunner";
 
 vi.mock("@/hooks/useChatLLM", () => ({
   chatStreamCore: vi.fn(),
 }));
 
-const providerConfig = {
+const provider: import("@/types/pi-llm").LLMProviderSetting = {
   id: "provider-1",
   name: "Provider",
   apiKey: "key",
   baseUrl: "https://example.test/v1",
+  api: "openai-completions",
   models: [],
 };
 
-const modelConfig = {
-  name: "model-1",
-  description: "Model",
-  features: {
-    online: false,
-    thinking: true,
-    image: false,
-    video: false,
-    audio: false,
-    file: false,
-  },
+const model: import("@/types/pi-llm").LLMModelSetting = {
+  id: "model-1",
+  reasoning: true,
+  input: ["text"],
+  contextWindow: 65536,
+  maxTokens: 4096,
 };
 
 const createRunner = (overrides: Partial<WebClipTaskRunnerDeps> = {}) => {
@@ -41,7 +34,7 @@ const createRunner = (overrides: Partial<WebClipTaskRunnerDeps> = {}) => {
   });
 
   const runner = new WebClipTaskRunner({
-    getLLMConfig: () => ({ providerConfig, modelConfig }),
+    getLLMConfig: () => ({ provider, model }),
     chatStreamCore,
     saveWebClip,
     ...overrides,
@@ -59,7 +52,7 @@ const startParams = {
 };
 
 const waitForAsyncWork = () =>
-  new Promise((resolve) => {
+  new Promise(resolve => {
     setTimeout(resolve, 0);
   });
 
@@ -76,11 +69,11 @@ describe("WebClipTaskRunner", () => {
 
     expect(chatStreamCore).toHaveBeenCalledWith(
       expect.objectContaining({
-        providerConfig,
-        modelConfig,
+        provider,
+        model,
         enableTools: false,
         disableAnimation: true,
-      }),
+      })
     );
     expect(progress).toHaveBeenCalledWith({
       projectItemId: 1,
@@ -118,18 +111,14 @@ describe("WebClipTaskRunner", () => {
     await runner.start(startParams);
     await waitForAsyncWork();
 
-    expect(progress).toHaveBeenLastCalledWith(
-      expect.objectContaining({ markdown: "# 标题" }),
-    );
-    expect(complete).toHaveBeenCalledWith(
-      expect.objectContaining({ markdown: "# 标题" }),
-    );
+    expect(progress).toHaveBeenLastCalledWith(expect.objectContaining({ markdown: "# 标题" }));
+    expect(complete).toHaveBeenCalledWith(expect.objectContaining({ markdown: "# 标题" }));
   });
 
   it("同一 projectItemId 重复启动时会取消旧任务并以新任务为准", async () => {
     let firstController: AbortController | undefined;
     let releaseFirst!: () => void;
-    const firstRun = new Promise<void>((resolve) => {
+    const firstRun = new Promise<void>(resolve => {
       releaseFirst = resolve;
     });
     const chatStreamCore = vi
@@ -162,7 +151,7 @@ describe("WebClipTaskRunner", () => {
 
   it("取消订阅后任务仍可通过 getStatus 恢复进度", async () => {
     let releaseRun!: () => void;
-    const running = new Promise<void>((resolve) => {
+    const running = new Promise<void>(resolve => {
       releaseRun = resolve;
     });
     const { runner } = createRunner({

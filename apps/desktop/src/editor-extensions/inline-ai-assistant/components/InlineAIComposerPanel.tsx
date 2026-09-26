@@ -13,15 +13,14 @@ import { chatLLMStream } from "@/hooks/useChatLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useTheme from "@/hooks/useTheme";
 import useSkillStore from "@/stores/useSkillStore";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
 import type {
   AssistantBlock,
   ChatSessionMessage,
-  ModelConfig,
-  ProviderConfig,
   RequestMessage,
   ResponseMessage,
   ToolCallExecutionState,
-} from "@/types";
+} from "@/types/llm";
 import {
   buildInlineContextPrompt,
   buildInlineEditorContext,
@@ -109,7 +108,7 @@ const InlineAIComposerPanel = ({
   onClose,
 }: InlineAIComposerPanelProps) => {
   const { isDark } = useTheme();
-  const { providerConfig, modelConfig } = useLLMConfig("chat");
+  const { provider, model } = useLLMConfig("chat");
   const skills = useSkillStore(state => state.skills);
   const loadSkills = useSkillStore(state => state.loadSkills);
 
@@ -259,7 +258,7 @@ const InlineAIComposerPanel = ({
         toast.error("无法确定 contentId，已阻止自动写入。请切换到可编辑内容页后重试。");
         return false;
       }
-      if (!providerConfig || !modelConfig) {
+      if (!provider || !model) {
         toast.error("未配置聊天模型，请先在设置中完成 chat 模型配置。");
         return false;
       }
@@ -350,7 +349,7 @@ const InlineAIComposerPanel = ({
         });
       };
 
-      chatLLMStream(providerConfig as ProviderConfig, modelConfig as ModelConfig, requestMessages, {
+      chatLLMStream(provider as LLMProviderSetting, model as LLMModelSetting, requestMessages, {
         enableTools: true,
         conversationKey: buildInlineConversationKey(activeContext.contentId),
         toolContext: options?.toolContext,

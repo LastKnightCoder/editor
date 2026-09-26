@@ -7,7 +7,6 @@ export type SettingsTabKey =
   | "imageBed"
   | "sync"
   | "publish"
-  | "llm"
   | "imageGeneration"
   | "embedding"
   | "textToSpeech"

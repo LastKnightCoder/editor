@@ -18,7 +18,7 @@ import { cleanReportHtmlContent } from "@/constants/prompts/report-generation";
 import { getTemplateById, getDefaultTemplate } from "@/constants/ppt-templates";
 import { getReportTemplateById, getDefaultReportTemplate } from "@/constants/report-templates";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
-import type { ModelConfig, ProviderConfig } from "@/types/llm";
+import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
 import type { PodcastSpeaker } from "@/types/podcast";
 import type { VLNote, VLNoteType } from "@/types/vibe-learning";
 import { getContentLength, getMarkdown, importFromMarkdown } from "@/utils";
@@ -75,13 +75,13 @@ interface Runtime {
 const runtimes = new Map<string, Runtime>();
 
 function llmConfig(feature: "chat" | "podcastGeneration"): {
-  provider: ProviderConfig;
-  model: ModelConfig;
+  provider: LLMProviderSetting;
+  model: LLMModelSetting;
 } {
-  const { llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
+  const { llmProviders: llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
   const usage = llmUsageSettings[feature];
   const provider = usage ? llmConfigs.find(c => c.id === usage.providerId) : undefined;
-  const model = usage ? provider?.models?.find(m => m.name === usage.modelName) : undefined;
+  const model = usage ? provider?.models?.find(m => m.id === usage.modelId) : undefined;
   if (!provider || !model) {
     throw new Error(
       feature === "podcastGeneration"
@@ -297,7 +297,7 @@ export async function retryVLTask(taskId: string) {
 async function execute(
   taskId: string,
   runtime: Runtime,
-  config: { provider: ProviderConfig; model: ModelConfig },
+  config: { provider: LLMProviderSetting; model: LLMModelSetting },
   currentHtml?: string
 ) {
   const { input } = runtime;

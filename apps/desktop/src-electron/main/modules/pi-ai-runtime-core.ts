@@ -22,7 +22,6 @@ import type {
   PiApiKind,
   PiSingleShotRequest,
 } from "@/types/pi-llm";
-import { migrateLlmSettingsToV2 } from "@/services/llmSettingsMigration";
 
 /**
  * 从设置快照解析 v2 provider 列表：v2 字段 llmProviders 上线前，
@@ -31,15 +30,8 @@ import { migrateLlmSettingsToV2 } from "@/services/llmSettingsMigration";
 export function resolveV2Providers(
   setting: Record<string, unknown> | undefined | null
 ): LLMProviderSetting[] {
-  if (Array.isArray(setting?.llmProviders) && setting.llmProviders.length > 0) {
-    return setting.llmProviders as LLMProviderSetting[];
-  }
-  const legacyConfigs = (setting as { llmConfigs?: unknown } | undefined)?.llmConfigs;
-  if (Array.isArray(legacyConfigs) && legacyConfigs.length > 0) {
-    return migrateLlmSettingsToV2({ llmConfigs: legacyConfigs as never, llmUsageSettings: {} })
-      .providers;
-  }
-  return [];
+  const providers = setting?.llmProviders;
+  return Array.isArray(providers) ? (providers as LLMProviderSetting[]) : [];
 }
 
 const API_STREAMS: Record<PiApiKind, ProviderStreams> = {

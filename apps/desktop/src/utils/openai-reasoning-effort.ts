@@ -1,4 +1,5 @@
-import type { ModelConfig, ReasoningEffort } from "@/types";
+import type { ReasoningEffort } from "@/types";
+import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
 
 export const DEFAULT_REASONING_EFFORT_OPTIONS = [
   "none",
@@ -18,28 +19,27 @@ const GPT_5_6_REASONING_EFFORT_OPTIONS = [
 ] as const satisfies readonly ReasoningEffort[];
 
 export const getReasoningEffortOptions = (
-  modelConfig: ModelConfig | null,
+  model: LLMModelSetting | null,
+  provider?: LLMProviderSetting | null
 ): readonly ReasoningEffort[] => {
-  if (!modelConfig) {
+  if (!model) {
     return DEFAULT_REASONING_EFFORT_OPTIONS;
   }
+  const modelId = model.id.toLowerCase();
 
-  if (modelConfig.messageFormat === "claude") {
-    const modelName = modelConfig.name.toLowerCase();
+  if (provider?.api === "anthropic-messages") {
     const thinkingAlwaysOn =
-      /claude[-_.]?(?:fable|mythos)[-_.]?[5-9](?:[-_.]|$)/.test(modelName) ||
-      /claude[-_.]?mythos[-_.]?preview/.test(modelName);
+      /claude[-_.]?(?:fable|mythos)[-_.]?[5-9](?:[-_.]|$)/.test(modelId) ||
+      /claude[-_.]?mythos[-_.]?preview/.test(modelId);
     const baseOptions = thinkingAlwaysOn
-      ? DEFAULT_REASONING_EFFORT_OPTIONS.filter((option) => option !== "none")
+      ? DEFAULT_REASONING_EFFORT_OPTIONS.filter(option => option !== "none")
       : DEFAULT_REASONING_EFFORT_OPTIONS;
     const supportsXHigh =
-      /opus[-_.]?4[-_.]?[78](?:[-_.]|$)/.test(modelName) ||
-      /(?:opus|sonnet|fable|mythos)[-_.]?[5-9](?:[-_.]|$)/.test(modelName);
+      /opus[-_.]?4[-_.]?[78](?:[-_.]|$)/.test(modelId) ||
+      /(?:opus|sonnet|fable|mythos)[-_.]?[5-9](?:[-_.]|$)/.test(modelId);
     const supportsMax =
-      /claude.*4[-_.]?[6-9](?:[-_.]|$)/.test(modelName) ||
-      /claude[-_.]?(?:opus|sonnet|fable|mythos)[-_.]?[5-9](?:[-_.]|$)/.test(
-        modelName,
-      );
+      /claude.*4[-_.]?[6-9](?:[-_.]|$)/.test(modelId) ||
+      /claude[-_.]?(?:opus|sonnet|fable|mythos)[-_.]?[5-9](?:[-_.]|$)/.test(modelId);
 
     return [
       ...baseOptions,
@@ -48,17 +48,16 @@ export const getReasoningEffortOptions = (
     ];
   }
 
-  if (/^gpt-5\.6(?:[.-]|$)/i.test(modelConfig.name)) {
+  if (/^gpt-5\.6(?:[.-]|$)/i.test(model.id)) {
     return GPT_5_6_REASONING_EFFORT_OPTIONS;
   }
 
-  return /^gpt-5\.[2-5](?:[.-]|$)/i.test(modelConfig.name)
+  return /^gpt-5\.[2-5](?:[.-]|$)/i.test(model.id)
     ? XHIGH_REASONING_EFFORT_OPTIONS
     : DEFAULT_REASONING_EFFORT_OPTIONS;
 };
 
 export const normalizeReasoningEffort = (
   reasoningEffort: ReasoningEffort,
-  supportedOptions: readonly ReasoningEffort[],
-): ReasoningEffort =>
-  supportedOptions.includes(reasoningEffort) ? reasoningEffort : "high";
+  supportedOptions: readonly ReasoningEffort[]
+): ReasoningEffort => (supportedOptions.includes(reasoningEffort) ? reasoningEffort : "high");

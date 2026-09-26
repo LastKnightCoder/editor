@@ -4,7 +4,6 @@ import AppearanceSetting from "@/pages/Settings/AppearanceSetting";
 import ResourceUploadSetting from "@/pages/Settings/ResourceUploadSetting";
 import SyncSetting from "@/pages/Settings/SyncSetting";
 import PublishSetting from "@/pages/Settings/PublishSetting";
-import LLMProviderSetting from "@/pages/Settings/LLMProviderSetting";
 import ImageGenerationSetting from "@/pages/Settings/ImageGenerationSetting";
 import EmbeddingProviderSetting from "@/pages/Settings/EmbeddingProviderSetting";
 import TextToSpeechSetting from "@/pages/Settings/TextToSpeechSetting";
@@ -65,11 +64,6 @@ const SettingModal = () => {
       key: "publish",
       label: "发布",
       children: <PublishSetting />,
-    },
-    {
-      key: "llm",
-      label: "大语言模型",
-      children: <LLMProviderSetting />,
     },
     {
       key: "imageGeneration",

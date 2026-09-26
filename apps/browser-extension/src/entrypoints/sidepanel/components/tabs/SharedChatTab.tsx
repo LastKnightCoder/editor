@@ -123,7 +123,7 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
     llmConfigs,
     currentModelName,
     isSupportImage,
-    isSupportFile,
+
     setLlmUsage,
     currentModelConfig,
   } = useLlmConfigs(aiWsClient);
@@ -251,18 +251,18 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
         type: "group" as const,
       },
       ...(provider.models || []).map(model => ({
-        key: `${provider.id}:${model.name}`,
-        label: model.name,
+        key: `${provider.id}:${model.id ?? model.name}`,
+        label: model.name ?? model.id,
       })),
     ]);
   }, [llmConfigs]);
 
   const handleModelSelect = useCallback(
     async ({ key }: { key: string }) => {
-      const [providerId, modelName] = key.split(":");
-      if (!providerId || !modelName) return;
+      const [providerId, modelId] = key.split(":");
+      if (!providerId || !modelId) return;
       try {
-        await setLlmUsage(providerId, modelName);
+        await setLlmUsage(providerId, modelId ?? "");
       } catch (err) {
         console.error("设置模型失败:", err);
         antdMessage.error("设置模型失败");
@@ -551,12 +551,12 @@ export default function SharedChatTab({ wsClient, url, additionalSystemPrompt }:
       error={error}
       reasoningEffort={reasoningEffort}
       onReasoningEffortChange={setReasoningEffort}
-      reasoningEffortDisabled={!currentModelConfig?.features.thinking}
+      reasoningEffortDisabled={!currentModelConfig?.reasoning}
       currentModelName={currentModelName}
       modelSelectItems={modelSelectItems}
       onModelSelect={handleModelSelect}
       isSupportImage={isSupportImage}
-      isSupportFile={isSupportFile}
+
       createMessageLoading={false}
       onCreateNewMessage={() => {
         void createSession(buildSessionAwareSystemPrompt(effectiveSystemPrompt));
