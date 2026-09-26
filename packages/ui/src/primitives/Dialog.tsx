@@ -38,6 +38,7 @@ import { PortalScope, usePortalContainer } from "../UiProvider";
 import clsx from "clsx";
 import { X } from "lucide-react";
 import { useEdgeFade } from "../hooks/useEdgeFade";
+import { FADE_SCROLL_CLASS } from "../hooks/fadeScrollClass";
 import { lockBodyScroll } from "../hooks/lockBodyScroll";
 import { IconButton } from "./IconButton";
 import { trapTabKey } from "./focusTrap";
@@ -292,7 +293,11 @@ export function Dialog({
             className={clsx(
               fill
                 ? "border-line-2 text-ink-2 text-tau-body mt-[14px] flex min-h-0 flex-1 flex-col overflow-hidden border-t"
-                : "edge-fade-scroll scrollbar-inset text-ink-2 text-tau-body min-h-0 overflow-y-auto border-r-4 border-r-transparent px-6 pt-[8px]",
+                : // 同 FadeScroll：内缩滚动条（轨道上下各留 10px，不贴头尾），右侧 6px 透明边，右内边距相应减 6px
+                  clsx(
+                    FADE_SCROLL_CLASS,
+                    "text-ink-2 text-tau-body min-h-0 pl-6 pr-[18px] pt-[8px]"
+                  ),
               !fill && (footer || impact ? "pb-[22px]" : "mb-4 pb-[6px]")
             )}
           >
