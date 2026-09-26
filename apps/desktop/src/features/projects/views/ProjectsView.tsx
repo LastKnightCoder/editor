@@ -5,19 +5,20 @@
  * 项目仍在下方全部网格——hero 是入口的放大不是分流）→「全部项目」紧凑网格 →
  * 底部归档折叠段。
  *
- * 结构与 articles 同构（edge-fade 协议）：工具栏 / 类型 pills 在滚动区外 flex-none
- * 固定，滚动区只装段落（sticky 段头实底 + 底缘渐透）。无页内搜索（D-024 口径：
+ * 一整张纸（同 Skill 页）：纸顶固定工具栏，纸内 FadeScroll 只装段落
+ * （sticky 段头纸色实底 + 底缘渐透）。新建只有一个入口，类型在新建弹窗里选。
+ * 类型筛选在侧栏「项目」入口的子项里（ProjectsNav，页面参数 id = 类型值，空 = 全部），页内不放 pills。无页内搜索（D-024 口径：
  * 语义检索走全局 Ctrl+K，空态引导同一入口）、无排序 UI（默认「置顶 → 更新时间」序）。
  * hero 的 Vibe Learning 学习进度因暂无聚合数据源不渲染（mockup 待裁决 ①）。
  */
 
 import { useMemo, useState } from "react";
 import { ChevronDown, Plus } from "lucide-react";
-import { usePage } from "@/page/PageProvider";
-import { PageStatusBar } from "@/page/PageStatusBar";
+import { FadeScroll } from "@/components/FadeScroll";
+import { usePage, usePageParams } from "@/page/PageProvider";
 import BatchExportModal from "@/components/BatchExportModal";
 import { EProjectType } from "@/types/project";
-import { Button, ConfirmDialog, IconButton, Loading, Menu, cn, toast, useEdgeFade } from "@tau/ui";
+import { Button, ConfirmDialog, Loading, cn, toast } from "@tau/ui";
 import { useProjectsSnapshot, useProjectMutations } from "../queries";
 import { PROJECT_TYPE_META } from "../projectTypeMeta";
 import {
@@ -26,13 +27,7 @@ import {
   type ProjectCardHandlers,
 } from "../components/ProjectCards";
 import { CreateProjectDialog } from "../components/CreateProjectDialog";
-import type { ProjectPageItem, ProjectTypeFilter } from "../types";
-
-const TYPE_KEYS = [
-  EProjectType.DocumentTree,
-  EProjectType.DataTable,
-  EProjectType.VibeLearning,
-] as const;
+import { PROJECT_TYPE_KEYS, type ProjectPageItem, type ProjectTypeFilter } from "../types";
 
 const DELETE_IMPACT: Record<EProjectType, string> = {
   [EProjectType.DocumentTree]:
@@ -47,21 +42,17 @@ export function ProjectsView() {
   const snapshot = useProjectsSnapshot();
   const { togglePin, setArchived, remove } = useProjectMutations();
 
-  const [typeFilter, setTypeFilter] = useState<ProjectTypeFilter>("");
+  const params = usePageParams<{ id?: string }>();
+  // 类型筛选 = 侧栏子项选中的类型；非法值一律按「全部」
+  const typeFilter: ProjectTypeFilter = PROJECT_TYPE_KEYS.find(key => key === params.id) ?? "";
   const [archivedOpen, setArchivedOpen] = useState(false);
 
   /* 弹层状态：新建 / 编辑 / 删除确认 / 整体导出（只保留在当前页面） */
   const [createOpen, setCreateOpen] = useState(false);
-  const [createType, setCreateType] = useState<EProjectType>(EProjectType.DocumentTree);
   const [editing, setEditing] = useState<ProjectPageItem | null>(null);
   const [deleting, setDeleting] = useState<ProjectPageItem | null>(null);
   const [deletingBusy, setDeletingBusy] = useState(false);
   const [exporting, setExporting] = useState<ProjectPageItem | null>(null);
-
-  /* 滚动容器：callback ref + 边缘渐隐。顶部渐隐关闭（同 articles）——
-     滚动区内有 sticky 段头（实底遮挡），渐隐带与实底头互斥，只保留底部渐隐 */
-  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(scrollEl, { top: false });
 
   /* ---------- 派生：置顶段与全部网格 ---------- */
 
@@ -82,20 +73,6 @@ export function ProjectsView() {
 
   const archivedCount = snapshot.projects.length - activeAll.length;
 
-  /* 页面底部状态栏（PageStatusBar）：右侧展示读数 */
-  const statusBarNode = useMemo(
-    () => (
-      <div className="text-tau-sm text-ink-3 flex min-w-0 flex-1 items-center gap-3.5 tabular-nums">
-        <span className="flex-1" />
-        <span>
-          {activeAll.length} 个项目 · 文档 {activeAll.reduce((sum, p) => sum + p.itemCount, 0)} 个 ·
-          已归档 {archivedCount}
-        </span>
-      </div>
-    ),
-    [activeAll, archivedCount]
-  );
-
   /* ---------- 卡片操作 ---------- */
 
   const handlers: ProjectCardHandlers = {
@@ -107,156 +84,134 @@ export function ProjectsView() {
     onDelete: project => setDeleting(project),
   };
 
-  const openCreate = (type: EProjectType) => {
-    setCreateType(type);
-    setCreateOpen(true);
-  };
+  const openCreate = () => setCreateOpen(true);
 
   if (snapshot.loading) return <Loading />;
 
   const total = snapshot.projects.length;
 
   return (
-    <div className="@container mx-auto flex h-full max-w-[1720px] flex-col px-[26px]">
-      {/* 工具栏（滚动区外固定）：新建（主位默认文档树，箭头位三型菜单）；
-          计数不在此重复——pills 与状态栏已承载 */}
-      <div className="flex h-[44px] flex-none items-center gap-3.5">
-        <h1 className="text-[19px] font-semibold tracking-[-0.01em]">项目</h1>
-        <span className="flex-1" />
-        <Button
-          variant="primary"
-          size="sm"
-          icon={Plus}
-          onClick={() => openCreate(EProjectType.DocumentTree)}
-        >
-          新建
-        </Button>
-        <Menu
-          align="end"
-          trigger={
-            <IconButton title="选择类型新建">
-              <ChevronDown className="size-[15px]" strokeWidth={1.75} />
-            </IconButton>
-          }
-        >
-          {TYPE_KEYS.map(key => {
-            const meta = PROJECT_TYPE_META[key];
-            return (
-              <Menu.Item
-                key={key}
-                onSelect={() => openCreate(key)}
-                icon={<meta.icon className="size-[15px] shrink-0" strokeWidth={1.75} />}
-              >
-                新建{meta.label}项目
-              </Menu.Item>
-            );
-          })}
-        </Menu>
-      </div>
-
-      {/* 类型筛选 pills（滚动区外固定） */}
-      <TypeFilterBar activeAll={activeAll} value={typeFilter} onChange={setTypeFilter} />
-
-      {/* 滚动区：边缘渐隐（底部）；-mx/px 对称借位（卡片墙同款）——滚动容器
-          border-box 外移 18px，hover 大阴影左右两缘都有绘制空间不被裁（内容盒
-          宽度与列对齐不变），右侧细滚动条同落进右留白 */}
-      <div
-        ref={setScrollEl}
-        className="edge-fade-scroll -mx-[18px] mt-1 min-h-0 flex-1 overflow-y-auto px-[18px] pb-6"
-      >
-        {/* 置顶项目：升格 hero（无置顶不渲染） */}
-        {heroes.length > 0 && (
-          <section className="mb-[26px]">
-            <SectionHead
-              label="置顶项目"
-              hint={`${heroes.length} 个 · ${heroes.reduce((sum, p) => sum + p.itemCount, 0)} 个文档`}
-            />
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-3.5">
-              {heroes.map(project => (
-                <ProjectHeroCard key={project.id} project={project} handlers={handlers} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* 全部项目：紧凑网格 */}
-        {rest.length > 0 && (
-          <section className="mb-[26px]">
-            <SectionHead
-              label="全部项目"
-              hint={`${activeAll.length} 个 · 文档 ${activeAll.reduce((sum, p) => sum + p.itemCount, 0)} 个`}
-            />
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(268px,1fr))] gap-2.5">
-              {rest.map(project => (
-                <ProjectMiniCard key={project.id} project={project} handlers={handlers} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* 归档：折叠段 */}
-        {archived.length > 0 && (
-          <section>
-            <button
-              type="button"
-              onClick={() => setArchivedOpen(prev => !prev)}
-              className="group/head sticky top-0 z-[2] flex w-full items-center gap-2.5 bg-[linear-gradient(180deg,var(--tau-bg-page)_calc(100%_-_13px),transparent)] px-0.5 pb-[13px] pt-0.5 text-left"
+    <div className="@container mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+      {/* 一整张纸：工具栏与类型 pills 固定在纸顶，段落在纸内滚动 */}
+      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="flex flex-none flex-col px-8 pt-5">
+          {/* 工具栏：标题 + 摘要（原底部状态栏的读数）+ 唯一的「新建」，类型在弹窗里选 */}
+          <div className="mb-3 flex h-10 flex-none items-center gap-3.5">
+            <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+              {typeFilter ? PROJECT_TYPE_META[typeFilter].label : "项目"}
+            </h1>
+            <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
+              <b className="text-ink-1 font-semibold">{activeAll.length}</b> 个项目
+              <span className="text-ink-3 mx-1.5">·</span>文档{" "}
+              <b className="text-ink-1 font-semibold">
+                {activeAll.reduce((sum, p) => sum + p.itemCount, 0)}
+              </b>{" "}
+              个{archivedCount > 0 && ` · 已归档 ${archivedCount}`}
+            </span>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Plus}
+              className="shrink-0 whitespace-nowrap"
+              onClick={openCreate}
             >
-              <ChevronDown
-                className={cn(
-                  "text-ink-3 ease-tau-out size-[13px] transition-transform duration-200",
-                  archivedOpen ? "rotate-0" : "-rotate-90"
-                )}
-                strokeWidth={1.75}
+              新建项目
+            </Button>
+          </div>
+        </div>
+
+        {/* 滚动区：FadeScroll（右侧 6px 透明边 + pr-[26px] = 左侧 pl-8）；
+          pt-1 给首行卡片 hover 的 lift 阴影留出绘制空间，不被滚动区顶边裁掉 */}
+        <FadeScroll className="mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px] pt-1">
+          {/* 置顶项目：升格 hero（无置顶不渲染） */}
+          {heroes.length > 0 && (
+            <section className="mb-[26px]">
+              <SectionHead
+                label="置顶项目"
+                hint={`${heroes.length} 个 · ${heroes.reduce((sum, p) => sum + p.itemCount, 0)} 个文档`}
               />
-              <span className="group-hover/head:text-accent-text text-[16px] font-semibold tracking-[-0.01em]">
-                归档项目
-              </span>
-              <span className="text-ink-3 text-[11.5px] tabular-nums">{archived.length} 个</span>
-            </button>
-            <div
-              className={cn(
-                "ease-tau-out grid grid-rows-[0fr] transition-[grid-template-rows] duration-200",
-                archivedOpen && "grid-rows-[1fr]"
-              )}
-            >
-              <div className="overflow-hidden">
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(268px,1fr))] gap-2.5">
-                  {archived.map(project => (
-                    <ProjectMiniCard key={project.id} project={project} handlers={handlers} />
-                  ))}
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(360px,1fr))] gap-3.5">
+                {heroes.map(project => (
+                  <ProjectHeroCard key={project.id} project={project} handlers={handlers} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 全部项目：紧凑网格 */}
+          {rest.length > 0 && (
+            <section className="mb-[26px]">
+              <SectionHead
+                label="全部项目"
+                hint={`${activeAll.length} 个 · 文档 ${activeAll.reduce((sum, p) => sum + p.itemCount, 0)} 个`}
+              />
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(268px,1fr))] gap-2.5">
+                {rest.map(project => (
+                  <ProjectMiniCard key={project.id} project={project} handlers={handlers} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 归档：折叠段 */}
+          {archived.length > 0 && (
+            <section>
+              <button
+                type="button"
+                onClick={() => setArchivedOpen(prev => !prev)}
+                className="group/head sticky top-0 z-[2] flex w-full items-center gap-2.5 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_13px),transparent)] px-0.5 pb-[13px] pt-0.5 text-left"
+              >
+                <ChevronDown
+                  className={cn(
+                    "text-ink-3 ease-tau-out size-[13px] transition-transform duration-200",
+                    archivedOpen ? "rotate-0" : "-rotate-90"
+                  )}
+                  strokeWidth={1.75}
+                />
+                <span className="group-hover/head:text-accent-text text-[16px] font-semibold tracking-[-0.01em]">
+                  归档项目
+                </span>
+                <span className="text-ink-3 text-[11.5px] tabular-nums">{archived.length} 个</span>
+              </button>
+              <div
+                className={cn(
+                  "ease-tau-out grid grid-rows-[0fr] transition-[grid-template-rows] duration-200",
+                  archivedOpen && "grid-rows-[1fr]"
+                )}
+              >
+                <div className="overflow-hidden">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(268px,1fr))] gap-2.5">
+                    {archived.map(project => (
+                      <ProjectMiniCard key={project.id} project={project} handlers={handlers} />
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
-        )}
+            </section>
+          )}
 
-        {/* 空态 */}
-        {total === 0 && (
-          <div className="flex flex-col items-center gap-2 px-0 py-20 text-center">
-            <p className="text-ink-2 text-[15px] font-medium">还没有项目</p>
-            <p className="text-ink-3 text-[12.5px]">
-              从一个学习项目开始：文档树、数据表格或 Vibe Learning
-            </p>
-            <div className="mt-3 flex gap-2">
-              <Button
-                variant="primary"
-                size="sm"
-                icon={Plus}
-                onClick={() => openCreate(EProjectType.DocumentTree)}
-              >
-                新建项目
-              </Button>
+          {/* 空态 */}
+          {total === 0 && (
+            <div className="flex flex-col items-center gap-2 px-0 py-20 text-center">
+              <p className="text-ink-2 text-[15px] font-medium">还没有项目</p>
+              <p className="text-ink-3 text-[12.5px]">
+                从一个学习项目开始：文档树、数据表格或 Vibe Learning
+              </p>
+              <div className="mt-3 flex gap-2">
+                <Button variant="primary" size="sm" icon={Plus} onClick={openCreate}>
+                  新建项目
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </FadeScroll>
       </div>
 
       {/* 新建 / 编辑弹窗 */}
       <CreateProjectDialog
         open={createOpen || editing !== null}
         project={editing}
-        defaultType={createType}
+        defaultType={EProjectType.DocumentTree}
         onClose={() => {
           setCreateOpen(false);
           setEditing(null);
@@ -300,55 +255,6 @@ export function ProjectsView() {
           scope={{ type: "project", id: exporting.id, title: exporting.title }}
         />
       )}
-      <PageStatusBar className="px-0.5">{statusBarNode}</PageStatusBar>
-    </div>
-  );
-}
-
-/* ---------- 类型筛选 pills ---------- */
-
-function TypeFilterBar({
-  activeAll,
-  value,
-  onChange,
-}: {
-  activeAll: ProjectPageItem[];
-  value: ProjectTypeFilter;
-  onChange(next: ProjectTypeFilter): void;
-}) {
-  const pills: { key: ProjectTypeFilter; label: string; count: number; dot?: string }[] = [
-    { key: "", label: "全部", count: activeAll.length },
-    ...TYPE_KEYS.map(key => ({
-      key: key as ProjectTypeFilter,
-      label: PROJECT_TYPE_META[key].label,
-      count: activeAll.filter(p => p.projectType === key).length,
-      dot: PROJECT_TYPE_META[key].dotClass,
-    })),
-  ];
-  return (
-    <div className="flex h-[38px] flex-none items-center gap-1.5 pb-1.5">
-      {pills.map(pill => {
-        const active = value === pill.key;
-        return (
-          <button
-            key={pill.key || "all"}
-            type="button"
-            onClick={() => onChange(pill.key)}
-            className={cn(
-              "ease-tau-out shadow-card flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[12px] transition-[background,color] duration-150",
-              active
-                ? "bg-selected text-accent-text font-medium"
-                : "bg-surface text-ink-2 hover:text-ink-1"
-            )}
-          >
-            {pill.dot && <span className={cn("size-[7px] rounded-[3px]", pill.dot)} />}
-            {pill.label}
-            <span className={cn("text-[10.5px]", active ? "opacity-70" : "text-ink-3")}>
-              {pill.count}
-            </span>
-          </button>
-        );
-      })}
     </div>
   );
 }
@@ -357,7 +263,7 @@ function TypeFilterBar({
 
 function SectionHead({ label, hint }: { label: string; hint: string }) {
   return (
-    <header className="sticky top-0 z-[2] flex items-baseline gap-3 bg-[linear-gradient(180deg,var(--tau-bg-page)_calc(100%_-_13px),transparent)] pb-[13px] pl-0.5 pt-0.5">
+    <header className="sticky top-0 z-[2] flex items-baseline gap-3 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_13px),transparent)] pb-[13px] pl-0.5 pt-0.5">
       <span className="text-[16px] font-semibold tracking-[-0.01em]">{label}</span>
       <span className="text-ink-3 text-[11.5px] tabular-nums">{hint}</span>
     </header>

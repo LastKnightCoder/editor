@@ -40,6 +40,7 @@ export type NavItemBadge =
 export type NavItemChildren =
   | "collaboration-sessions"
   | "todo-groups"
+  | "project-types"
   | "diary-tags"
   | "whiteboard-tags"
   | "question-groups"
@@ -53,7 +54,7 @@ export interface NavItem {
    *  collab-requests = 待审批的加入申请数；mcp-errors = 连接失败的 MCP 服务器数） */
   badge?: NavItemBadge;
   /** 该页在栈顶时于条目下方展开的子项（collaboration-sessions = 共享内容列表，协作页 A3；
-   *  todo-groups = 待办项目；diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；question-groups = 问题分组；chat-sessions = 置顶与最近 AI 会话，D-047） */
+   *  todo-groups = 待办项目；project-types = 项目类型；diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；question-groups = 问题分组；chat-sessions = 置顶与最近 AI 会话，D-047） */
   children?: NavItemChildren;
   /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
   opensOverlay?: "settings";
@@ -95,7 +96,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "学习",
     items: [
       // 项目即学习容器（文档树/数据表格/Vibe Learning 三型皆学习导向），归学习组
-      { key: "projects", label: "项目", icon: FolderKanban }, // features/projects（学习驾驶舱 + 三型详情工作台）
+      { key: "projects", label: "项目", icon: FolderKanban, children: "project-types" }, // features/projects（学习驾驶舱 + 三型详情工作台；类型嵌在此入口下）
       { key: "review", label: "闪卡复习", icon: Repeat, badge: "review-due" }, // features/flashcards（复习台，D-041）
       {
         key: "questions",

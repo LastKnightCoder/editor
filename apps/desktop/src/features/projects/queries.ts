@@ -84,6 +84,24 @@ export function useProjectsList(): {
   return { projects: query.data ?? EMPTY_PROJECTS };
 }
 
+/** 各类型的未归档项目数（侧栏「项目」子项用）：只读列表缓存，不拉文档数 */
+export function useProjectTypeCounts(): Map<Project["projectType"], number> | null {
+  const query = useQuery({
+    queryKey: ["projects", "list"],
+    queryFn: getProjectList,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  return useMemo(() => {
+    if (!query.data) return null;
+    const counts = new Map<Project["projectType"], number>();
+    for (const project of query.data)
+      if (!project.archived)
+        counts.set(project.projectType, (counts.get(project.projectType) ?? 0) + 1);
+    return counts;
+  }, [query.data]);
+}
+
 export function useProjectsSnapshot(): {
   projects: ProjectPageItem[];
   loading: boolean;
