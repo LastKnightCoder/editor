@@ -42,6 +42,7 @@ import {
   SecretInput,
 } from "../components/ProviderLayout";
 import { SettingsTabs } from "../components/SettingsTabs";
+import { ToolPermissionGroup } from "./ToolPermissionGroup";
 
 type FeatureKey = keyof ISetting["llmUsageSettings"];
 
@@ -474,7 +475,7 @@ export function LLMSection() {
     ).length;
 
   /* ── 页内 Tab：服务商与模型 / 功能分配 ── */
-  const [tab, setTab] = useState<"providers" | "assignment">("providers");
+  const [tab, setTab] = useState<"providers" | "assignment" | "permission">("providers");
   const unassignedCount = Object.values(llmUsageSettings).filter(usage => usage === null).length;
 
   /** 全部 (服务商, 模型) 平铺；选项 value 为下标，选择时反查成 providerId + modelName */
@@ -528,6 +529,7 @@ export function LLMSection() {
         items={[
           { key: "providers", label: "服务商与模型" },
           { key: "assignment", label: "功能分配", badge: unassignedCount || undefined },
+          { key: "permission", label: "工具权限" },
         ]}
       />
 
@@ -626,6 +628,8 @@ export function LLMSection() {
             </>
           )}
         </SettingsGroup>
+      ) : tab === "permission" ? (
+        <ToolPermissionGroup />
       ) : (
         ASSIGNMENT_CATEGORIES.map(cat => (
           <SettingsGroup key={cat.label} title={cat.label}>

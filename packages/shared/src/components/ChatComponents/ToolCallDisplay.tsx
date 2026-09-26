@@ -35,6 +35,7 @@ const statusIconColors: Record<ToolCallStatus, string> = {
   failed: "text-red-500",
   retrying: "text-yellow-500",
   cancelled: "text-gray-500",
+  "awaiting-approval": "text-yellow-500",
 };
 
 /** 默认工具图标 */

@@ -1,82 +1,57 @@
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
-// 解析 SKILL.md 的 front-matter，只提取 description
-// name 不在 front-matter 中存储，从文件夹名称获取
-export function parseSkillFrontMatter(content: string): {
-  description: string;
+/**
+ * SKILL.md front-matter 读写（编辑页「编辑」视图用）：表单只改 name / title / description /
+ * disable-model-invocation，其余字段（allowed-tools、license、metadata……）原样保留。
+ */
+
+export interface SkillDocument {
+  meta: Record<string, unknown>;
   body: string;
-} {
-  const frontMatterMatch = content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
-
-  if (frontMatterMatch) {
-    try {
-      const yamlContent = frontMatterMatch[1];
-      const body = frontMatterMatch[2] || "";
-      const parsed = parseYaml(yamlContent) as { description?: string };
-
-      return {
-        description: parsed.description || "",
-        body,
-      };
-    } catch (error) {
-      console.warn("Failed to parse front-matter:", error);
-    }
-  }
-
-  // 没有 front-matter，从内容中提取
-  return {
-    description: extractDescriptionFromBody(content),
-    body: content,
-  };
+  /** YAML 写坏了：编辑视图不可用，只能改源码 */
+  error?: string;
 }
 
-// 序列化 description 为 YAML front-matter 格式
-export function serializeSkillFrontMatter(
-  description: string,
-  body: string,
-): string {
-  // 如果没有描述，只保留空的 front-matter 结构
-  const cleanMeta: Record<string, unknown> = {};
+const FRONT_MATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 
-  if (description) {
-    cleanMeta.description = description;
+export function splitSkillDocument(content: string): SkillDocument {
+  const match = content.match(FRONT_MATTER_RE);
+  if (!match) return { meta: {}, body: content };
+  try {
+    const parsed = parseYaml(match[1]);
+    const meta = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+    return { meta: meta as Record<string, unknown>, body: match[2] ?? "" };
+  } catch (error) {
+    return { meta: {}, body: match[2] ?? "", error: (error as Error).message };
   }
-
-  const yamlContent = stringifyYaml(cleanMeta, {
-    lineWidth: 0, // 不自动换行
-    defaultKeyType: "PLAIN",
-    defaultStringType: "QUOTE_DOUBLE",
-  }).trim();
-
-  // 确保 body 以换行开头
-  const normalizedBody = body.startsWith("\n") ? body : `\n${body}`;
-
-  // 即使没有元信息，也保留 front-matter 结构
-  if (!yamlContent || yamlContent === "{}") {
-    return `---\n---${normalizedBody}`;
-  }
-
-  return `---\n${yamlContent}\n---${normalizedBody}`;
 }
 
-// 从内容中提取描述
-function extractDescriptionFromBody(content: string): string {
-  const lines = content.split("\n");
-  let foundTitle = false;
-
-  for (const line of lines) {
-    if (!foundTitle) {
-      if (line.match(/^#\s+/)) {
-        foundTitle = true;
-      }
-      continue;
-    }
-
-    const trimmedLine = line.trim();
-    if (!trimmedLine || trimmedLine.startsWith("#")) continue;
-
-    return trimmedLine;
-  }
-
-  return "";
+export function joinSkillDocument(meta: Record<string, unknown>, body: string): string {
+  const clean = Object.fromEntries(
+    Object.entries(meta).filter(
+      ([, value]) => value !== undefined && value !== "" && value !== false
+    )
+  );
+  const yaml = Object.keys(clean).length
+    ? stringifyYaml(clean, {
+        lineWidth: 0,
+        defaultStringType: "QUOTE_DOUBLE",
+        defaultKeyType: "PLAIN",
+      }).trim()
+    : "";
+  const normalizedBody = body.replace(/^\n+/, "");
+  return `---\n${yaml ? `${yaml}\n` : ""}---\n\n${normalizedBody}`;
 }
+
+export const metaString = (meta: Record<string, unknown>, key: string): string =>
+  typeof meta[key] === "string" ? (meta[key] as string) : "";
+
+/** 描述写没写「什么时候用」：粗判是否出现触发场景的措辞 */
+export const hasTriggerHint = (description: string): boolean =>
+  /(时使用|时用|当用户|用户提到|用户要求|when |use when|use this|触发)/i.test(description);
+
+/** 粗估 tokens：中文按字、其余按 4 字符 */
+export const estimateTokens = (text: string): number => {
+  const cjk = (text.match(/[\u3000-\u9fff\uff00-\uffef]/g) ?? []).length;
+  return Math.ceil(cjk + (text.length - cjk) / 4);
+};

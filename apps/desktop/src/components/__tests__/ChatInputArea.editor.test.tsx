@@ -81,6 +81,11 @@ vi.mock("@/utils/markdown", () => ({
 
 vi.mock("@/editor-extensions", () => ({
   contentLinkExtension: { type: "content-link" },
+  skillRefExtension: { type: "skill-ref" },
+}));
+
+vi.mock("@/editor-extensions/skill-ref/SkillPickerPanel", () => ({
+  SkillPickerPanel: () => null,
 }));
 
 const wrapContentLinkMock = vi.hoisted(() => vi.fn());

@@ -710,6 +710,30 @@ export const createPendingContentEditReview = async (params: {
   });
 };
 
+/** 工具权限模式为「自动允许编辑 / 跳过确认」时：不弹审阅卡，直接应用并返回同构结果（D-060） */
+export const autoApplyContentEditProposal = async (proposal: ContentEditProposalRecord) => {
+  const proposalCache = await readProposalCache(proposal.proposalFilePath);
+  const applyResult = await applyContentEditProposal({ proposalId: proposal.proposalId });
+  if (!applyResult.success) {
+    return {
+      content: JSON.stringify(
+        { success: false, errorCode: applyResult.errorCode, message: applyResult.message },
+        null,
+        2
+      ),
+    };
+  }
+  const result = createReviewToolResult({
+    action: "applied",
+    proposal: applyResult.proposal,
+    proposedMarkdown: proposalCache?.markdown,
+  });
+  return {
+    ...result,
+    content: result.content.replace("用户已确认应用修改", "已按工具权限模式自动应用修改"),
+  };
+};
+
 export const submitContentEditReviewDecisionByExecution = (
   locator: ContentEditReviewExecutionLocator,
   decision: ContentEditReviewDecision

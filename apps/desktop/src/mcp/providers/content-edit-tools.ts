@@ -2,6 +2,7 @@ import type { ToolParameterSchema } from "@/types";
 import type { MCPProviderDefinition } from "./types";
 import {
   applyEditOperations,
+  autoApplyContentEditProposal,
   createPendingContentEditReview,
   createContentEditProposal,
   EditEngineError,
@@ -15,6 +16,8 @@ import type { EditOperation } from "@/services/content-editing";
 import { offsetToMarkdownPoint } from "@/services/content-editing";
 import type { ToolExecutionContext } from "@/types";
 import { loadContentMarkdownPayload } from "./content-read-utils";
+import { getToolPermissionMode } from "@/services/tool-permission/policy";
+import { requiresApproval } from "@/services/tool-permission/mode";
 
 const reviewToolExecution = {
   timeoutMs: null,
@@ -151,7 +154,12 @@ const executeOperationsWithReviewPolicy = async (payload: {
       proposalId: proposalResult.proposal.proposalId,
     });
 
-    // 强制所有提案都必须经过用户审核，不再支持自动应用
+    // 工具权限模式（D-060）：手动确认走审阅卡；自动允许编辑 / 跳过确认直接应用。
+    // 反馈续改（forceReview）始终走审阅卡
+    const forceReview = context?.toolContext?.flags?.forceReview === true;
+    if (!forceReview && !requiresApproval("write", getToolPermissionMode())) {
+      return autoApplyContentEditProposal(proposalResult.proposal);
+    }
     const result = await createPendingContentEditReview({
       context: context!,
       proposal: proposalResult.proposal,
@@ -327,6 +335,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
     },
     {
       name: "apply_content_edit_operations",
+      risk: "write",
       description:
         "高级工具：对内容执行批量编辑（insert/delete/replace）。建议优先使用 replace_content_by_text 或 rewrite_content_full。注意：调用此工具后，修改不会立即生效，而是会生成一个待用户审阅的提案。只有用户确认应用后，修改才会真正写入。在用户明确确认之前，你不应假设之前的修改已经被应用，也不应为此调用 get_content_markdown 等工具去确认当前内容。",
       execution: reviewToolExecution,
@@ -431,6 +440,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
     },
     {
       name: "replace_content_by_text",
+      risk: "write",
       description:
         "稳健替换工具：先按文本定位，再执行单次 replace。优先用于侧边对话的精准改写场景。注意：调用此工具后，修改不会立即生效，而是会生成一个待用户审阅的提案。只有用户确认应用后，修改才会真正写入。在用户明确确认之前，你不应假设之前的修改已经被应用，也不应为此调用 get_content_markdown 等工具去确认当前内容。",
       execution: reviewToolExecution,
@@ -608,6 +618,7 @@ export const contentEditToolsProvider: MCPProviderDefinition = {
     },
     {
       name: "rewrite_content_full",
+      risk: "write",
       description:
         "全文替换快捷工具，等价于对 full-document 执行一次 replace。必须显式提供 contentId。注意：调用此工具后，修改不会立即生效，而是会生成一个待用户审阅的提案。只有用户确认应用后，修改才会真正写入。在用户明确确认之前，你不应假设之前的修改已经被应用，也不应为此调用 get_content_markdown 等工具去确认当前内容。",
       execution: reviewToolExecution,
