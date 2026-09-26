@@ -43,6 +43,7 @@ import { getContentLength } from "@/utils/helper";
 import { emitTodoMutation, TODO_MUTATION_ACTIONS } from "@/mcp/todo/mutation";
 import { subscribeTodoMutationEvent } from "@/mcp/todo/events";
 import type {
+  TodoGroup,
   TodoItemType,
   TodoMutationEntityType,
   TodoRecurrence,
@@ -142,6 +143,19 @@ export function useTodoSnapshot(): { snapshot: TodoSnapshot | undefined; loading
   return { snapshot: query.data, loading: query.isPending };
 }
 
+const NO_GROUPS: TodoGroup[] = [];
+
+/** 进行中项目列表（与待办页共享快照缓存）；enabled=false 时不拉取，命令面板打开时才用 */
+export function useTodoGroups(enabled = true): TodoGroup[] {
+  const query = useQuery({
+    queryKey: SNAPSHOT_KEY,
+    queryFn: fetchTodoSnapshot,
+    staleTime: STALE_MS,
+    enabled,
+  });
+  return query.data?.groups ?? NO_GROUPS;
+}
+
 /** 渲染期「现在」：每分钟跳一次（「现在」刻度线、跨零点后今天 / 明天分段自动滚动） */
 export function useNow(): number {
   const [now, setNow] = useState(() => Date.now());
@@ -190,32 +204,34 @@ const DEFAULT_RECURRENCE = (startDate: number) => ({
   startDate,
 });
 
+/** 快速添加落库（命令面板等非待办页入口也走这里）：周期任务同时建规则，否则日历上不会出现 */
+export async function createTodoFromQuickAdd(parsed: QuickAddResult, groupId: number) {
+  const item = await createTodoItem({
+    groupId,
+    title: parsed.title,
+    type: parsed.type,
+    startAt: parsed.startAt,
+    dueAt: parsed.dueAt,
+  });
+  if (parsed.type === "recurring" && parsed.recurrence) {
+    await createRecurrence({
+      todoItemId: item.id,
+      ...DEFAULT_RECURRENCE(startOfDay(Date.now())),
+      type: parsed.recurrence.type,
+      weekdays: parsed.recurrence.weekdays ?? null,
+      monthDay: parsed.recurrence.monthDay ?? null,
+    });
+  }
+  emit("item", TODO_MUTATION_ACTIONS.CREATE_ITEM, { entityId: item.id, groupId });
+  return item;
+}
+
 export function useTodoMutations() {
   const queryClient = useQueryClient();
   const snapshot = () => queryClient.getQueryData<TodoSnapshot>(SNAPSHOT_KEY);
 
   return {
-    /** 快速添加：解析结果落库（周期任务同时建规则，否则日历上不会出现） */
-    async createFromQuickAdd(parsed: QuickAddResult, groupId: number) {
-      const item = await createTodoItem({
-        groupId,
-        title: parsed.title,
-        type: parsed.type,
-        startAt: parsed.startAt,
-        dueAt: parsed.dueAt,
-      });
-      if (parsed.type === "recurring" && parsed.recurrence) {
-        await createRecurrence({
-          todoItemId: item.id,
-          ...DEFAULT_RECURRENCE(startOfDay(Date.now())),
-          type: parsed.recurrence.type,
-          weekdays: parsed.recurrence.weekdays ?? null,
-          monthDay: parsed.recurrence.monthDay ?? null,
-        });
-      }
-      emit("item", TODO_MUTATION_ACTIONS.CREATE_ITEM, { entityId: item.id, groupId });
-      return item;
-    },
+    createFromQuickAdd: createTodoFromQuickAdd,
 
     async addSubtask(parent: TodoEntry, title: string) {
       const item = await createTodoItem({ groupId: parent.groupId, parentId: parent.id, title });
