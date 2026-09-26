@@ -635,3 +635,14 @@
   - 目录：进行中的条目转圈 + 「生成中 / 改写中」，失败 danger、停止 ink-3；笔记任务进行中点开即执行过程，结束自动切到产物，产物头部「生成过程」可回看；测验集生成中点行看过程，完成后点行照旧开始测验。
   - 弹窗：10 个旧生成 / AI 编辑弹窗合成一张 `generate/GenerateDialog.tsx`（`@tau/ui` Dialog）：公共「资料」勾选清单 + 「额外要求」，文章多风格卡片、PPT / 报告多模板缩略图、测验多可选名称、播客多名称 / 说话人（沿用 `SpeakerConfig` / `VoiceClonePanel`）/ 时长，AI 编辑为「修改要求」+ 可选参考资料；底部影响行给出还缺什么或「开始后在后台生成」。添加资料弹窗换 `@tau/ui` Dialog + Segmented（文件 / 网页 / 视频 / 笔记），输入与下拉换 Input / Select，粉色 / 红色硬编码换语义色；笔记页签改用公共 `EntityPicker`（卡片 / 文章 / 项目文档 / 日记多选，已加入的置灰），删除 `NoteSelector`。
   - 删除：`generate/apps/*GenerateModal`、`PPTEditModal`、`ReportEditModal`、`generate/components/*`、`hooks/useQuizGeneration`、`hooks/useVLTools`、`stores/useOutlineGenerationStore`。测验答题 / 编辑弹窗（`QuizTestModal` / `QuizEditModal`）仍是 legacy 皮，下一轮。
+
+## D-063 卡片 / 文章 / 项目文档编辑窗口合一 + 主进程窗口模块重写
+
+（2026-09-26，已定；样板间 `mockups/editor-window/`，外壳 A 纸面托盘 / B 满铺纸面二选一，用户选 A）
+
+- 选择：三个独立编辑窗口（`SingleCardEditor` / `SingleArticleEditor` / `SingleProjectItemEditor`）合成一个路由 `/editor-window?kind=&db=&id=`，窗口可多开，同一文档只开一个（再次打开聚焦）。外壳与主窗口同一语言：46px 自绘标题栏（mac 信号灯 / Win 三键）、page 底上的纸面（圆角 + card 阴影）、FadeScroll、`@tau/ui` 组件。类型差异收在 `features/editor-window/documentDrivers.ts`：卡片无标题（标题栏取首行摘要）、项目文档无标签且注入项目卡片列表扩展。
+- 功能：主题切换（全窗口经 storage 事件同步，主窗口 / 番茄辅助窗同一 `useThemeRuntime`）、字数 / 阅读时长 / 选中字数、大纲（按类型记忆开关，窗宽 < 900 改为标题栏 Popover）、标签、窗口置顶、专注模式（⌘.）、打字机滚动、查找（复用全局查找条）、复制 / 导出 Markdown、在主窗口打开（BroadcastChannel 请求主窗口 `openContent`）、文档被删时的空态（窗口重新聚焦时回查）。
+- **不做 Markdown 源码模式**：Markdown 往返对白板、数据库、分栏等块有损，编辑窗口会失去这些块的编辑能力；源码模式只留在 Markdown 文件窗口（文件本身就是 Markdown，无此类块）。
+- 协作：沿用 `ContentCollaborationControl`（标题栏成员条 + ⋯「发起协作 / 协作成员」），状态栏共享时显示协作连接态，frozen 期间横幅 + 只读。标题绑定会话文档的 title（`CollaborativeTitleField`），本地与共享模式一致。加入他人共享（本机无实体）的文档不进编辑窗口。
+- 数据库：按 URL 的库名连接（协作页「回到原内容」会开其它数据库的文档）；**不再在卸载时 `closeDatabase`**——连接全局共享，旧页面关库会连带主窗口失去连接。
+- 主进程：删除 `modules/window-manager.ts`，改为 `main/windows/`：`createWindow`（唯一的 BrowserWindow 构造入口：标题栏形态 custom / native / none、事件转发、加载、Win 最后可见窗口关闭即退出）、`window-registry`（键控窗口表）、`window-state`（按类型记忆尺寸位置 + 级联错开）、按窗口类型各一个模块、`ipc.ts` 统一注册。新 IPC `open-editor-window` / `close-editor-window`（`@tau/platform` `WindowApi.openEditorWindow` / `closeEditorWindow`）替代三条 `open-*-in-new-window` 与 `close-article-window`；ws 端保留三条旧方法名供 CLI 调用（此前文章 / 项目文档两条在 ws 端未注册）。模块初始化窗口类型 card / article / project-item 合并为 `editor`。

@@ -49,9 +49,4 @@ export const articleCommands = {
   ),
   attachPodcast: command<[number, number], IArticle | null>("attach-podcast-to-article"),
   detachPodcast: command<[number], IArticle | null>("detach-podcast-from-article"),
-  openInNewWindow: command<
-    [string, number, ({ showTitlebar?: boolean; isDefaultTop?: boolean } | undefined)?],
-    void
-  >("open-article-in-new-window"),
-  closeWindow: command<[string, number], void>("close-article-window"),
 };

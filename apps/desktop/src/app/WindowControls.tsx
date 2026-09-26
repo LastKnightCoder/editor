@@ -53,7 +53,7 @@ export function WindowControls() {
   );
 }
 
-/** macOS 自绘信号灯：主进程已把原生信号灯移出屏幕（window-manager
+/** macOS 自绘信号灯：主进程已把原生信号灯移出屏幕（windows/create-window
  *  trafficLightPosition -1000），红关闭/黄最小化/绿全屏；符号常显对齐原生
  *  聚焦态观感。尺寸/间距沿 Sidebar 头部占位几何（12px 圆点、8px 间距）；
  *  collapsed 时带子撑满标题栏高度（--tau-titlebar-h）使圆点中线与右侧标题栏

@@ -1,4 +1,5 @@
 import { articleCommands } from "@/commands/contracts/article";
+import { closeEditorWindow, openEditorWindow } from "@/commands/window";
 import type { ArticleContentResult } from "@/commands/contracts/article";
 import {
   IArticle,
@@ -61,14 +62,11 @@ export async function openArticleInNewWindow(
   databaseName: string,
   articleId: number
 ): Promise<void> {
-  return articleCommands.openInNewWindow.call(databaseName, articleId, {
-    showTitlebar: true,
-    isDefaultTop: true,
-  });
+  return openEditorWindow({ kind: "article", databaseName, id: articleId });
 }
 
 export async function closeArticleWindow(databaseName: string, articleId: number): Promise<void> {
-  return articleCommands.closeWindow.call(databaseName, articleId);
+  return closeEditorWindow({ kind: "article", databaseName, id: articleId });
 }
 
 export async function getArticlesByDates(dates: string[]): Promise<Record<string, IArticle[]>> {

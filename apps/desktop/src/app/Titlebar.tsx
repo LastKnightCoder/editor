@@ -128,7 +128,7 @@ function AssistToggle() {
 }
 
 /** 快捷主题切换：icon 反映当前模式，点击按 浅色 → 深色 → 跟随系统 循环。 */
-function ThemeToggle() {
+export function ThemeToggle() {
   const mode = useThemeStore(s => s.mode);
   const resolved = useThemeStore(s => s.resolved);
   const setMode = useThemeStore(s => s.setMode);

@@ -1,4 +1,5 @@
 import { invoke } from "@/electron";
+import { openEditorWindow } from "@/commands/window";
 import { EDragPosition, IDragItem } from "@/hooks/useDragAndDrop";
 import {
   Project,
@@ -181,10 +182,7 @@ export const moveProjectTreeItem = async (
 };
 
 export const openProjectItemInNewWindow = (databaseName: string, projectItemId: number) => {
-  return invoke("open-project-item-in-new-window", databaseName, projectItemId, {
-    showTitlebar: true,
-    isDefaultTop: true,
-  });
+  return openEditorWindow({ kind: "project-item", databaseName, id: projectItemId });
 };
 
 export const getProjectItemsByDates = async (
