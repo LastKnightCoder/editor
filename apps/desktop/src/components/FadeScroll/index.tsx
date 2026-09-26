@@ -1,4 +1,4 @@
-import { useState, type ReactNode, type RefObject } from "react";
+import { useState, type ReactNode, type Ref } from "react";
 import clsx from "clsx";
 import { useEdgeFade } from "@tau/ui";
 import { FADE_SCROLL_CLASS } from "./fadeScrollClass";
@@ -6,8 +6,8 @@ import { FADE_SCROLL_CLASS } from "./fadeScrollClass";
 interface FadeScrollProps {
   className?: string;
   children?: ReactNode;
-  /** 虚拟列表需要拿到滚动容器（getScrollElement） */
-  scrollRef?: RefObject<HTMLDivElement | null>;
+  /** 需要拿到滚动容器时用（虚拟列表的 getScrollElement、滚动监听）；对象 ref 或回调 ref */
+  scrollRef?: Ref<HTMLDivElement | null>;
 }
 
 /**
@@ -22,7 +22,8 @@ export function FadeScroll({ className, children, scrollRef }: FadeScrollProps) 
     <div
       ref={node => {
         setEl(node);
-        if (scrollRef) scrollRef.current = node;
+        if (typeof scrollRef === "function") scrollRef(node);
+        else if (scrollRef) scrollRef.current = node;
       }}
       className={clsx(FADE_SCROLL_CLASS, className)}
     >

@@ -237,6 +237,7 @@ export interface Metadata {
   synckeys?: {
     highlights?: number;
     reviews?: number;
+    /** 增量同步指纹：上次补拉详情时的最近阅读 / 最近笔记时间戳（秒），变化才重新补拉 */
     progress?: number;
   };
   readInfo?: {
@@ -366,6 +367,8 @@ export interface ShelfBook {
   markedStatus?: number;
   readingTime?: number;
   lastReadDate?: string;
+  /** 最近阅读时间戳（秒） */
+  readUpdateTime?: number;
   intro?: string;
   isbn?: string;
   publisher?: string;

@@ -2,6 +2,16 @@
 
 > 本文基于 2026-09-05 的当前代码实现整理。微信读书已经从 Cookie、二维码登录和 `/web/*` 直连迁移到官方 API Key + Agent Gateway；本文不再描述旧链路。
 
+## 0. 2026-09-26 更新：新页面与增量同步
+
+新壳层的微信读书页（`apps/desktop/src/features/weread`，D-059）替换了下文描述的旧页面编排。数据来源、网关协议（§3、§4）与 SQLite 表（§10.1、§10.2）不变；以下内容已被取代：
+
+- **书架同步改为增量**（`WeReadService.syncMetadata`）。`/shelf/sync` 与 `/user/notebooks` 仍每次整份拉取（1 + ⌈有笔记书数/100⌉ 个请求）；逐本补拉（`/book/info` + `/book/getprogress`）只对新书、以及「最近阅读时间（`readUpdateTime`）或最近笔记时间（`sort`）」比上次补拉时新的书进行。上次补拉时的时间戳作为指纹存在 `synckeys.progress`（`synckey_progress` 列）。其余书沿用缓存详情，只更新书架上直接可得的字段（分类、划线 / 想法数、读完状态）。已不在书架与笔记本里的书从缓存删除。
+- 补拉失败的书保留缓存详情、不更新指纹，下次同步自动重试；§7 的每分钟补偿队列已移除。
+- 页面提供「全量重新同步」（每本书约 2 个请求），用于修复异常数据。
+- 进入书架时每个工作区每次运行只自动同步一次（§5 的静默同步）；编排在 `features/weread/queries.ts`，不再经过 `useWeReadPersistence`。
+- 书籍详情不再转 Slate（§8.3、§9 已过时），由 `features/weread/model.ts` 的 `buildBookNotes` 组装为只读笔记结构。
+
 ## 1. 范围与结论
 
 当前微信读书模块包含四条主要数据链路：

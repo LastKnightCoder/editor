@@ -291,7 +291,7 @@
 - ~~diary 日记~~ ✅ 2026-09-25 D「一整张纸」落地（D-044；标签频道嵌侧栏，legacy DiaryView 待 G1/G2 随首页旧版一并删除）
 - ~~whiteboard 白板列表~~ ✅ 2026-09-25 A 画廊落地（D-047；标签嵌侧栏，缩略图复用导出图片管线）
 - ~~whiteboard-detail 白板详情（多页）~~ ✅ 2026-09-25 A2 底部页签栏（XMind 式）落地（D-048；只迁页面外壳，画布内部浮动件换皮另起一轮 mockup）
-- weread 微信读书
+- ~~weread 微信读书~~ ✅ 2026-09-26 A 书架 + B 列表排布 + 整页笔记落地（D-059；笔记只读，legacy 页待 P-weread 删除）
 - resources 资源管理：已退役，管理页、资源库选择及主库资源索引整体移除；保留上传、同步、协作文件与学习资源。
 - chat 归位 feature
 - ~~settings 拆解（15 子页）~~ ✅ 2026-09-24 重排为 12 分区全量落地（D-036）
@@ -579,3 +579,14 @@
 - 配置格式：`serverConfig.ts` 纯函数层——导入兼容 `mcpServers`（Claude Desktop / Cursor）、`servers`（VS Code）、裸映射与单个服务器对象；SSE 传输不支持，逐条给出原因；导出 / 「以 JSON 编辑」与 `mcpServers` 条目同构；同名导入覆盖。
 - 日志：主进程 `MCPLogBuffer` 每台服务器保留最近 200 行（仅本次运行、不落盘）：连接 / 断开 / 重连 / 错误事件、stdio 服务器 stderr（`stderr: "pipe"`）、`tools/list` 与每次 `tools/call` 的耗时；新增 `mcp-get-logs` / `mcp-clear-logs` 与推送事件 `mcp-log`。
 - 退役：删除 `components/MCPManagerModal/`、`stores/useMCPManagerModalStore.ts` 与 App 挂载；浏览器插件的 `mcp.manager.open` RPC 改为聚焦主窗口并 `openPage("mcp")`。
+
+## D-059 微信读书页定稿（A 书架 + B 列表排布 + 整页笔记，只读）
+
+- 背景（2026-09-26）：legacy `pages/WeRead` 是只读数据库镜像（11 列表格 + `useWeReadViews` 自定义视图，存 weread-view 表），点行后按需拉取划线 / 想法，用 Slate 渲染在全屏查看器（`WeReadFullScreenViewer`）里。mockup：`mockups/weread/`（A 书架 + 整页笔记 / B 书目表 + 抽屉 / C 分栏速览）。
+- 裁决（2026-09-26）：① **A 的书架 + B 的列表**：书架右上角切「封面 / 列表」，列表只能点列头排序，不做保存视图；② 划线**还原微信读书样式**（colorStyle 1–5 红紫蓝绿黄 × style 下划线 / 马克笔 / 波浪线），属数据色；③ 书架分类做成**页面顶部 chips**（不进全局侧栏子项）；④ 保留书架顶部的「在读」续读行（进度 + 读到的章节）；⑤ **笔记只读**：数据经微信读书 skill 网关获取，网关只有读接口（`/shelf/sync`、`/user/notebooks`、`/book/bookmarklist`、`/review/list/mine`、`/book/chapterinfo`、`/book/getprogress`、`/book/info`、`/_list`）；legacy 的改色 / 改样式 / 写想法 / 删除只改了编辑器内存节点（`onChange` 为空、无 IPC），关闭即丢，本就不是真能力。悬停只留「复制」；⑥ 表格视图体系**退役**：`useWeReadViews` 与 weread-view 表（`weread:*-view` / `*-active-view-id` IPC）进删除清单。
+- 页面：一级书架，从上到下依次是页头（标题 · 搜索 · 同步）、统计与同步状态一行、分类 chips + 状态筛选 · 排序 · 封面 / 列表切换、「在读」行（最多 3 本）、全部书籍。排布与排序存为本机偏好，分类 / 状态筛选不跨会话保留。二级是书籍笔记页（面包屑「微信读书 / 书名」），一整张纸：目录收在纸面左侧，开关在面包屑最前；正文列宽 720，依次是书头（封面 · 作者出版社 · 进度 · 时长 / 划线 / 想法 / 最近阅读 · 在微信读书中打开 / 重新拉取 / 复制为 Markdown）、书评、吸顶过滤条（全部 / 有想法 / 按颜色）、按章节排的划线与想法。
+- 状态：首次使用（未填 Key）在纸内引导填 Key 并直接触发首次同步；Key 失效但有缓存时照常展示缓存，顶部加一条提示；同步中在统计行显示进度。
+- 实现：`features/weread`——`model.ts`（Notebook → 书架条目 / 按章节合并划线与想法 / 筛选排序 / Markdown 导出，纯函数有单测）、`queries.ts`（书架与单本笔记走 react-query，按工作区数据库分 key；书架同步是模块级单例任务，同步中切库放弃写入；打开书先显示缓存，已连接时拉最新笔记并回写，网关返回空详情时保留缓存）、`prefs.ts`（排布 / 排序 / 目录开合持久化）。每个工作区在本次运行里进入书架时自动后台同步一次。划线五色映射到主题 tag 数据色（红 tag-5 / 紫 tag-3 / 蓝 tag-2 / 绿 tag-1 / 黄 tag-4），马克笔为同色 20% 底。无封面时按书 id 派生粉彩底 + 书名。
+- 增量同步（2026-09-26 追加，用户痛点：每次全量同步约「每本书 2 个请求」，581 本书约 1170 个请求，易触发频率限制甚至封 Key）：官方 skill（Tencent/WeChatReading 1.0.4）没有书架级 synckey，也没有批量进度接口；改为按变化增量——书架与笔记本概览整份拉（约 7 个请求），只对新书和最近阅读 / 最近笔记时间变化的书逐本补拉，指纹存 `synckeys.progress`；补拉失败不记指纹、下次重试（原每分钟补偿队列移除）；同步按钮旁的菜单保留「全量重新同步」。已不在书架与笔记本里的书从缓存删除（旧实现只增不删）。
+- 布局校正（同日）：书架整页放进一张 surface 大纸（页头、分类行固定在纸顶，书目在纸内滚动），「在读」卡与列表不再各自成卡；分类 chips 行 `w-0 flex-1` 自身横向滚动 + 右缘渐隐，修复分类多时撑宽页面导致右侧截断。
+- 退役：`pages/WeRead` 及表格视图体系按 04 清单 §weread 登记，锚点 P-weread（Electron 内走查通过后删除）；`services/weread/sync-manager.ts` 零消费者已删。
