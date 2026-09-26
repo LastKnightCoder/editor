@@ -19,6 +19,7 @@ export default class ChatMessageTable {
     const hasTitleDirty = tableInfo.some(col => col.name === "title_dirty");
     const hasAgentType = tableInfo.some(col => col.name === "agent_type");
     const hasAgentSessionId = tableInfo.some(col => col.name === "agent_session_id");
+    const hasSource = tableInfo.some(col => col.name === "source");
 
     if (!hasGroupId) {
       db.exec("ALTER TABLE chat_message ADD COLUMN group_id INTEGER");
@@ -58,6 +59,11 @@ export default class ChatMessageTable {
       db.exec("ALTER TABLE chat_message ADD COLUMN agent_session_id TEXT");
     }
 
+    if (!hasSource) {
+      db.exec("ALTER TABLE chat_message ADD COLUMN source TEXT DEFAULT 'desktop'");
+      db.exec("UPDATE chat_message SET source = 'desktop' WHERE source IS NULL");
+    }
+
     db.exec(
       "UPDATE chat_message SET message_schema_version = 1 WHERE message_schema_version IS NULL"
     );
@@ -81,6 +87,7 @@ export default class ChatMessageTable {
       "update-chat-message": this.updateChatMessage.bind(this),
       "delete-chat-message": this.deleteChatMessage.bind(this),
       "get-chat-message-by-id": this.getChatMessageById.bind(this),
+      "get-chat-message-list": this.getChatMessageList.bind(this),
       "get-all-chat-messages": this.getAllChatMessages.bind(this),
       "get-chat-branches": this.getBranchesByParentId.bind(this),
       "get-next-branch-index": this.getNextBranchIndex.bind(this),
@@ -106,6 +113,7 @@ export default class ChatMessageTable {
     title_dirty?: number | null;
     agent_type?: string | null;
     agent_session_id?: string | null;
+    source?: string | null;
   }): { chat: ChatMessage; migrated: boolean } {
     const storedSchemaVersion =
       typeof chatMessage.message_schema_version === "number"
@@ -127,6 +135,7 @@ export default class ChatMessageTable {
           chatMessage.parent_chat_id !== null ? Number(chatMessage.parent_chat_id) : null,
         branchIndex: chatMessage.branch_index ?? 0,
         orderNum: chatMessage.order_num ?? null,
+        source: chatMessage.source === "browser" ? "browser" : "desktop",
       },
       migrated: migration.changed || storedSchemaVersion !== CHAT_MESSAGE_SCHEMA_VERSION,
     };
@@ -152,10 +161,11 @@ export default class ChatMessageTable {
     parentChatId: number | null | undefined,
     branchIndex: number | undefined,
     orderNum: number | null | undefined,
-    titleDirty = false
+    titleDirty = false,
+    source: "desktop" | "browser" = "desktop"
   ): ChatMessage {
     const stmt = db.prepare(
-      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, archived, parent_chat_id, branch_index, order_num, message_schema_version, title_dirty) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)"
+      "INSERT INTO chat_message (create_time, update_time, title, messages, group_id, archived, parent_chat_id, branch_index, order_num, message_schema_version, title_dirty, source) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)"
     );
     const now = Date.now();
     const migration = migrateChatSessionMessages(messages);
@@ -169,7 +179,8 @@ export default class ChatMessageTable {
       branchIndex ?? 0,
       orderNum ?? null,
       CHAT_MESSAGE_SCHEMA_VERSION,
-      titleDirty ? 1 : 0
+      titleDirty ? 1 : 0,
+      source
     );
     const createdId = res.lastInsertRowid;
     return this.getChatMessageById(db, createdId);
@@ -199,9 +210,10 @@ export default class ChatMessageTable {
     return parsed.chat;
   }
 
+  /** 部分更新：未提供的字段保留库中现值（插件 chat.update 只提交增量，避免清空元数据） */
   static updateChatMessage(
     db: Database.Database,
-    chatMessage: Omit<ChatMessage, "updateTime">
+    chatMessage: Partial<Omit<ChatMessage, "updateTime">> & Pick<ChatMessage, "id">
   ): ChatMessage {
     const {
       id,
@@ -214,25 +226,84 @@ export default class ChatMessageTable {
       orderNum,
       titleDirty,
     } = chatMessage;
-    const stmt = db.prepare(
-      "UPDATE chat_message SET update_time = ?, title = ?, messages = ?, group_id = ?, archived = ?, parent_chat_id = ?, branch_index = ?, order_num = ?, message_schema_version = ?, title_dirty = ? WHERE id = ?"
-    );
-    const now = Date.now();
-    const migration = migrateChatSessionMessages(messages);
-    stmt.run(
-      now,
-      title,
-      JSON.stringify(migration.messages),
-      groupId ?? null,
-      archived ? 1 : 0,
-      parentChatId ?? null,
-      branchIndex ?? 0,
-      orderNum ?? null,
-      CHAT_MESSAGE_SCHEMA_VERSION,
-      titleDirty === false ? 0 : 1,
-      id
-    );
+    const assignments: string[] = ["update_time = ?"];
+    const params: unknown[] = [Date.now()];
+
+    if (title !== undefined) {
+      assignments.push("title = ?");
+      params.push(title);
+    }
+    if (messages !== undefined) {
+      assignments.push("messages = ?", "message_schema_version = ?");
+      params.push(
+        JSON.stringify(migrateChatSessionMessages(messages).messages),
+        CHAT_MESSAGE_SCHEMA_VERSION
+      );
+    }
+    if (groupId !== undefined) {
+      assignments.push("group_id = ?");
+      params.push(groupId);
+    }
+    if (archived !== undefined) {
+      assignments.push("archived = ?");
+      params.push(archived ? 1 : 0);
+    }
+    if (parentChatId !== undefined) {
+      assignments.push("parent_chat_id = ?");
+      params.push(parentChatId);
+    }
+    if (branchIndex !== undefined) {
+      assignments.push("branch_index = ?");
+      params.push(branchIndex);
+    }
+    if (orderNum !== undefined) {
+      assignments.push("order_num = ?");
+      params.push(orderNum);
+    }
+    if (titleDirty !== undefined) {
+      assignments.push("title_dirty = ?");
+      params.push(titleDirty ? 1 : 0);
+    }
+
+    db.prepare(`UPDATE chat_message SET ${assignments.join(", ")} WHERE id = ?`).run(...params, id);
     return this.getChatMessageById(db, id);
+  }
+
+  /** 会话列表（不含 messages 大字段，避免全表读消息载荷） */
+  static getChatMessageList(
+    db: Database.Database,
+    groupId?: number
+  ): Omit<ChatMessage, "messages">[] {
+    const stmt = db.prepare(`
+      SELECT id, create_time, update_time, title, group_id, archived, parent_chat_id, branch_index, order_num, source
+      FROM chat_message
+      ${groupId !== undefined ? "WHERE group_id = ?" : ""}
+      ORDER BY update_time DESC
+    `);
+    const rows = stmt.all(...(groupId !== undefined ? [groupId] : [])) as Array<{
+      id: number;
+      create_time: number;
+      update_time: number;
+      title: string;
+      group_id: number | null;
+      archived: number;
+      parent_chat_id: number | null;
+      branch_index: number | null;
+      order_num: number | null;
+      source?: string | null;
+    }>;
+    return rows.map(row => ({
+      id: Number(row.id),
+      createTime: row.create_time,
+      updateTime: row.update_time,
+      title: row.title,
+      groupId: row.group_id,
+      archived: Boolean(row.archived),
+      parentChatId: row.parent_chat_id !== null ? Number(row.parent_chat_id) : null,
+      branchIndex: row.branch_index ?? 0,
+      orderNum: row.order_num ?? null,
+      source: row.source === "browser" ? "browser" : "desktop",
+    }));
   }
 
   /**

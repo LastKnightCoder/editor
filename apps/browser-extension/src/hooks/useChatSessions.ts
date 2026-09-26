@@ -1,7 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { v4 as uuidv4 } from "uuid";
 import type { ChatSession } from "../types/chat-session";
 import type { ChatMessageType, MessageContentItem } from "@tau/shared";
+import {
+  branchChat,
+  createChat,
+  deleteChat,
+  ensureGroupForUrl,
+  getChat,
+  listChats,
+  subscribeChatStoreConnection,
+  updateChat,
+} from "../services/chatStoreClient";
+import {
+  extractSystemPrompt,
+  toDisplayMessages,
+  toStoredMessages,
+  withSystemPrompt,
+} from "../services/chatModelBridge";
 
 interface UseChatSessionsReturn {
   sessions: ChatSession[];
@@ -9,12 +24,15 @@ interface UseChatSessionsReturn {
   messages: ChatMessageType[];
   isLoading: boolean;
   createSession: (systemPromptSnapshot?: string) => Promise<void>;
-  ensureSessionSystemPrompt: (sessionId: string, systemPromptSnapshot: string) => Promise<void>;
-  deleteSession: (sessionId: string) => Promise<void>;
-  updateSessionTitle: (sessionId: string, title: string) => Promise<void>;
-  selectSession: (sessionId: string) => Promise<void>;
+  ensureSessionSystemPrompt: (
+    sessionId: string | number,
+    systemPromptSnapshot: string
+  ) => Promise<void>;
+  deleteSession: (sessionId: string | number) => Promise<void>;
+  updateSessionTitle: (sessionId: string | number, title: string) => Promise<void>;
+  selectSession: (sessionId: string | number) => Promise<void>;
   saveMessages: (messages: ChatMessageType[]) => void;
-  getChildBranchesCount: (sessionId: string) => Promise<number>;
+  getChildBranchesCount: (sessionId: string | number) => Promise<number>;
   deleteMessage: (messageIndex: number) => void;
   regenerateMessage: (
     messageIndex: number,
@@ -23,499 +41,336 @@ interface UseChatSessionsReturn {
   createBranch: (messageIndex: number) => Promise<void>;
 }
 
-const STORAGE_PREFIX_META = "tau-chats-meta:";
-const STORAGE_PREFIX_MESSAGES = "tau-chat-messages:";
-const STORAGE_SCHEMA_VERSION = 3;
-
-interface StoredSessionMessages {
-  schemaVersion: number;
-  messages: ChatMessageType[];
-}
-
-const normalizeSessionMeta = (session: ChatSession): ChatSession => ({
-  ...session,
-  agentType: "local",
-  agentSessionId: null,
-  schemaVersion: STORAGE_SCHEMA_VERSION,
-});
-
-const extractTextContent = (content: unknown): string => {
-  if (typeof content === "string") {
-    return content;
-  }
-  if (!Array.isArray(content)) {
-    return "";
-  }
-  return content
-    .filter(
-      (item): item is { type: "text"; text: string } =>
-        typeof item === "object" &&
-        item !== null &&
-        "type" in item &&
-        (item as { type?: string }).type === "text" &&
-        "text" in item &&
-        typeof (item as { text?: unknown }).text === "string"
-    )
-    .map(item => item.text)
-    .join("\n");
-};
-
-const normalizeRequestContent = (value: unknown): MessageContentItem[] | undefined => {
-  if (!Array.isArray(value)) {
-    return undefined;
-  }
-
-  const normalized = value
-    .map((item): MessageContentItem | null => {
-      if (!item || typeof item !== "object") {
-        return null;
-      }
-
-      const record = item as Record<string, unknown>;
-      if (record.type === "text" && typeof record.text === "string") {
-        return { type: "text", text: record.text };
-      }
-      if (record.type === "image" && typeof record.image === "string") {
-        return {
-          type: "image",
-          image: record.image,
-          ...(typeof record.resourceId === "number" ? { resourceId: record.resourceId } : {}),
-        };
-      }
-      if (record.type === "file" && typeof record.file === "string") {
-        return {
-          type: "file",
-          file: record.file,
-          ...(typeof record.resourceId === "number" ? { resourceId: record.resourceId } : {}),
-          ...(typeof record.fileName === "string" ? { fileName: record.fileName } : {}),
-        };
-      }
-      return null;
-    })
-    .filter((item): item is MessageContentItem => Boolean(item));
-
-  return normalized.length > 0 ? normalized : undefined;
-};
-
-const normalizeStoredMessages = (messages: unknown[]): ChatMessageType[] => {
-  const now = Date.now();
-  return messages
-    .map((message, index): ChatMessageType | null => {
-      if (!message || typeof message !== "object") {
-        return null;
-      }
-
-      const source = message as Record<string, unknown>;
-      const role =
-        source.role === "user" ||
-        source.role === "assistant" ||
-        source.role === "system" ||
-        source.role === "tool"
-          ? source.role
-          : "assistant";
-
-      const id =
-        typeof source.id === "string" && source.id ? source.id : `migrated-${now}-${index}`;
-
-      const timestamp = typeof source.timestamp === "number" ? source.timestamp : now + index * 10;
-
-      const normalizedMessage: ChatMessageType = {
-        id,
-        role,
-        content: extractTextContent(source.content),
-        timestamp,
-      };
-
-      if (typeof source.reasoning === "string") {
-        normalizedMessage.reasoning = source.reasoning;
-      }
-
-      if (Array.isArray(source.contentBlocks)) {
-        normalizedMessage.contentBlocks = source.contentBlocks as ChatMessageType["contentBlocks"];
-      }
-
-      if (typeof source.name === "string" && source.name.length > 0) {
-        (normalizedMessage as ChatMessageType & { name?: string }).name = source.name;
-      }
-
-      if (typeof source.tool_call_id === "string" && source.tool_call_id.length > 0) {
-        (normalizedMessage as ChatMessageType & { tool_call_id?: string }).tool_call_id =
-          source.tool_call_id;
-      }
-
-      if (Array.isArray(source.tool_calls)) {
-        (normalizedMessage as ChatMessageType & { tool_calls?: unknown[] }).tool_calls =
-          source.tool_calls;
-      }
-
-      const requestContent = normalizeRequestContent(source.requestContent);
-      if (requestContent) {
-        (
-          normalizedMessage as ChatMessageType & {
-            requestContent?: MessageContentItem[];
-          }
-        ).requestContent = requestContent;
-      }
-
-      return normalizedMessage;
-    })
-    .filter((message): message is ChatMessageType => Boolean(message));
-};
-
-const parseStoredMessages = (raw: unknown): StoredSessionMessages => {
-  if (Array.isArray(raw)) {
-    return {
-      schemaVersion: 1,
-      messages: normalizeStoredMessages(raw),
-    };
-  }
-
-  if (raw && typeof raw === "object") {
-    const source = raw as Partial<StoredSessionMessages>;
-    if (Array.isArray(source.messages)) {
-      return {
-        schemaVersion: typeof source.schemaVersion === "number" ? source.schemaVersion : 1,
-        messages: normalizeStoredMessages(source.messages),
-      };
-    }
-  }
-
-  return {
-    schemaVersion: STORAGE_SCHEMA_VERSION,
-    messages: [],
-  };
-};
-
-const buildStoredMessages = (messages: ChatMessageType[]): StoredSessionMessages => ({
-  schemaVersion: STORAGE_SCHEMA_VERSION,
-  messages,
-});
-
-export const __chatSessionTestUtils = {
-  parseStoredMessages,
-  normalizeStoredMessages,
-  normalizeSessionMeta,
-  buildStoredMessages,
-  STORAGE_SCHEMA_VERSION,
-};
-
-// 默认的空会话（用于初始化状态）
+// 默认的空会话（用于初始化状态，id 0 不对应任何持久化行）
 const DEFAULT_SESSION: ChatSession = {
-  id: "0",
+  id: 0,
   title: "新对话",
   createTime: Date.now(),
   updateTime: Date.now(),
-  schemaVersion: STORAGE_SCHEMA_VERSION,
-  agentType: "local",
-  agentSessionId: null,
 };
 
+const toSessionMeta = (
+  entry: {
+    id: number;
+    title: string;
+    createTime: number;
+    updateTime: number;
+    parentChatId?: number | null;
+    branchIndex?: number;
+    archived?: boolean;
+  },
+  systemPromptSnapshot?: string
+): ChatSession => ({
+  id: entry.id,
+  title: entry.title,
+  createTime: entry.createTime,
+  updateTime: entry.updateTime,
+  parentChatId: entry.parentChatId,
+  branchIndex: entry.branchIndex,
+  archived: entry.archived,
+  systemPromptSnapshot,
+});
+
+/**
+ * 会话存储 Hook：数据统一走桌面端 sqlite（chat.* RPC），
+ * 渲染层消息模型仍为 ChatMessageType，读写经 chatModelBridge 桥接。
+ */
 export function useChatSessions(url: string | null): UseChatSessionsReturn {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSession, setCurrentSession] = useState<ChatSession>(DEFAULT_SESSION);
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [connected, setConnected] = useState(false);
+  // 迁移等外部写入后触发列表刷新
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const refresh = () => setRefreshKey(key => key + 1);
+    window.addEventListener("tau-chat-store-changed", refresh);
+    return () => {
+      window.removeEventListener("tau-chat-store-changed", refresh);
+    };
+  }, []);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const currentUrlRef = useRef(url);
-  const currentSessionIdRef = useRef<string | null>(null);
+  const currentSessionIdRef = useRef<number | null>(null);
+  // 当前会话的 system 快照与消息（saveMessages 全量提交时合并）
+  const systemPromptRef = useRef<string | undefined>(undefined);
+  // 待落盘快照：记录触发保存时所属的会话，避免 debounce 到点前切换会话导致消息写入错误的会话
+  const pendingSaveRef = useRef<{
+    chatId: number;
+    messages: ChatMessageType[];
+    systemPrompt?: string;
+  } | null>(null);
 
-  // 加载会话列表元数据
-  const loadSessionsMeta = useCallback(async (url: string) => {
-    try {
-      const key = `${STORAGE_PREFIX_META}${url}`;
-      const result = await chrome.storage.local.get(key);
-      const sessionsMeta = result[key] as ChatSession[] | undefined;
-      if (!sessionsMeta || sessionsMeta.length === 0) {
-        return [];
-      }
-
-      const normalized = sessionsMeta.map(normalizeSessionMeta);
-      const needsMigration = sessionsMeta.some(
-        session => session.schemaVersion !== STORAGE_SCHEMA_VERSION
-      );
-      if (needsMigration) {
-        await chrome.storage.local.set({ [key]: normalized });
-      }
-      return normalized;
-    } catch (error) {
-      console.error("Failed to load sessions meta:", error);
-      return [];
-    }
+  useEffect(() => {
+    return subscribeChatStoreConnection(setConnected);
   }, []);
 
-  // 加载单个会话的消息
-  const loadSessionMessages = useCallback(async (sessionId: string) => {
-    try {
-      const key = `${STORAGE_PREFIX_MESSAGES}${sessionId}`;
-      const result = await chrome.storage.local.get(key);
-      const parsed = parseStoredMessages(result[key]);
+  const loadSessionDetail = useCallback(async (chatId: number) => {
+    const chat = await getChat(chatId);
+    systemPromptRef.current = extractSystemPrompt(chat.messages);
+    return {
+      session: toSessionMeta(chat, systemPromptRef.current),
+      messages: toDisplayMessages(chat.messages),
+    };
+  }, []);
 
-      if (parsed.schemaVersion !== STORAGE_SCHEMA_VERSION) {
-        await chrome.storage.local.set({
-          [key]: buildStoredMessages(parsed.messages),
+  // 按 URL 分组加载会话列表（桌面侧按分组过滤）
+  const loadSessions = useCallback(async (targetUrl: string): Promise<ChatSession[]> => {
+    const groupId = await ensureGroupForUrl(targetUrl);
+    if (groupId === null) {
+      return [];
+    }
+    const chats = await listChats(groupId);
+    return chats
+      .slice()
+      .sort((a, b) => b.updateTime - a.updateTime)
+      .map(entry => toSessionMeta(entry));
+  }, []);
+
+  const persistMessages = useCallback(
+    async (chatId: number, displayMessages: ChatMessageType[], systemPrompt?: string) => {
+      try {
+        const stored = withSystemPrompt(toStoredMessages(displayMessages), systemPrompt);
+        const updated = await updateChat({
+          id: chatId,
+          messages: stored,
         });
+        setSessions(prev =>
+          prev.map(session =>
+            session.id === chatId ? { ...session, updateTime: updated.updateTime } : session
+          )
+        );
+      } catch (error) {
+        console.warn("[useChatSessions] 保存会话消息失败:", error);
       }
+    },
+    []
+  );
 
-      return parsed.messages;
-    } catch (error) {
-      console.error("Failed to load session messages:", error);
-      return [];
+  /** 立即落盘待保存的消息（切换/卸载前调用，防止 debounce 丢失或串库） */
+  const flushPendingSave = useCallback(() => {
+    const pending = pendingSaveRef.current;
+    pendingSaveRef.current = null;
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
     }
-  }, []);
+    if (pending) {
+      void persistMessages(pending.chatId, pending.messages, pending.systemPrompt);
+    }
+  }, [persistMessages]);
 
-  // 保存会话元数据列表
-  const saveSessionsMeta = useCallback(async (url: string, sessionsMeta: ChatSession[]) => {
-    try {
-      const key = `${STORAGE_PREFIX_META}${url}`;
-      await chrome.storage.local.set({ [key]: sessionsMeta });
-    } catch (error) {
-      console.error("Failed to save sessions meta:", error);
+  const discardPendingSave = useCallback((chatIds: Set<number>) => {
+    if (pendingSaveRef.current && chatIds.has(pendingSaveRef.current.chatId)) {
+      pendingSaveRef.current = null;
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
     }
   }, []);
 
   // 保存会话消息（带 debounce）
-  const saveMessages = useCallback((newMessages: ChatMessageType[]) => {
-    const sessionId = currentSessionIdRef.current;
-    if (!sessionId || sessionId === "0" || !currentUrlRef.current) return;
-
-    // 清除之前的定时器
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-    }
-
-    // 设置新的定时器（1s debounce）
-    saveTimerRef.current = setTimeout(async () => {
-      try {
-        const messagesKey = `${STORAGE_PREFIX_MESSAGES}${sessionId}`;
-        await chrome.storage.local.set({
-          [messagesKey]: buildStoredMessages(newMessages),
-        });
-
-        // 更新元数据的 updateTime
-        const metaKey = `${STORAGE_PREFIX_META}${currentUrlRef.current}`;
-        const result = await chrome.storage.local.get(metaKey);
-        const sessionsMeta = ((result[metaKey] || []) as ChatSession[]).map(normalizeSessionMeta);
-
-        const updatedMeta = sessionsMeta.map(session =>
-          session.id === sessionId
-            ? {
-                ...session,
-                updateTime: Date.now(),
-                schemaVersion: STORAGE_SCHEMA_VERSION,
-              }
-            : session
-        );
-
-        await chrome.storage.local.set({ [metaKey]: updatedMeta });
-        setSessions(updatedMeta);
-      } catch (error) {
-        console.error("Failed to save session messages:", error);
+  const saveMessages = useCallback(
+    (newMessages: ChatMessageType[]) => {
+      const chatId = currentSessionIdRef.current;
+      if (chatId) {
+        pendingSaveRef.current = {
+          chatId,
+          messages: newMessages,
+          systemPrompt: systemPromptRef.current,
+        };
+        if (saveTimerRef.current) {
+          clearTimeout(saveTimerRef.current);
+        }
+        saveTimerRef.current = setTimeout(() => {
+          saveTimerRef.current = null;
+          flushPendingSave();
+        }, 1000);
       }
-    }, 1000);
 
-    // 立即更新本地 messages 以保持 UI 响应
-    setMessages(newMessages);
-  }, []);
+      // 立即更新本地 messages 以保持 UI 响应
+      setMessages(newMessages);
+    },
+    [flushPendingSave]
+  );
 
   // 创建新会话
   const createSession = useCallback(
     async (systemPromptSnapshot?: string) => {
-      if (!currentUrlRef.current) return;
+      if (!currentUrlRef.current) {
+        return;
+      }
+      flushPendingSave();
+      try {
+        const groupId = await ensureGroupForUrl(currentUrlRef.current);
+        if (groupId === null) {
+          return;
+        }
+        const nextIndex = sessions.length + 1;
+        const created = await createChat({
+          messages: systemPromptSnapshot ? withSystemPrompt([], systemPromptSnapshot) : [],
+          title: `对话 ${nextIndex}`,
+          groupId,
+        });
 
-      const nextIndex = sessions.length + 1;
-      const newSession: ChatSession = {
-        id: uuidv4(),
-        title: `对话 ${nextIndex}`,
-        createTime: Date.now(),
-        updateTime: Date.now(),
-        schemaVersion: STORAGE_SCHEMA_VERSION,
-        systemPromptSnapshot,
-        agentType: "local",
-        agentSessionId: null,
-      };
-
-      const updatedSessions = [...sessions, newSession];
-      setSessions(updatedSessions);
-      await saveSessionsMeta(currentUrlRef.current, updatedSessions);
-
-      // 自动切换到新会话
-      setCurrentSession(newSession);
-      currentSessionIdRef.current = newSession.id;
-      setMessages([]);
-
-      // 立即保存空消息数组
-      const messagesKey = `${STORAGE_PREFIX_MESSAGES}${newSession.id}`;
-      await chrome.storage.local.set({
-        [messagesKey]: buildStoredMessages([]),
-      });
+        const nextSession = toSessionMeta(created, systemPromptSnapshot);
+        setSessions(prev => [nextSession, ...prev]);
+        setCurrentSession(nextSession);
+        currentSessionIdRef.current = created.id;
+        systemPromptRef.current = systemPromptSnapshot;
+        setMessages([]);
+      } catch (error) {
+        console.warn("[useChatSessions] 创建会话失败:", error);
+      }
     },
-    [sessions, saveSessionsMeta]
+    [sessions.length, flushPendingSave]
   );
 
   const ensureSessionSystemPrompt = useCallback(
-    async (sessionId: string, systemPromptSnapshot: string) => {
-      if (!currentUrlRef.current) return;
-
-      const targetSession = sessions.find(session => session.id === sessionId);
-      if (!targetSession) return;
-
-      if (targetSession.systemPromptSnapshot === systemPromptSnapshot) {
+    async (sessionId: string | number, systemPromptSnapshot: string) => {
+      if (systemPromptRef.current === systemPromptSnapshot) {
         return;
       }
-
-      const nextSession = {
-        ...targetSession,
-        systemPromptSnapshot,
-        updateTime: targetSession.updateTime,
-      } satisfies ChatSession;
-
-      const updatedSessions = sessions.map(session =>
-        session.id === sessionId ? nextSession : session
-      );
-      setSessions(updatedSessions);
-      await saveSessionsMeta(currentUrlRef.current, updatedSessions);
-
-      if (currentSessionIdRef.current === sessionId) {
-        setCurrentSession(nextSession);
+      systemPromptRef.current = systemPromptSnapshot;
+      const chatId = Number(sessionId);
+      if (!Number.isInteger(chatId) || chatId <= 0) {
+        return;
       }
+      // 快照仅在前端生效（会话内动态注入），下一次消息落库时随 withSystemPrompt 一并提交
+      setCurrentSession(prev => (prev.id === chatId ? { ...prev, systemPromptSnapshot } : prev));
     },
-    [saveSessionsMeta, sessions]
+    []
   );
 
-  // 获取子分支数量
+  // 获取子分支数量（递归，含多级）
   const getChildBranchesCount = useCallback(
-    async (sessionId: string): Promise<number> => {
-      // 递归计算所有子分支（包括子分支的子分支）
-      const countChildren = (parentId: string): number => {
-        const children = sessions.filter(s => s.parentChatId === parentId);
+    async (sessionId: string | number): Promise<number> => {
+      const parentId = Number(sessionId);
+      const countChildren = (id: number): number => {
+        const children = sessions.filter(s => s.parentChatId === id);
         return children.reduce((total, child) => total + 1 + countChildren(child.id), 0);
       };
-
-      return countChildren(sessionId);
+      return countChildren(parentId);
     },
     [sessions]
   );
 
-  // 删除会话及其所有子分支
+  // 删除会话及其所有子分支（服务端级联）
   const deleteSession = useCallback(
-    async (sessionId: string) => {
-      if (!currentUrlRef.current) return;
+    async (sessionId: string | number) => {
+      const chatId = Number(sessionId);
+      if (!Number.isInteger(chatId) || chatId <= 0) {
+        return;
+      }
+      try {
+        await deleteChat(chatId);
+      } catch (error) {
+        console.warn("[useChatSessions] 删除会话失败:", error);
+        return;
+      }
 
-      // 收集所有要删除的会话 ID（包括子分支）
-      const idsToDelete: string[] = [];
-      const collectIds = (id: string) => {
-        idsToDelete.push(id);
-        const children = sessions.filter(s => s.parentChatId === id);
-        children.forEach(child => collectIds(child.id));
+      const idsToDelete = new Set<number>([chatId]);
+      const collectIds = (id: number) => {
+        sessions
+          .filter(s => s.parentChatId === id)
+          .forEach(child => {
+            idsToDelete.add(child.id);
+            collectIds(child.id);
+          });
       };
-      collectIds(sessionId);
+      collectIds(chatId);
 
-      // 删除所有消息数据
-      const deletePromises = idsToDelete.map(id => {
-        const messagesKey = `${STORAGE_PREFIX_MESSAGES}${id}`;
-        return chrome.storage.local.remove(messagesKey);
-      });
-      await Promise.all(deletePromises);
+      // 被删会话的待保存快照直接丢弃，避免向已删除行写入
+      discardPendingSave(idsToDelete);
+      // 其余会话的待保存内容先行落盘
+      flushPendingSave();
 
-      // 更新会话列表
-      const updatedSessions = sessions.filter(session => !idsToDelete.includes(session.id));
+      const updatedSessions = sessions.filter(session => !idsToDelete.has(session.id));
       setSessions(updatedSessions);
-      await saveSessionsMeta(currentUrlRef.current, updatedSessions);
 
-      // 如果删除的是当前会话，切换到第一个或创建新的
-      if (idsToDelete.includes(currentSessionIdRef.current || "")) {
+      if (idsToDelete.has(currentSessionIdRef.current ?? -1)) {
         if (updatedSessions.length > 0) {
           const firstSession = updatedSessions[0];
-          setCurrentSession(firstSession);
-          currentSessionIdRef.current = firstSession.id;
-          const newMessages = await loadSessionMessages(firstSession.id);
-          setMessages(newMessages);
+          try {
+            const detail = await loadSessionDetail(firstSession.id);
+            setCurrentSession(detail.session);
+            currentSessionIdRef.current = firstSession.id;
+            setMessages(detail.messages);
+          } catch {
+            setCurrentSession(firstSession);
+            currentSessionIdRef.current = firstSession.id;
+            setMessages([]);
+          }
         } else {
-          // 没有会话了，直接创建一个新的（不调用 createSession 以避免闭包过期）
-          const newSession: ChatSession = {
-            id: uuidv4(),
-            title: "对话 1",
-            createTime: Date.now(),
-            updateTime: Date.now(),
-            schemaVersion: STORAGE_SCHEMA_VERSION,
-            systemPromptSnapshot: undefined,
-            agentType: "local",
-            agentSessionId: null,
-          };
-
-          setSessions([newSession]);
-          await saveSessionsMeta(currentUrlRef.current!, [newSession]);
-
-          setCurrentSession(newSession);
-          currentSessionIdRef.current = newSession.id;
-          setMessages([]);
-
-          const messagesKey = `${STORAGE_PREFIX_MESSAGES}${newSession.id}`;
-          await chrome.storage.local.set({
-            [messagesKey]: buildStoredMessages([]),
-          });
+          await createSession();
         }
       }
     },
-    [sessions, loadSessionMessages, saveSessionsMeta]
+    [sessions, loadSessionDetail, createSession, discardPendingSave, flushPendingSave]
   );
 
-  // 更新会话标题
-  const updateSessionTitle = useCallback(
-    async (sessionId: string, newTitle: string) => {
-      if (!currentUrlRef.current) return;
-
-      const updatedSessions = sessions.map(session =>
-        session.id === sessionId
-          ? {
-              ...session,
-              title: newTitle,
-              updateTime: Date.now(),
-              schemaVersion: STORAGE_SCHEMA_VERSION,
-            }
-          : session
-      );
-
-      setSessions(updatedSessions);
-      await saveSessionsMeta(currentUrlRef.current, updatedSessions);
-
-      // 如果是当前会话，也更新当前会话
-      if (sessionId === currentSession.id) {
-        setCurrentSession({
-          ...currentSession,
-          title: newTitle,
-          updateTime: Date.now(),
-          schemaVersion: STORAGE_SCHEMA_VERSION,
-        });
-      }
-    },
-    [sessions, currentSession, saveSessionsMeta]
-  );
+  // 更新会话标题（增量提交：只改 title，messages 等字段由桌面端保留现值）
+  const updateSessionTitle = useCallback(async (sessionId: string | number, newTitle: string) => {
+    const chatId = Number(sessionId);
+    if (!Number.isInteger(chatId) || chatId <= 0) {
+      return;
+    }
+    try {
+      const updated = await updateChat({
+        id: chatId,
+        title: newTitle,
+        titleDirty: true,
+      });
+      const next = toSessionMeta(updated);
+      setSessions(prev => prev.map(s => (s.id === chatId ? next : s)));
+      setCurrentSession(prev => (prev.id === chatId ? next : prev));
+    } catch (error) {
+      console.warn("[useChatSessions] 更新标题失败:", error);
+    }
+  }, []);
 
   // 切换会话
   const selectSession = useCallback(
-    async (sessionId: string) => {
-      if (sessionId === currentSessionIdRef.current) return;
+    async (sessionId: string | number) => {
+      const chatId = Number(sessionId);
+      if (chatId === currentSessionIdRef.current) {
+        return;
+      }
+      const session = sessions.find(s => s.id === chatId);
+      if (!session) {
+        return;
+      }
 
-      const session = sessions.find(s => s.id === sessionId);
-      if (!session) return;
-
+      // 先落盘当前会话的待保存消息，再切换（防止 debounce 到点后写入新会话）
+      flushPendingSave();
       setCurrentSession(session);
       currentSessionIdRef.current = session.id;
       setIsLoading(true);
 
-      const newMessages = await loadSessionMessages(session.id);
-      setMessages(newMessages);
-      setIsLoading(false);
+      try {
+        const detail = await loadSessionDetail(session.id);
+        setCurrentSession(detail.session);
+        setMessages(detail.messages);
+      } catch (error) {
+        console.warn("[useChatSessions] 加载会话失败:", error);
+        setMessages([]);
+      } finally {
+        setIsLoading(false);
+      }
     },
-    [sessions, loadSessionMessages]
+    [sessions, loadSessionDetail, flushPendingSave]
   );
 
   // 删除单条消息
   const deleteMessage = useCallback(
     (messageIndex: number) => {
-      if (messageIndex < 0 || messageIndex >= messages.length) return;
+      if (messageIndex < 0 || messageIndex >= messages.length) {
+        return;
+      }
 
       const updatedMessages = [...messages];
       updatedMessages.splice(messageIndex, 1);
@@ -543,12 +398,15 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
         baseMessages: ChatMessageType[]
       ) => void
     ) => {
-      if (messageIndex < 0 || messageIndex >= messages.length) return;
+      if (messageIndex < 0 || messageIndex >= messages.length) {
+        return;
+      }
 
       const message = messages[messageIndex];
-      if (message.role !== "user") return;
+      if (message.role !== "user") {
+        return;
+      }
 
-      // 获取用户消息内容
       const userMessage = message as ChatMessageType & {
         requestContent?: MessageContentItem[];
       };
@@ -557,12 +415,10 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
           ? userMessage.requestContent
           : message.content;
 
-      // 删除该消息及之后的所有消息
       const updatedMessages = messages.slice(0, messageIndex);
       setMessages(updatedMessages);
       saveMessages(updatedMessages);
 
-      // 重新发送用户消息，传递截断后的消息避免闭包过期
       sendCallback(userContent, updatedMessages);
     },
     [messages, saveMessages]
@@ -571,51 +427,39 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
   // 创建分支（从某条消息处创建新会话）
   const createBranch = useCallback(
     async (messageIndex: number) => {
-      if (!currentUrlRef.current) return;
-      if (messageIndex < 0 || messageIndex >= messages.length) return;
-
-      // 获取分支点之前的消息（包含当前消息）
-      const branchMessages = messages.slice(0, messageIndex + 1);
-
-      // 计算同一父会话下的分支序号
       const parentId = currentSessionIdRef.current;
-      const siblingBranches = sessions.filter(s => s.parentChatId === parentId);
-      const branchIndex = siblingBranches.length + 1;
+      if (!parentId || messageIndex < 0 || messageIndex >= messages.length) {
+        return;
+      }
 
-      const newSession: ChatSession = {
-        id: uuidv4(),
-        title: `分支 ${branchIndex}`,
-        createTime: Date.now(),
-        updateTime: Date.now(),
-        parentChatId: parentId || undefined,
-        branchIndex,
-        schemaVersion: STORAGE_SCHEMA_VERSION,
-        systemPromptSnapshot: currentSession.systemPromptSnapshot,
-        agentType: "local",
-        agentSessionId: null,
-      };
+      const branchMessages = messages.slice(0, messageIndex + 1);
+      const siblingCount = sessions.filter(s => s.parentChatId === parentId).length;
 
-      const updatedSessions = [...sessions, newSession];
-      setSessions(updatedSessions);
-      await saveSessionsMeta(currentUrlRef.current, updatedSessions);
+      try {
+        const created = await branchChat({
+          parentChatId: parentId,
+          messages: withSystemPrompt(toStoredMessages(branchMessages), systemPromptRef.current),
+          title: `分支 ${siblingCount + 1}`,
+        });
 
-      // 保存分支消息
-      const messagesKey = `${STORAGE_PREFIX_MESSAGES}${newSession.id}`;
-      await chrome.storage.local.set({
-        [messagesKey]: buildStoredMessages(branchMessages),
-      });
-
-      // 切换到新分支
-      setCurrentSession(newSession);
-      currentSessionIdRef.current = newSession.id;
-      setMessages(branchMessages);
+        // 先落盘旧会话待保存内容，再切换到新分支
+        flushPendingSave();
+        const nextSession = toSessionMeta(created, systemPromptRef.current);
+        setSessions(prev => [nextSession, ...prev]);
+        setCurrentSession(nextSession);
+        currentSessionIdRef.current = created.id;
+        setMessages(branchMessages);
+      } catch (error) {
+        console.warn("[useChatSessions] 创建分支失败:", error);
+      }
     },
-    [currentSession, messages, sessions, saveSessionsMeta]
+    [messages, sessions, flushPendingSave]
   );
 
-  // URL 变化时重新加载会话列表
+  // URL / 连接状态变化时重新加载会话列表
   useEffect(() => {
     if (!url) {
+      flushPendingSave();
       setSessions([]);
       setCurrentSession(DEFAULT_SESSION);
       currentSessionIdRef.current = null;
@@ -625,55 +469,73 @@ export function useChatSessions(url: string | null): UseChatSessionsReturn {
     }
 
     currentUrlRef.current = url;
+
+    if (!connected) {
+      setIsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
     setIsLoading(true);
 
     (async () => {
-      const sessionsMeta = await loadSessionsMeta(url);
+      try {
+        const loaded = await loadSessions(url);
+        if (cancelled) {
+          return;
+        }
 
-      if (sessionsMeta.length > 0) {
-        setSessions(sessionsMeta);
-        const firstSession = sessionsMeta[0];
-        setCurrentSession(firstSession);
-        currentSessionIdRef.current = firstSession.id;
-
-        const sessionMessages = await loadSessionMessages(firstSession.id);
-        setMessages(sessionMessages);
-      } else {
-        // 没有会话，创建第一个
-        const initialSession: ChatSession = {
-          id: uuidv4(),
-          title: "对话 1",
-          createTime: Date.now(),
-          updateTime: Date.now(),
-          schemaVersion: STORAGE_SCHEMA_VERSION,
-          systemPromptSnapshot: undefined,
-          agentType: "local",
-          agentSessionId: null,
-        };
-
-        setSessions([initialSession]);
-        setCurrentSession(initialSession);
-        currentSessionIdRef.current = initialSession.id;
-        setMessages([]);
-
-        // 保存初始会话
-        await saveSessionsMeta(url, [initialSession]);
-        const messagesKey = `${STORAGE_PREFIX_MESSAGES}${initialSession.id}`;
-        await chrome.storage.local.set({
-          [messagesKey]: buildStoredMessages([]),
-        });
+        if (loaded.length > 0) {
+          setSessions(loaded);
+          // 刷新（重连/迁移事件）时优先恢复用户当前正在看的会话，避免被切走
+          const currentId = currentSessionIdRef.current;
+          const target = loaded.find(session => session.id === currentId) ?? loaded[0];
+          if (target.id !== currentId) {
+            currentSessionIdRef.current = target.id;
+          }
+          const detail = await loadSessionDetail(target.id);
+          if (cancelled) {
+            return;
+          }
+          setCurrentSession(detail.session);
+          currentSessionIdRef.current = target.id;
+          setMessages(detail.messages);
+        } else {
+          // 该 URL 首次使用：创建初始会话（对齐旧行为，保证首条消息可落库）
+          const groupId = await ensureGroupForUrl(url);
+          if (groupId === null || cancelled) {
+            return;
+          }
+          const created = await createChat({
+            messages: [],
+            title: "对话 1",
+            groupId,
+          });
+          if (cancelled) {
+            return;
+          }
+          const initialSession = toSessionMeta(created);
+          setSessions([initialSession]);
+          setCurrentSession(initialSession);
+          currentSessionIdRef.current = created.id;
+          systemPromptRef.current = undefined;
+          setMessages([]);
+        }
+      } catch (error) {
+        console.warn("[useChatSessions] 加载会话列表失败:", error);
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
       }
-
-      setIsLoading(false);
     })();
 
-    // 清理定时器
     return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-      }
+      cancelled = true;
+      // URL 切换/卸载前落盘待保存消息（异步执行，失败仅告警）
+      flushPendingSave();
     };
-  }, [url, loadSessionsMeta, loadSessionMessages, saveSessionsMeta]);
+  }, [url, connected, refreshKey, loadSessions, loadSessionDetail, flushPendingSave]);
 
   return {
     sessions,

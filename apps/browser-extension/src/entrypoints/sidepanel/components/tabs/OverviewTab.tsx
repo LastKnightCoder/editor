@@ -10,8 +10,7 @@ import { useThemeStore } from "../../../../stores/useThemeStore";
 import { useSettingsStore } from "../../../../stores/useSettingsStore";
 import { useSummaryCache } from "../../../../hooks/useSummaryCache";
 import { BROWSER_TOOLS } from "../../../../services/extToolServer";
-
-const WS_PORT = 24678;
+import { AI_SERVER_WS_URL } from "../../../../utils/aiServerAddress";
 
 interface OverviewTabProps {
   wsClient: WebSocketClient | null;
@@ -37,19 +36,8 @@ interface ExtClipperExtractResult {
 /** 通用 loading spinner */
 function Spinner({ className = "h-5 w-5" }: { className?: string }) {
   return (
-    <svg
-      className={`animate-spin ${className}`}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="3"
-      />
+    <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
       <path
         className="opacity-75"
         fill="currentColor"
@@ -63,10 +51,7 @@ function Spinner({ className = "h-5 w-5" }: { className?: string }) {
  * 概览 Tab - AI 网页总结
  * 自动获取当前网页内容并生成 AI 总结
  */
-export default function OverviewTab({
-  wsClient: _wsClient,
-  url,
-}: OverviewTabProps) {
+export default function OverviewTab({ wsClient: _wsClient, url }: OverviewTabProps) {
   // 状态
   const [summary, setSummary] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
@@ -90,9 +75,7 @@ export default function OverviewTab({
 
   // 初始化 WebSocket 客户端
   useEffect(() => {
-    const client = new WebSocketClientImpl(
-      `ws://localhost:${WS_PORT}/aiServer`,
-    );
+    const client = new WebSocketClientImpl(AI_SERVER_WS_URL);
 
     client.onOpenHandler = () => {
       console.log("[OverviewTab] 已连接到 AI 服务");
@@ -104,13 +87,13 @@ export default function OverviewTab({
       setIsConnected(false);
     };
 
-    // 注册流式通知处理器
+    // 注册流式通知处理器（通知为快照语义：content 即当前全量）
     const handleTextStream = (data: unknown) => {
       const notification = data as StreamNotificationData;
       if (notification.requestId !== requestIdRef.current) return;
 
-      if (notification.content) {
-        summaryRef.current += notification.content;
+      if (typeof notification.content === "string") {
+        summaryRef.current = notification.content;
         setSummary(summaryRef.current);
       }
     };
@@ -123,7 +106,7 @@ export default function OverviewTab({
         setError(notification.error);
       } else if (summaryRef.current && url) {
         // 保存总结到缓存
-        saveSummary(url, summaryRef.current).catch((err) => {
+        saveSummary(url, summaryRef.current).catch(err => {
           console.error("Failed to save summary cache:", err);
         });
       }
@@ -140,10 +123,7 @@ export default function OverviewTab({
 
     return () => {
       client.unregisterNotificationHandler("ai.stream.text", handleTextStream);
-      client.unregisterNotificationHandler(
-        "ai.stream.finish",
-        handleFinishStream,
-      );
+      client.unregisterNotificationHandler("ai.stream.finish", handleFinishStream);
       client.disconnect();
     };
   }, []);
@@ -165,7 +145,7 @@ export default function OverviewTab({
 
       // 1. 先检查缓存
       getSummary(url)
-        .then((cachedSummary) => {
+        .then(cachedSummary => {
           if (cachedSummary) {
             setSummary(cachedSummary.summary);
             summaryRef.current = cachedSummary.summary;
@@ -178,7 +158,7 @@ export default function OverviewTab({
             checkAndGenerateSummary();
           }
         })
-        .catch((err) => {
+        .catch(err => {
           console.error("Failed to get summary cache:", err);
           // 缓存读取失败，如果开启自动总结则继续
           if (autoSummaryEnabled) {
@@ -233,7 +213,7 @@ export default function OverviewTab({
           title: pageData.title,
           mode: "smart",
         },
-        600000,
+        600000
       )) as ExtClipperExtractResult;
 
       if (!result.success) {
@@ -312,7 +292,7 @@ export default function OverviewTab({
             title: tab.title,
           },
         },
-        600000,
+        600000
       )) as { content?: string };
 
       // 兜底：如果流式通知处理器还没有结束流程
@@ -366,17 +346,15 @@ export default function OverviewTab({
         <h3 className="mb-1 text-sm font-medium text-gray-900 dark:text-[#e6edf3]">
           正在连接 AI 服务...
         </h3>
-        <p className="text-center text-xs text-gray-400 dark:text-[#484f58]">
-          请确保桌面端已启动
-        </p>
+        <p className="text-center text-xs text-gray-400 dark:text-[#484f58]">请确保桌面端已启动</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-1 flex-col h-full overflow-hidden">
+    <div className="flex h-full flex-1 flex-col overflow-hidden">
       {/* 内容区域 */}
-      <div className="flex flex-1 flex-col overflow-y-auto tau-scrollbar">
+      <div className="tau-scrollbar flex flex-1 flex-col overflow-y-auto">
         {/* URL + 操作栏 */}
         {url && (
           <div className="sticky top-0 z-10 flex shrink-0 items-center gap-2 bg-white/80 px-4 py-2.5 backdrop-blur-sm dark:bg-[#161b22]/80">
@@ -404,9 +382,7 @@ export default function OverviewTab({
                   disabled={isLoading}
                   className="rounded-md p-1.5 text-gray-400 transition-colors hover:bg-black/5 hover:text-gray-600 disabled:opacity-50 dark:text-[#484f58] dark:hover:bg-white/10 dark:hover:text-[#8b949e]"
                 >
-                  <RefreshCw
-                    className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`}
-                  />
+                  <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
                 </button>
               </Tooltip>
             </div>
@@ -417,9 +393,7 @@ export default function OverviewTab({
         {isLoading && !summary && (
           <div className="flex flex-1 flex-col items-center justify-center px-6">
             <Spinner className="h-5 w-5 text-gray-400 dark:text-[#484f58]" />
-            <p className="mt-3 text-sm text-gray-400 dark:text-[#484f58]">
-              正在分析页面内容...
-            </p>
+            <p className="mt-3 text-sm text-gray-400 dark:text-[#484f58]">正在分析页面内容...</p>
           </div>
         )}
 
@@ -429,9 +403,7 @@ export default function OverviewTab({
             <div className="flex items-start gap-2">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-400 dark:text-red-400/80" />
               <div>
-                <span className="text-sm text-red-600 dark:text-red-400/90">
-                  {error}
-                </span>
+                <span className="text-sm text-red-600 dark:text-red-400/90">{error}</span>
                 <button
                   onClick={generateSummary}
                   className="mt-1.5 block text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-[#6e7681] dark:hover:text-[#8b949e]"

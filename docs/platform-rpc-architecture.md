@@ -286,6 +286,10 @@ command-registry.ts（中立，零 electron 依赖）
 - **契约桥装配点**：渲染侧 `src/commands/contracts/install.ts`（call → IPC invoke），主进程侧 `src-electron/main/rpc/command-bridge-install.ts`（register → ipcMain.handle）。
 - **设计决策——不恢复启动期事件缓冲**：原 event-broadcaster 会缓冲「窗口创建后、渲染层 WS 就绪前」的 `webContents.send` 再 flush；原生 IPC 下该窗口期事件同样会丢（与 HTTP 化之前的原生时代一致，非回归）。重新引入缓冲需 patch `webContents.send` 或改造全部广播点，与去 patch 方向冲突，故不做；若实测出现启动期状态广播丢失，再评估「渲染层就绪握手」方案。
 
+### 实施状态（2026-09-26 更新：浏览器插件聊天并入桌面数据域，D-059）
+
+- `/aiServer` 通道新增聊天会话存储命令面：`chat.list / chat.get / chat.create / chat.update / chat.delete / chat.branch / chat.groups.list / chat.group.ensure`（渲染端 aiServer 内直调既有 Electron IPC → 主进程 chat-message / chat-group 表模块，主进程零新增模块）；`ai.stream.*` 流通知升级为快照语义（全量文本 + turnId + 新增 `ai.stream.turn-finish`）。插件侧会话不再落 chrome.storage，桌面 sqlite 为唯一数据源（`chat_message.source` 列区分来源），旧数据经插件内 `chatMigration` 断点续传导入。统一消息模型与流事件归约器在 `packages/shared/src/chat-core/`，详见 `apps/desktop/docs/redesign/DECISIONS.md` D-059。
+
 ### 实施状态（2026-09-10 更新）
 
 - **Phase A 已落地**：`packages/platform`（接口 + Electron/Web 双实现 + UnsupportedError/supports）+ `src/platform` 装配 + 存量 commands 委托 + components/pages 散落 invoke 清零。

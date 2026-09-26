@@ -1,5 +1,7 @@
 import type { MessageContent } from "./llm";
 
+export type { ToolCallPayload } from "@tau/shared";
+
 export interface ToolParameterSchema {
   type: string;
   description?: string;
@@ -64,7 +66,7 @@ export interface ToolExecutionPolicy {
 
 export type ToolExecutor = (
   args: Record<string, unknown>,
-  context?: ToolExecutionContext,
+  context?: ToolExecutionContext
 ) => Promise<ToolExecutionResult | string | null | undefined>;
 
 export interface ToolDefinition {
@@ -73,13 +75,4 @@ export interface ToolDefinition {
   parameters: ToolJsonSchema;
   execution?: ToolExecutionPolicy;
   executor: ToolExecutor;
-}
-
-export interface ToolCallPayload {
-  id: string;
-  type?: string;
-  function: {
-    name: string;
-    arguments?: string;
-  };
 }

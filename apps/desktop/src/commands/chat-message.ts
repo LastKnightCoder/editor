@@ -14,7 +14,8 @@ export const createChatMessage = (
   parentChatId?: number | null,
   branchIndex?: number,
   orderNum?: number | null,
-  titleDirty?: boolean
+  titleDirty?: boolean,
+  source?: "desktop" | "browser"
 ): Promise<ChatMessage> => {
   return invoke(
     "create-chat-message",
@@ -24,7 +25,8 @@ export const createChatMessage = (
     parentChatId,
     branchIndex,
     orderNum,
-    titleDirty
+    titleDirty,
+    source
   );
 };
 
@@ -33,7 +35,7 @@ export const getChatMessageById = (id: number): Promise<ChatMessage> => {
 };
 
 export const updateChatMessage = (
-  chatMessage: Omit<ChatMessage, "updateTime">
+  chatMessage: Partial<Omit<ChatMessage, "updateTime">> & Pick<ChatMessage, "id">
 ): Promise<ChatMessage> => {
   return invoke("update-chat-message", chatMessage);
 };
@@ -44,6 +46,12 @@ export const deleteChatMessage = (id: number): Promise<number> => {
 
 export const getAllChatMessages = (): Promise<ChatMessage[]> => {
   return invoke("get-all-chat-messages");
+};
+
+export type ChatMessageListItem = Omit<ChatMessage, "messages">;
+
+export const getChatMessageList = (groupId?: number): Promise<ChatMessageListItem[]> => {
+  return invoke("get-chat-message-list", groupId);
 };
 
 export const getChatBranches = (parentChatId: number): Promise<ChatMessage[]> => {

@@ -124,17 +124,70 @@ export {
   type ChatMessageViewMarkdownRenderParams,
   type ToolCallCustomRenderer,
   type ToolCallCustomRendererProps,
-  type ToolCallStatus,
-  type ToolCallExecutionState,
-  type ToolCallPayload,
   type ContentBlockType,
   type TextContentBlock,
   type ReasoningContentBlock,
   type ToolCallsContentBlock,
-  type ContentBlock,
   type MessageRole,
   type ChatMessageType,
 } from "./components/ChatComponents";
+
+export {
+  Role,
+  type TextContent,
+  type ImageContent,
+  type FileContent,
+  type MessageContent,
+  type ProviderMetadata,
+  type ToolCallStatus,
+  type ToolCallPayload,
+  type ToolCallExecutionState,
+  type AssistantBlockState,
+  type AssistantTextBlock,
+  type AssistantReasoningBlock,
+  type AssistantToolCallBlock,
+  type AssistantBlock,
+  type ResponseContentBlock,
+  type ContentBlock,
+  type ModelUsage,
+  type RequestMessage,
+  type ResponseMessage,
+  type ChatSessionMessage,
+  type ChatSessionRecord,
+  type ChatGroup,
+  type CreateChatGroup,
+  type UpdateChatGroup,
+} from "./chat-core/messages";
+
+export {
+  CHAT_MESSAGE_SCHEMA_VERSION,
+  createChatMessageClientId,
+  migrateAssistantMessage,
+  migrateChatSessionMessages,
+  getAssistantToolExecutionsFromBlocks,
+} from "./chat-core/messageSchema";
+
+export {
+  syncAssistantDerivedFields,
+  ensureAssistantMessage,
+  getAssistantToolExecutions,
+  getAssistantContentBlocks,
+  createAssistantMessage,
+  applyAssistantTextSnapshot,
+  applyAssistantReasoningSnapshot,
+  applyAssistantToolCallsSnapshot,
+  finalizeAssistantTurn,
+  applyAssistantProviderMetadataSnapshot,
+  buildAssistantHistoryMessages,
+  sanitizeToolMessages,
+} from "./chat-core/assistantBlocks";
+
+export {
+  applyChatStreamEvent,
+  type ChatStreamEvent,
+  type ChatStreamTurnEvent,
+  type ChatStreamRunEvent,
+} from "./chat-core/streamEvents";
 
 export type { CropperTransform, ImageCropperProps } from "./components/ImageCropper/types";
 
