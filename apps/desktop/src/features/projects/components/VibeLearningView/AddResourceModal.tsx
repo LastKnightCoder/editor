@@ -1,21 +1,19 @@
-import { memo, useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { memo, useState, useEffect, useRef, type ReactNode } from "react";
 import {
+  Check,
+  Clapperboard,
   FileText,
   Globe,
+  NotebookPen,
   Plus,
-  Loader2,
-  Check,
-  AlertCircle,
   Upload as UploadIcon,
-  Video,
-  StickyNote,
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import classNames from "classnames";
+import { Button, Dialog, Input, Segmented, Select, Spinner, cn, toast } from "@tau/ui";
 
-import CustomModal from "@/components/CustomModal";
 import LocalImage from "@/components/LocalImage";
+import { EntityPicker } from "@/components/EntityPicker";
+import type { EntityCandidate, EntityKind } from "@/types/entity";
 import { createVLResource, addVLIndexTask, ensureVLNoteResource } from "@/commands/vibe-learning";
 import { uploadResource } from "@/hooks/useUploadResource";
 import { nodeFetch } from "@/commands/extra";
@@ -31,14 +29,15 @@ import {
 } from "@/utils/bilibili";
 import { isYoutubeUrl } from "@/utils/youtube/parser";
 import { getYoutubeVideoInfo } from "@/commands/youtube-cache";
-import { getMarkdown } from "@/utils";
 import useSettingStore from "@/stores/useSettingStore";
-import type { VLResourceType, BilibiliSourceMeta, YoutubeSourceMeta } from "@/types/vibe-learning";
+import type {
+  VLResource,
+  VLResourceType,
+  BilibiliSourceMeta,
+  YoutubeSourceMeta,
+  NoteSourceMeta,
+} from "@/types/vibe-learning";
 import type { StreamOption } from "@/types/youtube";
-import type { SearchResult } from "@/types/search";
-import NoteSelector from "./generate/components/NoteSelector";
-import useEditorExtensions from "@/hooks/useDynamicExtensions";
-import { toast } from "@tau/ui";
 
 const ACCEPTED_UPLOAD_TYPES =
   ".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.md,.html,.mp3,.wav,.m4a,.ogg,.flac,.aac,.mp4,.webm,.mov,.avi,.mkv,.jpg,.jpeg,.png,.gif,.webp,.bmp";
@@ -49,12 +48,13 @@ interface AddResourceModalProps {
   mainDbName: string;
   onClose: () => void;
   onSuccess: () => void;
+  /** 已有资料：挑选笔记时把已加入的置灰 */
+  resources?: VLResource[];
 }
 
 type TabType = "file" | "url" | "video" | "note";
 type ProcessingStep = "idle" | "fetching" | "extracting" | "saving" | "done";
 type VideoStep = "input" | "config" | "adding" | "done";
-type NoteStep = "search" | "processing" | "done";
 
 type VideoProvider = "bilibili" | "youtube";
 
@@ -196,7 +196,7 @@ const extractTitleFromHtml = (html: string): string | null => {
 };
 
 const AddResourceModal = memo((props: AddResourceModalProps) => {
-  const { open, projectId, mainDbName, onClose, onSuccess } = props;
+  const { open, projectId, mainDbName, onClose, onSuccess, resources = [] } = props;
   const { setting } = useSettingStore.getState();
 
   // Tab 状态
@@ -223,17 +223,14 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
-  // 笔记相关状态
-  const [noteStep, setNoteStep] = useState<NoteStep>("search");
-  const [noteError, setNoteError] = useState<string | null>(null);
+  // 笔记：关掉本弹窗后打开公共检索（EntityPicker）
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Webview 相关状态（用于加载 SPA 等动态网页）
   const webviewRef = useRef<WebviewRef>(null);
   const [webviewUrl, setWebviewUrl] = useState<string | null>(null);
   const webviewLoadResolve = useRef<((html: string) => void) | null>(null);
   const webviewLoadReject = useRef<((error: Error) => void) | null>(null);
-
-  const extensions = useEditorExtensions();
 
   // 重置状态
   const resetState = useMemoizedFn(() => {
@@ -253,9 +250,6 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     setSelectedAudioStream("");
     setVideoError(null);
     setIsAnalyzing(false);
-    // 重置笔记状态
-    setNoteStep("search");
-    setNoteError(null);
     // 重置 Webview 状态
     setWebviewUrl(null);
     webviewLoadResolve.current = null;
@@ -729,59 +723,57 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
     setVideoError(null);
   });
 
-  // 获取资源名称：有 title 用 title，没有则截取 Markdown 前 10 个字符
-  const getResourceName = useMemoizedFn((note: SearchResult): string => {
-    if (note.title && note.title.trim()) {
-      return note.title;
-    }
-    // 卡片等无 title 的类型，从内容截取
-    const markdown = getMarkdown(note.content);
-    const preview = markdown
-      .replace(/[#*`\[\]]/g, "")
-      .trim()
-      .slice(0, 10);
-    return preview || "未命名笔记";
-  });
+  // 笔记：EntityPicker 的类型 → 资料里记录的笔记类型
+  const NOTE_KINDS: EntityKind[] = ["card", "article", "project_item", "diary"];
+  const NOTE_TYPE: Record<string, string> = {
+    card: "card",
+    article: "article",
+    project_item: "project-item",
+    diary: "diary-daily",
+  };
+  const linkedContentIds = new Set(
+    resources
+      .filter(r => r.sourceType === "note" && r.sourceMetaInfo)
+      .map(r => {
+        try {
+          return (JSON.parse(r.sourceMetaInfo ?? "") as NoteSourceMeta).contentId;
+        } catch {
+          return null;
+        }
+      })
+  );
 
-  // 添加笔记资源
-  const handleAddNote = useMemoizedFn(async (note: SearchResult) => {
-    setNoteStep("processing");
-    setNoteError(null);
-
-    try {
-      const resourceName = getResourceName(note);
-      await ensureVLNoteResource({
+  const handleAddNotes = useMemoizedFn(async (picked: EntityCandidate[]) => {
+    let added = 0;
+    for (const item of picked) {
+      if (!item.contentId) continue;
+      const result = await ensureVLNoteResource({
         projectId,
         mainDbName,
-        contentId: note.contentId,
-        title: resourceName,
-        noteType: note.type,
-        originalId: note.id,
+        contentId: item.contentId,
+        title: item.title.trim() || item.excerpt.slice(0, 16) || "未命名笔记",
+        noteType: NOTE_TYPE[item.kind] ?? item.kind,
+        originalId: item.id,
       });
-
-      setNoteStep("done");
-      toast.success("笔记添加成功");
-      onSuccess();
-
-      // 延迟关闭弹窗
-      setTimeout(() => {
-        onClose();
-      }, 1000);
-    } catch (err) {
-      console.error("Add note failed:", err);
-      const errorMessage = err instanceof Error ? err.message : "添加笔记失败，请稍后重试";
-      setNoteError(errorMessage);
-      setNoteStep("search");
+      if (result.created) added++;
     }
+    onSuccess();
+    toast.success(added > 0 ? `已加入 ${added} 份笔记` : "选中的笔记都已在资料里");
   });
 
-  // 渲染文件上传 Tab
-  const renderFileTab = () => (
-    <div className="space-y-4">
+  const busy =
+    uploading ||
+    (processingStep !== "idle" && processingStep !== "done") ||
+    isAnalyzing ||
+    videoStep === "adding";
+
+  const fileTab = (
+    <div className="flex flex-col gap-3">
       <label
-        className={`border-line-1 hover:border-accent block cursor-pointer rounded-xl border border-dashed transition-all ${
-          uploading ? "pointer-events-none" : ""
-        }`}
+        className={cn(
+          "border-line-1 rounded-tau-md hover:border-accent hover:bg-accent-soft/40 flex cursor-pointer flex-col items-center gap-2 border border-dashed px-6 py-8 text-center transition-colors",
+          uploading && "pointer-events-none"
+        )}
         onDragOver={event => {
           event.preventDefault();
           if (!uploading) event.dataTransfer.dropEffect = "copy";
@@ -789,9 +781,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         onDrop={event => {
           event.preventDefault();
           if (uploading) return;
-          for (const file of Array.from(event.dataTransfer.files)) {
-            void handleUpload(file);
-          }
+          for (const file of Array.from(event.dataTransfer.files)) void handleUpload(file);
         }}
       >
         <input
@@ -801,712 +791,351 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           accept={ACCEPTED_UPLOAD_TYPES}
           disabled={uploading}
           onChange={event => {
-            for (const file of Array.from(event.target.files ?? [])) {
-              void handleUpload(file);
-            }
+            for (const file of Array.from(event.target.files ?? [])) void handleUpload(file);
             event.target.value = "";
           }}
         />
-        <div className="py-8">
-          {uploading ? (
-            <div className="flex flex-col items-center gap-3">
-              <Loader2 className="text-accent h-10 w-10 animate-spin" strokeWidth={1.75} />
-              <p className="text-ink-2 m-0 text-sm">上传中...</p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-3">
-              <div className="bg-accent-soft flex h-14 w-14 items-center justify-center rounded-full">
-                <UploadIcon className="text-accent h-6 w-6" />
-              </div>
-              <div>
-                <p className="text-ink-2 m-0 text-sm font-medium">点击或拖拽文件上传</p>
-                <p className="text-ink-2 m-0 mt-1 text-xs">支持 PDF、Word、音视频等格式</p>
-              </div>
-            </div>
-          )}
-        </div>
+        {uploading ? (
+          <Spinner className="size-5" />
+        ) : (
+          <UploadIcon className="text-ink-2 size-5" strokeWidth={1.75} />
+        )}
+        <span className="text-tau-body text-ink-1 font-medium">
+          {uploading ? "上传中…" : "点击或拖入文件"}
+        </span>
+        <span className="text-tau-sm text-ink-3">PDF、Office、Markdown、音视频、图片</span>
       </label>
-
-      {/* 已上传文件列表 */}
       {uploadedFiles.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-ink-2 text-xs font-medium">已上传</p>
-          <div className="space-y-1.5">
-            {uploadedFiles.map((fileName, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="bg-ok/10 text-status-success flex items-center gap-2 rounded-lg px-3 py-2"
-              >
-                <Check className="h-4 w-4" strokeWidth={1.75} />
-                <span className="truncate text-sm">{fileName}</span>
-              </motion.div>
-            ))}
-          </div>
+        <div className="flex flex-col gap-0.5">
+          {uploadedFiles.map((fileName, index) => (
+            <div key={index} className="text-tau-meta text-ink-2 flex items-center gap-2 px-1 py-1">
+              <Check className="text-ok size-4 shrink-0" strokeWidth={2} />
+              <span className="truncate">{fileName}</span>
+            </div>
+          ))}
+          <p className="text-tau-sm text-ink-3 m-0 mt-1 px-1">已加入资料，正在后台转换与索引</p>
         </div>
       )}
     </div>
   );
 
-  // 渲染网址输入 Tab
-  const renderUrlTab = () => (
-    <div className="space-y-4">
-      <div>
-        <label className="text-ink-2 mb-2 block text-[11px] font-semibold uppercase tracking-wider">
-          网页地址
-        </label>
-        <input
-          type="url"
-          value={url}
-          onChange={e => setUrl(e.target.value)}
-          placeholder="https://example.com/article"
-          disabled={processingStep !== "idle"}
-          className={classNames(
-            "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
-            "border-line-1 border",
-            "text-ink-1 placeholder:text-ink-3",
-            "focus:ring-accent/20 focus:border-accent focus:ring-2",
-            "disabled:cursor-not-allowed disabled:opacity-60"
-          )}
-        />
-      </div>
-
-      <div>
-        <label className="text-ink-2 mb-2 block text-[11px] font-semibold uppercase tracking-wider">
-          资源标题
-          <span className="text-ink-3 ml-1 font-normal normal-case">（可选，留空则自动提取）</span>
-        </label>
-        <input
-          type="text"
-          value={resourceTitle}
-          onChange={e => setResourceTitle(e.target.value)}
-          placeholder="留空将自动从网页标题提取"
-          disabled={processingStep !== "idle"}
-          className={classNames(
-            "w-full rounded-xl px-4 py-3 text-sm outline-none transition-all",
-            "border-line-1 border",
-            "text-ink-1 placeholder:text-ink-3",
-            "focus:ring-accent/20 focus:border-accent focus:ring-2",
-            "disabled:cursor-not-allowed disabled:opacity-60"
-          )}
-          onKeyDown={e => {
-            if (e.key === "Enter" && processingStep === "idle") {
-              handleClipUrl();
-            }
-          }}
-        />
-      </div>
-
-      {/* 处理状态显示 */}
-      {processingStep !== "idle" && processingStep !== "done" && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center py-8"
-        >
-          <div className="relative">
-            <div className="bg-accent-soft flex h-16 w-16 items-center justify-center rounded-full">
-              <Globe className="text-accent h-7 w-7" strokeWidth={1.75} />
-            </div>
-            <motion.div
-              className="border-accent absolute inset-0 h-16 w-16 rounded-full border-2 border-t-transparent"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            />
-          </div>
-          <p className="text-ink-2 mt-4 text-sm font-medium">
-            {processingStep === "fetching" && "正在获取网页内容..."}
-            {processingStep === "extracting" && "正在提取文章内容..."}
-            {processingStep === "saving" && "正在保存资源..."}
-          </p>
-        </motion.div>
-      )}
-
-      {/* 成功状态 */}
-      {processingStep === "done" && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex flex-col items-center py-8"
-        >
-          <div className="bg-ok/10 flex h-16 w-16 items-center justify-center rounded-full">
-            <Check className="text-status-success h-8 w-8" strokeWidth={1.75} />
-          </div>
-          <p className="text-status-success mt-4 text-sm font-medium">剪藏成功</p>
-        </motion.div>
-      )}
-
-      {/* 错误提示 */}
-      {error && (
-        <motion.div
-          initial={{ opacity: 0, y: -5 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3"
-        >
-          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" strokeWidth={1.75} />
-          <div>
-            <p className="text-danger m-0 text-sm font-medium">剪藏失败</p>
-            <p className="text-danger/80 m-0 mt-1 text-xs">{error}</p>
-          </div>
-        </motion.div>
-      )}
-    </div>
-  );
-
-  // 渲染视频 Tab
-  const renderVideoTab = () => (
-    <div className="space-y-4">
-      {videoStep === "input" && (
-        <>
-          <div>
-            <label className="text-ink-2 mb-2 block text-[11px] font-semibold uppercase tracking-wider">
-              Bilibili / YouTube 视频链接
-            </label>
-            <input
-              ref={videoInputRef}
-              type="url"
-              value={videoUrl}
-              onChange={e => {
-                setVideoUrl(e.target.value);
-                setVideoError(null);
-              }}
-              placeholder="在此粘贴 Bilibili 或 YouTube 链接..."
-              disabled={isAnalyzing}
-              onKeyDown={e => {
-                if (e.key === "Enter" && !isAnalyzing) {
-                  handleAnalyzeVideo();
-                }
-              }}
-              className={classNames(
-                "w-full rounded-xl px-4 py-3.5 text-sm outline-none transition-all",
-                "border-line-1 border",
-                "text-ink-1 placeholder:text-ink-3",
-                "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20",
-                "disabled:cursor-not-allowed disabled:opacity-60"
-              )}
-            />
-          </div>
-
-          {videoError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] text-red-600">
-              {videoError}
-            </div>
-          )}
-        </>
-      )}
-
-      {videoStep === "config" && videoInfo && (
-        <>
-          {/* 视频预览 */}
-          <div className="border-line-1 flex items-center gap-3 border-b pb-4">
-            {videoInfo.cover && (
-              <LocalImage
-                url={videoInfo.cover}
-                alt={videoInfo.title}
-                className="border-line-1 h-[54px] w-24 shrink-0 rounded-lg border object-cover shadow-sm"
-              />
-            )}
-            <div className="min-w-0 flex-1">
-              <h3
-                className="text-ink-1 m-0 overflow-hidden text-ellipsis whitespace-nowrap pr-2 text-sm font-semibold"
-                title={videoInfo.title}
-              >
-                {videoInfo.title}
-              </h3>
-              <p className="text-ink-2 mt-1 text-xs">
-                {videoInfo.provider === "bilibili"
-                  ? "请选择清晰度"
-                  : "默认已选择最高可用流，可按需调整"}
-              </p>
-            </div>
-          </div>
-
-          {videoInfo.provider === "bilibili" ? (
-            <div>
-              <label className="text-ink-2 mb-2 block text-[11px] font-semibold uppercase tracking-wider">
-                清晰度
-              </label>
-              <div className="relative">
-                <select
-                  value={selectedQuality}
-                  onChange={e => setSelectedQuality(Number(e.target.value))}
-                  className={classNames(
-                    "w-full cursor-pointer appearance-none rounded-xl py-3 pl-4 pr-10 text-sm outline-none transition-all",
-                    "border-line-1 border",
-                    "text-ink-1",
-                    "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20"
-                  )}
-                >
-                  {videoInfo.qualityOptions.map(opt => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                      {opt.needVip ? " · 大会员" : opt.needLogin ? " · 需登录" : ""}
-                    </option>
-                  ))}
-                </select>
-                <svg
-                  className="text-ink-3 pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div>
-                <label className="text-ink-2 mb-2 block text-[11px] font-semibold uppercase tracking-wider">
-                  视频流
-                </label>
-                <div className="relative">
-                  <select
-                    value={selectedVideoStream}
-                    onChange={e => setSelectedVideoStream(e.target.value)}
-                    className={classNames(
-                      "w-full cursor-pointer appearance-none rounded-xl py-3 pl-4 pr-10 text-sm outline-none transition-all",
-                      "border-line-1 border",
-                      "text-ink-1",
-                      "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20"
-                    )}
-                  >
-                    {videoInfo.videoStreams.map(stream => (
-                      <option key={stream.id} value={stream.id}>
-                        {stream.resolution} · {stream.format?.toUpperCase()} ·{" "}
-                        {stream.codecs || "unknown"}
-                        {stream.fps ? ` · ${stream.fps}fps` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <svg
-                    className="text-ink-3 pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </div>
-              </div>
-              <div>
-                <label className="text-ink-2 mb-2 block text-[11px] font-semibold uppercase tracking-wider">
-                  音频流
-                </label>
-                <div className="relative">
-                  <select
-                    value={selectedAudioStream}
-                    onChange={e => setSelectedAudioStream(e.target.value)}
-                    className={classNames(
-                      "w-full cursor-pointer appearance-none rounded-xl py-3 pl-4 pr-10 text-sm outline-none transition-all",
-                      "border-line-1 border",
-                      "text-ink-1",
-                      "focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20"
-                    )}
-                  >
-                    {videoInfo.audioStreams.map(stream => (
-                      <option key={stream.id} value={stream.id}>
-                        {stream.format?.toUpperCase()} · {stream.codecs || "unknown"}
-                        {stream.bitrate ? ` · ${Math.round(stream.bitrate / 1024)}kbps` : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <svg
-                    className="text-ink-3 pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                  >
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
-                </div>
-              </div>
-            </>
-          )}
-
-          {videoError && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] text-red-600">
-              {videoError}
-            </div>
-          )}
-        </>
-      )}
-
-      {videoStep === "adding" && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center py-8"
-        >
-          <div className="relative">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-pink-50">
-              <Video className="h-7 w-7 text-pink-500" strokeWidth={1.75} />
-            </div>
-            <motion.div
-              className="absolute inset-0 h-16 w-16 rounded-full border-2 border-pink-500 border-t-transparent"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            />
-          </div>
-          <p className="text-ink-2 mt-4 text-sm font-medium">正在添加视频...</p>
-        </motion.div>
-      )}
-
-      {videoStep === "done" && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex flex-col items-center py-8"
-        >
-          <div className="bg-ok/10 flex h-16 w-16 items-center justify-center rounded-full">
-            <Check className="text-status-success h-8 w-8" strokeWidth={1.75} />
-          </div>
-          <p className="text-status-success mt-4 text-sm font-medium">添加成功</p>
-          <p className="text-ink-2 mt-1 text-xs">视频正在后台下载和处理中...</p>
-        </motion.div>
-      )}
-    </div>
-  );
-
-  // 渲染笔记 Tab
-  const renderNoteTab = () => (
-    <div className="space-y-4">
-      {noteStep === "search" && (
-        <>
-          <NoteSelector
-            onSelect={handleAddNote}
-            extensions={extensions}
-            emptyDescription="搜索已有的卡片、文章、项目文档、日记等内容"
+  const urlTab =
+    processingStep === "done" ? (
+      <StatusBlock tone="ok" text="剪藏完成" sub="已加入资料，正在后台索引" />
+    ) : processingStep !== "idle" ? (
+      <StatusBlock
+        text={
+          processingStep === "fetching"
+            ? "正在获取网页…"
+            : processingStep === "extracting"
+              ? "正在提取正文…"
+              : "正在保存…"
+        }
+      />
+    ) : (
+      <div className="flex flex-col gap-3.5">
+        <FieldRow label="网页地址">
+          <Input
+            data-autofocus
+            type="url"
+            value={url}
+            onChange={e => setUrl(e.target.value)}
+            placeholder="https://example.com/article"
+            onKeyDown={e => e.key === "Enter" && handleClipUrl()}
           />
-          {noteError && (
-            <motion.div
-              initial={{ opacity: 0, y: -5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3"
-            >
-              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-red-500" strokeWidth={1.75} />
-              <div>
-                <p className="text-danger m-0 text-sm font-medium">添加失败</p>
-                <p className="text-danger/80 m-0 mt-1 text-xs">{noteError}</p>
-              </div>
-            </motion.div>
-          )}
-        </>
-      )}
+        </FieldRow>
+        <FieldRow label="标题" hint="可选，留空从网页提取">
+          <Input
+            value={resourceTitle}
+            onChange={e => setResourceTitle(e.target.value)}
+            placeholder="网页标题"
+            onKeyDown={e => e.key === "Enter" && handleClipUrl()}
+          />
+        </FieldRow>
+        {error && <ErrorNote title="剪藏失败" text={error} />}
+      </div>
+    );
 
-      {noteStep === "processing" && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center py-8"
-        >
-          <div className="relative">
-            <div className="bg-accent-soft flex h-16 w-16 items-center justify-center rounded-full">
-              <StickyNote className="text-accent h-7 w-7" strokeWidth={1.75} />
-            </div>
-            <motion.div
-              className="border-accent absolute inset-0 h-16 w-16 rounded-full border-2 border-t-transparent"
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+  const videoTab =
+    videoStep === "done" ? (
+      <StatusBlock tone="ok" text="已加入资料" sub="视频正在后台下载与转录" />
+    ) : videoStep === "adding" ? (
+      <StatusBlock text="正在添加视频…" />
+    ) : videoStep === "config" && videoInfo ? (
+      <div className="flex flex-col gap-3.5">
+        <div className="flex items-center gap-3">
+          {videoInfo.cover && (
+            <LocalImage
+              url={videoInfo.cover}
+              alt={videoInfo.title}
+              className="rounded-tau-sm h-[54px] w-24 shrink-0 object-cover"
             />
+          )}
+          <div className="min-w-0 flex-1">
+            <div
+              className="text-tau-body text-ink-1 truncate font-semibold"
+              title={videoInfo.title}
+            >
+              {videoInfo.title}
+            </div>
+            <div className="text-tau-sm text-ink-3">
+              {videoInfo.provider === "bilibili" ? "B 站" : "YouTube"}
+              {videoInfo.provider === "youtube" && " · 已默认选最高可用的流"}
+            </div>
           </div>
-          <p className="text-ink-2 mt-4 text-sm font-medium">正在添加笔记...</p>
-        </motion.div>
-      )}
+        </div>
+        {videoInfo.provider === "bilibili" ? (
+          <FieldRow label="清晰度">
+            <Select
+              aria-label="清晰度"
+              value={selectedQuality}
+              onValueChange={v => setSelectedQuality(v)}
+              options={videoInfo.qualityOptions.map(opt => ({
+                value: opt.value,
+                label: `${opt.label}${opt.needVip ? " · 大会员" : opt.needLogin ? " · 需登录" : ""}`,
+              }))}
+            />
+          </FieldRow>
+        ) : (
+          <>
+            <FieldRow label="视频流">
+              <Select
+                aria-label="视频流"
+                value={selectedVideoStream}
+                onValueChange={v => setSelectedVideoStream(v)}
+                options={videoInfo.videoStreams.map(stream => ({
+                  value: stream.id,
+                  label: [
+                    stream.resolution,
+                    stream.format?.toUpperCase(),
+                    stream.codecs || "unknown",
+                    stream.fps ? `${stream.fps}fps` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · "),
+                }))}
+              />
+            </FieldRow>
+            <FieldRow label="音频流">
+              <Select
+                aria-label="音频流"
+                value={selectedAudioStream}
+                onValueChange={v => setSelectedAudioStream(v)}
+                options={videoInfo.audioStreams.map(stream => ({
+                  value: stream.id,
+                  label: [
+                    stream.format?.toUpperCase(),
+                    stream.codecs || "unknown",
+                    stream.bitrate ? `${Math.round(stream.bitrate / 1024)}kbps` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · "),
+                }))}
+              />
+            </FieldRow>
+          </>
+        )}
+        {videoError && <ErrorNote text={videoError} />}
+      </div>
+    ) : (
+      <div className="flex flex-col gap-3.5">
+        <FieldRow label="视频链接" hint="B 站 / YouTube">
+          <Input
+            data-autofocus
+            ref={videoInputRef}
+            type="url"
+            value={videoUrl}
+            onChange={e => {
+              setVideoUrl(e.target.value);
+              setVideoError(null);
+            }}
+            placeholder="粘贴 B 站或 YouTube 链接"
+            disabled={isAnalyzing}
+            onKeyDown={e => e.key === "Enter" && !isAnalyzing && handleAnalyzeVideo()}
+          />
+        </FieldRow>
+        {videoError && <ErrorNote text={videoError} />}
+      </div>
+    );
 
-      {noteStep === "done" && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex flex-col items-center py-8"
-        >
-          <div className="bg-ok/10 flex h-16 w-16 items-center justify-center rounded-full">
-            <Check className="text-status-success h-8 w-8" strokeWidth={1.75} />
-          </div>
-          <p className="text-status-success mt-4 text-sm font-medium">添加成功</p>
-        </motion.div>
-      )}
+  const noteTab = (
+    <div className="flex flex-col items-center gap-3 px-6 py-6 text-center">
+      <NotebookPen className="text-ink-2 size-5" strokeWidth={1.75} />
+      <p className="text-tau-meta text-ink-2 m-0 max-w-[34ch] leading-relaxed">
+        从卡片库、文章、项目文档和日记里挑已有的笔记加入资料，可以一次选多篇。
+      </p>
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={() => {
+          onClose();
+          setPickerOpen(true);
+        }}
+      >
+        选择笔记
+      </Button>
     </div>
   );
 
-  // 按钮样式
-  const primaryButtonClass = classNames(
-    "px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-    "bg-accent text-white",
-    "hover:bg-accent-hover",
-    "disabled:bg-sunken disabled:text-ink-3 disabled:cursor-not-allowed"
-  );
-
-  const secondaryButtonClass = classNames(
-    "px-5 py-2.5 rounded-xl text-sm font-medium transition-all",
-    "bg-hover text-ink-2",
-    "hover:bg-hover",
-    "border border-line-1"
-  );
-
-  // 渲染底部按钮
-  const renderFooter = () => {
-    if (activeTab === "file") {
+  const footer = (() => {
+    if (activeTab === "url" && processingStep === "idle")
       return (
-        <div className="flex justify-end gap-3">
-          <button type="button" onClick={onClose} className={secondaryButtonClass}>
-            {uploadedFiles.length > 0 ? "完成" : "取消"}
-          </button>
-        </div>
-      );
-    }
-
-    if (activeTab === "url") {
-      return (
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className={secondaryButtonClass}
-            disabled={processingStep !== "idle" && processingStep !== "done"}
-          >
+        <>
+          <Button variant="secondary" size="sm" onClick={onClose}>
             取消
-          </button>
-          {processingStep === "idle" && (
-            <button
-              type="button"
-              onClick={handleClipUrl}
-              disabled={!url.trim()}
-              className={classNames(primaryButtonClass, "flex items-center gap-2")}
-            >
-              <Globe className="h-4 w-4" strokeWidth={1.75} />
-              开始剪藏
-            </button>
-          )}
-        </div>
+          </Button>
+          <Button variant="primary" size="sm" disabled={!url.trim()} onClick={handleClipUrl}>
+            开始剪藏
+          </Button>
+        </>
       );
-    }
-
-    // 视频 Tab
-    if (activeTab === "video") {
-      if (videoStep === "input") {
-        return (
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={onClose} className={secondaryButtonClass}>
-              取消
-            </button>
-            <button
-              type="button"
-              onClick={handleAnalyzeVideo}
-              disabled={!videoUrl.trim() || isAnalyzing}
-              className={classNames(
-                "rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200",
-                "bg-pink-500 text-white",
-                "hover:bg-pink-600",
-                "disabled:bg-sunken disabled:text-ink-3 disabled:cursor-not-allowed",
-                "flex items-center gap-2"
-              )}
-            >
-              {isAnalyzing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
-                  正在分析...
-                </>
-              ) : (
-                <>
-                  <Video className="h-4 w-4" strokeWidth={1.75} />
-                  开始分析
-                </>
-              )}
-            </button>
-          </div>
-        );
-      }
-
-      if (videoStep === "config") {
-        return (
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={handleVideoBack} className={secondaryButtonClass}>
-              返回
-            </button>
-            <button
-              type="button"
-              onClick={handleAddVideo}
-              className={classNames(
-                "rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200",
-                "bg-accent text-white",
-                "hover:bg-accent-hover",
-                "flex items-center gap-2"
-              )}
-            >
-              <Check className="h-4 w-4" strokeWidth={1.75} />
-              确认添加
-            </button>
-          </div>
-        );
-      }
-
-      // adding 或 done 状态
+    if (activeTab === "video" && videoStep === "input")
       return (
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className={secondaryButtonClass}
-            disabled={videoStep === "adding"}
+        <>
+          <Button variant="secondary" size="sm" onClick={onClose}>
+            取消
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            loading={isAnalyzing}
+            loadingText="正在解析…"
+            disabled={!videoUrl.trim()}
+            onClick={handleAnalyzeVideo}
           >
-            {videoStep === "done" ? "完成" : "取消"}
-          </button>
-        </div>
+            解析视频
+          </Button>
+        </>
       );
-    }
-
-    // 笔记 Tab
-    if (activeTab === "note") {
+    if (activeTab === "video" && videoStep === "config")
       return (
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className={secondaryButtonClass}
-            disabled={noteStep === "processing"}
-          >
-            {noteStep === "done" ? "完成" : "取消"}
-          </button>
-        </div>
+        <>
+          <Button variant="secondary" size="sm" onClick={handleVideoBack}>
+            返回
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleAddVideo}>
+            加入资料
+          </Button>
+        </>
       );
-    }
-
-    return null;
-  };
-
-  // 判断是否可以关闭弹窗
-  const canClose =
-    (processingStep === "idle" || processingStep === "done") &&
-    (videoStep === "input" || videoStep === "done") &&
-    (noteStep === "search" || noteStep === "done");
+    return (
+      <Button variant="secondary" size="sm" disabled={busy} onClick={onClose}>
+        {uploadedFiles.length > 0 || processingStep === "done" || videoStep === "done"
+          ? "完成"
+          : "取消"}
+      </Button>
+    );
+  })();
 
   return (
-    <CustomModal
-      open={open}
-      onCancel={onClose}
-      width={520}
-      centered
-      destroyOnClose
-      title="添加资料"
-      subtitle="上传文件、剪藏网页或添加视频"
-      icon={<Plus className="text-ink-2 h-5 w-5" strokeWidth={1.75} />}
-      footer={renderFooter()}
-      showCloseButton={canClose}
-    >
-      {/* 隐藏的 Webview 用于加载动态网页 */}
-      {webviewUrl && (
-        <div className="absolute -left-[9999px] h-px w-px overflow-hidden">
-          <Webview
-            ref={webviewRef}
-            src={webviewUrl}
-            onLoad={handleWebviewLoad}
-            onError={handleWebviewError}
-          />
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={next => !next && onClose()}
+        title="添加资料"
+        icon={<Plus className="size-4" strokeWidth={1.75} />}
+        width={540}
+        locked={busy}
+        footer={footer}
+      >
+        {/* 隐藏的 Webview：加载需要执行脚本才能拿到正文的网页 */}
+        {webviewUrl && (
+          <div className="absolute -left-[9999px] h-px w-px overflow-hidden">
+            <Webview
+              ref={webviewRef}
+              src={webviewUrl}
+              onLoad={handleWebviewLoad}
+              onError={handleWebviewError}
+            />
+          </div>
+        )}
+        <div className="flex flex-col gap-4">
+          <Segmented
+            label="资料来源"
+            size="md"
+            value={activeTab}
+            onValueChange={v => setActiveTab(v as TabType)}
+            disabled={busy}
+            className="w-full"
+          >
+            <Segmented.Item value="file" icon={FileText} label="文件" />
+            <Segmented.Item value="url" icon={Globe} label="网页" />
+            <Segmented.Item value="video" icon={Clapperboard} label="视频" />
+            <Segmented.Item value="note" icon={NotebookPen} label="笔记" />
+          </Segmented>
+          {activeTab === "file" && fileTab}
+          {activeTab === "url" && urlTab}
+          {activeTab === "video" && videoTab}
+          {activeTab === "note" && noteTab}
         </div>
-      )}
-
-      {/* Tab 切换 */}
-      <div className="bg-hover mb-5 flex gap-1 rounded-xl p-1">
-        <button
-          type="button"
-          onClick={() => setActiveTab("file")}
-          disabled={
-            (processingStep !== "idle" && processingStep !== "done") ||
-            (videoStep !== "input" && videoStep !== "done") ||
-            (noteStep !== "search" && noteStep !== "done")
+      </Dialog>
+      <EntityPicker
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        title="把笔记加入资料"
+        kinds={NOTE_KINDS}
+        isLinked={c => c.contentId !== null && linkedContentIds.has(c.contentId)}
+        confirmLabel="加入资料"
+        onConfirm={async picked => {
+          try {
+            await handleAddNotes(picked);
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : "加入资料失败");
+            throw err;
           }
-          className={classNames(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
-            activeTab === "file"
-              ? "bg-surface text-ink-1 shadow-sm"
-              : "text-ink-2 hover:text-ink-2",
-            "disabled:cursor-not-allowed disabled:opacity-50"
-          )}
-        >
-          <FileText className="h-4 w-4" strokeWidth={1.75} />
-          文件
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("url")}
-          disabled={
-            (processingStep !== "idle" && processingStep !== "done") ||
-            (videoStep !== "input" && videoStep !== "done") ||
-            (noteStep !== "search" && noteStep !== "done")
-          }
-          className={classNames(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
-            activeTab === "url" ? "bg-surface text-ink-1 shadow-sm" : "text-ink-2 hover:text-ink-2",
-            "disabled:cursor-not-allowed disabled:opacity-50"
-          )}
-        >
-          <Globe className="h-4 w-4" strokeWidth={1.75} />
-          网页
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("video")}
-          disabled={
-            (processingStep !== "idle" && processingStep !== "done") ||
-            (videoStep !== "input" && videoStep !== "done") ||
-            (noteStep !== "search" && noteStep !== "done")
-          }
-          className={classNames(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
-            activeTab === "video"
-              ? "bg-surface text-ink-1 shadow-sm"
-              : "text-ink-2 hover:text-ink-2",
-            "disabled:cursor-not-allowed disabled:opacity-50"
-          )}
-        >
-          <Video className="h-4 w-4" strokeWidth={1.75} />
-          视频
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("note")}
-          disabled={
-            (processingStep !== "idle" && processingStep !== "done") ||
-            (videoStep !== "input" && videoStep !== "done") ||
-            (noteStep !== "search" && noteStep !== "done")
-          }
-          className={classNames(
-            "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
-            activeTab === "note"
-              ? "bg-surface text-ink-1 shadow-sm"
-              : "text-ink-2 hover:text-ink-2",
-            "disabled:cursor-not-allowed disabled:opacity-50"
-          )}
-        >
-          <StickyNote className="h-4 w-4" strokeWidth={1.75} />
-          笔记
-        </button>
-      </div>
-
-      {/* Tab 内容 */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
-        >
-          {activeTab === "file" && renderFileTab()}
-          {activeTab === "url" && renderUrlTab()}
-          {activeTab === "video" && renderVideoTab()}
-          {activeTab === "note" && renderNoteTab()}
-        </motion.div>
-      </AnimatePresence>
-    </CustomModal>
+        }}
+      />
+    </>
   );
 });
 
 AddResourceModal.displayName = "AddResourceModal";
+
+/** 字段：12px 淡墨标签 + 可选提示，控件在下 */
+function FieldRow({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="flex items-center gap-2">
+        <span className="text-ink-2 text-[12px]">{label}</span>
+        {hint && <span className="text-ink-3 text-[11.5px]">{hint}</span>}
+      </span>
+      {children}
+    </label>
+  );
+}
+
+/** 处理中 / 完成：居中一枚图标 + 一句话 */
+function StatusBlock({ text, sub, tone }: { text: string; sub?: string; tone?: "ok" }) {
+  return (
+    <div className="flex flex-col items-center gap-2 py-8 text-center">
+      {tone === "ok" ? (
+        <span className="bg-ok-soft text-ok grid size-9 place-items-center rounded-full">
+          <Check className="size-4" strokeWidth={2} />
+        </span>
+      ) : (
+        <Spinner className="size-5" />
+      )}
+      <span className="text-tau-body text-ink-1 font-medium">{text}</span>
+      {sub && <span className="text-tau-sm text-ink-3">{sub}</span>}
+    </div>
+  );
+}
+
+function ErrorNote({ title, text }: { title?: string; text: string }) {
+  return (
+    <div className="bg-danger-soft text-danger text-tau-meta rounded-tau-sm px-3.5 py-2.5">
+      {title && <div className="font-medium">{title}</div>}
+      <div className={cn(title && "text-danger/85 text-tau-sm mt-0.5")}>{text}</div>
+    </div>
+  );
+}
 
 export default AddResourceModal;

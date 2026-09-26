@@ -5,10 +5,11 @@ import type {
   RequestMessage,
   ToolCallExecutionState,
 } from "@/types/llm";
+import type { AgentModelUsage } from "@tau/agent";
 import type { PPTTemplate } from "@/constants/ppt-templates";
 import type { ReportTemplate } from "@/constants/report-templates";
 import type { PodcastSpeaker } from "@/types/podcast";
-import { chatLLMStream } from "@/hooks/useChatLLM";
+import { chatStreamCore, type ChatStreamCoreOptions } from "@/hooks/useChatLLM";
 import toolRegistry, { ensureToolingReady } from "@/tools";
 import {
   OUTLINE_GENERATION_WITH_TOOLS_PROMPT,
@@ -37,18 +38,12 @@ import {
   getPPTGenerationPrompt,
   getPPTGenerationUserPrompt,
 } from "@/constants/prompts/ppt-generation";
-import {
-  buildPPTEditUserPrompt,
-  getPPTEditPrompt,
-} from "@/constants/prompts/ppt-edit";
+import { buildPPTEditUserPrompt, getPPTEditPrompt } from "@/constants/prompts/ppt-edit";
 import {
   getReportGenerationPrompt,
   getReportGenerationUserPrompt,
 } from "@/constants/prompts/report-generation";
-import {
-  getReportEditPrompt,
-  buildReportEditUserPrompt,
-} from "@/constants/prompts/report-edit";
+import { getReportEditPrompt, buildReportEditUserPrompt } from "@/constants/prompts/report-edit";
 import { PROVIDED_CONTENT_GENERATION_RULES } from "@/constants/prompts/provided-content-generation";
 import {
   buildPodcastProvidedContentSystemPrompt,
@@ -126,11 +121,21 @@ export interface GenerationBuildResult {
 }
 
 export interface GenerationRunCallbacks {
-  onUpdate: (responseText: string) => void;
+  onUpdate: (responseText: string, turnId?: string) => void;
   onFinish: (fullContent: string) => void;
   onError: (error: Error) => void;
   onController?: (controller: AbortController) => void;
-  onToolCallsUpdate?: (executions: ToolCallExecutionState[]) => void;
+  onToolCallsUpdate?: (executions: ToolCallExecutionState[], turnId?: string) => void;
+  /** 推理过程（逐轮累计文本） */
+  onReasoning?: (reasoningText: string, turnId?: string) => void;
+  /** 每轮结束时的 token 用量 */
+  onUsage?: (usage: AgentModelUsage, turnId?: string) => void;
+}
+
+/** 按次注入的工具（覆盖全局注册表里的同名工具）：后台任务用它绑定自己的项目 */
+export interface GenerationRunOptions {
+  additionalTools?: ChatStreamCoreOptions["additionalTools"];
+  executeToolCall?: ChatStreamCoreOptions["executeToolCall"];
 }
 
 const createTextMessage = (role: Role, text: string): RequestMessage => ({
@@ -143,23 +148,17 @@ const isToolEnabled = (toolName: string) => {
   return toolRegistry.hasEnabledTool(toolName);
 };
 
-export function buildGenerationRequest(
-  request: GenerationRequest,
-): GenerationBuildResult {
+export function buildGenerationRequest(request: GenerationRequest): GenerationBuildResult {
   if (request.sourceType === "vibe_learning") {
     const sourcePayload = request.sourcePayload as VibeLearningSourcePayload;
-    return buildVibeLearningGenerationRequest(
-      request.taskType,
-      request.taskPayload,
-      sourcePayload,
-    );
+    return buildVibeLearningGenerationRequest(request.taskType, request.taskPayload, sourcePayload);
   }
 
   const sourcePayload = request.sourcePayload as ProvidedContentSourcePayload;
   return buildProvidedContentGenerationRequest(
     request.taskType,
     request.taskPayload,
-    sourcePayload,
+    sourcePayload
   );
 }
 
@@ -168,23 +167,33 @@ export function runGenerationTask(
   modelConfig: ModelConfig,
   request: GenerationRequest,
   callbacks: GenerationRunCallbacks,
+  options: GenerationRunOptions = {}
 ): void {
   const buildResult = buildGenerationRequest(request);
 
-  chatLLMStream(providerConfig, modelConfig, buildResult.messages, {
+  // 直接走 chatStreamCore 并关掉 rAF 缓冲：窗口在后台时生成也不被节流
+  void chatStreamCore({
+    providerConfig,
+    modelConfig,
+    messages: buildResult.messages,
     enableTools: buildResult.enableTools,
-    onUpdate: callbacks.onUpdate,
-    onFinish: callbacks.onFinish,
+    disableAnimation: true,
+    additionalTools: options.additionalTools,
+    executeToolCall: options.executeToolCall,
+    onUpdate: (text, _delta, _reasoning, turnId) => callbacks.onUpdate(text, turnId),
+    onReasoning: (text, _delta, turnId) => callbacks.onReasoning?.(text, turnId),
+    onUsage: callbacks.onUsage,
+    onFinish: content => callbacks.onFinish(content),
     onError: callbacks.onError,
     onController: callbacks.onController,
-    onToolCallsUpdate: callbacks.onToolCallsUpdate,
+    onToolCallsUpdate: (executions, turnId) => callbacks.onToolCallsUpdate?.(executions, turnId),
   });
 }
 
 function buildVibeLearningGenerationRequest(
   taskType: GenerationTaskType,
   taskPayload: GenerationTaskPayloadMap[GenerationTaskType],
-  sourcePayload: VibeLearningSourcePayload,
+  sourcePayload: VibeLearningSourcePayload
 ): GenerationBuildResult {
   switch (taskType) {
     case "outline":
@@ -195,8 +204,8 @@ function buildVibeLearningGenerationRequest(
             Role.User,
             OUTLINE_GENERATION_WITH_TOOLS_USER_PROMPT(
               sourcePayload.resourceNames,
-              sourcePayload.userPrompt,
-            ),
+              sourcePayload.userPrompt
+            )
           ),
         ],
         enableTools: true,
@@ -209,8 +218,8 @@ function buildVibeLearningGenerationRequest(
             Role.User,
             MINDMAP_GENERATION_WITH_TOOLS_USER_PROMPT(
               sourcePayload.resourceNames,
-              sourcePayload.userPrompt,
-            ),
+              sourcePayload.userPrompt
+            )
           ),
         ],
         enableTools: true,
@@ -218,16 +227,13 @@ function buildVibeLearningGenerationRequest(
     case "highlights":
       return {
         messages: [
-          createTextMessage(
-            Role.System,
-            HIGHLIGHTS_GENERATION_WITH_TOOLS_PROMPT,
-          ),
+          createTextMessage(Role.System, HIGHLIGHTS_GENERATION_WITH_TOOLS_PROMPT),
           createTextMessage(
             Role.User,
             HIGHLIGHTS_GENERATION_WITH_TOOLS_USER_PROMPT(
               sourcePayload.resourceNames,
-              sourcePayload.userPrompt,
-            ),
+              sourcePayload.userPrompt
+            )
           ),
         ],
         enableTools: true,
@@ -242,8 +248,8 @@ function buildVibeLearningGenerationRequest(
             ARTICLE_GENERATION_WITH_TOOLS_USER_PROMPT(
               sourcePayload.resourceNames,
               payload.style,
-              sourcePayload.userPrompt,
-            ),
+              sourcePayload.userPrompt
+            )
           ),
         ],
         enableTools: true,
@@ -257,8 +263,8 @@ function buildVibeLearningGenerationRequest(
             Role.User,
             QUIZ_GENERATION_WITH_TOOLS_USER_PROMPT(
               sourcePayload.resourceNames,
-              sourcePayload.userPrompt,
-            ),
+              sourcePayload.userPrompt
+            )
           ),
         ],
         enableTools: true,
@@ -271,15 +277,15 @@ function buildVibeLearningGenerationRequest(
             Role.System,
             getPPTGenerationPrompt(payload.template, {
               enableAIIllustration: isToolEnabled("generate_image"),
-            }),
+            })
           ),
           createTextMessage(
             Role.User,
             getPPTGenerationUserPrompt(
               sourcePayload.resourceNames,
               payload.template.name,
-              sourcePayload.userPrompt,
-            ),
+              sourcePayload.userPrompt
+            )
           ),
         ],
         enableTools: true,
@@ -292,10 +298,7 @@ function buildVibeLearningGenerationRequest(
           createTextMessage(Role.System, getPPTEditPrompt(payload.currentHtml)),
           createTextMessage(
             Role.User,
-            buildPPTEditUserPrompt(
-              sourcePayload.userPrompt || "",
-              sourcePayload.resourceNames,
-            ),
+            buildPPTEditUserPrompt(sourcePayload.userPrompt || "", sourcePayload.resourceNames)
           ),
         ],
         enableTools: true,
@@ -305,17 +308,14 @@ function buildVibeLearningGenerationRequest(
       const payload = taskPayload as GenerationTaskPayloadMap["report"];
       return {
         messages: [
-          createTextMessage(
-            Role.System,
-            getReportGenerationPrompt(payload.template),
-          ),
+          createTextMessage(Role.System, getReportGenerationPrompt(payload.template)),
           createTextMessage(
             Role.User,
             getReportGenerationUserPrompt(
               sourcePayload.resourceNames,
               payload.template.name,
-              sourcePayload.userPrompt,
-            ),
+              sourcePayload.userPrompt
+            )
           ),
         ],
         enableTools: true,
@@ -325,16 +325,10 @@ function buildVibeLearningGenerationRequest(
       const payload = taskPayload as GenerationTaskPayloadMap["report_edit"];
       return {
         messages: [
-          createTextMessage(
-            Role.System,
-            getReportEditPrompt(payload.currentHtml),
-          ),
+          createTextMessage(Role.System, getReportEditPrompt(payload.currentHtml)),
           createTextMessage(
             Role.User,
-            buildReportEditUserPrompt(
-              sourcePayload.userPrompt || "",
-              sourcePayload.resourceNames,
-            ),
+            buildReportEditUserPrompt(sourcePayload.userPrompt || "", sourcePayload.resourceNames)
           ),
         ],
         enableTools: true,
@@ -350,8 +344,8 @@ function buildVibeLearningGenerationRequest(
               payload.speakers,
               payload.ttsPromptOptions,
               payload.durationMin,
-              payload.durationMax,
-            ),
+              payload.durationMax
+            )
           ),
           createTextMessage(
             Role.User,
@@ -359,8 +353,8 @@ function buildVibeLearningGenerationRequest(
               sourcePayload.resourceNames,
               sourcePayload.userPrompt,
               payload.durationMin,
-              payload.durationMax,
-            ),
+              payload.durationMax
+            )
           ),
         ],
         enableTools: true,
@@ -374,7 +368,7 @@ function buildVibeLearningGenerationRequest(
 function buildProvidedContentGenerationRequest(
   taskType: GenerationTaskType,
   taskPayload: GenerationTaskPayloadMap[GenerationTaskType],
-  sourcePayload: ProvidedContentSourcePayload,
+  sourcePayload: ProvidedContentSourcePayload
 ): GenerationBuildResult {
   switch (taskType) {
     case "outline":
@@ -382,7 +376,7 @@ function buildProvidedContentGenerationRequest(
         messages: [
           createTextMessage(
             Role.System,
-            `${PROVIDED_CONTENT_GENERATION_RULES}\n\n${OUTLINE_GENERATION_SIMPLE_PROMPT}`,
+            `${PROVIDED_CONTENT_GENERATION_RULES}\n\n${OUTLINE_GENERATION_SIMPLE_PROMPT}`
           ),
           createTextMessage(
             Role.User,
@@ -390,7 +384,7 @@ function buildProvidedContentGenerationRequest(
               sourcePayload.userPrompt?.trim()
                 ? `\n\n额外要求：${sourcePayload.userPrompt.trim()}`
                 : ""
-            }`,
+            }`
           ),
         ],
         enableTools: false,
@@ -400,14 +394,11 @@ function buildProvidedContentGenerationRequest(
         messages: [
           createTextMessage(
             Role.System,
-            `${PROVIDED_CONTENT_GENERATION_RULES}\n\n${QUIZ_GENERATION_PROMPT}`,
+            `${PROVIDED_CONTENT_GENERATION_RULES}\n\n${QUIZ_GENERATION_PROMPT}`
           ),
           createTextMessage(
             Role.User,
-            QUIZ_GENERATION_USER_PROMPT(
-              sourcePayload.content,
-              sourcePayload.userPrompt,
-            ),
+            QUIZ_GENERATION_USER_PROMPT(sourcePayload.content, sourcePayload.userPrompt)
           ),
         ],
         enableTools: false,
@@ -422,8 +413,8 @@ function buildProvidedContentGenerationRequest(
               payload.speakers,
               payload.ttsPromptOptions,
               payload.durationMin,
-              payload.durationMax,
-            ),
+              payload.durationMax
+            )
           ),
           createTextMessage(
             Role.User,
@@ -431,8 +422,8 @@ function buildProvidedContentGenerationRequest(
               sourcePayload.content,
               sourcePayload.userPrompt,
               payload.durationMin,
-              payload.durationMax,
-            ),
+              payload.durationMax
+            )
           ),
         ],
         enableTools: false,
@@ -445,9 +436,7 @@ function buildProvidedContentGenerationRequest(
     case "ppt_edit":
     case "report":
     case "report_edit":
-      throw new Error(
-        `任务 ${taskType} 当前未接入 provided_content 数据源，请改用对应专用入口`,
-      );
+      throw new Error(`任务 ${taskType} 当前未接入 provided_content 数据源，请改用对应专用入口`);
     default:
       throw new Error(`不支持的生成任务: ${taskType}`);
   }

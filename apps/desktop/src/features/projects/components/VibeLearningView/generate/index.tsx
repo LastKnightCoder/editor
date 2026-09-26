@@ -1,127 +1,75 @@
 /**
- * 生成应用的宿主：8 个生成弹窗 + PPT / 报告的 AI 编辑弹窗。
- * 入口在目录「产物」组的 ＋ 菜单与阅读区底部「基于这份资料」；
- * 后者经 setVLGenerationScope 让弹窗只预选当前这份资料。
+ * 生成入口的宿主：一次只挂一个配置弹窗（8 个生成应用 + PPT / 报告的 AI 编辑）。
+ * 入口在目录「产物」组的 ＋ 菜单、阅读区底部「基于这份资料」与产物的「AI 编辑」；
+ * 「基于这份资料」经 setVLGenerationScope 让弹窗只预选当前这份资料。
  */
 
 import { forwardRef, memo, useImperativeHandle, useState } from "react";
-import { useMemoizedFn } from "ahooks";
 import { setVLGenerationScope } from "@/hooks/useVLResourceSelection";
 import type { VLNote } from "@/types/vibe-learning";
 import type { GenerateAppKey } from "../appMeta";
-
-import QuizGenerateModal from "./apps/QuizGenerateModal";
-import OutlineGenerateModal from "./apps/OutlineGenerateModal";
-import HighlightsGenerateModal from "./apps/HighlightsGenerateModal";
-import ArticleGenerateModal from "./apps/ArticleGenerateModal";
-import MindMapGenerateModal from "./apps/MindMapGenerateModal";
-import PPTGenerateModal from "./apps/PPTGenerateModal";
-import PPTEditModal from "./apps/PPTEditModal";
-import ReportGenerateModal from "./apps/ReportGenerateModal";
-import ReportEditModal from "./apps/ReportEditModal";
-import PodcastGenerateModal from "./apps/PodcastGenerateModal";
+import type { VLTaskKind } from "../tasks/store";
+import { GenerateDialog } from "./GenerateDialog";
 
 export interface GenerationHostRef {
-  /** 打开生成弹窗；传 resourceId 时只预选这一份资料 */
+  /** 打开生成配置；传 resourceId 时只预选这一份资料 */
   open: (key: GenerateAppKey, resourceId?: number) => void;
   editPPT: (note: VLNote) => void;
   editReport: (note: VLNote) => void;
 }
 
+export interface TaskStarted {
+  taskId: string;
+  kind: VLTaskKind;
+  note?: VLNote;
+  quizSetId?: number;
+}
+
 interface GenerationHostProps {
   projectId: number;
   mainDbName: string;
-  /** 笔记类产物有增删改（列表刷新） */
-  onNotesChange: () => void;
-  /** PPT / 报告经 AI 编辑改了内容 */
-  onNoteEdited: () => void;
-  /** 生成出一篇笔记：刷新并在阅读区打开 */
-  onNoteCreated: (note: VLNote) => void;
-  /** 测验集有变化 */
-  onQuizSetsChange: () => void;
+  /** 任务已启动：页面在阅读区打开它的执行过程 */
+  onTaskStarted: (started: TaskStarted) => void;
 }
 
 const GenerationHost = memo(
-  forwardRef<GenerationHostRef, GenerationHostProps>((props, ref) => {
-    const { projectId, mainDbName, onNotesChange, onNoteEdited, onNoteCreated, onQuizSetsChange } =
-      props;
-    const [active, setActive] = useState<GenerateAppKey | null>(null);
-    const [editing, setEditing] = useState<{ kind: "ppt" | "report"; note: VLNote } | null>(null);
+  forwardRef<GenerationHostRef, GenerationHostProps>(
+    ({ projectId, mainDbName, onTaskStarted }, ref) => {
+      const [active, setActive] = useState<{
+        kind: VLTaskKind;
+        note?: VLNote;
+        seq: number;
+      } | null>(null);
 
-    useImperativeHandle(ref, () => ({
-      open: (key, resourceId) => {
-        setVLGenerationScope(resourceId === undefined ? null : [resourceId]);
-        setActive(key);
-      },
-      editPPT: note => {
-        setVLGenerationScope(null);
-        setEditing({ kind: "ppt", note });
-      },
-      editReport: note => {
-        setVLGenerationScope(null);
-        setEditing({ kind: "report", note });
-      },
-    }));
+      useImperativeHandle(ref, () => ({
+        open: (kind, resourceId) => {
+          setVLGenerationScope(resourceId === undefined ? null : [resourceId]);
+          setActive({ kind, seq: Date.now() });
+        },
+        editPPT: note => {
+          setVLGenerationScope(null);
+          setActive({ kind: "ppt_edit", note, seq: Date.now() });
+        },
+        editReport: note => {
+          setVLGenerationScope(null);
+          setActive({ kind: "report_edit", note, seq: Date.now() });
+        },
+      }));
 
-    // 关闭后稍等再刷新：生成任务在弹窗关闭时才落库最后一段
-    const handleClose = useMemoizedFn(() => {
-      const closing = active;
-      setActive(null);
-      setTimeout(() => (closing === "quiz" ? onQuizSetsChange() : onNotesChange()), 100);
-    });
-
-    const common = { projectId, mainDbName, onClose: handleClose };
-
-    return (
-      <>
-        <OutlineGenerateModal
-          {...common}
-          open={active === "outline"}
-          onNoteCreated={onNoteCreated}
-        />
-        <HighlightsGenerateModal
-          {...common}
-          open={active === "highlights"}
-          onNoteCreated={onNoteCreated}
-        />
-        <ArticleGenerateModal
-          {...common}
-          open={active === "article"}
-          onNoteCreated={onNoteCreated}
-        />
-        <MindMapGenerateModal
-          {...common}
-          open={active === "mindmap"}
-          onNoteCreated={onNoteCreated}
-        />
-        <PPTGenerateModal {...common} open={active === "ppt"} onNoteCreated={onNoteCreated} />
-        <ReportGenerateModal {...common} open={active === "report"} onNoteCreated={onNoteCreated} />
-        <QuizGenerateModal {...common} open={active === "quiz"} />
-        <PodcastGenerateModal
-          {...common}
-          open={active === "podcast"}
-          onNoteCreated={onNoteCreated}
-        />
-
-        <PPTEditModal
-          open={editing?.kind === "ppt"}
-          note={editing?.kind === "ppt" ? editing.note : null}
+      if (!active) return null;
+      return (
+        <GenerateDialog
+          key={active.seq}
+          kind={active.kind}
+          note={active.note}
           projectId={projectId}
           mainDbName={mainDbName}
-          onClose={() => setEditing(null)}
-          onNoteUpdated={onNoteEdited}
+          onClose={() => setActive(null)}
+          onStarted={result => onTaskStarted({ ...result, kind: active.kind })}
         />
-        <ReportEditModal
-          open={editing?.kind === "report"}
-          note={editing?.kind === "report" ? editing.note : null}
-          projectId={projectId}
-          mainDbName={mainDbName}
-          onClose={() => setEditing(null)}
-          onNoteUpdated={onNoteEdited}
-        />
-      </>
-    );
-  })
+      );
+    }
+  )
 );
 
 GenerationHost.displayName = "GenerationHost";
