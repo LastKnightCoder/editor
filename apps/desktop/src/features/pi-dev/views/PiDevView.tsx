@@ -12,13 +12,14 @@ import type { PiSessionVM, PiTranscriptItem } from "@/services/piSessionModel";
 const TRANSCRIPT_ITEM_STYLE =
   "rounded-tau-md border border-line-2 bg-surface px-3 py-2 text-tau-sm";
 
-const AssistantBlocks = ({ vm }: { vm: PiSessionVM }) => {
-  const assistantItems = vm.transcript.filter(item => item.kind === "assistant");
-  const last = assistantItems[assistantItems.length - 1];
-  if (!last || last.kind !== "assistant") return null;
+const AssistantMessageCard = ({
+  item,
+}: {
+  item: Extract<PiTranscriptItem, { kind: "assistant" }>;
+}) => {
   return (
-    <div className="space-y-1">
-      {last.content.map((block, index) => {
+    <div className={`${TRANSCRIPT_ITEM_STYLE} mr-12 space-y-1`}>
+      {item.content.map((block, index) => {
         if (block.type === "thinking") {
           return (
             <details key={index} className="text-ink-3">
@@ -43,12 +44,29 @@ const AssistantBlocks = ({ vm }: { vm: PiSessionVM }) => {
         return (
           <p key={index} className="whitespace-pre-wrap">
             {String(block.text ?? "")}
-            {last.streaming && <span className="animate-pulse">▌</span>}
+            {item.streaming && <span className="animate-pulse">▌</span>}
           </p>
         );
       })}
     </div>
   );
+};
+
+const TranscriptItemView = ({ item }: { item: PiTranscriptItem }) => {
+  if (item.kind === "user") {
+    return <div className={`${TRANSCRIPT_ITEM_STYLE} ml-12 self-end`}>{item.text}</div>;
+  }
+  if (item.kind === "assistant") {
+    return <AssistantMessageCard item={item} />;
+  }
+  if (item.kind === "toolResult") {
+    return (
+      <div className="rounded-tau-sm border-line-2 bg-page text-tau-xs text-ink-3 border px-2 py-1 font-mono">
+        {item.isError ? "✕" : "↳"} {item.toolName}: {item.contentText}
+      </div>
+    );
+  }
+  return null;
 };
 
 const ExecutionsPanel = ({ vm }: { vm: PiSessionVM }) => {
@@ -81,20 +99,6 @@ const ExecutionsPanel = ({ vm }: { vm: PiSessionVM }) => {
       ))}
     </div>
   );
-};
-
-const TranscriptItemView = ({ item }: { item: PiTranscriptItem }) => {
-  if (item.kind === "user") {
-    return <div className={`${TRANSCRIPT_ITEM_STYLE} ml-12 self-end`}>{item.text}</div>;
-  }
-  if (item.kind === "toolResult") {
-    return (
-      <div className={`${TRANSCRIPT_ITEM_STYLE} text-tau-xs text-ink-3 font-mono`}>
-        {item.isError ? "✕" : "↳"} {item.toolName}: {item.contentText}
-      </div>
-    );
-  }
-  return null;
 };
 
 export const PiDevView = () => {
@@ -243,16 +247,11 @@ export const PiDevView = () => {
       )}
 
       <div className="rounded-tau-md border-line-2 bg-page flex-1 space-y-2 overflow-auto border p-3">
-        {vm?.transcript
-          .filter(item => item.kind !== "assistant")
-          .map(item => (
-            <TranscriptItemView key={item.seq} item={item} />
-          ))}
-        {vm && (
-          <div className={`${TRANSCRIPT_ITEM_STYLE} mr-12`}>
-            <AssistantBlocks vm={vm} />
-          </div>
-        )}
+        {/* 按 seq 顺序统一渲染：user / assistant（每条独立卡片，流式光标只在生成中的那条）/ toolResult */}
+        {vm?.transcript.map(item => (
+          <TranscriptItemView key={item.seq} item={item} />
+        ))}
+        {/* 执行中的工具状态卡（含输出预览）固定在流底部，结束后结果已入 transcript */}
         {vm && <ExecutionsPanel vm={vm} />}
         {vm && vm.transcript.length === 0 && vm.executions.length === 0 && (
           <div className="text-tau-xs text-ink-3">新建会话后发送消息，验证流式输出与工具执行。</div>
