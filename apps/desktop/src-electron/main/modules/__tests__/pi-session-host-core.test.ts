@@ -3,8 +3,10 @@
  * 装配链 createHostModelRuntime + assembleHostSession → prompt → 工具真实执行 → 事件流断言。
  * 与 M0 冒烟（scripts/pi-smoke.mjs）同模式，但走 host core 的产品装配路径（零资源发现 + inMemory 会话）。
  */
-import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, readFileSync, copyFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import http from "node:http";
+import { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { fauxProvider, fauxAssistantMessage, fauxText, fauxToolCall } from "@earendil-works/pi-ai";
@@ -12,8 +14,10 @@ import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import {
   assembleHostSession,
   createFauxModelRuntime,
+  createHostModelRuntime,
   detectBashShellPath,
 } from "../pi-session-host-core";
+import type { LLMProviderSetting } from "@/types/pi-llm";
 
 // 本机 Git 装在非标准路径（D:\软件\Git）且注册表未写，探测候选不含它——测试环境显式兜底
 {
@@ -201,6 +205,109 @@ describe("pi-session-host-core", () => {
       expect(psRun).toBeTruthy();
       expect(psRun?.isError).toBe(false);
     } finally {
+      rmSync(workDir, { recursive: true, force: true });
+    }
+  });
+
+  // 端到端钉死图片链路责任边界：read 工具读图（photon resize）→ openai-completions 线协议把
+  // toolResult 里的图片合成 user 消息（image_url data URL）随下一轮请求发出——网关收不到图
+  // 即网关/模型侧不支持视觉，与本桥无关
+  it("read 图片后下一轮请求体携带合成 user 消息与 image_url", async () => {
+    const workDir = mkdtempSync(join(tmpdir(), "pi-host-img-"));
+    const agentDir = join(workDir, ".pi-agent");
+    const imageFile = join(workDir, "照片.png");
+    copyFileSync(join(process.cwd(), "src", "assets", "logo.png"), imageFile);
+
+    // 两轮响应：先调 read 读图，后给最终文本
+    const requests: Record<string, any>[] = [];
+    const sse = (delta: Record<string, unknown>, finish: string | null) =>
+      `data: ${JSON.stringify({ id: "1", object: "chat.completion.chunk", created: 0, model: "m", choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`;
+    const server = http.createServer((req, res) => {
+      let raw = "";
+      req.on("data", c => (raw += c));
+      req.on("end", () => {
+        const body = JSON.parse(raw || "{}");
+        requests.push(body);
+        res.writeHead(200, { "content-type": "text/event-stream" });
+        if (requests.length === 1) {
+          res.write(
+            sse(
+              {
+                role: "assistant",
+                tool_calls: [
+                  {
+                    index: 0,
+                    id: "c1",
+                    type: "function",
+                    function: { name: "read", arguments: JSON.stringify({ path: imageFile }) },
+                  },
+                ],
+              },
+              null
+            )
+          );
+          res.write(sse({}, "tool_calls"));
+        } else {
+          res.write(sse({ role: "assistant" }, null));
+          res.write(sse({ content: "看到了。" }, null));
+          res.write(sse({}, "stop"));
+        }
+        res.write("data: [DONE]\n\n");
+        res.end();
+      });
+    });
+    await new Promise<void>(r => server.listen(0, "127.0.0.1", r));
+    const port = (server.address() as AddressInfo).port;
+
+    try {
+      const setting: LLMProviderSetting = {
+        id: "img-gw",
+        name: "img",
+        baseUrl: `http://127.0.0.1:${port}/v1`,
+        apiKey: "test",
+        api: "openai-completions",
+        models: [
+          {
+            id: "m",
+            reasoning: false,
+            input: ["text", "image"],
+            contextWindow: 65536,
+            maxTokens: 4096,
+          },
+        ],
+      };
+      const modelRuntime = await createHostModelRuntime(join(agentDir, "auth.json"), [setting]);
+      const session = await assembleHostSession({
+        cwd: workDir,
+        agentDir,
+        modelRuntime,
+        modelRef: { providerId: "img-gw", modelId: "m" },
+      });
+      try {
+        await session.prompt("看这张图");
+      } finally {
+        session.dispose();
+      }
+
+      expect(requests.length).toBeGreaterThanOrEqual(2);
+      const second = requests[1];
+      expect(second.model).toBe("m");
+      // 工具结果消息（文本占位）+ 合成 user 消息携带 image_url data URL
+      const toolMsg = second.messages.find((m: { role: string }) => m.role === "tool");
+      expect(typeof toolMsg?.content).toBe("string");
+      const imageUserMsg = second.messages.find(
+        (m: { role: string; content?: unknown }) =>
+          m.role === "user" &&
+          Array.isArray(m.content) &&
+          m.content.some((b: { type?: string }) => b.type === "image_url")
+      );
+      expect(imageUserMsg).toBeTruthy();
+      const imageBlock = imageUserMsg.content.find(
+        (b: { type?: string }) => b.type === "image_url"
+      );
+      expect(String(imageBlock.image_url.url)).toMatch(/^data:image\//);
+    } finally {
+      await new Promise<void>(r => server.close(() => r()));
       rmSync(workDir, { recursive: true, force: true });
     }
   });
