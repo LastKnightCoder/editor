@@ -353,3 +353,435 @@
   --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
   --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
 }
+
+/* 主题「薄荷」· 浅色（晴） */
+[data-theme="mint"][data-mode="light"] {
+  color-scheme: light;
+
+  --tau-bg-page: #eef4ee;
+  --tau-bg-surface: #fbfefb;
+  --tau-bg-surface-hover: #f1f4f1;
+  --tau-bg-sunken: #d9e6da;
+  --tau-bg-track: #d4dfd5;
+
+  --tau-bg-hover: rgba(46, 61, 49, 0.05);
+  --tau-bg-press: rgba(46, 61, 49, 0.09);
+  --tau-bg-selected: rgba(74, 157, 120, 0.12);
+
+  --tau-ink-1: #2e3d31;
+  --tau-ink-2: #526350;
+  --tau-ink-3: #a5b3a3;
+  --tau-ink-inverse: #f6fbf7;
+
+  --tau-line-1: #dfe9df;
+  --tau-line-2: rgba(223, 233, 223, 0.55);
+
+  --tau-accent: hsl(153 40% 33%);
+  --tau-accent-hover: hsl(153 40% 26%);
+  --tau-accent-soft: hsla(153, 40%, 33%, 0.12);
+  --tau-accent-text: #2f6b50;
+  --tau-focus-ring: 0 0 0 3px rgba(74, 157, 120, 0.28);
+
+  --tau-ok: #4a8a62;
+  --tau-ok-soft: #e3efe6;
+  --tau-warn: #9c8d54;
+  --tau-warn-soft: #f4efd8;
+  --tau-danger: #b0584f;
+  --tau-danger-soft: #f5e3e0;
+  --tau-info: #567f96;
+  --tau-info-soft: #e0ebf0;
+
+  --tau-tag-1: #4a8a62;
+  --tau-tag-1-soft: #e3efe6;
+  --tau-tag-2: #567f96;
+  --tau-tag-2-soft: #e0ebf0;
+  --tau-tag-3: #8378a4;
+  --tau-tag-3-soft: #e9e6f2;
+  --tau-tag-4: #9c8d54;
+  --tau-tag-4-soft: #f4efd8;
+  --tau-tag-5: #a86e64;
+  --tau-tag-5-soft: #f4e4e2;
+
+  --tau-overlay: rgba(46, 61, 49, 0.35);
+  --tau-shadow-card: 0 1px 2px rgba(60, 90, 70, 0.06), 0 10px 24px -14px rgba(60, 90, 70, 0.2);
+  --tau-shadow-lift: 0 1px 2px rgba(60, 90, 70, 0.07), 0 6px 16px -10px rgba(60, 90, 70, 0.24);
+  --tau-shadow-float: 0 16px 40px -12px rgba(60, 90, 70, 0.4);
+}
+
+/* 主题「薄荷」· 深色（夜林） */
+[data-theme="mint"][data-mode="dark"] {
+  color-scheme: dark;
+
+  --tau-bg-page: #171a19;
+  --tau-bg-surface: #202423;
+  --tau-bg-surface-hover: #2c302f;
+  --tau-bg-sunken: #0c0e0d;
+  --tau-bg-track: #363c3a;
+
+  --tau-bg-hover: rgba(226, 232, 228, 0.06);
+  --tau-bg-press: rgba(226, 232, 228, 0.11);
+  --tau-bg-selected: hsla(158, 28%, 60%, 0.2);
+
+  --tau-ink-1: #e2e8e4;
+  --tau-ink-2: #9ba49e;
+  --tau-ink-3: #747d77;
+  --tau-ink-inverse: #111513;
+
+  --tau-line-1: #2a2f2d;
+  --tau-line-2: rgba(42, 47, 45, 0.55);
+
+  --tau-accent: hsl(158 28% 60%);
+  --tau-accent-hover: hsl(158 28% 67%);
+  --tau-accent-soft: hsla(158, 28%, 60%, 0.16);
+  --tau-accent-text: hsl(158 34% 66%);
+  --tau-focus-ring: 0 0 0 3px hsla(158, 28%, 60%, 0.4);
+
+  --tau-ok: #8aab95;
+  --tau-ok-soft: #1e2923;
+  --tau-warn: #c8b56e;
+  --tau-warn-soft: #2d2a1a;
+  --tau-danger: #df8a80;
+  --tau-danger-soft: #35211e;
+  --tau-info: #87b3c9;
+  --tau-info-soft: #1b2a31;
+
+  --tau-tag-1: #8aab95;
+  --tau-tag-1-soft: #1e2923;
+  --tau-tag-2: #87b3c9;
+  --tau-tag-2-soft: #1b2a31;
+  --tau-tag-3: #a99fd0;
+  --tau-tag-3-soft: #262336;
+  --tau-tag-4: #c8b56e;
+  --tau-tag-4-soft: #2d2a1a;
+  --tau-tag-5: #d49488;
+  --tau-tag-5-soft: #33221f;
+
+  --tau-overlay: rgba(4, 6, 5, 0.55);
+  --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+  --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+
+/* 主题「紫藤」· 浅色（晴） */
+[data-theme="wisteria"][data-mode="light"] {
+  color-scheme: light;
+
+  --tau-bg-page: #f1eff6;
+  --tau-bg-surface: #fdfcff;
+  --tau-bg-surface-hover: #f3f2f6;
+  --tau-bg-sunken: #dfdbea;
+  --tau-bg-track: #dad5e6;
+
+  --tau-bg-hover: rgba(52, 45, 70, 0.05);
+  --tau-bg-press: rgba(52, 45, 70, 0.09);
+  --tau-bg-selected: rgba(114, 82, 181, 0.12);
+
+  --tau-ink-1: #342d46;
+  --tau-ink-2: #5f5775;
+  --tau-ink-3: #aba4bd;
+  --tau-ink-inverse: #fbf9ff;
+
+  --tau-line-1: #e5e1ee;
+  --tau-line-2: rgba(229, 225, 238, 0.55);
+
+  --tau-accent: hsl(262 42% 50%);
+  --tau-accent-hover: hsl(262 42% 43%);
+  --tau-accent-soft: hsla(262, 42%, 50%, 0.12);
+  --tau-accent-text: #62449f;
+  --tau-focus-ring: 0 0 0 3px rgba(114, 82, 181, 0.28);
+
+  --tau-ok: #5a7f66;
+  --tau-ok-soft: #e3eee6;
+  --tau-warn: #9a8651;
+  --tau-warn-soft: #f4eed8;
+  --tau-danger: #b0566a;
+  --tau-danger-soft: #f6e2e7;
+  --tau-info: #5a74a0;
+  --tau-info-soft: #e1e8f4;
+
+  --tau-tag-1: #5a7f66;
+  --tau-tag-1-soft: #e3eee6;
+  --tau-tag-2: #5a74a0;
+  --tau-tag-2-soft: #e1e8f4;
+  --tau-tag-3: #8a6fb0;
+  --tau-tag-3-soft: #ece5f5;
+  --tau-tag-4: #9a8651;
+  --tau-tag-4-soft: #f4eed8;
+  --tau-tag-5: #b0667c;
+  --tau-tag-5-soft: #f5e3e9;
+
+  --tau-overlay: rgba(52, 45, 70, 0.35);
+  --tau-shadow-card: 0 1px 2px rgba(80, 64, 120, 0.06), 0 10px 24px -14px rgba(80, 64, 120, 0.2);
+  --tau-shadow-lift: 0 1px 2px rgba(80, 64, 120, 0.07), 0 6px 16px -10px rgba(80, 64, 120, 0.24);
+  --tau-shadow-float: 0 16px 40px -12px rgba(80, 64, 120, 0.4);
+}
+
+/* 主题「紫藤」· 深色（夜紫） */
+[data-theme="wisteria"][data-mode="dark"] {
+  color-scheme: dark;
+
+  --tau-bg-page: #1a1724;
+  --tau-bg-surface: #242031;
+  --tau-bg-surface-hover: #302c3d;
+  --tau-bg-sunken: #0e0c15;
+  --tau-bg-track: #3d374d;
+
+  --tau-bg-hover: rgba(232, 227, 242, 0.06);
+  --tau-bg-press: rgba(232, 227, 242, 0.11);
+  --tau-bg-selected: hsla(262, 60%, 72%, 0.2);
+
+  --tau-ink-1: #e8e3f2;
+  --tau-ink-2: #a59fb8;
+  --tau-ink-3: #7f7893;
+  --tau-ink-inverse: #16121f;
+
+  --tau-line-1: #302b3d;
+  --tau-line-2: rgba(48, 43, 61, 0.55);
+
+  --tau-accent: hsl(262 60% 72%);
+  --tau-accent-hover: hsl(262 60% 79%);
+  --tau-accent-soft: hsla(262, 60%, 72%, 0.16);
+  --tau-accent-text: hsl(262 66% 78%);
+  --tau-focus-ring: 0 0 0 3px hsla(262, 60%, 72%, 0.4);
+
+  --tau-ok: #86b596;
+  --tau-ok-soft: #1f2d25;
+  --tau-warn: #cbb46f;
+  --tau-warn-soft: #2e2a1b;
+  --tau-danger: #e48ca0;
+  --tau-danger-soft: #37202a;
+  --tau-info: #8fa9dc;
+  --tau-info-soft: #1e2638;
+
+  --tau-tag-1: #86b596;
+  --tau-tag-1-soft: #1f2d25;
+  --tau-tag-2: #8fa9dc;
+  --tau-tag-2-soft: #1e2638;
+  --tau-tag-3: #b39be0;
+  --tau-tag-3-soft: #2a2340;
+  --tau-tag-4: #cbb46f;
+  --tau-tag-4-soft: #2e2a1b;
+  --tau-tag-5: #d98fa6;
+  --tau-tag-5-soft: #35212b;
+
+  --tau-overlay: rgba(6, 5, 10, 0.55);
+  --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+  --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+
+/* 主题「石墨」· 浅色（晴） */
+[data-theme="graphite"][data-mode="light"] {
+  color-scheme: light;
+
+  --tau-bg-page: #eeeeec;
+  --tau-bg-surface: #fdfdfc;
+  --tau-bg-surface-hover: #f2f2f1;
+  --tau-bg-sunken: #dadad7;
+  --tau-bg-track: #d6d6d3;
+
+  --tau-bg-hover: rgba(38, 38, 38, 0.05);
+  --tau-bg-press: rgba(38, 38, 38, 0.09);
+  --tau-bg-selected: rgba(187, 63, 44, 0.12);
+
+  --tau-ink-1: #262626;
+  --tau-ink-2: #595957;
+  --tau-ink-3: #a3a3a0;
+  --tau-ink-inverse: #fcfcfb;
+
+  --tau-line-1: #e3e3e0;
+  --tau-line-2: rgba(227, 227, 224, 0.55);
+
+  --tau-accent: hsl(6 62% 45%);
+  --tau-accent-hover: hsl(6 62% 38%);
+  --tau-accent-soft: hsla(6, 62%, 45%, 0.12);
+  --tau-accent-text: #a93a29;
+  --tau-focus-ring: 0 0 0 3px rgba(187, 63, 44, 0.28);
+
+  --tau-ok: #5b7a5f;
+  --tau-ok-soft: #e4ece4;
+  --tau-warn: #98844a;
+  --tau-warn-soft: #f3eed9;
+  --tau-danger: #b5344b;
+  --tau-danger-soft: #f6e1e4;
+  --tau-info: #52739a;
+  --tau-info-soft: #e1e8f1;
+
+  --tau-tag-1: #5b7a5f;
+  --tau-tag-1-soft: #e4ece4;
+  --tau-tag-2: #52739a;
+  --tau-tag-2-soft: #e1e8f1;
+  --tau-tag-3: #7d71a1;
+  --tau-tag-3-soft: #e8e5f1;
+  --tau-tag-4: #98844a;
+  --tau-tag-4-soft: #f3eed9;
+  --tau-tag-5: #a8615a;
+  --tau-tag-5-soft: #f4e3e1;
+
+  --tau-overlay: rgba(38, 38, 38, 0.35);
+  --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.06), 0 10px 24px -14px rgba(0, 0, 0, 0.2);
+  --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.07), 0 6px 16px -10px rgba(0, 0, 0, 0.24);
+  --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.4);
+}
+
+/* 主题「石墨」· 深色（夜） */
+[data-theme="graphite"][data-mode="dark"] {
+  color-scheme: dark;
+
+  --tau-bg-page: #171717;
+  --tau-bg-surface: #212121;
+  --tau-bg-surface-hover: #2d2d2d;
+  --tau-bg-sunken: #0a0a0a;
+  --tau-bg-track: #383838;
+
+  --tau-bg-hover: rgba(234, 234, 232, 0.06);
+  --tau-bg-press: rgba(234, 234, 232, 0.11);
+  --tau-bg-selected: hsla(8, 70%, 64%, 0.2);
+
+  --tau-ink-1: #ebebe9;
+  --tau-ink-2: #a3a3a0;
+  --tau-ink-3: #7a7a77;
+  --tau-ink-inverse: #1a1a1a;
+
+  --tau-line-1: #2c2c2c;
+  --tau-line-2: rgba(44, 44, 44, 0.55);
+
+  --tau-accent: hsl(8 70% 64%);
+  --tau-accent-hover: hsl(8 70% 71%);
+  --tau-accent-soft: hsla(8, 70%, 64%, 0.16);
+  --tau-accent-text: hsl(8 76% 70%);
+  --tau-focus-ring: 0 0 0 3px hsla(8, 70%, 64%, 0.4);
+
+  --tau-ok: #8bb08f;
+  --tau-ok-soft: #1f2b21;
+  --tau-warn: #c9b26c;
+  --tau-warn-soft: #2d2a1b;
+  --tau-danger: #e6828f;
+  --tau-danger-soft: #361f24;
+  --tau-info: #8eaad0;
+  --tau-info-soft: #1e2633;
+
+  --tau-tag-1: #8bb08f;
+  --tau-tag-1-soft: #1f2b21;
+  --tau-tag-2: #8eaad0;
+  --tau-tag-2-soft: #1e2633;
+  --tau-tag-3: #a99dd0;
+  --tau-tag-3-soft: #262335;
+  --tau-tag-4: #c9b26c;
+  --tau-tag-4-soft: #2d2a1b;
+  --tau-tag-5: #d69188;
+  --tau-tag-5-soft: #33221f;
+
+  --tau-overlay: rgba(0, 0, 0, 0.6);
+  --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+  --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
+
+/* 主题「水墨」· 浅色（宣纸） */
+[data-theme="ink"][data-mode="light"] {
+  color-scheme: light;
+
+  --tau-bg-page: #f5f4f0;
+  --tau-bg-surface: #fcfbf8;
+  --tau-bg-surface-hover: #f1f0ed;
+  --tau-bg-sunken: #e2e0da;
+  --tau-bg-track: #dcdad3;
+
+  --tau-bg-hover: rgba(31, 31, 29, 0.05);
+  --tau-bg-press: rgba(31, 31, 29, 0.09);
+  --tau-bg-selected: rgba(67, 84, 96, 0.1);
+
+  --tau-ink-1: #1f1f1d;
+  --tau-ink-2: #55544f;
+  --tau-ink-3: #a3a19a;
+  --tau-ink-inverse: #fbfaf7;
+
+  --tau-line-1: #e6e4de;
+  --tau-line-2: rgba(230, 228, 222, 0.55);
+
+  --tau-accent: hsl(205 18% 32%);
+  --tau-accent-hover: hsl(205 18% 25%);
+  --tau-accent-soft: hsla(205, 18%, 32%, 0.12);
+  --tau-accent-text: #3f4f5c;
+  --tau-focus-ring: 0 0 0 3px rgba(67, 84, 96, 0.25);
+
+  --tau-ok: #5d7a68;
+  --tau-ok-soft: #e4ebe6;
+  --tau-warn: #98814f;
+  --tau-warn-soft: #f1ecdd;
+  --tau-danger: #a8554a;
+  --tau-danger-soft: #f4e3df;
+  --tau-info: #4f6a80;
+  --tau-info-soft: #e1e8ee;
+
+  --tau-tag-1: #5d7a68;
+  --tau-tag-1-soft: #e4ebe6;
+  --tau-tag-2: #4f6a80;
+  --tau-tag-2-soft: #e1e8ee;
+  --tau-tag-3: #7a7090;
+  --tau-tag-3-soft: #e9e6ee;
+  --tau-tag-4: #98814f;
+  --tau-tag-4-soft: #f1ecdd;
+  --tau-tag-5: #9c6b55;
+  --tau-tag-5-soft: #f2e6df;
+
+  --tau-overlay: rgba(31, 31, 29, 0.35);
+  --tau-shadow-card: 0 1px 2px rgba(40, 38, 30, 0.04), 0 10px 24px -14px rgba(40, 38, 30, 0.14);
+  --tau-shadow-lift: 0 1px 2px rgba(40, 38, 30, 0.05), 0 6px 16px -10px rgba(40, 38, 30, 0.18);
+  --tau-shadow-float: 0 16px 40px -12px rgba(40, 38, 30, 0.3);
+}
+
+/* 主题「水墨」· 深色（松烟） */
+[data-theme="ink"][data-mode="dark"] {
+  color-scheme: dark;
+
+  --tau-bg-page: #1a1a19;
+  --tau-bg-surface: #232321;
+  --tau-bg-surface-hover: #2f2f2c;
+  --tau-bg-sunken: #0d0d0c;
+  --tau-bg-track: #393936;
+
+  --tau-bg-hover: rgba(230, 228, 223, 0.06);
+  --tau-bg-press: rgba(230, 228, 223, 0.11);
+  --tau-bg-selected: hsla(205, 22%, 68%, 0.2);
+
+  --tau-ink-1: #e6e4df;
+  --tau-ink-2: #a09e97;
+  --tau-ink-3: #78766f;
+  --tau-ink-inverse: #161615;
+
+  --tau-line-1: #2e2e2b;
+  --tau-line-2: rgba(46, 46, 43, 0.55);
+
+  --tau-accent: hsl(205 22% 68%);
+  --tau-accent-hover: hsl(205 22% 75%);
+  --tau-accent-soft: hsla(205, 22%, 68%, 0.16);
+  --tau-accent-text: hsl(205 28% 74%);
+  --tau-focus-ring: 0 0 0 3px hsla(205, 22%, 68%, 0.4);
+
+  --tau-ok: #8fae99;
+  --tau-ok-soft: #1f2a23;
+  --tau-warn: #c4ad78;
+  --tau-warn-soft: #2c281c;
+  --tau-danger: #d68c80;
+  --tau-danger-soft: #33221f;
+  --tau-info: #8faac0;
+  --tau-info-soft: #1d252c;
+
+  --tau-tag-1: #8fae99;
+  --tau-tag-1-soft: #1f2a23;
+  --tau-tag-2: #8faac0;
+  --tau-tag-2-soft: #1d252c;
+  --tau-tag-3: #a79fbd;
+  --tau-tag-3-soft: #26232f;
+  --tau-tag-4: #c4ad78;
+  --tau-tag-4-soft: #2c281c;
+  --tau-tag-5: #c99a84;
+  --tau-tag-5-soft: #30251f;
+
+  --tau-overlay: rgba(0, 0, 0, 0.6);
+  --tau-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.24), 0 10px 24px -14px rgba(0, 0, 0, 0.5);
+  --tau-shadow-lift: 0 1px 2px rgba(0, 0, 0, 0.26), 0 6px 16px -10px rgba(0, 0, 0, 0.52);
+  --tau-shadow-float: 0 16px 40px -12px rgba(0, 0, 0, 0.65);
+}
