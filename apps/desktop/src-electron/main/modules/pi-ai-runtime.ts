@@ -7,6 +7,7 @@
 import { ipcMain } from "electron";
 import { normalizeContext } from "@earendil-works/pi-ai";
 import userSettingModule from "./user-setting";
+import { rewriteThinkTagStream } from "./think-stream-rewriter";
 import {
   createProviderRegistry,
   buildSingleShotContext,
@@ -70,7 +71,10 @@ class PiAiRuntimeModule {
           signal: abortController.signal,
         }
       );
-      for await (const rawEvent of stream) {
+      const events = registry.needsThinkStrip(request.providerId, request.modelId)
+        ? rewriteThinkTagStream(stream)
+        : stream;
+      for await (const rawEvent of events) {
         // done/error 变体不带 partial；其余事件剥离 partial 快照（体积大且单发场景不需要，done 自带最终 message）
         const { partial: _partial, ...event } = rawEvent as typeof rawEvent & { partial?: unknown };
         if (!sender.isDestroyed())

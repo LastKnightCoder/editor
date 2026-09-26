@@ -12,6 +12,7 @@ import {
   buildPiProvider,
   createProviderRegistry,
 } from "../pi-ai-runtime-core";
+import { rewriteThinkTagStream, type PiRewrittenEvent } from "../think-stream-rewriter";
 import type { LLMProviderSetting, PiSingleShotRequest } from "@/types/pi-llm";
 
 /** OpenAI chat-completions SSE chunk 便捷构造 */
@@ -198,9 +199,8 @@ describe("pi-ai-runtime-core", () => {
       expect(body.messages.at(-1)).toMatchObject({ role: "user", content: "打个招呼" });
     });
 
-    // 现状记录：pi 的 thinkingFormat 只作用于请求侧，<think> 标签剥离是自研 adapter 的边缘 case，
-    // pi 原生不处理——M1 剩余项在桥层加事件重写器（thinkStreamRewriter）补齐，此用例届时改为断言归一化行为
-    it("<think> 标签：pi 原生不剥离，正文原样保留（待桥层重写器补齐）", async () => {
+    // pi 原生不剥 <think>（thinkingFormat 仅请求侧）；开启 stripThinkTags 后经桥层重写器归一化
+    it("<think> 标签经 stripThinkTags 重写器归一化为 thinking 事件，不混入正文", async () => {
       const thinkGateway = await startMockGateway(() => [
         chunk({ role: "assistant" }),
         chunk({ content: "<think>先推理" }),
@@ -219,18 +219,45 @@ describe("pi-ai-runtime-core", () => {
               input: ["text"],
               contextWindow: 8192,
               maxTokens: 1024,
-              compat: { thinkingFormat: "deepseek" },
+              stripThinkTags: true,
             },
           ],
         });
-        const events = await runSingleShot(registry, setting, {
-          messages: [{ role: "user", content: "q" }],
-        });
+        registry.syncProviders([setting]);
+        expect(registry.needsThinkStrip(setting.id, setting.models[0].id)).toBe(true);
+        const model = registry.resolveModel(setting.id, setting.models[0].id);
+        if (!model) throw new Error("model not registered");
+
+        const events: PiRewrittenEvent[] = [];
+        for await (const event of rewriteThinkTagStream(
+          registry.models.streamSimple(
+            model,
+            normalizeContext(
+              buildSingleShotContext(
+                {
+                  requestId: "t",
+                  providerId: setting.id,
+                  modelId: setting.models[0].id,
+                  messages: [{ role: "user", content: "q" }],
+                },
+                setting.id,
+                setting.models[0].id
+              )
+            )
+          )
+        )) {
+          events.push(event);
+        }
 
         expect(events.some(e => e.type === "thinking_start" || e.type === "thinking_delta")).toBe(
-          false
+          true
         );
-        expect(textOf(events)).toContain("<think>先推理一下</think>正文回答");
+        const done = events.find(e => e.type === "done");
+        if (!done || done.type !== "done") throw new Error("done event missing");
+        expect(done.message.content).toEqual([
+          { type: "thinking", thinking: "先推理一下" },
+          { type: "text", text: "正文回答" },
+        ]);
       } finally {
         await thinkGateway.close();
       }
