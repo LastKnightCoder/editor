@@ -14,18 +14,20 @@ export type PiSingleShotOptions = Omit<PiSingleShotRequest, "requestId">;
 
 export async function piAiSingleShot(
   options: PiSingleShotOptions,
-  onEvent?: (event: PiStreamEvent) => void
+  onEvent?: (event: PiStreamEvent) => void,
+  /** 外部指定 requestId（调用方需要联动本地 AbortController 取消时使用） */
+  requestId?: string
 ): Promise<PiSingleShotOutcome> {
-  const requestId = crypto.randomUUID();
+  const id = requestId ?? crypto.randomUUID();
   // preload 的 on 透传 ipcRenderer.on：第一个参数是 IPC event，载荷在第二位（项目既有约定）
   const listener = onEvent
     ? (_ipcEvent: unknown, payload: PiStreamEventEnvelope) => {
-        if (payload?.requestId === requestId) onEvent(payload);
+        if (payload?.requestId === id) onEvent(payload);
       }
     : null;
   if (listener) on("pi-ai-stream-event", listener);
   try {
-    return await invoke<PiSingleShotOutcome>("pi-ai:single-shot", { ...options, requestId });
+    return await invoke<PiSingleShotOutcome>("pi-ai:single-shot", { ...options, requestId: id });
   } finally {
     if (listener) off("pi-ai-stream-event", listener);
   }
