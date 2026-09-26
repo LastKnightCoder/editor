@@ -16,7 +16,7 @@
 
 import { useState } from "react";
 import clsx from "clsx";
-import { Calendar, ChevronRight, CircleHelp, ListTodo, PenLine, Repeat } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { usePage } from "@/page/PageProvider";
 import { EmptyNote, Panel, PanelNote, PanelTitle, PanelAction, Loading } from "@tau/ui";
 import { FadeScroll } from "@/components/FadeScroll";
@@ -27,7 +27,6 @@ import { Composition, GroupDot, StatusRing } from "@/features/questions/componen
 import { describeEvent, relativeDay } from "@/features/questions/model";
 import { RetroSection } from "./RetroSection";
 import { SectionHeading } from "./SectionHeading";
-import { TitleIcon } from "./TitleIcon";
 import "../home.css";
 
 const KIND_LABEL = {
@@ -120,7 +119,6 @@ export function HomeView() {
           <div className="@max-[1180px]:grid-cols-2 @max-[860px]:grid-cols-1 grid grid-cols-3 gap-3">
             <Panel variant="outline" pad="compact">
               <PanelTitle className="mb-2.5">
-                <TitleIcon icon={Repeat} tone="accent" />
                 复习
                 <PanelNote>
                   {dueDecks > 0
@@ -147,7 +145,6 @@ export function HomeView() {
 
             <Panel variant="outline" pad="compact">
               <PanelTitle className="mb-2.5">
-                <TitleIcon icon={ListTodo} tone="green" />
                 待办
                 <PanelNote>{data.todoRemainingCount} 项未完成</PanelNote>
                 <PanelAction onClick={() => navigator.push("todos")} title="前往待办">
@@ -191,7 +188,6 @@ export function HomeView() {
 
             <Panel variant="outline" pad="compact" className="@max-[1180px]:col-span-full">
               <PanelTitle className="mb-2.5">
-                <TitleIcon icon={Calendar} tone="blue" />
                 日程
                 <PanelNote>今天 {data.events.length} 项</PanelNote>
                 <PanelAction onClick={() => navigator.push("schedule")} title="前往日程">
@@ -228,7 +224,6 @@ export function HomeView() {
           <SectionHeading title="继续" className="pt-3" />
           <Panel variant="outline" pad="compact">
             <PanelTitle className="mb-2.5">
-              <TitleIcon icon={PenLine} tone="ochre" />
               最近编辑
               <PanelNote>卡片 · 文章 · 日记 · 项目</PanelNote>
             </PanelTitle>
@@ -245,7 +240,6 @@ export function HomeView() {
 
           <Panel variant="outline" pad="compact">
             <PanelTitle className="mb-1.5">
-              <TitleIcon icon={CircleHelp} tone="purple" />
               探究中的问题
               <PanelNote>{data.activeQuestions.length ? "最近有进展的在前" : ""}</PanelNote>
               <PanelAction onClick={() => navigator.push("questions")} title="前往问题">
