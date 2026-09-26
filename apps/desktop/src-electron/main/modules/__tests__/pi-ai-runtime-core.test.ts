@@ -56,7 +56,7 @@ const runSingleShot = async (
   setting: LLMProviderSetting,
   request: Omit<PiSingleShotRequest, "requestId" | "providerId" | "modelId">
 ) => {
-  registry.syncProviders([setting]);
+  await registry.syncProviders([setting]);
   const model = registry.resolveModel(setting.id, setting.models[0].id);
   if (!model) throw new Error("model not registered");
   const events: AssistantMessageEvent[] = [];
@@ -89,9 +89,26 @@ const textOf = (events: AssistantMessageEvent[]) => {
     .join("");
 };
 
+// jsdom 环境的 AbortSignal 缺 any()（Node 24 / Electron 主进程原生可用）
+if (typeof AbortSignal.any !== "function") {
+  Object.assign(AbortSignal, {
+    any(signals: AbortSignal[]): AbortSignal {
+      const controller = new AbortController();
+      for (const signal of signals) {
+        if (signal.aborted) {
+          controller.abort(signal.reason);
+          break;
+        }
+        signal.addEventListener("abort", () => controller.abort(signal.reason), { once: true });
+      }
+      return controller.signal;
+    },
+  });
+}
+
 describe("pi-ai-runtime-core", () => {
-  it("buildPiProvider：模型元数据按 v2 设置落位", () => {
-    const provider = buildPiProvider({
+  it("buildPiProvider：模型元数据按 v2 设置落位", async () => {
+    const provider = await buildPiProvider({
       id: "gw",
       name: "网关",
       baseUrl: "https://gw.example.com/v1",
@@ -126,7 +143,7 @@ describe("pi-ai-runtime-core", () => {
     expect(model.headers).toEqual({ "User-Agent": "Tau/1.0" });
   });
 
-  it("注册表：新增/变更 upsert、移除 delete、未变更跳过", () => {
+  it("注册表：新增/变更 upsert、移除 delete、未变更跳过", async () => {
     const registry = createProviderRegistry();
     const setting: LLMProviderSetting = {
       id: "a",
@@ -138,13 +155,13 @@ describe("pi-ai-runtime-core", () => {
         { id: "m", reasoning: false, input: ["text"], contextWindow: 8192, maxTokens: 1024 },
       ],
     };
-    registry.syncProviders([setting]);
+    await registry.syncProviders([setting]);
     expect(registry.resolveModel("a", "m")).toBeTruthy();
 
-    registry.syncProviders([]);
+    await registry.syncProviders([]);
     expect(registry.resolveModel("a", "m")).toBeUndefined();
 
-    registry.syncProviders([{ ...setting, apiKey: "changed" }]);
+    await registry.syncProviders([{ ...setting, apiKey: "changed" }]);
     expect(registry.resolveModel("a", "m")).toBeTruthy();
   });
 
@@ -223,7 +240,7 @@ describe("pi-ai-runtime-core", () => {
             },
           ],
         });
-        registry.syncProviders([setting]);
+        await registry.syncProviders([setting]);
         expect(registry.needsThinkStrip(setting.id, setting.models[0].id)).toBe(true);
         const model = registry.resolveModel(setting.id, setting.models[0].id);
         if (!model) throw new Error("model not registered");

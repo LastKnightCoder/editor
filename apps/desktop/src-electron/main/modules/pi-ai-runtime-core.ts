@@ -40,27 +40,87 @@ const API_STREAMS: Record<PiApiKind, ProviderStreams> = {
   "anthropic-messages": anthropicMessagesApi,
 };
 
-export function toPiModel(model: LLMModelSetting, provider: LLMProviderSetting): Model<Api> {
+/** 内置目录基底：命中时目录值权威（含 compat/thinkingLevelMap/cost），用户手填仅兜底未收录键 */
+export function toPiModel(
+  model: LLMModelSetting,
+  provider: LLMProviderSetting,
+  base?: Model<Api>
+): Model<Api> {
   const piModel: Model<Api> = {
     id: model.id,
-    name: model.name ?? model.id,
-    api: provider.api,
+    name: model.name ?? base?.name ?? model.id,
+    api: base?.api ?? provider.api,
     provider: provider.id,
     baseUrl: provider.baseUrl,
-    reasoning: model.reasoning,
-    input: model.input,
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: model.contextWindow,
-    maxTokens: model.maxTokens,
+    reasoning: base?.reasoning ?? model.reasoning,
+    input: base?.input ?? model.input,
+    cost: base?.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: base?.contextWindow ?? model.contextWindow ?? DEFAULT_CONTEXT_WINDOW,
+    maxTokens: base?.maxTokens ?? model.maxTokens ?? DEFAULT_MAX_TOKENS,
   };
+  if (base?.thinkingLevelMap) piModel.thinkingLevelMap = base.thinkingLevelMap;
+  if (base?.compat && !model.compat) piModel.compat = base.compat as never;
   if (model.samplingParams) piModel.samplingParams = model.samplingParams;
   if (model.headers) piModel.headers = model.headers;
   if (model.compat) piModel.compat = model.compat as never;
   return piModel;
 }
 
-/** 设置 v2 → pi Provider；apiKey 从设置内存值经 auth resolve 注入（BYO 网关模式） */
-export function buildPiProvider(setting: LLMProviderSetting): Provider {
+const DEFAULT_CONTEXT_WINDOW = 128_000;
+const DEFAULT_MAX_TOKENS = 8_192;
+
+/** 共享的内置目录查询（懒创建 ModelRuntime，仅用于查询，不注册自定义 provider） */
+let catalogRuntime: Promise<ModelRuntimeLike | null> | null = null;
+interface ModelRuntimeLike {
+  getModel(providerId: string, modelId: string): Model<Api> | undefined;
+  getProviders(): Array<{ id: string; baseUrl?: string }>;
+}
+async function getCatalogRuntime(): Promise<ModelRuntimeLike | null> {
+  catalogRuntime ??= import("@earendil-works/pi-coding-agent")
+    .then(async ({ ModelRuntime }) => {
+      const os = await import("node:os");
+      const { join } = await import("node:path");
+      return ModelRuntime.create({
+        authPath: join(os.tmpdir(), "tau-pi-catalog.json"),
+        allowModelNetwork: false,
+      }) as unknown as ModelRuntimeLike;
+    })
+    .catch(error => {
+      console.error("[pi-ai] 内置目录加载失败:", error);
+      return null;
+    });
+  return catalogRuntime;
+}
+
+/** 解析 provider 的 builtin 标识：显式设置优先，否则按 baseUrl 匹配内置目录（官方域名确定性映射） */
+async function resolveBuiltinId(setting: LLMProviderSetting): Promise<string | undefined> {
+  if (setting.builtin) return setting.builtin;
+  const runtime = await getCatalogRuntime();
+  if (!runtime) return undefined;
+  const normalized = setting.baseUrl.replace(/\/+$/, "").toLowerCase();
+  const match = runtime
+    .getProviders()
+    .find(p => p.baseUrl && p.baseUrl.replace(/\/+$/, "").toLowerCase() === normalized);
+  return match?.id;
+}
+
+/** 按 builtin+modelId 查内置目录的模型元数据 */
+export async function lookupBuiltinModel(
+  builtin: string,
+  modelId: string
+): Promise<Model<Api> | undefined> {
+  const runtime = await getCatalogRuntime();
+  return runtime?.getModel(builtin, modelId);
+}
+
+/** 设置 v2 → pi Provider（内置目录兜底后）；apiKey 从设置内存值经 auth resolve 注入（BYO 网关模式） */
+export async function buildPiProvider(setting: LLMProviderSetting): Promise<Provider> {
+  const builtin = await resolveBuiltinId(setting);
+  const models: Model<Api>[] = [];
+  for (const model of setting.models) {
+    const base = builtin ? await lookupBuiltinModel(builtin, model.id) : undefined;
+    models.push(toPiModel(model, setting, base));
+  }
   return createProvider({
     id: setting.id,
     name: setting.name,
@@ -76,15 +136,15 @@ export function buildPiProvider(setting: LLMProviderSetting): Provider {
             : { auth: { apiKey: "no-key-required" }, source: "app-settings(keyless)" },
       },
     },
-    models: setting.models.map(m => toPiModel(m, setting)),
+    models,
     api: API_STREAMS[setting.api],
   });
 }
 
 export interface ProviderRegistry {
   readonly models: MutableModels;
-  /** 全量同步设置里的 provider 列表：新增/变更 upsert，移除 delete */
-  syncProviders(settings: LLMProviderSetting[]): void;
+  /** 全量同步设置里的 provider 列表：新增/变更 upsert，移除 delete（目录兜底为异步） */
+  syncProviders(settings: LLMProviderSetting[]): Promise<void>;
   resolveModel(providerId: string, modelId: string): Model<Api> | undefined;
   /** 该模型是否启用 <think> 标签兜底剥离（见 think-stream-rewriter） */
   needsThinkStrip(providerId: string, modelId: string): boolean;
@@ -96,7 +156,7 @@ export function createProviderRegistry(): ProviderRegistry {
   const settingsById = new Map<string, LLMProviderSetting>();
   return {
     models,
-    syncProviders(settings) {
+    async syncProviders(settings) {
       const nextIds = new Set(settings.map(s => s.id));
       for (const id of [...registered.keys()]) {
         if (!nextIds.has(id)) {
@@ -108,7 +168,7 @@ export function createProviderRegistry(): ProviderRegistry {
       for (const setting of settings) {
         const fingerprint = JSON.stringify(setting);
         if (registered.get(setting.id) === fingerprint) continue;
-        models.setProvider(buildPiProvider(setting));
+        models.setProvider(await buildPiProvider(setting));
         registered.set(setting.id, fingerprint);
         settingsById.set(setting.id, setting);
       }

@@ -31,7 +31,7 @@ export function downgradeModel(model: LLMModelSetting, provider: LLMProviderSett
     messageFormat: legacy.messageFormat,
     apiProtocol: legacy.apiProtocol,
     maxOutputTokens: model.maxTokens,
-    contextWindowK: Math.round(model.contextWindow / 1024),
+    contextWindowK: model.contextWindow ? Math.round(model.contextWindow / 1024) : undefined,
   };
   const temperature = model.samplingParams?.temperature;
   if (typeof temperature === "number") legacyModel.temperature = temperature;

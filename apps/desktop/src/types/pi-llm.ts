@@ -20,10 +20,10 @@ export interface LLMModelSetting {
   reasoning: boolean;
   /** 输入模态（原 features.image / legacy multimodal 归并为 image） */
   input: ("text" | "image")[];
-  /** 上下文窗口，单位 token（原 contextWindowK × 1024） */
-  contextWindow: number;
-  /** 最大输出 token（原 maxOutputTokens） */
-  maxTokens: number;
+  /** 上下文窗口，单位 token；builtin 服务商由 pi 目录提供，仅自定义模型需要填 */
+  contextWindow?: number;
+  /** 最大输出 token；builtin 服务商由 pi 目录提供，仅自定义模型需要填 */
+  maxTokens?: number;
   /** 推理力度档位，缺省交给 pi 按模型能力取默认 */
   thinkingLevel?: PiThinkingLevel;
   /** 采样参数直通 pi StreamOptions.samplingParams（temperature 等原 ModelConfig.temperature） */
@@ -46,6 +46,9 @@ export interface LLMProviderSetting {
   baseUrl: string;
   apiKey: string;
   api: PiApiKind;
+  /** 对应 pi 内置服务商 id（如 deepseek/anthropic）：模型元数据（上下文/输出/推理档位/compat/单价）
+   *  以目录为准，用户手填仅作目录未收录模型的兜底；缺省时主进程按 baseUrl 匹配内置目录推断 */
+  builtin?: string;
   models: LLMModelSetting[];
 }
 
