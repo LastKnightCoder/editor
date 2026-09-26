@@ -14,33 +14,26 @@ export type PreviewNodeInfo = {
 export const canDropElementIntoParent = (
   board: Board,
   parent: BoardElement | null,
-  child: BoardElement,
+  child: BoardElement
 ): boolean => {
   if (!parent) return true;
   // 准入（含子方 canBeContainedBy 声明）由 canContain 统一裁决
   return board.capabilityService.canContain(parent, child);
 };
 
-export const simulateChildrenAfterOps = (
-  board: Board,
-  ops: Operation[],
-): BoardElement[] => {
+export const simulateChildrenAfterOps = (board: Board, ops: Operation[]): BoardElement[] => {
   const clonedChildren = JSON.parse(JSON.stringify(board.children));
-  const result = BoardOperations.applyOperations(
-    { children: clonedChildren },
-    ops,
-    {
-      skipSelectionOperations: true,
-      skipViewPortOperations: true,
-    },
-  );
+  const result = BoardOperations.applyOperations({ children: clonedChildren }, ops, {
+    skipSelectionOperations: true,
+    skipViewPortOperations: true,
+  });
   return result.data.children;
 };
 
 export const findNodeInfoById = (
   nodes: BoardElement[],
   id: string,
-  basePath: number[] = [],
+  basePath: number[] = []
 ): PreviewNodeInfo | null => {
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
@@ -59,7 +52,7 @@ export const findNodeInfoById = (
 
 export const getNodeByPathSnapshot = (
   nodes: BoardElement[],
-  path: number[],
+  path: number[]
 ): BoardElement | null => {
   let currentChildren = nodes;
   let currentNode: BoardElement | null = null;
@@ -73,10 +66,7 @@ export const getNodeByPathSnapshot = (
   return currentNode;
 };
 
-export const findMindRootInfo = (
-  nodes: BoardElement[],
-  path: number[],
-): PreviewNodeInfo | null => {
+export const findMindRootInfo = (nodes: BoardElement[], path: number[]): PreviewNodeInfo | null => {
   let currentPath = [...path];
   while (currentPath.length > 0) {
     const candidate = getNodeByPathSnapshot(nodes, currentPath);
@@ -100,12 +90,11 @@ export const collectMindLayoutOpsFromPreview = (
   board: Board,
   previewChildren: BoardElement[],
   movedMindNodeId: string,
-  sourceRootId?: string | null,
+  sourceRootId?: string | null
 ): Operation[] => {
   const ops: Operation[] = [];
   const movedInfo = findNodeInfoById(previewChildren, movedMindNodeId);
-  const targetRootInfo =
-    movedInfo && findMindRootInfo(previewChildren, movedInfo.path);
+  const targetRootInfo = movedInfo && findMindRootInfo(previewChildren, movedInfo.path);
   const targetRootId = targetRootInfo?.node.id ?? null;
 
   // 关键点：这里必须只生成“布局 patch”，不能再生成结构 diff。
@@ -133,12 +122,10 @@ export const collectMindLayoutOpsFromPreview = (
     const walk = (node: MindNodeElement) => {
       const actual = actualInfoById.get(node.id);
       if (actual) {
-        ops.push(
-          ...BoardUtil.diffNodePatchOnly(actual.node, node, actual.path),
-        );
+        ops.push(...BoardUtil.diffNodePatchOnly(actual.node, node, actual.path));
       }
       if (node.children?.length) {
-        node.children.forEach((c) => walk(c));
+        node.children.forEach(c => walk(c));
       }
     };
     walk(laidOut);
@@ -162,21 +149,17 @@ export const buildFrameResizeOp = (
   board: Board,
   previewChildren: BoardElement[],
   frameId: string,
-  framePath: number[],
+  framePath: number[]
 ): Operation | null => {
   const previewInfo = findNodeInfoById(previewChildren, frameId);
   if (!previewInfo || previewInfo.node.type !== "frame") return null;
-  const latestFrame = BoardUtil.getElementById(
-    board,
-    frameId,
-  ) as FrameElement | null;
+  const latestFrame = BoardUtil.getElementById(board, frameId) as FrameElement | null;
   if (!latestFrame) return null;
-  const nonFrameChildren =
-    previewInfo.node.children?.filter((child) => child.type !== "frame") ?? [];
+  const nonFrameChildren = previewInfo.node.children?.filter(child => child.type !== "frame") ?? [];
   const bounds = FrameUtil.calculateFrameBounds(
     board,
     previewInfo.node as FrameElement,
-    nonFrameChildren,
+    nonFrameChildren
   );
   return {
     type: "set_node",
