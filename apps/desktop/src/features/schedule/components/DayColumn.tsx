@@ -162,7 +162,7 @@ export function DayColumn() {
       </p>
 
       {/* FadeScroll 右侧 6px 透明边 + pr-[18px] = 24px，与标题行的 px-6 对齐 */}
-      <FadeScroll className="min-h-0 flex-1 pb-3 pl-6 pr-[18px]">
+      <FadeScroll className="mb-4 min-h-0 flex-1 pb-1 pl-6 pr-[18px]">
         {allDay.length > 0 && (
           <div className="flex flex-col gap-1 pb-2.5 pl-[70px]">
             {allDay.map(event => (

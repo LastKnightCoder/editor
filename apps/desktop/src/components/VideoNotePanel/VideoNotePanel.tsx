@@ -1189,7 +1189,10 @@ const VideoNotePanel = ({
 
       <div className="min-h-0 flex-1 overflow-hidden">
         {activeTab === "transcript" && (
-          <FadeScroll scrollRef={transcriptContainerRef} className="h-full py-5 pl-6 pr-[18px]">
+          <FadeScroll
+            scrollRef={transcriptContainerRef}
+            className="mb-4 h-[calc(100%-16px)] pb-1 pl-6 pr-[18px] pt-5"
+          >
             {isTranscribing ? (
               <div className="flex h-full flex-col">
                 {isOptimizing && streamingSegments.length > 0 ? (
@@ -1298,13 +1301,13 @@ const VideoNotePanel = ({
 
         {activeTab === "summary" && (
           <div className="flex h-full min-h-0 flex-col">
-            <FadeScroll className="min-h-0 flex-1">
+            <FadeScroll className="mb-4 min-h-0 flex-1">
               {isSummarizing && !summaryContent ? (
                 <div className="flex h-full items-center justify-center">
                   <LoaderCircle size={30} className="text-ink-3 animate-spin" />
                 </div>
               ) : isSummarizing || summaryContent ? (
-                <div className="py-6 pl-6 pr-[18px]">
+                <div className="pb-2 pl-6 pr-[18px] pt-6">
                   <Editor
                     key={`summary-streaming-${videoNoteId}-${summarySessionId}`}
                     ref={summaryEditorRef}
@@ -1315,7 +1318,7 @@ const VideoNotePanel = ({
                   />
                 </div>
               ) : videoNote.summary ? (
-                <div className="py-6 pl-6 pr-[18px]">
+                <div className="pb-2 pl-6 pr-[18px] pt-6">
                   <Editor
                     ref={summaryEditorRef}
                     key={`summary-saved-${videoNoteId}`}

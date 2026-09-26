@@ -285,7 +285,7 @@ export function WeReadView() {
           )}
         </div>
 
-        <FadeScroll className="min-h-0 flex-1 pb-8 pl-8 pr-[26px] pt-3">
+        <FadeScroll className="mb-4 min-h-0 flex-1 pb-4 pl-8 pr-[26px] pt-3">
           {books.length === 0 ? (
             <EmptyShelf
               connection={connection}
