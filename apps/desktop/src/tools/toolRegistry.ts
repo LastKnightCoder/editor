@@ -11,6 +11,13 @@ export interface RegisteredTool extends ToolDefinition {
   enabled: boolean;
 }
 
+/** 作用域工具来源：页面专属（Vibe Learning 项目、视频笔记、PDF），只给带同一作用域的对话 */
+export interface ScopedToolSource {
+  scope: string;
+  label: string;
+  toolNames: string[];
+}
+
 const safeStringify = (payload: unknown) => {
   try {
     return JSON.stringify(payload);
@@ -23,6 +30,10 @@ export class ToolRegistry {
   private tools = new Map<string, RegisteredTool>();
   /** 逐工具停用（按来源分组），与来源级开关叠加生效；独立于注册，重新注册后仍保留 */
   private disabledTools = new Map<string, Set<string>>();
+  /** 作用域工具不进全局表：同名工具可在多个作用域并存（如同时打开两份 PDF） */
+  private scopedTools = new Map<string, { label: string; tools: RegisteredTool[] }>();
+  private scopedSnapshot: ScopedToolSource[] = [];
+  private scopedListeners = new Set<() => void>();
 
   setDisabledTools(source: string, names: string[]): void {
     if (names.length > 0) this.disabledTools.set(source, new Set(names));
@@ -59,6 +70,36 @@ export class ToolRegistry {
     });
   }
 
+  /** 注册作用域工具：常开，不受 MCP 开关控制；scope 同时是来源，unregisterSource(scope) 移除 */
+  registerScopedTools(scope: string, label: string, definitions: ToolDefinition[]): void {
+    this.scopedTools.set(scope, {
+      label,
+      tools: definitions.map(definition => ({ ...definition, source: scope, enabled: true })),
+    });
+    this.emitScopedChange();
+  }
+
+  getScopedTools(scope: string | undefined): RegisteredTool[] {
+    return scope ? (this.scopedTools.get(scope)?.tools ?? []) : [];
+  }
+
+  /** useSyncExternalStore 协议：快照引用只在登记变化时更新 */
+  subscribeScopedSources = (listener: () => void): (() => void) => {
+    this.scopedListeners.add(listener);
+    return () => this.scopedListeners.delete(listener);
+  };
+
+  getScopedSources = (): ScopedToolSource[] => this.scopedSnapshot;
+
+  private emitScopedChange(): void {
+    this.scopedSnapshot = Array.from(this.scopedTools, ([scope, { label, tools }]) => ({
+      scope,
+      label,
+      toolNames: tools.map(tool => tool.name),
+    }));
+    this.scopedListeners.forEach(listener => listener());
+  }
+
   hasSource(source: string): boolean {
     return Array.from(this.tools.values()).some(tool => tool.source === source);
   }
@@ -79,6 +120,7 @@ export class ToolRegistry {
     if (removed.length > 0) {
       console.debug("[MCP] clear tools", { source, removed });
     }
+    if (this.scopedTools.delete(source)) this.emitScopedChange();
   }
 
   setSourceEnabled(source: string, enabled: boolean): void {

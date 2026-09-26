@@ -132,6 +132,8 @@ interface ChatContainerProps {
   createMessageLoading: boolean;
   hideInput?: boolean; // 控制是否隐藏输入框
   chatScope?: string; // 对话作用域，用于构建 ask-question 会话键
+  /** 工具作用域：只有本对话能用该作用域注册的页面专属工具，输入框 MCP 面板也只列它们 */
+  toolScope?: string;
   preserveScrollPosition?: boolean; // 侧边栏收起后重新打开时恢复滚动位置
   scrollPositionScope?: string; // 滚动位置缓存作用域，不影响模型会话键
   onChatCreated?: (chatId: number) => void; // 新对话创建后的回调
@@ -223,6 +225,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       createMessageLoading,
       hideInput = false,
       chatScope = "main-chat",
+      toolScope,
       preserveScrollPosition = false,
       scrollPositionScope,
       onChatCreated,
@@ -850,6 +853,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               enableTools: true,
               conversationKey,
               toolContext: options?.toolContext,
+              toolScope,
               skills,
               forcedSkills: extractForcedSkills(requestMessage),
               interactiveApproval: true,
@@ -2069,6 +2073,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                   ref={chatInputRef}
                   {...desktopInputProps}
                   compact={compact}
+                  toolScope={toolScope}
                   modelGroups={modelGroups}
                   currentModelKey={currentModelKey}
                   onModelSelect={handleModelSelect}

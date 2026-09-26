@@ -39,3 +39,34 @@ describe("ToolRegistry 逐工具停用", () => {
     expect(registry.hasEnabledTool("read_file")).toBe(false);
   });
 });
+
+describe("ToolRegistry 作用域工具", () => {
+  it("不进全局表，同名可在多个作用域并存，卸载后移除并通知订阅者", () => {
+    const registry = new ToolRegistry();
+    const listener = vi.fn();
+    registry.subscribeScopedSources(listener);
+
+    registry.registerScopedTools("pdf-1", "PDF 文档", [tool("search_pdf")]);
+    registry.registerScopedTools("pdf-2", "PDF 文档", [tool("search_pdf")]);
+
+    expect(registry.hasEnabledTool("search_pdf")).toBe(false);
+    expect(registry.getToolSchemas()).toEqual([]);
+    expect(registry.getScopedTools("pdf-1").map(t => t.source)).toEqual(["pdf-1"]);
+    expect(registry.getScopedTools("pdf-2").map(t => t.source)).toEqual(["pdf-2"]);
+    expect(registry.getScopedTools(undefined)).toEqual([]);
+
+    const snapshot = registry.getScopedSources();
+    expect(snapshot).toEqual([
+      { scope: "pdf-1", label: "PDF 文档", toolNames: ["search_pdf"] },
+      { scope: "pdf-2", label: "PDF 文档", toolNames: ["search_pdf"] },
+    ]);
+    expect(registry.getScopedSources()).toBe(snapshot);
+
+    registry.unregisterSource("pdf-1");
+    expect(registry.getScopedSources().map(s => s.scope)).toEqual(["pdf-2"]);
+    expect(listener).toHaveBeenCalledTimes(3);
+
+    registry.unregisterSource("other");
+    expect(listener).toHaveBeenCalledTimes(3);
+  });
+});

@@ -36,6 +36,7 @@ vi.mock("@/tools", () => ({
   default: {
     getToolSchemas: vi.fn(() => []),
     getRegisteredTools: getRegisteredToolsMock,
+    getScopedTools: vi.fn(() => []),
     executeToolCall: executeToolCallMock,
   },
   ensureToolingReady: vi.fn(),
@@ -43,10 +44,9 @@ vi.mock("@/tools", () => ({
 
 vi.mock("@/tools/toolIntegrationRegistry", () => ({
   toolIntegrationRegistry: {
-    upsertStreamingExecutions: vi.fn((executions) => executions),
+    upsertStreamingExecutions: vi.fn(executions => executions),
     resolveExecutionMetadata: vi.fn(
-      ({ currentMetadata, execution }) =>
-        execution?.metadata || currentMetadata,
+      ({ currentMetadata, execution }) => execution?.metadata || currentMetadata
     ),
     reconcileExecutionState: vi.fn((previous, next) => ({
       ...next,
@@ -56,10 +56,10 @@ vi.mock("@/tools/toolIntegrationRegistry", () => ({
 }));
 
 vi.mock("@/tools/toolRuntimePolicy", () => ({
-  filterConflictingToolSchemas: vi.fn((schemas) => schemas),
+  filterConflictingToolSchemas: vi.fn(schemas => schemas),
   shouldSkipToolTimeout: vi.fn(() => false),
   getToolExecutionTimeout: vi.fn((toolName: string, defaultTimeout: number) =>
-    toolName === "generate_image" ? 300000 : defaultTimeout,
+    toolName === "generate_image" ? 300000 : defaultTimeout
   ),
 }));
 
@@ -248,9 +248,7 @@ describe("hooks/useChatLLM headers", () => {
 
     expect(onError).not.toHaveBeenCalled();
     expect(streamMock).toHaveBeenCalledOnce();
-    expect(streamMock.mock.calls[0]?.[0]).toBe(
-      "https://example.com/v1/responses",
-    );
+    expect(streamMock.mock.calls[0]?.[0]).toBe("https://example.com/v1/responses");
     expect(streamMock.mock.calls[0]?.[1]).toMatchObject({
       model: "gpt-5.1",
       stream: true,
@@ -266,12 +264,8 @@ describe("hooks/useChatLLM headers", () => {
       },
     });
     expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty("messages");
-    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty(
-      "frequency_penalty",
-    );
-    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty(
-      "presence_penalty",
-    );
+    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty("frequency_penalty");
+    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty("presence_penalty");
     expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty("top_p");
   });
 
@@ -311,9 +305,7 @@ describe("hooks/useChatLLM headers", () => {
         ],
       },
     ];
-    normalizeRequestMessagesMock.mockImplementation(
-      async (incoming) => incoming,
-    );
+    normalizeRequestMessagesMock.mockImplementation(async incoming => incoming);
 
     await chatStreamCore({
       providerConfig,
@@ -325,9 +317,7 @@ describe("hooks/useChatLLM headers", () => {
 
     expect(onError).not.toHaveBeenCalled();
     expect(streamMock).toHaveBeenCalledOnce();
-    expect(streamMock.mock.calls[0]?.[0]).toBe(
-      "https://example.com/v1/messages",
-    );
+    expect(streamMock.mock.calls[0]?.[0]).toBe("https://example.com/v1/messages");
     expect(streamMock.mock.calls[0]?.[2]).toMatchObject({
       "x-api-key": "test-key",
       "anthropic-version": "2023-06-01",
@@ -356,13 +346,10 @@ describe("hooks/useChatLLM headers", () => {
 
     const cacheDebugLogs = infoSpy.mock.calls
       .map(([message]) => String(message))
-      .filter((message) => message.startsWith("[ClaudeCacheDebug] "));
+      .filter(message => message.startsWith("[ClaudeCacheDebug] "));
     expect(cacheDebugLogs).toHaveLength(1);
     expect(cacheDebugLogs[0]).toMatch(/^\[ClaudeCacheDebug\] request_summary /);
-    const payloadText = cacheDebugLogs[0]?.replace(
-      "[ClaudeCacheDebug] request_summary ",
-      "",
-    );
+    const payloadText = cacheDebugLogs[0]?.replace("[ClaudeCacheDebug] request_summary ", "");
     const payload = JSON.parse(payloadText ?? "{}");
     expect(payload).toMatchObject({
       model: "claude-opus-4-6-v1",
@@ -403,9 +390,7 @@ describe("hooks/useChatLLM headers", () => {
         file: false,
       },
     };
-    normalizeRequestMessagesMock.mockImplementation(
-      async (incoming) => incoming,
-    );
+    normalizeRequestMessagesMock.mockImplementation(async incoming => incoming);
 
     await chatStreamCore({
       providerConfig,
@@ -458,9 +443,7 @@ describe("hooks/useChatLLM headers", () => {
         content: "第二轮问题",
       },
     ];
-    normalizeRequestMessagesMock.mockImplementation(
-      async (incoming) => incoming,
-    );
+    normalizeRequestMessagesMock.mockImplementation(async incoming => incoming);
 
     await chatStreamCore({
       providerConfig,
@@ -508,14 +491,11 @@ describe("hooks/useChatLLM headers", () => {
 
     const cacheDebugLogs = infoSpy.mock.calls
       .map(([message]) => String(message))
-      .filter((message) => message.startsWith("[ClaudeCacheDebug] "));
-    const requestSummaryLog = cacheDebugLogs.find((message) =>
-      message.startsWith("[ClaudeCacheDebug] request_summary "),
+      .filter(message => message.startsWith("[ClaudeCacheDebug] "));
+    const requestSummaryLog = cacheDebugLogs.find(message =>
+      message.startsWith("[ClaudeCacheDebug] request_summary ")
     );
-    const payloadText = requestSummaryLog?.replace(
-      "[ClaudeCacheDebug] request_summary ",
-      "",
-    );
+    const payloadText = requestSummaryLog?.replace("[ClaudeCacheDebug] request_summary ", "");
     const payload = JSON.parse(payloadText ?? "{}");
     expect(payload.messages).toMatchObject({
       messageCount: 3,
@@ -572,9 +552,7 @@ describe("hooks/useChatLLM headers", () => {
         content: "继续分析",
       },
     ];
-    normalizeRequestMessagesMock.mockImplementation(
-      async (incoming) => incoming,
-    );
+    normalizeRequestMessagesMock.mockImplementation(async incoming => incoming);
 
     await chatStreamCore({
       providerConfig,
@@ -634,14 +612,11 @@ describe("hooks/useChatLLM headers", () => {
 
     const cacheDebugLogs = infoSpy.mock.calls
       .map(([message]) => String(message))
-      .filter((message) => message.startsWith("[ClaudeCacheDebug] "));
-    const requestSummaryLog = cacheDebugLogs.find((message) =>
-      message.startsWith("[ClaudeCacheDebug] request_summary "),
+      .filter(message => message.startsWith("[ClaudeCacheDebug] "));
+    const requestSummaryLog = cacheDebugLogs.find(message =>
+      message.startsWith("[ClaudeCacheDebug] request_summary ")
     );
-    const payloadText = requestSummaryLog?.replace(
-      "[ClaudeCacheDebug] request_summary ",
-      "",
-    );
+    const payloadText = requestSummaryLog?.replace("[ClaudeCacheDebug] request_summary ", "");
     const payload = JSON.parse(payloadText ?? "{}");
     expect(payload.messages).toMatchObject({
       messageCount: 3,
@@ -675,15 +650,9 @@ describe("hooks/useChatLLM headers", () => {
 
     expect(onError).not.toHaveBeenCalled();
     expect(streamMock).toHaveBeenCalledOnce();
-    expect(streamMock.mock.calls[0]?.[0]).toBe(
-      "https://example.com/v1/responses",
-    );
-    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty(
-      "prompt_cache_key",
-    );
-    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty(
-      "prompt_cache_retention",
-    );
+    expect(streamMock.mock.calls[0]?.[0]).toBe("https://example.com/v1/responses");
+    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty("prompt_cache_key");
+    expect(streamMock.mock.calls[0]?.[1]).not.toHaveProperty("prompt_cache_retention");
   });
 
   it("工具轮次应可直接消费 AgentEvent 并保持旧 callback 语义", async () => {
@@ -745,16 +714,8 @@ describe("hooks/useChatLLM headers", () => {
       })
       .mockImplementationOnce(async (...args) => {
         const callbacks = args[5] as {
-          onUpdate?: (
-            full: string,
-            inc: string,
-            reasoningText?: string,
-          ) => void;
-          onFinish?: (
-            content: string,
-            reasoning: string,
-            res: Response,
-          ) => void;
+          onUpdate?: (full: string, inc: string, reasoningText?: string) => void;
+          onFinish?: (content: string, reasoning: string, res: Response) => void;
         };
         callbacks.onUpdate?.("final answer", "final answer", "");
         callbacks.onFinish?.("final answer", "", {} as Response);
@@ -854,7 +815,7 @@ describe("hooks/useChatLLM headers", () => {
 
     const toolsWithoutSkills =
       streamMock.mock.calls[0]?.[1]?.tools?.map(
-        (tool: { function: { name: string } }) => tool.function.name,
+        (tool: { function: { name: string } }) => tool.function.name
       ) ?? [];
     expect(toolsWithoutSkills).toEqual(["lookup"]);
 
@@ -878,15 +839,11 @@ describe("hooks/useChatLLM headers", () => {
 
     const toolsWithSkills =
       streamMock.mock.calls[0]?.[1]?.tools?.map(
-        (tool: { function: { name: string } }) => tool.function.name,
+        (tool: { function: { name: string } }) => tool.function.name
       ) ?? [];
     expect(toolsWithSkills).toContain("lookup");
-    expect(
-      toolsWithSkills.filter((name: string) => name === "list_skills"),
-    ).toHaveLength(1);
-    expect(
-      toolsWithSkills.filter((name: string) => name === "get_skill_readme"),
-    ).toHaveLength(1);
+    expect(toolsWithSkills.filter((name: string) => name === "list_skills")).toHaveLength(1);
+    expect(toolsWithSkills.filter((name: string) => name === "get_skill_readme")).toHaveLength(1);
   });
 
   it("传入 skills 时应将多个 system message 合并为一个并保持顺序", async () => {
@@ -914,9 +871,7 @@ describe("hooks/useChatLLM headers", () => {
       },
       ...messages,
     ];
-    normalizeRequestMessagesMock.mockImplementation(
-      async (incoming) => incoming,
-    );
+    normalizeRequestMessagesMock.mockImplementation(async incoming => incoming);
 
     await chatStreamCore({
       providerConfig,
@@ -947,7 +902,7 @@ describe("hooks/useChatLLM headers", () => {
     expect(payloadMessages[0]?.content).toContain("code-review");
     expect(payloadMessages[0]?.content).toContain("extra-policy");
     expect(payloadMessages[0]?.content).toBe(
-      "base-system\n\n## 可用 Skills\n\n以下是预定义的 Skills，当用户请求匹配相关场景时，请使用 `get_skill_readme` 工具获取详细说明：\n\ncode-review metadata:\n  - Name: 代码评审\n  - Description: 用于风险导向代码评审\n  - Path: internal://code-review\n\nextra-policy",
+      "base-system\n\n## 可用 Skills\n\n以下是预定义的 Skills，当用户请求匹配相关场景时，请使用 `get_skill_readme` 工具获取详细说明：\n\ncode-review metadata:\n  - Name: 代码评审\n  - Description: 用于风险导向代码评审\n  - Path: internal://code-review\n\nextra-policy"
     );
     expect(payloadMessages[1]?.role).toBe("user");
   });

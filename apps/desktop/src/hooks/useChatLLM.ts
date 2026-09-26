@@ -68,6 +68,8 @@ interface IChatStreamOptions {
   conversationKey?: string;
   /** 当前轮次工具执行附加上下文 */
   toolContext?: ToolExecutionMetadata;
+  /** 工具作用域：带上该作用域的页面专属工具（见 toolRegistry.registerScopedTools） */
+  toolScope?: string;
   /** 当前 Agent 可见的 Skills，传入后才会注入 skill 内置工具 */
   skills?: Skill[];
   /** 本条消息里 `$` 点名的 Skill（folderName）：注入全文，仅手动的 Skill 也因此可用 */
@@ -121,6 +123,8 @@ export interface ChatStreamCoreOptions {
   enableTools?: boolean;
   conversationKey?: string;
   toolContext?: ToolExecutionMetadata;
+  /** 工具作用域：带上该作用域的页面专属工具 */
+  toolScope?: string;
   skills?: Skill[];
   forcedSkills?: string[];
   interactiveApproval?: boolean;
@@ -263,11 +267,12 @@ const mapAgentExecutionsToToolStates = (
   });
 
 const createDesktopToolSource = (options?: {
+  toolScope?: string;
   additionalTools?: ChatStreamCoreOptions["additionalTools"];
   executeToolCall?: ChatStreamCoreOptions["executeToolCall"];
 }) => ({
   getTools: () => {
-    const baseTools = getToolRegistryAgentTools();
+    const baseTools = getToolRegistryAgentTools({ toolScope: options?.toolScope });
     const externalTools = options?.additionalTools || [];
     if (externalTools.length === 0 || !options?.executeToolCall) {
       return baseTools;
@@ -289,6 +294,7 @@ const createDesktopAgent = (options: {
   forcedSkills?: string[];
   interactiveApproval?: boolean;
   conversationKey?: string;
+  toolScope?: string;
   additionalTools?: ChatStreamCoreOptions["additionalTools"];
   executeToolCall?: ChatStreamCoreOptions["executeToolCall"];
 }) =>
@@ -298,6 +304,7 @@ const createDesktopAgent = (options: {
       transport: new DesktopModelTransport(),
     }),
     tools: createDesktopToolSource({
+      toolScope: options.toolScope,
       additionalTools: options.additionalTools,
       executeToolCall: options.executeToolCall,
     }),
@@ -400,6 +407,7 @@ export const chatStreamCore = async (options: ChatStreamCoreOptions): Promise<vo
     enableTools,
     conversationKey,
     toolContext,
+    toolScope,
     skills: allSkills = [],
     forcedSkills = [],
     interactiveApproval,
@@ -429,6 +437,7 @@ export const chatStreamCore = async (options: ChatStreamCoreOptions): Promise<vo
     forcedSkills,
     interactiveApproval,
     conversationKey,
+    toolScope,
     additionalTools,
     executeToolCall: customExecuteToolCall,
   });
@@ -438,6 +447,7 @@ export const chatStreamCore = async (options: ChatStreamCoreOptions): Promise<vo
       providerConfig,
       modelConfig,
       skills,
+      toolScope,
     },
   };
 
@@ -580,6 +590,7 @@ export const chatStreamInner = async (
     enableTools: options.enableTools,
     conversationKey: options.conversationKey,
     toolContext: options.toolContext,
+    toolScope: options.toolScope,
     skills: options.skills,
     forcedSkills: options.forcedSkills,
     interactiveApproval: options.interactiveApproval,
