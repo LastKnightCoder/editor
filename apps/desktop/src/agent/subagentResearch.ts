@@ -1,22 +1,12 @@
-import type { AgentToolExecutionState } from "@tau/agent";
+import type { ToolCallExecutionState } from "@/types";
 
 export const SUBAGENT_RESEARCH_TOOL_NAME = "subagent_research";
 export const SUBAGENT_RESEARCH_RENDERER_KEY = "subagent-research";
 
-export type SubAgentTaskStatus =
-  | "pending"
-  | "running"
-  | "success"
-  | "failed"
-  | "cancelled";
+export type SubAgentTaskStatus = "pending" | "running" | "success" | "failed" | "cancelled";
 
 export type SubAgentResearchStatus =
-  | "pending"
-  | "running"
-  | "success"
-  | "partial_success"
-  | "failed"
-  | "cancelled";
+  "pending" | "running" | "success" | "partial_success" | "failed" | "cancelled";
 
 export interface SubAgentResearchTask {
   id: string;
@@ -26,14 +16,7 @@ export interface SubAgentResearchTask {
 
 export interface SubAgentResearchEvent {
   time: number;
-  type:
-    | "started"
-    | "text"
-    | "reasoning"
-    | "tool"
-    | "finished"
-    | "failed"
-    | "cancelled";
+  type: "started" | "text" | "reasoning" | "tool" | "finished" | "failed" | "cancelled";
   message: string;
 }
 
@@ -43,7 +26,7 @@ export interface SubAgentTaskView extends SubAgentResearchTask {
   progressText?: string;
   reasoning?: string;
   reasoningPreview?: string;
-  toolExecutions: AgentToolExecutionState[];
+  toolExecutions: ToolCallExecutionState[];
   events: SubAgentResearchEvent[];
   answer?: string;
   error?: string;
@@ -66,10 +49,7 @@ export interface SubAgentRunTaskResult {
 export interface SubAgentRunTaskArgs {
   task: SubAgentResearchTask;
   signal: AbortSignal;
-  updateTask: (
-    patch: Partial<SubAgentTaskView>,
-    event?: SubAgentResearchEvent,
-  ) => void;
+  updateTask: (patch: Partial<SubAgentTaskView>, event?: SubAgentResearchEvent) => void;
 }
 
 export interface RunSubAgentResearchOptions {
@@ -113,36 +93,34 @@ const createControllerFromParent = (parentSignal?: AbortSignal) => {
     () => {
       controller.abort();
     },
-    { once: true },
+    { once: true }
   );
   return controller;
 };
 
 const resolveStatus = (tasks: SubAgentTaskView[]): SubAgentResearchStatus => {
-  if (tasks.some((task) => task.status === "running")) {
+  if (tasks.some(task => task.status === "running")) {
     return "running";
   }
-  if (tasks.some((task) => task.status === "pending")) {
+  if (tasks.some(task => task.status === "pending")) {
     return "pending";
   }
-  if (tasks.every((task) => task.status === "cancelled")) {
+  if (tasks.every(task => task.status === "cancelled")) {
     return "cancelled";
   }
-  if (tasks.every((task) => task.status === "success")) {
+  if (tasks.every(task => task.status === "success")) {
     return "success";
   }
-  if (tasks.some((task) => task.status === "success")) {
+  if (tasks.some(task => task.status === "success")) {
     return "partial_success";
   }
-  if (tasks.some((task) => task.status === "cancelled")) {
+  if (tasks.some(task => task.status === "cancelled")) {
     return "cancelled";
   }
   return "failed";
 };
 
-export const buildSubAgentResearchMetadata = (
-  payload: SubAgentResearchPayload,
-) => ({
+export const buildSubAgentResearchMetadata = (payload: SubAgentResearchPayload) => ({
   render: {
     rendererKey: SUBAGENT_RESEARCH_RENDERER_KEY,
     payload,
@@ -152,12 +130,12 @@ export const buildSubAgentResearchMetadata = (
 export const createInitialSubAgentResearchPayload = (
   sessionId: string,
   tasks: SubAgentResearchTask[],
-  now = Date.now,
+  now = Date.now
 ): SubAgentResearchPayload => ({
   sessionId,
   status: "pending",
   startedAt: now(),
-  tasks: tasks.map((task) => ({
+  tasks: tasks.map(task => ({
     ...task,
     status: "pending",
     toolExecutions: [],
@@ -175,29 +153,24 @@ export const runSubAgentResearch = async ({
   now = Date.now,
 }: RunSubAgentResearchOptions): Promise<SubAgentResearchPayload> => {
   const startedAt = now();
-  const taskViews: SubAgentTaskView[] = tasks.map((task) => ({
+  const taskViews: SubAgentTaskView[] = tasks.map(task => ({
     ...task,
     status: "pending",
     toolExecutions: [],
     events: [],
   }));
-  const concurrency = Math.max(
-    1,
-    Math.min(HARD_MAX_CONCURRENCY, Math.floor(maxConcurrency)),
-  );
+  const concurrency = Math.max(1, Math.min(HARD_MAX_CONCURRENCY, Math.floor(maxConcurrency)));
   const childControllers = new Set<AbortController>();
 
   const buildPayload = (): SubAgentResearchPayload => ({
     sessionId,
     status: resolveStatus(taskViews),
     startedAt,
-    finishedAt: taskViews.every((task) => task.status !== "pending")
-      ? now()
-      : undefined,
-    tasks: taskViews.map((task) => ({
+    finishedAt: taskViews.every(task => task.status !== "pending") ? now() : undefined,
+    tasks: taskViews.map(task => ({
       ...task,
       events: [...task.events],
-      toolExecutions: task.toolExecutions.map((execution) => ({
+      toolExecutions: task.toolExecutions.map(execution => ({
         ...execution,
       })),
     })),
@@ -206,7 +179,7 @@ export const runSubAgentResearch = async ({
   const notify = () => onUpdate?.(buildPayload());
 
   const cancelPendingTasks = () => {
-    taskViews.forEach((task) => {
+    taskViews.forEach(task => {
       if (task.status === "pending" || task.status === "running") {
         task.status = "cancelled";
         task.error = "SubAgent 调研已取消";
@@ -226,11 +199,11 @@ export const runSubAgentResearch = async ({
     signal.addEventListener(
       "abort",
       () => {
-        childControllers.forEach((controller) => controller.abort());
+        childControllers.forEach(controller => controller.abort());
         cancelPendingTasks();
         notify();
       },
-      { once: true },
+      { once: true }
     );
   }
 
@@ -291,9 +264,7 @@ export const runSubAgentResearch = async ({
       } catch (error) {
         const cancelled = controller.signal.aborted || isAbortError(error);
         task.status = cancelled ? "cancelled" : "failed";
-        task.error = cancelled
-          ? "SubAgent 调研已取消"
-          : (error as Error).message;
+        task.error = cancelled ? "SubAgent 调研已取消" : (error as Error).message;
         task.duration = now() - taskStartedAt;
         task.events = [
           ...task.events,
@@ -311,9 +282,7 @@ export const runSubAgentResearch = async ({
   };
 
   await Promise.all(
-    Array.from({ length: Math.min(concurrency, taskViews.length) }, () =>
-      runWorker(),
-    ),
+    Array.from({ length: Math.min(concurrency, taskViews.length) }, () => runWorker())
   );
 
   if (signal?.aborted) {

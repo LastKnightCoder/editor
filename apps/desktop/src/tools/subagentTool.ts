@@ -1,10 +1,3 @@
-import { Agent, composeAgentModel, type AgentToolExecutionState } from "@tau/agent";
-
-import { DesktopModelProtocolAdapter } from "@/agent/DesktopModelProtocolAdapter";
-import { DesktopModelTransport } from "@/agent/DesktopModelTransport";
-import { toAgentSkills } from "@/agent/desktopSkillAdapter";
-import { buildSubAgentAgentPolicies } from "@/agent/subagentAgentPolicies";
-import { filterSubAgentTools } from "@/agent/subagentToolPolicy";
 import {
   buildSubAgentResearchMetadata,
   createInitialSubAgentResearchPayload,
@@ -13,26 +6,18 @@ import {
   SUBAGENT_RESEARCH_TOOL_NAME,
   type SubAgentResearchPayload,
   type SubAgentResearchTask,
-  type SubAgentTaskView,
 } from "@/agent/subagentResearch";
 import { subAgentResearchStore } from "@/agent/subagentResearchStore";
+import { runPiAgent } from "@/services/piAgentRunner";
+import { PiChatEventReducer } from "@/services/piChatEvents";
+import { buildPiChatSystemPrompt } from "@/services/piChatSession";
+import useSettingStore from "@/stores/useSettingStore";
+import useSkillStore from "@/stores/useSkillStore";
 import { Role } from "@/constants";
-import type {
-  ModelConfig,
-  ProviderConfig,
-  Skill,
-  ToolDefinition,
-  ToolExecutionContext,
-  ToolExecutionResult,
-} from "@/types";
-import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
+import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
+import type { Skill, ToolDefinition, ToolExecutionContext, ToolExecutionResult } from "@/types";
 
 export { SUBAGENT_RESEARCH_RENDERER_KEY, SUBAGENT_RESEARCH_TOOL_NAME };
-
-const DEFAULT_TOOL_TIMEOUT_MS = 30000;
-const MAX_TOOL_TIMEOUT_MS = 300000;
-const DEFAULT_MAX_TOOL_CALL_LOOPS = 6;
-const MAX_TOOL_CALL_LOOPS = 10;
 
 interface SubAgentToolArgs {
   tasks?: Array<{
@@ -44,14 +29,6 @@ interface SubAgentToolArgs {
   maxConcurrency?: number;
   maxToolCallLoops?: number;
   timeoutMs?: number;
-}
-
-interface SubAgentRuntimeContext {
-  providerConfig?: ProviderConfig;
-  modelConfig?: ModelConfig;
-  skills?: Skill[];
-  /** 父对话的工具作用域：子 Agent 同样可用页面专属工具 */
-  toolScope?: string;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -91,6 +68,27 @@ const normalizePositiveInteger = (value: unknown, fallback: number, max: number)
   return Math.min(max, Math.floor(numeric));
 };
 
+/** 子代理直接用当前对话配置的 provider/model（与父会话同源） */
+const resolveChatLLMConfig = (): {
+  provider: LLMProviderSetting;
+  model: LLMModelSetting;
+} | null => {
+  const setting = useSettingStore.getState().setting;
+  const usage = setting.llmUsageSettings.chat;
+  if (!usage) return null;
+  const provider = setting.llmProviders.find(
+    (item: LLMProviderSetting) => item.id === usage.providerId
+  );
+  const model = provider?.models.find((item: LLMModelSetting) => item.id === usage.modelId);
+  if (!provider || !model) return null;
+  return { provider, model };
+};
+
+const resolveToolScope = (context?: ToolExecutionContext): string | undefined => {
+  const runtime = isRecord(context?.toolContext) ? context.toolContext : {};
+  return typeof runtime.toolScope === "string" ? runtime.toolScope : undefined;
+};
+
 const buildSummary = (payload: SubAgentResearchPayload) => {
   const successful = payload.tasks.filter(task => task.status === "success");
   const failed = payload.tasks.filter(task => task.status === "failed");
@@ -109,53 +107,6 @@ const buildSummary = (payload: SubAgentResearchPayload) => {
   }
 
   return lines.join("\n");
-};
-
-const mapExecution = (
-  execution: AgentToolExecutionState
-): SubAgentTaskView["toolExecutions"][number] => ({
-  toolCallId: execution.toolCallId,
-  toolName: execution.toolName,
-  source: execution.source,
-  status: execution.status,
-  input: execution.input,
-  output: execution.output,
-  error: execution.error,
-  metadata: execution.metadata,
-  errorType: execution.errorType,
-  timestamp: execution.timestamp,
-  duration: execution.duration,
-  retryCount: execution.retryCount,
-});
-
-const createSubAgent = (
-  runtime: Required<Pick<SubAgentRuntimeContext, "providerConfig" | "modelConfig">> &
-    Pick<SubAgentRuntimeContext, "skills" | "toolScope">,
-  maxToolCallLoops: number,
-  toolTimeoutMs: number
-) =>
-  new Agent({
-    model: composeAgentModel({
-      protocol: new DesktopModelProtocolAdapter(runtime.providerConfig, runtime.modelConfig),
-      transport: new DesktopModelTransport(),
-    }),
-    tools: {
-      getTools: () =>
-        filterSubAgentTools(getToolRegistryAgentTools({ toolScope: runtime.toolScope })),
-    },
-    skills: toAgentSkills(runtime.skills || []),
-    policies: buildSubAgentAgentPolicies({
-      maxToolCallLoops,
-      toolTimeoutMs,
-    }),
-  });
-
-const resolveRuntimeContext = (context?: ToolExecutionContext): SubAgentRuntimeContext => {
-  const runtime =
-    isRecord(context?.toolContext) && isRecord(context.toolContext.agentRuntime)
-      ? (context.toolContext.agentRuntime as SubAgentRuntimeContext)
-      : {};
-  return runtime;
 };
 
 export const buildSubAgentResearchMetadataFromInput = (toolCallId: string, rawInput: string) => {
@@ -219,8 +170,8 @@ export const createSubAgentResearchTool = (): ToolDefinition => ({
       };
     }
 
-    const runtime = resolveRuntimeContext(context);
-    if (!runtime.providerConfig || !runtime.modelConfig) {
+    const chatConfig = resolveChatLLMConfig();
+    if (!chatConfig) {
       return {
         content: "SubAgent 无法启动：缺少当前模型运行配置。",
         isParameterError: true,
@@ -229,19 +180,17 @@ export const createSubAgentResearchTool = (): ToolDefinition => ({
 
     const sessionId = context?.toolCallId || `subagent-${Date.now()}`;
     const maxConcurrency = normalizePositiveInteger(parsed.maxConcurrency, 3, 5);
-    const maxToolCallLoops = normalizePositiveInteger(
-      parsed.maxToolCallLoops,
-      DEFAULT_MAX_TOOL_CALL_LOOPS,
-      MAX_TOOL_CALL_LOOPS
-    );
-    const toolTimeoutMs = normalizePositiveInteger(
-      parsed.timeoutMs,
-      DEFAULT_TOOL_TIMEOUT_MS,
-      MAX_TOOL_TIMEOUT_MS
-    );
 
     const initialPayload = createInitialSubAgentResearchPayload(sessionId, tasks);
     subAgentResearchStore.setSession(initialPayload);
+
+    const skills: Skill[] = useSkillStore.getState().skills;
+    const toolScope = resolveToolScope(context);
+    const subAgentSystem = buildPiChatSystemPrompt(
+      "你是独立执行任务的 SubAgent。可以使用当前可用工具完成任务；涉及危险操作时遵循工具层确认机制。输出要简明，并说明关键依据。",
+      skills,
+      []
+    );
 
     const payload = await runSubAgentResearch({
       sessionId,
@@ -252,31 +201,25 @@ export const createSubAgentResearchTool = (): ToolDefinition => ({
         subAgentResearchStore.setSession(nextPayload);
       },
       runTask: async ({ task, signal, updateTask }) => {
-        const controller = new AbortController();
-        const abort = () => controller.abort();
-        signal.addEventListener("abort", abort, { once: true });
-        let answer = "";
-        let reasoning = "";
-
-        try {
-          const agent = createSubAgent(
-            {
-              providerConfig: runtime.providerConfig!,
-              modelConfig: runtime.modelConfig!,
-              skills: runtime.skills,
-              toolScope: runtime.toolScope,
-            },
-            maxToolCallLoops,
-            toolTimeoutMs
-          );
-
-          for await (const event of agent.run({
+        const noop = () => {};
+        const executionsReducer = new PiChatEventReducer({
+          applyText: noop,
+          applyReasoning: noop,
+          applyToolCalls: noop,
+          finalizeTurn: noop,
+          applyUsage: noop,
+          onAssistantTurnEnd: noop,
+          onRetryStatus: noop,
+          onStreamError: noop,
+          onSettled: noop,
+          onQueueUpdate: noop,
+        });
+        const handle = runPiAgent(
+          {
+            provider: chatConfig.provider,
+            model: chatConfig.model,
             messages: [
-              {
-                role: Role.System,
-                content:
-                  "你是独立执行任务的 SubAgent。可以使用当前可用工具完成任务；涉及危险操作时遵循工具层确认机制。输出要简明，并说明关键依据。",
-              },
+              { role: Role.System, content: subAgentSystem },
               {
                 role: Role.User,
                 content: [
@@ -286,61 +229,58 @@ export const createSubAgentResearchTool = (): ToolDefinition => ({
                 ].join(""),
               },
             ],
-            enableTools: true,
-            controller,
-            conversationKey: context?.conversationKey
-              ? `${context.conversationKey}:subagent:${task.id}`
-              : undefined,
-          })) {
-            if (event.type === "text-delta") {
-              answer = event.text;
-              updateTask({
-                progressText: answer,
-              });
-              continue;
+            ...(context?.conversationKey
+              ? { conversationKey: `${context.conversationKey}:subagent:${task.id}` }
+              : {}),
+            ...(toolScope ? { toolScope } : {}),
+            excludeToolNames: [SUBAGENT_RESEARCH_TOOL_NAME],
+          },
+          event => {
+            executionsReducer.handle(event);
+            if (event.type === "message_update" && event.message.role === "assistant") {
+              const message = event.message as unknown as {
+                content: Array<{ type: string; text?: string; thinking?: string }>;
+              };
+              const text = message.content
+                .filter(block => block.type === "text")
+                .map(block => block.text ?? "")
+                .join("\n\n");
+              const reasoning = message.content
+                .filter(block => block.type === "thinking")
+                .map(block => block.thinking ?? "")
+                .join("\n\n");
+              if (text) updateTask({ progressText: text });
+              if (reasoning) updateTask({ reasoning, reasoningPreview: reasoning });
+              return;
             }
-
-            if (event.type === "reasoning-delta") {
-              reasoning = event.reasoningContent;
-              updateTask({
-                reasoning,
-                reasoningPreview: reasoning,
-              });
-              continue;
-            }
-
-            if (
-              event.type === "tool-call-started" ||
-              event.type === "tool-call-updated" ||
-              event.type === "tool-call-finished"
-            ) {
+            if (event.type.startsWith("tool_execution_")) {
+              const toolEvent = event as unknown as {
+                toolName: string;
+                isError?: boolean;
+              };
               updateTask(
-                {
-                  toolExecutions: event.executions.map(mapExecution),
-                },
+                { toolExecutions: [...executionsReducer.getExecutions()] },
                 {
                   time: Date.now(),
                   type: "tool",
-                  message: `调用 ${event.execution.toolName}: ${event.execution.status}`,
+                  message: `调用 ${toolEvent.toolName}: ${event.type === "tool_execution_end" ? (toolEvent.isError ? "failed" : "success") : event.type === "tool_execution_start" ? "executing" : "update"}`,
                 }
               );
-              continue;
-            }
-
-            if (event.type === "run-finished") {
-              answer = event.content;
-            }
-
-            if (event.type === "run-error") {
-              throw new Error(event.error.message);
             }
           }
-
+        );
+        const onAbort = () => handle.abort();
+        signal.addEventListener("abort", onAbort, { once: true });
+        try {
+          const result = await handle.result;
+          if (!result.ok && !result.aborted) {
+            throw new Error(result.error ?? "SubAgent 请求失败");
+          }
           return {
-            answer: answer || "SubAgent 未返回文本结论。",
+            answer: result.lastAssistantText || "SubAgent 未返回文本结论。",
           };
         } finally {
-          signal.removeEventListener("abort", abort);
+          signal.removeEventListener("abort", onAbort);
         }
       },
     });
