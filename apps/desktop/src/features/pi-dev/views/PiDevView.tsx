@@ -150,6 +150,26 @@ export const PiDevView = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProvider?.id, activeModel?.id, sessionId]);
 
+  // 会话模型在创建时定死：下拉切换 provider/模型后旧会话不会跟随——
+  // 立即重建（persist:false 无历史包袱；正式会话的模型热切换 setModel 在 M4 接入）。
+  // 跳过自动建会话触发的那一次（sessionId 尚未设置）。
+  const sessionModelRef = useRef<string>("");
+  useEffect(() => {
+    if (!sessionId || !activeProvider || !activeModel) return;
+    const current = `${activeProvider.id}/${activeModel.id}`;
+    if (!sessionModelRef.current) {
+      sessionModelRef.current = current;
+      return;
+    }
+    if (sessionModelRef.current === current) return;
+    sessionModelRef.current = current;
+    void (async () => {
+      await closeSession(sessionId);
+      await handleCreate();
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProvider?.id, activeModel?.id, sessionId]);
+
   const handleSend = async () => {
     const text = input.trim();
     if (!text || !sessionId) return;
