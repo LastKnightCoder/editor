@@ -11,6 +11,7 @@ import { rewriteThinkTagStream } from "./think-stream-rewriter";
 import {
   createProviderRegistry,
   buildSingleShotContext,
+  resolveV2Providers,
   type ProviderRegistry,
 } from "./pi-ai-runtime-core";
 import type { LLMProviderSetting, PiSingleShotOutcome, PiSingleShotRequest } from "@/types/pi-llm";
@@ -23,10 +24,10 @@ class PiAiRuntimeModule {
     PiAiRuntimeModule.registry = createProviderRegistry();
 
     userSettingModule.onSettingChanged(({ newSetting }) => {
-      void PiAiRuntimeModule.syncProviders(newSetting?.llmProviders);
+      PiAiRuntimeModule.syncProviders(resolveV2Providers(newSetting));
     });
     void userSettingModule.getSettingSnapshot().then(setting => {
-      PiAiRuntimeModule.syncProviders(setting?.llmProviders);
+      PiAiRuntimeModule.syncProviders(resolveV2Providers(setting));
     });
 
     ipcMain.handle("pi-ai:single-shot", async (event, request: PiSingleShotRequest) => {
