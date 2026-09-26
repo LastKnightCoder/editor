@@ -1,9 +1,23 @@
 export * from "./tokenContract";
-export { defineTheme, getTheme, getThemeRegistry } from "./defineTheme";
-export type { ThemeDefinition, ThemeDefinitionArgs, ThemePalette } from "./defineTheme";
-export { DEFAULT_DARK_KEY, DEFAULT_LIGHT_KEY, THEME_STORAGE_KEY, applyThemeToDom } from "./theme";
+export { THEME_MODES, defineTheme, getTheme, getThemeRegistry } from "./defineTheme";
+export type {
+  ThemeDefinition,
+  ThemeDefinitionArgs,
+  ThemeMode,
+  ThemePalette,
+  ThemeVariant,
+  ThemeVariantArgs,
+} from "./defineTheme";
+export {
+  APPEARANCE_STORAGE_KEY,
+  DEFAULT_THEME_KEY,
+  THEME_STORAGE_KEY,
+  applyThemeToDom,
+  type Appearance,
+} from "./theme";
 export {
   createThemeBootstrapScript,
   resolveThemePreference,
   themeRuntimeConfig,
+  type ResolvedThemePreference,
 } from "./bootstrap";

@@ -54,7 +54,6 @@ import { useSearchContent, resultDisplay, relativeTime } from "./queries";
 import { useSettingsStore } from "@/app/settingsStore";
 import { useShellStore } from "@/app/shellStore";
 import { useThemeStore } from "@tau/ui/theme/runtime";
-import { DEFAULT_DARK_KEY, DEFAULT_LIGHT_KEY } from "@tau/ui/theme";
 import { Spinner, toast } from "@tau/ui";
 import { openMarkdownInNewWindow } from "@/commands/file";
 import type { IndexType, SearchResult } from "@/types";
@@ -189,8 +188,8 @@ export function SearchPalette() {
     [calendarsQuery.data]
   );
 
-  const setMode = useThemeStore(s => s.setMode);
-  const resolvedTheme = useThemeStore(s => s.resolved);
+  const setAppearance = useThemeStore(s => s.setAppearance);
+  const mode = useThemeStore(s => s.mode);
 
   const closeAnd = (fn: () => void) => {
     closePalette();
@@ -202,10 +201,10 @@ export function SearchPalette() {
       closeAnd(() => navigator.push(pageKey));
     } else if (action === "cycle-theme") {
       // 深浅直切（不经过 system）：循环切到 system 时若系统深浅与当前一致，视觉无变化
-      const next = resolvedTheme === DEFAULT_DARK_KEY ? DEFAULT_LIGHT_KEY : DEFAULT_DARK_KEY;
+      const next = mode === "dark" ? "light" : "dark";
       closeAnd(() => {
-        setMode(next);
-        toast.success(`已切换到${next === DEFAULT_DARK_KEY ? "深色" : "浅色"}主题`);
+        setAppearance(next);
+        toast.success(`已切换到${next === "dark" ? "深色" : "浅色"}模式`);
       });
     } else if (action === "open-settings") {
       closeAnd(() => useSettingsStore.getState().openSettings());
@@ -525,7 +524,7 @@ export function SearchPalette() {
     contentQuery.data,
     contentQuery.isFetching,
     visits,
-    resolvedTheme,
+    mode,
   ]);
 
   const flat = useMemo(() => groups.flatMap(g => g.rows), [groups]);

@@ -133,12 +133,13 @@
 }
 
 /*
- * 主题取值块 —— 运行时切换只改 <html data-theme>，变量由这里级联（零 JS 切换）。
- * 取值与 themes/cream.theme.ts 一一对应；当前手工同步，由
- * ui/theme/__tests__/theme-parity.test.ts 守护漂移，`pnpm ui:themes` codegen
- * 落地后改为生成产物（03 指南 §9 任务 7）。新增主题必须同时补这里的数据块。
+ * 主题取值块 —— 运行时切换只改 <html data-theme data-mode>，变量由这里级联（零 JS 切换）。
+ * 每个主题族 × 明暗一个数据块，取值与 themes/<key>.theme.ts 的 light/dark 一一对应；
+ * 当前手工同步，由 ui/theme/__tests__/theme-parity.test.ts 守护漂移，`pnpm ui:themes`
+ * codegen 落地后改为生成产物（03 指南 §9 任务 7）。新增主题必须同时补深浅两个数据块。
  */
-[data-theme="cream"] {
+/* 主题「暖纸」· 浅色（晨） */
+[data-theme="paper"][data-mode="light"] {
   color-scheme: light;
 
   --tau-bg-page: #f3eee2;
@@ -191,8 +192,8 @@
   --tau-shadow-float: 0 16px 40px -12px rgba(120, 100, 70, 0.4);
 }
 
-/* 深色主题「暖纸 · 夜」：与 cream 同基因的烛光版，取值与 themes/cocoa.theme.ts 对应 */
-[data-theme="cocoa"] {
+/* 主题「暖纸」· 深色（夜）：同一张暖纸的烛光版 */
+[data-theme="paper"][data-mode="dark"] {
   color-scheme: dark;
 
   --tau-bg-page: #221d16;

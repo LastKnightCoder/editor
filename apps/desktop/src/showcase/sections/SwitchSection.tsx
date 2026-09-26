@@ -106,8 +106,8 @@ export default function SwitchSection() {
                 <b>bg-track token</b>
               </td>
               <td>
-                控件轨道语义（开关/未来滑杆槽）：非表面阶梯的部件色——cream <code>#e0d6c3</code> /
-                cocoa <code>#463d31</code>（亮于 surface 使 thumb 可辨）；新增主题零组件改动
+                控件轨道语义（开关/未来滑杆槽）：非表面阶梯的部件色——暖纸浅色 <code>#e0d6c3</code> /
+                深色 <code>#463d31</code>（亮于 surface 使 thumb 可辨）；新增主题零组件改动
               </td>
             </tr>
           </tbody>

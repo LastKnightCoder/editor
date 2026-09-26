@@ -122,8 +122,9 @@ function Swatch({ name, kind }: { name: string; kind: Kind }) {
 }
 
 export default function TokenSection() {
-  // resolved 变化（切主题 / 系统跟随）触发重渲染 → 值标签重读；色块本身走 CSS 变量级联
-  const resolved = useThemeStore(s => s.resolved);
+  // 主题族 / 明暗变化（切主题 / 系统跟随）触发重渲染 → 值标签重读；色块本身走 CSS 变量级联
+  const theme = useThemeStore(s => s.theme);
+  const mode = useThemeStore(s => s.mode);
   const cs = getComputedStyle(document.documentElement);
 
   return (
@@ -131,7 +132,7 @@ export default function TokenSection() {
       <DocHead
         title="Token 色板"
         en="theme/tokens.css · tokenContract.ts"
-        duty={`全部语义色 token，值随 data-theme 级联（当前：${resolved}）。色芯按真实用法渲染——填色块、直接着色文字、放大线宽；半透明 token 叠在两色实体棋格上以显形。`}
+        duty={`全部语义色 token，值随 data-theme × data-mode 级联（当前：${theme} · ${mode}）。色芯按真实用法渲染——填色块、直接着色文字、放大线宽；半透明 token 叠在两色实体棋格上以显形。`}
         src="packages/ui/src/theme/tokens.css"
       />
 

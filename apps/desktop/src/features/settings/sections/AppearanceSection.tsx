@@ -1,8 +1,8 @@
 /**
  * 外观设置 —— 方案 A 行流式定稿（2026-09-21，mockups/settings/appearance/plan-a-rows）。
  *
- * 功能对齐 legacy AppearanceSetting 全量：主题模式（升级三档：跟随系统 / 浅色 /
- * 深色，接 themeStore）、中文字体 / 英文字体 / 字号 / 代码字体、图片默认圆角 /
+ * 功能对齐 legacy AppearanceSetting 全量：明暗（升级三档：跟随系统 / 浅色 / 深色）与
+ * 主题族（每套主题自带深浅两套配色）两个正交维度，接 themeStore；中文字体 / 英文字体 / 字号 / 代码字体、图片默认圆角 /
  * 阴影。主题色 6 色板不迁移（新主题体系 accent 随主题内置，D-028）。
  * 字体与字号是应用级默认（2026-09-21 用户裁决全局生效）：useSyncFont 在 root
  * 覆盖 --tau-font / --tau-font-mono 并按 13px 基准阻尼缩放字号档位（壳层 UI 半速率
@@ -15,7 +15,15 @@ import clsx from "clsx";
 import { produce } from "immer";
 import type { ImageBorderRadiusPreset, ImageShadowPreset } from "@tau/editor";
 import { useThemeStore } from "@tau/ui/theme/runtime";
-import { DEFAULT_DARK_KEY, DEFAULT_LIGHT_KEY } from "@tau/ui/theme";
+import type { CSSProperties, ReactNode } from "react";
+import {
+  DEFAULT_THEME_KEY,
+  getTheme,
+  getThemeRegistry,
+  type SemanticTokens,
+  type ThemeDefinition,
+} from "@tau/ui/theme";
+import type { Appearance } from "@tau/ui/theme/runtime";
 import { Select } from "@tau/ui";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import { getAllFonts } from "@/commands";
@@ -40,19 +48,24 @@ const SHADOW_OPTIONS: Array<{ value: ImageShadowPreset; label: string }> = [
   { value: "lg", label: "大阴影" },
 ];
 
-const THEME_NAMES: Record<string, string> = {
-  [DEFAULT_LIGHT_KEY]: "暖纸 · 晨",
-  [DEFAULT_DARK_KEY]: "暖纸 · 夜",
-};
+const APPEARANCE_OPTIONS: Array<{ value: Appearance; caption: string }> = [
+  { value: "system", caption: "跟随系统" },
+  { value: "light", caption: "浅色" },
+  { value: "dark", caption: "深色" },
+];
 
 export function AppearanceSection() {
   const setting = useSettingStore(s => s.setting);
   const onFontSettingChange = useSettingStore(s => s.onFontSettingChange);
   const { fontSetting, appearance } = setting;
 
+  const themeKey = useThemeStore(s => s.theme);
+  const appearancePref = useThemeStore(s => s.appearance);
   const mode = useThemeStore(s => s.mode);
-  const setMode = useThemeStore(s => s.setMode);
-  const resolvedKey = useThemeStore(s => s.resolved);
+  const setTheme = useThemeStore(s => s.setTheme);
+  const setAppearance = useThemeStore(s => s.setAppearance);
+  const currentTheme = getTheme(themeKey) ?? getTheme(DEFAULT_THEME_KEY)!;
+  const themes = [...getThemeRegistry().values()];
 
   /* 系统字体清单：一次性查询（staleTime Infinity，不随窗口聚焦重拉） */
   const { data: fonts } = useQuery({
@@ -78,32 +91,47 @@ export function AppearanceSection() {
 
   return (
     <>
-      <SettingsGroup title="主题" description="跟随系统时，按系统明暗在两套主题间切换">
+      <SettingsGroup title="明暗" description="跟随系统时，按系统明暗切换当前主题的深浅配色">
         <div className="grid grid-cols-3 gap-3 px-1.5 pb-1 pt-2.5">
-          <ThemeModeCard
-            active={mode === "system"}
-            onSelect={() => setMode("system")}
-            caption="跟随系统"
-            preview="system"
-          />
-          <ThemeModeCard
-            active={mode === DEFAULT_LIGHT_KEY}
-            onSelect={() => setMode(DEFAULT_LIGHT_KEY)}
-            caption={THEME_NAMES[DEFAULT_LIGHT_KEY]}
-            hint="浅色"
-            preview="light"
-          />
-          <ThemeModeCard
-            active={mode === DEFAULT_DARK_KEY}
-            onSelect={() => setMode(DEFAULT_DARK_KEY)}
-            caption={THEME_NAMES[DEFAULT_DARK_KEY]}
-            hint="深色"
-            preview="dark"
-          />
+          {APPEARANCE_OPTIONS.map(option => (
+            <ChoiceCard
+              key={option.value}
+              active={appearancePref === option.value}
+              onSelect={() => setAppearance(option.value)}
+              caption={option.caption}
+            >
+              {option.value === "system" ? (
+                <SplitPreview theme={currentTheme} lit={appearancePref === "system"} />
+              ) : (
+                <WindowPreview
+                  tokens={currentTheme[option.value].tokens}
+                  lit={appearancePref === option.value}
+                />
+              )}
+            </ChoiceCard>
+          ))}
         </div>
         <div className="text-tau-meta text-ink-2 px-3 pb-2 pt-1.5">
-          当前生效：<span className="text-ink-1 font-medium">{THEME_NAMES[resolvedKey]}</span>
-          {mode === "system" && `（系统为${resolvedKey === DEFAULT_DARK_KEY ? "深色" : "浅色"}）`}
+          当前生效：
+          <span className="text-ink-1 font-medium">
+            {currentTheme.name} · {mode === "dark" ? "深色" : "浅色"}
+          </span>
+          {appearancePref === "system" && "（跟随系统）"}
+        </div>
+      </SettingsGroup>
+
+      <SettingsGroup title="主题" description="每套主题都包含深浅两套配色">
+        <div className="grid grid-cols-3 gap-3 px-1.5 pb-2.5 pt-2.5">
+          {themes.map(theme => (
+            <ChoiceCard
+              key={theme.key}
+              active={theme.key === currentTheme.key}
+              onSelect={() => setTheme(theme.key)}
+              caption={theme.name}
+            >
+              <SplitPreview theme={theme} lit={theme.key === currentTheme.key} />
+            </ChoiceCard>
+          ))}
         </div>
       </SettingsGroup>
 
@@ -167,21 +195,17 @@ export function AppearanceSection() {
   );
 }
 
-/** 主题模式卡：描边卡 + 单选圆点（选中 = accent 描边 + 圆点，不托起）；预览窗口里的
- *  accent 按钮用该主题固有 accent 色点亮；跟随系统卡 = 左右两半各自完整的迷你窗口
- *  （两个主题都可能是它，不另造符号）。 */
-function ThemeModeCard({
+/** 选择卡：描边卡 + 单选圆点（选中 = accent 描边 + 圆点，不托起），上方放预览窗口。 */
+function ChoiceCard({
   active,
   onSelect,
   caption,
-  hint,
-  preview,
+  children,
 }: {
   active: boolean;
   onSelect: () => void;
   caption: string;
-  hint?: string;
-  preview: "system" | "light" | "dark";
+  children: ReactNode;
 }) {
   return (
     <button
@@ -196,49 +220,7 @@ function ThemeModeCard({
           : "shadow-[inset_0_0_0_1px_var(--color-line-1)] hover:shadow-[inset_0_0_0_1px_var(--color-ink-3)]"
       )}
     >
-      <div className="relative h-[84px] overflow-hidden rounded-[8px]">
-        {preview === "system" && (
-          /* 左右两半各画一个完整迷你窗口（浅/深各半），分屏即「随系统而定」 */
-          <>
-            <div className="absolute inset-y-0 left-0 w-1/2 bg-[#f3eee2]">
-              <div className="absolute inset-y-0 left-0 w-[18px] border-r border-[#e9e1d2] bg-[#fffdf9]" />
-              <div className="absolute left-[24px] top-[22px] h-[6px] w-[26px] rounded-full bg-[#e7dbc8]" />
-              <div className="absolute left-[24px] top-[34px] h-[6px] w-[34px] rounded-full bg-[#e7dbc8]" />
-            </div>
-            <div className="absolute inset-y-0 right-0 w-1/2 bg-[#221d16]">
-              <div className="absolute inset-y-0 right-0 w-[18px] border-l border-[#3a3227] bg-[#2e2820]" />
-              <div className="absolute right-[24px] top-[22px] h-[6px] w-[26px] rounded-full bg-[#100d08]" />
-              <div className="absolute right-[24px] top-[34px] h-[6px] w-[34px] rounded-full bg-[#19150e]" />
-            </div>
-          </>
-        )}
-        {preview === "light" && (
-          <div className="absolute inset-0 bg-[#f3eee2]">
-            <div className="absolute inset-y-0 left-0 w-10 border-r border-[#e9e1d2] bg-[#fffdf9]" />
-            <div className="absolute left-[52px] top-3 h-[7px] w-[58px] rounded-full bg-[#e7dbc8]" />
-            <div className="absolute left-[52px] top-[26px] h-[7px] w-[80px] rounded-full bg-[#e7dbc8]" />
-            <div
-              className={clsx(
-                "absolute left-[52px] top-10 h-[10px] w-[42px] rounded-[4px] transition-colors duration-[160ms]",
-                active ? "bg-[#aa5f3d]" : "bg-[#e7dbc8]"
-              )}
-            />
-          </div>
-        )}
-        {preview === "dark" && (
-          <div className="absolute inset-0 bg-[#221d16]">
-            <div className="absolute inset-y-0 left-0 w-10 border-r border-[#3a3227] bg-[#2e2820]" />
-            <div className="absolute left-[52px] top-3 h-[7px] w-[58px] rounded-full bg-[#100d08]" />
-            <div className="absolute left-[52px] top-[26px] h-[7px] w-[80px] rounded-full bg-[#19150e]" />
-            <div
-              className={clsx(
-                "absolute left-[52px] top-10 h-[10px] w-[42px] rounded-[4px] transition-colors duration-[160ms]",
-                active ? "bg-[#e49b6d]" : "bg-[#100d08]"
-              )}
-            />
-          </div>
-        )}
-      </div>
+      <div className="relative h-[84px] overflow-hidden rounded-[8px]">{children}</div>
       <div
         className={clsx(
           "text-tau-body text-ink-1 flex items-center gap-[7px] px-1 pb-0.5 pt-2",
@@ -254,9 +236,77 @@ function ThemeModeCard({
           )}
         />
         {caption}
-        {hint && <span className="text-tau-micro text-ink-3 ml-auto font-normal">{hint}</span>}
       </div>
     </button>
+  );
+}
+
+/* 预览窗口取色直接读主题 token（与设置页自身所处主题无关，每张卡画的是「那套配色」） */
+const pageStyle = (t: SemanticTokens): CSSProperties => ({ background: t["bg-page"] });
+const railStyle = (t: SemanticTokens): CSSProperties => ({
+  background: t["bg-surface"],
+  borderColor: t["line-1"],
+});
+const barStyle = (t: SemanticTokens): CSSProperties => ({ background: t["bg-sunken"] });
+
+/** 单一明暗的迷你窗口：侧栏 + 两行文字 + accent 按钮（选中时用该配色的 accent 点亮） */
+function WindowPreview({ tokens, lit }: { tokens: SemanticTokens; lit: boolean }) {
+  return (
+    <div className="absolute inset-0" style={pageStyle(tokens)}>
+      <div className="absolute inset-y-0 left-0 w-10 border-r" style={railStyle(tokens)} />
+      <div
+        className="absolute left-[52px] top-3 h-[7px] w-[58px] rounded-full"
+        style={barStyle(tokens)}
+      />
+      <div
+        className="absolute left-[52px] top-[26px] h-[7px] w-[80px] rounded-full"
+        style={barStyle(tokens)}
+      />
+      <div
+        className="absolute left-[52px] top-10 h-[10px] w-[42px] rounded-[4px] transition-colors duration-[160ms]"
+        style={{ background: lit ? tokens.accent : tokens["bg-sunken"] }}
+      />
+    </div>
+  );
+}
+
+/** 深浅分屏：左右两半各画该主题族浅/深一套完整迷你窗口（跟随系统 / 主题族卡共用） */
+function SplitPreview({ theme, lit }: { theme: ThemeDefinition; lit: boolean }) {
+  const light = theme.light.tokens;
+  const dark = theme.dark.tokens;
+  return (
+    <>
+      <div className="absolute inset-y-0 left-0 w-1/2" style={pageStyle(light)}>
+        <div className="absolute inset-y-0 left-0 w-[18px] border-r" style={railStyle(light)} />
+        <div
+          className="absolute left-[24px] top-[22px] h-[6px] w-[26px] rounded-full"
+          style={barStyle(light)}
+        />
+        <div
+          className="absolute left-[24px] top-[34px] h-[6px] w-[34px] rounded-full"
+          style={barStyle(light)}
+        />
+        <div
+          className="absolute left-[24px] top-[46px] h-[8px] w-[20px] rounded-[3px] transition-colors duration-[160ms]"
+          style={{ background: lit ? light.accent : light["bg-sunken"] }}
+        />
+      </div>
+      <div className="absolute inset-y-0 right-0 w-1/2" style={pageStyle(dark)}>
+        <div className="absolute inset-y-0 right-0 w-[18px] border-l" style={railStyle(dark)} />
+        <div
+          className="absolute right-[24px] top-[22px] h-[6px] w-[26px] rounded-full"
+          style={barStyle(dark)}
+        />
+        <div
+          className="absolute right-[24px] top-[34px] h-[6px] w-[34px] rounded-full"
+          style={barStyle(dark)}
+        />
+        <div
+          className="absolute right-[24px] top-[46px] h-[8px] w-[20px] rounded-[3px] transition-colors duration-[160ms]"
+          style={{ background: lit ? dark.accent : dark["bg-sunken"] }}
+        />
+      </div>
+    </>
   );
 }
 

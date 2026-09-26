@@ -2,16 +2,17 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { ALL_TOKEN_WORDS, cssVarName, type TokenWord } from "../tokenContract";
-import { getThemeRegistry } from "../defineTheme";
+import { THEME_MODES, getThemeRegistry } from "../defineTheme";
 import "../themes"; // 副作用注册全部主题
 
 // jsdom 环境下 import.meta.url 非 file:// 协议，按 vitest 运行根（apps/desktop）解析
 const css = readFileSync(resolve(process.cwd(), "src/theme/tokens.css"), "utf-8");
 
-/** 提取指定主题的 [data-theme] 数据块（到行首 } 为止） */
-function themeBlock(key: string): string {
-  const start = css.indexOf(`[data-theme="${key}"]`);
-  expect(start, `tokens.css 缺少 [data-theme="${key}"] 数据块`).toBeGreaterThan(-1);
+/** 提取指定主题族 × 明暗的 [data-theme][data-mode] 数据块（到行首 } 为止） */
+function themeBlock(key: string, mode: string): string {
+  const selector = `[data-theme="${key}"][data-mode="${mode}"]`;
+  const start = css.indexOf(selector);
+  expect(start, `tokens.css 缺少 ${selector} 数据块`).toBeGreaterThan(-1);
   const end = css.indexOf("\n}", start);
   return css.slice(start, end);
 }
@@ -23,28 +24,31 @@ function themeBlock(key: string): string {
  */
 describe("theme 数据块与 defineTheme 产物一致", () => {
   for (const theme of getThemeRegistry().values()) {
-    describe(`主题 ${theme.key}`, () => {
-      it("每个 token 词汇在数据块中都有定义且取值一致", () => {
-        const block = themeBlock(theme.key);
-        const missing: string[] = [];
-        const drifted: string[] = [];
-        for (const word of ALL_TOKEN_WORDS) {
-          const match = block.match(new RegExp(`${cssVarName(word)}\\s*:\\s*([^;]+);`));
-          if (!match) {
-            missing.push(word);
-            continue;
+    for (const mode of THEME_MODES) {
+      describe(`主题 ${theme.key} · ${mode}`, () => {
+        const tokens = theme[mode].tokens;
+        it("每个 token 词汇在数据块中都有定义且取值一致", () => {
+          const block = themeBlock(theme.key, mode);
+          const missing: string[] = [];
+          const drifted: string[] = [];
+          for (const word of ALL_TOKEN_WORDS) {
+            const match = block.match(new RegExp(`${cssVarName(word)}\\s*:\\s*([^;]+);`));
+            if (!match) {
+              missing.push(word);
+              continue;
+            }
+            if (match[1].trim() !== tokens[word])
+              drifted.push(`${word}: css=${match[1].trim()} theme=${tokens[word]}`);
           }
-          if (match[1].trim() !== theme.tokens[word])
-            drifted.push(`${word}: css=${match[1].trim()} theme=${theme.tokens[word]}`);
-        }
-        expect(missing, `数据块缺少 token：${missing.join(", ")}`).toEqual([]);
-        expect(drifted, `token 取值漂移：\n${drifted.join("\n")}`).toEqual([]);
-      });
+          expect(missing, `数据块缺少 token：${missing.join(", ")}`).toEqual([]);
+          expect(drifted, `token 取值漂移：\n${drifted.join("\n")}`).toEqual([]);
+        });
 
-      it("color-scheme 与主题 mode 一致", () => {
-        expect(themeBlock(theme.key)).toContain(`color-scheme: ${theme.mode}`);
+        it("color-scheme 与明暗一致", () => {
+          expect(themeBlock(theme.key, mode)).toContain(`color-scheme: ${mode}`);
+        });
       });
-    });
+    }
   }
 });
 
@@ -143,16 +147,19 @@ describe("theme 对比度达 AA（02 规范 §2.5）", () => {
   ];
 
   for (const theme of getThemeRegistry().values()) {
-    it(`主题 ${theme.key}（${theme.name}）全组合达标`, () => {
-      const failures = cases
-        .map(c => {
-          const ratio = contrastRatio(theme.tokens[c.fg], theme.tokens[c.bg]);
-          return ratio >= c.min
-            ? null
-            : `${c.why}：${c.fg} 对 ${c.bg} = ${ratio.toFixed(2)}（要求 ≥ ${c.min}）`;
-        })
-        .filter((s): s is string => s !== null);
-      expect(failures, `对比度不达标：\n${failures.join("\n")}`).toEqual([]);
-    });
+    for (const mode of THEME_MODES) {
+      it(`主题 ${theme.key}（${theme.name}）· ${mode} 全组合达标`, () => {
+        const tokens = theme[mode].tokens;
+        const failures = cases
+          .map(c => {
+            const ratio = contrastRatio(tokens[c.fg], tokens[c.bg]);
+            return ratio >= c.min
+              ? null
+              : `${c.why}：${c.fg} 对 ${c.bg} = ${ratio.toFixed(2)}（要求 ≥ ${c.min}）`;
+          })
+          .filter((s): s is string => s !== null);
+        expect(failures, `对比度不达标：\n${failures.join("\n")}`).toEqual([]);
+      });
+    }
   }
 });
