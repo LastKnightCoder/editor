@@ -135,8 +135,11 @@ export function useVideoNoteTranscription({
     onTranscriptSaved(patch);
   };
 
-  const transcribe = useMemoizedFn(async () => {
+  /** languageOverride：本次转录用指定语言（宿主刚切换语言、状态尚未生效时）；
+   *  直接作 onClick 传入时收到的事件对象会被忽略 */
+  const transcribe = useMemoizedFn(async (languageOverride?: unknown) => {
     if (!videoNote) return;
+    const lang = typeof languageOverride === "string" ? languageOverride : language;
     if (!useSettingStore.getState().setting.transcription.currentModel) {
       toast.warning("请先在设置中下载转录模型");
       return;
@@ -170,7 +173,7 @@ export function useVideoNoteTranscription({
       const audioPath = extractResult.audioPath;
 
       // 自动识别模式会透传为 auto
-      const options = prepareTranscriptionOptions({ language });
+      const options = prepareTranscriptionOptions({ language: lang });
 
       // 长视频分段转录
       const enableLongVideoSegmentation =
@@ -206,7 +209,7 @@ export function useVideoNoteTranscription({
         // 流式优化完成后由下方 effect 落库并结束
         setProgress("正在使用 AI 优化断句...");
         setPendingWordSegments(wordSegments);
-        startOptimization(wordSegments, resolveVideoNoteOptimizationLanguage(language, detected));
+        startOptimization(wordSegments, resolveVideoNoteOptimizationLanguage(lang, detected));
         return;
       }
 

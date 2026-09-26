@@ -90,18 +90,17 @@ export function useTranscriptSync({ segments, mediaRef }: UseTranscriptSyncOptio
     timeUpdateHandlerRef.current = handleTimeUpdate;
   }, [handleTimeUpdate]);
 
+  // 监听器用稳定包装转调最新 handler：元素先于 effect 挂上时也不会漏绑
+  const onTimeUpdate = useCallback(() => timeUpdateHandlerRef.current?.(), []);
+
   // Callback ref: bind/unbind timeupdate listener when DOM element mounts/unmounts
   const setMediaRef = useCallback(
     (element: HTMLVideoElement | HTMLAudioElement | null) => {
-      if (mediaRef.current && timeUpdateHandlerRef.current) {
-        mediaRef.current.removeEventListener("timeupdate", timeUpdateHandlerRef.current);
-      }
+      mediaRef.current?.removeEventListener("timeupdate", onTimeUpdate);
       mediaRef.current = element;
-      if (element && timeUpdateHandlerRef.current) {
-        element.addEventListener("timeupdate", timeUpdateHandlerRef.current);
-      }
+      element?.addEventListener("timeupdate", onTimeUpdate);
     },
-    [mediaRef]
+    [mediaRef, onTimeUpdate]
   );
 
   return {

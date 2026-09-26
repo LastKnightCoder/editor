@@ -1,4 +1,4 @@
-/** 阅读区头部：图标 + 标题 + 元信息，右侧动作，末尾「对话」开关与关闭（不传 onClose 则不显示关闭） */
+/** 阅读区头部：图标 + 标题 + 元信息，右侧动作，末尾「对话」开关与关闭（不传对应回调则不显示） */
 
 import type { ReactNode } from "react";
 import { MessageCircle, X } from "lucide-react";
@@ -9,8 +9,8 @@ interface StageHeaderProps {
   title: ReactNode;
   meta?: ReactNode;
   actions?: ReactNode;
-  chatOpen: boolean;
-  onToggleChat: () => void;
+  chatOpen?: boolean;
+  onToggleChat?: () => void;
   onClose?: () => void;
 }
 
@@ -30,16 +30,18 @@ export function StageHeader({
       {meta && <span className="text-tau-sm text-ink-3 shrink-0 whitespace-nowrap">{meta}</span>}
       <span className="flex-1" />
       {actions}
-      <Tooltip content={chatOpen ? "收起对话" : "展开对话"} placement="bottom">
-        <IconButton
-          aria-label={chatOpen ? "收起对话" : "展开对话"}
-          aria-pressed={chatOpen}
-          onClick={onToggleChat}
-          className={cn(chatOpen && "bg-selected text-accent-text enabled:hover:bg-selected")}
-        >
-          <MessageCircle className="size-4" strokeWidth={1.75} />
-        </IconButton>
-      </Tooltip>
+      {onToggleChat && (
+        <Tooltip content={chatOpen ? "收起对话" : "展开对话"} placement="bottom">
+          <IconButton
+            aria-label={chatOpen ? "收起对话" : "展开对话"}
+            aria-pressed={chatOpen}
+            onClick={onToggleChat}
+            className={cn(chatOpen && "bg-selected text-accent-text enabled:hover:bg-selected")}
+          >
+            <MessageCircle className="size-4" strokeWidth={1.75} />
+          </IconButton>
+        </Tooltip>
+      )}
       {onClose && (
         <Tooltip content="关闭" placement="bottom">
           <IconButton aria-label="关闭" onClick={onClose}>

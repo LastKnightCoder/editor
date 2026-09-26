@@ -13,6 +13,8 @@ interface TranscriptPanelProps {
   containerRef: React.RefObject<HTMLDivElement | null>;
   segmentRefsMap: React.MutableRefObject<Map<number, HTMLDivElement | null>>;
   onSegmentClick: (segment: TranscriptSegment) => void;
+  /** 列表内层的宽度 / 留白（缺省为阅读区居中 760 列） */
+  innerClassName?: string;
 }
 
 const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
@@ -21,6 +23,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   containerRef,
   segmentRefsMap,
   onSegmentClick,
+  innerClassName = "mx-auto max-w-[760px] px-6 pb-10 pt-2",
 }) => {
   if (!segments || segments.length === 0) {
     return (
@@ -35,7 +38,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
       ref={containerRef as React.RefObject<HTMLDivElement | null>}
       className="min-h-0 flex-1 overflow-y-auto"
     >
-      <div className="mx-auto flex max-w-[760px] flex-col gap-px px-6 pb-10 pt-2">
+      <div className={cn("flex flex-col gap-px", innerClassName)}>
         {segments.map((segment, index) => (
           <div
             key={index}
