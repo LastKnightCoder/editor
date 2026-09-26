@@ -187,21 +187,19 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
   const displayTitle = title || videoNote.description || "未命名视频";
 
   const moreMenuItems: MenuEntryList = [];
-  if (hasSegments) {
-    moreMenuItems.push({
-      key: "retranscribe",
-      label: "重新转录",
-      icon: <RefreshCw className="size-4" strokeWidth={1.75} />,
-      // 子菜单不支持 disabled：转录进行中退化为禁用的普通项
-      disabled: transcription.isTranscribing,
-      children: transcription.isTranscribing
-        ? undefined
-        : TRANSCRIPTION_LANGUAGES.map(option => ({
-            key: `retranscribe:${option.value}`,
-            label: option.label,
-          })),
-    });
-  }
+  moreMenuItems.push({
+    key: "retranscribe",
+    label: hasSegments ? "重新转录" : "指定语言转录",
+    icon: <RefreshCw className="size-4" strokeWidth={1.75} />,
+    // 子菜单不支持 disabled：转录进行中退化为禁用的普通项
+    disabled: transcription.isTranscribing,
+    children: transcription.isTranscribing
+      ? undefined
+      : TRANSCRIPTION_LANGUAGES.map(option => ({
+          key: `retranscribe:${option.value}`,
+          label: option.label,
+        })),
+  });
   if (transcription.canOptimize) {
     moreMenuItems.push({
       key: "optimize",
@@ -320,8 +318,6 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
             videoNote={videoNote}
             source={source}
             transcription={transcription}
-            language={language}
-            onLanguageChange={setLanguage}
             subtitleTrackUrl={subtitleTrackUrl}
             subtitleLanguage={resolveVideoNoteOptimizationLanguage(language, null)}
             onVideoElement={handleVideoElement}
