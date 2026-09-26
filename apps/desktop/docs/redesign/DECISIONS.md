@@ -616,7 +616,7 @@
 - 选择：① 主视图（月 / 周 / 议程）占满宽度；`DayColumn` 移进非模态 `Drawer`（fill，width 360，初版盖在主视图区右侧不盖页头，见下方追记改为整纸高）；× 浮在抽屉右上角，`DayColumn` 头部右侧 pr-12 让位；Esc 经 `useOverlayDismiss`。② 开合仍走 `useCalendarStore.showDayPanel`（持久化，记住上次开合），默认值改为 false：抽屉盖住月视图右侧几列，首次进入不默认遮挡。
 - **追记（同日）**：① 开关由孤立图标改为带信息的按钮「今天 · 2 项」/「9/28 周一 · 无安排」（选中日 + 项数，打开时 soft 态；`useDayEvents` 与时间线共用）；② 抽屉改为与整张纸同高（挂在纸上，默认上右下 12px 内缩），会盖住页头右侧的视图切换与「新建日程」——关闭走 × / Esc。
 - **追记（同日，日程详情改抽屉）**：点日程由锚定速览 Popover（`EventPeek`，只读 + 「编辑」再进弹窗）改为纸内右侧整高的非模态 `EventDrawer`：头部 = 色块 · 标题 · 日期时间 · 日历，正文即可编辑表单，底栏删除 / 关闭 / 保存（保存后关闭 + Toast）。与时间线抽屉同位，打开时暂代它、关掉回到时间线。表单逻辑从 EventDialog 抽成 `EventDialog/useEventForm.tsx` 共用；`EventDialog` 只留新建（月 / 周视图双击空白、空档安排、页头新建）；月视图「+N 项」列表点日程同样进抽屉。`peekStore.peek(event)` 不再带锚点。
-- **追记（同日，未保存修改守卫）**：`useEventForm` 载入完成后记基线快照（备注按纯文本比较，避开编辑器规范化改 JSON 的误报），返回 `dirty`；保存 / 删除成功即以当前值为新基线。`EventDrawer` 所有关闭 / 换条请求（×、关闭、Esc、点别的日程）都经 `peekStore`，抽屉只在表单干净时跟随；dirty 时弹 ConfirmDialog「放弃未保存的修改？」（继续编辑 = 把 store 拨回当前这条 / 放弃修改）。底栏 dirty 时左侧显示「有未保存的修改」并隐藏删除按钮。新建弹窗 EventDialog 未接守卫。
+- **追记（同日，未保存修改守卫）**：`useEventForm` 载入完成后记基线快照（备注按纯文本比较，避开编辑器规范化改 JSON 的误报），返回 `dirty`；保存 / 删除成功即以当前值为新基线。`EventDrawer` 所有关闭 / 换条请求（×、关闭、Esc、点别的日程）都经 `peekStore`，抽屉只在表单干净时跟随；dirty 时弹 ConfirmDialog「放弃未保存的修改？」（继续编辑 = 把 store 拨回当前这条 / 放弃修改）。底栏 dirty 时左侧显示「有未保存的修改」并隐藏删除按钮。新建弹窗 EventDialog 未接守卫。放弃修改时调 `form.reset()` 按原日程重新载入——关闭后抽屉保留同一条做退场动画，表单不会自动重载，不重置会残留 dirty（再点任意日程仍被拦）且重开同一条会带着改过的值。
 - 实现：`features/schedule/views/ScheduleView.tsx`、`components/DayColumn.tsx`（去掉左细线与定宽）、`components/CalendarHeader`（注释）、`stores/useCalendarStore.ts`（默认值）。
 
 ## D-062 Vibe Learning 项目页定稿（方案 C「学习台」）
