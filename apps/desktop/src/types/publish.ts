@@ -49,6 +49,14 @@ export interface IPublishPlan {
   virtualProcessed?: number;
 }
 
+/**
+ * 发布计划预览：只含路径，不回传文件内容
+ */
+export interface IPublishPlanPreview {
+  toUpload: string[];
+  toDelete: string[];
+}
+
 export interface IPublishCardListItem {
   id: number;
   summary: string;

@@ -57,7 +57,11 @@ export default defineConfig(() => {
       tailwindcss(),
       electron({
         main: {
-          entry: "src-electron/main/index.ts",
+          entry: {
+            index: "src-electron/main/index.ts",
+            // 发布站点生成跑在 worker_threads 里（modules/publish-generator-client）
+            "publish-generator-worker": "src-electron/main/workers/publish-generator.worker.ts",
+          },
           onstart(args) {
             if (process.env.VSCODE_DEBUG) {
               console.log(

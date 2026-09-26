@@ -2,7 +2,7 @@
  * 发布页数据：发布计划预览、上次发布时间、已选内容数；执行与进度委托全局 publishRunStore。
  *
  * 后端口径（见 D-035）：计划为全量生成——toUpload 即全部产物，toDelete 为「历史里有、本次未生成」；
- * 预览按默认访问路径 "/" 计算，只取路径与数量，不复用其文件内容；发布无取消通道。
+ * 预览按默认访问路径 "/" 在主进程 worker 里生成，只回传路径；发布无取消通道。
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -47,7 +47,7 @@ export function usePublishRun(config: PublishConfig) {
     }
   }, []);
 
-  /* ── 计划预览：只保留路径，文件内容即弃 ── */
+  /* ── 计划预览：后端只回传路径 ── */
   const [plan, setPlan] = useState<PlanSummary | null>(null);
   const [planLoading, setPlanLoading] = useState(false);
   const [planStale, setPlanStale] = useState(false);
@@ -60,7 +60,7 @@ export function usePublishRun(config: PublishConfig) {
       const result = await previewPublishPlan();
       if (seq !== planSeq.current) return;
       setPlan({
-        upload: result.toUpload.map(f => f.path),
+        upload: result.toUpload,
         remove: result.toDelete,
         computedAt: Date.now(),
       });
