@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Descendant } from "slate";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
-import { chatLLMStream } from "./useChatLLM";
+import { piStreamText, type PiChatHandle } from "@/services/piLLM";
 import { getMarkdown, importFromMarkdown } from "@/utils/markdown";
 import { CONTENT_POLISH_PROMPT } from "@/constants/prompts";
 import { Role } from "@/constants";
@@ -28,7 +28,7 @@ export const useContentPolish = (
   const [isPolishing, setIsPolishing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [pending, setPending] = useState(true);
-  const controllerRef = useRef<AbortController | null>(null);
+  const chatHandleRef = useRef<PiChatHandle | null>(null);
   const accumulatedMarkdownRef = useRef<string>("");
   const conversationHistoryRef = useRef<RequestMessage[]>([]);
 
@@ -88,29 +88,30 @@ export const useContentPolish = (
     // 初始化对话历史
     conversationHistoryRef.current = [systemMessage, userMessage];
 
-    chatLLMStream(provider, model, messages, {
-      onUpdate: (responseText: string, _fetchText: string) => {
-        setPending(false);
-        // 累积所有返回的内容
-        accumulatedMarkdownRef.current = responseText;
-        // 节流解析
-        throttledParse(responseText);
-      },
-      onFinish: (fullContent: string) => {
+    const handle = piStreamText({ provider, model, messages }, ({ text }) => {
+      setPending(false);
+      // 累积所有返回的内容
+      accumulatedMarkdownRef.current = text;
+      // 节流解析
+      throttledParse(text);
+    });
+    chatHandleRef.current = handle;
+    void handle.result.then(result => {
+      if (result.ok && !result.aborted) {
         setIsPolishing(false);
         setPending(false);
         // 最后一次强制解析确保完整
         throttledParse.flush();
-        if (fullContent) {
+        if (result.text) {
           try {
-            const parsed = importFromMarkdown(fullContent);
+            const parsed = importFromMarkdown(result.text);
             setPolishedContent(parsed);
             conversationHistoryRef.current.push({
               role: Role.Assistant,
               content: [
                 {
                   type: "text",
-                  text: fullContent,
+                  text: result.text,
                 },
               ],
             });
@@ -119,15 +120,13 @@ export const useContentPolish = (
             setError(err as Error);
           }
         }
-      },
-      onError: (err: Error) => {
+        return;
+      }
+      if (!result.aborted) {
         setIsPolishing(false);
-        setError(err);
-        console.error("润色失败:", err);
-      },
-      onController: (controller: AbortController) => {
-        controllerRef.current = controller;
-      },
+        setError(new Error(result.error ?? "模型请求失败"));
+        console.error("润色失败:", result.error);
+      }
     });
   });
 
@@ -164,14 +163,18 @@ export const useContentPolish = (
 
     conversationHistoryRef.current.push(userMessage);
 
-    chatLLMStream(provider, model, conversationHistoryRef.current, {
-      onUpdate: (responseText: string, _fetchText: string) => {
+    const handle = piStreamText(
+      { provider, model, messages: conversationHistoryRef.current },
+      ({ text }) => {
         // 累积所有返回的内容
-        accumulatedMarkdownRef.current = responseText;
+        accumulatedMarkdownRef.current = text;
         // 节流解析
-        throttledParse(responseText);
-      },
-      onFinish: () => {
+        throttledParse(text);
+      }
+    );
+    chatHandleRef.current = handle;
+    void handle.result.then(result => {
+      if (result.ok && !result.aborted) {
         setIsPolishing(false);
         // 最后一次强制解析确保完整
         throttledParse.flush();
@@ -195,23 +198,19 @@ export const useContentPolish = (
             setError(err as Error);
           }
         }
-      },
-      onError: (err: Error) => {
+        return;
+      }
+      if (!result.aborted) {
         setIsPolishing(false);
-        setError(err);
-        console.error("微调失败:", err);
-      },
-      onController: (controller: AbortController) => {
-        controllerRef.current = controller;
-      },
+        setError(new Error(result.error ?? "模型请求失败"));
+        console.error("微调失败:", result.error);
+      }
     });
   });
 
   const stopPolish = useCallback(() => {
-    if (controllerRef.current) {
-      controllerRef.current.abort();
-      controllerRef.current = null;
-    }
+    chatHandleRef.current?.cancel();
+    chatHandleRef.current = null;
     setIsPolishing(false);
   }, []);
 

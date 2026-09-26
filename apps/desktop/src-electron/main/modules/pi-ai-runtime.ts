@@ -1,7 +1,8 @@
 /**
  * pi-ai 运行时模块（单发路径 + provider 注册中心）。
  * 渲染端设置经 userSettingModule 快照/变更通知流入，syncProviders 维护 pi Models 注册表；
- * 单发请求走 streamSimple，事件经 IPC 推回渲染进程（剥离 partial 快照，done 保留最终 message）。
+ * 单发请求走 streamSimple，事件（含 pi 原生 partial 全量快照）原样经 IPC 推回渲染进程，
+ * 渲染端直接消费 pi 的快照/delta 语义，不做桥接层语义转换。
  * M2 的会话 harness（PiSessionHost）复用本模块的注册表。
  */
 import { ipcMain } from "electron";
@@ -75,9 +76,7 @@ class PiAiRuntimeModule {
       const events = registry.needsThinkStrip(request.providerId, request.modelId)
         ? rewriteThinkTagStream(stream)
         : stream;
-      for await (const rawEvent of events) {
-        // done/error 变体不带 partial；其余事件剥离 partial 快照（体积大且单发场景不需要，done 自带最终 message）
-        const { partial: _partial, ...event } = rawEvent as typeof rawEvent & { partial?: unknown };
+      for await (const event of events) {
         if (!sender.isDestroyed())
           sender.send("pi-ai-stream-event", { requestId: request.requestId, ...event });
       }

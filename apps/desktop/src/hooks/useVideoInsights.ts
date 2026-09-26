@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { chatLLM } from "./useChatLLM";
+import { piCompleteChat } from "@/services/piLLM";
 import {
   VIDEO_INSIGHTS_SYSTEM_PROMPT,
   buildVideoInsightsUserPrompt,
@@ -54,7 +54,9 @@ export const useVideoInsights = (
           },
         ];
 
-        const response = await chatLLM(provider, model, messages);
+        const outcome = await piCompleteChat({ provider, model, messages });
+        if (!outcome.ok) throw new Error(outcome.error ?? "模型请求失败");
+        const response = outcome.text;
         const transcriptHash = computeTranscriptHash("", transcriptSegments);
 
         return parseVideoInsightsResponse(response || "", {

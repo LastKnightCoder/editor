@@ -6,6 +6,7 @@ import type { PPTTemplate } from "@/constants/ppt-templates";
 import type { ReportTemplate } from "@/constants/report-templates";
 import type { PodcastSpeaker } from "@/types/podcast";
 import { chatStreamCore, type ChatStreamCoreOptions } from "@/hooks/useChatLLM";
+import { piStreamChat, piTextOf, piThinkingOf, type PiChatHandle } from "@/services/piLLM";
 import toolRegistry, { ensureToolingReady } from "@/tools";
 import {
   OUTLINE_GENERATION_WITH_TOOLS_PROMPT,
@@ -167,12 +168,32 @@ export function runGenerationTask(
 ): void {
   const buildResult = buildGenerationRequest(request);
 
-  // 直接走 chatStreamCore 并关掉 rAF 缓冲：窗口在后台时生成也不被节流
+  // 单发路径（provided_content）：直接消费 pi 原生事件（partial 全量快照）
+  if (!buildResult.enableTools) {
+    const handle = piStreamChat({ provider, model, messages: buildResult.messages }, event => {
+      if (event.type === "text_delta" || event.type === "text_end") {
+        callbacks.onUpdate(piTextOf(event.partial));
+      } else if (event.type === "thinking_delta" || event.type === "thinking_end") {
+        callbacks.onReasoning?.(piThinkingOf(event.partial));
+      }
+    });
+    callbacks.onController?.(toAbortController(handle));
+    void handle.result.then(result => {
+      if (result.ok && !result.aborted) {
+        callbacks.onFinish(result.text);
+        return;
+      }
+      if (!result.aborted) callbacks.onError(new Error(result.error ?? "模型请求失败"));
+    });
+    return;
+  }
+
+  // 带工具路径（vibe_learning）：暂走旧 adapter，M2-f 切一次性 pi 会话后退役
   void chatStreamCore({
     provider,
     model,
     messages: buildResult.messages,
-    enableTools: buildResult.enableTools,
+    enableTools: true,
     disableAnimation: true,
     additionalTools: options.additionalTools,
     executeToolCall: options.executeToolCall,
@@ -184,6 +205,13 @@ export function runGenerationTask(
     onController: callbacks.onController,
     onToolCallsUpdate: (executions, turnId) => callbacks.onToolCallsUpdate?.(executions, turnId),
   });
+}
+
+/** 旧回调契约的 AbortController 适配（带工具路径退役前过渡） */
+function toAbortController(handle: PiChatHandle): AbortController {
+  const controller = new AbortController();
+  controller.signal.addEventListener("abort", () => handle.cancel());
+  return controller;
 }
 
 function buildVibeLearningGenerationRequest(

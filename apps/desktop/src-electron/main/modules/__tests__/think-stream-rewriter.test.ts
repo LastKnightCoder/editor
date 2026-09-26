@@ -155,4 +155,44 @@ describe("createThinkTagRewriter", () => {
     ]);
     expect(out).toEqual([{ type: "error", reason: "error", error: { role: "assistant" } }]);
   });
+
+  it("输出事件携带重排后的 partial 全量快照", () => {
+    const partialOf = (text: string, thinking?: string) =>
+      ({
+        role: "assistant",
+        content: [...(thinking ? [{ type: "thinking", thinking }] : []), { type: "text", text }],
+      }) as AssistantMessage;
+    const events = [
+      ev.textStart(0),
+      { ...ev.textDelta(0, "前文<think>思考"), partial: partialOf("前文<think>思考") },
+      {
+        ...ev.textDelta(0, "片段</think>后文"),
+        partial: partialOf("前文<think>思考片段</think>后文"),
+      },
+      { ...ev.textEnd(0), partial: partialOf("前文<think>思考片段</think>后文") },
+      ev.done([{ type: "text", text: "前文<think>思考片段</think>后文" }]),
+    ] as AssistantMessageEvent[];
+    const out = run(events);
+
+    // 每个 delta 事件都带与重排进度一致的全量快照（pi 原生语义）
+    const deltas = out.filter(
+      e => e.type === "text_delta" || e.type === "thinking_delta"
+    ) as Array<{ type: string; partial?: AssistantMessage }>;
+    expect(deltas.map(e => e.partial?.content)).toEqual([
+      [{ type: "text", text: "前文" }],
+      [
+        { type: "text", text: "前文" },
+        { type: "thinking", thinking: "思考" },
+      ],
+      [
+        { type: "text", text: "前文" },
+        { type: "thinking", thinking: "思考片段" },
+      ],
+      [
+        { type: "text", text: "前文" },
+        { type: "thinking", thinking: "思考片段" },
+        { type: "text", text: "后文" },
+      ],
+    ]);
+  });
 });
