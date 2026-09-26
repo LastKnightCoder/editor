@@ -1,15 +1,15 @@
 /**
- * 白板详情底部页签栏（XMind 式，mockups/whiteboard-detail/plan-a2-xmind.html 定稿，D-048）：
- * 左侧「＋ 新建页」「所有页」，接着是各页签；当前页签与上方画布纸面同色、从纸面下缘垂下。
- * 点击切页，双击改名，右键重命名 / 复制 / 删除，拖动排序。
- *
- * autoHide：只有一页时默认隐藏，鼠标移到底边才浮出（XMind 同款）；改名 / 菜单打开期间保持显示。
+ * 白板详情页签条：浮在画布纸面左下角，与右下状态栏同一套画布 chrome 语言（D-049：实底 surface +
+ * shadow-lift + 1px 细描边，激活 = accent-soft，组间靠留白不画竖线），一左一右融在同一张纸里。
+ * 「所有页」→ 各页签 → 「＋ 新建页」（同浏览器，新页落在末尾）；只有一页时只留「＋ 新建页」。
+ * 点击切页，双击改名，右键重命名 / 复制 / 删除，拖动排序；页多时页签横向滚动，当前页自动滚进可视范围。
  */
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import { Check, Copy, Files, PencilLine, Plus, Trash2 } from "lucide-react";
-import { ContextMenu, IconButton, Menu, cn } from "@tau/ui";
+import { ContextMenu, Menu, cn } from "@tau/ui";
+import { ChromeButton, ChromeGap } from "@/components/WhiteBoard/chrome";
 
 const DND_TYPE = "WHITEBOARD_PAGE_TAB";
 
@@ -21,7 +21,8 @@ export interface SheetBarPage {
 export interface SheetBarProps {
   pages: SheetBarPage[];
   activeId: number;
-  autoHide?: boolean;
+  className?: string;
+  style?: CSSProperties;
   onSelect(id: number): void;
   onAdd(): void;
   onRename(id: number, name: string): void;
@@ -31,7 +32,7 @@ export interface SheetBarProps {
 }
 
 export function SheetBar(props: SheetBarProps) {
-  const { pages, activeId, autoHide } = props;
+  const { pages, activeId } = props;
   const [order, setOrder] = useState(pages);
   const [editing, setEditing] = useState<number | null>(null);
   const [listOpen, setListOpen] = useState(false);
@@ -62,56 +63,62 @@ export function SheetBar(props: SheetBarProps) {
     if (ids.some((id, i) => id !== pages[i]?.id)) props.onReorder(ids);
   };
 
-  const busy = editing !== null || listOpen;
+  const barClass = cn(
+    "bg-surface shadow-lift ring-line-2 flex min-w-0 items-center gap-0.5 rounded-[12px] p-1 ring-1",
+    props.className
+  );
+
+  // 只有一页：「页」的概念先不出现，只留一个带字的新建入口；有第二页起才展开成页签条
+  if (pages.length <= 1)
+    return (
+      <div style={props.style} className={barClass}>
+        <button
+          type="button"
+          onClick={props.onAdd}
+          className="text-ink-2 hover:bg-hover hover:text-ink-1 ease-tau-out inline-flex h-[30px] items-center gap-1.5 rounded-[8px] pl-2 pr-2.5 text-[12.5px] transition-[background-color,color] duration-150"
+        >
+          <Plus className="size-4" strokeWidth={1.75} />
+          新建页
+        </button>
+      </div>
+    );
 
   return (
-    <div
-      className={cn(
-        "flex h-[34px] min-w-0 flex-none items-start",
-        autoHide &&
-          "ease-tau-out bg-page pointer-events-none absolute bottom-0 left-3.5 z-[3] max-w-[calc(100%-28px)] rounded-tr-[12px] pr-1.5 opacity-0 transition-opacity duration-150 hover:pointer-events-auto hover:opacity-100 peer-hover:pointer-events-auto peer-hover:opacity-100",
-        autoHide && busy && "pointer-events-auto opacity-100"
-      )}
-    >
-      <div className="flex h-[30px] flex-none items-center gap-0.5 pl-0.5 pr-1.5">
-        <IconButton title="新建页" className="size-7 rounded-[8px]" onClick={props.onAdd}>
-          <Plus className="size-[15px]" strokeWidth={1.75} />
-        </IconButton>
-        <Menu
-          open={listOpen}
-          onOpenChange={setListOpen}
-          className="max-h-[360px]"
-          trigger={
-            <IconButton title="所有页" className="size-7 rounded-[8px]">
-              <Files className="size-[15px]" strokeWidth={1.75} />
-            </IconButton>
-          }
-        >
-          {pages.map((p, i) => (
-            <Menu.Item
-              key={p.id}
-              onSelect={() => props.onSelect(p.id)}
-              icon={
-                p.id === activeId ? (
-                  <Check className="text-accent-text size-[15px]" strokeWidth={1.75} />
-                ) : (
-                  <span className="font-tau-mono text-ink-3 w-[15px] text-center text-[11px]">
-                    {i + 1}
-                  </span>
-                )
-              }
-            >
-              {p.name || "未命名"}
-            </Menu.Item>
-          ))}
-        </Menu>
-        <span aria-hidden className="bg-line-1 ml-1 h-4 w-px" />
-      </div>
+    <div style={props.style} className={barClass}>
+      <Menu
+        open={listOpen}
+        onOpenChange={setListOpen}
+        className="max-h-[360px]"
+        trigger={
+          <ChromeButton label="所有页" tooltipPlacement="top">
+            <Files strokeWidth={1.75} />
+          </ChromeButton>
+        }
+      >
+        {pages.map((p, i) => (
+          <Menu.Item
+            key={p.id}
+            onSelect={() => props.onSelect(p.id)}
+            icon={
+              p.id === activeId ? (
+                <Check className="text-accent-text size-[15px]" strokeWidth={1.75} />
+              ) : (
+                <span className="font-tau-mono text-ink-3 w-[15px] text-center text-[11px]">
+                  {i + 1}
+                </span>
+              )
+            }
+          >
+            {p.name || "未命名"}
+          </Menu.Item>
+        ))}
+      </Menu>
+      <ChromeGap />
       <div
         ref={scrollRef}
         role="tablist"
         aria-label="白板页"
-        className="flex min-w-0 items-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex min-w-0 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {order.map((p, index) => (
           <PageTab
@@ -136,6 +143,10 @@ export function SheetBar(props: SheetBarProps) {
           />
         ))}
       </div>
+      <ChromeGap />
+      <ChromeButton label="新建页" tooltipPlacement="top" onClick={props.onAdd}>
+        <Plus strokeWidth={1.75} />
+      </ChromeButton>
     </div>
   );
 }
@@ -234,10 +245,13 @@ function PageTab({
           if (e.key === "F2") onStartRename();
         }}
         className={cn(
-          "text-tau-meta ease-tau-out relative flex h-[30px] max-w-[200px] flex-none cursor-default select-none items-center whitespace-nowrap rounded-b-[10px] px-3.5 transition-[background,color] duration-150",
-          active
-            ? "bg-surface text-ink-1 shadow-card z-[1] font-medium"
-            : "text-ink-2 hover:bg-hover hover:text-ink-1",
+          "ease-tau-out flex h-[30px] max-w-[180px] flex-none cursor-default select-none items-center whitespace-nowrap rounded-[8px] text-[12.5px] transition-[background-color,color] duration-150",
+          // 改名时页签让位给输入框：不叠底色与内边距，输入框占满页签原位
+          editing
+            ? "px-0"
+            : active
+              ? "bg-accent-soft text-accent-text px-3 font-medium"
+              : "text-ink-2 hover:bg-hover hover:text-ink-1 px-3",
           dragging && "opacity-40"
         )}
       >
@@ -245,12 +259,6 @@ function PageTab({
           <RenameInput initial={page.name} onDone={onRename} onCancel={onCancelRename} />
         ) : (
           <span className="truncate">{page.name || "未命名"}</span>
-        )}
-        {active && (
-          <span
-            aria-hidden
-            className="bg-accent absolute bottom-[5px] left-3 right-3 h-[2px] rounded-full"
-          />
         )}
       </div>
     </ContextMenu>
@@ -290,7 +298,7 @@ function RenameInput({
         if (e.key === "Enter") finish(true);
         if (e.key === "Escape") finish(false);
       }}
-      className="bg-surface border-accent text-tau-meta text-ink-1 h-6 w-[120px] rounded-[6px] border px-1.5 font-normal shadow-[var(--tau-focus-ring)] outline-none"
+      className="bg-surface border-accent text-ink-1 h-[30px] w-[140px] rounded-[8px] border px-[11px] text-[12.5px] font-normal outline-none"
     />
   );
 }

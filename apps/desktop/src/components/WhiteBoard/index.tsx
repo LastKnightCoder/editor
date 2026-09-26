@@ -119,6 +119,8 @@ interface WhiteBoardProps {
   showToolbar?: boolean;
   showAttributeSetter?: boolean;
   showStatusBar?: boolean;
+  /** 进出演示模式（宿主页面据此收起画布外的浮动件，如页签条） */
+  onPresentationModeChange?: (presenting: boolean) => void;
 }
 
 const DEFAULT_PRESENTATION_SEQUENCES: PresentationSequence[] = [];
@@ -189,6 +191,7 @@ const WhiteBoard = memo(
       showToolbar,
       showAttributeSetter,
       showStatusBar = true,
+      onPresentationModeChange,
     } = props;
 
     const toolbarVisible = showToolbar ?? !readonly;
@@ -598,6 +601,13 @@ const WhiteBoard = memo(
       },
       () => board.presentationManager.isPresentationMode
     );
+    const notifyPresentationMode = useMemoizedFn((presenting: boolean) =>
+      onPresentationModeChange?.(presenting)
+    );
+    useEffect(() => {
+      notifyPresentationMode(isPresentationMode);
+      if (isPresentationMode) return () => notifyPresentationMode(false);
+    }, [isPresentationMode, notifyPresentationMode]);
 
     const currentSequence = useSyncExternalStore(
       callback => {
