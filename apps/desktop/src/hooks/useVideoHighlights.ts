@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMemoizedFn } from "ahooks";
-import { chatLLM } from "./useChatLLM";
+import { piCompleteChat } from "@/services/piLLM";
 import {
   VIDEO_HIGHLIGHTS_SYSTEM_PROMPT,
   buildVideoHighlightsUserPrompt,
@@ -88,7 +88,9 @@ export const useVideoHighlights = (
           },
         ];
 
-        const content = await chatLLM(provider, model, messages);
+        const outcome = await piCompleteChat({ provider, model, messages });
+        if (!outcome.ok) throw new Error(outcome.error ?? "模型请求失败");
+        const content = outcome.text;
         const parsed = tryParseJsonArray(content || "");
         const normalized = parsed
           .map((item: any, index: number): VideoNoteHighlight | null => {

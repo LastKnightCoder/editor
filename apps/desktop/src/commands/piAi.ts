@@ -1,13 +1,13 @@
 /**
  * pi-ai 单发路径的渲染端封装：请求经 IPC 到主进程 pi-ai 模块，流事件按 requestId 过滤回调。
- * 事件形状为 pi-ai 原生 AssistantMessageEvent（主进程已剥离 partial 快照，done 携带最终 message），
- * 不做二次包装——升级 pi 时消费方只需跟进事件类型本身。
+ * 事件形状为 pi-ai 原生 AssistantMessageEvent（含 partial 全量快照），不做二次包装——
+ * 升级 pi 时消费方只需跟进事件类型本身。
  */
 import { invoke, on, off } from "@/electron";
 import type { AssistantMessageEvent } from "@earendil-works/pi-ai";
 import type { PiSingleShotOutcome, PiSingleShotRequest } from "@/types/pi-llm";
 
-export type PiStreamEvent = Omit<AssistantMessageEvent, "partial">;
+export type PiStreamEvent = AssistantMessageEvent;
 type PiStreamEventEnvelope = PiStreamEvent & { requestId: string };
 
 export type PiSingleShotOptions = Omit<PiSingleShotRequest, "requestId">;

@@ -34,6 +34,7 @@ import {
   buildSessionAwareSystemPrompt,
 } from "@/constants";
 import useChatLLM from "@/hooks/useChatLLM";
+import { piCompleteChat } from "@/services/piLLM";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useSettingStore from "@/stores/useSettingStore";
 import useSkillStore from "@/stores/useSkillStore";
@@ -609,10 +610,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             return updatedChatMessage;
           }
 
-          chatLLMStream(
-            titleProviderConfig,
-            titleModelConfig,
-            [
+          const titleResult = await piCompleteChat({
+            provider: titleProviderConfig,
+            model: titleModelConfig,
+            messages: [
               {
                 role: Role.System,
                 content: [{ type: "text", text: SUMMARY_TITLE_PROMPT }],
@@ -628,25 +629,23 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 ],
               },
             ],
-            {
-              onFinish: async content => {
-                const nextTitle = content ? formatGeneratedChatTitle(content) : "";
-                if (nextTitle) {
-                  const updateChat = produce(updatedChatMessage, draft => {
-                    draft.title = nextTitle;
-                    draft.titleDirty = true;
-                  });
-                  const saved = await updateChatMessage(updateChat);
-                  updateCurrentChat(saved);
-                  if (displayedChatIdRef.current === saved.id) {
-                    actualChatRef.current = saved;
-                    setUpdateCounter(prev => prev + 1);
-                    titleRef.current?.setValue(nextTitle);
-                  }
-                }
-              },
+          });
+          if (titleResult.ok && !titleResult.aborted) {
+            const nextTitle = titleResult.text ? formatGeneratedChatTitle(titleResult.text) : "";
+            if (nextTitle) {
+              const updateChat = produce(updatedChatMessage, draft => {
+                draft.title = nextTitle;
+                draft.titleDirty = true;
+              });
+              const saved = await updateChatMessage(updateChat);
+              updateCurrentChat(saved);
+              if (displayedChatIdRef.current === saved.id) {
+                actualChatRef.current = saved;
+                setUpdateCounter(prev => prev + 1);
+                titleRef.current?.setValue(nextTitle);
+              }
             }
-          );
+          }
         }
       } catch (e) {
         console.error("Failed to generate title:", e);

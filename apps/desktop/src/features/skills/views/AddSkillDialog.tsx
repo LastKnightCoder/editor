@@ -31,7 +31,7 @@ import { FadeScroll } from "@/components/FadeScroll";
 import { usePage } from "@/page/PageProvider";
 import useSkillStore from "@/stores/useSkillStore";
 import useLLMConfig from "@/hooks/useLLMConfig";
-import { chatLLMStream } from "@/hooks/useChatLLM";
+import { piStreamText, type PiChatHandle } from "@/services/piLLM";
 import { Role } from "@/constants";
 import {
   commitSkillImport,
@@ -439,7 +439,7 @@ export function AddSkillDialog({
   const [prompt, setPrompt] = useState("");
   const [draft, setDraft] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [controller, setController] = useState<AbortController | null>(null);
+  const [chatHandle, setChatHandle] = useState<PiChatHandle | null>(null);
   const [inspection, setInspection] = useState<SkillImportInspection | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [inspecting, setInspecting] = useState(false);
@@ -451,7 +451,7 @@ export function AddSkillDialog({
   }, [open, current]);
 
   const reset = () => {
-    controller?.abort();
+    chatHandle?.cancel();
     if (inspection) void discardSkillImport(inspection.token);
     setName("");
     setDescription("");
@@ -489,23 +489,28 @@ export function AddSkillDialog({
     }
     setDraft("");
     setGenerating(true);
-    void chatLLMStream(
-      provider,
-      model,
-      [
-        { role: Role.System, content: [{ type: "text", text: AI_SYSTEM_PROMPT }] },
-        { role: Role.User, content: [{ type: "text", text: prompt.trim() }] },
-      ],
+    const handle = piStreamText(
       {
-        onController: setController,
-        onUpdate: text => setDraft(text.replace(/^```(?:markdown|md)?\n?|\n?```\s*$/g, "")),
-        onFinish: () => setGenerating(false),
-        onError: error => {
-          setGenerating(false);
-          toast.error(`起草失败：${error.message}`);
-        },
-      }
+        provider,
+        model,
+        messages: [
+          { role: Role.System, content: [{ type: "text", text: AI_SYSTEM_PROMPT }] },
+          { role: Role.User, content: [{ type: "text", text: prompt.trim() }] },
+        ],
+      },
+      ({ text }) => setDraft(text.replace(/^```(?:markdown|md)?\n?|\n?```\s*$/g, ""))
     );
+    setChatHandle(handle);
+    void handle.result.then(result => {
+      if (result.ok && !result.aborted) {
+        setGenerating(false);
+        return;
+      }
+      if (!result.aborted) {
+        setGenerating(false);
+        toast.error(`起草失败：${result.error ?? "模型请求失败"}`);
+      }
+    });
   };
 
   const saveDraft = async () => {
@@ -633,7 +638,7 @@ export function AddSkillDialog({
               generating={generating}
               onGenerate={generate}
               onStop={() => {
-                controller?.abort();
+                chatHandle?.cancel();
                 setGenerating(false);
               }}
             />

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useMemoizedFn } from "ahooks";
-import { chatLLM } from "./useChatLLM";
+import { piCompleteChat } from "@/services/piLLM";
 import useLLMConfig from "./useLLMConfig";
 import {
   ANSWER_JUDGEMENT_SYSTEM_PROMPT,
@@ -118,8 +118,13 @@ export const useAnswerJudgement = (): UseAnswerJudgementResult => {
         },
       ];
 
-      const response = await chatLLM(provider, model, messages);
+      const outcome = await piCompleteChat({ provider, model, messages });
       if (version !== requestVersion.current) return;
+
+      if (!outcome.ok) {
+        throw new Error(outcome.error ?? "AI 评判失败");
+      }
+      const response = outcome.text;
 
       if (!response) {
         throw new Error("AI 返回空响应");

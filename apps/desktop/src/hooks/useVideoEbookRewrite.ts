@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
 import { Descendant } from "slate";
-import { chatLLMStream } from "./useChatLLM";
+import { piStreamText, type PiChatHandle } from "@/services/piLLM";
 import {
   VIDEO_EBOOK_REWRITE_SYSTEM_PROMPT,
   buildVideoEbookRewriteUserPrompt,
@@ -42,7 +42,7 @@ export const useVideoEbookRewrite = (
   const [ebookContent, setEbookContent] = useState<Descendant[] | null>(null);
   const [finalMarkdown, setFinalMarkdown] = useState<string | null>(null);
 
-  const controllerRef = useRef<AbortController | null>(null);
+  const chatHandleRef = useRef<PiChatHandle | null>(null);
 
   const { run: throttledParse, flush: flushParse } = useThrottleFn(
     (markdown: string) => {
@@ -90,49 +90,47 @@ export const useVideoEbookRewrite = (
       },
     ];
 
-    chatLLMStream(provider, model, messages, {
-      onUpdate: (responseText: string) => {
-        setIsPending(false);
-        setStreamingMarkdown(responseText);
-        throttledParse(responseText);
-      },
-      onFinish: (fullContent: string) => {
+    const handle = piStreamText({ provider, model, messages }, ({ text }) => {
+      setIsPending(false);
+      setStreamingMarkdown(text);
+      throttledParse(text);
+    });
+    chatHandleRef.current = handle;
+    void handle.result.then(result => {
+      if (result.ok && !result.aborted) {
         setIsRewriting(false);
         setIsPending(false);
-        setFinalMarkdown(fullContent);
-        setStreamingMarkdown(fullContent);
+        setFinalMarkdown(result.text);
+        setStreamingMarkdown(result.text);
         flushParse();
 
-        if (!fullContent.trim()) {
+        if (!result.text.trim()) {
           setError(new Error("重写结果为空"));
           return;
         }
 
         try {
-          const parsed = importFromMarkdown(fullContent);
+          const parsed = importFromMarkdown(result.text);
           setEbookContent(parsed);
         } catch (parseError) {
           setError(new Error("重写完成，但 Markdown 解析失败，请重试"));
           console.error("[VideoEbookRewrite] Final markdown parse failed:", parseError);
         }
-      },
-      onError: (streamError: Error) => {
+        return;
+      }
+      if (!result.aborted) {
         setIsRewriting(false);
         setIsPending(false);
+        const streamError = new Error(result.error ?? "模型请求失败");
         setError(streamError);
         console.error("[VideoEbookRewrite] Error:", streamError);
-      },
-      onController: (controller: AbortController) => {
-        controllerRef.current = controller;
-      },
+      }
     });
   });
 
   const stopRewrite = useCallback(() => {
-    if (controllerRef.current) {
-      controllerRef.current.abort();
-      controllerRef.current = null;
-    }
+    chatHandleRef.current?.cancel();
+    chatHandleRef.current = null;
     setIsRewriting(false);
     setIsPending(false);
   }, []);

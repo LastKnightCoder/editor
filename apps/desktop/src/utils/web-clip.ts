@@ -1,7 +1,7 @@
 import { nodeFetch } from "@/commands";
 import { RequestMessage } from "@/types";
 import { CONVERT_PROMPT, Role } from "@/constants";
-import { chatLLM } from "@/hooks/useChatLLM.ts";
+import { piCompleteChat } from "@/services/piLLM";
 import { Descendant } from "slate";
 import { importFromMarkdown } from "@/utils/markdown.ts";
 
@@ -65,12 +65,15 @@ export const convertHTMLToMarkdown = async (html: string): Promise<string> => {
     },
   ];
 
-  const convertRes: string =
-    (await chatLLM(providerConfig, modelConfig, convertMessages).catch(e => {
-      console.error(e);
-      return "";
-    })) || "";
-  return convertRes;
+  const outcome = await piCompleteChat({
+    provider: providerConfig,
+    model: modelConfig,
+    messages: convertMessages,
+  }).catch(e => {
+    console.error(e);
+    return null;
+  });
+  return outcome?.ok ? outcome.text : "";
 };
 
 export const webClipFromUrl = async (url: string): Promise<WebClipResult> => {

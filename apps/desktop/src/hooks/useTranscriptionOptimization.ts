@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { useThrottleFn, useMemoizedFn } from "ahooks";
-import { chatLLMStream } from "./useChatLLM";
+import { piStreamText, type PiChatHandle } from "@/services/piLLM";
 import {
   TRANSCRIPTION_OPTIMIZATION_SYSTEM_PROMPT,
   buildTranscriptionOptimizationUserPrompt,
@@ -230,7 +230,7 @@ export const useTranscriptionOptimization = (
   const [finalSegments, setFinalSegments] = useState<TranscriptSegment[] | null>(null);
 
   // Refs
-  const controllerRef = useRef<AbortController | null>(null);
+  const chatHandleRef = useRef<PiChatHandle | null>(null);
   const parserRef = useRef<IncrementalTranscriptParser | null>(null);
   const originalSegmentsRef = useRef<TranscriptSegment[]>([]);
 
@@ -286,25 +286,25 @@ export const useTranscriptionOptimization = (
       },
     ];
 
-    chatLLMStream(provider, model, messages, {
-      onUpdate: (responseText: string) => {
-        setIsPending(false);
-        setRawOutput(responseText);
+    const handle = piStreamText({ provider, model, messages }, ({ text }) => {
+      setIsPending(false);
+      setRawOutput(text);
 
-        if (!parserRef.current) return;
+      if (!parserRef.current) return;
 
-        parserRef.current.reset();
-        parserRef.current.processChunk(responseText);
+      parserRef.current.reset();
+      parserRef.current.processChunk(text);
 
-        const allParsed = parserRef.current.getAllSegments();
-        const lastOriginalEnd =
-          originalSegmentsRef.current[originalSegmentsRef.current.length - 1]?.end || 0;
-        const withEndTimes = calculateStreamingEndTimes(allParsed, lastOriginalEnd);
+      const allParsed = parserRef.current.getAllSegments();
+      const lastOriginalEnd =
+        originalSegmentsRef.current[originalSegmentsRef.current.length - 1]?.end || 0;
+      const withEndTimes = calculateStreamingEndTimes(allParsed, lastOriginalEnd);
 
-        throttledUpdateSegments(withEndTimes);
-      },
-
-      onFinish: (fullContent: string) => {
+      throttledUpdateSegments(withEndTimes);
+    });
+    chatHandleRef.current = handle;
+    void handle.result.then(result => {
+      if (result.ok && !result.aborted) {
         setIsOptimizing(false);
         setIsPending(false);
         flushThrottledUpdate();
@@ -312,7 +312,7 @@ export const useTranscriptionOptimization = (
         if (!parserRef.current) return;
 
         parserRef.current.reset();
-        parserRef.current.processChunk(fullContent);
+        parserRef.current.processChunk(result.text);
         parserRef.current.finalize();
 
         const allParsed = parserRef.current.getAllSegments();
@@ -333,11 +333,12 @@ export const useTranscriptionOptimization = (
         setFinalSegments(final);
 
         console.log(`[TranscriptionOptimization] Parsed ${final.length} sentences`);
-      },
-
-      onError: (err: Error) => {
+        return;
+      }
+      if (!result.aborted) {
         setIsOptimizing(false);
         setIsPending(false);
+        const err = new Error(result.error ?? "模型请求失败");
         setError(err);
         console.error("[TranscriptionOptimization] Stream error:", err);
 
@@ -354,19 +355,13 @@ export const useTranscriptionOptimization = (
         }
 
         setFinalSegments(originalSegmentsRef.current);
-      },
-
-      onController: (controller: AbortController) => {
-        controllerRef.current = controller;
-      },
+      }
     });
   });
 
   const stopOptimization = useCallback(() => {
-    if (controllerRef.current) {
-      controllerRef.current.abort();
-      controllerRef.current = null;
-    }
+    chatHandleRef.current?.cancel();
+    chatHandleRef.current = null;
     setIsOptimizing(false);
     setIsPending(false);
   }, []);

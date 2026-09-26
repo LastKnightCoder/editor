@@ -10,7 +10,7 @@
  * 行为契约：
  *  - text 流重排为 thinking/text 交错段；contentIndex 全局重分配（含 toolcall 块），
  *    与重建后的 done.message.content 下标一致；
- *  - 输出事件不携带 partial 快照（主进程转发层本就剥离）。
+ *  - 每个输出事件携带重排后的 partial 全量快照（与 pi 原生事件语义一致）。
  */
 import type { AssistantMessage, AssistantMessageEvent } from "@earendil-works/pi-ai";
 
@@ -101,35 +101,65 @@ interface TextBlock {
 }
 
 export interface ThinkTagRewriter {
-  process(event: AssistantMessageEvent): PiRewrittenEvent[];
+  process(event: AssistantMessageEvent): AssistantMessageEvent[];
 }
 
 export function createThinkTagRewriter(): ThinkTagRewriter {
   let nextIndex = 0;
   let lastToolIndex = 0;
   const blocks = new Map<number, TextBlock>();
+  let lastPartial: AssistantMessage | undefined;
 
-  const openSegment = (block: TextBlock, kind: "thinking" | "text"): PiRewrittenEvent => {
+  /** 基于最近一次原生 partial 重建重排后的全量快照 */
+  const makePartial = (): AssistantMessage | undefined => {
+    if (!lastPartial || !Array.isArray(lastPartial.content)) return undefined;
+    const content: AssistantMessage["content"] = [];
+    lastPartial.content.forEach((piece, originalIndex) => {
+      if (piece.type !== "text") {
+        content.push(piece);
+        return;
+      }
+      const block = blocks.get(originalIndex);
+      if (!block || block.segments.length === 0) {
+        content.push(piece);
+        return;
+      }
+      for (const segment of block.segments) {
+        if (segment.kind === "thinking") content.push({ type: "thinking", thinking: segment.text });
+        else content.push({ type: "text", text: segment.text });
+      }
+    });
+    return { ...lastPartial, content };
+  };
+
+  const attachPartial = (event: PiRewrittenEvent): AssistantMessageEvent =>
+    ({ ...event, partial: makePartial() }) as AssistantMessageEvent;
+
+  const openSegment = (block: TextBlock, kind: "thinking" | "text"): AssistantMessageEvent => {
     const index = nextIndex++;
     block.open = { kind, index };
     block.segments.push({ kind, text: "" });
-    return kind === "thinking"
-      ? { type: "thinking_start", contentIndex: index }
-      : { type: "text_start", contentIndex: index };
+    const event: PiRewrittenEvent =
+      kind === "thinking"
+        ? { type: "thinking_start", contentIndex: index }
+        : { type: "text_start", contentIndex: index };
+    return attachPartial(event);
   };
 
-  const closeSegment = (block: TextBlock): PiRewrittenEvent | null => {
+  const closeSegment = (block: TextBlock): AssistantMessageEvent | null => {
     if (!block.open) return null;
     const { kind, index } = block.open;
     block.open = null;
     const segment = block.segments[block.segments.length - 1];
-    return kind === "thinking"
-      ? { type: "thinking_end", contentIndex: index, content: segment.text }
-      : { type: "text_end", contentIndex: index, content: segment.text };
+    const event: PiRewrittenEvent =
+      kind === "thinking"
+        ? { type: "thinking_end", contentIndex: index, content: segment.text }
+        : { type: "text_end", contentIndex: index, content: segment.text };
+    return attachPartial(event);
   };
 
-  const emitPieces = (block: TextBlock, pieces: Piece[]): PiRewrittenEvent[] => {
-    const out: PiRewrittenEvent[] = [];
+  const emitPieces = (block: TextBlock, pieces: Piece[]): AssistantMessageEvent[] => {
+    const out: AssistantMessageEvent[] = [];
     for (const piece of pieces) {
       if (piece.kind === "thinking") block.sawTag = true;
       if (block.open?.kind !== piece.kind) {
@@ -138,17 +168,18 @@ export function createThinkTagRewriter(): ThinkTagRewriter {
         out.push(openSegment(block, piece.kind));
       }
       block.segments[block.segments.length - 1].text += piece.text;
-      out.push(
+      const event: PiRewrittenEvent =
         piece.kind === "thinking"
           ? { type: "thinking_delta", contentIndex: block.open!.index, delta: piece.text }
-          : { type: "text_delta", contentIndex: block.open!.index, delta: piece.text }
-      );
+          : { type: "text_delta", contentIndex: block.open!.index, delta: piece.text };
+      out.push(attachPartial(event));
     }
     return out;
   };
 
   return {
     process(event) {
+      lastPartial = (event as { partial?: AssistantMessage }).partial ?? lastPartial;
       if (event.type === "text_start") {
         blocks.set(event.contentIndex, {
           splitter: createThinkTagSplitter(),
@@ -176,13 +207,25 @@ export function createThinkTagRewriter(): ThinkTagRewriter {
       }
       if (event.type === "toolcall_start") {
         lastToolIndex = nextIndex++;
-        return [{ type: "toolcall_start", contentIndex: lastToolIndex }];
+        return [attachPartial({ type: "toolcall_start", contentIndex: lastToolIndex })];
       }
       if (event.type === "toolcall_delta") {
-        return [{ type: "toolcall_delta", contentIndex: lastToolIndex, delta: event.delta }];
+        return [
+          attachPartial({
+            type: "toolcall_delta",
+            contentIndex: lastToolIndex,
+            delta: event.delta,
+          }),
+        ];
       }
       if (event.type === "toolcall_end") {
-        return [{ type: "toolcall_end", contentIndex: lastToolIndex, toolCall: event.toolCall }];
+        return [
+          attachPartial({
+            type: "toolcall_end",
+            contentIndex: lastToolIndex,
+            toolCall: event.toolCall,
+          }),
+        ];
       }
       if (event.type === "done") {
         const content: AssistantMessage["content"] = [];
@@ -202,11 +245,12 @@ export function createThinkTagRewriter(): ThinkTagRewriter {
             else content.push({ type: "text", text: segment.text });
           }
         });
-        return [{ type: "done", reason: event.reason, message: { ...event.message, content } }];
+        return [
+          { type: "done", reason: event.reason, message: { ...event.message, content } },
+        ] as AssistantMessageEvent[];
       }
-      // start / error / 原生 thinking_* 等其余事件去 partial 透传
-      const { partial: _partial, ...rest } = event as AssistantMessageEvent & { partial?: unknown };
-      return [rest as PiRewrittenEvent];
+      // start / error / 原生 thinking_* 等其余事件原样透传（partial 已是原生快照）
+      return [event];
     },
   };
 }
@@ -214,7 +258,7 @@ export function createThinkTagRewriter(): ThinkTagRewriter {
 /** async 流薄包装：主进程转发循环消费 */
 export async function* rewriteThinkTagStream(
   stream: AsyncIterable<AssistantMessageEvent>
-): AsyncGenerator<PiRewrittenEvent> {
+): AsyncGenerator<AssistantMessageEvent> {
   const rewriter = createThinkTagRewriter();
   for await (const event of stream) {
     yield* rewriter.process(event);

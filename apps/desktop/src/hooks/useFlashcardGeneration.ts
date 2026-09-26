@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import type { Descendant } from "slate";
 import { useMemoizedFn, useThrottleFn } from "ahooks";
-import { chatLLMStream } from "./useChatLLM";
+import { piStreamText, type PiChatHandle } from "@/services/piLLM";
 import { getMarkdown } from "@/utils/markdown";
 import { FLASHCARD_GENERATION_PROMPT, FLASHCARD_GENERATION_USER_PROMPT } from "@/constants/prompts";
 import { Role } from "@/constants";
@@ -116,7 +116,7 @@ export const useFlashcardGeneration = (
   const [isPending, setIsPending] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [rawOutput, setRawOutput] = useState("");
-  const controllerRef = useRef<AbortController | null>(null);
+  const chatHandleRef = useRef<PiChatHandle | null>(null);
   const accumulatedRef = useRef<string>("");
 
   const { run: throttledParse } = useThrottleFn(
@@ -159,42 +159,39 @@ export const useFlashcardGeneration = (
       },
     ];
 
-    chatLLMStream(provider, model, messages, {
-      onUpdate: (responseText: string) => {
-        setIsPending(false);
-        accumulatedRef.current = responseText;
-        throttledParse(responseText);
-      },
-      onFinish: (fullContent: string) => {
+    const handle = piStreamText({ provider, model, messages }, ({ text }) => {
+      setIsPending(false);
+      accumulatedRef.current = text;
+      throttledParse(text);
+    });
+    chatHandleRef.current = handle;
+    void handle.result.then(result => {
+      if (result.ok && !result.aborted) {
         setIsGenerating(false);
         setIsPending(false);
         throttledParse.flush();
 
         try {
-          const cards = parseFlashcardResponse(fullContent);
+          const cards = parseFlashcardResponse(result.text);
           setGeneratedCards(cards);
-          setRawOutput(fullContent);
+          setRawOutput(result.text);
         } catch (err) {
           setError(new Error(`解析闪卡失败: ${(err as Error).message}`));
-          setRawOutput(fullContent);
+          setRawOutput(result.text);
         }
-      },
-      onError: (err: Error) => {
+        return;
+      }
+      if (!result.aborted) {
         setIsGenerating(false);
         setIsPending(false);
-        setError(err);
-      },
-      onController: (controller: AbortController) => {
-        controllerRef.current = controller;
-      },
+        setError(new Error(result.error ?? "模型请求失败"));
+      }
     });
   });
 
   const stopGeneration = useCallback(() => {
-    if (controllerRef.current) {
-      controllerRef.current.abort();
-      controllerRef.current = null;
-    }
+    chatHandleRef.current?.cancel();
+    chatHandleRef.current = null;
     setIsGenerating(false);
     setIsPending(false);
   }, []);
