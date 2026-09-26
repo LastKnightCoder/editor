@@ -51,7 +51,7 @@ import {
 } from "@/commands/transcription";
 import {
   checkTranscriptionLLMRequirement,
-  openSettingsModal,
+  openLLMSettingsSection,
   prepareTranscriptionOptions,
 } from "@/utils/transcription";
 import { useLLMConfig } from "@/hooks/useLLMConfig";
@@ -153,7 +153,7 @@ const VideoNotePanel = ({
   const activeDatabase = useSettingStore(state => state.setting.database.active);
 
   // LLM optimization hook
-  const { providerConfig, modelConfig } = useLLMConfig("transcriptionOptimization");
+  const { provider, model } = useLLMConfig("transcriptionOptimization");
   const {
     isOptimizing,
     streamingSegments,
@@ -161,12 +161,12 @@ const VideoNotePanel = ({
     startOptimization,
     stopOptimization,
     error: optimizationError,
-  } = useTranscriptionOptimization(providerConfig, modelConfig);
+  } = useTranscriptionOptimization(provider, model);
 
   // Video summary LLM hook
-  const { providerConfig: summaryProviderConfig, modelConfig: summaryModelConfig } =
+  const { provider: summaryLLMProviderSetting, model: summaryLLMModelSetting } =
     useLLMConfig("videoSummary");
-  const { providerConfig: ebookRewriteProviderConfig, modelConfig: ebookRewriteModelConfig } =
+  const { provider: ebookRewriteLLMProviderSetting, model: ebookRewriteLLMModelSetting } =
     useLLMConfig("videoEbookRewrite");
   const {
     isSummarizing,
@@ -175,7 +175,7 @@ const VideoNotePanel = ({
     startSummary,
     stopSummary,
     error: summaryError,
-  } = useVideoSummary(summaryProviderConfig, summaryModelConfig);
+  } = useVideoSummary(summaryLLMProviderSetting, summaryLLMModelSetting);
 
   // State
   const [videoNote, setVideoNote] = useState<IVideoNote | null>(null);
@@ -886,7 +886,7 @@ const VideoNotePanel = ({
     }
 
     // 检查 LLM 配置
-    if (!summaryProviderConfig || !summaryModelConfig) {
+    if (!summaryLLMProviderSetting || !summaryLLMModelSetting) {
       setLlmConfirm({
         title: "未配置总结模型",
         description: "请先在设置中配置视频总结的 LLM 模型。",
@@ -1675,9 +1675,9 @@ const VideoNotePanel = ({
         transcript={transcriptForChat}
         videoTitle={videoTitle || videoNote?.description || "视频电子书"}
         videoDescription={videoNote?.description || ""}
-        providerConfig={ebookRewriteProviderConfig}
-        modelConfig={ebookRewriteModelConfig}
-        onOpenLLMSettings={() => openSettingsModal("llm")}
+        provider={ebookRewriteLLMProviderSetting}
+        model={ebookRewriteLLMModelSetting}
+        onOpenLLMSettings={() => openLLMSettingsSection()}
       />
     </>
   );
@@ -1796,7 +1796,7 @@ const VideoNotePanel = ({
         confirmText="打开设置"
         onConfirm={() => {
           setLlmConfirm(null);
-          openSettingsModal("llm");
+          openLLMSettingsSection();
         }}
       />
       <ConfirmDialog

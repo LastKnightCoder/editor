@@ -69,12 +69,12 @@ export const useAnswerJudgement = (): UseAnswerJudgementResult => {
     []
   );
 
-  const { providerConfig, modelConfig } = useLLMConfig("aiJudgement");
-  const isConfigured = !!(providerConfig && modelConfig);
+  const { provider, model } = useLLMConfig("aiJudgement");
+  const isConfigured = !!(provider && model);
 
   const judge = useMemoizedFn(async (userAnswer: string, flashcard: Flashcard) => {
     const version = ++requestVersion.current;
-    if (!providerConfig || !modelConfig) {
+    if (!provider || !model) {
       setError(new Error("未配置答案评判的模型"));
       setStatus("error");
       return;
@@ -118,7 +118,7 @@ export const useAnswerJudgement = (): UseAnswerJudgementResult => {
         },
       ];
 
-      const response = await chatLLM(providerConfig, modelConfig, messages);
+      const response = await chatLLM(provider, model, messages);
       if (version !== requestVersion.current) return;
 
       if (!response) {

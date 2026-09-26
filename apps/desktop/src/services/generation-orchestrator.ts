@@ -1,10 +1,6 @@
 import { Role } from "@/constants";
-import type {
-  ProviderConfig,
-  ModelConfig,
-  RequestMessage,
-  ToolCallExecutionState,
-} from "@/types/llm";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
+import type { RequestMessage, ToolCallExecutionState } from "@/types/llm";
 import type { AgentModelUsage } from "@tau/agent";
 import type { PPTTemplate } from "@/constants/ppt-templates";
 import type { ReportTemplate } from "@/constants/report-templates";
@@ -163,8 +159,8 @@ export function buildGenerationRequest(request: GenerationRequest): GenerationBu
 }
 
 export function runGenerationTask(
-  providerConfig: ProviderConfig,
-  modelConfig: ModelConfig,
+  provider: LLMProviderSetting,
+  model: LLMModelSetting,
   request: GenerationRequest,
   callbacks: GenerationRunCallbacks,
   options: GenerationRunOptions = {}
@@ -173,8 +169,8 @@ export function runGenerationTask(
 
   // 直接走 chatStreamCore 并关掉 rAF 缓冲：窗口在后台时生成也不被节流
   void chatStreamCore({
-    providerConfig,
-    modelConfig,
+    provider,
+    model,
     messages: buildResult.messages,
     enableTools: buildResult.enableTools,
     disableAnimation: true,

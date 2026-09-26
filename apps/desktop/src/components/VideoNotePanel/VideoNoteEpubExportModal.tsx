@@ -9,7 +9,7 @@ import { Editor, EditorRef } from "@tau/editor/src";
 import { SelectDropDown } from "@tau/shared";
 import { readBinaryFile, selectFile, showInFolder } from "@/commands";
 import type { EpubMetadataInput } from "@/types";
-import type { ProviderConfig, ModelConfig } from "@/types/llm";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
 import CustomModal from "@/components/CustomModal";
 import { importFromMarkdown, getMarkdown } from "@/utils/markdown";
 import { resolveLocalMediaPath } from "@/utils/localMediaPath";
@@ -61,8 +61,8 @@ interface VideoNoteEpubExportModalProps {
   transcript: string;
   videoTitle?: string;
   videoDescription?: string;
-  providerConfig: ProviderConfig | null;
-  modelConfig: ModelConfig | null;
+  provider: LLMProviderSetting | null;
+  model: LLMModelSetting | null;
   onOpenLLMSettings: () => void;
 }
 
@@ -255,8 +255,8 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     transcript,
     videoTitle,
     videoDescription,
-    providerConfig,
-    modelConfig,
+    provider,
+    model,
     onOpenLLMSettings,
   } = props;
   const { message, modal } = App.useApp();
@@ -295,7 +295,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
     startRewrite,
     stopRewrite,
     reset: resetRewriteState,
-  } = useVideoEbookRewrite(providerConfig, modelConfig);
+  } = useVideoEbookRewrite(provider, model);
 
   const rewriteActionLabel = hasDraft ? "重新生成" : "生成草稿";
 
@@ -496,7 +496,7 @@ const VideoNoteEpubExportModal = (props: VideoNoteEpubExportModalProps) => {
       message.warning("缺少转录文稿，请先完成转录");
       return;
     }
-    if (!providerConfig || !modelConfig) {
+    if (!provider || !model) {
       modal.confirm({
         title: "未配置重写模型",
         content: "请先在设置中配置「视频电子书重写」的 LLM 模型。",

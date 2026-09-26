@@ -241,10 +241,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
   ) => {
     const message = toast;
     const { chatLLMStream } = useChatLLM();
-    const { providerConfig: chatProviderConfig, modelConfig: chatModelConfig } =
-      useLLMConfig("chat");
-    const { providerConfig: titleProviderConfig, modelConfig: titleModelConfig } =
-      useLLMConfig("titleSummary");
+    const { provider: chatProviderConfig, model: chatModelConfig } = useLLMConfig("chat");
+    const { provider: titleProviderConfig, model: titleModelConfig } = useLLMConfig("titleSummary");
 
     const chatRuns = useChatRunStore(state => state.runs);
     const sessionKey = `${chatScope.split(":")[0]}:${currentChat.id}` as ChatSessionKey;
@@ -276,7 +274,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       setExternalSendLoading(sendLoading);
     }, [sendLoading, setExternalSendLoading]);
 
-    const llmConfigs = useSettingStore(state => state.setting.llmConfigs);
+    const llmConfigs = useSettingStore(state => state.setting.llmProviders);
     const skills = useSkillStore(state => state.skills);
     const loadSkills = useSkillStore(state => state.loadSkills);
     const askQuestionRecords = useAskQuestionSessionStore(state => state.records);
@@ -295,11 +293,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     );
     const effectiveReasoningEffort = reasoningEffort ?? "none";
     const reasoningEffortOptions = useMemo(
-      () => getReasoningEffortOptions(chatModelConfig),
-      [chatModelConfig]
+      () => getReasoningEffortOptions(chatModelConfig, chatProviderConfig),
+      [chatModelConfig, chatProviderConfig]
     );
     const normalizedReasoningEffort =
-      chatModelConfig?.messageFormat === "claude" &&
+      chatProviderConfig?.api === "anthropic-messages" &&
       !reasoningEffortOptions.includes(effectiveReasoningEffort)
         ? (reasoningEffortOptions[0] ?? "none")
         : normalizeReasoningEffort(effectiveReasoningEffort, reasoningEffortOptions);
@@ -371,9 +369,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     // 强制更新计数器，用于触发visibleMessages重新计算
     const [updateCounter, setUpdateCounter] = useState(0);
 
-    const modelFeatureSupport = chatModelConfig?.features;
-    const supportImage = modelFeatureSupport?.image ?? modelFeatureSupport?.multimodal ?? false;
-    const supportFile = modelFeatureSupport?.file ?? false;
+    // 聊天上传以 pi 为准：仅文本与图片；文件由模型用 read 工具读取
+    const supportImage = chatModelConfig?.input.includes("image") ?? false;
+    const supportFile = false;
 
     const abortControllerRef = useRef<AbortController | null>(null);
     const displayedChatIdRef = useRef(currentChat.id);
@@ -857,9 +855,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               skills,
               forcedSkills: extractForcedSkills(requestMessage),
               interactiveApproval: true,
-              reasoningEffort: chatModelConfig?.features?.thinking
-                ? normalizedReasoningEffort
-                : undefined,
+              reasoningEffort: chatModelConfig?.reasoning ? normalizedReasoningEffort : undefined,
               onFinish: () => {},
 
               onAssistantTurnEnd: async ({ turnId, resultType, providerMetadata }) => {
@@ -1422,16 +1418,16 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           key: provider.id,
           label: provider.name,
           children: (provider.models ?? []).map(model => ({
-            key: `${provider.id}::${model.name}`,
-            label: model.name,
-            description: model.description || undefined,
+            key: `${provider.id}::${model.id}`,
+            label: model.name ?? model.id,
+            description: model.name && model.name !== model.id ? model.name : undefined,
           })),
         })),
       [llmConfigs]
     );
     const currentModelKey =
       chatProviderConfig && chatModelConfig
-        ? `${chatProviderConfig.id}::${chatModelConfig.name}`
+        ? `${chatProviderConfig.id}::${chatModelConfig.id}`
         : undefined;
 
     // 处理模型选择
@@ -1954,16 +1950,16 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               sendLoading ? `${actualChatRef.current.id}:${coreMessages.length}` : undefined
             }
             hideInput={hideInput}
-            reasoningEffort={
-              chatModelConfig?.features?.thinking ? normalizedReasoningEffort : undefined
-            }
+            reasoningEffort={chatModelConfig?.reasoning ? normalizedReasoningEffort : undefined}
             reasoningEffortOptions={reasoningEffortOptions}
             onReasoningEffortChange={
-              chatModelConfig?.features?.thinking ? value => setReasoningEffort(value) : undefined
+              chatModelConfig?.reasoning ? value => setReasoningEffort(value) : undefined
             }
-            reasoningEffortDisabled={!chatModelConfig?.features?.thinking}
-            currentModelName={chatModelConfig?.name}
-            contextWindowK={chatModelConfig?.contextWindowK}
+            reasoningEffortDisabled={!chatModelConfig?.reasoning}
+            currentModelName={chatModelConfig?.name ?? chatModelConfig?.id}
+            contextWindowK={
+              chatModelConfig ? Math.round(chatModelConfig.contextWindow / 1024) : undefined
+            }
             contextUsage={contextUsage}
             isSupportImage={supportImage}
             isSupportFile={supportFile}

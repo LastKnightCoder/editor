@@ -10,6 +10,8 @@ import {
 import { Agent, composeAgentModel, type AgentEvent, type AgentModelUsage } from "@tau/agent";
 import { useMemoizedFn } from "ahooks";
 import type { ProviderConfig, ModelConfig } from "@/types/llm";
+import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
+import { downgradeModel, downgradeProvider } from "@/services/llmSettingsDowngrade";
 import { ensureToolingReady } from "@/tools";
 import { toolIntegrationRegistry } from "@/tools/toolIntegrationRegistry";
 import { DesktopModelProtocolAdapter } from "@/agent/DesktopModelProtocolAdapter";
@@ -83,8 +85,8 @@ interface IChatStreamOptions {
 }
 
 export interface ChatStreamCoreOptions {
-  providerConfig: ProviderConfig;
-  modelConfig: ModelConfig;
+  provider: LLMProviderSetting;
+  model: LLMModelSetting;
   messages: RequestMessage[];
   // 流式回调
   onFinish?: (
@@ -316,8 +318,8 @@ const createDesktopAgent = (options: {
   });
 
 const chatInner = async (
-  providerConfig: ProviderConfig,
-  modelConfig: ModelConfig,
+  provider: LLMProviderSetting,
+  model: LLMModelSetting,
   messages: RequestMessage[],
   options?: {
     reasoningEffort?: ReasoningEffort;
@@ -325,7 +327,7 @@ const chatInner = async (
     onNotice?: (notice: ChatRuntimeNotice) => void;
   }
 ) => {
-  if (!providerConfig) {
+  if (!provider) {
     options?.onNotice?.({
       level: "error",
       code: "missing_provider_config",
@@ -334,7 +336,7 @@ const chatInner = async (
     return null;
   }
 
-  if (!modelConfig) {
+  if (!model) {
     options?.onNotice?.({
       level: "error",
       code: "missing_model_config",
@@ -342,6 +344,10 @@ const chatInner = async (
     });
     return null;
   }
+
+  // M2-d 临时桥：旧 adapter 消费 v1 形状，M2-e 切 pi 路径后随 llmSettingsDowngrade 删除
+  const providerConfig = downgradeProvider(provider);
+  const modelConfig = downgradeModel(model, provider);
 
   const agent = createDesktopAgent({
     providerConfig,
@@ -391,8 +397,8 @@ const chatInner = async (
 
 export const chatStreamCore = async (options: ChatStreamCoreOptions): Promise<void> => {
   const {
-    providerConfig,
-    modelConfig,
+    provider,
+    model,
     messages,
     onFinish,
     onUpdate,
@@ -417,15 +423,18 @@ export const chatStreamCore = async (options: ChatStreamCoreOptions): Promise<vo
     disableAnimation,
   } = options;
 
-  if (!providerConfig) {
+  if (!provider) {
     onError?.(new Error("无法获取到当前 LLM 配置"));
     return;
   }
 
-  if (!modelConfig) {
+  if (!model) {
     onError?.(new Error("无法获取到当前模型配置"));
     return;
   }
+  // M2-d 临时桥：旧 adapter 消费 v1 形状，M2-e 切 pi 路径后随 llmSettingsDowngrade 删除
+  const providerConfig = downgradeProvider(provider);
+  const modelConfig = downgradeModel(model, provider);
   const controller = new AbortController();
   onController?.(controller);
   // 停用的不给；仅手动的只在本条消息点名时给
@@ -566,14 +575,14 @@ export const chatStreamCore = async (options: ChatStreamCoreOptions): Promise<vo
  * 原有的 chatStreamInner 函数，内部调用 chatStreamCore
  */
 export const chatStreamInner = async (
-  providerConfig: ProviderConfig,
-  modelConfig: ModelConfig,
+  provider: LLMProviderSetting,
+  model: LLMModelSetting,
   messages: RequestMessage[],
   options: IChatStreamOptions
 ) => {
   return chatStreamCore({
-    providerConfig,
-    modelConfig,
+    provider,
+    model,
     messages,
     onFinish: (content, reasoning, meta) => {
       options.onFinish?.(content, reasoning, null, meta);
@@ -601,8 +610,8 @@ export const chatStreamInner = async (
 const useChatLLM = () => {
   const chatLLM = useMemoizedFn(
     async (
-      providerConfig: ProviderConfig,
-      modelConfig: ModelConfig,
+      provider: LLMProviderSetting,
+      model: LLMModelSetting,
       messages: RequestMessage[],
       options?: {
         reasoningEffort?: ReasoningEffort;
@@ -610,18 +619,18 @@ const useChatLLM = () => {
         onNotice?: (notice: ChatRuntimeNotice) => void;
       }
     ) => {
-      return await chatInner(providerConfig, modelConfig, messages, options);
+      return await chatInner(provider, model, messages, options);
     }
   );
 
   const chatLLMStream = useMemoizedFn(
     (
-      providerConfig: ProviderConfig,
-      modelConfig: ModelConfig,
+      provider: LLMProviderSetting,
+      model: LLMModelSetting,
       messages: RequestMessage[],
       options: IChatStreamOptions
     ) => {
-      return chatStreamInner(providerConfig, modelConfig, messages, options);
+      return chatStreamInner(provider, model, messages, options);
     }
   );
 
@@ -632,8 +641,8 @@ const useChatLLM = () => {
 };
 
 export const chatLLM = async (
-  providerConfig: ProviderConfig,
-  modelConfig: ModelConfig,
+  provider: LLMProviderSetting,
+  model: LLMModelSetting,
   messages: RequestMessage[],
   options?: {
     reasoningEffort?: ReasoningEffort;
@@ -641,16 +650,16 @@ export const chatLLM = async (
     onNotice?: (notice: ChatRuntimeNotice) => void;
   }
 ) => {
-  return await chatInner(providerConfig, modelConfig, messages, options);
+  return await chatInner(provider, model, messages, options);
 };
 
 export const chatLLMStream = (
-  providerConfig: ProviderConfig,
-  modelConfig: ModelConfig,
+  provider: LLMProviderSetting,
+  model: LLMModelSetting,
   messages: RequestMessage[],
   options: IChatStreamOptions
 ) => {
-  chatStreamInner(providerConfig, modelConfig, messages, options);
+  chatStreamInner(provider, model, messages, options);
 };
 
 export default useChatLLM;

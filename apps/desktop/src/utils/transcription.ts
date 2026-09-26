@@ -10,7 +10,7 @@ export function checkLLMOptimizationConfig(): {
   isConfigured: boolean;
   message?: string;
 } {
-  const { llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
+  const { llmProviders: llmConfigs, llmUsageSettings } = useSettingStore.getState().setting;
 
   const transcriptionOptimization = llmUsageSettings.transcriptionOptimization;
 
@@ -21,9 +21,7 @@ export function checkLLMOptimizationConfig(): {
     };
   }
 
-  const provider = llmConfigs.find(
-    (config) => config.id === transcriptionOptimization.providerId
-  );
+  const provider = llmConfigs.find(config => config.id === transcriptionOptimization.providerId);
 
   if (!provider) {
     return {
@@ -32,9 +30,7 @@ export function checkLLMOptimizationConfig(): {
     };
   }
 
-  const model = provider.models?.find(
-    (m) => m.name === transcriptionOptimization.modelName
-  );
+  const model = provider.models?.find(m => m.id === transcriptionOptimization.modelId);
 
   if (!model) {
     return {
@@ -50,13 +46,18 @@ export function checkLLMOptimizationConfig(): {
  * 打开设置弹窗并跳转到指定的 tab
  * @param tab 要跳转到的 tab key
  */
-export function openSettingsModal(
-  tab: "llm" | "transcription" = "llm"
-): void {
+export function openSettingsModal(tab: "transcription" | "sync" = "transcription"): void {
   useSettingStore.setState({
     settingModalOpen: true,
   });
   useSettingTabStore.getState().setActiveKey(tab);
+}
+
+/** 打开新设置对话框并直达 LLM 分区（旧弹窗的 llm tab 已随 legacy 页退役） */
+export function openLLMSettingsSection(): void {
+  void import("@/app/settingsStore").then(({ useSettingsStore }) => {
+    useSettingsStore.getState().openSettings("llm");
+  });
 }
 
 /**
@@ -68,7 +69,8 @@ export function checkTranscriptionLLMRequirement(): {
   isConfigured: boolean;
   errorMessage?: string;
 } {
-  const { segmentationLevel, useLLMOptimization } = useSettingStore.getState().setting.misc.transcription || {
+  const { segmentationLevel, useLLMOptimization } = useSettingStore.getState().setting.misc
+    .transcription || {
     segmentationLevel: "sentence",
     useLLMOptimization: false,
   };
@@ -115,4 +117,3 @@ export function prepareTranscriptionOptions(
     ...userOptions,
   };
 }
-

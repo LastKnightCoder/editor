@@ -8,7 +8,7 @@ import {
 } from "@/constants/prompts/video-ebook-rewrite";
 import { importFromMarkdown } from "@/utils/markdown";
 import { Role } from "@/constants";
-import type { ProviderConfig, ModelConfig } from "@/types/llm";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
 import type { RequestMessage } from "@/types";
 import type { VideoEbookRewriteStyle } from "@/constants/prompts/video-ebook-rewrite";
 
@@ -32,8 +32,8 @@ interface UseVideoEbookRewriteResult {
 }
 
 export const useVideoEbookRewrite = (
-  providerConfig: ProviderConfig | null,
-  modelConfig: ModelConfig | null,
+  provider: LLMProviderSetting | null,
+  model: LLMModelSetting | null
 ): UseVideoEbookRewriteResult => {
   const [isRewriting, setIsRewriting] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -50,17 +50,14 @@ export const useVideoEbookRewrite = (
         const parsed = importFromMarkdown(markdown);
         setEbookContent(parsed);
       } catch (parseError) {
-        console.warn(
-          "[VideoEbookRewrite] 流式 Markdown 解析失败，等待后续内容纠正:",
-          parseError,
-        );
+        console.warn("[VideoEbookRewrite] 流式 Markdown 解析失败，等待后续内容纠正:", parseError);
       }
     },
-    { wait: 120 },
+    { wait: 120 }
   );
 
   const startRewrite = useMemoizedFn((input: VideoEbookRewriteInput) => {
-    if (!providerConfig || !modelConfig) {
+    if (!provider || !model) {
       setError(new Error("未配置视频电子书重写模型"));
       return;
     }
@@ -93,7 +90,7 @@ export const useVideoEbookRewrite = (
       },
     ];
 
-    chatLLMStream(providerConfig, modelConfig, messages, {
+    chatLLMStream(provider, model, messages, {
       onUpdate: (responseText: string) => {
         setIsPending(false);
         setStreamingMarkdown(responseText);
@@ -116,10 +113,7 @@ export const useVideoEbookRewrite = (
           setEbookContent(parsed);
         } catch (parseError) {
           setError(new Error("重写完成，但 Markdown 解析失败，请重试"));
-          console.error(
-            "[VideoEbookRewrite] Final markdown parse failed:",
-            parseError,
-          );
+          console.error("[VideoEbookRewrite] Final markdown parse failed:", parseError);
         }
       },
       onError: (streamError: Error) => {

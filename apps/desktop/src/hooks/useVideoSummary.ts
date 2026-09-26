@@ -8,7 +8,7 @@ import {
 } from "@/constants/prompts/video-summary";
 import { importFromMarkdown } from "@/utils/markdown";
 import { Role } from "@/constants";
-import type { ProviderConfig, ModelConfig } from "@/types/llm";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
 import type { RequestMessage } from "@/types";
 
 interface TranscriptSegment {
@@ -35,8 +35,8 @@ interface UseVideoSummaryResult {
 }
 
 export const useVideoSummary = (
-  providerConfig: ProviderConfig | null,
-  modelConfig: ModelConfig | null,
+  provider: LLMProviderSetting | null,
+  model: LLMModelSetting | null
 ): UseVideoSummaryResult => {
   // 状态
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -59,11 +59,11 @@ export const useVideoSummary = (
         console.error("[VideoSummary] Failed to parse markdown:", err);
       }
     },
-    { wait: 100 },
+    { wait: 100 }
   );
 
   const startSummary = useMemoizedFn((segments: TranscriptSegment[]) => {
-    if (!providerConfig || !modelConfig) {
+    if (!provider || !model) {
       setError(new Error("未配置视频总结模型"));
       return;
     }
@@ -94,7 +94,7 @@ export const useVideoSummary = (
       },
     ];
 
-    chatLLMStream(providerConfig, modelConfig, messages, {
+    chatLLMStream(provider, model, messages, {
       onUpdate: (responseText: string) => {
         accumulatedMarkdownRef.current = responseText;
         setStreamingContent(responseText);

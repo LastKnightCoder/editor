@@ -5,7 +5,7 @@ import { chatLLMStream } from "./useChatLLM";
 import { getMarkdown, importFromMarkdown } from "@/utils/markdown";
 import { CONTENT_POLISH_PROMPT } from "@/constants/prompts";
 import { Role } from "@/constants";
-import type { ProviderConfig, ModelConfig } from "@/types/llm";
+import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
 import type { RequestMessage } from "@/types";
 
 interface UseContentPolishResult {
@@ -21,12 +21,10 @@ interface UseContentPolishResult {
 }
 
 export const useContentPolish = (
-  providerConfig: ProviderConfig | null,
-  modelConfig: ModelConfig | null,
+  provider: LLMProviderSetting | null,
+  model: LLMModelSetting | null
 ): UseContentPolishResult => {
-  const [polishedContent, setPolishedContent] = useState<Descendant[] | null>(
-    null,
-  );
+  const [polishedContent, setPolishedContent] = useState<Descendant[] | null>(null);
   const [isPolishing, setIsPolishing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [pending, setPending] = useState(true);
@@ -46,11 +44,11 @@ export const useContentPolish = (
     },
     {
       wait: 100,
-    },
+    }
   );
 
   const startPolish = useMemoizedFn((content: Descendant[]) => {
-    if (!providerConfig || !modelConfig) {
+    if (!provider || !model) {
       setError(new Error("未配置内容润色模型"));
       return;
     }
@@ -90,7 +88,7 @@ export const useContentPolish = (
     // 初始化对话历史
     conversationHistoryRef.current = [systemMessage, userMessage];
 
-    chatLLMStream(providerConfig, modelConfig, messages, {
+    chatLLMStream(provider, model, messages, {
       onUpdate: (responseText: string, _fetchText: string) => {
         setPending(false);
         // 累积所有返回的内容
@@ -134,7 +132,7 @@ export const useContentPolish = (
   });
 
   const continuePolish = useMemoizedFn((instruction: string) => {
-    if (!providerConfig || !modelConfig) {
+    if (!provider || !model) {
       setError(new Error("未配置内容润色模型"));
       return;
     }
@@ -166,7 +164,7 @@ export const useContentPolish = (
 
     conversationHistoryRef.current.push(userMessage);
 
-    chatLLMStream(providerConfig, modelConfig, conversationHistoryRef.current, {
+    chatLLMStream(provider, model, conversationHistoryRef.current, {
       onUpdate: (responseText: string, _fetchText: string) => {
         // 累积所有返回的内容
         accumulatedMarkdownRef.current = responseText;

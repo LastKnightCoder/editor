@@ -430,7 +430,7 @@ export function AddSkillDialog({
   const { navigator } = usePage();
   const open = tab !== null;
   const current = tab ?? "new";
-  const { providerConfig, modelConfig } = useLLMConfig("chat");
+  const { provider, model } = useLLMConfig("chat");
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -483,15 +483,15 @@ export function AddSkillDialog({
   };
 
   const generate = () => {
-    if (!providerConfig || !modelConfig) {
+    if (!provider || !model) {
       toast.error("请先在设置里为「对话」配置模型");
       return;
     }
     setDraft("");
     setGenerating(true);
     void chatLLMStream(
-      providerConfig,
-      modelConfig,
+      provider,
+      model,
       [
         { role: Role.System, content: [{ type: "text", text: AI_SYSTEM_PROMPT }] },
         { role: Role.User, content: [{ type: "text", text: prompt.trim() }] },
