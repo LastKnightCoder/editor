@@ -1,8 +1,9 @@
 /**
- * 番茄专注页 · 时间账本：一整张纸，纸顶固定工具栏（标题 + 今日摘要 + 已归档 + 新建预设）与
- * 常驻控制条（空闲 = 预设快速开始；专注中 = 播放器），纸内左栏账本（日 × 时账本 + 时段分布 +
- * 预设图例，或「全部」概览）+ 右栏选中日明细，细线分隔。账本窗口由标题旁的时间导航决定
- * （翻页、快捷范围含「全部」、任意起止）。
+ * 番茄专注页 · 时间账本：一整张纸，纸顶固定工具栏（标题 + 今日摘要 + 已归档 + 新建预设），
+ * 纸内左栏专注（预设纵向列表，行尾 ▶ / 数字键开始；专注中顶部换成播放器）+ 右侧账本（日 × 时账本 +
+ * 时段分布 + 预设图例，或「全部」概览）。点预设打开预设详情抽屉、点某天打开当天明细抽屉
+ * （都是非模态、盖在账本右侧，同一时刻只开一个）。
+ * 账本窗口由标题旁的时间导航决定（翻页、快捷范围含「全部」、任意起止）。
  *
  * 计时在主进程：页面只镜像会话（timerStore），离开页面计时照常，侧栏入口挂实时计时。
  * 删除（记录 / 预设）不二次确认：立即从视图消失 + Toast 撤销，UNDO_MS 后才落库，离开页面立即落库。
@@ -48,8 +49,9 @@ import {
   type QuickKey,
 } from "../range";
 import { pomodoroActions, useLiveTiming, usePomodoroTimer } from "../timerStore";
-import { ControlStrip } from "../components/ControlStrip";
-import { DayDetail } from "../components/DayDetail";
+import { DayDrawer } from "../components/DayDrawer";
+import { FocusRail } from "../components/FocusRail";
+import { PresetDrawer } from "../components/PresetDrawer";
 import { FocusEditorPopover } from "../components/FocusEditorPopover";
 import { Ledger, LedgerHeader, PresetLegend } from "../components/Ledger";
 import { AllOverview } from "../components/AllOverview";
@@ -140,6 +142,8 @@ export function PomodoroView() {
     manual: lastDays(14, Date.now()),
   }));
   const [selectedDay, setSelectedDay] = useState(() => startOfDay(Date.now()));
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [openPresetId, setOpenPresetId] = useState<number | null>(null);
   const [highlight, setHighlight] = useState<number | null>(null);
   const [editor, setEditor] = useState<{
     preset: PomodoroPreset | null;
@@ -245,12 +249,30 @@ export function PomodoroView() {
     const window = windowAround(day, Math.max(7, length), minuteNow);
     setLedger({ kind: "days", key: lastDaysKey(window, minuteNow), manual: window });
     setSelectedDay(day);
+    setDetailOpen(true);
+    setOpenPresetId(null);
+  };
+  // 点已打开的那天 = 收起抽屉
+  const toggleDay = (day: number) => {
+    setDetailOpen(open => !(open && day === selectedDay));
+    setSelectedDay(day);
+    setOpenPresetId(null);
+  };
+  // 点已打开的预设 = 收起抽屉
+  const togglePreset = (preset: PomodoroPreset) => {
+    setOpenPresetId(id => (id === preset.id ? null : preset.id));
+    setDetailOpen(false);
   };
 
   if (presets.loading || recent.loading) return <Loading />;
 
   const activePresets = presets.active;
   const archivedPresets = presets.archived.filter(p => !presetDeletes.pending.has(p.id));
+  // 只在未归档预设里找：别处归档了打开中的预设，抽屉随之关闭
+  const openPreset = activePresets.find(p => p.id === openPresetId) ?? null;
+  const openPresetSessions = openPreset
+    ? recentVisible.filter(s => s.presetId === openPreset.id)
+    : [];
   const liveName = live ? (presets.byId.get(live.presetId)?.name ?? "专注") : "";
 
   const submitPreset = (draft: PresetDraft) =>
@@ -259,12 +281,16 @@ export function PomodoroView() {
       : mutations.createPreset(draft).then(() => toast.success(`已创建「${draft.name}」`));
 
   const archivePreset = (preset: PomodoroPreset) => {
-    if (live?.presetId === preset.id) return toast.info("正在专注的预设不能归档");
+    if (live?.presetId === preset.id) {
+      toast.info("正在专注的预设不能归档");
+      return false;
+    }
     void mutations.setArchived(preset.id, true).then(() =>
       toast.success(`已归档「${preset.name}」`, {
         action: { label: "撤销", onClick: () => void mutations.setArchived(preset.id, false) },
       })
     );
+    return true;
   };
 
   const rangeNav = (
@@ -365,67 +391,70 @@ export function PomodoroView() {
               新建预设
             </Button>
           </div>
-
-          <ControlStrip
-            presets={activePresets}
-            session={live}
-            timing={timing}
-            presetName={liveName}
-            onCreate={anchor => setEditor({ preset: null, anchor })}
-            onEdit={(preset, anchor) => setEditor({ preset, anchor })}
-            onArchive={archivePreset}
-            onReorder={ids => void mutations.reorder(ids).catch(() => toast.error("排序失败"))}
-          />
         </div>
 
-        <div className="mt-1 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_340px]">
-          {ledger.kind === "days" ? (
-            <Ledger
-              window={dayWindow}
-              nav={rangeNav}
-              now={now}
-              days={windowDaysMap}
-              presetsById={presets.byId}
-              live={live}
-              selectedDay={selectedDay}
-              onSelectDay={setSelectedDay}
-              highlight={highlight}
-              onToggleHighlight={toggleHighlight}
-              onOpenSession={(session, anchor) => setPeek({ session, anchor })}
+        <div className="grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)]">
+          {/* 左栏不画分隔线：靠留白与账本分开 */}
+          <div className="grid min-h-0 grid-rows-[minmax(0,1fr)]">
+            <FocusRail
+              presets={activePresets}
+              session={live}
+              timing={timing}
+              presetName={liveName}
+              openPresetId={openPresetId}
+              onOpen={togglePreset}
+              onCreate={anchor => setEditor({ preset: null, anchor })}
+              onEdit={(preset, anchor) => setEditor({ preset, anchor })}
+              onArchive={archivePreset}
+              onReorder={ids => void mutations.reorder(ids).catch(() => toast.error("排序失败"))}
             />
-          ) : (
-            <section className="flex min-h-0 flex-col pb-4 pl-8 pr-2 pt-4">
-              <LedgerHeader
-                title="时间账本"
+          </div>
+          <div className="relative grid min-h-0 grid-rows-[minmax(0,1fr)]">
+            {ledger.kind === "days" ? (
+              <Ledger
+                window={dayWindow}
                 nav={rangeNav}
-                summary={`${allVisible.length} 个 · ${Math.round(sumFocus(allVisible) / HOUR_MS)} 小时`}
+                now={now}
+                days={windowDaysMap}
+                presetsById={presets.byId}
+                live={live}
+                selectedDay={detailOpen ? selectedDay : null}
+                onSelectDay={toggleDay}
+                highlight={highlight}
+                onToggleHighlight={toggleHighlight}
+                onOpenSession={(session, anchor) => setPeek({ session, anchor })}
               />
-              {all.loading ? (
-                <Loading />
-              ) : (
-                <AllOverview
+            ) : (
+              <section className="flex min-h-0 flex-col pb-4 pl-8 pr-2 pt-4">
+                <LedgerHeader
+                  title="时间账本"
+                  nav={rangeNav}
+                  summary={`${allVisible.length} 个 · ${Math.round(sumFocus(allVisible) / HOUR_MS)} 小时`}
+                />
+                {all.loading ? (
+                  <Loading />
+                ) : (
+                  <AllOverview
+                    sessions={allVisible}
+                    now={minuteNow}
+                    presetsById={presets.byId}
+                    highlight={highlight}
+                    selectedDay={selectedDay}
+                    onJumpToDay={jumpToDay}
+                    onOpenWindow={openWindow}
+                  />
+                )}
+                <PresetLegend
                   sessions={allVisible}
-                  now={minuteNow}
                   presetsById={presets.byId}
                   highlight={highlight}
-                  selectedDay={selectedDay}
-                  onJumpToDay={jumpToDay}
-                  onOpenWindow={openWindow}
+                  onToggle={toggleHighlight}
+                  hint="点格子跳到那天 · 点年份 / 月份看那段时间 · 点图例高亮"
                 />
-              )}
-              <PresetLegend
-                sessions={allVisible}
-                presetsById={presets.byId}
-                highlight={highlight}
-                onToggle={toggleHighlight}
-                hint="点格子跳到那天 · 点年份 / 月份看那段时间 · 点图例高亮"
-              />
-            </section>
-          )}
-          {/* 右栏：细线分隔，线离纸底留 16px 不贴圆角 */}
-          <div className="border-line-1 mb-4 grid min-h-0 grid-rows-[minmax(0,1fr)] border-l">
-            <DayDetail
-              dayStart={selectedDay}
+              </section>
+            )}
+            <DayDrawer
+              dayStart={detailOpen ? selectedDay : null}
               now={now}
               sessions={
                 (ledger.kind === "all" ? allDays : windowDaysMap).get(selectedDay) ??
@@ -435,6 +464,22 @@ export function PomodoroView() {
               presetsById={presets.byId}
               live={selectedDay === today ? live : null}
               liveTiming={selectedDay === today ? timing : null}
+              onClose={() => setDetailOpen(false)}
+              onEditFocus={(session, anchor) => setFocusEdit({ session, anchor })}
+              onDelete={deleteSession}
+            />
+            <PresetDrawer
+              preset={openPreset}
+              now={now}
+              sessions={openPresetSessions}
+              live={live}
+              liveTiming={timing}
+              onClose={() => setOpenPresetId(null)}
+              onStart={preset => void pomodoroActions.start(preset)}
+              onEdit={(preset, anchor) => setEditor({ preset, anchor })}
+              onArchive={preset => {
+                if (archivePreset(preset)) setOpenPresetId(null);
+              }}
               onEditFocus={(session, anchor) => setFocusEdit({ session, anchor })}
               onDelete={deleteSession}
             />
@@ -447,7 +492,11 @@ export function PomodoroView() {
         anchor={editor?.anchor ?? null}
         open={editor !== null}
         onOpenChange={open => !open && setEditor(null)}
-        placement={editor?.preset ? "bottom-start" : "bottom-end"}
+        placement={
+          !editor?.preset || editor.anchor.closest("[data-preset-chip]") === null
+            ? "bottom-end"
+            : "right-start"
+        }
         onSubmit={submitPreset}
       />
       <FocusEditorPopover

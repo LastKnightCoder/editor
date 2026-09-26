@@ -192,7 +192,7 @@ export const EntityTreeModal = memo<EntityTreeModalProps>(
                   </span>
                 </div>
                 {previewNode.hasContent ? (
-                  <FadeScroll className="min-h-0 flex-1 px-7 pb-6 pt-4">
+                  <FadeScroll className="mb-4 min-h-0 flex-1 px-7 pb-2 pt-4">
                     <Editor
                       key={previewNode.id}
                       initValue={previewNode.content}

@@ -255,7 +255,7 @@ export function CollaborationRoom({
       )}
 
       {/* FadeScroll 右侧 6px 透明边 + pr-[34px] = 左侧 pl-10，正文居中不偏 */}
-      <FadeScroll className="min-h-0 flex-1 pb-[120px] pl-10 pr-[34px] pt-7">
+      <FadeScroll className="mb-4 min-h-0 flex-1 pb-[104px] pl-10 pr-[34px] pt-7">
         {binding && article ? (
           <div className="mx-auto w-full max-w-[720px]">
             <CollaborativeTitleField

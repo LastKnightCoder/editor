@@ -538,7 +538,7 @@ export function SkillEditView() {
     );
   } else if (isMarkdown && mode === "visual") {
     editorArea = (
-      <div className="mx-auto w-full max-w-[760px] px-9 pb-16 pt-6">
+      <div className="mx-auto w-full max-w-[760px] px-9 pb-12 pt-6">
         {isReadme && doc && (
           <ReadmeHeader
             meta={doc.meta}
@@ -663,7 +663,7 @@ export function SkillEditView() {
           {codeView ? (
             <div className="flex min-h-0 flex-1 flex-col">{editorArea}</div>
           ) : (
-            <FadeScroll className="min-h-0 flex-1">{editorArea}</FadeScroll>
+            <FadeScroll className="mb-4 min-h-0 flex-1">{editorArea}</FadeScroll>
           )}
         </section>
       </div>

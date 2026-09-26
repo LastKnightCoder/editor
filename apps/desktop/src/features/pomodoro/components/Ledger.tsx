@@ -61,7 +61,8 @@ export function Ledger({
   days: Map<number, PomodoroSession[]>;
   presetsById: Map<number, PomodoroPreset>;
   live: PomodoroSession | null;
-  selectedDay: number;
+  /** 打开明细抽屉的那天；null = 抽屉关闭，不标选中 */
+  selectedDay: number | null;
   onSelectDay(dayStart: number): void;
   highlight: number | null;
   onToggleHighlight(presetId: number): void;

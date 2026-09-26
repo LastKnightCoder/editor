@@ -261,7 +261,7 @@ export function SkillsView() {
           </div>
         </div>
 
-        <FadeScroll className="min-h-0 flex-1 pb-6 pl-8 pr-[26px] pt-3">
+        <FadeScroll className="mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px] pt-3">
           {(mine.length > 0 || (!q && filter === "all")) && (
             <Section title={SOURCE_LABEL.mine} hint={mine.length ? String(mine.length) : undefined}>
               {mine.map(item => (

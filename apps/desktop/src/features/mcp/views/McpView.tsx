@@ -188,7 +188,7 @@ export function McpView() {
           </p>
         </div>
 
-        <FadeScroll className="min-h-0 flex-1 pb-6 pl-8 pr-[26px] pt-3">
+        <FadeScroll className="mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px] pt-3">
           {(!q || shownCustom.length > 0) && (
             <Section title="自定义" hint={custom.length > 0 ? String(custom.length) : undefined}>
               {shownCustom.map(item => (
