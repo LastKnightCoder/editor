@@ -582,7 +582,7 @@ export function SkillEditView() {
   const relPath = selected.startsWith(skillPath) ? selected.slice(skillPath.length + 1) : selected;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-[26px] pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
       {/* 一整张纸（同微信读书笔记页）：文件树是纸内左栏，开关在面包屑 */}
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 min-w-0 flex-1 overflow-hidden">
         {detail && showTree && (

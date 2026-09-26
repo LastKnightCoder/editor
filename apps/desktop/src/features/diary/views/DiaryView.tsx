@@ -332,7 +332,7 @@ export function DiaryView() {
         : `${shortDate(range[0], today)} – ${shortDate(range[1], today)}`));
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-[26px] pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
       {/* 一整张纸：工具栏固定在纸顶，纸身放 Feed / 月份刻度 / 输入条 / 抽屉（同 Skill 页） */}
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* 工具栏 */}

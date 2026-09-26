@@ -114,7 +114,7 @@ export function WhiteboardsView() {
   const filtering = query.trim().length > 0;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-[26px] pb-4">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4">
       {/* 工具栏 */}
       <div className="flex h-12 flex-none items-center gap-3">
         <h1 className="text-tau-title flex items-center gap-2 font-semibold tracking-[-0.01em]">
