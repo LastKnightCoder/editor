@@ -13,7 +13,6 @@ import {
   Image,
   PenLine,
   Terminal,
-  Video,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@tau/ui";
@@ -21,7 +20,6 @@ import type { McpServerItem, McpServerStatus } from "../useMcpServers";
 
 const BUILTIN_ICONS: Record<string, LucideIcon> = {
   "calendar-event-tools": Calendar,
-  "video-note-tools": Video,
   "content-edit-tools": PenLine,
   "fetch-tools": Globe,
   "filesystem-tools": FolderOpen,
