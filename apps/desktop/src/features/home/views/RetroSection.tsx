@@ -8,7 +8,6 @@
 
 import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
-import { Brain, Flame, Layers, Timer, TrendingUp } from "lucide-react";
 import { usePage } from "@/page/PageProvider";
 import {
   EmptyNote,
@@ -32,7 +31,6 @@ import {
 } from "../types";
 import { RetroTrend } from "./RetroTrend";
 import { SectionHeading } from "./SectionHeading";
-import { TitleIcon } from "./TitleIcon";
 
 const RANGE_LABEL: Record<RetroRange, string> = {
   d30: "近 30 天",
@@ -83,7 +81,6 @@ export function RetroSection({
         {/* ── 活动：全年热力图 ── */}
         <Panel variant="outline" pad="compact" className="col-span-12">
           <PanelTitle className="mb-2.5">
-            <TitleIcon icon={Flame} tone="accent" />
             活动
             <PanelNote>{new Date().getFullYear()} 年全年 · 每日操作</PanelNote>
             <span className="text-tau-micro text-ink-3 ml-auto tabular-nums">
@@ -131,7 +128,6 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
       {/* ── 写作趋势（面积 + 7 日均线；窗口汇总并入标题行）── */}
       <Panel variant="outline" pad="compact" className="@max-[1179px]:col-span-12 col-span-8">
         <PanelTitle className="mb-2.5">
-          <TitleIcon icon={TrendingUp} tone="ochre" />
           写作趋势
           <PanelNote>{RANGE_LABEL[range]} · 日字数与 7 日均线</PanelNote>
           <span className="text-tau-micro text-ink-3 ml-auto tabular-nums">
@@ -158,7 +154,6 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
         className="@max-[1179px]:col-span-12 col-span-4 flex flex-col"
       >
         <PanelTitle className="mb-2.5">
-          <TitleIcon icon={Layers} tone="blue" />
           知识构成<PanelNote>累计 {fmtWan(totals.wordsTotal)} 字</PanelNote>
         </PanelTitle>
         {totals.wordsTotal > 0 ? (
@@ -205,7 +200,6 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
       {/* ── 记忆保持 ── */}
       <Panel variant="outline" pad="compact" className="@max-[859px]:col-span-12 col-span-6">
         <PanelTitle className="mb-2.5">
-          <TitleIcon icon={Brain} tone="rose" />
           记忆保持
           <PanelNote>
             {RANGE_LABEL[range]} · {review ? review.total.toLocaleString("zh-CN") : 0} 次评分
@@ -256,7 +250,6 @@ function RetroPanels({ data, range }: { data: RetroSnapshot; range: RetroRange }
       {/* ── 专注节律 ── */}
       <Panel variant="outline" pad="compact" className="@max-[859px]:col-span-12 col-span-6">
         <PanelTitle className="mb-2.5">
-          <TitleIcon icon={Timer} tone="green" />
           专注节律
           <PanelNote>
             {RANGE_LABEL[range]} · {rhythm ? rhythm.sessionCount : 0} 个番茄
