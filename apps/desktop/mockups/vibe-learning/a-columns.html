@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 A · 纸内三栏</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="vl.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 A · 纸内三栏（保留「资料 | 对话 | 工作室」的心智，参考 NotebookLM）</h3>
+  现在三块板子并排贴在页面底色上，改成<b>一张纸</b>：左右两栏是纸内的透明栏，只靠一道极淡的竖线和留白分开，没有标题横线。工作室把「应用 8 格 + 创作内容 + 测验集」合成<b>应用格 + 产物列表</b>，「新建笔记」收进产物区的 ＋。
+  <ul>
+    <li><b>打开资料或笔记</b>：中间换成大画面阅读 / 编辑，对话退到右栏（右栏顶部「工作室 / 对话」切换），关闭后恢复三栏。</li>
+    <li class="pro">＋ 跟现在最像，迁移成本最低；资料、产物一直看得见，适合边看边问边生成。</li>
+    <li class="con">－ 三栏在 1280 宽下中间只剩约 560px；左右两栏都要能拖宽、能收起。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, crumb, icons, RESOURCES, OUTPUTS, resRow, outRow, apps, resEmpty, outEmpty, chatHead, thread, hero, composer, stageHead, stageBody } from "./vl.js?v=1";
+
+const win = document.getElementById("win");
+let s = "default";
+
+const resCol = () => `
+  <div class="vl-col side l" style="width:272px">
+    <div class="vl-h"><h3>资料</h3><span class="n num">${s === "empty" ? 0 : RESOURCES.length}</span><span class="sp"></span><button class="ib" title="添加资料"><i data-lucide="plus"></i></button></div>
+    <div class="vl-scroll">${s === "empty" ? resEmpty() : RESOURCES.map(r => resRow(r, { on: s === "preview" && r.id === "r1" })).join("")}</div>
+  </div>`;
+
+const studio = () => `
+  <div class="vl-scroll">
+    <div class="vl-sec">生成</div>
+    ${apps()}
+    <div class="vl-sec">产物<span class="n num">${s === "empty" ? 0 : OUTPUTS.length}</span><span class="sp"></span><button class="ib" title="新建笔记"><i data-lucide="plus"></i></button></div>
+    ${s === "empty" ? outEmpty() : OUTPUTS.map(o => outRow(o, { on: s === "note" && o.id === "n1" })).join("")}
+  </div>`;
+
+function render() {
+  const stage = s === "preview" || s === "note";
+  const center = stage
+    ? `<div class="vl-col grow">${stageHead(s)}<div class="vl-scroll">${stageBody(s)}</div></div>`
+    : `<div class="vl-col grow">${chatHead()}<div class="vl-scroll">${s === "empty" ? hero() : thread()}</div>${composer()}</div>`;
+  const right = stage
+    ? `<div class="vl-col side r" style="width:360px">
+         <div class="vl-h" style="padding-left:12px"><span class="vl-seg"><span><i data-lucide="layout-grid"></i>工作室</span><span class="on"><i data-lucide="message-circle"></i>对话</span></span><span class="sp"></span><button class="ib" title="新对话"><i data-lucide="square-pen"></i></button></div>
+         <div class="vl-scroll">${thread({ maxW: 360, compact: true })}</div>${composer({ compact: true })}
+       </div>`
+    : `<div class="vl-col side r" style="width:300px"><div class="vl-h"><h3>工作室</h3></div>${studio()}</div>`;
+
+  win.innerHTML = `
+    ${sidebar()}
+    <div class="col">
+      ${titlebar(crumb)}
+      <div class="main"><section class="paper vl-paper">${resCol()}${center}${right}</section></div>
+    </div>`;
+  icons();
+}
+mockBar("a-columns.html", k => { s = k; render(); });
+render();
+</script>
+</body>
+</html>

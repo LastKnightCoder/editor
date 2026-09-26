@@ -3,8 +3,8 @@ import { useHtmlPreviewUrl } from "@/utils/html-preview";
 import { memo, useEffect, useRef, useState, useMemo } from "react";
 import { Descendant } from "slate";
 import {
-  ArrowLeft,
   MoreHorizontal,
+  Sparkles,
   CreditCard,
   Trash2,
   Maximize,
@@ -15,9 +15,8 @@ import {
   Import,
 } from "lucide-react";
 import { useMemoizedFn, useUnmount } from "ahooks";
-import { LoadingSpinner } from "./components";
+import { LoadingSpinner } from "../generate/components";
 import InsertNoteToTreeModal from "@/components/InsertNoteToTreeModal";
-import { SelectDropDown } from "@tau/shared";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 
 import { EditorRef } from "@tau/editor/src";
@@ -46,7 +45,9 @@ import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { usePage } from "@/page/PageProvider";
 import useEditContent from "@/hooks/useEditContent";
 import useOutlineGenerationStore from "@/stores/useOutlineGenerationStore";
-import { toast, ConfirmDialog } from "@tau/ui";
+import { toast, ConfirmDialog, Button, IconButton, Menu } from "@tau/ui";
+import { NOTE_ICONS } from "../appMeta";
+import { StageHeader } from "./StageHeader";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -96,13 +97,32 @@ interface NoteEditorViewProps {
   projectId: number;
   mainDbName: string;
   note: VLNote | null;
+  /** 关闭阅读区（先保存未落库的标题） */
   onBack: () => void;
   onNoteSaved: (note: VLNote) => void;
   onResourcesChange: () => void;
+  /** 标题等元信息已落库（目录刷新） */
+  onNoteChanged?: () => void;
+  chatOpen: boolean;
+  onToggleChat: () => void;
+  onEditPPT?: (note: VLNote) => void;
+  onEditReport?: (note: VLNote) => void;
 }
 
 const NoteEditorView = memo((props: NoteEditorViewProps) => {
-  const { projectId, mainDbName, note, onBack, onNoteSaved, onResourcesChange } = props;
+  const {
+    projectId,
+    mainDbName,
+    note,
+    onBack,
+    onNoteSaved,
+    onResourcesChange,
+    onNoteChanged,
+    chatOpen,
+    onToggleChat,
+    onEditPPT,
+    onEditReport,
+  } = props;
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const { navigator } = usePage();
 
@@ -118,7 +138,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   );
 
   const editorRef = useRef<EditorRef>(null);
-  const moreButtonRef = useRef<HTMLButtonElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState(note?.title || "");
@@ -126,7 +145,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const [currentNote, setCurrentNote] = useState<VLNote | null>(note);
   const [contentId, setContentId] = useState<number | null>(note?.contentId || null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [exportingMindMapImage, setExportingMindMapImage] = useState(false);
   const [exportingDocumentFormat, setExportingDocumentFormat] = useState<"pdf" | "epub" | null>(
@@ -280,6 +298,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           if (updated) {
             setCurrentNote(updated);
             latestNote = updated;
+            onNoteChanged?.();
           }
         }
         titleChangedRef.current = false;
@@ -827,11 +846,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             },
           ];
 
-  // 处理菜单项选择
-  const handleMenuSelect = useMemoizedFn((item: MenuItem) => {
-    item.onClick();
-  });
-
   // 返回并保存
   const handleBack = useMemoizedFn(async () => {
     if (titleChangedRef.current) {
@@ -848,169 +862,197 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     );
   }
 
-  return (
-    <div className="flex h-full flex-col">
-      {/* 顶部栏 */}
-      <div className="border-line-1 flex shrink-0 items-center gap-3 border-b px-4 py-3">
-        <button
-          className="hover:bg-hover flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors"
-          onClick={handleBack}
-        >
-          <ArrowLeft className="text-ink-2 size-4" strokeWidth={1.75} />
-        </button>
+  const NoteIcon = NOTE_ICONS[currentNote?.type ?? "note"];
+  const aiEdit =
+    currentNote && isPPT && onEditPPT
+      ? () => onEditPPT(currentNote)
+      : currentNote && isReport && onEditReport
+        ? () => onEditReport(currentNote)
+        : null;
 
-        <div className="min-w-0 flex-1">
-          {isEditingTitle && !isGenerating ? (
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <StageHeader
+        icon={<NoteIcon className="size-4" strokeWidth={1.75} />}
+        title={
+          isEditingTitle && !isGenerating ? (
             <input
               type="text"
               value={title}
               onChange={handleTitleChange}
               onBlur={handleTitleBlur}
               onKeyDown={e => e.key === "Enter" && handleTitleBlur()}
-              placeholder="请输入标题"
+              placeholder="无标题笔记"
               autoFocus
-              className="text-ink-1 placeholder:text-ink-3 w-full border-none bg-transparent p-0 text-base font-medium outline-none"
+              className="text-ink-1 placeholder:text-ink-3 w-[min(420px,40vw)] border-none bg-transparent p-0 font-semibold outline-none"
             />
           ) : (
-            <h3
-              className="text-ink-1 m-0 cursor-pointer truncate text-base font-medium"
+            <button
+              type="button"
+              title={isGenerating ? undefined : "点击修改标题"}
+              className="text-ink-1 max-w-full cursor-text truncate text-left font-semibold"
               onClick={() => !isGenerating && setIsEditingTitle(true)}
             >
               {title || "无标题笔记"}
-            </h3>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {isGenerating && (
-            <span className="text-accent flex items-center text-xs">
-              <LoadingSpinner size="small" className="mr-1" />
+            </button>
+          )
+        }
+        meta={
+          isGenerating ? (
+            <span className="text-accent-text inline-flex items-center gap-1">
+              <LoadingSpinner size="small" />
               生成中
             </span>
-          )}
-          {!isGenerating && saving && (
-            <span className="text-ink-3 flex items-center text-xs">
-              <LoadingSpinner size="small" className="mr-1" />
-              保存中
-            </span>
-          )}
-          {!isGenerating && (
-            <button
-              ref={moreButtonRef}
-              className="hover:bg-hover flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors"
-              onClick={() => setShowMoreMenu(!showMoreMenu)}
-            >
-              <MoreHorizontal className="text-ink-2 size-4" strokeWidth={1.75} />
-            </button>
-          )}
-          <SelectDropDown
-            items={moreMenuItems}
-            selectedKey=""
-            show={showMoreMenu}
-            onClose={() => setShowMoreMenu(false)}
-            onSelect={handleMenuSelect}
-            triggerElement={moreButtonRef.current}
-            getKey={item => item.key}
-            width={160}
-            renderItem={item => (
-              <div className={`flex items-center gap-2 ${item.danger ? "text-red-500" : ""}`}>
-                {item.icon}
-                <span>{item.label}</span>
-              </div>
-            )}
-          />
-        </div>
-      </div>
+          ) : saving ? (
+            "保存中…"
+          ) : undefined
+        }
+        chatOpen={chatOpen}
+        onToggleChat={onToggleChat}
+        onClose={handleBack}
+        actions={
+          !isGenerating && (
+            <>
+              {aiEdit && (
+                <Button variant="ghost" size="sm" icon={Sparkles} onClick={aiEdit}>
+                  AI 编辑
+                </Button>
+              )}
+              <Menu
+                align="end"
+                trigger={
+                  <IconButton aria-label="更多">
+                    <MoreHorizontal className="size-4" strokeWidth={1.75} />
+                  </IconButton>
+                }
+              >
+                {moreMenuItems.map(item => (
+                  <Menu.Item
+                    key={item.key}
+                    icon={item.icon}
+                    danger={item.danger}
+                    onSelect={item.onClick}
+                  >
+                    {item.label}
+                  </Menu.Item>
+                ))}
+              </Menu>
+            </>
+          )
+        }
+      />
 
       {/* 编辑器区域 */}
-      <div className={`flex-1 overflow-auto ${isMindMap || isPPT ? "" : "p-4"}`}>
-        {/* 生成错误提示 */}
-        {generationError && (
-          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-            <p className="text-danger text-sm">生成失败: {generationError}</p>
-          </div>
-        )}
+      <div
+        className={
+          isMindMap || isPPT || isReport
+            ? "rounded-tau-md mx-4 mb-4 min-h-0 flex-1 overflow-hidden"
+            : "min-h-0 flex-1 overflow-auto"
+        }
+      >
+        <div
+          className={
+            isMindMap || isPPT || isReport ? "h-full" : "mx-auto max-w-[760px] px-10 pb-16 pt-2"
+          }
+        >
+          {/* 生成错误提示 */}
+          {generationError && (
+            <div className="bg-danger-soft text-tau-meta text-danger rounded-tau-sm mb-4 px-4 py-2.5">
+              生成失败：{generationError}
+            </div>
+          )}
 
-        <ErrorBoundary>
-          {isMindMap ? (
-            <div ref={mindMapExportRef} className="relative h-full">
-              {exportingMindMapImage && !isFullscreen && (
-                <div
-                  data-export-mask
-                  className="absolute inset-0 z-10 flex items-center justify-center bg-black/35 backdrop-blur-[1px]"
-                >
-                  <div className="flex items-center gap-2 text-sm text-white">
-                    <LoadingSpinner size="small" />
-                    正在导出图片...
+          <ErrorBoundary>
+            {isMindMap ? (
+              <div ref={mindMapExportRef} className="relative h-full">
+                {exportingMindMapImage && !isFullscreen && (
+                  <div
+                    data-export-mask
+                    className="absolute inset-0 z-10 flex items-center justify-center bg-black/35 backdrop-blur-[1px]"
+                  >
+                    <div className="flex items-center gap-2 text-sm text-white">
+                      <LoadingSpinner size="small" />
+                      正在导出图片...
+                    </div>
                   </div>
-                </div>
-              )}
-              <MindMapRenderer code={mindMapMarkdown} fillContainer />
-            </div>
-          ) : isPPT ? (
-            <div className="h-full bg-black">
-              {isElectron ? (
-                <webview
-                  src={pptPreviewUrl}
-                  partition="persist:ppt-preview"
-                  webpreferences="sandbox=true,contextIsolation=true,nodeIntegration=false"
-                  allowpopups={false}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    border: "none",
-                  }}
+                )}
+                <MindMapRenderer code={mindMapMarkdown} fillContainer />
+              </div>
+            ) : isPPT ? (
+              <div className="h-full bg-black">
+                {isElectron ? (
+                  <webview
+                    src={pptPreviewUrl}
+                    partition="persist:ppt-preview"
+                    webpreferences="sandbox=true,contextIsolation=true,nodeIntegration=false"
+                    allowpopups={false}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      border: "none",
+                    }}
+                  />
+                ) : (
+                  <iframe
+                    src={pptPreviewUrl}
+                    className="h-full w-full border-0"
+                    sandbox="allow-scripts allow-same-origin"
+                    title="PPT Preview"
+                  />
+                )}
+              </div>
+            ) : isReport ? (
+              <div className="bg-surface h-full">
+                {isElectron ? (
+                  <webview
+                    src={reportPreviewUrl}
+                    partition="persist:report-preview"
+                    webpreferences="sandbox=true,contextIsolation=true,nodeIntegration=false"
+                    allowpopups={false}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      border: "none",
+                    }}
+                  />
+                ) : (
+                  <iframe
+                    src={reportPreviewUrl}
+                    className="h-full w-full border-0"
+                    sandbox="allow-scripts allow-same-origin"
+                    title="Report Preview"
+                  />
+                )}
+              </div>
+            ) : isPodcast ? (
+              <div className="space-y-4">
+                {/* 播客播放器 */}
+                {podcast && (
+                  <PodcastPlayer
+                    defaultPodcast={podcast}
+                    onDelete={async () => {
+                      // 播客类型笔记不允许单独删除播客，需要删除整个笔记
+                      toast.info("请通过删除笔记来删除播客");
+                    }}
+                  />
+                )}
+                {!podcast && currentNote?.podcastId && (
+                  <div className="bg-warn-soft text-tau-meta text-warn rounded-tau-sm px-4 py-2.5">
+                    播客数据加载失败，请刷新页面重试
+                  </div>
+                )}
+                {/* 脚本内容（只读） */}
+                <Editor
+                  contentId={contentId || undefined}
+                  key={currentNote?.id || "new"}
+                  ref={editorRef}
+                  initValue={content}
+                  onChange={handleContentChange}
+                  extensions={dynamicExtensions}
+                  readonly={true}
                 />
-              ) : (
-                <iframe
-                  src={pptPreviewUrl}
-                  className="h-full w-full border-0"
-                  sandbox="allow-scripts allow-same-origin"
-                  title="PPT Preview"
-                />
-              )}
-            </div>
-          ) : isReport ? (
-            <div className="bg-surface h-full">
-              {isElectron ? (
-                <webview
-                  src={reportPreviewUrl}
-                  partition="persist:report-preview"
-                  webpreferences="sandbox=true,contextIsolation=true,nodeIntegration=false"
-                  allowpopups={false}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    border: "none",
-                  }}
-                />
-              ) : (
-                <iframe
-                  src={reportPreviewUrl}
-                  className="h-full w-full border-0"
-                  sandbox="allow-scripts allow-same-origin"
-                  title="Report Preview"
-                />
-              )}
-            </div>
-          ) : isPodcast ? (
-            <div className="space-y-4">
-              {/* 播客播放器 */}
-              {podcast && (
-                <PodcastPlayer
-                  defaultPodcast={podcast}
-                  onDelete={async () => {
-                    // 播客类型笔记不允许单独删除播客，需要删除整个笔记
-                    toast.info("请通过删除笔记来删除播客");
-                  }}
-                />
-              )}
-              {!podcast && currentNote?.podcastId && (
-                <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4">
-                  <p className="text-warn text-sm">播客数据加载失败，请刷新页面重试</p>
-                </div>
-              )}
-              {/* 脚本内容（只读） */}
+              </div>
+            ) : (
               <Editor
                 contentId={contentId || undefined}
                 key={currentNote?.id || "new"}
@@ -1018,21 +1060,11 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 initValue={content}
                 onChange={handleContentChange}
                 extensions={dynamicExtensions}
-                readonly={true}
+                readonly={isGenerating}
               />
-            </div>
-          ) : (
-            <Editor
-              contentId={contentId || undefined}
-              key={currentNote?.id || "new"}
-              ref={editorRef}
-              initValue={content}
-              onChange={handleContentChange}
-              extensions={dynamicExtensions}
-              readonly={isGenerating}
-            />
-          )}
-        </ErrorBoundary>
+            )}
+          </ErrorBoundary>
+        </div>
       </div>
 
       {/* 全屏显示思维导图 */}

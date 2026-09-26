@@ -607,3 +607,13 @@
 - 数据：主进程 `skill` 模块改为多根：`userData/.skills`（可写）+ 关联目录（只读），所有路径校验改为 resolve 后按根目录前缀判定（修掉原 `startsWith` 可被同前缀目录绕过的问题）；列表返回来源、frontmatter（name / description / disable-model-invocation / allowed-tools）与文件数；新增导入（zip / 文件夹 / GitHub 目录）、关联目录配置、执行脚本 IPC。渲染端 `useSkillStore` 增加本机偏好（停用 / 调用方式）与使用记录。
 - 评审追记（2026-09-26）：列表页与编辑页都改为「一整张纸」（同微信读书），纸内卡片细描边不叠阴影；编辑页文件树是纸内透明左栏、开关在面包屑，SKILL.md 头部改为文档式（大标题 + 「AI 看到的描述」描边块，不用米灰填充）；编辑页原「默认仅手动」开关与卡片开关语义冲突，改为与卡片 / 抽屉同一份状态的「自动 / 仅手动 / 停用」分段（front-matter 的 `disable-model-invocation` 只在源码视图改）；源码视图用 CodeMirror 5 语法高亮（配色取主题 token），代码框撑满剩余高度、框内 FadeScroll 滚动。
 - 退役：`pages/SkillManagement`（index / CreateSkillModal / SkillDetailModal）、`TabType.SkillManagement` 的 TabContent 分支、`LEGACY_PAGES.skills` 占位。
+
+## D-062 Vibe Learning 项目页定稿（方案 C「学习台」）
+
+（2026-09-26，已定；样板间 `mockups/vibe-learning/`，A 纸内三栏 / B 对话为主 / C 学习台三选一，用户选 C）
+
+- 结构：一整张纸，纸内三栏——左 = 目录（「资料」+「产物」两组，可拖宽，开关复用项目详情面包屑的侧栏按钮 `useProjectTreeStore`），中 = 阅读区，右 = 对话。什么都没打开时对话占满中间；打开资料或笔记后对话退到右栏（可拖宽 320–600、可在阅读区头部收起）。对话面板始终挂在同一位置，切换布局不打断进行中的回答。上次打开的条目按项目记住（localStorage）。进入 Vibe Learning 项目同文档树项目一样收起全局侧栏。
+- 目录：行式（图标 + 名称 + 尾部状态，悬停在固定槽位淡入「更多」，右键同一份菜单），无分隔线。资料组保留拖拽排序、处理状态（处理中 accent + 进度 / 失败 danger / 需重建等 warn，完成不标）、重新处理 / 索引、重命名、删除，文档类多「用默认程序打开」。产物组把原「创作内容」与「测验集」合成一列按更新时间排序；＋ 菜单 = 新建笔记 + 8 个生成应用（原应用 8 格去掉）；测验集点行即开始测验，记录 / 编辑 / 删除在菜单里；PPT / 报告的「AI 编辑」在行菜单与阅读区头部。
+- 阅读区：统一头部（图标 + 标题 + 元信息 + 动作 + 对话开关 + 关闭）。音视频为居中阅读列 + 字幕跟读（时间 | 文字两列，当前句 selected 底）；网页、图片直接铺开；来自笔记的资料就地编辑；**文档类新增页内文本阅读**——分段读取转换后的 Markdown（`vl-read-resource-range`，每段在空行处切开、触底续读），原件仍可用默认程序打开；尚未转换出文本的文档点开仍直接交给系统程序。笔记编辑器（原右栏 NoteEditorView）移进阅读区，标题就地改、更多菜单换 `@tau/ui` Menu。有文本的资料底部一行「基于这份资料」（大纲 / 重点 / 导图 / 测验 + 更多），生成弹窗只预选当前这份（`setVLGenerationScope`）。
+- 代码：`VibeLearningView/` 重组为 `tree/`（目录）、`stage/`（阅读区）、`generate/`（原 AppSidebar，只剩生成与 AI 编辑弹窗，8 个开关合成一个 active 状态）、`appMeta.ts`、`resourceKinds.ts`；删除 `ResourcePanel`、`AppSidebar/index`+`AppListView`、`ResourcePreview/index`，以及死代码 `QuizApp` / `OutlineApp` / `EmptyState` / `SimpleButton`。测验记录弹窗改 `@tau/ui` Dialog。页面主路径的 antd 残留清掉：`useVLResourceSelection`、`usePodcastGeneration`、`InsertNoteToTreeModal` 的 `App.useApp` / `message` 改 `toast`，资源行的 react-icons 拖拽柄去掉（整行可拖）。
+- 未做（下一轮单独出）：生成配置弹窗、添加资料弹窗、测验答题 / 编辑弹窗仍是 legacy `CustomModal` 皮；「在对话中引用」当前资料暂不做（输入框没有外部注入引用的接口）。
