@@ -32,7 +32,8 @@ export function FadeScroll({ className, children, scrollRef, layoutScroll }: Fad
   const Container = layoutScroll ? motion.div : "div";
   return (
     <Container
-      layoutScroll={layoutScroll || undefined}
+      // 普通 div 不能收到 layoutScroll（值为 undefined 也会触发 React 未知属性告警）
+      {...(layoutScroll ? { layoutScroll: true } : {})}
       ref={setRef}
       className={cn(FADE_SCROLL_CLASS, className)}
     >
