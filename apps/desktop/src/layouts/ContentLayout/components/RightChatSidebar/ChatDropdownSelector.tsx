@@ -1,6 +1,5 @@
 import { memo, useMemo, useRef, useState } from "react";
 import {
-  AlertCircle,
   Check,
   ChevronDown,
   GitBranch,
@@ -12,14 +11,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import { ConfirmDialog, IconButton, Menu, Popover, Spinner, cn, toast } from "@tau/ui";
+import { ConfirmDialog, IconButton, Menu, Popover, cn, toast } from "@tau/ui";
 
 import EditText from "@/components/EditText";
 import { FadeScroll } from "@/components/FadeScroll";
 import type { EditTextHandle } from "@/components/EditText";
 import { ChatMessage } from "@/types";
-import type { ChatRunStatus, ChatSource } from "@/types/chat-run";
-import useChatRunStore from "@/stores/useChatRunStore";
 
 interface ChatDropdownSelectorProps {
   /** 对话列表 */
@@ -31,12 +28,9 @@ interface ChatDropdownSelectorProps {
   getChildBranchesCount?: (chatId: number) => Promise<number>;
   disabled?: boolean;
   titleRef?: React.RefObject<EditTextHandle | null>;
-  chatSource?: ChatSource;
   /** 列表末行「全部会话…」（有全量管理入口的宿主才传） */
   onOpenLibrary?: () => void;
 }
-
-const ACTIVE_RUN: ChatRunStatus[] = ["queued", "running", "retrying", "waiting_input"];
 
 /**
  * 对话标题行（D-048 tau 化，停靠栏 / 项目 / PDF / 视频笔记对话共用）：
@@ -53,10 +47,8 @@ const ChatDropdownSelector = memo(
     getChildBranchesCount,
     disabled,
     titleRef,
-    chatSource = "main-chat",
     onOpenLibrary,
   }: ChatDropdownSelectorProps) => {
-    const chatRuns = useChatRunStore(state => state.runs);
     const [listOpen, setListOpen] = useState(false);
     const [query, setQuery] = useState("");
     const [renaming, setRenaming] = useState(false);
@@ -111,11 +103,8 @@ const ChatDropdownSelector = memo(
           chat,
           pinned: chat.orderNum != null,
           hasBranches: chats.some(c => c.parentChatId === chat.id),
-          runStatus: Object.values(chatRuns)
-            .filter(run => run.sessionKey === `${chatSource}:${chat.id}`)
-            .sort((a, b) => b.updatedAt - a.updatedAt)[0]?.status,
         }));
-    }, [chatRuns, chatSource, chats, query]);
+    }, [chats, query]);
 
     const select = (chatId: number) => {
       setListOpen(false);
@@ -194,7 +183,7 @@ const ChatDropdownSelector = memo(
               {rows.length === 0 ? (
                 <p className="text-tau-sm text-ink-3 px-2.5 py-3">没有匹配的对话</p>
               ) : (
-                rows.map(({ chat, pinned, hasBranches, runStatus }) => {
+                rows.map(({ chat, pinned, hasBranches }) => {
                   const active = chat.id === currentChat.id || chat.id === currentChat.parentChatId;
                   return (
                     <button
@@ -209,15 +198,7 @@ const ChatDropdownSelector = memo(
                       )}
                     >
                       <span className="min-w-0 flex-1 truncate">{chat.title || "新对话"}</span>
-                      {runStatus && ACTIVE_RUN.includes(runStatus) ? (
-                        <Spinner className="size-3 shrink-0 border-[1.5px]" />
-                      ) : runStatus === "failed" ? (
-                        <AlertCircle
-                          size={13}
-                          strokeWidth={1.75}
-                          className="text-danger shrink-0"
-                        />
-                      ) : pinned ? (
+                      {pinned ? (
                         <Pin size={12} strokeWidth={1.75} className="text-ink-3 shrink-0" />
                       ) : null}
                       {hasBranches && (

@@ -375,7 +375,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources,
         <div className={cn("box-border flex h-full flex-col pb-3", docked ? "px-3" : "px-5")}>
           <div className="flex h-[52px] shrink-0 items-center justify-between">
             <ChatDropdownSelector
-              chatSource="vibe-learning-chat"
               chats={chatsAsMessages}
               currentChat={currentChatAsMessage}
               onChatSelect={handleChatSelect}

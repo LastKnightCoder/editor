@@ -1,7 +1,6 @@
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import ChatRunTable from "../tables/chat-run";
-import type { ChatRunRecord } from "@/types/chat-run";
+import ChatRunTable, { type ChatRunRecord } from "../tables/chat-run";
 import { Role } from "@/constants";
 
 let nativeAvailable = true;

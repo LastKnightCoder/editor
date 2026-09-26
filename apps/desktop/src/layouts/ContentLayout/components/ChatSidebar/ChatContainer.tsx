@@ -24,7 +24,6 @@ import {
   RequestMessage,
   ResponseMessage,
   ReasoningEffort,
-  ToolCallPayload,
   ToolCallExecutionState,
 } from "@/types";
 import {
@@ -33,8 +32,19 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   buildSessionAwareSystemPrompt,
 } from "@/constants";
-import useChatLLM from "@/hooks/useChatLLM";
-import { piCompleteChat } from "@/services/piLLM";
+import { piCompleteChat, toPiThinking } from "@/services/piLLM";
+import {
+  buildPiChatSystemPrompt,
+  piChatSessionManager,
+  toPiImageContent,
+} from "@/services/piChatSession";
+import { PiChatEventReducer } from "@/services/piChatEvents";
+import {
+  onPiSessionEvent,
+  piSessionAbort,
+  piSessionPrompt,
+  piSessionToolResult,
+} from "@/commands/piSession";
 import useLLMConfig from "@/hooks/useLLMConfig";
 import useSettingStore from "@/stores/useSettingStore";
 import useSkillStore from "@/stores/useSkillStore";
@@ -52,7 +62,6 @@ import { ToolRendererInteractionProvider } from "@/tool-call-renderers/ToolRende
 import { useAskQuestionSessionStore } from "@/tools/askQuestionSessionStore";
 import {
   applyAssistantReasoningSnapshot,
-  applyAssistantProviderMetadataSnapshot,
   applyAssistantTextSnapshot,
   applyAssistantToolCallsSnapshot,
   createAssistantMessage,
@@ -73,23 +82,12 @@ import {
 } from "./editingUtils";
 import { withStreamingUpdateTime } from "./streamingUtils";
 import { ConversationMessageQueue } from "./messageQueue";
-import { chatRunManager } from "@/services/chatRunManager";
-import type { ChatSource, ChatSessionKey } from "@/types/chat-run";
 import {
   CHAT_CONTENT_DND_TYPE,
   SIDEBAR_ITEM_DND_TYPE,
   getChatContentDragReference,
 } from "@/utils/chat-content-dnd";
-import useChatRunStore from "@/stores/useChatRunStore";
-import {
-  getReasoningEffortOptions,
-  normalizeReasoningEffort,
-} from "@/utils/openai-reasoning-effort";
-import {
-  DEFAULT_CHAT_MAX_RETRIES,
-  getErrorMessage,
-  isContextLengthError,
-} from "@/utils/chat-retry";
+import { getErrorMessage } from "@/utils/chat-retry";
 
 /** 本条用户消息里 `$` 点名的 Skill（folderName，去重） */
 const extractForcedSkills = (requestMessage: RequestMessage): string[] => {
@@ -241,23 +239,12 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     ref
   ) => {
     const message = toast;
-    const { chatLLMStream } = useChatLLM();
     const { provider: chatProviderConfig, model: chatModelConfig } = useLLMConfig("chat");
     const { provider: titleProviderConfig, model: titleModelConfig } = useLLMConfig("titleSummary");
 
-    const chatRuns = useChatRunStore(state => state.runs);
-    const sessionKey = `${chatScope.split(":")[0]}:${currentChat.id}` as ChatSessionKey;
-    const sessionRun = useMemo(
-      () =>
-        Object.values(chatRuns)
-          .filter(run => run.sessionKey === sessionKey)
-          .sort((a, b) => b.updatedAt - a.updatedAt)[0],
-      [chatRuns, sessionKey]
-    );
-    const [pendingSessionKeys, setPendingSessionKeys] = useState<Set<ChatSessionKey>>(
-      () => new Set()
-    );
-    const setSessionPending = useMemoizedFn((key: ChatSessionKey, pending: boolean) => {
+    const sessionKey = `${chatScope.split(":")[0]}:${currentChat.id}`;
+    const [pendingSessionKeys, setPendingSessionKeys] = useState<Set<string>>(() => new Set());
+    const setSessionPending = useMemoizedFn((key: string, pending: boolean) => {
       setPendingSessionKeys(current => {
         const next = new Set(current);
         if (pending) next.add(key);
@@ -265,11 +252,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         return next;
       });
     });
-    const sendLoading =
-      pendingSessionKeys.has(sessionKey) ||
-      Boolean(
-        sessionRun && ["queued", "running", "retrying", "waiting_input"].includes(sessionRun.status)
-      );
+    // pi 会话驱动：运行态由本组件本地 pending 跟踪（pi 会话流式期间 = pending），
+    // 中断恢复由 pi 会话 JSONL 事实源承接（M4 会话管理产品化）
+    const sendLoading = pendingSessionKeys.has(sessionKey);
 
     useEffect(() => {
       setExternalSendLoading(sendLoading);
@@ -293,15 +278,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     );
     const effectiveReasoningEffort = reasoningEffort ?? "none";
-    const reasoningEffortOptions = useMemo(
-      () => getReasoningEffortOptions(chatModelConfig, chatProviderConfig),
-      [chatModelConfig, chatProviderConfig]
+    // pi ThinkingLevel 通用档（模型特有档位目录 M3 设置页产品化时接入）
+    const reasoningEffortOptions = useMemo<ReasoningEffort[]>(
+      () => (chatModelConfig?.reasoning ? ["none", "low", "medium", "high"] : ["none"]),
+      [chatModelConfig?.reasoning]
     );
-    const normalizedReasoningEffort =
-      chatProviderConfig?.api === "anthropic-messages" &&
-      !reasoningEffortOptions.includes(effectiveReasoningEffort)
-        ? (reasoningEffortOptions[0] ?? "none")
-        : normalizeReasoningEffort(effectiveReasoningEffort, reasoningEffortOptions);
+    const normalizedReasoningEffort = reasoningEffortOptions.includes(effectiveReasoningEffort)
+      ? effectiveReasoningEffort
+      : (reasoningEffortOptions[0] ?? "none");
 
     const editTextRef = useRef<ChatInputAreaHandle>(null);
     const messagesRef = useRef<HTMLDivElement>(null);
@@ -374,7 +358,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const supportImage = chatModelConfig?.input.includes("image") ?? false;
     const supportFile = false;
 
-    const abortControllerRef = useRef<AbortController | null>(null);
     const displayedChatIdRef = useRef(currentChat.id);
     const messageQueueRef = useRef(new ConversationMessageQueue<MessageContentItem[]>());
     const queueConversationKeyRef = useRef(`${chatScope}:${currentChat.id}`);
@@ -387,10 +370,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const activeAssistantTurnIdRef = useRef<string | null>(null);
     const persistedAskQuestionSnapshotsRef = useRef<Set<string>>(new Set());
     const resumingAskQuestionRef = useRef<Set<string>>(new Set());
-    const streamCounterRef = useRef(0);
-    const resumedRunIdsRef = useRef<Set<string>>(new Set());
     const hasRestoredScrollPositionRef = useRef(false);
     const isRestoringScrollPositionRef = useRef(false);
+    /** pi 会话事件订阅（发送流程 ensure 后绑定；sessionId 变化时重绑） */
+    const piEventUnsubscribeRef = useRef<(() => void) | null>(null);
+    const piEventReducerRef = useRef<PiChatEventReducer | null>(null);
 
     const activateConversationQueue = useMemoizedFn((conversationKey: string) => {
       queueConversationKeyRef.current = conversationKey;
@@ -575,6 +559,144 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       } as RequestMessage;
     });
 
+    /**
+     * pi 会话事件接线工厂：reducer 把 AgentSessionEvent 归约为 assistant_blocks 快照写入
+     * 最后一条 assistant 消息（与发送流程、ask-question 恢复共用）。
+     */
+    const createChatEventSinkFor = useMemoizedFn((baseChat: ChatMessage) => {
+      let sinkChat = baseChat;
+      const updateSinkChat = (chat: ChatMessage) => {
+        sinkChat = chat;
+        return chat;
+      };
+      return new PiChatEventReducer({
+        applyText: (turnId, text) => {
+          const updatedChat = produce(sinkChat, draft => {
+            const lastMessage = draft.messages.at(-1);
+            if (lastMessage?.role === Role.Assistant) {
+              applyAssistantTextSnapshot(lastMessage as ResponseMessage, turnId, text);
+            }
+          });
+          updateSinkChat(publishStreamingChatSnapshot(updatedChat));
+        },
+        applyReasoning: (turnId, text) => {
+          const updatedChat = produce(sinkChat, draft => {
+            const lastMessage = draft.messages.at(-1);
+            if (lastMessage?.role === Role.Assistant) {
+              applyAssistantReasoningSnapshot(lastMessage as ResponseMessage, turnId, text);
+            }
+          });
+          updateSinkChat(publishStreamingChatSnapshot(updatedChat));
+        },
+        applyToolCalls: (turnId, executions, toolCalls) => {
+          const updatedChat = produce(sinkChat, draft => {
+            const lastMessage = draft.messages.at(-1);
+            if (lastMessage?.role === Role.Assistant) {
+              applyAssistantToolCallsSnapshot(
+                lastMessage as ResponseMessage,
+                turnId,
+                executions,
+                toolCalls
+              );
+            }
+          });
+          const publishedChat = publishStreamingChatSnapshot(updatedChat);
+          updateSinkChat(publishedChat);
+
+          // ask-question 进入等待态时，立即持久化快照，确保渲染层重载后可恢复
+          const pendingAskQuestionExecutions = executions.filter(
+            execution =>
+              execution.toolName === ASK_QUESTION_TOOL_NAME &&
+              (execution.status === "pending" ||
+                execution.status === "executing" ||
+                execution.status === "retrying")
+          );
+          const shouldPersistSnapshot = pendingAskQuestionExecutions.some(
+            execution =>
+              !persistedAskQuestionSnapshotsRef.current.has(
+                buildAskQuestionExecutionSnapshotKey(execution)
+              )
+          );
+          if (shouldPersistSnapshot) {
+            pendingAskQuestionExecutions.forEach(execution => {
+              persistedAskQuestionSnapshotsRef.current.add(
+                buildAskQuestionExecutionSnapshotKey(execution)
+              );
+            });
+            void updateChatMessage(publishedChat).catch(error => {
+              console.error("持久化 ask-question 快照失败:", error);
+            });
+          }
+        },
+        finalizeTurn: turnId => {
+          const updatedChat = produce(sinkChat, draft => {
+            const lastMessage = draft.messages.at(-1);
+            if (lastMessage?.role === Role.Assistant) {
+              finalizeAssistantTurn(lastMessage as ResponseMessage, turnId);
+            }
+          });
+          updateSinkChat(updatedChat);
+        },
+        applyUsage: usage => {
+          const updatedChat = produce(sinkChat, draft => {
+            const lastMessage = draft.messages[draft.messages.length - 1];
+            if (lastMessage?.role === Role.Assistant && chatProviderConfig && chatModelConfig) {
+              (lastMessage as ResponseMessage).usage = {
+                ...usage,
+                providerId: chatProviderConfig.id,
+                modelName: chatModelConfig.name,
+              };
+            }
+          });
+          updateSinkChat(publishStreamingChatSnapshot(updatedChat));
+        },
+        onAssistantTurnEnd: () => {},
+        onRetryStatus: status => {
+          setChatRetryStatus(
+            status ? { attempt: status.attempt, maxRetries: status.maxAttempts } : null
+          );
+          if (status) {
+            // 重试轮重置助手占位（幂等快照会追加新 turn，先清上一轮半成品）
+            const resetChat = produce(sinkChat, draft => {
+              const lastMessageIndex = draft.messages.length - 1;
+              const lastMessage = draft.messages[lastMessageIndex];
+              if (lastMessage?.role === Role.Assistant) {
+                draft.messages[lastMessageIndex] = createAssistantMessage({
+                  clientId: (lastMessage as ResponseMessage).clientId,
+                });
+              }
+            });
+            updateSinkChat(resetChat);
+            updateCurrentChat(resetChat);
+            if (displayedChatIdRef.current === resetChat.id) {
+              actualChatRef.current = resetChat;
+              setUpdateCounter(prev => prev + 1);
+            }
+          }
+        },
+        onStreamError: errorMessage => {
+          setChatError(errorMessage);
+          console.error("聊天请求失败:", errorMessage);
+        },
+        onSettled: () => {
+          void (async () => {
+            setChatRetryStatus(null);
+            try {
+              const finished = await persistFinishedChatAndGenerateTitle(sinkChat);
+              updateSinkChat(finished);
+            } catch (error) {
+              message.error("Failed to update chat");
+              console.error(error);
+            } finally {
+              setSessionPending(getConversationKey(sinkChat.id), false);
+              setChatError(null);
+            }
+          })();
+        },
+        onQueueUpdate: () => {},
+      });
+    });
+
     const buildHistoryMessages = useMemoizedFn(
       (
         chat: ChatMessage,
@@ -654,7 +776,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       return updatedChatMessage;
     });
 
-    // 抽离的公共方法：处理消息发送逻辑
+    // 抽离的公共方法：处理消息发送逻辑（pi 会话驱动）
     const processMessageSending = useMemoizedFn(
       async (
         requestMessage: RequestMessage,
@@ -662,12 +784,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           shouldClearInput?: boolean;
           shouldCreateNewChat?: boolean;
           persistRequestMessage?: boolean;
-          extraHistoryMessages?: RequestMessage[];
           persistedRequestMessage?: RequestMessage;
           baseChatOverride?: ChatMessage;
-          runId?: string;
-          attempt?: number;
-          assistantMessageClientId?: string;
           toolContext?: {
             flags?: {
               forceReview?: boolean;
@@ -684,10 +802,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         const shouldCreateNewChat = options?.shouldCreateNewChat ?? true;
         const persistRequestMessage = options?.persistRequestMessage ?? true;
         const persistedRequestMessage = options?.persistedRequestMessage ?? requestMessage;
-        const extraHistoryMessages = options?.extraHistoryMessages || [];
         const perf = measurePerformance("sendMessage");
         let actualCurrentChat = options?.baseChatOverride || actualChatRef.current;
-        let pendingSessionKey = getConversationKey(actualCurrentChat.id) as ChatSessionKey;
+        let pendingSessionKey = getConversationKey(actualCurrentChat.id);
         const clearPending = () => setSessionPending(pendingSessionKey, false);
         setChatError(null);
         setChatRetryStatus(null);
@@ -695,9 +812,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
         scrollToBottom();
 
-        const responseMessage = createAssistantMessage({
-          clientId: options?.assistantMessageClientId,
-        });
+        const responseMessage = createAssistantMessage();
 
         // 如果当前没有真实的对话（id为0），则先创建一个新对话
         if (shouldCreateNewChat && actualCurrentChat.id === 0) {
@@ -719,7 +834,7 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               newChatMessages,
               actualCurrentChat.title || "新对话"
             );
-            const createdSessionKey = getConversationKey(actualCurrentChat.id) as ChatSessionKey;
+            const createdSessionKey = getConversationKey(actualCurrentChat.id);
             setSessionPending(pendingSessionKey, false);
             pendingSessionKey = createdSessionKey;
             setSessionPending(pendingSessionKey, true);
@@ -741,25 +856,16 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           }
         }
 
-        const sendMessages: RequestMessage[] = [
-          buildSystemMessageWithRequest(actualCurrentChat),
-          ...buildHistoryMessages(actualCurrentChat),
-          ...extraHistoryMessages,
-          requestMessage,
-        ];
-        const conversationKey = getConversationKey(actualCurrentChat.id);
-        const streamId = `${conversationKey}:${++streamCounterRef.current}`;
+        // 本次请求之前的对话历史（乐观写入前取，作为 pi 会话的灌入/对账基准）
+        const historyBeforeThisTurn: RequestMessage[] = buildHistoryMessages(actualCurrentChat);
 
         // 立即添加用户消息和初始的助手回复到状态中
-        const hasAssistantPlaceholder = actualCurrentChat.messages.some(
-          item => item.role === Role.Assistant && item.clientId === responseMessage.clientId
-        );
         const chatWithNewMessages = {
           ...actualCurrentChat,
           messages: [
             ...actualCurrentChat.messages,
             ...(persistRequestMessage ? [persistedRequestMessage] : []),
-            ...(hasAssistantPlaceholder ? [] : [responseMessage]),
+            responseMessage,
           ],
         };
 
@@ -772,33 +878,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         actualCurrentChat = await updateChatMessage(chatWithNewMessages);
         actualChatRef.current = actualCurrentChat;
 
-        let activeRunId: string | null = null;
-        try {
-          const source = chatScope.split(":")[0] as ChatSource;
-          const run = await chatRunManager.start({
-            runId: options?.runId,
-            sessionKey: conversationKey as ChatSessionKey,
-            source,
-            chatId: actualCurrentChat.id,
-            status: "running",
-            requestPayload: sendMessages,
-            userMessageClientId: persistedRequestMessage.clientId || "",
-            assistantMessageClientId: responseMessage.clientId || "",
-            attempt: options?.attempt ?? 0,
-            assistantSnapshot: "",
-            reasoningSnapshot: "",
-            toolSnapshot: [],
-            errorMessage: null,
-          });
-          activeRunId = run.runId;
-        } catch (error) {
-          if (error instanceof Error && error.name === "AbortError") {
-            clearPending();
-            return false;
-          }
-          console.warn("创建聊天后台任务记录失败，继续使用当前流:", error);
-        }
-
         // 添加新消息后立即强制贴底，避免虚拟列表测量期间被 scroll 监听误判为用户离开底部。
         enableAutoScroll();
         setTimeout(forceScrollToBottomSoon, 0);
@@ -807,452 +886,85 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           editTextRef.current?.clear();
         }
 
-        let resolveStreamAttempt: (() => void) | null = null;
-        let rejectStreamAttempt: ((error: unknown) => void) | null = null;
-        let activeLocalAssistantTurnId: string | null = null;
+        // pi 会话事件接线：reducer 把 AgentSessionEvent 归约为 assistant_blocks 快照写入
+        const reducer = createChatEventSinkFor(actualCurrentChat);
 
-        const finalizeLocalAssistantTurn = () => {
-          if (!activeLocalAssistantTurnId) return null;
-          const finalizedChat = produce(actualCurrentChat, draft => {
-            const lastMessage = draft.messages.at(-1);
-            if (lastMessage?.role === Role.Assistant) {
-              finalizeAssistantTurn(lastMessage as ResponseMessage, activeLocalAssistantTurnId!);
+        try {
+          const baseSystem = buildSystemMessageWithRequest(actualCurrentChat);
+          const forcedSkills = extractForcedSkills(requestMessage);
+          const systemPrompt = buildPiChatSystemPrompt(
+            typeof baseSystem.content === "string"
+              ? baseSystem.content
+              : baseSystem.content.map(block => (block.type === "text" ? block.text : "")).join(""),
+            skills,
+            forcedSkills
+          );
+          const ensureOptions = {
+            chatScope,
+            chatId: actualCurrentChat.id,
+            provider: chatProviderConfig,
+            model: chatModelConfig,
+            systemPrompt,
+            history: historyBeforeThisTurn,
+            ...(chatModelConfig.reasoning
+              ? { thinkingLevel: toPiThinking(normalizedReasoningEffort) }
+              : {}),
+            ...(toolScope ? { toolScope } : {}),
+            ...(options?.toolContext
+              ? { toolContext: options.toolContext as Record<string, unknown> }
+              : {}),
+          };
+          // 编辑重发/重新生成传入截断历史（baseChatOverride）：pi 会话必须重建对齐
+          const sessionId = options?.baseChatOverride
+            ? await piChatSessionManager.recreateChatSession(ensureOptions)
+            : await piChatSessionManager.ensureChatSession(ensureOptions);
+
+          piEventUnsubscribeRef.current?.();
+          piEventReducerRef.current = reducer;
+          piEventUnsubscribeRef.current = onPiSessionEvent(sessionId, event =>
+            reducer.handle(event)
+          );
+
+          const contentItems = Array.isArray(requestMessage.content)
+            ? requestMessage.content
+            : [{ type: "text" as const, text: requestMessage.content as string }];
+          const promptText = contentItems
+            .filter(item => item.type === "text")
+            .map(item => item.text)
+            .join("\n");
+          const images = supportImage
+            ? contentItems
+                .filter(item => item.type === "image")
+                .map(item => toPiImageContent(item.image))
+            : [];
+
+          const promptOutcome = await piSessionPrompt(sessionId, promptText, images);
+          if (!promptOutcome.ok) {
+            setChatError(promptOutcome.error ?? "发送失败");
+            setSessionPending(getConversationKey(actualCurrentChat.id), false);
+            const shouldRestoreInput = shouldRestoreInputAfterSendError(
+              new Error(promptOutcome.error ?? "")
+            );
+            if (shouldClearInput && shouldRestoreInput && promptText) {
+              setTimeout(() => {
+                editTextRef.current?.setValue(promptText);
+                editTextRef.current?.focusEnd();
+              }, 100);
             }
-          });
-          activeLocalAssistantTurnId = null;
-          actualCurrentChat = finalizedChat;
-          return finalizedChat;
-        };
-
-        const resetAssistantForRetry = () => {
-          const resetChat = produce(actualCurrentChat, draft => {
-            const lastMessageIndex = draft.messages.length - 1;
-            const lastMessage = draft.messages[lastMessageIndex];
-            if (lastMessage?.role === Role.Assistant) {
-              draft.messages[lastMessageIndex] = createAssistantMessage({
-                clientId: (lastMessage as ResponseMessage).clientId,
-              });
-            }
-          });
-          actualCurrentChat = resetChat;
-          updateCurrentChat(resetChat);
-          if (displayedChatIdRef.current === resetChat.id) {
-            actualChatRef.current = resetChat;
-            setUpdateCounter(prev => prev + 1);
-          }
-        };
-
-        const runStreamAttempt = async (): Promise<void> => {
-          await new Promise<void>((resolve, reject) => {
-            resolveStreamAttempt = resolve;
-            rejectStreamAttempt = reject;
-            void chatLLMStream(chatProviderConfig, chatModelConfig, sendMessages, {
-              enableTools: true,
-              conversationKey,
-              toolContext: options?.toolContext,
-              toolScope,
-              skills,
-              forcedSkills: extractForcedSkills(requestMessage),
-              interactiveApproval: true,
-              reasoningEffort: chatModelConfig?.reasoning ? normalizedReasoningEffort : undefined,
-              onFinish: () => {},
-
-              onAssistantTurnEnd: async ({ turnId, resultType, providerMetadata }) => {
-                activeLocalAssistantTurnId = null;
-                const finalizedChat = produce(actualCurrentChat, draft => {
-                  const lastMessageIndex = draft.messages.length - 1;
-                  if (
-                    lastMessageIndex >= 0 &&
-                    draft.messages[lastMessageIndex].role === Role.Assistant
-                  ) {
-                    const lastMessage = draft.messages[lastMessageIndex] as ResponseMessage;
-                    applyAssistantProviderMetadataSnapshot(lastMessage, turnId, providerMetadata);
-                    finalizeAssistantTurn(lastMessage, turnId);
-                  }
-                });
-
-                actualCurrentChat = finalizedChat;
-                updateCurrentChat(finalizedChat);
-                if (displayedChatIdRef.current === finalizedChat.id) {
-                  actualChatRef.current = finalizedChat;
-                  setUpdateCounter(prev => prev + 1);
-                }
-                if (activeRunId && resultType === "response") {
-                  chatRunManager.update(
-                    activeRunId,
-                    {
-                      assistantSnapshot:
-                        (finalizedChat.messages.at(-1) as ResponseMessage)?.content || "",
-                      reasoningSnapshot:
-                        (finalizedChat.messages.at(-1) as ResponseMessage)?.reasoning_content || "",
-                    },
-                    true
-                  );
-                }
-
-                if (resultType !== "response") {
-                  return;
-                }
-
-                try {
-                  actualCurrentChat = await persistFinishedChatAndGenerateTitle(finalizedChat);
-                  if (activeRunId) {
-                    chatRunManager.finalizePersisted(activeRunId, "completed");
-                  }
-                } catch (error) {
-                  if (activeRunId) {
-                    chatRunManager.finish(
-                      activeRunId,
-                      "failed",
-                      error instanceof Error ? error.message : "最终会话持久化失败"
-                    );
-                  }
-                  message.error("Failed to update chat");
-                  console.error(error);
-                } finally {
-                  resolveStreamAttempt?.();
-                }
-                setChatError(null);
-                setChatRetryStatus(null);
-              },
-
-              onUpdate: (full: string, _inc: string, _reasoningText?: string, turnId?: string) => {
-                setChatRetryStatus(null);
-                if (turnId) {
-                  activeLocalAssistantTurnId = turnId;
-                }
-                // 基于当前实际聊天对象进行更新
-                const updatedChat = produce(actualCurrentChat, draft => {
-                  // 找到最后一条助手消息并更新其内容
-                  const lastMessageIndex = draft.messages.length - 1;
-                  if (
-                    lastMessageIndex >= 0 &&
-                    draft.messages[lastMessageIndex].role === Role.Assistant
-                  ) {
-                    const lastMessage = draft.messages[lastMessageIndex] as ResponseMessage;
-                    applyAssistantTextSnapshot(
-                      lastMessage,
-                      turnId || `${streamId}:fallback-text`,
-                      full
-                    );
-                  }
-                });
-
-                actualCurrentChat = publishStreamingChatSnapshot(updatedChat);
-                if (activeRunId)
-                  chatRunManager.update(activeRunId, {
-                    assistantSnapshot: full,
-                  });
-              },
-
-              onReasoning: (full: string, _inc: string, turnId?: string) => {
-                setChatRetryStatus(null);
-                if (turnId) {
-                  activeLocalAssistantTurnId = turnId;
-                }
-                // 基于当前实际聊天对象进行更新
-                const updatedChat = produce(actualCurrentChat, draft => {
-                  // 找到最后一条助手消息并更新其推理内容
-                  const lastMessageIndex = draft.messages.length - 1;
-                  if (
-                    lastMessageIndex >= 0 &&
-                    draft.messages[lastMessageIndex].role === Role.Assistant
-                  ) {
-                    const lastMessage = draft.messages[lastMessageIndex] as ResponseMessage;
-                    applyAssistantReasoningSnapshot(
-                      lastMessage,
-                      turnId || `${streamId}:fallback-reasoning`,
-                      full
-                    );
-                  }
-                });
-
-                actualCurrentChat = publishStreamingChatSnapshot(updatedChat);
-                if (activeRunId)
-                  chatRunManager.update(activeRunId, {
-                    reasoningSnapshot: full,
-                  });
-              },
-
-              onUsage: usage => {
-                const updatedChat = produce(actualCurrentChat, draft => {
-                  const lastMessage = draft.messages[draft.messages.length - 1];
-                  if (lastMessage?.role === Role.Assistant) {
-                    (lastMessage as ResponseMessage).usage = {
-                      ...usage,
-                      providerId: chatProviderConfig.id,
-                      modelName: chatModelConfig.name,
-                    };
-                  }
-                });
-                actualCurrentChat = publishStreamingChatSnapshot(updatedChat);
-              },
-
-              onToolCallsUpdate: (
-                executions: ToolCallExecutionState[],
-                turnId?: string,
-                toolCalls?: ToolCallPayload[]
-              ) => {
-                setChatRetryStatus(null);
-                if (turnId) {
-                  activeLocalAssistantTurnId = turnId;
-                }
-                // 基于当前实际聊天对象进行更新
-                const updatedChat = produce(actualCurrentChat, draft => {
-                  // 找到最后一条助手消息并更新其工具执行状态
-                  const lastMessageIndex = draft.messages.length - 1;
-                  if (
-                    lastMessageIndex >= 0 &&
-                    draft.messages[lastMessageIndex].role === Role.Assistant
-                  ) {
-                    const lastMessage = draft.messages[lastMessageIndex] as ResponseMessage;
-                    applyAssistantToolCallsSnapshot(
-                      lastMessage,
-                      turnId || `${streamId}:fallback-tool`,
-                      executions,
-                      toolCalls
-                    );
-                  }
-                });
-
-                const publishedChat = publishStreamingChatSnapshot(updatedChat);
-                actualCurrentChat = publishedChat;
-
-                // ask-question 进入等待态时，立即持久化快照，确保应用重启后可恢复
-                const pendingAskQuestionExecutions = executions.filter(
-                  execution =>
-                    execution.toolName === ASK_QUESTION_TOOL_NAME &&
-                    (execution.status === "pending" ||
-                      execution.status === "executing" ||
-                      execution.status === "retrying")
-                );
-                // 工具等待用户确认（权限模式）同样算等待输入
-                const awaitingApproval = executions.some(
-                  execution => execution.status === "awaiting-approval"
-                );
-                if (activeRunId) {
-                  const currentRun = chatRunManager.getSnapshot(conversationKey as ChatSessionKey);
-                  const nextStatus =
-                    pendingAskQuestionExecutions.length > 0 || awaitingApproval
-                      ? "waiting_input"
-                      : currentRun?.status === "waiting_input"
-                        ? "running"
-                        : undefined;
-                  chatRunManager.update(
-                    activeRunId,
-                    {
-                      toolSnapshot: executions,
-                      ...(nextStatus ? { status: nextStatus } : {}),
-                    },
-                    Boolean(nextStatus)
-                  );
-                }
-                const shouldPersistSnapshot = pendingAskQuestionExecutions.some(
-                  execution =>
-                    !persistedAskQuestionSnapshotsRef.current.has(
-                      buildAskQuestionExecutionSnapshotKey(execution)
-                    )
-                );
-                if (shouldPersistSnapshot) {
-                  pendingAskQuestionExecutions.forEach(execution => {
-                    persistedAskQuestionSnapshotsRef.current.add(
-                      buildAskQuestionExecutionSnapshotKey(execution)
-                    );
-                  });
-                  void updateChatMessage(publishedChat).catch(error => {
-                    console.error("持久化 ask-question 快照失败:", error);
-                  });
-                }
-              },
-
-              onError: error => {
-                const finalizedChat = finalizeLocalAssistantTurn();
-                if (finalizedChat) {
-                  actualCurrentChat = finalizedChat;
-                }
-                updateCurrentChat(actualCurrentChat);
-                abortControllerRef.current = null;
-                rejectStreamAttempt?.(error);
-                if (activeRunId)
-                  chatRunManager.update(activeRunId, {
-                    status: "retrying",
-                    errorMessage: error instanceof Error ? error.message : "聊天请求失败",
-                  });
-              },
-
-              onController: (controller: AbortController) => {
-                abortControllerRef.current = controller;
-                if (activeRunId) chatRunManager.attachController(activeRunId, controller);
-              },
-            });
-          });
-        };
-
-        let lastError: unknown = null;
-        for (let retryCount = 0; retryCount <= DEFAULT_CHAT_MAX_RETRIES; retryCount += 1) {
-          try {
-            await runStreamAttempt();
-            clearPending();
-            abortControllerRef.current = null;
-            setChatError(null);
-            setChatRetryStatus(null);
             perf.end();
-            if (shouldClearInput) {
-              setTimeout(() => editTextRef.current?.focusEnd(), 100);
-            }
             return true;
-          } catch (error) {
-            lastError = error;
-            const isAbortError = error instanceof Error && error.name === "AbortError";
-            const shouldStopRetrying =
-              isAbortError || isContextLengthError(error) || retryCount >= DEFAULT_CHAT_MAX_RETRIES;
-
-            if (shouldStopRetrying) {
-              const errorMessage = getErrorMessage(error);
-              const shouldRestoreInput = shouldRestoreInputAfterSendError(error);
-              const failedQueueConversationKey = getQueueConversationKey(actualCurrentChat.id);
-              const shouldRestoreFailedInput =
-                shouldClearInput &&
-                shouldRestoreInput &&
-                queueConversationKeyRef.current === failedQueueConversationKey &&
-                messageQueueRef.current.size(failedQueueConversationKey) === 0;
-              setChatRetryStatus(null);
-              setChatError(isAbortError ? null : errorMessage);
-              clearPending();
-              abortControllerRef.current = null;
-              let finalizedChatPersisted = false;
-              try {
-                actualCurrentChat = await updateChatMessage(actualCurrentChat);
-                finalizedChatPersisted = true;
-              } catch (persistError) {
-                console.error("聊天终止后持久化对话失败:", persistError);
-              }
-              if (activeRunId) {
-                if (isAbortError && finalizedChatPersisted) {
-                  chatRunManager.finalizePersisted(activeRunId, "cancelled");
-                } else {
-                  chatRunManager.finish(
-                    activeRunId,
-                    isAbortError ? "cancelled" : "failed",
-                    isAbortError ? null : errorMessage
-                  );
-                }
-              }
-              perf.end();
-              if (shouldRestoreFailedInput) {
-                setTimeout(() => {
-                  const currentInput = editTextRef.current?.getValue() || [];
-                  const hasCurrentDraft = currentInput.some(item =>
-                    item.type === "text" ? item.text.trim().length > 0 : true
-                  );
-                  const textContent = Array.isArray(requestMessage.content)
-                    ? requestMessage.content
-                        .filter(item => item.type === "text")
-                        .map(item => item.text)
-                        .join("\n")
-                    : typeof requestMessage.content === "string"
-                      ? requestMessage.content
-                      : "";
-                  if (!hasCurrentDraft) {
-                    editTextRef.current?.setValue(textContent);
-                  }
-                  editTextRef.current?.focusEnd();
-                }, 100);
-              }
-              if (!isAbortError) {
-                console.error("聊天请求失败:", errorMessage);
-              }
-              return true;
-            }
-
-            const nextRetry = retryCount + 1;
-            if (activeRunId) {
-              chatRunManager.update(activeRunId, {
-                status: "retrying",
-                attempt: nextRetry,
-              });
-            }
-            setChatRetryStatus({
-              attempt: nextRetry,
-              maxRetries: DEFAULT_CHAT_MAX_RETRIES,
-            });
-            resetAssistantForRetry();
-            const retryDelayController = new AbortController();
-            abortControllerRef.current = retryDelayController;
-            if (activeRunId) {
-              chatRunManager.attachController(activeRunId, retryDelayController);
-            }
-            const shouldContinue = await new Promise<boolean>(resolve => {
-              const timer = setTimeout(() => {
-                retryDelayController.signal.removeEventListener("abort", handleAbort);
-                resolve(true);
-              }, 1000 * nextRetry);
-              const handleAbort = () => {
-                clearTimeout(timer);
-                resolve(false);
-              };
-              retryDelayController.signal.addEventListener("abort", handleAbort, { once: true });
-            });
-            if (!shouldContinue) {
-              setChatRetryStatus(null);
-              setChatError(null);
-              abortControllerRef.current = null;
-              perf.end();
-              return true;
-            }
           }
+          // 流式完成由 agent_settled 事件驱动（onSettled：持久化 + 清 pending）
+          return true;
+        } catch (error) {
+          const errorMessage = getErrorMessage(error);
+          setChatError(errorMessage);
+          clearPending();
+          perf.end();
+          return true;
         }
-
-        setChatError(getErrorMessage(lastError));
-        clearPending();
-        return true;
       }
     );
-
-    useEffect(() => {
-      if (
-        !sessionRun ||
-        sessionRun.status !== "interrupted" ||
-        currentChat.id === 0 ||
-        pendingSessionKeys.has(sessionKey) ||
-        resumedRunIdsRef.current.has(sessionRun.runId)
-      ) {
-        return;
-      }
-
-      const requestMessage = [...sessionRun.requestPayload]
-        .reverse()
-        .find(item => item.role === Role.User) as RequestMessage | undefined;
-      if (!requestMessage) {
-        chatRunManager.finish(sessionRun.runId, "failed", "缺少可恢复的用户请求");
-        return;
-      }
-
-      resumedRunIdsRef.current.add(sessionRun.runId);
-      void (async () => {
-        const resumedRun = await chatRunManager.resume(sessionRun.runId);
-        if (!resumedRun) return;
-        const baseChat = produce(currentChat, draft => {
-          const assistantIndex = draft.messages.findIndex(
-            item => item.clientId === resumedRun.assistantMessageClientId
-          );
-          if (assistantIndex >= 0) {
-            draft.messages[assistantIndex] = createAssistantMessage({
-              clientId: resumedRun.assistantMessageClientId,
-            });
-          }
-        });
-        await processMessageSending(requestMessage, {
-          shouldClearInput: false,
-          shouldCreateNewChat: false,
-          persistRequestMessage: false,
-          baseChatOverride: baseChat,
-          runId: resumedRun.runId,
-          attempt: resumedRun.attempt,
-          assistantMessageClientId: resumedRun.assistantMessageClientId,
-        });
-      })();
-    }, [currentChat, pendingSessionKeys, processMessageSending, sessionKey, sessionRun]);
 
     const submittedAskQuestionSessions = useMemo(() => {
       const activeChat = actualChatRef.current;
@@ -1268,118 +980,71 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     }, [askQuestionRecords, getConversationKey, updateCounter]);
 
     useEffect(() => {
-      const shouldResumePersistedWaitingRun = Boolean(
-        sessionRun?.status === "waiting_input" && !chatRunManager.hasController(sessionRun.runId)
-      );
-      if (hideInput || (sendLoading && !shouldResumePersistedWaitingRun)) {
+      if (hideInput || sendLoading) {
         return;
       }
 
       const pendingSession = submittedAskQuestionSessions.find(
-        session =>
-          !resumingAskQuestionRef.current.has(session.sessionId) &&
-          !actualChatRef.current.messages.some(
-            message =>
-              message.role === Role.Assistant &&
-              (message as ResponseMessage).assistant_blocks?.some(
-                block =>
-                  block.type === "tool_call" &&
-                  block.toolCall.id === session.toolCallId &&
-                  typeof block.execution?.metadata?.codexItemType === "string"
-              )
-          )
+        session => !resumingAskQuestionRef.current.has(session.sessionId)
       );
       if (!pendingSession || !pendingSession.submittedAnswers) {
-        return;
-      }
-      if (!chatProviderConfig || !chatModelConfig) {
         return;
       }
 
       resumingAskQuestionRef.current.add(pendingSession.sessionId);
 
-      const askQuestionResult = buildAskQuestionToolResult(
-        pendingSession.payload,
-        pendingSession.submittedAnswers
-      );
-      const answerJson = JSON.stringify(askQuestionResult, null, 2);
+      void (async () => {
+        const askQuestionResult = buildAskQuestionToolResult(
+          pendingSession.payload,
+          pendingSession.submittedAnswers!
+        );
+        const answerJson = JSON.stringify(askQuestionResult, null, 2);
+        completeAskQuestionSession(pendingSession.sessionId);
 
-      const currentChatSnapshot = actualChatRef.current;
-      const resolvedChat = markAskQuestionExecutionResolved(
-        currentChatSnapshot,
-        pendingSession.toolCallId,
-        pendingSession.rawInput,
-        answerJson
-      );
-      actualChatRef.current = resolvedChat;
-      setUpdateCounter(prev => prev + 1);
-      updateCurrentChat(resolvedChat);
-      void updateChatMessage(resolvedChat).catch(error => {
-        console.error("恢复 ask-question 快照持久化失败:", error);
-      });
+        // pi 会话恢复：主进程的工具 execute 仍挂起——直接回传答案让它续流
+        // （渲染层重载后本地会话表丢失，经 find-by-scope 收养主进程仍持有的会话）
+        const activeChat = actualChatRef.current;
+        const sessionId = await piChatSessionManager.adoptOrResolveSession(
+          chatScope,
+          activeChat.id
+        );
+        if (sessionId) {
+          // 收养后续流的事件接线（后续 message/turn 事件写回最后一条 assistant 消息）
+          piEventUnsubscribeRef.current?.();
+          const reducer = createChatEventSinkFor(activeChat);
+          piEventReducerRef.current = reducer;
+          piEventUnsubscribeRef.current = onPiSessionEvent(sessionId, event =>
+            reducer.handle(event)
+          );
+          await piSessionToolResult(sessionId, pendingSession.toolCallId, {
+            content: answerJson,
+          });
+          return;
+        }
 
-      completeAskQuestionSession(pendingSession.sessionId);
-
-      const resumeToolResultMessage: RequestMessage = {
-        role: Role.Tool,
-        content: [
-          {
-            type: "text",
-            text: answerJson,
-          },
-        ],
-        tool_call_id: pendingSession.toolCallId,
-        name: ASK_QUESTION_TOOL_NAME,
-      };
-
-      const historyMessages = buildHistoryMessages(actualChatRef.current);
-      const hasAssistantToolCallMessage = historyMessages.some(
-        message =>
-          message.role === Role.Assistant &&
-          Boolean(
-            message.tool_calls?.some(
-              call =>
-                call.id === pendingSession.toolCallId &&
-                call.function.name === ASK_QUESTION_TOOL_NAME
-            )
-          )
-      );
-      const bridgeAssistantToolCallMessage: RequestMessage = {
-        role: Role.Assistant,
-        content: "",
-        reasoning_content: "",
-        tool_calls: [
-          {
-            id: pendingSession.toolCallId,
-            type: "function",
-            function: {
-              name: ASK_QUESTION_TOOL_NAME,
-              arguments: pendingSession.rawInput,
-            },
-          },
-        ],
-      };
-
-      void processMessageSending(resumeToolResultMessage, {
-        shouldClearInput: false,
-        shouldCreateNewChat: false,
-        persistRequestMessage: false,
-        runId: shouldResumePersistedWaitingRun ? sessionRun?.runId : undefined,
-        attempt: shouldResumePersistedWaitingRun ? sessionRun?.attempt : undefined,
-        extraHistoryMessages: hasAssistantToolCallMessage ? [] : [bridgeAssistantToolCallMessage],
-      });
+        // 兜底（主进程也已重启，pi 会话丢失）：把答案写进 chat 行终态，续流由 M4 会话恢复承接
+        const resolvedChat = markAskQuestionExecutionResolved(
+          activeChat,
+          pendingSession.toolCallId,
+          pendingSession.rawInput,
+          answerJson
+        );
+        actualChatRef.current = resolvedChat;
+        setUpdateCounter(prev => prev + 1);
+        updateCurrentChat(resolvedChat);
+        void updateChatMessage(resolvedChat).catch(error => {
+          console.error("恢复 ask-question 快照持久化失败:", error);
+        });
+      })();
     }, [
       hideInput,
       sendLoading,
       submittedAskQuestionSessions,
-      processMessageSending,
-      buildHistoryMessages,
+      completeAskQuestionSession,
       updateCurrentChat,
       updateChatMessage,
-      completeAskQuestionSession,
-      chatProviderConfig,
-      chatModelConfig,
-      sessionRun,
+      chatScope,
+      createChatEventSinkFor,
     ]);
 
     useImperativeHandle(ref, () => ({
@@ -1493,18 +1158,15 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     }, [editingDraft, lastUserMessageIndex, visibleMessages]);
 
-    // 停止流式请求
+    // 停止流式请求：pi 会话 abort（半成品由 agent_settled 流程持久化）
     const stopStreaming = useMemoizedFn(() => {
-      const activeSessionKey = getConversationKey(actualChatRef.current.id) as ChatSessionKey;
-      const activeRun = chatRunManager.getSnapshot(activeSessionKey);
-      if (
-        !activeRun ||
-        !["queued", "running", "retrying", "waiting_input"].includes(activeRun.status)
-      ) {
+      const activeChat = actualChatRef.current;
+      const sessionId = piChatSessionManager.resolveSessionId(chatScope, activeChat.id);
+      if (!sessionId) {
+        setSessionPending(getConversationKey(activeChat.id), false);
         return;
       }
-      chatRunManager.cancel(activeSessionKey);
-      setSessionPending(activeSessionKey, false);
+      void piSessionAbort(sessionId);
     });
 
     useEffect(() => {

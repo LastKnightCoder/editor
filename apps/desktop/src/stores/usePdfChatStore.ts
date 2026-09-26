@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { produce } from "immer";
-import { chatRunManager } from "@/services/chatRunManager";
+import { piChatSessionManager } from "@/services/piChatSession";
 import type { ChatSessionMessage, PdfChatMessage } from "@/types";
 import {
   createPdfChat,
@@ -154,7 +154,9 @@ const usePdfChatStore = create<IState & IAction>()((set, get) => ({
     findChildren(id);
 
     await Promise.all(
-      Array.from(allIdsToDelete, chatId => chatRunManager.discardSession(`pdf-chat:${chatId}`))
+      Array.from(allIdsToDelete, chatId =>
+        piChatSessionManager.disposeChatSession("pdf-chat", chatId)
+      )
     );
     await deletePdfChat(id);
 

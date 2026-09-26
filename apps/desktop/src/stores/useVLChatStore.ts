@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { produce } from "immer";
-import { chatRunManager } from "@/services/chatRunManager";
+import { piChatSessionManager } from "@/services/piChatSession";
 import { VLChatMessage, CreateVLChat } from "@/types/vibe-learning";
 import { ChatSessionMessage } from "@/types";
 import {
@@ -157,7 +157,7 @@ const useVLChatStore = create<IState & IAction>()((set, get) => ({
 
     await Promise.all(
       Array.from(allIdsToDelete, chatId =>
-        chatRunManager.discardSession(`vibe-learning-chat:${chatId}`)
+        piChatSessionManager.disposeChatSession("vibe-learning-chat", chatId)
       )
     );
     await deleteVLChat(id);

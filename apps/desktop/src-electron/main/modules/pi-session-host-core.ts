@@ -25,6 +25,8 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import { buildPiProvider } from "./pi-ai-runtime-core";
 import type { LLMProviderSetting } from "@/types/pi-llm";
+import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { PiThinkingLevel } from "@/types/pi-llm";
 
 /**
  * pi 只认 Program Files 与 Windows PATH 上的 bash；非标准安装位置需 settings shellPath 兜底（D-060 后产品首启检测写入，此处为探测默认值）。
@@ -194,6 +196,14 @@ export interface AssembleHostSessionOptions {
   shellPath?: string;
   /** 出站请求 dump 目录（联调取证，见 createRequestDumpExtension） */
   dumpRequestDir?: string;
+  /** 渲染端 ToolRegistry 工具桥（customTools） */
+  customTools?: ToolDefinition[];
+  /** 推理档位（缺省由 pi 按模型能力取默认） */
+  thinkingLevel?: PiThinkingLevel;
+  /** 历史灌入：已转换好的 pi 消息（桌面 chat-core 历史 → AgentMessage） */
+  initialMessages?: import("@earendil-works/pi-ai").Message[];
+  /** agent 层自动重试（对齐旧链路 DEFAULT_CHAT_MAX_RETRIES） */
+  retry?: { maxRetries: number };
 }
 
 export async function assembleHostSession(
@@ -214,23 +224,33 @@ export async function assembleHostSession(
       systemPrompt: options.systemPrompt,
       ...(options.dumpRequestDir ? { dumpRequestDir: options.dumpRequestDir } : {}),
     }));
+  const sessionManager = options.sessionDir
+    ? SessionManager.create(options.cwd, options.sessionDir)
+    : SessionManager.inMemory(options.cwd);
+  // 历史灌入：sessionManager 落 entry，createAgentSession 内部 buildSessionContext 恢复进 Agent
+  for (const message of options.initialMessages ?? []) {
+    sessionManager.appendMessage(message);
+  }
   const { session } = await createAgentSession({
     cwd: options.cwd,
     agentDir: options.agentDir,
     modelRuntime: options.modelRuntime,
     model,
-    sessionManager: options.sessionDir
-      ? SessionManager.create(options.cwd, options.sessionDir)
-      : SessionManager.inMemory(options.cwd),
+    ...(options.thinkingLevel ? { thinkingLevel: options.thinkingLevel } : {}),
+    ...(options.customTools && options.customTools.length > 0
+      ? { customTools: options.customTools }
+      : {}),
+    sessionManager,
     resourceLoader,
     // 无 Git Bash 时不能留默认 bash 工具——pi 的 PATH 搜索会命中 System32\bash.exe（WSL 入口，
     // 路径语义与文件工具断裂且无发行版时全失败），改为 powershell（Windows 原生路径语义一致，
     // pi 实现已自带 [Console]::OutputEncoding=UTF8 输出前缀）。WSL 手动选项在工具管理（M3）提供。
-    settingsManager: SettingsManager.inMemory(
-      options.shellPath
+    settingsManager: SettingsManager.inMemory({
+      ...(options.shellPath
         ? { shellPath: options.shellPath }
-        : { defaultTools: ["read", "powershell", "edit", "write"] }
-    ),
+        : { defaultTools: ["read", "powershell", "edit", "write"] }),
+      ...(options.retry ? { retry: { enabled: true, maxRetries: options.retry.maxRetries } } : {}),
+    }),
   });
   return session;
 }
