@@ -207,7 +207,7 @@ export function ArticleSwitcher({
             className={cn(
               "-mr-4 flex max-h-[380px] flex-col overflow-y-auto border-r-[10px] border-r-transparent pr-1.5",
               /* 轨道上下内缩：滑块行程与首个月份标题文字顶 / 末条目文字底对齐 */
-              "[&::-webkit-scrollbar-track]:border-b-[8px] [&::-webkit-scrollbar-track]:border-t-[12px] [&::-webkit-scrollbar-track]:border-transparent"
+              "[&::-webkit-scrollbar-track]:mb-2 [&::-webkit-scrollbar-track]:mt-3"
             )}
             onScroll={event => {
               const el = event.currentTarget;
