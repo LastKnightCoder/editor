@@ -1,11 +1,10 @@
 /**
- * Skill 详情抽屉（右侧 560px，结构同 MCP 服务器抽屉）：
+ * Skill 详情抽屉（通用 Drawer，md 560px）：
  * 概览（AI 看到的描述 + SKILL.md 渲染 + 元信息）/ 设置（调用方式、导出、删除）/ 使用记录。
  * 「编辑」推入整页编辑器；只读来源给「复制为我的」。
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import {
   Copy,
   Download,
@@ -15,24 +14,22 @@ import {
   Pencil,
   Radar,
   Trash2,
-  X,
 } from "lucide-react";
 import dayjs from "dayjs";
 import {
   Button,
+  Drawer,
   IconButton,
   Menu,
-  PortalScope,
   Segmented,
   Switch,
   Tooltip,
   cn,
   toast,
-  usePortalContainer,
+  useRetainedValue,
 } from "@tau/ui";
 import { Editor } from "@tau/editor/src";
-import { FadeScroll } from "@/components/FadeScroll";
-import { usePage, useOverlayDismiss } from "@/page/PageProvider";
+import { usePage } from "@/page/PageProvider";
 import useTheme from "@/hooks/useTheme";
 import useSkillStore from "@/stores/useSkillStore";
 import { importFromMarkdown } from "@/utils/markdown";
@@ -391,148 +388,125 @@ export function SkillDrawer({
   onClose: () => void;
   onDelete: (item: SkillItem) => void;
 }) {
-  const container = usePortalContainer();
   const { navigator } = usePage();
-  const open = item !== null;
   const [tab, setTab] = useState<DrawerTab>("overview");
-  // 关闭动画期间保留上一次内容
-  const [shown, setShown] = useState<SkillItem | null>(item);
-  useEffect(() => {
-    if (item) setShown(item);
-  }, [item]);
-  useEffect(() => setTab("overview"), [shown?.key]);
-  useOverlayDismiss(onClose, open);
-  const { readme, files } = useSkillContent(shown);
+  const current = useRetainedValue(item);
+  useEffect(() => setTab("overview"), [current?.key]);
+  const { readme, files } = useSkillContent(current);
 
-  const current = shown;
   const edit = () => {
     if (!current) return;
     onClose();
     navigator.push("skill-edit", { path: current.skill.path });
   };
 
-  return createPortal(
-    <PortalScope>
-      <div
-        aria-hidden
-        onClick={onClose}
-        className={cn(
-          "bg-overlay fixed inset-0 z-[340] transition-opacity duration-200",
-          open ? "opacity-100" : "pointer-events-none opacity-0"
-        )}
-      />
-      <aside
-        role="dialog"
-        aria-modal="true"
-        aria-label={current ? `${current.skill.name} 详情` : "Skill 详情"}
-        inert={!open}
-        className={cn(
-          "bg-surface shadow-float fixed bottom-2 right-2 top-2 z-[340] flex w-[560px] flex-col rounded-[14px]",
-          "transition-transform duration-[280ms] ease-[cubic-bezier(.2,.8,.2,1)]",
-          open ? "translate-x-0" : "translate-x-[calc(100%+16px)]"
-        )}
-      >
-        {current && (
+  return (
+    <Drawer
+      open={item !== null}
+      onOpenChange={open => !open && onClose()}
+      label={current ? `${current.skill.name} 详情` : "Skill 详情"}
+      icon={current && <SkillIcon skill={current.skill} size="lg" />}
+      title={
+        current && (
           <>
-            <header className="flex items-start gap-3.5 px-[22px] pt-5">
-              <SkillIcon skill={current.skill} size="lg" />
-              <div className="min-w-0 flex-1">
-                <h3 className="flex items-center gap-2 text-[16px] font-semibold">
-                  <span className="truncate">{current.skill.name}</span>
-                  <SourceTag skill={current.skill} />
-                </h3>
-                <p className="font-tau-mono text-ink-3 m-0 mt-0.5 truncate text-[11.5px]">
-                  {current.skill.folderName}
-                </p>
-                <div className="text-tau-sm text-ink-3 mt-1.5 flex items-center gap-2 tabular-nums">
-                  <ModeBadge mode={current.mode} />
-                  {current.skill.fileCount ?? 1} 个文件 · 用过 {current.usage?.count ?? 0} 次
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                {current.readonly ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    icon={Copy}
-                    onClick={() => void copySkillToMine(current.skill)}
-                  >
-                    复制为我的
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="secondary" icon={Pencil} onClick={edit}>
-                    编辑
-                  </Button>
-                )}
-                {!current.skill.isInternal && (
-                  <Menu
-                    align="end"
-                    trigger={
-                      <IconButton aria-label="更多">
-                        <MoreHorizontal className="size-4" strokeWidth={1.75} />
-                      </IconButton>
-                    }
-                  >
-                    <Menu.Item
-                      icon={<FolderOpen />}
-                      onSelect={() => void showSkillInFolder(current.skill.path)}
-                    >
-                      在访达中显示
-                    </Menu.Item>
-                    {!current.readonly && (
-                      <>
-                        <Menu.Separator />
-                        <Menu.Item icon={<Trash2 />} danger onSelect={() => onDelete(current)}>
-                          删除
-                        </Menu.Item>
-                      </>
-                    )}
-                  </Menu>
-                )}
-                <Tooltip content={current.enabled ? "停用" : "启用"}>
-                  <span>
-                    <Switch
-                      aria-label={current.enabled ? "停用 Skill" : "启用 Skill"}
-                      checked={current.enabled}
-                      onCheckedChange={v =>
-                        useSkillStore.getState().setEnabled(current.skill.folderName, v)
-                      }
-                      className="mx-1.5"
-                    />
-                  </span>
-                </Tooltip>
-                <IconButton aria-label="关闭" onClick={onClose}>
-                  <X className="size-4" strokeWidth={1.75} />
-                </IconButton>
-              </div>
-            </header>
-
-            <div className="px-[22px] pt-4">
-              <Segmented
-                label="详情分区"
-                size="sm"
-                value={tab}
-                onValueChange={(v: DrawerTab) => setTab(v)}
-              >
-                <Segmented.Item value="overview" label="概览" />
-                <Segmented.Item value="settings" label="设置" />
-                <Segmented.Item value="usage" label="使用记录" />
-              </Segmented>
-            </div>
-
-            <FadeScroll className="mb-3 mt-3 min-h-0 flex-1 pb-4 pl-[22px] pr-4 pt-2">
-              {tab === "settings" ? (
-                <SettingsPane item={current} onDelete={onDelete} />
-              ) : tab === "usage" ? (
-                <UsagePane item={current} />
-              ) : (
-                <OverviewPane item={current} readme={readme} files={files} />
-              )}
-            </FadeScroll>
+            <span className="truncate">{current.skill.name}</span>
+            <SourceTag skill={current.skill} />
           </>
-        )}
-      </aside>
-    </PortalScope>,
-    container
+        )
+      }
+      subtitle={
+        current && (
+          <span className="font-tau-mono block truncate text-[11.5px]">
+            {current.skill.folderName}
+          </span>
+        )
+      }
+      meta={
+        current && (
+          <>
+            <ModeBadge mode={current.mode} />
+            {current.skill.fileCount ?? 1} 个文件 · 用过 {current.usage?.count ?? 0} 次
+          </>
+        )
+      }
+      actions={
+        current && (
+          <>
+            {current.readonly ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={Copy}
+                onClick={() => void copySkillToMine(current.skill)}
+              >
+                复制为我的
+              </Button>
+            ) : (
+              <Button size="sm" variant="secondary" icon={Pencil} onClick={edit}>
+                编辑
+              </Button>
+            )}
+            {!current.skill.isInternal && (
+              <Menu
+                align="end"
+                trigger={
+                  <IconButton aria-label="更多">
+                    <MoreHorizontal className="size-4" strokeWidth={1.75} />
+                  </IconButton>
+                }
+              >
+                <Menu.Item
+                  icon={<FolderOpen />}
+                  onSelect={() => void showSkillInFolder(current.skill.path)}
+                >
+                  在访达中显示
+                </Menu.Item>
+                {!current.readonly && (
+                  <>
+                    <Menu.Separator />
+                    <Menu.Item icon={<Trash2 />} danger onSelect={() => onDelete(current)}>
+                      删除
+                    </Menu.Item>
+                  </>
+                )}
+              </Menu>
+            )}
+            <Tooltip content={current.enabled ? "停用" : "启用"}>
+              <span>
+                <Switch
+                  aria-label={current.enabled ? "停用 Skill" : "启用 Skill"}
+                  checked={current.enabled}
+                  onCheckedChange={v =>
+                    useSkillStore.getState().setEnabled(current.skill.folderName, v)
+                  }
+                  className="mx-1.5"
+                />
+              </span>
+            </Tooltip>
+          </>
+        )
+      }
+      toolbar={
+        <Segmented
+          label="详情分区"
+          size="sm"
+          value={tab}
+          onValueChange={(v: DrawerTab) => setTab(v)}
+        >
+          <Segmented.Item value="overview" label="概览" />
+          <Segmented.Item value="settings" label="设置" />
+          <Segmented.Item value="usage" label="使用记录" />
+        </Segmented>
+      }
+    >
+      {current &&
+        (tab === "settings" ? (
+          <SettingsPane item={current} onDelete={onDelete} />
+        ) : tab === "usage" ? (
+          <UsagePane item={current} />
+        ) : (
+          <OverviewPane item={current} readme={readme} files={files} />
+        ))}
+    </Drawer>
   );
 }

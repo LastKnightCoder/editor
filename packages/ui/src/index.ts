@@ -13,6 +13,7 @@ export * from "./primitives/Menu";
 export * from "./primitives/AnchoredPanel";
 export * from "./primitives/Dialog";
 export * from "./primitives/ConfirmDialog";
+export * from "./primitives/Drawer";
 export * from "./primitives/Popover";
 export * from "./primitives/YearHeatmap";
 export * from "./primitives/input/Input";

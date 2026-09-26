@@ -38,8 +38,7 @@ import useLLMConfig from "@/hooks/useLLMConfig";
 import useSettingStore from "@/stores/useSettingStore";
 import useSkillStore from "@/stores/useSkillStore";
 import type { EditTextHandle } from "@/components/EditText";
-import { cn, toast, useEdgeFade } from "@tau/ui";
-import { FADE_SCROLL_CLASS } from "@/components/FadeScroll/fadeScrollClass";
+import { FADE_SCROLL_CLASS, cn, toast, useEdgeFade } from "@tau/ui";
 import {
   ChatContainerCore,
   type ChatContainerCoreHandle,
