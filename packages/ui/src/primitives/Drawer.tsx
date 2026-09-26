@@ -261,7 +261,9 @@ export function Drawer({
       onKeyUp={isolateKeyboard ? e => e.stopPropagation() : undefined}
       style={{ width: currentWidth }}
       className={cn(
-        "bg-surface shadow-float flex flex-col rounded-[14px] outline-none",
+        /* shadow-float 只向下沉，顶边几乎无影、与同色纸面糊在一起：补 1px 细边描轮廓 + 四周一圈淡影 */
+        "bg-surface flex flex-col rounded-[14px] outline-none",
+        "shadow-[0_0_0_1px_var(--tau-line-2),0_0_18px_-6px_var(--tau-overlay),var(--tau-shadow-float)]",
         modal
           ? "fixed bottom-2 right-2 top-2 z-[340] max-w-[calc(100vw-16px)]"
           : "absolute bottom-3 right-3 top-3 z-10 max-w-[calc(100%-24px)] origin-right outline outline-1 outline-[var(--tau-line-1)]",
