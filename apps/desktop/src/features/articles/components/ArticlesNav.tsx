@@ -21,9 +21,9 @@ export function ArticlesNavTags({
   if (!tags.length) return null;
 
   return (
-    // -mr-1.5：FadeScroll 右侧 6px 透明边吃进侧栏右内边距，篇数与其他条目的右缘对齐
+    // -mr-1.5：FadeScroll 右侧 6px 透明边吃进侧栏右内边距；内层 pr-1.5 让行与滚动条之间留出间隙
     <FadeScroll className="-mr-1.5 mb-1 mt-0.5 max-h-[236px]">
-      <div className="space-y-px" role="group" aria-label="文章标签">
+      <div className="space-y-px pr-1.5" role="group" aria-label="文章标签">
         {tags.map(({ tag, count }) => {
           const active = selectedId === tag;
           return (

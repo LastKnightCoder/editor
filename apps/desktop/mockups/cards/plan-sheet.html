@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>卡片库 · 一整张纸 · 侧栏筛选 × 三视图</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .win { width: 1320px; }
+
+  /* ── 侧栏：卡片库入口下的子项 ── */
+  .navbox { margin: 2px 0 6px 22px; padding-left: 8px; }
+  .nav-gt { font-size: 11px; color: var(--ink-3); padding: 6px 8px 2px; display: flex; align-items: center; }
+  .nav-gt span { flex: 1; }
+  .nav-sep { height: 1px; background: var(--line-2); margin: 6px 8px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; margin: 0 2.5px; }
+  .sb-subitem .hash { color: var(--ink-3); width: 12px; text-align: center; flex: none; }
+  .sb-subitem.on .hash { color: var(--accent-text); }
+  .sb-subitem .car { width: 14px; height: 14px; flex: none; color: var(--ink-3); display: grid; place-items: center; transition: transform 150ms; }
+  .sb-subitem .car svg.lucide { width: 12px; height: 12px; }
+  .sb-subitem .car.open { transform: rotate(90deg); }
+  .sb-subitem .car.none { visibility: hidden; }
+  .kids { margin-left: 13px; border-left: 1px solid var(--line-1); padding-left: 4px; }
+  .tag-scroll { max-height: 236px; overflow: hidden auto;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 var(--ft, 0px), #000 calc(100% - var(--fb, 12px)), transparent 100%);
+            mask-image: linear-gradient(180deg, transparent 0, #000 var(--ft, 0px), #000 calc(100% - var(--fb, 12px)), transparent 100%); }
+  .tag-scroll::-webkit-scrollbar { width: 3px; }
+
+  /* 标题栏面包屑（视图速切，保持现状） */
+  .crumb { display: flex; align-items: center; gap: 4px; padding-left: 16px; font-size: 11.5px; color: var(--ink-2); height: 100%; }
+  .crumb .sw { display: inline-flex; align-items: center; gap: 5px; padding: 2px 6px; border-radius: 6px; cursor: pointer; position: relative; }
+  .crumb .sw:hover { background: var(--hover); color: var(--ink-1); }
+  .crumb .sw svg.lucide { width: 13px; height: 13px; }
+  .crumb .menu { position: absolute; top: 24px; left: 0; width: 150px; z-index: 20; }
+  .crumb .menu div { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; }
+  .crumb .menu div:hover { background: var(--hover); }
+  .crumb .menu div.on { color: var(--accent-text); font-weight: 500; }
+
+  /* ── 纸 ── */
+  .paper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .ph { flex: none; padding: 20px 32px 12px; display: flex; align-items: center; gap: 12px; }
+  .ph h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .ph .sum { color: var(--ink-2); font-size: 12.5px; flex: 1; }
+  .ph .sum b { color: var(--ink-1); font-weight: 600; }
+  .chip-f { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 6px 0 9px; border-radius: 999px; background: var(--selected); color: var(--accent-text); font-size: 12px; font-weight: 500; cursor: pointer; }
+  .chip-f svg.lucide { width: 12px; height: 12px; }
+  .btn svg.lucide { width: 14px; height: 14px; }
+
+  /* 方案 B：分类在纸顶做分段 */
+  .seg { display: inline-flex; padding: 2px; border-radius: 999px; background: var(--hover); gap: 1px; }
+  .seg span { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; color: var(--ink-2); cursor: pointer; }
+  .seg span.on { background: var(--surface); color: var(--ink-1); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .seg small { font-size: 10.5px; color: var(--ink-3); }
+  .sub-bar { flex: none; padding: 0 32px 10px; display: flex; align-items: center; gap: 10px; }
+
+  .scroll { flex: 1; min-height: 0; overflow: auto; margin-bottom: 16px; padding: 0 26px 8px 32px; border-right: 6px solid transparent;
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 12px), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 12px), transparent); }
+
+  /* 卡片墙：时间分组 + 细描边卡（同文章 B） */
+  .grp { margin-bottom: 26px; }
+  .gh { position: sticky; top: 0; z-index: 2; display: flex; align-items: baseline; gap: 10px; padding: 4px 0 12px; background: linear-gradient(180deg, var(--surface) calc(100% - 12px), transparent); }
+  .gh b { font-size: 16px; font-weight: 600; }
+  .gh span { color: var(--ink-3); font-size: 11.5px; }
+  .wall { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .card { border: 1px solid var(--line-1); border-radius: var(--r-md); padding: 13px 13px 11px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; transition: box-shadow 200ms var(--ease), border-color 200ms var(--ease); min-height: 150px; position: relative; }
+  .card:hover { box-shadow: var(--shadow-lift); border-color: transparent; }
+  .card.top { border-color: color-mix(in srgb, var(--accent) 35%, var(--line-1)); }
+  .badge-c { display: inline-flex; width: fit-content; align-items: center; gap: 5px; border-radius: 999px; padding: 1px 8px; font-size: 10.5px; line-height: 1.6; }
+  .badge-c i { width: 5px; height: 5px; border-radius: 50%; }
+  .card h4 { margin: 0; font-size: 14px; line-height: 1.45; font-weight: 600; }
+  .card p { margin: 0; font-size: 12.5px; line-height: 1.65; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .card .tags { margin-top: auto; display: flex; gap: 5px; flex-wrap: wrap; }
+  .tg { background: var(--hover); color: var(--ink-2); border-radius: 5px; padding: 0 7px; font-size: 11px; line-height: 18px; }
+  .pin { position: absolute; right: 11px; top: 11px; color: var(--accent); }
+  .pin svg.lucide { width: 13px; height: 13px; }
+
+  /* 图谱：画布吃满纸内，筛选 = 高亮其余淡出 */
+  .graph { position: relative; flex: 1; min-height: 0; margin: 0 32px 20px; border-radius: var(--r-md); background:
+      radial-gradient(circle at 1px 1px, var(--line-1) 1px, transparent 0) 0 0 / 22px 22px; overflow: hidden; }
+  .graph svg.g { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .graph .ctl { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .graph .legend { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 12px; font-size: 11.5px; color: var(--ink-2); background: var(--surface); padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line-1); }
+  .graph .legend span { display: inline-flex; align-items: center; gap: 5px; }
+
+  /* 表格：纸内无框表格，工具行用纸的排版 */
+  .tbl-tools { display: flex; align-items: center; gap: 6px; padding: 0 0 10px; }
+  .tbl-tools .btn { height: 26px; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: left; font-weight: 500; color: var(--ink-3); font-size: 11.5px; padding: 6px 10px; border-bottom: 1px solid var(--line-1); position: sticky; top: 0; background: var(--surface); }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--line-2); color: var(--ink-1); white-space: nowrap; }
+  td.t { max-width: 420px; overflow: hidden; text-overflow: ellipsis; }
+  tr:hover td { background: var(--hover); }
+  td .num, td.num { color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .empty { padding: 80px 0; text-align: center; color: var(--ink-3); font-size: 12.5px; }
+
+  .win:not(.plan-a) .only-a, .win:not(.plan-b) .only-b { display: none !important; }
+</style>
+</head>
+<body>
+<div class="mock-bar">
+  <b>卡片库 · 一整张纸</b>
+  <span>筛选位置：</span>
+  <a href="#" data-plan="a" class="on">A 分类 + 标签都进侧栏</a>
+  <a href="#" data-plan="b">B 分类留纸顶，标签进侧栏（定稿）</a>
+  <span class="sp"></span>
+  <span>视图：</span>
+  <select id="viewSel"><option value="wall">卡片墙</option><option value="graph">图谱</option><option value="database">表格</option></select>
+  <select id="theme"><option value="cream">浅色</option><option value="cocoa">深色</option></select>
+</div>
+
+<div class="stage">
+  <div class="win plan-a" id="win">
+    <aside class="sb">
+      <div class="sb-head"><span class="sb-logo">T</span><span>Tau</span></div>
+      <div class="sb-scroll">
+        <div class="sb-group">
+          <div class="sb-gt">工作台</div>
+          <div class="sb-item"><i data-lucide="flame"></i><span>今日</span></div>
+          <div class="sb-item"><i data-lucide="calendar"></i><span>日程</span></div>
+          <div class="sb-item"><i data-lucide="list-todo"></i><span>待办</span></div>
+        </div>
+        <div class="sb-group">
+          <div class="sb-gt">知识</div>
+          <div class="sb-item on"><i data-lucide="layers"></i><span>卡片库</span></div>
+          <div class="navbox">
+            <div class="only-a" id="catNav"></div>
+            <div class="nav-sep only-a"></div>
+            <div class="nav-gt"><span>标签</span><span id="tagGroups"></span></div>
+            <div class="tag-scroll" id="tagScroll"></div>
+          </div>
+          <div class="sb-item"><i data-lucide="file-text"></i><span>文章</span></div>
+          <div class="sb-item"><i data-lucide="pen-line"></i><span>日记</span></div>
+          <div class="sb-item"><i data-lucide="presentation"></i><span>白板</span></div>
+        </div>
+        <div class="sb-group">
+          <div class="sb-gt">学习</div>
+          <div class="sb-item"><i data-lucide="folder-kanban"></i><span>项目</span></div>
+          <div class="sb-item"><i data-lucide="repeat"></i><span>闪卡复习</span></div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="col">
+      <div class="tb" style="height:var(--titlebar-h)">
+        <div class="crumb"><span>卡片库</span><span style="color:var(--ink-3)">/</span>
+          <span class="sw" id="sw"><i data-lucide="layers" id="swIcon"></i><span id="swLabel">卡片墙</span><i data-lucide="chevron-down"></i>
+            <div class="menu hidden" id="swMenu"></div>
+          </span>
+        </div>
+      </div>
+      <div class="main">
+        <section class="paper">
+          <div class="ph">
+            <h1>卡片库</h1>
+            <span id="chips" style="display:flex;gap:6px"></span>
+            <span class="sum" id="sum"></span>
+            <button class="btn"><i data-lucide="import"></i>导入</button>
+            <button class="btn primary"><i data-lucide="plus"></i>新建卡片</button>
+          </div>
+          <div class="sub-bar only-b"><span class="seg" id="seg"></span></div>
+          <div id="body" style="flex:1;min-height:0;display:flex;flex-direction:column"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">
+  <h3>怎么看</h3>
+  <ul>
+    <li><b>一整张纸</b>：去掉「工具栏 / 筛选行 / 左侧标签树面板 / 墙」四层嵌套，页面只剩一张纸；纸顶 = 标题 + 当前筛选 chip（可 × 清除）+ 摘要 + 导入 / 新建。页内原来的标签树面板和收起按钮都删掉。</li>
+    <li><b>导入</b>：同文章页，改为带文字的次要按钮（<code>Import</code> 图标 + 「导入」），替代「下载」语义的裸图标；主按钮保持「新建卡片」。</li>
+    <li><b>A 分类 + 标签都进侧栏</b>：卡片库入口下先是 4 个分类（色点 + 数量，「全部」即点父项本身），分隔线后是标签树（保留层级 caret，限高约 8 行框内滚动）。分类和标签可叠加，纸顶用两个 chip 显示。<span class="pro">页内最干净，三视图共享同一套筛选</span>；<span class="con">侧栏子项偏长；分类只有 4 个却要占 4 行</span>。</li>
+    <li><b>B 分类留纸顶，标签进侧栏</b>：分类是「数据性质」切换，常用且少，做成纸顶左侧分段控件；标签多且有层级，进侧栏（同文章页）。<span class="pro">侧栏短、与文章页一致；分类一眼可见</span>；<span class="con">纸顶多一行</span>。</li>
+    <li><b>卡片墙</b>：按月分组 + 粘性月份头（同文章），卡片阴影换细描边（同文章 B），置顶卡描边带一点强调色 + 图钉。</li>
+    <li><b>图谱</b>：画布直接铺满纸内（点阵底，不再套框），侧栏筛选仍是「高亮命中、其余淡出」而非删节点；左下分类图例，右下缩放。</li>
+    <li><b>表格</b>：纸内无框表格，表头粘顶。<b>变化点</b>：现状表格忽略分类 / 标签筛选；建议改为同样吃侧栏筛选（纸顶 chip 一致），表格自身的筛选 / 排序 / 属性按钮留在表格工具行。</li>
+    <li><b>定稿（2026-09-26）</b>：B 方案；表格也跟随分类 / 标签筛选。</li>
+    <li><b>视图切换</b>：保持标题栏面包屑「卡片库 / 卡片墙 ▾」不动。搜索仍交给 Ctrl+K（卡片没有标题，不照搬文章页的标题搜索）。</li>
+  </ul>
+</div>
+
+<script>
+const CAT = {
+  temp: { n: "临时卡片", c: "#c96f4e", s: "rgba(201,111,78,0.12)" },
+  lit:  { n: "文献卡片", c: "#5c7d99", s: "rgba(92,125,153,0.13)" },
+  perm: { n: "永久卡片", c: "#61795f", s: "rgba(97,121,95,0.14)" },
+  theme:{ n: "主题卡片", c: "#a38c4d", s: "rgba(163,140,77,0.15)" },
+};
+const cards = [
+  { id: 1, cat: "perm", t: "间隔重复的本质是对抗遗忘曲线", p: "每次在即将遗忘时复习，记忆稳定性按倍数增长；FSRS 用稳定性 / 难度 / 可提取性三参数建模。", tags: ["学习方法/记忆", "算法"], m: "2026-09", w: 320, top: 1 },
+  { id: 2, cat: "lit", t: "《置身事内》：土地财政", p: "地方政府以土地出让金撬动城投融资，基础设施先行，再以税收回收。", tags: ["读书/经济"], m: "2026-09", w: 540 },
+  { id: 3, cat: "temp", t: "容器查询 cqw 单位", p: "1cqw = 容器宽度的 1%，比 vw 更适合组件内部排版。", tags: ["前端/CSS"], m: "2026-09", w: 120 },
+  { id: 4, cat: "perm", t: "CRDT 与 OT 的核心区别", p: "OT 依赖中心服务器变换操作，CRDT 让数据结构本身可交换合并，天然支持离线。", tags: ["编辑器/协同", "算法"], m: "2026-09", w: 410 },
+  { id: 5, cat: "theme", t: "主题：知识管理工作流", p: "收集 → 临时卡片 → 文献卡片 → 永久卡片 → 主题卡片串联，形成可生长的网络。", tags: ["学习方法"], m: "2026-09", w: 680, top: 1 },
+  { id: 6, cat: "temp", t: "IPC 监听忘记解绑", p: "ipcRenderer.on 返回后未 removeListener，窗口重开后监听叠加导致内存泄漏。", tags: ["前端/Electron"], m: "2026-08", w: 150 },
+  { id: 7, cat: "lit", t: "React use() 读取 Promise", p: "use(promise) 在渲染中挂起，最近的 Suspense 边界展示 fallback。", tags: ["前端/React"], m: "2026-08", w: 260 },
+  { id: 8, cat: "perm", t: "保证金制度即杠杆来源", p: "只需缴纳合约价值 5%–15% 的保证金，盈亏按全额计算。", tags: ["金融"], m: "2026-08", w: 230 },
+  { id: 9, cat: "temp", t: "Rust 借用检查的直觉", p: "同一时刻要么多个不可变引用，要么一个可变引用。", tags: ["Rust"], m: "2026-08", w: 90 },
+  { id: 10, cat: "lit", t: "《思考快与慢》：锚定效应", p: "先出现的数字会成为后续估计的参照点，即便它与问题无关。", tags: ["读书/心理学"], m: "2026-07", w: 310 },
+];
+const TREE = [
+  { p: "前端", kids: ["前端/CSS", "前端/React", "前端/Electron"] },
+  { p: "学习方法", kids: ["学习方法/记忆"] },
+  { p: "读书", kids: ["读书/经济", "读书/心理学"] },
+  { p: "编辑器", kids: ["编辑器/协同"] },
+  { p: "算法", kids: [] }, { p: "金融", kids: [] }, { p: "Rust", kids: [] },
+  ...["设计", "摄影", "写作", "英语", "历史", "效率工具", "数据库", "性能"].map(p => ({ p, kids: [] })),
+];
+const VIEWS = { wall: ["卡片墙", "layers"], graph: ["图谱", "share-2"], database: ["表格", "table-2"] };
+let cat = "", tag = "", view = "wall";
+const open = new Set(["前端"]);
+
+const hit = c => (!cat || c.cat === cat) && (!tag || c.tags.some(t => t === tag || t.startsWith(tag + "/")));
+const tagCount = p => cards.filter(c => c.tags.some(t => t === p || t.startsWith(p + "/"))).length || (p.length % 3) + 1;
+const leaf = p => p.split("/").pop();
+const badge = k => `<span class="badge-c" style="background:${CAT[k].s};color:${CAT[k].c}"><i style="background:${CAT[k].c}"></i>${CAT[k].n.slice(0, 2)}</span>`;
+const plan = () => document.getElementById("win").className.match(/plan-(\w)/)[1];
+
+function renderNav() {
+  document.getElementById("catNav").innerHTML = Object.entries(CAT).map(([k, v]) =>
+    `<div class="sb-subitem${cat === k ? " on" : ""}" data-cat="${k}"><span class="dot" style="background:${v.c}"></span><span class="t">${v.n}</span><span class="meta">${cards.filter(c => c.cat === k).length}</span></div>`).join("");
+  const row = (p, kids) => `<div class="sb-subitem${tag === p ? " on" : ""}" data-tag="${p}">
+      <span class="car${kids ? (open.has(p) ? " open" : "") : " none"}" data-car="${p}"><i data-lucide="chevron-right"></i></span>
+      <span class="t">${leaf(p)}</span><span class="meta">${tagCount(p)}</span></div>`;
+  document.getElementById("tagScroll").innerHTML = TREE.map(n =>
+    row(n.p, n.kids.length) + (n.kids.length && open.has(n.p) ? `<div class="kids">${n.kids.map(k => row(k, 0)).join("")}</div>` : "")).join("");
+  document.getElementById("tagGroups").textContent = TREE.length + " 组";
+  document.getElementById("seg").innerHTML = [["", "全部", cards.length], ...Object.entries(CAT).map(([k, v]) => [k, v.n.slice(0, 2), cards.filter(c => c.cat === k).length, v.c])]
+    .map(([k, n, c, col]) => `<span class="${cat === k ? "on" : ""}" data-cat="${k}">${col ? `<i class="dot" style="background:${col};width:6px;height:6px;margin:0"></i>` : ""}${n}<small>${c}</small></span>`).join("");
+  fade();
+}
+
+function renderHead(list) {
+  const chips = [];
+  if (cat && plan() === "a") chips.push(`<span class="chip-f" data-clear="cat"><span class="dot" style="background:${CAT[cat].c};margin:0"></span>${CAT[cat].n}<i data-lucide="x"></i></span>`);
+  if (tag) chips.push(`<span class="chip-f" data-clear="tag">#${tag}<i data-lucide="x"></i></span>`);
+  document.getElementById("chips").innerHTML = chips.join("");
+  const words = list.reduce((s, c) => s + c.w, 0);
+  document.getElementById("sum").innerHTML = (cat || tag)
+    ? `<b>${list.length}</b> / ${cards.length} 张 · <b>${words.toLocaleString()}</b> 字`
+    : `共 <b>1,284</b> 张 · <b>36.2 万</b>字`;
+}
+
+function wall(list) {
+  if (!list.length) return `<div class="empty">没有匹配的卡片 · 清除筛选，或用 Ctrl+K 全局搜索</div>`;
+  const groups = [["top", "置顶", list.filter(c => c.top)], ...["2026-09", "2026-08", "2026-07"].map(m => [m, (+m.slice(5)) + " 月", list.filter(c => !c.top && c.m === m)])];
+  return `<div class="scroll">${groups.filter(g => g[2].length).map(([k, label, items]) =>
+    `<section class="grp"><div class="gh"><b>${label}</b><span>${items.length} 张</span></div><div class="wall">${items.map(c =>
+      `<article class="card${c.top ? " top" : ""}">${c.top ? '<span class="pin"><i data-lucide="pin"></i></span>' : ""}${badge(c.cat)}<h4>${c.t}</h4><p>${c.p}</p><div class="tags">${c.tags.map(t => `<span class="tg">${leaf(t)}</span>`).join("")}</div></article>`).join("")}</div></section>`).join("")}</div>`;
+}
+
+function graph(list) {
+  const ids = new Set(list.map(c => c.id));
+  const pos = cards.map((c, i) => ({ c, x: 50 + 36 * Math.cos(i * 2.39) * (0.45 + (i % 4) * 0.18), y: 48 + 38 * Math.sin(i * 2.39) * (0.45 + (i % 3) * 0.22) }));
+  const edges = [[1, 5], [4, 1], [2, 5], [3, 7], [6, 7], [8, 2], [10, 5], [9, 4], [3, 6], [1, 10]];
+  const on = c => ids.has(c.id);
+  const P = id => pos.find(p => p.c.id === id);
+  return `<div class="graph"><svg class="g" viewBox="0 0 100 100" preserveAspectRatio="none">
+    ${edges.map(([a, b]) => `<line x1="${P(a).x}" y1="${P(a).y}" x2="${P(b).x}" y2="${P(b).y}" stroke="var(--ink-3)" stroke-width="0.15" opacity="${on(P(a).c) && on(P(b).c) ? 0.7 : 0.15}" />`).join("")}
+    </svg>
+    ${pos.map(({ c, x, y }) => `<div style="position:absolute;left:${x}%;top:${y}%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:4px;opacity:${on(c) ? 1 : 0.18};transition:opacity 200ms">
+      <span style="width:${10 + c.w / 60}px;height:${10 + c.w / 60}px;border-radius:50%;background:${CAT[c.cat].c}"></span>
+      <span style="font-size:11px;color:var(--ink-2);white-space:nowrap">${c.t.slice(0, 10)}</span></div>`).join("")}
+    <div class="legend">${Object.values(CAT).map(v => `<span><i class="dot" style="background:${v.c};margin:0"></i>${v.n.slice(0, 2)}</span>`).join("")}</div>
+    <div class="ctl"><button class="ib" title="放大"><i data-lucide="plus"></i></button><button class="ib" title="缩小"><i data-lucide="minus"></i></button><button class="ib" title="适应"><i data-lucide="scan"></i></button></div>
+  </div>`;
+}
+
+function table(list) {
+  return `<div class="scroll"><div class="tbl-tools"><button class="btn"><i data-lucide="list-filter"></i>筛选</button><button class="btn"><i data-lucide="arrow-up-down"></i>排序</button><button class="btn"><i data-lucide="columns-3"></i>属性</button><span style="flex:1"></span><span style="font-size:11.5px;color:var(--ink-3)">${list.length} 行</span></div>
+    ${list.length ? `<table><thead><tr><th>内容</th><th>分类</th><th>标签</th><th>字数</th><th>更新</th></tr></thead><tbody>${list.map(c =>
+      `<tr><td class="t">${c.top ? "📌 " : ""}${c.t}</td><td>${badge(c.cat)}</td><td>${c.tags.map(t => `<span class="tg">${leaf(t)}</span>`).join(" ")}</td><td class="num">${c.w}</td><td class="num">${c.m}-1${c.id % 9}</td></tr>`).join("")}</tbody></table>`
+      : `<div class="empty">没有匹配的卡片</div>`}</div>`;
+}
+
+function render() {
+  const list = cards.filter(hit);
+  renderNav();
+  renderHead(list);
+  document.getElementById("body").innerHTML = view === "wall" ? wall(list) : view === "graph" ? graph(cards.filter(hit)) : table(list);
+  document.getElementById("swLabel").textContent = VIEWS[view][0];
+  document.getElementById("swIcon").outerHTML = `<i data-lucide="${VIEWS[view][1]}" id="swIcon"></i>`;
+  document.getElementById("swMenu").innerHTML = Object.entries(VIEWS).map(([k, [n, ic]]) => `<div data-view="${k}" class="${k === view ? "on" : ""}"><i data-lucide="${ic}"></i>${n}</div>`).join("");
+  document.getElementById("viewSel").value = view;
+  lucide.createIcons();
+}
+function fade() {
+  const el = document.getElementById("tagScroll");
+  el.style.setProperty("--ft", el.scrollTop > 2 ? "12px" : "0px");
+  el.style.setProperty("--fb", el.scrollHeight - el.scrollTop - el.clientHeight > 2 ? "12px" : "0px");
+}
+
+document.getElementById("tagScroll").addEventListener("scroll", fade);
+document.addEventListener("click", e => {
+  const car = e.target.closest("[data-car]");
+  if (car && !car.classList.contains("none")) { const p = car.dataset.car; open.has(p) ? open.delete(p) : open.add(p); return render(); }
+  const t = e.target.closest("[data-tag]"); if (t) { tag = tag === t.dataset.tag ? "" : t.dataset.tag; return render(); }
+  const c = e.target.closest("[data-cat]"); if (c) { cat = plan() === "a" && cat === c.dataset.cat ? "" : c.dataset.cat; return render(); }
+  const cl = e.target.closest("[data-clear]"); if (cl) { cl.dataset.clear === "cat" ? (cat = "") : (tag = ""); return render(); }
+  const v = e.target.closest("[data-view]"); if (v) { view = v.dataset.view; document.getElementById("swMenu").classList.add("hidden"); return render(); }
+  if (e.target.closest("#sw")) return document.getElementById("swMenu").classList.toggle("hidden");
+  document.getElementById("swMenu").classList.add("hidden");
+});
+document.getElementById("viewSel").addEventListener("change", e => { view = e.target.value; render(); });
+document.getElementById("theme").addEventListener("change", e => document.documentElement.dataset.theme = e.target.value);
+document.querySelectorAll("[data-plan]").forEach(a => a.addEventListener("click", e => {
+  e.preventDefault(); e.stopPropagation();
+  const win = document.getElementById("win");
+  win.className = win.className.replace(/plan-\w/, "plan-" + a.dataset.plan);
+  document.querySelectorAll("[data-plan]").forEach(x => x.classList.toggle("on", x === a));
+  render();
+}));
+render();
+</script>
+</body>
+</html>

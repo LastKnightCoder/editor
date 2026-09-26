@@ -1,5 +1,6 @@
 /**
- * 图谱视图：既有 LinkGraph 整体复用（links ∪ 内联链接成边），仅容器换壳。
+ * 图谱视图：既有 LinkGraph 整体复用（links ∪ 内联链接成边），仅容器换壳——
+ * 画布直接铺满卡片库那张纸的剩余区域（不再套卡片框，圆角由纸裁切）。
  * LinkGraph 主题化改造（去 antd）属后续工作，本页先保能力。
  */
 
@@ -25,7 +26,7 @@ export function CardGraphSection({
     []
   );
   return (
-    <div className="bg-surface shadow-card min-h-0 min-w-0 flex-1 overflow-hidden rounded-[var(--tau-radius-lg)]">
+    <div className="border-line-2 min-h-0 min-w-0 flex-1 overflow-hidden border-t">
       <LinkGraph
         className="h-full w-full"
         initCards={cards}
