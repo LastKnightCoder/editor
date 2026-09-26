@@ -73,11 +73,14 @@ export interface ProviderRegistry {
   /** 全量同步设置里的 provider 列表：新增/变更 upsert，移除 delete */
   syncProviders(settings: LLMProviderSetting[]): void;
   resolveModel(providerId: string, modelId: string): Model<Api> | undefined;
+  /** 该模型是否启用 <think> 标签兜底剥离（见 think-stream-rewriter） */
+  needsThinkStrip(providerId: string, modelId: string): boolean;
 }
 
 export function createProviderRegistry(): ProviderRegistry {
   const models = createModels();
   const registered = new Map<string, string>();
+  const settingsById = new Map<string, LLMProviderSetting>();
   return {
     models,
     syncProviders(settings) {
@@ -86,6 +89,7 @@ export function createProviderRegistry(): ProviderRegistry {
         if (!nextIds.has(id)) {
           models.deleteProvider(id);
           registered.delete(id);
+          settingsById.delete(id);
         }
       }
       for (const setting of settings) {
@@ -93,10 +97,16 @@ export function createProviderRegistry(): ProviderRegistry {
         if (registered.get(setting.id) === fingerprint) continue;
         models.setProvider(buildPiProvider(setting));
         registered.set(setting.id, fingerprint);
+        settingsById.set(setting.id, setting);
       }
     },
     resolveModel(providerId, modelId) {
       return models.getModel(providerId, modelId);
+    },
+    needsThinkStrip(providerId, modelId) {
+      return (
+        settingsById.get(providerId)?.models.find(m => m.id === modelId)?.stripThinkTags === true
+      );
     },
   };
 }

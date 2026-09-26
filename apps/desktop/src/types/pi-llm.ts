@@ -32,6 +32,12 @@ export interface LLMModelSetting {
   headers?: Record<string, string>;
   /** OpenAI 兼容网关调谐标志（thinkingFormat / maxTokensField 等），未设项由 pi 按 baseUrl 自动推断 */
   compat?: Record<string, unknown>;
+  /**
+   * 兜底开关：剥离混在 content 正文里的 <think>...</think> 标签（裸 vLLM/SGLang 等未开
+   * reasoning-parser 的端点）。默认关——正文合法出现标签字样会被误切；结构化
+   * reasoning_content 字段由 pi 原生处理，与本开关无关
+   */
+  stripThinkTags?: boolean;
 }
 
 export interface LLMProviderSetting {
