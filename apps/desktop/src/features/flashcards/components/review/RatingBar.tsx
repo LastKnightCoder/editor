@@ -24,7 +24,7 @@ export function RatingBar({
           disabled={busy}
           onClick={() => onRate(r.value)}
           className={cn(
-            "bg-surface shadow-card ease-tau-out relative flex flex-col items-center gap-px rounded-[12px] px-1.5 pb-2 pt-[9px] outline-none transition-[background,transform] duration-150 focus-visible:shadow-[var(--tau-focus-ring)] active:translate-y-px disabled:opacity-60",
+            "bg-surface border-line-1 ease-tau-out relative flex flex-col items-center gap-px rounded-[12px] border px-1.5 pb-2 pt-[9px] outline-none transition-[background,transform] duration-150 focus-visible:shadow-[var(--tau-focus-ring)] active:translate-y-px disabled:opacity-60",
             RATING_HOVER[r.value],
             suggestion === r.value && cn("ring-[1.5px] ring-inset", RATING_RING[r.value])
           )}
