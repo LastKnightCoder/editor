@@ -1,3 +1,4 @@
+import type { EditorWindowTarget } from "@tau/platform";
 import { platform } from "@/platform";
 
 export const setAlwaysOnTop = async (flag: boolean) => {
@@ -31,6 +32,15 @@ export const getWindowState = async (): Promise<{
   isFullScreen: boolean;
 }> => {
   return platform.window.getState();
+};
+
+/** 在独立编辑窗口打开卡片 / 文章 / 项目文档；已打开则聚焦 */
+export const openEditorWindow = async (target: EditorWindowTarget) => {
+  return platform.window.openEditorWindow(target);
+};
+
+export const closeEditorWindow = async (target: EditorWindowTarget) => {
+  return platform.window.closeEditorWindow(target);
 };
 
 export const openPomodoroWindow = async () => {

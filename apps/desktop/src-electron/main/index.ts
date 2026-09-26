@@ -8,7 +8,16 @@ import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import log from "electron-log";
-import windowManagerModule from "./modules/window-manager";
+import {
+  createMainWindow,
+  createPomodoroWindow,
+  createQuickCardWindow,
+  createTodoWindow,
+  initWindows,
+  openEditorWindow,
+  openMarkdownWindow,
+  showOrCreateMainWindow,
+} from "./windows";
 import databaseModule, { type DatabaseReconnectSource } from "./modules/database";
 import trayModule from "./modules/tray";
 import recentProjectsModule from "./modules/recent-projects";
@@ -89,7 +98,8 @@ if (process.platform === "win32") {
 // 注册文件关联
 app.setAsDefaultProtocolClient("tau");
 
-let windowManager: Awaited<ReturnType<typeof windowManagerModule.init>>;
+// 窗口模块初始化前到达的打开请求（second-instance / open-file）先暂存
+let windowsReady = false;
 let trayManager: Awaited<ReturnType<typeof trayModule.init>>;
 
 // 添加全局变量，存储启动时传入的文件路径
@@ -106,7 +116,6 @@ if (!gotTheLock) {
 } else {
   // 受控退出：接管 before-quit，先完成收尾（自动同步、协作文档落盘）再真正退出
   setupQuitController({
-    getWindowManager: () => windowManager,
     getTrayManager: () => trayManager,
   });
 
@@ -114,7 +123,7 @@ if (!gotTheLock) {
   app.on("second-instance", (_event, commandLine) => {
     // 首先检查是否有窗口类型参数
     const windowType = getWindowTypeFromArgs(commandLine);
-    if (windowType && windowManager) {
+    if (windowType && windowsReady) {
       handleWindowType(windowType);
       return;
     }
@@ -126,9 +135,7 @@ if (!gotTheLock) {
     } else {
       // 没有文件路径参数，显示或创建主窗口
       log.info("第二个实例启动，没有文件参数，显示主窗口");
-      if (windowManager) {
-        windowManager.showOrCreateMainWindow();
-      }
+      if (windowsReady) showOrCreateMainWindow();
     }
   });
 
@@ -166,11 +173,12 @@ if (!gotTheLock) {
       log.info(`Electron 版本: ${process.versions.electron}`);
 
       // === 立即创建窗口管理器并显示窗口 ===
-      windowManager = await windowManagerModule.init(
-        VITE_DEV_SERVER_URL || "",
-        RENDERER_DIST,
-        preload
-      );
+      initWindows({
+        devServerUrl: VITE_DEV_SERVER_URL || "",
+        rendererDist: RENDERER_DIST,
+        preload,
+      });
+      windowsReady = true;
 
       // 根据启动参数创建窗口（窗口会显示 Loading 状态）
       if (windowTypeToOpen) {
@@ -179,7 +187,7 @@ if (!gotTheLock) {
         windowTypeToOpen = null;
       } else if (filesToOpen.length === 0) {
         log.info("创建主窗口");
-        windowManager.createMainWindow();
+        createMainWindow();
       } else {
         log.info("检测到通过文件关联(.md)启动，跳过创建主窗口");
       }
@@ -213,20 +221,17 @@ if (!gotTheLock) {
               return response;
             }
           );
-          backendServer.addMessageHandler(
-            "open-card-in-new-window",
-            async (message: RpcRequestMessage) => {
-              const [databaseName, cardId, options] = message.params as unknown as [
-                string,
-                number,
-                { showTitlebar?: boolean; isDefaultTop?: boolean } | undefined,
-              ];
-              log.info(`[ws] open-card-in-new-window: db=${databaseName}, card=${cardId}`);
-              windowManager.createEditorWindow("card", {
-                databaseName,
-                itemId: cardId,
-                ...options,
-              });
+          // CLI（tau card/article/project-item edit）经 ws 请求在编辑窗口打开
+          const editorWindowRequests = [
+            ["open-card-in-new-window", "card"],
+            ["open-article-in-new-window", "article"],
+            ["open-project-item-in-new-window", "project-item"],
+          ] as const;
+          for (const [method, kind] of editorWindowRequests) {
+            backendServer.addMessageHandler(method, async (message: RpcRequestMessage) => {
+              const [databaseName, id] = message.params as unknown as [string, number];
+              log.info(`[ws] ${method}: db=${databaseName}, id=${id}`);
+              openEditorWindow({ kind, databaseName, id });
               const response: RpcResponseMessage = {
                 id: message.id,
                 type: RpcMessageType.Response,
@@ -235,8 +240,8 @@ if (!gotTheLock) {
                 error: null,
               };
               return response;
-            }
-          );
+            });
+          }
           backendServer.addMessageHandler("close-database", async (message: RpcRequestMessage) => {
             const [name] = message.params as unknown as [string];
             log.info(`[ws] close-database: db=${name}`);
@@ -335,7 +340,7 @@ if (!gotTheLock) {
           await moduleInitManager.initWebSocketDependentModules();
 
           // 初始化托盘
-          trayManager = await trayModule.init(windowManager, preload);
+          trayManager = await trayModule.init(preload);
 
           // 注册最近项目模块
           recentProjectsModule.registerListeners();
@@ -351,7 +356,7 @@ if (!gotTheLock) {
 
       // 注册全局快捷键
       globalShortcut.register("CommandOrControl+Shift+N", () => {
-        windowManager.createQuickCardWindow();
+        createQuickCardWindow();
       });
 
       // 注册DPR调整快捷键
@@ -383,7 +388,7 @@ if (!gotTheLock) {
 
       app.on("activate", () => {
         log.info("应用激活");
-        windowManager.showOrCreateMainWindow();
+        showOrCreateMainWindow();
       });
     } catch (error) {
       log.error("应用初始化失败:", error);
@@ -472,9 +477,8 @@ if (!gotTheLock) {
 
     // 检查是否为Markdown文件
     if (filePath.toLowerCase().endsWith(".md")) {
-      if (windowManager) {
-        log.info(`使用窗口管理器打开Markdown文件: ${filePath}`);
-        windowManager.createEditorWindow("markdown", { filePath });
+      if (windowsReady) {
+        openMarkdownWindow({ filePath });
       } else {
         // 如果应用尚未初始化，保存文件路径以便后续处理
         log.info(`应用尚未初始化，保存Markdown文件路径: ${filePath}`);
@@ -587,11 +591,11 @@ function handleFileOrFolder(path: string) {
     // 是文件夹，以项目方式打开
     log.info(`打开文件夹作为项目: ${path}`);
     recentProjectsModule.addRecentProject(path);
-    windowManager.createEditorWindow("markdown", { rootPath: path });
+    openMarkdownWindow({ rootPath: path });
   } else if (path.toLowerCase().endsWith(".md")) {
     // 是 Markdown 文件
     log.info(`打开 Markdown 文件: ${path}`);
-    windowManager.createEditorWindow("markdown", { filePath: path });
+    openMarkdownWindow({ filePath: path });
   } else {
     log.warn(`不支持的文件类型: ${path}`);
   }
@@ -611,30 +615,26 @@ function getWindowTypeFromArgs(args: string[]): string | null {
 
 // 根据窗口类型打开相应的窗口
 function handleWindowType(windowType: string) {
-  if (!windowManager) {
-    log.warn("窗口管理器未初始化");
+  if (!windowsReady) {
+    log.warn("窗口模块未初始化");
     return;
   }
 
   switch (windowType) {
     case "main":
       log.info("打开主窗口");
-      windowManager.showOrCreateMainWindow();
+      showOrCreateMainWindow();
       break;
     case "todo":
       log.info("打开任务清单窗口");
-      if (typeof windowManager.createTodoWindow === "function") {
-        windowManager.createTodoWindow();
-      }
+      createTodoWindow();
       break;
     case "pomodoro":
       log.info("打开番茄专注窗口");
-      if (typeof windowManager.createPomodoroWindow === "function") {
-        windowManager.createPomodoroWindow();
-      }
+      createPomodoroWindow();
       break;
     default:
       log.warn(`未知的窗口类型: ${windowType}`);
-      windowManager.showOrCreateMainWindow();
+      showOrCreateMainWindow();
   }
 }

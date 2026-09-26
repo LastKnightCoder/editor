@@ -52,8 +52,4 @@ export const cardCommands = {
   getContentByIds: command<[number[], (number | undefined)?], CardContentResult[]>(
     "get-cards-content-by-ids"
   ),
-  openInNewWindow: command<
-    [string, number, ({ showTitlebar?: boolean; isDefaultTop?: boolean } | undefined)?],
-    void
-  >("open-card-in-new-window"),
 };
