@@ -40,6 +40,7 @@ import { X } from "lucide-react";
 import { useEdgeFade } from "../hooks/useEdgeFade";
 import { lockBodyScroll } from "../hooks/lockBodyScroll";
 import { IconButton } from "./IconButton";
+import { trapTabKey } from "./focusTrap";
 
 export interface DialogProps {
   open: boolean;
@@ -75,9 +76,6 @@ export interface DialogProps {
   className?: string;
   ref?: Ref<HTMLDivElement>;
 }
-
-const FOCUSABLE =
-  'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /** 上下文徽标：surface 亮底 + line-1 描边（D-009 行内小药丸口径） */
 const CHIP_CLASS =
@@ -212,17 +210,7 @@ export function Dialog({
       if (critical) shakeCard(cardRef.current);
       else requestClose();
     } else if (e.key === "Tab") {
-      const focusables = [...(cardRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])];
-      if (focusables.length === 0) return;
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
+      trapTabKey(e, cardRef.current);
     }
   };
 

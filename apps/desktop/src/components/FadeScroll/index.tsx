@@ -1,8 +1,7 @@
 import { useState, type ReactNode, type Ref } from "react";
 import clsx from "clsx";
 import { motion } from "motion/react";
-import { useEdgeFade } from "@tau/ui";
-import { FADE_SCROLL_CLASS } from "./fadeScrollClass";
+import { FADE_SCROLL_CLASS, useEdgeFade } from "@tau/ui";
 
 interface FadeScrollProps {
   className?: string;

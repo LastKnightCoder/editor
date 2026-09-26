@@ -9,9 +9,7 @@ import React, {
   useImperativeHandle,
 } from "react";
 import { useMemoizedFn, useCreation, useThrottleFn, useLocalStorageState } from "ahooks";
-import { X } from "lucide-react";
-import { ConfirmDialog, IconButton, cn, toast } from "@tau/ui";
-import { AnimatePresence, motion } from "motion/react";
+import { ConfirmDialog, Drawer, cn, toast, useRetainedValue } from "@tau/ui";
 
 import Board from "./Board";
 import {
@@ -82,7 +80,6 @@ import ContextMenuLayer, {
 import { ViewPortTransforms } from "./transforms";
 import { BoardUtil, PathUtil, PointUtil } from "./utils";
 
-import ResizeableAndHideableSidebar from "../ResizableAndHideableSidebar";
 import NotePanel from "./components/NotePanel";
 import CardSelectorModal from "./components/CardSelectorModal";
 import ImageSelectorModal from "./components/ImageSelectorModal";
@@ -204,6 +201,8 @@ const WhiteBoard = memo(
       elementId: string;
     } | null>(null);
     const [activeVideoElement, setActiveVideoElement] = useState<HTMLVideoElement | null>(null);
+    // 视频笔记抽屉退场期间保留最后一条，内容不在滑出途中消失
+    const shownVideoNote = useRetainedValue(activeVideoNote);
     const videoElementRefs = useRef<Map<string, HTMLVideoElement>>(new Map());
     const creatingVideoNoteRefs = useRef<Map<string, Promise<number | null>>>(new Map());
     const activeNoteIdRef = useRef<number | null>(null);
@@ -1174,79 +1173,37 @@ const WhiteBoard = memo(
                           buildMenuItems={buildContextMenuItems}
                         />
                       </div>
-                      <AnimatePresence>
-                        {activeNoteId != null && (
-                          <motion.div
-                            key="note-panel"
-                            className="absolute bottom-3 right-3 top-3 z-50"
-                            initial={{ x: "100%", opacity: 0.6 }}
-                            animate={{ x: 0, opacity: 1 }}
-                            exit={{ x: "100%", opacity: 0.6 }}
-                            transition={{
-                              type: "tween",
-                              duration: 0.25,
-                              ease: "easeInOut",
-                            }}
-                          >
-                            <NotePanel
-                              contentId={activeNoteId}
-                              contentTitle={activeNoteTitle ?? undefined}
-                              onClose={() => setActiveNoteId(null)}
-                            />
-                          </motion.div>
+                      <NotePanel
+                        contentId={activeNoteId}
+                        contentTitle={activeNoteTitle ?? undefined}
+                        onClose={() => setActiveNoteId(null)}
+                      />
+                      <Drawer
+                        modal={false}
+                        open={activeVideoNote != null}
+                        onOpenChange={open => {
+                          if (open) return;
+                          setActiveVideoNote(null);
+                          setActiveVideoElement(null);
+                        }}
+                        label="视频笔记"
+                        closeLabel="关闭视频笔记"
+                        width={videoNotePanelWidth || 420}
+                        onWidthChange={setVideoNotePanelWidth}
+                        minWidth={320}
+                        maxWidth={720}
+                        fill
+                        isolateKeyboard
+                        className="z-50 overflow-hidden"
+                      >
+                        {shownVideoNote && (
+                          <VideoNotePanel
+                            videoNoteId={shownVideoNote.videoNoteId}
+                            externalVideoElement={activeVideoElement}
+                            reserveCloseButtonSpace
+                          />
                         )}
-                      </AnimatePresence>
-                      <AnimatePresence>
-                        {activeVideoNote != null && (
-                          <motion.div
-                            key="video-note-panel"
-                            className="absolute bottom-3 right-3 top-3 z-50"
-                            initial={{ x: "100%", opacity: 0.6 }}
-                            animate={{ x: 0, opacity: 1 }}
-                            exit={{ x: "100%", opacity: 0.6 }}
-                            transition={{
-                              type: "tween",
-                              duration: 0.25,
-                              ease: "easeInOut",
-                            }}
-                          >
-                            <ResizeableAndHideableSidebar
-                              width={videoNotePanelWidth || 420}
-                              open
-                              onWidthChange={width => setVideoNotePanelWidth(width)}
-                              minWidth={320}
-                              maxWidth={720}
-                              resizeHandleSide="left"
-                              sidebarPosition="right"
-                              className="bg-surface shadow-float ring-line-1 z-50 flex h-full flex-col overflow-hidden rounded-[14px] ring-1"
-                            >
-                              <div
-                                className="relative h-full"
-                                style={{ width: videoNotePanelWidth || 420 }}
-                                data-whiteboard-stop-keyboard="true"
-                                onKeyDownCapture={event => event.stopPropagation()}
-                                onKeyUpCapture={event => event.stopPropagation()}
-                              >
-                                <IconButton
-                                  className="absolute right-2.5 top-2.5 z-20 size-7"
-                                  onClick={() => {
-                                    setActiveVideoNote(null);
-                                    setActiveVideoElement(null);
-                                  }}
-                                  aria-label="关闭视频笔记"
-                                >
-                                  <X size={15} strokeWidth={1.75} />
-                                </IconButton>
-                                <VideoNotePanel
-                                  videoNoteId={activeVideoNote.videoNoteId}
-                                  externalVideoElement={activeVideoElement}
-                                  reserveCloseButtonSpace
-                                />
-                              </div>
-                            </ResizeableAndHideableSidebar>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                      </Drawer>
 
                       {/* 右键菜单触发的弹窗 */}
                       <CardSelectorModal
