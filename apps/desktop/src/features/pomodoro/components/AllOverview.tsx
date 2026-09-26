@@ -4,8 +4,9 @@
  * highlight 非空时热力格与月度柱只统计该预设。
  */
 
-import { useMemo, useState } from "react";
-import { cn, useEdgeFade } from "@tau/ui";
+import { useMemo } from "react";
+import { cn } from "@tau/ui";
+import { FadeScroll } from "@/components/FadeScroll";
 import type { PomodoroPreset, PomodoroSession } from "@/types";
 import { HOUR_MS, MINUTE_MS, formatDuration, startOfDay, weekdayLabel } from "../model";
 import { addDays, monthWindow, type DayWindow, type QuickKey } from "../range";
@@ -44,8 +45,6 @@ export function AllOverview({
   onJumpToDay(day: number): void;
   onOpenWindow(window: DayWindow, key: QuickKey | null): void;
 }) {
-  const [yearsEl, setYearsEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(yearsEl);
   const today = startOfDay(now);
   const thisYear = new Date(now).getFullYear();
 
@@ -117,10 +116,7 @@ export function AllOverview({
         )}
       </div>
 
-      <div
-        ref={setYearsEl}
-        className="edge-fade-scroll mt-3 min-h-[172px] flex-[0_1_auto] overflow-y-auto pr-0.5"
-      >
+      <FadeScroll className="-mr-1 mt-3 min-h-[172px] flex-[0_1_auto]">
         {years.map(year => (
           <YearHeatmap
             key={year}
@@ -144,7 +140,7 @@ export function AllOverview({
           ))}
           多（30 分 / 1 时 / 2 时）
         </div>
-      </div>
+      </FadeScroll>
 
       <div className="text-ink-3 mt-3.5 flex flex-none items-baseline gap-2 text-[12px]">
         <b className="text-ink-1 text-tau-body font-semibold">按月</b>
