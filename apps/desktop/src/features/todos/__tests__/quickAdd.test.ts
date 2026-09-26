@@ -64,6 +64,20 @@ describe("parseQuickAdd", () => {
     expect(parse("9:00 晨会")).toMatchObject({ dueAt: at(9, 25, 9), title: "晨会" });
   });
 
+  it("与日程同一套日期词表：周末 / 大后天 / 几号 / 中文时刻 / 隐含时段", () => {
+    expect(parse("周末 洗车")).toMatchObject({ type: "deadline", dueAt: at(9, 26), title: "洗车" });
+    expect(parse("下周末 露营")).toMatchObject({ dueAt: at(10, 3) });
+    expect(parse("大后天 还书")).toMatchObject({ dueAt: at(9, 27) });
+    expect(parse("28号 交房租")).toMatchObject({ dueAt: at(9, 28), title: "交房租" });
+    expect(parse("明早九点半 晨跑")).toMatchObject({ dueAt: at(9, 25, 9, 30), title: "晨跑" });
+    expect(parse("明天下午3点到5点 写周报")).toMatchObject({
+      type: "planned",
+      startAt: at(9, 25, 15),
+      dueAt: at(9, 25, 17),
+      title: "写周报",
+    });
+  });
+
   it("未识别的内容原样作标题", () => {
     expect(parse("买猫粮")).toMatchObject({ type: "normal", title: "买猫粮", groupId: null });
     expect(parse("#不存在 整理桌面")).toMatchObject({ title: "#不存在 整理桌面", groupId: null });

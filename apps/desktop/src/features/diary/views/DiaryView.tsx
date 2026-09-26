@@ -1,6 +1,6 @@
 /**
  * 日记页 · 方案 D「一整张纸」（mockups/diary/plan-d-sheet.html 定稿，D-044）：
- * 工具栏（标题 / 频道 + 摘要 + 那年今日 · 按日期 · 搜索）→ 一整张 surface 纸：
+ * 一整张 surface 纸：纸顶工具栏（标题 / 频道 + 摘要 + 那年今日 · 按日期 · 搜索）→ 纸身：
  * 按天倒序的 Feed（A 的排版）+ 右缘月份刻度 + 纸底停靠输入条（C 的输入）+ 那年今日抽屉。
  *
  * 页面参数：id = 标签频道（侧栏子项，`tag:<名>` / `untagged`，空 = 全部）；
@@ -11,7 +11,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { History, Loader2, PenLine, Search, SearchX, X } from "lucide-react";
-import { Button, IconButton, Loading, Tag, cn, toast, useEdgeFade } from "@tau/ui";
+import { Button, IconButton, Loading, Tag, cn, toast } from "@tau/ui";
+import { FadeScroll } from "@/components/FadeScroll";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import {
   buildContent,
@@ -76,7 +77,6 @@ export function DiaryView() {
   const composerRef = useRef<ComposerHandle>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(scrollEl);
   /** 渲染后要滚到的条 / 日 / 月（目标可能不在虚拟窗口里，先滚到它那天的估算位置再精确对齐） */
   const pendingScroll = useRef<string | null>(null);
   // 跳转目标月：跳转引起的滚动不改高亮（目标靠近底部时顶不到视口顶，按顶部推算会错成上一个月），
@@ -332,234 +332,237 @@ export function DiaryView() {
         : `${shortDate(range[0], today)} – ${shortDate(range[1], today)}`));
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-[26px] pb-[18px]">
-      {/* 工具栏 */}
-      <div className="flex h-12 flex-none items-center gap-3">
-        <h1 className="text-tau-title flex items-center gap-2 font-semibold tracking-[-0.01em]">
-          日记
-          {scope.kind !== "all" && (
-            <>
-              <span className="text-ink-3 font-normal">/</span>
-              {scope.kind === "tag" ? (
-                <Tag
-                  color={tags.find(t => t.name === scope.tag)?.color ?? "gray"}
-                  onRemove={() => setScope({ kind: "all" })}
-                >
-                  {scope.tag}
-                </Tag>
-              ) : (
-                <Tag onRemove={() => setScope({ kind: "all" })}>无标签</Tag>
-              )}
-            </>
-          )}
-        </h1>
-        <div className="text-tau-meta text-ink-2 flex min-w-0 items-center gap-2">
-          {live.length > 0 &&
-            (filtering ? (
-              <span>
-                <b className="text-ink-1 font-semibold tabular-nums">{filtered.length}</b> 条
-              </span>
-            ) : (
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+      {/* 一整张纸：工具栏固定在纸顶，纸身放 Feed / 月份刻度 / 输入条 / 抽屉（同 Skill 页） */}
+      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+        {/* 工具栏 */}
+        <div className="mt-5 flex h-10 flex-none items-center gap-3 px-8">
+          <h1 className="text-tau-title-lg flex shrink-0 items-center gap-2 whitespace-nowrap font-semibold tracking-[-0.01em]">
+            日记
+            {scope.kind !== "all" && (
               <>
-                <span>
-                  本月{" "}
-                  <b className="text-ink-1 font-semibold tabular-nums">
-                    {live.filter(m => m.day.startsWith(today.slice(0, 7))).length}
-                  </b>{" "}
-                  条
-                </span>
-                <span className="text-ink-3">·</span>
-                <span>
-                  连续记录{" "}
-                  <b className="text-ink-1 font-semibold tabular-nums">{streak(live, today)}</b> 天
-                </span>
+                <span className="text-ink-3 font-normal">/</span>
+                {scope.kind === "tag" ? (
+                  <Tag
+                    color={tags.find(t => t.name === scope.tag)?.color ?? "gray"}
+                    onRemove={() => setScope({ kind: "all" })}
+                  >
+                    {scope.tag}
+                  </Tag>
+                ) : (
+                  <Tag onRemove={() => setScope({ kind: "all" })}>无标签</Tag>
+                )}
               </>
-            ))}
-          {range && (
-            <span className="bg-surface border-line-1 text-ink-1 inline-flex h-6 items-center gap-1.5 rounded-[8px] border pl-2.5 pr-1">
-              {rangeLabel}
+            )}
+          </h1>
+          <div className="text-tau-meta text-ink-2 flex min-w-0 items-center gap-2">
+            {live.length > 0 &&
+              (filtering ? (
+                <span>
+                  <b className="text-ink-1 font-semibold tabular-nums">{filtered.length}</b> 条
+                </span>
+              ) : (
+                <>
+                  <span>
+                    本月{" "}
+                    <b className="text-ink-1 font-semibold tabular-nums">
+                      {live.filter(m => m.day.startsWith(today.slice(0, 7))).length}
+                    </b>{" "}
+                    条
+                  </span>
+                  <span className="text-ink-3">·</span>
+                  <span>
+                    连续记录{" "}
+                    <b className="text-ink-1 font-semibold tabular-nums">{streak(live, today)}</b>{" "}
+                    天
+                  </span>
+                </>
+              ))}
+            {range && (
+              <span className="bg-surface border-line-1 text-ink-1 inline-flex h-6 items-center gap-1.5 rounded-[8px] border pl-2.5 pr-1">
+                {rangeLabel}
+                <IconButton
+                  title="清除时间筛选"
+                  className="size-[18px] rounded-[5px]"
+                  onClick={() => setRange(null)}
+                >
+                  <X className="size-[11px]" strokeWidth={1.75} />
+                </IconButton>
+              </span>
+            )}
+          </div>
+          <span className="flex-1" />
+          {echoes.length > 0 && (
+            <IconButton
+              data-otd-keep
+              title="那年今日"
+              onClick={() => setDrawerOpen(o => !o)}
+              className={cn(drawerOpen && "bg-accent-soft text-accent-text hover:bg-accent-soft")}
+            >
+              <History className="size-4" strokeWidth={1.75} />
+            </IconButton>
+          )}
+          <CalendarPopover today={today} stats={stats} range={range} onRange={setRange} />
+          <label className="bg-surface border-line-1 focus-within:border-accent flex h-[30px] w-[220px] items-center gap-2 rounded-[10px] border pl-2.5 pr-2 transition-[border-color,box-shadow] duration-[160ms] focus-within:shadow-[var(--tau-focus-ring)]">
+            {searching ? (
+              <Loader2 className="text-ink-3 size-[14px] animate-spin" strokeWidth={1.75} />
+            ) : (
+              <Search className="text-ink-3 size-[14px]" strokeWidth={1.75} />
+            )}
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Escape" && query) {
+                  e.stopPropagation();
+                  setQuery("");
+                }
+              }}
+              placeholder="搜索"
+              className="text-tau-meta placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
+            />
+            {query && (
               <IconButton
-                title="清除时间筛选"
+                title="清除搜索"
                 className="size-[18px] rounded-[5px]"
-                onClick={() => setRange(null)}
+                onClick={() => setQuery("")}
               >
                 <X className="size-[11px]" strokeWidth={1.75} />
               </IconButton>
-            </span>
-          )}
+            )}
+          </label>
         </div>
-        <span className="flex-1" />
-        {echoes.length > 0 && (
-          <IconButton
-            data-otd-keep
-            title="那年今日"
-            onClick={() => setDrawerOpen(o => !o)}
-            className={cn(drawerOpen && "bg-accent-soft text-accent-text hover:bg-accent-soft")}
-          >
-            <History className="size-4" strokeWidth={1.75} />
-          </IconButton>
-        )}
-        <CalendarPopover today={today} stats={stats} range={range} onRange={setRange} />
-        <label className="bg-surface border-line-1 focus-within:border-accent flex h-[30px] w-[220px] items-center gap-2 rounded-[10px] border pl-2.5 pr-2 transition-[border-color,box-shadow] duration-[160ms] focus-within:shadow-[var(--tau-focus-ring)]">
-          {searching ? (
-            <Loader2 className="text-ink-3 size-[14px] animate-spin" strokeWidth={1.75} />
-          ) : (
-            <Search className="text-ink-3 size-[14px]" strokeWidth={1.75} />
-          )}
-          <input
-            ref={searchRef}
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === "Escape" && query) {
-                e.stopPropagation();
-                setQuery("");
-              }
-            }}
-            placeholder="搜索"
-            className="text-tau-meta placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
-          />
-          {query && (
-            <IconButton
-              title="清除搜索"
-              className="size-[18px] rounded-[5px]"
-              onClick={() => setQuery("")}
-            >
-              <X className="size-[11px]" strokeWidth={1.75} />
-            </IconButton>
-          )}
-        </label>
-      </div>
 
-      {/* 一整张纸 */}
-      <div
-        data-diary-sheet
-        className="bg-surface shadow-card rounded-tau-lg group/sheet relative flex min-h-0 flex-1 flex-col overflow-hidden"
-      >
-        <div
-          ref={setScrollEl}
-          data-diary-stream
-          // 行高变化的滚动补偿由虚拟列表负责，关掉浏览器滚动锚定免得补两次
-          className="edge-fade-scroll relative min-h-0 flex-1 overflow-y-auto [overflow-anchor:none]"
-        >
-          <div className="mx-auto max-w-[860px] px-14 pb-2">
-            {live.length === 0 ? (
-              <Empty
-                icon={PenLine}
-                title="写下第一条碎碎念"
-                text="不用凑成一篇日记。想到什么就在下面写一句，回车就记下了，一天写几条都行。"
-              />
-            ) : filtered.length === 0 ? (
-              <Empty
-                icon={query ? SearchX : History}
-                title={searching ? "搜索中…" : query ? "没有匹配的碎碎念" : "这里还没有记录"}
-                text={
-                  query
-                    ? "换个关键词试试。"
-                    : scope.kind === "tag"
-                      ? "在下面写一条，会自动带上这个标签。"
-                      : "清除筛选再看看。"
-                }
-                action={
-                  filtering && !searching ? (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        setQuery("");
-                        setRange(null);
-                        if (scope.kind !== "all") setScope({ kind: "all" });
+        {/* 纸身：月份刻度 / 抽屉相对它绝对定位；点纸身关那年今日抽屉（data-diary-sheet），工具栏不算 */}
+        <div data-diary-sheet className="group/sheet relative flex min-h-0 flex-1 flex-col">
+          {/* data-diary-stream 挂在外层：FadeScroll 不透传属性，点击判定走 closest() 不受影响 */}
+          <div data-diary-stream className="flex min-h-0 flex-1 flex-col">
+            <FadeScroll
+              scrollRef={setScrollEl}
+              // 行高变化的滚动补偿由虚拟列表负责，关掉浏览器滚动锚定免得补两次
+              className="relative min-h-0 flex-1 [overflow-anchor:none]"
+            >
+              <div className="mx-auto max-w-[860px] px-14 pb-2">
+                {live.length === 0 ? (
+                  <Empty
+                    icon={PenLine}
+                    title="写下第一条碎碎念"
+                    text="不用凑成一篇日记。想到什么就在下面写一句，回车就记下了，一天写几条都行。"
+                  />
+                ) : filtered.length === 0 ? (
+                  <Empty
+                    icon={query ? SearchX : History}
+                    title={searching ? "搜索中…" : query ? "没有匹配的碎碎念" : "这里还没有记录"}
+                    text={
+                      query
+                        ? "换个关键词试试。"
+                        : scope.kind === "tag"
+                          ? "在下面写一条，会自动带上这个标签。"
+                          : "清除筛选再看看。"
+                    }
+                    action={
+                      filtering && !searching ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setQuery("");
+                            setRange(null);
+                            if (scope.kind !== "all") setScope({ kind: "all" });
+                          }}
+                        >
+                          清除筛选
+                        </Button>
+                      ) : null
+                    }
+                  />
+                ) : (
+                  <>
+                    <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
+                      {virtualizer.getVirtualItems().map(item => {
+                        const group = groups[item.index];
+                        return (
+                          <div
+                            key={item.key}
+                            ref={virtualizer.measureElement}
+                            data-index={item.index}
+                            // 用 top 不用 transform：sticky 按布局位置算，transform 平移会让每天的
+                            // 日期列都以为自己在内容顶部，被推到该天底部（吸顶失效且错位）
+                            className="absolute inset-x-0"
+                            style={{ top: item.start }}
+                          >
+                            <DaySection
+                              group={group}
+                              freshIds={freshIds}
+                              today={today}
+                              tags={tags}
+                              counts={counts}
+                              mutations={mutations}
+                              onOpenTag={openTag}
+                              onDelete={scheduleDelete}
+                              onClearTag={setClearing}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-tau-sm text-ink-3 py-7 text-center">
+                      {filtering
+                        ? `共 ${filtered.length} 条`
+                        : `已经到最早的一条了 · 共 ${filtered.length} 条`}
+                    </p>
+                  </>
+                )}
+              </div>
+            </FadeScroll>
+          </div>
+
+          <MonthRail
+            months={months}
+            current={currentMonth}
+            thisYear={today.slice(0, 4)}
+            onJump={jumpToMonth}
+          />
+
+          {/* 输入条：停靠在纸底，同底色不加横线；上沿渐隐让流自然没入 */}
+          <div className="relative z-[4] flex-none pb-3.5 pt-1 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-7 before:bg-gradient-to-t before:from-[var(--tau-bg-surface)] before:to-transparent">
+            <div className="mx-auto max-w-[860px] px-14">
+              <Composer
+                ref={composerRef}
+                now={now}
+                tags={tags}
+                counts={counts}
+                scopeTag={scope.kind === "tag" ? scope.tag : null}
+                onSubmit={submit}
+                onRecolor={recolor}
+                onClearTag={setClearing}
+                above={
+                  showTease ? (
+                    <OnThisDayTease
+                      echoes={echoes}
+                      onOpen={() => setDrawerOpen(true)}
+                      onDismiss={() => {
+                        localStorage.setItem(OTD_DISMISS_KEY, today);
+                        setOtdDismissed(true);
+                        toast.info("今天不再提示，工具栏里还能打开");
                       }}
-                    >
-                      清除筛选
-                    </Button>
+                    />
                   ) : null
                 }
               />
-            ) : (
-              <>
-                <div className="relative" style={{ height: virtualizer.getTotalSize() }}>
-                  {virtualizer.getVirtualItems().map(item => {
-                    const group = groups[item.index];
-                    return (
-                      <div
-                        key={item.key}
-                        ref={virtualizer.measureElement}
-                        data-index={item.index}
-                        // 用 top 不用 transform：sticky 按布局位置算，transform 平移会让每天的
-                        // 日期列都以为自己在内容顶部，被推到该天底部（吸顶失效且错位）
-                        className="absolute inset-x-0"
-                        style={{ top: item.start }}
-                      >
-                        <DaySection
-                          group={group}
-                          freshIds={freshIds}
-                          today={today}
-                          tags={tags}
-                          counts={counts}
-                          mutations={mutations}
-                          onOpenTag={openTag}
-                          onDelete={scheduleDelete}
-                          onClearTag={setClearing}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="text-tau-sm text-ink-3 py-7 text-center">
-                  {filtering
-                    ? `共 ${filtered.length} 条`
-                    : `已经到最早的一条了 · 共 ${filtered.length} 条`}
-                </p>
-              </>
-            )}
+            </div>
           </div>
+
+          <OnThisDayDrawer
+            open={drawerOpen}
+            today={today}
+            echoes={echoes}
+            tags={tags}
+            onClose={() => setDrawerOpen(false)}
+            onLocate={locateMoment}
+          />
         </div>
-
-        <MonthRail
-          months={months}
-          current={currentMonth}
-          thisYear={today.slice(0, 4)}
-          onJump={jumpToMonth}
-        />
-
-        {/* 输入条：停靠在纸底，同底色不加横线；上沿渐隐让流自然没入 */}
-        <div className="relative z-[4] flex-none pb-3.5 pt-1 before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-7 before:bg-gradient-to-t before:from-[var(--tau-bg-surface)] before:to-transparent">
-          <div className="mx-auto max-w-[860px] px-14">
-            <Composer
-              ref={composerRef}
-              now={now}
-              tags={tags}
-              counts={counts}
-              scopeTag={scope.kind === "tag" ? scope.tag : null}
-              onSubmit={submit}
-              onRecolor={recolor}
-              onClearTag={setClearing}
-              above={
-                showTease ? (
-                  <OnThisDayTease
-                    echoes={echoes}
-                    onOpen={() => setDrawerOpen(true)}
-                    onDismiss={() => {
-                      localStorage.setItem(OTD_DISMISS_KEY, today);
-                      setOtdDismissed(true);
-                      toast.info("今天不再提示，工具栏里还能打开");
-                    }}
-                  />
-                ) : null
-              }
-            />
-          </div>
-        </div>
-
-        <OnThisDayDrawer
-          open={drawerOpen}
-          today={today}
-          echoes={echoes}
-          tags={tags}
-          onClose={() => setDrawerOpen(false)}
-          onLocate={locateMoment}
-        />
       </div>
 
       <ClearTagDialog

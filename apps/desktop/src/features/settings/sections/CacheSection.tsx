@@ -17,6 +17,7 @@ import {
   Checkbox,
   ConfirmDialog,
   Dialog,
+  DialogBody,
   IconButton,
   ImagePreview,
   Segmented,
@@ -609,17 +610,19 @@ export function CacheSection() {
         title={player?.title || (player?.kind === "audio" ? "音频预览" : "视频预览")}
         width={player?.kind === "audio" ? 480 : 720}
       >
-        {player?.kind === "video" && (
-          <video
-            ref={mediaRef}
-            src={player.src}
-            controls
-            className="rounded-tau-sm max-h-[70vh] w-full"
-          />
-        )}
-        {player?.kind === "audio" && (
-          <audio ref={mediaRef} src={player.src} controls className="w-full" />
-        )}
+        <DialogBody>
+          {player?.kind === "video" && (
+            <video
+              ref={mediaRef}
+              src={player.src}
+              controls
+              className="rounded-tau-sm max-h-[70vh] w-full"
+            />
+          )}
+          {player?.kind === "audio" && (
+            <audio ref={mediaRef} src={player.src} controls className="w-full" />
+          )}
+        </DialogBody>
       </Dialog>
 
       <ImagePreview

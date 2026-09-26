@@ -2,18 +2,8 @@ import type { Flashcard } from "@/types";
 import { Button } from "@tau/ui";
 import { Check } from "lucide-react";
 
-import { LETTERS } from "../../reviewStyles";
-
+/** 需要提交的题型（多选 / 填空 / 问答）的作答按钮；单选 / 判断选即提交，不渲染 */
 export function AnswerActions({ card, onSubmit }: { card: Flashcard; onSubmit(): void }) {
-  if (card.type === "single-choice" || card.type === "boolean") {
-    const last =
-      card.type === "boolean" ? "B" : LETTERS[Math.max(0, (card.data.options?.length ?? 1) - 1)];
-    return (
-      <p className="text-ink-3 text-center text-[12px]">
-        选择一项即提交 · 按 A–{last} · Space 直接看答案
-      </p>
-    );
-  }
   return (
     <div className="flex items-center justify-center gap-2.5">
       {card.type !== "qa" && (

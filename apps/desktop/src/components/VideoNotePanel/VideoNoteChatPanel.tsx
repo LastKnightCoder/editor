@@ -57,7 +57,7 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
   const database = useSettingStore(state => state.setting.database.active);
   const isConnected = useDatabaseConnected();
 
-  useVideoNoteChat(videoNoteId, mainDbName);
+  const toolScope = useVideoNoteChat(videoNoteId, mainDbName);
 
   const systemPrompt = useMemo(() => buildVideoNoteSystemPrompt({ transcript }), [transcript]);
 
@@ -254,6 +254,7 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
               markdownComponents={markdownComponents}
               isVisible={true}
               chatScope={`video-note-chat:${videoNoteId}`}
+              toolScope={toolScope}
               updateChatMessage={handleUpdateChatMessage}
               updateCurrentChat={handleUpdateCurrentChat}
               sendLoading={sendLoading}

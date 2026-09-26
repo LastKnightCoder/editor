@@ -1,10 +1,11 @@
 import { useState } from "react";
 import dayjs from "dayjs";
-import { ChevronDown, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, CalendarDays, Plus } from "lucide-react";
 import { Button, DatePickerPanel, IconButton, Popover, Segmented, cn, toast } from "@tau/ui";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { getDateStart, getWeekStart } from "@/utils/calendar";
 import type { CalendarEvent, CalendarViewType } from "@/types";
+import { useDayEvents } from "../DayColumn";
 
 // 方案 C：「日」由右栏当日时间线承担
 const VIEWS: { value: CalendarViewType; label: string }[] = [
@@ -81,8 +82,16 @@ const CalendarHeader = () => {
   const currentView = useCalendarStore(s => s.currentView);
   const currentDate = useCalendarStore(s => s.currentDate);
   const calendars = useCalendarStore(s => s.calendars);
-  const { setCurrentView, setCurrentDate, goToToday, goToPrevious, goToNext, setEditingEvent } =
-    useCalendarStore.getState();
+  const showDayPanel = useCalendarStore(s => s.showDayPanel);
+  const {
+    setCurrentView,
+    setCurrentDate,
+    goToToday,
+    goToPrevious,
+    goToNext,
+    setEditingEvent,
+    setShowDayPanel,
+  } = useCalendarStore.getState();
   const [jumpOpen, setJumpOpen] = useState(false);
 
   const title = formatTitle(currentView, currentDate);
@@ -112,7 +121,7 @@ const CalendarHeader = () => {
   };
 
   return (
-    <div className="flex h-[44px] flex-none items-center gap-2">
+    <div className="mb-2 flex h-10 flex-none items-center gap-2">
       {/* 标题即跳转入口：点开小日历选任意一天，主视图翻到对应月 / 周，右栏跟随这一天 */}
       <Popover
         open={jumpOpen}
@@ -126,7 +135,7 @@ const CalendarHeader = () => {
             title="跳转到日期"
             className={cn(
               "hover:bg-hover -ml-2 flex shrink-0 items-baseline gap-2 whitespace-nowrap rounded-[10px] px-2 py-0.5",
-              "text-[19px] font-semibold tracking-[-0.01em] transition-colors",
+              "text-tau-title-lg font-semibold tracking-[-0.01em] transition-colors",
               jumpOpen && "bg-hover"
             )}
           >
@@ -179,8 +188,34 @@ const CalendarHeader = () => {
       <Button variant="primary" size="sm" icon={Plus} onClick={handleCreate}>
         新建日程
       </Button>
+      <DayPanelButton open={showDayPanel} onToggle={() => setShowDayPanel(!showDayPanel)} />
     </div>
   );
 };
+
+/** 当日抽屉开关：写明打开的是哪天、有几项，而不是一个孤立图标 */
+function DayPanelButton({ open, onToggle }: { open: boolean; onToggle(): void }) {
+  const { day, isToday, dayEvents } = useDayEvents();
+  const date = new Date(day);
+  const dayText = isToday
+    ? "今天"
+    : `${date.getMonth() + 1}/${date.getDate()} 周${WEEKDAYS[date.getDay()]}`;
+  return (
+    <Button
+      variant={open ? "soft" : "secondary"}
+      size="sm"
+      icon={CalendarDays}
+      aria-pressed={open}
+      title={open ? "收起当日时间线" : "打开当日时间线（快速添加、空档安排）"}
+      onClick={onToggle}
+      className="shrink-0 whitespace-nowrap tabular-nums"
+    >
+      {dayText}
+      <span className={cn("font-normal", open ? "opacity-80" : "text-ink-3")}>
+        · {dayEvents.length ? `${dayEvents.length} 项` : "无安排"}
+      </span>
+    </Button>
+  );
+}
 
 export default CalendarHeader;

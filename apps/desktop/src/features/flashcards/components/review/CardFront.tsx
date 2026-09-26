@@ -34,7 +34,7 @@ export function CardFront({
 
   return (
     <>
-      <div className="text-[19px] font-medium leading-[1.8]">
+      <div className="text-[20px] font-medium leading-[1.8]">
         {card.type === "cloze" ? (
           <ClozePrompt
             content={card.prompt}

@@ -4,9 +4,7 @@ import ContentLayout from "@/layouts/ContentLayout";
 import { RouteErrorPage } from "@/components/ErrorState/RouteErrorPage";
 
 const QuickCard = loadable(() => import("@/pages/QuickCard"));
-const SingleCardEditor = loadable(() => import("@/pages/SingleCardEditor"));
-const SingleArticleEditor = loadable(() => import("@/pages/SingleArticleEditor"));
-const SingleProjectItemEditor = loadable(() => import("@/pages/SingleProjectItemEditor"));
+const EditorWindowPage = loadable(() => import("@/features/editor-window/EditorWindowPage"));
 const SingleMarkdownEditor = loadable(() => import("@/pages/SingleMarkdownEditor"));
 
 const QuickOpenLayout = loadable(() => import("@/layouts/QuickOpenLayout"));
@@ -41,34 +39,9 @@ const routes = [
     ],
   },
   {
-    path: "/single-card-editor/",
-    element: <QuickOpenLayout />,
-    children: [
-      {
-        index: true,
-        element: <SingleCardEditor />,
-      },
-    ],
-  },
-  {
-    path: "/single-article-editor/",
-    element: <QuickOpenLayout />,
-    children: [
-      {
-        index: true,
-        element: <SingleArticleEditor />,
-      },
-    ],
-  },
-  {
-    path: "/single-project-item-editor/",
-    element: <QuickOpenLayout />,
-    children: [
-      {
-        index: true,
-        element: <SingleProjectItemEditor />,
-      },
-    ],
+    // 卡片 / 文章 / 项目文档的独立编辑窗口（自带标题栏与主题，不走 QuickOpenLayout）
+    path: "/editor-window",
+    element: <EditorWindowPage />,
   },
   {
     path: "/single-markdown-editor/",

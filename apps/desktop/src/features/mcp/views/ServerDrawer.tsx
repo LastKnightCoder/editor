@@ -1,35 +1,23 @@
 /**
- * 服务器详情抽屉（右侧滑入 560px）：头部身份 + 启停；自定义服务器分「工具 / 配置 / 日志」，
+ * 服务器详情抽屉（通用 Drawer，md 560px）：头部身份 + 启停；自定义服务器分「工具 / 配置 / 日志」，
  * 内置只有工具。工具开关与启停即时生效；配置改动需「保存并重连」。
- * 常驻挂载靠 transform 过渡，关闭态 inert；Esc 走页面浮层仲裁。结构同发布页站点设置抽屉。
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import {
-  CircleAlert,
-  Copy,
-  Info,
-  MoreHorizontal,
-  RefreshCw,
-  Search,
-  Trash2,
-  X,
-} from "lucide-react";
+import { CircleAlert, Copy, Info, MoreHorizontal, RefreshCw, Search, Trash2 } from "lucide-react";
 import {
   Button,
+  Drawer,
   IconButton,
   Input,
   Menu,
-  PortalScope,
   Segmented,
   Switch,
   Tooltip,
   cn,
   toast,
-  usePortalContainer,
+  useRetainedValue,
 } from "@tau/ui";
-import { useOverlayDismiss } from "@/page/PageProvider";
 import { useSettingsStore } from "@/app/settingsStore";
 import type { McpLogEntry } from "@/commands/mcp";
 import type { CustomMCPServer } from "@/stores/useMCPStore";
@@ -369,19 +357,10 @@ export function ServerDrawer({
   onClose: () => void;
   onDelete: (item: McpServerItem) => void;
 }) {
-  const container = usePortalContainer();
-  const open = item !== null;
-  useOverlayDismiss(onClose, open);
-  // 关闭过渡期间保留最后一项，避免内容先消失
-  const [shown, setShown] = useState<McpServerItem | null>(item);
   const [tab, setTab] = useState<DrawerTab>("tools");
-  useEffect(() => {
-    if (item) setShown(item);
-  }, [item]);
-  const shownId = shown?.id;
-  useEffect(() => setTab("tools"), [shownId]);
-
-  const current = shown;
+  const current = useRetainedValue(item);
+  const currentId = current?.id;
+  useEffect(() => setTab("tools"), [currentId]);
   const custom = current?.kind === "custom";
 
   const copyJson = async () => {
@@ -390,133 +369,108 @@ export function ServerDrawer({
     toast.success("已复制为 mcpServers JSON");
   };
 
-  return createPortal(
-    <PortalScope>
-      <div
-        aria-hidden
-        onClick={onClose}
-        className={cn(
-          "bg-overlay fixed inset-0 z-[340] transition-opacity duration-200",
-          open ? "opacity-100" : "pointer-events-none opacity-0"
-        )}
-      />
-      <aside
-        role="dialog"
-        aria-modal="true"
-        aria-label={current ? `${current.name} 详情` : "服务器详情"}
-        inert={!open}
-        className={cn(
-          "bg-surface shadow-float fixed bottom-2 right-2 top-2 z-[340] flex w-[560px] flex-col rounded-[14px]",
-          "transition-transform duration-[280ms] ease-[cubic-bezier(.2,.8,.2,1)]",
-          open ? "translate-x-0" : "translate-x-[calc(100%+16px)]"
-        )}
-      >
-        {current && (
+  return (
+    <Drawer
+      open={item !== null}
+      onOpenChange={open => !open && onClose()}
+      label={current ? `${current.name} 详情` : "服务器详情"}
+      icon={current && <ServerIcon item={current} size="lg" />}
+      title={
+        current && (
           <>
-            <header className="flex items-start gap-3.5 px-[22px] pt-5">
-              <ServerIcon item={current} size="lg" />
-              <div className="min-w-0 flex-1">
-                <h3 className="flex items-center gap-2 text-[16px] font-semibold">
-                  <span className="truncate">{current.name}</span>
-                  <span className="text-tau-micro text-ink-3 border-line-1 shrink-0 rounded-[5px] border px-1.5 font-normal">
-                    {custom
-                      ? current.server?.transport.type === "stdio"
-                        ? "stdio"
-                        : "http"
-                      : "内置"}
-                  </span>
-                </h3>
-                {current.description && (
-                  <p className="text-tau-meta text-ink-2 mt-0.5">{current.description}</p>
-                )}
-                <div className="mt-1.5 flex min-w-0 items-center gap-2.5">
-                  <StatusLine item={current} className="shrink-0" />
-                  {current.target && (
-                    <span className="font-tau-mono text-ink-3 min-w-0 truncate text-[11.5px]">
-                      {current.target}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                {custom && (
-                  <>
-                    <Tooltip content="重新连接">
-                      <IconButton
-                        aria-label="重新连接"
-                        disabled={!current.enabled}
-                        onClick={() => void reconnectServer(current.id)}
-                      >
-                        <RefreshCw className="size-4" strokeWidth={1.75} />
-                      </IconButton>
-                    </Tooltip>
-                    <Menu
-                      align="end"
-                      trigger={
-                        <IconButton aria-label="更多">
-                          <MoreHorizontal className="size-4" strokeWidth={1.75} />
-                        </IconButton>
-                      }
-                    >
-                      <Menu.Item icon={<Copy />} onSelect={() => void copyJson()}>
-                        复制为 JSON
-                      </Menu.Item>
-                      <Menu.Separator />
-                      <Menu.Item icon={<Trash2 />} danger onSelect={() => onDelete(current)}>
-                        删除服务器
-                      </Menu.Item>
-                    </Menu>
-                  </>
-                )}
-                <Switch
-                  aria-label={current.enabled ? "停用服务器" : "启用服务器"}
-                  checked={current.enabled}
-                  disabled={current.status === "unavailable"}
-                  onCheckedChange={v => void setServerEnabled(current, v)}
-                  className="mx-1.5"
-                />
-                <IconButton aria-label="关闭" onClick={onClose}>
-                  <X className="size-4" strokeWidth={1.75} />
-                </IconButton>
-              </div>
-            </header>
-
-            {custom && (
-              <div className="px-[22px] pt-4">
-                <Segmented
-                  label="详情分区"
-                  size="sm"
-                  value={tab}
-                  onValueChange={(v: DrawerTab) => setTab(v)}
-                >
-                  <Segmented.Item value="tools" label="工具" />
-                  <Segmented.Item value="config" label="配置" />
-                  <Segmented.Item value="logs" label="日志" />
-                </Segmented>
-              </div>
-            )}
-
-            <div className="min-h-0 flex-1 overflow-y-auto px-[22px] pb-6 pt-4">
-              {tab === "config" && current.server ? (
-                <ConfigPane server={current.server} />
-              ) : tab === "logs" && custom ? (
-                <LogsPane serverId={current.id} />
-              ) : (
-                <ToolsPane
-                  item={current}
-                  onShowLogs={() => setTab("logs")}
-                  onOpenSettings={() => {
-                    // 设置弹窗与抽屉同层，先关抽屉再打开，避免被盖住（同发布页）
-                    onClose();
-                    useSettingsStore.getState().openSettings(current.settingsSection);
-                  }}
-                />
-              )}
-            </div>
+            <span className="truncate">{current.name}</span>
+            <span className="text-tau-micro text-ink-3 border-line-1 shrink-0 rounded-[5px] border px-1.5 font-normal">
+              {custom ? (current.server?.transport.type === "stdio" ? "stdio" : "http") : "内置"}
+            </span>
           </>
-        )}
-      </aside>
-    </PortalScope>,
-    container
+        )
+      }
+      subtitle={current?.description && <p className="text-ink-2 m-0">{current.description}</p>}
+      meta={
+        current && (
+          <>
+            <StatusLine item={current} className="shrink-0" />
+            {current.target && (
+              <span className="font-tau-mono text-ink-3 min-w-0 truncate text-[11.5px]">
+                {current.target}
+              </span>
+            )}
+          </>
+        )
+      }
+      actions={
+        current && (
+          <>
+            {custom && (
+              <>
+                <Tooltip content="重新连接">
+                  <IconButton
+                    aria-label="重新连接"
+                    disabled={!current.enabled}
+                    onClick={() => void reconnectServer(current.id)}
+                  >
+                    <RefreshCw className="size-4" strokeWidth={1.75} />
+                  </IconButton>
+                </Tooltip>
+                <Menu
+                  align="end"
+                  trigger={
+                    <IconButton aria-label="更多">
+                      <MoreHorizontal className="size-4" strokeWidth={1.75} />
+                    </IconButton>
+                  }
+                >
+                  <Menu.Item icon={<Copy />} onSelect={() => void copyJson()}>
+                    复制为 JSON
+                  </Menu.Item>
+                  <Menu.Separator />
+                  <Menu.Item icon={<Trash2 />} danger onSelect={() => onDelete(current)}>
+                    删除服务器
+                  </Menu.Item>
+                </Menu>
+              </>
+            )}
+            <Switch
+              aria-label={current.enabled ? "停用服务器" : "启用服务器"}
+              checked={current.enabled}
+              disabled={current.status === "unavailable"}
+              onCheckedChange={v => void setServerEnabled(current, v)}
+              className="mx-1.5"
+            />
+          </>
+        )
+      }
+      toolbar={
+        custom && (
+          <Segmented
+            label="详情分区"
+            size="sm"
+            value={tab}
+            onValueChange={(v: DrawerTab) => setTab(v)}
+          >
+            <Segmented.Item value="tools" label="工具" />
+            <Segmented.Item value="config" label="配置" />
+            <Segmented.Item value="logs" label="日志" />
+          </Segmented>
+        )
+      }
+    >
+      {current &&
+        (tab === "config" && current.server ? (
+          <ConfigPane server={current.server} />
+        ) : tab === "logs" && custom ? (
+          <LogsPane serverId={current.id} />
+        ) : (
+          <ToolsPane
+            item={current}
+            onShowLogs={() => setTab("logs")}
+            onOpenSettings={() => {
+              // 设置弹窗与抽屉同层，先关抽屉再打开，避免被盖住（同发布页）
+              onClose();
+              useSettingsStore.getState().openSettings(current.settingsSection);
+            }}
+          />
+        ))}
+    </Drawer>
   );
 }

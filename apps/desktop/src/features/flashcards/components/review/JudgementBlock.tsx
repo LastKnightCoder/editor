@@ -16,7 +16,7 @@ export function JudgementBlock({
   const { status, result, error } = judgement;
   if (status === "idle") return null;
   return (
-    <div className="border-line-1 mt-3 rounded-[12px] border px-3.5 py-3 text-[13px]">
+    <div className="border-line-1 rounded-[12px] border px-3.5 py-3 text-[13px]">
       <div className="flex items-center gap-2 text-[12.5px] font-semibold">
         <Sparkles className="text-accent-text size-[14px]" strokeWidth={1.75} />
         AI 评判

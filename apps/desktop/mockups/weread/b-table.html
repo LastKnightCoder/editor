@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 B · 书目表 + 抽屉</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="weread.css?v=2" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 B · 书目表 + 右侧抽屉（延续现状的数据库视图，参考 Notion 数据库、Readwise Library）</h3>
+  保留现在「只读数据库镜像」的能力：<b>保存视图</b>（表格 / 画廊 / 按分类分组…）、筛选、排序、隐藏列，只把 antd 表格换成新壳的行式列表——无横线，行 hover 叠层，封面缩略图进首列。点行从右侧滑出<b>笔记抽屉</b>，↑ ↓ 在书之间切换，「展开」可以升格为整页（即方案 A 的二级页）。
+  <ul>
+    <li>分组 / 筛选都在纸内工具行，不占侧栏；书架分类作为一列（也可按它分组，见「按分类」视图）。</li>
+    <li class="pro">＋ 现有 <code>useWeReadViews</code> 视图体系原样保留，改动面最小；信息密度最高，适合 100+ 本书按时长 / 进度 / 笔记数排序筛选；抽屉看笔记时列表还在，连着翻多本很顺（与 MCP 页 B 同一交互）。</li>
+    <li class="con">－ 更像「管理数据」，读书氛围弱；抽屉 620px 宽，长笔记阅读列偏窄，想沉浸看要再点「展开」。</li>
+  </ul>
+  <p style="margin:6px 0 0;color:var(--ink-3);font-size:12px">封面：真实页面用微信读书封面图，样板间以色块代替。笔记正文统一用《乡土中国》示例。</p>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, anno, icons, BOOKS, ARCHIVES, byId, cover, prog, fmtDate, fmtMin, statusDot, syncState, syncBtn, offlineBanner, emptyConnect, bookHead, bookReview, noteTools, chapters, bindNotes, listRow, listHead } from "./weread.js?v=2";
+
+mockBar("b-table.html", `<span class="seg"><button data-m="table">表格</button><button data-m="group">按分类</button><button data-m="gallery">画廊</button><button data-m="drawer">打开笔记</button><button data-m="syncing">同步中</button><button data-m="first">首次使用</button></span>`);
+
+const win = document.getElementById("win");
+const state = { m: "table", view: "all", id: "b01", filter: "all", hl: null };
+const VIEWS = [["all", "table-2", "全部书籍"], ["reading", "book-open", "在读"], ["group", "rows-3", "按分类"], ["gallery", "layout-grid", "封面"]];
+
+const sorted = () => [...BOOKS].sort((a, b) => (b.last || "0").localeCompare(a.last || "0"));
+
+const row = b => listRow(b, state.m === "drawer" && b.id === state.id);
+const head = listHead();
+
+function body() {
+  const v = state.view;
+  if (v === "gallery")
+    return `<div class="b-gallery">${sorted().map(b => `<div class="b-gcard" data-book="${b.id}">${cover(b)}<div style="min-width:0;display:flex;flex-direction:column;gap:2px;flex:1"><div class="t">${b.title}</div><div class="au">${b.author}</div><div style="margin-top:auto">${statusDot(b)}</div><div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink-3)">${prog(b)}<span class="num">${b.progress}%</span></div></div></div>`).join("")}</div>`;
+  if (v === "group")
+    return head + ARCHIVES.map(a => { const l = sorted().filter(b => b.archive === a); return `<div class="b-group"><i data-lucide="chevron-down" style="width:14px"></i>${a}<em class="num">${l.length}</em></div>${l.map(row).join("")}`; }).join("");
+  const l = v === "reading" ? sorted().filter(b => b.status === "reading") : sorted();
+  return head + l.map(row).join("");
+}
+
+function page() {
+  const sync = state.m === "syncing" ? "syncing" : "idle";
+  return `
+  <div class="b-wrap">
+    <div class="w-head">
+      <h1>微信读书</h1>
+      <p class="w-lead" style="margin:4px 0 0 10px"><span class="num">${BOOKS.length}</span> 本<span class="dotsep">·</span>${syncState(sync)}</p>
+      <span class="sp"></span>
+      ${syncBtn(sync)}
+    </div>
+    <div class="b-views">
+      ${VIEWS.map(([k, ic, l]) => `<span class="b-view ${state.view === k ? "on" : ""}" data-view="${k}"><i data-lucide="${ic}"></i>${l}</span>`).join("")}
+      <span class="b-view" style="color:var(--ink-3)"><i data-lucide="plus"></i></span>
+      <span class="sp"></span>
+      <div class="w-search" style="width:200px;height:28px"><i data-lucide="search"></i>搜索</div>
+      <button class="btn" style="height:28px"><i data-lucide="list-filter"></i>筛选</button>
+      <button class="btn" style="height:28px"><i data-lucide="arrow-down-up"></i>排序</button>
+      <button class="btn" style="height:28px"><i data-lucide="columns-3"></i>列</button>
+    </div>
+    <div class="b-table">${body()}</div>
+  </div>`;
+}
+
+function drawer() {
+  const list = sorted();
+  const i = list.findIndex(b => b.id === state.id);
+  return `
+  <div class="drawer">
+    <div class="dt">
+      <button class="ib" data-step="-1" title="上一本 ↑"><i data-lucide="chevron-up"></i></button>
+      <button class="ib" data-step="1" title="下一本 ↓"><i data-lucide="chevron-down"></i></button>
+      <span style="font-size:12px;color:var(--ink-3);margin-left:4px" class="num">${i + 1} / ${list.length}</span>
+      <span class="sp"></span>
+      <button class="ib" title="展开为整页"><i data-lucide="maximize-2"></i></button>
+      <button class="ib" title="更多：在微信读书中打开 / 重新拉取 / 复制为 Markdown"><i data-lucide="more-horizontal"></i></button>
+      <button class="ib" data-close title="关闭 Esc"><i data-lucide="x"></i></button>
+    </div>
+    <div class="n-main" id="dmain"><div class="n-col">
+      ${bookHead(byId(state.id), { compact: true })}
+      ${bookReview()}
+      ${noteTools(state.filter)}
+      ${chapters({ filter: state.filter, activeHl: state.hl })}
+    </div></div>
+  </div>`;
+}
+
+function render() {
+  const first = state.m === "first";
+  win.innerHTML = `
+    ${sidebar()}
+    <div class="col">
+      ${titlebar(`<b>微信读书</b>`)}
+      <div class="main"><section class="paper w-paper">${first ? emptyConnect() : page()}</section></div>
+    </div>
+    ${state.m === "drawer" ? drawer() : ""}
+    ${state.m === "table" ? anno(1, "保存视图：表格 / 画廊 / 分组，沿用现有视图体系", "left:300px;top:128px") + anno(2, "行式列表：无横线，hover 叠层", "left:560px;top:300px") : ""}
+    ${state.m === "drawer" ? anno(1, "↑ ↓ 切换书，列表保持可见", "left:830px;top:20px") + anno(2, "展开 = 升格为整页阅读", "left:1180px;top:52px") : ""}`;
+  icons();
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.m === state.m));
+  win.querySelectorAll("[data-book]").forEach(el => (el.onclick = () => { state.m = "drawer"; state.id = el.dataset.book; render(); }));
+  win.querySelectorAll("[data-view]").forEach(el => (el.onclick = () => { state.view = el.dataset.view; render(); }));
+  win.querySelectorAll("[data-close]").forEach(el => (el.onclick = () => { state.m = "table"; render(); }));
+  win.querySelectorAll("[data-step]").forEach(el => (el.onclick = () => {
+    const list = sorted(); const i = list.findIndex(b => b.id === state.id);
+    state.id = list[(i + +el.dataset.step + list.length) % list.length].id; render();
+  }));
+  if (state.m === "drawer") bindNotes(win.querySelector(".drawer"), state, render);
+}
+document.querySelectorAll(".seg button").forEach(b => (b.onclick = () => {
+  const m = b.dataset.m;
+  state.m = ["group", "gallery"].includes(m) ? "table" : m;
+  if (m === "group" || m === "gallery") state.view = m;
+  else if (m === "table") state.view = "all";
+  render();
+  if (m === "group" || m === "gallery") document.querySelectorAll(".seg button").forEach(x => x.classList.toggle("on", x.dataset.m === m));
+}));
+render();
+</script>
+</body>
+</html>

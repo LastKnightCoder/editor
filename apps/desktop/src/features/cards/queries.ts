@@ -11,7 +11,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   createScopedCard,
   deleteScopedCard,
@@ -115,6 +115,20 @@ export function useCardsFeed(): {
       if (ready) void query.refetch();
     },
   };
+}
+
+/**
+ * 侧栏标签树：只观察卡片库列表缓存、不主动拉取（侧栏常驻，不能在启动时就全量拉卡片）；
+ * 子项只在卡片库页位于栈顶时展开，此时页面已经拉过列表。
+ */
+export function useCardTagTree(): CardTagNode[] {
+  const databaseName = useSettingStore(state => state.setting.database.active);
+  const query = useQuery({
+    queryKey: cardsKey(databaseName),
+    queryFn: () => getScopedCards(databaseName),
+    enabled: false,
+  });
+  return useMemo(() => buildTagTree(query.data ?? []), [query.data]);
 }
 
 /** 单卡全量（含全文与播客）：预览弹窗与导出/演示按需取 */

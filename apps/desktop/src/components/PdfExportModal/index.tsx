@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import type { Descendant } from "slate";
 import { FileText } from "lucide-react";
-import { Button, Dialog, NumberInput, Select, Switch } from "@tau/ui";
+import { Button, Dialog, DialogBody, NumberInput, Select, Switch } from "@tau/ui";
 import { exportPdfWithDialog } from "@/commands";
 import { buildPdfHtml, processCodeBlocks } from "@/utils/pdf-html-builder";
 import type { CodeBlockBreakStrategy, PdfExportOptions } from "@/types";
@@ -157,88 +157,90 @@ export const PdfExportModal: React.FC<PdfExportModalProps> = ({
         </>
       }
     >
-      {error && (
-        <div className="bg-danger-soft text-danger rounded-tau-md text-tau-body mb-4 p-3">
-          {error}
-        </div>
-      )}
+      <DialogBody>
+        {error && (
+          <div className="bg-danger-soft text-danger rounded-tau-md text-tau-body mb-4 p-3">
+            {error}
+          </div>
+        )}
 
-      <div className="space-y-5">
-        {/* Page Size */}
-        <div className="flex flex-col gap-1.5">
-          <label className={FIELD_LABEL}>纸张大小</label>
-          <Select
-            value={pageSize}
-            onValueChange={value => setPageSize(value)}
-            options={PAGE_SIZE_OPTIONS}
-          />
-        </div>
+        <div className="space-y-5">
+          {/* Page Size */}
+          <div className="flex flex-col gap-1.5">
+            <label className={FIELD_LABEL}>纸张大小</label>
+            <Select
+              value={pageSize}
+              onValueChange={value => setPageSize(value)}
+              options={PAGE_SIZE_OPTIONS}
+            />
+          </div>
 
-        {/* Orientation */}
-        <div className="flex items-center justify-between">
-          <label className="text-ink-1 text-tau-body">横向打印</label>
-          <Switch checked={landscape} onCheckedChange={setLandscape} />
-        </div>
+          {/* Orientation */}
+          <div className="flex items-center justify-between">
+            <label className="text-ink-1 text-tau-body">横向打印</label>
+            <Switch checked={landscape} onCheckedChange={setLandscape} />
+          </div>
 
-        {/* Margins */}
-        <div className="flex flex-col gap-1.5">
-          <label className={FIELD_LABEL}>页边距（毫米）</label>
-          <div className="grid grid-cols-4 gap-2">
-            {marginFields.map(field => (
-              <div key={field.label} className="flex flex-col gap-1">
-                <span className="text-ink-3 text-tau-sm">{field.label}</span>
-                <NumberInput
-                  min={0}
-                  max={50}
-                  value={field.value}
-                  onValueChange={value => field.onChange(value ?? 0)}
-                />
-              </div>
-            ))}
+          {/* Margins */}
+          <div className="flex flex-col gap-1.5">
+            <label className={FIELD_LABEL}>页边距（毫米）</label>
+            <div className="grid grid-cols-4 gap-2">
+              {marginFields.map(field => (
+                <div key={field.label} className="flex flex-col gap-1">
+                  <span className="text-ink-3 text-tau-sm">{field.label}</span>
+                  <NumberInput
+                    min={0}
+                    max={50}
+                    value={field.value}
+                    onValueChange={value => field.onChange(value ?? 0)}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Print Background */}
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <label className="text-ink-1 text-tau-body">打印背景色</label>
+              <span className="text-ink-3 text-tau-sm">代码块、表格等元素的背景色</span>
+            </div>
+            <Switch checked={printBackground} onCheckedChange={setPrintBackground} />
+          </div>
+
+          {/* Chapter Break */}
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col">
+              <label className="text-ink-1 text-tau-body">H1 标题换页</label>
+              <span className="text-ink-3 text-tau-sm">每个 H1 标题从新页开始</span>
+            </div>
+            <Switch checked={chapterBreak} onCheckedChange={setChapterBreak} />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className={FIELD_LABEL}>代码块分页</label>
+            <div className="grid grid-cols-3 gap-2">
+              {CODE_BLOCK_STRATEGIES.map(strategy => (
+                <button
+                  key={strategy.value}
+                  type="button"
+                  onClick={() => setCodeBlockStrategy(strategy.value)}
+                  className={`rounded-tau-md text-tau-sm ease-tau-out border-[1.5px] px-3 py-2.5 font-medium transition-colors ${
+                    codeBlockStrategy === strategy.value
+                      ? "border-accent bg-accent-soft text-accent-text"
+                      : "border-line-1 text-ink-2 hover:border-ink-3/50"
+                  }`}
+                >
+                  {strategy.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-ink-3 text-tau-sm mt-1">
+              {CODE_BLOCK_STRATEGIES.find(s => s.value === codeBlockStrategy)?.hint}
+            </p>
           </div>
         </div>
-
-        {/* Print Background */}
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col">
-            <label className="text-ink-1 text-tau-body">打印背景色</label>
-            <span className="text-ink-3 text-tau-sm">代码块、表格等元素的背景色</span>
-          </div>
-          <Switch checked={printBackground} onCheckedChange={setPrintBackground} />
-        </div>
-
-        {/* Chapter Break */}
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col">
-            <label className="text-ink-1 text-tau-body">H1 标题换页</label>
-            <span className="text-ink-3 text-tau-sm">每个 H1 标题从新页开始</span>
-          </div>
-          <Switch checked={chapterBreak} onCheckedChange={setChapterBreak} />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className={FIELD_LABEL}>代码块分页</label>
-          <div className="grid grid-cols-3 gap-2">
-            {CODE_BLOCK_STRATEGIES.map(strategy => (
-              <button
-                key={strategy.value}
-                type="button"
-                onClick={() => setCodeBlockStrategy(strategy.value)}
-                className={`rounded-tau-md text-tau-sm ease-tau-out border-[1.5px] px-3 py-2.5 font-medium transition-colors ${
-                  codeBlockStrategy === strategy.value
-                    ? "border-accent bg-accent-soft text-accent-text"
-                    : "border-line-1 text-ink-2 hover:border-ink-3/50"
-                }`}
-              >
-                {strategy.label}
-              </button>
-            ))}
-          </div>
-          <p className="text-ink-3 text-tau-sm mt-1">
-            {CODE_BLOCK_STRATEGIES.find(s => s.value === codeBlockStrategy)?.hint}
-          </p>
-        </div>
-      </div>
+      </DialogBody>
     </Dialog>
   );
 };

@@ -1,5 +1,7 @@
 # 决策记录（轻量 ADR）
 
+- **追记（2026-09-26，概况改抽屉）**：用户要求闪卡首页右栏（近 7 天评分 / 未来 7 天到期；选中卡组时为卡组概况）同番茄 / 待办一样改为右侧 Drawer。常驻右栏去掉，列表占满宽度；`OverviewSide` / `DeckSide` 移进非模态 `StatsDrawer`（top-0，Esc 经 `useOverlayDismiss`），由工具栏「概况」按钮开关（打开时 soft 态），默认关闭；抽屉内容随当前范围切换（今日总览 ↔ 卡组）。
+
 ## D-042 RSS、稍后读与博客 RSS 全面退役（2026-09-24，已定）
 
 - 决定：删除订阅阅读域及博客 RSS 输出，不迁移新桌面，不保留 feed 占位；此前 feed 迁移待办由本裁决取代。
@@ -291,7 +293,7 @@
 - ~~diary 日记~~ ✅ 2026-09-25 D「一整张纸」落地（D-044；标签频道嵌侧栏，legacy DiaryView 待 G1/G2 随首页旧版一并删除）
 - ~~whiteboard 白板列表~~ ✅ 2026-09-25 A 画廊落地（D-047；标签嵌侧栏，缩略图复用导出图片管线）
 - ~~whiteboard-detail 白板详情（多页）~~ ✅ 2026-09-25 A2 底部页签栏（XMind 式）落地（D-048；只迁页面外壳，画布内部浮动件换皮另起一轮 mockup）
-- weread 微信读书
+- ~~weread 微信读书~~ ✅ 2026-09-26 A 书架 + B 列表排布 + 整页笔记落地（D-059；笔记只读，legacy 页待 P-weread 删除）
 - resources 资源管理：已退役，管理页、资源库选择及主库资源索引整体移除；保留上传、同步、协作文件与学习资源。
 - chat 归位 feature
 - ~~settings 拆解（15 子页）~~ ✅ 2026-09-24 重排为 12 分区全量落地（D-036）
@@ -405,6 +407,7 @@
 - 未迁移（legacy 有、本页不提供）：手动拖拽排序与拖拽嵌套（议程按时间排序，子任务在详情里添加）、项目拖拽排序与置顶、任务级归档入口、Ctrl+Enter / ⌘N·D·P·R 类型快捷键（由自然语言输入取代）。
 - 实现：`features/todos/`（types / model——分段、排序、周期打卡统计纯函数 / quickAdd / groupColors / queries——一次拉全量快照（项目 + 未归档任务 + 周期规则 + 近一年打卡 + 关联笔记，IN 查询 500 分批）+ 订阅 todo mutation 事件统一失效（首页 `["home"]` 一并失效）/ components——AgendaPanel、HabitRail、TodoDrawer + DetailFields + DetailSections、QuickAddBar、GroupPills、GroupDialog、TodoBits / views——TodosView / pages——todos）；`page/legacy.tsx` 删 todos 占位；主进程 `tables/todo-item.ts`、`tables/todo-group.ts`；`commands/todo.ts` 增 `listArchivedTodoGroups`。
 - 验证：tsc 0 错误；eslint 0 error；vitest `features/todos` 18 例（model 分段 / 逾期 / 周期文案 / 连续打卡 / 热力格对齐 / 完成率；quickAdd 6 组）；主进程 `todo-calendar-consistency.test.ts` 6 例（新建写日历、普通 ⇄ 截止增删映射、改时间标题同步 + 改类型重建映射、单条删除清映射、跨项目子树迁移、归档列表）——注：本机 `better-sqlite3` 为 Electron ABI，sqlite 类测试需 `ELECTRON_RUN_AS_NODE=1 <electron> vitest run` 执行（既有 answer-content 测试同况）；实机：隔离 HOME / user-data-dir 启动 Electron 灌测试数据，截图核对议程分段、抽屉热力格、自然语言新建（计划任务落「生活」并在日历映射表写入 planned）、行内打卡、删除 + 撤销、cocoa 深色。
+- **追记（2026-09-26，今日改抽屉）**：用户要求右栏「今日」同番茄页一样改为右侧 Drawer。常驻 312px 右板去掉，议程占满宽度；HabitRail（今日打卡 / 本周负荷 / 最近完成）移进非模态 `TodayDrawer`（与任务详情同位 top-0，Esc 经 `useOverlayDismiss`），由工具栏「今日」按钮开关（打开时按钮 soft 态），默认关闭。从今日里点任务 → 详情抽屉接替；关掉详情回到今日（`open = todayOpen && 无选中`）。
 
 ## D-041 闪卡复习页定稿（方案 A 复习台）+ 撤销评分下沉主进程
 
@@ -425,6 +428,8 @@
 - **追记（同日，图例限高）**：用户实机数据下预设多达 30+ 个，图例换成十余行，把「全部」的热力格挤成零高度。`PresetLegend` 改为只占一行：溢出的收进行尾「另外 N 个」（Popover 完整列表，按时长降序、可滚动、可点选高亮），高亮项被收起时按钮直接显示它的名字；「全部」的年度热力格设最小高度 172px（至少完整显示一年），空间紧张时由月度柱让出（下限 84px）。账本视图共用同一图例。新增 `PresetLegend.test.tsx` 2 例（模拟换行：溢出计数、收起项高亮时按钮显示名称）。
 - **追记（同日，去掉区间分段）**：用户认为工具栏 7 / 14 / 30 天 / 全部 分段与时间选择面板重复。分段删除，「全部」并入选择面板快捷项末尾（显示有记录以来的天数）；「全部」时标题仍为「时间账本」、范围按钮显示「全部」，隐藏 ‹ › 与「回到今天」，月历不标当前窗口。
 - **追记（同日，实机走查一轮）**：① **小窗**：用户嫌小，A 款等比放大 1.25 倍到 360×84（字号 / 控件改字面像素）；主窗口 Cmd± 的页面缩放按 origin 共享会连带放大小窗、内容撑破，`useCancelPageZoom` 以内容层 CSS `zoom: 1/zoomFactor` 抵消（Electron 无按窗隔离缩放的接口）；小窗常驻隐藏复用、主题只在启动时读一次，改为监听 `storage` 事件跟随主窗口换主题；悬停控件组位占 min-w，不再压住预设名。② **沉浸窗**：翻牌改中性黑牌面（#1f1f1f / #141414）+ 纯白数字，不取主题色；去掉底部进度线与「已专注 / 预计结束」行，只留上方预设名 · 状态。③ **页面不足 5 分钟确认改为 ConfirmDialog**（覆盖上文「原位二段确认」的页面部分）：行内确认在窄屏下挤压变形、warn-soft 底色在白卡上违和；小窗与沉浸窗仍原位确认（放不下 / 全屏弹窗突兀）；番茄页全局快捷键在焦点处于对话框内时让路。④ 时段分布每桶、账本色块改用 Tooltip（替换原生 title）：时段分布整列为热区、受控 Tooltip 锚柱顶；色块点开详情后静音其 Tooltip。⑤ 窄屏：账本标题与范围导航不压缩只让摘要省略；当天明细行去掉「更多」按钮（右键菜单与点时长保留），名字随空间截断以保证时长右对齐；「按预设」列宽按内容分配；控制条预设 chips 出现滚动条时顶部补等高留白。⑥ 组件库：浮层正文滚动轨道上下让位（不画进圆角）；Input / NumberInput 新增 `wrapperClassName` 控制外框宽度（className 仍落内部 input，此前各处写在 className 上的定宽一并改正）。
+- **追记（2026-09-26，布局：预设进左栏 + 明细改抽屉）**：用户认为纸顶控制条里预设 chips 横向滚动操作不友好。改为纸内两栏：① 左栏 280px `FocusRail`（原 `ControlStrip`）——预设纵向列表（圆点 · 名称 · 时长 · 数字键⇄播放固定槽位），纵向拖动排序、右键开始 / 编辑 / 归档照旧；专注中顶部换成竖版播放器卡片（大号计时、状态、进度线、小窗 / 沉浸 / 背景音 / 结束 / 暂停），下方列表变灰不可开始（右键仍可编辑 / 归档）。② 右侧账本占满剩余宽度；原常驻的「当天明细」右栏去掉，改为点某天打开非模态 `DayDrawer`（原 `DayDetail`，Drawer sm，盖在账本右侧，不压暗、可边看边点其他天，再点同一天收起，Esc 经 `useOverlayDismiss` 仲裁）；「全部」概览点格子跳到那天时直接打开抽屉。抽屉关闭时账本不标选中行。左栏与账本之间不画分隔线（用户嫌竖线扎眼），靠留白分开；播放器起止时间单行（「11:50 开始 → 12:20 结束」），暂停次数并到状态标签后，窄栏不折行。
+- **追记（同日，点预设 = 看详情）**：上条实机后用户指出「点预设应出 Drawer 看详情，而不是直接开始」。左栏预设行改为打开非模态 `PresetDrawer`（与 `DayDrawer` 同位、同一时刻只开一个，再点同一行收起）：头部 = 色点 · 名称 · 计时方式 + 编辑 / 归档；正文 = 开始按钮（专注中禁用，当前预设则显示「正在专注 · 时间」）→ 近 90 天个数 / 累计 / 最近一次 → 近 14 天每日柱 → 按天分组的记录（行同当天明细：点时长修改、右键删除）。直接开始保留两条快路径：行尾数字键槽位悬停变 ▶ 按钮（独立按钮，行改 `role=button` 避免嵌套）与 1–9 数字键。
 
 ## D-046 协作页定稿（方案 A3「协作台 · 侧栏嵌套」）+ 协作 UI 共享层 + 本机设置收敛为昵称
 
@@ -479,6 +484,8 @@
   - 首页：「最近编辑」之后一整行「探究中的问题」（按最近活动，最近进展取最后一条轨迹事件），点击带 `selectedId` 定位。
   - 已删：独立问题窗口（window-manager / index.ts `--window-type=question` / window-module-mapping / `/questions` 路由）。旧页面 `pages/QuestionWindow` 与 `useQuestionStore` 等 P-questions 删除（04 §questions）。
   - 未做：发布（`buildQuestPages`）仍只发布 content 类材料，项目与白板材料不进站点。
+- **追记（2026-09-26，一整张纸 + 详情抽屉）**：用户要求问题页同待办改为一整张纸、点问题在右侧出 Drawer。两块板去掉：工具栏（筛选分组时标题即分组名）与快速收集固定在纸顶，三段列表占满宽度；`QuestionDetail` 改为非模态 `QuestionDrawer`（md 560，top-0，Esc 经 `useOverlayDismiss`）——头部 = 可编辑标题 + 分组 Menu / 提出时间 + 更多菜单，正文 = 状态三段起的原有内容；再点同一行或 Esc 关闭，↑↓ 切换时抽屉跟随；打开中切换问题时加载期显示 Loading 而不沿用上一条内容。
+- **追记（2026-09-26，公共「关联已有」检索 + 内容编辑弹窗）**：用户指出待办详情的「新建笔记 / 关联已有」仍是 legacy 弹窗（`RichTextEditModal` antd + CustomModal、`ContentSelectorModal`），要求用新组件与主题体系重做，且「关联已有」做成公共搜索组件。① 主进程新增只读模块 `tables/entity-search.ts`（`entity:search`）：按类型（卡片 / 文章 / 项目文档 / 项目 / 白板 / 日记）LIKE 检索标题与正文，空关键字按最近更新，返回 `EntityCandidate`（含 contentId）；原问题专属 `question:search-targets` 删除，「已关联」改由调用方 `isLinked` 判定。② 公共 `components/EntityPicker`：`@tau/ui` Dialog + 搜索框 + 类型 Segmented（kinds 限定）+ 行列表，多选（默认）/ 单选，已关联置灰，↑↓ / ⏎ / ⌘⏎ 键盘操作；问题页 `MaterialPicker` 删除改用它，待办关联笔记可选卡片 / 文章 / 项目文档 / 日记并支持多选。③ 公共 `components/ContentEditDialog`：就地编辑已有 content（useEditContent 自动保存），版式同「新建卡片」弹窗，标题行可选（卡片无标题行）、可选可编辑。④ 待办「关联笔记」改名「关联材料」，按钮为「新建 ▾（卡片 / 文章）/ 关联已有」（用户要求卡片不单独拆按钮）：新建卡片复用 `CreateCardDialog`，保存后以卡片首行作标题快照挂到任务；新建文章以任务标题建文章、挂上并页内打开；不再新建 legacy「未命名文档」式无主笔记（type = custom，存量仍可就地编辑、标题可改）。点材料行：卡片（与无主笔记）在 ContentEditDialog 就地编辑，文章 / 项目文档 / 日记经主进程 `entity:locate`（content → 实体 id）打开所在页面，不做弹窗预览。
 
 ## D-047 白板列表页定稿（方案 A「画廊」）+ 缩略图复用导出图片管线 + 元信息窄接口
 
@@ -580,13 +587,73 @@
 - 日志：主进程 `MCPLogBuffer` 每台服务器保留最近 200 行（仅本次运行、不落盘）：连接 / 断开 / 重连 / 错误事件、stdio 服务器 stderr（`stderr: "pipe"`）、`tools/list` 与每次 `tools/call` 的耗时；新增 `mcp-get-logs` / `mcp-clear-logs` 与推送事件 `mcp-log`。
 - 退役：删除 `components/MCPManagerModal/`、`stores/useMCPManagerModalStore.ts` 与 App 挂载；浏览器插件的 `mcp.manager.open` RPC 改为聚焦主窗口并 `openPage("mcp")`。
 
-## D-059 浏览器插件聊天并入桌面数据域：统一消息模型
+## D-059 微信读书页定稿（A 书架 + B 列表排布 + 整页笔记，只读）
+
+- 背景（2026-09-26）：legacy `pages/WeRead` 是只读数据库镜像（11 列表格 + `useWeReadViews` 自定义视图，存 weread-view 表），点行后按需拉取划线 / 想法，用 Slate 渲染在全屏查看器（`WeReadFullScreenViewer`）里。mockup：`mockups/weread/`（A 书架 + 整页笔记 / B 书目表 + 抽屉 / C 分栏速览）。
+- 裁决（2026-09-26）：① **A 的书架 + B 的列表**：书架右上角切「封面 / 列表」，列表只能点列头排序，不做保存视图；② 划线**还原微信读书样式**（colorStyle 1–5 红紫蓝绿黄 × style 下划线 / 马克笔 / 波浪线），属数据色；③ 书架分类做成**页面顶部 chips**（不进全局侧栏子项）；④ 保留书架顶部的「在读」续读行（进度 + 读到的章节）；⑤ **笔记只读**：数据经微信读书 skill 网关获取，网关只有读接口（`/shelf/sync`、`/user/notebooks`、`/book/bookmarklist`、`/review/list/mine`、`/book/chapterinfo`、`/book/getprogress`、`/book/info`、`/_list`）；legacy 的改色 / 改样式 / 写想法 / 删除只改了编辑器内存节点（`onChange` 为空、无 IPC），关闭即丢，本就不是真能力。悬停只留「复制」；⑥ 表格视图体系**退役**：`useWeReadViews` 与 weread-view 表（`weread:*-view` / `*-active-view-id` IPC）进删除清单。
+- 页面：一级书架，从上到下依次是页头（标题 · 搜索 · 同步）、统计与同步状态一行、分类 chips + 状态筛选 · 排序 · 封面 / 列表切换、「在读」行（最多 3 本）、全部书籍。排布与排序存为本机偏好，分类 / 状态筛选不跨会话保留。二级是书籍笔记页（面包屑「微信读书 / 书名」），一整张纸：目录收在纸面左侧，开关在面包屑最前；正文列宽 720，依次是书头（封面 · 作者出版社 · 进度 · 时长 / 划线 / 想法 / 最近阅读 · 在微信读书中打开 / 重新拉取 / 复制为 Markdown）、书评、吸顶过滤条（全部 / 有想法 / 按颜色）、按章节排的划线与想法。
+- 状态：首次使用（未填 Key）在纸内引导填 Key 并直接触发首次同步；Key 失效但有缓存时照常展示缓存，顶部加一条提示；同步中在统计行显示进度。
+- 实现：`features/weread`——`model.ts`（Notebook → 书架条目 / 按章节合并划线与想法 / 筛选排序 / Markdown 导出，纯函数有单测）、`queries.ts`（书架与单本笔记走 react-query，按工作区数据库分 key；书架同步是模块级单例任务，同步中切库放弃写入；打开书先显示缓存，已连接时拉最新笔记并回写，网关返回空详情时保留缓存）、`prefs.ts`（排布 / 排序 / 目录开合持久化）。每个工作区在本次运行里进入书架时自动后台同步一次。划线五色映射到主题 tag 数据色（红 tag-5 / 紫 tag-3 / 蓝 tag-2 / 绿 tag-1 / 黄 tag-4），马克笔为同色 20% 底。无封面时按书 id 派生粉彩底 + 书名。
+- 增量同步（2026-09-26 追加，用户痛点：每次全量同步约「每本书 2 个请求」，581 本书约 1170 个请求，易触发频率限制甚至封 Key）：官方 skill（Tencent/WeChatReading 1.0.4）没有书架级 synckey，也没有批量进度接口；改为按变化增量——书架与笔记本概览整份拉（约 7 个请求），只对新书和最近阅读 / 最近笔记时间变化的书逐本补拉，指纹存 `synckeys.progress`；补拉失败不记指纹、下次重试（原每分钟补偿队列移除）；同步按钮旁的菜单保留「全量重新同步」。已不在书架与笔记本里的书从缓存删除（旧实现只增不删）。
+- 布局校正（同日）：书架整页放进一张 surface 大纸（页头、分类行固定在纸顶，书目在纸内滚动），「在读」卡与列表不再各自成卡；分类 chips 行 `w-0 flex-1` 自身横向滚动 + 右缘渐隐，修复分类多时撑宽页面导致右侧截断。
+- 退役：`pages/WeRead` 及表格视图体系按 04 清单 §weread 登记，锚点 P-weread（Electron 内走查通过后删除）；`services/weread/sync-manager.ts` 零消费者已删。
+
+## D-060 Skill 管理页定稿（方案 B「卡片库 + 抽屉 + 整页编辑」）+ 调用方式 + `$` 点名 + 关联目录 + 脚本执行与通用工具权限模式
+
+- 背景（2026-09-26）：legacy `pages/SkillManagement`（895 行，antd + react-icons）是整个 skills 目录的一棵文件树 + 编辑器；内置 4 个 Skill 不在树里；没有逐 Skill 开关，所有 Skill 描述无差别注入系统提示词；frontmatter 只解析 `description`，名字取文件夹名；`scripts/` 只能被读、不能执行。参考 Claude.ai（Capabilities → Skills）、Claude Code、Cursor、Codex、VS Code Copilot（2025 年底 Agent Skills 成为开放标准，五家共用 `SKILL.md` 格式）出 mockup：`mockups/skills/`（A 列表 + 工作区 / B 卡片库 + 编辑页 / C 设置式单列）。
+- 裁决（2026-09-26）：① **B**，与 MCP 页（D-058）同构；编辑页左侧文件树**不用深色底**，透明沿用纸面；**不做「试一试」**；② **开关 + 调用方式**：每个 Skill 三态「自动 / 仅手动 / 停用」——自动 = 描述进系统提示词、AI 自行决定加载（现有行为）；仅手动 = AI 看不到、不占提示词，只在用户点名时加载；停用 = 完全不可用；③ 手动点名**只用 `$` 触发**（`/` 已被编辑器 slash command 占用），＋ 面板不加 Skill；④ 添加方式本期全做：新建（空白 / 模板）、用 AI 创建、导入 .zip / 文件夹 / GitHub 链接、关联目录；⑤ **关联外部目录**本期做：预置 `~/.claude/skills`、`~/.codex/skills`、`~/.agents/skills` 开关 + 自定义目录，只读挂载，想改就「复制为我的」；⑥ 内置 Skill **允许停用**（仍只读，可复制为我的再改）；⑦ SKILL.md 编辑用**双视图**：「编辑」= frontmatter 表单（名称 / 标识 / 描述，带字数与触发场景提示）+ 富文本正文，「源码」= 整份 md；⑧ 做**使用记录**（加载次数、自动 / 点名来源、最近对话），不做试一试；⑨ `scripts/` **支持执行**，并借此落地**通用工具权限模式**（见下）。
+- 调用方式落地：偏好（停用 / 仅手动）只存本机、不改原文件（内置与关联目录只读也能设）；新建 / 编辑「我的」Skill 时，仅手动写回 frontmatter `disable-model-invocation: true`（Claude Code 同名字段，读取外部 Skill 时同样识别为仅手动的默认值）。发送前按「启用且自动 ∪ 本条消息 `$` 点名」过滤后交给 agent；点名的 Skill 直接把 SKILL.md 全文注入本轮提示词，并在回复里标「已加载 Skill」。
+- 通用工具权限模式（用户要求：不仅限于 Skill，内容编辑、将来的 SQL 写入 / 文件操作 / bash 共用）：工具声明风险级别 `read | write | execute`；全局模式三档——**手动确认**（write / execute 每次问）、**自动允许编辑**（write 直接执行、execute 仍问）、**跳过确认 Bypass**（都不问）。需要确认时对话里的工具行原地展开确认条（工具名 · 参数摘要 · 允许 / 拒绝 / 本会话始终允许），拒绝则把「用户拒绝执行」作为工具结果回给模型。agent 包新增 `policies.authorizeToolCall` 钩子与 `awaiting-approval` 执行状态，决策逻辑在桌面端。模式在设置「AI」分区与输入框工具行可切。首批接入：`run_skill_script`（execute）与内容编辑工具（write）。
+- 脚本执行：新工具 `run_skill_script`（Skill 名 + 脚本相对路径 + 参数）；主进程按扩展名选解释器（`.py` → python3、`.js/.mjs/.cjs` → 内置 Node、`.sh` → bash，其它要求可执行位），工作目录为该 Skill 目录，超时 120s、输出截断，路径必须落在该 Skill 目录内（关联目录的 Skill 同样可执行，同样受权限模式约束）。内置 Skill 无脚本。
+- 页面：`features/skills`（definePage key `skills`，替换 legacy 占位）。卡片库分「我的 / 内置 / 关联目录」，顶部筛选（全部 / 已启用 / 仅手动 / 需要处理）+ 常驻上下文预算（自动 Skill 描述合计 tokens，描述缺失 / 过长标黄）；卡片开关即时生效。点卡片右侧抽屉：概览（AI 看到的描述 + SKILL.md 渲染 + 元信息）/ 设置（调用方式三选一、导出、删除）/ 使用记录；「编辑」推入整页编辑器（`skill-edit` 页，面包屑「Skill / 名称」）：左文件树（新建 / 重命名 / 删除）+ 右编辑区双视图。
+- 数据：主进程 `skill` 模块改为多根：`userData/.skills`（可写）+ 关联目录（只读），所有路径校验改为 resolve 后按根目录前缀判定（修掉原 `startsWith` 可被同前缀目录绕过的问题）；列表返回来源、frontmatter（name / description / disable-model-invocation / allowed-tools）与文件数；新增导入（zip / 文件夹 / GitHub 目录）、关联目录配置、执行脚本 IPC。渲染端 `useSkillStore` 增加本机偏好（停用 / 调用方式）与使用记录。
+- 评审追记（2026-09-26）：列表页与编辑页都改为「一整张纸」（同微信读书），纸内卡片细描边不叠阴影；编辑页文件树是纸内透明左栏、开关在面包屑，SKILL.md 头部改为文档式（大标题 + 「AI 看到的描述」描边块，不用米灰填充）；编辑页原「默认仅手动」开关与卡片开关语义冲突，改为与卡片 / 抽屉同一份状态的「自动 / 仅手动 / 停用」分段（front-matter 的 `disable-model-invocation` 只在源码视图改）；源码视图用 CodeMirror 5 语法高亮（配色取主题 token），代码框撑满剩余高度、框内 FadeScroll 滚动。
+- 退役：`pages/SkillManagement`（index / CreateSkillModal / SkillDetailModal）、`TabType.SkillManagement` 的 TabContent 分支、`LEGACY_PAGES.skills` 占位。
+
+## D-061 日程页当日时间线改为非模态抽屉
+
+- 背景：日程页第一版（方案 C 月刊）为对开两栏，右栏 360px 当日时间线全高贴纸右缘、宽度动画收起。用户在番茄 / 待办 / 闪卡相继把常驻右栏改为 Drawer 后，要求日程页同样处理。
+- 选择：① 主视图（月 / 周 / 议程）占满宽度；`DayColumn` 移进非模态 `Drawer`（fill，width 360，初版盖在主视图区右侧不盖页头，见下方追记改为整纸高）；× 浮在抽屉右上角，`DayColumn` 头部右侧 pr-12 让位；Esc 经 `useOverlayDismiss`。② 开合仍走 `useCalendarStore.showDayPanel`（持久化，记住上次开合），默认值改为 false：抽屉盖住月视图右侧几列，首次进入不默认遮挡。
+- **追记（同日）**：① 开关由孤立图标改为带信息的按钮「今天 · 2 项」/「9/28 周一 · 无安排」（选中日 + 项数，打开时 soft 态；`useDayEvents` 与时间线共用）；② 抽屉改为与整张纸同高（挂在纸上，默认上右下 12px 内缩），会盖住页头右侧的视图切换与「新建日程」——关闭走 × / Esc。
+- **追记（同日，日程详情改抽屉）**：点日程由锚定速览 Popover（`EventPeek`，只读 + 「编辑」再进弹窗）改为纸内右侧整高的非模态 `EventDrawer`：头部 = 色块 · 标题 · 日期时间 · 日历，正文即可编辑表单，底栏删除 / 关闭 / 保存（保存后关闭 + Toast）。与时间线抽屉同位，打开时暂代它、关掉回到时间线。表单逻辑从 EventDialog 抽成 `EventDialog/useEventForm.tsx` 共用；`EventDialog` 只留新建（月 / 周视图双击空白、空档安排、页头新建）；月视图「+N 项」列表点日程同样进抽屉。`peekStore.peek(event)` 不再带锚点。
+- **追记（同日，未保存修改守卫）**：`useEventForm` 载入完成后记基线快照（备注按纯文本比较，避开编辑器规范化改 JSON 的误报），返回 `dirty`；保存 / 删除成功即以当前值为新基线。`EventDrawer` 所有关闭 / 换条请求（×、关闭、Esc、点别的日程）都经 `peekStore`，抽屉只在表单干净时跟随；dirty 时弹 ConfirmDialog「放弃未保存的修改？」（继续编辑 = 把 store 拨回当前这条 / 放弃修改）。底栏 dirty 时左侧显示「有未保存的修改」并隐藏删除按钮。新建弹窗 EventDialog 未接守卫。放弃修改时调 `form.reset()` 按原日程重新载入——关闭后抽屉保留同一条做退场动画，表单不会自动重载，不重置会残留 dirty（再点任意日程仍被拦）且重开同一条会带着改过的值。
+- 实现：`features/schedule/views/ScheduleView.tsx`、`components/DayColumn.tsx`（去掉左细线与定宽）、`components/CalendarHeader`（注释）、`stores/useCalendarStore.ts`（默认值）。
+
+## D-062 Vibe Learning 项目页定稿（方案 C「学习台」）
+
+（2026-09-26，已定；样板间 `mockups/vibe-learning/`，A 纸内三栏 / B 对话为主 / C 学习台三选一，用户选 C）
+
+- 结构：一整张纸，纸内三栏——左 = 目录（「资料」+「产物」两组，可拖宽，开关复用项目详情面包屑的侧栏按钮 `useProjectTreeStore`），中 = 阅读区，右 = 对话。什么都没打开时对话占满中间；打开资料或笔记后对话退到右栏（可拖宽 320–600、可在阅读区头部收起）。对话面板始终挂在同一位置，切换布局不打断进行中的回答。上次打开的条目按项目记住（localStorage）。进入 Vibe Learning 项目同文档树项目一样收起全局侧栏。
+- 目录：行式（图标 + 名称 + 尾部状态，悬停在固定槽位淡入「更多」，右键同一份菜单），无分隔线。资料组保留拖拽排序、处理状态（处理中 accent + 进度 / 失败 danger / 需重建等 warn，完成不标）、重新处理 / 索引、重命名、删除，文档类多「用默认程序打开」。产物组把原「创作内容」与「测验集」合成一列按更新时间排序；＋ 菜单 = 新建笔记 + 8 个生成应用（原应用 8 格去掉）；测验集点行即开始测验，记录 / 编辑 / 删除在菜单里；PPT / 报告的「AI 编辑」在行菜单与阅读区头部。
+- 阅读区：统一头部（图标 + 标题 + 元信息 + 动作 + 对话开关 + 关闭）。音视频为居中阅读列 + 字幕跟读（时间 | 文字两列，当前句 selected 底）；网页、图片直接铺开；来自笔记的资料就地编辑；**文档类新增页内文本阅读**——分段读取转换后的 Markdown（`vl-read-resource-range`，每段在空行处切开、触底续读），原件仍可用默认程序打开；尚未转换出文本的文档点开仍直接交给系统程序。笔记编辑器（原右栏 NoteEditorView）移进阅读区，标题就地改、更多菜单换 `@tau/ui` Menu。有文本的资料底部一行「基于这份资料」（大纲 / 重点 / 导图 / 测验 + 更多），生成弹窗只预选当前这份（`setVLGenerationScope`）。
+- 代码：`VibeLearningView/` 重组为 `tree/`（目录）、`stage/`（阅读区）、`generate/`（原 AppSidebar，只剩生成与 AI 编辑弹窗，8 个开关合成一个 active 状态）、`appMeta.ts`、`resourceKinds.ts`；删除 `ResourcePanel`、`AppSidebar/index`+`AppListView`、`ResourcePreview/index`，以及死代码 `QuizApp` / `OutlineApp` / `EmptyState` / `SimpleButton`。测验记录弹窗改 `@tau/ui` Dialog。页面主路径的 antd 残留清掉：`useVLResourceSelection`、`usePodcastGeneration`、`InsertNoteToTreeModal` 的 `App.useApp` / `message` 改 `toast`，资源行的 react-icons 拖拽柄去掉（整行可拖）。
+- 未做（下一轮单独出）：生成配置弹窗、添加资料弹窗、测验答题 / 编辑弹窗仍是 legacy `CustomModal` 皮；「在对话中引用」当前资料暂不做（输入框没有外部注入引用的接口）。
+- **追记（2026-09-26，生成改后台任务 + 弹窗换新组件）**：用户要求「配置好就关弹窗，侧栏出条目并标识正在输出，点进去看模型的执行过程（分析、调了什么工具、工具渲染、开始输出、输出的流式中间态），要让人感觉模型在持续输出（字数 / token 在涨），文档类直接看流式正文」「任务在后台跑，离开页面也不停」。裁决：**完成即落库**（去掉导图 / 测验 / PPT / 报告原来的「预览 → 保存为笔记」步骤；测验题全部保存，不要的在「编辑题目」里删）；**执行过程本次运行内可看**（不落库，重启后只剩产物）；**PPT / 报告的 AI 编辑一起改**。
+  - 执行器 `tasks/runner.ts`（模块级，不随组件卸载）：点「开始」先建产物占位（笔记类建空 content + VLNote，测验建空测验集，AI 编辑直接以原笔记为目标），再在后台跑；逐轮记录推理 / 工具调用 / 正文到 `useVLTaskStore`（80ms 节流），结束按类型落库（大纲 / 重点 / 文章生成中每 3 秒存一次正文；PPT / 报告清洗 HTML 并取 `<title>` 更新标题；测验整批建题；播客脚本 → 逐句 TTS → 合并 → 上传 → 建播客记录后补 `podcastId`）。停止 / 失败时文档类与导图保留已写部分，可「重新生成」写回同一产物。播客原预览页的「单段重新合成」随预览步骤取消。
+  - 资料检索工具不再挂全局注册表（同名先到先得：对话面板先注册时任务用的是它那份，离开页面就丢；两个项目并发会查错项目）：改为每个任务经 `additionalTools` + `executeToolCall` 带自己绑定项目的 `vibe_learning_query`，`useChatLLM` 的工具源让按次传入的工具覆盖全局同名工具；编排器 `runGenerationTask` 改走 `chatStreamCore` 并关掉 rAF 缓冲（窗口在后台不被节流），补透传推理 / 用量回调与按次工具（可选参数，其他调用方不变）。
+  - 执行过程页 `stage/TaskStage.tsx`：头部停止 / 重新生成 / 查看产物（测验为「开始测验」）；正文按轮次渲染——推理、工具沿用对话的 `ReasoningBlock` / `ToolCallBlock` 淡墨折叠行（需要确认的工具同样出确认条），过渡性正文淡墨小字；产物中间态按类型：文档直接渲染 Markdown、导图实时出图、测验增量解析逐题出现（`parsePartialQuizPrompts` 扫描已闭合的 JSON 对象）、PPT / 报告显示源码尾部与行数、播客先出脚本再显示合成进度条；底部常驻计数条「阶段 · 已写 N 字 · N tokens · 用时」，运行中呼吸点。运行中贴底跟随（用户上翻则不跟）。
+  - 目录：进行中的条目转圈 + 「生成中 / 改写中」，失败 danger、停止 ink-3；笔记任务进行中点开即执行过程，结束自动切到产物，产物头部「生成过程」可回看；测验集生成中点行看过程，完成后点行照旧开始测验。
+  - 弹窗：10 个旧生成 / AI 编辑弹窗合成一张 `generate/GenerateDialog.tsx`（`@tau/ui` Dialog）：公共「资料」勾选清单 + 「额外要求」，文章多风格卡片、PPT / 报告多模板缩略图、测验多可选名称、播客多名称 / 说话人（沿用 `SpeakerConfig` / `VoiceClonePanel`）/ 时长，AI 编辑为「修改要求」+ 可选参考资料；底部影响行给出还缺什么或「开始后在后台生成」。添加资料弹窗换 `@tau/ui` Dialog + Segmented（文件 / 网页 / 视频 / 笔记），输入与下拉换 Input / Select，粉色 / 红色硬编码换语义色；笔记页签改用公共 `EntityPicker`（卡片 / 文章 / 项目文档 / 日记多选，已加入的置灰），删除 `NoteSelector`。
+  - 删除：`generate/apps/*GenerateModal`、`PPTEditModal`、`ReportEditModal`、`generate/components/*`、`hooks/useQuizGeneration`、`hooks/useVLTools`、`stores/useOutlineGenerationStore`。测验答题 / 编辑弹窗（`QuizTestModal` / `QuizEditModal`）仍是 legacy 皮，下一轮。
+
+## D-063 卡片 / 文章 / 项目文档编辑窗口合一 + 主进程窗口模块重写
+
+（2026-09-26，已定；样板间 `mockups/editor-window/`，外壳 A 纸面托盘 / B 满铺纸面二选一，用户选 A）
+
+- 选择：三个独立编辑窗口（`SingleCardEditor` / `SingleArticleEditor` / `SingleProjectItemEditor`）合成一个路由 `/editor-window?kind=&db=&id=`，窗口可多开，同一文档只开一个（再次打开聚焦）。外壳与主窗口同一语言：46px 自绘标题栏（mac 信号灯 / Win 三键）、page 底上的纸面（圆角 + card 阴影）、FadeScroll、`@tau/ui` 组件。类型差异收在 `features/editor-window/documentDrivers.ts`：卡片无标题（标题栏取首行摘要）、项目文档无标签且注入项目卡片列表扩展。
+- 功能：主题切换（全窗口经 storage 事件同步，主窗口 / 番茄辅助窗同一 `useThemeRuntime`）、字数 / 阅读时长 / 选中字数、大纲（按类型记忆开关，窗宽 < 900 改为标题栏 Popover）、标签、窗口置顶、专注模式（⌘.）、打字机滚动、查找（复用全局查找条）、复制 / 导出 Markdown、在主窗口打开（BroadcastChannel 请求主窗口 `openContent`）、文档被删时的空态（窗口重新聚焦时回查）。
+- **不做 Markdown 源码模式**：Markdown 往返对白板、数据库、分栏等块有损，编辑窗口会失去这些块的编辑能力；源码模式只留在 Markdown 文件窗口（文件本身就是 Markdown，无此类块）。
+- 协作：沿用 `ContentCollaborationControl`（标题栏成员条 + ⋯「发起协作 / 协作成员」），状态栏共享时显示协作连接态，frozen 期间横幅 + 只读。标题绑定会话文档的 title（`CollaborativeTitleField`），本地与共享模式一致。加入他人共享（本机无实体）的文档不进编辑窗口。
+- 数据库：按 URL 的库名连接（协作页「回到原内容」会开其它数据库的文档）；**不再在卸载时 `closeDatabase`**——连接全局共享，旧页面关库会连带主窗口失去连接。
+- 主进程：删除 `modules/window-manager.ts`，改为 `main/windows/`：`createWindow`（唯一的 BrowserWindow 构造入口：标题栏形态 custom / native / none、事件转发、加载、Win 最后可见窗口关闭即退出）、`window-registry`（键控窗口表）、`window-state`（按类型记忆尺寸位置 + 级联错开）、按窗口类型各一个模块、`ipc.ts` 统一注册。新 IPC `open-editor-window` / `close-editor-window`（`@tau/platform` `WindowApi.openEditorWindow` / `closeEditorWindow`）替代三条 `open-*-in-new-window` 与 `close-article-window`；ws 端保留三条旧方法名供 CLI 调用（此前文章 / 项目文档两条在 ws 端未注册）。模块初始化窗口类型 card / article / project-item 合并为 `editor`。
+
+## D-064 浏览器插件聊天并入桌面数据域：统一消息模型
 
 - 背景（2026-09-26）：插件与桌面端的聊天在 UI 组件层已共享（`@tau/shared` 的 ChatContainerCore / ChatInputArea / ChatMessageView），但消息模型各自定义且已分叉（桌面 `src/types/llm.ts` 的 AssistantBlock 体系 vs shared `ChatComponents/types.ts` 的 contentBlocks；`ToolCallPayload` / `ToolCallExecutionState` 两处定义、可选性不一致），会话类型同名不同义（桌面 `ChatMessage` = 会话记录，shared `ChatMessage` = 单条消息）。插件 AI 问答本就依赖桌面在线（`ai.chat` 走 WS 到桌面渲染进程），产品裁决深度统一：插件成为桌面的远程聊天终端，聊天记录两端互通。
 - 裁决（2026-09-26）：① 消息 / 会话 / 流式块类型单一来源 = `packages/shared/src/chat-core/messages.ts`，桌面 `src/types/llm.ts`、`src/types/chat-message.ts`、`src/types/tool.ts`、`src/constants/llm.ts`（Role enum）仅 re-export，两端禁止再各自定义；② 插件不做离线历史缓存（chrome.storage 会话最终迁入桌面 sqlite，迁移先导入验证、稳定后再清理本地）；③ 类型冲突取值：`ToolCallPayload` 收敛为宽松版（`type?` / `arguments?`），`ToolCallExecutionState` 收敛为严格版（`timestamp` 必填）；④ 桌面会话类型在 shared 定名 `ChatSessionRecord`，桌面以 `ChatMessage` 别名 re-export 保持存量零改动；⑤ 插件旧模型 `ChatMessageType`（含 `ChatMessage` 别名导出）保留为迁移期兼容，随插件侧切换完成后清理。
 - 结构（五阶段，每阶段独立可交付）：阶段 1 消息模型统一（本条）；阶段 2 流式状态机收敛（`assistantMessageBlocks` + 流聚逻辑抽入 `chat-core`，接线既有 `ChatRuntimeAdapter`，桌面 ChatContainer 与插件 useAiChat 共用）；阶段 3 插件会话存储接入桌面（aiServer 扩展 chat 命令面，`chat_message` 表加 `source` 列，chrome.storage 一次性迁移）；阶段 4 会话管理 UI 统一（headless hooks + `@tau/ui` 版简化管理面板）；阶段 5 行内问答换型、删除插件自研状态机与存储层。
 
-### D-059 实施记录（2026-09-26）
+### D-064 实施记录（2026-09-26）
 
 - 阶段 1–3 已落地：① 消息模型单一来源 `packages/shared/src/chat-core/`（messages / messageSchema / assistantBlocks / streamEvents，归约器测试 `streamEvents.test.ts` 守护），桌面 `types/llm.ts`、`types/chat-message.ts`、`types/tool.ts`、`constants/llm.ts`、`services/chatMessageSchema.ts`、`services/assistantMessageBlocks.ts` 全部 re-export（后三者走 `@tau/shared/src/chat-core/*` 子路径——主进程 bundle 会包含它们，禁止引 `@tau/shared` 主入口把 React UI 包拖进主进程）；② `aiServer` 流通知升级为快照语义（全量文本 + turnId + 新增 `ai.stream.turn-finish`），插件 `useAiChat` 手写拼块删除、经 `applyChatStreamEvent` 归约，`useInlineAiChat` / `OverviewTab` 同步快照化；③ 插件会话存储接入桌面 sqlite：`chat_message` 表加 `source` 列（'desktop' | 'browser'），aiServer 新增 `chat.list/get/create/update/delete/branch + chat.groups.list + chat.group.ensure` 命令面（渲染端直调既有 IPC，主进程零新增模块），插件侧新增 `services/chatStoreClient.ts`（模块级 RPC 服务 + URL→ChatGroup 映射）、`services/chatModelBridge.ts`（渲染/存储模型双向桥，assistant 旧 contentBlocks 走 legacy `content_blocks` 字段经 migrate 升级）、`services/chatMigration.ts`（chrome.storage 旧会话按 URL 分组断点续传导入，不清原始数据，`tau-chat-store-changed` 事件通知刷新），`useChatSessions` 重写为 RPC 后端（对外接口不变，会话 id 转 number），`ChatSession.systemPromptSnapshot` 持久化形态变为会话 messages 首条 system 消息。
 - 阶段 4 缩减裁决：插件会话管理 UI 维持现有 `ChatDropdownSelector`（已接统一数据层，功能完整：列表/分支树/重命名/删除/新建），**@tau/ui 视觉统一不纳入本次交付**——插件侧是 antd + Tailwind 混合生态，引入 @tau/ui 需 tokens.css 注入与前缀隔离，属独立视觉改造，避免与数据统一混在一个变更里放大回归面。

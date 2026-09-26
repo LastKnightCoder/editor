@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 A · 书架（封面 / 列表）+ 整页笔记</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="weread.css?v=2" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>定稿方向 · A 的书架 + B 的列表 + 整页笔记</h3>
+  一级是书架：顶部是<b>书架分类 chips</b>，右侧依次是状态筛选、排序和<b>「封面 / 列表」切换</b>；分类下方是「在读」续读行（进度 + 读到的章节），再往下按所选排布展示全部书。列表排布就是 B 的行式列表，点列头排序，<b>不做保存视图</b>。点书进入二级整页「书名」：左侧目录收在纸内，开关在面包屑最前；正文列依次是书头、书评、按章节排的划线与想法。
+  <ul>
+    <li>划线还原微信读书的颜色与样式（下划线 / 马克笔 / 波浪线）；<b>只读</b>，悬停只有「复制」（skill 网关没有写接口，本地改动也从未持久化）。</li>
+    <li>排布与排序是本机偏好，下次打开沿用；分类 / 状态筛选不跨会话保留。</li>
+  </ul>
+  <p style="margin:6px 0 0;color:var(--ink-3);font-size:12px">封面：真实页面用微信读书封面图，样板间以色块代替。笔记内容只做了《乡土中国》一本，点任何书都进这本。</p>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, anno, icons, BOOKS, ARCHIVES, byId, cover, prog, fmtDate, fmtMin, syncState, syncBtn, offlineBanner, emptyConnect, bookHead, bookReview, noteTools, chapters, toc, bindNotes, listRow, listHead, sortBooks } from "./weread.js?v=2";
+
+mockBar("a-shelf.html", `<span class="seg"><button data-m="shelf">书架</button><button data-m="notes">笔记</button><button data-m="syncing">同步中</button><button data-m="offline">Key 失效</button><button data-m="first">首次使用</button></span>`);
+
+const win = document.getElementById("win");
+const state = {
+  m: "shelf",
+  archive: "全部",
+  f: "all",
+  layout: localStorage.getItem("weread-mock-layout") || "cover",
+  sort: "last",
+  menu: null,
+  tocOn: true,
+  filter: "all",
+  hl: null,
+  toc: 4,
+};
+
+const STATUS = [["all", "全部状态"], ["reading", "在读"], ["finished", "读完"], ["unread", "未开始"], ["notes", "有笔记"]];
+const SORTS = [["last", "最近阅读"], ["progress", "阅读进度"], ["minutes", "阅读时长"], ["notes", "笔记数"]];
+
+const menu = (key, items, cur) =>
+  state.menu === key
+    ? `<div class="menu">${items.map(([k, l]) => `<div class="mi ${k === cur ? "on" : ""}" data-pick="${key}:${k}">${l}${k === cur ? '<i data-lucide="check"></i>' : ""}</div>`).join("")}</div>`
+    : "";
+
+function shelf() {
+  const sync = state.m === "syncing" ? "syncing" : state.m === "offline" ? "offline" : "idle";
+  const inArchive = BOOKS.filter(b => state.archive === "全部" || b.archive === state.archive);
+  const shown = sortBooks(
+    inArchive.filter(b => state.f === "all" || (state.f === "notes" ? b.notes > 0 : b.status === state.f)),
+    state.sort
+  );
+  const reading = sortBooks(inArchive.filter(b => b.status === "reading")).slice(0, 3);
+  const totalMin = BOOKS.reduce((s, b) => s + b.minutes, 0);
+  const count = a => (a === "全部" ? BOOKS.length : BOOKS.filter(b => b.archive === a).length);
+  const statusLabel = STATUS.find(x => x[0] === state.f)[1];
+  const sortLabel = SORTS.find(x => x[0] === state.sort)[1];
+  const grid = `<div class="a-grid">${shown
+    .map(b => {
+      const extra = b.status === "reading" ? `<div class="pbar"><i style="width:${b.progress}%"></i></div>` : b.status === "finished" ? `<span class="flag">读完</span>` : "";
+      return `<div class="a-book" data-book="${b.id}">${cover(b, "", extra)}
+        <div class="t">${b.title}</div>
+        <div class="m">${b.notes ? `<span class="num">${b.notes} 划线</span>${b.reviews ? `<span class="num">${b.reviews} 想法</span>` : ""}` : `<span>${b.author}</span>`}</div></div>`;
+    })
+    .join("")}</div>`;
+  const list = `<div class="a-list">${listHead(state.sort)}${shown.map(b => listRow(b)).join("")}</div>`;
+  return `
+  <div class="w-scroll"><div class="a-wrap">
+    <div class="w-head">
+      <h1>微信读书</h1>
+      <span class="sp"></span>
+      <div class="w-search"><i data-lucide="search"></i>搜索书名、作者或划线</div>
+      ${syncBtn(sync)}
+    </div>
+    <p class="w-lead"><span class="num">${BOOKS.length}</span> 本书<span class="dotsep">·</span>累计阅读 <span class="num">${fmtMin(totalMin)}</span><span class="dotsep">·</span>${syncState(sync)}</p>
+    ${sync === "offline" ? `<div style="margin-top:14px">${offlineBanner()}</div>` : ""}
+    <div class="a-bar">
+      ${["全部", ...ARCHIVES].map(a => `<span class="chip ${state.archive === a ? "on" : ""}" data-archive="${a}">${a}<span class="n num">${count(a)}</span></span>`).join("")}
+      <span class="sp"></span>
+      <div class="dd"><button class="btn ${state.f !== "all" ? "act" : ""}" data-menu="status"><i data-lucide="list-filter"></i>${statusLabel}<i data-lucide="chevron-down" class="cv"></i></button>${menu("status", STATUS, state.f)}</div>
+      <div class="dd"><button class="btn" data-menu="sort"><i data-lucide="arrow-down-up"></i>${sortLabel}<i data-lucide="chevron-down" class="cv"></i></button>${menu("sort", SORTS, state.sort)}</div>
+      <div class="lay">
+        <button class="ib ${state.layout === "cover" ? "on" : ""}" data-layout="cover" title="封面"><i data-lucide="layout-grid"></i></button>
+        <button class="ib ${state.layout === "list" ? "on" : ""}" data-layout="list" title="列表"><i data-lucide="list"></i></button>
+      </div>
+    </div>
+    ${
+      state.f === "all" && reading.length
+        ? `<div class="sec-t">在读<span class="h">上次读到的位置</span></div>
+      <div class="a-reading">${reading
+        .map(b => `
+        <div class="a-rc" data-book="${b.id}">${cover(b)}
+          <div class="info"><div class="t">${b.title}</div><div class="au">${b.author}</div>
+            <div class="last">读到「${b.at}」 · ${fmtDate(b.last)}</div>
+            <div class="pr">${prog(b)}<span class="num">${b.progress}%</span></div>
+          </div></div>`)
+        .join("")}</div>`
+        : ""
+    }
+    <div class="sec-t">${state.f === "all" ? "全部" : statusLabel}<span class="h num">${shown.length} 本 · 按${sortLabel}</span></div>
+    ${shown.length ? (state.layout === "list" ? list : grid) : `<div class="a-none">没有符合条件的书</div>`}
+  </div></div>`;
+}
+
+function notes() {
+  return `
+  <div class="n-doc">
+    ${toc(state.toc, !state.tocOn)}
+    <div class="n-main"><div class="n-col">
+      ${bookHead(byId("b01"))}
+      ${bookReview()}
+      ${noteTools(state.filter)}
+      ${chapters({ filter: state.filter, activeHl: state.hl })}
+    </div></div>
+  </div>`;
+}
+
+function render() {
+  const inNotes = state.m === "notes";
+  const first = state.m === "first";
+  const scroller = win.querySelector(".w-scroll");
+  const keepTop = scroller ? scroller.scrollTop : 0;
+  const crumb = inNotes
+    ? `<button class="ib ${state.tocOn ? "on" : ""}" id="tocT" title="目录"><i data-lucide="panel-left"></i></button><span id="back" style="cursor:pointer">微信读书</span><i data-lucide="chevron-right" style="width:14px;color:var(--ink-3)"></i><b>乡土中国</b>`
+    : `<b>微信读书</b>`;
+  win.innerHTML = `
+    ${sidebar()}
+    <div class="col">
+      ${titlebar(crumb)}
+      <div class="main"><section class="paper w-paper">${first ? emptyConnect() : inNotes ? notes() : shelf()}</section></div>
+    </div>
+    ${state.m === "shelf" ? anno(1, "书架分类在页面顶部", "left:300px;top:150px") + anno(2, "状态 · 排序 · 封面 / 列表", "left:1130px;top:150px") + anno(3, "在读：进度 + 读到的章节", "left:300px;top:250px") : ""}
+    ${inNotes ? anno(1, "目录收在纸内，开关在面包屑最前", "left:240px;top:10px") + anno(2, "只读：悬停只有「复制」", "left:980px;top:420px") : ""}`;
+  icons();
+  const sc = win.querySelector(".w-scroll");
+  if (sc) sc.scrollTop = keepTop;
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.m === state.m));
+  win.querySelectorAll("[data-book]").forEach(el => (el.onclick = () => { state.m = "notes"; state.hl = null; render(); }));
+  win.querySelectorAll("[data-archive]").forEach(el => (el.onclick = () => { state.archive = el.dataset.archive; render(); }));
+  win.querySelectorAll("[data-layout]").forEach(el => (el.onclick = () => { state.layout = el.dataset.layout; localStorage.setItem("weread-mock-layout", state.layout); render(); }));
+  win.querySelectorAll("[data-sort]").forEach(el => (el.onclick = () => { state.sort = el.dataset.sort; render(); }));
+  win.querySelectorAll("[data-menu]").forEach(el => (el.onclick = e => { e.stopPropagation(); state.menu = state.menu === el.dataset.menu ? null : el.dataset.menu; render(); }));
+  win.querySelectorAll("[data-pick]").forEach(el => (el.onclick = e => {
+    e.stopPropagation();
+    const [k, v] = el.dataset.pick.split(":");
+    if (k === "status") state.f = v; else state.sort = v;
+    state.menu = null;
+    render();
+  }));
+  const t = win.querySelector("#tocT");
+  if (t) t.onclick = () => { state.tocOn = !state.tocOn; win.querySelector(".n-toc").classList.toggle("off", !state.tocOn); t.classList.toggle("on", state.tocOn); };
+  const back = win.querySelector("#back");
+  if (back) back.onclick = () => { state.m = "shelf"; render(); };
+  if (inNotes) bindNotes(win, state, render);
+}
+win.addEventListener("click", () => { if (state.menu) { state.menu = null; render(); } });
+document.querySelectorAll(".seg button").forEach(b => (b.onclick = () => { state.m = b.dataset.m; state.filter = "all"; render(); }));
+render();
+</script>
+</body>
+</html>

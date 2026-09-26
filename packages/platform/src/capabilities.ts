@@ -15,6 +15,7 @@ export const CAPABILITY_IDS = [
   "window.state",
   "window.show-focus",
   "window.open-markdown",
+  "window.open-editor",
   "window.pomodoro-main",
   "window.pomodoro-mini",
   "window.pomodoro-immersive",

@@ -1,13 +1,12 @@
 # database-schema：主数据库只读查询指南
 
-事实来源：`packages/db-schema/schema/main.sql`。使用 `sql_query` 前先阅读本 Skill。
+使用 `sql_query` 前先阅读本 Skill。
 
 ## 规则
 
 - 只查询当前主库；`sql_query` 只允许单条 SELECT/WITH/EXPLAIN 或受限结构 PRAGMA。
 - 优先显式列名、必要 JOIN、WHERE 和 LIMIT；默认最多返回 200 行。
 - `contents` 保存富文本编辑器结构，正文 Markdown、编辑快照和语义检索继续调用专用工具，不要把整列内容直接返回。
-- 表结构变化时必须同步更新本 Skill，并运行 schema parity 检查。
 
 ## 常用查询
 

@@ -24,7 +24,16 @@ import {
   Square,
   X,
 } from "lucide-react";
-import { Button, Checkbox, Dialog, Panel, Segmented, toast, useEdgeFade } from "@tau/ui";
+import {
+  Button,
+  Checkbox,
+  Dialog,
+  DialogBody,
+  Panel,
+  Segmented,
+  toast,
+  useEdgeFade,
+} from "@tau/ui";
 import { ResourceSyncStatus } from "@/types";
 import type { IFileSyncStatus } from "@/types";
 import { ROW_DIVIDER } from "../components/rowDivider";
@@ -352,26 +361,28 @@ export function ResourceSyncFiles({
           </>
         }
       >
-        <div className="flex flex-col gap-1">
-          {candidates.map(name => (
-            <label
-              key={name}
-              className="border-line-2 flex items-center gap-2.5 border-b py-1.5 last:border-b-0"
-            >
-              <Checkbox
-                checked={selected.includes(name)}
-                onChange={e => {
-                  setSelected(prev =>
-                    e.target.checked ? [...prev, name] : prev.filter(item => item !== name)
-                  );
-                }}
-              />
-              <span className="font-tau-mono text-ink-1 min-w-0 flex-1 truncate text-[12px]">
-                {name}
-              </span>
-            </label>
-          ))}
-        </div>
+        <DialogBody>
+          <div className="flex flex-col gap-1">
+            {candidates.map(name => (
+              <label
+                key={name}
+                className="border-line-2 flex items-center gap-2.5 border-b py-1.5 last:border-b-0"
+              >
+                <Checkbox
+                  checked={selected.includes(name)}
+                  onChange={e => {
+                    setSelected(prev =>
+                      e.target.checked ? [...prev, name] : prev.filter(item => item !== name)
+                    );
+                  }}
+                />
+                <span className="font-tau-mono text-ink-1 min-w-0 flex-1 truncate text-[12px]">
+                  {name}
+                </span>
+              </label>
+            ))}
+          </div>
+        </DialogBody>
       </Dialog>
     </>
   );

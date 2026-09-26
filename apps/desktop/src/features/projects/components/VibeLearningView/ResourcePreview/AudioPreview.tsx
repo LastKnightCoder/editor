@@ -22,7 +22,7 @@ const AudioPreview: React.FC<AudioPreviewProps> = ({ resource }) => {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="w-full shrink-0 p-3">
+      <div className="mx-auto w-full max-w-[760px] shrink-0 px-6 pb-3">
         <LocalAudio ref={setMediaRef} src={resource.originalPath} controls className="w-full" />
       </div>
       <TranscriptPanel

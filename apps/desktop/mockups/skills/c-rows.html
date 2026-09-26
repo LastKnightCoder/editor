@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 C · 设置式单列</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="../mcp/mcp.css?v=1" />
+<link rel="stylesheet" href="skills.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 C · 设置式单列（参考 Cursor「Rules」的生效方式下拉、Claude.ai 设置里的 Skills 列表）</h3>
+  居中一列，每个 Skill 一行：名称 + 描述，右侧是<b>调用方式下拉</b>（自动 / 仅手动 / 常驻 / 停用，合并了开关）和展开箭头；展开后看文件、工具与问题提示，「编辑」推入整页编辑器。
+  <ul>
+    <li>把「开关」和「调用方式」合成一个下拉，每行只有一个控件，最不容易误解。</li>
+    <li class="pro">＋ 实现最轻、信息最密，一屏能看完所有 Skill 的状态；和设置页视觉一致。</li>
+    <li class="con">－ 看不到 SKILL.md 正文，要判断内容得进编辑页；使用记录等扩展信息放不下；和 MCP 页（卡片库）交互不一致。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, anno, icons, ic, tg, SKILLS, byId, bySrc, MODE, modeBadge, srcBadge, budget, addDialog, slashMenu, slashScene, editPage } from "./skills.js?v=1";
+
+mockBar("c-rows.html", `<span class="seg"><button data-m="list">列表</button><button data-m="open">展开</button><button data-m="menu">调用方式下拉</button><button data-m="edit">编辑页</button><button data-m="add">添加</button><button data-m="slash">输入框 /</button></span>`);
+
+const win = document.getElementById("win");
+const state = { m: "list", open: "weekly-report", menu: null, add: null, source: false };
+
+function modeBtn(s) {
+  const [i, n] = s.on ? MODE[s.mode] : ["circle-off", "已停用"];
+  return `<span class="s-row-mode" data-menu="${s.id}" style="${s.on ? "" : "color:var(--ink-3);border-style:dashed"}"><i data-lucide="${i}"></i>${n}<i data-lucide="chevron-down"></i></span>`;
+}
+
+function crow(s) {
+  const open = (state.m === "open" || state.m === "menu") && state.open === s.id;
+  return `
+  <div class="x-crow ${open ? "open" : ""}">
+    <div class="rh" data-open="${s.id}">
+      ${ic(s)}
+      <div class="m" ${s.on ? "" : 'style="opacity:.55"'}><div class="n">${s.title}${srcBadge(s)}${s.warn ? `<span class="s-warn" title="${s.warn}"><i data-lucide="${s.desc ? "triangle-alert" : "circle-alert"}"></i></span>` : ""}</div><div class="s" ${open ? 'style="white-space:normal"' : ""}>${s.desc || "没有描述，AI 无法自动发现它"}</div></div>
+      ${modeBtn(s)}
+      <i data-lucide="chevron-right" class="chev" style="width:16px"></i>
+    </div>
+    ${open ? `
+    <div class="rb">
+      ${s.warn ? `<div class="x-banner" style="background:var(--warn-soft);color:var(--warn)"><i data-lucide="triangle-alert"></i><div class="t">${s.warn}</div></div>` : ""}
+      <div style="display:flex;gap:24px;font-size:12px;color:var(--ink-3);margin-bottom:10px">
+        <div>文件<div class="x-chips" style="margin-top:4px">${s.files.map(f => `<span class="tc">${f}</span>`).join("")}</div></div>
+        <div>工具<div class="x-chips" style="margin-top:4px">${s.tools.map(t => `<span class="tc">${t}</span>`).join("") || "—"}</div></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn" data-edit><i data-lucide="pencil"></i>编辑</button>
+        <button class="btn"><i data-lucide="message-square-plus"></i>试一试</button>
+        <span style="font-size:11.5px;color:var(--ink-3);margin-left:6px">用过 ${s.uses} 次 · 最近 ${s.last} · ${s.mode === "auto" && s.on ? s.tokens + " tokens" : "不占常驻上下文"}</span>
+        <span style="flex:1"></span>
+        <button class="ib" title="导出 / 在访达中显示 / 删除"><i data-lucide="more-horizontal"></i></button>
+      </div>
+    </div>` : ""}
+  </div>`;
+}
+
+function page() {
+  return `
+  <div class="x-wide"><div class="x-narrow">
+    <div class="x-wide-head"><h1>Skill</h1><span class="sp"></span>
+      <button class="btn" data-add="link"><i data-lucide="folder-symlink"></i>关联目录</button>
+      <button class="btn primary" id="add"><i data-lucide="plus"></i>添加 Skill</button></div>
+    <p class="x-lead">教 AI 按你的方式做事。「自动」只把描述放进对话、需要时才读全文；「仅手动」只在输入框输入 / 选中时生效。</p>
+    <div class="x-block" style="padding:12px 16px">${budget()}</div>
+    <div class="x-block"><div class="bh">我的<span class="sp"></span><span class="num">${bySrc("mine").length}</span></div>${bySrc("mine").map(crow).join("")}</div>
+    <div class="x-block"><div class="bh">内置<span class="sp"></span>随应用更新，正文只读</div>${bySrc("builtin").map(crow).join("")}</div>
+    <div class="x-block"><div class="bh"><i data-lucide="link-2" style="width:13px"></i>关联目录 · ~/.claude/skills<span class="sp"></span><span class="x-link" style="font-size:11.5px">管理</span></div>${bySrc("linked").map(crow).join("")}</div>
+  </div></div>`;
+}
+
+function menu() {
+  const s = byId(state.open);
+  const items = [...Object.entries(MODE).map(([k, [i, n, d]]) => [k, i, n, d]), ["off", "circle-off", "停用", "AI 完全看不到这个 Skill"]];
+  return `<div class="s-menu" style="right:220px;top:246px">${items.map(([k, i, n, d], idx) => `${idx === 3 ? '<div class="sep"></div>' : ""}<div class="it ${s.on && s.mode === k ? "on" : ""}"><i data-lucide="${i}"></i><div class="m"><b>${n}</b><span>${d}${k === "always" ? "（约 1.8k tokens）" : ""}</span></div>${s.on && s.mode === k ? `<i data-lucide="check" class="ck"></i>` : ""}</div>`).join("")}</div>`;
+}
+
+function render() {
+  const { m, add } = state;
+  const s = byId(state.open);
+  let main;
+  if (m === "slash") main = slashScene();
+  else if (m === "edit") main = `<section class="paper x-paper">${editPage(s, { source: state.source, withTry: false })}</section>`;
+  else main = `<section class="paper x-paper">${page()}</section>`;
+  const crumb = m === "slash" ? `<b>AI 对话</b>` : m === "edit" ? `<span>Skill</span><i data-lucide="chevron-right"></i><b>${s.title}</b>` : `<b>Skill</b>`;
+  win.innerHTML = `
+    ${sidebar()}
+    <div class="col">${titlebar(crumb)}<div class="main">${main}</div></div>
+    ${m === "menu" ? menu() : ""}
+    ${add ? addDialog(add) : ""}
+    ${m === "slash" ? slashMenu("left:470px;bottom:150px") : ""}
+    ${m === "list" && !add ? anno(1, "每行只有一个控件：调用方式下拉（含停用）", "left:1000px;top:250px;max-width:220px") : ""}`;
+  icons();
+  if (m === "menu") {
+    const z = parseFloat(win.style.zoom) || 1, wr = win.getBoundingClientRect(), br = win.querySelector(`[data-menu="${state.open}"]`).getBoundingClientRect(), mn = win.querySelector(".s-menu");
+    Object.assign(mn.style, { top: `${(br.bottom - wr.top) / z + 6}px`, left: `${(br.right - wr.left) / z - 280}px`, right: "auto" });
+  }
+  document.querySelectorAll(".mock-bar .seg button").forEach(b => b.classList.toggle("on", b.dataset.m === (add ? "add" : m)));
+  win.querySelectorAll("[data-open]").forEach(r => (r.onclick = e => {
+    if (e.target.closest("[data-menu]")) { Object.assign(state, { m: "menu", open: e.target.closest("[data-menu]").dataset.menu }); render(); return; }
+    const same = state.open === r.dataset.open && state.m === "open";
+    Object.assign(state, { m: same ? "list" : "open", open: r.dataset.open }); render();
+  }));
+  win.querySelectorAll("[data-edit]").forEach(t => (t.onclick = () => { state.m = "edit"; render(); }));
+  win.querySelectorAll("[data-back]").forEach(t => (t.onclick = () => { state.m = "open"; render(); }));
+  win.querySelectorAll("[data-src]").forEach(t => (t.onclick = () => { state.source = t.dataset.src === "1"; render(); }));
+  win.querySelectorAll("[data-add]").forEach(t => (t.onclick = () => { state.add = t.dataset.add; render(); }));
+  win.querySelectorAll("[data-close]").forEach(t => (t.onclick = () => { state.add = null; render(); }));
+  const a = win.querySelector("#add"); if (a) a.onclick = () => { state.add = "new"; render(); };
+}
+document.querySelectorAll(".mock-bar .seg button").forEach(b => (b.onclick = () => {
+  const m = b.dataset.m;
+  state.add = m === "add" ? "new" : null;
+  state.m = m === "add" ? "list" : m;
+  state.open = "weekly-report";
+  render();
+}));
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>Vibe Learning 页 · 排版方案</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  [data-theme] body { background: var(--page); }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 24px 60px; }
+  h1 { font-size: 25px; font-weight: 600; margin: 0 0 6px; }
+  .lead { color: var(--ink-2); margin: 0 0 26px; max-width: 900px; }
+  h2 { font-size: 16px; font-weight: 600; margin: 30px 0 4px; }
+  h2 + p { color: var(--ink-2); margin: 0 0 14px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card { display: block; text-decoration: none; color: inherit; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 18px; transition: box-shadow var(--fast); }
+  a.card:hover { box-shadow: var(--shadow-lift); }
+  .card h3 { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; }
+  .card p { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+  .wf { height: 110px; border-radius: 10px; background: var(--page); display: flex; gap: 4px; padding: 6px; margin-bottom: 12px; position: relative; }
+  .wf i { display: block; border-radius: 5px; }
+  .wf .s { width: 22px; } .wf .p { flex: 1; background: var(--surface); box-shadow: var(--shadow-card); display: flex; gap: 4px; padding: 5px; }
+  .wf .a { background: var(--accent-soft); } .wf .b { background: var(--sunken); opacity: .6; }
+  code { font: 12px var(--mono); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--line-1); background: var(--surface); }
+  .box { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 14px 20px; }
+  .box ul { margin: 0; padding-left: 18px; } .box li { margin: 5px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Vibe Learning 页 · 排版方案</h1>
+  <p class="lead">现状：<code>VibeLearningView</code> 是三块并排的板子（资料 / 对话 / 应用侧栏）直接贴在页面底色上，里面 <code>ResourcePanel</code>、生成弹窗等仍用 antd。这一轮<b>只看排版</b>：三套方案都是「一整张纸」，每套都可以在顶栏切换 默认 / 空项目 / 预览资料 / 编辑笔记 四种状态。生成配置弹窗、添加资料弹窗、测验答题这几块等排版定下来再单独出。</p>
+
+  <h2>三套排版</h2>
+  <p>区别在于资料、对话、工作室三者谁是主角。</p>
+  <div class="grid3">
+    <a class="card" href="a-columns.html">
+      <div class="wf"><i class="s"></i><div class="p"><i class="b" style="width:24%"></i><i class="a" style="flex:1"></i><i class="b" style="width:26%"></i></div></div>
+      <h3>A 纸内三栏</h3>
+      <p>保留现在的三栏心智，合进一张纸，纸内透明栏。打开资料 / 笔记时中间变大画面，对话退到右栏。迁移成本最低。</p>
+    </a>
+    <a class="card" href="b-chat.html">
+      <div class="wf"><i class="s"></i><div class="p" style="flex-direction:column;align-items:center"><i class="a" style="width:62%;flex:1"></i><i class="b" style="width:62%;height:8px"></i><i class="b" style="width:62%;height:16px"></i></div></div>
+      <h3>B 对话为主</h3>
+      <p>和 AI 对话页同构：资料变成输入框上方的 chips，工作室收进右侧非模态抽屉。最沉浸，窄窗口最宽裕。</p>
+    </a>
+    <a class="card" href="c-desk.html">
+      <div class="wf"><i class="s"></i><div class="p"><i class="b" style="width:20%"></i><i class="a" style="flex:1"></i><i class="b" style="width:30%"></i></div></div>
+      <h3>C 学习台</h3>
+      <p>左栏资料 + 产物合成一棵目录，中间常驻阅读区，右边对话。围着「当前这份资料」看、问、生成。</p>
+    </a>
+  </div>
+
+  <h2>三套共用的改动</h2>
+  <div class="box"><ul>
+    <li>三块板子合成一张 <code>surface</code> 纸，栏与栏之间不画横线，只用一道极淡的竖线和留白分开。</li>
+    <li>应用卡片去掉副标题，改成细描边的小格（图标 + 名称）；「创作内容」和「测验集」两个空态盒子合成一个<b>产物</b>列表，「新建笔记」收进产物区的 ＋。</li>
+    <li>资料行把处理状态标在行内（转录中进度条 / 失败 + 重试），不另起徽章。</li>
+    <li>对话头部保留会话切换（「新对话 ▾」），输入框控件保留现有四项：＋、手动确认、模型、思考强度。回答里的引用做成可点的角标和来源 chips。</li>
+    <li>antd 全部换掉：按钮 / 菜单 / 弹窗 / 进度条走 <code>@tau/ui</code>，图标统一 lucide。</li>
+  </ul></div>
+</div>
+<script>lucide.createIcons();document.documentElement.dataset.theme = localStorage.getItem("chat-mock-theme") || "cream";</script>
+</body>
+</html>

@@ -78,7 +78,7 @@ function ChatPaper() {
   }, [loaded, chats, chatId, navigator]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-[26px] pb-[18px]">
+    <div className="flex h-full min-h-0 flex-col px-4 pb-4">
       <section
         className={`bg-surface rounded-tau-lg shadow-card flex min-h-0 flex-1 flex-col overflow-hidden ${ASSIST_MORPH_CLASS}`}
       >

@@ -1,4 +1,5 @@
 import type { ContentLinkElement } from "./content-link/types";
+import type { SkillRefElement } from "./skill-ref/types";
 import type { DatabaseElement } from "./database/types";
 import type { FileAttachmentElement } from "./file-attachment/types";
 import type { FlashcardBlankElement } from "./flashcard-blank/types";
@@ -9,6 +10,7 @@ import type {} from "@tau/editor/src/types/custom-element";
 declare module "@tau/editor/src/types/custom-element" {
   interface ExternalElementMap {
     "content-link": ContentLinkElement;
+    "skill-ref": SkillRefElement;
     "file-attachment": FileAttachmentElement;
     "project-card-list": ProjectCardListElement;
     whiteboard: WhiteboardElement;
@@ -18,6 +20,7 @@ declare module "@tau/editor/src/types/custom-element" {
 
   interface ExternalInlineElementMap {
     "content-link": ContentLinkElement;
+    "skill-ref": SkillRefElement;
     "flashcard-blank": FlashcardBlankElement;
   }
 }

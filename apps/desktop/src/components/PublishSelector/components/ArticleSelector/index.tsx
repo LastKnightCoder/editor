@@ -156,7 +156,7 @@ const ArticleList = memo<{
   });
 
   return (
-    <FadeScroll scrollRef={parentRef} className="h-full px-2.5 pb-1">
+    <FadeScroll scrollRef={parentRef} className="mb-3 min-h-0 flex-1 px-2.5 pb-1">
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,

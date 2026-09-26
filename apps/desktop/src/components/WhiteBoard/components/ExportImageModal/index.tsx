@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Download } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import { Button, Dialog, cn, toast } from "@tau/ui";
+import { Button, Dialog, DialogBody, cn, toast } from "@tau/ui";
 import useTheme from "@/hooks/useTheme";
 import { PageSchematic } from "../../schematic/PageSchematic";
 import Board from "../../Board";
@@ -188,70 +188,72 @@ const ExportImageModal = (props: ExportImageModalProps) => {
           </>
         }
       >
-        <div className="flex flex-col gap-4">
-          {/* 预览：透明背景用棋盘格示意 */}
-          <div
-            className="bg-page ring-line-1 rounded-tau-md grid h-[170px] place-items-center overflow-hidden ring-1 ring-inset"
-            style={previewBackground ? undefined : CHECKER_STYLE}
-          >
+        <DialogBody>
+          <div className="flex flex-col gap-4">
+            {/* 预览：透明背景用棋盘格示意 */}
             <div
-              className={cn(
-                "relative rounded-[6px] transition-[padding] duration-150",
-                previewBackground && "shadow-lift"
-              )}
-              style={{
-                width: PREVIEW_W,
-                height: PREVIEW_H,
-                padding: previewInset,
-                background: previewBackground ?? "transparent",
-              }}
+              className="bg-page ring-line-1 rounded-tau-md grid h-[170px] place-items-center overflow-hidden ring-1 ring-inset"
+              style={previewBackground ? undefined : CHECKER_STYLE}
             >
-              {previewElements.length > 0 ? (
-                <PageSchematic
-                  elements={previewElements}
-                  aspect={previewAspect}
-                  className="size-full"
+              <div
+                className={cn(
+                  "relative rounded-[6px] transition-[padding] duration-150",
+                  previewBackground && "shadow-lift"
+                )}
+                style={{
+                  width: PREVIEW_W,
+                  height: PREVIEW_H,
+                  padding: previewInset,
+                  background: previewBackground ?? "transparent",
+                }}
+              >
+                {previewElements.length > 0 ? (
+                  <PageSchematic
+                    elements={previewElements}
+                    aspect={previewAspect}
+                    className="size-full"
+                  />
+                ) : (
+                  <span className="text-ink-3 grid size-full place-items-center text-[12px]">
+                    没有可导出的元素
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <Field label="背景">
+                <Seg
+                  label="背景"
+                  options={BACKGROUND_OPTIONS}
+                  value={background}
+                  onChange={value => setBackground(value)}
                 />
-              ) : (
-                <span className="text-ink-3 grid size-full place-items-center text-[12px]">
-                  没有可导出的元素
-                </span>
-              )}
+              </Field>
+              <Field label="放大倍数">
+                <Slider
+                  label="放大倍数"
+                  value={scale}
+                  min={0.5}
+                  max={4}
+                  step={0.25}
+                  format={v => `${Number(v.toFixed(2))}×`}
+                  onChange={value => setScale(Number(value) || 1)}
+                />
+              </Field>
+              <Field label="边距">
+                <Slider
+                  label="边距"
+                  value={padding}
+                  min={0}
+                  max={PADDING_MAX}
+                  unit="px"
+                  onChange={value => setPadding(Math.max(0, Number(value) || 0))}
+                />
+              </Field>
             </div>
           </div>
-
-          <div>
-            <Field label="背景">
-              <Seg
-                label="背景"
-                options={BACKGROUND_OPTIONS}
-                value={background}
-                onChange={value => setBackground(value)}
-              />
-            </Field>
-            <Field label="放大倍数">
-              <Slider
-                label="放大倍数"
-                value={scale}
-                min={0.5}
-                max={4}
-                step={0.25}
-                format={v => `${Number(v.toFixed(2))}×`}
-                onChange={value => setScale(Number(value) || 1)}
-              />
-            </Field>
-            <Field label="边距">
-              <Slider
-                label="边距"
-                value={padding}
-                min={0}
-                max={PADDING_MAX}
-                unit="px"
-                onChange={value => setPadding(Math.max(0, Number(value) || 0))}
-              />
-            </Field>
-          </div>
-        </div>
+        </DialogBody>
       </Dialog>
 
       {layer}

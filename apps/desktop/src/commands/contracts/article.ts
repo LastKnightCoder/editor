@@ -29,7 +29,7 @@ export const articleCommands = {
   getById: command<[number], IArticle>("get-article-by-id"),
   getAll: command<[], IArticle[]>("get-all-articles"),
   listPage: command<
-    [number, number, (string | undefined)?],
+    [number, number, (string | undefined)?, (string | undefined)?],
     { items: ArticlePageItem[]; total: number; totalWords: number }
   >("get-article-page"),
   tagCounts: command<[], ArticleTagCount[]>("get-article-tag-counts"),
@@ -49,9 +49,4 @@ export const articleCommands = {
   ),
   attachPodcast: command<[number, number], IArticle | null>("attach-podcast-to-article"),
   detachPodcast: command<[number], IArticle | null>("detach-podcast-from-article"),
-  openInNewWindow: command<
-    [string, number, ({ showTitlebar?: boolean; isDefaultTop?: boolean } | undefined)?],
-    void
-  >("open-article-in-new-window"),
-  closeWindow: command<[string, number], void>("close-article-window"),
 };

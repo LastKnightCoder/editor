@@ -135,7 +135,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
     const database = useSettingStore(state => state.setting.database.active);
     const isConnected = useDatabaseConnected();
 
-    usePdfChat(pdf.id, mainDbName);
+    const toolScope = usePdfChat(pdf.id, mainDbName);
 
     const systemPrompt = useMemo(() => buildPdfSystemPrompt(pdf), [pdf]);
 
@@ -616,6 +616,7 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
                     markdownComponents={markdownComponents}
                     isVisible={!collapsed}
                     chatScope={`pdf-chat:${pdf.id}`}
+                    toolScope={toolScope}
                     updateChatMessage={handleUpdateChatMessage}
                     updateCurrentChat={handleUpdateCurrentChat}
                     sendLoading={sendLoading}

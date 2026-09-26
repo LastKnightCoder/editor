@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ToolCallCustomRendererProps } from "./types";
 import type { IAnswer } from "@/types";
 import AnswerCardList from "@/components/AnswerCardList";
-import AnswerModal from "@/components/AnswerModal";
-import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
+import { AnswerDialog } from "@/features/questions/components/AnswerDialog";
 import {
   getQuestionAnswerList,
   getQuestionDashboardData,
@@ -89,7 +88,6 @@ const QuestionQueryRenderer = ({
   const [unavailableMessage, setUnavailableMessage] = useState<string | null>(null);
   const [selectedAnswerId, setSelectedAnswerId] = useState<number | null>(null);
   const queryInput = (parsedInput ?? null) as Record<string, unknown> | null;
-  const extensions = useDynamicExtensionsStore(state => state.extensions);
 
   const refresh = async () => {
     setLoading(true);
@@ -186,52 +184,12 @@ const QuestionQueryRenderer = ({
     return [] as IAnswer[];
   }, [data]);
 
-  const selectedAnswer = useMemo(
-    () => answerItems.find(item => item.id === selectedAnswerId) ?? null,
-    [answerItems, selectedAnswerId]
-  );
-
-  const handleAnswerChange = (nextAnswer: IAnswer) => {
-    setData(prev => {
-      if (!prev) {
-        return prev;
-      }
-      if (prev.kind === "question-detail") {
-        return {
-          ...prev,
-          data: {
-            ...prev.data,
-            answers: prev.data.answers.map(answer =>
-              answer.id === nextAnswer.id
-                ? {
-                    ...answer,
-                    content: nextAnswer.content,
-                    preview: answer.preview,
-                    markdown: answer.markdown,
-                    updateTime: nextAnswer.updateTime,
-                  }
-                : answer
-            ),
-          },
-        };
-      }
-      if (prev.kind === "question-answer-list") {
-        return {
-          ...prev,
-          items: prev.items.map(answer =>
-            answer.id === nextAnswer.id
-              ? {
-                  ...answer,
-                  content: nextAnswer.content,
-                  updateTime: nextAnswer.updateTime,
-                }
-              : answer
-          ),
-        };
-      }
-      return prev;
-    });
-  };
+  const questionTitle =
+    data?.kind === "question-detail"
+      ? data.data.questionContent
+      : data?.kind === "question-answer-list"
+        ? data.questionTitle
+        : "";
 
   useEffect(() => {
     if (!data) {
@@ -442,14 +400,17 @@ const QuestionQueryRenderer = ({
           </div>
         ) : null}
       </ToolCardBody>
-      <AnswerModal
-        visible={selectedAnswerId != null}
-        selectedAnswer={selectedAnswer}
-        extensions={extensions}
-        onClose={() => setSelectedAnswerId(null)}
-        onAnswerChange={handleAnswerChange}
-        readOnly={false}
-        customTitle="答案详情"
+      {/* 与问题页打开独立答案同一个弹窗：编辑经其节流自动保存，关闭后重拉结果刷新答案摘要 */}
+      <AnswerDialog
+        state={
+          selectedAnswerId != null
+            ? { mode: "edit", questionTitle, contentId: selectedAnswerId }
+            : null
+        }
+        onClose={() => {
+          setSelectedAnswerId(null);
+          void refresh();
+        }}
       />
     </ToolCard>
   );

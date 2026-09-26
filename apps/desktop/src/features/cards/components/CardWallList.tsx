@@ -241,9 +241,8 @@ function FeaturedCard({
       tabIndex={0}
       onClick={() => actions.onOpen(card)}
       className={cn(
-        "bg-surface shadow-card ease-tau-out group relative flex cursor-pointer overflow-hidden rounded-[var(--tau-radius-lg)] py-4 pl-[18px] pr-5",
-        "transition-[box-shadow,outline-color] duration-200",
-        "outline-line-1 hover:shadow-lift outline-0 -outline-offset-1 hover:outline-1"
+        "bg-surface border-line-1 ease-tau-out group relative flex cursor-pointer overflow-hidden rounded-[var(--tau-radius-lg)] border py-4 pl-[18px] pr-5",
+        "hover:shadow-lift transition-[box-shadow,border-color] duration-200 hover:border-transparent"
       )}
     >
       <span className="absolute inset-y-0 left-0 w-1" style={{ background: color.text }} />

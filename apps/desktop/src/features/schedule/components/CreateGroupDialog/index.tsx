@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Dialog, Input, toast } from "@tau/ui";
+import { Button, Dialog, DialogBody, Input, toast } from "@tau/ui";
 import useCalendarStore from "@/stores/useCalendarStore";
 
 interface CreateGroupDialogProps {
@@ -57,18 +57,20 @@ const CreateGroupDialog = ({ open, onClose }: CreateGroupDialogProps) => {
         </>
       }
     >
-      <label className="flex flex-col gap-1.5">
-        <span className="text-ink-2 text-[12px]">分组名称</span>
-        <Input
-          data-autofocus
-          value={name}
-          onChange={e => setName(e.target.value)}
-          placeholder="输入分组名称"
-          onKeyDown={e => {
-            if (e.key === "Enter" && !e.nativeEvent.isComposing) void handleSubmit();
-          }}
-        />
-      </label>
+      <DialogBody>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-ink-2 text-[12px]">分组名称</span>
+          <Input
+            data-autofocus
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="输入分组名称"
+            onKeyDown={e => {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) void handleSubmit();
+            }}
+          />
+        </label>
+      </DialogBody>
     </Dialog>
   );
 };

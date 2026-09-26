@@ -6,6 +6,7 @@
 import { useMemo, useState } from "react";
 import { Braces, Plug, Plus, Search } from "lucide-react";
 import { Button, ConfirmDialog, IconButton, Input, Switch, Tooltip, cn, toast } from "@tau/ui";
+import { FadeScroll } from "@/components/FadeScroll";
 import useMCPStore from "@/stores/useMCPStore";
 import { serversToJson } from "../serverConfig";
 import {
@@ -18,9 +19,10 @@ import { AddServerDialog } from "./AddServerDialog";
 import { ServerDrawer } from "./ServerDrawer";
 import { ServerIcon, StatusLine } from "./ServerVisual";
 
+// 卡片落在大纸上：细描边分隔，悬停轻抬（纸上再叠阴影卡会糊成一片）
 const CARD =
-  "bg-surface shadow-card ease-tau-out flex min-h-[132px] min-w-0 flex-col gap-2.5 rounded-[var(--tau-radius-lg)] p-3.5 text-left " +
-  "outline-line-1 hover:shadow-lift outline-0 -outline-offset-1 transition-[box-shadow,outline-color] duration-200 hover:outline-1 " +
+  "border-line-1 ease-tau-out flex min-h-[132px] min-w-0 flex-col gap-2.5 rounded-[var(--tau-radius-lg)] border p-3.5 text-left " +
+  "hover:shadow-lift hover:border-transparent transition-[box-shadow,border-color] duration-200 " +
   "focus-visible:shadow-[var(--tau-focus-ring)] focus-visible:outline-none";
 
 function subtitle(item: McpServerItem): string {
@@ -28,7 +30,15 @@ function subtitle(item: McpServerItem): string {
   return item.server?.transport.type === "stdio" ? "本地进程 · stdio" : "远程 · HTTP";
 }
 
-function ServerCard({ item, onOpen }: { item: McpServerItem; onOpen: () => void }) {
+function ServerCard({
+  item,
+  active,
+  onOpen,
+}: {
+  item: McpServerItem;
+  active: boolean;
+  onOpen: () => void;
+}) {
   return (
     <article
       tabIndex={0}
@@ -36,7 +46,7 @@ function ServerCard({ item, onOpen }: { item: McpServerItem; onOpen: () => void 
       onKeyDown={e => {
         if (e.key === "Enter" && e.target === e.currentTarget) onOpen();
       }}
-      className={cn(CARD, "cursor-pointer")}
+      className={cn(CARD, "cursor-pointer", active && "border-accent")}
     >
       <div className="flex items-start gap-2.5">
         <ServerIcon item={item} />
@@ -123,100 +133,115 @@ export function McpView() {
   };
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-[26px] pb-4">
-      <div className="flex h-12 flex-none items-center gap-3">
-        <h1 className="text-tau-title shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
-          MCP 服务器
-        </h1>
-        {/* w-0 + flex-1：填满剩余宽度并截断，不撑大页面的最小宽度 */}
-        <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
-          已启用 <b className="text-ink-1 font-semibold">{enabledServers.length}</b> 个服务器
-          <span className="text-ink-3 mx-1.5">·</span>
-          <b className="text-ink-1 font-semibold">{toolCount}</b> 个工具
-        </span>
-        <Input
-          size="sm"
-          lead={Search}
-          clearable
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          onKeyDown={e => {
-            if (e.key === "Escape" && query) {
-              e.stopPropagation();
-              setQuery("");
-            }
-          }}
-          placeholder="搜索服务器或工具"
-          // 输入框自身不贡献最小宽度，窄窗口下随标题栏收缩
-          className="w-0"
-          wrapperClassName="w-auto max-w-[240px] flex-[0_1_240px]"
-        />
-        {customServers.length > 0 && (
-          <Tooltip content="复制全部自定义服务器为 mcpServers JSON">
-            <IconButton aria-label="导出为 JSON" onClick={() => void exportAll()}>
-              <Braces className="size-4" strokeWidth={1.75} />
-            </IconButton>
-          </Tooltip>
-        )}
-        <Button
-          variant="primary"
-          size="sm"
-          icon={Plus}
-          className="shrink-0 whitespace-nowrap"
-          onClick={() => setAdding(true)}
-        >
-          添加服务器
-        </Button>
-      </div>
-
-      <div className="edge-fade-scroll -mr-[18px] min-h-0 flex-1 overflow-y-auto pb-2 pr-[18px] pt-2">
-        <p className="text-tau-meta text-ink-2 mb-5 px-0.5">
-          让 AI 调用本机程序或远程服务：读写文件、查
-          GitHub、操作浏览器……启用的服务器在每次对话中都可用。
-        </p>
-
-        {(!q || shownCustom.length > 0) && (
-          <Section title="自定义" hint={custom.length > 0 ? String(custom.length) : undefined}>
-            {shownCustom.map(item => (
-              <ServerCard key={item.id} item={item} onOpen={() => setOpenId(item.id)} />
-            ))}
-            {!q && (
-              <button
-                type="button"
-                onClick={() => setAdding(true)}
-                className="border-line-1 text-ink-3 hover:bg-hover hover:text-ink-1 flex min-h-[132px] flex-col items-center justify-center gap-1.5 rounded-[var(--tau-radius-lg)] border border-dashed transition-[background,color] duration-150"
-              >
-                <Plus className="size-5" strokeWidth={1.5} />
-                <span className="text-tau-meta">添加服务器</span>
-                {custom.length === 0 && (
-                  <span className="text-tau-sm text-ink-3">手动填写或粘贴 JSON</span>
-                )}
-              </button>
-            )}
-          </Section>
-        )}
-
-        {shownBuiltin.length > 0 && (
-          <Section title="内置" hint="随应用提供，可停用不可删除">
-            {shownBuiltin.map(item => (
-              <ServerCard key={item.id} item={item} onOpen={() => setOpenId(item.id)} />
-            ))}
-          </Section>
-        )}
-
-        {nothing && (
-          <div className="flex flex-col items-center gap-2 px-5 py-20 text-center">
-            <span className="bg-accent-soft text-accent-text mb-1.5 grid size-[52px] place-items-center rounded-[16px]">
-              <Plug className="size-6" strokeWidth={1.5} />
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+      {/* 一整张纸：页头固定在纸顶，卡片在纸内滚动（同 Skill 页） */}
+      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="flex flex-none flex-col px-8 pt-5">
+          <div className="flex h-10 flex-none items-center gap-3">
+            <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+              MCP 服务器
+            </h1>
+            {/* w-0 + flex-1：填满剩余宽度并截断，不撑大页面的最小宽度 */}
+            <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
+              已启用 <b className="text-ink-1 font-semibold">{enabledServers.length}</b> 个服务器
+              <span className="text-ink-3 mx-1.5">·</span>
+              <b className="text-ink-1 font-semibold">{toolCount}</b> 个工具
             </span>
-            <p className="text-ink-1 text-[15px] font-semibold">
-              没有匹配「{query.trim()}」的服务器
-            </p>
-            <Button variant="secondary" size="sm" className="mt-2" onClick={() => setQuery("")}>
-              清除搜索
+            <Input
+              size="sm"
+              lead={Search}
+              clearable
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Escape" && query) {
+                  e.stopPropagation();
+                  setQuery("");
+                }
+              }}
+              placeholder="搜索服务器或工具"
+              // 输入框自身不贡献最小宽度，窄窗口下随标题栏收缩
+              className="w-0"
+              wrapperClassName="w-auto max-w-[240px] flex-[0_1_240px]"
+            />
+            {customServers.length > 0 && (
+              <Tooltip content="复制全部自定义服务器为 mcpServers JSON">
+                <IconButton aria-label="导出为 JSON" onClick={() => void exportAll()}>
+                  <Braces className="size-4" strokeWidth={1.75} />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Plus}
+              className="shrink-0 whitespace-nowrap"
+              onClick={() => setAdding(true)}
+            >
+              添加服务器
             </Button>
           </div>
-        )}
+
+          <p className="text-tau-meta text-ink-2 mt-1 px-0.5 pb-3">
+            让 AI 调用本机程序或远程服务：读写文件、查
+            GitHub、操作浏览器……启用的服务器在每次对话中都可用。
+          </p>
+        </div>
+
+        <FadeScroll className="mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px] pt-3">
+          {(!q || shownCustom.length > 0) && (
+            <Section title="自定义" hint={custom.length > 0 ? String(custom.length) : undefined}>
+              {shownCustom.map(item => (
+                <ServerCard
+                  key={item.id}
+                  item={item}
+                  active={item.id === openId}
+                  onOpen={() => setOpenId(item.id)}
+                />
+              ))}
+              {!q && (
+                <button
+                  type="button"
+                  onClick={() => setAdding(true)}
+                  className="border-line-1 text-ink-3 hover:bg-hover hover:text-ink-1 flex min-h-[132px] flex-col items-center justify-center gap-1.5 rounded-[var(--tau-radius-lg)] border border-dashed transition-[background,color] duration-150"
+                >
+                  <Plus className="size-5" strokeWidth={1.5} />
+                  <span className="text-tau-meta">添加服务器</span>
+                  {custom.length === 0 && (
+                    <span className="text-tau-sm text-ink-3">手动填写或粘贴 JSON</span>
+                  )}
+                </button>
+              )}
+            </Section>
+          )}
+
+          {shownBuiltin.length > 0 && (
+            <Section title="内置" hint="随应用提供，可停用不可删除">
+              {shownBuiltin.map(item => (
+                <ServerCard
+                  key={item.id}
+                  item={item}
+                  active={item.id === openId}
+                  onOpen={() => setOpenId(item.id)}
+                />
+              ))}
+            </Section>
+          )}
+
+          {nothing && (
+            <div className="flex flex-col items-center gap-2 px-5 py-20 text-center">
+              <span className="bg-accent-soft text-accent-text mb-1.5 grid size-[52px] place-items-center rounded-[16px]">
+                <Plug className="size-6" strokeWidth={1.5} />
+              </span>
+              <p className="text-ink-1 text-[15px] font-semibold">
+                没有匹配「{query.trim()}」的服务器
+              </p>
+              <Button variant="secondary" size="sm" className="mt-2" onClick={() => setQuery("")}>
+                清除搜索
+              </Button>
+            </div>
+          )}
+        </FadeScroll>
       </div>
 
       <ServerDrawer item={openItem} onClose={() => setOpenId(null)} onDelete={setDeleting} />

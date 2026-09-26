@@ -16,6 +16,8 @@ import {
   FileText,
   ImagePlus,
   Plug,
+  ShieldCheck,
+  ShieldOff,
   Square,
   SquarePen,
   X,
@@ -41,7 +43,14 @@ import useUploadResource from "@/hooks/useUploadResource";
 import { convertFileSrc, getHomeDir } from "@/commands";
 import { McpQuickPanel } from "@/features/mcp/components/McpQuickPanel";
 import useTheme from "@/hooks/useTheme";
-import { contentLinkExtension } from "@/editor-extensions";
+import { contentLinkExtension, skillRefExtension } from "@/editor-extensions";
+import { SkillPickerPanel } from "@/editor-extensions/skill-ref/SkillPickerPanel";
+import useSettingStore from "@/stores/useSettingStore";
+import {
+  TOOL_PERMISSION_MODES,
+  normalizePermissionMode,
+  type ToolPermissionMode,
+} from "@/services/tool-permission/mode";
 import { wrapContentLink } from "@/editor-extensions/content-link/components/utils";
 import { importFromMarkdown, getMarkdown } from "@/utils/markdown";
 import { ContextUsageRing } from "./ContextUsageRing";
@@ -81,6 +90,8 @@ interface ChatInputAreaProps {
   onReasoningEffortChange?: (level: ReasoningEffort) => void;
   reasoningEffortDisabled?: boolean;
   showMcpManager?: boolean;
+  /** 工具作用域：MCP 面板额外列出该作用域的页面专属工具 */
+  toolScope?: string;
   /** 紧凑档（停靠栏 400px）：模型名限宽、思考强度取两字短名，工具行不折行 */
   compact?: boolean;
 }
@@ -171,6 +182,21 @@ const extractMentionRefsFromEditorContent = (content: Descendant[]): MentionRef[
   return mentions;
 };
 
+/** `$` 点名的 Skill（folderName，去重） */
+const extractSkillRefsFromEditorContent = (content: Descendant[]): string[] => {
+  const names = new Set<string>();
+  const visit = (node: any) => {
+    if (!node || typeof node !== "object") return;
+    if (node.type === "skill-ref" && typeof node.folderName === "string") {
+      names.add(node.folderName);
+      return;
+    }
+    if (Array.isArray(node.children)) node.children.forEach(visit);
+  };
+  content.forEach(visit);
+  return Array.from(names);
+};
+
 /** 工具行右侧 chip（模型 / 思考强度）：无底，hover 淡墨；Menu 触发器（透传 props / ref） */
 function ToolbarChip({ className, children, ...props }: ComponentProps<"button">) {
   return (
@@ -225,6 +251,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       onReasoningEffortChange,
       reasoningEffortDisabled = false,
       showMcpManager = true,
+      toolScope,
       compact = false,
     },
     ref
@@ -248,6 +275,11 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
     const { uploadFile, getHomeDir: getChatHomeDir } = services;
 
     const editorRef = useRef<EditorRef>(null);
+    const rootRef = useRef<HTMLDivElement>(null);
+    const permissionMode = useSettingStore(s =>
+      normalizePermissionMode(s.setting.agentPermission?.mode)
+    );
+    const setPermissionMode = useSettingStore(s => s.setToolPermissionMode);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const pdfInputRef = useRef<HTMLInputElement>(null);
 
@@ -422,10 +454,12 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
 
         const text = getMarkdown(editorContent).trim();
         if (text) {
+          const skills = extractSkillRefsFromEditorContent(editorContent);
           content.push({
             type: "text",
             text,
             mentions: extractMentionRefsFromEditorContent(editorContent),
+            ...(skills.length > 0 ? { skills } : {}),
           });
         }
 
@@ -542,7 +576,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               label: "MCP 服务器",
               description: "开关外部工具服务",
               disabled: sendLoading,
-              panel: (close: () => void) => <McpQuickPanel onClose={close} />,
+              panel: (close: () => void) => <McpQuickPanel toolScope={toolScope} onClose={close} />,
             },
           ]
         : []),
@@ -627,8 +661,44 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       </Menu>
     ) : null;
 
+    // 工具权限模式（D-060）：只在完整对话输入框出现（行内 AI 等不跑需要确认的工具）
+    const currentPermission = TOOL_PERMISSION_MODES.find(m => m.value === permissionMode);
+    const permissionMenu = showMcpManager ? (
+      <Menu
+        align="start"
+        className="max-h-none w-[260px]"
+        trigger={
+          <ToolbarChip title={`工具权限：${currentPermission?.label ?? ""}`}>
+            {permissionMode === "bypass" ? (
+              <ShieldOff size={15} strokeWidth={1.75} className="text-warn" />
+            ) : (
+              <ShieldCheck size={15} strokeWidth={1.75} className="text-ink-2" />
+            )}
+            {!compact && <span className="min-w-0 truncate">{currentPermission?.short}</span>}
+            <ChipCaret />
+          </ToolbarChip>
+        }
+      >
+        <Menu.Group>工具权限</Menu.Group>
+        <Menu.RadioGroup
+          value={permissionMode}
+          onValueChange={value => setPermissionMode(value as ToolPermissionMode)}
+        >
+          {TOOL_PERMISSION_MODES.map(option => (
+            <Menu.RadioItem key={option.value} value={option.value} className="h-auto py-1.5">
+              <span className="flex min-w-0 flex-col">
+                <span>{option.label}</span>
+                <span className="text-tau-tiny text-ink-3 truncate">{option.description}</span>
+              </span>
+            </Menu.RadioItem>
+          ))}
+        </Menu.RadioGroup>
+      </Menu>
+    ) : null;
+
     return (
-      <div className={cn("flex flex-col", className)}>
+      <div ref={rootRef} className={cn("flex flex-col", className)}>
+        <SkillPickerPanel composerRef={rootRef} />
         {(images.length > 0 || files.length > 0) && (
           <div className="mb-2 flex flex-wrap gap-2">
             {images.map((image, index) => (
@@ -680,7 +750,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
                 setEditorContent(value);
               }}
               readonly={!contentEditable}
-              extensions={[contentLinkExtension]}
+              extensions={[contentLinkExtension, skillRefExtension]}
               hotkeyConfigs={hotkeyConfigs}
               placeHolder={resolvedPlaceholder}
               theme={theme}
@@ -698,6 +768,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
             busy={uploadingImage || uploadingPdf}
             disabled={!contentEditable}
           />
+          {permissionMenu}
           <span className="min-w-1 flex-1" />
           <ContextUsageRing contextWindowK={contextWindowK} usage={contextUsage} />
           {modelMenu}

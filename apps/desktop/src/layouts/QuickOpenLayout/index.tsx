@@ -20,16 +20,13 @@ interface QuickOpenLayoutProps {
  * 根据路由路径推断窗口类型
  */
 function getWindowTypeFromPath(pathname: string): string {
-  if (pathname.includes("single-card-editor")) return "card";
-  if (pathname.includes("single-article-editor")) return "article";
-  if (pathname.includes("single-project-item-editor")) return "project-item";
   if (pathname.includes("single-markdown-editor")) return "markdown";
   if (pathname.includes("todo")) return "todo";
   if (pathname.includes("pomodoro/mini")) return "pomodoro-mini";
   if (pathname.includes("pomodoro/immersive")) return "pomodoro-immersive";
   if (pathname.includes("pomodoro")) return "pomodoro";
   if (pathname.includes("quick-card")) return "quick-card";
-  return "card"; // 默认类型
+  return "main"; // 未识别的路由按主窗口所需模块初始化
 }
 
 const QuickOpenLayout = ({ title }: QuickOpenLayoutProps) => {

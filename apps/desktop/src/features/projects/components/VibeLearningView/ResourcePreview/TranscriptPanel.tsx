@@ -1,4 +1,4 @@
-import classNames from "classnames";
+import { cn } from "@tau/ui";
 import { formatTime } from "./useTranscriptSync";
 
 interface TranscriptSegment {
@@ -23,33 +23,51 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   onSegmentClick,
 }) => {
   if (!segments || segments.length === 0) {
-    return <div className="text-ink-3 flex items-center justify-center py-8 text-sm">暂无字幕</div>;
+    return (
+      <div className="text-tau-meta text-ink-3 flex items-center justify-center py-10">
+        还没有字幕，转录完成后会出现在这里
+      </div>
+    );
   }
 
   return (
     <div
       ref={containerRef as React.RefObject<HTMLDivElement | null>}
-      className="flex-1 space-y-1 overflow-y-auto p-2"
+      className="min-h-0 flex-1 overflow-y-auto"
     >
-      {segments.map((segment, index) => (
-        <div
-          key={index}
-          ref={el => {
-            if (el) segmentRefsMap.current.set(index, el);
-            else segmentRefsMap.current.delete(index);
-          }}
-          className={classNames(
-            "flex cursor-pointer flex-col gap-0.5 rounded-md p-2 transition-colors",
-            currentSegmentIndex === index ? "bg-info/15 dark:" : "hover:bg-hover"
-          )}
-          onClick={() => onSegmentClick(segment)}
-        >
-          <span className="text-accent shrink-0 font-mono text-xs">
-            {formatTime(segment.start)}
-          </span>
-          <span className="text-ink-2 break-words text-sm">{segment.text}</span>
-        </div>
-      ))}
+      <div className="mx-auto flex max-w-[760px] flex-col gap-px px-6 pb-10 pt-2">
+        {segments.map((segment, index) => (
+          <div
+            key={index}
+            ref={el => {
+              if (el) segmentRefsMap.current.set(index, el);
+              else segmentRefsMap.current.delete(index);
+            }}
+            className={cn(
+              "grid cursor-pointer grid-cols-[56px_1fr] gap-3 rounded-[8px] px-3 py-1.5 transition-colors",
+              currentSegmentIndex === index ? "bg-selected" : "hover:bg-hover"
+            )}
+            onClick={() => onSegmentClick(segment)}
+          >
+            <span
+              className={cn(
+                "text-tau-sm pt-px font-mono tabular-nums",
+                currentSegmentIndex === index ? "text-accent-text" : "text-ink-3"
+              )}
+            >
+              {formatTime(segment.start)}
+            </span>
+            <span
+              className={cn(
+                "text-tau-body break-words leading-relaxed",
+                currentSegmentIndex === index ? "text-ink-1" : "text-ink-2"
+              )}
+            >
+              {segment.text}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

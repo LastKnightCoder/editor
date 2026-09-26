@@ -61,15 +61,6 @@ export interface QuestionMaterial extends QuestionLink {
   missing: boolean;
 }
 
-/** 材料选择器的候选项 */
-export interface QuestionTargetCandidate extends QuestionLinkTarget {
-  title: string;
-  excerpt: string;
-  meta: string;
-  time: number;
-  linked: boolean;
-}
-
 export type QuestionEventType = "create" | "status" | "link" | "unlink" | "note";
 
 export type QuestionEventPayload =

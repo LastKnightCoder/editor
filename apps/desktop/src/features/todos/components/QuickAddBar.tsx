@@ -7,8 +7,7 @@ import { useMemo, useState, type Ref } from "react";
 import { Clock, Flag, List, Repeat, Sparkles } from "lucide-react";
 import { cn } from "@tau/ui";
 import type { TodoGroup } from "@/types";
-import { parseQuickAdd, type QuickAddResult } from "../quickAdd";
-import { dateTimeWord, hm, recurrenceText } from "../model";
+import { describeQuickAdd, parseQuickAdd, type QuickAddResult } from "../quickAdd";
 import { GroupDot } from "./TodoBits";
 
 const TOKEN_CLASS = {
@@ -53,7 +52,7 @@ export function QuickAddBar({
   };
 
   return (
-    <div className="bg-surface shadow-card focus-within:outline-line-1 focus-within:shadow-lift ease-tau-out mb-3 flex flex-none flex-col rounded-[14px] outline outline-1 outline-transparent transition-[box-shadow,outline-color] duration-150">
+    <div className="border-line-1 focus-within:shadow-lift ease-tau-out mb-3 flex flex-none flex-col rounded-[14px] border transition-[box-shadow,border-color] duration-150 focus-within:border-transparent">
       <div className="flex h-11 items-center gap-2.5 pl-3.5 pr-2">
         <Sparkles className="text-accent size-4 shrink-0" strokeWidth={1.75} />
         <input
@@ -118,48 +117,19 @@ export function QuickAddBar({
   );
 }
 
+const TOKEN_ICON = { normal: List, deadline: Flag, planned: Clock, recurring: Repeat } as const;
+
 function ParsedToken({ parsed, now }: { parsed: QuickAddResult; now: number }) {
-  const base = "inline-flex h-[22px] items-center gap-1.5 rounded-[6px] px-2 [&_svg]:size-3";
-  switch (parsed.type) {
-    case "recurring":
-      return (
-        <span className={cn(base, TOKEN_CLASS.recurring)}>
-          <Repeat strokeWidth={1.75} />
-          周期 ·{" "}
-          {recurrenceText({
-            id: 0,
-            todoItemId: 0,
-            type: parsed.recurrence!.type,
-            interval: 1,
-            weekdays: parsed.recurrence!.weekdays ?? null,
-            monthDay: parsed.recurrence!.monthDay ?? null,
-            excludeHolidays: false,
-            startDate: now,
-            createTime: now,
-            updateTime: now,
-          })}
-        </span>
-      );
-    case "planned":
-      return (
-        <span className={cn(base, TOKEN_CLASS.planned)}>
-          <Clock strokeWidth={1.75} />
-          计划 · {dateTimeWord(parsed.startAt!, now)}–{hm(parsed.dueAt!)}
-        </span>
-      );
-    case "deadline":
-      return (
-        <span className={cn(base, TOKEN_CLASS.deadline)}>
-          <Flag strokeWidth={1.75} />
-          截止 · {dateTimeWord(parsed.dueAt!, now)}
-        </span>
-      );
-    default:
-      return (
-        <span className={cn(base, TOKEN_CLASS.normal)}>
-          <List strokeWidth={1.75} />
-          普通任务
-        </span>
-      );
-  }
+  const Icon = TOKEN_ICON[parsed.type];
+  return (
+    <span
+      className={cn(
+        "inline-flex h-[22px] items-center gap-1.5 rounded-[6px] px-2 [&_svg]:size-3",
+        TOKEN_CLASS[parsed.type]
+      )}
+    >
+      <Icon strokeWidth={1.75} />
+      {describeQuickAdd(parsed, now)}
+    </span>
+  );
 }

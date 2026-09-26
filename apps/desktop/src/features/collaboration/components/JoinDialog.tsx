@@ -5,7 +5,7 @@
 
 import { useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { Check } from "lucide-react";
-import { Button, Dialog, Input } from "@tau/ui";
+import { Button, Dialog, DialogBody, Input } from "@tau/ui";
 import { joinCollaboration } from "@/commands";
 
 const SEGMENTS = 3;
@@ -113,53 +113,55 @@ export function JoinDialog({
         )
       }
     >
-      {sent ? (
-        <div className="flex items-start gap-3 py-1">
-          <span className="bg-ok-soft text-ok grid size-8 flex-none place-items-center rounded-full">
-            <Check className="size-4" strokeWidth={2} />
-          </span>
-          <p className="text-ink-2 text-tau-body">
-            作者同意后，这份内容会出现在侧栏「协作」下的「我加入的」里。可以先关掉这个窗口。
-          </p>
-        </div>
-      ) : (
-        <div>
-          <div className="flex items-center gap-2">
-            {segments.map((value, index) => (
-              <div key={index} className="contents">
-                {index > 0 && <span className="text-ink-3">–</span>}
-                <Input
-                  ref={element => {
-                    inputs.current[index] = element;
-                  }}
-                  data-autofocus={index === 0 || undefined}
-                  aria-label={`协作码第 ${index + 1} 段`}
-                  value={value}
-                  placeholder={PLACEHOLDERS[index]}
-                  maxLength={SEGMENT_LENGTH}
-                  spellCheck={false}
-                  autoComplete="off"
-                  wrapperClassName="h-11 min-w-0 flex-1"
-                  className="font-tau-mono placeholder:text-ink-3/60 text-center text-[17px] uppercase tracking-[0.22em]"
-                  onChange={event => fill(event.target.value, index)}
-                  onKeyDown={onKeyDown(index)}
-                  onPaste={onPaste(index)}
-                />
-              </div>
-            ))}
-          </div>
-          {error ? (
-            <p
-              role="alert"
-              className="bg-danger-soft text-danger text-tau-meta rounded-tau-sm mt-3 px-3 py-2"
-            >
-              {error}
+      <DialogBody>
+        {sent ? (
+          <div className="flex items-start gap-3 py-1">
+            <span className="bg-ok-soft text-ok grid size-8 flex-none place-items-center rounded-full">
+              <Check className="size-4" strokeWidth={2} />
+            </span>
+            <p className="text-ink-2 text-tau-body">
+              作者同意后，这份内容会出现在侧栏「协作」下的「我加入的」里。可以先关掉这个窗口。
             </p>
-          ) : (
-            <p className="text-ink-3 text-tau-sm mt-2">可以直接粘贴整段协作码，会自动分段。</p>
-          )}
-        </div>
-      )}
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-center gap-2">
+              {segments.map((value, index) => (
+                <div key={index} className="contents">
+                  {index > 0 && <span className="text-ink-3">–</span>}
+                  <Input
+                    ref={element => {
+                      inputs.current[index] = element;
+                    }}
+                    data-autofocus={index === 0 || undefined}
+                    aria-label={`协作码第 ${index + 1} 段`}
+                    value={value}
+                    placeholder={PLACEHOLDERS[index]}
+                    maxLength={SEGMENT_LENGTH}
+                    spellCheck={false}
+                    autoComplete="off"
+                    wrapperClassName="h-11 min-w-0 flex-1"
+                    className="font-tau-mono placeholder:text-ink-3/60 text-center text-[17px] uppercase tracking-[0.22em]"
+                    onChange={event => fill(event.target.value, index)}
+                    onKeyDown={onKeyDown(index)}
+                    onPaste={onPaste(index)}
+                  />
+                </div>
+              ))}
+            </div>
+            {error ? (
+              <p
+                role="alert"
+                className="bg-danger-soft text-danger text-tau-meta rounded-tau-sm mt-3 px-3 py-2"
+              >
+                {error}
+              </p>
+            ) : (
+              <p className="text-ink-3 text-tau-sm mt-2">可以直接粘贴整段协作码，会自动分段。</p>
+            )}
+          </div>
+        )}
+      </DialogBody>
     </Dialog>
   );
 }

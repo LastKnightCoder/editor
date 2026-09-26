@@ -51,17 +51,12 @@ export function CardItemView({ card, actions, previewMaxHeight = 150 }: CardItem
       tabIndex={0}
       onClick={() => actions.onOpen(card)}
       className={cn(
-        "bg-surface shadow-card ease-tau-out group flex cursor-pointer flex-col gap-2 rounded-[var(--tau-radius-md)] p-[13px] pb-[11px]",
-        "transition-[box-shadow,outline-color] duration-200",
-        "outline-line-1 hover:shadow-lift outline-0 -outline-offset-1 hover:outline-1"
+        "bg-surface border-line-1 ease-tau-out group flex cursor-pointer flex-col gap-2 rounded-[var(--tau-radius-md)] border p-[13px] pb-[11px]",
+        // 落在卡片库那张纸上：细描边分隔（同文章卡），hover = lift 轻抬阴影 + 描边隐去
+        "hover:shadow-lift transition-[box-shadow,border-color] duration-200 hover:border-transparent"
       )}
       style={
-        card.isTop
-          ? {
-              outline: `1px solid ${CATEGORY_COLORS[ECardCategory.Temporary].text}`,
-              outlineOffset: -1,
-            }
-          : undefined
+        card.isTop ? { borderColor: CATEGORY_COLORS[ECardCategory.Temporary].text } : undefined
       }
     >
       <div className="flex items-center gap-1.5 text-[11px]">

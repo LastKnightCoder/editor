@@ -9,7 +9,6 @@ import type {
   QuestionLinkTargetType,
   QuestionMaterial,
   QuestionSummary,
-  QuestionTargetCandidate,
 } from "@/types";
 import ContentTable from "./content";
 import QuestionEventTable from "./question-event";
@@ -87,7 +86,6 @@ export default class QuestionLinkTable {
       "question:unlink-target": this.unlinkTarget.bind(this),
       "question:reorder-links": this.reorderLinks.bind(this),
       "question:list-links-by-target": this.listByTarget.bind(this),
-      "question:search-targets": this.searchTargets.bind(this),
     } as const;
   }
 
@@ -398,66 +396,6 @@ export default class QuestionLinkTable {
    * 材料选择器候选：按类型检索（关键字为空时按最近更新），标出已关联项。
    * 卡片 / 文章 / 项目文档按正文 JSON 模糊匹配——个人库量级下足够，避免依赖索引库就绪。
    */
-  static searchTargets(
-    db: Database.Database,
-    params: {
-      questionId: number;
-      targetType: Exclude<QuestionLinkTargetType, "answer">;
-      keyword?: string;
-      limit?: number;
-    }
-  ): QuestionTargetCandidate[] {
-    const limit = Math.min(Math.max(params.limit ?? 40, 1), 100);
-    const kw = params.keyword?.trim() ? `%${params.keyword.trim()}%` : null;
-    const queries: Record<typeof params.targetType, string> = {
-      card: `SELECT c.id, c.update_time AS t FROM cards c LEFT JOIN contents ct ON ct.id = c.content_id
-             ${kw ? "WHERE ct.content LIKE @kw" : ""} ORDER BY c.update_time DESC LIMIT @limit`,
-      article: `SELECT a.id, a.update_time AS t FROM articles a LEFT JOIN contents ct ON ct.id = a.content_id
-                WHERE a.is_delete = 0 ${kw ? "AND (a.title LIKE @kw OR ct.content LIKE @kw)" : ""}
-                ORDER BY a.update_time DESC LIMIT @limit`,
-      project_item: `SELECT p.id, p.update_time AS t FROM project_item p LEFT JOIN contents ct ON ct.id = p.content_id
-                     WHERE p.content_id IS NOT NULL ${kw ? "AND (p.title LIKE @kw OR ct.content LIKE @kw)" : ""}
-                     ORDER BY p.update_time DESC LIMIT @limit`,
-      project: `SELECT id, update_time AS t FROM project WHERE archived = 0 ${kw ? "AND title LIKE @kw" : ""}
-                ORDER BY update_time DESC LIMIT @limit`,
-      white_board: `SELECT id, update_time AS t FROM white_boards
-                    ${kw ? "WHERE title LIKE @kw OR description LIKE @kw" : ""} ORDER BY update_time DESC LIMIT @limit`,
-    };
-    const sql = queries[params.targetType];
-    if (!sql) return [];
-    const rows = db.prepare(sql).all(kw ? { kw, limit } : { limit }) as { id: number; t: number }[];
-    const linked = new Set(
-      this.rows(db, params.questionId)
-        .filter(r => r.target_type === params.targetType)
-        .map(r => r.target_id)
-    );
-    const materials = this.resolveMaterials(
-      db,
-      rows.map(r => ({
-        id: 0,
-        question_id: params.questionId,
-        target_type: params.targetType,
-        target_id: r.id,
-        content_id: null,
-        sort_index: 0,
-        create_time: r.t,
-      }))
-    );
-    return materials
-      .map((m, i) => ({
-        targetType: m.targetType,
-        targetId: m.targetId,
-        title: m.title,
-        excerpt: m.excerpt,
-        meta: m.meta,
-        time: rows[i].t,
-        linked: linked.has(m.targetId),
-        missing: m.missing,
-      }))
-      .filter(c => !c.missing)
-      .map(({ missing: _missing, ...c }) => c);
-  }
-
   static getDetail(db: Database.Database, questionId: number): QuestionDetail | null {
     const question = QuestionTable.getQuestionById(db, questionId);
     if (!question) return null;

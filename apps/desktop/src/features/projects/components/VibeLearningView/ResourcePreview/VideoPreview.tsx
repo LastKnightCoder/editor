@@ -47,12 +47,12 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({ resource }) => {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="w-full shrink-0">
+      <div className="mx-auto w-full max-w-[760px] shrink-0 px-6 pb-3">
         <LocalVideo
           ref={setMediaRef}
           src={videoSrc}
           controls
-          className="aspect-video w-full bg-black"
+          className="rounded-tau-md aspect-video w-full bg-black"
         />
       </div>
       <TranscriptPanel

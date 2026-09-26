@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>微信读书 · 方案与决策</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  [data-theme] body { background: var(--page); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 24px 60px; }
+  h1 { font-size: 25px; font-weight: 600; margin: 0 0 6px; }
+  .lead { color: var(--ink-2); margin: 0 0 26px; max-width: 920px; }
+  h2 { font-size: 16px; font-weight: 600; margin: 30px 0 4px; }
+  h2 + p { color: var(--ink-2); margin: 0 0 14px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .card { display: block; text-decoration: none; color: inherit; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 18px; transition: box-shadow var(--fast); }
+  a.card:hover { box-shadow: var(--shadow-lift); }
+  .card h3 { margin: 0 0 4px; font-size: 14.5px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .card p { margin: 0; color: var(--ink-2); font-size: 12.5px; }
+  .card .fit { margin-top: 8px; font-size: 12px; color: var(--ink-3); }
+  .rec { font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); }
+  .wf { height: 116px; border-radius: 10px; background: var(--page); display: flex; gap: 4px; padding: 6px; margin-bottom: 12px; }
+  .wf i { display: block; border-radius: 3px; }
+  .wf .s { width: 22px; } .wf .p { flex: 1; background: var(--surface); box-shadow: var(--shadow-card); border-radius: 6px; display: flex; gap: 4px; padding: 6px; }
+  .wf .a { background: var(--accent-soft); } .wf .b { background: var(--sunken); } .wf .l { background: var(--line-1); }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); overflow: hidden; font-size: 12.5px; }
+  th, td { text-align: left; padding: 9px 14px; vertical-align: top; }
+  th { color: var(--ink-3); font-weight: 500; white-space: nowrap; }
+  tr + tr td { border-top: 1px solid var(--line-2); }
+  td b { font-weight: 600; }
+  code { font: 12px var(--mono); padding: 1px 5px; border-radius: 5px; border: 1px solid var(--line-1); background: var(--surface); }
+  .dec { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 4px 0; }
+  .dec .q { display: grid; grid-template-columns: 34px 170px 1fr; gap: 12px; padding: 12px 18px; }
+  .dec .q + .q { border-top: 1px solid var(--line-2); }
+  .dec .q .no { width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-text); display: grid; place-items: center; font-weight: 600; font-size: 12px; }
+  .dec .q .t { font-weight: 600; }
+  .dec .opt { display: flex; gap: 8px; flex-wrap: wrap; }
+  .dec .o { padding: 6px 10px; border-radius: var(--r-sm); border: 1px solid var(--line-1); font-size: 12.5px; max-width: 320px; }
+  .dec .o.r { border-color: var(--accent); background: var(--accent-soft); }
+  .dec .o b { display: block; font-weight: 600; margin-bottom: 1px; }
+  .dec .o span { color: var(--ink-2); font-size: 12px; }
+  .ph { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 16px 20px; }
+  .ph ol { margin: 0; padding-left: 20px; } .ph li { margin: 6px 0; }
+  .mix { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card); padding: 14px 18px; font-size: 12.5px; color: var(--ink-2); }
+  .mix b { color: var(--ink-1); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>微信读书页 · 方案与决策</h1>
+  <p class="lead">现状：<code>pages/WeRead</code> 是一张<b>只读数据库镜像</b>（11 列 antd 风表格 + 自定义视图），点行后按需拉取划线 / 想法，用 Slate 编辑器渲染在全屏查看器里；顶部是连接状态 + 同步按钮。数据面不变（API Key → Agent Gateway → SQLite 缓存，详情按需拉取），这次只决定<b>页面怎么组织</b>与<b>笔记怎么读</b>。</p>
+
+  <div class="mix" style="border-left:3px solid var(--accent)"><b>定稿</b>：A 的书架 + B 的列表排布（右上角切「封面 / 列表」，列表只做列头排序）· 划线还原原样式 · 书架分类放页面顶部 chips · 保留「在读」行 · 笔记只读（悬停只有「复制」）· 表格视图体系退役。见 <a href="a-shelf.html" style="color:var(--accent-text)">方案 A（已按定稿更新）</a>。</div>
+
+  <h2>① 三套页面结构</h2>
+  <p>三套共用同一份笔记渲染（书头 + 书评 + 按章节的划线 / 想法、悬停工具条、过滤条）和同一套空态 / 同步态，区别在「书目怎么排、笔记在哪儿看」。每页控制条都能切深浅、切「划线：还原 / 引文」。</p>
+  <div class="grid3">
+    <a class="card" href="a-shelf.html">
+      <div class="wf"><i class="s"></i><div class="p" style="flex-direction:column"><div style="display:flex;gap:4px"><i class="a" style="flex:1;height:22px"></i><i class="a" style="flex:1;height:22px"></i><i class="a" style="flex:1;height:22px"></i></div><div style="display:flex;gap:6px;flex-wrap:wrap"><i class="b" style="width:16px;height:22px"></i><i class="b" style="width:16px;height:22px"></i><i class="b" style="width:16px;height:22px"></i><i class="b" style="width:16px;height:22px"></i><i class="b" style="width:16px;height:22px"></i><i class="b" style="width:16px;height:22px"></i><i class="b" style="width:16px;height:22px"></i><i class="b" style="width:16px;height:22px"></i><i class="b" style="width:16px;height:22px"></i><i class="b" style="width:16px;height:22px"></i></div></div></div>
+      <h3>A 书架 + 整页笔记 <span class="rec">推荐</span></h3>
+      <p>封面墙 + 「在读」续读行；点书进二级整页，目录停靠在纸内。分类挂侧栏子项。</p>
+      <div class="fit">最像读书；沉浸看笔记最好。舍弃表格多视图。</div>
+    </a>
+    <a class="card" href="b-table.html">
+      <div class="wf"><i class="s"></i><div class="p" style="flex-direction:column;gap:5px"><i class="a" style="width:50%;height:10px"></i><i class="l" style="height:9px"></i><i class="l" style="height:9px"></i><i class="l" style="height:9px"></i><i class="l" style="height:9px"></i><i class="l" style="height:9px"></i><i class="l" style="height:9px"></i></div><i class="b" style="width:42%;border-radius:6px;box-shadow:var(--shadow-card)"></i></div>
+      <h3>B 书目表 + 抽屉</h3>
+      <p>保留现有保存视图（表格 / 画廊 / 分组）、筛选排序；点行滑出笔记抽屉，↑↓ 切书。</p>
+      <div class="fit">改动面最小、密度最高。像「管数据」。</div>
+    </a>
+    <a class="card" href="c-split.html">
+      <div class="wf"><i class="s"></i><div class="p"><div style="width:32%;display:flex;flex-direction:column;gap:5px"><i class="a" style="height:14px"></i><i class="l" style="height:14px"></i><i class="l" style="height:14px"></i><i class="l" style="height:14px"></i><i class="l" style="height:14px"></i></div><div style="flex:1;display:flex;flex-direction:column;gap:5px;padding:0 8px"><i class="b" style="height:22px;width:60%"></i><i class="l" style="height:8px"></i><i class="l" style="height:8px"></i><i class="l" style="height:8px;width:70%"></i></div></div></div>
+      <h3>C 分栏速览</h3>
+      <p>纸内左栏书目、右栏笔记，↑↓ 切书即时刷新；书目栏可收起成整页。</p>
+      <div class="fit">翻多本最快。有「页内第二条导航」的风险。</div>
+    </a>
+  </div>
+
+  <h2>② 横向对比</h2>
+  <table>
+    <tr><th></th><th>A 书架 + 整页</th><th>B 书目表 + 抽屉</th><th>C 分栏</th></tr>
+    <tr><td><b>主要场景</b></td><td>续读、逛书架、沉浸回看一本书的笔记</td><td>按进度 / 时长 / 笔记数筛选排序、管理大书架</td><td>连续翻多本书的笔记、找某条划线</td></tr>
+    <tr><td><b>看笔记</b></td><td>二级整页（目录 + 720 阅读列）</td><td>620px 抽屉，可「展开」为整页</td><td>右栏（约 800px）</td></tr>
+    <tr><td><b>切换到另一本</b></td><td>返回书架（后退 / ⌘[）</td><td>抽屉内 ↑↓</td><td>左栏 ↑↓</td></tr>
+    <tr><td><b>书架分类</b></td><td>全局侧栏子项</td><td>表格列 / 分组视图</td><td>栏顶 chips</td></tr>
+    <tr><td><b>现有视图体系</b></td><td>舍弃（<code>useWeReadViews</code>、视图表可删）</td><td>保留</td><td>舍弃</td></tr>
+    <tr><td><b>与已定偏好</b></td><td>一整张纸 ✓ · 侧栏标签子项 ✓ · 面包屑开关 ✓</td><td>无横线行式 ✓ · 同 MCP 页 B 交互 ✓</td><td>页内第二导航 ✗（已放进纸里缓解）</td></tr>
+    <tr><td><b>工作量</b></td><td>中：新书架 + 新笔记页</td><td>小：换皮 Database + 抽屉</td><td>中</td></tr>
+  </table>
+
+  <h2>③ 可以混搭</h2>
+  <div class="mix">常见组合：<b>A 的书架 + B 的「表格」作为第二种排布</b>（书架右上角切「封面 / 列表」，列表只做排序不做保存视图）；或 <b>A + C 的键盘切书</b>（整页笔记里 ⌥↑ / ⌥↓ 直接跳上一本 / 下一本，不回书架）。笔记渲染三套通用，选哪套都不影响它。</div>
+
+  <h2>④ 需要你拍板的点</h2>
+  <p>高亮的是我的推荐。</p>
+  <div class="dec">
+    <div class="q"><span class="no">1</span><div class="t">页面结构</div><div class="opt">
+      <div class="o r"><b>A 书架 + 整页笔记</b><span>读书氛围 + 沉浸，贴合已有偏好</span></div>
+      <div class="o"><b>B 书目表 + 抽屉</b><span>保留视图体系，最省工</span></div>
+      <div class="o"><b>C 分栏速览</b><span>翻多本最快</span></div></div></div>
+    <div class="q"><span class="no">2</span><div class="t">划线呈现</div><div class="opt">
+      <div class="o r"><b>还原微信读书样式</b><span>保留用户划线时选的颜色与下划线 / 马克笔 / 波浪线（数据色，不是装饰色）</span></div>
+      <div class="o"><b>引文 + 色条</b><span>统一宋体引文，颜色退到左侧 3px 色条，更安静</span></div></div></div>
+    <div class="q"><span class="no">3</span><div class="t">书架分类位置</div><div class="opt">
+      <div class="o r"><b>全局侧栏子项</b><span>同日记 / 白板的标签口径（A）</span></div>
+      <div class="o"><b>页内 chips / 列</b><span>不动侧栏（B / C）</span></div></div></div>
+    <div class="q"><span class="no">4</span><div class="t">「在读」续读行</div><div class="opt">
+      <div class="o r"><b>要</b><span>书架顶部 3 张大卡：进度 + 读到的章节</span></div>
+      <div class="o"><b>不要</b><span>只留封面墙，靠「在读」筛选</span></div></div></div>
+    <div class="q"><span class="no">5</span><div class="t">划线的编辑能力</div><div class="opt">
+      <div class="o r"><b>保留现状</b><span>改色 / 改样式 / 写想法 / 删除，只存本地；新增「复制」</span></div>
+      <div class="o"><b>只读</b><span>与微信读书严格一致，去掉本地改动</span></div></div></div>
+    <div class="q"><span class="no">6</span><div class="t">现有表格视图</div><div class="opt">
+      <div class="o r"><b>选 A / C 则退役</b><span><code>useWeReadViews</code> 与 weread-view 表进删除清单</span></div>
+      <div class="o"><b>保留为「列表」排布</b><span>见「③ 混搭」</span></div></div></div>
+  </div>
+
+  <h2>⑤ 落地分期（按推荐组合）</h2>
+  <div class="ph"><ol>
+    <li><b>一期 · 换页</b>：<code>features/weread</code> 新建书架页与书籍笔记子页（definePage），复用 <code>useWeReadPersistence</code> / <code>WeReadService</code>；书架分类接侧栏子项；空态 / 同步态 / Key 失效条按样板间落地；设置入口跳「账号与连接」。</li>
+    <li><b>一期 · 笔记</b>：用新组件重写笔记渲染（书头、书评、章节、划线、想法就地编辑），替换 Slate 全屏查看器；目录停靠 + 面包屑开关；过滤条。</li>
+    <li><b>收尾</b>：删除 <code>pages/WeRead</code>、全屏查看器、详情抽屉与旧视图逻辑，按 04-删除清单 追加一节。</li>
+  </ol></div>
+</div>
+<script>lucide.createIcons();document.documentElement.dataset.theme = localStorage.getItem("chat-mock-theme") || "cream";</script>
+</body>
+</html>

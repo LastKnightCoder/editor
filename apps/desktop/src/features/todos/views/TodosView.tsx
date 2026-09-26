@@ -1,7 +1,9 @@
 /**
  * 待办页视图 · 议程流 B3「两块板」（mockups/todos/plan-b-agenda.html?v=panels 定稿）：
- * 工具栏（标题 + 今日摘要 + 按日期/按项目分段切换）→ 自然语言快速添加 → 项目 pills →
- * 左板议程（时间分段）+ 右板（今日打卡 / 本周负荷 / 最近完成）；详情为右侧抽屉，恰好盖住右板。
+ * 一整张纸：纸顶固定工具栏（标题 + 今日摘要 + 按日期/按项目分段切换）与自然语言快速添加，
+ * 纸内议程（时间分段）占满宽度；「今日」概览（今日打卡 / 本周负荷 / 最近完成）与任务详情都是右侧非模态抽屉，
+ * 今日由工具栏按钮开关，打开任务时详情接替、关掉详情回到今日。
+ * 项目筛选在侧栏「待办」入口的子项里（TodosNav，页面参数 id），页内不放项目 pills。
  *
  * 裁决（DECISIONS D-040）：不并入日程页、不放页面状态栏 PageStatusBar（计数在工具栏摘要与 pills）、删除不二次
  * 确认（立即从列表消失 + Toast 撤销，5 秒后才真正落库）、不保留独立 /todo 小窗口。
@@ -17,6 +19,7 @@ import {
   CalendarDays,
   Check,
   Folder,
+  ListChecks,
   PanelRightOpen,
   Plus,
   Sunrise,
@@ -24,28 +27,27 @@ import {
   Trash2,
 } from "lucide-react";
 import { MotionConfig } from "motion/react";
-import { Button, ConfirmDialog, Loading, Menu, Segmented, toast } from "@tau/ui";
-import { usePage } from "@/page/PageProvider";
+import { Button, Loading, Menu, Segmented, toast } from "@tau/ui";
+import { usePage, usePageParams } from "@/page/PageProvider";
 import type { TodoGroup } from "@/types";
 import {
   DAY_MS,
   bucketOf,
   doneToday,
-  groupDeletionIds,
   isOpen,
   isOverdue,
   liveEntries,
   scheduledToday,
   startOfDay,
+  WEEKDAY_CN,
 } from "../model";
 import { useNow, useTodoMutations, useTodoSnapshot } from "../queries";
 import type { QuickAddResult } from "../quickAdd";
 import type { TodoEntry } from "../types";
 import { AgendaPanel, type AgendaMode } from "../components/AgendaPanel";
 import { GroupDialog } from "@/components/GroupDialog";
-import { GroupPills } from "../components/GroupPills";
-import { HabitRail } from "../components/HabitRail";
 import { QuickAddBar } from "../components/QuickAddBar";
+import { TodayDrawer } from "../components/TodayDrawer";
 import { TodoDrawer } from "../components/TodoDrawer";
 import { GroupDot } from "../components/TodoBits";
 
@@ -57,11 +59,16 @@ export function TodosView() {
   const mutations = useTodoMutations();
   const now = useNow();
 
+  const params = usePageParams<{ id?: string }>();
   const [mode, setMode] = useState<AgendaMode>("date");
-  const [groupFilter, setGroupFilter] = useState(0);
+  // 项目筛选 = 侧栏子项选中的项目（0 = 全部）；项目被归档 / 删除后自然回到全部
+  const groupFilter =
+    params.id && snapshot?.groups.some(g => g.id === Number(params.id)) ? Number(params.id) : 0;
+  const setGroupFilter = (groupId: number) =>
+    navigator.push("todos", { id: groupId ? String(groupId) : "" });
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [todayOpen, setTodayOpen] = useState(false);
   const [groupDialog, setGroupDialog] = useState<{ group: TodoGroup | null } | null>(null);
-  const [deletingGroup, setDeletingGroup] = useState<TodoGroup | null>(null);
   const quickAddRef = useRef<HTMLInputElement>(null);
   const agendaAnchor = useRef<HTMLDivElement>(null);
 
@@ -151,16 +158,11 @@ export function TodosView() {
         (!groupFilter || e.groupId === groupFilter)
     );
     const timed = [...roots, ...datedChildren];
-    const openCounts = new Map<number, number>();
-    for (const e of allRoots)
-      if (isOpen(e, now)) openCounts.set(e.groupId, (openCounts.get(e.groupId) ?? 0) + 1);
     return {
       live,
       allRoots,
       roots,
       timed,
-      openCounts,
-      totalOpen: allRoots.filter(e => isOpen(e, now)).length,
       completed: live.filter(
         e => e.type !== "recurring" && e.isCompleted && (!groupFilter || e.groupId === groupFilter)
       ),
@@ -169,12 +171,6 @@ export function TodosView() {
       habitsToday: roots.filter(e => scheduledToday(e, now)),
     };
   }, [snapshot, pendingDelete, groupFilter, now]);
-
-  /* 过滤掉的项目被归档 / 删除后回到「全部」 */
-  useEffect(() => {
-    if (snapshot && groupFilter && !snapshot.groups.some(g => g.id === groupFilter))
-      setGroupFilter(0);
-  }, [snapshot, groupFilter]);
 
   if (loading || !snapshot || !derived) return <Loading />;
 
@@ -322,85 +318,80 @@ export function TodosView() {
   };
 
   const habitsDone = derived.habitsToday.filter(e => doneToday(e, now)).length;
+  const currentGroup = groupFilter ? groups.find(g => g.id === groupFilter) : undefined;
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="mx-auto flex h-full max-w-[1720px] flex-col px-[26px] pb-4">
-        {/* 工具栏：计数摘要在此（不注册状态栏）；分段方式切换 */}
-        <div className="flex h-[44px] flex-none items-center gap-3">
-          <h1 className="text-[19px] font-semibold tracking-[-0.01em]">待办</h1>
-          <span className="text-ink-2 text-tau-meta tabular-nums">
-            今天 <b className="text-ink-1 font-semibold">{derived.todayCount}</b> 项
-            {derived.overdueCount > 0 && (
-              <>
-                {" · "}
-                <span className="text-danger font-medium">{derived.overdueCount} 项逾期</span>
-              </>
-            )}
-            {derived.habitsToday.length > 0 && (
-              <>
-                {" · "}打卡{" "}
-                <b className="text-ink-1 font-semibold">
-                  {habitsDone}/{derived.habitsToday.length}
-                </b>
-              </>
-            )}
-          </span>
-          <span className="flex-1" />
-          <Segmented label="分段方式" value={mode} onValueChange={(v: AgendaMode) => setMode(v)}>
-            <Segmented.Item value="date" icon={CalendarDays} label="按日期" />
-            <Segmented.Item value="group" icon={Folder} label="按项目" />
-          </Segmented>
-        </div>
-
-        {groups.length === 0 ? (
-          <EmptyGroups
-            archivedGroups={snapshot.archivedGroups}
-            onCreate={() => setGroupDialog({ group: null })}
-            onRestore={group => void mutations.setGroupArchived(group.id, false)}
-          />
-        ) : (
-          <>
-            <QuickAddBar
-              groups={groups}
-              fallbackGroupId={groupFilter || groups[0].id}
-              now={now}
-              onSubmit={createFromQuickAdd}
-              inputRef={quickAddRef}
-            />
-            <GroupPills
-              groups={groups}
-              archivedGroups={snapshot.archivedGroups}
-              openCounts={derived.openCounts}
-              totalOpen={derived.totalOpen}
-              value={groupFilter}
-              onChange={setGroupFilter}
-              onCreate={() => setGroupDialog({ group: null })}
-              onEdit={group => setGroupDialog({ group })}
-              onArchive={group => {
-                void mutations.setGroupArchived(group.id, true).then(() =>
-                  toast.success(`已归档「${group.title}」`, {
-                    action: {
-                      label: "撤销",
-                      onClick: () => void mutations.setGroupArchived(group.id, false),
-                    },
-                  })
-                );
-              }}
-              onRestore={group =>
-                void mutations
-                  .setGroupArchived(group.id, false)
-                  .then(() => toast.success(`已恢复「${group.title}」`))
-              }
-              onDelete={setDeletingGroup}
-            />
-
-            {/* 两块板：议程一整块 + 右板一整块（B3）；抽屉在 body 内绝对定位盖住右板 */}
-            <div className="relative grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_312px] gap-4 pt-1">
-              <div
-                ref={agendaAnchor}
-                className="bg-surface shadow-card flex min-h-0 flex-col overflow-hidden rounded-[16px]"
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+        {/* 一整张纸：工具栏与快速添加固定在纸顶，议程与右栏在纸内各自滚动（同 Skill 页） */}
+        <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex flex-none flex-col px-8 pt-5">
+            {/* 工具栏：计数摘要在此（不注册状态栏）；分段方式切换 */}
+            <div className="mb-3 flex h-10 flex-none items-center gap-3">
+              <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+                {currentGroup ? currentGroup.title : "待办"}
+              </h1>
+              <span className="text-ink-2 text-tau-meta w-0 flex-1 truncate whitespace-nowrap tabular-nums">
+                今天 <b className="text-ink-1 font-semibold">{derived.todayCount}</b> 项
+                {derived.overdueCount > 0 && (
+                  <>
+                    {" · "}
+                    <span className="text-danger font-medium">{derived.overdueCount} 项逾期</span>
+                  </>
+                )}
+                {derived.habitsToday.length > 0 && (
+                  <>
+                    {" · "}打卡{" "}
+                    <b className="text-ink-1 font-semibold">
+                      {habitsDone}/{derived.habitsToday.length}
+                    </b>
+                  </>
+                )}
+              </span>
+              <Button
+                variant={todayOpen ? "soft" : "ghost"}
+                size="sm"
+                icon={ListChecks}
+                aria-pressed={todayOpen}
+                title="今日打卡 · 本周负荷 · 最近完成"
+                className="shrink-0 whitespace-nowrap"
+                onClick={() => {
+                  setTodayOpen(open => !open);
+                  setSelectedId(null);
+                }}
               >
+                今日
+              </Button>
+              <Segmented
+                label="分段方式"
+                value={mode}
+                onValueChange={(v: AgendaMode) => setMode(v)}
+              >
+                <Segmented.Item value="date" icon={CalendarDays} label="按日期" />
+                <Segmented.Item value="group" icon={Folder} label="按项目" />
+              </Segmented>
+            </div>
+            {groups.length > 0 && (
+              <QuickAddBar
+                groups={groups}
+                fallbackGroupId={groupFilter || groups[0].id}
+                now={now}
+                onSubmit={createFromQuickAdd}
+                inputRef={quickAddRef}
+              />
+            )}
+          </div>
+
+          {groups.length === 0 ? (
+            <EmptyGroups
+              archivedGroups={snapshot.archivedGroups}
+              onCreate={() => setGroupDialog({ group: null })}
+              onRestore={group => void mutations.setGroupArchived(group.id, false)}
+            />
+          ) : (
+            // 议程占满；今日 / 详情抽屉在此绝对定位盖在右侧
+            <div className="relative grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)]">
+              <div ref={agendaAnchor} className="flex min-h-0 flex-col pl-2.5">
                 <AgendaPanel
                   entries={mode === "date" ? derived.timed : derived.roots}
                   snapshot={snapshot}
@@ -414,20 +405,18 @@ export function TodosView() {
                   renderMenu={renderMenu}
                 />
               </div>
-              {/* 卡片不滚动，内层滚动容器离边缘留隙：滚动条不贴卡片圆角（同议程板） */}
-              <div className="bg-surface shadow-card flex min-h-0 flex-col overflow-hidden rounded-[16px]">
-                <div className="my-2.5 mr-1.5 min-h-0 min-w-0 flex-1 overflow-y-auto">
-                  <HabitRail
-                    roots={derived.timed}
-                    completed={derived.completed}
-                    now={now}
-                    selectedId={selectedId}
-                    onOpen={entry => setSelectedId(entry.id)}
-                    onToggleHabit={toggle}
-                    onJump={jumpTo}
-                  />
-                </div>
-              </div>
+              <TodayDrawer
+                open={todayOpen && selected === null}
+                onClose={() => setTodayOpen(false)}
+                subtitle={`${new Date(now).getMonth() + 1}月${new Date(now).getDate()}日 ${WEEKDAY_CN[new Date(now).getDay()]}`}
+                roots={derived.timed}
+                completed={derived.completed}
+                now={now}
+                selectedId={selectedId}
+                onOpen={entry => setSelectedId(entry.id)}
+                onToggleHabit={toggle}
+                onJump={jumpTo}
+              />
               <TodoDrawer
                 entry={selected}
                 snapshot={snapshot}
@@ -440,35 +429,8 @@ export function TodosView() {
                 onDelete={scheduleDelete}
               />
             </div>
-          </>
-        )}
-
-        <ConfirmDialog
-          open={deletingGroup !== null}
-          onOpenChange={open => {
-            if (!open) setDeletingGroup(null);
-          }}
-          title="删除项目"
-          context={deletingGroup?.title}
-          danger
-          description="项目下的任务、子任务、打卡记录与关联笔记链接会一起删除。"
-          impact={(() => {
-            const n = deletingGroup ? groupDeletionIds(snapshot, deletingGroup.id).size : 0;
-            return n > 0 ? `${n} 个任务将一起删除` : undefined;
-          })()}
-          confirmText="删除"
-          onConfirm={async () => {
-            if (!deletingGroup) return;
-            try {
-              await mutations.deleteGroup(deletingGroup.id);
-              if (groupFilter === deletingGroup.id) setGroupFilter(0);
-              toast.success(`已删除「${deletingGroup.title}」`);
-            } catch (error) {
-              toast.error(`删除失败：${String(error)}`);
-              throw error;
-            }
-          }}
-        />
+          )}
+        </div>
 
         <GroupDialog
           open={groupDialog !== null}

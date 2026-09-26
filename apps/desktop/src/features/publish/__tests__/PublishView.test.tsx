@@ -150,10 +150,16 @@ it("站点设置抽屉打开后可切换发布目标", () => {
   mocks.config = makeConfig({ setProvider });
   mocks.runner = makeRunner();
   render();
-  const drawer = document.querySelector('aside[aria-label="站点设置"]')!;
-  expect(drawer.hasAttribute("inert")).toBe(true);
+  const findDrawer = () =>
+    [...document.querySelectorAll('aside[role="dialog"]')].find(
+      el =>
+        document.getElementById(el.getAttribute("aria-labelledby") ?? "")?.textContent ===
+        "站点设置"
+    );
+  expect(findDrawer()).toBeUndefined();
   act(() => [...container.querySelectorAll("button")].find(b => b.textContent === "详情")!.click());
-  expect(drawer.hasAttribute("inert")).toBe(false);
+  const drawer = findDrawer()!;
+  expect(drawer).toBeDefined();
   act(() => (drawer.querySelector('[role="radio"]:nth-child(2)') as HTMLButtonElement).click());
   expect(setProvider).toHaveBeenCalledWith(EPublishProvider.S3);
 });

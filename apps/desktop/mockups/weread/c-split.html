@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 C · 分栏速览</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="weread.css?v=2" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 C · 分栏速览（参考邮件客户端、Kindle 笔记页 read.amazon.com/notebook）</h3>
+  一张纸左右两栏：左栏是书目（封面缩略 + 进度 + 笔记数，按「在读 / 最近读完 / 更早」分段），右栏直接是选中这本书的笔记。<b>↑ ↓ 切书、右栏即时刷新</b>，不跳页也不开抽屉。左栏在纸内、与全局侧栏之间隔着纸边，分类用栏顶 chips。
+  <ul>
+    <li>书目栏可以用面包屑最前的开关收起，收起后右栏即方案 A 的整页阅读形态。</li>
+    <li class="pro">＋ 「翻很多本书的笔记」最快，适合回顾 / 找某条划线；两栏各自滚动，状态不丢。</li>
+    <li class="con">－ 结构上是「页内第二条导航」，虽然放进了纸里，仍可能读成两条侧栏（此前协作页 A、问题页 A 被否的同类风险）；书架氛围弱于 A，数据维度（时长、出版社…）少于 B。</li>
+  </ul>
+  <p style="margin:6px 0 0;color:var(--ink-3);font-size:12px">封面：真实页面用微信读书封面图，样板间以色块代替。笔记正文统一用《乡土中国》示例。</p>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, anno, icons, BOOKS, ARCHIVES, byId, cover, prog, fmtDate, fmtMin, syncState, syncBtn, offlineBanner, emptyConnect, bookHead, bookReview, noteTools, chapters, bindNotes } from "./weread.js?v=2";
+
+mockBar("c-split.html", `<span class="seg"><button data-m="split">分栏</button><button data-m="collapsed">收起书目</button><button data-m="nonotes">无笔记的书</button><button data-m="offline">Key 失效</button><button data-m="first">首次使用</button></span>`);
+
+const win = document.getElementById("win");
+const state = { m: "split", id: "b01", archive: "全部", filter: "all", hl: null };
+
+function list() {
+  const books = BOOKS.filter(b => state.archive === "全部" || b.archive === state.archive).sort((a, b) => (b.last || "0").localeCompare(a.last || "0"));
+  const seg = [
+    ["在读", books.filter(b => b.status === "reading")],
+    ["最近读完", books.filter(b => b.status === "finished" && b.last >= "2026-07-01")],
+    ["更早", books.filter(b => b.status === "finished" && b.last < "2026-07-01")],
+    ["未开始", books.filter(b => b.status === "unread")],
+  ].filter(([, l]) => l.length);
+  const offline = state.m === "offline";
+  return `
+  <div class="c-list">
+    <div class="hd">
+      <div class="row"><h1>微信读书</h1><span class="sp"></span>${offline ? "" : `<button class="ib" title="同步"><i data-lucide="refresh-cw"></i></button>`}</div>
+      <div style="margin-top:-6px">${syncState(offline ? "offline" : "idle")}</div>
+      <div class="row"><div class="w-search"><i data-lucide="search"></i>书名、作者或划线</div></div>
+      <div class="row" style="flex-wrap:wrap">${["全部", ...ARCHIVES].map(a => `<span class="chip ${state.archive === a ? "on" : ""}" data-archive="${a}">${a}</span>`).join("")}</div>
+    </div>
+    <div class="c-items">
+      ${seg.map(([t, l]) => `<div class="c-gt"><span>${t}</span><span class="num">${l.length}</span></div>${l.map(b => `
+        <div class="c-it ${b.id === state.id ? "on" : ""}" data-book="${b.id}">${cover(b)}
+          <div class="info"><div class="t">${b.title}</div><div class="au">${b.author}</div>
+            <div class="m">${b.status === "unread" ? "未开始" : `${prog(b)}<span class="num">${b.progress}%</span>`}${b.notes ? `<span class="num">· ${b.notes} 划线</span>` : ""}</div>
+          </div></div>`).join("")}`).join("")}
+    </div>
+  </div>`;
+}
+
+function right() {
+  const b = byId(state.id);
+  if (state.m === "nonotes" || (b.id !== "b01" && !b.notes))
+    return `<div class="n-main"><div class="n-col">${bookHead(b)}
+      <div class="empty" style="padding:70px 0"><i data-lucide="highlighter" style="width:28px;height:28px;color:var(--ink-3)"></i><h2 style="font-size:15px">这本书还没有划线</h2><p>在微信读书里划线或写想法后，回到这里点「重新拉取笔记」。</p></div></div></div>`;
+  return `
+  <div class="n-main"><div class="n-col">
+    ${bookHead(b)}
+    ${bookReview()}
+    ${noteTools(state.filter)}
+    ${chapters({ filter: state.filter, activeHl: state.hl })}
+  </div></div>`;
+}
+
+function render() {
+  const first = state.m === "first";
+  const collapsed = state.m === "collapsed";
+  if (state.m === "nonotes") state.id = "b14";
+  win.innerHTML = `
+    ${sidebar()}
+    <div class="col">
+      ${titlebar(`<button class="ib ${collapsed ? "" : "on"}" id="listT" title="书目"><i data-lucide="panel-left"></i></button><b>微信读书</b>${collapsed || first ? "" : ""}${collapsed ? `<i data-lucide="chevron-right" style="width:14px;color:var(--ink-3)"></i><b>${byId(state.id).title}</b>` : ""}`)}
+      <div class="main"><section class="paper w-paper">${first ? emptyConnect() : `${collapsed ? "" : list()}${state.m === "offline" ? `<div style="flex:1;display:flex;flex-direction:column;min-width:0"><div style="padding:14px 24px 0">${offlineBanner()}</div>${right()}</div>` : right()}`}</section></div>
+    </div>
+    ${state.m === "split" ? anno(1, "书目在纸内，分段：在读 / 最近读完 / 更早", "left:250px;top:330px") + anno(2, "↑ ↓ 切书，右栏即时刷新", "left:640px;top:70px") : ""}`;
+  icons();
+  document.querySelectorAll(".seg button").forEach(b => b.classList.toggle("on", b.dataset.m === state.m));
+  win.querySelectorAll("[data-book]").forEach(el => (el.onclick = () => { state.id = el.dataset.book; if (state.m === "nonotes") state.m = "split"; render(); }));
+  win.querySelectorAll("[data-archive]").forEach(el => (el.onclick = () => { state.archive = el.dataset.archive; render(); }));
+  const t = win.querySelector("#listT");
+  if (t) t.onclick = () => { state.m = collapsed ? "split" : "collapsed"; render(); };
+  bindNotes(win, state, render);
+}
+document.querySelectorAll(".seg button").forEach(b => (b.onclick = () => { state.m = b.dataset.m; if (state.m !== "nonotes") state.id = "b01"; render(); }));
+window.addEventListener("keydown", e => {
+  if (!["ArrowUp", "ArrowDown"].includes(e.key) || state.m === "first" || state.m === "collapsed") return;
+  const ids = [...win.querySelectorAll("[data-book]")].map(x => x.dataset.book);
+  const i = ids.indexOf(state.id);
+  state.id = ids[Math.max(0, Math.min(ids.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)))];
+  e.preventDefault();
+  render();
+});
+render();
+</script>
+</body>
+</html>

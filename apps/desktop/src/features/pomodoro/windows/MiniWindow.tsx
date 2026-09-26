@@ -12,7 +12,7 @@ import { AlertTriangle, Check, Expand, Pause, Play, Square, X } from "lucide-rea
 import { cn } from "@tau/ui";
 import { platform } from "@/platform";
 import { hidePomodoroMiniWindow } from "@/commands/window";
-import { requestOpenPageInMainWindow } from "@/services/page-navigation";
+import { requestOpenPageInMainWindow } from "@/services/main-window-requests";
 import { formatClock, formatDurationCN, formatHM, isEarlyStop } from "../model";
 import { usePomodoroPresets } from "../queries";
 import { pomodoroActions, useLiveTiming } from "../timerStore";

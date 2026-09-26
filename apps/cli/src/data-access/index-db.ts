@@ -4,8 +4,7 @@ import { join } from "node:path";
 import sqliteVec from "sqlite-vec";
 import { getAppDir, getActiveDbName } from "../utils/path.js";
 
-export type IndexType =
-  "card" | "article" | "project-item" | "diary-daily" | "diary-weekly" | "diary-monthly";
+export type IndexType = "card" | "article" | "project-item" | "diary-daily";
 
 export interface FTSResult {
   id: number;

@@ -657,7 +657,7 @@ const handleTabOpen = async (request: RpcRequestMessage) => {
   }
 };
 
-// —— 聊天会话存储 RPC（浏览器插件接入桌面 sqlite，与桌面同库同表；D-059 阶段 3）——
+// —— 聊天会话存储 RPC（浏览器插件接入桌面 sqlite，与桌面同库同表；D-064 阶段 3）——
 
 interface ChatCreateParams {
   messages: RequestMessage[];

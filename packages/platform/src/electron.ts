@@ -7,6 +7,7 @@ import type {
   PlatformOs,
   SaveFilePayload,
   SaveFileResult,
+  EditorWindowTarget,
   TextFileChangedPayload,
   WindowState,
 } from "./types";
@@ -48,6 +49,9 @@ export function createElectronPlatform(rpc: PlatformInvoker, os: PlatformOs): Pl
       showAndFocus: () => invoke<void>("show-and-focus-window"),
       openMarkdownWindow: (filePath: string, options) =>
         invoke<void>("open-markdown-in-new-window", filePath, options),
+      openEditorWindow: (target: EditorWindowTarget) => invoke<void>("open-editor-window", target),
+      closeEditorWindow: (target: EditorWindowTarget) =>
+        invoke<void>("close-editor-window", target),
       openPomodoroWindow: () => invoke<void>("open-pomodoro-window"),
       openPomodoroMiniWindow: () => invoke<void>("open-pomodoro-mini-window"),
       hidePomodoroMiniWindow: () => invoke<void>("hide-pomodoro-mini-window"),

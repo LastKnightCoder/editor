@@ -27,6 +27,7 @@ import {
   MessagesSquare,
   TriangleAlert,
   PanelsTopLeft,
+  PanelRight,
   Wrench,
 } from "lucide-react";
 
@@ -41,6 +42,7 @@ import SegmentedSection from "./SegmentedSection";
 import DatePickerSection from "./DatePickerSection";
 import MenuSection from "./MenuSection";
 import DialogSection from "./DialogSection";
+import DrawerSection from "./DrawerSection";
 import PopoverSection from "./PopoverSection";
 import ErrorStateSection from "./ErrorStateSection";
 import PanelSection from "./PanelSection";
@@ -118,6 +120,13 @@ export const SECTIONS: SectionMeta[] = [
     group: "基础件",
     icon: SquarePlus,
     component: DialogSection,
+  },
+  {
+    key: "drawer",
+    label: "Drawer",
+    group: "基础件",
+    icon: PanelRight,
+    component: DrawerSection,
   },
   {
     key: "popover",

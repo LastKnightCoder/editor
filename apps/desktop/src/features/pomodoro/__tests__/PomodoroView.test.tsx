@@ -46,6 +46,7 @@ vi.mock("@/commands/window", () => ({
 }));
 vi.mock("@/page/PageProvider", () => ({
   usePage: () => ({ navigator: { current: () => ({ key: "pomodoro" }) } }),
+  useOverlayDismiss: vi.fn(),
 }));
 
 const preset = (id: number, name: string, durationMin = 25): PomodoroPreset => ({
@@ -122,23 +123,55 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-it("空闲：控制条列出预设（带数字键），今天摘要与明细来自近期会话", async () => {
+it("空闲：左栏列出预设（带数字键），今天摘要来自近期会话；点当天行打开明细抽屉，再点收起", async () => {
   await render();
   const chip = container.querySelector('[data-preset-chip="2"]');
   expect(chip?.textContent).toContain("英语听力");
   expect(chip?.textContent).toContain("30′");
   expect(chip?.querySelector("kbd")?.textContent).toBe("2");
   expect(text()).toContain("今天 2 个");
-  expect(text()).toContain("提前结束");
   expect(text()).toContain("时段分布");
+  expect(container.querySelector('[aria-label="当天明细"]')).toBeNull();
+
+  const todayRow = () =>
+    [...container.querySelectorAll('[role="button"]')].find(el =>
+      el.textContent?.startsWith("今天")
+    ) as HTMLElement;
+  act(() => todayRow().click());
+  await flush();
+  const drawer = container.querySelector('[aria-label="当天明细"]') as HTMLElement;
+  expect(drawer.textContent).toContain("提前结束");
+  expect(todayRow().getAttribute("aria-current")).toBe("true");
+
+  act(() => todayRow().click());
+  expect(todayRow().getAttribute("aria-current")).toBeNull();
 });
 
-it("点预设即开始：倒计时带预期时长，正计时不带", async () => {
+it("点行尾 ▶ 即开始：倒计时带预期时长，正计时不带", async () => {
   await render();
-  act(() => (container.querySelector('[data-preset-chip="1"]') as HTMLElement).click());
+  act(() => (container.querySelector('[data-preset-start="1"]') as HTMLElement).click());
   expect(mocks.start).toHaveBeenCalledWith(1, 25 * MIN);
-  act(() => (container.querySelector('[data-preset-chip="3"]') as HTMLElement).click());
+  act(() => (container.querySelector('[data-preset-start="3"]') as HTMLElement).click());
   expect(mocks.start).toHaveBeenLastCalledWith(3, undefined);
+});
+
+it("点预设行打开详情抽屉（不开始），抽屉内开始；再点同一行收起", async () => {
+  await render();
+  const row = () => container.querySelector('[data-preset-chip="1"]') as HTMLElement;
+  act(() => row().click());
+  await flush();
+  expect(mocks.start).not.toHaveBeenCalled();
+  const drawer = container.querySelector('[aria-label="预设详情"]') as HTMLElement;
+  expect(drawer.textContent).toContain("倒计时 25 分钟");
+  expect(drawer.textContent).toContain("近 90 天3 个");
+  expect(row().getAttribute("aria-current")).toBe("true");
+  const startBtn = [...drawer.querySelectorAll("button")].find(b =>
+    b.textContent?.includes("开始专注")
+  );
+  act(() => startBtn!.click());
+  expect(mocks.start).toHaveBeenCalledWith(1, 25 * MIN);
+  act(() => row().click());
+  expect(row().getAttribute("aria-current")).toBeNull();
 });
 
 it("数字键开始第 N 个预设（空闲时）", async () => {
