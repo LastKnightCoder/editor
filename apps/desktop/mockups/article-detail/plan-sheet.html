@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>文章详情 · 一整张纸 · 封面方案对比</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .win { width: 1320px; }
+  .win.wide { width: 1680px; }
+
+  /* ── 纸：滚动区 ── */
+  .paper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .scroll { flex: 1; min-height: 0; overflow: auto; border-right: 6px solid transparent; }
+  .scroll.fade-top { -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(180deg, transparent 0, #000 24px, #000 calc(100% - 24px), transparent); }
+  .scroll.fade-bottom { -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 24px), transparent); }
+
+  /* 版心 720 恒居中，目录在右侧栏 sticky */
+  .col720 { width: 720px; max-width: calc(100% - 52px); margin: 0 auto; }
+  .body-grid { display: grid; grid-template-columns: 1fr minmax(0, 720px) 1fr; align-items: start; padding: 0 26px 40px; }
+  .body-grid article { grid-column: 2; min-width: 0; }
+  .toc { grid-column: 3; position: sticky; top: 16px; margin-left: 28px; width: 180px; font-size: 12px; color: var(--ink-3); }
+  .toc div { padding: 4px 8px; border-left: 2px solid var(--line-1); cursor: pointer; }
+  .toc div.on { color: var(--accent-text); border-color: var(--accent); }
+  .toc div.l3 { padding-left: 20px; }
+
+  /* 页头 */
+  .title { font-size: 27px; font-weight: 600; line-height: 1.35; letter-spacing: -0.01em; color: var(--ink-1); outline: 0; }
+  .meta { margin-top: 6px; display: flex; align-items: center; gap: 10px; color: var(--ink-3); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .meta i { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-3); opacity: 0.6; }
+  .meta .more { margin-left: auto; width: 26px; height: 26px; display: grid; place-items: center; border-radius: var(--r-sm); color: var(--ink-3); }
+  .meta .more:hover { background: var(--hover); color: var(--ink-1); }
+  .meta .more svg.lucide { width: 16px; height: 16px; }
+
+  /* 封面（共用） */
+  .cover { position: relative; overflow: hidden; background-size: cover; background-position: center; }
+  .cover .chg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 14px; border-radius: 999px; background: rgba(26, 19, 12, 0.55); color: rgba(255, 248, 239, 0.92); font-size: 11.5px; backdrop-filter: blur(6px); opacity: 0; transition: opacity 150ms var(--ease); }
+  .cover:hover .chg { opacity: 1; }
+  .cover .chg svg.lucide { width: 13px; height: 13px; }
+
+  /* ── A · 版心画框：现状搬进纸（标题在上，720 圆角封面） ── */
+  .plan-a .hero { padding-top: 34px; }
+  .plan-a .cover { margin-top: 20px; aspect-ratio: 21 / 9; border-radius: var(--r-lg); }
+  .plan-a .body-grid { padding-top: 32px; }
+
+  /* ── B · 满版出血：封面贴纸顶，上两角随纸圆角，标题落封面下方 ── */
+  .plan-b .cover { height: 260px; }
+  .win.wide.plan-b .cover { height: 300px; }
+  .plan-b .hero { padding-top: 28px; }
+  .plan-b .body-grid { padding-top: 28px; }
+
+  /* ── C · 内衬留边：封面离纸边 10px，内圆角与纸同心，标题落封面下方 ── */
+  .plan-c .cover { margin: 10px 10px 0; height: 250px; border-radius: calc(var(--r-lg) - 6px); }
+  .win.wide.plan-c .cover { height: 290px; }
+  .plan-c .hero { padding-top: 28px; }
+  .plan-c .body-grid { padding-top: 28px; }
+
+  /* 无封面：B/C 不渲染封面带，页头直接顶格（A 仍显示派生色封面，同现状） */
+  .no-cover.plan-b .cover, .no-cover.plan-c .cover { display: none; }
+  .no-cover.plan-b .hero, .no-cover.plan-c .hero { padding-top: 40px; }
+
+  /* 正文 */
+  .prose { font-size: 15.5px; line-height: 1.85; color: var(--ink-1); }
+  .prose h2 { font-size: 20px; margin: 30px 0 10px; font-weight: 600; }
+  .prose h3 { font-size: 16.5px; margin: 22px 0 8px; font-weight: 600; }
+  .prose p { margin: 0 0 14px; }
+  .prose blockquote { margin: 0 0 14px; padding: 2px 14px; border-left: 3px solid var(--line-1); color: var(--ink-2); }
+  .prose code { background: var(--hover); padding: 1px 5px; border-radius: 4px; font-size: 13.5px; }
+  .tags { margin-top: 28px; display: flex; gap: 6px; }
+  .tags span { background: var(--hover); color: var(--ink-2); border-radius: 6px; padding: 0 9px; font-size: 12px; line-height: 24px; }
+
+  .win:not(.plan-a) .only-a { display: none; }
+</style>
+</head>
+<body>
+<div class="mock-bar">
+  <b>文章详情 · 一整张纸</b>
+  <span>封面：</span>
+  <a href="#a" data-plan="a">A 版心画框</a>
+  <a href="#b" data-plan="b">B 满版出血</a>
+  <a href="#c" data-plan="c">C 内衬留边（定稿）</a>
+  <span class="sp"></span>
+  <select id="coverKind">
+    <option value="photo">照片封面</option>
+    <option value="photo2">照片封面 2</option>
+    <option value="none">无封面</option>
+  </select>
+  <select id="width"><option value="">窗口 1320</option><option value="wide">窗口 1680</option></select>
+  <select id="theme"><option value="cream">浅色</option><option value="cocoa">深色</option></select>
+</div>
+
+<div class="stage">
+  <div class="win plan-b" id="win">
+    <aside class="sb">
+      <div class="sb-head"><span class="sb-logo">T</span><span>Tau</span></div>
+      <div class="sb-scroll">
+        <div class="sb-group">
+          <div class="sb-gt">工作台</div>
+          <div class="sb-item"><i data-lucide="flame"></i><span>今日</span></div>
+          <div class="sb-item"><i data-lucide="calendar"></i><span>日程</span></div>
+          <div class="sb-item"><i data-lucide="list-todo"></i><span>待办</span></div>
+        </div>
+        <div class="sb-group">
+          <div class="sb-gt">知识</div>
+          <div class="sb-item"><i data-lucide="layers"></i><span>卡片库</span></div>
+          <div class="sb-item on"><i data-lucide="file-text"></i><span>文章</span></div>
+          <div class="sb-item"><i data-lucide="pen-line"></i><span>日记</span></div>
+          <div class="sb-item"><i data-lucide="presentation"></i><span>白板</span></div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="col">
+      <div class="tb"><span class="crumb">文章 <span style="color:var(--ink-3)">/</span> <b>周末去了趟莫干山</b></span></div>
+      <div class="main">
+        <section class="paper">
+          <div class="scroll" id="scroll">
+            <div class="cover" id="cover"><span class="chg"><i data-lucide="image-plus"></i>更换封面</span></div>
+            <div class="hero col720" id="hero">
+              <div class="title" contenteditable>周末去了趟莫干山</div>
+              <div class="meta">
+                <span>2026-09-14 创建</span><i></i><span>2026-09-21 编辑</span><i></i><span>1,860 字</span>
+                <span class="more"><i data-lucide="more-horizontal"></i></span>
+              </div>
+            </div>
+            <div class="body-grid">
+              <article class="prose">
+                <p>山里的竹林、民宿和一场突如其来的雨。拍了很多照片，挑几张放在这里，也顺手记一下路线和住宿，下次再去不用重新查。</p>
+                <h2>出发</h2>
+                <p>周六早上七点从杭州出发，走杭长高速，大概一个小时就到了莫干山镇。镇上停车不太方便，建议直接开到民宿，大部分民宿都有自己的停车位。</p>
+                <blockquote>山路弯多，晕车的朋友记得提前吃药。</blockquote>
+                <h3>路线</h3>
+                <p>导航选「莫干山风景区北门」，进山之后沿着 <code>S13</code> 省道一路向上，路边有很多观景台可以停车拍照。</p>
+                <h2>住在竹林里</h2>
+                <p>这次住的民宿在半山腰，推开窗就是一整片竹林。晚上特别安静，只有风吹竹叶的声音，偶尔有几声鸟叫。老板很热情，自家种的茶叶泡出来有一股很淡的兰花香。</p>
+                <p>早饭是当地的笋干粥和葱油饼，简单但很好吃。老板说春天来的话可以跟着去挖笋，秋天则是看竹海最好的季节。</p>
+                <h2>一场雨</h2>
+                <p>下午原本计划去剑池，走到一半突然下起了大雨。躲在路边的凉亭里，看着雨水顺着竹叶往下滴，山谷里慢慢起了雾，反倒成了这趟最难忘的画面。</p>
+                <h3>拍照小记</h3>
+                <p>雨后的竹林颜色特别饱和，逆光拍竹叶上的水珠效果很好。建议带一支中长焦，能把远处的雾和近处的竹子压缩在一起。</p>
+                <h2>回程</h2>
+                <p>周日下午回杭州，赶在晚高峰之前进了城。两天一夜刚好，不赶也不无聊，下次想试试春天来挖笋。</p>
+                <div class="tags"><span>生活</span><span>旅行</span><span>摄影</span></div>
+              </article>
+              <nav class="toc">
+                <div class="on">出发</div><div class="l3">路线</div><div>住在竹林里</div><div>一场雨</div><div class="l3">拍照小记</div><div>回程</div>
+              </nav>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">
+  <h3>怎么看这几版</h3>
+  <ul>
+    <li><b>A 版心画框</b>：现在的布局原样搬进纸里：标题和元信息在上，下面一张 720 宽的圆角封面，跟正文同宽。<span class="pro">改动最小，封面和正文对齐</span>；<span class="con">纸里又套一个圆角图，层次偏碎；封面挤在标题下面，第一屏正文露得少</span>。</li>
+    <li><b>B 满版出血</b>：封面贴着纸的顶边铺满整张纸，上面两个角跟着纸的圆角走，标题落在封面下方（Notion / Medium 式）。<span class="pro">最有“杂志感”，封面和纸是一体的</span>；<span class="con">宽窗口下横向裁切更多，竖构图的照片会被切得厉害</span>。</li>
+    <li><b>C 内衬留边</b>：同 B，但封面离纸边留 10px，圆角与纸同心，像装裱的画框。<span class="pro">比 B 精致，照片不贴边、深色模式边界更清楚</span>；<span class="con">留边在很窄的窗口会显得小气</span>。</li>
+    <li><b>无封面</b>：切到「无封面」看空态。B/C 没有封面时不画派生色色带，页头直接顶格，干净；A 保留现状的派生色渐变封面。</li>
+    <li>滚动：B/C 的封面随正文一起滚走；纸顶在滚动后才出现上渐隐，封面在顶部时不被遮。</li>
+    <li><b>定稿（2026-09-26）</b>：C 内衬留边；无封面时页头顶格，hover 页头浮出「添加封面」。</li>
+  </ul>
+</div>
+
+<script>
+const PHOTO = {
+  photo: "radial-gradient(100% 70% at 50% 0%, #e9f1ec 0, transparent 55%), radial-gradient(90% 80% at 10% 100%, #4d6b4f 0, transparent 60%), radial-gradient(60% 60% at 85% 70%, #2f4430 0, transparent 60%), linear-gradient(170deg, #a7c1a4, #33452f)",
+  photo2: "radial-gradient(120% 80% at 70% 20%, #f6d9a8 0, transparent 55%), radial-gradient(90% 70% at 20% 90%, #3d5a6c 0, transparent 60%), linear-gradient(160deg, #8fa9b5, #2c3e4a)",
+  gradient: "linear-gradient(140deg, #ccd8c2, #96ab8a)",
+};
+const win = document.getElementById("win");
+const scroll = document.getElementById("scroll");
+function applyCover() {
+  const kind = document.getElementById("coverKind").value;
+  win.classList.toggle("no-cover", kind === "none");
+  document.getElementById("cover").style.backgroundImage = kind === "none" ? PHOTO.gradient : PHOTO[kind];
+}
+/* A 的封面在标题下方：把封面节点挪进 hero */
+function placeCover() {
+  const cover = document.getElementById("cover");
+  const hero = document.getElementById("hero");
+  if (win.classList.contains("plan-a")) hero.appendChild(cover);
+  else scroll.insertBefore(cover, hero);
+}
+function fade() {
+  const top = scroll.scrollTop > 2;
+  scroll.classList.toggle("fade-top", top);
+  scroll.classList.toggle("fade-bottom", !top);
+}
+scroll.addEventListener("scroll", fade);
+function setPlan(p) {
+  win.className = win.className.replace(/plan-\w/, "plan-" + p);
+  document.querySelectorAll("[data-plan]").forEach(a => a.classList.toggle("on", a.dataset.plan === p));
+  placeCover();
+  scroll.scrollTop = 0; fade();
+}
+document.querySelectorAll("[data-plan]").forEach(a => a.addEventListener("click", e => { e.preventDefault(); setPlan(a.dataset.plan); history.replaceState(null, "", "#" + a.dataset.plan); }));
+document.getElementById("coverKind").addEventListener("change", applyCover);
+document.getElementById("width").addEventListener("change", e => win.classList.toggle("wide", e.target.value === "wide"));
+document.getElementById("theme").addEventListener("change", e => document.documentElement.dataset.theme = e.target.value);
+applyCover();
+setPlan((location.hash || "#b").slice(1));
+lucide.createIcons();
+</script>
+</body>
+</html>
