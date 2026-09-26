@@ -18,6 +18,8 @@ export interface WhiteboardInfoDialogProps {
   presetTags?: string[];
   /** 全部已有标签（按使用次数排好） */
   knownTags: string[];
+  /** 新建态的确认按钮文案（默认「创建并打开」） */
+  createLabel?: string;
   onClose(): void;
   onSubmit(info: WhiteboardInfo): Promise<void>;
 }
@@ -27,6 +29,7 @@ export function WhiteboardInfoDialog({
   initial,
   presetTags = [],
   knownTags,
+  createLabel = "创建并打开",
   onClose,
   onSubmit,
 }: WhiteboardInfoDialogProps) {
@@ -77,7 +80,7 @@ export function WhiteboardInfoDialog({
             取消
           </Button>
           <Button variant="primary" size="sm" loading={saving} onClick={submit}>
-            {editing ? "保存" : "创建并打开"}
+            {editing ? "保存" : createLabel}
           </Button>
         </>
       }

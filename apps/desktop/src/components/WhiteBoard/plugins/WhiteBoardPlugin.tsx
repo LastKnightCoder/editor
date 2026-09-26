@@ -22,7 +22,11 @@ import { SelectTransforms } from "../transforms";
 
 export interface WhiteBoardElement extends CommonElement {
   type: "whiteboard";
-  whiteBoardContentId: number;
+  /** 引用的整块白板 */
+  whiteBoardId?: number;
+  /** 旧元素：只引用了某一页（新元素不再写入） */
+  whiteBoardContentId?: number;
+  /** 插入时的白板标题（白板读取失败时兜底显示） */
   name: string;
   description?: string;
   snapshot?: string;
@@ -50,7 +54,7 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
         asContainer: ContainmentBehavior.None,
         canBeContained: true,
         // 58f0660e53ef5165 ColumnFf0851c651654e0e542675315b5065b958f0660e53cd8f6c51b35b9aFf0c89c1 CapabilityService.canContainFf09
-        canBeContainedBy: (container) => container.type === "column",
+        canBeContainedBy: container => container.type === "column",
       },
       movement: { behavior: MovementBehavior.Normal },
       render: {
@@ -118,15 +122,10 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
     startPoint: Point,
     endPoint: Point,
     _isPreserveRatio = false,
-    isAdsorb = false,
+    isAdsorb = false
   ) {
     if (!this.originResizeElement) return;
-    const newBBox = getResizedBBox(
-      this.originResizeElement,
-      position,
-      startPoint,
-      endPoint,
-    );
+    const newBBox = getResizedBBox(this.originResizeElement, position, startPoint, endPoint);
 
     // 白板高度固定，只允许宽度调整
     const newElement = {
@@ -155,7 +154,7 @@ export class WhiteBoardPlugin extends CommonPlugin implements IBoardPlugin {
       isAdsorb,
       5 / board.viewPort.zoom,
       true,
-      position,
+      position
     );
     board.refLine.setCurrent(updateElement);
     newElement.x = updateElement.rects[0].x;
