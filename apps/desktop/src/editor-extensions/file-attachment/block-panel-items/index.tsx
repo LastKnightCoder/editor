@@ -2,7 +2,7 @@ import { Paperclip } from "lucide-react";
 import { IBlockPanelListItem } from "@tau/editor/src";
 import SelectFileModal from "../components/SelectFileModal";
 import { insertFileAttachment } from "../utils.ts";
-import showCustomModal from "@/components/CustomModal/showCustomModal";
+import { showMediaNode } from "@/editor-providers/mediaModalHost";
 
 const items: IBlockPanelListItem[] = [
   {
@@ -10,23 +10,17 @@ const items: IBlockPanelListItem[] = [
     title: "文件附件",
     keywords: ["文件", "附件", "file", "attachment"],
     description: "文件附件",
-    onClick: async (editor) => {
-      const modal = showCustomModal({
-        title: "选择文件附件",
-        content: (
-          <SelectFileModal
-            onOk={(filePath: string, isLocal: boolean, fileName) => {
-              insertFileAttachment(editor, filePath, isLocal, fileName);
-              modal.destroy();
-            }}
-            onCancel={() => {
-              modal.destroy();
-            }}
-          />
-        ),
-        footer: null,
-        closeOnOverlay: true,
-      });
+    onClick: async editor => {
+      const close = showMediaNode(
+        <SelectFileModal
+          open
+          onOk={(filePath: string, isLocal: boolean, fileName) => {
+            insertFileAttachment(editor, filePath, isLocal, fileName);
+            close();
+          }}
+          onCancel={() => close()}
+        />
+      );
     },
   },
 ];

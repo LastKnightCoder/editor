@@ -4,10 +4,10 @@
  *
  * - 正文：ContentEditor + useEditContent（加载、跨窗口同步、节流自动保存），无保存按钮
  * - 标题行：不传 title 即无（卡片没有标题）；传 onTitleChange 可编辑，否则只读
- * - 底部：字数 · 已自动保存；「完成」关闭
+ * - 底部：字数 · 已自动保存；「完成」关闭（footerActions 排在「完成」之前）
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { Descendant } from "slate";
 import type { EditorRef } from "@tau/editor/src";
 import { Button, Dialog, DialogBody } from "@tau/ui";
@@ -33,6 +33,8 @@ export interface ContentEditDialogProps {
   /** 传入即标题可编辑 */
   onTitleChange?(title: string): void;
   placeholder?: string;
+  /** 应答区附加操作（次级按钮），排在「完成」之前 */
+  footerActions?: ReactNode;
   onClose(): void;
 }
 
@@ -45,6 +47,7 @@ export function ContentEditDialog({
   titlePlaceholder = "无标题",
   onTitleChange,
   placeholder,
+  footerActions,
   onClose,
 }: ContentEditDialogProps) {
   const editorRef = useRef<EditorRef>(null);
@@ -70,6 +73,7 @@ export function ContentEditDialog({
           <span className="text-ink-3 mr-auto text-[12px] tabular-nums">
             {count} 字 · 已自动保存
           </span>
+          {footerActions}
           <Button variant="primary" size="sm" onClick={onClose}>
             完成
           </Button>

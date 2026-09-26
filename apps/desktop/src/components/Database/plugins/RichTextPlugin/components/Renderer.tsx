@@ -1,5 +1,5 @@
-import React, { memo, useState, useRef } from "react";
-import { Popover as TauPopover, ConfirmDialog, toast } from "@tau/ui";
+import React, { memo, useState, useRef, useEffect } from "react";
+import { Button, Popover as TauPopover, ConfirmDialog, toast } from "@tau/ui";
 import { FileText, Folder, Plus, StickyNote, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useMemoizedFn } from "ahooks";
@@ -7,9 +7,11 @@ import { v4 as uuid } from "uuid";
 import { ColumnDef } from "../../../types";
 import { RichTextPluginValue, RichTextItem } from "../types";
 import { DropdownMenu } from "./index";
-import RichTextEditModal from "@/components/RichTextEditModal";
+import { ContentEditDialog } from "@/components/ContentEditDialog";
 import ContentSelectorModal from "@/components/ContentSelectorModal";
 import { createContent, deleteContent, incrementContentRefCount } from "@/commands/content";
+import { buildCardFromContent, isContentIsCard } from "@/commands/card";
+import { defaultCardEventBus } from "@/utils";
 import { SearchResult } from "@/types";
 import { Descendant } from "slate";
 
@@ -32,6 +34,9 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
     const [currentEditingContentId, setCurrentEditingContentId] = useState<number | null>(null);
     const [currentEditingTitle, setCurrentEditingTitle] = useState("");
     const [confirmDeleteItem, setConfirmDeleteItem] = useState<RichTextItem | null>(null);
+    // 正在编辑的文档是否已是卡片（决定是否提供「转为卡片」）
+    const [editingIsCard, setEditingIsCard] = useState(true);
+    const [buildingCard, setBuildingCard] = useState(false);
 
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const addTriggerRef = useRef<HTMLDivElement>(null);
@@ -176,6 +181,35 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
       }
     });
 
+    useEffect(() => {
+      if (!editModalVisible || !currentEditingContentId) return;
+      let cancelled = false;
+      setEditingIsCard(true);
+      isContentIsCard(currentEditingContentId).then(res => {
+        if (!cancelled) setEditingIsCard(res);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, [editModalVisible, currentEditingContentId]);
+
+    const handleBuildCard = useMemoizedFn(async () => {
+      if (!currentEditingContentId) return;
+      setBuildingCard(true);
+      try {
+        const card = await buildCardFromContent(currentEditingContentId);
+        handleTypeChange("card");
+        setEditingIsCard(true);
+        defaultCardEventBus.createEditor().publishCardEvent("card:created", card);
+        toast.success("已转为卡片");
+      } catch (error) {
+        console.error("转为卡片失败:", error);
+        toast.error("转为卡片失败");
+      } finally {
+        setBuildingCard(false);
+      }
+    });
+
     const handleTypeChange = useMemoizedFn((type: string) => {
       const newValue = richTextList.map(item =>
         item.contentId === currentEditingContentId
@@ -286,20 +320,31 @@ const RichTextRenderer: React.FC<RichTextRendererProps> = memo(
           excludeContentIds={richTextList.map(item => item.contentId)}
         />
 
-        {currentEditingContentId && (
-          <RichTextEditModal
-            visible={editModalVisible}
-            contentId={currentEditingContentId}
-            title={currentEditingTitle}
-            onClose={() => {
-              setEditModalVisible(false);
-              setCurrentEditingContentId(null);
-              setCurrentEditingTitle("");
-            }}
-            onTitleChange={handleEditSave}
-            onTypeChange={handleTypeChange}
-          />
-        )}
+        <ContentEditDialog
+          open={editModalVisible && currentEditingContentId !== null}
+          contentId={currentEditingContentId}
+          heading="编辑文档"
+          title={currentEditingTitle}
+          titlePlaceholder="未命名文档"
+          onTitleChange={title => {
+            setCurrentEditingTitle(title);
+            handleEditSave(title);
+          }}
+          footerActions={
+            !editingIsCard && (
+              <Button
+                variant="secondary"
+                size="sm"
+                loading={buildingCard}
+                loadingText="正在转换…"
+                onClick={() => void handleBuildCard()}
+              >
+                转为卡片
+              </Button>
+            )
+          }
+          onClose={() => setEditModalVisible(false)}
+        />
       </div>
     );
   }
