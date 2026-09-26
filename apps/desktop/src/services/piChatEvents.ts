@@ -23,6 +23,8 @@ export interface PiChatEventSink {
     finishReason: string | null;
     resultType: "response" | "tool_calls";
   }): void;
+  /** agent 循环开始（含等待提交后真正起跑）：主聊天据此置运行态（可选钩子） */
+  onAgentStart?(): void;
   /** pi auto_retry 状态（null = 结束重试等待） */
   onRetryStatus(status: { attempt: number; maxAttempts: number; delayMs: number } | null): void;
   onStreamError(message: string): void;
@@ -110,6 +112,10 @@ export class PiChatEventReducer {
 
   public handle(event: AgentSessionEvent): void {
     switch (event.type) {
+      case "agent_start": {
+        this.sink.onAgentStart?.();
+        return;
+      }
       case "message_start": {
         if (event.message.role === "assistant") {
           this.flushPendingSnapshots();
