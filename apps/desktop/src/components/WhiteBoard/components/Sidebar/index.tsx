@@ -20,6 +20,7 @@ const Sidebar: React.FC = () => {
   const open = useWhiteboardOutlineStore(s => s.open);
   const width = useWhiteboardOutlineStore(s => s.width);
   const setWidth = useWhiteboardOutlineStore(s => s.setWidth);
+  const setDockWidth = useWhiteboardOutlineStore(s => s.setDockWidth);
   const board = useBoard();
   const { children, selection } = useSyncExternalStore(board.subscribe, board.getSnapshot);
   const [query, setQuery] = useState("");
@@ -51,6 +52,7 @@ const Sidebar: React.FC = () => {
     <ResizeableAndHideableSidebar
       width={width}
       onWidthChange={w => setWidth(w)}
+      onActualWidthChange={setDockWidth}
       open={open}
       sidebarPosition="left"
       minWidth={200}

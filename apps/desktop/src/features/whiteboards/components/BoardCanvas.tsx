@@ -20,11 +20,13 @@ export interface BoardCanvasHandle {
 export function BoardCanvas({
   id,
   onLoaded,
+  onPresentationModeChange,
   ref,
 }: {
   id: number;
   /** 页内容就绪（名称用于面包屑） */
   onLoaded?(content: WhiteBoardContent): void;
+  onPresentationModeChange?(presenting: boolean): void;
   ref?: Ref<BoardCanvasHandle>;
 }) {
   const { data: content, isPending, isError, save } = useWhiteBoardContent(id);
@@ -73,6 +75,7 @@ export function BoardCanvas({
         initPresentationSequences={content.data.presentationSequences}
         onChange={onChange}
         showSidebar
+        onPresentationModeChange={onPresentationModeChange}
       />
     </div>
   );

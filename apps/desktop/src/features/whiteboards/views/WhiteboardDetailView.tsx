@@ -1,6 +1,6 @@
 /**
- * 白板详情（多页）· 底部页签栏（XMind 式，mockups/whiteboard-detail/plan-a2-xmind.html 定稿，D-048）：
- * 一整张画布纸面 + 纸面下缘的页签栏；只有一页时页签栏隐藏，鼠标移到底边才浮出。
+ * 白板详情（多页）：一整张画布纸面，页签条浮在纸内左下角（与右下状态栏同款 chrome，一左一右），
+ * 元素树展开时让到停靠栏右侧；演示时与状态栏一起收起。
  *
  * 页面参数：id = 白板 id，page = 当前页（子白板）id，缺省为上次停留页 → 第一页。
  * 同一块白板内切页经栈机原位更新参数，不进后退历史；停留页记回主进程（查看状态，不刷新更新时间）。
@@ -10,7 +10,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmDialog, Loading, toast } from "@tau/ui";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
-import { cn } from "@tau/ui";
+import { useWhiteboardOutlineStore } from "@/components/WhiteBoard/components/Sidebar/outlineStore";
 import { BoardCanvas, type BoardCanvasHandle } from "../components/BoardCanvas";
 import { SheetBar } from "../components/SheetBar";
 import { OutlineToggle } from "../components/OutlineToggle";
@@ -41,6 +41,8 @@ function Detail({ id, page }: { id: number; page?: number }) {
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [presenting, setPresenting] = useState(false);
+  const dockWidth = useWhiteboardOutlineStore(s => s.dockWidth);
 
   const pages = useMemo(
     () => (board?.whiteBoardContentList ?? []).map(p => ({ id: p.id, name: p.name })),
@@ -122,41 +124,52 @@ function Detail({ id, page }: { id: number; page?: number }) {
   if (!board || activeId === null)
     return <div className="text-ink-2 p-6">白板不存在或读取失败</div>;
 
-  const single = pages.length <= 1;
   const fail = (text: string) => () => toast.error(text);
 
   return (
-    <div className={cn("relative flex h-full min-h-0 flex-col px-3.5", single && "pb-3.5")}>
+    <div className="relative flex h-full min-h-0 flex-col px-4 pb-4 pt-1">
       <div className="bg-surface shadow-card rounded-tau-lg relative min-h-0 flex-1 overflow-hidden">
-        <BoardCanvas key={activeId} id={activeId} ref={canvasRef} />
-      </div>
+        <BoardCanvas
+          key={activeId}
+          id={activeId}
+          ref={canvasRef}
+          onPresentationModeChange={setPresenting}
+        />
 
-      {/* 只有一页：底边留一条感应带，鼠标移进来页签栏才浮出 */}
-      {single && <div aria-hidden className="peer absolute inset-x-0 bottom-0 z-[2] h-3.5" />}
-      <SheetBar
-        pages={pages}
-        activeId={activeId}
-        autoHide={single}
-        onSelect={pageId => pageId !== activeId && go(pageId)}
-        onAdd={() =>
-          void pageMutations
-            .add(`第 ${pages.length + 1} 页`)
-            .then(go)
-            .catch(fail("新建页失败"))
-        }
-        onRename={(pageId, name) => void pageMutations.rename(pageId, name).catch(fail("改名失败"))}
-        onDuplicate={pageId =>
-          void (async () => {
-            if (pageId === activeId) await canvasRef.current?.flush();
-            go(await pageMutations.duplicate(pageId));
-          })().catch(fail("复制失败"))
-        }
-        onDelete={pageId => {
-          setDeleteTarget(pages.find(p => p.id === pageId) ?? null);
-          setDeleteOpen(true);
-        }}
-        onReorder={ids => void pageMutations.reorder(ids).catch(fail("排序失败"))}
-      />
+        {/* 页签条：纸内左下，让开元素树停靠栏；右侧给状态栏（约 340px）留位，页多时页签横向滚动 */}
+        {!presenting && (
+          <SheetBar
+            className="absolute bottom-3 z-[7]"
+            style={{
+              left: dockWidth + 12,
+              maxWidth: `max(200px, calc(100% - ${dockWidth + 12}px - 364px))`,
+            }}
+            pages={pages}
+            activeId={activeId}
+            onSelect={pageId => pageId !== activeId && go(pageId)}
+            onAdd={() =>
+              void pageMutations
+                .add(`第 ${pages.length + 1} 页`)
+                .then(go)
+                .catch(fail("新建页失败"))
+            }
+            onRename={(pageId, name) =>
+              void pageMutations.rename(pageId, name).catch(fail("改名失败"))
+            }
+            onDuplicate={pageId =>
+              void (async () => {
+                if (pageId === activeId) await canvasRef.current?.flush();
+                go(await pageMutations.duplicate(pageId));
+              })().catch(fail("复制失败"))
+            }
+            onDelete={pageId => {
+              setDeleteTarget(pages.find(p => p.id === pageId) ?? null);
+              setDeleteOpen(true);
+            }}
+            onReorder={ids => void pageMutations.reorder(ids).catch(fail("排序失败"))}
+          />
+        )}
+      </div>
 
       <ConfirmDialog
         open={deleteOpen}
