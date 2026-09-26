@@ -320,7 +320,11 @@ const TableView: React.FC<TableViewProps> = memo(
 
     return (
       <div className="flex h-full w-full flex-col">
-        <div className="min-h-0 w-full flex-1 overflow-auto" ref={scrollParentRef}>
+        {/* 滚动条内缩同 FadeScroll：4px 细条 + 右侧 6px 透明边；不接 edge fade，免得渐隐吸顶表头 */}
+        <div
+          className="min-h-0 w-full flex-1 overflow-auto border-r-[6px] border-r-transparent [&::-webkit-scrollbar-thumb]:rounded-[2px] [&::-webkit-scrollbar-track:horizontal]:mx-2.5 [&::-webkit-scrollbar-track:vertical]:my-2.5 [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar]:w-1"
+          ref={scrollParentRef}
+        >
           <div className="flex w-full flex-col pb-10" style={{ minWidth: `${totalMinWidth}px` }}>
             {renderHeader()}
 
