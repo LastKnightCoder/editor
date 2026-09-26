@@ -103,14 +103,15 @@ describe("migrateLlmSettingsToV2", () => {
     expect(reasoningModel).toMatchObject({
       id: "deepseek-r",
       reasoning: true,
-      input: ["text"],
       contextWindow: 128 * 1024,
       maxTokens: 4096,
       samplingParams: { temperature: 0.7 },
       headers: { "User-Agent": "TauEditor/1.0" },
     });
+    // 图片模态默认放开：旧 features 只是展示标注（运行时从不 gate），pi 的 input 是硬闸门，
+    // 放开后不支持图片的模型由网关显式报错，优于静默省略（精确校正走设置页）
+    expect(reasoningModel.input).toEqual(["text", "image"]);
     expect(visionModel.input).toEqual(["text", "image"]);
-    // legacy multimodal 标志归并为 image 模态
     expect(legacyModel.input).toEqual(["text", "image"]);
   });
 

@@ -55,7 +55,10 @@ const toModelSetting = (model: ModelConfig): LLMModelSetting => {
   const setting: LLMModelSetting = {
     id: model.name,
     reasoning: model.features?.thinking ?? false,
-    input: model.features?.image || model.features?.multimodal ? ["text", "image"] : ["text"],
+    // 图片模态默认放开：旧体系 features.image 只是展示标注、运行时从不 gate（普遍缺勾），
+    // 而 pi 的 model.input 是硬闸门——不支持图片的模型放开后由网关显式报错，可诊断性远好于静默省略；
+    // 精确能力以设置页（M2-d）手动校正
+    input: ["text", "image"],
     contextWindow: model.contextWindowK ? model.contextWindowK * 1024 : DEFAULT_CONTEXT_WINDOW,
     maxTokens: model.maxOutputTokens ?? DEFAULT_MAX_TOKENS,
   };
