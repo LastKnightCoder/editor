@@ -174,6 +174,8 @@ export interface WhiteBoardRef {
   zoomIn: () => void;
   zoomOut: () => void;
   zoomTo: (zoom: number) => void;
+  /** 选中并滚入视野，派发 element:flash 让元素闪一下；元素不存在返回 false */
+  revealElement: (id: string) => boolean;
 }
 
 const WhiteBoard = memo(
@@ -684,6 +686,21 @@ const WhiteBoard = memo(
         zoomIn: () => handleZoomIn(),
         zoomOut: () => handleZoomOut(),
         zoomTo: (zoomValue: number) => handleZoomTo(zoomValue),
+        revealElement: (id: string) => {
+          const element = BoardUtil.getElementById(board, id);
+          if (!element) return false;
+          board.apply(
+            {
+              type: "set_selection",
+              properties: board.selection,
+              newProperties: { selectedElements: [element], selectArea: null },
+            },
+            false
+          );
+          ViewPortTransforms.centerElementsIfNotInViewPort(board, [element]);
+          board.emit("element:flash", id);
+          return true;
+        },
       }),
       [board, handleZoomIn, handleZoomOut, handleZoomTo]
     );
