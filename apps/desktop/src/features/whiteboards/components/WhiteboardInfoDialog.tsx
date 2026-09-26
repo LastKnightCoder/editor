@@ -1,11 +1,12 @@
 /**
  * 新建 / 编辑白板信息：标题 + 描述 + 标签。封面不在表单里（卡片菜单「设置封面」）。
- * 标签：已有标签平铺成可点选的 pill，输入框回车添加新标签；在某个标签下新建时预先带上它。
+ * 标签：上行是已选标签（× 移除）+ 新标签输入框（回车添加）；下行是其余已有标签，点选加入。
+ * 在某个标签下新建时预先带上它。
  */
 
 import { useEffect, useState } from "react";
 import { Hash, Plus, X } from "lucide-react";
-import { Button, Dialog, Input, Textarea, cn, toast } from "@tau/ui";
+import { Button, Dialog, Input, Textarea, toast } from "@tau/ui";
 import { normalizeTags } from "../model";
 import type { WhiteboardInfo } from "../queries";
 
@@ -47,13 +48,12 @@ export function WhiteboardInfoDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initial]);
 
-  const pool = normalizeTags([...knownTags, ...tags]);
-  const toggle = (name: string) =>
-    setTags(prev => (prev.includes(name) ? prev.filter(t => t !== name) : [...prev, name]));
+  const candidates = knownTags.filter(name => !tags.includes(name));
+  const add = (name: string) => setTags(prev => normalizeTags([...prev, name]));
+  const remove = (name: string) => setTags(prev => prev.filter(t => t !== name));
   const addDraft = () => {
-    const name = draft.trim();
-    if (!name) return;
-    setTags(prev => normalizeTags([...prev, name]));
+    if (!draft.trim()) return;
+    add(draft);
     setDraft("");
   };
 
@@ -111,27 +111,22 @@ export function WhiteboardInfoDialog({
             标签 <span className="text-ink-3">· 可选，出现在侧栏「白板」下面</span>
           </span>
           <div className="flex flex-wrap items-center gap-1.5">
-            {pool.map(name => {
-              const on = tags.includes(name);
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => toggle(name)}
-                  className={cn(
-                    "text-tau-meta ease-tau-out inline-flex h-[26px] items-center gap-1 rounded-full px-2.5 transition-[background,color] duration-150",
-                    on
-                      ? "bg-selected text-accent-text font-medium"
-                      : "border-line-1 text-ink-2 hover:bg-hover hover:text-ink-1 border"
-                  )}
-                >
-                  <Hash className="size-[11px]" strokeWidth={1.75} />
-                  {name}
-                  {on && <X className="size-[11px] opacity-70" strokeWidth={1.75} />}
-                </button>
-              );
-            })}
+            {tags.map(name => (
+              <button
+                key={name}
+                type="button"
+                aria-label={`移除标签 ${name}`}
+                onClick={() => remove(name)}
+                className="text-tau-meta bg-selected text-accent-text group inline-flex h-[26px] items-center gap-1 rounded-full px-2.5 font-medium"
+              >
+                <Hash className="size-[11px]" strokeWidth={1.75} />
+                {name}
+                <X
+                  className="ease-tau-out size-[11px] opacity-70 transition-opacity duration-150 group-hover:opacity-100"
+                  strokeWidth={1.75}
+                />
+              </button>
+            ))}
             <label className="border-line-1 focus-within:border-accent text-ink-3 inline-flex h-[26px] items-center gap-1 rounded-full border border-dashed pl-2 pr-2.5 focus-within:border-solid">
               <Plus className="size-[12px]" strokeWidth={1.75} />
               <input
@@ -150,6 +145,22 @@ export function WhiteboardInfoDialog({
               />
             </label>
           </div>
+          {candidates.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-ink-3 mr-0.5 text-[11px]">已有标签</span>
+              {candidates.map(name => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => add(name)}
+                  className="text-tau-meta ease-tau-out border-line-1 text-ink-2 hover:bg-hover hover:text-ink-1 inline-flex h-[26px] items-center gap-1 rounded-full border px-2.5 transition-[background,color] duration-150"
+                >
+                  <Hash className="size-[11px]" strokeWidth={1.75} />
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </Dialog>
