@@ -1,5 +1,4 @@
 import { memo, useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import {
   CheckCircle2,
   XCircle,
@@ -13,9 +12,8 @@ import {
   Target,
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import classNames from "classnames";
+import { Button, Dialog, Textarea, cn } from "@tau/ui";
 
-import CustomModal from "@/components/CustomModal";
 import useVLQuizStore from "@/stores/useVLQuizStore";
 import useTheme from "@/hooks/useTheme";
 import type { VLQuizSet, VLQuizItem, QuizAnswerRecord, VLQuizRecord } from "@/types";
@@ -52,6 +50,37 @@ const extractBlanksFromContent = (
   return blanks;
 };
 
+// 题型显示名称
+const TYPE_LABELS: Record<string, string> = {
+  "single-choice": "单选题",
+  "multiple-choice": "多选题",
+  cloze: "填空题",
+  qa: "问答题",
+  boolean: "判断题",
+};
+
+// 成绩档位：只用语义色表意
+const LEVEL_CONFIG = {
+  excellent: { text: "text-accent-text", ring: "border-accent", label: "太棒了" },
+  good: { text: "text-info", ring: "border-info", label: "做得不错" },
+  pass: { text: "text-warn", ring: "border-warn", label: "继续加油" },
+  fail: { text: "text-danger", ring: "border-danger", label: "再接再厉" },
+} as const;
+
+/** 答题选项卡片的状态样式：作答中 accent 选中；揭晓后正确 ok、选错 danger、其余淡出 */
+function optionTone(showResult: boolean, isSelected: boolean, isCorrect: boolean) {
+  if (!showResult) {
+    return isSelected
+      ? { card: "border-accent bg-accent-soft", icon: "text-accent-text", text: "text-ink-1" }
+      : { card: "border-line-1 hover:bg-hover", icon: "text-ink-3", text: "text-ink-1" };
+  }
+  if (isCorrect) return { card: "border-ok bg-ok-soft", icon: "text-ok", text: "text-ink-1" };
+  if (isSelected) {
+    return { card: "border-danger bg-danger-soft", icon: "text-danger", text: "text-danger" };
+  }
+  return { card: "border-line-1 opacity-60", icon: "text-ink-3", text: "text-ink-2" };
+}
+
 const QuizTestModal = memo((props: QuizTestModalProps) => {
   const { open, quizSet, onClose } = props;
   const { isDark } = useTheme();
@@ -73,6 +102,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
   const [currentAnswer, setCurrentAnswer] = useState<any>(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [quizRecord, setQuizRecord] = useState<VLQuizRecord | null>(null);
+  const [finishing, setFinishing] = useState(false);
 
   // 当前题目
   const currentItem = useMemo(() => {
@@ -104,6 +134,7 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
     if (open) {
       setStep("testing");
       setQuizRecord(null);
+      setFinishing(false);
     }
   }, [open]);
 
@@ -195,15 +226,23 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
 
   // 完成测验
   const handleFinish = useMemoizedFn(async () => {
-    const record = await finishTest();
-    setQuizRecord(record);
-    setStep("result");
+    setFinishing(true);
+    try {
+      const record = await finishTest();
+      setQuizRecord(record);
+      setStep("result");
+    } finally {
+      setFinishing(false);
+    }
   });
 
-  // 关闭弹窗
+  // 关闭弹窗：先通知调用方收起，退场动画结束后再清理测验会话（避免内容在退场中途消失）
   const handleClose = useMemoizedFn(() => {
-    cancelTest();
     onClose();
+  });
+
+  const handleAfterClose = useMemoizedFn(() => {
+    cancelTest();
   });
 
   // 判断是否可以提交答案
@@ -230,15 +269,6 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
     return existing?.isCorrect ?? null;
   }, [showAnswer, currentItem, testSession]);
 
-  // 题型显示名称
-  const typeLabels: Record<string, string> = {
-    "single-choice": "单选题",
-    "multiple-choice": "多选题",
-    cloze: "填空题",
-    qa: "问答题",
-    boolean: "判断题",
-  };
-
   // 渲染选择题选项
   const renderChoiceOptions = () => {
     if (!currentItem) return null;
@@ -246,38 +276,27 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
     const isMultiple = currentItem.type === "multiple-choice";
 
     return (
-      <div className="space-y-3">
+      <div className="flex flex-col gap-2">
         {(data.options ?? []).map(option => {
           const isSelected = isMultiple
             ? (currentAnswer ?? []).includes(option.id)
             : currentAnswer === option.id;
-          const isCorrect = option.isCorrect;
-          const showResult = showAnswer;
-
-          let cardStyle = "border-line-1 hover:border-line-1 hover:bg-hover";
-          let iconColor = "text-ink-3 group-hover:text-accent";
-
-          if (!showResult) {
-            if (isSelected) {
-              cardStyle = "border-accent bg-accent-soft shadow-sm";
-              iconColor = "text-accent";
-            }
-          } else {
-            if (isCorrect) {
-              cardStyle = "border-ok bg-ok/10 ring-1 ring-ok/20";
-              iconColor = "text-status-success";
-            } else if (isSelected && !isCorrect) {
-              cardStyle = "border-danger bg-danger/10";
-              iconColor = "text-status-error";
-            } else {
-              cardStyle = "border-line-1 opacity-60";
-              iconColor = "text-ink-3";
-            }
-          }
+          const isCorrect = !!option.isCorrect;
+          const tone = optionTone(showAnswer, isSelected, isCorrect);
+          const Icon = showAnswer
+            ? isCorrect
+              ? CheckCircle2
+              : isSelected
+                ? XCircle
+                : Circle
+            : isSelected
+              ? CheckCircle2
+              : Circle;
 
           return (
             <button
               key={option.id}
+              type="button"
               disabled={showAnswer}
               onClick={() => {
                 if (isMultiple) {
@@ -291,38 +310,15 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
                   setCurrentAnswer(option.id);
                 }
               }}
-              className={classNames(
-                "group flex w-full items-start gap-3 rounded-xl border-2 px-5 py-4 text-left transition-all duration-200",
-                cardStyle,
-                { "cursor-default": showAnswer }
+              className={cn(
+                "rounded-tau-md flex w-full items-start gap-3 border px-4 py-3 text-left",
+                "ease-tau-out transition-[background-color,border-color] duration-[140ms]",
+                showAnswer ? "cursor-default" : "cursor-pointer",
+                tone.card
               )}
             >
-              <div className="mt-0.5 shrink-0">
-                {showResult ? (
-                  isCorrect || (isSelected && !isCorrect) ? (
-                    isCorrect ? (
-                      <CheckCircle2 className={`h-5 w-5 ${iconColor}`} strokeWidth={1.75} />
-                    ) : (
-                      <XCircle className={`h-5 w-5 ${iconColor}`} strokeWidth={1.75} />
-                    )
-                  ) : (
-                    <Circle className={`h-5 w-5 ${iconColor}`} strokeWidth={1.75} />
-                  )
-                ) : isSelected ? (
-                  <CheckCircle2 className={`h-5 w-5 ${iconColor}`} strokeWidth={1.75} />
-                ) : (
-                  <Circle className={`h-5 w-5 ${iconColor}`} strokeWidth={1.75} />
-                )}
-              </div>
-              <span
-                className={classNames("text-base leading-relaxed transition-colors", {
-                  "text-ink-1 font-medium": !showResult || isCorrect,
-                  "text-ink-2": showResult && !isSelected && !isCorrect,
-                  "text-status-error": showResult && isSelected && !isCorrect,
-                })}
-              >
-                {option.label}
-              </span>
+              <Icon className={cn("mt-[3px] size-4 shrink-0", tone.icon)} strokeWidth={1.75} />
+              <span className={cn("text-tau-body leading-relaxed", tone.text)}>{option.label}</span>
             </button>
           );
         })}
@@ -336,59 +332,31 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
     const data = currentItem.data;
 
     return (
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3">
         {[
           { value: true, label: "正确", icon: CheckCircle2 },
           { value: false, label: "错误", icon: XCircle },
         ].map(option => {
           const isSelected = currentAnswer === option.value;
           const isCorrect = data.booleanAnswer === option.value;
-          const showResult = showAnswer;
+          const tone = optionTone(showAnswer, isSelected, isCorrect);
           const Icon = option.icon;
-
-          let btnClass = "border-line-1 bg-surface hover:border-line-1";
-          let textClass = "text-ink-2";
-          let iconClass = "text-ink-3";
-
-          if (!showResult) {
-            if (isSelected) {
-              btnClass =
-                option.value === true
-                  ? "border-ok bg-ok/10 shadow-sm"
-                  : "border-danger bg-danger/10 shadow-sm";
-              textClass = option.value === true ? "text-status-success" : "text-status-error";
-              iconClass = option.value === true ? "text-status-success" : "text-status-error";
-            } else {
-              btnClass += " hover:bg-hover";
-            }
-          } else {
-            if (isCorrect) {
-              btnClass = "border-ok bg-ok/10 ring-1 ring-ok/20";
-              textClass = "text-status-success";
-              iconClass = "text-status-success";
-            } else if (isSelected && !isCorrect) {
-              btnClass = "border-danger bg-danger/10";
-              textClass = "text-status-error";
-              iconClass = "text-status-error";
-            } else {
-              btnClass = "border-line-1 opacity-50";
-            }
-          }
 
           return (
             <button
               key={String(option.value)}
+              type="button"
               disabled={showAnswer}
               onClick={() => setCurrentAnswer(option.value)}
-              className={classNames(
-                "flex flex-col items-center justify-center gap-2 rounded-xl border-2 px-6 py-8 font-bold transition-all duration-200",
-                btnClass,
-                textClass,
-                { "cursor-default": showAnswer }
+              className={cn(
+                "rounded-tau-md flex flex-col items-center justify-center gap-2 border px-6 py-6",
+                "ease-tau-out transition-[background-color,border-color] duration-[140ms]",
+                showAnswer ? "cursor-default" : "cursor-pointer",
+                tone.card
               )}
             >
-              <Icon className={classNames("mb-1 h-8 w-8", iconClass)} />
-              <span className="text-lg">{option.label}</span>
+              <Icon className={cn("size-6", tone.icon)} strokeWidth={1.75} />
+              <span className={cn("text-tau-body font-medium", tone.text)}>{option.label}</span>
             </button>
           );
         })}
@@ -402,37 +370,25 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
     const data = currentItem.data;
 
     return (
-      <div className="space-y-6">
-        <textarea
+      <div className="flex flex-col gap-3">
+        <Textarea
+          data-autofocus
           disabled={showAnswer}
           value={currentAnswer ?? ""}
           onChange={e => setCurrentAnswer(e.target.value)}
           placeholder="请输入你的答案..."
-          className={classNames(
-            "min-h-[160px] w-full resize-none rounded-xl border-2 px-5 py-4 text-base leading-relaxed transition-all",
-            "focus:ring-accent/10 focus:border-accent focus:outline-none focus:ring-4",
-            isDark
-              ? "border-line-1 bg-sunken text-ink-1 placeholder:text-ink-3"
-              : "border-line-1 bg-surface text-ink-1 placeholder-gray-400",
-            { "cursor-not-allowed opacity-60": showAnswer }
-          )}
+          rows={6}
         />
         {showAnswer && data.answer && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={classNames(
-              "rounded-xl border-l-4 p-5 shadow-sm",
-              isDark ? "border-ok/50 bg-sunken" : "border-ok bg-surface shadow-gray-100"
-            )}
-          >
-            <p className="text-status-success mb-2 flex items-center gap-2 text-sm font-bold">
-              <CheckCircle2 className="h-4 w-4" strokeWidth={1.75} /> 参考答案
+          <div className="border-line-1 rounded-tau-md border px-4 py-3">
+            <p className="text-ok text-tau-meta m-0 mb-1.5 flex items-center gap-1.5 font-medium">
+              <CheckCircle2 className="size-3.5" strokeWidth={1.75} />
+              参考答案
             </p>
-            <div className="prose prose-sm text-ink-2 max-w-none">
-              <p className="whitespace-pre-wrap">{data.answer}</p>
-            </div>
-          </motion.div>
+            <p className="text-ink-2 text-tau-body m-0 whitespace-pre-wrap leading-relaxed">
+              {data.answer}
+            </p>
+          </div>
         )}
       </div>
     );
@@ -453,8 +409,50 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
       case "cloze":
         return null; // 填空题内容已在题干中渲染
       default:
-        return <p className="text-ink-2">未知题型</p>;
+        return <p className="text-ink-2 m-0">未知题型</p>;
     }
+  };
+
+  // 渲染作答反馈
+  const renderFeedback = () => {
+    if (!currentItem || !showAnswer || currentAnswerCorrect === null) return null;
+    const positive = currentAnswerCorrect || currentItem.type === "qa";
+
+    return (
+      <div className={cn("rounded-tau-md px-4 py-3", positive ? "bg-ok-soft" : "bg-warn-soft")}>
+        <p
+          className={cn(
+            "text-tau-body m-0 flex items-center gap-1.5 font-medium",
+            positive ? "text-ok" : "text-warn"
+          )}
+        >
+          {currentItem.type === "qa" ? (
+            "自我评估"
+          ) : currentAnswerCorrect ? (
+            <>
+              <Check className="size-4" strokeWidth={1.75} />
+              回答正确
+            </>
+          ) : (
+            <>
+              <X className="size-4" strokeWidth={1.75} />
+              回答错误
+            </>
+          )}
+        </p>
+        {currentItem.data.explanation ? (
+          <div className="text-ink-2 text-tau-body mt-2 leading-relaxed">
+            <span className="text-ink-3 text-tau-meta mb-0.5 block">解析</span>
+            {currentItem.data.explanation}
+          </div>
+        ) : (
+          !currentAnswerCorrect &&
+          currentItem.type !== "qa" && (
+            <p className="text-ink-2 text-tau-meta m-0 mt-1">暂无解析，请参考正确答案。</p>
+          )
+        )}
+      </div>
+    );
   };
 
   // 渲染测验结果
@@ -469,123 +467,59 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
           : quizRecord.score >= 60
             ? "pass"
             : "fail";
+    const config = LEVEL_CONFIG[scoreLevel];
 
-    const levelConfig = {
-      excellent: {
-        gradient: "from-accent to-accent-hover",
-        bg: "bg-accent-soft",
-        text: "text-accent-text",
-        label: "太棒了！",
-        emoji: "🎉",
+    const stats = [
+      {
+        icon: Target,
+        value: `${quizRecord.correctCount}/${quizRecord.totalCount}`,
+        label: "正确率",
       },
-      good: {
-        gradient: "from-info to-info",
-        bg: "bg-info/10",
-        text: "text-status-info",
-        label: "做得不错！",
-        emoji: "👍",
+      {
+        icon: Clock,
+        value: `${Math.floor(quizRecord.duration / 60)}:${String(quizRecord.duration % 60).padStart(2, "0")}`,
+        label: "用时",
       },
-      pass: {
-        gradient: "from-warn to-warn",
-        bg: "bg-warn-soft",
-        text: "text-status-warning",
-        label: "继续加油！",
-        emoji: "💪",
-      },
-      fail: {
-        gradient: "from-danger to-danger",
-        bg: "bg-danger/10",
-        text: "text-status-error",
-        label: "再接再厉！",
-        emoji: "📚",
-      },
-    };
-
-    const config = levelConfig[scoreLevel];
+      { icon: Trophy, value: String(quizRecord.totalCount), label: "总题数" },
+    ];
 
     return (
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="flex flex-col items-center py-8"
-      >
+      <div className="flex flex-col items-center py-6">
         {/* 成绩圆环 */}
-        <div className="relative mb-6">
-          <div
-            className={classNames(
-              "flex h-40 w-40 items-center justify-center rounded-full",
-              config.bg
-            )}
-          >
-            <div className="text-center">
-              <div
-                className={classNames(
-                  "bg-linear-to-r bg-clip-text text-5xl font-bold text-transparent",
-                  config.gradient
-                )}
-              >
-                {quizRecord.score.toFixed(0)}
-              </div>
-              <div className="text-ink-2 mt-1 text-sm">分</div>
-            </div>
-          </div>
-          <div className="absolute -right-2 -top-2 text-4xl">{config.emoji}</div>
+        <div
+          className={cn(
+            "flex size-32 flex-col items-center justify-center rounded-full border-[3px]",
+            config.ring
+          )}
+        >
+          <span className={cn("text-[40px] font-semibold tabular-nums leading-none", config.text)}>
+            {quizRecord.score.toFixed(0)}
+          </span>
+          <span className="text-ink-3 text-tau-meta mt-1">分</span>
         </div>
 
         {/* 评语 */}
-        <h3 className={classNames("mb-6 text-2xl font-bold", config.text)}>{config.label}</h3>
+        <p className={cn("m-0 mt-4 text-[16px] font-semibold", config.text)}>{config.label}</p>
 
-        {/* 统计卡片 */}
-        <div className="mb-8 grid w-full max-w-md grid-cols-3 gap-4">
-          <div
-            className={classNames(
-              "flex flex-col items-center rounded-xl p-4",
-              "border-line-1 border"
-            )}
-          >
-            <Target className="text-accent mb-2 h-5 w-5" strokeWidth={1.75} />
-            <div className="text-ink-1 text-lg font-bold">
-              {quizRecord.correctCount}/{quizRecord.totalCount}
-            </div>
-            <div className="text-ink-2 text-xs">正确率</div>
-          </div>
-          <div
-            className={classNames(
-              "flex flex-col items-center rounded-xl p-4",
-              "border-line-1 border"
-            )}
-          >
-            <Clock className="mb-2 h-5 w-5 text-amber-500" strokeWidth={1.75} />
-            <div className="text-ink-1 text-lg font-bold">
-              {Math.floor(quizRecord.duration / 60)}:
-              {String(quizRecord.duration % 60).padStart(2, "0")}
-            </div>
-            <div className="text-ink-2 text-xs">用时</div>
-          </div>
-          <div
-            className={classNames(
-              "flex flex-col items-center rounded-xl p-4",
-              "border-line-1 border"
-            )}
-          >
-            <Trophy className="text-accent mb-2 h-5 w-5" strokeWidth={1.75} />
-            <div className="text-ink-1 text-lg font-bold">{quizRecord.totalCount}</div>
-            <div className="text-ink-2 text-xs">总题数</div>
-          </div>
+        {/* 统计 */}
+        <div className="mt-6 grid w-full max-w-md grid-cols-3 gap-3">
+          {stats.map(stat => {
+            const Icon = stat.icon;
+            return (
+              <div
+                key={stat.label}
+                className="border-line-1 rounded-tau-md flex flex-col items-center border px-3 py-3"
+              >
+                <Icon className="text-ink-3 mb-1.5 size-4" strokeWidth={1.75} />
+                <span className="text-ink-1 text-[15px] font-semibold tabular-nums">
+                  {stat.value}
+                </span>
+                <span className="text-ink-3 text-tau-meta">{stat.label}</span>
+              </div>
+            );
+          })}
         </div>
-
-        {/* 完成按钮 */}
-        <button
-          onClick={handleClose}
-          className={classNames(
-            "rounded-xl px-8 py-3 font-bold text-white transition-all duration-200",
-            "bg-linear-to-r hover:opacity-90",
-            config.gradient
-          )}
-        >
-          完成测验
-        </button>
-      </motion.div>
+      </div>
     );
   };
 
@@ -593,214 +527,125 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
     return null;
   }
 
+  const testingFooter = (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        icon={ChevronLeft}
+        className="mr-auto"
+        disabled={progress.current <= 1}
+        onClick={handlePrev}
+      >
+        上一题
+      </Button>
+      {!showAnswer ? (
+        <Button
+          variant="primary"
+          size="sm"
+          disabled={!canSubmitAnswer}
+          onClick={handleSubmitAnswer}
+        >
+          提交答案
+        </Button>
+      ) : isLastQuestion ? (
+        <Button variant="primary" size="sm" loading={finishing} onClick={handleFinish}>
+          完成测验
+        </Button>
+      ) : (
+        <Button variant="primary" size="sm" onClick={handleNext}>
+          下一题
+          <ChevronRight className="-mr-0.5 size-4" strokeWidth={1.75} />
+        </Button>
+      )}
+    </>
+  );
+
+  const resultFooter = (
+    <Button variant="primary" size="sm" onClick={handleClose}>
+      完成测验
+    </Button>
+  );
+
   return (
-    <CustomModal
+    <Dialog
       open={open}
-      onCancel={handleClose}
-      width="720px"
-      centered
-      footer={null}
-      showCloseButton={!showAnswer}
-      bodyClassName="p-0"
+      onOpenChange={next => !next && handleClose()}
+      onAfterClose={handleAfterClose}
+      title={quizSet?.name || "测验"}
+      icon={
+        quizSet?.emoji ? (
+          <span className="text-[14px] leading-none">{quizSet.emoji}</span>
+        ) : undefined
+      }
+      subtitle={
+        step === "testing"
+          ? `第 ${progress.current} / ${progress.total} 题 · ${TYPE_LABELS[currentItem.type] || currentItem.type}`
+          : "测验结果"
+      }
+      width={680}
+      locked={finishing}
+      footer={step === "testing" ? testingFooter : resultFooter}
     >
-      <div className="flex flex-col">
-        {step === "testing" && (
-          <>
-            {/* Header & Progress */}
-            <div className="border-line-1 border-b px-8 pb-4 pt-6">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {quizSet && <span className="text-xl">{quizSet.emoji}</span>}
-                  <div className="flex items-center gap-2">
-                    <span className="bg-hover text-ink-2 rounded-md px-2 py-0.5 text-xs font-bold">
-                      {progress.current} / {progress.total}
-                    </span>
-                    <span className="text-ink-3 text-sm font-medium">
-                      {typeLabels[currentItem.type] || currentItem.type}
-                    </span>
-                  </div>
-                </div>
-                <span className="text-accent text-sm font-bold">
-                  {Math.round(progressPercent)}%
-                </span>
-              </div>
-              <div className="bg-track h-1.5 overflow-hidden rounded-full">
-                <motion.div
-                  className="bg-accent h-full rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progressPercent}%` }}
-                  transition={{ duration: 0.4, ease: "easeOut" }}
-                />
-              </div>
-            </div>
+      {step === "testing" && (
+        <div className="flex flex-col gap-5 pt-1">
+          {/* 进度 */}
+          <div className="bg-track h-1 overflow-hidden rounded-full">
+            <div
+              className="bg-accent ease-tau-out h-full rounded-full transition-[width] duration-[400ms]"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
 
-            {/* Content Area */}
-            <div className="min-h-[400px] space-y-8 px-8 py-6">
-              {/* Question */}
-              <div>
-                {currentItem.type === "cloze" ? (
-                  <ClozeReviewRenderer
-                    key={`cloze-${currentItem.id}`}
-                    richContent={currentItem.prompt}
-                    revealed={showAnswer}
-                    isDark={isDark}
-                    interactive={!showAnswer}
-                    onBlankChange={(blankId, value) => {
-                      setCurrentAnswer((prev: Record<string, string>) => ({
-                        ...prev,
-                        [blankId]: value,
-                      }));
-                    }}
-                  />
-                ) : (
-                  <RichTextRenderer
-                    key={`prompt-${currentItem.id}`}
-                    content={currentItem.prompt}
-                    isDark={isDark}
-                    className="text-ink-1 text-xl font-medium leading-normal md:text-2xl"
-                  />
-                )}
+          {/* 题干 */}
+          <div>
+            {currentItem.type === "cloze" ? (
+              <ClozeReviewRenderer
+                key={`cloze-${currentItem.id}`}
+                richContent={currentItem.prompt}
+                revealed={showAnswer}
+                isDark={isDark}
+                interactive={!showAnswer}
+                onBlankChange={(blankId, value) => {
+                  setCurrentAnswer((prev: Record<string, string>) => ({
+                    ...prev,
+                    [blankId]: value,
+                  }));
+                }}
+              />
+            ) : (
+              <RichTextRenderer
+                key={`prompt-${currentItem.id}`}
+                content={currentItem.prompt}
+                isDark={isDark}
+                className="text-ink-1 text-[17px] font-medium leading-normal"
+              />
+            )}
 
-                {currentItem.tags.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {currentItem.tags.map(tag => (
-                      <span
-                        key={tag}
-                        className="border-line-1 text-ink-2 rounded-md border px-2.5 py-1 text-xs font-medium"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Answer Area */}
-              <div>{renderQuestionContent()}</div>
-
-              {/* Result Display */}
-              <AnimatePresence>
-                {showAnswer && currentAnswerCorrect !== null && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, height: 0 }}
-                    animate={{ opacity: 1, y: 0, height: "auto" }}
-                    exit={{ opacity: 0, y: 10, height: 0 }}
-                    className="overflow-hidden"
+            {currentItem.tags.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {currentItem.tags.map(tag => (
+                  <span
+                    key={tag}
+                    className="border-line-1 text-ink-2 text-tau-sm rounded-full border px-2 py-0.5"
                   >
-                    <div
-                      className={classNames(
-                        "rounded-xl border-l-4 p-5 shadow-sm",
-                        currentAnswerCorrect || currentItem.type === "qa"
-                          ? "bg-ok/10 border-ok shadow-sm"
-                          : "bg-warn-soft border-warn shadow-sm"
-                      )}
-                    >
-                      <p
-                        className={classNames(
-                          "mb-2 flex items-center gap-2 text-lg font-bold",
-                          currentAnswerCorrect || currentItem.type === "qa"
-                            ? "text-status-success"
-                            : "text-status-warning"
-                        )}
-                      >
-                        {currentItem.type === "qa" ? (
-                          "自我评估"
-                        ) : currentAnswerCorrect ? (
-                          <>
-                            <Check className="h-5 w-5" strokeWidth={1.75} />
-                            回答正确！
-                          </>
-                        ) : (
-                          <>
-                            <X className="h-5 w-5" strokeWidth={1.75} />
-                            回答错误
-                          </>
-                        )}
-                      </p>
-                      {currentItem.data.explanation ? (
-                        <div className="text-ink-2 mt-3 text-base leading-relaxed">
-                          <span className="mb-1 block text-sm font-semibold opacity-75">
-                            解析：
-                          </span>
-                          {currentItem.data.explanation}
-                        </div>
-                      ) : (
-                        !currentAnswerCorrect &&
-                        currentItem.type !== "qa" && (
-                          <p className="text-ink-2 mt-1 text-sm">暂无解析，请参考正确答案。</p>
-                        )
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Footer Actions */}
-            <div className="border-line-1 border-t p-6">
-              <div className="flex items-center">
-                {/* 上一题按钮 */}
-                <div className="flex-1">
-                  <button
-                    onClick={handlePrev}
-                    disabled={progress.current <= 1}
-                    className={classNames(
-                      "flex items-center gap-2 rounded-xl px-4 py-2.5 font-medium transition-all",
-                      progress.current <= 1
-                        ? "text-ink-3 cursor-not-allowed"
-                        : "text-ink-2 hover:bg-hover"
-                    )}
-                  >
-                    <ChevronLeft className="h-5 w-5" strokeWidth={1.75} />
-                    上一题
-                  </button>
-                </div>
-
-                {/* 主按钮 - 居中 */}
-                <div className="shrink-0">
-                  {!showAnswer ? (
-                    <button
-                      onClick={handleSubmitAnswer}
-                      disabled={!canSubmitAnswer}
-                      className={classNames(
-                        "rounded-xl px-8 py-3 text-lg font-bold transition-all duration-200",
-                        canSubmitAnswer
-                          ? "bg-accent hover:bg-accent-hover text-white"
-                          : "bg-sunken text-ink-3 cursor-not-allowed"
-                      )}
-                    >
-                      提交答案
-                    </button>
-                  ) : isLastQuestion ? (
-                    <button
-                      onClick={handleFinish}
-                      className="bg-linear-to-r from-accent to-accent-hover rounded-xl px-8 py-3 text-lg font-bold text-white transition-all duration-200 hover:opacity-90"
-                    >
-                      完成测验
-                    </button>
-                  ) : null}
-                </div>
-
-                {/* 下一题按钮 */}
-                <div className="flex flex-1 justify-end">
-                  {showAnswer && !isLastQuestion && (
-                    <button
-                      onClick={handleNext}
-                      className="bg-accent hover:bg-accent-hover flex items-center gap-2 rounded-xl px-8 py-3 text-lg font-bold text-white transition-all duration-200"
-                    >
-                      下一题
-                      <ChevronRight className="h-5 w-5" strokeWidth={1.75} />
-                    </button>
-                  )}
-                </div>
+                    #{tag}
+                  </span>
+                ))}
               </div>
-            </div>
-          </>
-        )}
+            )}
+          </div>
 
-        {step === "result" && renderResult()}
-      </div>
-    </CustomModal>
+          {/* 作答区 */}
+          {renderQuestionContent()}
+
+          {/* 作答反馈 */}
+          {renderFeedback()}
+        </div>
+      )}
+
+      {step === "result" && renderResult()}
+    </Dialog>
   );
 });
 

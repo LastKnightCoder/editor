@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { Select } from "@tau/ui";
-import { Button, TextInput } from "./ui";
+import { Button, IconButton, Input, Select, Spinner, Tooltip } from "@tau/ui";
 import type { PodcastSpeaker } from "@/types/podcast";
 import { SpeakerRole } from "@/types/podcast";
 import type { VoiceOption } from "./types";
@@ -67,90 +66,75 @@ export const SpeakerConfig = ({
   );
 
   return (
-    <div className="space-y-3">
-      {voicesLoading && (
-        <div className="text-ink-3 text-tau-sm flex items-center gap-1.5">
-          <svg
-            className="h-3 w-3 animate-spin"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="12" cy="12" r="9" strokeOpacity="0.25" />
-            <path d="M12 3a9 9 0 0 1 9 9" strokeLinecap="round" />
-          </svg>
-          正在加载音色...
-        </div>
-      )}
-      <div className="space-y-3">
-        {speakers.map((speaker, index) => (
-          <div key={index} className="flex items-center gap-2">
-            <TextInput
-              placeholder="名称"
-              value={speaker.name}
-              onChange={value => updateSpeaker(index, "name", value)}
-              className="w-[120px] shrink-0"
-            />
-            <Select
-              value={speaker.role}
-              onValueChange={value => updateSpeaker(index, "role", value)}
-              className="w-[100px] shrink-0"
-              options={[
-                {
-                  value: SpeakerRole.Host,
-                  label: SpeakerRole.Host,
-                },
-                {
-                  value: SpeakerRole.Guest,
-                  label: SpeakerRole.Guest,
-                },
-              ]}
-            />
-            <Select
-              placeholder="选择或输入音色 ID"
-              value={speaker.voiceId || undefined}
-              onValueChange={value => updateSpeaker(index, "voiceId", value)}
-              className="min-w-0 flex-1"
-              searchable
-              creatable
-              options={voices.map(voice => ({
-                value: voice.id,
-                label: (
-                  <span className="flex min-w-0 items-baseline gap-2">
-                    <span className="truncate">{voice.name || voice.id}</span>
-                    {voice.description && (
-                      <span className="text-ink-3 text-tau-tiny truncate">{voice.description}</span>
-                    )}
-                  </span>
-                ),
-                searchText: `${voice.name || ""} ${voice.id} ${voice.description || ""}`,
-              }))}
-            />
-            {speakers.length > 2 && (
-              <Button
-                icon={<Trash2 size={14} />}
-                variant="danger"
-                size="small"
-                className="h-7 w-7 shrink-0 px-0"
+    <div className="flex flex-col gap-2">
+      {speakers.map((speaker, index) => (
+        <div key={index} className="flex items-center gap-2">
+          <Input
+            placeholder="名称"
+            aria-label={`说话人 ${index + 1} 名称`}
+            value={speaker.name}
+            onChange={e => updateSpeaker(index, "name", e.target.value)}
+            wrapperClassName="w-[120px] shrink-0"
+          />
+          <Select
+            aria-label={`说话人 ${index + 1} 角色`}
+            value={speaker.role}
+            onValueChange={value => updateSpeaker(index, "role", value)}
+            className="w-[96px] shrink-0"
+            options={[
+              { value: SpeakerRole.Host, label: SpeakerRole.Host },
+              { value: SpeakerRole.Guest, label: SpeakerRole.Guest },
+            ]}
+          />
+          <Select
+            aria-label={`说话人 ${index + 1} 音色`}
+            placeholder={voicesLoading ? "正在加载音色…" : "选择或输入音色 ID"}
+            value={speaker.voiceId || undefined}
+            onValueChange={value => updateSpeaker(index, "voiceId", value)}
+            className="min-w-0 flex-1"
+            searchable
+            creatable
+            emptyText={voicesLoading ? "正在加载音色…" : undefined}
+            options={voices.map(voice => ({
+              value: voice.id,
+              label: (
+                <span className="flex min-w-0 items-baseline gap-2">
+                  <span className="truncate">{voice.name || voice.id}</span>
+                  {voice.description && (
+                    <span className="text-ink-3 text-tau-micro truncate">{voice.description}</span>
+                  )}
+                </span>
+              ),
+              searchText: `${voice.name || ""} ${voice.id} ${voice.description || ""}`,
+            }))}
+          />
+          {speakers.length > 2 && (
+            <Tooltip content="移除说话人">
+              <IconButton
+                aria-label="移除说话人"
+                className="enabled:hover:text-danger shrink-0"
                 onClick={() => removeSpeaker(index)}
-              />
-            )}
-          </div>
-        ))}
-      </div>
+              >
+                <Trash2 className="size-[15px]" strokeWidth={1.75} />
+              </IconButton>
+            </Tooltip>
+          )}
+        </div>
+      ))}
 
-      {speakers.length < 5 && (
-        <Button
-          icon={<Plus size={14} />}
-          onClick={addSpeaker}
-          block
-          variant="dashed"
-          className="mt-4"
-        >
-          添加说话人
-        </Button>
-      )}
+      <div className="flex items-center gap-3">
+        {speakers.length < 5 && (
+          <Button variant="ghost" size="sm" icon={Plus} onClick={addSpeaker} className="-ml-2">
+            添加说话人
+          </Button>
+        )}
+        {voicesLoading && (
+          <span className="text-ink-3 text-tau-meta flex items-center gap-1.5">
+            <Spinner className="size-3" />
+            正在加载音色…
+          </span>
+        )}
+      </div>
     </div>
   );
 };

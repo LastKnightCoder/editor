@@ -1,12 +1,14 @@
 import { useCallback, useRef, useState } from "react";
-import classNames from "classnames";
-import { Volume2, FileText, RefreshCw, Pause } from "lucide-react";
-import { Button, SectionTitle, TextArea, TextStrong, TextSecondary } from "./ui";
+import { ChevronRight, Pause, Play, RefreshCw } from "lucide-react";
+import { Button, cn } from "@tau/ui";
+import { Field, TextArea } from "./ui";
 import { formatTime } from "./utils";
 import type { PodcastScriptLine } from "@/types/podcast";
 import { extractPodcastSegment } from "@/commands/podcast-audio";
 import { remoteResourceToLocal } from "@/utils/resouce";
 import { getHomeDir, readBinaryFile } from "@/commands/file";
+
+const AUTO_SIZE = { minRows: 2, maxRows: 8 };
 
 export interface ResultPreviewProps {
   audioUrl: string;
@@ -30,6 +32,7 @@ export const ResultPreview = ({
   const [regeneratingSegmentIndex, setRegeneratingSegmentIndex] = useState<number | null>(null);
   const [extractingAudioIndex, setExtractingAudioIndex] = useState<number | null>(null);
   const [playingSegmentIndex, setPlayingSegmentIndex] = useState<number | null>(null);
+  const [scriptOpen, setScriptOpen] = useState(true);
   const currentAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const handleStartEditSegment = useCallback((index: number, currentText: string) => {
@@ -174,107 +177,124 @@ export const ResultPreview = ({
   );
 
   return (
-    <div className="space-y-4">
-      <SectionTitle>
-        <Volume2 size={14} className="-mt-px mr-1.5 inline-block" /> 播客音频
-      </SectionTitle>
-      <audio key={audioUrl} controls className="w-full" src={audioUrl} />
-      <TextSecondary className="text-xs">
-        时长: {Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, "0")}
-      </TextSecondary>
+    <div className="flex flex-col gap-4">
+      <Field label="播客音频" hint={`时长 ${formatTime(duration)}`}>
+        <audio key={audioUrl} controls className="h-10 w-full" src={audioUrl} />
+      </Field>
 
-      <details open className="mt-4">
-        <summary className="text-ink-3 text-tau-sm flex cursor-pointer select-none items-center gap-1.5 font-medium">
-          <FileText size={14} className="inline-block" /> 查看脚本
-        </summary>
-        <div className="flex max-h-[400px] flex-col gap-2 overflow-y-auto px-1 pb-1 pt-3">
-          {scriptLines.map((line, index) => {
-            const isEditing = editingSegmentIndex === index;
-            const isRegenerating = regeneratingSegmentIndex === index;
-            const isExtracting = extractingAudioIndex === index;
-            const isPlaying = playingSegmentIndex === index;
+      <div className="flex flex-col gap-1.5">
+        <button
+          type="button"
+          onClick={() => setScriptOpen(v => !v)}
+          aria-expanded={scriptOpen}
+          className="text-ink-2 hover:text-ink-1 flex w-fit items-center gap-1 text-[12px] outline-none"
+        >
+          <ChevronRight
+            className={cn(
+              "ease-tau-out size-3.5 transition-transform duration-150",
+              scriptOpen && "rotate-90"
+            )}
+            strokeWidth={1.75}
+          />
+          脚本
+          <span className="text-ink-3 tabular-nums">{scriptLines.length} 段</span>
+        </button>
 
-            return (
-              <div
-                key={index}
-                className={classNames(
-                  "rounded-tau-md p-3 transition-colors duration-150",
-                  isEditing
-                    ? "bg-accent-soft shadow-[0_0_0_1.5px_var(--tau-accent)]"
-                    : isRegenerating
-                      ? "bg-warn-soft shadow-[0_0_0_1.5px_var(--tau-warn)]"
-                      : "shadow-[0_0_0_1px_var(--tau-line-1)] hover:shadow-[0_0_0_1.5px_var(--tau-ink-3)]"
-                )}
-              >
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <TextStrong>{line.speaker}</TextStrong>
-                    <TextSecondary className="text-xs">
-                      {formatTime(line.startTime)} - {formatTime(line.startTime + line.duration)} (
-                      {line.duration.toFixed(1)}s)
-                    </TextSecondary>
+        {scriptOpen && (
+          <div className="-mx-3 flex flex-col gap-0.5">
+            {scriptLines.map((line, index) => {
+              const isEditing = editingSegmentIndex === index;
+              const isRegenerating = regeneratingSegmentIndex === index;
+              const isExtracting = extractingAudioIndex === index;
+              const isPlaying = playingSegmentIndex === index;
+
+              return (
+                <div
+                  key={index}
+                  className={cn(
+                    "rounded-tau-md ease-tau-out px-3 py-2.5 transition-colors duration-150",
+                    isEditing
+                      ? "bg-accent-soft"
+                      : isRegenerating
+                        ? "bg-warn-soft"
+                        : isPlaying
+                          ? "bg-selected"
+                          : "hover:bg-hover"
+                  )}
+                >
+                  <div className="mb-1 flex h-7 items-center gap-2">
+                    <span className="text-ink-1 text-tau-meta font-medium">{line.speaker}</span>
+                    <span className="text-ink-3 text-tau-micro tabular-nums">
+                      {formatTime(line.startTime)} – {formatTime(line.startTime + line.duration)} ·{" "}
+                      {line.duration.toFixed(1)}s
+                    </span>
                     {isRegenerating && (
-                      <TextSecondary className="text-warn text-tau-sm">
-                        正在重新生成...
-                      </TextSecondary>
+                      <span className="text-warn text-tau-meta flex items-center gap-1.5">
+                        <RefreshCw className="size-3 animate-spin" strokeWidth={1.75} />
+                        正在重新生成…
+                      </span>
+                    )}
+                    <span className="flex-1" />
+                    {!isEditing && !isRegenerating && (
+                      <div className="-mr-1.5 flex items-center gap-0.5">
+                        <Button
+                          size="sm"
+                          variant={isPlaying ? "soft" : "ghost"}
+                          icon={isPlaying ? Pause : Play}
+                          loading={isExtracting}
+                          onClick={() => handlePlaySegment(index)}
+                          className="px-2.5"
+                        >
+                          {isPlaying ? "停止试听" : "试听"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={RefreshCw}
+                          onClick={() => handleStartEditSegment(index, line.text)}
+                          className="px-2.5"
+                        >
+                          重生成
+                        </Button>
+                      </div>
                     )}
                   </div>
-                  {!isEditing && !isRegenerating && (
-                    <div className="flex gap-2">
-                      <Button
-                        size="small"
-                        variant={isPlaying ? "primary" : "text"}
-                        icon={isPlaying ? <Pause size={14} /> : <Volume2 size={14} />}
-                        loading={isExtracting}
-                        onClick={() => handlePlaySegment(index)}
-                      >
-                        {isPlaying ? "停止试听" : "试听"}
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="text"
-                        icon={<RefreshCw size={14} />}
-                        onClick={() => handleStartEditSegment(index, line.text)}
-                      >
-                        重生成
-                      </Button>
+
+                  {isEditing ? (
+                    <div className="flex flex-col gap-2">
+                      <TextArea
+                        value={editingSegmentText}
+                        onChange={setEditingSegmentText}
+                        autoSize={AUTO_SIZE}
+                        autoFocus
+                        placeholder="请输入文本内容"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" variant="secondary" onClick={handleCancelEditSegment}>
+                          取消
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="soft"
+                          icon={RefreshCw}
+                          onClick={handleConfirmEditSegment}
+                          disabled={!editingSegmentText.trim()}
+                        >
+                          确定并重新生成
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-ink-2 text-tau-body whitespace-pre-wrap leading-relaxed">
+                      {line.text}
                     </div>
                   )}
                 </div>
-
-                {isEditing ? (
-                  <div className="space-y-2">
-                    <TextArea
-                      value={editingSegmentText}
-                      onChange={setEditingSegmentText}
-                      autoSize={{ minRows: 2, maxRows: 8 }}
-                      autoFocus
-                      placeholder="请输入文本内容"
-                    />
-                    <div className="flex justify-end gap-2">
-                      <Button size="small" onClick={handleCancelEditSegment}>
-                        取消
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="primary"
-                        onClick={handleConfirmEditSegment}
-                        disabled={!editingSegmentText.trim()}
-                      >
-                        确定并重新生成
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-ink-2 text-tau-body whitespace-pre-wrap leading-relaxed">
-                    {line.text}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </details>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -1,17 +1,13 @@
 import useLocalPath from "@/hooks/useLocalPath";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { IPodcast, PodcastScriptLine } from "@/types/podcast";
-import useTheme from "@/hooks/useTheme";
-import CustomModal from "@/components/CustomModal";
-import ConfirmDialog from "@/components/CustomModal/ConfirmDialog";
+import { ConfirmDialog, Dialog, IconButton, Menu, Spinner, Tooltip, cn } from "@tau/ui";
 import {
-  ChevronRight,
   Download,
-  Loader2,
   MoreHorizontal,
-  PauseCircle,
+  Pause,
   Pencil,
-  PlayCircle,
+  Play,
   ScrollText,
   Trash2,
   Volume2,
@@ -29,6 +25,25 @@ interface PodCastPlayerProps {
 
 const playbackSpeeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 
+/**
+ * 滑条：accent 填充 + line-1 轨道（硬停色标，非渐变观感），圆钮 accent 实心 + surface 描边。
+ * 填充比例由内联 CSS 变量 --v 传入；悬停不改变轨道 / 圆钮尺寸。
+ */
+const sliderClass = cn(
+  "h-1 cursor-pointer appearance-none rounded-full outline-none",
+  "bg-[linear-gradient(to_right,var(--tau-accent)_0_var(--v),var(--tau-line-1)_var(--v)_100%)]",
+  "[&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full",
+  "[&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:ring-surface [&::-webkit-slider-thumb]:ring-2",
+  "[&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0",
+  "[&::-moz-range-thumb]:bg-accent",
+  "focus-visible:[&::-webkit-slider-thumb]:ring-accent-soft"
+);
+
+const sliderStyle = (ratio: number) =>
+  ({ "--v": `${Math.min(Math.max(ratio, 0), 1) * 100}%` }) as CSSProperties;
+
+const iconProps = { className: "size-4", strokeWidth: 1.75 } as const;
+
 const PodCastPlayer = (props: PodCastPlayerProps) => {
   const { defaultPodcast, onDelete, onEdit, compact = false } = props;
   const podcast = defaultPodcast;
@@ -38,42 +53,13 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
 
   const [scriptDetailOpen, setScriptDetailOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [speedMenuOpen, setSpeedMenuOpen] = useState(false);
-  const { isDark } = useTheme();
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const menuContainerRef = useRef<HTMLDivElement | null>(null);
   const [playing, setPlaying] = useState<boolean>(false);
   const [volume, setVolume] = useState<number>(1);
   const [muted, setMuted] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [playbackRate, setPlaybackRate] = useState<number>(1);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-
-    const handleMouseDown = (event: MouseEvent) => {
-      const target = event.target as Node | null;
-      if (!target) return;
-      if (!menuContainerRef.current?.contains(target)) {
-        setMenuOpen(false);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleMouseDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [menuOpen]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -174,306 +160,231 @@ const PodCastPlayer = (props: PodCastPlayerProps) => {
   if (loading) {
     return (
       <div
-        className={`w-full ${compact ? "py-2" : "my-2"} mx-auto flex items-center justify-center`}
+        className={cn("mx-auto flex w-full items-center justify-center", compact ? "py-2" : "my-2")}
       >
-        <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+        <Spinner className="text-ink-3 size-4" />
       </div>
     );
   }
+
+  const audioEl = (
+    <audio
+      ref={audioRef}
+      src={localPath}
+      className="hidden"
+      preload="metadata"
+      onLoadedMetadata={syncTimeState}
+      onDurationChange={syncTimeState}
+      onTimeUpdate={syncTimeState}
+      onSeeking={syncTimeState}
+      onSeeked={syncTimeState}
+      onPlay={() => setPlaying(true)}
+      onPause={() => setPlaying(false)}
+      onEnded={() => setPlaying(false)}
+      onError={() => {
+        console.warn("[PodcastPlayer] 音频加载失败", localPath);
+      }}
+    />
+  );
+
+  const progressRatio = currentTime / (duration || 1);
+  const progressSlider = (className: string) => (
+    <input
+      type="range"
+      min="0"
+      max={duration || 1}
+      step="0.1"
+      value={currentTime}
+      onChange={handleSeek}
+      aria-label="播放进度"
+      style={sliderStyle(progressRatio)}
+      className={cn(sliderClass, className)}
+    />
+  );
 
   // 紧凑模式：只显示播放按钮、进度条和时间
   if (compact) {
     return (
       <div className="flex items-center gap-2">
-        <audio
-          ref={audioRef}
-          src={localPath}
-          className="hidden"
-          preload="metadata"
-          onLoadedMetadata={syncTimeState}
-          onDurationChange={syncTimeState}
-          onTimeUpdate={syncTimeState}
-          onSeeking={syncTimeState}
-          onSeeked={syncTimeState}
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
-          onEnded={() => setPlaying(false)}
-          onError={() => {
-            console.warn("[PodcastPlayer] 音频加载失败", localPath);
-          }}
-        />
+        {audioEl}
         <button
+          type="button"
           onClick={togglePlay}
-          className="flex shrink-0 cursor-pointer items-center justify-center rounded-full"
-          style={{ color: isDark ? "#6666ff" : "#3311db" }}
+          aria-label={playing ? "暂停" : "播放"}
+          className="bg-accent text-accent-text grid size-6 shrink-0 cursor-pointer place-items-center rounded-full"
         >
-          {playing ? <PauseCircle className="h-6 w-6" /> : <PlayCircle className="h-6 w-6" />}
+          {playing ? (
+            <Pause className="size-3" strokeWidth={2} fill="currentColor" />
+          ) : (
+            <Play className="size-3 translate-x-[1px]" strokeWidth={2} fill="currentColor" />
+          )}
         </button>
-        <span className="w-8 shrink-0 text-right text-xs text-gray-500 dark:text-gray-400">
+        <span className="text-ink-3 text-tau-micro w-8 shrink-0 text-right tabular-nums">
           {formatTime(currentTime)}
         </span>
-        <input
-          type="range"
-          min="0"
-          max={duration || 1}
-          step="0.1"
-          value={currentTime}
-          onChange={handleSeek}
-          style={{
-            background: `linear-gradient(to right, ${
-              isDark ? "#6666ff" : "#3311db"
-            } 0%, ${isDark ? "#6666ff" : "#3311db"} ${(currentTime / (duration || 1)) * 100}%, ${
-              isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
-            } ${(currentTime / (duration || 1)) * 100}%, ${
-              isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
-            } 100%)`,
-          }}
-          className="h-1 flex-1 cursor-pointer appearance-none rounded-full transition-all hover:h-1.5 [&::-moz-range-thumb]:h-2.5 [&::-moz-range-thumb]:w-2.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:border-[var(--th-accent)] [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-[var(--th-accent)] [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md"
-        />
-        <span className="w-8 shrink-0 text-xs text-gray-500 dark:text-gray-400">
+        {progressSlider("min-w-0 flex-1")}
+        <span className="text-ink-3 text-tau-micro w-8 shrink-0 tabular-nums">
           {formatTime(duration)}
         </span>
       </div>
     );
   }
 
+  const volumeValue = muted ? 0 : volume;
+
   return (
-    <div className="relative mb-8 flex flex-col gap-2 rounded-md border border-[#f0f0f0] p-5 dark:border-[#202020]">
-      <audio
-        ref={audioRef}
-        src={localPath}
-        className="hidden"
-        preload="metadata"
-        onLoadedMetadata={syncTimeState}
-        onDurationChange={syncTimeState}
-        onTimeUpdate={syncTimeState}
-        onSeeking={syncTimeState}
-        onSeeked={syncTimeState}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        onEnded={() => setPlaying(false)}
-        onError={() => {
-          console.warn("[PodcastPlayer] 音频加载失败", localPath);
-        }}
-      />
-      <div className="flex items-center justify-between px-4">
-        <div className="flex min-w-0 flex-1 items-center gap-4">
-          <button
-            onClick={togglePlay}
-            className={`flex cursor-pointer items-center justify-center rounded-full`}
-            style={{ color: isDark ? "#6666ff" : "#3311db" }}
-          >
-            {playing ? <PauseCircle className="h-7 w-7" /> : <PlayCircle className="h-7 w-7" />}
-          </button>
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <div className="text-base font-medium">{podcast.name || "未命名播客"}</div>
-            </div>
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              {podcast.speakers.map(speaker => speaker.name).join(", ")}
-            </div>
+    <div className="border-line-1 bg-surface rounded-tau-lg relative mb-8 flex flex-col gap-3 border px-5 py-4">
+      {audioEl}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={togglePlay}
+          aria-label={playing ? "暂停" : "播放"}
+          className="bg-accent text-accent-text grid size-9 shrink-0 cursor-pointer place-items-center rounded-full"
+        >
+          {playing ? (
+            <Pause className="size-4" strokeWidth={2} fill="currentColor" />
+          ) : (
+            <Play className="size-4 translate-x-[1px]" strokeWidth={2} fill="currentColor" />
+          )}
+        </button>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="text-ink-1 text-tau-body truncate font-medium">
+            {podcast.name || "未命名播客"}
+          </div>
+          <div className="text-ink-3 text-tau-meta truncate">
+            {podcast.speakers.map(speaker => speaker.name).join(", ")}
           </div>
         </div>
-        <div ref={menuContainerRef} className="relative">
-          <button
-            type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-md bg-transparent transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800"
-            onClick={() => setMenuOpen(v => !v)}
-            aria-label="更多"
+        <Menu
+          align="end"
+          className="w-56"
+          trigger={
+            <IconButton aria-label="更多" className="shrink-0">
+              <MoreHorizontal {...iconProps} />
+            </IconButton>
+          }
+        >
+          <Menu.Item icon={<Pencil {...iconProps} />} onSelect={() => onEdit?.()}>
+            编辑播客
+          </Menu.Item>
+          <Menu.Item
+            icon={<ScrollText {...iconProps} />}
+            onSelect={() => setScriptDetailOpen(true)}
           >
-            <MoreHorizontal className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-9 z-20 w-56 rounded-xl border border-gray-200 bg-white p-1.5 shadow-lg transition-all dark:border-gray-700 dark:bg-zinc-900">
-              <button
-                type="button"
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-zinc-800"
-                onClick={() => {
-                  setMenuOpen(false);
-                  onEdit?.();
-                }}
-              >
-                <Pencil className="h-4 w-4" />
-                <span>编辑播客</span>
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-zinc-800"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setScriptDetailOpen(true);
-                }}
-              >
-                <ScrollText className="h-4 w-4" />
-                <span>脚本详情</span>
-              </button>
-
-              <div className="my-1.5 h-px bg-gray-200 dark:bg-zinc-700" />
-
-              <button
-                type="button"
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-zinc-800"
-                onClick={() => setSpeedMenuOpen(v => !v)}
-              >
-                <Zap className="h-4 w-4" />
-                <span className="flex-1 text-left">播放速度</span>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
+            脚本详情
+          </Menu.Item>
+          <Menu.Separator />
+          <Menu.Submenu
+            icon={<Zap {...iconProps} />}
+            label={
+              <span className="flex items-center gap-2">
+                <span className="flex-1">播放速度</span>
+                <span className="text-ink-3 text-tau-meta tabular-nums">
                   {playbackRate.toFixed(2)}x
                 </span>
-                <ChevronRight
-                  className={`h-4 w-4 transition-transform ${speedMenuOpen ? "rotate-90" : ""}`}
-                />
-              </button>
-
-              {speedMenuOpen && (
-                <div className="mx-2 mb-1.5 grid grid-cols-4 gap-1.5 rounded-lg bg-gray-50 px-2 py-2 dark:bg-zinc-800/50">
-                  {playbackSpeeds.map(speed => (
-                    <button
-                      key={speed}
-                      type="button"
-                      className={`rounded-md px-2 py-1.5 text-xs font-medium transition-all ${
-                        speed === playbackRate
-                          ? "scale-105 bg-[var(--th-btn-bg)] text-white shadow-sm"
-                          : "bg-white text-gray-700 hover:scale-105 hover:bg-gray-100 dark:bg-zinc-900 dark:text-gray-300 dark:hover:bg-zinc-700"
-                      }`}
-                      onClick={() => {
-                        setPlaybackRate(speed);
-                      }}
-                    >
-                      {speed.toFixed(1)}x
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div className="my-1.5 h-px bg-gray-200 dark:bg-zinc-700" />
-
-              <button
-                type="button"
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-zinc-800"
-                onClick={() => {
-                  setMenuOpen(false);
-                  downloadAudio().catch(err => {
-                    console.warn("[PodcastPlayer] 下载失败", err);
-                  });
-                }}
-              >
-                <Download className="h-4 w-4" />
-                <span>下载音频</span>
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-red-600 transition-colors hover:bg-red-50 dark:hover:bg-red-500/10"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setDeleteConfirmOpen(true);
-                }}
-              >
-                <Trash2 className="h-4 w-4" />
-                <span>删除播客</span>
-              </button>
-            </div>
-          )}
-        </div>
+              </span>
+            }
+          >
+            <Menu.RadioGroup
+              value={String(playbackRate)}
+              onValueChange={v => setPlaybackRate(Number(v))}
+            >
+              {playbackSpeeds.map(speed => (
+                <Menu.RadioItem key={speed} value={String(speed)}>
+                  <span className="tabular-nums">{speed.toFixed(2)}x</span>
+                </Menu.RadioItem>
+              ))}
+            </Menu.RadioGroup>
+          </Menu.Submenu>
+          <Menu.Separator />
+          <Menu.Item
+            icon={<Download {...iconProps} />}
+            onSelect={() => {
+              downloadAudio().catch(err => {
+                console.warn("[PodcastPlayer] 下载失败", err);
+              });
+            }}
+          >
+            下载音频
+          </Menu.Item>
+          <Menu.Item
+            danger
+            icon={<Trash2 {...iconProps} />}
+            onSelect={() => setDeleteConfirmOpen(true)}
+          >
+            删除播客
+          </Menu.Item>
+        </Menu>
       </div>
-      <div className="mb-4 flex items-center gap-2 px-4">
-        <span className="w-10 shrink-0 text-right text-xs text-gray-500 dark:text-gray-400">
+      <div className="flex items-center gap-2">
+        <span className="text-ink-3 text-tau-micro w-10 shrink-0 text-right tabular-nums">
           {formatTime(currentTime)}
         </span>
-        <input
-          type="range"
-          min="0"
-          max={duration || 1}
-          step="0.1"
-          value={currentTime}
-          onChange={handleSeek}
-          style={{
-            background: `linear-gradient(to right, ${
-              isDark ? "#6666ff" : "#3311db"
-            } 0%, ${isDark ? "#6666ff" : "#3311db"} ${(currentTime / (duration || 1)) * 100}%, ${
-              isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
-            } ${(currentTime / (duration || 1)) * 100}%, ${
-              isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
-            } 100%)`,
-          }}
-          className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full transition-all hover:h-2 focus:h-2 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[var(--th-accent)] [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:transition-all hover:[&::-moz-range-thumb]:h-4 hover:[&::-moz-range-thumb]:w-4 hover:[&::-moz-range-thumb]:shadow-lg dark:[&::-moz-range-thumb]:border-[var(--th-accent)] [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[var(--th-accent)] [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:transition-all hover:[&::-webkit-slider-thumb]:h-4 hover:[&::-webkit-slider-thumb]:w-4 hover:[&::-webkit-slider-thumb]:shadow-lg dark:[&::-webkit-slider-thumb]:border-[var(--th-accent)]"
-        />
-        <span className="w-10 shrink-0 text-xs text-gray-500 dark:text-gray-400">
+        {progressSlider("min-w-0 flex-1")}
+        <span className="text-ink-3 text-tau-micro w-10 shrink-0 tabular-nums">
           {formatTime(duration)}
         </span>
-        <div
-          style={{ color: isDark ? "#6666ff" : "#3311db" }}
-          className="ml-2 shrink-0 cursor-pointer transition-all hover:scale-110 active:scale-95"
-          onClick={() => setMuted(v => !v)}
-        >
-          {muted || volume === 0 ? (
-            <VolumeX className="h-5 w-5" />
-          ) : (
-            <Volume2 className="h-5 w-5" />
-          )}
-        </div>
+        <Tooltip content={muted || volume === 0 ? "取消静音" : "静音"}>
+          <IconButton
+            aria-label={muted || volume === 0 ? "取消静音" : "静音"}
+            className="ml-1 size-7 shrink-0"
+            onClick={() => setMuted(v => !v)}
+          >
+            {muted || volume === 0 ? <VolumeX {...iconProps} /> : <Volume2 {...iconProps} />}
+          </IconButton>
+        </Tooltip>
         <input
           type="range"
           min="0"
           max="1"
           step="0.01"
-          value={muted ? 0 : volume}
+          value={volumeValue}
           onChange={handleVolume}
-          style={{
-            background: `linear-gradient(to right, ${
-              isDark ? "#6666ff" : "#3311db"
-            } 0%, ${isDark ? "#6666ff" : "#3311db"} ${(muted ? 0 : volume) * 100}%, ${
-              isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
-            } ${(muted ? 0 : volume) * 100}%, ${
-              isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)"
-            } 100%)`,
-          }}
-          className="h-1.5 w-16 shrink-0 cursor-pointer appearance-none rounded-full transition-all hover:h-2 focus:h-2 [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[var(--th-accent)] [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:transition-all hover:[&::-moz-range-thumb]:h-4 hover:[&::-moz-range-thumb]:w-4 hover:[&::-moz-range-thumb]:shadow-lg dark:[&::-moz-range-thumb]:border-[var(--th-accent)] [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[var(--th-accent)] [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:transition-all hover:[&::-webkit-slider-thumb]:h-4 hover:[&::-webkit-slider-thumb]:w-4 hover:[&::-webkit-slider-thumb]:shadow-lg dark:[&::-webkit-slider-thumb]:border-[var(--th-accent)]"
+          aria-label="音量"
+          style={sliderStyle(volumeValue)}
+          className={cn(sliderClass, "w-16 shrink-0")}
         />
       </div>
-      <CustomModal
+      <Dialog
         open={scriptDetailOpen}
-        onCancel={() => setScriptDetailOpen(false)}
-        footer={null}
+        onOpenChange={setScriptDetailOpen}
         title="脚本详情"
+        icon={<ScrollText {...iconProps} />}
+        context={podcast.name || undefined}
         width={800}
-        contentClassName="p-0"
       >
-        <div
-          style={{
-            maxHeight: "calc(100vh - 200px)",
-            height: 600,
-            overflow: "hidden",
-          }}
-        >
-          <div className="flex max-h-full flex-col gap-3 overflow-y-auto whitespace-pre-wrap rounded p-4">
-            {podcast.scriptLines && podcast.scriptLines.length > 0 ? (
-              <div className="flex flex-col gap-4">
-                {podcast.scriptLines.map((line: PodcastScriptLine, index: number) => (
-                  <div key={index} className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-gray-600">{line.speaker}</span>
-                      <span className="text-xs text-gray-400">{formatTime(line.startTime)}</span>
-                    </div>
-                    <div className="text-gray-800">{line.text}</div>
-                  </div>
-                ))}
+        {podcast.scriptLines && podcast.scriptLines.length > 0 ? (
+          <div className="flex flex-col gap-4">
+            {podcast.scriptLines.map((line: PodcastScriptLine, index: number) => (
+              <div key={index} className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-ink-2 text-tau-meta font-semibold">{line.speaker}</span>
+                  <span className="text-ink-3 text-tau-micro tabular-nums">
+                    {formatTime(line.startTime)}
+                  </span>
+                </div>
+                <div className="text-ink-1 text-tau-body whitespace-pre-wrap">{line.text}</div>
               </div>
-            ) : (
-              podcast.script.split("\n").map((line, index) => <div key={index}>{line}</div>)
-            )}
+            ))}
           </div>
-        </div>
-      </CustomModal>
+        ) : (
+          <div className="text-ink-1 text-tau-body flex flex-col gap-3 whitespace-pre-wrap">
+            {podcast.script.split("\n").map((line, index) => (
+              <div key={index}>{line}</div>
+            ))}
+          </div>
+        )}
+      </Dialog>
       <ConfirmDialog
         open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
         title="删除播客"
         description="确定要删除该播客吗？"
+        context={podcast.name || undefined}
         danger
         confirmText="删除"
-        onCancel={() => setDeleteConfirmOpen(false)}
         onConfirm={() => {
-          setDeleteConfirmOpen(false);
           onDelete?.();
         }}
       />

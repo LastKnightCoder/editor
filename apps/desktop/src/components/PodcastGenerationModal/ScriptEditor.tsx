@@ -1,9 +1,7 @@
 import { useCallback, useRef } from "react";
-import classNames from "classnames";
 import { Plus, Trash2, GripVertical } from "lucide-react";
 import { useDrag, useDrop } from "react-dnd";
-import { Select } from "@tau/ui";
-import { Button } from "./ui";
+import { Button, IconButton, Select, Textarea, cn } from "@tau/ui";
 import type { PodcastSpeaker, PodcastScriptLine } from "@/types/podcast";
 
 const SCRIPT_LINE_TYPE = "SCRIPT_LINE";
@@ -67,42 +65,43 @@ const SortableScriptItem = ({
   preview(drop(ref));
 
   return (
-    <div ref={ref} className={classNames("group", isDragging && "opacity-50")}>
-      <div className="mb-1.5 flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <button
-            ref={node => {
-              drag(node);
-            }}
-            type="button"
-            className="text-ink-3/60 hover:text-ink-3 hover:bg-hover flex h-7 w-6 cursor-grab items-center justify-center rounded transition-colors active:cursor-grabbing"
-          >
-            <GripVertical size={14} />
-          </button>
-          <Select
-            value={line.speaker}
-            onValueChange={onSpeakerChange}
-            className="w-[100px]"
-            size="sm"
-            options={speakers.map(s => ({ value: s.name, label: s.name }))}
-          />
-        </div>
+    <div ref={ref} className={cn("group flex flex-col gap-1.5", isDragging && "opacity-50")}>
+      <div className="flex items-center gap-1">
         <button
+          ref={node => {
+            drag(node);
+          }}
           type="button"
-          className="text-ink-3/60 hover:text-danger hover:bg-danger-soft flex h-7 w-7 items-center justify-center rounded opacity-0 transition-colors group-hover:opacity-100"
+          aria-label="拖动排序"
+          className="text-ink-3 hover:text-ink-1 hover:bg-hover rounded-tau-sm -ml-1 flex h-7 w-5 cursor-grab items-center justify-center transition-colors active:cursor-grabbing"
+        >
+          <GripVertical className="size-3.5" strokeWidth={1.75} />
+        </button>
+        <Select
+          aria-label="说话人"
+          value={line.speaker}
+          onValueChange={onSpeakerChange}
+          className="w-[112px]"
+          size="sm"
+          options={speakers.map(s => ({ value: s.name, label: s.name }))}
+        />
+        <span className="text-ink-3 text-tau-micro ml-1 tabular-nums">#{index + 1}</span>
+        <span className="flex-1" />
+        <IconButton
+          aria-label="删除这段对话"
+          className="enabled:hover:text-danger size-7 opacity-0 focus-visible:opacity-100 group-hover:opacity-100"
           onClick={onDelete}
         >
-          <Trash2 size={14} />
-        </button>
+          <Trash2 className="size-3.5" strokeWidth={1.75} />
+        </IconButton>
       </div>
 
-      {/* 文本输入区域 */}
-      <textarea
+      <Textarea
         value={line.text}
         onChange={e => onTextChange(e.target.value)}
-        placeholder="输入对话内容..."
-        className="border-line-1 bg-surface text-ink-1 placeholder:text-ink-3 focus:border-accent rounded-tau-sm text-tau-body w-full resize-none overflow-hidden border px-3 py-2.5 outline-none transition-colors"
-        style={{ minHeight: "60px" }}
+        placeholder="输入对话内容…"
+        rows={2}
+        className="min-h-0 overflow-hidden"
         onInput={e => {
           const target = e.target as HTMLTextAreaElement;
           target.style.height = "auto";
@@ -185,7 +184,7 @@ export const ScriptEditor = ({ scriptLines, speakers, updateScriptLines }: Scrip
   }, [scriptLines, speakers, updateScriptLines]);
 
   return (
-    <div className="border-r-12 space-y-3 border-transparent">
+    <div className="flex flex-col gap-4">
       {scriptLines.map((line, index) => (
         <SortableScriptItem
           key={index}
@@ -199,7 +198,13 @@ export const ScriptEditor = ({ scriptLines, speakers, updateScriptLines }: Scrip
         />
       ))}
 
-      <Button block icon={<Plus size={14} />} variant="dashed" onClick={handleAddLine}>
+      <Button
+        variant="ghost"
+        size="sm"
+        icon={Plus}
+        onClick={handleAddLine}
+        className="-ml-2 self-start"
+      >
         添加对话
       </Button>
     </div>
