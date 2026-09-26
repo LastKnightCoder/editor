@@ -51,6 +51,32 @@ describe("WhiteboardTable 元信息", () => {
     db.close();
   });
 
+  it("按页 id 反查所属白板，独立页返回 null", () => {
+    WhiteboardTable.createWhiteboard(db, {
+      title: "其他",
+      description: "",
+      whiteBoardContentList: [{ name: "p", data: pageData("x") }],
+    });
+    const board = WhiteboardTable.createWhiteboard(db, {
+      title: "语法地图",
+      description: "",
+      whiteBoardContentList: [
+        { name: "助词", data: pageData("a") },
+        { name: "动词", data: pageData("b") },
+      ],
+    });
+    const orphan = WhiteBoardContentTable.createWhiteboardContent(db, {
+      name: "独立页",
+      imgUrl: "",
+      data: pageData("c"),
+    });
+
+    expect(WhiteboardTable.getWhiteboardByContentId(db, board.whiteBoardContentIds[1])?.id).toBe(
+      board.id
+    );
+    expect(WhiteboardTable.getWhiteboardByContentId(db, orphan.id)).toBeNull();
+  });
+
   it("创建时写入标签", () => {
     const board = WhiteboardTable.createWhiteboard(db, {
       title: "语法地图",

@@ -9,6 +9,11 @@ export const getWhiteBoardById = async (id: number): Promise<WhiteBoard> => {
   return invoke("get-white-board-by-id", id);
 };
 
+/** 按页 id 反查所属白板；独立页返回 null */
+export const getWhiteBoardByContentId = async (contentId: number): Promise<WhiteBoard | null> => {
+  return invoke("get-white-board-by-content-id", contentId);
+};
+
 export const getAllWhiteBoards = async (): Promise<WhiteBoard[]> => {
   return await invoke("get-all-white-boards");
 };
