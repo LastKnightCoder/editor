@@ -106,7 +106,8 @@ class PiSessionHostModule {
           ? undefined
           : join(PathUtil.getAppDir(), "sessions", await PiSessionHostModule.currentDatabaseName());
       const session = await assembleHostSession({
-        cwd: request.cwd,
+        // cwd 为空时落到应用数据目录（正式会话的「当前项目根」绑定在 M4 接入）
+        cwd: request.cwd || PathUtil.getAppDir(),
         agentDir: join(PathUtil.getAppDir(), "pi"),
         modelRuntime,
         modelRef: request.modelRef,
