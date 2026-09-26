@@ -16,7 +16,6 @@ import {
   Import,
 } from "lucide-react";
 import { useMemoizedFn, useUnmount } from "ahooks";
-import LoadingSpinner from "@/components/InsertNoteToTreeModal/LoadingSpinner";
 import InsertNoteToTreeModal from "@/components/InsertNoteToTreeModal";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 
@@ -45,7 +44,7 @@ import { exportSlateToPdfWithDialog } from "@/utils/pdf-export";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { usePage } from "@/page/PageProvider";
 import useEditContent from "@/hooks/useEditContent";
-import { toast, ConfirmDialog, Button, IconButton, Menu } from "@tau/ui";
+import { toast, ConfirmDialog, Button, IconButton, Menu, Spinner } from "@tau/ui";
 import { NOTE_ICONS } from "../appMeta";
 import { StageHeader } from "./StageHeader";
 
@@ -215,7 +214,14 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   const reportPreviewUrl = useHtmlPreviewUrl(reportHtmlContent);
 
   const mindMapExportRef = useRef<HTMLDivElement>(null);
-  const mindMapFullscreenExportRef = useRef<HTMLDivElement>(null);
+  /** 导图 / PPT / 报告的画布区：全屏即对它调用系统全屏 */
+  const canvasRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sync = () => setIsFullscreen(document.fullscreenElement === canvasRef.current);
+    document.addEventListener("fullscreenchange", sync);
+    return () => document.removeEventListener("fullscreenchange", sync);
+  }, []);
 
   // 加载笔记内容
   useEffect(() => {
@@ -425,9 +431,10 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     setDeleteConfirmOpen(true);
   });
 
-  // 切换全屏显示
+  // 切换全屏显示（系统全屏，Esc 退出）
   const handleToggleFullscreen = useMemoizedFn(() => {
-    setIsFullscreen(prev => !prev);
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void canvasRef.current?.requestFullscreen();
   });
 
   // 下载 PPT 为 HTML
@@ -540,9 +547,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   // 思维导图导出为图片（PNG）
   const handleExportMindMapImage = useMemoizedFn(async () => {
     if (exportingMindMapImage) return;
-    const exportElement = isFullscreen
-      ? mindMapFullscreenExportRef.current
-      : mindMapExportRef.current;
+    const exportElement = mindMapExportRef.current;
     if (!exportElement) {
       toast.error("未找到可导出的思维导图区域");
       return;
@@ -835,7 +840,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
   if (loading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
-        <LoadingSpinner size="large" />
+        <Spinner className="size-5" />
       </div>
     );
   }
@@ -916,9 +921,10 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
       {/* 编辑器区域 */}
       <div
+        ref={canvasRef}
         className={
           isMindMap || isPPT || isReport
-            ? "rounded-tau-md mx-4 mb-4 min-h-0 flex-1 overflow-hidden"
+            ? "rounded-tau-md bg-surface mx-4 mb-4 min-h-0 flex-1 overflow-hidden [&:fullscreen]:m-0 [&:fullscreen]:rounded-none"
             : "min-h-0 flex-1 overflow-auto"
         }
       >
@@ -930,14 +936,14 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           <ErrorBoundary>
             {isMindMap ? (
               <div ref={mindMapExportRef} className="relative h-full">
-                {exportingMindMapImage && !isFullscreen && (
+                {exportingMindMapImage && (
                   <div
                     data-export-mask
-                    className="absolute inset-0 z-10 flex items-center justify-center bg-black/35 backdrop-blur-[1px]"
+                    className="bg-surface/80 absolute inset-0 z-10 flex items-center justify-center backdrop-blur-[1px]"
                   >
-                    <div className="flex items-center gap-2 text-sm text-white">
-                      <LoadingSpinner size="small" />
-                      正在导出图片...
+                    <div className="text-tau-meta text-ink-2 flex items-center gap-2">
+                      <Spinner className="size-4" />
+                      正在导出图片…
                     </div>
                   </div>
                 )}
@@ -1031,112 +1037,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           </ErrorBoundary>
         </div>
       </div>
-
-      {/* 全屏显示思维导图 */}
-      {isMindMap && isFullscreen && (
-        <div className="bg-surface fixed bottom-0 left-0 right-0 top-12 z-50 flex flex-col">
-          {/* 全屏顶部栏 */}
-          <div className="border-line-1 flex shrink-0 items-center justify-between border-b px-4 py-3">
-            <h3 className="text-ink-1 m-0 text-base font-medium">{title || "无标题笔记"}</h3>
-            <button
-              className="hover:bg-hover flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors"
-              onClick={handleToggleFullscreen}
-            >
-              <Minimize className="text-ink-2 size-4" strokeWidth={1.75} />
-            </button>
-          </div>
-          {/* 全屏思维导图区域 */}
-          <div ref={mindMapFullscreenExportRef} className="relative flex-1 overflow-hidden">
-            {exportingMindMapImage && (
-              <div
-                data-export-mask
-                className="absolute inset-0 z-10 flex items-center justify-center bg-black/35 backdrop-blur-[1px]"
-              >
-                <div className="flex items-center gap-2 text-sm text-white">
-                  <LoadingSpinner size="small" />
-                  正在导出图片...
-                </div>
-              </div>
-            )}
-            <MindMapRenderer code={mindMapMarkdown} fillContainer />
-          </div>
-        </div>
-      )}
-
-      {/* 全屏显示 PPT */}
-      {isPPT && isFullscreen && (
-        <div className="fixed bottom-0 left-0 right-0 top-12 z-50 flex flex-col bg-black">
-          {/* 全屏顶部栏 */}
-          <div className="border-ink-1/30 bg-ink-1 flex shrink-0 items-center justify-between border-b px-4 py-3">
-            <h3 className="text-ink-inverse m-0 text-base font-medium">{title || "无标题 PPT"}</h3>
-            <button
-              className="text-ink-inverse flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors hover:bg-white/10"
-              onClick={handleToggleFullscreen}
-            >
-              <Minimize className="size-4" strokeWidth={1.75} />
-            </button>
-          </div>
-          {/* 全屏 PPT 区域 */}
-          <div className="flex-1 overflow-hidden">
-            {isElectron ? (
-              <webview
-                src={pptPreviewUrl}
-                partition="persist:ppt-preview-fullscreen"
-                webpreferences="sandbox=true,contextIsolation=true,nodeIntegration=false"
-                allowpopups={false}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  border: "none",
-                }}
-              />
-            ) : (
-              <iframe
-                src={pptPreviewUrl}
-                className="h-full w-full border-0"
-                sandbox="allow-scripts allow-same-origin"
-                title="PPT Fullscreen"
-              />
-            )}
-          </div>
-        </div>
-      )}
-
-      {isReport && isFullscreen && (
-        <div className="bg-surface fixed bottom-0 left-0 right-0 top-12 z-50 flex flex-col">
-          <div className="border-line-1 bg-surface flex shrink-0 items-center justify-between border-b px-4 py-3">
-            <h3 className="text-ink-1 m-0 text-base font-medium">{title || "无标题报告"}</h3>
-            <button
-              className="text-ink-2 hover:bg-hover flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border-none bg-transparent transition-colors"
-              onClick={handleToggleFullscreen}
-            >
-              <Minimize className="size-4" strokeWidth={1.75} />
-            </button>
-          </div>
-          <div className="flex-1 overflow-hidden">
-            {isElectron ? (
-              <webview
-                src={reportPreviewUrl}
-                partition="persist:report-preview-fullscreen"
-                webpreferences="sandbox=true,contextIsolation=true,nodeIntegration=false"
-                allowpopups={false}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  border: "none",
-                }}
-              />
-            ) : (
-              <iframe
-                src={reportPreviewUrl}
-                className="h-full w-full border-0"
-                sandbox="allow-scripts allow-same-origin"
-                title="Report Fullscreen"
-              />
-            )}
-          </div>
-        </div>
-      )}
 
       {/* 插入到项目弹窗 */}
       <InsertNoteToTreeModal

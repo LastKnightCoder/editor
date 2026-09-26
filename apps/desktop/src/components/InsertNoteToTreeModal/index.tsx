@@ -1,17 +1,7 @@
-import { toast } from "@tau/ui";
 import { memo, useState, useEffect, useCallback } from "react";
 import { Descendant } from "slate";
-import classNames from "classnames";
-import {
-  FolderOutlined,
-  FileOutlined,
-  RightOutlined,
-  DownOutlined,
-  InboxOutlined,
-} from "@ant-design/icons";
-import useThemeColors from "@/hooks/useThemeColors";
-import CustomModal from "@/components/CustomModal";
-import LoadingSpinner from "./LoadingSpinner";
+import { ChevronRight, FileText, Folder, FolderInput } from "lucide-react";
+import { Button, Dialog, Loading, cn, toast, useEdgeFade } from "@tau/ui";
 import { getProjectList } from "@/commands/project";
 import {
   addRootProjectItem,
@@ -57,6 +47,14 @@ interface InsertNoteToTreeModalProps {
   onSuccess: (createdItem?: ProjectItem | null) => void;
 }
 
+/** 行基础样式：30px 行高、7px 圆角；层级靠缩进，不画连接线 */
+const rowClass = (active: boolean) =>
+  cn(
+    "text-tau-meta flex h-[30px] cursor-pointer items-center gap-1.5 rounded-[7px] pr-2 outline-none",
+    "focus-visible:shadow-[var(--tau-focus-ring)]",
+    active ? "bg-selected text-ink-1" : "text-ink-2 hover:bg-hover hover:text-ink-1"
+  );
+
 // 递归树节点组件
 const TreeNodeItem = memo<{
   node: DocTreeNode;
@@ -64,47 +62,51 @@ const TreeNodeItem = memo<{
   onSelect: (id: number) => void;
   depth?: number;
 }>(({ node, selectedNodeId, onSelect, depth = 0 }) => {
-  const themeColors = useThemeColors();
   const [expanded, setExpanded] = useState(true);
   const isSelected = selectedNodeId === node.id;
   const hasChildren = node.children.length > 0;
+  const Icon = hasChildren ? Folder : FileText;
 
   return (
     <div>
       <div
-        className={classNames(
-          "mx-1 flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 transition-colors",
-          isSelected ? "bg-[var(--th-accent-soft)]" : "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
-        )}
-        style={{ paddingLeft: depth * 12 + 12 }}
+        role="button"
+        tabIndex={0}
+        title={node.title}
+        className={rowClass(isSelected)}
+        style={{ paddingLeft: depth * 16 + 4 }}
         onClick={() => onSelect(node.id)}
+        onKeyDown={e => {
+          if (e.key === "Enter" && e.target === e.currentTarget) onSelect(node.id);
+        }}
       >
         {hasChildren ? (
           <span
-            className={classNames("flex-shrink-0 text-xs", themeColors.secondaryTextClass)}
+            role="button"
+            aria-label={expanded ? "折叠" : "展开"}
+            aria-expanded={expanded}
+            className="text-ink-3 hover:text-ink-1 grid size-4 shrink-0 place-items-center"
             onClick={e => {
               e.stopPropagation();
               setExpanded(!expanded);
             }}
           >
-            {expanded ? <DownOutlined /> : <RightOutlined />}
+            <ChevronRight
+              className={cn(
+                "ease-tau-out size-3.5 transition-transform duration-150",
+                expanded && "rotate-90"
+              )}
+              strokeWidth={1.75}
+            />
           </span>
         ) : (
-          <span className="w-3.5 flex-shrink-0" />
+          <span className="size-4 shrink-0" />
         )}
-        {hasChildren ? (
-          <FolderOutlined className={classNames("flex-shrink-0", themeColors.secondaryTextClass)} />
-        ) : (
-          <FileOutlined className={classNames("flex-shrink-0", themeColors.secondaryTextClass)} />
-        )}
-        <span
-          className={classNames(
-            "flex-1 truncate text-sm",
-            isSelected ? "font-medium text-[var(--th-active-text)]" : themeColors.textClass
-          )}
-        >
-          {node.title}
-        </span>
+        <Icon
+          className={cn("size-[14px] shrink-0", isSelected ? "text-ink-2" : "text-ink-3")}
+          strokeWidth={1.75}
+        />
+        <span className="min-w-0 flex-1 truncate">{node.title}</span>
       </div>
       {expanded &&
         node.children.map(child => (
@@ -135,8 +137,6 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     onCancel,
     onSuccess,
   }) => {
-    const themeColors = useThemeColors();
-
     const [projects, setProjects] = useState<Project[]>([]);
     const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
     const [treeNodes, setTreeNodes] = useState<DocTreeNode[]>([]);
@@ -144,6 +144,10 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
     const [loading, setLoading] = useState(false);
     const [treeLoading, setTreeLoading] = useState(false);
     const [inserting, setInserting] = useState(false);
+    const [entityListEl, setEntityListEl] = useState<HTMLDivElement | null>(null);
+    const [treeEl, setTreeEl] = useState<HTMLDivElement | null>(null);
+    useEdgeFade(entityListEl);
+    useEdgeFade(treeEl);
 
     // 加载项目列表
     useEffect(() => {
@@ -339,12 +343,17 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
           ? "添加"
           : "插入";
 
+    const isAddMode = insertMode === "webview" || insertMode === "video-note";
+
     return (
-      <CustomModal
+      <Dialog
         open={open}
-        onCancel={onCancel}
+        onOpenChange={next => {
+          if (!next) onCancel();
+        }}
         width={680}
-        bodyClassName="!p-0"
+        locked={inserting}
+        icon={<FolderInput className="size-4" strokeWidth={1.75} />}
         title={
           insertMode === "webview"
             ? "添加网页到项目"
@@ -354,120 +363,114 @@ const InsertNoteToTreeModal = memo<InsertNoteToTreeModalProps>(
                 ? "创建项目文档"
                 : "插入笔记到项目"
         }
-        onOk={handleConfirm}
-        okText={actionText}
-        cancelText="取消"
-        confirmLoading={inserting}
-        okButtonProps={{ disabled: !selectedEntityId }}
+        footer={
+          <>
+            <Button variant="secondary" size="sm" disabled={inserting} onClick={onCancel}>
+              取消
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              loading={inserting}
+              disabled={!selectedEntityId}
+              onClick={handleConfirm}
+            >
+              {actionText}
+            </Button>
+          </>
+        }
       >
-        {/* 左右布局 */}
-        <div className="flex" style={{ height: 400 }}>
+        {/* 左右布局：左侧项目，右侧插入位置 */}
+        <div className="flex h-[400px] gap-3">
           {/* 左侧：项目列表 */}
-          <div
-            className={classNames(
-              "w-56 flex-shrink-0 overflow-y-auto border-r",
-              themeColors.cardBorderClass
-            )}
-          >
-            {loading ? (
-              <div className="flex h-full items-center justify-center">
-                <LoadingSpinner size="small" />
-              </div>
-            ) : entityList.length === 0 ? (
-              <div
-                className={classNames(
-                  "flex h-full items-center justify-center text-sm",
-                  themeColors.secondaryTextClass
-                )}
-              >
-                {"暂无文档类型项目"}
-              </div>
-            ) : (
-              <div className="py-1">
-                {entityList.map(entity => (
-                  <div
-                    key={entity.id}
-                    className={classNames(
-                      "cursor-pointer truncate px-3 py-2 text-sm transition-colors",
-                      selectedEntityId === entity.id
-                        ? "bg-[var(--th-accent-soft)] font-medium text-[var(--th-active-text)]"
-                        : classNames(
-                            themeColors.textClass,
-                            "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
-                          )
-                    )}
-                    onClick={() => handleSelectEntity(entity)}
-                  >
-                    {entity.title || `#${entity.id}`}
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="border-line-2 flex w-56 shrink-0 flex-col gap-1.5 border-r pr-3">
+            <span className="text-ink-2 text-[12px]">项目</span>
+            <div
+              ref={setEntityListEl}
+              className="edge-fade-scroll scrollbar-inset min-h-0 flex-1 overflow-y-auto"
+            >
+              {loading ? (
+                <Loading minHeight={0} />
+              ) : entityList.length === 0 ? (
+                <p className="text-tau-sm text-ink-3 py-10 text-center">暂无文档类型项目</p>
+              ) : (
+                <div className="flex flex-col gap-px">
+                  {entityList.map(entity => {
+                    const title = entity.title || `#${entity.id}`;
+                    return (
+                      <div
+                        key={entity.id}
+                        role="button"
+                        tabIndex={0}
+                        title={title}
+                        className={cn(rowClass(selectedEntityId === entity.id), "pl-2")}
+                        onClick={() => handleSelectEntity(entity)}
+                        onKeyDown={e => {
+                          if (e.key === "Enter" && e.target === e.currentTarget)
+                            handleSelectEntity(entity);
+                        }}
+                      >
+                        <span className="min-w-0 flex-1 truncate">{title}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* 右侧：文档树 */}
-          <div className="flex-1 overflow-y-auto">
-            {!selectedEntityId ? (
-              <div
-                className={classNames(
-                  "flex h-full flex-col items-center justify-center gap-2",
-                  themeColors.secondaryTextClass
-                )}
-              >
-                <InboxOutlined className="text-3xl opacity-30" />
-                <span className="text-sm">{"请先选择左侧的项目"}</span>
-              </div>
-            ) : treeLoading ? (
-              <div className="flex h-full items-center justify-center">
-                <LoadingSpinner size="small" />
-              </div>
-            ) : (
-              <div className="py-2">
-                {/* 根目录选项 */}
-                <div
-                  className={classNames(
-                    "mx-1 flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 transition-colors",
-                    selectedNodeId === null
-                      ? "bg-[var(--th-accent-soft)]"
-                      : "hover:bg-gray-50 dark:hover:bg-zinc-800/30"
-                  )}
-                  onClick={() => setSelectedNodeId(null)}
-                >
-                  <FolderOutlined
-                    className={classNames(
-                      "flex-shrink-0",
-                      selectedNodeId === null
-                        ? "text-[var(--th-active-text)]"
-                        : themeColors.secondaryTextClass
-                    )}
-                  />
-                  <span
-                    className={classNames(
-                      "text-sm",
-                      selectedNodeId === null
-                        ? "font-medium text-[var(--th-active-text)]"
-                        : themeColors.textClass
-                    )}
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <span className="text-ink-2 text-[12px]">{isAddMode ? "添加位置" : "插入位置"}</span>
+            <div
+              ref={setTreeEl}
+              className="edge-fade-scroll scrollbar-inset min-h-0 flex-1 overflow-y-auto"
+            >
+              {!selectedEntityId ? (
+                <p className="text-tau-sm text-ink-3 py-10 text-center">先在左侧选择一个项目</p>
+              ) : treeLoading ? (
+                <Loading minHeight={0} />
+              ) : (
+                <div className="flex flex-col gap-px">
+                  {/* 根目录选项 */}
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    className={rowClass(selectedNodeId === null)}
+                    style={{ paddingLeft: 4 }}
+                    onClick={() => setSelectedNodeId(null)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && e.target === e.currentTarget)
+                        setSelectedNodeId(null);
+                    }}
                   >
-                    {insertMode === "webview" || insertMode === "video-note"
-                      ? "添加到根目录"
-                      : "插入到根目录"}
-                  </span>
+                    <span className="size-4 shrink-0" />
+                    <Folder
+                      className={cn(
+                        "size-[14px] shrink-0",
+                        selectedNodeId === null ? "text-ink-2" : "text-ink-3"
+                      )}
+                      strokeWidth={1.75}
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {isAddMode ? "添加到根目录" : "插入到根目录"}
+                    </span>
+                  </div>
+                  {/* 文档树节点 */}
+                  {treeNodes.map(node => (
+                    <TreeNodeItem
+                      key={node.id}
+                      node={node}
+                      selectedNodeId={selectedNodeId}
+                      onSelect={setSelectedNodeId}
+                    />
+                  ))}
                 </div>
-                {/* 文档树节点 */}
-                {treeNodes.map(node => (
-                  <TreeNodeItem
-                    key={node.id}
-                    node={node}
-                    selectedNodeId={selectedNodeId}
-                    onSelect={setSelectedNodeId}
-                  />
-                ))}
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
-      </CustomModal>
+      </Dialog>
     );
   }
 );

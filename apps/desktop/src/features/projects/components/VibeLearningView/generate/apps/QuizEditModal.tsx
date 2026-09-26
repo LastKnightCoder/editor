@@ -1,31 +1,61 @@
-import { memo, useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import {
-  Pencil,
-  Trash2,
-  Check,
-  X,
-  ChevronDown,
-  ChevronUp,
-  Plus,
-  Loader2,
-  Save,
-  AlertCircle,
-} from "lucide-react";
+import { memo, useState, useEffect, useMemo, useCallback, type ReactNode } from "react";
+import { Pencil, Trash2, Check, X, ChevronDown, Plus, Save, CircleAlert } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import classNames from "classnames";
+import {
+  Button,
+  Checkbox,
+  ConfirmDialog,
+  Dialog,
+  IconButton,
+  Input,
+  Radio,
+  Segmented,
+  Spinner,
+  Tag,
+  Textarea,
+  cn,
+  toast,
+  type TagColor,
+} from "@tau/ui";
 
-import CustomModal from "@/components/CustomModal";
 import useVLQuizStore from "@/stores/useVLQuizStore";
 import type { VLQuizSet, VLQuizItem, UpdateVLQuizItemInput } from "@/types";
 import type { FlashcardOption } from "@/types/flashcard";
 import { FLASHCARD_TYPE_META, extractPlainText } from "@/utils/flashcard";
-import { toast, ConfirmDialog } from "@tau/ui";
 
 interface QuizEditModalProps {
   open: boolean;
   quizSet: VLQuizSet | null;
   onClose: () => void;
+}
+
+// 难度显示
+const DIFFICULTY_LABELS: Record<string, string> = {
+  foundation: "基础",
+  standard: "标准",
+  advanced: "进阶",
+};
+
+const DIFFICULTY_COLORS: Record<string, TagColor> = {
+  foundation: "green",
+  standard: "yellow",
+  advanced: "red",
+};
+
+// 题型显示名称
+const getTypeLabel = (type: string) => {
+  return FLASHCARD_TYPE_META[type as keyof typeof FLASHCARD_TYPE_META]?.label || type;
+};
+
+/** 字段标签：12px 淡墨，放在内容上方 */
+function FieldLabel({ children, extra }: { children: string; extra?: ReactNode }) {
+  return (
+    <div className="mb-1.5 flex items-center gap-2">
+      <span className="text-ink-2 text-[12px]">{children}</span>
+      <span className="flex-1" />
+      {extra}
+    </div>
+  );
 }
 
 const QuizEditModal = memo((props: QuizEditModalProps) => {
@@ -128,139 +158,104 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
     onClose();
   });
 
-  // 题型显示名称
-  const getTypeLabel = (type: string) => {
-    return FLASHCARD_TYPE_META[type as keyof typeof FLASHCARD_TYPE_META]?.label || type;
-  };
-
-  // 难度显示
-  const difficultyLabels: Record<string, string> = {
-    foundation: "基础",
-    standard: "标准",
-    advanced: "进阶",
-  };
-
-  const difficultyColors: Record<string, string> = {
-    foundation: "bg-ok/15 text-status-success",
-    standard: "bg-amber-100 text-amber-600",
-    advanced: "bg-red-100 text-red-600",
-  };
-
   return (
-    <CustomModal
+    <Dialog
       open={open}
-      onCancel={handleClose}
-      width={700}
-      centered
-      destroyOnClose
+      onOpenChange={next => !next && handleClose()}
       title="编辑测验"
       subtitle="修改测验信息和题目内容"
-      icon={<Pencil className="text-ink-2 h-5 w-5" strokeWidth={1.75} />}
-      footer={null}
+      icon={<Pencil className="size-4" strokeWidth={1.75} />}
+      width={700}
     >
-      <div className="space-y-6">
+      <div className="flex flex-col gap-5 pt-1">
         {/* 测验名称编辑 */}
         <div>
-          <label className="text-ink-2 mb-2 block text-[11px] font-semibold uppercase tracking-wider">
-            测验名称
-          </label>
+          <FieldLabel>测验名称</FieldLabel>
           {isEditingName ? (
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
+            <div className="flex items-center gap-1.5">
+              <Input
+                data-autofocus
+                autoFocus
                 value={quizName}
                 onChange={e => setQuizName(e.target.value)}
-                autoFocus
-                className={classNames(
-                  "flex-1 rounded-xl px-4 py-2.5 text-sm outline-none transition-all",
-                  "border-line-1 border",
-                  "text-ink-1",
-                  "focus:ring-accent/20 focus:border-accent focus:ring-2"
-                )}
+                wrapperClassName="flex-1"
                 onKeyDown={e => {
                   if (e.key === "Enter") handleSaveName();
-                  if (e.key === "Escape") handleCancelEditName();
+                  if (e.key === "Escape") {
+                    // Esc 只退出名称编辑，不关闭弹窗
+                    e.stopPropagation();
+                    e.preventDefault();
+                    handleCancelEditName();
+                  }
                 }}
               />
-              <button
-                type="button"
-                onClick={handleSaveName}
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Check}
+                loading={savingName}
                 disabled={savingName || !quizName.trim()}
-                className={classNames(
-                  "rounded-lg p-2.5 transition-all",
-                  "bg-accent hover:bg-accent-hover text-white",
-                  "disabled:cursor-not-allowed disabled:opacity-50"
-                )}
+                onClick={handleSaveName}
               >
-                {savingName ? (
-                  <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
-                ) : (
-                  <Check className="h-4 w-4" strokeWidth={1.75} />
-                )}
-              </button>
-              <button
-                type="button"
-                onClick={handleCancelEditName}
-                className="bg-hover text-ink-2 hover:bg-press rounded-lg p-2.5 transition-all"
-              >
-                <X className="h-4 w-4" strokeWidth={1.75} />
-              </button>
+                保存
+              </Button>
+              <IconButton aria-label="取消" title="取消" onClick={handleCancelEditName}>
+                <X className="size-4" strokeWidth={1.75} />
+              </IconButton>
             </div>
           ) : (
-            <div
+            <button
+              type="button"
               onClick={() => setIsEditingName(true)}
-              className={classNames(
-                "flex cursor-pointer items-center justify-between rounded-xl px-4 py-2.5 transition-all",
-                "border-line-1 border",
-                "hover:border-line-1"
+              className={cn(
+                "border-line-1 bg-surface rounded-tau-sm group flex h-[34px] w-full cursor-pointer",
+                "items-center justify-between border px-3 text-left",
+                "hover:bg-hover ease-tau-out transition-[background-color] duration-[140ms]"
               )}
             >
-              <span className="text-ink-1 text-sm">{quizSet?.name || "未命名"}</span>
-              <Pencil className="text-ink-3 h-4 w-4" strokeWidth={1.75} />
-            </div>
+              <span className="text-ink-1 text-tau-body truncate">{quizSet?.name || "未命名"}</span>
+              <Pencil
+                className="text-ink-3 group-hover:text-ink-2 size-3.5 shrink-0"
+                strokeWidth={1.75}
+              />
+            </button>
           )}
         </div>
 
         {/* 题目列表 */}
         <div>
-          <div className="mb-3 flex items-center justify-between">
-            <label className="text-ink-2 text-[11px] font-semibold uppercase tracking-wider">
-              题目列表
-            </label>
-            <span className="text-ink-3 text-xs">共 {items.length} 题</span>
-          </div>
+          <FieldLabel
+            extra={<span className="text-ink-3 text-tau-meta">共 {items.length} 题</span>}
+          >
+            题目列表
+          </FieldLabel>
 
           {loadingItems ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <Loader2 className="text-accent h-8 w-8 animate-spin" strokeWidth={1.75} />
-              <p className="text-ink-2 mt-3 text-sm">加载题目中...</p>
+            <div className="flex flex-col items-center justify-center gap-3 py-12">
+              <Spinner className="size-5" />
+              <p className="text-ink-3 text-tau-meta m-0">加载题目中...</p>
             </div>
           ) : items.length === 0 ? (
-            <div className="border-line-1 flex flex-col items-center justify-center rounded-xl border-2 border-dashed py-12">
-              <AlertCircle className="text-ink-3 mb-3 h-12 w-12" strokeWidth={1.75} />
-              <p className="text-ink-2 text-sm">暂无题目</p>
+            <div className="border-line-1 rounded-tau-md flex flex-col items-center justify-center gap-2 border border-dashed py-12">
+              <CircleAlert className="text-ink-3 size-6" strokeWidth={1.75} />
+              <p className="text-ink-3 text-tau-meta m-0">暂无题目</p>
             </div>
           ) : (
-            <div className="border-line-1 max-h-[400px] overflow-auto rounded-xl border">
-              <AnimatePresence>
-                {items.map((item, index) => (
-                  <QuizItemCard
-                    key={item.id}
-                    item={item}
-                    index={index}
-                    isExpanded={expandedItemId === item.id}
-                    isEditing={editingItemId === item.id}
-                    onToggleExpand={() => handleToggleExpand(item.id)}
-                    onStartEdit={() => handleStartEdit(item.id)}
-                    onCloseEdit={handleCloseEdit}
-                    onDelete={() => handleDeleteItem(item)}
-                    getTypeLabel={getTypeLabel}
-                    difficultyLabels={difficultyLabels}
-                    difficultyColors={difficultyColors}
-                    updateItem={updateItem}
-                  />
-                ))}
-              </AnimatePresence>
+            <div className="flex flex-col gap-1">
+              {items.map((item, index) => (
+                <QuizItemCard
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  isExpanded={expandedItemId === item.id}
+                  isEditing={editingItemId === item.id}
+                  onToggleExpand={() => handleToggleExpand(item.id)}
+                  onStartEdit={() => handleStartEdit(item.id)}
+                  onCloseEdit={handleCloseEdit}
+                  onDelete={() => handleDeleteItem(item)}
+                  updateItem={updateItem}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -291,7 +286,7 @@ const QuizEditModal = memo((props: QuizEditModalProps) => {
           }
         }}
       />
-    </CustomModal>
+    </Dialog>
   );
 });
 
@@ -307,9 +302,6 @@ interface QuizItemCardProps {
   onStartEdit: () => void;
   onCloseEdit: () => void;
   onDelete: () => void;
-  getTypeLabel: (type: string) => string;
-  difficultyLabels: Record<string, string>;
-  difficultyColors: Record<string, string>;
   updateItem: (payload: UpdateVLQuizItemInput) => Promise<VLQuizItem | null>;
 }
 
@@ -323,9 +315,6 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
     onStartEdit,
     onCloseEdit,
     onDelete,
-    getTypeLabel,
-    difficultyLabels,
-    difficultyColors,
     updateItem,
   } = props;
 
@@ -335,90 +324,83 @@ const QuizItemCard = memo((props: QuizItemCardProps) => {
   }, [item.prompt]);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 5 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -5 }}
-      transition={{ delay: index * 0.02 }}
-      className={classNames("border-line-1 border-b last:border-b-0", "transition-all")}
+    <div
+      className={cn("rounded-tau-md border", isExpanded ? "border-line-1" : "border-transparent")}
     >
       {/* 题目头部 */}
       <div
-        className={classNames(
-          "flex cursor-pointer items-start gap-3 px-4 py-3 transition-all",
-          "hover:bg-hover/50",
-          isExpanded && "bg-hover"
-        )}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isExpanded}
         onClick={onToggleExpand}
+        onKeyDown={e => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggleExpand();
+          }
+        }}
+        className={cn(
+          "group flex cursor-pointer items-start gap-3 px-3 py-2.5 outline-none",
+          "rounded-tau-md hover:bg-hover focus-visible:shadow-[var(--tau-focus-ring)]",
+          "ease-tau-out transition-[background-color] duration-[140ms]"
+        )}
       >
         <div className="min-w-0 flex-1">
-          <div className="mb-1.5 flex flex-wrap items-center gap-2">
-            <span className="text-ink-3 text-xs font-medium">#{index + 1}</span>
-            <span className="bg-info/15 text-accent-text rounded-md px-2 py-0.5 text-[10px] font-semibold">
-              {getTypeLabel(item.type)}
-            </span>
-            <span
-              className={classNames(
-                "rounded-md px-2 py-0.5 text-[10px] font-semibold",
-                difficultyColors[item.difficulty] || "bg-hover text-ink-2"
-              )}
-            >
-              {difficultyLabels[item.difficulty] || item.difficulty}
-            </span>
+          <div className="mb-1 flex flex-wrap items-center gap-1.5">
+            <span className="text-ink-3 text-tau-meta tabular-nums">#{index + 1}</span>
+            <Tag>{getTypeLabel(item.type)}</Tag>
+            <Tag color={DIFFICULTY_COLORS[item.difficulty] ?? "gray"}>
+              {DIFFICULTY_LABELS[item.difficulty] || item.difficulty}
+            </Tag>
           </div>
-          <p className="text-ink-2 m-0 line-clamp-2 text-sm leading-relaxed">{promptPreview}</p>
+          <p className="text-ink-1 text-tau-body m-0 line-clamp-2 leading-relaxed">
+            {promptPreview}
+          </p>
         </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
+        <div className="flex shrink-0 items-center gap-0.5">
+          <IconButton
+            aria-label="编辑"
+            title="编辑"
             onClick={e => {
               e.stopPropagation();
               onStartEdit();
             }}
-            className="/10 text-ink-3 hover:bg-accent-soft hover:text-accent rounded-lg p-1.5 transition-all"
-            title="编辑"
           >
-            <Pencil className="h-4 w-4" strokeWidth={1.75} />
-          </button>
-          <button
-            type="button"
+            <Pencil className="size-4" strokeWidth={1.75} />
+          </IconButton>
+          <IconButton
+            aria-label="删除"
+            title="删除"
+            className="hover:text-danger"
             onClick={e => {
               e.stopPropagation();
               onDelete();
             }}
-            className="text-ink-3 rounded-lg p-1.5 transition-all hover:bg-red-50 hover:text-red-500"
-            title="删除"
           >
-            <Trash2 className="h-4 w-4" strokeWidth={1.75} />
-          </button>
-          {isExpanded ? (
-            <ChevronUp className="text-ink-3 h-4 w-4" strokeWidth={1.75} />
-          ) : (
-            <ChevronDown className="text-ink-3 h-4 w-4" strokeWidth={1.75} />
-          )}
+            <Trash2 className="size-4" strokeWidth={1.75} />
+          </IconButton>
+          <ChevronDown
+            className={cn(
+              "text-ink-3 ml-1 size-4 transition-transform duration-[160ms]",
+              isExpanded && "rotate-180"
+            )}
+            strokeWidth={1.75}
+          />
         </div>
       </div>
 
       {/* 展开内容 */}
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="px-4 pb-4">
-              {isEditing ? (
-                <QuizItemEditForm item={item} onSave={updateItem} onCancel={onCloseEdit} />
-              ) : (
-                <QuizItemPreview item={item} />
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+      {isExpanded && (
+        <div className="px-3 pb-3 pt-1">
+          {isEditing ? (
+            <QuizItemEditForm item={item} onSave={updateItem} onCancel={onCloseEdit} />
+          ) : (
+            <QuizItemPreview item={item} />
+          )}
+        </div>
+      )}
+    </div>
   );
 });
 
@@ -438,25 +420,23 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
       case "multiple-choice": {
         const options = item.data.options || [];
         return (
-          <div className="space-y-2">
-            <p className="text-ink-2 mb-2 text-xs font-medium">选项：</p>
-            {options.map((opt, idx) => (
-              <div
-                key={opt.id}
-                className={classNames(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm",
-                  opt.isCorrect
-                    ? "border-ok/30 bg-ok/10 text-status-success border"
-                    : "bg-hover text-ink-2"
-                )}
-              >
-                <span className="font-medium">{String.fromCharCode(65 + idx)}.</span>
-                <span className="flex-1">{opt.label}</span>
-                {opt.isCorrect && (
-                  <Check className="text-status-success h-4 w-4" strokeWidth={1.75} />
-                )}
-              </div>
-            ))}
+          <div>
+            <FieldLabel>选项</FieldLabel>
+            <div className="flex flex-col gap-1.5">
+              {options.map((opt, idx) => (
+                <div
+                  key={opt.id}
+                  className={cn(
+                    "rounded-tau-sm text-tau-body flex items-center gap-2 border px-3 py-2",
+                    opt.isCorrect ? "border-ok bg-ok-soft text-ink-1" : "border-line-1 text-ink-2"
+                  )}
+                >
+                  <span className="text-ink-3 tabular-nums">{String.fromCharCode(65 + idx)}.</span>
+                  <span className="flex-1">{opt.label}</span>
+                  {opt.isCorrect && <Check className="text-ok size-4" strokeWidth={1.75} />}
+                </div>
+              ))}
+            </div>
           </div>
         );
       }
@@ -464,34 +444,23 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
         const answer = item.data.booleanAnswer;
         return (
           <div className="flex items-center gap-2">
-            <span className="text-ink-2 text-xs font-medium">正确答案：</span>
-            <span
-              className={classNames(
-                "rounded-lg px-3 py-1 text-sm font-medium",
-                answer ? "bg-ok/10 text-status-success" : "bg-red-50 text-red-600"
-              )}
-            >
-              {answer ? "正确" : "错误"}
-            </span>
+            <span className="text-ink-2 text-[12px]">正确答案</span>
+            <Tag color={answer ? "green" : "red"}>{answer ? "正确" : "错误"}</Tag>
           </div>
         );
       }
       case "qa": {
         return (
           <div>
-            <p className="text-ink-2 mb-1 text-xs font-medium">参考答案：</p>
-            <p className="bg-hover text-ink-2 whitespace-pre-wrap rounded-lg px-3 py-2 text-sm">
+            <FieldLabel>参考答案</FieldLabel>
+            <p className="border-line-1 rounded-tau-sm text-ink-2 text-tau-body m-0 whitespace-pre-wrap border px-3 py-2">
               {item.data.answer || "暂无答案"}
             </p>
           </div>
         );
       }
       case "cloze": {
-        return (
-          <div>
-            <p className="text-ink-2 text-xs font-medium">填空题（答案已在题干中标记）</p>
-          </div>
-        );
+        return <p className="text-ink-3 text-tau-meta m-0">填空题（答案已在题干中标记）</p>;
       }
       default:
         return null;
@@ -499,12 +468,12 @@ const QuizItemPreview = memo((props: QuizItemPreviewProps) => {
   };
 
   return (
-    <div className="border-line-1 border-t pt-2">
+    <div className="flex flex-col gap-3">
       {renderContent()}
       {item.data.explanation && (
-        <div className="border-line-1 mt-3 border-t pt-3">
-          <p className="text-ink-2 mb-1 text-xs font-medium">解析：</p>
-          <p className="text-ink-2 text-sm">{item.data.explanation}</p>
+        <div>
+          <FieldLabel>解析</FieldLabel>
+          <p className="text-ink-2 text-tau-body m-0 leading-relaxed">{item.data.explanation}</p>
         </div>
       )}
     </div>
@@ -629,118 +598,92 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
       case "multiple-choice": {
         const isMultiple = item.type === "multiple-choice";
         return (
-          <div className="space-y-3">
-            <p className="text-ink-2 text-xs font-medium">
-              选项 {isMultiple ? "（可多选）" : "（单选）"}：
-            </p>
-            {formData.options.map((opt, idx) => (
-              <div key={opt.id} className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => (isMultiple ? toggleCorrectOption(idx) : setCorrectOption(idx))}
-                  className={classNames(
-                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-all",
-                    opt.isCorrect
-                      ? "bg-status-success border-ok text-white"
-                      : "border-line-1 hover:border-ok"
+          <div>
+            <FieldLabel>
+              {isMultiple ? "选项（勾选正确答案，可多选）" : "选项（选中正确答案）"}
+            </FieldLabel>
+            <div className="flex flex-col gap-1.5">
+              {formData.options.map((opt, idx) => (
+                <div key={opt.id} className="flex items-center gap-1.5">
+                  {isMultiple ? (
+                    <Checkbox
+                      aria-label="设为正确答案"
+                      checked={!!opt.isCorrect}
+                      onChange={() => toggleCorrectOption(idx)}
+                    />
+                  ) : (
+                    <Radio
+                      aria-label="设为正确答案"
+                      name={`quiz-correct-${item.id}`}
+                      value={opt.id}
+                      checked={!!opt.isCorrect}
+                      onChange={() => setCorrectOption(idx)}
+                    />
                   )}
-                >
-                  {opt.isCorrect && <Check className="h-3 w-3" strokeWidth={1.75} />}
-                </button>
-                <input
-                  type="text"
-                  value={opt.label}
-                  onChange={e => updateOption(idx, { label: e.target.value })}
-                  placeholder={`选项 ${String.fromCharCode(65 + idx)}`}
-                  className={classNames(
-                    "flex-1 rounded-lg px-3 py-2 text-sm outline-none transition-all",
-                    "border-line-1 bg-surface border",
-                    "text-ink-1",
-                    "focus:ring-accent/20 focus:border-accent focus:ring-1"
+                  <Input
+                    size="sm"
+                    value={opt.label}
+                    onChange={e => updateOption(idx, { label: e.target.value })}
+                    placeholder={`选项 ${String.fromCharCode(65 + idx)}`}
+                    wrapperClassName="flex-1"
+                  />
+                  {formData.options.length > 2 && (
+                    <IconButton
+                      aria-label="删除选项"
+                      title="删除选项"
+                      className="hover:text-danger"
+                      onClick={() => removeOption(idx)}
+                    >
+                      <X className="size-4" strokeWidth={1.75} />
+                    </IconButton>
                   )}
-                />
-                {formData.options.length > 2 && (
-                  <button
-                    type="button"
-                    onClick={() => removeOption(idx)}
-                    className="text-ink-3 shrink-0 rounded-lg p-1.5 transition-all hover:bg-red-50 hover:text-red-500"
-                  >
-                    <X className="h-4 w-4" strokeWidth={1.75} />
-                  </button>
-                )}
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={addOption}
-              className="text-accent hover:text-accent flex items-center gap-1.5 text-xs font-medium"
-            >
-              <Plus className="h-3.5 w-3.5" strokeWidth={1.75} />
+                </div>
+              ))}
+            </div>
+            <Button variant="ghost" size="sm" icon={Plus} className="mt-1.5" onClick={addOption}>
               添加选项
-            </button>
+            </Button>
           </div>
         );
       }
       case "boolean": {
         return (
           <div>
-            <p className="text-ink-2 mb-2 text-xs font-medium">正确答案：</p>
-            <div className="flex gap-3">
-              {[
-                { value: true, label: "正确" },
-                { value: false, label: "错误" },
-              ].map(opt => (
-                <button
-                  key={String(opt.value)}
-                  type="button"
-                  onClick={() =>
-                    setFormData(prev => ({
-                      ...prev,
-                      booleanAnswer: opt.value,
-                    }))
-                  }
-                  className={classNames(
-                    "flex-1 rounded-lg border-2 py-3 font-medium transition-all",
-                    formData.booleanAnswer === opt.value
-                      ? opt.value
-                        ? "border-ok/40 bg-ok/10 text-status-success"
-                        : "border-red-500 bg-red-50 text-red-600"
-                      : "border-line-1 text-ink-2 hover:border-line-1"
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+            <FieldLabel>正确答案</FieldLabel>
+            <Segmented
+              label="正确答案"
+              value={formData.booleanAnswer ? "true" : "false"}
+              onValueChange={v =>
+                setFormData(prev => ({
+                  ...prev,
+                  booleanAnswer: v === "true",
+                }))
+              }
+            >
+              <Segmented.Item value="true" label="正确" icon={Check} />
+              <Segmented.Item value="false" label="错误" icon={X} />
+            </Segmented>
           </div>
         );
       }
       case "qa": {
         return (
           <div>
-            <p className="text-ink-2 mb-2 text-xs font-medium">参考答案：</p>
-            <textarea
+            <FieldLabel>参考答案</FieldLabel>
+            <Textarea
               value={formData.answer}
               onChange={e => setFormData(prev => ({ ...prev, answer: e.target.value }))}
               rows={4}
               placeholder="输入参考答案..."
-              className={classNames(
-                "w-full resize-none rounded-lg px-3 py-2 text-sm outline-none transition-all",
-                "border-line-1 bg-surface border",
-                "text-ink-1 placeholder:text-ink-3",
-                "focus:ring-accent/20 focus:border-accent focus:ring-1"
-              )}
             />
           </div>
         );
       }
       case "cloze": {
         return (
-          <div className="py-2">
-            <p className="text-ink-2 text-xs">
-              填空题的答案在题干中编辑，此处暂不支持修改填空内容。
-            </p>
-          </div>
+          <p className="text-ink-3 text-tau-meta m-0">
+            填空题的答案在题干中编辑，此处暂不支持修改填空内容。
+          </p>
         );
       }
       default:
@@ -749,56 +692,28 @@ const QuizItemEditForm = memo((props: QuizItemEditFormProps) => {
   };
 
   return (
-    <div className="border-line-1 space-y-4 border-t pt-3">
+    <div className="flex flex-col gap-4">
       {renderForm()}
 
       {/* 解析 */}
       <div>
-        <p className="text-ink-2 mb-2 text-xs font-medium">解析（可选）：</p>
-        <textarea
+        <FieldLabel>解析（可选）</FieldLabel>
+        <Textarea
           value={formData.explanation}
           onChange={e => setFormData(prev => ({ ...prev, explanation: e.target.value }))}
           rows={2}
           placeholder="输入题目解析..."
-          className={classNames(
-            "w-full resize-none rounded-lg px-3 py-2 text-sm outline-none transition-all",
-            "border-line-1 bg-surface border",
-            "text-ink-1 placeholder:text-ink-3",
-            "focus:ring-accent/20 focus:border-accent focus:ring-1"
-          )}
         />
       </div>
 
       {/* 操作按钮 */}
-      <div className="flex justify-end gap-2 pt-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className={classNames(
-            "rounded-lg px-4 py-2 text-sm font-medium transition-all",
-            "bg-hover text-ink-2",
-            "hover:bg-hover"
-          )}
-        >
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" size="sm" disabled={saving} onClick={onCancel}>
           取消
-        </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className={classNames(
-            "flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all",
-            "bg-accent hover:bg-accent-hover text-white",
-            "disabled:cursor-not-allowed disabled:opacity-50"
-          )}
-        >
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
-          ) : (
-            <Save className="h-4 w-4" strokeWidth={1.75} />
-          )}
+        </Button>
+        <Button variant="primary" size="sm" icon={Save} loading={saving} onClick={handleSave}>
           保存
-        </button>
+        </Button>
       </div>
     </div>
   );
