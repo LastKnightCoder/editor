@@ -247,9 +247,6 @@ class MainContentVecIndexQueue implements Module {
     const tasks: MainContentVecIndexTask[] = [];
     let processed = 0;
 
-    VecDocumentTable.removeIndexesByType(indexDb, "diary-weekly");
-    VecDocumentTable.removeIndexesByType(indexDb, "diary-monthly");
-
     for (const card of CardTable.getAllCards(mainDb)) {
       this.appendTask(
         indexDb,

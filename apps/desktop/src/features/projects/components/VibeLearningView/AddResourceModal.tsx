@@ -1180,7 +1180,7 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
           <NoteSelector
             onSelect={handleAddNote}
             extensions={extensions}
-            emptyDescription="搜索已有的卡片、文章、项目文档、日记、周记、月记等内容"
+            emptyDescription="搜索已有的卡片、文章、项目文档、日记等内容"
           />
           {noteError && (
             <motion.div
