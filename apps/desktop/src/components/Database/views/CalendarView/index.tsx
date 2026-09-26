@@ -10,7 +10,7 @@ import { DateValue, DatePluginConfig } from "../../plugins/DatePlugin";
 import MonthGrid from "./MonthGrid";
 import RowDetailModal from "../../components/RowDetailModal";
 import ColumnEditModal from "../TableView/components/ColumnEditModal";
-import { Button, ConfirmDialog } from "@tau/ui";
+import { Button, ConfirmDialog, cn } from "@tau/ui";
 
 interface CalendarViewProps {
   pluginManager: PluginManager;
@@ -20,10 +20,21 @@ interface CalendarViewProps {
   onRowAdd?: (defaultData?: Partial<RowData>) => void;
   onRowDelete?: (rowId: string) => void | Promise<void>;
   config?: DatabaseConfig;
+  /** 铺在页面纸上：工具栏左右内距对齐页签条（px-8） */
+  bare?: boolean;
 }
 
 const CalendarView: React.FC<CalendarViewProps> = memo(
-  ({ pluginManager, theme, readonly, onRowDetailOpen, onRowAdd, onRowDelete, config }) => {
+  ({
+    pluginManager,
+    theme,
+    readonly,
+    onRowDetailOpen,
+    onRowAdd,
+    onRowDelete,
+    config,
+    bare = false,
+  }) => {
     const [confirmDeleteRow, setConfirmDeleteRow] = useState<RowData | null>(null);
 
     const {
@@ -285,7 +296,12 @@ const CalendarView: React.FC<CalendarViewProps> = memo(
     return (
       <div className="flex h-full w-full flex-col">
         {/* 顶部工具栏 */}
-        <div className="border-line-2 flex items-center justify-between border-b px-4 py-2.5">
+        <div
+          className={cn(
+            "border-line-2 flex items-center justify-between border-b py-2.5",
+            bare ? "pl-8 pr-7" : "px-4"
+          )}
+        >
           <div className="flex items-center gap-1">
             <button
               onClick={handlePreviousMonth}

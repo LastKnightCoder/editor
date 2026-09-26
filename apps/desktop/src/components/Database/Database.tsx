@@ -269,7 +269,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       }
 
       if (activeView.type === "calendar") {
-        return <CalendarView key={activeView.id} {...viewProps} />;
+        return <CalendarView key={activeView.id} {...viewProps} bare={bare} />;
       }
 
       if (activeView.type === "kanban") {
@@ -287,6 +287,7 @@ const Database = forwardRef<DatabaseRef, DatabaseProps>(
       onRowDelete,
       config,
       store,
+      bare,
     ]);
 
     return (
