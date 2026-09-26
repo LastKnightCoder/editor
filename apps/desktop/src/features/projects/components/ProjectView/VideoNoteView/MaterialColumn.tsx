@@ -8,6 +8,7 @@ import { useCallback, useRef } from "react";
 import { Captions } from "lucide-react";
 import { Button, Spinner, cn } from "@tau/ui";
 import LocalVideo from "@/components/LocalVideo";
+import { FadeScroll } from "@/components/FadeScroll";
 import TranscriptPanel from "@/components/MediaTranscript/TranscriptPanel";
 import { formatTime, useTranscriptSync } from "@/components/MediaTranscript/useTranscriptSync";
 import type { useVideoNoteSource } from "@/components/VideoNotePanel/useVideoNoteSource";
@@ -65,7 +66,8 @@ export function MaterialColumn({
   const hasSegments = !!segments?.length;
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    // pb-4：转录视口与纸面下缘留出间距（同文档 / 网页条目正文），列表在视口边缘渐隐而非贴边硬切
+    <div className="flex h-full min-h-0 flex-col pb-4">
       {/* 视频：就绪前用主题化底色，避免下载 / 错误态在亮色下出现黑底 */}
       <div className="shrink-0 px-3 pb-3">
         <div
@@ -122,7 +124,7 @@ export function MaterialColumn({
       </div>
 
       {isOptimizing && streamingSegments.length > 0 ? (
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <FadeScroll className="tau-sheet-scroll min-h-0 flex-1 [--edge-fade-bottom-size:24px] [--edge-fade-top-size:24px]">
           <div className="flex flex-col gap-px px-2 pb-6 pt-1">
             {streamingSegments.map((segment, index) => (
               <div
@@ -138,7 +140,7 @@ export function MaterialColumn({
               </div>
             ))}
           </div>
-        </div>
+        </FadeScroll>
       ) : hasSegments ? (
         <TranscriptPanel
           segments={segments}
@@ -147,6 +149,7 @@ export function MaterialColumn({
           segmentRefsMap={segmentRefsMap}
           onSegmentClick={handleSegmentClick}
           innerClassName="px-2 pb-6 pt-1"
+          className="tau-sheet-scroll [--edge-fade-bottom-size:24px] [--edge-fade-top-size:24px]"
         />
       ) : isTranscribing ? (
         <div className="text-tau-meta text-ink-3 flex flex-1 items-center justify-center px-6 text-center">

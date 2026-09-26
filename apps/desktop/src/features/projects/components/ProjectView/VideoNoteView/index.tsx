@@ -12,7 +12,6 @@ import {
   MessageCircle,
   MoreHorizontal,
   NotebookPen,
-  PanelLeft,
   RefreshCw,
   Subtitles,
   Video,
@@ -76,9 +75,6 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
   const [materialWidth, setMaterialWidth] = useLocalStorageState("video-note-material-width", {
     defaultValue: 380,
   });
-  const [materialOpen, setMaterialOpen] = useLocalStorageState("video-note-material-open", {
-    defaultValue: true,
-  });
   const [notesOpen, setNotesOpen] = useLocalStorageState(`video-note-notes-open-${videoNoteId}`, {
     defaultValue: false,
   });
@@ -96,8 +92,8 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
   const dockWidth = clampDockChatWidth(chatWidth ?? DOCK_CHAT_MIN);
   const startDockResize = useDockResize(dockWidth, setChatWidth);
   const dockChat = !!notesOpen;
-  const materialVisible =
-    !!materialOpen && !(dockChat && rootWidth > 0 && rootWidth < MATERIAL_AUTO_COLLAPSE_WIDTH);
+  // 材料栏常驻；仅笔记打开且条目过窄（三栏放不下）时让位，关掉笔记即恢复
+  const materialVisible = !(dockChat && rootWidth > 0 && rootWidth < MATERIAL_AUTO_COLLAPSE_WIDTH);
 
   useEffect(() => {
     let cancelled = false;
@@ -250,16 +246,6 @@ const VideoNoteView = ({ videoNoteId }: VideoNoteViewProps) => {
         meta={meta}
         actions={
           <>
-            <Tooltip content={materialVisible ? "收起材料" : "展开材料"} placement="bottom">
-              <IconButton
-                aria-label={materialVisible ? "收起材料" : "展开材料"}
-                aria-pressed={materialVisible}
-                onClick={() => setMaterialOpen(!materialVisible)}
-                className={toggleClass(materialVisible)}
-              >
-                <PanelLeft className="size-4" strokeWidth={1.75} />
-              </IconButton>
-            </Tooltip>
             <Tooltip content={notesOpen ? "收起笔记" : "打开笔记"} placement="bottom">
               <IconButton
                 aria-label={notesOpen ? "收起笔记" : "打开笔记"}
