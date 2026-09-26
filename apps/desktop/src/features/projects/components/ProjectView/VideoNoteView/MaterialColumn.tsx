@@ -1,15 +1,15 @@
 /**
  * 视频笔记 · 左栏「材料」：视频 + 跟随播放的转录（点句跳播）。
- * 未转录时转录区即空状态入口（语言 + 开始转录）；转录 / AI 断句进行中就地显示进度与流式结果。
+ * 未转录时转录区即空状态入口（自动识别语言；指定语言走条目 ⋯ 菜单）；
+ * 转录 / AI 断句进行中就地显示进度与流式结果。
  */
 
 import { useCallback, useRef } from "react";
 import { Captions } from "lucide-react";
-import { Button, Select, Spinner, cn } from "@tau/ui";
+import { Button, Spinner, cn } from "@tau/ui";
 import LocalVideo from "@/components/LocalVideo";
 import TranscriptPanel from "@/components/MediaTranscript/TranscriptPanel";
 import { formatTime, useTranscriptSync } from "@/components/MediaTranscript/useTranscriptSync";
-import { TRANSCRIPTION_LANGUAGES } from "@/components/VideoNotePanel/transcription-language";
 import type { useVideoNoteSource } from "@/components/VideoNotePanel/useVideoNoteSource";
 import type { useVideoNoteTranscription } from "@/components/VideoNotePanel/useVideoNoteTranscription";
 import type { VideoNote } from "@/types";
@@ -18,8 +18,6 @@ interface MaterialColumnProps {
   videoNote: VideoNote;
   source: ReturnType<typeof useVideoNoteSource>;
   transcription: ReturnType<typeof useVideoNoteTranscription>;
-  language: string;
-  onLanguageChange: (language: string) => void;
   subtitleTrackUrl: string;
   subtitleLanguage: string;
   /** 视频元素挂载 / 卸载（笔记的时间戳、截帧扩展经它控制播放） */
@@ -30,8 +28,6 @@ export function MaterialColumn({
   videoNote,
   source,
   transcription,
-  language,
-  onLanguageChange,
   subtitleTrackUrl,
   subtitleLanguage,
   onVideoElement,
@@ -164,20 +160,10 @@ export function MaterialColumn({
             <br />
             也能让 AI 基于视频内容回答
           </p>
-          <div className="flex items-center gap-2">
-            <div className="w-[168px]">
-              <Select
-                size="sm"
-                aria-label="转录语言"
-                options={TRANSCRIPTION_LANGUAGES}
-                value={language}
-                onValueChange={value => value && onLanguageChange(value)}
-              />
-            </div>
-            <Button size="sm" variant="primary" onClick={() => void transcription.transcribe()}>
-              开始转录
-            </Button>
-          </div>
+          <Button size="sm" variant="primary" onClick={() => void transcription.transcribe()}>
+            开始转录
+          </Button>
+          <p className="text-tau-sm text-ink-3">自动识别语言，需要指定语言可在右上角 ⋯ 中选择</p>
         </div>
       )}
     </div>
