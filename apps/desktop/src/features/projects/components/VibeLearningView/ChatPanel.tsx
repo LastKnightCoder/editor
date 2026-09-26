@@ -154,8 +154,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources,
   const database = useSettingStore(state => state.setting.database.active);
   const isConnected = useDatabaseConnected();
 
-  // 注册项目专属搜索工具
-  useVibeLearningChat(projectId, mainDbName);
+  // 注册项目专属搜索工具（只给本页对话）
+  const toolScope = useVibeLearningChat(projectId, mainDbName);
 
   // 根据资源列表动态构建系统提示词
   const systemPrompt = useMemo(() => buildVLSystemPrompt(resources), [resources]);
@@ -395,6 +395,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ projectId, mainDbName, resources,
                 markdownComponents={markdownComponents}
                 isVisible={true}
                 chatScope={`vibe-learning-chat:${projectId}`}
+                toolScope={toolScope}
                 updateChatMessage={handleUpdateChatMessage}
                 updateCurrentChat={handleUpdateCurrentChat}
                 sendLoading={sendLoading}

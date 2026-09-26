@@ -1,12 +1,19 @@
 /**
  * 输入框 ＋ 面板里的「MCP 服务器」二级面板：只做启停开关，完整管理跳到 MCP 页。
- * 开关与 MCP 页同源（全局生效，不是按会话）。
+ * 开关与 MCP 页同源（全局生效，不是按会话）。页面专属工具（Vibe Learning、视频笔记、PDF）
+ * 只属于对应页面的对话（toolScope），常开，列在「当前页面」组，开关只读。
  */
 
 import { ArrowUpRight } from "lucide-react";
 import { Switch } from "@tau/ui";
 import { openPage } from "@/services/page-navigation";
-import { setServerEnabled, useMcpServers, type McpServerItem } from "../useMcpServers";
+import type { ScopedToolSource } from "@/tools/toolRegistry";
+import {
+  setServerEnabled,
+  useMcpServers,
+  useScopedToolSource,
+  type McpServerItem,
+} from "../useMcpServers";
 import { StatusDot, statusText } from "../views/ServerVisual";
 
 function Row({ item }: { item: McpServerItem }) {
@@ -34,14 +41,32 @@ function Row({ item }: { item: McpServerItem }) {
   );
 }
 
-export function McpQuickPanel({ onClose }: { onClose: () => void }) {
+function ScopedRow({ scene }: { scene: ScopedToolSource }) {
+  return (
+    <div
+      title="当前页面专属，只在这里的对话可用"
+      className="text-tau-body flex h-[36px] items-center gap-2.5 rounded-[10px] px-2.5"
+    >
+      <StatusDot status="ready" />
+      <span className="min-w-0 flex-1 truncate">{scene.label}</span>
+      <span className="text-tau-sm text-ink-3 shrink-0 tabular-nums">
+        {scene.toolNames.length} 个工具
+      </span>
+      <Switch size="sm" aria-label={`${scene.label}（常开）`} checked disabled />
+    </div>
+  );
+}
+
+export function McpQuickPanel({ toolScope, onClose }: { toolScope?: string; onClose: () => void }) {
   const { builtin, custom } = useMcpServers();
+  const scoped = useScopedToolSource(toolScope);
+  const groupTitle = (title: string) => (
+    <div className="text-tau-sm text-ink-3 px-2.5 pb-1 pt-2 font-semibold first:pt-1">{title}</div>
+  );
   const group = (title: string, items: McpServerItem[]) =>
     items.length > 0 && (
       <>
-        <div className="text-tau-sm text-ink-3 px-2.5 pb-1 pt-2 font-semibold first:pt-1">
-          {title}
-        </div>
+        {groupTitle(title)}
         {items.map(item => (
           <Row key={item.id} item={item} />
         ))}
@@ -50,6 +75,12 @@ export function McpQuickPanel({ onClose }: { onClose: () => void }) {
 
   return (
     <>
+      {scoped && (
+        <>
+          {groupTitle("当前页面")}
+          <ScopedRow scene={scoped} />
+        </>
+      )}
       {group("自定义", custom)}
       {group("内置", builtin)}
       <button

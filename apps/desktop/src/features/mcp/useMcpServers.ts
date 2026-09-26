@@ -4,12 +4,13 @@
  * 需要先断开旧连接的场景（停用、改配置、删除）显式断开。
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { MCP_PROVIDERS, type MCPProviderDefinition } from "@/mcp/providers";
 import useMCPStore, { type CustomMCPServer, type MCPServerToolInfo } from "@/stores/useMCPStore";
 import useSettingStore from "@/stores/useSettingStore";
 import { disconnectFromServer } from "@/tools/customMCP";
-import { reloadCustomServer } from "@/tools";
+import toolRegistry, { reloadCustomServer } from "@/tools";
+import type { ScopedToolSource } from "@/tools/toolRegistry";
 import { clearMcpServerLogs, getMcpServerLogs, type McpLogEntry } from "@/commands/mcp";
 import { off, on } from "@/electron";
 import type { SettingsSectionKey } from "@/features/settings/sections";
@@ -116,6 +117,15 @@ export function useMcpServers() {
   );
 
   return { builtin, custom };
+}
+
+/** 某个作用域注册的页面专属工具（Vibe Learning、视频笔记、PDF），常开不可关；无作用域返回 undefined */
+export function useScopedToolSource(scope: string | undefined): ScopedToolSource | undefined {
+  const sources = useSyncExternalStore(
+    toolRegistry.subscribeScopedSources,
+    toolRegistry.getScopedSources
+  );
+  return scope ? sources.find(source => source.scope === scope) : undefined;
 }
 
 /** 已启用且连接失败的自定义服务器数（侧栏徽标） */

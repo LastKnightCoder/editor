@@ -11,9 +11,15 @@ const BUILTIN_SKILL_TOOL_NAMES = new Set([
 
 export const getToolRegistryAgentTools = (options?: {
   includeBuiltinSkillTools?: boolean;
-}): AgentTool[] =>
-  toolRegistry
-    .getRegisteredTools()
+  /** 对话的工具作用域：带上该作用域注册的页面专属工具（同名时覆盖全局） */
+  toolScope?: string;
+}): AgentTool[] => {
+  const scoped = toolRegistry.getScopedTools(options?.toolScope);
+  const scopedNames = new Set(scoped.map(tool => tool.name));
+  return [
+    ...toolRegistry.getRegisteredTools().filter(tool => !scopedNames.has(tool.name)),
+    ...scoped,
+  ]
     .filter(tool => tool.enabled)
     .filter(tool => options?.includeBuiltinSkillTools || !BUILTIN_SKILL_TOOL_NAMES.has(tool.name))
     .map(tool => ({
@@ -25,3 +31,4 @@ export const getToolRegistryAgentTools = (options?: {
       risk: tool.risk,
       execute: tool.executor,
     }));
+};

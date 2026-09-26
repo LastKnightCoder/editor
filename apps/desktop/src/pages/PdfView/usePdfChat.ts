@@ -9,9 +9,10 @@ import {
   createReadPdfPageRangeTool,
 } from "@/tools/pdfSearchTool";
 
+/** 注册页面专属工具，返回工具作用域：交给本页对话的 ChatContainer toolScope，别的对话拿不到 */
 export const usePdfChat = (pdfId: number, mainDbName: string) => {
+  const sourceId = `pdf-${pdfId}`;
   useEffect(() => {
-    const sourceId = `pdf-${pdfId}`;
     const tools = [
       createPdfSearchTool(pdfId, mainDbName),
       createGetPdfDocumentInfoTool(pdfId, mainDbName),
@@ -21,11 +22,13 @@ export const usePdfChat = (pdfId: number, mainDbName: string) => {
       createGetPdfBookmarksTool(pdfId),
     ];
 
-    toolRegistry.registerTools(sourceId, tools, true);
+    toolRegistry.registerScopedTools(sourceId, "PDF 文档", tools);
     return () => {
       toolRegistry.unregisterSource(sourceId);
     };
-  }, [pdfId, mainDbName]);
+  }, [sourceId, pdfId, mainDbName]);
+
+  return sourceId;
 };
 
 export default usePdfChat;

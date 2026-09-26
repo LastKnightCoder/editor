@@ -90,6 +90,8 @@ interface ChatInputAreaProps {
   onReasoningEffortChange?: (level: ReasoningEffort) => void;
   reasoningEffortDisabled?: boolean;
   showMcpManager?: boolean;
+  /** 工具作用域：MCP 面板额外列出该作用域的页面专属工具 */
+  toolScope?: string;
   /** 紧凑档（停靠栏 400px）：模型名限宽、思考强度取两字短名，工具行不折行 */
   compact?: boolean;
 }
@@ -249,6 +251,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
       onReasoningEffortChange,
       reasoningEffortDisabled = false,
       showMcpManager = true,
+      toolScope,
       compact = false,
     },
     ref
@@ -573,7 +576,7 @@ const ChatInputArea = forwardRef<ChatInputAreaHandle, ChatInputAreaProps>(
               label: "MCP 服务器",
               description: "开关外部工具服务",
               disabled: sendLoading,
-              panel: (close: () => void) => <McpQuickPanel onClose={close} />,
+              panel: (close: () => void) => <McpQuickPanel toolScope={toolScope} onClose={close} />,
             },
           ]
         : []),
