@@ -61,8 +61,14 @@ const TranscriptItemView = ({ item }: { item: PiTranscriptItem }) => {
   }
   if (item.kind === "toolResult") {
     return (
-      <div className="rounded-tau-sm border-line-2 bg-page text-tau-xs text-ink-3 border px-2 py-1 font-mono">
-        {item.isError ? "✕" : "↳"} {item.toolName}: {item.contentText}
+      <div
+        className={`rounded-tau-sm text-tau-xs border px-2 py-1 font-mono ${
+          item.isError
+            ? "border-danger bg-accent-soft text-danger"
+            : "border-line-2 bg-page text-ink-3"
+        }`}
+      >
+        {item.isError ? "✕" : "✓"} {item.toolName}: {item.contentText}
       </div>
     );
   }
@@ -70,26 +76,18 @@ const TranscriptItemView = ({ item }: { item: PiTranscriptItem }) => {
 };
 
 const ExecutionsPanel = ({ vm }: { vm: PiSessionVM }) => {
-  if (vm.executions.length === 0) return null;
+  // 只显示进行中的执行卡：完成/失败的结果已按序进入 transcript（toolResult 卡），
+  // 若此处保留全部执行卡，会永远压在模型最终回答下面
+  const running = vm.executions.filter(run => run.status === "running");
+  if (running.length === 0) return null;
   return (
     <div className="space-y-1">
-      {vm.executions.map(run => (
+      {running.map(run => (
         <div
           key={run.toolCallId}
           className="rounded-tau-sm border-line-2 bg-page text-tau-xs border px-2 py-1 font-mono"
         >
-          <span
-            className={
-              run.status === "error"
-                ? "text-danger"
-                : run.status === "running"
-                  ? "text-accent-1"
-                  : "text-ink-3"
-            }
-          >
-            {run.status === "running" ? "▶" : run.status === "error" ? "✕" : "✓"}
-          </span>{" "}
-          {run.toolName} {run.argsPreview}
+          <span className="text-accent-1">▶</span> {run.toolName} {run.argsPreview}
           {run.outputPreview && (
             <pre className="text-ink-3 mt-1 max-h-32 overflow-auto whitespace-pre-wrap">
               {run.outputPreview}
@@ -122,6 +120,13 @@ export const PiDevView = () => {
 
   const vm = sessionId ? sessions[sessionId] : undefined;
   const error = sessionId ? errors[sessionId] : undefined;
+  const streamRef = useRef<HTMLDivElement | null>(null);
+
+  // 流式期间贴底跟随（transcript/executions 变化即滚动；用户上翻的精细判定留给正式聊天 UI）
+  useEffect(() => {
+    const node = streamRef.current;
+    if (node && vm?.status === "streaming") node.scrollTop = node.scrollHeight;
+  }, [vm?.status, vm?.transcript, vm?.executions]);
 
   const handleCreate = async () => {
     if (!activeProvider || !activeModel) return;
@@ -246,7 +251,10 @@ export const PiDevView = () => {
         </div>
       )}
 
-      <div className="rounded-tau-md border-line-2 bg-page flex-1 space-y-2 overflow-auto border p-3">
+      <div
+        ref={streamRef}
+        className="rounded-tau-md border-line-2 bg-page flex-1 space-y-2 overflow-auto border p-3"
+      >
         {/* 按 seq 顺序统一渲染：user / assistant（每条独立卡片，流式光标只在生成中的那条）/ toolResult */}
         {vm?.transcript.map(item => (
           <TranscriptItemView key={item.seq} item={item} />
