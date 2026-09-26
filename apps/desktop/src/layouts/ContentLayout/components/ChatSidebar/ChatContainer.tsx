@@ -1958,7 +1958,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             reasoningEffortDisabled={!chatModelConfig?.reasoning}
             currentModelName={chatModelConfig?.name ?? chatModelConfig?.id}
             contextWindowK={
-              chatModelConfig ? Math.round(chatModelConfig.contextWindow / 1024) : undefined
+              chatModelConfig?.contextWindow
+                ? Math.round(chatModelConfig.contextWindow / 1024)
+                : undefined
             }
             contextUsage={contextUsage}
             isSupportImage={supportImage}

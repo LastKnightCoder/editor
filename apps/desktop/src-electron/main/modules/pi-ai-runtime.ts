@@ -24,10 +24,10 @@ class PiAiRuntimeModule {
     PiAiRuntimeModule.registry = createProviderRegistry();
 
     userSettingModule.onSettingChanged(({ newSetting }) => {
-      PiAiRuntimeModule.syncProviders(resolveV2Providers(newSetting));
+      void PiAiRuntimeModule.syncProviders(resolveV2Providers(newSetting));
     });
-    void userSettingModule.getSettingSnapshot().then(setting => {
-      PiAiRuntimeModule.syncProviders(resolveV2Providers(setting));
+    void userSettingModule.getSettingSnapshot().then(async setting => {
+      await PiAiRuntimeModule.syncProviders(resolveV2Providers(setting));
     });
 
     ipcMain.handle("pi-ai:single-shot", async (event, request: PiSingleShotRequest) => {
@@ -39,10 +39,10 @@ class PiAiRuntimeModule {
     });
   }
 
-  private static syncProviders(providers: LLMProviderSetting[] | undefined) {
+  private static async syncProviders(providers: LLMProviderSetting[] | undefined) {
     if (!PiAiRuntimeModule.registry) return;
     try {
-      PiAiRuntimeModule.registry.syncProviders(Array.isArray(providers) ? providers : []);
+      await PiAiRuntimeModule.registry.syncProviders(Array.isArray(providers) ? providers : []);
     } catch (error) {
       console.error("[PiAiRuntime] syncProviders error:", error);
     }

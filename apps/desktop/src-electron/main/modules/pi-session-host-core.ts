@@ -111,7 +111,7 @@ export async function createHostModelRuntime(
 ): Promise<ModelRuntime> {
   const runtime = await ModelRuntime.create({ authPath, allowModelNetwork: false });
   for (const setting of providers) {
-    runtime.registerNativeProvider(buildPiProvider(setting));
+    runtime.registerNativeProvider(await buildPiProvider(setting));
     await runtime.setRuntimeApiKey(setting.id, setting.apiKey || KEYLESS_PLACEHOLDER);
   }
   return runtime;
