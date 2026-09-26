@@ -174,7 +174,7 @@ const WeekView = () => {
               event={p.event}
               calendars={calendars}
               decor={decorOf(p.event)}
-              onClick={anchor => peek(p.event, anchor)}
+              onClick={() => peek(p.event)}
               continuesLeft={p.continuesLeft}
               continuesRight={p.continuesRight}
               className="absolute"

@@ -1,5 +1,5 @@
 /**
- * 右栏 · 当日时间线（方案 C）：选中日 = store.currentDate（月视图点格子 / 周视图点日期头切换）。
+ * 当日时间线（方案 C，承载在日程页右侧非模态抽屉里）：选中日 = store.currentDate（月视图点格子 / 周视图点日期头切换）。
  *
  * 大号日期 → 全天条 → 定时日程时间线（08:00–22:00 内 ≥1 小时的空档显示「点击安排」，
  * 今天插入「现在」）→ 底部自然语言快速添加（quickAdd.ts 解析，回车直接创建）。
@@ -32,18 +32,12 @@ type TimelineItem =
 
 const hours = (minutes: number) => `${Number((minutes / 60).toFixed(1))} 小时`;
 
-export function DayColumn() {
+/** 选中日（store.currentDate）及其日程：当日时间线与工具条的当日按钮共用 */
+export function useDayEvents() {
   const currentDate = useCalendarStore(s => s.currentDate);
-  const calendars = useCalendarStore(s => s.calendars);
-  const { setCurrentDate, setEditingEvent } = useCalendarStore.getState();
-  const peek = usePeekStore(s => s.peek);
   const { events } = useCalendarEvents();
-  const nowMinutes = useNowMinutes();
-
   const day = getDateStart(currentDate);
-  const date = new Date(day);
   const isToday = day === getDateStart(Date.now());
-
   const dayEvents = useMemo(
     () =>
       (events ?? []).filter(event => {
@@ -53,6 +47,16 @@ export function DayColumn() {
       }),
     [events, day]
   );
+  return { day, isToday, dayEvents };
+}
+
+export function DayColumn() {
+  const calendars = useCalendarStore(s => s.calendars);
+  const { setCurrentDate, setEditingEvent } = useCalendarStore.getState();
+  const peek = usePeekStore(s => s.peek);
+  const nowMinutes = useNowMinutes();
+  const { day, isToday, dayEvents } = useDayEvents();
+  const date = new Date(day);
   const decorOf = useEventDecor(dayEvents);
   const allDay = dayEvents.filter(e => e.allDay);
 
@@ -118,10 +122,9 @@ export function DayColumn() {
   };
 
   return (
-    // 对开右栏：全高贴纸右缘，与左栏同一纸色，只靠一条通顶到底的细线分开（Notion Calendar / Google 口径）
-    <div className="border-line-1 flex h-full w-[360px] flex-none flex-col border-l">
-      {/* pt-5 与左栏页头同一上沿 */}
-      <div className="flex items-end gap-3 px-6 pb-2 pt-5">
+    <div className="flex min-h-0 flex-1 flex-col">
+      {/* pr-12：给抽屉右上角浮着的 × 让位 */}
+      <div className="flex items-end gap-3 pb-2 pl-6 pr-12 pt-5">
         <span
           className={cn(
             "font-tau-mono text-[44px] font-medium tabular-nums leading-[0.95] tracking-[-0.02em]",
@@ -171,7 +174,7 @@ export function DayColumn() {
                 event={event}
                 calendars={calendars}
                 decor={decorOf(event)}
-                onClick={anchor => peek(event, anchor)}
+                onClick={() => peek(event)}
               />
             ))}
           </div>

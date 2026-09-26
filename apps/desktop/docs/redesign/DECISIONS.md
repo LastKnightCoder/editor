@@ -1,5 +1,7 @@
 # 决策记录（轻量 ADR）
 
+- **追记（2026-09-26，概况改抽屉）**：用户要求闪卡首页右栏（近 7 天评分 / 未来 7 天到期；选中卡组时为卡组概况）同番茄 / 待办一样改为右侧 Drawer。常驻右栏去掉，列表占满宽度；`OverviewSide` / `DeckSide` 移进非模态 `StatsDrawer`（top-0，Esc 经 `useOverlayDismiss`），由工具栏「概况」按钮开关（打开时 soft 态），默认关闭；抽屉内容随当前范围切换（今日总览 ↔ 卡组）。
+
 ## D-042 RSS、稍后读与博客 RSS 全面退役（2026-09-24，已定）
 
 - 决定：删除订阅阅读域及博客 RSS 输出，不迁移新桌面，不保留 feed 占位；此前 feed 迁移待办由本裁决取代。
@@ -607,6 +609,15 @@
 - 数据：主进程 `skill` 模块改为多根：`userData/.skills`（可写）+ 关联目录（只读），所有路径校验改为 resolve 后按根目录前缀判定（修掉原 `startsWith` 可被同前缀目录绕过的问题）；列表返回来源、frontmatter（name / description / disable-model-invocation / allowed-tools）与文件数；新增导入（zip / 文件夹 / GitHub 目录）、关联目录配置、执行脚本 IPC。渲染端 `useSkillStore` 增加本机偏好（停用 / 调用方式）与使用记录。
 - 评审追记（2026-09-26）：列表页与编辑页都改为「一整张纸」（同微信读书），纸内卡片细描边不叠阴影；编辑页文件树是纸内透明左栏、开关在面包屑，SKILL.md 头部改为文档式（大标题 + 「AI 看到的描述」描边块，不用米灰填充）；编辑页原「默认仅手动」开关与卡片开关语义冲突，改为与卡片 / 抽屉同一份状态的「自动 / 仅手动 / 停用」分段（front-matter 的 `disable-model-invocation` 只在源码视图改）；源码视图用 CodeMirror 5 语法高亮（配色取主题 token），代码框撑满剩余高度、框内 FadeScroll 滚动。
 - 退役：`pages/SkillManagement`（index / CreateSkillModal / SkillDetailModal）、`TabType.SkillManagement` 的 TabContent 分支、`LEGACY_PAGES.skills` 占位。
+
+## D-061 日程页当日时间线改为非模态抽屉
+
+- 背景：日程页第一版（方案 C 月刊）为对开两栏，右栏 360px 当日时间线全高贴纸右缘、宽度动画收起。用户在番茄 / 待办 / 闪卡相继把常驻右栏改为 Drawer 后，要求日程页同样处理。
+- 选择：① 主视图（月 / 周 / 议程）占满宽度；`DayColumn` 移进非模态 `Drawer`（fill，width 360，初版盖在主视图区右侧不盖页头，见下方追记改为整纸高）；× 浮在抽屉右上角，`DayColumn` 头部右侧 pr-12 让位；Esc 经 `useOverlayDismiss`。② 开合仍走 `useCalendarStore.showDayPanel`（持久化，记住上次开合），默认值改为 false：抽屉盖住月视图右侧几列，首次进入不默认遮挡。
+- **追记（同日）**：① 开关由孤立图标改为带信息的按钮「今天 · 2 项」/「9/28 周一 · 无安排」（选中日 + 项数，打开时 soft 态；`useDayEvents` 与时间线共用）；② 抽屉改为与整张纸同高（挂在纸上，默认上右下 12px 内缩），会盖住页头右侧的视图切换与「新建日程」——关闭走 × / Esc。
+- **追记（同日，日程详情改抽屉）**：点日程由锚定速览 Popover（`EventPeek`，只读 + 「编辑」再进弹窗）改为纸内右侧整高的非模态 `EventDrawer`：头部 = 色块 · 标题 · 日期时间 · 日历，正文即可编辑表单，底栏删除 / 关闭 / 保存（保存后关闭 + Toast）。与时间线抽屉同位，打开时暂代它、关掉回到时间线。表单逻辑从 EventDialog 抽成 `EventDialog/useEventForm.tsx` 共用；`EventDialog` 只留新建（月 / 周视图双击空白、空档安排、页头新建）；月视图「+N 项」列表点日程同样进抽屉。`peekStore.peek(event)` 不再带锚点。
+- **追记（同日，未保存修改守卫）**：`useEventForm` 载入完成后记基线快照（备注按纯文本比较，避开编辑器规范化改 JSON 的误报），返回 `dirty`；保存 / 删除成功即以当前值为新基线。`EventDrawer` 所有关闭 / 换条请求（×、关闭、Esc、点别的日程）都经 `peekStore`，抽屉只在表单干净时跟随；dirty 时弹 ConfirmDialog「放弃未保存的修改？」（继续编辑 = 把 store 拨回当前这条 / 放弃修改）。底栏 dirty 时左侧显示「有未保存的修改」并隐藏删除按钮。新建弹窗 EventDialog 未接守卫。
+- 实现：`features/schedule/views/ScheduleView.tsx`、`components/DayColumn.tsx`（去掉左细线与定宽）、`components/CalendarHeader`（注释）、`stores/useCalendarStore.ts`（默认值）。
 
 ## D-062 Vibe Learning 项目页定稿（方案 C「学习台」）
 

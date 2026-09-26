@@ -1,17 +1,11 @@
 import { useState } from "react";
 import dayjs from "dayjs";
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  PanelRightClose,
-  PanelRightOpen,
-  Plus,
-} from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, CalendarDays, Plus } from "lucide-react";
 import { Button, DatePickerPanel, IconButton, Popover, Segmented, cn, toast } from "@tau/ui";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { getDateStart, getWeekStart } from "@/utils/calendar";
 import type { CalendarEvent, CalendarViewType } from "@/types";
+import { useDayEvents } from "../DayColumn";
 
 // 方案 C：「日」由右栏当日时间线承担
 const VIEWS: { value: CalendarViewType; label: string }[] = [
@@ -194,21 +188,34 @@ const CalendarHeader = () => {
       <Button variant="primary" size="sm" icon={Plus} onClick={handleCreate}>
         新建日程
       </Button>
-      {/* 当日面板开关：左栏工具条末尾、紧挨右栏（Notion Calendar 口径），收起后入口仍在原处 */}
-      <IconButton
-        title={showDayPanel ? "收起当日面板" : "展开当日面板"}
-        aria-label={showDayPanel ? "收起当日面板" : "展开当日面板"}
-        aria-pressed={showDayPanel}
-        onClick={() => setShowDayPanel(!showDayPanel)}
-      >
-        {showDayPanel ? (
-          <PanelRightClose className="size-4" strokeWidth={1.75} />
-        ) : (
-          <PanelRightOpen className="size-4" strokeWidth={1.75} />
-        )}
-      </IconButton>
+      <DayPanelButton open={showDayPanel} onToggle={() => setShowDayPanel(!showDayPanel)} />
     </div>
   );
 };
+
+/** 当日抽屉开关：写明打开的是哪天、有几项，而不是一个孤立图标 */
+function DayPanelButton({ open, onToggle }: { open: boolean; onToggle(): void }) {
+  const { day, isToday, dayEvents } = useDayEvents();
+  const date = new Date(day);
+  const dayText = isToday
+    ? "今天"
+    : `${date.getMonth() + 1}/${date.getDate()} 周${WEEKDAYS[date.getDay()]}`;
+  return (
+    <Button
+      variant={open ? "soft" : "secondary"}
+      size="sm"
+      icon={CalendarDays}
+      aria-pressed={open}
+      title={open ? "收起当日时间线" : "打开当日时间线（快速添加、空档安排）"}
+      onClick={onToggle}
+      className="shrink-0 whitespace-nowrap tabular-nums"
+    >
+      {dayText}
+      <span className={cn("font-normal", open ? "opacity-80" : "text-ink-3")}>
+        · {dayEvents.length ? `${dayEvents.length} 项` : "无安排"}
+      </span>
+    </Button>
+  );
+}
 
 export default CalendarHeader;
