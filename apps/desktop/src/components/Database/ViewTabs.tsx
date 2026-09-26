@@ -63,6 +63,8 @@ interface ViewTabsProps {
   ) => Promise<void>;
   onReorderViews?: (orderedIds: number[]) => Promise<void> | void;
   theme: "light" | "dark";
+  /** 铺在页面纸上：左右内距对齐纸内其它行（px-8） */
+  bare?: boolean;
 }
 
 interface ViewTabItemProps {
@@ -380,6 +382,7 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     onUpdateView,
     onReorderViews,
     theme,
+    bare = false,
   }) => {
     const {
       activeViewId,
@@ -520,7 +523,12 @@ const ViewTabs: React.FC<ViewTabsProps> = memo(
     );
 
     return (
-      <div className="border-line-1 flex h-[46px] items-center gap-2 border-b pl-4 pr-3">
+      <div
+        className={cn(
+          "border-line-1 flex h-[46px] items-center gap-2 border-b",
+          bare ? "pl-8 pr-7" : "pl-4 pr-3"
+        )}
+      >
         <div className="flex h-full items-center gap-5 overflow-x-auto overflow-y-hidden">
           {views.map((view, index) => (
             <ViewTabItem
