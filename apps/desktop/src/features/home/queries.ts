@@ -1,6 +1,7 @@
 /**
- * 今日页数据源 v3 —— 真实命令接线（并行 + 单项降级）。
- * 分工提醒：专注 = pomodoro 命令（summaryPomodoroToday/listPomodoroSessions）；
+ * 今日页数据源 v4（今天 / 继续 / 热力图）—— 真实命令接线（并行 + 单项降级）。
+ * 回顾段的窗口化统计见 retroQueries.ts（滚到回顾段才拉取）。
+ * 分工提醒：专注 = pomodoro 命令（summaryPomodoroToday）；
  *          日程 = calendar 命令（getEventsForDay），两者互不相干。
  */
 
@@ -12,15 +13,14 @@ import { getCardsByDateRange } from "@/commands/card";
 import { getArticlesByDateRange } from "@/commands/article";
 import { getAllDiaryEntries } from "@/commands/diary";
 import { getAllProjectItems } from "@/commands/project";
-import { summaryPomodoroToday, listPomodoroSessions } from "@/commands/pomodoro";
+import { summaryPomodoroToday } from "@/commands/pomodoro";
 import { getCalendarHeatmap, getAllStatistic } from "@/commands/statistic";
+import type { ICalendarHeatmapDataItem } from "@/commands/statistic";
 import {
   buildSnapshotIndex,
-  snapshotAt,
   deltaBetween,
   buildDiaryWordsByDate,
   dateStr,
-  diffSeries,
   type SnapshotIndex,
 } from "@/utils/statistic";
 import type { ICard, IArticle } from "@/types";
@@ -35,7 +35,7 @@ import {
   nextOccurrence,
   openRoots,
 } from "@/features/todos/model";
-import type { HomeSnapshot, RecentEdit, TodoTodayItem, TodayEvent } from "./types";
+import type { HeatmapStats, HomeSnapshot, RecentEdit, TodoTodayItem, TodayEvent } from "./types";
 
 const DAY_MS = 86_400_000;
 
@@ -98,10 +98,12 @@ async function fetchReview() {
       id: deck.id,
       name: deck.name,
       dueCount: deck.stats?.dueCount ?? 0,
+      learningCount: deck.stats?.learningCount ?? 0,
+      newCount: deck.stats?.newCount ?? 0,
       totalCards: deck.stats?.totalCards ?? 0,
     }))
     .sort((a, b) => b.dueCount - a.dueCount)
-    .slice(0, 3);
+    .slice(0, 4);
   return { reviewDueCount: due, reviewDecks: lite };
 }
 
@@ -111,8 +113,8 @@ async function fetchTodos(): Promise<{ todos: TodoTodayItem[]; remaining: number
   const now = Date.now();
   const open = openRoots(liveEntries(snapshot), now);
   return {
-    // 首页三卡高度对齐：待办只取 3 条（汇总数在卡片标题里），避免撑高整行
-    todos: open.slice(0, 3).map(t => {
+    // 今天三卡高度对齐：待办只取 4 条（汇总数在卡片标题里），避免撑高整行
+    todos: open.slice(0, 4).map(t => {
       // 周期任务无 dueAt：显示下一个计划打卡日
       const at =
         t.type === "recurring"
@@ -136,7 +138,7 @@ async function fetchEvents(): Promise<TodayEvent[]> {
     .sort((a, b) => Number(a.allDay) - Number(b.allDay) || (a.startTime ?? 0) - (b.startTime ?? 0))
     .slice(0, 5)
     .map((e: CalendarEvent) => ({
-      id: String(e.id),
+      id: e.id,
       title: shortTitle(e.title || "日程", 24),
       timeText: e.allDay
         ? "全天"
@@ -155,9 +157,10 @@ async function fetchRecentEdits(diaries: DiaryEntry[]): Promise<RecentEdit[]> {
   // 项目文档为全量轻表（无正文），一次拉取后按窗口过滤
   const projectItems = await getAllProjectItems().catch(() => []);
 
-  const edits: (RecentEdit & { updateTs: number })[] = [];
+  type Timed = RecentEdit & { updateTs: number };
+  const edits: Timed[] = [];
   const seen = new Set<string>();
-  const add = (edit: RecentEdit & { updateTs: number }) => {
+  const add = (edit: Timed) => {
     if (seen.has(edit.id)) return;
     seen.add(edit.id);
     edits.push(edit);
@@ -169,6 +172,7 @@ async function fetchRecentEdits(diaries: DiaryEntry[]): Promise<RecentEdit[]> {
     add({
       id: `diary-${latestDiary.id}`,
       kind: "diary",
+      date: latestDiary.date,
       title: `日记 · ${latestDiary.date}`,
       updatedText: relativeDays(latestDiary.updateTime),
       wordsCount: latestDiary.wordCount,
@@ -187,6 +191,7 @@ async function fetchRecentEdits(diaries: DiaryEntry[]): Promise<RecentEdit[]> {
         add({
           id: `card-${card.id}`,
           kind: "card",
+          targetId: card.id,
           title: shortTitle(slateToPlain(card.content) || "卡片"),
           updatedText: relativeDays(card.update_time),
           wordsCount: card.count ?? 0,
@@ -199,6 +204,7 @@ async function fetchRecentEdits(diaries: DiaryEntry[]): Promise<RecentEdit[]> {
         add({
           id: `article-${article.id}`,
           kind: "article",
+          targetId: article.id,
           title: shortTitle(article.title || "文章"),
           updatedText: relativeDays(article.update_time),
           wordsCount: article.count ?? 0,
@@ -231,7 +237,7 @@ async function fetchRecentEdits(diaries: DiaryEntry[]): Promise<RecentEdit[]> {
   return edits
     .sort((a, b) => b.updateTs - a.updateTs)
     .slice(0, RECENT_EDIT_TARGET)
-    .map(({ updateTs: _updateTs, ...rest }) => rest);
+    .map(({ updateTs: _updateTs, ...rest }) => rest as RecentEdit);
 }
 
 /** 今日产出 = 今日快照 − 昨日快照（getAllStatistic 已实时补算今天）+ 今日日记字数 */
@@ -244,76 +250,33 @@ function fetchTodayStats(index: SnapshotIndex, diaryWords: Map<string, number>) 
   };
 }
 
-/** 本周产出 = 今日快照 − 上周日快照 + 本周各天日记字数之和；专注分钟走 pomodoro 今日汇总 */
-async function fetchWeekly(index: SnapshotIndex, diaryWords: Map<string, number>) {
-  const now = new Date();
-  const monday = startOfDay(now.getTime() - ((now.getDay() + 6) % 7) * DAY_MS);
-  const mondayStr = dateStr(monday);
-  const today = todayStr();
-  const delta = deltaBetween(index, dateStr(monday - DAY_MS), today);
-  let diarySum = 0;
-  for (const [day, words] of diaryWords) {
-    if (day >= mondayStr && day <= today) diarySum += words;
-  }
-  const focus = await summaryPomodoroToday().catch(() => ({ count: 0, focusMs: 0 }));
-  return {
-    cardsCreated: delta.cards,
-    articlesCreated: delta.articles,
-    wordsWritten: delta.words + diarySum,
-    focusMinutes: Math.round(focus.focusMs / 60_000),
-  };
-}
-
-/** 库存总量 = 当日（实时）快照的存量；把每天快照加总会得到天文数字 */
-function fetchTotals(index: SnapshotIndex, diaries: DiaryEntry[]) {
-  const today = todayStr();
-  return {
-    cards: snapshotAt(index, "card", today).count,
-    articles: snapshotAt(index, "article", today).count,
-    diaries: diaries.filter(d => d.type === "daily").length,
-  };
-}
-
-/** 近 30 天走势：字数 / 新建数量走快照差分（diffSeries，与统计页同口径）；
- *  专注分钟由 pomodoro 会话按日聚合后叠加。 */
-async function fetchTrend(index: SnapshotIndex, diaryWords: Map<string, number>) {
-  const now = Date.now();
-  const since = now - 29 * DAY_MS;
-  const sessions = await listPomodoroSessions({
-    start: since,
-    end: now,
-    status: "completed",
-  }).catch(() => []);
-
-  const focusByDate = new Map<string, number>();
-  for (const session of sessions as { startTime: number; focusMs: number }[]) {
-    const key = dateStr(session.startTime);
-    focusByDate.set(key, (focusByDate.get(key) ?? 0) + Math.round(session.focusMs / 60_000));
-  }
-
-  const days = diffSeries(index, diaryWords, since, now);
-  return {
-    dates: days.map(d => d.date.slice(5)),
-    words: days.map(d => d.words),
-    created: days.map(d => d.cardsCreated + d.articlesCreated),
-    focusMinutes: days.map(d => focusByDate.get(d.date) ?? 0),
-  };
-}
-
-async function fetchHeatmapItems() {
-  const items = await getCalendarHeatmap(new Date().getFullYear());
-  return (items ?? []).map(item => ({
+/** 热力图派生：每日操作数 + 连续活跃（今天没活动从昨天起算）+ 活跃天数 */
+export function deriveHeatmapStats(items: ICalendarHeatmapDataItem[]): HeatmapStats {
+  const days = (items ?? []).map(item => ({
     date: item.time,
     count: Array.isArray(item.operation_list) ? item.operation_list.length : 0,
-    operationList: item.operation_list ?? [],
   }));
+  const countByDate = new Map(days.map(d => [d.date, d.count]));
+  const prev = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1);
+  let cursor = new Date();
+  cursor.setHours(12, 0, 0, 0);
+  if ((countByDate.get(dateStr(cursor.getTime())) ?? 0) === 0) cursor = prev(cursor);
+  let streak = 0;
+  while ((countByDate.get(dateStr(cursor.getTime())) ?? 0) > 0) {
+    streak += 1;
+    cursor = prev(cursor);
+  }
+  return { days, streak, activeDays: days.filter(d => d.count > 0).length };
+}
+
+async function fetchHeatmap(): Promise<HeatmapStats> {
+  return deriveHeatmapStats(await getCalendarHeatmap(new Date().getFullYear()));
 }
 
 /* ---------- 汇总 ---------- */
 
 export async function fetchHomeSnapshot(): Promise<HomeSnapshot> {
-  // statistic 表为每日全量快照，一次拉全量（getAllStatistic 会实时补算今天），
-  // todayStats / weekly / totals / trend 均由同一份快照差分派生；
+  // statistic 表为每日全量快照，一次拉全量（getAllStatistic 会实时补算今天），todayStats 由快照差分派生；
   // 日记走 diary_entries（word_count 即当天字数），与 diaries 相关的分项共用一次全量拉取
   const [stats, diaries] = await Promise.all([
     getAllStatistic().catch(reason => {
@@ -325,31 +288,17 @@ export async function fetchHomeSnapshot(): Promise<HomeSnapshot> {
   const index = buildSnapshotIndex(stats);
   const diaryWords = buildDiaryWordsByDate(diaries);
 
-  const [
-    review,
-    todos,
-    events,
-    questions,
-    recentEdits,
-    focus,
-    todayStats,
-    weekly,
-    totals,
-    trend,
-    heatmap,
-  ] = await Promise.allSettled([
-    fetchReview(),
-    fetchTodos(),
-    fetchEvents(),
-    listActiveQuestions(5),
-    fetchRecentEdits(diaries),
-    summaryPomodoroToday(),
-    fetchTodayStats(index, diaryWords),
-    fetchWeekly(index, diaryWords),
-    fetchTotals(index, diaries),
-    fetchTrend(index, diaryWords),
-    fetchHeatmapItems(),
-  ]);
+  const [review, todos, events, questions, recentEdits, focus, todayStats, heatmap] =
+    await Promise.allSettled([
+      fetchReview(),
+      fetchTodos(),
+      fetchEvents(),
+      listActiveQuestions(6),
+      fetchRecentEdits(diaries),
+      summaryPomodoroToday(),
+      fetchTodayStats(index, diaryWords),
+      fetchHeatmap(),
+    ]);
 
   const value = <T>(r: PromiseSettledResult<T>, fallback: T, label: string): T => {
     if (r.status === "fulfilled") return r.value;
@@ -375,14 +324,7 @@ export async function fetchHomeSnapshot(): Promise<HomeSnapshot> {
       { cardsCreated: 0, articlesCreated: 0, wordsWritten: 0 },
       "今日统计"
     ),
-    weekly: value(
-      weekly,
-      { cardsCreated: 0, articlesCreated: 0, wordsWritten: 0, focusMinutes: 0 },
-      "本周统计"
-    ),
-    totals: value(totals, { cards: 0, articles: 0, diaries: 0 }, "库存总量"),
-    trend: value(trend, { dates: [], words: [], created: [], focusMinutes: [] }, "30 天走势"),
-    heatmapItems: value(heatmap, [], "活动热力图"),
+    heatmap: value(heatmap, { days: [], streak: 0, activeDays: 0 }, "活动热力图"),
   };
 }
 

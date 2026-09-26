@@ -1,17 +1,15 @@
 /**
- * 统计页数据源（Bento 面板）—— 真实命令接线（并行 + 单项降级）：
- *  totals    快照存量（卡片/文章/日记三分量字数）+ 待办 + summaryPomodoroTotal
+ * 今日页 · 回顾段数据源（原统计页并入）—— 真实命令接线（并行 + 单项降级）：
+ *  totals    快照存量（卡片/文章/项目/日记四分量字数）
  *  trend     getAllStatistic 快照差分（utils/statistic.diffSeries，窗口随 range 参数化）
  *  previous  等长前置窗口同法聚合（环比）；all 无上一窗口为 null
- *  heatmap   getCalendarHeatmap(今年)，streak/活跃天数前端派生
- *  decks     listFlashcardDecks（due/learning/new/total）
  *  review    flashcard:review-stats（主进程聚合：评分四档 + 7 天到期分桶）
  *  rhythm    listPomodoroSessions 按启动时刻 24h 分桶（渲染端聚合）
+ * 全年热力图与卡组不在此处：前者与时间窗无关、后者属「今天 · 复习」，均走 HomeSnapshot。
  */
 
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { getAllStatistic, getCalendarHeatmap } from "@/commands/statistic";
-import type { ICalendarHeatmapDataItem } from "@/commands/statistic";
+import { getAllStatistic } from "@/commands/statistic";
 import { getAllDiaryEntries } from "@/commands/diary";
 import {
   buildSnapshotIndex,
@@ -20,29 +18,21 @@ import {
   dateStr,
   diffSeries,
   type DailyDelta,
+  type SnapshotIndex,
 } from "@/utils/statistic";
 import type { DiaryEntry } from "@/types/diary";
 import type { StatisticData } from "@/types/statistic";
 import type { PomodoroSession } from "@/types";
-import { getSystemGroupStats } from "@/commands/todo";
-import { summaryPomodoroTotal, listPomodoroSessions } from "@/commands/pomodoro";
+import { listPomodoroSessions } from "@/commands/pomodoro";
 import { getAllProjectItems } from "@/commands/project";
-import { listFlashcardDecks, getFlashcardReviewStats } from "@/commands/flashcard";
-import type { StatsRange, StatsSnapshot, RangeSummary, FocusRhythm, HeatmapStats } from "./types";
+import { getFlashcardReviewStats } from "@/commands/flashcard";
+import type { RetroRange, RetroSnapshot, RetroTotals, RangeSummary, FocusRhythm } from "./types";
 
 const DAY_MS = 86_400_000;
 
 /** 库存总量 = 当日（实时）快照的存量 + 日记全量字数 + 项目轻表字数；把每天快照加总会得到天文数字 */
-async function fetchTotals() {
-  const [stats, diaries, todoStats, focus, projectItems] = await Promise.all([
-    getAllStatistic(),
-    getAllDiaryEntries().catch(() => []),
-    getSystemGroupStats().catch(() => []),
-    summaryPomodoroTotal().catch(() => ({ count: 0, focusMs: 0 })),
-    getAllProjectItems().catch(() => []),
-  ]);
-  const index = buildSnapshotIndex((stats ?? []) as StatisticData[]);
-  const entries = (diaries ?? []) as DiaryEntry[];
+async function fetchTotals(index: SnapshotIndex, entries: DiaryEntry[]): Promise<RetroTotals> {
+  const projectItems = await getAllProjectItems().catch(() => []);
   const today = dateStr(Date.now());
   const card = snapshotAt(index, "card", today);
   const article = snapshotAt(index, "article", today);
@@ -58,9 +48,6 @@ async function fetchTotals() {
     articles: article.count,
     diaries: entries.filter(d => d.type === "daily").length,
     projects: (projectItems as unknown[]).length,
-    todoPending: (todoStats ?? []).reduce((sum, g) => sum + g.uncompleted, 0),
-    focusMinutesTotal: Math.round(focus.focusMs / 60_000),
-    focusSessions: focus.count,
     wordsTotal: card.wordsCount + article.wordsCount + projectWords + diaryTotal,
     cardWords: card.wordsCount,
     articleWords: article.wordsCount,
@@ -87,25 +74,6 @@ function summarize(series: DailyDelta[]): RangeSummary {
     articlesCreated,
     activeDays,
   };
-}
-
-/** 热力图派生：每日操作数 + 连续活跃（今天没活动从昨天起算）+ 活跃天数 */
-function deriveHeatmapStats(items: ICalendarHeatmapDataItem[]): HeatmapStats {
-  const days = (items ?? []).map(item => ({
-    date: item.time,
-    count: Array.isArray(item.operation_list) ? item.operation_list.length : 0,
-  }));
-  const countByDate = new Map(days.map(d => [d.date, d.count]));
-  const prev = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1);
-  let cursor = new Date();
-  cursor.setHours(12, 0, 0, 0);
-  if ((countByDate.get(dateStr(cursor.getTime())) ?? 0) === 0) cursor = prev(cursor);
-  let streak = 0;
-  while ((countByDate.get(dateStr(cursor.getTime())) ?? 0) > 0) {
-    streak += 1;
-    cursor = prev(cursor);
-  }
-  return { days, streak, activeDays: days.filter(d => d.count > 0).length };
 }
 
 /** 专注节律：会话按启动时刻分 24 桶 + 时长/中断聚合（渲染端） */
@@ -136,7 +104,7 @@ function aggregateRhythm(sessions: PomodoroSession[]): FocusRhythm {
   };
 }
 
-export async function fetchStatsSnapshot(range: StatsRange): Promise<StatsSnapshot> {
+export async function fetchRetroSnapshot(range: RetroRange): Promise<RetroSnapshot> {
   const year = new Date().getFullYear();
   const now = Date.now();
 
@@ -168,16 +136,14 @@ export async function fetchStatsSnapshot(range: StatsRange): Promise<StatsSnapsh
     previous = summarize(diffSeries(index, diaryWords, sinceTs - length, sinceTs - 1));
   }
 
-  const [totals, heat, decks, review, sessions] = await Promise.allSettled([
-    fetchTotals(),
-    getCalendarHeatmap(year),
-    listFlashcardDecks(),
+  const [totals, review, sessions] = await Promise.allSettled([
+    fetchTotals(index, diaries),
     getFlashcardReviewStats({ since: sinceTs }),
     listPomodoroSessions({ start: sinceTs, limit: 10_000 }),
   ]);
   const value = <T>(r: PromiseSettledResult<T>, fallback: T, label: string): T => {
     if (r.status === "fulfilled") return r.value;
-    console.warn(`[stats] ${label} 拉取失败：`, r.reason);
+    console.warn(`[home:retro] ${label} 拉取失败：`, r.reason);
     return fallback;
   };
 
@@ -189,9 +155,6 @@ export async function fetchStatsSnapshot(range: StatsRange): Promise<StatsSnapsh
         articles: 0,
         diaries: 0,
         projects: 0,
-        todoPending: 0,
-        focusMinutesTotal: 0,
-        focusSessions: 0,
         wordsTotal: 0,
         cardWords: 0,
         articleWords: 0,
@@ -200,15 +163,6 @@ export async function fetchStatsSnapshot(range: StatsRange): Promise<StatsSnapsh
       },
       "总量"
     ),
-    heatmap: deriveHeatmapStats(value(heat, [] as ICalendarHeatmapDataItem[], "活动热力图")),
-    decks: value(decks, [], "闪卡牌组").map(deck => ({
-      id: deck.id,
-      name: deck.name,
-      dueCount: deck.stats?.dueCount ?? 0,
-      learningCount: deck.stats?.learningCount ?? 0,
-      newCount: deck.stats?.newCount ?? 0,
-      totalCards: deck.stats?.totalCards ?? 0,
-    })),
     trend,
     previous,
     review:
@@ -223,13 +177,19 @@ export async function fetchStatsSnapshot(range: StatsRange): Promise<StatsSnapsh
   };
 }
 
-export function useStatsSnapshot(range: StatsRange): {
-  data: StatsSnapshot | null;
+/** 回顾段数据入口：enabled = 回顾段已进入视口（首屏不为它买单）；
+ *  key 挂在 ["home"] 下，各域写入后失效 ["home"] 即一并刷新。 */
+export function useRetroSnapshot(
+  range: RetroRange,
+  enabled: boolean
+): {
+  data: RetroSnapshot | null;
   loading: boolean;
 } {
   const query = useQuery({
-    queryKey: ["stats", "snapshot", range],
-    queryFn: () => fetchStatsSnapshot(range),
+    queryKey: ["home", "retro", range],
+    queryFn: () => fetchRetroSnapshot(range),
+    enabled,
     staleTime: 5 * 60_000,
     refetchOnWindowFocus: true,
     // 切换窗口时保留上一份数据渲染（不闪整页 Loading），新窗口数据到达后原位更新

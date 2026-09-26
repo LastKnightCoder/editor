@@ -121,7 +121,6 @@ export function useInvalidateOnSessionEnd() {
     const timer = window.setTimeout(() => {
       void queryClient.invalidateQueries({ queryKey: SESSIONS_KEY });
       void queryClient.invalidateQueries({ queryKey: ["home"] });
-      void queryClient.invalidateQueries({ queryKey: ["stats"] });
     }, 200);
     return () => window.clearTimeout(timer);
   }, [seq, queryClient]);
@@ -141,7 +140,6 @@ export function usePomodoroMutations() {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: SESSIONS_KEY }),
         queryClient.invalidateQueries({ queryKey: ["home"] }),
-        queryClient.invalidateQueries({ queryKey: ["stats"] }),
       ]);
     const toPayload = (draft: PresetDraft) => ({
       name: draft.name,

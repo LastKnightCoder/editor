@@ -1,32 +1,8 @@
 /*
- * 今日页域内保留样式（D-001 白名单第 4 类）——仅 JS/CSS 变量协议与复杂 mask，
- * 其余样式已迁移组件 Tailwind（视觉基准 mockups/home-final.html）。
+ * 今日页域内保留样式（D-001 白名单第 4 类）——其余样式已迁移组件 Tailwind。
  */
 
-/* 打通 .content → 视图根的高度链：滚动收进视图内部后根需确定高度（PageHost 已隐藏非激活实例） */
+/* 打通 .content → 视图根的高度链：滚动收进纸内后根需确定高度（PageHost 已隐藏非激活实例） */
 [data-page-key="home"] {
   height: 100%;
-}
-
-/* 滚动容器：mask 相对 border-box 固定、不随内容滚动，内容进出边缘时像素级渐隐。
-   渐隐带由 useEdgeFade 按滚动状态写入的 0/1 变量收放：
-   贴顶 → 顶部无带（开头完整）、滚到底 → 底部无带（结尾完整）、不能滚 → 两带俱无 */
-.home-scroll {
-  --edge-fade-top-size: 12px;
-  --edge-fade-bottom-size: 12px;
-  padding-bottom: var(--edge-fade-bottom-size);
-  -webkit-mask-image: linear-gradient(
-    180deg,
-    transparent 0,
-    #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 0)),
-    #000 calc(100% - var(--edge-fade-bottom-size) * var(--edge-bottom-on, 0)),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    180deg,
-    transparent 0,
-    #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 0)),
-    #000 calc(100% - var(--edge-fade-bottom-size) * var(--edge-bottom-on, 0)),
-    transparent 100%
-  );
 }

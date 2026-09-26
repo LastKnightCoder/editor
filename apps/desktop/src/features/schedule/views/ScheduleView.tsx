@@ -9,7 +9,8 @@
 
 import { useEffect } from "react";
 import { Drawer } from "@tau/ui";
-import { useOverlayDismiss } from "@/page/PageProvider";
+import { useOverlayDismiss, usePage, usePageParams } from "@/page/PageProvider";
+import { getCalendarEventById } from "@/commands/calendar";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { useDatabaseChangeEffect } from "@/hooks/useDatabaseChangeEffect";
 import { subscribeCalendarMutationEvent } from "@/mcp/calendar/events";
@@ -39,6 +40,22 @@ export function ScheduleView() {
       void init();
     });
   }, [init]);
+
+  /* 外部带 eventId 进入（今日页日程卡等）：翻到该日程所在日期并打开详情，参数随即消费掉（原位更新） */
+  const { navigator } = usePage();
+  const params = usePageParams<{ eventId?: number }>();
+  useEffect(() => {
+    const id = params.eventId;
+    if (id == null) return;
+    getCalendarEventById(id)
+      .then(event => {
+        if (!event) return;
+        useCalendarStore.getState().setCurrentDate(event.startDate);
+        usePeekStore.getState().peek(event);
+      })
+      .catch(reason => console.warn("[schedule] 定位日程失败：", reason))
+      .finally(() => navigator.push("schedule", {}));
+  }, [params.eventId, navigator]);
 
   // 方案 C 没有日视图：legacy 持久化的 day 迁到月视图
   useEffect(() => {

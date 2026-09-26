@@ -83,10 +83,9 @@ function patch(client: QueryClient, fn: (s: DiarySnapshot) => DiarySnapshot) {
   client.setQueryData<DiarySnapshot>(SNAPSHOT_KEY, prev => (prev ? fn(prev) : prev));
 }
 
-/** 字数进首页 / 统计口径：本窗口写入不会收到自己的广播，这里补失效 */
+/** 字数进今日页（含回顾段）口径：本窗口写入不会收到自己的广播，这里补失效 */
 function touchDerived(client: QueryClient) {
   void client.invalidateQueries({ queryKey: ["home"] });
-  void client.invalidateQueries({ queryKey: ["stats"] });
 }
 
 export function useDiaryMutations() {
