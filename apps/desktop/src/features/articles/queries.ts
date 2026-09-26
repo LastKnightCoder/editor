@@ -2,11 +2,17 @@
  * 文章页数据源：月刊形态（A3 定稿，mockups/articles/plan-a3-journal.html）。
  * - 列表：getArticlePage 分页窗口（轻量条目，不取正文全文）+ useInfiniteQuery
  *   承载无限滚动；按月归段的展示分组是纯前端派生（分桶不断数据流，翻页与分段解耦）。
- * - 标签：getArticleTagCounts 聚合计数（过滤 pills）。
+ * - 筛选：标签（侧栏子项）+ 标题关键词（页内搜索框）都下推到 getArticlePage，
+ *   分页 / 总数 / 字数统计随筛选结果；标签计数 getArticleTagCounts 供侧栏子项。
  * - 变更（置顶/删除/新建/导入）后整域失效重拉。
  */
 
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   getArticlePage,
   getArticleTagCounts,
@@ -74,7 +80,10 @@ export function bucketByMonths(items: ArticlePageItem[]): ArticleMonthSection[] 
 
 /* ---------- 查询 ---------- */
 
-export function useArticleFeed(tag: string): {
+export function useArticleFeed(
+  tag: string,
+  keyword = ""
+): {
   items: ArticlePageItem[];
   total: number;
   totalWords: number;
@@ -85,8 +94,9 @@ export function useArticleFeed(tag: string): {
   refresh(): void;
 } {
   const query = useInfiniteQuery({
-    queryKey: ["articles", "feed", tag],
-    queryFn: ({ pageParam }) => getArticlePage(pageParam, PAGE_SIZE, tag || undefined),
+    queryKey: ["articles", "feed", tag, keyword],
+    queryFn: ({ pageParam }) =>
+      getArticlePage(pageParam, PAGE_SIZE, tag || undefined, keyword || undefined),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
       const loaded = allPages.reduce((sum, page) => sum + page.items.length, 0);
@@ -94,6 +104,8 @@ export function useArticleFeed(tag: string): {
     },
     staleTime: 60_000,
     refetchOnWindowFocus: true,
+    // 换标签 / 搜索词时先留着旧列表，新结果到了再替换：页面不闪回 Loading、搜索框不失焦
+    placeholderData: keepPreviousData,
   });
   const pages = query.data?.pages ?? [];
   return {

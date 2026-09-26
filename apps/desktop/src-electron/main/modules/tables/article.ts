@@ -419,16 +419,29 @@ export default class ArticleTable {
   }
 
   // 文章页轻量分页列表：不取正文全文（摘要由 contents.content 前缀在渲染端派生），
-  // 排序 置顶优先 + 最近编辑，供月刊列表的无限滚动窗口消费
+  // 排序 置顶优先 + 最近编辑，供月刊列表的无限滚动窗口消费。
+  // tag = 标签筛选（侧栏子项），query = 标题关键词（页内搜索框），两者可叠加
   static getArticlePage(
     db: Database.Database,
     offset: number,
     limit: number,
-    tag?: string
+    tag?: string,
+    query?: string
   ): { items: ArticlePageItem[]; total: number; totalWords: number } {
+    const conditions = ["a.is_delete = 0"];
+    const params: string[] = [];
     // tags 为 JSON 文本列，元素必带引号；清洗通配符与引号防误配/注入
-    const likeTag = tag ? `%"${tag.replace(/[%_"\\]/g, "")}"%` : null;
-    const where = likeTag ? "WHERE a.is_delete = 0 AND a.tags LIKE ?" : "WHERE a.is_delete = 0";
+    if (tag) {
+      conditions.push("a.tags LIKE ?");
+      params.push(`%"${tag.replace(/[%_"\\]/g, "")}"%`);
+    }
+    // 标题关键词：转义 LIKE 通配符后按字面子串匹配
+    const keyword = query?.trim();
+    if (keyword) {
+      conditions.push("a.title LIKE ? ESCAPE '\\'");
+      params.push(`%${keyword.replace(/[%_\\]/g, ch => `\\${ch}`)}%`);
+    }
+    const where = `WHERE ${conditions.join(" AND ")}`;
 
     const agg = db
       .prepare(
@@ -437,7 +450,7 @@ export default class ArticleTable {
          LEFT JOIN contents ct ON a.content_id = ct.id
          ${where}`
       )
-      .get(...(likeTag ? [likeTag] : [])) as { n: number; words: number };
+      .get(...params) as { n: number; words: number };
 
     const rows = db
       .prepare(
@@ -450,7 +463,7 @@ export default class ArticleTable {
          ORDER BY a.is_top DESC, a.update_time DESC
          LIMIT ? OFFSET ?`
       )
-      .all(...(likeTag ? [likeTag] : []), limit, offset) as Record<string, unknown>[];
+      .all(...params, limit, offset) as Record<string, unknown>[];
 
     const items: ArticlePageItem[] = rows.map(row => ({
       id: row.id as number,
