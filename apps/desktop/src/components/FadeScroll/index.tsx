@@ -1,4 +1,4 @@
-import { useState, type ReactNode, type Ref } from "react";
+import { useCallback, useState, type ReactNode, type Ref } from "react";
 import clsx from "clsx";
 import { motion } from "motion/react";
 import { FADE_SCROLL_CLASS, useEdgeFade } from "@tau/ui";
@@ -20,15 +20,21 @@ interface FadeScrollProps {
 export function FadeScroll({ className, children, scrollRef, layoutScroll }: FadeScrollProps) {
   const [el, setEl] = useState<HTMLDivElement | null>(null);
   useEdgeFade(el);
+  /* ref 回调必须稳定：内联函数每次渲染都是新引用，React 会先以 null 调旧回调、再以节点调新回调；
+     scrollRef 若是父组件的 setState，这一对调用会让父组件重渲染 → 又生成新回调 → 无限循环 */
+  const setRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      setEl(node);
+      if (typeof scrollRef === "function") scrollRef(node);
+      else if (scrollRef) scrollRef.current = node;
+    },
+    [scrollRef]
+  );
   const Container = layoutScroll ? motion.div : "div";
   return (
     <Container
       layoutScroll={layoutScroll || undefined}
-      ref={node => {
-        setEl(node);
-        if (typeof scrollRef === "function") scrollRef(node);
-        else if (scrollRef) scrollRef.current = node;
-      }}
+      ref={setRef}
       className={clsx(FADE_SCROLL_CLASS, className)}
     >
       {children}
