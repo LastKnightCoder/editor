@@ -23,7 +23,6 @@ import {
   Timer,
   CircleHelp,
   FolderKanban,
-  BarChart3,
   Send,
   MessageCircle,
   Sparkles,
@@ -69,7 +68,7 @@ export interface NavSection {
 
 export const NAV_SECTIONS: NavSection[] = [
   {
-    // 今日的 hero 与行动三卡（专注/待办/日程）即此组的工作流闭环；协作是多人实时会话，属日常工作流
+    // 今日 = 行动（复习/待办/日程）+ 继续 + 回顾（原统计页并入），即此组的工作流闭环；协作是多人实时会话，属日常工作流
     label: "工作台",
     items: [
       { key: "home", label: "今日", icon: Flame },
@@ -121,7 +120,6 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "工具",
     items: [
-      { key: "stats", label: "统计", icon: BarChart3 }, // 新架构：数据回顾页
       { key: "publish", label: "发布", icon: Send }, // 新架构：静态站点发布（自设置弹窗抽出，D-035）
     ],
   },

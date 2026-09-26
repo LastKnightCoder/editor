@@ -10,7 +10,7 @@
  * 键位（本页在栈顶、无浮层、不在输入框时）：R 复习当前范围 · N 新建闪卡。
  */
 
-import { usePage, usePageBreadcrumb } from "@/page/PageProvider";
+import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { isEditableTarget } from "@/page/dom";
 import type { Flashcard, FlashcardDeck, FlashcardType } from "@/types";
 import { useQueryClient } from "@tanstack/react-query";
@@ -56,7 +56,8 @@ export function FlashcardsView() {
   const mutations = useFlashcardMutations();
   const now = useNow(snapshot);
 
-  const [deckId, setDeckId] = useState<number | null>(null);
+  const params = usePageParams<{ deckId?: number }>();
+  const [deckId, setDeckId] = useState<number | null>(params.deckId ?? null);
   const [statsOpen, setStatsOpen] = useState(false);
   const [status, setStatus] = useState<StatusFilter>("all");
   const [type, setType] = useState<FlashcardType | "all">("all");
@@ -96,6 +97,13 @@ export function FlashcardsView() {
   }, [snapshot, pendingDelete, now]);
 
   const deck = deckId != null ? (derived?.decksById.get(deckId) ?? null) : null;
+
+  /* 外部带 deckId 进入（今日页复习卡等）：选中该卡组，参数随即消费掉（原位更新） */
+  useEffect(() => {
+    if (params.deckId == null) return;
+    setDeckId(params.deckId);
+    navigator.push("review", {});
+  }, [params.deckId, navigator]);
 
   /* 选中的卡组被删除后回到总览 */
   useEffect(() => {

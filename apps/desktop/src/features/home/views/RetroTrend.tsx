@@ -35,7 +35,7 @@ function smoothPath(pts: readonly Pt[]): string {
   return d;
 }
 
-export function StatsTrend({ trend }: { trend: TrendDay[] }) {
+export function RetroTrend({ trend }: { trend: TrendDay[] }) {
   const [hover, setHover] = useState<number | null>(null);
 
   const geo = useMemo(() => {

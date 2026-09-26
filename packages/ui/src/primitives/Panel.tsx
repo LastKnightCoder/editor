@@ -1,11 +1,17 @@
 /**
  * 面板（白卡）族 —— 壳层内容区的基础卡片容器（A2 视觉：surface 底 + shadow-card）。
- * pad 三档：base（统计页等宽松版式 18/20）、compact（首页紧凑版式 12/16）、none（自管内距）。
+ * pad 三档：base（宽松版式 18/20）、compact（今日页紧凑版式 12/16）、none（自管内距）。
+ * variant：raised（默认，阴影白卡，直接落在 page 底上）/ outline（细描边，落在一整张纸上——纸上再叠阴影卡会糊成一片）。
  * PanelTitle 的下间距由调用方按域密度给（mb-1.5 / mb-2.5），避免同属性类层叠不可控。
  */
 
 import type { ComponentProps } from "react";
 import { cn } from "../cn";
+
+const PANEL_VARIANTS = {
+  raised: "shadow-card",
+  outline: "border border-line-1",
+} as const;
 
 const PANEL_PADS = {
   base: "px-5 py-[18px]",
@@ -16,11 +22,20 @@ const PANEL_PADS = {
 export function Panel({
   className,
   pad = "base",
+  variant = "raised",
   ...props
-}: ComponentProps<"section"> & { pad?: keyof typeof PANEL_PADS }) {
+}: ComponentProps<"section"> & {
+  pad?: keyof typeof PANEL_PADS;
+  variant?: keyof typeof PANEL_VARIANTS;
+}) {
   return (
     <section
-      className={cn("rounded-tau-lg bg-surface shadow-card", PANEL_PADS[pad], className)}
+      className={cn(
+        "rounded-tau-lg bg-surface",
+        PANEL_VARIANTS[variant],
+        PANEL_PADS[pad],
+        className
+      )}
       {...props}
     />
   );
@@ -53,7 +68,7 @@ export function EmptyNote({ className, ...props }: ComponentProps<"p">) {
   );
 }
 
-/** 标题行右侧的“前往”链接（无背景，贴卡片右缘，与标题同行对齐）—— home/stats 共用 */
+/** 标题行右侧的“前往”链接（无背景，贴卡片右缘，与标题同行对齐）—— 今日页 / 发布页等共用 */
 export function PanelAction({ className, ...props }: ComponentProps<"button">) {
   return (
     <button

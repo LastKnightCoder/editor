@@ -103,11 +103,10 @@ function patchCard(queryClient: QueryClient, card: Flashcard) {
   );
 }
 
-/** 复习结束 / 离开页面时调用：刷新卡组计数、评分分布及首页 / 统计页 */
+/** 复习结束 / 离开页面时调用：刷新卡组计数、评分分布及今日页（含回顾段） */
 export function invalidateFlashcardViews(queryClient: QueryClient) {
   void queryClient.invalidateQueries({ queryKey: ["flashcards"] });
   void queryClient.invalidateQueries({ queryKey: ["home"] });
-  void queryClient.invalidateQueries({ queryKey: ["stats"] });
 }
 
 export function useFlashcardMutations() {

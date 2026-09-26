@@ -270,7 +270,7 @@ pnpm add -D
 **上手顺序（写桌面端代码前必做）**：
 
 1. 读 `apps/desktop/docs/redesign/03-架构实现指南.md` 全文（≈10 分钟，权威交接文档：协议用法 + 铁律 + 迁移流程）；
-2. 参考实现照抄结构，不要自创：页面域样板 = `apps/desktop/src/features/home/`（page 声明 / views / queries / types 四件套 + react-query 数据协议），次样板 = `features/stats/`；壳层改 `src/app/`；导航框架勿动 `src/page/`；
+2. 参考实现照抄结构，不要自创：页面域样板 = `apps/desktop/src/features/home/`（page 声明 / views / queries / types 四件套 + react-query 数据协议）；壳层改 `src/app/`；导航框架勿动 `src/page/`；
 3. 背景与取舍看 `01-重构蓝图.md`，历史裁决查 `DECISIONS.md`（推翻已有做法必须先记录），删旧代码查 `04-删除清单.md`。
 
 **文档保鲜义务**：03 指南是代码的持久投影——每次改 page 框架、主题机制、数据协议或壳层行为，必须在同一提交里同步 03 指南对应小节（必要时 DECISIONS.md 追加条目）；发现文档与代码不一致时，先修一致再继续开发，禁止让文档腐化。
