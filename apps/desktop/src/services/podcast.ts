@@ -9,7 +9,8 @@ import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
 import type { MinimaxSpeechModel } from "@/types/minimax";
 import { ETTSProvider } from "@/types/tts";
 import { Role } from "@/constants";
-import { chatLLMStream } from "@/hooks/useChatLLM";
+import { runPiAgent } from "@/services/piAgentRunner";
+import { piStreamChat } from "@/services/piLLM";
 import {
   buildVibeLearningGenerationUserPrompt,
   VIBE_LEARNING_GENERATION_RULES,
@@ -56,18 +57,43 @@ export function generateScriptStream(
     durationMax
   );
 
-  chatLLMStream(provider, model, messages, {
-    enableTools: source.enableTools,
-    onUpdate: (_responseText: string, fetchText: string) => {
-      // 只发送新增的内容
-      onUpdate(fetchText);
-    },
-    onFinish: () => {
+  // 单发路径：pi 原生事件（partial 全量快照中的增量），播客脚本流只发新增内容
+  if (!source.enableTools) {
+    const handle = piStreamChat({ provider, model, messages }, event => {
+      if (event.type === "text_delta") {
+        onUpdate(event.delta);
+      }
+    });
+    void handle.result.then(result => {
+      if (result.ok && !result.aborted) {
+        onFinish();
+        return;
+      }
+      if (!result.aborted) onError(new Error(result.error ?? "模型请求失败"));
+    });
+    return;
+  }
+
+  // 带工具路径（vibe_learning）：一次性 pi 会话（message_update 携带的 pi 原生
+  // assistantMessageEvent 直供 text_delta 增量）
+  const handle = runPiAgent({ provider, model, messages }, event => {
+    if (event.type === "message_update") {
+      const streamEvent = (
+        event as unknown as {
+          assistantMessageEvent?: { type: string; delta?: string };
+        }
+      ).assistantMessageEvent;
+      if (streamEvent?.type === "text_delta" && streamEvent.delta) {
+        onUpdate(streamEvent.delta);
+      }
+    }
+  });
+  void handle.result.then(result => {
+    if (result.ok && !result.aborted) {
       onFinish();
-    },
-    onError: (error: Error) => {
-      onError(error);
-    },
+      return;
+    }
+    if (!result.aborted) onError(new Error(result.error ?? "模型请求失败"));
   });
 }
 

@@ -1,6 +1,8 @@
 import WebSocketServer from "@/utils/WebSocketServer";
 import WebSocketClient from "@/utils/WebSocketClient";
-import { chatStreamCore } from "@/hooks/useChatLLM";
+import { runPiAgent } from "@/services/piAgentRunner";
+import { PiChatEventReducer } from "@/services/piChatEvents";
+import { piStreamChat, piTextOf, piThinkingOf } from "@/services/piLLM";
 import useSettingStore from "@/stores/useSettingStore";
 import type { ISetting } from "@/stores/useSettingStore";
 import useSkillStore from "@/stores/useSkillStore";
@@ -14,7 +16,6 @@ import type {
   RequestMessage,
   ToolCallPayload,
   ToolCallExecutionState,
-  ToolExecutionMetadata,
 } from "@/types";
 import {
   createChatGroup,
@@ -245,64 +246,69 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
   // 记录浏览器工具名称，用于路由
   const browserToolNames = new Set((browserTools || []).map(t => t.function.name));
 
-  // 创建自定义工具执行器
-  const executeToolCall =
-    browserToolNames.size > 0
-      ? async (
-          call: ToolCallPayload,
-          context?: {
-            conversationKey?: string;
-            toolContext?: ToolExecutionMetadata;
-          }
-        ): Promise<{ content: string } | null> => {
-          if (browserToolNames.has(call.function.name)) {
-            return await executeBrowserTool(
-              call,
-              requestId,
-              context?.conversationKey || conversationKey
-            );
-          }
-          // 本地工具由 chatStreamCore 内部处理
-          return null;
-        }
-      : undefined;
-
   // 累积文本用于最终返回
   let fullContent = "";
   let fullReasoning = "";
 
-  // 使用 chatStreamCore 进行流式聊天
-  // 禁用动画缓冲：WebSocket 转发场景下需要直接透传 SSE 数据，
-  // 避免 requestAnimationFrame 在窗口后台时被节流导致数据堆积
+  const sendTextNotification = (turnId: string | undefined, text: string) => {
+    fullContent = text;
+    server.sendNotification<AiStreamNotificationData>("ai.stream.text", {
+      requestId,
+      turnId,
+      content: text,
+    });
+  };
+
+  // 单发路径（无工具）：pi 原生事件直消费
+  if (!enableTools) {
+    const single = piStreamChat({ provider, model, messages: finalMessages }, event => {
+      if (event.type === "text_delta" || event.type === "text_end") {
+        sendTextNotification(undefined, piTextOf(event.partial));
+      } else if (event.type === "thinking_delta" || event.type === "thinking_end") {
+        fullReasoning = piThinkingOf(event.partial);
+        server.sendNotification<AiStreamNotificationData>("ai.stream.reasoning", {
+          requestId,
+          turnId: undefined,
+          reasoning: fullReasoning,
+        });
+      }
+    });
+    const singleResult = await single.result;
+    if (!singleResult.ok && !singleResult.aborted) {
+      server.sendNotification<AiStreamNotificationData>("ai.stream.finish", {
+        requestId,
+        error: singleResult.error ?? "模型请求失败",
+      });
+    } else {
+      fullContent = singleResult.text;
+      fullReasoning = singleResult.reasoning;
+      server.sendNotification<AiStreamNotificationData>("ai.stream.finish", {
+        requestId,
+        content: singleResult.text,
+        reasoning: singleResult.reasoning,
+      });
+    }
+    return {
+      content: fullContent,
+      reasoning: fullReasoning,
+    };
+  }
+
+  // 带工具路径：一次性 pi 会话（浏览器工具经 executeAdditionalTool 路由，
+  // 本地工具经工具桥走渲染端 ToolRegistry）
   // 通知载荷为快照语义（全量文本 + turnId），插件端经 @tau/shared 的
   // applyChatStreamEvent 归约，与桌面本地块组装走同一套逻辑
-  await chatStreamCore({
-    provider,
-    model,
-    messages: finalMessages,
-    enableTools,
-    conversationKey,
-    skills: useSkillStore.getState().skills,
-    additionalTools: browserTools,
-    executeToolCall,
-    disableAnimation: true,
-    onUpdate: (text, _fetchText, _reasoning, turnId) => {
-      fullContent = text;
-      server.sendNotification<AiStreamNotificationData>("ai.stream.text", {
-        requestId,
-        turnId,
-        content: text,
-      });
-    },
-    onReasoning: (reasoningText, _delta, turnId) => {
-      fullReasoning = reasoningText;
+  const reducer = new PiChatEventReducer({
+    applyText: (turnId, text) => sendTextNotification(turnId, text),
+    applyReasoning: (turnId, text) => {
+      fullReasoning = text;
       server.sendNotification<AiStreamNotificationData>("ai.stream.reasoning", {
         requestId,
         turnId,
-        reasoning: reasoningText,
+        reasoning: text,
       });
     },
-    onToolCallsUpdate: (executions, turnId, toolCalls) => {
+    applyToolCalls: (turnId, executions, toolCalls) => {
       server.sendNotification<AiStreamNotificationData>("ai.stream.tool", {
         requestId,
         turnId,
@@ -310,29 +316,64 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
         toolCalls,
       });
     },
+    finalizeTurn: () => {},
+    applyUsage: () => {},
     onAssistantTurnEnd: ({ turnId }) => {
       server.sendNotification<AiStreamNotificationData>("ai.stream.turn-finish", {
         requestId,
         turnId,
       });
     },
-    onFinish: (content, reasoning, meta) => {
-      fullContent = content;
-      fullReasoning = reasoning;
-      server.sendNotification<AiStreamNotificationData>("ai.stream.finish", {
-        requestId,
-        turnId: meta?.turnId,
-        content,
-        reasoning,
-      });
-    },
-    onError: error => {
-      server.sendNotification<AiStreamNotificationData>("ai.stream.finish", {
-        requestId,
-        error: error.message,
-      });
-    },
+    onRetryStatus: () => {},
+    onStreamError: () => {},
+    onSettled: () => {},
+    onQueueUpdate: () => {},
   });
+
+  const run = runPiAgent(
+    {
+      provider,
+      model,
+      messages: finalMessages,
+      ...(conversationKey ? { conversationKey } : {}),
+      ...(browserTools && browserTools.length > 0
+        ? {
+            additionalTools: browserTools,
+            executeAdditionalTool: async ({ toolName, args }) => {
+              if (!browserToolNames.has(toolName)) return null;
+              const outcome = await executeBrowserTool(
+                {
+                  id: "",
+                  function: {
+                    name: toolName,
+                    arguments: args === undefined ? "" : JSON.stringify(args),
+                  },
+                },
+                requestId,
+                conversationKey
+              );
+              return { content: outcome?.content ?? "" };
+            },
+          }
+        : {}),
+    },
+    event => reducer.handle(event)
+  );
+
+  const result = await run.result;
+  if (!result.ok && !result.aborted) {
+    server.sendNotification<AiStreamNotificationData>("ai.stream.finish", {
+      requestId,
+      error: result.error ?? "模型请求失败",
+    });
+  } else {
+    fullContent = result.lastAssistantText;
+    server.sendNotification<AiStreamNotificationData>("ai.stream.finish", {
+      requestId,
+      content: result.lastAssistantText,
+      reasoning: fullReasoning,
+    });
+  }
 
   return {
     content: fullContent,

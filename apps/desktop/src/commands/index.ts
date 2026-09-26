@@ -20,7 +20,6 @@ export * from "./pdf-export";
 export * from "./white-board";
 export * from "./llm";
 export * from "./chat-message";
-export * from "./stream-fetch";
 export * from "./vec-document";
 export * from "./extra";
 export * from "./window";

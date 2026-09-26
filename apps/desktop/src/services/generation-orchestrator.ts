@@ -1,12 +1,14 @@
 import { Role } from "@/constants";
 import type { LLMProviderSetting, LLMModelSetting } from "@/types/pi-llm";
-import type { RequestMessage, ToolCallExecutionState } from "@/types/llm";
+import type { RequestMessage, ToolCallExecutionState, ToolCallPayload } from "@/types/llm";
+import type { ToolExecutionResult } from "@/types";
 import type { AgentModelUsage } from "@tau/agent";
 import type { PPTTemplate } from "@/constants/ppt-templates";
 import type { ReportTemplate } from "@/constants/report-templates";
 import type { PodcastSpeaker } from "@/types/podcast";
-import { chatStreamCore, type ChatStreamCoreOptions } from "@/hooks/useChatLLM";
-import { piStreamChat, piTextOf, piThinkingOf, type PiChatHandle } from "@/services/piLLM";
+import { runPiAgent } from "@/services/piAgentRunner";
+import { PiChatEventReducer } from "@/services/piChatEvents";
+import { piStreamChat, piTextOf, piThinkingOf } from "@/services/piLLM";
 import toolRegistry, { ensureToolingReady } from "@/tools";
 import {
   OUTLINE_GENERATION_WITH_TOOLS_PROMPT,
@@ -131,8 +133,23 @@ export interface GenerationRunCallbacks {
 
 /** 按次注入的工具（覆盖全局注册表里的同名工具）：后台任务用它绑定自己的项目 */
 export interface GenerationRunOptions {
-  additionalTools?: ChatStreamCoreOptions["additionalTools"];
-  executeToolCall?: ChatStreamCoreOptions["executeToolCall"];
+  additionalTools?: Array<{
+    type: "function";
+    function: {
+      name: string;
+      description: string;
+      parameters: Record<string, unknown>;
+    };
+  }>;
+  /** 自定义工具执行器（用于路由到外部执行，如浏览器扩展）；返回 null 表示未接管 */
+  executeToolCall?: (
+    call: ToolCallPayload,
+    options?: {
+      signal?: AbortSignal;
+      conversationKey?: string;
+      toolContext?: Record<string, unknown>;
+    }
+  ) => Promise<ToolExecutionResult | null>;
 }
 
 const createTextMessage = (role: Role, text: string): RequestMessage => ({
@@ -188,29 +205,73 @@ export function runGenerationTask(
     return;
   }
 
-  // 带工具路径（vibe_learning）：暂走旧 adapter，M2-f 切一次性 pi 会话后退役
-  void chatStreamCore({
-    provider,
-    model,
-    messages: buildResult.messages,
-    enableTools: true,
-    disableAnimation: true,
-    additionalTools: options.additionalTools,
-    executeToolCall: options.executeToolCall,
-    onUpdate: (text, _delta, _reasoning, turnId) => callbacks.onUpdate(text, turnId),
-    onReasoning: (text, _delta, turnId) => callbacks.onReasoning?.(text, turnId),
-    onUsage: callbacks.onUsage,
-    onFinish: content => callbacks.onFinish(content),
-    onError: callbacks.onError,
-    onController: callbacks.onController,
-    onToolCallsUpdate: (executions, turnId) => callbacks.onToolCallsUpdate?.(executions, turnId),
+  // 带工具路径（vibe_learning）：一次性 pi 会话（工具桥直连渲染端 ToolRegistry）
+  let streamError: string | null = null;
+  const reducer = new PiChatEventReducer({
+    applyText: (turnId, text) => callbacks.onUpdate(text, turnId),
+    applyReasoning: (turnId, text) => callbacks.onReasoning?.(text, turnId),
+    applyToolCalls: (turnId, executions) => callbacks.onToolCallsUpdate?.(executions, turnId),
+    finalizeTurn: () => {},
+    applyUsage: (usage, turnId) => callbacks.onUsage?.(usage, turnId),
+    onAssistantTurnEnd: () => {},
+    onRetryStatus: () => {},
+    onStreamError: errorMessage => {
+      streamError = errorMessage;
+    },
+    onSettled: () => {},
+    onQueueUpdate: () => {},
+  });
+  const handle = runPiAgent(
+    {
+      provider,
+      model,
+      messages: buildResult.messages,
+      additionalTools: options.additionalTools,
+      ...(options.executeToolCall
+        ? {
+            executeAdditionalTool: async ({ toolName, args }) => {
+              const outcome = await options.executeToolCall!({
+                id: "",
+                function: {
+                  name: toolName,
+                  arguments: args === undefined ? "" : JSON.stringify(args),
+                },
+              });
+              if (!outcome) return null;
+              return {
+                content: outcome.content ?? "",
+                ...(typeof outcome.modelContent === "string"
+                  ? { modelContent: outcome.modelContent }
+                  : {}),
+                ...(outcome.metadata
+                  ? { metadata: outcome.metadata as Record<string, unknown> }
+                  : {}),
+              };
+            },
+          }
+        : {}),
+    },
+    event => reducer.handle(event)
+  );
+  callbacks.onController?.(toAbortController(handle));
+  void handle.result.then(result => {
+    if (result.ok && !result.aborted && !streamError) {
+      callbacks.onFinish(result.lastAssistantText);
+      return;
+    }
+    if (!result.aborted) {
+      callbacks.onError(new Error(streamError ?? result.error ?? "模型请求失败"));
+    }
   });
 }
 
-/** 旧回调契约的 AbortController 适配（带工具路径退役前过渡） */
-function toAbortController(handle: PiChatHandle): AbortController {
+/** 旧回调契约的 AbortController 适配（消费方仍有 controller 语义时过渡） */
+function toAbortController(handle: { cancel?(): void; abort?(): void }): AbortController {
   const controller = new AbortController();
-  controller.signal.addEventListener("abort", () => handle.cancel());
+  controller.signal.addEventListener("abort", () => {
+    if (handle.cancel) handle.cancel();
+    else handle.abort?.();
+  });
   return controller;
 }
 
