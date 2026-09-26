@@ -12,7 +12,7 @@ const VALID_TYPES: IndexType[] = ["card", "article", "project-item", "diary-dail
 export const createKnowledgeSearchTool = (): ToolDefinition => ({
   name: "search_knowledge",
   description:
-    "搜索用户的个人知识库内容，包括卡片、文章、项目条目、日记、周记、月记等。" +
+    "搜索用户的个人知识库内容，包括卡片、文章、项目条目、日记等。" +
     "当用户的问题可能涉及其已有的笔记、资料或知识时，使用此工具进行检索。" +
     "返回匹配的内容列表（标题、完整内容、类型、ID 等），可在后续回答中引用。",
   parameters: {

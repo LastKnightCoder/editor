@@ -45,8 +45,6 @@ export function getTypeBadge(type: string): { text: string; color: string } {
     case "project-item":
       return { text: "project", color: "yellow" };
     case "diary-daily":
-    case "diary-weekly":
-    case "diary-monthly":
       return { text: "diary", color: "blue" };
     default:
       return { text: type, color: "gray" };
