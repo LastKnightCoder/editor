@@ -368,9 +368,10 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     const resumingAskQuestionRef = useRef<Set<string>>(new Set());
     const hasRestoredScrollPositionRef = useRef(false);
     const isRestoringScrollPositionRef = useRef(false);
-    /** pi 会话事件订阅（发送流程 ensure 后绑定；sessionId 变化时重绑） */
+    /** pi 会话事件订阅（按 sessionId 绑定到常驻 reducer；切换会话时重建） */
     const piEventUnsubscribeRef = useRef<(() => void) | null>(null);
     const piEventReducerRef = useRef<PiChatEventReducer | null>(null);
+    const activePiSessionRef = useRef<string | null>(null);
 
     const activateConversationQueue = useMemoizedFn((conversationKey: string) => {
       queueConversationKeyRef.current = conversationKey;
@@ -556,36 +557,42 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
     });
 
     /**
-     * pi 会话事件接线工厂：reducer 把 AgentSessionEvent 归约为 assistant_blocks 快照写入
-     * 最后一条 assistant 消息（与发送流程、ask-question 恢复共用）。
+     * pi 会话事件归约器（每会话常驻一份）：事件写入全部以 actualChatRef（单一事实源）
+     * 为基准——不持有闭包快照，避免"停止收尾期间新发消息"等多轮并发时旧快照整行覆盖吞消息。
      */
-    const createChatEventSinkFor = useMemoizedFn((baseChat: ChatMessage) => {
-      let sinkChat = baseChat;
-      const updateSinkChat = (chat: ChatMessage) => {
-        sinkChat = chat;
-        return chat;
+    const createChatEventReducer = useMemoizedFn(() => {
+      const latestChat = (): ChatMessage | null => {
+        const chat = actualChatRef.current;
+        // displayedChatId 不匹配 = 事件属于已切走的会话，丢弃
+        return displayedChatIdRef.current === chat.id ? chat : null;
       };
       return new PiChatEventReducer({
         applyText: (turnId, text) => {
-          const updatedChat = produce(sinkChat, draft => {
+          const base = latestChat();
+          if (!base) return;
+          const updatedChat = produce(base, draft => {
             const lastMessage = draft.messages.at(-1);
             if (lastMessage?.role === Role.Assistant) {
               applyAssistantTextSnapshot(lastMessage as ResponseMessage, turnId, text);
             }
           });
-          updateSinkChat(publishStreamingChatSnapshot(updatedChat));
+          publishStreamingChatSnapshot(updatedChat);
         },
         applyReasoning: (turnId, text) => {
-          const updatedChat = produce(sinkChat, draft => {
+          const base = latestChat();
+          if (!base) return;
+          const updatedChat = produce(base, draft => {
             const lastMessage = draft.messages.at(-1);
             if (lastMessage?.role === Role.Assistant) {
               applyAssistantReasoningSnapshot(lastMessage as ResponseMessage, turnId, text);
             }
           });
-          updateSinkChat(publishStreamingChatSnapshot(updatedChat));
+          publishStreamingChatSnapshot(updatedChat);
         },
         applyToolCalls: (turnId, executions, toolCalls) => {
-          const updatedChat = produce(sinkChat, draft => {
+          const base = latestChat();
+          if (!base) return;
+          const updatedChat = produce(base, draft => {
             const lastMessage = draft.messages.at(-1);
             if (lastMessage?.role === Role.Assistant) {
               applyAssistantToolCallsSnapshot(
@@ -597,7 +604,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             }
           });
           const publishedChat = publishStreamingChatSnapshot(updatedChat);
-          updateSinkChat(publishedChat);
 
           // ask-question 进入等待态时，立即持久化快照，确保渲染层重载后可恢复
           const pendingAskQuestionExecutions = executions.filter(
@@ -625,16 +631,20 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           }
         },
         finalizeTurn: turnId => {
-          const updatedChat = produce(sinkChat, draft => {
+          const base = latestChat();
+          if (!base) return;
+          const updatedChat = produce(base, draft => {
             const lastMessage = draft.messages.at(-1);
             if (lastMessage?.role === Role.Assistant) {
               finalizeAssistantTurn(lastMessage as ResponseMessage, turnId);
             }
           });
-          updateSinkChat(updatedChat);
+          publishStreamingChatSnapshot(updatedChat);
         },
         applyUsage: usage => {
-          const updatedChat = produce(sinkChat, draft => {
+          const base = latestChat();
+          if (!base) return;
+          const updatedChat = produce(base, draft => {
             const lastMessage = draft.messages[draft.messages.length - 1];
             if (lastMessage?.role === Role.Assistant && chatProviderConfig && chatModelConfig) {
               (lastMessage as ResponseMessage).usage = {
@@ -644,16 +654,22 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
               };
             }
           });
-          updateSinkChat(publishStreamingChatSnapshot(updatedChat));
+          publishStreamingChatSnapshot(updatedChat);
         },
         onAssistantTurnEnd: () => {},
+        onAgentStart: () => {
+          const base = latestChat();
+          if (base) setSessionPending(getConversationKey(base.id), true);
+        },
         onRetryStatus: status => {
           setChatRetryStatus(
             status ? { attempt: status.attempt, maxRetries: status.maxAttempts } : null
           );
           if (status) {
             // 重试轮重置助手占位（幂等快照会追加新 turn，先清上一轮半成品）
-            const resetChat = produce(sinkChat, draft => {
+            const base = latestChat();
+            if (!base) return;
+            const resetChat = produce(base, draft => {
               const lastMessageIndex = draft.messages.length - 1;
               const lastMessage = draft.messages[lastMessageIndex];
               if (lastMessage?.role === Role.Assistant) {
@@ -662,7 +678,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
                 });
               }
             });
-            updateSinkChat(resetChat);
             updateCurrentChat(resetChat);
             if (displayedChatIdRef.current === resetChat.id) {
               actualChatRef.current = resetChat;
@@ -677,20 +692,38 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
         onSettled: () => {
           void (async () => {
             setChatRetryStatus(null);
+            const base = latestChat();
+            if (!base) return;
             try {
-              const finished = await persistFinishedChatAndGenerateTitle(sinkChat);
-              updateSinkChat(finished);
+              const finished = await persistFinishedChatAndGenerateTitle(base);
+              if (displayedChatIdRef.current === finished.id) {
+                actualChatRef.current = finished;
+              }
             } catch (error) {
               message.error("Failed to update chat");
               console.error(error);
             } finally {
-              setSessionPending(getConversationKey(sinkChat.id), false);
+              setSessionPending(getConversationKey(base.id), false);
               setChatError(null);
             }
           })();
         },
         onQueueUpdate: () => {},
       });
+    });
+
+    /**
+     * 会话事件绑定（常驻）：同一会话的多轮发送/恢复共享一个 reducer——pi 事件串行到达，
+     * 不存在多份归约状态竞争；切换到新会话时才重建并重绑订阅。
+     */
+    const ensureSessionBinding = useMemoizedFn((sessionId: string) => {
+      if (activePiSessionRef.current === sessionId) return;
+      piEventUnsubscribeRef.current?.();
+      piEventUnsubscribeRef.current = null;
+      const reducer = createChatEventReducer();
+      piEventReducerRef.current = reducer;
+      piEventUnsubscribeRef.current = onPiSessionEvent(sessionId, event => reducer.handle(event));
+      activePiSessionRef.current = sessionId;
     });
 
     const buildHistoryMessages = useMemoizedFn(
@@ -882,9 +915,6 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           editTextRef.current?.clear();
         }
 
-        // pi 会话事件接线：reducer 把 AgentSessionEvent 归约为 assistant_blocks 快照写入
-        const reducer = createChatEventSinkFor(actualCurrentChat);
-
         try {
           const baseSystem = buildSystemMessageWithRequest(actualCurrentChat);
           const forcedSkills = extractForcedSkills(requestMessage);
@@ -915,11 +945,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             ? await piChatSessionManager.recreateChatSession(ensureOptions)
             : await piChatSessionManager.ensureChatSession(ensureOptions);
 
-          piEventUnsubscribeRef.current?.();
-          piEventReducerRef.current = reducer;
-          piEventUnsubscribeRef.current = onPiSessionEvent(sessionId, event =>
-            reducer.handle(event)
-          );
+          // 常驻绑定：同一会话多轮发送共享 reducer（recreate 换了 sessionId 会自动重建）
+          ensureSessionBinding(sessionId);
 
           const contentItems = Array.isArray(requestMessage.content)
             ? requestMessage.content
@@ -940,16 +967,27 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             : [];
 
           let promptOutcome = await piSessionPrompt(sessionId, promptText, images);
-          // 停止后立即发送（或队列 drain 抢跑）时 pi 可能仍在收尾，忙等重试
-          for (
-            let attempt = 0;
-            !promptOutcome.ok &&
-            /already processing|正在处理/i.test(promptOutcome.error ?? "") &&
-            attempt < 10;
-            attempt += 1
-          ) {
-            await new Promise(resolve => setTimeout(resolve, 300));
-            promptOutcome = await piSessionPrompt(sessionId, promptText, images);
+          // 停止后立即发送（pi 仍在收尾）会被拒：等该会话沉淀事件后自动提交，15s 兜底放弃
+          if (!promptOutcome.ok && /already processing|正在处理/i.test(promptOutcome.error ?? "")) {
+            promptOutcome = await new Promise<typeof promptOutcome>(resolve => {
+              let settled = false;
+              const cleanup = () => {
+                unsubscribeSettled();
+                clearTimeout(giveUpTimer);
+              };
+              const unsubscribeSettled = onPiSessionEvent(sessionId, event => {
+                if (settled || event.type !== "agent_settled") return;
+                settled = true;
+                void piSessionPrompt(sessionId, promptText, images).then(outcome => {
+                  cleanup();
+                  resolve(outcome);
+                });
+              });
+              const giveUpTimer = setTimeout(() => {
+                cleanup();
+                resolve({ ok: false, error: "会话仍在处理中，请稍后重试" });
+              }, 15000);
+            });
           }
           if (!promptOutcome.ok) {
             setChatError(promptOutcome.error ?? "发送失败");
@@ -1021,13 +1059,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
           activeChat.id
         );
         if (sessionId) {
-          // 收养后续流的事件接线（后续 message/turn 事件写回最后一条 assistant 消息）
-          piEventUnsubscribeRef.current?.();
-          const reducer = createChatEventSinkFor(activeChat);
-          piEventReducerRef.current = reducer;
-          piEventUnsubscribeRef.current = onPiSessionEvent(sessionId, event =>
-            reducer.handle(event)
-          );
+          // 收养后续流：常驻绑定后回传答案，事件流写回最后一条 assistant 消息
+          ensureSessionBinding(sessionId);
+          setSessionPending(getConversationKey(activeChat.id), true);
           await piSessionToolResult(sessionId, pendingSession.toolCallId, {
             content: answerJson,
           });
@@ -1056,7 +1090,9 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       updateCurrentChat,
       updateChatMessage,
       chatScope,
-      createChatEventSinkFor,
+      ensureSessionBinding,
+      getConversationKey,
+      setSessionPending,
     ]);
 
     useImperativeHandle(ref, () => ({

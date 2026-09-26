@@ -118,6 +118,24 @@ model{id,name?,reasoning,input:[text|image],contextWindow?,maxTokens?,thinkingLe
    工具事件前 flush 保证终态一致）。同时 turnId 改全局递增（多轮发送/恢复各自新建 reducer，
    局部计数撞 `${turnId}:reasoning` 块 id 会错乱覆盖）。
 
+### 二轮验收回归（停止→立即发消息吞消息）与架构修正
+
+**症状**：停止生成后立即发送新消息（尤其带图），新消息被吞、模型答非所问。
+**根因是设计层缺陷而非笔误**：批次 B 的发送编排把"当前聊天行"复制成每轮发送一份的
+reducer 闭包快照（sinkChat），靠 publish 回写大致同步——串行场景成立，但"乐观清 pending"
+（首轮修复 2）让用户能在 pi 收尾完成前发下一条，打开两轮 sink 并存窗口：旧快照的
+agent_settled 持久化整行覆盖数据库/actualChatRef，吞掉新消息；prompt 轮询重试时序不可控。
+
+**修正（消除多份快照，不是叠护栏）**：
+
+- sink 去闭包化：事件写入一律 `produce(actualChatRef.current)`（单一事实源），
+  displayedChatId 不匹配（事件属于已切走的会话）直接丢弃；
+- reducer 常驻化：每会话一份（ensureSessionBinding 按 sessionId 复用/重建），同一会话
+  多轮发送共享归约状态，pi 事件串行到达天然无竞争；不再每轮 processMessageSending 新建；
+- 运行态事件驱动：sink 增加 onAgentStart 钩子（agent_start 置 pending），prompt 被拒
+  （"already processing"）改为等该会话 agent_settled 事件后自动提交（15s 兜底），
+  停止收尾期间的消息在 UI 显示后自动排队提交，不吞不丢。
+
 ## 五、后续里程碑
 
 - **M3 工具体系+设置页产品化**：ask_user、MCP 桥（现有主进程 mcp.ts→registerTool 包装，保 D-058 管理页）、
