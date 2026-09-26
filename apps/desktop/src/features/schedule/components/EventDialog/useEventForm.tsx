@@ -74,6 +74,8 @@ export function useEventForm(
   ]);
   const [baseline, setBaseline] = useState<string | null>(null);
   const [baselineToken, setBaselineToken] = useState(0);
+  /** 放弃修改：同一条日程重新载入（表单值与基线一起回到原样） */
+  const [reloadToken, setReloadToken] = useState(0);
   useEffect(() => {
     if (baselineToken) setBaseline(snapshot);
     // 只在载入完成（token 变化）时取快照
@@ -124,7 +126,7 @@ export function useEventForm(
     return () => {
       cancelled = true;
     };
-  }, [editingEvent]);
+  }, [editingEvent, reloadToken]);
 
   const calendarOptions = useMemo<SelectOption<number>[]>(
     () =>
@@ -368,6 +370,8 @@ export function useEventForm(
     canSave: !!title.trim() && !!calendarId,
     /** 有未保存的修改（载入完成前恒为 false） */
     dirty,
+    /** 丢弃修改，按当前日程重新载入 */
+    reset: () => setReloadToken(t => t + 1),
     isNew,
     isSystemCalendarEvent,
     calendarTitle: calendars.find(c => c.id === calendarId)?.title,

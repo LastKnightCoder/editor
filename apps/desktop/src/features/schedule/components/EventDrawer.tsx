@@ -144,6 +144,8 @@ export function EventDrawer() {
         confirmText="放弃修改"
         onConfirm={() => {
           discarded.current = true;
+          // 关闭时 event 仍保留同一条（退场动画），表单不会自动重载：显式丢弃修改
+          form.reset();
           setSelected(pending?.next ?? null);
         }}
       />
