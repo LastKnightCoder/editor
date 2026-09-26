@@ -1,100 +1,111 @@
-import { Button, Flex, Switch, App } from "antd";
 import { useState } from "react";
 import { useLocalStorageState } from "ahooks";
+import { Check, Paperclip, Upload } from "lucide-react";
+import { Button, Dialog, DialogBody, Spinner, Switch, cn, toast } from "@tau/ui";
 import { selectFile, readBinaryFile, getFileBaseName } from "@/commands";
 import useUploadResource from "@/hooks/useUploadResource.ts";
-import { CheckOutlined, PlusOutlined } from "@ant-design/icons";
 
 interface SelectFileModalProps {
+  open: boolean;
   onOk: (filePath: string, isLocal: boolean, fileName?: string) => void;
   onCancel: () => void;
 }
 
-const SelectFileModal = (props: SelectFileModalProps) => {
-  const { onOk, onCancel } = props;
-
-  const { message } = App.useApp();
-
+/** 文件附件：选本地文件，可选上传到图床后以远程地址插入 */
+const SelectFileModal = ({ open, onOk, onCancel }: SelectFileModalProps) => {
   const uploadFile = useUploadResource();
-  const [filePath, setFilePath] = useState<string | undefined>();
-  const [fileName, setFileName] = useState<string | undefined>();
+  const [filePath, setFilePath] = useState<string>();
+  const [fileName, setFileName] = useState<string>();
   const [file, setFile] = useState<File>();
-  const [isUpload, setIsUpload] = useLocalStorageState(
-    "file-attachment-upload",
-    {
-      defaultValue: false,
-    },
-  );
+  const [submitting, setSubmitting] = useState(false);
+  const [isUpload, setIsUpload] = useLocalStorageState("file-attachment-upload", {
+    defaultValue: false,
+  });
 
-  const handleClick = async () => {
-    setFile(undefined);
-    const filePath = await selectFile();
-    if (!filePath) return;
-    if (Array.isArray(filePath) && filePath.length > 1) return;
-    const fileData = (await readBinaryFile(
-      filePath[0],
-    )) as Uint8Array<ArrayBuffer>;
-    const fileName = await getFileBaseName(filePath[0]);
-    const file = new File([fileData], fileName);
-    setFilePath(filePath[0]);
-    setFileName(fileName);
-    setFile(file);
+  const handleSelect = async () => {
+    const selected = await selectFile();
+    if (!selected) return;
+    if (Array.isArray(selected) && selected.length > 1) return;
+    const fileData = (await readBinaryFile(selected[0])) as Uint8Array<ArrayBuffer>;
+    const baseName = await getFileBaseName(selected[0]);
+    setFilePath(selected[0]);
+    setFileName(baseName);
+    setFile(new File([fileData], baseName));
   };
 
-  const handleClickOk = async () => {
+  const handleOk = async () => {
     if (!file || !filePath || !fileName) {
-      message.warning("请先选择文件");
+      toast.warning("请先选择文件");
       return;
     }
-
-    const realFilePath = isUpload ? await uploadFile(file) : filePath;
-
-    if (realFilePath) {
-      onOk(realFilePath, !isUpload, fileName);
-      setFile(undefined);
-      setFilePath(undefined);
-      setFileName(undefined);
+    setSubmitting(true);
+    try {
+      const realFilePath = isUpload ? await uploadFile(file) : filePath;
+      if (realFilePath) onOk(realFilePath, !isUpload, fileName);
+    } finally {
+      setSubmitting(false);
     }
-  };
-
-  const handleClickCancel = () => {
-    onCancel();
   };
 
   return (
-    <Flex vertical gap={24}>
-      <Flex vertical={true} align={"center"} gap={12}>
-        <div
-          style={{
-            width: 120,
-            height: 120,
-            border: "1px solid var(--th-border)",
-            borderRadius: 4,
-            cursor: "pointer",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            fontSize: 24,
-          }}
-          onClick={handleClick}
-        >
-          {file ? <CheckOutlined /> : <PlusOutlined />}
+    <Dialog
+      open={open}
+      onOpenChange={next => !next && onCancel()}
+      title="插入文件附件"
+      icon={<Paperclip className="size-4" strokeWidth={1.75} />}
+      locked={submitting}
+      footer={
+        <>
+          <Button variant="secondary" size="sm" disabled={submitting} onClick={onCancel}>
+            取消
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            disabled={!file}
+            loading={submitting}
+            loadingText={isUpload ? "正在上传…" : "正在插入…"}
+            onClick={() => void handleOk()}
+          >
+            插入
+          </Button>
+        </>
+      }
+    >
+      <DialogBody>
+        <div className="flex flex-col gap-3.5">
+          <button
+            type="button"
+            data-autofocus
+            className={cn(
+              "border-line-1 rounded-tau-md hover:border-accent hover:bg-accent-soft/40 flex cursor-pointer flex-col items-center gap-2 border border-dashed px-6 py-7 text-center transition-colors",
+              submitting && "pointer-events-none"
+            )}
+            onClick={() => void handleSelect()}
+          >
+            {submitting ? (
+              <Spinner className="size-5" />
+            ) : file ? (
+              <Check className="text-ok size-5" strokeWidth={2} />
+            ) : (
+              <Upload className="text-ink-2 size-5" strokeWidth={1.75} />
+            )}
+            <span className="text-tau-body text-ink-1 max-w-full truncate font-medium">
+              {fileName || "选择本地文件"}
+            </span>
+            <span className="text-tau-sm text-ink-3 max-w-full truncate" title={filePath}>
+              {filePath || "任意类型的文件"}
+            </span>
+          </button>
+          <Switch
+            size="sm"
+            checked={isUpload}
+            onCheckedChange={setIsUpload}
+            label="上传到云端（图床配置中设置）"
+          />
         </div>
-        {filePath && (
-          <div style={{ fontSize: "0.9em", opacity: 0.8 }}>{filePath}</div>
-        )}
-        <Flex gap={8} align={"center"}>
-          <div style={{ fontSize: "0.9em", opacity: 0.8 }}>
-            是否上传到云端（在图床配置中设置）
-          </div>
-          <Switch size={"small"} checked={isUpload} onChange={setIsUpload} />
-        </Flex>
-      </Flex>
-      <Flex justify={"flex-end"} gap={12}>
-        <Button onClick={handleClickCancel}>取消</Button>
-        <Button onClick={handleClickOk}>确定</Button>
-      </Flex>
-    </Flex>
+      </DialogBody>
+    </Dialog>
   );
 };
 
