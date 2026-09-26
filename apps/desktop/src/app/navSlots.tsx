@@ -15,6 +15,8 @@ import { QuestionsNavBadge } from "@/features/questions/components/QuestionsNavB
 import { QuestionsNavGroups } from "@/features/questions/components/QuestionsNav";
 import { TodosNavGroups } from "@/features/todos/components/TodosNav";
 import { useTodoSnapshot } from "@/features/todos/queries";
+import { ProjectsNavTypes } from "@/features/projects/components/ProjectsNav";
+import { useProjectTypeCounts } from "@/features/projects/queries";
 import { McpNavBadge } from "@/features/mcp/components/McpNavBadge";
 import { useQuestionsSnapshot } from "@/features/questions/queries";
 import { DiaryNavTags } from "@/features/diary/components/DiaryNav";
@@ -61,6 +63,12 @@ export const NAV_CHILDREN_SLOTS: Record<NavItemChildren, NavChildrenSlot> = {
     selected: params => Boolean(params.id),
     parentResets: true,
   },
+  // 项目：类型是收窄视图，参数 id 为空 = 全部
+  "project-types": {
+    Component: ProjectsNavTypes,
+    selected: params => Boolean(params.id),
+    parentResets: true,
+  },
   // 日记：标签频道是收窄视图，参数 id 为空 = 全部（D-044）
   "diary-tags": {
     Component: DiaryNavTags,
@@ -96,9 +104,11 @@ export function useNavChildrenContent(): Record<NavItemChildren, boolean> {
   // 恒有默认分组；快照到位即展开（含「新建分组」入口）
   const hasQuestionGroups = Boolean(useQuestionsSnapshot().snapshot);
   const hasTodoGroups = Boolean(useTodoSnapshot().snapshot);
+  const hasProjectTypes = Boolean(useProjectTypeCounts());
   return {
     "collaboration-sessions": hasSessions,
     "todo-groups": hasTodoGroups,
+    "project-types": hasProjectTypes,
     "diary-tags": hasDiary,
     "whiteboard-tags": hasWhiteboardTags,
     "question-groups": hasQuestionGroups,
