@@ -32,7 +32,7 @@ describe("ChatMessageView", () => {
         userText="hello"
         images={[{ url: "data:image/png;base64,abc", alt: "preview" }]}
         files={[{ path: "/tmp/a.pdf", name: "a.pdf" }]}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("hello");
@@ -55,6 +55,7 @@ describe("ChatMessageView", () => {
             toolName: "search",
             status: "success",
             input: "{}",
+            timestamp: Date.now(),
           },
         ],
       },
@@ -67,7 +68,7 @@ describe("ChatMessageView", () => {
         messageIndex={1}
         assistantBlocks={blocks}
         renderMarkdown={({ content }) => <span>{content}</span>}
-      />,
+      />
     );
 
     expect(container.textContent).toContain("第一段");
@@ -87,7 +88,7 @@ describe("ChatMessageView", () => {
         onEditUserMessage={vi.fn()}
         onRegenerate={vi.fn()}
         onDelete={vi.fn()}
-      />,
+      />
     );
 
     expect(container.querySelector('button[title="编辑"]')).toBeTruthy();

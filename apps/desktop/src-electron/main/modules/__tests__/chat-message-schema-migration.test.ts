@@ -50,6 +50,13 @@ const expectNoAgentFields = (chat: object) => {
   expect("agentSessionId" in chat).toBe(false);
 };
 
+/** 从 updateChatMessage 的动态 SQL 里解析 SET 列名（顺序不敏感断言用） */
+const parseUpdateColumns = (sql: string): string[] =>
+  sql
+    .slice("UPDATE chat_message SET ".length, sql.indexOf(" WHERE id = ?"))
+    .split(", ")
+    .map(part => part.slice(0, part.indexOf(" = ?")));
+
 const buildLegacyMessages = (): ChatSessionMessage[] =>
   [
     {
@@ -294,18 +301,21 @@ describe("chat message schema migration", () => {
         if (sql.startsWith("UPDATE chat_message SET update_time")) {
           return {
             run: (...args: unknown[]) => {
+              const patch = Object.fromEntries(
+                parseUpdateColumns(sql).map((col, i) => [col, args[i]])
+              );
               storedRow = {
                 ...storedRow,
-                update_time: args[0],
-                title: args[1],
-                messages: args[2],
-                group_id: args[3],
-                archived: args[4],
-                parent_chat_id: args[5],
-                branch_index: args[6],
-                order_num: args[7],
-                message_schema_version: args[8],
-                title_dirty: args[9],
+                update_time: patch.update_time,
+                title: patch.title,
+                messages: patch.messages,
+                group_id: patch.group_id,
+                archived: patch.archived,
+                parent_chat_id: patch.parent_chat_id,
+                branch_index: patch.branch_index,
+                order_num: patch.order_num,
+                message_schema_version: patch.message_schema_version,
+                title_dirty: patch.title_dirty,
               };
             },
           };
@@ -817,13 +827,13 @@ describe("chat message schema migration", () => {
   it("更新 chat_message 时保留传入的 titleDirty 状态", () => {
     const now = 5678;
     vi.spyOn(Date, "now").mockReturnValue(now);
-    const updateRuns: unknown[][] = [];
+    const updateRuns: Array<{ columns: string[]; args: unknown[] }> = [];
     const db = {
       prepare: vi.fn((sql: string) => {
         if (sql.startsWith("UPDATE chat_message SET update_time")) {
           return {
             run: (...args: unknown[]) => {
-              updateRuns.push(args);
+              updateRuns.push({ columns: parseUpdateColumns(sql), args });
             },
           };
         }
@@ -842,7 +852,9 @@ describe("chat message schema migration", () => {
               branch_index: 0,
               order_num: null,
               message_schema_version: CHAT_MESSAGE_SCHEMA_VERSION,
-              title_dirty: updateRuns[0]?.[9],
+              title_dirty: updateRuns[0]
+                ? updateRuns[0].args[updateRuns[0].columns.indexOf("title_dirty")]
+                : 1,
             }),
           };
         }
@@ -872,8 +884,74 @@ describe("chat message schema migration", () => {
       orderNum: null,
     });
 
-    expect(updateRuns[0]?.[9]).toBe(0);
+    expect(updateRuns[0]?.args[updateRuns[0].columns.indexOf("title_dirty")]).toBe(0);
     expect(updatedChat.titleDirty).toBe(false);
+
+    vi.restoreAllMocks();
+  });
+
+  it("部分更新只提交 messages 时不触碰 title / group / 分支等既有字段（插件 chat.update 载荷）", () => {
+    const now = 6789;
+    vi.spyOn(Date, "now").mockReturnValue(now);
+    const updateRuns: Array<{ sql: string; columns: string[]; args: unknown[] }> = [];
+    const db = {
+      prepare: vi.fn((sql: string) => {
+        if (sql.startsWith("UPDATE chat_message SET update_time")) {
+          return {
+            run: (...args: unknown[]) => {
+              updateRuns.push({ sql, columns: parseUpdateColumns(sql), args });
+            },
+          };
+        }
+
+        if (sql === "SELECT * FROM chat_message WHERE id = ?") {
+          return {
+            get: () => ({
+              id: 5,
+              create_time: 1000,
+              update_time: 2000,
+              title: "既有标题",
+              messages: JSON.stringify(buildCurrentMessages()),
+              group_id: 42,
+              archived: 0,
+              parent_chat_id: 3,
+              branch_index: 2,
+              order_num: null,
+              message_schema_version: CHAT_MESSAGE_SCHEMA_VERSION,
+              title_dirty: 0,
+              source: "browser",
+            }),
+          };
+        }
+
+        if (
+          sql === "UPDATE chat_message SET messages = ?, message_schema_version = ? WHERE id = ?"
+        ) {
+          return {
+            run: vi.fn(),
+          };
+        }
+
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    } as any;
+
+    const updated = ChatMessageTable.updateChatMessage(db, {
+      id: 5,
+      messages: buildCurrentMessages(),
+    });
+
+    expect(updateRuns).toHaveLength(1);
+    expect(updateRuns[0].sql).not.toContain("title = ?");
+    expect(updateRuns[0].sql).not.toContain("group_id = ?");
+    expect(updateRuns[0].sql).not.toContain("parent_chat_id = ?");
+    expect(updateRuns[0].sql).not.toContain("title_dirty = ?");
+    expect(updateRuns[0].columns).toEqual(["update_time", "messages", "message_schema_version"]);
+    expect(updated.title).toBe("既有标题");
+    expect(updated.groupId).toBe(42);
+    expect(updated.parentChatId).toBe(3);
+    expect(updated.branchIndex).toBe(2);
+    expect(updated.titleDirty).toBe(false);
 
     vi.restoreAllMocks();
   });

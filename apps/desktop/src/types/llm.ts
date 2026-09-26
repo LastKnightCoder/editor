@@ -1,131 +1,29 @@
-import { Role } from "@/constants";
-import type { ToolCallPayload } from "./tool";
 import type { EmbeddingProviderType } from "./embedding";
-import type { MentionRef } from "@tau/shared";
 
-export interface TextContent {
-  type: "text";
-  text: string;
-  mentions?: MentionRef[];
-}
-
-export interface ImageContent {
-  type: "image";
-  image: string; // base64 或 url
-  path?: string; // 原始本地路径，用于解析历史附件
-  resourceId?: number; // 仅兼容历史消息，不再用于资源查询
-}
-
-export interface FileContent {
-  type: "file";
-  file: string;
-  resourceId?: number; // 仅兼容历史消息，不再用于资源查询
-  fileName?: string;
-}
-
-export type MessageContent = TextContent | ImageContent | FileContent;
-export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max";
-
-export type ProviderMetadata = Record<string, unknown>;
-
-export interface RequestMessage {
-  clientId?: string;
-  role: Role;
-  content: MessageContent[] | string;
-  reasoning_content?: string;
-  provider_metadata?: ProviderMetadata;
-  name?: string;
-  tool_call_id?: string;
-  tool_calls?: ToolCallPayload[];
-}
-
-export interface ToolCallExecutionState {
-  toolCallId: string;
-  toolName: string;
-  status: "pending" | "executing" | "success" | "failed" | "retrying" | "cancelled";
-  input: string;
-  output?: string;
-  error?: string;
-  metadata?: Record<string, unknown>;
-  /** 错误类型：parameter 为参数错误（已反馈模型纠正），execution 为执行失败（已自动重试） */
-  errorType?: "parameter" | "execution";
-  timestamp: number;
-  duration?: number;
-  /** 自动重试次数（仅用于执行失败的自动重试场景） */
-  retryCount?: number;
-}
-
-export type AssistantBlockState = "streaming" | "final";
-
-export interface AssistantTextBlock {
-  id: string;
-  turnId: string;
-  type: "text";
-  state: AssistantBlockState;
-  content: string;
-}
-
-export interface AssistantReasoningBlock {
-  id: string;
-  turnId: string;
-  type: "reasoning";
-  state: AssistantBlockState;
-  content: string;
-  startTime?: number;
-  endTime?: number;
-  duration?: number;
-}
-
-export interface AssistantToolCallBlock {
-  id: string;
-  turnId: string;
-  type: "tool_call";
-  state: AssistantBlockState;
-  toolCall: ToolCallPayload;
-  execution?: ToolCallExecutionState;
-}
-
-export type AssistantBlock = AssistantTextBlock | AssistantReasoningBlock | AssistantToolCallBlock;
-
-// 内容块类型：支持文本、思考、工具调用按顺序交替出现
-export type ResponseContentBlock =
-  | {
-      type: "text";
-      content: string;
-    }
-  | {
-      type: "reasoning";
-      content: string;
-      startTime?: number; // 开始思考的时间戳（毫秒）
-      endTime?: number; // 结束思考的时间戳（毫秒）
-      duration?: number; // 思考持续时间（毫秒）
-    }
-  | {
-      type: "tool_calls";
-      executions: ToolCallExecutionState[];
-    };
-
-export interface ResponseMessage {
-  clientId?: string;
-  role: Role;
-  content: string;
-  reasoning_content?: string;
-  provider_metadata_by_turn?: Record<string, ProviderMetadata>;
-  tool_calls?: ToolCallPayload[];
-  assistant_blocks?: AssistantBlock[];
-  usage?: ModelUsage;
-}
-
-export interface ModelUsage {
-  inputTokens: number;
-  outputTokens: number;
-  cacheReadTokens: number;
-  cacheWriteTokens: number;
-  providerId?: string;
-  modelName?: string;
-}
-
-export type ChatSessionMessage = RequestMessage | ResponseMessage;
+/**
+ * 消息模型统一维护在 @tau/shared/chat-core/messages.ts，本文件仅 re-export；
+ * 此处保留的是桌面端 LLM 设置相关类型（ProviderConfig / ModelConfig / RAG 等）。
+ */
+export type {
+  TextContent,
+  ImageContent,
+  FileContent,
+  MessageContent,
+  ReasoningEffort,
+  ProviderMetadata,
+  ToolCallPayload,
+  ToolCallExecutionState,
+  AssistantBlockState,
+  AssistantTextBlock,
+  AssistantReasoningBlock,
+  AssistantToolCallBlock,
+  AssistantBlock,
+  ResponseContentBlock,
+  ResponseMessage,
+  ModelUsage,
+  ChatSessionMessage,
+  RequestMessage,
+} from "@tau/shared";
 
 export interface ProviderConfig {
   id: string;

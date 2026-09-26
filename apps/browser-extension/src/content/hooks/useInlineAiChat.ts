@@ -1,10 +1,9 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import WebSocketClient from "@/utils/WebSocketClient";
+import { AI_SERVER_WS_URL } from "@/utils/aiServerAddress";
 import { extractPageContent } from "../context-extractor";
 import { injectInlineTimeContext } from "@/utils/systemPrompt";
-
-const WS_PORT = 24678;
 
 /** 流式通知数据 */
 interface StreamNotificationData {
@@ -70,7 +69,7 @@ export function useInlineAiChat({
       return;
     }
 
-    const client = new WebSocketClient(`ws://localhost:${WS_PORT}/aiServer`);
+    const client = new WebSocketClient(AI_SERVER_WS_URL);
 
     client.onOpenHandler = () => {
       setIsConnected(true);
@@ -80,13 +79,13 @@ export function useInlineAiChat({
       setIsConnected(false);
     };
 
-    // 流式文本处理
+    // 流式文本处理（通知为快照语义：content 即当前全量）
     const handleTextStream = (data: unknown) => {
       const notification = data as StreamNotificationData;
       if (notification.requestId !== requestIdRef.current) return;
 
-      if (notification.content) {
-        responseRef.current += notification.content;
+      if (typeof notification.content === "string") {
+        responseRef.current = notification.content;
         scheduleUpdate();
       }
     };
@@ -119,10 +118,7 @@ export function useInlineAiChat({
 
     return () => {
       client.unregisterNotificationHandler("ai.stream.text", handleTextStream);
-      client.unregisterNotificationHandler(
-        "ai.stream.finish",
-        handleFinishStream,
-      );
+      client.unregisterNotificationHandler("ai.stream.finish", handleFinishStream);
       client.disconnect();
       wsClientRef.current = null;
       if (rafIdRef.current) {
@@ -184,14 +180,14 @@ ${surroundingContext}`;
             systemPrompt,
             enableTools: false,
           },
-          600 * 1000,
+          600 * 1000
         );
       } catch (err) {
         setError((err as Error).message);
         setIsLoading(false);
       }
     },
-    [isConnected, isLoading, buildSystemPrompt],
+    [isConnected, isLoading, buildSystemPrompt]
   );
 
   // 停止生成

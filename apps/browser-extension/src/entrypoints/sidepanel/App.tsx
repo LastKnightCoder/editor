@@ -8,6 +8,8 @@ import { useThemeStore } from "../../stores/useThemeStore";
 import { useTheme } from "../../hooks/useTheme";
 import { useSyncFont } from "../../hooks/useSyncFont";
 import { initExtToolServer } from "../../services/extToolServer";
+import { initChatStoreService } from "../../services/chatStoreClient";
+import { runChatMigration } from "../../services/chatMigration";
 import MainLayout from "./components/MainLayout";
 import WelcomePage from "./components/WelcomePage";
 
@@ -35,6 +37,12 @@ export default function App() {
     initExtToolServer();
   }, []);
 
+  // 会话存储统一到桌面端：建立 chat.* 通道并执行旧数据迁移（幂等，桌面离线时下次重试）
+  useEffect(() => {
+    initChatStoreService();
+    void runChatMigration();
+  }, []);
+
   console.log("isDark", isDark);
   console.log("themeMode", themeMode);
   console.log("resolvedTheme", resolvedTheme);
@@ -59,50 +67,26 @@ export default function App() {
       },
       components: {
         Dropdown: {
-          colorBgElevated: isDark
-            ? "rgba(10, 15, 28, 0.85)"
-            : "rgba(248, 250, 255, 0.92)",
-          colorBorder: isDark
-            ? "rgba(255, 255, 255, 0.12)"
-            : "rgba(255, 255, 255, 0.45)",
-          colorSplit: isDark
-            ? "rgba(255, 255, 255, 0.12)"
-            : "rgba(255, 255, 255, 0.45)",
-          colorText: isDark
-            ? "rgba(241, 245, 249, 0.95)"
-            : "rgba(15, 23, 42, 0.95)",
-          colorTextDescription: isDark
-            ? "rgba(148, 163, 184, 0.7)"
-            : "rgba(100, 116, 139, 0.7)",
+          colorBgElevated: isDark ? "rgba(10, 15, 28, 0.85)" : "rgba(248, 250, 255, 0.92)",
+          colorBorder: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.45)",
+          colorSplit: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.45)",
+          colorText: isDark ? "rgba(241, 245, 249, 0.95)" : "rgba(15, 23, 42, 0.95)",
+          colorTextDescription: isDark ? "rgba(148, 163, 184, 0.7)" : "rgba(100, 116, 139, 0.7)",
           boxShadowSecondary: isDark
             ? "0 22px 60px rgba(2, 6, 23, 0.7)"
             : "0 18px 45px rgba(15, 23, 42, 0.25)",
-          controlItemBgHover: isDark
-            ? "rgba(148, 163, 184, 0.15)"
-            : "rgba(255, 255, 255, 0.6)",
-          controlItemBgActive: isDark
-            ? "rgba(148, 163, 184, 0.15)"
-            : "rgba(255, 255, 255, 0.6)",
+          controlItemBgHover: isDark ? "rgba(148, 163, 184, 0.15)" : "rgba(255, 255, 255, 0.6)",
+          controlItemBgActive: isDark ? "rgba(148, 163, 184, 0.15)" : "rgba(255, 255, 255, 0.6)",
           controlItemBgActiveHover: isDark
             ? "rgba(148, 163, 184, 0.15)"
             : "rgba(255, 255, 255, 0.6)",
         },
         Popover: {
-          colorBgElevated: isDark
-            ? "rgba(10, 15, 28, 0.85)"
-            : "rgba(248, 250, 255, 0.92)",
-          colorText: isDark
-            ? "rgba(241, 245, 249, 0.95)"
-            : "rgba(15, 23, 42, 0.95)",
-          colorTextDescription: isDark
-            ? "rgba(148, 163, 184, 0.7)"
-            : "rgba(100, 116, 139, 0.7)",
-          colorTextHeading: isDark
-            ? "rgba(241, 245, 249, 0.95)"
-            : "rgba(15, 23, 42, 0.95)",
-          colorSplit: isDark
-            ? "rgba(255, 255, 255, 0.12)"
-            : "rgba(255, 255, 255, 0.45)",
+          colorBgElevated: isDark ? "rgba(10, 15, 28, 0.85)" : "rgba(248, 250, 255, 0.92)",
+          colorText: isDark ? "rgba(241, 245, 249, 0.95)" : "rgba(15, 23, 42, 0.95)",
+          colorTextDescription: isDark ? "rgba(148, 163, 184, 0.7)" : "rgba(100, 116, 139, 0.7)",
+          colorTextHeading: isDark ? "rgba(241, 245, 249, 0.95)" : "rgba(15, 23, 42, 0.95)",
+          colorSplit: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(255, 255, 255, 0.45)",
           boxShadowSecondary: isDark
             ? "0 22px 60px rgba(2, 6, 23, 0.7)"
             : "0 18px 45px rgba(15, 23, 42, 0.25)",
@@ -113,7 +97,7 @@ export default function App() {
         },
       },
     }),
-    [isDark],
+    [isDark]
   );
 
   // 追踪是否曾经成功连接过，用于区分首次连接与重连
@@ -121,8 +105,7 @@ export default function App() {
   if (status === "connected") wasEverConnectedRef.current = true;
 
   const showMainLayout =
-    status === "connected" ||
-    (status === "connecting" && wasEverConnectedRef.current);
+    status === "connected" || (status === "connecting" && wasEverConnectedRef.current);
   const showWelcome = status === "disconnected";
   const showLoading = status === "connecting" && !wasEverConnectedRef.current;
 
@@ -150,9 +133,7 @@ export default function App() {
             ) : showLoading ? (
               <div className="flex h-full flex-col items-center justify-center">
                 <div className="mb-4 h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-                <p className="text-sm text-gray-400 dark:text-[#484f58]">
-                  正在连接...
-                </p>
+                <p className="text-sm text-gray-400 dark:text-[#484f58]">正在连接...</p>
               </div>
             ) : (
               <WelcomePage status={status} onRetry={reconnect} />

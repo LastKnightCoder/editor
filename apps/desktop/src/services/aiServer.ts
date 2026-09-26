@@ -10,11 +10,22 @@ import { produce } from "immer";
 import { ensureToolingReady } from "@/tools";
 import { Role } from "@/constants";
 import type {
+  ChatMessage as ChatMessageType,
   RequestMessage,
   ToolCallPayload,
   ToolCallExecutionState,
   ToolExecutionMetadata,
 } from "@/types";
+import {
+  createChatGroup,
+  createChatMessage,
+  deleteChatMessage,
+  getAllChatGroups,
+  getChatMessageById,
+  getChatMessageList,
+  getNextBranchIndex,
+  updateChatMessage,
+} from "@/commands/chat-message";
 import type { RpcRequestMessage } from "@/types/rpc";
 import {
   createSmartExtractProvider,
@@ -77,9 +88,11 @@ interface ExtClipperExtractParams {
 
 interface AiStreamNotificationData {
   requestId: string;
+  turnId?: string;
   content?: string;
   reasoning?: string;
   executions?: ToolCallExecutionState[];
+  toolCalls?: ToolCallPayload[];
   error?: string;
 }
 
@@ -261,6 +274,8 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
   // 使用 chatStreamCore 进行流式聊天
   // 禁用动画缓冲：WebSocket 转发场景下需要直接透传 SSE 数据，
   // 避免 requestAnimationFrame 在窗口后台时被节流导致数据堆积
+  // 通知载荷为快照语义（全量文本 + turnId），插件端经 @tau/shared 的
+  // applyChatStreamEvent 归约，与桌面本地块组装走同一套逻辑
   await chatStreamCore({
     providerConfig,
     modelConfig,
@@ -271,31 +286,42 @@ ${pageContext.content ? `- 内容摘要: ${pageContext.content.slice(0, 2000)}..
     additionalTools: browserTools,
     executeToolCall,
     disableAnimation: true,
-    onUpdate: (text, fetchText) => {
+    onUpdate: (text, _fetchText, _reasoning, turnId) => {
       fullContent = text;
       server.sendNotification<AiStreamNotificationData>("ai.stream.text", {
         requestId,
-        content: fetchText,
+        turnId,
+        content: text,
       });
     },
-    onReasoning: (text, fetchText) => {
-      fullReasoning = text;
+    onReasoning: (reasoningText, _delta, turnId) => {
+      fullReasoning = reasoningText;
       server.sendNotification<AiStreamNotificationData>("ai.stream.reasoning", {
         requestId,
-        reasoning: fetchText,
+        turnId,
+        reasoning: reasoningText,
       });
     },
-    onToolCallsUpdate: executions => {
+    onToolCallsUpdate: (executions, turnId, toolCalls) => {
       server.sendNotification<AiStreamNotificationData>("ai.stream.tool", {
         requestId,
+        turnId,
         executions,
+        toolCalls,
       });
     },
-    onFinish: (content, reasoning) => {
+    onAssistantTurnEnd: ({ turnId }) => {
+      server.sendNotification<AiStreamNotificationData>("ai.stream.turn-finish", {
+        requestId,
+        turnId,
+      });
+    },
+    onFinish: (content, reasoning, meta) => {
       fullContent = content;
       fullReasoning = reasoning;
       server.sendNotification<AiStreamNotificationData>("ai.stream.finish", {
         requestId,
+        turnId: meta?.turnId,
         content,
         reasoning,
       });
@@ -631,6 +657,95 @@ const handleTabOpen = async (request: RpcRequestMessage) => {
   }
 };
 
+// —— 聊天会话存储 RPC（浏览器插件接入桌面 sqlite，与桌面同库同表；D-059 阶段 3）——
+
+interface ChatCreateParams {
+  messages: RequestMessage[];
+  title?: string;
+  groupId?: number | null;
+  parentChatId?: number | null;
+  branchIndex?: number;
+}
+
+interface ChatUpdateParams {
+  chat: Partial<Omit<ChatMessageType, "updateTime">> & Pick<ChatMessageType, "id">;
+}
+
+const handleChatList = async (request: RpcRequestMessage) => {
+  const { groupId } = (request.params ?? {}) as unknown as { groupId?: number };
+  const chats = await getChatMessageList(typeof groupId === "number" ? groupId : undefined);
+  return { chats };
+};
+
+const handleChatGet = async (request: RpcRequestMessage) => {
+  const { id } = request.params as unknown as { id: number };
+  return { chat: await getChatMessageById(id) };
+};
+
+const handleChatCreate = async (request: RpcRequestMessage) => {
+  const { messages, title, groupId, parentChatId, branchIndex } =
+    request.params as unknown as ChatCreateParams;
+  const chat = await createChatMessage(
+    messages,
+    title || "新对话",
+    groupId ?? null,
+    parentChatId ?? null,
+    branchIndex,
+    undefined,
+    undefined,
+    "browser"
+  );
+  return { chat };
+};
+
+const handleChatUpdate = async (request: RpcRequestMessage) => {
+  const { chat } = request.params as unknown as ChatUpdateParams;
+  return { chat: await updateChatMessage(chat) };
+};
+
+const handleChatDelete = async (request: RpcRequestMessage) => {
+  const { id } = request.params as unknown as { id: number };
+  await deleteChatMessage(id);
+  return { success: true };
+};
+
+const handleChatBranch = async (request: RpcRequestMessage) => {
+  const { parentChatId, messages, title } = request.params as unknown as {
+    parentChatId: number;
+    messages: RequestMessage[];
+    title?: string;
+  };
+  // 分支继承父会话的分组，保证按 URL 过滤时与父会话同组
+  const parent = await getChatMessageById(parentChatId);
+  const branchIndex = await getNextBranchIndex(parentChatId);
+  const chat = await createChatMessage(
+    messages,
+    title || "新分支",
+    parent.groupId ?? null,
+    parentChatId,
+    branchIndex,
+    undefined,
+    undefined,
+    "browser"
+  );
+  return { chat };
+};
+
+const handleChatGroupsList = async () => {
+  return { groups: await getAllChatGroups() };
+};
+
+/** 按名查找顶层分组，不存在则创建（浏览器插件按 URL 归组会话用） */
+const handleChatGroupEnsure = async (request: RpcRequestMessage) => {
+  const { name } = request.params as unknown as { name: string };
+  const groups = await getAllChatGroups();
+  const existing = groups.find(group => group.parentId === null && group.name === name);
+  if (existing) {
+    return { group: existing, created: false };
+  }
+  return { group: await createChatGroup({ name, parentId: null }), created: true };
+};
+
 /**
  * 初始化 AI 服务端
  */
@@ -691,6 +806,16 @@ export const initAiServer = () => {
 
   // 注册 Tab 操作 RPC 处理器
   aiServer.addRequestHandler("tab.open", handleTabOpen);
+
+  // 注册聊天会话存储 RPC 处理器（浏览器插件 → 桌面 sqlite）
+  aiServer.addRequestHandler("chat.list", handleChatList);
+  aiServer.addRequestHandler("chat.get", handleChatGet);
+  aiServer.addRequestHandler("chat.create", handleChatCreate);
+  aiServer.addRequestHandler("chat.update", handleChatUpdate);
+  aiServer.addRequestHandler("chat.delete", handleChatDelete);
+  aiServer.addRequestHandler("chat.branch", handleChatBranch);
+  aiServer.addRequestHandler("chat.groups.list", handleChatGroupsList);
+  aiServer.addRequestHandler("chat.group.ensure", handleChatGroupEnsure);
 
   // 连接浏览器工具服务（作为客户端）
   // 延迟连接，等待浏览器扩展连接

@@ -1,29 +1,39 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import WebSocketClient from "@/utils/WebSocketClient";
+import { AI_SERVER_WS_URL } from "@/utils/aiServerAddress";
 import { BROWSER_TOOLS } from "@/services/extToolServer";
 import type {
   ChatMessageType,
-  ContentBlock,
   MessageContentItem,
+  ResponseMessage,
   ToolCallExecutionState,
   ToolCallPayload,
 } from "@tau/shared";
-
-const WS_PORT = 24678;
+import {
+  applyChatStreamEvent,
+  createAssistantMessage,
+  getAssistantContentBlocks,
+} from "@tau/shared";
 
 // 重新导出共享类型
-export type { ChatMessageType as ChatMessage, ContentBlock, ToolCallExecutionState };
+export type {
+  ChatMessageType as ChatMessage,
+  ContentBlock,
+  ToolCallExecutionState,
+} from "@tau/shared";
 
 // 消息角色（扩展支持 tool 角色）
 export type Role = "user" | "assistant" | "system" | "tool";
 
-// 流式通知数据类型
+// 流式通知数据类型（快照语义：content/reasoning 为当前全量）
 interface StreamNotificationData {
   requestId: string;
+  turnId?: string;
   content?: string;
   reasoning?: string;
   executions?: ToolCallExecutionState[];
+  toolCalls?: ToolCallPayload[];
   error?: string;
 }
 
@@ -203,11 +213,10 @@ export function useAiChat(options: UseAiChatOptions = {}) {
   // 引用
   const wsClientRef = useRef<WebSocketClient | null>(null);
   const requestIdRef = useRef<string | null>(null);
-  const currentResponseRef = useRef<{
-    content: string;
-    reasoning: string;
-    contentBlocks: ContentBlock[];
-  }>({ content: "", reasoning: "", contentBlocks: [] });
+  // 当前流式响应（统一模型）：块组装走 @tau/shared 的 applyChatStreamEvent，
+  // 渲染投影为 ChatMessageType 时才复制，ref 内可自由原地更新
+  const currentResponseRef = useRef<ResponseMessage | null>(null);
+  const currentResponseIdRef = useRef<string>("");
 
   // 更新消息并通知外部
   const updateMessages = useCallback(
@@ -220,21 +229,24 @@ export function useAiChat(options: UseAiChatOptions = {}) {
     [onMessagesChange]
   );
 
-  // 更新当前响应消息
+  // 把统一模型投影为渲染层消息（ChatMessageType）
   const updateCurrentResponse = useCallback(() => {
+    const response = currentResponseRef.current;
+    if (!response) {
+      return;
+    }
     setMessages(prev => {
       const lastMsg = prev[prev.length - 1];
       if (lastMsg?.role === "assistant") {
-        const newMessages = [
+        const newMessages: ChatMessageType[] = [
           ...prev.slice(0, -1),
           {
             ...lastMsg,
-            content: currentResponseRef.current.content,
-            reasoning: currentResponseRef.current.reasoning,
-            contentBlocks: [...currentResponseRef.current.contentBlocks],
+            content: response.content,
+            reasoning: response.reasoning_content || undefined,
+            contentBlocks: getAssistantContentBlocks(response),
           },
         ];
-        // 通知外部消息变化
         if (onMessagesChange) {
           onMessagesChange(newMessages);
         }
@@ -257,7 +269,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
   // 初始化/绑定 WebSocket 客户端（支持复用外部连接）
   useEffect(() => {
     const useExternalClient = Boolean(externalWsClient);
-    const client = externalWsClient || new WebSocketClient(`ws://localhost:${WS_PORT}/aiServer`);
+    const client = externalWsClient || new WebSocketClient(AI_SERVER_WS_URL);
 
     if (!useExternalClient) {
       client.onOpenHandler = () => {
@@ -273,85 +285,79 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       setIsConnected(client.isConnected);
     }
 
-    const handleTextStream = (data: unknown) => {
+    // 通知 → 统一流事件 → 归约器（快照幂等，与桌面本地同一套块组装逻辑）
+    const matchStreamNotification = (data: unknown) => {
       const notification = data as StreamNotificationData;
-      if (notification.requestId !== requestIdRef.current) return;
+      if (notification.requestId !== requestIdRef.current) return null;
+      return notification;
+    };
 
-      if (notification.content) {
-        currentResponseRef.current.content += notification.content;
+    const resolveTurnId = (notification: StreamNotificationData) =>
+      notification.turnId || requestIdRef.current || "";
 
-        const blocks = currentResponseRef.current.contentBlocks;
-        const lastBlock = blocks[blocks.length - 1];
-        if (lastBlock?.type === "text") {
-          lastBlock.content += notification.content;
-        } else {
-          blocks.push({ type: "text", content: notification.content });
-        }
+    const handleTextStream = (data: unknown) => {
+      const notification = matchStreamNotification(data);
+      if (!notification || !currentResponseRef.current) return;
 
-        updateCurrentResponse();
-      }
+      applyChatStreamEvent(currentResponseRef.current, {
+        type: "text",
+        turnId: resolveTurnId(notification),
+        fullText: notification.content || "",
+      });
+      updateCurrentResponse();
     };
 
     const handleReasoningStream = (data: unknown) => {
-      const notification = data as StreamNotificationData;
-      if (notification.requestId !== requestIdRef.current) return;
+      const notification = matchStreamNotification(data);
+      if (!notification || !currentResponseRef.current) return;
 
-      if (notification.reasoning) {
-        currentResponseRef.current.reasoning += notification.reasoning;
-
-        const blocks = currentResponseRef.current.contentBlocks;
-        const lastBlock = blocks[blocks.length - 1];
-        if (lastBlock?.type === "reasoning") {
-          lastBlock.content += notification.reasoning;
-        } else {
-          blocks.push({
-            type: "reasoning",
-            content: notification.reasoning,
-            startTime: Date.now(),
-          });
-        }
-
-        updateCurrentResponse();
-      }
+      applyChatStreamEvent(currentResponseRef.current, {
+        type: "reasoning",
+        turnId: resolveTurnId(notification),
+        fullText: notification.reasoning || "",
+      });
+      updateCurrentResponse();
     };
 
     const handleToolStream = (data: unknown) => {
-      const notification = data as StreamNotificationData;
-      if (notification.requestId !== requestIdRef.current) return;
+      const notification = matchStreamNotification(data);
+      if (!notification || !currentResponseRef.current) return;
 
-      if (notification.executions) {
-        const blocks = currentResponseRef.current.contentBlocks;
-        const lastBlock = blocks[blocks.length - 1];
-        if (lastBlock?.type === "tool_calls") {
-          lastBlock.executions = notification.executions;
-        } else {
-          blocks.push({
-            type: "tool_calls",
-            executions: notification.executions,
-          });
-        }
+      applyChatStreamEvent(currentResponseRef.current, {
+        type: "tool-calls",
+        turnId: resolveTurnId(notification),
+        executions: notification.executions || [],
+        toolCalls: notification.toolCalls,
+      });
+      updateCurrentResponse();
+    };
 
-        updateCurrentResponse();
-      }
+    const handleTurnFinishStream = (data: unknown) => {
+      const notification = matchStreamNotification(data);
+      if (!notification || !currentResponseRef.current) return;
+
+      applyChatStreamEvent(currentResponseRef.current, {
+        type: "turn-finish",
+        turnId: resolveTurnId(notification),
+      });
+      updateCurrentResponse();
     };
 
     const handleFinishStream = (data: unknown) => {
-      const notification = data as StreamNotificationData;
-      if (notification.requestId !== requestIdRef.current) return;
+      const notification = matchStreamNotification(data);
+      if (!notification) return;
 
       if (notification.error) {
         setError(notification.error);
       }
 
-      const blocks = currentResponseRef.current.contentBlocks;
-      for (const block of blocks) {
-        if (block.type === "reasoning" && !block.endTime) {
-          block.endTime = Date.now();
-          block.duration = block.endTime - (block.startTime || block.endTime);
-        }
+      if (currentResponseRef.current) {
+        currentResponseRef.current.assistant_blocks?.forEach(block => {
+          block.state = "final";
+        });
+        updateCurrentResponse();
       }
 
-      updateCurrentResponse();
       setIsLoading(false);
       requestIdRef.current = null;
     };
@@ -359,6 +365,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
     client.registerNotificationHandler("ai.stream.text", handleTextStream);
     client.registerNotificationHandler("ai.stream.reasoning", handleReasoningStream);
     client.registerNotificationHandler("ai.stream.tool", handleToolStream);
+    client.registerNotificationHandler("ai.stream.turn-finish", handleTurnFinishStream);
     client.registerNotificationHandler("ai.stream.finish", handleFinishStream);
     wsClientRef.current = client;
 
@@ -366,6 +373,7 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       client.unregisterNotificationHandler("ai.stream.text", handleTextStream);
       client.unregisterNotificationHandler("ai.stream.reasoning", handleReasoningStream);
       client.unregisterNotificationHandler("ai.stream.tool", handleToolStream);
+      client.unregisterNotificationHandler("ai.stream.turn-finish", handleTurnFinishStream);
       client.unregisterNotificationHandler("ai.stream.finish", handleFinishStream);
 
       if (!useExternalClient) {
@@ -408,18 +416,16 @@ export function useAiChat(options: UseAiChatOptions = {}) {
       const requestId = uuidv4();
       requestIdRef.current = requestId;
 
+      const assistantMessageId = uuidv4();
+      currentResponseIdRef.current = assistantMessageId;
+      currentResponseRef.current = createAssistantMessage();
+
       const assistantMessage: ChatMessageType = {
-        id: uuidv4(),
+        id: assistantMessageId,
         role: "assistant",
         content: "",
         contentBlocks: [],
         timestamp: Date.now(),
-      };
-
-      currentResponseRef.current = {
-        content: "",
-        reasoning: "",
-        contentBlocks: [],
       };
 
       const persistedRequestMessage: ChatMessageType | null = persistRequestMessage

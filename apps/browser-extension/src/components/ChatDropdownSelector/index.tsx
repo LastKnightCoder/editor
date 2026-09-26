@@ -16,11 +16,11 @@ import styles from "./index.module.css";
 interface ChatDropdownSelectorProps {
   chats: ChatSession[];
   currentChat: ChatSession;
-  onChatSelect: (chatId: string) => void;
+  onChatSelect: (chatId: number) => void;
   onTitleChange: (title: string) => void;
   onCreateNewChat: () => void;
-  onChatDelete?: (chatId: string) => void;
-  getChildBranchesCount?: (chatId: string) => Promise<number>;
+  onChatDelete?: (chatId: number) => void;
+  getChildBranchesCount?: (chatId: number) => Promise<number>;
   disabled?: boolean;
   titleRef?: React.RefObject<EditTextHandle>;
 }
@@ -28,7 +28,7 @@ interface ChatDropdownSelectorProps {
 interface MenuItem {
   key: string;
   type: "new" | "chat";
-  chatId?: string;
+  chatId?: number;
   title: string;
   isCurrentChat?: boolean;
   hasBranches?: boolean;
@@ -36,7 +36,7 @@ interface MenuItem {
 
 interface BranchItem {
   key: string;
-  chatId: string;
+  chatId: number;
   title: string;
   isCurrentChat: boolean;
 }
@@ -59,13 +59,13 @@ const ChatDropdownSelector = memo(
 
     // 获取相关分支
     const siblingBranches = useMemo(() => {
-      if (!currentChat || currentChat.id === "0") return [];
+      if (!currentChat || currentChat.id === 0) return [];
 
       const result: typeof chats = [];
 
       const findRoot = (chat: typeof currentChat): typeof currentChat => {
         if (!chat.parentChatId) return chat;
-        const parent = chats.find((c) => c.id === chat.parentChatId);
+        const parent = chats.find(c => c.id === chat.parentChatId);
         return parent ? findRoot(parent) : chat;
       };
 
@@ -77,7 +77,7 @@ const ChatDropdownSelector = memo(
 
       if (currentChat.parentChatId) {
         const siblings = chats
-          .filter((c) => c.parentChatId === currentChat.parentChatId)
+          .filter(c => c.parentChatId === currentChat.parentChatId)
           .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0));
         result.push(...siblings);
       } else {
@@ -85,7 +85,7 @@ const ChatDropdownSelector = memo(
       }
 
       const children = chats
-        .filter((c) => c.parentChatId === currentChat.id)
+        .filter(c => c.parentChatId === currentChat.id)
         .sort((a, b) => (a.branchIndex ?? 0) - (b.branchIndex ?? 0));
       result.push(...children);
 
@@ -97,8 +97,8 @@ const ChatDropdownSelector = memo(
     }, [currentChat, chats]);
 
     const currentBranchIndex = useMemo(() => {
-      if (!currentChat || currentChat.id === "0") return 0;
-      return siblingBranches.findIndex((c) => c.id === currentChat.id);
+      if (!currentChat || currentChat.id === 0) return 0;
+      return siblingBranches.findIndex(c => c.id === currentChat.id);
     }, [siblingBranches, currentChat]);
 
     // 构建菜单项
@@ -114,14 +114,14 @@ const ChatDropdownSelector = memo(
 
       // 按更新时间排序的对话列表
       const sortedChats = [...chats]
-        .filter((c) => !c.archived)
+        .filter(c => !c.archived)
         .sort((a, b) => b.updateTime - a.updateTime);
 
       // 只显示根对话（不显示分支，分支通过右侧切换器访问）
-      const rootChats = sortedChats.filter((c) => !c.parentChatId);
+      const rootChats = sortedChats.filter(c => !c.parentChatId);
 
-      rootChats.forEach((root) => {
-        const branches = sortedChats.filter((c) => c.parentChatId === root.id);
+      rootChats.forEach(root => {
+        const branches = sortedChats.filter(c => c.parentChatId === root.id);
         const isCurrentChat = currentChat.id === root.id;
 
         items.push({
@@ -145,7 +145,7 @@ const ChatDropdownSelector = memo(
       }
     };
 
-    const handleDeleteClick = async (chatId: string) => {
+    const handleDeleteClick = async (chatId: number) => {
       if (!onChatDelete) return;
 
       // 检查是否有子分支
@@ -182,7 +182,7 @@ const ChatDropdownSelector = memo(
     };
 
     const headerMenuItems: MenuProps["items"] = useMemo(() => {
-      if (!onChatDelete || currentChat.id === "0") {
+      if (!onChatDelete || currentChat.id === 0) {
         return [];
       }
 
@@ -198,7 +198,7 @@ const ChatDropdownSelector = memo(
 
     const handleHeaderMenuClick: MenuProps["onClick"] = ({ key, domEvent }) => {
       domEvent.stopPropagation();
-      if (key === "delete" && currentChat.id !== "0") {
+      if (key === "delete" && currentChat.id !== 0) {
         void handleDeleteClick(currentChat.id);
       }
     };
@@ -214,14 +214,12 @@ const ChatDropdownSelector = memo(
       }
 
       return (
-        <div
-          className={`flex items-center justify-between gap-2 group w-full ${styles.menuItem}`}
-        >
-          <div className="flex items-center gap-2 flex-1 min-w-0">
+        <div className={`group flex w-full items-center justify-between gap-2 ${styles.menuItem}`}>
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             {item.hasBranches && (
               <BranchesOutlined
                 style={{ fontSize: 14 }}
-                className={`opacity-60 shrink-0 ${styles.icon}`}
+                className={`shrink-0 opacity-60 ${styles.icon}`}
               />
             )}
             <span
@@ -239,7 +237,7 @@ const ChatDropdownSelector = memo(
     const branchTriggerRef = useRef<HTMLDivElement>(null);
 
     const branchItems: BranchItem[] = useMemo(() => {
-      return siblingBranches.map((chat) => {
+      return siblingBranches.map(chat => {
         let prefix = "";
         if (!chat.parentChatId) {
           prefix = "主干: ";
@@ -264,12 +262,12 @@ const ChatDropdownSelector = memo(
 
     return (
       <div
-        className={`flex items-center justify-between gap-2 w-full ${styles.chatDropdownSelector}`}
+        className={`flex w-full items-center justify-between gap-2 ${styles.chatDropdownSelector}`}
       >
-        <div className="flex items-center gap-2 flex-1 min-w-0">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <div
             ref={triggerRef}
-            className={`flex items-center gap-1 cursor-pointer ${styles.dropdownTrigger}`}
+            className={`flex cursor-pointer items-center gap-1 ${styles.dropdownTrigger}`}
             onClick={() => setShowDropdown(!showDropdown)}
           >
             <DownOutlined
@@ -292,8 +290,8 @@ const ChatDropdownSelector = memo(
             preferredPlacement="bottom"
           />
 
-          <div className={`flex-1 min-w-0 font-bold ${styles.titleEditor}`}>
-            {currentChat.id !== "0" ? (
+          <div className={`min-w-0 flex-1 font-bold ${styles.titleEditor}`}>
+            {currentChat.id !== 0 ? (
               <EditText
                 key={currentChat.id}
                 ref={titleRef}
@@ -306,7 +304,7 @@ const ChatDropdownSelector = memo(
             )}
           </div>
 
-          {onChatDelete && currentChat.id !== "0" && (
+          {onChatDelete && currentChat.id !== 0 && (
             <Dropdown
               menu={{
                 items: headerMenuItems,
@@ -316,9 +314,9 @@ const ChatDropdownSelector = memo(
               placement="bottomRight"
             >
               <button
-                className={`shrink-0 p-1 rounded text-gray-500 dark:text-gray-400 ${styles.headerActionButton}`}
+                className={`shrink-0 rounded p-1 text-gray-500 dark:text-gray-400 ${styles.headerActionButton}`}
                 title="更多操作"
-                onClick={(e) => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
               >
                 <MoreOutlined style={{ fontSize: 14 }} />
               </button>
@@ -331,13 +329,10 @@ const ChatDropdownSelector = memo(
           <>
             <div
               ref={branchTriggerRef}
-              className={`shrink-0 flex items-center text-gray-600 dark:text-gray-400 ${styles.branchSwitcher}`}
+              className={`flex shrink-0 items-center text-gray-600 dark:text-gray-400 ${styles.branchSwitcher}`}
               onClick={() => setShowBranchDropdown(true)}
             >
-              <BranchesOutlined
-                style={{ fontSize: 14 }}
-                className={styles.icon}
-              />
+              <BranchesOutlined style={{ fontSize: 14 }} className={styles.icon} />
               <span>
                 {currentBranchIndex === 0 && !currentChat?.parentChatId
                   ? "主干"
@@ -371,7 +366,7 @@ const ChatDropdownSelector = memo(
         )}
       </div>
     );
-  },
+  }
 );
 
 ChatDropdownSelector.displayName = "ChatDropdownSelector";
