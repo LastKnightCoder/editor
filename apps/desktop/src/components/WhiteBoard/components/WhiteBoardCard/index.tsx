@@ -1,12 +1,13 @@
 /**
  * 画布里嵌入的白板卡片：引用整块白板（whiteBoardId），显示缩略图 + 标题 + 页数，
- * 双击打开白板详情（上次停留的页）。
+ * 双击打开白板详情（上次停留的页）；在白板详情里双击时沿跳转链前进（trail 参数，见 features/whiteboards/navigation.ts），
+ * 目标已在链上则截回那一级。沿链回来时这张卡片被定位并闪一下（element:flash）。
  *
  * 旧元素只记了页 id（whiteBoardContentId）：能反查到所属白板时按该白板显示，双击打开白板详情并定位到这一页；
  * 反查不到（独立页）才打开单页画布。
  */
 
-import { memo, useState } from "react";
+import { memo, useContext, useEffect, useState } from "react";
 import { useMemoizedFn } from "ahooks";
 import { Presentation } from "lucide-react";
 import { cn, toast } from "@tau/ui";
@@ -17,7 +18,8 @@ import LocalImage from "@/components/LocalImage";
 import { PageSchematic } from "../../schematic/PageSchematic";
 import { openPage } from "@/services/page-navigation";
 import { useWhiteboardDetail, useWhiteboardOwner } from "@/features/whiteboards/queries";
-import { displayTitle, toItem } from "@/features/whiteboards/model";
+import { displayTitle, enterBoard, formatTrail, toItem } from "@/features/whiteboards/model";
+import { WhiteboardNavContext, requestReveal } from "@/features/whiteboards/navigation";
 
 interface WhiteBoardCardProps {
   board: Board;
@@ -32,7 +34,24 @@ const CANVAS_BG =
   "bg-surface-hover bg-[radial-gradient(color-mix(in_srgb,var(--tau-ink-1)_13%,transparent)_1px,transparent_1.2px)] bg-[length:10px_10px]";
 
 const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
-  const { element } = props;
+  const { element, board } = props;
+  const nav = useContext(WhiteboardNavContext);
+  const [flash, setFlash] = useState(false);
+
+  useEffect(() => {
+    let timer = 0;
+    const onFlash = (id: string) => {
+      if (id !== element.id) return;
+      setFlash(true);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setFlash(false), 1400);
+    };
+    board.on("element:flash", onFlash);
+    return () => {
+      board.off("element:flash", onFlash);
+      window.clearTimeout(timer);
+    };
+  }, [board, element.id]);
   const { x, y, width, name } = element;
   const height = WHITEBOARD_CARD_HEIGHT;
 
@@ -56,9 +75,19 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
     if (loading) return;
     try {
       if (item) {
+        const next = nav
+          ? enterBoard(
+              nav.trail,
+              { boardId: nav.boardId, pageId: nav.pageId, elementId: element.id },
+              item.id
+            )
+          : null;
+        if (next?.back) requestReveal(next.back.pageId, next.back.elementId);
+        const page = next?.back?.pageId ?? legacyPageId;
         openPage("whiteboard-detail", {
           id: item.id,
-          ...(legacyPageId !== null ? { page: legacyPageId } : {}),
+          ...(page !== null ? { page } : {}),
+          ...(next ? { trail: formatTrail(next.trail) } : {}),
         });
       } else if (legacyPageId !== null) {
         openPage("whiteboard-content", { id: legacyPageId });
@@ -86,7 +115,10 @@ const WhiteBoardCard = memo((props: WhiteBoardCardProps) => {
         title="双击打开白板"
         className={cn(
           "bg-surface border-line-1 flex size-full cursor-move items-center gap-2.5 overflow-hidden rounded-[12px] border p-2",
-          "shadow-card ease-tau-out hover:shadow-lift transition-shadow duration-200",
+          "ease-tau-out transition-[box-shadow,border-color] duration-300",
+          flash
+            ? "border-accent shadow-[0_0_0_4px_color-mix(in_srgb,var(--tau-accent)_28%,transparent)]"
+            : "shadow-card hover:shadow-lift",
           missing && "opacity-60"
         )}
       >

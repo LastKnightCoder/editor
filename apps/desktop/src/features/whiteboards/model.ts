@@ -171,3 +171,47 @@ export function fullTime(ts: number): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+/* ───────── 跳转链 ───────── */
+
+/** 链上的一级：在哪块白板的哪一页，经由哪张嵌入卡片跳走 */
+export interface TrailStep {
+  boardId: number;
+  pageId: number;
+  /** 被双击的白板卡片元素 id（回到这一级时定位并高亮它） */
+  elementId: string;
+}
+
+/** 页面参数 trail：`白板id:页id:元素id`，逗号分隔；非法段丢弃 */
+export function parseTrail(raw: unknown): TrailStep[] {
+  if (typeof raw !== "string" || !raw) return [];
+  return raw.split(",").flatMap(segment => {
+    const [board, page, elementId] = segment.split(":");
+    const boardId = Number(board);
+    const pageId = Number(page);
+    if (!Number.isInteger(boardId) || !Number.isInteger(pageId) || !elementId) return [];
+    return [{ boardId, pageId, elementId }];
+  });
+}
+
+/** 空链返回 undefined（页面参数缺省） */
+export function formatTrail(steps: TrailStep[]): string | undefined {
+  if (!steps.length) return undefined;
+  return steps.map(s => `${s.boardId}:${s.pageId}:${s.elementId}`).join(",");
+}
+
+/**
+ * 从 from（当前白板 / 页 + 被双击的卡片）进入 targetId 白板后的链：
+ * 目标已在链上 → 截回那一级（back = 那一级，回到当时的页并定位来源卡片）；
+ * 目标就是当前白板 → 链不变；否则把 from 追加到链尾。
+ */
+export function enterBoard(
+  trail: TrailStep[],
+  from: TrailStep,
+  targetId: number
+): { trail: TrailStep[]; back?: TrailStep } {
+  if (targetId === from.boardId) return { trail };
+  const index = trail.findIndex(step => step.boardId === targetId);
+  if (index !== -1) return { trail: trail.slice(0, index), back: trail[index] };
+  return { trail: [...trail, from] };
+}

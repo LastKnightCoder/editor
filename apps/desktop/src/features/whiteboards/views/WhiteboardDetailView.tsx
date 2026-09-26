@@ -4,18 +4,26 @@
  *
  * 页面参数：id = 白板 id，page = 当前页（子白板）id，缺省为上次停留页 → 第一页。
  * 同一块白板内切页经栈机原位更新参数，不进后退历史；停留页记回主进程（查看状态，不刷新更新时间）。
- * 标题栏面包屑「白板名 / 页名」，点白板名打开编辑信息。画布本身（工具条 / 属性栏 / 状态栏等）本轮不换皮。
+ * 标题栏面包屑「上级白板 › … › 白板名 / 页名」：上级来自 trail（画布里嵌入的白板卡片一路点进来的链），
+ * 点上级回到那一级当时的页并定位来源卡片；点当前白板名打开编辑信息。切页保留 trail。
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ConfirmDialog, Loading, toast } from "@tau/ui";
+import { ChevronRight } from "lucide-react";
+import { ConfirmDialog, Loading, Menu, toast } from "@tau/ui";
 import { usePage, usePageBreadcrumb, usePageParams } from "@/page/PageProvider";
 import { useWhiteboardOutlineStore } from "@/components/WhiteBoard/components/Sidebar/outlineStore";
 import { BoardCanvas, type BoardCanvasHandle } from "../components/BoardCanvas";
 import { SheetBar } from "../components/SheetBar";
 import { OutlineToggle } from "../components/OutlineToggle";
 import { WhiteboardInfoDialog } from "../components/WhiteboardInfoDialog";
-import { rankTags } from "../model";
+import { displayTitle, parseTrail, rankTags, type TrailStep, type WhiteboardItem } from "../model";
+import {
+  WhiteboardNavContext,
+  requestReveal,
+  trailStepParams,
+  type WhiteboardNav,
+} from "../navigation";
 import {
   useWhiteboardDetail,
   useWhiteboardMutations,
@@ -26,11 +34,11 @@ import {
 const PAGE_KEY = "whiteboard-detail";
 
 export function WhiteboardDetailView() {
-  const { id, page } = usePageParams<{ id: number; page?: number }>();
-  return <Detail key={id} id={id} page={page} />;
+  const { id, page, trail } = usePageParams<{ id: number; page?: number; trail?: string }>();
+  return <Detail key={id} id={id} page={page} trailParam={trail} />;
 }
 
-function Detail({ id, page }: { id: number; page?: number }) {
+function Detail({ id, page, trailParam }: { id: number; page?: number; trailParam?: string }) {
   const { navigator } = usePage();
   const { board, loading } = useWhiteboardDetail(id);
   const pageMutations = useWhiteboardPageMutations(id);
@@ -63,8 +71,23 @@ function Detail({ id, page }: { id: number; page?: number }) {
   }, [board, activeId, pageMutations]);
 
   const go = useCallback(
-    (pageId: number) => navigator.push(PAGE_KEY, { id, page: pageId }),
-    [navigator, id]
+    (pageId: number) => navigator.push(PAGE_KEY, { id, page: pageId, trail: trailParam }),
+    [navigator, id, trailParam]
+  );
+
+  const trail = useMemo(() => parseTrail(trailParam), [trailParam]);
+  const nav = useMemo<WhiteboardNav | null>(
+    () => (activeId === null ? null : { boardId: id, pageId: activeId, trail }),
+    [id, activeId, trail]
+  );
+  const itemById = useMemo(() => new Map((items ?? []).map(item => [item.id, item])), [items]);
+  const backTo = useCallback(
+    (index: number) => {
+      const step = trail[index];
+      requestReveal(step.pageId, step.elementId);
+      navigator.push(PAGE_KEY, trailStepParams(trail, index));
+    },
+    [navigator, trail]
   );
 
   // ⌃PageUp / ⌃PageDown 切页（同浏览器标签页；仅本页在栈顶时）
@@ -87,6 +110,7 @@ function Detail({ id, page }: { id: number; page?: number }) {
       board ? (
         <span className="text-tau-meta flex min-w-0 items-center gap-1.5">
           <OutlineToggle />
+          <TrailCrumbs trail={trail} itemById={itemById} onSelect={backTo} />
           <button
             type="button"
             title="编辑信息"
@@ -103,7 +127,7 @@ function Detail({ id, page }: { id: number; page?: number }) {
           )}
         </span>
       ) : null,
-    [board, pages.length, activePage]
+    [board, pages.length, activePage, trail, itemById, backTo]
   );
   usePageBreadcrumb(PAGE_KEY, breadcrumb);
 
@@ -129,12 +153,14 @@ function Detail({ id, page }: { id: number; page?: number }) {
   return (
     <div className="relative flex h-full min-h-0 flex-col px-4 pb-4 pt-1">
       <div className="bg-surface shadow-card rounded-tau-lg relative min-h-0 flex-1 overflow-hidden">
-        <BoardCanvas
-          key={activeId}
-          id={activeId}
-          ref={canvasRef}
-          onPresentationModeChange={setPresenting}
-        />
+        <WhiteboardNavContext value={nav}>
+          <BoardCanvas
+            key={activeId}
+            id={activeId}
+            ref={canvasRef}
+            onPresentationModeChange={setPresenting}
+          />
+        </WhiteboardNavContext>
 
         {/* 页签条：纸内左下，让开元素树停靠栏；右侧给状态栏（约 340px）留位，页多时页签横向滚动 */}
         {!presenting && (
@@ -215,5 +241,76 @@ function Detail({ id, page }: { id: number; page?: number }) {
         }}
       />
     </div>
+  );
+}
+
+/** 链上最多平铺的上级数，多出的中间级折进「…」菜单（保留第一级与最近两级） */
+const MAX_CRUMBS = 3;
+
+function stepLabel(step: TrailStep, item: WhiteboardItem | undefined) {
+  if (!item) return "白板";
+  const title = displayTitle(item);
+  if (item.pages.length <= 1) return title;
+  const page = item.pages.find(p => p.id === step.pageId);
+  return page ? `${title} · ${page.name || "未命名"}` : title;
+}
+
+/** 上级白板面包屑：点击回到那一级当时的页 */
+function TrailCrumbs({
+  trail,
+  itemById,
+  onSelect,
+}: {
+  trail: TrailStep[];
+  itemById: Map<number, WhiteboardItem>;
+  onSelect(index: number): void;
+}) {
+  if (!trail.length) return null;
+  const indexes = trail.map((_, i) => i);
+  const folded = trail.length > MAX_CRUMBS ? indexes.slice(1, trail.length - (MAX_CRUMBS - 1)) : [];
+  const shown = indexes.filter(i => !folded.includes(i));
+  const separator = <ChevronRight className="text-ink-3 size-3 shrink-0" strokeWidth={2} />;
+
+  return (
+    <>
+      {shown.map((index, n) => {
+        const label = stepLabel(trail[index], itemById.get(trail[index].boardId));
+        return (
+          <span key={index} className="flex min-w-0 shrink items-center gap-1.5">
+            {n === 1 && folded.length > 0 && (
+              <>
+                <Menu
+                  trigger={
+                    <button
+                      type="button"
+                      title="更多上级白板"
+                      className="text-ink-2 hover:bg-hover shrink-0 rounded-[6px] px-1.5 py-0.5"
+                    >
+                      …
+                    </button>
+                  }
+                >
+                  {folded.map(i => (
+                    <Menu.Item key={i} onSelect={() => onSelect(i)}>
+                      {stepLabel(trail[i], itemById.get(trail[i].boardId))}
+                    </Menu.Item>
+                  ))}
+                </Menu>
+                {separator}
+              </>
+            )}
+            <button
+              type="button"
+              title={`回到「${label}」`}
+              onClick={() => onSelect(index)}
+              className="text-ink-2 hover:text-ink-1 hover:bg-hover min-w-0 max-w-[160px] truncate rounded-[6px] px-1.5 py-0.5"
+            >
+              {label}
+            </button>
+            {separator}
+          </span>
+        );
+      })}
+    </>
   );
 }
