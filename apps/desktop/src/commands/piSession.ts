@@ -54,7 +54,8 @@ export function onPiSessionEvent(
   sessionId: string,
   listener: (event: AgentSessionEvent) => void
 ): () => void {
-  const handler = (payload: PiSessionEventEnvelope) => {
+  // preload 的 on 透传 ipcRenderer.on：第一个参数是 IPC event，载荷在第二位（项目既有约定）
+  const handler = (_ipcEvent: unknown, payload: PiSessionEventEnvelope) => {
     if (payload?.sessionId === sessionId) listener(payload.event);
   };
   on("pi-session-event", handler);

@@ -17,9 +17,10 @@ export async function piAiSingleShot(
   onEvent?: (event: PiStreamEvent) => void
 ): Promise<PiSingleShotOutcome> {
   const requestId = crypto.randomUUID();
+  // preload 的 on 透传 ipcRenderer.on：第一个参数是 IPC event，载荷在第二位（项目既有约定）
   const listener = onEvent
-    ? (payload: PiStreamEventEnvelope) => {
-        if (payload.requestId === requestId) onEvent(payload);
+    ? (_ipcEvent: unknown, payload: PiStreamEventEnvelope) => {
+        if (payload?.requestId === requestId) onEvent(payload);
       }
     : null;
   if (listener) on("pi-ai-stream-event", listener);
