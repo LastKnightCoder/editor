@@ -29,9 +29,7 @@ export function normalizeDetectedLanguage(input?: string | null): string {
   return normalizeLanguageCode(input) || "en";
 }
 
-export function normalizeLanguageOption(
-  input?: string | null,
-): NormalizedLanguageOption {
+export function normalizeLanguageOption(input?: string | null): NormalizedLanguageOption {
   const normalized = normalizeLanguageCode(input);
   return {
     language: normalized,
@@ -45,12 +43,10 @@ export function parseLanguageFromLogs(input: string): {
 } | null {
   if (!input) return null;
 
-  const lines = input.split(/\r?\n/).filter((line) => line.trim());
+  const lines = input.split(/\r?\n/).filter(line => line.trim());
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i].trim();
-    const directMatch = line.match(
-      /Detected language:\s*([a-zA-Z-]+)\s*\(([\d.]+)%\)/i,
-    );
+    const directMatch = line.match(/Detected language:\s*([a-zA-Z-]+)\s*\(([\d.]+)%\)/i);
     if (directMatch) {
       return {
         language: normalizeDetectedLanguage(directMatch[1]),
@@ -58,11 +54,21 @@ export function parseLanguageFromLogs(input: string): {
       };
     }
 
+    // whisper.cpp：`whisper_full_with_state: auto-detected language: zh (p = 0.970000)`
+    const whisperCppMatch = line.match(
+      /auto-detected language:\s*([a-zA-Z-]+)\s*\(p\s*=\s*([\d.]+)\)/i
+    );
+    if (whisperCppMatch) {
+      const value = parseFloat(whisperCppMatch[2]);
+      return {
+        language: normalizeDetectedLanguage(whisperCppMatch[1]),
+        probability: Number.isNaN(value) ? undefined : Math.max(0, Math.min(1, value)),
+      };
+    }
+
     const langMatch = line.match(/language(?:\s*[:=])\s*([a-zA-Z-]+)/i);
     if (langMatch) {
-      const probMatch = line.match(
-        /(probability|confidence)(?:\s*[:=])\s*([\d.]+)%?/i,
-      );
+      const probMatch = line.match(/(probability|confidence)(?:\s*[:=])\s*([\d.]+)%?/i);
       const probability = probMatch
         ? (() => {
             const value = parseFloat(probMatch[2]);
@@ -84,8 +90,7 @@ export function parseLanguageFromLogs(input: string): {
 export function inferLanguageFromText(text: string): string {
   if (!text?.trim()) return "en";
 
-  const countMatches = (pattern: RegExp): number =>
-    (text.match(pattern) || []).length;
+  const countMatches = (pattern: RegExp): number => (text.match(pattern) || []).length;
 
   const hiraganaKatakana = countMatches(/[\u3040-\u30ff]/g);
   const hangul = countMatches(/[\uac00-\ud7af]/g);
@@ -108,7 +113,7 @@ export function inferLanguageFromText(text: string): string {
 export function applyLowConfidenceFallback(
   language: string,
   probability?: number,
-  threshold = AUTO_LANGUAGE_FALLBACK_THRESHOLD,
+  threshold = AUTO_LANGUAGE_FALLBACK_THRESHOLD
 ): { language: string; languageProbability: number } {
   const normalizedLanguage = normalizeDetectedLanguage(language);
   const normalizedProbability =
