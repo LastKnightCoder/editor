@@ -12,6 +12,7 @@ import {
   createGrepResourceContentTool,
   createReadResourceLinesTool,
   createReadResourceRangeTool,
+  createUnifiedVibeLearningTool,
   createVibeLearningSearchTool,
 } from "@/tools/vibeLearningSearchTool";
 
@@ -258,5 +259,18 @@ describe("vibeLearningSearchTool", () => {
     const toolsModule = await import("@/tools/vibeLearningSearchTool");
 
     expect("createReadSearchHitContextTool" in toolsModule).toBe(false);
+  });
+
+  it("vibe_learning_query 缺少必需参数时应返回明确错误且不调用后端", async () => {
+    const tool = createUnifiedVibeLearningTool(1, "main.db");
+    const result = await tool.executor({
+      operation: "grep",
+      input: { resourceId: 1, pattern: "项目" },
+    });
+    const payload = parse(String((result as { content: string }).content));
+
+    expect(payload.success).toBe(false);
+    expect(String(payload.error)).toContain("query");
+    expect(electronMocks.invoke).not.toHaveBeenCalled();
   });
 });
