@@ -504,12 +504,15 @@ const runPiSingleShot = async (options: ChatStreamCoreOptions): Promise<void> =>
       },
       event => {
         const e = event as unknown as Record<string, unknown>;
+        // 旧回调契约：onUpdate(responseText=全量累计, fetchText=本次增量)——与旧链路
+        // AgentEvent 的 text-delta（event.text/event.delta）对齐，消费方（网页剪辑等）依赖此语义
         if (event.type === "text_end") {
           text = e.content as string;
-          onUpdate?.(text, text, reasoning || undefined, requestId);
+          onUpdate?.(text, "", reasoning || undefined, requestId);
         } else if (event.type === "text_delta") {
           const delta = e.delta as string;
-          onUpdate?.(text + delta, text + delta, reasoning || undefined, requestId);
+          text += delta;
+          onUpdate?.(text, delta, reasoning || undefined, requestId);
         } else if (event.type === "thinking_delta") {
           reasoning += e.delta as string;
           onReasoning?.(text, text, requestId);
