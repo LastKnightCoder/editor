@@ -157,8 +157,13 @@ export async function assembleHostSession(
       ? SessionManager.create(options.cwd, options.sessionDir)
       : SessionManager.inMemory(options.cwd),
     resourceLoader,
+    // 无 Git Bash 时不能留默认 bash 工具——pi 的 PATH 搜索会命中 System32\bash.exe（WSL 入口，
+    // 路径语义与文件工具断裂且无发行版时全失败），改为 powershell（Windows 原生路径语义一致）。
+    // WSL 作为带路径翻译层的手动选项在工具管理（M3）提供。
     settingsManager: SettingsManager.inMemory(
-      options.shellPath ? { shellPath: options.shellPath } : {}
+      options.shellPath
+        ? { shellPath: options.shellPath }
+        : { defaultTools: ["read", "powershell", "edit", "write"] }
     ),
   });
   return session;
