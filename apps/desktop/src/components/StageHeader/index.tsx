@@ -1,4 +1,4 @@
-/** 阅读区头部：图标 + 标题 + 元信息，右侧动作，末尾「对话」开关与关闭 */
+/** 阅读区头部：图标 + 标题 + 元信息，右侧动作，末尾「对话」开关与关闭（不传 onClose 则不显示关闭） */
 
 import type { ReactNode } from "react";
 import { MessageCircle, X } from "lucide-react";
@@ -11,7 +11,7 @@ interface StageHeaderProps {
   actions?: ReactNode;
   chatOpen: boolean;
   onToggleChat: () => void;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 export function StageHeader({
@@ -40,11 +40,13 @@ export function StageHeader({
           <MessageCircle className="size-4" strokeWidth={1.75} />
         </IconButton>
       </Tooltip>
-      <Tooltip content="关闭" placement="bottom">
-        <IconButton aria-label="关闭" onClick={onClose}>
-          <X className="size-4" strokeWidth={1.75} />
-        </IconButton>
-      </Tooltip>
+      {onClose && (
+        <Tooltip content="关闭" placement="bottom">
+          <IconButton aria-label="关闭" onClick={onClose}>
+            <X className="size-4" strokeWidth={1.75} />
+          </IconButton>
+        </Tooltip>
+      )}
     </div>
   );
 }

@@ -46,7 +46,7 @@ import { usePage } from "@/page/PageProvider";
 import useEditContent from "@/hooks/useEditContent";
 import { toast, ConfirmDialog, Button, IconButton, Menu, Spinner } from "@tau/ui";
 import { NOTE_ICONS } from "../appMeta";
-import { StageHeader } from "./StageHeader";
+import { StageHeader } from "@/components/StageHeader";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {

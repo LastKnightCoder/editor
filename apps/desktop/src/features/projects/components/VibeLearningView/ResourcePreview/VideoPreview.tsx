@@ -3,8 +3,8 @@ import { useAsyncEffect } from "ahooks";
 import LocalVideo from "@/components/LocalVideo";
 import { getBilibiliCacheStatus } from "@/commands/bilibili-cache";
 import { getYoutubeCacheStatus } from "@/commands/youtube-cache";
-import TranscriptPanel from "./TranscriptPanel";
-import { useTranscriptSync } from "./useTranscriptSync";
+import TranscriptPanel from "@/components/MediaTranscript/TranscriptPanel";
+import { useTranscriptSync } from "@/components/MediaTranscript/useTranscriptSync";
 import type { VLResource, BilibiliSourceMeta, YoutubeSourceMeta } from "@/types/vibe-learning";
 
 interface VideoPreviewProps {

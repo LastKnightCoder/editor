@@ -25,7 +25,7 @@ import HtmlPreview from "../ResourcePreview/HtmlPreview";
 import { GENERATE_APPS, type GenerateAppKey } from "../appMeta";
 import { isDocument, openResourceExternally, resourceIcon } from "../resourceKinds";
 import { MarkdownReader } from "./MarkdownReader";
-import { StageHeader } from "./StageHeader";
+import { StageHeader } from "@/components/StageHeader";
 
 const TYPE_LABEL: Record<string, string> = {
   pdf: "PDF",
