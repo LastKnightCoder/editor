@@ -140,14 +140,14 @@ export function WeReadBookView() {
             showToc ? "w-[232px] opacity-100" : "w-0 opacity-0"
           )}
         >
-          <FadeScroll className="mb-4 w-[232px] shrink-0 pb-1 pl-3.5 pr-1 pt-5">
+          <FadeScroll className="my-4 w-[232px] shrink-0 py-1 pl-3.5 pr-1">
             {chapters.length > 1 && (
               <NoteToc chapters={chapters} active={activeKey} onJump={jump} />
             )}
           </FadeScroll>
         </div>
-        <FadeScroll scrollRef={setScrollEl} className="mb-4 min-w-0 flex-1">
-          <div className="mx-auto max-w-[720px] px-9 pb-12 pt-7">
+        <FadeScroll scrollRef={setScrollEl} className="my-4 min-w-0 flex-1">
+          <div className="mx-auto max-w-[720px] px-9 pb-12 pt-3">
             <BookHeader
               book={book}
               counts={counts}
