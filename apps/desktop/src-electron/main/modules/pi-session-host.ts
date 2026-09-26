@@ -16,6 +16,7 @@ import { resolveV2Providers } from "./pi-ai-runtime-core";
 import type { LLMProviderSetting } from "@/types/pi-llm";
 import type { AgentSession } from "@earendil-works/pi-coding-agent";
 import { join } from "node:path";
+import { mkdirSync } from "node:fs";
 
 interface HostedSession {
   session: AgentSession;
@@ -39,9 +40,17 @@ class PiSessionHostModule {
   private static readonly sessions = new Map<string, HostedSession>();
   private static latestProviders: LLMProviderSetting[] = [];
   private static shellPath: string | undefined;
+  /** 联调取证：设置环境变量 PI_DUMP_REQUESTS=1 后，出站请求写到 ~/.editor/pi-request-dumps/ */
+  private static readonly requestDumpDir: string | undefined = process.env.PI_DUMP_REQUESTS
+    ? join(PathUtil.getAppDir(), "pi-request-dumps")
+    : undefined;
 
   public static init() {
     PiSessionHostModule.shellPath = detectBashShellPath();
+    if (PiSessionHostModule.requestDumpDir) {
+      mkdirSync(PiSessionHostModule.requestDumpDir, { recursive: true });
+      console.log(`[PiSessionHost] 请求 dump 已开启：${PiSessionHostModule.requestDumpDir}`);
+    }
 
     userSettingModule.onSettingChanged(({ newSetting }) => {
       PiSessionHostModule.latestProviders = resolveV2Providers(newSetting);
@@ -115,6 +124,9 @@ class PiSessionHostModule {
         sessionDir,
         systemPrompt: request.systemPrompt,
         shellPath: request.shellPath || PiSessionHostModule.shellPath,
+        ...(PiSessionHostModule.requestDumpDir
+          ? { dumpRequestDir: PiSessionHostModule.requestDumpDir }
+          : {}),
       });
       const unsubscribe = session.subscribe(sessionEvent => {
         if (sender.isDestroyed()) return;
