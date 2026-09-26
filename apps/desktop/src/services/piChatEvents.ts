@@ -55,11 +55,19 @@ const resultTextOf = (result: unknown): string => {
     .join("\n\n");
 };
 
+/** turnId 全局递增：同一会话的多轮发送/恢复各自新建 reducer，局部计数会撞 turnId */
+let globalTurnCounter = 0;
+
+/** 高频 message_update 快照的发布节流间隔（trailing），避免每 delta 全量 produce+渲染 */
+const SNAPSHOT_PUBLISH_INTERVAL_MS = 50;
+
 export class PiChatEventReducer {
-  private turnCounter = 0;
   private currentTurnId: string | null = null;
   private readonly executions = new Map<string, ToolCallExecutionState>();
   private readonly executionsByTurn = new Map<string, string[]>();
+  private pendingText: string | null = null;
+  private pendingReasoning: string | null = null;
+  private publishTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly sink: PiChatEventSink) {}
 
@@ -72,14 +80,41 @@ export class PiChatEventReducer {
     this.currentTurnId = null;
     this.executions.clear();
     this.executionsByTurn.clear();
+    this.flushPendingSnapshots();
+  }
+
+  /** 立即发布挂起的文本/思考快照（turn 收尾/切换/工具事件前调用，保证终态一致） */
+  private flushPendingSnapshots(): void {
+    if (this.publishTimer) {
+      clearTimeout(this.publishTimer);
+      this.publishTimer = null;
+    }
+    const turnId = this.currentTurnId;
+    const text = this.pendingText;
+    const reasoning = this.pendingReasoning;
+    this.pendingText = null;
+    this.pendingReasoning = null;
+    if (!turnId) return;
+    if (reasoning !== null) this.sink.applyReasoning(turnId, reasoning);
+    if (text !== null) this.sink.applyText(turnId, text);
+  }
+
+  /** 快照节流：高频事件只保留最新值，trailing 定时发布 */
+  private scheduleSnapshotPublish(): void {
+    if (this.publishTimer) return;
+    this.publishTimer = setTimeout(() => {
+      this.publishTimer = null;
+      this.flushPendingSnapshots();
+    }, SNAPSHOT_PUBLISH_INTERVAL_MS);
   }
 
   public handle(event: AgentSessionEvent): void {
     switch (event.type) {
       case "message_start": {
         if (event.message.role === "assistant") {
-          this.turnCounter += 1;
-          this.currentTurnId = `pi:${this.turnCounter}`;
+          this.flushPendingSnapshots();
+          globalTurnCounter += 1;
+          this.currentTurnId = `pi:${globalTurnCounter}`;
         }
         return;
       }
@@ -91,9 +126,9 @@ export class PiChatEventReducer {
         const turnId = this.currentTurnId;
         const text = contentTextOf(message.content as never);
         const thinking = contentThinkingOf(message.content as never);
-        if (thinking) this.sink.applyReasoning(turnId, thinking);
-        if (text) this.sink.applyText(turnId, text);
-        // toolCall 块出现在快照里：合成 pending 执行卡（执行事件随后补状态）
+        if (thinking) this.pendingReasoning = thinking;
+        if (text) this.pendingText = text;
+        // toolCall 块出现在快照里：合成 pending 执行卡（执行事件随后补状态）——工具事件不节流
         const toolCalls: ToolCallPayload[] = message.content
           .filter(block => block.type === "toolCall")
           .map(block => {
@@ -108,8 +143,11 @@ export class PiChatEventReducer {
             };
           });
         if (toolCalls.length > 0) {
+          this.flushPendingSnapshots();
           this.upsertPendingExecutions(turnId, toolCalls);
           this.sink.applyToolCalls(turnId, this.turnExecutions(turnId), toolCalls);
+        } else {
+          this.scheduleSnapshotPublish();
         }
         return;
       }
@@ -123,6 +161,13 @@ export class PiChatEventReducer {
           stopReason?: string;
           errorMessage?: string;
         };
+        // 终态快照直发（不经节流，丢弃 pending 状态）
+        this.pendingText = null;
+        this.pendingReasoning = null;
+        if (this.publishTimer) {
+          clearTimeout(this.publishTimer);
+          this.publishTimer = null;
+        }
         const text = contentTextOf(message.content as never);
         const thinking = contentThinkingOf(message.content as never);
         if (thinking) this.sink.applyReasoning(turnId, thinking);
@@ -145,7 +190,8 @@ export class PiChatEventReducer {
           finishReason: message.stopReason ?? "stop",
           resultType: hadToolCalls ? "tool_calls" : "response",
         });
-        if (message.errorMessage) {
+        // 用户主动停止（stopReason=aborted）不算错误——避免"停止后闪一下错误"
+        if (message.errorMessage && message.stopReason !== "aborted") {
           this.sink.onStreamError(message.errorMessage);
         }
         return;

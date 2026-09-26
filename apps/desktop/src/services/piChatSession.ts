@@ -145,7 +145,8 @@ class PiChatSessionManager {
     const sessionId = crypto.randomUUID();
     const customTools = buildToolSpecs(options);
     const outcome = await piSessionCreate(sessionId, {
-      scope: options.chatScope,
+      // scope 用会话键（`<scope前缀>:<chatId>`）：渲染层重载后 find-by-scope 靠它收养会话
+      scope: key,
       cwd: options.cwd ?? "",
       modelRef: { providerId: options.provider.id, modelId: options.model.id },
       systemPrompt: options.systemPrompt,

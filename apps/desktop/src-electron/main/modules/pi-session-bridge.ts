@@ -15,6 +15,7 @@ import type {
   TextContent,
   JsonObject,
 } from "@earendil-works/pi-ai";
+import { existsSync, readFileSync } from "node:fs";
 import type { PiHostToolCallResult, PiHostToolSpec } from "@/types/pi-session";
 import type { RequestMessage, ResponseMessage } from "@/types";
 import { Role } from "@/constants";
@@ -30,11 +31,37 @@ const ZERO_USAGE: Usage = {
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
 };
 
-/** dataURL/裸 base64/http URL → pi ImageContent（URL 经主进程下载转 base64） */
+const MIME_BY_EXTENSION: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".bmp": "image/bmp",
+};
+
+/**
+ * 桌面图片块 → pi ImageContent。image 字段常为 convertFileSrc 的 protocol URL——
+ * 优先用 path 读文件转 base64；dataURL 直接解析；http URL 经下载转 base64。
+ */
 async function toPiImageContent(
   image: string,
+  imagePath?: string,
   fallbackMime = "image/png"
 ): Promise<ImageContent | null> {
+  if (imagePath && existsSync(imagePath)) {
+    try {
+      const buffer = readFileSync(imagePath);
+      const extension = imagePath.slice(imagePath.lastIndexOf(".")).toLowerCase();
+      return {
+        type: "image",
+        data: buffer.toString("base64"),
+        mimeType: MIME_BY_EXTENSION[extension] ?? fallbackMime,
+      };
+    } catch {
+      // 读文件失败继续尝试其他来源
+    }
+  }
   const dataUrlMatch = image.match(/^data:([^;]+);base64,(.+)$/s);
   if (dataUrlMatch) {
     return { type: "image", data: dataUrlMatch[2], mimeType: dataUrlMatch[1] };
@@ -193,7 +220,7 @@ export async function desktopMessagesToPi(
         if (block.type === "text") {
           if (block.text) content.push({ type: "text", text: block.text });
         } else if (block.type === "image") {
-          const image = await toPiImageContent(block.image);
+          const image = await toPiImageContent(block.image, block.path);
           if (image) content.push(image);
         } else if (block.type === "file") {
           content.push({
