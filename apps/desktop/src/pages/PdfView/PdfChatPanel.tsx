@@ -596,7 +596,6 @@ const PdfChatPanel = forwardRef<PdfChatPanelHandle, PdfChatPanelProps>(
               ) : null}
               <div className="mb-2 flex items-center justify-between">
                 <ChatDropdownSelector
-                  chatSource="pdf-chat"
                   chats={chatsAsMessages}
                   currentChat={currentChatAsMessage}
                   onChatSelect={handleChatSelect}

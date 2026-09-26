@@ -1,5 +1,34 @@
 import Database from "better-sqlite3";
-import type { ChatRunRecord, ChatRunStatus } from "@/types/chat-run";
+import type { ChatSessionMessage } from "@/types/llm";
+
+// chat_run 表的行形状（渲染端链路已随 pi 会话驱动退役；本表与 handler 留存至 M8 删除）
+export type ChatRunStatus =
+  | "queued"
+  | "running"
+  | "retrying"
+  | "waiting_input"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "interrupted";
+
+export interface ChatRunRecord {
+  runId: string;
+  sessionKey: string;
+  source: string;
+  chatId: number;
+  status: ChatRunStatus;
+  requestPayload: ChatSessionMessage[];
+  userMessageClientId: string;
+  assistantMessageClientId: string;
+  attempt: number;
+  assistantSnapshot: string;
+  reasoningSnapshot: string;
+  toolSnapshot: unknown[];
+  errorMessage: string | null;
+  createdAt: number;
+  updatedAt: number;
+}
 
 type ChatRunRow = Record<string, any>;
 const parse = (row: ChatRunRow): ChatRunRecord => ({

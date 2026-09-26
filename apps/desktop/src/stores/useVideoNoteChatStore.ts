@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { produce } from "immer";
-import { chatRunManager } from "@/services/chatRunManager";
+import { piChatSessionManager } from "@/services/piChatSession";
 import type { ChatSessionMessage } from "@/types";
 import type { CreateVideoNoteChat, VideoNoteChatMessage } from "@/types/video-note";
 import {
@@ -140,7 +140,7 @@ const useVideoNoteChatStore = create<IState & IAction>()((set, get) => ({
 
     await Promise.all(
       Array.from(allIdsToDelete, chatId =>
-        chatRunManager.discardSession(`video-note-chat:${chatId}`)
+        piChatSessionManager.disposeChatSession("video-note-chat", chatId)
       )
     );
     await deleteVideoNoteChat(id);

@@ -234,7 +234,6 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
       <div className="box-border flex h-full flex-col p-4">
         <div className="mb-2 flex items-center justify-between">
           <ChatDropdownSelector
-            chatSource="video-note-chat"
             chats={chatsAsMessages}
             currentChat={currentChatAsMessage}
             onChatSelect={handleChatSelect}

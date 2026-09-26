@@ -16,7 +16,6 @@ import {
   unpinChatMessage,
   reorderChatMessage,
 } from "@/commands";
-import { chatRunManager } from "@/services/chatRunManager";
 import { produce } from "immer";
 import { persist } from "zustand/middleware";
 
@@ -144,8 +143,12 @@ const useChatMessageStore = create<IState & IAction>()(
           findChildren(id);
         }
 
+        // 惰性加载避免 store 顶层拉入 pi 会话链的重依赖（@/tools→MCP providers）
+        const { piChatSessionManager } = await import("@/services/piChatSession");
         await Promise.all(
-          Array.from(allIdsToDelete, chatId => chatRunManager.discardSession(`main-chat:${chatId}`))
+          Array.from(allIdsToDelete, chatId =>
+            piChatSessionManager.disposeChatSession("main-chat", chatId)
+          )
         );
         const deletedCount = await deleteChatMessage(id);
 
