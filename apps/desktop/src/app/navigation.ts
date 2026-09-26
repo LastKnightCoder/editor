@@ -111,7 +111,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "AI",
     items: [
       { key: "chat", label: "AI 对话", icon: MessageCircle, children: "chat-sessions" }, // features/chat（会话嵌侧栏 + 右侧停靠栏，D-047）
-      { key: "skills", label: "Skill 管理", icon: Sparkles }, // legacy: SkillManagement
+      { key: "skills", label: "Skill", icon: Sparkles }, // features/skills（卡片库 + 抽屉 + 整页编辑，D-060）
       { key: "mcp", label: "MCP 服务器", icon: Plug, badge: "mcp-errors" }, // features/mcp（连接失败数作徽标）
     ],
   },

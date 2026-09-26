@@ -14,17 +14,14 @@ export const getToolRegistryAgentTools = (options?: {
 }): AgentTool[] =>
   toolRegistry
     .getRegisteredTools()
-    .filter((tool) => tool.enabled)
-    .filter(
-      (tool) =>
-        options?.includeBuiltinSkillTools ||
-        !BUILTIN_SKILL_TOOL_NAMES.has(tool.name),
-    )
-    .map((tool) => ({
+    .filter(tool => tool.enabled)
+    .filter(tool => options?.includeBuiltinSkillTools || !BUILTIN_SKILL_TOOL_NAMES.has(tool.name))
+    .map(tool => ({
       name: tool.name,
       description: tool.description,
       source: tool.source,
       parameters: tool.parameters,
       execution: tool.execution,
+      risk: tool.risk,
       execute: tool.executor,
     }));

@@ -1,87 +1,85 @@
 import { invoke } from "@/electron";
-import { Skill, SkillDetail, SkillFile } from "@/types";
+import type {
+  Skill,
+  SkillDetail,
+  SkillImportInspection,
+  SkillImportSource,
+  SkillLinkedDir,
+  SkillScriptRunRequest,
+  SkillScriptRunResult,
+} from "@/types";
 
-export const listSkills = async (): Promise<Skill[]> => {
-  return invoke("skill:list");
-};
+/** 我的 + 已启用关联目录的 Skill（内置 Skill 在渲染端合并，见 useSkillStore） */
+export const listSkills = async (): Promise<Skill[]> => invoke("skill:list");
 
-export const getSkillDetail = async (
-  folderName: string,
-): Promise<SkillDetail | null> => {
-  return invoke("skill:detail", folderName);
-};
+export const getSkillDetail = async (skillPath: string): Promise<SkillDetail | null> =>
+  invoke("skill:detail", skillPath);
 
-export const getSkillReadme = async (
-  folderName: string,
-): Promise<{ name: string; readmeContent: string } | null> => {
-  return invoke("skill:readme", folderName);
-};
+export const getSkillReadme = async (skillPath: string): Promise<string | null> =>
+  invoke("skill:readme", skillPath);
 
-export const getSkillFiles = async (
-  folderName: string,
-): Promise<SkillFile[]> => {
-  return invoke("skill:files", folderName);
-};
+export const getSkillTree = async (skillPath: string): Promise<string> =>
+  invoke("skill:tree", skillPath);
 
-export const createSkillFolder = async (
+export const getSkillsDir = async (): Promise<string> => invoke("skill:get-skills-dir");
+
+export const readSkillFile = async (filePath: string): Promise<string> =>
+  invoke("skill:read-file", filePath);
+
+export const writeSkillFile = async (filePath: string, content: string): Promise<void> =>
+  invoke("skill:write-file", filePath, content);
+
+export const createSkill = async (payload: {
+  name: string;
+  description?: string;
+  manual?: boolean;
+  body?: string;
+}): Promise<Skill> => invoke("skill:create", payload);
+
+/** 移到废纸篓 */
+export const deleteSkill = async (skillPath: string): Promise<void> =>
+  invoke("skill:delete-skill", skillPath);
+
+export const createSkillEntry = async (
+  dirPath: string,
   name: string,
-  description?: string,
-): Promise<string> => {
-  return invoke("skill:create-folder", name, description);
-};
+  isDirectory: boolean
+): Promise<string> => invoke("skill:create-entry", dirPath, name, isDirectory);
 
-export const writeSkillFile = async (
-  filePath: string,
-  content: string,
-): Promise<void> => {
-  return invoke("skill:write-file", filePath, content);
-};
+export const renameSkillEntry = async (oldPath: string, newName: string): Promise<string> =>
+  invoke("skill:rename", oldPath, newName);
 
-export const deleteSkillFolder = async (folderName: string): Promise<void> => {
-  return invoke("skill:delete-folder", folderName);
-};
+export const deleteSkillEntry = async (targetPath: string): Promise<void> =>
+  invoke("skill:delete-entry", targetPath);
 
-export const getSkillsDir = async (): Promise<string> => {
-  return invoke("skill:get-skills-dir");
-};
+export const showSkillInFolder = async (filePath: string): Promise<void> =>
+  invoke("skill:show-in-folder", filePath);
 
-export const readSkillFile = async (filePath: string): Promise<string> => {
-  return invoke("skill:read-file", filePath);
-};
+export const exportSkillZip = async (skillPath: string): Promise<Uint8Array> =>
+  invoke("skill:export-zip", skillPath);
 
-export const createDirectory = async (
-  dirPath: string,
-  dirName: string,
-): Promise<string> => {
-  return invoke("skill:create-directory", dirPath, dirName);
-};
+export const getLinkedSkillDirs = async (): Promise<SkillLinkedDir[]> => invoke("skill:links:get");
 
-export const deleteFileOrFolder = async (targetPath: string): Promise<void> => {
-  return invoke("skill:delete", targetPath);
-};
+export const setLinkedSkillDirs = async (
+  links: Array<{ path: string; enabled: boolean }>
+): Promise<void> => invoke("skill:links:set", links);
 
-export const renameFileOrFolder = async (
-  oldPath: string,
-  newName: string,
-): Promise<string> => {
-  return invoke("skill:rename", oldPath, newName);
-};
+export const inspectSkillImport = async (
+  source: SkillImportSource
+): Promise<SkillImportInspection> => invoke("skill:import:inspect", source);
 
-export const createFile = async (
-  dirPath: string,
-  fileName: string,
-): Promise<string> => {
-  return invoke("skill:create-file", dirPath, fileName);
-};
+export const commitSkillImport = async (
+  token: string,
+  items: Array<{ relPath: string; overwrite?: boolean }>
+): Promise<string[]> => invoke("skill:import:commit", token, items);
 
-export const getFileTree = async (dirPath?: string): Promise<SkillFile[]> => {
-  return invoke("skill:get-file-tree", dirPath);
-};
+export const discardSkillImport = async (token: string): Promise<void> =>
+  invoke("skill:import:discard", token);
 
-export const showInFolder = async (filePath: string): Promise<void> => {
-  return invoke("skill:show-in-folder", filePath);
-};
+export const runSkillScript = async (
+  request: SkillScriptRunRequest,
+  runId?: string
+): Promise<SkillScriptRunResult> => invoke("skill:run-script", request, runId);
 
-export const getSkillTree = async (folderName: string): Promise<string> => {
-  return invoke("skill:tree", folderName);
-};
+export const cancelSkillScript = async (runId: string): Promise<boolean> =>
+  invoke("skill:cancel-script", runId);

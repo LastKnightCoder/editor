@@ -64,14 +64,19 @@ export interface ToolExecutionPolicy {
 
 export type ToolExecutor = (
   args: Record<string, unknown>,
-  context?: ToolExecutionContext,
+  context?: ToolExecutionContext
 ) => Promise<ToolExecutionResult | string | null | undefined>;
+
+/** 工具风险级别，决定工具权限模式下是否需要用户确认（见 services/tool-permission） */
+export type ToolRisk = "read" | "write" | "execute";
 
 export interface ToolDefinition {
   name: string;
   description: string;
   parameters: ToolJsonSchema;
   execution?: ToolExecutionPolicy;
+  /** 缺省视为 read */
+  risk?: ToolRisk;
   executor: ToolExecutor;
 }
 

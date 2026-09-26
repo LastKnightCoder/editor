@@ -7,10 +7,11 @@
  */
 
 import { memo, useState, type ReactNode } from "react";
-import { Ban, Check, Clock, RotateCw, TriangleAlert, X } from "lucide-react";
+import { Ban, Check, Clock, RotateCw, ShieldQuestion, TriangleAlert, X } from "lucide-react";
 import { ToolCallDisplay, type ToolCallExecutionState } from "@tau/shared";
 import { Spinner, cn } from "@tau/ui";
 import { FoldBody, FoldRow } from "./FoldRow";
+import { ToolApprovalBar } from "./ToolApprovalBar";
 
 const formatJson = (value: string) => {
   try {
@@ -27,6 +28,8 @@ function statusIcon(execution: ToolCallExecutionState): ReactNode {
   switch (execution.status) {
     case "pending":
       return <Clock strokeWidth={1.75} className="text-ink-3" />;
+    case "awaiting-approval":
+      return <ShieldQuestion strokeWidth={1.75} className="text-warn" />;
     case "executing":
       return <Spinner className="size-3 border-[1.5px]" />;
     case "retrying":
@@ -48,12 +51,14 @@ export function toolStatusText(execution: ToolCallExecutionState): string {
   switch (execution.status) {
     case "pending":
       return "等待中";
+    case "awaiting-approval":
+      return "等待确认";
     case "executing":
       return "执行中…";
     case "retrying":
       return execution.retryCount ? `重试中（${execution.retryCount}/2）` : "重试中";
     case "cancelled":
-      return "已取消";
+      return execution.metadata?.denied ? "已拒绝" : "已取消";
     case "success":
       return execution.duration ? formatToolDuration(execution.duration) : "完成";
     case "failed":
@@ -137,6 +142,15 @@ export const ToolCallBlock = memo(function ToolCallBlock({
   isDark: boolean;
   rendererContext?: Record<string, unknown>;
 }) {
+  // 等待确认时一律走通用行 + 确认条（自定义渲染器此刻还没有结果可画）
+  if (execution.status === "awaiting-approval") {
+    return (
+      <div className="min-w-0">
+        <ToolCallRow execution={execution} />
+        <ToolApprovalBar execution={execution} />
+      </div>
+    );
+  }
   return (
     <ToolCallDisplay
       executions={[execution]}

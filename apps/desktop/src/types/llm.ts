@@ -7,6 +7,8 @@ export interface TextContent {
   type: "text";
   text: string;
   mentions?: MentionRef[];
+  /** 本条消息用 `$` 点名的 Skill（folderName），发送时注入全文（D-060） */
+  skills?: string[];
 }
 
 export interface ImageContent {
@@ -42,7 +44,15 @@ export interface RequestMessage {
 export interface ToolCallExecutionState {
   toolCallId: string;
   toolName: string;
-  status: "pending" | "executing" | "success" | "failed" | "retrying" | "cancelled";
+  status:
+    | "pending"
+    | "executing"
+    | "success"
+    | "failed"
+    | "retrying"
+    | "cancelled"
+    /** 等待用户确认（工具权限模式） */
+    | "awaiting-approval";
   input: string;
   output?: string;
   error?: string;

@@ -17,10 +17,7 @@ export interface AgentFileContent {
   fileName?: string;
 }
 
-export type AgentMessageContent =
-  | AgentTextContent
-  | AgentImageContent
-  | AgentFileContent;
+export type AgentMessageContent = AgentTextContent | AgentImageContent | AgentFileContent;
 
 export interface AgentToolCall {
   id: string;
@@ -101,12 +98,7 @@ export interface AgentToolExecutionState {
   toolName: string;
   source: string;
   status:
-    | "pending"
-    | "executing"
-    | "success"
-    | "failed"
-    | "retrying"
-    | "cancelled";
+    "pending" | "executing" | "success" | "failed" | "retrying" | "cancelled" | "awaiting-approval";
   input: string;
   output?: string;
   error?: string;
@@ -130,15 +122,22 @@ export interface AgentToolExecutionPolicy {
   timeoutMs?: number | null;
 }
 
+/**
+ * 工具风险级别：read 只读；write 修改用户数据；execute 在本机执行代码 / 命令。
+ * 是否需要用户确认由宿主的 `policies.authorizeToolCall` 决定，agent 只负责暂停与回填结果。
+ */
+export type AgentToolRisk = "read" | "write" | "execute";
+
 export interface AgentTool {
   name: string;
   description: string;
   source: string;
   parameters: AgentToolJsonSchema;
   execution?: AgentToolExecutionPolicy;
+  risk?: AgentToolRisk;
   execute: (
     args: Record<string, unknown>,
-    context?: AgentToolExecutionContext,
+    context?: AgentToolExecutionContext
   ) => Promise<AgentToolExecutionResult | string | null | undefined>;
 }
 
@@ -234,9 +233,7 @@ export interface AgentModelTurnRequest {
 }
 
 export interface AgentModelAdapter {
-  streamTurn: (
-    request: AgentModelTurnRequest,
-  ) => AsyncIterable<AgentModelEvent>;
+  streamTurn: (request: AgentModelTurnRequest) => AsyncIterable<AgentModelEvent>;
 }
 
 export interface AgentModelRawChunk {
@@ -266,17 +263,32 @@ export interface AgentPreparedModelTurn {
 
 export interface AgentModelProtocolAdapter {
   prepareTurn: (
-    request: AgentModelTurnRequest,
+    request: AgentModelTurnRequest
   ) => Promise<AgentPreparedModelTurn> | AgentPreparedModelTurn;
 }
 
 export interface AgentModelTransport {
-  streamPreparedTurn: (
-    preparedTurn: AgentPreparedModelTurn,
-  ) => AsyncIterable<AgentModelEvent>;
+  streamPreparedTurn: (preparedTurn: AgentPreparedModelTurn) => AsyncIterable<AgentModelEvent>;
 }
 
+export interface AgentToolAuthorizationRequest {
+  call: AgentToolCall;
+  tool?: AgentTool;
+  execution: AgentToolExecutionState;
+  conversationKey?: string;
+  toolContext?: Record<string, unknown>;
+  signal: AbortSignal;
+}
+
+export type AgentToolAuthorizationDecision =
+  { approved: true } | { approved: false; reason?: string };
+
 export interface AgentPolicies {
+  /** 返回 true 时，执行前进入 awaiting-approval 并等待 authorizeToolCall 的决定 */
+  shouldAuthorizeToolCall?: (request: AgentToolAuthorizationRequest) => boolean;
+  authorizeToolCall?: (
+    request: AgentToolAuthorizationRequest
+  ) => Promise<AgentToolAuthorizationDecision>;
   maxToolCallLoops?: number;
   maxToolRetries?: number;
   defaultToolTimeoutMs?: number;
@@ -316,9 +328,7 @@ export interface AgentTraceSpan {
 }
 
 export interface AgentTracingAPI {
-  startSpan: (
-    span: AgentTraceSpanStart,
-  ) => AgentTraceSpan | Promise<AgentTraceSpan>;
+  startSpan: (span: AgentTraceSpanStart) => AgentTraceSpan | Promise<AgentTraceSpan>;
 }
 
 export interface AgentRuntimeExtensionsAPI {
@@ -441,15 +451,9 @@ export interface AgentRuntimeHook {
   order?: number;
   onRunInit?: (context: AgentHookBaseContext) => void | Promise<void>;
   onBeforeTurn?: (context: AgentBeforeTurnHookContext) => void | Promise<void>;
-  onAfterModelTurn?: (
-    context: AgentAfterModelTurnHookContext,
-  ) => void | Promise<void>;
-  onBeforeToolCall?: (
-    context: AgentBeforeToolCallHookContext,
-  ) => void | Promise<void>;
-  onAfterToolCall?: (
-    context: AgentAfterToolCallHookContext,
-  ) => void | Promise<void>;
+  onAfterModelTurn?: (context: AgentAfterModelTurnHookContext) => void | Promise<void>;
+  onBeforeToolCall?: (context: AgentBeforeToolCallHookContext) => void | Promise<void>;
+  onAfterToolCall?: (context: AgentAfterToolCallHookContext) => void | Promise<void>;
   onRunFinish?: (context: AgentRunFinishHookContext) => void | Promise<void>;
   onRunError?: (context: AgentRunErrorHookContext) => void | Promise<void>;
 }

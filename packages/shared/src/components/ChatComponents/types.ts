@@ -4,12 +4,7 @@
 
 /** 工具调用执行状态 */
 export type ToolCallStatus =
-  | "pending"
-  | "executing"
-  | "success"
-  | "failed"
-  | "retrying"
-  | "cancelled";
+  "pending" | "executing" | "success" | "failed" | "retrying" | "cancelled" | "awaiting-approval";
 
 /** 工具调用执行状态详情 */
 export interface ToolCallExecutionState {
@@ -62,10 +57,7 @@ export interface ToolCallsContentBlock {
 }
 
 /** 内容块联合类型 */
-export type ContentBlock =
-  | TextContentBlock
-  | ReasoningContentBlock
-  | ToolCallsContentBlock;
+export type ContentBlock = TextContentBlock | ReasoningContentBlock | ToolCallsContentBlock;
 
 /** 消息角色 */
 export type MessageRole = "user" | "assistant" | "system" | "tool";

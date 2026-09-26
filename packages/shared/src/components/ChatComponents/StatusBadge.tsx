@@ -17,6 +17,7 @@ const defaultStatusText: Record<ToolCallStatus, string> = {
   failed: "失败",
   retrying: "重试",
   cancelled: "已取消",
+  "awaiting-approval": "等待确认",
 };
 
 /** 状态颜色映射 */
@@ -27,24 +28,27 @@ const statusColors: Record<ToolCallStatus, string> = {
   failed: "bg-red-500",
   retrying: "bg-yellow-500",
   cancelled: "bg-gray-500",
+  "awaiting-approval": "bg-yellow-500",
 };
 
-export const StatusBadge: React.FC<StatusBadgeProps> = memo(
-  function StatusBadge({ status, statusText, className }) {
-    const text = statusText?.[status] ?? defaultStatusText[status];
+export const StatusBadge: React.FC<StatusBadgeProps> = memo(function StatusBadge({
+  status,
+  statusText,
+  className,
+}) {
+  const text = statusText?.[status] ?? defaultStatusText[status];
 
-    return (
-      <span
-        className={classNames(
-          "px-1.5 py-0.5 rounded text-xs text-white",
-          statusColors[status],
-          className,
-        )}
-      >
-        {text}
-      </span>
-    );
-  },
-);
+  return (
+    <span
+      className={classNames(
+        "rounded px-1.5 py-0.5 text-xs text-white",
+        statusColors[status],
+        className
+      )}
+    >
+      {text}
+    </span>
+  );
+});
 
 export default StatusBadge;

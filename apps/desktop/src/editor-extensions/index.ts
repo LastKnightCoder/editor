@@ -1,4 +1,5 @@
 import ContentLinkExtension from "./content-link";
+import SkillRefExtension from "./skill-ref";
 import FileAttachmentExtension from "./file-attachment";
 import ProjectCardListExtension from "./project-card-list";
 import InlineAIAssistantExtension from "./inline-ai-assistant";
@@ -10,6 +11,7 @@ export const createProjectCardListExtension = (projectId?: number) =>
   new ProjectCardListExtension(projectId);
 
 export const contentLinkExtension = new ContentLinkExtension();
+export const skillRefExtension = new SkillRefExtension();
 export const fileAttachmentExtension = new FileAttachmentExtension();
 export const inlineAIAssistantExtension = new InlineAIAssistantExtension();
 

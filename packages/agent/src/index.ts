@@ -3,6 +3,7 @@ export { composeAgentModel } from "./core/composeAgentModel";
 export { createAbortError, isAbortError } from "./core/abort";
 export { ConsoleAgentObserver } from "./observers/ConsoleAgentObserver";
 export { PerformanceAgentObserver } from "./observers/PerformanceAgentObserver";
+export { getForcedSkillIds } from "./contributors/SkillMessageContributor";
 
 export type {
   AgentConfig,
@@ -48,6 +49,9 @@ export type {
   AgentToolExecutionPolicy,
   AgentToolExecutionResult,
   AgentToolExecutionState,
+  AgentToolAuthorizationDecision,
+  AgentToolAuthorizationRequest,
+  AgentToolRisk,
   AgentToolJsonSchema,
   AgentToolParameterSchema,
   AgentToolSource,

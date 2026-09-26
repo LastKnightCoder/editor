@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>方案 A · 列表 + 工作区</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<link rel="stylesheet" href="../mcp/mcp.css?v=1" />
+<link rel="stylesheet" href="skills.css?v=1" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+<div class="mock-note">
+  <h3>方案 A · 列表 + 工作区（参考 Claude Code / VS Code 的 skills 目录心智、现有 Skill 管理页的结构）</h3>
+  左列是 Skill 清单（我的 / 内置 / 关联目录三组，行内开关 + 调用方式），右侧是选中 Skill 的工作区：概览 / 文件 / 设置 / 使用记录四个标签页。「文件」标签就是这个 Skill 自己的文件树 + 编辑器，不再是整个 skills 目录一棵树。
+  <ul>
+    <li>列表顶部常驻「上下文预算」：所有自动 Skill 的描述合计占多少 tokens，描述过长的标黄。</li>
+    <li class="pro">＋ 与现有页面结构最接近，迁移成本最低；切换 Skill 查看 / 编辑不用开合任何东西，Skill 多了也清楚。</li>
+    <li class="con">－ 编辑区被左列挤窄，写长 SKILL.md 时不如整页编辑器舒展；「试一试」放不下，只能跳去新对话。</li>
+  </ul>
+</div>
+
+<div class="stage"><div class="win" id="win"></div></div>
+
+<script type="module">
+import { mockBar, sidebar, titlebar, anno, icons, ic, tg, SKILLS, byId, bySrc, modeBadge, srcBadge, budget, detailHead, tabs, pane, addDialog, slashMenu, slashScene } from "./skills.js?v=1";
+
+mockBar("a-split.html", `<span class="seg"><button data-m="overview">概览</button><button data-m="files">文件编辑</button><button data-m="settings">设置</button><button data-m="usage">使用记录</button><button data-m="warn">异常项</button><button data-m="add">添加</button><button data-m="slash">输入框 /</button></span>`);
+
+const win = document.getElementById("win");
+const state = { id: "weekly-report", tab: "overview", add: null, slash: false };
+
+function row(s) {
+  const sub = s.warn && !s.desc ? `<span class="s-warn"><i data-lucide="circle-alert"></i>缺少描述</span>` : `${modeBadge(s)}<span style="margin-left:6px">${s.desc || ""}</span>`;
+  return `
+  <div class="x-row ${s.id === state.id ? "on" : ""} ${s.on ? "" : "off"}" data-id="${s.id}">
+    ${ic(s)}
+    <div class="main-t"><div class="n">${s.title}${s.src === "linked" ? `<i data-lucide="link-2" style="width:12px;color:var(--ink-3)"></i>` : ""}</div><div class="s" style="display:flex;align-items:center">${sub}</div></div>
+    ${tg(s.on, true)}
+  </div>`;
+}
+
+function list() {
+  return `
+  <div class="x-list">
+    <div class="x-list-head">
+      <div class="t">Skill<span class="num" style="font-weight:400;color:var(--ink-3);font-size:12px">${SKILLS.length}</span><span style="flex:1"></span>
+        <button class="ib" title="关联目录 / 导入"><i data-lucide="folder-symlink"></i></button>
+        <button class="btn primary" id="add" style="height:28px"><i data-lucide="plus"></i>添加</button></div>
+      <div class="x-search"><i data-lucide="search"></i>搜索名称或描述</div>
+      ${budget({ compact: true })}
+    </div>
+    <div class="x-list-body">
+      <div class="x-gt">我的<span class="sp"></span><span class="num">${bySrc("mine").length}</span></div>
+      ${bySrc("mine").map(row).join("")}
+      <div class="x-gt">内置<span class="sp"></span>随应用更新</div>
+      ${bySrc("builtin").map(row).join("")}
+      <div class="x-gt"><i data-lucide="link-2" style="width:12px"></i>关联目录 · ~/.claude/skills<span class="sp"></span><span class="x-link" style="font-size:11.5px">管理</span></div>
+      ${bySrc("linked").map(row).join("")}
+    </div>
+  </div>`;
+}
+
+function render() {
+  const s = byId(state.id);
+  const main = state.slash
+    ? slashScene()
+    : `<section class="paper x-paper">${list()}
+        <div class="x-detail">${detailHead(s)}${tabs(s, state.tab)}
+          <div class="x-pane" ${state.tab === "files" ? 'style="display:flex;flex-direction:column"' : ""}>${pane(s, state.tab, { source: state.source })}</div>
+        </div></section>`;
+  win.innerHTML = `
+    ${sidebar()}
+    <div class="col">
+      ${titlebar(state.slash ? `<b>AI 对话</b>` : `<b>Skill 管理</b>`)}
+      <div class="main">${main}</div>
+    </div>
+    ${state.add ? addDialog(state.add) : ""}
+    ${state.slash ? slashMenu("left:470px;bottom:150px") + anno(1, "输入 / 唤出 Skill 列表，选中后以芯片挂在输入框上；AI 自动加载的会在回复顶部显示「已加载 Skill」", "left:960px;top:520px;max-width:260px") : ""}
+    ${!state.slash && !state.add && state.tab === "overview" ? anno(1, "常驻上下文预算：自动 Skill 的描述合计 tokens", "left:250px;top:170px") + anno(2, "「AI 看到的描述」单独高亮——这是 Skill 能否被正确触发的关键", "left:560px;top:215px;max-width:260px") : ""}`;
+  icons();
+  document.querySelectorAll(".mock-bar .seg button").forEach(b => b.classList.toggle("on", b.dataset.m === (state.add ? "add" : state.slash ? "slash" : state.id === "paper-reading" ? "warn" : state.tab)));
+  win.querySelectorAll(".x-row[data-id]").forEach(r => (r.onclick = () => { state.id = r.dataset.id; state.tab = "overview"; render(); }));
+  win.querySelectorAll("[data-tab]").forEach(t => (t.onclick = () => { state.tab = t.dataset.tab; render(); }));
+  win.querySelectorAll("[data-edit]").forEach(t => (t.onclick = () => { state.tab = "files"; render(); }));
+  win.querySelectorAll("[data-add]").forEach(t => (t.onclick = () => { state.add = t.dataset.add; render(); }));
+  win.querySelectorAll("[data-close]").forEach(t => (t.onclick = () => { state.add = null; render(); }));
+  win.querySelectorAll("[data-src]").forEach(t => (t.onclick = () => { state.source = t.dataset.src === "1"; render(); }));
+  const a = win.querySelector("#add"); if (a) a.onclick = () => { state.add = "new"; render(); };
+}
+document.querySelectorAll(".mock-bar .seg button").forEach(b => (b.onclick = () => {
+  const m = b.dataset.m;
+  Object.assign(state, { add: m === "add" ? "new" : null, slash: m === "slash" });
+  if (m === "warn") Object.assign(state, { id: "paper-reading", tab: "overview" });
+  else if (!["add", "slash"].includes(m)) Object.assign(state, { id: "weekly-report", tab: m });
+  render();
+}));
+render();
+</script>
+</body>
+</html>
