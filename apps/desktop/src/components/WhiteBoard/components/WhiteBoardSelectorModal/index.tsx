@@ -29,6 +29,7 @@ const WhiteBoardSelectorModal = ({
 }: WhiteBoardSelectorModalProps) => {
   // Reference modal state
   const [allWhiteBoards, setAllWhiteBoards] = useState<IWhiteBoard[]>([]);
+  const [loadingWhiteBoards, setLoadingWhiteBoards] = useState(false);
   const [selectedWhiteBoards, setSelectedWhiteBoards] = useState<IWhiteBoard[]>([]);
   const [selectWhiteBoardModalOpen, setSelectWhiteBoardModalOpen] = useState(false);
   const [selectSubWhiteBoardModalOpen, setSelectSubWhiteBoardModalOpen] = useState(false);
@@ -39,9 +40,10 @@ const WhiteBoardSelectorModal = ({
   useEffect(() => {
     if (open && action === "reference") {
       setSelectWhiteBoardModalOpen(true);
-      getAllWhiteBoards().then(whiteBoards => {
-        setAllWhiteBoards(whiteBoards);
-      });
+      setLoadingWhiteBoards(true);
+      getAllWhiteBoards()
+        .then(setAllWhiteBoards)
+        .finally(() => setLoadingWhiteBoards(false));
     }
   }, [open, action]);
 
@@ -182,6 +184,7 @@ const WhiteBoardSelectorModal = ({
         open={selectWhiteBoardModalOpen}
         title="选择白板"
         multiple={false}
+        loading={loadingWhiteBoards}
         onCancel={handleCancel}
         onChange={setSelectedWhiteBoards}
         onOk={handleWhiteBoardSelect}
