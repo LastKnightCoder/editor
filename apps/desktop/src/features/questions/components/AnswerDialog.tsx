@@ -1,7 +1,7 @@
 /**
  * 独立答案编辑：只属于这个问题的结论（不进卡片库）。
  * 新建：本地编辑，保存时建 content 并挂上（问题独占首个引用）；空内容不保存。
- * 编辑：直接编辑已有 content，节流自动保存。
+ * 编辑：直接编辑已有 content，节流自动保存；正文上方钉元信息行（时间 / 字数 /「创建为」）。
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -12,6 +12,7 @@ import ContentEditor from "@/components/ContentEditor";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import useEditContent from "@/hooks/useEditContent";
 import { getContentLength } from "@/utils";
+import { AnswerMetaBar } from "./AnswerMetaBar";
 
 const EMPTY: Descendant[] = [
   { type: "paragraph", children: [{ type: "formatted", text: "" }] } as Descendant,
@@ -28,16 +29,20 @@ export function AnswerDialog({
 }: {
   state: AnswerDialogState | null;
   onClose(): void;
-  onCreate(content: Descendant[]): Promise<void>;
+  /** 新建模式的落库；编辑模式直接自动保存已有 content，不需要 */
+  onCreate?(content: Descendant[]): Promise<void>;
 }) {
   const open = state !== null;
   const [content, setContent] = useState<Descendant[]>(EMPTY);
   const [saving, setSaving] = useState(false);
   const editorRef = useRef<EditorRef>(null);
   const editing = state?.mode === "edit" ? state.contentId : undefined;
-  const { throttleHandleEditorContentChange } = useEditContent(
+  const { throttleHandleEditorContentChange, flush } = useEditContent(
     editing,
-    value => editorRef.current?.setEditorValue(value),
+    value => {
+      editorRef.current?.setEditorValue(value);
+      setContent(value);
+    },
     editing != null
   );
 
@@ -56,7 +61,7 @@ export function AnswerDialog({
     }
     setSaving(true);
     try {
-      await onCreate(content);
+      await onCreate?.(content);
       onClose();
     } catch {
       toast.error("保存失败");
@@ -96,6 +101,9 @@ export function AnswerDialog({
         )
       }
     >
+      {editing != null && (
+        <AnswerMetaBar contentId={editing} content={content} onBeforeCreate={flush} />
+      )}
       <div className="border-line-2 mt-[14px] min-h-0 flex-1 overflow-y-auto border-t px-6 py-4">
         {open && (
           <ErrorBoundary>
@@ -106,8 +114,8 @@ export function AnswerDialog({
               initValue={EMPTY}
               readonly={false}
               onChange={value => {
+                setContent(value);
                 if (editing != null) throttleHandleEditorContentChange(value);
-                else setContent(value);
               }}
               placeHolder="用自己的话回答这个问题…"
               className="text-tau-body min-h-full"
