@@ -1,5 +1,5 @@
 import { useState, useMemo, memo, lazy, Suspense, useRef, useEffect } from "react";
-import { Loading, toast } from "@tau/ui";
+import { Loading, cn, toast } from "@tau/ui";
 import { useMemoizedFn } from "ahooks";
 import { useShallow } from "zustand/react/shallow";
 import "katex/dist/katex.min.css";
@@ -25,6 +25,41 @@ interface VideoNoteChatPanelProps {
   videoNoteId: number;
   mainDbName: string;
   transcript: string;
+  /** 停靠在右栏（窄）：水平留白收紧、输入区紧凑 */
+  docked?: boolean;
+}
+
+/** 新对话的建议提问：总结不再是独立功能，交给对话 */
+const SUGGESTED_PROMPTS = ["总结这个视频的核心观点", "按章节列出要点和时间点", "出 5 道自测题"];
+
+function ChatEmptyState({
+  hasTranscript,
+  onPick,
+}: {
+  hasTranscript: boolean;
+  onPick: (prompt: string) => void;
+}) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center px-6 pb-10 text-center">
+      <h2 className="text-tau-title text-ink-1 font-semibold">问问这个视频</h2>
+      {hasTranscript ? (
+        <div className="mt-4 flex w-full max-w-[320px] flex-col gap-2">
+          {SUGGESTED_PROMPTS.map(prompt => (
+            <button
+              key={prompt}
+              type="button"
+              onClick={() => onPick(prompt)}
+              className="bg-sunken text-tau-meta text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm ease-tau-out px-3 py-2 text-left transition-colors duration-[160ms]"
+            >
+              {prompt}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="text-tau-meta text-ink-3 mt-2">转录完成后，AI 才能基于视频内容回答</p>
+      )}
+    </div>
+  );
 }
 
 const createDefaultChat = (systemPrompt: string): ChatMessage => ({
@@ -49,6 +84,7 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
   videoNoteId,
   mainDbName,
   transcript,
+  docked = false,
 }) => {
   const { isDark } = useTheme();
   const editTitleRef = useRef<EditTextHandle>(null);
@@ -231,8 +267,8 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
 
   return (
     <MarkdownProvider isDark={isDark} isVisible={true}>
-      <div className="box-border flex h-full flex-col p-4">
-        <div className="mb-2 flex items-center justify-between">
+      <div className={cn("box-border flex h-full min-h-0 flex-col pb-3", docked ? "px-3" : "px-5")}>
+        <div className="flex h-[52px] shrink-0 items-center justify-between">
           <ChatDropdownSelector
             chatSource="video-note-chat"
             chats={chatsAsMessages}
@@ -268,6 +304,18 @@ const VideoNoteChatPanel: React.FC<VideoNoteChatPanelProps> = ({
               customSystemPrompt={systemPrompt}
               onCreateChat={handleExternalCreateChat}
               onCreateBranch={handleExternalCreateBranch}
+              compact={docked}
+              contentMaxWidth={docked ? undefined : 760}
+              emptyState={
+                <ChatEmptyState
+                  hasTranscript={!!transcript}
+                  onPick={prompt => {
+                    void chatContainerRef.current?.sendUserMessage([
+                      { type: "text", text: prompt },
+                    ]);
+                  }}
+                />
+              }
             />
           </Suspense>
         )}
