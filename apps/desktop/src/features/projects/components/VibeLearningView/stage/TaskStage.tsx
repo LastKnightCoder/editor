@@ -23,7 +23,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { GENERATE_APPS, NOTE_ICONS } from "../appMeta";
 import { cancelVLTask, retryVLTask } from "../tasks/runner";
 import type { VLTask, VLTaskKind, VLTaskTurn } from "../tasks/store";
-import { StageHeader } from "./StageHeader";
+import { StageHeader } from "@/components/StageHeader";
 
 const DOC_KINDS: VLTaskKind[] = ["outline", "highlights", "article"];
 const HTML_KINDS: VLTaskKind[] = ["ppt", "report", "ppt_edit", "report_edit"];
