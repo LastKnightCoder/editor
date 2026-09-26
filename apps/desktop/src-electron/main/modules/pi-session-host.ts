@@ -31,6 +31,8 @@ export interface PiSessionCreateRequest {
   systemPrompt?: string;
   /** 持久会话目录相对库名（默认当前活跃库）；传 null 强制 inMemory（测试/单轮） */
   persist?: boolean;
+  /** 手动指定 bash.exe（pi-dev 面板联调用；产品化的设置项在 M3 工具管理落地） */
+  shellPath?: string;
 }
 
 class PiSessionHostModule {
@@ -112,7 +114,7 @@ class PiSessionHostModule {
         modelRef: request.modelRef,
         sessionDir,
         systemPrompt: request.systemPrompt,
-        shellPath: PiSessionHostModule.shellPath,
+        shellPath: request.shellPath || PiSessionHostModule.shellPath,
       });
       const unsubscribe = session.subscribe(sessionEvent => {
         if (sender.isDestroyed()) return;

@@ -11,6 +11,8 @@ export interface PiSessionCreateOptions {
   modelRef: { providerId: string; modelId: string };
   systemPrompt?: string;
   persist?: boolean;
+  /** 手动指定 bash.exe（pi-dev 面板联调用；产品化设置项在 M3 落地） */
+  shellPath?: string;
 }
 
 interface Outcome {

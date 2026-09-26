@@ -114,6 +114,7 @@ export const PiDevView = () => {
   );
   const [providerId, setProviderId] = useState("");
   const [modelId, setModelId] = useState("");
+  const [shellPath, setShellPath] = useState("");
   const activeProvider = providers.find(p => p.id === providerId) ?? providers[0];
   const activeModel =
     activeProvider?.models.find(m => m.id === modelId) ?? activeProvider?.models[0];
@@ -137,6 +138,7 @@ export const PiDevView = () => {
       cwd: "",
       modelRef: { providerId: activeProvider.id, modelId: activeModel.id },
       persist: false,
+      ...(shellPath.trim() ? { shellPath: shellPath.trim() } : {}),
     });
   };
 
@@ -187,6 +189,13 @@ export const PiDevView = () => {
             </option>
           ))}
         </select>
+        <input
+          className="rounded-tau-sm border-line-2 bg-surface text-tau-xs w-64 border px-2 py-1 font-mono"
+          placeholder="bash.exe 路径（留空自动探测）"
+          title="Git Bash 的 bash.exe 完整路径，填写后需关闭并重建会话生效"
+          value={shellPath}
+          onChange={e => setShellPath(e.target.value)}
+        />
         {sessionId ? (
           <button
             className="rounded-tau-sm border-line-2 text-tau-sm hover:bg-accent-soft border px-2 py-1"
