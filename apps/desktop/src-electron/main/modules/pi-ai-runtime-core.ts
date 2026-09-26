@@ -57,10 +57,12 @@ export function buildPiProvider(setting: LLMProviderSetting): Provider {
     auth: {
       apiKey: {
         name: `${setting.name}（应用设置）`,
+        // pi 把缺失 key 视为「未配置 provider」直接拒绝请求；无 key 本地网关（Ollama 等）
+        // 必须塞占位 key 才能放行——网关会忽略 Authorization 头
         resolve: async () =>
           setting.apiKey
             ? { auth: { apiKey: setting.apiKey }, source: "app-settings" }
-            : { auth: {}, source: "app-settings" },
+            : { auth: { apiKey: "no-key-required" }, source: "app-settings(keyless)" },
       },
     },
     models: setting.models.map(m => toPiModel(m, setting)),

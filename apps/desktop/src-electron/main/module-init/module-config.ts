@@ -12,6 +12,7 @@ import collaborationModule from "../modules/collaboration";
 import llmModule from "../modules/llm";
 import streamFetchModule from "../modules/stream-fetch";
 import piAiRuntimeModule from "../modules/pi-ai-runtime";
+import piSessionHostModule from "../modules/pi-session-host";
 import mcpModule from "../modules/mcp";
 import aliOssModule from "../modules/ali-oss";
 import s3Module from "../modules/s3";
@@ -242,6 +243,15 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
     dependencies: ["logger"],
     init: async () => {
       piAiRuntimeModule.init();
+    },
+  },
+  {
+    name: "pi-session",
+    group: ModuleGroup.AI,
+    layer: InitLayer.BACKGROUND,
+    dependencies: ["logger"],
+    init: async () => {
+      piSessionHostModule.init();
     },
   },
   {
