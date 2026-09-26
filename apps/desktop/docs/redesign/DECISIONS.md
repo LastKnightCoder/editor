@@ -646,3 +646,15 @@
 - 协作：沿用 `ContentCollaborationControl`（标题栏成员条 + ⋯「发起协作 / 协作成员」），状态栏共享时显示协作连接态，frozen 期间横幅 + 只读。标题绑定会话文档的 title（`CollaborativeTitleField`），本地与共享模式一致。加入他人共享（本机无实体）的文档不进编辑窗口。
 - 数据库：按 URL 的库名连接（协作页「回到原内容」会开其它数据库的文档）；**不再在卸载时 `closeDatabase`**——连接全局共享，旧页面关库会连带主窗口失去连接。
 - 主进程：删除 `modules/window-manager.ts`，改为 `main/windows/`：`createWindow`（唯一的 BrowserWindow 构造入口：标题栏形态 custom / native / none、事件转发、加载、Win 最后可见窗口关闭即退出）、`window-registry`（键控窗口表）、`window-state`（按类型记忆尺寸位置 + 级联错开）、按窗口类型各一个模块、`ipc.ts` 统一注册。新 IPC `open-editor-window` / `close-editor-window`（`@tau/platform` `WindowApi.openEditorWindow` / `closeEditorWindow`）替代三条 `open-*-in-new-window` 与 `close-article-window`；ws 端保留三条旧方法名供 CLI 调用（此前文章 / 项目文档两条在 ws 端未注册）。模块初始化窗口类型 card / article / project-item 合并为 `editor`。
+
+## D-064 Markdown 文件窗口重设计（对标 Typora）
+
+（2026-09-26，已定；样板间 `mockups/markdown-window/`）
+
+- 定位：编辑磁盘上的 Markdown 文件 / 文件夹，与 D-063 的数据库文档编辑窗口分开；外壳同一语言（`AuxWindowTitlebar` 自绘标题栏，Win 也自绘三键；page 底上的纸面）。路由 `/markdown-window?filePath= | rootPath=`，无参数为欢迎页；旧 `pages/SingleMarkdownEditor` 整体删除。
+- 布局：左侧栏落在 page 底上，页签「文件 / 大纲」（大纲进侧栏，同 Typora）；标题栏 = 侧栏开关（⌘\）· 路径面包屑（未保存时 accent 圆点）· 主题 · ⋯。单文件打开时侧栏默认收起。全文搜索页签下一轮。
+- 源码模式入口刻意低调：⌘/ + 状态栏最左淡色 `</>`（开启时轻染）+ ⋯「源码模式」勾选项，标题栏不放；光标双向映射沿用旧逻辑（`markdown/useSourceMode.ts`）。
+- 文件树：文件与文件夹都有右键菜单（新建文件 / 文件夹、重命名、复制路径 / 相对路径、在访达中显示、移到废纸篓）；新建与重命名行内输入；拖拽移动；文件名筛选（递归扫描，上限 5000 条）；默认隐藏点开头的文件、node_modules 与不支持的类型（⋯「显示所有文件」）；展开状态按根目录记忆；目录变化只刷新那一层。删除改走 `shell.trashItem`（新 IPC `trash-item`）。
+- 保存：每个文件一个编辑会话（`useTextFileSession`，视图按路径 key 重建），切换 / 改名 / 删除 / 关窗前先 flush——修掉旧实现切到代码 / 图片文件后自动保存可能把 Markdown 写进该文件的问题。当前内容序列化后等于「原文的归一化结果」时按原文比较，只打开不修改不会改写文件。外部修改：无本地改动静默载入；冲突与文件被删改为纸面横幅（载入外部 / 保留我的；重新保存 / 另存为），不再弹 Modal。
+- 其它：粘贴图片仍存 md 同目录；不做多文件标签页；去掉只读开关；宽版心进 ⋯；复制（Markdown / 公众号）与导出（Markdown / 图片 / EPUB / PDF）进 ⋯。最近打开改为文件与文件夹都记（最多 10 条，Dock / 任务栏取前 5）；新主窗口命令面板加「打开 Markdown 文件 / 文件夹」；主进程 `open-markdown-window` 只收一个可选路径并自行判断文件 / 文件夹，欢迎页每次新开。
+- **追记（同日，不开主应用直接打开文件夹）**：命令行带路径、双击 .md、Windows 文件夹右键「使用 Tau 打开」（`build/installer.nsh` 早已注册）冷启动时都跳过主窗口。补齐 macOS：`electron-builder.yml` 的 `mac.extendInfo` 声明文件夹文档类型（`public.folder`，`LSHandlerRank: Alternate`，只作访达「打开方式」备选），补 `.markdown` 关联；`open-file` 改为文件夹也接收，统一走 `handleFileOrFolder`。

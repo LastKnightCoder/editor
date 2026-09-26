@@ -3,22 +3,27 @@ import path from "node:path";
 import fs from "node:fs";
 import log from "electron-log";
 
+/** 最近打开的 Markdown 文件或文件夹（Markdown 窗口欢迎页 + Dock / 任务栏菜单） */
 interface RecentProject {
   path: string;
   name: string;
   lastOpened: number;
 }
 
+interface RecentEntry extends RecentProject {
+  isDirectory: boolean;
+}
+
+// 系统菜单只放前几个，欢迎页展示完整列表
+const JUMP_LIST_SIZE = 5;
+
 class RecentProjectsModule {
   private recentProjectsFile: string;
-  private maxRecentProjects = 3;
+  private maxRecentProjects = 10;
   private onProjectOpen?: (projectPath: string) => void;
 
   constructor() {
-    this.recentProjectsFile = path.join(
-      app.getPath("userData"),
-      "recent-projects.json",
-    );
+    this.recentProjectsFile = path.join(app.getPath("userData"), "recent-projects.json");
   }
 
   // 设置项目打开回调
@@ -53,7 +58,7 @@ class RecentProjectsModule {
       const projects = this.getRecentProjects();
 
       // 检查是否已存在，如果存在则移除旧的
-      const existingIndex = projects.findIndex((p) => p.path === projectPath);
+      const existingIndex = projects.findIndex(p => p.path === projectPath);
       if (existingIndex !== -1) {
         projects.splice(existingIndex, 1);
       }
@@ -69,11 +74,7 @@ class RecentProjectsModule {
       const trimmedProjects = projects.slice(0, this.maxRecentProjects);
 
       // 保存到文件
-      fs.writeFileSync(
-        this.recentProjectsFile,
-        JSON.stringify(trimmedProjects, null, 2),
-        "utf-8",
-      );
+      fs.writeFileSync(this.recentProjectsFile, JSON.stringify(trimmedProjects, null, 2), "utf-8");
 
       log.info(`已添加最近项目: ${projectPath}`);
 
@@ -84,35 +85,46 @@ class RecentProjectsModule {
     }
   }
 
+  /** 附带类型并剔除已不存在的路径 */
+  getRecentEntries(): RecentEntry[] {
+    return this.getRecentProjects().flatMap(project => {
+      try {
+        return [{ ...project, isDirectory: fs.statSync(project.path).isDirectory() }];
+      } catch {
+        return [];
+      }
+    });
+  }
+
   // 更新任务栏跳转列表（Windows）或 Dock 菜单（macOS）
   updateJumpList(): void {
-    const projects = this.getRecentProjects();
+    const projects = this.getRecentProjects().slice(0, JUMP_LIST_SIZE);
 
     if (process.platform === "win32") {
       // Windows: 使用 Jump List
       app.setUserTasks(
-        projects.map((project) => ({
+        projects.map(project => ({
           program: process.execPath,
           arguments: `"${project.path}"`,
           iconPath: process.execPath,
           iconIndex: 0,
           title: project.name,
           description: `打开项目: ${project.path}`,
-        })),
+        }))
       );
       log.info("已更新 Windows Jump List");
     } else if (process.platform === "darwin") {
       // macOS: 使用 Dock 菜单
       if (app.dock) {
         const dockMenu = Menu.buildFromTemplate(
-          projects.map((project) => ({
+          projects.map(project => ({
             label: project.name,
             click: () => {
               if (this.onProjectOpen) {
                 this.onProjectOpen(project.path);
               }
             },
-          })),
+          }))
         );
         app.dock.setMenu(dockMenu);
         log.info("已更新 macOS Dock 菜单");
@@ -135,7 +147,7 @@ class RecentProjectsModule {
   // 注册 IPC 监听器
   registerListeners(): void {
     ipcMain.handle("get-recent-projects", () => {
-      return this.getRecentProjects();
+      return this.getRecentEntries();
     });
 
     ipcMain.handle("add-recent-project", (_event, projectPath: string) => {

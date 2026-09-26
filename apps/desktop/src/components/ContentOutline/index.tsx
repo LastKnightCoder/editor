@@ -30,6 +30,8 @@ interface ContentOutlineProps {
    * toDOMNode 会抛错），按序索引实时 editor.children 才能拿到可解析的节点
    */
   resolveAnchor?: (header: OutlineHeader, index: number) => HTMLElement | null;
+  /** 顶部「大纲」小标题（外层已有标题时关掉，如侧栏页签） */
+  showTitle?: boolean;
   className?: string;
 }
 
@@ -64,6 +66,7 @@ export function ContentOutline({
   headers,
   scrollEl,
   resolveAnchor,
+  showTitle = true,
   className,
 }: ContentOutlineProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -132,9 +135,11 @@ export function ContentOutline({
 
   return (
     <nav aria-label="大纲" className={cn("w-[208px]", className)}>
-      <div className="px-0.5 pb-2">
-        <b className="text-tau-sm font-semibold">大纲</b>
-      </div>
+      {showTitle && (
+        <div className="px-0.5 pb-2">
+          <b className="text-tau-sm font-semibold">大纲</b>
+        </div>
+      )}
       {headers.map((header, index) => (
         <button
           key={header.id}

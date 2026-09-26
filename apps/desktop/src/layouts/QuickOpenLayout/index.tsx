@@ -20,7 +20,6 @@ interface QuickOpenLayoutProps {
  * 根据路由路径推断窗口类型
  */
 function getWindowTypeFromPath(pathname: string): string {
-  if (pathname.includes("single-markdown-editor")) return "markdown";
   if (pathname.includes("todo")) return "todo";
   if (pathname.includes("pomodoro/mini")) return "pomodoro-mini";
   if (pathname.includes("pomodoro/immersive")) return "pomodoro-immersive";
@@ -39,8 +38,6 @@ const QuickOpenLayout = ({ title }: QuickOpenLayoutProps) => {
 
   // 推断窗口类型
   const windowType = getWindowTypeFromPath(location.pathname);
-  // Markdown 编辑器跳过加载等待
-  const skipLoading = windowType === "markdown";
 
   const isDark = useSettingStore(state => state.setting.darkMode);
   const onDarkModeChange = useSettingStore(state => state.onDarkModeChange);
@@ -57,7 +54,7 @@ const QuickOpenLayout = ({ title }: QuickOpenLayoutProps) => {
   };
 
   return (
-    <FullScreenLoading windowType={windowType} skipLoading={skipLoading}>
+    <FullScreenLoading windowType={windowType}>
       <div className={classnames(styles.defaultLayout, "bg-white dark:bg-[#1a1a1a]")}>
         {showTitlebar && (
           <GlobalTitlebar title={title}>
