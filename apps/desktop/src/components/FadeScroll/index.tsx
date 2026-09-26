@@ -1,7 +1,6 @@
 import { useCallback, useState, type ReactNode, type Ref } from "react";
-import clsx from "clsx";
 import { motion } from "motion/react";
-import { FADE_SCROLL_CLASS, useEdgeFade } from "@tau/ui";
+import { cn, FADE_SCROLL_CLASS, useEdgeFade } from "@tau/ui";
 
 interface FadeScrollProps {
   className?: string;
@@ -15,7 +14,7 @@ interface FadeScrollProps {
 /**
  * 面板内的纵向滚动区：接 edge fade（对齐壳层 useEdgeFade 协议），只在可滚方向渐隐，
  * 内容不贴着面板边缘被硬切；滚动条内缩不贴右缘。右侧 6px 透明边算在宽度里，
- * 调用方右内边距相应减 6px。
+ * 调用方右内边距相应减 6px；类名经 cn 合并，调用方可覆盖透明边宽度（如 border-r-[3px]）。
  */
 export function FadeScroll({ className, children, scrollRef, layoutScroll }: FadeScrollProps) {
   const [el, setEl] = useState<HTMLDivElement | null>(null);
@@ -35,7 +34,7 @@ export function FadeScroll({ className, children, scrollRef, layoutScroll }: Fad
     <Container
       layoutScroll={layoutScroll || undefined}
       ref={setRef}
-      className={clsx(FADE_SCROLL_CLASS, className)}
+      className={cn(FADE_SCROLL_CLASS, className)}
     >
       {children}
     </Container>
