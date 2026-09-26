@@ -483,6 +483,7 @@
   - 已删：独立问题窗口（window-manager / index.ts `--window-type=question` / window-module-mapping / `/questions` 路由）。旧页面 `pages/QuestionWindow` 与 `useQuestionStore` 等 P-questions 删除（04 §questions）。
   - 未做：发布（`buildQuestPages`）仍只发布 content 类材料，项目与白板材料不进站点。
 - **追记（2026-09-26，一整张纸 + 详情抽屉）**：用户要求问题页同待办改为一整张纸、点问题在右侧出 Drawer。两块板去掉：工具栏（筛选分组时标题即分组名）与快速收集固定在纸顶，三段列表占满宽度；`QuestionDetail` 改为非模态 `QuestionDrawer`（md 560，top-0，Esc 经 `useOverlayDismiss`）——头部 = 可编辑标题 + 分组 Menu / 提出时间 + 更多菜单，正文 = 状态三段起的原有内容；再点同一行或 Esc 关闭，↑↓ 切换时抽屉跟随；打开中切换问题时加载期显示 Loading 而不沿用上一条内容。
+- **追记（2026-09-26，公共「关联已有」检索 + 内容编辑弹窗）**：用户指出待办详情的「新建笔记 / 关联已有」仍是 legacy 弹窗（`RichTextEditModal` antd + CustomModal、`ContentSelectorModal`），要求用新组件与主题体系重做，且「关联已有」做成公共搜索组件。① 主进程新增只读模块 `tables/entity-search.ts`（`entity:search`）：按类型（卡片 / 文章 / 项目文档 / 项目 / 白板 / 日记）LIKE 检索标题与正文，空关键字按最近更新，返回 `EntityCandidate`（含 contentId）；原问题专属 `question:search-targets` 删除，「已关联」改由调用方 `isLinked` 判定。② 公共 `components/EntityPicker`：`@tau/ui` Dialog + 搜索框 + 类型 Segmented（kinds 限定）+ 行列表，多选（默认）/ 单选，已关联置灰，↑↓ / ⏎ / ⌘⏎ 键盘操作；问题页 `MaterialPicker` 删除改用它，待办关联笔记可选卡片 / 文章 / 项目文档 / 日记并支持多选。③ 公共 `components/ContentEditDialog`：就地编辑已有 content（useEditContent 自动保存），版式同「新建卡片」弹窗，标题行可选（卡片无标题行）、可选可编辑。④ 待办「关联笔记」改名「关联材料」，按钮为「新建 ▾（卡片 / 文章）/ 关联已有」（用户要求卡片不单独拆按钮）：新建卡片复用 `CreateCardDialog`，保存后以卡片首行作标题快照挂到任务；新建文章以任务标题建文章、挂上并页内打开；不再新建 legacy「未命名文档」式无主笔记（type = custom，存量仍可就地编辑、标题可改）。点材料行：卡片（与无主笔记）在 ContentEditDialog 就地编辑，文章 / 项目文档 / 日记经主进程 `entity:locate`（content → 实体 id）打开所在页面，不做弹窗预览。
 
 ## D-047 白板列表页定稿（方案 A「画廊」）+ 缩略图复用导出图片管线 + 元信息窄接口
 

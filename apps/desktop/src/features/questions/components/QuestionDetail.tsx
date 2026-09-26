@@ -423,7 +423,7 @@ function TitleEditor({ questionId, value }: { questionId: number; value: string 
           requestAnimationFrame(() => ref.current?.blur());
         }
       }}
-      className="hover:bg-hover focus:bg-page -mx-1 block min-w-0 flex-1 resize-none overflow-hidden rounded-[7px] bg-transparent px-1 text-[16px] font-semibold leading-[1.5] tracking-[-0.005em] outline-none"
+      className="block min-w-0 flex-1 resize-none overflow-hidden bg-transparent text-[16px] font-semibold leading-[1.5] tracking-[-0.005em] outline-none"
     />
   );
 }

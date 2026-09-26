@@ -16,15 +16,16 @@ import { Button, Loading, Menu, toast } from "@tau/ui";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import { isEditableTarget } from "@/page/dom";
 import { CreateCardDialog } from "@/features/cards/components/CreateCardDialog";
+import { EntityPicker } from "@/components/EntityPicker";
 import {
   ECardCategory,
+  type QuestionLinkTarget,
   type QuestionMaterial,
   type QuestionStatus,
   type QuestionSummary,
 } from "@/types";
 import { AnswerDialog, type AnswerDialogState } from "../components/AnswerDialog";
 import { CaptureBar } from "../components/CaptureBar";
-import { MaterialPicker } from "../components/MaterialPicker";
 import { MaterialPreviewDialog } from "../components/MaterialPreviewDialog";
 import { GroupDot, StatusRing } from "../components/QuestionBits";
 import { QuestionDrawer } from "../components/QuestionDetail";
@@ -439,16 +440,25 @@ export function QuestionsView() {
           </div>
         </div>
 
-        <MaterialPicker
+        <EntityPicker
           open={pickerOpen}
-          questionId={detail?.question.id ?? null}
-          questionTitle={detail?.question.questionContent ?? ""}
-          now={now}
           onClose={() => setPickerOpen(false)}
-          onConfirm={async targets => {
+          title="关联已有材料"
+          subtitle={detail?.question.questionContent}
+          kinds={["card", "article", "project_item", "project", "white_board"]}
+          isLinked={c =>
+            detail?.materials.some(m => m.targetType === c.kind && m.targetId === c.id) ?? false
+          }
+          onConfirm={async picked => {
             if (!detail) return;
             try {
-              const added = await questionMutations.link(detail.question.id, targets);
+              const added = await questionMutations.link(
+                detail.question.id,
+                picked.map(c => ({
+                  targetType: c.kind as QuestionLinkTarget["targetType"],
+                  targetId: c.id,
+                }))
+              );
               toast.success(`已关联 ${added.length} 份材料`);
             } catch {
               toast.error("关联失败");

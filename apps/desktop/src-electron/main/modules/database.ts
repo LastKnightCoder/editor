@@ -31,6 +31,7 @@ import { getXiaoyuzhouListenEvents } from "./xiaoyuzhou";
 import ContentTable from "./tables/content";
 import QuestionTable from "./tables/question";
 import QuestionLinkTable from "./tables/question-link";
+import EntitySearchTable from "./tables/entity-search";
 import QuestionEventTable from "./tables/question-event";
 import WhiteBoardContentTable from "./tables/white-board-content";
 import DataTableTable from "./tables/data-table";
@@ -232,6 +233,7 @@ class DatabaseModule implements Module {
       QuestionTable,
       QuestionEventTable,
       QuestionLinkTable,
+      EntitySearchTable,
       GoalHardCleanupTable,
       DataTableTable,
       DataTableViewTable,
