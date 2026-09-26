@@ -266,7 +266,7 @@ export function FlashcardsView() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="mx-auto flex h-full max-w-[1720px] flex-col px-[26px] pb-4">
+      <div className="mx-auto flex h-full max-w-[1720px] flex-col px-4 pb-4">
         <div className="flex h-[44px] flex-none items-center gap-3">
           <h1 className="text-[19px] font-semibold tracking-[-0.01em]">闪卡复习</h1>
           <span className="text-ink-2 text-tau-meta tabular-nums">

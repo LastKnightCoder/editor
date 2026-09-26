@@ -235,7 +235,7 @@ export function CardsView() {
     card ? getEditorText(card.content, 20) || `卡片 #${card.id}` : "";
 
   return (
-    <div className="mx-auto flex h-full min-w-0 max-w-[1760px] flex-col px-[26px] pb-4">
+    <div className="mx-auto flex h-full min-w-0 max-w-[1760px] flex-col px-4 pb-4">
       {/* 工具栏：标题与读数 + 导入 / 新建（右上角） */}
       <div className="flex h-[44px] flex-none items-center gap-3.5">
         <h1 className="text-[19px] font-semibold tracking-[-0.01em]">卡片库</h1>

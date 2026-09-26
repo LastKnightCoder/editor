@@ -131,7 +131,7 @@ export function WeReadBookView() {
       : null;
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-[26px] pb-4 pt-1">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
       <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 overflow-hidden">
         {/* 外层只管收起动画的宽度，滚动交给 FadeScroll（其右侧透明边收起时也不占位） */}
         <div
