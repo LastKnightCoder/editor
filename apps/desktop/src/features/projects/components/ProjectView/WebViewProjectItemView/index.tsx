@@ -1,4 +1,18 @@
-﻿import { useState, useRef, useEffect } from "react";
+/**
+ * 网页型项目条目视图。
+ *
+ * 版式（2026-09-26 重构，取代原「7 枚图标按钮 + 分屏」顶栏）：
+ * - 顶栏只留 标题 · [网页 | 文档] 分段 · 侧栏开关 · ⋯。
+ * - 主区在「网页」与「文档」（解析文档）之间切换；两层常驻挂载、按透明度切换，
+ *   保证 webview 不重载、解析时仍能取到网页 HTML。
+ * - 「文档」未解析时主区给空状态，解析入口（LLM 转录 / 剪藏网页）就放在这里；
+ *   重新解析收进 ⋯。
+ * - 右侧栏承载 目录 / 笔记（网页视图下只有笔记），分屏模式随之取消——
+ *   笔记本身就是伴随阅读的侧栏内容。
+ * - 批注卡片须随正文滚动对齐锚点，不能进固定侧栏：解析文档含批注时自动铺在页边。
+ */
+
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   Loader2,
   RotateCw,
@@ -6,10 +20,19 @@ import {
   MoreHorizontal,
   Trash2,
   PenLine,
-  Book,
   Volume2,
+  Globe,
+  FileText,
+  PanelRight,
+  Sparkles,
+  Scissors,
+  ExternalLink,
+  AppWindow,
+  RefreshCcw,
+  X,
+  NotebookPen,
 } from "lucide-react";
-import { useMemoizedFn } from "ahooks";
+import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import { renderMenuEntries, type MenuEntryList } from "../shared/menuEntries";
 import { Descendant, Path, Transforms } from "slate";
 import { Webview } from "@tau/shared";
@@ -37,7 +60,8 @@ import Editor from "@/components/ContentEditor";
 import EditorOutline from "@/components/EditorOutline";
 import EditorComment from "@/components/EditorComment";
 import EditTitleModal from "@/components/EditTitleModal";
-import ResizablePanel from "@/components/ResizablePanel";
+import ResizeableAndHideableSidebar from "@/components/ResizableAndHideableSidebar";
+import { FadeScroll } from "@/components/FadeScroll";
 import {
   getProjectItemById,
   openExternal,
@@ -67,76 +91,16 @@ import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { useProjectContext } from "../ProjectContext";
 import { ReactEditor } from "slate-react";
 import type { CommentElement, CustomEditor } from "@tau/editor/src";
-import { toast, Tooltip, ConfirmDialog, Menu } from "@tau/ui";
-
-// Icons
-const ClipIcon = () => (
-  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
-    <polyline points="10 9 9 9 8 9" />
-  </svg>
-);
-
-const SwitchViewIcon = () => (
-  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-    <polyline points="17 1 21 5 17 9" />
-    <path d="M3 11V9a4 4 0 0 1 4-4h14" />
-    <polyline points="7 23 3 19 7 15" />
-    <path d="M21 13v2a4 4 0 0 1-4 4H3" />
-  </svg>
-);
-
-const SplitViewIcon = () => (
-  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-    <line x1="12" y1="3" x2="12" y2="21" />
-  </svg>
-);
-
-const ExternalLinkIcon = () => (
-  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-    <polyline points="15 3 21 3 21 9" />
-    <line x1="10" y1="14" x2="21" y2="3" />
-  </svg>
-);
-
-const NewTabIcon = () => (
-  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-    <line x1="9" y1="3" x2="9" y2="21" />
-  </svg>
-);
-
-const OutlineMenuIcon = () => (
-  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-    <circle cx="6" cy="6" r="1.5" />
-    <circle cx="6" cy="12" r="1.5" />
-    <circle cx="6" cy="18" r="1.5" />
-    <line x1="10" y1="6" x2="19" y2="6" />
-    <line x1="10" y1="12" x2="19" y2="12" />
-    <line x1="10" y1="18" x2="19" y2="18" />
-  </svg>
-);
-
-const CommentSidebarIcon = () => (
-  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-    <path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H12a8.5 8.5 0 0 1-8.5-8.5v-5A3.5 3.5 0 0 1 7 3h10a4 4 0 0 1 4 4z" />
-    <path d="M8 11h8" />
-    <path d="M8 7h8" />
-    <polyline points="8 15 8 19 12 17" />
-  </svg>
-);
+import { toast, Tooltip, ConfirmDialog, Menu, Segmented, IconButton, Button } from "@tau/ui";
 
 interface WebViewProjectItemViewProps {
   projectItemId: number;
 }
 
-// 视图模式：单页网页、单页文档、双页分屏
-type ViewMode = "webview" | "document" | "split";
+/** 主区视图：原网页 / 解析文档 */
+type MainView = "web" | "parsed";
+/** 右侧栏页签（网页视图下只有笔记） */
+type RailTab = "outline" | "note";
 
 const DEFAULT_CONTENT: Descendant[] = [
   {
@@ -147,12 +111,23 @@ const DEFAULT_CONTENT: Descendant[] = [
 const createEmptyEditorContent = (): Descendant[] =>
   JSON.parse(JSON.stringify(DEFAULT_CONTENT)) as Descendant[];
 
+const RAIL_DEFAULT_W = 320;
+
+/** 文档中是否含批注节点（决定页边批注栏是否出现） */
+const hasCommentNode = (nodes: Descendant[]): boolean =>
+  nodes.some(node => {
+    const element = node as { type?: string; children?: Descendant[] };
+    if (element.type === "comment") return true;
+    return Array.isArray(element.children) && hasCommentNode(element.children);
+  });
+
 const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const { projectItemId } = props;
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const [projectItem, setProjectItem] = useState<ProjectItem | null>(null);
   const webviewRef = useRef<WebviewRef>(null);
   const editorRef = useRef<EditorRef>(null);
+  const noteEditorRef = useRef<EditorRef>(null);
   const slateEditorRef = useRef<CustomEditor | null>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const projectItemEventBus = defaultProjectItemEventBus.createEditor();
@@ -167,8 +142,19 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   useProjectContext(); // Keep context active
   const { navigator } = usePage();
 
-  // 视图模式
-  const [viewMode, setViewMode] = useState<ViewMode>("webview");
+  // 主区视图；用户手动切过之后，加载到已有解析文档时不再自动跳到「文档」
+  const [mainView, setMainView] = useState<MainView>("web");
+  const userPickedViewRef = useRef(false);
+
+  // 右侧栏：开合按主区视图分别记（读文档默认看目录，逛网页默认不占宽）
+  const [railOpen, setRailOpen] = useState<Record<MainView, boolean>>({
+    web: false,
+    parsed: true,
+  });
+  const [railTab, setRailTab] = useState<RailTab>("outline");
+  const [railWidth, setRailWidth] = useLocalStorageState<number>("tau-webview-rail-width", {
+    defaultValue: RAIL_DEFAULT_W,
+  });
 
   // 已保存的解析结果
   const [savedWebClip, setSavedWebClip] = useState<WebClip | null>(null);
@@ -176,20 +162,15 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const [isLocalClipping, setIsLocalClipping] = useState(false);
   const [localClipError, setLocalClipError] = useState<string | null>(null);
   const localClipAbortRef = useRef<AbortController | null>(null);
-  const [clipMenuOpen, setClipMenuOpen] = useState(false);
-  const clipMenuCloseTimerRef = useRef<number | null>(null);
 
   // 编辑标题弹窗
   const [editTitleModalOpen, setEditTitleModalOpen] = useState(false);
   const [creatingDocument, setCreatingDocument] = useState(false);
   const [notes, setNotes] = useState<WebNote[]>([]);
   const [noteContents, setNoteContents] = useState<Record<number, Descendant[]>>({});
-  const [activeDocumentSource, setActiveDocumentSource] = useState<"parsed" | "note">("parsed");
   const [activeNoteId, setActiveNoteId] = useState<number | null>(null);
   const [preferredNoteContentId, setPreferredNoteContentId] = useState<number | null>(null);
   const [renamingNote, setRenamingNote] = useState<WebNote | null>(null);
-
-  const [sidebarMode, setSidebarMode] = useState<"outline" | "comments" | null>("outline");
 
   useEffect(() => {
     getProjectItemById(projectItemId).then(item => {
@@ -219,12 +200,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         ...prev,
         [note.contentId]: content.content,
       }));
-      if (
-        activeDocumentSource === "note" &&
-        activeNoteId === note.id &&
-        (viewMode === "document" || viewMode === "split")
-      ) {
-        editorRef.current?.setEditorValue(content.content);
+      if (activeNoteId === note.id) {
+        noteEditorRef.current?.setEditorValue(content.content);
       }
     } catch (error) {
       console.error("Failed to load note content:", error);
@@ -272,7 +249,9 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     }
   }, [notes, activeNoteId]);
 
+  /* 偏好 preferredContentId 的语义：上次离开时笔记侧栏是开着的 */
   const persistPreferredNote = useMemoizedFn(async (contentId: number | null) => {
+    if (contentId === preferredNoteContentId) return;
     try {
       await setWebViewPreference({
         projectItemId,
@@ -284,48 +263,42 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     }
   });
 
+  // 恢复偏好：上次开着笔记 → 两种视图都以笔记页签打开侧栏（只在首次加载时应用一次）
+  const preferenceAppliedRef = useRef(false);
   useEffect(() => {
+    if (preferenceAppliedRef.current || !preferredNoteContentId) return;
     const note = notes[0] ?? null;
-    if (preferredNoteContentId && note) {
-      if (note.contentId === preferredNoteContentId) {
-        setActiveDocumentSource("note");
-        setActiveNoteId(note.id);
-        loadNoteContent(note);
-      } else {
-        void persistPreferredNote(null);
-      }
-    }
-    if (preferredNoteContentId && !note) {
+    if (!note) return;
+    preferenceAppliedRef.current = true;
+    if (note.contentId === preferredNoteContentId) {
+      setRailTab("note");
+      setRailOpen({ web: true, parsed: true });
+    } else {
       void persistPreferredNote(null);
     }
-  }, [preferredNoteContentId, notes, loadNoteContent, persistPreferredNote]);
+  }, [preferredNoteContentId, notes, persistPreferredNote]);
 
   // 查询已有的解析结果
   useEffect(() => {
     const loadExistingWebClip = async () => {
-      console.log("[WebClip] Loading existing web clip for projectItemId:", projectItemId);
       try {
         const links = await queryContentLinkBySource({
           sourceId: projectItemId,
           sourceType: "project_item",
           targetType: "web_clip",
         });
-        console.log("[WebClip] Found content links:", links);
 
         if (links.length > 0) {
           const webClip = await getWebClipById(links[0].targetId);
-          console.log("[WebClip] Found web clip:", webClip);
           if (webClip) {
             setSavedWebClip(webClip);
-            // 加载解析内容
+            // 已解析过的网页默认进「文档」阅读
+            if (!userPickedViewRef.current) setMainView("parsed");
             const content = await getContentById(webClip.contentId);
-            console.log("[WebClip] Loaded content:", content);
             if (content && content.content) {
-              console.log("[WebClip] Setting parsed content, length:", content.content.length);
               setParsedContent(content.content);
-              // 如果当前是解析视图，需要更新 Editor（非受控组件）
+              // Editor 是非受控组件，内容到位后手动灌入
               setTimeout(() => {
-                console.log("[WebClip] Setting editor value after load");
                 editorRef.current?.setEditorValue(content.content);
               }, 200);
             }
@@ -341,7 +314,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
 
   // 使用 useEditContent hook 管理解析内容的编辑
   const { throttleHandleEditorContentChange } = useEditContent(savedWebClip?.contentId, content => {
-    console.log("[WebClip] useEditContent callback, content length:", content.length);
     editorRef.current?.setEditorValue(content);
     setParsedContent(content);
   });
@@ -360,24 +332,13 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       // 实时更新编辑器内容
       editorRef.current?.setEditorValue(content);
     },
-    onComplete: async (_markdown, content, webClipId, contentId) => {
-      console.log(
-        "[WebClip] onComplete, webClipId:",
-        webClipId,
-        "contentId:",
-        contentId,
-        "content length:",
-        content.length
-      );
-
+    onComplete: async (_markdown, content, webClipId) => {
       // Electron 侧已经保存了数据，前端只需更新状态
       setParsedContent(content);
 
-      // 如果 Electron 返回了 webClipId，重新加载 webClip 信息
       if (webClipId) {
         const updatedWebClip = await getWebClipById(webClipId);
         if (updatedWebClip) {
-          console.log("[WebClip] Loaded updated webClip:", updatedWebClip);
           setSavedWebClip(updatedWebClip);
         }
       }
@@ -390,13 +351,8 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   });
 
   const isAnyClipping = isClipping || isLocalClipping;
-  // 编辑器接入的 content：笔记视图用笔记的 contentId，网页剪辑在保存前没有 contentId。
-  const editorContentId =
-    activeDocumentSource === "note"
-      ? notes.find(note => note.id === activeNoteId)?.contentId
-      : isAnyClipping
-        ? undefined
-        : savedWebClip?.contentId;
+  // 网页剪辑在保存前没有 contentId
+  const editorContentId = isAnyClipping ? undefined : savedWebClip?.contentId;
   const currentClipError = localClipError || clipError;
 
   const cancelLocalClip = useMemoizedFn(() => {
@@ -416,37 +372,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     }
   });
 
-  const clearClipMenuCloseTimer = useMemoizedFn(() => {
-    if (clipMenuCloseTimerRef.current) {
-      window.clearTimeout(clipMenuCloseTimerRef.current);
-      clipMenuCloseTimerRef.current = null;
-    }
-  });
-
-  const openClipMenu = useMemoizedFn(() => {
-    clearClipMenuCloseTimer();
-    setClipMenuOpen(true);
-  });
-
-  const scheduleCloseClipMenu = useMemoizedFn(() => {
-    clearClipMenuCloseTimer();
-    clipMenuCloseTimerRef.current = window.setTimeout(() => {
-      setClipMenuOpen(false);
-      clipMenuCloseTimerRef.current = null;
-    }, 180);
-  });
-
-  const closeClipMenu = useMemoizedFn(() => {
-    clearClipMenuCloseTimer();
-    setClipMenuOpen(false);
-  });
-
-  useEffect(() => {
-    return () => {
-      clearClipMenuCloseTimer();
-    };
-  }, [clearClipMenuCloseTimer]);
-
   // 播客生成
   const { podcastModalOpen, openPodcastModal, closePodcastModal, handlePodcastSuccess } =
     usePodcastAttachment({
@@ -460,33 +385,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         created: "播客已添加到文档",
       },
     });
-
-  // 当视图模式变化时，如果是解析视图，确保 Editor 内容正确
-  useEffect(() => {
-    if (viewMode === "document" || viewMode === "split") {
-      const activeNote =
-        activeDocumentSource === "note" ? notes.find(note => note.id === activeNoteId) : null;
-      const content =
-        activeDocumentSource === "note" && activeNote
-          ? (noteContents[activeNote.contentId] ?? createEmptyEditorContent())
-          : isClipping
-            ? clipContent
-            : parsedContent;
-      const timer = setTimeout(() => {
-        editorRef.current?.setEditorValue(content);
-      }, 200);
-      return () => clearTimeout(timer);
-    }
-  }, [
-    viewMode,
-    parsedContent,
-    clipContent,
-    isClipping,
-    activeDocumentSource,
-    activeNoteId,
-    noteContents,
-    notes,
-  ]);
 
   const saveLocalClipResult = useMemoizedFn(async (content: Descendant[]) => {
     if (!currentUrl) {
@@ -541,12 +439,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     }
 
     try {
-      if (viewMode === "webview") {
-        setViewMode("document");
-      }
-      setActiveDocumentSource("parsed");
-      void persistPreferredNote(null);
-
+      setMainView("parsed");
       resetClipState();
       setLocalClipError(null);
       setIsLocalClipping(true);
@@ -557,9 +450,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       const html = await webviewRef.current?.getHTML();
       if (!html) {
         toast.error("获取网页内容失败");
-        if (viewMode !== "split") {
-          setViewMode("webview");
-        }
         return;
       }
 
@@ -594,35 +484,13 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       const errorMessage = error instanceof Error ? error.message : "解析失败";
       setLocalClipError(errorMessage);
       toast.error(`解析失败: ${errorMessage}`);
-      if (viewMode !== "split") {
-        setViewMode("webview");
-      }
     } finally {
       localClipAbortRef.current = null;
       setIsLocalClipping(false);
     }
   });
 
-  const handleStartLocalClip = useMemoizedFn(async (mode: "smart" | "full") => {
-    if (isAnyClipping) {
-      await cancelAnyClip();
-      return;
-    }
-
-    if (savedWebClip) {
-      setPendingConfirm({
-        title: "重新解析网页",
-        description: "已存在解析文档，重新解析将覆盖现有内容。确定要继续吗？",
-        confirmText: "确定",
-        action: () => doStartLocalClip(mode),
-      });
-      return;
-    }
-
-    doStartLocalClip(mode);
-  });
-
-  // 执行解析
+  // 执行 LLM 转录
   const doStartClip = useMemoizedFn(async () => {
     if (!currentUrl) {
       toast.error("无法获取网页 URL");
@@ -630,21 +498,12 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     }
 
     try {
-      // 切换到解析视图或分屏视图
-      if (viewMode === "webview") {
-        setViewMode("document");
-      }
-      setActiveDocumentSource("parsed");
-      void persistPreferredNote(null);
+      setMainView("parsed");
       setLocalClipError(null);
 
-      // 获取 HTML 内容
       const html = await webviewRef.current?.getHTML();
       if (!html) {
         toast.error("获取网页内容失败");
-        if (viewMode !== "split") {
-          setViewMode("webview");
-        }
         return;
       }
 
@@ -655,30 +514,23 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     } catch (error) {
       console.error("Start clip error:", error);
       toast.error("开始解析失败");
-      if (viewMode !== "split") {
-        setViewMode("webview");
-      }
     }
   });
 
-  // 开始解析（带确认）
-  const handleStartClip = useMemoizedFn(async () => {
-    if (isAnyClipping) {
-      await cancelAnyClip();
-      return;
-    }
-
-    // 如果已存在解析文档，需要确认
+  /* 解析入口统一收口：已有解析文档时先确认覆盖 */
+  const handleStartParse = useMemoizedFn(async (mode: "llm" | "smart") => {
+    if (isAnyClipping) return;
+    const run = () => (mode === "llm" ? doStartClip() : doStartLocalClip("smart"));
     if (savedWebClip) {
       setPendingConfirm({
         title: "重新解析网页",
         description: "已存在解析文档，重新解析将覆盖现有内容。确定要继续吗？",
         confirmText: "确定",
-        action: doStartClip,
+        action: run,
       });
-    } else {
-      doStartClip();
+      return;
     }
+    void run();
   });
 
   const createNote = useMemoizedFn(async () => {
@@ -693,11 +545,10 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       if (!contentId) {
         throw new Error("failed-to-create-content");
       }
-      const defaultTitle = `笔记 ${notes.length + 1}`;
       const note = await createWebNote({
         projectItemId,
         contentId,
-        title: defaultTitle,
+        title: `笔记 ${notes.length + 1}`,
       });
       setNotes([note]);
       setNoteContents(prev => ({
@@ -706,7 +557,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
       }));
       setActiveNoteId(note.id);
       await persistPreferredNote(note.contentId);
-      toast.success("已创建新笔记");
       return note;
     } catch (error) {
       console.error("Failed to create note:", error);
@@ -717,116 +567,22 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     }
   });
 
-  const ensureNoteAvailable = useMemoizedFn(async () => {
-    let note: WebNote | null = notes[0] ?? null;
-    if (!note) {
-      note = await createNote();
-    }
-    if (note) {
-      setActiveNoteId(note.id);
-      loadNoteContent(note);
-    }
-    return note;
-  });
-
-  const setParsedEditorContent = useMemoizedFn(() => {
-    const content = isClipping ? clipContent : parsedContent;
-    editorRef.current?.setEditorValue(content);
-  });
-
-  const setNoteEditorContent = useMemoizedFn((target?: WebNote | null) => {
-    const note = target ?? notes[0] ?? null;
-    if (!note) return;
-    const content = noteContents[note.contentId] ?? createEmptyEditorContent();
-    editorRef.current?.setEditorValue(content);
-  });
-
-  const handleToggleParsedDocument = useMemoizedFn(() => {
-    if (!hasClipResult) return;
-    if (viewMode === "split") {
-      setActiveDocumentSource("parsed");
-      void persistPreferredNote(null);
-      setParsedEditorContent();
-      return;
-    }
-    if (viewMode === "document" && activeDocumentSource === "parsed") {
-      setViewMode("webview");
-      return;
-    }
-    setActiveDocumentSource("parsed");
-    void persistPreferredNote(null);
-    setViewMode("document");
-    setParsedEditorContent();
-  });
-
-  const handleToggleNoteDocument = useMemoizedFn(async () => {
-    const note = await ensureNoteAvailable();
-    if (!note) return;
-    if (viewMode === "split") {
-      setActiveDocumentSource("note");
-      void persistPreferredNote(note.contentId);
-      setNoteEditorContent(note);
-      return;
-    }
-    if (viewMode === "document" && activeDocumentSource === "note") {
-      setViewMode("webview");
-      return;
-    }
-    setActiveDocumentSource("note");
-    void persistPreferredNote(note.contentId);
-    setViewMode("document");
-    setNoteEditorContent(note);
-  });
-
   const handleDeleteNote = useMemoizedFn(async (noteId: number) => {
     const note = notes.find(item => item.id === noteId);
     if (!note) return;
     try {
       await deleteWebNote(noteId);
-      const remainingNotes = notes.filter(item => item.id !== noteId);
-      setNotes(remainingNotes);
+      setNotes(prev => prev.filter(item => item.id !== noteId));
       setNoteContents(prev => {
         const next = { ...prev };
         delete next[note.contentId];
         return next;
       });
-      if (preferredNoteContentId === note.contentId) {
-        await persistPreferredNote(null);
-      }
-      if (activeNoteId === noteId) {
-        if (remainingNotes.length > 0) {
-          const fallback = remainingNotes[0];
-          setActiveDocumentSource("note");
-          setActiveNoteId(fallback.id);
-          loadNoteContent(fallback);
-          await persistPreferredNote(fallback.contentId);
-        } else {
-          setActiveNoteId(null);
-          await persistPreferredNote(null);
-          if (viewMode === "split") {
-            if (hasClipResult) {
-              setActiveDocumentSource("parsed");
-            }
-          } else if (viewMode === "document" && activeDocumentSource === "note") {
-            if (hasClipResult) {
-              setActiveDocumentSource("parsed");
-            } else {
-              setViewMode("webview");
-            }
-          }
-        }
-      }
+      await persistPreferredNote(null);
       toast.success("笔记已删除");
     } catch (error) {
       console.error("Failed to delete note:", error);
       toast.error("删除笔记失败，请重试");
-    }
-  });
-
-  const handleOpenRenameNote = useMemoizedFn((targetNote?: WebNote) => {
-    const note = targetNote ?? notes.find(item => item.id === activeNoteId || 0);
-    if (note) {
-      setRenamingNote(note);
     }
   });
 
@@ -856,47 +612,34 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     }
   });
 
-  // legacy dropdown removed
+  const activeNote =
+    activeNoteId !== null
+      ? (notes.find(note => note.id === activeNoteId) ?? notes[0] ?? null)
+      : (notes[0] ?? null);
 
-  // 切换分屏视图
-  const handleToggleSplit = useMemoizedFn(async () => {
-    if (viewMode === "split") {
-      setViewMode("webview");
-      return;
-    }
-    let nextSource = activeDocumentSource;
-    if (nextSource === "note") {
-      const note = await ensureNoteAvailable();
-      if (!note) {
-        if (hasClipResult) {
-          nextSource = "parsed";
-        } else {
-          toast.warning("暂无可显示的文档");
-          return;
-        }
-      } else {
-        loadNoteContent(note);
-        await persistPreferredNote(note.contentId);
-        setNoteEditorContent(note);
-      }
-    }
-    if (nextSource === "parsed" && !hasClipResult) {
-      const note = await createNote();
-      if (note) {
-        nextSource = "note";
-        loadNoteContent(note);
-        await persistPreferredNote(note.contentId);
-        setNoteEditorContent(note);
-      } else {
-        toast.warning("暂无可显示的文档");
-        return;
-      }
-    }
-    if (nextSource === "parsed") {
-      setParsedEditorContent();
-    }
-    setActiveDocumentSource(nextSource);
-    setViewMode("split");
+  // 网页视图下侧栏只有笔记
+  const activeRailTab: RailTab = mainView === "web" ? "note" : railTab;
+  const railVisible = railOpen[mainView];
+
+  /* 笔记侧栏是否开着 → 写回偏好（下次进入时恢复） */
+  const syncNotePreference = useMemoizedFn((open: boolean, tab: RailTab) => {
+    void persistPreferredNote(open && tab === "note" && activeNote ? activeNote.contentId : null);
+  });
+
+  const handleSwitchMainView = useMemoizedFn((next: MainView) => {
+    userPickedViewRef.current = true;
+    setMainView(next);
+  });
+
+  const handleToggleRail = useMemoizedFn(() => {
+    const nextOpen = !railVisible;
+    setRailOpen(prev => ({ ...prev, [mainView]: nextOpen }));
+    syncNotePreference(nextOpen, activeRailTab);
+  });
+
+  const handleSwitchRailTab = useMemoizedFn((tab: RailTab) => {
+    setRailTab(tab);
+    syncNotePreference(true, tab);
   });
 
   // 刷新网页
@@ -915,11 +658,6 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
   const handleOpenInNewTab = useMemoizedFn(() => {
     if (!currentUrl) return;
     navigator.push("webview", { url: currentUrl });
-  });
-
-  // 编辑标题
-  const handleEditTitle = useMemoizedFn(() => {
-    setEditTitleModalOpen(true);
   });
 
   // 确认编辑标题
@@ -961,21 +699,21 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     toast.success("标题已更新");
   });
 
-  // 处理编辑器内容变化
+  // 解析文档内容变化
   const handleEditorChange = useMemoizedFn((content: Descendant[]) => {
-    if (activeDocumentSource === "note") {
-      const note = notes.find(n => n.id === activeNoteId);
-      if (!note) return;
-      setNoteContents(prev => ({
-        ...prev,
-        [note.contentId]: content,
-      }));
-      return;
-    }
     if (savedWebClip && !isAnyClipping) {
       throttleHandleEditorContentChange(content);
       setParsedContent(content);
     }
+  });
+
+  // 笔记内容变化（落盘由 ContentEditor 会话负责，这里只同步本地副本供重挂载回填）
+  const handleNoteChange = useMemoizedFn((content: Descendant[]) => {
+    if (!activeNote) return;
+    setNoteContents(prev => ({
+      ...prev,
+      [activeNote.contentId]: content,
+    }));
   });
 
   // 点击大纲标题跳转
@@ -994,65 +732,104 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
     }
   });
 
-  // 处理播客生成
+  // 是否有解析结果
+  const hasClipResult = savedWebClip !== null;
+
   const handleGeneratePodcast = useMemoizedFn(() => {
-    // 检查是否有转录文档
     if (!hasClipResult || parsedContent.length === 0) {
       toast.warning("请先转录网页内容后再生成播客");
       return;
     }
-
     openPodcastModal();
   });
 
-  const moreMenuItems: MenuEntryList = [
+  const moreMenuItems: MenuEntryList = [];
+  if (isAnyClipping) {
+    moreMenuItems.push({
+      key: "cancel-parse",
+      label: "取消解析",
+      icon: <X className="size-[15px]" strokeWidth={1.75} />,
+    });
+  } else if (hasClipResult) {
+    moreMenuItems.push({
+      key: "reparse",
+      label: "重新解析",
+      icon: <RefreshCcw className="size-[15px]" strokeWidth={1.75} />,
+      children: [
+        { key: "reparse-llm", label: "LLM 转录" },
+        { key: "reparse-smart", label: "剪藏网页" },
+      ],
+    });
+  }
+  if (moreMenuItems.length > 0) {
+    moreMenuItems.push({ key: "divider-1", label: "", divider: true });
+  }
+  moreMenuItems.push(
     {
       key: "refresh",
       label: "刷新网页",
       icon: <RotateCw className="size-[15px]" strokeWidth={1.75} />,
     },
-    { key: "browser", label: "在浏览器中打开", icon: <ExternalLinkIcon /> },
-    { key: "new-tab", label: "在应用内打开", icon: <NewTabIcon /> },
-  ];
-
-  if (notes.length > 0) {
+    {
+      key: "browser",
+      label: "在浏览器中打开",
+      icon: <ExternalLink className="size-[15px]" strokeWidth={1.75} />,
+    },
+    {
+      key: "new-tab",
+      label: "在应用内打开",
+      icon: <AppWindow className="size-[15px]" strokeWidth={1.75} />,
+    }
+  );
+  if (hasClipResult) {
     moreMenuItems.push(
-      { key: "divider-1", label: "", divider: true },
+      { key: "divider-2", label: "", divider: true },
       {
-        key: "note-rename",
-        label: "重命名笔记",
-        icon: <PenLine className="size-[15px]" strokeWidth={1.75} />,
-      },
-      {
-        key: "note-delete",
-        label: "删除笔记",
-        icon: <Trash2 className="size-[15px]" strokeWidth={1.75} />,
-        danger: true,
+        key: "generate-podcast",
+        label: projectItem?.podcast ? "编辑播客" : "生成播客",
+        icon: <Volume2 className="size-[15px]" strokeWidth={1.75} />,
       }
     );
   }
 
-  // 添加播客生成菜单项
-  moreMenuItems.push(
-    { key: "divider-2", label: "", divider: true },
-    {
-      key: "generate-podcast",
-      label: projectItem?.podcast ? "编辑播客" : "生成播客",
-      icon: <Volume2 className="size-[15px]" strokeWidth={1.75} />,
-    }
-  );
-
   const handleMoreMenuClick = useMemoizedFn((key: string) => {
-    if (key === "refresh") {
+    if (key === "cancel-parse") {
+      void cancelAnyClip();
+    } else if (key === "reparse-llm") {
+      void handleStartParse("llm");
+    } else if (key === "reparse-smart") {
+      void handleStartParse("smart");
+    } else if (key === "refresh") {
       handleRefresh();
     } else if (key === "browser") {
       handleOpenInBrowser();
     } else if (key === "new-tab") {
       handleOpenInNewTab();
-    } else if (key === "note-rename" && notes[0]) {
-      handleOpenRenameNote(notes[0]);
-    } else if (key === "note-delete" && notes[0]) {
-      const noteId = notes[0].id;
+    } else if (key === "generate-podcast") {
+      handleGeneratePodcast();
+    }
+  });
+
+  const noteMenuItems: MenuEntryList = [
+    {
+      key: "note-rename",
+      label: "重命名笔记",
+      icon: <PenLine className="size-[15px]" strokeWidth={1.75} />,
+    },
+    {
+      key: "note-delete",
+      label: "删除笔记",
+      icon: <Trash2 className="size-[15px]" strokeWidth={1.75} />,
+      danger: true,
+    },
+  ];
+
+  const handleNoteMenuClick = useMemoizedFn((key: string) => {
+    if (!activeNote) return;
+    if (key === "note-rename") {
+      setRenamingNote(activeNote);
+    } else if (key === "note-delete") {
+      const noteId = activeNote.id;
       setPendingConfirm({
         title: "删除笔记",
         description: "删除后无法恢复，确定删除这篇笔记吗？",
@@ -1060,292 +837,199 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         confirmText: "删除",
         action: () => handleDeleteNote(noteId),
       });
-    } else if (key === "generate-podcast") {
-      handleGeneratePodcast();
     }
   });
 
-  // 是否有解析结果
-  const hasClipResult = savedWebClip !== null;
-
-  // 当前显示的内容
-  const activeNote =
-    activeNoteId !== null
-      ? (notes.find(note => note.id === activeNoteId) ?? notes[0] ?? null)
-      : (notes[0] ?? null);
-  const currentContent =
-    activeDocumentSource === "note" && activeNote
-      ? (noteContents[activeNote.contentId] ?? createEmptyEditorContent())
-      : isClipping
-        ? clipContent
-        : parsedContent;
-
-  // 是否显示 webview
-  const showWebview = viewMode === "webview" || viewMode === "split";
-  // 是否显示文档
-  const showDocument = viewMode === "document" || viewMode === "split";
-
-  // 获取主题色的 active 样式
-  const getActiveButtonClass = (isActive: boolean, color: "green" | "purple") => {
-    if (!isActive) {
-      return "bg-transparent text-ink-2 hover:bg-hover";
-    }
-    // 使用主题色
-    if (color === "green") {
-      return `${"bg-accent-soft text-accent-text"}`;
-    }
-    if (color === "purple") {
-      return `${"bg-accent-soft text-accent-text"}`;
-    }
-    return "bg-accent-soft text-accent-text";
-  };
-
-  const getClipMenuItemClass = (disabled: boolean) =>
-    `text-ink-1 rounded-tau-sm text-tau-body flex h-[34px] w-full items-center gap-[9px] border-none bg-transparent px-2.5 text-left ${
-      disabled ? "cursor-not-allowed opacity-45" : "hover:bg-hover cursor-pointer"
-    }`;
-
-  const hasAnyDocument = hasClipResult || notes.length > 0;
-  const showDocumentSidebar = hasAnyDocument && (viewMode === "document" || viewMode === "split");
-  const docButtonActive =
-    (viewMode === "document" && activeDocumentSource === "parsed") ||
-    (viewMode === "split" && activeDocumentSource === "parsed");
-  const noteButtonActive =
-    (viewMode === "document" && activeDocumentSource === "note") ||
-    (viewMode === "split" && activeDocumentSource === "note");
-  const docTooltip =
-    viewMode === "split" ? "在分屏中显示解析文档" : docButtonActive ? "查看网页" : "查看解析文档";
-  const noteTooltip =
-    notes.length > 0
-      ? viewMode === "split"
-        ? "在分屏中显示笔记"
-        : noteButtonActive
-          ? "查看网页"
-          : "查看笔记"
-      : creatingDocument
-        ? "正在创建笔记"
-        : "创建并查看笔记";
-  const showCommentSidebar = showDocumentSidebar && sidebarMode === "comments";
-  const showOutlineSidebar = showDocumentSidebar && sidebarMode === "outline";
-  const showSidebarPlaceholder = showCommentSidebar || showOutlineSidebar;
-  const sidebarPlaceholderVisibilityClass =
-    showCommentSidebar && !showOutlineSidebar
-      ? "@[800px]/web-clip-editor:w-[40px] w-[120px]"
-      : "w-[120px] hidden @[800px]/web-clip-editor:block @[800px]/web-clip-editor:w-[40px]";
-  const outlineResponsiveClass = "hidden @[800px]/web-clip-editor:block";
+  const currentParsedContent = isClipping ? clipContent : parsedContent;
+  const showComments = useMemo(
+    () => hasClipResult && !isAnyClipping && hasCommentNode(parsedContent),
+    [hasClipResult, isAnyClipping, parsedContent]
+  );
 
   if (!currentUrl) return null;
 
-  // 渲染文档编辑器区域
-  const renderDocumentView = () => (
-    <div className="@container/web-clip-editor border-20 box-border flex h-full w-full overflow-hidden border-transparent">
-      <div className="min-h-0 min-w-0 flex-1">
-        <div
-          ref={editorContainerRef}
-          className="flex h-full w-full items-start justify-center overflow-y-auto pr-1"
-        >
-          {showSidebarPlaceholder && (
-            <div
-              className={`${sidebarPlaceholderVisibilityClass} mr-6 flex-none`}
-              aria-hidden={true}
-            />
-          )}
-          <div className="relative min-w-0 max-w-[720px] flex-1">
-            {isAnyClipping && (
-              <div
-                className={`mb-4 flex items-center gap-2 rounded-lg border ${"border-line-1"} ${"bg-hover"} px-4 py-3 text-sm ${"text-ink-1"}`}
-              >
-                <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
-                <span>正在解析网页内容，请稍候...</span>
-              </div>
-            )}
-            {currentClipError && (
-              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {currentClipError}
-              </div>
-            )}
-            <Editor
-              contentId={editorContentId}
-              className="mx-20"
-              key={`${projectItemId}-${activeDocumentSource}-${activeNoteId ?? "parsed"}`}
-              ref={editorRef}
-              initValue={currentContent}
-              onChange={handleEditorChange}
-              readonly={activeDocumentSource === "parsed" && isAnyClipping}
-              extensions={dynamicExtensions}
-              onInit={editorInstance => {
-                slateEditorRef.current = editorInstance as CustomEditor;
-              }}
-            />
-          </div>
-          {showCommentSidebar && (
-            <div className="ml-6 w-[280px] flex-none self-start">
-              <EditorComment
-                className="w-full"
-                editorRef={slateEditorRef}
-                containerRef={editorContainerRef}
-                show={true}
-                onCommentClick={handleSidebarCommentClick}
-              />
-            </div>
-          )}
-          {showOutlineSidebar && (
-            <div
-              className={`${outlineResponsiveClass} sticky top-4 ml-6 w-[280px] flex-none self-start`}
-            >
-              <div className="scrollbar-hide max-h-[calc(100vh-220px)] min-h-0 overflow-y-auto pb-4 pr-1">
-                <EditorOutline
-                  className="w-full"
-                  content={currentContent}
-                  show={true}
-                  onClickHeader={onClickHeader}
-                />
-              </div>
-            </div>
-          )}
+  const renderParseEmptyState = () => (
+    <div className="flex h-full items-center justify-center px-6">
+      <div className="flex max-w-[380px] flex-col items-center text-center">
+        <FileText className="text-ink-3 size-8" strokeWidth={1.5} />
+        <p className="text-ink-1 mt-4 text-[15px] font-medium">这个网页还没有转成文档</p>
+        <p className="text-ink-3 text-tau-sm mt-1.5 leading-relaxed">
+          转成文档后可以编辑、批注，并用目录快速跳转。
+        </p>
+        {currentClipError && (
+          <p className="text-tau-sm mt-3 text-red-600">上次解析失败：{currentClipError}</p>
+        )}
+        <div className="mt-5 flex gap-2">
+          <Button
+            size="sm"
+            variant="primary"
+            icon={Sparkles}
+            onClick={() => void handleStartParse("llm")}
+          >
+            LLM 转录
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={Scissors}
+            onClick={() => void handleStartParse("smart")}
+          >
+            剪藏网页
+          </Button>
         </div>
       </div>
     </div>
   );
 
+  // 解析文档阅读区
+  const renderDocumentView = () => {
+    if (!hasClipResult && !isAnyClipping) return renderParseEmptyState();
+    // py-4：视口与纸面上下缘留出间距（同文档型条目正文），正文在视口边缘渐隐而非贴卡片边硬切
+    return (
+      <div className="h-full py-4">
+        <FadeScroll
+          scrollRef={editorContainerRef}
+          className="@container/web-clip-editor tau-sheet-scroll h-full w-full [--edge-fade-bottom-size:24px] [--edge-fade-top-size:24px]"
+        >
+          <div className="mx-auto flex w-full items-start justify-center gap-6 px-5 py-5">
+            <div className="relative min-w-0 max-w-[720px] flex-1">
+              {isAnyClipping && (
+                <div className="border-line-1 bg-hover text-ink-1 mx-20 mb-4 flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm">
+                  <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
+                  <span className="flex-1">正在解析网页内容，请稍候…</span>
+                  <Button size="sm" variant="ghost" onClick={() => void cancelAnyClip()}>
+                    取消
+                  </Button>
+                </div>
+              )}
+              {currentClipError && !isAnyClipping && (
+                <div className="mx-20 mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  {currentClipError}
+                </div>
+              )}
+              <Editor
+                contentId={editorContentId}
+                className="mx-20"
+                key={`${projectItemId}-parsed`}
+                ref={editorRef}
+                initValue={currentParsedContent}
+                onChange={handleEditorChange}
+                readonly={isAnyClipping}
+                extensions={dynamicExtensions}
+                onInit={editorInstance => {
+                  slateEditorRef.current = editorInstance as CustomEditor;
+                }}
+              />
+            </div>
+            {showComments && (
+              <div className="@[900px]/web-clip-editor:block hidden w-[260px] flex-none self-start">
+                <EditorComment
+                  className="w-full"
+                  editorRef={slateEditorRef}
+                  containerRef={editorContainerRef}
+                  show={true}
+                  onCommentClick={handleSidebarCommentClick}
+                />
+              </div>
+            )}
+          </div>
+        </FadeScroll>
+      </div>
+    );
+  };
+
+  const renderRailBody = () => {
+    if (activeRailTab === "outline") {
+      return (
+        <FadeScroll className="h-full py-3 pl-4 pr-2.5">
+          {hasClipResult || isAnyClipping ? (
+            <EditorOutline
+              className="w-full"
+              content={currentParsedContent}
+              show={true}
+              onClickHeader={onClickHeader}
+            />
+          ) : (
+            <p className="text-ink-3 text-tau-sm pt-2">解析后显示文档目录</p>
+          )}
+        </FadeScroll>
+      );
+    }
+    if (!activeNote) {
+      return (
+        <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+          <NotebookPen className="text-ink-3 size-7" strokeWidth={1.5} />
+          <p className="text-ink-2 text-tau-sm mt-3">边读边记，笔记与这个网页放在一起</p>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="mt-4"
+            disabled={creatingDocument}
+            onClick={() => void createNote()}
+          >
+            {creatingDocument ? "正在创建…" : "新建笔记"}
+          </Button>
+        </div>
+      );
+    }
+    return (
+      <FadeScroll className="h-full py-3">
+        <Editor
+          contentId={activeNote.contentId}
+          className="mx-8"
+          key={`${projectItemId}-note-${activeNote.id}`}
+          ref={noteEditorRef}
+          initValue={noteContents[activeNote.contentId] ?? createEmptyEditorContent()}
+          onChange={handleNoteChange}
+          readonly={false}
+          extensions={dynamicExtensions}
+        />
+      </FadeScroll>
+    );
+  };
+
   return (
     <div className="flex h-full w-full flex-col">
-      {/* Header */}
-      <div className={`flex items-center justify-between border-b ${"border-line-1"} px-4 py-2.5`}>
-        {/* 标题区域 - 点击编辑 icon 弹窗编辑 */}
+      {/* Header：标题 · 视图切换 · 侧栏开关 · ⋯ */}
+      <div className="border-line-1 flex items-center gap-3 border-b px-4 py-2.5">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <h1 className="m-0 truncate text-lg font-semibold leading-snug">{title}</h1>
           <Tooltip content="编辑标题" delay={500}>
-            <button
-              className="text-ink-3 hover:bg-hover hover:text-ink-2 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all"
-              onClick={handleEditTitle}
+            <IconButton
+              className="text-ink-3 size-7 shrink-0"
+              aria-label="编辑标题"
+              onClick={() => setEditTitleModalOpen(true)}
             >
               <Pencil className="size-4" strokeWidth={1.75} />
-            </button>
+            </IconButton>
           </Tooltip>
         </div>
 
-        {/* Right side icons */}
-        <div className="ml-2 flex items-center gap-1">
-          {showDocumentSidebar && (
-            <>
-              <Tooltip content="显示/隐藏目录" delay={500}>
-                <button
-                  className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(sidebarMode === "outline", "green")}`}
-                  onClick={() => setSidebarMode(sidebarMode === "outline" ? null : "outline")}
-                >
-                  <OutlineMenuIcon />
-                </button>
-              </Tooltip>
-              <Tooltip content="显示/隐藏评论" delay={500}>
-                <button
-                  className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(sidebarMode === "comments", "purple")}`}
-                  onClick={() => setSidebarMode(sidebarMode === "comments" ? null : "comments")}
-                >
-                  <CommentSidebarIcon />
-                </button>
-              </Tooltip>
-            </>
-          )}
-          {hasClipResult && (
-            <Tooltip content={docTooltip} delay={500}>
-              <button
-                className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(docButtonActive, "green")}`}
-                onClick={handleToggleParsedDocument}
-              >
-                <SwitchViewIcon />
-              </button>
-            </Tooltip>
-          )}
-          <Tooltip content={noteTooltip} delay={500}>
-            <button
-              className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(noteButtonActive, "purple")} disabled:cursor-not-allowed disabled:opacity-50`}
-              onClick={() => {
-                if (creatingDocument && notes.length === 0) return;
-                void handleToggleNoteDocument();
-              }}
-              disabled={creatingDocument && notes.length === 0}
-            >
-              <Book className="size-4" strokeWidth={1.75} />
-            </button>
-          </Tooltip>
+        <Segmented
+          label="阅读视图"
+          value={mainView}
+          onValueChange={(v: MainView) => handleSwitchMainView(v)}
+        >
+          <Segmented.Item value="web" label="网页" icon={Globe} />
+          <Segmented.Item value="parsed" label="文档" icon={FileText} />
+        </Segmented>
 
-          {/* 解析网页 */}
-          <div
-            className="relative"
-            onMouseEnter={openClipMenu}
-            onMouseLeave={scheduleCloseClipMenu}
+        <div className="flex items-center gap-0.5">
+          <Tooltip
+            content={
+              railVisible ? "收起侧栏" : mainView === "web" ? "展开笔记" : "展开侧栏（目录 / 笔记）"
+            }
+            delay={500}
           >
-            <Tooltip
-              content={isAnyClipping ? "取消解析" : hasClipResult ? "重新解析" : "解析网页"}
-              delay={500}
+            <IconButton
+              aria-label={railVisible ? "收起侧栏" : "展开侧栏"}
+              aria-pressed={railVisible}
+              className={railVisible ? "text-ink-1" : undefined}
+              onClick={handleToggleRail}
             >
-              <button
-                className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${
-                  isAnyClipping
-                    ? `${"bg-accent-soft text-accent-text"}`
-                    : "text-ink-2 hover:bg-hover bg-transparent"
-                }`}
-                onClick={() => {
-                  closeClipMenu();
-                  void handleStartClip();
-                }}
-              >
-                {isAnyClipping ? (
-                  <Loader2 className="size-4 animate-spin" strokeWidth={1.75} />
-                ) : (
-                  <ClipIcon />
-                )}
-              </button>
-            </Tooltip>
-            <div
-              className={`absolute right-0 top-full z-40 h-2 w-[240px] ${
-                clipMenuOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
-              }`}
-            />
-            <div
-              className={`bg-surface border-line-1 shadow-float rounded-tau-lg absolute right-0 top-full z-50 mt-2 min-w-[140px] border p-[6px] ${
-                clipMenuOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
-              } transition-opacity`}
-            >
-              <div className="flex flex-col gap-[2px]">
-                <button
-                  type="button"
-                  className={getClipMenuItemClass(isAnyClipping)}
-                  onClick={() => {
-                    closeClipMenu();
-                    void handleStartClip();
-                  }}
-                  disabled={isAnyClipping}
-                >
-                  <span className="truncate">LLM 转录</span>
-                </button>
-                <button
-                  type="button"
-                  className={getClipMenuItemClass(isAnyClipping)}
-                  onClick={() => {
-                    closeClipMenu();
-                    handleStartLocalClip("smart");
-                  }}
-                  disabled={isAnyClipping}
-                >
-                  <span className="truncate">剪藏网页</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* 分屏视图 - 仅当有文档时显示 */}
-          {hasAnyDocument && (
-            <Tooltip content={viewMode === "split" ? "退出分屏" : "分屏视图"} delay={500}>
-              <button
-                className={`flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none transition-all ${getActiveButtonClass(viewMode === "split", "purple")}`}
-                onClick={() => void handleToggleSplit()}
-              >
-                <SplitViewIcon />
-              </button>
-            </Tooltip>
-          )}
+              <PanelRight size={17} strokeWidth={1.75} />
+            </IconButton>
+          </Tooltip>
 
           {/* 更多操作（trigger 用原生 button + title：Menu.trigger 需单一透传元素，
               Tooltip 包裹会吞注入） */}
@@ -1356,7 +1040,7 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
                 type="button"
                 title="更多操作"
                 aria-label="更多操作"
-                className="text-ink-2 hover:bg-hover flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent transition-all"
+                className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm grid size-[30px] cursor-pointer place-items-center border-none bg-transparent transition-colors"
               >
                 <MoreHorizontal className="size-4" strokeWidth={1.75} />
               </button>
@@ -1367,69 +1051,89 @@ const WebViewProjectItemView = (props: WebViewProjectItemViewProps) => {
         </div>
       </div>
 
-      {/* Content area */}
-      <div className="relative flex-1 overflow-hidden">
-        {viewMode === "split" ? (
-          /* 分屏视图 */
-          <ResizablePanel
-            id={`project-webview-split-${projectItemId}`}
-            className="h-full w-full"
-            leftClassName={`h-full overflow-hidden border-r ${"border-line-1"}`}
-            rightClassName="h-full overflow-hidden"
-            minLeft={360}
-            minRight={420}
-            initialLeftRatio={0.5}
-            left={
-              <Webview
-                ref={webviewRef}
-                src={currentUrl}
-                sourceType={meta.sourceType}
-                className="h-full w-full"
-                allowPopups={false}
-                onError={err => console.error("加载失败:", err)}
-                convertFileSrc={convertFileSrc}
-                getHomeDir={getHomeDir}
-                remoteResourceToLocal={remoteResourceToLocal}
-                cdnUrlResolver={useGithubCdnUrl}
-              />
-            }
-            right={<div className="h-full w-full">{renderDocumentView()}</div>}
-          />
-        ) : (
-          /* 单页视图 */
-          <>
-            {/* Webview */}
-            <div
-              className={`absolute inset-0 transition-opacity duration-200 ${
-                showWebview && !showDocument
-                  ? "z-10 opacity-100"
-                  : "pointer-events-none z-0 opacity-0"
-              }`}
-            >
-              <Webview
-                ref={webviewRef}
-                src={currentUrl}
-                sourceType={meta.sourceType}
-                className="h-full w-full"
-                allowPopups={false}
-                onError={err => console.error("加载失败:", err)}
-                convertFileSrc={convertFileSrc}
-                getHomeDir={getHomeDir}
-                remoteResourceToLocal={remoteResourceToLocal}
-                cdnUrlResolver={useGithubCdnUrl}
-              />
+      {/* Body：主区 + 右侧栏 */}
+      <div className="flex min-h-0 flex-1">
+        <div className="relative min-w-0 flex-1 overflow-hidden">
+          {/* 两层常驻挂载：webview 不重载，解析时仍可取 HTML */}
+          <div
+            className={`absolute inset-0 transition-opacity duration-200 ${
+              mainView === "web" ? "z-10 opacity-100" : "pointer-events-none z-0 opacity-0"
+            }`}
+          >
+            <Webview
+              ref={webviewRef}
+              src={currentUrl}
+              sourceType={meta.sourceType}
+              className="h-full w-full"
+              allowPopups={false}
+              onError={err => console.error("加载失败:", err)}
+              convertFileSrc={convertFileSrc}
+              getHomeDir={getHomeDir}
+              remoteResourceToLocal={remoteResourceToLocal}
+              cdnUrlResolver={useGithubCdnUrl}
+            />
+          </div>
+          <div
+            className={`absolute inset-0 transition-opacity duration-200 ${
+              mainView === "parsed" ? "z-10 opacity-100" : "pointer-events-none z-0 opacity-0"
+            }`}
+          >
+            {renderDocumentView()}
+          </div>
+        </div>
+
+        <ResizeableAndHideableSidebar
+          width={railWidth ?? RAIL_DEFAULT_W}
+          onWidthChange={setRailWidth}
+          open={railVisible}
+          sidebarPosition="right"
+          resizeHandleSide="left"
+          minWidth={260}
+          maxWidth={560}
+          disableResize={!railVisible}
+          showDivider
+          className="h-full shrink-0"
+        >
+          <div className="flex h-full flex-col">
+            <div className="flex h-11 shrink-0 items-center gap-2 px-3">
+              {mainView === "parsed" ? (
+                <Segmented
+                  label="侧栏内容"
+                  value={railTab}
+                  onValueChange={(v: RailTab) => handleSwitchRailTab(v)}
+                >
+                  <Segmented.Item value="outline" label="目录" />
+                  <Segmented.Item value="note" label="笔记" />
+                </Segmented>
+              ) : (
+                <span className="text-ink-2 text-tau-sm px-1 font-medium">笔记</span>
+              )}
+              {activeRailTab === "note" && activeNote && (
+                <>
+                  <span className="text-ink-3 text-tau-sm min-w-0 flex-1 truncate">
+                    {activeNote.title}
+                  </span>
+                  <Menu
+                    align="end"
+                    trigger={
+                      <button
+                        type="button"
+                        title="笔记操作"
+                        aria-label="笔记操作"
+                        className="text-ink-3 hover:bg-hover hover:text-ink-1 rounded-tau-sm grid size-[26px] cursor-pointer place-items-center border-none bg-transparent transition-colors"
+                      >
+                        <MoreHorizontal className="size-[15px]" strokeWidth={1.75} />
+                      </button>
+                    }
+                  >
+                    {renderMenuEntries(noteMenuItems, key => void handleNoteMenuClick(key))}
+                  </Menu>
+                </>
+              )}
             </div>
-            <div
-              className={`absolute inset-0 transition-opacity duration-200 ${
-                showDocument && !showWebview
-                  ? "z-10 opacity-100"
-                  : "pointer-events-none z-0 opacity-0"
-              }`}
-            >
-              {renderDocumentView()}
-            </div>
-          </>
-        )}
+            <div className="min-h-0 flex-1 pb-4">{renderRailBody()}</div>
+          </div>
+        </ResizeableAndHideableSidebar>
       </div>
 
       {/* 编辑标题弹窗 */}
