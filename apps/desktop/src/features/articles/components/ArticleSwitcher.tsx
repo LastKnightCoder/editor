@@ -100,7 +100,11 @@ export function ArticleSwitcher({
   };
 
   const renderRow = (item: ArticlePageItem) => (
-    <div key={item.id} className="group/row rounded-tau-sm relative flex h-8 items-center px-2">
+    <div
+      key={item.id}
+      /* hover 与行内 ⋯ 菜单展开时铺底色（菜单打开后鼠标移出，行仍保持选中态） */
+      className="group/row rounded-tau-sm hover:bg-hover has-[[aria-expanded=true]]:bg-hover relative flex h-8 items-center px-2 transition-colors duration-100"
+    >
       <button
         type="button"
         onClick={() => {
@@ -108,7 +112,7 @@ export function ArticleSwitcher({
           if (item.id !== currentId) onOpenArticle(item.id);
         }}
         className={cn(
-          "flex min-w-0 flex-1 items-center gap-1.5 text-left text-[12.5px] leading-snug group-hover/row:pr-5",
+          "flex min-w-0 flex-1 items-center gap-1.5 text-left text-[12.5px] leading-snug group-hover/row:pr-5 group-has-[[aria-expanded=true]]/row:pr-5",
           item.id === currentId
             ? "text-accent-text font-medium"
             : "text-ink-2 group-hover/row:text-ink-1"
@@ -118,7 +122,7 @@ export function ArticleSwitcher({
           <Pin className="fill-accent text-accent size-[11px] shrink-0" strokeWidth={1.75} />
         )}
         <span className="truncate">{item.title || `文章 #${item.id}`}</span>
-        <span className="text-ink-3 ml-auto shrink-0 text-[10.5px] tabular-nums group-hover/row:hidden">
+        <span className="text-ink-3 ml-auto shrink-0 text-[10.5px] tabular-nums group-hover/row:hidden group-has-[[aria-expanded=true]]/row:hidden">
           {formatItemDate(item.updateTime)}
         </span>
       </button>
@@ -127,7 +131,7 @@ export function ArticleSwitcher({
         trigger={
           <IconButton
             title="置顶 / 导出 / 删除"
-            className="absolute right-1 top-1/2 size-5 -translate-y-1/2 opacity-0 group-hover/row:opacity-100"
+            className="absolute right-1 top-1/2 size-5 -translate-y-1/2 opacity-0 group-hover/row:opacity-100 aria-expanded:opacity-100"
           >
             <MoreHorizontal className="size-[14px]" strokeWidth={1.75} />
           </IconButton>
