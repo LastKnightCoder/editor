@@ -1,7 +1,8 @@
 /**
  * 待办页视图 · 议程流 B3「两块板」（mockups/todos/plan-b-agenda.html?v=panels 定稿）：
  * 一整张纸：纸顶固定工具栏（标题 + 今日摘要 + 按日期/按项目分段切换）与自然语言快速添加，
- * 纸内左栏议程（时间分段）+ 右栏（今日打卡 / 本周负荷 / 最近完成）；详情为右侧抽屉，恰好盖住右栏。
+ * 纸内议程（时间分段）占满宽度；「今日」概览（今日打卡 / 本周负荷 / 最近完成）与任务详情都是右侧非模态抽屉，
+ * 今日由工具栏按钮开关，打开任务时详情接替、关掉详情回到今日。
  * 项目筛选在侧栏「待办」入口的子项里（TodosNav，页面参数 id），页内不放项目 pills。
  *
  * 裁决（DECISIONS D-040）：不并入日程页、不放页面状态栏 PageStatusBar（计数在工具栏摘要与 pills）、删除不二次
@@ -18,6 +19,7 @@ import {
   CalendarDays,
   Check,
   Folder,
+  ListChecks,
   PanelRightOpen,
   Plus,
   Sunrise,
@@ -26,7 +28,6 @@ import {
 } from "lucide-react";
 import { MotionConfig } from "motion/react";
 import { Button, Loading, Menu, Segmented, toast } from "@tau/ui";
-import { FadeScroll } from "@/components/FadeScroll";
 import { usePage, usePageParams } from "@/page/PageProvider";
 import type { TodoGroup } from "@/types";
 import {
@@ -38,14 +39,15 @@ import {
   liveEntries,
   scheduledToday,
   startOfDay,
+  WEEKDAY_CN,
 } from "../model";
 import { useNow, useTodoMutations, useTodoSnapshot } from "../queries";
 import type { QuickAddResult } from "../quickAdd";
 import type { TodoEntry } from "../types";
 import { AgendaPanel, type AgendaMode } from "../components/AgendaPanel";
 import { GroupDialog } from "@/components/GroupDialog";
-import { HabitRail } from "../components/HabitRail";
 import { QuickAddBar } from "../components/QuickAddBar";
+import { TodayDrawer } from "../components/TodayDrawer";
 import { TodoDrawer } from "../components/TodoDrawer";
 import { GroupDot } from "../components/TodoBits";
 
@@ -65,6 +67,7 @@ export function TodosView() {
   const setGroupFilter = (groupId: number) =>
     navigator.push("todos", { id: groupId ? String(groupId) : "" });
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [todayOpen, setTodayOpen] = useState(false);
   const [groupDialog, setGroupDialog] = useState<{ group: TodoGroup | null } | null>(null);
   const quickAddRef = useRef<HTMLInputElement>(null);
   const agendaAnchor = useRef<HTMLDivElement>(null);
@@ -345,6 +348,20 @@ export function TodosView() {
                   </>
                 )}
               </span>
+              <Button
+                variant={todayOpen ? "soft" : "ghost"}
+                size="sm"
+                icon={ListChecks}
+                aria-pressed={todayOpen}
+                title="今日打卡 · 本周负荷 · 最近完成"
+                className="shrink-0 whitespace-nowrap"
+                onClick={() => {
+                  setTodayOpen(open => !open);
+                  setSelectedId(null);
+                }}
+              >
+                今日
+              </Button>
               <Segmented
                 label="分段方式"
                 value={mode}
@@ -372,8 +389,8 @@ export function TodosView() {
               onRestore={group => void mutations.setGroupArchived(group.id, false)}
             />
           ) : (
-            // 左栏议程 + 右栏（细线分隔）；抽屉在此绝对定位盖住右栏
-            <div className="relative grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_312px]">
+            // 议程占满；今日 / 详情抽屉在此绝对定位盖在右侧
+            <div className="relative grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)]">
               <div ref={agendaAnchor} className="flex min-h-0 flex-col pl-2.5">
                 <AgendaPanel
                   entries={mode === "date" ? derived.timed : derived.roots}
@@ -388,19 +405,18 @@ export function TodosView() {
                   renderMenu={renderMenu}
                 />
               </div>
-              <div className="border-line-1 mb-4 flex min-h-0 flex-col border-l">
-                <FadeScroll className="min-h-0 min-w-0 flex-1 pb-6 pr-3.5">
-                  <HabitRail
-                    roots={derived.timed}
-                    completed={derived.completed}
-                    now={now}
-                    selectedId={selectedId}
-                    onOpen={entry => setSelectedId(entry.id)}
-                    onToggleHabit={toggle}
-                    onJump={jumpTo}
-                  />
-                </FadeScroll>
-              </div>
+              <TodayDrawer
+                open={todayOpen && selected === null}
+                onClose={() => setTodayOpen(false)}
+                subtitle={`${new Date(now).getMonth() + 1}月${new Date(now).getDate()}日 ${WEEKDAY_CN[new Date(now).getDay()]}`}
+                roots={derived.timed}
+                completed={derived.completed}
+                now={now}
+                selectedId={selectedId}
+                onOpen={entry => setSelectedId(entry.id)}
+                onToggleHabit={toggle}
+                onJump={jumpTo}
+              />
               <TodoDrawer
                 entry={selected}
                 snapshot={snapshot}
