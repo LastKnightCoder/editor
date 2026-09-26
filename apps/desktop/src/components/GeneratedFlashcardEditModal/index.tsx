@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import type { Descendant } from "slate";
 import { CreditCard, Trash2 } from "lucide-react";
-import { Button, Checkbox, Dialog, Input, Radio, Tag, Textarea } from "@tau/ui";
+import { Button, Checkbox, Dialog, DialogBody, Input, Radio, Tag, Textarea } from "@tau/ui";
 import RichTextEditor from "@/components/FlashcardEditor/components/RichTextEditor";
 import type { GeneratedFlashcard } from "@/hooks/useFlashcardGeneration";
 import { FLASHCARD_TYPE_META, textToDescendants } from "@/utils/flashcard";
@@ -219,162 +219,166 @@ const GeneratedFlashcardEditModal = ({
         </>
       }
     >
-      <>
-        <div className="space-y-4">
-          {/* Prompt */}
-          <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>题干</label>
-            {isEditorReady ? (
-              <RichTextEditor
-                key={`prompt-${editorKey}`}
-                value={prompt}
-                onChange={value =>
-                  setPrompt(
-                    !value || value.length === 0
-                      ? [
-                          {
-                            type: "paragraph",
-                            children: [{ type: "formatted", text: "" }],
-                          },
-                        ]
-                      : value
-                  )
-                }
-                allowBlanks={type === "cloze"}
-                isDark={isDark}
-                placeholder="闪卡问题或提示"
-                minHeight="100px"
-              />
-            ) : (
-              <div
-                className="bg-surface border-line-1 rounded-tau-sm animate-pulse border"
-                style={{ minHeight: "100px" }}
-              />
-            )}
-          </div>
-
-          {/* Detail */}
-          <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>详细说明 / 提示</label>
-            {isEditorReady ? (
-              <RichTextEditor
-                key={`detail-${editorKey}`}
-                value={detail}
-                onChange={value =>
-                  setDetail(
-                    !value || value.length === 0
-                      ? [
-                          {
-                            type: "paragraph",
-                            children: [{ type: "formatted", text: "" }],
-                          },
-                        ]
-                      : value
-                  )
-                }
-                allowBlanks={false}
-                isDark={isDark}
-                placeholder="额外的说明或提示信息"
-                minHeight="80px"
-              />
-            ) : (
-              <div
-                className="bg-surface border-line-1 rounded-tau-sm animate-pulse border"
-                style={{ minHeight: "80px" }}
-              />
-            )}
-          </div>
-
-          {/* Type Selection */}
-          <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>问题类型</label>
-            <div className="grid grid-cols-2 gap-3">
-              {(Object.keys(FLASHCARD_TYPE_META) as FlashcardType[]).map(t => {
-                const meta = FLASHCARD_TYPE_META[t];
-                const active = type === t;
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setType(t)}
-                    className={`rounded-tau-md ease-tau-out border-[1.5px] px-3 py-2.5 text-left transition-colors ${
-                      active
-                        ? "border-accent bg-accent-soft"
-                        : "border-line-1 hover:border-ink-3/50"
-                    }`}
-                  >
-                    <div className="text-ink-1 text-tau-body font-[600]">{meta.label}</div>
-                    <p className="text-ink-3 text-tau-sm mt-0.5 line-clamp-2">{meta.description}</p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Type-specific fields */}
-          {type !== "cloze" && (
+      <DialogBody>
+        <>
+          <div className="space-y-4">
+            {/* Prompt */}
             <div className="flex flex-col gap-1.5">
-              <label className={FIELD_LABEL}>
-                {type === "single-choice" || type === "multiple-choice"
-                  ? "选项"
-                  : type === "qa"
-                    ? "参考答案"
-                    : "正确答案"}
-              </label>
-              {renderTypeFields()}
+              <label className={FIELD_LABEL}>题干</label>
+              {isEditorReady ? (
+                <RichTextEditor
+                  key={`prompt-${editorKey}`}
+                  value={prompt}
+                  onChange={value =>
+                    setPrompt(
+                      !value || value.length === 0
+                        ? [
+                            {
+                              type: "paragraph",
+                              children: [{ type: "formatted", text: "" }],
+                            },
+                          ]
+                        : value
+                    )
+                  }
+                  allowBlanks={type === "cloze"}
+                  isDark={isDark}
+                  placeholder="闪卡问题或提示"
+                  minHeight="100px"
+                />
+              ) : (
+                <div
+                  className="bg-surface border-line-1 rounded-tau-sm animate-pulse border"
+                  style={{ minHeight: "100px" }}
+                />
+              )}
             </div>
-          )}
 
-          {/* Difficulty */}
-          <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>难度</label>
-            <div className="grid grid-cols-3 gap-3">
-              {difficultyOptions.map(opt => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setDifficulty(opt.value)}
-                  className={`rounded-tau-md text-tau-body ease-tau-out border-[1.5px] px-4 py-2.5 font-medium transition-colors ${
-                    difficulty === opt.value
-                      ? "border-accent bg-accent-soft text-accent-text"
-                      : "border-line-1 text-ink-2 hover:border-ink-3/50"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+            {/* Detail */}
+            <div className="flex flex-col gap-1.5">
+              <label className={FIELD_LABEL}>详细说明 / 提示</label>
+              {isEditorReady ? (
+                <RichTextEditor
+                  key={`detail-${editorKey}`}
+                  value={detail}
+                  onChange={value =>
+                    setDetail(
+                      !value || value.length === 0
+                        ? [
+                            {
+                              type: "paragraph",
+                              children: [{ type: "formatted", text: "" }],
+                            },
+                          ]
+                        : value
+                    )
+                  }
+                  allowBlanks={false}
+                  isDark={isDark}
+                  placeholder="额外的说明或提示信息"
+                  minHeight="80px"
+                />
+              ) : (
+                <div
+                  className="bg-surface border-line-1 rounded-tau-sm animate-pulse border"
+                  style={{ minHeight: "80px" }}
+                />
+              )}
             </div>
-          </div>
 
-          {/* Tags */}
-          <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>标签</label>
-            {tags.length > 0 && (
-              <div className="mb-2 flex flex-wrap gap-2">
-                {tags.map(tag => (
-                  <Tag key={tag} onRemove={() => setTags(tags.filter(t => t !== tag))}>
-                    {tag}
-                  </Tag>
-                ))}
+            {/* Type Selection */}
+            <div className="flex flex-col gap-1.5">
+              <label className={FIELD_LABEL}>问题类型</label>
+              <div className="grid grid-cols-2 gap-3">
+                {(Object.keys(FLASHCARD_TYPE_META) as FlashcardType[]).map(t => {
+                  const meta = FLASHCARD_TYPE_META[t];
+                  const active = type === t;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setType(t)}
+                      className={`rounded-tau-md ease-tau-out border-[1.5px] px-3 py-2.5 text-left transition-colors ${
+                        active
+                          ? "border-accent bg-accent-soft"
+                          : "border-line-1 hover:border-ink-3/50"
+                      }`}
+                    >
+                      <div className="text-ink-1 text-tau-body font-[600]">{meta.label}</div>
+                      <p className="text-ink-3 text-tau-sm mt-0.5 line-clamp-2">
+                        {meta.description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Type-specific fields */}
+            {type !== "cloze" && (
+              <div className="flex flex-col gap-1.5">
+                <label className={FIELD_LABEL}>
+                  {type === "single-choice" || type === "multiple-choice"
+                    ? "选项"
+                    : type === "qa"
+                      ? "参考答案"
+                      : "正确答案"}
+                </label>
+                {renderTypeFields()}
               </div>
             )}
-            <Input
-              value={tagInput}
-              onChange={e => setTagInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter" && tagInput.trim()) {
-                  e.preventDefault();
-                  if (!tags.includes(tagInput.trim())) {
-                    setTags([...tags, tagInput.trim()]);
+
+            {/* Difficulty */}
+            <div className="flex flex-col gap-1.5">
+              <label className={FIELD_LABEL}>难度</label>
+              <div className="grid grid-cols-3 gap-3">
+                {difficultyOptions.map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setDifficulty(opt.value)}
+                    className={`rounded-tau-md text-tau-body ease-tau-out border-[1.5px] px-4 py-2.5 font-medium transition-colors ${
+                      difficulty === opt.value
+                        ? "border-accent bg-accent-soft text-accent-text"
+                        : "border-line-1 text-ink-2 hover:border-ink-3/50"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tags */}
+            <div className="flex flex-col gap-1.5">
+              <label className={FIELD_LABEL}>标签</label>
+              {tags.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-2">
+                  {tags.map(tag => (
+                    <Tag key={tag} onRemove={() => setTags(tags.filter(t => t !== tag))}>
+                      {tag}
+                    </Tag>
+                  ))}
+                </div>
+              )}
+              <Input
+                value={tagInput}
+                onChange={e => setTagInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && tagInput.trim()) {
+                    e.preventDefault();
+                    if (!tags.includes(tagInput.trim())) {
+                      setTags([...tags, tagInput.trim()]);
+                    }
+                    setTagInput("");
                   }
-                  setTagInput("");
-                }
-              }}
-              placeholder="输入标签后按回车添加"
-            />
+                }}
+                placeholder="输入标签后按回车添加"
+              />
+            </div>
           </div>
-        </div>
-      </>
+        </>
+      </DialogBody>
     </Dialog>
   );
 };

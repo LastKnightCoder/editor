@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, memo, useRef } from "react";
 import { AudioLines, Mic, Save, Sparkles } from "lucide-react";
-import { Button, Dialog, Input, NumberInput, toast } from "@tau/ui";
+import { Button, Dialog, DialogBody, Input, NumberInput, toast } from "@tau/ui";
 import { Field, LogPanel } from "./ui";
 import { usePodcastGeneration } from "@/hooks/usePodcastGeneration";
 import type { PodcastSpeaker, IPodcast, PodcastScriptLine } from "@/types/podcast";
@@ -304,98 +304,100 @@ const PodcastGenerationModal = memo<PodcastGenerationModalProps>(
         impact={impact}
         footer={footerNode}
       >
-        <div className="flex flex-col gap-5 pt-2">
-          {/* 初始配置阶段 */}
-          {status === "idle" && (
-            <>
-              {nameField}
-              <div className="flex flex-col gap-2">
+        <DialogBody>
+          <div className="flex flex-col gap-5 pt-2">
+            {/* 初始配置阶段 */}
+            {status === "idle" && (
+              <>
+                {nameField}
+                <div className="flex flex-col gap-2">
+                  {speakerField}
+                  <VoiceClonePanel
+                    showCloneForm={showCloneForm}
+                    setShowCloneForm={setShowCloneForm}
+                    cloneItems={cloneItems}
+                    setCloneItems={setCloneItems}
+                    cloneLoading={cloneLoading}
+                    setCloneLoading={setCloneLoading}
+                    minimaxApiKey={minimaxApiKey}
+                    voices={voices as VoiceOption[]}
+                    addVoiceToList={addVoiceToList}
+                    notify={notify}
+                  />
+                </div>
+                <Field label="时长（分钟）">
+                  <div className="flex items-center gap-2">
+                    <NumberInput
+                      aria-label="最短时长"
+                      wrapperClassName="w-24"
+                      value={durationRange[0]}
+                      onValueChange={v =>
+                        setDurationRange(prev => normalizeDurationRange(v ?? 1, prev[1]))
+                      }
+                    />
+                    <span className="text-tau-meta text-ink-3">到</span>
+                    <NumberInput
+                      aria-label="最长时长"
+                      wrapperClassName="w-24"
+                      value={durationRange[1]}
+                      onValueChange={v =>
+                        setDurationRange(prev => normalizeDurationRange(prev[0], v ?? 1))
+                      }
+                    />
+                  </div>
+                </Field>
+              </>
+            )}
+
+            {/* 脚本编辑阶段 */}
+            {isEditingScript && (
+              <ScriptEditor
+                scriptLines={scriptLines}
+                speakers={speakers}
+                updateScriptLines={updateScriptLines}
+              />
+            )}
+
+            {/* 进度显示 (非脚本编辑阶段) */}
+            {status === "loading" && !isEditingScript && (
+              <ProgressView
+                stage={stage}
+                stageProgress={stageProgress}
+                ttsCompleted={ttsCompleted}
+                ttsTotal={ttsTotal}
+                logs={logs}
+              />
+            )}
+
+            {/* 结果预览 */}
+            {status === "complete" && audioUrl && (
+              <>
+                {nameField}
                 {speakerField}
-                <VoiceClonePanel
-                  showCloneForm={showCloneForm}
-                  setShowCloneForm={setShowCloneForm}
-                  cloneItems={cloneItems}
-                  setCloneItems={setCloneItems}
-                  cloneLoading={cloneLoading}
-                  setCloneLoading={setCloneLoading}
-                  minimaxApiKey={minimaxApiKey}
-                  voices={voices as VoiceOption[]}
-                  addVoiceToList={addVoiceToList}
+                <ResultPreview
+                  audioUrl={audioUrl}
+                  duration={duration}
+                  scriptLines={scriptLines}
+                  segmentAudios={segmentAudios}
+                  regenerateSegment={regenerateSegment}
                   notify={notify}
                 />
-              </div>
-              <Field label="时长（分钟）">
-                <div className="flex items-center gap-2">
-                  <NumberInput
-                    aria-label="最短时长"
-                    wrapperClassName="w-24"
-                    value={durationRange[0]}
-                    onValueChange={v =>
-                      setDurationRange(prev => normalizeDurationRange(v ?? 1, prev[1]))
-                    }
-                  />
-                  <span className="text-tau-meta text-ink-3">到</span>
-                  <NumberInput
-                    aria-label="最长时长"
-                    wrapperClassName="w-24"
-                    value={durationRange[1]}
-                    onValueChange={v =>
-                      setDurationRange(prev => normalizeDurationRange(prev[0], v ?? 1))
-                    }
-                  />
-                </div>
-              </Field>
-            </>
-          )}
+              </>
+            )}
 
-          {/* 脚本编辑阶段 */}
-          {isEditingScript && (
-            <ScriptEditor
-              scriptLines={scriptLines}
-              speakers={speakers}
-              updateScriptLines={updateScriptLines}
-            />
-          )}
-
-          {/* 进度显示 (非脚本编辑阶段) */}
-          {status === "loading" && !isEditingScript && (
-            <ProgressView
-              stage={stage}
-              stageProgress={stageProgress}
-              ttsCompleted={ttsCompleted}
-              ttsTotal={ttsTotal}
-              logs={logs}
-            />
-          )}
-
-          {/* 结果预览 */}
-          {status === "complete" && audioUrl && (
-            <>
-              {nameField}
-              {speakerField}
-              <ResultPreview
-                audioUrl={audioUrl}
-                duration={duration}
-                scriptLines={scriptLines}
-                segmentAudios={segmentAudios}
-                regenerateSegment={regenerateSegment}
-                notify={notify}
-              />
-            </>
-          )}
-
-          {/* 错误显示 */}
-          {status === "error" && (
-            <>
-              {error && (
-                <div className="bg-danger-soft text-danger rounded-tau-sm text-tau-body whitespace-pre-wrap px-3 py-2">
-                  {error}
-                </div>
-              )}
-              <LogPanel logs={logs} />
-            </>
-          )}
-        </div>
+            {/* 错误显示 */}
+            {status === "error" && (
+              <>
+                {error && (
+                  <div className="bg-danger-soft text-danger rounded-tau-sm text-tau-body whitespace-pre-wrap px-3 py-2">
+                    {error}
+                  </div>
+                )}
+                <LogPanel logs={logs} />
+              </>
+            )}
+          </div>
+        </DialogBody>
       </Dialog>
     );
   }

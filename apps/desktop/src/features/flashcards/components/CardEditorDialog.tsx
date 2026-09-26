@@ -10,7 +10,7 @@
 import useTheme from "@/hooks/useTheme";
 import type { Flashcard, FlashcardData, FlashcardDeck, FlashcardType } from "@/types";
 import { createEmptyFlashcardData } from "@/utils/flashcard";
-import { Button, Dialog, IconButton, Menu, toast } from "@tau/ui";
+import { Button, Dialog, DialogBody, IconButton, Menu, toast } from "@tau/ui";
 import { CreditCard, MoreHorizontal, Pause, Play, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { MOD } from "../overlay";
@@ -204,27 +204,29 @@ export function CardEditorDialog({
         </>
       }
     >
-      {form && (
-        <div className="grid grid-cols-[minmax(0,1fr)_236px] gap-[26px]">
-          <CardEditorContent
-            form={form}
-            revision={revision}
-            isDark={isDark}
-            patch={patch}
-            patchData={patchData}
-            changeType={changeType}
-          />
+      <DialogBody>
+        {form && (
+          <div className="grid grid-cols-[minmax(0,1fr)_236px] gap-[26px]">
+            <CardEditorContent
+              form={form}
+              revision={revision}
+              isDark={isDark}
+              patch={patch}
+              patchData={patchData}
+              changeType={changeType}
+            />
 
-          <CardEditorProperties
-            key={revision}
-            form={form}
-            card={card}
-            decks={decks}
-            now={now}
-            patch={patch}
-          />
-        </div>
-      )}
+            <CardEditorProperties
+              key={revision}
+              form={form}
+              card={card}
+              decks={decks}
+              now={now}
+              patch={patch}
+            />
+          </div>
+        )}
+      </DialogBody>
     </Dialog>
   );
 }

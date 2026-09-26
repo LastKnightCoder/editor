@@ -29,7 +29,16 @@ import {
   Video,
   type LucideIcon,
 } from "lucide-react";
-import { Button, ConfirmDialog, Dialog, IconButton, Input, Select, toast } from "@tau/ui";
+import {
+  Button,
+  ConfirmDialog,
+  Dialog,
+  DialogBody,
+  IconButton,
+  Input,
+  Select,
+  toast,
+} from "@tau/ui";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import type { LLMUsageConfig, ModelConfig, ProviderConfig } from "@/types/llm";
 import { SettingRow } from "../components/SettingRow";
@@ -656,37 +665,39 @@ export function LLMSection() {
           </>
         }
       >
-        <div className="flex flex-col gap-3">
-          <label className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-tau-meta text-ink-2 font-medium">名称</span>
-            <Input
-              value={providerForm.name}
-              placeholder="如 DeepSeek"
-              onChange={e => setProviderForm(f => ({ ...f, name: e.target.value }))}
-            />
-          </label>
-          <label className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-tau-meta text-ink-2 font-medium">Base URL</span>
-            <Input
-              className="font-tau-mono"
-              value={providerForm.baseUrl}
-              placeholder="https://api.example.com/v1"
-              spellCheck={false}
-              onChange={e => setProviderForm(f => ({ ...f, baseUrl: e.target.value }))}
-            />
-          </label>
-          <label className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-tau-meta text-ink-2 font-medium">API Key（可稍后补填）</span>
-            <Input
-              className="font-tau-mono"
-              type="password"
-              value={providerForm.apiKey}
-              placeholder="sk-…"
-              spellCheck={false}
-              onChange={e => setProviderForm(f => ({ ...f, apiKey: e.target.value }))}
-            />
-          </label>
-        </div>
+        <DialogBody>
+          <div className="flex flex-col gap-3">
+            <label className="flex min-w-0 flex-col gap-1.5">
+              <span className="text-tau-meta text-ink-2 font-medium">名称</span>
+              <Input
+                value={providerForm.name}
+                placeholder="如 DeepSeek"
+                onChange={e => setProviderForm(f => ({ ...f, name: e.target.value }))}
+              />
+            </label>
+            <label className="flex min-w-0 flex-col gap-1.5">
+              <span className="text-tau-meta text-ink-2 font-medium">Base URL</span>
+              <Input
+                className="font-tau-mono"
+                value={providerForm.baseUrl}
+                placeholder="https://api.example.com/v1"
+                spellCheck={false}
+                onChange={e => setProviderForm(f => ({ ...f, baseUrl: e.target.value }))}
+              />
+            </label>
+            <label className="flex min-w-0 flex-col gap-1.5">
+              <span className="text-tau-meta text-ink-2 font-medium">API Key（可稍后补填）</span>
+              <Input
+                className="font-tau-mono"
+                type="password"
+                value={providerForm.apiKey}
+                placeholder="sk-…"
+                spellCheck={false}
+                onChange={e => setProviderForm(f => ({ ...f, apiKey: e.target.value }))}
+              />
+            </label>
+          </div>
+        </DialogBody>
       </Dialog>
 
       {/* ── 浮层：模型编辑表单 ── */}
@@ -712,153 +723,155 @@ export function LLMSection() {
           </>
         }
       >
-        <div className="grid grid-cols-2 gap-x-3 gap-y-3">
-          <label className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-tau-meta text-ink-2 font-medium">模型 ID</span>
-            <Input
-              className="font-tau-mono"
-              value={modelForm.name}
-              placeholder="如 deepseek-chat"
-              spellCheck={false}
-              onChange={e => setModelForm(f => ({ ...f, name: e.target.value }))}
-            />
-          </label>
-          <label className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-tau-meta text-ink-2 font-medium">描述</span>
-            <Input
-              value={modelForm.description}
-              placeholder="如 高性价比主力"
-              onChange={e => setModelForm(f => ({ ...f, description: e.target.value }))}
-            />
-          </label>
-        </div>
-        <div className="pt-3">
-          <div className="text-tau-meta text-ink-2 pb-1.5 font-medium">能力</div>
-          <div className="flex flex-wrap gap-1.5">
-            {CAPABILITY_DEFS.map(def => {
-              const on = Boolean(modelForm.capabilities[def.key]);
-              const Icon = def.icon;
-              return (
-                <button
-                  key={def.key}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() =>
-                    setModelForm(f => ({
-                      ...f,
-                      capabilities: { ...f.capabilities, [def.key]: !on },
-                    }))
-                  }
-                  className={clsx(
-                    "text-tau-meta flex h-[26px] items-center gap-1.5 rounded-full border px-2.5",
-                    "ease-tau-out transition-colors duration-[160ms]",
-                    on
-                      ? "bg-accent-soft text-accent-text border-transparent font-semibold"
-                      : "border-line-1 text-ink-2 hover:border-ink-3 hover:text-ink-1"
-                  )}
-                >
-                  <Icon size={12} strokeWidth={1.75} />
-                  {def.label}
-                </button>
-              );
-            })}
+        <DialogBody>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+            <label className="flex min-w-0 flex-col gap-1.5">
+              <span className="text-tau-meta text-ink-2 font-medium">模型 ID</span>
+              <Input
+                className="font-tau-mono"
+                value={modelForm.name}
+                placeholder="如 deepseek-chat"
+                spellCheck={false}
+                onChange={e => setModelForm(f => ({ ...f, name: e.target.value }))}
+              />
+            </label>
+            <label className="flex min-w-0 flex-col gap-1.5">
+              <span className="text-tau-meta text-ink-2 font-medium">描述</span>
+              <Input
+                value={modelForm.description}
+                placeholder="如 高性价比主力"
+                onChange={e => setModelForm(f => ({ ...f, description: e.target.value }))}
+              />
+            </label>
           </div>
-        </div>
-        <div className="border-line-1 mt-4 border-t border-dashed pt-1">
-          <button
-            type="button"
-            onClick={() => setAdvancedOpen(v => !v)}
-            aria-expanded={advancedOpen}
-            className="text-tau-meta text-ink-3 flex w-full items-center gap-1.5 py-1.5 font-semibold"
-          >
-            <SlidersHorizontal size={13} strokeWidth={1.75} />
-            高级参数
-            <ChevronDown
-              size={13}
-              strokeWidth={1.75}
-              className={clsx("ease-tau-out transition-transform", advancedOpen && "rotate-180")}
-            />
-          </button>
-          {advancedOpen && (
-            <div className="grid grid-cols-2 gap-x-3 gap-y-3 pb-1">
-              <label className="flex min-w-0 flex-col gap-1.5">
-                <span className="text-tau-meta text-ink-2 font-medium">消息格式</span>
-                <Select
-                  aria-label="消息格式"
-                  className="w-full"
-                  value={modelForm.messageFormat}
-                  options={[
-                    { value: "openai", label: "openai" },
-                    { value: "claude", label: "claude" },
-                  ]}
-                  onValueChange={v =>
-                    setModelForm(f => ({
-                      ...f,
-                      messageFormat: v as ModelFormState["messageFormat"],
-                    }))
-                  }
-                />
-              </label>
-              <label className="flex min-w-0 flex-col gap-1.5">
-                <span className="text-tau-meta text-ink-2 font-medium">API 协议</span>
-                <Select
-                  aria-label="API 协议"
-                  className="w-full"
-                  value={modelForm.apiProtocol}
-                  disabled={modelForm.messageFormat === "claude"}
-                  options={[
-                    { value: "chat-completions", label: "chat-completions" },
-                    { value: "responses", label: "responses" },
-                  ]}
-                  onValueChange={v =>
-                    setModelForm(f => ({ ...f, apiProtocol: v as ModelFormState["apiProtocol"] }))
-                  }
-                />
-              </label>
-              <label className="flex min-w-0 flex-col gap-1.5">
-                <span className="text-tau-meta text-ink-2 font-medium">最大输出 tokens</span>
-                <Input
-                  className="font-tau-mono"
-                  value={modelForm.maxOutputTokens}
-                  placeholder="仅 claude 格式"
-                  disabled={modelForm.messageFormat !== "claude"}
-                  spellCheck={false}
-                  onChange={e => setModelForm(f => ({ ...f, maxOutputTokens: e.target.value }))}
-                />
-              </label>
-              <label className="flex min-w-0 flex-col gap-1.5">
-                <span className="text-tau-meta text-ink-2 font-medium">上下文窗口 (k)</span>
-                <Input
-                  className="font-tau-mono"
-                  value={modelForm.contextWindowK}
-                  placeholder="如 64"
-                  spellCheck={false}
-                  onChange={e => setModelForm(f => ({ ...f, contextWindowK: e.target.value }))}
-                />
-              </label>
-              <label className="flex min-w-0 flex-col gap-1.5">
-                <span className="text-tau-meta text-ink-2 font-medium">采样温度</span>
-                <Input
-                  className="font-tau-mono"
-                  value={modelForm.temperature}
-                  placeholder="0 – 2"
-                  spellCheck={false}
-                  onChange={e => setModelForm(f => ({ ...f, temperature: e.target.value }))}
-                />
-              </label>
-              <label className="flex min-w-0 flex-col gap-1.5">
-                <span className="text-tau-meta text-ink-2 font-medium">User-Agent</span>
-                <Input
-                  className="font-tau-mono"
-                  value={modelForm.userAgent}
-                  placeholder="可选"
-                  spellCheck={false}
-                  onChange={e => setModelForm(f => ({ ...f, userAgent: e.target.value }))}
-                />
-              </label>
+          <div className="pt-3">
+            <div className="text-tau-meta text-ink-2 pb-1.5 font-medium">能力</div>
+            <div className="flex flex-wrap gap-1.5">
+              {CAPABILITY_DEFS.map(def => {
+                const on = Boolean(modelForm.capabilities[def.key]);
+                const Icon = def.icon;
+                return (
+                  <button
+                    key={def.key}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() =>
+                      setModelForm(f => ({
+                        ...f,
+                        capabilities: { ...f.capabilities, [def.key]: !on },
+                      }))
+                    }
+                    className={clsx(
+                      "text-tau-meta flex h-[26px] items-center gap-1.5 rounded-full border px-2.5",
+                      "ease-tau-out transition-colors duration-[160ms]",
+                      on
+                        ? "bg-accent-soft text-accent-text border-transparent font-semibold"
+                        : "border-line-1 text-ink-2 hover:border-ink-3 hover:text-ink-1"
+                    )}
+                  >
+                    <Icon size={12} strokeWidth={1.75} />
+                    {def.label}
+                  </button>
+                );
+              })}
             </div>
-          )}
-        </div>
+          </div>
+          <div className="border-line-1 mt-4 border-t border-dashed pt-1">
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen(v => !v)}
+              aria-expanded={advancedOpen}
+              className="text-tau-meta text-ink-3 flex w-full items-center gap-1.5 py-1.5 font-semibold"
+            >
+              <SlidersHorizontal size={13} strokeWidth={1.75} />
+              高级参数
+              <ChevronDown
+                size={13}
+                strokeWidth={1.75}
+                className={clsx("ease-tau-out transition-transform", advancedOpen && "rotate-180")}
+              />
+            </button>
+            {advancedOpen && (
+              <div className="grid grid-cols-2 gap-x-3 gap-y-3 pb-1">
+                <label className="flex min-w-0 flex-col gap-1.5">
+                  <span className="text-tau-meta text-ink-2 font-medium">消息格式</span>
+                  <Select
+                    aria-label="消息格式"
+                    className="w-full"
+                    value={modelForm.messageFormat}
+                    options={[
+                      { value: "openai", label: "openai" },
+                      { value: "claude", label: "claude" },
+                    ]}
+                    onValueChange={v =>
+                      setModelForm(f => ({
+                        ...f,
+                        messageFormat: v as ModelFormState["messageFormat"],
+                      }))
+                    }
+                  />
+                </label>
+                <label className="flex min-w-0 flex-col gap-1.5">
+                  <span className="text-tau-meta text-ink-2 font-medium">API 协议</span>
+                  <Select
+                    aria-label="API 协议"
+                    className="w-full"
+                    value={modelForm.apiProtocol}
+                    disabled={modelForm.messageFormat === "claude"}
+                    options={[
+                      { value: "chat-completions", label: "chat-completions" },
+                      { value: "responses", label: "responses" },
+                    ]}
+                    onValueChange={v =>
+                      setModelForm(f => ({ ...f, apiProtocol: v as ModelFormState["apiProtocol"] }))
+                    }
+                  />
+                </label>
+                <label className="flex min-w-0 flex-col gap-1.5">
+                  <span className="text-tau-meta text-ink-2 font-medium">最大输出 tokens</span>
+                  <Input
+                    className="font-tau-mono"
+                    value={modelForm.maxOutputTokens}
+                    placeholder="仅 claude 格式"
+                    disabled={modelForm.messageFormat !== "claude"}
+                    spellCheck={false}
+                    onChange={e => setModelForm(f => ({ ...f, maxOutputTokens: e.target.value }))}
+                  />
+                </label>
+                <label className="flex min-w-0 flex-col gap-1.5">
+                  <span className="text-tau-meta text-ink-2 font-medium">上下文窗口 (k)</span>
+                  <Input
+                    className="font-tau-mono"
+                    value={modelForm.contextWindowK}
+                    placeholder="如 64"
+                    spellCheck={false}
+                    onChange={e => setModelForm(f => ({ ...f, contextWindowK: e.target.value }))}
+                  />
+                </label>
+                <label className="flex min-w-0 flex-col gap-1.5">
+                  <span className="text-tau-meta text-ink-2 font-medium">采样温度</span>
+                  <Input
+                    className="font-tau-mono"
+                    value={modelForm.temperature}
+                    placeholder="0 – 2"
+                    spellCheck={false}
+                    onChange={e => setModelForm(f => ({ ...f, temperature: e.target.value }))}
+                  />
+                </label>
+                <label className="flex min-w-0 flex-col gap-1.5">
+                  <span className="text-tau-meta text-ink-2 font-medium">User-Agent</span>
+                  <Input
+                    className="font-tau-mono"
+                    value={modelForm.userAgent}
+                    placeholder="可选"
+                    spellCheck={false}
+                    onChange={e => setModelForm(f => ({ ...f, userAgent: e.target.value }))}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
+        </DialogBody>
       </Dialog>
 
       {/* ── 确认：删除服务商 ── */}

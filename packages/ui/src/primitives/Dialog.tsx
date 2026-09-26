@@ -15,15 +15,22 @@
  *  - Tab 圈闭（首尾环绕）· 打开记录触发元素、关闭归还焦点
  *  - 初始焦点落卡片内 [data-autofocus] 元素（无则卡片自身）；表单场景把
  *    data-autofocus 放首输入框，danger 场景放取消按钮
- *  - 打开锁定底层滚动；body 区独立滚动（上限 78vh，头尾钉住）
- *  - fill：工作台型弹窗（双栏树 + 预览等）——卡片定高、body 不滚动不留白，
- *    由内容自行分栏滚动；避免内容定高与卡片上限打架导致整窗滚动
+ *  - 打开锁定底层滚动；卡片是限高（78vh）的 flex 列，头尾钉住
  *
- * 尺寸档是预设不是牢笼（D-011）：sm 380 / md 440（默认）/ lg 560，width 任意值覆盖。
+ * 正文组合（同 MUI DialogContent / Chakra ModalBody）：卡片不替内容决定滚动，
+ * children 原样排在标题与应答区之间。常规正文包 <DialogBody>——它是滚动区
+ * （edge fade + 内缩滚动条 + 标准内边距）；放在 DialogBody 之外的内容自然钉住
+ * 不随正文滚动（元信息行、标签栏等）；工作台型弹窗（双栏树 + 预览等）不用
+ * DialogBody，配合 height 定高由内容自行分栏滚动。
+ *
+ * 尺寸档是预设不是牢笼（D-011）：sm 380 / md 440（默认）/ lg 560，width 任意值覆盖；
+ * 高度默认随内容（上限 78vh），height 定高（仍不超 82vh）。
  * 层级：遮罩容器 z-[340]（Toast 200 < Select/Menu 250 < Tooltip 300 之上）。
  */
 
 import {
+  createContext,
+  use,
   useEffect,
   useId,
   useRef,
@@ -36,6 +43,7 @@ import {
 import { createPortal } from "react-dom";
 import { PortalScope, usePortalContainer } from "../UiProvider";
 import clsx from "clsx";
+import { cn } from "../cn";
 import { X } from "lucide-react";
 import { useEdgeFade } from "../hooks/useEdgeFade";
 import { FADE_SCROLL_CLASS } from "../hooks/fadeScrollClass";
@@ -67,8 +75,8 @@ export interface DialogProps {
   size?: "sm" | "md" | "lg";
   /** 任意宽度（px）覆盖 size——业务特殊版式不必硬凑档位 */
   width?: number;
-  /** 填充布局：卡片定高 min(82vh,760px)，body 为 flex 列且不滚动、无内边距（内容自管滚动） */
-  fill?: boolean;
+  /** 卡片定高（px，不超 82vh）——工作台型弹窗由内容自管滚动时用，避免高度随内容跳动 */
+  height?: number;
   /** 应答区按钮序列（主按钮恒在最右；组件自身不渲染按钮） */
   footer?: ReactNode;
   children?: ReactNode;
@@ -113,7 +121,7 @@ export function Dialog({
   locked = false,
   size = "md",
   width,
-  fill = false,
+  height,
   footer,
   children,
   onKeyDown,
@@ -126,7 +134,6 @@ export function Dialog({
   const wasMounted = useRef(false);
   const afterCloseRef = useRef(onAfterClose);
   afterCloseRef.current = onAfterClose;
-  const [bodyEl, setBodyEl] = useState<HTMLDivElement | null>(null);
   const titleId = useId();
 
   // 进出场：open 时挂载 + rAF 后上 shown（播进场）；关时先撤 shown，退场时长的定时后卸载。
@@ -187,8 +194,6 @@ export function Dialog({
     }
   }, [mounted]);
 
-  useEdgeFade(bodyEl);
-
   const requestClose = () => {
     if (locked) return;
     onOpenChange(false);
@@ -243,12 +248,12 @@ export function Dialog({
           aria-labelledby={titleId}
           tabIndex={-1}
           onKeyDown={onCardKeyDown}
-          style={width ? { width } : undefined}
+          style={{ width, height: height ? `min(82vh, ${height}px)` : undefined }}
           className={clsx(
             "bg-surface border-line-1 shadow-float relative",
             // 遮罩是按内容定轨的 grid，max-w-full 限不住宽度：按视口减去遮罩两侧 p-8 限宽
-            "rounded-tau-lg flex max-w-[calc(100vw-4rem)] flex-col border",
-            fill ? "h-[min(82vh,760px)]" : "max-h-[min(78vh,660px)]",
+            "rounded-tau-lg text-ink-2 text-tau-body flex max-w-[calc(100vw-4rem)] flex-col border",
+            !height && "max-h-[min(78vh,660px)]",
             size === "sm" ? "w-[380px]" : size === "lg" ? "w-[560px]" : "w-[440px]",
             "ease-tau-out transition-[opacity,transform] duration-[200ms]",
             visible && shown ? "opacity-100" : "translate-y-[8px] scale-[0.97] opacity-0",
@@ -288,21 +293,7 @@ export function Dialog({
             )}
           </div>
           {subtitle && <p className="text-ink-3 text-tau-meta mt-[3px] pl-6 pr-12">{subtitle}</p>}
-          <div
-            ref={fill ? undefined : setBodyEl}
-            className={clsx(
-              fill
-                ? "border-line-2 text-ink-2 text-tau-body mt-[14px] flex min-h-0 flex-1 flex-col overflow-hidden border-t"
-                : // 同 FadeScroll：内缩滚动条（轨道上下各留 10px，不贴头尾），右侧 6px 透明边，右内边距相应减 6px
-                  clsx(
-                    FADE_SCROLL_CLASS,
-                    "text-ink-2 text-tau-body min-h-0 pl-6 pr-[18px] pt-[8px]"
-                  ),
-              !fill && (footer || impact ? "pb-[22px]" : "mb-4 pb-[6px]")
-            )}
-          >
-            {children}
-          </div>
+          <DialogContext value={{ hasFooter: Boolean(footer || impact) }}>{children}</DialogContext>
           {(footer || impact) && (
             <div
               className={clsx(
@@ -327,5 +318,36 @@ export function Dialog({
       </PortalScope>
     </div>,
     portalContainer
+  );
+}
+
+const DialogContext = createContext({ hasFooter: false });
+
+export interface DialogBodyProps {
+  children?: ReactNode;
+  className?: string;
+}
+
+/**
+ * Dialog 正文滚动区：同 FadeScroll 的内缩滚动条（轨道上下各留 10px，不贴头尾），右侧 6px
+ * 透明边、右内边距相应减 6px；只纵向滚动（内容借位负外边距超出时不冒横向滚动条）。
+ * 底部留白按有无应答区取：有则贴 hairline 前留 22px，无则滚动区离卡片底 16px。
+ */
+export function DialogBody({ children, className }: DialogBodyProps) {
+  const { hasFooter } = use(DialogContext);
+  const [bodyEl, setBodyEl] = useState<HTMLDivElement | null>(null);
+  useEdgeFade(bodyEl);
+  return (
+    <div
+      ref={setBodyEl}
+      className={cn(
+        FADE_SCROLL_CLASS,
+        "min-h-0 overflow-x-hidden pl-6 pr-[18px] pt-[8px]",
+        hasFooter ? "pb-[22px]" : "mb-4 pb-[6px]",
+        className
+      )}
+    >
+      {children}
+    </div>
   );
 }

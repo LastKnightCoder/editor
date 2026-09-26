@@ -365,10 +365,10 @@ const SubAgentResearchRenderer = ({
         open={detailOpen}
         onOpenChange={setDetailOpen}
         width={860}
-        fill
+        height={760}
       >
         <MarkdownProvider isDark={isDark} isVisible>
-          <div className="flex min-h-0 flex-1 flex-col gap-4 px-6 pb-5 pt-3">
+          <div className="border-line-2 mt-[14px] flex min-h-0 flex-1 flex-col gap-4 border-t px-6 pb-5 pt-3">
             <TaskTabs
               tasks={payload.tasks}
               activeTaskId={activeTask?.id || ""}

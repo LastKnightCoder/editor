@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import { Button, Dialog, Input, NumberInput, Textarea, toast } from "@tau/ui";
+import { Button, Dialog, DialogBody, Input, NumberInput, Textarea, toast } from "@tau/ui";
 
 import useVLResourceSelection from "@/hooks/useVLResourceSelection";
 import useSettingStore from "@/stores/useSettingStore";
@@ -231,129 +231,135 @@ export function GenerateDialog({
         </>
       }
     >
-      <div className="flex flex-col gap-4">
-        {kind === "podcast" && (
-          <Field label="播客名称">
-            <Input
-              data-autofocus
-              value={podcastName}
-              onChange={e => setPodcastName(e.target.value)}
-              placeholder="这一期叫什么"
-              maxLength={100}
-            />
-          </Field>
-        )}
-        {kind === "quiz" && (
-          <Field label="测验名称" hint="可选，留空按资料命名">
-            <Input
-              value={quizName}
-              onChange={e => setQuizName(e.target.value)}
-              placeholder="例如：第 3 章自测"
-            />
-          </Field>
-        )}
-
-        {isEdit && (
-          <Field label="修改要求">
-            <Textarea
-              data-autofocus
-              value={userPrompt}
-              onChange={e => setUserPrompt(e.target.value)}
-              placeholder={COPY[kind].placeholder}
-              rows={4}
-            />
-          </Field>
-        )}
-
-        <ResourceChecklist
-          resources={selection.resources}
-          selectedIds={selection.selectedResourceIds}
-          loading={selection.loading}
-          allSelected={selection.isAllSelected}
-          onToggle={selection.toggleResource}
-          onToggleAll={selection.toggleAll}
-          optional={isEdit}
-        />
-
-        {kind === "article" && (
-          <OptionCards
-            label="文章风格"
-            options={ARTICLE_STYLES}
-            value={style}
-            onChange={setStyle}
-          />
-        )}
-        {kind === "ppt" && (
-          <TemplatePicker
-            label="风格"
-            templates={PPT_TEMPLATES}
-            value={templateId}
-            onChange={setTemplateId}
-            partition="persist:ppt-template-preview"
-          />
-        )}
-        {kind === "report" && (
-          <TemplatePicker
-            label="报告风格"
-            templates={REPORT_TEMPLATES}
-            value={templateId}
-            onChange={setTemplateId}
-            partition="persist:report-template-preview"
-          />
-        )}
-
-        {kind === "podcast" && (
-          <>
-            <Field label="说话人">
-              <SpeakerConfig
-                speakers={speakers}
-                setSpeakers={setSpeakers}
-                voices={podcastVoices.voices}
-                voicesLoading={podcastVoices.loading}
-                notify={notifyToast}
-              />
-              <VoiceClonePanel
-                showCloneForm={showClone}
-                setShowCloneForm={setShowClone}
-                cloneItems={cloneItems}
-                setCloneItems={setCloneItems}
-                cloneLoading={cloneLoading}
-                setCloneLoading={setCloneLoading}
-                minimaxApiKey={minimaxApiKey}
-                voices={podcastVoices.voices}
-                addVoiceToList={podcastVoices.addVoice}
-                notify={notifyToast}
+      <DialogBody>
+        <div className="flex flex-col gap-4">
+          {kind === "podcast" && (
+            <Field label="播客名称">
+              <Input
+                data-autofocus
+                value={podcastName}
+                onChange={e => setPodcastName(e.target.value)}
+                placeholder="这一期叫什么"
+                maxLength={100}
               />
             </Field>
-            <Field label="时长（分钟）">
-              <div className="flex items-center gap-2">
-                <NumberInput
-                  wrapperClassName="w-24"
-                  value={duration[0]}
-                  onValueChange={v => setDuration(prev => normalizeDurationRange(v ?? 1, prev[1]))}
-                />
-                <span className="text-tau-meta text-ink-3">到</span>
-                <NumberInput
-                  wrapperClassName="w-24"
-                  value={duration[1]}
-                  onValueChange={v => setDuration(prev => normalizeDurationRange(prev[0], v ?? 1))}
-                />
-              </div>
+          )}
+          {kind === "quiz" && (
+            <Field label="测验名称" hint="可选，留空按资料命名">
+              <Input
+                value={quizName}
+                onChange={e => setQuizName(e.target.value)}
+                placeholder="例如：第 3 章自测"
+              />
             </Field>
-          </>
-        )}
+          )}
 
-        {!isEdit && (
-          <Field label="额外要求" hint="可选">
-            <Textarea
-              value={userPrompt}
-              onChange={e => setUserPrompt(e.target.value)}
-              placeholder={COPY[kind].placeholder}
-              rows={3}
+          {isEdit && (
+            <Field label="修改要求">
+              <Textarea
+                data-autofocus
+                value={userPrompt}
+                onChange={e => setUserPrompt(e.target.value)}
+                placeholder={COPY[kind].placeholder}
+                rows={4}
+              />
+            </Field>
+          )}
+
+          <ResourceChecklist
+            resources={selection.resources}
+            selectedIds={selection.selectedResourceIds}
+            loading={selection.loading}
+            allSelected={selection.isAllSelected}
+            onToggle={selection.toggleResource}
+            onToggleAll={selection.toggleAll}
+            optional={isEdit}
+          />
+
+          {kind === "article" && (
+            <OptionCards
+              label="文章风格"
+              options={ARTICLE_STYLES}
+              value={style}
+              onChange={setStyle}
             />
-          </Field>
-        )}
-      </div>
+          )}
+          {kind === "ppt" && (
+            <TemplatePicker
+              label="风格"
+              templates={PPT_TEMPLATES}
+              value={templateId}
+              onChange={setTemplateId}
+              partition="persist:ppt-template-preview"
+            />
+          )}
+          {kind === "report" && (
+            <TemplatePicker
+              label="报告风格"
+              templates={REPORT_TEMPLATES}
+              value={templateId}
+              onChange={setTemplateId}
+              partition="persist:report-template-preview"
+            />
+          )}
+
+          {kind === "podcast" && (
+            <>
+              <Field label="说话人">
+                <SpeakerConfig
+                  speakers={speakers}
+                  setSpeakers={setSpeakers}
+                  voices={podcastVoices.voices}
+                  voicesLoading={podcastVoices.loading}
+                  notify={notifyToast}
+                />
+                <VoiceClonePanel
+                  showCloneForm={showClone}
+                  setShowCloneForm={setShowClone}
+                  cloneItems={cloneItems}
+                  setCloneItems={setCloneItems}
+                  cloneLoading={cloneLoading}
+                  setCloneLoading={setCloneLoading}
+                  minimaxApiKey={minimaxApiKey}
+                  voices={podcastVoices.voices}
+                  addVoiceToList={podcastVoices.addVoice}
+                  notify={notifyToast}
+                />
+              </Field>
+              <Field label="时长（分钟）">
+                <div className="flex items-center gap-2">
+                  <NumberInput
+                    wrapperClassName="w-24"
+                    value={duration[0]}
+                    onValueChange={v =>
+                      setDuration(prev => normalizeDurationRange(v ?? 1, prev[1]))
+                    }
+                  />
+                  <span className="text-tau-meta text-ink-3">到</span>
+                  <NumberInput
+                    wrapperClassName="w-24"
+                    value={duration[1]}
+                    onValueChange={v =>
+                      setDuration(prev => normalizeDurationRange(prev[0], v ?? 1))
+                    }
+                  />
+                </div>
+              </Field>
+            </>
+          )}
+
+          {!isEdit && (
+            <Field label="额外要求" hint="可选">
+              <Textarea
+                value={userPrompt}
+                onChange={e => setUserPrompt(e.target.value)}
+                placeholder={COPY[kind].placeholder}
+                rows={3}
+              />
+            </Field>
+          )}
+        </div>
+      </DialogBody>
     </Dialog>
   );
 }

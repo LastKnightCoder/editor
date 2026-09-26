@@ -23,7 +23,17 @@ import {
   Trash2,
   Zap,
 } from "lucide-react";
-import { Button, ConfirmDialog, Dialog, Input, Segmented, Select, Switch, toast } from "@tau/ui";
+import {
+  Button,
+  ConfirmDialog,
+  Dialog,
+  DialogBody,
+  Input,
+  Segmented,
+  Select,
+  Switch,
+  toast,
+} from "@tau/ui";
 import useSettingStore from "@/stores/useSettingStore";
 import {
   cancelEmbeddingDownload,
@@ -765,16 +775,18 @@ export function EmbeddingSection() {
           </Button>
         }
       >
-        <div className="text-tau-meta text-ink-2 flex flex-col gap-1.5">
-          <span>
-            已加载：<b className="text-ink-1 font-semibold">{healthInfo?.loaded ? "是" : "否"}</b>
-          </span>
-          <span>设备：{healthInfo?.device || "—"}</span>
-          <span>维度：{healthInfo?.dimensions || "—"}</span>
-          <span className="font-tau-mono text-tau-sm text-ink-3 break-all">
-            {healthInfo?.model_path || "—"}
-          </span>
-        </div>
+        <DialogBody>
+          <div className="text-tau-meta text-ink-2 flex flex-col gap-1.5">
+            <span>
+              已加载：<b className="text-ink-1 font-semibold">{healthInfo?.loaded ? "是" : "否"}</b>
+            </span>
+            <span>设备：{healthInfo?.device || "—"}</span>
+            <span>维度：{healthInfo?.dimensions || "—"}</span>
+            <span className="font-tau-mono text-tau-sm text-ink-3 break-all">
+              {healthInfo?.model_path || "—"}
+            </span>
+          </div>
+        </DialogBody>
       </Dialog>
     </>
   );
@@ -913,33 +925,35 @@ function ProviderEditorDialog({
         </>
       }
     >
-      <div className="flex flex-col gap-3">
-        <label className="flex min-w-0 flex-col gap-1.5">
-          <span className="text-tau-meta text-ink-2 font-medium">配置名称</span>
-          <Input
-            value={name}
-            placeholder="例如：SiliconFlow / DeepSeek"
-            onChange={e => setName(e.target.value)}
-          />
-        </label>
-        <label className="flex min-w-0 flex-col gap-1.5">
-          <span className="text-tau-meta text-ink-2 font-medium">API Key</span>
-          <Input
-            type="password"
-            value={apiKey}
-            placeholder="请输入 API Key"
-            onChange={e => setApiKey(e.target.value)}
-          />
-        </label>
-        <label className="flex min-w-0 flex-col gap-1.5">
-          <span className="text-tau-meta text-ink-2 font-medium">Base URL</span>
-          <Input
-            value={baseUrl}
-            placeholder="例如：https://api.siliconflow.cn/v1"
-            onChange={e => setBaseUrl(e.target.value)}
-          />
-        </label>
-      </div>
+      <DialogBody>
+        <div className="flex flex-col gap-3">
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className="text-tau-meta text-ink-2 font-medium">配置名称</span>
+            <Input
+              value={name}
+              placeholder="例如：SiliconFlow / DeepSeek"
+              onChange={e => setName(e.target.value)}
+            />
+          </label>
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className="text-tau-meta text-ink-2 font-medium">API Key</span>
+            <Input
+              type="password"
+              value={apiKey}
+              placeholder="请输入 API Key"
+              onChange={e => setApiKey(e.target.value)}
+            />
+          </label>
+          <label className="flex min-w-0 flex-col gap-1.5">
+            <span className="text-tau-meta text-ink-2 font-medium">Base URL</span>
+            <Input
+              value={baseUrl}
+              placeholder="例如：https://api.siliconflow.cn/v1"
+              onChange={e => setBaseUrl(e.target.value)}
+            />
+          </label>
+        </div>
+      </DialogBody>
     </Dialog>
   );
 }
@@ -1017,51 +1031,53 @@ function ModelEditorDialog({
         </>
       }
     >
-      <div className="flex flex-col gap-3">
-        <label className="flex min-w-0 flex-col gap-1.5">
-          <span className="text-tau-meta text-ink-2 font-medium">模型名称</span>
-          <Input
-            value={name}
-            placeholder="例如：BAAI/bge-large-zh-v1.5"
-            onChange={e => setName(e.target.value)}
-          />
-        </label>
-        <label className="flex min-w-0 flex-col gap-1.5">
-          <span className="text-tau-meta text-ink-2 font-medium">模型描述</span>
-          <Input
-            value={description}
-            placeholder="请输入模型描述"
-            onChange={e => setDescription(e.target.value)}
-          />
-        </label>
-        <div className="grid grid-cols-2 gap-3">
+      <DialogBody>
+        <div className="flex flex-col gap-3">
           <label className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-tau-meta text-ink-2 font-medium">向量维度</span>
+            <span className="text-tau-meta text-ink-2 font-medium">模型名称</span>
             <Input
-              className="tabular-nums"
-              value={contextLength}
-              placeholder="1024"
-              onChange={e => setContextLength(e.target.value)}
+              value={name}
+              placeholder="例如：BAAI/bge-large-zh-v1.5"
+              onChange={e => setName(e.target.value)}
             />
           </label>
           <label className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-tau-meta text-ink-2 font-medium">距离阈值</span>
+            <span className="text-tau-meta text-ink-2 font-medium">模型描述</span>
             <Input
-              className="tabular-nums"
-              value={distance}
-              placeholder="0.6"
-              onChange={e => setDistance(e.target.value)}
+              value={description}
+              placeholder="请输入模型描述"
+              onChange={e => setDescription(e.target.value)}
             />
           </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex min-w-0 flex-col gap-1.5">
+              <span className="text-tau-meta text-ink-2 font-medium">向量维度</span>
+              <Input
+                className="tabular-nums"
+                value={contextLength}
+                placeholder="1024"
+                onChange={e => setContextLength(e.target.value)}
+              />
+            </label>
+            <label className="flex min-w-0 flex-col gap-1.5">
+              <span className="text-tau-meta text-ink-2 font-medium">距离阈值</span>
+              <Input
+                className="tabular-nums"
+                value={distance}
+                placeholder="0.6"
+                onChange={e => setDistance(e.target.value)}
+              />
+            </label>
+          </div>
+          <div className="border-line-1 flex items-center justify-between border-t pt-3">
+            <Switch
+              checked={multimodal}
+              onCheckedChange={setMultimodal}
+              label="多模态（支持图文混合输入）"
+            />
+          </div>
         </div>
-        <div className="border-line-1 flex items-center justify-between border-t pt-3">
-          <Switch
-            checked={multimodal}
-            onCheckedChange={setMultimodal}
-            label="多模态（支持图文混合输入）"
-          />
-        </div>
-      </div>
+      </DialogBody>
     </Dialog>
   );
 }

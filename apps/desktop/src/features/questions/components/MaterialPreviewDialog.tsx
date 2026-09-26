@@ -37,7 +37,7 @@ export function MaterialPreviewDialog({
       title={material?.title ?? ""}
       context={label}
       width={760}
-      fill
+      height={760}
       footer={
         material && (
           <>
@@ -57,8 +57,8 @@ export function MaterialPreviewDialog({
         )
       }
     >
-      {material?.contentId != null && (
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+      <div className="border-line-2 mt-[14px] min-h-0 flex-1 overflow-y-auto border-t px-6 py-4">
+        {material?.contentId != null && (
           <ErrorBoundary>
             <ContentEditor
               key={material.contentId}
@@ -67,8 +67,8 @@ export function MaterialPreviewDialog({
               className="text-tau-body"
             />
           </ErrorBoundary>
-        </div>
-      )}
+        )}
+      </div>
     </Dialog>
   );
 }

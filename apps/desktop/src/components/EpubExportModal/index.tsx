@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocalStorageState, useMemoizedFn } from "ahooks";
 import type { Descendant } from "slate";
 import { BookOpen } from "lucide-react";
-import { Button, Dialog, Input, Textarea, toast } from "@tau/ui";
+import { Button, Dialog, DialogBody, Input, Textarea, toast } from "@tau/ui";
 import { readBinaryFile, selectFile, showInFolder } from "@/commands";
 import type { EpubMetadataInput } from "@/types";
 import { resolveLocalMediaPath } from "@/utils/localMediaPath";
@@ -370,113 +370,115 @@ const EpubExportModal = (props: EpubExportModalProps) => {
         </>
       }
     >
-      <div className="space-y-4">
-        <div className="flex flex-col gap-1.5">
-          <label className={FIELD_LABEL}>书名</label>
-          <Input
-            type="text"
-            value={metadata.title}
-            placeholder="请输入书名"
-            onChange={event => onFieldChange("title", event.target.value)}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
+      <DialogBody>
+        <div className="space-y-4">
           <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>作者</label>
+            <label className={FIELD_LABEL}>书名</label>
             <Input
               type="text"
-              value={metadata.author}
-              placeholder="请输入作者"
-              onChange={event => onFieldChange("author", event.target.value)}
+              value={metadata.title}
+              placeholder="请输入书名"
+              onChange={event => onFieldChange("title", event.target.value)}
             />
           </div>
-          <div className="flex flex-col gap-1.5">
-            <label className={FIELD_LABEL}>语言</label>
-            <Input
-              type="text"
-              value={metadata.language}
-              placeholder="例如 zh-CN / en"
-              onChange={event => onFieldChange("language", event.target.value)}
-            />
-          </div>
-        </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label className={FIELD_LABEL}>简介</label>
-          <Textarea
-            value={metadata.description}
-            rows={3}
-            placeholder="可选，建议一句话简介"
-            onChange={event => onFieldChange("description", event.target.value)}
-          />
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <label className={FIELD_LABEL}>封面图（可选）</label>
-            <div className="flex items-center gap-2">
-              <Button size="sm" variant="secondary" onClick={handleChooseCoverFromFile}>
-                选择本地图片
-              </Button>
-              <Button size="sm" variant="ghost" onClick={handleClearCover}>
-                清除封面
-              </Button>
-            </div>
-          </div>
-
-          {selectedCoverPreview ? (
-            <div className="border-line-1 bg-surface rounded-tau-md border p-3">
-              <img
-                src={selectedCoverPreview}
-                alt="封面预览"
-                className="rounded-tau-sm h-44 w-full object-cover"
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className={FIELD_LABEL}>作者</label>
+              <Input
+                type="text"
+                value={metadata.author}
+                placeholder="请输入作者"
+                onChange={event => onFieldChange("author", event.target.value)}
               />
             </div>
-          ) : (
-            <div className="border-line-2 text-ink-3 rounded-tau-md text-tau-sm border border-dashed px-4 py-6 text-center">
-              未选择封面图
+            <div className="flex flex-col gap-1.5">
+              <label className={FIELD_LABEL}>语言</label>
+              <Input
+                type="text"
+                value={metadata.language}
+                placeholder="例如 zh-CN / en"
+                onChange={event => onFieldChange("language", event.target.value)}
+              />
             </div>
-          )}
-
-          <div className="text-ink-3 text-tau-sm">
-            自动提取正文图片作为候选，导出时会以内嵌图片写入 EPUB。
           </div>
 
-          {loadingCoverCandidates ? (
-            <div className="text-ink-3 text-tau-sm">正在提取正文图片...</div>
-          ) : coverCandidates.length > 0 ? (
-            <div className="grid grid-cols-3 gap-3">
-              {coverCandidates.map(candidate => {
-                const selected = metadata.coverImageSrc === candidate.dataUri;
-                return (
-                  <button
-                    key={candidate.id}
-                    type="button"
-                    onClick={() => handleSelectCoverCandidate(candidate)}
-                    className={`rounded-tau-md ease-tau-out border-[1.5px] p-1 text-left transition-colors ${
-                      selected
-                        ? "border-accent shadow-[0_0_0_2px_var(--tau-accent-soft)]"
-                        : "border-line-1 hover:border-ink-3/50"
-                    }`}
-                  >
-                    <img
-                      src={candidate.dataUri}
-                      alt={candidate.label}
-                      className="rounded-tau-sm h-20 w-full object-cover"
-                    />
-                    <div className="text-ink-2 truncate px-1 pt-1 text-[11px]">
-                      {candidate.label}
-                    </div>
-                  </button>
-                );
-              })}
+          <div className="flex flex-col gap-1.5">
+            <label className={FIELD_LABEL}>简介</label>
+            <Textarea
+              value={metadata.description}
+              rows={3}
+              placeholder="可选，建议一句话简介"
+              onChange={event => onFieldChange("description", event.target.value)}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <label className={FIELD_LABEL}>封面图（可选）</label>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="secondary" onClick={handleChooseCoverFromFile}>
+                  选择本地图片
+                </Button>
+                <Button size="sm" variant="ghost" onClick={handleClearCover}>
+                  清除封面
+                </Button>
+              </div>
             </div>
-          ) : (
-            <div className="text-ink-3 text-tau-sm">未从正文中提取到可用图片</div>
-          )}
+
+            {selectedCoverPreview ? (
+              <div className="border-line-1 bg-surface rounded-tau-md border p-3">
+                <img
+                  src={selectedCoverPreview}
+                  alt="封面预览"
+                  className="rounded-tau-sm h-44 w-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="border-line-2 text-ink-3 rounded-tau-md text-tau-sm border border-dashed px-4 py-6 text-center">
+                未选择封面图
+              </div>
+            )}
+
+            <div className="text-ink-3 text-tau-sm">
+              自动提取正文图片作为候选，导出时会以内嵌图片写入 EPUB。
+            </div>
+
+            {loadingCoverCandidates ? (
+              <div className="text-ink-3 text-tau-sm">正在提取正文图片...</div>
+            ) : coverCandidates.length > 0 ? (
+              <div className="grid grid-cols-3 gap-3">
+                {coverCandidates.map(candidate => {
+                  const selected = metadata.coverImageSrc === candidate.dataUri;
+                  return (
+                    <button
+                      key={candidate.id}
+                      type="button"
+                      onClick={() => handleSelectCoverCandidate(candidate)}
+                      className={`rounded-tau-md ease-tau-out border-[1.5px] p-1 text-left transition-colors ${
+                        selected
+                          ? "border-accent shadow-[0_0_0_2px_var(--tau-accent-soft)]"
+                          : "border-line-1 hover:border-ink-3/50"
+                      }`}
+                    >
+                      <img
+                        src={candidate.dataUri}
+                        alt={candidate.label}
+                        className="rounded-tau-sm h-20 w-full object-cover"
+                      />
+                      <div className="text-ink-2 truncate px-1 pt-1 text-[11px]">
+                        {candidate.label}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-ink-3 text-tau-sm">未从正文中提取到可用图片</div>
+            )}
+          </div>
         </div>
-      </div>
+      </DialogBody>
     </Dialog>
   );
 };

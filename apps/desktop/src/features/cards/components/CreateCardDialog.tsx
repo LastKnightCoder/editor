@@ -16,7 +16,7 @@ import { DEFAULT_CARD_CONTENT } from "@/constants";
 import { getContentLength } from "@/utils";
 import { ECardCategory, type ICard } from "@/types";
 import { cardCategoryName } from "@/constants/card";
-import { Button, Dialog, toast } from "@tau/ui";
+import { Button, Dialog, DialogBody, toast } from "@tau/ui";
 
 export interface CreateCardDialogProps {
   open: boolean;
@@ -113,43 +113,45 @@ export function CreateCardDialog({
         </>
       }
     >
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-1.5 text-[12px]">
-          <span className="text-ink-3">分类</span>
-          {(Object.keys(cardCategoryName) as ECardCategory[]).map(key => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setCategory(key)}
-              className={
-                category === key
-                  ? "bg-selected text-ink-1 rounded-full px-2.5 py-0.5 font-medium"
-                  : "text-ink-2 hover:bg-hover hover:text-ink-1 rounded-full px-2.5 py-0.5"
-              }
-            >
-              {cardCategoryName[key]}
-            </button>
-          ))}
-        </div>
-        <ErrorBoundary>
-          <ContentEditor
-            ref={editorRef}
-            initValue={content ?? DEFAULT_CARD_CONTENT}
-            readonly={false}
-            onChange={setContent}
-            className="min-h-[260px]"
+      <DialogBody>
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center gap-1.5 text-[12px]">
+            <span className="text-ink-3">分类</span>
+            {(Object.keys(cardCategoryName) as ECardCategory[]).map(key => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setCategory(key)}
+                className={
+                  category === key
+                    ? "bg-selected text-ink-1 rounded-full px-2.5 py-0.5 font-medium"
+                    : "text-ink-2 hover:bg-hover hover:text-ink-1 rounded-full px-2.5 py-0.5"
+                }
+              >
+                {cardCategoryName[key]}
+              </button>
+            ))}
+          </div>
+          <ErrorBoundary>
+            <ContentEditor
+              ref={editorRef}
+              initValue={content ?? DEFAULT_CARD_CONTENT}
+              readonly={false}
+              onChange={setContent}
+              className="min-h-[260px]"
+            />
+          </ErrorBoundary>
+          <AddTag
+            tags={tags ?? []}
+            addTag={tag => setTags([...new Set([...(tags ?? []), tag])])}
+            removeTag={tag => setTags((tags ?? []).filter(t => t !== tag))}
+            editTag={(oldTag, newTag) => {
+              if (!newTag || newTag === oldTag) return;
+              setTags((tags ?? []).map(tag => (tag === oldTag ? newTag : tag)));
+            }}
           />
-        </ErrorBoundary>
-        <AddTag
-          tags={tags ?? []}
-          addTag={tag => setTags([...new Set([...(tags ?? []), tag])])}
-          removeTag={tag => setTags((tags ?? []).filter(t => t !== tag))}
-          editTag={(oldTag, newTag) => {
-            if (!newTag || newTag === oldTag) return;
-            setTags((tags ?? []).map(tag => (tag === oldTag ? newTag : tag)));
-          }}
-        />
-      </div>
+        </div>
+      </DialogBody>
     </Dialog>
   );
 }

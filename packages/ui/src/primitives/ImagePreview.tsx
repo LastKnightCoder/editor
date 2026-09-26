@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Dialog } from "./Dialog";
+import { Dialog, DialogBody } from "./Dialog";
 import { IconButton } from "./IconButton";
 import type { ComponentType } from "react";
 
@@ -38,21 +38,23 @@ export function ImagePreview({
         }
       }}
     >
-      <div className="flex items-center gap-3">
-        <IconButton aria-label="上一张" disabled={images.length < 2} onClick={() => move(-1)}>
-          <ChevronLeft size={18} />
-        </IconButton>
-        {images[index] && (
-          <ImageComponent
-            src={images[index].src}
-            alt={images[index].alt ?? "预览图片"}
-            className="max-h-[65vh] min-w-0 flex-1 object-contain"
-          />
-        )}
-        <IconButton aria-label="下一张" disabled={images.length < 2} onClick={() => move(1)}>
-          <ChevronRight size={18} />
-        </IconButton>
-      </div>
+      <DialogBody>
+        <div className="flex items-center gap-3">
+          <IconButton aria-label="上一张" disabled={images.length < 2} onClick={() => move(-1)}>
+            <ChevronLeft size={18} />
+          </IconButton>
+          {images[index] && (
+            <ImageComponent
+              src={images[index].src}
+              alt={images[index].alt ?? "预览图片"}
+              className="max-h-[65vh] min-w-0 flex-1 object-contain"
+            />
+          )}
+          <IconButton aria-label="下一张" disabled={images.length < 2} onClick={() => move(1)}>
+            <ChevronRight size={18} />
+          </IconButton>
+        </div>
+      </DialogBody>
     </Dialog>
   );
 }

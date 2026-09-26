@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 import { Plus, SlidersHorizontal } from "lucide-react";
-import { Button, Dialog, IconButton, Tooltip, cn } from "@tau/ui";
+import { Button, Dialog, DialogBody, IconButton, Tooltip, cn } from "@tau/ui";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { TONE, toneStyle } from "../eventTone";
 import CalendarSidebar from "./CalendarSidebar";
@@ -74,9 +74,11 @@ export function CalendarChips() {
         subtitle="分组、新建、归档与合并；勾选框控制是否在日程中显示"
         width={420}
       >
-        <div className="-mx-1 flex max-h-[60vh] flex-col">
-          <CalendarSidebar />
-        </div>
+        <DialogBody>
+          <div className="-mx-1 flex max-h-[60vh] flex-col">
+            <CalendarSidebar />
+          </div>
+        </DialogBody>
       </Dialog>
     </div>
   );

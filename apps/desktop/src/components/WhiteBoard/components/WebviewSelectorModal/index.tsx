@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { FileCode, Globe } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
 import { v4 as getUuid } from "uuid";
-import { Button, Dialog, Input, toast } from "@tau/ui";
+import { Button, Dialog, DialogBody, Input, toast } from "@tau/ui";
 
 import Board from "../../Board";
 import useUploadResource from "@/hooks/useUploadResource";
@@ -137,36 +137,38 @@ const WebviewSelectorModal = ({ open, onClose, board }: WebviewSelectorModalProp
         </>
       }
     >
-      <div className="flex flex-col gap-3">
-        <label className="flex flex-col gap-1.5">
-          <span className="text-ink-2 text-[12px]">网页地址</span>
-          <Input
-            data-autofocus
-            lead={Globe}
-            value={url}
-            onChange={e => setUrl(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-                e.preventDefault();
-                handleSubmit();
-              }
-            }}
-            placeholder="在此粘贴网址，例如：https://www.example.com"
-          />
-        </label>
-        <span className="text-ink-3 text-[12px]">或者</span>
-        <Button
-          variant="secondary"
-          size="sm"
-          icon={FileCode}
-          loading={uploading}
-          loadingText="正在上传…"
-          onClick={handleSelectLocalHtml}
-          className="self-start"
-        >
-          选择本地 HTML 文件…
-        </Button>
-      </div>
+      <DialogBody>
+        <div className="flex flex-col gap-3">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-ink-2 text-[12px]">网页地址</span>
+            <Input
+              data-autofocus
+              lead={Globe}
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  handleSubmit();
+                }
+              }}
+              placeholder="在此粘贴网址，例如：https://www.example.com"
+            />
+          </label>
+          <span className="text-ink-3 text-[12px]">或者</span>
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={FileCode}
+            loading={uploading}
+            loadingText="正在上传…"
+            onClick={handleSelectLocalHtml}
+            className="self-start"
+          >
+            选择本地 HTML 文件…
+          </Button>
+        </div>
+      </DialogBody>
     </Dialog>
   );
 };

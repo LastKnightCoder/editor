@@ -75,7 +75,7 @@ export function AnswerDialog({
       subtitle={state?.questionTitle}
       locked={saving}
       width={760}
-      fill
+      height={760}
       footer={
         state?.mode === "edit" ? (
           <Button variant="primary" size="sm" onClick={onClose}>
@@ -96,8 +96,8 @@ export function AnswerDialog({
         )
       }
     >
-      {open && (
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+      <div className="border-line-2 mt-[14px] min-h-0 flex-1 overflow-y-auto border-t px-6 py-4">
+        {open && (
           <ErrorBoundary>
             <ContentEditor
               key={editing ?? "new"}
@@ -113,8 +113,8 @@ export function AnswerDialog({
               className="text-tau-body min-h-full"
             />
           </ErrorBoundary>
-        </div>
-      )}
+        )}
+      </div>
     </Dialog>
   );
 }

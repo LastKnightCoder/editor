@@ -9,7 +9,7 @@ import {
   Upload as UploadIcon,
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import { Button, Dialog, Input, Segmented, Select, Spinner, cn, toast } from "@tau/ui";
+import { Button, Dialog, DialogBody, Input, Segmented, Select, Spinner, cn, toast } from "@tau/ui";
 
 import LocalImage from "@/components/LocalImage";
 import { EntityPicker } from "@/components/EntityPicker";
@@ -1038,36 +1038,38 @@ const AddResourceModal = memo((props: AddResourceModalProps) => {
         locked={busy}
         footer={footer}
       >
-        {/* 隐藏的 Webview：加载需要执行脚本才能拿到正文的网页 */}
-        {webviewUrl && (
-          <div className="absolute -left-[9999px] h-px w-px overflow-hidden">
-            <Webview
-              ref={webviewRef}
-              src={webviewUrl}
-              onLoad={handleWebviewLoad}
-              onError={handleWebviewError}
-            />
+        <DialogBody>
+          {/* 隐藏的 Webview：加载需要执行脚本才能拿到正文的网页 */}
+          {webviewUrl && (
+            <div className="absolute -left-[9999px] h-px w-px overflow-hidden">
+              <Webview
+                ref={webviewRef}
+                src={webviewUrl}
+                onLoad={handleWebviewLoad}
+                onError={handleWebviewError}
+              />
+            </div>
+          )}
+          <div className="flex flex-col gap-4">
+            <Segmented
+              label="资料来源"
+              size="md"
+              value={activeTab}
+              onValueChange={v => setActiveTab(v as TabType)}
+              disabled={busy}
+              className="w-full"
+            >
+              <Segmented.Item value="file" icon={FileText} label="文件" />
+              <Segmented.Item value="url" icon={Globe} label="网页" />
+              <Segmented.Item value="video" icon={Clapperboard} label="视频" />
+              <Segmented.Item value="note" icon={NotebookPen} label="笔记" />
+            </Segmented>
+            {activeTab === "file" && fileTab}
+            {activeTab === "url" && urlTab}
+            {activeTab === "video" && videoTab}
+            {activeTab === "note" && noteTab}
           </div>
-        )}
-        <div className="flex flex-col gap-4">
-          <Segmented
-            label="资料来源"
-            size="md"
-            value={activeTab}
-            onValueChange={v => setActiveTab(v as TabType)}
-            disabled={busy}
-            className="w-full"
-          >
-            <Segmented.Item value="file" icon={FileText} label="文件" />
-            <Segmented.Item value="url" icon={Globe} label="网页" />
-            <Segmented.Item value="video" icon={Clapperboard} label="视频" />
-            <Segmented.Item value="note" icon={NotebookPen} label="笔记" />
-          </Segmented>
-          {activeTab === "file" && fileTab}
-          {activeTab === "url" && urlTab}
-          {activeTab === "video" && videoTab}
-          {activeTab === "note" && noteTab}
-        </div>
+        </DialogBody>
       </Dialog>
       <EntityPicker
         open={pickerOpen}

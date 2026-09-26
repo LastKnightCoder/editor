@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { Button, Dialog, Input, Select, cn, toast, type SelectOption } from "@tau/ui";
+import { Button, Dialog, DialogBody, Input, Select, cn, toast, type SelectOption } from "@tau/ui";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { PROJECT_COLORS, type ProjectColorName } from "@/constants/project-colors";
 import type { Calendar } from "@/types";
@@ -130,57 +130,59 @@ const CalendarFormDialog = ({
         </>
       }
     >
-      <div className="flex flex-col gap-3.5">
-        {!isSystem && (
-          <label className="flex flex-col gap-1.5">
-            <span className="text-ink-2 text-[12px]">名称</span>
-            <Input
-              data-autofocus
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="如：工作、学习"
-              onKeyDown={e => {
-                if (e.key === "Enter" && !e.nativeEvent.isComposing) void handleSave();
-              }}
-            />
-          </label>
-        )}
-        {!isSystem && (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-ink-2 text-[12px]">分组（可选）</span>
-            <Select
-              options={groupOptions}
-              value={groupName ?? ""}
-              onValueChange={v => setGroupName(v || null)}
-              searchable
-              creatable
-              placeholder="选择或输入新分组"
-            />
-          </div>
-        )}
-        <div className="flex flex-col gap-1.5">
-          <span className="text-ink-2 text-[12px]">颜色</span>
-          <div className="flex flex-wrap gap-2">
-            {PROJECT_COLORS.map(c => (
-              <button
-                key={c.name}
-                type="button"
-                title={c.label}
-                aria-label={c.label}
-                aria-pressed={color === c.name}
-                onClick={() => setColor(c.name)}
-                style={toneStyle(c.name)}
-                className={cn(
-                  "size-[22px] rounded-[7px] bg-[var(--cal)] transition-shadow",
-                  TONE,
-                  color === c.name &&
-                    "shadow-[0_0_0_2px_var(--tau-bg-surface),0_0_0_3.5px_var(--cal)]"
-                )}
+      <DialogBody>
+        <div className="flex flex-col gap-3.5">
+          {!isSystem && (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-ink-2 text-[12px]">名称</span>
+              <Input
+                data-autofocus
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="如：工作、学习"
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.nativeEvent.isComposing) void handleSave();
+                }}
               />
-            ))}
+            </label>
+          )}
+          {!isSystem && (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-ink-2 text-[12px]">分组（可选）</span>
+              <Select
+                options={groupOptions}
+                value={groupName ?? ""}
+                onValueChange={v => setGroupName(v || null)}
+                searchable
+                creatable
+                placeholder="选择或输入新分组"
+              />
+            </div>
+          )}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-ink-2 text-[12px]">颜色</span>
+            <div className="flex flex-wrap gap-2">
+              {PROJECT_COLORS.map(c => (
+                <button
+                  key={c.name}
+                  type="button"
+                  title={c.label}
+                  aria-label={c.label}
+                  aria-pressed={color === c.name}
+                  onClick={() => setColor(c.name)}
+                  style={toneStyle(c.name)}
+                  className={cn(
+                    "size-[22px] rounded-[7px] bg-[var(--cal)] transition-shadow",
+                    TONE,
+                    color === c.name &&
+                      "shadow-[0_0_0_2px_var(--tau-bg-surface),0_0_0_3.5px_var(--cal)]"
+                  )}
+                />
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      </DialogBody>
     </Dialog>
   );
 };

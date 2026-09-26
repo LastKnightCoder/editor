@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Dialog, cn, toast } from "@tau/ui";
+import { Dialog, DialogBody, cn, toast } from "@tau/ui";
 import useCalendarStore from "@/stores/useCalendarStore";
 import { useCalendarEvents } from "@/hooks/useCalendarEvents";
 import { useDateRangeDrag } from "@/hooks/useDateRangeDrag";
@@ -330,20 +330,22 @@ const MonthView = () => {
         subtitle={`${moreList.length} 项日程`}
         size="lg"
       >
-        <div className="-mx-2.5 flex flex-col gap-0.5">
-          {moreList.map(event => (
-            <AgendaRow
-              key={event.id}
-              event={event}
-              calendars={calendars}
-              decor={decorOf(event)}
-              onClick={() => {
-                setMoreDay(null);
-                peek(event);
-              }}
-            />
-          ))}
-        </div>
+        <DialogBody>
+          <div className="-mx-2.5 flex flex-col gap-0.5">
+            {moreList.map(event => (
+              <AgendaRow
+                key={event.id}
+                event={event}
+                calendars={calendars}
+                decor={decorOf(event)}
+                onClick={() => {
+                  setMoreDay(null);
+                  peek(event);
+                }}
+              />
+            ))}
+          </div>
+        </DialogBody>
       </Dialog>
     </div>
   );

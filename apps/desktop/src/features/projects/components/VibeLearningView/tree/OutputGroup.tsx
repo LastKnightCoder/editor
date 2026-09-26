@@ -17,7 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import { ConfirmDialog, Dialog, IconButton, Menu, toast } from "@tau/ui";
+import { ConfirmDialog, Dialog, DialogBody, IconButton, Menu, toast } from "@tau/ui";
 
 import useVLQuizStore from "@/stores/useVLQuizStore";
 import type { VLNote } from "@/types/vibe-learning";
@@ -447,9 +447,14 @@ export const OutputGroup = forwardRef<OutputGroupRef, OutputGroupProps>(
           icon={<History className="size-4" strokeWidth={1.75} />}
           size="sm"
         >
-          {recordsOf && (
-            <QuizRecords records={recordsByQuizSet[recordsOf.id] ?? []} loading={loadingRecords} />
-          )}
+          <DialogBody>
+            {recordsOf && (
+              <QuizRecords
+                records={recordsByQuizSet[recordsOf.id] ?? []}
+                loading={loadingRecords}
+              />
+            )}
+          </DialogBody>
         </Dialog>
         <ConfirmDialog
           open={pendingDelete !== null}

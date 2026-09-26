@@ -12,7 +12,7 @@
 
 import { useEffect, useImperativeHandle, useState, type Ref } from "react";
 import { ArrowRight, KeyRound, LogOut, Share2, Trash2, Users, Wand2 } from "lucide-react";
-import { Button, Dialog, Popover, toast } from "@tau/ui";
+import { Button, Dialog, DialogBody, Popover, toast } from "@tau/ui";
 import type { ContentSessionTarget } from "@tau/collaboration";
 import { sessionStatus } from "@tau/collaboration/src/view";
 import { createSharedContent } from "@/commands";
@@ -248,41 +248,43 @@ export default function ContentCollaborationControl({
           )
         }
       >
-        {error && (
-          <p
-            role="alert"
-            className="bg-danger-soft text-danger text-tau-meta rounded-tau-sm mb-3 px-3 py-2"
-          >
-            {error}
-          </p>
-        )}
-        {session ? (
-          <div className="flex flex-col gap-4">
-            <SessionStatus session={session} suffix={summary} />
-            <SharePanel session={session} requests={requests} deviceId={deviceId} />
-          </div>
-        ) : (
-          <div className="text-ink-2 text-tau-body">
-            <p>把这份内容共享给其他设备实时编辑。共享后它仍在原处，你照常在这里写。</p>
-            <ul className="mt-3 flex flex-col gap-2">
-              {POINTS.map(point => (
-                <li key={point.text} className="flex items-start gap-2.5">
-                  <point.icon
-                    className="text-ink-3 mt-[3px] size-3.5 flex-none"
-                    strokeWidth={1.75}
-                  />
-                  <span className="text-tau-meta">{point.text}</span>
-                </li>
-              ))}
-            </ul>
-            {creating && (
-              <p className="text-ink-3 text-tau-sm mt-3 flex items-center gap-1.5">
-                <Users className="size-3.5" strokeWidth={1.75} />
-                正在暂停本地编辑、上传附件并创建共享文档…
-              </p>
-            )}
-          </div>
-        )}
+        <DialogBody>
+          {error && (
+            <p
+              role="alert"
+              className="bg-danger-soft text-danger text-tau-meta rounded-tau-sm mb-3 px-3 py-2"
+            >
+              {error}
+            </p>
+          )}
+          {session ? (
+            <div className="flex flex-col gap-4">
+              <SessionStatus session={session} suffix={summary} />
+              <SharePanel session={session} requests={requests} deviceId={deviceId} />
+            </div>
+          ) : (
+            <div className="text-ink-2 text-tau-body">
+              <p>把这份内容共享给其他设备实时编辑。共享后它仍在原处，你照常在这里写。</p>
+              <ul className="mt-3 flex flex-col gap-2">
+                {POINTS.map(point => (
+                  <li key={point.text} className="flex items-start gap-2.5">
+                    <point.icon
+                      className="text-ink-3 mt-[3px] size-3.5 flex-none"
+                      strokeWidth={1.75}
+                    />
+                    <span className="text-tau-meta">{point.text}</span>
+                  </li>
+                ))}
+              </ul>
+              {creating && (
+                <p className="text-ink-3 text-tau-sm mt-3 flex items-center gap-1.5">
+                  <Users className="size-3.5" strokeWidth={1.75} />
+                  正在暂停本地编辑、上传附件并创建共享文档…
+                </p>
+              )}
+            </div>
+          )}
+        </DialogBody>
       </Dialog>
 
       {session && (

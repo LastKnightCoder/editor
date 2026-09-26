@@ -14,7 +14,7 @@ import { getInlineLinks } from "@/utils/card";
 import { getEditorText } from "@/utils/editor";
 import { cardCategoryName } from "@/constants/card";
 import { resultDisplay, useSearchContent } from "@/features/search/queries";
-import { Dialog } from "@tau/ui";
+import { Dialog, DialogBody } from "@tau/ui";
 import { CATEGORY_COLORS } from "../categoryColors";
 
 /** links ∪ 内联引用，去重并排除自身；返回 id 与「是否仅来自正文内联」 */
@@ -222,57 +222,61 @@ export function AddCardLinkDialog({
       width={460}
       onAfterClose={() => setQuery("")}
     >
-      <div className="flex flex-col gap-2">
-        <label className="border-line-1 bg-surface rounded-tau-sm flex h-[34px] items-center gap-2 border px-3">
-          <Search className="text-ink-3 size-3.5 shrink-0" strokeWidth={1.75} />
-          <input
-            data-autofocus
-            value={query}
-            onChange={event => setQuery(event.target.value)}
-            placeholder="搜索卡片（语义检索，同 Ctrl+K）…"
-            aria-label="搜索卡片"
-            className="text-tau-meta text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
-          />
-          {candidates.fetching && <span className="text-ink-3 shrink-0 text-[11px]">搜索中…</span>}
-        </label>
-        <div className="edge-fade-scroll flex max-h-[46vh] flex-col gap-0.5 overflow-y-auto pr-0.5">
-          {candidates.error && (
-            <p className="text-danger py-6 text-center text-[12.5px]">
-              搜索失败：{candidates.error}
-            </p>
-          )}
-          {!candidates.error &&
-            candidates.rows.map(item => {
-              const color = CATEGORY_COLORS[item.category];
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => {
-                    onLink([item.id]);
-                    onOpenChange(false);
-                  }}
-                  className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm text-tau-meta flex w-full items-center gap-2 px-2.5 py-2 text-left transition-colors"
-                >
-                  <span
-                    className="size-[7px] shrink-0 rounded-full"
-                    style={{ background: color.text }}
-                  />
-                  <span className="min-w-0 flex-1 truncate">{item.title}</span>
-                  <span className="text-ink-3 shrink-0 text-[11px]">
-                    {cardCategoryName[item.category]}
-                  </span>
-                </button>
-              );
-            })}
-          {!candidates.error && !candidates.fetching && candidates.rows.length === 0 && (
-            <p className="text-ink-3 py-8 text-center text-[12.5px]">没有可连接的卡片</p>
-          )}
-          {!candidates.error && candidates.fetching && candidates.rows.length === 0 && (
-            <p className="text-ink-3 py-8 text-center text-[12.5px]">搜索中…</p>
-          )}
+      <DialogBody>
+        <div className="flex flex-col gap-2">
+          <label className="border-line-1 bg-surface rounded-tau-sm flex h-[34px] items-center gap-2 border px-3">
+            <Search className="text-ink-3 size-3.5 shrink-0" strokeWidth={1.75} />
+            <input
+              data-autofocus
+              value={query}
+              onChange={event => setQuery(event.target.value)}
+              placeholder="搜索卡片（语义检索，同 Ctrl+K）…"
+              aria-label="搜索卡片"
+              className="text-tau-meta text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent outline-none"
+            />
+            {candidates.fetching && (
+              <span className="text-ink-3 shrink-0 text-[11px]">搜索中…</span>
+            )}
+          </label>
+          <div className="edge-fade-scroll flex max-h-[46vh] flex-col gap-0.5 overflow-y-auto pr-0.5">
+            {candidates.error && (
+              <p className="text-danger py-6 text-center text-[12.5px]">
+                搜索失败：{candidates.error}
+              </p>
+            )}
+            {!candidates.error &&
+              candidates.rows.map(item => {
+                const color = CATEGORY_COLORS[item.category];
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      onLink([item.id]);
+                      onOpenChange(false);
+                    }}
+                    className="text-ink-2 hover:bg-hover hover:text-ink-1 rounded-tau-sm text-tau-meta flex w-full items-center gap-2 px-2.5 py-2 text-left transition-colors"
+                  >
+                    <span
+                      className="size-[7px] shrink-0 rounded-full"
+                      style={{ background: color.text }}
+                    />
+                    <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                    <span className="text-ink-3 shrink-0 text-[11px]">
+                      {cardCategoryName[item.category]}
+                    </span>
+                  </button>
+                );
+              })}
+            {!candidates.error && !candidates.fetching && candidates.rows.length === 0 && (
+              <p className="text-ink-3 py-8 text-center text-[12.5px]">没有可连接的卡片</p>
+            )}
+            {!candidates.error && candidates.fetching && candidates.rows.length === 0 && (
+              <p className="text-ink-3 py-8 text-center text-[12.5px]">搜索中…</p>
+            )}
+          </div>
         </div>
-      </div>
+      </DialogBody>
     </Dialog>
   );
 }

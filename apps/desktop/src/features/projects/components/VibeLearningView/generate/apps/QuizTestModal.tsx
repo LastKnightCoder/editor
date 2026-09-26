@@ -12,7 +12,7 @@ import {
   Target,
 } from "lucide-react";
 import { useMemoizedFn } from "ahooks";
-import { Button, Dialog, Textarea, cn } from "@tau/ui";
+import { Button, Dialog, DialogBody, Textarea, cn } from "@tau/ui";
 
 import useVLQuizStore from "@/stores/useVLQuizStore";
 import useTheme from "@/hooks/useTheme";
@@ -587,64 +587,66 @@ const QuizTestModal = memo((props: QuizTestModalProps) => {
       locked={finishing}
       footer={step === "testing" ? testingFooter : resultFooter}
     >
-      {step === "testing" && (
-        <div className="flex flex-col gap-5 pt-1">
-          {/* 进度 */}
-          <div className="bg-track h-1 overflow-hidden rounded-full">
-            <div
-              className="bg-accent ease-tau-out h-full rounded-full transition-[width] duration-[400ms]"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-
-          {/* 题干 */}
-          <div>
-            {currentItem.type === "cloze" ? (
-              <ClozeReviewRenderer
-                key={`cloze-${currentItem.id}`}
-                richContent={currentItem.prompt}
-                revealed={showAnswer}
-                isDark={isDark}
-                interactive={!showAnswer}
-                onBlankChange={(blankId, value) => {
-                  setCurrentAnswer((prev: Record<string, string>) => ({
-                    ...prev,
-                    [blankId]: value,
-                  }));
-                }}
+      <DialogBody>
+        {step === "testing" && (
+          <div className="flex flex-col gap-5 pt-1">
+            {/* 进度 */}
+            <div className="bg-track h-1 overflow-hidden rounded-full">
+              <div
+                className="bg-accent ease-tau-out h-full rounded-full transition-[width] duration-[400ms]"
+                style={{ width: `${progressPercent}%` }}
               />
-            ) : (
-              <RichTextRenderer
-                key={`prompt-${currentItem.id}`}
-                content={currentItem.prompt}
-                isDark={isDark}
-                className="text-ink-1 text-[17px] font-medium leading-normal"
-              />
-            )}
+            </div>
 
-            {currentItem.tags.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {currentItem.tags.map(tag => (
-                  <span
-                    key={tag}
-                    className="border-line-1 text-ink-2 text-tau-sm rounded-full border px-2 py-0.5"
-                  >
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            )}
+            {/* 题干 */}
+            <div>
+              {currentItem.type === "cloze" ? (
+                <ClozeReviewRenderer
+                  key={`cloze-${currentItem.id}`}
+                  richContent={currentItem.prompt}
+                  revealed={showAnswer}
+                  isDark={isDark}
+                  interactive={!showAnswer}
+                  onBlankChange={(blankId, value) => {
+                    setCurrentAnswer((prev: Record<string, string>) => ({
+                      ...prev,
+                      [blankId]: value,
+                    }));
+                  }}
+                />
+              ) : (
+                <RichTextRenderer
+                  key={`prompt-${currentItem.id}`}
+                  content={currentItem.prompt}
+                  isDark={isDark}
+                  className="text-ink-1 text-[17px] font-medium leading-normal"
+                />
+              )}
+
+              {currentItem.tags.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {currentItem.tags.map(tag => (
+                    <span
+                      key={tag}
+                      className="border-line-1 text-ink-2 text-tau-sm rounded-full border px-2 py-0.5"
+                    >
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 作答区 */}
+            {renderQuestionContent()}
+
+            {/* 作答反馈 */}
+            {renderFeedback()}
           </div>
+        )}
 
-          {/* 作答区 */}
-          {renderQuestionContent()}
-
-          {/* 作答反馈 */}
-          {renderFeedback()}
-        </div>
-      )}
-
-      {step === "result" && renderResult()}
+        {step === "result" && renderResult()}
+      </DialogBody>
     </Dialog>
   );
 });
