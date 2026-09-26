@@ -15,6 +15,7 @@ const runtimeDependencyExternals = [
   "turndown",
   "@myriaddreamin/typst-ts-node-compiler",
   "@node-rs/jieba",
+  "@silvia-odwyer/photon-node",
   "@tailwindcss/oxide",
   "@vscode/ripgrep",
   "better-sqlite3",
