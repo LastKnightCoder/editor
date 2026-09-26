@@ -22,16 +22,22 @@ import type { VLNote, VLResource } from "@/types/vibe-learning";
 
 import ChatPanel from "./ChatPanel";
 import AddResourceModal from "./AddResourceModal";
-import GenerationHost, { type GenerationHostRef } from "./generate";
+import GenerationHost, { type GenerationHostRef, type TaskStarted } from "./generate";
 import type { GenerateAppKey } from "./appMeta";
 import { ResourceGroup } from "./tree/ResourceGroup";
-import { OutputGroup } from "./tree/OutputGroup";
+import { OutputGroup, type OutputGroupRef } from "./tree/OutputGroup";
+import { TaskStage } from "./stage/TaskStage";
+import { useNoteTask, useVLTaskStore } from "./tasks/store";
 import { ResourceStage } from "./stage/ResourceStage";
 import NoteEditorView from "./stage/NoteEditorView";
 import { canOpenInStage, openResourceExternally } from "./resourceKinds";
 
 type Opened =
-  { kind: "resource"; id: number } | { kind: "note"; id: number } | { kind: "new-note" };
+  | { kind: "resource"; id: number }
+  | { kind: "note"; id: number }
+  | { kind: "new-note" }
+  /** 测验集的生成过程（笔记类任务跟着笔记走） */
+  | { kind: "task"; id: string };
 
 const CHAT_MIN = 320;
 const CHAT_MAX = 600;
@@ -72,6 +78,8 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
   const [draftNote, setDraftNote] = useState<VLNote | null>(null);
   /** 每次显式打开（或需要强制重载）+1：阅读区据此重挂；新建笔记首存不变，编辑不中断 */
   const [stageKey, setStageKey] = useState(0);
+  /** 笔记的「生成过程 / 产物」切换；null = 跟随任务状态（进行中看过程，完成看产物） */
+  const [traceView, setTraceView] = useState<boolean | null>(null);
 
   const [treeWidth, setTreeWidth] = useLocalStorageState("vibe-learning-tree-width", {
     defaultValue: 256,
@@ -88,6 +96,7 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
   );
 
   const generationRef = useRef<GenerationHostRef>(null);
+  const outputRef = useRef<OutputGroupRef>(null);
   const fetchQuizSets = useVLQuizStore(s => s.fetchQuizSets);
   const startDockResize = useDockResize(chatWidth ?? 400, setChatWidth);
 
@@ -149,11 +158,35 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
   if (stableNoteRef.current.key !== noteKey)
     stableNoteRef.current = { key: noteKey, note: listNote };
   const openedNote = stableNoteRef.current.note;
+  const noteTask = useNoteTask(opened?.kind === "note" ? opened.id : null);
+  const openedTask = useVLTaskStore(s =>
+    opened?.kind === "task" ? s.tasks[opened.id] : undefined
+  );
+  const showTrace = !!noteTask && (traceView ?? noteTask.status !== "succeeded");
   const hasStage =
     !loading &&
     (opened?.kind === "new-note" ||
       (openedResource !== null && canOpenInStage(openedResource)) ||
-      openedNote !== null);
+      openedNote !== null ||
+      !!openedTask);
+
+  // 后台任务建产物 / 落库后刷新列表（离开页面期间完成的，回来时也会拉到最新）
+  const productVersion = useVLTaskStore(s => s.productVersion[projectId] ?? 0);
+  useEffect(() => {
+    if (productVersion === 0) return;
+    void refreshNotes();
+    void fetchQuizSets(projectId);
+  }, [productVersion, projectId, refreshNotes, fetchQuizSets]);
+
+  // 正在看的笔记任务从进行中结束：拉最新标题后重挂阅读区，切到产物
+  const noteTaskStatus = noteTask?.status;
+  const prevNoteTaskStatus = useRef(noteTaskStatus);
+  useEffect(() => {
+    const prev = prevNoteTaskStatus.current;
+    prevNoteTaskStatus.current = noteTaskStatus;
+    if (prev !== "running" || !noteTaskStatus || noteTaskStatus === "running") return;
+    void refreshNotes().then(() => setStageKey(k => k + 1));
+  }, [noteTaskStatus, refreshNotes]);
 
   // 加载完成后，记住的条目已不存在则清掉
   useEffect(() => {
@@ -162,6 +195,7 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
 
   const openStage = useMemoizedFn((next: Opened) => {
     setStageKey(k => k + 1);
+    setTraceView(null);
     setOpened(next);
   });
 
@@ -172,16 +206,14 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
 
   const openNote = useMemoizedFn((note: VLNote) => openStage({ kind: "note", id: note.id }));
 
-  const handleNoteCreated = useMemoizedFn((note: VLNote) => {
-    void refreshNotes();
-    setDraftNote(note);
-    openStage({ kind: "note", id: note.id });
-  });
-
-  // PPT / 报告经 AI 编辑改了内容：打开中的就是它时重载
-  const handleNoteEdited = useMemoizedFn(async () => {
-    await refreshNotes();
-    if (opened?.kind === "note") setStageKey(k => k + 1);
+  // 任务启动：弹窗已关，阅读区直接看它的生成过程
+  const handleTaskStarted = useMemoizedFn((started: TaskStarted) => {
+    if (started.note) {
+      setDraftNote(started.note);
+      openStage({ kind: "note", id: started.note.id });
+    } else {
+      openStage({ kind: "task", id: started.taskId });
+    }
   });
 
   const closeStage = useMemoizedFn(() => {
@@ -257,6 +289,9 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
               onNotesChange={refreshNotes}
               onNoteDeleted={id => opened?.kind === "note" && opened.id === id && setOpened(null)}
               onResourcesChange={refreshResources}
+              activeTaskId={opened?.kind === "task" ? opened.id : null}
+              onOpenTask={id => openStage({ kind: "task", id })}
+              ref={outputRef}
             />
           </FadeScroll>
         </ResizeableAndHideableSidebar>
@@ -264,7 +299,30 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
         {/* 中：阅读区 */}
         {hasStage && (
           <div className="min-w-0 flex-1">
-            {openedResource ? (
+            {openedTask ? (
+              <TaskStage
+                task={openedTask}
+                chatOpen={!!chatOpen}
+                onToggleChat={toggleChat}
+                onClose={closeStage}
+                onStartQuiz={
+                  openedTask.quizSetId !== undefined
+                    ? () => outputRef.current?.startQuiz(openedTask.quizSetId as number)
+                    : undefined
+                }
+              />
+            ) : showTrace && noteTask ? (
+              <TaskStage
+                task={noteTask}
+                chatOpen={!!chatOpen}
+                onToggleChat={toggleChat}
+                onClose={closeStage}
+                onShowProduct={() => {
+                  setTraceView(false);
+                  setStageKey(k => k + 1);
+                }}
+              />
+            ) : openedResource ? (
               <ResourceStage
                 key={`s${stageKey}`}
                 resource={openedResource}
@@ -293,6 +351,7 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
                 onToggleChat={toggleChat}
                 onEditPPT={note => generationRef.current?.editPPT(note)}
                 onEditReport={note => generationRef.current?.editReport(note)}
+                onShowTrace={noteTask ? () => setTraceView(true) : undefined}
               />
             )}
           </div>
@@ -331,15 +390,13 @@ const VibeLearningView = memo(({ projectId }: VibeLearningViewProps) => {
         mainDbName={mainDbName}
         onClose={() => setAddOpen(false)}
         onSuccess={refreshResources}
+        resources={resources}
       />
       <GenerationHost
         ref={generationRef}
         projectId={projectId}
         mainDbName={mainDbName}
-        onNotesChange={refreshNotes}
-        onNoteEdited={handleNoteEdited}
-        onNoteCreated={handleNoteCreated}
-        onQuizSetsChange={() => fetchQuizSets(projectId)}
+        onTaskStarted={handleTaskStarted}
       />
     </div>
   );

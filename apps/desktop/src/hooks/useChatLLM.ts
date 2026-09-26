@@ -273,7 +273,12 @@ const createDesktopToolSource = (options?: {
       return baseTools;
     }
 
-    return [...baseTools, ...toExternalAgentTools(externalTools, options.executeToolCall)];
+    // 本次调用传入的工具覆盖全局注册表里的同名工具（如按项目绑定的资料检索）
+    const externalNames = new Set(externalTools.map(tool => tool.function.name));
+    return [
+      ...baseTools.filter(tool => !externalNames.has(tool.name)),
+      ...toExternalAgentTools(externalTools, options.executeToolCall),
+    ];
   },
 });
 

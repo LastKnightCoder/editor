@@ -5,6 +5,7 @@ import { Descendant } from "slate";
 import {
   MoreHorizontal,
   Sparkles,
+  History,
   CreditCard,
   Trash2,
   Maximize,
@@ -15,7 +16,7 @@ import {
   Import,
 } from "lucide-react";
 import { useMemoizedFn, useUnmount } from "ahooks";
-import { LoadingSpinner } from "../generate/components";
+import LoadingSpinner from "@/components/InsertNoteToTreeModal/LoadingSpinner";
 import InsertNoteToTreeModal from "@/components/InsertNoteToTreeModal";
 import { captureBlobWithSnapdom } from "@/utils/snapdom-export";
 
@@ -36,7 +37,7 @@ import {
 import { createContent, getContentById } from "@/commands";
 import { buildCardFromContent, isContentIsCard } from "@/commands/card";
 import { buildArticleFromContent, isContentIsArticle } from "@/commands/article";
-import { getContentLength, getEditorText, importFromMarkdown, getMarkdown } from "@/utils";
+import { getContentLength, getEditorText, getMarkdown } from "@/utils";
 import { cleanPPTHtmlContent } from "@/constants/prompts/ppt-generation";
 import { cleanReportHtmlContent } from "@/constants/prompts/report-generation";
 import { buildDefaultEpubMetadata, exportSlateToEpubWithDialog } from "@/utils/epub-export";
@@ -44,7 +45,6 @@ import { exportSlateToPdfWithDialog } from "@/utils/pdf-export";
 import useDynamicExtensionsStore from "@/stores/useDynamicExtensionsStore";
 import { usePage } from "@/page/PageProvider";
 import useEditContent from "@/hooks/useEditContent";
-import useOutlineGenerationStore from "@/stores/useOutlineGenerationStore";
 import { toast, ConfirmDialog, Button, IconButton, Menu } from "@tau/ui";
 import { NOTE_ICONS } from "../appMeta";
 import { StageHeader } from "./StageHeader";
@@ -107,6 +107,8 @@ interface NoteEditorViewProps {
   onToggleChat: () => void;
   onEditPPT?: (note: VLNote) => void;
   onEditReport?: (note: VLNote) => void;
+  /** 有本次运行内的生成任务时：回看生成过程 */
+  onShowTrace?: () => void;
 }
 
 const NoteEditorView = memo((props: NoteEditorViewProps) => {
@@ -122,20 +124,10 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     onToggleChat,
     onEditPPT,
     onEditReport,
+    onShowTrace,
   } = props;
   const dynamicExtensions = useDynamicExtensionsStore(state => state.extensions);
   const { navigator } = usePage();
-
-  // 大纲生成状态
-  const isGenerating = useOutlineGenerationStore(state =>
-    note ? state.generatingNoteIds.has(note.id) : false
-  );
-  const streamingContent = useOutlineGenerationStore(state =>
-    note ? state.generatingContent[note.id] : undefined
-  );
-  const generationError = useOutlineGenerationStore(state =>
-    note ? state.generationErrors[note.id] : undefined
-  );
 
   const editorRef = useRef<EditorRef>(null);
   const [loading, setLoading] = useState(true);
@@ -224,19 +216,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
 
   const mindMapExportRef = useRef<HTMLDivElement>(null);
   const mindMapFullscreenExportRef = useRef<HTMLDivElement>(null);
-
-  // 监听流式内容变化，更新编辑器
-  useEffect(() => {
-    if (streamingContent && editorRef.current) {
-      try {
-        const slateContent = importFromMarkdown(streamingContent);
-        setContent(slateContent);
-        editorRef.current.setEditorValue(slateContent);
-      } catch (e) {
-        console.error("Failed to parse streaming content:", e);
-      }
-    }
-  }, [streamingContent]);
 
   // 加载笔记内容
   useEffect(() => {
@@ -338,9 +317,8 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
     }
   });
 
-  // 处理内容变化（生成中不处理，避免冲突）
+  // 处理内容变化
   const handleContentChange = useMemoizedFn((newContent: Descendant[]) => {
-    if (isGenerating) return;
     setContent(newContent);
     throttleHandleEditorContentChange(newContent);
   });
@@ -875,7 +853,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
       <StageHeader
         icon={<NoteIcon className="size-4" strokeWidth={1.75} />}
         title={
-          isEditingTitle && !isGenerating ? (
+          isEditingTitle ? (
             <input
               type="text"
               value={title}
@@ -889,56 +867,50 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
           ) : (
             <button
               type="button"
-              title={isGenerating ? undefined : "点击修改标题"}
+              title="点击修改标题"
               className="text-ink-1 max-w-full cursor-text truncate text-left font-semibold"
-              onClick={() => !isGenerating && setIsEditingTitle(true)}
+              onClick={() => setIsEditingTitle(true)}
             >
               {title || "无标题笔记"}
             </button>
           )
         }
-        meta={
-          isGenerating ? (
-            <span className="text-accent-text inline-flex items-center gap-1">
-              <LoadingSpinner size="small" />
-              生成中
-            </span>
-          ) : saving ? (
-            "保存中…"
-          ) : undefined
-        }
+        meta={saving ? "保存中…" : undefined}
         chatOpen={chatOpen}
         onToggleChat={onToggleChat}
         onClose={handleBack}
         actions={
-          !isGenerating && (
-            <>
-              {aiEdit && (
-                <Button variant="ghost" size="sm" icon={Sparkles} onClick={aiEdit}>
-                  AI 编辑
-                </Button>
-              )}
-              <Menu
-                align="end"
-                trigger={
-                  <IconButton aria-label="更多">
-                    <MoreHorizontal className="size-4" strokeWidth={1.75} />
-                  </IconButton>
-                }
-              >
-                {moreMenuItems.map(item => (
-                  <Menu.Item
-                    key={item.key}
-                    icon={item.icon}
-                    danger={item.danger}
-                    onSelect={item.onClick}
-                  >
-                    {item.label}
-                  </Menu.Item>
-                ))}
-              </Menu>
-            </>
-          )
+          <>
+            {onShowTrace && (
+              <Button variant="ghost" size="sm" icon={History} onClick={onShowTrace}>
+                生成过程
+              </Button>
+            )}
+            {aiEdit && (
+              <Button variant="ghost" size="sm" icon={Sparkles} onClick={aiEdit}>
+                AI 编辑
+              </Button>
+            )}
+            <Menu
+              align="end"
+              trigger={
+                <IconButton aria-label="更多">
+                  <MoreHorizontal className="size-4" strokeWidth={1.75} />
+                </IconButton>
+              }
+            >
+              {moreMenuItems.map(item => (
+                <Menu.Item
+                  key={item.key}
+                  icon={item.icon}
+                  danger={item.danger}
+                  onSelect={item.onClick}
+                >
+                  {item.label}
+                </Menu.Item>
+              ))}
+            </Menu>
+          </>
         }
       />
 
@@ -955,13 +927,6 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
             isMindMap || isPPT || isReport ? "h-full" : "mx-auto max-w-[760px] px-10 pb-16 pt-2"
           }
         >
-          {/* 生成错误提示 */}
-          {generationError && (
-            <div className="bg-danger-soft text-tau-meta text-danger rounded-tau-sm mb-4 px-4 py-2.5">
-              生成失败：{generationError}
-            </div>
-          )}
-
           <ErrorBoundary>
             {isMindMap ? (
               <div ref={mindMapExportRef} className="relative h-full">
@@ -1060,7 +1025,7 @@ const NoteEditorView = memo((props: NoteEditorViewProps) => {
                 initValue={content}
                 onChange={handleContentChange}
                 extensions={dynamicExtensions}
-                readonly={isGenerating}
+                readonly={false}
               />
             )}
           </ErrorBoundary>
