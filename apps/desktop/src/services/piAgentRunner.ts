@@ -16,7 +16,6 @@ import {
   piSessionPrompt,
 } from "@/commands/piSession";
 import { toPiChatMessages, toPiThinking } from "@/services/piLLM";
-import { toPiImageContent } from "@/services/piChatSession";
 import { getToolRegistryAgentTools } from "@/agent/toolRegistryAgentTools";
 import {
   initPiToolBridge,
@@ -144,9 +143,14 @@ export function runPiAgent(
         .filter(item => item.type === "text")
         .map(item => item.text)
         .join("\n");
+      // 图片只传定位信息（image 字段可能是 protocol URL，path 才是真实路径），主进程读文件转 base64
       const images = contentItems
         .filter(item => item.type === "image")
-        .map(item => toPiImageContent(item.image));
+        .map(item =>
+          item.image.startsWith("data:")
+            ? { dataUrl: item.image }
+            : { path: item.path ?? item.image }
+        );
 
       const prompted = await piSessionPrompt(sessionId, promptText, images);
       if (!prompted.ok) {

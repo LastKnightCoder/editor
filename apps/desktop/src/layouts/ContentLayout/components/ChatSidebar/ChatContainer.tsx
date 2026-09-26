@@ -33,11 +33,7 @@ import {
   buildSessionAwareSystemPrompt,
 } from "@/constants";
 import { piCompleteChat, toPiThinking } from "@/services/piLLM";
-import {
-  buildPiChatSystemPrompt,
-  piChatSessionManager,
-  toPiImageContent,
-} from "@/services/piChatSession";
+import { buildPiChatSystemPrompt, piChatSessionManager } from "@/services/piChatSession";
 import { PiChatEventReducer } from "@/services/piChatEvents";
 import {
   onPiSessionEvent,
@@ -932,13 +928,29 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
             .filter(item => item.type === "text")
             .map(item => item.text)
             .join("\n");
+          // 图片只传定位信息（image 字段是 protocol URL，path 才是真实路径），主进程读文件转 base64
           const images = supportImage
             ? contentItems
                 .filter(item => item.type === "image")
-                .map(item => toPiImageContent(item.image))
+                .map(item =>
+                  item.image.startsWith("data:")
+                    ? { dataUrl: item.image }
+                    : { path: item.path ?? item.image }
+                )
             : [];
 
-          const promptOutcome = await piSessionPrompt(sessionId, promptText, images);
+          let promptOutcome = await piSessionPrompt(sessionId, promptText, images);
+          // 停止后立即发送（或队列 drain 抢跑）时 pi 可能仍在收尾，忙等重试
+          for (
+            let attempt = 0;
+            !promptOutcome.ok &&
+            /already processing|正在处理/i.test(promptOutcome.error ?? "") &&
+            attempt < 10;
+            attempt += 1
+          ) {
+            await new Promise(resolve => setTimeout(resolve, 300));
+            promptOutcome = await piSessionPrompt(sessionId, promptText, images);
+          }
           if (!promptOutcome.ok) {
             setChatError(promptOutcome.error ?? "发送失败");
             setSessionPending(getConversationKey(actualCurrentChat.id), false);
@@ -1066,11 +1078,11 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       },
     }));
 
-    const onSelectModel = useMemoizedFn((providerId: string, modelName: string) => {
+    const onSelectModel = useMemoizedFn((providerId: string, modelId: string) => {
       useSettingStore.setState(
         produce(draft => {
           draft.setting.llmUsageSettings.chat.providerId = providerId;
-          draft.setting.llmUsageSettings.chat.modelName = modelName;
+          draft.setting.llmUsageSettings.chat.modelId = modelId;
         })
       );
     });
@@ -1096,23 +1108,8 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
 
     // 处理模型选择
     const handleModelSelect = useMemoizedFn(({ key }: { key: string }) => {
-      const [providerId, modelName] = key.split("::");
-
-      onSelectModel(providerId, modelName);
-
-      // 更新全局配置
-      useSettingStore.setState(
-        produce(draft => {
-          if (!draft.setting.llmUsageSettings.chat) {
-            draft.setting.llmUsageSettings.chat = {
-              providerId: "",
-              modelName: "",
-            };
-          }
-          draft.setting.llmUsageSettings.chat.providerId = providerId;
-          draft.setting.llmUsageSettings.chat.modelName = modelName;
-        })
-      );
+      const [providerId, modelId] = key.split("::");
+      onSelectModel(providerId, modelId);
     });
 
     const visibleMessages = useMemo(() => {
@@ -1158,12 +1155,14 @@ const ChatContainer = forwardRef<ChatContainerHandle, ChatContainerProps>(
       }
     }, [editingDraft, lastUserMessageIndex, visibleMessages]);
 
-    // 停止流式请求：pi 会话 abort（半成品由 agent_settled 流程持久化）
+    // 停止流式请求：pi 会话 abort（半成品由 agent_settled 流程持久化）。
+    // 乐观清 pending 让输入区立即恢复；settled 后的清理是幂等的
     const stopStreaming = useMemoizedFn(() => {
       const activeChat = actualChatRef.current;
+      const conversationKey = getConversationKey(activeChat.id);
       const sessionId = piChatSessionManager.resolveSessionId(chatScope, activeChat.id);
+      setSessionPending(conversationKey, false);
       if (!sessionId) {
-        setSessionPending(getConversationKey(activeChat.id), false);
         return;
       }
       void piSessionAbort(sessionId);

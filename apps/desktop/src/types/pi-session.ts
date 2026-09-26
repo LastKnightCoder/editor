@@ -29,6 +29,14 @@ export interface PiToolCallPayload {
   args: unknown;
 }
 
+/** prompt 附带图片（渲染端只传定位信息，主进程读文件转 base64） */
+export interface PiPromptImage {
+  /** 本地文件绝对路径 */
+  path?: string;
+  /** dataURL（data:image/png;base64,xxx） */
+  dataUrl?: string;
+}
+
 /** 会话创建参数（PiSessionCreateRequest 的渲染端形状） */
 export interface PiSessionCreateRequestV2 {
   sessionId: string;

@@ -7,6 +7,7 @@ import { invoke, on, off } from "@/electron";
 import type { AgentSessionEvent } from "@earendil-works/pi-coding-agent";
 import type {
   PiHostToolCallResult,
+  PiPromptImage,
   PiSessionCreateRequestV2,
   PiToolCallPayload,
 } from "@/types/pi-session";
@@ -28,7 +29,7 @@ export function piSessionCreate(
 export function piSessionPrompt(
   sessionId: string,
   text: string,
-  images?: unknown[]
+  images?: PiPromptImage[]
 ): Promise<Outcome> {
   return invoke<Outcome>("pi-session:prompt", { sessionId, text, images });
 }

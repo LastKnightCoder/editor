@@ -22,7 +22,7 @@ import type { LLMProviderSetting, PiThinkingLevel } from "@/types/pi-llm";
 import type { RequestMessage } from "@/types";
 import type { AgentSession, ExtensionAPI, InlineExtension } from "@earendil-works/pi-coding-agent";
 import { join } from "node:path";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 
 interface HostedSession {
   session: AgentSession;
@@ -84,12 +84,20 @@ class PiSessionHostModule {
       "pi-session:prompt",
       async (
         _event,
-        { sessionId, text, images }: { sessionId: string; text: string; images?: unknown[] }
+        {
+          sessionId,
+          text,
+          images,
+        }: { sessionId: string; text: string; images?: Array<{ path?: string; dataUrl?: string }> }
       ) => {
         const hosted = PiSessionHostModule.sessions.get(sessionId);
         if (!hosted) return { ok: false, error: "会话不存在" };
         try {
-          await hosted.session.prompt(text, images as never);
+          // 渲染端只传定位信息（path/dataUrl），主进程读文件转 pi 的 base64 ImageContent
+          const piImages = (images ?? []).map(image => readPromptImage(image)).filter(Boolean);
+          await hosted.session.prompt(text, {
+            ...(piImages.length > 0 ? { images: piImages as never } : {}),
+          });
           return { ok: true };
         } catch (error) {
           return { ok: false, error: error instanceof Error ? error.message : String(error) };
@@ -289,5 +297,38 @@ const createDynamicSystemPromptExtension = (systemPromptRef: {
     });
   },
 });
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".bmp": "image/bmp",
+};
+
+/** prompt 附带图片 → pi ImageContent（path 读文件 / dataURL 解析；失败返回 null 跳过） */
+function readPromptImage(image: { path?: string; dataUrl?: string }): unknown | null {
+  try {
+    if (image.dataUrl) {
+      const match = image.dataUrl.match(/^data:([^;]+);base64,(.+)$/s);
+      if (match) return { type: "image", data: match[2], mimeType: match[1] };
+      return null;
+    }
+    if (image.path && existsSync(image.path)) {
+      const buffer = readFileSync(image.path);
+      const extension = image.path.slice(image.path.lastIndexOf(".")).toLowerCase();
+      return {
+        type: "image",
+        data: buffer.toString("base64"),
+        mimeType: MIME_BY_EXTENSION[extension] ?? "image/png",
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error("[PiSessionHost] 读取 prompt 图片失败:", error);
+    return null;
+  }
+}
 
 export default PiSessionHostModule;

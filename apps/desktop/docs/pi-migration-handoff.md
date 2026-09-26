@@ -97,6 +97,26 @@ model{id,name?,reasoning,input:[text|image],contextWindow?,maxTokens?,thinkingLe
   navigateTree 替代重建）
 - **subagent 的 maxToolCallLoops/timeoutMs 参数**：pi 会话无对应配置，参数暂留 schema 但不生效
   （pi 自带循环上限与超时），M3 工具管理时清理 schema
+- **连续多段思考块**：pi 工具循环内每次 LLM 调用是一个独立 turn（各自带 thinking 块），模型
+  "思考→调工具→再思考"会显示为多个思考块——这是预期行为；若中间工具卡一闪而过视觉上像一体
+
+## 四-1、首轮验收修复记录（2026-09-26）
+
+1. **ask_question 刷新后不续流**：create 会话的 scope 传了裸 chatScope（"main-chat"），而
+   find-by-scope 按会话键（"main-chat:5"）查——不匹配导致收养失败走兜底。已改 scope=会话键。
+2. **停止无立即反馈 + 一闪而逝错误**：stopStreaming 乐观清 pending（UI 立即恢复）；reducer 对
+   stopReason=aborted 的 errorMessage 不再报错（pi abort 会在 message_end 带 errorMessage）；
+   prompt 提交遇 pi 收尾中（"already processing"）忙等重试（停止后立即发送/队列 drain 抢跑场景）。
+3. **输入框切模型失败**：handleModelSelect 写 modelName 而 v2 主键是 modelId（M2-d 迁移漏改），
+   useLLMConfig 按 modelId 匹配不到 → 显示未选择。已改写 modelId。
+4. **图片模型读不到图**：两层 bug——主进程 prompt 把 images 数组当 PromptOptions 第二参传
+   （pi 签名 prompt(text, {images})，图片整体丢失）；且渲染端 image 字段是 convertFileSrc 的
+   protocol URL 而非 base64。已改为渲染端只传 {path, dataUrl} 定位信息、主进程读文件转
+   base64（历史灌入的图片块同样按 path 优先处理）。
+5. **思考块计时卡顿/突跳**：pi message_update 每 delta 全量快照直驱 produce+渲染，无节流。
+   reducer 增加 50ms trailing 节流（pendingText/pendingReasoning 只保最新值；message_end/
+   工具事件前 flush 保证终态一致）。同时 turnId 改全局递增（多轮发送/恢复各自新建 reducer，
+   局部计数撞 `${turnId}:reasoning` 块 id 会错乱覆盖）。
 
 ## 五、后续里程碑
 
