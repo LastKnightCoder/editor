@@ -7,7 +7,7 @@
  */
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { fauxProvider } from "@earendil-works/pi-ai";
 import type { Provider } from "@earendil-works/pi-ai";
 import {
@@ -21,7 +21,11 @@ import type { AgentSession, ResourceLoader } from "@earendil-works/pi-coding-age
 import { buildPiProvider } from "./pi-ai-runtime-core";
 import type { LLMProviderSetting } from "@/types/pi-llm";
 
-/** pi 只认 Program Files 与 Windows PATH 上的 bash；非标准安装位置需 settings shellPath 兜底（D-060 后产品首启检测写入，此处为探测默认值） */
+/**
+ * pi 只认 Program Files 与 Windows PATH 上的 bash；非标准安装位置需 settings shellPath 兜底（D-060 后产品首启检测写入，此处为探测默认值）。
+ * 探测失败不设 shellPath 时 pi 走自己的 PATH 搜索——它不排除 System32\bash.exe（WSL 入口），
+ * 中文 Windows 上必命中 WSL 并因「无已安装分发版」全部失败，故这里必须穷尽到 git.exe 反推。
+ */
 export function detectBashShellPath(): string | undefined {
   if (process.env.PI_SMOKE_SHELL && existsSync(process.env.PI_SMOKE_SHELL))
     return process.env.PI_SMOKE_SHELL;
@@ -36,7 +40,42 @@ export function detectBashShellPath(): string | undefined {
     "C:\\Program Files\\Git\\bin\\bash.exe",
     "C:\\Program Files (x86)\\Git\\bin\\bash.exe",
   ];
-  return candidates.find(p => existsSync(p));
+  const found = candidates.find(p => existsSync(p));
+  if (found) return found;
+  // git.exe 在 PATH 的概率远高于 bash.exe（System32\bash.exe 是 WSL 入口不可用）：由 git 安装位置反推 Git Bash
+  const where = spawnSync("where", ["git"], { encoding: "utf8" });
+  if (where.status === 0 && where.stdout) {
+    const gitPath = where.stdout
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .find(
+        line =>
+          line.toLowerCase().endsWith("\\cmd\\git.exe") ||
+          line.toLowerCase().endsWith("\\bin\\git.exe")
+      );
+    if (gitPath) {
+      const gitDir = dirname(gitPath);
+      const root = gitDir.toLowerCase().endsWith("\\cmd") ? dirname(gitDir) : gitDir;
+      for (const bash of [join(root, "bin", "bash.exe"), join(root, "usr\\bin\\bash.exe")]) {
+        if (existsSync(bash)) return bash;
+      }
+    }
+  }
+  // PATH 上的 bash.exe 也可用，但必须排除 WSL 入口（System32/SysWOW64），避免落回 pi 的不排除搜索
+  const whereBash = spawnSync("where", ["bash"], { encoding: "utf8" });
+  if (whereBash.status === 0 && whereBash.stdout) {
+    const bashPath = whereBash.stdout
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .find(
+        line =>
+          line.toLowerCase().endsWith("\\bash.exe") &&
+          !line.toLowerCase().includes("\\system32\\") &&
+          !line.toLowerCase().includes("\\syswow64\\")
+      );
+    if (bashPath && existsSync(bashPath)) return bashPath;
+  }
+  return undefined;
 }
 
 /** keyless 占位：pi 把缺失 key 视为未配置直接拒绝请求，无 key 本地网关（Ollama 等）需占位放行 */
