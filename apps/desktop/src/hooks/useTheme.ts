@@ -1,7 +1,7 @@
 import { useMutationObserver } from "ahooks";
 import { useMemo, useState } from "react";
 
-// 主题 runtime 写入的是语义 key（cream/cocoa），明暗信号看 <html>.dark 类；
+// 主题 runtime 写入 data-theme（主题族）+ data-mode（明暗），明暗信号看 <html>.dark 类；
 // data-theme="dark" 字面值仅作旧入口兼容
 const readTheme = (): "light" | "dark" => {
   const root = document.documentElement;

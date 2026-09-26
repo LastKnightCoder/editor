@@ -120,7 +120,7 @@ export function paletteCommands(): PaletteCommand[] {
     ...pages,
     {
       id: "action:cycle-theme",
-      label: "切换深浅主题",
+      label: "切换深浅模式",
       section: "动作",
       icon: SunMoon,
       keywords: "theme dark light 外观",

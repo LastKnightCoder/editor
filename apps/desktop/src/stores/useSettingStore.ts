@@ -867,7 +867,7 @@ const useSettingStore = create<IState & IActions>((set, get) => ({
       }),
     });
     // 旧入口（legacy 侧边栏/演示模式等）转发到主题 runtime，保证 DOM 主题只有一个写者
-    useThemeStore.getState().setMode(darkMode ? "cocoa" : "cream");
+    useThemeStore.getState().setAppearance(darkMode ? "dark" : "light");
   },
   setToolPermissionMode: mode => {
     const { setting } = get();

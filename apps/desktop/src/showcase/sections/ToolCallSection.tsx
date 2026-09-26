@@ -38,7 +38,7 @@ import {
 } from "./toolcallFixtures";
 
 export default function ToolCallSection() {
-  const isDark = useThemeStore(s => s.resolved) === "cocoa";
+  const isDark = useThemeStore(s => s.mode) === "dark";
 
   const show = (execution: ToolCallExecutionState) => (
     <ToolCallBlock execution={execution} isDark={isDark} />

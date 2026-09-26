@@ -1,6 +1,6 @@
 /**
  * 番茄沉浸窗（全屏置顶，路由 /pomodoro/immersive）：纯黑底 + 大号黑色翻牌时钟（白字），
- * 牌面不跟随主题色（窗口固定 cocoa 深色 token 只供控件与弹出层用）。
+ * 牌面不跟随主题色（窗口固定深色 token 只供控件与弹出层用）。
  * 除时间外只留上方一行暗色信息：预设名 · 状态。
  * 控件（背景音 / 暂停继续 / 结束 / 退出）随鼠标移动浮出，静止 2.2 秒淡出；暂停、确认、完成时常显。
  * Esc 退出，空格暂停继续。结束后牌面停住、原位显示结果，可再来一个。
@@ -77,7 +77,7 @@ function TextButton({
 }
 
 export function ImmersiveWindow() {
-  const { dbReady } = useAuxWindowBoot({ forceTheme: "cocoa" });
+  const { dbReady } = useAuxWindowBoot({ forceMode: "dark" });
   const presets = usePomodoroPresets(dbReady);
   const { session, timing } = useLiveTiming();
   const [result, dismissResult] = useEndResult();

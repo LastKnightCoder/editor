@@ -2,7 +2,6 @@ import { useMemo } from "react";
 
 import type { EditorConfig } from "@tau/editor/src";
 import type { ThemeColors } from "@tau/editor/src/types/services";
-import { getTheme } from "@tau/ui/theme";
 import { useThemeStore } from "@tau/ui/theme/runtime";
 import useSettingStore, { type ISetting } from "@/stores/useSettingStore";
 import { ACCENT_COLORS, ACCENT_OKLCH } from "@/constants/accent";
@@ -42,9 +41,8 @@ const getThemeColorsFromSetting = (setting: ISetting, isDarkMode: boolean): Them
 
 export const useDesktopEditorConfig = (): EditorConfig => {
   const setting = useSettingStore(state => state.setting);
-  // 明暗唯一正源是主题 runtime 的 resolved 主题（data-theme 语义 key），不再读 setting.darkMode
-  const resolved = useThemeStore(state => state.resolved);
-  const isDark = getTheme(resolved)?.mode === "dark";
+  // 明暗唯一正源是主题 runtime 的生效明暗（data-mode），不再读 setting.darkMode
+  const isDark = useThemeStore(state => state.mode) === "dark";
 
   return useMemo(
     () => ({

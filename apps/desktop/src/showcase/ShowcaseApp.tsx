@@ -24,21 +24,22 @@ import clsx from "clsx";
 import { Monitor, Moon, Sun } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { useEdgeFade, NotificationHost, ToastHost } from "@tau/ui";
-import { useThemeStore, type ThemeMode } from "@tau/ui/theme/runtime";
+import { useThemeStore, type Appearance } from "@tau/ui/theme/runtime";
 import { PAGE_COL, Segmented } from "./kit";
 import { SECTIONS, SECTION_GROUPS, type SectionKey } from "./sections/registry";
 
-const THEME_MODES: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
-  { value: "cream", label: "浅色", icon: Sun },
-  { value: "cocoa", label: "深色", icon: Moon },
+const APPEARANCES: { value: Appearance; label: string; icon: typeof Sun }[] = [
+  { value: "light", label: "浅色", icon: Sun },
+  { value: "dark", label: "深色", icon: Moon },
   { value: "system", label: "系统", icon: Monitor },
 ];
 
 export function ShowcaseApp() {
   const [activeKey, setActiveKey] = useState<SectionKey>("iconbutton");
+  const theme = useThemeStore(s => s.theme);
+  const appearance = useThemeStore(s => s.appearance);
   const mode = useThemeStore(s => s.mode);
-  const resolved = useThemeStore(s => s.resolved);
-  const setMode = useThemeStore(s => s.setMode);
+  const setAppearance = useThemeStore(s => s.setAppearance);
 
   const active = SECTIONS.find(s => s.key === activeKey)!;
   const ActiveView = active.component;
@@ -113,12 +114,12 @@ export function ShowcaseApp() {
             </span>
             <div className="flex-1" />
             <span className="font-tau-mono text-tau-tiny text-ink-3">
-              {mode === "system" ? `system → ${resolved}` : resolved}
+              {theme} · {appearance === "system" ? `system → ${mode}` : mode}
             </span>
             <Segmented
-              value={mode}
-              onChange={setMode}
-              options={THEME_MODES.map(({ value, label, icon: Icon }) => ({
+              value={appearance}
+              onChange={setAppearance}
+              options={APPEARANCES.map(({ value, label, icon: Icon }) => ({
                 value,
                 title: label,
                 label: (
