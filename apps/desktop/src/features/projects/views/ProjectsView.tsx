@@ -56,7 +56,7 @@ export function ProjectsView() {
 
   /* ---------- 派生：置顶段与全部网格 ---------- */
 
-  const { heroes, rest, archived, activeAll } = useMemo(() => {
+  const { heroes, rest, archived } = useMemo(() => {
     const match = (p: ProjectPageItem) => !typeFilter || p.projectType === typeFilter;
     const active = snapshot.projects.filter(p => !p.archived && match(p));
     const byUpdate = [...active].sort((a, b) => b.updateTime - a.updateTime);
@@ -67,11 +67,11 @@ export function ProjectsView() {
       /* 「升格不分流」：全部网格仍含置顶的 mini 卡（完整索引），按更新序 */
       rest: byUpdate,
       archived: snapshot.projects.filter(p => p.archived && match(p)),
-      activeAll: snapshot.projects.filter(p => !p.archived),
     };
   }, [snapshot.projects, typeFilter]);
 
-  const archivedCount = snapshot.projects.length - activeAll.length;
+  /* 摘要与段头读数跟随类型筛选：rest = 当前类型的未归档项目，archived 同样已按类型过滤 */
+  const docCount = rest.reduce((sum, p) => sum + p.itemCount, 0);
 
   /* ---------- 卡片操作 ---------- */
 
@@ -101,12 +101,10 @@ export function ProjectsView() {
               {typeFilter ? PROJECT_TYPE_META[typeFilter].label : "项目"}
             </h1>
             <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
-              <b className="text-ink-1 font-semibold">{activeAll.length}</b> 个项目
+              <b className="text-ink-1 font-semibold">{rest.length}</b> 个项目
               <span className="text-ink-3 mx-1.5">·</span>文档{" "}
-              <b className="text-ink-1 font-semibold">
-                {activeAll.reduce((sum, p) => sum + p.itemCount, 0)}
-              </b>{" "}
-              个{archivedCount > 0 && ` · 已归档 ${archivedCount}`}
+              <b className="text-ink-1 font-semibold">{docCount}</b> 个
+              {archived.length > 0 && ` · 已归档 ${archived.length}`}
             </span>
             <Button
               variant="primary"
@@ -141,10 +139,7 @@ export function ProjectsView() {
           {/* 全部项目：紧凑网格 */}
           {rest.length > 0 && (
             <section className="mb-[26px]">
-              <SectionHead
-                label="全部项目"
-                hint={`${activeAll.length} 个 · 文档 ${activeAll.reduce((sum, p) => sum + p.itemCount, 0)} 个`}
-              />
+              <SectionHead label="全部项目" hint={`${rest.length} 个 · 文档 ${docCount} 个`} />
               <div className="grid grid-cols-[repeat(auto-fill,minmax(268px,1fr))] gap-2.5">
                 {rest.map(project => (
                   <ProjectMiniCard key={project.id} project={project} handlers={handlers} />
