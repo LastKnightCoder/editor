@@ -53,7 +53,7 @@ export function QuickAddBar({
   };
 
   return (
-    <div className="bg-surface shadow-card focus-within:outline-line-1 focus-within:shadow-lift ease-tau-out mb-3 flex flex-none flex-col rounded-[14px] outline outline-1 outline-transparent transition-[box-shadow,outline-color] duration-150">
+    <div className="border-line-1 focus-within:shadow-lift ease-tau-out mb-3 flex flex-none flex-col rounded-[14px] border transition-[box-shadow,border-color] duration-150 focus-within:border-transparent">
       <div className="flex h-11 items-center gap-2.5 pl-3.5 pr-2">
         <Sparkles className="text-accent size-4 shrink-0" strokeWidth={1.75} />
         <input

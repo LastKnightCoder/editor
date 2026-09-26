@@ -13,6 +13,8 @@ import {
 import { ReviewDueBadge } from "@/features/flashcards/components/ReviewDueBadge";
 import { QuestionsNavBadge } from "@/features/questions/components/QuestionsNavBadge";
 import { QuestionsNavGroups } from "@/features/questions/components/QuestionsNav";
+import { TodosNavGroups } from "@/features/todos/components/TodosNav";
+import { useTodoSnapshot } from "@/features/todos/queries";
 import { McpNavBadge } from "@/features/mcp/components/McpNavBadge";
 import { useQuestionsSnapshot } from "@/features/questions/queries";
 import { DiaryNavTags } from "@/features/diary/components/DiaryNav";
@@ -53,6 +55,12 @@ export interface NavChildrenSlot {
 export const NAV_CHILDREN_SLOTS: Record<NavItemChildren, NavChildrenSlot> = {
   // 协作：当前内容缺省时落到第一份，恒有子项选中
   "collaboration-sessions": { Component: CollaborationNavSessions, selected: () => true },
+  // 待办：项目是收窄视图，参数 id 为空 = 全部
+  "todo-groups": {
+    Component: TodosNavGroups,
+    selected: params => Boolean(params.id),
+    parentResets: true,
+  },
   // 日记：标签频道是收窄视图，参数 id 为空 = 全部（D-044）
   "diary-tags": {
     Component: DiaryNavTags,
@@ -87,8 +95,10 @@ export function useNavChildrenContent(): Record<NavItemChildren, boolean> {
   const hasChats = useChatNavHasContent();
   // 恒有默认分组；快照到位即展开（含「新建分组」入口）
   const hasQuestionGroups = Boolean(useQuestionsSnapshot().snapshot);
+  const hasTodoGroups = Boolean(useTodoSnapshot().snapshot);
   return {
     "collaboration-sessions": hasSessions,
+    "todo-groups": hasTodoGroups,
     "diary-tags": hasDiary,
     "whiteboard-tags": hasWhiteboardTags,
     "question-groups": hasQuestionGroups,

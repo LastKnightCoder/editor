@@ -38,7 +38,12 @@ export type NavItemBadge =
   "review-due" | "pomodoro-live" | "collab-requests" | "questions-active" | "mcp-errors";
 /** 子项槽 key：所属页在栈顶时于条目下方展开的列表（渲染组件注册于 navSlots.tsx） */
 export type NavItemChildren =
-  "collaboration-sessions" | "diary-tags" | "whiteboard-tags" | "question-groups" | "chat-sessions";
+  | "collaboration-sessions"
+  | "todo-groups"
+  | "diary-tags"
+  | "whiteboard-tags"
+  | "question-groups"
+  | "chat-sessions";
 
 export interface NavItem {
   key: string;
@@ -48,7 +53,7 @@ export interface NavItem {
    *  collab-requests = 待审批的加入申请数；mcp-errors = 连接失败的 MCP 服务器数） */
   badge?: NavItemBadge;
   /** 该页在栈顶时于条目下方展开的子项（collaboration-sessions = 共享内容列表，协作页 A3；
-   *  diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；question-groups = 问题分组；chat-sessions = 置顶与最近 AI 会话，D-047） */
+   *  todo-groups = 待办项目；diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；question-groups = 问题分组；chat-sessions = 置顶与最近 AI 会话，D-047） */
   children?: NavItemChildren;
   /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
   opensOverlay?: "settings";
@@ -66,7 +71,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: "home", label: "今日", icon: Flame },
       { key: "schedule", label: "日程", icon: Calendar }, // legacy: Calendar + TimeRecordView
-      { key: "todos", label: "待办", icon: ListTodo }, // features/todos（独立页，不并入 schedule，D-040）
+      { key: "todos", label: "待办", icon: ListTodo, children: "todo-groups" }, // features/todos（独立页，不并入 schedule，D-040；项目嵌在此入口下）
       { key: "pomodoro", label: "番茄专注", icon: Timer, badge: "pomodoro-live" }, // features/pomodoro（独立页；小窗与沉浸为辅助窗口）
       {
         key: "collaboration",

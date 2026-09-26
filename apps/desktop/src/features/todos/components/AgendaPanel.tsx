@@ -18,7 +18,8 @@ import {
   ListTree,
   Repeat,
 } from "lucide-react";
-import { ContextMenu, cn, useEdgeFade } from "@tau/ui";
+import { ContextMenu, cn } from "@tau/ui";
+import { FadeScroll } from "@/components/FadeScroll";
 import type { TodoGroup } from "@/types";
 import {
   bucketOf,
@@ -102,8 +103,6 @@ export function AgendaPanel({
   onToggle(entry: TodoEntry): void;
   renderMenu(entry: TodoEntry): ReactNode;
 }) {
-  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(scrollEl, { top: false });
   const [foldOpen, setFoldOpen] = useState<Set<string>>(() => new Set());
 
   const sections = useMemo<Section[]>(() => {
@@ -185,12 +184,8 @@ export function AgendaPanel({
   );
 
   return (
-    <motion.div
-      ref={setScrollEl}
-      layoutScroll
-      // 滚动容器自身离卡片边缘留隙（上下 10px、右 6px），滚动条贴容器画，不贴卡片圆角
-      className="edge-fade-scroll relative my-2.5 mr-1.5 min-h-0 min-w-0 flex-1 overflow-y-auto pb-[18px] pl-[18px] pr-2.5"
-    >
+    // 滚动区离纸底留 16px（同右栏分隔线），滚动条不压纸的圆角；段头吸顶处也走顶部渐隐
+    <FadeScroll layoutScroll className="relative mb-4 min-h-0 min-w-0 flex-1 pb-6 pl-[22px] pr-2">
       {sections.length === 0 && (
         <div className="text-ink-3 flex flex-col items-center gap-1.5 py-20 text-center text-[12.5px]">
           <p className="text-ink-2 text-[15px] font-medium">这里很清爽</p>
@@ -288,7 +283,7 @@ export function AgendaPanel({
           </motion.section>
         );
       })}
-    </motion.div>
+    </FadeScroll>
   );
 }
 
