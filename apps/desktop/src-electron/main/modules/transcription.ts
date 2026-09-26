@@ -23,6 +23,7 @@ import {
   normalizeLanguageOption,
   parseLanguageFromLogs,
 } from "../utils/transcription-language";
+import { normalizeModelSize, whisperDtwPreset } from "../utils/transcription-model";
 
 // ==================== 类型定义 ====================
 
@@ -158,7 +159,9 @@ class TranscriptionService {
     const useLLMOptimization = options.useLLMOptimization ?? false;
     const sentenceLevel = useLLMOptimization ? false : options.sentenceLevel !== false;
 
-    const args = ["-m", modelPath, "-f", audioPath, "-osrt", "-of", outputDir, "-pp"];
+    // -of 是输出文件路径（不含扩展名），不是目录：落到 outputDir/<音频名>.srt，与读取处一致
+    const outputFile = path.join(outputDir, path.basename(audioPath).replace(/\.[^.]+$/, ""));
+    const args = ["-m", modelPath, "-f", audioPath, "-osrt", "-of", outputFile, "-pp"];
 
     // whisper.cpp 不传 -l 时默认按英语识别（不同于 faster-whisper），自动模式须显式传 auto
     args.push("-l", language ?? "auto");
@@ -170,8 +173,10 @@ class TranscriptionService {
       const maxLineWidth = options.maxLineWidth ?? (isAsianLanguage ? 50 : 100);
       args.push("--max-len", String(maxLineWidth));
     } else {
-      // 词级时间戳：token 级 DTW 对齐
-      args.push("--max-len", "1", "--dtw");
+      // 词级时间戳：每段一个 token；DTW 对齐需指定模型预设，未知尺寸时不开（退化为普通 token 时间戳）
+      args.push("--max-len", "1");
+      const dtwPreset = whisperDtwPreset(options.modelSize);
+      if (dtwPreset) args.push("--dtw", dtwPreset);
     }
 
     return args;
@@ -662,6 +667,12 @@ class TranscriptionService {
     if (!(await fs.pathExists(audioPath))) {
       throw new Error(`Audio file not found: ${audioPath}`);
     }
+
+    // 调用方可能传入带引擎前缀的模型名（whisper-cpp-base / faster-whisper-base），统一成尺寸
+    options = {
+      ...options,
+      modelSize: normalizeModelSize(options.modelSize) as TranscriptionOptions["modelSize"],
+    };
 
     // 优先使用预编译程序
     const programInfo = await this.getPrecompiledProgramInfo();

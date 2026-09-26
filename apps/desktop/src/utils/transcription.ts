@@ -21,9 +21,7 @@ export function checkLLMOptimizationConfig(): {
     };
   }
 
-  const provider = llmConfigs.find(
-    (config) => config.id === transcriptionOptimization.providerId
-  );
+  const provider = llmConfigs.find(config => config.id === transcriptionOptimization.providerId);
 
   if (!provider) {
     return {
@@ -32,9 +30,7 @@ export function checkLLMOptimizationConfig(): {
     };
   }
 
-  const model = provider.models?.find(
-    (m) => m.name === transcriptionOptimization.modelName
-  );
+  const model = provider.models?.find(m => m.name === transcriptionOptimization.modelName);
 
   if (!model) {
     return {
@@ -50,9 +46,7 @@ export function checkLLMOptimizationConfig(): {
  * 打开设置弹窗并跳转到指定的 tab
  * @param tab 要跳转到的 tab key
  */
-export function openSettingsModal(
-  tab: "llm" | "transcription" = "llm"
-): void {
+export function openSettingsModal(tab: "llm" | "transcription" = "llm"): void {
   useSettingStore.setState({
     settingModalOpen: true,
   });
@@ -68,7 +62,8 @@ export function checkTranscriptionLLMRequirement(): {
   isConfigured: boolean;
   errorMessage?: string;
 } {
-  const { segmentationLevel, useLLMOptimization } = useSettingStore.getState().setting.misc.transcription || {
+  const { segmentationLevel, useLLMOptimization } = useSettingStore.getState().setting.misc
+    .transcription || {
     segmentationLevel: "sentence",
     useLLMOptimization: false,
   };
@@ -104,8 +99,9 @@ export function prepareTranscriptionOptions(
   // 获取转录行为设置
   const { segmentationLevel = "sentence", useLLMOptimization = false } = misc.transcription || {};
 
-  // faster-whisper 模型，格式为 "faster-whisper-base" -> "base"
-  const modelSize = transcription.currentModel?.replace("faster-whisper-", "") || "base";
+  // 模型名带引擎前缀：Windows "faster-whisper-base"、macOS "whisper-cpp-base" -> "base"
+  const modelSize =
+    transcription.currentModel?.replace(/^(faster-whisper|whisper-cpp)-/, "") || "base";
 
   // 合并选项（device 由后端根据已安装程序自动检测）
   return {
@@ -115,4 +111,3 @@ export function prepareTranscriptionOptions(
     ...userOptions,
   };
 }
-
