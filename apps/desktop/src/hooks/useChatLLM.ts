@@ -12,6 +12,9 @@ import { useMemoizedFn } from "ahooks";
 import type { ProviderConfig, ModelConfig } from "@/types/llm";
 import type { LLMModelSetting, LLMProviderSetting } from "@/types/pi-llm";
 import { downgradeModel, downgradeProvider } from "@/services/llmSettingsDowngrade";
+import { piAiCancel, piAiSingleShot } from "@/commands/piAi";
+import { Role } from "@/constants";
+import type { PiThinkingLevel } from "@/types/pi-llm";
 import { ensureToolingReady } from "@/tools";
 import { toolIntegrationRegistry } from "@/tools/toolIntegrationRegistry";
 import { DesktopModelProtocolAdapter } from "@/agent/DesktopModelProtocolAdapter";
@@ -395,6 +398,166 @@ const chatInner = async (
   }
 };
 
+/** ReasoningEffort（旧枚举）→ PiThinkingLevel：none→off，其余同名对齐 */
+const toPiThinking = (effort: ReasoningEffort | undefined): PiThinkingLevel | undefined =>
+  effort ? (effort === "none" ? "off" : (effort as PiThinkingLevel)) : undefined;
+
+/** chat-core RequestMessage → pi 单发消息：system 抽出拼接，正文块文本化（图片/文件降级为占位） */
+const toPiSingleShotMessages = (messages: RequestMessage[]) => {
+  const systemParts: string[] = [];
+  const chat: Array<{ role: "user" | "assistant"; content: string }> = [];
+  for (const message of messages) {
+    if (message.role === Role.System) {
+      if (typeof message.content === "string") systemParts.push(message.content);
+      else if (Array.isArray(message.content)) {
+        systemParts.push(
+          message.content.map(block => (block.type === "text" ? block.text : "")).join("")
+        );
+      }
+      continue;
+    }
+    if (message.role === Role.User) {
+      const text =
+        typeof message.content === "string"
+          ? message.content
+          : message.content
+              .map(block =>
+                block.type === "text"
+                  ? block.text
+                  : block.type === "image"
+                    ? "[图片]"
+                    : `[文件：${block.fileName ?? ""}]`
+              )
+              .join("\n");
+      chat.push({ role: "user", content: text });
+      continue;
+    }
+    if (message.role === Role.Assistant) {
+      chat.push({
+        role: "assistant",
+        content: typeof message.content === "string" ? message.content : "",
+      });
+    }
+    // Tool 角色消息不出现在无工具单发的对话历史里，忽略
+  }
+  return { system: systemParts.length > 0 ? systemParts.join("\n\n") : undefined, messages: chat };
+};
+
+/** pi Usage → AgentModelUsage（旧回调形状，消费方不改） */
+const toAgentModelUsage = (usage: {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheWrite: number;
+}): AgentModelUsage => ({
+  inputTokens: usage.input,
+  outputTokens: usage.output,
+  cacheReadTokens: usage.cacheRead,
+  cacheWriteTokens: usage.cacheWrite,
+});
+
+/** 无工具单发的 pi 路径：piAiSingleShot 事件 → chatStreamCore 回调形状映射 */
+const runPiSingleShot = async (options: ChatStreamCoreOptions): Promise<void> => {
+  const {
+    provider,
+    model,
+    messages,
+    onFinish,
+    onUpdate,
+    onReasoning,
+    onUsage,
+    onError,
+    onController,
+    reasoningEffort,
+  } = options;
+  const requestId = crypto.randomUUID();
+  const controller = new AbortController();
+  controller.signal.addEventListener("abort", () => {
+    void piAiCancel(requestId);
+  });
+  onController?.(controller);
+
+  const { system, messages: chatMessages } = toPiSingleShotMessages(messages);
+  let text = "";
+  let reasoning = "";
+  type PiFinalMessage = {
+    content: Array<{ type: string; text?: string; thinking?: string }>;
+    usage?: { input: number; output: number; cacheRead: number; cacheWrite: number };
+    stopReason?: string;
+    errorMessage?: string;
+  } | null;
+  const captured: { done: PiFinalMessage } = { done: null };
+
+  try {
+    const outcome = await piAiSingleShot(
+      {
+        providerId: provider.id,
+        modelId: model.id,
+        ...(system !== undefined ? { system } : {}),
+        messages: chatMessages,
+        ...(toPiThinking(reasoningEffort) !== undefined
+          ? { thinking: toPiThinking(reasoningEffort)! }
+          : {}),
+        ...(typeof model.samplingParams?.temperature === "number"
+          ? { temperature: model.samplingParams.temperature }
+          : {}),
+      },
+      event => {
+        const e = event as unknown as Record<string, unknown>;
+        if (event.type === "text_end") {
+          text = e.content as string;
+          onUpdate?.(text, text, reasoning || undefined, requestId);
+        } else if (event.type === "text_delta") {
+          const delta = e.delta as string;
+          onUpdate?.(text + delta, text + delta, reasoning || undefined, requestId);
+        } else if (event.type === "thinking_delta") {
+          reasoning += e.delta as string;
+          onReasoning?.(text, text, requestId);
+        } else if (event.type === "thinking_end") {
+          reasoning = e.content as string;
+          onReasoning?.(text, text, requestId);
+        } else if (event.type === "done") {
+          captured.done = e.message as typeof captured.done;
+        }
+      },
+      requestId
+    );
+
+    if (controller.signal.aborted) return;
+    if (!outcome.ok) {
+      onError?.(new Error(outcome.error ?? "模型请求失败"));
+      return;
+    }
+    // pi 的 text_end/thinking_end 快照为准（done 事件在 invoke resolve 前已到）
+    const finalMessage = captured.done;
+    if (finalMessage) {
+      text = finalMessage.content
+        .filter(block => block.type === "text")
+        .map(block => block.text ?? "")
+        .join("");
+      reasoning = finalMessage.content
+        .filter(block => block.type === "thinking")
+        .map(block => block.thinking ?? "")
+        .join("");
+      if (finalMessage.usage) {
+        onUsage?.(toAgentModelUsage(finalMessage.usage), requestId);
+      }
+    }
+    onFinish?.(text, reasoning, {
+      turnId: requestId,
+      finishReason: finalMessage?.stopReason ?? "stop",
+      resultType: "response",
+    });
+    options.onAssistantTurnEnd?.({
+      turnId: requestId,
+      finishReason: finalMessage?.stopReason ?? "stop",
+      resultType: "response",
+    });
+  } catch (error) {
+    if (!controller.signal.aborted) onError?.(error as Error);
+  }
+};
+
 export const chatStreamCore = async (options: ChatStreamCoreOptions): Promise<void> => {
   const {
     provider,
@@ -432,7 +595,14 @@ export const chatStreamCore = async (options: ChatStreamCoreOptions): Promise<vo
     onError?.(new Error("无法获取到当前模型配置"));
     return;
   }
-  // M2-d 临时桥：旧 adapter 消费 v1 形状，M2-e 切 pi 路径后随 llmSettingsDowngrade 删除
+
+  // M2-e：无工具单发路径走 pi（主进程 pi-ai 模块）——标题摘要/网页剪辑/播客/闪卡/判定/
+  // 视频摘要等业务调用方全部经此；带工具路径（主聊天/生成编排）待 M2-f 接 session 后退役旧 adapter
+  if (enableTools !== true) {
+    return runPiSingleShot(options);
+  }
+
+  // M2-d 临时桥：旧 adapter 消费 v1 形状，M2-f 切 session 后随 llmSettingsDowngrade 删除
   const providerConfig = downgradeProvider(provider);
   const modelConfig = downgradeModel(model, provider);
   const controller = new AbortController();

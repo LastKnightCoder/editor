@@ -7,7 +7,17 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("@/hooks/useChatLLM", () => ({ chatLLM: vi.fn() }));
 vi.mock("@/hooks/useLLMConfig", () => ({
-  default: () => ({ providerConfig: {}, modelConfig: {} }),
+  default: () => ({
+    provider: {
+      id: "p",
+      name: "p",
+      baseUrl: "",
+      apiKey: "",
+      api: "openai-completions",
+      models: [],
+    },
+    model: { id: "m", reasoning: false, input: ["text"], contextWindow: 128_000, maxTokens: 8_192 },
+  }),
 }));
 
 let root: Root;

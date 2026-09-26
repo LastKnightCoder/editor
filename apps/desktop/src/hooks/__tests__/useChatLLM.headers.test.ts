@@ -138,7 +138,7 @@ describe("hooks/useChatLLM headers", () => {
       provider: providerConfig,
       model: modelConfig,
       messages,
-      enableTools: false,
+      enableTools: true, // 协议细节仍由旧 adapter 承载（M2-f 前有效），走带工具路径避免进入 pi 单发分支
       onError,
     });
 
@@ -170,7 +170,7 @@ describe("hooks/useChatLLM headers", () => {
       provider: providerConfig,
       model: modelConfig,
       messages,
-      enableTools: false,
+      enableTools: true, // 协议细节仍由旧 adapter 承载（M2-f 前有效），走带工具路径避免进入 pi 单发分支
       reasoningEffort: "high",
       onError,
     });
@@ -199,7 +199,7 @@ describe("hooks/useChatLLM headers", () => {
       provider: providerConfig,
       model: modelConfig,
       messages,
-      enableTools: false,
+      enableTools: true, // 协议细节仍由旧 adapter 承载（M2-f 前有效），走带工具路径避免进入 pi 单发分支
       onError,
     });
 
@@ -222,7 +222,7 @@ describe("hooks/useChatLLM headers", () => {
       provider: { ...providerConfig, api: "openai-responses" },
       model: modelConfig,
       messages,
-      enableTools: false,
+      enableTools: true, // 协议细节仍由旧 adapter 承载（M2-f 前有效），走带工具路径避免进入 pi 单发分支
       reasoningEffort: "medium",
       onError,
     });
@@ -286,7 +286,7 @@ describe("hooks/useChatLLM headers", () => {
       provider: { ...providerConfig, api: "anthropic-messages" },
       model: modelConfig,
       messages: requestMessages,
-      enableTools: false,
+      enableTools: true, // 协议细节仍由旧 adapter 承载（M2-f 前有效），走带工具路径避免进入 pi 单发分支
       onError,
     });
 
@@ -364,7 +364,7 @@ describe("hooks/useChatLLM headers", () => {
       provider: { ...providerConfig, api: "anthropic-messages" },
       model: modelConfig,
       messages,
-      enableTools: false,
+      enableTools: true, // 协议细节仍由旧 adapter 承载（M2-f 前有效），走带工具路径避免进入 pi 单发分支
       onError,
     });
 
@@ -411,7 +411,7 @@ describe("hooks/useChatLLM headers", () => {
       provider: { ...providerConfig, api: "anthropic-messages" },
       model: modelConfig,
       messages: requestMessages,
-      enableTools: false,
+      enableTools: true, // 协议细节仍由旧 adapter 承载（M2-f 前有效），走带工具路径避免进入 pi 单发分支
       onError,
     });
 
@@ -514,7 +514,7 @@ describe("hooks/useChatLLM headers", () => {
       provider: { ...providerConfig, api: "anthropic-messages" },
       model: modelConfig,
       messages: requestMessages,
-      enableTools: false,
+      enableTools: true, // 协议细节仍由旧 adapter 承载（M2-f 前有效），走带工具路径避免进入 pi 单发分支
       onError,
     });
 
@@ -594,7 +594,7 @@ describe("hooks/useChatLLM headers", () => {
       provider: { ...providerConfig, api: "openai-responses" },
       model: modelConfig,
       messages,
-      enableTools: false,
+      enableTools: true, // 协议细节仍由旧 adapter 承载（M2-f 前有效），走带工具路径避免进入 pi 单发分支
       onError,
     });
 
@@ -812,7 +812,7 @@ describe("hooks/useChatLLM headers", () => {
       provider: providerConfig,
       model: modelConfig,
       messages: requestMessages,
-      enableTools: false,
+      enableTools: true, // 协议细节仍由旧 adapter 承载（M2-f 前有效），走带工具路径避免进入 pi 单发分支
       skills: [
         {
           folderName: "code-review",
