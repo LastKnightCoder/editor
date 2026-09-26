@@ -31,11 +31,13 @@ onlyBuiltDependencies:
   - tesseract.js
 
 allowBuilds:
+  "@google/genai": false
   "@swc/core": true
   better-sqlite3: true
   electron-winstaller: true
   esbuild: true
   node-llama-cpp: true
+  protobufjs: false
   sharp: true
   spawn-sync: true
   tesseract.js: true
