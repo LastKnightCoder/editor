@@ -4,6 +4,7 @@
  * 识别并从标题中摘除：
  * - 日历：`#工作`（按日历名精确匹配，其次前缀匹配）
  * - 日期：今天 / 明天 / 后天 / 大后天、明早 / 明晚 / 今晚、周X / 星期X / 下周X、
+ *   周末 / 这周末 / 下周末（= 该周六；今天已是周末则「周末」取今天）、
  *   M月D日、M/D、D号（未写日期时用当前选中日）
  * - 时间：15:00、3点、3点半、3点15、下午3点、15:00-16:30、3点到5点半；
  *   不带时段的 1–6 点按下午算（「3点开会」多指 15:00）；只有开始时间时默认 1 小时
@@ -159,6 +160,17 @@ export function parseQuickAdd(
       impliedPeriod = period;
       hints.date = m[0];
       break;
+    }
+  }
+  if (date === null) {
+    const m = take(/(下下|下|这|本)?(?:周末|礼拜末)/);
+    if (m) {
+      const dow = ((now.getDay() + 6) % 7) + 1;
+      const monday = addDays(today, 1 - dow);
+      const weeks = m[1] === "下下" ? 2 : m[1] === "下" ? 1 : 0;
+      // 本周末：周六；今天已是周六 / 周日就取今天
+      date = weeks === 0 && dow >= 6 ? today : addDays(monday, weeks * 7 + 5);
+      hints.date = m[0];
     }
   }
   if (date === null) {
