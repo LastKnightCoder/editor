@@ -49,6 +49,28 @@ describe("parseQuickAdd", () => {
     expect(parse("星期日 聚餐").date).toBe(day(9, 27));
   });
 
+  it("周末：本周六（周末当天取今天）、下周末、下下周末", () => {
+    expect(parse("周末 爬山")).toMatchObject({ title: "爬山", date: day(9, 26), startTime: null });
+    expect(parse("这周末下午3点 看电影").hints).toEqual({ date: "这周末", time: "下午3点" });
+    expect(parse("下周末 露营")).toMatchObject({ title: "露营", date: day(10, 3) });
+    expect(parse("下下周末 搬家")).toMatchObject({ date: day(10, 10) });
+    const onSat = parseQuickAdd("周末 打扫", {
+      baseDate: 0,
+      now: new Date(2026, 8, 26, 9),
+      calendars,
+    });
+    const onSun = parseQuickAdd("周末 打扫", {
+      baseDate: 0,
+      now: new Date(2026, 8, 27, 9),
+      calendars,
+    });
+    expect(onSat.date).toBe(day(9, 26));
+    expect(onSun.date).toBe(day(9, 27));
+    expect(
+      parseQuickAdd("下周末 聚餐", { baseDate: 0, now: new Date(2026, 8, 27, 9), calendars }).date
+    ).toBe(day(10, 3));
+  });
+
   it("绝对日期：月日、斜杠、几号；已过的月日算明年", () => {
     expect(parse("10月1日 国庆").date).toBe(day(10, 1));
     expect(parse("9/30 体检").date).toBe(day(9, 30));
