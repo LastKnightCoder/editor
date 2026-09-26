@@ -90,6 +90,18 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8812", "-d", "apps/desktop/mockups/editor-window"],
       "port": 8812
+    },
+    {
+      "name": "markdown-window-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8813", "-d", "apps/desktop/mockups/markdown-window"],
+      "port": 8813
+    },
+    {
+      "name": "article-detail-mock",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8814", "-d", "apps/desktop/mockups"],
+      "port": 8814
     }
   ]
 }
