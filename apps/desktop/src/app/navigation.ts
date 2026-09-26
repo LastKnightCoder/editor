@@ -41,6 +41,7 @@ export type NavItemChildren =
   | "collaboration-sessions"
   | "todo-groups"
   | "project-types"
+  | "article-tags"
   | "diary-tags"
   | "whiteboard-tags"
   | "question-groups"
@@ -54,7 +55,7 @@ export interface NavItem {
    *  collab-requests = 待审批的加入申请数；mcp-errors = 连接失败的 MCP 服务器数） */
   badge?: NavItemBadge;
   /** 该页在栈顶时于条目下方展开的子项（collaboration-sessions = 共享内容列表，协作页 A3；
-   *  todo-groups = 待办项目；project-types = 项目类型；diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；question-groups = 问题分组；chat-sessions = 置顶与最近 AI 会话，D-047） */
+   *  todo-groups = 待办项目；project-types = 项目类型；article-tags = 文章标签（限高滚动）；diary-tags = 日记标签频道，D-044；whiteboard-tags = 白板标签，D-047；question-groups = 问题分组；chat-sessions = 置顶与最近 AI 会话，D-047） */
   children?: NavItemChildren;
   /** 不导航页面、打开壳层浮层的入口（当前仅设置弹窗，D-028） */
   opensOverlay?: "settings";
@@ -87,7 +88,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "知识",
     items: [
       { key: "cards", label: "卡片库", icon: Layers }, // features/cards
-      { key: "articles", label: "文章", icon: FileText }, // legacy: ArticleListView
+      { key: "articles", label: "文章", icon: FileText, children: "article-tags" }, // features/articles（一整张纸，标签嵌在此入口下）
       { key: "diary", label: "日记", icon: PenLine, children: "diary-tags" }, // features/diary（一整张纸，标签频道嵌在此入口下，D-044）
       { key: "whiteboard", label: "白板", icon: Presentation, children: "whiteboard-tags" }, // features/whiteboards（画廊，标签嵌在此入口下，D-047）
     ],

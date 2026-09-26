@@ -1,28 +1,19 @@
 /**
- * 文章页视图 · 月刊形态（A3 定稿，mockups/articles/plan-a3-journal.html）：
- * 按月分段（sticky 月头）+ 段首 featured 双列大卡 + 无限滚动（触底预加载）+
- * 标签过滤 pills（横向滚动 + 右缘渐隐 + 按名称搜索）；新建/导入在工具栏右上角，
- * 无页内搜索（全局 Ctrl K）与排序（按月归段即时间序，2026-09-19 裁决）。
+ * 文章页视图 · 月刊形态，一整张纸（mockups/articles/plan-sheet.html 方案 B 定稿）：
+ * 纸顶工具栏（标题 / 当前标签 + 摘要 + 标题搜索 + 导入 / 新建）→ 纸内按月分段
+ * （sticky 月头纸色实底）+ 描边竖卡网格 + 无限滚动（触底预加载）。无排序（按月归段即时间序）。
  *
- * 结构与 stats 同构（edge-fade 协议）：工具栏/标签栏在滚动区外 flex-none 固定，
- * 滚动区只装月段——月头 sticky top-0 实底、底缘渐透（edge fade 在标题下方）。
+ * 筛选：标签在侧栏「文章」入口的子项里（ArticlesNav，页面参数 id），页内不放标签 pills；
+ * 右上角搜索框按标题关键词筛选（停顿后下推到 getArticlePage，与标签叠加）。
  * 点击卡片/新建走页内导航到 article-detail 占位页（编辑器迁移后接正文编辑，
  * 见 DECISIONS.md D-015）；「窗口打开」菜单项保留 Electron 独立窗口能力。
  */
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { Plus, Search } from "lucide-react";
-import { usePage } from "@/page/PageProvider";
-import {
-  useEdgeFade,
-  Button,
-  IconButton,
-  ConfirmDialog,
-  Loading,
-  Spinner,
-  toast,
-  cn,
-} from "@tau/ui";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Import, Plus, Search, X } from "lucide-react";
+import { FadeScroll } from "@/components/FadeScroll";
+import { usePage, usePageParams } from "@/page/PageProvider";
+import { Button, ConfirmDialog, Input, Loading, Spinner, toast } from "@tau/ui";
 import useUploadResource from "@/hooks/useUploadResource";
 import useSettingStore from "@/stores/useSettingStore";
 import PresentationMode from "@/components/PresentationMode";
@@ -37,32 +28,30 @@ import { getFileBaseName, readTextFile, readBinaryFile, selectFile } from "@/com
 import { getMarkdown, downloadMarkdown, importFromMarkdown, getContentLength } from "@/utils";
 import type { Descendant } from "slate";
 import type { ArticlePageItem } from "@/types";
-import {
-  useArticleFeed,
-  useArticleTagCounts,
-  useArticleMutations,
-  bucketByMonths,
-} from "../queries";
+import { useArticleFeed, useArticleMutations, bucketByMonths } from "../queries";
 import { ArticleCard, formatWords, type ArticleCardProps } from "./ArticleCard";
 
 const LOAD_MORE_THRESHOLD = 700;
+/** 搜索框停顿多久再查询（逐字下推会每键一次 IPC） */
+const SEARCH_DEBOUNCE_MS = 250;
 
 export function ArticlesView() {
-  const [tag, setTag] = useState("");
-  const [tagQuery, setTagQuery] = useState("");
-  const feed = useArticleFeed(tag);
-  const { tags } = useArticleTagCounts();
+  const { navigator } = usePage();
+  const params = usePageParams<{ id?: string }>();
+  const tag = params.id ?? "";
+  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
+  useEffect(() => {
+    const timer = window.setTimeout(() => setQuery(search.trim()), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+  const feed = useArticleFeed(tag, query);
   const { toggleTop, remove, createDefault } = useArticleMutations();
   const uploadResource = useUploadResource();
   const databaseName = useSettingStore(state => state.setting.database.active);
-  const { navigator } = usePage();
 
-  /* 滚动容器：callback ref + 边缘渐隐。顶部渐隐关闭（top: false）——
-      滚动区内有 sticky 月头（实底遮挡），渐隐带（0-12px 半透 mask）与 sticky
-      实底头互斥：带头则月头被渐隐透出内容、头避开带则带内露出透明缝（均已被
-      实机反馈否决），故顶部靠月头 bg-page 实底遮挡，只保留底部渐隐 */
+  /* 滚动容器：无限滚动监听挂在 FadeScroll 的滚动元素上 */
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(scrollEl, { top: false });
 
   /* 浮层状态：删除确认 / 演示模式；busy=工具栏动作、deleting=删除确认进行中 */
   const [pendingDelete, setPendingDelete] = useState<ArticlePageItem | null>(null);
@@ -72,13 +61,6 @@ export function ArticlesView() {
 
   const tops = useMemo(() => feed.items.filter(item => item.isTop), [feed.items]);
   const months = useMemo(() => bucketByMonths(feed.items), [feed.items]);
-
-  /* 标签搜索：按名称过滤 pills（选中项始终保留，避免筛选态不可见） */
-  const visibleTags = useMemo(() => {
-    const q = tagQuery.trim().toLowerCase();
-    if (!q) return tags;
-    return tags.filter(({ tag: name }) => name.toLowerCase().includes(q) || name === tag);
-  }, [tags, tagQuery, tag]);
 
   const openDetail = useCallback(
     (article: ArticlePageItem) => {
@@ -212,119 +194,170 @@ export function ArticlesView() {
 
   if (feed.loading) return <Loading />;
 
+  const filtering = Boolean(tag || query);
+
   return (
-    <div className="@container mx-auto flex h-full max-w-[1720px] flex-col px-4 pb-4">
-      {/* 工具栏（滚动区外固定）：新建/导入在右上角 */}
-      <div className="flex h-[44px] flex-none items-center gap-3.5">
-        <h1 className="text-[19px] font-semibold tracking-[-0.01em]">文章</h1>
-        {feed.total > 0 && (
-          <span className="text-tau-sm text-ink-2 tabular-nums">
-            共 <b className="text-ink-1 font-semibold">{feed.total}</b> 篇 · 累计{" "}
-            <b className="text-ink-1 font-semibold">{formatWords(feed.totalWords)}</b>字
-          </span>
-        )}
-        <span className="flex-1" />
-        <IconButton title="导入 Markdown" disabled={busy} onClick={() => void handleImport()}>
-          <svg
-            className="size-[15px]"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.75}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 3v12" />
-            <path d="m7 10 5 5 5-5" />
-            <path d="M5 21h14" />
-          </svg>
-        </IconButton>
-        <Button
-          variant="primary"
-          size="sm"
-          icon={Plus}
-          disabled={busy}
-          onClick={() => void handleCreate()}
-        >
-          新建
-        </Button>
-      </div>
-
-      {/* 标签过滤：横向滚动 + 右缘渐隐 + 按名称搜索（滚动区外固定） */}
-      <TagFilterBar
-        tags={visibleTags}
-        total={tags.reduce((sum, t) => sum + t.count, 0)}
-        activeTag={tag}
-        query={tagQuery}
-        onQueryChange={setTagQuery}
-        onSelect={name => setTag(prev => (prev === name ? "" : name))}
-      />
-
-      {/* 滚动区：边缘渐隐（顶部渐隐带 12px 恰在 sticky 月头上方）；-mr/pr 借位让细滚动条落进右留白 */}
-      <div
-        ref={setScrollEl}
-        className="edge-fade-scroll -mr-[18px] mt-1 min-h-0 flex-1 overflow-y-auto pb-2 pr-[18px]"
-      >
-        {/* 置顶段 */}
-        {tops.length > 0 && (
-          <MonthSection label="置顶" count={tops.length} words={sumWords(tops)}>
-            {tops.map(article => (
-              <ArticleCard key={article.id} article={article} {...cardActions} />
-            ))}
-          </MonthSection>
-        )}
-
-        {/* 月分段（段内统一竖卡） */}
-        {months.map(month => (
-          <MonthSection
-            key={month.key}
-            label={`${month.month} 月`}
-            year={month.year}
-            count={month.items.length}
-            words={month.words}
-          >
-            {month.items.map(article => (
-              <ArticleCard key={article.id} article={article} {...cardActions} />
-            ))}
-          </MonthSection>
-        ))}
-
-        {/* 空态 */}
-        {feed.total === 0 && (
-          <div className="flex flex-col items-center gap-2 px-0 py-20 text-center">
-            <p className="text-ink-2 text-[15px] font-medium">还没有文章</p>
-            <p className="text-ink-3 text-[12.5px]">从一篇空白文章或本地 Markdown 开始</p>
-            <div className="mt-3 flex gap-2">
-              <Button variant="primary" size="sm" icon={Plus} onClick={() => void handleCreate()}>
-                新建文章
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={busy}
-                onClick={() => void handleImport()}
-              >
-                导入 Markdown
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* 无限滚动指示 */}
-        {feed.total > 0 && (
-          <div className="text-ink-3 mt-4 flex min-h-[56px] items-center justify-center gap-2.5 text-[12px]">
-            {feed.loadingMore ? (
+    <div className="@container mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-4 pb-4 pt-1">
+      {/* 一整张纸：工具栏固定在纸顶，月段在纸内滚动 */}
+      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+        {/* 工具栏：标题 / 当前标签 + 摘要 + 标题搜索 + 导入 / 新建 */}
+        <div className="mb-3 mt-5 flex h-10 flex-none items-center gap-3 px-8">
+          <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+            文章
+          </h1>
+          {tag && (
+            <button
+              type="button"
+              title="清除标签筛选"
+              onClick={() => navigator.push("articles", { id: "" })}
+              className="bg-selected text-accent-text inline-flex h-6 max-w-[180px] shrink-0 items-center gap-1 rounded-full pl-2.5 pr-1.5 text-[12px] font-medium"
+            >
+              <span className="truncate">{tag}</span>
+              <X className="size-3 shrink-0" strokeWidth={2} />
+            </button>
+          )}
+          <span className="text-tau-meta text-ink-2 w-0 flex-1 truncate whitespace-nowrap tabular-nums">
+            {feed.total > 0 && (
               <>
-                <Spinner className="size-3.5" />
-                加载中…
+                {filtering ? "找到" : "共"} <b className="text-ink-1 font-semibold">{feed.total}</b>{" "}
+                篇 · 累计 <b className="text-ink-1 font-semibold">{formatWords(feed.totalWords)}</b>
+                字
               </>
-            ) : feed.hasMore ? (
-              "向下滚动加载更早的月份"
-            ) : (
-              <span className="tabular-nums">已全部加载 · {feed.total} 篇</span>
             )}
-          </div>
-        )}
+          </span>
+          <Input
+            size="sm"
+            lead={Search}
+            clearable
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Escape" && search) {
+                e.stopPropagation();
+                setSearch("");
+              }
+            }}
+            placeholder="搜索文章标题"
+            // 输入框自身不贡献最小宽度，窄窗口下随标题栏收缩
+            className="w-0"
+            wrapperClassName="w-auto max-w-[240px] flex-[0_1_240px]"
+          />
+          {/* 导入：带文字的次要按钮（同 Skill 页「关联目录 + 添加」），不用裸图标——
+              下箭头落横线是通用的「下载 / 导出」语义，且裸图标夹在搜索框与主按钮之间分量不齐 */}
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={Import}
+            disabled={busy}
+            title="从本地 Markdown 文件导入"
+            className="shrink-0 whitespace-nowrap"
+            onClick={() => void handleImport()}
+          >
+            导入
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            icon={Plus}
+            disabled={busy}
+            className="shrink-0 whitespace-nowrap"
+            onClick={() => void handleCreate()}
+          >
+            新建
+          </Button>
+        </div>
+
+        {/* 滚动区：FadeScroll（右侧 6px 透明边 + pr-[26px] = 左侧 pl-8），离纸底 16px；
+            pt-1 给首行卡片 hover 的 lift 阴影留出绘制空间 */}
+        <FadeScroll
+          scrollRef={setScrollEl}
+          className="mb-4 min-h-0 flex-1 pb-2 pl-8 pr-[26px] pt-1"
+        >
+          {/* 置顶段 */}
+          {tops.length > 0 && (
+            <MonthSection label="置顶" count={tops.length} words={sumWords(tops)}>
+              {tops.map(article => (
+                <ArticleCard key={article.id} article={article} {...cardActions} />
+              ))}
+            </MonthSection>
+          )}
+
+          {/* 月分段（段内统一竖卡） */}
+          {months.map(month => (
+            <MonthSection
+              key={month.key}
+              label={`${month.month} 月`}
+              year={month.year}
+              count={month.items.length}
+              words={month.words}
+            >
+              {month.items.map(article => (
+                <ArticleCard key={article.id} article={article} {...cardActions} />
+              ))}
+            </MonthSection>
+          ))}
+
+          {/* 空态：筛选无结果 / 还没有文章 */}
+          {feed.total === 0 &&
+            (filtering ? (
+              <div className="flex flex-col items-center gap-2 px-0 py-20 text-center">
+                <p className="text-ink-2 text-[15px] font-medium">没有符合条件的文章</p>
+                <p className="text-ink-3 text-[12.5px]">
+                  {query ? `标题里没有「${query}」` : "这个标签下还没有文章"}
+                </p>
+                <Button
+                  className="mt-3"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    setSearch("");
+                    if (tag) navigator.push("articles", { id: "" });
+                  }}
+                >
+                  清除筛选
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2 px-0 py-20 text-center">
+                <p className="text-ink-2 text-[15px] font-medium">还没有文章</p>
+                <p className="text-ink-3 text-[12.5px]">从一篇空白文章或本地 Markdown 开始</p>
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={Plus}
+                    onClick={() => void handleCreate()}
+                  >
+                    新建文章
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={busy}
+                    onClick={() => void handleImport()}
+                  >
+                    导入 Markdown
+                  </Button>
+                </div>
+              </div>
+            ))}
+
+          {/* 无限滚动指示 */}
+          {feed.total > 0 && (
+            <div className="text-ink-3 mt-4 flex min-h-[56px] items-center justify-center gap-2.5 text-[12px]">
+              {feed.loadingMore ? (
+                <>
+                  <Spinner className="size-3.5" />
+                  加载中…
+                </>
+              ) : feed.hasMore ? (
+                "向下滚动加载更早的月份"
+              ) : (
+                <span className="tabular-nums">已全部加载 · {feed.total} 篇</span>
+              )}
+            </div>
+          )}
+        </FadeScroll>
       </div>
 
       {/* 删除确认 */}
@@ -363,113 +396,6 @@ export function ArticlesView() {
   );
 }
 
-/* ---------- 标签过滤栏：横向滚动 + 右缘渐隐 + 名称搜索 ---------- */
-
-function TagFilterBar({
-  tags,
-  total,
-  activeTag,
-  query,
-  onQueryChange,
-  onSelect,
-}: {
-  tags: { tag: string; count: number }[];
-  total: number;
-  activeTag: string;
-  query: string;
-  onQueryChange(q: string): void;
-  onSelect(name: string): void;
-}) {
-  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
-  const [canScrollRight, setCanScrollRight] = useState(false);
-
-  /* 右缘渐隐条件：还有未滚到的内容（初始测一次 + 滚动/尺寸变化重测） */
-  useLayoutEffect(() => {
-    const el = scrollEl;
-    if (!el) return;
-    const measure = () => setCanScrollRight(el.scrollWidth - el.scrollLeft - el.clientWidth > 8);
-    measure();
-    el.addEventListener("scroll", measure, { passive: true });
-    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
-    ro?.observe(el);
-    return () => {
-      el.removeEventListener("scroll", measure);
-      ro?.disconnect();
-    };
-  }, [scrollEl, tags]);
-
-  const fadeMask = canScrollRight
-    ? {
-        maskImage: "linear-gradient(90deg, #000 0%, #000 calc(100% - 28px), transparent 100%)",
-        WebkitMaskImage:
-          "linear-gradient(90deg, #000 0%, #000 calc(100% - 28px), transparent 100%)",
-      }
-    : undefined;
-
-  return (
-    <div className="flex h-[38px] flex-none items-center gap-2 pb-1.5">
-      <div
-        ref={setScrollEl}
-        className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto"
-        style={fadeMask}
-      >
-        <TagPill
-          label="全部"
-          count={total}
-          active={activeTag === ""}
-          onClick={() => onSelect("")}
-        />
-        {tags.map(({ tag: name, count }) => (
-          <TagPill
-            key={name}
-            label={name}
-            count={count}
-            active={activeTag === name}
-            onClick={() => onSelect(name)}
-          />
-        ))}
-      </div>
-      <label className="bg-surface shadow-card text-ink-3 flex h-6 w-[150px] shrink-0 items-center gap-1.5 rounded-full px-2.5">
-        <Search className="size-[13px] shrink-0" strokeWidth={1.75} />
-        <input
-          value={query}
-          onChange={e => onQueryChange(e.target.value)}
-          placeholder="搜索标签…"
-          className="text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-none text-[12px] outline-none"
-        />
-      </label>
-    </div>
-  );
-}
-
-function TagPill({
-  label,
-  count,
-  active,
-  onClick,
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  onClick(): void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "ease-tau-out shadow-card flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[12px] transition-[background,color] duration-150",
-        active
-          ? "bg-selected text-accent-text font-medium"
-          : "bg-surface text-ink-2 hover:text-ink-1"
-      )}
-    >
-      {label}
-      <span className={cn("text-[10.5px]", active ? "opacity-70" : "text-ink-3")}>{count}</span>
-    </button>
-  );
-}
-
 /* ---------- 月段容器 ---------- */
 
 function MonthSection({
@@ -487,10 +413,8 @@ function MonthSection({
 }) {
   return (
     <section className="mb-[26px]">
-      {/* sticky 月头：背景实底、底缘 13px 渐透——卡片向上滚过时在月头下缘淡出
-          （edge fade 位置在标题下方），上缘实底无缝（无透明区）。
-          mask 渐隐带与 sticky 实底头互斥，滚动容器的 useEdgeFade 仍关闭 top */}
-      <header className="sticky top-0 z-[2] flex items-baseline gap-3 bg-[linear-gradient(180deg,var(--tau-bg-page)_calc(100%_-_13px),transparent)] pb-[13px] pl-0.5 pt-0.5">
+      {/* sticky 月头：纸色实底、底缘 13px 渐透——卡片向上滚过时在月头下缘淡出 */}
+      <header className="sticky top-0 z-[2] flex items-baseline gap-3 bg-[linear-gradient(180deg,var(--tau-bg-surface)_calc(100%_-_13px),transparent)] pb-[13px] pl-0.5 pt-0.5">
         <span className="text-[16px] font-semibold tracking-[-0.01em]">
           {label}
           {year !== undefined && (

@@ -39,9 +39,10 @@ export async function getAllArticles(): Promise<IArticle[]> {
 export async function getArticlePage(
   offset: number,
   limit: number,
-  tag?: string
+  tag?: string,
+  query?: string
 ): Promise<{ items: ArticlePageItem[]; total: number; totalWords: number }> {
-  return articleCommands.listPage.call(offset, limit, tag);
+  return articleCommands.listPage.call(offset, limit, tag, query);
 }
 
 export async function getArticleTagCounts(): Promise<ArticleTagCount[]> {

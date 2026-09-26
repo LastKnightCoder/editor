@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="cream">
+<head>
+<meta charset="utf-8" />
+<title>文章页 · 一整张纸 · 卡片方案对比</title>
+<link rel="stylesheet" href="../chat/shared.css?v=3" />
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<style>
+  .win { width: 1320px; }
+
+  /* ── 侧栏：文章入口下的标签子项（限高滚动） ── */
+  .tagbox { margin: 2px 0 6px 22px; padding-left: 8px; }
+  .tag-filter {
+    display: flex; align-items: center; gap: 6px; height: 26px; margin: 0 0 4px;
+    padding: 0 8px; border-radius: var(--r-sm); border: 1px solid var(--line-1);
+    background: var(--surface); color: var(--ink-3); font-size: 12px;
+  }
+  .tag-filter svg.lucide { width: 12px; height: 12px; flex: none; }
+  .tag-filter input { border: 0; outline: 0; background: transparent; font: inherit; color: var(--ink-1); min-width: 0; flex: 1; }
+  .tag-scroll {
+    max-height: 236px; overflow: hidden auto;
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 var(--ft, 0px), #000 calc(100% - var(--fb, 12px)), transparent 100%);
+            mask-image: linear-gradient(180deg, transparent 0, #000 var(--ft, 0px), #000 calc(100% - var(--fb, 12px)), transparent 100%);
+  }
+  .tag-scroll::-webkit-scrollbar { width: 3px; }
+  .sb-subitem .hash { color: var(--ink-3); width: 12px; text-align: center; flex: none; }
+  .sb-subitem.on .hash { color: var(--accent-text); }
+  .tag-foot { font-size: 11px; color: var(--ink-3); padding: 4px 8px 0; }
+
+  /* ── 纸 ── */
+  .paper { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .ph { flex: none; padding: 20px 32px 12px; display: flex; align-items: center; gap: 12px; }
+  .ph h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .ph .sum { color: var(--ink-2); font-size: 12.5px; flex: 1; }
+  .ph .sum b { color: var(--ink-1); font-weight: 600; }
+  .ph .chip-tag { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 6px 0 9px; border-radius: 999px; background: var(--selected); color: var(--accent-text); font-size: 12px; font-weight: 500; }
+  .ph .chip-tag svg.lucide { width: 12px; height: 12px; }
+  .scroll { flex: 1; min-height: 0; overflow: auto; margin-bottom: 16px; padding: 0 26px 8px 32px; border-right: 6px solid transparent;
+    -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 12px), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 12px), transparent); }
+  .month { margin-bottom: 30px; }
+  .mh { position: sticky; top: 0; z-index: 2; display: flex; align-items: baseline; gap: 10px; padding: 4px 0 12px;
+    background: linear-gradient(180deg, var(--surface) calc(100% - 12px), transparent); }
+  .mh b { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+  .mh small { color: var(--ink-3); font-size: 12px; font-weight: 400; margin-left: 2px; }
+  .mh span { color: var(--ink-3); font-size: 11.5px; }
+
+  /* 封面（三方案共用） */
+  .cover { position: relative; aspect-ratio: 13 / 8; overflow: hidden; background-size: cover; }
+  .cover .q { position: absolute; inset: 0; display: flex; align-items: flex-end; padding: 26px 15px 13px; }
+  .cover .q::before { content: "“"; position: absolute; left: 10px; top: 2px; font: 700 34px/1 Georgia, serif; color: rgba(255, 248, 239, 0.6); }
+  .cover .q p { margin: 0; font-size: 12.5px; line-height: 1.7; color: rgba(67, 57, 44, 0.82); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .cover .img { position: absolute; inset: 0; transition: transform 400ms var(--ease); }
+  .star { position: absolute; left: 10px; top: 10px; width: 22px; height: 22px; border-radius: 8px; background: var(--surface-hover); display: grid; place-items: center; color: var(--accent); z-index: 1; }
+  .star svg.lucide { width: 13px; height: 13px; fill: var(--accent); }
+  .ttl { color: var(--ink-1); font-weight: 600; letter-spacing: -0.005em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; transition: color var(--fast); }
+  .exc { color: var(--ink-2); display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+  .meta { color: var(--ink-3); font-size: 11px; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .meta i { width: 2.5px; height: 2.5px; border-radius: 50%; background: var(--ink-3); opacity: 0.6; }
+  .tg { background: var(--hover); color: var(--ink-2); border-radius: 5px; padding: 0 7px; font-size: 11px; line-height: 18px; }
+
+  /* ── A · 无框画册：封面即卡片形状，文字直接落在纸上 ── */
+  .plan-a .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(236px, 1fr)); gap: 26px 20px; }
+  .plan-a .it { cursor: pointer; }
+  .plan-a .cover { border-radius: 12px; box-shadow: inset 0 0 0 1px rgba(67, 57, 44, 0.06); transition: box-shadow 200ms var(--ease), transform 200ms var(--ease); }
+  .plan-a .it:hover .cover { box-shadow: var(--shadow-lift); }
+  .plan-a .it:hover .img { transform: scale(1.03); }
+  .plan-a .it:hover .ttl { color: var(--accent-text); }
+  .plan-a .ttl { margin-top: 11px; font-size: 14.5px; line-height: 1.45; }
+  .plan-a .exc { margin-top: 4px; font-size: 12.5px; line-height: 1.6; -webkit-line-clamp: 1; }
+  .plan-a .meta { margin-top: 7px; }
+
+  /* ── B · 描边卡：现有竖卡换细描边 ── */
+  .plan-b .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .plan-b .it { border: 1px solid var(--line-1); border-radius: var(--r-md); overflow: hidden; cursor: pointer; display: flex; flex-direction: column; transition: box-shadow 200ms var(--ease), border-color 200ms var(--ease); }
+  .plan-b .it:hover { box-shadow: var(--shadow-lift); border-color: transparent; }
+  .plan-b .body { padding: 12px 14px 11px; display: flex; flex-direction: column; flex: 1; }
+  .plan-b .ttl { font-size: 14.5px; line-height: 1.45; }
+  .plan-b .exc { margin-top: 5px; font-size: 12.5px; line-height: 1.65; -webkit-line-clamp: 2; }
+  .plan-b .tags { margin-top: 9px; display: flex; gap: 5px; flex-wrap: wrap; }
+  .plan-b .meta { margin-top: auto; padding-top: 9px; }
+  .plan-b .meta .tg { display: none; }
+
+  /* ── C · 行列表：左文右图，细线分隔 ── */
+  .plan-c .grid { max-width: 920px; }
+  .plan-c .it { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 22px; padding: 16px 8px; border-radius: 12px; cursor: pointer; transition: background var(--fast); position: relative; }
+  .plan-c .it + .it::before { content: ""; position: absolute; left: 8px; right: 8px; top: 0; height: 1px; background: var(--line-2); }
+  .plan-c .it:hover { background: var(--hover); }
+  .plan-c .it:hover::before, .plan-c .it:hover + .it::before { opacity: 0; }
+  .plan-c .ttl { font-size: 16px; line-height: 1.45; -webkit-line-clamp: 1; }
+  .plan-c .exc { margin-top: 5px; font-size: 13px; line-height: 1.7; -webkit-line-clamp: 2; }
+  .plan-c .meta { margin-top: 9px; }
+  .plan-c .cover { border-radius: 10px; align-self: center; }
+  .plan-c .cover .q { padding: 10px; }
+  .plan-c .cover .q::before, .plan-c .cover .q p { display: none; }
+  .plan-c .star { display: none; } /* 行列表不在缩略图上叠星标：置顶段本身已说明 */
+
+  .win:not(.plan-a) .only-a, .win:not(.plan-b) .only-b, .win:not(.plan-c) .only-c { display: none; }
+</style>
+</head>
+<body>
+<div class="mock-bar">
+  <b>文章页 · 一整张纸</b>
+  <span>卡片方案：</span>
+  <a href="#a" data-plan="a">A 无框画册</a>
+  <a href="#b" data-plan="b" class="on">B 描边卡（定稿）</a>
+  <a href="#c" data-plan="c">C 行列表</a>
+  <span class="sp"></span>
+  <span>侧栏标签：</span>
+  <select id="tagCount">
+    <option value="34" selected>34 个标签</option>
+    <option value="8">8 个标签</option>
+  </select>
+  <select id="theme"><option value="cream">浅色</option><option value="cocoa">深色</option></select>
+</div>
+
+<div class="stage">
+  <div class="win plan-a" id="win">
+    <aside class="sb">
+      <div class="sb-head"><span class="sb-logo">T</span><span>Tau</span></div>
+      <div class="sb-scroll">
+        <div class="sb-group">
+          <div class="sb-gt">工作台</div>
+          <div class="sb-item"><i data-lucide="flame"></i><span>今日</span></div>
+          <div class="sb-item"><i data-lucide="calendar"></i><span>日程</span></div>
+          <div class="sb-item"><i data-lucide="list-todo"></i><span>待办</span></div>
+        </div>
+        <div class="sb-group">
+          <div class="sb-gt">知识</div>
+          <div class="sb-item"><i data-lucide="layers"></i><span>卡片库</span></div>
+          <div class="sb-item on"><i data-lucide="file-text"></i><span>文章</span></div>
+          <div class="tagbox">
+            <div class="tag-scroll" id="tagScroll"></div>
+            <div class="tag-foot" id="tagFoot"></div>
+          </div>
+          <div class="sb-item"><i data-lucide="pen-line"></i><span>日记</span></div>
+          <div class="sb-item"><i data-lucide="presentation"></i><span>白板</span></div>
+        </div>
+        <div class="sb-group">
+          <div class="sb-gt">学习</div>
+          <div class="sb-item"><i data-lucide="folder-kanban"></i><span>项目</span></div>
+          <div class="sb-item"><i data-lucide="repeat"></i><span>闪卡复习</span></div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="col">
+      <div class="tb" style="height:var(--titlebar-h)"></div>
+      <div class="main">
+        <section class="paper">
+          <div class="ph">
+            <h1>文章</h1>
+            <span class="chip-tag" id="activeChip" style="display:none"><span id="activeName"></span><i data-lucide="x"></i></span>
+            <span class="sum">共 <b>128</b> 篇 · 累计 <b>41.6 万</b>字</span>
+            <label class="tag-filter" style="width:220px;height:30px;margin:0"><i data-lucide="search"></i><input placeholder="搜索文章标题" id="titleQ" /></label>
+            <button class="ib" title="导入 Markdown"><i data-lucide="download"></i></button>
+            <button class="btn primary"><i data-lucide="plus"></i>新建</button>
+          </div>
+          <div class="scroll" id="feed"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mock-note">
+  <h3>怎么看这几版</h3>
+  <ul>
+    <li><b>A 无框画册</b>：纸上已经是一层“纸”，卡片不再套框和底色，封面圆角本身就是卡片轮廓，标题摘要直接写在纸上。悬停：封面浮起 + 图片微放大 + 标题变强调色。<span class="pro">最干净、封面最突出</span>；<span class="con">没有封面图的文章靠派生色渐变撑场面</span>。</li>
+    <li><b>B 描边卡</b>：现有竖卡，阴影换细描边（同 Skill / 项目页）。<span class="pro">最稳、和其他页一致</span>；<span class="con">一屏几十个框，格子感重</span>。</li>
+    <li><b>C 行列表</b>：一行一篇，左文右图，细线分隔。<span class="pro">信息密度高、摘要能看两行、适合按标题找文章</span>；<span class="con">封面变小，月刊的“画面感”弱</span>。</li>
+    <li><b>侧栏标签</b>：按文章数排序；最多显示约 8 行，超出在框内滚动（上下渐隐）；不放筛选框。点一下只看该标签，再点回到全部；纸顶标题旁显示当前标签，可点 × 清除。</li>
+    <li><b>定稿（2026-09-26）</b>：卡片用 B 描边卡；找文章走纸顶右上角的「搜索文章标题」（与标签筛选叠加）。</li>
+  </ul>
+</div>
+
+<script>
+const G = [
+  "linear-gradient(140deg, #e8c4a8, #d9885f)", "linear-gradient(140deg, #ccd8c2, #96ab8a)",
+  "linear-gradient(140deg, #c8d2dd, #92a5b8)", "linear-gradient(140deg, #e2cf9f, #c0a05e)",
+  "linear-gradient(140deg, #e5c9c4, #c98d84)", "linear-gradient(140deg, #cfc8ba, #a39682)",
+  "linear-gradient(140deg, #eccaa2, #d89a5e)", "linear-gradient(140deg, #d3dcc6, #a3b58e)",
+  "linear-gradient(140deg, #cfe0dc, #9dbbb4)", "linear-gradient(140deg, #ddd4e0, #b3a3c4)",
+  "linear-gradient(140deg, #eed3c2, #dd9a86)", "linear-gradient(140deg, #ddd8a5, #b3a860)",
+];
+/* 模拟照片封面（层叠径向渐变，离线可看） */
+const PHOTO = [
+  "radial-gradient(120% 80% at 70% 20%, #f6d9a8 0, transparent 55%), radial-gradient(90% 70% at 20% 90%, #3d5a6c 0, transparent 60%), linear-gradient(160deg, #8fa9b5, #2c3e4a)",
+  "radial-gradient(80% 60% at 30% 30%, #fbe3c4 0, transparent 60%), radial-gradient(100% 80% at 80% 100%, #6b4a3a 0, transparent 60%), linear-gradient(150deg, #d9a77e, #5a3b2c)",
+  "radial-gradient(100% 70% at 50% 0%, #e9f1ec 0, transparent 55%), radial-gradient(90% 80% at 10% 100%, #4d6b4f 0, transparent 60%), linear-gradient(170deg, #a7c1a4, #33452f)",
+];
+const months = [
+  { key: "top", label: "置顶", items: [
+    { id: 3, t: "从零实现一个 Slate 编辑器的协同层", e: "CRDT、Operational Transform 和 Yjs 在富文本场景下的取舍，以及我们为什么最后选了 Yjs。", tags: ["编辑器", "协同"], d: "9-21", w: "8,420", top: 1, photo: 0 },
+    { id: 7, t: "读《置身事内》：地方政府与经济发展", e: "土地财政、招商引资和债务，三条主线串起中国经济的运行逻辑。", tags: ["读书"], d: "8-30", w: "5,160", top: 1 },
+  ]},
+  { key: "2026-09", label: "9 月", year: 2026, items: [
+    { id: 12, t: "CSS 容器查询实战：让组件自己决定布局", e: "@container 和 cqw 单位怎么用，以及和媒体查询混用时的坑。", tags: ["CSS", "前端"], d: "9-24", w: "3,210" },
+    { id: 13, t: "一次 Electron 内存泄漏排查记录", e: "从 heap snapshot 到定位到一个没解绑的 IPC 监听，完整过程。", tags: ["Electron"], d: "9-22", w: "4,580", photo: 1 },
+    { id: 14, t: "Rust 所有权", e: "", tags: ["Rust"], d: "9-18", w: "1,020" },
+    { id: 15, t: "周末去了趟莫干山", e: "山里的竹林、民宿和一场突如其来的雨。拍了很多照片，挑几张放在这里。", tags: ["生活"], d: "9-14", w: "1,860", photo: 2 },
+    { id: 16, t: "React 19 的 use() 与 Suspense 数据流", e: "use(promise) 让组件直接读异步数据，配合 Suspense 边界的心智模型。", tags: ["React", "前端"], d: "9-09", w: "2,940" },
+  ]},
+  { key: "2026-08", label: "8 月", year: 2026, items: [
+    { id: 21, t: "间隔重复算法 FSRS 读论文笔记", e: "为什么 FSRS 比 SM-2 更准：稳定性、难度与可提取性三参数模型。", tags: ["学习方法", "算法"], d: "8-27", w: "6,300" },
+    { id: 22, t: "期货入门：保证金与交割", e: "杠杆是怎么来的，实物交割与现金交割的区别。", tags: ["金融"], d: "8-19", w: "2,480" },
+    { id: 23, t: "给博客加上 RSS", e: "", tags: ["博客"], d: "8-11", w: "890" },
+  ]},
+];
+const tagsAll = ["前端","CSS","React","编辑器","读书","Rust","Electron","生活","金融","算法","学习方法","博客","协同","TypeScript","设计","摄影","旅行","Node.js","数据库","SQLite","性能","动画","SVG","Canvas","WebGL","Blender","心理学","写作","产品","效率工具","英语","历史","经济学","音乐"];
+const counts = tagsAll.map((_, i) => Math.max(1, Math.round(38 / (i * 0.55 + 1))));
+let active = "";
+
+function cover(a) {
+  const bg = a.photo !== undefined ? PHOTO[a.photo] : G[(a.id * 7 + 3) % 12];
+  return `<div class="cover">${a.top ? '<span class="star"><i data-lucide="star"></i></span>' : ""}
+    <div class="img" style="background-image:${bg}"></div>
+    ${a.photo === undefined && a.e ? `<div class="q"><p>${a.e}</p></div>` : ""}</div>`;
+}
+function item(a) {
+  const meta = `<div class="meta"><span>${a.d}</span><i></i><span>${a.w} 字</span>${a.tags.map(t => `<span class="tg">${t}</span>`).join("")}</div>`;
+  const plan = document.getElementById("win").className.match(/plan-(\w)/)[1];
+  if (plan === "b") return `<article class="it">${cover(a)}<div class="body"><div class="ttl">${a.t}</div>${a.e ? `<div class="exc">${a.e}</div>` : ""}<div class="tags">${a.tags.map(t => `<span class="tg">${t}</span>`).join("")}</div><div class="meta"><span>${a.d}</span><i></i><span>${a.w} 字</span></div></div></article>`;
+  if (plan === "c") return `<article class="it"><div><div class="ttl">${a.t}</div>${a.e ? `<div class="exc">${a.e}</div>` : ""}${meta}</div>${cover(a)}</article>`;
+  return `<article class="it">${cover(a)}<div class="ttl">${a.t}</div>${a.e ? `<div class="exc">${a.e}</div>` : ""}${meta}</article>`;
+}
+function renderFeed() {
+  document.getElementById("feed").innerHTML = months.map(m => {
+    const tq = document.getElementById("titleQ").value.trim().toLowerCase();
+    const items = m.items.filter(a => (!active || a.tags.includes(active)) && (!tq || a.t.toLowerCase().includes(tq)));
+    if (!items.length) return "";
+    return `<section class="month"><div class="mh"><b>${m.label}${m.year ? `<small>${m.year}</small>` : ""}</b><span>${items.length} 篇</span></div><div class="grid">${items.map(item).join("")}</div></section>`;
+  }).join("");
+  document.getElementById("activeChip").style.display = active ? "" : "none";
+  document.getElementById("activeName").textContent = active;
+  lucide.createIcons();
+}
+function renderTags() {
+  const n = +document.getElementById("tagCount").value;
+  const list = tagsAll.slice(0, n).map((t, i) => ({ t, c: counts[i] }));
+  document.getElementById("tagScroll").innerHTML = list.map(x =>
+    `<div class="sb-subitem${x.t === active ? " on" : ""}" data-tag="${x.t}"><span class="hash">#</span><span class="t">${x.t}</span><span class="meta">${x.c}</span></div>`).join("");
+  fade();
+}
+function fade() {
+  const el = document.getElementById("tagScroll");
+  el.style.setProperty("--ft", el.scrollTop > 2 ? "12px" : "0px");
+  el.style.setProperty("--fb", el.scrollHeight - el.scrollTop - el.clientHeight > 2 ? "12px" : "0px");
+}
+document.getElementById("tagScroll").addEventListener("scroll", fade);
+document.getElementById("tagScroll").addEventListener("click", e => {
+  const el = e.target.closest("[data-tag]"); if (!el) return;
+  active = active === el.dataset.tag ? "" : el.dataset.tag; renderTags(); renderFeed();
+});
+document.getElementById("activeChip").addEventListener("click", () => { active = ""; renderTags(); renderFeed(); });
+document.getElementById("titleQ").addEventListener("input", renderFeed);
+document.getElementById("tagCount").addEventListener("change", renderTags);
+document.getElementById("theme").addEventListener("change", e => document.documentElement.dataset.theme = e.target.value);
+function setPlan(p) {
+  const win = document.getElementById("win");
+  win.className = win.className.replace(/plan-\w/, "plan-" + p);
+  document.querySelectorAll("[data-plan]").forEach(a => a.classList.toggle("on", a.dataset.plan === p));
+  renderFeed();
+}
+document.querySelectorAll("[data-plan]").forEach(a => a.addEventListener("click", e => { e.preventDefault(); setPlan(a.dataset.plan); history.replaceState(null, "", "#" + a.dataset.plan); }));
+setPlan((location.hash || "#b").slice(1));
+renderTags();
+</script>
+</body>
+</html>
