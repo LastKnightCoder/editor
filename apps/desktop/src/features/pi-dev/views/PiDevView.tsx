@@ -222,6 +222,16 @@ export const PiDevView = () => {
           自动重试 {vm.retrying.attempt}/{vm.retrying.maxAttempts}…
         </div>
       )}
+      {vm?.lastError && (
+        <div className="rounded-tau-sm border-danger bg-accent-soft text-tau-sm text-danger border px-3 py-2">
+          模型返回错误：{vm.lastError}
+        </div>
+      )}
+      {vm &&
+        vm.status === "streaming" &&
+        !vm.transcript.some(item => item.kind === "assistant" && item.content.length > 0) && (
+          <div className="text-tau-xs text-ink-3">等待模型响应…</div>
+        )}
       {vm && (vm.queuedInput.steering.length > 0 || vm.queuedInput.followUp.length > 0) && (
         <div className="text-tau-xs text-ink-3">
           排队中：
