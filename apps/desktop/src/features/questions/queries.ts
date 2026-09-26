@@ -19,7 +19,6 @@ import {
   linkQuestionTargets,
   listQuestionSummaries,
   moveQuestionToGroup,
-  searchQuestionTargets,
   unlinkQuestionTarget,
   updateQuestion,
   updateQuestionStatus,
@@ -37,12 +36,7 @@ import { createProject } from "@/commands/project";
 import { createWhiteBoard } from "@/commands/white-board";
 import { DEFAULT_ARTICLE_CONTENT } from "@/constants";
 import { EProjectType } from "@/types/project";
-import type {
-  QuestionLinkTarget,
-  QuestionLinkTargetType,
-  QuestionStatus,
-  QuestionSummary,
-} from "@/types";
+import type { QuestionLinkTarget, QuestionStatus, QuestionSummary } from "@/types";
 
 const SNAPSHOT_KEY = ["questions", "snapshot"] as const;
 const SOURCE = "questions-page";
@@ -85,21 +79,6 @@ export function useQuestionDetail(questionId: number | null) {
     queryFn: () => getQuestionDetail(questionId!),
     enabled: questionId != null,
     staleTime: 30_000,
-    placeholderData: keepPreviousData,
-  });
-}
-
-export function useTargetCandidates(
-  questionId: number | null,
-  targetType: Exclude<QuestionLinkTargetType, "answer">,
-  keyword: string,
-  enabled: boolean
-) {
-  return useQuery({
-    queryKey: ["questions", "candidates", questionId, targetType, keyword],
-    queryFn: () => searchQuestionTargets({ questionId: questionId!, targetType, keyword }),
-    enabled: enabled && questionId != null,
-    staleTime: 10_000,
     placeholderData: keepPreviousData,
   });
 }

@@ -36,6 +36,7 @@ export * from "./audio-note-item";
 export * from "./audio-note-chat";
 export * from "./xiaoyuzhou";
 export * from "./question";
+export * from "./entity";
 export * from "./question-group";
 export * from "./content";
 export * from "./bilibili-cache";

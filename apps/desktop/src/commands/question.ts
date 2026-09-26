@@ -9,7 +9,6 @@ import type {
   QuestionLink,
   QuestionLinkTarget,
   QuestionSummary,
-  QuestionTargetCandidate,
 } from "@/types";
 import { Descendant } from "slate";
 import { emitQuestionMutation, QUESTION_MUTATION_ACTIONS } from "@/mcp/question/mutation";
@@ -360,13 +359,4 @@ export async function captureQuestion(
     });
   }
   return result;
-}
-
-export async function searchQuestionTargets(params: {
-  questionId: number;
-  targetType: Exclude<QuestionLinkTarget["targetType"], "answer">;
-  keyword?: string;
-  limit?: number;
-}): Promise<QuestionTargetCandidate[]> {
-  return invoke("question:search-targets", params);
 }

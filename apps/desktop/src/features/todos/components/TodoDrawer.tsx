@@ -1,6 +1,6 @@
 /**
  * 抽屉详情（B3：非模态 Drawer，恰好盖住右板；不压暗议程，Esc 经页面浮层仲裁逐层关闭）。
- * 内容：标题（即改即存）→ 项目 / 父任务路径 → 属性 → 打卡 → 子任务 → 关联笔记 → 描述 → 时间脚注。
+ * 内容：标题（即改即存）→ 项目 / 父任务路径 → 属性 → 打卡 → 子任务 → 关联材料 → 描述 → 时间脚注。
  */
 
 import { Fragment, useEffect, useState } from "react";
@@ -148,7 +148,7 @@ function TitleField({ entry, mutations }: { entry: TodoEntry; mutations: TodoMut
           e.currentTarget.blur();
         }
       }}
-      className="hover:bg-hover focus:bg-page field-sizing-content -mx-1 min-w-0 flex-1 resize-none rounded-[7px] bg-transparent px-1 text-[16px] font-semibold leading-[1.5] tracking-[-0.005em] outline-none"
+      className="field-sizing-content min-w-0 flex-1 resize-none bg-transparent text-[16px] font-semibold leading-[1.5] tracking-[-0.005em] outline-none"
     />
   );
 }
