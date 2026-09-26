@@ -1,5 +1,6 @@
 /* 滚动边缘渐隐（home-scroll 同款协议的通用类）：--edge-top-on/--edge-bottom-on
- * 由 useEdgeFade hook 按滚动状态写入（0/1），渐隐带尺寸可被容器覆写；
+ * 由 useEdgeFade hook 按滚动状态写入（0/1），未接 hook 时默认 0（不渐隐，而非两端常驻渐隐）；
+ * 渐隐带尺寸可被容器覆写；
  * mask 固定于 border-box 不随内容滚——渐变 mask Tailwind 无法表达，归本文件。
  * 不加 .app 前缀：Dialog 等浮层 Portal 到 body 级，不在 .app 子树内（D-011） */
 .edge-fade-scroll {
@@ -8,15 +9,15 @@
   -webkit-mask-image: linear-gradient(
     180deg,
     transparent 0,
-    #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 1)),
-    #000 calc(100% - var(--edge-fade-bottom-size) * var(--edge-bottom-on, 1)),
+    #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 0)),
+    #000 calc(100% - var(--edge-fade-bottom-size) * var(--edge-bottom-on, 0)),
     transparent 100%
   );
   mask-image: linear-gradient(
     180deg,
     transparent 0,
-    #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 1)),
-    #000 calc(100% - var(--edge-fade-bottom-size) * var(--edge-bottom-on, 1)),
+    #000 calc(var(--edge-fade-top-size) * var(--edge-top-on, 0)),
+    #000 calc(100% - var(--edge-fade-bottom-size) * var(--edge-bottom-on, 0)),
     transparent 100%
   );
 }

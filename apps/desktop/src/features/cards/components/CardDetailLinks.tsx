@@ -14,7 +14,7 @@ import { getInlineLinks } from "@/utils/card";
 import { getEditorText } from "@/utils/editor";
 import { cardCategoryName } from "@/constants/card";
 import { resultDisplay, useSearchContent } from "@/features/search/queries";
-import { Dialog, DialogBody } from "@tau/ui";
+import { Dialog, DialogBody, useEdgeFade } from "@tau/ui";
 import { CATEGORY_COLORS } from "../categoryColors";
 
 /** links ∪ 内联引用，去重并排除自身；返回 id 与「是否仅来自正文内联」 */
@@ -161,6 +161,8 @@ export function AddCardLinkDialog({
   onLink,
 }: AddCardLinkDialogProps) {
   const [query, setQuery] = useState("");
+  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
+  useEdgeFade(listEl);
   const debouncedQuery = useDebouncedValue(query, 250);
   const searching = debouncedQuery.trim().length > 0;
 
@@ -238,7 +240,10 @@ export function AddCardLinkDialog({
               <span className="text-ink-3 shrink-0 text-[11px]">搜索中…</span>
             )}
           </label>
-          <div className="edge-fade-scroll flex max-h-[46vh] flex-col gap-0.5 overflow-y-auto pr-0.5">
+          <div
+            ref={setListEl}
+            className="edge-fade-scroll flex max-h-[46vh] flex-col gap-0.5 overflow-y-auto pr-0.5"
+          >
             {candidates.error && (
               <p className="text-danger py-6 text-center text-[12.5px]">
                 搜索失败：{candidates.error}
