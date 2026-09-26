@@ -1,4 +1,5 @@
 import { cn } from "@tau/ui";
+import { FadeScroll } from "@/components/FadeScroll";
 import { formatTime } from "./useTranscriptSync";
 
 interface TranscriptSegment {
@@ -15,6 +16,8 @@ interface TranscriptPanelProps {
   onSegmentClick: (segment: TranscriptSegment) => void;
   /** 列表内层的宽度 / 留白（缺省为阅读区居中 760 列） */
   innerClassName?: string;
+  /** 滚动视口的附加类（如纸面内视口内缩：tau-sheet-scroll、渐隐尺寸） */
+  className?: string;
 }
 
 const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
@@ -24,6 +27,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   segmentRefsMap,
   onSegmentClick,
   innerClassName = "mx-auto max-w-[760px] px-6 pb-10 pt-2",
+  className,
 }) => {
   if (!segments || segments.length === 0) {
     return (
@@ -34,10 +38,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   }
 
   return (
-    <div
-      ref={containerRef as React.RefObject<HTMLDivElement | null>}
-      className="min-h-0 flex-1 overflow-y-auto"
-    >
+    <FadeScroll scrollRef={containerRef} className={cn("min-h-0 flex-1", className)}>
       <div className={cn("flex flex-col gap-px", innerClassName)}>
         {segments.map((segment, index) => (
           <div
@@ -71,7 +72,7 @@ const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
           </div>
         ))}
       </div>
-    </div>
+    </FadeScroll>
   );
 };
 
