@@ -14,6 +14,8 @@ import {
   SunMoon,
   MessageCircle,
   CircleHelp,
+  CalendarPlus,
+  ListPlus,
   Command,
   type LucideIcon,
 } from "lucide-react";
@@ -67,7 +69,13 @@ export interface PaletteCommand {
   keywords?: string;
   kind: "page" | "action";
   pageKey?: string;
-  action?: "cycle-theme" | "open-settings" | "capture-question" | "toggle-assist";
+  action?:
+    | "cycle-theme"
+    | "open-settings"
+    | "capture-question"
+    | "capture-todo"
+    | "capture-event"
+    | "toggle-assist";
 }
 
 let cached: PaletteCommand[] | null = null;
@@ -134,6 +142,24 @@ export function paletteCommands(): PaletteCommand[] {
       keywords: "question capture 问题 收集 疑问",
       kind: "action",
       action: "capture-question",
+    },
+    {
+      id: "action:capture-todo",
+      label: "添加待办",
+      section: "动作",
+      icon: ListPlus,
+      keywords: "todo task add 待办 任务 新建",
+      kind: "action",
+      action: "capture-todo",
+    },
+    {
+      id: "action:capture-event",
+      label: "添加日程",
+      section: "动作",
+      icon: CalendarPlus,
+      keywords: "event schedule calendar add 日程 日历 新建",
+      kind: "action",
+      action: "capture-event",
     },
   ];
   return cached;

@@ -9,9 +9,11 @@
  * 类型筛选（chips 单选/Ctrl+点击多选/Shift+←→、前缀「卡片:」追加、全角冒号、
  * 空输入退格删筛选、Esc 分层退场）与 IME 让位行为见 D-003。
  *
- * 输入即记录（D-043）：任何查询都附带一行「记为问题：…」，回车收集进问题页（#分组 指定分组）。
- * 像问题的输入（以问号结尾或带 #分组）该行置顶；否则放在末尾（↑ 从首项回绕即达），不抢搜索的回车。
- * 前缀「问题:」或命令「记一个问题」进入收集模式，列表只剩收集行。
+ * 输入即记录（D-043）：任何查询都附带「添加待办：…」「记为问题：…」两行（识别出日期 / 时刻时再加
+ * 「添加日程：…」），回车落库。日期时刻词表与日程 / 待办快速添加同源（utils/quickDateTime），
+ * #名称 分别匹配待办项目 / 日历 / 问题分组。
+ * 像问题的输入（以问号结尾或带 #分组）记录组置顶；否则放在末尾（↑ 从首项回绕即达），不抢搜索的回车。
+ * 前缀「待办:」「日程:」「问题:」或对应命令进入收集模式，列表只剩该收集行。
  */
 
 import {
@@ -24,7 +26,16 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
-import { Search, CornerDownLeft, CircleDashed, CircleHelp, X } from "lucide-react";
+import {
+  Search,
+  CornerDownLeft,
+  CircleDashed,
+  CircleHelp,
+  CalendarPlus,
+  ListPlus,
+  X,
+} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import { usePage, useOverlayDismiss } from "@/page/PageProvider";
 import { useSearchStore, type VisitRecord } from "./searchStore";
@@ -48,6 +59,14 @@ import { Spinner, toast } from "@tau/ui";
 import type { IndexType, SearchResult } from "@/types";
 import { captureQuestion } from "@/commands/question";
 import { looksLikeQuestion, parseCapture } from "@/features/questions/capture";
+import { describeQuickAdd, parseQuickAdd as parseTodoQuickAdd } from "@/features/todos/quickAdd";
+import { createTodoFromQuickAdd, useTodoGroups } from "@/features/todos/queries";
+import { dayWord } from "@/features/todos/model";
+import { parseQuickAdd as parseEventQuickAdd } from "@/features/schedule/quickAdd";
+import { getAllCalendars } from "@/commands/calendar";
+import useCalendarStore from "@/stores/useCalendarStore";
+import { formatTime } from "@/utils/calendar";
+import { extractDateTime } from "@/utils/quickDateTime";
 
 /* ---------- 前缀语法：追加语义，冒号兼容全角 ---------- */
 
@@ -62,8 +81,29 @@ const WORD_TO_SCOPE: Record<string, PaletteScope> = {
 const PREFIX_RE = new RegExp(
   `^(${TYPE_WORDS.join("|")})((?:[,、]\\s*(?:${TYPE_WORDS.join("|")}))*)[:：]\\s*(.*)$`
 );
-/** 收集模式前缀：「问题:」「记问题:」 */
-const CAPTURE_RE = /^记?问题[:：]\s*(.*)$/;
+/** 收集模式前缀：「问题:」「记问题:」「待办:」「任务:」「日程:」 */
+const CAPTURE_RE = /^(记?问题|待办|任务|日程)[:：]\s*(.*)$/;
+
+type CaptureKind = "question" | "todo" | "event";
+const CAPTURE_META: Record<CaptureKind, { chip: string; group: string; placeholder: string }> = {
+  question: {
+    chip: "记问题",
+    group: "记为问题",
+    placeholder: "学习时冒出的疑问… #分组 指定分组",
+  },
+  todo: {
+    chip: "待办",
+    group: "添加待办",
+    placeholder: "明天 17:00 交周报 #项目、每周一、四 周会、周末 洗车…",
+  },
+  event: {
+    chip: "日程",
+    group: "添加日程",
+    placeholder: "明天下午3点到5点 评审 #日历、下周六 爬山…",
+  },
+};
+const captureKindOf = (word: string): CaptureKind =>
+  word === "日程" ? "event" : word === "待办" || word === "任务" ? "todo" : "question";
 
 /* ---------- 面板行模型（分组渲染 + 扁平导航共用） ---------- */
 
@@ -118,7 +158,7 @@ export function SearchPalette() {
 
   const [query, setQuery] = useState("");
   const [scopes, setScopes] = useState<Set<PaletteScope>>(() => new Set());
-  const [capturing, setCapturing] = useState(false);
+  const [capture, setCapture] = useState<CaptureKind | null>(null);
   const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -134,6 +174,19 @@ export function SearchPalette() {
 
   const contentQuery = useSearchContent(debouncedQ, activeTypes);
   const commands = useMemo(() => matchCommands(paletteCommands(), lowerQ), [lowerQ]);
+
+  // 快速添加用：面板打开才拉（待办项目与待办页共享缓存；日历排除系统日历与归档）
+  const todoGroups = useTodoGroups(open);
+  const calendarsQuery = useQuery({
+    queryKey: ["search-palette", "calendars"],
+    queryFn: getAllCalendars,
+    enabled: open,
+    staleTime: 30_000,
+  });
+  const calendars = useMemo(
+    () => (calendarsQuery.data ?? []).filter(c => !c.isInSystemGroup && !c.archived),
+    [calendarsQuery.data]
+  );
 
   const setMode = useThemeStore(s => s.setMode);
   const resolvedTheme = useThemeStore(s => s.resolved);
@@ -158,12 +211,20 @@ export function SearchPalette() {
     } else if (action === "toggle-assist") {
       closeAnd(() => useShellStore.getState().toggleAssist());
     } else if (action === "capture-question") {
-      setCapturing(true);
-      setScopes(new Set());
-      setQuery("");
-      if (inputRef.current) inputRef.current.value = "";
-      inputRef.current?.focus();
+      enterCapture("question");
+    } else if (action === "capture-todo") {
+      enterCapture("todo");
+    } else if (action === "capture-event") {
+      enterCapture("event");
     }
+  };
+
+  const enterCapture = (kind: CaptureKind) => {
+    setCapture(kind);
+    setScopes(new Set());
+    setQuery("");
+    if (inputRef.current) inputRef.current.value = "";
+    inputRef.current?.focus();
   };
 
   const captureRow = (text: string): Row => {
@@ -192,6 +253,102 @@ export function SearchPalette() {
       },
     };
   };
+
+  const todoRow = (text: string): Row => {
+    const now = Date.now();
+    const parsed = text ? parseTodoQuickAdd(text, { now, groups: todoGroups }) : null;
+    const title = parsed?.title ?? "";
+    const groupId = parsed?.groupId ?? todoGroups[0]?.id;
+    const group = todoGroups.find(g => g.id === groupId);
+    return {
+      key: "capture:todo",
+      icon: ListPlus,
+      title: title ? `添加待办：${title}` : "输入待办，回车添加到待办页",
+      sub: parsed
+        ? `${describeQuickAdd(parsed, now)} · ${group ? `#${group.title}` : "还没有待办项目"}`
+        : "明天 17:00 / 下周三 / 每周一 / #项目",
+      tag: { label: "待办", cls: "bg-warn-soft text-warn" },
+      hint: !title,
+      run: () => {
+        if (!parsed || !title) return;
+        if (!group) {
+          toast.warning("先在待办页新建一个项目");
+          return;
+        }
+        closeAnd(() => {
+          createTodoFromQuickAdd(parsed, group.id)
+            .then(item =>
+              toast.success(`已添加「${item.title}」到 ${group.title}`, {
+                action: {
+                  label: "查看",
+                  onClick: () => navigator.push("todos", { id: String(group.id) }),
+                },
+              })
+            )
+            .catch(() => toast.error("添加待办失败"));
+        });
+      },
+    };
+  };
+
+  const eventRow = (text: string): Row => {
+    const now = Date.now();
+    const parsed = text ? parseEventQuickAdd(text, { baseDate: now, calendars }) : null;
+    const title = parsed?.title ?? "";
+    const calendar = parsed?.calendarId
+      ? calendars.find(c => c.id === parsed.calendarId)
+      : calendars[0];
+    const when = parsed
+      ? `${dayWord(parsed.date, now)} ${
+          parsed.startTime !== null
+            ? `${formatTime(parsed.startTime)}–${formatTime(parsed.endTime!)}`
+            : "全天"
+        }`
+      : "";
+    return {
+      key: "capture:event",
+      icon: CalendarPlus,
+      title: title ? `添加日程：${title}` : "输入日程，回车添加到日历",
+      sub: parsed
+        ? `${when} · ${calendar ? calendar.title : "还没有日历"}`
+        : "明天下午3点 / 周末 / 10月1日 / #日历",
+      tag: { label: "日程", cls: "bg-info-soft text-info" },
+      hint: !title,
+      run: () => {
+        if (!parsed || !title) return;
+        if (!calendar) {
+          toast.warning("先在日程页创建一个日历");
+          return;
+        }
+        const timed = parsed.startTime !== null;
+        closeAnd(() => {
+          useCalendarStore
+            .getState()
+            .createEvent({
+              title,
+              calendarId: calendar.id,
+              detailContentId: 0,
+              startDate: parsed.date,
+              endDate: timed ? parsed.date : null,
+              startTime: parsed.startTime,
+              endTime: parsed.endTime,
+              color: null,
+              allDay: !timed,
+            })
+            .then(() => {
+              const d = new Date(parsed.date);
+              toast.success(`已添加到 ${d.getMonth() + 1}月${d.getDate()}日 · ${calendar.title}`, {
+                action: { label: "查看", onClick: () => navigator.push("schedule") },
+              });
+            })
+            .catch(() => toast.error("添加日程失败"));
+        });
+      },
+    };
+  };
+
+  const captureRowOf = (kind: CaptureKind, text: string) =>
+    kind === "todo" ? todoRow(text) : kind === "event" ? eventRow(text) : captureRow(text);
 
   // 检索失败反馈（isError 翻真时触发一次；重试成功自动复位）
   useEffect(() => {
@@ -252,7 +409,9 @@ export function SearchPalette() {
   const groups = useMemo<Group[]>(() => {
     const out: Group[] = [];
 
-    if (capturing) return [{ label: "记为问题", rows: [captureRow(trimmedQ)] }];
+    if (capture) {
+      return [{ label: CAPTURE_META[capture].group, rows: [captureRowOf(capture, trimmedQ)] }];
+    }
 
     if (!trimmedQ && scopes.size === 0) {
       // 二级页（card-detail/article-detail 等）只存 key 无法回跳，存量持久化记录同此过滤
@@ -322,11 +481,19 @@ export function SearchPalette() {
       }
     }
 
-    // 输入即记录：像问题的输入置顶，否则垫底（不抢搜索结果的回车）
+    // 输入即记录：像问题的输入置顶，否则垫底（不抢搜索结果的回车）；识别出日期 / 时刻才给日程行
     if (scopes.size === 0) {
-      const capture = { label: "记录", rows: [captureRow(trimmedQ)] };
-      if (looksLikeQuestion(trimmedQ)) out.unshift(capture);
-      else out.push(capture);
+      const question = looksLikeQuestion(trimmedQ);
+      const questionRow = captureRow(trimmedQ);
+      const rows = [todoRow(trimmedQ)];
+      const { date, startTime } = extractDateTime(trimmedQ);
+      if (date !== null || startTime !== null) rows.push(eventRow(trimmedQ));
+      const record = {
+        label: "记录",
+        rows: question ? [questionRow, ...rows] : [...rows, questionRow],
+      };
+      if (question) out.unshift(record);
+      else out.push(record);
     }
 
     if (contentQuery.isFetching && !contentQuery.data?.length && wantContent) {
@@ -348,8 +515,10 @@ export function SearchPalette() {
   }, [
     trimmedQ,
     scopes,
-    capturing,
+    capture,
     commands,
+    todoGroups,
+    calendars,
     contentQuery.data,
     contentQuery.isFetching,
     visits,
@@ -384,7 +553,7 @@ export function SearchPalette() {
     }
     triggerRef.current?.focus();
     inputRef.current?.blur();
-    setCapturing(false);
+    setCapture(null);
   }, [open]);
 
   useEffect(() => {
@@ -405,12 +574,12 @@ export function SearchPalette() {
   const processInputValue = () => {
     const el = inputRef.current;
     if (!el) return;
-    const capture = el.value.match(CAPTURE_RE);
-    if (capture) {
-      setCapturing(true);
+    const captureMatch = el.value.match(CAPTURE_RE);
+    if (captureMatch) {
+      setCapture(captureKindOf(captureMatch[1]));
       setScopes(new Set());
-      setQuery(capture[1]);
-      el.value = capture[1];
+      setQuery(captureMatch[2]);
+      el.value = captureMatch[2];
       return;
     }
     const m = el.value.match(PREFIX_RE);
@@ -465,9 +634,9 @@ export function SearchPalette() {
         e.stopPropagation();
         setQuery("");
         if (inputRef.current) inputRef.current.value = "";
-      } else if (capturing) {
+      } else if (capture) {
         e.stopPropagation();
-        setCapturing(false);
+        setCapture(null);
       } else if (scopes.size) {
         e.stopPropagation();
         setScopes(new Set());
@@ -478,8 +647,8 @@ export function SearchPalette() {
     } else if (e.key === "ArrowRight" && e.shiftKey) {
       e.preventDefault();
       cycleScope(1);
-    } else if (e.key === "Backspace" && !query && capturing) {
-      setCapturing(false);
+    } else if (e.key === "Backspace" && !query && capture) {
+      setCapture(null);
     } else if (e.key === "Backspace" && !query && scopes.size) {
       // 空输入退格逐个删除筛选（Set 保序，删最近加入的）
       setScopes(prev => {
@@ -534,17 +703,17 @@ export function SearchPalette() {
           {/* 输入行：scope 徽章 + 输入框 + 清空 */}
           <div className="flex items-center gap-2.5 px-4 pb-2.5 pt-3.5">
             <Search size={17} strokeWidth={1.75} className="text-ink-3 flex-none" />
-            {capturing && (
+            {capture && (
               <button
                 type="button"
                 title="退出收集"
                 onClick={() => {
-                  setCapturing(false);
+                  setCapture(null);
                   inputRef.current?.focus();
                 }}
                 className="bg-accent-soft text-accent-text hover:bg-press text-tau-sm flex h-6 flex-none items-center gap-1.5 rounded-lg px-2.5 font-medium"
               >
-                记问题
+                {CAPTURE_META[capture].chip}
                 <X size={12} strokeWidth={2} />
               </button>
             )}
@@ -571,9 +740,9 @@ export function SearchPalette() {
               value={undefined}
               className="text-ink-1 placeholder:text-ink-3 min-w-0 flex-1 bg-transparent text-[15px] leading-relaxed outline-none"
               placeholder={
-                capturing
-                  ? "学习时冒出的疑问… #分组 指定分组"
-                  : "搜索内容，或输入「卡片:」限定类型、「问题:」记下一个问题…"
+                capture
+                  ? CAPTURE_META[capture].placeholder
+                  : "搜索内容，或「卡片:」限定类型，「待办:」「日程:」「问题:」快速记录…"
               }
               autoComplete="off"
               spellCheck={false}
@@ -583,14 +752,14 @@ export function SearchPalette() {
               onCompositionEnd={processInputValue}
               onKeyDown={onInputKeyDown}
             />
-            {(query || scopes.size > 0 || capturing) && (
+            {(query || scopes.size > 0 || capture) && (
               <button
                 type="button"
                 title="清空"
                 onClick={() => {
                   setQuery("");
                   setScopes(new Set());
-                  setCapturing(false);
+                  setCapture(null);
                   if (inputRef.current) inputRef.current.value = "";
                   inputRef.current?.focus();
                 }}
