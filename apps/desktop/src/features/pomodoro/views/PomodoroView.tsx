@@ -1,7 +1,7 @@
 /**
- * 番茄专注页 · 时间账本：工具栏（标题 + 今日摘要 + 区间分段 + 已归档 + 新建预设）→
- * 常驻控制条（空闲 = 预设快速开始；专注中 = 播放器）→ 账本大面板（左：日 × 时账本 + 时段分布 +
- * 预设图例，或「全部」概览；右：选中日明细）。账本窗口由标题旁的时间导航决定
+ * 番茄专注页 · 时间账本：一整张纸，纸顶固定工具栏（标题 + 今日摘要 + 已归档 + 新建预设）与
+ * 常驻控制条（空闲 = 预设快速开始；专注中 = 播放器），纸内左栏账本（日 × 时账本 + 时段分布 +
+ * 预设图例，或「全部」概览）+ 右栏选中日明细，细线分隔。账本窗口由标题旁的时间导航决定
  * （翻页、快捷范围含「全部」、任意起止）。
  *
  * 计时在主进程：页面只镜像会话（timerStore），离开页面计时照常，侧栏入口挂实时计时。
@@ -292,144 +292,154 @@ export function PomodoroView() {
     sessionDeletes.schedule(session.id, "已删除 1 条记录");
 
   return (
-    <div className="mx-auto flex h-full max-w-[1720px] flex-col px-[26px] pb-4">
-      <div className="flex h-[48px] flex-none items-center gap-3">
-        <h1 className="text-[19px] font-semibold tracking-[-0.01em]">番茄专注</h1>
-        <span className="text-ink-2 text-tau-meta tabular-nums">
-          今天 <b className="text-ink-1 font-semibold">{todaySessions.length}</b> 个
-          <span className="text-ink-3 mx-2">·</span>
-          <b className="text-ink-1 font-semibold">{formatDuration(sumFocus(todaySessions))}</b>
-          {streak > 0 && (
-            <>
-              <span className="text-ink-3 mx-2">·</span>连续{" "}
-              <b className="text-ink-1 font-semibold">
-                {streak >= WINDOW_DAYS ? `${WINDOW_DAYS}+` : streak}
-              </b>{" "}
-              天
-            </>
-          )}
-        </span>
-        <span className="flex-1" />
-        <Menu
-          align="end"
-          trigger={
-            <IconButton aria-label="已归档的预设" title="已归档的预设">
-              <Archive className="size-4" strokeWidth={1.75} />
-            </IconButton>
-          }
-        >
-          {archivedPresets.length === 0 ? (
-            <Menu.Item disabled>没有归档的预设</Menu.Item>
-          ) : (
-            archivedPresets.map(preset => (
-              <Menu.Submenu
-                key={preset.id}
-                label={preset.name}
-                icon={<PresetDot presetId={preset.id} />}
-              >
-                <Menu.Item
-                  icon={<ArchiveRestore className="size-[15px]" strokeWidth={1.75} />}
-                  onSelect={() =>
-                    void mutations
-                      .setArchived(preset.id, false)
-                      .then(() => toast.success(`已恢复「${preset.name}」`))
-                  }
-                >
-                  恢复
-                </Menu.Item>
-                <Menu.Separator />
-                <Menu.Item
-                  danger
-                  icon={<Trash2 className="size-[15px]" strokeWidth={1.75} />}
-                  onSelect={() =>
-                    presetDeletes.schedule(preset.id, `已删除「${preset.name}」，历史记录保留`)
-                  }
-                >
-                  删除
-                </Menu.Item>
-              </Menu.Submenu>
-            ))
-          )}
-        </Menu>
-        <Button
-          variant="primary"
-          size="sm"
-          icon={Plus}
-          onClick={e => setEditor({ preset: null, anchor: e.currentTarget })}
-        >
-          新建预设
-        </Button>
-      </div>
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-[1720px] flex-col px-[26px] pb-4 pt-1">
+      {/* 一整张纸：工具栏与控制条固定在纸顶，账本与明细在纸内各自滚动（同 Skill 页） */}
+      <div className="bg-surface shadow-card rounded-tau-lg flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="flex flex-none flex-col px-8 pt-5">
+          <div className="mb-3 flex h-10 flex-none items-center gap-3">
+            <h1 className="text-tau-title-lg shrink-0 whitespace-nowrap font-semibold tracking-[-0.01em]">
+              番茄专注
+            </h1>
+            <span className="text-ink-2 text-tau-meta w-0 flex-1 truncate whitespace-nowrap tabular-nums">
+              今天 <b className="text-ink-1 font-semibold">{todaySessions.length}</b> 个
+              <span className="text-ink-3 mx-2">·</span>
+              <b className="text-ink-1 font-semibold">{formatDuration(sumFocus(todaySessions))}</b>
+              {streak > 0 && (
+                <>
+                  <span className="text-ink-3 mx-2">·</span>连续{" "}
+                  <b className="text-ink-1 font-semibold">
+                    {streak >= WINDOW_DAYS ? `${WINDOW_DAYS}+` : streak}
+                  </b>{" "}
+                  天
+                </>
+              )}
+            </span>
+            <Menu
+              align="end"
+              trigger={
+                <IconButton aria-label="已归档的预设" title="已归档的预设">
+                  <Archive className="size-4" strokeWidth={1.75} />
+                </IconButton>
+              }
+            >
+              {archivedPresets.length === 0 ? (
+                <Menu.Item disabled>没有归档的预设</Menu.Item>
+              ) : (
+                archivedPresets.map(preset => (
+                  <Menu.Submenu
+                    key={preset.id}
+                    label={preset.name}
+                    icon={<PresetDot presetId={preset.id} />}
+                  >
+                    <Menu.Item
+                      icon={<ArchiveRestore className="size-[15px]" strokeWidth={1.75} />}
+                      onSelect={() =>
+                        void mutations
+                          .setArchived(preset.id, false)
+                          .then(() => toast.success(`已恢复「${preset.name}」`))
+                      }
+                    >
+                      恢复
+                    </Menu.Item>
+                    <Menu.Separator />
+                    <Menu.Item
+                      danger
+                      icon={<Trash2 className="size-[15px]" strokeWidth={1.75} />}
+                      onSelect={() =>
+                        presetDeletes.schedule(preset.id, `已删除「${preset.name}」，历史记录保留`)
+                      }
+                    >
+                      删除
+                    </Menu.Item>
+                  </Menu.Submenu>
+                ))
+              )}
+            </Menu>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Plus}
+              className="shrink-0 whitespace-nowrap"
+              onClick={e => setEditor({ preset: null, anchor: e.currentTarget })}
+            >
+              新建预设
+            </Button>
+          </div>
 
-      <ControlStrip
-        presets={activePresets}
-        session={live}
-        timing={timing}
-        presetName={liveName}
-        onCreate={anchor => setEditor({ preset: null, anchor })}
-        onEdit={(preset, anchor) => setEditor({ preset, anchor })}
-        onArchive={archivePreset}
-        onReorder={ids => void mutations.reorder(ids).catch(() => toast.error("排序失败"))}
-      />
-
-      <div className="bg-surface shadow-card mt-3.5 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_340px] overflow-hidden rounded-[18px]">
-        {ledger.kind === "days" ? (
-          <Ledger
-            window={dayWindow}
-            nav={rangeNav}
-            now={now}
-            days={windowDaysMap}
-            presetsById={presets.byId}
-            live={live}
-            selectedDay={selectedDay}
-            onSelectDay={setSelectedDay}
-            highlight={highlight}
-            onToggleHighlight={toggleHighlight}
-            onOpenSession={(session, anchor) => setPeek({ session, anchor })}
+          <ControlStrip
+            presets={activePresets}
+            session={live}
+            timing={timing}
+            presetName={liveName}
+            onCreate={anchor => setEditor({ preset: null, anchor })}
+            onEdit={(preset, anchor) => setEditor({ preset, anchor })}
+            onArchive={archivePreset}
+            onReorder={ids => void mutations.reorder(ids).catch(() => toast.error("排序失败"))}
           />
-        ) : (
-          <section className="flex min-h-0 flex-col pb-3 pl-5 pr-2 pt-4">
-            <LedgerHeader
-              title="时间账本"
+        </div>
+
+        <div className="mt-1 grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_340px]">
+          {ledger.kind === "days" ? (
+            <Ledger
+              window={dayWindow}
               nav={rangeNav}
-              summary={`${allVisible.length} 个 · ${Math.round(sumFocus(allVisible) / HOUR_MS)} 小时`}
+              now={now}
+              days={windowDaysMap}
+              presetsById={presets.byId}
+              live={live}
+              selectedDay={selectedDay}
+              onSelectDay={setSelectedDay}
+              highlight={highlight}
+              onToggleHighlight={toggleHighlight}
+              onOpenSession={(session, anchor) => setPeek({ session, anchor })}
             />
-            {all.loading ? (
-              <Loading />
-            ) : (
-              <AllOverview
+          ) : (
+            <section className="flex min-h-0 flex-col pb-4 pl-8 pr-2 pt-4">
+              <LedgerHeader
+                title="时间账本"
+                nav={rangeNav}
+                summary={`${allVisible.length} 个 · ${Math.round(sumFocus(allVisible) / HOUR_MS)} 小时`}
+              />
+              {all.loading ? (
+                <Loading />
+              ) : (
+                <AllOverview
+                  sessions={allVisible}
+                  now={minuteNow}
+                  presetsById={presets.byId}
+                  highlight={highlight}
+                  selectedDay={selectedDay}
+                  onJumpToDay={jumpToDay}
+                  onOpenWindow={openWindow}
+                />
+              )}
+              <PresetLegend
                 sessions={allVisible}
-                now={minuteNow}
                 presetsById={presets.byId}
                 highlight={highlight}
-                selectedDay={selectedDay}
-                onJumpToDay={jumpToDay}
-                onOpenWindow={openWindow}
+                onToggle={toggleHighlight}
+                hint="点格子跳到那天 · 点年份 / 月份看那段时间 · 点图例高亮"
               />
-            )}
-            <PresetLegend
-              sessions={allVisible}
+            </section>
+          )}
+          {/* 右栏：细线分隔，线离纸底留 16px 不贴圆角 */}
+          <div className="border-line-1 mb-4 grid min-h-0 grid-rows-[minmax(0,1fr)] border-l">
+            <DayDetail
+              dayStart={selectedDay}
+              now={now}
+              sessions={
+                (ledger.kind === "all" ? allDays : windowDaysMap).get(selectedDay) ??
+                recentDays.get(selectedDay) ??
+                []
+              }
               presetsById={presets.byId}
-              highlight={highlight}
-              onToggle={toggleHighlight}
-              hint="点格子跳到那天 · 点年份 / 月份看那段时间 · 点图例高亮"
+              live={selectedDay === today ? live : null}
+              liveTiming={selectedDay === today ? timing : null}
+              onEditFocus={(session, anchor) => setFocusEdit({ session, anchor })}
+              onDelete={deleteSession}
             />
-          </section>
-        )}
-        <DayDetail
-          dayStart={selectedDay}
-          now={now}
-          sessions={
-            (ledger.kind === "all" ? allDays : windowDaysMap).get(selectedDay) ??
-            recentDays.get(selectedDay) ??
-            []
-          }
-          presetsById={presets.byId}
-          live={selectedDay === today ? live : null}
-          liveTiming={selectedDay === today ? timing : null}
-          onEditFocus={(session, anchor) => setFocusEdit({ session, anchor })}
-          onDelete={deleteSession}
-        />
+          </div>
+        </div>
       </div>
 
       <PresetEditorPopover

@@ -6,7 +6,8 @@
 
 import { Fragment, useState } from "react";
 import { Clock, Trash2 } from "lucide-react";
-import { ContextMenu, Menu, cn, useEdgeFade } from "@tau/ui";
+import { ContextMenu, Menu, cn } from "@tau/ui";
+import { FadeScroll } from "@/components/FadeScroll";
 import type { PomodoroPreset, PomodoroSession } from "@/types";
 import {
   dayLabel,
@@ -42,9 +43,6 @@ export function DayDetail({
   onEditFocus(session: PomodoroSession, anchor: HTMLElement): void;
   onDelete(session: PomodoroSession): void;
 }) {
-  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
-  useEdgeFade(listEl);
-
   const total = sumFocus(sessions);
   const pauses = sessions.reduce((acc, s) => acc + s.pauseCount, 0);
   const first = sessions[sessions.length - 1];
@@ -56,7 +54,7 @@ export function DayDetail({
   const nameOf = (presetId: number) => presetsById.get(presetId)?.name ?? DELETED_PRESET_NAME;
 
   return (
-    <aside className="flex min-h-0 flex-col pb-3 pl-3 pr-3.5 pt-4">
+    <aside className="flex min-h-0 flex-col pb-4 pl-3 pr-5 pt-4">
       <div className="px-2.5">
         <h2 className="text-tau-title flex items-baseline gap-2 font-semibold">
           {label}
@@ -82,7 +80,8 @@ export function DayDetail({
         </p>
       </div>
 
-      <div ref={setListEl} className="edge-fade-scroll mt-2.5 min-h-0 flex-1 overflow-y-auto py-1">
+      {/* -mr-1.5：FadeScroll 右侧 6px 透明边吃进 aside 内边距，列表与标题右缘对齐 */}
+      <FadeScroll className="-mr-1.5 mt-2.5 min-h-0 flex-1 py-1">
         {live && liveTiming && (
           <div className="flex min-h-9 items-center gap-2.5 rounded-[9px] pl-2.5 pr-3">
             <span className="text-ink-2 text-tau-meta min-w-[11.5ch] flex-none whitespace-nowrap tabular-nums">
@@ -110,7 +109,7 @@ export function DayDetail({
             onDelete={onDelete}
           />
         ))}
-      </div>
+      </FadeScroll>
 
       {mix.length > 0 && (
         <div className="px-2.5 pt-3.5">

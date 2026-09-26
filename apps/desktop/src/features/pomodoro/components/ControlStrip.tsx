@@ -53,7 +53,7 @@ export function ControlStrip({
   onReorder(orderedIds: number[]): void;
 }) {
   return (
-    <div className="bg-surface shadow-card relative flex h-[76px] flex-none items-center gap-3.5 overflow-hidden rounded-[18px] pl-[22px] pr-4">
+    <div className="border-line-1 relative flex h-[76px] flex-none items-center gap-3.5 overflow-hidden rounded-[18px] border pl-[22px] pr-4">
       {session && timing ? (
         <Player key={session.startTime} session={session} timing={timing} presetName={presetName} />
       ) : (

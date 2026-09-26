@@ -9,7 +9,8 @@
 
 import { useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
-import { Popover, Tooltip, cn, useEdgeFade } from "@tau/ui";
+import { Popover, Tooltip, cn } from "@tau/ui";
+import { FadeScroll } from "@/components/FadeScroll";
 import type { PomodoroPreset, PomodoroSession } from "@/types";
 import {
   AXIS_FROM_HOUR,
@@ -68,7 +69,6 @@ export function Ledger({
 }) {
   const [rowsEl, setRowsEl] = useState<HTMLDivElement | null>(null);
   const [tall, setTall] = useState(false);
-  useEdgeFade(rowsEl);
 
   const today = startOfDay(now);
   const range = windowDays(win);
@@ -95,7 +95,7 @@ export function Ledger({
   const total = sumFocus(inRange);
 
   return (
-    <section className="flex min-h-0 flex-col pb-3 pl-5 pr-2 pt-4">
+    <section className="flex min-h-0 flex-col pb-4 pl-8 pr-2 pt-4">
       <LedgerHeader
         title="时间账本"
         nav={nav}
@@ -117,10 +117,11 @@ export function Ledger({
         </div>
       </div>
 
-      <div
-        ref={setRowsEl}
+      {/* FadeScroll 右侧 6px 透明边 + pr-1.5 = 刻度行的 pr-3，行与刻度对齐 */}
+      <FadeScroll
+        scrollRef={setRowsEl}
         className={cn(
-          "edge-fade-scroll flex min-h-0 flex-1 flex-col overflow-y-auto pr-3",
+          "flex min-h-0 flex-1 flex-col pr-1.5",
           highlight != null && "[&_[data-block]:not([data-hl])]:opacity-[0.18]"
         )}
       >
@@ -139,7 +140,7 @@ export function Ledger({
             onOpenSession={onOpenSession}
           />
         ))}
-      </div>
+      </FadeScroll>
 
       <Distribution sessions={inRange} range={range} total={total} />
 
